@@ -65,6 +65,9 @@ _META_LINE_PATTERNS = [
     re.compile(r"^TODO:\s*$"),                                # TODO: （空）
     re.compile(r"^我是\s.{0,60}模型"),                         # 模型签名
     re.compile(r"^_Exported on "),                            # 导出时间戳行
+    re.compile(r"^Turn:\d+～\d+$"),                           # Turn:1～16
+    re.compile(r"^Model:\s*.+$"),                             # Model: Claude Sonnet 4.5
+    re.compile(r"^-{3,}$"),                                   # 轮次间 --- 边界（新解析器遗留）
 ]
 
 
@@ -89,10 +92,12 @@ def _strip_ai_metadata(text: str) -> str:
 
 def _extract_todo_n(text: str) -> tuple[Optional[int], str]:
     """
-    从文本开头提取 TODO N（如 'TODO1 正文' 或 'TODO1\n正文'），
+    从文本开头提取轮次编号。支持两种前缀格式：
+      - 'Turn1' / 'Turn1\n正文'（Cursor 导出格式）
+      - 'TODO1' / 'TODO1\n正文'（旧式格式）
     返回 (编号, 去掉前缀后的正文)。未匹配时返回 (None, 原文)。
     """
-    m = re.match(r"^TODO(\d+)\s*", text, re.IGNORECASE)
+    m = re.match(r"^(?:Turn|TODO)(\d+)\s*", text, re.IGNORECASE)
     if m:
         return int(m.group(1)), text[m.end():].strip()
     return None, text
@@ -111,19 +116,27 @@ def _strip_leading_metadata(text: str) -> str:
     return "\n".join(lines[start:]).strip()
 
 
+_CURSOR_SPEAKER_SPLIT_RE = re.compile(
+    r"^(\*\*(?:User|Cursor|Copilot|AI|Assistant|Claude|GPT)\*\*)\s*$",
+    re.MULTILINE,
+)
+
+
 def _parse_cursor(content: str, filename_stem: str) -> Dialogue:
     """
     解析 Cursor 导出 Markdown 格式：
       # Title
       _Exported on ..._
-      ---
       **User**
-      <正文>
-      ---
+      <正文（可含任意数量 --- 水平线）>
       **Cursor**
       TODO N <正文>
       ...元数据...
-      ---
+      **User**
+      ...
+
+    说话人行（**User** / **Cursor** 等）是唯一可靠的结构锚点；
+    --- 仅视为正文内容，不参与切分。
     """
     # 提取标题：第一个 # 标题行
     title = filename_stem
@@ -133,27 +146,23 @@ def _parse_cursor(content: str, filename_stem: str) -> Dialogue:
             title = m.group(1).strip()
             break
 
-    # 按 \n---\n 切分块（兼容行首/行尾变体）
-    raw_blocks = re.split(r"\n\s*---\s*\n", content)
+    # 按说话人行切分；segments = [前置文本, speaker1, body1, speaker2, body2, ...]
+    segments = _CURSOR_SPEAKER_SPLIT_RE.split(content)
 
     turns: list[Turn] = []
     ai_seq = 0  # 用于无 TODO N 时自动编号
 
-    for block in raw_blocks:
-        block = block.strip()
-        if not block:
-            continue
+    i = 1  # 跳过前置文本（导出元数据等）
+    while i + 1 < len(segments):
+        speaker = segments[i].strip()
+        body    = segments[i + 1].strip()
+        i += 2
 
-        lines = block.splitlines()
-        first_line = lines[0].strip() if lines else ""
-
-        if _CURSOR_USER.match(first_line):
-            body = "\n".join(lines[1:]).strip()
+        if _CURSOR_USER.match(speaker):
             if body:
                 turns.append(Turn(role="user", todo_n=None, content=body))
 
-        elif _CURSOR_AI_NAMES.match(first_line):
-            body = "\n".join(lines[1:]).strip()
+        elif _CURSOR_AI_NAMES.match(speaker):
             body = _strip_ai_metadata(body)
             todo_n, body = _extract_todo_n(body)
             body = _strip_leading_metadata(body)
@@ -309,13 +318,18 @@ def _downgrade_headings(text: str) -> str:
     return "\n".join(result)
 
 
+# 每个轮次之间插入的隐藏隔断注释，作为机器解析的唯一可靠边界。
+# 不含可变内容，不会与正文冲突，Markdown 渲染时不可见。
+_DDM_TURN_SEP = "<!-- DDM:TURN_SEP:v1 -->"
+
+
 def render(dialogue: Dialogue) -> str:
     """将 Dialogue 对象渲染为 DDM 标准 Markdown 字符串。"""
     parts: list[str] = []
 
     parts.append(f"# {dialogue.title}")
     parts.append("")
-    parts.append("---")
+    parts.append(_DDM_TURN_SEP)
     parts.append("")
 
     for turn in dialogue.turns:
@@ -323,7 +337,7 @@ def render(dialogue: Dialogue) -> str:
             header = "## User"
         else:
             n = turn.todo_n if turn.todo_n is not None else "?"
-            header = f"## AI（TODO {n}）"
+            header = f"## AI（Turn {n}）"
 
         body = _downgrade_headings(turn.content.strip())
 
@@ -331,7 +345,7 @@ def render(dialogue: Dialogue) -> str:
         parts.append("")
         parts.append(body)
         parts.append("")
-        parts.append("---")
+        parts.append(_DDM_TURN_SEP)
         parts.append("")
 
     return "\n".join(parts).rstrip() + "\n"
@@ -390,35 +404,52 @@ def strip_embedded_docs(content: str) -> str:
 # ---------------------------------------------------------------------------
 
 _STANDARD_HEADER_RE = re.compile(
-    r"^## (?:User|AI（TODO \d+）)$", re.MULTILINE
+    r"^## (?:User|AI（Turn \d+）)$", re.MULTILINE
 )
 _OLD_STYLE_RE = re.compile(
-    r"^\*\*(?:User|AI（TODO \d+）)：\*\*", re.MULTILINE
+    r"^\*\*(?:User|AI（(?:Turn|TODO) \d+）)：\*\*", re.MULTILINE
 )
+_DDM_SEP_RE = re.compile(r"^<!-- DDM:TURN_SEP:v1 -->$", re.MULTILINE)
 
 
 def already_normalized(content: str) -> bool:
     """
-    粗判：若全文仅含标准 ## User / ## AI（TODO N）说话人标记，
-    且不含旧式 **User：** 标记，视为已归一化。
+    判断文件是否已归一化：
+    必须同时含有标准说话人标记和 DDM 隐藏隔断注释，且不含旧式标记。
     """
     has_standard = bool(_STANDARD_HEADER_RE.search(content))
+    has_sep      = bool(_DDM_SEP_RE.search(content))
     has_old_style = bool(_OLD_STYLE_RE.search(content))
-    return has_standard and not has_old_style
+    return has_standard and has_sep and not has_old_style
 
 
 # ---------------------------------------------------------------------------
 # CHAT_ID 提取
 # ---------------------------------------------------------------------------
 
-# CHAT_ID-<32位十六进制随机数>，出现在 TODO 1 AI 回复中
-_CHAT_ID_RE = re.compile(r"^CHAT_ID-([A-Fa-f0-9]{32})\s*$", re.MULTILINE)
+# CHAT_ID-<随机字符串>，出现在 TODO 1 AI 回复中；字符集为 base62（字母+数字）或十六进制
+_CHAT_ID_RE = re.compile(r"^CHAT_ID-([A-Za-z0-9]{16,64})\s*$", re.MULTILINE)
+
+# GitHub Copilot Thread URL：**Thread URL:** https://github.com/copilot/c/<uuid>
+_COPILOT_THREAD_RE = re.compile(
+    r"\*\*Thread URL:\*\*\s+https://github\.com/copilot/c/([0-9a-f-]{32,36})",
+    re.IGNORECASE,
+)
 
 
 def extract_chat_id(content: str) -> Optional[str]:
-    """从原始文件内容中提取第一个 CHAT_ID（对应 TODO 1 回复）。"""
+    """
+    从原始文件内容中提取唯一对话 ID，按优先级依次尝试：
+      1. CHAT_ID-xxx 行（Cursor 导出）
+      2. GitHub Copilot Thread URL 末尾 UUID
+    """
     m = _CHAT_ID_RE.search(content)
-    return m.group(1) if m else None
+    if m:
+        return m.group(1)
+    m = _COPILOT_THREAD_RE.search(content)
+    if m:
+        return m.group(1)
+    return None
 
 
 # ---------------------------------------------------------------------------
@@ -481,17 +512,20 @@ def output_path(source: Path) -> Path:
     return RAW_DIR / f"{source.stem}-normalized.md"
 
 
-def process_file(path: Path) -> None:
+def process_file(path: Path) -> Optional[Path]:
+    """
+    处理单个文件，返回生成的归一化文件路径；跳过时返回 None。
+    """
     raw_content = path.read_text(encoding="utf-8")
 
     if already_normalized(raw_content):
         print(f"  ✅ 已是标准格式，跳过：{path.name}")
-        return
+        return None
 
     out = output_path(path)
     if out.exists():
-        print(f"  ⏭  输出已存在，跳过：{out.name}")
-        return
+        out.unlink()
+        print(f"  🗑  已删除旧版本：{out.name}")
 
     # 在剥离元数据前提取 CHAT_ID
     chat_id = extract_chat_id(raw_content)
@@ -503,7 +537,7 @@ def process_file(path: Path) -> None:
     except NotImplementedError as e:
         print(f"  ⚠️  {e}")
         print(f"     文件：{path.name}")
-        return
+        return None
 
     normalized = render(dialogue)
     out.write_text(normalized, encoding="utf-8")
@@ -514,6 +548,77 @@ def process_file(path: Path) -> None:
         print(f"  🗂  index 已更新：{chat_id} → {out.name}")
     else:
         print(f"  ⚠️  未找到 CHAT_ID，跳过 index 更新")
+
+    return out
+
+
+# ---------------------------------------------------------------------------
+# 确认、清理与提交
+# ---------------------------------------------------------------------------
+
+def _confirm(prompt: str) -> bool:
+    """向用户提问，返回 True 表示确认（y/Y/yes）。"""
+    try:
+        ans = input(prompt).strip().lower()
+    except (EOFError, KeyboardInterrupt):
+        print()
+        return False
+    return ans in ("y", "yes")
+
+
+def _git(*args: str) -> int:
+    """运行 git 子命令，实时输出，返回退出码。"""
+    import subprocess
+    result = subprocess.run(["git", *args], cwd=ARCHIVE_ROOT)
+    return result.returncode
+
+
+def commit_and_push(processed: list[tuple[Path, Path]]) -> None:
+    """
+    确认归一化结果后：
+      1. 删除原始文件
+      2. git add 归一化文件 + index.json
+      3. git commit
+      4. git push
+    processed: [(原始路径, 归一化路径), ...]
+    """
+    if not processed:
+        return
+
+    print("\n─── 以下文件已归一化 ───")
+    for src, out in processed:
+        print(f"  原始：{src.name}")
+        print(f"  归一：{out.name}")
+
+    if not _confirm("\n确认无误，删除原始文件并提交？[y/N] "):
+        print("已取消，原始文件保留。")
+        return
+
+    # 删除原始文件
+    for src, _ in processed:
+        src.unlink()
+        print(f"  🗑  已删除：{src.name}")
+
+    # git add
+    add_targets = [str(out.relative_to(ARCHIVE_ROOT)) for _, out in processed]
+    add_targets.append(str(INDEX_PATH.relative_to(ARCHIVE_ROOT)))
+    if _git("add", *add_targets) != 0:
+        print("⚠️  git add 失败，请手动处理。", file=sys.stderr)
+        return
+
+    # git commit
+    names = ", ".join(out.stem for _, out in processed)
+    msg = f"normalize: {names}"
+    if _git("commit", "-m", msg) != 0:
+        print("⚠️  git commit 失败，请手动处理。", file=sys.stderr)
+        return
+
+    # git push
+    if _git("push") != 0:
+        print("⚠️  git push 失败，请手动处理。", file=sys.stderr)
+        return
+
+    print("✅ 已提交并推送。")
 
 
 def main() -> None:
@@ -535,11 +640,15 @@ def main() -> None:
         print(f"  - {p.name}")
     print()
 
+    processed: list[tuple[Path, Path]] = []
     for path in candidates:
         print(f"处理：{path.name}")
-        process_file(path)
+        out = process_file(path)
+        if out is not None:
+            processed.append((path, out))
 
     print("\n完成。")
+    commit_and_push(processed)
 
 
 if __name__ == "__main__":
