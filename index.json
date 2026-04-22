@@ -1,4 +1,13 @@
 {
   "version": 1,
-  "entries": {}
+  "entries": {
+    "A7F3K9mNpQ2xRvLd8YcW5hJeZbTu1Xs": {
+      "raw": "cursor_objectivity_of_subjective_statem-normalized.md",
+      "distilled": null
+    },
+    "22a22bb5-4a04-47e3-b2a9-041fc830fab1": {
+      "raw": "understanding-binder-representation-layers-normalized.md",
+      "distilled": null
+    }
+  }
 }
