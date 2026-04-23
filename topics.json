@@ -1,0 +1,61 @@
+{
+  "version": 1,
+  "source": "learning-with-ai repo — 1st/2nd level content dirs",
+  "topics": {
+    "ai": [
+      "ai-agent",
+      "ai-cognition",
+      "ai-collaboration",
+      "generative-ai",
+      "llm"
+    ],
+    "ai-software-dev": [
+      "agentic-coding",
+      "coding-issues",
+      "harness-engineering",
+      "superpowers"
+    ],
+    "android-dev-docs": [
+      "android-systematic-engineering",
+      "application-architecture",
+      "basic-development",
+      "development-tools",
+      "framework-principles",
+      "high-availability",
+      "specialized-tech",
+      "system-principles",
+      "thirdparty-libs"
+    ],
+    "basic-theory": [
+      "os"
+    ],
+    "business-analysis": [],
+    "common-tech": [
+      "architecture",
+      "compiler",
+      "data-structures-and-algorithms",
+      "language",
+      "linux",
+      "network",
+      "tools"
+    ],
+    "personal-growth": [
+      "ai-learning",
+      "daily-thinking",
+      "thought-and-cognition"
+    ],
+    "project-experience": [
+      "ant",
+      "applovin"
+    ],
+    "server-dev-docs": [
+      "java",
+      "node-js"
+    ],
+    "social-sciences": [
+      "cognitive-science",
+      "management",
+      "psychology"
+    ]
+  }
+}
