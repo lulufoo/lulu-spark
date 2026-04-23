@@ -3,7 +3,8 @@
   "entries": {
     "a3f8c2d1e74b9056f2a1c3d8e90b4f17": {
       "raw": null,
-      "distilled": "common-tech/language/java-cas-optimistic-concurrency.md"
+      "distilled": "common-tech/language/java-cas-optimistic-concurrency.md",
+      "trace": "common-tech/language/java-cas-optimistic-concurrency-cognitive-trace.md"
     },
     "A7F3K9mNpQ2xRvLd8YcW5hJeZbTu1Xs": {
       "raw": "cursor_objectivity_of_subjective_statem-normalized.md",
