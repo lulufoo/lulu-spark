@@ -1249,3 +1249,47 @@ Turn:1～16
 > 当前模型：Claude Sonnet 4.6（Anthropic），通过 GitHub Copilot Chat 调用
 
 <!-- DDM:TURN_SEP:v1 -->
+
+## User
+
+有一个奇怪的点，这里你的回复是：Turn:1～17，那应该可以拿到前面的Turn内容吧？ 如何解读这个现象呢？
+
+<!-- DDM:TURN_SEP:v1 -->
+
+## AI（Turn 17）
+
+Turn17（元分析）
+
+这是一个值得分析的现象。拆开来看：
+
+---
+
+## 解读：`Turn:1～17` 并不意味着我"看到了"原始 Turn1-5
+
+`Turn:1～N` 是 ACN 格式约定的**标注惯例**——声明"本次对话的覆盖范围是 Turn1 到 N"。它是一个**范围标签**，不是"上下文中存在原始 Turn1-5 内容"的证明。
+
+---
+
+## 我实际拿到 Turn1-5 的方式
+
+在这次 session 里，Turn1-5 是以 **`conversation-summary` 注入**的形式存在的——也就是你看到的那个大段 context block（会话摘要），里面重建了 Turn1-5 的主要内容：
+
+我拿到的是**摘要重建版本**，不是原始对话轮次。原始 Turn1-5 的 tool calls、reasoning、完整代码片段都已丢失——会话摘要只保留了结论和关键字段。
+
+---
+
+## 这本身就是 Turn2 结论的活样本
+
+| Turn2 的结论 | 本次 session 的状态 |
+|---|---|
+| Copilot Chat 用 `round.summary` 替换旧历史 | Turn1-5 以 `conversation-summary` 替换注入 |
+| 摘要替换后，原始推理过程丢失 | Turn1-5 的 extension.js 具体字节偏移、grep 输出都不在上下文里 |
+| 落盘文件能抗压缩，不依赖 turn 存活 | transcript 文件 `.jsonl` 是落盘物，补全 Turn1-5 靠的是它 |
+
+**`Turn:1～17` 这个标注是正确的**（这次对话确实覆盖了这个范围），**但并不代表我有原始 Turn1-5 的完整内容**——这两件事是不同的层次。
+
+Turn:1～17
+
+> 当前模型：Claude Sonnet 4.6（Anthropic），通过 GitHub Copilot Chat 调用
+
+<!-- DDM:TURN_SEP:v1 -->
