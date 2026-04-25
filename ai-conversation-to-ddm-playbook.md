@@ -11,7 +11,14 @@
 
 按格式真源整理当前对话，得到 `<主题-slug>-normalized.md` 内容。
 
-### Step 2 · 更新 index.json
+### Step 2 · 确定 chat_id
+
+优先从对话上下文中提取（AI Turn 1 首行格式为 `CHAT_ID-<32位随机数>`）：
+
+- **能提取到** → 使用该值作为 `chat_id`
+- **提取不到** → 自动生成一个 UUID 作为 `chat_id`
+
+### Step 3 · 更新 index.json
 
 从以下路径读取当前 `index.json`（本地环境自动映射为本地文件，非本地环境直接 fetch）：
 
@@ -19,7 +26,7 @@
 https://github.com/lulufoo/cognitive-trace-archive/blob/main/index.json
 ```
 
-生成唯一 `chat_id`（UUID 格式），在 `entries` 中追加：
+在 `entries` 中追加：
 
 ```json
 "<chat_id>": {
