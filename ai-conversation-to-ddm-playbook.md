@@ -1,7 +1,7 @@
 # 从对话到 DDM 归一化：AI 执行手册
 
 > 输入：当前对话/用户提供的轮次。
-> 输出：DDM 归一化 `.md`；本地可执行时完成 git add → commit → push。
+> 输出：DDM 归一化 `.md`。
 
 ---
 
@@ -44,54 +44,40 @@ AI 第二轮。
 
 ---
 
-## 文件路径
+## 执行模式
 
-- **归档根**：`$COGNITIVE_TRACE_ARCHIVE_ROOT`（未设置时：`~/Code/cognitive-trace-archive`）
-- **落盘位置**：`{归档根}/raw/`
-- **文件名**：`主题-slug-normalized.md`（小写 a-b-c 风格）
+### 模式 A · 本地环境
+
+**判定条件**：`/Users/lulu/Code/cognitive-trace-archive/.git` 存在，且具备写文件与终端执行能力。
+
+**执行**：
+
+1. 按格式真源将对话写入：
+   ```
+   /Users/lulu/Code/cognitive-trace-archive/raw/<主题-slug>-normalized.md
+   ```
+2. 提交并推送：
+   ```bash
+   cd /Users/lulu/Code/cognitive-trace-archive
+   git add raw/<slug>-normalized.md
+   git commit -m "chore(archive): add DDM normalized <slug>"
+   git push
+   ```
+   commit 失败则停止并说明原因，不得 `--force`。
 
 ---
 
-## 执行步骤
+### 模式 B · 非本地环境（如 GitHub Copilot）
 
-按序执行以下三步，不得跳跃：
+**判定条件**：无法访问本地文件系统。
 
-### Step 1 · 生成归一化文档
-
-按「格式真源」将当前对话上下文整理为 DDM 归一化 `.md`，写入：
-
-```
-{归档根}/raw/<主题-slug>-normalized.md
-```
-
-### Step 2 · 检测本地环境
-
-文档落盘后，检测以下全部条件：
-
-| 条件 | 检测方式 |
-|------|----------|
-| 归档根存在且有 `.git` | `test -d ~/Code/cognitive-trace-archive/.git` |
-| 具备写文件与终端执行能力 | 上一步已成功落盘 |
-| 用户/任务已授权提交推送 | 当前对话中有明确指示 |
-
-- **全部满足** → 执行 Step 3
-- **任一不满足** → 输出文件内容与命令块，说明缺失条件，停止
-
-### Step 3 · git add → commit → push
-
-```bash
-cd "${COGNITIVE_TRACE_ARCHIVE_ROOT:-$HOME/Code/cognitive-trace-archive}"
-git add raw/<slug>-normalized.md
-git commit -m "chore(archive): add DDM normalized <slug>"
-git push
-```
-
-commit 失败则停止并说明原因，不得 `--force`。
+**执行**：直接在对话中输出完整 markdown 文件内容，用户自行保存。
 
 ---
 
 ## 检查清单
 
 - [ ] 格式与 few-shot 同构，无 `{{…}}` 占位符
-- [ ] 文件在 `raw/`，命名为 `a-b-c-normalized.md`
-- [ ] Step 2 检测通过：已 add/commit/push；或说明缺失条件
+- [ ] 文件名为 `a-b-c-normalized.md`
+- [ ] **模式 A**：已落盘 `raw/` 并 add/commit/push
+- [ ] **模式 B**：已在对话中完整输出 markdown
