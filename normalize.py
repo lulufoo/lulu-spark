@@ -7,11 +7,18 @@ DDM Normalize — 将 raw/ 目录下未格式化的对话文档转换为 DDM 标
 
 环境变量：
   COGNITIVE_TRACE_ARCHIVE_ROOT  覆盖默认归档根路径（默认 ~/Code/cognitive-trace-archive）
+  DDM_TEMPLATE_DIR              归一化输出模板所在目录（默认 归档根/templates）
+  DDM_TEMPLATE_FILE              单模板文件名（默认 ddm-normalized-output-template.md，a-b-c.md 与文内标题对应）
+
+成稿结构见该文件：第一节为人/AI 的格式区；第二节「Python 查看区」内两 fenced 块为 `render()` 所读（无则试旧版 `@@@` 行界），其余不参与替换。
+
+输入格式识别与解析器顺序见 _FORMAT_PARSERS；新增来源时在此追加 (detector, _parse_xxx)。
 """
 
 import json
 import os
 import re
+import secrets
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -26,6 +33,11 @@ ARCHIVE_ROOT = Path(
 )
 RAW_DIR    = ARCHIVE_ROOT / "raw"
 INDEX_PATH = ARCHIVE_ROOT / "index.json"
+TEMPLATES_DIR = Path(
+    os.environ.get("DDM_TEMPLATE_DIR", str(ARCHIVE_ROOT / "templates"))
+)
+# 人读 + 机读合一单文件，内含 @@@ 边界；见该文件头说明
+DDM_TEMPLATE_FILE = os.environ.get("DDM_TEMPLATE_FILE", "ddm-normalized-output-template.md")
 
 # ---------------------------------------------------------------------------
 # 数据模型
@@ -265,33 +277,88 @@ def _parse_copilot(content: str, filename_stem: str) -> Dialogue:
 
 
 # ---------------------------------------------------------------------------
-# 格式路由
+# 手工 / 转写：加粗说话人 + 全角/半角冒号（可同行起正文；可有 ## TurnN 小节）
 # ---------------------------------------------------------------------------
 
-# 各格式的特征检测函数与对应解析器
+# 行首：**User`：**` / `**AI`：**` 或 **AI…**`：`（含 **AI执行结果（Turn20）**`：` 等）
+_BOLD_USER_OR_AI_LINE = re.compile(
+    r"(?m)^(\*\*User\*\*|\*\*AI[^*]*\*\*)[：:]\s*",
+)
+
+
+def _parse_bold_colon_speaker(content: str, filename_stem: str) -> Dialogue:
+    """
+    解析 **User`：**` / `**AI`：**` 及 **AI…**`：` 行首标记的转写稿。
+    标记可与首段正文同列；`## TurnN` 仅作为正文中的标题保留。
+    """
+    matches = list(_BOLD_USER_OR_AI_LINE.finditer(content))
+    if not matches:
+        return Dialogue(title=filename_stem, turns=[])
+
+    title = filename_stem
+    for line in content[: matches[0].start()].splitlines():
+        m = re.match(r"^#\s+(.+)$", line)
+        if m:
+            title = m.group(1).strip()
+            break
+
+    turns: list[Turn] = []
+    ai_seq = 0
+    for i, m in enumerate(matches):
+        label = m.group(1)
+        is_user = label == "**User**"
+        start = m.end()
+        end = matches[i + 1].start() if i + 1 < len(matches) else len(content)
+        body = content[start:end].strip()
+        if is_user:
+            if body:
+                turns.append(Turn(role="user", todo_n=None, content=body))
+        else:
+            body = _strip_ai_metadata(body)
+            todo_n, body = _extract_todo_n(body)
+            body = _strip_leading_metadata(body)
+            if todo_n is None:
+                ai_seq += 1
+                todo_n = ai_seq
+            else:
+                ai_seq = todo_n
+            turns.append(Turn(role="ai", todo_n=todo_n, content=body))
+
+    return Dialogue(title=title, turns=turns)
+
+
+# ---------------------------------------------------------------------------
+# 格式路由：前者未命中时试后者；仅改「认不认得」时只调 lambda 里的正则
+# ---------------------------------------------------------------------------
+
 _FORMAT_PARSERS = [
+    # GitHub Copilot Chat 导出
     (
-        # GitHub Copilot Chat 导出：标题行含 "Copilot Chat Conversation Export:"
         lambda c: bool(re.search(r"^# Copilot Chat Conversation Export:", c, re.MULTILINE)),
         _parse_copilot,
     ),
+    # Cursor 等：说话人独占一行、行尾无冒号与同行正文
     (
-        # Cursor 导出：含 **User** 和 **Cursor**/**Copilot** 等加粗说话人
         lambda c: bool(re.search(r"^\*\*(?:User|Cursor|Copilot)\*\*\s*$", c, re.MULTILINE)),
         _parse_cursor,
     ),
-    # 可在此追加其他格式：(detector_fn, parser_fn)
+    # 转写稿：**User`：**` / `**AI`：**` 或 **AI…**`：`
+    (
+        lambda c: bool(
+            re.search(r"^(?:\*\*User\*\*|\*\*AI[^*]*\*\*)[：:]", c, re.MULTILINE)
+        ),
+        _parse_bold_colon_speaker,
+    ),
 ]
 
 
 def parse(content: str, filename_stem: str) -> Dialogue:
-    """根据内容特征自动选择解析器。"""
+    """按 _FORMAT_PARSERS 顺序匹配解析器。"""
     for detector, parser_fn in _FORMAT_PARSERS:
         if detector(content):
             return parser_fn(content, filename_stem)
     raise NotImplementedError(
-        f"未识别的输入格式（文件：{filename_stem}.md）。"
-        "请在 _FORMAT_PARSERS 中添加对应的格式检测与解析函数。"
+        f"未识别的输入格式（文件：{filename_stem}.md）。请在 _FORMAT_PARSERS 中增加 (detector, 解析函数)。"
     )
 
 
@@ -318,37 +385,107 @@ def _downgrade_headings(text: str) -> str:
     return "\n".join(result)
 
 
-# 每个轮次之间插入的隐藏隔断注释，作为机器解析的唯一可靠边界。
-# 不含可变内容，不会与正文冲突，Markdown 渲染时不可见。
+# 每个轮次之间插入的隐藏隔断注释，作为机器解析的唯一可靠边界（与模板中 {{TURN_SEP}} 一致）
 _DDM_TURN_SEP = "<!-- DDM:TURN_SEP:v1 -->"
+
+# 缺省模板（TEMPLATES_DIR 下缺文件时回退，与仓库内 MD 内容同步）
+_DEFAULT_TEMPLATE_DOCUMENT = """# {{TITLE}}
+
+{{TURN_SEP}}
+
+{{TURN_BLOCKS}}
+"""
+_DEFAULT_TEMPLATE_TURN = """## {{TURN_HEADER}}
+
+{{TURN_BODY}}
+
+{{TURN_SEP}}
+
+
+"""
+
+# 旧版单文件亦可能使用 @@@ 行界；优先读下方代码块
+_MARK_DOC_BEGIN = "@@@DDM_TEMPLATE_DOCUMENT"
+_MARK_DOC_END = "@@@END_DDM_TEMPLATE_DOCUMENT"
+_MARK_TURN_BEGIN = "@@@DDM_TEMPLATE_TURN"
+_MARK_TURN_END = "@@@END_DDM_TEMPLATE_TURN"
+_FENCE_DOC_LANG = "ddm-template-document"
+_FENCE_TURN_LANG = "ddm-template-turn"
+
+
+def _extract_fenced_block(full: str, lang: str) -> Optional[str]:
+    """提取 ```<lang> … ``` 的内层文本（不含围栏行）；lang 须与开 fence 第一行一致。"""
+    opening = f"```{lang}\n"
+    start = full.find(opening)
+    if start < 0:
+        return None
+    a = start + len(opening)
+    close = full.find("\n```", a)
+    if close < 0:
+        return None
+    return full[a:close].rstrip("\r")
+
+
+def _extract_between_markers(full: str, begin: str, end: str) -> Optional[str]:
+    """从单模板全文截取 begin、end 两行之间的文本（不含边界行）。兼容旧版 @@@。"""
+    i = full.find(begin)
+    if i < 0:
+        return None
+    i += len(begin)
+    if i < len(full) and full[i] == "\n":
+        i += 1
+    j = full.find(end, i)
+    if j < 0:
+        return None
+    return full[i:j].rstrip("\n").rstrip("\r")
+
+
+def _load_ddm_templates() -> tuple[str, str]:
+    """
+    从 templates/ddm-normalized-output-template.md 读取：
+      优先：ddm-template-document / ddm-template-turn 两个 fenced 代码块内正文；
+      否则：@@@…END 旧边界。均失败则回退内嵌默认串。
+    """
+    path = TEMPLATES_DIR / DDM_TEMPLATE_FILE
+    if not path.is_file():
+        return _DEFAULT_TEMPLATE_DOCUMENT, _DEFAULT_TEMPLATE_TURN
+    full = path.read_text(encoding="utf-8")
+    doc_t = _extract_fenced_block(full, _FENCE_DOC_LANG)
+    turn_t = _extract_fenced_block(full, _FENCE_TURN_LANG)
+    if doc_t is not None and turn_t is not None and doc_t.strip() and turn_t.strip():
+        return doc_t, turn_t
+    doc_t = _extract_between_markers(full, _MARK_DOC_BEGIN, _MARK_DOC_END)
+    turn_t = _extract_between_markers(full, _MARK_TURN_BEGIN, _MARK_TURN_END)
+    if doc_t is None or turn_t is None or not doc_t.strip() or not turn_t.strip():
+        return _DEFAULT_TEMPLATE_DOCUMENT, _DEFAULT_TEMPLATE_TURN
+    return doc_t, turn_t
 
 
 def render(dialogue: Dialogue) -> str:
-    """将 Dialogue 对象渲染为 DDM 标准 Markdown 字符串。"""
-    parts: list[str] = []
-
-    parts.append(f"# {dialogue.title}")
-    parts.append("")
-    parts.append(_DDM_TURN_SEP)
-    parts.append("")
-
+    """将 Dialogue 对象按模板渲染为 DDM 标准 Markdown 字符串。"""
+    doc_t, turn_t = _load_ddm_templates()
+    turn_sep = _DDM_TURN_SEP
+    blocks: list[str] = []
     for turn in dialogue.turns:
         if turn.role == "user":
-            header = "## User"
+            turn_header = "User"
         else:
             n = turn.todo_n if turn.todo_n is not None else "?"
-            header = f"## AI（Turn {n}）"
-
+            turn_header = f"AI（Turn {n}）"
         body = _downgrade_headings(turn.content.strip())
-
-        parts.append(header)
-        parts.append("")
-        parts.append(body)
-        parts.append("")
-        parts.append(_DDM_TURN_SEP)
-        parts.append("")
-
-    return "\n".join(parts).rstrip() + "\n"
+        block = (
+            turn_t.replace("{{TURN_HEADER}}", turn_header)
+            .replace("{{TURN_BODY}}", body)
+            .replace("{{TURN_SEP}}", turn_sep)
+        )
+        blocks.append(block)
+    turn_blocks = "".join(blocks)
+    out = (
+        doc_t.replace("{{TITLE}}", dialogue.title)
+        .replace("{{TURN_SEP}}", turn_sep)
+        .replace("{{TURN_BLOCKS}}", turn_blocks)
+    )
+    return out.rstrip() + "\n"
 
 
 # ---------------------------------------------------------------------------
@@ -452,6 +589,19 @@ def extract_chat_id(content: str) -> Optional[str]:
     return None
 
 
+def generate_chat_id() -> str:
+    """当原文无 CHAT_ID 时生成 32 位十六进制 id（`secrets.token_hex(16)`），用于 index 主键。"""
+    return secrets.token_hex(16)
+
+
+def find_chat_id_by_raw_filename(index: dict, raw_filename: str) -> Optional[str]:
+    """若 index 中已有该 raw 归一化文件名，返回其 chat_id，供重复归一化时复用 id。"""
+    for cid, entry in index.get("entries", {}).items():
+        if entry.get("raw") == raw_filename:
+            return cid
+    return None
+
+
 # ---------------------------------------------------------------------------
 # Index 管理
 # ---------------------------------------------------------------------------
@@ -527,8 +677,16 @@ def process_file(path: Path) -> Optional[Path]:
         out.unlink()
         print(f"  🗑  已删除旧版本：{out.name}")
 
-    # 在剥离元数据前提取 CHAT_ID
+    # 在剥离元数据前提取 CHAT_ID；无则先查 index 是否已有同 raw 文件名，再新分配 32 位 hex
     chat_id = extract_chat_id(raw_content)
+    if not chat_id:
+        prev = find_chat_id_by_raw_filename(load_index(), out.name)
+        if prev:
+            chat_id = prev
+            print(f"  🆔  原文无 CHAT_ID，沿用 index 已有 id：{chat_id}")
+        else:
+            chat_id = generate_chat_id()
+            print(f"  🆔  原文无 CHAT_ID，已生成 32 位 id：{chat_id}")
 
     content = strip_embedded_docs(raw_content)
 
@@ -543,11 +701,8 @@ def process_file(path: Path) -> Optional[Path]:
     out.write_text(normalized, encoding="utf-8")
     print(f"  📄 已格式化：{out.name}")
 
-    if chat_id:
-        index_set_raw(chat_id, out.name)
-        print(f"  🗂  index 已更新：{chat_id} → {out.name}")
-    else:
-        print(f"  ⚠️  未找到 CHAT_ID，跳过 index 更新")
+    index_set_raw(chat_id, out.name)
+    print(f"  🗂  index 已更新：{chat_id} → {out.name}")
 
     return out
 
