@@ -109,7 +109,8 @@
     },
     "a4364bda87070b619a2b4845418e0468": {
       "raw": "ai-solution-pre-diagnosis-model-design-2026-04-25-normalized.md",
-      "distilled": null
+      "distilled": "ai/ai-cognition/ai-solution-pre-diagnosis-model-design.md",
+      "trace": null
     }
   }
 }

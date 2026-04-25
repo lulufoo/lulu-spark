@@ -1,14 +1,18 @@
 #!/usr/bin/env python3
 """
-DDM Normalize — 将 raw/ 目录下未格式化的对话文档转换为 DDM 标准格式。
+DDM Normalize — 将 .cache/ 下未格式化的对话稿转为 DDM 标准，输出到 raw/。
 
-判断是否已格式化：文件名以 -normalized.md 结尾则跳过。
-输出：<原文件名>-normalized.md，写入同一 raw/ 目录。
+未归一化稿：放在归档根下 ``.cache/*.md``（可 gitignore，仅作本地/暂存入口）。
+已归一化：``raw/<同一 stem>-normalized.md``；同目录不混放未处理稿，便于后续按主题分子目录时再接。
+
+判断是否已处理：原稿文件名不以 ``-normalized.md`` 结尾；若全文已是 DDM 标准则脚本内提示跳过。
+若 ``raw/`` 下已存在同 stem 的 ``*-normalized.md``，会覆盖重写。
 
 环境变量：
   COGNITIVE_TRACE_ARCHIVE_ROOT  覆盖默认归档根路径（默认 ~/Code/cognitive-trace-archive）
-  DDM_TEMPLATE_DIR              归一化输出模板所在目录（默认 归档根/templates）
-  DDM_TEMPLATE_FILE              单模板文件名（默认 ddm-normalized-output-template.md，a-b-c.md 与文内标题对应）
+  COGNITIVE_TRACE_CACHE_DIR        未归一化稿目录（默认 归档根/.cache）
+  DDM_TEMPLATE_DIR                归一化输出模板所在目录（默认 归档根/templates）
+  DDM_TEMPLATE_FILE                单模板文件名（默认 ddm-normalized-output-template.md，a-b-c.md 与文内标题对应）
 
 成稿结构见该文件：第一节为人/AI 的格式区；第二节「Python 查看区」内两 fenced 块为 `render()` 所读（无则试旧版 `@@@` 行界），其余不参与替换。
 
@@ -31,6 +35,8 @@ from typing import Optional
 ARCHIVE_ROOT = Path(
     os.environ.get("COGNITIVE_TRACE_ARCHIVE_ROOT", Path.home() / "Code" / "cognitive-trace-archive")
 )
+# 未归一化稿入口；输出仍在 RAW_DIR
+CACHE_DIR  = Path(os.environ.get("COGNITIVE_TRACE_CACHE_DIR", str(ARCHIVE_ROOT / ".cache")))
 RAW_DIR    = ARCHIVE_ROOT / "raw"
 INDEX_PATH = ARCHIVE_ROOT / "index.json"
 TEMPLATES_DIR = Path(
@@ -731,28 +737,26 @@ def _git(*args: str) -> int:
 def commit_and_push(processed: list[tuple[Path, Path]]) -> None:
     """
     确认归一化结果后：
-      1. 删除原始文件
+      1. 删除 .cache/ 中原始未归一化文件
       2. git add 归一化文件 + index.json
       3. git commit
       4. git push
-    processed: [(原始路径, 归一化路径), ...]
+    processed: [(.cache/ 原始路径, raw/ 归一化路径), ...]
     """
     if not processed:
         return
 
     print("\n─── 以下文件已归一化 ───")
     for src, out in processed:
-        print(f"  原始：{src.name}")
-        print(f"  归一：{out.name}")
+        print(f"  暂存：{src} → raw：{out.name}")
 
-    if not _confirm("\n确认无误，删除原始文件并提交？[y/N] "):
-        print("已取消，原始文件保留。")
+    if not _confirm("\n确认无误，删除 .cache 中暂存原稿并提交 raw + index？[y/N] "):
+        print("已取消，.cache/ 中暂存原稿保留。")
         return
 
-    # 删除原始文件
     for src, _ in processed:
         src.unlink()
-        print(f"  🗑  已删除：{src.name}")
+        print(f"  🗑  已删暂存原稿：{src.name}（.cache/）")
 
     # git add
     add_targets = [str(out.relative_to(ARCHIVE_ROOT)) for _, out in processed]
@@ -777,20 +781,20 @@ def commit_and_push(processed: list[tuple[Path, Path]]) -> None:
 
 
 def main() -> None:
-    if not RAW_DIR.exists():
-        print(f"错误：raw 目录不存在：{RAW_DIR}", file=sys.stderr)
-        sys.exit(1)
+    CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    RAW_DIR.mkdir(parents=True, exist_ok=True)
 
     candidates = [
-        p for p in sorted(RAW_DIR.glob("*.md"))
+        p
+        for p in sorted(CACHE_DIR.glob("*.md"))
         if not p.name.endswith("-normalized.md")
     ]
 
     if not candidates:
-        print("raw/ 目录下没有未格式化的文件。")
+        print(f".cache/ 下没有未格式化的 .md 文件：{CACHE_DIR}")
         return
 
-    print(f"发现 {len(candidates)} 个待处理文件：")
+    print(f"从 .cache/ 发现 {len(candidates)} 个待处理文件：")
     for p in candidates:
         print(f"  - {p.name}")
     print()
