@@ -7,9 +7,7 @@
 
 ## 格式真源（few-shot 内联）
 
-成稿必须与下方示例同构；**不需要**读 `templates/` 中的模板文件。
-
-规则摘要：
+规则：
 - 首行 `# 总标题`，随后 `<!-- DDM:TURN_SEP:v1 -->`
 - 交替 `## User` / `## AI（Turn n）`，`n` 从 1 起仅 AI 轮次递增
 - 正文中**不出现** `{{…}}` 占位符
@@ -60,40 +58,15 @@ AI 第二轮。
 
 ### Step 1 · 生成归一化文档
 
-按「格式真源」将当前对话上下文整理为 DDM 归一化 `.md`，落盘路径：
+按「格式真源」将当前对话上下文整理为 DDM 归一化 `.md`，写入：
 
 ```
 {归档根}/raw/<主题-slug>-normalized.md
 ```
 
-**有 normalize.py**：先写 `raw/<slug>.md`（行首 `**User：**` / `**AI：**`），再运行：
-
-```bash
-cd "${COGNITIVE_TRACE_ARCHIVE_ROOT:-$HOME/Code/cognitive-trace-archive}"
-python3 normalize.py
-```
-
-**无脚本**：直接按格式真源写 `raw/<slug>-normalized.md`，再手动更新 `index.json`：
-
-```bash
-cd "${COGNITIVE_TRACE_ARCHIVE_ROOT:-$HOME/Code/cognitive-trace-archive}"
-python3 -c "
-from pathlib import Path
-import normalize
-p = Path('raw/<slug>-normalized.md')
-assert p.is_file(), p
-idx = normalize.load_index()
-cid = normalize.find_chat_id_by_raw_filename(idx, p.name) or normalize.generate_chat_id()
-normalize.index_set_raw(cid, p.name)
-print('index_set_raw', cid, '->', p.name)
-"
-```
-
----
-
 ### Step 2 · 检测本地环境
 
-文档生成后，**立即**检测以下全部条件是否满足：
+文档落盘后，检测以下全部条件：
 
 | 条件 | 检测方式 |
 |------|----------|
@@ -102,15 +75,13 @@ print('index_set_raw', cid, '->', p.name)
 | 用户/任务已授权提交推送 | 当前对话中有明确指示 |
 
 - **全部满足** → 执行 Step 3
-- **任一不满足** → 只输出文件内容与命令块，并说明缺失条件，停止
-
----
+- **任一不满足** → 输出文件内容与命令块，说明缺失条件，停止
 
 ### Step 3 · git add → commit → push
 
 ```bash
 cd "${COGNITIVE_TRACE_ARCHIVE_ROOT:-$HOME/Code/cognitive-trace-archive}"
-git add raw/<slug>-normalized.md index.json
+git add raw/<slug>-normalized.md
 git commit -m "chore(archive): add DDM normalized <slug>"
 git push
 ```
@@ -123,5 +94,4 @@ commit 失败则停止并说明原因，不得 `--force`。
 
 - [ ] 格式与 few-shot 同构，无 `{{…}}` 占位符
 - [ ] 文件在 `raw/`，命名为 `a-b-c-normalized.md`
-- [ ] `index.json` 已更新
 - [ ] Step 2 检测通过：已 add/commit/push；或说明缺失条件
