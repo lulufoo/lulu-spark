@@ -5,6 +5,31 @@
 
 ---
 
+## 执行流程
+
+### Step 1 · 生成归一化文档
+
+按格式真源整理当前对话，得到 `<主题-slug>-normalized.md` 内容。
+
+### Step 2 · 更新 index.json
+
+从以下路径读取当前 `index.json`（本地环境自动映射为本地文件，非本地环境直接 fetch）：
+
+```
+https://github.com/lulufoo/cognitive-trace-archive/blob/main/index.json
+```
+
+生成唯一 `chat_id`（UUID 格式），在 `entries` 中追加：
+
+```json
+"<chat_id>": {
+  "raw": "<slug>-normalized.md",
+  "distilled": null
+}
+```
+
+---
+
 ## 格式真源（few-shot 内联）
 
 规则：
@@ -41,32 +66,6 @@ AI 第二轮。
 
 <!-- DDM:TURN_SEP:v1 -->
 ```
-
----
-
-## 执行流程
-
-### Step 1 · 生成归一化文档
-
-按格式真源整理当前对话，得到 `<主题-slug>-normalized.md` 内容。
-
-### Step 2 · 更新 index.json
-
-从以下路径读取当前 `index.json`（本地环境自动映射为本地文件，非本地环境直接 fetch）：
-
-```
-https://github.com/lulufoo/cognitive-trace-archive/blob/main/index.json
-```
-
-生成唯一 `chat_id`（UUID 格式），在 `entries` 中追加：
-
-```json
-"<chat_id>": {
-  "raw": "<slug>-normalized.md",
-  "distilled": null
-}
-```
-
 ---
 
 ## 提交方式
