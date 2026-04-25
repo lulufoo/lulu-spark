@@ -44,7 +44,7 @@ AI 第二轮。
 
 ---
 
-## 通用流程（模式无关）
+## 执行流程
 
 ### Step 1 · 生成归一化文档
 
@@ -69,20 +69,16 @@ https://github.com/lulufoo/cognitive-trace-archive/blob/main/index.json
 
 ---
 
-## 执行模式
+## 提交方式
 
-### 模式 A · 本地环境
+两份文档（`<slug>-normalized.md` 和更新后的 `index.json`）生成完毕后，按运行环境选择提交方式：
+
+### 本地环境
 
 **判定**：`/Users/lulu/Code/cognitive-trace-archive/.git` 存在且具备写文件与终端执行能力。
 
-1. 将归一化文档写入：
-   ```
-   /Users/lulu/Code/cognitive-trace-archive/raw/<slug>-normalized.md
-   ```
-2. 将更新后的 `index.json` 写入：
-   ```
-   /Users/lulu/Code/cognitive-trace-archive/index.json
-   ```
+1. 写入 `/Users/lulu/Code/cognitive-trace-archive/raw/<slug>-normalized.md`
+2. 写入 `/Users/lulu/Code/cognitive-trace-archive/index.json`
 3. 提交并推送：
    ```bash
    cd /Users/lulu/Code/cognitive-trace-archive
@@ -94,7 +90,7 @@ https://github.com/lulufoo/cognitive-trace-archive/blob/main/index.json
 
 ---
 
-### 模式 B · 非本地环境（如 GitHub Copilot）
+### 非本地环境（如 GitHub Copilot）
 
 **判定**：无法访问本地文件系统。
 
@@ -114,5 +110,5 @@ https://github.com/lulufoo/cognitive-trace-archive/blob/main/index.json
 - [ ] 格式与 few-shot 同构，无 `{{…}}` 占位符
 - [ ] 文件名为 `a-b-c-normalized.md`
 - [ ] `index.json` 已追加新 `chat_id` 条目（含 `raw` 字段）
-- [ ] **模式 A**：已落盘 `raw/` 和 `index.json`，已 add/commit/push
-- [ ] **模式 B**：已在对话中输出两份文件内容，已发起 PR
+- [ ] **本地环境**：已落盘 `raw/` 和 `index.json`，已 add/commit/push
+- [ ] **非本地环境**：已在对话中输出两份文件内容，已发起 PR
