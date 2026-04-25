@@ -1,6 +1,12 @@
 {
   "version": 1,
   "entries": {
+    "a7f3e8d2c9b14f056e2a1d7c3890b5e4": {
+      "raw": "raw/ai-software-dev/agentic-coding/agentic-design-patterns/context-window-task-granularity-model-normalized.md",
+      "distilled": null,
+      "digest": null,
+      "quality": null
+    },
     "a3f8c2d1e74b9056f2a1c3d8e90b4f17": {
       "raw": null,
       "distilled": "common-tech/language/java-cas-optimistic-concurrency.md",
