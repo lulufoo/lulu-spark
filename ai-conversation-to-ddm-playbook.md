@@ -1,7 +1,7 @@
 # 从对话到 DDM 归一化：AI 执行手册
 
 > 输入：当前对话/用户提供的轮次。
-> 输出：DDM 归一化 `.md`。
+> 输出：DDM 归一化 `.md` + 更新后的 `index.json`。
 
 ---
 
@@ -44,22 +44,49 @@ AI 第二轮。
 
 ---
 
+## 通用流程（模式无关）
+
+### Step 1 · 生成归一化文档
+
+按格式真源整理当前对话，得到 `<主题-slug>-normalized.md` 内容。
+
+### Step 2 · 更新 index.json
+
+从以下路径读取当前 `index.json`（本地环境自动映射为本地文件，非本地环境直接 fetch）：
+
+```
+https://github.com/lulufoo/cognitive-trace-archive/blob/main/index.json
+```
+
+生成唯一 `chat_id`（UUID 格式），在 `entries` 中追加：
+
+```json
+"<chat_id>": {
+  "raw": "<slug>-normalized.md",
+  "distilled": null
+}
+```
+
+---
+
 ## 执行模式
 
 ### 模式 A · 本地环境
 
-**判定条件**：`/Users/lulu/Code/cognitive-trace-archive/.git` 存在，且具备写文件与终端执行能力。
+**判定**：`/Users/lulu/Code/cognitive-trace-archive/.git` 存在且具备写文件与终端执行能力。
 
-**执行**：
-
-1. 按格式真源将对话写入：
+1. 将归一化文档写入：
    ```
-   /Users/lulu/Code/cognitive-trace-archive/raw/<主题-slug>-normalized.md
+   /Users/lulu/Code/cognitive-trace-archive/raw/<slug>-normalized.md
    ```
-2. 提交并推送：
+2. 将更新后的 `index.json` 写入：
+   ```
+   /Users/lulu/Code/cognitive-trace-archive/index.json
+   ```
+3. 提交并推送：
    ```bash
    cd /Users/lulu/Code/cognitive-trace-archive
-   git add raw/<slug>-normalized.md
+   git add raw/<slug>-normalized.md index.json
    git commit -m "chore(archive): add DDM normalized <slug>"
    git push
    ```
@@ -69,9 +96,16 @@ AI 第二轮。
 
 ### 模式 B · 非本地环境（如 GitHub Copilot）
 
-**判定条件**：无法访问本地文件系统。
+**判定**：无法访问本地文件系统。
 
-**执行**：直接在对话中输出完整 markdown 文件内容，用户自行保存。
+1. 在对话中输出完整的归一化 markdown 文件内容
+2. 在对话中输出更新后的 `index.json` 完整内容
+3. 通过 GitHub API 发起 PR，变更两个文件：
+   - **新增**：`raw/<slug>-normalized.md`
+   - **更新**：`index.json`
+
+   PR 目标：`lulufoo/cognitive-trace-archive` → `main`
+   PR 标题：`chore(archive): add DDM normalized <slug>`
 
 ---
 
@@ -79,5 +113,6 @@ AI 第二轮。
 
 - [ ] 格式与 few-shot 同构，无 `{{…}}` 占位符
 - [ ] 文件名为 `a-b-c-normalized.md`
-- [ ] **模式 A**：已落盘 `raw/` 并 add/commit/push
-- [ ] **模式 B**：已在对话中完整输出 markdown
+- [ ] `index.json` 已追加新 `chat_id` 条目（含 `raw` 字段）
+- [ ] **模式 A**：已落盘 `raw/` 和 `index.json`，已 add/commit/push
+- [ ] **模式 B**：已在对话中输出两份文件内容，已发起 PR
