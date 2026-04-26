@@ -198,6 +198,12 @@
       "raw": null,
       "distilled": "domain-portrait-model-architecture-analysis-distilled.md",
       "digest": "domain-portrait-model-architecture-analysis-digest.md"
+    },
+    "a3f8c2d1e7b94f6a8c0d2e5f1b3a7c9d": {
+      "path_prefix": "ai-thinking-framework/product-insight-portrait-model",
+      "raw": "portrait-model-comparison-prompt-rule-classification-normalized.md",
+      "distilled": "portrait-model-comparison-prompt-rule-classification-distilled.md",
+      "digest": "portrait-model-comparison-prompt-rule-classification-digest.md"
     }
   }
 }
