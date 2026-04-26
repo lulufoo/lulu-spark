@@ -37,7 +37,9 @@ ARCHIVE_ROOT = Path(
 )
 # 未归一化稿入口；输出仍在 RAW_DIR
 CACHE_DIR  = Path(os.environ.get("COGNITIVE_TRACE_CACHE_DIR", str(ARCHIVE_ROOT / ".cache")))
-RAW_DIR    = ARCHIVE_ROOT / "raw"
+RAW_DIR     = ARCHIVE_ROOT / "raw"
+DISTILLED_DIR = ARCHIVE_ROOT / "distilled"
+DIGEST_DIR    = ARCHIVE_ROOT / "digest"
 INDEX_PATH = ARCHIVE_ROOT / "index.json"
 TEMPLATES_DIR = Path(
     os.environ.get("DDM_TEMPLATE_DIR", str(ARCHIVE_ROOT / "templates"))
@@ -600,10 +602,43 @@ def generate_chat_id() -> str:
     return secrets.token_hex(16)
 
 
-def find_chat_id_by_raw_filename(index: dict, raw_filename: str) -> Optional[str]:
-    """若 index 中已有该 raw 归一化文件名，返回其 chat_id，供重复归一化时复用 id。"""
+def _strip_bucket_prefix(field: str, value: str) -> str:
+    p = {
+        "raw": "raw/",
+        "distilled": "distilled/",
+        "digest": "digest/",
+        "trace": "cognitive-trace/",  # 若未使用此前缀，值保持原样
+    }.get(field, "")
+    if p and value.startswith(p):
+        return value[len(p) :]
+    if field == "trace" and value.startswith("trace/"):
+        return value[6:]
+    return value
+
+
+def entry_bucket_relpath(entry: dict, field: str) -> Optional[str]:
+    """
+    将 index 中某桶字段解析为**相对该桶根目录**的逻辑路径（POSIX，无开头 /）。
+    若存在 path_prefix 且该字段为不含「/」的短名，则与 path_prefix 拼接
+   （适用于 raw、distilled、digest 同目录的情形）。
+    """
+    v = entry.get(field)
+    if v is None:
+        return None
+    if not isinstance(v, str):
+        return None
+    v = _strip_bucket_prefix(field, v)
+    prefix = entry.get("path_prefix")
+    if prefix and field in ("raw", "distilled", "digest") and "/" not in v:
+        return f"{prefix}/{v}"
+    return v
+
+
+def find_chat_id_by_raw_filename(index: dict, raw_relposix: str) -> Optional[str]:
+    """在 index 中查找 raw 相对路径（相对 raw/ 根）与 raw_relposix 相等的 chat_id。"""
     for cid, entry in index.get("entries", {}).items():
-        if entry.get("raw") == raw_filename:
+        r = entry_bucket_relpath(entry, "raw")
+        if r == raw_relposix:
             return cid
     return None
 
@@ -612,18 +647,20 @@ def find_chat_id_by_raw_filename(index: dict, raw_filename: str) -> Optional[str
 # Index 管理
 # ---------------------------------------------------------------------------
 #
-# index.json 结构：
+# index.json 结构（version 2）：
 # {
-#   "version": 1,
+#   "version": 2,
 #   "entries": {
 #     "<chat_id>": {
-#       "raw":       "<normalized filename>",   # raw/ 目录下的文件名
-#       "distilled": "<distilled filename>"     # distilled/ 目录下的文件名，待填
+#       "raw":   "<relpath under raw/，不含「raw/」前缀>",
+#       "distilled" / "digest" / "trace": 同理，为各桶下相对路径，**不含** distilled/、digest/ 等前缀
+#       "path_prefix": 可选。若与 raw 同树且三者共享 <topic-path>/，可写 "a/b"，
+#         且 raw、distilled、digest 可只写各文件名，解析时与 path_prefix 拼接
 #     }
 #   }
 # }
 
-_INDEX_VERSION = 1
+_INDEX_VERSION = 2
 
 
 def load_index() -> dict:
@@ -641,11 +678,11 @@ def save_index(index: dict) -> None:
     )
 
 
-def index_set_raw(chat_id: str, raw_filename: str) -> None:
-    """将 chat_id → raw 文件名写入 index，保留已有的 distilled 字段。"""
+def index_set_raw(chat_id: str, raw_relposix: str) -> None:
+    """将 chat_id → raw/ 下相对路径（POSIX，无 raw/ 前缀）写入 index，保留已有字段。"""
     index = load_index()
     entry = index["entries"].get(chat_id, {})
-    entry["raw"] = raw_filename
+    entry["raw"] = raw_relposix
     entry.setdefault("distilled", None)
     index["entries"][chat_id] = entry
     save_index(index)
@@ -683,10 +720,11 @@ def process_file(path: Path) -> Optional[Path]:
         out.unlink()
         print(f"  🗑  已删除旧版本：{out.name}")
 
-    # 在剥离元数据前提取 CHAT_ID；无则先查 index 是否已有同 raw 文件名，再新分配 32 位 hex
+    # 在剥离元数据前提取 CHAT_ID；无则先查 index 是否已有同 raw 相对路径，再新分配 32 位 hex
+    raw_rel = out.relative_to(RAW_DIR).as_posix()
     chat_id = extract_chat_id(raw_content)
     if not chat_id:
-        prev = find_chat_id_by_raw_filename(load_index(), out.name)
+        prev = find_chat_id_by_raw_filename(load_index(), raw_rel)
         if prev:
             chat_id = prev
             print(f"  🆔  原文无 CHAT_ID，沿用 index 已有 id：{chat_id}")
@@ -707,8 +745,8 @@ def process_file(path: Path) -> Optional[Path]:
     out.write_text(normalized, encoding="utf-8")
     print(f"  📄 已格式化：{out.name}")
 
-    index_set_raw(chat_id, out.name)
-    print(f"  🗂  index 已更新：{chat_id} → {out.name}")
+    index_set_raw(chat_id, raw_rel)
+    print(f"  🗂  index 已更新：{chat_id} → {raw_rel}")
 
     return out
 
