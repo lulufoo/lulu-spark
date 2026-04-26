@@ -123,8 +123,8 @@
     },
     "a7f3e2b1c849d056f3e7a2b9c0d1e4f5": {
       "raw": "ai-assisted-domain-learning/dialogue-distillation-model/ddm-workflow-optimization-normalized.md",
-      "distilled": null,
-      "digest": null
+      "distilled": "distilled/ai-assisted-domain-learning/dialogue-distillation-model/ddm-workflow-optimization.md",
+      "digest": "digest/ai-assisted-domain-learning/dialogue-distillation-model/ddm-workflow-optimization-digest.md"
     },
     "a7f3d92e1b4c8f0e6d2a5b9c3e7f1d04": {
       "raw": "ai-thinking-framework/product-insight-portrait-model/entity-portrait-model-design-2026-04-26-normalized.md",

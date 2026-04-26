@@ -1,6 +1,6 @@
 # DDM 工作流优化：ACN 归一化 + Phase 重构 + digest 落盘
 
-> **导航**：distilled（待 DDM 落盘后更新） | digest（待 DDM 落盘后更新）
+> **导航**：[distilled](../../../distilled/ai-assisted-domain-learning/dialogue-distillation-model/ddm-workflow-optimization.md) | [digest](../../../digest/ai-assisted-domain-learning/dialogue-distillation-model/ddm-workflow-optimization-digest.md)
 
 <!-- DDM:TURN_SEP:v1 -->
 
