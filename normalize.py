@@ -619,8 +619,10 @@ def _strip_bucket_prefix(field: str, value: str) -> str:
 def entry_bucket_relpath(entry: dict, field: str) -> Optional[str]:
     """
     将 index 中某桶字段解析为**相对该桶根目录**的逻辑路径（POSIX，无开头 /）。
-    若存在 path_prefix 且该字段为不含「/」的短名，则与 path_prefix 拼接
-   （适用于 raw、distilled、digest 同目录的情形）。
+    短名 + 拼接规则（与 schema 一致）：
+    1) path_prefix_{field}（如 path_prefix_raw）+ 无「/」的值
+    2) 否则 path_prefix + 无「/」的值（各桶同目录时）
+    3) 否则值本身为已展开的完整相对路径
     """
     v = entry.get(field)
     if v is None:
@@ -628,6 +630,9 @@ def entry_bucket_relpath(entry: dict, field: str) -> Optional[str]:
     if not isinstance(v, str):
         return None
     v = _strip_bucket_prefix(field, v)
+    per = entry.get(f"path_prefix_{field}")
+    if per and field in ("raw", "distilled", "digest", "trace") and "/" not in v:
+        return f"{per}/{v}"
     prefix = entry.get("path_prefix")
     if prefix and field in ("raw", "distilled", "digest", "trace") and "/" not in v:
         return f"{prefix}/{v}"
@@ -654,8 +659,9 @@ def find_chat_id_by_raw_filename(index: dict, raw_relposix: str) -> Optional[str
 #     "<chat_id>": {
 #       "raw":   "<relpath under raw/，不含「raw/」前缀>",
 #       "distilled" / "digest" / "trace": 同理，为各桶下相对路径，**不含** distilled/、digest/ 等前缀
-#       "path_prefix": 可选。当 raw、distilled、digest、trace 在各自桶下**同一目录**时，
-#         写公共主题路径 "a/b/c"（不含桶名），上述各字段可只写文件名；异树则各字段写完整相对路径。
+#       "path_prefix": 可选。各桶**同一**主题目录时写公共 "a/b/c"， raw/distilled/… 只写文件名。
+#       "path_prefix_raw" / "path_prefix_distilled" / "path_prefix_digest" / "path_prefix_trace"：
+#         异目录时各桶各写自己的前缀，字段仍为文件名。
 #     }
 #   }
 # }

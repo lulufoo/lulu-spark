@@ -23,8 +23,10 @@
       "trace": null
     },
     "22a22bb5-4a04-47e3-b2a9-041fc830fab1": {
-      "raw": "android-dev-docs/system-principles/binder/understanding-binder-representation-layers-normalized.md",
-      "distilled": "android-dev-docs/system-principles/understanding-binder-representation-layers.md",
+      "path_prefix_raw": "android-dev-docs/system-principles/binder",
+      "raw": "understanding-binder-representation-layers-normalized.md",
+      "path_prefix_distilled": "android-dev-docs/system-principles",
+      "distilled": "understanding-binder-representation-layers.md",
       "digest": null,
       "trace": null
     },
@@ -155,8 +157,10 @@
       "trace": null
     },
     "a4364bda87070b619a2b4845418e0468": {
-      "raw": "ai-thinking-framework/ai-solution-pre-diagnosis-model/ai-solution-pre-diagnosis-model-design-2026-04-25-normalized.md",
-      "distilled": "ai/ai-cognition/ai-solution-pre-diagnosis-model-design.md",
+      "path_prefix_raw": "ai-thinking-framework/ai-solution-pre-diagnosis-model",
+      "raw": "ai-solution-pre-diagnosis-model-design-2026-04-25-normalized.md",
+      "path_prefix_distilled": "ai/ai-cognition",
+      "distilled": "ai-solution-pre-diagnosis-model-design.md",
       "digest": null,
       "trace": null
     },
