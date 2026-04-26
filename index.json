@@ -4,14 +4,12 @@
     "7f3a9b2c1e4d8f6a0b5c2e7d9f1a3b4c": {
       "raw": "raw/ai-thinking-framework/intent-clarification-guidance-model/icgm-v2-structural-observation-redesign-normalized.md",
       "distilled": "distilled/ai-thinking-framework/intent-clarification-guidance-model/icgm-v2-structural-observation-redesign.md",
-      "digest": "digest/ai-thinking-framework/intent-clarification-guidance-model/icgm-v2-structural-observation-redesign-digest.md",
-      "quality": "quality/ai-thinking-framework/intent-clarification-guidance-model/icgm-v2-structural-observation-redesign-quality.md"
+      "digest": "digest/ai-thinking-framework/intent-clarification-guidance-model/icgm-v2-structural-observation-redesign-digest.md"
     },
     "a7f3e8d2c9b14f056e2a1d7c3890b5e4": {
       "raw": "raw/ai-software-dev/agentic-coding/agentic-design-patterns/context-window-task-granularity-model-normalized.md",
       "distilled": null,
-      "digest": null,
-      "quality": null
+      "digest": null
     },
     "a3f8c2d1e74b9056f2a1c3d8e90b4f17": {
       "raw": null,
@@ -136,8 +134,7 @@
     "a7f3d92e1b4c8f0e6d2a5b9c3e7f1d04": {
       "raw": "raw/ai-thinking-framework/product-insight-portrait-model/entity-portrait-model-design-2026-04-26-normalized.md",
       "distilled": null,
-      "digest": null,
-      "quality": null
+      "digest": null
     }
   }
 }

@@ -1,6 +1,6 @@
 # ICGM v2.0：从问题链到结构观察的设计推导 — 要点摘要
 
-> **导航**：[distilled](../../../../distilled/ai-thinking-framework/intent-clarification-guidance-model/icgm-v2-structural-observation-redesign.md) | [raw](../../../../raw/ai-thinking-framework/intent-clarification-guidance-model/icgm-v2-structural-observation-redesign-normalized.md) | [quality](../../../../quality/ai-thinking-framework/intent-clarification-guidance-model/icgm-v2-structural-observation-redesign-quality.md)
+> **导航**：[distilled](../../../../distilled/ai-thinking-framework/intent-clarification-guidance-model/icgm-v2-structural-observation-redesign.md) | [raw](../../../../raw/ai-thinking-framework/intent-clarification-guidance-model/icgm-v2-structural-observation-redesign-normalized.md)
 > 来源：icgm-v2-structural-observation-redesign.md（distilled/）
 > 生成时间：2026-04-26
 

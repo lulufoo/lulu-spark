@@ -1,6 +1,6 @@
 # 实体画像模型设计——从画像失败诊断到可查询心智模型定义
 
-> **导航**：distilled（待 DDM 落盘后更新） | digest（待 DDM 落盘后更新） | quality（待 DDM 落盘后更新）
+> **导航**：distilled（待 DDM 落盘后更新） | digest（待 DDM 落盘后更新）
 
 <!-- DDM:TURN_SEP:v1 -->
 

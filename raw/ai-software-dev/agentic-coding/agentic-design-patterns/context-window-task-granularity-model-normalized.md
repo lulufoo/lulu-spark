@@ -1,6 +1,6 @@
 # Agent 上下文窗口与任务粒度设计模型
 
-> **导航**：distilled（待 DDM 落盘后更新） | digest（待 DDM 落盘后更新） | quality（待 DDM 落盘后更新）
+> **导航**：distilled（待 DDM 落盘后更新） | digest（待 DDM 落盘后更新）
 
 <!-- DDM:TURN_SEP:v1 -->
 
