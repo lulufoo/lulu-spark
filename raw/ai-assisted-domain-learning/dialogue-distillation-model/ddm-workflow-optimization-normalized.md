@@ -1,6 +1,6 @@
 # DDM 工作流优化：ACN 归一化 + Phase 重构 + digest 落盘
 
-> **导航**：[distilled](../../../distilled/ai-assisted-domain-learning/dialogue-distillation-model/ddm-workflow-optimization.md) | [digest](../../../digest/ai-assisted-domain-learning/dialogue-distillation-model/ddm-workflow-optimization-digest.md)
+> **导航**：[distilled](../../../distilled/ai-assisted-domain-learning/dialogue-distillation-model/ddm-workflow-optimization-distilled.md) | [digest](../../../digest/ai-assisted-domain-learning/dialogue-distillation-model/ddm-workflow-optimization-digest.md)
 
 <!-- DDM:TURN_SEP:v1 -->
 
@@ -65,7 +65,7 @@ Phase 5（原 P4-1 拆出）: 环境判断与落盘
 | 文件 | 路径 | 生成阶段 |
 |------|------|---------|
 | raw | `raw/<topic-path>/<slug>-normalized.md` | Phase 0 |
-| distilled | `distilled/<topic-path>/<slug>.md` | Phase 5 落盘 |
+| distilled | `distilled/<topic-path>/<slug>-distilled.md` | Phase 5 落盘 |
 | digest | `digest/<topic-path>/<slug>-digest.md` | Phase 5 落盘 |
 
 `<topic-path>` 在 Phase 0 确定，三个文件强制共用，由 Phase 5 落盘时统一校验。
@@ -100,7 +100,7 @@ Phase 5 落盘时填充 `distilled` 和 `digest` 字段。
 
 **raw 文件头部：**
 ```markdown
-> **导航**：[distilled](../../../distilled/<topic-path>/<slug>.md) | [digest](../../../digest/<topic-path>/<slug>-digest.md)
+> **导航**：[distilled](../../../distilled/<topic-path>/<slug>-distilled.md) | [digest](../../../digest/<topic-path>/<slug>-digest.md)
 ```
 
 **distilled 文件头部：**
@@ -110,7 +110,7 @@ Phase 5 落盘时填充 `distilled` 和 `digest` 字段。
 
 **digest 文件头部：**
 ```markdown
-> **导航**：[distilled](../../../distilled/<topic-path>/<slug>.md) | [raw](../../../raw/<topic-path>/<slug>-normalized.md)
+> **导航**：[distilled](../../../distilled/<topic-path>/<slug>-distilled.md) | [raw](../../../raw/<topic-path>/<slug>-normalized.md)
 ```
 
 ---

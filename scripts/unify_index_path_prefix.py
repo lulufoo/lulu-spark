@@ -3,7 +3,7 @@
 将 index.json 每条目规范为 path_prefix* + 文件名：
 
 - 同桶同目录：单一 path_prefix，各字段为文件名。
-- 异桶/异目录：path_prefix_raw / path_prefix_distilled / path_prefix_digest / path_prefix_trace
+- 异桶/异目录：path_prefix_raw / path_prefix_distilled / path_prefix_digest
   与对应短文件名；仅位于桶根的文件仍写整段相对路径，不写前缀键。
 
 不修改 version；原地写回时请先备份。
@@ -15,7 +15,7 @@ from pathlib import Path, PurePosixPath
 
 ARCHIVE = Path(__file__).resolve().parents[1]
 INDEX_PATH = ARCHIVE / "index.json"
-FIELDS = ("raw", "distilled", "digest", "trace")
+FIELDS = ("raw", "distilled", "digest")
 PER_FIELD_PREFIX = tuple(f"path_prefix_{f}" for f in FIELDS)
 
 

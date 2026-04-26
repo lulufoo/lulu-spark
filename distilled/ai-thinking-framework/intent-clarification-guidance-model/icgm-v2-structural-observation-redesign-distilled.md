@@ -1,6 +1,6 @@
 # ICGM v2.0：从问题链到结构观察的设计推导
 
-> **导航**：[digest](../../../../digest/ai-thinking-framework/intent-clarification-guidance-model/icgm-v2-structural-observation-redesign-digest.md) | [raw](../../../../raw/ai-thinking-framework/intent-clarification-guidance-model/icgm-v2-structural-observation-redesign-normalized.md)
+> **导航**：[digest](../../../digest/ai-thinking-framework/intent-clarification-guidance-model/icgm-v2-structural-observation-redesign-digest.md) | [raw](../../../raw/ai-thinking-framework/intent-clarification-guidance-model/icgm-v2-structural-observation-redesign-normalized.md)
 
 > 本文档基于一次方案推演式设计对话整理。
 > 目标是重建理解过程——跟着推导走一遍，而不是直接读结论。

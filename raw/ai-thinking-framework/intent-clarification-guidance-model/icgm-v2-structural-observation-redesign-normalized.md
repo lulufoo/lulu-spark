@@ -1,6 +1,6 @@
 # ICGM v2.0 重新设计——从问题链引导到结构观察模式
 
-> **导航**：[distilled](../../../../distilled/ai-thinking-framework/intent-clarification-guidance-model/icgm-v2-structural-observation-redesign.md) | [digest](../../../../digest/ai-thinking-framework/intent-clarification-guidance-model/icgm-v2-structural-observation-redesign-digest.md)
+> **导航**：[distilled](../../../distilled/ai-thinking-framework/intent-clarification-guidance-model/icgm-v2-structural-observation-redesign-distilled.md) | [digest](../../../digest/ai-thinking-framework/intent-clarification-guidance-model/icgm-v2-structural-observation-redesign-digest.md)
 
 <!-- DDM:TURN_SEP:v1 -->
 

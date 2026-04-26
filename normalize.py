@@ -607,12 +607,9 @@ def _strip_bucket_prefix(field: str, value: str) -> str:
         "raw": "raw/",
         "distilled": "distilled/",
         "digest": "digest/",
-        "trace": "cognitive-trace/",  # 若未使用此前缀，值保持原样
     }.get(field, "")
     if p and value.startswith(p):
         return value[len(p) :]
-    if field == "trace" and value.startswith("trace/"):
-        return value[6:]
     return value
 
 
@@ -631,10 +628,10 @@ def entry_bucket_relpath(entry: dict, field: str) -> Optional[str]:
         return None
     v = _strip_bucket_prefix(field, v)
     per = entry.get(f"path_prefix_{field}")
-    if per and field in ("raw", "distilled", "digest", "trace") and "/" not in v:
+    if per and field in ("raw", "distilled", "digest") and "/" not in v:
         return f"{per}/{v}"
     prefix = entry.get("path_prefix")
-    if prefix and field in ("raw", "distilled", "digest", "trace") and "/" not in v:
+    if prefix and field in ("raw", "distilled", "digest") and "/" not in v:
         return f"{prefix}/{v}"
     return v
 
@@ -658,9 +655,9 @@ def find_chat_id_by_raw_filename(index: dict, raw_relposix: str) -> Optional[str
 #   "entries": {
 #     "<chat_id>": {
 #       "raw":   "<relpath under raw/，不含「raw/」前缀>",
-#       "distilled" / "digest" / "trace": 同理，为各桶下相对路径，**不含** distilled/、digest/ 等前缀
+#       "distilled" / "digest": 同理，为各桶下相对路径，**不含** distilled/、digest/ 等前缀
 #       "path_prefix": 可选。各桶**同一**主题目录时写公共 "a/b/c"， raw/distilled/… 只写文件名。
-#       "path_prefix_raw" / "path_prefix_distilled" / "path_prefix_digest" / "path_prefix_trace"：
+#       "path_prefix_raw" / "path_prefix_distilled" / "path_prefix_digest"：
 #         异目录时各桶各写自己的前缀，字段仍为文件名。
 #     }
 #   }

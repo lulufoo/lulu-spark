@@ -1,6 +1,6 @@
 # DDM 工作流优化 — 要点摘要
 
-> **导航**：[distilled](../../../distilled/ai-assisted-domain-learning/dialogue-distillation-model/ddm-workflow-optimization.md) | [raw](../../../raw/ai-assisted-domain-learning/dialogue-distillation-model/ddm-workflow-optimization-normalized.md)
+> **导航**：[distilled](../../../distilled/ai-assisted-domain-learning/dialogue-distillation-model/ddm-workflow-optimization-distilled.md) | [raw](../../../raw/ai-assisted-domain-learning/dialogue-distillation-model/ddm-workflow-optimization-normalized.md)
 > 来源：ddm-workflow-optimization.md（distilled/）
 > 生成时间：2026-04-26
 
