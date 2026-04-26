@@ -154,7 +154,7 @@
     "a7f3d92e1b4c8f0e6d2a5b9c3e7f1d04": {
       "path_prefix": "ai-thinking-framework/product-insight-portrait-model",
       "raw": "entity-portrait-model-design-2026-04-26-normalized.md",
-      "distilled": null,
+      "distilled": "domain-portrait-model-architecture-analysis-distilled.md",
       "digest": null
     },
     "f2fd53513f2447d281f9092e74e4f4e3": {
