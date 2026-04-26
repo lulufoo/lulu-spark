@@ -1,6 +1,12 @@
 {
   "version": 2,
   "entries": {
+    "7f3a9b2c1e4d8f6a0b5c2e7d9f1a3b4c": {
+      "path_prefix": "ai-thinking-framework/intent-clarification-guidance-model",
+      "raw": "icgm-v2-structural-observation-redesign-normalized.md",
+      "distilled": "icgm-v2-structural-observation-redesign.md",
+      "digest": "icgm-v2-structural-observation-redesign-digest.md"
+    },
     "a3f8c2d1e74b9056f2a1c3d8e90b4f17": {
       "raw": null,
       "distilled": "common-tech/language/java-cas-optimistic-concurrency.md",
@@ -12,7 +18,7 @@
     },
     "22a22bb5-4a04-47e3-b2a9-041fc830fab1": {
       "raw": "android-dev-docs/system-principles/binder/understanding-binder-representation-layers-normalized.md",
-      "distilled": null
+      "distilled": "android-dev-docs/system-principles/understanding-binder-representation-layers.md"
     },
     "a7f3d2e8b1c94f6d83e50a2917b4c6f1": {
       "raw": "ai-assisted-domain-learning/dialogue-distillation-model/dialogue-to-doc-opt-normalized.md",
@@ -55,11 +61,6 @@
     "30d1a445b70a78f135ba98e639f87f9f": {
       "raw": null,
       "distilled": "android-dev-docs/framework-principles/how-binder-oneway-shifts-from-immediate-return-to-asynchronous-intent-delivery.md",
-      "trace": null
-    },
-    "13a0c85d9d07dfd11ce7592b1b76ae43": {
-      "raw": null,
-      "distilled": "android-dev-docs/system-principles/understanding-binder-representation-layers.md",
       "trace": null
     },
     "b53f9b7c19f615a3730d9a5eda8fe9b9": {
@@ -121,6 +122,36 @@
       "raw": "ddm-workflow-optimization-normalized.md",
       "distilled": "ddm-workflow-optimization.md",
       "digest": "ddm-workflow-optimization-digest.md"
+    },
+    "a7f3d92e1b4c8f0e6d2a5b9c3e7f1d04": {
+      "raw": "ai-thinking-framework/product-insight-portrait-model/entity-portrait-model-design-2026-04-26-normalized.md",
+      "distilled": null,
+      "digest": null
+    },
+    "f2fd53513f2447d281f9092e74e4f4e3": {
+      "raw": "ai-assisted-domain-learning/cognitive-viewport-expansion-model/cognitive-projection-leverage-framework-normalized.md",
+      "distilled": null
+    },
+    "0f2834f0519a414b895e0c77c31133bd": {
+      "raw": "ai-assisted-domain-learning/cognitive-viewport-expansion-model/turning-technical-models-into-products-normalized.md",
+      "distilled": null
+    },
+    "c89c321d3eee4896b6cebbf8c9a2bc00": {
+      "raw": "ai-assisted-domain-learning/layered-cognitive/lccm-ppm-practice-design-discussion-normalized.md",
+      "distilled": null
+    },
+    "13cf8857c6f14ad48843523d30214bc9": {
+      "raw": "ai-thinking-framework/thinking-pattern/thinking-tools-objective-and-subjective-dimensions-normalized.md",
+      "distilled": null
+    },
+    "139275ce067f4c36acedf49025f1f054": {
+      "raw": "social-sciences/psychology/cognitive-psychology/ai-era-cognitive-competition-and-paid-cognition-paths-normalized.md",
+      "distilled": null
+    },
+    "a7f3c2e1b8d94f6e2a0c5b7d3e9f1a2b": {
+      "raw": "ai-software-dev/agentic-coding/agentic-design-patterns/context-window-task-granularity-model-normalized.md",
+      "distilled": null,
+      "digest": null
     }
   }
 }
