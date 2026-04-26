@@ -655,7 +655,7 @@ def find_chat_id_by_raw_filename(index: dict, raw_relposix: str) -> Optional[str
 #   "entries": {
 #     "<chat_id>": {
 #       "raw":   "<relpath under raw/，不含「raw/」前缀>",
-#       "distilled" / "digest": 同理，为各桶下相对路径，**不含** distilled/、digest/ 等前缀
+#       "distilled" / "digest": 同理；distilled 落盘名约定为 *-distilled.md，digest 为 *-digest.md
 #       "path_prefix": 可选。各桶**同一**主题目录时写公共 "a/b/c"， raw/distilled/… 只写文件名。
 #       "path_prefix_raw" / "path_prefix_distilled" / "path_prefix_digest"：
 #         异目录时各桶各写自己的前缀，字段仍为文件名。
