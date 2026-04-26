@@ -1,5 +1,7 @@
 # 思维工具的客观与主观维度
 
+> **导航**：[distilled](../../../distilled/ai-thinking-framework/thinking-pattern/thinking-tools-objective-and-subjective-dimensions-distilled.md) | [digest](../../../digest/ai-thinking-framework/thinking-pattern/thinking-tools-objective-and-subjective-dimensions-digest.md)
+
 ---
 
 **User：** **User:** @lulufoo

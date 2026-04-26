@@ -1,5 +1,7 @@
 # AI 任务执行范式与领域深化框架天花板分析
 
+> **导航**：[distilled](../../../distilled/ai-assisted-domain-learning/domain-deepening/ai-task-execution-paradigm-and-domain-learning-ceiling-distilled.md) | [digest](../../../digest/ai-assisted-domain-learning/domain-deepening/ai-task-execution-paradigm-and-domain-learning-ceiling-digest.md)
+
 <!-- DDM:TURN_SEP:v1 -->
 
 ## User

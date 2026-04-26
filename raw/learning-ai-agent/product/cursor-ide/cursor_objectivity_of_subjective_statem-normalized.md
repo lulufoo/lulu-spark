@@ -1,5 +1,7 @@
 # Objectivity of subjective statements
 
+> **导航**：[distilled](../../../../distilled/learning-ai-agent/product/cursor-ide/cursor_objectivity_of_subjective_statem-distilled.md) | [digest](../../../../digest/learning-ai-agent/product/cursor-ide/cursor_objectivity_of_subjective_statem-digest.md)
+
 <!-- DDM:TURN_SEP:v1 -->
 
 ## User

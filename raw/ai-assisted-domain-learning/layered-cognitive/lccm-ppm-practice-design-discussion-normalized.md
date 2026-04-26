@@ -1,5 +1,7 @@
 # LCCM 与实践模式（Mode 1/2）、PPM 架构讨论
 
+> **导航**：[distilled](../../../distilled/ai-assisted-domain-learning/layered-cognitive/lccm-ppm-practice-design-discussion-distilled.md) | [digest](../../../digest/ai-assisted-domain-learning/layered-cognitive/lccm-ppm-practice-design-discussion-digest.md)
+
 ---
 
 ## User

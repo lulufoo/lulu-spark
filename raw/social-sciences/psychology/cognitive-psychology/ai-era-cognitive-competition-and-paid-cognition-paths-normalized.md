@@ -1,5 +1,7 @@
 # AI时代认知竞争与认知付费路径
 
+> **导航**：[distilled](../../../../distilled/social-sciences/psychology/cognitive-psychology/ai-era-cognitive-competition-and-paid-cognition-paths-distilled.md) | [digest](../../../../digest/social-sciences/psychology/cognitive-psychology/ai-era-cognitive-competition-and-paid-cognition-paths-digest.md)
+
 ---
 
 **User：** AI的时代，知识的获取更加容易了，相对于互联网时代，你不需要做知识的加工，可以轻松的得到以前需要信息提取总结归纳的能力，才能获取的知识，这些知识不是单纯的客观的知识，而是面向每个个人需求的，可以马上解决个人问题的内容，它是面向个人的认知图谱的，面向你要解决的问题。这不是信息通道的提速，更是信息内容的提升。那以往有这部分能力的人，其实价值就被弱化了。说白了，AI在的认知在渗透人类价值边界。

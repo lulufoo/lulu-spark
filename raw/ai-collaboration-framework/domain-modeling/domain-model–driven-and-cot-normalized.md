@@ -1,5 +1,7 @@
 # 领域模型驱动与 CoT 的关系分析
 
+> **导航**：[distilled](../../../distilled/ai-collaboration-framework/domain-modeling/domain-model–driven-and-cot-distilled.md) | [digest](../../../digest/ai-collaboration-framework/domain-modeling/domain-model–driven-and-cot-digest.md)
+
 <!-- DDM:TURN_SEP:v1 -->
 
 ## User

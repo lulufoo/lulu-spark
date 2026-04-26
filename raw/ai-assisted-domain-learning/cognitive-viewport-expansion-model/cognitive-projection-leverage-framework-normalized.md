@@ -1,5 +1,7 @@
 # 认知投影与认知杠杆框架
 
+> **导航**：[distilled](../../../distilled/ai-assisted-domain-learning/cognitive-viewport-expansion-model/cognitive-projection-leverage-framework-distilled.md) | [digest](../../../digest/ai-assisted-domain-learning/cognitive-viewport-expansion-model/cognitive-projection-leverage-framework-digest.md)
+
 ---
 
 ## User

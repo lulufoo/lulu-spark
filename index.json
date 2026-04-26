@@ -16,8 +16,8 @@
     "A7F3K9mNpQ2xRvLd8YcW5hJeZbTu1Xs": {
       "path_prefix": "learning-ai-agent/product/cursor-ide",
       "raw": "cursor_objectivity_of_subjective_statem-normalized.md",
-      "distilled": null,
-      "digest": null
+      "distilled": "cursor_objectivity_of_subjective_statem-distilled.md",
+      "digest": "cursor_objectivity_of_subjective_statem-digest.md"
     },
     "22a22bb5-4a04-47e3-b2a9-041fc830fab1": {
       "path_prefix": "android-dev-docs/system-principles/binder",
@@ -28,14 +28,14 @@
     "a7f3d2e8b1c94f6d83e50a2917b4c6f1": {
       "path_prefix": "ai-assisted-domain-learning/dialogue-distillation-model",
       "raw": "dialogue-to-doc-opt-normalized.md",
-      "distilled": null,
-      "digest": null
+      "distilled": "dialogue-to-doc-opt-distilled.md",
+      "digest": "dialogue-to-doc-opt-digest.md"
     },
     "8f3b1a7c2d9e4f6ab1c8d2e7f4a9b6c1": {
       "path_prefix": "ai-collaboration-framework/domain-modeling",
       "raw": "domain-model–driven-and-cot-normalized.md",
-      "distilled": null,
-      "digest": null
+      "distilled": "domain-model–driven-and-cot-distilled.md",
+      "digest": "domain-model–driven-and-cot-digest.md"
     },
     "f37c92aa94e0aa4726a24a0313965b82": {
       "path_prefix": "ai-software-dev/harness-engineering",
@@ -142,8 +142,8 @@
     "b2f7a3e5c1d9084f6b3e2a7c5d1f9e84": {
       "path_prefix": "ai-assisted-domain-learning/domain-deepening",
       "raw": "ai-task-execution-paradigm-and-domain-learning-ceiling-normalized.md",
-      "distilled": null,
-      "digest": null
+      "distilled": "ai-task-execution-paradigm-and-domain-learning-ceiling-distilled.md",
+      "digest": "ai-task-execution-paradigm-and-domain-learning-ceiling-digest.md"
     },
     "a7f3e2b1c849d056f3e7a2b9c0d1e4f5": {
       "path_prefix": "ai-assisted-domain-learning/dialogue-distillation-model",
@@ -154,44 +154,44 @@
     "a7f3d92e1b4c8f0e6d2a5b9c3e7f1d04": {
       "path_prefix": "ai-thinking-framework/product-insight-portrait-model",
       "raw": "entity-portrait-model-design-2026-04-26-normalized.md",
-      "distilled": "domain-portrait-model-architecture-analysis-distilled.md",
-      "digest": null
+      "distilled": "entity-portrait-model-design-distilled.md",
+      "digest": "entity-portrait-model-design-digest.md"
     },
     "f2fd53513f2447d281f9092e74e4f4e3": {
       "path_prefix": "ai-assisted-domain-learning/cognitive-viewport-expansion-model",
       "raw": "cognitive-projection-leverage-framework-normalized.md",
-      "distilled": null,
-      "digest": null
+      "distilled": "cognitive-projection-leverage-framework-distilled.md",
+      "digest": "cognitive-projection-leverage-framework-digest.md"
     },
     "0f2834f0519a414b895e0c77c31133bd": {
       "path_prefix": "ai-assisted-domain-learning/cognitive-viewport-expansion-model",
       "raw": "turning-technical-models-into-products-normalized.md",
-      "distilled": null,
-      "digest": null
+      "distilled": "turning-technical-models-into-products-distilled.md",
+      "digest": "turning-technical-models-into-products-digest.md"
     },
     "c89c321d3eee4896b6cebbf8c9a2bc00": {
       "path_prefix": "ai-assisted-domain-learning/layered-cognitive",
       "raw": "lccm-ppm-practice-design-discussion-normalized.md",
-      "distilled": null,
-      "digest": null
+      "distilled": "lccm-ppm-practice-design-discussion-distilled.md",
+      "digest": "lccm-ppm-practice-design-discussion-digest.md"
     },
     "13cf8857c6f14ad48843523d30214bc9": {
       "path_prefix": "ai-thinking-framework/thinking-pattern",
       "raw": "thinking-tools-objective-and-subjective-dimensions-normalized.md",
-      "distilled": null,
-      "digest": null
+      "distilled": "thinking-tools-objective-and-subjective-dimensions-distilled.md",
+      "digest": "thinking-tools-objective-and-subjective-dimensions-digest.md"
     },
     "139275ce067f4c36acedf49025f1f054": {
       "path_prefix": "social-sciences/psychology/cognitive-psychology",
       "raw": "ai-era-cognitive-competition-and-paid-cognition-paths-normalized.md",
-      "distilled": null,
-      "digest": null
+      "distilled": "ai-era-cognitive-competition-and-paid-cognition-paths-distilled.md",
+      "digest": "ai-era-cognitive-competition-and-paid-cognition-paths-digest.md"
     },
     "a7f3c2e1b8d94f6e2a0c5b7d3e9f1a2b": {
       "path_prefix": "ai-software-dev/agentic-coding/agentic-design-patterns",
       "raw": "context-window-task-granularity-model-normalized.md",
-      "distilled": null,
-      "digest": null
+      "distilled": "context-window-task-granularity-model-distilled.md",
+      "digest": "context-window-task-granularity-model-digest.md"
     }
   }
 }

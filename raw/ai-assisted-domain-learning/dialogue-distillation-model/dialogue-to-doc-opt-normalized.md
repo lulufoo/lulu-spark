@@ -1,5 +1,7 @@
 # 整理对话为Markdown学习文档
 
+> **导航**：[distilled](../../../distilled/ai-assisted-domain-learning/dialogue-distillation-model/dialogue-to-doc-opt-distilled.md) | [digest](../../../digest/ai-assisted-domain-learning/dialogue-distillation-model/dialogue-to-doc-opt-digest.md)
+
 <!-- DDM:TURN_SEP:v1 -->
 
 ## User
