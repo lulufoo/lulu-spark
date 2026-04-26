@@ -3,9 +3,9 @@
   "entries": {
     "7f3a9b2c1e4d8f6a0b5c2e7d9f1a3b4c": {
       "raw": "raw/ai-thinking-framework/intent-clarification-guidance-model/icgm-v2-structural-observation-redesign-normalized.md",
-      "distilled": null,
-      "digest": null,
-      "quality": null
+      "distilled": "distilled/ai-thinking-framework/intent-clarification-guidance-model/icgm-v2-structural-observation-redesign.md",
+      "digest": "digest/ai-thinking-framework/intent-clarification-guidance-model/icgm-v2-structural-observation-redesign-digest.md",
+      "quality": "quality/ai-thinking-framework/intent-clarification-guidance-model/icgm-v2-structural-observation-redesign-quality.md"
     },
     "a7f3e8d2c9b14f056e2a1d7c3890b5e4": {
       "raw": "raw/ai-software-dev/agentic-coding/agentic-design-patterns/context-window-task-granularity-model-normalized.md",
