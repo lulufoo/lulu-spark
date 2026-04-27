@@ -3,7 +3,7 @@
 > 创建时间：2026年4月25日 15:32
 
 
-> **导航**：[digest](../../../../digest/social-sciences/psychology/cognitive-psychology/202604251532-ai-era-cognitive-competition-and-paid-cognition-paths-digest.md) | [raw](../../../../raw/social-sciences/psychology/cognitive-psychology/202604251532-ai-era-cognitive-competition-and-paid-cognition-paths-normalized.md)
+> **导航**：[digest](../../../../digest/social-sciences/psychology/cognitive-psychology/202604251532-ai-era-cognitive-competition-and-paid-cognition-paths.md) | [raw](../../../../raw/social-sciences/psychology/cognitive-psychology/202604251532-ai-era-cognitive-competition-and-paid-cognition-paths-normalized.md)
 
 > 本文档基于一次关于 AI 时代认知竞争与认知付费路径的推演式对话整理。
 > 目标是重建推理过程——跟着推导走一遍，而不是直接读结论。

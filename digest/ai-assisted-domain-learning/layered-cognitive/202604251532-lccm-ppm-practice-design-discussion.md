@@ -3,7 +3,7 @@
 > 创建时间：2026年4月25日 15:32
 
 
-> **导航**：[distilled](../../../distilled/ai-assisted-domain-learning/layered-cognitive/202604251532-lccm-ppm-practice-design-discussion-distilled.md) | [raw](../../../raw/ai-assisted-domain-learning/layered-cognitive/202604251532-lccm-ppm-practice-design-discussion-normalized.md)
+> **导航**：[distilled](../../../distilled/ai-assisted-domain-learning/layered-cognitive/202604251532-lccm-ppm-practice-design-discussion.md) | [raw](../../../raw/ai-assisted-domain-learning/layered-cognitive/202604251532-lccm-ppm-practice-design-discussion-normalized.md)
 
 ## 要点
 

@@ -3,7 +3,7 @@
 > 创建时间：2026年4月25日 15:32
 
 
-> **导航**：[digest](../../../digest/ai-assisted-domain-learning/cognitive-viewport-expansion-model/202604251532-cognitive-projection-leverage-framework-digest.md) | [raw](../../../raw/ai-assisted-domain-learning/cognitive-viewport-expansion-model/202604251532-cognitive-projection-leverage-framework-normalized.md)
+> **导航**：[digest](../../../digest/ai-assisted-domain-learning/cognitive-viewport-expansion-model/202604251532-cognitive-projection-leverage-framework.md) | [raw](../../../raw/ai-assisted-domain-learning/cognitive-viewport-expansion-model/202604251532-cognitive-projection-leverage-framework-normalized.md)
 
 > 本文档基于一次方案推演式对话整理。
 > 目标是重建理解过程——跟着推导走一遍，而不是直接读结论。

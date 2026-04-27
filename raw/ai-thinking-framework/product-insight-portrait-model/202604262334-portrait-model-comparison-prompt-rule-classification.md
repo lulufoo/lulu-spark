@@ -2,7 +2,7 @@
 
 > 创建时间：2026年4月26日 23:34
 
-> **导航**：[distilled](../../../distilled/ai-thinking-framework/product-insight-portrait-model/202604262334-portrait-model-comparison-prompt-rule-classification-distilled.md) | [digest](../../../digest/ai-thinking-framework/product-insight-portrait-model/202604262334-portrait-model-comparison-prompt-rule-classification-digest.md)
+> **导航**：[distilled](../../../distilled/ai-thinking-framework/product-insight-portrait-model/202604262334-portrait-model-comparison-prompt-rule-classification.md) | [digest](../../../digest/ai-thinking-framework/product-insight-portrait-model/202604262334-portrait-model-comparison-prompt-rule-classification.md)
 
 <!-- DDM:TURN_SEP:v1 -->
 

@@ -3,7 +3,7 @@
 > 创建时间：2026年4月25日 23:44
 
 
-> **导航**：[digest](../../../../digest/ai-software-dev/agentic-coding/agentic-design-patterns/202604252344-context-window-task-granularity-model-digest.md) | [raw](../../../../raw/ai-software-dev/agentic-coding/agentic-design-patterns/202604252344-context-window-task-granularity-model-normalized.md)
+> **导航**：[digest](../../../../digest/ai-software-dev/agentic-coding/agentic-design-patterns/202604252344-context-window-task-granularity-model.md) | [raw](../../../../raw/ai-software-dev/agentic-coding/agentic-design-patterns/202604252344-context-window-task-granularity-model-normalized.md)
 
 > 本文档基于一次 Agent 机制调查式对话整理。
 > 目标是重建推理过程——跟着推导走一遍，而不是直接读结论。

@@ -2,7 +2,7 @@
 
 > 创建时间：2026年4月25日 15:32
 
-> **导航**：[distilled](../../../../distilled/social-sciences/psychology/cognitive-psychology/202604251532-ai-era-cognitive-competition-and-paid-cognition-paths-distilled.md) | [digest](../../../../digest/social-sciences/psychology/cognitive-psychology/202604251532-ai-era-cognitive-competition-and-paid-cognition-paths-digest.md)
+> **导航**：[distilled](../../../../distilled/social-sciences/psychology/cognitive-psychology/202604251532-ai-era-cognitive-competition-and-paid-cognition-paths.md) | [digest](../../../../digest/social-sciences/psychology/cognitive-psychology/202604251532-ai-era-cognitive-competition-and-paid-cognition-paths.md)
 
 ---
 

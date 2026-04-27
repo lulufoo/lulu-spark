@@ -3,8 +3,8 @@
 > 创建时间：2026年4月25日 15:32
 
 
-> **导航**：[distilled](../../../distilled/ai-assisted-domain-learning/cognitive-viewport-expansion-model/202604251532-turning-technical-models-into-products-distilled.md) | [raw](../../../raw/ai-assisted-domain-learning/cognitive-viewport-expansion-model/202604251532-turning-technical-models-into-products-normalized.md)
-> 来源：202604251532-turning-technical-models-into-products-distilled.md（distilled/）
+> **导航**：[distilled](../../../distilled/ai-assisted-domain-learning/cognitive-viewport-expansion-model/202604251532-turning-technical-models-into-products.md) | [raw](../../../raw/ai-assisted-domain-learning/cognitive-viewport-expansion-model/202604251532-turning-technical-models-into-products-normalized.md)
+> 来源：202604251532-turning-technical-models-into-products.md（distilled/）
 > 生成时间：2026-04-26
 
 ## 要点

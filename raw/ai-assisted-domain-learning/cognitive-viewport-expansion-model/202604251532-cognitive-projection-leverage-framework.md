@@ -2,7 +2,7 @@
 
 > 创建时间：2026年4月25日 15:32
 
-> **导航**：[distilled](../../../distilled/ai-assisted-domain-learning/cognitive-viewport-expansion-model/202604251532-cognitive-projection-leverage-framework-distilled.md) | [digest](../../../digest/ai-assisted-domain-learning/cognitive-viewport-expansion-model/202604251532-cognitive-projection-leverage-framework-digest.md)
+> **导航**：[distilled](../../../distilled/ai-assisted-domain-learning/cognitive-viewport-expansion-model/202604251532-cognitive-projection-leverage-framework.md) | [digest](../../../digest/ai-assisted-domain-learning/cognitive-viewport-expansion-model/202604251532-cognitive-projection-leverage-framework.md)
 
 ---
 

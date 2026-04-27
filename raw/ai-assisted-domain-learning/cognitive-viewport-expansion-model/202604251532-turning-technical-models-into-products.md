@@ -2,7 +2,7 @@
 
 > 创建时间：2026年4月25日 15:32
 
-> **导航**：[distilled](../../../distilled/ai-assisted-domain-learning/cognitive-viewport-expansion-model/202604251532-turning-technical-models-into-products-distilled.md) | [digest](../../../digest/ai-assisted-domain-learning/cognitive-viewport-expansion-model/202604251532-turning-technical-models-into-products-digest.md)
+> **导航**：[distilled](../../../distilled/ai-assisted-domain-learning/cognitive-viewport-expansion-model/202604251532-turning-technical-models-into-products.md) | [digest](../../../digest/ai-assisted-domain-learning/cognitive-viewport-expansion-model/202604251532-turning-technical-models-into-products.md)
 
 > Copilot export · https://github.com/copilot/c/d2210c89-aa56-4f7f-8b56-f6c13d2331d8
 

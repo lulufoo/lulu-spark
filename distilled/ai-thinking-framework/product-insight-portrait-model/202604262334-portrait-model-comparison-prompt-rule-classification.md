@@ -3,7 +3,7 @@
 > 创建时间：2026年4月26日 23:34
 
 
-> **导航**：[digest](../../../digest/ai-thinking-framework/product-insight-portrait-model/202604262334-portrait-model-comparison-prompt-rule-classification-digest.md) | [raw](../../../raw/ai-thinking-framework/product-insight-portrait-model/202604262334-portrait-model-comparison-prompt-rule-classification-normalized.md)
+> **导航**：[digest](../../../digest/ai-thinking-framework/product-insight-portrait-model/202604262334-portrait-model-comparison-prompt-rule-classification.md) | [raw](../../../raw/ai-thinking-framework/product-insight-portrait-model/202604262334-portrait-model-comparison-prompt-rule-classification-normalized.md)
 
 > 本文档基于一次方案推演式对话整理。
 > 目标是重建理解过程——跟着推导走一遍，而不是直接读结论。

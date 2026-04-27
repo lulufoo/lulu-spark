@@ -2,7 +2,7 @@
 
 > 创建时间：2026年4月25日 15:32
 
-> **导航**：[distilled](../../../distilled/ai-thinking-framework/thinking-pattern/202604251532-thinking-tools-objective-and-subjective-dimensions-distilled.md) | [digest](../../../digest/ai-thinking-framework/thinking-pattern/202604251532-thinking-tools-objective-and-subjective-dimensions-digest.md)
+> **导航**：[distilled](../../../distilled/ai-thinking-framework/thinking-pattern/202604251532-thinking-tools-objective-and-subjective-dimensions.md) | [digest](../../../digest/ai-thinking-framework/thinking-pattern/202604251532-thinking-tools-objective-and-subjective-dimensions.md)
 
 ---
 
