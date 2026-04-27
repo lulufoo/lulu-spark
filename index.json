@@ -204,6 +204,10 @@
       "raw": "portrait-model-comparison-prompt-rule-classification-normalized.md",
       "distilled": "portrait-model-comparison-prompt-rule-classification-distilled.md",
       "digest": "portrait-model-comparison-prompt-rule-classification-digest.md"
+    },
+    "CHAT_ID-a7f3c9e1b2d4567890ab12cd34ef56ab": {
+      "raw": "learning-ai-agent/product/cursor-ide/cursor-github-gh-mcp-rules-rag-acn-normalized.md",
+      "distilled": null
     }
   }
 }
