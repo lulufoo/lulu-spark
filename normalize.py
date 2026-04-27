@@ -636,12 +636,35 @@ def entry_bucket_relpath(entry: dict, field: str) -> Optional[str]:
     return v
 
 
+def _common_path_from_raw_relpath(raw_relposix: str) -> str:
+    """将 raw/ 下相对路径转为 v3 common_path（去掉 basename 的 -normalized）。"""
+    raw_relposix = raw_relposix.replace("\\", "/").strip("/")
+    if "/" not in raw_relposix:
+        b = raw_relposix
+        d = ""
+    else:
+        d, b = raw_relposix.rsplit("/", 1)
+    if b.endswith("-normalized.md"):
+        b = b[: -len("-normalized.md")] + ".md"
+        return f"{d}/{b}" if d else b
+    return raw_relposix
+
+
 def find_chat_id_by_raw_filename(index: dict, raw_relposix: str) -> Optional[str]:
     """在 index 中查找 raw 相对路径（相对 raw/ 根）与 raw_relposix 相等的 chat_id。"""
+    ver = index.get("version", 2)
     for cid, entry in index.get("entries", {}).items():
-        r = entry_bucket_relpath(entry, "raw")
-        if r == raw_relposix:
-            return cid
+        if ver == 3:
+            cp = entry.get("common_path")
+            if not cp or entry.get("raw") is not True:
+                continue
+            u = _common_path_from_raw_relpath(raw_relposix)
+            if raw_relposix == cp or u == cp:
+                return cid
+        else:
+            r = entry_bucket_relpath(entry, "raw")
+            if r == raw_relposix:
+                return cid
     return None
 
 
@@ -649,29 +672,22 @@ def find_chat_id_by_raw_filename(index: dict, raw_relposix: str) -> Optional[str
 # Index 管理
 # ---------------------------------------------------------------------------
 #
-# index.json 结构（version 2）：
-# {
-#   "version": 2,
-#   "entries": {
-#     "<chat_id>": {
-#       "raw":   "<relpath under raw/，不含「raw/」前缀>",
-#       "distilled" / "digest": 同理；distilled 落盘名约定为 *-distilled.md，digest 为 *-digest.md
-#       "path_prefix": 可选。各桶**同一**主题目录时写公共 "a/b/c"， raw/distilled/… 只写文件名。
-#       "path_prefix_raw" / "path_prefix_distilled" / "path_prefix_digest"：
-#         异目录时各桶各写自己的前缀，字段仍为文件名。
-#     }
-#   }
-# }
+# index.json 结构：
+# - version 2：每字段为桶内相对路径字符串或 null，见 entry_bucket_relpath。
+# - version 3：每条目含 "common_path"、raw/distilled/digest 三布尔（是否存在对应文件），
+#   见仓库内 index.json 及迁移说明。
+#
+# load_index 接受 v2 / v3；全新空索引默认 v3。
 
-_INDEX_VERSION = 2
+_SUPPORTED_INDEX_VERSIONS = frozenset({2, 3})
 
 
 def load_index() -> dict:
     if INDEX_PATH.exists():
         data = json.loads(INDEX_PATH.read_text(encoding="utf-8"))
-        if data.get("version") == _INDEX_VERSION:
+        if data.get("version") in _SUPPORTED_INDEX_VERSIONS:
             return data
-    return {"version": _INDEX_VERSION, "entries": {}}
+    return {"version": 3, "entries": {}}
 
 
 def save_index(index: dict) -> None:
@@ -684,19 +700,35 @@ def save_index(index: dict) -> None:
 def index_set_raw(chat_id: str, raw_relposix: str) -> None:
     """将 chat_id → raw/ 下相对路径（POSIX，无 raw/ 前缀）写入 index，保留已有字段。"""
     index = load_index()
-    entry = index["entries"].get(chat_id, {})
-    entry["raw"] = raw_relposix
-    entry.setdefault("distilled", None)
-    index["entries"][chat_id] = entry
+    ver = index.get("version", 3)
+    if ver == 3:
+        entry = index["entries"].get(chat_id, {})
+        cp = _common_path_from_raw_relpath(raw_relposix)
+        entry["common_path"] = cp
+        entry["raw"] = True
+        for k in ("distilled", "digest"):
+            if not isinstance(entry.get(k), bool):
+                entry[k] = False
+        index["entries"][chat_id] = entry
+    else:
+        entry = index["entries"].get(chat_id, {})
+        entry["raw"] = raw_relposix
+        entry.setdefault("distilled", None)
+        index["entries"][chat_id] = entry
     save_index(index)
 
 
 def index_set_distilled(chat_id: str, distilled_filename: str) -> None:
     """将 chat_id → distilled 文件名写入 index（供后续蒸馏阶段调用）。"""
     index = load_index()
-    if chat_id not in index["entries"]:
-        index["entries"][chat_id] = {"raw": None, "distilled": None}
-    index["entries"][chat_id]["distilled"] = distilled_filename
+    if index.get("version") == 3:
+        if chat_id not in index["entries"]:
+            return
+        index["entries"][chat_id]["distilled"] = True
+    else:
+        if chat_id not in index["entries"]:
+            index["entries"][chat_id] = {"raw": None, "distilled": None}
+        index["entries"][chat_id]["distilled"] = distilled_filename
     save_index(index)
 
 
