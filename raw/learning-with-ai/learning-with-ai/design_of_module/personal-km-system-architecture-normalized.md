@@ -1,6 +1,6 @@
 # 个人知识管理系统架构设计
 
-> **导航**：distilled（待 DDM 落盘后更新） | digest（待 DDM 落盘后更新）
+> **导航**：[distilled](../../../../distilled/learning-with-ai/learning-with-ai/design_of_module/personal-km-system-architecture-distilled.md) | [digest](../../../../digest/learning-with-ai/learning-with-ai/design_of_module/personal-km-system-architecture-digest.md)
 
 <!-- DDM:TURN_SEP:v1 -->
 
