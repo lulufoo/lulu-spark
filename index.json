@@ -7,19 +7,19 @@
       "trace": "common-tech/language/java-cas-optimistic-concurrency-cognitive-trace.md"
     },
     "A7F3K9mNpQ2xRvLd8YcW5hJeZbTu1Xs": {
-      "raw": "learning-ai-agent/product/cursor-ide/cursor_objectivity_of_subjective_statem-normalized.md",
+      "raw": "learning-ai-agent/product/cursor-ide/202604251532-cursor_objectivity_of_subjective_statem-normalized.md",
       "distilled": null
     },
     "22a22bb5-4a04-47e3-b2a9-041fc830fab1": {
-      "raw": "android-dev-docs/system-principles/binder/understanding-binder-representation-layers-normalized.md",
+      "raw": "android-dev-docs/system-principles/binder/202604251532-understanding-binder-representation-layers-normalized.md",
       "distilled": null
     },
     "a7f3d2e8b1c94f6d83e50a2917b4c6f1": {
-      "raw": "ai-assisted-domain-learning/dialogue-distillation-model/dialogue-to-doc-opt-normalized.md",
+      "raw": "ai-assisted-domain-learning/dialogue-distillation-model/202604251532-dialogue-to-doc-opt-normalized.md",
       "distilled": null
     },
     "8f3b1a7c2d9e4f6ab1c8d2e7f4a9b6c1": {
-      "raw": "ai-collaboration-framework/domain-modeling/domain-model–driven-and-cot-normalized.md",
+      "raw": "ai-collaboration-framework/domain-modeling/202604251532-domain-model–driven-and-cot-normalized.md",
       "distilled": null
     },
     "f37c92aa94e0aa4726a24a0313965b82": {
@@ -108,34 +108,34 @@
       "trace": null
     },
     "a4364bda87070b619a2b4845418e0468": {
-      "raw": "ai-thinking-framework/ai-solution-pre-diagnosis-model/ai-solution-pre-diagnosis-model-design-2026-04-25-normalized.md",
-      "distilled": "ai/ai-cognition/ai-solution-pre-diagnosis-model-design.md",
+      "raw": "ai-thinking-framework/ai-solution-pre-diagnosis-model/202604251532-ai-solution-pre-diagnosis-model-design-2026-04-25-normalized.md",
+      "distilled": "ai-thinking-framework/ai-solution-pre-diagnosis-model/202604251532-ai-solution-pre-diagnosis-model-design-distilled.md",
       "trace": null
     },
     "b2f7a3e5c1d9084f6b3e2a7c5d1f9e84": {
-      "raw": "ai-assisted-domain-learning/domain-deepening/ai-task-execution-paradigm-and-domain-learning-ceiling-normalized.md",
+      "raw": "ai-assisted-domain-learning/domain-deepening/202604251432-ai-task-execution-paradigm-and-domain-learning-ceiling-normalized.md",
       "distilled": null
     },
     "a7f3e2b1c849d056f3e7a2b9c0d1e4f5": {
       "path_prefix": "ai-assisted-domain-learning/dialogue-distillation-model",
-      "raw": "ddm-workflow-optimization-normalized.md",
-      "distilled": "ddm-workflow-optimization.md",
-      "digest": "ddm-workflow-optimization-digest.md"
+      "raw": "202604251800-ddm-workflow-optimization-normalized.md",
+      "distilled": "202604251800-ddm-workflow-optimization-distilled.md",
+      "digest": "202604251800-ddm-workflow-optimization-digest.md"
     },
     "CHAT_ID-a7f3c9e1b2d4567890ab12cd34ef56ab": {
-      "raw": "learning-ai-agent/product/cursor-ide/cursor-github-gh-mcp-rules-rag-acn-normalized.md",
+      "raw": "learning-ai-agent/product/cursor-ide/202604270814-cursor-github-gh-mcp-rules-rag-acn-normalized.md",
       "distilled": null
     },
     "CHAT_ID-a7f3c91e2b8d4056a1e9f0c3d7b2a584": {
       "path_prefix": "learning-with-ai/personal-growth/thought-and-cognition",
-      "raw": "mac-ime-metacognition-reflection-normalized.md",
-      "distilled": "mac-ime-metacognition-reflection-distilled.md",
-      "digest": "mac-ime-metacognition-reflection-digest.md"
+      "raw": "202604271216-mac-ime-metacognition-reflection-normalized.md",
+      "distilled": "202604271216-mac-ime-metacognition-reflection-distilled.md",
+      "digest": "202604271216-mac-ime-metacognition-reflection-digest.md"
     },
     "a3f8e2d19b4c7e60f1a5d8b2c9e3f741": {
-      "raw": "personal-km-system-architecture-normalized.md",
-      "distilled": "personal-km-system-architecture-distilled.md",
-      "digest": "personal-km-system-architecture-digest.md",
+      "raw": "202604271239-personal-km-system-architecture-normalized.md",
+      "distilled": "202604271239-personal-km-system-architecture-distilled.md",
+      "digest": "202604271239-personal-km-system-architecture-digest.md",
       "path_prefix": "learning-with-ai/learning-with-ai/design_of_module"
     }
   }
