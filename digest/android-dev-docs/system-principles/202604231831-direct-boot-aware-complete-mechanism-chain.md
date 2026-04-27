@@ -1,15 +1,8 @@
-# directBootAware 的完整机制链 — 要点摘要
+# directBootAware 的完整机制链 — 摘要
 
 > **导航**：[distilled](../../../distilled/android-dev-docs/system-principles/202604231831-direct-boot-aware-complete-mechanism-chain.md)
 
 
-## 要点
+## 概述
 
-1. **Direct Boot 阶段是 FBE 机制在时间维度上的自然产物**
-   FBE 将存储分为 DE（Device-Protected，开机即可访问）和 CE（Credential-Protected，用户解锁后才可访问）。"开机到用户首次输入锁屏密码"这段时间就是 Direct Boot 阶段，不是独立的启动流程，是 FBE 的必然中间状态。
-
-2. **directBootAware=true 的双重性质：系统准入凭证 + 开发者单向声明**
-   AMS 分发 `ACTION_LOCKED_BOOT_COMPLETED` 广播时主动过滤，只有标记为 true 的组件才收到（系统强制）。但系统不验证组件是否真的只用了 DE 存储，违规的后果是运行时崩溃，不是系统阻止（开发者自我约束）。
-
-3. **ContentProvider 是 Direct Boot 下最容易崩溃的位置**
-   ContentProvider 的 `onCreate()` 比 `Application.onCreate()` 先执行。若 ContentProvider 没有声明 `directBootAware=true` 但所在进程在 Direct Boot 阶段被拉起，访问默认存储路径（CE 存储）会立即崩溃。访问 DE 存储必须显式调用 `createDeviceProtectedStorageContext()` 切换上下文。
+本文从 directBootAware 的字面含义出发，推导出它依附于 FBE 机制：存储被拆分为 Device-Protected（开机即可访问）和 Credential-Protected（解锁后才可访问）两个区域，开机到首次解锁之间就是 Direct Boot 阶段，只有标记了 directBootAware=true 的组件可以在此阶段运行。这一标记是系统准入凭证，但系统不验证组件是否真的只用 DE 存储——违规访问 CE 存储会在运行时直接崩溃，ContentProvider 因最先执行而成为最容易崩溃的位置。
