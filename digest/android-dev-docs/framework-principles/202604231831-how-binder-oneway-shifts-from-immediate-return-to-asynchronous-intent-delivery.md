@@ -1,6 +1,7 @@
 # Binder oneway：从"立即返回"到"异步意图投递" — 要点摘要
 
-> **导航**：[distilled](../../../distilled/android-dev-docs/framework-principles/how-binder-oneway-shifts-from-immediate-return-to-asynchronous-intent-delivery-distilled.md)
+> **导航**：[distilled](../../../distilled/android-dev-docs/framework-principles/202604231831-how-binder-oneway-shifts-from-immediate-return-to-asynchronous-intent-delivery.md)
+
 
 ## 要点
 

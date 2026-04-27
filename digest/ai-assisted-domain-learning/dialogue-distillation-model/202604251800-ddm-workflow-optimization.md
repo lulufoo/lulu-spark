@@ -3,9 +3,10 @@
 > 创建时间：2026年4月25日 18:00
 
 
-> **导航**：[distilled](../../../distilled/ai-assisted-domain-learning/dialogue-distillation-model/202604251800-ddm-workflow-optimization-distilled.md) | [raw](../../../raw/ai-assisted-domain-learning/dialogue-distillation-model/202604251800-ddm-workflow-optimization-normalized.md)
+> **导航**：[distilled](../../../distilled/ai-assisted-domain-learning/dialogue-distillation-model/202604251800-ddm-workflow-optimization.md) | [raw](../../../raw/ai-assisted-domain-learning/dialogue-distillation-model/202604251800-ddm-workflow-optimization.md)
 > 来源：ddm-workflow-optimization.md（distilled/）
 > 生成时间：2026-04-26
+
 
 ## 要点
 

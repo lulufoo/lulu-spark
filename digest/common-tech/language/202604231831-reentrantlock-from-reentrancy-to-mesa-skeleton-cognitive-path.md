@@ -1,6 +1,7 @@
 # ReentrantLock：从可重入命名到 Mesa 骨架与 AQS 家族 — 要点摘要
 
-> **导航**：[distilled](../../../distilled/common-tech/language/reentrantlock-from-reentrancy-to-mesa-skeleton-cognitive-path-distilled.md)
+> **导航**：[distilled](../../../distilled/common-tech/language/202604231831-reentrantlock-from-reentrancy-to-mesa-skeleton-cognitive-path.md)
+
 
 ## 要点
 

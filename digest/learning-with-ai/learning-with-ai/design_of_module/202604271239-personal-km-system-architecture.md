@@ -3,9 +3,10 @@
 > 创建时间：2026年4月27日 12:39
 
 
-> **导航**：[distilled](../../../../distilled/learning-with-ai/learning-with-ai/design_of_module/202604271239-personal-km-system-architecture-distilled.md) | [raw](../../../../raw/learning-with-ai/learning-with-ai/design_of_module/202604271239-personal-km-system-architecture-normalized.md)
-> 来源：202604271239-personal-km-system-architecture-distilled.md（distilled/）
+> **导航**：[distilled](../../../../distilled/learning-with-ai/learning-with-ai/design_of_module/202604271239-personal-km-system-architecture.md) | [raw](../../../../raw/learning-with-ai/learning-with-ai/design_of_module/202604271239-personal-km-system-architecture.md)
+> 来源：202604271239-personal-km-system-architecture.md（distilled/）
 > 生成时间：2026-04-27
+
 
 ## 要点
 

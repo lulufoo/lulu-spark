@@ -344,10 +344,10 @@ DDM 的 Phase 间传递物是文件，但文件格式目前是隐式的——P1 
 
 ```
 Phase 1 输入契约：
-  - raw/<topic-path>/<slug>-normalized.md（必须存在，格式：...)
+  - raw/<topic-path>/<ts>-<slug>.md（必须存在，格式：…；v2.7 与 `common_path` basename 一致）
   
 Phase 1 输出契约：
-  - cache/<topic-path>/<slug>-p1-cache.md
+  - .cache/<topic-path>/<ts>-<slug>-p1-cache.md
   - 必须字段：[P1-1] 对话类型 / [P1-3] 保留列表 / [P1-7] 章节规划
 ```
 

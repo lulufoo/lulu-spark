@@ -3,10 +3,11 @@
 > 创建时间：2026年4月25日 15:32
 
 
-> **导航**：[digest](../../../digest/ai-assisted-domain-learning/dialogue-distillation-model/202604251532-dialogue-to-doc-opt-digest.md) | [raw](../../../raw/ai-assisted-domain-learning/dialogue-distillation-model/202604251532-dialogue-to-doc-opt-normalized.md)
+> **导航**：[digest](../../../digest/ai-assisted-domain-learning/dialogue-distillation-model/202604251532-dialogue-to-doc-opt.md) | [raw](../../../raw/ai-assisted-domain-learning/dialogue-distillation-model/202604251532-dialogue-to-doc-opt.md)
 
 > 本文档基于一次理论深化式对话整理。
 > 目标是重建理解过程——跟着推导走一遍，而不是直接读结论。
+
 
 ## 本次对话在追什么
 

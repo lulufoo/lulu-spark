@@ -508,8 +508,8 @@ ASCII 框架图，价值判断渗透协作层全层，认知投影作用于协�
 |------|----|
 | 仓库 | `lulufoo/cognitive-trace-archive` |
 | 分支 | `ddm-add-cognitive-projection-leverage-framework-normalized` |
-| 路径 | `raw/cognitive-projection-leverage-framework-normalized.md` |
-| PR 标题 | `[DDM] add cognitive-projection-leverage-framework-normalized.md` |
+| 路径 | `raw/ai-assisted-domain-learning/cognitive-viewport-expansion-model/202604251532-cognitive-projection-leverage-framework.md` |
+| PR 标题 | `[DDM] add 202604251532-cognitive-projection-leverage-framework.md` |
 
 ---
 

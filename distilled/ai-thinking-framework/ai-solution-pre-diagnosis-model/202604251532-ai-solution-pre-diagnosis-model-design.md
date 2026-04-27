@@ -5,6 +5,8 @@
 
 > 本文整理自一次多轮对话。对话从评估一个具体模型的质量上限出发，逐步推导出「数据 + LLM 能力 + 框架设计」的三层瓶颈结构，并以此为基础设计了一个 AI 方案能力预诊断模型，最终在两个真实案例上执行验证，触碰到了这个预诊断模型自身的根本限制。
 
+
+> **导航**：[digest](../../../digest/ai-thinking-framework/ai-solution-pre-diagnosis-model/202604251532-ai-solution-pre-diagnosis-model-design.md) | [raw](../../../raw/ai-thinking-framework/ai-solution-pre-diagnosis-model/202604251532-ai-solution-pre-diagnosis-model-design.md)
 ---
 
 ## 一个模型打 72 分，另外 28 分去了哪里

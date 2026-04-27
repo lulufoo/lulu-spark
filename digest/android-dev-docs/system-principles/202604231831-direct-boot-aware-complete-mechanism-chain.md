@@ -1,6 +1,7 @@
 # directBootAware 的完整机制链 — 要点摘要
 
-> **导航**：[distilled](../../../distilled/android-dev-docs/system-principles/direct-boot-aware-complete-mechanism-chain-distilled.md)
+> **导航**：[distilled](../../../distilled/android-dev-docs/system-principles/202604231831-direct-boot-aware-complete-mechanism-chain.md)
+
 
 ## 要点
 

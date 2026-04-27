@@ -4,6 +4,8 @@
 > 本文档基于一次引导式学习对话整理。
 > 目标是重建理解的过程——跟着推导走一遍，而不是直接读结论。
 
+
+> **导航**：[digest](../../../digest/common-tech/language/202604231831-jmm-atomicity-happens-before-and-as-if-serial.md)
 ---
 
 ## 一、原子性的操作边界：JMM 直接保证了什么

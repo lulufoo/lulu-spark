@@ -2731,7 +2731,7 @@ TODO:1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,
 
 ---
 
-**User：** @lulufoo/cognitive-trace-archive/files/raw/ai-era-cognitive-competition-and-paid-cognition-paths-normalized.md
+**User：** @lulufoo/cognitive-trace-archive/files/raw/social-sciences/psychology/cognitive-psychology/202604251532-ai-era-cognitive-competition-and-paid-cognition-paths.md
 
 你可以看下上述对话过程，我觉得是一个AI高认知输出的对话，冲击感非常够。你觉得是否可以提炼什么对模型优化有帮助？
 
@@ -5620,6 +5620,6 @@ TODO:1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,
 
 格式检查：不满足标准格式，执行转换。
 
-> 📄 标准对话记录：raw/cvem-v5-cognitive-projection-development-normalized.md
+> 📄 标准对话记录（旧文件名 `cvem-v5-cognitive-projection-development-normalized.md` 已无对应 blob；相关 CVEM 对话见 `raw/ai-assisted-domain-learning/cognitive-viewport-expansion-model/202604251532-cognitive-projection-leverage-framework.md`）
 
-（已省略内嵌完整文档 `cvem-v5-cognitive-projection-development-normalized.md`，未见结束围栏；以下至文件末尾约 8317 字符一并省略。）
+（已省略内嵌完整文档；原引用名为 `cvem-v5-cognitive-projection-development-normalized.md`；以下至文件末尾约 8317 字符一并省略。）

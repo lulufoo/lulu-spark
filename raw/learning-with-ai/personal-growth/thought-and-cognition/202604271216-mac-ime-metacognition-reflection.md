@@ -2,7 +2,7 @@
 
 > 创建时间：2026年4月27日 12:16
 
-> **导航**：[distilled](../../../../distilled/learning-with-ai/personal-growth/thought-and-cognition/202604271216-mac-ime-metacognition-reflection-distilled.md) | [digest](../../../../digest/learning-with-ai/personal-growth/thought-and-cognition/202604271216-mac-ime-metacognition-reflection-digest.md)
+> **导航**：[distilled](../../../../distilled/learning-with-ai/personal-growth/thought-and-cognition/202604271216-mac-ime-metacognition-reflection.md) | [digest](../../../../digest/learning-with-ai/personal-growth/thought-and-cognition/202604271216-mac-ime-metacognition-reflection.md)
 
 <!-- DDM:TURN_SEP:v1 -->
 

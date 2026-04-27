@@ -3,7 +3,8 @@
 > 创建时间：2026年4月25日 15:32
 
 
-> **导航**：[distilled](../../../../distilled/android-dev-docs/system-principles/binder/202604251532-understanding-binder-representation-layers-distilled.md) | [raw](../../../../raw/android-dev-docs/system-principles/binder/202604251532-understanding-binder-representation-layers-normalized.md)
+> **导航**：[distilled](../../../../distilled/android-dev-docs/system-principles/binder/202604251532-understanding-binder-representation-layers.md) | [raw](../../../../raw/android-dev-docs/system-principles/binder/202604251532-understanding-binder-representation-layers.md)
+
 
 ## 要点
 

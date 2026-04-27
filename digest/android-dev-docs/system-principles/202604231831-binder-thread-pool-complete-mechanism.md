@@ -1,6 +1,7 @@
 # Binder 线程池完整机制链 — 要点摘要
 
-> **导航**：[distilled](../../../distilled/android-dev-docs/system-principles/binder-thread-pool-complete-mechanism-distilled.md)
+> **导航**：[distilled](../../../distilled/android-dev-docs/system-principles/202604231831-binder-thread-pool-complete-mechanism.md)
+
 
 ## 要点
 

@@ -2,6 +2,8 @@
 
 > 创建时间：2026年4月25日 15:32
 
+> **导航**：[distilled](../../../distilled/ai-thinking-framework/ai-solution-pre-diagnosis-model/202604251532-ai-solution-pre-diagnosis-model-design.md) | [digest](../../../digest/ai-thinking-framework/ai-solution-pre-diagnosis-model/202604251532-ai-solution-pre-diagnosis-model-design.md)
+
 <!-- DDM:TURN_SEP:v1 -->
 
 ## User

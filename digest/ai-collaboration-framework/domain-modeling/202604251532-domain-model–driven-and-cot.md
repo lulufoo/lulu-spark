@@ -3,7 +3,8 @@
 > 创建时间：2026年4月25日 15:32
 
 
-> **导航**：[distilled](../../../distilled/ai-collaboration-framework/domain-modeling/202604251532-domain-model–driven-and-cot-distilled.md) | [raw](../../../raw/ai-collaboration-framework/domain-modeling/202604251532-domain-model–driven-and-cot-normalized.md)
+> **导航**：[distilled](../../../distilled/ai-collaboration-framework/domain-modeling/202604251532-domain-model–driven-and-cot.md) | [raw](../../../raw/ai-collaboration-framework/domain-modeling/202604251532-domain-model–driven-and-cot.md)
+
 
 ## 要点
 

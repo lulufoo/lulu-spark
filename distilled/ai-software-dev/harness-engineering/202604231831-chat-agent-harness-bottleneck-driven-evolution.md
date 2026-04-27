@@ -3,6 +3,9 @@
 > 本文档基于一次方案推演式对话整理。
 > 目标是重建理解的过程——跟着推导走一遍，而不是直接读结论。
 
+
+> **导航**：[digest](../../../digest/ai-software-dev/harness-engineering/202604231831-chat-agent-harness-bottleneck-driven-evolution.md)
+
 ## 对话目标与边界
 
 这次对话要回答的不是"这三个概念分别是什么"，而是一个更具体的问题：**为什么 Copilot Chat 之后会出现 AI Agent，而 AI Agent 之后又会出现 Harness Engineering？驱动这条链条的到底是什么？**

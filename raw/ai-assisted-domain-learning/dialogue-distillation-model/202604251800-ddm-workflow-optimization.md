@@ -2,7 +2,7 @@
 
 > 创建时间：2026年4月25日 18:00
 
-> **导航**：[distilled](../../../distilled/ai-assisted-domain-learning/dialogue-distillation-model/202604251800-ddm-workflow-optimization-distilled.md) | [digest](../../../digest/ai-assisted-domain-learning/dialogue-distillation-model/202604251800-ddm-workflow-optimization-digest.md)
+> **导航**：[distilled](../../../distilled/ai-assisted-domain-learning/dialogue-distillation-model/202604251800-ddm-workflow-optimization.md) | [digest](../../../digest/ai-assisted-domain-learning/dialogue-distillation-model/202604251800-ddm-workflow-optimization.md)
 
 <!-- DDM:TURN_SEP:v1 -->
 
@@ -43,77 +43,68 @@ CHAT_ID-a7f3e2b1c849d056f3e7a2b9c0d1e4f5
 
 ### 整体流程重构
 
-**DTD 新执行顺序：**
+**DTD 执行顺序（对话中曾提议独立 Phase 5 与 `*-normalized` 后缀；以下为现行 **v2.7**，与 AADL `ddm-phase-overview.md` 一致）：**
 
 ```
-Phase 0（来自 ACN）: 对话归一化
-  → CTA_BASE/raw/<topic-path>/<slug>-normalized.md
+Phase 0：对话归一化（ACN Step 1–4 / `ddm-p0-normalize.md`）
+  → raw/<topic-path>/<ts>-<slug>.md，index.json v3 新增 entries
 
-Phase 1: 诊断（不变）
-Phase 2: 生成（不变）
-Phase 3: 质量诊断（不变）
-
-Phase 4: 对话重点提炼（原"认知路径提取"重定位）
-  → 产出 digest 文档内容
-
-Phase 5（原 P4-1 拆出）: 环境判断与落盘
-  → 落盘三个文件，注入导航链接，更新 index.json
+Phase 1–2：诊断、生成 distilled
+Phase 3：digest（对话重点提炼）
+Phase 4：注入导航、更新 index.json（各层布尔）
 ```
 
 ---
 
-### 文件结构（均在 CTA_BASE）
+### 文件结构（均在 CTA_BASE，v2.7）
 
 | 文件 | 路径 | 生成阶段 |
 |------|------|---------|
-| raw | `raw/<topic-path>/<slug>-normalized.md` | Phase 0 |
-| distilled | `distilled/<topic-path>/<slug>-distilled.md` | Phase 5 落盘 |
-| digest | `digest/<topic-path>/<slug>-digest.md` | Phase 5 落盘 |
+| raw | `raw/<topic-path>/<ts>-<slug>.md` | Phase 0 |
+| distilled | `distilled/<topic-path>/<ts>-<slug>.md` | Phase 2 |
+| digest | `digest/<topic-path>/<ts>-<slug>.md` | Phase 3 |
 
-`<topic-path>` 在 Phase 0 确定，三个文件强制共用，由 Phase 5 落盘时统一校验。
+`<topic-path>` 与 `<ts>` 在 Phase 0 确定；raw / distilled / digest **共用同一 basename**。
 
 ---
 
-### index.json schema 变更
+### index.json（v3，`common_path` + 布尔）
 
-ACN 当前追加：
 ```json
-"<chat_id>": { "raw": "...", "distilled": null }
-```
-
-改为：
-```json
-"<chat_id>": {
-  "raw": "raw/<topic-path>/<slug>-normalized.md",
-  "distilled": null,
-  "digest": null
+"<32位十六进制id>": {
+  "common_path": "<topic-path>/<ts>-<slug>.md",
+  "raw": true,
+  "distilled": false,
+  "digest": false
 }
 ```
 
-Phase 5 落盘时填充 `distilled` 和 `digest` 字段。
+Phase 4 落盘后，将已存在层的 `distilled` / `digest` 置为 `true`。
 
 ---
 
-### 导航链接（Phase 5 注入）
+### 导航链接（Phase 4 注入）
 
-三个文件的导航链接在 Phase 5 统一注入（此时三条路径均已确定），避免 Phase 0 时路径未知的问题。
+三个文件的导航在 Phase 4 统一注入（路径已随 `common_path` 确定）。
 
 相对路径根据 topic-path 层级动态计算（设 `N` = topic-path 深度，需向上 `N+1` 层后跨目录）：
 
-**raw 文件头部：**
+**raw 文件头部（v2.7：`raw`、`distilled`、`digest` 共用同一 `<ts>-<slug>.md` basename）：**
 ```markdown
-> **导航**：[distilled](../../../distilled/<topic-path>/<slug>-distilled.md) | [digest](../../../digest/<topic-path>/<slug>-digest.md)
+> **导航**：[distilled](../../../distilled/<topic-path>/<ts>-<slug>.md) | [digest](../../../digest/<topic-path>/<ts>-<slug>.md)
 ```
 
 **distilled 文件头部：**
 ```markdown
-> **导航**：[digest](../../../digest/<topic-path>/<slug>-digest.md) | [raw](../../../raw/<topic-path>/<slug>-normalized.md)
+> **导航**：[digest](../../../digest/<topic-path>/<ts>-<slug>.md) | [raw](../../../raw/<topic-path>/<ts>-<slug>.md)
 ```
 
 **digest 文件头部：**
 ```markdown
-> **导航**：[distilled](../../../distilled/<topic-path>/<slug>-distilled.md) | [raw](../../../raw/<topic-path>/<slug>-normalized.md)
+> **导航**：[distilled](../../../distilled/<topic-path>/<ts>-<slug>.md) | [raw](../../../raw/<topic-path>/<ts>-<slug>.md)
 ```
+
+> **说明**：导航中 `../../../` 层数随 `topic-path` 深度而变；格式 few-shot 见 CTA [`templates/ddm-normalized-output-template.md`](https://github.com/lulufoo/cognitive-trace-archive/blob/main/templates/ddm-normalized-output-template.md)。
 
 ---
 
@@ -135,9 +126,9 @@ Phase 5 落盘时填充 `distilled` 和 `digest` 字段。
 
 ### 涉及修改的文件
 
-1. [dialogue-distillation-model.md](../../../ai-assisted-domain-learning/dialogue-distillation-model/dialogue-distillation-model.md) — 主体变更（Phase 0 嵌入 ACN、Phase 4 重定位、Phase 5 拆出）
-2. [dialogue-to-doc.md](../../../ai-assisted-domain-learning/dialogue-distillation-model/dialogue-to-doc.md) — 更新完成标志格式
-3. [ai-conversation-normalize.md](../../../cognitive-trace-archive/ai-conversation-normalize.md) — index.json schema 加 digest 字段 + 声明导航链接由 Phase 5 注入
+1. [ddm-phase-overview.md](https://github.com/lulufoo/ai-assisted-domain-learning/blob/main/dialogue-distillation-model/ddm-phase-overview.md) — 阶段与依赖（现行无单独的 `dialogue-distillation-model.md` 单文件）
+2. [dialogue-to-doc.md](https://github.com/lulufoo/ai-assisted-domain-learning/blob/main/dialogue-distillation-model/dialogue-to-doc.md) — 执行入口与完成标志
+3. [ddm-p0-normalize.md](https://github.com/lulufoo/ai-assisted-domain-learning/blob/main/dialogue-distillation-model/ddm-p0-normalize.md) — Phase 0 归一化（原 `cognitive-trace-archive/ai-conversation-normalize.md` 已不在仓库；由 AADL 内本文件承担）
 
 Turn:1～1
 

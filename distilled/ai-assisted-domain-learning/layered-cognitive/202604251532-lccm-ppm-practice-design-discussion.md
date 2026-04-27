@@ -3,10 +3,11 @@
 > 创建时间：2026年4月25日 15:32
 
 
-> **导航**：[digest](../../../digest/ai-assisted-domain-learning/layered-cognitive/202604251532-lccm-ppm-practice-design-discussion.md) | [raw](../../../raw/ai-assisted-domain-learning/layered-cognitive/202604251532-lccm-ppm-practice-design-discussion-normalized.md)
+> **导航**：[digest](../../../digest/ai-assisted-domain-learning/layered-cognitive/202604251532-lccm-ppm-practice-design-discussion.md) | [raw](../../../raw/ai-assisted-domain-learning/layered-cognitive/202604251532-lccm-ppm-practice-design-discussion.md)
 
 > 本文档基于一次框架设计式对话整理。
 > 目标是重建推理过程——跟着推导走一遍，而不是直接读结论。
+
 
 ## 本次对话在追什么
 

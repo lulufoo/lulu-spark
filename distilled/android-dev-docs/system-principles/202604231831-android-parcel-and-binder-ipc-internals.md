@@ -2,6 +2,8 @@
 
 > 本文档基于一次 LCCM 引导对话整理，目标是重建理解的过程——跟着推导走一遍，而不是直接读结论。
 
+
+> **导航**：[digest](../../../digest/android-dev-docs/system-principles/202604231831-android-parcel-and-binder-ipc-internals.md)
 ---
 
 ## 对话目标与边界

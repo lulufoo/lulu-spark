@@ -3,9 +3,10 @@
 > 创建时间：2026年4月26日 14:27
 
 
-> **导航**：[distilled](../../../distilled/ai-thinking-framework/intent-clarification-guidance-model/202604261427-icgm-v2-structural-observation-redesign.md) | [raw](../../../raw/ai-thinking-framework/intent-clarification-guidance-model/202604261427-icgm-v2-structural-observation-redesign-normalized.md)
+> **导航**：[distilled](../../../distilled/ai-thinking-framework/intent-clarification-guidance-model/202604261427-icgm-v2-structural-observation-redesign.md) | [raw](../../../raw/ai-thinking-framework/intent-clarification-guidance-model/202604261427-icgm-v2-structural-observation-redesign.md)
 > 来源：icgm-v2-structural-observation-redesign.md（distilled/）
 > 生成时间：2026-04-26
+
 
 ## 要点
 

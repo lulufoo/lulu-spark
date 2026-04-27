@@ -6,6 +6,9 @@
 > 本文档基于一次引导式学习对话整理。
 > 目标是重建理解的过程——跟着推导走一遍，而不是直接读结论。
 
+
+> **导航**：[digest](../../../../digest/android-dev-docs/system-principles/binder/202604251532-understanding-binder-representation-layers.md) | [raw](../../../../raw/android-dev-docs/system-principles/binder/202604251532-understanding-binder-representation-layers.md)
+
 ## 对话目标与边界
 
 **学习目标**：理解 Binder 表述——即 Binder 在不同系统层次中的不同形态、它们之间的关系，以及为什么必须分层表述。

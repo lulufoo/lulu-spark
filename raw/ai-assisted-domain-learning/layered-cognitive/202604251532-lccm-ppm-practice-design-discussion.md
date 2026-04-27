@@ -575,9 +575,9 @@ TODO7
 > 📥 处理范围：全文（TODO1 至 TODO7），共 7 轮。
 > 🗜 已省略内嵌 name= 文档块 0 处，体积约从 10610 字减至 10610 字。
 > 🔍 运行环境：本地
-> 📄 标准对话记录：/Users/lulu/Code/cognitive-trace-archive/raw/lccm-ppm-practice-design-discussion-normalized.md
-> ✅ 已归档并推送：/Users/lulu/Code/cognitive-trace-archive/raw/lccm-ppm-practice-design-discussion-normalized.md
-> 🔗 https://github.com/lulufoo/cognitive-trace-archive/blob/main/raw/lccm-ppm-practice-design-discussion-normalized.md
+> 📄 标准对话记录：`raw/ai-assisted-domain-learning/layered-cognitive/202604251532-lccm-ppm-practice-design-discussion.md`
+> ✅ 已归档并推送：`raw/ai-assisted-domain-learning/layered-cognitive/202604251532-lccm-ppm-practice-design-discussion.md`
+> 🔗 https://github.com/lulufoo/cognitive-trace-archive/blob/main/raw/ai-assisted-domain-learning/layered-cognitive/202604251532-lccm-ppm-practice-design-discussion.md
 
 *模型：Claude Sonnet 4.6*
 

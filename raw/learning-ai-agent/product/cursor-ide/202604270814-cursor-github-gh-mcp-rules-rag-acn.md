@@ -2,6 +2,8 @@
 
 > 创建时间：2026年4月27日 08:14
 
+> **导航**：[distilled](../../../../distilled/learning-ai-agent/product/cursor-ide/202604270814-cursor-github-gh-mcp-rules-rag-acn.md) | [digest](../../../../digest/learning-ai-agent/product/cursor-ide/202604270814-cursor-github-gh-mcp-rules-rag-acn.md)
+
 <!-- DDM:TURN_SEP:v1 -->
 
 ## User

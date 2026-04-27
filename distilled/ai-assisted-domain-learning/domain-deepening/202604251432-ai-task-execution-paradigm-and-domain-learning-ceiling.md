@@ -3,10 +3,11 @@
 > 创建时间：2026年4月25日 14:32
 
 
-> **导航**：[digest](../../../digest/ai-assisted-domain-learning/domain-deepening/202604251432-ai-task-execution-paradigm-and-domain-learning-ceiling-digest.md) | [raw](../../../raw/ai-assisted-domain-learning/domain-deepening/202604251432-ai-task-execution-paradigm-and-domain-learning-ceiling-normalized.md)
+> **导航**：[digest](../../../digest/ai-assisted-domain-learning/domain-deepening/202604251432-ai-task-execution-paradigm-and-domain-learning-ceiling.md) | [raw](../../../raw/ai-assisted-domain-learning/domain-deepening/202604251432-ai-task-execution-paradigm-and-domain-learning-ceiling.md)
 
 > 本文档基于一次方案推演式对话整理。
 > 目标是重建理解过程——跟着推导走一遍，而不是直接读结论。
+
 
 ## 本次对话在追什么
 

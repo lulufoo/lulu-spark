@@ -2,6 +2,8 @@
 
 > 创建时间：2026年4月25日 15:32
 
+> **导航**：[distilled](../../../../distilled/android-dev-docs/system-principles/binder/202604251532-understanding-binder-representation-layers.md) | [digest](../../../../digest/android-dev-docs/system-principles/binder/202604251532-understanding-binder-representation-layers.md)
+
 <!-- DDM:TURN_SEP:v1 -->
 
 ## User

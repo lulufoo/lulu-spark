@@ -3,6 +3,9 @@
 > 本文档基于一次引导式学习（RAPM + LCCM）整理。
 > 目标是重建理解过程——跟着推导走一遍，而不是直接读结论。
 
+
+> **导航**：[digest](../../../digest/common-tech/language/202604240037-java-cas-optimistic-concurrency.md)
+
 ## 本次对话在追什么
 
 对话从一份缺少重试循环的 CasCounter 实现出发，沿一条可重走的主线推进：

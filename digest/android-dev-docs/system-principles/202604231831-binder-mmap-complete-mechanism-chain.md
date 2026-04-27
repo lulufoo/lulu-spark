@@ -1,6 +1,7 @@
 # Binder mmap：从"减少拷贝"到"安全边界"的完整机制链 — 要点摘要
 
-> **导航**：[distilled](../../../distilled/android-dev-docs/system-principles/binder-mmap-complete-mechanism-chain-distilled.md)
+> **导航**：[distilled](../../../distilled/android-dev-docs/system-principles/202604231831-binder-mmap-complete-mechanism-chain.md)
+
 
 ## 要点
 

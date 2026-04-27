@@ -4,6 +4,9 @@
 > 本文档基于一次引导式学习对话整理。
 > 目标是重建理解的过程——跟着推导走一遍，而不是直接读结论。
 
+
+> **导航**：[digest](../../../digest/android-dev-docs/framework-principles/202604231831-how-binder-oneway-shifts-from-immediate-return-to-asynchronous-intent-delivery.md)
+
 ## 它一开始看起来像什么
 
 这段理解是从一个很直观的问题开始的：`oneway` 是不是 AIDL 的一个方法标记，以及它是不是能让发送方在发起调用后立即返回。

@@ -1,6 +1,7 @@
 # JMM 原子性边界、volatile 的真实作用与 as-if-serial — 要点摘要
 
-> **导航**：[distilled](../../../distilled/common-tech/language/jmm-atomicity-happens-before-and-as-if-serial-distilled.md)
+> **导航**：[distilled](../../../distilled/common-tech/language/202604231831-jmm-atomicity-happens-before-and-as-if-serial.md)
+
 
 ## 要点
 

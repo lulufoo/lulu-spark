@@ -2,7 +2,7 @@
 
 > 创建时间：2026年4月25日 15:32
 
-> **导航**：[distilled](../../../distilled/ai-assisted-domain-learning/dialogue-distillation-model/202604251532-dialogue-to-doc-opt-distilled.md) | [digest](../../../digest/ai-assisted-domain-learning/dialogue-distillation-model/202604251532-dialogue-to-doc-opt-digest.md)
+> **导航**：[distilled](../../../distilled/ai-assisted-domain-learning/dialogue-distillation-model/202604251532-dialogue-to-doc-opt.md) | [digest](../../../digest/ai-assisted-domain-learning/dialogue-distillation-model/202604251532-dialogue-to-doc-opt.md)
 
 <!-- DDM:TURN_SEP:v1 -->
 

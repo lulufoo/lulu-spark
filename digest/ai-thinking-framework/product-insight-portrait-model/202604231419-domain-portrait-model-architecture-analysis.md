@@ -2,6 +2,7 @@
 
 > **导航**：[distilled](../../../distilled/ai-thinking-framework/product-insight-portrait-model/202604231419-domain-portrait-model-architecture-analysis.md)
 
+
 ## 要点
 
 1. **"设计形塑性"标准的失效诊断：已有标准答案的问题不是形塑对象**

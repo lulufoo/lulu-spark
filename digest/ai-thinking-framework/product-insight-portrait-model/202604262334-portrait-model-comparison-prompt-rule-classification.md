@@ -3,9 +3,10 @@
 > 创建时间：2026年4月26日 23:34
 
 
-> **导航**：[distilled](../../../distilled/ai-thinking-framework/product-insight-portrait-model/202604262334-portrait-model-comparison-prompt-rule-classification.md) | [raw](../../../raw/ai-thinking-framework/product-insight-portrait-model/202604262334-portrait-model-comparison-prompt-rule-classification-normalized.md)
+> **导航**：[distilled](../../../distilled/ai-thinking-framework/product-insight-portrait-model/202604262334-portrait-model-comparison-prompt-rule-classification.md) | [raw](../../../raw/ai-thinking-framework/product-insight-portrait-model/202604262334-portrait-model-comparison-prompt-rule-classification.md)
 > 来源：202604262334-portrait-model-comparison-prompt-rule-classification.md（distilled/）
 > 生成时间：2026-04-26
+
 
 ## 要点
 

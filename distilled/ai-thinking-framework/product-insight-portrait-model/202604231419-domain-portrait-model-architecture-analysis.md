@@ -3,6 +3,9 @@
 > 本文档基于一次方案推演式 + 批判性讨论整理。
 > 目标是重建理解过程——跟着推导走一遍，而不是直接读结论。
 
+
+> **导航**：[digest](../../../digest/ai-thinking-framework/product-insight-portrait-model/202604231419-domain-portrait-model-architecture-analysis.md)
+
 ## 本次对话在追什么
 
 对话从「T1/T2/T3 是否真实」这个局部审查出发，按一条可重走的主线推进：

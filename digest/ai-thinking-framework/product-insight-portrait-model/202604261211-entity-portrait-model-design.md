@@ -5,6 +5,7 @@
 
 > **导航**：[distilled](../../../distilled/ai-thinking-framework/product-insight-portrait-model/202604261211-entity-portrait-model-design.md) | [raw](../../../raw/ai-thinking-framework/product-insight-portrait-model/202604261211-entity-portrait-model-design.md)
 
+
 ## 要点
 
 1. **目标模糊是画像输出平庸的根本原因，不是维度选择问题**

@@ -2,7 +2,7 @@
 
 > 创建时间：2026年4月25日 15:32
 
-> **导航**：[distilled](../../../../distilled/learning-ai-agent/product/cursor-ide/202604251532-cursor_objectivity_of_subjective_statem-distilled.md) | [digest](../../../../digest/learning-ai-agent/product/cursor-ide/202604251532-cursor_objectivity_of_subjective_statem-digest.md)
+> **导航**：[distilled](../../../../distilled/learning-ai-agent/product/cursor-ide/202604251532-cursor_objectivity_of_subjective_statem.md) | [digest](../../../../digest/learning-ai-agent/product/cursor-ide/202604251532-cursor_objectivity_of_subjective_statem.md)
 
 <!-- DDM:TURN_SEP:v1 -->
 

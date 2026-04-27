@@ -5,6 +5,7 @@
 
 > **导航**：[distilled](../../../distilled/ai-thinking-framework/ai-solution-pre-diagnosis-model/202604251532-ai-solution-pre-diagnosis-model-design.md) | [raw](../../../raw/ai-thinking-framework/ai-solution-pre-diagnosis-model/202604251532-ai-solution-pre-diagnosis-model-design.md)
 
+
 ## 要点
 
 1. **方案能力是三层乘法：数据质量 × LLM 能力 × 框架设计质量**

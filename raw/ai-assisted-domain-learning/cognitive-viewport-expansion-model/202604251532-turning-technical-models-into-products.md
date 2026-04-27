@@ -1239,7 +1239,7 @@ TODO:1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19
 
 ## User
 
-请你审查： @lulufoo/cognitive-trace-archive/files/raw/ai-era-cognitive-competition-and-paid-cognition-paths-normalized.md
+请你审查： @lulufoo/cognitive-trace-archive/files/raw/social-sciences/psychology/cognitive-psychology/202604251532-ai-era-cognitive-competition-and-paid-cognition-paths.md
 
 为什么这个对话，我感觉认知冲击会更明显呢？ 你给的没有感觉。
 
@@ -2737,8 +2737,8 @@ TODO34
 | 项目 | 值 |
 |------|----|
 | 仓库 | `lulufoo/cognitive-trace-archive` |
-| 路径 | `raw/cvem-theory-reconstruction-cognitive-impact-crack-mechanism-normalized.md` |
-| 提交信息 | `[DDM] add cvem-theory-reconstruction-cognitive-impact-crack-mechanism-normalized.md` |
+| 路径 | `raw/ai-assisted-domain-learning/cognitive-viewport-expansion-model/<ts>-<slug>.md`（对话中曾写 `cvem-theory-reconstruction-cognitive-impact-crack-mechanism-normalized.md`，仓库无该 blob） |
+| 提交信息 | `[DDM] add <ts>-<slug>.md` |
 
 > 🔔 即将提交至 lulufoo/cognitive-trace-archive/raw/，请确认是否继续？（是 / 否）
 
@@ -2760,8 +2760,8 @@ TODO:1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,
 
 TODO34（续）
 
-> ✅ 已提交：`raw/cvem-theory-reconstruction-cognitive-impact-crack-mechanism-normalized.md`
-> 🔗 https://github.com/lulufoo/cognitive-trace-archive/blob/main/raw/cvem-theory-reconstruction-cognitive-impact-crack-mechanism-normalized.md
+> ✅ 已提交：见上表；现行命名见本目录 `202604251532-*.md`
+> 🔗 https://github.com/lulufoo/cognitive-trace-archive/tree/main/raw/ai-assisted-domain-learning/cognitive-viewport-expansion-model（对话中曾用旧文件名 `cvem-theory-reconstruction-cognitive-impact-crack-mechanism-normalized.md`，仓库内无该 blob；同主题见本目录下 `202604251532-*.md`）
 
 ---
 

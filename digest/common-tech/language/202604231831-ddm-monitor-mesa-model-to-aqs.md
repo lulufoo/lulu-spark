@@ -1,6 +1,7 @@
 # Java Monitor 机制与 Mesa 模型：从 synchronized 到 AQS — 要点摘要
 
-> **导航**：[distilled](../../../distilled/common-tech/language/ddm-monitor-mesa-model-to-aqs-distilled.md)
+> **导航**：[distilled](../../../distilled/common-tech/language/202604231831-ddm-monitor-mesa-model-to-aqs.md)
+
 
 ## 要点
 

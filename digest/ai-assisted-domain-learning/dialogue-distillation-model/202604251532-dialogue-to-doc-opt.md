@@ -3,9 +3,10 @@
 > 创建时间：2026年4月25日 15:32
 
 
-> **导航**：[distilled](../../../distilled/ai-assisted-domain-learning/dialogue-distillation-model/202604251532-dialogue-to-doc-opt-distilled.md) | [raw](../../../raw/ai-assisted-domain-learning/dialogue-distillation-model/202604251532-dialogue-to-doc-opt-normalized.md)
-> 来源：202604251532-dialogue-to-doc-opt-distilled.md（distilled/）
+> **导航**：[distilled](../../../distilled/ai-assisted-domain-learning/dialogue-distillation-model/202604251532-dialogue-to-doc-opt.md) | [raw](../../../raw/ai-assisted-domain-learning/dialogue-distillation-model/202604251532-dialogue-to-doc-opt.md)
+> 来源：202604251532-dialogue-to-doc-opt.md（distilled/）
 > 生成时间：2026-04-26
+
 
 ## 要点
 

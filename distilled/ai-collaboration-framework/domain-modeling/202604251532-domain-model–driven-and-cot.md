@@ -3,10 +3,11 @@
 > 创建时间：2026年4月25日 15:32
 
 
-> **导航**：[digest](../../../digest/ai-collaboration-framework/domain-modeling/202604251532-domain-model–driven-and-cot-digest.md) | [raw](../../../raw/ai-collaboration-framework/domain-modeling/202604251532-domain-model–driven-and-cot-normalized.md)
+> **导航**：[digest](../../../digest/ai-collaboration-framework/domain-modeling/202604251532-domain-model–driven-and-cot.md) | [raw](../../../raw/ai-collaboration-framework/domain-modeling/202604251532-domain-model–driven-and-cot.md)
 
 > 本文档基于一次机制分析式对话整理。
 > 目标是重建推理过程——跟着推导走一遍，而不是直接读结论。
+
 
 ## 本次对话在追什么
 

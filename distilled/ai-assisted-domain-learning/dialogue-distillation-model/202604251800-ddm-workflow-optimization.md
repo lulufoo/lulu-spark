@@ -3,10 +3,11 @@
 > 创建时间：2026年4月25日 18:00
 
 
-> **导航**：[digest](../../../digest/ai-assisted-domain-learning/dialogue-distillation-model/202604251800-ddm-workflow-optimization-digest.md) | [raw](../../../raw/ai-assisted-domain-learning/dialogue-distillation-model/202604251800-ddm-workflow-optimization-normalized.md)
+> **导航**：[digest](../../../digest/ai-assisted-domain-learning/dialogue-distillation-model/202604251800-ddm-workflow-optimization.md) | [raw](../../../raw/ai-assisted-domain-learning/dialogue-distillation-model/202604251800-ddm-workflow-optimization.md)
 
 > 本文档基于一次**对方案型流程做重构**的对话整理。  
 > 目标是重建理解过程：先看清「要的是哪几类契约」，再看到「内嵌/拷贝/删旧」三者在仓库里的真实落点，而不是只记住一句「Phase 5 落盘」。
+
 
 ## 本次对话在追什么
 

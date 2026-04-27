@@ -3,7 +3,8 @@
 > 创建时间：2026年4月25日 23:44
 
 
-> **导航**：[distilled](../../../../distilled/ai-software-dev/agentic-coding/agentic-design-patterns/202604252344-context-window-task-granularity-model.md) | [raw](../../../../raw/ai-software-dev/agentic-coding/agentic-design-patterns/202604252344-context-window-task-granularity-model-normalized.md)
+> **导航**：[distilled](../../../../distilled/ai-software-dev/agentic-coding/agentic-design-patterns/202604252344-context-window-task-granularity-model.md) | [raw](../../../../raw/ai-software-dev/agentic-coding/agentic-design-patterns/202604252344-context-window-task-granularity-model.md)
+
 
 ## 要点
 

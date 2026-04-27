@@ -2,6 +2,7 @@
 
 > **导航**：[distilled](../../../distilled/ai-software-dev/harness-engineering/202604231831-chat-agent-harness-bottleneck-driven-evolution.md)
 
+
 ## 要点
 
 1. **三层演进的驱动机制是"前者的成功制造下一层的问题空间"，不是替代关系**

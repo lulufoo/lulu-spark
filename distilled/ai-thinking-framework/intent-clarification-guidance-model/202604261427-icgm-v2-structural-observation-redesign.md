@@ -3,10 +3,11 @@
 > 创建时间：2026年4月26日 14:27
 
 
-> **导航**：[digest](../../../digest/ai-thinking-framework/intent-clarification-guidance-model/202604261427-icgm-v2-structural-observation-redesign.md) | [raw](../../../raw/ai-thinking-framework/intent-clarification-guidance-model/202604261427-icgm-v2-structural-observation-redesign-normalized.md)
+> **导航**：[digest](../../../digest/ai-thinking-framework/intent-clarification-guidance-model/202604261427-icgm-v2-structural-observation-redesign.md) | [raw](../../../raw/ai-thinking-framework/intent-clarification-guidance-model/202604261427-icgm-v2-structural-observation-redesign.md)
 
 > 本文档基于一次方案推演式设计对话整理。
 > 目标是重建理解过程——跟着推导走一遍，而不是直接读结论。
+
 
 ## 本次对话在追什么
 

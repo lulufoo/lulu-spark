@@ -1,6 +1,7 @@
 # LLM 逐 Token 生成的完整机制 — 要点摘要
 
-> **导航**：[distilled](../../../distilled/ai/llm/llm-token-generation-mechanism-distilled.md)
+> **导航**：[distilled](../../../distilled/ai/llm/202604231831-llm-token-generation-mechanism.md)
+
 
 ## 要点
 

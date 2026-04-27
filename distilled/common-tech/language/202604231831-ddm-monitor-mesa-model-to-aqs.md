@@ -3,6 +3,8 @@
 > 本文档基于一次 LCCM 引导对话整理。
 > 目标是重建理解的过程——跟着推导走一遍，而不是直接读结论。
 
+
+> **导航**：[digest](../../../digest/common-tech/language/202604231831-ddm-monitor-mesa-model-to-aqs.md)
 ---
 
 ## wait() 调用时到底发生了什么

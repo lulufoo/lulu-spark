@@ -2,6 +2,9 @@
 
 > 本文档基于一次 LCCM 引导对话整理，目标是重建理解的过程——跟着推导走一遍，而不是直接读结论。
 
+
+> **导航**：[digest](../../../digest/common-tech/language/202604231831-reentrantlock-from-reentrancy-to-mesa-skeleton-cognitive-path.md)
+
 ## 本次对话在追什么
 
 对话从「知道 `ReentrantLock` 在 Java 并发包里」出发，按一条可重走的主线推进：

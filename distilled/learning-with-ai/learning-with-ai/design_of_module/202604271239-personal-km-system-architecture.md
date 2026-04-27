@@ -3,10 +3,11 @@
 > 创建时间：2026年4月27日 12:39
 
 
-> **导航**：[digest](../../../../digest/learning-with-ai/learning-with-ai/design_of_module/202604271239-personal-km-system-architecture-digest.md) | [raw](../../../../raw/learning-with-ai/learning-with-ai/design_of_module/202604271239-personal-km-system-architecture-normalized.md)
+> **导航**：[digest](../../../../digest/learning-with-ai/learning-with-ai/design_of_module/202604271239-personal-km-system-architecture.md) | [raw](../../../../raw/learning-with-ai/learning-with-ai/design_of_module/202604271239-personal-km-system-architecture.md)
 
 > 本文档基于一次方案推演式对话整理。
 > 目标是重建理解过程——跟着推导走一遍，而不是直接读结论。
+
 
 ## 本次对话在追什么
 

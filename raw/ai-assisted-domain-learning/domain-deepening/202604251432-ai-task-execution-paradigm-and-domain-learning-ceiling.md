@@ -2,7 +2,7 @@
 
 > 创建时间：2026年4月25日 14:32
 
-> **导航**：[distilled](../../../distilled/ai-assisted-domain-learning/domain-deepening/202604251432-ai-task-execution-paradigm-and-domain-learning-ceiling-distilled.md) | [digest](../../../digest/ai-assisted-domain-learning/domain-deepening/202604251432-ai-task-execution-paradigm-and-domain-learning-ceiling-digest.md)
+> **导航**：[distilled](../../../distilled/ai-assisted-domain-learning/domain-deepening/202604251432-ai-task-execution-paradigm-and-domain-learning-ceiling.md) | [digest](../../../digest/ai-assisted-domain-learning/domain-deepening/202604251432-ai-task-execution-paradigm-and-domain-learning-ceiling.md)
 
 <!-- DDM:TURN_SEP:v1 -->
 
