@@ -3,7 +3,7 @@
 > 创建时间：2026年4月25日 15:32
 
 
-> **导航**：[distilled](../../../distilled/ai-thinking-framework/ai-solution-pre-diagnosis-model/202604251532-ai-solution-pre-diagnosis-model-design-distilled.md) | [raw](../../../raw/ai-thinking-framework/ai-solution-pre-diagnosis-model/202604251532-ai-solution-pre-diagnosis-model-design-2026-04-25-normalized.md)
+> **导航**：[distilled](../../../distilled/ai-thinking-framework/ai-solution-pre-diagnosis-model/202604251532-ai-solution-pre-diagnosis-model-design.md) | [raw](../../../raw/ai-thinking-framework/ai-solution-pre-diagnosis-model/202604251532-ai-solution-pre-diagnosis-model-design.md)
 
 ## 要点
 

@@ -1,6 +1,6 @@
 # Domain Portrait 模型架构分析 — 要点摘要
 
-> **导航**：[distilled](../../../distilled/ai-thinking-framework/product-insight-portrait-model/domain-portrait-model-architecture-analysis-distilled.md)
+> **导航**：[distilled](../../../distilled/ai-thinking-framework/product-insight-portrait-model/domain-portrait-model-architecture-analysis.md)
 
 ## 要点
 

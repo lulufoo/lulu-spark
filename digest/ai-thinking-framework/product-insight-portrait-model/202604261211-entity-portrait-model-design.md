@@ -3,7 +3,7 @@
 > 创建时间：2026年4月26日 12:11
 
 
-> **导航**：[distilled](../../../distilled/ai-thinking-framework/product-insight-portrait-model/202604261211-entity-portrait-model-design-distilled.md) | [raw](../../../raw/ai-thinking-framework/product-insight-portrait-model/202604261211-entity-portrait-model-design-2026-04-26-normalized.md)
+> **导航**：[distilled](../../../distilled/ai-thinking-framework/product-insight-portrait-model/202604261211-entity-portrait-model-design.md) | [raw](../../../raw/ai-thinking-framework/product-insight-portrait-model/202604261211-entity-portrait-model-design.md)
 
 ## 要点
 

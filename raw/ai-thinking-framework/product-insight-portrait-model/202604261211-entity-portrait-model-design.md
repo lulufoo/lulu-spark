@@ -2,7 +2,7 @@
 
 > 创建时间：2026年4月26日 12:11
 
-> **导航**：[distilled](../../../distilled/ai-thinking-framework/product-insight-portrait-model/202604261211-entity-portrait-model-design-distilled.md) | [digest](../../../digest/ai-thinking-framework/product-insight-portrait-model/202604261211-entity-portrait-model-design-digest.md)
+> **导航**：[distilled](../../../distilled/ai-thinking-framework/product-insight-portrait-model/202604261211-entity-portrait-model-design.md) | [digest](../../../digest/ai-thinking-framework/product-insight-portrait-model/202604261211-entity-portrait-model-design.md)
 
 <!-- DDM:TURN_SEP:v1 -->
 
@@ -1157,7 +1157,7 @@ Turn17
 
 先读本地目录。
 
-（读取 `raw/` 与 `distilled/ai-thinking-framework/product-insight-portrait-model/domain-portrait-model-architecture-analysis-distilled.md` 等目录与关键内容）
+（读取 `raw/` 与 `distilled/ai-thinking-framework/product-insight-portrait-model/domain-portrait-model-architecture-analysis.md` 等目录与关键内容）
 
 ---
 
@@ -1170,7 +1170,7 @@ Turn17
 - `raw/`：对话原始内容，保存思考过程
 - `distilled/`：提炼后的结构化分析，保存认知结论
 
-`distilled/` 里的内容质量很高。我刚读的 `distilled/ai-thinking-framework/product-insight-portrait-model/domain-portrait-model-architecture-analysis-distilled.md` 已经直接暴露了你的认知坐标系——你关心的是：
+`distilled/` 里的内容质量很高。我刚读的 `distilled/ai-thinking-framework/product-insight-portrait-model/domain-portrait-model-architecture-analysis.md` 已经直接暴露了你的认知坐标系——你关心的是：
 
 - 并列提取 vs. 连贯论点的结构性差异
 - 可靠性与完备性的区分

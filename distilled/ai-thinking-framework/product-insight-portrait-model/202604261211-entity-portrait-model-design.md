@@ -3,7 +3,7 @@
 > 创建时间：2026年4月26日 12:11
 
 
-> **导航**：[digest](../../../digest/ai-thinking-framework/product-insight-portrait-model/202604261211-entity-portrait-model-design-digest.md) | [raw](../../../raw/ai-thinking-framework/product-insight-portrait-model/202604261211-entity-portrait-model-design-2026-04-26-normalized.md)
+> **导航**：[digest](../../../digest/ai-thinking-framework/product-insight-portrait-model/202604261211-entity-portrait-model-design.md) | [raw](../../../raw/ai-thinking-framework/product-insight-portrait-model/202604261211-entity-portrait-model-design.md)
 
 > 本文档基于一次框架设计推演式对话整理。
 > 目标是重建推理过程——跟着推导走一遍，而不是直接读结论。
