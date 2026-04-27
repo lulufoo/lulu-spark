@@ -131,6 +131,11 @@
       "raw": "mac-ime-metacognition-reflection-normalized.md",
       "distilled": "mac-ime-metacognition-reflection-distilled.md",
       "digest": "mac-ime-metacognition-reflection-digest.md"
+    },
+    "a3f8e2d19b4c7e60f1a5d8b2c9e3f741": {
+      "raw": "raw/learning-with-ai/learning-with-ai/design_of_module/personal-km-system-architecture-normalized.md",
+      "distilled": null,
+      "digest": null
     }
   }
 }
