@@ -1,6 +1,6 @@
 # 从 Copilot Chat 到 Harness Engineering：瓶颈驱动的三层技术演进 — 要点摘要
 
-> **导航**：[distilled](../../../distilled/ai-software-dev/harness-engineering/chat-agent-harness-bottleneck-driven-evolution-distilled.md)
+> **导航**：[distilled](../../../distilled/ai-software-dev/harness-engineering/202604231831-chat-agent-harness-bottleneck-driven-evolution.md)
 
 ## 要点
 
