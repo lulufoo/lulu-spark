@@ -228,6 +228,12 @@
       "raw": true,
       "distilled": true,
       "digest": true
+    },
+    "7f3c9e2a1b8d4f605e91c7ab3d2e8f41": {
+      "common_path": "learning-ai-agent/product/cursor-ide/202604271649-cursor-modes-context-and-product-design.md",
+      "raw": true,
+      "distilled": false,
+      "digest": false
     }
   }
 }
