@@ -273,6 +273,13 @@
       "distilled": false,
       "digest": false,
       "created_at": "202604271649"
+    },
+    "a3f8c2d1e7b94f0a6c5d3e2f1a8b9c0d": {
+      "common_path": "learning-ai-agent/product/cursor-ide/202604281200-cursor-sandbox-mechanisms.md",
+      "created_at": "202604281200",
+      "raw": true,
+      "distilled": false,
+      "digest": false
     }
   }
 }
