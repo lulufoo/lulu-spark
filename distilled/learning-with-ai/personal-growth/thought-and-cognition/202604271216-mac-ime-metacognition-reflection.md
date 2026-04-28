@@ -3,7 +3,7 @@
 > 创建时间：2026年4月27日 12:16
 
 
-> **导航**：[digest](../../../../digest/learning-with-ai/personal-growth/thought-and-cognition/202604271216-mac-ime-metacognition-reflection.md) | [raw](../../../../raw/learning-with-ai/personal-growth/thought-and-cognition/202604271216-mac-ime-metacognition-reflection.md)
+> **导航**：[digest](../../../../digest/learning-with-ai/personal-growth/thought-and-cognition/202604271216-mac-ime-metacognition-reflection.md) | [trace](../../../../trace/learning-with-ai/personal-growth/thought-and-cognition/202604271216-mac-ime-metacognition-reflection.md) | [raw](../../../../raw/learning-with-ai/personal-growth/thought-and-cognition/202604271216-mac-ime-metacognition-reflection.md)
 
 > 本文档基于一次**引导式学习 · 问题诊断式 · 自由探索式**对话整理。  
 > 目标是重建理解过程——跟着推导走一遍，而不是直接读结论。
