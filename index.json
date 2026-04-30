@@ -318,13 +318,6 @@
       "distilled": true,
       "digest": true,
       "trace": true
-    },
-    "ef5f27ee626a51d70e66f7d35c2abef1": {
-      "common_path": "ai-assisted-domain-learning/dialogue-distillation-model/202604301501-ddm-p0-step5-step6-handbook-update.md",
-      "created_at": "202604301501",
-      "raw": true,
-      "distilled": false,
-      "digest": false
     }
   }
 }
