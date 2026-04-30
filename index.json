@@ -153,7 +153,8 @@
       "raw": true,
       "distilled": true,
       "digest": true,
-      "created_at": "202604251532"
+      "created_at": "202604251532",
+      "trace": true
     },
     "a4364bda87070b619a2b4845418e0468": {
       "common_path": "ai-thinking-framework/ai-solution-pre-diagnosis-model/202604251532-ai-solution-pre-diagnosis-model-design.md",
