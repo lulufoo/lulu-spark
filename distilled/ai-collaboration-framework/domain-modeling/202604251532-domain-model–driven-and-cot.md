@@ -2,7 +2,9 @@
 
 > 创建时间：2026年4月25日 15:32
 
-> **导航**：[digest](../../../digest/ai-collaboration-framework/domain-modeling/202604251532-domain-model–driven-and-cot.md) | [trace](../../../trace/ai-collaboration-framework/domain-modeling/202604251532-domain-model–driven-and-cot.md) | [raw](../../../raw/ai-collaboration-framework/domain-modeling/202604251532-domain-model–driven-and-cot.md)
+**导航** → [digest](../../../digest/ai-collaboration-framework/domain-modeling/202604251532-domain-model–driven-and-cot.md) · [trace](../../../trace/ai-collaboration-framework/domain-modeling/202604251532-domain-model–driven-and-cot.md) · [raw](../../../raw/ai-collaboration-framework/domain-modeling/202604251532-domain-model–driven-and-cot.md)
+
+---
 
 > @lulutwd/learning-with-ai/files/ai/ai-cognition/how-large-models-respond-to-constraints.md
 >
@@ -16,6 +18,8 @@ CoT 和领域模型驱动都是路径约束——作用对象是推理路径，�
 
 按约束粒度排列：无约束 → CoT（单指令路径约束）→ 结构化 CoT → 领域模型驱动（多节点结构化路径约束），约束粒度和路径控制力递增。CoT 是领域模型驱动的最简退化形式，只有一个约束节点（"逐步思考"），没有子节点结构；反过来，领域模型驱动是 CoT 的结构化扩展，将"逐步思考"中的每一步都显式定义出来。
 
+---
+
 > 1. 领域模型驱动 可以在AI的环境下执行的基础支撑是什么？目前的AI是否足够支撑完成这种复杂任务。
 >
 > 2. 是否领域模型驱动可以理解为CoT的一种高级应用？ 理解： 将领域模型 / 思维模型 结构化成具体的执行步骤，使用CoT的推理链作为工具去执行。
@@ -27,6 +31,8 @@ CoT 和领域模型驱动都是路径约束——作用对象是推理路径，�
 领域模型驱动在 AI 上运行需要四层支撑：足够大的上下文窗口（当前 128K–1M token，已基本充分）、注意力机制对框架节点的有效加权（强，但超长上下文存在"中间段权重低"问题）、训练数据对每个节点子任务的覆盖（通用领域充分，垂直领域有缺口）、多节点长生成中的指令遵循稳定性（中等复杂度线性框架可胜任，超长生成有漂移）。当前 AI 已足够支撑 5–8 个节点的线性框架；瓶颈往往不在 AI 执行能力，而在人类能否设计出高质量的框架。
 
 "高级应用"之外额外需要的，不是 CoT 所缺的执行机制，而是人类的领域知识工程：将领域任务拆解为节点、定义节点间的逻辑关系、设定每个节点的输入输出约束。这是知识工程问题，不是 AI 能力问题。框架的质量决定了领域模型驱动的上限。
+
+---
 
 > 1. 领域模型驱动 这个思维模式，是否正在大面积应用？
 >
