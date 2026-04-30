@@ -2,7 +2,7 @@
 
 > 创建时间：2026年4月25日 15:32
 
-> **导航**：[distilled](../../../distilled/ai-collaboration-framework/domain-modeling/202604251532-domain-model–driven-and-cot.md) | [digest](../../../digest/ai-collaboration-framework/domain-modeling/202604251532-domain-model–driven-and-cot.md) | [raw](../../../raw/ai-collaboration-framework/domain-modeling/202604251532-domain-model–driven-and-cot.md)
+> 导航：[distilled](../../../distilled/ai-collaboration-framework/domain-modeling/202604251532-domain-model–driven-and-cot.md) | [digest](../../../digest/ai-collaboration-framework/domain-modeling/202604251532-domain-model–driven-and-cot.md) | [raw](../../../raw/ai-collaboration-framework/domain-modeling/202604251532-domain-model–driven-and-cot.md)
 
 - **认知 delta**：以为领域模型驱动是 CoT 的高级应用（将领域模型结构化为执行步骤，用 CoT 推理链作为工具去执行）→ 修正为 CoT 提供执行引擎（How），领域模型提供控制图纸（What），二者是不同来源的组合，而非高低版本关系
 - **跳过**：原始参考文档（大模型如何响应约束的分析）不在对话内，仅作引用背景
