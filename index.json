@@ -153,8 +153,7 @@
       "raw": true,
       "distilled": true,
       "digest": true,
-      "created_at": "202604251532",
-      "trace": true
+      "created_at": "202604251532"
     },
     "a4364bda87070b619a2b4845418e0468": {
       "common_path": "ai-thinking-framework/ai-solution-pre-diagnosis-model/202604251532-ai-solution-pre-diagnosis-model-design.md",
@@ -315,9 +314,22 @@
       "common_path": "ai-collaboration-framework/domain-modeling/202604301255-ai-human-collaboration-layer-design.md",
       "created_at": "202604301255",
       "raw": true,
-      "distilled": true,
-      "digest": true,
-      "trace": true
+      "distilled": false,
+      "digest": false
+    },
+    "ef5f27ee626a51d70e66f7d35c2abef1": {
+      "common_path": "ai-assisted-domain-learning/dialogue-distillation-model/202604301501-ddm-p0-step5-step6-handbook-update.md",
+      "created_at": "202604301501",
+      "raw": true,
+      "distilled": false,
+      "digest": false
+    },
+    "580cbe9f677adcda904af39c943b19f3": {
+      "common_path": "learning-with-ai/personal-growth/thought-and-cognition/202604302113-perception-reality-simulation-and-meaning.md",
+      "created_at": "202604302113",
+      "raw": true,
+      "distilled": false,
+      "digest": false
     }
   }
 }
