@@ -309,6 +309,13 @@
       "raw": true,
       "distilled": false,
       "digest": false
+    },
+    "a3f9c2e874b15d60a9f2c831e74b50d9": {
+      "common_path": "ai-collaboration-framework/domain-modeling/202604301255-ai-human-collaboration-layer-design.md",
+      "created_at": "202604301255",
+      "raw": true,
+      "distilled": false,
+      "digest": false
     }
   }
 }
