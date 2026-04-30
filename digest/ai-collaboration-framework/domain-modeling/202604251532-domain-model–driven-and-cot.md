@@ -3,7 +3,6 @@
 > 创建时间：2026年4月25日 15:32
 
 > **导航**：[distilled](../../../distilled/ai-collaboration-framework/domain-modeling/202604251532-domain-model–driven-and-cot.md) | [trace](../../../trace/ai-collaboration-framework/domain-modeling/202604251532-domain-model–driven-and-cot.md) | [raw](../../../raw/ai-collaboration-framework/domain-modeling/202604251532-domain-model–driven-and-cot.md)
-> 来源：`distilled/ai-collaboration-framework/domain-modeling/202604251532-domain-model–driven-and-cot.md`（与 `COMMON_PATH` 一致）
 
 ## 概述
 
