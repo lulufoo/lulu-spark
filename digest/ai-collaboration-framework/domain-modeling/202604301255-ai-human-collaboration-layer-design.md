@@ -2,7 +2,7 @@
 
 > 创建时间：2026年4月30日 12:55
 
-**导航** → [distilled](../../../distilled/ai-collaboration-framework/domain-modeling/202604301255-ai-human-collaboration-layer-design.md) · [trace](../../../trace/ai-collaboration-framework/domain-modeling/202604301255-ai-human-collaboration-layer-design.md) · [raw](../../../raw/ai-collaboration-framework/domain-modeling/202604301255-ai-human-collaboration-layer-design.md)
+> 导航：[distilled](../../../distilled/ai-collaboration-framework/domain-modeling/202604301255-ai-human-collaboration-layer-design.md) · [trace](../../../trace/ai-collaboration-framework/domain-modeling/202604301255-ai-human-collaboration-layer-design.md) · [raw](../../../raw/ai-collaboration-framework/domain-modeling/202604301255-ai-human-collaboration-layer-design.md)
 
 ---
 
