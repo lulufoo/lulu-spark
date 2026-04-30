@@ -221,7 +221,7 @@
 
 已按 [ACN · ddm-p0-normalize](https://github.com/lulufoo/ai-assisted-domain-learning/blob/main/dialogue-distillation-model/ddm-p0-normalize.md) 执行 Step 1–6。
 
-Step 1：`topic-path` = `ai-authored-learning/prompt-engineering`，`ts` = `202605010056`，`slug` = `prompt-format-table-vs-text`；导航前缀 `prefix` = `../../../`（N=2）。
+Step 1：`topic-path` = `ai-authored-learning/prompt-engineering`，`ts` = `202605010056`（与既有 `created_at` 错峰），`slug` = `prompt-format-table-vs-text`；导航前缀 `prefix` = `../../../`（N=2）。
 
 Step 3：`entries` 新键 `<id>` = `102fd767d056db86581f584180fc8357`。
 
