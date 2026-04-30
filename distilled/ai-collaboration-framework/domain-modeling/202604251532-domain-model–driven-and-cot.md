@@ -2,7 +2,7 @@
 
 > 创建时间：2026年4月25日 15:32
 
-**导航** → [digest](../../../digest/ai-collaboration-framework/domain-modeling/202604251532-domain-model–driven-and-cot.md) · [trace](../../../trace/ai-collaboration-framework/domain-modeling/202604251532-domain-model–driven-and-cot.md) · [raw](../../../raw/ai-collaboration-framework/domain-modeling/202604251532-domain-model–driven-and-cot.md)
+> 导航：[digest](../../../digest/ai-collaboration-framework/domain-modeling/202604251532-domain-model–driven-and-cot.md) · [trace](../../../trace/ai-collaboration-framework/domain-modeling/202604251532-domain-model–driven-and-cot.md) · [raw](../../../raw/ai-collaboration-framework/domain-modeling/202604251532-domain-model–driven-and-cot.md)
 
 ---
 
