@@ -338,6 +338,13 @@
       "raw": true,
       "distilled": false,
       "digest": false
+    },
+    "102fd767d056db86581f584180fc8357": {
+      "common_path": "ai-authored-learning/prompt-engineering/202605010056-prompt-format-table-vs-text.md",
+      "created_at": "202605010056",
+      "raw": true,
+      "distilled": false,
+      "digest": false
     }
   }
 }
