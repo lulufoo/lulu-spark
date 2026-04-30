@@ -328,8 +328,9 @@
       "common_path": "learning-with-ai/personal-growth/thought-and-cognition/202604302113-perception-reality-simulation-and-meaning.md",
       "created_at": "202604302113",
       "raw": true,
-      "distilled": false,
-      "digest": false
+      "distilled": true,
+      "digest": true,
+      "trace": true
     }
   }
 }
