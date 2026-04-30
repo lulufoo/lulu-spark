@@ -332,13 +332,6 @@
       "digest": true,
       "trace": true
     },
-    "63d005c1cf5b4319a26cb57dd23f24bd": {
-      "common_path": "ai-assisted-domain-learning/dialogue-distillation-model/202604302243-dialogue-to-doc-step-rewrite.md",
-      "created_at": "202604302243",
-      "raw": true,
-      "distilled": false,
-      "digest": false
-    },
     "2dce013cfce3dad3d5169f157e10fafd": {
       "common_path": "ai-assisted-domain-learning/dialogue-distillation-model/202604301657-ddm-bug-fix-and-dtd-rewrite.md",
       "created_at": "202604301657",
