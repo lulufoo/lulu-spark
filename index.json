@@ -373,6 +373,13 @@
       "raw": true,
       "distilled": false,
       "digest": false
+    },
+    "81e6c996fdf4fc92a29805b27d2354bf": {
+      "common_path": "learning-with-ai/business-analysis/202605012006-llm-product-innovation-quadrant-turn1-16.md",
+      "created_at": "202605012006",
+      "raw": true,
+      "distilled": false,
+      "digest": false
     }
   }
 }
