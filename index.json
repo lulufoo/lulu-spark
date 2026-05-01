@@ -366,6 +366,13 @@
       "raw": true,
       "distilled": false,
       "digest": false
+    },
+    "f3bf64185ff761287c98256ecf74fe23": {
+      "common_path": "ai-collaboration-framework/domain-modeling/202605011728-patch-first-vs-domain-modeling-collaboration.md",
+      "created_at": "202605011728",
+      "raw": true,
+      "distilled": false,
+      "digest": false
     }
   }
 }
