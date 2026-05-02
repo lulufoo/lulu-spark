@@ -483,10 +483,10 @@
       "common_path": "ai-collaboration-framework/domain-modeling/202605011728-patch-first-vs-domain-modeling-collaboration.md",
       "created_at": "202605011728",
       "raw": true,
-      "distilled": false,
-      "diagnose": false,
-      "digest": false,
-      "trace": false
+      "distilled": true,
+      "diagnose": true,
+      "digest": true,
+      "trace": true
     },
     "81e6c996fdf4fc92a29805b27d2354bf": {
       "common_path": "learning-with-ai/business-analysis/202605012006-llm-product-innovation-quadrant-turn1-16.md",
@@ -509,6 +509,15 @@
     "a7f3e29d1c084b5f9e6d2a1b8c3f4e7d": {
       "common_path": "ai-assisted-domain-learning/domain-deepening/202604291205-dfvm-paradigm-dialog-turn1to8.md",
       "created_at": "202604291205",
+      "raw": true,
+      "distilled": false,
+      "diagnose": false,
+      "digest": false,
+      "trace": false
+    },
+    "cecffa9cfda6ef4494eb62e5edac8560": {
+      "common_path": "ai-assisted-domain-learning/dialogue-distillation-model/202605022241-ddm-exec-review-scope-and-cache.md",
+      "created_at": "202605022241",
       "raw": true,
       "distilled": false,
       "diagnose": false,
