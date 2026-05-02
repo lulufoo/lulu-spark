@@ -11,7 +11,10 @@ Usage:
 import http.server
 import json
 import os
+import re
 import subprocess
+import urllib.parse
+import base64
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).parent.resolve()
@@ -35,8 +38,22 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             self._handle_status()
         elif self.path == '/api/pull':
             self._handle_pull()
+        elif self.path == '/api/update-links':
+            self._handle_update_links()
+        elif self.path == '/api/delete':
+            self._handle_delete()
+        elif self.path == '/api/set-done':
+            self._handle_set_done()
         else:
             self.send_error(404)
+
+    def do_GET(self):
+        if self.path.startswith('/api/fetch-title'):
+            self._handle_fetch_title()
+        elif self.path == '/api/config':
+            self._json_response({'archive_root': str(REPO_ROOT)})
+        else:
+            super().do_GET()
 
     def do_OPTIONS(self):
         self.send_response(204)
@@ -207,13 +224,222 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             self._json_response({'error': str(e)}, 500)
 
 
+    # ── API: fetch title from GitHub URL ──────────────────────────────────────
+
+    def _handle_fetch_title(self):
+        try:
+            parsed = urllib.parse.urlparse(self.path)
+            params = urllib.parse.parse_qs(parsed.query)
+            url = params.get('url', [''])[0]
+
+            if not url:
+                self._json_response({'error': 'missing url'}, 400)
+                return
+
+            title = self._resolve_title(url)
+            self._json_response({'title': title})
+        except Exception as e:
+            self._json_response({'error': str(e)}, 500)
+
+    def _resolve_title(self, url):
+        # SSRF guard: reject non-https and private/localhost targets
+        p = urllib.parse.urlparse(url)
+        if p.scheme != 'https':
+            return self._fallback_title(url)
+        host = p.hostname or ''
+        if host in ('localhost', '127.0.0.1', '::1') or host.startswith('192.168.') \
+                or host.startswith('10.') or host.startswith('172.'):
+            return self._fallback_title(url)
+
+        # GitHub blob URL: https://github.com/{owner}/{repo}/blob/{ref}/{path}
+        m = re.match(
+            r'https://github\.com/([^/]+)/([^/]+)/blob/([^/]+)/(.+)',
+            url
+        )
+        if not m:
+            return self._fallback_title(url)
+
+        owner, repo, ref, path = m.group(1), m.group(2), m.group(3), m.group(4)
+        api_path = f'repos/{owner}/{repo}/contents/{path}?ref={ref}'
+        try:
+            result = subprocess.run(
+                ['gh', 'api', api_path, '--jq', '.content'],
+                capture_output=True, text=True, timeout=10
+            )
+            if result.returncode != 0:
+                return self._fallback_title(url)
+            content = base64.b64decode(result.stdout.strip()).decode('utf-8', errors='replace')
+            for line in content.splitlines():
+                m2 = re.match(r'^#\s+(.+)', line)
+                if m2:
+                    return m2.group(1).strip()
+            return self._fallback_title(url)
+        except Exception:
+            return self._fallback_title(url)
+
+    def _fallback_title(self, url):
+        try:
+            parts = urllib.parse.urlparse(url).path.rstrip('/').split('/')
+            name = urllib.parse.unquote(parts[-1]) if parts else url
+            return re.sub(r'\.md$', '', name)
+        except Exception:
+            return url
+
+    # ── API: update links in index.json ───────────────────────────────────────
+
+    def _handle_update_links(self):
+        try:
+            data = self._read_json()
+            entry_id = str(data.get('id') or '').strip()
+            links = data.get('links', [])
+
+            if not re.fullmatch(r'[0-9a-f]{32}', entry_id):
+                self._json_response({'error': 'Invalid id'}, 400)
+                return
+
+            # Validate each link
+            for link in links:
+                url = link.get('url', '')
+                p = urllib.parse.urlparse(url)
+                if p.scheme not in ('http', 'https') or not p.netloc:
+                    self._json_response({'error': f'Invalid url: {url}'}, 400)
+                    return
+
+            index_path = REPO_ROOT / 'index.json'
+            index_data = json.loads(index_path.read_text(encoding='utf-8'))
+            entries = index_data.get('entries', index_data)
+
+            if entry_id not in entries:
+                self._json_response({'error': 'Entry not found'}, 404)
+                return
+
+            entries[entry_id]['links'] = links
+
+            # Atomic write
+            tmp_path = index_path.with_suffix('.json.tmp')
+            tmp_path.write_text(
+                json.dumps(index_data, ensure_ascii=False, indent=2),
+                encoding='utf-8'
+            )
+            tmp_path.replace(index_path)
+
+            print(f'  [update-links] {entry_id} → {len(links)} link(s)')
+            self._json_response({'ok': True})
+
+        except json.JSONDecodeError:
+            self._json_response({'error': 'Invalid JSON body'}, 400)
+        except Exception as e:
+            self._json_response({'error': str(e)}, 500)
+
+
+    # ── API: set done flag on index entry ───────────────────────────────────
+
+    def _handle_set_done(self):
+        try:
+            data = self._read_json()
+            entry_id = str(data.get('id') or '').strip()
+            done = bool(data.get('done', False))
+
+            if not re.fullmatch(r'[0-9a-f]{32}', entry_id):
+                self._json_response({'error': 'Invalid id'}, 400)
+                return
+
+            index_path = REPO_ROOT / 'index.json'
+            index_data = json.loads(index_path.read_text(encoding='utf-8'))
+            entries = index_data.get('entries', index_data)
+
+            if entry_id not in entries:
+                self._json_response({'error': 'Entry not found'}, 404)
+                return
+
+            if done:
+                entries[entry_id]['done'] = True
+            else:
+                entries[entry_id].pop('done', None)
+
+            tmp_path = index_path.with_suffix('.json.tmp')
+            tmp_path.write_text(
+                json.dumps(index_data, ensure_ascii=False, indent=2),
+                encoding='utf-8'
+            )
+            tmp_path.replace(index_path)
+
+            print(f'  [set-done] {entry_id} → done={done}')
+            self._json_response({'ok': True})
+
+        except json.JSONDecodeError:
+            self._json_response({'error': 'Invalid JSON body'}, 400)
+        except Exception as e:
+            self._json_response({'error': str(e)}, 500)
+
+
+    # ── API: delete entry + all associated files ──────────────────────────────
+
+    def _handle_delete(self):
+        try:
+            data = self._read_json()
+            entry_id = str(data.get('id') or '').strip()
+
+            if not re.fullmatch(r'[0-9a-f]{32}', entry_id):
+                self._json_response({'error': 'Invalid id'}, 400)
+                return
+
+            index_path = REPO_ROOT / 'index.json'
+            index_data = json.loads(index_path.read_text(encoding='utf-8'))
+            entries = index_data.get('entries', index_data)
+
+            if entry_id not in entries:
+                self._json_response({'error': 'Entry not found'}, 404)
+                return
+
+            entry = entries[entry_id]
+            common_path = entry.get('common_path', '')
+            if not common_path or '..' in common_path:
+                self._json_response({'error': 'Invalid common_path'}, 400)
+                return
+
+            # Delete files in all layers that exist
+            deleted = []
+            for layer in ('raw', 'distilled', 'trace', 'digest', 'diagnose'):
+                target = (REPO_ROOT / layer / common_path).resolve()
+                if not str(target).startswith(str(REPO_ROOT) + os.sep):
+                    continue
+                if target.exists():
+                    target.unlink()
+                    deleted.append(f'{layer}/{common_path}')
+                    print(f'  [delete] {layer}/{common_path}')
+
+            # Remove from index.json
+            del entries[entry_id]
+            tmp_path = index_path.with_suffix('.json.tmp')
+            tmp_path.write_text(
+                json.dumps(index_data, ensure_ascii=False, indent=2),
+                encoding='utf-8'
+            )
+            tmp_path.replace(index_path)
+
+            print(f'  [delete] index entry {entry_id} removed')
+            self._json_response({'ok': True, 'deleted': deleted})
+
+        except json.JSONDecodeError:
+            self._json_response({'error': 'Invalid JSON body'}, 400)
+        except Exception as e:
+            self._json_response({'error': str(e)}, 500)
+
+
 if __name__ == '__main__':
     print(f'cognitive-trace-archive viewer')
     print(f'  Root : {REPO_ROOT}')
     print(f'  URL  : http://localhost:{PORT}')
     print()
-    with http.server.HTTPServer(('localhost', PORT), Handler) as server:
-        try:
-            server.serve_forever()
-        except KeyboardInterrupt:
-            print('\nStopped.')
+    try:
+        with http.server.HTTPServer(('localhost', PORT), Handler) as server:
+            try:
+                server.serve_forever()
+            except KeyboardInterrupt:
+                print('\nStopped.')
+    except OSError as e:
+        print(f'\n❌ 启动失败：{e}')
+        print(f'   端口 {PORT} 可能已被占用。')
+        print(f'   运行 lsof -ti:{PORT} | xargs kill 后重试。')
+        raise SystemExit(1)

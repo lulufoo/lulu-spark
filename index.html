@@ -58,6 +58,18 @@
   }
   #btn-pull:hover { background: #444c56; }
   #btn-pull:disabled { opacity: .5; cursor: default; }
+  #btn-push-index {
+    background: #1c4a2e;
+    border: 1px solid #2d6a42;
+    color: #cdd9e5;
+    padding: 5px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: background .15s;
+  }
+  #btn-push-index:hover { background: #2a6040; }
+  #btn-push-index:disabled { opacity: .5; cursor: default; }
 
   /* ── Layout ── */
   .layout {
@@ -157,6 +169,22 @@
     width: 100%;
   }
   .doc-title-btn:hover { text-decoration: underline; }
+  .doc-card.done .doc-title-btn {
+    color: #8c959f;
+    font-weight: 400;
+    opacity: 0.7;
+  }
+  .badge-done {
+    background: none;
+    color: #b0b8c1;
+    border-color: #e2e8ee;
+    cursor: pointer;
+    font-size: 10px;
+    margin-left: auto;
+    flex-shrink: 0;
+  }
+  .badge-done:hover { background: #f6f8fa; color: #57606a; opacity: 1; }
+  .doc-card.done .badge-done { color: #57606a; border-color: #c8d0d8; }
   .doc-title-btn.loading {
     background: linear-gradient(90deg, #eaeef2 25%, #d0d7de 50%, #eaeef2 75%);
     background-size: 200% 100%;
@@ -194,7 +222,7 @@
     transition: opacity .15s;
   }
   .badge:hover { opacity: .8; }
-  .badge-layer    { background: #d1f8d9; color: #1a5e2a; border-color: #57c675; }
+  .badge-layer    { background: #edfcf0; color: #2a7a45; border-color: #b6e8c4; }
   .badge-diff     { background: #fff8c5; color: #7d4e00; border-color: #d4a72c; }
   .badge-conflict { background: #ffd8d3; color: #82071e; border-color: #ff8182; }
   .badge-unreachable {
@@ -375,6 +403,100 @@
   #md-body table { border-collapse: collapse; width: 100%; margin: .8em 0; }
   #md-body th,#md-body td { border: 1px solid #d0d7de; padding: 6px 12px; font-size: 13px; }
   #md-body th { background: #f6f8fa; font-weight: 600; }
+
+  /* ── Delete confirm dialog ── */
+  #delete-dialog {
+    position: fixed;
+    inset: 0;
+    z-index: 2000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0,0,0,.55);
+  }
+  #delete-dialog.open { display: flex; }
+  #delete-dialog-box {
+    background: #fff;
+    border-radius: 10px;
+    padding: 28px 28px 24px;
+    width: min(420px, 90vw);
+    box-shadow: 0 8px 40px rgba(0,0,0,.3);
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  #delete-dialog-box h3 { font-size: 16px; color: #cf222e; margin: 0; }
+  #delete-dialog-box p  { font-size: 13px; color: #24292f; margin: 0; line-height: 1.6; }
+  #delete-dialog-confirm-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #f6f8fa;
+    border: 1px solid #d0d7de;
+    border-radius: 6px;
+    padding: 6px 10px;
+    font-size: 12px;
+    color: #57606a;
+  }
+  #delete-dialog-confirm-row code { font-weight: 700; color: #cf222e; letter-spacing: .5px; }
+  #btn-copy-confirm-word {
+    background: none;
+    border: 1px solid #d0d7de;
+    border-radius: 4px;
+    padding: 1px 7px;
+    font-size: 11px;
+    cursor: pointer;
+    color: #57606a;
+    flex-shrink: 0;
+  }
+  #btn-copy-confirm-word:hover { background: #eaeef2; }
+  #delete-confirm-input {
+    width: 100%;
+    padding: 6px 10px;
+    border: 1px solid #d0d7de;
+    border-radius: 6px;
+    font-size: 13px;
+    outline: none;
+    box-sizing: border-box;
+  }
+  #delete-confirm-input:focus { border-color: #cf222e; }
+  #delete-dialog-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+  }
+  #btn-delete-confirm-ok {
+    background: #cf222e;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    padding: 6px 18px;
+    font-size: 13px;
+    cursor: pointer;
+    font-weight: 600;
+  }
+  #btn-delete-confirm-ok:hover:not(:disabled) { background: #a40e26; }
+  #btn-delete-confirm-ok:disabled { opacity: .5; cursor: default; }
+  #btn-delete-cancel {
+    background: none;
+    border: 1px solid #d0d7de;
+    border-radius: 6px;
+    padding: 6px 16px;
+    font-size: 13px;
+    cursor: pointer;
+    color: #57606a;
+  }
+  #btn-delete-cancel:hover { background: #eaeef2; }
+
+  /* ── Links badge on card ── */
+  .badge-links {
+    background: #f0f3ff;
+    color: #0550ae;
+    border-color: #b6d0f7;
+    cursor: default;
+    font-size: 11px;
+  }
+  .badge-links:hover { opacity: 1; }
 </style>
 </head>
 <body>
@@ -384,6 +506,7 @@
   <a href="https://github.com/lulufoo/cognitive-trace-archive" target="_blank">GitHub ↗</a>
   <button id="btn-refresh">⟳ 刷新</button>
   <button id="btn-pull">↓ 更新项目</button>
+  <button id="btn-push-index">↑ Push index</button>
 </header>
 
 <div class="layout">
@@ -404,10 +527,13 @@
     <div id="md-header">
       <span id="md-panel-title"></span>
       <a id="md-github-link" href="#" target="_blank" style="font-size:12px;color:#0969da;text-decoration:none;flex-shrink:0;">GitHub ↗</a>
+      <button class="md-header-btn" id="btn-copy-http" title="复制 GitHub URL">🌐</button>
+      <button class="md-header-btn" id="btn-copy-path" title="复制本地路径，用于 dtd_raw_to_doc">📂</button>
       <button class="md-header-btn" id="btn-edit">✏️ 编辑</button>
       <button class="md-header-btn primary" id="btn-save" style="display:none">💾 保存</button>
       <button class="md-header-btn" id="btn-cancel-edit" style="display:none">取消</button>
       <button class="md-header-btn" id="btn-panel-commit" style="display:none">● 提交此文件</button>
+      <button class="md-header-btn" id="btn-delete" style="color:#cf222e;border-color:#ffb8b8;" title="删除此文档的所有关联文件">🗑 删除</button>
       <button id="md-close" class="md-header-btn">✕ 关闭</button>
     </div>
     <div id="md-commit-bar">
@@ -417,8 +543,26 @@
       <button id="btn-skip-commit" class="md-header-btn" style="font-size:11px;padding:3px 10px;">稍后</button>
       <span id="md-commit-result" style="font-size:11px;"></span>
     </div>
+    <div id="md-links-bar" style="display:none;padding:8px 20px;border-bottom:1px solid #d0d7de;display:flex;align-items:center;flex-wrap:wrap;gap:4px 0;"></div>
     <div id="md-body"></div>
     <textarea id="md-edit-area" style="display:none" spellcheck="false"></textarea>
+  </div>
+</div>
+
+<!-- Delete confirm dialog -->
+<div id="delete-dialog">
+  <div id="delete-dialog-box">
+    <h3>⚠️ 删除文档</h3>
+    <p id="delete-dialog-desc">将删除此条目的所有关联文件（raw / distilled / trace / digest）并从 index.json 移除，<strong>不可撤销</strong>。</p>
+    <div id="delete-dialog-confirm-row">
+      输入 <code>CONFIRM</code> 确认删除
+      <button id="btn-copy-confirm-word" title="复制 CONFIRM">复制</button>
+    </div>
+    <input id="delete-confirm-input" type="text" placeholder="在此输入 CONFIRM" autocomplete="off" />
+    <div id="delete-dialog-actions">
+      <button id="btn-delete-cancel">取消</button>
+      <button id="btn-delete-confirm-ok" disabled>确认删除</button>
+    </div>
   </div>
 </div>
 
@@ -434,6 +578,7 @@ let diffStatus = new Map();
 let indexData = null;    // full entries object
 let groupedByDate = [];  // [{date, entries:[{id, entry}]}] sorted desc
 let activeDate = null;
+let archiveRoot = '';    // loaded from /api/config
 
 // ── Diff helpers ───────────────────────────────────────────────────────────────────
 
@@ -643,6 +788,7 @@ function buildCard(id, entry, title) {
   const card = document.createElement('div');
   card.className = 'doc-card';
   card.dataset.id = id;
+  entry._id = id;  // attach id for later lookup
 
   const topic = topicFromPath(entry.common_path);
   const filename = filenameFromPath(entry.common_path);
@@ -664,15 +810,26 @@ function buildCard(id, entry, title) {
     })
     .join('');
 
+  const linkCount = entry.links && entry.links.length;
+  const linksBadgeHtml = linkCount
+    ? `<span class="badge badge-links" title="${linkCount} 个关联链接">👍 ×${linkCount}</span>`
+    : '';
+
+  const doneBadgeHtml = entry.done
+    ? `<button class="badge badge-done" data-action="toggle-done" title="标记为未处理">✓ 已处理</button>`
+    : `<button class="badge badge-done" data-action="toggle-done" title="标记为已处理">○ 处理</button>`;
+
   card.innerHTML = `
     <div class="doc-topic">${topic}</div>
     <button class="doc-title-btn${displayTitle === null ? ' loading' : ''}">${displayTitle !== null ? escHtml(displayTitle) : ''}</button>
     <div class="doc-meta">${time}${dotHtml}</div>
-    <div class="badges">${badgesHtml}</div>
+    <div class="badges">${badgesHtml}${linksBadgeHtml}${doneBadgeHtml}</div>
   `;
+  if (entry.done) card.classList.add('done');
   const firstLayer = LAYERS.find(l => entry[l] === true) || 'raw';
   card.querySelector('.doc-title-btn').addEventListener('click', () => openDoc(entry, firstLayer));
   attachBadgeListeners(card, entry);
+  card.querySelector('[data-action="toggle-done"]').addEventListener('click', () => toggleDone(entry, card));
   return card;
 }
 
@@ -745,7 +902,7 @@ function updateTitlesInDOM(date) {
     // Re-render badges if unreachable state changed
     const badgesEl = card.querySelector('.badges');
     if (badgesEl) {
-      badgesEl.innerHTML = LAYERS
+      const layerHtml = LAYERS
         .filter(layer => entry[layer] === true)
         .map(layer => {
           if (entry[`_unreachable_${layer}`]) {
@@ -754,7 +911,17 @@ function updateTitlesInDOM(date) {
           return `<button class="badge ${getLayerBadgeClass(layer, entry)}" data-layer="${layer}">${layer}</button>`;
         })
         .join('');
+      const linkCount = entry.links && entry.links.length;
+      const linksBadgeHtml = linkCount
+        ? `<span class="badge badge-links" title="${linkCount} 个关联链接">👍 ×${linkCount}</span>`
+        : '';
+      const doneBadgeHtml = entry.done
+        ? `<button class="badge badge-done" data-action="toggle-done" title="标记为未处理">✓ 已处理</button>`
+        : `<button class="badge badge-done" data-action="toggle-done" title="标记为已处理">○ 处理</button>`;
+      badgesEl.innerHTML = layerHtml + linksBadgeHtml + doneBadgeHtml;
       attachBadgeListeners(card, entry);
+      card.classList.toggle('done', !!entry.done);
+      card.querySelector('[data-action="toggle-done"]').addEventListener('click', () => toggleDone(entry, card));
     }
   }
 }
@@ -831,13 +998,18 @@ function openDoc(entry, layer = 'raw') {
 
   const modal = document.getElementById('md-modal');
   const body = document.getElementById('md-body');
-  document.getElementById('md-panel-title').textContent = `${layer}/${entry.common_path}`;
-  document.getElementById('md-github-link').href = `${REPO}/${layer}/${entry.common_path}`;
+  document.getElementById('md-panel-title').textContent = filenameFromPath(entry.common_path).replace(/\.md$/, '');
+  const githubUrl = `${REPO}/${layer}/${entry.common_path}`;
+  document.getElementById('md-github-link').href = githubUrl;
+  document.getElementById('btn-copy-http').dataset.url = githubUrl;
+  const relPath = `${layer}/${entry.common_path}`;
+  const fullPath = archiveRoot ? `${archiveRoot}/${relPath}` : relPath;
+  document.getElementById('btn-copy-path').title = fullPath;
   body.innerHTML = '<div style="color:#8c959f;padding:20px;font-size:13px;">加载中…</div>';
   modal.style.display = 'flex';
   document.body.style.overflow = 'hidden';
 
-  fetch(`./${layer}/${entry.common_path}`)
+  fetch(`./${layer}/${entry.common_path}?t=${Date.now()}`)
     .then(res => { if (!res.ok) throw new Error(`HTTP ${res.status}`); return res.text(); })
     .then(text => {
       currentRawText = text;
@@ -860,6 +1032,7 @@ function renderDocBody(text, layer, commonPath) {
   }
   postProcessLinks(body, layer, commonPath);
   document.getElementById('btn-edit').style.display = '';
+  renderLinksBar(currentEntry);
 }
 
 // ── Edit mode ──────────────────────────────────────────────────────────────
@@ -870,6 +1043,7 @@ function enterEditMode() {
   editArea.value = currentRawText;
   body.style.display = 'none';
   editArea.style.display = '';
+  requestAnimationFrame(() => { editArea.scrollTop = 0; });
   editArea.focus();
   document.getElementById('btn-edit').style.display = 'none';
   document.getElementById('btn-panel-commit').style.display = 'none';
@@ -926,6 +1100,276 @@ async function saveDoc() {
   }
 }
 
+document.getElementById('btn-copy-http').addEventListener('click', () => {
+  const url = document.getElementById('btn-copy-http').dataset.url || '';
+  if (!url) return;
+  navigator.clipboard.writeText(url).then(() => {
+    const btn = document.getElementById('btn-copy-http');
+    btn.textContent = '✓';
+    setTimeout(() => { btn.textContent = '🌐'; }, 1200);
+  });
+});
+
+document.getElementById('btn-copy-path').addEventListener('click', () => {
+  const relPath = `${currentLayer}/${currentEntry.common_path}`;
+  const fullPath = archiveRoot ? `${archiveRoot}/${relPath}` : relPath;
+  navigator.clipboard.writeText(fullPath).then(() => {
+    const btn = document.getElementById('btn-copy-path');
+    btn.textContent = '✓';
+    setTimeout(() => { btn.textContent = '📂'; }, 1200);
+  });
+});
+
+// ── Links bar ─────────────────────────────────────────────────────────────
+
+const titleFetchCache = new Map();
+
+async function fetchTitle(url) {
+  if (titleFetchCache.has(url)) return titleFetchCache.get(url);
+  try {
+    const res = await fetch(`/api/fetch-title?url=${encodeURIComponent(url)}`);
+    const data = await res.json();
+    const title = data.title || fallbackTitle(url);
+    titleFetchCache.set(url, title);
+    return title;
+  } catch {
+    return fallbackTitle(url);
+  }
+}
+
+function fallbackTitle(url) {
+  try {
+    return decodeURIComponent(new URL(url).pathname.split('/').filter(Boolean).pop()).replace(/\.md$/, '');
+  } catch { return url; }
+}
+
+function renderLinksBar(entry) {
+  const bar = document.getElementById('md-links-bar');
+  bar.innerHTML = '';
+  const links = entry && entry.links;
+
+  // Add-link button
+  const addBtn = document.createElement('button');
+  addBtn.className = 'md-header-btn';
+  addBtn.style.cssText = 'font-size:11px;padding:2px 8px;margin-left:auto;flex-shrink:0;';
+  addBtn.textContent = '＋ 添加链接';
+  addBtn.addEventListener('click', () => showAddLinkInput(entry, bar));
+
+  if (!links || links.length === 0) {
+    bar.style.display = 'flex';
+    bar.appendChild(addBtn);
+    return;
+  }
+
+  bar.style.display = 'flex';
+  for (let i = 0; i < links.length; i++) {
+    const link = links[i];
+    const wrap = document.createElement('span');
+    wrap.style.cssText = 'display:inline-flex;align-items:center;gap:4px;margin-right:12px;flex-shrink:0;';
+
+    const a = document.createElement('a');
+    a.href = link.url;
+    a.target = '_blank';
+    a.rel = 'noopener noreferrer';
+    a.style.cssText = 'font-size:12px;color:#0969da;text-decoration:none;';
+    a.textContent = '🔗 加载中…';
+    fetchTitle(link.url).then(t => { a.textContent = `🔗 ${t} ↗`; });
+
+    const delBtn = document.createElement('button');
+    delBtn.style.cssText = 'font-size:10px;line-height:1;padding:1px 4px;border:1px solid #d0d7de;border-radius:3px;background:#fff;color:#8c959f;cursor:pointer;opacity:0.6;';
+    delBtn.textContent = '×';
+    delBtn.title = '删除此链接';
+    delBtn.addEventListener('click', () => confirmDeleteLink(entry, i, bar, wrap));
+
+    wrap.append(a, delBtn);
+    bar.appendChild(wrap);
+  }
+  bar.appendChild(addBtn);
+}
+
+function showAddLinkInput(entry, bar) {
+  // Prevent duplicate input
+  if (bar.querySelector('.links-input-row')) return;
+  const row = document.createElement('div');
+  row.className = 'links-input-row';
+  row.style.cssText = 'display:flex;align-items:center;gap:6px;margin-top:4px;width:100%;';
+
+  const input = document.createElement('input');
+  input.type = 'url';
+  input.placeholder = '粘贴 GitHub 链接…';
+  input.style.cssText = 'flex:1;font-size:12px;padding:3px 8px;border:1px solid #d0d7de;border-radius:4px;';
+
+  const confirmBtn = document.createElement('button');
+  confirmBtn.className = 'md-header-btn primary';
+  confirmBtn.style.cssText = 'font-size:11px;padding:2px 8px;';
+  confirmBtn.textContent = '确认';
+
+  const cancelBtn = document.createElement('button');
+  cancelBtn.className = 'md-header-btn';
+  cancelBtn.style.cssText = 'font-size:11px;padding:2px 8px;';
+  cancelBtn.textContent = '取消';
+
+  const preview = document.createElement('span');
+  preview.style.cssText = 'font-size:11px;color:#57606a;';
+
+  row.append(input, confirmBtn, cancelBtn, preview);
+  bar.appendChild(row);
+  input.focus();
+
+  let resolvedTitle = '';
+  let fetchTimer = null;
+  input.addEventListener('input', () => {
+    clearTimeout(fetchTimer);
+    preview.textContent = '';
+    resolvedTitle = '';
+    const url = input.value.trim();
+    if (!url) return;
+    fetchTimer = setTimeout(async () => {
+      preview.textContent = '获取标题中…';
+      resolvedTitle = await fetchTitle(url);
+      preview.textContent = `→ 🔗 ${resolvedTitle} ↗`;
+    }, 500);
+  });
+
+  cancelBtn.addEventListener('click', () => row.remove());
+
+  confirmBtn.addEventListener('click', async () => {
+    const url = input.value.trim();
+    if (!url) return;
+
+    // Duplicate check
+    const existingLinks = entry.links || [];
+    if (existingLinks.some(l => l.url === url)) {
+      preview.textContent = '链接已存在';
+      return;
+    }
+
+    if (!resolvedTitle) resolvedTitle = await fetchTitle(url);
+    const newLinks = [...existingLinks, { url }];
+
+    try {
+      const res = await fetch('/api/update-links', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: getEntryId(entry), links: newLinks })
+      });
+      const data = await res.json();
+      if (data.ok) {
+        entry.links = newLinks;
+        titleFetchCache.set(url, resolvedTitle);
+        updateCardLinksBadge(entry);
+        renderLinksBar(entry);
+      } else {
+        preview.textContent = `错误：${data.error}`;
+      }
+    } catch (e) {
+      preview.textContent = `错误：${e.message}`;
+    }
+  });
+}
+
+function confirmDeleteLink(entry, index, bar, wrapEl) {
+  // Prevent double-confirm
+  if (wrapEl.querySelector('.link-confirm-row')) return;
+  const delBtn = wrapEl.querySelector('button');
+  delBtn.style.display = 'none';
+
+  const confirmRow = document.createElement('span');
+  confirmRow.className = 'link-confirm-row';
+  confirmRow.style.cssText = 'display:inline-flex;align-items:center;gap:4px;';
+
+  const okBtn = document.createElement('button');
+  okBtn.className = 'md-header-btn primary';
+  okBtn.style.cssText = 'font-size:10px;padding:1px 6px;';
+  okBtn.textContent = '确认删除';
+
+  const cancelBtn = document.createElement('button');
+  cancelBtn.className = 'md-header-btn';
+  cancelBtn.style.cssText = 'font-size:10px;padding:1px 6px;';
+  cancelBtn.textContent = '取消';
+
+  cancelBtn.addEventListener('click', () => {
+    confirmRow.remove();
+    delBtn.style.display = '';
+  });
+
+  okBtn.addEventListener('click', async () => {
+    const newLinks = (entry.links || []).filter((_, i) => i !== index);
+    try {
+      const res = await fetch('/api/update-links', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: getEntryId(entry), links: newLinks })
+      });
+      const data = await res.json();
+      if (data.ok) {
+        entry.links = newLinks;
+        updateCardLinksBadge(entry);
+        renderLinksBar(entry);
+      } else {
+        cancelBtn.click();
+      }
+    } catch { cancelBtn.click(); }
+  });
+
+  confirmRow.append(okBtn, cancelBtn);
+  wrapEl.appendChild(confirmRow);
+}
+
+function updateCardLinksBadge(entry) {
+  const id = getEntryId(entry);
+  if (!id) return;
+  const card = document.querySelector(`.doc-card[data-id="${id}"]`);
+  if (!card) return;
+  const badges = card.querySelector('.badges');
+  if (!badges) return;
+  let badge = badges.querySelector('.badge-links');
+  const count = entry.links && entry.links.length;
+  if (count) {
+    if (!badge) {
+      badge = document.createElement('span');
+      badge.className = 'badge badge-links';
+      badges.appendChild(badge);
+    }
+    badge.title = `${count} 个关联链接`;
+    badge.textContent = `👍 ×${count}`;
+  } else {
+    if (badge) badge.remove();
+  }
+}
+
+async function toggleDone(entry, card) {
+  const newDone = !entry.done;
+  try {
+    const res = await fetch('/api/set-done', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: getEntryId(entry), done: newDone })
+    });
+    const data = await res.json();
+    if (!data.ok) return;
+    entry.done = newDone || undefined;
+    // Update card visual
+    card.classList.toggle('done', !!newDone);
+    const btn = card.querySelector('[data-action="toggle-done"]');
+    if (btn) {
+      btn.textContent = newDone ? '✓ 已处理' : '○ 处理';
+      btn.title = newDone ? '标记为未处理' : '标记为已处理';
+    }
+  } catch (e) {
+    console.error('toggleDone failed', e);
+  }
+}
+
+function getEntryId(entry) {
+  if (entry._id) return entry._id;
+  // Fallback: search indexData by common_path
+  for (const [id, e] of Object.entries(indexData)) {
+    if (e.common_path === entry.common_path) return id;
+  }
+  return null;
+}
+
 document.getElementById('btn-edit').addEventListener('click', enterEditMode);
 document.getElementById('btn-save').addEventListener('click', saveDoc);
 document.getElementById('btn-cancel-edit').addEventListener('click', () => exitEditMode(false));
@@ -968,6 +1412,7 @@ async function commitCurrentFile() {
     resultEl.textContent = '✓ 已推送！';
     await loadDiffStatus();
     updateDiffInDOM();
+    await loadIndex();
     setTimeout(hideCommitBar, 1500);
   } catch (e) {
     resultEl.style.color = '#cf222e';
@@ -1030,7 +1475,85 @@ async function pullProject() {
 
 document.getElementById('btn-pull').addEventListener('click', pullProject);
 
+async function pushIndex() {
+  const btn = document.getElementById('btn-push-index');
+  btn.disabled = true;
+  btn.textContent = 'Push中…';
+  try {
+    const res = await fetch('/api/commit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: 'chore: update index.json', files: ['index.json'] })
+    });
+    const data = await res.json();
+    if (!res.ok || data.error) throw new Error(data.error || 'failed');
+    btn.textContent = '✓ 已 Push';
+    setTimeout(() => { btn.textContent = '↑ Push index'; }, 2000);
+  } catch (e) {
+    alert(`Push 失败：${e.message}`);
+  } finally {
+    btn.disabled = false;
+    if (btn.textContent === 'Push中…') btn.textContent = '↑ Push index';
+  }
+}
+
+document.getElementById('btn-push-index').addEventListener('click', pushIndex);
+
+// ── Delete ────────────────────────────────────────────────────────────────
+
+function openDeleteDialog() {
+  const input = document.getElementById('delete-confirm-input');
+  const okBtn = document.getElementById('btn-delete-confirm-ok');
+  input.value = '';
+  okBtn.disabled = true;
+  document.getElementById('delete-dialog').classList.add('open');
+  input.focus();
+}
+
+function closeDeleteDialog() {
+  document.getElementById('delete-dialog').classList.remove('open');
+}
+
+document.getElementById('btn-copy-confirm-word').addEventListener('click', () => {
+  navigator.clipboard.writeText('CONFIRM');
+  const btn = document.getElementById('btn-copy-confirm-word');
+  btn.textContent = '✓';
+  setTimeout(() => { btn.textContent = '复制'; }, 1200);
+});
+
+document.getElementById('delete-confirm-input').addEventListener('input', e => {
+  document.getElementById('btn-delete-confirm-ok').disabled = (e.target.value !== 'CONFIRM');
+});
+
+document.getElementById('btn-delete-cancel').addEventListener('click', closeDeleteDialog);
+
+document.getElementById('btn-delete-confirm-ok').addEventListener('click', async () => {
+  const okBtn = document.getElementById('btn-delete-confirm-ok');
+  okBtn.disabled = true;
+  okBtn.textContent = '删除中…';
+  try {
+    const entryId = getEntryId(currentEntry);
+    const res = await fetch('/api/delete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: entryId })
+    });
+    const data = await res.json();
+    if (!res.ok || data.error) throw new Error(data.error || `HTTP ${res.status}`);
+    closeDeleteDialog();
+    closeModal();
+    await loadIndex();
+  } catch (e) {
+    alert(`删除失败：${e.message}`);
+    okBtn.disabled = false;
+    okBtn.textContent = '确认删除';
+  }
+});
+
+document.getElementById('btn-delete').addEventListener('click', openDeleteDialog);
+
 // ── Init ───────────────────────────────────────────────────────────────────
+fetch('/api/config').then(r => r.json()).then(d => { archiveRoot = d.archive_root || ''; }).catch(() => {});
 loadIndex();
 </script>
 </body>
