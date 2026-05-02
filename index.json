@@ -449,7 +449,12 @@
       "distilled": false,
       "diagnose": false,
       "digest": false,
-      "trace": false
+      "trace": false,
+      "links": [
+        {
+          "url": "https://github.com/lulufoo/ai-collaboration-framework/blob/main/collaboration-design/ai-human-collaboration-avoid-intent-drift-framework.md"
+        }
+      ]
     },
     "cc58928d9f6d7bec356c86c709a114d0": {
       "common_path": "ai-collaboration-framework/eval-effectiveness/202605010800-llm-prior-vs-instruction-conflict.md",
@@ -467,7 +472,12 @@
       "distilled": false,
       "diagnose": false,
       "digest": false,
-      "trace": false
+      "trace": false,
+      "links": [
+        {
+          "url": "https://github.com/lulufoo/ai-collaboration-framework/blob/main/llm-limitation/intent-constraint-llm-output-correction.md"
+        }
+      ]
     },
     "f3bf64185ff761287c98256ecf74fe23": {
       "common_path": "ai-collaboration-framework/domain-modeling/202605011728-patch-first-vs-domain-modeling-collaboration.md",
