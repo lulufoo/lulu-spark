@@ -76,7 +76,7 @@
 # [主题标题]
 
 > 创建时间：[YYYY年M月D日 HH:MM，月日不补零，与 raw 的 ts 一致]
-
+> 
 > 导航：[digest](`<prefix>`digest/`<COMMON_PATH>`) · [trace](`<prefix>`trace/`<COMMON_PATH>`) · [raw](`<prefix>`raw/`<COMMON_PATH>`)
 
 ---
@@ -109,9 +109,9 @@
 ```
 
 **格式说明**：
-- 导航行为普通 bold 行（非 blockquote），使用 `·` 分隔，紧跟创建时间之后
-- 每个 block（User / AI）之间均插入 `---` 水平分隔线
-- Turn 标签使用 `**User（Turn x）**` / `**AI**`（bold 行），与 P0 的 `## User` / `## AI（Turn x）` 对应，Turn 编号与 raw 一致
+- 导航行为 blockquote 行（`>` 前缀），使用 `·` 分隔，可用路径中直接填入超链接。
+- 每个 block（User / AI）之间必须插入 `---` 分隔线，不允许存在多余换行或空白行。
+- Turn 标签使用 `**User（Turn x）**` / `**AI**`（bold 行），与 P0 的 `## User（Turn x）` / `## AI` 对应，Turn 编号与 raw 一致
 - **禁止跳过任何 User Turn**：distilled 的 User 块数量必须与 raw 一致（排除纯执行指令如"执行：ACN"）
 
 ---
