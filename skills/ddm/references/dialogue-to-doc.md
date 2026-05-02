@@ -73,7 +73,7 @@
 
 **Step 5 — Phase 4：摘要与归档**
 
-加载 [ddm-p4-digest-archive.md](ddm-p4-digest-archive.md)，执行（若 P4-0 条件不满足则跳过）。更新 `index.json` 所有标志。
+加载 [ddm-p4-digest.md](ddm-p4-digest.md)，执行（若 P4-0 条件不满足则跳过）。更新 `index.json` 所有标志。
 
 ---
 

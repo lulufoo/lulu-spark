@@ -1,14 +1,28 @@
-# ⚠️ 已迁移
+# DDM Phase 4：摘要
 
-此文件已重命名为 [ddm-p4-digest.md](ddm-p4-digest.md)，请使用新文件。
->
 > **输入**：`CACHE_DISTILLED`；`DIAGNOSE`（`diagnose/<COMMON_PATH>`）；`<topic-path>`、`<ts>`、`<slug>` 从 `CACHE_RAW` 路径解析。
 >
 > **输出**：`CACHE_DIGEST`，写入本地 archive 的 `digest/<COMMON_PATH>`；同时更新 `index.json`。
 
 ---
 
-## [P4-0] 适用条件
+## PART 1 — 术语定义
+
+> 本 Phase 从 DIAGNOSE 读取字段时涉及以下术语。完整双轴归属模型见 [ddm-p1-diagnose.md](ddm-p1-diagnose.md) PART 1。
+
+**反直觉结论候选**：DIAGNOSE 中记录的、违反多数人预设的结论，附带支撑证据标识。
+
+**[U/U] 事件**：用户自发发起并完成的认知动作（认知轴 = U，引导轴 = U）。
+
+**[U/AI] 高自主性事件**：AI 设计方向、但用户独立产出了 AI 未给出的新认知的事件（认知轴 = U，引导轴 = AI，自主性强度 = 高）。
+
+---
+
+## PART 2 — 执行规范
+
+> 前置：阅读 PART 1（本 Phase 术语定义）。
+
+### [P4-0] 适用条件
 
 digest 是可选产出。以下任意一项满足即生成：
 
@@ -22,7 +36,7 @@ digest 是可选产出。以下任意一项满足即生成：
 
 ---
 
-## [P4-1] 结构
+### [P4-1] 结构
 
 ```markdown
 # [主题标题] — 摘要
@@ -62,7 +76,7 @@ digest 是可选产出。以下任意一项满足即生成：
 
 ---
 
-## [P4-2] 写法规则
+### [P4-2] 写法规则
 
 ```text
 · 全部内容来源：distilled + DIAGNOSE，不引入新内容
@@ -74,7 +88,7 @@ digest 是可选产出。以下任意一项满足即生成：
 
 ---
 
-## [P4-3] 落盘
+### [P4-3] 落盘
 
 将生成内容写入 `CACHE_DIGEST`（`{archive_root}/.cache/<topic-path>/<ts>-<slug>-digest.md`），然后写入本地 archive：
 
@@ -84,7 +98,7 @@ digest 是可选产出。以下任意一项满足即生成：
 
 ---
 
-## [P4-4] 更新 index.json（最终步骤）
+### [P4-4] 更新 index.json（最终步骤）
 
 读取 `{archive_root}/index.json`，更新对应条目（按 `COMMON_PATH` 匹配）：
 
@@ -107,16 +121,16 @@ digest 是可选产出。以下任意一项满足即生成：
 
 ---
 
-## Phase 4 完成后 — 整体汇总输出
+### Phase 4 完成后 — 整体汇总输出
 
 ```
 📦 归档完成
 
-raw      → raw/<COMMON_PATH>
+raw       → raw/<COMMON_PATH>
 distilled → distilled/<COMMON_PATH>
-diagnose → diagnose/<COMMON_PATH>
-trace    → trace/<COMMON_PATH>（或"已跳过"）
-digest   → digest/<COMMON_PATH>（或"已跳过"）
+diagnose  → diagnose/<COMMON_PATH>
+trace     → trace/<COMMON_PATH>（或"已跳过"）
+digest    → digest/<COMMON_PATH>（或"已跳过"）
 
 index.json 条目 <id>：
   raw: true · distilled: true · diagnose: true · trace: <bool> · digest: <bool>

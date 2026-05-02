@@ -1,12 +1,28 @@
 # DDM Phase 3：认知轨迹
 
-> **前置依赖**：[DDM_CONCEPTS](ddm-concepts.md)（双轴归属模型、认知事件层次）
->
 > **输入**：`DIAGNOSE`（`diagnose/<COMMON_PATH>`）；`CACHE_DISTILLED`；`<topic-path>`、`<ts>`、`<slug>` 从 `CACHE_RAW` 文件路径解析。
 >
 > **输出**：`CACHE_TRACE`，写入本地 archive 的 `trace/<COMMON_PATH>`。
 
 ---
+
+## PART 1 — 术语定义
+
+> 本 Phase 从 DIAGNOSE 读取以下字段。完整双轴归属模型见 [ddm-p1-diagnose.md](ddm-p1-diagnose.md) PART 1。
+
+**[U/U] 事件**：用户自发发起并完成的认知动作。
+
+**[U/AI] 高自主性事件**：AI 设计方向、但用户独立产出了 AI 未给出的新认知的事件。
+
+**入口假设**：对话开始时用户持有的预设（通常是走偏前的认知状态），来自 DIAGNOSE 中记录的第一个偏差节点触发语境。
+
+**跃迁点**：整体认知模型突然对齐的那一轮——多个前序疑问被同一机制一并解释的节点。
+
+---
+
+## PART 2 — 执行规范
+
+> 前置：阅读 PART 1（本 Phase 术语定义）。
 
 ## [P3-0] 适用条件
 

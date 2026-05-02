@@ -30,9 +30,9 @@ argument-hint: 'acn | dtd'
 
 ## 参考文件
 
-- [references/ddm-concepts.md](references/ddm-concepts.md) — 概念定义（保留规则、双轴归属模型、路径定义）
+- [references/ddm-concepts.md](references/ddm-concepts.md) — 概念定义（保留规则、路径定义）
 - [references/ddm-p0-normalize.md](references/ddm-p0-normalize.md) — Phase 0 执行规范
 - [references/ddm-p1-diagnose.md](references/ddm-p1-diagnose.md) — Phase 1 诊断
 - [references/ddm-p2-generate.md](references/ddm-p2-generate.md) — Phase 2 生成 distilled
 - [references/ddm-p3-trace.md](references/ddm-p3-trace.md) — Phase 3 认知轨迹
-- [references/ddm-p4-digest-archive.md](references/ddm-p4-digest-archive.md) — Phase 4 摘要与归档
+- [references/ddm-p4-digest.md](references/ddm-p4-digest.md) — Phase 4 摘要
