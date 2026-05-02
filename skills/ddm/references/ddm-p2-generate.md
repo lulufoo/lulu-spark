@@ -171,24 +171,9 @@ Step 3：格式输出
 
 ---
 
-## [P2-4] 格式规则
-
-```text
-· 输出必须是完整 Markdown 文档
-· 落盘路径：distilled/<topic-path>/<ts>-<slug>.md
-· 代码块：仅在空间结构/数据结构用语言无法清晰表达时使用，不用于知识解释
-· 正文不使用二级及以下标题，文档只有一级标题（主题标题）
-· 不输出 DDM 内部术语
-```
-
----
-
 ## [P2-5] 落盘
 
-**导航前缀**（`COMMON_PATH` 由 Phase 0 确定）：
-
-    N      := |topic-path|     -- topic-path 的路径段数（如 "a/b" → N=2）
-    prefix := "../" × (N+1)    -- 示例：N=2 → "../../../"
+**导航前缀**：`N := |topic-path|`，`prefix := "../" × (N+1)`（公式见 P0 Step 2）。
 
 将生成内容写入 `CACHE_DISTILLED`（`{archive_root}/.cache/<topic-path>/<ts>-<slug>-distilled.md`），然后写入本地 archive：
 

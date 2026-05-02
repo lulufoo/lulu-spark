@@ -14,9 +14,7 @@
 
 **反直觉结论候选**：DIAGNOSE 中记录的、违反多数人预设的结论，附带支撑证据标识。
 
-**[U/U] 事件**：用户自发发起并完成的认知动作（认知轴 = U，引导轴 = U）。
-
-**[U/AI] 高自主性事件**：AI 设计方向、但用户独立产出了 AI 未给出的新认知的事件（认知轴 = U，引导轴 = AI，自主性强度 = 高）。
+**[U/U] / [U/AI] 高自主性事件**：定义见 [ddm-p3-trace.md](ddm-p3-trace.md) PART 1。
 
 ---
 
@@ -119,21 +117,4 @@ digest 是可选产出。以下任意一项满足即生成：
 ```
 > ✅ Step 4 完成 · digest：digest/<topic-path>/<ts>-<slug>.md
 > 🗂 index.json 已更新（diagnose/digest/trace 标志已同步）
-```
-
----
-
-### Phase 4 完成后 — 整体汇总输出
-
-```
-📦 归档完成
-
-raw       → raw/<COMMON_PATH>
-distilled → distilled/<COMMON_PATH>
-diagnose  → diagnose/<COMMON_PATH>
-trace     → trace/<COMMON_PATH>（或"已跳过"）
-digest    → digest/<COMMON_PATH>（或"已跳过"）
-
-index.json 条目 <id>：
-  raw: true · distilled: true · diagnose: true · trace: <bool> · digest: <bool>
 ```

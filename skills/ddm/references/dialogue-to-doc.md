@@ -17,15 +17,7 @@
 
 **Step 0：读取 config.json**
 
-读取 skill 目录下的 `config.json`，从 `archive_root` 字段获取本地 archive 根目录。
-
-```json
-{
-  "archive_root": "/path/to/cognitive-trace-archive"
-}
-```
-
-确认字段存在后输出：`> ✅ config.json 读取完成 · archive_root: <路径>`
+读取 skill 目录下的 `config.json`，从 `archive_root` 字段获取本地 archive 根目录，确认字段存在后输出：`> ✅ config.json 读取完成 · archive_root: <路径>`
 
 ---
 

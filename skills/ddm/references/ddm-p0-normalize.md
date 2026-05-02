@@ -62,18 +62,6 @@ output : topic-path = <一级>[/<二级>]
 AI 第一轮。
 
 <!-- DDM:TURN_SEP:v1 -->
-
-## User（Turn 2）
-
-用户第二轮。
-
-<!-- DDM:TURN_SEP:v1 -->
-
-## AI
-
-AI 第二轮。
-
-<!-- DDM:TURN_SEP:v1 -->
 ```
 
 ---
