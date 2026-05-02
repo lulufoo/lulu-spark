@@ -486,7 +486,12 @@
       "distilled": true,
       "diagnose": true,
       "digest": true,
-      "trace": true
+      "trace": true,
+      "links": [
+        {
+          "url": "https://github.com/lulufoo/ai-collaboration-framework/blob/main/collaboration-design/domain-modeling-driven-ai-collaboration.md"
+        }
+      ]
     },
     "81e6c996fdf4fc92a29805b27d2354bf": {
       "common_path": "learning-with-ai/business-analysis/202605012006-llm-product-innovation-quadrant-turn1-16.md",

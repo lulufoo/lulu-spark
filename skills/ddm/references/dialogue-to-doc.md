@@ -9,8 +9,8 @@
 | 模式 | 说明 |
 |------|------|
 | **dtd_normalize** | 仅执行 Phase 0（P0 规范化），将对话写入 `raw/` 并更新 `index.json` |
-| **dtd_dialogue_to_doc** | 完整归档当前对话，依次执行 P0 → P1 → P2 → P3 → P4 |
-| **dtd_raw_to_doc** | 输入已有 raw 文件路径（或 index id），从 P1 开始执行 P1 → P2 → P3 → P4 |
+| **dtd_distill** | 输入 raw 文件路径或 index id，仅执行 P2 生成 distilled |
+| **dtd_raw_to_doc** | 输入已有 raw 文件路径（或 index id），执行 P1 → P3 → P4（不含 P2） |
 
 ---
 
@@ -36,52 +36,33 @@
 
 ---
 
-## dtd_dialogue_to_doc 模式
+## dtd_distill 模式
 
-依次执行四个 Phase，每个 Phase 完成后再进入下一个。
+**输入**：用户提供 raw 文件的路径或 index.json 中的 32 位十六进制 id。
 
-**Step 1 — Phase 0：规范化**
+**Step 0：解析输入路径**
 
-加载 [ddm-p0-normalize.md](ddm-p0-normalize.md)，执行。输出 Step 6 汇总。
+```
+· 若输入为 32 位十六进制 id：
+    读取 {archive_root}/index.json，查找对应条目的 common_path
+    拼出绝对路径：{archive_root}/raw/<common_path>
+· 若输入为路径：直接使用
+确认文件存在，且 index.json 中该条目 raw=true
+从路径解析 topic-path / ts / slug（方式同 P0 Step 1）
+```
 
----
-
-**Step 2 — Phase 1：诊断**
-
-加载 [ddm-p1-diagnose.md](ddm-p1-diagnose.md)，执行。将 DIAGNOSE 写入 `diagnose/<COMMON_PATH>` 后继续。
-
----
-
-**Step 3 — Phase 2：生成**
+**Step 1 — Phase 2：生成**
 
 加载 [ddm-p2-generate.md](ddm-p2-generate.md)，执行。先读取 `CACHE_RAW` 全文，再按四条规则生成 distilled 并落盘。
 
 ---
 
-**Step 4 — Phase 3：认知轨迹**
-
-加载 [ddm-p3-trace.md](ddm-p3-trace.md)，执行（若 P3-0 条件不满足则跳过）。
-
----
-
-**Step 5 — Phase 4：摘要与归档**
-
-加载 [ddm-p4-digest.md](ddm-p4-digest.md)，执行（若 P4-0 条件不满足则跳过）。更新 `index.json` 所有标志。
-
----
-
-**dtd_dialogue_to_doc 完成汇总**
+**dtd_distill 完成汇总**
 
 ```
-📦 dtd_dialogue_to_doc 归档完成
-
-raw       → raw/<COMMON_PATH>
-distilled → distilled/<COMMON_PATH>
-trace     → trace/<COMMON_PATH>（或"已跳过"）
-digest    → digest/<COMMON_PATH>（或"已跳过"）
-
-index.json 条目 <id>：
-  raw: true · distilled: true · trace: <bool> · digest: <bool>
+> ✅ dtd_distill 完成
+> 📝 distilled：distilled/<COMMON_PATH>
+> 🗂 index.json 已更新（distilled=true）
 ```
 
 ---
@@ -107,19 +88,13 @@ index.json 条目 <id>：
 
 ---
 
-**Step 2 — Phase 2：生成**
-
-加载 [ddm-p2-generate.md](ddm-p2-generate.md)，执行。先读取 `CACHE_RAW` 全文，再按四条规则生成 distilled 并落盘。
-
----
-
-**Step 3 — Phase 3：认知轨迹**
+**Step 2 — Phase 3：认知轨迹**
 
 加载 [ddm-p3-trace.md](ddm-p3-trace.md)，执行（若 P3-0 条件不满足则跳过）。
 
 ---
 
-**Step 4 — Phase 4：摘要与归档**
+**Step 3 — Phase 4：摘要与归档**
 
 加载 [ddm-p4-digest.md](ddm-p4-digest.md)，执行（若 P4-0 条件不满足则跳过）。更新 `index.json` 所有标志。
 
@@ -131,10 +106,9 @@ index.json 条目 <id>：
 📦 dtd_raw_to_doc 归档完成
 
 raw       → raw/<COMMON_PATH>（已有）
-distilled → distilled/<COMMON_PATH>
 trace     → trace/<COMMON_PATH>（或"已跳过"）
 digest    → digest/<COMMON_PATH>（或"已跳过"）
 
 index.json 条目 <id>：
-  distilled: true · diagnose: true · trace: <bool> · digest: <bool>
+  diagnose: true · trace: <bool> · digest: <bool>
 ```
