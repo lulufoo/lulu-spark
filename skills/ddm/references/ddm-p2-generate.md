@@ -1,5 +1,7 @@
 # DDM Phase 2：生成
 
+> **配置参考**：[ddm-concepts.md](ddm-concepts.md)（路径符号定义）
+>
 > **输入**：`CACHE_RAW`（Phase 0 产出）；`DIAGNOSE`（Phase 1 产出，`diagnose/<COMMON_PATH>`）；`<topic-path>`、`<ts>`、`<slug>` 从 `CACHE_RAW` 文件路径解析。
 >
 > **输出**：`CACHE_DISTILLED`，写入本地 archive。

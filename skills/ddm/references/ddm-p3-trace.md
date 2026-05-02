@@ -1,5 +1,7 @@
 # DDM Phase 3：认知轨迹
 
+> **配置参考**：[ddm-concepts.md](ddm-concepts.md)（路径符号定义）
+>
 > **输入**：`DIAGNOSE`（`diagnose/<COMMON_PATH>`）；`CACHE_DISTILLED`；`<topic-path>`、`<ts>`、`<slug>` 从 `CACHE_RAW` 文件路径解析。
 >
 > **输出**：`CACHE_TRACE`，写入本地 archive 的 `trace/<COMMON_PATH>`。

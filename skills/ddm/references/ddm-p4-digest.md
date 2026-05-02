@@ -1,5 +1,7 @@
 # DDM Phase 4：摘要
 
+> **配置参考**：[ddm-concepts.md](ddm-concepts.md)（路径符号定义）
+>
 > **输入**：`CACHE_DISTILLED`；`DIAGNOSE`（`diagnose/<COMMON_PATH>`）；`<topic-path>`、`<ts>`、`<slug>` 从 `CACHE_RAW` 路径解析。
 >
 > **输出**：`CACHE_DIGEST`，写入本地 archive 的 `digest/<COMMON_PATH>`；同时更新 `index.json`。

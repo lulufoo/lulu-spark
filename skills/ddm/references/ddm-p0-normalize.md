@@ -1,5 +1,7 @@
 # 对话格式化：AI 执行手册
 
+> **配置参考**：[ddm-concepts.md](ddm-concepts.md)（路径符号 `CACHE_RAW`、`COMMON_PATH`、`DIAGNOSE`、`CTA_BASE` 定义）
+
 > **输入**：当前对话 / 用户提供的对话文档。
 >
 > **输出**：`CACHE_RAW`（写入本地 archive），并更新 `CACHE_INDEX`。

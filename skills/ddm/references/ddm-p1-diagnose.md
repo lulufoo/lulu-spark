@@ -1,5 +1,7 @@
 # DDM Phase 1：诊断
 
+> **配置参考**：[ddm-concepts.md](ddm-concepts.md)（路径符号 `CACHE_RAW`、`COMMON_PATH`、`DIAGNOSE`、`CTA_BASE` 定义）
+>
 > **输入**：`CACHE_RAW`；从路径中解析**目录** `<topic-path>` 与**文件名** `<ts>-<slug>.md`；读取文件内容作为分析素材。
 >
 > **输出**：`DIAGNOSE`（`diagnose/<COMMON_PATH>`），同时显式输出到对话供即时审阅。
