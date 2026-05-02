@@ -918,7 +918,7 @@ async function loadTitles(entries, date) {
       return;
     }
 
-    const url = `./raw/${entry.common_path}`;
+    const url = `./raw/${entry.common_path}?t=${Date.now()}`;
     try {
       const res = await fetch(url);
       if (!res.ok) {
@@ -1165,13 +1165,15 @@ async function saveDoc() {
     // Update title cache from new content's H1
     const h1Match = newContent.match(/^#\s+(.+)/m);
     const newTitle = h1Match ? h1Match[1].trim() : slugToTitle(filenameFromPath(currentEntry.common_path));
+    const entryId = getEntryId(currentEntry);
     if (!titleCache.has(date)) titleCache.set(date, new Map());
-    titleCache.get(date).set(getEntryId(currentEntry), newTitle);
-    // Update card title in DOM directly
-    const card = document.querySelector(`.doc-card[data-id="${getEntryId(currentEntry)}"]`);
+    titleCache.get(date).set(entryId, newTitle);
+    const card = entryId ? document.querySelector(`.doc-card[data-id="${entryId}"]`) : null;
     if (card) {
       const titleEl = card.querySelector('.doc-title-btn');
       if (titleEl) { titleEl.classList.remove('loading'); titleEl.textContent = newTitle; }
+    } else {
+      updateTitlesInDOM(date);
     }
     exitEditMode(true);
     await loadDiffStatus();
