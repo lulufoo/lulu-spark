@@ -1,0 +1,1037 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cognitive Trace Archive</title>
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: #f6f8fa;
+    color: #24292f;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── Header ── */
+  header {
+    background: #24292f;
+    color: #fff;
+    padding: 12px 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-shrink: 0;
+  }
+  header h1 { font-size: 15px; font-weight: 600; letter-spacing: .3px; flex: 1; }
+  header a {
+    color: #8b949e;
+    font-size: 12px;
+    text-decoration: none;
+  }
+  header a:hover { color: #fff; }
+  #btn-refresh {
+    background: #373e47;
+    border: 1px solid #444c56;
+    color: #cdd9e5;
+    padding: 5px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: background .15s;
+  }
+  #btn-refresh:hover { background: #444c56; }
+  #btn-refresh:disabled { opacity: .5; cursor: default; }
+  #btn-pull {
+    background: #373e47;
+    border: 1px solid #444c56;
+    color: #cdd9e5;
+    padding: 5px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: background .15s;
+  }
+  #btn-pull:hover { background: #444c56; }
+  #btn-pull:disabled { opacity: .5; cursor: default; }
+
+  /* ── Layout ── */
+  .layout {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+  }
+
+  /* ── Sidebar ── */
+  aside {
+    width: 160px;
+    flex-shrink: 0;
+    background: #fff;
+    border-right: 1px solid #d0d7de;
+    overflow-y: auto;
+    padding: 8px 0;
+  }
+  .date-tab {
+    display: block;
+    padding: 8px 16px;
+    font-size: 13px;
+    cursor: pointer;
+    border-left: 3px solid transparent;
+    color: #57606a;
+    line-height: 1.4;
+    transition: background .1s;
+    user-select: none;
+  }
+  .date-tab:hover { background: #f6f8fa; color: #24292f; }
+  .date-tab.active {
+    border-left-color: #0969da;
+    background: #ddf4ff;
+    color: #0969da;
+    font-weight: 600;
+  }
+  .date-tab .day { font-size: 18px; font-weight: 700; display: block; }
+  .date-tab .month { font-size: 11px; color: inherit; opacity: .7; }
+  .date-tab .count {
+    display: inline-block;
+    margin-top: 2px;
+    background: #eaeef2;
+    color: #57606a;
+    border-radius: 10px;
+    padding: 0 6px;
+    font-size: 10px;
+  }
+  .date-tab.active .count { background: #b6e3ff; color: #0550ae; }
+
+  /* ── Main content ── */
+  main {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px 24px;
+  }
+
+  #date-heading {
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 16px;
+    color: #24292f;
+    border-bottom: 1px solid #d0d7de;
+    padding-bottom: 10px;
+  }
+
+  /* ── Doc cards ── */
+  .doc-list { display: flex; flex-direction: column; gap: 12px; }
+
+  .doc-card {
+    background: #fff;
+    border: 1px solid #d0d7de;
+    border-radius: 8px;
+    padding: 14px 16px;
+    transition: box-shadow .15s;
+  }
+  .doc-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,.08); }
+
+  .doc-topic {
+    font-size: 11px;
+    color: #57606a;
+    margin-bottom: 5px;
+    font-family: monospace;
+  }
+
+  .doc-title-btn {
+    background: none;
+    border: none;
+    padding: 0;
+    text-align: left;
+    font-size: 14px;
+    font-weight: 600;
+    color: #0969da;
+    cursor: pointer;
+    line-height: 1.4;
+    margin-bottom: 10px;
+    min-height: 1.4em;
+    display: block;
+    width: 100%;
+  }
+  .doc-title-btn:hover { text-decoration: underline; }
+  .doc-title-btn.loading {
+    background: linear-gradient(90deg, #eaeef2 25%, #d0d7de 50%, #eaeef2 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.2s infinite;
+    border-radius: 4px;
+    height: 18px;
+    width: 70%;
+    color: transparent;
+    pointer-events: none;
+    cursor: default;
+  }
+  @keyframes shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+
+  .doc-meta {
+    font-size: 11px;
+    color: #57606a;
+    margin-bottom: 8px;
+  }
+
+  /* ── Layer badges ── */
+  .badges { display: flex; flex-wrap: wrap; gap: 6px; }
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 500;
+    text-decoration: none;
+    border: 1px solid transparent;
+    transition: opacity .15s;
+  }
+  .badge:hover { opacity: .8; }
+  .badge-layer    { background: #d1f8d9; color: #1a5e2a; border-color: #57c675; }
+  .badge-diff     { background: #fff8c5; color: #7d4e00; border-color: #d4a72c; }
+  .badge-conflict { background: #ffd8d3; color: #82071e; border-color: #ff8182; }
+  .badge-unreachable {
+    background: #f6f8fa;
+    color: #8c959f;
+    border-color: #d0d7de;
+    cursor: default;
+    text-decoration: line-through;
+  }
+  .badge-unreachable:hover { opacity: 1; }
+  /* ── Diff indicator on card ── */
+  .diff-dot { font-size: 11px; margin-left: 6px; font-weight: 600; }
+  .diff-dot.modified { color: #d4a72c; }
+  .diff-dot.conflict { color: #cf222e; }
+  /* ── Panel commit button ── */
+  #btn-panel-commit { background: #fff8c5 !important; color: #7d4e00 !important; border-color: #d4a72c !important; }
+  /* ── Commit bar inside viewer panel ── */
+  #md-commit-bar {
+    display: none;
+    flex-shrink: 0;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    border-bottom: 1px solid #d4a72c;
+    background: #fffbdd;
+  }
+  #md-commit-bar input {
+    flex: 1;
+    padding: 4px 8px;
+    border: 1px solid #d0d7de;
+    border-radius: 4px;
+    font-size: 12px;
+    outline: none;
+  }
+
+  /* ── Status messages ── */
+  #status {
+    padding: 20px 24px;
+    font-size: 14px;
+    color: #57606a;
+  }
+  .error-msg {
+    background: #fff8f0;
+    border: 1px solid #ffa657;
+    border-radius: 8px;
+    padding: 16px;
+    color: #7d4e00;
+  }
+  .error-msg button {
+    margin-top: 10px;
+    background: #ffa657;
+    border: none;
+    border-radius: 6px;
+    padding: 6px 14px;
+    font-size: 13px;
+    cursor: pointer;
+    color: #fff;
+  }
+
+  /* ── MD Viewer Panel ── */
+  #md-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0,0,0,.45);
+  }
+  #md-backdrop {
+    position: fixed;
+    inset: 0;
+    cursor: pointer;
+  }
+  #md-panel {
+    position: relative;
+    z-index: 1;
+    width: min(1180px, 92vw);
+    height: 100vh;
+    background: #fff;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    box-shadow: 0 8px 40px rgba(0,0,0,.25);
+    border-radius: 8px;
+  }
+  #md-header {
+    display: flex;
+    align-items: center;
+    padding: 10px 16px;
+    border-bottom: 1px solid #d0d7de;
+    gap: 10px;
+    flex-shrink: 0;
+    background: #f6f8fa;
+  }
+  #md-panel-title {
+    flex: 1;
+    font-size: 11px;
+    color: #57606a;
+    font-family: monospace;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  #md-close {
+    background: none;
+    border: 1px solid #d0d7de;
+    border-radius: 6px;
+    padding: 3px 10px;
+    font-size: 12px;
+    cursor: pointer;
+    color: #57606a;
+    flex-shrink: 0;
+  }
+  #md-close:hover { background: #eaeef2; }
+  /* edit mode button in viewer */
+  .md-header-btn {
+    background: none;
+    border: 1px solid #d0d7de;
+    border-radius: 6px;
+    padding: 3px 10px;
+    font-size: 12px;
+    cursor: pointer;
+    color: #57606a;
+    flex-shrink: 0;
+  }
+  .md-header-btn:hover { background: #eaeef2; }
+  .md-header-btn.primary {
+    background: #1f6feb;
+    border-color: #388bfd;
+    color: #fff;
+  }
+  .md-header-btn.primary:hover { background: #388bfd; }
+  .md-header-btn:disabled { opacity: .5; cursor: default; }
+  /* edit textarea */
+  #md-edit-area {
+    flex: 1;
+    padding: 24px 28px;
+    font-family: 'SF Mono', 'Fira Code', Consolas, monospace;
+    font-size: 13px;
+    line-height: 1.6;
+    border: none;
+    outline: none;
+    resize: none;
+    background: #fff;
+    color: #24292f;
+  }
+  #md-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 24px 28px;
+    font-size: 14px;
+    line-height: 1.7;
+  }
+  #md-body h1,#md-body h2,#md-body h3,#md-body h4 { margin: 1em 0 .4em; color: #24292f; }
+  #md-body h1 { font-size: 1.5em; border-bottom: 1px solid #d0d7de; padding-bottom: .3em; }
+  #md-body h2 { font-size: 1.2em; border-bottom: 1px solid #eaecef; padding-bottom: .2em; }
+  #md-body p { margin: .5em 0; }
+  #md-body ul,#md-body ol { margin: .4em 0 .4em 1.5em; }
+  #md-body li { margin: .2em 0; }
+  #md-body code {
+    background: #f6f8fa; border: 1px solid #d0d7de;
+    border-radius: 4px; padding: 1px 5px;
+    font-size: .88em; font-family: monospace;
+  }
+  #md-body pre {
+    background: #f6f8fa; border: 1px solid #d0d7de;
+    border-radius: 6px; padding: 14px;
+    overflow-x: auto; margin: .8em 0;
+  }
+  #md-body pre code { background: none; border: none; padding: 0; font-size: .85em; }
+  #md-body blockquote {
+    border-left: 4px solid #d0d7de;
+    padding-left: 12px; color: #57606a; margin: .5em 0;
+  }
+  #md-body hr { border: none; border-top: 1px solid #d0d7de; margin: 1em 0; }
+  #md-body a { color: #0969da; }
+  #md-body table { border-collapse: collapse; width: 100%; margin: .8em 0; }
+  #md-body th,#md-body td { border: 1px solid #d0d7de; padding: 6px 12px; font-size: 13px; }
+  #md-body th { background: #f6f8fa; font-weight: 600; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>📚 Cognitive Trace Archive</h1>
+  <a href="https://github.com/lulufoo/cognitive-trace-archive" target="_blank">GitHub ↗</a>
+  <button id="btn-refresh">⟳ 刷新</button>
+  <button id="btn-pull">↓ 更新项目</button>
+</header>
+
+<div class="layout">
+  <aside id="sidebar">
+    <div style="padding:12px 16px;font-size:11px;color:#8c959f;">加载中…</div>
+  </aside>
+  <main id="main">
+    <div id="status"><div style="color:#8c959f;font-size:13px;">← 选择日期查看文档</div></div>
+    <div id="date-heading" style="display:none"></div>
+    <div id="doc-list" class="doc-list"></div>
+  </main>
+</div>
+
+<!-- MD Viewer -->
+<div id="md-modal" style="display:none">
+  <div id="md-backdrop"></div>
+  <div id="md-panel">
+    <div id="md-header">
+      <span id="md-panel-title"></span>
+      <a id="md-github-link" href="#" target="_blank" style="font-size:12px;color:#0969da;text-decoration:none;flex-shrink:0;">GitHub ↗</a>
+      <button class="md-header-btn" id="btn-edit">✏️ 编辑</button>
+      <button class="md-header-btn primary" id="btn-save" style="display:none">💾 保存</button>
+      <button class="md-header-btn" id="btn-cancel-edit" style="display:none">取消</button>
+      <button class="md-header-btn" id="btn-panel-commit" style="display:none">● 提交此文件</button>
+      <button id="md-close" class="md-header-btn">✕ 关闭</button>
+    </div>
+    <div id="md-commit-bar">
+      <span style="font-size:12px;color:#7d4e00;flex-shrink:0;">● 待提交：</span>
+      <input id="md-commit-msg" type="text" placeholder="update: edit via viewer" />
+      <button id="btn-commit-file" class="md-header-btn primary" style="font-size:11px;padding:3px 10px;">↑ 提交</button>
+      <button id="btn-skip-commit" class="md-header-btn" style="font-size:11px;padding:3px 10px;">稍后</button>
+      <span id="md-commit-result" style="font-size:11px;"></span>
+    </div>
+    <div id="md-body"></div>
+    <textarea id="md-edit-area" style="display:none" spellcheck="false"></textarea>
+  </div>
+</div>
+
+<script>
+const REPO = 'https://github.com/lulufoo/cognitive-trace-archive/blob/main';
+const LAYERS = ['raw', 'distilled', 'digest', 'trace'];
+// Cache: date string -> Map<id, title>
+const titleCache = new Map();
+
+// Diff status: filepath → 'modified' | 'conflict'
+let diffStatus = new Map();
+
+let indexData = null;    // full entries object
+let groupedByDate = [];  // [{date, entries:[{id, entry}]}] sorted desc
+let activeDate = null;
+
+// ── Diff helpers ───────────────────────────────────────────────────────────────────
+
+function getEntryDiffState(entry) {
+  let state = null;
+  for (const layer of LAYERS) {
+    if (!entry[layer]) continue;
+    const s = diffStatus.get(`${layer}/${entry.common_path}`);
+    if (s === 'conflict') return 'conflict';
+    if (s === 'modified') state = 'modified';
+  }
+  return state;
+}
+
+function getLayerBadgeClass(layer, entry) {
+  const s = diffStatus.get(`${layer}/${entry.common_path}`);
+  if (s === 'conflict') return 'badge-conflict';
+  if (s === 'modified') return 'badge-diff';
+  return 'badge-layer';
+}
+
+async function loadDiffStatus() {
+  try {
+    const res = await fetch('/api/status', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({})
+    });
+    if (!res.ok) return;
+    const data = await res.json();
+    diffStatus.clear();
+    for (const p of (data.modified || [])) diffStatus.set(p, 'modified');
+    for (const p of (data.conflicted || [])) diffStatus.set(p, 'conflict');
+  } catch { /* non-critical, server may not support */ }
+}
+
+function updateDiffInDOM() {
+  if (!activeDate) return;
+  const group = groupedByDate.find(g => g.date === activeDate);
+  if (!group) return;
+  for (const { id, entry } of group.entries) {
+    const card = document.querySelector(`.doc-card[data-id="${id}"]`);
+    if (!card) continue;
+    const metaEl = card.querySelector('.doc-meta');
+    if (metaEl) {
+      const state = getEntryDiffState(entry);
+      const dotHtml = state
+        ? ` <span class="diff-dot ${state}">${state === 'conflict' ? '● conflict' : '● 待提交'}</span>`
+        : '';
+      metaEl.innerHTML = timeFromTs(entry.created_at) + dotHtml;
+    }
+    const badgesEl = card.querySelector('.badges');
+    if (badgesEl) {
+      badgesEl.innerHTML = LAYERS
+        .filter(layer => entry[layer] === true)
+        .map(layer => {
+          if (entry[`_unreachable_${layer}`]) {
+            return `<span class="badge badge-unreachable" title="文件不可达">${layer}</span>`;
+          }
+          return `<button class="badge ${getLayerBadgeClass(layer, entry)}" data-layer="${layer}">${layer}</button>`;
+        })
+        .join('');
+      attachBadgeListeners(card, entry);
+    }
+  }
+}
+
+// ── Utils ──────────────────────────────────────────────────────────────────
+
+function slugToTitle(slug) {
+  return slug
+    .replace(/^\d{12}-/, '')                     // strip timestamp prefix if any
+    .split('-')
+    .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(' ');
+}
+
+function filenameFromPath(commonPath) {
+  return commonPath.split('/').pop().replace(/\.md$/, '');
+}
+
+function topicFromPath(commonPath) {
+  const parts = commonPath.split('/');
+  parts.pop();
+  return parts.join('/');
+}
+
+function formatDate(dateStr) {
+  // dateStr = 'YYYYMMDD'
+  const y = dateStr.slice(0, 4);
+  const m = dateStr.slice(4, 6);
+  const d = dateStr.slice(6, 8);
+  const dt = new Date(`${y}-${m}-${d}`);
+  const days = ['日','一','二','三','四','五','六'];
+  const dow = days[dt.getDay()];
+  return {
+    day: `${parseInt(d)}日`,
+    label: `${parseInt(m)}月${parseInt(d)}日`,
+    year: y,
+    month: `${y}/${m}`,
+    weekday: `周${dow}`,
+    full: `${y}年${parseInt(m)}月${parseInt(d)}日（周${dow}）`
+  };
+}
+
+function timeFromTs(ts) {
+  // ts = 'YYYYMMDDHHMM'
+  return ts.slice(8, 10) + ':' + ts.slice(10, 12);
+}
+
+// ── Fetch index.json ───────────────────────────────────────────────────────
+
+async function loadIndex() {
+  const btn = document.getElementById('btn-refresh');
+  btn.disabled = true;
+  btn.textContent = '⟳ 加载中…';
+
+  try {
+    const res = await fetch('./index.json?_=' + Date.now());
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    indexData = data.entries || data;  // support both {entries:{}} and flat {}
+    buildGroups();
+    renderSidebar();
+    await loadDiffStatus();
+    if (groupedByDate.length > 0) selectDate(groupedByDate[0].date);
+  } catch (e) {
+    showError(`无法加载 index.json：${e.message}`);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '⟳ 刷新';
+  }
+}
+
+function buildGroups() {
+  const map = new Map();
+  for (const [id, entry] of Object.entries(indexData)) {
+    const date = entry.created_at.slice(0, 8);
+    if (!map.has(date)) map.set(date, []);
+    map.get(date).push({ id, entry });
+  }
+  // Sort each group by created_at desc, then dates desc
+  groupedByDate = [...map.entries()]
+    .sort((a, b) => b[0].localeCompare(a[0]))
+    .map(([date, entries]) => ({
+      date,
+      entries: entries.sort((a, b) => b.entry.created_at.localeCompare(a.entry.created_at))
+    }));
+}
+
+// ── Sidebar ────────────────────────────────────────────────────────────────
+
+function renderSidebar() {
+  const aside = document.getElementById('sidebar');
+  aside.innerHTML = '';
+  for (const { date, entries } of groupedByDate) {
+    const d = formatDate(date);
+    const tab = document.createElement('div');
+    tab.className = 'date-tab';
+    tab.dataset.date = date;
+    tab.innerHTML = `
+      <span class="day">${d.label}</span>
+      <span class="month">${d.year} ${d.weekday}</span>
+      <span class="count">${entries.length}</span>
+    `;
+    tab.addEventListener('click', () => selectDate(date));
+    aside.appendChild(tab);
+  }
+}
+
+// ── Select date ────────────────────────────────────────────────────────────
+
+function selectDate(date) {
+  activeDate = date;
+
+  // Update active tab
+  document.querySelectorAll('.date-tab').forEach(t => {
+    t.classList.toggle('active', t.dataset.date === date);
+  });
+
+  const group = groupedByDate.find(g => g.date === date);
+  if (!group) return;
+
+  const d = formatDate(date);
+  document.getElementById('status').style.display = 'none';
+  const heading = document.getElementById('date-heading');
+  heading.style.display = '';
+  heading.textContent = d.full + `  ·  ${group.entries.length} 篇`;
+
+  renderDocList(group.entries, date);
+  loadTitles(group.entries, date);
+}
+
+// ── Doc list ───────────────────────────────────────────────────────────────
+
+function renderDocList(entries, date) {
+  const list = document.getElementById('doc-list');
+  list.innerHTML = '';
+
+  for (const { id, entry } of entries) {
+    const card = buildCard(id, entry, titleCache.get(date)?.get(id));
+    list.appendChild(card);
+  }
+}
+
+function buildCard(id, entry, title) {
+  const card = document.createElement('div');
+  card.className = 'doc-card';
+  card.dataset.id = id;
+
+  const topic = topicFromPath(entry.common_path);
+  const filename = filenameFromPath(entry.common_path);
+  const displayTitle = title !== undefined ? title : null;
+  const time = timeFromTs(entry.created_at);
+
+  const state = getEntryDiffState(entry);
+  const dotHtml = state
+    ? ` <span class="diff-dot ${state}">${state === 'conflict' ? '● conflict' : '● 待提交'}</span>`
+    : '';
+
+  const badgesHtml = LAYERS
+    .filter(layer => entry[layer] === true)
+    .map(layer => {
+      if (entry[`_unreachable_${layer}`]) {
+        return `<span class="badge badge-unreachable" title="文件不可达">${layer}</span>`;
+      }
+      return `<button class="badge ${getLayerBadgeClass(layer, entry)}" data-layer="${layer}">${layer}</button>`;
+    })
+    .join('');
+
+  card.innerHTML = `
+    <div class="doc-topic">${topic}</div>
+    <button class="doc-title-btn${displayTitle === null ? ' loading' : ''}">${displayTitle !== null ? escHtml(displayTitle) : ''}</button>
+    <div class="doc-meta">${time}${dotHtml}</div>
+    <div class="badges">${badgesHtml}</div>
+  `;
+  const firstLayer = LAYERS.find(l => entry[l] === true) || 'raw';
+  card.querySelector('.doc-title-btn').addEventListener('click', () => openDoc(entry, firstLayer));
+  attachBadgeListeners(card, entry);
+  return card;
+}
+
+function attachBadgeListeners(card, entry) {
+  card.querySelectorAll('.badge[data-layer]').forEach(btn => {
+    btn.addEventListener('click', () => openDoc(entry, btn.dataset.layer));
+  });
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ── Title loading ──────────────────────────────────────────────────────────
+
+async function loadTitles(entries, date) {
+  if (titleCache.has(date)) {
+    updateTitlesInDOM(date);
+    return;
+  }
+
+  titleCache.set(date, new Map());
+
+  await Promise.all(entries.map(async ({ id, entry }) => {
+    if (!entry.raw) {
+      // No raw file: fallback to slug
+      const title = slugToTitle(filenameFromPath(entry.common_path));
+      titleCache.get(date).set(id, title);
+      return;
+    }
+
+    const url = `./raw/${entry.common_path}`;
+    try {
+      const res = await fetch(url);
+      if (!res.ok) {
+        // Mark raw as unreachable in a non-destructive way
+        entry._unreachable_raw = true;
+        titleCache.get(date).set(id, slugToTitle(filenameFromPath(entry.common_path)));
+        return;
+      }
+      const text = await res.text();
+      const h1Match = text.match(/^#\s+(.+)/m);
+      const title = h1Match ? h1Match[1].trim() : slugToTitle(filenameFromPath(entry.common_path));
+      titleCache.get(date).set(id, title);
+    } catch {
+      titleCache.get(date).set(id, slugToTitle(filenameFromPath(entry.common_path)));
+    }
+  }));
+
+  // Only update DOM if this date is still active
+  if (activeDate === date) updateTitlesInDOM(date);
+}
+
+function updateTitlesInDOM(date) {
+  const cache = titleCache.get(date);
+  if (!cache) return;
+  const group = groupedByDate.find(g => g.date === date);
+  if (!group) return;
+
+  for (const { id, entry } of group.entries) {
+    const card = document.querySelector(`.doc-card[data-id="${id}"]`);
+    if (!card) continue;
+
+    const titleEl = card.querySelector('.doc-title-btn');
+    if (titleEl) {
+      titleEl.classList.remove('loading');
+      titleEl.textContent = cache.get(id) || slugToTitle(filenameFromPath(entry.common_path));
+    }
+
+    // Re-render badges if unreachable state changed
+    const badgesEl = card.querySelector('.badges');
+    if (badgesEl) {
+      badgesEl.innerHTML = LAYERS
+        .filter(layer => entry[layer] === true)
+        .map(layer => {
+          if (entry[`_unreachable_${layer}`]) {
+            return `<span class="badge badge-unreachable" title="文件不可达">${layer}</span>`;
+          }
+          return `<button class="badge ${getLayerBadgeClass(layer, entry)}" data-layer="${layer}">${layer}</button>`;
+        })
+        .join('');
+      attachBadgeListeners(card, entry);
+    }
+  }
+}
+
+// ── Error display ──────────────────────────────────────────────────────────
+
+function showError(msg) {
+  const status = document.getElementById('status');
+  status.style.display = '';
+  status.innerHTML = `<div class="error-msg">${escHtml(msg)}<br><button onclick="loadIndex()">重试</button></div>`;
+  document.getElementById('date-heading').style.display = 'none';
+  document.getElementById('doc-list').innerHTML = '';
+}
+
+// ── Refresh ────────────────────────────────────────────────────────────────
+
+document.getElementById('btn-refresh').addEventListener('click', () => {
+  titleCache.clear();
+  // Reset unreachable flags
+  if (indexData) {
+    for (const entry of Object.values(indexData)) {
+      LAYERS.forEach(l => delete entry[`_unreachable_${l}`]);
+    }
+  }
+  loadIndex();
+});
+
+// ── MD Viewer ─────────────────────────────────────────────────────────────
+
+function resolveRelativeLink(href, currentLayer, commonPath) {
+  // Resolve relative MD links to absolute GitHub blob URLs
+  try {
+    const base = `http://x/${currentLayer}/${commonPath}`;
+    const resolved = new URL(href, base);
+    const repoPath = resolved.pathname.slice(1); // strip leading /
+    return `${REPO}/${repoPath}`;
+  } catch {
+    return null;
+  }
+}
+
+function postProcessLinks(container, currentLayer, commonPath) {
+  container.querySelectorAll('a[href]').forEach(a => {
+    const href = a.getAttribute('href');
+    if (!href || href.startsWith('#')) return;
+    if (href.startsWith('http://') || href.startsWith('https://')) {
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+      return;
+    }
+    // Relative link → resolve to GitHub blob URL
+    const ghUrl = resolveRelativeLink(href, currentLayer, commonPath);
+    if (ghUrl) {
+      a.href = ghUrl;
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+    }
+  });
+}
+
+// ── Current viewer state ───────────────────────────────────────────────────
+
+let currentEntry = null;
+let currentLayer = 'raw';
+let currentRawText = '';
+
+// ── Open doc ───────────────────────────────────────────────────────────────
+
+function openDoc(entry, layer = 'raw') {
+  currentEntry = entry;
+  currentLayer = layer;
+  exitEditMode(false);
+  hideCommitBar();
+
+  const modal = document.getElementById('md-modal');
+  const body = document.getElementById('md-body');
+  document.getElementById('md-panel-title').textContent = `${layer}/${entry.common_path}`;
+  document.getElementById('md-github-link').href = `${REPO}/${layer}/${entry.common_path}`;
+  body.innerHTML = '<div style="color:#8c959f;padding:20px;font-size:13px;">加载中…</div>';
+  modal.style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+
+  fetch(`./${layer}/${entry.common_path}`)
+    .then(res => { if (!res.ok) throw new Error(`HTTP ${res.status}`); return res.text(); })
+    .then(text => {
+      currentRawText = text;
+      renderDocBody(text, layer, entry.common_path);
+      const hasDiff = diffStatus.get(`${layer}/${entry.common_path}`);
+      document.getElementById('btn-panel-commit').style.display = hasDiff ? '' : 'none';
+    })
+    .catch(e => {
+      body.innerHTML = `<div style="color:#7d4e00;padding:20px">无法加载文件：${escHtml(e.message)}</div>`;
+      document.getElementById('btn-edit').style.display = 'none';
+    });
+}
+
+function renderDocBody(text, layer, commonPath) {
+  const body = document.getElementById('md-body');
+  if (typeof marked !== 'undefined') {
+    body.innerHTML = marked.parse(text);
+  } else {
+    body.innerHTML = `<pre style="white-space:pre-wrap;font-size:13px">${escHtml(text)}</pre>`;
+  }
+  postProcessLinks(body, layer, commonPath);
+  document.getElementById('btn-edit').style.display = '';
+}
+
+// ── Edit mode ──────────────────────────────────────────────────────────────
+
+function enterEditMode() {
+  const editArea = document.getElementById('md-edit-area');
+  const body = document.getElementById('md-body');
+  editArea.value = currentRawText;
+  body.style.display = 'none';
+  editArea.style.display = '';
+  editArea.focus();
+  document.getElementById('btn-edit').style.display = 'none';
+  document.getElementById('btn-panel-commit').style.display = 'none';
+  document.getElementById('btn-save').style.display = '';
+  document.getElementById('btn-cancel-edit').style.display = '';
+  document.getElementById('md-github-link').style.display = 'none';
+  hideCommitBar();
+}
+
+function exitEditMode(rerender = true) {
+  const editArea = document.getElementById('md-edit-area');
+  const body = document.getElementById('md-body');
+  editArea.style.display = 'none';
+  body.style.display = '';
+  document.getElementById('btn-edit').style.display = '';
+  document.getElementById('btn-save').style.display = 'none';
+  document.getElementById('btn-cancel-edit').style.display = 'none';
+  document.getElementById('btn-panel-commit').style.display = 'none';
+  document.getElementById('md-github-link').style.display = '';
+  if (rerender && currentEntry) {
+    renderDocBody(currentRawText, currentLayer, currentEntry.common_path);
+  }
+}
+
+async function saveDoc() {
+  if (!currentEntry) return;
+  const editArea = document.getElementById('md-edit-area');
+  const newContent = editArea.value;
+  const btnSave = document.getElementById('btn-save');
+  btnSave.disabled = true;
+  btnSave.textContent = '保存中…';
+
+  try {
+    const res = await fetch('/api/save', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ layer: currentLayer, common_path: currentEntry.common_path, content: newContent })
+    });
+    const data = await res.json();
+    if (!res.ok || data.error) throw new Error(data.error || `HTTP ${res.status}`);
+
+    currentRawText = newContent;
+    const date = currentEntry.created_at.slice(0, 8);
+    titleCache.delete(date);
+    exitEditMode(true);
+    await loadDiffStatus();
+    updateDiffInDOM();
+    showCommitBar();
+  } catch (e) {
+    alert(`保存失败：${e.message}\n\n请确认已通过 python3 server.py 启动服务器。`);
+  } finally {
+    btnSave.disabled = false;
+    btnSave.textContent = '💾 保存';
+  }
+}
+
+document.getElementById('btn-edit').addEventListener('click', enterEditMode);
+document.getElementById('btn-save').addEventListener('click', saveDoc);
+document.getElementById('btn-cancel-edit').addEventListener('click', () => exitEditMode(false));
+
+// ── Commit bar (single file) ───────────────────────────────────────────────
+
+function showCommitBar() {
+  document.getElementById('md-commit-msg').value = '';
+  document.getElementById('md-commit-result').textContent = '';
+  document.getElementById('btn-panel-commit').style.display = 'none';
+  document.getElementById('md-commit-bar').style.display = 'flex';
+  document.getElementById('md-commit-msg').focus();
+}
+
+function hideCommitBar() {
+  document.getElementById('md-commit-bar').style.display = 'none';
+}
+
+async function commitCurrentFile() {
+  if (!currentEntry) return;
+  const msg = document.getElementById('md-commit-msg').value.trim() || 'update: edit via viewer';
+  const resultEl = document.getElementById('md-commit-result');
+  const btn = document.getElementById('btn-commit-file');
+  btn.disabled = true;
+  btn.textContent = '提交中…';
+  resultEl.style.color = '#57606a';
+  resultEl.textContent = '';
+
+  try {
+    const filePath = `${currentLayer}/${currentEntry.common_path}`;
+    const res = await fetch('/api/commit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: msg, files: [filePath] })
+    });
+    const data = await res.json();
+    if (!res.ok || data.error) throw new Error(data.error + (data.stderr ? '\n' + data.stderr : ''));
+
+    resultEl.style.color = '#1a7f37';
+    resultEl.textContent = '✓ 已推送！';
+    await loadDiffStatus();
+    updateDiffInDOM();
+    setTimeout(hideCommitBar, 1500);
+  } catch (e) {
+    resultEl.style.color = '#cf222e';
+    resultEl.textContent = `✗ ${e.message}`;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '↑ 提交';
+  }
+}
+
+document.getElementById('btn-panel-commit').addEventListener('click', showCommitBar);
+document.getElementById('btn-commit-file').addEventListener('click', commitCurrentFile);
+document.getElementById('btn-skip-commit').addEventListener('click', hideCommitBar);
+document.getElementById('md-commit-msg').addEventListener('keydown', e => {
+  if (e.key === 'Enter') commitCurrentFile();
+});
+
+// ── Close viewer ───────────────────────────────────────────────────────────
+
+function closeModal() {
+  document.getElementById('md-modal').style.display = 'none';
+  document.body.style.overflow = '';
+  exitEditMode(false);
+  hideCommitBar();
+}
+
+document.getElementById('md-close').addEventListener('click', closeModal);
+document.getElementById('md-backdrop').addEventListener('click', closeModal);
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+// ── Pull project ───────────────────────────────────────────────────────────
+
+async function pullProject() {
+  const btn = document.getElementById('btn-pull');
+  btn.disabled = true;
+  btn.textContent = '更新中…';
+  try {
+    const res = await fetch('/api/pull', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({})
+    });
+    const data = await res.json();
+    if (!res.ok || data.error) throw new Error((data.error || '') + (data.stderr ? '\n' + data.stderr : ''));
+
+    titleCache.clear();
+    if (indexData) {
+      for (const entry of Object.values(indexData)) {
+        LAYERS.forEach(l => delete entry[`_unreachable_${l}`]);
+      }
+    }
+    await loadIndex();
+  } catch (e) {
+    alert(`更新失败：${e.message}`);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '↓ 更新项目';
+  }
+}
+
+document.getElementById('btn-pull').addEventListener('click', pullProject);
+
+// ── Init ───────────────────────────────────────────────────────────────────
+loadIndex();
+</script>
+</body>
+</html>

@@ -5,6 +5,7 @@
       "common_path": "ai-thinking-framework/product-insight-portrait-model/202604231419-domain-portrait-model-architecture-analysis.md",
       "raw": true,
       "distilled": true,
+      "diagnose": false,
       "digest": true,
       "created_at": "202604231419",
       "trace": false
@@ -13,6 +14,7 @@
       "common_path": "android-dev-docs/system-principles/202604231831-android-partition-isolation-mechanism-complete-chain.md",
       "raw": true,
       "distilled": true,
+      "diagnose": false,
       "digest": true,
       "created_at": "202604231831",
       "trace": false
@@ -21,6 +23,7 @@
       "common_path": "android-dev-docs/framework-principles/202604231831-how-binder-oneway-shifts-from-immediate-return-to-asynchronous-intent-delivery.md",
       "raw": true,
       "distilled": true,
+      "diagnose": false,
       "digest": true,
       "created_at": "202604231831",
       "trace": false
@@ -29,6 +32,7 @@
       "common_path": "common-tech/language/202604231831-jmm-atomicity-happens-before-and-as-if-serial.md",
       "raw": true,
       "distilled": true,
+      "diagnose": false,
       "digest": true,
       "created_at": "202604231831",
       "trace": false
@@ -37,6 +41,7 @@
       "common_path": "common-tech/language/202604231831-reentrantlock-from-reentrancy-to-mesa-skeleton-cognitive-path.md",
       "raw": true,
       "distilled": true,
+      "diagnose": false,
       "digest": true,
       "created_at": "202604231831",
       "trace": false
@@ -45,6 +50,7 @@
       "common_path": "android-dev-docs/system-principles/202604231831-binder-mmap-complete-mechanism-chain.md",
       "raw": true,
       "distilled": true,
+      "diagnose": false,
       "digest": true,
       "created_at": "202604231831",
       "trace": false
@@ -53,6 +59,7 @@
       "common_path": "ai/llm/202604231831-llm-token-generation-mechanism.md",
       "raw": true,
       "distilled": true,
+      "diagnose": false,
       "digest": true,
       "created_at": "202604231831",
       "trace": false
@@ -61,6 +68,7 @@
       "common_path": "android-dev-docs/basic-development/202604231831-stateflow-shareflow-and-mvi-architecture-in-android.md",
       "raw": true,
       "distilled": true,
+      "diagnose": false,
       "digest": true,
       "created_at": "202604231831",
       "trace": false
@@ -69,6 +77,7 @@
       "common_path": "android-dev-docs/framework-principles/202604231831-3.bindling-lifecycle-and-death-notification-mechanism.md",
       "raw": true,
       "distilled": true,
+      "diagnose": false,
       "digest": true,
       "created_at": "202604231831",
       "trace": false
@@ -77,6 +86,7 @@
       "common_path": "android-dev-docs/system-principles/202604231831-binder-thread-pool-complete-mechanism.md",
       "raw": true,
       "distilled": true,
+      "diagnose": false,
       "digest": true,
       "created_at": "202604231831",
       "trace": false
@@ -85,6 +95,7 @@
       "common_path": "android-dev-docs/framework-principles/202604231831-3.aidl-proxy-stub-transparent-rpc-model.md",
       "raw": true,
       "distilled": true,
+      "diagnose": false,
       "digest": true,
       "created_at": "202604231831",
       "trace": false
@@ -93,6 +104,7 @@
       "common_path": "android-dev-docs/system-principles/202604231831-android-parcel-and-binder-ipc-internals.md",
       "raw": true,
       "distilled": true,
+      "diagnose": false,
       "digest": true,
       "created_at": "202604231831",
       "trace": false
@@ -101,6 +113,7 @@
       "common_path": "common-tech/language/202604231831-ddm-monitor-mesa-model-to-aqs.md",
       "raw": true,
       "distilled": true,
+      "diagnose": false,
       "digest": true,
       "created_at": "202604231831",
       "trace": false
@@ -109,6 +122,7 @@
       "common_path": "ai/llm/202604231831-transformer-attention-mechanism-complete-chain.md",
       "raw": true,
       "distilled": true,
+      "diagnose": false,
       "digest": true,
       "created_at": "202604231831",
       "trace": false
@@ -117,6 +131,7 @@
       "common_path": "android-dev-docs/system-principles/202604231831-android-priv-app-permission-mechanism.md",
       "raw": true,
       "distilled": true,
+      "diagnose": false,
       "digest": true,
       "created_at": "202604231831",
       "trace": false
@@ -125,6 +140,7 @@
       "common_path": "android-dev-docs/system-principles/202604231831-direct-boot-aware-complete-mechanism-chain.md",
       "raw": true,
       "distilled": true,
+      "diagnose": false,
       "digest": true,
       "created_at": "202604231831",
       "trace": false
@@ -133,6 +149,7 @@
       "common_path": "ai-software-dev/harness-engineering/202604231831-chat-agent-harness-bottleneck-driven-evolution.md",
       "raw": true,
       "distilled": true,
+      "diagnose": false,
       "digest": true,
       "created_at": "202604231831",
       "trace": false
@@ -141,6 +158,7 @@
       "common_path": "common-tech/language/202604240037-java-cas-optimistic-concurrency.md",
       "raw": true,
       "distilled": true,
+      "diagnose": false,
       "digest": true,
       "created_at": "202604240037",
       "trace": false
@@ -149,6 +167,7 @@
       "common_path": "ai-assisted-domain-learning/domain-deepening/202604251432-ai-task-execution-paradigm-and-domain-learning-ceiling.md",
       "raw": true,
       "distilled": true,
+      "diagnose": false,
       "digest": true,
       "created_at": "202604251432",
       "trace": false
@@ -157,6 +176,7 @@
       "common_path": "android-dev-docs/system-principles/binder/202604251532-understanding-binder-representation-layers.md",
       "raw": true,
       "distilled": true,
+      "diagnose": false,
       "digest": true,
       "created_at": "202604251532",
       "trace": false
@@ -165,6 +185,7 @@
       "common_path": "learning-ai-agent/product/cursor-ide/202604251532-cursor_objectivity_of_subjective_statem.md",
       "raw": true,
       "distilled": true,
+      "diagnose": false,
       "digest": true,
       "created_at": "202604251532",
       "trace": false
@@ -173,6 +194,7 @@
       "common_path": "ai-collaboration-framework/domain-modeling/202604251532-domain-model–driven-and-cot.md",
       "raw": true,
       "distilled": true,
+      "diagnose": false,
       "digest": true,
       "created_at": "202604251532",
       "trace": false
@@ -181,6 +203,7 @@
       "common_path": "ai-thinking-framework/ai-solution-pre-diagnosis-model/202604251532-ai-solution-pre-diagnosis-model-design.md",
       "raw": true,
       "distilled": true,
+      "diagnose": false,
       "digest": true,
       "created_at": "202604251532",
       "trace": false
@@ -189,6 +212,7 @@
       "common_path": "ai-assisted-domain-learning/dialogue-distillation-model/202604251532-dialogue-to-doc-opt.md",
       "raw": true,
       "distilled": true,
+      "diagnose": false,
       "digest": true,
       "created_at": "202604251532",
       "trace": false
@@ -197,6 +221,7 @@
       "common_path": "ai-assisted-domain-learning/cognitive-viewport-expansion-model/202604251532-cognitive-projection-leverage-framework.md",
       "raw": true,
       "distilled": true,
+      "diagnose": false,
       "digest": true,
       "created_at": "202604251532",
       "trace": false
@@ -205,6 +230,7 @@
       "common_path": "ai-assisted-domain-learning/cognitive-viewport-expansion-model/202604251532-turning-technical-models-into-products.md",
       "raw": true,
       "distilled": true,
+      "diagnose": false,
       "digest": true,
       "created_at": "202604251532",
       "trace": false
@@ -213,6 +239,7 @@
       "common_path": "ai-assisted-domain-learning/layered-cognitive/202604251532-lccm-ppm-practice-design-discussion.md",
       "raw": true,
       "distilled": true,
+      "diagnose": false,
       "digest": true,
       "created_at": "202604251532",
       "trace": false
@@ -221,6 +248,7 @@
       "common_path": "social-sciences/psychology/cognitive-psychology/202604251532-ai-era-cognitive-competition-and-paid-cognition-paths.md",
       "raw": true,
       "distilled": true,
+      "diagnose": false,
       "digest": true,
       "created_at": "202604251532",
       "trace": false
@@ -229,6 +257,7 @@
       "common_path": "ai-thinking-framework/thinking-pattern/202604251532-thinking-tools-objective-and-subjective-dimensions.md",
       "raw": true,
       "distilled": true,
+      "diagnose": false,
       "digest": true,
       "created_at": "202604251532",
       "trace": false
@@ -237,6 +266,7 @@
       "common_path": "ai-assisted-domain-learning/dialogue-distillation-model/202604251800-ddm-workflow-optimization.md",
       "raw": true,
       "distilled": true,
+      "diagnose": false,
       "digest": true,
       "created_at": "202604251800",
       "trace": false
@@ -245,6 +275,7 @@
       "common_path": "ai-software-dev/agentic-coding/agentic-design-patterns/202604252344-context-window-task-granularity-model.md",
       "raw": true,
       "distilled": true,
+      "diagnose": false,
       "digest": true,
       "created_at": "202604252344",
       "trace": false
@@ -253,6 +284,7 @@
       "common_path": "ai-thinking-framework/product-insight-portrait-model/202604261211-entity-portrait-model-design.md",
       "raw": true,
       "distilled": true,
+      "diagnose": false,
       "digest": true,
       "created_at": "202604261211",
       "trace": false
@@ -261,6 +293,7 @@
       "common_path": "ai-thinking-framework/intent-clarification-guidance-model/202604261427-icgm-v2-structural-observation-redesign.md",
       "raw": true,
       "distilled": true,
+      "diagnose": false,
       "digest": true,
       "created_at": "202604261427",
       "trace": false
@@ -269,6 +302,7 @@
       "common_path": "ai-thinking-framework/product-insight-portrait-model/202604262334-portrait-model-comparison-prompt-rule-classification.md",
       "raw": true,
       "distilled": true,
+      "diagnose": false,
       "digest": true,
       "created_at": "202604262334",
       "trace": false
@@ -277,6 +311,7 @@
       "common_path": "learning-ai-agent/product/cursor-ide/202604270814-cursor-github-gh-mcp-rules-rag-acn.md",
       "raw": true,
       "distilled": false,
+      "diagnose": false,
       "digest": false,
       "created_at": "202604270814",
       "trace": false
@@ -285,6 +320,7 @@
       "common_path": "learning-with-ai/personal-growth/thought-and-cognition/202604271216-mac-ime-metacognition-reflection.md",
       "raw": true,
       "distilled": true,
+      "diagnose": false,
       "digest": true,
       "created_at": "202604271216",
       "trace": true
@@ -293,6 +329,7 @@
       "common_path": "learning-with-ai/learning-with-ai/design_of_module/202604271239-personal-km-system-architecture.md",
       "raw": true,
       "distilled": true,
+      "diagnose": false,
       "digest": true,
       "created_at": "202604271239",
       "trace": false
@@ -301,6 +338,7 @@
       "common_path": "learning-ai-agent/product/cursor-ide/202604271324-cursor-github-gh-api-mcp-rag-rules.md",
       "raw": true,
       "distilled": false,
+      "diagnose": false,
       "digest": false,
       "created_at": "202604271324",
       "trace": false
@@ -309,6 +347,7 @@
       "common_path": "learning-ai-agent/product/cursor-ide/202604271649-cursor-modes-context-and-product-design.md",
       "raw": true,
       "distilled": false,
+      "diagnose": false,
       "digest": false,
       "created_at": "202604271649",
       "trace": false
@@ -318,6 +357,7 @@
       "created_at": "202604281200",
       "raw": true,
       "distilled": false,
+      "diagnose": false,
       "digest": false,
       "trace": false
     },
@@ -326,6 +366,7 @@
       "created_at": "202604282352",
       "raw": true,
       "distilled": false,
+      "diagnose": false,
       "digest": false,
       "trace": false
     },
@@ -334,6 +375,7 @@
       "created_at": "202604291406",
       "raw": true,
       "distilled": false,
+      "diagnose": false,
       "digest": false,
       "trace": false
     },
@@ -342,6 +384,7 @@
       "created_at": "202604300936",
       "raw": true,
       "distilled": false,
+      "diagnose": false,
       "digest": false,
       "trace": false
     },
@@ -350,6 +393,7 @@
       "created_at": "202604301058",
       "raw": true,
       "distilled": false,
+      "diagnose": false,
       "digest": false,
       "trace": false
     },
@@ -358,6 +402,7 @@
       "created_at": "202604301255",
       "raw": true,
       "distilled": false,
+      "diagnose": false,
       "digest": false,
       "trace": false
     },
@@ -366,6 +411,7 @@
       "created_at": "202604302113",
       "raw": true,
       "distilled": true,
+      "diagnose": false,
       "digest": true,
       "trace": true
     },
@@ -374,6 +420,7 @@
       "created_at": "202604301657",
       "raw": true,
       "distilled": false,
+      "diagnose": false,
       "digest": false,
       "trace": false
     },
@@ -382,6 +429,7 @@
       "created_at": "202605010055",
       "raw": true,
       "distilled": false,
+      "diagnose": false,
       "digest": false,
       "trace": false
     },
@@ -390,6 +438,7 @@
       "created_at": "202605010056",
       "raw": true,
       "distilled": false,
+      "diagnose": false,
       "digest": false,
       "trace": false
     },
@@ -398,6 +447,7 @@
       "created_at": "202605010112",
       "raw": true,
       "distilled": false,
+      "diagnose": false,
       "digest": false,
       "trace": false
     },
@@ -406,6 +456,7 @@
       "created_at": "202605010800",
       "raw": true,
       "distilled": false,
+      "diagnose": false,
       "digest": false,
       "trace": false
     },
@@ -414,6 +465,7 @@
       "created_at": "202605011555",
       "raw": true,
       "distilled": false,
+      "diagnose": false,
       "digest": false,
       "trace": false
     },
@@ -422,6 +474,7 @@
       "created_at": "202605011728",
       "raw": true,
       "distilled": false,
+      "diagnose": false,
       "digest": false,
       "trace": false
     },
@@ -430,6 +483,7 @@
       "created_at": "202605012006",
       "raw": true,
       "distilled": false,
+      "diagnose": false,
       "digest": false,
       "trace": false
     }
