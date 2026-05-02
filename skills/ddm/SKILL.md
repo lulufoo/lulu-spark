@@ -2,10 +2,11 @@
 name: ddm
 description: >-
   Dialogue Distillation Model (DDM) 对话蒸馏工作流。
-  DTD 模式：完整归档当前对话，依次执行 P0→P1→P2→P3→P4，每步写入本地 archive。
-  ACN 模式：仅执行 P0 规范化，将当前对话写入 raw/ 并更新 index.json，后续蒸馏从 web 页面触发。
+  dtd_normalize：仅执行 P0 规范化，将当前对话写入 raw/ 并更新 index.json。
+  dtd_dialogue_to_doc：完整归档当前对话，依次执行 P0→P1→P2→P3→P4，每步写入本地 archive。
+  dtd_raw_to_doc：输入已有 raw 文件路径，从 P1 开始执行 P1→P2→P3→P4。
   Use when: 蒸馏 distill ddm normalize archive 归档 对话整理 raw distilled
-argument-hint: 'acn | dtd'
+argument-hint: 'dtd_normalize | dtd_dialogue_to_doc | dtd_raw_to_doc'
 ---
 
 # DDM Skill — 执行说明
@@ -23,8 +24,9 @@ argument-hint: 'acn | dtd'
 
 | 参数 | 模式 | 说明 |
 |------|------|------|
-| `acn` | ACN 模式 | 仅执行 Phase 0，归档到 `raw/` |
-| `dtd` | DTD 模式 | 执行完整 P0→P1→P2→P3→P4 流程 |
+| `dtd_normalize` | 规范化 | 仅执行 Phase 0，归档到 `raw/` |
+| `dtd_dialogue_to_doc` | 对话→文档 | 执行完整 P0→P1→P2→P3→P4 流程 |
+| `dtd_raw_to_doc` | raw→文档 | 输入 raw 文件路径，执行 P1→P2→P3→P4 |
 
 参数缺省或不明确时，询问用户选择模式。
 
