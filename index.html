@@ -24,7 +24,7 @@
     padding: 12px 20px;
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 20px;
     flex-shrink: 0;
   }
   header h1 { font-size: 15px; font-weight: 600; letter-spacing: .3px; flex: 1; }
@@ -314,7 +314,7 @@
     align-items: center;
     padding: 10px 16px;
     border-bottom: 1px solid #d0d7de;
-    gap: 10px;
+    gap: 8px;
     flex-shrink: 0;
     background: #f6f8fa;
   }
@@ -370,6 +370,44 @@
     background: #fff;
     color: #24292f;
   }
+  #md-footer {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding: 10px 16px;
+    border-top: 1px solid #d0d7de;
+    background: #f6f8fa;
+  }
+  #md-footer #btn-delete {
+    font-size: 12px;
+    padding: 5px 12px;
+    background: none;
+    border: 1px solid #ffb8b8;
+    border-radius: 6px;
+    color: #cf222e;
+    cursor: pointer;
+  }
+  #md-footer #btn-delete:hover { background: #fff0f0; }
+
+  /* delete zone at bottom of body */
+  .md-body-delete-zone {
+    margin-top: 40px;
+    padding-top: 16px;
+    border-top: 1px solid #f0d0d0;
+    display: flex;
+    justify-content: flex-end;
+  }
+  .md-body-delete-zone button {
+    font-size: 12px;
+    padding: 5px 14px;
+    background: none;
+    border: 1px solid #ffb8b8;
+    border-radius: 6px;
+    color: #cf222e;
+    cursor: pointer;
+  }
+  .md-body-delete-zone button:hover { background: #fff0f0; }
   #md-body {
     flex: 1;
     overflow-y: auto;
@@ -497,6 +535,25 @@
     font-size: 11px;
   }
   .badge-links:hover { opacity: 1; }
+
+  /* ── Fast custom tooltip ── */
+  #_tip {
+    position: fixed;
+    z-index: 9999;
+    background: #24292f;
+    color: #f0f6fc;
+    font-size: 11px;
+    padding: 4px 8px;
+    border-radius: 5px;
+    pointer-events: none;
+    white-space: pre-wrap;
+    max-width: 480px;
+    word-break: break-all;
+    box-shadow: 0 2px 8px rgba(0,0,0,.3);
+    opacity: 0;
+    transition: opacity .1s;
+  }
+  #_tip.visible { opacity: 1; }
 </style>
 </head>
 <body>
@@ -526,14 +583,14 @@
   <div id="md-panel">
     <div id="md-header">
       <span id="md-panel-title"></span>
+      <span id="md-file-size" style="font-size:10px;color:#8c959f;flex-shrink:0;"></span>
       <a id="md-github-link" href="#" target="_blank" style="font-size:12px;color:#0969da;text-decoration:none;flex-shrink:0;">GitHub ↗</a>
-      <button class="md-header-btn" id="btn-copy-http" title="复制 GitHub URL">🌐</button>
-      <button class="md-header-btn" id="btn-copy-path" title="复制本地路径，用于 dtd_raw_to_doc">📂</button>
+      <button class="md-header-btn" id="btn-copy-http" data-tip="">&#127760;</button>
+      <button class="md-header-btn" id="btn-copy-path" data-tip="">&#128194;</button>
       <button class="md-header-btn" id="btn-edit">✏️ 编辑</button>
       <button class="md-header-btn primary" id="btn-save" style="display:none">💾 保存</button>
       <button class="md-header-btn" id="btn-cancel-edit" style="display:none">取消</button>
       <button class="md-header-btn" id="btn-panel-commit" style="display:none">● 提交此文件</button>
-      <button class="md-header-btn" id="btn-delete" style="color:#cf222e;border-color:#ffb8b8;" title="删除此文档的所有关联文件">🗑 删除</button>
       <button id="md-close" class="md-header-btn">✕ 关闭</button>
     </div>
     <div id="md-commit-bar">
@@ -1002,9 +1059,11 @@ function openDoc(entry, layer = 'raw') {
   const githubUrl = `${REPO}/${layer}/${entry.common_path}`;
   document.getElementById('md-github-link').href = githubUrl;
   document.getElementById('btn-copy-http').dataset.url = githubUrl;
+  document.getElementById('btn-copy-http').dataset.tip = githubUrl;
   const relPath = `${layer}/${entry.common_path}`;
   const fullPath = archiveRoot ? `${archiveRoot}/${relPath}` : relPath;
-  document.getElementById('btn-copy-path').title = fullPath;
+  document.getElementById('btn-copy-path').dataset.tip = fullPath;
+  document.getElementById('md-file-size').textContent = '';
   body.innerHTML = '<div style="color:#8c959f;padding:20px;font-size:13px;">加载中…</div>';
   modal.style.display = 'flex';
   document.body.style.overflow = 'hidden';
@@ -1013,6 +1072,12 @@ function openDoc(entry, layer = 'raw') {
     .then(res => { if (!res.ok) throw new Error(`HTTP ${res.status}`); return res.text(); })
     .then(text => {
       currentRawText = text;
+      const bytes = new Blob([text]).size;
+      document.getElementById('md-file-size').textContent = bytes < 1024
+        ? `${bytes} B`
+        : bytes < 1024 * 1024
+          ? `${(bytes / 1024).toFixed(1)} KB`
+          : `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
       renderDocBody(text, layer, entry.common_path);
       const hasDiff = diffStatus.get(`${layer}/${entry.common_path}`);
       document.getElementById('btn-panel-commit').style.display = hasDiff ? '' : 'none';
@@ -1033,6 +1098,16 @@ function renderDocBody(text, layer, commonPath) {
   postProcessLinks(body, layer, commonPath);
   document.getElementById('btn-edit').style.display = '';
   renderLinksBar(currentEntry);
+  // Append delete button at end of content
+  const zone = document.createElement('div');
+  zone.className = 'md-body-delete-zone';
+  const delBtn = document.createElement('button');
+  delBtn.id = 'btn-delete';
+  delBtn.textContent = '🗑 删除此文档';
+  delBtn.title = '删除此条目的所有关联文件';
+  delBtn.addEventListener('click', openDeleteDialog);
+  zone.appendChild(delBtn);
+  body.appendChild(zone);
 }
 
 // ── Edit mode ──────────────────────────────────────────────────────────────
@@ -1087,7 +1162,17 @@ async function saveDoc() {
 
     currentRawText = newContent;
     const date = currentEntry.created_at.slice(0, 8);
-    titleCache.delete(date);
+    // Update title cache from new content's H1
+    const h1Match = newContent.match(/^#\s+(.+)/m);
+    const newTitle = h1Match ? h1Match[1].trim() : slugToTitle(filenameFromPath(currentEntry.common_path));
+    if (!titleCache.has(date)) titleCache.set(date, new Map());
+    titleCache.get(date).set(getEntryId(currentEntry), newTitle);
+    // Update card title in DOM directly
+    const card = document.querySelector(`.doc-card[data-id="${getEntryId(currentEntry)}"]`);
+    if (card) {
+      const titleEl = card.querySelector('.doc-title-btn');
+      if (titleEl) { titleEl.classList.remove('loading'); titleEl.textContent = newTitle; }
+    }
     exitEditMode(true);
     await loadDiffStatus();
     updateDiffInDOM();
@@ -1550,11 +1635,70 @@ document.getElementById('btn-delete-confirm-ok').addEventListener('click', async
   }
 });
 
-document.getElementById('btn-delete').addEventListener('click', openDeleteDialog);
+// btn-delete is rendered dynamically inside md-body by renderDocBody()
 
 // ── Init ───────────────────────────────────────────────────────────────────
 fetch('/api/config').then(r => r.json()).then(d => { archiveRoot = d.archive_root || ''; }).catch(() => {});
 loadIndex();
+
+// ── Fast tooltip shim ─────────────────────────────────────────────────────
+(function() {
+  const box = document.createElement('div');
+  box.id = '_tip';
+  document.body.appendChild(box);
+  let timer = null;
+
+  function show(el, x, y) {
+    const text = el.dataset.tip;
+    if (!text) return;
+    box.textContent = text;
+    // Position: prefer below, flip above if too close to bottom
+    const gap = 8;
+    let top = y + gap;
+    let left = x + gap;
+    box.style.opacity = '0';
+    box.style.display = 'block';
+    const bw = box.offsetWidth, bh = box.offsetHeight;
+    if (top + bh > window.innerHeight - 4) top = y - bh - gap;
+    if (left + bw > window.innerWidth - 4) left = window.innerWidth - bw - 4;
+    box.style.left = left + 'px';
+    box.style.top = top + 'px';
+    box.classList.add('visible');
+  }
+
+  function hide() {
+    clearTimeout(timer);
+    box.classList.remove('visible');
+  }
+
+  document.addEventListener('mouseover', e => {
+    const el = e.target.closest('[data-tip]');
+    if (!el) { hide(); return; }
+    if (!el.dataset.tip) { hide(); return; }
+    clearTimeout(timer);
+    timer = setTimeout(() => show(el, e.clientX, e.clientY), 150);
+  }, true);
+
+  document.addEventListener('mousemove', e => {
+    if (!box.classList.contains('visible')) return;
+    const el = e.target.closest('[data-tip]');
+    if (!el) return;
+    let top = e.clientY + 8, left = e.clientX + 8;
+    const bw = box.offsetWidth, bh = box.offsetHeight;
+    if (top + bh > window.innerHeight - 4) top = e.clientY - bh - 8;
+    if (left + bw > window.innerWidth - 4) left = window.innerWidth - bw - 4;
+    box.style.left = left + 'px';
+    box.style.top = top + 'px';
+  }, true);
+
+  document.addEventListener('mouseout', e => {
+    const el = e.target.closest('[data-tip]');
+    if (!el) return;
+    if (el.contains(e.relatedTarget)) return;
+    clearTimeout(timer);
+    hide();
+  }, true);
+})();
 </script>
 </body>
 </html>

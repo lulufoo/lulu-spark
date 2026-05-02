@@ -495,7 +495,15 @@
       "distilled": false,
       "diagnose": false,
       "digest": false,
-      "trace": false
+      "trace": false,
+      "links": [
+        {
+          "url": "https://github.com/lulufoo/business-analysis/blob/main/llm-product-innovation-quadrant.md"
+        },
+        {
+          "url": "https://github.com/lulufoo/business-analysis/blob/main/ai-competitive-stack-panorama.md"
+        }
+      ]
     }
   }
 }
