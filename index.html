@@ -1652,11 +1652,11 @@ loadIndex();
     const text = el.dataset.tip;
     if (!text) return;
     box.textContent = text;
-    // Position: prefer below, flip above if too close to bottom
+    // Measure size before showing: temporarily make visible but still transparent
     const gap = 8;
     let top = y + gap;
     let left = x + gap;
-    box.style.opacity = '0';
+    box.classList.remove('visible');
     box.style.display = 'block';
     const bw = box.offsetWidth, bh = box.offsetHeight;
     if (top + bh > window.innerHeight - 4) top = y - bh - gap;
