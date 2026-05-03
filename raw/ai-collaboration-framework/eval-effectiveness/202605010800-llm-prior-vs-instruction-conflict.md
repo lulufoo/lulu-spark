@@ -1,8 +1,10 @@
-# LLM先验冲突：参数记忆覆盖显式指令（DDM P0 导航占位问题）
+# LLM先验冲突：显式指令被忽视（DDM P0 导航占位问题）
 
 > 创建时间：2026年5月1日 08:00
 
 > 导航：[distilled](../../../distilled/ai-collaboration-framework/eval-effectiveness/202605010800-llm-prior-vs-instruction-conflict.md) · [digest](../../../digest/ai-collaboration-framework/eval-effectiveness/202605010800-llm-prior-vs-instruction-conflict.md) · [trace](../../../trace/ai-collaboration-framework/eval-effectiveness/202605010800-llm-prior-vs-instruction-conflict.md)
+
+> 备注：Cursor Composer 2 模型
 
 <!-- DDM:TURN_SEP:v1 -->
 
