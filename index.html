@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Cognitive Trace Archive</title>
+<title>Dialogue Insight Archive</title>
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -712,7 +712,7 @@
     right: -4px;
     min-width: 12px;
     height: 12px;
-    background: #1a6b38;
+    background: #3fa06b;
     color: #fff;
     border-radius: 6px;
     font-size: 8px;
@@ -936,11 +936,7 @@ function getLayerBadgeClass(layer, entry) {
 
 async function loadDiffStatus() {
   try {
-    const res = await fetch('/api/status', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({})
-    });
+    const res = await fetch('/api/status?_=' + Date.now());
     if (!res.ok) return;
     const data = await res.json();
     diffStatus.clear();
