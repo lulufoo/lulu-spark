@@ -17,8 +17,10 @@
 cognitive-trace-archive/
 ├── raw/                        # 层1：原始对话归档（源头，只增不改）
 ├── distilled/                  # 层2：蒸馏文档
-├── digest/                     # 层3：摘要文档（可选层）
-├── trace/                      # 层4：认知轨迹文档（可选层）
+├── diagnose/                   # 层3：P1 诊断摘要（DDM Phase 1 产出）
+├── digest/                     # 层4：摘要文档（可选层）
+├── trace/                      # 层5：认知轨迹文档（可选层）
+├── annotations/                # 标注元数据（JSON，非 DDM 流程层）
 ├── index.json                  # 全局条目注册表（真源）
 ├── topics.json                 # 主题目录注册表（新增文件时查目录用）
 ├── templates/
@@ -93,19 +95,16 @@ cognitive-trace-archive/
 
 ---
 
-## index.json 结构（v4，实际文件）
+## index.json 结构（v5，实际文件）
 
 ```json
 {
-  "version": 4,
+  "version": 5,
   "entries": {
     "<32位hex id>": {
       "common_path": "<topic-path>/<ts>-<slug>.md",
-      "raw":       true | false,
-      "distilled": true | false,
-      "digest":    true | false,
       "created_at": "<ts>",
-      "trace":     true          // 仅在 trace 文件存在时出现；不存在时省略该字段
+      "layers": ["raw", "distilled", "diagnose", "digest", "trace"]
     }
   }
 }
@@ -115,10 +114,9 @@ cognitive-trace-archive/
 
 | 字段 | 说明 |
 |------|------|
-| `common_path` | 文件在四层中的共享相对路径（不含层前缀） |
-| `raw / distilled / digest` | 对应层文件是否存在，始终写出 boolean |
+| `common_path` | 文件在各层中的共享相对路径（不含层前缀） |
 | `created_at` | 归档时的 `ts`，与文件名中的 `ts` 一致 |
-| `trace` | 仅在为 `true` 时写出；旧数据未补全（见 TODO） |
+| `layers` | 字符串数组，列出该条目已存在的层；顺序：`raw → distilled → diagnose → digest → trace` |
 
 **新增文档时需要同步更新 `index.json`**，写入一个新 entry。
 
@@ -129,22 +127,33 @@ cognitive-trace-archive/
 ```
 原始对话
     │
-    ▼
+    ▼ Phase 0（规范化）
 raw/<topic-path>/<ts>-<slug>.md        ← 只增不改，源头保留
     │
-    ▼  DDM Phase 1-2（蒸馏）
-distilled/<topic-path>/<ts>-<slug>.md
+    ├─── 路径 A：dtd_distill_dialogue / dtd_distill_compose ──────────────┐
+    │        │                                                              │
+    │        ▼ Phase 1（诊断，compose 模式自动运行；dialogue 模式可选读取）  │
+    │    diagnose/<topic-path>/<ts>-<slug>.md                              │
+    │        │                                                              │
+    │        ▼ Phase 2（蒸馏）                                              │
+    │    distilled/<topic-path>/<ts>-<slug>.md ◄────────────────────────── ┘
     │
-    ▼  DDM Phase 4（摘要，可选）
-digest/<topic-path>/<ts>-<slug>.md
-    │
-    ▼  DDM Phase 3（认知轨迹，可选）
-trace/<topic-path>/<ts>-<slug>.md
+    └─── 路径 B：dtd_trace_digest ────────────────────────────────────────┐
+             │                                                              │
+             ▼ Phase 1（诊断，若 diagnose 不存在则自动运行）                 │
+         diagnose/<topic-path>/<ts>-<slug>.md                              │
+             │                                                              │
+             ▼ Phase 3（认知轨迹，可选）                                     │
+         trace/<topic-path>/<ts>-<slug>.md                                 │
+             │                                                              │
+             ▼ Phase 4（摘要，可选；需 distilled 存在）◄──────────────────── ┘
+         digest/<topic-path>/<ts>-<slug>.md
 ```
 
 **层的必要性：**
 
-- `raw`：源头，建议始终存在；部分早期文档因流程原因 raw=false（见 TODO）
+- `raw`：源头，建议始终存在；部分早期文档因流程原因缺失（见 TODO）
+- `diagnose`：P1 诊断产物，是 distilled（compose 模式）、trace、digest 的共同上游
 - `distilled`：主要加工产物，大多数条目存在
 - `digest`：可选，目前凡有 distilled 的基本都有 digest
 - `trace`：可选，仅少数条目存在
@@ -156,10 +165,11 @@ trace/<topic-path>/<ts>-<slug>.md
 | 文件 | 操作 |
 |------|------|
 | `raw/<topic-path>/<ts>-<slug>.md` | 新建（归档原始对话） |
+| `diagnose/<topic-path>/<ts>-<slug>.md` | 按需新建（P1 诊断摘要） |
 | `distilled/<topic-path>/<ts>-<slug>.md` | 新建（蒸馏后写入） |
 | `digest/<topic-path>/<ts>-<slug>.md` | 按需新建 |
 | `trace/<topic-path>/<ts>-<slug>.md` | 按需新建 |
-| `index.json` | 新增 entry，id 用 32 位 hex，填写 common_path / raw / distilled / digest / created_at |
+| `index.json` | 新增 entry，id 用 32 位 hex，填写 common_path / created_at / layers |
 
 ---
 
