@@ -2,6 +2,13 @@
   "links": [
     {
       "url": "https://github.com/lulufoo/ai-collaboration-framework/blob/main/collaboration-design/domain-modeling-driven-ai-collaboration.md"
+    },
+    {
+      "url": "https://github.com/lulufoo/ai-collaboration-framework/blob/main/collaboration-design/ai-collaboration-patch-first-tendency-management.md"
+    },
+    {
+      "url": "https://github.com/lulufoo/ai-collaboration-framework/blob/main/llm-limitation/llm-patch-first-tendency.md"
     }
-  ]
+  ],
+  "done": true
 }
