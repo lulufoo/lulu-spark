@@ -1,7 +1,10 @@
 # '<' 问题：模板 vs 规则冲突 && LLM 可能私自改 Skill
 
 > 创建时间：2026年5月3日 00:35
+> 
 > 导航：[distilled](../../../distilled/ai-assisted-domain-learning/dialogue-distillation-model/202605030035-dtd-distill-p2-format-and-skill-boundary.md) · [digest](../../../digest/ai-assisted-domain-learning/dialogue-distillation-model/202605030035-dtd-distill-p2-format-and-skill-boundary.md) · [trace](../../../trace/ai-assisted-domain-learning/dialogue-distillation-model/202605030035-dtd-distill-p2-format-and-skill-boundary.md)
+>
+> 备注：Curor Composer 2
 
 ---
 
