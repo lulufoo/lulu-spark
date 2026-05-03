@@ -45,6 +45,8 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             self._handle_delete()
         elif self.path == '/api/set-done':
             self._handle_set_done()
+        elif self.path == '/api/set-importance':
+            self._handle_set_importance()
         else:
             self.send_error(404)
 
@@ -391,6 +393,8 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 summary = {}
                 if ann.get('done'):
                     summary['done'] = True
+                if ann.get('importance') in ('high', 'medium', 'low'):
+                    summary['importance'] = ann['importance']
                 if ann.get('links'):
                     summary['links'] = ann['links']
                 for layer in ('raw', 'distilled', 'digest', 'trace', 'diagnose'):
@@ -476,6 +480,36 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             self._write_annotation(common_path, ann)
 
             print(f'  [set-done] {common_path} → done={done}')
+            self._json_response({'ok': True})
+
+        except json.JSONDecodeError:
+            self._json_response({'error': 'Invalid JSON body'}, 400)
+        except Exception as e:
+            self._json_response({'error': str(e)}, 500)
+
+    # ── API: set importance in annotation file ─────────────────────────────────
+
+    def _handle_set_importance(self):
+        try:
+            data = self._read_json()
+            common_path = data.get('common_path', '').strip()
+            importance = data.get('importance')  # 'high' | 'medium' | 'low' | None
+
+            if not common_path or '..' in common_path:
+                self._json_response({'error': 'Invalid common_path'}, 400)
+                return
+            if importance is not None and importance not in ('high', 'medium', 'low'):
+                self._json_response({'error': f'Invalid importance: {importance}'}, 400)
+                return
+
+            ann = self._read_annotation(common_path)
+            if importance:
+                ann['importance'] = importance
+            else:
+                ann.pop('importance', None)
+            self._write_annotation(common_path, ann)
+
+            print(f'  [set-importance] {common_path} → {importance}')
             self._json_response({'ok': True})
 
         except json.JSONDecodeError:

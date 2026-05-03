@@ -185,6 +185,19 @@
   }
   .badge-done:hover { background: #f6f8fa; color: #57606a; opacity: 1; }
   .doc-card.done .badge-done { color: #57606a; border-color: #c8d0d8; }
+
+  /* Importance left strip */
+  .doc-card.importance-high   { border-left: 4px solid #cf222e; padding-left: 13px; }
+  .doc-card.importance-medium { border-left: 4px solid #e09b00; padding-left: 13px; }
+  .doc-card.importance-low    { border-left: 4px solid #6e7781; padding-left: 13px; }
+
+  /* Importance badge */
+  .badge-importance { cursor: pointer; font-size: 10px; }
+  .badge-importance-high   { background: #fff0ee; color: #cf222e; border-color: #ffcbc8; }
+  .badge-importance-medium { background: #fff8c5; color: #9a6700; border-color: #f1e05a; }
+  .badge-importance-low    { background: #f6f8fa; color: #57606a; border-color: #d0d7de; }
+  .badge-importance-unset  { background: none; color: #c8d0d8; border-color: transparent; }
+  .badge-importance-unset:hover { color: #57606a; border-color: #d0d7de; background: #f6f8fa; }
   .doc-title-btn.loading {
     background: linear-gradient(90deg, #eaeef2 25%, #d0d7de 50%, #eaeef2 75%);
     background-size: 200% 100%;
@@ -1056,10 +1069,12 @@ async function loadAnnotationsSummary() {
       const ann = annotationsSummary[entry.common_path];
       if (ann) {
         entry.done = ann.done || undefined;
+        entry.importance = ann.importance || undefined;
         entry.links = ann.links || undefined;
         entry._comment_counts = ann.comment_counts || undefined;
       } else {
         delete entry.done;
+        delete entry.importance;
         delete entry.links;
         delete entry._comment_counts;
       }
@@ -1188,13 +1203,15 @@ function buildCard(id, entry, title) {
     <div class="doc-topic">${topic}</div>
     <button class="doc-title-btn${displayTitle === null ? ' loading' : ''}">${displayTitle !== null ? escHtml(displayTitle) : ''}</button>
     <div class="doc-meta">${time}${dotHtml}</div>
-    <div class="badges">${badgesHtml}${linksBadgeHtml}${doneBadgeHtml}</div>
+    <div class="badges">${badgesHtml}${linksBadgeHtml}${importanceBadgeHtml(entry.importance)}${doneBadgeHtml}</div>
   `;
   if (entry.done) card.classList.add('done');
+  if (entry.importance) card.classList.add(`importance-${entry.importance}`);
   const firstLayer = LAYERS.find(l => entry.layers?.includes(l)) || 'raw';
   card.querySelector('.doc-title-btn').addEventListener('click', () => openDoc(entry, firstLayer));
   attachBadgeListeners(card, entry);
   card.querySelector('[data-action="toggle-done"]').addEventListener('click', () => toggleDone(entry, card));
+  card.querySelector('[data-action="cycle-importance"]').addEventListener('click', () => cycleImportance(entry, card));
   return card;
 }
 
@@ -1285,10 +1302,13 @@ function updateTitlesInDOM(date) {
       const doneBadgeHtml = entry.done
         ? `<button class="badge badge-done" data-action="toggle-done" title="标记为未处理">✓ 已处理</button>`
         : `<button class="badge badge-done" data-action="toggle-done" title="标记为已处理">○ 处理</button>`;
-      badgesEl.innerHTML = layerHtml + linksBadgeHtml + doneBadgeHtml;
+      badgesEl.innerHTML = layerHtml + linksBadgeHtml + importanceBadgeHtml(entry.importance) + doneBadgeHtml;
       attachBadgeListeners(card, entry);
       card.classList.toggle('done', !!entry.done);
+      card.classList.remove('importance-high', 'importance-medium', 'importance-low');
+      if (entry.importance) card.classList.add(`importance-${entry.importance}`);
       card.querySelector('[data-action="toggle-done"]').addEventListener('click', () => toggleDone(entry, card));
+      card.querySelector('[data-action="cycle-importance"]').addEventListener('click', () => cycleImportance(entry, card));
     }
   }
 }
@@ -1948,6 +1968,44 @@ function updateCardLinksBadge(entry) {
     badge.textContent = `👍 ×${count}`;
   } else {
     if (badge) badge.remove();
+  }
+}
+
+function importanceBadgeHtml(importance) {
+  const map = {
+    high:   { cls: 'badge-importance-high',   label: '↑ 高' },
+    medium: { cls: 'badge-importance-medium', label: '→ 中' },
+    low:    { cls: 'badge-importance-low',    label: '↓ 低' },
+  };
+  const m = map[importance];
+  if (m) return `<button class="badge badge-importance ${m.cls}" data-action="cycle-importance" title="切换重要性">${m.label}</button>`;
+  return `<button class="badge badge-importance badge-importance-unset" data-action="cycle-importance" title="设置重要性">☆</button>`;
+}
+
+const IMPORTANCE_CYCLE = [undefined, 'high', 'medium', 'low'];
+
+async function cycleImportance(entry, card) {
+  const cur = entry.importance;
+  const idx = IMPORTANCE_CYCLE.indexOf(cur);
+  const next = IMPORTANCE_CYCLE[(idx + 1) % IMPORTANCE_CYCLE.length];
+  try {
+    const res = await fetch('/api/set-importance', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ common_path: entry.common_path, importance: next || null })
+    });
+    const data = await res.json();
+    if (!data.ok) return;
+    entry.importance = next;
+    card.classList.remove('importance-high', 'importance-medium', 'importance-low');
+    if (next) card.classList.add(`importance-${next}`);
+    const btn = card.querySelector('[data-action="cycle-importance"]');
+    if (btn) {
+      btn.outerHTML = importanceBadgeHtml(next);
+      card.querySelector('[data-action="cycle-importance"]').addEventListener('click', () => cycleImportance(entry, card));
+    }
+  } catch (e) {
+    console.error('cycleImportance failed', e);
   }
 }
 
