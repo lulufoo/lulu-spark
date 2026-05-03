@@ -2107,8 +2107,8 @@ async function openCommitChangesDialog() {
     const data = await res.json();
     if (data.error) throw new Error(data.error);
 
-    if (!data.total) {
-      fileList.innerHTML = '<div style="font-size:13px;color:#8c959f;padding:4px 0;">没有待提交的变更</div>';
+    if (!data.total && !data.ahead) {
+      fileList.innerHTML = '<div style="font-size:13px;color:#8c959f;padding:4px 0;">没有待提交或待推送的变更</div>';
       document.getElementById('btn-commit-changes-ok').disabled = true;
     } else {
       const GROUPS = [
@@ -2119,6 +2119,12 @@ async function openCommitChangesDialog() {
         { key: 'conflicted', label: '冲突' },
       ];
       let html = '<div style="display:flex;flex-direction:column;gap:10px;">';
+      if (data.ahead) {
+        html += `<div class="commit-file-group">
+          <div class="commit-file-group-title" style="color:#0969da;">待推送（${data.ahead} 个本地提交）</div>
+          <div class="commit-file-item" style="background:#ddf4ff;color:#0550ae;">本地已有 ${data.ahead} 个提交尚未推送到远端</div>
+        </div>`;
+      }
       for (const { key, label } of GROUPS) {
         if (data[key]?.length) {
           html += `<div class="commit-file-group">
@@ -2128,6 +2134,7 @@ async function openCommitChangesDialog() {
         }
       }
       html += '</div>';
+      document.getElementById('btn-commit-changes-ok').textContent = data.total ? '提交' : '推送';
       fileList.innerHTML = html;
     }
   } catch (e) {
@@ -2140,6 +2147,7 @@ async function openCommitChangesDialog() {
 
 function closeCommitChangesDialog() {
   document.getElementById('commit-changes-dialog').classList.remove('open');
+  document.getElementById('btn-commit-changes-ok').textContent = '提交';
 }
 
 async function doCommitChanges() {
@@ -2159,10 +2167,11 @@ async function doCommitChanges() {
     const data = await res.json();
     if (!res.ok || data.error) throw new Error(data.error || 'failed');
     if (data.info === 'nothing to commit') {
-      result.textContent = '没有需要提交的内容';
-      result.style.color = '#8c959f';
+      result.textContent = '✓ 已推送';
+      result.style.color = '#1a7f37';
+      setTimeout(() => closeCommitChangesDialog(), 1500);
     } else {
-      result.textContent = '✓ 提交成功';
+      result.textContent = '✓ 提交并推送成功';
       result.style.color = '#1a7f37';
       setTimeout(() => closeCommitChangesDialog(), 1500);
     }

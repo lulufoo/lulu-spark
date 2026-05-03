@@ -166,6 +166,14 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 return
 
             if nothing_to_commit:
+                # Still push in case there are local commits not yet pushed
+                push = run(['git', 'push'])
+                if push.returncode != 0:
+                    self._json_response({
+                        'error': 'git push failed',
+                        'stderr': push.stderr
+                    }, 500)
+                    return
                 self._json_response({'ok': True, 'info': 'nothing to commit'})
                 return
 
@@ -232,7 +240,13 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 elif xy.strip():
                     categories['modified'].append(path.strip())
             total = sum(len(v) for v in categories.values())
-            self._json_response({**categories, 'total': total})
+            # Check local commits not yet pushed
+            ahead_r = subprocess.run(
+                ['git', 'rev-list', '--count', 'HEAD...@{u}'],
+                cwd=REPO_ROOT, capture_output=True, text=True
+            )
+            ahead = int(ahead_r.stdout.strip()) if ahead_r.returncode == 0 and ahead_r.stdout.strip().isdigit() else 0
+            self._json_response({**categories, 'total': total, 'ahead': ahead})
         except Exception as e:
             self._json_response({'error': str(e)}, 500)
 
