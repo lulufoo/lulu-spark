@@ -3,11 +3,11 @@ name: ddm
 description: >-
   Dialogue Distillation Model (DDM) 对话蒸馏工作流。
   dtd_normalize：仅执行 P0 规范化，将当前对话写入 raw/ 并更新 index.json。
-  dtd_distill：输入 raw 文件路径或 index id，仅执行 P2 生成 distilled（对话体）。
-  dtd_distill_compose：输入 raw 文件路径或 index id；自动检测 P1 缓存，若不存在则先执行 P1 诊断，再执行 P2-compose 生成完整合成文档。
-  dtd_raw_to_doc：输入已有 raw 文件路径，从 P1 开始执行 P1→P3→P4（不含 P2）。
+  dtd_distill_dialogue：输入 raw 文件路径或 index id，仅执行 P2 生成 distilled（对话体）。
+  dtd_distill_compose：输入 raw 文件路径或 index id；自动检测 diagnose 文件，若不存在则先执行 P1 诊断，再执行 P2-compose 生成完整合成文档。
+  dtd_trace_digest：输入已有 raw 文件路径，执行 P1→P3→P4（不含 P2）。
   Use when: 蒸馏 distill ddm normalize archive 归档 对话整理 raw distilled compose
-argument-hint: 'dtd_normalize | dtd_distill | dtd_distill_compose | dtd_raw_to_doc'
+argument-hint: 'dtd_normalize | dtd_distill_dialogue | dtd_distill_compose | dtd_trace_digest'
 ---
 
 # DDM Skill — 执行说明
@@ -26,9 +26,9 @@ argument-hint: 'dtd_normalize | dtd_distill | dtd_distill_compose | dtd_raw_to_d
 | 参数 | 模式 | 说明 |
 |------|------|------|
 | `dtd_normalize` | 规范化 | 仅执行 Phase 0，归档到 `raw/` |
-| `dtd_distill` | 生成 distilled（对话体） | 输入 raw 文件路径或 index id，仅执行 P2 |
-| `dtd_distill_compose` | 生成 distilled（合成文档） | 输入 raw 文件路径或 index id；检测 P1 缓存是否存在，不存在则先执行 P1，再执行 P2-compose |
-| `dtd_raw_to_doc` | raw→文档 | 输入 raw 文件路径，执行 P1→P3→P4（不含 P2） |
+| `dtd_distill_dialogue` | 生成 distilled（对话体） | 输入 raw 文件路径或 index id，仅执行 P2 |
+| `dtd_distill_compose` | 生成 distilled（合成文档） | 输入 raw 文件路径或 index id；检测 diagnose 文件是否存在，不存在则先执行 P1，再执行 P2-compose |
+| `dtd_trace_digest` | raw→轨迹+摘要 | 输入 raw 文件路径，执行 P1→P3→P4（不含 P2） |
 
 参数缺省或不明确时，询问用户选择模式。
 
@@ -41,3 +41,5 @@ argument-hint: 'dtd_normalize | dtd_distill | dtd_distill_compose | dtd_raw_to_d
 - [references/ddm-p2-compose.md](references/ddm-p2-compose.md) — Phase 2 生成 distilled（合成文档，基于 P1 诊断输入）
 - [references/ddm-p3-trace.md](references/ddm-p3-trace.md) — Phase 3 认知轨迹
 - [references/ddm-p4-digest.md](references/ddm-p4-digest.md) — Phase 4 摘要
+
+> 命令速查：`dtd_normalize` 归档 raw · `dtd_distill_dialogue` 对话体 distilled · `dtd_distill_compose` 合成文档 distilled · `dtd_trace_digest` 全流程（P1+P3+P4）

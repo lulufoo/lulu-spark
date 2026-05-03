@@ -9,12 +9,13 @@
 | 模式 | 说明 |
 |------|------|
 | **dtd_normalize** | 仅执行 Phase 0（P0 规范化），将对话写入 `raw/` 并更新 `index.json` |
-| **dtd_distill** | 输入 raw 文件路径或 index id，仅执行 P2 生成 distilled |
-| **dtd_raw_to_doc** | 输入已有 raw 文件路径（或 index id），执行 P1 → P3 → P4（不含 P2） |
+| **dtd_distill_dialogue** | 输入 raw 文件路径或 index id，仅执行 P2 生成 distilled（对话体） |
+| **dtd_distill_compose** | 输入 raw 文件路径或 index id；自动检测 diagnose 文件，若不存在则先执行 P1 诊断，再执行 P2-compose 生成完整合成文档 |
+| **dtd_trace_digest** | 输入已有 raw 文件路径（或 index id），执行 P1 → P3 → P4（不含 P2） |
 
 ---
 
-## 前置步骤（两种模式共同执行）
+## 前置步骤（所有模式共同执行）
 
 **Step 0：读取 config.json**
 
@@ -36,7 +37,7 @@
 
 ---
 
-## dtd_distill 模式
+## dtd_distill_dialogue 模式
 
 **输入**：用户提供 raw 文件的路径或 index.json 中的 32 位十六进制 id。
 
@@ -48,22 +49,63 @@
     拼出绝对路径：{archive_root}/raw/<common_path>
 · 若输入为路径：直接使用
 确认文件存在，且 index.json 中该条目 layers 包含 "raw"
+```
 
 加载 [ddm-p2-generate.md](ddm-p2-generate.md)，执行。先读取 `CACHE_RAW` 全文，再按四条规则生成 distilled 并落盘。
 
 ---
 
-**dtd_distill 完成汇总**
+**dtd_distill_dialogue 完成汇总**
 
 ```
-> ✅ dtd_distill 完成
+> ✅ dtd_distill_dialogue 完成
 > 📝 distilled：distilled/<COMMON_PATH>
 > 🗂 index.json 已更新（layers 新增 distilled）
 ```
 
 ---
 
-## dtd_raw_to_doc 模式
+## dtd_distill_compose 模式
+
+**输入**：用户提供 raw 文件的路径或 index.json 中的 32 位十六进制 id。
+
+**Step 0：解析输入路径**
+
+```
+· 若输入为 32 位十六进制 id：
+    读取 {archive_root}/index.json，查找对应条目的 common_path
+    拼出绝对路径：{archive_root}/raw/<common_path>
+· 若输入为路径：直接使用
+确认文件存在，且 index.json 中该条目 layers 包含 "raw"
+从路径解析 topic-path / ts / slug（方式同 P0 Step 1）
+```
+
+**Step 1：检测 P1 诊断**
+
+```
+检查是否存在：{archive_root}/diagnose/<COMMON_PATH>
+· 存在 → 输出：> ✅ diagnose 已存在，跳过 P1 执行，直接进入 Step 2
+· 不存在 → 加载 [ddm-p1-diagnose.md](ddm-p1-diagnose.md)，以解析出的路径作为 CACHE_RAW 执行。
+               将 DIAGNOSE 写入 diagnose/<COMMON_PATH> 后继续。
+```
+
+**Step 2：生成 distilled（合成文档）**
+
+加载 [ddm-p2-compose.md](ddm-p2-compose.md)，执行。先读取 DIAGNOSE 全文，再按规范生成 distilled 并落盘。
+
+---
+
+**dtd_distill_compose 完成汇总**
+
+```
+> ✅ dtd_distill_compose 完成
+> 📝 distilled：distilled/<COMMON_PATH>
+> 🗂 index.json 已更新（layers 新增 distilled）
+```
+
+---
+
+## dtd_trace_digest 模式
 
 **输入**：用户提供 raw 文件的路径或 index.json 中的 32 位十六进制 id。
 
@@ -80,7 +122,12 @@
 
 **Step 1 — Phase 1：诊断**
 
-加载 [ddm-p1-diagnose.md](ddm-p1-diagnose.md)，以解析出的路径作为 `CACHE_RAW`，执行。将 DIAGNOSE 写入 `diagnose/<COMMON_PATH>` 后继续。
+```
+检查是否存在：{archive_root}/diagnose/<COMMON_PATH>
+· 存在 → 输出：> ✅ diagnose 已存在，跳过 P1 执行，直接进入 Step 2
+· 不存在 → 加载 [ddm-p1-diagnose.md](ddm-p1-diagnose.md)，以解析出的路径作为 CACHE_RAW 执行。
+               将 DIAGNOSE 写入 diagnose/<COMMON_PATH> 后继续。
+```
 
 ---
 
@@ -96,10 +143,10 @@
 
 ---
 
-**dtd_raw_to_doc 完成汇总**
+**dtd_trace_digest 完成汇总**
 
 ```
-📦 dtd_raw_to_doc 归档完成
+📦 dtd_trace_digest 归档完成
 
 raw       → raw/<COMMON_PATH>（已有）
 trace     → trace/<COMMON_PATH>（或"已跳过"）

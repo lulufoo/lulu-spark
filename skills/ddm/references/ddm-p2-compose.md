@@ -1,14 +1,60 @@
 # DDM Phase 2：生成（Compose 模式）
 
-> **前置依赖**：[ddm-concepts.md](ddm-concepts.md)（正文写法规则、附录机制、归属表达）
+> **⚠️ 本文件是 `dtd_distill_compose` 的执行规范，必须由 `dialogue-to-doc.md` 显式加载后执行，禁止 AI 自行推断内容。**
 >
-> **输入**：`.cache/<topic-path>/<ts>-<slug>-p1-cache.md`（Phase 1 产出），读取文件内容作为 [P1-7] 诊断摘要输入。若该文件不存在，须告知用户重新执行 Phase 1。`<topic-path>`、`<ts>`、`<slug>` 从该文件路径中解析（与对应 raw 同源）。
+> **配置参考**：[ddm-concepts.md](ddm-concepts.md)（路径符号定义）
 >
-> **输出**：完整 distilled Markdown 文档，写入 **`distilled/<topic-path>/<ts>-<slug>.md`**（与 [ddm-concepts.md](ddm-concepts.md) 中 `common_path` 的 basename 一致；**复用** Phase 0 的 `<ts>` 与 `<slug>`，不得新造时间前缀）。
-
-> ⚠️ **Phase 2 叙事主轴**（v2.5 起）：文档的每个视觉单元（首段、章节标题、段落、代码块、表格、偏差记录）都必须承载路径要素。段落不以知识陈述为组织中心，而以路径推进为组织中心。
+> **输入**：`DIAGNOSE`（`diagnose/<topic-path>/<ts>-<slug>.md`）；读取文件全文作为诊断摘要输入。若该文件不存在，须告知用户先执行 Phase 1。`<topic-path>`、`<ts>`、`<slug>` 从对应 raw 路径解析。
+>
+> **输出**：`DISTILLED`，完整 distilled Markdown 文档，写入 `distilled/<topic-path>/<ts>-<slug>.md`（`<ts>` 与 `<slug>` 从 DIAGNOSE 文件路径解析，不得新造时间前缀）。
 
 > ⚠️ 生成时逐条对照诊断摘要，不依赖记忆。
+
+---
+
+## PART 1 — 理论与规则
+
+> 双轴归属模型、认知事件完整语境、认知事件层次定义见 [ddm-p1-diagnose.md](ddm-p1-diagnose.md) PART 1，此处不重复。
+
+### 叙事主轴
+
+文档的每个视觉单元（首段、章节标题、段落、代码块、表格、偏差记录）都必须承载路径要素。段落不以知识陈述为组织中心，而以**路径推进**为组织中心。
+
+DDM 不复现原始对话，也不只摘录结论；它保留的是足以重建理解过程的最小必要路径。核心主张：
+
+> 推导路径由认知事件串联而成。每个认知事件包含三部分：**触发条件**（为什么走到这里）、**认知动作**（谁完成了什么推导）、**落点指向**（终结哪个疑问，或打开哪个新疑问）。
+
+---
+
+### 附录为什么存在
+
+有些内容不一定进入正文推导链，但仍有独立价值，例如：
+
+- 对照表
+- 框架骨架
+- 操作清单
+- 边界定义
+- 决策准则
+- 源码入口标识（函数名、常量名、文件路径等可直接查证的具名标识）
+
+处理原则：**优先塞回正文；无法自然归属时再进入附录。**
+
+---
+
+## PART 2 — 执行规范
+
+> 前置：阅读 PART 1（叙事主轴、附录机制）及 [ddm-p1-diagnose.md](ddm-p1-diagnose.md) PART 1（双轴归属模型、认知事件层次）。
+
+---
+
+## [P2-0] 强制加载 DIAGNOSE（第一步，不可跳过）
+
+执行 P2-compose 的**第一个动作**必须是读取 `DIAGNOSE` 全文（`{archive_root}/diagnose/<topic-path>/<ts>-<slug>.md`）。
+
+加载完成后输出：`> ✅ 已读取 DIAGNOSE：<路径>`，然后才可进入 [P2-1]。
+
+- 禁止凭记忆生成内容，所有章节规划和诊断结论必须从 DIAGNOSE 文件逐条读取
+- 若文件不存在，停止并告知用户执行 Phase 1
 
 ---
 
