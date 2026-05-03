@@ -35,8 +35,6 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             self._handle_save()
         elif self.path == '/api/commit':
             self._handle_commit()
-        elif self.path == '/api/status':
-            self._handle_status()
         elif self.path == '/api/pull':
             self._handle_pull()
         elif self.path == '/api/update-links':
@@ -60,6 +58,8 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             self._handle_get_annotations()
         elif parsed_path == '/api/annotation':
             self._handle_get_annotation()
+        elif parsed_path == '/api/status':
+            self._handle_status()
         else:
             super().do_GET()
 
@@ -202,20 +202,37 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 ['git', 'status', '--porcelain'],
                 cwd=REPO_ROOT, capture_output=True, text=True
             )
-            modified = []
-            conflicted = []
+            categories = {'new': [], 'modified': [], 'deleted': [], 'renamed': [], 'conflicted': []}
             for line in result.stdout.splitlines():
                 if not line.strip():
                     continue
                 xy = line[:2]
-                path = line[3:].strip()
-                if ' -> ' in path:
-                    path = path.split(' -> ')[1]
+                path = line[3:]
+                x, y = xy[0], xy[1]
+                # Merge conflicts
                 if xy in ('UU', 'AA', 'DD', 'AU', 'UA', 'DU', 'UD'):
-                    conflicted.append(path)
+                    categories['conflicted'].append(path.strip())
+                # Renamed (staged or work tree)
+                elif x == 'R' or y == 'R':
+                    if ' -> ' in path:
+                        old, new = path.split(' -> ', 1)
+                        categories['renamed'].append(f'{old.strip()} → {new.strip()}')
+                    else:
+                        categories['renamed'].append(path.strip())
+                # Deleted
+                elif x == 'D' or y == 'D':
+                    categories['deleted'].append(path.strip())
+                # New file (staged: A) or untracked (??)
+                elif x == 'A' or xy == '??':
+                    categories['new'].append(path.strip())
+                # Modified
+                elif x == 'M' or y == 'M':
+                    categories['modified'].append(path.strip())
+                # Catch-all
                 elif xy.strip():
-                    modified.append(path)
-            self._json_response({'modified': modified, 'conflicted': conflicted})
+                    categories['modified'].append(path.strip())
+            total = sum(len(v) for v in categories.values())
+            self._json_response({**categories, 'total': total})
         except Exception as e:
             self._json_response({'error': str(e)}, 500)
 

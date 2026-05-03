@@ -220,9 +220,12 @@
     text-decoration: none;
     border: 1px solid transparent;
     transition: opacity .15s;
+    position: relative;
+    overflow: visible;
   }
   .badge:hover { opacity: .8; }
   .badge-layer    { background: #edfcf0; color: #2a7a45; border-color: #b6e8c4; }
+  .badge[data-layer="raw"] { background: #d0f5e0; color: #1a6b38; border-color: #6cc08b; font-weight: 700; }
   .badge-diff     { background: #fff8c5; color: #7d4e00; border-color: #d4a72c; }
   .badge-conflict { background: #ffd8d3; color: #82071e; border-color: #ff8182; }
   .badge-unreachable {
@@ -526,6 +529,92 @@
   }
   #btn-delete-cancel:hover { background: #eaeef2; }
 
+  /* ── Commit-changes dialog ── */
+  #commit-changes-dialog {
+    position: fixed;
+    inset: 0;
+    z-index: 2000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0,0,0,.55);
+  }
+  #commit-changes-dialog.open { display: flex; }
+  #commit-changes-dialog-box {
+    background: #fff;
+    border-radius: 10px;
+    padding: 24px 24px 20px;
+    width: min(580px, 92vw);
+    max-height: 78vh;
+    overflow-y: auto;
+    box-shadow: 0 8px 40px rgba(0,0,0,.3);
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  #commit-changes-dialog-box h3 { font-size: 15px; color: #24292f; margin: 0; font-weight: 600; }
+  .commit-file-group { display: flex; flex-direction: column; gap: 3px; }
+  .commit-file-group-title {
+    font-size: 10px;
+    font-weight: 700;
+    color: #57606a;
+    text-transform: uppercase;
+    letter-spacing: .5px;
+    margin-bottom: 2px;
+  }
+  .commit-file-item {
+    font-size: 11.5px;
+    font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+    padding: 2px 7px;
+    border-radius: 4px;
+    line-height: 1.6;
+  }
+  .commit-file-item.new       { background: #dafbe1; color: #116329; }
+  .commit-file-item.modified  { background: #fff8c5; color: #7d4e00; }
+  .commit-file-item.deleted   { background: #ffebe9; color: #82071e; }
+  .commit-file-item.renamed   { background: #ddf4ff; color: #0550ae; }
+  .commit-file-item.conflicted{ background: #ffebe9; color: #82071e; font-weight: 600; }
+  #commit-changes-msg {
+    width: 100%;
+    padding: 7px 10px;
+    border: 1px solid #d0d7de;
+    border-radius: 6px;
+    font-size: 13px;
+    outline: none;
+    box-sizing: border-box;
+  }
+  #commit-changes-msg:focus { border-color: #0969da; }
+  #commit-changes-dialog-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  #commit-changes-result { flex: 1; font-size: 12px; }
+  #btn-commit-changes-ok {
+    background: #1c4a2e;
+    color: #cdd9e5;
+    border: none;
+    border-radius: 6px;
+    padding: 6px 18px;
+    font-size: 13px;
+    cursor: pointer;
+    font-weight: 600;
+    flex-shrink: 0;
+  }
+  #btn-commit-changes-ok:hover:not(:disabled) { background: #2a6040; }
+  #btn-commit-changes-ok:disabled { opacity: .5; cursor: default; }
+  #btn-commit-changes-cancel {
+    background: none;
+    border: 1px solid #d0d7de;
+    border-radius: 6px;
+    padding: 6px 16px;
+    font-size: 13px;
+    cursor: pointer;
+    color: #57606a;
+    flex-shrink: 0;
+  }
+  #btn-commit-changes-cancel:hover { background: #eaeef2; }
+
   /* ── Comment dialog ── */
   #comment-dialog {
     position: fixed;
@@ -604,10 +693,37 @@
   .comment-item-text {
     font-size: 13px;
     color: #24292f;
-    white-space: pre-wrap;
     word-break: break-word;
     line-height: 1.5;
     display: block;
+  }
+  .comment-item-text > :first-child { margin-top: 0; }
+  .comment-item-text > :last-child  { margin-bottom: 0; }
+  .comment-item-text p  { margin: 0 0 6px 0; }
+  .comment-item-text ul, .comment-item-text ol { margin: 0 0 6px 0; padding-left: 18px; }
+  .comment-item-text li { margin: 2px 0; }
+  .comment-item-text code { font-family: ui-monospace,'SF Mono',Menlo,monospace; font-size: 11px; background: #f0f0f0; border-radius: 3px; padding: 1px 4px; }
+  .comment-item-text pre { background: #f6f8fa; border-radius: 4px; padding: 6px 10px; overflow-x: auto; font-size: 11px; margin: 0 0 6px 0; }
+  .comment-item-text pre code { background: none; padding: 0; }
+  .comment-item-text h1,.comment-item-text h2,.comment-item-text h3 { font-size: 13px; font-weight: 700; margin: 6px 0 4px; }
+  .badge-comment-dot {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    min-width: 12px;
+    height: 12px;
+    background: #1a6b38;
+    color: #fff;
+    border-radius: 6px;
+    font-size: 8px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 2px;
+    pointer-events: none;
+    line-height: 1;
+    box-sizing: border-box;
   }
   .comment-item-prefix {
     display: block;
@@ -691,11 +807,11 @@
 <body>
 
 <header>
-  <h1>📚 AI 对话知识库</h1>
+  <h1>Dialogue Insight Archive</h1>
   <a href="https://github.com/lulufoo/cognitive-trace-archive" target="_blank">GitHub ↗</a>
   <button id="btn-refresh">⟳ 刷新</button>
   <button id="btn-pull">↓ 更新项目</button>
-  <button id="btn-push-index">↑ Push index</button>
+  <button id="btn-push-index">↑ 提交变更</button>
 </header>
 
 <div class="layout">
@@ -749,6 +865,20 @@
     <div id="comment-dialog-actions">
       <button id="btn-comment-cancel" class="md-header-btn">取消</button>
       <button id="btn-comment-save" class="md-header-btn primary">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- Commit changes dialog -->
+<div id="commit-changes-dialog">
+  <div id="commit-changes-dialog-box">
+    <h3>↑ 提交变更</h3>
+    <div id="commit-changes-file-list"></div>
+    <input id="commit-changes-msg" type="text" placeholder="提交信息（留空：chore: update via viewer）" autocomplete="off" />
+    <div id="commit-changes-dialog-actions">
+      <span id="commit-changes-result"></span>
+      <button id="btn-commit-changes-cancel">取消</button>
+      <button id="btn-commit-changes-ok">提交</button>
     </div>
   </div>
 </div>
@@ -908,7 +1038,11 @@ async function loadIndex() {
     buildGroups();
     renderSidebar();
     await Promise.all([loadDiffStatus(), loadAnnotationsSummary()]);
-    if (groupedByDate.length > 0) selectDate(groupedByDate[0].date);
+    const savedDate = sessionStorage.getItem('cta_active_date');
+    const targetDate = (savedDate && groupedByDate.find(g => g.date === savedDate))
+      ? savedDate
+      : (groupedByDate.length > 0 ? groupedByDate[0].date : null);
+    if (targetDate) selectDate(targetDate);
   } catch (e) {
     showError(`无法加载 index.json：${e.message}`);
   } finally {
@@ -928,9 +1062,11 @@ async function loadAnnotationsSummary() {
       if (ann) {
         entry.done = ann.done || undefined;
         entry.links = ann.links || undefined;
+        entry._comment_counts = ann.comment_counts || undefined;
       } else {
         delete entry.done;
         delete entry.links;
+        delete entry._comment_counts;
       }
     }
   } catch {
@@ -978,6 +1114,7 @@ function renderSidebar() {
 
 function selectDate(date) {
   activeDate = date;
+  sessionStorage.setItem('cta_active_date', date);
 
   // Update active tab
   document.querySelectorAll('.date-tab').forEach(t => {
@@ -1007,6 +1144,12 @@ function renderDocList(entries, date) {
     const card = buildCard(id, entry, titleCache.get(date)?.get(id));
     list.appendChild(card);
   }
+
+  // Restore scroll position for this date
+  const savedScroll = sessionStorage.getItem('cta_scroll_' + date);
+  if (savedScroll) {
+    requestAnimationFrame(() => { list.scrollTop = parseInt(savedScroll, 10); });
+  }
 }
 
 function buildCard(id, entry, title) {
@@ -1028,10 +1171,12 @@ function buildCard(id, entry, title) {
   const badgesHtml = LAYERS
     .filter(layer => entry.layers?.includes(layer))
     .map(layer => {
+      const cc = entry._comment_counts?.[layer];
+      const ccStr = cc ? `<span class="badge-comment-dot">${cc}</span>` : '';
       if (entry[`_unreachable_${layer}`]) {
-        return `<span class="badge badge-unreachable" title="文件不可达">${layer}</span>`;
+        return `<span class="badge badge-unreachable" title="文件不可达">${layer}${ccStr}</span>`;
       }
-      return `<button class="badge ${getLayerBadgeClass(layer, entry)}" data-layer="${layer}">${layer}</button>`;
+      return `<button class="badge ${getLayerBadgeClass(layer, entry)}" data-layer="${layer}">${layer}${ccStr}</button>`;
     })
     .join('');
 
@@ -1130,10 +1275,12 @@ function updateTitlesInDOM(date) {
       const layerHtml = LAYERS
         .filter(layer => entry.layers?.includes(layer))
         .map(layer => {
+          const cc = entry._comment_counts?.[layer];
+          const ccStr = cc ? `<span class="badge-comment-dot">${cc}</span>` : '';
           if (entry[`_unreachable_${layer}`]) {
-            return `<span class="badge badge-unreachable" title="文件不可达">${layer}</span>`;
+            return `<span class="badge badge-unreachable" title="文件不可达">${layer}${ccStr}</span>`;
           }
-          return `<button class="badge ${getLayerBadgeClass(layer, entry)}" data-layer="${layer}">${layer}</button>`;
+          return `<button class="badge ${getLayerBadgeClass(layer, entry)}" data-layer="${layer}">${layer}${ccStr}</button>`;
         })
         .join('');
       const linkCount = entry.links && entry.links.length;
@@ -1173,6 +1320,13 @@ document.getElementById('btn-refresh').addEventListener('click', () => {
   }
   loadIndex();
 });
+
+// Save doc-list scroll position per active date
+document.getElementById('doc-list').addEventListener('scroll', () => {
+  if (activeDate) {
+    sessionStorage.setItem('cta_scroll_' + activeDate, document.getElementById('doc-list').scrollTop);
+  }
+}, { passive: true });
 
 // ── MD Viewer ─────────────────────────────────────────────────────────────
 
@@ -1437,9 +1591,13 @@ function buildCommentItem(c, layer, entry, noteIndex) {
   prefixEl.className = 'comment-item-prefix';
   prefixEl.textContent = `NOTE ${noteIndex}:`;
 
-  const textEl = document.createElement('span');
+  const textEl = document.createElement('div');
   textEl.className = 'comment-item-text';
-  textEl.textContent = c.text;
+  if (typeof marked !== 'undefined') {
+    textEl.innerHTML = marked.parse(c.text);
+  } else {
+    textEl.textContent = c.text;
+  }
 
   const tsEl = document.createElement('span');
   tsEl.className = 'comment-item-ts';
@@ -1935,29 +2093,97 @@ async function pullProject() {
 
 document.getElementById('btn-pull').addEventListener('click', pullProject);
 
-async function pushIndex() {
+async function openCommitChangesDialog() {
   const btn = document.getElementById('btn-push-index');
   btn.disabled = true;
-  btn.textContent = 'Push中…';
+  btn.textContent = '检查中…';
+
+  const fileList = document.getElementById('commit-changes-file-list');
+  const result = document.getElementById('commit-changes-result');
+  fileList.innerHTML = '<div style="font-size:12px;color:#8c959f;">加载中…</div>';
+  result.textContent = '';
+  result.style.color = '';
+  document.getElementById('commit-changes-msg').value = '';
+  document.getElementById('btn-commit-changes-ok').disabled = false;
+  document.getElementById('commit-changes-dialog').classList.add('open');
+
+  try {
+    const res = await fetch('/api/status?_=' + Date.now());
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+
+    if (!data.total) {
+      fileList.innerHTML = '<div style="font-size:13px;color:#8c959f;padding:4px 0;">没有待提交的变更</div>';
+      document.getElementById('btn-commit-changes-ok').disabled = true;
+    } else {
+      const GROUPS = [
+        { key: 'new',        label: '新增' },
+        { key: 'modified',   label: '修改' },
+        { key: 'renamed',    label: '重命名' },
+        { key: 'deleted',    label: '删除' },
+        { key: 'conflicted', label: '冲突' },
+      ];
+      let html = '<div style="display:flex;flex-direction:column;gap:10px;">';
+      for (const { key, label } of GROUPS) {
+        if (data[key]?.length) {
+          html += `<div class="commit-file-group">
+            <div class="commit-file-group-title">${label}（${data[key].length}）</div>
+            ${data[key].map(f => `<div class="commit-file-item ${key}">${f}</div>`).join('')}
+          </div>`;
+        }
+      }
+      html += '</div>';
+      fileList.innerHTML = html;
+    }
+  } catch (e) {
+    fileList.innerHTML = `<div style="font-size:12px;color:#cf222e;">获取状态失败：${e.message}</div>`;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '↑ 提交变更';
+  }
+}
+
+function closeCommitChangesDialog() {
+  document.getElementById('commit-changes-dialog').classList.remove('open');
+}
+
+async function doCommitChanges() {
+  const btn = document.getElementById('btn-commit-changes-ok');
+  const result = document.getElementById('commit-changes-result');
+  const msg = document.getElementById('commit-changes-msg').value.trim();
+  btn.disabled = true;
+  result.textContent = '提交中…';
+  result.style.color = '#8c959f';
+
   try {
     const res = await fetch('/api/commit', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: 'chore: update index.json', files: ['index.json'] })
+      body: JSON.stringify({ message: msg || 'chore: update via viewer' })
     });
     const data = await res.json();
     if (!res.ok || data.error) throw new Error(data.error || 'failed');
-    btn.textContent = '✓ 已 Push';
-    setTimeout(() => { btn.textContent = '↑ Push index'; }, 2000);
+    if (data.info === 'nothing to commit') {
+      result.textContent = '没有需要提交的内容';
+      result.style.color = '#8c959f';
+    } else {
+      result.textContent = '✓ 提交成功';
+      result.style.color = '#1a7f37';
+      setTimeout(() => closeCommitChangesDialog(), 1500);
+    }
   } catch (e) {
-    alert(`Push 失败：${e.message}`);
-  } finally {
+    result.textContent = `失败：${e.message}`;
+    result.style.color = '#cf222e';
     btn.disabled = false;
-    if (btn.textContent === 'Push中…') btn.textContent = '↑ Push index';
   }
 }
 
-document.getElementById('btn-push-index').addEventListener('click', pushIndex);
+document.getElementById('btn-push-index').addEventListener('click', openCommitChangesDialog);
+document.getElementById('btn-commit-changes-cancel').addEventListener('click', closeCommitChangesDialog);
+document.getElementById('btn-commit-changes-ok').addEventListener('click', doCommitChanges);
+document.getElementById('commit-changes-dialog').addEventListener('click', e => {
+  if (e.target === document.getElementById('commit-changes-dialog')) closeCommitChangesDialog();
+});
 
 // ── Delete ────────────────────────────────────────────────────────────────
 
