@@ -797,6 +797,65 @@
   .badge-links:hover { opacity: 1; }
 
   /* ── Fast custom tooltip ── */
+  /* ── Move doc dialog ── */
+  #move-doc-dialog {
+    position: fixed;
+    inset: 0;
+    z-index: 2000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0,0,0,.55);
+  }
+  #move-doc-dialog.open { display: flex; }
+  #move-doc-dialog-box {
+    background: #fff;
+    border-radius: 10px;
+    padding: 24px 24px 20px;
+    width: min(680px, 92vw);
+    box-shadow: 0 8px 40px rgba(0,0,0,.3);
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  #move-doc-dialog-box h3 { font-size: 15px; color: #24292f; margin: 0; font-weight: 600; }
+  .move-doc-field { display: flex; flex-direction: column; gap: 5px; }
+  .move-doc-field label { font-size: 11px; font-weight: 600; color: #57606a; }
+  .move-doc-field input {
+    width: 100%;
+    padding: 7px 10px;
+    border: 1px solid #d0d7de;
+    border-radius: 6px;
+    font-size: 13px;
+    font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+    outline: none;
+    box-sizing: border-box;
+  }
+  .move-doc-field input:focus { border-color: #0969da; }
+  #move-doc-result {
+    font-size: 12px;
+    min-height: 18px;
+    word-break: break-all;
+    line-height: 1.5;
+  }
+  #move-doc-dialog-actions {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 10px;
+  }
+  #btn-move-doc-header {
+    background: #373e47;
+    border: 1px solid #444c56;
+    color: #cdd9e5;
+    padding: 5px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: background .15s;
+  }
+  #btn-move-doc-header:hover { background: #444c56; }
+
   #_tip {
     position: fixed;
     z-index: 9999;
@@ -824,6 +883,7 @@
   <button id="btn-refresh">⟳ 刷新</button>
   <button id="btn-pull">↓ 更新项目</button>
   <button id="btn-push-index">↑ 提交变更</button>
+  <button id="btn-move-doc-header">→ 移动</button>
 </header>
 
 <div class="layout">
@@ -891,6 +951,26 @@
       <span id="commit-changes-result"></span>
       <button id="btn-commit-changes-cancel">取消</button>
       <button id="btn-commit-changes-ok">提交</button>
+    </div>
+  </div>
+</div>
+
+<!-- Move doc dialog -->
+<div id="move-doc-dialog">
+  <div id="move-doc-dialog-box">
+    <h3>→ 移动 GitHub 文档</h3>
+    <div class="move-doc-field">
+      <label>源文件 URL（GitHub blob 链接）</label>
+      <input id="move-src-url" type="text" placeholder="https://github.com/owner/repo/blob/main/dir/file.md" autocomplete="off" spellcheck="false" />
+    </div>
+    <div class="move-doc-field">
+      <label>目标目录 URL（GitHub 目录链接）</label>
+      <input id="move-dst-url" type="text" placeholder="https://github.com/owner/repo/subdir" autocomplete="off" spellcheck="false" />
+    </div>
+    <div id="move-doc-result"></div>
+    <div id="move-doc-dialog-actions">
+      <button id="btn-move-doc-cancel" class="md-header-btn">取消</button>
+      <button id="btn-move-doc-ok" class="md-header-btn primary">确认移动</button>
     </div>
   </div>
 </div>
@@ -2299,6 +2379,79 @@ document.getElementById('btn-delete-confirm-ok').addEventListener('click', async
 });
 
 // btn-delete is rendered dynamically inside md-body by renderDocBody()
+
+// ── Move doc dialog ───────────────────────────────────────────────────────
+
+function openMoveDocDialog() {
+  document.getElementById('move-src-url').value = '';
+  document.getElementById('move-dst-url').value = '';
+  const result = document.getElementById('move-doc-result');
+  result.textContent = '';
+  result.style.color = '';
+  document.getElementById('btn-move-doc-ok').disabled = false;
+  document.getElementById('btn-move-doc-ok').textContent = '确认移动';
+  document.getElementById('move-doc-dialog').classList.add('open');
+  document.getElementById('move-src-url').focus();
+}
+
+function closeMoveDocDialog() {
+  document.getElementById('move-doc-dialog').classList.remove('open');
+}
+
+async function doMoveDoc() {
+  const srcUrl = document.getElementById('move-src-url').value.trim();
+  const dstUrl = document.getElementById('move-dst-url').value.trim();
+  const result = document.getElementById('move-doc-result');
+  const okBtn = document.getElementById('btn-move-doc-ok');
+
+  if (!srcUrl || !dstUrl) {
+    result.style.color = '#cf222e';
+    result.textContent = '请填写两个 URL';
+    return;
+  }
+
+  okBtn.disabled = true;
+  okBtn.textContent = '移动中…';
+  result.style.color = '#57606a';
+  result.textContent = '正在执行 gh api…';
+
+  try {
+    const res = await fetch('/api/gh-move', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ src_url: srcUrl, dst_dir_url: dstUrl })
+    });
+    let data;
+    try { data = await res.json(); }
+    catch { throw new Error('服务器未返回 JSON，请重启 server.py 后重试'); }
+    if (!res.ok || data.error) throw new Error(data.error || `HTTP ${res.status}`);
+    if (data.warn) {
+      result.style.color = '#e09b00';
+      result.textContent = `⚠ ${data.warn}`;
+    } else {
+      result.style.color = '#1a7f37';
+      result.textContent = `✓ 已移动到 ${data.dst_path}`;
+      setTimeout(closeMoveDocDialog, 2000);
+    }
+  } catch (e) {
+    result.style.color = '#cf222e';
+    result.textContent = `✗ ${e.message}`;
+  } finally {
+    okBtn.disabled = false;
+    okBtn.textContent = '确认移动';
+  }
+}
+
+document.getElementById('btn-move-doc-header').addEventListener('click', openMoveDocDialog);
+document.getElementById('btn-move-doc-cancel').addEventListener('click', closeMoveDocDialog);
+document.getElementById('btn-move-doc-ok').addEventListener('click', doMoveDoc);
+document.getElementById('move-src-url').addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('move-dst-url').focus();
+});
+document.getElementById('move-dst-url').addEventListener('keydown', e => {
+  if (e.key === 'Enter') doMoveDoc();
+  if (e.key === 'Escape') closeMoveDocDialog();
+});
 
 // ── Init ───────────────────────────────────────────────────────────────────
 fetch('/api/config').then(r => r.json()).then(d => { archiveRoot = d.archive_root || ''; }).catch(() => {});
