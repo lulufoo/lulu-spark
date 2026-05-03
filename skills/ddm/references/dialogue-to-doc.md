@@ -94,7 +94,7 @@
 ```
 检查是否存在：{archive_root}/diagnose/<COMMON_PATH>
 · 存在 → 输出：> ✅ diagnose 已存在，跳过 P1 执行，直接进入 Step 2
-· 不存在 → 加载 [ddm-p1-diagnose.md](ddm-p1-diagnose.md)，以解析出的路径作为 RAW 执行。
+· 不存在 → 加载 [ddm-p1-diagnose.md](ddm-p1-diagnose.md)，以 `{archive_root}/raw/<COMMON_PATH>` 作为 RAW 执行。
                将 DIAGNOSE 写入 diagnose/<COMMON_PATH>，更新 index.json（layers 追加 "diagnose"）后继续。
 ```
 
@@ -160,7 +160,7 @@
 ```
 📦 dtd_trace_digest 归档完成
 
-distilled → distilled/<COMMON_PATH>（已有）
+distilled → distilled/<COMMON_PATH>（若存在）
 diagnose  → diagnose/<COMMON_PATH>（已有或本次生成）
 trace     → trace/<COMMON_PATH>（或"已跳过"）
 digest    → digest/<COMMON_PATH>（或"已跳过"）
