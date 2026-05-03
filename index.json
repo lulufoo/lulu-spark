@@ -489,7 +489,8 @@
       "common_path": "ai-collaboration-framework/domain-modeling/202605031715-llm-patch-first-doc-collab-mechanisms.md",
       "created_at": "202605031715",
       "layers": [
-        "raw"
+        "raw",
+        "distilled"
       ]
     }
   }

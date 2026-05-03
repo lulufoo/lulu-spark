@@ -1532,8 +1532,8 @@ function renderDocBody(text, layer, commonPath) {
   zone.className = 'md-body-delete-zone';
   const delBtn = document.createElement('button');
   delBtn.id = 'btn-delete';
-  delBtn.textContent = '🗑 删除此文档';
-  delBtn.title = '删除此条目的所有关联文件';
+  delBtn.textContent = '🗑 删除此条目';
+  delBtn.title = '删除此条目的所有关联文件（raw / distilled / trace / digest / diagnose）';
   delBtn.addEventListener('click', openDeleteDialog);
   zone.appendChild(delBtn);
   body.appendChild(zone);
