@@ -200,3 +200,17 @@ Step C：附录输出
   ❌ 直接贴代码或表格而无溯源引入
 · 标题层级：一级=文档标题；二级=章节；三级=子疑问/附录内容类型
 ```
+
+---
+
+## [P2-6] 落盘
+
+将生成内容写入本地 archive：
+
+```
+{archive_root}/distilled/<topic-path>/<ts>-<slug>.md
+```
+
+同时更新 `{archive_root}/index.json`，将 `"distilled"` 追加到对应条目的 `"layers"` 数组（若不存在）。
+
+完成后输出：`> ✅ P2-compose 完成 · distilled：distilled/<topic-path>/<ts>-<slug>.md`

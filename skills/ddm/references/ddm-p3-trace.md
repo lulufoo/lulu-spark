@@ -2,7 +2,7 @@
 
 > **配置参考**：[ddm-concepts.md](ddm-concepts.md)（路径符号定义）
 >
-> **输入**：`DIAGNOSE`（`diagnose/<COMMON_PATH>`）；`CACHE_DISTILLED`；`<topic-path>`、`<ts>`、`<slug>` 从 `CACHE_RAW` 文件路径解析。
+> **输入**：`DIAGNOSE`（`diagnose/<COMMON_PATH>`）；`DISTILLED`（导航路径，`distilled/<COMMON_PATH>`，由调用方传入，不要求文件存在）；`<topic-path>`、`<ts>`、`<slug>` 由调用方从 raw 路径传入。
 >
 > **输出**：`CACHE_TRACE`，写入本地 archive 的 `trace/<COMMON_PATH>`。
 

@@ -49,9 +49,18 @@
     拼出绝对路径：{archive_root}/raw/<common_path>
 · 若输入为路径：直接使用
 确认文件存在，且 index.json 中该条目 layers 包含 "raw"
+从路径解析 topic-path / ts / slug（raw/<topic-path>/<ts>-<slug>.md）
 ```
 
-加载 [ddm-p2-generate.md](ddm-p2-generate.md)，执行。先读取 `CACHE_RAW` 全文，再按四条规则生成 distilled 并落盘。
+**Step 1：读取 DIAGNOSE（可选）**
+
+```
+检查是否存在：{archive_root}/diagnose/<COMMON_PATH>
+· 存在 → 读取全文，供 P2 辅助参考
+· 不存在 → 跳过
+```
+
+加载 [ddm-p2-generate.md](ddm-p2-generate.md)，以解析出的 raw 文件路径执行，按四条规则生成 distilled 并落盘。
 
 ---
 
@@ -77,7 +86,7 @@
     拼出绝对路径：{archive_root}/raw/<common_path>
 · 若输入为路径：直接使用
 确认文件存在，且 index.json 中该条目 layers 包含 "raw"
-从路径解析 topic-path / ts / slug（方式同 P0 Step 1）
+从路径解析 topic-path / ts / slug（raw/<topic-path>/<ts>-<slug>.md）
 ```
 
 **Step 1：检测 P1 诊断**
@@ -85,13 +94,13 @@
 ```
 检查是否存在：{archive_root}/diagnose/<COMMON_PATH>
 · 存在 → 输出：> ✅ diagnose 已存在，跳过 P1 执行，直接进入 Step 2
-· 不存在 → 加载 [ddm-p1-diagnose.md](ddm-p1-diagnose.md)，以解析出的路径作为 CACHE_RAW 执行。
-               将 DIAGNOSE 写入 diagnose/<COMMON_PATH> 后继续。
+· 不存在 → 加载 [ddm-p1-diagnose.md](ddm-p1-diagnose.md)，以解析出的路径作为 RAW 执行。
+               将 DIAGNOSE 写入 diagnose/<COMMON_PATH>，更新 index.json（layers 追加 "diagnose"）后继续。
 ```
 
 **Step 2：生成 distilled（合成文档）**
 
-加载 [ddm-p2-compose.md](ddm-p2-compose.md)，执行。先读取 DIAGNOSE 全文，再按规范生成 distilled 并落盘。
+加载 [ddm-p2-compose.md](ddm-p2-compose.md)，执行。先读取 `{archive_root}/diagnose/<COMMON_PATH>` 全文，再按规范生成 distilled 并落盘。
 
 ---
 
@@ -100,7 +109,8 @@
 ```
 > ✅ dtd_distill_compose 完成
 > 📝 distilled：distilled/<COMMON_PATH>
-> 🗂 index.json 已更新（layers 新增 distilled）
+> � diagnose：diagnose/<COMMON_PATH>（已有或本次生成）
+> 🗂 index.json 已更新（layers 含 distilled；若本次执行 P1 则同时含 diagnose）
 ```
 
 ---
@@ -117,7 +127,7 @@
     拼出绝对路径：{archive_root}/raw/<common_path>
 · 若输入为路径：直接使用
 确认文件存在，且 index.json 中该条目 layers 包含 "raw"
-从路径解析 topic-path / ts / slug（方式同 P0 Step 1）
+从路径解析 topic-path / ts / slug（raw/<topic-path>/<ts>-<slug>.md）
 ```
 
 **Step 1 — Phase 1：诊断**
@@ -125,21 +135,23 @@
 ```
 检查是否存在：{archive_root}/diagnose/<COMMON_PATH>
 · 存在 → 输出：> ✅ diagnose 已存在，跳过 P1 执行，直接进入 Step 2
-· 不存在 → 加载 [ddm-p1-diagnose.md](ddm-p1-diagnose.md)，以解析出的路径作为 CACHE_RAW 执行。
-               将 DIAGNOSE 写入 diagnose/<COMMON_PATH> 后继续。
+· 不存在 → 加载 [ddm-p1-diagnose.md](ddm-p1-diagnose.md)，以 `{archive_root}/raw/<COMMON_PATH>` 作为 RAW 执行。
+               将 DIAGNOSE 写入 diagnose/<COMMON_PATH>，更新 index.json（layers 追加 "diagnose"）后继续。
 ```
 
 ---
 
 **Step 2 — Phase 3：认知轨迹**
 
-加载 [ddm-p3-trace.md](ddm-p3-trace.md)，执行（若 P3-0 条件不满足则跳过）。
+加载 [ddm-p3-trace.md](ddm-p3-trace.md)，传入 `DISTILLED` 导航路径（`{archive_root}/distilled/<COMMON_PATH>`），执行（若 P3-0 条件不满足则跳过）。
 
 ---
 
 **Step 3 — Phase 4：摘要与归档**
 
-加载 [ddm-p4-digest.md](ddm-p4-digest.md)，执行（若 P4-0 条件不满足则跳过）。更新 `index.json` 所有标志。
+检查 `{archive_root}/distilled/<COMMON_PATH>` 是否存在：
+- 不存在 → 跳过 Phase 4，输出：`> ⏭ Phase 4 跳过（distilled 文件不存在，请先执行 dtd_distill_dialogue 或 dtd_distill_compose）`
+- 存在 → 加载 [ddm-p4-digest.md](ddm-p4-digest.md)，传入 `DISTILLED`（`{archive_root}/distilled/<COMMON_PATH>`），执行（若 P4-0 条件不满足则跳过）。更新 `index.json` 所有标志。
 
 ---
 
@@ -148,7 +160,8 @@
 ```
 📦 dtd_trace_digest 归档完成
 
-raw       → raw/<COMMON_PATH>（已有）
+distilled → distilled/<COMMON_PATH>（已有）
+diagnose  → diagnose/<COMMON_PATH>（已有或本次生成）
 trace     → trace/<COMMON_PATH>（或"已跳过"）
 digest    → digest/<COMMON_PATH>（或"已跳过"）
 

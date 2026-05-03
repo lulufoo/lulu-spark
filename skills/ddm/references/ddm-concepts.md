@@ -16,13 +16,14 @@ DDM 分为五个 Phase：P0（规范化）→ P1（诊断）→ P2（生成 dist
 
 | 标识 | 文件名 | 角色 |
 |------|--------|------|
-| `DDM_ENTRY` | `dialogue-to-doc.md` | 执行入口 |
+| `DDM_ENTRY` | `dialogue-to-doc.md` | 执行入口（4 条命令调度） |
 | `DDM_CONCEPTS` | `ddm-concepts.md` | 介绍与配置（本文） |
-| `DDM_P0` | `ddm-p0-normalize.md` | Phase 0 执行规范 |
+| `DDM_P0` | `ddm-p0-normalize.md` | Phase 0 执行规范（dtd_normalize） |
 | `DDM_P1` | `ddm-p1-diagnose.md` | Phase 1 执行规范（含双轴归属理论） |
-| `DDM_P2` | `ddm-p2-generate.md` | Phase 2 执行规范（含 distilled 保留规则） |
-| `DDM_P3` | `ddm-p3-trace.md` | Phase 3 执行规范 |
-| `DDM_P4` | `ddm-p4-digest.md` | Phase 4 执行规范 |
+| `DDM_P2_GEN` | `ddm-p2-generate.md` | Phase 2 执行规范 — 对话体 distilled（dtd_distill_dialogue） |
+| `DDM_P2_COM` | `ddm-p2-compose.md` | Phase 2 执行规范 — 合成文档 distilled（dtd_distill_compose） |
+| `DDM_P3` | `ddm-p3-trace.md` | Phase 3 执行规范（dtd_trace_digest） |
+| `DDM_P4` | `ddm-p4-digest.md` | Phase 4 执行规范（dtd_trace_digest） |
 
 ---
 
@@ -68,14 +69,3 @@ DDM 分为五个 Phase：P0（规范化）→ P1（诊断）→ P2（生成 dist
 
 **链接维护**：只替换完整相对路径（`../../../<layer>/…/<ts>-<slug>.md`）；禁止对已含 `<ts>-<slug>` 前缀的路径再做 basename 替换，避免双前缀。
 
----
-
-## 缓存文件
-
-```
-- CACHE_INDEX     := CTA_BASE/.cache/index.json
-- CACHE_RAW       := CTA_BASE/.cache/<topic-path>/<ts>-<slug>-raw.md
-- CACHE_DISTILLED := CTA_BASE/.cache/<topic-path>/<ts>-<slug>-distilled.md
-- CACHE_TRACE     := CTA_BASE/.cache/<topic-path>/<ts>-<slug>-trace.md
-- CACHE_DIGEST    := CTA_BASE/.cache/<topic-path>/<ts>-<slug>-digest.md
-```

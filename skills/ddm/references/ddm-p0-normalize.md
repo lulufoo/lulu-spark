@@ -1,10 +1,10 @@
 # 对话格式化：AI 执行手册
 
-> **配置参考**：[ddm-concepts.md](ddm-concepts.md)（路径符号 `CACHE_RAW`、`COMMON_PATH`、`DIAGNOSE`、`CTA_BASE` 定义）
+> **配置参考**：[ddm-concepts.md](ddm-concepts.md)（路径符号 `COMMON_PATH`、`RAW`、`DIAGNOSE`、`CTA_BASE` 定义）
 
 > **输入**：当前对话 / 用户提供的对话文档。
 >
-> **输出**：`CACHE_RAW`（写入本地 archive），并更新 `CACHE_INDEX`。
+> **输出**：`RAW`（写入本地 archive），并更新 `index.json`。
 >
 > **路径基准**：执行前先读取 `./config.json`（位于 skill 目录），从 `archive_root` 字段获取本地 archive 根目录，后续所有路径均基于此值。
 
@@ -29,7 +29,7 @@ output : topic-path = <一级>[/<二级>]
 ### Step 2 · 生成归一化文档
 
 - input  : 当前对话全部轮次
-- output : `CACHE_RAW`（`{archive_root}/.cache/<topic-path>/<ts>-<slug>-raw.md`），结构与下方示例同构
+- output : `RAW`（`{archive_root}/raw/<topic-path>/<ts>-<slug>.md`），结构与下方示例同构
 - 头部   : # 总标题 / 创建时间 / 导航完整链接（在首个 TURN_SEP 之前）
 - rule   : 正文与原始对话逐字一致；仅可加分隔符 / 标题 / 去格式噪音
 - 剥离   : AI 推导性独白（折叠思考块 / 无关前缀句）；讲解形式的推理保留
@@ -94,7 +94,7 @@ AI 第一轮。
 
 #### 归一化 `.md`
 
-将 `CACHE_RAW` 内容写入：
+将生成内容写入：
 
 ```
 {archive_root}/raw/<topic-path>/<ts>-<slug>.md

@@ -2,11 +2,11 @@
 
 > **配置参考**：[ddm-concepts.md](ddm-concepts.md)（路径符号定义）
 >
-> **输入**：`CACHE_RAW`（Phase 0 产出）；`DIAGNOSE`（Phase 1 产出，`diagnose/<COMMON_PATH>`）；`<topic-path>`、`<ts>`、`<slug>` 从 `CACHE_RAW` 文件路径解析。
+> **输入**：`RAW`（`{archive_root}/raw/<COMMON_PATH>`，归档正式文件）；`DIAGNOSE`（`diagnose/<COMMON_PATH>`，可选，若存在则作为辅助参考）；`<topic-path>`、`<ts>`、`<slug>` 从 raw 文件路径解析。
 >
-> **输出**：`CACHE_DISTILLED`，写入本地 archive。
+> **输出**：`DISTILLED`，写入 `distilled/<COMMON_PATH>`。
 
-> ⚠️ 生成时直接读取 `CACHE_RAW` 文件，按 PART 1 四条规则从后往前扫，不依赖记忆。
+> ⚠️ 生成时直接读取 `RAW` 文件，按 PART 1 四条规则从后往前扫，不依赖记忆。
 
 ---
 
@@ -59,7 +59,7 @@
 
 ## [P2-0] 强制加载 raw（第一步，不可跳过）
 
-执行 P2 的**第一个动作**必须是读取 `CACHE_RAW` 全文（`{archive_root}/.cache/<topic-path>/<ts>-<slug>-raw.md`）。
+执行 P2 的**第一个动作**必须是读取 `RAW` 全文（`{archive_root}/raw/<topic-path>/<ts>-<slug>.md`）。
 
 加载完成后输出：`> ✅ 已读取 raw：<路径>`，然后才可进入 [P2-1]。
 
@@ -174,7 +174,7 @@ Step 3：格式输出
 
 **导航前缀**：`N := |topic-path|`，`prefix := "../" × (N+1)`（公式见 P0 Step 2）。
 
-将生成内容写入 `CACHE_DISTILLED`（`{archive_root}/.cache/<topic-path>/<ts>-<slug>-distilled.md`），然后写入本地 archive：
+将生成内容写入本地 archive `DISTILLED`：
 
 ```
 {archive_root}/distilled/<topic-path>/<ts>-<slug>.md
