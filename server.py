@@ -15,6 +15,7 @@ import re
 import subprocess
 import urllib.parse
 import base64
+import uuid
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).parent.resolve()
@@ -40,6 +41,8 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             self._handle_pull()
         elif self.path == '/api/update-links':
             self._handle_update_links()
+        elif self.path == '/api/update-comments':
+            self._handle_update_comments()
         elif self.path == '/api/delete':
             self._handle_delete()
         elif self.path == '/api/set-done':
@@ -48,10 +51,15 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             self.send_error(404)
 
     def do_GET(self):
-        if self.path.startswith('/api/fetch-title'):
+        parsed_path = urllib.parse.urlparse(self.path).path
+        if parsed_path.startswith('/api/fetch-title'):
             self._handle_fetch_title()
-        elif self.path == '/api/config':
+        elif parsed_path == '/api/config':
             self._json_response({'archive_root': str(REPO_ROOT)})
+        elif parsed_path == '/api/annotations':
+            self._handle_get_annotations()
+        elif parsed_path == '/api/annotation':
+            self._handle_get_annotation()
         else:
             super().do_GET()
 
@@ -159,6 +167,15 @@ class Handler(http.server.SimpleHTTPRequestHandler):
 
             if nothing_to_commit:
                 self._json_response({'ok': True, 'info': 'nothing to commit'})
+                return
+
+            pull = run(['git', 'pull', '--rebase'])
+            if pull.returncode != 0:
+                self._json_response({
+                    'error': 'git pull --rebase failed',
+                    'stderr': pull.stderr,
+                    'stdout': pull.stdout
+                }, 500)
                 return
 
             push = run(['git', 'push'])
@@ -285,16 +302,103 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         except Exception:
             return url
 
-    # ── API: update links in index.json ───────────────────────────────────────
+    # ── Annotation helpers ─────────────────────────────────────────────────────
+
+    def _annotation_path(self, common_path):
+        """Return resolved Path for annotation file, or None if invalid."""
+        if not common_path or '..' in common_path:
+            return None
+        rel = (common_path[:-3] + '.json') if common_path.endswith('.md') else (common_path + '.json')
+        target = (REPO_ROOT / 'annotations' / rel).resolve()
+        if not str(target).startswith(str(REPO_ROOT) + os.sep):
+            return None
+        return target
+
+    def _read_annotation(self, common_path):
+        """Read annotation file; return {} if missing or invalid."""
+        p = self._annotation_path(common_path)
+        if p is None or not p.exists():
+            return {}
+        try:
+            return json.loads(p.read_text(encoding='utf-8'))
+        except Exception:
+            return {}
+
+    def _write_annotation(self, common_path, data):
+        """Atomic write of annotation file. Deletes file when data is empty."""
+        p = self._annotation_path(common_path)
+        if p is None:
+            raise ValueError('Invalid common_path')
+        # Clean up empty layer dicts before deciding whether to persist
+        for key in list(data.keys()):
+            if isinstance(data[key], dict) and not data[key]:
+                del data[key]
+        if not data:
+            if p.exists():
+                p.unlink()
+            return
+        p.parent.mkdir(parents=True, exist_ok=True)
+        tmp = p.with_suffix('.json.tmp')
+        tmp.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding='utf-8')
+        tmp.replace(p)
+
+    # ── API: GET /api/annotations — batch summary for list view ───────────────
+
+    def _handle_get_annotations(self):
+        try:
+            index_path = REPO_ROOT / 'index.json'
+            index_data = json.loads(index_path.read_text(encoding='utf-8'))
+            entries = index_data.get('entries', index_data)
+            result = {}
+            for entry in entries.values():
+                common_path = entry.get('common_path', '')
+                if not common_path:
+                    continue
+                ann = self._read_annotation(common_path)
+                if not ann:
+                    continue
+                summary = {}
+                if ann.get('done'):
+                    summary['done'] = True
+                if ann.get('links'):
+                    summary['links'] = ann['links']
+                for layer in ('raw', 'distilled', 'digest', 'trace', 'diagnose'):
+                    layer_data = ann.get(layer)
+                    if not layer_data:
+                        continue
+                    comments = layer_data.get('comments', [])
+                    if comments:
+                        summary.setdefault('comment_counts', {})[layer] = len(comments)
+                if summary:
+                    result[common_path] = summary
+            self._json_response(result)
+        except Exception as e:
+            self._json_response({'error': str(e)}, 500)
+
+    # ── API: GET /api/annotation?path=<common_path> — single full annotation ──
+
+    def _handle_get_annotation(self):
+        try:
+            params = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
+            common_path = params.get('path', [''])[0].strip()
+            if not common_path or '..' in common_path:
+                self._json_response({'error': 'Invalid path'}, 400)
+                return
+            ann = self._read_annotation(common_path)
+            self._json_response(ann)
+        except Exception as e:
+            self._json_response({'error': str(e)}, 500)
+
+    # ── API: update links in annotation file ──────────────────────────────────
 
     def _handle_update_links(self):
         try:
             data = self._read_json()
-            entry_id = str(data.get('id') or '').strip()
+            common_path = data.get('common_path', '').strip()
             links = data.get('links', [])
 
-            if not re.fullmatch(r'[0-9a-f]{32}', entry_id):
-                self._json_response({'error': 'Invalid id'}, 400)
+            if not common_path or '..' in common_path:
+                self._json_response({'error': 'Invalid common_path'}, 400)
                 return
 
             # Validate each link
@@ -305,25 +409,14 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                     self._json_response({'error': f'Invalid url: {url}'}, 400)
                     return
 
-            index_path = REPO_ROOT / 'index.json'
-            index_data = json.loads(index_path.read_text(encoding='utf-8'))
-            entries = index_data.get('entries', index_data)
+            ann = self._read_annotation(common_path)
+            if links:
+                ann['links'] = links
+            else:
+                ann.pop('links', None)
+            self._write_annotation(common_path, ann)
 
-            if entry_id not in entries:
-                self._json_response({'error': 'Entry not found'}, 404)
-                return
-
-            entries[entry_id]['links'] = links
-
-            # Atomic write
-            tmp_path = index_path.with_suffix('.json.tmp')
-            tmp_path.write_text(
-                json.dumps(index_data, ensure_ascii=False, indent=2),
-                encoding='utf-8'
-            )
-            tmp_path.replace(index_path)
-
-            print(f'  [update-links] {entry_id} → {len(links)} link(s)')
+            print(f'  [update-links] {common_path} → {len(links)} link(s)')
             self._json_response({'ok': True})
 
         except json.JSONDecodeError:
@@ -332,40 +425,85 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             self._json_response({'error': str(e)}, 500)
 
 
-    # ── API: set done flag on index entry ───────────────────────────────────
+    # ── API: set done flag on annotation file ────────────────────────────────
 
     def _handle_set_done(self):
         try:
             data = self._read_json()
-            entry_id = str(data.get('id') or '').strip()
+            common_path = data.get('common_path', '').strip()
             done = bool(data.get('done', False))
 
-            if not re.fullmatch(r'[0-9a-f]{32}', entry_id):
-                self._json_response({'error': 'Invalid id'}, 400)
+            if not common_path or '..' in common_path:
+                self._json_response({'error': 'Invalid common_path'}, 400)
                 return
 
-            index_path = REPO_ROOT / 'index.json'
-            index_data = json.loads(index_path.read_text(encoding='utf-8'))
-            entries = index_data.get('entries', index_data)
-
-            if entry_id not in entries:
-                self._json_response({'error': 'Entry not found'}, 404)
-                return
-
+            ann = self._read_annotation(common_path)
             if done:
-                entries[entry_id]['done'] = True
+                ann['done'] = True
             else:
-                entries[entry_id].pop('done', None)
+                ann.pop('done', None)
+            self._write_annotation(common_path, ann)
 
-            tmp_path = index_path.with_suffix('.json.tmp')
-            tmp_path.write_text(
-                json.dumps(index_data, ensure_ascii=False, indent=2),
-                encoding='utf-8'
-            )
-            tmp_path.replace(index_path)
-
-            print(f'  [set-done] {entry_id} → done={done}')
+            print(f'  [set-done] {common_path} → done={done}')
             self._json_response({'ok': True})
+
+        except json.JSONDecodeError:
+            self._json_response({'error': 'Invalid JSON body'}, 400)
+        except Exception as e:
+            self._json_response({'error': str(e)}, 500)
+
+    # ── API: update comments in annotation file ────────────────────────────────
+
+    def _handle_update_comments(self):
+        try:
+            data = self._read_json()
+            common_path = data.get('common_path', '').strip()
+            layer = data.get('layer', '').strip()
+            comment = data.get('comment', {})
+
+            if not common_path or '..' in common_path:
+                self._json_response({'error': 'Invalid common_path'}, 400)
+                return
+            if layer not in ('raw', 'distilled', 'digest', 'trace', 'diagnose'):
+                self._json_response({'error': f'Invalid layer: {layer}'}, 400)
+                return
+
+            cid = str(comment.get('id') or '').strip()
+            text = str(comment.get('text') or '').strip()
+            ts = str(data.get('ts') or '').strip()
+
+            ann = self._read_annotation(common_path)
+            layer_data = ann.setdefault(layer, {})
+            comments = layer_data.setdefault('comments', [])
+
+            if cid:
+                # Update or delete existing comment
+                idx = next((i for i, c in enumerate(comments) if c.get('id') == cid), None)
+                if idx is None:
+                    self._json_response({'error': 'Comment not found'}, 404)
+                    return
+                if text:
+                    comments[idx]['text'] = text
+                    if ts:
+                        comments[idx]['ts'] = ts
+                else:
+                    comments.pop(idx)  # empty text = delete
+                    cid = ''
+            else:
+                # New comment
+                if not text:
+                    self._json_response({'error': 'text required for new comment'}, 400)
+                    return
+                cid = uuid.uuid4().hex[:12]
+                comments.append({'id': cid, 'text': text, 'ts': ts})
+
+            # Clean up empty structures
+            if not layer_data.get('comments'):
+                layer_data.pop('comments', None)
+            self._write_annotation(common_path, ann)
+
+            print(f'  [update-comments] {common_path} [{layer}] id={cid or "deleted"}')
+            self._json_response({'ok': True, 'id': cid})
 
         except json.JSONDecodeError:
             self._json_response({'error': 'Invalid JSON body'}, 400)
@@ -408,6 +546,13 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                     target.unlink()
                     deleted.append(f'{layer}/{common_path}')
                     print(f'  [delete] {layer}/{common_path}')
+
+            # Delete annotation file if exists
+            ann_path = self._annotation_path(common_path)
+            if ann_path and ann_path.exists():
+                ann_path.unlink()
+                deleted.append(f'annotations/{common_path[:-3]}.json')
+                print(f'  [delete] annotations/{common_path}')
 
             # Remove from index.json
             del entries[entry_id]

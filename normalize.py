@@ -654,10 +654,16 @@ def find_chat_id_by_raw_filename(index: dict, raw_relposix: str) -> Optional[str
     """在 index 中查找 raw 相对路径（相对 raw/ 根）与 raw_relposix 相等的 chat_id。"""
     ver = index.get("version", 2)
     for cid, entry in index.get("entries", {}).items():
-        if ver == 3:
+        if ver >= 3:
             cp = entry.get("common_path")
-            if not cp or entry.get("raw") is not True:
+            if not cp:
                 continue
+            if ver >= 5:
+                if "raw" not in entry.get("layers", []):
+                    continue
+            else:
+                if entry.get("raw") is not True:
+                    continue
             u = _common_path_from_raw_relpath(raw_relposix)
             if raw_relposix == cp or u == cp:
                 return cid
@@ -679,7 +685,9 @@ def find_chat_id_by_raw_filename(index: dict, raw_relposix: str) -> Optional[str
 #
 # load_index 接受 v2 / v3；全新空索引默认 v3。
 
-_SUPPORTED_INDEX_VERSIONS = frozenset({2, 3})
+_SUPPORTED_INDEX_VERSIONS = frozenset({2, 3, 4, 5})
+
+_LAYER_ORDER = ["raw", "distilled", "diagnose", "digest", "trace"]
 
 
 def load_index() -> dict:
@@ -687,7 +695,7 @@ def load_index() -> dict:
         data = json.loads(INDEX_PATH.read_text(encoding="utf-8"))
         if data.get("version") in _SUPPORTED_INDEX_VERSIONS:
             return data
-    return {"version": 3, "entries": {}}
+    return {"version": 5, "entries": {}}
 
 
 def save_index(index: dict) -> None:
@@ -700,15 +708,23 @@ def save_index(index: dict) -> None:
 def index_set_raw(chat_id: str, raw_relposix: str) -> None:
     """将 chat_id → raw/ 下相对路径（POSIX，无 raw/ 前缀）写入 index，保留已有字段。"""
     index = load_index()
-    ver = index.get("version", 3)
-    if ver == 3:
+    ver = index.get("version", 5)
+    if ver >= 3:
         entry = index["entries"].get(chat_id, {})
         cp = _common_path_from_raw_relpath(raw_relposix)
         entry["common_path"] = cp
-        entry["raw"] = True
-        for k in ("distilled", "digest"):
-            if not isinstance(entry.get(k), bool):
-                entry[k] = False
+        if ver >= 5:
+            layers = list(entry.get("layers", []))
+            if "raw" not in layers:
+                layers.insert(0, "raw")
+            entry["layers"] = sorted(layers, key=lambda l: _LAYER_ORDER.index(l) if l in _LAYER_ORDER else 99)
+            for k in _LAYER_ORDER:
+                entry.pop(k, None)
+        else:
+            entry["raw"] = True
+            for k in ("distilled", "digest"):
+                if not isinstance(entry.get(k), bool):
+                    entry[k] = False
         index["entries"][chat_id] = entry
     else:
         entry = index["entries"].get(chat_id, {})
@@ -721,10 +737,20 @@ def index_set_raw(chat_id: str, raw_relposix: str) -> None:
 def index_set_distilled(chat_id: str, distilled_filename: str) -> None:
     """将 chat_id → distilled 文件名写入 index（供后续蒸馏阶段调用）。"""
     index = load_index()
-    if index.get("version") == 3:
+    ver = index.get("version", 5)
+    if ver >= 3:
         if chat_id not in index["entries"]:
             return
-        index["entries"][chat_id]["distilled"] = True
+        if ver >= 5:
+            layers = list(index["entries"][chat_id].get("layers", []))
+            if "distilled" not in layers:
+                layers.append("distilled")
+            index["entries"][chat_id]["layers"] = sorted(
+                layers, key=lambda l: _LAYER_ORDER.index(l) if l in _LAYER_ORDER else 99
+            )
+            index["entries"][chat_id].pop("distilled", None)
+        else:
+            index["entries"][chat_id]["distilled"] = True
     else:
         if chat_id not in index["entries"]:
             index["entries"][chat_id] = {"raw": None, "distilled": None}

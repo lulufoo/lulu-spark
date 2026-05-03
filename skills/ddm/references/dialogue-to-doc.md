@@ -31,7 +31,7 @@
 ```
 > ✅ dtd_normalize 完成
 > 📄 raw：raw/<COMMON_PATH>
-> 🗂 index.json 已更新（raw=true）
+> 🗂 index.json 已更新（layers 新增 raw）
 ```
 
 ---
@@ -47,11 +47,7 @@
     读取 {archive_root}/index.json，查找对应条目的 common_path
     拼出绝对路径：{archive_root}/raw/<common_path>
 · 若输入为路径：直接使用
-确认文件存在，且 index.json 中该条目 raw=true
-从路径解析 topic-path / ts / slug（方式同 P0 Step 1）
-```
-
-**Step 1 — Phase 2：生成**
+确认文件存在，且 index.json 中该条目 layers 包含 "raw"
 
 加载 [ddm-p2-generate.md](ddm-p2-generate.md)，执行。先读取 `CACHE_RAW` 全文，再按四条规则生成 distilled 并落盘。
 
@@ -62,7 +58,7 @@
 ```
 > ✅ dtd_distill 完成
 > 📝 distilled：distilled/<COMMON_PATH>
-> 🗂 index.json 已更新（distilled=true）
+> 🗂 index.json 已更新（layers 新增 distilled）
 ```
 
 ---
@@ -78,7 +74,7 @@
     读取 {archive_root}/index.json，查找对应条目的 common_path
     拼出绝对路径：{archive_root}/raw/<common_path>
 · 若输入为路径：直接使用
-确认文件存在，且 index.json 中该条目 raw=true
+确认文件存在，且 index.json 中该条目 layers 包含 "raw"
 从路径解析 topic-path / ts / slug（方式同 P0 Step 1）
 ```
 
@@ -110,5 +106,5 @@ trace     → trace/<COMMON_PATH>（或"已跳过"）
 digest    → digest/<COMMON_PATH>（或"已跳过"）
 
 index.json 条目 <id>：
-  diagnose: true · trace: <bool> · digest: <bool>
+  layers: ["raw", ...已完成的 layer...]
 ```

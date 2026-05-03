@@ -526,6 +526,138 @@
   }
   #btn-delete-cancel:hover { background: #eaeef2; }
 
+  /* ── Comment dialog ── */
+  #comment-dialog {
+    position: fixed;
+    inset: 0;
+    z-index: 2000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0,0,0,.45);
+  }
+  #comment-dialog.open { display: flex; }
+  #comment-dialog-box {
+    background: #fff;
+    border-radius: 10px;
+    padding: 24px 24px 20px;
+    width: min(640px, 92vw);
+    box-shadow: 0 8px 40px rgba(0,0,0,.3);
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  #comment-dialog-box h3 { font-size: 14px; color: #24292f; margin: 0; font-weight: 600; }
+  #comment-dialog-box h3 span { color: #0969da; font-weight: 400; }
+  .comment-editor-box {
+    display: flex;
+    border: 1px solid #d0d7de;
+    border-radius: 6px;
+    padding: 10px 12px;
+    box-sizing: border-box;
+    cursor: text;
+  }
+  .comment-editor-box:focus-within { border-color: #0969da; }
+  .comment-editor-content {
+    flex: 1;
+    font-size: 13px;
+    line-height: 1.7;
+    font-family: inherit;
+    outline: none;
+    min-height: 160px;
+    word-break: break-word;
+    white-space: pre-wrap;
+  }
+  .comment-editor-content:empty::before {
+    content: attr(data-placeholder);
+    color: #b0b8c1;
+    pointer-events: none;
+  }
+  #comment-dialog-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+  }
+  /* comment list inside md-body */
+  #md-comments-bar {
+    margin-bottom: 20px;
+    padding-bottom: 16px;
+    border-bottom: 2px solid #d0d7de;
+  }
+  .comment-bar-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #57606a;
+  }
+  .comment-item {
+    position: relative;
+    padding: 8px 28px 24px 10px;  /* right: space for ×; bottom: space for edit btn */
+    background: #fefef7;
+    border: 1px solid #ede8c0;
+    border-radius: 6px;
+    margin-bottom: 6px;
+  }
+  .comment-item-text {
+    font-size: 13px;
+    color: #24292f;
+    white-space: pre-wrap;
+    word-break: break-word;
+    line-height: 1.5;
+    display: block;
+  }
+  .comment-item-prefix {
+    display: block;
+    font-size: 10px;
+    font-weight: 700;
+    color: #0969da;
+    letter-spacing: 0.3px;
+    margin-bottom: 3px;
+    user-select: none;
+  }
+  .comment-item-ts {
+    font-size: 10px;
+    color: #8c959f;
+    margin-top: 4px;
+    display: block;
+  }
+  /* 右上角 × 删除 */
+  .comment-item-del-x {
+    position: absolute;
+    top: 4px;
+    right: 6px;
+    font-size: 13px;
+    line-height: 1;
+    width: 18px;
+    height: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    background: none;
+    color: #b0b8c1;
+    cursor: pointer;
+    border-radius: 3px;
+  }
+  .comment-item-del-x:hover { background: #fff0f0; color: #cf222e; }
+  /* 右下角编辑 */
+  .comment-item-edit {
+    position: absolute;
+    bottom: 4px;
+    right: 6px;
+    font-size: 10px;
+    padding: 1px 6px;
+    border: 1px solid #d0d7de;
+    border-radius: 3px;
+    background: none;
+    color: #8c959f;
+    cursor: pointer;
+  }
+  .comment-item-edit:hover { background: #eaeef2; color: #24292f; }
+
   /* ── Links badge on card ── */
   .badge-links {
     background: #f0f3ff;
@@ -588,6 +720,7 @@
       <button class="md-header-btn" id="btn-copy-http" data-tip="">&#127760;</button>
       <button class="md-header-btn" id="btn-copy-path" data-tip="">&#128194;</button>
       <button class="md-header-btn" id="btn-edit">✏️ 编辑</button>
+      <button class="md-header-btn" id="btn-add-comment">💬 笔记</button>
       <button class="md-header-btn primary" id="btn-save" style="display:none">💾 保存</button>
       <button class="md-header-btn" id="btn-cancel-edit" style="display:none">取消</button>
       <button class="md-header-btn" id="btn-panel-commit" style="display:none">● 提交此文件</button>
@@ -603,6 +736,20 @@
     <div id="md-links-bar" style="display:none;padding:8px 20px;border-bottom:1px solid #d0d7de;display:flex;align-items:center;flex-wrap:wrap;gap:4px 0;"></div>
     <div id="md-body"></div>
     <textarea id="md-edit-area" style="display:none" spellcheck="false"></textarea>
+  </div>
+</div>
+
+<!-- Comment dialog -->
+<div id="comment-dialog">
+  <div id="comment-dialog-box">
+    <h3 id="comment-dialog-title">💬 添加笔记</h3>
+    <div id="comment-editor-box" class="comment-editor-box" onclick="document.getElementById('comment-dialog-content').focus()">
+      <div id="comment-dialog-content" class="comment-editor-content" contenteditable="true" data-placeholder="输入笔记内容…（Ctrl/Cmd+Enter 保存）"></div>
+    </div>
+    <div id="comment-dialog-actions">
+      <button id="btn-comment-cancel" class="md-header-btn">取消</button>
+      <button id="btn-comment-save" class="md-header-btn primary">保存</button>
+    </div>
   </div>
 </div>
 
@@ -642,7 +789,7 @@ let archiveRoot = '';    // loaded from /api/config
 function getEntryDiffState(entry) {
   let state = null;
   for (const layer of LAYERS) {
-    if (!entry[layer]) continue;
+    if (!entry.layers?.includes(layer)) continue;
     const s = diffStatus.get(`${layer}/${entry.common_path}`);
     if (s === 'conflict') return 'conflict';
     if (s === 'modified') state = 'modified';
@@ -690,7 +837,7 @@ function updateDiffInDOM() {
     const badgesEl = card.querySelector('.badges');
     if (badgesEl) {
       badgesEl.innerHTML = LAYERS
-        .filter(layer => entry[layer] === true)
+        .filter(layer => entry.layers?.includes(layer))
         .map(layer => {
           if (entry[`_unreachable_${layer}`]) {
             return `<span class="badge badge-unreachable" title="文件不可达">${layer}</span>`;
@@ -760,13 +907,34 @@ async function loadIndex() {
     indexData = data.entries || data;  // support both {entries:{}} and flat {}
     buildGroups();
     renderSidebar();
-    await loadDiffStatus();
+    await Promise.all([loadDiffStatus(), loadAnnotationsSummary()]);
     if (groupedByDate.length > 0) selectDate(groupedByDate[0].date);
   } catch (e) {
     showError(`无法加载 index.json：${e.message}`);
   } finally {
     btn.disabled = false;
     btn.textContent = '⟳ 刷新';
+  }
+}
+
+async function loadAnnotationsSummary() {
+  try {
+    const res = await fetch('/api/annotations?_=' + Date.now());
+    if (!res.ok) return;
+    annotationsSummary = await res.json();
+    // Merge summary into entry objects so buildCard can read done/links as before
+    for (const entry of Object.values(indexData)) {
+      const ann = annotationsSummary[entry.common_path];
+      if (ann) {
+        entry.done = ann.done || undefined;
+        entry.links = ann.links || undefined;
+      } else {
+        delete entry.done;
+        delete entry.links;
+      }
+    }
+  } catch {
+    // Non-fatal: annotations are optional
   }
 }
 
@@ -858,7 +1026,7 @@ function buildCard(id, entry, title) {
     : '';
 
   const badgesHtml = LAYERS
-    .filter(layer => entry[layer] === true)
+    .filter(layer => entry.layers?.includes(layer))
     .map(layer => {
       if (entry[`_unreachable_${layer}`]) {
         return `<span class="badge badge-unreachable" title="文件不可达">${layer}</span>`;
@@ -883,7 +1051,7 @@ function buildCard(id, entry, title) {
     <div class="badges">${badgesHtml}${linksBadgeHtml}${doneBadgeHtml}</div>
   `;
   if (entry.done) card.classList.add('done');
-  const firstLayer = LAYERS.find(l => entry[l] === true) || 'raw';
+  const firstLayer = LAYERS.find(l => entry.layers?.includes(l)) || 'raw';
   card.querySelector('.doc-title-btn').addEventListener('click', () => openDoc(entry, firstLayer));
   attachBadgeListeners(card, entry);
   card.querySelector('[data-action="toggle-done"]').addEventListener('click', () => toggleDone(entry, card));
@@ -911,7 +1079,7 @@ async function loadTitles(entries, date) {
   titleCache.set(date, new Map());
 
   await Promise.all(entries.map(async ({ id, entry }) => {
-    if (!entry.raw) {
+    if (!entry.layers?.includes('raw')) {
       // No raw file: fallback to slug
       const title = slugToTitle(filenameFromPath(entry.common_path));
       titleCache.get(date).set(id, title);
@@ -960,7 +1128,7 @@ function updateTitlesInDOM(date) {
     const badgesEl = card.querySelector('.badges');
     if (badgesEl) {
       const layerHtml = LAYERS
-        .filter(layer => entry[layer] === true)
+        .filter(layer => entry.layers?.includes(layer))
         .map(layer => {
           if (entry[`_unreachable_${layer}`]) {
             return `<span class="badge badge-unreachable" title="文件不可达">${layer}</span>`;
@@ -1044,12 +1212,15 @@ function postProcessLinks(container, currentLayer, commonPath) {
 let currentEntry = null;
 let currentLayer = 'raw';
 let currentRawText = '';
+let currentAnnotation = {};     // full annotation for currently open doc
+let annotationsSummary = {};    // { common_path: summary } batch from /api/annotations
 
 // ── Open doc ───────────────────────────────────────────────────────────────
 
-function openDoc(entry, layer = 'raw') {
+async function openDoc(entry, layer = 'raw') {
   currentEntry = entry;
   currentLayer = layer;
+  currentAnnotation = {};
   exitEditMode(false);
   hideCommitBar();
 
@@ -1068,24 +1239,32 @@ function openDoc(entry, layer = 'raw') {
   modal.style.display = 'flex';
   document.body.style.overflow = 'hidden';
 
-  fetch(`./${layer}/${entry.common_path}?t=${Date.now()}`)
-    .then(res => { if (!res.ok) throw new Error(`HTTP ${res.status}`); return res.text(); })
-    .then(text => {
-      currentRawText = text;
-      const bytes = new Blob([text]).size;
-      document.getElementById('md-file-size').textContent = bytes < 1024
-        ? `${bytes} B`
-        : bytes < 1024 * 1024
-          ? `${(bytes / 1024).toFixed(1)} KB`
-          : `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-      renderDocBody(text, layer, entry.common_path);
-      const hasDiff = diffStatus.get(`${layer}/${entry.common_path}`);
-      document.getElementById('btn-panel-commit').style.display = hasDiff ? '' : 'none';
-    })
-    .catch(e => {
-      body.innerHTML = `<div style="color:#7d4e00;padding:20px">无法加载文件：${escHtml(e.message)}</div>`;
-      document.getElementById('btn-edit').style.display = 'none';
-    });
+  const [mdResult, annResult] = await Promise.allSettled([
+    fetch(`./${layer}/${entry.common_path}?t=${Date.now()}`)
+      .then(res => { if (!res.ok) throw new Error(`HTTP ${res.status}`); return res.text(); }),
+    fetch(`/api/annotation?path=${encodeURIComponent(entry.common_path)}`)
+      .then(r => r.json()).catch(() => ({}))
+  ]);
+
+  if (annResult.status === 'fulfilled') currentAnnotation = annResult.value || {};
+
+  if (mdResult.status === 'rejected') {
+    body.innerHTML = `<div style="color:#7d4e00;padding:20px">无法加载文件：${escHtml(mdResult.reason.message)}</div>`;
+    document.getElementById('btn-edit').style.display = 'none';
+    return;
+  }
+
+  const text = mdResult.value;
+  currentRawText = text;
+  const bytes = new Blob([text]).size;
+  document.getElementById('md-file-size').textContent = bytes < 1024
+    ? `${bytes} B`
+    : bytes < 1024 * 1024
+      ? `${(bytes / 1024).toFixed(1)} KB`
+      : `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  renderDocBody(text, layer, entry.common_path);
+  const hasDiff = diffStatus.get(`${layer}/${entry.common_path}`);
+  document.getElementById('btn-panel-commit').style.display = hasDiff ? '' : 'none';
 }
 
 function renderDocBody(text, layer, commonPath) {
@@ -1098,6 +1277,7 @@ function renderDocBody(text, layer, commonPath) {
   postProcessLinks(body, layer, commonPath);
   document.getElementById('btn-edit').style.display = '';
   renderLinksBar(currentEntry);
+  renderComments(currentAnnotation, layer, currentEntry);
   // Append delete button at end of content
   const zone = document.createElement('div');
   zone.className = 'md-body-delete-zone';
@@ -1121,6 +1301,7 @@ function enterEditMode() {
   requestAnimationFrame(() => { editArea.scrollTop = 0; });
   editArea.focus();
   document.getElementById('btn-edit').style.display = 'none';
+  document.getElementById('btn-add-comment').style.display = 'none';
   document.getElementById('btn-panel-commit').style.display = 'none';
   document.getElementById('btn-save').style.display = '';
   document.getElementById('btn-cancel-edit').style.display = '';
@@ -1134,6 +1315,7 @@ function exitEditMode(rerender = true) {
   editArea.style.display = 'none';
   body.style.display = '';
   document.getElementById('btn-edit').style.display = '';
+  document.getElementById('btn-add-comment').style.display = '';
   document.getElementById('btn-save').style.display = 'none';
   document.getElementById('btn-cancel-edit').style.display = 'none';
   document.getElementById('btn-panel-commit').style.display = 'none';
@@ -1205,6 +1387,197 @@ document.getElementById('btn-copy-path').addEventListener('click', () => {
     btn.textContent = '✓';
     setTimeout(() => { btn.textContent = '📂'; }, 1200);
   });
+});
+
+// ── Comments ──────────────────────────────────────────────────────────────
+
+function nowTs() {
+  const now = new Date();
+  return [
+    now.getFullYear(),
+    String(now.getMonth() + 1).padStart(2, '0'),
+    String(now.getDate()).padStart(2, '0'),
+    String(now.getHours()).padStart(2, '0'),
+    String(now.getMinutes()).padStart(2, '0')
+  ].join('');
+}
+
+// Render comment list at the TOP of md-body (before document content)
+function renderComments(annotation, layer, entry) {
+  const existing = document.getElementById('md-comments-bar');
+  if (existing) existing.remove();
+  if (!entry) return;
+
+  const layerData = (annotation && annotation[layer]) || {};
+  const comments = layerData.comments || [];
+  if (comments.length === 0) return;
+
+  const body = document.getElementById('md-body');
+  const bar = document.createElement('div');
+  bar.id = 'md-comments-bar';
+
+  const hdr = document.createElement('div');
+  hdr.className = 'comment-bar-header';
+  hdr.innerHTML = `<span>💬 笔记 · ${comments.length} 条</span>`;
+  bar.appendChild(hdr);
+
+  for (let i = 0; i < comments.length; i++) {
+    bar.appendChild(buildCommentItem(comments[i], layer, entry, i + 1));
+  }
+
+  body.insertBefore(bar, body.firstChild);
+}
+
+function buildCommentItem(c, layer, entry, noteIndex) {
+  const item = document.createElement('div');
+  item.className = 'comment-item';
+  item.dataset.cid = c.id;
+
+  const prefixEl = document.createElement('span');
+  prefixEl.className = 'comment-item-prefix';
+  prefixEl.textContent = `NOTE ${noteIndex}:`;
+
+  const textEl = document.createElement('span');
+  textEl.className = 'comment-item-text';
+  textEl.textContent = c.text;
+
+  const tsEl = document.createElement('span');
+  tsEl.className = 'comment-item-ts';
+  if (c.ts && c.ts.length >= 12) {
+    tsEl.textContent = `${c.ts.slice(0,4)}-${c.ts.slice(4,6)}-${c.ts.slice(6,8)} ${c.ts.slice(8,10)}:${c.ts.slice(10,12)}`;
+  }
+
+  // 右上角 ×
+  const delX = document.createElement('button');
+  delX.className = 'comment-item-del-x';
+  delX.title = '删除';
+  delX.textContent = '×';
+  delX.addEventListener('click', async () => {
+    if (!confirm('删除此笔记？')) return;
+    try {
+      const res = await fetch('/api/update-comments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ common_path: entry.common_path, layer, comment: { id: c.id, text: '' }, ts: nowTs() })
+      });
+      const data = await res.json();
+      if (data.ok) {
+        const ld = currentAnnotation[layer] || {};
+        ld.comments = (ld.comments || []).filter(x => x.id !== c.id);
+        if (!ld.comments.length) delete currentAnnotation[layer];
+        else currentAnnotation[layer] = ld;
+        renderComments(currentAnnotation, layer, entry);
+      }
+    } catch (e) { alert(`删除失败：${e.message}`); }
+  });
+
+  // 右下角编辑
+  const editBtn = document.createElement('button');
+  editBtn.className = 'comment-item-edit';
+  editBtn.textContent = '编辑';
+  editBtn.addEventListener('click', () => openCommentDialog(c, layer, entry, noteIndex));
+
+  item.append(delX, prefixEl, textEl, tsEl, editBtn);
+  return item;
+}
+
+// ── Comment dialog ─────────────────────────────────────────────────────────
+
+// State: null = add mode; object = edit mode { c, layer, entry }
+let _commentEditCtx = null;
+
+function openCommentDialog(editComment, layer, entry, noteIndex) {
+  if (!currentEntry && !entry) return;
+  const titleEl = document.getElementById('comment-dialog-title');
+  const content = document.getElementById('comment-dialog-content');
+  if (editComment) {
+    _commentEditCtx = { c: editComment, layer, entry, noteIndex };
+    titleEl.textContent = '💬 编辑笔记';
+    content.innerText = editComment.text;
+  } else {
+    _commentEditCtx = { noteIndex };
+    titleEl.textContent = '💬 添加笔记';
+    content.innerText = '';
+  }
+  document.getElementById('comment-dialog').classList.add('open');
+  requestAnimationFrame(() => {
+    content.focus();
+    const range = document.createRange();
+    const sel = window.getSelection();
+    range.selectNodeContents(content);
+    range.collapse(false);
+    sel.removeAllRanges();
+    sel.addRange(range);
+  });
+}
+
+function closeCommentDialog() {
+  document.getElementById('comment-dialog').classList.remove('open');
+  _commentEditCtx = null;
+}
+
+async function saveComment() {
+  if (!_commentEditCtx) return;
+  const content = document.getElementById('comment-dialog-content');
+  const text = content.innerText.trim();
+  if (!text) return;
+  const saveBtn = document.getElementById('btn-comment-save');
+  saveBtn.disabled = true;
+  saveBtn.textContent = '保存中…';
+  const ts = nowTs();
+  try {
+    if (_commentEditCtx.c) {
+      // 编辑模式
+      const { c, layer, entry } = _commentEditCtx;
+      if (text === c.text) { closeCommentDialog(); return; }
+      const res = await fetch('/api/update-comments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ common_path: entry.common_path, layer, comment: { id: c.id, text }, ts })
+      });
+      const data = await res.json();
+      if (data.ok) {
+        c.text = text;
+        const ld = currentAnnotation[layer] || {};
+        const idx = (ld.comments || []).findIndex(x => x.id === c.id);
+        if (idx >= 0) ld.comments[idx].text = text;
+        closeCommentDialog();
+        renderComments(currentAnnotation, layer, entry);
+      } else { alert(`保存失败：${data.error}`); }
+    } else {
+      // 新增模式
+      if (!currentEntry) return;
+      const res = await fetch('/api/update-comments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ common_path: currentEntry.common_path, layer: currentLayer, comment: { text }, ts })
+      });
+      const data = await res.json();
+      if (data.ok) {
+        if (!currentAnnotation[currentLayer]) currentAnnotation[currentLayer] = {};
+        if (!currentAnnotation[currentLayer].comments) currentAnnotation[currentLayer].comments = [];
+        currentAnnotation[currentLayer].comments.push({ id: data.id, text, ts });
+        closeCommentDialog();
+        renderComments(currentAnnotation, currentLayer, currentEntry);
+      } else { alert(`添加失败：${data.error}`); }
+    }
+  } catch (e) { alert(`保存失败：${e.message}`); }
+  finally { saveBtn.disabled = false; saveBtn.textContent = '保存'; }
+}
+
+document.getElementById('btn-add-comment').addEventListener('click', () => {
+  const layerData = (currentAnnotation && currentAnnotation[currentLayer]) || {};
+  const nextIdx = (layerData.comments || []).length + 1;
+  openCommentDialog(null, null, null, nextIdx);
+});
+document.getElementById('btn-comment-cancel').addEventListener('click', closeCommentDialog);
+document.getElementById('btn-comment-save').addEventListener('click', saveComment);
+document.getElementById('comment-dialog-content').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); saveComment(); }
+  if (e.key === 'Escape') closeCommentDialog();
+});
+document.getElementById('comment-dialog').addEventListener('click', e => {
+  if (e.target === document.getElementById('comment-dialog')) closeCommentDialog();
 });
 
 // ── Links bar ─────────────────────────────────────────────────────────────
@@ -1338,7 +1711,7 @@ function showAddLinkInput(entry, bar) {
       const res = await fetch('/api/update-links', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: getEntryId(entry), links: newLinks })
+        body: JSON.stringify({ common_path: entry.common_path, links: newLinks })
       });
       const data = await res.json();
       if (data.ok) {
@@ -1386,7 +1759,7 @@ function confirmDeleteLink(entry, index, bar, wrapEl) {
       const res = await fetch('/api/update-links', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: getEntryId(entry), links: newLinks })
+        body: JSON.stringify({ common_path: entry.common_path, links: newLinks })
       });
       const data = await res.json();
       if (data.ok) {
@@ -1431,7 +1804,7 @@ async function toggleDone(entry, card) {
     const res = await fetch('/api/set-done', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: getEntryId(entry), done: newDone })
+      body: JSON.stringify({ common_path: entry.common_path, done: newDone })
     });
     const data = await res.json();
     if (!data.ok) return;

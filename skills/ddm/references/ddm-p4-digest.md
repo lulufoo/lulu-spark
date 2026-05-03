@@ -85,13 +85,7 @@ digest 是可选产出。以下任意一项满足即生成：
 
 读取 `{archive_root}/index.json`，更新对应条目（按 `COMMON_PATH` 匹配）：
 
-```json
-{
-  "diagnose": true,
-  "digest": true,
-  "trace": <与 Phase 3 落盘结果一致>
-}
-```
+将 `"diagnose"`、`"digest"`（以及 Phase 3 已落盘时追加 `"trace"`）追加到 `"layers"` 数组（去重，顺序保持 `raw → distilled → diagnose → digest → trace`）。
 
 覆盖写入 `{archive_root}/index.json`。
 

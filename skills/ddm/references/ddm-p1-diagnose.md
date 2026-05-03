@@ -232,6 +232,6 @@ Phase 1 完成后，**必须先输出以下摘要** 到 `DIAGNOSE`（`{archive_r
 
 （目录不存在则创建）
 
-同时更新 `{archive_root}/index.json`，将对应条目的 `"diagnose"` 设为 `true`。
+同时更新 `{archive_root}/index.json`，将 `"diagnose"` 追加到对应条目的 `"layers"` 数组（若不存在）。
 
 完成后输出：`> ✅ Step 1 完成 · diagnose：diagnose/<topic-path>/<ts>-<slug>.md`

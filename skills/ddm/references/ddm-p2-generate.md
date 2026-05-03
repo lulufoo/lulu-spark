@@ -180,6 +180,6 @@ Step 3：格式输出
 {archive_root}/distilled/<topic-path>/<ts>-<slug>.md
 ```
 
-同时更新 `{archive_root}/index.json`，将对应条目的 `"distilled"` 设为 `true`。
+同时更新 `{archive_root}/index.json`，将 `"distilled"` 追加到对应条目的 `"layers"` 数组（若不存在）。
 
 完成后输出：`> ✅ Step 2 完成 · distilled：distilled/<topic-path>/<ts>-<slug>.md（输入来源：raw）`
