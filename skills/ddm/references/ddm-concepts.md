@@ -53,22 +53,18 @@ DDM 分为五个 Phase：P0（规范化）→ P1（诊断）→ P2（生成 dist
 
 ```json
 {
-  "version": 4,
+  "version": 5,
   "entries": {
     "<id>": {
       "common_path": "<topic-path>/<ts>-<slug>.md",
       "created_at": "<ts>",
-      "raw":         boolean,
-      "distilled":   boolean,
-      "diagnose":    boolean,
-      "digest":      boolean,
-      "trace":       boolean
+      "layers": ["raw", "distilled", "digest", "trace"]
     }
   }
 }
 ```
 
-`raw / distilled / diagnose / digest / trace` 均为布尔值，表示对应层文件是否存在。
+`layers` 为字符串数组，列出该条目已存在的层（顺序：`raw → distilled → diagnose → digest → trace`）。
 
 **链接维护**：只替换完整相对路径（`../../../<layer>/…/<ts>-<slug>.md`）；禁止对已含 `<ts>-<slug>` 前缀的路径再做 basename 替换，避免双前缀。
 
