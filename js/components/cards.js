@@ -1,6 +1,7 @@
 import { state } from '../state.js'
-import { LAYERS } from '../constants.js'
+import { LAYERS, IMPORTANCE_CYCLE } from '../constants.js'
 import { escHtml, slugToTitle, filenameFromPath, topicFromPath, timeFromTs, importanceBadgeHtml } from '../utils.js'
+import * as api from '../api.js'
 
 // ── Diff helpers ───────────────────────────────────────────────────────────
 
@@ -80,9 +81,50 @@ export function buildCard(id, entry, title) {
   const firstLayer = LAYERS.find(l => entry.layers?.includes(l)) || 'raw';
   card.querySelector('.doc-title-btn').addEventListener('click', () => window.openDoc(entry, firstLayer));
   attachBadgeListeners(card, entry);
-  card.querySelector('[data-action="toggle-done"]').addEventListener('click', () => window.toggleDone(entry, card));
-  card.querySelector('[data-action="cycle-importance"]').addEventListener('click', () => window.cycleImportance(entry, card));
+  card.querySelector('[data-action="toggle-done"]').addEventListener('click', () => toggleDone(entry, card));
+  card.querySelector('[data-action="cycle-importance"]').addEventListener('click', () => cycleImportance(entry, card));
   return card;
+}
+
+// ── cycleImportance ─────────────────────────────────────────────────────
+
+export async function cycleImportance(entry, card) {
+  const cur = entry.importance;
+  const idx = IMPORTANCE_CYCLE.indexOf(cur);
+  const next = IMPORTANCE_CYCLE[(idx + 1) % IMPORTANCE_CYCLE.length];
+  try {
+    const data = await api.setImportance(entry.common_path, next);
+    if (!data.ok) return;
+    entry.importance = next;
+    card.classList.remove('importance-high', 'importance-medium', 'importance-low');
+    if (next) card.classList.add(`importance-${next}`);
+    const btn = card.querySelector('[data-action="cycle-importance"]');
+    if (btn) {
+      btn.outerHTML = importanceBadgeHtml(next);
+      card.querySelector('[data-action="cycle-importance"]').addEventListener('click', () => cycleImportance(entry, card));
+    }
+  } catch (e) {
+    console.error('cycleImportance failed', e);
+  }
+}
+
+// ── toggleDone ────────────────────────────────────────────────────────
+
+export async function toggleDone(entry, card) {
+  const newDone = !entry.done;
+  try {
+    const data = await api.setDone(entry.common_path, newDone);
+    if (!data.ok) return;
+    entry.done = newDone || undefined;
+    card.classList.toggle('done', !!newDone);
+    const btn = card.querySelector('[data-action="toggle-done"]');
+    if (btn) {
+      btn.textContent = newDone ? '✓ 已处理' : '○ 处理';
+      btn.title = newDone ? '标记为未处理' : '标记为已处理';
+    }
+  } catch (e) {
+    console.error('toggleDone failed', e);
+  }
 }
 
 // ── renderDocList ──────────────────────────────────────────────────────────

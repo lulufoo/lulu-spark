@@ -130,7 +130,7 @@ import { escHtml, slugToTitle, filenameFromPath, topicFromPath, formatDate, time
 import { REPO, LAYERS, IMPORTANCE_CYCLE } from './js/constants.js'
 import * as api from './js/api.js'
 import { buildGroups, renderSidebar, selectDate } from './js/components/sidebar.js'
-import { getEntryDiffState, getLayerBadgeClass, attachBadgeListeners, buildCard, renderDocList, updateDiffInDOM } from './js/components/cards.js'
+import { getEntryDiffState, getLayerBadgeClass, attachBadgeListeners, buildCard, renderDocList, updateDiffInDOM, cycleImportance, toggleDone } from './js/components/cards.js'
 // Cache: date string -> Map<id, title>  (alias to state.index.titleCache)
 const titleCache = state.index.titleCache;
 
@@ -919,43 +919,6 @@ function updateCardLinksBadge(entry) {
   }
 }
 
-async function cycleImportance(entry, card) {
-  const cur = entry.importance;
-  const idx = IMPORTANCE_CYCLE.indexOf(cur);
-  const next = IMPORTANCE_CYCLE[(idx + 1) % IMPORTANCE_CYCLE.length];
-  try {
-    const data = await api.setImportance(entry.common_path, next);
-    if (!data.ok) return;
-    entry.importance = next;
-    card.classList.remove('importance-high', 'importance-medium', 'importance-low');
-    if (next) card.classList.add(`importance-${next}`);
-    const btn = card.querySelector('[data-action="cycle-importance"]');
-    if (btn) {
-      btn.outerHTML = importanceBadgeHtml(next);
-      card.querySelector('[data-action="cycle-importance"]').addEventListener('click', () => cycleImportance(entry, card));
-    }
-  } catch (e) {
-    console.error('cycleImportance failed', e);
-  }
-}
-
-async function toggleDone(entry, card) {
-  const newDone = !entry.done;
-  try {
-    const data = await api.setDone(entry.common_path, newDone);
-    if (!data.ok) return;
-    entry.done = newDone || undefined;
-    // Update card visual
-    card.classList.toggle('done', !!newDone);
-    const btn = card.querySelector('[data-action="toggle-done"]');
-    if (btn) {
-      btn.textContent = newDone ? '✓ 已处理' : '○ 处理';
-      btn.title = newDone ? '标记为未处理' : '标记为已处理';
-    }
-  } catch (e) {
-    console.error('toggleDone failed', e);
-  }
-}
 
 function getEntryId(entry) {
   if (entry._id) return entry._id;
@@ -1338,8 +1301,6 @@ loadIndex();
 
 // ── Window bridge（过渡期跨模块调用，随函数迁移逐步移除）──
 window.openDoc          = openDoc           // cards.js 需要；Step 4.1 后由 viewer.js 末尾重新赋值
-window.toggleDone       = toggleDone        // cards.js 需要；Step 3.7 后移除
-window.cycleImportance  = cycleImportance   // cards.js 需要；Step 3.7 后移除
 window.loadTitles       = loadTitles        // sidebar.js/selectDate 需要；Step 3.8 后移除
 window.exitEditMode     = exitEditMode      // viewer.js 需要；Step 4.2 后移除
 window.hideCommitBar    = hideCommitBar     // viewer.js 需要；Step 4.3 后移除
