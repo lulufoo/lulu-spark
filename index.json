@@ -467,7 +467,8 @@
       "common_path": "ai-assisted-domain-learning/dialogue-distillation-model/202605022241-ddm-exec-review-scope-and-cache.md",
       "created_at": "202605022241",
       "layers": [
-        "raw"
+        "raw",
+        "distilled"
       ]
     },
     "b77074b742f13a405383f63d141f19fc": {
