@@ -131,13 +131,12 @@ import { REPO, LAYERS, IMPORTANCE_CYCLE } from './js/constants.js'
 import * as api from './js/api.js'
 import { buildGroups, renderSidebar, selectDate } from './js/components/sidebar.js'
 import { getEntryDiffState, getLayerBadgeClass, attachBadgeListeners, buildCard, renderDocList, updateDiffInDOM, cycleImportance, toggleDone, loadTitles, updateTitlesInDOM } from './js/components/cards.js'
+import { openDoc, renderDocBody } from './js/components/viewer.js'
 // Cache: date string -> Map<id, title>  (alias to state.index.titleCache)
 const titleCache = state.index.titleCache;
 
 // Diff status: filepath → 'modified' | 'conflict'  (alias to state.index.diffStatus)
 const diffStatus = state.index.diffStatus;
-
-let archiveRoot = '';              // loaded from /api/config
 
 // ── Diff helpers ───────────────────────────────────────────────────────────────────
 
@@ -172,10 +171,10 @@ async function loadAnnotationsSummary() {
   try {
     const summary = await api.fetchAnnotationsSummary();
     if (!summary) return;
-    annotationsSummary = summary;
+    state.index.annotations = summary;
     // Merge summary into entry objects so buildCard can read done/links as before
     for (const entry of Object.values(state.index.data)) {
-      const ann = annotationsSummary[entry.common_path];
+      const ann = state.index.annotations[entry.common_path];
       if (ann) {
         entry.done = ann.done || undefined;
         entry.importance = ann.importance || undefined;
@@ -232,128 +231,12 @@ document.getElementById('doc-list').addEventListener('scroll', () => {
   }
 }, { passive: true });
 
-// ── MD Viewer ─────────────────────────────────────────────────────────────
-
-function resolveRelativeLink(href, currentLayer, commonPath) {
-  // Resolve relative MD links to absolute GitHub blob URLs
-  try {
-    const base = `http://x/${currentLayer}/${commonPath}`;
-    const resolved = new URL(href, base);
-    const repoPath = resolved.pathname.slice(1); // strip leading /
-    return `${REPO}/${repoPath}`;
-  } catch {
-    return null;
-  }
-}
-
-function postProcessLinks(container, currentLayer, commonPath) {
-  container.querySelectorAll('a[href]').forEach(a => {
-    const href = a.getAttribute('href');
-    if (!href || href.startsWith('#')) return;
-    if (href.startsWith('http://') || href.startsWith('https://')) {
-      a.target = '_blank';
-      a.rel = 'noopener noreferrer';
-      return;
-    }
-    // Relative link → resolve to GitHub blob URL
-    const ghUrl = resolveRelativeLink(href, currentLayer, commonPath);
-    if (ghUrl) {
-      a.href = ghUrl;
-      a.target = '_blank';
-      a.rel = 'noopener noreferrer';
-    }
-  });
-}
-
-// ── Current viewer state ───────────────────────────────────────────────────
-
-let currentEntry = null;
-let currentLayer = 'raw';
-let currentRawText = '';
-let currentAnnotation = {};     // full annotation for currently open doc
-let annotationsSummary = {};    // { common_path: summary } batch from /api/annotations
-
-// ── Open doc ───────────────────────────────────────────────────────────────
-
-async function openDoc(entry, layer = 'raw') {
-  currentEntry = entry;
-  currentLayer = layer;
-  currentAnnotation = {};
-  exitEditMode(false);
-  hideCommitBar();
-
-  const modal = document.getElementById('md-modal');
-  const body = document.getElementById('md-body');
-  document.getElementById('md-panel-title').textContent = filenameFromPath(entry.common_path).replace(/\.md$/, '');
-  const githubUrl = `${REPO}/${layer}/${entry.common_path}`;
-  document.getElementById('md-github-link').href = githubUrl;
-  document.getElementById('btn-copy-http').dataset.url = githubUrl;
-  document.getElementById('btn-copy-http').dataset.tip = githubUrl;
-  const relPath = `${layer}/${entry.common_path}`;
-  const fullPath = archiveRoot ? `${archiveRoot}/${relPath}` : relPath;
-  document.getElementById('btn-copy-path').dataset.tip = fullPath;
-  document.getElementById('md-file-size').textContent = '';
-  body.innerHTML = '<div style="color:#8c959f;padding:20px;font-size:13px;">加载中…</div>';
-  modal.style.display = 'flex';
-  document.body.style.overflow = 'hidden';
-
-  const [mdResult, annResult] = await Promise.allSettled([
-    fetch(`./${layer}/${entry.common_path}?t=${Date.now()}`)
-      .then(res => { if (!res.ok) throw new Error(`HTTP ${res.status}`); return res.text(); }),
-    fetch(`/api/annotation?path=${encodeURIComponent(entry.common_path)}`)
-      .then(r => r.json()).catch(() => ({}))
-  ]);
-
-  if (annResult.status === 'fulfilled') currentAnnotation = annResult.value || {};
-
-  if (mdResult.status === 'rejected') {
-    body.innerHTML = `<div style="color:#7d4e00;padding:20px">无法加载文件：${escHtml(mdResult.reason.message)}</div>`;
-    document.getElementById('btn-edit').style.display = 'none';
-    return;
-  }
-
-  const text = mdResult.value;
-  currentRawText = text;
-  const bytes = new Blob([text]).size;
-  document.getElementById('md-file-size').textContent = bytes < 1024
-    ? `${bytes} B`
-    : bytes < 1024 * 1024
-      ? `${(bytes / 1024).toFixed(1)} KB`
-      : `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-  renderDocBody(text, layer, entry.common_path);
-  const hasDiff = diffStatus.get(`${layer}/${entry.common_path}`);
-  document.getElementById('btn-panel-commit').style.display = hasDiff ? '' : 'none';
-}
-
-function renderDocBody(text, layer, commonPath) {
-  const body = document.getElementById('md-body');
-  if (typeof marked !== 'undefined') {
-    body.innerHTML = marked.parse(text);
-  } else {
-    body.innerHTML = `<pre style="white-space:pre-wrap;font-size:13px">${escHtml(text)}</pre>`;
-  }
-  postProcessLinks(body, layer, commonPath);
-  document.getElementById('btn-edit').style.display = '';
-  renderLinksBar(currentEntry);
-  renderComments(currentAnnotation, layer, currentEntry);
-  // Append delete button at end of content
-  const zone = document.createElement('div');
-  zone.className = 'md-body-delete-zone';
-  const delBtn = document.createElement('button');
-  delBtn.id = 'btn-delete';
-  delBtn.textContent = '🗑 删除此条目';
-  delBtn.title = '删除此条目的所有关联文件（raw / distilled / trace / digest / diagnose）';
-  delBtn.addEventListener('click', openDeleteDialog);
-  zone.appendChild(delBtn);
-  body.appendChild(zone);
-}
-
 // ── Edit mode ──────────────────────────────────────────────────────────────
 
 function enterEditMode() {
   const editArea = document.getElementById('md-edit-area');
   const body = document.getElementById('md-body');
-  editArea.value = currentRawText;
+  editArea.value = state.viewer.rawText;
   body.style.display = 'none';
   editArea.style.display = '';
   requestAnimationFrame(() => { editArea.scrollTop = 0; });
@@ -378,13 +261,13 @@ function exitEditMode(rerender = true) {
   document.getElementById('btn-cancel-edit').style.display = 'none';
   document.getElementById('btn-panel-commit').style.display = 'none';
   document.getElementById('md-github-link').style.display = '';
-  if (rerender && currentEntry) {
-    renderDocBody(currentRawText, currentLayer, currentEntry.common_path);
+  if (rerender && state.viewer.entry) {
+    renderDocBody(state.viewer.rawText, state.viewer.layer, state.viewer.entry.common_path);
   }
 }
 
 async function saveDoc() {
-  if (!currentEntry) return;
+  if (!state.viewer.entry) return;
   const editArea = document.getElementById('md-edit-area');
   const newContent = editArea.value;
   const btnSave = document.getElementById('btn-save');
@@ -392,15 +275,15 @@ async function saveDoc() {
   btnSave.textContent = '保存中…';
 
   try {
-    const data = await api.saveFile(currentLayer, currentEntry.common_path, newContent);
+    const data = await api.saveFile(state.viewer.layer, state.viewer.entry.common_path, newContent);
     if (data.error) throw new Error(data.error);
 
-    currentRawText = newContent;
-    const date = currentEntry.created_at.slice(0, 8);
+    state.viewer.rawText = newContent;
+    const date = state.viewer.entry.created_at.slice(0, 8);
     // Update title cache from new content's H1
     const h1Match = newContent.match(/^#\s+(.+)/m);
-    const newTitle = h1Match ? h1Match[1].trim() : slugToTitle(filenameFromPath(currentEntry.common_path));
-    const entryId = getEntryId(currentEntry);
+    const newTitle = h1Match ? h1Match[1].trim() : slugToTitle(filenameFromPath(state.viewer.entry.common_path));
+    const entryId = getEntryId(state.viewer.entry);
     if (!titleCache.has(date)) titleCache.set(date, new Map());
     titleCache.get(date).set(entryId, newTitle);
     const card = entryId ? document.querySelector(`.doc-card[data-id="${entryId}"]`) : null;
@@ -433,8 +316,8 @@ document.getElementById('btn-copy-http').addEventListener('click', () => {
 });
 
 document.getElementById('btn-copy-path').addEventListener('click', () => {
-  const relPath = `${currentLayer}/${currentEntry.common_path}`;
-  const fullPath = archiveRoot ? `${archiveRoot}/${relPath}` : relPath;
+  const relPath = `${state.viewer.layer}/${state.viewer.entry.common_path}`;
+  const fullPath = state.ui.archiveRoot ? `${state.ui.archiveRoot}/${relPath}` : relPath;
   navigator.clipboard.writeText(fullPath).then(() => {
     const btn = document.getElementById('btn-copy-path');
     btn.textContent = '✓';
@@ -503,11 +386,11 @@ function buildCommentItem(c, layer, entry, noteIndex) {
     try {
       const data = await api.updateComments(entry.common_path, layer, { id: c.id, text: '' }, nowTs());
       if (data.ok) {
-        const ld = currentAnnotation[layer] || {};
+        const ld = state.viewer.annotation[layer] || {};
         ld.comments = (ld.comments || []).filter(x => x.id !== c.id);
-        if (!ld.comments.length) delete currentAnnotation[layer];
-        else currentAnnotation[layer] = ld;
-        renderComments(currentAnnotation, layer, entry);
+        if (!ld.comments.length) delete state.viewer.annotation[layer];
+        else state.viewer.annotation[layer] = ld;
+        renderComments(state.viewer.annotation, layer, entry);
       }
     } catch (e) { alert(`删除失败：${e.message}`); }
   });
@@ -528,7 +411,7 @@ function buildCommentItem(c, layer, entry, noteIndex) {
 let _commentEditCtx = null;
 
 function openCommentDialog(editComment, layer, entry, noteIndex) {
-  if (!currentEntry && !entry) return;
+  if (!state.viewer.entry && !entry) return;
   const titleEl = document.getElementById('comment-dialog-title');
   const content = document.getElementById('comment-dialog-content');
   if (editComment) {
@@ -574,22 +457,22 @@ async function saveComment() {
       const data = await api.updateComments(entry.common_path, layer, { id: c.id, text }, ts);
       if (data.ok) {
         c.text = text;
-        const ld = currentAnnotation[layer] || {};
+        const ld = state.viewer.annotation[layer] || {};
         const idx = (ld.comments || []).findIndex(x => x.id === c.id);
         if (idx >= 0) ld.comments[idx].text = text;
         closeCommentDialog();
-        renderComments(currentAnnotation, layer, entry);
+        renderComments(state.viewer.annotation, layer, entry);
       } else { alert(`保存失败：${data.error}`); }
     } else {
       // 新增模式
-      if (!currentEntry) return;
-      const data = await api.updateComments(currentEntry.common_path, currentLayer, { text }, ts);
+      if (!state.viewer.entry) return;
+      const data = await api.updateComments(state.viewer.entry.common_path, state.viewer.layer, { text }, ts);
       if (data.ok) {
-        if (!currentAnnotation[currentLayer]) currentAnnotation[currentLayer] = {};
-        if (!currentAnnotation[currentLayer].comments) currentAnnotation[currentLayer].comments = [];
-        currentAnnotation[currentLayer].comments.push({ id: data.id, text, ts });
+        if (!state.viewer.annotation[state.viewer.layer]) state.viewer.annotation[state.viewer.layer] = {};
+        if (!state.viewer.annotation[state.viewer.layer].comments) state.viewer.annotation[state.viewer.layer].comments = [];
+        state.viewer.annotation[state.viewer.layer].comments.push({ id: data.id, text, ts });
         closeCommentDialog();
-        renderComments(currentAnnotation, currentLayer, currentEntry);
+        renderComments(state.viewer.annotation, state.viewer.layer, state.viewer.entry);
       } else { alert(`添加失败：${data.error}`); }
     }
   } catch (e) { alert(`保存失败：${e.message}`); }
@@ -597,7 +480,7 @@ async function saveComment() {
 }
 
 document.getElementById('btn-add-comment').addEventListener('click', () => {
-  const layerData = (currentAnnotation && currentAnnotation[currentLayer]) || {};
+  const layerData = (state.viewer.annotation && state.viewer.annotation[state.viewer.layer]) || {};
   const nextIdx = (layerData.comments || []).length + 1;
   openCommentDialog(null, null, null, nextIdx);
 });
@@ -838,7 +721,7 @@ function hideCommitBar() {
 }
 
 async function commitCurrentFile() {
-  if (!currentEntry) return;
+  if (!state.viewer.entry) return;
   const msg = document.getElementById('md-commit-msg').value.trim() || 'update: edit via viewer';
   const resultEl = document.getElementById('md-commit-result');
   const btn = document.getElementById('btn-commit-file');
@@ -848,7 +731,7 @@ async function commitCurrentFile() {
   resultEl.textContent = '';
 
   try {
-    const filePath = `${currentLayer}/${currentEntry.common_path}`;
+    const filePath = `${state.viewer.layer}/${state.viewer.entry.common_path}`;
     const data = await api.commitFiles(msg, [filePath]);
     if (data.error) throw new Error(data.error + (data.stderr ? '\n' + data.stderr : ''));
 
@@ -1043,7 +926,7 @@ document.getElementById('btn-delete-confirm-ok').addEventListener('click', async
   okBtn.disabled = true;
   okBtn.textContent = '删除中…';
   try {
-    const entryId = getEntryId(currentEntry);
+    const entryId = getEntryId(state.viewer.entry);
     const data = await api.deleteEntry(entryId);
     if (data.error) throw new Error(data.error);
     closeDeleteDialog();
@@ -1127,7 +1010,7 @@ document.getElementById('move-dst-url').addEventListener('keydown', e => {
 });
 
 // ── Init ───────────────────────────────────────────────────────────────────
-api.fetchConfig().then(d => { archiveRoot = d.archive_root || ''; }).catch(() => {});
+api.fetchConfig().then(d => { state.ui.archiveRoot = d.archive_root || ''; }).catch(() => {});
 loadIndex();
 
 // ── Fast tooltip shim ─────────────────────────────────────────────────────
@@ -1190,7 +1073,6 @@ loadIndex();
 })();
 
 // ── Window bridge（过渡期跨模块调用，随函数迁移逐步移除）──
-window.openDoc          = openDoc           // cards.js 需要；Step 4.1 后由 viewer.js 末尾重新赋值
 window.exitEditMode     = exitEditMode      // viewer.js 需要；Step 4.2 后移除
 window.hideCommitBar    = hideCommitBar     // viewer.js 需要；Step 4.3 后移除
 window.showCommitBar    = showCommitBar     // viewer.js 需要；Step 4.3 后移除
