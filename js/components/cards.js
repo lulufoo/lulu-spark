@@ -1,0 +1,137 @@
+import { state } from '../state.js'
+import { LAYERS } from '../constants.js'
+import { escHtml, slugToTitle, filenameFromPath, topicFromPath, timeFromTs, importanceBadgeHtml } from '../utils.js'
+
+// ── Diff helpers ───────────────────────────────────────────────────────────
+
+export function getEntryDiffState(entry) {
+  let result = null;
+  for (const layer of LAYERS) {
+    if (!entry.layers?.includes(layer)) continue;
+    const s = state.index.diffStatus.get(`${layer}/${entry.common_path}`);
+    if (s === 'conflict') return 'conflict';
+    if (s === 'modified') result = 'modified';
+  }
+  return result;
+}
+
+export function getLayerBadgeClass(layer, entry) {
+  const s = state.index.diffStatus.get(`${layer}/${entry.common_path}`);
+  if (s === 'conflict') return 'badge-conflict';
+  if (s === 'modified') return 'badge-diff';
+  return 'badge-layer';
+}
+
+// ── Badge listeners ────────────────────────────────────────────────────────
+
+export function attachBadgeListeners(card, entry) {
+  card.querySelectorAll('.badge[data-layer]').forEach(btn => {
+    btn.addEventListener('click', () => window.openDoc(entry, btn.dataset.layer));
+  });
+}
+
+// ── buildCard ──────────────────────────────────────────────────────────────
+
+export function buildCard(id, entry, title) {
+  const card = document.createElement('div');
+  card.className = 'doc-card';
+  card.dataset.id = id;
+  entry._id = id;  // attach id for later lookup
+
+  const topic = topicFromPath(entry.common_path);
+  const filename = filenameFromPath(entry.common_path);
+  const displayTitle = title !== undefined ? title : null;
+  const time = timeFromTs(entry.created_at);
+
+  const diffState = getEntryDiffState(entry);
+  const dotHtml = diffState
+    ? ` <span class="diff-dot ${diffState}">${diffState === 'conflict' ? '● conflict' : '● 待提交'}</span>`
+    : '';
+
+  const badgesHtml = LAYERS
+    .filter(layer => entry.layers?.includes(layer))
+    .map(layer => {
+      const cc = entry._comment_counts?.[layer];
+      const ccStr = cc ? `<span class="badge-comment-dot">${cc}</span>` : '';
+      if (entry[`_unreachable_${layer}`]) {
+        return `<span class="badge badge-unreachable" title="文件不可达">${layer}${ccStr}</span>`;
+      }
+      return `<button class="badge ${getLayerBadgeClass(layer, entry)}" data-layer="${layer}">${layer}${ccStr}</button>`;
+    })
+    .join('');
+
+  const linkCount = entry.links && entry.links.length;
+  const linksBadgeHtml = linkCount
+    ? `<span class="badge badge-links" title="${linkCount} 个关联链接">👍 ×${linkCount}</span>`
+    : '';
+
+  const doneBadgeHtml = entry.done
+    ? `<button class="badge badge-done" data-action="toggle-done" title="标记为未处理">✓ 已处理</button>`
+    : `<button class="badge badge-done" data-action="toggle-done" title="标记为已处理">○ 处理</button>`;
+
+  card.innerHTML = `
+    <div class="doc-topic">${topic}</div>
+    <button class="doc-title-btn${displayTitle === null ? ' loading' : ''}">${displayTitle !== null ? escHtml(displayTitle) : ''}</button>
+    <div class="doc-meta">${time}${dotHtml}</div>
+    <div class="badges">${badgesHtml}${linksBadgeHtml}${importanceBadgeHtml(entry.importance)}${doneBadgeHtml}</div>
+  `;
+  if (entry.done) card.classList.add('done');
+  if (entry.importance) card.classList.add(`importance-${entry.importance}`);
+  const firstLayer = LAYERS.find(l => entry.layers?.includes(l)) || 'raw';
+  card.querySelector('.doc-title-btn').addEventListener('click', () => window.openDoc(entry, firstLayer));
+  attachBadgeListeners(card, entry);
+  card.querySelector('[data-action="toggle-done"]').addEventListener('click', () => window.toggleDone(entry, card));
+  card.querySelector('[data-action="cycle-importance"]').addEventListener('click', () => window.cycleImportance(entry, card));
+  return card;
+}
+
+// ── renderDocList ──────────────────────────────────────────────────────────
+
+export function renderDocList(entries, date) {
+  const list = document.getElementById('doc-list');
+  list.innerHTML = '';
+
+  for (const { id, entry } of entries) {
+    const card = buildCard(id, entry, state.index.titleCache.get(date)?.get(id));
+    list.appendChild(card);
+  }
+
+  // Restore scroll position for this date
+  const savedScroll = sessionStorage.getItem('cta_scroll_' + date);
+  if (savedScroll) {
+    requestAnimationFrame(() => { list.scrollTop = parseInt(savedScroll, 10); });
+  }
+}
+
+// ── updateDiffInDOM ────────────────────────────────────────────────────────
+
+export function updateDiffInDOM() {
+  if (!state.ui.activeDate) return;
+  const group = state.index.groupedByDate.find(g => g.date === state.ui.activeDate);
+  if (!group) return;
+  for (const { id, entry } of group.entries) {
+    const card = document.querySelector(`.doc-card[data-id="${id}"]`);
+    if (!card) continue;
+    const metaEl = card.querySelector('.doc-meta');
+    if (metaEl) {
+      const diffState = getEntryDiffState(entry);
+      const dotHtml = diffState
+        ? ` <span class="diff-dot ${diffState}">${diffState === 'conflict' ? '● conflict' : '● 待提交'}</span>`
+        : '';
+      metaEl.innerHTML = timeFromTs(entry.created_at) + dotHtml;
+    }
+    const badgesEl = card.querySelector('.badges');
+    if (badgesEl) {
+      badgesEl.innerHTML = LAYERS
+        .filter(layer => entry.layers?.includes(layer))
+        .map(layer => {
+          if (entry[`_unreachable_${layer}`]) {
+            return `<span class="badge badge-unreachable" title="文件不可达">${layer}</span>`;
+          }
+          return `<button class="badge ${getLayerBadgeClass(layer, entry)}" data-layer="${layer}">${layer}</button>`;
+        })
+        .join('');
+      attachBadgeListeners(card, entry);
+    }
+  }
+}
