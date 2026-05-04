@@ -507,6 +507,17 @@
       "layers": [
         "raw"
       ]
+    },
+    "ba647c2f9503233c8a3662e63603aee5": {
+      "common_path": "ai-authored-learning/product-insights/202605041600-follow-builders-vs-feed-vault-product-design-analysis.md",
+      "created_at": "202605041600",
+      "layers": [
+        "raw",
+        "diagnose",
+        "distilled",
+        "digest",
+        "trace"
+      ]
     }
   }
 }
