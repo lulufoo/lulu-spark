@@ -125,7 +125,7 @@
 </div>
 
 <script type="module">
-import { state } from './js/state.js'
+import { state, getEntryId, loadDiffStatus } from './js/state.js'
 import { escHtml, slugToTitle, filenameFromPath, topicFromPath, formatDate, timeFromTs, nowTs, importanceBadgeHtml } from './js/utils.js'
 import { REPO, LAYERS, IMPORTANCE_CYCLE } from './js/constants.js'
 import * as api from './js/api.js'
@@ -140,16 +140,6 @@ const diffStatus = state.index.diffStatus;
 let archiveRoot = '';              // loaded from /api/config
 
 // ── Diff helpers ───────────────────────────────────────────────────────────────────
-
-async function loadDiffStatus() {
-  try {
-    const data = await api.fetchDiffStatus();
-    if (!data) return;
-    diffStatus.clear();
-    for (const p of (data.modified || [])) diffStatus.set(p, 'modified');
-    for (const p of (data.conflicted || [])) diffStatus.set(p, 'conflict');
-  } catch { /* non-critical, server may not support */ }
-}
 
 
 // ── Fetch index.json ───────────────────────────────────────────────────────
@@ -828,15 +818,6 @@ function updateCardLinksBadge(entry) {
   }
 }
 
-
-function getEntryId(entry) {
-  if (entry._id) return entry._id;
-  // Fallback: search state.index.data by common_path
-  for (const [id, e] of Object.entries(state.index.data || {})) {
-    if (e.common_path === entry.common_path) return id;
-  }
-  return null;
-}
 
 document.getElementById('btn-edit').addEventListener('click', enterEditMode);
 document.getElementById('btn-save').addEventListener('click', saveDoc);
