@@ -86,7 +86,7 @@ export function buildCard(id, entry, title) {
   return card;
 }
 
-// ── cycleImportance ─────────────────────────────────────────────────────
+// ── updateDiffInDOM ──────────────────────────────────────────────────────────
 
 export async function cycleImportance(entry, card) {
   const cur = entry.importance;
@@ -145,7 +145,85 @@ export function renderDocList(entries, date) {
   }
 }
 
-// ── updateDiffInDOM ────────────────────────────────────────────────────────
+// ── loadTitles ────────────────────────────────────────────────────────
+
+export async function loadTitles(entries, date) {
+  if (state.index.titleCache.has(date)) {
+    updateTitlesInDOM(date);
+    return;
+  }
+
+  state.index.titleCache.set(date, new Map());
+
+  await Promise.all(entries.map(async ({ id, entry }) => {
+    if (!entry.layers?.includes('raw')) {
+      const title = slugToTitle(filenameFromPath(entry.common_path));
+      state.index.titleCache.get(date).set(id, title);
+      return;
+    }
+
+    try {
+      const text = await api.fetchFileContent('raw', entry.common_path);
+      const h1Match = text.match(/^#\s+(.+)/m);
+      const title = h1Match ? h1Match[1].trim() : slugToTitle(filenameFromPath(entry.common_path));
+      state.index.titleCache.get(date).set(id, title);
+    } catch {
+      entry._unreachable_raw = true;
+      state.index.titleCache.get(date).set(id, slugToTitle(filenameFromPath(entry.common_path)));
+    }
+  }));
+
+  if (state.ui.activeDate === date) updateTitlesInDOM(date);
+}
+
+// ── updateTitlesInDOM ─────────────────────────────────────────────────
+
+export function updateTitlesInDOM(date) {
+  const cache = state.index.titleCache.get(date);
+  if (!cache) return;
+  const group = state.index.groupedByDate.find(g => g.date === date);
+  if (!group) return;
+
+  for (const { id, entry } of group.entries) {
+    const card = document.querySelector(`.doc-card[data-id="${id}"]`);
+    if (!card) continue;
+
+    const titleEl = card.querySelector('.doc-title-btn');
+    if (titleEl) {
+      titleEl.classList.remove('loading');
+      titleEl.textContent = cache.get(id) || slugToTitle(filenameFromPath(entry.common_path));
+    }
+
+    const badgesEl = card.querySelector('.badges');
+    if (badgesEl) {
+      const layerHtml = LAYERS
+        .filter(layer => entry.layers?.includes(layer))
+        .map(layer => {
+          const cc = entry._comment_counts?.[layer];
+          const ccStr = cc ? `<span class="badge-comment-dot">${cc}</span>` : '';
+          if (entry[`_unreachable_${layer}`]) {
+            return `<span class="badge badge-unreachable" title="文件不可达">${layer}${ccStr}</span>`;
+          }
+          return `<button class="badge ${getLayerBadgeClass(layer, entry)}" data-layer="${layer}">${layer}${ccStr}</button>`;
+        })
+        .join('');
+      const linkCount = entry.links && entry.links.length;
+      const linksBadgeHtml = linkCount
+        ? `<span class="badge badge-links" title="${linkCount} 个关联链接">👍 ×${linkCount}</span>`
+        : '';
+      const doneBadgeHtml = entry.done
+        ? `<button class="badge badge-done" data-action="toggle-done" title="标记为未处理">✓ 已处理</button>`
+        : `<button class="badge badge-done" data-action="toggle-done" title="标记为已处理">○ 处理</button>`;
+      badgesEl.innerHTML = layerHtml + linksBadgeHtml + importanceBadgeHtml(entry.importance) + doneBadgeHtml;
+      attachBadgeListeners(card, entry);
+      card.classList.toggle('done', !!entry.done);
+      card.classList.remove('importance-high', 'importance-medium', 'importance-low');
+      if (entry.importance) card.classList.add(`importance-${entry.importance}`);
+      card.querySelector('[data-action="toggle-done"]').addEventListener('click', () => toggleDone(entry, card));
+      card.querySelector('[data-action="cycle-importance"]').addEventListener('click', () => cycleImportance(entry, card));
+    }
+  }
+}
 
 export function updateDiffInDOM() {
   if (!state.ui.activeDate) return;

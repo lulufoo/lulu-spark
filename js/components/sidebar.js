@@ -1,6 +1,6 @@
 import { state } from '../state.js'
 import { formatDate } from '../utils.js'
-import { renderDocList } from './cards.js'
+import { renderDocList, loadTitles } from './cards.js'
 
 // ── buildGroups ────────────────────────────────────────────────────────────
 
@@ -60,5 +60,5 @@ export function selectDate(date) {
   heading.textContent = d.full + `  ·  ${group.entries.length} 篇`;
 
   renderDocList(group.entries, date);
-  window.loadTitles(group.entries, date);
+  loadTitles(group.entries, date);
 }

@@ -130,7 +130,7 @@ import { escHtml, slugToTitle, filenameFromPath, topicFromPath, formatDate, time
 import { REPO, LAYERS, IMPORTANCE_CYCLE } from './js/constants.js'
 import * as api from './js/api.js'
 import { buildGroups, renderSidebar, selectDate } from './js/components/sidebar.js'
-import { getEntryDiffState, getLayerBadgeClass, attachBadgeListeners, buildCard, renderDocList, updateDiffInDOM, cycleImportance, toggleDone } from './js/components/cards.js'
+import { getEntryDiffState, getLayerBadgeClass, attachBadgeListeners, buildCard, renderDocList, updateDiffInDOM, cycleImportance, toggleDone, loadTitles, updateTitlesInDOM } from './js/components/cards.js'
 // Cache: date string -> Map<id, title>  (alias to state.index.titleCache)
 const titleCache = state.index.titleCache;
 
@@ -212,88 +212,6 @@ async function loadAnnotationsSummary() {
 
 // ── Select date ────────────────────────────────────────────────────────────
 
-
-// ── Title loading ──────────────────────────────────────────────────────────
-
-async function loadTitles(entries, date) {
-  if (titleCache.has(date)) {
-    updateTitlesInDOM(date);
-    return;
-  }
-
-  titleCache.set(date, new Map());
-
-  await Promise.all(entries.map(async ({ id, entry }) => {
-    if (!entry.layers?.includes('raw')) {
-      // No raw file: fallback to slug
-      const title = slugToTitle(filenameFromPath(entry.common_path));
-      titleCache.get(date).set(id, title);
-      return;
-    }
-
-    try {
-      const text = await api.fetchFileContent('raw', entry.common_path);
-      const h1Match = text.match(/^#\s+(.+)/m);
-      const title = h1Match ? h1Match[1].trim() : slugToTitle(filenameFromPath(entry.common_path));
-      titleCache.get(date).set(id, title);
-    } catch {
-      // Mark raw as unreachable in a non-destructive way
-      entry._unreachable_raw = true;
-      titleCache.get(date).set(id, slugToTitle(filenameFromPath(entry.common_path)));
-    }
-  }));
-
-  // Only update DOM if this date is still active
-  if (state.ui.activeDate === date) updateTitlesInDOM(date);
-}
-
-function updateTitlesInDOM(date) {
-  const cache = titleCache.get(date);
-  if (!cache) return;
-  const group = groupedByDate.find(g => g.date === date);
-  if (!group) return;
-
-  for (const { id, entry } of group.entries) {
-    const card = document.querySelector(`.doc-card[data-id="${id}"]`);
-    if (!card) continue;
-
-    const titleEl = card.querySelector('.doc-title-btn');
-    if (titleEl) {
-      titleEl.classList.remove('loading');
-      titleEl.textContent = cache.get(id) || slugToTitle(filenameFromPath(entry.common_path));
-    }
-
-    // Re-render badges if unreachable state changed
-    const badgesEl = card.querySelector('.badges');
-    if (badgesEl) {
-      const layerHtml = LAYERS
-        .filter(layer => entry.layers?.includes(layer))
-        .map(layer => {
-          const cc = entry._comment_counts?.[layer];
-          const ccStr = cc ? `<span class="badge-comment-dot">${cc}</span>` : '';
-          if (entry[`_unreachable_${layer}`]) {
-            return `<span class="badge badge-unreachable" title="文件不可达">${layer}${ccStr}</span>`;
-          }
-          return `<button class="badge ${getLayerBadgeClass(layer, entry)}" data-layer="${layer}">${layer}${ccStr}</button>`;
-        })
-        .join('');
-      const linkCount = entry.links && entry.links.length;
-      const linksBadgeHtml = linkCount
-        ? `<span class="badge badge-links" title="${linkCount} 个关联链接">👍 ×${linkCount}</span>`
-        : '';
-      const doneBadgeHtml = entry.done
-        ? `<button class="badge badge-done" data-action="toggle-done" title="标记为未处理">✓ 已处理</button>`
-        : `<button class="badge badge-done" data-action="toggle-done" title="标记为已处理">○ 处理</button>`;
-      badgesEl.innerHTML = layerHtml + linksBadgeHtml + importanceBadgeHtml(entry.importance) + doneBadgeHtml;
-      attachBadgeListeners(card, entry);
-      card.classList.toggle('done', !!entry.done);
-      card.classList.remove('importance-high', 'importance-medium', 'importance-low');
-      if (entry.importance) card.classList.add(`importance-${entry.importance}`);
-      card.querySelector('[data-action="toggle-done"]').addEventListener('click', () => toggleDone(entry, card));
-      card.querySelector('[data-action="cycle-importance"]').addEventListener('click', () => cycleImportance(entry, card));
-    }
-  }
-}
 
 // ── Error display ──────────────────────────────────────────────────────────
 
@@ -1301,7 +1219,6 @@ loadIndex();
 
 // ── Window bridge（过渡期跨模块调用，随函数迁移逐步移除）──
 window.openDoc          = openDoc           // cards.js 需要；Step 4.1 后由 viewer.js 末尾重新赋值
-window.loadTitles       = loadTitles        // sidebar.js/selectDate 需要；Step 3.8 后移除
 window.exitEditMode     = exitEditMode      // viewer.js 需要；Step 4.2 后移除
 window.hideCommitBar    = hideCommitBar     // viewer.js 需要；Step 4.3 后移除
 window.showCommitBar    = showCommitBar     // viewer.js 需要；Step 4.3 后移除
