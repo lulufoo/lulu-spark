@@ -137,9 +137,7 @@ const titleCache = state.index.titleCache;
 // Diff status: filepath → 'modified' | 'conflict'  (alias to state.index.diffStatus)
 const diffStatus = state.index.diffStatus;
 
-let indexData = null;    // full entries object
-let groupedByDate = [];  // [{date, entries:[{id, entry}]}] sorted desc
-let archiveRoot = '';    // loaded from /api/config
+let archiveRoot = '';              // loaded from /api/config
 
 // ── Diff helpers ───────────────────────────────────────────────────────────────────
 
@@ -165,14 +163,12 @@ async function loadIndex() {
     const data = await api.fetchIndex();
     state.index.data = data.entries || data;  // support both {entries:{}} and flat {}
     state.index.groupedByDate = buildGroups(state.index.data);
-    indexData = state.index.data;
-    groupedByDate = state.index.groupedByDate;
     renderSidebar();
     await Promise.all([loadDiffStatus(), loadAnnotationsSummary()]);
     const savedDate = sessionStorage.getItem('cta_active_date');
-    const targetDate = (savedDate && groupedByDate.find(g => g.date === savedDate))
+    const targetDate = (savedDate && state.index.groupedByDate.find(g => g.date === savedDate))
       ? savedDate
-      : (groupedByDate.length > 0 ? groupedByDate[0].date : null);
+      : (state.index.groupedByDate.length > 0 ? state.index.groupedByDate[0].date : null);
     if (targetDate) selectDate(targetDate);
   } catch (e) {
     showError(`无法加载 index.json：${e.message}`);
@@ -188,7 +184,7 @@ async function loadAnnotationsSummary() {
     if (!summary) return;
     annotationsSummary = summary;
     // Merge summary into entry objects so buildCard can read done/links as before
-    for (const entry of Object.values(indexData)) {
+    for (const entry of Object.values(state.index.data)) {
       const ann = annotationsSummary[entry.common_path];
       if (ann) {
         entry.done = ann.done || undefined;
@@ -206,11 +202,6 @@ async function loadAnnotationsSummary() {
     // Non-fatal: annotations are optional
   }
 }
-
-
-// ── Sidebar ────────────────────────────────────────────────────────────────
-
-// ── Select date ────────────────────────────────────────────────────────────
 
 
 // ── Error display ──────────────────────────────────────────────────────────
@@ -236,8 +227,8 @@ function showError(msg) {
 document.getElementById('btn-refresh').addEventListener('click', () => {
   titleCache.clear();
   // Reset unreachable flags
-  if (indexData) {
-    for (const entry of Object.values(indexData)) {
+  if (state.index.data) {
+    for (const entry of Object.values(state.index.data)) {
       LAYERS.forEach(l => delete entry[`_unreachable_${l}`]);
     }
   }
@@ -840,8 +831,8 @@ function updateCardLinksBadge(entry) {
 
 function getEntryId(entry) {
   if (entry._id) return entry._id;
-  // Fallback: search indexData by common_path
-  for (const [id, e] of Object.entries(indexData)) {
+  // Fallback: search state.index.data by common_path
+  for (const [id, e] of Object.entries(state.index.data || {})) {
     if (e.common_path === entry.common_path) return id;
   }
   return null;
@@ -926,8 +917,8 @@ async function pullProject() {
     if (data.error) throw new Error((data.error || '') + (data.stderr ? '\n' + data.stderr : ''));
 
     titleCache.clear();
-    if (indexData) {
-      for (const entry of Object.values(indexData)) {
+    if (state.index.data) {
+      for (const entry of Object.values(state.index.data)) {
         LAYERS.forEach(l => delete entry[`_unreachable_${l}`]);
       }
     }
