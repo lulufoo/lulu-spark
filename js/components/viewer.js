@@ -64,32 +64,56 @@ export function renderDocBody(text, layer, commonPath) {
   body.appendChild(zone);
 }
 
+// ── Language helpers ───────────────────────────────────────────────────────
+
+function getActivePath(entry, lang) {
+  if (lang === 'zh' && entry.translations?.zh) return entry.translations.zh;
+  return entry.common_path;
+}
+
+function updateLangBar(entry) {
+  const bar = document.getElementById('md-lang-bar');
+  const hasZh = !!entry.translations?.zh;
+  bar.style.display = hasZh ? 'flex' : 'none';
+  if (hasZh) {
+    document.getElementById('btn-lang-en').classList.toggle('active', state.viewer.lang !== 'zh');
+    document.getElementById('btn-lang-zh').classList.toggle('active', state.viewer.lang === 'zh');
+  }
+}
+
+function updateHeaderUrls(entry, layer, activePath) {
+  const githubUrl = `${REPO}/${layer}/${activePath}`;
+  document.getElementById('md-github-link').href = githubUrl;
+  document.getElementById('btn-copy-http').dataset.url = githubUrl;
+  document.getElementById('btn-copy-http').dataset.tip = githubUrl;
+  const relPath = `${layer}/${activePath}`;
+  const fullPath = state.ui.archiveRoot ? `${state.ui.archiveRoot}/${relPath}` : relPath;
+  document.getElementById('btn-copy-path').dataset.tip = fullPath;
+}
+
 // ── openDoc ────────────────────────────────────────────────────────────────
 
 export async function openDoc(entry, layer = 'raw') {
   state.viewer.entry = entry;
   state.viewer.layer = layer;
   state.viewer.annotation = {};
+  state.viewer.lang = entry.translations?.zh ? 'zh' : null;
   exitEditMode(false);
   hideCommitBar();
 
   const modal = document.getElementById('md-modal');
   const body = document.getElementById('md-body');
   document.getElementById('md-panel-title').textContent = filenameFromPath(entry.common_path).replace(/\.md$/, '');
-  const githubUrl = `${REPO}/${layer}/${entry.common_path}`;
-  document.getElementById('md-github-link').href = githubUrl;
-  document.getElementById('btn-copy-http').dataset.url = githubUrl;
-  document.getElementById('btn-copy-http').dataset.tip = githubUrl;
-  const relPath = `${layer}/${entry.common_path}`;
-  const fullPath = state.ui.archiveRoot ? `${state.ui.archiveRoot}/${relPath}` : relPath;
-  document.getElementById('btn-copy-path').dataset.tip = fullPath;
+  const activePath = getActivePath(entry, state.viewer.lang);
+  updateHeaderUrls(entry, layer, activePath);
+  updateLangBar(entry);
   document.getElementById('md-file-size').textContent = '';
   body.innerHTML = '<div style="color:#8c959f;padding:20px;font-size:13px;">加载中…</div>';
   modal.style.display = 'flex';
   document.body.style.overflow = 'hidden';
 
   const [mdResult, annResult] = await Promise.allSettled([
-    api.fetchFileContent(layer, entry.common_path),
+    api.fetchFileContent(layer, activePath),
     api.fetchAnnotation(entry.common_path).catch(() => ({}))
   ]);
 
@@ -109,13 +133,42 @@ export async function openDoc(entry, layer = 'raw') {
     : bytes < 1024 * 1024
       ? `${(bytes / 1024).toFixed(1)} KB`
       : `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-  renderDocBody(text, layer, entry.common_path);
+  renderDocBody(text, layer, activePath);
   const hasDiff = state.index.diffStatus.get(`${layer}/${entry.common_path}`);
   document.getElementById('btn-panel-commit').style.display = hasDiff ? '' : 'none';
 }
 
 // viewer.js exposes openDoc on window so cards.js (window.openDoc) can reach it
 window.openDoc = openDoc;
+
+// ── switchLang ─────────────────────────────────────────────────────────────
+
+export async function switchLang(lang) {
+  if (!state.viewer.entry) return;
+  const entry = state.viewer.entry;
+  const layer = state.viewer.layer;
+  state.viewer.lang = lang;
+  const activePath = getActivePath(entry, lang);
+  updateHeaderUrls(entry, layer, activePath);
+  updateLangBar(entry);
+
+  const body = document.getElementById('md-body');
+  body.innerHTML = '<div style="color:#8c959f;padding:20px;font-size:13px;">加载中…</div>';
+
+  try {
+    const text = await api.fetchFileContent(layer, activePath);
+    state.viewer.rawText = text;
+    const bytes = new Blob([text]).size;
+    document.getElementById('md-file-size').textContent = bytes < 1024
+      ? `${bytes} B`
+      : bytes < 1024 * 1024
+        ? `${(bytes / 1024).toFixed(1)} KB`
+        : `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+    renderDocBody(text, layer, activePath);
+  } catch (e) {
+    body.innerHTML = `<div style="color:#7d4e00;padding:20px">无法加载文件：${escHtml(e.message)}</div>`;
+  }
+}
 
 // ── Edit mode ──────────────────────────────────────────────────────────────
 
@@ -148,7 +201,8 @@ export function exitEditMode(rerender = true) {
   document.getElementById('btn-panel-commit').style.display = 'none';
   document.getElementById('md-github-link').style.display = '';
   if (rerender && state.viewer.entry) {
-    renderDocBody(state.viewer.rawText, state.viewer.layer, state.viewer.entry.common_path);
+    const activePath = getActivePath(state.viewer.entry, state.viewer.lang);
+    renderDocBody(state.viewer.rawText, state.viewer.layer, activePath);
   }
 }
 
@@ -161,7 +215,8 @@ export async function saveDoc() {
   btnSave.textContent = '保存中…';
 
   try {
-    const data = await api.saveFile(state.viewer.layer, state.viewer.entry.common_path, newContent);
+    const activePath = getActivePath(state.viewer.entry, state.viewer.lang);
+    const data = await api.saveFile(state.viewer.layer, activePath, newContent);
     if (data.error) throw new Error(data.error);
 
     state.viewer.rawText = newContent;
@@ -218,7 +273,8 @@ export async function commitCurrentFile() {
   resultEl.textContent = '';
 
   try {
-    const filePath = `${state.viewer.layer}/${state.viewer.entry.common_path}`;
+    const activePath = getActivePath(state.viewer.entry, state.viewer.lang);
+    const filePath = `${state.viewer.layer}/${activePath}`;
     const data = await api.commitFiles(msg, [filePath]);
     if (data.error) throw new Error(data.error + (data.stderr ? '\n' + data.stderr : ''));
 
@@ -263,7 +319,8 @@ document.getElementById('btn-copy-http').addEventListener('click', () => {
 });
 
 document.getElementById('btn-copy-path').addEventListener('click', () => {
-  const relPath = `${state.viewer.layer}/${state.viewer.entry.common_path}`;
+  const activePath = getActivePath(state.viewer.entry, state.viewer.lang);
+  const relPath = `${state.viewer.layer}/${activePath}`;
   const fullPath = state.ui.archiveRoot ? `${state.ui.archiveRoot}/${relPath}` : relPath;
   navigator.clipboard.writeText(fullPath).then(() => {
     const btn = document.getElementById('btn-copy-path');
@@ -271,4 +328,7 @@ document.getElementById('btn-copy-path').addEventListener('click', () => {
     setTimeout(() => { btn.textContent = '📂'; }, 1200);
   });
 });
+
+document.getElementById('btn-lang-en').addEventListener('click', () => switchLang('en'));
+document.getElementById('btn-lang-zh').addEventListener('click', () => switchLang('zh'));
 

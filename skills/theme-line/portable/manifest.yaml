@@ -1,0 +1,79 @@
+skill:
+  name: "ThemeLine"
+  slug: "theme-line"
+  version: "0.1.0"
+  summary: "Restructure a transcript or transcript-like source into a theme-first timeline document with speaker-separated dialogue blocks."
+  category: "content-structuring"
+  license: "UNSPECIFIED"
+
+compatibility:
+  codex:
+    entrypoint: "SKILL.md"
+    ui_config: "agents/openai.yaml"
+  generic_agents:
+    primary_spec: "SKILL.md"
+
+activation:
+  intents:
+    - "organize transcript by theme"
+    - "restructure video transcript"
+    - "convert interview to speaker blocks"
+    - "weaken time, emphasize topic"
+    - "use original video title automatically"
+  source_types:
+    - "youtube_url"
+    - "podcast_url"
+    - "video_url"
+    - "raw_transcript"
+    - "transcript_excerpt"
+
+defaults:
+  title_strategy: "prefer_source_title"
+  section_order: "chronological"
+  section_style: "theme_first"
+  time_display: "secondary_line"
+  speaker_strategy: "explicit_if_available_else_conservative_inference"
+  fidelity: "dialogue_style_paraphrase"
+  output_language: "follow_user"
+
+inputs:
+  required_any_of:
+    - "source_url"
+    - "transcript_text"
+  optional:
+    - "preferred_title"
+    - "host_name"
+    - "guest_names"
+    - "target_language"
+    - "fidelity_mode"
+    - "timecode_preference"
+    - "section_density"
+
+outputs:
+  required_blocks:
+    - "document_title"
+    - "source_line"
+    - "theme_sections"
+  section_shape:
+    - "theme_heading"
+    - "time_line"
+    - "speaker_turns"
+  speaker_turn_shape:
+    - "speaker_label"
+    - "content"
+    - "uncertainty_marker_when_needed"
+
+guardrails:
+  - "Use the original source title when it can be verified."
+  - "Keep timestamps as supporting metadata, not the main section label, unless the user asks otherwise."
+  - "Use speaker labels consistently across the entire output."
+  - "Remove obvious ASR duplication and silently fix trivial recognition errors."
+  - "If the source is copyrighted and the user did not provide the full transcript, do not output a full or near-complete verbatim transcript."
+  - "When exact wording is restricted, provide a faithful dialogue-style paraphrase instead."
+
+publishing:
+  stable_files:
+    - "SKILL.md"
+    - "agents/openai.yaml"
+    - "portable/manifest.yaml"
+    - "references/output-templates.md"

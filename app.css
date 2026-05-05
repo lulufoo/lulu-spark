@@ -364,6 +364,7 @@
   }
   .md-header-btn.primary:hover { background: #388bfd; }
   .md-header-btn:disabled { opacity: .5; cursor: default; }
+  .md-header-btn.active { background: #dbeafe; color: #0550ae; border-color: #96c6f8; }
   /* edit textarea */
   #md-edit-area {
     flex: 1;

@@ -526,6 +526,16 @@
         "raw"
       ],
       "topic": "ai-software-dev/agentic-coding"
+    },
+    "d61cd0ccf3cbd04e4954a2753034463e": {
+      "common_path": "ai-software-dev/agentic-coding/202605052010-karpathy-vibe-coding-to-agentic-engineering.md",
+      "created_at": "202605052010",
+      "layers": [
+        "raw"
+      ],
+      "translations": {
+        "zh": "ai-software-dev/agentic-coding/202605052010-karpathy-vibe-coding-to-agentic-engineering-zh.md"
+      }
     }
   }
 }

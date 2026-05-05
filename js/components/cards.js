@@ -163,7 +163,8 @@ export async function loadTitles(entries, date) {
     }
 
     try {
-      const text = await api.fetchFileContent('raw', entry.common_path);
+      const titlePath = entry.translations?.zh || entry.common_path;
+      const text = await api.fetchFileContent('raw', titlePath);
       const h1Match = text.match(/^#\s+(.+)/m);
       const title = h1Match ? h1Match[1].trim() : slugToTitle(filenameFromPath(entry.common_path));
       state.index.titleCache.get(date).set(id, title);

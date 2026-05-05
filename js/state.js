@@ -16,6 +16,7 @@ export const state = {
   viewer: {
     entry: null,
     layer: 'raw',
+    lang: null,
     rawText: '',
     annotation: {},
     commentEditCtx: null

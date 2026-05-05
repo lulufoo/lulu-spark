@@ -1,0 +1,8 @@
+interface:
+  display_name: "ThemeLine"
+  short_description: "Turn transcripts into theme-first dialogue notes"
+  brand_color: "#2563EB"
+  default_prompt: "Use $theme-line to turn this video transcript into a theme-first outline with speaker-separated dialogue blocks."
+
+policy:
+  allow_implicit_invocation: true
