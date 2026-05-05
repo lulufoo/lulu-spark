@@ -429,6 +429,46 @@
   #md-body p { margin: .5em 0; }
   #md-body ul,#md-body ol { margin: .4em 0 .4em 1.5em; }
   #md-body li { margin: .2em 0; }
+
+  /* ── Highlights ── */
+  mark.doc-highlight {
+    background: #fff3b0;
+    border-radius: 2px;
+    padding: 0 1px;
+    position: relative;
+    display: inline;
+  }
+  mark.doc-highlight:hover .highlight-del-btn { opacity: 1; }
+  .highlight-del-btn {
+    opacity: 0;
+    transition: opacity .15s;
+    position: absolute;
+    top: -8px;
+    right: -6px;
+    width: 14px;
+    height: 14px;
+    font-size: 10px;
+    line-height: 12px;
+    padding: 0;
+    border: 1px solid #ccc;
+    border-radius: 50%;
+    background: #fff;
+    color: #666;
+    cursor: pointer;
+    font-family: monospace;
+  }
+  .highlight-del-btn:hover { background: #ffeaea; color: #cf222e; border-color: #cf222e; }
+  #highlight-add-btn {
+    padding: 4px 10px;
+    font-size: 12px;
+    background: #fff3b0;
+    border: 1px solid #d4a017;
+    border-radius: 4px;
+    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(0,0,0,.18);
+    white-space: nowrap;
+  }
+  #highlight-add-btn:hover { background: #ffe066; }
   #md-body code {
     background: #f6f8fa; border: 1px solid #d0d7de;
     border-radius: 4px; padding: 1px 5px;

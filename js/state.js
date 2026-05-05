@@ -19,7 +19,8 @@ export const state = {
     lang: null,
     rawText: '',
     annotation: {},
-    commentEditCtx: null
+    commentEditCtx: null,
+    scrollCache: {}  // key: "entryId:layer" → scrollTop
   }
 }
 

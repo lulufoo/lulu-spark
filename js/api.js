@@ -121,3 +121,12 @@ export async function ghMove(srcUrl, dstDirUrl) {
   });
   return res.json();
 }
+
+export async function updateHighlight(commonPath, layer, highlight, ts) {
+  const res = await fetch('/api/update-highlights', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ common_path: commonPath, layer, highlight, ts })
+  });
+  return res.json();
+}

@@ -6,6 +6,7 @@ import { updateTitlesInDOM, updateDiffInDOM } from './cards.js'
 import { renderLinksBar } from './links-bar.js'
 import { renderComments } from './comments.js'
 import { openDeleteDialog } from './modals/delete-dialog.js'
+import { applyHighlights, initHighlightUI } from './highlights.js'
 
 // ── resolveRelativeLink ────────────────────────────────────────────────────
 
@@ -134,6 +135,7 @@ export async function openDoc(entry, layer = 'raw') {
       ? `${(bytes / 1024).toFixed(1)} KB`
       : `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   renderDocBody(text, layer, activePath);
+  applyHighlights(state.viewer.annotation, layer);
   const hasDiff = state.index.diffStatus.get(`${layer}/${entry.common_path}`);
   document.getElementById('btn-panel-commit').style.display = hasDiff ? '' : 'none';
 }
@@ -147,12 +149,17 @@ export async function switchLang(lang) {
   if (!state.viewer.entry) return;
   const entry = state.viewer.entry;
   const layer = state.viewer.layer;
+
+  // save current scroll position
+  const body = document.getElementById('md-body');
+  const cacheKey = `${getEntryId(entry)}:${layer}`;
+  state.viewer.scrollCache[cacheKey] = body.scrollTop;
+
   state.viewer.lang = lang;
   const activePath = getActivePath(entry, lang);
   updateHeaderUrls(entry, layer, activePath);
   updateLangBar(entry);
 
-  const body = document.getElementById('md-body');
   body.innerHTML = '<div style="color:#8c959f;padding:20px;font-size:13px;">加载中…</div>';
 
   try {
@@ -165,6 +172,11 @@ export async function switchLang(lang) {
         ? `${(bytes / 1024).toFixed(1)} KB`
         : `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
     renderDocBody(text, layer, activePath);
+    applyHighlights(state.viewer.annotation, layer);
+    // restore scroll position
+    const cacheKey = `${getEntryId(entry)}:${layer}`;
+    const saved = state.viewer.scrollCache[cacheKey];
+    if (saved != null) requestAnimationFrame(() => { body.scrollTop = saved; });
   } catch (e) {
     body.innerHTML = `<div style="color:#7d4e00;padding:20px">无法加载文件：${escHtml(e.message)}</div>`;
   }
@@ -331,4 +343,6 @@ document.getElementById('btn-copy-path').addEventListener('click', () => {
 
 document.getElementById('btn-lang-en').addEventListener('click', () => switchLang('en'));
 document.getElementById('btn-lang-zh').addEventListener('click', () => switchLang('zh'));
+
+initHighlightUI();
 

@@ -41,6 +41,8 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             self._handle_update_links()
         elif self.path == '/api/update-comments':
             self._handle_update_comments()
+        elif self.path == '/api/update-highlights':
+            self._handle_update_highlights()
         elif self.path == '/api/delete':
             self._handle_delete()
         elif self.path == '/api/gh-move':
@@ -571,6 +573,57 @@ class Handler(http.server.SimpleHTTPRequestHandler):
 
             print(f'  [update-comments] {common_path} [{layer}] id={cid or "deleted"}')
             self._json_response({'ok': True, 'id': cid})
+
+        except json.JSONDecodeError:
+            self._json_response({'error': 'Invalid JSON body'}, 400)
+        except Exception as e:
+            self._json_response({'error': str(e)}, 500)
+
+    # ── API: update highlights in annotation file ──────────────────────────────
+
+    def _handle_update_highlights(self):
+        try:
+            data = self._read_json()
+            common_path = data.get('common_path', '').strip()
+            layer = data.get('layer', '').strip()
+            highlight = data.get('highlight', {})
+
+            if not common_path or '..' in common_path:
+                self._json_response({'error': 'Invalid common_path'}, 400)
+                return
+            if layer not in ('raw', 'distilled', 'digest', 'trace', 'diagnose'):
+                self._json_response({'error': f'Invalid layer: {layer}'}, 400)
+                return
+
+            hid  = str(highlight.get('id') or '').strip()
+            text = str(highlight.get('text') or '').strip()
+            ts   = str(data.get('ts') or '').strip()
+
+            ann = self._read_annotation(common_path)
+            layer_data = ann.setdefault(layer, {})
+            highlights = layer_data.setdefault('highlights', [])
+
+            if hid:
+                # Delete existing highlight
+                layer_data['highlights'] = [h for h in highlights if h.get('id') != hid]
+                if not layer_data['highlights']:
+                    del layer_data['highlights']
+                hid = ''
+            else:
+                # New highlight
+                if not text:
+                    self._json_response({'error': 'text required for new highlight'}, 400)
+                    return
+                hid = uuid.uuid4().hex[:12]
+                highlights.append({'id': hid, 'text': text, 'ts': ts})
+
+            # Clean up empty structures
+            if not layer_data.get('highlights') and not layer_data.get('comments'):
+                ann.pop(layer, None)
+            self._write_annotation(common_path, ann)
+
+            print(f'  [update-highlights] {common_path} [{layer}] id={hid or "deleted"}')
+            self._json_response({'ok': True, 'id': hid})
 
         except json.JSONDecodeError:
             self._json_response({'error': 'Invalid JSON body'}, 400)
