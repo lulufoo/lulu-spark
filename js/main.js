@@ -8,6 +8,7 @@ import './components/comments.js'
 import './components/modals/delete-dialog.js'
 import './components/modals/commit-dialog.js'
 import './components/modals/move-dialog.js'
+import { renderFeed } from './feed.js'
 
 const titleCache = state.index.titleCache;
 
@@ -197,6 +198,50 @@ document.getElementById('btn-pull').addEventListener('click', pullProject);
 // ── cta:reload ─────────────────────────────────────────────────────────────
 
 document.addEventListener('cta:reload', () => loadIndex());
+
+// ── Feed Tab ───────────────────────────────────────────────────────────────
+
+const ARCHIVE_ELS = ['status', 'date-heading', 'doc-list'].map(id => document.getElementById(id));
+const feedView = document.getElementById('feed-view');
+let feedLoaded = false;
+
+function showFeedView() {
+  ARCHIVE_ELS.forEach(el => { if (el) el.style.display = 'none'; });
+  feedView.style.display = '';
+  document.getElementById('btn-feed').classList.add('active');
+  if (!feedLoaded) {
+    feedLoaded = true;
+    renderFeed(feedView);
+  }
+}
+
+function showArchiveView() {
+  feedView.style.display = 'none';
+  document.getElementById('btn-feed').classList.remove('active');
+  // Restore archive elements to their natural display state
+  const status = document.getElementById('status');
+  const dateHeading = document.getElementById('date-heading');
+  const docList = document.getElementById('doc-list');
+  // Only restore status if we are not in a state where date-heading/doc-list are showing
+  if (state.ui.activeDate) {
+    if (status) status.style.display = 'none';
+    if (dateHeading) dateHeading.style.display = '';
+    if (docList) docList.style.display = '';
+  } else {
+    if (status) status.style.display = '';
+    if (dateHeading) dateHeading.style.display = 'none';
+    if (docList) docList.style.display = '';
+  }
+}
+
+document.getElementById('btn-feed').addEventListener('click', () => {
+  const isFeedActive = feedView.style.display !== 'none';
+  if (isFeedActive) {
+    showArchiveView();
+  } else {
+    showFeedView();
+  }
+});
 
 // ── Init ───────────────────────────────────────────────────────────────────
 
