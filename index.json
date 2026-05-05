@@ -518,6 +518,14 @@
         "digest",
         "trace"
       ]
+    },
+    "7b6e628155b776d44227c557d8f2d1e2": {
+      "common_path": "ai-software-dev/agentic-coding/202605050836-index-html-es-module-refactor-plan-and-execution.md",
+      "created_at": "202605050836",
+      "layers": [
+        "raw"
+      ],
+      "topic": "ai-software-dev/agentic-coding"
     }
   }
 }
