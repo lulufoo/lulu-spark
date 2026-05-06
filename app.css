@@ -190,6 +190,11 @@
     padding: 1px 6px;
     line-height: 1;
   }
+  .badge-move-project .move-icon {
+    display: inline-block;
+    line-height: 1;
+    transform: translateY(0.5px);
+  }
   .badge-move-project:hover { background: #ddf4ff; color: #0969da; border-color: #96c6f8; opacity: 1; }
 
   /* Importance left strip */

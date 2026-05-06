@@ -283,7 +283,8 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             script = REPO_ROOT / 'update_topics_from_github.py'
             result = subprocess.run(
                 [sys.executable, str(script)],
-                cwd=REPO_ROOT, capture_output=True, text=True
+                cwd=REPO_ROOT, capture_output=True, text=True,
+                timeout=60
             )
             if result.returncode != 0:
                 self._json_response({
@@ -294,6 +295,8 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 return
             print(f'  [update-topics] done')
             self._json_response({'ok': True, 'info': result.stderr.strip()})
+        except subprocess.TimeoutExpired:
+            self._json_response({'error': 'update_topics timed out after 60s'}, 500)
         except Exception as e:
             self._json_response({'error': str(e)}, 500)
 

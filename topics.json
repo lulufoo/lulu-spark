@@ -16,9 +16,6 @@
       ]
     },
     {
-      "repo": "lulufoo/ai-assisted-domain-learning-v1"
-    },
-    {
       "repo": "lulufoo/ai-authored-learning",
       "description": "AI 生成学习内容，技术解析/产品洞察/思维提炼",
       "keywords": [

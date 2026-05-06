@@ -41,22 +41,28 @@ async function _loadProjects(currentProject) {
   }
 
   // Render project list
-  list.innerHTML = '';
-  for (const proj of projects) {
-    if (proj === currentProject) continue;
-    const btn = document.createElement('button');
-    btn.className = 'move-project-item';
-    if (proj === 'inbox') {
-      btn.style.color = '#cf222e';
-      btn.style.borderColor = '#ffcbc8';
+  try {
+    list.innerHTML = '';
+    for (const proj of projects) {
+      if (proj === currentProject) continue;
+      const btn = document.createElement('button');
+      btn.className = 'move-project-item';
+      if (proj === 'inbox') {
+        btn.style.color = '#cf222e';
+        btn.style.borderColor = '#ffcbc8';
+      }
+      const desc = topicsMap[proj] || '';
+      btn.innerHTML = `<span class="move-project-item-name">${proj}</span>${desc ? `<span class="move-project-item-desc">${desc}</span>` : ''}`;
+      btn.addEventListener('click', () => doMoveProject(proj));
+      list.appendChild(btn);
     }
-    const desc = topicsMap[proj] || '';
-    btn.innerHTML = `<span class="move-project-item-name">${proj}</span>${desc ? `<span class="move-project-item-desc">${desc}</span>` : ''}`;
-    btn.addEventListener('click', () => doMoveProject(proj));
-    list.appendChild(btn);
+    result.textContent = `当前项目：${currentProject}，选择目标项目`;
+    result.style.color = '#57606a';
+  } catch (e) {
+    console.error('[move-project] render error', e);
+    result.style.color = '#cf222e';
+    result.textContent = '渲染失败：' + e.message;
   }
-  result.textContent = `当前项目：${currentProject}，选择目标项目`;
-  result.style.color = '#57606a';
 }
 
 let _currentEntry = null;

@@ -72,7 +72,7 @@ export function buildCard(id, entry, title) {
   const doneBadgeHtml = entry.done
     ? `<button class="badge badge-done" data-action="toggle-done" title="标记为未处理">✓ 已处理</button>`
     : `<button class="badge badge-done" data-action="toggle-done" title="标记为已处理">○ 处理</button>`;
-  const moveBadgeHtml = `<button class="badge badge-move-project" data-action="move-project" title="移动到其他项目">↳ 移项</button>`;
+  const moveBadgeHtml = `<button class="badge badge-move-project" data-action="move-project" title="移动到其他项目"><span class="move-icon">↳</span><span>移项</span></button>`;
 
   card.innerHTML = `
     <div class="doc-topic"${topicDesc ? ` data-tip="${escHtml(topicDesc)}"` : ''}>${topic}</div>
@@ -221,7 +221,7 @@ export function updateTitlesInDOM(date) {
       const doneBadgeHtml = entry.done
         ? `<button class="badge badge-done" data-action="toggle-done" title="标记为未处理">✓ 已处理</button>`
         : `<button class="badge badge-done" data-action="toggle-done" title="标记为已处理">○ 处理</button>`;
-      const moveBadgeHtml = `<button class="badge badge-move-project" data-action="move-project" title="移动到其他项目">↳ 移项</button>`;
+      const moveBadgeHtml = `<button class="badge badge-move-project" data-action="move-project" title="移动到其他项目"><span class="move-icon">↳</span><span>移项</span></button>`;
       badgesEl.innerHTML = layerHtml + linksBadgeHtml + importanceBadgeHtml(entry.importance) + doneBadgeHtml + moveBadgeHtml;
       attachBadgeListeners(card, entry);
       card.classList.toggle('done', !!entry.done);

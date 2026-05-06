@@ -168,31 +168,44 @@ def _pick_default_branch(branches: list[str]) -> str:
     return min(top)
 
 
-def run(out_path: str) -> int:
+def run(out_path: str, rediscover: bool = False) -> int:
     # 读取已有 topics.json，保留手动维护的 dir 字段和虚拟条目
     existing_dirs: dict[str, str] = {}
+    existing_repos: list[str] = []  # ordered list of repo full_names
     virtual_entries: list[dict[str, Any]] = []
+    default_branch_hint = "main"
     if Path(out_path).exists():
         with open(out_path, encoding="utf-8") as f:
             existing = json.load(f)
+        default_branch_hint = existing.get("defaultBranch", "main")
         for item in existing.get("topics", []):
-            if "repo" in item and "dir" in item:
-                existing_dirs[item["repo"]] = item["dir"]
-            if "repo" not in item:
+            if "repo" in item:
+                existing_repos.append(item["repo"])
+                if "dir" in item:
+                    existing_dirs[item["repo"]] = item["dir"]
+            else:
                 virtual_entries.append(item)
 
-    repos = list_owner_repos()
-    discovered: list[tuple[str, str]] = []
-    for r in sorted(repos, key=lambda x: (x.get("full_name") or "")):
-        full = r.get("full_name")
-        if not full:
-            continue
-        branch = r.get("default_branch") or "main"
-        if not _is_knowledge_corpus(full, branch):
-            continue
-        discovered.append((full, branch))
+    if rediscover:
+        # Full discovery: scan all owner repos for .repository-type.json
+        print("  [update-topics] rediscover mode: scanning all repos…", file=sys.stderr)
+        all_repos = list_owner_repos()
+        discovered: list[tuple[str, str]] = []
+        for r in sorted(all_repos, key=lambda x: (x.get("full_name") or "")):
+            full = r.get("full_name")
+            if not full:
+                continue
+            branch = r.get("default_branch") or "main"
+            if not _is_knowledge_corpus(full, branch):
+                continue
+            discovered.append((full, branch))
+        dbranch = _pick_default_branch([b for _, b in discovered])
+    else:
+        # Fast mode: use repos already in topics.json, just refresh descriptions
+        print(f"  [update-topics] fast mode: refreshing {len(existing_repos)} repos…", file=sys.stderr)
+        discovered = [(repo, default_branch_hint) for repo in existing_repos]
+        dbranch = default_branch_hint
 
-    dbranch = _pick_default_branch([b for _, b in discovered])
     topics_list: list[dict[str, Any]] = []
     for full, branch in discovered:
         entry: dict[str, Any] = {"repo": full}
@@ -263,9 +276,14 @@ def main() -> int:
         default=os.environ.get("CTA_TOPICS_PATH", DEFAULT_CTA_TOPICS),
         help=f"Path to topics.json (default: {DEFAULT_CTA_TOPICS})",
     )
+    p.add_argument(
+        "--rediscover",
+        action="store_true",
+        help="Full rediscovery: scan all owner repos (slow, ~50+ GitHub API calls)",
+    )
     args = p.parse_args()
     try:
-        return run(args.output)
+        return run(args.output, rediscover=args.rediscover)
     except FileNotFoundError as e:
         print(e, file=sys.stderr)
         return 1
