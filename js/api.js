@@ -145,3 +145,31 @@ export async function moveToProject(id, newProject) {
   });
   return res.json();
 }
+
+export async function fetchRepoDirs(repo) {
+  const res = await fetch(`/api/repo-dirs?repo=${encodeURIComponent(repo)}`);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
+export async function checkFileExists(repo, path) {
+  const res = await fetch(`/api/check-file?repo=${encodeURIComponent(repo)}&path=${encodeURIComponent(path)}`);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
+export async function settleComment(commonPath, commentId, layer, docTheme, slug, content) {
+  const res = await fetch('/api/settle', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      common_path: commonPath,
+      comment_id: commentId,
+      layer,
+      doc_theme: docTheme,
+      slug,
+      content
+    })
+  });
+  return res.json();
+}

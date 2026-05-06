@@ -1,0 +1,232 @@
+import { state } from '../state.js'
+import * as api from '../api.js'
+
+// ── Settle Dialog ─────────────────────────────────────────────────────────
+
+let _settleCtx = null;
+let _topicsCache = null;
+let _checkTimer = null;
+
+async function _getTopics() {
+  if (_topicsCache) return _topicsCache;
+  _topicsCache = await api.fetchTopics();
+  return _topicsCache;
+}
+
+function _deriveRepo(commonPath, topics) {
+  const projectDir = commonPath.split('/')[0];
+  for (const t of (topics.topics || [])) {
+    if (!t.repo) continue;
+    const repoName = t.repo.split('/')[1];
+    if (repoName === projectDir || t.dir === projectDir) return t.repo;
+  }
+  return null;
+}
+
+function _extractSlug(commonPath) {
+  const filename = commonPath.split('/').pop() || '';
+  // Remove .md extension and leading 12-digit timestamp
+  return filename.replace(/\.md$/, '').replace(/^\d{12}-/, '');
+}
+
+function _nowTs() {
+  const now = new Date();
+  const utc8 = new Date(now.getTime() + 8 * 60 * 60 * 1000);
+  const pad = n => String(n).padStart(2, '0');
+  return `${utc8.getUTCFullYear()}${pad(utc8.getUTCMonth() + 1)}${pad(utc8.getUTCDate())}${pad(utc8.getUTCHours())}${pad(utc8.getUTCMinutes())}`;
+}
+
+function _updatePreview() {
+  const ts = _nowTs();
+  document.getElementById('settle-filename-ts').textContent = ts;
+  _scheduleCheck();
+}
+
+function _scheduleCheck() {
+  clearTimeout(_checkTimer);
+  const warn = document.getElementById('settle-file-warn');
+  if (warn) warn.textContent = '';
+  _checkTimer = setTimeout(_checkExistence, 600);
+}
+
+async function _checkExistence() {
+  if (!_settleCtx) return;
+  const warn = document.getElementById('settle-file-warn');
+  if (!warn) return;
+
+  const sel = document.getElementById('settle-theme-select');
+  const inp = document.getElementById('settle-theme-input');
+  const slug = document.getElementById('settle-slug').value.trim();
+  const docTheme = inp.style.display !== 'none' ? inp.value.trim() : sel.value;
+
+  if (!slug || !docTheme || docTheme === '__new__') { warn.textContent = ''; return; }
+
+  const ts = _nowTs();
+  const filename = `${ts}-${slug}.md`;
+  const filePath = docTheme === '.' ? filename : `${docTheme}/${filename}`;
+
+  try {
+    const data = await api.checkFileExists(_settleCtx.repo, filePath);
+    if (data.exists) {
+      warn.innerHTML = `<span style="color:#cf222e;font-size:11px;">⚠ 文件已存在：${filePath}</span>`;
+    } else {
+      warn.textContent = '';
+    }
+  } catch (_) {
+    // 静默忽略检测失败
+  }
+}
+
+export async function openSettleDialog(comment, layer, entry) {
+  let topics;
+  try {
+    topics = await _getTopics();
+  } catch (e) {
+    alert(`无法加载 topics.json：${e.message}`);
+    return;
+  }
+  const repo = _deriveRepo(entry.common_path, topics);
+  if (!repo) {
+    alert(`无法找到 ${entry.common_path.split('/')[0]} 对应的 GitHub 仓库`);
+    return;
+  }
+
+  _settleCtx = { comment, layer, entry, repo };
+
+  document.getElementById('settle-repo-display').textContent = repo;
+  document.getElementById('settle-content').value = comment.text;
+  document.getElementById('settle-slug').value = _extractSlug(entry.common_path);
+  document.getElementById('settle-result').textContent = '';
+  document.getElementById('settle-theme-input').style.display = 'none';
+  document.getElementById('settle-theme-input').value = '';
+
+  const btn = document.getElementById('btn-settle-submit');
+  btn.disabled = false;
+  btn.textContent = '推送';
+
+  const sel = document.getElementById('settle-theme-select');
+  sel.style.display = '';
+  sel.innerHTML = '<option value="">加载目录中…</option>';
+  sel.disabled = true;
+
+  document.getElementById('settle-file-warn').textContent = '';
+  _updatePreview();
+  document.getElementById('settle-dialog').classList.add('open');
+
+  api.fetchRepoDirs(repo).then(data => {
+    sel.disabled = false;
+    if (data.error) {
+      sel.innerHTML = `<option value="">加载失败: ${data.error}</option>`;
+      return;
+    }
+    const dirs = data.dirs || [];
+    sel.innerHTML = '';
+    // Root option first
+    const rootOpt = document.createElement('option');
+    rootOpt.value = '.';
+    rootOpt.textContent = '. （根目录）';
+    sel.appendChild(rootOpt);
+    // Pre-select entry's second path segment as hint (doc-theme level)
+    const hint = entry.common_path.split('/')[1] || '';
+    dirs.forEach(d => {
+      const opt = document.createElement('option');
+      opt.value = d;
+      opt.textContent = d;
+      if (d === hint) opt.selected = true;
+      sel.appendChild(opt);
+    });
+    const newOpt = document.createElement('option');
+    newOpt.value = '__new__';
+    newOpt.textContent = '＋ 新建目录…';
+    sel.appendChild(newOpt);
+  }).catch(e => {
+    sel.disabled = false;
+    sel.innerHTML = `<option value="">加载失败: ${e.message}</option>`;
+  });
+}
+
+export function closeSettleDialog() {
+  clearTimeout(_checkTimer);
+  document.getElementById('settle-dialog').classList.remove('open');
+  _settleCtx = null;
+}
+
+async function _doSettle() {
+  if (!_settleCtx) return;
+  const { comment, layer, entry } = _settleCtx;
+
+  const sel = document.getElementById('settle-theme-select');
+  const inp = document.getElementById('settle-theme-input');
+  const docTheme = inp.style.display !== 'none' ? inp.value.trim() : sel.value;
+
+  if (!docTheme || docTheme === '__new__') {
+    alert('请选择或输入目标目录名');
+    return;
+  }
+
+  const slug = document.getElementById('settle-slug').value.trim();
+  if (!slug) { alert('请输入文件名'); return; }
+  if (!/^[a-z0-9][a-z0-9-]*$/.test(slug)) {
+    alert('文件名只能包含小写字母、数字和连字符，且不能以连字符开头');
+    return;
+  }
+
+  const content = document.getElementById('settle-content').value.trim();
+  if (!content) { alert('正文不能为空'); return; }
+
+  const btn = document.getElementById('btn-settle-submit');
+  btn.disabled = true;
+  btn.textContent = '推送中…';
+  document.getElementById('settle-result').textContent = '';
+
+  try {
+    const data = await api.settleComment(
+      entry.common_path, comment.id, layer, docTheme, slug, content
+    );
+    if (data.error) {
+      document.getElementById('settle-result').innerHTML =
+        `<span style="color:#cf222e">失败：${data.error}</span>`;
+      btn.disabled = false;
+      btn.textContent = '推送';
+      return;
+    }
+
+    // Dispatch success event — comments.js handles state update + re-render
+    document.dispatchEvent(new CustomEvent('settle:done', {
+      detail: { commentId: comment.id, layer, entry, url: data.url }
+    }));
+
+    const warns = Array.isArray(data.warn) ? data.warn : (data.warn ? [data.warn] : []);
+    document.getElementById('settle-result').innerHTML =
+      `<span style="color:#1a7f37">✓ 已推送</span>　<a href="${data.url}" target="_blank" style="font-size:11px;word-break:break-all;">${data.url}</a>` +
+      (warns.length ? `<br><span style="color:#9a6700;font-size:11px;">⚠ ${warns.join('；')}</span>` : '');
+    btn.textContent = '已完成';
+    setTimeout(closeSettleDialog, 2500);
+  } catch (e) {
+    document.getElementById('settle-result').innerHTML =
+      `<span style="color:#cf222e">失败：${e.message}</span>`;
+    btn.disabled = false;
+    btn.textContent = '推送';
+  }
+}
+
+// ── Event listeners ────────────────────────────────────────────────────────
+
+document.getElementById('btn-settle-submit').addEventListener('click', _doSettle);
+document.getElementById('btn-settle-cancel').addEventListener('click', closeSettleDialog);
+document.getElementById('settle-dialog').addEventListener('click', e => {
+  if (e.target === document.getElementById('settle-dialog')) closeSettleDialog();
+});
+document.getElementById('settle-slug').addEventListener('input', _updatePreview);
+document.getElementById('settle-theme-select').addEventListener('change', e => {
+  const inp = document.getElementById('settle-theme-input');
+  if (e.target.value === '__new__') {
+    inp.style.display = '';
+    inp.value = '';
+    inp.focus();
+  } else {
+    inp.style.display = 'none';
+    _scheduleCheck();
+  }
+});
+document.getElementById('settle-theme-input').addEventListener('input', _scheduleCheck);

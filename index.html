@@ -147,6 +147,38 @@
   </div>
 </div>
 
+<!-- Settle dialog -->
+<div id="settle-dialog">
+  <div id="settle-dialog-box">
+    <h3>⬆ 沉淀到知识仓库</h3>
+    <div class="settle-field">
+      <label>目标仓库</label>
+      <span id="settle-repo-display"></span>
+    </div>
+    <div class="settle-field">
+      <label>目标目录（doc-theme）</label>
+      <select id="settle-theme-select"></select>
+      <input id="settle-theme-input" type="text" placeholder="输入新目录名（kebab-case）" autocomplete="off" style="display:none" />
+    </div>
+    <div class="settle-field">
+      <label>文件名</label>
+      <div class="settle-filename-row">
+        <span class="settle-filename-ts" id="settle-filename-ts"></span><span class="settle-filename-dash">-</span><input id="settle-slug" type="text" placeholder="输入名称" autocomplete="off" spellcheck="false" /><span class="settle-filename-ext">.md</span>
+      </div>
+      <div id="settle-file-warn"></div>
+    </div>
+    <div class="settle-field">
+      <label>正文</label>
+      <textarea id="settle-content" rows="10"></textarea>
+    </div>
+    <div id="settle-result"></div>
+    <div id="settle-dialog-actions">
+      <button id="btn-settle-cancel" class="md-header-btn">取消</button>
+      <button id="btn-settle-submit" class="md-header-btn primary">推送</button>
+    </div>
+  </div>
+</div>
+
 <script type="module" src="js/main.js?v=20260506d"></script>
 </body>
 </html>

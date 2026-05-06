@@ -1,6 +1,8 @@
 import { state } from '../state.js'
 import * as api from '../api.js'
 import { nowTs } from '../utils.js'
+import { openSettleDialog } from './settle-dialog.js'
+import { renderLinksBar } from './links-bar.js'
 
 // ── renderComments ─────────────────────────────────────────────────────────
 
@@ -72,12 +74,22 @@ function buildCommentItem(c, layer, entry, noteIndex) {
     } catch (e) { alert(`删除失败：${e.message}`); }
   });
 
+  const actionsEl = document.createElement('div');
+  actionsEl.className = 'comment-item-actions';
+
+  const settleBtn = document.createElement('button');
+  settleBtn.className = 'comment-item-action-btn';
+  settleBtn.textContent = '⬆ 沉淀';
+  settleBtn.title = '沉淀到知识仓库';
+  settleBtn.addEventListener('click', () => openSettleDialog(c, layer, entry));
+
   const editBtn = document.createElement('button');
-  editBtn.className = 'comment-item-edit';
+  editBtn.className = 'comment-item-action-btn';
   editBtn.textContent = '编辑';
   editBtn.addEventListener('click', () => openCommentDialog(c, layer, entry, noteIndex));
 
-  item.append(delX, prefixEl, textEl, tsEl, editBtn);
+  actionsEl.append(settleBtn, editBtn);
+  item.append(delX, prefixEl, textEl, tsEl, actionsEl);
   return item;
 }
 
@@ -167,4 +179,19 @@ document.getElementById('comment-dialog-content').addEventListener('keydown', e 
 });
 document.getElementById('comment-dialog').addEventListener('click', e => {
   if (e.target === document.getElementById('comment-dialog')) closeCommentDialog();
+});
+
+// Handle successful settle: remove comment from state + re-render links bar
+document.addEventListener('settle:done', ({ detail }) => {
+  const { commentId, layer, entry, url } = detail;
+  const ld = state.viewer.annotation[layer] || {};
+  ld.comments = (ld.comments || []).filter(x => x.id !== commentId);
+  if (!ld.comments.length) delete state.viewer.annotation[layer];
+  else state.viewer.annotation[layer] = ld;
+  if (!state.viewer.annotation.links) state.viewer.annotation.links = [];
+  state.viewer.annotation.links.push({ url });
+  // Sync entry.links so renderLinksBar reads the updated list
+  entry.links = state.viewer.annotation.links;
+  renderComments(state.viewer.annotation, layer, entry);
+  renderLinksBar(entry);
 });

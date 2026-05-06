@@ -16,6 +16,7 @@ import subprocess
 import urllib.parse
 import base64
 import uuid
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).parent.resolve()
@@ -53,6 +54,8 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             self._handle_set_importance()
         elif self.path == '/api/move-project':
             self._handle_move_project()
+        elif self.path == '/api/settle':
+            self._handle_settle()
         else:
             self.send_error(404)
 
@@ -68,6 +71,10 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             self._handle_get_annotation()
         elif parsed_path == '/api/status':
             self._handle_status()
+        elif parsed_path == '/api/check-file':
+            self._handle_check_file()
+        elif parsed_path == '/api/repo-dirs':
+            self._handle_repo_dirs()
         else:
             super().do_GET()
 
@@ -941,6 +948,241 @@ class Handler(http.server.SimpleHTTPRequestHandler):
 
         except json.JSONDecodeError:
             self._json_response({'error': 'Invalid JSON body'}, 400)
+        except Exception as e:
+            self._json_response({'error': str(e)}, 500)
+
+    # ── Internal: write/read file via gh api ──────────────────────────────────
+
+    def _gh_put_file(self, owner, repo, path, content_str, commit_message, sha=None):
+        """Create or update a file in a GitHub repo. Returns (response_data, error_str)."""
+        content_b64 = base64.b64encode(content_str.encode('utf-8')).decode('ascii')
+        payload = {'message': commit_message, 'content': content_b64}
+        if sha:
+            payload['sha'] = sha
+        r = subprocess.run(
+            ['gh', 'api', f'repos/{owner}/{repo}/contents/{path}',
+             '-X', 'PUT', '--input', '-'],
+            input=json.dumps(payload), capture_output=True, text=True, timeout=30
+        )
+        if r.returncode != 0:
+            return None, r.stderr.strip() or r.stdout.strip()
+        return json.loads(r.stdout), None
+
+    def _gh_get_file(self, owner, repo, path, ref='main'):
+        """Read a file from a GitHub repo. Returns ({content, sha}, error_str)."""
+        r = subprocess.run(
+            ['gh', 'api', f'repos/{owner}/{repo}/contents/{path}?ref={ref}'],
+            capture_output=True, text=True, timeout=20
+        )
+        if r.returncode != 0:
+            return None, r.stderr.strip() or r.stdout.strip()
+        data = json.loads(r.stdout)
+        content_b64 = data.get('content', '').replace('\n', '')
+        content = base64.b64decode(content_b64).decode('utf-8', errors='replace')
+        return {'content': content, 'sha': data.get('sha', '')}, None
+
+    # ── API: GET /api/check-file ──────────────────────────────────────────────
+
+    def _handle_check_file(self):
+        try:
+            parsed = urllib.parse.urlparse(self.path)
+            params = urllib.parse.parse_qs(parsed.query)
+            repo = params.get('repo', [''])[0].strip()
+            path = params.get('path', [''])[0].strip()
+            if not repo or '/' not in repo or not path:
+                self._json_response({'error': 'repo and path required'}, 400)
+                return
+
+            # Security: only allow repos listed in topics.json
+            topics_data = json.loads((REPO_ROOT / 'topics.json').read_text(encoding='utf-8'))
+            valid_repos = {t['repo'] for t in topics_data.get('topics', []) if 'repo' in t}
+            if repo not in valid_repos:
+                self._json_response({'error': f'Unknown repo: {repo}'}, 400)
+                return
+
+            owner, repo_name = repo.split('/', 1)
+            result = subprocess.run(
+                ['gh', 'api', f'repos/{owner}/{repo_name}/contents/{path}'],
+                capture_output=True, text=True
+            )
+            self._json_response({'exists': result.returncode == 0})
+        except Exception as e:
+            self._json_response({'error': str(e)}, 500)
+
+    # ── API: GET /api/repo-dirs ───────────────────────────────────────────────
+
+    def _handle_repo_dirs(self):
+        try:
+            parsed = urllib.parse.urlparse(self.path)
+            params = urllib.parse.parse_qs(parsed.query)
+            repo = params.get('repo', [''])[0].strip()
+            if not repo or '/' not in repo:
+                self._json_response({'error': 'missing or invalid repo'}, 400)
+                return
+
+            # Security: only allow repos listed in topics.json
+            topics_data = json.loads((REPO_ROOT / 'topics.json').read_text(encoding='utf-8'))
+            valid_repos = {t['repo'] for t in topics_data.get('topics', []) if 'repo' in t}
+            if repo not in valid_repos:
+                self._json_response({'error': f'Unknown repo: {repo}'}, 400)
+                return
+
+            owner, repo_name = repo.split('/', 1)
+            r = subprocess.run(
+                ['gh', 'api', f'repos/{owner}/{repo_name}/contents/'],
+                capture_output=True, text=True, timeout=20
+            )
+            if r.returncode != 0:
+                self._json_response({'error': r.stderr.strip() or r.stdout.strip()}, 500)
+                return
+
+            items = json.loads(r.stdout)
+            dirs = sorted(
+                item['name'] for item in items
+                if item.get('type') == 'dir'
+                and not item['name'].startswith('.')
+                and not item['name'].startswith('_')
+            )
+            self._json_response({'dirs': dirs})
+        except Exception as e:
+            self._json_response({'error': str(e)}, 500)
+
+    # ── API: POST /api/settle ─────────────────────────────────────────────────
+
+    def _handle_settle(self):
+        try:
+            data = self._read_json()
+            common_path = (data.get('common_path') or '').strip()
+            comment_id  = (data.get('comment_id') or '').strip()
+            layer       = (data.get('layer') or 'raw').strip()
+            doc_theme   = (data.get('doc_theme') or '').strip()
+            slug        = (data.get('slug') or '').strip()
+            content     = (data.get('content') or '').strip()
+
+            if not common_path or '..' in common_path:
+                self._json_response({'error': 'Invalid common_path'}, 400)
+                return
+            if not comment_id:
+                self._json_response({'error': 'comment_id required'}, 400)
+                return
+            if layer not in ('raw', 'distilled', 'digest', 'trace', 'diagnose'):
+                self._json_response({'error': f'Invalid layer: {layer}'}, 400)
+                return
+            if not doc_theme or (doc_theme != '.' and ('..' in doc_theme or '/' in doc_theme)):
+                self._json_response({'error': 'Invalid doc_theme'}, 400)
+                return
+            if not slug or not re.fullmatch(r'[a-z0-9][a-z0-9\-]*', slug):
+                self._json_response({'error': 'slug must be lowercase letters/digits/hyphens, not starting with hyphen'}, 400)
+                return
+            if not content:
+                self._json_response({'error': 'content required'}, 400)
+                return
+
+            # Derive target_repo from common_path's first segment
+            project_dir = common_path.split('/')[0]
+            topics_data = json.loads((REPO_ROOT / 'topics.json').read_text(encoding='utf-8'))
+            target_repo = None
+            for t in topics_data.get('topics', []):
+                if 'repo' in t:
+                    repo_name_t = t['repo'].split('/')[-1]
+                    if repo_name_t == project_dir or t.get('dir') == project_dir:
+                        target_repo = t['repo']
+                        break
+            if not target_repo:
+                self._json_response({'error': f'No GitHub repo found for project: {project_dir}'}, 400)
+                return
+
+            owner, repo_name = target_repo.split('/', 1)
+
+            # Build timestamp (UTC+8)
+            tz8  = timezone(timedelta(hours=8))
+            now8 = datetime.now(tz8)
+            ts   = now8.strftime('%Y%m%d%H%M')
+            date_str = f'{now8.year}年{now8.month}月{now8.day}日'
+            filename = f'{ts}-{slug}.md'
+            dst_path = filename if doc_theme == '.' else f'{doc_theme}/{filename}'
+            dst_url  = f'https://github.com/{owner}/{repo_name}/blob/main/{dst_path}'
+            src_url  = f'https://github.com/lulufoo/lulu-workbench/blob/main/raw/{common_path}'
+            full_content = f'> 来源：[Entry]({src_url})\n> 沉淀时间：{date_str}\n\n{content}'
+
+            # Step 1: Push file to target repo (critical — abort on failure)
+            _, err = self._gh_put_file(
+                owner, repo_name, dst_path, full_content,
+                f'settle: add {doc_theme}/{filename}'
+            )
+            if err:
+                self._json_response({'error': f'写入目标仓库失败：{err}'}, 500)
+                return
+
+            warns = []
+
+            # Step 2: Append URL to annotation.links
+            try:
+                ann = self._read_annotation(common_path)
+                links = ann.get('links', [])
+                links.append({'url': dst_url})
+                ann['links'] = links
+                self._write_annotation(common_path, ann)
+            except Exception as e2:
+                warns.append(f'更新 annotation.links 失败：{e2}')
+
+            # Step 3: Append row to target repo _index.md (create if missing)
+            try:
+                new_row = f'| {doc_theme} | （待补充） | {dst_url} |'
+                file_info, _ = self._gh_get_file(owner, repo_name, '_index.md')
+                if file_info:
+                    idx_content = file_info['content']
+                    if not idx_content.endswith('\n'):
+                        idx_content += '\n'
+                    idx_content += new_row + '\n'
+                    _, put_err = self._gh_put_file(
+                        owner, repo_name, '_index.md', idx_content,
+                        f'settle: update _index.md for {doc_theme}',
+                        sha=file_info['sha']
+                    )
+                    if put_err:
+                        warns.append(f'更新 _index.md 失败：{put_err}')
+                else:
+                    idx_content = (
+                        f'# {repo_name} 知识索引\n\n'
+                        '| 主题 | 一句话描述 | GitHub URL |\n'
+                        '|------|-----------|------------|\n'
+                        f'{new_row}\n'
+                    )
+                    _, put_err = self._gh_put_file(
+                        owner, repo_name, '_index.md', idx_content,
+                        'settle: create _index.md'
+                    )
+                    if put_err:
+                        warns.append(f'创建 _index.md 失败：{put_err}')
+            except Exception as e3:
+                warns.append(f'更新 _index.md 失败：{e3}')
+
+            # Step 4: Delete comment (after file confirmed pushed)
+            try:
+                ann = self._read_annotation(common_path)
+                ld  = ann.get(layer, {})
+                ld['comments'] = [c for c in ld.get('comments', []) if c.get('id') != comment_id]
+                if not ld.get('comments'):
+                    ld.pop('comments', None)
+                if ld:
+                    ann[layer] = ld
+                elif layer in ann:
+                    del ann[layer]
+                self._write_annotation(common_path, ann)
+            except Exception as e4:
+                warns.append(f'删除 comment 失败：{e4}')
+
+            print(f'  [settle] {common_path} → {owner}/{repo_name}/{dst_path}')
+            resp = {'ok': True, 'url': dst_url}
+            if warns:
+                resp['warn'] = warns
+            self._json_response(resp)
+
+        except json.JSONDecodeError:
+            self._json_response({'error': 'Invalid JSON body'}, 400)
+        except subprocess.TimeoutExpired:
+            self._json_response({'error': 'gh 命令超时'}, 500)
         except Exception as e:
             self._json_response({'error': str(e)}, 500)
 

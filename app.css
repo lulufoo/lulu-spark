@@ -886,11 +886,16 @@
     border-radius: 3px;
   }
   .comment-item-del-x:hover { background: #fff0f0; color: #cf222e; }
-  /* 右下角编辑 */
-  .comment-item-edit {
+  /* 右下角操作按钮组 */
+  .comment-item-actions {
     position: absolute;
     bottom: 4px;
     right: 6px;
+    display: flex;
+    gap: 4px;
+    align-items: center;
+  }
+  .comment-item-action-btn {
     font-size: 10px;
     padding: 1px 6px;
     border: 1px solid #d0d7de;
@@ -898,8 +903,9 @@
     background: none;
     color: #8c959f;
     cursor: pointer;
+    white-space: nowrap;
   }
-  .comment-item-edit:hover { background: #eaeef2; color: #24292f; }
+  .comment-item-action-btn:hover { background: #eaeef2; color: #24292f; }
 
   /* ── Links badge on card ── */
   .badge-links {
@@ -1086,3 +1092,103 @@
 .feed-blog-title { font-size: 13px; font-weight: 500; color: #0969da; text-decoration: none; }
 .feed-blog-title:hover { text-decoration: underline; }
 .feed-blog-meta { display: flex; gap: 10px; font-size: 11px; color: #8c959f; margin-top: 3px; }
+
+/* ── settle dialog ──────────────────────────────────────────────────── */
+#settle-dialog {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,0,0,.45);
+}
+#settle-dialog.open { display: flex; }
+#settle-dialog-box {
+  background: #fff;
+  border-radius: 10px;
+  padding: 24px 24px 20px;
+  width: min(620px, 92vw);
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 8px 40px rgba(0,0,0,.3);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+#settle-dialog-box h3 { font-size: 14px; color: #24292f; margin: 0; font-weight: 600; }
+.settle-field { display: flex; flex-direction: column; gap: 4px; }
+.settle-field label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #57606a;
+  text-transform: uppercase;
+  letter-spacing: .4px;
+}
+.settle-field select,
+.settle-field input[type="text"] {
+  padding: 6px 8px;
+  border: 1px solid #d0d7de;
+  border-radius: 6px;
+  font-size: 13px;
+  font-family: inherit;
+}
+.settle-field select:focus,
+.settle-field input[type="text"]:focus { outline: none; border-color: #0969da; }
+#settle-content {
+  padding: 8px 10px;
+  border: 1px solid #d0d7de;
+  border-radius: 6px;
+  font-size: 13px;
+  font-family: inherit;
+  resize: vertical;
+  min-height: 140px;
+  width: 100%;
+  box-sizing: border-box;
+}
+#settle-content:focus { outline: none; border-color: #0969da; }
+.settle-filename-row {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  font-family: monospace;
+  font-size: 13px;
+  background: #f6f8fa;
+  border: 1px solid #d0d7de;
+  border-radius: 6px;
+  padding: 4px 8px;
+}
+.settle-filename-ts { color: #57606a; flex-shrink: 0; }
+.settle-filename-dash { color: #57606a; padding: 0 1px; }
+.settle-filename-ext { color: #57606a; flex-shrink: 0; }
+.settle-filename-row input[type="text"] {
+  border: none;
+  background: transparent;
+  font-family: monospace;
+  font-size: 13px;
+  padding: 0 2px;
+  outline: none;
+  min-width: 120px;
+  flex: 1;
+  color: #24292f;
+}
+#settle-repo-display { font-size: 13px; color: #24292f; font-family: monospace; }
+#settle-result { font-size: 12px; min-height: 16px; }
+#settle-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding-top: 4px;
+}
+.comment-item-settle {
+  background: none;
+  border: 1px solid #d0d7de;
+  border-radius: 4px;
+  font-size: 11px;
+  color: #0969da;
+  padding: 1px 6px;
+  cursor: pointer;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+.comment-item-settle:hover { background: #ddf4ff; border-color: #54aeff; }
