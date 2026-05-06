@@ -4,7 +4,7 @@
 
 > **归一化处理（P0）**：剔除 assistant 中英文内部独白、Turn/CHAT 例行行、`Let me` / `The user` 复述与多余工具元数据；保留用户原文、中文交付段落与 fenced 代码。
 
-> 导航：[distilled](../../../distilled/common-tech/feedvault-product-architecture-session/202605041144-feedvault-product-architecture-session.md) · [digest](../../../digest/common-tech/feedvault-product-architecture-session/202605041144-feedvault-product-architecture-session.md) · [trace](../../../trace/common-tech/feedvault-product-architecture-session/202605041144-feedvault-product-architecture-session.md)
+> 导航：[distilled](../../../distilled/ai-software-dev/feedvault-product-architecture-session/202605041144-feedvault-product-architecture-session.md) · [digest](../../../digest/ai-software-dev/feedvault-product-architecture-session/202605041144-feedvault-product-architecture-session.md) · [trace](../../../trace/ai-software-dev/feedvault-product-architecture-session/202605041144-feedvault-product-architecture-session.md)
 
 <!-- DDM:TURN_SEP:v1 -->
 
@@ -1566,7 +1566,7 @@ FeedVault 产品介绍 定位是：FeedVault 产品规格说明书。请你根�
 
 > ✅ **dtd_normalize 完成**
 
-> 📄 **raw**：raw/common-tech/feedvault-product-architecture-session/202605041144-feedvault-product-architecture-session.md
+> 📄 **raw**：raw/ai-software-dev/feedvault-product-architecture-session/202605041144-feedvault-product-architecture-session.md
 
 > 🗂 **index.json 已更新**（新条目 layers 包含 `raw`）
 

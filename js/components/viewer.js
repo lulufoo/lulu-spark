@@ -90,6 +90,16 @@ function updateHeaderUrls(entry, layer, activePath) {
   const relPath = `${layer}/${activePath}`;
   const fullPath = state.ui.archiveRoot ? `${state.ui.archiveRoot}/${relPath}` : relPath;
   document.getElementById('btn-copy-path').dataset.tip = fullPath;
+
+  const topicDir = entry.common_path.split('/')[0];
+  const kbUrl = state.index.topicRepos[topicDir];
+  const kbBtn = document.getElementById('btn-goto-kb');
+  if (kbUrl) {
+    kbBtn.style.display = '';
+    kbBtn.onclick = () => window.open(kbUrl, '_blank', 'noopener,noreferrer');
+  } else {
+    kbBtn.style.display = 'none';
+  }
 }
 
 // ── openDoc ────────────────────────────────────────────────────────────────

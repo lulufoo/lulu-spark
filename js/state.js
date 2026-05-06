@@ -8,7 +8,8 @@ export const state = {
     diffStatus: new Map(),
     annotations: {},
     titleFetchCache: new Map(),
-    topicDescriptions: {}
+    topicDescriptions: {},
+    topicRepos: {}
   },
   ui: {
     activeDate: null,

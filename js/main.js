@@ -120,16 +120,19 @@ document.getElementById('btn-refresh').addEventListener('click', async () => {
   } catch (e) {
     console.warn('update-topics failed:', e.message);
   }
-  // Reload topicDescriptions
+  // Reload topicDescriptions + topicRepos
   try {
     const data = await api.fetchTopics();
-    const map = {};
+    const descMap = {};
+    const repoMap = {};
     for (const t of (data.topics || [])) {
-      if (!t.repo || !t.description) continue;
+      if (!t.repo) continue;
       const key = t.dir || t.repo.split('/')[1];
-      map[key] = t.description;
+      if (t.description) descMap[key] = t.description;
+      repoMap[key] = `https://github.com/${t.repo}`;
     }
-    state.index.topicDescriptions = map;
+    state.index.topicDescriptions = descMap;
+    state.index.topicRepos = repoMap;
   } catch (e) {
     console.warn('fetchTopics failed:', e.message);
   }
@@ -274,13 +277,16 @@ document.getElementById('btn-feed').addEventListener('click', () => {
 
 api.fetchConfig().then(d => { state.ui.archiveRoot = d.archive_root || ''; }).catch(() => {});
 api.fetchTopics().then(data => {
-  const map = {};
+  const descMap = {};
+  const repoMap = {};
   for (const t of (data.topics || [])) {
-    if (!t.repo || !t.description) continue;
+    if (!t.repo) continue;
     const key = t.dir || t.repo.split('/')[1];
-    map[key] = t.description;
+    if (t.description) descMap[key] = t.description;
+    repoMap[key] = `https://github.com/${t.repo}`;
   }
-  state.index.topicDescriptions = map;
+  state.index.topicDescriptions = descMap;
+  state.index.topicRepos = repoMap;
 }).catch(() => {});
 loadIndex();
 
