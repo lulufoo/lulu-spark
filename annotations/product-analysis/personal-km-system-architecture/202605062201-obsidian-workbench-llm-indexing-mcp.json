@@ -3,10 +3,16 @@
     "comments": [
       {
         "id": "36b3f6671cb8",
-        "text": "## 更新到 [workbench](https://github.com/lulufoo/cognitive-trace-archive/blob/main/lulu-workbench-workflow.md)\n\nObsidian 作为 单个知识库的查看、搜索、链接，代替Android Studio。\nObsidian支持Git插件，继续管理文档修改。",
+        "text": "## 更新到 [workbench](https://github.com/lulufoo/lulu-workbench/blob/main/lulu-workbench-workflow.md)\n\nObsidian 作为 单个知识库的查看、搜索、链接，代替Android Studio。\nObsidian支持Git插件，继续管理文档修改。",
         "ts": "202605062340"
       }
     ]
   },
-  "importance": "low"
+  "importance": "low",
+  "links": [
+    {
+      "url": "https://github.com/lulufoo/product-analysis/blob/main/obsidian/202605070013-obsidian-lulu-workbench-relationship.md"
+    }
+  ],
+  "done": true
 }

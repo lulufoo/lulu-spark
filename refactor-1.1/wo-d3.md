@@ -109,7 +109,7 @@ prefix = "../../../"  （固定，topic-path 恒为 2 段）
 | `common-tech` | `java-concurrency` | `common-tech/java-concurrency` |
 | `ai` | `llm-token-generation` | `ai/llm-token-generation` |
 
-> `topics.json` 的 `cognitive-trace-archive` 自身条目描述的是 CTA 在知识语料系统中的自分类，不用于路径推导。
+> `topics.json` 的 `lulu-workbench` 自身条目描述的是 CTA 在知识语料系统中的自分类，不用于路径推导。
 ```
 
 ---

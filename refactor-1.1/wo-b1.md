@@ -11,7 +11,7 @@
 ### 1. 执行 dry-run
 
 ```bash
-cd /Users/lulu/Code/cognitive-trace-archive
+cd /Users/lulu/Code/lulu-workbench
 python scripts/flatten_to_doc_theme.py --dry-run
 ```
 

@@ -117,7 +117,7 @@ test('timeFromTs 从12位时间戳提取 HH:MM', () => {
 新建 `js/constants.js`：
 
 ```js
-export const REPO = 'https://github.com/lulufoo/cognitive-trace-archive/blob/main'
+export const REPO = 'https://github.com/lulufoo/lulu-workbench/blob/main'
 export const LAYERS = ['raw', 'distilled', 'digest', 'trace']
 export const IMPORTANCE_CYCLE = [undefined, 'high', 'medium', 'low']
 ```

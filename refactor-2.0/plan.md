@@ -1,6 +1,6 @@
 # LuLu Workbench 流程重设计计划
 
-> 本次重设计背景：重新定位 cognitive-trace-archive（即 lulu-workbench）的角色，从"对话知识归档库"升级为"个人知识处理管道的完整工作台"。
+> 本次重设计背景：重新定位 lulu-workbench 的角色，从“对话知识归档库”升级为“个人知识处理管道的完整工作台”。
 
 ---
 
@@ -23,7 +23,7 @@
          |
          | 落入工作台，生成 Entry（条目）
          v
-  层2  工作台层（cognitive-trace-archive）
+  层2  工作台层（lulu-workbench）
          |
          | 笔记完整 → 触发同步
          v

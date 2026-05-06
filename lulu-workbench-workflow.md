@@ -1,6 +1,6 @@
 # LuLu Workbench 流程指南
 
-> 仓库：`https://github.com/lulufoo/lulu-workbench`（本地：`cognitive-trace-archive`）
+> 仓库：`https://github.com/lulufoo/lulu-workbench`（本地：`lulu-workbench`）
 > 读者：AI（作为执行 instruction）+ LuLu（作为操作手册）
 
 ---

@@ -44,7 +44,7 @@ lulufoo/ai-collaboration-framework
 lulufoo/ai-software-dev
 lulufoo/ai-thinking-framework
 lulufoo/android-dev-docs
-lulufoo/cognitive-trace-archive
+lulufoo/lulu-workbench
 lulufoo/learning-ai-agent
 lulufoo/learning-ai-lmm        ← dir: "ai"（本地目录名是 ai/）
 lulufoo/learning-with-ai
@@ -85,7 +85,7 @@ lulufoo/tech-language-kotlin
     { "repo": "lulufoo/ai-software-dev" },
     { "repo": "lulufoo/ai-thinking-framework" },
     { "repo": "lulufoo/android-dev-docs" },
-    { "repo": "lulufoo/cognitive-trace-archive" },
+    { "repo": "lulufoo/lulu-workbench" },
     { "repo": "lulufoo/learning-ai-agent" },
     { "repo": "lulufoo/learning-ai-lmm", "dir": "ai" },
     { "repo": "lulufoo/learning-with-ai" },

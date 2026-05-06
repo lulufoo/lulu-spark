@@ -6,7 +6,7 @@ Reads .cache/repo-descriptions.json, for each repo:
   2. Merges description + keywords fields
   3. PUTs the updated file back
 
-Run from the cognitive-trace-archive root:
+Run from the lulu-workbench root:
     python3 scripts/push_descriptions.py [--dry-run]
 """
 from __future__ import annotations
