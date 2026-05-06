@@ -130,3 +130,18 @@ export async function updateHighlight(commonPath, layer, highlight, ts) {
   });
   return res.json();
 }
+
+export async function fetchTopics() {
+  const res = await fetch('./topics.json?_=' + Date.now());
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
+export async function moveToProject(id, newProject) {
+  const res = await fetch('/api/move-project', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id, new_project: newProject })
+  });
+  return res.json();
+}

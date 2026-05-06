@@ -14,12 +14,18 @@
 
 ### Step 1 · 选择目录并确定路径
 
-读取 `{archive_root}/topics.json`，从中选择主题路径：
+读取 `{archive_root}/topics.json`，从 `topics` 数组中选择 project：
+
+- 取每项的 `dir` 字段（若存在），否则取 `repo` 的最后一段（`/` 之后）
+- 根据对话内容和标题，**语义推断 `doc-theme`**（kebab-case，描述本文档的核心主题，英文，无空格，**3-5 个单词**）
+- 若 slug 已确定且与 doc-theme 语义一致，可直接复用
+- **若无合适项目**，`project` 填 `inbox`，不得默认选一个相近项目。inbox 为暂缓目录，卡片会标红提示用户后续通过「↳ 移项」迁移到正式项目。
 
 ```
-select : repo → 一级主题 [→ 二级主题（可选）]
-output : topic-path = <一级>[/<二级>]
-         slug       = 与主题语义一致（有冲突先澄清）
+select : project   = dir 字段 或 repo 短名（如 "ai-software-dev"）；无合适项目时填 "inbox"
+         doc-theme = 语义推断（如 "agentic-coding-discipline"，3-5 个单词）
+output : topic-path = <project>/<doc-theme>
+         slug       = 与主题语义一致的 kebab-case（有冲突先澄清）
          ts         = YYYYMMDDHHMM（东八区，后续 Phase 复用）
          目标路径    = raw/<topic-path>/<ts>-<slug>.md
 ```
@@ -37,8 +43,7 @@ output : topic-path = <一级>[/<二级>]
 
 > **导航链接规则**：`topic-path`、`ts`、`slug` 在 Step 1 完成后即完全确定，`COMMON_PATH` 和 `prefix` 可立即计算，**raw / distilled / digest / trace 的完整路径一次性写入，不得使用占位符**。
 >
->     N      := |topic-path|      -- topic-path 的路径段数（如 "a/b" → N=2）
->     prefix := "../" × (N+1)     -- 示例：N=2 → "../../../"
+>     prefix := "../../../"       -- topic-path 固定为 2 段（project/doc-theme），N 恒=2
 
 #### 完整示例（格式真源）
 

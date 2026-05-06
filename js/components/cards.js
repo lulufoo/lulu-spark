@@ -2,6 +2,7 @@ import { state } from '../state.js'
 import { LAYERS, IMPORTANCE_CYCLE } from '../constants.js'
 import { escHtml, slugToTitle, filenameFromPath, topicFromPath, timeFromTs, importanceBadgeHtml } from '../utils.js'
 import * as api from '../api.js'
+import { openMoveProjectDialog } from './modals/move-project-dialog.js'
 
 // ── Diff helpers ───────────────────────────────────────────────────────────
 
@@ -69,20 +70,23 @@ export function buildCard(id, entry, title) {
   const doneBadgeHtml = entry.done
     ? `<button class="badge badge-done" data-action="toggle-done" title="标记为未处理">✓ 已处理</button>`
     : `<button class="badge badge-done" data-action="toggle-done" title="标记为已处理">○ 处理</button>`;
+  const moveBadgeHtml = `<button class="badge badge-move-project" data-action="move-project" title="移动到其他项目">↳ 移项</button>`;
 
   card.innerHTML = `
     <div class="doc-topic">${topic}</div>
     <button class="doc-title-btn${displayTitle === null ? ' loading' : ''}">${displayTitle !== null ? escHtml(displayTitle) : ''}</button>
     <div class="doc-meta">${time}${dotHtml}</div>
-    <div class="badges">${badgesHtml}${linksBadgeHtml}${importanceBadgeHtml(entry.importance)}${doneBadgeHtml}</div>
+    <div class="badges">${badgesHtml}${linksBadgeHtml}${importanceBadgeHtml(entry.importance)}${doneBadgeHtml}${moveBadgeHtml}</div>
   `;
   if (entry.done) card.classList.add('done');
   if (entry.importance) card.classList.add(`importance-${entry.importance}`);
+  if (entry.common_path.split('/')[0] === 'inbox') card.classList.add('inbox-pending');
   const firstLayer = LAYERS.find(l => entry.layers?.includes(l)) || 'raw';
   card.querySelector('.doc-title-btn').addEventListener('click', () => window.openDoc(entry, firstLayer));
   attachBadgeListeners(card, entry);
   card.querySelector('[data-action="toggle-done"]').addEventListener('click', () => toggleDone(entry, card));
   card.querySelector('[data-action="cycle-importance"]').addEventListener('click', () => cycleImportance(entry, card));
+  card.querySelector('[data-action="move-project"]').addEventListener('click', () => openMoveProjectDialog(entry));
   return card;
 }
 
@@ -215,13 +219,15 @@ export function updateTitlesInDOM(date) {
       const doneBadgeHtml = entry.done
         ? `<button class="badge badge-done" data-action="toggle-done" title="标记为未处理">✓ 已处理</button>`
         : `<button class="badge badge-done" data-action="toggle-done" title="标记为已处理">○ 处理</button>`;
-      badgesEl.innerHTML = layerHtml + linksBadgeHtml + importanceBadgeHtml(entry.importance) + doneBadgeHtml;
+      const moveBadgeHtml = `<button class="badge badge-move-project" data-action="move-project" title="移动到其他项目">↳ 移项</button>`;
+      badgesEl.innerHTML = layerHtml + linksBadgeHtml + importanceBadgeHtml(entry.importance) + doneBadgeHtml + moveBadgeHtml;
       attachBadgeListeners(card, entry);
       card.classList.toggle('done', !!entry.done);
       card.classList.remove('importance-high', 'importance-medium', 'importance-low');
       if (entry.importance) card.classList.add(`importance-${entry.importance}`);
       card.querySelector('[data-action="toggle-done"]').addEventListener('click', () => toggleDone(entry, card));
       card.querySelector('[data-action="cycle-importance"]').addEventListener('click', () => cycleImportance(entry, card));
+      card.querySelector('[data-action="move-project"]').addEventListener('click', () => openMoveProjectDialog(entry));
     }
   }
 }

@@ -1,0 +1,223 @@
+# AIDL Proxy-Stub 透明 RPC 模型：从结构认知到版本兼容设计
+
+> 本文档基于一次 LCCM 引导对话整理，目标是重建理解的过程——跟着推导走一遍，而不是直接读结论。
+
+
+> **导航**：[digest](../../../digest/android-dev-docs/aidl-proxy-stub-transparent-rpc/202604231831-3-aidl-proxy-stub-transparent-rpc-model.md)
+---
+
+## 对话目标与边界
+
+**学习目标**：理解 AIDL Proxy-Stub Transparent RPC Model 的结构、运作机制、透明性边界，以及在实际接口版本兼容场景中的应用。
+**主动绕过的内容**：多态作为基础概念被主动跳过，不作为洞察重点展开；`FLAG_ONEWAY` 失效边界提出但未深入。
+**下一步方向**：ServiceManager 的服务注册与发现；或 Binder 内核驱动的内存映射机制。
+
+---
+
+## 一、它在做什么——从 Retrofit 类比出发
+
+最初的理解是：Proxy-Stub 模型是 Binder 通信的上层包装，将 Binder 通信过程抽象成远程过程调用（RPC）。
+
+你主动把这个模型类比到 Retrofit——Retrofit 将一次复杂的网络调用（序列化请求 → 网络传输 → 反序列化响应）抽象成面向对象化的接口调用，简化了上层的理解和使用成本。这个类比抓住了模型的本质定位。
+
+顺着类比往前推，你独立识别出 Proxy-Stub 模型对应的三段结构：
+
+```
+调用 AIDL 方法 → 参数序列化为 Parcel
+        ↓
+用户态 → 内核态，ioctl 发送请求
+        ↓
+接收方线程收到请求 → onTransact 将 Parcel 反序列化，调用真实实现
+```
+
+---
+
+## 二、调用方拿到的对象是什么——引用链与分流机制
+
+弄清楚三段骨架之后，自然产生一个问题：调用方拿到的「实现了 AIDL 接口的对象」，真实身份是什么？
+
+你识别出完整的引用链：调用方拿到的是 Proxy 对象，内部持有 BinderProxy。BinderProxy 是一个壳对象，底层是 JNI 层的 BpBinder 对象，它是用户态的 Binder 引用，持有对应的驱动句柄，通过 ioctl 与内核通信。
+
+这是跨进程的路径。紧接着出现边界问题：同一个进程内，调用方拿到的还是 Proxy 吗？
+
+你识别出：同进程时直接拿到 Stub 对象（Server 层真身），不经过 Proxy。分流发生在哪里？你推断出是 AIDL 生成类内部类似 `asInterface()` 的 if 判断。
+
+这里的关键机制是 `queryLocalInterface()` 的行为差异：
+
+```java
+public static IMyService asInterface(IBinder obj) {
+    IInterface iin = obj.queryLocalInterface(DESCRIPTOR);
+    if (iin != null && iin instanceof IMyService) {
+        return (IMyService) iin;   // 同进程：直接返回 Stub 真身
+    }
+    return new IMyService.Stub.Proxy(obj);  // 跨进程：包一层 Proxy
+}
+```
+
+| 调用对象 | `queryLocalInterface()` 返回值 | 结果 |
+|---|---|---|
+| Binder（Stub 子类） | 返回绑定的 IInterface（真身） | 走同进程路径 |
+| BinderProxy | 硬编码返回 null | 走跨进程路径，创建 Proxy |
+
+「透明」的实现全在这里：调用方始终持有 `IMyService` 接口引用，背后是 Stub 还是 Proxy，由 `asInterface()` 在绑定那一刻静默决定。
+
+---
+
+## 三、「透明」具体体现在哪里
+
+在这个方向上，你独立归纳出透明性的三个层面：
+
+1. **位置透明**：远程是谁不可见，可能是本地实现，也可能是跨进程服务
+2. **实现透明**：不关心服务端的具体实现，只关心接口契约
+3. **协议透明**：不关心传输协议，只关心面向对象的参数声明
+
+---
+
+## 四、透明性在哪里会失效——失效边界的识别
+
+在确认了透明性的三个层面之后，转向一个反向问题：透明性在哪些场景下会「穿帮」，让调用方不得不感知到自己在跨进程？以 `FLAG_ONEWAY` 为引子——它让调用方「发完即走」，跨进程时异常无法传回，同进程时行为却完全不同，说明透明性是有边界的。
+
+你主动识别出一个更具体的失效场景：
+
+> Server 在方法 A、B 之间插入了新方法 C，但 Client 没有同步更新。Client 调用 B（code=2），Server 实际执行的是 C（code=2 已被 C 占用），导致行为错乱。
+
+背后的机制是：AIDL 方法按声明顺序映射为递增的 transaction code，Client 和 Server 各自根据自己的 AIDL 文件编译，双方文件不一致时 code 映射错位。
+
+这个失效揭示了一条规律：
+
+> 透明性依赖的隐含前提是——双方对「契约的二进制编码」有一致的理解。接口语义一致还不够，编码方式也必须一致。
+
+你进一步主动质疑「Protobuf 也用 field number 做方法路由」的说法——这个质疑是对的，AI 在此处存在事实性偏差（见偏差记录）。修正后的对比：
+
+| | 方法身份锚定方式 |
+|---|---|
+| AIDL | 声明顺序 → 整数 transaction code |
+| gRPC | 方法全名字符串 → HTTP/2 path 路由 |
+
+你的直觉是「节省性能」，但字符串比较的差异在现代硬件上微乎其微。真正的原因是：Binder 设计年代（1990s）移动设备资源极度受限，整数 dispatch 是自然选择；Binder 驱动运行在内核态，整数 code 可直接传递而无需内核理解方法语义；整个 Android 系统 API 已基于整数 code 大规模构建，历史迁移成本极高。
+
+---
+
+## 五、结构的本质——代理模式的跨域识别
+
+你识别出：这套「形状相同的替身对调用方透明、对执行方负责翻译」的结构，在 Retrofit、Java 动态代理 + MyBatis、RMI 等设计中都有同构体现。并且识别出 Java 动态代理是 Retrofit 的底层实现依赖，两者在结构上本质类似。
+
+这套结构的设计模式名字是**代理模式（Proxy Pattern）**。
+
+---
+
+## 六、版本兼容接口设计——在透明性约束下演化接口
+
+已上线 AIDL 接口需要同时应对「新增方法」和「扩展已有方法参数」两个需求，约束是：老版本 Client 不能强制升级、不能破坏已有 transaction code 映射。
+
+你的接口设计方案：
+
+```java
+interface IDataService {
+    int getVersion();                                         // code = 1 — 永不移动
+    String getData(String key);                              // code = 2（保持不变）
+    void setData(String key, String value);                  // code = 3（保持不变）
+    void deleteData(String key, String extParams);           // code = 4（新增，追加末尾）
+    String getDataV2(String key, String extParams);          // code = 5（新增，追加末尾）
+}
+```
+
+核心策略：新增方法只追加末尾，禁止在已有方法之间插入；`getVersion()` 放第一位永不移动，作为版本探测锚点；用 `String extParams`（JSON 格式）承接可选参数扩展，把变更复杂度下沉到业务层，代价是 JSON 契约需团队规范维护。
+
+Server 侧将新旧方法收敛到同一个内部方法：
+
+```java
+case TRANSACTION_getData:
+    return innerGetData(key, null, DEFAULT_VERSION);
+case TRANSACTION_getDataV2:
+    return innerGetData(key, extParams, version);
+```
+
+你主动识别出新版 Client 先于新版 Server 上线的风险，并提出通过版本探测接口解决：连接建立时查一次 Server 版本并缓存；版本不满足时降级到旧接口；业务允许时等待 Server 升级，不强制立即降级。
+
+新版 Client 调用 `getDataV2`（code=4）打到老 Server 时，老 Server 返回 `UNKNOWN_TRANSACTION`，Client 侧需捕获并降级。
+
+一个值得记住的结论：
+
+> AIDL 接口的稳定性成本远高于业务接口。好的设计应让 AIDL 层尽量稳定，把变更复杂度通过 `extParams` 等手段下沉到业务实现层——这是在 Proxy-Stub 透明性约束下控制版本演化成本的核心策略。
+
+---
+
+## 对话中出现的事实性偏差（回答者视角）
+
+> 以下是本次对话推导过程中出现的明确事实性偏差，记录在此供后续参考。
+
+| 偏差描述 | 准确表述 |
+|---------|---------|
+| AI 在讨论 gRPC 与 AIDL 对比时，将「Protobuf message 字段用 field number 锚定」的机制错误迁移到「gRPC service 方法身份锚定」，暗示 gRPC 方法也用 field number 路由 | gRPC service 方法使用方法全名字符串路由（HTTP/2 path：`/package.Service/Method`），不存在 method number；Protobuf 的 field number 仅作用于 message 字段层面，两者是完全不同层面的机制 |
+
+---
+
+## 对话中出现的引导质量问题（回答者视角）
+
+> 以下是本次对话中出现的引导策略失效或方向偏移，记录在此供路径复用时参考。
+
+| 问题描述 | 影响范围 | 对话中的处理结果 |
+|---------|---------|----------------|
+| 洞察阶段 AI 误判用户已知常识（「依赖接口→多态」）为需要填补的认知缺口，在该线上持续兜圈；最后一步引导几乎直接说出答案，既未激发真实思考，叙述也不简洁 | TODO11–TODO14 共四轮引导失效 | 用户主动质疑「这是常识，还有更深的原因吗」（TODO11），并批判引导表达方式不当（TODO14）；AI 在 TODO15 主动转向失效边界，对话重回正轨 |
+
+---
+
+## 遗留问题
+
+1. **Binder 透明性失效的完整边界**：除 transaction code 错位外，`FLAG_ONEWAY`、DeathRecipient、大数据量传输限制等场景的失效机制。
+2. **ServiceManager 的服务注册与发现机制**：`asInterface()` 解决了「绑定时如何分流」，但服务是如何被找到并绑定的。
+3. **Binder 内核驱动的内存映射机制**：一次 Binder 调用在内核态实际发生了什么，mmap 如何实现「一次拷贝」。
+4. **JSON extParams 契约的工程管理实践**：如何保证 Client 与 Server 对 JSON 字段名、类型、版本的一致性理解。
+
+---
+
+## 附录
+
+> 以下内容在推导区无对应归属章节，但有独立使用价值，在此完整保留。每条标注来源章节，需要推导上下文时可回到对应章节查阅。
+
+### 对照表：AIDL 版本兼容操作约束
+
+| 操作 | 是否允许 | 原因 |
+|---|---|---|
+| 在接口末尾追加新方法 | ✅ | 不影响已有 transaction code 映射 |
+| 在已有方法之间插入新方法 | ❌ | 导致 transaction code 整体错位 |
+| 修改已有方法签名 | ❌ | 破坏 Client/Server 对参数结构的共识 |
+| 删除已有方法 | ❌ | 老 Client 调用时 Server 返回 UNKNOWN_TRANSACTION |
+| 移动 `getVersion()` 位置 | ❌ | 版本探测锚点失效 |
+| 用 `extParams` 扩展参数 | ✅（有代价） | 接口层稳定，代价是 JSON 契约需团队规范维护 |
+
+来源：六、版本兼容接口设计
+
+---
+
+## 对话质量诊断
+
+### 对话质量
+
+| 维度 | 评级 | 说明 |
+|------|------|------|
+| 推导过程完整度 | 高 | 多处主动猜测（asInterface 的 if 判断、版本探测方案、整数 code 节省性能）、主动质疑（「常识背后有更深原因吗」、「Protobuf 的说法不对」、「引导太绕了」）、边界识别（transaction code 错位场景） |
+| 结论直给比例 | 低 | 绝大多数结论有推导过程支撑；asInterface 代码实现、整数 code 设计背景、同构框架举例以 AI 补充为主，但均有上下文铺垫和用户触发 |
+| 关键转折覆盖度 | 高 | 同进程/跨进程分流、失效边界转向（含 AI 发起转向和用户给出具体案例的完整记录）、版本探测方案均有完整对话记录 |
+| 用户主体性 | 中 | 多个节点有真实认知输出；路径主体由 AI 引导设计；自发推进集中在：主动提出 Retrofit 类比、质疑引导质量、在 AI 转向失效边界后独立给出 transaction code 错位案例、版本兼容章节中的 extParams 策略与版本探测方案 |
+
+**综合评级**：高质量
+
+### 路径来源
+
+**路径来源**：混合
+
+**说明**：[U/AI] 为主，用户在 AI 设计的方向上有真实认知输出，多处达到高自主性（独立识别三段结构、引用链完整路径、透明性三层面、transaction code 错位失效场景、版本兼容设计方案）。[U/U] 自发型自主集中在：主动提出 Retrofit 类比作为入口；质疑「依赖接口是常识」并批判引导方式；版本兼容章节中主动识别版本探测方案。失效边界章节中，方向由 AI 发起转向（[A/AI]），用户在此方向上独立给出具体案例（[U/AI] 高自主性）。低自主性 [U/AI] 主要集中在 TODO11–TODO14 的引导兜圈阶段。
+
+**复用建议**：
+- 一至三章触发条件完整保留，可自主复用，推导路径清晰。
+- 四章失效边界：方向由 AI 发起，用户独立给出具体案例，重走过程需知晓方向转移背景。
+- 五章代理模式识别：用户主体性高，可自主复用。
+- 六章版本兼容设计：用户主体性高，可高度自主复用。
+
+### 模型适用性
+
+**适用性**：完全适用
+
+疑问主线清晰（从「它是什么」→「怎么运作」→「透明性边界在哪里」→「设计本质」→「真实问题应用」），推导路径可追溯，触发条件均可从上下文还原。

@@ -9,7 +9,7 @@ DDM Normalize — 将 .cache/ 下未格式化的对话稿转为 DDM 标准，输
 若 ``raw/`` 下已存在同 stem 的 ``*-normalized.md``，会覆盖重写。
 
 环境变量：
-  COGNITIVE_TRACE_ARCHIVE_ROOT  覆盖默认归档根路径（默认 ~/Code/cognitive-trace-archive）
+  LULU_WORKBENCH_ROOT  覆盖默认归档根路径（默认 ~/Code/lulu-workbench）
   COGNITIVE_TRACE_CACHE_DIR        未归一化稿目录（默认 归档根/.cache）
   DDM_TEMPLATE_DIR                归一化输出模板所在目录（默认 归档根/templates）
   DDM_TEMPLATE_FILE                单模板文件名（默认 ddm-normalized-output-template.md，a-b-c.md 与文内标题对应）
@@ -33,7 +33,7 @@ from typing import Optional
 # ---------------------------------------------------------------------------
 
 ARCHIVE_ROOT = Path(
-    os.environ.get("COGNITIVE_TRACE_ARCHIVE_ROOT", Path.home() / "Code" / "cognitive-trace-archive")
+    os.environ.get("LULU_WORKBENCH_ROOT", Path.home() / "Code" / "lulu-workbench")
 )
 # 未归一化稿入口；输出仍在 RAW_DIR
 CACHE_DIR  = Path(os.environ.get("COGNITIVE_TRACE_CACHE_DIR", str(ARCHIVE_ROOT / ".cache")))

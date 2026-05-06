@@ -167,16 +167,20 @@ After generating the ThemeLine document, save it to the local archive and update
 
 ---
 
-### Step 1 · Select topic path and determine file names
+### Step 1 · Select project and doc-theme, determine file names
 
-Read `{archive_root}/topics.json` and select a topic path:
+Read `{archive_root}/topics.json` and select a project:
+
+- Take each item's `dir` field (if present), otherwise take the last segment of `repo` (after `/`)
+- Infer `doc-theme` from the video title or source content (kebab-case, English, no spaces, describes the semantic topic)
 
 ```
-select : one top-level topic [→ optional sub-topic]
-output : topic-path = <level-1>[/<level-2>]
-         slug       = kebab-case summary of the source title (English, no spaces)
-         ts         = YYYYMMDDHHMM (UTC+8)
-         source-file = raw/<topic-path>/<ts>-<slug>.md
+select : project   = dir field or repo short name (e.g. "learning-ai-agent")
+         doc-theme = semantic inference from source title (e.g. "waymo-20m-rides-interview")
+output : topic-path  = <project>/<doc-theme>
+         slug         = kebab-case summary of the source title (English, no spaces)
+         ts            = YYYYMMDDHHMM (UTC+8)
+         source-file  = raw/<topic-path>/<ts>-<slug>.md
 ```
 
 If a slug conflict exists, clarify with the user before proceeding.
@@ -212,8 +216,7 @@ Where:
 
 ```
 COMMON_PATH = <topic-path>/<ts>-<slug>.md
-N           = number of path segments in topic-path  (e.g. "a/b" → N=2)
-prefix      = "../" × (N+1)                          (e.g. N=2 → "../../../")
+prefix      = "../../../"   (topic-path is always 2 segments: project/doc-theme)
 ```
 
 Navigation paths must be fully resolved — no placeholders.

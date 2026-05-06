@@ -61,7 +61,11 @@ lulu-workbench/
 <layer>/<topic-path>/<ts>-<slug>.md
 ```
 
-**`topic-path` 来源**：从 `topics.json` 查询（见下节）。
+**`topic-path` 格式**：固定 2 段：`<project>/<doc-theme>`
+- `project`：topics.json 中的 `dir` 字段，或 `repo` 短名（`/` 后的部分）
+- `doc-theme`：AI 根据对话内容或文档标题语义推断（kebab-case，英文，无空格）
+
+**`prefix` 固定值**：`../../../`（topic-path 恒为 2 段，N 恒=2）
 
 **文内创建时间**：一级标题下一行写 `> 创建时间：YYYY年M月D日 HH:MM`，月日不补零，须与 `ts` 一致。
 
@@ -71,30 +75,32 @@ lulu-workbench/
 
 **新增文件时，`topics.json` 是确定 `topic-path` 的依据。**
 
-结构示意（精简）：
+结构示意（v4）：
 
 ```json
 {
+  "version": 4,
   "topics": [
-    {
-      "repo": "lulufoo/<source-repo>",
-      "m": {
-        "<sub-topic>": ["<leaf>", ...]
-      }
-    }
+    { "repo": "lulufoo/<source-repo>" },
+    { "repo": "lulufoo/<source-repo>", "dir": "<local-dir>" },
+    { "dir": "<virtual-local-dir>" }
   ]
 }
 ```
 
-`topic-path` = `<sub-topic>` 或 `<sub-topic>/<leaf>`，例如：
+- `dir` 字段：仅当本地目录名与 repo 短名不一致时填写（如 `learning-ai-lmm` → `dir: "ai"`）
+- 无 `repo` 的条目（如 `{"dir":"common-tech"}`）：本地遗留目录，无对应 GitHub repo
 
-| source-repo | sub-topic | leaf | topic-path |
-|-------------|-----------|------|------------|
-| `android-dev-docs` | `system-principles` | `binder` | `android-dev-docs/system-principles/binder` |
-| `ai-assisted-domain-learning` | `dialogue-distillation-model` | —— | `ai-assisted-domain-learning/dialogue-distillation-model` |
-| `common-tech` | `language` | —— | `common-tech/language` |
+`topic-path` = `<project>/<doc-theme>`（固定 2 段），例如：
 
-> `topics.json` 的 `lulu-workbench` 自身条目（`distilled/raw/templates/trace`）描述的是 CTA 在知识语料系统中的自分类，不用于路径推导。
+| project（dir 或 repo 短名） | doc-theme（AI 语义推断） | topic-path |
+|---|---|---|
+| `android-dev-docs` | `binder-ipc-internals` | `android-dev-docs/binder-ipc-internals` |
+| `ai-assisted-domain-learning` | `dialogue-distillation-model` | `ai-assisted-domain-learning/dialogue-distillation-model` |
+| `common-tech` | `java-concurrency` | `common-tech/java-concurrency` |
+| `ai` | `llm-token-generation` | `ai/llm-token-generation` |
+
+> `topics.json` 的 `lulu-workbench` 自身条目描述的是 CTA 在知识语料系统中的自分类，不用于路径推导。
 
 ---
 

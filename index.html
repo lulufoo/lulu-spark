@@ -3,15 +3,15 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Dialogue Insight Archive</title>
+<title>LuLu Workbench</title>
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <link rel="stylesheet" href="app.css">
 </head>
 <body>
 
 <header>
-  <h1>Dialogue Insight Archive</h1>
-  <a href="https://github.com/lulufoo/cognitive-trace-archive" target="_blank">GitHub ↗</a>
+  <h1>LuLu Workbench</h1>
+  <a href="https://github.com/lulufoo/lulu-workbench" target="_blank">GitHub ↗</a>
   <button id="btn-refresh">⟳ 刷新</button>
   <button id="btn-pull">↓ 更新项目</button>
   <button id="btn-push-index">↑ 提交变更</button>
@@ -133,6 +133,20 @@
   </div>
 </div>
 
-<script type="module" src="js/main.js"></script>
+<!-- Move project dialog -->
+<div id="move-project-dialog">
+  <div id="move-project-backdrop"></div>
+  <div id="move-project-dialog-box">
+    <h3>↷ 切换项目</h3>
+    <div id="move-project-result" style="font-size:12px;color:#57606a;margin-bottom:8px;"></div>
+    <div id="move-project-list" style="display:flex;flex-direction:column;gap:4px;max-height:300px;overflow-y:auto;"></div>
+    <div id="move-project-dialog-actions">
+      <button id="btn-move-project-refresh" title="刷新项目列表">↺ 刷新</button>
+      <button id="btn-move-project-close">取消</button>
+    </div>
+  </div>
+</div>
+
+<script type="module" src="js/main.js?v=20260506d"></script>
 </body>
 </html>

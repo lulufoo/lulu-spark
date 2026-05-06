@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Local dev server for cognitive-trace-archive viewer.
+Local dev server for lulu-workbench viewer.
 Serves static files + provides API for file editing and git commit/push.
 
 Usage:
@@ -51,6 +51,8 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             self._handle_set_done()
         elif self.path == '/api/set-importance':
             self._handle_set_importance()
+        elif self.path == '/api/move-project':
+            self._handle_move_project()
         else:
             self.send_error(404)
 
@@ -68,6 +70,13 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             self._handle_status()
         else:
             super().do_GET()
+
+    def end_headers(self):
+        # Disable caching for JS/CSS/HTML so edits take effect immediately
+        ext = self.path.split('?')[0].rsplit('.', 1)[-1].lower()
+        if ext in ('js', 'css', 'html'):
+            self.send_header('Cache-Control', 'no-store')
+        super().end_headers()
 
     def do_OPTIONS(self):
         self.send_response(204)
@@ -732,6 +741,149 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         except Exception as e:
             self._json_response({'error': str(e)}, 500)
 
+    # ── API: move entry to a different project ──────────────────────────────
+
+    def _handle_move_project(self):
+        try:
+            data = self._read_json()
+            entry_id = str(data.get('id') or '').strip()
+            new_project = str(data.get('new_project') or '').strip()
+
+            # 基本校验
+            if not re.fullmatch(r'[0-9a-f]{32}', entry_id):
+                self._json_response({'error': 'Invalid id'}, 400)
+                return
+            if not new_project or '..' in new_project or '/' in new_project:
+                self._json_response({'error': 'Invalid new_project'}, 400)
+                return
+
+            # 校验 new_project 在 topics.json 中
+            topics_path = REPO_ROOT / 'topics.json'
+            topics_data = json.loads(topics_path.read_text(encoding='utf-8'))
+            valid_projects = set()
+            for t in topics_data.get('topics', []):
+                if 'dir' in t:
+                    valid_projects.add(t['dir'])
+                elif 'repo' in t:
+                    valid_projects.add(t['repo'].split('/')[-1])
+            if new_project not in valid_projects:
+                self._json_response({'error': f'Unknown project: {new_project}'}, 400)
+                return
+
+            # 读取 index.json
+            index_path = REPO_ROOT / 'index.json'
+            index_data = json.loads(index_path.read_text(encoding='utf-8'))
+            entries = index_data.get('entries', index_data)
+
+            if entry_id not in entries:
+                self._json_response({'error': 'Entry not found'}, 404)
+                return
+
+            entry = entries[entry_id]
+            old_cp = entry.get('common_path', '')
+            if not old_cp or '..' in old_cp:
+                self._json_response({'error': 'Invalid common_path'}, 400)
+                return
+
+            # 计算新 common_path（仅替换第一个路径段）
+            old_parts = old_cp.split('/')
+            old_parts[0] = new_project
+            new_cp = '/'.join(old_parts)
+
+            if old_cp == new_cp:
+                self._json_response({'error': 'Already in this project'}, 400)
+                return
+
+            # 收集所有 src → dst 路径对
+            moves = []
+            for layer in ('raw', 'distilled', 'digest', 'trace', 'diagnose'):
+                src = (REPO_ROOT / layer / old_cp).resolve()
+                dst = (REPO_ROOT / layer / new_cp).resolve()
+                if not str(src).startswith(str(REPO_ROOT) + os.sep):
+                    continue
+                if src.exists():
+                    moves.append((src, dst))
+
+            # annotation 文件
+            ann_src = self._annotation_path(old_cp)
+            if ann_src and ann_src.exists():
+                new_ann_rel = (new_cp[:-3] + '.json') if new_cp.endswith('.md') else (new_cp + '.json')
+                ann_dst = (REPO_ROOT / 'annotations' / new_ann_rel).resolve()
+                moves.append((ann_src, ann_dst))
+
+            # zh 翻译文件
+            old_zh = entry.get('translations', {}).get('zh')
+            new_zh = None
+            if old_zh:
+                zh_parts = old_zh.split('/')
+                new_cp_parts = new_cp.split('/')
+                zh_parts[0] = new_project
+                # 同步 doc-theme（zh 目录名应始终与 common_path 保持一致）
+                if len(zh_parts) >= 2 and len(new_cp_parts) >= 2:
+                    zh_parts[1] = new_cp_parts[1]
+                new_zh = '/'.join(zh_parts)
+                # 源文件：先尝试 old_project + new_doc_theme（rename_themes 已重命名目录后的位置）
+                old_cp_parts = old_cp.split('/')
+                corrected_old_zh_parts = list(zh_parts)
+                corrected_old_zh_parts[0] = old_cp_parts[0]
+                zh_src = (REPO_ROOT / 'raw' / '/'.join(corrected_old_zh_parts)).resolve()
+                if not zh_src.exists():
+                    zh_src = (REPO_ROOT / 'raw' / old_zh).resolve()
+                zh_dst = (REPO_ROOT / 'raw' / new_zh).resolve()
+                if zh_src.exists():
+                    moves.append((zh_src, zh_dst))
+
+            # 原子性 mv：逐一执行，失败则 rollback
+            completed = []
+            try:
+                for src, dst in moves:
+                    dst.parent.mkdir(parents=True, exist_ok=True)
+                    src.rename(dst)
+                    completed.append((src, dst))
+                    print(f'  [move-project] {src.relative_to(REPO_ROOT)} → {dst.relative_to(REPO_ROOT)}')
+            except Exception as mv_err:
+                for src_r, dst_r in reversed(completed):
+                    try:
+                        dst_r.rename(src_r)
+                    except Exception:
+                        pass
+                self._json_response({'error': f'Move failed, rolled back: {mv_err}'}, 500)
+                return
+
+            # 更新文件内导航链接
+            for src, dst in completed:
+                if dst.suffix != '.md':
+                    continue
+                try:
+                    content = dst.read_text(encoding='utf-8')
+                    for layer in ('raw', 'distilled', 'digest', 'trace', 'diagnose'):
+                        content = content.replace(f'{layer}/{old_cp}', f'{layer}/{new_cp}')
+                        content = content.replace(f'`{layer}/{old_cp}`', f'`{layer}/{new_cp}`')
+                    if old_zh and new_zh:
+                        content = content.replace(f'raw/{old_zh}', f'raw/{new_zh}')
+                    dst.write_text(content, encoding='utf-8')
+                except Exception:
+                    pass
+
+            # 写 index.json（最后执行）
+            entry['common_path'] = new_cp
+            if new_zh:
+                entry.setdefault('translations', {})['zh'] = new_zh
+            tmp_path = index_path.with_suffix('.json.tmp')
+            tmp_path.write_text(
+                json.dumps(index_data, ensure_ascii=False, indent=2),
+                encoding='utf-8'
+            )
+            tmp_path.replace(index_path)
+
+            print(f'  [move-project] entry {entry_id}: {old_cp} → {new_cp}')
+            self._json_response({'ok': True, 'new_common_path': new_cp})
+
+        except json.JSONDecodeError:
+            self._json_response({'error': 'Invalid JSON body'}, 400)
+        except Exception as e:
+            self._json_response({'error': str(e)}, 500)
+
     # ── API: delete entry + all associated files ──────────────────────────────
 
     def _handle_delete(self):
@@ -794,7 +946,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
 
 
 if __name__ == '__main__':
-    print(f'cognitive-trace-archive viewer')
+    print(f'lulu-workbench viewer')
     print(f'  Root : {REPO_ROOT}')
     print(f'  URL  : http://localhost:{PORT}')
     print()

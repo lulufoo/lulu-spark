@@ -27,7 +27,6 @@ from typing import Any
 _REPO_ROOT = Path(__file__).resolve().parent
 DEFAULT_CTA_TOPICS = str(_REPO_ROOT / "topics.json")
 KNOWLEDGE_TYPE = "KNOWLEDGE_CORPUS"
-DEFAULT_TOP_LEVEL_BLACKLIST = ("gradle",)
 
 
 def _parse_gh_paginate_array(stdout: str) -> list[dict[str, Any]]:
@@ -134,32 +133,6 @@ def get_directory_children(full_name: str, rel_path: str, default_branch: str) -
     return [j]
 
 
-def build_topics_map(
-    full_name: str, default_branch: str, top_blacklist: tuple[str, ...]
-) -> dict[str, list[str]]:
-    bl = {x.lower() for x in top_blacklist}
-    root = get_directory_children(full_name, "", default_branch)
-    out: dict[str, list[str]] = {}
-    for it in root:
-        if it.get("type") != "dir":
-            continue
-        name = it.get("name") or ""
-        if name.startswith("."):
-            continue
-        if name.lower() in bl:
-            continue
-        sub = get_directory_children(full_name, name, default_branch)
-        seconds = [
-            s.get("name", "")
-            for s in sub
-            if s.get("type") == "dir" and s.get("name")
-            and not (s.get("name", "") or "").startswith(".")
-        ]
-        seconds.sort()
-        out[name] = seconds
-    return dict(sorted(out.items(), key=lambda x: x[0]))
-
-
 def _pick_default_branch(branches: list[str]) -> str:
     if not branches:
         return "main"
@@ -172,8 +145,20 @@ def _pick_default_branch(branches: list[str]) -> str:
 
 
 def run(out_path: str) -> int:
+    # 读取已有 topics.json，保留手动维护的 dir 字段和虚拟条目
+    existing_dirs: dict[str, str] = {}
+    virtual_entries: list[dict[str, Any]] = []
+    if Path(out_path).exists():
+        with open(out_path, encoding="utf-8") as f:
+            existing = json.load(f)
+        for item in existing.get("topics", []):
+            if "repo" in item and "dir" in item:
+                existing_dirs[item["repo"]] = item["dir"]
+            if "repo" not in item:
+                virtual_entries.append(item)
+
     repos = list_owner_repos()
-    rows: list[tuple[str, str, dict[str, list[str]]]] = []
+    discovered: list[tuple[str, str]] = []
     for r in sorted(repos, key=lambda x: (x.get("full_name") or "")):
         full = r.get("full_name")
         if not full:
@@ -181,27 +166,30 @@ def run(out_path: str) -> int:
         branch = r.get("default_branch") or "main"
         if not _is_knowledge_corpus(full, branch):
             continue
-        tmap = build_topics_map(full, branch, DEFAULT_TOP_LEVEL_BLACKLIST)
-        rows.append((full, branch, tmap))
-    dbranch = _pick_default_branch([b for _, b, _ in rows])
-    items: list[dict[str, Any]] = []
-    for full, branch, tmap in rows:
-        it: dict[str, Any] = {"repo": full, "m": tmap}
-        if branch != dbranch:
-            it["b"] = branch
-        items.append(it)
+        discovered.append((full, branch))
+
+    dbranch = _pick_default_branch([b for _, b in discovered])
+    topics_list: list[dict[str, Any]] = []
+    for full, branch in discovered:
+        entry: dict[str, Any] = {"repo": full}
+        if full in existing_dirs:
+            entry["dir"] = existing_dirs[full]
+        topics_list.append(entry)
+
+    # 追加虚拟条目（无 repo 字段，如 common-tech）
+    topics_list.extend(virtual_entries)
+
     doc: dict[str, Any] = {
-        "version": 3,
-        "source": "CTA KNOWLEDGE_CORPUS 1-2L (gh)",
+        "version": 4,
+        "source": "CTA KNOWLEDGE_CORPUS (gh)",
         "defaultBranch": dbranch,
-        "bl": list(DEFAULT_TOP_LEVEL_BLACKLIST),
-        "topics": items,
+        "topics": topics_list,
     }
     with open(out_path, "w", encoding="utf-8") as f:
-        json.dump(doc, f, ensure_ascii=False, separators=(",", ":"))
+        json.dump(doc, f, ensure_ascii=False, indent=2)
         f.write("\n")
     print(
-        f"Wrote {out_path} v3 with {len(items)} project(s) ({os.path.getsize(out_path)} bytes).",
+        f"Wrote {out_path} v4 with {len(topics_list)} project(s) ({os.path.getsize(out_path)} bytes).",
         file=sys.stderr,
     )
     return 0
