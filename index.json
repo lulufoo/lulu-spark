@@ -552,13 +552,13 @@
       ]
     },
     "21af9038cf69e193d2bafe0813a9270d": {
-      "common_path": "inbox/waymo-dolgov-20-million-rides/202605061250-waymo-dmitri-dolgov-20-million-rides.md",
+      "common_path": "product-analysis/waymo-dolgov-20-million-rides/202605061250-waymo-dmitri-dolgov-20-million-rides.md",
       "created_at": "202605061250",
       "layers": [
         "raw"
       ],
       "translations": {
-        "zh": "inbox/waymo-dolgov-20-million-rides/202605061250-waymo-dmitri-dolgov-20-million-rides-zh.md"
+        "zh": "product-analysis/waymo-dolgov-20-million-rides/202605061250-waymo-dmitri-dolgov-20-million-rides-zh.md"
       }
     },
     "c7ea292c27c9acd20b71d48ee391781f": {

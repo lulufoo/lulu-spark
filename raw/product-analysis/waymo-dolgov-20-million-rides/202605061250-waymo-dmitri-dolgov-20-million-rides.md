@@ -2,7 +2,7 @@
 
 > 创建时间：2026年5月6日 12:50
 
-> 导航：[distilled](../../../distilled/inbox/waymo-dolgov-20-million-rides/202605061250-waymo-dmitri-dolgov-20-million-rides.md) · [digest](../../../digest/inbox/waymo-dolgov-20-million-rides/202605061250-waymo-dmitri-dolgov-20-million-rides.md) · [trace](../../../trace/inbox/waymo-dolgov-20-million-rides/202605061250-waymo-dmitri-dolgov-20-million-rides.md)
+> 导航：[distilled](../../../distilled/product-analysis/waymo-dolgov-20-million-rides/202605061250-waymo-dmitri-dolgov-20-million-rides.md) · [digest](../../../digest/product-analysis/waymo-dolgov-20-million-rides/202605061250-waymo-dmitri-dolgov-20-million-rides.md) · [trace](../../../trace/product-analysis/waymo-dolgov-20-million-rides/202605061250-waymo-dmitri-dolgov-20-million-rides.md)
 
 > 原文：[Video](https://www.youtube.com/watch?v=I_0Kuf6Aa2c)
 
