@@ -178,6 +178,9 @@
   .badge-done:hover { background: #f6f8fa; color: #57606a; opacity: 1; }
   .doc-card.done .badge-done { color: #57606a; border-color: #c8d0d8; }
   .badge-move-project {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
     background: none;
     color: #b0b8c1;
     border-color: #e2e8ee;
@@ -185,6 +188,7 @@
     font-size: 10px;
     flex-shrink: 0;
     padding: 1px 6px;
+    line-height: 1;
   }
   .badge-move-project:hover { background: #ddf4ff; color: #0969da; border-color: #96c6f8; opacity: 1; }
 
@@ -609,7 +613,7 @@
     background: #fff;
     border-radius: 10px;
     padding: 24px 24px 20px;
-    width: min(360px, 90vw);
+    width: min(520px, 92vw);
     box-shadow: 0 8px 40px rgba(0,0,0,.3);
     display: flex;
     flex-direction: column;
@@ -625,6 +629,20 @@
     text-align: left;
     cursor: pointer;
     color: #24292f;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+  }
+  .move-project-item-name {
+    font-size: 13px;
+    font-weight: 500;
+    color: inherit;
+  }
+  .move-project-item-desc {
+    font-size: 11px;
+    color: #57606a;
+    font-weight: 400;
   }
   .move-project-item:hover:not(:disabled) { background: #ddf4ff; border-color: #54aeff; }
   .move-project-item:disabled { opacity: .5; cursor: default; }

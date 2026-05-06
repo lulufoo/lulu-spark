@@ -26,8 +26,13 @@ async function _loadProjects(currentProject) {
 
   // Load topics
   let projects = [];
+  let topicsMap = {};
   try {
     const data = await api.fetchTopics();
+    for (const t of data.topics) {
+      const key = t.dir || (t.repo ? t.repo.split('/').pop() : null);
+      if (key) topicsMap[key] = t.description || '';
+    }
     projects = data.topics.map(t => t.dir || (t.repo ? t.repo.split('/').pop() : null)).filter(Boolean);
   } catch (e) {
     result.style.color = '#cf222e';
@@ -45,7 +50,8 @@ async function _loadProjects(currentProject) {
       btn.style.color = '#cf222e';
       btn.style.borderColor = '#ffcbc8';
     }
-    btn.textContent = proj;
+    const desc = topicsMap[proj] || '';
+    btn.innerHTML = `<span class="move-project-item-name">${proj}</span>${desc ? `<span class="move-project-item-desc">${desc}</span>` : ''}`;
     btn.addEventListener('click', () => doMoveProject(proj));
     list.appendChild(btn);
   }
