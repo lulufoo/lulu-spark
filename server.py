@@ -13,6 +13,7 @@ import json
 import os
 import re
 import subprocess
+import sys
 import urllib.parse
 import base64
 import uuid
@@ -56,6 +57,8 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             self._handle_move_project()
         elif self.path == '/api/settle':
             self._handle_settle()
+        elif self.path == '/api/update-topics':
+            self._handle_update_topics()
         else:
             self.send_error(404)
 
@@ -273,6 +276,26 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             self._json_response({'error': str(e)}, 500)
 
     # ── API: git pull --rebase ──────────────────────────────────────────────
+
+    def _handle_update_topics(self):
+        try:
+            self._read_json()  # consume body
+            script = REPO_ROOT / 'update_topics_from_github.py'
+            result = subprocess.run(
+                [sys.executable, str(script)],
+                cwd=REPO_ROOT, capture_output=True, text=True
+            )
+            if result.returncode != 0:
+                self._json_response({
+                    'error': 'update_topics_from_github.py failed',
+                    'stderr': result.stderr,
+                    'stdout': result.stdout
+                }, 500)
+                return
+            print(f'  [update-topics] done')
+            self._json_response({'ok': True, 'info': result.stderr.strip()})
+        except Exception as e:
+            self._json_response({'error': str(e)}, 500)
 
     def _handle_pull(self):
         try:

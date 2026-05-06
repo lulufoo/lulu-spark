@@ -14,10 +14,12 @@ const titleCache = state.index.titleCache;
 
 // ── Fetch index.json ───────────────────────────────────────────────────────
 
-async function loadIndex() {
+async function loadIndex({ managedBtn = false } = {}) {
   const btn = document.getElementById('btn-refresh');
-  btn.disabled = true;
-  btn.textContent = '⟳ 加载中…';
+  if (!managedBtn) {
+    btn.disabled = true;
+    btn.textContent = '⟳ 加载中…';
+  }
 
   try {
     const data = await api.fetchIndex();
@@ -33,8 +35,10 @@ async function loadIndex() {
   } catch (e) {
     showError(`无法加载 index.json：${e.message}`);
   } finally {
-    btn.disabled = false;
-    btn.textContent = '⟳ 刷新';
+    if (!managedBtn) {
+      btn.disabled = false;
+      btn.textContent = '⟳ 刷新';
+    }
   }
 }
 
@@ -107,14 +111,37 @@ async function pullProject() {
 
 // ── Event listeners ────────────────────────────────────────────────────────
 
-document.getElementById('btn-refresh').addEventListener('click', () => {
+document.getElementById('btn-refresh').addEventListener('click', async () => {
+  const btn = document.getElementById('btn-refresh');
+  btn.disabled = true;
+  btn.textContent = '⟳ 同步中…';
+  try {
+    await api.updateTopics();
+  } catch (e) {
+    console.warn('update-topics failed:', e.message);
+  }
+  // Reload topicDescriptions
+  try {
+    const data = await api.fetchTopics();
+    const map = {};
+    for (const t of (data.topics || [])) {
+      if (!t.repo || !t.description) continue;
+      const key = t.dir || t.repo.split('/')[1];
+      map[key] = t.description;
+    }
+    state.index.topicDescriptions = map;
+  } catch (e) {
+    console.warn('fetchTopics failed:', e.message);
+  }
   titleCache.clear();
   if (state.index.data) {
     for (const entry of Object.values(state.index.data)) {
       LAYERS.forEach(l => delete entry[`_unreachable_${l}`]);
     }
   }
-  loadIndex();
+  await loadIndex({ managedBtn: true });
+  btn.disabled = false;
+  btn.textContent = '⟳ 刷新';
 });
 
 document.getElementById('doc-list').addEventListener('scroll', () => {
@@ -246,5 +273,14 @@ document.getElementById('btn-feed').addEventListener('click', () => {
 // ── Init ───────────────────────────────────────────────────────────────────
 
 api.fetchConfig().then(d => { state.ui.archiveRoot = d.archive_root || ''; }).catch(() => {});
+api.fetchTopics().then(data => {
+  const map = {};
+  for (const t of (data.topics || [])) {
+    if (!t.repo || !t.description) continue;
+    const key = t.dir || t.repo.split('/')[1];
+    map[key] = t.description;
+  }
+  state.index.topicDescriptions = map;
+}).catch(() => {});
 loadIndex();
 

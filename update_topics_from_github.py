@@ -112,6 +112,30 @@ def _is_knowledge_corpus(full_name: str, default_branch: str) -> bool:
     return True
 
 
+def _read_repo_meta(full_name: str, default_branch: str) -> dict[str, Any]:
+    """Read description + keywords from .repository-type.json (best-effort)."""
+    path = f"repos/{full_name}/contents/{urllib.parse.quote('.repository-type.json', safe='')}"
+    r = subprocess.run(
+        ["gh", "api", "-H", "Accept: application/vnd.github+json",
+         f"{path}?ref={urllib.parse.quote(default_branch)}"],
+        capture_output=True, text=True, check=False,
+    )
+    if r.returncode != 0:
+        return {}
+    try:
+        meta = json.loads(r.stdout)
+        rawb = base64.b64decode((meta.get("content") or "").replace("\n", ""))
+        doc = json.loads(rawb.decode("utf-8"))
+    except Exception:
+        return {}
+    result: dict[str, Any] = {}
+    if doc.get("description"):
+        result["description"] = doc["description"]
+    if doc.get("keywords"):
+        result["keywords"] = doc["keywords"]
+    return result
+
+
 def get_directory_children(full_name: str, rel_path: str, default_branch: str) -> list[dict[str, Any]]:
     if rel_path in ("", "."):
         q = f"repos/{full_name}/contents?ref={urllib.parse.quote(default_branch)}"
@@ -174,6 +198,11 @@ def run(out_path: str) -> int:
         entry: dict[str, Any] = {"repo": full}
         if full in existing_dirs:
             entry["dir"] = existing_dirs[full]
+        meta = _read_repo_meta(full, branch)
+        if meta.get("description"):
+            entry["description"] = meta["description"]
+        if meta.get("keywords"):
+            entry["keywords"] = meta["keywords"]
         topics_list.append(entry)
 
     # 追加虚拟条目（无 repo 字段，如 common-tech）
@@ -192,7 +221,38 @@ def run(out_path: str) -> int:
         f"Wrote {out_path} v4 with {len(topics_list)} project(s) ({os.path.getsize(out_path)} bytes).",
         file=sys.stderr,
     )
+
+    # Generate knowledge-index.md next to this script's refactor-2.0 dir
+    index_path = Path(out_path).parent / "refactor-2.0" / "knowledge-index.md"
+    _write_knowledge_index(topics_list, index_path)
+    print(f"Wrote {index_path}", file=sys.stderr)
     return 0
+
+
+def _write_knowledge_index(topics_list: list[dict[str, Any]], out_path: Path) -> None:
+    lines = [
+        "# LuLu 知识库一级索引",
+        "",
+        "> 本文件由 `update_topics_from_github.py` 自动生成，勿手动编辑。",
+        "> 将下方文本块整体复制，粘贴到 system prompt 或 instruction。",
+        "",
+        "---",
+        "",
+        "```",
+        "## LuLu 知识库",
+        "",
+    ]
+    for t in topics_list:
+        repo = t.get("repo")
+        desc = t.get("description")
+        if not repo or not desc:
+            continue
+        repo_name = repo.split("/")[1]
+        url = f"https://github.com/{repo}/blob/main/_index.md"
+        lines.append(f"{repo_name}: {desc}; {url}")
+    lines += ["", "```", ""]
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path.write_text("\n".join(lines), encoding="utf-8")
 
 
 def main() -> int:

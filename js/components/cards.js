@@ -44,6 +44,8 @@ export function buildCard(id, entry, title) {
   const filename = filenameFromPath(entry.common_path);
   const displayTitle = title !== undefined ? title : null;
   const time = timeFromTs(entry.created_at);
+  const projectDir = entry.common_path.split('/')[0];
+  const topicDesc = state.index.topicDescriptions[projectDir] || '';
 
   const diffState = getEntryDiffState(entry);
   const dotHtml = diffState
@@ -73,7 +75,7 @@ export function buildCard(id, entry, title) {
   const moveBadgeHtml = `<button class="badge badge-move-project" data-action="move-project" title="移动到其他项目">↳ 移项</button>`;
 
   card.innerHTML = `
-    <div class="doc-topic">${topic}</div>
+    <div class="doc-topic"${topicDesc ? ` data-tip="${escHtml(topicDesc)}"` : ''}>${topic}</div>
     <button class="doc-title-btn${displayTitle === null ? ' loading' : ''}">${displayTitle !== null ? escHtml(displayTitle) : ''}</button>
     <div class="doc-meta">${time}${dotHtml}</div>
     <div class="badges">${badgesHtml}${linksBadgeHtml}${importanceBadgeHtml(entry.importance)}${doneBadgeHtml}${moveBadgeHtml}</div>

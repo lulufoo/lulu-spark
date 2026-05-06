@@ -137,6 +137,15 @@ export async function fetchTopics() {
   return res.json();
 }
 
+export async function updateTopics() {
+  const res = await fetch('/api/update-topics', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: '{}'
+  });
+  return res.json();
+}
+
 export async function moveToProject(id, newProject) {
   const res = await fetch('/api/move-project', {
     method: 'POST',

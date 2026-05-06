@@ -7,7 +7,8 @@ export const state = {
     titleCache: new Map(),
     diffStatus: new Map(),
     annotations: {},
-    titleFetchCache: new Map()
+    titleFetchCache: new Map(),
+    topicDescriptions: {}
   },
   ui: {
     activeDate: null,
