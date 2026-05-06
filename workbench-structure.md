@@ -1,20 +1,20 @@
-# cognitive-trace-archive 仓库结构说明
+# lulu-workbench 仓库结构说明
 
-> 仓库：`https://github.com/lulufoo/cognitive-trace-archive`
+> 仓库：`https://github.com/lulufoo/lulu-workbench`
 > 用途：供 AI 任务执行时定位文件路径、判断需调整的关联文件。
 
 ---
 
 ## 仓库性质
 
-`.repository-type.json` 标注该仓库类型为 `KNOWLEDGE_CORPUS`，是对话知识的集中归档库，对应 DDM 流程中的 `CTA_BASE`。
+`.repository-type.json` 标注该仓库类型为 `PERSONAL_WORKBENCH`，是对话知识归档库与个人 AI skill 集合的统一工作台，对应 DDM 流程中的 `CTA_BASE`。
 
 ---
 
 ## 目录结构
 
 ```
-cognitive-trace-archive/
+lulu-workbench/
 ├── raw/                        # 层1：原始对话归档（源头，只增不改）
 ├── distilled/                  # 层2：蒸馏文档
 ├── diagnose/                   # 层3：P1 诊断摘要（DDM Phase 1 产出）
@@ -27,6 +27,9 @@ cognitive-trace-archive/
 │   └── ddm-normalized-output-template.md
 ├── scripts/
 │   └── unify_index_path_prefix.py
+├── skills/                     # 个人 AI skill 集合
+│   ├── ddm/                    # DDM 蒸馏工作流 skill
+│   └── theme-line/             # 视频/对话主题线整理 skill
 ├── normalize.py                # 工具脚本
 ├── update_topics_from_github.py # 工具脚本
 ├── dialogue-knowledge-management-guide.md  # 知识管理治理说明
@@ -91,7 +94,7 @@ cognitive-trace-archive/
 | `ai-assisted-domain-learning` | `dialogue-distillation-model` | —— | `ai-assisted-domain-learning/dialogue-distillation-model` |
 | `common-tech` | `language` | —— | `common-tech/language` |
 
-> `topics.json` 的 `cognitive-trace-archive` 自身条目（`distilled/raw/templates/trace`）描述的是 CTA 在知识语料系统中的自分类，不用于路径推导。
+> `topics.json` 的 `lulu-workbench` 自身条目（`distilled/raw/templates/trace`）描述的是 CTA 在知识语料系统中的自分类，不用于路径推导。
 
 ---
 
@@ -182,4 +185,4 @@ raw/<topic-path>/<ts>-<slug>.md        ← 只增不改，源头保留
 | `update_topics_from_github.py` | 从 GitHub 同步更新 topics.json 的工具脚本 |
 | `scripts/unify_index_path_prefix.py` | 批量修正 index.json 路径前缀的维护脚本 |
 | `templates/ddm-normalized-output-template.md` | DDM 标准化输出模板 |
-| `.repository-type.json` | 仓库类型元数据，值为 `KNOWLEDGE_CORPUS` |
+| `.repository-type.json` | 仓库类型元数据，值为 `PERSONAL_WORKBENCH` |

@@ -536,6 +536,20 @@
       "translations": {
         "zh": "ai-software-dev/agentic-coding/202605052010-karpathy-vibe-coding-to-agentic-engineering-zh.md"
       }
+    },
+    "a18b956fdaf4da3a47dcd31f3427a974": {
+      "common_path": "learning-ai-agent/product/202605061100-skill-container-format-not-design-paradigm.md",
+      "created_at": "202605061100",
+      "layers": [
+        "raw"
+      ]
+    },
+    "9516be4e728e5c91d810b2fd34dff201": {
+      "common_path": "ai-software-dev/agentic-coding/202605061157-ai-coding-discipline-norms-dialogue.md",
+      "created_at": "202605061157",
+      "layers": [
+        "raw"
+      ]
     }
   }
 }

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Regenerate this repo's ``topics.json`` from GitHub: KNOWLEDGE_CORPUS repos, 1st/2nd level dirs.
 
-Run from a clone of ``lulufoo/cognitive-trace-archive`` (or anywhere), with ``gh`` logged in.
+Run from a clone of ``lulufoo/lulu-workbench`` (or anywhere), with ``gh`` logged in.
 Uses ``gh api`` only (no ``echo`` of large JSON). **Schema v3 (compact):**
   - Root: ``version``, short ``source``, ``defaultBranch``, ``bl`` (top-level name blacklist),
     ``topics`` = array of projects.

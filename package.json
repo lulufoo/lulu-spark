@@ -1,21 +1,21 @@
 {
-  "name": "cognitive-trace-archive",
+  "name": "lulu-workbench",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
   "scripts": { "test": "vitest run" },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/lulufoo/cognitive-trace-archive.git"
+    "url": "git+https://github.com/lulufoo/lulu-workbench.git"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "module",
   "bugs": {
-    "url": "https://github.com/lulufoo/cognitive-trace-archive/issues"
+    "url": "https://github.com/lulufoo/lulu-workbench/issues"
   },
-  "homepage": "https://github.com/lulufoo/cognitive-trace-archive#readme",
+  "homepage": "https://github.com/lulufoo/lulu-workbench#readme",
   "devDependencies": {
     "vitest": "^4.1.5"
   }
