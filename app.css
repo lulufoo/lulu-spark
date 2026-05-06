@@ -26,7 +26,13 @@
     text-decoration: none;
   }
   header a:hover { color: #fff; }
-  #btn-refresh {
+  #btn-refresh { display: none; } /* replaced by repo-menu */
+
+  /* ── Repo menu dropdown ── */
+  #repo-menu-wrap {
+    position: relative;
+  }
+  #btn-repo-menu {
     background: #373e47;
     border: 1px solid #444c56;
     color: #cdd9e5;
@@ -36,8 +42,75 @@
     cursor: pointer;
     transition: background .15s;
   }
-  #btn-refresh:hover { background: #444c56; }
-  #btn-refresh:disabled { opacity: .5; cursor: default; }
+  #btn-repo-menu:hover { background: #444c56; }
+  #btn-repo-menu:disabled { opacity: .5; cursor: default; }
+  #repo-menu-dropdown {
+    display: none;
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    background: #2d333b;
+    border: 1px solid #444c56;
+    border-radius: 8px;
+    padding: 4px 0;
+    min-width: 130px;
+    z-index: 500;
+    box-shadow: 0 4px 12px rgba(0,0,0,.4);
+  }
+  #repo-menu-dropdown.open { display: block; }
+  #repo-menu-dropdown button {
+    display: block;
+    width: 100%;
+    text-align: left;
+    background: none;
+    border: none;
+    color: #cdd9e5;
+    font-size: 12px;
+    padding: 7px 14px;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  #repo-menu-dropdown button:hover { background: #373e47; }
+  .repo-menu-sep {
+    border: none;
+    border-top: 1px solid #444c56;
+    margin: 4px 0;
+  }
+
+  /* ── Add repo dialog ── */
+  #add-repo-dialog {
+    position: fixed;
+    inset: 0;
+    z-index: 2000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0,0,0,.55);
+  }
+  #add-repo-dialog.open { display: flex; }
+  #add-repo-dialog-box {
+    background: #fff;
+    border-radius: 10px;
+    padding: 24px 24px 20px;
+    width: min(420px, 90vw);
+    box-shadow: 0 8px 40px rgba(0,0,0,.3);
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  #add-repo-dialog-box h3 { font-size: 15px; color: #24292f; margin: 0; font-weight: 600; }
+  #add-repo-result {
+    font-size: 12px;
+    min-height: 18px;
+    word-break: break-all;
+    line-height: 1.5;
+  }
+  #add-repo-dialog-actions {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 10px;
+  }
   #btn-pull {
     background: #373e47;
     border: 1px solid #444c56;

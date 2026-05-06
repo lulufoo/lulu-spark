@@ -560,6 +560,13 @@
       "translations": {
         "zh": "inbox/waymo-dolgov-20-million-rides/202605061250-waymo-dmitri-dolgov-20-million-rides-zh.md"
       }
+    },
+    "c7ea292c27c9acd20b71d48ee391781f": {
+      "common_path": "product-analysis/personal-km-system-architecture/202605062201-obsidian-workbench-llm-indexing-mcp.md",
+      "created_at": "202605062201",
+      "layers": [
+        "raw"
+      ]
     }
   }
 }

@@ -39,7 +39,7 @@
     },
     {
       "repo": "lulufoo/ai-software-dev",
-      "description": "AI 工程实践，Agentic编程 / Harness/工具链/Cursor",
+      "description": "AI 工程实践，Agentic编程/Harness/工具链/Cursor",
       "keywords": [
         "Agentic编程",
         "Harness",
@@ -84,7 +84,7 @@
     },
     {
       "repo": "lulufoo/learning-ai-llm",
-      "description": "LLM 理解，AI认知/生成式AI/大模型原理/职业影响",
+      "description": "LLM 理解，AI认知 / 生成式AI / 大模型原理/职业影响",
       "keywords": [
         "LLM",
         "生成式AI",
@@ -150,6 +150,15 @@
         "OOP",
         "FP",
         "语法基础"
+      ]
+    },
+    {
+      "repo": "lulufoo/personal-growth",
+      "description": "个人思考、个人成长、个人认知",
+      "keywords": [
+        "思考",
+        "成长",
+        "认知"
       ]
     },
     {

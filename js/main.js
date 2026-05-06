@@ -15,12 +15,6 @@ const titleCache = state.index.titleCache;
 // ── Fetch index.json ───────────────────────────────────────────────────────
 
 async function loadIndex({ managedBtn = false } = {}) {
-  const btn = document.getElementById('btn-refresh');
-  if (!managedBtn) {
-    btn.disabled = true;
-    btn.textContent = '⟳ 加载中…';
-  }
-
   try {
     const data = await api.fetchIndex();
     state.index.data = data.entries || data;
@@ -34,11 +28,6 @@ async function loadIndex({ managedBtn = false } = {}) {
     if (targetDate) selectDate(targetDate);
   } catch (e) {
     showError(`无法加载 index.json：${e.message}`);
-  } finally {
-    if (!managedBtn) {
-      btn.disabled = false;
-      btn.textContent = '⟳ 刷新';
-    }
   }
 }
 
@@ -109,18 +98,9 @@ async function pullProject() {
   }
 }
 
-// ── Event listeners ────────────────────────────────────────────────────────
+// ── Repo menu helpers ──────────────────────────────────────────────────────
 
-document.getElementById('btn-refresh').addEventListener('click', async () => {
-  const btn = document.getElementById('btn-refresh');
-  btn.disabled = true;
-  btn.textContent = '⟳ 同步中…';
-  try {
-    await api.updateTopics();
-  } catch (e) {
-    console.warn('update-topics failed:', e.message);
-  }
-  // Reload topicDescriptions + topicRepos
+async function _reloadTopicsIntoState() {
   try {
     const data = await api.fetchTopics();
     const descMap = {};
@@ -136,16 +116,131 @@ document.getElementById('btn-refresh').addEventListener('click', async () => {
   } catch (e) {
     console.warn('fetchTopics failed:', e.message);
   }
-  titleCache.clear();
-  if (state.index.data) {
-    for (const entry of Object.values(state.index.data)) {
-      LAYERS.forEach(l => delete entry[`_unreachable_${l}`]);
-    }
+}
+
+async function _runUpdateTopics(mode, checkRepo = '') {
+  try {
+    const data = await api.updateTopics(mode, checkRepo);
+    if (data.error) throw new Error(data.error);
+    return data;
+  } catch (e) {
+    throw e;
   }
-  await loadIndex({ managedBtn: true });
-  btn.disabled = false;
-  btn.textContent = '⟳ 刷新';
+}
+
+// ── Repo menu dropdown ─────────────────────────────────────────────────────
+
+const _repoMenuWrap = document.getElementById('repo-menu-wrap');
+const _repoMenuDropdown = document.getElementById('repo-menu-dropdown');
+
+document.getElementById('btn-repo-menu').addEventListener('click', (e) => {
+  e.stopPropagation();
+  _repoMenuDropdown.classList.toggle('open');
 });
+document.addEventListener('click', () => _repoMenuDropdown.classList.remove('open'));
+_repoMenuDropdown.addEventListener('click', e => e.stopPropagation());
+
+// ── 刷新描述（fast）──────────────────────────────────────────────────────────
+
+document.getElementById('btn-repo-refresh').addEventListener('click', async () => {
+  _repoMenuDropdown.classList.remove('open');
+  const btn = document.getElementById('btn-repo-menu');
+  btn.disabled = true;
+  btn.textContent = '⚙ 刷新中…';
+  try {
+    await _runUpdateTopics('fast');
+    await _reloadTopicsIntoState();
+    titleCache.clear();
+    if (state.index.data) {
+      for (const entry of Object.values(state.index.data)) {
+        LAYERS.forEach(l => delete entry[`_unreachable_${l}`]);
+      }
+    }
+    await loadIndex({ managedBtn: true });
+  } catch (e) {
+    alert(`刷新失败：${e.message}`);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '⚙ 仓库';
+  }
+});
+
+// ── 全量扫描（rediscover）───────────────────────────────────────────────────
+
+document.getElementById('btn-repo-rediscover').addEventListener('click', async () => {
+  _repoMenuDropdown.classList.remove('open');
+  const btn = document.getElementById('btn-repo-menu');
+  btn.disabled = true;
+  btn.textContent = '⚙ 扫描中…';
+  try {
+    await _runUpdateTopics('rediscover');
+    await _reloadTopicsIntoState();
+    titleCache.clear();
+    await loadIndex({ managedBtn: true });
+  } catch (e) {
+    alert(`全量扫描失败：${e.message}`);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '⚙ 仓库';
+  }
+});
+
+// ── 添加仓库（check-repo）──────────────────────────────────────────────────
+
+document.getElementById('btn-repo-add').addEventListener('click', () => {
+  _repoMenuDropdown.classList.remove('open');
+  document.getElementById('add-repo-input').value = '';
+  document.getElementById('add-repo-result').textContent = '';
+  document.getElementById('add-repo-result').style.color = '';
+  document.getElementById('btn-add-repo-ok').disabled = false;
+  document.getElementById('btn-add-repo-ok').textContent = '确认添加';
+  document.getElementById('add-repo-dialog').classList.add('open');
+  document.getElementById('add-repo-input').focus();
+});
+
+document.getElementById('btn-add-repo-cancel').addEventListener('click', () => {
+  document.getElementById('add-repo-dialog').classList.remove('open');
+});
+document.getElementById('add-repo-dialog').addEventListener('click', (e) => {
+  if (e.target === document.getElementById('add-repo-dialog'))
+    document.getElementById('add-repo-dialog').classList.remove('open');
+});
+
+document.getElementById('btn-add-repo-ok').addEventListener('click', async () => {
+  const repo = document.getElementById('add-repo-input').value.trim();
+  const result = document.getElementById('add-repo-result');
+  const okBtn = document.getElementById('btn-add-repo-ok');
+  if (!repo || !/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repo)) {
+    result.style.color = '#cf222e';
+    result.textContent = '格式错误，请输入 owner/repo';
+    return;
+  }
+  okBtn.disabled = true;
+  okBtn.textContent = '检测中…';
+  result.style.color = '#57606a';
+  result.textContent = '正在检测仓库类型并更新…';
+  try {
+    const data = await _runUpdateTopics('fast', repo);
+    result.style.color = '#1a7f37';
+    result.textContent = `✓ 已添加 ${repo}`;
+    await _reloadTopicsIntoState();
+    setTimeout(() => {
+      document.getElementById('add-repo-dialog').classList.remove('open');
+    }, 1200);
+  } catch (e) {
+    result.style.color = '#cf222e';
+    result.textContent = `✗ ${e.message}`;
+    okBtn.disabled = false;
+    okBtn.textContent = '确认添加';
+  }
+});
+
+document.getElementById('add-repo-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('btn-add-repo-ok').click();
+  if (e.key === 'Escape') document.getElementById('add-repo-dialog').classList.remove('open');
+});
+
+// ── Event listeners ────────────────────────────────────────────────────────
 
 document.getElementById('doc-list').addEventListener('scroll', () => {
   if (state.ui.activeDate) {

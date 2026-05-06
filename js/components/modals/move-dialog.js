@@ -42,10 +42,12 @@ async function doMoveDoc() {
     if (!data.ok || data.error) throw new Error(data.error || 'failed');
     if (data.warn) {
       result.style.color = '#e09b00';
-      result.textContent = `⚠ ${data.warn}`;
+      const movedInfo = data.moved !== undefined ? `（已移动 ${data.moved} 个文件）` : '';
+      result.textContent = `⚠ ${data.warn}${movedInfo}`;
     } else {
       result.style.color = '#1a7f37';
-      result.textContent = `✓ 已移动到 ${data.dst_path}`;
+      const movedInfo = data.moved !== undefined ? `（共 ${data.moved} 个文件）` : '';
+      result.textContent = `✓ 已移动到 ${data.dst_path}${movedInfo}`;
       document.dispatchEvent(new CustomEvent('cta:reload'));
       setTimeout(closeMoveDocDialog, 2000);
     }

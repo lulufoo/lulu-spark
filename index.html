@@ -13,7 +13,15 @@
 <header>
   <h1>LuLu Workbench</h1>
   <a href="https://github.com/lulufoo/lulu-workbench" target="_blank">GitHub ↗</a>
-  <button id="btn-refresh">⟳ 刷新</button>
+  <div id="repo-menu-wrap">
+    <button id="btn-repo-menu">⚙ 仓库</button>
+    <div id="repo-menu-dropdown">
+      <button id="btn-repo-refresh">⟳ 刷新描述</button>
+      <button id="btn-repo-add">＋ 添加仓库</button>
+      <hr class="repo-menu-sep">
+      <button id="btn-repo-rediscover">⊙ 全量扫描</button>
+    </div>
+  </div>
   <button id="btn-pull">↓ 更新项目</button>
   <button id="btn-push-index">↑ 提交变更</button>
   <button id="btn-move-doc-header">→ 移动</button>
@@ -98,13 +106,29 @@
   </div>
 </div>
 
+<!-- Add repo dialog -->
+<div id="add-repo-dialog">
+  <div id="add-repo-dialog-box">
+    <h3>＋ 添加知识仓库</h3>
+    <div class="move-doc-field">
+      <label>仓库名（owner/repo）</label>
+      <input id="add-repo-input" type="text" placeholder="lulufoo/new-repo" autocomplete="off" spellcheck="false" />
+    </div>
+    <div id="add-repo-result"></div>
+    <div id="add-repo-dialog-actions">
+      <button id="btn-add-repo-cancel" class="md-header-btn">取消</button>
+      <button id="btn-add-repo-ok" class="md-header-btn primary">确认添加</button>
+    </div>
+  </div>
+</div>
+
 <!-- Move doc dialog -->
 <div id="move-doc-dialog">
   <div id="move-doc-dialog-box">
-    <h3>→ 移动 GitHub 文档</h3>
+    <h3>→ 移动 GitHub 文件 / 目录</h3>
     <div class="move-doc-field">
-      <label>源文件 URL（GitHub blob 链接）</label>
-      <input id="move-src-url" type="text" placeholder="https://github.com/owner/repo/blob/main/dir/file.md" autocomplete="off" spellcheck="false" />
+      <label>源 URL（文件用 blob 链接，目录用 tree 链接）</label>
+      <input id="move-src-url" type="text" placeholder="blob: …/blob/main/dir/file.md   或   tree: …/tree/main/dir" autocomplete="off" spellcheck="false" />
     </div>
     <div class="move-doc-field">
       <label>目标目录 URL（GitHub 目录链接）</label>
@@ -143,7 +167,6 @@
     <div id="move-project-result" style="font-size:12px;color:#57606a;margin-bottom:8px;"></div>
     <div id="move-project-list" style="display:flex;flex-direction:column;gap:4px;max-height:300px;overflow-y:auto;"></div>
     <div id="move-project-dialog-actions">
-      <button id="btn-move-project-refresh" title="刷新项目列表">↺ 刷新</button>
       <button id="btn-move-project-close">取消</button>
     </div>
   </div>

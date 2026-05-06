@@ -137,11 +137,13 @@ export async function fetchTopics() {
   return res.json();
 }
 
-export async function updateTopics() {
+export async function updateTopics(mode = 'fast', checkRepo = '') {
+  const body = { mode };
+  if (checkRepo) body.check_repo = checkRepo;
   const res = await fetch('/api/update-topics', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: '{}'
+    body: JSON.stringify(body)
   });
   return res.json();
 }

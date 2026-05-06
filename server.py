@@ -279,13 +279,33 @@ class Handler(http.server.SimpleHTTPRequestHandler):
 
     def _handle_update_topics(self):
         try:
-            self._read_json()  # consume body
+            data = self._read_json()
+            mode = str(data.get('mode') or 'fast').strip()
+            check_repo = str(data.get('check_repo') or '').strip()
+
             script = REPO_ROOT / 'update_topics_from_github.py'
+            cmd = [sys.executable, str(script)]
+            if check_repo:
+                # Validate: owner/repo format only, no path traversal
+                if not re.fullmatch(r'[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+', check_repo):
+                    self._json_response({'error': 'Invalid repo format, expected owner/repo'}, 400)
+                    return
+                cmd += ['--check-repo', check_repo]
+                print(f'  [update-topics] mode=check-repo repo={check_repo}')
+            elif mode == 'rediscover':
+                cmd += ['--rediscover']
+                print(f'  [update-topics] mode=rediscover')
+            else:
+                print(f'  [update-topics] mode=fast')
+
             result = subprocess.run(
-                [sys.executable, str(script)],
-                cwd=REPO_ROOT, capture_output=True, text=True,
-                timeout=60
+                cmd, cwd=REPO_ROOT, capture_output=True, text=True, timeout=120
             )
+            print(f'  [update-topics] returncode={result.returncode}')
+            if result.stdout.strip():
+                print(f'  [update-topics] stdout: {result.stdout.strip()}')
+            if result.stderr.strip():
+                print(f'  [update-topics] stderr: {result.stderr.strip()}')
             if result.returncode != 0:
                 self._json_response({
                     'error': 'update_topics_from_github.py failed',
@@ -296,7 +316,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             print(f'  [update-topics] done')
             self._json_response({'ok': True, 'info': result.stderr.strip()})
         except subprocess.TimeoutExpired:
-            self._json_response({'error': 'update_topics timed out after 60s'}, 500)
+            self._json_response({'error': 'update_topics timed out after 120s'}, 500)
         except Exception as e:
             self._json_response({'error': str(e)}, 500)
 
@@ -673,26 +693,59 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             self._json_response({'error': str(e)}, 500)
 
 
-    # ── API: gh move (copy file to new repo/dir, delete source) ─────────────
+    # ── API: gh move (copy file/dir to new repo/dir, delete source) ────────
+
+    def _gh_move_single_file(self, src_owner, src_repo, src_ref, src_path,
+                              dst_owner, dst_repo, dst_path):
+        """Move one file via GitHub Contents API. Returns dict with ok/error/warn."""
+        get_r = subprocess.run(
+            ['gh', 'api', f'repos/{src_owner}/{src_repo}/contents/{src_path}?ref={src_ref}'],
+            capture_output=True, text=True, timeout=20
+        )
+        if get_r.returncode != 0:
+            return {'error': f'获取源文件失败：{get_r.stderr.strip() or get_r.stdout.strip()}'}
+        src_info = json.loads(get_r.stdout)
+        file_content_b64 = src_info.get('content', '').replace('\n', '')
+        src_sha = src_info.get('sha', '')
+        if not file_content_b64:
+            return {'error': '源文件内容为空或无法读取'}
+
+        put_payload = json.dumps({
+            'message': f'move: {src_repo}/{src_path} → {dst_repo}/{dst_path}',
+            'content': file_content_b64
+        })
+        put_r = subprocess.run(
+            ['gh', 'api', f'repos/{dst_owner}/{dst_repo}/contents/{dst_path}',
+             '-X', 'PUT', '--input', '-'],
+            input=put_payload, capture_output=True, text=True, timeout=20
+        )
+        if put_r.returncode != 0:
+            err_msg = put_r.stderr.strip() or put_r.stdout.strip()
+            return {'error': f'创建目标文件失败：{err_msg}'}
+
+        del_payload = json.dumps({
+            'message': f'move: remove {src_repo}/{src_path} (moved to {dst_repo}/{dst_path})',
+            'sha': src_sha
+        })
+        del_r = subprocess.run(
+            ['gh', 'api', f'repos/{src_owner}/{src_repo}/contents/{src_path}',
+             '-X', 'DELETE', '--input', '-'],
+            input=del_payload, capture_output=True, text=True, timeout=20
+        )
+        if del_r.returncode != 0:
+            err_msg = del_r.stderr.strip() or del_r.stdout.strip()
+            return {
+                'ok': True,
+                'warn': f'目标文件已创建，但删除源文件失败：{err_msg}',
+                'dst_path': dst_path
+            }
+        return {'ok': True, 'dst_path': dst_path}
 
     def _handle_gh_move(self):
         try:
             data = self._read_json()
             src_url = (data.get('src_url') or '').strip()
             dst_dir_url = (data.get('dst_dir_url') or '').strip()
-
-            # Parse source: must be a GitHub blob URL
-            src_m = re.match(
-                r'https://github\.com/([^/]+)/([^/]+)/blob/([^/]+)/(.+)',
-                src_url
-            )
-            if not src_m:
-                self._json_response({'error': '源文件 URL 格式无效，需为 GitHub blob URL'}, 400)
-                return
-            src_owner, src_repo, src_ref, src_path = (
-                src_m.group(1), src_m.group(2), src_m.group(3), src_m.group(4)
-            )
-            filename = src_path.split('/')[-1]
 
             # Parse destination directory URL (flexible)
             # Accepts: tree/ref/dir, plain /owner/repo, /owner/repo/dir, /owner/repo/tree/ref/dir
@@ -706,66 +759,95 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             raw_tail = re.sub(r'^tree/[^/]+/?', '', raw_tail)
             dst_dir = raw_tail.strip('/')
 
-            # Build destination path
-            if dst_dir:
-                dst_path = f'{dst_dir}/{filename}'
-            else:
-                dst_path = filename
-
-            # Step 1: Fetch source file content + SHA
-            get_r = subprocess.run(
-                ['gh', 'api', f'repos/{src_owner}/{src_repo}/contents/{src_path}?ref={src_ref}'],
-                capture_output=True, text=True, timeout=20
+            # Detect source type: blob (single file) or tree (directory)
+            blob_m = re.match(
+                r'https://github\.com/([^/]+)/([^/]+)/blob/([^/]+)/(.+)',
+                src_url
             )
-            if get_r.returncode != 0:
-                self._json_response({
-                    'error': f'获取源文件失败：{get_r.stderr.strip() or get_r.stdout.strip()}'
-                }, 500)
-                return
-            src_info = json.loads(get_r.stdout)
-            file_content_b64 = src_info.get('content', '').replace('\n', '')
-            src_sha = src_info.get('sha', '')
-            if not file_content_b64:
-                self._json_response({'error': '源文件内容为空或无法读取'}, 500)
-                return
-
-            # Step 2: Create file at destination
-            put_payload = json.dumps({
-                'message': f'move: {src_repo}/{src_path} → {dst_repo}/{dst_path}',
-                'content': file_content_b64
-            })
-            put_r = subprocess.run(
-                ['gh', 'api', f'repos/{dst_owner}/{dst_repo}/contents/{dst_path}',
-                 '-X', 'PUT', '--input', '-'],
-                input=put_payload, capture_output=True, text=True, timeout=20
+            tree_m = re.match(
+                r'https://github\.com/([^/]+)/([^/]+)/tree/([^/]+)/(.+)',
+                src_url
             )
-            if put_r.returncode != 0:
-                err_msg = put_r.stderr.strip() or put_r.stdout.strip()
-                self._json_response({'error': f'创建目标文件失败：{err_msg}'}, 500)
-                return
 
-            # Step 3: Delete source file (only after create succeeded)
-            del_payload = json.dumps({
-                'message': f'move: remove {src_repo}/{src_path} (moved to {dst_repo}/{dst_path})',
-                'sha': src_sha
-            })
-            del_r = subprocess.run(
-                ['gh', 'api', f'repos/{src_owner}/{src_repo}/contents/{src_path}',
-                 '-X', 'DELETE', '--input', '-'],
-                input=del_payload, capture_output=True, text=True, timeout=20
-            )
-            if del_r.returncode != 0:
-                err_msg = del_r.stderr.strip() or del_r.stdout.strip()
-                # File was already copied; warn but don't fail completely
+            if blob_m:
+                # ── Single file move ──────────────────────────────────────
+                src_owner, src_repo, src_ref, src_path = (
+                    blob_m.group(1), blob_m.group(2), blob_m.group(3), blob_m.group(4)
+                )
+                filename = src_path.split('/')[-1]
+                dst_path = f'{dst_dir}/{filename}' if dst_dir else filename
+                result = self._gh_move_single_file(
+                    src_owner, src_repo, src_ref, src_path,
+                    dst_owner, dst_repo, dst_path
+                )
+                if result.get('ok'):
+                    print(f'  [gh-move] {src_repo}/{src_path} → {dst_repo}/{dst_path}')
+                self._json_response(result)
+
+            elif tree_m:
+                # ── Directory move ────────────────────────────────────────
+                src_owner, src_repo, src_ref, src_dir_path = (
+                    tree_m.group(1), tree_m.group(2), tree_m.group(3),
+                    tree_m.group(4).rstrip('/')
+                )
+                dir_name = src_dir_path.split('/')[-1]
+                dst_base = f'{dst_dir}/{dir_name}' if dst_dir else dir_name
+
+                # Fetch all blobs recursively (one API call)
+                tree_r = subprocess.run(
+                    ['gh', 'api',
+                     f'repos/{src_owner}/{src_repo}/git/trees/{src_ref}?recursive=1'],
+                    capture_output=True, text=True, timeout=30
+                )
+                if tree_r.returncode != 0:
+                    self._json_response({
+                        'error': f'获取目录内容失败：{tree_r.stderr.strip() or tree_r.stdout.strip()}'
+                    }, 500)
+                    return
+                tree_data = json.loads(tree_r.stdout)
+                prefix = src_dir_path + '/'
+                files = [
+                    item['path'] for item in tree_data.get('tree', [])
+                    if item.get('type') == 'blob' and item['path'].startswith(prefix)
+                ]
+                if not files:
+                    self._json_response(
+                        {'error': f'目录为空或不存在：{src_dir_path}'}, 400
+                    )
+                    return
+
+                moved, failed = [], []
+                for file_path in files:
+                    rel = file_path[len(prefix):]
+                    dst_path = f'{dst_base}/{rel}'
+                    result = self._gh_move_single_file(
+                        src_owner, src_repo, src_ref, file_path,
+                        dst_owner, dst_repo, dst_path
+                    )
+                    if result.get('ok'):
+                        print(f'  [gh-move] {src_repo}/{file_path} → {dst_repo}/{dst_path}')
+                        moved.append(dst_path)
+                    else:
+                        failed.append({'src': file_path, 'error': result.get('error', 'unknown')})
+
+                if not moved and failed:
+                    self._json_response(
+                        {'error': f'所有文件移动失败，第一个错误：{failed[0]["error"]}'}, 500
+                    )
+                    return
+
                 self._json_response({
                     'ok': True,
-                    'warn': f'目标文件已创建，但删除源文件失败：{err_msg}',
-                    'dst_path': dst_path
+                    'dst_path': dst_base,
+                    'moved': len(moved),
+                    'failed': failed,
+                    'warn': (f'{len(failed)} 个文件移动失败' if failed else None)
                 })
-                return
 
-            print(f'  [gh-move] {src_owner}/{src_repo}/{src_path} → {dst_owner}/{dst_repo}/{dst_path}')
-            self._json_response({'ok': True, 'dst_path': dst_path})
+            else:
+                self._json_response({
+                    'error': '源 URL 格式无效，需为 GitHub blob（文件）或 tree（目录）链接'
+                }, 400)
 
         except json.JSONDecodeError:
             self._json_response({'error': 'Invalid JSON body'}, 400)

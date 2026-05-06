@@ -108,8 +108,3 @@ async function doMoveProject(newProject) {
 
 document.getElementById('btn-move-project-close').addEventListener('click', closeMoveProjectDialog);
 document.getElementById('move-project-backdrop').addEventListener('click', closeMoveProjectDialog);
-document.getElementById('btn-move-project-refresh').addEventListener('click', () => {
-  if (!_currentEntry) return;
-  const currentProject = _currentEntry.common_path.split('/')[0];
-  _loadProjects(currentProject);
-});
