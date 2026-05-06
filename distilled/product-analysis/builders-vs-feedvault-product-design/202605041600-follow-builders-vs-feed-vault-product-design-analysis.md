@@ -2,7 +2,7 @@
 
 > 创建时间：2026年5月4日 16:00
 
-> **导航**：[digest](../../../digest/ai-authored-learning/builders-vs-feedvault-product-design/202605041600-follow-builders-vs-feed-vault-product-design-analysis.md) | [raw](../../../raw/ai-authored-learning/builders-vs-feedvault-product-design/202605041600-follow-builders-vs-feed-vault-product-design-analysis.md)
+> **导航**：[digest](../../../digest/product-analysis/builders-vs-feedvault-product-design/202605041600-follow-builders-vs-feed-vault-product-design-analysis.md) | [raw](../../../raw/product-analysis/builders-vs-feedvault-product-design/202605041600-follow-builders-vs-feed-vault-product-design-analysis.md)
 
 > 本文档基于一次自由探索式 + 方案推演式对话整理。
 > 目标是重建理解过程——跟着推导走一遍，而不是直接读结论。

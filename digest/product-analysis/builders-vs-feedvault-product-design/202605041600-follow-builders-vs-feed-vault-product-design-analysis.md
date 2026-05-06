@@ -2,7 +2,7 @@
 
 > 创建时间：2026年5月4日 16:00
 
-> 导航：[raw](../../../raw/ai-authored-learning/builders-vs-feedvault-product-design/202605041600-follow-builders-vs-feed-vault-product-design-analysis.md) · [distilled](../../../distilled/ai-authored-learning/builders-vs-feedvault-product-design/202605041600-follow-builders-vs-feed-vault-product-design-analysis.md) · [trace](../../../trace/ai-authored-learning/builders-vs-feedvault-product-design/202605041600-follow-builders-vs-feed-vault-product-design-analysis.md)
+> 导航：[raw](../../../raw/product-analysis/builders-vs-feedvault-product-design/202605041600-follow-builders-vs-feed-vault-product-design-analysis.md) · [distilled](../../../distilled/product-analysis/builders-vs-feedvault-product-design/202605041600-follow-builders-vs-feed-vault-product-design-analysis.md) · [trace](../../../trace/product-analysis/builders-vs-feedvault-product-design/202605041600-follow-builders-vs-feed-vault-product-design-analysis.md)
 
 ---
 
