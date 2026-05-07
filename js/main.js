@@ -542,6 +542,17 @@ api.fetchTopics().then(data => {
 loadIndex();
 initGlobalSearch();
 
+// ── Global search navigation ───────────────────────────────────────────────
+document.addEventListener('cta:open-entry', ({ detail }) => {
+  if (!detail || !detail.common_path) return
+  const entry = Object.values(state.index.data || {})
+    .find(e => e.common_path === detail.common_path)
+  if (!entry) return
+  const date = entry.created_at ? entry.created_at.slice(0, 8) : null
+  if (date) selectDate(date)
+  window.openDoc(entry, entry.layers?.[0] || 'raw')
+});
+
 // ── Skills dialog ─────────────────────────────────────────────────────────
 
 const _SKILLS_CONTENT = {

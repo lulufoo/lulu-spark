@@ -56,7 +56,8 @@ def _load_meili_config():
 _load_meili_config()
 
 # ── Meilisearch state ─────────────────────────────────────────────────────────
-_reindex_job = {'status': 'idle', 'started_at': None, 'finished_at': None, 'log': ''}
+_reindex_job    = {'status': 'idle', 'started_at': None, 'finished_at': None, 'log': ''}
+_reindex_wb_job = {'status': 'idle', 'started_at': None, 'finished_at': None, 'log': ''}
 
 
 import urllib.request as _ureq
@@ -140,6 +141,8 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             self._handle_update_topics()
         elif self.path == '/api/reindex-knowledge':
             self._handle_reindex_knowledge()
+        elif self.path == '/api/reindex-workbench':
+            self._handle_reindex_workbench()
         else:
             self.send_error(404)
 
@@ -165,6 +168,10 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             self._handle_search_knowledge()
         elif parsed_path == '/api/reindex-status':
             self._handle_reindex_status()
+        elif parsed_path == '/api/search-workbench':
+            self._handle_search_workbench()
+        elif parsed_path == '/api/reindex-workbench-status':
+            self._handle_reindex_workbench_status()
         else:
             super().do_GET()
 
@@ -1609,6 +1616,84 @@ class Handler(http.server.SimpleHTTPRequestHandler):
 
     def _handle_reindex_status(self):
         self._json_response(_reindex_job)
+
+    # ── API: GET /api/search-workbench ────────────────────────────────────────
+
+    def _handle_search_workbench(self):
+        try:
+            parsed = urllib.parse.urlparse(self.path)
+            params = urllib.parse.parse_qs(parsed.query)
+            q = params.get('q', [''])[0].strip()
+            if not q:
+                self._json_response({'error': 'q parameter required'}, 400)
+                return
+            try:
+                limit = min(int(params.get('limit', ['10'])[0]), 50)
+            except ValueError:
+                limit = 10
+
+            result = _meili_request('POST', '/indexes/workbench/search', {
+                'q': q,
+                'limit': limit,
+                'attributesToCrop': ['body'],
+                'cropLength': 80,
+                'attributesToHighlight': ['body'],
+            })
+            if result is None:
+                self._json_response({'hits': [], 'error': 'unavailable'})
+                return
+
+            hits = result.get('hits', [])
+            self._json_response({'hits': hits})
+        except Exception as e:
+            self._json_response({'error': str(e)}, 500)
+
+    # ── API: POST /api/reindex-workbench ──────────────────────────────────────
+
+    def _handle_reindex_workbench(self):
+        try:
+            global _reindex_wb_job
+            if _reindex_wb_job['status'] == 'running':
+                self._json_response({'error': 'already running'}, 409)
+                return
+
+            now_iso = datetime.now(timezone.utc).isoformat()
+            _reindex_wb_job = {
+                'status': 'running',
+                'started_at': now_iso,
+                'finished_at': None,
+                'log': '启动中…',
+            }
+
+            def _do_wb_reindex():
+                global _reindex_wb_job
+                try:
+                    script = REPO_ROOT / 'scripts' / 'build_workbench_index.py'
+                    r = subprocess.run(
+                        ['python3', str(script), '--wipe'],
+                        cwd=str(REPO_ROOT), capture_output=True, text=True, timeout=300
+                    )
+                    if r.returncode != 0:
+                        _reindex_wb_job['status'] = 'error'
+                        _reindex_wb_job['log'] = r.stderr.strip() or r.stdout.strip() or '未知错误'
+                    else:
+                        _reindex_wb_job['status'] = 'done'
+                        _reindex_wb_job['log'] = r.stdout.strip() or '完成'
+                except Exception as e:
+                    _reindex_wb_job['status'] = 'error'
+                    _reindex_wb_job['log'] = str(e)
+                finally:
+                    _reindex_wb_job['finished_at'] = datetime.now(timezone.utc).isoformat()
+
+            threading.Thread(target=_do_wb_reindex, daemon=True).start()
+            self._json_response({'status': 'running'})
+        except Exception as e:
+            self._json_response({'error': str(e)}, 500)
+
+    # ── API: GET /api/reindex-workbench-status ────────────────────────────────
+
+    def _handle_reindex_workbench_status(self):
+        self._json_response(_reindex_wb_job)
 
 
 if __name__ == '__main__':

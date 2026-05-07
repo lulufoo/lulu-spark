@@ -206,3 +206,18 @@ export async function getReindexStatus() {
   const res = await fetch('/api/reindex-status');
   return res.json();
 }
+
+export async function searchWorkbench(q, limit = 10) {
+  const res = await fetch(`/api/search-workbench?q=${encodeURIComponent(q)}&limit=${limit}`);
+  return res.json();
+}
+
+export async function reindexWorkbench() {
+  const res = await fetch('/api/reindex-workbench', { method: 'POST' });
+  return res.json();
+}
+
+export async function getReindexWorkbenchStatus() {
+  const res = await fetch('/api/reindex-workbench-status');
+  return res.json();
+}
