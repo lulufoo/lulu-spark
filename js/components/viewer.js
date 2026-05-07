@@ -7,6 +7,7 @@ import { renderLinksBar } from './links-bar.js'
 import { renderComments } from './comments.js'
 import { openDeleteDialog } from './modals/delete-dialog.js'
 import { applyHighlights, initHighlightUI } from './highlights.js'
+import { mountKnowledgeSearch, triggerKnowledgeSearch } from './knowledge-search.js'
 
 // ── resolveRelativeLink ────────────────────────────────────────────────────
 
@@ -148,6 +149,9 @@ export async function openDoc(entry, layer = 'raw') {
   applyHighlights(state.viewer.annotation, layer);
   const hasDiff = state.index.diffStatus.get(`${layer}/${entry.common_path}`);
   document.getElementById('btn-panel-commit').style.display = hasDiff ? '' : 'none';
+
+  mountKnowledgeSearch(document.getElementById('knowledge-panel'));
+  triggerKnowledgeSearch(entry);
 }
 
 // viewer.js exposes openDoc on window so cards.js (window.openDoc) can reach it

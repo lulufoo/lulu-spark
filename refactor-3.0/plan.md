@@ -66,9 +66,15 @@
 
 - 启动时读 `.cache/meili.env`，写入模块级常量：
   `MEILI_URL` / `MEILI_KEY` / `KNOWLEDGE_BASE_DIR` / `MEILI_STALE_HOURS`
+- `server.py` 顶部 import 块追加 `import threading`（当前未 import）
 - 新增工具函数 `_meili_request(method, path, body=None)`：
   - 使用 `urllib.request`（stdlib），携带 `Authorization: Bearer {MEILI_KEY}`
   - Meilisearch 不可达时静默返回 `None`，不抛异常，不影响主流程
+- 新增辅助函数 `_meili_upsert_doc(repo, path, content, topic_desc)`：
+  - 从 `content` 提取 title（第一个 `# ` 行，无则取文件名去 `.md`）
+  - 构建与 `build_knowledge_index.py` 相同的文档 dict（id / title / body / repo / path / url / topic_desc）
+  - 调用 `_meili_request("PUT", "/indexes/knowledge/documents", [doc])`
+  - 供 `_handle_settle()`（WO-P2C）调用
 - 新增模块级变量 `_reindex_job = {"status": "idle", "started_at": None, "finished_at": None, "log": ""}`
 
 **改动文件**：`server.py`、`.gitignore`
@@ -210,9 +216,11 @@ _reindex_job = {status:"done", finished_at:now, ...}
 
 **改动文件**：`js/api.js`
 
-末尾追加 3 个函数：`searchKnowledge(q, limit=10)` / `reindexKnowledge()` / `getReindexStatus()`
+末尾追加 3 个函数：
 
-详见 `interaction-design.md` §五·js/api.js 新增函数。
+- `searchKnowledge(q, limit=10)` → `GET /api/search-knowledge?q=...&limit=...`，返回 `{hits, stale, last_indexed_at}`
+- `reindexKnowledge()` → `POST /api/reindex-knowledge`，触发异步重建，返回 `{status:"running"}`
+- `getReindexStatus()` → `GET /api/reindex-status`，返回 `{status, started_at, finished_at, log}`
 
 ---
 
@@ -239,7 +247,7 @@ _reindex_job = {status:"done", finished_at:now, ...}
 **改动文件**：`js/components/viewer.js`
 
 1. 顶部引入：`import { mountKnowledgeSearch, triggerKnowledgeSearch } from './knowledge-search.js'`
-2. entry 打开时（现有 `openViewer` / `showDoc` 函数，文档渲染完成后）：
+2. entry 打开时（现有 `openDoc(entry, layer)` 函数，文档渲染完成后）：
    ```js
    mountKnowledgeSearch(document.getElementById('knowledge-panel'))
    triggerKnowledgeSearch(entry)

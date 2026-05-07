@@ -16,6 +16,7 @@ import subprocess
 import sys
 import urllib.parse
 import base64
+import threading
 import uuid
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone, timedelta
@@ -26,6 +27,85 @@ CACHE_DIR = REPO_ROOT / '.cache'
 REPO_LIST_CACHE_FILE = CACHE_DIR / 'repo-list.json'
 EDITABLE_LAYERS = {'raw', 'distilled', 'digest', 'trace'}
 PORT = 8765
+
+# ── Meilisearch config ────────────────────────────────────────────────────────
+MEILI_URL = 'http://localhost:7700'
+MEILI_KEY = ''
+KNOWLEDGE_BASE_DIR = Path('/Users/lulu/Code')
+MEILI_STALE_HOURS = 24
+
+def _load_meili_config():
+    global MEILI_URL, MEILI_KEY, KNOWLEDGE_BASE_DIR, MEILI_STALE_HOURS
+    env_file = CACHE_DIR / 'meili.env'
+    if not env_file.exists():
+        return
+    for line in env_file.read_text(encoding='utf-8').splitlines():
+        line = line.strip()
+        if not line or line.startswith('#') or '=' not in line:
+            continue
+        key, _, val = line.partition('=')
+        key, val = key.strip(), val.strip()
+        if key == 'MEILI_MASTER_KEY':
+            MEILI_KEY = val
+        elif key == 'MEILI_URL':
+            MEILI_URL = val
+        elif key == 'KNOWLEDGE_BASE_DIR':
+            KNOWLEDGE_BASE_DIR = Path(val)
+        elif key == 'MEILI_STALE_HOURS':
+            try:
+                MEILI_STALE_HOURS = int(val)
+            except ValueError:
+                pass
+
+_load_meili_config()
+
+# ── Meilisearch state ─────────────────────────────────────────────────────────
+_reindex_job = {'status': 'idle', 'started_at': None, 'finished_at': None, 'log': ''}
+
+
+import urllib.request as _ureq
+# Bypass system proxy for localhost Meilisearch requests
+_meili_opener = _ureq.build_opener(_ureq.ProxyHandler({}))
+
+
+def _meili_request(method, path, body=None):
+    """Send a request to Meilisearch. Returns parsed dict or None on failure."""
+    try:
+        url = MEILI_URL.rstrip('/') + path
+        data = json.dumps(body).encode('utf-8') if body is not None else None
+        req = _ureq.Request(url, data=data, method=method)
+        req.add_header('Authorization', f'Bearer {MEILI_KEY}')
+        req.add_header('Content-Type', 'application/json')
+        with _meili_opener.open(req, timeout=5) as resp:
+            return json.loads(resp.read().decode('utf-8'))
+    except Exception:
+        return None
+
+
+def _meili_upsert_doc(repo, path, content, topic_desc=''):
+    """Build a Meilisearch document from file content and upsert it."""
+    repo_name = repo.split('/')[-1]
+    raw_id = f"{repo_name}__{path.replace('/', '__')}"
+    doc_id = re.sub(r'[^a-zA-Z0-9\-_]', '_', raw_id)[:511]
+    title = ''
+    for line in content.splitlines():
+        m = re.match(r'^#\s+(.+)', line)
+        if m:
+            title = m.group(1).strip()
+            break
+    if not title:
+        title = re.sub(r'\.md$', '', path.split('/')[-1])
+    url = f'https://github.com/{repo}/blob/main/{path}'
+    doc = {
+        'id': doc_id,
+        'title': title,
+        'body': content,
+        'repo': repo,
+        'path': path,
+        'url': url,
+        'topic_desc': topic_desc,
+    }
+    return _meili_request('PUT', '/indexes/knowledge/documents', [doc])
 
 
 class Handler(http.server.SimpleHTTPRequestHandler):
@@ -62,6 +142,8 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             self._handle_settle()
         elif self.path == '/api/update-topics':
             self._handle_update_topics()
+        elif self.path == '/api/reindex-knowledge':
+            self._handle_reindex_knowledge()
         else:
             self.send_error(404)
 
@@ -83,6 +165,10 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             self._handle_repo_dirs()
         elif parsed_path == '/api/repo-list':
             self._handle_repo_list()
+        elif parsed_path == '/api/search-knowledge':
+            self._handle_search_knowledge()
+        elif parsed_path == '/api/reindex-status':
+            self._handle_reindex_status()
         else:
             super().do_GET()
 
@@ -1330,6 +1416,17 @@ class Handler(http.server.SimpleHTTPRequestHandler):
 
             warns = []
 
+            # Step 1b: Upsert doc into Meilisearch (best-effort, non-blocking)
+            try:
+                topic_desc = ''
+                for t in topics_data.get('topics', []):
+                    if t.get('repo') == target_repo:
+                        topic_desc = t.get('description', '')
+                        break
+                _meili_upsert_doc(target_repo, dst_path, full_content, topic_desc)
+            except Exception as e1b:
+                warns.append(f'Meilisearch upsert 失败：{e1b}')
+
             # Step 2: Append URL to annotation.links
             try:
                 ann = self._read_annotation(common_path)
@@ -1399,6 +1496,115 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             self._json_response({'error': 'gh 命令超时'}, 500)
         except Exception as e:
             self._json_response({'error': str(e)}, 500)
+
+    # ── API: GET /api/search-knowledge ────────────────────────────────────────
+
+    def _handle_search_knowledge(self):
+        try:
+            parsed = urllib.parse.urlparse(self.path)
+            params = urllib.parse.parse_qs(parsed.query)
+            q = params.get('q', [''])[0].strip()
+            if not q:
+                self._json_response({'error': 'q parameter required'}, 400)
+                return
+            try:
+                limit = min(int(params.get('limit', ['10'])[0]), 50)
+            except ValueError:
+                limit = 10
+
+            # Check staleness
+            stale = None
+            last_indexed_at = None
+            meta_file = CACHE_DIR / 'meili-meta.json'
+            if meta_file.exists():
+                try:
+                    meta = json.loads(meta_file.read_text(encoding='utf-8'))
+                    last_indexed_at = meta.get('last_indexed_at')
+                    if last_indexed_at:
+                        dt = datetime.fromisoformat(last_indexed_at)
+                        age_h = (datetime.now(timezone.utc) - dt).total_seconds() / 3600
+                        stale = age_h > MEILI_STALE_HOURS
+                except Exception:
+                    stale = None
+
+            result = _meili_request('POST', '/indexes/knowledge/search', {
+                'q': q,
+                'limit': limit,
+                'attributesToCrop': ['body'],
+                'cropLength': 80,
+                'attributesToHighlight': ['body'],
+            })
+            if result is None:
+                self._json_response({'hits': [], 'stale': None, 'error': 'unavailable'})
+                return
+
+            hits = result.get('hits', [])
+            self._json_response({
+                'hits': hits,
+                'stale': stale,
+                'last_indexed_at': last_indexed_at,
+            })
+        except Exception as e:
+            self._json_response({'error': str(e)}, 500)
+
+    # ── API: POST /api/reindex-knowledge ─────────────────────────────────────
+
+    def _handle_reindex_knowledge(self):
+        try:
+            global _reindex_job
+            if _reindex_job['status'] == 'running':
+                self._json_response({'error': 'already running'}, 409)
+                return
+
+            now_iso = datetime.now(timezone.utc).isoformat()
+            _reindex_job = {
+                'status': 'running',
+                'started_at': now_iso,
+                'finished_at': None,
+                'log': '启动中…',
+            }
+
+            def _do_reindex():
+                global _reindex_job
+                try:
+                    topics_data = json.loads((REPO_ROOT / 'topics.json').read_text(encoding='utf-8'))
+                    repos = [t['repo'] for t in topics_data.get('topics', []) if 'repo' in t]
+                    for repo in repos:
+                        repo_name = repo.split('/')[-1]
+                        local_dir = KNOWLEDGE_BASE_DIR / repo_name
+                        if local_dir.is_dir():
+                            _reindex_job['log'] = f'git pull: {repo_name}'
+                            subprocess.run(
+                                ['git', '-C', str(local_dir), 'pull', '--rebase'],
+                                capture_output=True, text=True, timeout=30
+                            )
+                    _reindex_job['log'] = '重建索引…'
+                    script = REPO_ROOT / 'scripts' / 'build_knowledge_index.py'
+                    r = subprocess.run(
+                        ['python3', str(script)],
+                        cwd=str(REPO_ROOT), capture_output=True, text=True, timeout=300
+                    )
+                    if r.returncode != 0:
+                        _reindex_job['status'] = 'error'
+                        _reindex_job['log'] = r.stderr.strip() or r.stdout.strip() or '未知错误'
+                    else:
+                        _reindex_job['status'] = 'done'
+                        _reindex_job['log'] = r.stdout.strip() or '完成'
+                except Exception as e:
+                    _reindex_job['status'] = 'error'
+                    _reindex_job['log'] = str(e)
+                finally:
+                    _reindex_job['finished_at'] = datetime.now(timezone.utc).isoformat()
+
+            threading.Thread(target=_do_reindex, daemon=True).start()
+            self._json_response({'status': 'running'})
+        except Exception as e:
+            self._json_response({'error': str(e)}, 500)
+
+    # ── API: GET /api/reindex-status ──────────────────────────────────────────
+
+    def _handle_reindex_status(self):
+        self._json_response(_reindex_job)
 
 
 if __name__ == '__main__':

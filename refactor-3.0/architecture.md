@@ -92,7 +92,7 @@ snippet 字段：`body`（裁取匹配上下文 80 字）
 | 文件 | 改动 |
 |------|------|
 | `server.py` | 加载 `meili.env`；`_meili_request()` 工具函数；3 个新路由；settle upsert |
-| `js/api.js` | 加 `searchKnowledge(q)`、`getReindexStatus()` 两个函数 |
+| `js/api.js` | 加 `searchKnowledge(q, limit=10)`、`reindexKnowledge()`、`getReindexStatus()` 三个函数 |
 | `app.css` | `#md-panel` 改为横向 flex；新增 `#knowledge-panel` 样式 |
 | `index.html` | `#md-panel` 内加 `<div id="knowledge-panel">` 挂载点 |
 | `js/components/viewer.js` | entry 打开时触发初始搜索 |
@@ -210,8 +210,8 @@ self._meili_upsert_doc(
 ├── .ks-sync-progress（同步中显示）
 │   └── "⟳ 同步中..."
 └── .ks-results
-    └── .ks-hit × N
-        ├── .ks-hit-title（点击跳 GitHub）
+    └── .ks-hit × N（整卡可点击，新 Tab 打开 GitHub）
+        ├── .ks-hit-title
         ├── .ks-hit-repo（repo 标签）
         └── .ks-hit-snippet
 ```
@@ -227,15 +227,38 @@ self._meili_upsert_doc(
     → status=error → 显示错误信息
 ```
 
-### 8.3 layout 调整（`app.css`）
+### 8.3 layout 调整（`index.html` + `app.css`）
+
+**DOM 结构原则**：`#md-panel` 保持 `flex-direction: column` 不变，`#md-header` / `#md-commit-bar` / `#md-links-bar` 继续作为其直接子元素（全宽）。仅在 body 区域外包一层横向容器。
+
+**`index.html` 改动**（`#md-panel` 内部）：
+
+```html
+<!-- 改动前 -->
+<div id="md-body"></div>
+<textarea id="md-edit-area" ...></textarea>
+
+<!-- 改动后 -->
+<div id="md-content-row">
+  <div id="md-body"></div>
+  <textarea id="md-edit-area" ...></textarea>
+  <div id="knowledge-panel"></div>
+</div>
+```
+
+**`app.css` 新增**：
 
 ```css
-/* 改动1：md-panel 横向排列 */
-#md-panel {
-  flex-direction: row;   /* 原为 column */
+/* 新增：body 区域横向分栏包裹层 */
+#md-content-row {
+  display: flex;
+  flex-direction: row;
+  flex: 1;
+  overflow: hidden;
+  min-height: 0;
 }
 
-/* 改动2：md-body 独立滚动（原有 overflow 样式不变，确认后微调） */
+/* #md-body 在新容器内保持 flex:1 + overflow-y:auto（原有样式不变） */
 #md-body {
   flex: 1;
   overflow-y: auto;
@@ -251,12 +274,8 @@ self._meili_upsert_doc(
   flex-direction: column;
   background: #f6f8fa;
 }
+#knowledge-panel.ks-unavailable { display: none; }
 ```
-
-> ⚠️ `#md-header` / `#md-commit-bar` / `#md-links-bar` 是 `#md-panel` 的直接子元素，
-> 横向 flex 后会与 `#md-body` 并排——需将三者与 `#md-body` 包裹进 `<div id="md-content-col">`，
-> 该 div 设 `flex:1; display:flex; flex-direction:column; overflow:hidden`。
-> 这是 `index.html` 的改动范围比 CSS 更大的地方，实现时需注意。
 
 ---
 

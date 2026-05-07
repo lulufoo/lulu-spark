@@ -191,3 +191,18 @@ export async function settleComment(commonPath, commentId, layer, docTheme, slug
   });
   return res.json();
 }
+
+export async function searchKnowledge(q, limit = 10) {
+  const res = await fetch(`/api/search-knowledge?q=${encodeURIComponent(q)}&limit=${limit}`);
+  return res.json();
+}
+
+export async function reindexKnowledge() {
+  const res = await fetch('/api/reindex-knowledge', { method: 'POST' });
+  return res.json();
+}
+
+export async function getReindexStatus() {
+  const res = await fetch('/api/reindex-status');
+  return res.json();
+}
