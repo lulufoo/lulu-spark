@@ -7,12 +7,16 @@
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%230969da'/%3E%3Cstop offset='100%25' stop-color='%23a855f7'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='32' height='32' rx='7' fill='url(%23g)'/%3E%3Ctext x='16' y='23' text-anchor='middle' font-size='19' font-family='system-ui,sans-serif' font-weight='700' fill='white'%3EW%3C/text%3E%3C/svg%3E">
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/turndown/dist/turndown.min.js"></script>
-<link rel="stylesheet" href="app.css?v=20260507a">
+<link rel="stylesheet" href="app.css?v=20260507b">
 </head>
 <body>
 
 <header>
   <h1>LuLu Workbench</h1>
+  <div id="gs-wrap">
+    <input id="gs-input" type="text" placeholder="搜索知识库…" autocomplete="off" spellcheck="false" />
+    <div id="gs-dropdown" style="display:none"></div>
+  </div>
   <a href="https://github.com/lulufoo/lulu-workbench" target="_blank">GitHub ↗</a>
   <div id="repo-menu-wrap">
     <button id="btn-repo-menu">⚙ 知识库</button>

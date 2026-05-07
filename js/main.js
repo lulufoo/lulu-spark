@@ -9,6 +9,7 @@ import './components/modals/delete-dialog.js'
 import './components/modals/commit-dialog.js'
 import './components/modals/move-dialog.js'
 import { renderFeed } from './feed.js'
+import { initGlobalSearch } from './components/global-search.js'
 
 const titleCache = state.index.titleCache;
 
@@ -539,6 +540,7 @@ api.fetchTopics().then(data => {
   state.index.topicRepos = repoMap;
 }).catch(() => {});
 loadIndex();
+initGlobalSearch();
 
 // ── Skills dialog ─────────────────────────────────────────────────────────
 
