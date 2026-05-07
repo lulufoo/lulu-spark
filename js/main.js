@@ -562,9 +562,34 @@ const _SKILLS_CONTENT = {
     title: '✦ Lulu Skills',
     groups: [
       {
-        name: 'Target Portrait Model',
+        name: '通用模型',
         url: 'https://github.com/lulufoo/lulu-skills/tree/main/target-portrait-model',
-        items: ['tpm']
+        items: [
+          { cmd: 'tpm', name: '目标画像模型', desc: '对人物/产品/组织/技术/方法论输出客观画像' }
+        ]
+      },
+      {
+        name: 'AADL · Layered Cognitive',
+        url: 'https://github.com/lulufoo/lulu-skills/tree/main/ai-assisted-domain-learning/layered-cognitive',
+        items: [
+          { cmd: 'lccm', name: '分层概念认知模型', desc: '诊断认知层次（感知→理解→洞察→创造）并逐层引导深化' }
+        ]
+      },
+      {
+        name: 'AADL · Practice Exercise',
+        url: 'https://github.com/lulufoo/lulu-skills/tree/main/ai-assisted-domain-learning/practice-exercise',
+        items: [
+          { cmd: 'rapm', name: '逆向应用练习模型', desc: '为目标概念设计练习任务、评审学习交付物、生成 LCCM 入口问题' }
+        ]
+      },
+      {
+        name: 'AADL · Domain Deepening',
+        url: 'https://github.com/lulufoo/lulu-skills/tree/main/ai-assisted-domain-learning/domain-deepening',
+        items: [
+          { cmd: 'dp_portrait', name: '领域框架视角模型', desc: '基于权威来源生成领域客观画像' },
+          { cmd: 'dp_graph',   name: '领域知识图谱模型', desc: '多轮迭代构建领域关键点网络与知识图谱' },
+          { cmd: 'dp_role',    name: '角色视图生成模型', desc: '从知识图谱为特定角色生成关注度矩阵与学习路径' }
+        ]
       }
     ]
   }
@@ -578,9 +603,15 @@ function _openSkillsDialog(key) {
     const titleHtml = g.name
       ? `<div class="skill-group-title"><a class="skill-group-link" href="${g.url}" target="_blank" rel="noopener noreferrer">${g.name} ↗</a></div>`
       : '';
-    const items = g.items.map(i =>
-      `<div class="skill-item" data-copy="${i}" title="点击复制">${i}</div>`
-    ).join('');
+    const items = g.items.map(i => {
+      if (typeof i === 'string') {
+        return `<div class="skill-item" data-copy="${i}" title="点击复制">${i}</div>`;
+      }
+      return `<div class="skill-item skill-item-rich" data-copy="${i.cmd}" title="点击复制指令">` +
+        `<span class="skill-item-name">${i.name}</span>` +
+        `<code class="skill-item-cmd">${i.cmd}</code>` +
+        `</div>`;
+    }).join('');
     return `<div class="skill-group">${titleHtml}${items}</div>`;
   }).join('');
 
