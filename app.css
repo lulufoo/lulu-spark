@@ -45,19 +45,28 @@
   #btn-repo-menu:hover { background: #444c56; }
   #btn-repo-menu:disabled { opacity: .5; cursor: default; }
   #repo-menu-dropdown {
-    display: none;
     position: absolute;
-    top: calc(100% + 4px);
+    top: 100%;
     left: 0;
     background: #2d333b;
     border: 1px solid #444c56;
     border-radius: 8px;
-    padding: 4px 0;
+    padding: 8px 0 4px;
     min-width: 130px;
     z-index: 500;
     box-shadow: 0 4px 12px rgba(0,0,0,.4);
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity .12s, visibility 0s linear 1s;
   }
-  #repo-menu-dropdown.open { display: block; }
+  #repo-menu-dropdown.open,
+  #repo-menu-wrap:hover #repo-menu-dropdown {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    transition: opacity .12s, visibility 0s;
+  }
   #repo-menu-dropdown button {
     display: block;
     width: 100%;
@@ -95,20 +104,30 @@
   #btn-tools-menu:hover { background: #444c56; }
   #sync-menu-dropdown,
   #tools-menu-dropdown {
-    display: none;
     position: absolute;
-    top: calc(100% + 4px);
+    top: 100%;
     left: 0;
     background: #2d333b;
     border: 1px solid #444c56;
     border-radius: 8px;
-    padding: 4px 0;
+    padding: 8px 0 4px;
     min-width: 130px;
     z-index: 500;
     box-shadow: 0 4px 12px rgba(0,0,0,.4);
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity .12s, visibility 0s linear 1s;
   }
   #sync-menu-dropdown.open,
-  #tools-menu-dropdown.open { display: block; }
+  #tools-menu-dropdown.open,
+  #sync-menu-wrap:hover #sync-menu-dropdown,
+  #tools-menu-wrap:hover #tools-menu-dropdown {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    transition: opacity .12s, visibility 0s;
+  }
   #sync-menu-dropdown button,
   #tools-menu-dropdown button {
     display: block;
@@ -181,6 +200,11 @@
   #btn-repo-list-refresh:hover { color: #0969da; background: #f0f6ff; }
   #btn-repo-list-refresh.spinning { animation: repo-spin .6s linear infinite; }
   @keyframes repo-spin { to { transform: rotate(360deg); } }
+  #repo-list-cache-time {
+    font-size: 11px;
+    color: #8c959f;
+    white-space: nowrap;
+  }
   #repo-list-filter {
     font-size: 12px;
     padding: 3px 6px;

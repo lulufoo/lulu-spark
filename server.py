@@ -22,6 +22,8 @@ from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).parent.resolve()
+CACHE_DIR = REPO_ROOT / '.cache'
+REPO_LIST_CACHE_FILE = CACHE_DIR / 'repo-list.json'
 EDITABLE_LAYERS = {'raw', 'distilled', 'digest', 'trace'}
 PORT = 8765
 
@@ -710,8 +712,8 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         src_info = json.loads(get_r.stdout)
         file_content_b64 = src_info.get('content', '').replace('\n', '')
         src_sha = src_info.get('sha', '')
-        if not file_content_b64:
-            return {'error': '源文件内容为空或无法读取'}
+        if 'content' not in src_info or not src_sha:
+            return {'error': '源文件内容无法读取'}
 
         put_payload = json.dumps({
             'message': f'move: {src_repo}/{src_path} → {dst_repo}/{dst_path}',
@@ -812,6 +814,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 files = [
                     item['path'] for item in tree_data.get('tree', [])
                     if item.get('type') == 'blob' and item['path'].startswith(prefix)
+                    and item['path'].split('/')[-1] != '.gitkeep'
                 ]
                 if not files:
                     self._json_response(
@@ -1147,6 +1150,19 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 return (full_name, None, None)
 
         try:
+            parsed = urllib.parse.urlparse(self.path)
+            params = urllib.parse.parse_qs(parsed.query)
+            force = params.get('force', [''])[0] == '1'
+
+            # Return cached data if available and not forced
+            if not force and REPO_LIST_CACHE_FILE.exists():
+                try:
+                    cached = json.loads(REPO_LIST_CACHE_FILE.read_text(encoding='utf-8'))
+                    self._json_response(cached)
+                    return
+                except Exception:
+                    pass  # cache corrupted, fall through to re-fetch
+
             r = subprocess.run(
                 ['gh', 'api', '-H', 'Accept: application/vnd.github+json',
                  'user/repos?per_page=100&affiliation=owner', '--paginate'],
@@ -1192,7 +1208,16 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                     'description': description,
                 })
 
-            self._json_response({'repos': repos_out})
+            cached_at = datetime.now(timezone(timedelta(hours=8))).strftime('%m月%d日 %H:%M')
+            payload = {'repos': repos_out, 'cached_at': cached_at}
+
+            # Write to .cache/repo-list.json
+            CACHE_DIR.mkdir(exist_ok=True)
+            REPO_LIST_CACHE_FILE.write_text(
+                json.dumps(payload, ensure_ascii=False, indent=2), encoding='utf-8'
+            )
+
+            self._json_response(payload)
         except subprocess.TimeoutExpired:
             self._json_response({'error': 'repo-list timed out'}, 500)
         except Exception as e:

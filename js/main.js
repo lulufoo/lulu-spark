@@ -135,32 +135,13 @@ const _repoMenuDropdown = document.getElementById('repo-menu-dropdown');
 const _syncMenuDropdown = document.getElementById('sync-menu-dropdown');
 const _toolsMenuDropdown = document.getElementById('tools-menu-dropdown');
 
+// Dropdowns are shown via CSS :hover; this helper hides them
+// programmatically when an item action starts (avoids stale open state).
 function _closeAllMenuDropdowns() {
   _repoMenuDropdown.classList.remove('open');
   _syncMenuDropdown.classList.remove('open');
   _toolsMenuDropdown.classList.remove('open');
 }
-
-document.getElementById('btn-repo-menu').addEventListener('click', (e) => {
-  e.stopPropagation();
-  const wasOpen = _repoMenuDropdown.classList.contains('open');
-  _closeAllMenuDropdowns();
-  if (!wasOpen) _repoMenuDropdown.classList.add('open');
-});
-document.getElementById('btn-sync-menu').addEventListener('click', (e) => {
-  e.stopPropagation();
-  const wasOpen = _syncMenuDropdown.classList.contains('open');
-  _closeAllMenuDropdowns();
-  if (!wasOpen) _syncMenuDropdown.classList.add('open');
-});
-document.getElementById('btn-tools-menu').addEventListener('click', (e) => {
-  e.stopPropagation();
-  const wasOpen = _toolsMenuDropdown.classList.contains('open');
-  _closeAllMenuDropdowns();
-  if (!wasOpen) _toolsMenuDropdown.classList.add('open');
-});
-document.addEventListener('click', _closeAllMenuDropdowns);
-_repoMenuDropdown.addEventListener('click', e => e.stopPropagation());
 
 // ── 刷新描述（fast）──────────────────────────────────────────────────────────
 
@@ -343,25 +324,52 @@ function _populateRepoListFilter(repos) {
 
 document.getElementById('repo-list-filter').addEventListener('change', _renderRepoListFiltered);
 
+const _LS_REPO_LIST_KEY = 'lulu_wb_repo_list_cache';
+
 async function _loadRepoListData(forceRefresh = false) {
   const content = document.getElementById('repo-list-content');
   const refreshBtn = document.getElementById('btn-repo-list-refresh');
+  const cacheTime = document.getElementById('repo-list-cache-time');
+
+  // 1. JS 内存缓存（同页面内二次打开无需任何 I/O）
   if (!forceRefresh && _repoListCache) {
     _repoListAll = _repoListCache;
     _populateRepoListFilter(_repoListAll);
     _renderRepoListFiltered();
     return;
   }
+
+  // 2. localStorage 缓存（页面刷新后免 HTTP）
+  if (!forceRefresh) {
+    try {
+      const lsRaw = localStorage.getItem(_LS_REPO_LIST_KEY);
+      if (lsRaw) {
+        const lsData = JSON.parse(lsRaw);
+        if (lsData.repos && lsData.repos.length > 0) {
+          _repoListCache = lsData.repos;
+          _repoListAll = _repoListCache;
+          _populateRepoListFilter(_repoListAll);
+          _renderRepoListFiltered();
+          if (cacheTime) cacheTime.textContent = lsData.cached_at ? `缓存于 ${lsData.cached_at}` : '';
+          return;
+        }
+      }
+    } catch (_) { /* localStorage 不可用时降级 */ }
+  }
+
   content.innerHTML = '<div id="repo-list-loading">加载中…</div>';
   refreshBtn.classList.add('spinning');
   refreshBtn.disabled = true;
   try {
-    const data = await api.fetchRepoList();
+    const data = await api.fetchRepoList(forceRefresh);
     if (data.error) throw new Error(data.error);
     _repoListCache = data.repos || [];
     _repoListAll = _repoListCache;
     _populateRepoListFilter(_repoListAll);
     _renderRepoListFiltered();
+    if (cacheTime) cacheTime.textContent = data.cached_at ? `缓存于 ${data.cached_at}` : '';
+    // 写入 localStorage，供下次页面刷新直接使用
+    try { localStorage.setItem(_LS_REPO_LIST_KEY, JSON.stringify({ repos: _repoListCache, cached_at: data.cached_at })); } catch (_) {}
   } catch (e) {
     content.innerHTML = `<div id="repo-list-loading" style="color:#cf222e">加载失败：${escHtml(e.message)}</div>`;
   } finally {
