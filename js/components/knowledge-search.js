@@ -13,6 +13,9 @@ export function mountKnowledgeSearch(container) {
   if (!container) return
   _container = container
   _container.innerHTML = _buildSkeleton()
+  // sync arrow with current collapse state (persists across re-mounts)
+  const toggleBtn = _container.querySelector('.ks-toggle')
+  if (toggleBtn) toggleBtn.textContent = _container.classList.contains('ks-collapsed') ? '‹' : '›'
   _bindEvents()
 }
 
@@ -43,17 +46,16 @@ function _buildQuery(entry) {
 
 function _buildSkeleton() {
   return `
-    <div class="ks-panel-title">相关知识</div>
-    <div class="ks-search-bar">
-      <input class="ks-input" type="text" placeholder="搜索知识库…" autocomplete="off" />
-    </div>
-    <div class="ks-stale-banner" style="display:none">
-      <span class="ks-stale-text">⚠ 索引已过期</span>
-      <button class="ks-sync-btn">立即同步</button>
-    </div>
-    <div class="ks-sync-bar" style="display:none">⟳ 正在同步知识库…</div>
-    <div class="ks-results">
-      <div class="ks-status-msg"></div>
+    <button class="ks-toggle" title="展开知识面板">‹</button>
+    <div class="ks-inner">
+      <div class="ks-panel-title">相关知识<button class="ks-refresh-btn" title="同步知识库">↺</button></div>
+      <div class="ks-search-bar">
+        <input class="ks-input" type="text" placeholder="搜索知识库…" autocomplete="off" />
+      </div>
+      <div class="ks-sync-bar" style="display:none">⟳ 正在同步知识库…</div>
+      <div class="ks-results">
+        <div class="ks-status-msg"></div>
+      </div>
     </div>
   `
 }
@@ -69,10 +71,24 @@ function _bindEvents() {
     })
   }
 
-  const syncBtn = _container.querySelector('.ks-sync-btn')
-  if (syncBtn) {
-    syncBtn.addEventListener('click', _startSync)
+  const refreshBtn = _container.querySelector('.ks-refresh-btn')
+  if (refreshBtn) {
+    refreshBtn.addEventListener('click', _startSync)
   }
+
+  const toggleBtn = _container.querySelector('.ks-toggle')
+  if (toggleBtn) {
+    toggleBtn.addEventListener('click', _togglePanel)
+  }
+}
+
+// ── Toggle collapse ────────────────────────────────────────────────────────────
+
+function _togglePanel() {
+  if (!_container) return
+  const btn = _container.querySelector('.ks-toggle')
+  const collapsed = _container.classList.toggle('ks-collapsed')
+  if (btn) btn.textContent = collapsed ? '‹' : '›'
 }
 
 // ── Search ────────────────────────────────────────────────────────────────────
@@ -98,8 +114,6 @@ async function _search(q) {
     // Restore visibility if it was previously hidden
     _container.classList.remove('ks-unavailable')
 
-    _updateStaleBanner(data.stale, data.last_indexed_at)
-
     const hits = data.hits || []
     if (hits.length === 0) {
       _setState('empty')
@@ -113,38 +127,17 @@ async function _search(q) {
   }
 }
 
-// ── Stale banner ──────────────────────────────────────────────────────────────
-
-function _updateStaleBanner(stale, lastIndexedAt) {
-  const banner = _container.querySelector('.ks-stale-banner')
-  const staleText = _container.querySelector('.ks-stale-text')
-  if (!banner) return
-  if (stale) {
-    let label = '⚠ 索引已过期'
-    if (lastIndexedAt) {
-      try {
-        const dt = new Date(lastIndexedAt)
-        const hoursAgo = Math.round((Date.now() - dt.getTime()) / 3600000)
-        label = `⚠ 索引 ${hoursAgo}h 未更新`
-      } catch (_) {}
-    }
-    if (staleText) staleText.textContent = label
-    banner.style.display = 'flex'
-  } else {
-    banner.style.display = 'none'
-  }
-}
-
 // ── Sync ──────────────────────────────────────────────────────────────────────
 
 async function _startSync() {
-  const syncBtn = _container.querySelector('.ks-sync-btn')
-  const banner = _container.querySelector('.ks-stale-banner')
   const syncBar = _container.querySelector('.ks-sync-bar')
-
-  if (syncBtn) syncBtn.disabled = true
-  if (banner) banner.style.display = 'none'
-  if (syncBar) syncBar.style.display = 'block'
+  const refreshBtn = _container.querySelector('.ks-refresh-btn')
+  if (refreshBtn) refreshBtn.disabled = true
+  if (syncBar) {
+    syncBar.className = 'ks-sync-bar'
+    syncBar.textContent = '⟳ 正在同步知识库…'
+    syncBar.style.display = 'block'
+  }
 
   try {
     const res = await reindexKnowledge()
@@ -179,24 +172,18 @@ function _stopSync(isError, msg) {
   clearInterval(_pollTimer)
   _pollTimer = null
 
+  const refreshBtn = _container.querySelector('.ks-refresh-btn')
+  if (refreshBtn) refreshBtn.disabled = false
+
   const syncBar = _container.querySelector('.ks-sync-bar')
-  if (syncBar) syncBar.style.display = 'none'
-
   if (isError) {
-    _showSyncError(msg)
+    if (syncBar) {
+      syncBar.className = 'ks-sync-bar ks-error'
+      syncBar.textContent = `⚠ 同步失败：${msg}`
+    }
+  } else {
+    if (syncBar) syncBar.style.display = 'none'
   }
-}
-
-function _showSyncError(msg) {
-  const banner = _container.querySelector('.ks-stale-banner')
-  const staleText = _container.querySelector('.ks-stale-text')
-  const syncBtn = _container.querySelector('.ks-sync-btn')
-  if (staleText) staleText.textContent = `⚠ 同步失败：${msg}`
-  if (syncBtn) {
-    syncBtn.textContent = '重试'
-    syncBtn.disabled = false
-  }
-  if (banner) banner.style.display = 'flex'
 }
 
 // ── Render hits ───────────────────────────────────────────────────────────────

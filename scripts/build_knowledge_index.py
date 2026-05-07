@@ -10,6 +10,7 @@ Usage:
 import argparse
 import json
 import re
+import subprocess
 import sys
 import urllib.request
 from datetime import datetime, timezone
@@ -20,6 +21,7 @@ REPO_ROOT = Path(__file__).parent.parent.resolve()
 CACHE_DIR = REPO_ROOT / '.cache'
 ENV_FILE  = CACHE_DIR / 'meili.env'
 META_FILE = CACHE_DIR / 'meili-meta.json'
+COMMIT_CACHE_FILE = CACHE_DIR / 'repo-commits.json'
 TOPICS_FILE = REPO_ROOT / 'topics.json'
 
 MEILI_URL = 'http://localhost:7700'
@@ -75,7 +77,7 @@ def _wait_for_task(task_uid, max_wait=30):
 
 
 def _ensure_index():
-    """Create index if it doesn't exist, configure searchable attributes."""
+    """Create index if it doesn't exist, configure searchable + filterable attributes."""
     try:
         _req('GET', '/indexes/knowledge')
     except Exception:
@@ -87,6 +89,10 @@ def _ensure_index():
                 ['title', 'topic_desc', 'body'])
     _wait_for_task(task.get('taskUid', task.get('uid', 0)))
 
+    # Set filterable attributes (required for per-repo delete filter)
+    task = _req('PUT', '/indexes/knowledge/settings/filterable-attributes', ['repo'])
+    _wait_for_task(task.get('taskUid', task.get('uid', 0)))
+
 
 def _wipe_index():
     try:
@@ -95,6 +101,37 @@ def _wipe_index():
         _wait_for_task(task.get('taskUid', task.get('uid', 0)))
     except Exception:
         pass  # index may not exist yet
+
+
+def _get_repo_head(local_dir):
+    """Return HEAD commit hash for local git repo, or None on error."""
+    r = subprocess.run(
+        ['git', '-C', str(local_dir), 'rev-parse', 'HEAD'],
+        capture_output=True, text=True
+    )
+    return r.stdout.strip() if r.returncode == 0 else None
+
+
+def _load_commit_cache():
+    """Return {repo_name: commit_hash} dict from cache file."""
+    if not COMMIT_CACHE_FILE.exists():
+        return {}
+    try:
+        return json.loads(COMMIT_CACHE_FILE.read_text(encoding='utf-8'))
+    except Exception:
+        return {}
+
+
+def _save_commit_cache(cache):
+    CACHE_DIR.mkdir(exist_ok=True)
+    COMMIT_CACHE_FILE.write_text(json.dumps(cache, indent=2), encoding='utf-8')
+
+
+def _delete_repo_docs(repo_full):
+    """Delete all Meilisearch documents for a repo using filter."""
+    task = _req('POST', '/indexes/knowledge/documents/delete',
+                {'filter': f"repo = '{repo_full}'"})
+    _wait_for_task(task.get('taskUid', task.get('uid', 0)), max_wait=60)
 
 
 def _extract_title(content, filename):
@@ -166,6 +203,8 @@ def main():
 
     if args.wipe:
         _wipe_index()
+        COMMIT_CACHE_FILE.unlink(missing_ok=True)
+        print('  Commit cache cleared.')
 
     _ensure_index()
 
@@ -178,20 +217,50 @@ def main():
     ]
     print(f'Repos to index: {len(repos_meta)}')
 
-    # Stream docs in batches
-    batch = []
+    commit_cache = _load_commit_cache()
+    new_cache = {}
     total = 0
-    for doc in _build_docs(repos_meta):
-        batch.append(doc)
-        total += 1
-        if len(batch) >= BATCH_SIZE:
+
+    for repo_full, topic_desc in repos_meta:
+        repo_name = repo_full.split('/')[-1]
+        local_dir = KNOWLEDGE_BASE_DIR / repo_name
+        if not local_dir.is_dir():
+            print(f'  [skip] {repo_name}: local dir not found')
+            continue
+
+        head = _get_repo_head(local_dir)
+        cached_head = commit_cache.get(repo_name)
+
+        if not args.wipe and head and cached_head == head:
+            print(f'  [skip] {repo_name}: commit unchanged ({head[:8]})')
+            new_cache[repo_name] = head
+            continue
+
+        old_short = cached_head[:8] if cached_head else 'new'
+        new_short = head[:8] if head else '?'
+        print(f'  [index] {repo_name}: {old_short} → {new_short}')
+
+        # Delete existing docs for this repo, then upsert fresh
+        _delete_repo_docs(repo_full)
+
+        batch = []
+        count = 0
+        for doc in _build_docs([(repo_full, topic_desc)]):
+            batch.append(doc)
+            count += 1
+            total += 1
+            if len(batch) >= BATCH_SIZE:
+                _send_batch(batch)
+                batch = []
+        if batch:
             _send_batch(batch)
-            batch = []
+        print(f'    {count} files indexed')
 
-    if batch:
-        _send_batch(batch)
+        if head:
+            new_cache[repo_name] = head
 
-    print(f'Total indexed: {total} documents')
+    _save_commit_cache(new_cache)
+    print(f'Total indexed this run: {total} documents')
 
     # Write meta
     CACHE_DIR.mkdir(exist_ok=True)

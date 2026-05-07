@@ -12,11 +12,13 @@ import http.server
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import urllib.parse
 import base64
 import threading
+import time
 import uuid
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone, timedelta
@@ -32,10 +34,9 @@ PORT = 8765
 MEILI_URL = 'http://localhost:7700'
 MEILI_KEY = ''
 KNOWLEDGE_BASE_DIR = Path('/Users/lulu/Code')
-MEILI_STALE_HOURS = 24
 
 def _load_meili_config():
-    global MEILI_URL, MEILI_KEY, KNOWLEDGE_BASE_DIR, MEILI_STALE_HOURS
+    global MEILI_URL, MEILI_KEY, KNOWLEDGE_BASE_DIR
     env_file = CACHE_DIR / 'meili.env'
     if not env_file.exists():
         return
@@ -51,11 +52,6 @@ def _load_meili_config():
             MEILI_URL = val
         elif key == 'KNOWLEDGE_BASE_DIR':
             KNOWLEDGE_BASE_DIR = Path(val)
-        elif key == 'MEILI_STALE_HOURS':
-            try:
-                MEILI_STALE_HOURS = int(val)
-            except ValueError:
-                pass
 
 _load_meili_config()
 
@@ -1512,21 +1508,6 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             except ValueError:
                 limit = 10
 
-            # Check staleness
-            stale = None
-            last_indexed_at = None
-            meta_file = CACHE_DIR / 'meili-meta.json'
-            if meta_file.exists():
-                try:
-                    meta = json.loads(meta_file.read_text(encoding='utf-8'))
-                    last_indexed_at = meta.get('last_indexed_at')
-                    if last_indexed_at:
-                        dt = datetime.fromisoformat(last_indexed_at)
-                        age_h = (datetime.now(timezone.utc) - dt).total_seconds() / 3600
-                        stale = age_h > MEILI_STALE_HOURS
-                except Exception:
-                    stale = None
-
             result = _meili_request('POST', '/indexes/knowledge/search', {
                 'q': q,
                 'limit': limit,
@@ -1535,15 +1516,11 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 'attributesToHighlight': ['body'],
             })
             if result is None:
-                self._json_response({'hits': [], 'stale': None, 'error': 'unavailable'})
+                self._json_response({'hits': [], 'error': 'unavailable'})
                 return
 
             hits = result.get('hits', [])
-            self._json_response({
-                'hits': hits,
-                'stale': stale,
-                'last_indexed_at': last_indexed_at,
-            })
+            self._json_response({'hits': hits})
         except Exception as e:
             self._json_response({'error': str(e)}, 500)
 
@@ -1564,32 +1541,59 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 'log': '启动中…',
             }
 
+            def _sync_repo(repo):
+                """Clone missing repo or pull existing one. Returns (repo_name, status, err)."""
+                repo_name = repo.split('/')[-1]
+                local_dir = KNOWLEDGE_BASE_DIR / repo_name
+                if not local_dir.is_dir():
+                    r = subprocess.run(
+                        ['gh', 'repo', 'clone', repo, str(local_dir)],
+                        capture_output=True, text=True, timeout=300
+                    )
+                    if r.returncode != 0:
+                        shutil.rmtree(str(local_dir), ignore_errors=True)
+                        return (repo_name, 'clone_failed', r.stderr.strip() or r.stdout.strip())
+                    return (repo_name, 'cloned', None)
+                else:
+                    r = subprocess.run(
+                        ['git', '-C', str(local_dir), 'pull', '--rebase'],
+                        capture_output=True, text=True, timeout=60
+                    )
+                    if r.returncode != 0:
+                        return (repo_name, 'pull_failed', r.stderr.strip() or r.stdout.strip())
+                    return (repo_name, 'pulled', None)
+
             def _do_reindex():
                 global _reindex_job
                 try:
                     topics_data = json.loads((REPO_ROOT / 'topics.json').read_text(encoding='utf-8'))
                     repos = [t['repo'] for t in topics_data.get('topics', []) if 'repo' in t]
-                    for repo in repos:
-                        repo_name = repo.split('/')[-1]
-                        local_dir = KNOWLEDGE_BASE_DIR / repo_name
-                        if local_dir.is_dir():
-                            _reindex_job['log'] = f'git pull: {repo_name}'
-                            subprocess.run(
-                                ['git', '-C', str(local_dir), 'pull', '--rebase'],
-                                capture_output=True, text=True, timeout=30
-                            )
+
+                    # Phase D: parallel sync
+                    _reindex_job['log'] = '同步仓库（并行）…'
+                    failed_repos = []
+                    with ThreadPoolExecutor(max_workers=5) as executor:
+                        futures = {executor.submit(_sync_repo, repo): repo for repo in repos}
+                        for future in as_completed(futures):
+                            name, status, err = future.result()
+                            if 'failed' in status:
+                                failed_repos.append(f'{name}: {err}')
+
                     _reindex_job['log'] = '重建索引…'
                     script = REPO_ROOT / 'scripts' / 'build_knowledge_index.py'
                     r = subprocess.run(
                         ['python3', str(script)],
-                        cwd=str(REPO_ROOT), capture_output=True, text=True, timeout=300
+                        cwd=str(REPO_ROOT), capture_output=True, text=True, timeout=600
                     )
                     if r.returncode != 0:
                         _reindex_job['status'] = 'error'
                         _reindex_job['log'] = r.stderr.strip() or r.stdout.strip() or '未知错误'
                     else:
+                        log = r.stdout.strip() or '完成'
+                        if failed_repos:
+                            log += '\n⚠ 同步失败：' + '；'.join(failed_repos)
                         _reindex_job['status'] = 'done'
-                        _reindex_job['log'] = r.stdout.strip() or '完成'
+                        _reindex_job['log'] = log
                 except Exception as e:
                     _reindex_job['status'] = 'error'
                     _reindex_job['log'] = str(e)
@@ -1612,6 +1616,31 @@ if __name__ == '__main__':
     print(f'  Root : {REPO_ROOT}')
     print(f'  URL  : http://localhost:{PORT}')
     print()
+
+    # Auto-start Meilisearch if configured but not already running
+    if MEILI_KEY:
+        if _meili_request('GET', '/health') is None:
+            print('  Starting Meilisearch…', end='', flush=True)
+            try:
+                subprocess.Popen(
+                    ['meilisearch', '--master-key', MEILI_KEY, '--no-analytics'],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                )
+                for _ in range(10):
+                    time.sleep(0.5)
+                    if _meili_request('GET', '/health') is not None:
+                        print(' ✓')
+                        break
+                else:
+                    print('\n  ⚠ Meilisearch auto-start failed (not in PATH or timed out)')
+            except FileNotFoundError:
+                print('\n  ⚠ meilisearch not found in PATH, search disabled')
+            except Exception as e:
+                print(f'\n  ⚠ Meilisearch auto-start error: {e}')
+        else:
+            print('  Meilisearch running ✓')
+
     try:
         with http.server.HTTPServer(('localhost', PORT), Handler) as server:
             try:
