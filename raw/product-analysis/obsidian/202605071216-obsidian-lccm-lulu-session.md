@@ -1,4 +1,4 @@
-# Obsidian × LCCM（对话归档）
+# Obsidian 深度对话（LCCM对话归档）
 
 > 创建时间：2026年5月7日 12:16
 

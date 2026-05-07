@@ -32,6 +32,14 @@
   #repo-menu-wrap {
     position: relative;
   }
+  #repo-menu-wrap::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    height: 6px;
+  }
   #btn-repo-menu {
     background: #373e47;
     border: 1px solid #444c56;
@@ -46,7 +54,7 @@
   #btn-repo-menu:disabled { opacity: .5; cursor: default; }
   #repo-menu-dropdown {
     position: absolute;
-    top: 100%;
+    top: calc(100% + 6px);
     left: 0;
     background: #2d333b;
     border: 1px solid #444c56;
@@ -89,6 +97,15 @@
   /* ── Sync / Tools menu dropdowns ── */
   #sync-menu-wrap,
   #tools-menu-wrap { position: relative; }
+  #sync-menu-wrap::after,
+  #tools-menu-wrap::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    height: 6px;
+  }
   #btn-sync-menu,
   #btn-tools-menu {
     background: #373e47;
@@ -105,7 +122,7 @@
   #sync-menu-dropdown,
   #tools-menu-dropdown {
     position: absolute;
-    top: 100%;
+    top: calc(100% + 6px);
     left: 0;
     background: #2d333b;
     border: 1px solid #444c56;
@@ -150,6 +167,128 @@
   #tools-menu-dropdown button:disabled { opacity: .5; cursor: default; }
   #tools-menu-dropdown #btn-feed.active { color: #58a6ff; font-weight: 600; }
   #tools-menu-dropdown #btn-feed.active:hover { background: #373e47; }
+
+  /* ── Skills menu dropdown ── */
+  #skills-menu-wrap { position: relative; }
+  #skills-menu-wrap::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    height: 6px;
+  }
+  #btn-skills-menu {
+    background: #2d3f2d;
+    border: 1px solid #3d6b3d;
+    color: #7ee787;
+    padding: 5px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: background .15s;
+  }
+  #btn-skills-menu:hover { background: #3d5a3d; }
+  #skills-menu-dropdown {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    background: #2d333b;
+    border: 1px solid #444c56;
+    border-radius: 8px;
+    padding: 8px 0 4px;
+    min-width: 170px;
+    z-index: 500;
+    box-shadow: 0 4px 12px rgba(0,0,0,.4);
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity .12s, visibility 0s linear 1s;
+  }
+  #skills-menu-dropdown.open,
+  #skills-menu-wrap:hover #skills-menu-dropdown {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    transition: opacity .12s, visibility 0s;
+  }
+  #skills-menu-dropdown button {
+    display: block;
+    width: 100%;
+    text-align: left;
+    background: none;
+    border: none;
+    margin: 0;
+    color: #cdd9e5;
+    font-size: 12px;
+    padding: 7px 14px;
+    cursor: pointer;
+    white-space: nowrap;
+    border-radius: 0;
+    transition: background .15s;
+  }
+  #skills-menu-dropdown button:hover { background: #373e47; }
+
+  /* ── Skills dialog ── */
+  #skills-dialog {
+    position: fixed;
+    inset: 0;
+    z-index: 2000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0,0,0,.55);
+  }
+  #skills-dialog.open { display: flex; }
+  #skills-dialog-box {
+    background: #fff;
+    border-radius: 10px;
+    padding: 24px 24px 20px;
+    width: min(420px, 90vw);
+    max-height: 70vh;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    box-shadow: 0 8px 40px rgba(0,0,0,.3);
+    overflow-y: auto;
+  }
+  #skills-dialog-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-shrink: 0;
+  }
+  #skills-dialog-header h3 { font-size: 14px; font-weight: 600; color: #1a7f37; }
+  #skills-dialog-body {
+    font-size: 13px;
+    color: #24292f;
+    line-height: 1.7;
+  }
+  #skills-dialog-body .skill-group { margin-bottom: 14px; }
+  #skills-dialog-body .skill-group:last-child { margin-bottom: 0; }
+  #skills-dialog-body .skill-group-title {
+    font-weight: 600;
+    font-size: 13px;
+    color: #0969da;
+    margin-bottom: 4px;
+  }
+  #skills-dialog-body .skill-group-link {
+    color: #0969da;
+    text-decoration: none;
+  }
+  #skills-dialog-body .skill-group-link:hover { text-decoration: underline; }
+  #skills-dialog-body .skill-item {
+    padding: 2px 0 2px 12px;
+    color: #24292f;
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+    font-size: 12px;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: background .1s, color .1s;
+  }
+  #skills-dialog-body .skill-item:hover { background: #f0f6ff; color: #0969da; }
+  #skills-dialog-body .skill-item::before { content: '• '; color: #8c959f; }
 
   /* ── Repo list dialog ── */
   #repo-list-dialog {

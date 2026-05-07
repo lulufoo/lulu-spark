@@ -134,6 +134,7 @@ const _repoMenuWrap = document.getElementById('repo-menu-wrap');
 const _repoMenuDropdown = document.getElementById('repo-menu-dropdown');
 const _syncMenuDropdown = document.getElementById('sync-menu-dropdown');
 const _toolsMenuDropdown = document.getElementById('tools-menu-dropdown');
+const _skillsMenuDropdown = document.getElementById('skills-menu-dropdown');
 
 // Dropdowns are shown via CSS :hover; this helper hides them
 // programmatically when an item action starts (avoids stale open state).
@@ -141,6 +142,7 @@ function _closeAllMenuDropdowns() {
   _repoMenuDropdown.classList.remove('open');
   _syncMenuDropdown.classList.remove('open');
   _toolsMenuDropdown.classList.remove('open');
+  _skillsMenuDropdown.classList.remove('open');
 }
 
 // ── 刷新描述（fast）──────────────────────────────────────────────────────────
@@ -537,4 +539,81 @@ api.fetchTopics().then(data => {
   state.index.topicRepos = repoMap;
 }).catch(() => {});
 loadIndex();
+
+// ── Skills dialog ─────────────────────────────────────────────────────────
+
+const _SKILLS_CONTENT = {
+  workbench: {
+    title: '✦ Lulu Workbench Skills',
+    groups: [
+      {
+        name: 'DDM',
+        url: 'https://github.com/lulufoo/lulu-workbench/tree/main/skills/ddm',
+        items: ['dtd_normalize', 'dtd_distill_dialogue', 'dtd_distill_compose', 'dtd_trace_digest']
+      },
+      {
+        name: 'ThemeLine',
+        url: 'https://github.com/lulufoo/lulu-workbench/tree/main/skills/theme-line',
+        items: ['theme-line']
+      }
+    ]
+  },
+  lulu: {
+    title: '✦ Lulu Skills',
+    groups: [
+      {
+        name: 'Target Portrait Model',
+        url: 'https://github.com/lulufoo/lulu-skills/tree/main/target-portrait-model',
+        items: ['tpm']
+      }
+    ]
+  }
+};
+
+function _openSkillsDialog(key) {
+  const data = _SKILLS_CONTENT[key];
+  if (!data) return;
+  document.getElementById('skills-dialog-title').textContent = data.title;
+  document.getElementById('skills-dialog-body').innerHTML = data.groups.map(g => {
+    const titleHtml = g.name
+      ? `<div class="skill-group-title"><a class="skill-group-link" href="${g.url}" target="_blank" rel="noopener noreferrer">${g.name} ↗</a></div>`
+      : '';
+    const items = g.items.map(i =>
+      `<div class="skill-item" data-copy="${i}" title="点击复制">${i}</div>`
+    ).join('');
+    return `<div class="skill-group">${titleHtml}${items}</div>`;
+  }).join('');
+
+  // Bind copy on item click
+  document.getElementById('skills-dialog-body').querySelectorAll('.skill-item[data-copy]').forEach(el => {
+    el.addEventListener('click', () => {
+      navigator.clipboard.writeText(el.dataset.copy).then(() => {
+        const orig = el.textContent;
+        el.textContent = '✓ 已复制';
+        setTimeout(() => { el.textContent = orig; }, 1200);
+      });
+    });
+  });
+
+  document.getElementById('skills-dialog').classList.add('open');
+}
+
+function _closeSkillsDialog() {
+  document.getElementById('skills-dialog').classList.remove('open');
+}
+
+document.getElementById('btn-skill-workbench').addEventListener('click', () => {
+  _skillsMenuDropdown.classList.remove('open');
+  _openSkillsDialog('workbench');
+});
+
+document.getElementById('btn-skill-lulu').addEventListener('click', () => {
+  _skillsMenuDropdown.classList.remove('open');
+  _openSkillsDialog('lulu');
+});
+
+document.getElementById('btn-skills-dialog-close').addEventListener('click', _closeSkillsDialog);
+document.getElementById('skills-dialog').addEventListener('click', e => {
+  if (e.target === document.getElementById('skills-dialog')) _closeSkillsDialog();
+});
 

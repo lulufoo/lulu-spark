@@ -177,6 +177,17 @@ document.getElementById('comment-dialog-content').addEventListener('keydown', e 
   if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); saveComment(); }
   if (e.key === 'Escape') closeCommentDialog();
 });
+document.getElementById('comment-dialog-content').addEventListener('paste', e => {
+  e.preventDefault();
+  const html = e.clipboardData.getData('text/html');
+  let text;
+  if (html && typeof TurndownService !== 'undefined') {
+    text = new TurndownService({ headingStyle: 'atx', bulletListMarker: '-' }).turndown(html);
+  } else {
+    text = e.clipboardData.getData('text/plain');
+  }
+  document.execCommand('insertText', false, text);
+});
 document.getElementById('comment-dialog').addEventListener('click', e => {
   if (e.target === document.getElementById('comment-dialog')) closeCommentDialog();
 });

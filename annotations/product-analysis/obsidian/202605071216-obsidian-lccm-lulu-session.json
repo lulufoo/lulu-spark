@@ -1,0 +1,23 @@
+{
+  "raw": {
+    "highlights": [
+      {
+        "id": "d9ec2ac71ca3",
+        "text": "Obsidian 是什么    →  链接优先的知识介质\nObsidian 怎么运作  →  可编程的本地知识库\nObsidian 为何这样  →  最小化依赖的设计哲学\nObsidian 启发了什么 →  学习的本质是框架提炼\nObsidian 如何接入  →  个人知识管道的具体方案",
+        "ts": "202605071139"
+      }
+    ],
+    "comments": [
+      {
+        "id": "333a96c65956",
+        "text": "### 本次对话的框架\n\n- Obsidian 是什么    →  链接优先的知识介质\n- Obsidian 怎么运作  →  可编程的本地知识库\n- Obsidian 为何这样  →  最小化依赖的设计哲学\n- Obsidian 启发了什么 →  学习的本质是框架提炼\n- Obsidian 如何接入  →  个人知识管道的具体方案",
+        "ts": "202605071140"
+      }
+    ]
+  },
+  "links": [
+    {
+      "url": "https://github.com/lulufoo/product-analysis/blob/main/obsidian/obsidian-knowledge-management-framework.md"
+    }
+  ]
+}
