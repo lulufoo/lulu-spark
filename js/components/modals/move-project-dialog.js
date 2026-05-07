@@ -34,6 +34,7 @@ async function _loadProjects(currentProject) {
       if (key) topicsMap[key] = t.description || '';
     }
     projects = data.topics.map(t => t.dir || (t.repo ? t.repo.split('/').pop() : null)).filter(Boolean);
+    projects.sort((a, b) => a.localeCompare(b, 'en', { sensitivity: 'base' }));
   } catch (e) {
     result.style.color = '#cf222e';
     result.textContent = '加载失败：' + e.message;

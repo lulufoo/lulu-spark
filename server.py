@@ -17,6 +17,7 @@ import sys
 import urllib.parse
 import base64
 import uuid
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
@@ -78,6 +79,8 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             self._handle_check_file()
         elif parsed_path == '/api/repo-dirs':
             self._handle_repo_dirs()
+        elif parsed_path == '/api/repo-list':
+            self._handle_repo_list()
         else:
             super().do_GET()
 
@@ -1114,6 +1117,84 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 capture_output=True, text=True
             )
             self._json_response({'exists': result.returncode == 0})
+        except Exception as e:
+            self._json_response({'error': str(e)}, 500)
+
+    # ── API: GET /api/repo-list ───────────────────────────────────────────────
+
+    def _handle_repo_list(self):
+        def _fetch_type_meta(repo):
+            """Fetch .repository-type.json for one repo. Returns (repo, type_str, description)."""
+            full_name = repo.get('full_name', '')
+            default_branch = repo.get('default_branch', 'main') or 'main'
+            path = f"repos/{full_name}/contents/.repository-type.json?ref={urllib.parse.quote(default_branch)}"
+            r = subprocess.run(
+                ['gh', 'api', '-H', 'Accept: application/vnd.github+json', path],
+                capture_output=True, text=True, check=False, timeout=15
+            )
+            if r.returncode != 0:
+                return (full_name, None, None)
+            try:
+                meta = json.loads(r.stdout)
+                raw_bytes = base64.b64decode((meta.get('content') or '').replace('\n', ''))
+                doc = json.loads(raw_bytes.decode('utf-8'))
+                return (
+                    full_name,
+                    doc.get('type'),
+                    doc.get('description'),
+                )
+            except Exception:
+                return (full_name, None, None)
+
+        try:
+            r = subprocess.run(
+                ['gh', 'api', '-H', 'Accept: application/vnd.github+json',
+                 'user/repos?per_page=100&affiliation=owner', '--paginate'],
+                capture_output=True, text=True, check=False, timeout=60
+            )
+            if r.returncode != 0:
+                self._json_response({'error': r.stderr.strip() or r.stdout.strip()}, 500)
+                return
+
+            # gh --paginate returns concatenated JSON arrays; parse them all
+            raw = r.stdout.strip()
+            all_repos = []
+            decoder = json.JSONDecoder()
+            idx = 0
+            while idx < len(raw):
+                while idx < len(raw) and raw[idx] in ' \t\n\r':
+                    idx += 1
+                if idx >= len(raw):
+                    break
+                obj, end = decoder.raw_decode(raw, idx)
+                all_repos.extend(obj)
+                idx = end
+
+            # Concurrently fetch .repository-type.json for each repo
+            type_map = {}   # full_name -> (type, description)
+            with ThreadPoolExecutor(max_workers=10) as executor:
+                futures = {executor.submit(_fetch_type_meta, repo): repo for repo in all_repos}
+                for future in as_completed(futures):
+                    try:
+                        full_name, repo_type, description = future.result()
+                        type_map[full_name] = (repo_type, description)
+                    except Exception:
+                        pass
+
+            repos_out = []
+            for repo in all_repos:
+                full_name = repo.get('full_name', '')
+                repo_type, description = type_map.get(full_name, (None, None))
+                repos_out.append({
+                    'name': repo.get('name', ''),
+                    'full_name': full_name,
+                    'type': repo_type,
+                    'description': description,
+                })
+
+            self._json_response({'repos': repos_out})
+        except subprocess.TimeoutExpired:
+            self._json_response({'error': 'repo-list timed out'}, 500)
         except Exception as e:
             self._json_response({'error': str(e)}, 500)
 

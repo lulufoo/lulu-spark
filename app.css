@@ -77,6 +77,184 @@
     margin: 4px 0;
   }
 
+  /* ── Sync / Tools menu dropdowns ── */
+  #sync-menu-wrap,
+  #tools-menu-wrap { position: relative; }
+  #btn-sync-menu,
+  #btn-tools-menu {
+    background: #373e47;
+    border: 1px solid #444c56;
+    color: #cdd9e5;
+    padding: 5px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: background .15s;
+  }
+  #btn-sync-menu:hover,
+  #btn-tools-menu:hover { background: #444c56; }
+  #sync-menu-dropdown,
+  #tools-menu-dropdown {
+    display: none;
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    background: #2d333b;
+    border: 1px solid #444c56;
+    border-radius: 8px;
+    padding: 4px 0;
+    min-width: 130px;
+    z-index: 500;
+    box-shadow: 0 4px 12px rgba(0,0,0,.4);
+  }
+  #sync-menu-dropdown.open,
+  #tools-menu-dropdown.open { display: block; }
+  #sync-menu-dropdown button,
+  #tools-menu-dropdown button {
+    display: block;
+    width: 100%;
+    text-align: left;
+    background: none;
+    border: none;
+    margin: 0;
+    color: #cdd9e5;
+    font-size: 12px;
+    padding: 7px 14px;
+    cursor: pointer;
+    white-space: nowrap;
+    border-radius: 0;
+    transition: background .15s;
+  }
+  #sync-menu-dropdown button:hover,
+  #tools-menu-dropdown button:hover { background: #373e47; }
+  #sync-menu-dropdown button:disabled,
+  #tools-menu-dropdown button:disabled { opacity: .5; cursor: default; }
+  #tools-menu-dropdown #btn-feed.active { color: #58a6ff; font-weight: 600; }
+  #tools-menu-dropdown #btn-feed.active:hover { background: #373e47; }
+
+  /* ── Repo list dialog ── */
+  #repo-list-dialog {
+    position: fixed;
+    inset: 0;
+    z-index: 2000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0,0,0,.55);
+  }
+  #repo-list-dialog.open { display: flex; }
+  #repo-list-dialog-box {
+    background: #fff;
+    border-radius: 10px;
+    padding: 24px 24px 20px;
+    width: min(580px, 90vw);
+    max-height: 70vh;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    box-shadow: 0 8px 40px rgba(0,0,0,.3);
+  }
+  #repo-list-dialog-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-shrink: 0;
+  }
+  #repo-list-title-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  #repo-list-dialog-box h3 { font-size: 15px; color: #24292f; margin: 0; font-weight: 600; }
+  #btn-repo-list-refresh {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 14px;
+    color: #57606a;
+    padding: 2px 4px;
+    border-radius: 4px;
+    line-height: 1;
+    transition: color .15s, background .15s;
+  }
+  #btn-repo-list-refresh:hover { color: #0969da; background: #f0f6ff; }
+  #btn-repo-list-refresh.spinning { animation: repo-spin .6s linear infinite; }
+  @keyframes repo-spin { to { transform: rotate(360deg); } }
+  #repo-list-filter {
+    font-size: 12px;
+    padding: 3px 6px;
+    border: 1px solid #d0d7de;
+    border-radius: 6px;
+    background: #f6f8fa;
+    color: #24292f;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  #repo-list-filter:focus { outline: 2px solid #0969da; outline-offset: 1px; }
+  #repo-list-content {
+    overflow-y: auto;
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .repo-list-group-title {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: #8c959f;
+    padding: 10px 0 4px;
+    border-top: 1px solid #eaeef2;
+    margin-top: 4px;
+  }
+  .repo-list-group-title:first-child { border-top: none; margin-top: 0; padding-top: 0; }
+  .repo-list-item {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    padding: 6px 4px;
+    border-radius: 6px;
+  }
+  .repo-list-item:hover { background: #f6f8fa; }
+  .repo-list-item-info { flex: 1 1 auto; min-width: 0; }
+  .repo-list-item-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: #24292f;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .repo-list-item-desc {
+    font-size: 12px;
+    color: #57606a;
+    margin-top: 1px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .repo-list-item-link {
+    flex-shrink: 0;
+    font-size: 11px;
+    padding: 2px 8px;
+    background: #f6f8fa;
+    border: 1px solid #d0d7de;
+    border-radius: 4px;
+    color: #0969da;
+    text-decoration: none;
+    white-space: nowrap;
+    line-height: 1.6;
+  }
+  .repo-list-item-link:hover { background: #dbeafe; border-color: #0969da; }
+  #repo-list-loading { font-size: 13px; color: #8c959f; padding: 16px 0; text-align: center; }
+  #repo-list-dialog-actions {
+    display: flex;
+    justify-content: flex-end;
+    flex-shrink: 0;
+  }
+
   /* ── Add repo dialog ── */
   #add-repo-dialog {
     position: fixed;

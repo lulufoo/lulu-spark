@@ -163,6 +163,12 @@ export async function fetchRepoDirs(repo) {
   return res.json();
 }
 
+export async function fetchRepoList() {
+  const res = await fetch('/api/repo-list');
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
 export async function checkFileExists(repo, path) {
   const res = await fetch(`/api/check-file?repo=${encodeURIComponent(repo)}&path=${encodeURIComponent(path)}`);
   if (!res.ok) throw new Error(`HTTP ${res.status}`);

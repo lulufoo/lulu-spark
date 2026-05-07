@@ -14,18 +14,29 @@
   <h1>LuLu Workbench</h1>
   <a href="https://github.com/lulufoo/lulu-workbench" target="_blank">GitHub ↗</a>
   <div id="repo-menu-wrap">
-    <button id="btn-repo-menu">⚙ 仓库</button>
+    <button id="btn-repo-menu">⚙ 知识库</button>
     <div id="repo-menu-dropdown">
-      <button id="btn-repo-refresh">⟳ 刷新描述</button>
-      <button id="btn-repo-add">＋ 添加仓库</button>
+      <button id="btn-repo-list">☰ 查看列表</button>
       <hr class="repo-menu-sep">
-      <button id="btn-repo-rediscover">⊙ 全量扫描</button>
+      <button id="btn-repo-refresh">⟳ 本地刷新</button>
+      <button id="btn-repo-add">＋ 项目添加</button>
+      <button id="btn-repo-rediscover">⊙ 全量同步</button>
     </div>
   </div>
-  <button id="btn-pull">↓ 更新项目</button>
-  <button id="btn-push-index">↑ 提交变更</button>
-  <button id="btn-move-doc-header">→ 移动</button>
-  <button id="btn-feed">📡 Builders</button>
+  <div id="sync-menu-wrap">
+    <button id="btn-sync-menu">⇕ 同步</button>
+    <div id="sync-menu-dropdown">
+      <button id="btn-pull">↓ 更新项目</button>
+      <button id="btn-push-index">↑ 提交变更</button>
+    </div>
+  </div>
+  <div id="tools-menu-wrap">
+    <button id="btn-tools-menu">⛓ 工具</button>
+    <div id="tools-menu-dropdown">
+      <button id="btn-move-doc-header">→ 移动</button>
+      <button id="btn-feed">📡 Builders</button>
+    </div>
+  </div>
 </header>
 
 <div class="layout">
@@ -102,6 +113,23 @@
       <span id="commit-changes-result"></span>
       <button id="btn-commit-changes-cancel">取消</button>
       <button id="btn-commit-changes-ok">提交</button>
+    </div>
+  </div>
+</div>
+
+<!-- Repo list dialog -->
+<div id="repo-list-dialog">
+  <div id="repo-list-dialog-box">
+    <div id="repo-list-dialog-header">
+      <div id="repo-list-title-group">
+        <h3>☰ 知识库列表</h3>
+        <button id="btn-repo-list-refresh" title="刷新">⟳</button>
+      </div>
+      <select id="repo-list-filter"></select>
+    </div>
+    <div id="repo-list-content"></div>
+    <div id="repo-list-dialog-actions">
+      <button id="btn-repo-list-close" class="md-header-btn">关闭</button>
     </div>
   </div>
 </div>
