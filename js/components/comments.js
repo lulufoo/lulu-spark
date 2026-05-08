@@ -96,19 +96,45 @@ function buildCommentItem(c, layer, entry, noteIndex) {
 // ── Comment dialog ─────────────────────────────────────────────────────────
 
 let _commentEditCtx = null;
+let _draftKey = null;      // common_path used as cache key for current draft
+let _draftSaveTimer = null;
 
-export function openCommentDialog(editComment, layer, entry, noteIndex) {
+function _scheduleDraftSave() {
+  if (!_draftKey) return;
+  clearTimeout(_draftSaveTimer);
+  _draftSaveTimer = setTimeout(() => {
+    const text = document.getElementById('comment-dialog-content').innerText;
+    api.saveDraft(_draftKey, text).catch(() => {});
+  }, 800);
+}
+
+function _clearDraft() {
+  if (!_draftKey) return;
+  clearTimeout(_draftSaveTimer);
+  api.saveDraft(_draftKey, '').catch(() => {});
+  _draftKey = null;
+}
+
+export async function openCommentDialog(editComment, layer, entry, noteIndex) {
   if (!state.viewer.entry && !entry) return;
   const titleEl = document.getElementById('comment-dialog-title');
   const content = document.getElementById('comment-dialog-content');
   if (editComment) {
     _commentEditCtx = { c: editComment, layer, entry, noteIndex };
+    _draftKey = null;
     titleEl.textContent = '💬 编辑笔记';
     content.innerText = editComment.text;
   } else {
     _commentEditCtx = { noteIndex };
+    const commonPath = (entry || state.viewer.entry).common_path;
+    _draftKey = commonPath;
     titleEl.textContent = '💬 添加笔记';
     content.innerText = '';
+    // Load cached draft
+    try {
+      const draft = await api.getDraft(commonPath);
+      if (draft.content) content.innerText = draft.content;
+    } catch (e) { /* ignore */ }
   }
   document.getElementById('comment-dialog').classList.add('open');
   requestAnimationFrame(() => {
@@ -125,6 +151,7 @@ export function openCommentDialog(editComment, layer, entry, noteIndex) {
 export function closeCommentDialog() {
   document.getElementById('comment-dialog').classList.remove('open');
   _commentEditCtx = null;
+  _clearDraft();
 }
 
 export async function saveComment() {
@@ -156,6 +183,7 @@ export async function saveComment() {
         if (!state.viewer.annotation[state.viewer.layer]) state.viewer.annotation[state.viewer.layer] = {};
         if (!state.viewer.annotation[state.viewer.layer].comments) state.viewer.annotation[state.viewer.layer].comments = [];
         state.viewer.annotation[state.viewer.layer].comments.push({ id: data.id, text, ts });
+        _clearDraft();
         closeCommentDialog();
         renderComments(state.viewer.annotation, state.viewer.layer, state.viewer.entry);
       } else { alert(`添加失败：${data.error}`); }
@@ -177,6 +205,9 @@ document.getElementById('comment-dialog-content').addEventListener('keydown', e 
   if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); saveComment(); }
   if (e.key === 'Escape') closeCommentDialog();
 });
+document.getElementById('comment-dialog-content').addEventListener('input', () => {
+  _scheduleDraftSave();
+});
 document.getElementById('comment-dialog-content').addEventListener('paste', e => {
   e.preventDefault();
   const html = e.clipboardData.getData('text/html');
@@ -188,8 +219,16 @@ document.getElementById('comment-dialog-content').addEventListener('paste', e =>
   }
   document.execCommand('insertText', false, text);
 });
+// Close only when *both* mousedown and click land on the overlay backdrop,
+// so dragging from inside the dialog box to outside won't dismiss it.
+let _mouseDownOnOverlay = false;
+document.getElementById('comment-dialog').addEventListener('mousedown', e => {
+  _mouseDownOnOverlay = (e.target === document.getElementById('comment-dialog'));
+});
 document.getElementById('comment-dialog').addEventListener('click', e => {
-  if (e.target === document.getElementById('comment-dialog')) closeCommentDialog();
+  if (e.target === document.getElementById('comment-dialog') && _mouseDownOnOverlay) {
+    closeCommentDialog();
+  }
 });
 
 // Handle successful settle: remove comment from state + re-render links bar

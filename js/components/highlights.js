@@ -226,6 +226,10 @@ export function initHighlightUI() {
     const editArea = document.getElementById('md-edit-area');
     if (editArea && editArea.style.display !== 'none') return;
 
+    // Don't show button when selection is inside the comments bar
+    const commentsBar = document.getElementById('md-comments-bar');
+    if (commentsBar && commentsBar.contains(sel.anchorNode)) { hideBtn(); return; }
+
     const container = document.getElementById('md-body');
     _pendingOccurrence = getOccurrenceIndex(container, sel, text);
     _pendingText = text;

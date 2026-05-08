@@ -150,6 +150,8 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             self._handle_reindex_knowledge()
         elif self.path == '/api/reindex-workbench':
             self._handle_reindex_workbench()
+        elif self.path == '/api/draft':
+            self._handle_save_draft()
         else:
             self.send_error(404)
 
@@ -179,6 +181,8 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             self._handle_search_workbench()
         elif parsed_path == '/api/reindex-workbench-status':
             self._handle_reindex_workbench_status()
+        elif parsed_path == '/api/draft':
+            self._handle_get_draft()
         else:
             super().do_GET()
 
@@ -1715,8 +1719,44 @@ class Handler(http.server.SimpleHTTPRequestHandler):
     def _handle_reindex_workbench_status(self):
         self._json_response(_reindex_wb_job)
 
+    # ── API: comment draft cache ──────────────────────────────────────────────
 
-if __name__ == '__main__':
+    def _handle_get_draft(self):
+        qs = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
+        common_path = qs.get('path', [''])[0].strip()
+        if not common_path or '..' in common_path:
+            self._json_response({'error': 'Invalid path'}, 400)
+            return
+        draft_file = (CACHE_DIR / 'drafts' / common_path).resolve()
+        if not str(draft_file).startswith(str((CACHE_DIR / 'drafts').resolve())):
+            self._json_response({'error': 'Path traversal not allowed'}, 400)
+            return
+        content = draft_file.read_text('utf-8') if draft_file.exists() else ''
+        self._json_response({'content': content})
+
+    def _handle_save_draft(self):
+        try:
+            data = self._read_json()
+            common_path = data.get('common_path', '').strip()
+            content = data.get('content', '')
+            if not common_path or '..' in common_path:
+                self._json_response({'error': 'Invalid path'}, 400)
+                return
+            drafts_dir = CACHE_DIR / 'drafts'
+            draft_file = (drafts_dir / common_path).resolve()
+            if not str(draft_file).startswith(str(drafts_dir.resolve())):
+                self._json_response({'error': 'Path traversal not allowed'}, 400)
+                return
+            if content:
+                draft_file.parent.mkdir(parents=True, exist_ok=True)
+                draft_file.write_text(content, encoding='utf-8')
+            elif draft_file.exists():
+                draft_file.unlink()
+            self._json_response({'ok': True})
+        except Exception as e:
+            self._json_response({'error': str(e)}, 500)
+
+
     print(f'lulu-workbench viewer')
     print(f'  Root : {REPO_ROOT}')
     print(f'  URL  : http://localhost:{PORT}')

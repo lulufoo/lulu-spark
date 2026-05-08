@@ -148,6 +148,21 @@ export async function updateTopics(mode = 'fast', checkRepo = '') {
   return res.json();
 }
 
+export async function getDraft(commonPath) {
+  const res = await fetch(`/api/draft?path=${encodeURIComponent(commonPath)}`);
+  if (!res.ok) return { content: '' };
+  return res.json();
+}
+
+export async function saveDraft(commonPath, content) {
+  const res = await fetch('/api/draft', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ common_path: commonPath, content })
+  });
+  return res.json();
+}
+
 export async function moveToProject(id, newProject) {
   const res = await fetch('/api/move-project', {
     method: 'POST',
