@@ -595,6 +595,48 @@
       "layers": [
         "raw"
       ]
+    },
+    "029ee3c2c51792d8537f1a65e578739a": {
+      "common_path": "ai-software-dev/construction-harness-deprecation/202605081400-construction-harness-deprecation.md",
+      "created_at": "202605081400",
+      "layers": [
+        "raw"
+      ]
+    },
+    "d5b48c85373b36b6c6d0b2dc7899ee1c": {
+      "common_path": "ai-software-dev/qa-rd-harness-role-conflict/202605081457-qa-rd-harness-role-conflict.md",
+      "created_at": "202605081457",
+      "layers": [
+        "raw"
+      ]
+    },
+    "17641d627a36c4c478bea2e92651d435": {
+      "common_path": "ai-software-dev/harness-github-cursor-integration/202605081512-harness-github-cursor-integration.md",
+      "created_at": "202605081512",
+      "layers": [
+        "raw"
+      ]
+    },
+    "3ec41cfde27eeff7b30e01ee89e018a9": {
+      "common_path": "ai-software-dev/ai-autonomous-harness-architecture/202605081519-ai-autonomous-harness-architecture.md",
+      "created_at": "202605081519",
+      "layers": [
+        "raw"
+      ]
+    },
+    "9388bca61f06e6fd0b3a7b0ed295d041": {
+      "common_path": "ai-software-dev/prompt-harness-engineering-loop-v2/202605081532-prompt-harness-engineering-loop-v2.md",
+      "created_at": "202605081532",
+      "layers": [
+        "raw"
+      ]
+    },
+    "606aba11c348d227b3e0187f26136d14": {
+      "common_path": "ai-software-dev/ai-decision-path-output-review/202605081538-ai-decision-path-output-review.md",
+      "created_at": "202605081538",
+      "layers": [
+        "raw"
+      ]
     }
   }
 }

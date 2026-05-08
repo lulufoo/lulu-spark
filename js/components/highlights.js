@@ -1,128 +1,176 @@
-import { state, getEntryId } from '../state.js'
+import { state } from '../state.js'
 import * as api from '../api.js'
 import { nowTs } from '../utils.js'
 
-// ── applyHighlights ────────────────────────────────────────────────────────
-// Walk #md-body text nodes and wrap matching highlight texts with <mark>
+// ── buildFlatText ──────────────────────────────────────────────────────────
+// Collect visible text nodes into a flat string + position map.
+// Excludes nodes inside existing highlights and the comments bar.
+function buildFlatText(container) {
+  const commentsBar = document.getElementById('md-comments-bar');
+  const segments = [];
+  let offset = 0;
+  const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, {
+    acceptNode(node) {
+      if (commentsBar && commentsBar.contains(node)) return NodeFilter.FILTER_REJECT;
+      let p = node.parentNode;
+      while (p && p !== container) {
+        if (p.classList?.contains('doc-highlight')) return NodeFilter.FILTER_REJECT;
+        p = p.parentNode;
+      }
+      return NodeFilter.FILTER_ACCEPT;
+    }
+  });
+  let node;
+  while ((node = walker.nextNode())) {
+    const len = node.nodeValue.length;
+    segments.push({ node, start: offset, end: offset + len });
+    offset += len;
+  }
+  const rawText = segments.map(s => s.node.nodeValue).join('');
+  return { rawText, segments };
+}
 
+// ── buildNormIndex ─────────────────────────────────────────────────────────
+// Collapse whitespace runs in rawText to a single space.
+// origPositions[i] = raw index of the i-th normalized char.
+// origPositions[normText.length] = rawText.length  (end sentinel).
+function buildNormIndex(rawText) {
+  const chars = [];
+  const origPositions = [];
+  let inWS = false;
+  for (let i = 0; i < rawText.length; i++) {
+    if (/[\s\u00a0\u200b]/.test(rawText[i])) {
+      if (!inWS) { chars.push(' '); origPositions.push(i); inWS = true; }
+    } else {
+      chars.push(rawText[i]); origPositions.push(i); inWS = false;
+    }
+  }
+  origPositions.push(rawText.length);
+  return { normText: chars.join(''), origPositions };
+}
+
+// ── applyHighlights ────────────────────────────────────────────────────────
 export function applyHighlights(annotation, layer) {
   const container = document.getElementById('md-body');
   if (!container) return;
   const highlights = annotation?.[layer]?.highlights || [];
   if (!highlights.length) return;
-
   for (const h of highlights) {
     wrapNthMatch(container, h.text, h.occurrence ?? 0, h.id);
   }
 }
 
-// Collect visible text nodes (skipping content already inside a .doc-highlight mark, and the comments bar)
-function collectTextNodes(container) {
-  const commentsBar = document.getElementById('md-comments-bar');
-  const nodes = [];
-  const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, {
-    acceptNode(node) {
-      if (commentsBar && commentsBar.contains(node)) return NodeFilter.FILTER_REJECT;
-      let p = node.parentNode;
-      while (p && p !== container) {
-        if (p.classList?.contains('doc-highlight')) return NodeFilter.FILTER_REJECT;
-        p = p.parentNode;
-      }
-      return NodeFilter.FILTER_ACCEPT;
-    }
-  });
-  let node;
-  while ((node = walker.nextNode())) nodes.push(node);
-  return nodes;
-}
-
-// Wrap the `occurrence`-th (0-based) match of `text` in the container
+// ── wrapNthMatch ───────────────────────────────────────────────────────────
+// Wrap the `occurrence`-th (0-based) normalized match of `text` with <mark>(s).
+// Uses segment-level splitText — never calls Range.surroundContents, so it
+// works even when the selection crosses inline/block element boundaries.
 function wrapNthMatch(container, text, occurrence, id) {
   if (!text) return;
-  const textNodes = collectTextNodes(container);
-  let found = 0;
+  const { rawText, segments } = buildFlatText(container);
+  const { normText, origPositions } = buildNormIndex(rawText);
+  const normSearch = text.replace(/[\s\u00a0\u200b]+/g, ' ').trim();
+  if (!normSearch) return;
 
-  for (const tn of textNodes) {
-    let pos = 0;
-    let idx;
-    while ((idx = tn.nodeValue.indexOf(text, pos)) !== -1) {
-      if (found === occurrence) {
-        // This is the target occurrence — wrap it
-        const before = tn.nodeValue.slice(0, idx);
-        const after  = tn.nodeValue.slice(idx + text.length);
-
-        const mark = document.createElement('mark');
-        mark.className = 'doc-highlight';
-        mark.dataset.hid = id;
-
-        const textNode = document.createTextNode(text);
-        mark.appendChild(textNode);
-
-        const delBtn = document.createElement('button');
-        delBtn.className = 'highlight-del-btn';
-        delBtn.title = '取消高亮';
-        delBtn.textContent = '×';
-        delBtn.addEventListener('click', e => {
-          e.preventDefault();
-          e.stopPropagation();
-          deleteHighlight(id);
-        });
-        mark.appendChild(delBtn);
-
-        const parent = tn.parentNode;
-        if (before) parent.insertBefore(document.createTextNode(before), tn);
-        parent.insertBefore(mark, tn);
-        if (after) parent.insertBefore(document.createTextNode(after), tn);
-        parent.removeChild(tn);
-        return;
-      }
-      found++;
-      pos = idx + text.length;
-    }
+  // Find the nth occurrence in normalized text
+  let found = 0, pos = 0, normStart = -1;
+  while (true) {
+    const idx = normText.indexOf(normSearch, pos);
+    if (idx === -1) return;
+    if (found === occurrence) { normStart = idx; break; }
+    found++; pos = idx + 1;
   }
+
+  const rawStart = origPositions[normStart];
+  const rawEnd   = origPositions[normStart + normSearch.length];
+
+  // Build the delete button (appended to the last mark fragment)
+  function makeDelBtn() {
+    const b = document.createElement('button');
+    b.className = 'highlight-del-btn';
+    b.title = '取消高亮';
+    b.textContent = '×';
+    b.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); deleteHighlight(id); });
+    return b;
+  }
+
+  // Collect segments that overlap [rawStart, rawEnd)
+  const overlapping = segments.filter(s => s.start < rawEnd && s.end > rawStart);
+  if (!overlapping.length) return;
+
+  // Wrap each overlapping text-node segment individually (splitText only, never
+  // Range.surroundContents).  Purely-whitespace fragments (e.g. the '\n' text
+  // nodes that marked.js emits between </p> and <p>) are skipped — wrapping them
+  // in <mark> would inject an inline element between two block boxes, causing a
+  // visible blank line in the layout.
+  let lastMark = null;
+  for (let i = 0; i < overlapping.length; i++) {
+    const seg = overlapping[i];
+    const lo = Math.max(rawStart, seg.start) - seg.start; // offset inside this text node
+    const hi = Math.min(rawEnd,   seg.end)   - seg.start;
+
+    // Skip purely-whitespace fragments
+    if (/^\s*$/.test(seg.node.nodeValue.slice(lo, hi))) continue;
+
+    let targetNode = seg.node;
+
+    // Trim trailing part first (split at hi)
+    if (hi < targetNode.nodeValue.length) {
+      targetNode.splitText(hi); // targetNode is now [0, hi)
+    }
+    // Trim leading part (split at lo)
+    if (lo > 0) {
+      targetNode = targetNode.splitText(lo); // targetNode is now [lo, hi)
+    }
+
+    const mark = document.createElement('mark');
+    mark.className = 'doc-highlight';
+    mark.dataset.hid = id;
+    targetNode.parentNode.insertBefore(mark, targetNode);
+    mark.appendChild(targetNode);
+    lastMark = mark;
+  }
+
+  // Attach the delete button to the last non-whitespace fragment
+  if (lastMark) lastMark.appendChild(makeDelBtn());
 }
 
-// Calculate which occurrence (0-based) the current selection represents,
-// counting only within main content (excluding the comments bar)
+// ── getOccurrenceIndex ─────────────────────────────────────────────────────
+// Count how many times (normalized) text appears before the selection start.
 function getOccurrenceIndex(container, selection, text) {
-  const commentsBar = document.getElementById('md-comments-bar');
+  const { rawText, segments } = buildFlatText(container);
   const range = selection.getRangeAt(0);
-  const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, {
-    acceptNode(node) {
-      if (commentsBar && commentsBar.contains(node)) return NodeFilter.FILTER_REJECT;
-      let p = node.parentNode;
-      while (p && p !== container) {
-        if (p.classList?.contains('doc-highlight')) return NodeFilter.FILTER_REJECT;
-        p = p.parentNode;
-      }
-      return NodeFilter.FILTER_ACCEPT;
-    }
-  });
 
-  let count = 0;
-  let node;
-  while ((node = walker.nextNode())) {
-    const nodeRange = document.createRange();
-    nodeRange.selectNodeContents(node);
-    // If node ends before selection starts, count all occurrences in it
-    if (range.compareBoundaryPoints(Range.END_TO_START, nodeRange) > 0) {
-      let pos = 0, idx;
-      while ((idx = node.nodeValue.indexOf(text, pos)) !== -1) { count++; pos = idx + text.length; }
-    } else {
-      // Node contains or follows the selection start — only count up to startOffset
-      if (node === range.startContainer) {
-        const partial = node.nodeValue.slice(0, range.startOffset);
-        let pos = 0, idx;
-        while ((idx = partial.indexOf(text, pos)) !== -1) { count++; pos = idx + text.length; }
-      }
+  // startContainer may be an element node (e.g. <li>); walk into its first text node
+  let startNode = range.startContainer;
+  let startOffset = range.startOffset;
+  if (startNode.nodeType !== Node.TEXT_NODE) {
+    const child = startNode.childNodes[startOffset] || startNode.firstChild;
+    if (child) { startNode = child; startOffset = 0; }
+  }
+
+  let selRawStart = 0;
+  for (const seg of segments) {
+    if (seg.node === startNode) {
+      selRawStart = seg.start + startOffset;
       break;
     }
+    // fallback: if we never find startNode, selRawStart stays 0 (occurrence 0)
+  }
+
+  const { normText, origPositions } = buildNormIndex(rawText);
+  const normSearch = text.replace(/[\s\u00a0\u200b]+/g, ' ').trim();
+  if (!normSearch) return 0;
+
+  let count = 0, pos = 0;
+  while (true) {
+    const idx = normText.indexOf(normSearch, pos);
+    if (idx === -1 || origPositions[idx] >= selRawStart) break;
+    count++; pos = idx + 1;
   }
   return count;
 }
 
 // ── deleteHighlight ────────────────────────────────────────────────────────
-
 async function deleteHighlight(id) {
   const { entry, layer, annotation } = state.viewer;
   if (!entry) return;
@@ -140,17 +188,16 @@ async function deleteHighlight(id) {
   }
 }
 
-// Re-apply highlights without re-fetching content (works on current rendered DOM)
+// ── reapplyHighlights ──────────────────────────────────────────────────────
 function reapplyHighlights() {
   const container = document.getElementById('md-body');
+  // A single logical highlight may span multiple <mark> fragments (cross-element);
+  // unwrap all of them, then normalize to merge adjacent text nodes.
   container.querySelectorAll('mark.doc-highlight').forEach(mark => {
-    // Get just the text content (first text node child, before the × button)
-    const textContent = Array.from(mark.childNodes)
-      .filter(n => n.nodeType === Node.TEXT_NODE)
-      .map(n => n.nodeValue)
-      .join('');
-    mark.replaceWith(document.createTextNode(textContent));
+    mark.querySelectorAll('.highlight-del-btn').forEach(b => b.remove());
+    mark.replaceWith(...Array.from(mark.childNodes));
   });
+  container.normalize();
   applyHighlights(state.viewer.annotation, state.viewer.layer);
 }
 

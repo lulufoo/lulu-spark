@@ -65,7 +65,7 @@
     border-color: #388bfd;
     width: 280px;
   }
-  #gs-rebuild-btn {
+  .gs-rebuild-btn {
     background: #373e47;
     border: 1px solid #444c56;
     color: #cdd9e5;
@@ -74,12 +74,29 @@
     font-size: 12px;
     cursor: pointer;
     flex-shrink: 0;
-    transition: background 0.15s;
+    position: relative;
+    transition: background 0.15s, color 0.15s;
   }
-  #gs-rebuild-btn:hover { background: #444c56; }
-  #gs-rebuild-btn:disabled { opacity: .5; cursor: default; }
+  .gs-rebuild-btn:hover { background: #444c56; }
+  .gs-rebuild-btn:disabled { opacity: .5; cursor: default; }
   @keyframes gs-spin { to { transform: rotate(360deg); } }
-  #gs-rebuild-btn.syncing { animation: gs-spin 1s linear infinite; }
+  .gs-rebuild-btn.syncing {
+    color: transparent;
+    pointer-events: none;
+  }
+  .gs-rebuild-btn.syncing::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 10px;
+    height: 10px;
+    margin: -5px 0 0 -5px;
+    border: 2px solid #444c56;
+    border-top-color: #cdd9e5;
+    border-radius: 50%;
+    animation: gs-spin 0.7s linear infinite;
+  }
   #gs-dropdown {
     position: absolute;
     top: calc(100% + 6px);

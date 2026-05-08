@@ -19,7 +19,7 @@ from pathlib import Path
 # ── Config ────────────────────────────────────────────────────────────────────
 REPO_ROOT = Path(__file__).parent.parent.resolve()
 CACHE_DIR = REPO_ROOT / '.cache'
-ENV_FILE  = CACHE_DIR / 'meili.env'
+ENV_FILE  = REPO_ROOT / 'meili.env'
 META_FILE = CACHE_DIR / 'meili-meta.json'
 COMMIT_CACHE_FILE = CACHE_DIR / 'repo-commits.json'
 TOPICS_FILE = REPO_ROOT / 'topics.json'
@@ -56,13 +56,18 @@ _no_proxy_opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
 
 def _req(method, path, body=None):
     """Raw HTTP request to Meilisearch. Raises on error."""
+    import urllib.error as _uerr
     url = MEILI_URL.rstrip('/') + path
     data = json.dumps(body).encode('utf-8') if body is not None else None
     req = urllib.request.Request(url, data=data, method=method)
     req.add_header('Authorization', f'Bearer {MEILI_KEY}')
     req.add_header('Content-Type', 'application/json')
-    with _no_proxy_opener.open(req, timeout=15) as resp:
-        return json.loads(resp.read().decode('utf-8'))
+    try:
+        with _no_proxy_opener.open(req, timeout=15) as resp:
+            return json.loads(resp.read().decode('utf-8'))
+    except _uerr.HTTPError as e:
+        body_text = e.read().decode('utf-8', errors='replace')
+        raise RuntimeError(f'HTTP {e.code} {e.reason}: {body_text}') from None
 
 
 def _wait_for_task(task_uid, max_wait=30):

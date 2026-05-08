@@ -20,7 +20,7 @@ from pathlib import Path
 # ── Config ────────────────────────────────────────────────────────────────────
 REPO_ROOT  = Path(__file__).parent.parent.resolve()
 CACHE_DIR  = REPO_ROOT / '.cache'
-ENV_FILE   = CACHE_DIR / 'meili.env'
+ENV_FILE   = REPO_ROOT / 'meili.env'
 
 MEILI_URL  = 'http://localhost:7700'
 MEILI_KEY  = ''

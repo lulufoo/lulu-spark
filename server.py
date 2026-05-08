@@ -37,7 +37,7 @@ KNOWLEDGE_BASE_DIR = Path('/Users/lulu/Code')
 
 def _load_meili_config():
     global MEILI_URL, MEILI_KEY, KNOWLEDGE_BASE_DIR
-    env_file = CACHE_DIR / 'meili.env'
+    env_file = REPO_ROOT / 'meili.env'
     if not env_file.exists():
         return
     for line in env_file.read_text(encoding='utf-8').splitlines():
@@ -66,7 +66,8 @@ _meili_opener = _ureq.build_opener(_ureq.ProxyHandler({}))
 
 
 def _meili_request(method, path, body=None):
-    """Send a request to Meilisearch. Returns parsed dict or None on failure."""
+    """Send a request to Meilisearch. Returns parsed dict or None on connection failure."""
+    import urllib.error as _uerr
     try:
         url = MEILI_URL.rstrip('/') + path
         data = json.dumps(body).encode('utf-8') if body is not None else None
@@ -75,6 +76,12 @@ def _meili_request(method, path, body=None):
         req.add_header('Content-Type', 'application/json')
         with _meili_opener.open(req, timeout=5) as resp:
             return json.loads(resp.read().decode('utf-8'))
+    except _uerr.HTTPError as e:
+        # HTTP error (e.g. 404 index not found): return parsed body, not None
+        try:
+            return json.loads(e.read().decode('utf-8'))
+        except Exception:
+            return {'_http_status': e.code}
     except Exception:
         return None
 
@@ -751,9 +758,10 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 self._json_response({'error': f'Invalid layer: {layer}'}, 400)
                 return
 
-            hid  = str(highlight.get('id') or '').strip()
-            text = str(highlight.get('text') or '').strip()
-            ts   = str(data.get('ts') or '').strip()
+            hid        = str(highlight.get('id') or '').strip()
+            text       = str(highlight.get('text') or '').strip()
+            occurrence = highlight.get('occurrence')
+            ts         = str(data.get('ts') or '').strip()
 
             ann = self._read_annotation(common_path)
             layer_data = ann.setdefault(layer, {})
@@ -771,7 +779,13 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                     self._json_response({'error': 'text required for new highlight'}, 400)
                     return
                 hid = uuid.uuid4().hex[:12]
-                highlights.append({'id': hid, 'text': text, 'ts': ts})
+                entry = {'id': hid, 'text': text, 'ts': ts}
+                if occurrence is not None:
+                    try:
+                        entry['occurrence'] = int(occurrence)
+                    except (TypeError, ValueError):
+                        pass
+                highlights.append(entry)
 
             # Clean up empty structures
             if not layer_data.get('highlights') and not layer_data.get('comments'):
@@ -1525,6 +1539,9 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             if result is None:
                 self._json_response({'hits': [], 'error': 'unavailable'})
                 return
+            if result.get('code') == 'index_not_found':
+                self._json_response({'hits': [], 'error': 'not_indexed'})
+                return
 
             hits = result.get('hits', [])
             self._json_response({'hits': hits})
@@ -1642,6 +1659,9 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             if result is None:
                 self._json_response({'hits': [], 'error': 'unavailable'})
                 return
+            if result.get('code') == 'index_not_found':
+                self._json_response({'hits': [], 'error': 'not_indexed'})
+                return
 
             hits = result.get('hits', [])
             self._json_response({'hits': hits})
@@ -1702,29 +1722,27 @@ if __name__ == '__main__':
     print(f'  URL  : http://localhost:{PORT}')
     print()
 
-    # Auto-start Meilisearch if configured but not already running
-    if MEILI_KEY:
-        if _meili_request('GET', '/health') is None:
-            print('  Starting Meilisearch…', end='', flush=True)
-            try:
-                subprocess.Popen(
-                    ['meilisearch', '--master-key', MEILI_KEY, '--no-analytics'],
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
-                )
-                for _ in range(10):
-                    time.sleep(0.5)
-                    if _meili_request('GET', '/health') is not None:
-                        print(' ✓')
-                        break
-                else:
-                    print('\n  ⚠ Meilisearch auto-start failed (not in PATH or timed out)')
-            except FileNotFoundError:
-                print('\n  ⚠ meilisearch not found in PATH, search disabled')
-            except Exception as e:
-                print(f'\n  ⚠ Meilisearch auto-start error: {e}')
-        else:
-            print('  Meilisearch running ✓')
+    # Auto-start Meilisearch if not already running
+    if _meili_request('GET', '/health') is None:
+        print('  Starting Meilisearch…', end='', flush=True)
+        try:
+            cmd = ['meilisearch', '--no-analytics',
+                   '--db-path', str(REPO_ROOT / '.meilisearch'),
+                   '--master-key', MEILI_KEY]
+            subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            for _ in range(10):
+                time.sleep(0.5)
+                if _meili_request('GET', '/health') is not None:
+                    print(' ✓')
+                    break
+            else:
+                print('\n  ⚠ Meilisearch auto-start failed (not in PATH or timed out)')
+        except FileNotFoundError:
+            print('\n  ⚠ meilisearch not found in PATH, search disabled')
+        except Exception as e:
+            print(f'\n  ⚠ Meilisearch auto-start error: {e}')
+    else:
+        print('  Meilisearch running ✓')
 
     try:
         with http.server.HTTPServer(('localhost', PORT), Handler) as server:

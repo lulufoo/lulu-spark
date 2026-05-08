@@ -1,8 +1,10 @@
-import { searchKnowledge, searchWorkbench, reindexWorkbench, getReindexWorkbenchStatus } from '../api.js'
+import { searchKnowledge, searchWorkbench, reindexWorkbench, getReindexWorkbenchStatus, reindexKnowledge, getReindexStatus } from '../api.js'
 
 // ── State ─────────────────────────────────────────────────────────────────────
 let _debounceTimer = null
 let _pollTimer = null
+let _kbPollTimer = null
+let _inputFocused = false
 
 // ── Init ──────────────────────────────────────────────────────────────────────
 
@@ -24,8 +26,25 @@ export function initGlobalSearch() {
     if (e.key === 'Escape') { _close(); input.blur() }
   })
 
+  input.addEventListener('focus', () => {
+    _inputFocused = true
+    const { mode } = _detectMode(input.value)
+    _updateModeUI(mode)
+  })
+
+  input.addEventListener('blur', () => {
+    _inputFocused = false
+    // delay so button clicks register before hiding
+    setTimeout(() => _updateModeUI(_detectMode(input.value).mode), 200)
+  })
+
   if (rebuildBtn) {
     rebuildBtn.addEventListener('click', _startWbRebuild)
+  }
+
+  const kbRebuildBtn = document.getElementById('gs-kb-rebuild-btn')
+  if (kbRebuildBtn) {
+    kbRebuildBtn.addEventListener('click', _startKbRebuild)
   }
 
   document.addEventListener('click', e => {
@@ -46,10 +65,14 @@ function _detectMode(raw) {
 function _updateModeUI(mode) {
   const pill = document.getElementById('gs-mode-pill')
   const rebuildBtn = document.getElementById('gs-rebuild-btn')
+  const kbRebuildBtn = document.getElementById('gs-kb-rebuild-btn')
   const isWb = mode === 'wb'
   if (pill) pill.style.display = isWb ? 'inline-flex' : 'none'
   if (rebuildBtn && _pollTimer === null) {
     rebuildBtn.style.display = isWb ? 'inline-flex' : 'none'
+  }
+  if (kbRebuildBtn && _kbPollTimer === null) {
+    kbRebuildBtn.style.display = (!isWb && _inputFocused) ? 'inline-flex' : 'none'
   }
 }
 
@@ -160,6 +183,46 @@ function _stopWbRebuild(isError, msg) {
     btn.classList.remove('syncing')
     if (isError) btn.title = `重建失败：${msg}`
     else btn.title = '重建 Workbench 索引'
+  }
+}
+
+// ── Knowledge base rebuild ───────────────────────────────────────────────────
+
+async function _startKbRebuild() {
+  const btn = document.getElementById('gs-kb-rebuild-btn')
+  if (btn) { btn.disabled = true; btn.classList.add('syncing') }
+
+  try {
+    const res = await reindexKnowledge()
+    if (res.error) { _stopKbRebuild(true, res.error); return }
+  } catch (_) {
+    _stopKbRebuild(true, '请求失败')
+    return
+  }
+
+  _kbPollTimer = setInterval(_pollKbRebuild, 2000)
+}
+
+async function _pollKbRebuild() {
+  try {
+    const res = await getReindexStatus()
+    if (res.status === 'done') {
+      _stopKbRebuild(false)
+    } else if (res.status === 'error') {
+      _stopKbRebuild(true, res.log || '重建失败')
+    }
+  } catch (_) {}
+}
+
+function _stopKbRebuild(isError, msg) {
+  clearInterval(_kbPollTimer)
+  _kbPollTimer = null
+  const btn = document.getElementById('gs-kb-rebuild-btn')
+  if (btn) {
+    btn.disabled = false
+    btn.classList.remove('syncing')
+    if (isError) btn.title = `重建失败：${msg}`
+    else btn.title = '重建知识库索引'
   }
 }
 

@@ -114,6 +114,11 @@ async function _search(q) {
     // Restore visibility if it was previously hidden
     _container.classList.remove('ks-unavailable')
 
+    if (data.error === 'not_indexed') {
+      _renderStatusMsg('知识库尚未建立索引<br><span style="font-size:10px;color:#aaa">点击 ↺ 同步知识库</span>')
+      return
+    }
+
     const hits = data.hits || []
     if (hits.length === 0) {
       _setState('empty')
