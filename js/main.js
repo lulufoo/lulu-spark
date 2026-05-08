@@ -603,6 +603,13 @@ const _SKILLS_CONTENT = {
           { cmd: 'dp_graph',   name: '领域知识图谱模型', desc: '多轮迭代构建领域关键点网络与知识图谱' },
           { cmd: 'dp_role',    name: '角色视图生成模型', desc: '从知识图谱为特定角色生成关注度矩阵与学习路径' }
         ]
+      },
+      {
+        name: '工具',
+        url: 'https://github.com/lulufoo/lulu-skills/tree/main/sync-rules',
+        items: [
+          { cmd: 'sync rules', name: '规则同步', desc: '同步 AI rules 到各平台（Cursor / Claude Code / VS Code）' }
+        ]
       }
     ]
   }

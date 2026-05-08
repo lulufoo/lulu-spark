@@ -1,6 +1,13 @@
 {
   "version": 5,
   "entries": {
+    "0e30538511a3cf153ddea10903b6ae01": {
+      "common_path": "ai-software-dev/construction-execution-harness-design/202605081141-construction-execution-harness-design.md",
+      "created_at": "202605081141",
+      "layers": [
+        "raw"
+      ]
+    },
     "2ae2cca4eff79521443aa510a8113959": {
       "common_path": "ai-thinking-framework/domain-portrait-model-architecture-analysis/202604231419-domain-portrait-model-architecture-analysis.md",
       "created_at": "202604231419",
