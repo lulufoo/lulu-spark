@@ -8,6 +8,7 @@ import './components/comments.js'
 import './components/modals/delete-dialog.js'
 import './components/modals/commit-dialog.js'
 import './components/modals/move-dialog.js'
+import { openBase64Dialog } from './components/modals/base64-dialog.js'
 import { renderFeed } from './feed.js'
 import { initGlobalSearch } from './components/global-search.js'
 
@@ -522,6 +523,11 @@ document.getElementById('btn-feed').addEventListener('click', () => {
   } else {
     showFeedView();
   }
+});
+
+document.getElementById('btn-base64').addEventListener('click', () => {
+  _closeAllMenuDropdowns();
+  openBase64Dialog();
 });
 
 // ── Init ───────────────────────────────────────────────────────────────────

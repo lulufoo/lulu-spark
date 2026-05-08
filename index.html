@@ -42,6 +42,7 @@
     <div id="tools-menu-dropdown">
       <button id="btn-move-doc-header">→ 移动</button>
       <button id="btn-feed">📡 Builders</button>
+      <button id="btn-base64">🔤 Base64</button>
     </div>
   </div>
   <div id="skills-menu-wrap">
@@ -63,6 +64,25 @@
     <div id="doc-list" class="doc-list"></div>
     <div id="feed-view" style="display:none;padding:20px;overflow-y:auto;height:100%;box-sizing:border-box;"></div>
   </main>
+</div>
+
+<!-- Base64 tool dialog -->
+<div id="base64-dialog">
+  <div id="base64-dialog-box">
+    <div id="base64-dialog-header">
+      <span>🔤 Base64 转换</span>
+      <button id="btn-base64-close">✕ 关闭</button>
+    </div>
+    <textarea id="base64-input" placeholder="输入文本或 Base64 字符串…" spellcheck="false"></textarea>
+    <div id="base64-dialog-actions">
+      <button id="btn-base64-encode">编码 →</button>
+      <button id="btn-base64-decode">← 解码</button>
+    </div>
+    <textarea id="base64-output" readonly placeholder="结果…" spellcheck="false"></textarea>
+    <div id="base64-dialog-footer">
+      <button id="btn-base64-copy">复制结果</button>
+    </div>
+  </div>
 </div>
 
 <!-- MD Viewer -->
