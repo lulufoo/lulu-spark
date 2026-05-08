@@ -2,3 +2,6 @@
 
 # 未归一化对话稿暂存；DDM 结果写入 raw/（见 normalize.py）
 .cache/
+
+# sync-rules (auto)
+.github/instructions/
