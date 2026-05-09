@@ -534,7 +534,13 @@ export function closeModal() {
 
 document.getElementById('md-close').addEventListener('click', closeModal);
 document.getElementById('md-backdrop').addEventListener('click', closeModal);
-document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    // Don't close modal if comment dialog is open — let it handle ESC itself
+    if (document.getElementById('comment-dialog').classList.contains('open')) return;
+    closeModal();
+  }
+});
 
 // ── Copy buttons ───────────────────────────────────────────────────────────
 

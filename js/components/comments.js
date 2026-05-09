@@ -8,6 +8,37 @@ import { renderLinksBar } from './links-bar.js'
 
 let _floatNavObserver = null;
 
+const _tip = () => document.getElementById('comment-preview-tip');
+
+function _showTip(text, e) {
+  const tip = _tip();
+  if (!tip) return;
+  const preview = text.length > 600 ? text.slice(0, 600) + '\n\n…' : text;
+  const inner = typeof marked !== 'undefined' ? marked.parse(preview) : `<pre>${preview}</pre>`;
+  tip.innerHTML = `<div class="comment-item-text">${inner}</div>`;
+  tip.style.display = 'block';
+  _moveTip(e);
+}
+
+function _moveTip(e) {
+  const tip = _tip();
+  if (!tip || tip.style.display === 'none') return;
+  const GAP = 12;
+  let x = e.clientX + GAP;
+  let y = e.clientY + GAP;
+  const tw = tip.offsetWidth;
+  const th = tip.offsetHeight;
+  if (x + tw > window.innerWidth - 8) x = e.clientX - tw - GAP;
+  if (y + th > window.innerHeight - 8) y = e.clientY - th - GAP;
+  tip.style.left = x + 'px';
+  tip.style.top  = y + 'px';
+}
+
+function _hideTip() {
+  const tip = _tip();
+  if (tip) tip.style.display = 'none';
+}
+
 function updateFloatNav(comments, layer, entry) {
   const nav = document.getElementById('comment-float-nav');
   if (!nav) return;
@@ -25,6 +56,9 @@ function updateFloatNav(comments, layer, entry) {
     btn.textContent = String(i + 1);
     btn.title = `编辑笔记 ${i + 1}`;
     btn.addEventListener('click', () => openCommentDialog(c, layer, entry, i + 1));
+    btn.addEventListener('mouseenter', e => _showTip(c.text, e));
+    btn.addEventListener('mousemove',  e => _moveTip(e));
+    btn.addEventListener('mouseleave', () => _hideTip());
     nav.appendChild(btn);
   });
 
@@ -170,6 +204,7 @@ export async function openCommentDialog(editComment, layer, entry, noteIndex) {
     } catch (e) { /* ignore */ }
   }
   document.getElementById('comment-dialog').classList.add('open');
+  _resetDialogTabs();
   requestAnimationFrame(() => {
     content.focus();
     const range = document.createRange();
@@ -227,6 +262,36 @@ export async function saveComment() {
 
 // ── Event listeners ────────────────────────────────────────────────────────
 
+// Tab switch: edit / preview
+document.querySelectorAll('.comment-tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.comment-tab-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const isPreview = btn.dataset.tab === 'preview';
+    const editorBox = document.getElementById('comment-editor-box');
+    const previewPane = document.getElementById('comment-preview-pane');
+    if (isPreview) {
+      const text = document.getElementById('comment-dialog-content').innerText;
+      const inner = typeof marked !== 'undefined' ? marked.parse(text) : `<pre>${text}</pre>`;
+      previewPane.innerHTML = `<div class="comment-item-text">${inner}</div>`;
+      editorBox.style.display = 'none';
+      previewPane.style.display = 'block';
+    } else {
+      editorBox.style.display = '';
+      previewPane.style.display = 'none';
+    }
+  });
+});
+
+// Reset to edit tab whenever the dialog opens
+function _resetDialogTabs() {
+  document.querySelectorAll('.comment-tab-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.tab === 'edit');
+  });
+  document.getElementById('comment-editor-box').style.display = '';
+  document.getElementById('comment-preview-pane').style.display = 'none';
+}
+
 document.getElementById('btn-add-comment').addEventListener('click', () => {
   const layerData = (state.viewer.annotation && state.viewer.annotation[state.viewer.layer]) || {};
   const nextIdx = (layerData.comments || []).length + 1;
@@ -234,9 +299,12 @@ document.getElementById('btn-add-comment').addEventListener('click', () => {
 });
 document.getElementById('btn-comment-cancel').addEventListener('click', closeCommentDialog);
 document.getElementById('btn-comment-save').addEventListener('click', saveComment);
+// ESC on the dialog container — catches all focus states (edit tab, preview tab, buttons)
+document.getElementById('comment-dialog').addEventListener('keydown', e => {
+  if (e.key === 'Escape') { e.stopPropagation(); closeCommentDialog(); }
+});
 document.getElementById('comment-dialog-content').addEventListener('keydown', e => {
   if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); saveComment(); }
-  if (e.key === 'Escape') closeCommentDialog();
 });
 document.getElementById('comment-dialog-content').addEventListener('input', () => {
   _scheduleDraftSave();
