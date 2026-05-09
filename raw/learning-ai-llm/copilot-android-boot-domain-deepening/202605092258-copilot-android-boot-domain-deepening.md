@@ -1,4 +1,4 @@
-# Copilot Chat Conversation Export: SBVD-INST
+# 证据优先: 记录一次 AI 编造证据 
 
 > 创建时间：2026年5月9日 22:58
 
@@ -7,8 +7,6 @@
 <!-- DDM:TURN_SEP:v1 -->
 
 ## User（Turn 1）
-
-# Copilot Chat Conversation Export: SBVD-INST
 
 **User:** @tttuser
 **Thread URL:** https://github.com/copilot/c/5e3950b7-057d-4aaf-9a0f-460eddd244de
