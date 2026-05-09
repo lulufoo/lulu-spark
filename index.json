@@ -666,6 +666,20 @@
       "layers": [
         "raw"
       ]
+    },
+    "77c0e5946d36499492fd928ccab07d1e": {
+      "common_path": "ai/ai-goal-calibration-thinking-model/202605092256-ai-goal-calibration-thinking-model.md",
+      "created_at": "202605092256",
+      "layers": [
+        "raw"
+      ]
+    },
+    "a21661530153dc4e74fb3c01d17bc852": {
+      "common_path": "learning-ai-llm/copilot-android-boot-domain-deepening/202605092258-copilot-android-boot-domain-deepening.md",
+      "created_at": "202605092258",
+      "layers": [
+        "raw"
+      ]
     }
   }
 }
