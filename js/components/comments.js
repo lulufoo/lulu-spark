@@ -319,6 +319,17 @@ document.getElementById('comment-dialog-content').addEventListener('paste', e =>
     text = e.clipboardData.getData('text/plain');
   }
   document.execCommand('insertText', false, text);
+  // Scroll cursor into view after insert (contenteditable doesn't do this automatically)
+  const sel = window.getSelection();
+  if (sel && sel.rangeCount > 0) {
+    const range = sel.getRangeAt(0);
+    const rect = range.getBoundingClientRect();
+    const el = document.getElementById('comment-dialog-content');
+    const elRect = el.getBoundingClientRect();
+    if (rect.bottom > elRect.bottom) {
+      el.scrollTop += rect.bottom - elRect.bottom + 8;
+    }
+  }
 });
 // Close only when *both* mousedown and click land on the overlay backdrop,
 // so dragging from inside the dialog box to outside won't dismiss it.
