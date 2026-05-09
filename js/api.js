@@ -59,6 +59,52 @@ export async function commitFiles(message, files) {
   return res.json();
 }
 
+export async function fetchKbFileContent(repo, path) {
+  const res = await fetch(`/api/kb/read?repo=${encodeURIComponent(repo)}&path=${encodeURIComponent(path)}`);
+  if (!res.ok) {
+    let msg = `HTTP ${res.status}`;
+    try { const d = await res.json(); if (d.error) msg = d.error; } catch (_) {}
+    throw new Error(msg);
+  }
+  return res.json();
+}
+
+export async function saveKbFile(repo, path, content) {
+  const res = await fetch('/api/kb/save', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ repo, path, content })
+  });
+  return res.json();
+}
+
+export async function commitKbFile(repo, path, message) {
+  const res = await fetch('/api/kb/commit', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ repo, path, message })
+  });
+  return res.json();
+}
+
+export async function reindexKbRepo(repo) {
+  const res = await fetch('/api/kb/reindex', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ repo })
+  });
+  return res.json();
+}
+
+export async function openItermAt(repo) {
+  const res = await fetch('/api/open-iterm', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ repo })
+  });
+  return res.json();
+}
+
 export async function pullProject() {
   const res = await fetch('/api/pull', {
     method: 'POST',

@@ -3,7 +3,7 @@ import { escHtml } from './utils.js'
 import { LAYERS } from './constants.js'
 import * as api from './api.js'
 import { buildGroups, renderSidebar, selectDate } from './components/sidebar.js'
-import { enterEditMode, exitEditMode, saveDoc, showCommitBar, hideCommitBar, commitCurrentFile } from './components/viewer.js'
+import { enterEditMode, exitEditMode, saveDoc, showCommitBar, hideCommitBar, commitCurrentFile, openKbDoc } from './components/viewer.js'
 import './components/comments.js'
 import './components/modals/delete-dialog.js'
 import './components/modals/commit-dialog.js'
@@ -557,6 +557,11 @@ document.addEventListener('cta:open-entry', ({ detail }) => {
   const date = entry.created_at ? entry.created_at.slice(0, 8) : null
   if (date) selectDate(date)
   window.openDoc(entry, entry.layers?.[0] || 'raw')
+});
+
+document.addEventListener('cta:open-kb-doc', ({ detail }) => {
+  if (!detail || !detail.repo || !detail.path) return
+  window.openKbDoc(detail)
 });
 
 // ── Skills dialog ─────────────────────────────────────────────────────────

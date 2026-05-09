@@ -152,6 +152,14 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             self._handle_reindex_workbench()
         elif self.path == '/api/draft':
             self._handle_save_draft()
+        elif self.path == '/api/kb/save':
+            self._handle_kb_save()
+        elif self.path == '/api/kb/commit':
+            self._handle_kb_commit()
+        elif self.path == '/api/kb/reindex':
+            self._handle_kb_reindex()
+        elif self.path == '/api/open-iterm':
+            self._handle_open_iterm()
         else:
             self.send_error(404)
 
@@ -183,6 +191,8 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             self._handle_reindex_workbench_status()
         elif parsed_path == '/api/draft':
             self._handle_get_draft()
+        elif parsed_path == '/api/kb/read':
+            self._handle_kb_read()
         else:
             super().do_GET()
 
@@ -1638,6 +1648,301 @@ class Handler(http.server.SimpleHTTPRequestHandler):
     def _handle_reindex_status(self):
         self._json_response(_reindex_job)
 
+    # ── API: KB helpers ───────────────────────────────────────────────────────
+
+    def _kb_safe_path(self, repo, rel_path):
+        """Derive and validate local KB file path.
+        Returns (resolved_Path, None) on success, or (None, error_str) on failure."""
+        if not repo or '/' not in repo:
+            return None, 'invalid repo format'
+        repo_name = repo.split('/')[-1]
+        if not rel_path or '..' in rel_path:
+            return None, 'invalid path'
+        kb_root = KNOWLEDGE_BASE_DIR.resolve()
+        local_dir = KNOWLEDGE_BASE_DIR / repo_name
+        if not local_dir.is_dir():
+            return None, f'repo not cloned locally: {repo_name}'
+        target = (local_dir / rel_path).resolve()
+        if not str(target).startswith(str(kb_root) + os.sep) and str(target) != str(kb_root):
+            return None, 'path traversal not allowed'
+        return target, None
+
+    # ── API: GET /api/kb/read ─────────────────────────────────────────────────
+
+    def _handle_kb_read(self):
+        try:
+            parsed = urllib.parse.urlparse(self.path)
+            params = urllib.parse.parse_qs(parsed.query)
+            repo = params.get('repo', [''])[0].strip()
+            path = params.get('path', [''])[0].strip()
+            target, err = self._kb_safe_path(repo, path)
+            if err:
+                status = 400 if ('invalid' in err or 'traversal' in err) else 404
+                self._json_response({'error': err}, status)
+                return
+            if not target.exists():
+                self._json_response({'error': f'file not found: {path}'}, 404)
+                return
+            content = target.read_text(encoding='utf-8')
+            self._json_response({'content': content})
+        except Exception as e:
+            self._json_response({'error': str(e)}, 500)
+
+    # ── API: POST /api/kb/save ────────────────────────────────────────────────
+
+    def _handle_kb_save(self):
+        try:
+            data = self._read_json()
+            repo = data.get('repo', '').strip()
+            path = data.get('path', '').strip()
+            content = data.get('content', '')
+            target, err = self._kb_safe_path(repo, path)
+            if err:
+                status = 400 if ('invalid' in err or 'traversal' in err) else 404
+                self._json_response({'error': err}, status)
+                return
+            if not target.exists():
+                self._json_response({'error': f'file not found: {path}'}, 404)
+                return
+            target.write_text(content, encoding='utf-8')
+            print(f'  [kb/save] {repo}/{path}')
+            self._json_response({'ok': True})
+        except json.JSONDecodeError:
+            self._json_response({'error': 'Invalid JSON body'}, 400)
+        except Exception as e:
+            self._json_response({'error': str(e)}, 500)
+
+    # ── API: POST /api/kb/commit ──────────────────────────────────────────────
+
+    def _handle_kb_commit(self):
+        try:
+            data = self._read_json()
+            repo = data.get('repo', '').strip()
+            path = data.get('path', '').strip()
+            message = (data.get('message') or '').strip() or 'update: edit via viewer'
+
+            if not repo or '/' not in repo:
+                self._json_response({'error': 'invalid repo format'}, 400)
+                return
+            repo_name = repo.split('/')[-1]
+            local_dir = KNOWLEDGE_BASE_DIR / repo_name
+            if not local_dir.is_dir():
+                self._json_response({'error': f'repo not cloned locally: {repo_name}'}, 404)
+                return
+
+            def run(cmd):
+                return subprocess.run(
+                    cmd, cwd=str(local_dir),
+                    capture_output=True, text=True
+                )
+
+            # 0. pre-check: abort if repo has unresolved merge conflicts
+            unmerged = run(['git', 'ls-files', '--unmerged'])
+            if unmerged.stdout.strip():
+                self._json_response({
+                    'error': '仓库存在未解决的合并冲突，请手动修复后重试',
+                    'step': 'pre-check',
+                    'stderr': unmerged.stdout.strip()
+                }, 500)
+                return
+
+            # 1. git stash (exit 0 even when nothing to stash)
+            stash = run(['git', 'stash'])
+            if stash.returncode != 0:
+                self._json_response({
+                    'error': 'git stash failed',
+                    'step': 'stash',
+                    'stderr': stash.stderr,
+                    'stdout': stash.stdout
+                }, 500)
+                return
+            stash_was_empty = 'No local changes to save' in stash.stdout
+
+            # 2. git pull
+            pull = run(['git', 'pull', '--rebase'])
+            if pull.returncode != 0:
+                if not stash_was_empty:
+                    run(['git', 'stash', 'pop'])
+                self._json_response({
+                    'error': 'git pull failed',
+                    'step': 'pull',
+                    'stderr': pull.stderr
+                }, 500)
+                return
+
+            # 3. git stash pop (only if we stashed something)
+            if not stash_was_empty:
+                pop = run(['git', 'stash', 'pop'])
+                if pop.returncode != 0:
+                    self._json_response({
+                        'error': 'git stash pop failed',
+                        'step': 'stash_pop',
+                        'stderr': pop.stderr
+                    }, 500)
+                    return
+
+            # 4. git add
+            add = run(['git', 'add', '--', path])
+            if add.returncode != 0:
+                self._json_response({
+                    'error': 'git add failed',
+                    'step': 'add',
+                    'stderr': add.stderr
+                }, 500)
+                return
+
+            # 5. git commit
+            commit = run(['git', 'commit', '-m', message])
+            nothing_to_commit = (
+                'nothing to commit' in commit.stdout or
+                'nothing to commit' in commit.stderr
+            )
+            if commit.returncode != 0 and not nothing_to_commit:
+                self._json_response({
+                    'error': 'git commit failed',
+                    'step': 'commit',
+                    'stderr': commit.stderr,
+                    'stdout': commit.stdout
+                }, 500)
+                return
+
+            # 6. git push
+            push = run(['git', 'push'])
+            if push.returncode != 0:
+                self._json_response({
+                    'error': 'git push failed',
+                    'step': 'push',
+                    'stderr': push.stderr
+                }, 500)
+                return
+
+            info = commit.stdout.strip() if not nothing_to_commit else 'nothing to commit; pushed'
+            print(f'  [kb/commit+push] {repo}/{path}: {message}')
+            self._json_response({'ok': True, 'info': info})
+        except json.JSONDecodeError:
+            self._json_response({'error': 'Invalid JSON body'}, 400)
+        except Exception as e:
+            self._json_response({'error': str(e)}, 500)
+
+    # ── API: POST /api/open-iterm ─────────────────────────────────────────────
+
+    def _handle_open_iterm(self):
+        try:
+            data = self._read_json()
+            repo = data.get('repo', '').strip()
+            if not repo:
+                self._json_response({'error': 'repo required'}, 400)
+                return
+            repo_name = repo.split('/')[-1]
+            local_dir = KNOWLEDGE_BASE_DIR / repo_name
+            if not local_dir.is_dir():
+                self._json_response({'error': f'repo not cloned locally: {repo_name}'}, 404)
+                return
+            script = (
+                'tell application "iTerm"\n'
+                '    activate\n'
+                '    if (count of windows) = 0 then\n'
+                '        create window with default profile\n'
+                '    end if\n'
+                '    tell current window\n'
+                '        create tab with default profile\n'
+                '        tell current session of current tab\n'
+                f'            write text "cd {str(local_dir)}"\n'
+                '        end tell\n'
+                '    end tell\n'
+                'end tell'
+            )
+            r = subprocess.run(['osascript', '-e', script],
+                               capture_output=True, text=True)
+            if r.returncode != 0:
+                self._json_response({'error': r.stderr.strip() or 'osascript failed'}, 500)
+                return
+            self._json_response({'ok': True})
+        except json.JSONDecodeError:
+            self._json_response({'error': 'Invalid JSON body'}, 400)
+        except Exception as e:
+            self._json_response({'error': str(e)}, 500)
+
+    # ── API: POST /api/kb/reindex ─────────────────────────────────────────────
+
+    def _handle_kb_reindex(self):
+        try:
+            global _reindex_job
+            data = self._read_json()
+            repo = data.get('repo', '').strip()
+            if not repo or '/' not in repo:
+                self._json_response({'error': 'invalid repo format'}, 400)
+                return
+            repo_name = repo.split('/')[-1]
+            local_dir = KNOWLEDGE_BASE_DIR / repo_name
+            if not local_dir.is_dir():
+                self._json_response({'error': f'repo not cloned locally: {repo_name}'}, 404)
+                return
+
+            # Verify repo is in topics.json
+            try:
+                topics_data = json.loads((REPO_ROOT / 'topics.json').read_text(encoding='utf-8'))
+                repos_in_topics = [t['repo'] for t in topics_data.get('topics', []) if 'repo' in t]
+                if repo not in repos_in_topics:
+                    self._json_response({'error': f'repo not in topics.json: {repo}'}, 404)
+                    return
+            except Exception:
+                pass  # proceed even if topics.json can't be read
+
+            if _reindex_job['status'] == 'running':
+                self._json_response({'error': 'already running'}, 409)
+                return
+
+            now_iso = datetime.now(timezone.utc).isoformat()
+            _reindex_job = {
+                'status': 'running',
+                'started_at': now_iso,
+                'finished_at': None,
+                'log': f'准备重建 {repo_name}…',
+            }
+
+            def _do_kb_reindex():
+                global _reindex_job
+                try:
+                    # Clear commit cache for this repo to force reindex
+                    commit_cache_file = CACHE_DIR / 'repo-commits.json'
+                    if commit_cache_file.exists():
+                        try:
+                            cache = json.loads(commit_cache_file.read_text(encoding='utf-8'))
+                            if repo in cache:
+                                del cache[repo]
+                                commit_cache_file.write_text(
+                                    json.dumps(cache, ensure_ascii=False, indent=2),
+                                    encoding='utf-8'
+                                )
+                        except Exception:
+                            pass
+
+                    _reindex_job['log'] = f'重建索引 {repo_name}…'
+                    script = REPO_ROOT / 'scripts' / 'build_knowledge_index.py'
+                    r = subprocess.run(
+                        ['python3', str(script)],
+                        cwd=str(REPO_ROOT), capture_output=True, text=True, timeout=600
+                    )
+                    if r.returncode != 0:
+                        _reindex_job['status'] = 'error'
+                        _reindex_job['log'] = r.stderr.strip() or r.stdout.strip() or '未知错误'
+                    else:
+                        _reindex_job['status'] = 'done'
+                        _reindex_job['log'] = r.stdout.strip() or '完成'
+                except Exception as e:
+                    _reindex_job['status'] = 'error'
+                    _reindex_job['log'] = str(e)
+                finally:
+                    _reindex_job['finished_at'] = datetime.now(timezone.utc).isoformat()
+
+            threading.Thread(target=_do_kb_reindex, daemon=True).start()
+            self._json_response({'status': 'running'})
+        except json.JSONDecodeError:
+            self._json_response({'error': 'Invalid JSON body'}, 400)
+        except Exception as e:
+            self._json_response({'error': str(e)}, 500)
+
     # ── API: GET /api/search-workbench ────────────────────────────────────────
 
     def _handle_search_workbench(self):
@@ -1757,41 +2062,41 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             self._json_response({'error': str(e)}, 500)
 
 
-    print(f'lulu-workbench viewer')
-    print(f'  Root : {REPO_ROOT}')
-    print(f'  URL  : http://localhost:{PORT}')
-    print()
+print(f'lulu-workbench viewer')
+print(f'  Root : {REPO_ROOT}')
+print(f'  URL  : http://localhost:{PORT}')
+print()
 
-    # Auto-start Meilisearch if not already running
-    if _meili_request('GET', '/health') is None:
-        print('  Starting Meilisearch…', end='', flush=True)
-        try:
-            cmd = ['meilisearch', '--no-analytics',
-                   '--db-path', str(REPO_ROOT / '.meilisearch'),
-                   '--master-key', MEILI_KEY]
-            subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            for _ in range(10):
-                time.sleep(0.5)
-                if _meili_request('GET', '/health') is not None:
-                    print(' ✓')
-                    break
-            else:
-                print('\n  ⚠ Meilisearch auto-start failed (not in PATH or timed out)')
-        except FileNotFoundError:
-            print('\n  ⚠ meilisearch not found in PATH, search disabled')
-        except Exception as e:
-            print(f'\n  ⚠ Meilisearch auto-start error: {e}')
-    else:
-        print('  Meilisearch running ✓')
-
+# Auto-start Meilisearch if not already running
+if _meili_request('GET', '/health') is None:
+    print('  Starting Meilisearch…', end='', flush=True)
     try:
-        with http.server.HTTPServer(('localhost', PORT), Handler) as server:
-            try:
-                server.serve_forever()
-            except KeyboardInterrupt:
-                print('\nStopped.')
-    except OSError as e:
-        print(f'\n❌ 启动失败：{e}')
-        print(f'   端口 {PORT} 可能已被占用。')
-        print(f'   运行 lsof -ti:{PORT} | xargs kill 后重试。')
-        raise SystemExit(1)
+        cmd = ['meilisearch', '--no-analytics',
+               '--db-path', str(REPO_ROOT / '.meilisearch'),
+               '--master-key', MEILI_KEY]
+        subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        for _ in range(10):
+            time.sleep(0.5)
+            if _meili_request('GET', '/health') is not None:
+                print(' ✓')
+                break
+        else:
+            print('\n  ⚠ Meilisearch auto-start failed (not in PATH or timed out)')
+    except FileNotFoundError:
+        print('\n  ⚠ meilisearch not found in PATH, search disabled')
+    except Exception as e:
+        print(f'\n  ⚠ Meilisearch auto-start error: {e}')
+else:
+    print('  Meilisearch running ✓')
+
+try:
+    with http.server.HTTPServer(('localhost', PORT), Handler) as server:
+        try:
+            server.serve_forever()
+        except KeyboardInterrupt:
+            print('\nStopped.')
+except OSError as e:
+    print(f'\n❌ 启动失败：{e}')
+    print(f'   端口 {PORT} 可能已被占用。')
+    print(f'   运行 lsof -ti:{PORT} | xargs kill 后重试。')
+    raise SystemExit(1)

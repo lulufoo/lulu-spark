@@ -157,6 +157,190 @@ export async function openDoc(entry, layer = 'raw') {
 // viewer.js exposes openDoc on window so cards.js (window.openDoc) can reach it
 window.openDoc = openDoc;
 
+// ── openKbDoc ─────────────────────────────────────────────────────────────────
+
+export async function openKbDoc(kbHit) {
+  const { repo, path, url, title } = kbHit;
+
+  // Set KB viewer state
+  state.viewer.entry = null;
+  state.viewer.isKb = true;
+  state.viewer.kbRepo = repo;
+  state.viewer.kbPath = path;
+  state.viewer.layer = 'raw';
+  state.viewer.rawText = '';
+  state.viewer.annotation = {};
+  state.viewer.lang = null;
+  exitEditMode(false);
+  hideCommitBar();
+
+  // Header setup
+  const _kbPathParts = (path || '').split('/');
+  const _kbFileName = _kbPathParts.pop();
+  const _kbRepoName = (repo || '').split('/').pop();
+  document.getElementById('md-panel-title').textContent =
+    _kbPathParts.length > 0 ? `${_kbRepoName}/.../${_kbFileName}` : `${_kbRepoName}/${_kbFileName}`;
+  document.getElementById('md-github-link').href = url || '#';
+  document.getElementById('btn-copy-http').dataset.url = url || '';
+  document.getElementById('btn-copy-http').dataset.tip = url || '';
+  document.getElementById('btn-copy-path').style.display = 'none';
+  document.getElementById('btn-goto-kb').style.display = 'none';
+  document.getElementById('md-lang-bar').style.display = 'none';
+  document.getElementById('md-file-size').textContent = '';
+  document.getElementById('btn-add-comment').style.display = 'none';
+  document.getElementById('btn-panel-commit').style.display = 'none';
+
+  // Show iTerm button for KB mode
+  const itermBtn = document.getElementById('btn-open-iterm');
+  itermBtn.style.display = '';
+  itermBtn.onclick = async () => {
+    itermBtn.disabled = true;
+    try {
+      const res = await api.openItermAt(repo);
+      if (res.error) alert(`打开终端失败：${res.error}`);
+    } catch (e) {
+      alert(`打开终端失败：${e.message}`);
+    } finally {
+      itermBtn.disabled = false;
+    }
+  };
+
+  // Open modal
+  const modal = document.getElementById('md-modal');
+  const body = document.getElementById('md-body');
+  body.innerHTML = '<div style="color:#8c959f;padding:20px;font-size:13px;">加载中…</div>';
+  modal.style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+
+  try {
+    const result = await api.fetchKbFileContent(repo, path);
+    if (result.error) throw new Error(result.error);
+    const text = result.content;
+    state.viewer.rawText = text;
+    const bytes = new Blob([text]).size;
+    document.getElementById('md-file-size').textContent = bytes < 1024
+      ? `${bytes} B`
+      : bytes < 1024 * 1024
+        ? `${(bytes / 1024).toFixed(1)} KB`
+        : `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+    if (typeof marked !== 'undefined') {
+      body.innerHTML = marked.parse(text);
+    } else {
+      body.innerHTML = `<pre style="white-space:pre-wrap;font-size:13px">${escHtml(text)}</pre>`;
+    }
+    postProcessLinks(body, 'raw', path);
+    document.getElementById('knowledge-panel').style.display = 'none';
+    document.getElementById('btn-edit').style.display = '';
+  } catch (e) {
+    body.innerHTML = `<div style="color:#7d4e00;padding:20px">无法加载文件：${escHtml(e.message)}</div>`;
+    document.getElementById('btn-edit').style.display = 'none';
+  }
+}
+
+window.openKbDoc = openKbDoc;
+
+// ── KB save / commit (internal) ───────────────────────────────────────────
+
+async function _saveKbDoc() {
+  const editArea = document.getElementById('md-edit-area');
+  const newContent = editArea.value;
+  const btnSave = document.getElementById('btn-save');
+  btnSave.disabled = true;
+  btnSave.textContent = '保存中…';
+  try {
+    const data = await api.saveKbFile(state.viewer.kbRepo, state.viewer.kbPath, newContent);
+    if (data.error) throw new Error(data.error);
+    state.viewer.rawText = newContent;
+    exitEditMode(false);
+    // Re-render content
+    const body = document.getElementById('md-body');
+    if (typeof marked !== 'undefined') {
+      body.innerHTML = marked.parse(newContent);
+    } else {
+      body.innerHTML = `<pre style="white-space:pre-wrap;font-size:13px">${escHtml(newContent)}</pre>`;
+    }
+    postProcessLinks(body, 'raw', state.viewer.kbPath);
+    document.getElementById('knowledge-panel').style.display = 'none';
+    document.getElementById('btn-add-comment').style.display = 'none';
+    document.getElementById('btn-edit').style.display = '';
+    showCommitBar();
+    _showKbReindexBtn(state.viewer.kbRepo);
+  } catch (e) {
+    alert(`保存失败：${e.message}\n\n请确认已通过 python3 server.py 启动服务器。`);
+  } finally {
+    btnSave.disabled = false;
+    btnSave.textContent = '💾 保存';
+  }
+}
+
+async function _commitCurrentKbFile() {
+  const msg = document.getElementById('md-commit-msg').value.trim() || 'update: edit via viewer';
+  const resultEl = document.getElementById('md-commit-result');
+  const btn = document.getElementById('btn-commit-file');
+  btn.disabled = true;
+  btn.textContent = '提交中…';
+  resultEl.style.color = '#57606a';
+  resultEl.textContent = '';
+
+  try {
+    const data = await api.commitKbFile(state.viewer.kbRepo, state.viewer.kbPath, msg);
+    if (data.error) throw new Error(data.error + (data.stderr ? '\n' + data.stderr : ''));
+    resultEl.style.color = '#1a7f37';
+    resultEl.textContent = '✓ 已推送！';
+    _showKbReindexBtn(state.viewer.kbRepo);
+    setTimeout(hideCommitBar, 2000);
+  } catch (e) {
+    resultEl.style.color = '#cf222e';
+    resultEl.textContent = `✗ ${e.message}`;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '↑ 提交';
+  }
+}
+
+function _showKbReindexBtn(repo) {
+  let btn = document.getElementById('btn-kb-reindex');
+  if (!btn) {
+    btn = document.createElement('button');
+    btn.id = 'btn-kb-reindex';
+    btn.className = 'md-header-btn';
+    const closeBtn = document.getElementById('md-close');
+    closeBtn.parentNode.insertBefore(btn, closeBtn);
+  }
+  btn.textContent = '↺ 重建索引';
+  btn.title = '重建此知识库的搜索索引';
+  btn.disabled = false;
+  btn.style.display = '';
+  btn.onclick = async () => {
+    btn.disabled = true;
+    btn.textContent = '重建中…';
+    try {
+      const res = await api.reindexKbRepo(repo);
+      if (res.error) throw new Error(res.error);
+      const poll = setInterval(async () => {
+        try {
+          const status = await api.getReindexStatus();
+          if (status.status === 'done') {
+            clearInterval(poll);
+            btn.textContent = '✓ 已重建';
+            btn.disabled = false;
+            setTimeout(() => { btn.style.display = 'none'; }, 2000);
+          } else if (status.status === 'error') {
+            clearInterval(poll);
+            btn.textContent = '重建失败';
+            btn.disabled = false;
+            btn.title = status.log || '未知错误';
+          }
+        } catch (_) {}
+      }, 2000);
+    } catch (e) {
+      btn.textContent = '重建失败';
+      btn.disabled = false;
+      btn.title = e.message;
+    }
+  };
+}
+
 // ── switchLang ─────────────────────────────────────────────────────────────
 
 export async function switchLang(lang) {
@@ -233,6 +417,10 @@ export function exitEditMode(rerender = true) {
 }
 
 export async function saveDoc() {
+  if (state.viewer.isKb) {
+    await _saveKbDoc();
+    return;
+  }
   if (!state.viewer.entry) return;
   const editArea = document.getElementById('md-edit-area');
   const newContent = editArea.value;
@@ -289,6 +477,10 @@ export function hideCommitBar() {
 }
 
 export async function commitCurrentFile() {
+  if (state.viewer.isKb) {
+    await _commitCurrentKbFile();
+    return;
+  }
   if (!state.viewer.entry) return;
   const msg = document.getElementById('md-commit-msg').value.trim() || 'update: edit via viewer';
   const resultEl = document.getElementById('md-commit-result');
@@ -326,6 +518,18 @@ export function closeModal() {
   document.body.style.overflow = '';
   exitEditMode(false);
   hideCommitBar();
+  // Reset KB state and restore hidden elements
+  if (state.viewer.isKb) {
+    state.viewer.isKb = false;
+    state.viewer.kbRepo = null;
+    state.viewer.kbPath = null;
+    document.getElementById('btn-copy-path').style.display = '';
+    document.getElementById('btn-add-comment').style.display = '';
+    document.getElementById('knowledge-panel').style.display = '';
+    document.getElementById('btn-open-iterm').style.display = 'none';
+    const kbReindexBtn = document.getElementById('btn-kb-reindex');
+    if (kbReindexBtn) kbReindexBtn.style.display = 'none';
+  }
 }
 
 document.getElementById('md-close').addEventListener('click', closeModal);

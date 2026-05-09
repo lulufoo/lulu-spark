@@ -424,7 +424,8 @@
       "common_path": "ai-collaboration-framework/intent-first-anti-drift-dialogue/202605010112-intent-first-anti-drift-collaboration-dialogue.md",
       "created_at": "202605010112",
       "layers": [
-        "raw"
+        "raw",
+        "distilled"
       ]
     },
     "cc58928d9f6d7bec356c86c709a114d0": {
@@ -634,6 +635,13 @@
     "606aba11c348d227b3e0187f26136d14": {
       "common_path": "ai-software-dev/ai-decision-path-output-review/202605081538-ai-decision-path-output-review.md",
       "created_at": "202605081538",
+      "layers": [
+        "raw"
+      ]
+    },
+    "70c1860b3319695971e1fde2a259ede6": {
+      "common_path": "ai-software-dev/plan-framework-workflow-archive/202605082117-plan-framework-workflow-archive.md",
+      "created_at": "202605082117",
       "layers": [
         "raw"
       ]

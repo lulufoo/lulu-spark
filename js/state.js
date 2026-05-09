@@ -22,7 +22,10 @@ export const state = {
     rawText: '',
     annotation: {},
     commentEditCtx: null,
-    scrollCache: {}  // key: "entryId:layer" → scrollTop
+    scrollCache: {},  // key: "entryId:layer" → scrollTop
+    isKb: false,
+    kbRepo: null,
+    kbPath: null,
   }
 }
 

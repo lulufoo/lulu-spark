@@ -110,14 +110,17 @@ function _renderKbHits(hits) {
   return hits.map(hit => {
     const title = _esc(hit.title || hit.path || '')
     const repo = _esc((hit.repo || '').split('/').pop())
-    const url = _esc(hit.url || '#')
     const snippet = _getSnippet(hit)
     return `
-      <a class="gs-hit" href="${url}" target="_blank" rel="noopener noreferrer">
+      <div class="gs-hit gs-hit-kb"
+        data-repo="${_esc(hit.repo || '')}"
+        data-path="${_esc(hit.path || '')}"
+        data-url="${_esc(hit.url || '')}"
+        data-title="${_esc(hit.title || hit.path || '')}">
         <div class="gs-hit-title">${title}</div>
         <span class="gs-hit-repo">${repo}</span>
         <div class="gs-hit-snippet">${snippet}</div>
-      </a>
+      </div>
     `
   }).join('')
 }
@@ -245,6 +248,22 @@ function _show(dropdown, html) {
       const cp = el.dataset.commonPath
       if (cp) {
         document.dispatchEvent(new CustomEvent('cta:open-entry', { detail: { common_path: cp } }))
+      }
+      _close()
+    })
+  })
+
+  // Attach click handlers for kb hits
+  dropdown.querySelectorAll('.gs-hit-kb').forEach(el => {
+    el.addEventListener('click', () => {
+      const repo = el.dataset.repo
+      const path = el.dataset.path
+      const url = el.dataset.url
+      const title = el.dataset.title
+      if (repo && path) {
+        document.dispatchEvent(new CustomEvent('cta:open-kb-doc', {
+          detail: { repo, path, url, title }
+        }))
       }
       _close()
     })
