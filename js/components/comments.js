@@ -6,14 +6,46 @@ import { renderLinksBar } from './links-bar.js'
 
 // ── renderComments ─────────────────────────────────────────────────────────
 
+let _floatNavObserver = null;
+
+function updateFloatNav(comments, layer, entry) {
+  const nav = document.getElementById('comment-float-nav');
+  if (!nav) return;
+  nav.innerHTML = '';
+  nav.style.display = 'none';
+  if (_floatNavObserver) {
+    _floatNavObserver.disconnect();
+    _floatNavObserver = null;
+  }
+  if (!comments || comments.length === 0) return;
+
+  comments.forEach((c, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'comment-float-btn';
+    btn.textContent = String(i + 1);
+    btn.title = `编辑笔记 ${i + 1}`;
+    btn.addEventListener('click', () => openCommentDialog(c, layer, entry, i + 1));
+    nav.appendChild(btn);
+  });
+
+  const bar = document.getElementById('md-comments-bar');
+  if (!bar) return;
+  const mdBody = document.getElementById('md-body');
+  _floatNavObserver = new IntersectionObserver(
+    ([e]) => { nav.style.display = e.isIntersecting ? 'none' : 'flex'; },
+    { root: mdBody, threshold: 0 }
+  );
+  _floatNavObserver.observe(bar);
+}
+
 export function renderComments(annotation, layer, entry) {
   const existing = document.getElementById('md-comments-bar');
   if (existing) existing.remove();
-  if (!entry) return;
+  if (!entry) { updateFloatNav([], null, null); return; }
 
   const layerData = (annotation && annotation[layer]) || {};
   const comments = layerData.comments || [];
-  if (comments.length === 0) return;
+  if (comments.length === 0) { updateFloatNav([], layer, entry); return; }
 
   const body = document.getElementById('md-body');
   const bar = document.createElement('div');
@@ -29,6 +61,7 @@ export function renderComments(annotation, layer, entry) {
   }
 
   body.insertBefore(bar, body.firstChild);
+  updateFloatNav(comments, layer, entry);
 }
 
 // ── buildCommentItem ───────────────────────────────────────────────────────
