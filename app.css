@@ -851,7 +851,7 @@
   /* ── Panel commit button ── */
   #btn-panel-commit { background: #fff8c5 !important; color: #7d4e00 !important; border-color: #d4a72c !important; }
   /* ── Commit bar inside viewer panel ── */
-  #md-commit-bar {
+  .viewer-commit-bar {
     display: none;
     flex-shrink: 0;
     align-items: center;
@@ -860,7 +860,7 @@
     border-bottom: 1px solid #d4a72c;
     background: #fffbdd;
   }
-  #md-commit-bar input {
+  .viewer-commit-bar input {
     flex: 1;
     padding: 4px 8px;
     border: 1px solid #d0d7de;
@@ -894,7 +894,7 @@
   }
 
   /* ── MD Viewer Panel ── */
-  #md-modal {
+  .viewer-modal {
     position: fixed;
     inset: 0;
     z-index: 1000;
@@ -903,12 +903,12 @@
     justify-content: center;
     background: rgba(0,0,0,.45);
   }
-  #md-backdrop {
+  .viewer-backdrop {
     position: fixed;
     inset: 0;
     cursor: pointer;
   }
-  #md-panel {
+  .viewer-panel {
     position: relative;
     z-index: 1;
     width: min(1180px, 92vw);
@@ -920,7 +920,7 @@
     box-shadow: 0 8px 40px rgba(0,0,0,.25);
     border-radius: 8px;
   }
-  #md-header {
+  .viewer-header {
     display: flex;
     align-items: center;
     padding: 10px 16px;
@@ -930,7 +930,7 @@
     background: #f6f8fa;
     overflow-x: auto;
   }
-  #md-panel-title {
+  .viewer-panel-title {
     flex: 1;
     font-size: 11px;
     color: #57606a;
@@ -939,7 +939,7 @@
     text-overflow: ellipsis;
     white-space: nowrap;
   }
-  #md-close {
+  .viewer-close {
     background: none;
     border: 1px solid #d0d7de;
     border-radius: 6px;
@@ -949,7 +949,7 @@
     color: #57606a;
     flex-shrink: 0;
   }
-  #md-close:hover { background: #eaeef2; }
+  .viewer-close:hover { background: #eaeef2; }
   /* edit mode button in viewer */
   .md-header-btn {
     background: none;
@@ -971,7 +971,7 @@
   .md-header-btn:disabled { opacity: .5; cursor: default; }
   .md-header-btn.active { background: #dbeafe; color: #0550ae; border-color: #96c6f8; }
   /* body area row wrapper */
-  #md-content-row {
+  .viewer-content-row {
     display: flex;
     flex-direction: row;
     flex: 1;
@@ -980,7 +980,7 @@
     position: relative;
   }
   /* floating comment nav (shown when comments bar scrolls out of view) */
-  #comment-float-nav {
+  .comment-float-nav {
     position: absolute;
     left: 4px;
     top: 20px;
@@ -1029,7 +1029,7 @@
     display: none;
   }
   /* edit textarea */
-  #md-edit-area {
+  .viewer-edit-area {
     flex: 1;
     padding: 24px 28px;
     font-family: 'SF Mono', 'Fira Code', Consolas, monospace;
@@ -1218,19 +1218,19 @@
     cursor: pointer;
   }
   .md-body-delete-zone button:hover { background: #fff0f0; }
-  #md-body {
+  .viewer-body {
     flex: 1;
     overflow-y: auto;
     padding: 24px 28px;
     font-size: 14px;
     line-height: 1.7;
   }
-  #md-body h1,#md-body h2,#md-body h3,#md-body h4 { margin: 1em 0 .4em; color: #24292f; }
-  #md-body h1 { font-size: 1.5em; border-bottom: 1px solid #d0d7de; padding-bottom: .3em; }
-  #md-body h2 { font-size: 1.2em; border-bottom: 1px solid #eaecef; padding-bottom: .2em; }
-  #md-body p { margin: .5em 0; }
-  #md-body ul,#md-body ol { margin: .4em 0 .4em 1.5em; }
-  #md-body li { margin: .2em 0; }
+  .viewer-body h1,.viewer-body h2,.viewer-body h3,.viewer-body h4 { margin: 1em 0 .4em; color: #24292f; }
+  .viewer-body h1 { font-size: 1.5em; border-bottom: 1px solid #d0d7de; padding-bottom: .3em; }
+  .viewer-body h2 { font-size: 1.2em; border-bottom: 1px solid #eaecef; padding-bottom: .2em; }
+  .viewer-body p { margin: .5em 0; }
+  .viewer-body ul,.viewer-body ol { margin: .4em 0 .4em 1.5em; }
+  .viewer-body li { margin: .2em 0; }
 
   /* ── Highlights ── */
   mark.doc-highlight {
@@ -1260,7 +1260,7 @@
     font-family: monospace;
   }
   .highlight-del-btn:hover { background: #ffeaea; color: #cf222e; border-color: #cf222e; }
-  #highlight-add-btn {
+  .viewer-highlight-btn {
     padding: 4px 10px;
     font-size: 12px;
     background: #fff3b0;
@@ -1270,27 +1270,27 @@
     box-shadow: 0 2px 6px rgba(0,0,0,.18);
     white-space: nowrap;
   }
-  #highlight-add-btn:hover { background: #ffe066; }
-  #md-body code {
+  .viewer-highlight-btn:hover { background: #ffe066; }
+  .viewer-body code {
     background: #f6f8fa; border: 1px solid #d0d7de;
     border-radius: 4px; padding: 1px 5px;
     font-size: .88em; font-family: monospace;
   }
-  #md-body pre {
+  .viewer-body pre {
     background: #f6f8fa; border: 1px solid #d0d7de;
     border-radius: 6px; padding: 14px;
     overflow-x: auto; margin: .8em 0;
   }
-  #md-body pre code { background: none; border: none; padding: 0; font-size: .85em; }
-  #md-body blockquote {
+  .viewer-body pre code { background: none; border: none; padding: 0; font-size: .85em; }
+  .viewer-body blockquote {
     border-left: 4px solid #d0d7de;
     padding-left: 12px; color: #57606a; margin: .5em 0;
   }
-  #md-body hr { border: none; border-top: 1px solid #d0d7de; margin: 1em 0; }
-  #md-body a { color: #0969da; }
-  #md-body table { border-collapse: collapse; width: 100%; margin: .8em 0; }
-  #md-body th,#md-body td { border: 1px solid #d0d7de; padding: 6px 12px; font-size: 13px; }
-  #md-body th { background: #f6f8fa; font-weight: 600; }
+  .viewer-body hr { border: none; border-top: 1px solid #d0d7de; margin: 1em 0; }
+  .viewer-body a { color: #0969da; }
+  .viewer-body table { border-collapse: collapse; width: 100%; margin: .8em 0; }
+  .viewer-body th,.viewer-body td { border: 1px solid #d0d7de; padding: 6px 12px; font-size: 13px; }
+  .viewer-body th { background: #f6f8fa; font-weight: 600; }
 
   /* ── Delete confirm dialog ── */
   #delete-dialog {
@@ -1638,8 +1638,152 @@
     justify-content: flex-end;
     gap: 10px;
   }
+  /* KB comment dialog — same appearance as comment-dialog */
+  #kb-comment-dialog {
+    position: fixed;
+    inset: 0;
+    z-index: 3000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0,0,0,.45);
+  }
+  #kb-comment-dialog-box {
+    background: #fff;
+    border-radius: 10px;
+    padding: 24px 24px 20px;
+    width: min(640px, 92vw);
+    max-height: min(90vh, 760px);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    box-shadow: 0 8px 40px rgba(0,0,0,.3);
+    gap: 14px;
+  }
+  #kb-comment-dialog-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #d0d7de;
+  }
+  #kb-comment-dialog-box h3 { font-size: 14px; color: #24292f; margin: 0; font-weight: 600; }
+  #kb-comment-dialog-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+  }
+  #kb-comment-preview-pane {
+    min-height: 160px;
+    max-height: 400px;
+    overflow-y: auto;
+    padding: 8px 10px;
+    background: #fefef7;
+    border: 1px solid #ede8c0;
+    border-radius: 6px;
+  }
+  /* ── KB Commit dialog ── */
+  #kb-commit-dialog {
+    position: fixed;
+    inset: 0;
+    z-index: 3100;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0,0,0,.55);
+  }
+  #kb-commit-dialog.open { display: flex; }
+  #kb-commit-dialog-box {
+    background: #fff;
+    border-radius: 10px;
+    padding: 24px 24px 20px;
+    width: min(580px, 92vw);
+    max-height: 78vh;
+    overflow-y: auto;
+    box-shadow: 0 8px 40px rgba(0,0,0,.3);
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  #kb-commit-dialog-box h3 { font-size: 15px; color: #24292f; margin: 0; font-weight: 600; }
+  #kb-commit-dialog-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  #kb-btn-revert-all {
+    font-size: 12px;
+    padding: 4px 10px;
+    border: 1px solid #d0d7de;
+    border-radius: 6px;
+    background: none;
+    color: #57606a;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  #kb-btn-revert-all:hover { background: #fff0f0; border-color: #cf222e; color: #cf222e; }
+  #kb-btn-revert-all.confirm { background: #fff0f0; border-color: #cf222e; color: #cf222e; font-weight: 600; }
+  #kb-btn-revert-all:disabled { opacity: .5; cursor: default; }
+  .kb-revert-btn {
+    font-size: 11px;
+    padding: 2px 7px;
+    border: 1px solid #d0d7de;
+    border-radius: 4px;
+    background: none;
+    color: #8c959f;
+    cursor: pointer;
+    flex-shrink: 0;
+    opacity: 0;
+    transition: opacity .15s;
+  }
+  .commit-file-item:hover .kb-revert-btn { opacity: 1; }
+  .kb-revert-btn:hover { background: #fff0f0; border-color: #cf222e; color: #cf222e; }
+  .kb-revert-btn:disabled { opacity: .4; cursor: default; }
+  .commit-file-item { display: flex; align-items: center; gap: 6px; }
+  .commit-file-item-path { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #kb-commit-file-list { display: flex; flex-direction: column; gap: 10px; }
+  #kb-commit-msg {
+    width: 100%;
+    padding: 7px 10px;
+    border: 1px solid #d0d7de;
+    border-radius: 6px;
+    font-size: 13px;
+    outline: none;
+    box-sizing: border-box;
+  }
+  #kb-commit-msg:focus { border-color: #0969da; }
+  #kb-commit-dialog-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  #kb-commit-result { flex: 1; font-size: 12px; }
+  #kb-btn-commit-ok {
+    background: #1c4a2e;
+    color: #cdd9e5;
+    border: none;
+    border-radius: 6px;
+    padding: 6px 18px;
+    font-size: 13px;
+    cursor: pointer;
+    font-weight: 600;
+    flex-shrink: 0;
+  }
+  #kb-btn-commit-ok:hover:not(:disabled) { background: #2a6040; }
+  #kb-btn-commit-ok:disabled { opacity: .5; cursor: default; }
+  #kb-btn-commit-cancel {
+    background: none;
+    border: 1px solid #d0d7de;
+    border-radius: 6px;
+    padding: 6px 16px;
+    font-size: 13px;
+    cursor: pointer;
+    color: #57606a;
+    flex-shrink: 0;
+  }
+  #kb-btn-commit-cancel:hover { background: #eaeef2; }
   /* comment list inside md-body */
-  #md-comments-bar {
+  .md-comments-bar {
     margin-bottom: 20px;
     padding-bottom: 16px;
     border-bottom: 2px solid #d0d7de;

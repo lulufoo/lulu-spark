@@ -69,6 +69,30 @@ export async function fetchKbFileContent(repo, path) {
   return res.json();
 }
 
+export async function fetchKbAnnotation(repo, path) {
+  const res = await fetch(`/api/kb/annotation?repo=${encodeURIComponent(repo)}&path=${encodeURIComponent(path)}`);
+  if (!res.ok) return {};
+  return res.json();
+}
+
+export async function updateKbComment(repo, path, comment, ts) {
+  const res = await fetch('/api/kb/update-comments', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ repo, path, comment, ts })
+  });
+  return res.json();
+}
+
+export async function updateKbHighlight(repo, path, highlight, ts) {
+  const res = await fetch('/api/kb/update-highlights', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ repo, path, highlight, ts })
+  });
+  return res.json();
+}
+
 export async function saveKbFile(repo, path, content) {
   const res = await fetch('/api/kb/save', {
     method: 'POST',
@@ -78,11 +102,27 @@ export async function saveKbFile(repo, path, content) {
   return res.json();
 }
 
-export async function commitKbFile(repo, path, message) {
+export async function commitKbFile(repo, message) {
   const res = await fetch('/api/kb/commit', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ repo, path, message })
+    body: JSON.stringify({ repo, message })
+  });
+  return res.json();
+}
+
+export async function fetchKbStatus(repo) {
+  const res = await fetch(`/api/kb/status?repo=${encodeURIComponent(repo)}`);
+  return res.json();
+}
+
+export async function revertKbFile(repo, path, type) {
+  const body = { repo };
+  if (path) { body.path = path; body.type = type; }
+  const res = await fetch('/api/kb/revert', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
   });
   return res.json();
 }

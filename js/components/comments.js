@@ -84,6 +84,7 @@ export function renderComments(annotation, layer, entry) {
   const body = document.getElementById('md-body');
   const bar = document.createElement('div');
   bar.id = 'md-comments-bar';
+  bar.className = 'md-comments-bar';
 
   const hdr = document.createElement('div');
   hdr.className = 'comment-bar-header';

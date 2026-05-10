@@ -156,8 +156,14 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             self._handle_kb_save()
         elif self.path == '/api/kb/commit':
             self._handle_kb_commit()
+        elif self.path == '/api/kb/revert':
+            self._handle_kb_revert()
         elif self.path == '/api/kb/reindex':
             self._handle_kb_reindex()
+        elif self.path == '/api/kb/update-comments':
+            self._handle_kb_update_comments()
+        elif self.path == '/api/kb/update-highlights':
+            self._handle_kb_update_highlights()
         elif self.path == '/api/open-iterm':
             self._handle_open_iterm()
         else:
@@ -193,6 +199,10 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             self._handle_get_draft()
         elif parsed_path == '/api/kb/read':
             self._handle_kb_read()
+        elif parsed_path == '/api/kb/annotation':
+            self._handle_kb_annotation_get()
+        elif parsed_path == '/api/kb/status':
+            self._handle_kb_status()
         else:
             super().do_GET()
 
@@ -1667,6 +1677,150 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             return None, 'path traversal not allowed'
         return target, None
 
+    # ── API: KB annotation helpers ───────────────────────────────────────────
+
+    def _kb_annotation_path(self, repo, rel_path):
+        """Derive annotation file path for a KB document.
+        Maps {repo}/{rel_path}.md → KNOWLEDGE_BASE_DIR/{repo_name}/.knowledge_annotations/{rel_path}.json
+        Returns (Path, None) on success or (None, error_str)."""
+        target, err = self._kb_safe_path(repo, rel_path)
+        if err:
+            return None, err
+        # Strip leading repo_name segment from rel_path (rel_path is relative to repo root)
+        repo_name = repo.split('/')[-1]
+        ann_rel = rel_path
+        # Replace .md extension with .json; keep other extensions as-is with .json appended
+        if ann_rel.endswith('.md'):
+            ann_rel = ann_rel[:-3] + '.json'
+        else:
+            ann_rel = ann_rel + '.json'
+        ann_path = KNOWLEDGE_BASE_DIR / repo_name / '.knowledge_annotations' / ann_rel
+        # Path traversal check
+        kb_root = KNOWLEDGE_BASE_DIR.resolve()
+        if not str(ann_path.resolve()).startswith(str(kb_root) + os.sep):
+            return None, 'path traversal not allowed'
+        return ann_path, None
+
+    def _kb_annotation_read(self, ann_path):
+        """Read annotation JSON from ann_path; return {} if not found."""
+        if not ann_path.exists():
+            return {}
+        try:
+            return json.loads(ann_path.read_text(encoding='utf-8'))
+        except Exception:
+            return {}
+
+    def _kb_annotation_write(self, ann_path, data):
+        """Write annotation JSON; lazily create parent directories."""
+        ann_path.parent.mkdir(parents=True, exist_ok=True)
+        ann_path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding='utf-8')
+
+    # ── API: GET /api/kb/annotation ───────────────────────────────────────────
+
+    def _handle_kb_annotation_get(self):
+        try:
+            parsed = urllib.parse.urlparse(self.path)
+            params = urllib.parse.parse_qs(parsed.query)
+            repo = params.get('repo', [''])[0].strip()
+            path = params.get('path', [''])[0].strip()
+            ann_path, err = self._kb_annotation_path(repo, path)
+            if err:
+                status = 400 if ('invalid' in err or 'traversal' in err) else 404
+                self._json_response({'error': err}, status)
+                return
+            self._json_response(self._kb_annotation_read(ann_path))
+        except Exception as e:
+            self._json_response({'error': str(e)}, 500)
+
+    # ── API: POST /api/kb/update-comments ────────────────────────────────────
+
+    def _handle_kb_update_comments(self):
+        try:
+            data = self._read_json()
+            repo = data.get('repo', '').strip()
+            path = data.get('path', '').strip()
+            comment = data.get('comment', {})
+            ts = data.get('ts', '')
+            ann_path, err = self._kb_annotation_path(repo, path)
+            if err:
+                status = 400 if ('invalid' in err or 'traversal' in err) else 404
+                self._json_response({'error': err}, status)
+                return
+            ann = self._kb_annotation_read(ann_path)
+            comments = ann.get('comments', [])
+            cid = comment.get('id', '').strip()
+            text = comment.get('text', '')
+            if not cid:
+                # add
+                cid = uuid.uuid4().hex[:12]
+                comments.append({'id': cid, 'text': text, 'ts': ts})
+                ann['comments'] = comments
+                self._kb_annotation_write(ann_path, ann)
+                print(f'  [kb/annotation] add comment {cid} in {repo}/{path}')
+                self._json_response({'ok': True, 'id': cid})
+            elif text:
+                # edit
+                for c in comments:
+                    if c['id'] == cid:
+                        c['text'] = text
+                        c['ts'] = ts
+                        break
+                ann['comments'] = comments
+                self._kb_annotation_write(ann_path, ann)
+                print(f'  [kb/annotation] edit comment {cid} in {repo}/{path}')
+                self._json_response({'ok': True})
+            else:
+                # delete
+                ann['comments'] = [c for c in comments if c['id'] != cid]
+                self._kb_annotation_write(ann_path, ann)
+                print(f'  [kb/annotation] delete comment {cid} in {repo}/{path}')
+                self._json_response({'ok': True})
+        except json.JSONDecodeError:
+            self._json_response({'error': 'Invalid JSON body'}, 400)
+        except Exception as e:
+            self._json_response({'error': str(e)}, 500)
+
+    # ── API: POST /api/kb/update-highlights ──────────────────────────────────
+
+    def _handle_kb_update_highlights(self):
+        try:
+            data = self._read_json()
+            repo = data.get('repo', '').strip()
+            path = data.get('path', '').strip()
+            highlight = data.get('highlight', {})
+            ts = data.get('ts', '')
+            ann_path, err = self._kb_annotation_path(repo, path)
+            if err:
+                status = 400 if ('invalid' in err or 'traversal' in err) else 404
+                self._json_response({'error': err}, status)
+                return
+            ann = self._kb_annotation_read(ann_path)
+            highlights = ann.get('highlights', [])
+            hid = highlight.get('id', '').strip()
+            if not hid:
+                # add
+                hid = uuid.uuid4().hex[:12]
+                highlights.append({
+                    'id': hid,
+                    'text': highlight.get('text', ''),
+                    'occurrence': highlight.get('occurrence', 0),
+                    'ts': ts,
+                })
+                ann['highlights'] = highlights
+                self._kb_annotation_write(ann_path, ann)
+                print(f'  [kb/annotation] add highlight {hid} in {repo}/{path}')
+                self._json_response({'ok': True, 'id': hid})
+            else:
+                # delete
+                ann['highlights'] = [h for h in highlights if h['id'] != hid]
+                self._kb_annotation_write(ann_path, ann)
+                print(f'  [kb/annotation] delete highlight {hid} in {repo}/{path}')
+                self._json_response({'ok': True})
+        except json.JSONDecodeError:
+            self._json_response({'error': 'Invalid JSON body'}, 400)
+        except Exception as e:
+            self._json_response({'error': str(e)}, 500)
+
     # ── API: GET /api/kb/read ─────────────────────────────────────────────────
 
     def _handle_kb_read(self):
@@ -1712,14 +1866,145 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         except Exception as e:
             self._json_response({'error': str(e)}, 500)
 
+    # ── API: GET /api/kb/status ───────────────────────────────────────────────
+
+    def _handle_kb_status(self):
+        try:
+            from urllib.parse import urlparse, parse_qs
+            qs = parse_qs(urlparse(self.path).query)
+            repo = (qs.get('repo') or [''])[0].strip()
+            if not repo or '/' not in repo:
+                self._json_response({'error': 'repo required'}, 400)
+                return
+            repo_name = repo.split('/')[-1]
+            local_dir = KNOWLEDGE_BASE_DIR / repo_name
+            if not local_dir.is_dir():
+                self._json_response({'error': f'repo not cloned: {repo_name}'}, 404)
+                return
+
+            def run(cmd):
+                return subprocess.run(cmd, cwd=str(local_dir), capture_output=True, text=True)
+
+            result = run(['git', 'status', '--porcelain'])
+            categories = {'new': [], 'modified': [], 'deleted': [], 'renamed': [], 'conflicted': []}
+            for line in result.stdout.splitlines():
+                if not line.strip():
+                    continue
+                xy = line[:2]
+                fpath = line[3:]
+                x, y = xy[0], xy[1]
+                if xy in ('UU', 'AA', 'DD', 'AU', 'UA', 'DU', 'UD'):
+                    categories['conflicted'].append(fpath.strip())
+                elif x == 'R' or y == 'R':
+                    if ' -> ' in fpath:
+                        old, new = fpath.split(' -> ', 1)
+                        categories['renamed'].append(f'{old.strip()} → {new.strip()}')
+                    else:
+                        categories['renamed'].append(fpath.strip())
+                elif x == 'D' or y == 'D':
+                    categories['deleted'].append(fpath.strip())
+                elif x == 'A' or xy == '??':
+                    categories['new'].append(fpath.strip())
+                elif x == 'M' or y == 'M':
+                    categories['modified'].append(fpath.strip())
+                elif xy.strip():
+                    categories['modified'].append(fpath.strip())
+
+            # .knowledge_annotations is typically covered by .gitignore (e.g. /.*).
+            # Scan it separately so pending annotation changes are visible.
+            ann_dir = local_dir / '.knowledge_annotations'
+            if ann_dir.is_dir():
+                ann_result = run(['git', 'status', '--porcelain', '--ignored', '.knowledge_annotations/'])
+                for line in ann_result.stdout.splitlines():
+                    if not line.strip():
+                        continue
+                    xy = line[:2]
+                    fpath = line[3:].strip()
+                    if xy == '!!':   # ignored but untracked
+                        categories['new'].append(fpath)
+                    elif xy == '??':
+                        categories['new'].append(fpath)
+                    elif xy[0] == 'M' or xy[1] == 'M':
+                        categories['modified'].append(fpath)
+                    elif xy[0] == 'D' or xy[1] == 'D':
+                        categories['deleted'].append(fpath)
+            total = sum(len(v) for v in categories.values())
+            ahead_r = run(['git', 'rev-list', '--count', 'HEAD...@{u}'])
+            ahead = int(ahead_r.stdout.strip()) if ahead_r.returncode == 0 and ahead_r.stdout.strip().isdigit() else 0
+            self._json_response({**categories, 'total': total, 'ahead': ahead})
+        except Exception as e:
+            self._json_response({'error': str(e)}, 500)
+
+    # ── API: POST /api/kb/revert ─────────────────────────────────────────────
+
+    def _handle_kb_revert(self):
+        """
+        Revert working tree changes in a KB repo.
+        Body: { "repo": "lulufoo/xxx", "path": "rel/path", "type": "modified"|"new"|"deleted" }
+        Omit "path" to revert everything.
+        """
+        try:
+            data = self._read_json()
+            repo = data.get('repo', '').strip()
+            path = data.get('path', '').strip()   # optional
+            file_type = data.get('type', '').strip()  # 'new' | 'modified' | 'deleted'
+
+            if not repo or '/' not in repo:
+                self._json_response({'error': 'invalid repo format'}, 400)
+                return
+            repo_name = repo.split('/')[-1]
+            local_dir = KNOWLEDGE_BASE_DIR / repo_name
+            if not local_dir.is_dir():
+                self._json_response({'error': f'repo not cloned locally: {repo_name}'}, 404)
+                return
+
+            def run(cmd):
+                return subprocess.run(
+                    cmd, cwd=str(local_dir),
+                    capture_output=True, text=True
+                )
+
+            if path:
+                # Single-file revert
+                is_annotation = path.startswith('.knowledge_annotations/')
+                if file_type == 'new' or is_annotation:
+                    # untracked / ignored — delete the file directly
+                    target = local_dir / path
+                    if target.exists():
+                        target.unlink()
+                    else:
+                        run(['git', 'clean', '-fx', '--', path])  # best-effort
+                else:
+                    # modified or deleted — restore from HEAD
+                    r = run(['git', 'checkout', '--', path])
+                    if r.returncode != 0:
+                        self._json_response({
+                            'error': f'revert failed: {r.stderr.strip() or r.stdout.strip()}'
+                        }, 500)
+                        return
+            else:
+                # Revert everything (tracked files)
+                r1 = run(['git', 'checkout', '--', '.'])
+                # Clean untracked files (including force-ignored like .knowledge_annotations)
+                r2 = run(['git', 'clean', '-fdx', '.knowledge_annotations/'])
+                r3 = run(['git', 'clean', '-fd'])
+                if r1.returncode != 0:
+                    self._json_response({
+                        'error': f'revert all failed: {(r1.stderr).strip()}'
+                    }, 500)
+                    return
+
+            self._json_response({'ok': True})
+        except Exception as e:
+            self._json_response({'error': str(e)}, 500)
+
     # ── API: POST /api/kb/commit ──────────────────────────────────────────────
 
     def _handle_kb_commit(self):
         try:
             data = self._read_json()
             repo = data.get('repo', '').strip()
-            path = data.get('path', '').strip()
-            message = (data.get('message') or '').strip() or 'update: edit via viewer'
+            message = (data.get('message') or '').strip() or 'chore: update via viewer'
 
             if not repo or '/' not in repo:
                 self._json_response({'error': 'invalid repo format'}, 400)
@@ -1781,8 +2066,8 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                     }, 500)
                     return
 
-            # 4. git add
-            add = run(['git', 'add', '--', path])
+            # 4. git add (all tracked + untracked in .knowledge_annotations)
+            add = run(['git', 'add', '-A'])
             if add.returncode != 0:
                 self._json_response({
                     'error': 'git add failed',
@@ -1790,6 +2075,10 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                     'stderr': add.stderr
                 }, 500)
                 return
+            # Force-add .knowledge_annotations even if covered by .gitignore
+            ann_dir = local_dir / '.knowledge_annotations'
+            if ann_dir.is_dir():
+                run(['git', 'add', '--force', '.knowledge_annotations/'])
 
             # 5. git commit
             commit = run(['git', 'commit', '-m', message])

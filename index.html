@@ -86,12 +86,75 @@
   </div>
 </div>
 
+<!-- KB Viewer -->
+<div id="kb-md-modal" class="viewer-modal" style="display:none">
+  <div id="kb-md-backdrop" class="viewer-backdrop"></div>
+  <div id="kb-md-panel" class="viewer-panel">
+    <div id="kb-md-header" class="viewer-header">
+      <span id="kb-md-panel-title" class="viewer-panel-title"></span>
+      <span id="kb-md-file-size" style="font-size:10px;color:#8c959f;flex-shrink:0;"></span>
+      <a id="kb-md-github-link" href="#" target="_blank" style="font-size:12px;color:#0969da;text-decoration:none;flex-shrink:0;">GitHub ↗</a>
+      <button class="md-header-btn" id="kb-btn-open-iterm" style="display:none" title="在 iTerm 中打开仓库目录">⌨️ 终端</button>
+      <button class="md-header-btn" id="kb-btn-copy-http" data-tip="">&#127760;</button>
+      <button class="md-header-btn" id="kb-btn-edit">✏️ 编辑</button>
+      <button class="md-header-btn" id="kb-btn-add-comment">💬 笔记</button>
+      <button class="md-header-btn" id="kb-btn-pending" style="display:none;color:#7d4e00;">&#9679; 待提交</button>
+      <button class="md-header-btn primary" id="kb-btn-save" style="display:none">💾 保存</button>
+      <button class="md-header-btn" id="kb-btn-cancel-edit" style="display:none">取消</button>
+      <button id="kb-md-close" class="md-header-btn viewer-close">✕ 关闭</button>
+    </div>
+    <div id="kb-md-content-row" class="viewer-content-row">
+      <div id="kb-md-body" class="viewer-body"></div>
+      <textarea id="kb-md-edit-area" class="viewer-edit-area" style="display:none" spellcheck="false"></textarea>
+      <div id="kb-comment-float-nav" class="comment-float-nav"></div>
+    </div>
+  </div>
+</div>
+
+<!-- KB Commit dialog -->
+<div id="kb-commit-dialog">
+  <div id="kb-commit-dialog-box">
+    <div id="kb-commit-dialog-title">
+      <h3>↑ 提交变更</h3>
+      <button id="kb-btn-revert-all">撤销全部修改</button>
+    </div>
+    <div id="kb-commit-file-list"></div>
+    <input id="kb-commit-msg" type="text" placeholder="提交信息（留空：chore: update via viewer）" autocomplete="off" />
+    <div id="kb-commit-dialog-actions">
+      <span id="kb-commit-result"></span>
+      <button id="kb-btn-commit-cancel">取消</button>
+      <button id="kb-btn-commit-ok">提交</button>
+    </div>
+  </div>
+</div>
+
+<!-- KB Comment dialog -->
+<div id="kb-comment-dialog">
+  <div id="kb-comment-dialog-box">
+    <div id="kb-comment-dialog-header">
+      <h3 id="kb-comment-dialog-title">💬 添加笔记</h3>
+      <div id="kb-comment-dialog-tabs">
+        <button class="comment-tab-btn active" data-tab="edit">编辑</button>
+        <button class="comment-tab-btn" data-tab="preview">预览</button>
+      </div>
+    </div>
+    <div id="kb-comment-editor-box" class="comment-editor-box" onclick="document.getElementById('kb-comment-dialog-content').focus()">
+      <div id="kb-comment-dialog-content" class="comment-editor-content" contenteditable="true" data-placeholder="输入笔记内容…（Ctrl/Cmd+Enter 保存）"></div>
+    </div>
+    <div id="kb-comment-preview-pane" class="md-body" style="display:none"></div>
+    <div id="kb-comment-dialog-actions">
+      <button id="kb-btn-comment-cancel" class="md-header-btn">取消</button>
+      <button id="kb-btn-comment-save" class="md-header-btn primary">保存</button>
+    </div>
+  </div>
+</div>
+
 <!-- MD Viewer -->
-<div id="md-modal" style="display:none">
-  <div id="md-backdrop"></div>
-  <div id="md-panel">
-    <div id="md-header">
-      <span id="md-panel-title"></span>
+<div id="md-modal" class="viewer-modal" style="display:none">
+  <div id="md-backdrop" class="viewer-backdrop"></div>
+  <div id="md-panel" class="viewer-panel">
+    <div id="md-header" class="viewer-header">
+      <span id="md-panel-title" class="viewer-panel-title"></span>
       <div id="md-lang-bar" style="display:none;flex-shrink:0;align-items:center;gap:2px;">
         <button class="md-header-btn" id="btn-lang-en">EN</button>
         <button class="md-header-btn" id="btn-lang-zh">ZH</button>
@@ -107,9 +170,9 @@
       <button class="md-header-btn primary" id="btn-save" style="display:none">💾 保存</button>
       <button class="md-header-btn" id="btn-cancel-edit" style="display:none">取消</button>
       <button class="md-header-btn" id="btn-panel-commit" style="display:none">● 提交此文件</button>
-      <button id="md-close" class="md-header-btn">✕ 关闭</button>
+      <button id="md-close" class="md-header-btn viewer-close">✕ 关闭</button>
     </div>
-    <div id="md-commit-bar">
+    <div id="md-commit-bar" class="viewer-commit-bar">
       <span style="font-size:12px;color:#7d4e00;flex-shrink:0;">● 待提交：</span>
       <input id="md-commit-msg" type="text" placeholder="update: edit via viewer" />
       <button id="btn-commit-file" class="md-header-btn primary" style="font-size:11px;padding:3px 10px;">↑ 提交</button>
@@ -117,17 +180,19 @@
       <span id="md-commit-result" style="font-size:11px;"></span>
     </div>
     <div id="md-links-bar" style="display:none;padding:8px 20px;border-bottom:1px solid #d0d7de;display:flex;align-items:center;flex-wrap:wrap;gap:4px 0;"></div>
-    <div id="md-content-row">
-      <div id="md-body"></div>
-      <textarea id="md-edit-area" style="display:none" spellcheck="false"></textarea>
+    <div id="md-content-row" class="viewer-content-row">
+      <div id="md-body" class="viewer-body"></div>
+      <textarea id="md-edit-area" class="viewer-edit-area" style="display:none" spellcheck="false"></textarea>
       <div id="knowledge-panel" class="ks-collapsed"></div>
-      <div id="comment-float-nav"></div>
+      <div id="comment-float-nav" class="comment-float-nav"></div>
     </div>
   </div>
 </div>
 
 <!-- Floating highlight button -->
-<button id="highlight-add-btn" style="display:none;position:fixed;z-index:9999;">高亮</button>
+<button id="highlight-add-btn" class="viewer-highlight-btn" style="display:none;position:fixed;z-index:9999;">高亮</button>
+<!-- KB Floating highlight button -->
+<button id="kb-highlight-add-btn" class="viewer-highlight-btn" style="display:none;position:fixed;z-index:9999;">高亮</button>
 <!-- Comment preview tooltip -->
 <div id="comment-preview-tip"></div>
 

@@ -5,6 +5,7 @@ import * as api from './api.js'
 import { buildGroups, renderSidebar, selectDate } from './components/sidebar.js'
 import { enterEditMode, exitEditMode, saveDoc, showCommitBar, hideCommitBar, commitCurrentFile, openKbDoc } from './components/viewer.js'
 import './components/comments.js'
+import './components/kb-viewer.js'
 import './components/modals/delete-dialog.js'
 import './components/modals/commit-dialog.js'
 import './components/modals/move-dialog.js'
@@ -561,7 +562,7 @@ document.addEventListener('cta:open-entry', ({ detail }) => {
 
 document.addEventListener('cta:open-kb-doc', ({ detail }) => {
   if (!detail || !detail.repo || !detail.path) return
-  window.openKbDoc(detail)
+  openKbDoc(detail)
 });
 
 // ── Skills dialog ─────────────────────────────────────────────────────────

@@ -1,5 +1,4 @@
 {
-  "importance": "high",
   "raw": {
     "highlights": [
       {
@@ -34,5 +33,7 @@
         "ts": "202605100029"
       }
     ]
-  }
+  },
+  "importance": "high",
+  "done": true
 }
