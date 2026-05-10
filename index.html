@@ -98,15 +98,15 @@
       <button class="md-header-btn" id="kb-btn-copy-http" data-tip="">&#127760;</button>
       <button class="md-header-btn" id="kb-btn-edit">✏️ 编辑</button>
       <button class="md-header-btn" id="kb-btn-add-comment">💬 笔记</button>
-      <button class="md-header-btn" id="kb-btn-pending" style="display:none;color:#7d4e00;">&#9679; 待提交</button>
       <button class="md-header-btn primary" id="kb-btn-save" style="display:none">💾 保存</button>
       <button class="md-header-btn" id="kb-btn-cancel-edit" style="display:none">取消</button>
+      <button id="kb-btn-pending" class="md-header-btn" style="display:none">● 待提交</button>
       <button id="kb-md-close" class="md-header-btn viewer-close">✕ 关闭</button>
     </div>
     <div id="kb-md-content-row" class="viewer-content-row">
       <div id="kb-md-body" class="viewer-body"></div>
       <textarea id="kb-md-edit-area" class="viewer-edit-area" style="display:none" spellcheck="false"></textarea>
-      <div id="kb-comment-float-nav" class="comment-float-nav"></div>
+      <div id="kb-comment-float-nav"></div>
     </div>
   </div>
 </div>
@@ -115,15 +115,15 @@
 <div id="kb-commit-dialog">
   <div id="kb-commit-dialog-box">
     <div id="kb-commit-dialog-title">
-      <h3>↑ 提交变更</h3>
+      <h3>● 提交变更</h3>
       <button id="kb-btn-revert-all">撤销全部修改</button>
     </div>
     <div id="kb-commit-file-list"></div>
-    <input id="kb-commit-msg" type="text" placeholder="提交信息（留空：chore: update via viewer）" autocomplete="off" />
+    <input id="kb-commit-msg" type="text" placeholder="chore: update via viewer" />
     <div id="kb-commit-dialog-actions">
       <span id="kb-commit-result"></span>
-      <button id="kb-btn-commit-cancel">取消</button>
-      <button id="kb-btn-commit-ok">提交</button>
+      <button id="kb-btn-commit-cancel" class="md-header-btn">取消</button>
+      <button id="kb-btn-commit-ok" class="md-header-btn primary">提交</button>
     </div>
   </div>
 </div>
@@ -133,15 +133,10 @@
   <div id="kb-comment-dialog-box">
     <div id="kb-comment-dialog-header">
       <h3 id="kb-comment-dialog-title">💬 添加笔记</h3>
-      <div id="kb-comment-dialog-tabs">
-        <button class="comment-tab-btn active" data-tab="edit">编辑</button>
-        <button class="comment-tab-btn" data-tab="preview">预览</button>
-      </div>
     </div>
     <div id="kb-comment-editor-box" class="comment-editor-box" onclick="document.getElementById('kb-comment-dialog-content').focus()">
       <div id="kb-comment-dialog-content" class="comment-editor-content" contenteditable="true" data-placeholder="输入笔记内容…（Ctrl/Cmd+Enter 保存）"></div>
     </div>
-    <div id="kb-comment-preview-pane" class="md-body" style="display:none"></div>
     <div id="kb-comment-dialog-actions">
       <button id="kb-btn-comment-cancel" class="md-header-btn">取消</button>
       <button id="kb-btn-comment-save" class="md-header-btn primary">保存</button>
@@ -184,7 +179,7 @@
       <div id="md-body" class="viewer-body"></div>
       <textarea id="md-edit-area" class="viewer-edit-area" style="display:none" spellcheck="false"></textarea>
       <div id="knowledge-panel" class="ks-collapsed"></div>
-      <div id="comment-float-nav" class="comment-float-nav"></div>
+      <div id="comment-float-nav"></div>
     </div>
   </div>
 </div>

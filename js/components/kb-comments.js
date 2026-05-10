@@ -75,7 +75,11 @@ export function renderKbComments(annotation) {
   if (existing) existing.remove();
 
   const comments = annotation?.comments || [];
-  if (!comments.length) return;
+  if (!comments.length) {
+    // BUG3 fix: clear float nav even when no comments remain
+    updateKbFloatNav([]);
+    return;
+  }
 
   const body = document.getElementById('kb-md-body');
   if (!body) return;
@@ -89,6 +93,7 @@ export function renderKbComments(annotation) {
   });
 
   body.prepend(bar);
+  // Must call after bar is in DOM so IntersectionObserver can find it
   updateKbFloatNav(comments);
 }
 

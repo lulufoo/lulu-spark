@@ -98,6 +98,13 @@ export async function openKbDoc(kbHit) {
     initKbCommentEvents();
     initKbHighlightUI();
 
+    // Restore badge if there are already pending changes
+    api.fetchKbStatus(repo).then(data => {
+      if (!data.error && (data.total > 0 || data.ahead > 0)) {
+        _kbShowPendingBadge('chore: update via viewer');
+      }
+    }).catch(() => {});
+
     // Listen for dirty events from comments/highlights
     document.addEventListener('kb:dirty', _onKbDirty);
   } catch (e) {
