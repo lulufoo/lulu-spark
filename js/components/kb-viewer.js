@@ -121,6 +121,7 @@ export async function saveKbDoc() {
   btnSave.disabled = true;
   btnSave.textContent = '保存中…';
   try {
+    const originalContent = state.viewer.rawText;
     const data = await api.saveKbFile(state.viewer.kbRepo, state.viewer.kbPath, newContent);
     if (data.error) throw new Error(data.error);
     state.viewer.rawText = newContent;
@@ -136,8 +137,10 @@ export async function saveKbDoc() {
     renderKbComments(state.viewer.annotation);
     applyKbHighlights(state.viewer.annotation);
     document.getElementById('kb-btn-edit').style.display = '';
-    _kbShowPendingBadge('update: edit via viewer');
-    showKbReindexBtn(state.viewer.kbRepo);
+    if (newContent !== originalContent) {
+      _kbShowPendingBadge('update: edit via viewer');
+      showKbReindexBtn(state.viewer.kbRepo);
+    }
   } catch (e) {
     alert(`保存失败：${e.message}\n\n请确认已通过 python3 server.py 启动服务器。`);
   } finally {

@@ -1911,23 +1911,26 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                     categories['modified'].append(fpath.strip())
 
             # .knowledge_annotations is typically covered by .gitignore (e.g. /.*).
-            # Scan it separately so pending annotation changes are visible.
+            # Only do a second targeted scan when the directory is actually ignored,
+            # to avoid duplicating entries already captured by the first scan.
             ann_dir = local_dir / '.knowledge_annotations'
             if ann_dir.is_dir():
-                ann_result = run(['git', 'status', '--porcelain', '--ignored', '.knowledge_annotations/'])
-                for line in ann_result.stdout.splitlines():
-                    if not line.strip():
-                        continue
-                    xy = line[:2]
-                    fpath = line[3:].strip()
-                    if xy == '!!':   # ignored but untracked
-                        categories['new'].append(fpath)
-                    elif xy == '??':
-                        categories['new'].append(fpath)
-                    elif xy[0] == 'M' or xy[1] == 'M':
-                        categories['modified'].append(fpath)
-                    elif xy[0] == 'D' or xy[1] == 'D':
-                        categories['deleted'].append(fpath)
+                is_ignored = run(['git', 'check-ignore', '-q', '.knowledge_annotations']).returncode == 0
+                if is_ignored:
+                    ann_result = run(['git', 'status', '--porcelain', '--ignored', '.knowledge_annotations/'])
+                    for line in ann_result.stdout.splitlines():
+                        if not line.strip():
+                            continue
+                        xy = line[:2]
+                        fpath = line[3:].strip()
+                        if xy == '!!':   # ignored but untracked
+                            categories['new'].append(fpath)
+                        elif xy == '??':
+                            categories['new'].append(fpath)
+                        elif xy[0] == 'M' or xy[1] == 'M':
+                            categories['modified'].append(fpath)
+                        elif xy[0] == 'D' or xy[1] == 'D':
+                            categories['deleted'].append(fpath)
             total = sum(len(v) for v in categories.values())
             ahead_r = run(['git', 'rev-list', '--count', 'HEAD...@{u}'])
             ahead = int(ahead_r.stdout.strip()) if ahead_r.returncode == 0 and ahead_r.stdout.strip().isdigit() else 0
@@ -1968,9 +1971,11 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 # Single-file revert
                 is_annotation = path.startswith('.knowledge_annotations/')
                 if file_type == 'new' or is_annotation:
-                    # untracked / ignored — delete the file directly
+                    # untracked / ignored — delete the file or directory directly
                     target = local_dir / path
-                    if target.exists():
+                    if target.is_dir():
+                        shutil.rmtree(target)
+                    elif target.exists():
                         target.unlink()
                     else:
                         run(['git', 'clean', '-fx', '--', path])  # best-effort
@@ -2106,7 +2111,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 return
 
             info = commit.stdout.strip() if not nothing_to_commit else 'nothing to commit; pushed'
-            print(f'  [kb/commit+push] {repo}/{path}: {message}')
+            print(f'  [kb/commit+push] {repo}: {message}')
             self._json_response({'ok': True, 'info': info})
         except json.JSONDecodeError:
             self._json_response({'error': 'Invalid JSON body'}, 400)
