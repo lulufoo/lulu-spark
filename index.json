@@ -701,6 +701,20 @@
       "layers": [
         "raw"
       ]
+    },
+    "e83238ec2092d209fcafbd33f965be8f": {
+      "common_path": "ai-collaboration-framework/dialogue-collaboration-skill-automation/202605102047-dialogue-collaboration-skill-automation.md",
+      "created_at": "202605102047",
+      "layers": [
+        "raw"
+      ]
+    },
+    "7cab16167b992c8613629a032cf56b5a": {
+      "common_path": "ai-collaboration-framework/automation-framework-schema-positioning/202605102052-automation-framework-schema-positioning.md",
+      "created_at": "202605102052",
+      "layers": [
+        "raw"
+      ]
     }
   }
 }
