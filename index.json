@@ -732,6 +732,13 @@
       "translations": {
         "zh": "ai-assisted-domain-learning/no-degree-to-openai-researcher-gabriel-petersson/202605111049-no-degree-to-openai-researcher-gabriel-petersson-zh.md"
       }
+    },
+    "0c3f19b3c98db10755aca6100b41e351": {
+      "common_path": "ai-collaboration-framework/dialogue-collab-cognitive-doc-refinement/202605111447-dialogue-collab-cognitive-doc-refinement.md",
+      "created_at": "202605111447",
+      "layers": [
+        "raw"
+      ]
     }
   }
 }
