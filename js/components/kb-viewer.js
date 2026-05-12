@@ -256,6 +256,17 @@ async function _kbRevertFile(path, type, btn) {
     const data = await api.revertKbFile(state.viewer.kbRepo, path, type);
     if (data.error) throw new Error(data.error);
     await _refreshKbCommitFileList();
+    // If the reverted path touches .knowledge_annotations (file or directory),
+    // re-sync the current doc's in-memory annotation state.
+    // Use a separate try/catch: annotation refresh failure must not mark revert as failed.
+    if (state.viewer.kbPath && path.startsWith('.knowledge_annotations')) {
+      try {
+        const ann = await api.fetchKbAnnotation(state.viewer.kbRepo, state.viewer.kbPath);
+        state.viewer.annotation = ann;
+        renderKbComments(ann);
+        applyKbHighlights(ann);
+      } catch (_) { /* best-effort UI sync; revert already succeeded */ }
+    }
     // If nothing left, auto-close
     const fileList = document.getElementById('kb-commit-file-list');
     const hasItems = fileList.querySelector('.commit-file-item');
@@ -303,6 +314,15 @@ async function _kbRevertAll(btn) {
     _kbHidePendingBadge();
     _resetRevertAllBtn();
     await _refreshKbCommitFileList();
+    // Sync in-memory annotation after full revert
+    if (state.viewer.kbPath) {
+      try {
+        const ann = await api.fetchKbAnnotation(state.viewer.kbRepo, state.viewer.kbPath);
+        state.viewer.annotation = ann;
+        renderKbComments(ann);
+        applyKbHighlights(ann);
+      } catch (_) { /* best-effort UI sync; revert already succeeded */ }
+    }
   } catch (e) {
     _resetRevertAllBtn();
     const result = document.getElementById('kb-commit-result');
