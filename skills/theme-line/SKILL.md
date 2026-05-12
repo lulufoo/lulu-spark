@@ -5,11 +5,11 @@ description: Restructure a video transcript, interview, podcast, talk, or speech
 
 # ThemeLine
 
-> **执行前必读全文。** 本 Skill 共 2 个强制阶段：
-> 1. **ThemeLine 生成**（§ Core Output Shape → § Recommended Workflow）
-> 2. **Save to Archive Steps 1–8**（§ Save to Archive）
+> **Read this file in full before executing.** This skill has 2 mandatory phases:
+> 1. **ThemeLine Generation** (§ Core Output Shape → § Recommended Workflow)
+> 2. **Save to Archive Steps 1–8** (§ Save to Archive)
 >
-> 两个阶段均为必须执行，不得跳过。
+> Both phases are required. Neither may be skipped.
 
 Produce a readable transcript-derived document that emphasizes themes first and time second.
 
