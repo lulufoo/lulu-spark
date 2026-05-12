@@ -1,6 +1,6 @@
 # AI 辅助领域学习方法 — 理论锚定探讨
 
-> 创建时间：2026年5月12日 11:32
+> 创建时间：2026年5月12日 11:32 
 
 > 导航：[distilled](`../../../distilled/ai-assisted-domain-learning/ai-domain-method-theory-anchoring/202605121132-ai-domain-method-theory-anchoring.md`) · [digest](`../../../digest/ai-assisted-domain-learning/ai-domain-method-theory-anchoring/202605121132-ai-domain-method-theory-anchoring.md`) · [trace](`../../../trace/ai-assisted-domain-learning/ai-domain-method-theory-anchoring/202605121132-ai-domain-method-theory-anchoring.md`)
 
