@@ -11,6 +11,7 @@
 | **dtd_normalize** | 仅执行 Phase 0（P0 规范化），将对话写入 `raw/` 并更新 `index.json` |
 | **dtd_distill_dialogue** | 输入 raw 文件路径或 index id，仅执行 P2 生成 distilled（对话体） |
 | **dtd_distill_compose** | 输入 raw 文件路径或 index id；自动检测 diagnose 文件，若不存在则先执行 P1 诊断，再执行 P2-compose 生成完整合成文档 |
+| **dtd_distill_overview** | 输入 raw 文件路径或 index id，按子话题归组生成 distilled（对话概要，Turn 范围 + 一段话格式） |
 | **dtd_trace_digest** | 输入已有 raw 文件路径（或 index id），执行 P1 → P3 → P4（不含 P2） |
 
 ---
@@ -111,6 +112,35 @@
 > 📝 distilled：distilled/<COMMON_PATH>
 > � diagnose：diagnose/<COMMON_PATH>（已有或本次生成）
 > 🗂 index.json 已更新（layers 含 distilled；若本次执行 P1 则同时含 diagnose）
+```
+
+---
+
+## dtd_distill_overview 模式
+
+**输入**：用户提供 raw 文件的路径或 index.json 中的 32 位十六进制 id。
+
+**Step 0：解析输入路径**
+
+```
+· 若输入为 32 位十六进制 id：
+    读取 {archive_root}/index.json，查找对应条目的 common_path
+    拼出绝对路径：{archive_root}/raw/<common_path>
+· 若输入为路径：直接使用
+确认文件存在，且 index.json 中该条目 layers 包含 "raw"
+从路径解析 topic-path / ts / slug（raw/<topic-path>/<ts>-<slug>.md）
+```
+
+加载 [ddm-p2-overview.md](ddm-p2-overview.md)，以解析出的 raw 文件路径执行，按话题归组规则生成对话概要并落盘。
+
+---
+
+**dtd_distill_overview 完成汇总**
+
+```
+> ✅ dtd_distill_overview 完成
+> 📝 distilled：distilled/<COMMON_PATH>
+> 🗂 index.json 已更新（layers 新增 distilled）
 ```
 
 ---
