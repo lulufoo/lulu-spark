@@ -761,6 +761,23 @@
       "layers": [
         "raw"
       ]
+    },
+    "fa025378622e7f538619b2142ccfa1c4": {
+      "common_path": "learning-with-ai/jensen-huang-cmu-2026-commencement/202605122057-jensen-huang-cmu-2026-commencement.md",
+      "created_at": "202605122057",
+      "layers": [
+        "raw"
+      ],
+      "translations": {
+        "zh": "learning-with-ai/jensen-huang-cmu-2026-commencement/202605122057-jensen-huang-cmu-2026-commencement-zh.md"
+      }
+    },
+    "b3e7ba66c8b0a8b94c249e28d2495212": {
+      "common_path": "ai-collaboration-framework/skill-partial-load-failure/202605122117-skill-partial-load-failure.md",
+      "created_at": "202605122117",
+      "layers": [
+        "raw"
+      ]
     }
   }
 }
