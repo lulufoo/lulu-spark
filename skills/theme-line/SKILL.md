@@ -5,6 +5,12 @@ description: Restructure a video transcript, interview, podcast, talk, or speech
 
 # ThemeLine
 
+> **执行前必读全文。** 本 Skill 共 2 个强制阶段：
+> 1. **ThemeLine 生成**（§ Core Output Shape → § Recommended Workflow）
+> 2. **Save to Archive Steps 1–8**（§ Save to Archive）
+>
+> 两个阶段均为必须执行，不得跳过。
+
 Produce a readable transcript-derived document that emphasizes themes first and time second.
 
 ## Core Output Shape
@@ -86,78 +92,7 @@ Remove obvious ASR duplication and silently fix trivial recognition errors when 
 4. Name each section by theme.
 5. Reconstruct the conversation flow inside each section by speaker.
 6. Present time as a secondary line under each theme.
-
-## Behavioral Guardrails
-
-Follow these rules across platforms:
-
-1. Prefer the original source title when it can be verified.
-2. Organize sections by theme in chronological order.
-3. Keep timestamps on a secondary line unless the user explicitly asks for time-first formatting.
-4. Expand each section by speaker turn.
-5. Use explicit speaker labels when available; otherwise infer them conservatively from context.
-6. Keep speaker labels consistent across the whole output.
-7. If the user wants a summary, compress more aggressively.
-8. If the user wants transcript-like output, use dialogue-style paraphrase with short, faithful turns.
-9. Remove obvious ASR duplication and silently fix trivial recognition mistakes when the intent is clear.
-10. If the source is copyrighted and the user did not provide the full transcript, do not output a full or near-complete verbatim transcript.
-
-## Portable Use
-
-This file is the primary cross-platform spec for ThemeLine.
-
-If another agent framework does not support Codex skills directly, use this document as the main instruction source and pair it with the input contract below.
-
-Recommended input fields:
-
-- `source_url` or `transcript_text`
-- `preferred_title`
-- `host_name`
-- `guest_names`
-- `output_language`
-- `fidelity_mode`
-
-Minimal portable invocation pattern:
-
-```text
-Restructure this source into a theme-first transcript document.
-Use the source title if available.
-Keep timestamps secondary.
-Organize sections chronologically by topic.
-Expand each section by speaker.
-If verbatim transcript reproduction is restricted, use faithful dialogue-style paraphrase.
-```
-
-## Default Formatting
-
-Use this style by default:
-
-```md
-# Original Video Title
-
-Source: [Video](https://example.com)
-
-## Feeling Behind as a Programmer
-Time: 00:47 - 02:23
-
-Host: ...
-
-Andrej Karpathy: ...
-```
-
-Keep each speaker turn compact unless the user asks for a fuller version.
-
-## Ask Only When Necessary
-
-Do not stop to ask about formatting if a reasonable default works.
-
-Assume the following defaults:
-
-- Title: source title
-- Ordering: chronological
-- Section style: theme-first
-- Time display: secondary
-- Speaker style: `Host` plus named guest when identifiable
+7. Execute Save to Archive (Steps 1–8, see § Save to Archive below).
 
 ## Save to Archive
 
@@ -298,8 +233,85 @@ Create the directory if it does not exist.
 📄 zh： raw/<topic-path>/<ts>-<slug>-zh.md   (英文源时输出)
 🗂 index.json 已更新（新增条目 <id>）
 ```
+
 - Fidelity: transcript-like paraphrase unless the user explicitly asks for summary only
+
+---
+
+## Behavioral Guardrails
+
+Follow these rules across platforms:
+
+1. Prefer the original source title when it can be verified.
+2. Organize sections by theme in chronological order.
+3. Keep timestamps on a secondary line unless the user explicitly asks for time-first formatting.
+4. Expand each section by speaker turn.
+5. Use explicit speaker labels when available; otherwise infer them conservatively from context.
+6. Keep speaker labels consistent across the whole output.
+7. If the user wants a summary, compress more aggressively.
+8. If the user wants transcript-like output, use dialogue-style paraphrase with short, faithful turns.
+9. Remove obvious ASR duplication and silently fix trivial recognition mistakes when the intent is clear.
+10. If the source is copyrighted and the user did not provide the full transcript, do not output a full or near-complete verbatim transcript.
+
+## Ask Only When Necessary
+
+Do not stop to ask about formatting if a reasonable default works.
+
+Assume the following defaults:
+
+- Title: source title
+- Ordering: chronological
+- Section style: theme-first
+- Time display: secondary
+- Speaker style: `Host` plus named guest when identifiable
+
+## Default Formatting
+
+Use this style by default:
+
+```md
+# Original Video Title
+
+Source: [Video](https://example.com)
+
+## Feeling Behind as a Programmer
+Time: 00:47 - 02:23
+
+Host: ...
+
+Andrej Karpathy: ...
+```
+
+Keep each speaker turn compact unless the user asks for a fuller version.
+
+## Portable Use
+
+This file is the primary cross-platform spec for ThemeLine.
+
+If another agent framework does not support Codex skills directly, use this document as the main instruction source and pair it with the input contract below.
+
+Recommended input fields:
+
+- `source_url` or `transcript_text`
+- `preferred_title`
+- `host_name`
+- `guest_names`
+- `output_language`
+- `fidelity_mode`
+
+Minimal portable invocation pattern:
+
+```text
+Restructure this source into a theme-first transcript document.
+Use the source title if available.
+Keep timestamps secondary.
+Organize sections chronologically by topic.
+Expand each section by speaker.
+If verbatim transcript reproduction is restricted, use faithful dialogue-style paraphrase.
+```
 
 ## References
 
 For output patterns and wording conventions, see [references/output-templates.md](references/output-templates.md).
+
+<!-- END OF SKILL: theme-line — all steps above are mandatory -->
