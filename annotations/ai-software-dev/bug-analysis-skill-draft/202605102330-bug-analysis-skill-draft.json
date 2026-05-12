@@ -32,5 +32,10 @@
         "ts": "202605111041"
       }
     ]
-  }
+  },
+  "links": [
+    {
+      "url": "https://github.com/lulufoo/ai-software-dev/blob/main/skills/bug-analysis/SKILL.md"
+    }
+  ]
 }

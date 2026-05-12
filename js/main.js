@@ -583,6 +583,18 @@ const _SKILLS_CONTENT = {
       }
     ]
   },
+  softwareDev: {
+    title: '✦ Software Dev Skills',
+    groups: [
+      {
+        name: 'Bug Analysis',
+        url: 'https://github.com/lulufoo/ai-software-dev/tree/main/skills/bug-analysis',
+        items: [
+          { cmd: 'bug-analysis', name: 'Bug 分析', desc: 'Structured bug analysis with evidence-first reasoning' }
+        ]
+      }
+    ]
+  },
   lulu: {
     title: '✦ Lulu Skills',
     groups: [
@@ -673,6 +685,11 @@ document.getElementById('btn-skill-workbench').addEventListener('click', () => {
 document.getElementById('btn-skill-lulu').addEventListener('click', () => {
   _skillsMenuDropdown.classList.remove('open');
   _openSkillsDialog('lulu');
+});
+
+document.getElementById('btn-skill-software-dev').addEventListener('click', () => {
+  _skillsMenuDropdown.classList.remove('open');
+  _openSkillsDialog('softwareDev');
 });
 
 document.getElementById('btn-skills-dialog-close').addEventListener('click', _closeSkillsDialog);
