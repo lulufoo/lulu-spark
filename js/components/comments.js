@@ -213,6 +213,7 @@ function buildCommentItem(c, layer, entry, noteIndex, allComments) {
 let _commentEditCtx = null;
 let _draftKey = null;      // common_path used as cache key for current draft
 let _draftSaveTimer = null;
+let _previewModeText = null; // cached text when editorBox is hidden (innerText breaks on hidden elements)
 
 function _scheduleDraftSave() {
   if (!_draftKey) return;
@@ -273,7 +274,7 @@ export function closeCommentDialog() {
 export async function saveComment() {
   if (!_commentEditCtx) return;
   const content = document.getElementById('comment-dialog-content');
-  const text = content.innerText.trim();
+  const text = (_previewModeText !== null ? _previewModeText : content.innerText).trim();
   if (!text) return;
   const saveBtn = document.getElementById('btn-comment-save');
   saveBtn.disabled = true;
@@ -319,12 +320,13 @@ document.querySelectorAll('.comment-tab-btn').forEach(btn => {
     const editorBox = document.getElementById('comment-editor-box');
     const previewPane = document.getElementById('comment-preview-pane');
     if (isPreview) {
-      const text = document.getElementById('comment-dialog-content').innerText;
-      const inner = typeof marked !== 'undefined' ? marked.parse(text) : `<pre>${text}</pre>`;
+      _previewModeText = document.getElementById('comment-dialog-content').innerText;
+      const inner = typeof marked !== 'undefined' ? marked.parse(_previewModeText) : `<pre>${_previewModeText}</pre>`;
       previewPane.innerHTML = `<div class="comment-item-text">${inner}</div>`;
       editorBox.style.display = 'none';
       previewPane.style.display = 'block';
     } else {
+      _previewModeText = null;
       editorBox.style.display = '';
       previewPane.style.display = 'none';
     }
@@ -333,6 +335,7 @@ document.querySelectorAll('.comment-tab-btn').forEach(btn => {
 
 // Reset to edit tab whenever the dialog opens
 function _resetDialogTabs() {
+  _previewModeText = null;
   document.querySelectorAll('.comment-tab-btn').forEach(b => {
     b.classList.toggle('active', b.dataset.tab === 'edit');
   });

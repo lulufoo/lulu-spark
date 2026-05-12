@@ -1,4 +1,4 @@
-# BUG修复：VS Code Copilot 指令加载机制实现
+# BUG修复：VS Code Copilot 指令加载机制的局限
 
 > 创建时间：2026年5月10日 12:51
 
