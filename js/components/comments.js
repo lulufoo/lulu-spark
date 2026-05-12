@@ -1,5 +1,6 @@
 import { state } from '../state.js'
 import * as api from '../api.js'
+import { reorderComments } from '../api.js'
 import { nowTs } from '../utils.js'
 import { openSettleDialog } from './settle-dialog.js'
 import { renderLinksBar } from './links-bar.js'
@@ -92,7 +93,7 @@ export function renderComments(annotation, layer, entry) {
   bar.appendChild(hdr);
 
   for (let i = 0; i < comments.length; i++) {
-    bar.appendChild(buildCommentItem(comments[i], layer, entry, i + 1));
+    bar.appendChild(buildCommentItem(comments[i], layer, entry, i + 1, comments));
   }
 
   body.insertBefore(bar, body.firstChild);
@@ -101,7 +102,7 @@ export function renderComments(annotation, layer, entry) {
 
 // ── buildCommentItem ───────────────────────────────────────────────────────
 
-function buildCommentItem(c, layer, entry, noteIndex) {
+function buildCommentItem(c, layer, entry, noteIndex, allComments) {
   const item = document.createElement('div');
   item.className = 'comment-item';
   item.dataset.cid = c.id;
@@ -157,6 +158,52 @@ function buildCommentItem(c, layer, entry, noteIndex) {
   editBtn.addEventListener('click', () => openCommentDialog(c, layer, entry, noteIndex));
 
   actionsEl.append(settleBtn, editBtn);
+
+  const idx = noteIndex - 1;
+  if (allComments && idx > 0) {
+    const upBtn = document.createElement('button');
+    upBtn.className = 'comment-item-action-btn comment-item-order-btn';
+    upBtn.title = '上移';
+    upBtn.textContent = '↑';
+    upBtn.addEventListener('click', async () => {
+      const ld = state.viewer.annotation[layer] || {};
+      const arr = ld.comments || [];
+      [arr[idx - 1], arr[idx]] = [arr[idx], arr[idx - 1]];
+      renderComments(state.viewer.annotation, layer, entry);
+      try {
+        const data = await reorderComments(entry.common_path, layer, arr.map(x => x.id));
+        if (!data.ok) throw new Error(data.error || 'failed');
+      } catch (e) {
+        [arr[idx - 1], arr[idx]] = [arr[idx], arr[idx - 1]];
+        renderComments(state.viewer.annotation, layer, entry);
+        alert(`排序保存失败：${e.message}`);
+      }
+    });
+    actionsEl.append(upBtn);
+  }
+
+  if (allComments && idx < allComments.length - 1) {
+    const downBtn = document.createElement('button');
+    downBtn.className = 'comment-item-action-btn comment-item-order-btn';
+    downBtn.title = '下移';
+    downBtn.textContent = '↓';
+    downBtn.addEventListener('click', async () => {
+      const ld = state.viewer.annotation[layer] || {};
+      const arr = ld.comments || [];
+      [arr[idx], arr[idx + 1]] = [arr[idx + 1], arr[idx]];
+      renderComments(state.viewer.annotation, layer, entry);
+      try {
+        const data = await reorderComments(entry.common_path, layer, arr.map(x => x.id));
+        if (!data.ok) throw new Error(data.error || 'failed');
+      } catch (e) {
+        [arr[idx], arr[idx + 1]] = [arr[idx + 1], arr[idx]];
+        renderComments(state.viewer.annotation, layer, entry);
+        alert(`排序保存失败：${e.message}`);
+      }
+    });
+    actionsEl.append(downBtn);
+  }
+
   item.append(delX, prefixEl, textEl, tsEl, actionsEl);
   return item;
 }

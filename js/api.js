@@ -84,6 +84,15 @@ export async function updateKbComment(repo, path, comment, ts) {
   return res.json();
 }
 
+export async function reorderKbComments(repo, path, ids) {
+  const res = await fetch('/api/kb/reorder-comments', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ repo, path, ids })
+  });
+  return res.json();
+}
+
 export async function updateKbHighlight(repo, path, highlight, ts) {
   const res = await fetch('/api/kb/update-highlights', {
     method: 'POST',
@@ -159,6 +168,15 @@ export async function updateComments(commonPath, layer, comment, ts) {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ common_path: commonPath, layer, comment, ts })
+  });
+  return res.json();
+}
+
+export async function reorderComments(commonPath, layer, ids) {
+  const res = await fetch('/api/reorder-comments', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ common_path: commonPath, layer, ids })
   });
   return res.json();
 }

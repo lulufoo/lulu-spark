@@ -1869,6 +1869,7 @@
     white-space: nowrap;
   }
   .comment-item-action-btn:hover { background: #eaeef2; color: #24292f; }
+  .comment-item-order-btn { padding: 1px 4px; }
 
   /* ── Links badge on card ── */
   .badge-links {

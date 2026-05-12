@@ -130,6 +130,8 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             self._handle_update_links()
         elif self.path == '/api/update-comments':
             self._handle_update_comments()
+        elif self.path == '/api/reorder-comments':
+            self._handle_reorder_comments()
         elif self.path == '/api/update-highlights':
             self._handle_update_highlights()
         elif self.path == '/api/delete':
@@ -162,6 +164,8 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             self._handle_kb_reindex()
         elif self.path == '/api/kb/update-comments':
             self._handle_kb_update_comments()
+        elif self.path == '/api/kb/reorder-comments':
+            self._handle_kb_reorder_comments()
         elif self.path == '/api/kb/update-highlights':
             self._handle_kb_update_highlights()
         elif self.path == '/api/open-iterm':
@@ -761,6 +765,38 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             print(f'  [update-comments] {common_path} [{layer}] id={cid or "deleted"}')
             self._json_response({'ok': True, 'id': cid})
 
+        except json.JSONDecodeError:
+            self._json_response({'error': 'Invalid JSON body'}, 400)
+        except Exception as e:
+            self._json_response({'error': str(e)}, 500)
+
+    # ── API: reorder comments in annotation file ───────────────────────────────
+
+    def _handle_reorder_comments(self):
+        try:
+            data = self._read_json()
+            common_path = data.get('common_path', '').strip()
+            layer = data.get('layer', '').strip()
+            ids = data.get('ids', [])
+
+            if not common_path or '..' in common_path:
+                self._json_response({'error': 'Invalid common_path'}, 400)
+                return
+            if layer not in ('raw', 'distilled', 'digest', 'trace', 'diagnose'):
+                self._json_response({'error': f'Invalid layer: {layer}'}, 400)
+                return
+
+            ann = self._read_annotation(common_path)
+            layer_data = ann.get(layer, {})
+            comments = layer_data.get('comments', [])
+            id_map = {c['id']: c for c in comments}
+            reordered = [id_map[i] for i in ids if i in id_map]
+            layer_data['comments'] = reordered
+            ann[layer] = layer_data
+            self._write_annotation(common_path, ann)
+
+            print(f'  [reorder-comments] {common_path} [{layer}]')
+            self._json_response({'ok': True})
         except json.JSONDecodeError:
             self._json_response({'error': 'Invalid JSON body'}, 400)
         except Exception as e:
@@ -1775,6 +1811,32 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 self._kb_annotation_write(ann_path, ann)
                 print(f'  [kb/annotation] delete comment {cid} in {repo}/{path}')
                 self._json_response({'ok': True})
+        except json.JSONDecodeError:
+            self._json_response({'error': 'Invalid JSON body'}, 400)
+        except Exception as e:
+            self._json_response({'error': str(e)}, 500)
+
+    # ── API: POST /api/kb/reorder-comments ───────────────────────────────────
+
+    def _handle_kb_reorder_comments(self):
+        try:
+            data = self._read_json()
+            repo = data.get('repo', '').strip()
+            path = data.get('path', '').strip()
+            ids = data.get('ids', [])
+            ann_path, err = self._kb_annotation_path(repo, path)
+            if err:
+                status = 400 if ('invalid' in err or 'traversal' in err) else 404
+                self._json_response({'error': err}, status)
+                return
+            ann = self._kb_annotation_read(ann_path)
+            comments = ann.get('comments', [])
+            id_map = {c['id']: c for c in comments}
+            reordered = [id_map[i] for i in ids if i in id_map]
+            ann['comments'] = reordered
+            self._kb_annotation_write(ann_path, ann)
+            print(f'  [kb/annotation] reorder comments in {repo}/{path}')
+            self._json_response({'ok': True})
         except json.JSONDecodeError:
             self._json_response({'error': 'Invalid JSON body'}, 400)
         except Exception as e:

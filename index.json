@@ -744,7 +744,8 @@
       "common_path": "ai-assisted-domain-learning/advance-organizer-lccm-ausubel-dialogue/202605121016-advance-organizer-lccm-ausubel-dialogue.md",
       "created_at": "202605121016",
       "layers": [
-        "raw"
+        "raw",
+        "distilled"
       ]
     },
     "eb457072b43dd2ca2e64f76aa9e3cfc4": {

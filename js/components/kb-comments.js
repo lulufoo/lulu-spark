@@ -1,5 +1,6 @@
 import { state } from '../state.js'
 import * as api from '../api.js'
+import { reorderKbComments } from '../api.js'
 import { nowTs } from '../utils.js'
 
 // ── Preview tip (shared DOM element) ──────────────────────────────────────
@@ -89,7 +90,7 @@ export function renderKbComments(annotation) {
   bar.className = 'md-comments-bar';
 
   comments.forEach((c, i) => {
-    bar.appendChild(buildKbCommentItem(c, i));
+    bar.appendChild(buildKbCommentItem(c, i, comments));
   });
 
   body.prepend(bar);
@@ -97,7 +98,7 @@ export function renderKbComments(annotation) {
   updateKbFloatNav(comments);
 }
 
-function buildKbCommentItem(comment, index) {
+function buildKbCommentItem(comment, index, comments) {
   const item = document.createElement('div');
   item.className = 'comment-item';
   item.dataset.cid = comment.id;
@@ -150,6 +151,39 @@ function buildKbCommentItem(comment, index) {
   editBtn.addEventListener('click', () => openKbCommentDialog(comment, index));
 
   actionsEl.append(editBtn);
+
+  if (comments && index > 0) {
+    const upBtn = document.createElement('button');
+    upBtn.className = 'comment-item-action-btn comment-item-order-btn';
+    upBtn.title = '上移';
+    upBtn.textContent = '↑';
+    upBtn.addEventListener('click', async () => {
+      const { kbRepo, kbPath, annotation } = state.viewer;
+      const arr = annotation.comments;
+      [arr[index - 1], arr[index]] = [arr[index], arr[index - 1]];
+      renderKbComments(annotation);
+      await reorderKbComments(kbRepo, kbPath, arr.map(c => c.id));
+      document.dispatchEvent(new CustomEvent('kb:dirty', { detail: { msg: 'chore: reorder annotations' } }));
+    });
+    actionsEl.append(upBtn);
+  }
+
+  if (comments && index < comments.length - 1) {
+    const downBtn = document.createElement('button');
+    downBtn.className = 'comment-item-action-btn comment-item-order-btn';
+    downBtn.title = '下移';
+    downBtn.textContent = '↓';
+    downBtn.addEventListener('click', async () => {
+      const { kbRepo, kbPath, annotation } = state.viewer;
+      const arr = annotation.comments;
+      [arr[index], arr[index + 1]] = [arr[index + 1], arr[index]];
+      renderKbComments(annotation);
+      await reorderKbComments(kbRepo, kbPath, arr.map(c => c.id));
+      document.dispatchEvent(new CustomEvent('kb:dirty', { detail: { msg: 'chore: reorder annotations' } }));
+    });
+    actionsEl.append(downBtn);
+  }
+
   item.append(delX, prefixEl, textEl, tsEl, actionsEl);
   return item;
 }

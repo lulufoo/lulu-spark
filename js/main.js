@@ -574,7 +574,7 @@ const _SKILLS_CONTENT = {
       {
         name: 'DDM',
         url: 'https://github.com/lulufoo/lulu-workbench/tree/main/skills/ddm',
-        items: ['dtd_normalize', 'dtd_distill_dialogue', 'dtd_distill_compose', 'dtd_trace_digest']
+        items: ['dtd_normalize', 'dtd_distill_dialogue', 'dtd_distill_compose', 'dtd_distill_overview', 'dtd_trace_digest']
       },
       {
         name: 'ThemeLine',
