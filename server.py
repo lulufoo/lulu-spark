@@ -178,7 +178,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         if parsed_path.startswith('/api/fetch-title'):
             self._handle_fetch_title()
         elif parsed_path == '/api/config':
-            self._json_response({'archive_root': str(REPO_ROOT)})
+            self._json_response({'archive_root': str(REPO_ROOT), 'kb_root': str(KNOWLEDGE_BASE_DIR)})
         elif parsed_path == '/api/annotations':
             self._handle_get_annotations()
         elif parsed_path == '/api/annotation':

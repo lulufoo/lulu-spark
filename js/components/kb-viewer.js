@@ -37,6 +37,9 @@ export async function openKbDoc(kbHit) {
   document.getElementById('kb-md-github-link').href = url || '#';
   document.getElementById('kb-btn-copy-http').dataset.url = url || '';
   document.getElementById('kb-btn-copy-http').dataset.tip = url || '';
+  const localPath = state.ui.kbRoot ? `${state.ui.kbRoot}/${repoName}/${path}` : `${repoName}/${path}`;
+  document.getElementById('kb-btn-copy-path').dataset.path = localPath;
+  document.getElementById('kb-btn-copy-path').dataset.tip = localPath;
   document.getElementById('kb-md-file-size').textContent = '';
 
   const itermBtn = document.getElementById('kb-btn-open-iterm');
@@ -497,6 +500,17 @@ document.getElementById('kb-btn-copy-http')?.addEventListener('click', e => {
   const url = btn.dataset.url || '';
   if (!url) return;
   navigator.clipboard.writeText(url).then(() => {
+    const orig = btn.textContent;
+    btn.textContent = '✓';
+    setTimeout(() => { btn.textContent = orig; }, 1200);
+  }).catch(() => {});
+});
+
+document.getElementById('kb-btn-copy-path')?.addEventListener('click', e => {
+  const btn = e.currentTarget;
+  const path = btn.dataset.path || '';
+  if (!path) return;
+  navigator.clipboard.writeText(path).then(() => {
     const orig = btn.textContent;
     btn.textContent = '✓';
     setTimeout(() => { btn.textContent = orig; }, 1200);

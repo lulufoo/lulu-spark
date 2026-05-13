@@ -533,7 +533,7 @@ document.getElementById('btn-base64').addEventListener('click', () => {
 
 // ── Init ───────────────────────────────────────────────────────────────────
 
-api.fetchConfig().then(d => { state.ui.archiveRoot = d.archive_root || ''; }).catch(() => {});
+api.fetchConfig().then(d => { state.ui.archiveRoot = d.archive_root || ''; state.ui.kbRoot = d.kb_root || ''; }).catch(() => {});
 api.fetchTopics().then(data => {
   const descMap = {};
   const repoMap = {};

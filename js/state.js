@@ -13,7 +13,8 @@ export const state = {
   },
   ui: {
     activeDate: null,
-    archiveRoot: ''
+    archiveRoot: '',
+    kbRoot: ''
   },
   viewer: {
     entry: null,
