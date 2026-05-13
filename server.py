@@ -168,6 +168,8 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             self._handle_kb_reorder_comments()
         elif self.path == '/api/kb/update-highlights':
             self._handle_kb_update_highlights()
+        elif self.path == '/api/kb/update-links':
+            self._handle_kb_update_links()
         elif self.path == '/api/open-iterm':
             self._handle_open_iterm()
         else:
@@ -1878,6 +1880,38 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 self._kb_annotation_write(ann_path, ann)
                 print(f'  [kb/annotation] delete highlight {hid} in {repo}/{path}')
                 self._json_response({'ok': True})
+        except json.JSONDecodeError:
+            self._json_response({'error': 'Invalid JSON body'}, 400)
+        except Exception as e:
+            self._json_response({'error': str(e)}, 500)
+
+    # ── API: POST /api/kb/update-links ─────────────────────────────────────────
+
+    def _handle_kb_update_links(self):
+        try:
+            data = self._read_json()
+            repo = data.get('repo', '').strip()
+            path = data.get('path', '').strip()
+            links = data.get('links', [])
+            ann_path, err = self._kb_annotation_path(repo, path)
+            if err:
+                status = 400 if ('invalid' in err or 'traversal' in err) else 404
+                self._json_response({'error': err}, status)
+                return
+            for link in links:
+                url = link.get('url', '')
+                p = urllib.parse.urlparse(url)
+                if p.scheme not in ('http', 'https') or not p.netloc:
+                    self._json_response({'error': f'Invalid url: {url}'}, 400)
+                    return
+            ann = self._kb_annotation_read(ann_path)
+            if links:
+                ann['links'] = links
+            else:
+                ann.pop('links', None)
+            self._kb_annotation_write(ann_path, ann)
+            print(f'  [kb/annotation] update-links {repo}/{path} → {len(links)} link(s)')
+            self._json_response({'ok': True})
         except json.JSONDecodeError:
             self._json_response({'error': 'Invalid JSON body'}, 400)
         except Exception as e:

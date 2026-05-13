@@ -102,6 +102,15 @@ export async function updateKbHighlight(repo, path, highlight, ts) {
   return res.json();
 }
 
+export async function updateKbLinks(repo, path, links) {
+  const res = await fetch('/api/kb/update-links', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ repo, path, links })
+  });
+  return res.json();
+}
+
 export async function saveKbFile(repo, path, content) {
   const res = await fetch('/api/kb/save', {
     method: 'POST',

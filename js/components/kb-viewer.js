@@ -3,6 +3,7 @@ import { escHtml } from '../utils.js'
 import * as api from '../api.js'
 import { renderKbComments, initKbCommentEvents } from './kb-comments.js'
 import { applyKbHighlights, initKbHighlightUI } from './kb-highlights.js'
+import { renderKbLinksBar } from './kb-links-bar.js'
 
 // ── postProcessLinks (KB) ──────────────────────────────────────────────────
 function postProcessKbLinks(container) {
@@ -98,6 +99,7 @@ export async function openKbDoc(kbHit) {
 
     renderKbComments(ann);
     applyKbHighlights(ann);
+    renderKbLinksBar(ann);
     initKbCommentEvents();
     initKbHighlightUI();
 
@@ -139,6 +141,7 @@ export async function saveKbDoc() {
     postProcessKbLinks(body);
     renderKbComments(state.viewer.annotation);
     applyKbHighlights(state.viewer.annotation);
+    renderKbLinksBar(state.viewer.annotation);
     document.getElementById('kb-btn-edit').style.display = '';
     if (newContent !== originalContent) {
       _kbShowPendingBadge('update: edit via viewer');
