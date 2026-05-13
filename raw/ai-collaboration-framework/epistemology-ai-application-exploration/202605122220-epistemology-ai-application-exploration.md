@@ -2,7 +2,7 @@
 
 > 创建时间：2026年5月12日 22:20（UTC+8）
 
-> 导航：[distilled](`../../../distilled/learning-with-ai/epistemology-ai-application-exploration/202605122220-epistemology-ai-application-exploration.md`) · [digest](`../../../digest/learning-with-ai/epistemology-ai-application-exploration/202605122220-epistemology-ai-application-exploration.md`) · [trace](`../../../trace/learning-with-ai/epistemology-ai-application-exploration/202605122220-epistemology-ai-application-exploration.md`)
+> 导航：[distilled](`../../../distilled/ai-collaboration-framework/epistemology-ai-application-exploration/202605122220-epistemology-ai-application-exploration.md`) · [digest](`../../../digest/ai-collaboration-framework/epistemology-ai-application-exploration/202605122220-epistemology-ai-application-exploration.md`) · [trace](`../../../trace/ai-collaboration-framework/epistemology-ai-application-exploration/202605122220-epistemology-ai-application-exploration.md`)
 
 <!-- DDM:TURN_SEP:v1 -->
 

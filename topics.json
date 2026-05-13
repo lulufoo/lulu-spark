@@ -162,6 +162,22 @@
       ]
     },
     {
+      "repo": "lulufoo/cognitive-science",
+      "description": "认知科学/图式理论/先行组织者理论/...",
+      "keywords": [
+        "认知科学"
+      ]
+    },
+    {
+      "repo": "lulufoo/people-profiles",
+      "description": "人物画像/...",
+      "keywords": [
+        "巴菲特",
+        "查理芒格/Charlie Munger",
+        "史蒂芬·平克/Steven Pinker"
+      ]
+    },
+    {
       "dir": "common-tech"
     },
     {

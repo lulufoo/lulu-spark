@@ -412,8 +412,8 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             mode = str(data.get('mode') or 'fast').strip()
             check_repo = str(data.get('check_repo') or '').strip()
 
-            script = REPO_ROOT / 'update_topics_from_github.py'
-            cmd = [sys.executable, str(script)]
+            script = REPO_ROOT / 'scripts' / 'update_topics_from_github.py'
+            cmd = [sys.executable, str(script), '-o', str(REPO_ROOT / 'topics.json')]
             if check_repo:
                 # Validate: owner/repo format only, no path traversal
                 if not re.fullmatch(r'[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+', check_repo):

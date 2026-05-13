@@ -780,8 +780,15 @@
       ]
     },
     "7a8e4b95ce356cdcd4249a43ea72de41": {
-      "common_path": "learning-with-ai/epistemology-ai-application-exploration/202605122220-epistemology-ai-application-exploration.md",
+      "common_path": "ai-collaboration-framework/epistemology-ai-application-exploration/202605122220-epistemology-ai-application-exploration.md",
       "created_at": "202605122220",
+      "layers": [
+        "raw"
+      ]
+    },
+    "c453c40bb773f5df586f77697d33a275": {
+      "common_path": "cognitive-science/information-action-motivation-framework/202605131127-information-action-motivation-framework.md",
+      "created_at": "202605131127",
       "layers": [
         "raw"
       ]

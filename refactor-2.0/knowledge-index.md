@@ -23,5 +23,7 @@ social-sciences: 社会科学与认知心理，管理/心理/行为/意义; http
 tech-language-java: Java 技术，基础/并发/JVM; https://github.com/lulufoo/tech-language-java/blob/main/_index.md
 tech-language-kotlin: Kotlin 技术，语法/OOP/FP/协程; https://github.com/lulufoo/tech-language-kotlin/blob/main/_index.md
 personal-growth: 个人思考、个人成长、个人认知; https://github.com/lulufoo/personal-growth/blob/main/_index.md
+cognitive-science: 认知科学/图式理论/先行组织者理论/...; https://github.com/lulufoo/cognitive-science/blob/main/_index.md
+people-profiles: 人物画像/...; https://github.com/lulufoo/people-profiles/blob/main/_index.md
 
 ```
