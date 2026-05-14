@@ -3,7 +3,7 @@ import { escHtml } from './utils.js'
 import { LAYERS } from './constants.js'
 import * as api from './api.js'
 import { buildGroups, renderSidebar, selectDate } from './components/sidebar.js'
-import { enterEditMode, exitEditMode, saveDoc, showCommitBar, hideCommitBar, commitCurrentFile, openKbDoc } from './components/viewer.js'
+import { enterEditMode, exitEditMode, saveDoc, showCommitBar, hideCommitBar, commitCurrentFile, openKbDoc, openDoc } from './components/viewer.js'
 import './components/comments.js'
 import './components/kb-viewer.js'
 import './components/modals/delete-dialog.js'
@@ -21,6 +21,9 @@ async function loadIndex({ managedBtn = false } = {}) {
   try {
     const data = await api.fetchIndex();
     state.index.data = data.entries || data;
+    for (const [id, entry] of Object.entries(state.index.data)) {
+      entry._id = id;
+    }
     state.index.groupedByDate = buildGroups(state.index.data);
     renderSidebar();
     await Promise.all([loadDiffStatus(), loadAnnotationsSummary()]);
@@ -551,13 +554,14 @@ initGlobalSearch();
 
 // ── Global search navigation ───────────────────────────────────────────────
 document.addEventListener('cta:open-entry', ({ detail }) => {
-  if (!detail || !detail.common_path) return
+  if (!detail?.common_path) return
   const entry = Object.values(state.index.data || {})
     .find(e => e.common_path === detail.common_path)
   if (!entry) return
+  const layer = detail.layer || entry.layers?.[0] || 'raw'
   const date = entry.created_at ? entry.created_at.slice(0, 8) : null
   if (date) selectDate(date)
-  window.openDoc(entry, entry.layers?.[0] || 'raw')
+  openDoc(entry, layer)
 });
 
 document.addEventListener('cta:open-kb-doc', ({ detail }) => {

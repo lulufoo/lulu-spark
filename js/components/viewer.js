@@ -156,9 +156,6 @@ export async function openDoc(entry, layer = 'raw') {
   triggerKnowledgeSearch(entry);
 }
 
-// viewer.js exposes openDoc on window so cards.js (window.openDoc) can reach it
-window.openDoc = openDoc;
-
 // ── switchLang ─────────────────────────────────────────────────────────────
 
 export async function switchLang(lang) {

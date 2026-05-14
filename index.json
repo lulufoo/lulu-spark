@@ -806,6 +806,13 @@
       "layers": [
         "raw"
       ]
+    },
+    "27897568c7e1915cdec949d5bf413cd2": {
+      "common_path": "ai-software-dev/agent-memory-cursor-copilot-claude/202605141158-agent-memory-cursor-copilot-claude.md",
+      "created_at": "202605141158",
+      "layers": [
+        "raw"
+      ]
     }
   }
 }

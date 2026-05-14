@@ -47,11 +47,7 @@ export function buildPathToId(indexData) {
 }
 
 export function getEntryId(entry) {
-  if (entry._id) return entry._id
-  for (const [id, e] of Object.entries(state.index.data || {})) {
-    if (e.common_path === entry.common_path) return id
-  }
-  return null
+  return entry._id || null
 }
 
 export async function loadDiffStatus() {

@@ -28,7 +28,11 @@ export function getLayerBadgeClass(layer, entry) {
 
 export function attachBadgeListeners(card, entry) {
   card.querySelectorAll('.badge[data-layer]').forEach(btn => {
-    btn.addEventListener('click', () => window.openDoc(entry, btn.dataset.layer));
+    btn.addEventListener('click', () =>
+      document.dispatchEvent(new CustomEvent('cta:open-entry', {
+        detail: { common_path: entry.common_path, layer: btn.dataset.layer }
+      }))
+    );
   });
 }
 
@@ -84,7 +88,11 @@ export function buildCard(id, entry, title) {
   if (entry.importance) card.classList.add(`importance-${entry.importance}`);
   if (entry.common_path.split('/')[0] === 'inbox') card.classList.add('inbox-pending');
   const firstLayer = LAYERS.find(l => entry.layers?.includes(l)) || 'raw';
-  card.querySelector('.doc-title-btn').addEventListener('click', () => window.openDoc(entry, firstLayer));
+  card.querySelector('.doc-title-btn').addEventListener('click', () =>
+    document.dispatchEvent(new CustomEvent('cta:open-entry', {
+      detail: { common_path: entry.common_path, layer: firstLayer }
+    }))
+  );
   attachBadgeListeners(card, entry);
   card.querySelector('[data-action="toggle-done"]').addEventListener('click', () => toggleDone(entry, card));
   card.querySelector('[data-action="cycle-importance"]').addEventListener('click', () => cycleImportance(entry, card));
