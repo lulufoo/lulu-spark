@@ -4,6 +4,7 @@ export const state = {
   index: {
     data: null,
     groupedByDate: [],
+    filteredGroups: [],
     titleCache: new Map(),
     diffStatus: new Map(),
     annotations: {},
@@ -14,7 +15,8 @@ export const state = {
   ui: {
     activeDate: null,
     archiveRoot: '',
-    kbRoot: ''
+    kbRoot: '',
+    activeTopic: null,
   },
   viewer: {
     entry: null,

@@ -2,7 +2,7 @@
 
 > 创建时间：2026年5月1日 00:56
 
-> 导航：[distilled](../../../distilled/ai-authored-learning/prompt-format-table-vs-text/202605010056-prompt-format-table-vs-text.md) · [digest](../../../digest/ai-authored-learning/prompt-format-table-vs-text/202605010056-prompt-format-table-vs-text.md) · [trace](../../../trace/ai-authored-learning/prompt-format-table-vs-text/202605010056-prompt-format-table-vs-text.md)
+> 导航：[distilled](../../../distilled/ai-collaboration-framework/prompt-format-table-vs-text/202605010056-prompt-format-table-vs-text.md) · [digest](../../../digest/ai-collaboration-framework/prompt-format-table-vs-text/202605010056-prompt-format-table-vs-text.md) · [trace](../../../trace/ai-collaboration-framework/prompt-format-table-vs-text/202605010056-prompt-format-table-vs-text.md)
 
 > 规范出处：[ddm-p0-normalize（ACN）](https://github.com/lulufoo/ai-assisted-domain-learning/blob/main/dialogue-distillation-model/ddm-p0-normalize.md)
 
@@ -229,6 +229,6 @@ Step 5：先推送归一化 raw，再更新 `index.json`。
 
 Step 6：在工作区 `.cache/ai-authored-learning/prompt-engineering/` 写入话题摘要 Markdown。
 
-远端 raw 正文路径：`raw/ai-authored-learning/prompt-format-table-vs-text/202605010056-prompt-format-table-vs-text.md`。说明：正文已去除会话 UI 前缀（Turn/CHAT_ID/页脚）；Turn 3 中为规避嵌套代码 fence 对格式的破坏，已将内层对比由原三条反引号块改写为等价的分行与缩进罗列，语义与当轮答复一致。
+远端 raw 正文路径：`raw/ai-collaboration-framework/prompt-format-table-vs-text/202605010056-prompt-format-table-vs-text.md`。说明：正文已去除会话 UI 前缀（Turn/CHAT_ID/页脚）；Turn 3 中为规避嵌套代码 fence 对格式的破坏，已将内层对比由原三条反引号块改写为等价的分行与缩进罗列，语义与当轮答复一致。
 
 <!-- DDM:TURN_SEP:v1 -->

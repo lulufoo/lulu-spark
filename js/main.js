@@ -25,12 +25,14 @@ async function loadIndex({ managedBtn = false } = {}) {
       entry._id = id;
     }
     state.index.groupedByDate = buildGroups(state.index.data);
+    state.ui.activeTopic = null;
+    state.index.filteredGroups = state.index.groupedByDate;
     renderSidebar();
     await Promise.all([loadDiffStatus(), loadAnnotationsSummary()]);
     const savedDate = sessionStorage.getItem('cta_active_date');
-    const targetDate = (savedDate && state.index.groupedByDate.find(g => g.date === savedDate))
+    const targetDate = (savedDate && state.index.filteredGroups.find(g => g.date === savedDate))
       ? savedDate
-      : (state.index.groupedByDate.length > 0 ? state.index.groupedByDate[0].date : null);
+      : (state.index.filteredGroups.length > 0 ? state.index.filteredGroups[0].date : null);
     if (targetDate) selectDate(targetDate);
   } catch (e) {
     showError(`无法加载 index.json：${e.message}`);
