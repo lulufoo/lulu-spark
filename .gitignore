@@ -11,3 +11,5 @@
 .cursor/rules/
 
 .venv
+
+node_modules
