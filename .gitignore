@@ -8,8 +8,8 @@
 
 # sync-rules (auto)
 .github/instructions/
-.cursor/rules/
 
 .venv
 
 node_modules
+.cursor
