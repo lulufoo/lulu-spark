@@ -8,7 +8,7 @@
 
 | 模式 | 说明 |
 |------|------|
-| **dtd_normalize** | 仅执行 Phase 0（P0 规范化），将对话写入 `raw/` 并更新 `index.json` |
+| **dtd_normalize** | 执行 Phase 0（P0 规范化）后，自动继续执行 Phase 2 overview（P2 对话概要），将结果写入 `raw/` 和 `distilled/` 并更新 `index.json` |
 | **dtd_distill_dialogue** | 输入 raw 文件路径或 index id，仅执行 P2 生成 distilled（对话体） |
 | **dtd_distill_compose** | 输入 raw 文件路径或 index id；自动检测 diagnose 文件，若不存在则先执行 P1 诊断，再执行 P2-compose 生成完整合成文档 |
 | **dtd_distill_overview** | 输入 raw 文件路径或 index id，按子话题归组生成 distilled（对话概要，Turn 范围 + 一段话格式） |
@@ -26,14 +26,29 @@
 
 ## dtd_normalize 模式
 
+**Step 1：执行 P0 规范化**
+
 加载 [ddm-p0-normalize.md](ddm-p0-normalize.md)，按其规范执行 Phase 0（Step 1-6）。
+
+完成后输出：
+
+```
+> ✅ P0 完成
+> 📄 raw：raw/<COMMON_PATH>
+> 🗂 index.json 已更新（layers 新增 raw）
+```
+
+**Step 2：执行 P2 对话概要**
+
+以 Step 1 生成的 raw 文件路径作为输入，加载 [ddm-p2-overview.md](ddm-p2-overview.md)，按其规范执行（默认 `只写文件` 模式）。
 
 完成后输出：
 
 ```
 > ✅ dtd_normalize 完成
 > 📄 raw：raw/<COMMON_PATH>
-> 🗂 index.json 已更新（layers 新增 raw）
+> 📝 distilled：distilled/<COMMON_PATH>
+> 🗂 index.json 已更新（layers 含 raw、distilled）
 ```
 
 ---
