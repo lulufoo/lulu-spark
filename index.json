@@ -820,6 +820,14 @@
       "layers": [
         "raw"
       ]
+    },
+    "347aa4a9977d7de02468d0e6d0d9b4b8": {
+      "common_path": "ai-software-dev/cursor-hooks-rule-guard-architecture/202605151848-cursor-hooks-rule-guard-architecture.md",
+      "created_at": "202605151848",
+      "layers": [
+        "raw",
+        "distilled"
+      ]
     }
   }
 }
