@@ -250,13 +250,23 @@ export async function fetchTopics() {
   return res.json();
 }
 
-export async function updateTopics(mode = 'fast', checkRepo = '') {
-  const body = { mode };
-  if (checkRepo) body.check_repo = checkRepo;
+export async function fetchKnowledgeIndex(force = false) {
+  // Always load from dev server (reads .cache/knowledge-index.json on disk).
+  const url = force ? '/api/knowledge-index?force=1' : '/api/knowledge-index';
+  const res = await fetch(url);
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+  try {
+    localStorage.setItem('lulu_wb_knowledge_index_cache', JSON.stringify(data));
+  } catch (_) {}
+  return data;
+}
+
+export async function updateTopics() {
   const res = await fetch('/api/update-topics', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body)
+    body: '{}',
   });
   return res.json();
 }

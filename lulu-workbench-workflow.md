@@ -152,7 +152,7 @@ system prompt 内嵌一级索引（0次读取）
   → gh api 读取目标文档（第2次）
 ```
 
-- **一级索引**：文本块，直接内嵌在 system prompt / instruction 里，不是文件。由 `scripts/update_topics_from_github.py` 从 `topics.json` 生成，输出到 `knowledge-index.md` 供复制粘贴。
+- **一级索引**：corpus 成员清单在 `.cache/knowledge-index.json`（人工维护，可提交 git）；文本块从该 JSON 复制到 system prompt / instruction。改 index 后须在浏览器 **⊙ 全量同步**，由 `scripts/update_topics_from_github.py` 读 index 写 `topics.json`（不自动触发）。
 - **二级索引**：各仓库根目录的 `_index.md`，列出所有 doc-theme 和 GitHub URL。
 
 `_index.md` 维护方式：断裂层同步步骤⑤自动追加（主路径）；定时任务全量重建（保底）。
@@ -167,7 +167,8 @@ system prompt 内嵌一级索引（0次读取）
 | 写笔记 | workbench UI → 存入 `annotations/` |
 | 沉淀知识 | 笔记达标 → 一键同步 → 写入知识仓库 → 自动 upsert 索引 |
 | AI 查知识库 | system prompt 含一级索引 → `gh api` 读 `_index.md` → `gh api` 读文档 |
-| 更新一级索引 | `python3 scripts/update_topics_from_github.py` |
+| 维护 corpus 成员 | 编辑 `.cache/knowledge-index.json` 并提交 |
+| 同步 topics | 浏览器 **⊙ 全量同步**，或 `python3 scripts/update_topics_from_github.py -o topics.json --index-path .cache/knowledge-index.json` |
 | 首次建搜索索引 | `python3 scripts/build_knowledge_index.py --wipe` |
 
 ---

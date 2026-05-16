@@ -1,6 +1,6 @@
 {
   "version": 4,
-  "source": "CTA KNOWLEDGE_CORPUS (gh)",
+  "source": "knowledge-index.json + gh meta",
   "defaultBranch": "main",
   "topics": [
     {

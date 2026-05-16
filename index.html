@@ -25,10 +25,7 @@
     <button id="btn-repo-menu">⚙ 知识库</button>
     <div id="repo-menu-dropdown">
       <button id="btn-repo-list">☰ 查看列表</button>
-      <hr class="repo-menu-sep">
-      <button id="btn-repo-refresh">⟳ 本地刷新</button>
-      <button id="btn-repo-add">＋ 项目添加</button>
-      <button id="btn-repo-rediscover">⊙ 全量同步</button>
+      <button id="btn-repo-full-sync">⊙ 全量同步</button>
     </div>
   </div>
   <div id="sync-menu-wrap">
@@ -234,7 +231,7 @@
   <div id="repo-list-dialog-box">
     <div id="repo-list-dialog-header">
       <div id="repo-list-title-group">
-        <h3>☰ 知识库列表</h3>
+        <h3>☰ 仓库列表</h3>
         <button id="btn-repo-list-refresh" title="刷新">⟳</button>
         <span id="repo-list-cache-time"></span>
       </div>
@@ -243,22 +240,6 @@
     <div id="repo-list-content"></div>
     <div id="repo-list-dialog-actions">
       <button id="btn-repo-list-close" class="md-header-btn">关闭</button>
-    </div>
-  </div>
-</div>
-
-<!-- Add repo dialog -->
-<div id="add-repo-dialog">
-  <div id="add-repo-dialog-box">
-    <h3>＋ 添加知识仓库</h3>
-    <div class="move-doc-field">
-      <label>仓库名（owner/repo）</label>
-      <input id="add-repo-input" type="text" placeholder="lulufoo/new-repo" autocomplete="off" spellcheck="false" />
-    </div>
-    <div id="add-repo-result"></div>
-    <div id="add-repo-dialog-actions">
-      <button id="btn-add-repo-cancel" class="md-header-btn">取消</button>
-      <button id="btn-add-repo-ok" class="md-header-btn primary">确认添加</button>
     </div>
   </div>
 </div>

@@ -2,7 +2,9 @@
 
 ## 目标
 
-为每个 KNOWLEDGE_CORPUS 仓库补充 `description` + `keywords` 字段，推送到各仓库的 `.repository-type.json`，然后重新生成 `topics.json` 与 `knowledge-index.md`（供粘贴到 system prompt）。
+为每个 KNOWLEDGE_CORPUS 仓库补充 `description` + `keywords` 字段，推送到各仓库的 `.repository-type.json`，然后重新生成 `topics.json` 与一级索引（供粘贴到 system prompt）。
+
+**当前权威：** corpus 成员清单见仓库根 `.cache/knowledge-index.json`（人工维护）；`topics.json` 由「全量同步」从该 JSON 生成，不再由脚本写入 `refactor-2.0/knowledge-index.md`。
 
 ---
 
@@ -22,9 +24,9 @@
 
 ### Phase C — `update_topics_from_github.py`（更新）
 
-7. 新增 `_read_repo_meta(full_name, branch)` 函数：读 `.repository-type.json`，返回 `{description, keywords}`（字段不存在时为空）
-8. `run()` 里对已通过 `_is_knowledge_corpus` 过滤的 repo 追加调用 `_read_repo_meta`，写入 topics 条目
-9. `run()` 末尾追加生成 `refactor-2.0/knowledge-index.md`（无 description 的条目跳过）
+7. 从 `.cache/knowledge-index.json` 读取 corpus 成员（`knowledge_index_loader.load_knowledge_index`）
+8. 对每条成员写 topics 条目：`description` 来自 index；`keywords` 来自 GitHub `.repository-type.json`（best-effort）
+9. 保留 `topics.json` 中无 `repo` 的虚拟条目（如 `common-tech`、`inbox`）及既有 `dir` 字段
 
 ---
 
@@ -33,9 +35,9 @@
 | # | 问题 | 修订 |
 |---|------|------|
 | 1 | `_is_knowledge_corpus` 改返回类型会破坏调用链 | 保留原函数，新增 `_read_repo_meta()` |
-| 2 | `knowledge-index.md` 输出路径未定义 | 输出到 `refactor-2.0/knowledge-index.md` |
+| 2 | 一级索引输出路径 | 改为 `.cache/knowledge-index.json`（非 refactor-2.0） |
 | 3 | `lulufoo/lulu-workbench` 是 PERSONAL_WORKBENCH，Phase B 会误操作 | push_descriptions.py 只读草稿文件的 repo 列表 |
-| 4 | `learning-ai-lmm` 的 `"dir":"ai"` 必须保留 | update_topics_from_github.py 已有保留逻辑，不删 |
+| 4 | `learning-ai-lmm` 的 `"dir":"ai"` 必须保留 | update_topics 合并时保留既有 `dir` |
 
 ---
 
@@ -44,7 +46,7 @@
 | 文件 | 操作 |
 |------|------|
 | `.cache/repo-descriptions.json` | Phase A 生成（临时草稿，gitignored） |
+| `.cache/knowledge-index.json` | corpus 权威清单（可提交） |
 | `scripts/push_descriptions.py` | Phase B 新建 |
 | `update_topics_from_github.py` | Phase C 更新 |
 | `topics.json` | Phase C 重新生成（含 description/keywords） |
-| `refactor-2.0/knowledge-index.md` | Phase C 生成（供粘贴到 system prompt） |

@@ -126,16 +126,6 @@ async function _reloadTopicsIntoState() {
   }
 }
 
-async function _runUpdateTopics(mode, checkRepo = '') {
-  try {
-    const data = await api.updateTopics(mode, checkRepo);
-    if (data.error) throw new Error(data.error);
-    return data;
-  } catch (e) {
-    throw e;
-  }
-}
-
 // ── Repo menu dropdown ─────────────────────────────────────────────────────
 
 const _repoMenuWrap = document.getElementById('repo-menu-wrap');
@@ -144,8 +134,6 @@ const _syncMenuDropdown = document.getElementById('sync-menu-dropdown');
 const _toolsMenuDropdown = document.getElementById('tools-menu-dropdown');
 const _skillsMenuDropdown = document.getElementById('skills-menu-dropdown');
 
-// Dropdowns are shown via CSS :hover; this helper hides them
-// programmatically when an item action starts (avoids stale open state).
 function _closeAllMenuDropdowns() {
   _repoMenuDropdown.classList.remove('open');
   _syncMenuDropdown.classList.remove('open');
@@ -153,40 +141,17 @@ function _closeAllMenuDropdowns() {
   _skillsMenuDropdown.classList.remove('open');
 }
 
-// ── 刷新描述（fast）──────────────────────────────────────────────────────────
-
-document.getElementById('btn-repo-refresh').addEventListener('click', async () => {
-  _repoMenuDropdown.classList.remove('open');
-  const btn = document.getElementById('btn-repo-menu');
-  btn.disabled = true;
-  btn.textContent = '⚙ 刷新中…';
-  try {
-    await _runUpdateTopics('fast');
-    await _reloadTopicsIntoState();
-    titleCache.clear();
-    if (state.index.data) {
-      for (const entry of Object.values(state.index.data)) {
-        LAYERS.forEach(l => delete entry[`_unreachable_${l}`]);
-      }
-    }
-    await loadIndex({ managedBtn: true });
-  } catch (e) {
-    alert(`刷新失败：${e.message}`);
-  } finally {
-    btn.disabled = false;
-    btn.textContent = '⚙ 知识库';
-  }
-});
-
-// ── 全量扫描（rediscover）───────────────────────────────────────────────────
-
-document.getElementById('btn-repo-rediscover').addEventListener('click', async () => {
+document.getElementById('btn-repo-full-sync').addEventListener('click', async () => {
   _repoMenuDropdown.classList.remove('open');
   const btn = document.getElementById('btn-repo-menu');
   btn.disabled = true;
   btn.textContent = '⚙ 同步中…';
   try {
-    await _runUpdateTopics('rediscover');
+    const data = await api.updateTopics();
+    if (data.error) {
+      alert(`全量同步失败：${data.error}`);
+      return;
+    }
     await _reloadTopicsIntoState();
     titleCache.clear();
     await loadIndex({ managedBtn: true });
@@ -198,62 +163,7 @@ document.getElementById('btn-repo-rediscover').addEventListener('click', async (
   }
 });
 
-// ── 添加仓库（check-repo）──────────────────────────────────────────────────
-
-document.getElementById('btn-repo-add').addEventListener('click', () => {
-  _repoMenuDropdown.classList.remove('open');
-  document.getElementById('add-repo-input').value = '';
-  document.getElementById('add-repo-result').textContent = '';
-  document.getElementById('add-repo-result').style.color = '';
-  document.getElementById('btn-add-repo-ok').disabled = false;
-  document.getElementById('btn-add-repo-ok').textContent = '确认添加';
-  document.getElementById('add-repo-dialog').classList.add('open');
-  document.getElementById('add-repo-input').focus();
-});
-
-document.getElementById('btn-add-repo-cancel').addEventListener('click', () => {
-  document.getElementById('add-repo-dialog').classList.remove('open');
-});
-document.getElementById('add-repo-dialog').addEventListener('click', (e) => {
-  if (e.target === document.getElementById('add-repo-dialog'))
-    document.getElementById('add-repo-dialog').classList.remove('open');
-});
-
-document.getElementById('btn-add-repo-ok').addEventListener('click', async () => {
-  const repo = document.getElementById('add-repo-input').value.trim();
-  const result = document.getElementById('add-repo-result');
-  const okBtn = document.getElementById('btn-add-repo-ok');
-  if (!repo || !/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repo)) {
-    result.style.color = '#cf222e';
-    result.textContent = '格式错误，请输入 owner/repo';
-    return;
-  }
-  okBtn.disabled = true;
-  okBtn.textContent = '检测中…';
-  result.style.color = '#57606a';
-  result.textContent = '正在检测仓库类型并更新…';
-  try {
-    const data = await _runUpdateTopics('fast', repo);
-    result.style.color = '#1a7f37';
-    result.textContent = `✓ 已添加 ${repo}`;
-    await _reloadTopicsIntoState();
-    setTimeout(() => {
-      document.getElementById('add-repo-dialog').classList.remove('open');
-    }, 1200);
-  } catch (e) {
-    result.style.color = '#cf222e';
-    result.textContent = `✗ ${e.message}`;
-    okBtn.disabled = false;
-    okBtn.textContent = '确认添加';
-  }
-});
-
-document.getElementById('add-repo-input').addEventListener('keydown', e => {
-  if (e.key === 'Enter') document.getElementById('btn-add-repo-ok').click();
-  if (e.key === 'Escape') document.getElementById('add-repo-dialog').classList.remove('open');
-});
-
-// ── 列表（repo-list）───────────────────────────────────────────────────────────────────
+// ── 列表（repo-list：全量 Git 仓库，按 type 分组 + 筛选）────────────────
 
 function _closeRepoListDialog() {
   document.getElementById('repo-list-dialog').classList.remove('open');
@@ -279,7 +189,6 @@ function _renderRepoListFiltered() {
     return;
   }
 
-  // Group by type, sort repos within each group alphabetically
   const groups = {};
   for (const r of repos) {
     const key = _repoTypeKey(r);
@@ -290,7 +199,6 @@ function _renderRepoListFiltered() {
     groups[key].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'en', { sensitivity: 'base' }));
   }
 
-  // Sort group keys alphabetically; 未分类 last
   const sortedKeys = Object.keys(groups).sort((a, b) => {
     if (a === '未分类') return 1;
     if (b === '未分类') return -1;
@@ -341,7 +249,6 @@ async function _loadRepoListData(forceRefresh = false) {
   const refreshBtn = document.getElementById('btn-repo-list-refresh');
   const cacheTime = document.getElementById('repo-list-cache-time');
 
-  // 1. JS 内存缓存（同页面内二次打开无需任何 I/O）
   if (!forceRefresh && _repoListCache) {
     _repoListAll = _repoListCache;
     _populateRepoListFilter(_repoListAll);
@@ -349,7 +256,6 @@ async function _loadRepoListData(forceRefresh = false) {
     return;
   }
 
-  // 2. localStorage 缓存（页面刷新后免 HTTP）
   if (!forceRefresh) {
     try {
       const lsRaw = localStorage.getItem(_LS_REPO_LIST_KEY);
@@ -364,7 +270,7 @@ async function _loadRepoListData(forceRefresh = false) {
           return;
         }
       }
-    } catch (_) { /* localStorage 不可用时降级 */ }
+    } catch (_) {}
   }
 
   content.innerHTML = '<div id="repo-list-loading">加载中…</div>';
@@ -378,8 +284,9 @@ async function _loadRepoListData(forceRefresh = false) {
     _populateRepoListFilter(_repoListAll);
     _renderRepoListFiltered();
     if (cacheTime) cacheTime.textContent = data.cached_at ? `缓存于 ${data.cached_at}` : '';
-    // 写入 localStorage，供下次页面刷新直接使用
-    try { localStorage.setItem(_LS_REPO_LIST_KEY, JSON.stringify({ repos: _repoListCache, cached_at: data.cached_at })); } catch (_) {}
+    try {
+      localStorage.setItem(_LS_REPO_LIST_KEY, JSON.stringify({ repos: _repoListCache, cached_at: data.cached_at }));
+    } catch (_) {}
   } catch (e) {
     content.innerHTML = `<div id="repo-list-loading" style="color:#cf222e">加载失败：${escHtml(e.message)}</div>`;
   } finally {

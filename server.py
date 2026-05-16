@@ -30,6 +30,11 @@ REPO_LIST_CACHE_FILE = CACHE_DIR / 'repo-list.json'
 EDITABLE_LAYERS = {'raw', 'distilled', 'digest', 'trace'}
 PORT = 8765
 
+_SCRIPTS = REPO_ROOT / 'scripts'
+if str(_SCRIPTS) not in sys.path:
+    sys.path.insert(0, str(_SCRIPTS))
+from knowledge_index_loader import knowledge_index_path, load_knowledge_index  # noqa: E402
+
 # ── Meilisearch config ────────────────────────────────────────────────────────
 MEILI_URL = 'http://localhost:7700'
 MEILI_KEY = ''
@@ -191,6 +196,10 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             self._handle_check_file()
         elif parsed_path == '/api/repo-dirs':
             self._handle_repo_dirs()
+        elif parsed_path == '/api/knowledge-index':
+            qs = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
+            force = qs.get('force', [''])[0] in ('1', 'true', 'yes')
+            self._handle_knowledge_index(force=force)
         elif parsed_path == '/api/repo-list':
             self._handle_repo_list()
         elif parsed_path == '/api/search-knowledge':
@@ -408,29 +417,46 @@ class Handler(http.server.SimpleHTTPRequestHandler):
 
     # ── API: git pull --rebase ──────────────────────────────────────────────
 
+    def _handle_knowledge_index(self, force: bool = False):
+        del force  # reserved for API contract; always read from disk
+        try:
+            index_path = knowledge_index_path(REPO_ROOT)
+            entries = load_knowledge_index(index_path)
+        except FileNotFoundError:
+            self._json_response({'error': 'knowledge-index.json not found'}, 404)
+            return
+        except ValueError as e:
+            self._json_response({'error': str(e)}, 500)
+            return
+        except Exception as e:
+            self._json_response({'error': f'invalid knowledge-index: {e}'}, 500)
+            return
+        if not entries:
+            self._json_response({'error': 'no valid entries in knowledge-index'}, 500)
+            return
+        self._json_response({
+            'entries': entries,
+            'cached_at': datetime.now(timezone.utc).isoformat(),
+        })
+
     def _handle_update_topics(self):
         try:
-            data = self._read_json()
-            mode = str(data.get('mode') or 'fast').strip()
-            check_repo = str(data.get('check_repo') or '').strip()
-
+            self._read_json()  # consume body (ignored)
+            try:
+                index_path = knowledge_index_path(REPO_ROOT)
+            except FileNotFoundError:
+                self._json_response({'error': 'knowledge-index.json not found'}, 404)
+                return
             script = REPO_ROOT / 'scripts' / 'update_topics_from_github.py'
-            cmd = [sys.executable, str(script), '-o', str(REPO_ROOT / 'topics.json')]
-            if check_repo:
-                # Validate: owner/repo format only, no path traversal
-                if not re.fullmatch(r'[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+', check_repo):
-                    self._json_response({'error': 'Invalid repo format, expected owner/repo'}, 400)
-                    return
-                cmd += ['--check-repo', check_repo]
-                print(f'  [update-topics] mode=check-repo repo={check_repo}')
-            elif mode == 'rediscover':
-                cmd += ['--rediscover']
-                print(f'  [update-topics] mode=rediscover')
-            else:
-                print(f'  [update-topics] mode=fast')
-
+            cmd = [
+                sys.executable,
+                str(script),
+                '-o', str(REPO_ROOT / 'topics.json'),
+                '--index-path', str(index_path),
+            ]
+            print('  [update-topics] full sync from knowledge-index.json')
             result = subprocess.run(
-                cmd, cwd=REPO_ROOT, capture_output=True, text=True, timeout=120
+                cmd, cwd=REPO_ROOT, capture_output=True, text=True, timeout=300
             )
             print(f'  [update-topics] returncode={result.returncode}')
             if result.stdout.strip():
@@ -444,10 +470,10 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                     'stdout': result.stdout
                 }, 500)
                 return
-            print(f'  [update-topics] done')
+            print('  [update-topics] done')
             self._json_response({'ok': True, 'info': result.stderr.strip()})
         except subprocess.TimeoutExpired:
-            self._json_response({'error': 'update_topics timed out after 120s'}, 500)
+            self._json_response({'error': 'update_topics timed out after 300s'}, 500)
         except Exception as e:
             self._json_response({'error': str(e)}, 500)
 
