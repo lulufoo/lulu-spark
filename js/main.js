@@ -593,10 +593,36 @@ const _SKILLS_CONTENT = {
     title: '✦ Software Dev Skills',
     groups: [
       {
-        name: 'Bug Analysis',
-        url: 'https://github.com/lulufoo/ai-software-dev/tree/main/skills/bug-analysis',
+        name: '工具类',
+        url: 'https://github.com/lulufoo/lulu-dev-skills/tree/main/sync-rules',
         items: [
-          { cmd: 'bug-analysis', name: 'Bug 分析', desc: 'Structured bug analysis with evidence-first reasoning' }
+          {
+            cmd: 'sync-rules',
+            name: '规则多平台同步',
+            desc: '「同步规则」、sync rules、规则同步；用 `gh` 从 GitHub 拉取配置并写入 Cursor / Claude Code / VS Code'
+          }
+        ]
+      },
+      {
+        name: '质量与缺陷分析',
+        url: 'https://github.com/lulufoo/lulu-dev-skills/tree/main/bug-analysis',
+        items: [
+          {
+            cmd: 'bug-analysis',
+            name: 'Bug 分析',
+            desc: '缺陷排查、根因分析、调查异常或失败行为'
+          }
+        ]
+      },
+      {
+        name: '研发与开发过程',
+        url: 'https://github.com/lulufoo/lulu-dev-skills/tree/main/cursor-rule-guard',
+        items: [
+          {
+            cmd: 'cursor-rule-guard',
+            name: 'Cursor 规则守卫',
+            desc: '初始化或管理规则守卫、配置 preToolUse 钩子、要求先读后写'
+          }
         ]
       }
     ]
@@ -634,16 +660,16 @@ const _SKILLS_CONTENT = {
           { cmd: 'dp_role',    name: '角色视图生成模型', desc: '从知识图谱为特定角色生成关注度矩阵与学习路径' }
         ]
       },
-      {
-        name: '工具',
-        url: 'https://github.com/lulufoo/lulu-skills/tree/main/sync-rules',
-        items: [
-          { cmd: 'sync rules', name: '规则同步', desc: '同步 AI rules 到各平台（Cursor / Claude Code / VS Code）' }
-        ]
-      }
     ]
   }
 };
+
+function _escapeAttr(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;');
+}
 
 function _openSkillsDialog(key) {
   const data = _SKILLS_CONTENT[key];
@@ -655,9 +681,12 @@ function _openSkillsDialog(key) {
       : '';
     const items = g.items.map(i => {
       if (typeof i === 'string') {
-        return `<div class="skill-item" data-copy="${i}" title="点击复制">${i}</div>`;
+        return `<div class="skill-item" data-copy="${_escapeAttr(i)}" title="点击复制">${i}</div>`;
       }
-      return `<div class="skill-item skill-item-rich" data-copy="${i.cmd}" title="点击复制指令">` +
+      const tip = i.desc != null && i.desc !== ''
+        ? _escapeAttr(i.desc)
+        : '点击复制指令';
+      return `<div class="skill-item skill-item-rich" data-copy="${_escapeAttr(i.cmd)}" title="${tip}">` +
         `<span class="skill-item-name">${i.name}</span>` +
         `<code class="skill-item-cmd">${i.cmd}</code>` +
         `</div>`;
