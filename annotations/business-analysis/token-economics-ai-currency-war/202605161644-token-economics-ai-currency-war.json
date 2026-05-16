@@ -1,0 +1,11 @@
+{
+  "raw": {
+    "comments": [
+      {
+        "id": "d217d5829fd2",
+        "text": "### 给 Claude/GPT/中国模型分工\n- Opus 像产品经理、脑洞发散；GPT 更 nerd、像技术负责人 challenge；Codex 把关 review；执行要「有一定智能 + 快 + 便宜」——输出最贵，国产模型适合大量写代码。\n\n### 思考\n- Opus 可以作为brainstorm，写产品需求Spec。\n- GPT 写技术文档\n- Codex Review代码\n- 国产模型写代码",
+        "ts": "202605161655"
+      }
+    ]
+  }
+}
