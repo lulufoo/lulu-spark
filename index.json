@@ -835,6 +835,14 @@
       "layers": [
         "raw"
       ]
+    },
+    "f5554d332051535803cade1460327746": {
+      "common_path": "ai-software-dev/human-ai-coding-competency-framework/202605160805-human-ai-coding-competency-framework.md",
+      "created_at": "202605160805",
+      "layers": [
+        "raw",
+        "distilled"
+      ]
     }
   }
 }
