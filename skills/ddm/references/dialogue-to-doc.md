@@ -38,7 +38,7 @@
 > 🗂 index.json 已更新（layers 新增 raw）
 ```
 
-**Step 2：执行 P2 对话概要**
+**Step 2：执行 P2 对话概要**【Step 2废弃，默认不执行】
 
 以 Step 1 生成的 raw 文件路径作为输入，加载 [ddm-p2-overview.md](ddm-p2-overview.md)，按其规范执行（默认 `只写文件` 模式）。
 
