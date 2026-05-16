@@ -843,6 +843,14 @@
         "raw",
         "distilled"
       ]
+    },
+    "3e0d1d7772d68aca52fa2d80d3160952": {
+      "common_path": "ai-software-dev/workflow-framework-vs-superpowers/202605161008-turn19-26-framework-superpowers-tpqa.md",
+      "created_at": "202605161008",
+      "layers": [
+        "raw",
+        "distilled"
+      ]
     }
   }
 }
