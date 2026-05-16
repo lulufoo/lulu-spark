@@ -178,6 +178,14 @@
       ]
     },
     {
+      "repo": "lulufoo/business-analysis",
+      "description": "商业分析/AI商业重构/AI组织重构",
+      "keywords": [
+        "AI商业重构",
+        "AI组织重构"
+      ]
+    },
+    {
       "dir": "common-tech"
     },
     {

@@ -25,5 +25,6 @@ tech-language-kotlin: Kotlin 技术，语法/OOP/FP/协程; https://github.com/l
 personal-growth: 个人思考、个人成长、个人认知; https://github.com/lulufoo/personal-growth/blob/main/_index.md
 cognitive-science: 认知科学/图式理论/先行组织者理论/...; https://github.com/lulufoo/cognitive-science/blob/main/_index.md
 people-profiles: 人物画像/...; https://github.com/lulufoo/people-profiles/blob/main/_index.md
+business-analysis: 商业分析/AI商业重构/AI组织重构; https://github.com/lulufoo/business-analysis/blob/main/_index.md
 
 ```
