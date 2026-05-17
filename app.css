@@ -169,6 +169,38 @@
   .gs-layer-digest    { background: #fef3c7; color: #92400e; }
   .gs-layer-diagnose  { background: #f3f4f6; color: #374151; }
 
+  /* ── Search history ── */
+  .gs-hist-list { padding: 4px 0; }
+  .gs-hist-item {
+    display: flex;
+    align-items: center;
+    padding: 8px 14px;
+    cursor: pointer;
+    gap: 8px;
+    border-bottom: 1px solid #eaeef2;
+  }
+  .gs-hist-item:last-child { border-bottom: none; }
+  .gs-hist-item:hover { background: #f6f8fa; }
+  .gs-hist-label {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 13px;
+    color: #24292f;
+  }
+  .gs-hist-remove {
+    flex-shrink: 0;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #57606a;
+    font-size: 14px;
+    line-height: 1;
+    padding: 0 2px;
+  }
+  .gs-hist-remove:hover { color: #24292f; }
+
   /* ── Repo menu dropdown ── */
   #repo-menu-wrap {
     position: relative;

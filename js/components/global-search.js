@@ -18,7 +18,11 @@ export function initGlobalSearch() {
     const raw = input.value
     const { mode, q } = _detectMode(raw)
     _updateModeUI(mode)
-    if (!q) { _close(); return }
+    if (!q) {
+      if (mode === 'wb') _showHistory('wb')
+      else _close()
+      return
+    }
     _debounceTimer = setTimeout(() => _search(mode, q), 300)
   })
 
@@ -30,6 +34,7 @@ export function initGlobalSearch() {
     _inputFocused = true
     const { mode } = _detectMode(input.value)
     _updateModeUI(mode)
+    if (!input.value) _showHistory('kb')
   })
 
   input.addEventListener('blur', () => {
@@ -229,6 +234,67 @@ function _stopKbRebuild(isError, msg) {
   }
 }
 
+// ── Search history ────────────────────────────────────────────────────────────
+
+const _HIST_MAX = 10
+
+function _getHistory(mode) {
+  try {
+    return JSON.parse(localStorage.getItem(`gs-history-${mode}`)) || []
+  } catch (_) {
+    return []
+  }
+}
+
+function _addHistory(mode, q) {
+  if (!q) return
+  const list = _getHistory(mode).filter(x => x !== q)
+  list.unshift(q)
+  localStorage.setItem(`gs-history-${mode}`, JSON.stringify(list.slice(0, _HIST_MAX)))
+}
+
+function _removeHistory(mode, q) {
+  const list = _getHistory(mode).filter(x => x !== q)
+  localStorage.setItem(`gs-history-${mode}`, JSON.stringify(list))
+}
+
+function _renderHistory(mode) {
+  const list = _getHistory(mode)
+  if (!list.length) return ''
+  const items = list.map(q => `
+    <div class="gs-hist-item" data-mode="${mode}" data-q="${_esc(q)}">
+      <span class="gs-hist-label">${_esc(q)}</span>
+      <button class="gs-hist-remove" data-mode="${mode}" data-q="${_esc(q)}" title="删除">×</button>
+    </div>
+  `).join('')
+  return `<div class="gs-hist-list">${items}</div>`
+}
+
+function _showHistory(mode) {
+  const dropdown = document.getElementById('gs-dropdown')
+  if (!dropdown) return
+  const html = _renderHistory(mode)
+  if (!html) return
+  _show(dropdown, html)
+  dropdown.querySelectorAll('.gs-hist-item').forEach(el => {
+    el.addEventListener('click', e => {
+      if (e.target.classList.contains('gs-hist-remove')) return
+      const input = document.getElementById('gs-input')
+      if (!input) return
+      const q = el.dataset.q
+      input.value = el.dataset.mode === 'wb' ? `#${q}` : q
+      input.dispatchEvent(new Event('input', { bubbles: true }))
+    })
+  })
+  dropdown.querySelectorAll('.gs-hist-remove').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation()
+      _removeHistory(btn.dataset.mode, btn.dataset.q)
+      _showHistory(mode)
+    })
+  })
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function _getSnippet(hit) {
@@ -249,6 +315,8 @@ function _show(dropdown, html) {
       if (cp) {
         document.dispatchEvent(new CustomEvent('cta:open-entry', { detail: { common_path: cp } }))
       }
+      const { q: wbQ } = _detectMode(document.getElementById('gs-input')?.value || '')
+      _addHistory('wb', wbQ)
       _close()
     })
   })
@@ -265,6 +333,8 @@ function _show(dropdown, html) {
           detail: { repo, path, url, title }
         }))
       }
+      const { q: kbQ } = _detectMode(document.getElementById('gs-input')?.value || '')
+      _addHistory('kb', kbQ)
       _close()
     })
   })
