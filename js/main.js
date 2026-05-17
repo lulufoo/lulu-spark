@@ -535,7 +535,7 @@ const _SKILLS_CONTENT = {
     ]
   },
   lulu: {
-    title: '✦ Lulu Skills',
+    title: '✦ Lulu Learning Skills',
     groups: [
       {
         name: '通用模型',
