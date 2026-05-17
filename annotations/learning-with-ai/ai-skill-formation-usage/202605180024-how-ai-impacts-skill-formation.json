@@ -1,0 +1,16 @@
+{
+  "raw": {
+    "comments": [
+      {
+        "id": "0ec7ee39e606",
+        "text": "## Link\n- [https://www.anthropic.com/research/AI-assistance-coding-skills](https://www.anthropic.com/research/AI-assistance-coding-skills)\n- [https://arxiv.org/abs/2601.20245](https://arxiv.org/abs/2601.20245)",
+        "ts": "202605180032"
+      },
+      {
+        "id": "441ea9e81c58",
+        "text": "## 重点\n- 自己懂的，直接让AI干。\n- 自己不懂的，要先自己理解之后，再让AI干。",
+        "ts": "202605180033"
+      }
+    ]
+  }
+}

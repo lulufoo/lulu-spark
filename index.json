@@ -880,6 +880,14 @@
         "raw",
         "distilled"
       ]
+    },
+    "41c8b3a4a27a6f5f822f703140d6b376": {
+      "common_path": "learning-with-ai/ai-skill-formation-usage/202605180024-how-ai-impacts-skill-formation.md",
+      "created_at": "202605180024",
+      "layers": [
+        "raw",
+        "distilled"
+      ]
     }
   }
 }
