@@ -858,6 +858,28 @@
       "layers": [
         "raw"
       ]
+    },
+    "5fb951d089fac60d118ccb9d0c3c3e58": {
+      "common_path": "ai-software-dev/lulu-dev-workflow-product-design/202605162302-design-optimization.md",
+      "created_at": "202605162302",
+      "layers": [
+        "raw"
+      ]
+    },
+    "44da05a1fbd2770b15cf606e2647d690": {
+      "common_path": "learning-ai-llm/structure-topology-formalization-boundary/202605171147-structure-topology-formalization-boundary.md",
+      "created_at": "202605171147",
+      "layers": [
+        "raw"
+      ]
+    },
+    "4b7d0808c7bc36be504f908036d6896a": {
+      "common_path": "ai-software-dev/lulu-dev-workflow-product-evaluation-design/202605171324-evaluation-design-optimization.md",
+      "created_at": "202605171324",
+      "layers": [
+        "raw",
+        "distilled"
+      ]
     }
   }
 }
