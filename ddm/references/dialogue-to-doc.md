@@ -8,12 +8,14 @@
 
 | 模式 | 说明 |
 |------|------|
-| **dtd_normalize** | 执行 Phase 0（P0 规范化）后，自动继续执行 Phase 2 overview（P2 对话概要），将结果写入 `raw/` 和 `distilled/` 并更新 `index.json` |
-| **dtd_archive_summary** | 将**总结 Markdown** 归档为 `raw/` 一条 Entry（`entry_kind: summary`）；**不**使用 TURN_SEP；**不**自动执行 P2 |
+| **dtd_normalize** | Phase 0 对话归一化（[ddm-p0-normalize.md](ddm-p0-normalize.md)）→ **自动 Phase 4 digest** → `raw/` + `digest/` |
+| **dtd_archive_summary** | Phase 0-S 总结归档（[ddm-p0-archive-summary.md](ddm-p0-archive-summary.md)）→ **自动 Phase 4 digest** → `raw/` + `digest/` |
+| **dtd_digest** | 输入 raw 路径或 index id，仅执行 Phase 4 digest（补跑） |
 | **dtd_distill_dialogue** | 输入 raw 文件路径或 index id，仅执行 P2 生成 distilled（对话体） |
 | **dtd_distill_compose** | 输入 raw 文件路径或 index id；自动检测 diagnose 文件，若不存在则先执行 P1 诊断，再执行 P2-compose 生成完整合成文档 |
 | **dtd_distill_overview** | 输入 raw 文件路径或 index id，按子话题归组生成 distilled（对话概要，Turn 范围 + 一段话格式） |
-| **dtd_trace_digest** | 输入已有 raw 文件路径（或 index id），执行 P1 → P3 → P4（不含 P2） |
+| **dtd_trace** | 输入已有 raw 文件路径（或 index id），执行 P1 → P3（认知轨迹，不含 digest） |
+| ~~**dtd_trace_digest**~~ | **已废弃** — 等同 `dtd_trace`；digest 请用 `dtd_normalize` / `dtd_archive_summary` / `dtd_digest` |
 
 ---
 
@@ -25,9 +27,15 @@
 
 ---
 
+## P4 digest 链式步骤（`dtd_normalize` / `dtd_archive_summary` 共用）
+
+以 P0 落盘后的 `{archive_root}/raw/<COMMON_PATH>` 为 **RAW**，加载 [ddm-p4-digest.md](ddm-p4-digest.md) 执行 Phase 4（[P4-0] 不满足则跳过，仍完成 P0 模式汇总）。
+
+---
+
 ## dtd_normalize 模式
 
-**Step 1：执行 P0 规范化**
+**Step 1：执行 P0 对话归一化**
 
 加载 [ddm-p0-normalize.md](ddm-p0-normalize.md)，按其规范执行 Phase 0（Step 1-6）。
 
@@ -39,17 +47,17 @@
 > 🗂 index.json 已更新（layers 新增 raw）
 ```
 
-**Step 2：执行 P2 对话概要**【Step 2废弃，默认不执行】
+**Step 2：执行 Phase 4 摘要（自动）**
 
-以 Step 1 生成的 raw 文件路径作为输入，加载 [ddm-p2-overview.md](ddm-p2-overview.md)，按其规范执行（默认 `只写文件` 模式）。
+按上文 **P4 digest 链式步骤** 执行。
 
 完成后输出：
 
 ```
 > ✅ dtd_normalize 完成
 > 📄 raw：raw/<COMMON_PATH>
-> 📝 distilled：distilled/<COMMON_PATH>
-> 🗂 index.json 已更新（layers 含 raw、distilled）
+> 📋 digest：digest/<COMMON_PATH>（或「已跳过」）
+> 🗂 index.json 已更新（layers 含 raw；若生成则含 digest）
 ```
 
 ---
@@ -65,13 +73,55 @@
 完成后输出：
 
 ```
-> ✅ dtd_archive_summary 完成
+> ✅ P0-S 完成
 > 📄 raw：raw/<COMMON_PATH>
 > 🗂 index.json 已更新（layers: raw, entry_kind: summary）
+```
+
+**Step 2：执行 Phase 4 摘要（自动）**
+
+按上文 **P4 digest 链式步骤** 执行。
+
+完成后输出：
+
+```
+> ✅ dtd_archive_summary 完成
+> 📄 raw：raw/<COMMON_PATH>
+> 📋 digest：digest/<COMMON_PATH>（或「已跳过」）
+> 🗂 index.json 已更新（layers 含 raw；若生成则含 digest；entry_kind: summary）
 > 💡 如需 distilled，请执行：dtd_distill_overview <raw 路径或 index id>
 ```
 
-**无 Step 2**：本模式不链式执行 P2 overview 或其他 Phase。
+---
+
+## dtd_digest 模式
+
+**输入**：用户提供 raw 文件的路径或 index.json 中的 32 位十六进制 id。
+
+**Step 0：解析输入路径**
+
+```
+· 若输入为 32 位十六进制 id：
+    读取 {archive_root}/index.json，查找对应条目的 common_path
+    拼出绝对路径：{archive_root}/raw/<common_path>
+· 若输入为路径：直接使用
+确认文件存在，且 index.json 中该条目 layers 包含 "raw"
+从路径解析 topic-path / ts / slug（raw/<topic-path>/<ts>-<slug>.md）
+```
+
+**Step 1：执行 Phase 4 摘要**
+
+以 `{archive_root}/raw/<COMMON_PATH>` 为 **RAW**，加载 [ddm-p4-digest.md](ddm-p4-digest.md) 执行（[P4-0] 不满足则跳过）。
+
+---
+
+**dtd_digest 完成汇总**
+
+```
+> ✅ dtd_digest 完成
+> 📋 digest：digest/<COMMON_PATH>（或「已跳过」）
+> 🗂 index.json 已更新（若生成则 layers 含 digest）
+```
 
 ---
 
@@ -147,7 +197,7 @@
 ```
 > ✅ dtd_distill_compose 完成
 > 📝 distilled：distilled/<COMMON_PATH>
-> � diagnose：diagnose/<COMMON_PATH>（已有或本次生成）
+> 📋 diagnose：diagnose/<COMMON_PATH>（已有或本次生成）
 > 🗂 index.json 已更新（layers 含 distilled；若本次执行 P1 则同时含 diagnose）
 ```
 
@@ -182,7 +232,7 @@
 
 ---
 
-## dtd_trace_digest 模式
+## dtd_trace 模式
 
 **输入**：用户提供 raw 文件的路径或 index.json 中的 32 位十六进制 id。
 
@@ -206,32 +256,28 @@
                将 DIAGNOSE 写入 diagnose/<COMMON_PATH>，更新 index.json（layers 追加 "diagnose"）后继续。
 ```
 
----
-
 **Step 2 — Phase 3：认知轨迹**
 
-加载 [ddm-p3-trace.md](ddm-p3-trace.md)，传入 `DISTILLED` 导航路径（`{archive_root}/distilled/<COMMON_PATH>`），执行（若 P3-0 条件不满足则跳过）。
+加载 [ddm-p3-trace.md](ddm-p3-trace.md)，传入 `DISTILLED` 导航路径（`{archive_root}/distilled/<COMMON_PATH>`，文件可不存在，仅作导航占位），执行（若 P3-0 条件不满足则跳过）。
 
 ---
 
-**Step 3 — Phase 4：摘要与归档**
-
-检查 `{archive_root}/distilled/<COMMON_PATH>` 是否存在：
-- 不存在 → 跳过 Phase 4，输出：`> ⏭ Phase 4 跳过（distilled 文件不存在，请先执行 dtd_distill_dialogue 或 dtd_distill_compose）`
-- 存在 → 加载 [ddm-p4-digest.md](ddm-p4-digest.md)，传入 `DISTILLED`（`{archive_root}/distilled/<COMMON_PATH>`），执行（若 P4-0 条件不满足则跳过）。更新 `index.json` 所有标志。
-
----
-
-**dtd_trace_digest 完成汇总**
+**dtd_trace 完成汇总**
 
 ```
-📦 dtd_trace_digest 归档完成
+📦 dtd_trace 归档完成
 
-distilled → distilled/<COMMON_PATH>（若存在）
 diagnose  → diagnose/<COMMON_PATH>（已有或本次生成）
-trace     → trace/<COMMON_PATH>（或"已跳过"）
-digest    → digest/<COMMON_PATH>（或"已跳过"）
+trace     → trace/<COMMON_PATH>（或「已跳过」）
 
 index.json 条目 <id>：
   layers: ["raw", ...已完成的 layer...]
+
+💡 digest 已由 dtd_normalize / dtd_archive_summary 生成，或请执行：dtd_digest <raw 路径或 index id>
 ```
+
+---
+
+## dtd_trace_digest 模式（已废弃）
+
+调用本参数时，**按 `dtd_trace` 执行**，不执行 Phase 4 digest。
