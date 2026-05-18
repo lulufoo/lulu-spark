@@ -24,11 +24,11 @@
 | `ARCHIVE_DIGEST` | `../shared/digest/archive-digest.md` | digest 规范 |
 | `DTD_RAW_DIALOGUE` | `dtd-raw-dialogue.md` | `dtd_raw_dialogue` |
 | `DTD_RAW_SUMMARY` | `dtd-raw-summary.md` | `dtd_raw_summary` |
-| `DDM_P1` | `ddm-p1-diagnose.md` | `dtd_trace`（P1） |
-| `DDM_P2_GEN` | `ddm-p2-generate.md` | `dtd_distill_dialogue` |
-| `DDM_P2_COM` | `ddm-p2-compose.md` | `dtd_distill_compose` |
-| `DDM_P2_TOPIC` | `ddm-p2-topic.md` | `dtd_distill_topic` |
-| `DDM_P3` | `ddm-p3-trace.md` | `dtd_trace`（P3） |
+| `DDM_DIAGNOSE` | `ddm-diagnose.md` | `dtd_trace` / `dtd_distill_compose`（P1） |
+| `DTD_DISTILL_DIALOGUE` | `dtd_distill_dialogue.md` | `dtd_distill_dialogue` |
+| `DTD_DISTILL_COMPOSE` | `dtd_distill_compose.md` | `dtd_distill_compose` |
+| `DTD_DISTILL_TOPIC` | `dtd_distill_topic.md` | `dtd_distill_topic` |
+| `DDM_TRACE` | `ddm-trace.md` | `dtd_trace`（P3） |
 
 ---
 

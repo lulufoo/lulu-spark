@@ -10,7 +10,7 @@
 
 ## PART 1 — 术语定义
 
-> 本 Phase 从 DIAGNOSE 读取以下字段。完整双轴归属模型见 [ddm-p1-diagnose.md](ddm-p1-diagnose.md) PART 1。
+> 本 Phase 从 DIAGNOSE 读取以下字段。完整双轴归属模型见 [ddm-diagnose.md](ddm-diagnose.md) PART 1。
 
 **[U/U] 事件**：用户自发发起并完成的认知动作。
 

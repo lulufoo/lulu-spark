@@ -12,7 +12,7 @@
 | **dtd_raw_summary** | [dtd-raw-summary.md](dtd-raw-summary.md) → 自动 digest → `raw/` + `digest/` |
 | **dtd_distill_dialogue** | 输入 raw 路径或 index id，仅 P2 对话体 distilled |
 | **dtd_distill_compose** | 输入 raw；无 diagnose 则先 P1，再 P2-compose |
-| **dtd_distill_topic** | 输入 raw；按子话题生成 distilled（[ddm-p2-topic.md](ddm-p2-topic.md)） |
+| **dtd_distill_topic** | 输入 raw；按子话题生成 distilled（[dtd_distill_topic.md](dtd_distill_topic.md)） |
 | **dtd_trace** | 输入 raw；P1 → P3（不含 digest） |
 | ~~**dtd_trace_digest**~~ | 已废弃 → `dtd_trace` |
 | ~~**dtd_normalize**~~ | 已废弃 → `dtd_raw_dialogue` |
@@ -76,19 +76,19 @@
 
 ## dtd_distill_dialogue 模式
 
-解析 raw 路径（或 index id → common_path）。可选读 diagnose。加载 [ddm-p2-generate.md](ddm-p2-generate.md) 执行。
+解析 raw 路径（或 index id → common_path）。可选读 diagnose。加载 [dtd_distill_dialogue.md](dtd_distill_dialogue.md) 执行。
 
 ---
 
 ## dtd_distill_compose 模式
 
-解析 raw；检测 diagnose，无则 P1；加载 [ddm-p2-compose.md](ddm-p2-compose.md) 执行。
+解析 raw；检测 diagnose，无则 P1（[ddm-diagnose.md](ddm-diagnose.md)）；加载 [dtd_distill_compose.md](dtd_distill_compose.md) 执行。
 
 ---
 
 ## dtd_distill_topic 模式
 
-解析 raw；加载 [ddm-p2-topic.md](ddm-p2-topic.md)，按子话题规则落盘 distilled。
+解析 raw；加载 [dtd_distill_topic.md](dtd_distill_topic.md)，按子话题规则落盘 distilled。
 
 完成汇总：
 
@@ -101,7 +101,7 @@
 
 ## dtd_trace 模式
 
-解析 raw；P1（[ddm-p1-diagnose.md](ddm-p1-diagnose.md)）→ P3（[ddm-p3-trace.md](ddm-p3-trace.md)）。不执行 digest。
+解析 raw；P1（[ddm-diagnose.md](ddm-diagnose.md)）→ P3（[ddm-trace.md](ddm-trace.md)）。不执行 digest。
 
 完成汇总不含 digest 补跑提示；digest 由 `dtd_raw_*` / theme-line 自动生成，或见 [shared/digest/archive-digest.md](../../shared/digest/archive-digest.md) 补跑节。
 
