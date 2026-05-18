@@ -29,10 +29,6 @@ argument-hint: 'dtd_raw_dialogue | dtd_raw_summary | dtd_distill_dialogue | dtd_
 | `dtd_distill_compose` | 合成文档 | P1 + [ddm-p2-compose.md](references/ddm-p2-compose.md) |
 | `dtd_distill_topic` | 子话题 distilled | [ddm-p2-topic.md](references/ddm-p2-topic.md) |
 | `dtd_trace` | 诊断 + 轨迹 | P1 + [ddm-p3-trace.md](references/ddm-p3-trace.md) |
-| ~~`dtd_trace_digest`~~ | 已废弃 | 等同 `dtd_trace` |
-| ~~`dtd_normalize`~~ | 已废弃 | 等同 `dtd_raw_dialogue` |
-| ~~`dtd_archive_summary`~~ | 已废弃 | 等同 `dtd_raw_summary` |
-| ~~`dtd_distill_overview`~~ | 已废弃 | 等同 `dtd_distill_topic` |
 
 参数缺省或不明确时，询问用户选择模式。
 
