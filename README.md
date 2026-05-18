@@ -9,5 +9,3 @@
 | 总结归档 | `theme-summary` | [theme-summary/](theme-summary/) |
 | 主题时间线稿 | `theme-line` | [theme-line/](theme-line/) |
 | 主题摘要 digest | `theme-digest` | [theme-digest/](theme-digest/) |
-
-共享规范：[shared/archive-concepts](shared/archive-concepts.md)。digest 见 [theme-digest/SKILL.md](theme-digest/SKILL.md)。
