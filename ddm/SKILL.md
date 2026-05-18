@@ -90,10 +90,3 @@ argument-hint: 'dtd_raw_dialogue | dtd_raw_summary | dtd_distill_dialogue | dtd_
 解析 raw；加载 [ddm-diagnose](./ddm-diagnose.md) → [ddm-p3-trace.md](references/ddm-p3-trace.md)。不执行 digest。
 
 完成汇总不含 digest 补跑提示；digest 由 `dtd_raw_*` / theme-line 自动生成，或见 [archive-digest.md](../shared/digest/archive-digest.md) 补跑节。
-
-## 已废弃模式
-
-- `dtd_trace_digest` → `dtd_trace`
-- `dtd_normalize` → `dtd_raw_dialogue`
-- `dtd_archive_summary` → `dtd_raw_summary`
-- `dtd_distill_overview` → `dtd_distill_topic`
