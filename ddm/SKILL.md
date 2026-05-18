@@ -35,9 +35,6 @@ argument-hint: 'dtd_raw_dialogue | dtd_raw_summary | dtd_digest | dtd_distill_di
 | `dtd_distill_compose` | 生成 distilled（合成文档） | 输入 raw 文件路径或 index id；检测 diagnose 是否存在，不存在则先 P1，再 P2-compose |
 | `dtd_distill_overview` | 生成 distilled（对话概要） | 输入 raw 文件路径或 index id，按子话题归组 |
 | `dtd_trace` | 诊断 + 认知轨迹 | 输入 raw 路径；P1→P3，不生成 digest |
-| ~~`dtd_trace_digest`~~ | （已废弃） | 等同 `dtd_trace` |
-| ~~`dtd_normalize`~~ | （已废弃） | 等同 `dtd_raw_dialogue` |
-| ~~`dtd_archive_summary`~~ | （已废弃） | 等同 `dtd_raw_summary` |
 
 参数缺省或不明确时，询问用户选择模式。
 
