@@ -1,4 +1,4 @@
-# DDM Distill：生成
+# DDM Distill：精简对话模式
 
 > **配置参考**：[ddm-concepts.md](ddm-concepts.md)（路径符号定义）
 >
