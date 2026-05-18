@@ -1,6 +1,6 @@
 # Archive 层 — 路径与配置
 
-> 供 `shared/archive-digest.md` 及各 raw 生产者（`dtd_raw_*`、`theme-line` 等）引用。
+> 供 `shared/digest/` 及各 raw 生产者（`dtd_raw_*`、`theme-line` 等）引用。
 
 ---
 
@@ -54,4 +54,4 @@ TRACE        := CTA_BASE/trace/<COMMON_PATH>
 
 ## digest 规范
 
-见 [archive-digest.md](archive-digest.md)。由 `dtd_raw_dialogue`、`dtd_raw_summary`、`theme-line` 等在落 `raw/` 后自动链式执行。
+见 [digest/archive-digest.md](digest/archive-digest.md)。由 `dtd_raw_dialogue`、`dtd_raw_summary`、`theme-line` 等在落 `raw/` 后自动链式执行。

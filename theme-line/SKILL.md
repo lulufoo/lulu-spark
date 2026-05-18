@@ -236,7 +236,7 @@ Create the directory if it does not exist.
 
 ### Step 9 · Archive digest（自动）
 
-以 Step 7 的主 raw 文件 `{archive_root}/raw/<topic-path>/<ts>-<slug>.md` 为 **RAW**（不对 `-zh.md` 单独生成），加载 [../shared/archive-digest.md](../shared/archive-digest.md)，执行 [AD-0]–[AD-4]（不满足则跳过）。
+以 Step 7 的主 raw 文件 `{archive_root}/raw/<topic-path>/<ts>-<slug>.md` 为 **RAW**（不对 `-zh.md` 单独生成），加载 [../shared/digest/archive-digest.md](../shared/digest/archive-digest.md)，执行 [AD-0]–[AD-4]（不满足则跳过）。
 
 完成后在汇总中追加：
 

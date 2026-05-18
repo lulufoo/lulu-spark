@@ -41,4 +41,4 @@ ln -sf $BASE/theme-line $SKILLS/theme-line
 
 任一子 skill 执行时输出 `archive_root` 与根 `config.json` 一致即可。
 
-共享规范：[shared/archive-concepts.md](shared/archive-concepts.md)、[shared/archive-digest.md](shared/archive-digest.md)。
+共享规范：[shared/README.md](shared/README.md)（[archive-concepts](shared/archive-concepts.md)、[digest](shared/digest/archive-digest.md)）。

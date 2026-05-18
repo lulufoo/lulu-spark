@@ -8,7 +8,7 @@
 
 | 模式 | 说明 |
 |------|------|
-| **dtd_raw_dialogue** | [dtd-raw-dialogue.md](dtd-raw-dialogue.md) → 自动 [archive-digest](../../shared/archive-digest.md) → `raw/` + `digest/` |
+| **dtd_raw_dialogue** | [dtd-raw-dialogue.md](dtd-raw-dialogue.md) → 自动 [archive-digest](../../shared/digest/archive-digest.md) → `raw/` + `digest/` |
 | **dtd_raw_summary** | [dtd-raw-summary.md](dtd-raw-summary.md) → 自动 digest → `raw/` + `digest/` |
 | **dtd_distill_dialogue** | 输入 raw 路径或 index id，仅 P2 对话体 distilled |
 | **dtd_distill_compose** | 输入 raw；无 diagnose 则先 P1，再 P2-compose |
@@ -33,7 +33,7 @@
 
 ## digest 链式步骤（`dtd_raw_dialogue` / `dtd_raw_summary` 共用）
 
-以 P0 落盘后的 `{archive_root}/raw/<COMMON_PATH>` 为 **RAW**，加载 [../../shared/archive-digest.md](../../shared/archive-digest.md)（[AD-0] 不满足则跳过）。
+以 P0 落盘后的 `{archive_root}/raw/<COMMON_PATH>` 为 **RAW**，加载 [../../shared/digest/archive-digest.md](../../shared/digest/archive-digest.md)（[AD-0] 不满足则跳过）。
 
 ---
 
@@ -103,7 +103,7 @@
 
 解析 raw；P1（[ddm-p1-diagnose.md](ddm-p1-diagnose.md)）→ P3（[ddm-p3-trace.md](ddm-p3-trace.md)）。不执行 digest。
 
-完成汇总不含 digest 补跑提示；digest 由 `dtd_raw_*` / theme-line 自动生成，或见 [shared/archive-digest.md](../../shared/archive-digest.md) 补跑节。
+完成汇总不含 digest 补跑提示；digest 由 `dtd_raw_*` / theme-line 自动生成，或见 [shared/archive-digest.md](../../shared/digest/archive-digest.md) 补跑节。
 
 ---
 

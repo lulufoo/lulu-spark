@@ -23,12 +23,18 @@ argument-hint: 'dtd_raw_dialogue | dtd_raw_summary | dtd_distill_dialogue | dtd_
 
 | 参数 | 模式 | 说明 |
 |------|------|------|
-| `dtd_raw_dialogue` | 对话归一化 + digest | [dtd-raw-dialogue.md](references/dtd-raw-dialogue.md) → [shared/archive-digest.md](../shared/archive-digest.md) |
+| `dtd_raw_dialogue` | 对话归一化 + digest | [dtd-raw-dialogue.md](references/dtd-raw-dialogue.md) → [shared/digest/archive-digest.md](../shared/digest/archive-digest.md) |
 | `dtd_raw_summary` | 总结归档 + digest | [dtd-raw-summary.md](references/dtd-raw-summary.md) → shared digest |
 | `dtd_distill_dialogue` | 对话体 distilled | [ddm-p2-generate.md](references/ddm-p2-generate.md) |
 | `dtd_distill_compose` | 合成文档 | P1 + [ddm-p2-compose.md](references/ddm-p2-compose.md) |
 | `dtd_distill_topic` | 子话题 distilled | [ddm-p2-topic.md](references/ddm-p2-topic.md) |
 | `dtd_trace` | 诊断 + 轨迹 | P1 + [ddm-p3-trace.md](references/ddm-p3-trace.md) |
+| ~~`dtd_trace_digest`~~ | 已废弃 | 等同 `dtd_trace` |
+| ~~`dtd_normalize`~~ | 已废弃 | 等同 `dtd_raw_dialogue` |
+| ~~`dtd_archive_summary`~~ | 已废弃 | 等同 `dtd_raw_summary` |
+| ~~`dtd_distill_overview`~~ | 已废弃 | 等同 `dtd_distill_topic` |
+
+参数缺省或不明确时，询问用户选择模式。
 
 ## 参考文件
 
@@ -41,6 +47,6 @@ argument-hint: 'dtd_raw_dialogue | dtd_raw_summary | dtd_distill_dialogue | dtd_
 - [references/ddm-p2-topic.md](references/ddm-p2-topic.md)
 - [references/ddm-p3-trace.md](references/ddm-p3-trace.md)
 - [../shared/archive-concepts.md](../shared/archive-concepts.md)
-- [../shared/archive-digest.md](../shared/archive-digest.md)
+- [../shared/digest/archive-digest.md](../shared/digest/archive-digest.md)
 
 > 命令速查：`dtd_raw_dialogue` / `dtd_raw_summary` 归档并自动 digest · `dtd_distill_dialogue` · `dtd_distill_compose` · `dtd_distill_topic` · `dtd_trace`
