@@ -23,12 +23,12 @@ argument-hint: 'dtd_raw_dialogue | dtd_raw_summary | dtd_distill_dialogue | dtd_
 
 | 参数 | 模式 | 说明 |
 |------|------|------|
-| `dtd_raw_dialogue` | 对话归一化 + digest | [dtd-raw-dialogue.md](references/dtd-raw-dialogue.md) → [shared/digest/archive-digest.md](../shared/digest/archive-digest.md) |
-| `dtd_raw_summary` | 总结归档 + digest | [dtd-raw-summary.md](references/dtd-raw-summary.md) → [shared/digest/archive-digest.md] |
+| `dtd_raw_dialogue` | 对话归一化 + digest | [dtd-raw-dialogue.md](references/dtd-raw-dialogue.md) → [archive-digest.md](../shared/digest/archive-digest.md) |
+| `dtd_raw_summary` | 总结归档 + digest | [dtd-raw-summary.md](references/dtd-raw-summary.md) → [archive-digest.md](../shared/digest/archive-digest.md) |
 | `dtd_distill_dialogue` | 对话体 distilled | [dtd_distill_dialogue.md](references/dtd_distill_dialogue.md) |
-| `dtd_distill_compose` | 合成文档 | P1 + [dtd_distill_compose.md](references/dtd_distill_compose.md) |
+| `dtd_distill_compose` | 合成文档 | [ddm-diagnose](./ddm-diagnose.md) + [dtd_distill_compose.md](references/dtd_distill_compose.md) |
 | `dtd_distill_topic` | 子话题 distilled | [dtd_distill_topic.md](references/dtd_distill_topic.md) |
-| `dtd_trace` | 诊断 + 轨迹 | P1 + [ddm-p3-trace.md](references/ddm-p3-trace.md) |
+| `dtd_trace` | 诊断 + 轨迹 | [ddm-diagnose](./ddm-diagnose.md) + [ddm-p3-trace.md](references/ddm-p3-trace.md) |
 
 参数缺省或不明确时，询问用户选择模式。
 
