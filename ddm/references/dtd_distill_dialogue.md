@@ -1,4 +1,4 @@
-# DDM Phase 2：生成
+# DDM Distill：生成
 
 > **配置参考**：[ddm-concepts.md](ddm-concepts.md)（路径符号定义）
 >
