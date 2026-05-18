@@ -1,6 +1,6 @@
 # Android bindService 的绑定链路、生命周期与死亡通知机制 — 要点摘要
 
-> **导航**：[distilled](../../../distilled/android-dev-docs/binder-lifecycle-death-notification-mechanism/202604231831-3-bindling-lifecycle-and-death-notification-mechanism.md)
+> **导航**：[raw](../../../raw/android-dev-docs/binder-lifecycle-death-notification-mechanism/202604231831-3-bindling-lifecycle-and-death-notification-mechanism.md)
 
 
 ## 要点

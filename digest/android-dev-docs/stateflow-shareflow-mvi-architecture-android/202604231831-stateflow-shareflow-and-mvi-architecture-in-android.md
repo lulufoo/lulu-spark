@@ -1,6 +1,6 @@
 # Android MVI 架构中 StateFlow、SharedFlow 与数据层设计 — 摘要
 
-> **导航**：[distilled](../../../distilled/android-dev-docs/stateflow-shareflow-mvi-architecture-android/202604231831-stateflow-shareflow-and-mvi-architecture-in-android.md)
+> **导航**：[raw](../../../raw/android-dev-docs/stateflow-shareflow-mvi-architecture-android/202604231831-stateflow-shareflow-and-mvi-architecture-in-android.md)
 
 
 ## 概述

@@ -1,6 +1,6 @@
 # Android 分区结构与隔离机制的完整链条 — 摘要
 
-> **导航**：[distilled](../../../distilled/android-dev-docs/android-partition-isolation-mechanism-chain/202604231831-android-partition-isolation-mechanism-complete-chain.md)
+> **导航**：[raw](../../../raw/android-dev-docs/android-partition-isolation-mechanism-chain/202604231831-android-partition-isolation-mechanism-complete-chain.md)
 
 
 ## 概述

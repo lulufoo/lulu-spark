@@ -1,6 +1,6 @@
 # 从一次错误的 CAS 实现出发，直到乐观并发 — 要点摘要
 
-> **导航**：[distilled](../../../distilled/common-tech/java-cas-optimistic-concurrency/202604240037-java-cas-optimistic-concurrency.md)
+> **导航**：[raw](../../../raw/common-tech/java-cas-optimistic-concurrency/202604240037-java-cas-optimistic-concurrency.md)
 
 
 ## 要点

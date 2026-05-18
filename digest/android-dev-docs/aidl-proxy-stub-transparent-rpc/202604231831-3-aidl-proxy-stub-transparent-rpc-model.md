@@ -1,6 +1,6 @@
 # AIDL Proxy-Stub 透明 RPC 模型 — 要点摘要
 
-> **导航**：[distilled](../../../distilled/android-dev-docs/aidl-proxy-stub-transparent-rpc/202604231831-3-aidl-proxy-stub-transparent-rpc-model.md)
+> **导航**：[raw](../../../raw/android-dev-docs/aidl-proxy-stub-transparent-rpc/202604231831-3-aidl-proxy-stub-transparent-rpc-model.md)
 
 
 ## 要点

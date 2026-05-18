@@ -1,6 +1,6 @@
 # Domain Portrait 模型架构分析 — 摘要
 
-> **导航**：[distilled](../../../distilled/ai-thinking-framework/domain-portrait-model-architecture-analysis/202604231419-domain-portrait-model-architecture-analysis.md)
+> **导航**：[raw](../../../raw/ai-thinking-framework/domain-portrait-model-architecture-analysis/202604231419-domain-portrait-model-architecture-analysis.md)
 
 
 ## 概述

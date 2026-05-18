@@ -1,6 +1,6 @@
 # Android Parcel 与 Binder IPC 内部机制 — 摘要
 
-> **导航**：[distilled](../../../distilled/android-dev-docs/android-parcel-binder-ipc-internals/202604231831-android-parcel-and-binder-ipc-internals.md)
+> **导航**：[raw](../../../raw/android-dev-docs/android-parcel-binder-ipc-internals/202604231831-android-parcel-and-binder-ipc-internals.md)
 
 
 ## 概述

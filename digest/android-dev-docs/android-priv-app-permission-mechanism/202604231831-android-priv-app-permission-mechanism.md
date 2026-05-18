@@ -1,6 +1,6 @@
 # Android priv-app 特权权限机制 — 摘要
 
-> **导航**：[distilled](../../../distilled/android-dev-docs/android-priv-app-permission-mechanism/202604231831-android-priv-app-permission-mechanism.md)
+> **导航**：[raw](../../../raw/android-dev-docs/android-priv-app-permission-mechanism/202604231831-android-priv-app-permission-mechanism.md)
 
 
 ## 概述

@@ -1,6 +1,6 @@
 # Transformer Attention 机制的完整运作链 — 要点摘要
 
-> **导航**：[distilled](../../../distilled/ai/transformer-attention-mechanism-complete-chain/202604231831-transformer-attention-mechanism-complete-chain.md)
+> **导航**：[raw](../../../raw/ai/transformer-attention-mechanism-complete-chain/202604231831-transformer-attention-mechanism-complete-chain.md)
 
 
 ## 要点
