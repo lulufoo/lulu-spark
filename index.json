@@ -870,6 +870,16 @@
         "raw",
         "distilled"
       ]
+    },
+    "b7bb05376eeb391ec36776fc87d0edc3": {
+      "common_path": "learning-ai-llm/dario-amodei-wsj-davos-2026/202605180903-watch-anthropic-ceo-dario-amodei-wef-wsj.md",
+      "created_at": "202605180903",
+      "layers": [
+        "raw"
+      ],
+      "translations": {
+        "zh": "learning-ai-llm/dario-amodei-wsj-davos-2026/202605180903-watch-anthropic-ceo-dario-amodei-wef-wsj-zh.md"
+      }
     }
   }
 }
