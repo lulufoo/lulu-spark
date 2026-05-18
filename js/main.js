@@ -486,13 +486,22 @@ const _SKILLS_CONTENT = {
     groups: [
       {
         name: 'DDM',
-        url: 'https://github.com/lulufoo/lulu-workbench/tree/main/skills/ddm',
-        items: ['dtd_normalize', 'dtd_distill_dialogue', 'dtd_distill_compose', 'dtd_distill_overview', 'dtd_trace_digest']
+        url: 'https://github.com/lulufoo/lulu-workbench-skills/tree/main/ddm/ddm',
+        items: [
+          { cmd: 'dtd_normalize', name: '对话规范化', desc: 'P0：对话写入 raw/ 并更新 index.json' },
+          { cmd: 'dtd_archive_summary', name: '总结归档', desc: '总结 Markdown → raw/（summary，不自动 distilled）' },
+          { cmd: 'dtd_distill_dialogue', name: '蒸馏（对话体）', desc: 'raw 路径或 index id，仅 P2' },
+          { cmd: 'dtd_distill_compose', name: '蒸馏（合成文档）', desc: '无 diagnose 则先 P1 再 P2-compose' },
+          { cmd: 'dtd_distill_overview', name: '蒸馏（概要）', desc: '按子话题归组 + Turn 范围' },
+          { cmd: 'dtd_trace_digest', name: '轨迹与摘要', desc: 'P1→P3→P4（不含 P2）' }
+        ]
       },
       {
         name: 'ThemeLine',
-        url: 'https://github.com/lulufoo/lulu-workbench/tree/main/skills/theme-line',
-        items: ['theme-line']
+        url: 'https://github.com/lulufoo/lulu-workbench-skills/tree/main/theme-line/theme-line',
+        items: [
+          { cmd: 'theme-line', name: '主题线整理', desc: '视频/访谈 transcript 按主题重组为时间线大纲' }
+        ]
       }
     ]
   },
