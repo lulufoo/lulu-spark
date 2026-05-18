@@ -7,7 +7,7 @@ description: Restructure a video transcript, interview, podcast, talk, or speech
 
 > **Read this file in full before executing.** This skill has 2 mandatory phases:
 > 1. **ThemeLine Generation** (§ Core Output Shape → § Recommended Workflow)
-> 2. **Save to Archive Steps 1–8** (§ Save to Archive)
+> 2. **Save to Archive Steps 1–9** (§ Save to Archive) — Step 9 (Archive digest) is required and must not be skipped.
 >
 > Both phases are required. Neither may be skipped.
 
@@ -92,7 +92,7 @@ Remove obvious ASR duplication and silently fix trivial recognition errors when 
 4. Name each section by theme.
 5. Reconstruct the conversation flow inside each section by speaker.
 6. Present time as a secondary line under each theme.
-7. Execute Save to Archive (Steps 1–8, see § Save to Archive below).
+7. Execute Save to Archive (Steps 1–9, see § Save to Archive below).
 
 ## Save to Archive
 
@@ -234,34 +234,19 @@ Create the directory if it does not exist.
 🗂 index.json 已更新（新增条目 <id>）
 ```
 
-### Step 9 · Archive digest（自动）
+### Step 9 · Archive digest (auto)
 
-以 Step 7 的主 raw 文件 `{archive_root}/raw/<topic-path>/<ts>-<slug>.md` 为 **RAW**（不对 `-zh.md` 单独生成），加载 [../shared/digest/archive-digest.md](../shared/digest/archive-digest.md)，执行 [AD-0]–[AD-4]（不满足则跳过）。
+Use the primary raw file from Step 7 — `{archive_root}/raw/<topic-path>/<ts>-<slug>.md` — as **RAW**. Do not run digest separately on the `-zh.md` file.
 
-完成后在汇总中追加：
+Load [../shared/archive-digest.md](../shared/archive-digest.md) and execute [AD-0]–[AD-4]. Skip if the conditions in [AD-0] are not met.
+
+Append to the completion output:
 
 ```
-📋 digest：digest/<topic-path>/<ts>-<slug>.md（或「已跳过」）
+📋 digest: digest/<topic-path>/<ts>-<slug>.md  (or "skipped")
 ```
-
-- Fidelity: transcript-like paraphrase unless the user explicitly asks for summary only
 
 ---
-
-## Behavioral Guardrails
-
-Follow these rules across platforms:
-
-1. Prefer the original source title when it can be verified.
-2. Organize sections by theme in chronological order.
-3. Keep timestamps on a secondary line unless the user explicitly asks for time-first formatting.
-4. Expand each section by speaker turn.
-5. Use explicit speaker labels when available; otherwise infer them conservatively from context.
-6. Keep speaker labels consistent across the whole output.
-7. If the user wants a summary, compress more aggressively.
-8. If the user wants transcript-like output, use dialogue-style paraphrase with short, faithful turns.
-9. Remove obvious ASR duplication and silently fix trivial recognition mistakes when the intent is clear.
-10. If the source is copyrighted and the user did not provide the full transcript, do not output a full or near-complete verbatim transcript.
 
 ## Ask Only When Necessary
 
@@ -275,53 +260,6 @@ Assume the following defaults:
 - Time display: secondary
 - Speaker style: `Host` plus named guest when identifiable
 
-## Default Formatting
-
-Use this style by default:
-
-```md
-# Original Video Title
-
-Source: [Video](https://example.com)
-
-## Feeling Behind as a Programmer
-Time: 00:47 - 02:23
-
-Host: ...
-
-Andrej Karpathy: ...
-```
-
-Keep each speaker turn compact unless the user asks for a fuller version.
-
-## Portable Use
-
-This file is the primary cross-platform spec for ThemeLine.
-
-If another agent framework does not support Codex skills directly, use this document as the main instruction source and pair it with the input contract below.
-
-Recommended input fields:
-
-- `source_url` or `transcript_text`
-- `preferred_title`
-- `host_name`
-- `guest_names`
-- `output_language`
-- `fidelity_mode`
-
-Minimal portable invocation pattern:
-
-```text
-Restructure this source into a theme-first transcript document.
-Use the source title if available.
-Keep timestamps secondary.
-Organize sections chronologically by topic.
-Expand each section by speaker.
-If verbatim transcript reproduction is restricted, use faithful dialogue-style paraphrase.
-```
-
 ## References
 
 For output patterns and wording conventions, see [references/output-templates.md](references/output-templates.md).
-
-<!-- END OF SKILL: theme-line — all steps above are mandatory -->

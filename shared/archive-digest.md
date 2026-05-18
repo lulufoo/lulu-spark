@@ -1,6 +1,6 @@
 # Archive Digest — 主题摘要
 
-> **配置参考**：[archive-concepts.md](../archive-concepts.md)
+> **配置参考**：[archive-concepts.md](archive-concepts.md)
 >
 > **输入**：`RAW`（`raw/<COMMON_PATH>`，必须存在）；`<topic-path>`、`<ts>`、`<slug>` 由 raw 路径解析。
 >
@@ -39,7 +39,7 @@ digest 是可选产出。以下任意一项满足即生成：
 [一段话：本对话/总结/稿围绕什么主题、讨论或收敛到什么落点；仅依据 raw，不展开章节、不列概念表。]
 ```
 
-**导航行（条件追加）**：读取 `index.json` 对应条目 `layers`；含 `distilled` / `trace` 时追加链接。前缀 `<prefix>` 见 [archive-concepts.md](../archive-concepts.md)。
+**导航行（条件追加）**：读取 `index.json` 对应条目 `layers`；含 `distilled` / `trace` 时追加链接。前缀 `<prefix>` 见 [archive-concepts.md](archive-concepts.md)。
 
 ---
 

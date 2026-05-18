@@ -39,4 +39,4 @@ git clone https://github.com/lulufoo/lulu-workbench-skills.git lulu-workbench-sk
 
 触发任一子 skill 时，AI 首步读取 `archive_root`；确认输出路径与 `config.json` 中的值一致即可。
 
-共享规范：[shared/README.md](shared/README.md)（[archive-concepts](shared/archive-concepts.md)、[digest](shared/digest/archive-digest.md)）。
+共享规范：[archive-concepts](shared/archive-concepts.md)、[archive-digest](shared/archive-digest.md)。

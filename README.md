@@ -14,7 +14,7 @@
 | 对话蒸馏（DDM） | `ddm` | [ddm](ddm/) | `dtd_raw_*` 写 raw 并自动 digest；`dtd_distill_*` / `dtd_trace` |
 | 主题时间线稿 | `theme-line` | [theme-line](theme-line/) | 音视频稿 → `raw/`，自动 digest |
 
-共享规范：[shared/](shared/)（[archive-concepts](shared/archive-concepts.md)、[digest](shared/digest/archive-digest.md)）。
+共享规范：[shared/](shared/)（[archive-concepts](shared/archive-concepts.md)、[archive-digest](shared/archive-digest.md)）。
 
 ---
 
@@ -22,7 +22,7 @@
 
 - 仓库根 `config.json`：`archive_root` 单例
 - 子 skill 各自 `SKILL.md` + `references/`；读配置用 `{skill_dir}/../config.json`
-- `shared/`：跨 skill 规范；`shared/digest/` 等为各层子目录，后续可增其它层
+- `shared/`：跨 skill 规范（`archive-concepts.md`、`archive-digest.md`）
 
 ---
 

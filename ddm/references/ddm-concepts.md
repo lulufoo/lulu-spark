@@ -8,7 +8,7 @@
 
 **对话蒸馏模型（DDM）** 把对话与总结转为可复用 archive 文档。
 
-- **P0 raw**：`dtd_raw_dialogue` / `dtd_raw_summary` → 落盘 `raw/` 后 **自动 digest**（[shared/digest/archive-digest.md](../../shared/digest/archive-digest.md)）
+- **P0 raw**：`dtd_raw_dialogue` / `dtd_raw_summary` → 落盘 `raw/` 后 **自动 digest**（[shared/archive-digest.md](../../shared/archive-digest.md)）
 - **P1–P3**：诊断、distilled、认知轨迹，与 digest 无数据依赖
 - **配置**：仓库根 [config.json](../../config.json) 单例
 
@@ -18,17 +18,17 @@
 
 | 标识 | 文件名 | 角色 |
 |------|--------|------|
-| `DDM_ENTRY` | `../SKILL.md` | 执行入口 |
+| `DDM_ENTRY` | `dialogue-to-doc.md` | 执行入口 |
 | `DDM_CONCEPTS` | `ddm-concepts.md` | 本文 |
 | `ARCHIVE_CONCEPTS` | `../shared/archive-concepts.md` | archive 路径与 config |
-| `ARCHIVE_DIGEST` | `../shared/digest/archive-digest.md` | digest 规范 |
+| `ARCHIVE_DIGEST` | `../shared/archive-digest.md` | digest 规范 |
 | `DTD_RAW_DIALOGUE` | `dtd-raw-dialogue.md` | `dtd_raw_dialogue` |
 | `DTD_RAW_SUMMARY` | `dtd-raw-summary.md` | `dtd_raw_summary` |
-| `DDM_P1` | `ddm-p1-diagnose.md` | `dtd_trace`（P1） |
-| `DDM_P2_GEN` | `ddm-p2-generate.md` | `dtd_distill_dialogue` |
-| `DDM_P2_COM` | `ddm-p2-compose.md` | `dtd_distill_compose` |
-| `DDM_P2_TOPIC` | `ddm-p2-topic.md` | `dtd_distill_topic` |
-| `DDM_P3` | `ddm-p3-trace.md` | `dtd_trace`（P3） |
+| `DDM_DIAGNOSE` | `ddm-diagnose.md` | `dtd_trace` / `dtd_distill_compose`（P1） |
+| `DTD_DISTILL_DIALOGUE` | `dtd_distill_dialogue.md` | `dtd_distill_dialogue` |
+| `DTD_DISTILL_COMPOSE` | `dtd_distill_compose.md` | `dtd_distill_compose` |
+| `DTD_DISTILL_TOPIC` | `dtd_distill_topic.md` | `dtd_distill_topic` |
+| `DDM_TRACE` | `ddm-trace.md` | `dtd_trace`（P3） |
 
 ---
 
