@@ -1,4 +1,4 @@
-# dtd_distill_topic — 子话题 distilled 执行手册
+# DDM Distill：子话题模式
 
 > **配置参考**：[ddm-concepts.md](ddm-concepts.md)（路径符号定义）
 >
