@@ -2,12 +2,31 @@
 
 Use one of these templates depending on the user's ask.
 
+## Archive Header (Save to Archive)
+
+All archived `raw/` files use this header block (navigation paths resolved per skill Step 3):
+
+```md
+# {Document Title}
+
+> 创建时间：{YYYY年M月D日 HH:MM}
+
+> 时长：约 {duration_min} 分钟 · 发布：{YYYY-MM-DD}
+
+> 导航：[distilled](...) · [digest](...) · [trace](...)
+
+> 原文：[Video]({url})
+```
+
+- **时长** / **发布**: fetch via `yt-dlp` for video URLs; omit 时长 line for non-video sources.
+- **`-zh.md`**: same metadata lines; Chinese title e.g. `{Speaker}：{Event} | {Outlet}`.
+
 ## Default Theme-First Format
+
+Body only (metadata lives in archive header, not `Source:` line):
 
 ```md
 # {Original Video Title}
-
-Source: [Video]({url})
 
 ## {Theme}
 Time: {start} - {end}
@@ -21,8 +40,6 @@ Host: {dialogue-style paraphrase}
 
 ```md
 # {Original Video Title}
-
-Source: [Video]({url})
 
 ## {Theme}
 Time: {start} - {end}

@@ -18,7 +18,7 @@ Produce a readable transcript-derived document that emphasizes themes first and 
 Use this default structure unless the user asks for another format:
 
 1. Document title
-2. Short source line
+2. Archive metadata lines (创建时间, 时长, 发布)
 3. Theme-first sections in timeline order
 4. Speaker-separated blocks inside each section
 
@@ -42,6 +42,29 @@ When the source is a video URL, fetch or infer the original video title from the
 If the exact title cannot be confirmed, use the best available source title and say that it was inferred.
 
 If the user provides a custom title, prefer the user's title.
+
+For the Chinese translation file (`-zh.md`), prefer a concise Chinese title (speaker + event + outlet), e.g. `Anthropic CEO Dario Amodei：世界经济论坛 | 华尔街日报`.
+
+## Video Metadata
+
+When the source is a video URL (YouTube, etc.), fetch duration and publish date before writing the archive header:
+
+```bash
+python3 -m yt_dlp --print "%(duration)s" --print "%(upload_date)s" --no-download "{url}"
+```
+
+| Field | Rule |
+|-------|------|
+| **时长** | `duration` in seconds → round to nearest minute → `约 {N} 分钟` |
+| **发布** | `upload_date` (`YYYYMMDD`) → `YYYY-MM-DD`; if unavailable, omit or note `(inferred)` |
+
+Place on its own line immediately after `创建时间`:
+
+```markdown
+> 时长：约 36 分钟 · 发布：2025-01-21
+```
+
+Omit the 时长 line only for non-video sources (plain text transcript, local file) where duration is unknown.
 
 ## Sectioning Rules
 
@@ -87,12 +110,13 @@ Remove obvious ASR duplication and silently fix trivial recognition errors when 
 ## Recommended Workflow
 
 1. Identify the source and available title.
-2. Determine whether the transcript is speaker-labeled, partially labeled, or unlabeled.
-3. Break the timeline into coherent topic sections.
-4. Name each section by theme.
-5. Reconstruct the conversation flow inside each section by speaker.
-6. Present time as a secondary line under each theme.
-7. Execute Save to Archive (Steps 1–9, see § Save to Archive below).
+2. For video URLs, fetch duration and `upload_date` (see § Video Metadata).
+3. Determine whether the transcript is speaker-labeled, partially labeled, or unlabeled.
+4. Break the timeline into coherent topic sections.
+5. Name each section by theme.
+6. Reconstruct the conversation flow inside each section by speaker.
+7. Present time as a secondary line under each theme.
+8. Execute Save to Archive (Steps 1–9, see § Save to Archive below).
 
 ## Save to Archive
 
@@ -140,12 +164,16 @@ Compose the source `.md` with this header, then the ThemeLine body:
 
 > 创建时间：{YYYY年M月D日 HH:MM}
 
+> 时长：约 {duration_min} 分钟 · 发布：{YYYY-MM-DD}
+
 > 导航：[distilled]({prefix}distilled/{COMMON_PATH}) · [digest]({prefix}digest/{COMMON_PATH}) · [trace]({prefix}trace/{COMMON_PATH})
 
 > 原文：[Video]({source_url})
 
 {ThemeLine body (no Source: line)}
 ```
+
+`时长` / `发布` come from § Video Metadata. For non-video sources, omit the 时长 line.
 
 Where:
 
@@ -169,12 +197,16 @@ Compose the translation `.md`:
 
 > 创建时间：{YYYY年M月D日 HH:MM}
 
+> 时长：约 {duration_min} 分钟 · 发布：{YYYY-MM-DD}
+
 > 导航：[distilled]({prefix}distilled/<topic-path>/{ts}-{slug}.md) · [digest]({prefix}digest/<topic-path>/{ts}-{slug}.md) · [trace]({prefix}trace/<topic-path>/{ts}-{slug}.md)
 
 > 原文：[Video]({source_url})
 
 {Translated ThemeLine body}
 ```
+
+Use the same `时长` / `发布` as the English source file.
 
 Translation file path: `raw/<topic-path>/<ts>-<slug>-zh.md`
 
