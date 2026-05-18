@@ -65,17 +65,21 @@ argument-hint: 'dtd_raw_dialogue | dtd_raw_summary | dtd_distill_dialogue | dtd_
 ## dtd_distill_dialogue 模式
 
 **Step 1**: 解析 raw 路径（或 index id → common_path）；
+
 **Step 2**: 加载 [dtd_distill_dialogue.md](references/dtd_distill_dialogue.md) 执行；
 
 ## dtd_distill_compose 模式
 
 **Step 1**: 解析 raw；
+
 **Step 2**: 检测 diagnose，无diagnose文件，则先加载 [ddm-diagnose](./ddm-diagnose.md) 执行；
+
 **Step 3**: 加载 [dtd_distill_compose.md](references/dtd_distill_compose.md) 执行；
 
 ## dtd_distill_topic 模式
 
 **Step 1**: 解析 raw；
+
 **Step 2**: 加载 [dtd_distill_topic.md](references/dtd_distill_topic.md)，按规则落盘 distilled；
 
 完成汇总：
@@ -88,5 +92,7 @@ argument-hint: 'dtd_raw_dialogue | dtd_raw_summary | dtd_distill_dialogue | dtd_
 ## dtd_trace 模式
 
 **Step 1**: 解析 raw；
+
 **Step 2**: 检测 diagnose，无diagnose文件，则先加载 [ddm-diagnose](./ddm-diagnose.md) 执行；
+
 **Step 3**: 加载 [ddm-p3-trace.md](references/ddm-p3-trace.md) 执行；
