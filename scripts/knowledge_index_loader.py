@@ -8,6 +8,7 @@ from typing import Any
 
 DEFAULT_OWNER = "lulufoo"
 INDEX_REL = Path(".cache") / "knowledge-index.json"
+TOPICS_REL = Path(".cache") / "topics.json"
 
 
 def load_knowledge_index(path: Path) -> list[dict[str, Any]]:
@@ -72,3 +73,22 @@ def knowledge_index_path(repo_root: Path | None = None) -> Path:
     if not out.is_file():
         raise FileNotFoundError("knowledge-index.json not found")
     return out
+
+
+def topics_path(repo_root: Path | None = None) -> Path:
+    """Resolve derived topics.json under .cache/."""
+    root = (repo_root or Path(__file__).resolve().parent.parent).resolve()
+    return root / TOPICS_REL
+
+
+def load_topics(repo_root: Path | None = None) -> dict[str, Any]:
+    """Load topics.json; migrate from repo root if present."""
+    root = (repo_root or Path(__file__).resolve().parent.parent).resolve()
+    path = topics_path(root)
+    legacy = root / "topics.json"
+    if not path.is_file() and legacy.is_file():
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(legacy.read_bytes())
+    if not path.is_file():
+        raise FileNotFoundError("topics.json not found")
+    return json.loads(path.read_text(encoding="utf-8"))

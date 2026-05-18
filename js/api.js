@@ -245,9 +245,10 @@ export async function updateHighlight(commonPath, layer, highlight, ts) {
 }
 
 export async function fetchTopics() {
-  const res = await fetch('./topics.json?_=' + Date.now());
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.json();
+  const res = await fetch('/api/topics?_=' + Date.now());
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+  return data;
 }
 
 export async function fetchKnowledgeIndex(force = false) {

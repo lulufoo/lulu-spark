@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import http.server
+import subprocess
 import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 _REPO = Path(__file__).resolve().parent.parent
 
@@ -75,6 +77,96 @@ class TestTranslatePath(unittest.TestCase):
             self.srv['KNOWLEDGE_CORPUS_DIR'] = corpus
             result = self._handler(repo).translate_path('/index.json')
             self.assertEqual(result, str((corpus / 'index.json').resolve()))
+
+
+class TestCorpusGitRoot(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.srv = _load_server_namespace()
+
+    def test_raises_when_not_git_repo(self):
+        with tempfile.TemporaryDirectory() as corpus_tmp:
+            corpus = Path(corpus_tmp)
+            self.srv['KNOWLEDGE_CORPUS_DIR'] = corpus
+            with self.assertRaises(ValueError) as ctx:
+                self.srv['_corpus_git_root']()
+            self.assertIn('not a git repository', str(ctx.exception))
+
+    def test_returns_resolved_path_when_git_exists(self):
+        with tempfile.TemporaryDirectory() as corpus_tmp:
+            corpus = Path(corpus_tmp)
+            subprocess.run(['git', 'init'], cwd=corpus, capture_output=True, check=True)
+            self.srv['KNOWLEDGE_CORPUS_DIR'] = corpus
+            self.assertEqual(self.srv['_corpus_git_root'](), corpus.resolve())
+
+
+class TestCorpusGitHandlers(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.srv = _load_server_namespace()
+
+    def _handler(self):
+        Handler = self.srv['Handler']
+        handler = Handler.__new__(Handler)
+        handler._json_responses = []
+
+        def _json_response(data, status=200):
+            handler._json_responses.append((data, status))
+
+        handler._json_response = _json_response
+        handler._read_json = lambda: {}
+        return handler
+
+    def test_status_uses_corpus_cwd(self):
+        with tempfile.TemporaryDirectory() as repo_tmp, tempfile.TemporaryDirectory() as corpus_tmp:
+            repo = Path(repo_tmp)
+            corpus = Path(corpus_tmp)
+            subprocess.run(['git', 'init'], cwd=corpus, capture_output=True, check=True)
+
+            self.srv['REPO_ROOT'] = repo
+            self.srv['KNOWLEDGE_CORPUS_DIR'] = corpus
+            captured: list[str | None] = []
+
+            def fake_run(cmd, **kwargs):
+                captured.append(kwargs.get('cwd'))
+                return subprocess.CompletedProcess(cmd, 0, stdout='', stderr='')
+
+            handler = self._handler()
+            with mock.patch('subprocess.run', side_effect=fake_run):
+                handler._handle_status()
+
+            self.assertTrue(handler._json_responses)
+            self.assertEqual(captured[0], str(corpus.resolve()))
+            self.assertEqual(captured[1], str(corpus.resolve()))
+
+    def test_pull_uses_corpus_cwd(self):
+        with tempfile.TemporaryDirectory() as repo_tmp, tempfile.TemporaryDirectory() as corpus_tmp:
+            repo = Path(repo_tmp)
+            corpus = Path(corpus_tmp)
+            subprocess.run(['git', 'init'], cwd=corpus, capture_output=True, check=True)
+
+            self.srv['REPO_ROOT'] = repo
+            self.srv['KNOWLEDGE_CORPUS_DIR'] = corpus
+            captured: list[str | None] = []
+
+            def fake_run(cmd, **kwargs):
+                captured.append(kwargs.get('cwd'))
+                return subprocess.CompletedProcess(cmd, 0, stdout='Already up to date.', stderr='')
+
+            handler = self._handler()
+            with mock.patch('subprocess.run', side_effect=fake_run):
+                handler._handle_pull()
+
+            self.assertEqual(len(captured), 1)
+            self.assertEqual(captured[0], str(corpus.resolve()))
+
+    def test_status_errors_when_corpus_not_git(self):
+        with tempfile.TemporaryDirectory() as corpus_tmp:
+            self.srv['KNOWLEDGE_CORPUS_DIR'] = Path(corpus_tmp)
+            handler = self._handler()
+            handler._handle_status()
+            self.assertEqual(handler._json_responses[0][1], 400)
+            self.assertIn('not a git repository', handler._json_responses[0][0]['error'])
 
 
 if __name__ == '__main__':

@@ -22,7 +22,7 @@ CACHE_DIR = REPO_ROOT / '.cache'
 ENV_FILE  = REPO_ROOT / 'meili.env'
 META_FILE = CACHE_DIR / 'meili-meta.json'
 COMMIT_CACHE_FILE = CACHE_DIR / 'repo-commits.json'
-TOPICS_FILE = REPO_ROOT / 'topics.json'
+TOPICS_FILE = CACHE_DIR / 'topics.json'
 
 MEILI_URL = 'http://localhost:7700'
 MEILI_KEY = ''

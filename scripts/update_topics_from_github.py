@@ -19,7 +19,7 @@ from typing import Any
 
 _SCRIPT_DIR = Path(__file__).resolve().parent
 REPO_ROOT = _SCRIPT_DIR.parent
-DEFAULT_TOPICS = REPO_ROOT / "topics.json"
+DEFAULT_TOPICS = REPO_ROOT / ".cache" / "topics.json"
 DEFAULT_INDEX = REPO_ROOT / ".cache" / "knowledge-index.json"
 
 if str(_SCRIPT_DIR) not in sys.path:
@@ -90,6 +90,7 @@ def run(out_path: str, index_path: str) -> int:
         "defaultBranch": default_branch_hint,
         "topics": topics_list,
     }
+    out.parent.mkdir(parents=True, exist_ok=True)
     with open(out, "w", encoding="utf-8") as f:
         json.dump(doc, f, ensure_ascii=False, indent=2)
         f.write("\n")

@@ -27,13 +27,18 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).parent.resolve()
 CACHE_DIR = REPO_ROOT / '.cache'
 REPO_LIST_CACHE_FILE = CACHE_DIR / 'repo-list.json'
+TOPICS_CACHE_FILE = CACHE_DIR / 'topics.json'
 EDITABLE_LAYERS = {'raw', 'distilled', 'digest', 'trace'}
 PORT = 8765
 
 _SCRIPTS = REPO_ROOT / 'scripts'
 if str(_SCRIPTS) not in sys.path:
     sys.path.insert(0, str(_SCRIPTS))
-from knowledge_index_loader import knowledge_index_path, load_knowledge_index  # noqa: E402
+from knowledge_index_loader import (  # noqa: E402
+    knowledge_index_path,
+    load_knowledge_index,
+    load_topics,
+)
 
 # ── Meilisearch config ────────────────────────────────────────────────────────
 MEILI_URL = 'http://localhost:7700'
@@ -67,6 +72,15 @@ def _load_meili_config():
 _load_meili_config()
 if not KNOWLEDGE_CORPUS_DIR.exists():
     print(f'Warning: KNOWLEDGE_CORPUS_DIR does not exist: {KNOWLEDGE_CORPUS_DIR}')
+
+
+def _corpus_git_root() -> Path:
+    """Git working tree for sync menu (commit / pull / status)."""
+    root = KNOWLEDGE_CORPUS_DIR.resolve()
+    if not (root / '.git').exists():
+        raise ValueError(f'corpus is not a git repository: {root}')
+    return root
+
 
 # ── Meilisearch state ─────────────────────────────────────────────────────────
 _reindex_job    = {'status': 'idle', 'started_at': None, 'finished_at': None, 'log': ''}
@@ -222,6 +236,8 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             qs = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
             force = qs.get('force', [''])[0] in ('1', 'true', 'yes')
             self._handle_knowledge_index(force=force)
+        elif parsed_path == '/api/topics':
+            self._handle_topics()
         elif parsed_path == '/api/repo-list':
             self._handle_repo_list()
         elif parsed_path == '/api/search-knowledge':
@@ -318,12 +334,18 @@ class Handler(http.server.SimpleHTTPRequestHandler):
 
     def _handle_commit(self):
         try:
+            try:
+                git_root = _corpus_git_root()
+            except ValueError as e:
+                self._json_response({'error': str(e)}, 400)
+                return
+
             data = self._read_json()
             message = data.get('message', '').strip() or 'update: edit via viewer'
 
             def run(cmd):
                 return subprocess.run(
-                    cmd, cwd=REPO_ROOT,
+                    cmd, cwd=str(git_root),
                     capture_output=True, text=True
                 )
 
@@ -393,9 +415,15 @@ class Handler(http.server.SimpleHTTPRequestHandler):
 
     def _handle_status(self):
         try:
+            try:
+                git_root = _corpus_git_root()
+            except ValueError as e:
+                self._json_response({'error': str(e)}, 400)
+                return
+
             result = subprocess.run(
                 ['git', 'status', '--porcelain'],
-                cwd=REPO_ROOT, capture_output=True, text=True
+                cwd=str(git_root), capture_output=True, text=True
             )
             categories = {'new': [], 'modified': [], 'deleted': [], 'renamed': [], 'conflicted': []}
             for line in result.stdout.splitlines():
@@ -430,7 +458,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             # Check local commits not yet pushed
             ahead_r = subprocess.run(
                 ['git', 'rev-list', '--count', 'HEAD...@{u}'],
-                cwd=REPO_ROOT, capture_output=True, text=True
+                cwd=str(git_root), capture_output=True, text=True
             )
             ahead = int(ahead_r.stdout.strip()) if ahead_r.returncode == 0 and ahead_r.stdout.strip().isdigit() else 0
             self._json_response({
@@ -466,6 +494,28 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             'cached_at': datetime.now(timezone.utc).isoformat(),
         })
 
+    def _handle_topics(self):
+        try:
+            topics_data = load_topics(REPO_ROOT)
+        except FileNotFoundError:
+            self._json_response({
+                'error': (
+                    'topics.json not found; run ⊙ 全量同步 or '
+                    'update_topics_from_github.py'
+                ),
+            }, 404)
+            return
+        except Exception as e:
+            self._json_response({'error': str(e)}, 500)
+            return
+        payload = dict(topics_data)
+        if TOPICS_CACHE_FILE.is_file():
+            mtime = TOPICS_CACHE_FILE.stat().st_mtime
+            payload['cached_at'] = datetime.fromtimestamp(
+                mtime, tz=timezone.utc
+            ).isoformat()
+        self._json_response(payload)
+
     def _handle_update_topics(self):
         try:
             self._read_json()  # consume body (ignored)
@@ -478,7 +528,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             cmd = [
                 sys.executable,
                 str(script),
-                '-o', str(REPO_ROOT / 'topics.json'),
+                '-o', str(TOPICS_CACHE_FILE),
                 '--index-path', str(index_path),
             ]
             print('  [update-topics] full sync from knowledge-index.json')
@@ -506,10 +556,16 @@ class Handler(http.server.SimpleHTTPRequestHandler):
 
     def _handle_pull(self):
         try:
+            try:
+                git_root = _corpus_git_root()
+            except ValueError as e:
+                self._json_response({'error': str(e)}, 400)
+                return
+
             self._read_json()  # consume body
             result = subprocess.run(
                 ['git', 'pull', '--rebase'],
-                cwd=REPO_ROOT, capture_output=True, text=True
+                cwd=str(git_root), capture_output=True, text=True
             )
             if result.returncode != 0:
                 self._json_response({
@@ -1097,8 +1153,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 return
 
             # 校验 new_project 在 topics.json 中
-            topics_path = REPO_ROOT / 'topics.json'
-            topics_data = json.loads(topics_path.read_text(encoding='utf-8'))
+            topics_data = load_topics(REPO_ROOT)
             valid_projects = set()
             for t in topics_data.get('topics', []):
                 if 'dir' in t:
@@ -1326,7 +1381,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 return
 
             # Security: only allow repos listed in topics.json
-            topics_data = json.loads((REPO_ROOT / 'topics.json').read_text(encoding='utf-8'))
+            topics_data = load_topics(REPO_ROOT)
             valid_repos = {t['repo'] for t in topics_data.get('topics', []) if 'repo' in t}
             if repo not in valid_repos:
                 self._json_response({'error': f'Unknown repo: {repo}'}, 400)
@@ -1453,7 +1508,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 return
 
             # Security: only allow repos listed in topics.json
-            topics_data = json.loads((REPO_ROOT / 'topics.json').read_text(encoding='utf-8'))
+            topics_data = load_topics(REPO_ROOT)
             valid_repos = {t['repo'] for t in topics_data.get('topics', []) if 'repo' in t}
             if repo not in valid_repos:
                 self._json_response({'error': f'Unknown repo: {repo}'}, 400)
@@ -1512,7 +1567,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
 
             # Derive target_repo from common_path's first segment
             project_dir = common_path.split('/')[0]
-            topics_data = json.loads((REPO_ROOT / 'topics.json').read_text(encoding='utf-8'))
+            topics_data = load_topics(REPO_ROOT)
             target_repo = None
             for t in topics_data.get('topics', []):
                 if 'repo' in t:
@@ -1705,7 +1760,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             def _do_reindex():
                 global _reindex_job
                 try:
-                    topics_data = json.loads((REPO_ROOT / 'topics.json').read_text(encoding='utf-8'))
+                    topics_data = load_topics(REPO_ROOT)
                     repos = [t['repo'] for t in topics_data.get('topics', []) if 'repo' in t]
 
                     # Phase D: parallel sync
@@ -2324,7 +2379,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
 
             # Verify repo is in topics.json
             try:
-                topics_data = json.loads((REPO_ROOT / 'topics.json').read_text(encoding='utf-8'))
+                topics_data = load_topics(REPO_ROOT)
                 repos_in_topics = [t['repo'] for t in topics_data.get('topics', []) if 'repo' in t]
                 if repo not in repos_in_topics:
                     self._json_response({'error': f'repo not in topics.json: {repo}'}, 404)
