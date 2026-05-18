@@ -22,7 +22,7 @@ argument-hint: 'dtd_raw_dialogue | dtd_distill_dialogue | dtd_distill_compose | 
 
 | 参数 | 模式 | 说明 |
 |------|------|------|
-| `dtd_raw_dialogue` | 对话归一化 + digest | [dtd-raw-dialogue.md](references/dtd-raw-dialogue.md) → [archive-digest.md](../shared/archive-digest.md) |
+| `dtd_raw_dialogue` | 对话归一化 + digest | [dtd-raw-dialogue.md](references/dtd-raw-dialogue.md) → [theme-digest](../theme-digest/SKILL.md) (embedded) |
 | `dtd_distill_dialogue` | 对话体 distilled | [dtd_distill_dialogue.md](references/dtd_distill_dialogue.md) |
 | `dtd_distill_compose` | 合成文档 | [ddm-diagnose.md](references/ddm-diagnose.md) → [dtd_distill_compose.md](references/dtd_distill_compose.md) |
 | `dtd_distill_topic` | 子话题 distilled | [dtd_distill_topic.md](references/dtd_distill_topic.md) |
@@ -32,7 +32,7 @@ argument-hint: 'dtd_raw_dialogue | dtd_distill_dialogue | dtd_distill_compose | 
 
 **Step 1**：加载 [dtd-raw-dialogue.md](references/dtd-raw-dialogue.md)，执行 Step 1–6。
 
-**Step 2**：加载 [archive-digest.md](../shared/archive-digest.md)，按 **digest 链式步骤** 执行。
+**Step 2**：加载并完整执行 [theme-digest/SKILL.md](../theme-digest/SKILL.md)（**Embedded**：`RAW` = `raw/<COMMON_PATH>`，从 `[AD-0]` 起）。
 
 完成汇总：
 

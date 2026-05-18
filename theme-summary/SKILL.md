@@ -125,7 +125,7 @@ Generate a 32-character lowercase hex ID using `secrets.token_hex(16)` (Python) 
   "common_path": "<topic-path>/<ts>-<slug>.md",
   "created_at": "<ts>",
   "layers": ["raw"],
-  "entry_kind": "summary"
+  "source_type": "summary"
 }
 ```
 
@@ -147,7 +147,7 @@ Create the directory if it does not exist.
 ```
 ✅ ThemeSummary 归档完成
 📄 raw：raw/<topic-path>/<ts>-<slug>.md
-🗂 index.json 已更新（entry_kind: summary）
+🗂 index.json 已更新（source_type: summary）
 ```
 
 ---
@@ -156,9 +156,9 @@ Create the directory if it does not exist.
 
 Use the raw file from Step 5 as **RAW**.
 
-Load [../shared/archive-digest.md](../shared/archive-digest.md) and execute [AD-0]–[AD-4].
+Load and execute [../theme-digest/SKILL.md](../theme-digest/SKILL.md) (**Embedded**: `RAW` from Step 5, from `[AD-0]` onward).
 
-> Note: [AD-0] condition `entry_kind = summary` lowers the threshold to raw body ≥ 200 chars.
+> Note: [AD-0] `source_type = summary` lowers the threshold to raw body ≥ 200 chars.
 > Skip only if that condition is not met.
 
 Append to the completion output:

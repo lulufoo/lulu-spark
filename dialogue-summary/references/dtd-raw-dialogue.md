@@ -89,7 +89,8 @@ AI 第一轮。
 "<32位十六进制id>": {
   "common_path": "<topic-path>/<ts>-<slug>.md",
   "created_at": "<ts>",
-  "layers": ["raw"]
+  "layers": ["raw"],
+  "source_type": "dialogue"
 }
 ```
 

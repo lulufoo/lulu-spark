@@ -226,7 +226,8 @@ Generate a 32-character lowercase hex ID using `secrets.token_hex(16)` (Python) 
 "<id>": {
   "common_path": "<topic-path>/<ts>-<slug>.md",
   "created_at": "<ts>",
-  "layers": ["raw"]
+  "layers": ["raw"],
+  "source_type": "theme-line"
 }
 ```
 
@@ -237,6 +238,7 @@ Generate a 32-character lowercase hex ID using `secrets.token_hex(16)` (Python) 
   "common_path": "<topic-path>/<ts>-<slug>.md",
   "created_at": "<ts>",
   "layers": ["raw"],
+  "source_type": "theme-line",
   "translations": {
     "zh": "<topic-path>/<ts>-<slug>-zh.md"
   }
@@ -270,7 +272,7 @@ Create the directory if it does not exist.
 
 Use the primary raw file from Step 7 — `{archive_root}/raw/<topic-path>/<ts>-<slug>.md` — as **RAW**. Do not run digest separately on the `-zh.md` file.
 
-Load [../shared/archive-digest.md](../shared/archive-digest.md) and execute [AD-0]–[AD-4]. Skip if the conditions in [AD-0] are not met.
+Load and execute [../theme-digest/SKILL.md](../theme-digest/SKILL.md) (**Embedded**: primary `RAW` only, not `-zh.md`; from `[AD-0]` onward). Skip if [AD-0] is not met.
 
 Append to the completion output:
 
