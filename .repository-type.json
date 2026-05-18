@@ -3,7 +3,8 @@
   "type": "LULU_SKILLS",
   "description": "lulu-workbench的SKILLS",
   "keywords": [
-    "ddm",
-    "theme-line"
+    "dialogue-summary",
+    "theme-line",
+    "theme-summary"
   ]
 }

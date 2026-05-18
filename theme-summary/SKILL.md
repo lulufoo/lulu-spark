@@ -16,7 +16,7 @@ description: >-
 > Both phases are required. Neither may be skipped.
 
 Archive a conversation summary — a written conclusion, recap, or distilled note
-produced from a dialogue — directly as a `raw/` document. Unlike `ddm`
+produced from a dialogue — directly as a `raw/` document. Unlike `dialogue-summary`
 (`dtd_raw_dialogue`), no turn-by-turn reconstruction is performed; the summary
 body is stored as-is.
 

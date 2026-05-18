@@ -1,12 +1,12 @@
 ---
-name: ddm
+name: dialogue-summary
 description: >-
-  Dialogue Distillation Model (DDM)：对话归档与蒸馏，产出 raw、digest、distilled、trace。
-  Use when: 蒸馏 distill ddm 归档 对话整理 raw digest distilled compose topic
+  对话归档与蒸馏（dialogue-summary）：产出 raw、digest、distilled、trace。
+  Use when: 蒸馏 distill dialogue-summary ddm 归档 对话整理 raw digest distilled compose topic
 argument-hint: 'dtd_raw_dialogue | dtd_distill_dialogue | dtd_distill_compose | dtd_distill_topic | dtd_trace'
 ---
 
-# DDM Skill — 执行说明
+# dialogue-summary — 执行说明
 
 > 参考：[ddm-concepts.md](references/ddm-concepts.md)
 
@@ -24,9 +24,9 @@ argument-hint: 'dtd_raw_dialogue | dtd_distill_dialogue | dtd_distill_compose | 
 |------|------|------|
 | `dtd_raw_dialogue` | 对话归一化 + digest | [dtd-raw-dialogue.md](references/dtd-raw-dialogue.md) → [archive-digest.md](../shared/archive-digest.md) |
 | `dtd_distill_dialogue` | 对话体 distilled | [dtd_distill_dialogue.md](references/dtd_distill_dialogue.md) |
-| `dtd_distill_compose` | 合成文档 | [ddm-diagnose](./ddm-diagnose.md) → [dtd_distill_compose.md](references/dtd_distill_compose.md) |
+| `dtd_distill_compose` | 合成文档 | [ddm-diagnose.md](references/ddm-diagnose.md) → [dtd_distill_compose.md](references/dtd_distill_compose.md) |
 | `dtd_distill_topic` | 子话题 distilled | [dtd_distill_topic.md](references/dtd_distill_topic.md) |
-| `dtd_trace` | 诊断 + 轨迹 | [ddm-diagnose](./ddm-diagnose.md) → [ddm-p3-trace.md](references/ddm-p3-trace.md) |
+| `dtd_trace` | 诊断 + 轨迹 | [ddm-diagnose.md](references/ddm-diagnose.md) → [ddm-trace.md](references/ddm-trace.md) |
 
 ## dtd_raw_dialogue 模式
 
@@ -53,7 +53,7 @@ argument-hint: 'dtd_raw_dialogue | dtd_distill_dialogue | dtd_distill_compose | 
 
 **Step 1**: 解析 raw；
 
-**Step 2**: 检测 diagnose，无diagnose文件，则先加载 [ddm-diagnose](./ddm-diagnose.md) 执行；
+**Step 2**: 检测 diagnose，无diagnose文件，则先加载 [ddm-diagnose.md](references/ddm-diagnose.md) 执行；
 
 **Step 3**: 加载 [dtd_distill_compose.md](references/dtd_distill_compose.md) 执行；
 
@@ -74,6 +74,6 @@ argument-hint: 'dtd_raw_dialogue | dtd_distill_dialogue | dtd_distill_compose | 
 
 **Step 1**: 解析 raw；
 
-**Step 2**: 检测 diagnose，无diagnose文件，则先加载 [ddm-diagnose](./ddm-diagnose.md) 执行；
+**Step 2**: 检测 diagnose，无diagnose文件，则先加载 [ddm-diagnose.md](references/ddm-diagnose.md) 执行；
 
-**Step 3**: 加载 [ddm-p3-trace.md](references/ddm-p3-trace.md) 执行；
+**Step 3**: 加载 [ddm-trace.md](references/ddm-trace.md) 执行；

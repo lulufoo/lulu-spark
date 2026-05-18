@@ -9,7 +9,7 @@
 | 执行位置 | 路径 |
 |----------|------|
 | 仓库根 install skill（`lulu-workbench-skills/SKILL.md`） | `./config.json` |
-| 子 skill（`ddm/`、`theme-line/` 等） | `{skill_dir}/../config.json` |
+| 子 skill（`dialogue-summary/`、`theme-line/` 等） | `{skill_dir}/../config.json` |
 
 `archive_root` 字段必填。缺失时中止，提示先编辑仓库根 `config.json` 并完成安装（见根 `SKILL.md`）。
 
