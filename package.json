@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "vitest run"
+    "test": "vitest run && python3 -m unittest discover -s tests -p 'test_*.py' -q"
   },
   "repository": {
     "type": "git",

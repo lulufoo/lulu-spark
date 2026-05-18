@@ -16,6 +16,7 @@ export const state = {
     activeDate: null,
     archiveRoot: '',
     kbRoot: '',
+    corpusGithub: '',
     activeTopic: null,
   },
   viewer: {

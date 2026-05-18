@@ -19,6 +19,12 @@ from pathlib import Path
 
 # ── Config ────────────────────────────────────────────────────────────────────
 REPO_ROOT  = Path(__file__).parent.parent.resolve()
+_SCRIPTS   = REPO_ROOT / 'scripts'
+if str(_SCRIPTS) not in sys.path:
+    sys.path.insert(0, str(_SCRIPTS))
+from workbench_config import get_corpus_root as _get_corpus_root  # noqa: E402
+
+CORPUS_ROOT = _get_corpus_root(REPO_ROOT)
 CACHE_DIR  = REPO_ROOT / '.cache'
 ENV_FILE   = REPO_ROOT / 'meili.env'
 
@@ -117,7 +123,7 @@ def _make_id(layer, common_path):
 def _collect_docs():
     docs = []
     for layer in SCAN_LAYERS:
-        layer_dir = REPO_ROOT / layer
+        layer_dir = CORPUS_ROOT / layer
         if not layer_dir.is_dir():
             print(f'  {layer}: (directory not found, skipped)')
             continue
@@ -166,7 +172,7 @@ def main():
     args = parser.parse_args()
 
     print(f'Meilisearch: {MEILI_URL}')
-    print(f'Repo root:   {REPO_ROOT}')
+    print(f'Repo root:   {CORPUS_ROOT}')
     print(f'Scan layers: {SCAN_LAYERS}')
 
     _wipe_index()

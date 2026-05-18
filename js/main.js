@@ -1,6 +1,6 @@
 import { state, loadDiffStatus } from './state.js'
 import { escHtml } from './utils.js'
-import { LAYERS } from './constants.js'
+import { LAYERS, setCorpusGithub } from './constants.js'
 import * as api from './api.js'
 import { buildGroups, renderSidebar, selectDate } from './components/sidebar.js'
 import { enterEditMode, exitEditMode, saveDoc, showCommitBar, hideCommitBar, commitCurrentFile, openKbDoc, openDoc } from './components/viewer.js'
@@ -446,7 +446,12 @@ document.getElementById('btn-base64').addEventListener('click', () => {
 
 // ── Init ───────────────────────────────────────────────────────────────────
 
-api.fetchConfig().then(d => { state.ui.archiveRoot = d.archive_root || ''; state.ui.kbRoot = d.kb_root || ''; }).catch(() => {});
+api.fetchConfig().then(d => {
+  state.ui.archiveRoot = d.archive_root || '';
+  state.ui.kbRoot = d.kb_root || '';
+  state.ui.corpusGithub = d.corpus_github || '';
+  setCorpusGithub(d.corpus_github);
+}).catch(() => {});
 api.fetchTopics().then(data => {
   const descMap = {};
   const repoMap = {};

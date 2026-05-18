@@ -1,5 +1,6 @@
 import { state, getEntryId, loadDiffStatus } from '../state.js'
-import { REPO } from '../constants.js'
+import { getCorpusGithub } from '../constants.js'
+import { getActivePath } from '../corpus-path.js'
 import { escHtml, filenameFromPath, slugToTitle } from '../utils.js'
 import * as api from '../api.js'
 import { updateTitlesInDOM, updateDiffInDOM } from './cards.js'
@@ -18,7 +19,7 @@ function resolveRelativeLink(href, layer, commonPath) {
     const base = `http://x/${layer}/${commonPath}`;
     const resolved = new URL(href, base);
     const repoPath = resolved.pathname.slice(1);
-    return `${REPO}/${repoPath}`;
+    return `${getCorpusGithub()}/${repoPath}`;
   } catch {
     return null;
   }
@@ -70,11 +71,6 @@ export function renderDocBody(text, layer, commonPath) {
 
 // ── Language helpers ───────────────────────────────────────────────────────
 
-function getActivePath(entry, lang) {
-  if (lang === 'zh' && entry.translations?.zh) return entry.translations.zh;
-  return entry.common_path;
-}
-
 function updateLangBar(entry) {
   const bar = document.getElementById('md-lang-bar');
   const hasZh = !!entry.translations?.zh;
@@ -86,7 +82,7 @@ function updateLangBar(entry) {
 }
 
 function updateHeaderUrls(entry, layer, activePath) {
-  const githubUrl = `${REPO}/${layer}/${activePath}`;
+  const githubUrl = `${getCorpusGithub()}/${layer}/${activePath}`;
   document.getElementById('md-github-link').href = githubUrl;
   document.getElementById('btn-copy-http').dataset.url = githubUrl;
   document.getElementById('btn-copy-http').dataset.tip = githubUrl;
@@ -118,7 +114,7 @@ export async function openDoc(entry, layer = 'raw') {
   const modal = document.getElementById('md-modal');
   const body = document.getElementById('md-body');
   document.getElementById('md-panel-title').textContent = filenameFromPath(entry.common_path).replace(/\.md$/, '');
-  const activePath = getActivePath(entry, state.viewer.lang);
+  const activePath = getActivePath(entry, state.viewer.lang, layer);
   updateHeaderUrls(entry, layer, activePath);
   updateLangBar(entry);
   document.getElementById('md-file-size').textContent = '';
@@ -169,7 +165,7 @@ export async function switchLang(lang) {
   state.viewer.scrollCache[cacheKey] = body.scrollTop;
 
   state.viewer.lang = lang;
-  const activePath = getActivePath(entry, lang);
+  const activePath = getActivePath(entry, lang, layer);
   updateHeaderUrls(entry, layer, activePath);
   updateLangBar(entry);
 
@@ -226,7 +222,7 @@ export function exitEditMode(rerender = true) {
   document.getElementById('btn-panel-commit').style.display = 'none';
   document.getElementById('md-github-link').style.display = '';
   if (rerender && state.viewer.entry) {
-    const activePath = getActivePath(state.viewer.entry, state.viewer.lang);
+    const activePath = getActivePath(state.viewer.entry, state.viewer.lang, state.viewer.layer);
     renderDocBody(state.viewer.rawText, state.viewer.layer, activePath);
   }
 }
@@ -244,7 +240,7 @@ export async function saveDoc() {
   btnSave.textContent = '保存中…';
 
   try {
-    const activePath = getActivePath(state.viewer.entry, state.viewer.lang);
+    const activePath = getActivePath(state.viewer.entry, state.viewer.lang, state.viewer.layer);
     const data = await api.saveFile(state.viewer.layer, activePath, newContent);
     if (data.error) throw new Error(data.error);
 
@@ -303,7 +299,7 @@ export async function commitCurrentFile() {
   resultEl.textContent = '';
 
   try {
-    const activePath = getActivePath(state.viewer.entry, state.viewer.lang);
+    const activePath = getActivePath(state.viewer.entry, state.viewer.lang, state.viewer.layer);
     const filePath = `${state.viewer.layer}/${activePath}`;
     const data = await api.commitFiles(msg, [filePath]);
     if (data.error) throw new Error(data.error + (data.stderr ? '\n' + data.stderr : ''));
@@ -356,7 +352,7 @@ document.getElementById('btn-copy-http').addEventListener('click', () => {
 });
 
 document.getElementById('btn-copy-path').addEventListener('click', () => {
-  const activePath = getActivePath(state.viewer.entry, state.viewer.lang);
+  const activePath = getActivePath(state.viewer.entry, state.viewer.lang, state.viewer.layer);
   const relPath = `${state.viewer.layer}/${activePath}`;
   const fullPath = state.ui.archiveRoot ? `${state.ui.archiveRoot}/${relPath}` : relPath;
   navigator.clipboard.writeText(fullPath).then(() => {

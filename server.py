@@ -39,26 +39,34 @@ from knowledge_index_loader import knowledge_index_path, load_knowledge_index  #
 MEILI_URL = 'http://localhost:7700'
 MEILI_KEY = ''
 KNOWLEDGE_BASE_DIR = Path('/Users/lulu/Code')
+KNOWLEDGE_CORPUS_DIR = REPO_ROOT
+KNOWLEDGE_CORPUS_GITHUB = 'https://github.com/lulufoo/lulu-workbench-knowledge/blob/main'
+
+from workbench_config import (  # noqa: E402
+    get_corpus_github as _get_corpus_github,
+    load_meili_env as _load_meili_env_dict,
+)
+
+_CORPUS_LAYER_NAMES = frozenset({'raw', 'distilled', 'digest', 'trace', 'diagnose', 'annotations'})
+
 
 def _load_meili_config():
-    global MEILI_URL, MEILI_KEY, KNOWLEDGE_BASE_DIR
-    env_file = REPO_ROOT / 'meili.env'
-    if not env_file.exists():
-        return
-    for line in env_file.read_text(encoding='utf-8').splitlines():
-        line = line.strip()
-        if not line or line.startswith('#') or '=' not in line:
-            continue
-        key, _, val = line.partition('=')
-        key, val = key.strip(), val.strip()
-        if key == 'MEILI_MASTER_KEY':
-            MEILI_KEY = val
-        elif key == 'MEILI_URL':
-            MEILI_URL = val
-        elif key == 'KNOWLEDGE_BASE_DIR':
-            KNOWLEDGE_BASE_DIR = Path(val)
+    global MEILI_URL, MEILI_KEY, KNOWLEDGE_BASE_DIR, KNOWLEDGE_CORPUS_DIR, KNOWLEDGE_CORPUS_GITHUB
+    env = _load_meili_env_dict(REPO_ROOT)
+    if 'MEILI_MASTER_KEY' in env:
+        MEILI_KEY = env['MEILI_MASTER_KEY']
+    if 'MEILI_URL' in env:
+        MEILI_URL = env['MEILI_URL']
+    if 'KNOWLEDGE_BASE_DIR' in env:
+        KNOWLEDGE_BASE_DIR = Path(env['KNOWLEDGE_BASE_DIR'])
+    if 'KNOWLEDGE_CORPUS_DIR' in env:
+        KNOWLEDGE_CORPUS_DIR = Path(env['KNOWLEDGE_CORPUS_DIR'])
+    KNOWLEDGE_CORPUS_GITHUB = _get_corpus_github(REPO_ROOT)
+
 
 _load_meili_config()
+if not KNOWLEDGE_CORPUS_DIR.exists():
+    print(f'Warning: KNOWLEDGE_CORPUS_DIR does not exist: {KNOWLEDGE_CORPUS_DIR}')
 
 # ── Meilisearch state ─────────────────────────────────────────────────────────
 _reindex_job    = {'status': 'idle', 'started_at': None, 'finished_at': None, 'log': ''}
@@ -121,6 +129,16 @@ class Handler(http.server.SimpleHTTPRequestHandler):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=str(REPO_ROOT), **kwargs)
+
+    def translate_path(self, path):
+        fs_path = super().translate_path(path)
+        try:
+            rel = Path(fs_path).relative_to(REPO_ROOT)
+        except ValueError:
+            return fs_path
+        if rel.as_posix() == 'index.json' or (rel.parts and rel.parts[0] in _CORPUS_LAYER_NAMES):
+            return str((KNOWLEDGE_CORPUS_DIR / rel).resolve())
+        return fs_path
 
     # ── Routing ──────────────────────────────────────────────────────────────
 
@@ -185,7 +203,11 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         if parsed_path.startswith('/api/fetch-title'):
             self._handle_fetch_title()
         elif parsed_path == '/api/config':
-            self._json_response({'archive_root': str(REPO_ROOT), 'kb_root': str(KNOWLEDGE_BASE_DIR)})
+            self._json_response({
+                'archive_root': str(KNOWLEDGE_CORPUS_DIR),
+                'kb_root': str(KNOWLEDGE_BASE_DIR),
+                'corpus_github': str(KNOWLEDGE_CORPUS_GITHUB),
+            })
         elif parsed_path == '/api/annotations':
             self._handle_get_annotations()
         elif parsed_path == '/api/annotation':
@@ -274,8 +296,8 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 return
 
             # Resolve and verify path stays inside repo root (prevent traversal)
-            target = (REPO_ROOT / layer / common_path).resolve()
-            if not str(target).startswith(str(REPO_ROOT) + os.sep):
+            target = (KNOWLEDGE_CORPUS_DIR / layer / common_path).resolve()
+            if not str(target).startswith(str(KNOWLEDGE_CORPUS_DIR) + os.sep):
                 self._json_response({'error': 'Path traversal not allowed'}, 400)
                 return
 
@@ -411,7 +433,12 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 cwd=REPO_ROOT, capture_output=True, text=True
             )
             ahead = int(ahead_r.stdout.strip()) if ahead_r.returncode == 0 and ahead_r.stdout.strip().isdigit() else 0
-            self._json_response({**categories, 'total': total, 'ahead': ahead})
+            self._json_response({
+                **categories,
+                'total': total,
+                'ahead': ahead,
+                'archive_root': str(KNOWLEDGE_CORPUS_DIR),
+            })
         except Exception as e:
             self._json_response({'error': str(e)}, 500)
 
@@ -565,8 +592,8 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         if not common_path or '..' in common_path:
             return None
         rel = (common_path[:-3] + '.json') if common_path.endswith('.md') else (common_path + '.json')
-        target = (REPO_ROOT / 'annotations' / rel).resolve()
-        if not str(target).startswith(str(REPO_ROOT) + os.sep):
+        target = (KNOWLEDGE_CORPUS_DIR / 'annotations' / rel).resolve()
+        if not str(target).startswith(str(KNOWLEDGE_CORPUS_DIR) + os.sep):
             return None
         return target
 
@@ -602,7 +629,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
 
     def _handle_get_annotations(self):
         try:
-            index_path = REPO_ROOT / 'index.json'
+            index_path = KNOWLEDGE_CORPUS_DIR / 'index.json'
             index_data = json.loads(index_path.read_text(encoding='utf-8'))
             entries = index_data.get('entries', index_data)
             result = {}
@@ -1083,7 +1110,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 return
 
             # 读取 index.json
-            index_path = REPO_ROOT / 'index.json'
+            index_path = KNOWLEDGE_CORPUS_DIR / 'index.json'
             index_data = json.loads(index_path.read_text(encoding='utf-8'))
             entries = index_data.get('entries', index_data)
 
@@ -1109,9 +1136,9 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             # 收集所有 src → dst 路径对
             moves = []
             for layer in ('raw', 'distilled', 'digest', 'trace', 'diagnose'):
-                src = (REPO_ROOT / layer / old_cp).resolve()
-                dst = (REPO_ROOT / layer / new_cp).resolve()
-                if not str(src).startswith(str(REPO_ROOT) + os.sep):
+                src = (KNOWLEDGE_CORPUS_DIR / layer / old_cp).resolve()
+                dst = (KNOWLEDGE_CORPUS_DIR / layer / new_cp).resolve()
+                if not str(src).startswith(str(KNOWLEDGE_CORPUS_DIR) + os.sep):
                     continue
                 if src.exists():
                     moves.append((src, dst))
@@ -1120,7 +1147,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             ann_src = self._annotation_path(old_cp)
             if ann_src and ann_src.exists():
                 new_ann_rel = (new_cp[:-3] + '.json') if new_cp.endswith('.md') else (new_cp + '.json')
-                ann_dst = (REPO_ROOT / 'annotations' / new_ann_rel).resolve()
+                ann_dst = (KNOWLEDGE_CORPUS_DIR / 'annotations' / new_ann_rel).resolve()
                 moves.append((ann_src, ann_dst))
 
             # zh 翻译文件
@@ -1138,10 +1165,10 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 old_cp_parts = old_cp.split('/')
                 corrected_old_zh_parts = list(zh_parts)
                 corrected_old_zh_parts[0] = old_cp_parts[0]
-                zh_src = (REPO_ROOT / 'raw' / '/'.join(corrected_old_zh_parts)).resolve()
+                zh_src = (KNOWLEDGE_CORPUS_DIR / 'raw' / '/'.join(corrected_old_zh_parts)).resolve()
                 if not zh_src.exists():
-                    zh_src = (REPO_ROOT / 'raw' / old_zh).resolve()
-                zh_dst = (REPO_ROOT / 'raw' / new_zh).resolve()
+                    zh_src = (KNOWLEDGE_CORPUS_DIR / 'raw' / old_zh).resolve()
+                zh_dst = (KNOWLEDGE_CORPUS_DIR / 'raw' / new_zh).resolve()
                 if zh_src.exists():
                     moves.append((zh_src, zh_dst))
 
@@ -1152,7 +1179,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                     dst.parent.mkdir(parents=True, exist_ok=True)
                     src.rename(dst)
                     completed.append((src, dst))
-                    print(f'  [move-project] {src.relative_to(REPO_ROOT)} → {dst.relative_to(REPO_ROOT)}')
+                    print(f'  [move-project] {src.relative_to(KNOWLEDGE_CORPUS_DIR)} → {dst.relative_to(KNOWLEDGE_CORPUS_DIR)}')
             except Exception as mv_err:
                 for src_r, dst_r in reversed(completed):
                     try:
@@ -1207,7 +1234,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 self._json_response({'error': 'Invalid id'}, 400)
                 return
 
-            index_path = REPO_ROOT / 'index.json'
+            index_path = KNOWLEDGE_CORPUS_DIR / 'index.json'
             index_data = json.loads(index_path.read_text(encoding='utf-8'))
             entries = index_data.get('entries', index_data)
 
@@ -1224,8 +1251,8 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             # Delete files in all layers that exist
             deleted = []
             for layer in ('raw', 'distilled', 'trace', 'digest', 'diagnose'):
-                target = (REPO_ROOT / layer / common_path).resolve()
-                if not str(target).startswith(str(REPO_ROOT) + os.sep):
+                target = (KNOWLEDGE_CORPUS_DIR / layer / common_path).resolve()
+                if not str(target).startswith(str(KNOWLEDGE_CORPUS_DIR) + os.sep):
                     continue
                 if target.exists():
                     target.unlink()
@@ -1507,7 +1534,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             filename = f'{ts}-{slug}.md'
             dst_path = filename if doc_theme == '.' else f'{doc_theme}/{filename}'
             dst_url  = f'https://github.com/{owner}/{repo_name}/blob/main/{dst_path}'
-            src_url  = f'https://github.com/lulufoo/lulu-workbench/blob/main/raw/{common_path}'
+            src_url  = f'{KNOWLEDGE_CORPUS_GITHUB}/raw/{common_path}'
             full_content = f'> 来源：[Entry]({src_url})\n> 沉淀时间：{date_str}\n\n{content}'
 
             # Step 1: Push file to target repo (critical — abort on failure)
