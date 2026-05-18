@@ -18,7 +18,7 @@
 
 | 标识 | 文件名 | 角色 |
 |------|--------|------|
-| `DDM_ENTRY` | `dialogue-to-doc.md` | 执行入口 |
+| `DDM_ENTRY` | `../SKILL.md` | 执行入口 |
 | `DDM_CONCEPTS` | `ddm-concepts.md` | 本文 |
 | `ARCHIVE_CONCEPTS` | `../shared/archive-concepts.md` | archive 路径与 config |
 | `ARCHIVE_DIGEST` | `../shared/digest/archive-digest.md` | digest 规范 |

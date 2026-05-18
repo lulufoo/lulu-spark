@@ -14,10 +14,15 @@ argument-hint: 'dtd_raw_dialogue | dtd_raw_summary | dtd_distill_dialogue | dtd_
 
 # DDM Skill — 执行说明
 
+> 参考：[ddm-concepts.md](references/ddm-concepts.md)
+
 ## 触发后的首要动作
 
-1. 读取 `{skill_dir}/../config.json`，获取 `archive_root`
-2. 根据参数加载 [references/dialogue-to-doc.md](references/dialogue-to-doc.md)
+1. 读取 `{skill_dir}/../config.json`（仓库根），获取 `archive_root`，确认存在：
+
+   `> ✅ config.json 读取完成 · archive_root: <路径>`
+
+2. 根据下方「参数说明」选择模式，执行对应章节。
 
 ## 参数说明
 
@@ -29,3 +34,72 @@ argument-hint: 'dtd_raw_dialogue | dtd_raw_summary | dtd_distill_dialogue | dtd_
 | `dtd_distill_compose` | 合成文档 | [ddm-diagnose](./ddm-diagnose.md) + [dtd_distill_compose.md](references/dtd_distill_compose.md) |
 | `dtd_distill_topic` | 子话题 distilled | [dtd_distill_topic.md](references/dtd_distill_topic.md) |
 | `dtd_trace` | 诊断 + 轨迹 | [ddm-diagnose](./ddm-diagnose.md) + [ddm-p3-trace.md](references/ddm-p3-trace.md) |
+
+## digest 链式步骤（`dtd_raw_dialogue` / `dtd_raw_summary` 共用）
+
+以 P0 落盘后的 `{archive_root}/raw/<COMMON_PATH>` 为 **RAW**，加载 [archive-digest.md](../shared/digest/archive-digest.md)（[AD-0] 不满足则跳过）。
+
+## dtd_raw_dialogue 模式
+
+**Step 1**：加载 [dtd-raw-dialogue.md](references/dtd-raw-dialogue.md)，执行 Step 1–6。
+
+**Step 2**：按 **digest 链式步骤** 执行。
+
+完成汇总：
+
+```
+> ✅ dtd_raw_dialogue 完成
+> 📄 raw：raw/<COMMON_PATH>
+> 📋 digest：digest/<COMMON_PATH>（或「已跳过」）
+> 🗂 index.json 已更新
+```
+
+## dtd_raw_summary 模式
+
+**输入**：总结 Markdown（或经用户确认后生成）。
+
+**Step 1**：加载 [dtd-raw-summary.md](references/dtd-raw-summary.md)，执行 Step 1–6。
+
+**Step 2**：按 **digest 链式步骤** 执行。
+
+完成汇总：
+
+```
+> ✅ dtd_raw_summary 完成
+> 📄 raw：raw/<COMMON_PATH>
+> 📋 digest：digest/<COMMON_PATH>（或「已跳过」）
+> 🗂 index.json 已更新（entry_kind: summary）
+> 💡 如需 distilled：dtd_distill_topic <raw 路径或 index id>
+```
+
+## dtd_distill_dialogue 模式
+
+解析 raw 路径（或 index id → common_path）。可选读 diagnose。加载 [dtd_distill_dialogue.md](references/dtd_distill_dialogue.md) 执行。
+
+## dtd_distill_compose 模式
+
+解析 raw；检测 diagnose，无则先加载 [ddm-diagnose](./ddm-diagnose.md)；加载 [dtd_distill_compose.md](references/dtd_distill_compose.md) 执行。
+
+## dtd_distill_topic 模式
+
+解析 raw；加载 [dtd_distill_topic.md](references/dtd_distill_topic.md)，按子话题规则落盘 distilled。
+
+完成汇总：
+
+```
+> ✅ dtd_distill_topic 完成
+> 📝 distilled：distilled/<COMMON_PATH>
+```
+
+## dtd_trace 模式
+
+解析 raw；加载 [ddm-diagnose](./ddm-diagnose.md) → [ddm-p3-trace.md](references/ddm-p3-trace.md)。不执行 digest。
+
+完成汇总不含 digest 补跑提示；digest 由 `dtd_raw_*` / theme-line 自动生成，或见 [archive-digest.md](../shared/digest/archive-digest.md) 补跑节。
+
+## 已废弃模式
+
+- `dtd_trace_digest` → `dtd_trace`
+- `dtd_normalize` → `dtd_raw_dialogue`
+- `dtd_archive_summary` → `dtd_raw_summary`
+- `dtd_distill_overview` → `dtd_distill_topic`
