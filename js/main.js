@@ -12,6 +12,7 @@ import './components/modals/move-dialog.js'
 import { openBase64Dialog } from './components/modals/base64-dialog.js'
 import { renderFeed } from './feed.js'
 import { initGlobalSearch } from './components/global-search.js'
+import { softwareDevSkillsContent } from './skills-software-dev-content.js'
 
 const titleCache = state.index.titleCache;
 
@@ -505,44 +506,7 @@ const _SKILLS_CONTENT = {
       }
     ]
   },
-  softwareDev: {
-    title: '✦ Software Dev Skills',
-    groups: [
-      {
-        name: '工具类',
-        url: 'https://github.com/lulufoo/lulu-dev-skills/tree/main/sync-rules',
-        items: [
-          {
-            cmd: 'sync-rules',
-            name: '规则多平台同步',
-            desc: '「同步规则」、sync rules、规则同步；用 `gh` 从 GitHub 拉取配置并写入 Cursor / Claude Code / VS Code'
-          }
-        ]
-      },
-      {
-        name: '质量与缺陷分析',
-        url: 'https://github.com/lulufoo/lulu-dev-skills/tree/main/bug-analysis',
-        items: [
-          {
-            cmd: 'bug-analysis',
-            name: 'Bug 分析',
-            desc: '缺陷排查、根因分析、调查异常或失败行为'
-          }
-        ]
-      },
-      {
-        name: '研发与开发过程',
-        url: 'https://github.com/lulufoo/lulu-dev-skills/tree/main/cursor-rule-guard',
-        items: [
-          {
-            cmd: 'cursor-rule-guard',
-            name: 'Cursor 规则守卫',
-            desc: '初始化或管理规则守卫、配置 preToolUse 钩子、要求先读后写'
-          }
-        ]
-      }
-    ]
-  },
+  softwareDev: softwareDevSkillsContent,
   lulu: {
     title: '✦ Lulu Learning Skills',
     groups: [
