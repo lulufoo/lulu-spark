@@ -1,4 +1,4 @@
-# dtd_raw_summary — 总结归档执行手册
+# DDM Raw — 总结归档执行手册
 
 > **配置参考**：[ddm-concepts.md](ddm-concepts.md)（路径符号 `COMMON_PATH`、`RAW`、`prefix` 定义）
 >
