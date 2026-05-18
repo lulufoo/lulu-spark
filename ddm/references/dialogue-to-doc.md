@@ -103,7 +103,7 @@
 
 解析 raw；P1（[ddm-p1-diagnose.md](ddm-p1-diagnose.md)）→ P3（[ddm-p3-trace.md](ddm-p3-trace.md)）。不执行 digest。
 
-完成汇总不含 digest 补跑提示；digest 由 `dtd_raw_*` / theme-line 自动生成，或见 [shared/archive-digest.md](../../shared/digest/archive-digest.md) 补跑节。
+完成汇总不含 digest 补跑提示；digest 由 `dtd_raw_*` / theme-line 自动生成，或见 [shared/digest/archive-digest.md](../../shared/digest/archive-digest.md) 补跑节。
 
 ---
 
