@@ -1,4 +1,4 @@
-# Anthropic 打造更聪明 Claude 与人类级 AI 的竞赛 | WSJ
+# Anthropic & Dario Amodei：世界经济论坛 | 华尔街日报（2025）
 
 > 创建时间：2026年5月18日 18:32
 

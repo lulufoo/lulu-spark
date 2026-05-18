@@ -1,4 +1,4 @@
-# Anthropic CEO Dario Amodei：世界经济论坛 | 华尔街日报
+# Anthropic & Dario Amodei：世界经济论坛 | 华尔街日报（2026）
 
 > 创建时间：2026年5月18日 09:03
 

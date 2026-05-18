@@ -1012,6 +1012,18 @@
         "zh": "learning-ai-llm/anthropic-claude-human-level-ai-wsj/202605181832-inside-anthropic-race-smarter-claude-human-level-ai-wsj-zh.md"
       },
       "source_type": "theme-line"
+    },
+    "7f8d7e538c9911ccc264b6b04db4701a": {
+      "common_path": "learning-ai-agent/karpathy-code-agents-loopy-era/202605182309-skill-issue-karpathy-code-agents-autoresearch.md",
+      "created_at": "202605182309",
+      "layers": [
+        "raw",
+        "digest"
+      ],
+      "source_type": "theme-line",
+      "translations": {
+        "zh": "learning-ai-agent/karpathy-code-agents-loopy-era/202605182309-skill-issue-karpathy-code-agents-autoresearch-zh.md"
+      }
     }
   }
 }
