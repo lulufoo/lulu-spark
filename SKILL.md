@@ -1,15 +1,24 @@
 ---
 name: lulu-workbench-skills
 description: >-
-  lulu-workbench 归档技能包安装与配置。编辑仓库根 config.json 的 archive_root，并 symlink 子 skill（ddm、theme-line）。
-  Use when: 安装 workbench skills、配置 archive_root、symlink ddm theme-line
+  lulu-workbench 归档技能包安装与配置。克隆仓库至 ~/.cursor/skills/，编辑 config.json 的 archive_root。
+  Use when: 安装 workbench skills、配置 archive_root、ddm theme-line
 ---
 
 # lulu-workbench-skills — 安装与配置
 
-## 1. 配置 archive_root
+## 1. 安装（Cursor）
 
-编辑本仓库根目录 [`config.json`](config.json)：
+```bash
+cd ~/.cursor/skills
+git clone https://github.com/lulufoo/lulu-workbench-skills.git lulu-workbench-skills
+```
+
+克隆完成后 Cursor 自动发现子 skill（`ddm`、`theme-line`），`shared/` 通过相对路径访问，均无需额外操作。
+
+## 2. 配置 archive_root
+
+编辑 `~/.cursor/skills/lulu-workbench-skills/config.json`：
 
 ```json
 {
@@ -17,28 +26,17 @@ description: >-
 }
 ```
 
-所有子 skill 通过 `{skill_dir}/../config.json` 读取同一配置。
-
-## 2. 安装 symlink（Cursor 示例）
-
-```bash
-BASE=/Users/lulu/Code/lulu-workbench-skills
-SKILLS=~/.cursor/skills
-
-ln -sf $BASE $SKILLS/lulu-workbench-skills
-ln -sf $BASE/ddm $SKILLS/ddm
-ln -sf $BASE/theme-line $SKILLS/theme-line
-```
+子 skill 执行时读取此文件获取 `archive_root`。
 
 ## 3. 子 skill
 
 | 指令 | 目录 | 说明 |
 |------|------|------|
 | `ddm` | [ddm/](ddm/) | 对话蒸馏：`dtd_raw_dialogue`、`dtd_raw_summary`、`dtd_distill_*`、`dtd_trace` |
-| `theme-line` | [theme-line/](theme-line/) | 音视频稿主题化 → `raw/`，自动 digest |
+| `theme-line` | [theme-line/](theme-line/) | 视频/访谈稿重构为主题优先时间线大纲，保存至 `raw/` 并自动 digest |
 
 ## 4. 验收
 
-任一子 skill 执行时输出 `archive_root` 与根 `config.json` 一致即可。
+触发任一子 skill 时，AI 首步读取 `archive_root`；确认输出路径与 `config.json` 中的值一致即可。
 
 共享规范：[shared/README.md](shared/README.md)（[archive-concepts](shared/archive-concepts.md)、[digest](shared/digest/archive-digest.md)）。
