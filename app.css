@@ -852,6 +852,10 @@
     overflow: visible;
   }
   .badge:hover { opacity: .8; }
+  .badge-source           { cursor: default; font-size: 10px; }
+  .badge-source-dialogue  { background: #ddf4ff; color: #0550ae; border-color: #96c6f8; }
+  .badge-source-summary   { background: #fff8c5; color: #7d4e00; border-color: #d4a72c; }
+  .badge-source-themeline { background: #fbefff; color: #8250df; border-color: #d2a8ff; }
   .badge-layer    { background: #edfcf0; color: #2a7a45; border-color: #b6e8c4; }
   .badge-diff     { background: #fff8c5; color: #7d4e00; border-color: #d4a72c; }
   .badge-conflict { background: #ffd8d3; color: #82071e; border-color: #ff8182; }

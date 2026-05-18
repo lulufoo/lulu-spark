@@ -24,6 +24,21 @@ export function getLayerBadgeClass(layer, entry) {
   return 'badge-layer';
 }
 
+// ── Source type badge ─────────────────────────────────────────────────────
+
+const SOURCE_TYPE_LABELS = {
+  dialogue: '对话',
+  summary: '总结',
+  'theme-line': '视频',
+};
+
+export function sourceTypeBadgeHtml(sourceType) {
+  const label = SOURCE_TYPE_LABELS[sourceType];
+  if (!label) return '';
+  const cssClass = sourceType === 'theme-line' ? 'themeline' : sourceType;
+  return `<span class="badge badge-source badge-source-${cssClass}">${label}</span>`;
+}
+
 // ── Badge listeners ────────────────────────────────────────────────────────
 
 export function attachBadgeListeners(card, entry) {
@@ -77,12 +92,13 @@ export function buildCard(id, entry, title) {
     ? `<button class="badge badge-done" data-action="toggle-done" title="标记为未处理">✓ 已处理</button>`
     : `<button class="badge badge-done" data-action="toggle-done" title="标记为已处理">○ 处理</button>`;
   const moveBadgeHtml = `<button class="badge badge-move-project" data-action="move-project" title="移动到其他项目"><span class="move-icon">↳</span><span>移项</span></button>`;
+  const sourceBadge = sourceTypeBadgeHtml(entry.source_type);
 
   card.innerHTML = `
     <div class="doc-topic"${topicDesc ? ` data-tip="${escHtml(topicDesc)}"` : ''}>${topic}</div>
     <button class="doc-title-btn${displayTitle === null ? ' loading' : ''}">${displayTitle !== null ? escHtml(displayTitle) : ''}</button>
     <div class="doc-meta">${time}${dotHtml}</div>
-    <div class="badges">${badgesHtml}${linksBadgeHtml}${importanceBadgeHtml(entry.importance)}${doneBadgeHtml}${moveBadgeHtml}</div>
+    <div class="badges">${sourceBadge}${badgesHtml}${linksBadgeHtml}${importanceBadgeHtml(entry.importance)}${doneBadgeHtml}${moveBadgeHtml}</div>
   `;
   if (entry.done) card.classList.add('done');
   if (entry.importance) card.classList.add(`importance-${entry.importance}`);
@@ -230,7 +246,7 @@ export function updateTitlesInDOM(date) {
         ? `<button class="badge badge-done" data-action="toggle-done" title="标记为未处理">✓ 已处理</button>`
         : `<button class="badge badge-done" data-action="toggle-done" title="标记为已处理">○ 处理</button>`;
       const moveBadgeHtml = `<button class="badge badge-move-project" data-action="move-project" title="移动到其他项目"><span class="move-icon">↳</span><span>移项</span></button>`;
-      badgesEl.innerHTML = layerHtml + linksBadgeHtml + importanceBadgeHtml(entry.importance) + doneBadgeHtml + moveBadgeHtml;
+      badgesEl.innerHTML = sourceTypeBadgeHtml(entry.source_type) + layerHtml + linksBadgeHtml + importanceBadgeHtml(entry.importance) + doneBadgeHtml + moveBadgeHtml;
       attachBadgeListeners(card, entry);
       card.classList.toggle('done', !!entry.done);
       card.classList.remove('importance-high', 'importance-medium', 'importance-low');
