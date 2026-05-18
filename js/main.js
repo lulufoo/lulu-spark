@@ -490,11 +490,17 @@ const _SKILLS_CONTENT = {
         url: 'https://github.com/lulufoo/lulu-workbench-skills/tree/main/dialogue-summary',
         items: [
           { cmd: 'dtd_raw_dialogue', name: '对话归一化', desc: '对话归一化 + digest' },
-          { cmd: 'dtd_raw_summary', name: '总结归档', desc: '总结归档 + digest' },
           { cmd: 'dtd_distill_dialogue', name: '蒸馏（对话体）', desc: '对话体 distilled' },
           { cmd: 'dtd_distill_compose', name: '蒸馏（合成文档）', desc: '合成文档' },
           { cmd: 'dtd_distill_topic', name: '蒸馏（子话题）', desc: '子话题 distilled' },
           { cmd: 'dtd_trace', name: '轨迹与摘要', desc: '诊断 + 轨迹' }
+        ]
+      },
+      {
+        name: 'Theme Summary',
+        url: 'https://github.com/lulufoo/lulu-workbench-skills/tree/main/theme-summary',
+        items: [
+          { cmd: 'theme-summary', name: '总结归档', desc: '总结正文归档至 raw/ 并自动 digest' }
         ]
       },
       {
