@@ -1,4 +1,4 @@
-# DDM Phase 2：生成（Compose 模式）
+# DDM Phase：生成（Compose 模式）
 
 > **⚠️ 本文件是 `dtd_distill_compose` 的执行规范，必须由 `SKILL.md` 显式加载后执行，禁止 AI 自行推断内容。**
 >
