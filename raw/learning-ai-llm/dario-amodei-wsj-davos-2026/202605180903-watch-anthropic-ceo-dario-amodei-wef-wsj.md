@@ -2,6 +2,8 @@
 
 > 创建时间：2026年5月18日 09:03
 
+> 时长：约 32 分钟 · 发布：2026-01-20
+
 > 导航：[distilled](../../../distilled/learning-ai-llm/dario-amodei-wsj-davos-2026/202605180903-watch-anthropic-ceo-dario-amodei-wef-wsj.md) · [digest](../../../digest/learning-ai-llm/dario-amodei-wsj-davos-2026/202605180903-watch-anthropic-ceo-dario-amodei-wef-wsj.md) · [trace](../../../trace/learning-ai-llm/dario-amodei-wsj-davos-2026/202605180903-watch-anthropic-ceo-dario-amodei-wef-wsj.md)
 
 > 原文：[Video](https://www.youtube.com/watch?v=K7F6ohcBJus)

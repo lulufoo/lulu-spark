@@ -19,6 +19,7 @@ DDM 分为五个 Phase：P0（规范化）→ P1（诊断）→ P2（生成 dist
 | `DDM_ENTRY` | `dialogue-to-doc.md` | 执行入口（4 条命令调度） |
 | `DDM_CONCEPTS` | `ddm-concepts.md` | 介绍与配置（本文） |
 | `DDM_P0` | `ddm-p0-normalize.md` | Phase 0 执行规范（dtd_normalize） |
+| `DDM_P0_SUM` | `ddm-p0-archive-summary.md` | Phase 0-S 总结归档（dtd_archive_summary） |
 | `DDM_P1` | `ddm-p1-diagnose.md` | Phase 1 执行规范（含双轴归属理论） |
 | `DDM_P2_GEN` | `ddm-p2-generate.md` | Phase 2 执行规范 — 对话体 distilled（dtd_distill_dialogue） |
 | `DDM_P2_COM` | `ddm-p2-compose.md` | Phase 2 执行规范 — 合成文档 distilled（dtd_distill_compose） |

@@ -9,6 +9,7 @@
 | 模式 | 说明 |
 |------|------|
 | **dtd_normalize** | 执行 Phase 0（P0 规范化）后，自动继续执行 Phase 2 overview（P2 对话概要），将结果写入 `raw/` 和 `distilled/` 并更新 `index.json` |
+| **dtd_archive_summary** | 将**总结 Markdown** 归档为 `raw/` 一条 Entry（`entry_kind: summary`）；**不**使用 TURN_SEP；**不**自动执行 P2 |
 | **dtd_distill_dialogue** | 输入 raw 文件路径或 index id，仅执行 P2 生成 distilled（对话体） |
 | **dtd_distill_compose** | 输入 raw 文件路径或 index id；自动检测 diagnose 文件，若不存在则先执行 P1 诊断，再执行 P2-compose 生成完整合成文档 |
 | **dtd_distill_overview** | 输入 raw 文件路径或 index id，按子话题归组生成 distilled（对话概要，Turn 范围 + 一段话格式） |
@@ -50,6 +51,27 @@
 > 📝 distilled：distilled/<COMMON_PATH>
 > 🗂 index.json 已更新（layers 含 raw、distilled）
 ```
+
+---
+
+## dtd_archive_summary 模式
+
+**输入**：用户提供的总结 Markdown；或 Agent 根据当前会话生成总结并经用户确认后的正文。
+
+**Step 1：执行 P0-S 总结归档**
+
+加载 [ddm-p0-archive-summary.md](ddm-p0-archive-summary.md)，按其规范执行（Step 1–6）。
+
+完成后输出：
+
+```
+> ✅ dtd_archive_summary 完成
+> 📄 raw：raw/<COMMON_PATH>
+> 🗂 index.json 已更新（layers: raw, entry_kind: summary）
+> 💡 如需 distilled，请执行：dtd_distill_overview <raw 路径或 index id>
+```
+
+**无 Step 2**：本模式不链式执行 P2 overview 或其他 Phase。
 
 ---
 

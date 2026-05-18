@@ -880,6 +880,14 @@
       "translations": {
         "zh": "learning-ai-llm/dario-amodei-wsj-davos-2026/202605180903-watch-anthropic-ceo-dario-amodei-wef-wsj-zh.md"
       }
+    },
+    "129d8c7ea48233344301a307847410d6": {
+      "common_path": "ai-software-dev/lulu-workbench-cs-refactor/202605180918-lulu-workbench-cs-refactor-discussion.md",
+      "created_at": "202605180918",
+      "layers": [
+        "raw"
+      ],
+      "entry_kind": "summary"
     }
   }
 }
