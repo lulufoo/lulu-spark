@@ -1,4 +1,4 @@
-# DDM Phase 1：诊断
+# DDM Phase：诊断
 
 > **配置参考**：[ddm-concepts.md](ddm-concepts.md)（路径符号 `RAW`、`COMMON_PATH`、`DIAGNOSE`、`CTA_BASE` 定义）
 >
