@@ -29,15 +29,11 @@ argument-hint: 'dtd_raw_dialogue | dtd_raw_summary | dtd_distill_dialogue | dtd_
 | `dtd_distill_topic` | 子话题 distilled | [dtd_distill_topic.md](references/dtd_distill_topic.md) |
 | `dtd_trace` | 诊断 + 轨迹 | [ddm-diagnose](./ddm-diagnose.md) → [ddm-p3-trace.md](references/ddm-p3-trace.md) |
 
-## digest 链式步骤（`dtd_raw_dialogue` / `dtd_raw_summary` 共用）
-
-以 P0 落盘后的 `{archive_root}/raw/<COMMON_PATH>` 为 **RAW**，加载 [archive-digest.md](../shared/digest/archive-digest.md)（[AD-0] 不满足则跳过）。
-
 ## dtd_raw_dialogue 模式
 
 **Step 1**：加载 [dtd-raw-dialogue.md](references/dtd-raw-dialogue.md)，执行 Step 1–6。
 
-**Step 2**：按 **digest 链式步骤** 执行。
+**Step 2**：加载 [archive-digest.md](../shared/digest/archive-digest.md)，按 **digest 链式步骤** 执行。
 
 完成汇总：
 
@@ -54,7 +50,7 @@ argument-hint: 'dtd_raw_dialogue | dtd_raw_summary | dtd_distill_dialogue | dtd_
 
 **Step 1**：加载 [dtd-raw-summary.md](references/dtd-raw-summary.md)，执行 Step 1–6。
 
-**Step 2**：按 **digest 链式步骤** 执行。
+**Step 2**：加载 [archive-digest.md](../shared/digest/archive-digest.md)，按 **digest 链式步骤** 执行。
 
 完成汇总：
 
