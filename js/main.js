@@ -486,8 +486,8 @@ const _SKILLS_CONTENT = {
     title: '✦ Lulu Workbench Skills',
     groups: [
       {
-        name: 'DDM',
-        url: 'https://github.com/lulufoo/lulu-workbench-skills/tree/main/ddm',
+        name: 'Dialogue Summary',
+        url: 'https://github.com/lulufoo/lulu-workbench-skills/tree/main/dialogue-summary',
         items: [
           { cmd: 'dtd_raw_dialogue', name: '对话归一化', desc: '对话归一化 + digest' },
           { cmd: 'dtd_raw_summary', name: '总结归档', desc: '总结归档 + digest' },

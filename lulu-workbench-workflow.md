@@ -44,11 +44,11 @@ LuLu Workbench 是**个人知识处理管道的中枢**，负责三件事：
 
 **职责**：将原始信息加工为可归档的结构化单元，写入工作台。
 
-**执行者**：各 Skill（`skills/ddm/`、`skills/theme-line/` 等）
+**执行者**：各 Skill（`skills/dialogue-summary/`、`skills/theme-line/` 等）
 
 | 信息形态 | 典型 Skill |
 |----------|-----------|
-| 对话过程 | ddm |
+| 对话过程 | dialogue-summary |
 | 视频 / 文章笔记 | theme-line |
 | 闪念记录 | 直接归档 |
 
