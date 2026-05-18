@@ -8,14 +8,16 @@
 
 | 模式 | 说明 |
 |------|------|
-| **dtd_normalize** | Phase 0 对话归一化（[ddm-p0-normalize.md](ddm-p0-normalize.md)）→ **自动 Phase 4 digest** → `raw/` + `digest/` |
-| **dtd_archive_summary** | Phase 0-S 总结归档（[ddm-p0-archive-summary.md](ddm-p0-archive-summary.md)）→ **自动 Phase 4 digest** → `raw/` + `digest/` |
+| **dtd_raw_dialogue** | Phase 0 对话归一化（[ddm-p0-normalize.md](ddm-p0-normalize.md)）→ **自动 Phase 4 digest** → `raw/` + `digest/` |
+| **dtd_raw_summary** | Phase 0-S 总结归档（[ddm-p0-archive-summary.md](ddm-p0-archive-summary.md)）→ **自动 Phase 4 digest** → `raw/` + `digest/` |
 | **dtd_digest** | 输入 raw 路径或 index id，仅执行 Phase 4 digest（补跑） |
 | **dtd_distill_dialogue** | 输入 raw 文件路径或 index id，仅执行 P2 生成 distilled（对话体） |
 | **dtd_distill_compose** | 输入 raw 文件路径或 index id；自动检测 diagnose 文件，若不存在则先执行 P1 诊断，再执行 P2-compose 生成完整合成文档 |
 | **dtd_distill_overview** | 输入 raw 文件路径或 index id，按子话题归组生成 distilled（对话概要，Turn 范围 + 一段话格式） |
 | **dtd_trace** | 输入已有 raw 文件路径（或 index id），执行 P1 → P3（认知轨迹，不含 digest） |
-| ~~**dtd_trace_digest**~~ | **已废弃** — 等同 `dtd_trace`；digest 请用 `dtd_normalize` / `dtd_archive_summary` / `dtd_digest` |
+| ~~**dtd_trace_digest**~~ | **已废弃** — 等同 `dtd_trace` |
+| ~~**dtd_normalize**~~ | **已废弃** — 等同 `dtd_raw_dialogue` |
+| ~~**dtd_archive_summary**~~ | **已废弃** — 等同 `dtd_raw_summary` |
 
 ---
 
@@ -27,13 +29,13 @@
 
 ---
 
-## P4 digest 链式步骤（`dtd_normalize` / `dtd_archive_summary` 共用）
+## P4 digest 链式步骤（`dtd_raw_dialogue` / `dtd_raw_summary` 共用）
 
 以 P0 落盘后的 `{archive_root}/raw/<COMMON_PATH>` 为 **RAW**，加载 [ddm-p4-digest.md](ddm-p4-digest.md) 执行 Phase 4（[P4-0] 不满足则跳过，仍完成 P0 模式汇总）。
 
 ---
 
-## dtd_normalize 模式
+## dtd_raw_dialogue 模式
 
 **Step 1：执行 P0 对话归一化**
 
@@ -54,7 +56,7 @@
 完成后输出：
 
 ```
-> ✅ dtd_normalize 完成
+> ✅ dtd_raw_dialogue 完成
 > 📄 raw：raw/<COMMON_PATH>
 > 📋 digest：digest/<COMMON_PATH>（或「已跳过」）
 > 🗂 index.json 已更新（layers 含 raw；若生成则含 digest）
@@ -62,7 +64,7 @@
 
 ---
 
-## dtd_archive_summary 模式
+## dtd_raw_summary 模式
 
 **输入**：用户提供的总结 Markdown；或 Agent 根据当前会话生成总结并经用户确认后的正文。
 
@@ -85,7 +87,7 @@
 完成后输出：
 
 ```
-> ✅ dtd_archive_summary 完成
+> ✅ dtd_raw_summary 完成
 > 📄 raw：raw/<COMMON_PATH>
 > 📋 digest：digest/<COMMON_PATH>（或「已跳过」）
 > 🗂 index.json 已更新（layers 含 raw；若生成则含 digest；entry_kind: summary）
@@ -273,7 +275,7 @@ trace     → trace/<COMMON_PATH>（或「已跳过」）
 index.json 条目 <id>：
   layers: ["raw", ...已完成的 layer...]
 
-💡 digest 已由 dtd_normalize / dtd_archive_summary 生成，或请执行：dtd_digest <raw 路径或 index id>
+💡 digest 已由 dtd_raw_dialogue / dtd_raw_summary 生成，或请执行：dtd_digest <raw 路径或 index id>
 ```
 
 ---
@@ -281,3 +283,15 @@ index.json 条目 <id>：
 ## dtd_trace_digest 模式（已废弃）
 
 调用本参数时，**按 `dtd_trace` 执行**，不执行 Phase 4 digest。
+
+---
+
+## dtd_normalize 模式（已废弃）
+
+调用本参数时，**按 `dtd_raw_dialogue` 执行**（P0 对话归一化 → 自动 Phase 4 digest）。
+
+---
+
+## dtd_archive_summary 模式（已废弃）
+
+调用本参数时，**按 `dtd_raw_summary` 执行**（P0-S 总结归档 → 自动 Phase 4 digest）。

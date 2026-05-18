@@ -1,8 +1,8 @@
 # lulu-workbench-skills
 
-> **个人 Agent Skill 仓库**（[lulu-workbench](https://github.com/lulufoo/lulu-workbench) 向：对话归档、DDM 蒸馏、音视频稿主题化整理等）
->
-> 本地克隆路径示例：`/Users/lulu/Code/lulu-workbench-skills`（请按你的本机路径调整下文 `BASE`）。各 skill 的 `config.json` 中 `archive_root` 需指向你的 [lulu-workbench](https://github.com/lulufoo/lulu-workbench) 克隆目录。
+个人 Agent Skill 仓库（[lulu-workbench](https://github.com/lulufoo/lulu-workbench) 向：对话归档、DDM 蒸馏、音视频稿主题化整理等）。**规则同步、缺陷分析、研发工作流等开发与工具类技能**见姊妹仓库 [lulu-dev-skills](https://github.com/lulufoo/lulu-dev-skills)；**学习 / 领域认知类技能**见 [lulu-skills](https://github.com/lulufoo/lulu-skills)。
+
+本地克隆路径示例：`/Users/lulu/Code/lulu-workbench-skills`（请按你的本机路径调整下文 `BASE`）。各 skill 的 `config.json` 中 `archive_root` 需指向你的 [lulu-workbench](https://github.com/lulufoo/lulu-workbench) 克隆目录。
 
 ---
 
@@ -12,7 +12,7 @@
 
 | Skill | 指令 | 路径 | 触发场景 |
 |-------|------|------|---------|
-| 对话蒸馏（DDM） | `ddm` | [ddm](./ddm/) | 「蒸馏」「归档」「对话整理」；`dtd_normalize` 写入 `raw/`；`dtd_distill_*` / `dtd_trace_digest` 生成 distilled / 轨迹摘要；`dtd_archive_summary` 总结归档 |
+| 对话蒸馏（DDM） | `ddm` | [ddm](./ddm/) | 「蒸馏」「归档」「对话整理」；`dtd_raw_dialogue` / `dtd_raw_summary` 写入 `raw/` 并自动 digest；`dtd_distill_*` / `dtd_trace` 生成 distilled / 认知轨迹 |
 
 ### 内容整理
 

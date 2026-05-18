@@ -2,7 +2,7 @@
 
 > **配置参考**：[ddm-concepts.md](ddm-concepts.md)（路径符号 `COMMON_PATH`、`RAW`、`prefix` 定义）
 >
-> **模式**：`dtd_archive_summary`
+> **模式**：`dtd_raw_summary`
 >
 > **输入**：用户提供的总结 Markdown，或 Agent 根据当前会话生成、经用户确认后的总结正文。
 >
@@ -67,7 +67,7 @@ output : topic-path = <project>/<doc-theme>
 # <总标题>
 
 > 创建时间：YYYY年M月D日 HH:MM
-> 来源：summary · 归档模式 dtd_archive_summary
+> 来源：summary · 归档模式 dtd_raw_summary
 > 导航：[distilled](<prefix>distilled/<COMMON_PATH>) · [digest](<prefix>digest/<COMMON_PATH>) · [trace](<prefix>trace/<COMMON_PATH>)
 
 ---
@@ -154,7 +154,7 @@ output : topic-path = <project>/<doc-theme>
 ### Step 6 · 完成输出
 
 ```
-> ✅ dtd_archive_summary 完成
+> ✅ dtd_raw_summary 完成
 > 📄 raw：raw/<topic-path>/<ts>-<slug>.md
 > 🗂 index.json 已更新（layers: raw, entry_kind: summary）
 > 💡 如需 distilled，请执行：dtd_distill_overview <raw 路径或 index id>
@@ -179,7 +179,7 @@ output : topic-path = <project>/<doc-theme>
 # LuLu Workbench C/S 模式重构方案讨论 — 总结
 
 > 创建时间：2026年5月18日 14:30
-> 来源：summary · 归档模式 dtd_archive_summary
+> 来源：summary · 归档模式 dtd_raw_summary
 > 导航：[distilled](../../../distilled/ai-software-dev/lulu-workbench-cs-refactor/202605181430-lulu-workbench-cs-refactor-discussion.md) · [digest](../../../digest/ai-software-dev/lulu-workbench-cs-refactor/202605181430-lulu-workbench-cs-refactor-discussion.md) · [trace](../../../trace/ai-software-dev/lulu-workbench-cs-refactor/202605181430-lulu-workbench-cs-refactor-discussion.md)
 > 对话范围：Turn 1～14
 
@@ -196,6 +196,6 @@ output : topic-path = <project>/<doc-theme>
 | 错误 | 处理 |
 |------|------|
 | 无总结正文、仅一句「归档」 | 向用户索要 Markdown，或先生成总结并确认 |
-| 误用 `dtd_normalize` 归档长总结 | 改用本模式；`dtd_normalize` 要求逐轮对话与 TURN_SEP |
+| 误用 `dtd_raw_dialogue` 归档长总结 | 改用本模式；`dtd_raw_dialogue` 要求逐轮对话与 TURN_SEP |
 | 导航链接含 `{{…}}` 或省略 `ts-slug` | 按 Step 1 已确定的 `COMMON_PATH` 写全路径 |
 | 自动写入 `distilled/` | 本模式禁止；需用户另行执行 `dtd_distill_overview` 等 |
