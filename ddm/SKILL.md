@@ -29,7 +29,3 @@ argument-hint: 'dtd_raw_dialogue | dtd_raw_summary | dtd_distill_dialogue | dtd_
 | `dtd_distill_compose` | 合成文档 | [ddm-diagnose](./ddm-diagnose.md) + [dtd_distill_compose.md](references/dtd_distill_compose.md) |
 | `dtd_distill_topic` | 子话题 distilled | [dtd_distill_topic.md](references/dtd_distill_topic.md) |
 | `dtd_trace` | 诊断 + 轨迹 | [ddm-diagnose](./ddm-diagnose.md) + [ddm-p3-trace.md](references/ddm-p3-trace.md) |
-
-参数缺省或不明确时，询问用户选择模式。
-
-> 命令速查：`dtd_raw_dialogue` / `dtd_raw_summary` 归档并自动 digest · `dtd_distill_dialogue` · `dtd_distill_compose` · `dtd_distill_topic` · `dtd_trace`
