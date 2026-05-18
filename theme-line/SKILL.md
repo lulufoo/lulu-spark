@@ -98,7 +98,7 @@ Remove obvious ASR duplication and silently fix trivial recognition errors when 
 
 After generating the ThemeLine document, save it to the local archive and update `index.json`.
 
-**Configuration**: Read `config.json` in the skill directory to get `archive_root`.
+**Configuration**: Read `{skill_dir}/../config.json` (repository root) to get `archive_root`.
 
 ---
 
@@ -232,6 +232,16 @@ Create the directory if it does not exist.
 📄 raw：raw/<topic-path>/<ts>-<slug>.md
 📄 zh： raw/<topic-path>/<ts>-<slug>-zh.md   (英文源时输出)
 🗂 index.json 已更新（新增条目 <id>）
+```
+
+### Step 9 · Archive digest（自动）
+
+以 Step 7 的主 raw 文件 `{archive_root}/raw/<topic-path>/<ts>-<slug>.md` 为 **RAW**（不对 `-zh.md` 单独生成），加载 [../shared/archive-digest.md](../shared/archive-digest.md)，执行 [AD-0]–[AD-4]（不满足则跳过）。
+
+完成后在汇总中追加：
+
+```
+📋 digest：digest/<topic-path>/<ts>-<slug>.md（或「已跳过」）
 ```
 
 - Fidelity: transcript-like paraphrase unless the user explicitly asks for summary only

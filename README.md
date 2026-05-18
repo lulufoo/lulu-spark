@@ -1,48 +1,41 @@
 # lulu-workbench-skills
 
-个人 Agent Skill 仓库（[lulu-workbench](https://github.com/lulufoo/lulu-workbench) 向：对话归档、DDM 蒸馏、音视频稿主题化整理等）。**规则同步、缺陷分析、研发工作流等开发与工具类技能**见姊妹仓库 [lulu-dev-skills](https://github.com/lulufoo/lulu-dev-skills)；**学习 / 领域认知类技能**见 [lulu-skills](https://github.com/lulufoo/lulu-skills)。
+个人 Agent Skill 仓库（[lulu-workbench](https://github.com/lulufoo/lulu-workbench) 向：对话归档、DDM 蒸馏、音视频稿主题化整理等）。
 
-本地克隆路径示例：`/Users/lulu/Code/lulu-workbench-skills`（请按你的本机路径调整下文 `BASE`）。各 skill 的 `config.json` 中 `archive_root` 需指向你的 [lulu-workbench](https://github.com/lulufoo/lulu-workbench) 克隆目录。
+本地克隆示例：`/Users/lulu/Code/lulu-workbench-skills`。**唯一配置**：仓库根 [`config.json`](config.json) 的 `archive_root`。
 
 ---
 
 ## Skills
 
-### 归档与蒸馏
+| Skill | 指令 | 路径 | 说明 |
+|-------|------|------|------|
+| 安装 / 配置 | `lulu-workbench-skills` | [SKILL.md](SKILL.md) | symlink 与 `archive_root` |
+| 对话蒸馏（DDM） | `ddm` | [ddm](ddm/) | `dtd_raw_*` 写 raw 并自动 digest；`dtd_distill_*` / `dtd_trace` |
+| 主题时间线稿 | `theme-line` | [theme-line](theme-line/) | 音视频稿 → `raw/`，自动 digest |
 
-| Skill | 指令 | 路径 | 触发场景 |
-|-------|------|------|---------|
-| 对话蒸馏（DDM） | `ddm` | [ddm](./ddm/) | 「蒸馏」「归档」「对话整理」；`dtd_raw_dialogue` / `dtd_raw_summary` 写入 `raw/` 并自动 digest；`dtd_distill_*` / `dtd_trace` 生成 distilled / 认知轨迹 |
-
-### 内容整理
-
-| Skill | 指令 | 路径 | 触发场景 |
-|-------|------|------|---------|
-| 主题时间线稿 | `theme-line` | [theme-line](./theme-line/) | 访谈 / 播客 / 演讲稿按主题归组、弱化时间戳；「按主题整理 transcript」「Host / guest 对话展开」；整理后写入 workbench 归档 |
+共享规范：[shared/archive-concepts.md](shared/archive-concepts.md)、[shared/archive-digest.md](shared/archive-digest.md)。
 
 ---
 
 ## 目录规范
 
-- 每个 skill 一个目录，目录名用 `kebab-case`（与触发指令一致，如 `ddm/`、`theme-line/`）
-- `SKILL.md`：执行入口，`name` 字段为实际触发指令
-- `references/`：分阶段或模板参考，按需读取
-- `config.json`：`archive_root` 指向 lulu-workbench 根目录（必填）
+- 仓库根 `config.json`：`archive_root` 单例
+- 子 skill 各自 `SKILL.md` + `references/`；读配置用 `{skill_dir}/../config.json`
 
 ---
 
-## 安装方式
-
-> 前提：已克隆本仓库与 [lulu-workbench](https://github.com/lulufoo/lulu-workbench)，并已按需修改各 skill 内 `config.json` 的 `archive_root`。
+## 安装
 
 ```bash
 BASE=/Users/lulu/Code/lulu-workbench-skills
+SKILLS=~/.cursor/skills
 
-# 对话蒸馏（DDM）
-ln -s $BASE/ddm ~/.cursor/skills/ddm
-
-# 主题时间线稿
-ln -s $BASE/theme-line ~/.cursor/skills/theme-line
+ln -sf $BASE $SKILLS/lulu-workbench-skills
+ln -sf $BASE/ddm $SKILLS/ddm
+ln -sf $BASE/theme-line $SKILLS/theme-line
 ```
 
-各 skill 内文档会说明 Claude Code、VS Code 等平台的安装目录；多平台并存时可按需重复 symlink。
+编辑 `$BASE/config.json` 中的 `archive_root` 指向你的 lulu-workbench 克隆目录。
+
+详见 [SKILL.md](SKILL.md)。
