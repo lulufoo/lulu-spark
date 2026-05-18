@@ -26,23 +26,10 @@ argument-hint: 'dtd_raw_dialogue | dtd_raw_summary | dtd_distill_dialogue | dtd_
 | `dtd_raw_dialogue` | 对话归一化 + digest | [dtd-raw-dialogue.md](references/dtd-raw-dialogue.md) → [shared/digest/archive-digest.md](../shared/digest/archive-digest.md) |
 | `dtd_raw_summary` | 总结归档 + digest | [dtd-raw-summary.md](references/dtd-raw-summary.md) → shared digest |
 | `dtd_distill_dialogue` | 对话体 distilled | [ddm-p2-generate.md](references/ddm-p2-generate.md) |
-| `dtd_distill_compose` | 合成文档 | P1 + [ddm-p2-compose.md](references/ddm-p2-compose.md) |
-| `dtd_distill_topic` | 子话题 distilled | [ddm-p2-topic.md](references/ddm-p2-topic.md) |
+| `dtd_distill_compose` | 合成文档 | P1 + [dtd_distill_compose.md](references/dtd_distill_compose.md) |
+| `dtd_distill_topic` | 子话题 distilled | [dtd_distill_topic.md](references/dtd_distill_topic.md) |
 | `dtd_trace` | 诊断 + 轨迹 | P1 + [ddm-p3-trace.md](references/ddm-p3-trace.md) |
 
 参数缺省或不明确时，询问用户选择模式。
-
-## 参考文件
-
-- [references/ddm-concepts.md](references/ddm-concepts.md)
-- [references/dtd-raw-dialogue.md](references/dtd-raw-dialogue.md)
-- [references/dtd-raw-summary.md](references/dtd-raw-summary.md)
-- [references/ddm-p1-diagnose.md](references/ddm-p1-diagnose.md)
-- [references/ddm-p2-generate.md](references/ddm-p2-generate.md)
-- [references/ddm-p2-compose.md](references/ddm-p2-compose.md)
-- [references/ddm-p2-topic.md](references/ddm-p2-topic.md)
-- [references/ddm-p3-trace.md](references/ddm-p3-trace.md)
-- [../shared/archive-concepts.md](../shared/archive-concepts.md)
-- [../shared/digest/archive-digest.md](../shared/digest/archive-digest.md)
 
 > 命令速查：`dtd_raw_dialogue` / `dtd_raw_summary` 归档并自动 digest · `dtd_distill_dialogue` · `dtd_distill_compose` · `dtd_distill_topic` · `dtd_trace`
