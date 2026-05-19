@@ -22,7 +22,7 @@ git clone https://github.com/lulufoo/lulu-workbench-skills.git lulu-workbench-sk
 
 ```json
 {
-  "archive_root": "/path/to/your/lulu-workbench"
+  "archive_root": "/path/to/your/lulu-workbench-knowledge"
 }
 ```
 
