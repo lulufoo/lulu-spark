@@ -4,7 +4,8 @@ import {
   fetchConfig, fetchFileContent, fetchLinkTitle,
   saveFile, commitFiles, pullProject,
   updateComments, updateLinks, setImportance, setDone,
-  deleteEntry, ghMove
+  deleteEntry, ghMove,
+  fetchTopics, moveToProject,
 } from '../js/api.js'
 
 function mockFetch(body, ok = true, status = 200) {
@@ -13,6 +14,18 @@ function mockFetch(body, ok = true, status = 200) {
     status,
     json: () => Promise.resolve(body),
     text: () => Promise.resolve(typeof body === 'string' ? body : JSON.stringify(body))
+  })
+}
+
+// 模拟服务器返回 HTML 页面（如 Python BaseHTTPServer 的默认 404 响应）
+function mockFetchHtml(status = 404) {
+  globalThis.fetch = vi.fn().mockResolvedValue({
+    ok: status >= 200 && status < 300,
+    status,
+    json: () => Promise.reject(new SyntaxError(
+      `Unexpected token '<', "<!DOCTYPE "... is not valid JSON`
+    )),
+    text: () => Promise.resolve('<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">\n<html><body>File not found</body></html>')
   })
 }
 
@@ -171,4 +184,53 @@ test('ghMove 发送 src_url 和 dst_dir_url', async () => {
   const body = JSON.parse(fetch.mock.calls[0][1].body)
   expect(body.src_url).toBe('https://github.com/src')
   expect(body.dst_dir_url).toBe('https://github.com/dst')
+})
+
+// ── fetchTopics ────────────────────────────────────────────────────────────
+
+test('fetchTopics 调用 /api/topics?_=<timestamp> 并返回数据', async () => {
+  mockFetch({ topics: [{ dir: 'ai', description: 'AI notes' }] })
+  const result = await fetchTopics()
+  expect(fetch.mock.calls[0][0]).toMatch(/^\/api\/topics\?_=\d+$/)
+  expect(result.topics).toHaveLength(1)
+  expect(result.topics[0].dir).toBe('ai')
+})
+
+test('fetchTopics topics.json 不存在时抛出服务器返回的错误信息', async () => {
+  mockFetch({ error: 'topics.json not found' }, false, 404)
+  await expect(fetchTopics()).rejects.toThrow('topics.json not found')
+})
+
+// 回归测试：复现 BUG —— 服务器返回 HTML 404 时 res.json() 在 res.ok 检查前抛出
+// SyntaxError，导致用户看到 "Unexpected token '<'..." 而非可读错误。
+// 修复后此测试应通过；修复前会 FAIL。
+test('fetchTopics 服务器返回 HTML 时抛出可读错误而非 JSON 解析异常', async () => {
+  mockFetchHtml(404)
+  const err = await fetchTopics().catch(e => e)
+  expect(err).toBeInstanceOf(Error)
+  expect(err.message).not.toMatch(/Unexpected token/)
+  expect(err.message).toMatch(/HTTP 404/)
+})
+
+// ── moveToProject ──────────────────────────────────────────────────────────
+
+test('moveToProject 发送正确 POST body 并返回响应', async () => {
+  const id = 'a'.repeat(32)
+  mockFetch({ ok: true, new_common_path: 'ai/note.md' })
+  const result = await moveToProject(id, 'ai')
+  expect(fetch.mock.calls[0][0]).toBe('/api/move-project')
+  expect(fetch.mock.calls[0][1].method).toBe('POST')
+  const body = JSON.parse(fetch.mock.calls[0][1].body)
+  expect(body.id).toBe(id)
+  expect(body.new_project).toBe('ai')
+  expect(result.ok).toBe(true)
+})
+
+// 回归测试：moveToProject 也存在同样的 res.json() 前置问题，
+// 服务器返回 HTML 时应抛出可读错误而非 JSON 解析异常。
+test('moveToProject 服务器返回 HTML 时不抛出 JSON 解析异常', async () => {
+  mockFetchHtml(404)
+  const err = await moveToProject('a'.repeat(32), 'ai').catch(e => e)
+  expect(err).toBeInstanceOf(Error)
+  expect(err.message).not.toMatch(/Unexpected token/)
 })

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import http.server
+import json
 import subprocess
 import sys
 import tempfile
@@ -167,6 +168,186 @@ class TestCorpusGitHandlers(unittest.TestCase):
             handler._handle_status()
             self.assertEqual(handler._json_responses[0][1], 400)
             self.assertIn('not a git repository', handler._json_responses[0][0]['error'])
+
+
+# ── TestHandleTopics ───────────────────────────────────────────────────────
+
+
+class TestHandleTopics(unittest.TestCase):
+    """验证 _handle_topics 在所有情况下都返回 JSON，不会返回 HTML。"""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.srv = _load_server_namespace()
+
+    def _handler(self):
+        Handler = self.srv['Handler']
+        handler = Handler.__new__(Handler)
+        handler._json_responses = []
+
+        def _json_response(data, status=200):
+            handler._json_responses.append((data, status))
+
+        handler._json_response = _json_response
+        return handler
+
+    def test_returns_200_json_when_topics_found(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            cache = repo / '.cache'
+            cache.mkdir()
+            topics = {'topics': [{'dir': 'ai', 'description': 'AI notes'}]}
+            (cache / 'topics.json').write_text(
+                json.dumps(topics), encoding='utf-8'
+            )
+            self.srv['REPO_ROOT'] = repo
+            self.srv['TOPICS_CACHE_FILE'] = cache / 'topics.json'
+
+            handler = self._handler()
+            handler._handle_topics()
+
+            self.assertEqual(len(handler._json_responses), 1)
+            data, status = handler._json_responses[0]
+            self.assertEqual(status, 200)
+            self.assertEqual(data['topics'], topics['topics'])
+
+    def test_returns_json_404_not_html_when_topics_missing(self):
+        """关键：topics.json 缺失时必须返回 JSON error 404，不得触发 HTML 响应。
+        这是 BUG 根因之一：若此方法异常泄漏，BaseHTTPServer 会返回 HTML 404。"""
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            (repo / '.cache').mkdir()
+            self.srv['REPO_ROOT'] = repo
+            self.srv['TOPICS_CACHE_FILE'] = repo / '.cache' / 'topics.json'
+
+            handler = self._handler()
+            handler._handle_topics()
+
+            self.assertEqual(len(handler._json_responses), 1)
+            data, status = handler._json_responses[0]
+            self.assertEqual(status, 404)
+            # 必须是 JSON dict，不是 HTML 字符串
+            self.assertIsInstance(data, dict)
+            self.assertIn('error', data)
+
+
+# ── TestDoGetRouting ───────────────────────────────────────────────────────
+
+
+class TestDoGetRouting(unittest.TestCase):
+    """验证 do_GET 路由：带 query string 的 /api/topics 不能落到 super().do_GET()。
+    BUG 根因之二：旧版 server 缺少此路由，导致请求落入静态文件服务返回 HTML 404。"""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.srv = _load_server_namespace()
+
+    def test_get_api_topics_with_timestamp_routes_to_handle_topics(self):
+        """/api/topics?_=<timestamp> 应命中 _handle_topics，不触发 super().do_GET()。"""
+        Handler = self.srv['Handler']
+        handler = Handler.__new__(Handler)
+        handler.path = '/api/topics?_=1716000000000'
+
+        called = []
+        handler._handle_topics = lambda: called.append('_handle_topics')
+
+        with mock.patch.object(
+            http.server.SimpleHTTPRequestHandler, 'do_GET',
+            side_effect=AssertionError('super().do_GET() should not be called for /api/topics'),
+        ):
+            handler.do_GET()
+
+        self.assertEqual(called, ['_handle_topics'])
+
+    def test_get_api_topics_no_query_routes_to_handle_topics(self):
+        """/api/topics（无 query string）同样应命中 _handle_topics。"""
+        Handler = self.srv['Handler']
+        handler = Handler.__new__(Handler)
+        handler.path = '/api/topics'
+
+        called = []
+        handler._handle_topics = lambda: called.append('_handle_topics')
+
+        with mock.patch.object(
+            http.server.SimpleHTTPRequestHandler, 'do_GET',
+            side_effect=AssertionError('super().do_GET() should not be called for /api/topics'),
+        ):
+            handler.do_GET()
+
+        self.assertEqual(called, ['_handle_topics'])
+
+
+# ── TestDoPostRouting ──────────────────────────────────────────────────────
+
+
+class TestDoPostRouting(unittest.TestCase):
+    """验证 do_POST 路由：/api/move-project 不触发 send_error(404)。"""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.srv = _load_server_namespace()
+
+    def test_post_move_project_routes_to_handle_move_project(self):
+        Handler = self.srv['Handler']
+        handler = Handler.__new__(Handler)
+        handler.path = '/api/move-project'
+
+        called = []
+        handler._handle_move_project = lambda: called.append('_handle_move_project')
+
+        with mock.patch.object(
+            Handler, 'send_error',
+            side_effect=AssertionError('send_error() should not be called for /api/move-project'),
+        ):
+            handler.do_POST()
+
+        self.assertEqual(called, ['_handle_move_project'])
+
+
+# ── TestHandleMoveProject ──────────────────────────────────────────────────
+
+
+class TestHandleMoveProject(unittest.TestCase):
+    """验证 _handle_move_project 输入校验时返回 JSON error，不返回 HTML。"""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.srv = _load_server_namespace()
+
+    def _handler(self, request_body):
+        Handler = self.srv['Handler']
+        handler = Handler.__new__(Handler)
+        handler._json_responses = []
+
+        def _json_response(data, status=200):
+            handler._json_responses.append((data, status))
+
+        handler._json_response = _json_response
+        handler._read_json = lambda: request_body
+        return handler
+
+    def test_invalid_id_format_returns_400_json(self):
+        """id 格式不合法时返回 400 JSON，不返回 HTML。"""
+        handler = self._handler({'id': 'bad-id', 'new_project': 'ai'})
+        handler._handle_move_project()
+        data, status = handler._json_responses[0]
+        self.assertEqual(status, 400)
+        self.assertIsInstance(data, dict)
+        self.assertIn('error', data)
+
+    def test_empty_new_project_returns_400_json(self):
+        handler = self._handler({'id': 'a' * 32, 'new_project': ''})
+        handler._handle_move_project()
+        data, status = handler._json_responses[0]
+        self.assertEqual(status, 400)
+        self.assertIn('error', data)
+
+    def test_path_traversal_in_project_returns_400_json(self):
+        handler = self._handler({'id': 'a' * 32, 'new_project': '../escape'})
+        handler._handle_move_project()
+        data, status = handler._json_responses[0]
+        self.assertEqual(status, 400)
+        self.assertIn('error', data)
 
 
 if __name__ == '__main__':
