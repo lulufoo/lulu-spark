@@ -1,6 +1,7 @@
-import { createApiClient, createFetchDriver } from './apiClient.js';
+import { createApiClient, resolveReadDriver } from './apiClient.js';
 
-const readDriver = createFetchDriver();
+const readMode = resolveReadDriver();
+const readDriver = resolveReadDriver(readMode);
 const readApi = createApiClient(readDriver);
 
 async function readGet(pathAndQuery) {
@@ -14,11 +15,7 @@ export async function fetchIndex() {
 }
 
 export async function fetchDiffStatus() {
-  try {
-    return await readGet('/api/status?_=' + Date.now());
-  } catch {
-    return null;
-  }
+  return readGet('/api/status?_=' + Date.now());
 }
 
 export async function fetchAnnotationsSummary() {
@@ -314,7 +311,16 @@ export async function moveToProject(id, newProject) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ id, new_project: newProject })
   });
-  return res.json();
+  const text = await res.text();
+  let data;
+  try {
+    data = text ? JSON.parse(text) : {};
+  } catch {
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    throw new Error('Invalid JSON response');
+  }
+  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+  return data;
 }
 
 export async function fetchRepoDirs(repo) {

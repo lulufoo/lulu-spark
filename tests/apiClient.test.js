@@ -9,6 +9,7 @@ vi.mock('@tauri-apps/api/core', () => ({
 import {
   createApiClient,
   createFetchDriver,
+  createTauriDriver,
   resolveReadDriver,
 } from '../js/apiClient.js';
 
@@ -77,4 +78,22 @@ test('resolveReadDriver 在 fetch 模式下不调用 invoke', async () => {
 
 test('resolveReadDriver 默认（未设置 VITE_READ_API）为 fetch', () => {
   expect(resolveReadDriver()).toBe('fetch');
+});
+
+test('tauriDriver getJson 通过 invoke 调用映射命令', async () => {
+  invokeMock.mockResolvedValue({ total: 1, modified: ['raw/a.md'] });
+  const driver = createTauriDriver();
+  const result = await driver.getJson('/api/status?_=' + Date.now());
+
+  expect(invokeMock).toHaveBeenCalledOnce();
+  expect(invokeMock).toHaveBeenCalledWith('get_status', {});
+  expect(result.total).toBe(1);
+});
+
+test('tauriDriver 在未配置映射时抛出可读错误', async () => {
+  const driver = createTauriDriver();
+  await expect(driver.getJson('/api/not-exists')).rejects.toThrow(
+    'No Tauri invoke mapping for /api/not-exists'
+  );
+  expect(invokeMock).not.toHaveBeenCalled();
 });

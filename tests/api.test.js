@@ -56,10 +56,9 @@ test('fetchDiffStatus 调用 /api/status', async () => {
   expect(result.modified).toEqual(['raw/a.md'])
 })
 
-test('fetchDiffStatus 非 2xx 时返回 null', async () => {
+test('fetchDiffStatus 非 2xx 时抛出错误', async () => {
   mockFetch({}, false, 503)
-  const result = await fetchDiffStatus()
-  expect(result).toBeNull()
+  await expect(fetchDiffStatus()).rejects.toThrow('HTTP 503')
 })
 
 test('fetchAnnotationsSummary 调用 /api/annotations', async () => {
