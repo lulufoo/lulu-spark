@@ -21,3 +21,6 @@ trace/
 annotations/
 diagnose/
 index.json
+
+# Rust / Tauri build output
+src-tauri/target/
