@@ -4,10 +4,10 @@
   "version": "0.1.0",
   "identifier": "com.lulu.workbench",
   "build": {
-    "frontendDist": "..",
+    "frontendDist": "../.cache/tauri-frontend-dist",
     "devUrl": "http://localhost:8765",
     "beforeDevCommand": "python3 server.py",
-    "beforeBuildCommand": ""
+    "beforeBuildCommand": "bash ../scripts/build-tauri-frontend-dist.sh"
   },
   "app": {
     "withGlobalTauri": true,

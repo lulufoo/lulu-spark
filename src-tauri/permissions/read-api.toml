@@ -1,0 +1,21 @@
+[[permission]]
+identifier = "read-api"
+description = "P1 read-only Tauri invoke commands"
+commands.allow = [
+  "ping",
+  "get_knowledge_index",
+  "search_knowledge",
+  "search_workbench",
+  "get_topics",
+  "get_annotations",
+  "get_annotation",
+  "get_draft",
+  "get_config",
+  "get_status",
+  "kb_read",
+  "kb_annotation",
+  "kb_status",
+  "get_repo_list",
+  "get_repo_dirs",
+  "check_file",
+]

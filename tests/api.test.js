@@ -1,12 +1,15 @@
 import { test, expect, vi, beforeEach } from 'vitest'
+import { DEFAULT_DEV_BASE } from '../js/apiClient.js'
 import {
   fetchIndex, fetchDiffStatus, fetchAnnotationsSummary, fetchAnnotation,
   fetchConfig, fetchFileContent, fetchLinkTitle,
   saveFile, commitFiles, pullProject,
   updateComments, updateLinks, setImportance, setDone,
   deleteEntry, ghMove,
-  fetchTopics, moveToProject,
+  fetchTopics, moveToProject, fetchKnowledgeIndex,
 } from '../js/api.js'
+
+const API_READ_PREFIX = `${DEFAULT_DEV_BASE}/api`
 
 function mockFetch(body, ok = true, status = 200) {
   globalThis.fetch = vi.fn().mockResolvedValue({
@@ -49,7 +52,7 @@ test('fetchIndex 在非 2xx 时抛出错误', async () => {
 test('fetchDiffStatus 调用 /api/status', async () => {
   mockFetch({ modified: ['raw/a.md'], conflicted: [] })
   const result = await fetchDiffStatus()
-  expect(fetch.mock.calls[0][0]).toMatch(/^\/api\/status/)
+  expect(fetch.mock.calls[0][0]).toMatch(new RegExp(`^${API_READ_PREFIX}/status`))
   expect(result.modified).toEqual(['raw/a.md'])
 })
 
@@ -62,7 +65,7 @@ test('fetchDiffStatus 非 2xx 时返回 null', async () => {
 test('fetchAnnotationsSummary 调用 /api/annotations', async () => {
   mockFetch({ 'ai/note.md': { done: true } })
   const result = await fetchAnnotationsSummary()
-  expect(fetch.mock.calls[0][0]).toMatch(/^\/api\/annotations/)
+  expect(fetch.mock.calls[0][0]).toMatch(new RegExp(`^${API_READ_PREFIX}/annotations`))
   expect(result['ai/note.md'].done).toBe(true)
 })
 
@@ -75,8 +78,14 @@ test('fetchAnnotation 对 path 做 encodeURIComponent', async () => {
 test('fetchConfig 调用 /api/config', async () => {
   mockFetch({ archive_root: '/tmp' })
   const result = await fetchConfig()
-  expect(fetch.mock.calls[0][0]).toBe('/api/config')
+  expect(fetch.mock.calls[0][0]).toBe(`${API_READ_PREFIX}/config`)
   expect(result.archive_root).toBe('/tmp')
+})
+
+test('fetchKnowledgeIndex(true) 请求带 force=1', async () => {
+  mockFetch({ entries: [] })
+  await fetchKnowledgeIndex(true)
+  expect(fetch.mock.calls[0][0]).toBe(`${API_READ_PREFIX}/knowledge-index?force=1`)
 })
 
 test('fetchFileContent 构造正确路径并返回文本', async () => {
@@ -191,7 +200,7 @@ test('ghMove 发送 src_url 和 dst_dir_url', async () => {
 test('fetchTopics 调用 /api/topics?_=<timestamp> 并返回数据', async () => {
   mockFetch({ topics: [{ dir: 'ai', description: 'AI notes' }] })
   const result = await fetchTopics()
-  expect(fetch.mock.calls[0][0]).toMatch(/^\/api\/topics\?_=\d+$/)
+  expect(fetch.mock.calls[0][0]).toMatch(new RegExp(`^${API_READ_PREFIX}/topics\\?_=\\d+$`))
   expect(result.topics).toHaveLength(1)
   expect(result.topics[0].dir).toBe('ai')
 })

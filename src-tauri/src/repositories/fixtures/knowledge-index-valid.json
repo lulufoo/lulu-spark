@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "entries": [
+    {
+      "id": "ai-notes",
+      "repo": "lulufoo/ai-notes",
+      "description": "AI notes corpus",
+      "indexUrl": "https://github.com/lulufoo/ai-notes/blob/main/_index.md"
+    }
+  ]
+}

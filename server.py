@@ -216,46 +216,10 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         parsed_path = urllib.parse.urlparse(self.path).path
         if parsed_path.startswith('/api/fetch-title'):
             self._handle_fetch_title()
-        elif parsed_path == '/api/config':
-            self._json_response({
-                'archive_root': str(KNOWLEDGE_CORPUS_DIR),
-                'kb_root': str(KNOWLEDGE_BASE_DIR),
-                'corpus_github': str(KNOWLEDGE_CORPUS_GITHUB),
-            })
-        elif parsed_path == '/api/annotations':
-            self._handle_get_annotations()
-        elif parsed_path == '/api/annotation':
-            self._handle_get_annotation()
-        elif parsed_path == '/api/status':
-            self._handle_status()
-        elif parsed_path == '/api/check-file':
-            self._handle_check_file()
-        elif parsed_path == '/api/repo-dirs':
-            self._handle_repo_dirs()
-        elif parsed_path == '/api/knowledge-index':
-            qs = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
-            force = qs.get('force', [''])[0] in ('1', 'true', 'yes')
-            self._handle_knowledge_index(force=force)
-        elif parsed_path == '/api/topics':
-            self._handle_topics()
-        elif parsed_path == '/api/repo-list':
-            self._handle_repo_list()
-        elif parsed_path == '/api/search-knowledge':
-            self._handle_search_knowledge()
         elif parsed_path == '/api/reindex-status':
             self._handle_reindex_status()
-        elif parsed_path == '/api/search-workbench':
-            self._handle_search_workbench()
         elif parsed_path == '/api/reindex-workbench-status':
             self._handle_reindex_workbench_status()
-        elif parsed_path == '/api/draft':
-            self._handle_get_draft()
-        elif parsed_path == '/api/kb/read':
-            self._handle_kb_read()
-        elif parsed_path == '/api/kb/annotation':
-            self._handle_kb_annotation_get()
-        elif parsed_path == '/api/kb/status':
-            self._handle_kb_status()
         else:
             super().do_GET()
 

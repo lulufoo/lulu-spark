@@ -5,7 +5,7 @@ edition = "2021"
 
 [lib]
 name = "lulu_workbench_lib"
-crate-type = ["lib", "cdylib", "staticlib"]
+crate-type = ["lib", "cdylib"]
 
 [[bin]]
 name = "lulu-workbench"
@@ -23,3 +23,10 @@ tauri = { version = "2", features = [] }
 tauri-plugin-shell = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
+reqwest = { version = "0.12", default-features = false, features = ["blocking", "json", "rustls-tls"] }
+urlencoding = "2"
+base64 = "0.22"
+
+[dev-dependencies]
+tempfile = "3"

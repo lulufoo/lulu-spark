@@ -235,46 +235,44 @@ class TestHandleTopics(unittest.TestCase):
 
 
 class TestDoGetRouting(unittest.TestCase):
-    """验证 do_GET 路由：带 query string 的 /api/topics 不能落到 super().do_GET()。
-    BUG 根因之二：旧版 server 缺少此路由，导致请求落入静态文件服务返回 HTML 404。"""
+    """P1：已迁移只读 API 不再由 Python do_GET 处理；reindex-status 仍保留。"""
 
     @classmethod
     def setUpClass(cls):
         cls.srv = _load_server_namespace()
 
-    def test_get_api_topics_with_timestamp_routes_to_handle_topics(self):
-        """/api/topics?_=<timestamp> 应命中 _handle_topics，不触发 super().do_GET()。"""
+    def test_get_api_topics_delegates_to_super(self):
+        """/api/topics 已迁 Rust；Python do_GET 应落到 super().do_GET()。"""
         Handler = self.srv['Handler']
         handler = Handler.__new__(Handler)
         handler.path = '/api/topics?_=1716000000000'
 
         called = []
-        handler._handle_topics = lambda: called.append('_handle_topics')
-
         with mock.patch.object(
-            http.server.SimpleHTTPRequestHandler, 'do_GET',
-            side_effect=AssertionError('super().do_GET() should not be called for /api/topics'),
+            http.server.SimpleHTTPRequestHandler,
+            'do_GET',
+            lambda self: called.append('super'),
         ):
             handler.do_GET()
 
-        self.assertEqual(called, ['_handle_topics'])
+        self.assertEqual(called, ['super'])
 
-    def test_get_api_topics_no_query_routes_to_handle_topics(self):
-        """/api/topics（无 query string）同样应命中 _handle_topics。"""
+    def test_get_reindex_status_routes_to_handler(self):
         Handler = self.srv['Handler']
         handler = Handler.__new__(Handler)
-        handler.path = '/api/topics'
+        handler.path = '/api/reindex-status'
 
         called = []
-        handler._handle_topics = lambda: called.append('_handle_topics')
+        handler._handle_reindex_status = lambda: called.append('reindex')
 
         with mock.patch.object(
-            http.server.SimpleHTTPRequestHandler, 'do_GET',
-            side_effect=AssertionError('super().do_GET() should not be called for /api/topics'),
+            http.server.SimpleHTTPRequestHandler,
+            'do_GET',
+            side_effect=AssertionError('super should not run for reindex-status'),
         ):
             handler.do_GET()
 
-        self.assertEqual(called, ['_handle_topics'])
+        self.assertEqual(called, ['reindex'])
 
 
 # ── TestDoPostRouting ──────────────────────────────────────────────────────

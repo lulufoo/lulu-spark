@@ -1,0 +1,109 @@
+/**
+ * P1 read API: HTTP path (fetchDriver) ↔ Tauri command (tauriDriver).
+ * Query keys match `server.py` / `api.js` usage.
+ */
+
+/** @type {Record<string, { cmd: string, args?: (url: URL) => Record<string, unknown> }>} */
+export const READ_API_INVOKE_MAP = {
+  '/api/knowledge-index': {
+    cmd: 'get_knowledge_index',
+    args: (url) => ({
+      force: ['1', 'true', 'yes'].includes(url.searchParams.get('force') ?? ''),
+    }),
+  },
+  '/api/search-knowledge': {
+    cmd: 'search_knowledge',
+    args: (url) => ({
+      q: url.searchParams.get('q') ?? '',
+      limit: url.searchParams.has('limit')
+        ? Number(url.searchParams.get('limit'))
+        : undefined,
+    }),
+  },
+  '/api/search-workbench': {
+    cmd: 'search_workbench',
+    args: (url) => ({
+      q: url.searchParams.get('q') ?? '',
+      limit: url.searchParams.has('limit')
+        ? Number(url.searchParams.get('limit'))
+        : undefined,
+    }),
+  },
+  '/api/topics': { cmd: 'get_topics' },
+  '/api/annotations': { cmd: 'get_annotations' },
+  '/api/annotation': {
+    cmd: 'get_annotation',
+    args: (url) => ({ path: url.searchParams.get('path') ?? '' }),
+  },
+  '/api/draft': {
+    cmd: 'get_draft',
+    args: (url) => ({ path: url.searchParams.get('path') ?? '' }),
+  },
+  '/api/config': { cmd: 'get_config' },
+  '/api/status': { cmd: 'get_status' },
+  '/api/kb/read': {
+    cmd: 'kb_read',
+    args: (url) => ({
+      repo: url.searchParams.get('repo') ?? '',
+      path: url.searchParams.get('path') ?? '',
+    }),
+  },
+  '/api/kb/annotation': {
+    cmd: 'kb_annotation',
+    args: (url) => ({
+      repo: url.searchParams.get('repo') ?? '',
+      path: url.searchParams.get('path') ?? '',
+    }),
+  },
+  '/api/kb/status': {
+    cmd: 'kb_status',
+    args: (url) => ({ repo: url.searchParams.get('repo') ?? '' }),
+  },
+  '/api/repo-list': {
+    cmd: 'get_repo_list',
+    args: (url) => ({
+      force: url.searchParams.get('force') === '1',
+    }),
+  },
+  '/api/repo-dirs': {
+    cmd: 'get_repo_dirs',
+    args: (url) => ({ repo: url.searchParams.get('repo') ?? '' }),
+  },
+  '/api/check-file': {
+    cmd: 'check_file',
+    args: (url) => ({
+      repo: url.searchParams.get('repo') ?? '',
+      path: url.searchParams.get('path') ?? '',
+    }),
+  },
+};
+
+/**
+ * Strip volatile fields before deep-equal contract checks (V-1).
+ * @param {unknown} value
+ */
+export function normalizeForContract(value) {
+  if (value === null || typeof value !== 'object') return value;
+  if (Array.isArray(value)) {
+    return value.map(normalizeForContract);
+  }
+  const out = {};
+  for (const [k, v] of Object.entries(value)) {
+    if (k === 'cached_at' || k === '_') continue;
+    out[k] = normalizeForContract(v);
+  }
+  return out;
+}
+
+/**
+ * @param {string} pathAndQuery e.g. `/api/topics?_=123`
+ */
+export function resolveInvokeFromPath(pathAndQuery) {
+  const url = new URL(pathAndQuery, 'http://local');
+  const entry = READ_API_INVOKE_MAP[url.pathname];
+  if (!entry) return null;
+  return {
+    cmd: entry.cmd,
+    args: entry.args ? entry.args(url) : {},
+  };
+}

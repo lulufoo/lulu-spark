@@ -1,3 +1,9 @@
+pub mod commands;
+pub mod config;
+pub mod integrations;
+pub mod repositories;
+pub mod services;
+
 use std::net::{SocketAddr, TcpStream, ToSocketAddrs};
 use std::sync::{Arc, Mutex};
 use std::thread;
@@ -81,10 +87,7 @@ fn ping() -> &'static str {
 
 #[cfg(not(test))]
 fn project_root() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .parent()
-        .expect("src-tauri must have a parent directory")
-        .to_path_buf()
+    config::paths::repo_root().expect("src-tauri must have a parent directory")
 }
 
 #[cfg(not(test))]
@@ -196,7 +199,24 @@ fn kill_python_child(app_handle: &tauri::AppHandle) {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
-        .invoke_handler(tauri::generate_handler![ping])
+        .invoke_handler(tauri::generate_handler![
+            ping,
+            commands::read::get_knowledge_index,
+            commands::read::search_knowledge,
+            commands::read::search_workbench,
+            commands::read::get_topics,
+            commands::read::get_annotations,
+            commands::read::get_annotation,
+            commands::read::get_draft,
+            commands::read::get_config,
+            commands::read::get_status,
+            commands::read::kb_read,
+            commands::read::kb_annotation,
+            commands::read::kb_status,
+            commands::read::get_repo_list,
+            commands::read::get_repo_dirs,
+            commands::read::check_file,
+        ])
         .setup(|app| {
             create_main_window(app)?;
             let child_holder = Arc::new(Mutex::new(None::<CommandChild>));

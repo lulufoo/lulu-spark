@@ -1,3 +1,12 @@
+import { createApiClient, createFetchDriver } from './apiClient.js';
+
+const readDriver = createFetchDriver();
+const readApi = createApiClient(readDriver);
+
+async function readGet(pathAndQuery) {
+  return readApi.getJson(pathAndQuery);
+}
+
 export async function fetchIndex() {
   const res = await fetch('./index.json?_=' + Date.now());
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -5,26 +14,28 @@ export async function fetchIndex() {
 }
 
 export async function fetchDiffStatus() {
-  const res = await fetch('/api/status?_=' + Date.now());
-  if (!res.ok) return null;
-  return res.json();
+  try {
+    return await readGet('/api/status?_=' + Date.now());
+  } catch {
+    return null;
+  }
 }
 
 export async function fetchAnnotationsSummary() {
-  const res = await fetch('/api/annotations?_=' + Date.now());
-  if (!res.ok) return null;
-  return res.json();
+  try {
+    return await readGet('/api/annotations?_=' + Date.now());
+  } catch {
+    return null;
+  }
 }
 
 export async function fetchAnnotation(path) {
-  const res = await fetch(`/api/annotation?path=${encodeURIComponent(path)}`);
+  const res = await readDriver.fetchGet(`/api/annotation?path=${encodeURIComponent(path)}`);
   return res.json();
 }
 
 export async function fetchConfig() {
-  const res = await fetch('/api/config');
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.json();
+  return readGet('/api/config');
 }
 
 export async function fetchFileContent(layer, commonPath) {
@@ -60,7 +71,9 @@ export async function commitFiles(message, files) {
 }
 
 export async function fetchKbFileContent(repo, path) {
-  const res = await fetch(`/api/kb/read?repo=${encodeURIComponent(repo)}&path=${encodeURIComponent(path)}`);
+  const res = await readDriver.fetchGet(
+    `/api/kb/read?repo=${encodeURIComponent(repo)}&path=${encodeURIComponent(path)}`
+  );
   if (!res.ok) {
     let msg = `HTTP ${res.status}`;
     try { const d = await res.json(); if (d.error) msg = d.error; } catch (_) {}
@@ -70,7 +83,9 @@ export async function fetchKbFileContent(repo, path) {
 }
 
 export async function fetchKbAnnotation(repo, path) {
-  const res = await fetch(`/api/kb/annotation?repo=${encodeURIComponent(repo)}&path=${encodeURIComponent(path)}`);
+  const res = await readDriver.fetchGet(
+    `/api/kb/annotation?repo=${encodeURIComponent(repo)}&path=${encodeURIComponent(path)}`
+  );
   if (!res.ok) return {};
   return res.json();
 }
@@ -130,7 +145,7 @@ export async function commitKbFile(repo, message) {
 }
 
 export async function fetchKbStatus(repo) {
-  const res = await fetch(`/api/kb/status?repo=${encodeURIComponent(repo)}`);
+  const res = await readDriver.fetchGet(`/api/kb/status?repo=${encodeURIComponent(repo)}`);
   return res.json();
 }
 
@@ -245,16 +260,22 @@ export async function updateHighlight(commonPath, layer, highlight, ts) {
 }
 
 export async function fetchTopics() {
-  const res = await fetch('/api/topics?_=' + Date.now());
-  const data = await res.json();
+  const res = await readDriver.fetchGet('/api/topics?_=' + Date.now());
+  const text = await res.text();
+  let data;
+  try {
+    data = text ? JSON.parse(text) : {};
+  } catch {
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    throw new Error('Invalid JSON response');
+  }
   if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
   return data;
 }
 
 export async function fetchKnowledgeIndex(force = false) {
-  // Always load from dev server (reads .cache/knowledge-index.json on disk).
-  const url = force ? '/api/knowledge-index?force=1' : '/api/knowledge-index';
-  const res = await fetch(url);
+  const path = force ? '/api/knowledge-index?force=1' : '/api/knowledge-index';
+  const res = await readDriver.fetchGet(path);
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
   try {
@@ -273,7 +294,7 @@ export async function updateTopics() {
 }
 
 export async function getDraft(commonPath) {
-  const res = await fetch(`/api/draft?path=${encodeURIComponent(commonPath)}`);
+  const res = await readDriver.fetchGet(`/api/draft?path=${encodeURIComponent(commonPath)}`);
   if (!res.ok) return { content: '' };
   return res.json();
 }
@@ -297,22 +318,18 @@ export async function moveToProject(id, newProject) {
 }
 
 export async function fetchRepoDirs(repo) {
-  const res = await fetch(`/api/repo-dirs?repo=${encodeURIComponent(repo)}`);
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.json();
+  return readGet(`/api/repo-dirs?repo=${encodeURIComponent(repo)}`);
 }
 
 export async function fetchRepoList(force = false) {
-  const url = force ? '/api/repo-list?force=1' : '/api/repo-list';
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.json();
+  const path = force ? '/api/repo-list?force=1' : '/api/repo-list';
+  return readGet(path);
 }
 
 export async function checkFileExists(repo, path) {
-  const res = await fetch(`/api/check-file?repo=${encodeURIComponent(repo)}&path=${encodeURIComponent(path)}`);
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.json();
+  return readGet(
+    `/api/check-file?repo=${encodeURIComponent(repo)}&path=${encodeURIComponent(path)}`
+  );
 }
 
 export async function settleComment(commonPath, commentId, layer, docTheme, slug, content) {
@@ -332,7 +349,9 @@ export async function settleComment(commonPath, commentId, layer, docTheme, slug
 }
 
 export async function searchKnowledge(q, limit = 10) {
-  const res = await fetch(`/api/search-knowledge?q=${encodeURIComponent(q)}&limit=${limit}`);
+  const res = await readDriver.fetchGet(
+    `/api/search-knowledge?q=${encodeURIComponent(q)}&limit=${limit}`
+  );
   return res.json();
 }
 
@@ -342,12 +361,14 @@ export async function reindexKnowledge() {
 }
 
 export async function getReindexStatus() {
-  const res = await fetch('/api/reindex-status');
+  const res = await readDriver.fetchGet('/api/reindex-status');
   return res.json();
 }
 
 export async function searchWorkbench(q, limit = 10) {
-  const res = await fetch(`/api/search-workbench?q=${encodeURIComponent(q)}&limit=${limit}`);
+  const res = await readDriver.fetchGet(
+    `/api/search-workbench?q=${encodeURIComponent(q)}&limit=${limit}`
+  );
   return res.json();
 }
 
@@ -357,6 +378,6 @@ export async function reindexWorkbench() {
 }
 
 export async function getReindexWorkbenchStatus() {
-  const res = await fetch('/api/reindex-workbench-status');
+  const res = await readDriver.fetchGet('/api/reindex-workbench-status');
   return res.json();
 }
