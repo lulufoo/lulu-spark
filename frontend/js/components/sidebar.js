@@ -7,6 +7,7 @@ import { renderDocList, loadTitles } from './cards.js'
 export function buildGroups(indexData) {
   const map = new Map();
   for (const [id, entry] of Object.entries(indexData)) {
+    if (!entry || typeof entry.created_at !== 'string') continue;
     const date = entry.created_at.slice(0, 8);
     if (!map.has(date)) map.set(date, []);
     map.get(date).push({ id, entry });

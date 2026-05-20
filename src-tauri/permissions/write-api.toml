@@ -14,4 +14,5 @@ commands.allow = [
   "kb_reorder_comments",
   "kb_update_highlights",
   "kb_update_links",
+  "set_config",
 ]

@@ -1,7 +1,15 @@
 pub mod annotation;
+pub mod corpus_git;
+pub mod draft;
+pub mod entry_admin;
+pub mod kb_git;
+pub mod kb_iterm;
+pub mod github_move;
+pub mod index_build;
+pub mod link_title;
 pub mod entry_write;
 pub mod kb;
 pub mod kb_write;
-pub mod knowledge;
 pub mod reindex;
+pub mod settle;
 pub mod workbench_read;

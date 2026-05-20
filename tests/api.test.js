@@ -1,12 +1,14 @@
+import { readFileSync } from 'node:fs'
 import { test, expect, vi, beforeEach } from 'vitest'
 import { DEFAULT_DEV_BASE } from '../frontend/js/apiClient.js'
 import {
   fetchIndex, fetchDiffStatus, fetchAnnotationsSummary, fetchAnnotation,
   fetchConfig, fetchFileContent, fetchLinkTitle,
+  setConfig,
   saveFile, commitFiles, pullProject,
   updateComments, updateLinks, setImportance, setDone,
   deleteEntry, ghMove,
-  fetchTopics, moveToProject, fetchKnowledgeIndex,
+  fetchTopics, moveToProject,
 } from '../frontend/js/api.js'
 
 const API_READ_PREFIX = `${DEFAULT_DEV_BASE}/api`
@@ -34,13 +36,20 @@ function mockFetchHtml(status = 404) {
 
 beforeEach(() => { vi.restoreAllMocks() })
 
+test('api.js 无裸 fetch（读路径均经 readGet / writePost）', () => {
+  const src = readFileSync(new URL('../frontend/js/api.js', import.meta.url), 'utf8')
+  expect([...src.matchAll(/await fetch\(/g)]).toHaveLength(0)
+})
+
 // ── GET endpoints ──────────────────────────────────────────────────────────
 
-test('fetchIndex 调用 ./index.json 并返回 JSON', async () => {
+test('fetchIndex 调用 /api/corpus-index 并返回 JSON', async () => {
   mockFetch({ entries: [] })
   const result = await fetchIndex()
   expect(fetch).toHaveBeenCalledOnce()
-  expect(fetch.mock.calls[0][0]).toMatch(/^\.\/index\.json/)
+  expect(fetch.mock.calls[0][0]).toMatch(
+    new RegExp(`^${API_READ_PREFIX}/corpus-index`)
+  )
   expect(result).toEqual({ entries: [] })
 })
 
@@ -81,16 +90,23 @@ test('fetchConfig 调用 /api/config', async () => {
   expect(result.archive_root).toBe('/tmp')
 })
 
-test('fetchKnowledgeIndex(true) 请求带 force=1', async () => {
-  mockFetch({ entries: [] })
-  await fetchKnowledgeIndex(true)
-  expect(fetch.mock.calls[0][0]).toBe(`${API_READ_PREFIX}/knowledge-index?force=1`)
+test('setConfig 发送 POST 到 /api/config', async () => {
+  mockFetch({ has_github_token: true })
+  await setConfig({ github_token: 'ghp_test' })
+  expect(fetch.mock.calls[0][0]).toBe(`${DEFAULT_DEV_BASE}/api/config`)
+  expect(fetch.mock.calls[0][1].method).toBe('POST')
+  const body = JSON.parse(fetch.mock.calls[0][1].body)
+  expect(body.github_token).toBe('ghp_test')
 })
 
-test('fetchFileContent 构造正确路径并返回文本', async () => {
-  mockFetch('# Hello')
+test('fetchFileContent 调用 /api/corpus-file 并返回 content', async () => {
+  mockFetch({ content: '# Hello' })
   const text = await fetchFileContent('raw', 'ai/note.md')
-  expect(fetch.mock.calls[0][0]).toMatch(/^\.\/raw\/ai\/note\.md/)
+  expect(fetch.mock.calls[0][0]).toMatch(
+    new RegExp(
+      `^${API_READ_PREFIX}/corpus-file\\?layer=raw&path=${encodeURIComponent('ai/note.md')}`
+    )
+  )
   expect(text).toBe('# Hello')
 })
 
@@ -102,7 +118,9 @@ test('fetchFileContent 非 2xx 时抛出错误', async () => {
 test('fetchLinkTitle 对 url 做 encodeURIComponent', async () => {
   mockFetch({ title: 'My Page' })
   const result = await fetchLinkTitle('https://example.com/a b')
-  expect(fetch.mock.calls[0][0]).toContain(encodeURIComponent('https://example.com/a b'))
+  expect(fetch.mock.calls[0][0]).toMatch(
+    new RegExp(`${API_READ_PREFIX}/fetch-title\\?url=${encodeURIComponent('https://example.com/a b')}`)
+  )
   expect(result.title).toBe('My Page')
 })
 
@@ -135,7 +153,7 @@ test('commitFiles 传 files 时 body 包含 files', async () => {
 test('pullProject 发送 POST 到 /api/pull', async () => {
   mockFetch({ ok: true })
   await pullProject()
-  expect(fetch.mock.calls[0][0]).toBe('/api/pull')
+  expect(fetch.mock.calls[0][0]).toBe(`${DEFAULT_DEV_BASE}/api/pull`)
   expect(fetch.mock.calls[0][1].method).toBe('POST')
 })
 
@@ -205,8 +223,8 @@ test('fetchTopics 调用 /api/topics?_=<timestamp> 并返回数据', async () =>
 })
 
 test('fetchTopics topics.json 不存在时抛出服务器返回的错误信息', async () => {
-  mockFetch({ error: 'topics.json not found' }, false, 404)
-  await expect(fetchTopics()).rejects.toThrow('topics.json not found')
+  mockFetch({ error: 'repo-list.json not found; run ⊙ 全量同步 in the app' }, false, 404)
+  await expect(fetchTopics()).rejects.toThrow('repo-list.json not found')
 })
 
 // 回归测试：复现 BUG —— 服务器返回 HTML 404 时 res.json() 在 res.ok 检查前抛出
@@ -226,7 +244,7 @@ test('moveToProject 发送正确 POST body 并返回响应', async () => {
   const id = 'a'.repeat(32)
   mockFetch({ ok: true, new_common_path: 'ai/note.md' })
   const result = await moveToProject(id, 'ai')
-  expect(fetch.mock.calls[0][0]).toBe('/api/move-project')
+  expect(fetch.mock.calls[0][0]).toBe(`${DEFAULT_DEV_BASE}/api/move-project`)
   expect(fetch.mock.calls[0][1].method).toBe('POST')
   const body = JSON.parse(fetch.mock.calls[0][1].body)
   expect(body.id).toBe(id)
@@ -237,8 +255,8 @@ test('moveToProject 发送正确 POST body 并返回响应', async () => {
 // 回归测试：moveToProject 也存在同样的 res.json() 前置问题，
 // 服务器返回 HTML 时应抛出可读错误而非 JSON 解析异常。
 test('moveToProject 服务器返回 HTML 时不抛出 JSON 解析异常', async () => {
-  mockFetchHtml(404)
+  mockFetch({ error: 'not found' }, false, 404)
   const err = await moveToProject('a'.repeat(32), 'ai').catch(e => e)
   expect(err).toBeInstanceOf(Error)
-  expect(err.message).not.toMatch(/Unexpected token/)
+  expect(err.message).toBe('not found')
 })

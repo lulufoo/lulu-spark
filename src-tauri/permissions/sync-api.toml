@@ -1,0 +1,15 @@
+[[permission]]
+identifier = "sync-api"
+description = "P4 sync Tauri invoke commands"
+commands.allow = [
+  "corpus_git_commit",
+  "corpus_git_pull",
+  "delete_entry",
+  "move_entry_project",
+  "gh_move_assets",
+  "settle_entry",
+  "save_comment_draft",
+  "kb_git_commit",
+  "kb_git_revert",
+  "open_kb_in_iterm",
+]

@@ -13,14 +13,5 @@
 node_modules
 .cursor
 
-# Knowledge corpus (managed in lulu-workbench-knowledge repo)
-raw/
-digest/
-distilled/
-trace/
-annotations/
-diagnose/
-index.json
-
 # Rust / Tauri build output
 src-tauri/target/

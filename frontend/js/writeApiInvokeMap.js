@@ -5,6 +5,12 @@
 
 /** @type {Record<string, { cmd: string, args: (body: Record<string, unknown>) => Record<string, unknown> }>} */
 export const WRITE_API_INVOKE_MAP = {
+  '/api/config': {
+    cmd: 'set_config',
+    args: (body) => ({
+      payload: body ?? {},
+    }),
+  },
   '/api/save': {
     cmd: 'save_entry',
     args: (body) => ({

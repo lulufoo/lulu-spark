@@ -8,7 +8,8 @@ import {
 describe('readApi contract map', () => {
   it('covers all P1 migrated GET paths', () => {
     const paths = [
-      '/api/knowledge-index',
+      '/api/corpus-index',
+      '/api/corpus-file',
       '/api/search-knowledge',
       '/api/search-workbench',
       '/api/topics',

@@ -38,7 +38,7 @@ async function doMoveDoc() {
   try {
     let data;
     try { data = await api.ghMove(srcUrl, dstUrl); }
-    catch { throw new Error('服务器未返回 JSON，请重启 server.py 后重试'); }
+    catch { throw new Error('服务器未返回 JSON，请重试或检查 App 日志'); }
     if (!data.ok || data.error) throw new Error(data.error || 'failed');
     if (data.warn) {
       result.style.color = '#e09b00';

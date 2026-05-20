@@ -113,10 +113,20 @@ test('tauriDriver postJson 通过 invoke 调用写映射命令', async () => {
   expect(await res.json()).toEqual({ ok: true });
 });
 
+test('tauriDriver postJson /api/config 映射到 set_config', async () => {
+  invokeMock.mockResolvedValue({ has_github_token: true });
+  const driver = createTauriDriver();
+  const res = await driver.postJson('/api/config', { github_token: 'ghp_xxx' });
+  expect(invokeMock).toHaveBeenCalledWith('set_config', {
+    payload: { github_token: 'ghp_xxx' },
+  });
+  expect(await res.json()).toEqual({ has_github_token: true });
+});
+
 test('tauriDriver postJson 未知 path 抛出可读错误', async () => {
   const driver = createTauriDriver();
-  await expect(driver.postJson('/api/commit', {})).rejects.toThrow(
-    'No Tauri invoke mapping for POST /api/commit'
+  await expect(driver.postJson('/api/not-mapped', {})).rejects.toThrow(
+    'No Tauri invoke mapping for POST /api/not-mapped'
   );
   expect(invokeMock).not.toHaveBeenCalled();
 });

@@ -1,6 +1,5 @@
 use std::fs;
 use std::path::Path;
-use std::process::Command;
 
 use serde_json::{json, Value};
 
@@ -63,32 +62,22 @@ pub fn kb_status_json(repo_root: &Path, repo: &str) -> Value {
             "_status": 404,
         });
     }
-    let status_out = Command::new("git")
-        .args(["status", "--porcelain"])
-        .current_dir(&local_dir)
-        .output();
-    let Ok(out) = status_out else {
-        return json!({ "error": "git status failed", "_status": 500 });
+    let stdout = match crate::integrations::git::status_porcelain(&local_dir) {
+        Ok(s) => s,
+        Err(e) => return json!({ "error": e.message, "_status": 500 }),
     };
-    if !out.status.success() {
-        return json!({ "error": "git status failed", "_status": 500 });
-    }
-    let stdout = String::from_utf8_lossy(&out.stdout);
     let mut categories = categories_from_git_status(&stdout);
     let ann_dir = local_dir.join(".knowledge_annotations");
     if ann_dir.is_dir() {
-        let ignored = Command::new("git")
-            .args(["check-ignore", "-q", ".knowledge_annotations"])
-            .current_dir(&local_dir)
-            .output();
-        if ignored.map(|o| o.status.success()).unwrap_or(false) {
-            if let Ok(ann_out) = Command::new("git")
-                .args(["status", "--porcelain", "--ignored", ".knowledge_annotations/"])
-                .current_dir(&local_dir)
-                .output()
+        let ignored = crate::integrations::git::exec(&local_dir, &["check-ignore", "-q", ".knowledge_annotations"])
+            .map(|o| o.success)
+            .unwrap_or(false);
+        if ignored {
+            if let Ok(ann_out) =
+                crate::integrations::git::exec(&local_dir, &["status", "--porcelain", "--ignored", ".knowledge_annotations/"])
             {
-                if ann_out.status.success() {
-                    for line in String::from_utf8_lossy(&ann_out.stdout).lines() {
+                if ann_out.success {
+                    for line in ann_out.stdout.lines() {
                         if line.len() < 4 {
                             continue;
                         }
@@ -120,22 +109,7 @@ pub fn kb_status_json(repo_root: &Path, repo: &str) -> Value {
         .filter_map(|k| categories.get(*k).and_then(|v| v.as_array()))
         .map(|a| a.len())
         .sum();
-    let ahead_r = Command::new("git")
-        .args(["rev-list", "--count", "HEAD...@{u}"])
-        .current_dir(&local_dir)
-        .output();
-    let ahead = if let Ok(a) = ahead_r {
-        if a.status.success() {
-            String::from_utf8_lossy(&a.stdout)
-                .trim()
-                .parse::<i64>()
-                .unwrap_or(0)
-        } else {
-            0
-        }
-    } else {
-        0
-    };
+    let ahead = crate::integrations::git::ahead_count(&local_dir).unwrap_or(0);
     categories.insert("total".into(), json!(total));
     categories.insert("ahead".into(), json!(ahead));
     Value::Object(categories)
@@ -153,11 +127,7 @@ mod tests {
         let repo_dir = kb.join("myrepo");
         fs::create_dir_all(repo_dir.join("docs")).expect("mkdir");
         fs::write(repo_dir.join("docs/a.md"), "hello").expect("w");
-        fs::write(
-            dir.path().join("meili.env"),
-            format!("KNOWLEDGE_BASE_DIR={}", kb.display()),
-        )
-        .expect("env");
+        crate::config::settings::write_test_config(dir.path(), dir.path(), Some(&kb));
         let v = kb_read_json(dir.path(), "lulufoo/myrepo", "docs/a.md");
         assert_eq!(v["content"], "hello");
     }
@@ -165,12 +135,9 @@ mod tests {
     #[test]
     fn kb_read_rejects_traversal() {
         let dir = tempfile::tempdir().expect("tmp");
-        fs::write(
-            dir.path().join("meili.env"),
-            format!("KNOWLEDGE_BASE_DIR={}", dir.path().join("kb").display()),
-        )
-        .expect("env");
-        fs::create_dir_all(dir.path().join("kb/myrepo")).expect("mkdir");
+        let kb = dir.path().join("kb");
+        crate::config::settings::write_test_config(dir.path(), dir.path(), Some(&kb));
+        fs::create_dir_all(kb.join("myrepo")).expect("mkdir");
         let v = kb_read_json(dir.path(), "lulufoo/myrepo", "../x.md");
         assert_eq!(v["error"], "invalid path");
     }

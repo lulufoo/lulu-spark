@@ -340,13 +340,12 @@ pub fn update_highlights(
         return json!({ "error": "Invalid annotation state", "_status": 500 });
     };
 
-    let mut out_id = hid.clone();
-    if !hid.is_empty() {
+    let out_id = if !hid.is_empty() {
         highlights.retain(|h| h.get("id").and_then(|v| v.as_str()) != Some(&hid));
         if highlights.is_empty() {
             layer_data.remove("highlights");
         }
-        out_id = String::new();
+        String::new()
     } else {
         if text.is_empty() {
             return json!({
@@ -354,7 +353,7 @@ pub fn update_highlights(
                 "_status": 400
             });
         }
-        out_id = random_hex12();
+        let out_id = random_hex12();
         let mut entry = Map::new();
         entry.insert("id".into(), json!(out_id));
         entry.insert("text".into(), json!(text));
@@ -369,7 +368,8 @@ pub fn update_highlights(
             }
         }
         highlights.push(Value::Object(entry));
-    }
+        out_id
+    };
 
     if layer_data.get("highlights").is_none() && layer_data.get("comments").is_none() {
         root.remove(layer);
@@ -391,8 +391,7 @@ mod tests {
         let dir = tempfile::tempdir().expect("tmp");
         let corpus = dir.path().join("corpus");
         fs::create_dir_all(corpus.join("annotations/ai")).expect("mkdir");
-        let mut f = fs::File::create(dir.path().join("meili.env")).expect("env");
-        writeln!(f, "KNOWLEDGE_CORPUS_DIR={}", corpus.display()).expect("w");
+        crate::config::settings::write_test_config(dir.path(), &corpus, None);
         (dir, corpus)
     }
 

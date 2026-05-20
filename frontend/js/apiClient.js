@@ -1,8 +1,9 @@
-/** Dev HTTP base; aligned with server.py / P0 lib.rs port 8765. */
+/** Dev HTTP base for legacy `VITE_*_API=fetch` browser mode (optional). */
 export const DEFAULT_DEV_BASE = 'http://127.0.0.1:8765';
 
 import { resolveInvokeFromPath } from './readApiInvokeMap.js';
 import { resolveReindexInvoke } from './searchApiInvokeMap.js';
+import { resolveSyncInvoke } from './syncApiInvokeMap.js';
 import { resolveWriteInvoke } from './writeApiInvokeMap.js';
 
 let invokeFnPromise = null;
@@ -114,7 +115,7 @@ export function createTauriDriver() {
       }
     },
     async postJson(path, body) {
-      const resolved = resolveWriteInvoke(path, body);
+      const resolved = resolveWriteInvoke(path, body) ?? resolveSyncInvoke(path, body);
       const pathname = path.startsWith('/') ? path : `/${path}`;
       if (!resolved) {
         throw new Error(`No Tauri invoke mapping for POST ${pathname}`);

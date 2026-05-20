@@ -1,6 +1,6 @@
-/** Software Dev Skills dialog content (see tech-doc / lulu-dev-skills README). */
+/** Lulu Dev Skills dialog content (see lulu-dev-skills README). */
 export const softwareDevSkillsContent = {
-  title: '✦ Software Dev Skills',
+  title: '✦ Lulu Dev Skills',
   groups: [
     {
       name: '工具类',
@@ -42,27 +42,32 @@ export const softwareDevSkillsContent = {
         {
           cmd: 'lulu-dev-workflow',
           name: '框架总览',
-          desc: '开发工作流总览；`configure` 拉取 `workflow-config.json`',
+          desc: '开发工作流、dev workflow；`configure` 拉取 `workflow-config.json`',
         },
         {
-          cmd: 'product-doc-workflow',
+          cmd: 'diagnostic',
+          name: '决策诊断',
+          desc: 'Plan；product/tech 强制前置；DDF 六节点（Q/E/D/X/R/V），输出 decision-doc',
+        },
+        {
+          cmd: 'product',
           name: '产品文档',
-          desc: 'Plan；PRD/PDQA；会话路径 `.cache/lulu-dev-workflow/product/<conv_id>/revision{N}/`',
+          desc: 'Plan；PRD/spec、PDQA、ReadyForDelivery；`.cache/.../product/<conv_id>/revision{N}/`',
         },
         {
-          cmd: 'tech-doc-workflow',
+          cmd: 'tech',
           name: '技术方案',
-          desc: 'Plan；E1/E2/E3 评估',
+          desc: 'Plan；tech-doc、E1/E2/E3 评估、tech delivered',
         },
         {
-          cmd: 'work-order-workflow',
+          cmd: 'work-order',
           name: '施工单',
           desc: 'Plan；task-list、TWCA、WOQA',
         },
         {
-          cmd: 'code-workflow',
+          cmd: 'code',
           name: 'TDD 实现',
-          desc: 'Agent；Red/Green/Refactor',
+          desc: 'Agent；Red/Green/Refactor；从 Delivered 技术文档或施工单进入编码',
         },
       ],
     },

@@ -8,8 +8,8 @@ use crate::integrations::search::SearchBackend;
 
 #[derive(Clone)]
 pub struct MeiliBackend {
-    url: String,
-    master_key: String,
+    pub(crate) url: String,
+    pub(crate) master_key: String,
 }
 
 impl MeiliBackend {
@@ -86,6 +86,93 @@ pub fn search_path(index_uid: &str) -> String {
     format!("/indexes/{index_uid}/search")
 }
 
+pub fn documents_path(index_uid: &str) -> String {
+    format!("/indexes/{index_uid}/documents")
+}
+
+/// Build Meilisearch knowledge document (aligned with `server.py::_meili_upsert_doc`).
+pub fn build_knowledge_document(repo: &str, path: &str, content: &str, topic_desc: &str) -> Value {
+    let repo_name = repo.split('/').next_back().unwrap_or(repo);
+    let raw_id = format!("{repo_name}__{}", path.replace('/', "__"));
+    let doc_id: String = raw_id
+        .chars()
+        .map(|c| {
+            if c.is_ascii_alphanumeric() || c == '-' || c == '_' {
+                c
+            } else {
+                '_'
+            }
+        })
+        .take(511)
+        .collect();
+    let mut title = String::new();
+    for line in content.lines() {
+        if let Some(rest) = line.strip_prefix('#') {
+            let t = rest.trim_start();
+            if !t.is_empty() {
+                title = t.to_string();
+                break;
+            }
+        }
+    }
+    if title.is_empty() {
+        title = path
+            .split('/')
+            .next_back()
+            .unwrap_or(path)
+            .trim_end_matches(".md")
+            .to_string();
+    }
+    let url = format!("https://github.com/{repo}/blob/main/{path}");
+    json!({
+        "id": doc_id,
+        "title": title,
+        "body": content,
+        "repo": repo,
+        "path": path,
+        "url": url,
+        "topic_desc": topic_desc,
+    })
+}
+
+impl MeiliBackend {
+    /// Best-effort upsert; returns error message string on failure.
+    /// Single-document upsert (settle path); batch index build uses `put_documents`.
+    pub fn upsert_knowledge_documents(&self, docs: &[Value]) -> Result<(), String> {
+        if docs.is_empty() {
+            return Ok(());
+        }
+        let url = format!(
+            "{}{}",
+            self.url.trim_end_matches('/'),
+            documents_path("knowledge")
+        );
+        let client = reqwest::blocking::Client::builder()
+            .timeout(Duration::from_secs(5))
+            .no_proxy()
+            .build()
+            .map_err(|e| e.to_string())?;
+        let resp = client
+            .put(url)
+            .header("Authorization", format!("Bearer {}", self.master_key))
+            .header("Content-Type", "application/json")
+            .json(docs)
+            .send()
+            .map_err(|e| e.to_string())?;
+        if resp.status().is_success() {
+            Ok(())
+        } else {
+            let status = resp.status();
+            let text = resp.text().unwrap_or_default();
+            Err(if text.trim().is_empty() {
+                format!("Meilisearch HTTP {status}")
+            } else {
+                text
+            })
+        }
+    }
+}
+
 /// Map Meilisearch HTTP result to API JSON (aligned with `server.py` search handlers).
 pub fn map_search_result(meili_result: Option<Value>) -> Value {
     let Some(result) = meili_result else {
@@ -155,5 +242,18 @@ mod tests {
     fn search_path_uses_index_uid() {
         assert_eq!(search_path("knowledge"), "/indexes/knowledge/search");
         assert_eq!(search_path("workbench"), "/indexes/workbench/search");
+    }
+
+    #[test]
+    fn build_knowledge_document_extracts_title() {
+        let doc = build_knowledge_document(
+            "o/r",
+            "docs/a.md",
+            "# Hello\n\nbody",
+            "desc",
+        );
+        assert_eq!(doc["title"], "Hello");
+        assert_eq!(doc["repo"], "o/r");
+        assert!(doc["id"].as_str().unwrap().starts_with("r__docs__"));
     }
 }

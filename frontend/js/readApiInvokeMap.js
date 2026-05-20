@@ -5,12 +5,17 @@
 
 /** @type {Record<string, { cmd: string, args?: (url: URL) => Record<string, unknown> }>} */
 export const READ_API_INVOKE_MAP = {
-  '/api/knowledge-index': {
-    cmd: 'get_knowledge_index',
+  '/api/corpus-index': {
+    cmd: 'get_corpus_index',
+  },
+  '/api/corpus-file': {
+    cmd: 'get_corpus_file',
     args: (url) => ({
-      force: ['1', 'true', 'yes'].includes(url.searchParams.get('force') ?? ''),
+      layer: url.searchParams.get('layer') ?? '',
+      path: url.searchParams.get('path') ?? '',
     }),
   },
+  '/api/topics': { cmd: 'get_topics' },
   '/api/search-knowledge': {
     cmd: 'search_knowledge',
     args: (url) => ({
@@ -29,7 +34,6 @@ export const READ_API_INVOKE_MAP = {
         : undefined,
     }),
   },
-  '/api/topics': { cmd: 'get_topics' },
   '/api/annotations': { cmd: 'get_annotations' },
   '/api/annotation': {
     cmd: 'get_annotation',
@@ -65,6 +69,13 @@ export const READ_API_INVOKE_MAP = {
       force: url.searchParams.get('force') === '1',
     }),
   },
+  '/api/repo-list-status': {
+    cmd: 'get_repo_list_status',
+  },
+  '/api/kb-corpus-status': {
+    cmd: 'get_kb_corpus_status',
+    args: (url) => ({ filter_type: url.searchParams.get('type') ?? null }),
+  },
   '/api/repo-dirs': {
     cmd: 'get_repo_dirs',
     args: (url) => ({ repo: url.searchParams.get('repo') ?? '' }),
@@ -75,6 +86,10 @@ export const READ_API_INVOKE_MAP = {
       repo: url.searchParams.get('repo') ?? '',
       path: url.searchParams.get('path') ?? '',
     }),
+  },
+  '/api/fetch-title': {
+    cmd: 'fetch_link_title',
+    args: (url) => ({ url: url.searchParams.get('url') ?? '' }),
   },
 };
 

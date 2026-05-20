@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "vitest run && python3 -m unittest discover -s tests -p 'test_*.py' -q",
+    "test": "vitest run",
     "tauri": "tauri",
     "icons:regen": "tauri icon frontend/icons/app-icon.svg -o src-tauri/icons && rm -rf src-tauri/icons/android src-tauri/icons/ios && rm -f src-tauri/icons/Square*.png src-tauri/icons/StoreLogo.png src-tauri/icons/64x64.png"
   },

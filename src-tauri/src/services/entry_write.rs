@@ -69,8 +69,7 @@ mod tests {
         let md = corpus.join("digest").join("foo.md");
         fs::create_dir_all(md.parent().unwrap()).expect("mkdir");
         fs::write(&md, "old").expect("w");
-        let mut f = fs::File::create(dir.path().join("meili.env")).expect("env");
-        writeln!(f, "KNOWLEDGE_CORPUS_DIR={}", corpus.display()).expect("w");
+        crate::config::settings::write_test_config(dir.path(), &corpus, None);
 
         let v = save_entry(
             dir.path(),

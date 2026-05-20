@@ -5,6 +5,7 @@ import {
 } from '../frontend/js/writeApiInvokeMap.js';
 
 const P2_PATHS = [
+  ['/api/config', 'set_config', ['payload']],
   ['/api/save', 'save_entry', ['layer', 'common_path', 'content']],
   ['/api/update-comments', 'update_comments', ['common_path', 'layer', 'comment', 'ts']],
   ['/api/reorder-comments', 'reorder_comments', ['common_path', 'layer', 'ids']],
@@ -20,8 +21,8 @@ const P2_PATHS = [
 ];
 
 describe('writeApiContract', () => {
-  it('covers all 12 P2 POST paths with command names', () => {
-    expect(Object.keys(WRITE_API_INVOKE_MAP)).toHaveLength(12);
+  it('covers all 13 P2 POST paths with command names', () => {
+    expect(Object.keys(WRITE_API_INVOKE_MAP)).toHaveLength(13);
     for (const [path, cmd] of P2_PATHS) {
       expect(WRITE_API_INVOKE_MAP[path]?.cmd, path).toBe(cmd);
     }

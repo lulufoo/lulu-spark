@@ -95,7 +95,11 @@ async function _search(mode, q) {
       : await searchKnowledge(q, 8)
 
     if (data.error === 'unavailable') {
-      _show(dropdown, '<div class="gs-status">知识库不可用</div>')
+      _show(dropdown, '<div class="gs-status">Meilisearch 未运行，搜索不可用<br><span style="font-size:10px;opacity:.7;">请先启动外置 Meilisearch（默认 localhost:7700）</span></div>')
+      return
+    }
+    if (data.error === 'not_indexed') {
+      _show(dropdown, '<div class="gs-status">索引尚未建立，请点击 ↺ 重建索引</div>')
       return
     }
     const hits = data.hits || []
@@ -175,7 +179,7 @@ async function _pollWbRebuild() {
   try {
     const res = await getReindexWorkbenchStatus()
     if (res.status === 'done') {
-      _stopWbRebuild(false)
+      _stopWbRebuild(false, res.log)
     } else if (res.status === 'error') {
       _stopWbRebuild(true, res.log || '重建失败')
     }
@@ -189,8 +193,14 @@ function _stopWbRebuild(isError, msg) {
   if (btn) {
     btn.disabled = false
     btn.classList.remove('syncing')
-    if (isError) btn.title = `重建失败：${msg}`
-    else btn.title = '重建 Workbench 索引'
+    btn.title = isError ? `重建失败：${msg}` : '重建 Workbench 索引'
+  }
+  const dropdown = document.getElementById('gs-dropdown')
+  if (dropdown) {
+    const color = isError ? '#cf222e' : '#1a7f37'
+    _show(dropdown, `<div class="gs-status" style="color:${color}">${
+      isError ? '❌ 重建失败：' : '✅ 重建完成：'
+    }${_esc(msg || (isError ? '未知错误' : ''))}</div>`)
   }
 }
 
@@ -215,7 +225,7 @@ async function _pollKbRebuild() {
   try {
     const res = await getReindexStatus()
     if (res.status === 'done') {
-      _stopKbRebuild(false)
+      _stopKbRebuild(false, res.log)
     } else if (res.status === 'error') {
       _stopKbRebuild(true, res.log || '重建失败')
     }
@@ -229,8 +239,14 @@ function _stopKbRebuild(isError, msg) {
   if (btn) {
     btn.disabled = false
     btn.classList.remove('syncing')
-    if (isError) btn.title = `重建失败：${msg}`
-    else btn.title = '重建知识库索引'
+    btn.title = isError ? `重建失败：${msg}` : '重建知识库索引'
+  }
+  const dropdown = document.getElementById('gs-dropdown')
+  if (dropdown) {
+    const color = isError ? '#cf222e' : '#1a7f37'
+    _show(dropdown, `<div class="gs-status" style="color:${color}">${
+      isError ? '❌ 重建失败：' : '✅ 重建完成：'
+    }${_esc(msg || (isError ? '未知错误' : ''))}</div>`)
   }
 }
 

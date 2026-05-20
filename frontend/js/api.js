@@ -5,13 +5,35 @@ import {
   resolveReadDriver,
 } from './apiClient.js';
 
-const readMode = resolveReadDriver();
-const readDriver = resolveReadDriver(readMode);
-const readApi = createApiClient(readDriver);
-
 function isTauriRuntime() {
   if (typeof window === 'undefined') return false;
   return Boolean(window.__TAURI__ || window.__TAURI_INTERNALS__);
+}
+
+function isLikelyExternalBrowserOnTauriDev() {
+  if (typeof window === 'undefined') return false;
+  const host = window.location.hostname;
+  const isLocalDevHost = host === '127.0.0.1' || host === 'localhost';
+  return isLocalDevHost && window.location.port === '1430' && !isTauriRuntime();
+}
+
+function normalizeReadError(error) {
+  const message = error instanceof Error ? error.message : String(error);
+  const isFetchFailure = /Failed to fetch|NetworkError/i.test(message);
+  if (isLikelyExternalBrowserOnTauriDev() && isFetchFailure) {
+    return new Error('检测到当前在外部浏览器打开了 Tauri Dev 页面，请回到 Tauri 应用窗口运行。');
+  }
+  return error instanceof Error ? error : new Error(message);
+}
+
+/** Resolve on each call: `tauri dev` loads page from :1430 before `__TAURI__` exists at import time. */
+function getReadDriver() {
+  const mode = resolveReadDriver();
+  return resolveReadDriver(mode);
+}
+
+function getReadApi() {
+  return createApiClient(getReadDriver());
 }
 
 function resolveWriteDriver() {
@@ -22,21 +44,25 @@ function resolveWriteDriver() {
   return isTauriRuntime() ? createTauriDriver() : createFetchDriver();
 }
 
-const writeDriver = resolveWriteDriver();
+function getWriteDriver() {
+  return resolveWriteDriver();
+}
 
 async function writePost(path, body) {
-  const res = await writeDriver.postJson(path, body);
+  const res = await getWriteDriver().postJson(path, body);
   return res.json();
 }
 
 async function readGet(pathAndQuery) {
-  return readApi.getJson(pathAndQuery);
+  try {
+    return await getReadApi().getJson(pathAndQuery);
+  } catch (error) {
+    throw normalizeReadError(error);
+  }
 }
 
 export async function fetchIndex() {
-  const res = await fetch('./index.json?_=' + Date.now());
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.json();
+  return readGet('/api/corpus-index?_=' + Date.now());
 }
 
 export async function fetchDiffStatus() {
@@ -52,7 +78,7 @@ export async function fetchAnnotationsSummary() {
 }
 
 export async function fetchAnnotation(path) {
-  const res = await readDriver.fetchGet(`/api/annotation?path=${encodeURIComponent(path)}`);
+  const res = await getReadDriver().fetchGet(`/api/annotation?path=${encodeURIComponent(path)}`);
   return res.json();
 }
 
@@ -60,15 +86,22 @@ export async function fetchConfig() {
   return readGet('/api/config');
 }
 
+export async function setConfig(payload) {
+  return writePost('/api/config', payload || {});
+}
+
 export async function fetchFileContent(layer, commonPath) {
-  const res = await fetch(`./${layer}/${commonPath}?t=${Date.now()}`);
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.text();
+  const data = await readGet(
+    `/api/corpus-file?layer=${encodeURIComponent(layer)}&path=${encodeURIComponent(commonPath)}&_=${Date.now()}`
+  );
+  if (data && typeof data === 'object' && data.error) {
+    throw new Error(data.error);
+  }
+  return typeof data === 'string' ? data : (data?.content ?? '');
 }
 
 export async function fetchLinkTitle(url) {
-  const res = await fetch(`/api/fetch-title?url=${encodeURIComponent(url)}`);
-  return res.json();
+  return readGet(`/api/fetch-title?url=${encodeURIComponent(url)}`);
 }
 
 export async function saveFile(layer, commonPath, content) {
@@ -79,16 +112,11 @@ export async function saveFile(layer, commonPath, content) {
 export async function commitFiles(message, files) {
   const body = { message };
   if (files !== undefined) body.files = files;
-  const res = await fetch('/api/commit', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body)
-  });
-  return res.json();
+  return writePost('/api/commit', body);
 }
 
 export async function fetchKbFileContent(repo, path) {
-  const res = await readDriver.fetchGet(
+  const res = await getReadDriver().fetchGet(
     `/api/kb/read?repo=${encodeURIComponent(repo)}&path=${encodeURIComponent(path)}`
   );
   if (!res.ok) {
@@ -100,7 +128,7 @@ export async function fetchKbFileContent(repo, path) {
 }
 
 export async function fetchKbAnnotation(repo, path) {
-  const res = await readDriver.fetchGet(
+  const res = await getReadDriver().fetchGet(
     `/api/kb/annotation?repo=${encodeURIComponent(repo)}&path=${encodeURIComponent(path)}`
   );
   if (!res.ok) return {};
@@ -128,28 +156,18 @@ export async function saveKbFile(repo, path, content) {
 }
 
 export async function commitKbFile(repo, message) {
-  const res = await fetch('/api/kb/commit', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ repo, message })
-  });
-  return res.json();
+  return writePost('/api/kb/commit', { repo, message });
 }
 
 export async function fetchKbStatus(repo) {
-  const res = await readDriver.fetchGet(`/api/kb/status?repo=${encodeURIComponent(repo)}`);
+  const res = await getReadDriver().fetchGet(`/api/kb/status?repo=${encodeURIComponent(repo)}`);
   return res.json();
 }
 
 export async function revertKbFile(repo, path, type) {
   const body = { repo };
   if (path) { body.path = path; body.type = type; }
-  const res = await fetch('/api/kb/revert', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body)
-  });
-  return res.json();
+  return writePost('/api/kb/revert', body);
 }
 
 export async function reindexKbRepo(repo) {
@@ -158,21 +176,11 @@ export async function reindexKbRepo(repo) {
 }
 
 export async function openItermAt(repo) {
-  const res = await fetch('/api/open-iterm', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ repo })
-  });
-  return res.json();
+  return writePost('/api/open-iterm', { repo });
 }
 
 export async function pullProject() {
-  const res = await fetch('/api/pull', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({})
-  });
-  return res.json();
+  return writePost('/api/pull', {});
 }
 
 export async function updateComments(commonPath, layer, comment, ts) {
@@ -208,21 +216,11 @@ export async function setDone(commonPath, done) {
 }
 
 export async function deleteEntry(id) {
-  const res = await fetch('/api/delete', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ id })
-  });
-  return res.json();
+  return writePost('/api/delete', { id });
 }
 
 export async function ghMove(srcUrl, dstDirUrl) {
-  const res = await fetch('/api/gh-move', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ src_url: srcUrl, dst_dir_url: dstDirUrl })
-  });
-  return res.json();
+  return writePost('/api/gh-move', { src_url: srcUrl, dst_dir_url: dstDirUrl });
 }
 
 export async function updateHighlight(commonPath, layer, highlight, ts) {
@@ -235,7 +233,7 @@ export async function updateHighlight(commonPath, layer, highlight, ts) {
 }
 
 export async function fetchTopics() {
-  const res = await readDriver.fetchGet('/api/topics?_=' + Date.now());
+  const res = await getReadDriver().fetchGet('/api/topics?_=' + Date.now());
   const text = await res.text();
   let data;
   try {
@@ -248,56 +246,21 @@ export async function fetchTopics() {
   return data;
 }
 
-export async function fetchKnowledgeIndex(force = false) {
-  const path = force ? '/api/knowledge-index?force=1' : '/api/knowledge-index';
-  const res = await readDriver.fetchGet(path);
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
-  try {
-    localStorage.setItem('lulu_wb_knowledge_index_cache', JSON.stringify(data));
-  } catch (_) {}
-  return data;
-}
-
-export async function updateTopics() {
-  const res = await fetch('/api/update-topics', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: '{}',
-  });
-  return res.json();
-}
-
 export async function getDraft(commonPath) {
-  const res = await readDriver.fetchGet(`/api/draft?path=${encodeURIComponent(commonPath)}`);
+  const res = await getReadDriver().fetchGet(`/api/draft?path=${encodeURIComponent(commonPath)}`);
   if (!res.ok) return { content: '' };
   return res.json();
 }
 
 export async function saveDraft(commonPath, content) {
-  const res = await fetch('/api/draft', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ common_path: commonPath, content })
-  });
-  return res.json();
+  return writePost('/api/draft', { common_path: commonPath, content });
 }
 
 export async function moveToProject(id, newProject) {
-  const res = await fetch('/api/move-project', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ id, new_project: newProject })
-  });
-  const text = await res.text();
-  let data;
-  try {
-    data = text ? JSON.parse(text) : {};
-  } catch {
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    throw new Error('Invalid JSON response');
+  const data = await writePost('/api/move-project', { id, new_project: newProject });
+  if (data && data.error) {
+    throw new Error(data.error);
   }
-  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
   return data;
 }
 
@@ -310,6 +273,30 @@ export async function fetchRepoList(force = false) {
   return readGet(path);
 }
 
+export async function getRepoListStatus() {
+  return readGet('/api/repo-list-status');
+}
+
+export async function getKbCorpusStatus(filterType) {
+  const query = filterType ? `?type=${encodeURIComponent(filterType)}` : '';
+  return readGet(`/api/kb-corpus-status${query}`);
+}
+
+export async function syncKnowledgeCorpus() {
+  const { invokeSearch } = await import('./apiClient.js');
+  return invokeSearch('syncKnowledgeCorpus');
+}
+
+export async function syncWorkbenchRepo(repo) {
+  const { invokeSearch } = await import('./apiClient.js');
+  return invokeSearch('syncWorkbenchRepo', { repo });
+}
+
+export async function syncWorkbenchCorpus() {
+  const { invokeSearch } = await import('./apiClient.js');
+  return invokeSearch('syncWorkbenchCorpus');
+}
+
 export async function checkFileExists(repo, path) {
   return readGet(
     `/api/check-file?repo=${encodeURIComponent(repo)}&path=${encodeURIComponent(path)}`
@@ -317,23 +304,18 @@ export async function checkFileExists(repo, path) {
 }
 
 export async function settleComment(commonPath, commentId, layer, docTheme, slug, content) {
-  const res = await fetch('/api/settle', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      common_path: commonPath,
-      comment_id: commentId,
-      layer,
-      doc_theme: docTheme,
-      slug,
-      content
-    })
+  return writePost('/api/settle', {
+    common_path: commonPath,
+    comment_id: commentId,
+    layer,
+    doc_theme: docTheme,
+    slug,
+    content,
   });
-  return res.json();
 }
 
 export async function searchKnowledge(q, limit = 10) {
-  const res = await readDriver.fetchGet(
+  const res = await getReadDriver().fetchGet(
     `/api/search-knowledge?q=${encodeURIComponent(q)}&limit=${limit}`
   );
   return res.json();
@@ -350,7 +332,7 @@ export async function getReindexStatus() {
 }
 
 export async function searchWorkbench(q, limit = 10) {
-  const res = await readDriver.fetchGet(
+  const res = await getReadDriver().fetchGet(
     `/api/search-workbench?q=${encodeURIComponent(q)}&limit=${limit}`
   );
   return res.json();

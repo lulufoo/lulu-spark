@@ -5,6 +5,9 @@ commands.allow = [
   "reindex_knowledge",
   "reindex_workbench",
   "reindex_kb_repo",
+  "sync_knowledge_corpus",
+  "sync_workbench_repo",
+  "sync_workbench_corpus",
   "get_reindex_status",
   "get_reindex_workbench_status",
 ]

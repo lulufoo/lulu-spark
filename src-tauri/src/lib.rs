@@ -5,33 +5,20 @@ pub mod repositories;
 pub mod services;
 
 use std::net::{SocketAddr, TcpStream, ToSocketAddrs};
-use std::sync::{Arc, Mutex};
+#[cfg(not(test))]
+use std::sync::Mutex;
 use std::thread;
 use std::time::{Duration, Instant};
-
-#[cfg(not(test))]
-use std::path::PathBuf;
 
 #[cfg(not(test))]
 use tauri::webview::{NewWindowResponse, WebviewWindowBuilder};
 #[cfg(not(test))]
 use tauri::{Manager, Url};
 #[cfg(not(test))]
-use tauri_plugin_shell::process::CommandChild;
-#[cfg(not(test))]
-use tauri_plugin_shell::ShellExt;
-
-#[cfg(test)]
-type CommandChild = ();
+use tauri_plugin_opener::OpenerExt;
 
 const CONNECT_TIMEOUT: Duration = Duration::from_millis(100);
 const RETRY_INTERVAL: Duration = Duration::from_millis(500);
-#[cfg(not(test))]
-const PYTHON_PORT: u16 = 8765;
-#[cfg(not(test))]
-const PROBE_TIMEOUT: Duration = Duration::from_millis(500);
-#[cfg(not(test))]
-const SERVER_READY_TIMEOUT: Duration = Duration::from_secs(10);
 
 fn localhost_addrs(port: u16) -> Vec<SocketAddr> {
     format!("localhost:{port}")
@@ -72,8 +59,6 @@ pub fn decide_spawn(port: u16, probe_timeout: Duration) -> SpawnDecision {
     }
 }
 
-pub struct PythonProcess(pub Arc<Mutex<Option<CommandChild>>>);
-
 #[cfg(not(test))]
 #[tauri::command]
 fn ping() -> &'static str {
@@ -86,59 +71,108 @@ fn ping() -> &'static str {
 }
 
 #[cfg(not(test))]
-fn project_root() -> PathBuf {
-    config::paths::repo_root().expect("src-tauri must have a parent directory")
-}
-
-#[cfg(not(test))]
-fn spawn_python_server(app: &tauri::App, child_holder: Arc<Mutex<Option<CommandChild>>>) {
-    let project_root = project_root();
-    let server_script = project_root.join("server.py");
-
-    match decide_spawn(PYTHON_PORT, PROBE_TIMEOUT) {
-        SpawnDecision::Skip => {
-            eprintln!(
-                "[P0] Port 8765 already listening; skipping python3 spawn (likely beforeDevCommand)."
-            );
-        }
-        SpawnDecision::Spawn => match app
-            .shell()
-            .command("python3")
-            .args([server_script.to_string_lossy().as_ref()])
-            .current_dir(&project_root)
-            .spawn()
-        {
-            Ok((mut rx, child)) => {
-                *child_holder.lock().expect("python child mutex") = Some(child);
-                tauri::async_runtime::spawn(async move {
-                    while rx.recv().await.is_some() {}
-                });
-                if !wait_for_port(PYTHON_PORT, SERVER_READY_TIMEOUT) {
-                    eprintln!("[P0] Warning: server.py did not bind port 8765 within 10s");
-                }
-            }
-            Err(error) => {
-                eprintln!("[P0] Failed to spawn python3: {error}");
-            }
-        },
-    }
-}
-
-#[cfg(not(test))]
 fn is_in_app_navigation(url: &Url) -> bool {
-    match url.scheme() {
-        "tauri" | "asset" | "file" => true,
-        "http" | "https" if cfg!(debug_assertions) => {
-            url.host_str() == Some("localhost") && url.port().unwrap_or(80) == PYTHON_PORT
-        }
-        _ => false,
+    matches!(url.scheme(), "tauri" | "asset" | "file")
+}
+
+#[cfg(not(test))]
+fn is_localhost_http_url(url: &Url) -> bool {
+    if !matches!(url.scheme(), "http" | "https") {
+        return false;
     }
+    matches!(
+        url.host_str(),
+        Some("localhost") | Some("127.0.0.1") | Some("::1")
+    )
 }
 
 #[cfg(not(test))]
 fn open_external_url(app: &tauri::AppHandle, url: &Url) {
-    if let Err(error) = app.shell().open(url.as_str(), None) {
-        eprintln!("[P0] Failed to open external URL {}: {error}", url);
+    if let Err(error) = app.opener().open_url(url.as_str(), None::<&str>) {
+        eprintln!("[nav] Failed to open external URL {}: {error}", url);
+    }
+}
+
+/// Holds the spawned Meilisearch child process so we can kill it on app exit.
+#[cfg(not(test))]
+pub struct MeiliProcess(Mutex<Option<std::process::Child>>);
+
+#[cfg(not(test))]
+impl MeiliProcess {
+    fn new(child: Option<std::process::Child>) -> Self {
+        Self(Mutex::new(child))
+    }
+
+    pub fn kill(&self) {
+        if let Ok(mut guard) = self.0.lock() {
+            if let Some(mut child) = guard.take() {
+                let _ = child.kill();
+                let _ = child.wait();
+            }
+        }
+    }
+}
+
+/// Try to start the system `meilisearch` binary if the configured port is not
+/// already listening. Silently skips if the binary is not installed or the port
+/// is already up (e.g. user runs Meilisearch as a service).
+#[cfg(not(test))]
+fn try_autostart_meilisearch() -> Option<std::process::Child> {
+    use crate::config::{secrets, settings};
+
+    let cfg = settings::load().unwrap_or_default();
+
+    // Parse port from meili_url (e.g. "http://localhost:7700")
+    let port: u16 = cfg
+        .meili_url
+        .trim_end_matches('/')
+        .rsplit(':')
+        .next()
+        .and_then(|p| p.parse().ok())
+        .unwrap_or(7700);
+
+    // Skip if already running
+    if decide_spawn(port, Duration::from_millis(0)) == SpawnDecision::Skip {
+        eprintln!("[meili] port {port} already listening — skip autostart");
+        return None;
+    }
+
+    let master_key = secrets::get_secret(secrets::KEY_MEILI_MASTER)
+        .ok()
+        .flatten()
+        .unwrap_or_else(|| "lulu-workbench-local".to_string());
+
+    let db_path = cfg.cache_dir.join(".meilisearch");
+    if let Some(parent) = db_path.parent() {
+        let _ = std::fs::create_dir_all(parent);
+    }
+
+    match std::process::Command::new("meilisearch")
+        .args([
+            "--no-analytics",
+            "--db-path",
+            &db_path.to_string_lossy(),
+            "--master-key",
+            &master_key,
+        ])
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .spawn()
+    {
+        Ok(child) => {
+            eprintln!("[meili] spawned pid={}", child.id());
+            if wait_for_port(port, Duration::from_secs(5)) {
+                eprintln!("[meili] ready on port {port}");
+            } else {
+                eprintln!("[meili] warn: port {port} not ready after 5 s");
+            }
+            Some(child)
+        }
+        Err(e) => {
+            // Not installed or not in PATH — degrade gracefully
+            eprintln!("[meili] autostart skipped ({e}); install with: brew install meilisearch");
+            None
+        }
     }
 }
 
@@ -158,7 +192,7 @@ fn create_main_window(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>
         .on_navigation({
             let app_handle = app_handle.clone();
             move |url| {
-                if is_in_app_navigation(url) {
+                if is_in_app_navigation(url) || is_localhost_http_url(url) {
                     return true;
                 }
                 if url.scheme() == "http" || url.scheme() == "https" {
@@ -171,6 +205,9 @@ fn create_main_window(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>
         .on_new_window({
             let app_handle = app_handle.clone();
             move |url, _features| {
+                if is_in_app_navigation(&url) || is_localhost_http_url(&url) {
+                    return NewWindowResponse::Deny;
+                }
                 open_external_url(&app_handle, &url);
                 NewWindowResponse::Deny
             }
@@ -180,28 +217,12 @@ fn create_main_window(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>
 }
 
 #[cfg(not(test))]
-fn kill_python_child(app_handle: &tauri::AppHandle) {
-    if let Some(child) = app_handle
-        .state::<PythonProcess>()
-        .0
-        .lock()
-        .expect("python child mutex")
-        .take()
-    {
-        if let Err(error) = child.kill() {
-            eprintln!("[P0] Failed to kill python3: {error}");
-        }
-    }
-}
-
-#[cfg(not(test))]
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
-        .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
             ping,
-            commands::read::get_knowledge_index,
             commands::read::search_knowledge,
             commands::read::search_workbench,
             commands::read::get_topics,
@@ -209,16 +230,35 @@ pub fn run() {
             commands::read::get_annotation,
             commands::read::get_draft,
             commands::read::get_config,
+            commands::config_cmd::set_config,
+            commands::sync::save_comment_draft,
+            commands::sync::corpus_git_commit,
+            commands::sync::corpus_git_pull,
+            commands::sync::kb_git_commit,
+            commands::sync::kb_git_revert,
+            commands::sync::delete_entry,
+            commands::sync::move_entry_project,
+            commands::sync::gh_move_assets,
+            commands::sync::settle_entry,
+            commands::sync::open_kb_in_iterm,
             commands::read::get_status,
             commands::read::kb_read,
             commands::read::kb_annotation,
             commands::read::kb_status,
             commands::read::get_repo_list,
+            commands::read::get_repo_list_status,
             commands::read::get_repo_dirs,
             commands::read::check_file,
+            commands::read::fetch_link_title,
+            commands::read::get_corpus_index,
+            commands::read::get_corpus_file,
+            commands::read::get_kb_corpus_status,
             commands::search::reindex_knowledge,
             commands::search::reindex_workbench,
             commands::search::reindex_kb_repo,
+            commands::search::sync_knowledge_corpus,
+            commands::search::sync_workbench_repo,
+            commands::search::sync_workbench_corpus,
             commands::search::get_reindex_status,
             commands::search::get_reindex_workbench_status,
             commands::write::set_done,
@@ -235,21 +275,20 @@ pub fn run() {
             commands::write::kb_update_links,
         ])
         .setup(|app| {
+            // Auto-start Meilisearch if not already running
+            let meili_child = try_autostart_meilisearch();
+            app.manage(MeiliProcess::new(meili_child));
             create_main_window(app)?;
-            let child_holder = Arc::new(Mutex::new(None::<CommandChild>));
-            spawn_python_server(app, Arc::clone(&child_holder));
-            app.manage(PythonProcess(child_holder));
             app.manage(services::reindex::ReindexState::new());
             Ok(())
         })
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
         .run(|app_handle, event| {
-            if matches!(
-                event,
-                tauri::RunEvent::Exit | tauri::RunEvent::ExitRequested { .. }
-            ) {
-                kill_python_child(app_handle);
+            if let tauri::RunEvent::Exit = event {
+                if let Some(meili) = app_handle.try_state::<MeiliProcess>() {
+                    meili.kill();
+                }
             }
         });
 }
@@ -351,7 +390,7 @@ mod ping_tests {
 }
 
 #[cfg(test)]
-mod python_lifecycle_tests {
+mod spawn_decision_tests {
     use super::*;
     use std::net::TcpListener;
 
@@ -374,19 +413,5 @@ mod python_lifecycle_tests {
             decide_spawn(port, Duration::from_millis(0)),
             SpawnDecision::Spawn
         );
-    }
-
-    #[test]
-    fn python_process_mutex_take_twice() {
-        let holder = Arc::new(Mutex::new(None::<CommandChild>));
-        assert!(holder.lock().expect("mutex").take().is_none());
-        assert!(holder.lock().expect("mutex").take().is_none());
-    }
-
-    #[test]
-    fn python_process_construct_with_none_holder() {
-        let holder = Arc::new(Mutex::new(None::<CommandChild>));
-        let process = PythonProcess(Arc::clone(&holder));
-        assert!(process.0.lock().expect("mutex").is_none());
     }
 }

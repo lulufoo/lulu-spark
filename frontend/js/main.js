@@ -142,28 +142,6 @@ function _closeAllMenuDropdowns() {
   _skillsMenuDropdown.classList.remove('open');
 }
 
-document.getElementById('btn-repo-full-sync').addEventListener('click', async () => {
-  _repoMenuDropdown.classList.remove('open');
-  const btn = document.getElementById('btn-repo-menu');
-  btn.disabled = true;
-  btn.textContent = '⚙ 同步中…';
-  try {
-    const data = await api.updateTopics();
-    if (data.error) {
-      alert(`全量同步失败：${data.error}`);
-      return;
-    }
-    await _reloadTopicsIntoState();
-    titleCache.clear();
-    await loadIndex({ managedBtn: true });
-  } catch (e) {
-    alert(`全量同步失败：${e.message}`);
-  } finally {
-    btn.disabled = false;
-    btn.textContent = '⚙ 知识库';
-  }
-});
-
 // ── 列表（repo-list：全量 Git 仓库，按 type 分组 + 筛选）────────────────
 
 function _closeRepoListDialog() {
@@ -172,6 +150,30 @@ function _closeRepoListDialog() {
 
 let _repoListAll = [];
 let _repoListCache = null;
+
+const _KB_TYPES = new Set(['KNOWLEDGE_CORPUS', 'WORKBENCH_KNOWLEDGE']);
+
+let _kbCorpusStatus = null;
+let _kbCorpusStatusType = null;
+
+async function _loadKbCorpusStatus(filterType, forceRefresh = false) {
+  if (!forceRefresh && _kbCorpusStatus && _kbCorpusStatusType === filterType) {
+    _renderRepoListFiltered();
+    return;
+  }
+  if (_kbCorpusStatusType !== filterType) {
+    _kbCorpusStatus = null;
+    _kbCorpusStatusType = filterType;
+  }
+  try {
+    const data = await api.getKbCorpusStatus(filterType);
+    _kbCorpusStatus = (!data.error && data.repos) ? data.repos : [];
+  } catch (_) {
+    _kbCorpusStatus = [];
+  }
+  _kbCorpusStatusType = filterType;
+  _renderRepoListFiltered();
+}
 
 function _repoTypeKey(r) {
   return (r.type && r.type.trim()) || '未分类';
@@ -184,10 +186,19 @@ function _renderRepoListFiltered() {
     ? _repoListAll
     : _repoListAll.filter(r => _repoTypeKey(r) === selected);
 
+  const isKbView = _KB_TYPES.has(selected);
+  const syncBtn = document.getElementById('btn-kb-corpus-sync');
+  if (syncBtn) syncBtn.style.display = isKbView ? '' : 'none';
+
   const content = document.getElementById('repo-list-content');
   if (!repos || repos.length === 0) {
     content.innerHTML = '<div id="repo-list-loading">未找到任何仓库</div>';
     return;
+  }
+
+  const statusMap = {};
+  if (isKbView && _kbCorpusStatus) {
+    for (const s of _kbCorpusStatus) statusMap[s.full_name] = s;
   }
 
   const groups = {};
@@ -212,11 +223,27 @@ function _renderRepoListFiltered() {
       const name = escHtml(r.name || r.full_name || '');
       const desc = r.description ? `<div class="repo-list-item-desc">${escHtml(r.description)}</div>` : '';
       const url = `https://github.com/${escHtml(r.full_name || r.name)}`;
+
+      let localBadge = '';
+      let syncBtnHtml = '';
+      if (isKbView) {
+        const st = statusMap[r.full_name];
+        if (st) {
+          if (st.local_exists) {
+            localBadge = `<span class="repo-local-badge repo-local-ok">已克隆</span>`;
+          } else {
+            localBadge = `<span class="repo-local-badge repo-local-missing">未克隆</span>`;
+          }
+          syncBtnHtml = `<button class="repo-sync-btn" data-repo="${escHtml(r.full_name)}" data-repotype="${escHtml(selected)}">SYNC</button>`;
+        }
+      }
+
       return `<div class="repo-list-item">
         <div class="repo-list-item-info">
-          <div class="repo-list-item-name">${name}</div>
+          <div class="repo-list-item-name">${name}${localBadge}</div>
           ${desc}
         </div>
+        ${syncBtnHtml}
         <a class="repo-list-item-link" href="${url}" target="_blank" rel="noopener noreferrer">Link ↗</a>
       </div>`;
     }).join('');
@@ -225,6 +252,36 @@ function _renderRepoListFiltered() {
   }).join('');
 
   content.innerHTML = html;
+
+  content.querySelectorAll('.repo-sync-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const repo = btn.dataset.repo;
+      const repoType = btn.dataset.repotype;
+      btn.disabled = true;
+      btn.textContent = '…';
+      try {
+        let poll;
+        if (repoType === 'WORKBENCH_KNOWLEDGE') {
+          await api.syncWorkbenchRepo(repo);
+          poll = () => api.getReindexWorkbenchStatus();
+        } else {
+          await api.reindexKbRepo(repo);
+          poll = () => api.getReindexStatus();
+        }
+        for (let i = 0; i < 120; i++) {
+          await new Promise(r => setTimeout(r, 2000));
+          const s = await poll();
+          if (!s.running) break;
+        }
+        _kbCorpusStatus = null;
+        await _loadKbCorpusStatus(repoType, true);
+      } catch (e) {
+        alert(`同步失败：${e.message}`);
+        btn.disabled = false;
+        btn.textContent = 'SYNC';
+      }
+    });
+  });
 }
 
 function _populateRepoListFilter(repos) {
@@ -234,14 +291,23 @@ function _populateRepoListFilter(repos) {
     if (b === '未分类') return -1;
     return a.localeCompare(b);
   });
-  filter.innerHTML = `<option value="__ALL__">全部</option>` +
-    types.map(t => {
+  filter.innerHTML = types.map(t => {
       const sel = t === 'KNOWLEDGE_CORPUS' ? ' selected' : '';
       return `<option value="${escHtml(t)}"${sel}>${escHtml(t)}</option>`;
     }).join('');
 }
 
-document.getElementById('repo-list-filter').addEventListener('change', _renderRepoListFiltered);
+document.getElementById('repo-list-filter').addEventListener('change', () => {
+  const filter = document.getElementById('repo-list-filter');
+  const val = filter ? filter.value : 'KNOWLEDGE_CORPUS';
+  _kbCorpusStatus = null;
+  _kbCorpusStatusType = null;
+  if (_KB_TYPES.has(val)) {
+    _loadKbCorpusStatus(val);
+  } else {
+    _renderRepoListFiltered();
+  }
+});
 
 const _LS_REPO_LIST_KEY = 'lulu_wb_repo_list_cache';
 
@@ -300,15 +366,53 @@ document.getElementById('btn-repo-list').addEventListener('click', async () => {
   _repoMenuDropdown.classList.remove('open');
   document.getElementById('repo-list-dialog').classList.add('open');
   await _loadRepoListData(false);
+  const filter = document.getElementById('repo-list-filter');
+  const val = filter ? filter.value : 'KNOWLEDGE_CORPUS';
+  if (_KB_TYPES.has(val)) _loadKbCorpusStatus(val);
 });
 
 document.getElementById('btn-repo-list-refresh').addEventListener('click', async () => {
   await _loadRepoListData(true);
+  const filter = document.getElementById('repo-list-filter');
+  const val = filter ? filter.value : 'KNOWLEDGE_CORPUS';
+  if (_KB_TYPES.has(val)) _loadKbCorpusStatus(val, true);
 });
 
 document.getElementById('btn-repo-list-close').addEventListener('click', _closeRepoListDialog);
 document.getElementById('repo-list-dialog').addEventListener('click', e => {
   if (e.target === document.getElementById('repo-list-dialog')) _closeRepoListDialog();
+});
+
+document.getElementById('btn-kb-corpus-sync').addEventListener('click', async () => {
+  const btn = document.getElementById('btn-kb-corpus-sync');
+  btn.disabled = true;
+  btn.textContent = '⊙ 同步中…';
+  try {
+    const filter = document.getElementById('repo-list-filter');
+    const filterType = filter ? filter.value : 'KNOWLEDGE_CORPUS';
+    let poll;
+    if (filterType === 'WORKBENCH_KNOWLEDGE') {
+      await api.syncWorkbenchCorpus();
+      poll = () => api.getReindexWorkbenchStatus();
+    } else {
+      await api.syncKnowledgeCorpus();
+      poll = () => api.getReindexStatus();
+    }
+    for (let i = 0; i < 120; i++) {
+      await new Promise(r => setTimeout(r, 2000));
+      const s = await poll();
+      if (!s.running) break;
+    }
+    _kbCorpusStatus = null;
+    const filter2 = document.getElementById('repo-list-filter');
+    const val = filter2 ? filter2.value : 'KNOWLEDGE_CORPUS';
+    await _loadKbCorpusStatus(val, true);
+  } catch (e) {
+    alert(`全量同步失败：${e.message}`);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '⊙ 全量同步';
+  }
 });
 
 // ── Event listeners ────────────────────────────────────────────────────────

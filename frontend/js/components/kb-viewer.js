@@ -148,7 +148,7 @@ export async function saveKbDoc() {
       showKbReindexBtn(state.viewer.kbRepo);
     }
   } catch (e) {
-    alert(`保存失败：${e.message}\n\n请确认已通过 python3 server.py 启动服务器。`);
+    alert(`保存失败：${e.message}`);
   } finally {
     btnSave.disabled = false;
     btnSave.textContent = '💾 保存';

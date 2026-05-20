@@ -1,8 +1,17 @@
 use std::path::PathBuf;
 
-#[derive(Debug, PartialEq, Eq)]
+use crate::config::settings::{self, AppSettings, SettingsError};
+
+#[derive(Debug)]
 pub enum PathsError {
+    Settings(SettingsError),
     RepoRootUnavailable,
+}
+
+impl From<SettingsError> for PathsError {
+    fn from(e: SettingsError) -> Self {
+        PathsError::Settings(e)
+    }
 }
 
 pub fn repo_root() -> Result<PathBuf, PathsError> {
@@ -12,30 +21,72 @@ pub fn repo_root() -> Result<PathBuf, PathsError> {
         .ok_or(PathsError::RepoRootUnavailable)
 }
 
+fn settings() -> Result<AppSettings, PathsError> {
+    Ok(settings::load()?)
+}
+
 pub fn cache_dir() -> Result<PathBuf, PathsError> {
-    Ok(repo_root()?.join(".cache"))
+    Ok(settings()?.cache_dir)
 }
 
-/// Aligns with `get_corpus_root` in `workbench_config.py` (via `meili.env`).
 pub fn knowledge_corpus_dir() -> Result<PathBuf, PathsError> {
-    Ok(crate::config::meili_env::corpus_root_path(&repo_root()?))
+    Ok(settings()?.corpus_root)
 }
 
-/// Aligns with `KNOWLEDGE_BASE_DIR` in `meili.env` (default matches server.py).
 pub fn knowledge_base_dir() -> Result<PathBuf, PathsError> {
-    Ok(PathBuf::from(
-        crate::config::meili_env::kb_root_string(&repo_root()?),
-    ))
+    Ok(settings()?.knowledge_base_dir)
 }
 
-/// Aligns with `knowledge_index_loader.knowledge_index_path` → `.cache/knowledge-index.json`.
-pub fn knowledge_index_path() -> Result<PathBuf, PathsError> {
-    Ok(cache_dir()?.join("knowledge-index.json"))
+pub fn repo_list_cache_path() -> Result<PathBuf, PathsError> {
+    Ok(cache_dir()?.join("repo-list.json"))
+}
+
+pub fn draft_path(common_path: &str) -> Result<PathBuf, PathsError> {
+    let drafts_dir = cache_dir()?.join("drafts");
+    let mut target = drafts_dir.clone();
+    for comp in std::path::Path::new(common_path).components() {
+        match comp {
+            std::path::Component::Normal(s) => target.push(s),
+            _ => return Err(PathsError::RepoRootUnavailable),
+        }
+    }
+    if !target.starts_with(&drafts_dir) {
+        return Err(PathsError::RepoRootUnavailable);
+    }
+    Ok(target)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::fs;
+    use std::sync::{Mutex, OnceLock};
+
+    static ENV_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+
+    fn with_config_dir<F: FnOnce(&std::path::Path)>(f: F) {
+        let _g = ENV_LOCK.get_or_init(|| Mutex::new(())).lock().expect("lock");
+        let dir = tempfile::tempdir().expect("tmp");
+        settings::set_test_config_dir(Some(dir.path().to_path_buf()));
+        f(dir.path());
+        settings::set_test_config_dir(None);
+    }
+
+    #[test]
+    fn cache_dir_uses_settings_not_repo_dot_cache() {
+        with_config_dir(|cfg| {
+            let custom = cfg.join("custom-cache");
+            fs::write(
+                cfg.join("config.toml"),
+                format!(r#"cache_dir = "{}""#, custom.display()),
+            )
+            .expect("write");
+            let got = cache_dir().expect("cache_dir");
+            assert_eq!(got, custom);
+            let root = repo_root().expect("repo");
+            assert_ne!(got, root.join(".cache"));
+        });
+    }
 
     #[test]
     fn repo_root_matches_cargo_manifest_parent() {
@@ -45,44 +96,5 @@ mod tests {
             .expect("parent")
             .to_path_buf();
         assert_eq!(root, expected);
-    }
-
-    #[test]
-    fn cache_dir_is_repo_root_dot_cache() {
-        let root = repo_root().expect("repo_root");
-        assert_eq!(cache_dir().expect("cache_dir"), root.join(".cache"));
-    }
-
-    #[test]
-    fn knowledge_corpus_dir_matches_meili_env_single_source() {
-        let root = repo_root().expect("repo_root");
-        assert_eq!(
-            knowledge_corpus_dir().expect("corpus"),
-            crate::config::meili_env::corpus_root_path(&root)
-        );
-    }
-
-    #[test]
-    fn knowledge_base_dir_matches_server_default() {
-        assert_eq!(
-            knowledge_base_dir().expect("kb"),
-            PathBuf::from("/Users/lulu/Code")
-        );
-    }
-
-    #[test]
-    fn join_unicode_segment_does_not_panic() {
-        let joined = repo_root()
-            .expect("repo_root")
-            .join("层")
-            .join("笔记.md");
-        assert!(joined.to_string_lossy().contains('层'));
-    }
-
-    #[test]
-    fn repo_root_parent_is_none_returns_err() {
-        // Synthetic: cannot easily break CARGO_MANIFEST_DIR parent in unit tests;
-        // PathsError variant exists for callers when resolution fails.
-        assert_ne!(repo_root(), Err(PathsError::RepoRootUnavailable));
     }
 }

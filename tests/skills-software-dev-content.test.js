@@ -3,10 +3,11 @@ import { softwareDevSkillsContent } from '../frontend/js/skills-software-dev-con
 
 const WORKFLOW_CMDS = [
   'lulu-dev-workflow',
-  'product-doc-workflow',
-  'tech-doc-workflow',
-  'work-order-workflow',
-  'code-workflow',
+  'diagnostic',
+  'product',
+  'tech',
+  'work-order',
+  'code',
 ]
 
 test('softwareDev has 4 groups', () => {
@@ -18,7 +19,7 @@ test('third group is 规则守卫', () => {
   expect(softwareDevSkillsContent.groups[2].items[0].cmd).toBe('cursor-rule-guard')
 })
 
-test('研发工作流 group has 5 workflow commands', () => {
+test('研发工作流 group has 6 workflow commands', () => {
   const wf = softwareDevSkillsContent.groups.find((g) =>
     g.name.includes('研发工作流')
   )
@@ -27,19 +28,20 @@ test('研发工作流 group has 5 workflow commands', () => {
   expect(wf.items.map((i) => i.cmd)).toEqual(WORKFLOW_CMDS)
 })
 
-test('all 8 clickable cmds are unique', () => {
+test('all 9 clickable cmds are unique', () => {
   const cmds = softwareDevSkillsContent.groups.flatMap((g) =>
     g.items.map((i) => i.cmd)
   )
-  expect(cmds).toHaveLength(8)
-  expect(new Set(cmds).size).toBe(8)
+  expect(cmds).toHaveLength(9)
+  expect(new Set(cmds).size).toBe(9)
 })
 
-test('product-doc-workflow desc reflects revision path, not evaluate snapshot', () => {
+test('product desc reflects revision path and diagnostic prerequisite', () => {
   const wf = softwareDevSkillsContent.groups.find((g) =>
     g.name.includes('研发工作流')
   )
-  const item = wf.items.find((i) => i.cmd === 'product-doc-workflow')
-  expect(item.desc).toMatch(/revision/)
-  expect(item.desc).not.toMatch(/evaluate.*product-doc.*快照/i)
+  const diagnostic = wf.items.find((i) => i.cmd === 'diagnostic')
+  const product = wf.items.find((i) => i.cmd === 'product')
+  expect(diagnostic.desc).toMatch(/product\/tech/)
+  expect(product.desc).toMatch(/revision/)
 })

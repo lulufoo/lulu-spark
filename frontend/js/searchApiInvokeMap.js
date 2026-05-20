@@ -10,12 +10,18 @@ export const REINDEX_INVOKE_MAP = {
     cmd: 'reindex_kb_repo',
     args: (payload) => ({ repo: payload?.repo ?? '' }),
   },
+  syncKnowledgeCorpus: { cmd: 'sync_knowledge_corpus' },
+  syncWorkbenchRepo: {
+    cmd: 'sync_workbench_repo',
+    args: (payload) => ({ repo: payload?.repo ?? '' }),
+  },
+  syncWorkbenchCorpus: { cmd: 'sync_workbench_corpus' },
   getReindexStatus: { cmd: 'get_reindex_status' },
   getReindexWorkbenchStatus: { cmd: 'get_reindex_workbench_status' },
 };
 
 /**
- * @param {'reindexKnowledge'|'reindexWorkbench'|'reindexKbRepo'|'getReindexStatus'|'getReindexWorkbenchStatus'} key
+ * @param {'reindexKnowledge'|'reindexWorkbench'|'reindexKbRepo'|'syncKnowledgeCorpus'|'getReindexStatus'|'getReindexWorkbenchStatus'} key
  * @param {Record<string, unknown>} [payload]
  */
 export function resolveReindexInvoke(key, payload) {

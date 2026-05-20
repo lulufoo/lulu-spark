@@ -1,3 +1,4 @@
+mod meili_admin;
 mod meili_backend;
 
 use std::path::Path;
@@ -5,8 +6,10 @@ use std::sync::Arc;
 
 use serde_json::Value;
 
+pub use meili_admin::MeiliAdminError;
 pub use meili_backend::{
-    build_search_body, map_search_result, parse_limit, search_path, MeiliBackend,
+    build_knowledge_document, build_search_body, documents_path, map_search_result, parse_limit,
+    search_path, MeiliBackend,
 };
 
 pub trait SearchBackend: Send + Sync {

@@ -22,7 +22,7 @@ globalThis.document = {
 globalThis.sessionStorage = { getItem: () => null, setItem: () => {} };
 
 import { state } from '../frontend/js/state.js';
-import { selectTopic } from '../frontend/js/components/sidebar.js';
+import { buildGroups, selectTopic } from '../frontend/js/components/sidebar.js';
 
 const makeGroup = (date, topics) => ({
   date,
@@ -74,5 +74,18 @@ describe('selectTopic', () => {
   it('key 无匹配时 filteredGroups 为 []', () => {
     selectTopic('nonexistent-topic');
     expect(state.index.filteredGroups).toHaveLength(0);
+  });
+});
+
+describe('buildGroups', () => {
+  it('忽略缺少 created_at 的异常条目', () => {
+    const grouped = buildGroups({
+      ok: { common_path: 'ai/a', created_at: '202501011200' },
+      broken: { common_path: 'ai/b' },
+    });
+    expect(grouped).toHaveLength(1);
+    expect(grouped[0].date).toBe('20250101');
+    expect(grouped[0].entries).toHaveLength(1);
+    expect(grouped[0].entries[0].id).toBe('ok');
   });
 });
