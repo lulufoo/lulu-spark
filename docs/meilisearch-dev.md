@@ -2,8 +2,6 @@
 
 LuLu Workbench P4 使用**外置** Meilisearch HTTP 服务。Tauri App **不会**启动 Meili 进程；搜索、reindex、settle upsert 均由 Rust 经 HTTP 调用外置实例。
 
-> 遗留 `server.py` 仅作可选浏览器调试，**不是** P4 官方运行时。
-
 ## 版本 pin
 
 | 组件 | 版本（验证记录） |

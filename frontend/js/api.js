@@ -50,7 +50,19 @@ function getWriteDriver() {
 
 async function writePost(path, body) {
   const res = await getWriteDriver().postJson(path, body);
-  return res.json();
+  const payload = await res.json();
+  return assertWritePayload(payload);
+}
+
+/** Tauri write commands return `{ error, _status }` without throwing — normalize here. */
+export function assertWritePayload(payload) {
+  if (payload && typeof payload === 'object' && payload.error) {
+    const msg = typeof payload.error === 'string' ? payload.error : '请求失败';
+    const err = new Error(msg);
+    if (typeof payload._status === 'number') err.status = payload._status;
+    throw err;
+  }
+  return payload;
 }
 
 /** Tauri read commands return `{ error, _status }` without throwing — normalize here. */

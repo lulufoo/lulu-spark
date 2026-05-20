@@ -1,7 +1,13 @@
 import { state } from '../state.js'
 import * as api from '../api.js'
 import { reorderKbComments } from '../api.js'
+import {
+  ensureKbComments,
+  swapAdjacent,
+  validateCommentIdsForReorder,
+} from '../comment-reorder.js'
 import { nowTs } from '../utils.js'
+import { confirmDeleteComment, removeKbComment } from './comment-delete.js'
 
 // ── Preview tip (shared DOM element) ──────────────────────────────────────
 const _tip = () => document.getElementById('comment-preview-tip');
@@ -98,6 +104,29 @@ export function renderKbComments(annotation) {
   updateKbFloatNav(comments);
 }
 
+async function moveKbComment(index, delta) {
+  const { kbRepo, kbPath, annotation } = state.viewer;
+  const arr = ensureKbComments(annotation);
+  if (!swapAdjacent(arr, index, delta)) return;
+  renderKbComments(annotation);
+  const check = validateCommentIdsForReorder(arr);
+  if (!check.ok) {
+    swapAdjacent(arr, index, delta);
+    renderKbComments(annotation);
+    alert(check.error);
+    return;
+  }
+  try {
+    const data = await reorderKbComments(kbRepo, kbPath, check.ids);
+    if (data?.ok !== true) throw new Error(data?.error || 'failed');
+    document.dispatchEvent(new CustomEvent('kb:dirty', { detail: { msg: 'chore: reorder annotations' } }));
+  } catch (e) {
+    swapAdjacent(arr, index, delta);
+    renderKbComments(annotation);
+    alert(`排序保存失败：${e.message}`);
+  }
+}
+
 function buildKbCommentItem(comment, index, comments) {
   const item = document.createElement('div');
   item.className = 'comment-item';
@@ -123,18 +152,14 @@ function buildKbCommentItem(comment, index, comments) {
   }
 
   const delX = document.createElement('button');
+  delX.type = 'button';
   delX.className = 'comment-item-del-x';
   delX.title = '删除';
   delX.textContent = '×';
   delX.addEventListener('click', async () => {
-    if (!confirm('删除此笔记？')) return;
-    const { kbRepo, kbPath, annotation } = state.viewer;
+    if (!(await confirmDeleteComment())) return;
     try {
-      const data = await api.updateKbComment(kbRepo, kbPath, { id: comment.id, text: '' }, nowTs());
-      if (!data.ok) throw new Error(data.error || 'failed');
-      if (annotation?.comments) {
-        annotation.comments = annotation.comments.filter(c => c.id !== comment.id);
-      }
+      await removeKbComment(comment);
       renderKbComments(state.viewer.annotation);
       document.dispatchEvent(new CustomEvent('kb:dirty', { detail: { msg: 'chore: update annotations' } }));
     } catch (e) {
@@ -146,6 +171,7 @@ function buildKbCommentItem(comment, index, comments) {
   actionsEl.className = 'comment-item-actions';
 
   const editBtn = document.createElement('button');
+  editBtn.type = 'button';
   editBtn.className = 'comment-item-action-btn';
   editBtn.textContent = '编辑';
   editBtn.addEventListener('click', () => openKbCommentDialog(comment, index));
@@ -154,33 +180,21 @@ function buildKbCommentItem(comment, index, comments) {
 
   if (comments && index > 0) {
     const upBtn = document.createElement('button');
+    upBtn.type = 'button';
     upBtn.className = 'comment-item-action-btn comment-item-order-btn';
     upBtn.title = '上移';
     upBtn.textContent = '↑';
-    upBtn.addEventListener('click', async () => {
-      const { kbRepo, kbPath, annotation } = state.viewer;
-      const arr = annotation.comments;
-      [arr[index - 1], arr[index]] = [arr[index], arr[index - 1]];
-      renderKbComments(annotation);
-      await reorderKbComments(kbRepo, kbPath, arr.map(c => c.id));
-      document.dispatchEvent(new CustomEvent('kb:dirty', { detail: { msg: 'chore: reorder annotations' } }));
-    });
+    upBtn.addEventListener('click', () => moveKbComment(index, -1));
     actionsEl.append(upBtn);
   }
 
   if (comments && index < comments.length - 1) {
     const downBtn = document.createElement('button');
+    downBtn.type = 'button';
     downBtn.className = 'comment-item-action-btn comment-item-order-btn';
     downBtn.title = '下移';
     downBtn.textContent = '↓';
-    downBtn.addEventListener('click', async () => {
-      const { kbRepo, kbPath, annotation } = state.viewer;
-      const arr = annotation.comments;
-      [arr[index], arr[index + 1]] = [arr[index + 1], arr[index]];
-      renderKbComments(annotation);
-      await reorderKbComments(kbRepo, kbPath, arr.map(c => c.id));
-      document.dispatchEvent(new CustomEvent('kb:dirty', { detail: { msg: 'chore: reorder annotations' } }));
-    });
+    downBtn.addEventListener('click', () => moveKbComment(index, 1));
     actionsEl.append(downBtn);
   }
 

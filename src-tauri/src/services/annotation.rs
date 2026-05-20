@@ -286,6 +286,12 @@ pub fn reorder_comments(
         .iter()
         .filter_map(|id| id_map.get(id).cloned())
         .collect();
+    if reordered.len() != ids.len() {
+        return json!({
+            "error": "Comment id not found",
+            "_status": 404
+        });
+    }
     layer_map.insert("comments".into(), Value::Array(reordered));
     if let Some(err) = persist_annotation(&target, &ann) {
         return err;
@@ -385,58 +391,203 @@ pub fn update_highlights(
 mod tests {
     use super::*;
     use std::fs;
-    use std::io::Write;
+    use std::path::PathBuf;
+    use std::sync::{Mutex, OnceLock};
 
-    fn repo_with_corpus() -> (tempfile::TempDir, std::path::PathBuf) {
+    static TEST_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+
+    fn with_corpus<F: FnOnce(tempfile::TempDir, PathBuf)>(prepare_ai_subdir: bool, f: F) {
+        let _g = TEST_LOCK.get_or_init(|| Mutex::new(())).lock().expect("lock");
         let dir = tempfile::tempdir().expect("tmp");
         let corpus = dir.path().join("corpus");
-        fs::create_dir_all(corpus.join("annotations/ai")).expect("mkdir");
+        if prepare_ai_subdir {
+            fs::create_dir_all(corpus.join("annotations/ai")).expect("mkdir");
+        } else {
+            fs::create_dir_all(corpus.join("annotations")).expect("mkdir");
+        }
         crate::config::settings::write_test_config(dir.path(), &corpus, None);
-        (dir, corpus)
+        f(dir, corpus);
+        crate::config::settings::set_test_config_dir(None);
     }
 
     #[test]
     fn set_done_true_writes_done_key() {
-        let (dir, corpus) = repo_with_corpus();
-        let v = set_done(dir.path(), "ai/note.md", true);
-        assert_eq!(v["ok"], json!(true));
-        let p = annotation_json_path(&corpus, "ai/note.md").expect("path");
-        let read: Value = serde_json::from_str(&fs::read_to_string(&p).expect("read")).expect("json");
-        assert_eq!(read["done"], json!(true));
+        with_corpus(true, |dir, corpus| {
+            let cp = "ai/note-done.md";
+            let v = set_done(dir.path(), cp, true);
+            assert_eq!(v["ok"], json!(true));
+            let p = annotation_json_path(&corpus, cp).expect("path");
+            let read: Value =
+                serde_json::from_str(&fs::read_to_string(&p).expect("read")).expect("json");
+            assert_eq!(read["done"], json!(true));
+        });
     }
 
     #[test]
     fn set_importance_high() {
-        let (dir, corpus) = repo_with_corpus();
-        let v = set_importance(dir.path(), "ai/note.md", Some("high".into()));
-        assert_eq!(v["ok"], json!(true));
-        let p = annotation_json_path(&corpus, "ai/note.md").expect("path");
-        let read: Value = serde_json::from_str(&fs::read_to_string(&p).expect("read")).expect("json");
-        assert_eq!(read["importance"], json!("high"));
+        with_corpus(true, |dir, corpus| {
+            let cp = "ai/note-importance.md";
+            let v = set_importance(dir.path(), cp, Some("high".into()));
+            assert_eq!(v["ok"], json!(true));
+            let p = annotation_json_path(&corpus, cp).expect("path");
+            let read: Value =
+                serde_json::from_str(&fs::read_to_string(&p).expect("read")).expect("json");
+            assert_eq!(read["importance"], json!("high"));
+        });
     }
 
     #[test]
     fn update_comments_new_returns_id() {
-        let (dir, _corpus) = repo_with_corpus();
-        let v = update_comments(
-            dir.path(),
-            "ai/note.md",
-            "raw",
-            json!({ "text": "hi" }),
-            String::new(),
-        );
-        assert_eq!(v["ok"], json!(true));
-        assert_eq!(v["id"].as_str().map(|s| s.len()), Some(12));
+        with_corpus(true, |dir, _corpus| {
+            let v = update_comments(
+                dir.path(),
+                "ai/note-comments.md",
+                "raw",
+                json!({ "text": "hi" }),
+                String::new(),
+            );
+            assert_eq!(v["ok"], json!(true));
+            assert_eq!(v["id"].as_str().map(|s| s.len()), Some(12));
+        });
     }
 
     #[test]
     fn update_links_invalid_url() {
-        let (dir, _) = repo_with_corpus();
-        let v = update_links(
-            dir.path(),
-            "ai/note.md",
-            json!([{ "url": "ftp://bad" }]),
-        );
-        assert!(v["error"].as_str().unwrap().starts_with("Invalid url:"));
+        with_corpus(true, |dir, _corpus| {
+            let v = update_links(
+                dir.path(),
+                "ai/note-bad-url.md",
+                json!([{ "url": "ftp://bad" }]),
+            );
+            assert!(v["error"].as_str().unwrap().starts_with("Invalid url:"));
+        });
+    }
+
+    #[test]
+    fn update_links_invalid_common_path() {
+        with_corpus(true, |dir, _corpus| {
+            let v = update_links(
+                dir.path(),
+                "../evil.md",
+                json!([{ "url": "https://github.com/foo/bar" }]),
+            );
+            assert_eq!(v["error"], "Invalid common_path");
+            assert_eq!(v["_status"], 400);
+        });
+    }
+
+    #[test]
+    fn update_links_persists_links_array() {
+        with_corpus(true, |dir, corpus| {
+            let cp = "ai/note-links.md";
+            let links = json!([{ "url": "https://github.com/foo/bar" }]);
+            let v = update_links(dir.path(), cp, links.clone());
+            assert_eq!(v["ok"], json!(true));
+            let p = annotation_json_path(&corpus, cp).expect("path");
+            let read: Value =
+                serde_json::from_str(&fs::read_to_string(&p).expect("read")).expect("json");
+            assert_eq!(read["links"], links);
+        });
+    }
+
+    #[test]
+    fn update_links_empty_array_removes_links_key() {
+        with_corpus(true, |dir, corpus| {
+            let cp = "ai/note-clear-links.md";
+            let seed = update_links(
+                dir.path(),
+                cp,
+                json!([{ "url": "https://github.com/foo/bar" }]),
+            );
+            assert_eq!(seed["ok"], json!(true));
+            let v = update_links(dir.path(), cp, json!([]));
+            assert_eq!(v["ok"], json!(true));
+            let p = annotation_json_path(&corpus, cp).expect("path");
+            assert!(!p.exists());
+        });
+    }
+
+    #[test]
+    fn update_links_creates_annotation_when_topic_dir_missing() {
+        with_corpus(false, |dir, corpus| {
+            let cp = "inbox/new-note.md";
+            let v = update_links(
+                dir.path(),
+                cp,
+                json!([{ "url": "https://github.com/foo/bar" }]),
+            );
+            assert_eq!(v["ok"], json!(true));
+            let p = annotation_json_path(&corpus, cp).expect("path");
+            assert!(p.is_file());
+        });
+    }
+
+    #[test]
+    fn reorder_comments_persists_new_order() {
+        with_corpus(true, |dir, corpus| {
+            let cp = "ai/note-reorder.md";
+            let seed = update_comments(
+                dir.path(),
+                cp,
+                "raw",
+                json!({ "text": "first" }),
+                String::new(),
+            );
+            assert_eq!(seed["ok"], json!(true));
+            let id1 = seed["id"].as_str().expect("id1").to_string();
+            let second = update_comments(
+                dir.path(),
+                cp,
+                "raw",
+                json!({ "text": "second" }),
+                String::new(),
+            );
+            let id2 = second["id"].as_str().expect("id2").to_string();
+            let third = update_comments(
+                dir.path(),
+                cp,
+                "raw",
+                json!({ "text": "third" }),
+                String::new(),
+            );
+            let id3 = third["id"].as_str().expect("id3").to_string();
+
+            let v = reorder_comments(
+                dir.path(),
+                cp,
+                "raw",
+                vec![id3.clone(), id1.clone(), id2.clone()],
+            );
+            assert_eq!(v["ok"], json!(true));
+
+            let p = annotation_json_path(&corpus, cp).expect("path");
+            let read: Value =
+                serde_json::from_str(&fs::read_to_string(&p).expect("read")).expect("json");
+            let ids: Vec<String> = read["raw"]["comments"]
+                .as_array()
+                .expect("comments")
+                .iter()
+                .filter_map(|c| c.get("id").and_then(|v| v.as_str()).map(String::from))
+                .collect();
+            assert_eq!(ids, vec![id3, id1, id2]);
+        });
+    }
+
+    #[test]
+    fn reorder_comments_rejects_unknown_id() {
+        with_corpus(true, |dir, _corpus| {
+            let cp = "ai/note-reorder-bad.md";
+            let seed = update_comments(
+                dir.path(),
+                cp,
+                "raw",
+                json!({ "text": "only" }),
+                String::new(),
+            );
+            let id1 = seed["id"].as_str().expect("id").to_string();
+            let v = reorder_comments(dir.path(), cp, "raw", vec![id1, "nope00000000".into()]);
+            assert_eq!(v["error"], "Comment id not found");
+            assert_eq!(v["_status"], 404);
+        });
     }
 }

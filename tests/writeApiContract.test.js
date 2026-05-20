@@ -6,13 +6,13 @@ import {
 
 const P2_PATHS = [
   ['/api/config', 'set_config', ['payload']],
-  ['/api/save', 'save_entry', ['layer', 'common_path', 'content']],
-  ['/api/update-comments', 'update_comments', ['common_path', 'layer', 'comment', 'ts']],
-  ['/api/reorder-comments', 'reorder_comments', ['common_path', 'layer', 'ids']],
-  ['/api/update-highlights', 'update_highlights', ['common_path', 'layer', 'highlight', 'ts']],
-  ['/api/update-links', 'update_links', ['common_path', 'links']],
-  ['/api/set-done', 'set_done', ['common_path', 'done']],
-  ['/api/set-importance', 'set_importance', ['common_path', 'importance']],
+  ['/api/save', 'save_entry', ['layer', 'commonPath', 'content']],
+  ['/api/update-comments', 'update_comments', ['commonPath', 'layer', 'comment', 'ts']],
+  ['/api/reorder-comments', 'reorder_comments', ['commonPath', 'layer', 'ids']],
+  ['/api/update-highlights', 'update_highlights', ['commonPath', 'layer', 'highlight', 'ts']],
+  ['/api/update-links', 'update_links', ['commonPath', 'links']],
+  ['/api/set-done', 'set_done', ['commonPath', 'done']],
+  ['/api/set-importance', 'set_importance', ['commonPath', 'importance']],
   ['/api/kb/save', 'kb_save', ['repo', 'path', 'content']],
   ['/api/kb/update-comments', 'kb_update_comments', ['repo', 'path', 'comment', 'ts']],
   ['/api/kb/reorder-comments', 'kb_reorder_comments', ['repo', 'path', 'ids']],
@@ -36,7 +36,7 @@ describe('writeApiContract', () => {
       })
     ).toEqual({
       cmd: 'set_done',
-      args: { common_path: 'ai/x.md', done: true },
+      args: { commonPath: 'ai/x.md', done: true },
     });
   });
 
@@ -49,8 +49,54 @@ describe('writeApiContract', () => {
       })
     ).toEqual({
       cmd: 'save_entry',
-      args: { layer: 'digest', common_path: 'a/b.md', content: '# t' },
+      args: { layer: 'digest', commonPath: 'a/b.md', content: '# t' },
     });
+  });
+
+  it('update_links invoke args use commonPath (Tauri 2 IPC)', () => {
+    const resolved = resolveWriteInvoke('/api/update-links', {
+      common_path: 'inbox/new-note.md',
+      links: [{ url: 'https://github.com/foo/bar' }],
+    });
+    expect(resolved).toEqual({
+      cmd: 'update_links',
+      args: {
+        commonPath: 'inbox/new-note.md',
+        links: [{ url: 'https://github.com/foo/bar' }],
+      },
+    });
+    expect(resolved.args).not.toHaveProperty('common_path');
+  });
+
+  it('corpus annotation endpoints map common_path → commonPath only', () => {
+    const cases = [
+      [
+        '/api/update-comments',
+        { common_path: 'ai/x.md', layer: 'raw', comment: { text: 'a' }, ts: '1' },
+        ['commonPath', 'layer', 'comment', 'ts'],
+      ],
+      [
+        '/api/reorder-comments',
+        { common_path: 'ai/x.md', layer: 'raw', ids: ['a'] },
+        ['commonPath', 'layer', 'ids'],
+      ],
+      [
+        '/api/update-highlights',
+        { common_path: 'ai/x.md', layer: 'raw', highlight: { id: 'h' }, ts: '1' },
+        ['commonPath', 'layer', 'highlight', 'ts'],
+      ],
+      [
+        '/api/set-importance',
+        { common_path: 'ai/x.md', importance: 'high' },
+        ['commonPath', 'importance'],
+      ],
+    ];
+    for (const [path, body, keys] of cases) {
+      const resolved = resolveWriteInvoke(path, body);
+      expect(Object.keys(resolved.args).sort(), path).toEqual(keys.sort());
+      expect(resolved.args.commonPath).toBe('ai/x.md');
+      expect(resolved.args).not.toHaveProperty('common_path');
+    }
   });
 
   it('golden error shapes align with P1 kb_read style', () => {

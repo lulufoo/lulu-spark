@@ -7,7 +7,7 @@
 <link rel="icon" type="image/svg+xml" href="icons/app-icon.svg">
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/turndown/dist/turndown.min.js"></script>
-<link rel="stylesheet" href="app.css?v=20260507c">
+<link rel="stylesheet" href="app.css?v=20260521c">
 </head>
 <body>
 
@@ -262,6 +262,18 @@
     <div id="move-doc-dialog-actions">
       <button id="btn-move-doc-cancel" class="md-header-btn">取消</button>
       <button id="btn-move-doc-ok" class="md-header-btn primary">确认移动</button>
+    </div>
+  </div>
+</div>
+
+<!-- Comment note delete confirm -->
+<div id="comment-delete-dialog">
+  <div id="comment-delete-dialog-box">
+    <h3>删除笔记</h3>
+    <p>确定删除此笔记？此操作不可撤销。</p>
+    <div id="comment-delete-dialog-actions">
+      <button type="button" id="btn-comment-delete-cancel" class="md-header-btn">取消</button>
+      <button type="button" id="btn-comment-delete-ok" class="md-header-btn comment-delete-ok-btn">删除</button>
     </div>
   </div>
 </div>

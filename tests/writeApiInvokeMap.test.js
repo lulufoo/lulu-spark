@@ -36,7 +36,7 @@ describe('writeApiInvokeMap', () => {
       })
     ).toEqual({
       cmd: 'set_done',
-      args: { common_path: 'ai/note.md', done: true },
+      args: { commonPath: 'ai/note.md', done: true },
     });
   });
 
@@ -53,7 +53,7 @@ describe('writeApiInvokeMap', () => {
       })
     ).toEqual({
       cmd: 'save_entry',
-      args: { layer: 'digest', common_path: 'x/y.md', content: '# hi' },
+      args: { layer: 'digest', commonPath: 'x/y.md', content: '# hi' },
     });
   });
 });

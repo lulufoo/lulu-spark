@@ -1,9 +1,15 @@
 import { state } from '../state.js'
 import * as api from '../api.js'
 import { reorderComments } from '../api.js'
+import {
+  ensureLayerComments,
+  swapAdjacent,
+  validateCommentIdsForReorder,
+} from '../comment-reorder.js'
 import { nowTs } from '../utils.js'
 import { openSettleDialog } from './settle-dialog.js'
 import { renderLinksBar } from './links-bar.js'
+import { confirmDeleteComment, removeCorpusComment } from './comment-delete.js'
 
 // ── renderComments ─────────────────────────────────────────────────────────
 
@@ -100,6 +106,27 @@ export function renderComments(annotation, layer, entry) {
   updateFloatNav(comments, layer, entry);
 }
 
+async function moveCorpusComment(layer, entry, idx, delta) {
+  const arr = ensureLayerComments(state.viewer.annotation, layer);
+  if (!swapAdjacent(arr, idx, delta)) return;
+  renderComments(state.viewer.annotation, layer, entry);
+  const check = validateCommentIdsForReorder(arr);
+  if (!check.ok) {
+    swapAdjacent(arr, idx, delta);
+    renderComments(state.viewer.annotation, layer, entry);
+    alert(check.error);
+    return;
+  }
+  try {
+    const data = await reorderComments(entry.common_path, layer, check.ids);
+    if (data?.ok !== true) throw new Error(data?.error || 'failed');
+  } catch (e) {
+    swapAdjacent(arr, idx, delta);
+    renderComments(state.viewer.annotation, layer, entry);
+    alert(`排序保存失败：${e.message}`);
+  }
+}
+
 // ── buildCommentItem ───────────────────────────────────────────────────────
 
 function buildCommentItem(c, layer, entry, noteIndex, allComments) {
@@ -126,20 +153,15 @@ function buildCommentItem(c, layer, entry, noteIndex, allComments) {
   }
 
   const delX = document.createElement('button');
+  delX.type = 'button';
   delX.className = 'comment-item-del-x';
   delX.title = '删除';
   delX.textContent = '×';
   delX.addEventListener('click', async () => {
-    if (!confirm('删除此笔记？')) return;
+    if (!(await confirmDeleteComment())) return;
     try {
-      const data = await api.updateComments(entry.common_path, layer, { id: c.id, text: '' }, nowTs());
-      if (data.ok) {
-        const ld = state.viewer.annotation[layer] || {};
-        ld.comments = (ld.comments || []).filter(x => x.id !== c.id);
-        if (!ld.comments.length) delete state.viewer.annotation[layer];
-        else state.viewer.annotation[layer] = ld;
-        renderComments(state.viewer.annotation, layer, entry);
-      }
+      await removeCorpusComment(c, layer, entry);
+      renderComments(state.viewer.annotation, layer, entry);
     } catch (e) { alert(`删除失败：${e.message}`); }
   });
 
@@ -147,12 +169,14 @@ function buildCommentItem(c, layer, entry, noteIndex, allComments) {
   actionsEl.className = 'comment-item-actions';
 
   const settleBtn = document.createElement('button');
+  settleBtn.type = 'button';
   settleBtn.className = 'comment-item-action-btn';
   settleBtn.textContent = '⬆ 沉淀';
   settleBtn.title = '沉淀到知识仓库';
   settleBtn.addEventListener('click', () => openSettleDialog(c, layer, entry));
 
   const editBtn = document.createElement('button');
+  editBtn.type = 'button';
   editBtn.className = 'comment-item-action-btn';
   editBtn.textContent = '编辑';
   editBtn.addEventListener('click', () => openCommentDialog(c, layer, entry, noteIndex));
@@ -162,45 +186,21 @@ function buildCommentItem(c, layer, entry, noteIndex, allComments) {
   const idx = noteIndex - 1;
   if (allComments && idx > 0) {
     const upBtn = document.createElement('button');
+    upBtn.type = 'button';
     upBtn.className = 'comment-item-action-btn comment-item-order-btn';
     upBtn.title = '上移';
     upBtn.textContent = '↑';
-    upBtn.addEventListener('click', async () => {
-      const ld = state.viewer.annotation[layer] || {};
-      const arr = ld.comments || [];
-      [arr[idx - 1], arr[idx]] = [arr[idx], arr[idx - 1]];
-      renderComments(state.viewer.annotation, layer, entry);
-      try {
-        const data = await reorderComments(entry.common_path, layer, arr.map(x => x.id));
-        if (!data.ok) throw new Error(data.error || 'failed');
-      } catch (e) {
-        [arr[idx - 1], arr[idx]] = [arr[idx], arr[idx - 1]];
-        renderComments(state.viewer.annotation, layer, entry);
-        alert(`排序保存失败：${e.message}`);
-      }
-    });
+    upBtn.addEventListener('click', () => moveCorpusComment(layer, entry, idx, -1));
     actionsEl.append(upBtn);
   }
 
   if (allComments && idx < allComments.length - 1) {
     const downBtn = document.createElement('button');
+    downBtn.type = 'button';
     downBtn.className = 'comment-item-action-btn comment-item-order-btn';
     downBtn.title = '下移';
     downBtn.textContent = '↓';
-    downBtn.addEventListener('click', async () => {
-      const ld = state.viewer.annotation[layer] || {};
-      const arr = ld.comments || [];
-      [arr[idx], arr[idx + 1]] = [arr[idx + 1], arr[idx]];
-      renderComments(state.viewer.annotation, layer, entry);
-      try {
-        const data = await reorderComments(entry.common_path, layer, arr.map(x => x.id));
-        if (!data.ok) throw new Error(data.error || 'failed');
-      } catch (e) {
-        [arr[idx], arr[idx + 1]] = [arr[idx + 1], arr[idx]];
-        renderComments(state.viewer.annotation, layer, entry);
-        alert(`排序保存失败：${e.message}`);
-      }
-    });
+    downBtn.addEventListener('click', () => moveCorpusComment(layer, entry, idx, 1));
     actionsEl.append(downBtn);
   }
 

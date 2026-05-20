@@ -126,7 +126,7 @@ Entry 来源类型：`dialogue`（对话）/ `article`（文章）/ `video`（�
          |
 ⑤ 追加一条记录到目标仓库 _index.md
          |
-⑥ 即时 upsert 到本地 Meilisearch 索引（server.py 自动执行）
+⑥ 即时 upsert 到本地 Meilisearch 索引（Tauri / Rust 自动执行）
 ```
 
 ---

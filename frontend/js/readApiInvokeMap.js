@@ -1,6 +1,6 @@
 /**
  * P1 read API: HTTP path (fetchDriver) ↔ Tauri command (tauriDriver).
- * Query keys match `server.py` / `api.js` usage.
+ * Query keys match `api.js` HTTP paths.
  */
 
 /** @type {Record<string, { cmd: string, args?: (url: URL) => Record<string, unknown> }>} */

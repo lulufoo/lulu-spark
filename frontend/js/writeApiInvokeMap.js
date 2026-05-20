@@ -1,7 +1,13 @@
 /**
  * P2 write API: HTTP POST path ↔ Tauri command (tauriDriver postJson).
  * Command names align with tech-doc naming contract.
+ * HTTP bodies use snake_case; Tauri invoke args use camelCase (Tauri 2 IPC).
  */
+
+/** @param {Record<string, unknown>} body */
+function commonPathArg(body) {
+  return { commonPath: body.common_path };
+}
 
 /** @type {Record<string, { cmd: string, args: (body: Record<string, unknown>) => Record<string, unknown> }>} */
 export const WRITE_API_INVOKE_MAP = {
@@ -15,14 +21,14 @@ export const WRITE_API_INVOKE_MAP = {
     cmd: 'save_entry',
     args: (body) => ({
       layer: body.layer,
-      common_path: body.common_path,
+      ...commonPathArg(body),
       content: body.content,
     }),
   },
   '/api/update-comments': {
     cmd: 'update_comments',
     args: (body) => ({
-      common_path: body.common_path,
+      ...commonPathArg(body),
       layer: body.layer,
       comment: body.comment,
       ts: body.ts,
@@ -31,7 +37,7 @@ export const WRITE_API_INVOKE_MAP = {
   '/api/reorder-comments': {
     cmd: 'reorder_comments',
     args: (body) => ({
-      common_path: body.common_path,
+      ...commonPathArg(body),
       layer: body.layer,
       ids: body.ids,
     }),
@@ -39,7 +45,7 @@ export const WRITE_API_INVOKE_MAP = {
   '/api/update-highlights': {
     cmd: 'update_highlights',
     args: (body) => ({
-      common_path: body.common_path,
+      ...commonPathArg(body),
       layer: body.layer,
       highlight: body.highlight,
       ts: body.ts,
@@ -48,21 +54,21 @@ export const WRITE_API_INVOKE_MAP = {
   '/api/update-links': {
     cmd: 'update_links',
     args: (body) => ({
-      common_path: body.common_path,
+      ...commonPathArg(body),
       links: body.links,
     }),
   },
   '/api/set-done': {
     cmd: 'set_done',
     args: (body) => ({
-      common_path: body.common_path,
+      ...commonPathArg(body),
       done: body.done,
     }),
   },
   '/api/set-importance': {
     cmd: 'set_importance',
     args: (body) => ({
-      common_path: body.common_path,
+      ...commonPathArg(body),
       importance: body.importance,
     }),
   },

@@ -179,6 +179,12 @@ pub fn kb_reorder_comments(
         .iter()
         .filter_map(|id| id_map.get(id).cloned())
         .collect();
+    if reordered.len() != ids.len() {
+        return json!({
+            "error": "Comment id not found",
+            "_status": 404
+        });
+    }
     root.insert("comments".into(), Value::Array(reordered));
     if let Err(e) = kb_ann_write(&ann_path, &ann) {
         return json!({ "error": e, "_status": 500 });

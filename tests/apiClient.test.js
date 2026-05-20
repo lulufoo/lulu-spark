@@ -106,11 +106,42 @@ test('tauriDriver postJson 通过 invoke 调用写映射命令', async () => {
     done: true,
   });
   expect(invokeMock).toHaveBeenCalledWith('set_done', {
-    common_path: 'ai/x.md',
+    commonPath: 'ai/x.md',
     done: true,
   });
   expect(res.ok).toBe(true);
   expect(await res.json()).toEqual({ ok: true });
+});
+
+test('tauriDriver postJson /api/update-links 映射 commonPath + links', async () => {
+  invokeMock.mockResolvedValue({ ok: true });
+  const driver = createTauriDriver();
+  const links = [{ url: 'https://github.com/foo/bar' }];
+  const res = await driver.postJson('/api/update-links', {
+    common_path: 'inbox/new-note.md',
+    links,
+  });
+  expect(invokeMock).toHaveBeenCalledWith('update_links', {
+    commonPath: 'inbox/new-note.md',
+    links,
+  });
+  expect(invokeMock.mock.calls[0][1]).not.toHaveProperty('common_path');
+  expect(res.ok).toBe(true);
+});
+
+test('tauriDriver postJson invoke 返回 Invalid common_path 时透传 400', async () => {
+  invokeMock.mockResolvedValue({
+    error: 'Invalid common_path',
+    _status: 400,
+  });
+  const driver = createTauriDriver();
+  const res = await driver.postJson('/api/update-links', {
+    common_path: '../evil.md',
+    links: [{ url: 'https://example.com' }],
+  });
+  expect(res.ok).toBe(false);
+  expect(res.status).toBe(400);
+  expect((await res.json()).error).toBe('Invalid common_path');
 });
 
 test('tauriDriver postJson /api/config 映射到 set_config', async () => {

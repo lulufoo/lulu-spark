@@ -3,6 +3,7 @@ import { test, expect, vi, beforeEach } from 'vitest'
 import { DEFAULT_DEV_BASE } from '../frontend/js/apiClient.js'
 import {
   assertReadPayload,
+  assertWritePayload,
   fetchIndex, fetchDiffStatus, fetchAnnotationsSummary, fetchAnnotation,
   fetchConfig, fetchFileContent, fetchLinkTitle,
   setConfig,
@@ -63,6 +64,12 @@ test('assertReadPayload 在 Tauri 风格 error 对象上抛出', () => {
   expect(() =>
     assertReadPayload({ error: 'No such file: /tmp/index.json', _status: 404 }),
   ).toThrow('No such file')
+})
+
+test('assertWritePayload 在 Tauri 风格 error 对象上抛出', () => {
+  expect(() =>
+    assertWritePayload({ error: 'Invalid common_path', _status: 400 }),
+  ).toThrow('Invalid common_path')
 })
 
 test('fetchIndex 在 JSON body 含 error 时抛出（Tauri 路径）', async () => {
