@@ -74,7 +74,7 @@ export const READ_API_INVOKE_MAP = {
   },
   '/api/kb-corpus-status': {
     cmd: 'get_kb_corpus_status',
-    args: (url) => ({ filter_type: url.searchParams.get('type') ?? null }),
+    args: (url) => ({ filterType: url.searchParams.get('type') ?? null }),
   },
   '/api/repo-dirs': {
     cmd: 'get_repo_dirs',

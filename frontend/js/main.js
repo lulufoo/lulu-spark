@@ -165,9 +165,9 @@ async function _loadKbCorpusStatus(filterType, forceRefresh = false) {
   _kbCorpusStatus = null;
   try {
     const data = await api.getKbCorpusStatus(filterType);
-    if (_kbCorpusStatusType !== filterType) return; // stale request — discard
+    if (_kbCorpusStatusType !== filterType) return;
     _kbCorpusStatus = (!data.error && data.repos) ? data.repos : [];
-  } catch (_) {
+  } catch (e) {
     if (_kbCorpusStatusType !== filterType) return;
     _kbCorpusStatus = [];
   }

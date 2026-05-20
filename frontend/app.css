@@ -646,15 +646,15 @@
     flex-shrink: 0;
     font-size: 11px;
     padding: 2px 8px;
-    background: #fff8c5;
-    border: 1px solid #f0ca4d;
+    background: #f6f8fa;
+    border: 1px solid #d0d7de;
     border-radius: 4px;
-    color: #9a6700;
+    color: #0969da;
     cursor: pointer;
     white-space: nowrap;
     line-height: 1.6;
   }
-  .repo-sync-btn:hover:not(:disabled) { background: #f0ca4d; color: #3e2a00; }
+  .repo-sync-btn:hover:not(:disabled) { background: #dbeafe; border-color: #0969da; }
   .repo-sync-btn:disabled { opacity: .5; cursor: default; }
   #repo-list-loading { font-size: 13px; color: #8c959f; padding: 16px 0; text-align: center; }
   #repo-list-dialog-actions {
