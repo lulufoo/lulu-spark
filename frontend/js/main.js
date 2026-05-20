@@ -161,17 +161,16 @@ async function _loadKbCorpusStatus(filterType, forceRefresh = false) {
     _renderRepoListFiltered();
     return;
   }
-  if (_kbCorpusStatusType !== filterType) {
-    _kbCorpusStatus = null;
-    _kbCorpusStatusType = filterType;
-  }
+  _kbCorpusStatusType = filterType;
+  _kbCorpusStatus = null;
   try {
     const data = await api.getKbCorpusStatus(filterType);
+    if (_kbCorpusStatusType !== filterType) return; // stale request — discard
     _kbCorpusStatus = (!data.error && data.repos) ? data.repos : [];
   } catch (_) {
+    if (_kbCorpusStatusType !== filterType) return;
     _kbCorpusStatus = [];
   }
-  _kbCorpusStatusType = filterType;
   _renderRepoListFiltered();
 }
 
@@ -302,10 +301,9 @@ document.getElementById('repo-list-filter').addEventListener('change', () => {
   const val = filter ? filter.value : 'KNOWLEDGE_CORPUS';
   _kbCorpusStatus = null;
   _kbCorpusStatusType = null;
+  _renderRepoListFiltered();
   if (_KB_TYPES.has(val)) {
     _loadKbCorpusStatus(val);
-  } else {
-    _renderRepoListFiltered();
   }
 });
 
@@ -365,6 +363,9 @@ async function _loadRepoListData(forceRefresh = false) {
 document.getElementById('btn-repo-list').addEventListener('click', async () => {
   _repoMenuDropdown.classList.remove('open');
   document.getElementById('repo-list-dialog').classList.add('open');
+  // Always clear localStorage cache on open to ensure type data is fresh
+  try { localStorage.removeItem(_LS_REPO_LIST_KEY); } catch (_) {}
+  _repoListCache = null;
   await _loadRepoListData(false);
   const filter = document.getElementById('repo-list-filter');
   const val = filter ? filter.value : 'KNOWLEDGE_CORPUS';
@@ -435,6 +436,15 @@ document.getElementById('md-commit-msg').addEventListener('keydown', e => {
 });
 
 document.getElementById('btn-pull').addEventListener('click', pullProject);
+document.getElementById('btn-local-refresh').addEventListener('click', () => {
+  const btn = document.getElementById('btn-local-refresh');
+  btn.disabled = true;
+  btn.textContent = '⟳ 刷新中…';
+  loadIndex().finally(() => {
+    btn.disabled = false;
+    btn.textContent = '⟳ 本地刷新';
+  });
+});
 
 // ── Fast tooltip shim ─────────────────────────────────────────────────────
 

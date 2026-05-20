@@ -660,6 +660,7 @@
   #repo-list-dialog-actions {
     display: flex;
     justify-content: flex-end;
+    gap: 8px;
     flex-shrink: 0;
   }
 
