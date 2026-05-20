@@ -1,3 +1,6 @@
-pub mod knowledge;
+pub mod annotation;
+pub mod entry_write;
 pub mod kb;
+pub mod kb_write;
+pub mod knowledge;
 pub mod workbench_read;

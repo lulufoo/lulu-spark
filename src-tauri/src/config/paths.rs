@@ -1,8 +1,5 @@
 use std::path::PathBuf;
 
-/// Default `KNOWLEDGE_BASE_DIR` in server.py (before meili.env override).
-const DEFAULT_KNOWLEDGE_BASE_DIR: &str = "/Users/lulu/Code";
-
 #[derive(Debug, PartialEq, Eq)]
 pub enum PathsError {
     RepoRootUnavailable,
@@ -19,14 +16,16 @@ pub fn cache_dir() -> Result<PathBuf, PathsError> {
     Ok(repo_root()?.join(".cache"))
 }
 
-/// Aligns with `KNOWLEDGE_CORPUS_DIR = REPO_ROOT` default in server.py.
+/// Aligns with `get_corpus_root` in `workbench_config.py` (via `meili.env`).
 pub fn knowledge_corpus_dir() -> Result<PathBuf, PathsError> {
-    repo_root()
+    Ok(crate::config::meili_env::corpus_root_path(&repo_root()?))
 }
 
-/// Aligns with `KNOWLEDGE_BASE_DIR` default in server.py.
+/// Aligns with `KNOWLEDGE_BASE_DIR` in `meili.env` (default matches server.py).
 pub fn knowledge_base_dir() -> Result<PathBuf, PathsError> {
-    Ok(PathBuf::from(DEFAULT_KNOWLEDGE_BASE_DIR))
+    Ok(PathBuf::from(
+        crate::config::meili_env::kb_root_string(&repo_root()?),
+    ))
 }
 
 /// Aligns with `knowledge_index_loader.knowledge_index_path` → `.cache/knowledge-index.json`.
@@ -55,10 +54,11 @@ mod tests {
     }
 
     #[test]
-    fn knowledge_corpus_dir_defaults_to_repo_root() {
+    fn knowledge_corpus_dir_matches_meili_env_single_source() {
+        let root = repo_root().expect("repo_root");
         assert_eq!(
             knowledge_corpus_dir().expect("corpus"),
-            repo_root().expect("repo_root")
+            crate::config::meili_env::corpus_root_path(&root)
         );
     }
 

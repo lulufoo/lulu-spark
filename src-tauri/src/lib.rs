@@ -216,6 +216,18 @@ pub fn run() {
             commands::read::get_repo_list,
             commands::read::get_repo_dirs,
             commands::read::check_file,
+            commands::write::set_done,
+            commands::write::set_importance,
+            commands::write::update_links,
+            commands::write::update_comments,
+            commands::write::reorder_comments,
+            commands::write::update_highlights,
+            commands::write::save_entry,
+            commands::write::kb_save,
+            commands::write::kb_update_comments,
+            commands::write::kb_reorder_comments,
+            commands::write::kb_update_highlights,
+            commands::write::kb_update_links,
         ])
         .setup(|app| {
             create_main_window(app)?;

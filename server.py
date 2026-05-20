@@ -154,28 +154,15 @@ class Handler(http.server.SimpleHTTPRequestHandler):
     # ── Routing ──────────────────────────────────────────────────────────────
 
     def do_POST(self):
-        if self.path == '/api/save':
-            self._handle_save()
-        elif self.path == '/api/commit':
+        # P2 write POSTs are handled by Tauri invoke (see frontend writeApiInvokeMap.js).
+        if self.path == '/api/commit':
             self._handle_commit()
         elif self.path == '/api/pull':
             self._handle_pull()
-        elif self.path == '/api/update-links':
-            self._handle_update_links()
-        elif self.path == '/api/update-comments':
-            self._handle_update_comments()
-        elif self.path == '/api/reorder-comments':
-            self._handle_reorder_comments()
-        elif self.path == '/api/update-highlights':
-            self._handle_update_highlights()
         elif self.path == '/api/delete':
             self._handle_delete()
         elif self.path == '/api/gh-move':
             self._handle_gh_move()
-        elif self.path == '/api/set-done':
-            self._handle_set_done()
-        elif self.path == '/api/set-importance':
-            self._handle_set_importance()
         elif self.path == '/api/move-project':
             self._handle_move_project()
         elif self.path == '/api/settle':
@@ -188,22 +175,12 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             self._handle_reindex_workbench()
         elif self.path == '/api/draft':
             self._handle_save_draft()
-        elif self.path == '/api/kb/save':
-            self._handle_kb_save()
         elif self.path == '/api/kb/commit':
             self._handle_kb_commit()
         elif self.path == '/api/kb/revert':
             self._handle_kb_revert()
         elif self.path == '/api/kb/reindex':
             self._handle_kb_reindex()
-        elif self.path == '/api/kb/update-comments':
-            self._handle_kb_update_comments()
-        elif self.path == '/api/kb/reorder-comments':
-            self._handle_kb_reorder_comments()
-        elif self.path == '/api/kb/update-highlights':
-            self._handle_kb_update_highlights()
-        elif self.path == '/api/kb/update-links':
-            self._handle_kb_update_links()
         elif self.path == '/api/open-iterm':
             self._handle_open_iterm()
         else:

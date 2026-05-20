@@ -1,8 +1,33 @@
-import { createApiClient, resolveReadDriver } from './apiClient.js';
+import {
+  createApiClient,
+  createFetchDriver,
+  createTauriDriver,
+  resolveReadDriver,
+} from './apiClient.js';
 
 const readMode = resolveReadDriver();
 const readDriver = resolveReadDriver(readMode);
 const readApi = createApiClient(readDriver);
+
+function isTauriRuntime() {
+  if (typeof window === 'undefined') return false;
+  return Boolean(window.__TAURI__ || window.__TAURI_INTERNALS__);
+}
+
+function resolveWriteDriver() {
+  const env =
+    typeof import.meta !== 'undefined' && import.meta.env?.VITE_WRITE_API;
+  if (env === 'fetch') return createFetchDriver();
+  if (env === 'tauri') return createTauriDriver();
+  return isTauriRuntime() ? createTauriDriver() : createFetchDriver();
+}
+
+const writeDriver = resolveWriteDriver();
+
+async function writePost(path, body) {
+  const res = await writeDriver.postJson(path, body);
+  return res.json();
+}
 
 async function readGet(pathAndQuery) {
   return readApi.getJson(pathAndQuery);
@@ -47,12 +72,7 @@ export async function fetchLinkTitle(url) {
 }
 
 export async function saveFile(layer, commonPath, content) {
-  const res = await fetch('/api/save', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ layer, common_path: commonPath, content })
-  });
-  return res.json();
+  return writePost('/api/save', { layer, common_path: commonPath, content });
 }
 
 // files 省略时提交全部变更；为数组时仅提交指定文件
@@ -88,48 +108,23 @@ export async function fetchKbAnnotation(repo, path) {
 }
 
 export async function updateKbComment(repo, path, comment, ts) {
-  const res = await fetch('/api/kb/update-comments', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ repo, path, comment, ts })
-  });
-  return res.json();
+  return writePost('/api/kb/update-comments', { repo, path, comment, ts });
 }
 
 export async function reorderKbComments(repo, path, ids) {
-  const res = await fetch('/api/kb/reorder-comments', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ repo, path, ids })
-  });
-  return res.json();
+  return writePost('/api/kb/reorder-comments', { repo, path, ids });
 }
 
 export async function updateKbHighlight(repo, path, highlight, ts) {
-  const res = await fetch('/api/kb/update-highlights', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ repo, path, highlight, ts })
-  });
-  return res.json();
+  return writePost('/api/kb/update-highlights', { repo, path, highlight, ts });
 }
 
 export async function updateKbLinks(repo, path, links) {
-  const res = await fetch('/api/kb/update-links', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ repo, path, links })
-  });
-  return res.json();
+  return writePost('/api/kb/update-links', { repo, path, links });
 }
 
 export async function saveKbFile(repo, path, content) {
-  const res = await fetch('/api/kb/save', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ repo, path, content })
-  });
-  return res.json();
+  return writePost('/api/kb/save', { repo, path, content });
 }
 
 export async function commitKbFile(repo, message) {
@@ -185,48 +180,35 @@ export async function pullProject() {
 }
 
 export async function updateComments(commonPath, layer, comment, ts) {
-  const res = await fetch('/api/update-comments', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ common_path: commonPath, layer, comment, ts })
+  return writePost('/api/update-comments', {
+    common_path: commonPath,
+    layer,
+    comment,
+    ts,
   });
-  return res.json();
 }
 
 export async function reorderComments(commonPath, layer, ids) {
-  const res = await fetch('/api/reorder-comments', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ common_path: commonPath, layer, ids })
+  return writePost('/api/reorder-comments', {
+    common_path: commonPath,
+    layer,
+    ids,
   });
-  return res.json();
 }
 
 export async function updateLinks(commonPath, links) {
-  const res = await fetch('/api/update-links', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ common_path: commonPath, links })
-  });
-  return res.json();
+  return writePost('/api/update-links', { common_path: commonPath, links });
 }
 
 export async function setImportance(commonPath, importance) {
-  const res = await fetch('/api/set-importance', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ common_path: commonPath, importance: importance || null })
+  return writePost('/api/set-importance', {
+    common_path: commonPath,
+    importance: importance || null,
   });
-  return res.json();
 }
 
 export async function setDone(commonPath, done) {
-  const res = await fetch('/api/set-done', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ common_path: commonPath, done })
-  });
-  return res.json();
+  return writePost('/api/set-done', { common_path: commonPath, done });
 }
 
 export async function deleteEntry(id) {
@@ -248,12 +230,12 @@ export async function ghMove(srcUrl, dstDirUrl) {
 }
 
 export async function updateHighlight(commonPath, layer, highlight, ts) {
-  const res = await fetch('/api/update-highlights', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ common_path: commonPath, layer, highlight, ts })
+  return writePost('/api/update-highlights', {
+    common_path: commonPath,
+    layer,
+    highlight,
+    ts,
   });
-  return res.json();
 }
 
 export async function fetchTopics() {

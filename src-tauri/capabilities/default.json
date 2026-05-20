@@ -6,6 +6,7 @@
   "permissions": [
     "core:default",
     "read-api",
+    "write-api",
     "shell:allow-spawn",
     "shell:allow-kill",
     "shell:allow-open"

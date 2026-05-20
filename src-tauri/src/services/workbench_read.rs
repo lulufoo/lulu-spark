@@ -1,6 +1,5 @@
 //! Read-only workbench APIs aligned with `server.py` GET handlers (topics, annotations, draft, config, status).
 
-use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -9,51 +8,9 @@ use std::time::UNIX_EPOCH;
 use chrono::{TimeZone, Utc};
 use serde_json::{json, Map, Value};
 
-const DEFAULT_KB_ROOT: &str = "/Users/lulu/Code";
-const DEFAULT_CORPUS_GITHUB: &str = "https://github.com/lulufoo/lulu-workbench-knowledge/blob/main";
+use crate::services::annotation::read_annotation_object;
 
-fn meili_kv(repo_root: &Path) -> HashMap<String, String> {
-    let mut m = HashMap::new();
-    let p = repo_root.join("meili.env");
-    let Ok(text) = fs::read_to_string(p) else {
-        return m;
-    };
-    for line in text.lines() {
-        let line = line.trim();
-        if line.is_empty() || line.starts_with('#') {
-            continue;
-        }
-        let Some((k, v)) = line.split_once('=') else {
-            continue;
-        };
-        m.insert(k.trim().to_string(), v.trim().to_string());
-    }
-    m
-}
-
-pub fn corpus_root_path(repo_root: &Path) -> PathBuf {
-    let m = meili_kv(repo_root);
-    m.get("KNOWLEDGE_CORPUS_DIR")
-        .filter(|s| !s.is_empty())
-        .map(PathBuf::from)
-        .unwrap_or_else(|| repo_root.to_path_buf())
-}
-
-pub fn kb_root_string(repo_root: &Path) -> String {
-    let m = meili_kv(repo_root);
-    m.get("KNOWLEDGE_BASE_DIR")
-        .cloned()
-        .filter(|s| !s.is_empty())
-        .unwrap_or_else(|| DEFAULT_KB_ROOT.to_string())
-}
-
-pub fn corpus_github_string(repo_root: &Path) -> String {
-    let m = meili_kv(repo_root);
-    m.get("KNOWLEDGE_CORPUS_GITHUB")
-        .map(|s| s.trim_end_matches('/').to_string())
-        .filter(|s| !s.is_empty())
-        .unwrap_or_else(|| DEFAULT_CORPUS_GITHUB.to_string())
-}
+pub use crate::config::meili_env::{corpus_github_string, corpus_root_path, kb_root_string};
 
 pub fn get_config(repo_root: &Path) -> Value {
     let corpus = corpus_root_path(repo_root);
@@ -110,59 +67,6 @@ pub fn get_topics(repo_root: &Path) -> Value {
         }
     }
     data
-}
-
-fn annotation_rel_path(common_path: &str) -> String {
-    if common_path.ends_with(".md") {
-        format!("{}.json", &common_path[..common_path.len() - 3])
-    } else {
-        format!("{common_path}.json")
-    }
-}
-
-fn annotation_json_path(corpus: &Path, common_path: &str) -> Option<PathBuf> {
-    let cp = common_path.trim();
-    if cp.is_empty() || cp.contains("..") || cp.starts_with('/') {
-        return None;
-    }
-    let rel = annotation_rel_path(cp);
-    if rel.contains("..") {
-        return None;
-    }
-    let base = corpus.join("annotations");
-    let target = base.join(&rel);
-    let corpus_canon = corpus.canonicalize().ok()?;
-    let base_canon = base.canonicalize().ok()?;
-    let target_canon = target.canonicalize().or_else(|_| {
-        if target.parent().is_some() {
-            Ok(target.clone())
-        } else {
-            Err(std::io::Error::new(std::io::ErrorKind::NotFound, "no path"))
-        }
-    })
-    .ok()?;
-    let prefix = format!("{}{}", corpus_canon.to_string_lossy(), std::path::MAIN_SEPARATOR);
-    if !target_canon.to_string_lossy().starts_with(&prefix) {
-        return None;
-    }
-    let ann_prefix = format!("{}{}", base_canon.to_string_lossy(), std::path::MAIN_SEPARATOR);
-    if !target_canon.to_string_lossy().starts_with(&ann_prefix) {
-        return None;
-    }
-    Some(target_canon)
-}
-
-fn read_annotation_object(corpus: &Path, common_path: &str) -> Value {
-    let Some(p) = annotation_json_path(corpus, common_path) else {
-        return json!({});
-    };
-    if !p.is_file() {
-        return json!({});
-    }
-    let Ok(text) = fs::read_to_string(&p) else {
-        return json!({});
-    };
-    serde_json::from_str(&text).unwrap_or_else(|_| json!({}))
 }
 
 pub fn get_annotation(repo_root: &Path, path: &str) -> Value {

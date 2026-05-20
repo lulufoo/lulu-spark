@@ -2,6 +2,7 @@
 export const DEFAULT_DEV_BASE = 'http://127.0.0.1:8765';
 
 import { resolveInvokeFromPath } from './readApiInvokeMap.js';
+import { resolveWriteInvoke } from './writeApiInvokeMap.js';
 
 let invokeFnPromise = null;
 
@@ -38,6 +39,34 @@ export function buildReadUrl(pathAndQuery, baseUrl = DEFAULT_DEV_BASE) {
   return `${root}${path}`;
 }
 
+/**
+ * Wrap Tauri invoke JSON payload as fetch-like Response (P1 read / P2 write).
+ * @param {unknown} payload
+ */
+export function wrapInvokePayload(payload) {
+  if (
+    payload &&
+    typeof payload === 'object' &&
+    'error' in payload &&
+    payload.error
+  ) {
+    const status =
+      typeof payload._status === 'number' ? payload._status : 500;
+    return {
+      ok: false,
+      status,
+      json: async () => payload,
+      text: async () => JSON.stringify(payload),
+    };
+  }
+  return {
+    ok: true,
+    status: 200,
+    json: async () => payload,
+    text: async () => JSON.stringify(payload),
+  };
+}
+
 export function createFetchDriver(baseUrl = DEFAULT_DEV_BASE) {
   const root = baseUrl.replace(/\/$/, '');
   return {
@@ -51,6 +80,14 @@ export function createFetchDriver(baseUrl = DEFAULT_DEV_BASE) {
     },
     async fetchGet(pathAndQuery) {
       return fetch(this.buildUrl(pathAndQuery), { method: 'GET' });
+    },
+    async postJson(path, body) {
+      const pathname = path.startsWith('/') ? path : `/${path}`;
+      return fetch(this.buildUrl(pathname), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body ?? {}),
+      });
     },
   };
 }
@@ -69,21 +106,21 @@ export function createTauriDriver() {
     async fetchGet(pathAndQuery) {
       try {
         const payload = await this.getJson(pathAndQuery);
-        return {
-          ok: true,
-          status: 200,
-          json: async () => payload,
-          text: async () => JSON.stringify(payload),
-        };
+        return wrapInvokePayload(payload);
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
-        return {
-          ok: false,
-          status: 500,
-          json: async () => ({ error: message }),
-          text: async () => JSON.stringify({ error: message }),
-        };
+        return wrapInvokePayload({ error: message, _status: 500 });
       }
+    },
+    async postJson(path, body) {
+      const resolved = resolveWriteInvoke(path, body);
+      const pathname = path.startsWith('/') ? path : `/${path}`;
+      if (!resolved) {
+        throw new Error(`No Tauri invoke mapping for POST ${pathname}`);
+      }
+      const invoke = await loadTauriInvoke();
+      const payload = await invoke(resolved.cmd, resolved.args);
+      return wrapInvokePayload(payload);
     },
   };
 }

@@ -97,3 +97,39 @@ test('tauriDriver 在未配置映射时抛出可读错误', async () => {
   );
   expect(invokeMock).not.toHaveBeenCalled();
 });
+
+test('tauriDriver postJson 通过 invoke 调用写映射命令', async () => {
+  invokeMock.mockResolvedValue({ ok: true });
+  const driver = createTauriDriver();
+  const res = await driver.postJson('/api/set-done', {
+    common_path: 'ai/x.md',
+    done: true,
+  });
+  expect(invokeMock).toHaveBeenCalledWith('set_done', {
+    common_path: 'ai/x.md',
+    done: true,
+  });
+  expect(res.ok).toBe(true);
+  expect(await res.json()).toEqual({ ok: true });
+});
+
+test('tauriDriver postJson 未知 path 抛出可读错误', async () => {
+  const driver = createTauriDriver();
+  await expect(driver.postJson('/api/commit', {})).rejects.toThrow(
+    'No Tauri invoke mapping for POST /api/commit'
+  );
+  expect(invokeMock).not.toHaveBeenCalled();
+});
+
+test('tauriDriver postJson invoke 返回 error+_status 404 时 ok 为 false', async () => {
+  invokeMock.mockResolvedValue({ error: 'file not found', _status: 404 });
+  const driver = createTauriDriver();
+  const res = await driver.postJson('/api/set-done', {
+    common_path: 'missing.md',
+    done: true,
+  });
+  expect(res.ok).toBe(false);
+  expect(res.status).toBe(404);
+  const data = await res.json();
+  expect(data.error).toBe('file not found');
+});
