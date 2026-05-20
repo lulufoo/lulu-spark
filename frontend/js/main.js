@@ -283,17 +283,33 @@ function _renderRepoListFiltered() {
   });
 }
 
-function _populateRepoListFilter(repos) {
+function _populateRepoListFilter(repos, preferType = null) {
   const filter = document.getElementById('repo-list-filter');
   const types = [...new Set(repos.map(_repoTypeKey))].sort((a, b) => {
     if (a === '未分类') return 1;
     if (b === '未分类') return -1;
     return a.localeCompare(b);
   });
+  const selected = preferType && types.includes(preferType) ? preferType : 'KNOWLEDGE_CORPUS';
   filter.innerHTML = types.map(t => {
-      const sel = t === 'KNOWLEDGE_CORPUS' ? ' selected' : '';
+      const sel = t === selected ? ' selected' : '';
       return `<option value="${escHtml(t)}"${sel}>${escHtml(t)}</option>`;
     }).join('');
+}
+
+let _repoListBgRefreshing = false;
+
+function _applyRepoListPayload(data) {
+  if (!data || data.error) return false;
+  const cacheTime = document.getElementById('repo-list-cache-time');
+  const filter = document.getElementById('repo-list-filter');
+  const prevType = filter ? filter.value : null;
+  _repoListCache = data.repos || [];
+  _repoListAll = _repoListCache;
+  _populateRepoListFilter(_repoListAll, prevType);
+  _renderRepoListFiltered();
+  if (cacheTime && data.cached_at) cacheTime.textContent = `缓存于 ${data.cached_at}`;
+  return true;
 }
 
 document.getElementById('repo-list-filter').addEventListener('change', () => {
@@ -307,76 +323,78 @@ document.getElementById('repo-list-filter').addEventListener('change', () => {
   }
 });
 
-const _LS_REPO_LIST_KEY = 'lulu_wb_repo_list_cache';
+/** Show latest repo list from `.cache/repo-list.json` (via read API). */
+async function _showRepoListFromCache() {
+  try {
+    const data = await api.fetchRepoList(false);
+    if (_applyRepoListPayload(data)) return;
+  } catch (_) {}
+  _repoListAll = _repoListCache || [];
+  _renderRepoListFiltered();
+}
 
-async function _loadRepoListData(forceRefresh = false) {
-  const content = document.getElementById('repo-list-content');
+/** Kick GitHub refresh in background; update UI when cache file is written. */
+async function _refreshRepoListInBackground() {
+  if (_repoListBgRefreshing) return;
+  _repoListBgRefreshing = true;
   const refreshBtn = document.getElementById('btn-repo-list-refresh');
   const cacheTime = document.getElementById('repo-list-cache-time');
-
-  if (!forceRefresh && _repoListCache) {
-    _repoListAll = _repoListCache;
-    _populateRepoListFilter(_repoListAll);
-    _renderRepoListFiltered();
-    return;
-  }
-
-  if (!forceRefresh) {
-    try {
-      const lsRaw = localStorage.getItem(_LS_REPO_LIST_KEY);
-      if (lsRaw) {
-        const lsData = JSON.parse(lsRaw);
-        if (lsData.repos && lsData.repos.length > 0) {
-          _repoListCache = lsData.repos;
-          _repoListAll = _repoListCache;
-          _populateRepoListFilter(_repoListAll);
-          _renderRepoListFiltered();
-          if (cacheTime) cacheTime.textContent = lsData.cached_at ? `缓存于 ${lsData.cached_at}` : '';
-          return;
-        }
-      }
-    } catch (_) {}
-  }
-
-  content.innerHTML = '<div id="repo-list-loading">加载中…</div>';
-  refreshBtn.classList.add('spinning');
-  refreshBtn.disabled = true;
+  refreshBtn?.classList.add('spinning');
   try {
-    const data = await api.fetchRepoList(forceRefresh);
+    const kick = await api.fetchRepoList(true);
+    if (kick?.error) throw new Error(kick.error);
+    if (kick?.status === 'running') {
+      for (let i = 0; i < 120; i++) {
+        await new Promise(r => setTimeout(r, 1000));
+        const st = await api.getRepoListStatus();
+        if (st?.status === 'error') throw new Error(st.log || '仓库列表刷新失败');
+        if (st?.status !== 'running') break;
+      }
+      const data = await api.fetchRepoList(false);
+      if (!_applyRepoListPayload(data)) throw new Error(data?.error || '仓库列表刷新失败');
+    } else {
+      const data = kick?.repos ? kick : await api.fetchRepoList(false);
+      if (!_applyRepoListPayload(data)) throw new Error(data?.error || '仓库列表刷新失败');
+    }
+  } catch (e) {
+    if (cacheTime) cacheTime.textContent = `刷新失败：${e.message}`;
+  } finally {
+    _repoListBgRefreshing = false;
+    refreshBtn?.classList.remove('spinning');
+  }
+}
+
+async function _loadRepoListData() {
+  const content = document.getElementById('repo-list-content');
+  content.innerHTML = '<div id="repo-list-loading">加载中…</div>';
+  try {
+    const data = await api.fetchRepoList(false);
     if (data.error) throw new Error(data.error);
-    _repoListCache = data.repos || [];
-    _repoListAll = _repoListCache;
-    _populateRepoListFilter(_repoListAll);
-    _renderRepoListFiltered();
-    if (cacheTime) cacheTime.textContent = data.cached_at ? `缓存于 ${data.cached_at}` : '';
-    try {
-      localStorage.setItem(_LS_REPO_LIST_KEY, JSON.stringify({ repos: _repoListCache, cached_at: data.cached_at }));
-    } catch (_) {}
+    _applyRepoListPayload(data);
   } catch (e) {
     content.innerHTML = `<div id="repo-list-loading" style="color:#cf222e">加载失败：${escHtml(e.message)}</div>`;
-  } finally {
-    refreshBtn.classList.remove('spinning');
-    refreshBtn.disabled = false;
   }
 }
 
 document.getElementById('btn-repo-list').addEventListener('click', async () => {
   _repoMenuDropdown.classList.remove('open');
   document.getElementById('repo-list-dialog').classList.add('open');
-  // Always clear localStorage cache on open to ensure type data is fresh
-  try { localStorage.removeItem(_LS_REPO_LIST_KEY); } catch (_) {}
-  _repoListCache = null;
-  await _loadRepoListData(false);
+  await _loadRepoListData();
   const filter = document.getElementById('repo-list-filter');
   const val = filter ? filter.value : 'KNOWLEDGE_CORPUS';
   if (_KB_TYPES.has(val)) _loadKbCorpusStatus(val);
 });
 
-document.getElementById('btn-repo-list-refresh').addEventListener('click', async () => {
-  await _loadRepoListData(true);
-  const filter = document.getElementById('repo-list-filter');
-  const val = filter ? filter.value : 'KNOWLEDGE_CORPUS';
-  if (_KB_TYPES.has(val)) _loadKbCorpusStatus(val, true);
+document.getElementById('btn-repo-list-refresh').addEventListener('click', () => {
+  void (async () => {
+    await _showRepoListFromCache();
+    const filter = document.getElementById('repo-list-filter');
+    const val = filter ? filter.value : 'KNOWLEDGE_CORPUS';
+    if (_KB_TYPES.has(val)) _loadKbCorpusStatus(val);
+    await _refreshRepoListInBackground();
+    const val2 = filter ? filter.value : 'KNOWLEDGE_CORPUS';
+    if (_KB_TYPES.has(val2)) _loadKbCorpusStatus(val2, true);
+  })();
 });
 
 document.getElementById('btn-repo-list-close').addEventListener('click', _closeRepoListDialog);
