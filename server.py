@@ -43,40 +43,52 @@ from knowledge_index_loader import (  # noqa: E402
 # ── Meilisearch config ────────────────────────────────────────────────────────
 MEILI_URL = 'http://localhost:7700'
 MEILI_KEY = ''
-KNOWLEDGE_BASE_DIR = Path('/Users/lulu/Code')
-KNOWLEDGE_CORPUS_DIR = REPO_ROOT
-KNOWLEDGE_CORPUS_GITHUB = 'https://github.com/lulufoo/lulu-workbench-knowledge/blob/main'
+KNOWLEDGE_CORPUS_ROOT = Path('/Users/lulu/Code')
+WORKBENCH_KNOWLEDGE_ROOT = REPO_ROOT
+GITHUB_USER_URL = 'https://github.com/lulufoo'
 
 from workbench_config import (  # noqa: E402
-    get_corpus_github as _get_corpus_github,
+    get_github_user_url as _get_github_user_url,
     load_meili_env as _load_meili_env_dict,
 )
+
+
+def _workbench_github_blob_base(github_user_url: str, workbench_root: Path) -> str:
+    """Personal GitHub home + workbench clone dir name → blob base for file links."""
+    trimmed = (github_user_url or '').strip().rstrip('/')
+    if not trimmed:
+        return ''
+    repo = workbench_root.name or 'lulu-workbench-knowledge'
+    return f'{trimmed}/{repo}/blob/main'
 
 _CORPUS_LAYER_NAMES = frozenset({'raw', 'distilled', 'digest', 'trace', 'diagnose', 'annotations'})
 
 
 def _load_meili_config():
-    global MEILI_URL, MEILI_KEY, KNOWLEDGE_BASE_DIR, KNOWLEDGE_CORPUS_DIR, KNOWLEDGE_CORPUS_GITHUB
+    global MEILI_URL, MEILI_KEY, KNOWLEDGE_CORPUS_ROOT, WORKBENCH_KNOWLEDGE_ROOT, GITHUB_USER_URL
     env = _load_meili_env_dict(REPO_ROOT)
     if 'MEILI_MASTER_KEY' in env:
         MEILI_KEY = env['MEILI_MASTER_KEY']
     if 'MEILI_URL' in env:
         MEILI_URL = env['MEILI_URL']
-    if 'KNOWLEDGE_BASE_DIR' in env:
-        KNOWLEDGE_BASE_DIR = Path(env['KNOWLEDGE_BASE_DIR'])
-    if 'KNOWLEDGE_CORPUS_DIR' in env:
-        KNOWLEDGE_CORPUS_DIR = Path(env['KNOWLEDGE_CORPUS_DIR'])
-    KNOWLEDGE_CORPUS_GITHUB = _get_corpus_github(REPO_ROOT)
+    if 'KNOWLEDGE_CORPUS_ROOT' in env:
+        KNOWLEDGE_CORPUS_ROOT = Path(env['KNOWLEDGE_CORPUS_ROOT'])
+    if 'WORKBENCH_KNOWLEDGE_ROOT' in env:
+        WORKBENCH_KNOWLEDGE_ROOT = Path(env['WORKBENCH_KNOWLEDGE_ROOT'])
+    if 'GITHUB_USER_URL' in env:
+        GITHUB_USER_URL = env['GITHUB_USER_URL']
+    else:
+        GITHUB_USER_URL = _get_github_user_url(REPO_ROOT)
 
 
 _load_meili_config()
-if not KNOWLEDGE_CORPUS_DIR.exists():
-    print(f'Warning: KNOWLEDGE_CORPUS_DIR does not exist: {KNOWLEDGE_CORPUS_DIR}')
+if not WORKBENCH_KNOWLEDGE_ROOT.exists():
+    print(f'Warning: WORKBENCH_KNOWLEDGE_ROOT does not exist: {WORKBENCH_KNOWLEDGE_ROOT}')
 
 
 def _corpus_git_root() -> Path:
     """Git working tree for sync menu (commit / pull / status)."""
-    root = KNOWLEDGE_CORPUS_DIR.resolve()
+    root = WORKBENCH_KNOWLEDGE_ROOT.resolve()
     if not (root / '.git').exists():
         raise ValueError(f'corpus is not a git repository: {root}')
     return root
@@ -143,7 +155,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         url_path = urllib.parse.urlparse(path).path.lstrip('/')
         first = url_path.split('/', 1)[0] if url_path else ''
         if first == 'index.json' or first in _CORPUS_LAYER_NAMES:
-            return str((KNOWLEDGE_CORPUS_DIR / url_path).resolve())
+            return str((WORKBENCH_KNOWLEDGE_ROOT / url_path).resolve())
         return super().translate_path(path)
 
     # ── Routing ──────────────────────────────────────────────────────────────
@@ -235,8 +247,8 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 return
 
             # Resolve and verify path stays inside repo root (prevent traversal)
-            target = (KNOWLEDGE_CORPUS_DIR / layer / common_path).resolve()
-            if not str(target).startswith(str(KNOWLEDGE_CORPUS_DIR) + os.sep):
+            target = (WORKBENCH_KNOWLEDGE_ROOT / layer / common_path).resolve()
+            if not str(target).startswith(str(WORKBENCH_KNOWLEDGE_ROOT) + os.sep):
                 self._json_response({'error': 'Path traversal not allowed'}, 400)
                 return
 
@@ -388,7 +400,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 **categories,
                 'total': total,
                 'ahead': ahead,
-                'archive_root': str(KNOWLEDGE_CORPUS_DIR),
+                'workbench_knowledge_root': str(WORKBENCH_KNOWLEDGE_ROOT),
             })
         except Exception as e:
             self._json_response({'error': str(e)}, 500)
@@ -571,8 +583,8 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         if not common_path or '..' in common_path:
             return None
         rel = (common_path[:-3] + '.json') if common_path.endswith('.md') else (common_path + '.json')
-        target = (KNOWLEDGE_CORPUS_DIR / 'annotations' / rel).resolve()
-        if not str(target).startswith(str(KNOWLEDGE_CORPUS_DIR) + os.sep):
+        target = (WORKBENCH_KNOWLEDGE_ROOT / 'annotations' / rel).resolve()
+        if not str(target).startswith(str(WORKBENCH_KNOWLEDGE_ROOT) + os.sep):
             return None
         return target
 
@@ -608,7 +620,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
 
     def _handle_get_annotations(self):
         try:
-            index_path = KNOWLEDGE_CORPUS_DIR / 'index.json'
+            index_path = WORKBENCH_KNOWLEDGE_ROOT / 'index.json'
             index_data = json.loads(index_path.read_text(encoding='utf-8'))
             entries = index_data.get('entries', index_data)
             result = {}
@@ -1088,7 +1100,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 return
 
             # 读取 index.json
-            index_path = KNOWLEDGE_CORPUS_DIR / 'index.json'
+            index_path = WORKBENCH_KNOWLEDGE_ROOT / 'index.json'
             index_data = json.loads(index_path.read_text(encoding='utf-8'))
             entries = index_data.get('entries', index_data)
 
@@ -1114,9 +1126,9 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             # 收集所有 src → dst 路径对
             moves = []
             for layer in ('raw', 'distilled', 'digest', 'trace', 'diagnose'):
-                src = (KNOWLEDGE_CORPUS_DIR / layer / old_cp).resolve()
-                dst = (KNOWLEDGE_CORPUS_DIR / layer / new_cp).resolve()
-                if not str(src).startswith(str(KNOWLEDGE_CORPUS_DIR) + os.sep):
+                src = (WORKBENCH_KNOWLEDGE_ROOT / layer / old_cp).resolve()
+                dst = (WORKBENCH_KNOWLEDGE_ROOT / layer / new_cp).resolve()
+                if not str(src).startswith(str(WORKBENCH_KNOWLEDGE_ROOT) + os.sep):
                     continue
                 if src.exists():
                     moves.append((src, dst))
@@ -1125,7 +1137,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             ann_src = self._annotation_path(old_cp)
             if ann_src and ann_src.exists():
                 new_ann_rel = (new_cp[:-3] + '.json') if new_cp.endswith('.md') else (new_cp + '.json')
-                ann_dst = (KNOWLEDGE_CORPUS_DIR / 'annotations' / new_ann_rel).resolve()
+                ann_dst = (WORKBENCH_KNOWLEDGE_ROOT / 'annotations' / new_ann_rel).resolve()
                 moves.append((ann_src, ann_dst))
 
             # zh 翻译文件
@@ -1143,10 +1155,10 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 old_cp_parts = old_cp.split('/')
                 corrected_old_zh_parts = list(zh_parts)
                 corrected_old_zh_parts[0] = old_cp_parts[0]
-                zh_src = (KNOWLEDGE_CORPUS_DIR / 'raw' / '/'.join(corrected_old_zh_parts)).resolve()
+                zh_src = (WORKBENCH_KNOWLEDGE_ROOT / 'raw' / '/'.join(corrected_old_zh_parts)).resolve()
                 if not zh_src.exists():
-                    zh_src = (KNOWLEDGE_CORPUS_DIR / 'raw' / old_zh).resolve()
-                zh_dst = (KNOWLEDGE_CORPUS_DIR / 'raw' / new_zh).resolve()
+                    zh_src = (WORKBENCH_KNOWLEDGE_ROOT / 'raw' / old_zh).resolve()
+                zh_dst = (WORKBENCH_KNOWLEDGE_ROOT / 'raw' / new_zh).resolve()
                 if zh_src.exists():
                     moves.append((zh_src, zh_dst))
 
@@ -1157,7 +1169,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                     dst.parent.mkdir(parents=True, exist_ok=True)
                     src.rename(dst)
                     completed.append((src, dst))
-                    print(f'  [move-project] {src.relative_to(KNOWLEDGE_CORPUS_DIR)} → {dst.relative_to(KNOWLEDGE_CORPUS_DIR)}')
+                    print(f'  [move-project] {src.relative_to(WORKBENCH_KNOWLEDGE_ROOT)} → {dst.relative_to(WORKBENCH_KNOWLEDGE_ROOT)}')
             except Exception as mv_err:
                 for src_r, dst_r in reversed(completed):
                     try:
@@ -1212,7 +1224,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 self._json_response({'error': 'Invalid id'}, 400)
                 return
 
-            index_path = KNOWLEDGE_CORPUS_DIR / 'index.json'
+            index_path = WORKBENCH_KNOWLEDGE_ROOT / 'index.json'
             index_data = json.loads(index_path.read_text(encoding='utf-8'))
             entries = index_data.get('entries', index_data)
 
@@ -1229,8 +1241,8 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             # Delete files in all layers that exist
             deleted = []
             for layer in ('raw', 'distilled', 'trace', 'digest', 'diagnose'):
-                target = (KNOWLEDGE_CORPUS_DIR / layer / common_path).resolve()
-                if not str(target).startswith(str(KNOWLEDGE_CORPUS_DIR) + os.sep):
+                target = (WORKBENCH_KNOWLEDGE_ROOT / layer / common_path).resolve()
+                if not str(target).startswith(str(WORKBENCH_KNOWLEDGE_ROOT) + os.sep):
                     continue
                 if target.exists():
                     target.unlink()
@@ -1512,8 +1524,13 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             filename = f'{ts}-{slug}.md'
             dst_path = filename if doc_theme == '.' else f'{doc_theme}/{filename}'
             dst_url  = f'https://github.com/{owner}/{repo_name}/blob/main/{dst_path}'
-            src_url  = f'{KNOWLEDGE_CORPUS_GITHUB}/raw/{common_path}'
-            full_content = f'> 来源：[Entry]({src_url})\n> 沉淀时间：{date_str}\n\n{content}'
+            blob_base = _workbench_github_blob_base(GITHUB_USER_URL, WORKBENCH_KNOWLEDGE_ROOT)
+            if blob_base:
+                src_url = f'{blob_base}/raw/{common_path}'
+                source_line = f'> 来源：[Entry]({src_url})\n'
+            else:
+                source_line = f'> 来源：本地归档 `{common_path}`\n'
+            full_content = f'{source_line}> 沉淀时间：{date_str}\n\n{content}'
 
             # Step 1: Push file to target repo (critical — abort on failure)
             _, err = self._gh_put_file(
@@ -1617,8 +1634,8 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         repo_name = repo.split('/')[-1]
         if not rel_path or '..' in rel_path:
             return None, 'invalid path'
-        kb_root = KNOWLEDGE_BASE_DIR.resolve()
-        local_dir = KNOWLEDGE_BASE_DIR / repo_name
+        kb_root = KNOWLEDGE_CORPUS_ROOT.resolve()
+        local_dir = KNOWLEDGE_CORPUS_ROOT / repo_name
         if not local_dir.is_dir():
             return None, f'repo not cloned locally: {repo_name}'
         target = (local_dir / rel_path).resolve()
@@ -1630,7 +1647,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
 
     def _kb_annotation_path(self, repo, rel_path):
         """Derive annotation file path for a KB document.
-        Maps {repo}/{rel_path}.md → KNOWLEDGE_BASE_DIR/{repo_name}/.knowledge_annotations/{rel_path}.json
+        Maps {repo}/{rel_path}.md → KNOWLEDGE_CORPUS_ROOT/{repo_name}/.knowledge_annotations/{rel_path}.json
         Returns (Path, None) on success or (None, error_str)."""
         target, err = self._kb_safe_path(repo, rel_path)
         if err:
@@ -1643,9 +1660,9 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             ann_rel = ann_rel[:-3] + '.json'
         else:
             ann_rel = ann_rel + '.json'
-        ann_path = KNOWLEDGE_BASE_DIR / repo_name / '.knowledge_annotations' / ann_rel
+        ann_path = KNOWLEDGE_CORPUS_ROOT / repo_name / '.knowledge_annotations' / ann_rel
         # Path traversal check
-        kb_root = KNOWLEDGE_BASE_DIR.resolve()
+        kb_root = KNOWLEDGE_CORPUS_ROOT.resolve()
         if not str(ann_path.resolve()).startswith(str(kb_root) + os.sep):
             return None, 'path traversal not allowed'
         return ann_path, None
@@ -1884,7 +1901,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 self._json_response({'error': 'repo required'}, 400)
                 return
             repo_name = repo.split('/')[-1]
-            local_dir = KNOWLEDGE_BASE_DIR / repo_name
+            local_dir = KNOWLEDGE_CORPUS_ROOT / repo_name
             if not local_dir.is_dir():
                 self._json_response({'error': f'repo not cloned: {repo_name}'}, 404)
                 return
@@ -1963,7 +1980,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 self._json_response({'error': 'invalid repo format'}, 400)
                 return
             repo_name = repo.split('/')[-1]
-            local_dir = KNOWLEDGE_BASE_DIR / repo_name
+            local_dir = KNOWLEDGE_CORPUS_ROOT / repo_name
             if not local_dir.is_dir():
                 self._json_response({'error': f'repo not cloned locally: {repo_name}'}, 404)
                 return
@@ -2022,7 +2039,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 self._json_response({'error': 'invalid repo format'}, 400)
                 return
             repo_name = repo.split('/')[-1]
-            local_dir = KNOWLEDGE_BASE_DIR / repo_name
+            local_dir = KNOWLEDGE_CORPUS_ROOT / repo_name
             if not local_dir.is_dir():
                 self._json_response({'error': f'repo not cloned locally: {repo_name}'}, 404)
                 return
@@ -2135,7 +2152,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 self._json_response({'error': 'repo required'}, 400)
                 return
             repo_name = repo.split('/')[-1]
-            local_dir = KNOWLEDGE_BASE_DIR / repo_name
+            local_dir = KNOWLEDGE_CORPUS_ROOT / repo_name
             if not local_dir.is_dir():
                 self._json_response({'error': f'repo not cloned locally: {repo_name}'}, 404)
                 return

@@ -1,6 +1,6 @@
 import { state, loadDiffStatus } from './state.js'
 import { escHtml } from './utils.js'
-import { LAYERS, setCorpusGithub } from './constants.js'
+import { LAYERS, setGithubUserUrl } from './constants.js'
 import * as api from './api.js'
 import { buildGroups, renderSidebar, selectDate } from './components/sidebar.js'
 import { enterEditMode, exitEditMode, saveDoc, showCommitBar, hideCommitBar, commitCurrentFile, openKbDoc, openDoc } from './components/viewer.js'
@@ -10,9 +10,11 @@ import './components/modals/delete-dialog.js'
 import './components/modals/commit-dialog.js'
 import './components/modals/move-dialog.js'
 import { openBase64Dialog } from './components/modals/base64-dialog.js'
+import { openSettingsDialog } from './components/modals/settings-dialog.js'
 import { renderFeed } from './feed.js'
 import { initGlobalSearch } from './components/global-search.js'
 import { softwareDevSkillsContent } from './skills-software-dev-content.js'
+import { normalizeCorpusIndex } from './corpus-index.js'
 
 const titleCache = state.index.titleCache;
 
@@ -21,10 +23,7 @@ const titleCache = state.index.titleCache;
 async function loadIndex({ managedBtn = false } = {}) {
   try {
     const data = await api.fetchIndex();
-    state.index.data = data.entries || data;
-    for (const [id, entry] of Object.entries(state.index.data)) {
-      entry._id = id;
-    }
+    state.index.data = normalizeCorpusIndex(data);
     state.index.groupedByDate = buildGroups(state.index.data);
     state.ui.activeTopic = null;
     state.index.filteredGroups = state.index.groupedByDate;
@@ -283,6 +282,11 @@ function _renderRepoListFiltered() {
   });
 }
 
+const _REPO_TYPE_LABELS = {
+  KNOWLEDGE_CORPUS: '沉淀知识库',
+  WORKBENCH_KNOWLEDGE: '工作台知识库',
+};
+
 function _populateRepoListFilter(repos, preferType = null) {
   const filter = document.getElementById('repo-list-filter');
   const types = [...new Set(repos.map(_repoTypeKey))].sort((a, b) => {
@@ -293,7 +297,8 @@ function _populateRepoListFilter(repos, preferType = null) {
   const selected = preferType && types.includes(preferType) ? preferType : 'KNOWLEDGE_CORPUS';
   filter.innerHTML = types.map(t => {
       const sel = t === selected ? ' selected' : '';
-      return `<option value="${escHtml(t)}"${sel}>${escHtml(t)}</option>`;
+      const label = _REPO_TYPE_LABELS[t] || t;
+      return `<option value="${escHtml(t)}"${sel}>${escHtml(label)}</option>`;
     }).join('');
 }
 
@@ -571,6 +576,11 @@ document.getElementById('btn-feed').addEventListener('click', () => {
   }
 });
 
+document.getElementById('btn-settings').addEventListener('click', () => {
+  _closeAllMenuDropdowns();
+  openSettingsDialog();
+});
+
 document.getElementById('btn-base64').addEventListener('click', () => {
   _closeAllMenuDropdowns();
   openBase64Dialog();
@@ -579,10 +589,10 @@ document.getElementById('btn-base64').addEventListener('click', () => {
 // ── Init ───────────────────────────────────────────────────────────────────
 
 api.fetchConfig().then(d => {
-  state.ui.archiveRoot = d.archive_root || '';
-  state.ui.kbRoot = d.kb_root || '';
-  state.ui.corpusGithub = d.corpus_github || '';
-  setCorpusGithub(d.corpus_github);
+  state.ui.workbenchKnowledgeRoot = d.workbench_knowledge_root || '';
+  state.ui.knowledgeCorpusRoot = d.knowledge_corpus_root || '';
+  state.ui.githubUserUrl = d.github_user_url || '';
+  setGithubUserUrl(d.github_user_url);
 }).catch(() => {});
 api.fetchTopics().then(data => {
   const descMap = {};

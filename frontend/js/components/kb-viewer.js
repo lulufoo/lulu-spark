@@ -38,7 +38,7 @@ export async function openKbDoc(kbHit) {
   document.getElementById('kb-md-github-link').href = url || '#';
   document.getElementById('kb-btn-copy-http').dataset.url = url || '';
   document.getElementById('kb-btn-copy-http').dataset.tip = url || '';
-  const localPath = state.ui.kbRoot ? `${state.ui.kbRoot}/${repoName}/${path}` : `${repoName}/${path}`;
+  const localPath = state.ui.knowledgeCorpusRoot ? `${state.ui.knowledgeCorpusRoot}/${repoName}/${path}` : `${repoName}/${path}`;
   document.getElementById('kb-btn-copy-path').dataset.path = localPath;
   document.getElementById('kb-btn-copy-path').dataset.tip = localPath;
   document.getElementById('kb-md-file-size').textContent = '';

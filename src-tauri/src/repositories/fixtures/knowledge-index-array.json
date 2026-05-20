@@ -1,7 +1,7 @@
 [
   {
-    "id": "wb",
-    "description": "Workbench",
-    "repo": "lulufoo/lulu-workbench-knowledge"
+    "id": "topic-a",
+    "description": "Topic A",
+    "repo": "lulufoo/ai-assisted-domain-learning"
   }
 ]

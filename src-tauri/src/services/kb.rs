@@ -4,7 +4,7 @@ use std::path::Path;
 use serde_json::{json, Value};
 
 use crate::repositories::corpus::{kb_annotation_path, kb_safe_path};
-use crate::services::workbench_read::{categories_from_git_status, kb_root_string};
+use crate::services::workbench_read::{categories_from_git_status, knowledge_corpus_root_string};
 
 fn err_status_code(msg: &str) -> u16 {
     if msg.contains("invalid") || msg.contains("traversal") || msg.contains("required") {
@@ -15,7 +15,7 @@ fn err_status_code(msg: &str) -> u16 {
 }
 
 pub fn kb_read_json(repo_root: &Path, repo: &str, path: &str) -> Value {
-    let kb_root_str = kb_root_string(repo_root);
+    let kb_root_str = knowledge_corpus_root_string(repo_root);
     let kb_root = Path::new(&kb_root_str);
     match kb_safe_path(kb_root, repo, path) {
         Err(e) => json!({ "error": e, "_status": err_status_code(&e) }),
@@ -31,7 +31,7 @@ pub fn kb_read_json(repo_root: &Path, repo: &str, path: &str) -> Value {
 }
 
 pub fn kb_annotation_json(repo_root: &Path, repo: &str, path: &str) -> Value {
-    let kb_root_str = kb_root_string(repo_root);
+    let kb_root_str = knowledge_corpus_root_string(repo_root);
     let kb_root = Path::new(&kb_root_str);
     match kb_annotation_path(kb_root, repo, path) {
         Err(e) => json!({ "error": e, "_status": err_status_code(&e) }),
@@ -53,7 +53,7 @@ pub fn kb_status_json(repo_root: &Path, repo: &str) -> Value {
         return json!({ "error": "repo required", "_status": 400 });
     }
     let repo_name = repo.split('/').next_back().unwrap_or("");
-    let kb_root_str = kb_root_string(repo_root);
+    let kb_root_str = knowledge_corpus_root_string(repo_root);
     let kb_root = Path::new(&kb_root_str);
     let local_dir = kb_root.join(repo_name);
     if !local_dir.is_dir() {

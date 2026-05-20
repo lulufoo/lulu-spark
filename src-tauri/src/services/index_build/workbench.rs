@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 
 use serde_json::Value;
 
-use crate::config::meili_env::corpus_root_path;
+use crate::config::meili_env::workbench_knowledge_root_path;
 use crate::integrations::search::{MeiliAdminError, MeiliBackend};
 
 use super::common::{
@@ -69,7 +69,7 @@ pub fn full_rebuild(repo_root: &Path) -> Result<String, String> {
         .require_health()
         .map_err(MeiliAdminError::into_message)?;
 
-    let corpus = corpus_root_path(repo_root);
+    let corpus = workbench_knowledge_root_path(repo_root);
     meili.wipe_index("workbench").map_err(MeiliAdminError::into_message)?;
     meili
         .ensure_index("workbench", "id")

@@ -29,12 +29,12 @@ pub fn cache_dir() -> Result<PathBuf, PathsError> {
     Ok(settings()?.cache_dir)
 }
 
-pub fn knowledge_corpus_dir() -> Result<PathBuf, PathsError> {
-    Ok(settings()?.corpus_root)
+pub fn workbench_knowledge_root() -> Result<PathBuf, PathsError> {
+    Ok(settings()?.workbench_knowledge_root)
 }
 
-pub fn knowledge_base_dir() -> Result<PathBuf, PathsError> {
-    Ok(settings()?.knowledge_base_dir)
+pub fn knowledge_corpus_root() -> Result<PathBuf, PathsError> {
+    Ok(settings()?.knowledge_corpus_root)
 }
 
 pub fn repo_list_cache_path() -> Result<PathBuf, PathsError> {

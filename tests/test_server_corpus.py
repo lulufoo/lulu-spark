@@ -42,7 +42,7 @@ class TestTranslatePath(unittest.TestCase):
         handler.directory = str(repo / 'frontend')
         return handler
 
-    def test_maps_digest_to_corpus_root(self):
+    def test_maps_digest_to_workbench_knowledge_root(self):
         with tempfile.TemporaryDirectory() as repo_tmp, tempfile.TemporaryDirectory() as corpus_tmp:
             repo = Path(repo_tmp)
             corpus = Path(corpus_tmp)
@@ -51,7 +51,7 @@ class TestTranslatePath(unittest.TestCase):
             (corpus / 'digest' / 'proj.md').write_text('# x', encoding='utf-8')
 
             self.srv['REPO_ROOT'] = repo
-            self.srv['KNOWLEDGE_CORPUS_DIR'] = corpus
+            self.srv['WORKBENCH_KNOWLEDGE_ROOT'] = corpus
             result = self._handler(repo).translate_path('/digest/proj.md')
             self.assertEqual(result, str((corpus / 'digest/proj.md').resolve()))
 
@@ -63,7 +63,7 @@ class TestTranslatePath(unittest.TestCase):
             (repo / 'frontend' / 'js' / 'app.js').write_text('//', encoding='utf-8')
 
             self.srv['REPO_ROOT'] = repo
-            self.srv['KNOWLEDGE_CORPUS_DIR'] = corpus
+            self.srv['WORKBENCH_KNOWLEDGE_ROOT'] = corpus
             handler = self._handler(repo)
             mapped = handler.translate_path('/js/app.js')
             default = http.server.SimpleHTTPRequestHandler.translate_path(handler, '/js/app.js')
@@ -79,7 +79,7 @@ class TestTranslatePath(unittest.TestCase):
             (corpus / 'digest' / 'proj.md').write_text('# x', encoding='utf-8')
 
             self.srv['REPO_ROOT'] = repo
-            self.srv['KNOWLEDGE_CORPUS_DIR'] = corpus
+            self.srv['WORKBENCH_KNOWLEDGE_ROOT'] = corpus
             result = self._handler(repo).translate_path('/digest/proj.md')
             self.assertEqual(result, str((corpus / 'digest/proj.md').resolve()))
 
@@ -91,7 +91,7 @@ class TestTranslatePath(unittest.TestCase):
             (corpus / 'raw' / 'nested' / 'deep.md').write_text('# deep', encoding='utf-8')
 
             self.srv['REPO_ROOT'] = repo
-            self.srv['KNOWLEDGE_CORPUS_DIR'] = corpus
+            self.srv['WORKBENCH_KNOWLEDGE_ROOT'] = corpus
             result = self._handler(repo).translate_path('/raw/nested/deep.md')
             self.assertEqual(result, str((corpus / 'raw/nested/deep.md').resolve()))
 
@@ -110,7 +110,7 @@ class TestTranslatePath(unittest.TestCase):
             (corpus / 'index.json').write_text('{}', encoding='utf-8')
 
             self.srv['REPO_ROOT'] = repo
-            self.srv['KNOWLEDGE_CORPUS_DIR'] = corpus
+            self.srv['WORKBENCH_KNOWLEDGE_ROOT'] = corpus
             result = self._handler(repo).translate_path('/index.json')
             self.assertEqual(result, str((corpus / 'index.json').resolve()))
 
@@ -123,7 +123,7 @@ class TestCorpusGitRoot(unittest.TestCase):
     def test_raises_when_not_git_repo(self):
         with tempfile.TemporaryDirectory() as corpus_tmp:
             corpus = Path(corpus_tmp)
-            self.srv['KNOWLEDGE_CORPUS_DIR'] = corpus
+            self.srv['WORKBENCH_KNOWLEDGE_ROOT'] = corpus
             with self.assertRaises(ValueError) as ctx:
                 self.srv['_corpus_git_root']()
             self.assertIn('not a git repository', str(ctx.exception))
@@ -132,7 +132,7 @@ class TestCorpusGitRoot(unittest.TestCase):
         with tempfile.TemporaryDirectory() as corpus_tmp:
             corpus = Path(corpus_tmp)
             subprocess.run(['git', 'init'], cwd=corpus, capture_output=True, check=True)
-            self.srv['KNOWLEDGE_CORPUS_DIR'] = corpus
+            self.srv['WORKBENCH_KNOWLEDGE_ROOT'] = corpus
             self.assertEqual(self.srv['_corpus_git_root'](), corpus.resolve())
 
 
@@ -160,7 +160,7 @@ class TestCorpusGitHandlers(unittest.TestCase):
             subprocess.run(['git', 'init'], cwd=corpus, capture_output=True, check=True)
 
             self.srv['REPO_ROOT'] = repo
-            self.srv['KNOWLEDGE_CORPUS_DIR'] = corpus
+            self.srv['WORKBENCH_KNOWLEDGE_ROOT'] = corpus
             captured: list[str | None] = []
 
             def fake_run(cmd, **kwargs):
@@ -182,7 +182,7 @@ class TestCorpusGitHandlers(unittest.TestCase):
             subprocess.run(['git', 'init'], cwd=corpus, capture_output=True, check=True)
 
             self.srv['REPO_ROOT'] = repo
-            self.srv['KNOWLEDGE_CORPUS_DIR'] = corpus
+            self.srv['WORKBENCH_KNOWLEDGE_ROOT'] = corpus
             captured: list[str | None] = []
 
             def fake_run(cmd, **kwargs):
@@ -198,7 +198,7 @@ class TestCorpusGitHandlers(unittest.TestCase):
 
     def test_status_errors_when_corpus_not_git(self):
         with tempfile.TemporaryDirectory() as corpus_tmp:
-            self.srv['KNOWLEDGE_CORPUS_DIR'] = Path(corpus_tmp)
+            self.srv['WORKBENCH_KNOWLEDGE_ROOT'] = Path(corpus_tmp)
             handler = self._handler()
             handler._handle_status()
             self.assertEqual(handler._json_responses[0][1], 400)

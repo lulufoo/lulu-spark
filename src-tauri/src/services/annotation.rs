@@ -8,7 +8,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde_json::{json, Map, Value};
 
-use crate::config::meili_env::corpus_root_path;
+use crate::config::meili_env::workbench_knowledge_root_path;
 use crate::repositories::annotation_paths::annotation_json_path;
 use crate::repositories::atomic_json;
 
@@ -52,7 +52,7 @@ fn corpus_write_target(repo_root: &Path, common_path: &str) -> Result<(PathBuf, 
     if cp.is_empty() || cp.contains("..") {
         return Err(invalid_common_path());
     }
-    let corpus = corpus_root_path(repo_root);
+    let corpus = workbench_knowledge_root_path(repo_root);
     let Some(target) = annotation_json_path(&corpus, cp) else {
         return Err(invalid_common_path());
     };

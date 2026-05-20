@@ -14,9 +14,9 @@ export const state = {
   },
   ui: {
     activeDate: null,
-    archiveRoot: '',
-    kbRoot: '',
-    corpusGithub: '',
+    workbenchKnowledgeRoot: '',
+    knowledgeCorpusRoot: '',
+    githubUserUrl: '',
     activeTopic: null,
   },
   viewer: {

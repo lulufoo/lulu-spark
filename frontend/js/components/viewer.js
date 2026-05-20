@@ -1,5 +1,5 @@
 import { state, getEntryId, loadDiffStatus } from '../state.js'
-import { getCorpusGithub } from '../constants.js'
+import { getGithubUserUrl, workbenchGithubBlobBase } from '../constants.js'
 import { getActivePath } from '../corpus-path.js'
 import { escHtml, filenameFromPath, slugToTitle } from '../utils.js'
 import * as api from '../api.js'
@@ -15,11 +15,13 @@ import { mountKnowledgeSearch, triggerKnowledgeSearch } from './knowledge-search
 // ── resolveRelativeLink ────────────────────────────────────────────────────
 
 function resolveRelativeLink(href, layer, commonPath) {
+  const ghBase = workbenchGithubBlobBase(getGithubUserUrl(), state.ui.workbenchKnowledgeRoot);
+  if (!ghBase) return null;
   try {
     const base = `http://x/${layer}/${commonPath}`;
     const resolved = new URL(href, base);
     const repoPath = resolved.pathname.slice(1);
-    return `${getCorpusGithub()}/${repoPath}`;
+    return `${ghBase}/${repoPath}`;
   } catch {
     return null;
   }
@@ -82,12 +84,23 @@ function updateLangBar(entry) {
 }
 
 function updateHeaderUrls(entry, layer, activePath) {
-  const githubUrl = `${getCorpusGithub()}/${layer}/${activePath}`;
-  document.getElementById('md-github-link').href = githubUrl;
-  document.getElementById('btn-copy-http').dataset.url = githubUrl;
-  document.getElementById('btn-copy-http').dataset.tip = githubUrl;
+  const ghBase = workbenchGithubBlobBase(getGithubUserUrl(), state.ui.workbenchKnowledgeRoot);
+  const githubUrl = ghBase ? `${ghBase}/${layer}/${activePath}` : '';
+  const ghLink = document.getElementById('md-github-link');
+  const copyHttp = document.getElementById('btn-copy-http');
+  if (githubUrl) {
+    ghLink.href = githubUrl;
+    ghLink.style.display = '';
+    copyHttp.dataset.url = githubUrl;
+    copyHttp.dataset.tip = githubUrl;
+    copyHttp.style.display = '';
+  } else {
+    ghLink.removeAttribute('href');
+    ghLink.style.display = 'none';
+    copyHttp.style.display = 'none';
+  }
   const relPath = `${layer}/${activePath}`;
-  const fullPath = state.ui.archiveRoot ? `${state.ui.archiveRoot}/${relPath}` : relPath;
+  const fullPath = state.ui.workbenchKnowledgeRoot ? `${state.ui.workbenchKnowledgeRoot}/${relPath}` : relPath;
   document.getElementById('btn-copy-path').dataset.tip = fullPath;
 
   const topicDir = entry.common_path.split('/')[0];
@@ -354,7 +367,7 @@ document.getElementById('btn-copy-http').addEventListener('click', () => {
 document.getElementById('btn-copy-path').addEventListener('click', () => {
   const activePath = getActivePath(state.viewer.entry, state.viewer.lang, state.viewer.layer);
   const relPath = `${state.viewer.layer}/${activePath}`;
-  const fullPath = state.ui.archiveRoot ? `${state.ui.archiveRoot}/${relPath}` : relPath;
+  const fullPath = state.ui.workbenchKnowledgeRoot ? `${state.ui.workbenchKnowledgeRoot}/${relPath}` : relPath;
   navigator.clipboard.writeText(fullPath).then(() => {
     const btn = document.getElementById('btn-copy-path');
     btn.textContent = '✓';

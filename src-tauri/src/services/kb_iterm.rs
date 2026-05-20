@@ -17,7 +17,7 @@ pub fn open_kb_in_iterm(payload: &Value) -> Value {
         return json!({ "error": "repo required", "_status": 400 });
     }
     let repo_name = repo.split('/').next_back().unwrap_or(repo);
-    let kb_root = match paths::knowledge_base_dir() {
+    let kb_root = match paths::knowledge_corpus_root() {
         Ok(p) => p,
         Err(e) => return json!({ "error": format!("{e:?}"), "_status": 500 }),
     };

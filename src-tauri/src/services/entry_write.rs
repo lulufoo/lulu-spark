@@ -5,7 +5,7 @@ use std::path::Path;
 
 use serde_json::{json, Value};
 
-use crate::config::meili_env::corpus_root_path;
+use crate::config::meili_env::workbench_knowledge_root_path;
 
 const EDITABLE_LAYERS: &[&str] = &["raw", "distilled", "digest", "trace"];
 
@@ -27,7 +27,7 @@ pub fn save_entry(
         return json!({ "error": "Invalid path", "_status": 400 });
     }
 
-    let corpus = corpus_root_path(repo_root);
+    let corpus = workbench_knowledge_root_path(repo_root);
     let target = corpus.join(layer).join(common_path);
     let corpus_canon = match corpus.canonicalize() {
         Ok(p) => p,

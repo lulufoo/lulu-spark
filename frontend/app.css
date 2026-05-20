@@ -2342,10 +2342,19 @@
   box-sizing: border-box;
 }
 #settings-archive-root,
-#settings-kb-root {
+#settings-kb-root,
+#settings-github-user-url {
   font-family: ui-monospace, SFMono-Regular, monospace;
 }
+#settings-github-user-url.settings-input-readonly,
+#settings-github-user-url:disabled {
+  background: #f6f8fa;
+  color: #57606a;
+  cursor: not-allowed;
+  opacity: 1;
+}
 .settings-field input:focus { border-color: #0969da; }
+.settings-field input.settings-input-readonly:focus { border-color: #d0d7de; }
 .settings-field-hint {
   font-size: 11px;
   color: #8c959f;

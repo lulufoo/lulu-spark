@@ -18,7 +18,7 @@ LuLu Workbench P4 使用**外置** Meilisearch HTTP 服务。Tauri App **不会*
 |------|------|------|
 | `meili_url` | `~/.config/lulu-workbench/config.toml` | HTTP 基址，默认 `http://localhost:7700` |
 | `meili_master_key` | Keychain（设置页写入） | Bearer 密钥 |
-| `corpus_root` / `knowledge_base_dir` / `cache_dir` | 同上 `config.toml` | 语料、KB 克隆目录、`.cache` 等价路径 |
+| `workbench_knowledge_root` / `knowledge_corpus_root` / `cache_dir` | 同上 `config.toml` | 工作台归档仓、沉淀知识库克隆根、`.cache` |
 
 Rust：`src-tauri/src/config/settings.rs`、`secrets.rs`、`meili_env.rs`（**不**读取仓库内 `meili.env`）。
 
@@ -29,10 +29,10 @@ Rust：`src-tauri/src/config/settings.rs`、`secrets.rs`、`meili_env.rs`（**�
 ```toml
 # ~/.config/lulu-workbench/config.toml
 meili_url = "http://localhost:7700"
-corpus_root = "/path/to/lulu-workbench-knowledge"
-knowledge_base_dir = "/path/to/Code"
+workbench_knowledge_root = "/path/to/lulu-workbench-knowledge"
+knowledge_corpus_root = "/path/to/Code"
 cache_dir = "/path/to/lulu-workbench/.cache"
-knowledge_corpus_github = "https://github.com/lulufoo/lulu-workbench-knowledge/blob/main"
+github_user_url = "https://github.com/lulufoo"
 ```
 
 `MEILI_MASTER_KEY` → 在 App **设置** 中保存（写入 Keychain）。完成后可保留 `meili.env` 作备忘，App 不再读取。

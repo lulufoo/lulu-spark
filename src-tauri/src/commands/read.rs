@@ -64,6 +64,16 @@ pub fn get_config(_app: AppHandle) -> Result<Value, String> {
 }
 
 #[tauri::command]
+pub fn infer_github_user_url(_app: AppHandle, path: String) -> Result<Value, String> {
+    Ok(workbench_read::infer_github_user_url(&path))
+}
+
+#[tauri::command]
+pub fn check_workbench_knowledge_root(_app: AppHandle, path: String) -> Result<Value, String> {
+    Ok(workbench_read::check_workbench_knowledge_root(&path))
+}
+
+#[tauri::command]
 pub async fn get_status(_app: AppHandle) -> Result<Value, String> {
     let root = repo_root()?;
     tauri::async_runtime::spawn_blocking(move || workbench_read::get_status(&root))
@@ -189,9 +199,11 @@ pub fn get_kb_corpus_status(
 ) -> Result<Value, String> {
     let repo_root = repo_root()?;
     let filter = filter_type.as_deref().unwrap_or("KNOWLEDGE_CORPUS");
-    let kb_root = std::path::PathBuf::from(
-        crate::config::meili_env::kb_root_string(&repo_root),
+    let knowledge_corpus_root = std::path::PathBuf::from(
+        crate::config::meili_env::knowledge_corpus_root_string(&repo_root),
     );
+    let workbench_knowledge_root =
+        crate::config::meili_env::workbench_knowledge_root_path(&repo_root);
 
     let repos: Vec<Value> = if filter == "KNOWLEDGE_CORPUS" {
         // Fast path: use the already-filtered topics list
@@ -204,7 +216,7 @@ pub fn get_kb_corpus_status(
                     .filter_map(|item| {
                         let full_name = item.get("repo")?.as_str()?;
                         let name = full_name.split('/').next_back().unwrap_or(full_name);
-                        let local_exists = kb_root.join(name).is_dir();
+                        let local_exists = knowledge_corpus_root.join(name).is_dir();
                         Some(json!({
                             "full_name": full_name,
                             "name": name,
@@ -234,7 +246,12 @@ pub fn get_kb_corpus_status(
                         }
                         let full_name = repo.get("full_name")?.as_str()?;
                         let name = full_name.split('/').next_back().unwrap_or(full_name);
-                        let local_exists = kb_root.join(name).is_dir();
+                        let local_exists = workbench_knowledge_root
+                            .file_name()
+                            .and_then(|n| n.to_str())
+                            .map(|dir_name| dir_name == name)
+                            .unwrap_or(false)
+                            && workbench_knowledge_root.join(".git").exists();
                         Some(json!({
                             "full_name": full_name,
                             "name": name,

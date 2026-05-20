@@ -13,7 +13,7 @@ fn kb_repo_dir(repo: &str) -> Result<PathBuf, Value> {
         return Err(json!({ "error": "invalid repo format", "_status": 400 }));
     }
     let repo_name = repo.split('/').next_back().unwrap_or("");
-    let kb_root = paths::knowledge_base_dir().map_err(|e| json!({ "error": format!("{e:?}") }))?;
+    let kb_root = paths::knowledge_corpus_root().map_err(|e| json!({ "error": format!("{e:?}") }))?;
     let local = kb_root.join(repo_name);
     if !local.is_dir() {
         return Err(json!({

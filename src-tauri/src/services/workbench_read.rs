@@ -11,9 +11,37 @@ use serde_json::{json, Map, Value};
 
 use crate::services::annotation::read_annotation_object;
 
-pub use crate::config::meili_env::{corpus_github_string, corpus_root_path, kb_root_string};
+pub use crate::config::meili_env::{github_user_url_string, workbench_knowledge_root_path, knowledge_corpus_root_string};
 use crate::config::secrets;
 use crate::config::settings;
+
+pub fn check_workbench_knowledge_root(path: &str) -> Value {
+    let p = std::path::PathBuf::from(path.trim());
+    if path.trim().is_empty() {
+        return json!({ "ok": false, "error": "路径为空" });
+    }
+    if !p.is_dir() {
+        return json!({
+            "ok": false,
+            "error": format!("目录不存在：{}", p.display())
+        });
+    }
+    let index_path = p.join("index.json");
+    if !index_path.is_file() {
+        return json!({
+            "ok": false,
+            "error": format!("未找到 index.json：{}", index_path.display())
+        });
+    }
+    json!({ "ok": true })
+}
+
+pub fn infer_github_user_url(workbench_root: &str) -> Value {
+    let path = std::path::PathBuf::from(workbench_root);
+    serde_json::json!({
+        "github_user_url": crate::config::settings::infer_github_user_url_from_workbench_root(&path)
+    })
+}
 
 pub fn get_config(_repo_root: &Path) -> Value {
     let _ = _repo_root;
@@ -84,12 +112,12 @@ pub fn get_annotation(repo_root: &Path, path: &str) -> Value {
     if common_path.is_empty() || common_path.contains("..") {
         return json!({ "error": "Invalid path" });
     }
-    let corpus = corpus_root_path(repo_root);
+    let corpus = workbench_knowledge_root_path(repo_root);
     read_annotation_object(&corpus, common_path)
 }
 
 pub fn get_annotations_summary(repo_root: &Path) -> Value {
-    let corpus = corpus_root_path(repo_root);
+    let corpus = workbench_knowledge_root_path(repo_root);
     let index_path = corpus.join("index.json");
     let Ok(text) = fs::read_to_string(&index_path) else {
         return json!({ "error": format!("No such file: {}", index_path.display()) });
@@ -167,7 +195,7 @@ const CORPUS_LAYERS: &[&str] = &["raw", "distilled", "digest", "trace", "diagnos
 
 /// Workbench sidebar index (`corpus/index.json`), replaces static `GET /index.json` via server.py.
 pub fn get_corpus_index(_repo_root: &Path) -> Value {
-    let corpus = corpus_root_path(_repo_root);
+    let corpus = workbench_knowledge_root_path(_repo_root);
     let index_path = corpus.join("index.json");
     if !index_path.is_file() {
         return json!({
@@ -194,7 +222,7 @@ pub fn get_corpus_file(_repo_root: &Path, layer: &str, common_path: &str) -> Val
     if common_path.is_empty() || common_path.contains("..") {
         return json!({ "error": "Invalid path", "_status": 400 });
     }
-    let corpus = corpus_root_path(_repo_root);
+    let corpus = workbench_knowledge_root_path(_repo_root);
     let target = corpus.join(layer).join(common_path);
     let corpus_canon = match corpus.canonicalize() {
         Ok(p) => p,
@@ -289,7 +317,7 @@ pub fn categories_from_git_status(stdout: &str) -> Map<String, Value> {
 }
 
 pub fn get_status(repo_root: &Path) -> Value {
-    let corpus = corpus_root_path(repo_root);
+    let corpus = workbench_knowledge_root_path(repo_root);
     let git_root = corpus.join(".git");
     if !git_root.exists() {
         let msg = format!("corpus is not a git repository: {}", corpus.display());
@@ -309,7 +337,7 @@ pub fn get_status(repo_root: &Path) -> Value {
     categories.insert("total".into(), json!(total));
     categories.insert("ahead".into(), json!(ahead));
     categories.insert(
-        "archive_root".into(),
+        "workbench_knowledge_root".into(),
         json!(corpus.to_string_lossy().to_string()),
     );
     Value::Object(categories)
@@ -339,9 +367,9 @@ mod tests {
             .unwrap()
             .to_path_buf();
         let v = get_config(&root);
-        assert!(v.get("archive_root").is_some());
-        assert!(v.get("kb_root").is_some());
-        assert!(v.get("corpus_github").is_some());
+        assert!(v.get("workbench_knowledge_root").is_some());
+        assert!(v.get("knowledge_corpus_root").is_some());
+        assert!(v.get("github_user_url").is_some());
         assert!(v.get("meili_url").is_some());
         assert!(v.get("cache_dir").is_some());
         assert!(v.get("has_github_token").is_some());
@@ -400,6 +428,25 @@ mod tests {
         let dir = tempfile::tempdir().expect("tmp");
         let v = get_draft(dir.path(), "..%2Fsecret");
         assert_eq!(v["error"], "Invalid path");
+    }
+
+    #[test]
+    fn check_workbench_knowledge_root_requires_dir_and_index() {
+        let dir = tempfile::tempdir().expect("tmp");
+        let missing = check_workbench_knowledge_root("/no/such/workbench");
+        assert_eq!(missing["ok"], false);
+
+        let no_index_dir = dir.path().join("empty");
+        fs::create_dir_all(&no_index_dir).expect("mkdir");
+        let no_index = check_workbench_knowledge_root(no_index_dir.to_str().unwrap());
+        assert_eq!(no_index["ok"], false);
+        assert!(no_index["error"].as_str().unwrap().contains("index.json"));
+
+        let corpus = dir.path().join("corpus");
+        fs::create_dir_all(&corpus).expect("mkdir");
+        fs::write(corpus.join("index.json"), br#"{"entries":[]}"#).expect("write");
+        let ok = check_workbench_knowledge_root(corpus.to_str().unwrap());
+        assert_eq!(ok["ok"], true);
     }
 
     #[test]

@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 import { test, expect, vi, beforeEach } from 'vitest'
 import { DEFAULT_DEV_BASE } from '../frontend/js/apiClient.js'
 import {
+  assertReadPayload,
   fetchIndex, fetchDiffStatus, fetchAnnotationsSummary, fetchAnnotation,
   fetchConfig, fetchFileContent, fetchLinkTitle,
   setConfig,
@@ -58,6 +59,17 @@ test('fetchIndex 在非 2xx 时抛出错误', async () => {
   await expect(fetchIndex()).rejects.toThrow('HTTP 500')
 })
 
+test('assertReadPayload 在 Tauri 风格 error 对象上抛出', () => {
+  expect(() =>
+    assertReadPayload({ error: 'No such file: /tmp/index.json', _status: 404 }),
+  ).toThrow('No such file')
+})
+
+test('fetchIndex 在 JSON body 含 error 时抛出（Tauri 路径）', async () => {
+  mockFetch({ error: 'No such file: /tmp/workbench-x/index.json', _status: 404 })
+  await expect(fetchIndex()).rejects.toThrow('No such file')
+})
+
 test('fetchDiffStatus 调用 /api/status', async () => {
   mockFetch({ modified: ['raw/a.md'], conflicted: [] })
   const result = await fetchDiffStatus()
@@ -84,10 +96,10 @@ test('fetchAnnotation 对 path 做 encodeURIComponent', async () => {
 })
 
 test('fetchConfig 调用 /api/config', async () => {
-  mockFetch({ archive_root: '/tmp' })
+  mockFetch({ workbench_knowledge_root: '/tmp' })
   const result = await fetchConfig()
   expect(fetch.mock.calls[0][0]).toBe(`${API_READ_PREFIX}/config`)
-  expect(result.archive_root).toBe('/tmp')
+  expect(result.workbench_knowledge_root).toBe('/tmp')
 })
 
 test('setConfig 发送 POST 到 /api/config', async () => {

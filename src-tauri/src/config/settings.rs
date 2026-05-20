@@ -1,9 +1,7 @@
 //! User settings in `~/.config/lulu-workbench/config.toml` (override via `LULU_WB_CONFIG_DIR` in tests).
 
 use std::fs;
-use std::path::PathBuf;
-#[cfg(test)]
-use std::path::Path;
+use std::path::{Path, PathBuf};
 #[cfg(test)]
 use std::sync::{Mutex, OnceLock};
 
@@ -18,21 +16,20 @@ pub fn set_test_config_dir(dir: Option<PathBuf>) {
     *lock.lock().expect("test config lock") = dir;
 }
 
-pub const DEFAULT_CORPUS_GITHUB: &str =
-    "https://github.com/lulufoo/lulu-workbench-knowledge/blob/main";
+pub const DEFAULT_GITHUB_USER_URL: &str = "";
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AppSettings {
-    #[serde(default = "default_corpus_root")]
-    pub corpus_root: PathBuf,
-    #[serde(default = "default_knowledge_base_dir")]
-    pub knowledge_base_dir: PathBuf,
+    #[serde(default = "default_workbench_knowledge_root")]
+    pub workbench_knowledge_root: PathBuf,
+    #[serde(default = "default_knowledge_corpus_root")]
+    pub knowledge_corpus_root: PathBuf,
     #[serde(default = "default_cache_dir")]
     pub cache_dir: PathBuf,
     #[serde(default = "default_meili_url")]
     pub meili_url: String,
-    #[serde(default = "default_knowledge_corpus_github")]
-    pub knowledge_corpus_github: String,
+    #[serde(default = "default_github_user_url")]
+    pub github_user_url: String,
 }
 
 fn home_dir() -> PathBuf {
@@ -41,11 +38,11 @@ fn home_dir() -> PathBuf {
         .unwrap_or_else(|_| PathBuf::from("/tmp"))
 }
 
-fn default_corpus_root() -> PathBuf {
+fn default_workbench_knowledge_root() -> PathBuf {
     home_dir().join("Code")
 }
 
-fn default_knowledge_base_dir() -> PathBuf {
+fn default_knowledge_corpus_root() -> PathBuf {
     home_dir().join("Code")
 }
 
@@ -57,18 +54,74 @@ fn default_meili_url() -> String {
     "http://localhost:7700".to_string()
 }
 
-fn default_knowledge_corpus_github() -> String {
-    DEFAULT_CORPUS_GITHUB.to_string()
+fn default_github_user_url() -> String {
+    DEFAULT_GITHUB_USER_URL.to_string()
+}
+
+/// Personal GitHub home (`https://github.com/{owner}`) + workbench clone dir name → blob base for file links.
+pub fn workbench_github_blob_base(github_user_url: &str, workbench_knowledge_root: &Path) -> String {
+    let trimmed = github_user_url.trim().trim_end_matches('/');
+    if trimmed.is_empty() {
+        return String::new();
+    }
+    let repo = workbench_knowledge_root
+        .file_name()
+        .and_then(|n| n.to_str())
+        .filter(|s| !s.is_empty())
+        .unwrap_or("lulu-workbench-knowledge");
+    format!("{trimmed}/{repo}/blob/main")
+}
+
+/// `https://github.com/{owner}` from `git remote get-url origin` when workbench root is a git repo.
+pub fn infer_github_user_url_from_workbench_root(workbench_root: &Path) -> Option<String> {
+    if !workbench_root.is_dir() || !workbench_root.join(".git").exists() {
+        return None;
+    }
+    let out = crate::integrations::git::exec(workbench_root, &["remote", "get-url", "origin"]).ok()?;
+    if !out.success {
+        return None;
+    }
+    github_user_home_from_remote_url(out.stdout.trim())
+}
+
+/// Parse owner home URL from a GitHub remote (HTTPS or SSH).
+pub fn github_user_home_from_remote_url(remote: &str) -> Option<String> {
+    let s = remote.trim();
+    if s.is_empty() {
+        return None;
+    }
+    if let Some(rest) = s.strip_prefix("https://github.com/").or_else(|| s.strip_prefix("http://github.com/")) {
+        let owner = rest.split('/').next()?.trim();
+        if owner.is_empty() {
+            return None;
+        }
+        return Some(format!("https://github.com/{owner}"));
+    }
+    if let Some(rest) = s.strip_prefix("git@github.com:") {
+        let owner = rest.split('/').next()?.trim();
+        if owner.is_empty() {
+            return None;
+        }
+        return Some(format!("https://github.com/{owner}"));
+    }
+    if let Some(rest) = s.strip_prefix("ssh://git@github.com/") {
+        let owner = rest.split('/').next()?.trim();
+        if owner.is_empty() {
+            return None;
+        }
+        return Some(format!("https://github.com/{owner}"));
+    }
+    None
 }
 
 impl Default for AppSettings {
     fn default() -> Self {
         Self {
-            corpus_root: default_corpus_root(),
-            knowledge_base_dir: default_knowledge_base_dir(),
+            workbench_knowledge_root: default_workbench_knowledge_root(),
+            knowledge_corpus_root: default_knowledge_corpus_root(),
             cache_dir: default_cache_dir(),
             meili_url: default_meili_url(),
-            knowledge_corpus_github: default_knowledge_corpus_github(),
+            github_user_url: default_github_user_url(),
         }
     }
 }
@@ -123,15 +176,19 @@ pub fn settings_config_dir() -> PathBuf {
 }
 
 #[cfg(test)]
-pub fn write_test_config(dir: &Path, corpus_root: &Path, knowledge_base_dir: Option<&Path>) {
-    let kb = knowledge_base_dir
+pub fn write_test_config(
+    dir: &Path,
+    workbench_knowledge_root: &Path,
+    knowledge_corpus_root: Option<&Path>,
+) {
+    let kb = knowledge_corpus_root
         .map(|p| p.display().to_string())
         .unwrap_or_else(|| home_dir().join("Code").display().to_string());
     fs::write(
         dir.join("config.toml"),
         format!(
-            "corpus_root = \"{}\"\nknowledge_base_dir = \"{}\"\n",
-            corpus_root.display(),
+            "workbench_knowledge_root = \"{}\"\nknowledge_corpus_root = \"{}\"\n",
+            workbench_knowledge_root.display(),
             kb
         ),
     )
@@ -168,9 +225,9 @@ pub fn to_config_json(
     has_meili_key: bool,
 ) -> serde_json::Value {
     serde_json::json!({
-        "archive_root": settings.corpus_root.to_string_lossy(),
-        "kb_root": settings.knowledge_base_dir.to_string_lossy(),
-        "corpus_github": settings.knowledge_corpus_github,
+        "workbench_knowledge_root": settings.workbench_knowledge_root.to_string_lossy(),
+        "knowledge_corpus_root": settings.knowledge_corpus_root.to_string_lossy(),
+        "github_user_url": settings.github_user_url,
         "meili_url": settings.meili_url,
         "cache_dir": settings.cache_dir.to_string_lossy(),
         "has_github_token": has_github_token,
@@ -180,14 +237,20 @@ pub fn to_config_json(
 
 /// Apply `set_config` payload keys onto settings (toml fields only).
 pub fn apply_config_payload(settings: &mut AppSettings, payload: &serde_json::Value) {
-    if let Some(v) = payload.get("archive_root").and_then(|x| x.as_str()) {
-        settings.corpus_root = PathBuf::from(v);
+    if let Some(v) = payload
+        .get("workbench_knowledge_root")
+        .and_then(|x| x.as_str())
+    {
+        settings.workbench_knowledge_root = PathBuf::from(v);
     }
-    if let Some(v) = payload.get("kb_root").and_then(|x| x.as_str()) {
-        settings.knowledge_base_dir = PathBuf::from(v);
+    if let Some(v) = payload
+        .get("knowledge_corpus_root")
+        .and_then(|x| x.as_str())
+    {
+        settings.knowledge_corpus_root = PathBuf::from(v);
     }
-    if let Some(v) = payload.get("corpus_github").and_then(|x| x.as_str()) {
-        settings.knowledge_corpus_github = v.to_string();
+    if let Some(v) = payload.get("github_user_url").and_then(|x| x.as_str()) {
+        settings.github_user_url = v.to_string();
     }
     if let Some(v) = payload.get("meili_url").and_then(|x| x.as_str()) {
         settings.meili_url = v.to_string();
@@ -231,31 +294,57 @@ mod tests {
     fn load_reads_config_toml_fields() {
         let dir = tempfile::tempdir().expect("tmp");
         let _guard = EnvGuard::with_config_dir(dir.path());
-        let corpus = dir.path().join("my-corpus");
-        let kb = dir.path().join("my-kb");
+        let wb = dir.path().join("my-workbench-knowledge");
+        let kc = dir.path().join("my-knowledge-corpus");
         let cache = dir.path().join("my-cache");
         fs::write(
             dir.path().join("config.toml"),
             format!(
                 r#"
-corpus_root = "{}"
-knowledge_base_dir = "{}"
+workbench_knowledge_root = "{}"
+knowledge_corpus_root = "{}"
 cache_dir = "{}"
 meili_url = "http://127.0.0.1:7701"
-knowledge_corpus_github = "https://example.com/repo"
+github_user_url = "https://github.com/example"
 "#,
-                corpus.display(),
-                kb.display(),
+                wb.display(),
+                kc.display(),
                 cache.display()
             ),
         )
         .expect("write");
         let s = load().expect("load");
-        assert_eq!(s.corpus_root, corpus);
-        assert_eq!(s.knowledge_base_dir, kb);
+        assert_eq!(s.workbench_knowledge_root, wb);
+        assert_eq!(s.knowledge_corpus_root, kc);
         assert_eq!(s.cache_dir, cache);
         assert_eq!(s.meili_url, "http://127.0.0.1:7701");
-        assert_eq!(s.knowledge_corpus_github, "https://example.com/repo");
+        assert_eq!(s.github_user_url, "https://github.com/example");
+    }
+
+    #[test]
+    fn github_user_home_from_https_remote() {
+        assert_eq!(
+            github_user_home_from_remote_url("https://github.com/lulufoo/lulu-workbench-knowledge.git"),
+            Some("https://github.com/lulufoo".to_string())
+        );
+    }
+
+    #[test]
+    fn github_user_home_from_ssh_remote() {
+        assert_eq!(
+            github_user_home_from_remote_url("git@github.com:lulufoo/lulu-workbench-knowledge.git"),
+            Some("https://github.com/lulufoo".to_string())
+        );
+    }
+
+    #[test]
+    fn workbench_github_blob_base_from_user_url_and_root() {
+        let root = PathBuf::from("/Users/me/Code/lulu-workbench-knowledge");
+        assert_eq!(
+            workbench_github_blob_base("https://github.com/lulufoo", &root),
+            "https://github.com/lulufoo/lulu-workbench-knowledge/blob/main"
+        );
+        assert_eq!(workbench_github_blob_base("", &root), "");
     }
 
     #[test]
@@ -272,10 +361,10 @@ knowledge_corpus_github = "https://example.com/repo"
         let dir = tempfile::tempdir().expect("tmp");
         let _guard = EnvGuard::with_config_dir(dir.path());
         let mut s = AppSettings::default();
-        s.corpus_root = dir.path().join("corpus-x");
+        s.workbench_knowledge_root = dir.path().join("workbench-x");
         save(&s).expect("save");
         let s2 = load().expect("reload");
-        assert_eq!(s2.corpus_root, s.corpus_root);
+        assert_eq!(s2.workbench_knowledge_root, s.workbench_knowledge_root);
     }
 
     #[test]

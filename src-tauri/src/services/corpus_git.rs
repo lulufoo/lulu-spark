@@ -1,4 +1,4 @@
-//! Corpus repository git commit / pull (`settings.corpus_root`).
+//! Workbench knowledge archive git commit / pull (`settings.workbench_knowledge_root`).
 
 use std::path::PathBuf;
 
@@ -7,12 +7,12 @@ use serde_json::{json, Value};
 use crate::config::paths;
 use crate::integrations::git::{self, GitError};
 
-fn corpus_root() -> Result<PathBuf, Value> {
-    paths::knowledge_corpus_dir().map_err(|e| json!({ "error": format!("{e:?}") }))
+fn workbench_knowledge_root() -> Result<PathBuf, Value> {
+    paths::workbench_knowledge_root().map_err(|e| json!({ "error": format!("{e:?}") }))
 }
 
 pub fn corpus_git_commit(payload: &Value) -> Value {
-    let corpus = match corpus_root() {
+    let corpus = match workbench_knowledge_root() {
         Ok(p) => p,
         Err(v) => return v,
     };
@@ -72,7 +72,7 @@ pub fn corpus_git_commit(payload: &Value) -> Value {
 }
 
 pub fn corpus_git_pull(_payload: &Value) -> Value {
-    let corpus = match corpus_root() {
+    let corpus = match workbench_knowledge_root() {
         Ok(p) => p,
         Err(v) => return v,
     };

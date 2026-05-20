@@ -230,6 +230,8 @@ pub fn run() {
             commands::read::get_annotation,
             commands::read::get_draft,
             commands::read::get_config,
+            commands::read::infer_github_user_url,
+            commands::read::check_workbench_knowledge_root,
             commands::config_cmd::set_config,
             commands::sync::save_comment_draft,
             commands::sync::corpus_git_commit,

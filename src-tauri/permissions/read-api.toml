@@ -22,4 +22,6 @@ commands.allow = [
   "get_corpus_index",
   "get_corpus_file",
   "get_kb_corpus_status",
+  "infer_github_user_url",
+  "check_workbench_knowledge_root",
 ]

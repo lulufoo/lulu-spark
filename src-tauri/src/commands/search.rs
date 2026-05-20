@@ -121,8 +121,6 @@ pub fn reindex_kb_repo(
     Ok(json!({ "status": "running" }))
 }
 
-/// Pull all locally-cloned WORKBENCH_KNOWLEDGE repos and rebuild the index.
-/// Skips repos that haven't been cloned yet — use the per-repo SYNC button for those.
 #[tauri::command]
 pub fn sync_knowledge_corpus(
     app: AppHandle,

@@ -21,9 +21,15 @@ test('every sync POST path maps to a command', () => {
   }
 })
 
-test('commit maps to corpus_git_commit', () => {
+test('commit maps to corpus_git_commit with payload wrapper', () => {
   const r = resolveSyncInvoke('/api/commit', { message: 'x', files: ['a.md'] })
   expect(r.cmd).toBe('corpus_git_commit')
-  expect(r.args.message).toBe('x')
-  expect(r.args.files).toEqual(['a.md'])
+  expect(r.args.payload.message).toBe('x')
+  expect(r.args.payload.files).toEqual(['a.md'])
+})
+
+test('move-project maps to move_entry_project with payload wrapper', () => {
+  const r = resolveSyncInvoke('/api/move-project', { id: 'e1', new_project: 'foo' })
+  expect(r.cmd).toBe('move_entry_project')
+  expect(r.args.payload).toEqual({ id: 'e1', new_project: 'foo' })
 })

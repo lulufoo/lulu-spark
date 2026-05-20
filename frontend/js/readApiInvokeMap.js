@@ -44,6 +44,14 @@ export const READ_API_INVOKE_MAP = {
     args: (url) => ({ path: url.searchParams.get('path') ?? '' }),
   },
   '/api/config': { cmd: 'get_config' },
+  '/api/infer-github-user-url': {
+    cmd: 'infer_github_user_url',
+    args: (url) => ({ path: url.searchParams.get('path') ?? '' }),
+  },
+  '/api/check-workbench-root': {
+    cmd: 'check_workbench_knowledge_root',
+    args: (url) => ({ path: url.searchParams.get('path') ?? '' }),
+  },
   '/api/status': { cmd: 'get_status' },
   '/api/kb/read': {
     cmd: 'kb_read',

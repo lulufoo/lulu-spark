@@ -1,17 +1,23 @@
-const DEFAULT_CORPUS_GITHUB = 'https://github.com/lulufoo/lulu-workbench-knowledge/blob/main'
+let githubUserUrl = ''
 
-let corpusGithub = DEFAULT_CORPUS_GITHUB
+/** @deprecated */
+export const REPO = ''
 
-/** @deprecated Use getCorpusGithub() for corpus file links */
-export const REPO = DEFAULT_CORPUS_GITHUB
-
-export function setCorpusGithub(url) {
-  const base = (url || DEFAULT_CORPUS_GITHUB).replace(/\/$/, '')
-  corpusGithub = base || DEFAULT_CORPUS_GITHUB
+export function setGithubUserUrl(url) {
+  githubUserUrl = (url || '').replace(/\/$/, '')
 }
 
-export function getCorpusGithub() {
-  return corpusGithub
+export function getGithubUserUrl() {
+  return githubUserUrl
+}
+
+/** `https://github.com/{owner}` + workbench clone dir name → blob base for file links. */
+export function workbenchGithubBlobBase(githubUserUrlArg, workbenchKnowledgeRoot) {
+  const trimmed = (githubUserUrlArg || '').trim().replace(/\/$/, '')
+  if (!trimmed) return ''
+  const parts = (workbenchKnowledgeRoot || '').split(/[/\\]/).filter(Boolean)
+  const repo = parts.length ? parts[parts.length - 1] : 'lulu-workbench-knowledge'
+  return `${trimmed}/${repo}/blob/main`
 }
 
 export const LAYERS = ['raw', 'distilled', 'digest', 'trace']

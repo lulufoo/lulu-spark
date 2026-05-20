@@ -7,8 +7,9 @@ use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
-use crate::config::meili_env::kb_root_string;
+use crate::config::meili_env::{knowledge_corpus_root_string, workbench_knowledge_root_path};
 use crate::config::paths;
+use crate::integrations::git;
 use crate::services::index_build::{rebuild_knowledge_index, rebuild_workbench_index};
 use crate::services::workbench_read;
 
@@ -122,7 +123,7 @@ pub fn run_knowledge_reindex_blocking(
         })
         .unwrap_or_default();
 
-    let kb_root = PathBuf::from(kb_root_string(repo_root));
+    let kb_root = PathBuf::from(knowledge_corpus_root_string(repo_root));
     let mut failed_repos = Vec::new();
     let handles: Vec<_> = repos
         .iter()
@@ -159,11 +160,31 @@ pub fn run_wb_sync_and_index_blocking(repo_root: &Path, repo: &str) -> Result<St
         return Err("invalid repo format".to_string());
     }
     let repo_name = repo.split('/').next_back().unwrap_or(repo);
-    let kb_root = PathBuf::from(kb_root_string(repo_root));
-    let (_, status, err) = sync_repo_blocking(repo, &kb_root);
-    if status.contains("failed") {
-        let msg = err.unwrap_or_else(|| "unknown error".to_string());
-        return Err(format!("git sync failed for {repo_name}: {msg}"));
+    let wb_root = workbench_knowledge_root_path(repo_root);
+    let synced_via_archive = wb_root
+        .file_name()
+        .and_then(|n| n.to_str())
+        .map(|dir_name| dir_name == repo_name)
+        .unwrap_or(false)
+        && wb_root.join(".git").exists();
+    if synced_via_archive {
+        match git::pull_rebase(&wb_root) {
+            Ok(o) if o.success => {}
+            Ok(o) => {
+                return Err(format!(
+                    "git pull failed for {repo_name}: {}",
+                    o.stderr.trim()
+                ));
+            }
+            Err(e) => return Err(format!("git pull failed for {repo_name}: {e}")),
+        }
+    } else {
+        let kb_root = PathBuf::from(knowledge_corpus_root_string(repo_root));
+        let (_, status, err) = sync_repo_blocking(repo, &kb_root);
+        if status.contains("failed") {
+            let msg = err.unwrap_or_else(|| "unknown error".to_string());
+            return Err(format!("git sync failed for {repo_name}: {msg}"));
+        }
     }
     rebuild_workbench_index(repo_root)
 }
@@ -203,24 +224,38 @@ pub fn run_workbench_pull_and_reindex(
         }
     };
 
-    let kb_root = PathBuf::from(kb_root_string(repo_root));
+    let wb_root = workbench_knowledge_root_path(repo_root);
     let mut failed_repos = Vec::new();
-    let handles: Vec<_> = repos
-        .iter()
-        .filter(|repo| {
-            let name = repo.split('/').next_back().unwrap_or(repo);
-            kb_root.join(name).is_dir()
-        })
-        .map(|repo| {
-            let repo = repo.clone();
-            let kb = kb_root.clone();
-            thread::spawn(move || sync_repo_blocking(&repo, &kb))
-        })
-        .collect();
-    for handle in handles {
-        if let Ok((name, status, err)) = handle.join() {
-            if status.contains("failed") {
-                failed_repos.push(format!("{name}: {}", err.unwrap_or_default()));
+    if wb_root.join(".git").exists() {
+        match git::pull_rebase(&wb_root) {
+            Ok(o) if !o.success => {
+                failed_repos.push(format!(
+                    "workbench archive: {}",
+                    o.stderr.trim()
+                ));
+            }
+            Err(e) => failed_repos.push(format!("workbench archive: {e}")),
+            _ => {}
+        }
+    } else {
+        let kb_root = PathBuf::from(knowledge_corpus_root_string(repo_root));
+        let handles: Vec<_> = repos
+            .iter()
+            .filter(|repo| {
+                let name = repo.split('/').next_back().unwrap_or(repo);
+                kb_root.join(name).is_dir()
+            })
+            .map(|repo| {
+                let repo = repo.clone();
+                let kb = kb_root.clone();
+                thread::spawn(move || sync_repo_blocking(&repo, &kb))
+            })
+            .collect();
+        for handle in handles {
+            if let Ok((name, status, err)) = handle.join() {
+                if status.contains("failed") {
+                    failed_repos.push(format!("{name}: {}", err.unwrap_or_default()));
+                }
             }
         }
     }
@@ -236,15 +271,13 @@ pub fn run_workbench_pull_and_reindex(
     Ok(log)
 }
 
-/// Clone the repo if not present locally (pull if already exists), then rebuild its index.
-/// Used by the per-repo SYNC button in the WORKBENCH_KNOWLEDGE list.
 pub fn run_kb_sync_and_index_blocking(repo_root: &Path, repo: &str) -> Result<String, String> {
     let repo = repo.trim();
     if repo.is_empty() || !repo.contains('/') {
         return Err("invalid repo format".to_string());
     }
     let repo_name = repo.split('/').next_back().unwrap_or(repo);
-    let kb_root = PathBuf::from(kb_root_string(repo_root));
+    let kb_root = PathBuf::from(knowledge_corpus_root_string(repo_root));
     let (_, status, err) = sync_repo_blocking(repo, &kb_root);
     if status.contains("failed") {
         let msg = err.unwrap_or_else(|| "unknown error".to_string());
@@ -254,8 +287,6 @@ pub fn run_kb_sync_and_index_blocking(repo_root: &Path, repo: &str) -> Result<St
     rebuild_knowledge_index(repo_root, false, Some(repo))
 }
 
-/// Pull only repos that already exist locally (skip missing), then rebuild the index.
-/// Used by the bulk 全量同步 button in the WORKBENCH_KNOWLEDGE list view.
 pub fn run_knowledge_pull_and_reindex(
     repo_root: &Path,
     slot: Option<&Arc<Mutex<JobState>>>,
@@ -274,7 +305,7 @@ pub fn run_knowledge_pull_and_reindex(
         })
         .unwrap_or_default();
 
-    let kb_root = PathBuf::from(kb_root_string(repo_root));
+    let kb_root = PathBuf::from(knowledge_corpus_root_string(repo_root));
     let mut failed_repos = Vec::new();
     let handles: Vec<_> = repos
         .iter()
@@ -331,7 +362,7 @@ pub fn run_kb_reindex_blocking(repo_root: &Path, repo: &str) -> Result<String, S
         return Err("invalid repo format".to_string());
     }
     let repo_name = repo.split('/').next_back().unwrap_or(repo);
-    let kb_root = PathBuf::from(kb_root_string(repo_root));
+    let kb_root = PathBuf::from(knowledge_corpus_root_string(repo_root));
     let local_dir = kb_root.join(repo_name);
     if !local_dir.is_dir() {
         return Err(format!("repo not cloned locally: {repo_name}"));

@@ -5,7 +5,8 @@ use std::path::Path;
 use chrono::{Datelike, FixedOffset, Utc};
 use serde_json::{json, Value};
 
-use crate::config::meili_env::{corpus_github_string, corpus_root_path};
+use crate::config::meili_env::{github_user_url_string, workbench_knowledge_root_path};
+use crate::config::settings::workbench_github_blob_base;
 use crate::integrations::github::{self, decode_contents_payload};
 use crate::integrations::search::{build_knowledge_document, MeiliBackend};
 use crate::repositories::annotation_paths::annotation_json_path;
@@ -74,7 +75,7 @@ pub fn resolve_target_repo(topics: &Value, project_dir: &str) -> Option<(String,
 }
 
 pub fn build_settle_artifacts(
-    corpus_github: &str,
+    github_blob_base: &str,
     common_path: &str,
     slug: &str,
     doc_theme: &str,
@@ -91,10 +92,13 @@ pub fn build_settle_artifacts(
         format!("{doc_theme}/{filename}")
     };
     let dst_url = format!("https://github.com/{owner}/{repo_name}/blob/main/{dst_path}");
-    let src_url = format!("{corpus_github}/raw/{common_path}");
-    let full_content = format!(
-        "> 来源：[Entry]({src_url})\n> 沉淀时间：{date_str}\n\n{content}"
-    );
+    let source_line = if github_blob_base.is_empty() {
+        format!("> 来源：本地归档 `{common_path}`\n")
+    } else {
+        let src_url = format!("{github_blob_base}/raw/{common_path}");
+        format!("> 来源：[Entry]({src_url})\n")
+    };
+    let full_content = format!("{source_line}> 沉淀时间：{date_str}\n\n{content}");
     (filename, dst_path, dst_url, full_content)
 }
 
@@ -248,9 +252,10 @@ fn fill_repo_and_artifacts(repo_root: &Path, p: &mut SettleParams) -> Result<(),
     let ts = now.format("%Y%m%d%H%M").to_string();
     let date_str = format!("{}年{}月{}日", now.year(), now.month(), now.day());
 
-    let corpus_github = corpus_github_string(repo_root);
+    let wb_root = workbench_knowledge_root_path(repo_root);
+    let github_blob_base = workbench_github_blob_base(&github_user_url_string(repo_root), &wb_root);
     let (filename, dst_path, dst_url, full_content) = build_settle_artifacts(
-        &corpus_github,
+        &github_blob_base,
         &p.common_path,
         &p.slug,
         &p.doc_theme,
@@ -387,7 +392,7 @@ pub fn settle_entry(repo_root: &Path, payload: &Value) -> Value {
         warns.push(w);
     }
 
-    let corpus = corpus_root_path(repo_root);
+    let corpus = workbench_knowledge_root_path(repo_root);
     if let Err(e) = update_annotation_link(&corpus, &p.common_path, &p.dst_url) {
         warns.push(format!("更新 annotation.links 失败：{e}"));
     }

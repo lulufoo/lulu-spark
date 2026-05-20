@@ -8,16 +8,19 @@ const REINDEX_KEYS = [
   'reindexKnowledge',
   'reindexWorkbench',
   'reindexKbRepo',
+  'syncKnowledgeCorpus',
+  'syncWorkbenchRepo',
+  'syncWorkbenchCorpus',
   'getReindexStatus',
   'getReindexWorkbenchStatus',
 ];
 
 describe('searchApiInvokeMap', () => {
-  it('covers all 5 P3 reindex invoke keys', () => {
+  it('covers all P3 reindex invoke keys', () => {
     for (const key of REINDEX_KEYS) {
       expect(REINDEX_INVOKE_MAP[key]?.cmd, key).toBeTruthy();
     }
-    expect(Object.keys(REINDEX_INVOKE_MAP)).toHaveLength(5);
+    expect(Object.keys(REINDEX_INVOKE_MAP)).toHaveLength(REINDEX_KEYS.length);
   });
 
   it('resolveReindexInvoke maps kb repo body', () => {

@@ -53,9 +53,21 @@ async function writePost(path, body) {
   return res.json();
 }
 
+/** Tauri read commands return `{ error, _status }` without throwing — normalize here. */
+export function assertReadPayload(payload) {
+  if (payload && typeof payload === 'object' && payload.error) {
+    const msg = typeof payload.error === 'string' ? payload.error : '请求失败';
+    const err = new Error(msg);
+    if (typeof payload._status === 'number') err.status = payload._status;
+    throw err;
+  }
+  return payload;
+}
+
 async function readGet(pathAndQuery) {
   try {
-    return await getReadApi().getJson(pathAndQuery);
+    const payload = await getReadApi().getJson(pathAndQuery);
+    return assertReadPayload(payload);
   } catch (error) {
     throw normalizeReadError(error);
   }
@@ -86,6 +98,18 @@ export async function fetchConfig() {
   return readGet('/api/config');
 }
 
+export async function inferGithubUserUrl(workbenchKnowledgeRoot) {
+  return readGet(
+    `/api/infer-github-user-url?path=${encodeURIComponent(workbenchKnowledgeRoot)}&_=${Date.now()}`,
+  );
+}
+
+export async function checkWorkbenchKnowledgeRoot(workbenchKnowledgeRoot) {
+  return readGet(
+    `/api/check-workbench-root?path=${encodeURIComponent(workbenchKnowledgeRoot)}&_=${Date.now()}`,
+  );
+}
+
 export async function setConfig(payload) {
   return writePost('/api/config', payload || {});
 }
@@ -94,9 +118,6 @@ export async function fetchFileContent(layer, commonPath) {
   const data = await readGet(
     `/api/corpus-file?layer=${encodeURIComponent(layer)}&path=${encodeURIComponent(commonPath)}&_=${Date.now()}`
   );
-  if (data && typeof data === 'object' && data.error) {
-    throw new Error(data.error);
-  }
   return typeof data === 'string' ? data : (data?.content ?? '');
 }
 

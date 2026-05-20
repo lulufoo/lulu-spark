@@ -43,6 +43,7 @@
       <button id="btn-base64">🔤 Base64</button>
     </div>
   </div>
+  <button id="btn-settings" type="button" title="设置">⚙ 设置</button>
   <div id="skills-menu-wrap">
     <button id="btn-skills-menu">✦ SKILL</button>
     <div id="skills-menu-dropdown">
@@ -323,6 +324,61 @@
     <div id="settle-dialog-actions">
       <button id="btn-settle-cancel" class="md-header-btn">取消</button>
       <button id="btn-settle-submit" class="md-header-btn primary">推送</button>
+    </div>
+  </div>
+</div>
+
+<!-- Settings dialog -->
+<div id="settings-dialog">
+  <div id="settings-dialog-box">
+    <div id="settings-dialog-header">
+      <span>设置</span>
+      <button id="btn-settings-close" type="button" title="关闭">✕</button>
+    </div>
+    <div id="settings-dialog-body">
+      <nav id="settings-nav">
+        <button type="button" class="settings-nav-item active" data-panel="directories">目录</button>
+        <button type="button" class="settings-nav-item" data-panel="github">GitHub</button>
+      </nav>
+      <div id="settings-panels">
+        <div id="settings-panel-directories" class="settings-panel active">
+          <div class="settings-panel-title">目录</div>
+          <div class="settings-field">
+            <label for="settings-archive-root">工作台知识库目录（workbench_knowledge_root）</label>
+            <input id="settings-archive-root" type="text" spellcheck="false" autocomplete="off" />
+            <span class="settings-field-hint">本地 DDM 归档仓；若已是 git 仓库，保存前会根据 origin 推断 GitHub 主页（见「GitHub」页）。</span>
+          </div>
+          <div class="settings-field">
+            <label for="settings-kb-root">沉淀知识库目录（knowledge_corpus_root）</label>
+            <input id="settings-kb-root" type="text" spellcheck="false" autocomplete="off" />
+            <span class="settings-field-hint">各 topic 沉淀仓库的 clone 根目录</span>
+          </div>
+          <div id="settings-result-directories" class="settings-result"></div>
+          <div class="settings-panel-actions">
+            <button type="button" id="btn-settings-save-directories" class="btn-settings-save">保存</button>
+          </div>
+        </div>
+        <div id="settings-panel-github" class="settings-panel">
+          <div class="settings-panel-title">GitHub 账号</div>
+          <div class="settings-field">
+            <label for="settings-github-user-url">GitHub 主页（github_user_url）</label>
+            <input id="settings-github-user-url" type="text" spellcheck="false" autocomplete="off" placeholder="https://github.com/lulufoo" />
+            <span id="settings-github-user-hint" class="settings-field-hint">个人 GitHub 地址，用于 Viewer 远程链接与沉淀来源；可与 Token 一并保存。</span>
+          </div>
+          <div class="settings-field">
+            <label for="settings-github-token">Personal Access Token</label>
+            <input id="settings-github-token" type="password" autocomplete="off" />
+            <span id="settings-token-hint" class="settings-field-hint"></span>
+          </div>
+          <div id="settings-result-github" class="settings-result"></div>
+          <div class="settings-panel-actions">
+            <button type="button" id="btn-settings-save-github" class="btn-settings-save">保存</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div id="settings-dialog-footer">
+      <button type="button" id="btn-settings-cancel">关闭</button>
     </div>
   </div>
 </div>

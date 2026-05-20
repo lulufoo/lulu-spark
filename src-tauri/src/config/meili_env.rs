@@ -10,13 +10,13 @@ fn settings_or_default() -> AppSettings {
     settings::load().unwrap_or_default()
 }
 
-pub fn corpus_root_path(_repo_root: &Path) -> PathBuf {
-    settings_or_default().corpus_root
+pub fn workbench_knowledge_root_path(_repo_root: &Path) -> PathBuf {
+    settings_or_default().workbench_knowledge_root
 }
 
-pub fn kb_root_string(_repo_root: &Path) -> String {
+pub fn knowledge_corpus_root_string(_repo_root: &Path) -> String {
     settings_or_default()
-        .knowledge_base_dir
+        .knowledge_corpus_root
         .to_string_lossy()
         .into_owned()
 }
@@ -33,6 +33,6 @@ pub fn meili_master_key(_repo_root: &Path) -> String {
         .unwrap_or_else(|| "lulu-workbench-local".to_string())
 }
 
-pub fn corpus_github_string(_repo_root: &Path) -> String {
-    settings_or_default().knowledge_corpus_github
+pub fn github_user_url_string(_repo_root: &Path) -> String {
+    settings_or_default().github_user_url
 }

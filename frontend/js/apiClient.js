@@ -121,8 +121,13 @@ export function createTauriDriver() {
         throw new Error(`No Tauri invoke mapping for POST ${pathname}`);
       }
       const invoke = await loadTauriInvoke();
-      const payload = await invoke(resolved.cmd, resolved.args);
-      return wrapInvokePayload(payload);
+      try {
+        const payload = await invoke(resolved.cmd, resolved.args);
+        return wrapInvokePayload(payload);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        return wrapInvokePayload({ error: message, _status: 500 });
+      }
     },
   };
 }

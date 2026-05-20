@@ -10,8 +10,8 @@ use crate::config::paths;
 use crate::repositories::annotation_paths::annotation_json_path;
 const LAYERS: &[&str] = &["raw", "distilled", "trace", "digest", "diagnose"];
 
-fn corpus_root() -> Result<PathBuf, Value> {
-    paths::knowledge_corpus_dir().map_err(|e| json!({ "error": format!("{e:?}") }))
+fn workbench_knowledge_root() -> Result<PathBuf, Value> {
+    paths::workbench_knowledge_root().map_err(|e| json!({ "error": format!("{e:?}") }))
 }
 
 fn load_index(corpus: &Path) -> Result<(PathBuf, Map<String, Value>), Value> {
@@ -70,7 +70,7 @@ pub fn delete_entry(payload: &Value) -> Value {
     if !is_valid_entry_id(entry_id) {
         return json!({ "error": "Invalid id", "_status": 400 });
     }
-    let corpus = match corpus_root() {
+    let corpus = match workbench_knowledge_root() {
         Ok(p) => p,
         Err(v) => return v,
     };
@@ -125,7 +125,7 @@ pub fn move_entry_project(payload: &Value) -> Value {
     if !valid.is_empty() && !valid.contains(new_project) {
         return json!({ "error": format!("Unknown project: {new_project}"), "_status": 400 });
     }
-    let corpus = match corpus_root() {
+    let corpus = match workbench_knowledge_root() {
         Ok(p) => p,
         Err(v) => return v,
     };

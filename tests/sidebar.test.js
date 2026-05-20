@@ -44,8 +44,8 @@ beforeEach(() => {
   state.index.filteredGroups = state.index.groupedByDate;
   state.ui.activeTopic = null;
   state.ui.activeDate = null;
-  state.ui.archiveRoot = '';
-  state.ui.kbRoot = '';
+  state.ui.workbenchKnowledgeRoot = '';
+  state.ui.knowledgeCorpusRoot = '';
 });
 
 describe('selectTopic', () => {

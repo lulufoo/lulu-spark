@@ -8,7 +8,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde_json::{json, Map, Value};
 
-use crate::config::meili_env::kb_root_string;
+use crate::config::meili_env::knowledge_corpus_root_string;
 use crate::repositories::corpus::{kb_annotation_path, kb_safe_path};
 
 fn random_hex12() -> String {
@@ -61,7 +61,7 @@ fn kb_ann_write(ann_path: &Path, data: &Value) -> Result<(), String> {
 }
 
 fn kb_root_path(repo_root: &Path) -> std::path::PathBuf {
-    std::path::PathBuf::from(kb_root_string(repo_root))
+    std::path::PathBuf::from(knowledge_corpus_root_string(repo_root))
 }
 
 pub fn kb_save(repo_root: &Path, repo: String, path: String, content: String) -> Value {

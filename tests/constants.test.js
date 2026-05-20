@@ -1,24 +1,36 @@
-import { describe, it, expect, beforeEach } from 'vitest'
-import { getCorpusGithub, setCorpusGithub } from '../frontend/js/constants.js'
+import { afterEach, describe, expect, it } from 'vitest'
+import {
+  getGithubUserUrl,
+  setGithubUserUrl,
+  workbenchGithubBlobBase,
+} from '../frontend/js/constants.js'
 
-const DEFAULT = 'https://github.com/lulufoo/lulu-workbench-knowledge/blob/main'
-
-describe('setCorpusGithub / getCorpusGithub', () => {
-  beforeEach(() => {
-    setCorpusGithub(DEFAULT)
+describe('github_user_url runtime', () => {
+  afterEach(() => {
+    setGithubUserUrl('')
   })
 
-  it('默认基址为 knowledge 仓库', () => {
-    expect(getCorpusGithub()).toBe(DEFAULT)
+  it('默认空字符串', () => {
+    expect(getGithubUserUrl()).toBe('')
   })
 
-  it('运行时 setCorpusGithub 可覆盖', () => {
-    setCorpusGithub('https://example.com/blob/main/')
-    expect(getCorpusGithub()).toBe('https://example.com/blob/main')
+  it('setGithubUserUrl 去掉末尾斜杠', () => {
+    setGithubUserUrl('https://github.com/lulufoo/')
+    expect(getGithubUserUrl()).toBe('https://github.com/lulufoo')
+  })
+})
+
+describe('workbenchGithubBlobBase', () => {
+  it('从个人主页 + 本地目录名推导 blob 前缀', () => {
+    expect(
+      workbenchGithubBlobBase(
+        'https://github.com/lulufoo',
+        '/Users/me/Code/lulu-workbench-knowledge',
+      ),
+    ).toBe('https://github.com/lulufoo/lulu-workbench-knowledge/blob/main')
   })
 
-  it('空值回退默认基址', () => {
-    setCorpusGithub('')
-    expect(getCorpusGithub()).toBe(DEFAULT)
+  it('未配置主页时返回空', () => {
+    expect(workbenchGithubBlobBase('', '/Code/lulu-workbench-knowledge')).toBe('')
   })
 })
