@@ -4,10 +4,10 @@ export const softwareDevSkillsContent = {
   groups: [
     {
       name: '工具类',
-      url: 'https://github.com/lulufoo/lulu-dev-skills/tree/main/sync-rules',
+      url: 'https://github.com/lulufoo/lulu-dev-skills/tree/main/lulu-sync-rules',
       items: [
         {
-          cmd: 'sync-rules',
+          cmd: 'lulu-sync-rules',
           name: '规则多平台同步',
           desc: '「同步规则」、sync rules、规则同步；用 `gh` 从 GitHub 拉取配置并写入 Cursor / Claude Code / VS Code',
         },
@@ -15,10 +15,10 @@ export const softwareDevSkillsContent = {
     },
     {
       name: '质量与缺陷分析',
-      url: 'https://github.com/lulufoo/lulu-dev-skills/tree/main/bug-analysis',
+      url: 'https://github.com/lulufoo/lulu-dev-skills/tree/main/lulu-bug-analysis',
       items: [
         {
-          cmd: 'bug-analysis',
+          cmd: 'lulu-bug-analysis',
           name: 'Bug 分析',
           desc: '缺陷排查、根因分析、调查异常或失败行为',
         },
