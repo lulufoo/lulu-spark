@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 // Mock DOM dependencies before importing sidebar
-vi.mock('../js/utils.js', () => ({ formatDate: () => ({ full: '2025-01-01' }) }));
-vi.mock('../js/components/cards.js', () => ({ renderDocList: vi.fn(), loadTitles: vi.fn() }));
+vi.mock('../frontend/js/utils.js', () => ({ formatDate: () => ({ full: '2025-01-01' }) }));
+vi.mock('../frontend/js/components/cards.js', () => ({ renderDocList: vi.fn(), loadTitles: vi.fn() }));
 
 // Provide minimal document stub
 const makeEl = (tag = 'div') => {
@@ -21,8 +21,8 @@ globalThis.document = {
 
 globalThis.sessionStorage = { getItem: () => null, setItem: () => {} };
 
-import { state } from '../js/state.js';
-import { selectTopic } from '../js/components/sidebar.js';
+import { state } from '../frontend/js/state.js';
+import { selectTopic } from '../frontend/js/components/sidebar.js';
 
 const makeGroup = (date, topics) => ({
   date,

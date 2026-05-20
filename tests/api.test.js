@@ -1,5 +1,5 @@
 import { test, expect, vi, beforeEach } from 'vitest'
-import { DEFAULT_DEV_BASE } from '../js/apiClient.js'
+import { DEFAULT_DEV_BASE } from '../frontend/js/apiClient.js'
 import {
   fetchIndex, fetchDiffStatus, fetchAnnotationsSummary, fetchAnnotation,
   fetchConfig, fetchFileContent, fetchLinkTitle,
@@ -7,7 +7,7 @@ import {
   updateComments, updateLinks, setImportance, setDone,
   deleteEntry, ghMove,
   fetchTopics, moveToProject, fetchKnowledgeIndex,
-} from '../js/api.js'
+} from '../frontend/js/api.js'
 
 const API_READ_PREFIX = `${DEFAULT_DEV_BASE}/api`
 

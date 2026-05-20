@@ -3,7 +3,7 @@ import {
   READ_API_INVOKE_MAP,
   normalizeForContract,
   resolveInvokeFromPath,
-} from '../js/readApiInvokeMap.js';
+} from '../frontend/js/readApiInvokeMap.js';
 
 describe('readApi contract map', () => {
   it('covers all P1 migrated GET paths', () => {

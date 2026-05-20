@@ -142,17 +142,14 @@ def _meili_upsert_doc(repo, path, content, topic_desc=''):
 class Handler(http.server.SimpleHTTPRequestHandler):
 
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, directory=str(REPO_ROOT), **kwargs)
+        super().__init__(*args, directory=str(REPO_ROOT / 'frontend'), **kwargs)
 
     def translate_path(self, path):
-        fs_path = super().translate_path(path)
-        try:
-            rel = Path(fs_path).relative_to(REPO_ROOT)
-        except ValueError:
-            return fs_path
-        if rel.as_posix() == 'index.json' or (rel.parts and rel.parts[0] in _CORPUS_LAYER_NAMES):
-            return str((KNOWLEDGE_CORPUS_DIR / rel).resolve())
-        return fs_path
+        url_path = urllib.parse.urlparse(path).path.lstrip('/')
+        first = url_path.split('/', 1)[0] if url_path else ''
+        if first == 'index.json' or first in _CORPUS_LAYER_NAMES:
+            return str((KNOWLEDGE_CORPUS_DIR / url_path).resolve())
+        return super().translate_path(path)
 
     # ── Routing ──────────────────────────────────────────────────────────────
 

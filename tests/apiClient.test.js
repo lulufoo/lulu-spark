@@ -11,7 +11,7 @@ import {
   createFetchDriver,
   createTauriDriver,
   resolveReadDriver,
-} from '../js/apiClient.js';
+} from '../frontend/js/apiClient.js';
 
 const DEFAULT_DEV_BASE = 'http://127.0.0.1:8765';
 

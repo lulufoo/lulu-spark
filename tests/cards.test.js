@@ -1,15 +1,15 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { buildCard, updateTitlesInDOM, sourceTypeBadgeHtml } from '../js/components/cards.js';
-import { state } from '../js/state.js';
+import { buildCard, updateTitlesInDOM, sourceTypeBadgeHtml } from '../frontend/js/components/cards.js';
+import { state } from '../frontend/js/state.js';
 
-vi.mock('../js/api.js', () => ({
+vi.mock('../frontend/js/api.js', () => ({
   setImportance: vi.fn(),
   setDone: vi.fn(),
   fetchFileContent: vi.fn(),
 }));
 
-vi.mock('../js/components/modals/move-project-dialog.js', () => ({
+vi.mock('../frontend/js/components/modals/move-project-dialog.js', () => ({
   openMoveProjectDialog: vi.fn(),
 }));
 

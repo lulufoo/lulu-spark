@@ -1,5 +1,5 @@
 import { test, expect } from 'vitest'
-import { softwareDevSkillsContent } from '../js/skills-software-dev-content.js'
+import { softwareDevSkillsContent } from '../frontend/js/skills-software-dev-content.js'
 
 const WORKFLOW_CMDS = [
   'lulu-dev-workflow',

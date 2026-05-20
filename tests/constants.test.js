@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { getCorpusGithub, setCorpusGithub } from '../js/constants.js'
+import { getCorpusGithub, setCorpusGithub } from '../frontend/js/constants.js'
 
 const DEFAULT = 'https://github.com/lulufoo/lulu-workbench-knowledge/blob/main'
 

@@ -1,4 +1,4 @@
-import { escHtml, formatDate, timeFromTs, slugToTitle, nowTs, importanceBadgeHtml, filenameFromPath, topicFromPath } from '../js/utils.js'
+import { escHtml, formatDate, timeFromTs, slugToTitle, nowTs, importanceBadgeHtml, filenameFromPath, topicFromPath } from '../frontend/js/utils.js'
 import { test, expect } from 'vitest'
 
 // escHtml

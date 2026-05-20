@@ -39,13 +39,14 @@ class TestTranslatePath(unittest.TestCase):
     def _handler(self, repo: Path):
         Handler = self.srv['Handler']
         handler = Handler.__new__(Handler)
-        handler.directory = str(repo)
+        handler.directory = str(repo / 'frontend')
         return handler
 
     def test_maps_digest_to_corpus_root(self):
         with tempfile.TemporaryDirectory() as repo_tmp, tempfile.TemporaryDirectory() as corpus_tmp:
             repo = Path(repo_tmp)
             corpus = Path(corpus_tmp)
+            (repo / 'frontend').mkdir(parents=True)
             (corpus / 'digest').mkdir(parents=True)
             (corpus / 'digest' / 'proj.md').write_text('# x', encoding='utf-8')
 
@@ -58,8 +59,8 @@ class TestTranslatePath(unittest.TestCase):
         with tempfile.TemporaryDirectory() as repo_tmp, tempfile.TemporaryDirectory() as corpus_tmp:
             repo = Path(repo_tmp)
             corpus = Path(corpus_tmp)
-            (repo / 'js').mkdir()
-            (repo / 'js' / 'app.js').write_text('//', encoding='utf-8')
+            (repo / 'frontend' / 'js').mkdir(parents=True)
+            (repo / 'frontend' / 'js' / 'app.js').write_text('//', encoding='utf-8')
 
             self.srv['REPO_ROOT'] = repo
             self.srv['KNOWLEDGE_CORPUS_DIR'] = corpus
@@ -67,6 +68,40 @@ class TestTranslatePath(unittest.TestCase):
             mapped = handler.translate_path('/js/app.js')
             default = http.server.SimpleHTTPRequestHandler.translate_path(handler, '/js/app.js')
             self.assertEqual(mapped, default)
+
+    def test_static_root_under_frontend_still_redirects_corpus(self):
+        with tempfile.TemporaryDirectory() as repo_tmp, tempfile.TemporaryDirectory() as corpus_tmp:
+            repo = Path(repo_tmp)
+            corpus = Path(corpus_tmp)
+            (repo / 'frontend' / 'digest').mkdir(parents=True)
+            (repo / 'frontend' / 'digest' / 'decoy.md').write_text('# decoy', encoding='utf-8')
+            (corpus / 'digest').mkdir(parents=True)
+            (corpus / 'digest' / 'proj.md').write_text('# x', encoding='utf-8')
+
+            self.srv['REPO_ROOT'] = repo
+            self.srv['KNOWLEDGE_CORPUS_DIR'] = corpus
+            result = self._handler(repo).translate_path('/digest/proj.md')
+            self.assertEqual(result, str((corpus / 'digest/proj.md').resolve()))
+
+    def test_raw_nested_path_maps_to_corpus(self):
+        with tempfile.TemporaryDirectory() as repo_tmp, tempfile.TemporaryDirectory() as corpus_tmp:
+            repo = Path(repo_tmp)
+            corpus = Path(corpus_tmp)
+            (corpus / 'raw' / 'nested').mkdir(parents=True)
+            (corpus / 'raw' / 'nested' / 'deep.md').write_text('# deep', encoding='utf-8')
+
+            self.srv['REPO_ROOT'] = repo
+            self.srv['KNOWLEDGE_CORPUS_DIR'] = corpus
+            result = self._handler(repo).translate_path('/raw/nested/deep.md')
+            self.assertEqual(result, str((corpus / 'raw/nested/deep.md').resolve()))
+
+    def test_handler_directory_is_frontend(self):
+        with tempfile.TemporaryDirectory() as repo_tmp:
+            repo = Path(repo_tmp)
+            (repo / 'frontend').mkdir()
+            self.srv['REPO_ROOT'] = repo
+            handler = self._handler(repo)
+            self.assertEqual(Path(handler.directory).resolve(), (repo / 'frontend').resolve())
 
     def test_index_json_maps_to_corpus(self):
         with tempfile.TemporaryDirectory() as repo_tmp, tempfile.TemporaryDirectory() as corpus_tmp:

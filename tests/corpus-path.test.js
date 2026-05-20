@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { getActivePath } from '../js/corpus-path.js'
+import { getActivePath } from '../frontend/js/corpus-path.js'
 
 describe('getActivePath', () => {
   const entry = {
