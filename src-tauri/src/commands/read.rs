@@ -19,12 +19,14 @@ pub fn get_knowledge_index(_app: AppHandle, force: Option<bool>) -> Result<Value
 
 #[tauri::command]
 pub fn search_knowledge(_app: AppHandle, q: String, limit: Option<u32>) -> Result<Value, String> {
-    Ok(meilisearch::search_json("knowledge", &q, limit))
+    let root = repo_root()?;
+    Ok(meilisearch::search_json(&root, "knowledge", &q, limit))
 }
 
 #[tauri::command]
 pub fn search_workbench(_app: AppHandle, q: String, limit: Option<u32>) -> Result<Value, String> {
-    Ok(meilisearch::search_json("workbench", &q, limit))
+    let root = repo_root()?;
+    Ok(meilisearch::search_json(&root, "workbench", &q, limit))
 }
 
 #[tauri::command]

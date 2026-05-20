@@ -393,6 +393,12 @@
           "markdownDescription": "P1 read-only Tauri invoke commands"
         },
         {
+          "description": "P3 search reindex Tauri invoke commands",
+          "type": "string",
+          "const": "search-api",
+          "markdownDescription": "P3 search reindex Tauri invoke commands"
+        },
+        {
           "description": "P2 write Tauri invoke commands",
           "type": "string",
           "const": "write-api",

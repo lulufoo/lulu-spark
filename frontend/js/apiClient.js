@@ -2,6 +2,7 @@
 export const DEFAULT_DEV_BASE = 'http://127.0.0.1:8765';
 
 import { resolveInvokeFromPath } from './readApiInvokeMap.js';
+import { resolveReindexInvoke } from './searchApiInvokeMap.js';
 import { resolveWriteInvoke } from './writeApiInvokeMap.js';
 
 let invokeFnPromise = null;
@@ -128,6 +129,25 @@ export function createTauriDriver() {
 /**
  * @param {{ getJson(pathAndQuery: string): Promise<unknown> }} driver
  */
+/**
+ * Direct Tauri invoke for P3 reindex commands (not readDriver).
+ * @param {'reindexKnowledge'|'reindexWorkbench'|'reindexKbRepo'|'getReindexStatus'|'getReindexWorkbenchStatus'} key
+ * @param {Record<string, unknown>} [payload]
+ */
+export async function invokeSearch(key, payload) {
+  const resolved = resolveReindexInvoke(key, payload);
+  if (!resolved) {
+    throw new Error(`No reindex invoke mapping for ${key}`);
+  }
+  const invoke = await loadTauriInvoke();
+  try {
+    return await invoke(resolved.cmd, resolved.args);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return { error: message };
+  }
+}
+
 export function createApiClient(driver) {
   return {
     getJson(pathAndQuery) {

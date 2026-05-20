@@ -43,6 +43,21 @@ pub fn kb_root_string(repo_root: &Path) -> String {
         .unwrap_or_else(|| DEFAULT_KB_ROOT.to_string())
 }
 
+pub fn meili_url(repo_root: &Path) -> String {
+    meili_kv(repo_root)
+        .get("MEILI_URL")
+        .filter(|s| !s.is_empty())
+        .cloned()
+        .unwrap_or_else(|| "http://localhost:7700".to_string())
+}
+
+pub fn meili_master_key(repo_root: &Path) -> String {
+    meili_kv(repo_root)
+        .get("MEILI_MASTER_KEY")
+        .cloned()
+        .unwrap_or_default()
+}
+
 pub fn corpus_github_string(repo_root: &Path) -> String {
     let m = meili_kv(repo_root);
     m.get("KNOWLEDGE_CORPUS_GITHUB")
@@ -108,5 +123,24 @@ mod tests {
     fn corpus_github_default_when_unset() {
         let dir = tempfile::tempdir().expect("tmp");
         assert_eq!(corpus_github_string(dir.path()), DEFAULT_CORPUS_GITHUB);
+    }
+
+    #[test]
+    fn meili_url_defaults_without_meili_env() {
+        let dir = tempfile::tempdir().expect("tmp");
+        assert_eq!(meili_url(dir.path()), "http://localhost:7700");
+    }
+
+    #[test]
+    fn meili_url_reads_meili_url_from_meili_env() {
+        let dir = tempfile::tempdir().expect("tmp");
+        fs::write(dir.path().join("meili.env"), "MEILI_URL=http://127.0.0.1:7701\n").expect("w");
+        assert_eq!(meili_url(dir.path()), "http://127.0.0.1:7701");
+    }
+
+    #[test]
+    fn meili_master_key_empty_without_env() {
+        let dir = tempfile::tempdir().expect("tmp");
+        assert_eq!(meili_master_key(dir.path()), "");
     }
 }

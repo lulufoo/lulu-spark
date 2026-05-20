@@ -216,6 +216,11 @@ pub fn run() {
             commands::read::get_repo_list,
             commands::read::get_repo_dirs,
             commands::read::check_file,
+            commands::search::reindex_knowledge,
+            commands::search::reindex_workbench,
+            commands::search::reindex_kb_repo,
+            commands::search::get_reindex_status,
+            commands::search::get_reindex_workbench_status,
             commands::write::set_done,
             commands::write::set_importance,
             commands::write::update_links,
@@ -234,6 +239,7 @@ pub fn run() {
             let child_holder = Arc::new(Mutex::new(None::<CommandChild>));
             spawn_python_server(app, Arc::clone(&child_holder));
             app.manage(PythonProcess(child_holder));
+            app.manage(services::reindex::ReindexState::new());
             Ok(())
         })
         .build(tauri::generate_context!())

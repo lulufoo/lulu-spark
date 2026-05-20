@@ -82,11 +82,6 @@ def _corpus_git_root() -> Path:
     return root
 
 
-# ── Meilisearch state ─────────────────────────────────────────────────────────
-_reindex_job    = {'status': 'idle', 'started_at': None, 'finished_at': None, 'log': ''}
-_reindex_wb_job = {'status': 'idle', 'started_at': None, 'finished_at': None, 'log': ''}
-
-
 import urllib.request as _ureq
 # Bypass system proxy for localhost Meilisearch requests
 _meili_opener = _ureq.build_opener(_ureq.ProxyHandler({}))
@@ -169,18 +164,12 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             self._handle_settle()
         elif self.path == '/api/update-topics':
             self._handle_update_topics()
-        elif self.path == '/api/reindex-knowledge':
-            self._handle_reindex_knowledge()
-        elif self.path == '/api/reindex-workbench':
-            self._handle_reindex_workbench()
         elif self.path == '/api/draft':
             self._handle_save_draft()
         elif self.path == '/api/kb/commit':
             self._handle_kb_commit()
         elif self.path == '/api/kb/revert':
             self._handle_kb_revert()
-        elif self.path == '/api/kb/reindex':
-            self._handle_kb_reindex()
         elif self.path == '/api/open-iterm':
             self._handle_open_iterm()
         else:
@@ -190,10 +179,6 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         parsed_path = urllib.parse.urlparse(self.path).path
         if parsed_path.startswith('/api/fetch-title'):
             self._handle_fetch_title()
-        elif parsed_path == '/api/reindex-status':
-            self._handle_reindex_status()
-        elif parsed_path == '/api/reindex-workbench-status':
-            self._handle_reindex_workbench_status()
         else:
             super().do_GET()
 
@@ -1622,126 +1607,6 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         except Exception as e:
             self._json_response({'error': str(e)}, 500)
 
-    # ── API: GET /api/search-knowledge ────────────────────────────────────────
-
-    def _handle_search_knowledge(self):
-        try:
-            parsed = urllib.parse.urlparse(self.path)
-            params = urllib.parse.parse_qs(parsed.query)
-            q = params.get('q', [''])[0].strip()
-            if not q:
-                self._json_response({'error': 'q parameter required'}, 400)
-                return
-            try:
-                limit = min(int(params.get('limit', ['10'])[0]), 50)
-            except ValueError:
-                limit = 10
-
-            result = _meili_request('POST', '/indexes/knowledge/search', {
-                'q': q,
-                'limit': limit,
-                'attributesToCrop': ['body'],
-                'cropLength': 80,
-                'attributesToHighlight': ['body'],
-            })
-            if result is None:
-                self._json_response({'hits': [], 'error': 'unavailable'})
-                return
-            if result.get('code') == 'index_not_found':
-                self._json_response({'hits': [], 'error': 'not_indexed'})
-                return
-
-            hits = result.get('hits', [])
-            self._json_response({'hits': hits})
-        except Exception as e:
-            self._json_response({'error': str(e)}, 500)
-
-    # ── API: POST /api/reindex-knowledge ─────────────────────────────────────
-
-    def _handle_reindex_knowledge(self):
-        try:
-            global _reindex_job
-            if _reindex_job['status'] == 'running':
-                self._json_response({'error': 'already running'}, 409)
-                return
-
-            now_iso = datetime.now(timezone.utc).isoformat()
-            _reindex_job = {
-                'status': 'running',
-                'started_at': now_iso,
-                'finished_at': None,
-                'log': '启动中…',
-            }
-
-            def _sync_repo(repo):
-                """Clone missing repo or pull existing one. Returns (repo_name, status, err)."""
-                repo_name = repo.split('/')[-1]
-                local_dir = KNOWLEDGE_BASE_DIR / repo_name
-                if not local_dir.is_dir():
-                    r = subprocess.run(
-                        ['gh', 'repo', 'clone', repo, str(local_dir)],
-                        capture_output=True, text=True, timeout=300
-                    )
-                    if r.returncode != 0:
-                        shutil.rmtree(str(local_dir), ignore_errors=True)
-                        return (repo_name, 'clone_failed', r.stderr.strip() or r.stdout.strip())
-                    return (repo_name, 'cloned', None)
-                else:
-                    r = subprocess.run(
-                        ['git', '-C', str(local_dir), 'pull', '--rebase'],
-                        capture_output=True, text=True, timeout=60
-                    )
-                    if r.returncode != 0:
-                        return (repo_name, 'pull_failed', r.stderr.strip() or r.stdout.strip())
-                    return (repo_name, 'pulled', None)
-
-            def _do_reindex():
-                global _reindex_job
-                try:
-                    topics_data = load_topics(REPO_ROOT)
-                    repos = [t['repo'] for t in topics_data.get('topics', []) if 'repo' in t]
-
-                    # Phase D: parallel sync
-                    _reindex_job['log'] = '同步仓库（并行）…'
-                    failed_repos = []
-                    with ThreadPoolExecutor(max_workers=5) as executor:
-                        futures = {executor.submit(_sync_repo, repo): repo for repo in repos}
-                        for future in as_completed(futures):
-                            name, status, err = future.result()
-                            if 'failed' in status:
-                                failed_repos.append(f'{name}: {err}')
-
-                    _reindex_job['log'] = '重建索引…'
-                    script = REPO_ROOT / 'scripts' / 'build_knowledge_index.py'
-                    r = subprocess.run(
-                        ['python3', str(script)],
-                        cwd=str(REPO_ROOT), capture_output=True, text=True, timeout=600
-                    )
-                    if r.returncode != 0:
-                        _reindex_job['status'] = 'error'
-                        _reindex_job['log'] = r.stderr.strip() or r.stdout.strip() or '未知错误'
-                    else:
-                        log = r.stdout.strip() or '完成'
-                        if failed_repos:
-                            log += '\n⚠ 同步失败：' + '；'.join(failed_repos)
-                        _reindex_job['status'] = 'done'
-                        _reindex_job['log'] = log
-                except Exception as e:
-                    _reindex_job['status'] = 'error'
-                    _reindex_job['log'] = str(e)
-                finally:
-                    _reindex_job['finished_at'] = datetime.now(timezone.utc).isoformat()
-
-            threading.Thread(target=_do_reindex, daemon=True).start()
-            self._json_response({'status': 'running'})
-        except Exception as e:
-            self._json_response({'error': str(e)}, 500)
-
-    # ── API: GET /api/reindex-status ──────────────────────────────────────────
-
-    def _handle_reindex_status(self):
-        self._json_response(_reindex_job)
-
     # ── API: KB helpers ───────────────────────────────────────────────────────
 
     def _kb_safe_path(self, repo, rel_path):
@@ -2299,167 +2164,6 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         except Exception as e:
             self._json_response({'error': str(e)}, 500)
 
-    # ── API: POST /api/kb/reindex ─────────────────────────────────────────────
-
-    def _handle_kb_reindex(self):
-        try:
-            global _reindex_job
-            data = self._read_json()
-            repo = data.get('repo', '').strip()
-            if not repo or '/' not in repo:
-                self._json_response({'error': 'invalid repo format'}, 400)
-                return
-            repo_name = repo.split('/')[-1]
-            local_dir = KNOWLEDGE_BASE_DIR / repo_name
-            if not local_dir.is_dir():
-                self._json_response({'error': f'repo not cloned locally: {repo_name}'}, 404)
-                return
-
-            # Verify repo is in topics.json
-            try:
-                topics_data = load_topics(REPO_ROOT)
-                repos_in_topics = [t['repo'] for t in topics_data.get('topics', []) if 'repo' in t]
-                if repo not in repos_in_topics:
-                    self._json_response({'error': f'repo not in topics.json: {repo}'}, 404)
-                    return
-            except Exception:
-                pass  # proceed even if topics.json can't be read
-
-            if _reindex_job['status'] == 'running':
-                self._json_response({'error': 'already running'}, 409)
-                return
-
-            now_iso = datetime.now(timezone.utc).isoformat()
-            _reindex_job = {
-                'status': 'running',
-                'started_at': now_iso,
-                'finished_at': None,
-                'log': f'准备重建 {repo_name}…',
-            }
-
-            def _do_kb_reindex():
-                global _reindex_job
-                try:
-                    # Clear commit cache for this repo to force reindex
-                    commit_cache_file = CACHE_DIR / 'repo-commits.json'
-                    if commit_cache_file.exists():
-                        try:
-                            cache = json.loads(commit_cache_file.read_text(encoding='utf-8'))
-                            if repo in cache:
-                                del cache[repo]
-                                commit_cache_file.write_text(
-                                    json.dumps(cache, ensure_ascii=False, indent=2),
-                                    encoding='utf-8'
-                                )
-                        except Exception:
-                            pass
-
-                    _reindex_job['log'] = f'重建索引 {repo_name}…'
-                    script = REPO_ROOT / 'scripts' / 'build_knowledge_index.py'
-                    r = subprocess.run(
-                        ['python3', str(script)],
-                        cwd=str(REPO_ROOT), capture_output=True, text=True, timeout=600
-                    )
-                    if r.returncode != 0:
-                        _reindex_job['status'] = 'error'
-                        _reindex_job['log'] = r.stderr.strip() or r.stdout.strip() or '未知错误'
-                    else:
-                        _reindex_job['status'] = 'done'
-                        _reindex_job['log'] = r.stdout.strip() or '完成'
-                except Exception as e:
-                    _reindex_job['status'] = 'error'
-                    _reindex_job['log'] = str(e)
-                finally:
-                    _reindex_job['finished_at'] = datetime.now(timezone.utc).isoformat()
-
-            threading.Thread(target=_do_kb_reindex, daemon=True).start()
-            self._json_response({'status': 'running'})
-        except json.JSONDecodeError:
-            self._json_response({'error': 'Invalid JSON body'}, 400)
-        except Exception as e:
-            self._json_response({'error': str(e)}, 500)
-
-    # ── API: GET /api/search-workbench ────────────────────────────────────────
-
-    def _handle_search_workbench(self):
-        try:
-            parsed = urllib.parse.urlparse(self.path)
-            params = urllib.parse.parse_qs(parsed.query)
-            q = params.get('q', [''])[0].strip()
-            if not q:
-                self._json_response({'error': 'q parameter required'}, 400)
-                return
-            try:
-                limit = min(int(params.get('limit', ['10'])[0]), 50)
-            except ValueError:
-                limit = 10
-
-            result = _meili_request('POST', '/indexes/workbench/search', {
-                'q': q,
-                'limit': limit,
-                'attributesToCrop': ['body'],
-                'cropLength': 80,
-                'attributesToHighlight': ['body'],
-            })
-            if result is None:
-                self._json_response({'hits': [], 'error': 'unavailable'})
-                return
-            if result.get('code') == 'index_not_found':
-                self._json_response({'hits': [], 'error': 'not_indexed'})
-                return
-
-            hits = result.get('hits', [])
-            self._json_response({'hits': hits})
-        except Exception as e:
-            self._json_response({'error': str(e)}, 500)
-
-    # ── API: POST /api/reindex-workbench ──────────────────────────────────────
-
-    def _handle_reindex_workbench(self):
-        try:
-            global _reindex_wb_job
-            if _reindex_wb_job['status'] == 'running':
-                self._json_response({'error': 'already running'}, 409)
-                return
-
-            now_iso = datetime.now(timezone.utc).isoformat()
-            _reindex_wb_job = {
-                'status': 'running',
-                'started_at': now_iso,
-                'finished_at': None,
-                'log': '启动中…',
-            }
-
-            def _do_wb_reindex():
-                global _reindex_wb_job
-                try:
-                    script = REPO_ROOT / 'scripts' / 'build_workbench_index.py'
-                    r = subprocess.run(
-                        ['python3', str(script), '--wipe'],
-                        cwd=str(REPO_ROOT), capture_output=True, text=True, timeout=300
-                    )
-                    if r.returncode != 0:
-                        _reindex_wb_job['status'] = 'error'
-                        _reindex_wb_job['log'] = r.stderr.strip() or r.stdout.strip() or '未知错误'
-                    else:
-                        _reindex_wb_job['status'] = 'done'
-                        _reindex_wb_job['log'] = r.stdout.strip() or '完成'
-                except Exception as e:
-                    _reindex_wb_job['status'] = 'error'
-                    _reindex_wb_job['log'] = str(e)
-                finally:
-                    _reindex_wb_job['finished_at'] = datetime.now(timezone.utc).isoformat()
-
-            threading.Thread(target=_do_wb_reindex, daemon=True).start()
-            self._json_response({'status': 'running'})
-        except Exception as e:
-            self._json_response({'error': str(e)}, 500)
-
-    # ── API: GET /api/reindex-workbench-status ────────────────────────────────
-
-    def _handle_reindex_workbench_status(self):
-        self._json_response(_reindex_wb_job)
-
     # ── API: comment draft cache ──────────────────────────────────────────────
 
     def _handle_get_draft(self):
@@ -2502,28 +2206,6 @@ print(f'lulu-workbench viewer')
 print(f'  Root : {REPO_ROOT}')
 print(f'  URL  : http://localhost:{PORT}')
 print()
-
-# Auto-start Meilisearch if not already running
-if _meili_request('GET', '/health') is None:
-    print('  Starting Meilisearch…', end='', flush=True)
-    try:
-        cmd = ['meilisearch', '--no-analytics',
-               '--db-path', str(REPO_ROOT / '.meilisearch'),
-               '--master-key', MEILI_KEY]
-        subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        for _ in range(10):
-            time.sleep(0.5)
-            if _meili_request('GET', '/health') is not None:
-                print(' ✓')
-                break
-        else:
-            print('\n  ⚠ Meilisearch auto-start failed (not in PATH or timed out)')
-    except FileNotFoundError:
-        print('\n  ⚠ meilisearch not found in PATH, search disabled')
-    except Exception as e:
-        print(f'\n  ⚠ Meilisearch auto-start error: {e}')
-else:
-    print('  Meilisearch running ✓')
 
 try:
     with http.server.HTTPServer(('localhost', PORT), Handler) as server:

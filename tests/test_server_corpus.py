@@ -270,7 +270,7 @@ class TestHandleTopics(unittest.TestCase):
 
 
 class TestDoGetRouting(unittest.TestCase):
-    """P1：已迁移只读 API 不再由 Python do_GET 处理；reindex-status 仍保留。"""
+    """P1/P3：已迁移只读 API 不再由 Python do_GET 处理。"""
 
     @classmethod
     def setUpClass(cls):
@@ -292,22 +292,21 @@ class TestDoGetRouting(unittest.TestCase):
 
         self.assertEqual(called, ['super'])
 
-    def test_get_reindex_status_routes_to_handler(self):
+    def test_get_reindex_status_falls_through_to_super(self):
+        """P3：/api/reindex-status 已迁 Tauri invoke；Python 不再专用路由。"""
         Handler = self.srv['Handler']
         handler = Handler.__new__(Handler)
         handler.path = '/api/reindex-status'
 
         called = []
-        handler._handle_reindex_status = lambda: called.append('reindex')
-
         with mock.patch.object(
             http.server.SimpleHTTPRequestHandler,
             'do_GET',
-            side_effect=AssertionError('super should not run for reindex-status'),
+            lambda self: called.append('super'),
         ):
             handler.do_GET()
 
-        self.assertEqual(called, ['reindex'])
+        self.assertEqual(called, ['super'])
 
 
 # ── TestDoPostRouting ──────────────────────────────────────────────────────

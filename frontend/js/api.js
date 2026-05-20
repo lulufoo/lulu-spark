@@ -153,12 +153,8 @@ export async function revertKbFile(repo, path, type) {
 }
 
 export async function reindexKbRepo(repo) {
-  const res = await fetch('/api/kb/reindex', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ repo })
-  });
-  return res.json();
+  const { invokeSearch } = await import('./apiClient.js');
+  return invokeSearch('reindexKbRepo', { repo });
 }
 
 export async function openItermAt(repo) {
@@ -344,13 +340,13 @@ export async function searchKnowledge(q, limit = 10) {
 }
 
 export async function reindexKnowledge() {
-  const res = await fetch('/api/reindex-knowledge', { method: 'POST' });
-  return res.json();
+  const { invokeSearch } = await import('./apiClient.js');
+  return invokeSearch('reindexKnowledge');
 }
 
 export async function getReindexStatus() {
-  const res = await readDriver.fetchGet('/api/reindex-status');
-  return res.json();
+  const { invokeSearch } = await import('./apiClient.js');
+  return invokeSearch('getReindexStatus');
 }
 
 export async function searchWorkbench(q, limit = 10) {
@@ -361,11 +357,11 @@ export async function searchWorkbench(q, limit = 10) {
 }
 
 export async function reindexWorkbench() {
-  const res = await fetch('/api/reindex-workbench', { method: 'POST' });
-  return res.json();
+  const { invokeSearch } = await import('./apiClient.js');
+  return invokeSearch('reindexWorkbench');
 }
 
 export async function getReindexWorkbenchStatus() {
-  const res = await readDriver.fetchGet('/api/reindex-workbench-status');
-  return res.json();
+  const { invokeSearch } = await import('./apiClient.js');
+  return invokeSearch('getReindexWorkbenchStatus');
 }

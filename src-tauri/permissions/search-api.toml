@@ -1,0 +1,10 @@
+[[permission]]
+identifier = "search-api"
+description = "P3 search reindex Tauri invoke commands"
+commands.allow = [
+  "reindex_knowledge",
+  "reindex_workbench",
+  "reindex_kb_repo",
+  "get_reindex_status",
+  "get_reindex_workbench_status",
+]
