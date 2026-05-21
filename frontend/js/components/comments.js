@@ -112,8 +112,6 @@ async function moveCorpusComment(layer, entry, idx, delta) {
   renderComments(state.viewer.annotation, layer, entry);
   const check = validateCommentIdsForReorder(arr);
   if (!check.ok) {
-    swapAdjacent(arr, idx, delta);
-    renderComments(state.viewer.annotation, layer, entry);
     alert(check.error);
     return;
   }
@@ -121,8 +119,6 @@ async function moveCorpusComment(layer, entry, idx, delta) {
     const data = await reorderComments(entry.common_path, layer, check.ids);
     if (data?.ok !== true) throw new Error(data?.error || 'failed');
   } catch (e) {
-    swapAdjacent(arr, idx, delta);
-    renderComments(state.viewer.annotation, layer, entry);
     alert(`排序保存失败：${e.message}`);
   }
 }

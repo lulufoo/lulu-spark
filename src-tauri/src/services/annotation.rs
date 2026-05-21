@@ -573,6 +573,33 @@ mod tests {
         });
     }
 
+    /// Pre-fix semantics: filter_map without len check — reproduces silent drop + ok.
+    #[test]
+    fn repro_legacy_reorder_drops_unknown_id_without_error() {
+        let comments = vec![
+            json!({ "id": "id_a", "text": "a" }),
+            json!({ "id": "id_b", "text": "b" }),
+        ];
+        let id_map: Map<String, Value> = comments
+            .into_iter()
+            .filter_map(|c| {
+                let id = c.get("id")?.as_str()?.to_string();
+                Some((id, c))
+            })
+            .collect();
+        let ids = vec!["id_b".to_string(), "ghost".to_string(), "id_a".to_string()];
+        let reordered: Vec<Value> = ids
+            .iter()
+            .filter_map(|id| id_map.get(id).cloned())
+            .collect();
+        assert_eq!(reordered.len(), 2);
+        assert_eq!(
+            reordered[0].get("id").and_then(|v| v.as_str()),
+            Some("id_b")
+        );
+        assert_eq!(reordered.len(), ids.len() - 1);
+    }
+
     #[test]
     fn reorder_comments_rejects_unknown_id() {
         with_corpus(true, |dir, _corpus| {
@@ -588,6 +615,15 @@ mod tests {
             let v = reorder_comments(dir.path(), cp, "raw", vec![id1, "nope00000000".into()]);
             assert_eq!(v["error"], "Comment id not found");
             assert_eq!(v["_status"], 404);
+        });
+    }
+
+    #[test]
+    fn repro_reorder_invalid_common_path_returns_400() {
+        with_corpus(true, |dir, _corpus| {
+            let v = reorder_comments(dir.path(), "../evil.md", "raw", vec!["x".into()]);
+            assert_eq!(v["error"], "Invalid common_path");
+            assert_eq!(v["_status"], 400);
         });
     }
 }

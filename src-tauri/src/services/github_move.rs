@@ -178,6 +178,36 @@ fn parse_github_tree(url: &str) -> Option<(String, String, String, String)> {
     ))
 }
 
+/// Last path segment looks like a file (e.g. `rules_sync.json`, `design.md`).
+fn path_ends_with_file_segment(path: &str) -> bool {
+    let name = path.rsplit('/').next().unwrap_or(path);
+    let Some(ext) = name.rsplit_once('.').map(|(_, ext)| ext) else {
+        return false;
+    };
+    !ext.is_empty()
+        && ext.len() <= 16
+        && ext.chars().all(|c| c.is_ascii_alphanumeric())
+        && ext.chars().any(|c| c.is_alphabetic())
+}
+
+/// Strip `tree/{ref}/…` or `blob/{ref}/…` to a repo-relative path.
+/// Returns `(path, is_blob_link)`.
+fn strip_github_tree_or_blob_prefix(tail: &str) -> Option<(String, bool)> {
+    let (rest, is_blob) = if let Some(r) = tail.strip_prefix("tree/") {
+        (r, false)
+    } else if let Some(r) = tail.strip_prefix("blob/") {
+        (r, true)
+    } else {
+        return None;
+    };
+    let path = if let Some(idx) = rest.find('/') {
+        rest[idx + 1..].to_string()
+    } else {
+        String::new()
+    };
+    Some((path, is_blob))
+}
+
 fn parse_github_dst(url: &str) -> Option<(String, String, String)> {
     let rest = url.strip_prefix("https://github.com/")?;
     let mut parts: Vec<&str> = rest.split('/').collect();
@@ -187,16 +217,22 @@ fn parse_github_dst(url: &str) -> Option<(String, String, String)> {
     let owner = parts[0].to_string();
     let repo = parts[1].to_string();
     parts.drain(0..2);
-    let mut tail = parts.join("/");
-    if tail.starts_with("tree/") {
-        tail = tail.strip_prefix("tree/").unwrap_or(&tail).to_string();
-        if let Some(idx) = tail.find('/') {
-            tail = tail[idx + 1..].to_string();
-        } else {
-            tail.clear();
+    let tail = parts.join("/");
+
+    let dir = match strip_github_tree_or_blob_prefix(&tail) {
+        Some((path, is_blob)) => {
+            if is_blob && !path.is_empty() && path_ends_with_file_segment(&path) {
+                // blob 文件链接：目标为其所在目录
+                path.rfind('/')
+                    .map(|i| path[..i].to_string())
+                    .unwrap_or_default()
+            } else {
+                path
+            }
         }
-    }
-    Some((owner, repo, tail.trim_matches('/').to_string()))
+        None => tail,
+    };
+    Some((owner, repo, dir.trim_matches('/').to_string()))
 }
 
 #[cfg(test)]
@@ -212,9 +248,42 @@ mod tests {
     }
 
     #[test]
-    fn parse_dst_url() {
+    fn parse_dst_url_tree_directory() {
         let u = "https://github.com/o/r/tree/main/docs";
         let p = parse_github_dst(u).expect("dst");
+        assert_eq!(p.0, "o");
+        assert_eq!(p.1, "r");
         assert_eq!(p.2, "docs");
+    }
+
+    #[test]
+    fn parse_dst_url_blob_file_uses_parent_directory() {
+        let u = "https://github.com/lulufoo/ai-software-dev/blob/main/sys-prompt/rules_sync.json";
+        let p = parse_github_dst(u).expect("dst");
+        assert_eq!(p.0, "lulufoo");
+        assert_eq!(p.1, "ai-software-dev");
+        assert_eq!(p.2, "sys-prompt");
+    }
+
+    #[test]
+    fn parse_dst_url_blob_file_nested_directory() {
+        let u = "https://github.com/lulufoo/ai-software-dev/blob/main/sys-prompt/cursor-rule-guard/v1/cursor-rule-guard-design.md";
+        let p = parse_github_dst(u).expect("dst");
+        assert_eq!(p.2, "sys-prompt/cursor-rule-guard/v1");
+    }
+
+    #[test]
+    fn parse_dst_url_blob_must_not_keep_blob_main_prefix() {
+        let u = "https://github.com/o/r/blob/main/sys-prompt/cursor-rule-guard/v1/foo.md";
+        let p = parse_github_dst(u).expect("dst");
+        assert!(!p.2.starts_with("blob/"));
+        assert!(!p.2.contains("main/"));
+    }
+
+    #[test]
+    fn parse_dst_url_blob_directory_segment_keeps_full_path() {
+        let u = "https://github.com/lulufoo/ai-software-dev/blob/main/sys-prompt/cursor-rule-guard/v1";
+        let p = parse_github_dst(u).expect("dst");
+        assert_eq!(p.2, "sys-prompt/cursor-rule-guard/v1");
     }
 }

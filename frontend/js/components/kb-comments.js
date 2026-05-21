@@ -111,8 +111,6 @@ async function moveKbComment(index, delta) {
   renderKbComments(annotation);
   const check = validateCommentIdsForReorder(arr);
   if (!check.ok) {
-    swapAdjacent(arr, index, delta);
-    renderKbComments(annotation);
     alert(check.error);
     return;
   }
@@ -121,8 +119,6 @@ async function moveKbComment(index, delta) {
     if (data?.ok !== true) throw new Error(data?.error || 'failed');
     document.dispatchEvent(new CustomEvent('kb:dirty', { detail: { msg: 'chore: reorder annotations' } }));
   } catch (e) {
-    swapAdjacent(arr, index, delta);
-    renderKbComments(annotation);
     alert(`排序保存失败：${e.message}`);
   }
 }
