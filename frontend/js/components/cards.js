@@ -4,6 +4,58 @@ import { escHtml, slugToTitle, filenameFromPath, topicFromPath, timeFromTs, impo
 import * as api from '../api.js'
 import { openMoveProjectDialog } from './modals/move-project-dialog.js'
 
+// ── Tag badges ─────────────────────────────────────────────────────────────
+
+function tagsBadgesHtml(entry) {
+  const tags = entry.tags;
+  if (!tags?.length) return '';
+  return tags.map(tag => {
+    if (tag.unknown) {
+      return `<span class="badge badge-tag tag-unknown" title="未知标签">🏷 ${escHtml(tag.value || tag.key || '')}</span>`;
+    }
+    const key = tag.key || '';
+    return `<button type="button" class="badge badge-tag" data-tag-key="${escHtml(key)}" title="按此标签过滤">🏷 ${escHtml(tag.value || key)}</button>`;
+  }).join('');
+}
+
+function attachTagBadgeListeners(card) {
+  card.querySelectorAll('.badge-tag[data-tag-key]').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const key = btn.dataset.tagKey;
+      if (key) {
+        document.dispatchEvent(new CustomEvent('cta:filter-tag', { detail: { key } }));
+      }
+    });
+  });
+}
+
+export function updateCardTagsBadge(entry) {
+  const id = entry._id;
+  if (!id && state.index.data) {
+    for (const [eid, e] of Object.entries(state.index.data)) {
+      if (e === entry) { entry._id = eid; break; }
+    }
+  }
+  const cardId = entry._id;
+  if (!cardId) return;
+  const card = document.querySelector(`.doc-card[data-id="${cardId}"]`);
+  if (!card) return;
+  const badges = card.querySelector('.badges');
+  if (!badges) return;
+  badges.querySelectorAll('.badge-tag').forEach(el => el.remove());
+  const html = tagsBadgesHtml(entry);
+  if (!html) return;
+  const wrap = document.createElement('span');
+  wrap.innerHTML = html;
+  const linksBadge = badges.querySelector('.badge-links');
+  const frag = document.createDocumentFragment();
+  while (wrap.firstChild) frag.appendChild(wrap.firstChild);
+  if (linksBadge) linksBadge.before(frag);
+  else badges.insertBefore(frag, badges.querySelector('[data-action="cycle-importance"]') || badges.firstChild);
+  attachTagBadgeListeners(card);
+}
+
 // ── Diff helpers ───────────────────────────────────────────────────────────
 
 export function getEntryDiffState(entry) {
@@ -87,6 +139,7 @@ export function buildCard(id, entry, title) {
   const linksBadgeHtml = linkCount
     ? `<span class="badge badge-links" title="${linkCount} 个关联链接">👍 ×${linkCount}</span>`
     : '';
+  const tagsBadgeHtml = tagsBadgesHtml(entry);
 
   const doneBadgeHtml = entry.done
     ? `<button class="badge badge-done" data-action="toggle-done" title="标记为未处理">✓ 已处理</button>`
@@ -98,7 +151,7 @@ export function buildCard(id, entry, title) {
     <div class="doc-topic"${topicDesc ? ` data-tip="${escHtml(topicDesc)}"` : ''}>${topic}</div>
     <button class="doc-title-btn${displayTitle === null ? ' loading' : ''}">${displayTitle !== null ? escHtml(displayTitle) : ''}</button>
     <div class="doc-meta">${time}${dotHtml}</div>
-    <div class="badges">${sourceBadge}${badgesHtml}${linksBadgeHtml}${importanceBadgeHtml(entry.importance)}${doneBadgeHtml}${moveBadgeHtml}</div>
+    <div class="badges">${sourceBadge}${badgesHtml}${tagsBadgeHtml}${linksBadgeHtml}${importanceBadgeHtml(entry.importance)}${doneBadgeHtml}${moveBadgeHtml}</div>
   `;
   if (entry.done) card.classList.add('done');
   if (entry.importance) card.classList.add(`importance-${entry.importance}`);
@@ -110,6 +163,7 @@ export function buildCard(id, entry, title) {
     }))
   );
   attachBadgeListeners(card, entry);
+  attachTagBadgeListeners(card);
   card.querySelector('[data-action="toggle-done"]').addEventListener('click', () => toggleDone(entry, card));
   card.querySelector('[data-action="cycle-importance"]').addEventListener('click', () => cycleImportance(entry, card));
   card.querySelector('[data-action="move-project"]').addEventListener('click', () => openMoveProjectDialog(entry));
@@ -242,12 +296,14 @@ export function updateTitlesInDOM(date) {
       const linksBadgeHtml = linkCount
         ? `<span class="badge badge-links" title="${linkCount} 个关联链接">👍 ×${linkCount}</span>`
         : '';
+      const tagsBadgeHtml = tagsBadgesHtml(entry);
       const doneBadgeHtml = entry.done
         ? `<button class="badge badge-done" data-action="toggle-done" title="标记为未处理">✓ 已处理</button>`
         : `<button class="badge badge-done" data-action="toggle-done" title="标记为已处理">○ 处理</button>`;
       const moveBadgeHtml = `<button class="badge badge-move-project" data-action="move-project" title="移动到其他项目"><span class="move-icon">↳</span><span>移项</span></button>`;
-      badgesEl.innerHTML = sourceTypeBadgeHtml(entry.source_type) + layerHtml + linksBadgeHtml + importanceBadgeHtml(entry.importance) + doneBadgeHtml + moveBadgeHtml;
+      badgesEl.innerHTML = sourceTypeBadgeHtml(entry.source_type) + layerHtml + tagsBadgeHtml + linksBadgeHtml + importanceBadgeHtml(entry.importance) + doneBadgeHtml + moveBadgeHtml;
       attachBadgeListeners(card, entry);
+      attachTagBadgeListeners(card);
       card.classList.toggle('done', !!entry.done);
       card.classList.remove('importance-high', 'importance-medium', 'importance-low');
       if (entry.importance) card.classList.add(`importance-${entry.importance}`);

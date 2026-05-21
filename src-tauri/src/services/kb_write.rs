@@ -1,26 +1,14 @@
 //! KB write handlers (port `server.py` KB POST handlers).
 
-use std::collections::hash_map::DefaultHasher;
 use std::fs;
-use std::hash::{Hash, Hasher};
 use std::path::Path;
-use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde_json::{json, Map, Value};
 
 use crate::config::meili_env::knowledge_corpus_root_string;
 use crate::repositories::corpus::{kb_annotation_path, kb_safe_path};
 
-fn random_hex12() -> String {
-    let mut h = DefaultHasher::new();
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_nanos()
-        .hash(&mut h);
-    std::thread::current().id().hash(&mut h);
-    format!("{:012x}", h.finish() & 0xFFFF_FFFF_FFFFu64)
-}
+use super::id::random_hex12;
 
 fn is_valid_http_url(url: &str) -> bool {
     let rest = url

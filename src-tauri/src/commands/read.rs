@@ -4,6 +4,8 @@ use tauri::{AppHandle, State};
 use crate::config::paths;
 use crate::integrations::{gh_read, meilisearch};
 use crate::services::reindex::{finish_job_error, finish_job_success, start_job, ReindexState};
+use crate::config::meili_env::workbench_knowledge_root_path;
+use crate::services::tags_registry;
 use crate::services::workbench_read;
 
 fn repo_root() -> Result<std::path::PathBuf, String> {
@@ -46,6 +48,12 @@ pub fn get_topics(_app: AppHandle) -> Result<Value, String> {
 #[tauri::command]
 pub fn get_annotations(_app: AppHandle) -> Result<Value, String> {
     Ok(workbench_read::get_annotations_summary(&repo_root()?))
+}
+
+#[tauri::command]
+pub fn get_tags_registry(_app: AppHandle) -> Result<Value, String> {
+    let corpus = workbench_knowledge_root_path(&repo_root()?);
+    Ok(tags_registry::read_registry(&corpus))
 }
 
 #[tauri::command]

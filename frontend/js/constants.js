@@ -20,5 +20,8 @@ export function workbenchGithubBlobBase(githubUserUrlArg, workbenchKnowledgeRoot
   return `${trimmed}/${repo}/blob/main`
 }
 
+export const TAG_VALUE_MAX_LEN = 64
+export const TAG_SUGGEST_MIN_SCORE = 0.6
+
 export const LAYERS = ['raw', 'distilled', 'digest', 'trace']
 export const IMPORTANCE_CYCLE = [undefined, 'high', 'medium', 'low']

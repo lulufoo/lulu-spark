@@ -8,6 +8,8 @@ use serde_json::{json, Map, Value};
 
 use crate::config::paths;
 use crate::repositories::annotation_paths::annotation_json_path;
+use crate::services::annotation::read_annotation_object;
+use crate::services::tags_registry::{adjust_refs, read_registry, save_registry};
 const LAYERS: &[&str] = &["raw", "distilled", "trace", "digest", "diagnose"];
 
 fn workbench_knowledge_root() -> Result<PathBuf, Value> {
@@ -96,9 +98,21 @@ pub fn delete_entry(payload: &Value) -> Value {
             deleted.push(format!("{layer}/{common_path}"));
         }
     }
-    if let Some(ann) = annotation_json_path(&corpus, common_path) {
-        if ann.is_file() {
-            let _ = fs::remove_file(&ann);
+    if let Some(ann_path) = annotation_json_path(&corpus, common_path) {
+        if ann_path.is_file() {
+            let ann = read_annotation_object(&corpus, common_path);
+            if let Some(arr) = ann.get("tag_keys").and_then(|v| v.as_array()) {
+                let keys: Vec<String> = arr
+                    .iter()
+                    .filter_map(|v| v.as_str().map(String::from))
+                    .collect();
+                if !keys.is_empty() {
+                    let mut reg = read_registry(&corpus);
+                    adjust_refs(&mut reg, &keys, -1);
+                    let _ = save_registry(&corpus, &reg);
+                }
+            }
+            let _ = fs::remove_file(&ann_path);
             deleted.push(format!("annotations/{}.json", &common_path[..common_path.len().saturating_sub(3)]));
         }
     }

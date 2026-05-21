@@ -5,6 +5,7 @@ import { escHtml, filenameFromPath, slugToTitle } from '../utils.js'
 import * as api from '../api.js'
 import { updateTitlesInDOM, updateDiffInDOM } from './cards.js'
 import { renderLinksBar } from './links-bar.js'
+import { renderTagsBar } from './tags-bar.js'
 import { renderComments } from './comments.js'
 import { openDeleteDialog } from './modals/delete-dialog.js'
 import { applyHighlights, initHighlightUI } from './highlights.js'
@@ -59,6 +60,7 @@ export function renderDocBody(text, layer, commonPath) {
   postProcessLinks(body, layer, commonPath);
   document.getElementById('btn-edit').style.display = '';
   renderLinksBar(state.viewer.entry);
+  renderTagsBar(state.viewer.entry);
   renderComments(state.viewer.annotation, layer, state.viewer.entry);
   const zone = document.createElement('div');
   zone.className = 'md-body-delete-zone';

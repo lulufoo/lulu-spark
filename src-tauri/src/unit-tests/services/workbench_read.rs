@@ -124,6 +124,47 @@ fn get_corpus_file_rejects_traversal() {
 }
 
 #[test]
+fn get_annotations_summary_includes_resolved_tags() {
+    use crate::repositories::annotation_paths::annotation_json_path;
+    use crate::repositories::atomic_json;
+    use crate::test_support::with_corpus;
+
+    with_corpus(true, |dir, corpus| {
+        let cp = "ai/tags.md";
+        fs::write(
+            corpus.join("index.json"),
+            serde_json::to_string(&serde_json::json!({
+                "entries": { "e1": { "common_path": cp } }
+            }))
+            .unwrap(),
+        )
+        .expect("index");
+        let ann_path = annotation_json_path(&corpus, cp).expect("path");
+        if let Some(parent) = ann_path.parent() {
+            fs::create_dir_all(parent).expect("mkdir");
+        }
+        atomic_json::write_json(
+            &ann_path,
+            &serde_json::json!({ "tag_keys": ["knownkey123456", "ghostkey123456"] }),
+        )
+        .expect("ann");
+        let mut reg = crate::services::tags_registry::empty_registry();
+        reg["keys"]["knownkey123456"] = serde_json::json!({ "value": "Known", "refs": 1 });
+        assert!(crate::services::tags_registry::save_registry(&corpus, &reg).is_none());
+
+        let summary = get_annotations_summary(dir.path());
+        let entry = summary[cp].as_object().expect("entry");
+        let tags = entry["tags"].as_array().expect("tags");
+        assert_eq!(tags.len(), 2);
+        assert!(tags.iter().any(|t| t["key"] == "knownkey123456" && t["value"] == "Known"));
+        assert!(
+            tags.iter()
+                .any(|t| t["key"] == "ghostkey123456" && t["unknown"] == true)
+        );
+    });
+}
+
+#[test]
 fn get_corpus_file_returns_content() {
     let dir = tempfile::tempdir().expect("tmp");
     let corpus = dir.path().join("corpus");

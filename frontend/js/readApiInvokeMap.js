@@ -35,6 +35,7 @@ export const READ_API_INVOKE_MAP = {
     }),
   },
   '/api/annotations': { cmd: 'get_annotations' },
+  '/api/tags/registry': { cmd: 'get_tags_registry' },
   '/api/annotation': {
     cmd: 'get_annotation',
     args: (url) => ({ path: url.searchParams.get('path') ?? '' }),

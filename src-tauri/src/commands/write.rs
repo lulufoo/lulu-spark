@@ -2,7 +2,7 @@ use serde_json::Value;
 use tauri::AppHandle;
 
 use crate::config::paths;
-use crate::services::{annotation, entry_write, kb_write};
+use crate::services::{annotation, entry_write, kb_write, tag_write};
 
 fn repo_root() -> Result<std::path::PathBuf, String> {
     paths::repo_root().map_err(|e| format!("{e:?}"))
@@ -161,4 +161,43 @@ pub fn kb_update_links(
     links: Value,
 ) -> Result<Value, String> {
     Ok(kb_write::kb_update_links(&repo_root()?, repo, path, links))
+}
+
+#[tauri::command]
+pub fn tag_attach(
+    _app: AppHandle,
+    common_path: String,
+    key: Option<String>,
+    value: Option<String>,
+) -> Result<Value, String> {
+    let mut payload = serde_json::Map::new();
+    if let Some(k) = key {
+        payload.insert("key".into(), Value::String(k));
+    }
+    if let Some(v) = value {
+        payload.insert("value".into(), Value::String(v));
+    }
+    Ok(tag_write::tag_attach(
+        &repo_root()?,
+        &common_path,
+        &Value::Object(payload),
+    ))
+}
+
+#[tauri::command]
+pub fn tag_detach(
+    _app: AppHandle,
+    common_path: String,
+    key: String,
+) -> Result<Value, String> {
+    Ok(tag_write::tag_detach(&repo_root()?, &common_path, &key))
+}
+
+#[tauri::command]
+pub fn tag_update_value(
+    _app: AppHandle,
+    key: String,
+    value: String,
+) -> Result<Value, String> {
+    Ok(tag_write::tag_update_value(&repo_root()?, &key, &value))
 }

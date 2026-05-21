@@ -57,6 +57,9 @@ export async function openKbDoc(kbHit) {
     }
   };
 
+  const tagsBar = document.getElementById('md-tags-bar');
+  if (tagsBar) tagsBar.style.display = 'none';
+
   const modal = document.getElementById('kb-md-modal');
   const body = document.getElementById('kb-md-body');
   body.innerHTML = '<div style="color:#8c959f;padding:20px;font-size:13px;">加载中…</div>';

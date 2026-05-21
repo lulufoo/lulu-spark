@@ -96,13 +96,107 @@ export function renderSidebar() {
   }
 }
 
+// ── applyListFilters ───────────────────────────────────────────────────
+
+export function applyListFilters() {
+  let groups = state.index.groupedByDate;
+  const topic = state.ui.activeTopic;
+  if (topic) {
+    groups = groups
+      .map(({ date, entries }) => ({
+        date,
+        entries: entries.filter(({ entry }) =>
+          (entry.common_path?.split('/')[0] || 'unknown') === topic
+        ),
+      }))
+      .filter(({ entries }) => entries.length > 0);
+  }
+  const tagKey = state.ui.activeTagKey;
+  if (tagKey) {
+    groups = groups
+      .map(({ date, entries }) => ({
+        date,
+        entries: entries.filter(({ entry }) => entry.tag_keys?.includes(tagKey)),
+      }))
+      .filter(({ entries }) => entries.length > 0);
+  }
+  state.index.filteredGroups = groups;
+}
+
+// ── renderTagFilterChip ────────────────────────────────────────────────────
+
+export function renderTagFilterChip() {
+  let chip = document.getElementById('tag-filter-chip');
+  const key = state.ui.activeTagKey;
+  if (!key) {
+    if (chip) {
+      if (typeof chip.remove === 'function') chip.remove();
+      else chip.style.display = 'none';
+    }
+    return;
+  }
+  const reg = state.index.tagsRegistry?.keys?.[key];
+  const label = reg?.value || key;
+  if (!chip) {
+    chip = document.createElement('span');
+    chip.id = 'tag-filter-chip';
+    chip.className = 'tag-filter-chip';
+    const heading = document.getElementById('date-heading');
+    if (heading?.insertAdjacentElement) heading.insertAdjacentElement('afterend', chip);
+    else if (heading?.appendChild) heading.appendChild(chip);
+  }
+  chip.innerHTML = '';
+  chip.style.display = '';
+  const text = document.createElement('span');
+  text.textContent = `标签：${label} `;
+  const clearBtn = document.createElement('button');
+  clearBtn.type = 'button';
+  clearBtn.className = 'tag-filter-chip-clear';
+  clearBtn.textContent = '×';
+  clearBtn.title = '清除标签过滤';
+  clearBtn.addEventListener('click', () => clearTagFilter());
+  chip.append(text, clearBtn);
+}
+
+// ── selectTag / clearTagFilter ─────────────────────────────────────────────
+
+export function selectTag(key) {
+  if (state.ui.activeTagKey === key) {
+    clearTagFilter();
+    return;
+  }
+  state.ui.activeTagKey = key;
+  _refreshFilteredList();
+}
+
+export function clearTagFilter() {
+  state.ui.activeTagKey = null;
+  _refreshFilteredList();
+}
+
+function _refreshFilteredList() {
+  applyListFilters();
+  renderSidebar();
+  renderTagFilterChip();
+  const list = document.getElementById('doc-list');
+  if (state.index.filteredGroups.length > 0) {
+    selectDate(state.index.filteredGroups[0].date);
+  } else {
+    state.ui.activeDate = null;
+    document.getElementById('status').style.display = 'none';
+    const heading = document.getElementById('date-heading');
+    heading.style.display = '';
+    heading.textContent = '无匹配条目';
+    if (list) list.innerHTML = '<div class="empty-filter-msg">当前筛选条件下没有文档</div>';
+  }
+}
+
 // ── selectDate ────────────────────────────────────────────────────────
 
 export function selectDate(date) {
   state.ui.activeDate = date;
   sessionStorage.setItem('cta_active_date', date);
 
-  // Update active tab
   document.querySelectorAll('.date-tab').forEach(t => {
     t.classList.toggle('active', t.dataset.date === date);
   });
@@ -115,6 +209,7 @@ export function selectDate(date) {
   const heading = document.getElementById('date-heading');
   heading.style.display = '';
   heading.textContent = d.full + `  ·  ${group.entries.length} 篇`;
+  renderTagFilterChip();
 
   renderDocList(group.entries, date);
   loadTitles(group.entries, date);
@@ -124,20 +219,18 @@ export function selectDate(date) {
 
 export function selectTopic(key) {
   state.ui.activeTopic = key;
-  if (!key) {
-    state.index.filteredGroups = state.index.groupedByDate;
-  } else {
-    state.index.filteredGroups = state.index.groupedByDate
-      .map(({ date, entries }) => ({
-        date,
-        entries: entries.filter(({ entry }) =>
-          (entry.common_path?.split('/')[0] || 'unknown') === key
-        ),
-      }))
-      .filter(({ entries }) => entries.length > 0);
-  }
+  applyListFilters();
   renderSidebar();
+  renderTagFilterChip();
   if (state.index.filteredGroups.length > 0) {
     selectDate(state.index.filteredGroups[0].date);
+  } else {
+    state.ui.activeDate = null;
+    document.getElementById('status').style.display = 'none';
+    const heading = document.getElementById('date-heading');
+    heading.style.display = '';
+    heading.textContent = '无匹配条目';
+    document.getElementById('doc-list').innerHTML =
+      '<div class="empty-filter-msg">当前筛选条件下没有文档</div>';
   }
 }

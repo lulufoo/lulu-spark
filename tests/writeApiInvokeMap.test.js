@@ -18,14 +18,17 @@ const P2_WRITE_PATHS = [
   '/api/kb/reorder-comments',
   '/api/kb/update-highlights',
   '/api/kb/update-links',
+  '/api/tag/attach',
+  '/api/tag/detach',
+  '/api/tag/update-value',
 ];
 
 describe('writeApiInvokeMap', () => {
-  it('covers all 13 P2 POST paths', () => {
+  it('covers all 16 P2 POST paths', () => {
     for (const p of P2_WRITE_PATHS) {
       expect(WRITE_API_INVOKE_MAP[p]?.cmd, p).toBeTruthy();
     }
-    expect(Object.keys(WRITE_API_INVOKE_MAP)).toHaveLength(13);
+    expect(Object.keys(WRITE_API_INVOKE_MAP)).toHaveLength(16);
   });
 
   it('resolveWriteInvoke maps set-done body to set_done command', () => {

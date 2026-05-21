@@ -8,6 +8,7 @@ export const state = {
     titleCache: new Map(),
     diffStatus: new Map(),
     annotations: {},
+    tagsRegistry: { keys: {} },
     titleFetchCache: new Map(),
     topicDescriptions: {},
     topicRepos: {}
@@ -18,6 +19,7 @@ export const state = {
     knowledgeCorpusRoot: '',
     githubUserUrl: '',
     activeTopic: null,
+    activeTagKey: null,
   },
   viewer: {
     entry: null,
@@ -40,6 +42,13 @@ export function mergeAnnotations(indexData, summary) {
     entry.importance = ann?.importance || undefined
     entry.links = ann?.links || undefined
     entry._comment_counts = ann?.comment_counts || undefined
+    if (ann?.tags) {
+      entry.tags = ann.tags
+      entry.tag_keys = ann.tag_keys
+    } else {
+      delete entry.tags
+      delete entry.tag_keys
+    }
   }
 }
 

@@ -24,4 +24,5 @@ commands.allow = [
   "get_kb_corpus_status",
   "infer_github_user_url",
   "check_workbench_knowledge_root",
+  "get_tags_registry",
 ]

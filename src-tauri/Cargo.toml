@@ -33,3 +33,6 @@ git2 = "0.19"
 
 [dev-dependencies]
 tempfile = "3"
+
+[patch.crates-io]
+tao = { git = "https://github.com/lulufoo/tao", branch = "fix/no-focus-steal" }

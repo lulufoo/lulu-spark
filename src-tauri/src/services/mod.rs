@@ -1,4 +1,5 @@
 pub mod annotation;
+pub mod id;
 pub mod corpus_git;
 pub mod draft;
 pub mod entry_admin;
@@ -12,4 +13,6 @@ pub mod kb;
 pub mod kb_write;
 pub mod reindex;
 pub mod settle;
+pub mod tag_write;
+pub mod tags_registry;
 pub mod workbench_read;

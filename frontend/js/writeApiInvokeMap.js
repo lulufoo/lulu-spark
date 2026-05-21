@@ -114,6 +114,28 @@ export const WRITE_API_INVOKE_MAP = {
       links: body.links,
     }),
   },
+  '/api/tag/attach': {
+    cmd: 'tag_attach',
+    args: (body) => ({
+      commonPath: body.common_path,
+      ...(body.key != null && body.key !== '' ? { key: body.key } : {}),
+      ...(body.value != null && body.value !== '' ? { value: body.value } : {}),
+    }),
+  },
+  '/api/tag/detach': {
+    cmd: 'tag_detach',
+    args: (body) => ({
+      commonPath: body.common_path,
+      key: body.key,
+    }),
+  },
+  '/api/tag/update-value': {
+    cmd: 'tag_update_value',
+    args: (body) => ({
+      key: body.key,
+      value: body.value,
+    }),
+  },
 };
 
 /**

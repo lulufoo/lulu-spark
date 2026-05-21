@@ -15,4 +15,7 @@ commands.allow = [
   "kb_update_highlights",
   "kb_update_links",
   "set_config",
+  "tag_attach",
+  "tag_detach",
+  "tag_update_value",
 ]

@@ -1,4 +1,6 @@
 //! Keychain secrets (macOS). Unit tests use an in-memory store (`cfg(test)`).
+//! Debug (dev) builds use a plain-text TOML file to avoid Keychain prompts on
+//! every hot-rebuild; release builds use the system Keychain.
 
 #[cfg(test)]
 use std::collections::HashMap;
@@ -25,6 +27,8 @@ impl std::fmt::Display for SecretError {
     }
 }
 
+// ── test store ────────────────────────────────────────────────────────────────
+
 #[cfg(test)]
 static TEST_SECRETS: LazyLock<Mutex<HashMap<String, String>>> =
     LazyLock::new(|| Mutex::new(HashMap::new()));
@@ -41,13 +45,53 @@ fn test_store() -> Result<std::sync::MutexGuard<'static, HashMap<String, String>
     TEST_SECRETS.lock().map_err(|_| SecretError::Poisoned)
 }
 
+// ── dev store (debug builds only) ─────────────────────────────────────────────
+
+#[cfg(all(not(test), debug_assertions))]
+fn dev_secrets_path() -> std::path::PathBuf {
+    let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".to_string());
+    std::path::PathBuf::from(home)
+        .join(".config")
+        .join("lulu-workbench")
+        .join("dev-secrets.toml")
+}
+
+#[cfg(all(not(test), debug_assertions))]
+fn read_dev_secrets() -> std::collections::HashMap<String, String> {
+    let path = dev_secrets_path();
+    let Ok(content) = std::fs::read_to_string(&path) else {
+        return std::collections::HashMap::new();
+    };
+    toml::from_str(&content).unwrap_or_default()
+}
+
+#[cfg(all(not(test), debug_assertions))]
+fn write_dev_secrets(
+    map: &std::collections::HashMap<String, String>,
+) -> Result<(), SecretError> {
+    let path = dev_secrets_path();
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent)
+            .map_err(|e| SecretError::Keyring(e.to_string()))?;
+    }
+    let content = toml::to_string(map).map_err(|e| SecretError::Keyring(e.to_string()))?;
+    std::fs::write(&path, content).map_err(|e| SecretError::Keyring(e.to_string()))
+}
+
+// ── public API ────────────────────────────────────────────────────────────────
+
 pub fn get_secret(key: &str) -> Result<Option<String>, SecretError> {
     #[cfg(test)]
     {
         let map = test_store()?;
         return Ok(map.get(key).cloned());
     }
-    #[cfg(not(test))]
+    #[cfg(all(not(test), debug_assertions))]
+    {
+        let map = read_dev_secrets();
+        return Ok(map.get(key).cloned());
+    }
+    #[cfg(all(not(test), not(debug_assertions)))]
     {
         let entry = keyring::Entry::new(SERVICE, key).map_err(|e| SecretError::Keyring(e.to_string()))?;
         match entry.get_password() {
@@ -65,7 +109,13 @@ pub fn set_secret(key: &str, value: &str) -> Result<(), SecretError> {
         map.insert(key.to_string(), value.to_string());
         return Ok(());
     }
-    #[cfg(not(test))]
+    #[cfg(all(not(test), debug_assertions))]
+    {
+        let mut map = read_dev_secrets();
+        map.insert(key.to_string(), value.to_string());
+        return write_dev_secrets(&map);
+    }
+    #[cfg(all(not(test), not(debug_assertions)))]
     {
         let entry = keyring::Entry::new(SERVICE, key).map_err(|e| SecretError::Keyring(e.to_string()))?;
         entry
@@ -81,7 +131,13 @@ pub fn delete_secret(key: &str) -> Result<(), SecretError> {
         map.remove(key);
         return Ok(());
     }
-    #[cfg(not(test))]
+    #[cfg(all(not(test), debug_assertions))]
+    {
+        let mut map = read_dev_secrets();
+        map.remove(key);
+        return write_dev_secrets(&map);
+    }
+    #[cfg(all(not(test), not(debug_assertions)))]
     {
         let entry = keyring::Entry::new(SERVICE, key).map_err(|e| SecretError::Keyring(e.to_string()))?;
         match entry.delete_credential() {

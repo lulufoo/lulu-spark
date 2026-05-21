@@ -227,6 +227,7 @@ pub fn run() {
             commands::read::search_workbench,
             commands::read::get_topics,
             commands::read::get_annotations,
+            commands::read::get_tags_registry,
             commands::read::get_annotation,
             commands::read::get_draft,
             commands::read::get_config,
@@ -275,6 +276,9 @@ pub fn run() {
             commands::write::kb_reorder_comments,
             commands::write::kb_update_highlights,
             commands::write::kb_update_links,
+            commands::write::tag_attach,
+            commands::write::tag_detach,
+            commands::write::tag_update_value,
         ])
         .setup(|app| {
             // Auto-start Meilisearch if not already running
@@ -282,6 +286,23 @@ pub fn run() {
             app.manage(MeiliProcess::new(meili_child));
             create_main_window(app)?;
             app.manage(services::reindex::ReindexState::new());
+
+            let app_handle = app.handle().clone();
+            std::thread::spawn(move || {
+                let Ok(repo_root) = crate::config::paths::repo_root() else {
+                    return;
+                };
+                let corpus =
+                    crate::config::meili_env::workbench_knowledge_root_path(&repo_root);
+                if !corpus.join("index.json").is_file() {
+                    return;
+                }
+                if services::tags_registry::reconcile_tags(&repo_root).is_none() {
+                    use tauri::Emitter;
+                    let _ = app_handle.emit("tags:reconciled", ());
+                }
+            });
+
             Ok(())
         })
         .build(tauri::generate_context!())

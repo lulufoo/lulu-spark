@@ -18,11 +18,14 @@ const P2_PATHS = [
   ['/api/kb/reorder-comments', 'kb_reorder_comments', ['repo', 'path', 'ids']],
   ['/api/kb/update-highlights', 'kb_update_highlights', ['repo', 'path', 'highlight', 'ts']],
   ['/api/kb/update-links', 'kb_update_links', ['repo', 'path', 'links']],
+  ['/api/tag/attach', 'tag_attach', ['commonPath', 'key', 'value']],
+  ['/api/tag/detach', 'tag_detach', ['commonPath', 'key']],
+  ['/api/tag/update-value', 'tag_update_value', ['key', 'value']],
 ];
 
 describe('writeApiContract', () => {
-  it('covers all 13 P2 POST paths with command names', () => {
-    expect(Object.keys(WRITE_API_INVOKE_MAP)).toHaveLength(13);
+  it('covers all 16 P2 POST paths with command names', () => {
+    expect(Object.keys(WRITE_API_INVOKE_MAP)).toHaveLength(16);
     for (const [path, cmd] of P2_PATHS) {
       expect(WRITE_API_INVOKE_MAP[path]?.cmd, path).toBe(cmd);
     }

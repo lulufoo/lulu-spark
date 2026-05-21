@@ -8,6 +8,7 @@ use chrono::{TimeZone, Utc};
 use serde_json::{json, Map, Value};
 
 use crate::services::annotation::read_annotation_object;
+use crate::services::tags_registry::read_registry;
 
 pub use crate::config::meili_env::{github_user_url_string, workbench_knowledge_root_path, knowledge_corpus_root_string};
 use crate::config::secrets;
@@ -114,8 +115,29 @@ pub fn get_annotation(repo_root: &Path, path: &str) -> Value {
     read_annotation_object(&corpus, common_path)
 }
 
+fn resolve_tags(registry: &Value, tag_keys: &[Value]) -> Value {
+    let reg_keys = registry.get("keys").and_then(|v| v.as_object());
+    let tags: Vec<Value> = tag_keys
+        .iter()
+        .filter_map(|v| v.as_str())
+        .map(|key| {
+            if let Some(entry) = reg_keys.and_then(|m| m.get(key)) {
+                let value = entry
+                    .get("value")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("");
+                json!({ "key": key, "value": value })
+            } else {
+                json!({ "key": key, "value": "未知标签", "unknown": true })
+            }
+        })
+        .collect();
+    Value::Array(tags)
+}
+
 pub fn get_annotations_summary(repo_root: &Path) -> Value {
     let corpus = workbench_knowledge_root_path(repo_root);
+    let registry = read_registry(&corpus);
     let index_path = corpus.join("index.json");
     let Ok(text) = fs::read_to_string(&index_path) else {
         return json!({ "error": format!("No such file: {}", index_path.display()) });
@@ -164,6 +186,12 @@ pub fn get_annotations_summary(repo_root: &Path) -> Value {
         if let Some(links) = ann_obj.get("links") {
             if !links.is_null() {
                 summary.insert("links".into(), links.clone());
+            }
+        }
+        if let Some(tag_keys) = ann_obj.get("tag_keys").and_then(|v| v.as_array()) {
+            if !tag_keys.is_empty() {
+                summary.insert("tag_keys".into(), Value::Array(tag_keys.clone()));
+                summary.insert("tags".into(), resolve_tags(&registry, tag_keys));
             }
         }
         for layer in ["raw", "distilled", "digest", "trace", "diagnose"] {

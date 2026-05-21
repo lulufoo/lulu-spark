@@ -237,6 +237,25 @@ export async function updateLinks(commonPath, links) {
   return writePost('/api/update-links', { common_path: commonPath, links });
 }
 
+export async function fetchTagsRegistry() {
+  return readGet('/api/tags/registry');
+}
+
+export async function tagAttach(commonPath, payload) {
+  return writePost('/api/tag/attach', {
+    common_path: commonPath,
+    ...payload,
+  });
+}
+
+export async function tagDetach(commonPath, key) {
+  return writePost('/api/tag/detach', { common_path: commonPath, key });
+}
+
+export async function tagUpdateValue(key, value) {
+  return writePost('/api/tag/update-value', { key, value });
+}
+
 export async function setImportance(commonPath, importance) {
   return writePost('/api/set-importance', {
     common_path: commonPath,

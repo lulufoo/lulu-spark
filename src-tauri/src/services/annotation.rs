@@ -1,10 +1,7 @@
 //! Corpus annotation write handlers (port `server.py` P2 annotation POSTs).
 
-use std::collections::hash_map::DefaultHasher;
 use std::fs;
-use std::hash::{Hash, Hasher};
 use std::path::{Path, PathBuf};
-use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde_json::{json, Map, Value};
 
@@ -12,18 +9,9 @@ use crate::config::meili_env::workbench_knowledge_root_path;
 use crate::repositories::annotation_paths::annotation_json_path;
 use crate::repositories::atomic_json;
 
-const ANNOTATION_LAYERS: &[&str] = &["raw", "distilled", "digest", "trace", "diagnose"];
+use super::id::random_hex12;
 
-fn random_hex12() -> String {
-    let mut h = DefaultHasher::new();
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_nanos()
-        .hash(&mut h);
-    std::thread::current().id().hash(&mut h);
-    format!("{:012x}", h.finish() & 0xFFFF_FFFF_FFFFu64)
-}
+const ANNOTATION_LAYERS: &[&str] = &["raw", "distilled", "digest", "trace", "diagnose"];
 
 fn is_valid_http_url(url: &str) -> bool {
     let rest = url

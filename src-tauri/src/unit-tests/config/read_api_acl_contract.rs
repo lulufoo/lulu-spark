@@ -55,6 +55,7 @@ const INVOKE_MAP_COMMANDS: &[&str] = &[
     "get_repo_dirs",
     "check_file",
     "fetch_link_title",
+    "get_tags_registry",
 ];
 
 #[test]

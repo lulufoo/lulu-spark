@@ -1,8 +1,8 @@
-import { state, loadDiffStatus } from './state.js'
+import { state, loadDiffStatus, mergeAnnotations } from './state.js'
 import { escHtml } from './utils.js'
 import { LAYERS, setGithubUserUrl } from './constants.js'
 import * as api from './api.js'
-import { buildGroups, renderSidebar, selectDate } from './components/sidebar.js'
+import { buildGroups, renderSidebar, selectDate, applyListFilters, selectTag } from './components/sidebar.js'
 import { enterEditMode, exitEditMode, saveDoc, showCommitBar, hideCommitBar, commitCurrentFile, openKbDoc, openDoc } from './components/viewer.js'
 import './components/comment-delete.js'
 import './components/comments.js'
@@ -27,9 +27,12 @@ async function loadIndex({ managedBtn = false } = {}) {
     state.index.data = normalizeCorpusIndex(data);
     state.index.groupedByDate = buildGroups(state.index.data);
     state.ui.activeTopic = null;
-    state.index.filteredGroups = state.index.groupedByDate;
+    state.ui.activeTagKey = null;
+    applyListFilters();
     renderSidebar();
-    await Promise.all([loadDiffStatus(), loadAnnotationsSummary()]);
+    await Promise.all([loadDiffStatus(), loadAnnotationsSummary(), loadTagsRegistry()]);
+    applyListFilters();
+    renderSidebar();
     const savedDate = sessionStorage.getItem('cta_active_date');
     const targetDate = (savedDate && state.index.filteredGroups.find(g => g.date === savedDate))
       ? savedDate
@@ -45,22 +48,18 @@ async function loadAnnotationsSummary() {
     const summary = await api.fetchAnnotationsSummary();
     if (!summary) return;
     state.index.annotations = summary;
-    for (const entry of Object.values(state.index.data)) {
-      const ann = state.index.annotations[entry.common_path];
-      if (ann) {
-        entry.done = ann.done || undefined;
-        entry.importance = ann.importance || undefined;
-        entry.links = ann.links || undefined;
-        entry._comment_counts = ann.comment_counts || undefined;
-      } else {
-        delete entry.done;
-        delete entry.importance;
-        delete entry.links;
-        delete entry._comment_counts;
-      }
-    }
+    if (state.index.data) mergeAnnotations(state.index.data, summary);
   } catch {
     // Non-fatal: annotations are optional
+  }
+}
+
+async function loadTagsRegistry() {
+  try {
+    const data = await api.fetchTagsRegistry();
+    if (data?.keys) state.index.tagsRegistry = { keys: data.keys };
+  } catch (e) {
+    console.error('loadTagsRegistry failed', e);
   }
 }
 
@@ -609,6 +608,31 @@ api.fetchTopics().then(data => {
 }).catch(() => {});
 loadIndex();
 initGlobalSearch();
+
+function registerTagsReconciledListener() {
+  const onReconciled = async () => {
+    await Promise.all([loadTagsRegistry(), loadAnnotationsSummary()]);
+    applyListFilters();
+    renderSidebar();
+  };
+  const tryAttach = () => {
+    const listen = typeof window !== 'undefined' && window.__TAURI__?.event?.listen;
+    if (typeof listen !== 'function') return false;
+    void listen('tags:reconciled', onReconciled);
+    return true;
+  };
+  if (tryAttach()) return;
+  let attempts = 0;
+  const timer = setInterval(() => {
+    if (tryAttach() || ++attempts >= 40) clearInterval(timer);
+  }, 50);
+}
+
+registerTagsReconciledListener();
+
+document.addEventListener('cta:filter-tag', ({ detail }) => {
+  if (detail?.key) selectTag(detail.key);
+});
 
 // ── Global search navigation ───────────────────────────────────────────────
 document.addEventListener('cta:open-entry', ({ detail }) => {
