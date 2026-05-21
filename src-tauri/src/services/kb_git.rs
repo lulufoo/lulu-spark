@@ -181,27 +181,5 @@ fn step_err(err: &GitError, step: &str) -> Value {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::config::settings;
-    use std::fs;
-    use std::sync::{Mutex, OnceLock};
-
-    static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
-
-    #[test]
-    fn kb_commit_fails_pre_check_when_unmerged() {
-        let _g = LOCK.get_or_init(|| Mutex::new(())).lock().expect("lock");
-        let dir = tempfile::tempdir().expect("tmp");
-        let kb = dir.path().join("kb");
-        let repo = kb.join("myrepo");
-        fs::create_dir_all(&repo).expect("mkdir");
-        git::exec(&repo, &["init"]).expect("init");
-        settings::write_test_config(dir.path(), dir.path(), Some(&kb));
-        // simulate unmerged: create index conflict via git plumbing is heavy; skip if has_unmerged false
-        let v = kb_git_commit(&json!({ "repo": "org/myrepo" }));
-        // without remote, may fail at push — not at pre-check
-        assert!(v.get("step").is_none() || v["step"] == "pre-check" || v.get("error").is_some());
-        settings::set_test_config_dir(None);
-    }
-}
+#[path = "../unit-tests/services/kb_git.rs"]
+mod tests;

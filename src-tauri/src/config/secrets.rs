@@ -134,24 +134,5 @@ pub fn secret_error_json(err: &SecretError) -> serde_json::Value {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn set_and_get_github_token() {
-        test_secrets_clear();
-        set_secret(KEY_GITHUB_TOKEN, "pat-test").expect("set");
-        assert_eq!(
-            get_secret(KEY_GITHUB_TOKEN).expect("get"),
-            Some("pat-test".to_string())
-        );
-    }
-
-    #[test]
-    fn empty_github_token_deletes_entry() {
-        test_secrets_clear();
-        set_secret(KEY_GITHUB_TOKEN, "x").expect("set");
-        delete_secret(KEY_GITHUB_TOKEN).expect("del");
-        assert_eq!(get_secret(KEY_GITHUB_TOKEN).expect("get"), None);
-    }
-}
+#[path = "../unit-tests/config/secrets.rs"]
+mod tests;

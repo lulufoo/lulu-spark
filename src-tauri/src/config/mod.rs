@@ -1,6 +1,10 @@
 pub mod meili_env;
+
 #[cfg(test)]
+#[path = "../unit-tests/config/read_api_acl_contract.rs"]
 mod read_api_acl_contract;
+
+
 pub mod paths;
 pub mod secrets;
 pub mod settings;

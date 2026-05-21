@@ -411,26 +411,5 @@ pub fn set_job_log(slot: &Arc<Mutex<JobState>>, log: impl Into<String>) {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn job_state_idle_has_expected_fields() {
-        let j = JobState::idle();
-        assert_eq!(j.status, "idle");
-        assert!(j.started_at.is_none());
-        assert!(j.finished_at.is_none());
-        assert!(j.log.is_empty());
-        let v = j.to_json();
-        assert_eq!(v["status"], "idle");
-        assert!(v.get("log").is_some());
-    }
-
-    #[test]
-    fn no_python3_spawn_in_reindex_module() {
-        let src = include_str!("reindex.rs");
-        assert!(!src.contains("Command::new(\"python3\")"));
-        assert!(src.contains("rebuild_workbench_index"));
-        assert!(src.contains("rebuild_knowledge_index"));
-    }
-}
+#[path = "../unit-tests/services/reindex.rs"]
+mod tests;

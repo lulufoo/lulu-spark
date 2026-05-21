@@ -57,44 +57,5 @@ pub fn draft_path(common_path: &str) -> Result<PathBuf, PathsError> {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use std::fs;
-    use std::sync::{Mutex, OnceLock};
-
-    static ENV_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
-
-    fn with_config_dir<F: FnOnce(&std::path::Path)>(f: F) {
-        let _g = ENV_LOCK.get_or_init(|| Mutex::new(())).lock().expect("lock");
-        let dir = tempfile::tempdir().expect("tmp");
-        settings::set_test_config_dir(Some(dir.path().to_path_buf()));
-        f(dir.path());
-        settings::set_test_config_dir(None);
-    }
-
-    #[test]
-    fn cache_dir_uses_settings_not_repo_dot_cache() {
-        with_config_dir(|cfg| {
-            let custom = cfg.join("custom-cache");
-            fs::write(
-                cfg.join("config.toml"),
-                format!(r#"cache_dir = "{}""#, custom.display()),
-            )
-            .expect("write");
-            let got = cache_dir().expect("cache_dir");
-            assert_eq!(got, custom);
-            let root = repo_root().expect("repo");
-            assert_ne!(got, root.join(".cache"));
-        });
-    }
-
-    #[test]
-    fn repo_root_matches_cargo_manifest_parent() {
-        let root = repo_root().expect("repo_root");
-        let expected = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .parent()
-            .expect("parent")
-            .to_path_buf();
-        assert_eq!(root, expected);
-    }
-}
+#[path = "../unit-tests/config/paths.rs"]
+mod tests;

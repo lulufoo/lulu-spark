@@ -39,39 +39,5 @@ pub fn save_comment_draft(payload: &Value) -> Value {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use std::fs;
-    use std::sync::{Mutex, OnceLock};
-
-    static ENV_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
-
-    fn with_cache<F: FnOnce()>(f: F) {
-        let _g = ENV_LOCK.get_or_init(|| Mutex::new(())).lock().expect("lock");
-        let dir = tempfile::tempdir().expect("tmp");
-        let cfg = dir.path().join("cfg");
-        fs::create_dir_all(&cfg).expect("mkdir");
-        let cache = dir.path().join("cache");
-        fs::write(
-            cfg.join("config.toml"),
-            format!(r#"cache_dir = "{}""#, cache.display()),
-        )
-        .expect("write");
-        crate::config::settings::set_test_config_dir(Some(cfg.clone()));
-        f();
-        crate::config::settings::set_test_config_dir(None);
-    }
-
-    #[test]
-    fn save_draft_writes_under_cache_dir() {
-        with_cache(|| {
-            let v = save_comment_draft(&json!({
-                "common_path": "proj/note.md",
-                "content": "hello"
-            }));
-            assert_eq!(v["ok"], true);
-            let p = paths::draft_path("proj/note.md").expect("path");
-            assert_eq!(fs::read_to_string(&p).expect("read"), "hello");
-        });
-    }
-}
+#[path = "../unit-tests/services/draft.rs"]
+mod tests;
