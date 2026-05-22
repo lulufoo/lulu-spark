@@ -7,15 +7,15 @@
       ]
     },
     {
-      "glob": "**/*.{java,kt}",
-      "required": [
-        "skill-config/cursor-rule-guard/coding-jvm-discipline.md"
-      ]
-    },
-    {
       "glob": "**/*.{ts,js}",
       "required": [
         "skill-config/cursor-rule-guard/coding-workbench-discipline.md"
+      ]
+    },
+    {
+      "glob": "**/*.md",
+      "required": [
+        "skill-config/cursor-rule-guard/md-global-discipline.md"
       ]
     }
   ]
