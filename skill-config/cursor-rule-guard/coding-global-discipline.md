@@ -4,7 +4,7 @@ rule-guard:
     - "**/*.{js,ts,jsx,tsx,py,go,rs,rb,swift,html,css,json,java,kt}"
 ---
 
-# AI Coding — Global
+# AI Coding — Global Discipline
 
 > Based on [Andrej Karpathy's observations](https://x.com/karpathy/status/2015883857489522876),
 > compiled by [forrestchang/andrej-karpathy-skills](https://github.com/forrestchang/andrej-karpathy-skills).
