@@ -84,14 +84,20 @@ export function renderTagsBar(entry) {
     chip.className = 'md-tag-chip';
     chip.textContent = `🏷 ${tag.value || tag.key}`;
     chip.title = '点击修改标签文案';
-    chip.addEventListener('click', () => editTagValue(tag));
+    chip.addEventListener('click', (e) => {
+      e.stopPropagation();
+      showEditTagValue(entry, tag, wrap);
+    });
 
     const delBtn = document.createElement('button');
     delBtn.type = 'button';
     delBtn.className = 'md-tag-chip-del';
     delBtn.textContent = '×';
     delBtn.title = '移除此标签';
-    delBtn.addEventListener('click', () => detachTag(entry, tag.key));
+    delBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      detachTag(entry, tag.key);
+    });
 
     wrap.append(chip, delBtn);
     bar.appendChild(wrap);
@@ -121,28 +127,85 @@ async function detachTag(entry, key) {
   }
 }
 
-async function editTagValue(tag) {
-  const next = prompt('修改标签文案', tag.value || '');
-  if (next === null) return;
-  const trimmed = next.trim();
+function showEditTagValue(entry, tag, wrapEl) {
+  if (wrapEl.querySelector('.md-tag-edit-row')) return;
+  wrapEl.innerHTML = '';
+  const row = document.createElement('span');
+  row.className = 'md-tag-edit-row';
+  row.style.cssText = 'display:inline-flex;align-items:center;gap:4px;margin-right:10px;flex-shrink:0;';
+
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.value = tag.value || '';
+  input.maxLength = TAG_VALUE_MAX_LEN;
+  input.style.cssText = 'font-size:12px;padding:2px 6px;border:1px solid #e8c547;border-radius:4px;min-width:120px;';
+
+  const okBtn = document.createElement('button');
+  okBtn.type = 'button';
+  okBtn.className = 'md-header-btn primary';
+  okBtn.style.cssText = 'font-size:11px;padding:2px 8px;';
+  okBtn.textContent = '保存';
+
+  const cancelBtn = document.createElement('button');
+  cancelBtn.type = 'button';
+  cancelBtn.className = 'md-header-btn';
+  cancelBtn.style.cssText = 'font-size:11px;padding:2px 8px;';
+  cancelBtn.textContent = '取消';
+
+  const err = document.createElement('span');
+  err.style.cssText = 'font-size:11px;color:#cf222e;';
+
+  cancelBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    renderTagsBar(entry);
+  });
+
+  okBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    void submitTagValueUpdate(entry, tag.key, input.value, err, row, okBtn);
+  });
+
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      void submitTagValueUpdate(entry, tag.key, input.value, err, row, okBtn);
+    }
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      renderTagsBar(entry);
+    }
+  });
+
+  row.append(input, okBtn, cancelBtn, err);
+  wrapEl.appendChild(row);
+  input.focus();
+  input.select();
+}
+
+async function submitTagValueUpdate(entry, key, rawValue, errEl, row, okBtn) {
+  const trimmed = (rawValue || '').trim();
   if (!trimmed) {
-    alert('标签文案不能为空');
+    errEl.textContent = '标签文案不能为空';
     return;
   }
   if (trimmed.length > TAG_VALUE_MAX_LEN) {
-    alert(`标签文案不能超过 ${TAG_VALUE_MAX_LEN} 个字符`);
+    errEl.textContent = `不能超过 ${TAG_VALUE_MAX_LEN} 个字符`;
     return;
   }
+  errEl.textContent = '';
+  okBtn.disabled = true;
   try {
-    const data = await api.tagUpdateValue(tag.key, trimmed);
+    const data = await api.tagUpdateValue(key, trimmed);
     if (!data.ok) {
-      alert(data.error || '更新失败');
+      errEl.textContent = data.error || '更新失败';
       return;
     }
     await refreshTagDisplayGlobally();
     if (state.viewer.entry) renderTagsBar(state.viewer.entry);
   } catch (e) {
-    alert(`更新失败：${e.message}`);
+    errEl.textContent = e.message || '更新失败';
+  } finally {
+    okBtn.disabled = false;
   }
 }
 
