@@ -2,16 +2,12 @@
 """install.py — lulu-workbench-skills multi-platform installer
 
 Usage:
-    python3 install.py [--platform cursor|copilot]
-
-If --platform is omitted, auto-detects via COPILOT_AGENT=1 env var.
+    python3 install.py --platform cursor|copilot
 """
 
 import argparse
-import os
 import pathlib
 import subprocess
-import sys
 
 REPO_URL  = "https://github.com/lulufoo/lulu-workbench-skills.git"
 REPO_NAME = "lulu-workbench-skills"
@@ -24,13 +20,6 @@ PLATFORM_ROOTS: dict[str, pathlib.Path] = {
 }
 
 
-def detect_platform() -> str:
-    """Auto-detect platform from env; default to cursor."""
-    if os.environ.get("COPILOT_AGENT") == "1":
-        return "copilot"
-    return "cursor"
-
-
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Install lulu-workbench-skills for Cursor or Copilot"
@@ -38,11 +27,12 @@ def main() -> None:
     parser.add_argument(
         "--platform",
         choices=list(PLATFORM_ROOTS),
-        help="Target platform (default: auto-detect via COPILOT_AGENT env var)",
+        required=True,
+        help="Target platform: cursor or copilot",
     )
     args = parser.parse_args()
 
-    platform = args.platform or detect_platform()
+    platform = args.platform
     root: pathlib.Path = PLATFORM_ROOTS[platform]
     root.mkdir(parents=True, exist_ok=True)
 

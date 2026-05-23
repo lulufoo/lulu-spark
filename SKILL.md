@@ -14,16 +14,14 @@ description: >-
 | | Cursor | Copilot |
 |---|---|---|
 | `$SKILL_DIR` | `~/.cursor/skills/lulu-workbench-skills` | `~/.copilot/skills/lulu-workbench-skills` |
-
-> **Detect:** `COPILOT_AGENT=1` env var → Copilot; otherwise → Cursor.
+| `--platform` | `cursor` | `copilot` |
 
 ## 安装
 
 ```bash
-python3 install.py [--platform cursor|copilot]
+python3 install.py --platform cursor
+python3 install.py --platform copilot
 ```
-
-`--platform` 省略时脚本自动检测（`COPILOT_AGENT=1` → copilot；否则 → cursor）。
 
 克隆完成后平台自动发现子 skill（`dialogue-summary`、`theme-summary`、`theme-line`、`theme-digest`），均无需额外操作。
 
