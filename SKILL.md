@@ -1,24 +1,35 @@
 ---
 name: lulu-workbench-skills
 description: >-
-  lulu-workbench 归档技能包安装与配置。克隆仓库至 ~/.cursor/skills/，编辑 config.json 的 archive_root。
+  lulu-workbench 归档技能包安装与配置。支持 Cursor 和 Copilot，通过 install.py 安装；编辑 config.json 的 archive_root。
   Use when: 安装 workbench skills、配置 archive_root、dialogue-summary theme-summary theme-line theme-digest
 ---
 
 # lulu-workbench-skills — 安装与配置
 
-## 1. 安装（Cursor）
+## Platform Context
+
+**Detect once; substitute `$SKILL_DIR` throughout:**
+
+| | Cursor | Copilot |
+|---|---|---|
+| `$SKILL_DIR` | `~/.cursor/skills/lulu-workbench-skills` | `~/.copilot/skills/lulu-workbench-skills` |
+
+> **Detect:** `COPILOT_AGENT=1` env var → Copilot; otherwise → Cursor.
+
+## 安装
 
 ```bash
-cd ~/.cursor/skills
-git clone https://github.com/lulufoo/lulu-workbench-skills.git lulu-workbench-skills
+python3 install.py [--platform cursor|copilot]
 ```
 
-克隆完成后 Cursor 自动发现子 skill（`dialogue-summary`、`theme-summary`、`theme-line`、`theme-digest`），`shared/` 通过相对路径访问，均无需额外操作。
+`--platform` 省略时脚本自动检测（`COPILOT_AGENT=1` → copilot；否则 → cursor）。
 
-## 2. 配置 archive_root
+克隆完成后平台自动发现子 skill（`dialogue-summary`、`theme-summary`、`theme-line`、`theme-digest`），均无需额外操作。
 
-编辑 `~/.cursor/skills/lulu-workbench-skills/config.json`：
+## 配置 archive_root
+
+编辑 `$SKILL_DIR/config.json`：
 
 ```json
 {
@@ -28,7 +39,7 @@ git clone https://github.com/lulufoo/lulu-workbench-skills.git lulu-workbench-sk
 
 子 skill 执行时读取此文件获取 `archive_root`。
 
-## 3. 子 skill
+## 子 skill
 
 | 指令 | 目录 | 说明 |
 |------|------|------|
@@ -37,8 +48,8 @@ git clone https://github.com/lulufoo/lulu-workbench-skills.git lulu-workbench-sk
 | `theme-line` | [theme-line/](theme-line/) | 视频/访谈稿重构为主题优先时间线大纲，保存至 `raw/` 并自动 digest |
 | `theme-digest` | [theme-digest/](theme-digest/) | 从 `raw/` 生成或补跑 `digest/`；producer 链式 Embedded，亦可独立调用 |
 
-## 4. 验收
+## 验收
 
-触发任一子 skill 时，AI 首步读取 `archive_root`；确认输出路径与 `config.json` 中的值一致即可。
+触发任一子 skill 时，AI 首步读取 `archive_root`；确认输出路径与 `$SKILL_DIR/config.json` 中的值一致即可。
 
-共享规范：[archive-concepts](shared/archive-concepts.md)。digest 执行见 [theme-digest](theme-digest/SKILL.md)（[archive-digest](shared/archive-digest.md) 为兼容跳转）。
+digest 执行见 [theme-digest/SKILL.md](theme-digest/SKILL.md)。
