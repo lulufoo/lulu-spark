@@ -2,7 +2,8 @@
 """install.py — lulu-workbench-skills multi-platform installer
 
 Usage:
-    python3 install.py --platform cursor|copilot
+    python3 install.py cursor
+    python3 install.py copilot
 """
 
 import argparse
@@ -25,9 +26,8 @@ def main() -> None:
         description="Install lulu-workbench-skills for Cursor or Copilot"
     )
     parser.add_argument(
-        "--platform",
+        "platform",
         choices=list(PLATFORM_ROOTS),
-        required=True,
         help="Target platform: cursor or copilot",
     )
     args = parser.parse_args()
