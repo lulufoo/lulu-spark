@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { buildCard, updateTitlesInDOM, sourceTypeBadgeHtml } from '../frontend/js/components/cards.js';
+import { buildCard, updateTitlesInDOM, loadTitles, sourceTypeBadgeHtml } from '../frontend/js/components/cards.js';
 import { state } from '../frontend/js/state.js';
+import * as api from '../frontend/js/api.js';
 
 vi.mock('../frontend/js/api.js', () => ({
   setImportance: vi.fn(),
@@ -82,6 +83,39 @@ describe('buildCard source_type badge', () => {
     };
     const card = buildCard('id4', entry, 'Title');
     expect(card.querySelector('.badge-source')).toBeNull();
+  });
+});
+
+describe('loadTitles incremental cache', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('已有 date 缓存时仍为新条目拉取 H1 标题', async () => {
+    const date = '20260522';
+    state.ui.activeDate = date;
+    state.index.titleCache.set(date, new Map([['old-id', 'Cached Title']]));
+
+    const newEntry = {
+      common_path: 'ai-software-dev/diagnostic-gate-model-design/202605222313-diagnostic-gate-model-design.md',
+      created_at: '202605222313',
+      layers: ['raw'],
+    };
+    state.index.groupedByDate = [{ date, entries: [{ id: 'new-id', entry: newEntry }] }];
+
+    api.fetchFileContent.mockResolvedValueOnce('# Real H1 From Raw\n\nbody');
+    await loadTitles([{ id: 'new-id', entry: newEntry }], date);
+
+    expect(api.fetchFileContent).toHaveBeenCalledTimes(1);
+    expect(state.index.titleCache.get(date).get('new-id')).toBe('Real H1 From Raw');
+    expect(state.index.titleCache.get(date).get('old-id')).toBe('Cached Title');
+  });
+
+  it('缓存已覆盖全部条目时不重复请求', async () => {
+    const date = '20260522';
+    state.index.titleCache.set(date, new Map([['id1', 'Done']]));
+    await loadTitles([{ id: 'id1', entry: { common_path: 'p/t/202605221200-x.md', layers: ['raw'] } }], date);
+    expect(api.fetchFileContent).not.toHaveBeenCalled();
   });
 });
 

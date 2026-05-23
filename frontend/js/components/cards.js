@@ -232,17 +232,20 @@ export function renderDocList(entries, date) {
 // ── loadTitles ────────────────────────────────────────────────────────
 
 export async function loadTitles(entries, date) {
-  if (state.index.titleCache.has(date)) {
-    updateTitlesInDOM(date);
+  if (!state.index.titleCache.has(date)) {
+    state.index.titleCache.set(date, new Map());
+  }
+  const cache = state.index.titleCache.get(date);
+  const pending = entries.filter(({ id }) => !cache.has(id));
+  if (pending.length === 0) {
+    if (state.ui.activeDate === date) updateTitlesInDOM(date);
     return;
   }
 
-  state.index.titleCache.set(date, new Map());
-
-  await Promise.all(entries.map(async ({ id, entry }) => {
+  await Promise.all(pending.map(async ({ id, entry }) => {
     if (!entry.layers?.includes('raw')) {
       const title = slugToTitle(filenameFromPath(entry.common_path));
-      state.index.titleCache.get(date).set(id, title);
+      cache.set(id, title);
       return;
     }
 
@@ -251,10 +254,10 @@ export async function loadTitles(entries, date) {
       const text = await api.fetchFileContent('raw', titlePath);
       const h1Match = text.match(/^#\s+(.+)/m);
       const title = h1Match ? h1Match[1].trim() : slugToTitle(filenameFromPath(entry.common_path));
-      state.index.titleCache.get(date).set(id, title);
+      cache.set(id, title);
     } catch {
       entry._unreachable_raw = true;
-      state.index.titleCache.get(date).set(id, slugToTitle(filenameFromPath(entry.common_path)));
+      cache.set(id, slugToTitle(filenameFromPath(entry.common_path)));
     }
   }));
 
