@@ -14,12 +14,12 @@ description: >-
 | | Cursor | Copilot |
 |---|---|---|
 | `$SKILL_DIR` | `~/.cursor/skills/lulu-workbench-skills` | `~/.copilot/skills/lulu-workbench-skills` |
-| `$P` | `cursor` | `copilot` |
-
+| `$PLATFORM_FLAG` | cursor | copilot |
+		
 ## 安裃
 
 ```bash
-python3 install.py --platform $P
+python3 install.py --platform $PLATFORM_FLAG
 ```
 
 克隆完成后平台自动发现子 skill（`dialogue-summary`、`theme-summary`、`theme-line`、`theme-digest`），均无需额外操作。
