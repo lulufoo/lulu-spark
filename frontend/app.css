@@ -656,6 +656,26 @@
   }
   .repo-sync-btn:hover:not(:disabled) { background: #dbeafe; border-color: #0969da; }
   .repo-sync-btn:disabled { opacity: .5; cursor: default; }
+  .repo-list-item-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+  .repo-diff-badge {
+    flex-shrink: 0;
+    font-size: 11px;
+    padding: 2px 8px;
+    background: #fff8c5;
+    border: 1px solid #d4a72c;
+    border-radius: 4px;
+    color: #7d4e00;
+    cursor: pointer;
+    white-space: nowrap;
+    line-height: 1.6;
+    font-weight: 600;
+  }
+  .repo-diff-badge:hover { background: #ffe89d; border-color: #bf8700; }
   #repo-list-loading { font-size: 13px; color: #8c959f; padding: 16px 0; text-align: center; }
   #repo-list-dialog-actions {
     display: flex;
@@ -1728,6 +1748,97 @@
   #kb-commit-result { flex: 1; font-size: 12px; }
   #kb-btn-commit-ok:hover:not(:disabled) { background: #388bfd; }
   #kb-btn-commit-ok:disabled { opacity: .5; cursor: default; }
+  #kb-diff-dialog {
+    position: fixed;
+    inset: 0;
+    z-index: 2100;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0,0,0,.45);
+  }
+  #kb-diff-dialog.open { display: flex; }
+  #kb-diff-dialog-box {
+    background: #fff;
+    border-radius: 10px;
+    padding: 24px 24px 20px;
+    width: min(580px, 92vw);
+    max-height: 78vh;
+    overflow-y: auto;
+    box-shadow: 0 8px 40px rgba(0,0,0,.3);
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  #kb-diff-dialog-title-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  #kb-diff-dialog-title {
+    font-size: 15px;
+    color: #24292f;
+    margin: 0;
+    font-weight: 600;
+  }
+  #btn-kb-diff-revert-all {
+    background: none;
+    border: 1px solid #d0d7de;
+    border-radius: 6px;
+    padding: 4px 12px;
+    font-size: 12px;
+    cursor: pointer;
+    color: #57606a;
+    flex-shrink: 0;
+  }
+  #btn-kb-diff-revert-all:hover:not(:disabled) { border-color: #cf222e; color: #cf222e; }
+  #btn-kb-diff-revert-all:disabled { opacity: .5; cursor: default; }
+  #kb-diff-file-list {
+    max-height: 220px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  #kb-diff-msg {
+    width: 100%;
+    padding: 7px 10px;
+    border: 1px solid #d0d7de;
+    border-radius: 6px;
+    font-size: 13px;
+    outline: none;
+    box-sizing: border-box;
+  }
+  #kb-diff-msg:focus { border-color: #0969da; }
+  #kb-diff-dialog-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  #kb-diff-result { flex: 1; font-size: 12px; }
+  #btn-kb-diff-ok {
+    background: #1c4a2e;
+    color: #cdd9e5;
+    border: none;
+    border-radius: 6px;
+    padding: 6px 18px;
+    font-size: 13px;
+    cursor: pointer;
+    font-weight: 600;
+    flex-shrink: 0;
+  }
+  #btn-kb-diff-ok:hover:not(:disabled) { background: #2a6040; }
+  #btn-kb-diff-ok:disabled { opacity: .5; cursor: default; }
+  #btn-kb-diff-cancel {
+    background: none;
+    border: 1px solid #d0d7de;
+    border-radius: 6px;
+    padding: 6px 16px;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  #btn-kb-diff-cancel:hover { background: #f6f8fa; }
   #commit-changes-msg {
     width: 100%;
     padding: 7px 10px;

@@ -256,6 +256,7 @@ pub fn run() {
             commands::read::get_corpus_index,
             commands::read::get_corpus_file,
             commands::read::get_kb_corpus_status,
+            commands::read::get_kb_diff_status,
             commands::search::reindex_knowledge,
             commands::search::reindex_workbench,
             commands::search::reindex_kb_repo,

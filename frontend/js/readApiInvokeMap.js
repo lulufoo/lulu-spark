@@ -72,6 +72,9 @@ export const READ_API_INVOKE_MAP = {
     cmd: 'kb_status',
     args: (url) => ({ repo: url.searchParams.get('repo') ?? '' }),
   },
+  '/api/kb/diff-status': {
+    cmd: 'get_kb_diff_status',
+  },
   '/api/repo-list': {
     cmd: 'get_repo_list',
     args: (url) => ({

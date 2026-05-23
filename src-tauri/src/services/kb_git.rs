@@ -157,11 +157,19 @@ pub fn kb_git_revert(payload: &Value) -> Value {
             }
         }
     } else {
-        let r1 = git::checkout_paths(&local, &["."]).unwrap_or_else(|e| git::GitOutput {
-            stdout: String::new(),
-            stderr: e.message,
-            success: false,
-        });
+        let r1 = if git::has_unmerged(&local).unwrap_or(false) {
+            git::exec(&local, &["reset", "--hard", "HEAD"]).unwrap_or_else(|e| git::GitOutput {
+                stdout: String::new(),
+                stderr: e.message,
+                success: false,
+            })
+        } else {
+            git::checkout_paths(&local, &["."]).unwrap_or_else(|e| git::GitOutput {
+                stdout: String::new(),
+                stderr: e.message,
+                success: false,
+            })
+        };
         if !r1.success {
             return json!({
                 "error": format!("revert all failed: {}", r1.stderr.trim()),

@@ -85,22 +85,74 @@ pub fn sync_repo_blocking(repo: &str, kb_root: &Path) -> (String, String, Option
             ),
         }
     } else {
+        let format_output = |stdout: &str, stderr: &str| {
+            let err = stderr.trim().to_string();
+            let out = stdout.trim().to_string();
+            if err.is_empty() { out } else { err }
+        };
+
+        let (stash_empty, stash_out) = match git::stash_save(&local_dir) {
+            Ok(result) => result,
+            Err(e) => {
+                return (
+                    repo_name,
+                    "pull_failed".to_string(),
+                    Some(e.message),
+                )
+            }
+        };
+
+        if !stash_empty && !stash_out.success {
+            return (
+                repo_name,
+                "pull_failed".to_string(),
+                Some(format_output(&stash_out.stdout, &stash_out.stderr)),
+            );
+        }
+
         match crate::integrations::git::pull_rebase(&local_dir) {
-            Ok(o) if o.success => (repo_name, "pulled".to_string(), None),
+            Ok(o) if o.success => {
+                if stash_empty {
+                    (repo_name, "pulled".to_string(), None)
+                } else {
+                    match git::stash_pop(&local_dir) {
+                        Ok(pop) if pop.success => (repo_name, "pulled".to_string(), None),
+                        Ok(pop) => (
+                            repo_name,
+                            "pull_failed".to_string(),
+                            Some(format!(
+                                "stash pop failed: {}",
+                                format_output(&pop.stdout, &pop.stderr)
+                            )),
+                        ),
+                        Err(e) => (
+                            repo_name,
+                            "pull_failed".to_string(),
+                            Some(e.message),
+                        ),
+                    }
+                }
+            }
             Ok(o) => {
-                let err = o.stderr.trim().to_string();
-                let out = o.stdout.trim().to_string();
+                if !stash_empty {
+                    let _ = git::stash_pop(&local_dir);
+                }
                 (
                     repo_name,
                     "pull_failed".to_string(),
-                    Some(if err.is_empty() { out } else { err }),
+                    Some(format_output(&o.stdout, &o.stderr)),
                 )
             }
-            Err(e) => (
-                repo_name,
-                "pull_failed".to_string(),
-                Some(e.message),
-            ),
+            Err(e) => {
+                if !stash_empty {
+                    let _ = git::stash_pop(&local_dir);
+                }
+                (
+                    repo_name,
+                    "pull_failed".to_string(),
+                    Some(e.message),
+                )
+            }
         }
     }
 }

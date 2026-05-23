@@ -9,6 +9,7 @@ import './components/comments.js'
 import './components/kb-viewer.js'
 import './components/modals/delete-dialog.js'
 import './components/modals/commit-dialog.js'
+import { openKbDiffDialog } from './components/modals/kb-diff-dialog.js'
 import './components/modals/move-dialog.js'
 import { openBase64Dialog } from './components/modals/base64-dialog.js'
 import { openSettingsDialog } from './components/modals/settings-dialog.js'
@@ -154,6 +155,7 @@ const _KB_TYPES = new Set(['KNOWLEDGE_CORPUS', 'WORKBENCH_KNOWLEDGE']);
 
 let _kbCorpusStatus = null;
 let _kbCorpusStatusType = null;
+let _kbCorpusDiffStatus = null;
 
 async function _loadKbCorpusStatus(filterType, forceRefresh = false) {
   if (!forceRefresh && _kbCorpusStatus && _kbCorpusStatusType === filterType) {
@@ -169,6 +171,24 @@ async function _loadKbCorpusStatus(filterType, forceRefresh = false) {
   } catch (e) {
     if (_kbCorpusStatusType !== filterType) return;
     _kbCorpusStatus = [];
+  }
+  _renderRepoListFiltered();
+
+  if (filterType !== 'KNOWLEDGE_CORPUS') {
+    _kbCorpusDiffStatus = null;
+    return;
+  }
+
+  _kbCorpusDiffStatus = null;
+  try {
+    const data = await api.fetchKbDiffStatus();
+    if (_kbCorpusStatusType !== filterType) return;
+    _kbCorpusDiffStatus = new Map(
+      (data?.repos || []).map((repo) => [repo.full_name, repo.has_changes === true])
+    );
+  } catch (e) {
+    if (_kbCorpusStatusType !== filterType) return;
+    _kbCorpusDiffStatus = new Map();
   }
   _renderRepoListFiltered();
 }
@@ -223,6 +243,7 @@ function _renderRepoListFiltered() {
       const url = `https://github.com/${escHtml(r.full_name || r.name)}`;
 
       let localBadge = '';
+      let diffBtnHtml = '';
       let syncBtnHtml = '';
       if (isKbView) {
         const st = statusMap[r.full_name];
@@ -231,6 +252,9 @@ function _renderRepoListFiltered() {
             localBadge = `<span class="repo-local-badge repo-local-ok">已克隆</span>`;
           } else {
             localBadge = `<span class="repo-local-badge repo-local-missing">未克隆</span>`;
+          }
+          if (selected === 'KNOWLEDGE_CORPUS' && _kbCorpusDiffStatus?.get(r.full_name) === true) {
+            diffBtnHtml = `<button class="repo-diff-badge" data-repo="${escHtml(r.full_name)}" title="查看本地变更">✎</button>`;
           }
           syncBtnHtml = `<button class="repo-sync-btn" data-repo="${escHtml(r.full_name)}" data-repotype="${escHtml(selected)}">SYNC</button>`;
         }
@@ -241,8 +265,11 @@ function _renderRepoListFiltered() {
           <div class="repo-list-item-name">${name}${localBadge}</div>
           ${desc}
         </div>
-        ${syncBtnHtml}
-        <a class="repo-list-item-link" href="${url}" target="_blank" rel="noopener noreferrer">Link ↗</a>
+        <div class="repo-list-item-actions">
+          ${diffBtnHtml}
+          ${syncBtnHtml}
+          <a class="repo-list-item-link" href="${url}" target="_blank" rel="noopener noreferrer">Link ↗</a>
+        </div>
       </div>`;
     }).join('');
     const title = showGroupTitle ? `<div class="repo-list-group-title">${escHtml(key)}</div>` : '';
@@ -269,7 +296,7 @@ function _renderRepoListFiltered() {
         for (let i = 0; i < 120; i++) {
           await new Promise(r => setTimeout(r, 2000));
           const s = await poll();
-          if (!s.running) break;
+          if (s?.status !== 'running') break;
         }
         _kbCorpusStatus = null;
         await _loadKbCorpusStatus(repoType, true);
@@ -278,6 +305,12 @@ function _renderRepoListFiltered() {
         btn.disabled = false;
         btn.textContent = 'SYNC';
       }
+    });
+  });
+
+  content.querySelectorAll('.repo-diff-badge').forEach(btn => {
+    btn.addEventListener('click', () => {
+      openKbDiffDialog(btn.dataset.repo);
     });
   });
 }
@@ -322,9 +355,20 @@ document.getElementById('repo-list-filter').addEventListener('change', () => {
   const val = filter ? filter.value : 'KNOWLEDGE_CORPUS';
   _kbCorpusStatus = null;
   _kbCorpusStatusType = null;
+  _kbCorpusDiffStatus = null;
   _renderRepoListFiltered();
   if (_KB_TYPES.has(val)) {
     _loadKbCorpusStatus(val);
+  }
+});
+
+window.addEventListener('kb-diff-updated', () => {
+  const filter = document.getElementById('repo-list-filter');
+  const val = filter ? filter.value : 'KNOWLEDGE_CORPUS';
+  if (_KB_TYPES.has(val)) {
+    _kbCorpusStatus = null;
+    _kbCorpusDiffStatus = null;
+    _loadKbCorpusStatus(val, true);
   }
 });
 
@@ -425,7 +469,7 @@ document.getElementById('btn-kb-corpus-sync').addEventListener('click', async ()
     for (let i = 0; i < 120; i++) {
       await new Promise(r => setTimeout(r, 2000));
       const s = await poll();
-      if (!s.running) break;
+      if (s?.status !== 'running') break;
     }
     _kbCorpusStatus = null;
     const filter2 = document.getElementById('repo-list-filter');

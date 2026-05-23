@@ -197,6 +197,10 @@ export async function fetchKbStatus(repo) {
   return res.json();
 }
 
+export async function fetchKbDiffStatus() {
+  return readGet('/api/kb/diff-status?_=' + Date.now());
+}
+
 export async function revertKbFile(repo, path, type) {
   const body = { repo };
   if (path) { body.path = path; body.type = type; }

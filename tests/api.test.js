@@ -5,6 +5,7 @@ import {
   assertReadPayload,
   assertWritePayload,
   fetchIndex, fetchDiffStatus, fetchAnnotationsSummary, fetchAnnotation,
+  fetchKbDiffStatus,
   fetchConfig, fetchFileContent, fetchLinkTitle,
   setConfig,
   saveFile, commitFiles, pullProject,
@@ -141,6 +142,15 @@ test('fetchLinkTitle 对 url 做 encodeURIComponent', async () => {
     new RegExp(`${API_READ_PREFIX}/fetch-title\\?url=${encodeURIComponent('https://example.com/a b')}`)
   )
   expect(result.title).toBe('My Page')
+})
+
+test('fetchKbDiffStatus 调用 /api/kb/diff-status 并返回 JSON', async () => {
+  mockFetch({ repos: [{ full_name: 'o/r', has_changes: true }] })
+  const result = await fetchKbDiffStatus()
+  expect(fetch.mock.calls[0][0]).toMatch(
+    new RegExp(`^${API_READ_PREFIX}/kb/diff-status`)
+  )
+  expect(result).toEqual({ repos: [{ full_name: 'o/r', has_changes: true }] })
 })
 
 // ── POST endpoints ─────────────────────────────────────────────────────────

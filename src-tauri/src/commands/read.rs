@@ -273,3 +273,42 @@ pub fn get_kb_corpus_status(
     };
     Ok(json!({ "repos": repos }))
 }
+
+#[tauri::command]
+pub fn get_kb_diff_status(_app: AppHandle) -> Result<Value, String> {
+    let repo_root = repo_root()?;
+    let knowledge_corpus_root = std::path::PathBuf::from(
+        crate::config::meili_env::knowledge_corpus_root_string(&repo_root),
+    );
+
+    let repos: Vec<Value> = workbench_read::get_topics(&repo_root)
+        .get("topics")
+        .and_then(|topics| topics.as_array())
+        .map(|topics| {
+            topics
+                .iter()
+                .filter_map(|item| {
+                    let full_name = item.get("repo")?.as_str()?;
+                    let name = full_name.split('/').next_back().unwrap_or(full_name);
+                    if !knowledge_corpus_root.join(name).is_dir() {
+                        return None;
+                    }
+
+                    let status = crate::services::kb::kb_status_json(&repo_root, full_name);
+                    let has_changes = status
+                        .get("total")
+                        .and_then(|total| total.as_u64())
+                        .map(|total| total > 0)
+                        .unwrap_or(false);
+
+                    Some(json!({
+                        "full_name": full_name,
+                        "has_changes": has_changes,
+                    }))
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+
+    Ok(json!({ "repos": repos }))
+}
