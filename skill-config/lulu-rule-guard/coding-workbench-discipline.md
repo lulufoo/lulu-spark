@@ -1,5 +1,7 @@
 # Workbench coding discipline (TS / JS)
 
+> GitHub workflow discipline（Worktree / Commit / PR）：[docs/github-workflow.md](../../docs/github-workflow.md)
+
 ## Rules
 
 1. **Tauri invoke (`*InvokeMap.js`)**: Payload keys camelCase (e.g. `filterType`); Rust snake_case. snake_case in payload is silently dropped.
