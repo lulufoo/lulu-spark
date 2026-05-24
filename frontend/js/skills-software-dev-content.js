@@ -26,11 +26,11 @@ export const softwareDevSkillsContent = {
     },
     {
       name: '规则守卫',
-      url: 'https://github.com/lulufoo/lulu-dev-skills/tree/main/cursor-rule-guard',
+      url: 'https://github.com/lulufoo/lulu-dev-skills/tree/main/lulu-rule-guard',
       items: [
         {
-          cmd: 'cursor-rule-guard',
-          name: 'Cursor 规则守卫',
+          cmd: 'lulu-rule-guard',
+          name: '规则守卫',
           desc: '初始化或管理规则守卫、配置 preToolUse 钩子、要求先读后写',
         },
       ],
