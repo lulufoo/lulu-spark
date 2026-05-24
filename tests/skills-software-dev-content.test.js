@@ -16,7 +16,7 @@ test('softwareDev has 4 groups', () => {
 
 test('third group is 规则守卫', () => {
   expect(softwareDevSkillsContent.groups[2].name).toBe('规则守卫')
-  expect(softwareDevSkillsContent.groups[2].items[0].cmd).toBe('cursor-rule-guard')
+  expect(softwareDevSkillsContent.groups[2].items[0].cmd).toBe('lulu-rule-guard')
 })
 
 test('研发工作流 group has 6 workflow commands', () => {
