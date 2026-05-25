@@ -237,6 +237,7 @@ pub fn run() {
             commands::sync::save_comment_draft,
             commands::sync::corpus_git_commit,
             commands::sync::corpus_git_pull,
+            commands::sync::corpus_git_revert,
             commands::sync::kb_git_commit,
             commands::sync::kb_git_revert,
             commands::sync::delete_entry,

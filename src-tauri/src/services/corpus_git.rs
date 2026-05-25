@@ -90,6 +90,66 @@ pub fn corpus_git_pull(_payload: &Value) -> Value {
     }
 }
 
+pub fn corpus_git_revert(payload: &Value) -> Value {
+    let corpus = match workbench_knowledge_root() {
+        Ok(p) => p,
+        Err(v) => return v,
+    };
+    if !corpus.join(".git").exists() {
+        return json!({ "error": format!("corpus is not a git repository: {}", corpus.display()), "_status": 500 });
+    }
+    let path = payload.get("path").and_then(|v| v.as_str()).unwrap_or("").trim();
+    let file_type = payload.get("type").and_then(|v| v.as_str()).unwrap_or("").trim();
+
+    if !path.is_empty() {
+        if file_type == "new" {
+            let target = corpus.join(path);
+            if target.is_dir() {
+                let _ = std::fs::remove_dir_all(&target);
+            } else if target.exists() {
+                let _ = std::fs::remove_file(&target);
+            } else {
+                let _ = git::exec(&corpus, &["clean", "-fx", "--", path]);
+            }
+        } else {
+            let out = match git::checkout_paths(&corpus, &[path]) {
+                Ok(o) => o,
+                Err(e) => {
+                    return json!({ "error": e.message, "_status": 500 });
+                }
+            };
+            if !out.success {
+                return json!({
+                    "error": format!("revert failed: {}", out.stderr.trim()),
+                    "_status": 500
+                });
+            }
+        }
+    } else {
+        let r1 = if git::has_unmerged(&corpus).unwrap_or(false) {
+            git::exec(&corpus, &["reset", "--hard", "HEAD"]).unwrap_or_else(|e| git::GitOutput {
+                stdout: String::new(),
+                stderr: e.message,
+                success: false,
+            })
+        } else {
+            git::checkout_paths(&corpus, &["."]).unwrap_or_else(|e| git::GitOutput {
+                stdout: String::new(),
+                stderr: e.message,
+                success: false,
+            })
+        };
+        if !r1.success {
+            return json!({
+                "error": format!("revert all failed: {}", r1.stderr.trim()),
+                "_status": 500
+            });
+        }
+        let _ = git::clean_force(&corpus, &["-fd"]);
+    }
+    json!({ "ok": true })
+}
+
 fn git_error_value(err: &GitError, step: Option<&str>) -> Value {
     let mut v = git::git_error_json(err, step);
     v["_status"] = json!(500);

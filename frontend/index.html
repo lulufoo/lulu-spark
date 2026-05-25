@@ -112,6 +112,23 @@
   </div>
 </div>
 
+<!-- Workbench Commit dialog -->
+<div id="md-commit-dialog">
+  <div id="md-commit-dialog-box">
+    <div id="md-commit-dialog-title">
+      <h3>● 提交变更</h3>
+      <button id="md-btn-revert-all">撤销全部修改</button>
+    </div>
+    <div id="md-commit-file-list"></div>
+    <input id="md-commit-dialog-msg" type="text" placeholder="update: edit via viewer" />
+    <div id="md-commit-dialog-actions">
+      <span id="md-commit-dialog-result"></span>
+      <button id="md-btn-commit-cancel" class="md-header-btn">取消</button>
+      <button id="md-btn-commit-ok" class="md-header-btn primary">提交</button>
+    </div>
+  </div>
+</div>
+
 <!-- KB Commit dialog -->
 <div id="kb-commit-dialog">
   <div id="kb-commit-dialog-box">
@@ -165,16 +182,10 @@
       <button class="md-header-btn" id="btn-add-comment">💬 笔记</button>
       <button class="md-header-btn primary" id="btn-save" style="display:none">💾 保存</button>
       <button class="md-header-btn" id="btn-cancel-edit" style="display:none">取消</button>
-      <button class="md-header-btn" id="btn-panel-commit" style="display:none">● 提交此文件</button>
+      <button class="md-header-btn" id="btn-panel-commit" style="display:none">● 待提交</button>
       <button id="md-close" class="md-header-btn viewer-close">✕ 关闭</button>
     </div>
-    <div id="md-commit-bar" class="viewer-commit-bar">
-      <span style="font-size:12px;color:#7d4e00;flex-shrink:0;">● 待提交：</span>
-      <input id="md-commit-msg" type="text" placeholder="update: edit via viewer" />
-      <button id="btn-commit-file" class="md-header-btn primary" style="font-size:11px;padding:3px 10px;">↑ 提交</button>
-      <button id="btn-skip-commit" class="md-header-btn" style="font-size:11px;padding:3px 10px;">稍后</button>
-      <span id="md-commit-result" style="font-size:11px;"></span>
-    </div>
+    <div id="md-commit-bar" class="viewer-commit-bar"></div>
     <div id="md-links-bar" style="display:none;padding:8px 20px;border-bottom:1px solid #d0d7de;display:flex;align-items:center;flex-wrap:wrap;gap:4px 0;"></div>
     <div id="md-tags-bar" style="display:none;padding:8px 20px;border-bottom:1px solid #d0d7de;flex-wrap:wrap;align-items:center;gap:4px 0;"></div>
     <div id="md-content-row" class="viewer-content-row">

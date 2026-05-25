@@ -4,6 +4,7 @@ description = "P4 sync Tauri invoke commands"
 commands.allow = [
   "corpus_git_commit",
   "corpus_git_pull",
+  "corpus_git_revert",
   "delete_entry",
   "move_entry_project",
   "gh_move_assets",

@@ -8,7 +8,7 @@ import {
   fetchKbDiffStatus,
   fetchConfig, fetchFileContent, fetchLinkTitle,
   setConfig,
-  saveFile, commitFiles, pullProject,
+  saveFile, commitFiles, pullProject, revertFile,
   updateComments, updateLinks, setImportance, setDone,
   deleteEntry, ghMove,
   fetchTopics, moveToProject,
@@ -184,6 +184,38 @@ test('pullProject 发送 POST 到 /api/pull', async () => {
   await pullProject()
   expect(fetch.mock.calls[0][0]).toBe(`${DEFAULT_DEV_BASE}/api/pull`)
   expect(fetch.mock.calls[0][1].method).toBe('POST')
+})
+
+test('revertFile 发送 path 和 type 到 /api/corpus-revert', async () => {
+  mockFetch({ ok: true })
+  const result = await revertFile('raw/foo/bar.md', 'modified')
+  expect(fetch.mock.calls[0][0]).toBe(`${DEFAULT_DEV_BASE}/api/corpus-revert`)
+  expect(fetch.mock.calls[0][1].method).toBe('POST')
+  const body = JSON.parse(fetch.mock.calls[0][1].body)
+  expect(body.path).toBe('raw/foo/bar.md')
+  expect(body.type).toBe('modified')
+  expect(result).toEqual({ ok: true })
+})
+
+test('revertFile 空 path 和 type 执行全量 revert', async () => {
+  mockFetch({ ok: true })
+  await revertFile('', '')
+  const body = JSON.parse(fetch.mock.calls[0][1].body)
+  expect(body.path).toBe('')
+  expect(body.type).toBe('')
+})
+
+test('revertFile undefined 参数保底为空字符串', async () => {
+  mockFetch({ ok: true })
+  await revertFile(undefined, undefined)
+  const body = JSON.parse(fetch.mock.calls[0][1].body)
+  expect(body.path).toBe('')
+  expect(body.type).toBe('')
+})
+
+test('revertFile 后端返回 error 时抛出', async () => {
+  mockFetch({ error: 'revert failed', _status: 500 })
+  await expect(revertFile('raw/foo/bar.md', 'modified')).rejects.toThrow('revert failed')
 })
 
 test('updateComments 发送正确 body', async () => {

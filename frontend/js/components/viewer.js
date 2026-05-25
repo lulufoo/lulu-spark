@@ -13,6 +13,73 @@ import { openKbDoc, saveKbDoc } from './kb-viewer.js'
 export { openKbDoc }
 import { mountKnowledgeSearch, triggerKnowledgeSearch } from './knowledge-search.js'
 
+// ── Pending-commit badge ─────────────────────────────────────────────────────
+
+export function showPendingBadge() {
+  const btn = document.getElementById('btn-panel-commit');
+  if (btn) btn.style.display = '';
+}
+
+export function hidePendingBadge() {
+  const btn = document.getElementById('btn-panel-commit');
+  if (btn) btn.style.display = 'none';
+}
+
+function closeCommitDialog() {
+  document.getElementById('md-commit-dialog').classList.remove('open');
+}
+
+export async function openCommitDialog() {
+  const dialog = document.getElementById('md-commit-dialog');
+  const fileList = document.getElementById('md-commit-file-list');
+  const msgInput = document.getElementById('md-commit-dialog-msg');
+  const resultEl = document.getElementById('md-commit-dialog-result');
+  const okBtn = document.getElementById('md-btn-commit-ok');
+
+  msgInput.value = '';
+  resultEl.textContent = '';
+  resultEl.style.color = '';
+  fileList.innerHTML = '<div style="font-size:12px;color:#8c959f;">加载中…</div>';
+  okBtn.disabled = false;
+  dialog.classList.add('open');
+
+  try {
+    const data = await api.fetchDiffStatus();
+    if (!data) throw new Error('无法获取状态');
+    if (data.error) throw new Error(data.error);
+
+    if (!data.total && !data.ahead) {
+      fileList.innerHTML = '<div style="font-size:13px;color:#8c959f;padding:4px 0;">没有待提交的变更</div>';
+      okBtn.disabled = true;
+      return;
+    }
+
+    const GROUPS = [
+      { key: 'new',        label: '新增' },
+      { key: 'modified',   label: '修改' },
+      { key: 'deleted',    label: '删除' },
+      { key: 'renamed',    label: '重命名' },
+      { key: 'conflicted', label: '冲突' },
+    ];
+    let html = '<div style="display:flex;flex-direction:column;gap:10px;">';
+    for (const { key, label } of GROUPS) {
+      if (data[key]?.length) {
+        html += `<div class="commit-file-group">
+          <div class="commit-file-group-title">${label}（${data[key].length}）</div>
+          ${data[key].map(f => `<div class="commit-file-item ${key}">
+            <span>${escHtml(f)}</span>
+            <button class="kb-revert-btn" data-path="${escHtml(f)}" data-type="${key}">撤销</button>
+          </div>`).join('')}
+        </div>`;
+      }
+    }
+    html += '</div>';
+    fileList.innerHTML = html;
+  } catch (e) {
+    fileList.innerHTML = `<div style="font-size:12px;color:#cf222e;">获取状态失败：${escHtml(e.message)}</div>`;
+  }
+}
+
 // ── resolveRelativeLink ────────────────────────────────────────────────────
 
 function resolveRelativeLink(href, layer, commonPath) {
@@ -124,7 +191,7 @@ export async function openDoc(entry, layer = 'raw') {
   state.viewer.annotation = {};
   state.viewer.lang = entry.translations?.zh ? 'zh' : null;
   exitEditMode(false);
-  hideCommitBar();
+  closeCommitDialog();
 
   const modal = document.getElementById('md-modal');
   const body = document.getElementById('md-body');
@@ -161,7 +228,7 @@ export async function openDoc(entry, layer = 'raw') {
   renderDocBody(text, layer, activePath);
   applyHighlights(state.viewer.annotation, layer);
   const hasDiff = state.index.diffStatus.get(`${layer}/${entry.common_path}`);
-  document.getElementById('btn-panel-commit').style.display = hasDiff ? '' : 'none';
+  if (hasDiff) showPendingBadge(); else hidePendingBadge();
 
   mountKnowledgeSearch(document.getElementById('knowledge-panel'));
   triggerKnowledgeSearch(entry);
@@ -218,11 +285,11 @@ export function enterEditMode() {
   editArea.focus();
   document.getElementById('btn-edit').style.display = 'none';
   document.getElementById('btn-add-comment').style.display = 'none';
-  document.getElementById('btn-panel-commit').style.display = 'none';
+  hidePendingBadge();
   document.getElementById('btn-save').style.display = '';
   document.getElementById('btn-cancel-edit').style.display = '';
   document.getElementById('md-github-link').style.display = 'none';
-  hideCommitBar();
+  closeCommitDialog();
 }
 
 export function exitEditMode(rerender = true) {
@@ -234,7 +301,10 @@ export function exitEditMode(rerender = true) {
   document.getElementById('btn-add-comment').style.display = '';
   document.getElementById('btn-save').style.display = 'none';
   document.getElementById('btn-cancel-edit').style.display = 'none';
-  document.getElementById('btn-panel-commit').style.display = 'none';
+  const _layer = state.viewer.layer || 'raw';
+  const _cp = state.viewer.entry?.common_path;
+  const _hasDiff = _cp ? state.index.diffStatus.get(`${_layer}/${_cp}`) : false;
+  if (_hasDiff) showPendingBadge(); else hidePendingBadge();
   document.getElementById('md-github-link').style.display = '';
   if (rerender && state.viewer.entry) {
     const activePath = getActivePath(state.viewer.entry, state.viewer.lang, state.viewer.layer);
@@ -276,7 +346,7 @@ export async function saveDoc() {
     exitEditMode(true);
     await loadDiffStatus();
     updateDiffInDOM();
-    showCommitBar();
+    showPendingBadge();
   } catch (e) {
     alert(`保存失败：${e.message}`);
   } finally {
@@ -340,7 +410,7 @@ export function closeModal() {
   document.getElementById('md-modal').style.display = 'none';
   document.body.style.overflow = '';
   exitEditMode(false);
-  hideCommitBar();
+  closeCommitDialog();
 
 }
 
@@ -350,7 +420,85 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Escape') {
     // Don't close modal if comment dialog is open — let it handle ESC itself
     if (document.getElementById('comment-dialog').classList.contains('open')) return;
+    if (document.getElementById('md-commit-dialog').classList.contains('open')) return;
     closeModal();
+  }
+});
+
+// ── Workbench Commit dialog ────────────────────────────────────────────────
+
+document.getElementById('md-btn-commit-cancel').addEventListener('click', () => {
+  closeCommitDialog();
+});
+
+document.getElementById('md-commit-dialog').addEventListener('click', e => {
+  if (e.target === document.getElementById('md-commit-dialog')) closeCommitDialog();
+});
+
+document.getElementById('md-btn-commit-ok').addEventListener('click', async () => {
+  const btn = document.getElementById('md-btn-commit-ok');
+  const resultEl = document.getElementById('md-commit-dialog-result');
+  const msg = document.getElementById('md-commit-dialog-msg').value.trim() || 'update: edit via viewer';
+  btn.disabled = true;
+  resultEl.textContent = '提交中…';
+  resultEl.style.color = '#8c959f';
+  try {
+    const data = await api.commitFiles(msg);
+    if (data.error) throw new Error(data.error);
+    resultEl.style.color = '#1a7f37';
+    resultEl.textContent = '✓ 已推送！';
+    await loadDiffStatus();
+    updateDiffInDOM();
+    hidePendingBadge();
+    setTimeout(() => closeCommitDialog(), 1500);
+  } catch (e) {
+    resultEl.style.color = '#cf222e';
+    resultEl.textContent = `✗ ${e.message}`;
+    btn.disabled = false;
+  }
+});
+
+document.getElementById('md-btn-revert-all').addEventListener('click', async () => {
+  const btn = document.getElementById('md-btn-revert-all');
+  if (!btn.classList.contains('confirm')) {
+    btn.classList.add('confirm');
+    btn.textContent = '确认撤销全部？';
+    setTimeout(() => {
+      btn.classList.remove('confirm');
+      btn.textContent = '撤销全部修改';
+    }, 3000);
+    return;
+  }
+  btn.disabled = true;
+  try {
+    const data = await api.revertFile('', '');
+    if (data.error) throw new Error(data.error);
+    await loadDiffStatus();
+    updateDiffInDOM();
+    hidePendingBadge();
+    closeCommitDialog();
+  } catch (e) {
+    document.getElementById('md-commit-dialog-result').textContent = `撤销失败：${e.message}`;
+    btn.disabled = false;
+  } finally {
+    btn.classList.remove('confirm');
+    btn.textContent = '撤销全部修改';
+  }
+});
+
+document.getElementById('md-commit-file-list').addEventListener('click', async e => {
+  const revertBtn = e.target.closest?.('.kb-revert-btn');
+  if (!revertBtn) return;
+  const path = revertBtn.dataset.path;
+  const type = revertBtn.dataset.type;
+  revertBtn.disabled = true;
+  try {
+    const data = await api.revertFile(path, type);
+    if (data.error) throw new Error(data.error);
+    await openCommitDialog();
+  } catch (e_) {
+    revertBtn.disabled = false;
+    document.getElementById('md-commit-dialog-result').textContent = `撤销失败：${escHtml(e_.message)}`;
   }
 });
 
