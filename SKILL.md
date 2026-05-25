@@ -42,7 +42,7 @@ python3 install.py --platform $PLATFORM_FLAG
 |------|------|------|
 | `dialogue-summary` | [dialogue-summary/](dialogue-summary/) | 对话蒸馏：`dtd_raw_dialogue`、`dtd_distill_*`、`dtd_trace` |
 | `theme-summary` | [theme-summary/](theme-summary/) | 总结归档至 `raw/` 并自动 digest（`dtd_raw_summary`） |
-| `theme-line` | [theme-line/](theme-line/) | 视频/访谈稿重构为主题优先时间线大纲，保存至 `raw/` 并自动 digest |
+| `theme-line` | [theme-line/](theme-line/) | 多平台视频/访谈稿（YouTube、InfoQ、plain）→ TranscriptBundle → 主题优先时间线大纲，保存至 `raw/` 并自动 digest |
 | `theme-digest` | [theme-digest/](theme-digest/) | 从 `raw/` 生成或补跑 `digest/`；producer 链式 Embedded，亦可独立调用 |
 
 ## 验收
