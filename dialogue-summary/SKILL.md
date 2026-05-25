@@ -30,6 +30,8 @@ argument-hint: 'dtd_raw_dialogue | dtd_distill_dialogue | dtd_distill_compose | 
 
 ## dtd_raw_dialogue 模式
 
+**时间**：文件名前缀 `<ts>`、正文「创建时间」、`index.json` 的 `created_at` 均使用**东八区（UTC+8）**；`ts` 格式与「创建时间」展示换算见 [dtd-raw-dialogue.md](references/dtd-raw-dialogue.md) Step 1–2。
+
 **Step 1**：加载 [dtd-raw-dialogue.md](references/dtd-raw-dialogue.md)，执行 Step 1–6。
 
 **Step 2**：加载并完整执行 [theme-digest/SKILL.md](../theme-digest/SKILL.md)（**Embedded**：`RAW` = `raw/<COMMON_PATH>`，从 `[AD-0]` 起）。
