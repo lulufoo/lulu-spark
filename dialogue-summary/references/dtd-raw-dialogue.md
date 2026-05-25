@@ -39,6 +39,7 @@ output : topic-path = <project>/<doc-theme>
 - input  : 当前对话全部轮次
 - output : `RAW`（`{archive_root}/raw/<topic-path>/<ts>-<slug>.md`），结构与下方示例同构
 - 头部   : # 总标题 / 创建时间 / 导航完整链接（在首个 TURN_SEP 之前）
+- 创建时间 : 由 Step 1 的 `ts`（东八区 UTC+8）换算为 `YYYY年M月D日 HH:MM`（月、日不补零，时、分两位）；与 [dtd_distill_dialogue.md](dtd_distill_dialogue.md) 一致，不得使用其他时区
 - rule   : 正文与原始对话逐字一致；仅可加分隔符 / 标题 / 去格式噪音
 - 剥离   : AI 推导性独白（折叠思考块 / 无关前缀句）；讲解形式的推理保留
 - 禁止   : 压缩 / 改写 / 摘要化 / {{…}} 占位符出现 / 导航行使用占位符
@@ -70,6 +71,8 @@ AI 第一轮。
 
 <!-- DDM:TURN_SEP:v1 -->
 ```
+
+上例中 `> 创建时间：2026年4月25日 15:32` 对应 `ts=202604251532`（东八区）。
 
 ---
 
