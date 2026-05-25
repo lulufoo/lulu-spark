@@ -4,7 +4,7 @@ Use one of these templates depending on the user's ask.
 
 ## Archive Header (Save to Archive)
 
-All archived `raw/` files use this header block (navigation paths resolved per skill Step 3):
+All archived `raw/` files use this header block (navigation paths resolved per [archive-steps.md](archive-steps.md) Step 3):
 
 ```md
 # {Document Title}
@@ -18,8 +18,10 @@ All archived `raw/` files use this header block (navigation paths resolved per s
 > 原文：[Video]({url})
 ```
 
-- **时长** / **发布**: fetch via `yt-dlp` for video URLs; omit 时长 line for non-video sources.
-- **`-zh.md`**: same metadata lines; Chinese title e.g. `{Speaker}：{Event} | {Outlet}`.
+- **时长** / **发布**: 来自 `bundle.meta.duration_sec` / `bundle.meta.published_at`（非 yt-dlp 直接拉取）
+- 非视频源（`duration_sec: null`）省略时长行
+- **`-zh.md`**: same metadata lines; Chinese title e.g. `{Speaker}：{Event} | {Outlet}`
+- 可选 provenance：`> 采集：{platform} · {strategy} · 嘉宾：{speakers}`
 
 ## Default Theme-First Format
 
