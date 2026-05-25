@@ -20,11 +20,12 @@ const P4_PATHS = [
   ['/api/kb/commit', 'kb_git_commit', ['repo', 'message']],
   ['/api/kb/revert', 'kb_git_revert', ['repo', 'path', 'type']],
   ['/api/open-iterm', 'open_kb_in_iterm', ['repo']],
+  ['/api/corpus-revert', 'corpus_git_revert', ['path', 'type']],
 ];
 
 describe('syncApiInvokeMap', () => {
   it('covers all 10 P4 POST paths with command names', () => {
-    expect(Object.keys(SYNC_API_INVOKE_MAP)).toHaveLength(10);
+    expect(Object.keys(SYNC_API_INVOKE_MAP)).toHaveLength(11);
     for (const [path, cmd] of P4_PATHS) {
       expect(SYNC_API_INVOKE_MAP[path]?.cmd, path).toBe(cmd);
     }
@@ -148,5 +149,20 @@ describe('syncApiInvokeMap', () => {
 
   it('resolveSyncInvoke returns null for unknown path', () => {
     expect(resolveSyncInvoke('/api/nope', {})).toBeNull();
+  });
+
+  it('corpus-revert maps path+type into payload for corpus_git_revert', () => {
+    expect(
+      resolveSyncInvoke('/api/corpus-revert', { path: 'raw/foo/bar.md', type: 'modified' })
+    ).toEqual({
+      cmd: 'corpus_git_revert',
+      args: { payload: { path: 'raw/foo/bar.md', type: 'modified' } },
+    });
+  });
+
+  it('corpus-revert with empty body passes undefined values without crashing', () => {
+    const result = resolveSyncInvoke('/api/corpus-revert', {});
+    expect(result?.cmd).toBe('corpus_git_revert');
+    expect(result?.args).toEqual({ payload: { path: undefined, type: undefined } });
   });
 });

@@ -79,6 +79,10 @@ export const SYNC_API_INVOKE_MAP = {
         type: body.type,
       }),
   },
+  '/api/corpus-revert': {
+    cmd: 'corpus_git_revert',
+    args: (body) => syncPayload({ path: body.path, type: body.type }),
+  },
   '/api/open-iterm': {
     cmd: 'open_kb_in_iterm',
     args: (body) => syncPayload({ repo: body.repo }),

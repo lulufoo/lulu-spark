@@ -148,6 +148,10 @@ export async function commitFiles(message, files) {
   return writePost('/api/commit', body);
 }
 
+export async function revertFile(path, type) {
+  return writePost('/api/corpus-revert', { path: path ?? '', type: type ?? '' });
+}
+
 export async function fetchKbFileContent(repo, path) {
   const res = await getReadDriver().fetchGet(
     `/api/kb/read?repo=${encodeURIComponent(repo)}&path=${encodeURIComponent(path)}`

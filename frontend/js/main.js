@@ -3,7 +3,7 @@ import { escHtml } from './utils.js'
 import { LAYERS, setGithubUserUrl } from './constants.js'
 import * as api from './api.js'
 import { buildGroups, renderSidebar, selectDate, applyListFilters, selectTag } from './components/sidebar.js'
-import { enterEditMode, exitEditMode, saveDoc, showCommitBar, hideCommitBar, commitCurrentFile, openKbDoc, openDoc } from './components/viewer.js'
+import { enterEditMode, exitEditMode, saveDoc, openCommitDialog, openKbDoc, openDoc } from './components/viewer.js'
 import './components/comment-delete.js'
 import './components/comments.js'
 import './components/kb-viewer.js'
@@ -495,12 +495,7 @@ document.getElementById('btn-edit').addEventListener('click', enterEditMode);
 document.getElementById('btn-save').addEventListener('click', saveDoc);
 document.getElementById('btn-cancel-edit').addEventListener('click', () => exitEditMode(false));
 
-document.getElementById('btn-panel-commit').addEventListener('click', showCommitBar);
-document.getElementById('btn-commit-file').addEventListener('click', commitCurrentFile);
-document.getElementById('btn-skip-commit').addEventListener('click', hideCommitBar);
-document.getElementById('md-commit-msg').addEventListener('keydown', e => {
-  if (e.key === 'Enter') commitCurrentFile();
-});
+document.getElementById('btn-panel-commit').addEventListener('click', openCommitDialog);
 
 document.getElementById('btn-pull').addEventListener('click', pullProject);
 document.getElementById('btn-local-refresh').addEventListener('click', () => {

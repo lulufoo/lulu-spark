@@ -27,6 +27,13 @@ pub async fn corpus_git_pull(_app: AppHandle, payload: Value) -> Result<Value, S
 }
 
 #[tauri::command]
+pub async fn corpus_git_revert(_app: AppHandle, payload: Value) -> Result<Value, String> {
+    tauri::async_runtime::spawn_blocking(move || corpus_git::corpus_git_revert(&payload))
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
 pub async fn kb_git_commit(_app: AppHandle, payload: Value) -> Result<Value, String> {
     tauri::async_runtime::spawn_blocking(move || kb_git::kb_git_commit(&payload))
         .await
