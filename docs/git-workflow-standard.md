@@ -146,6 +146,8 @@ Triggered any time before P7. Requires `PRE_MERGE` from P5.
 | Rule | Detail |
 |---|---|
 | Tool selection | `gh` for GitHub ops (PR / API); `git` for local ops |
+| Workflow enforcement | AI must follow P1-P8 for all feature development; **never execute git commands directly** outside this workflow |
+| Out-of-scope operations | Operations not covered by P1-P8 (e.g., `rebase`, `cherry-pick`, `tag`, `amend`, `bisect`, `submodule`, hotfix) → **STOP** — inform user that operation is out of scope; instruct user to execute manually |
 | Confirmation gate | Show diff before every `commit` and `push`; wait for explicit "yes" / "ok" / "confirm" |
 | Conflict handling | Immediately abort; report full details to user; never self-resolve |
 | No bypass | Never use `--no-verify` or force-push without explicit authorization |
