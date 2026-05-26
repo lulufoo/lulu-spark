@@ -6,18 +6,16 @@
 
 | Variable | Set in | Read in | Values |
 |---|---|---|---|
-| `DID_STASH` | P1 | P3 | `true` / `false` |
 | `PRE_MERGE` | P5 | E5 | git SHA |
 
 ---
 
 ## Flow
 
-Normal path: **P1 → P2 → P3 → P4 → P5 → P6 → P7 → P8**
+Normal path: **P1 (Pre-check) → P2 (Sync) → P3 (Create Worktree) → P4 (Stage & Commit) → P5 (Merge) → P6 (Test) → P7 (Push) → P8 (Cleanup)**
 
 Exception paths:
 - P6 fail → **E4** → P6
-- P3 stash conflict → **E1** → P4
 - Any point before P7 → **E5** (Abandon)
 
 ---
@@ -37,8 +35,8 @@ Exception paths:
 
 1. `git status`
 2. `git worktree list`
-3. IF dirty: `git stash` → `DID_STASH=true`  
-   ELSE: `DID_STASH=false`
+3. IF dirty:  
+   **STOP** — show `git status --short` output to user; instruct user to handle uncommitted changes (commit / stash / revert) before rerunning workflow
 4. IF `.cache/worktrees/<slug>/` already exists OR branch `wt/<type>-<slug>` already exists:  
    **STOP** — report collision to user; do not self-resolve
 
@@ -55,11 +53,6 @@ Exception paths:
 
 1. `git worktree add .cache/worktrees/<slug> -b wt/<type>-<slug>`
 2. `cd .cache/worktrees/<slug>/`
-3. IF `DID_STASH=true`:
-   - `git stash pop`
-   - IF conflict → **E1**
-
-> Worktrees share the stash stack. `git stash pop` must run inside the worktree directory.
 
 ---
 
@@ -108,18 +101,6 @@ IF fail → **E4**
 
 ---
 
-## E1 — Stash Pop Conflict
-
-Triggered from P3.
-
-1. Show conflict files to user
-2. **WAIT** — user resolves manually in `.cache/worktrees/<slug>/`
-3. `git add <resolved-files>`
-4. `git stash drop`
-5. → return to P4
-
----
-
 ## E4 — Test Fail Fix `[CONFIRM]`
 
 Triggered from P6. Working dir = original dir (current branch). Do **not** go back to worktree.
@@ -150,14 +131,13 @@ Triggered any time before P7. Requires `PRE_MERGE` from P5.
 
 | # | Trigger | Handled In |
 |---|---|---|
-| A | Working tree dirty before pull | P1 + P3 |
-| B | `git stash pop` conflict | E1 |
-| C | `git pull --rebase` conflict | P2 |
-| D | Worktree directory already exists | P1 |
-| E | Branch `wt/type-slug` already exists | P1 |
-| F | Test fail after merge | E4 |
-| G | Abandon after merge, before push | E5 |
-| H | Push blocked by branch protection | P7 |
+| A | `git pull --rebase` conflict | P2 |
+| B | Worktree directory already exists | P1 |
+| C | Branch `wt/type-slug` already exists | P1 |
+| D | Working tree dirty before workflow start | P1 |
+| E | Test fail after merge | E4 |
+| F | Abandon after merge, before push | E5 |
+| G | Push blocked by branch protection | P7 |
 
 ---
 
