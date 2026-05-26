@@ -13,10 +13,15 @@
 6. **Worktree naming**: branch `wt/<type>-<slug>`; directory `.cache/worktrees/<slug>/`.
    Types: `feat` / `fix` / `test` / `chore` / `docs` / `refactor`
 
-7. **Commit message**: follow [Conventional Commits](https://www.conventionalcommits.org/) — `<type>(<scope>): <subject>`.
+7. **Worktree create**:
+```bash
+git worktree add .cache/worktrees/<slug> -b wt/<type>-<slug>
+```
+
+8. **Commit message**: follow [Conventional Commits](https://www.conventionalcommits.org/) — `<type>(<scope>): <subject>`.
     Allowed types: `feat` / `fix` / `test` / `chore` / `docs` / `refactor` / `style` / `perf`
 
-8. **Worktree clean-up (after PR is merged)**:
+9. **Worktree clean-up (after PR is merged)**:
 ```bash
 git pull --rebase
 git worktree remove .cache/worktrees/<slug>

@@ -15,7 +15,7 @@
     {
       "glob": "**/*.md",
       "required": [
-        "skill-config/lulu-rule-guard/md-global-discipline.md"
+        "docs/md-global-discipline.md"
       ]
     }
   ]
