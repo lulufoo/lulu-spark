@@ -19,6 +19,12 @@ Applies when: creating or editing `.md` document files.
 
 ---
 
+## Language
+
+- **Document content**: Default to English unless explicitly stated otherwise.
+
+---
+
 ## Content Sourcing
 
 **Everything written into a document must carry a confidence label.**
