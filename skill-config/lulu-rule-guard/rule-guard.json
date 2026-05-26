@@ -15,7 +15,7 @@
     {
       "glob": "**/*.md",
       "required": [
-        "docs/md-global-discipline.md"
+        "docs/md-operations.md"
       ]
     }
   ]
