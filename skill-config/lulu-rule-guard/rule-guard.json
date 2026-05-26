@@ -3,19 +3,19 @@
     {
       "glob": "**/*.{js,ts,jsx,tsx,py,go,rs,rb,swift,html,css,json,java,kt}",
       "required": [
-        "docs/file-guard/coding-global-discipline.md"
+        "docs/coding/coding-global-discipline.md"
       ]
     },
     {
       "glob": "**/*.{ts,js}",
       "required": [
-        "docs/file-guard/coding-workbench-discipline.md"
+        "docs/coding/coding-workbench-discipline.md"
       ]
     },
     {
       "glob": "**/*.md",
       "required": [
-        "docs/file-guard/md-operations.md"
+        "docs/md/md-operations.md"
       ]
     }
   ]
