@@ -3,19 +3,19 @@
     {
       "glob": "**/*.{js,ts,jsx,tsx,py,go,rs,rb,swift,html,css,json,java,kt}",
       "required": [
-        "skill-config/lulu-rule-guard/coding-global-discipline.md"
+        "docs/file-guard/coding-global-discipline.md"
       ]
     },
     {
       "glob": "**/*.{ts,js}",
       "required": [
-        "skill-config/lulu-rule-guard/coding-workbench-discipline.md"
+        "docs/file-guard/coding-workbench-discipline.md"
       ]
     },
     {
       "glob": "**/*.md",
       "required": [
-        "docs/md-operations.md"
+        "docs/file-guard/md-operations.md"
       ]
     }
   ]
