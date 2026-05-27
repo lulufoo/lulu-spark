@@ -32,6 +32,17 @@ describe('pasteTextFromClipboard', () => {
     expect(pasteTextFromClipboard(data)).toBe('| a | b |\n|---|---|');
   });
 
+  it('normalizes em-dash separator rows from plain clipboard', () => {
+    const data = {
+      getData: (type) => (
+        type === 'text/plain'
+          ? '| a | b |\n|---|---|—|—|\n| 1 | 2 |'
+          : '<table></table>'
+      ),
+    };
+    expect(pasteTextFromClipboard(data)).toBe('| a | b |\n|---|---|---|---|\n| 1 | 2 |');
+  });
+
   it('uses Turndown when plain is empty', () => {
     const data = {
       getData: (type) => (type === 'text/plain' ? '' : type === 'text/html' ? '<p>hi</p>' : ''),

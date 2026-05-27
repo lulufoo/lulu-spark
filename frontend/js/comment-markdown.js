@@ -18,21 +18,60 @@ export function normalizeTableSeparators(md) {
   });
 }
 
+/** Normalize note markdown for storage / editor display (not just render). */
+export function prepareCommentMarkdown(text) {
+  return normalizeTableSeparators(text || '');
+}
+
 /** Prefer plain text on paste; Turndown only when plain is empty (rich HTML from web). */
 export function pasteTextFromClipboard(clipboardData) {
   const plain = clipboardData.getData('text/plain');
   if (plain && plain.trim()) {
-    return plain;
+    return prepareCommentMarkdown(plain);
   }
   const html = clipboardData.getData('text/html');
   if (html && typeof TurndownService !== 'undefined') {
-    return new TurndownService({ headingStyle: 'atx', bulletListMarker: '-' }).turndown(html);
+    return prepareCommentMarkdown(
+      new TurndownService({ headingStyle: 'atx', bulletListMarker: '-' }).turndown(html)
+    );
   }
-  return plain || '';
+  return prepareCommentMarkdown(plain || '');
+}
+
+/** Insert plain text without execCommand (avoids macOS smart-dash rewriting --- → —). */
+export function insertCommentPlainText(el, text) {
+  if (!el || !text) return;
+  const normalized = prepareCommentMarkdown(text);
+  const sel = window.getSelection();
+  if (sel && sel.rangeCount > 0) {
+    const range = sel.getRangeAt(0);
+    range.deleteContents();
+    const node = document.createTextNode(normalized);
+    range.insertNode(node);
+    range.setStartAfter(node);
+    range.collapse(true);
+    sel.removeAllRanges();
+    sel.addRange(range);
+  } else {
+    el.appendChild(document.createTextNode(normalized));
+  }
+  const fixed = prepareCommentMarkdown(el.innerText);
+  if (fixed !== el.innerText) {
+    el.innerText = fixed;
+    const range = document.createRange();
+    range.selectNodeContents(el);
+    range.collapse(false);
+    sel?.removeAllRanges();
+    sel?.addRange(range);
+  }
+}
+
+export function pasteIntoCommentEditor(el, clipboardData) {
+  insertCommentPlainText(el, pasteTextFromClipboard(clipboardData));
 }
 
 export function renderCommentMarkdown(text) {
-  const normalized = normalizeTableSeparators(text || '');
+  const normalized = prepareCommentMarkdown(text);
   if (typeof marked !== 'undefined') {
     return marked.parse(normalized);
   }

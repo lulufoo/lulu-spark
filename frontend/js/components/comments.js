@@ -10,7 +10,11 @@ import { nowTs } from '../utils.js'
 import { openSettleDialog } from './settle-dialog.js'
 import { renderLinksBar } from './links-bar.js'
 import { confirmDeleteComment, removeCorpusComment } from './comment-delete.js'
-import { pasteTextFromClipboard, renderCommentMarkdown } from '../comment-markdown.js'
+import {
+  pasteIntoCommentEditor,
+  prepareCommentMarkdown,
+  renderCommentMarkdown,
+} from '../comment-markdown.js'
 
 // ── renderComments ─────────────────────────────────────────────────────────
 
@@ -216,7 +220,7 @@ function _scheduleDraftSave() {
   if (!_draftKey) return;
   clearTimeout(_draftSaveTimer);
   _draftSaveTimer = setTimeout(() => {
-    const text = document.getElementById('comment-dialog-content').innerText;
+    const text = prepareCommentMarkdown(document.getElementById('comment-dialog-content').innerText);
     api.saveDraft(_draftKey, text).catch(() => {});
   }, 800);
 }
@@ -271,7 +275,9 @@ export function closeCommentDialog() {
 export async function saveComment() {
   if (!_commentEditCtx) return;
   const content = document.getElementById('comment-dialog-content');
-  const text = (_previewModeText !== null ? _previewModeText : content.innerText).trim();
+  const text = prepareCommentMarkdown(
+    (_previewModeText !== null ? _previewModeText : content.innerText).trim()
+  );
   if (!text) return;
   const saveBtn = document.getElementById('btn-comment-save');
   saveBtn.disabled = true;
@@ -317,7 +323,9 @@ document.querySelectorAll('.comment-tab-btn').forEach(btn => {
     const editorBox = document.getElementById('comment-editor-box');
     const previewPane = document.getElementById('comment-preview-pane');
     if (isPreview) {
-      _previewModeText = document.getElementById('comment-dialog-content').innerText;
+      _previewModeText = prepareCommentMarkdown(
+        document.getElementById('comment-dialog-content').innerText
+      );
       const inner = renderCommentMarkdown(_previewModeText);
       previewPane.innerHTML = `<div class="comment-item-text">${inner}</div>`;
       editorBox.style.display = 'none';
@@ -359,14 +367,13 @@ document.getElementById('comment-dialog-content').addEventListener('input', () =
 });
 document.getElementById('comment-dialog-content').addEventListener('paste', e => {
   e.preventDefault();
-  const text = pasteTextFromClipboard(e.clipboardData);
-  document.execCommand('insertText', false, text);
+  const el = document.getElementById('comment-dialog-content');
+  pasteIntoCommentEditor(el, e.clipboardData);
   // Scroll cursor into view after insert (contenteditable doesn't do this automatically)
   const sel = window.getSelection();
   if (sel && sel.rangeCount > 0) {
     const range = sel.getRangeAt(0);
     const rect = range.getBoundingClientRect();
-    const el = document.getElementById('comment-dialog-content');
     const elRect = el.getBoundingClientRect();
     if (rect.bottom > elRect.bottom) {
       el.scrollTop += rect.bottom - elRect.bottom + 8;
