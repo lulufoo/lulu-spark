@@ -2079,6 +2079,25 @@
   .comment-item-text pre code { background: none; padding: 0; }
   .comment-item-text hr { display: block; height: 1px; background: #d0d7de; border: none; margin: .6em 0; }
   .comment-item-text h1,.comment-item-text h2,.comment-item-text h3 { font-size: 13px; font-weight: 700; margin: 6px 0 4px; }
+  .comment-item-text table,
+  #comment-preview-pane table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: .5em 0;
+  }
+  .comment-item-text th,
+  .comment-item-text td,
+  #comment-preview-pane th,
+  #comment-preview-pane td {
+    border: 1px solid #d0d7de;
+    padding: 4px 8px;
+    font-size: 12px;
+  }
+  .comment-item-text th,
+  #comment-preview-pane th {
+    background: #f6f8fa;
+    font-weight: 600;
+  }
   .badge-comment-dot {
     position: absolute;
     top: -4px;
