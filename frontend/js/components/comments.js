@@ -10,6 +10,7 @@ import { nowTs } from '../utils.js'
 import { openSettleDialog } from './settle-dialog.js'
 import { renderLinksBar } from './links-bar.js'
 import { confirmDeleteComment, removeCorpusComment } from './comment-delete.js'
+import { pasteTextFromClipboard, renderCommentMarkdown } from '../comment-markdown.js'
 
 // ── renderComments ─────────────────────────────────────────────────────────
 
@@ -21,7 +22,7 @@ function _showTip(text, e) {
   const tip = _tip();
   if (!tip) return;
   const preview = text.length > 600 ? text.slice(0, 600) + '\n\n…' : text;
-  const inner = typeof marked !== 'undefined' ? marked.parse(preview) : `<pre>${preview}</pre>`;
+  const inner = renderCommentMarkdown(preview);
   tip.innerHTML = `<div class="comment-item-text">${inner}</div>`;
   tip.style.display = 'block';
   _moveTip(e);
@@ -137,7 +138,7 @@ function buildCommentItem(c, layer, entry, noteIndex, allComments) {
   const textEl = document.createElement('div');
   textEl.className = 'comment-item-text';
   if (typeof marked !== 'undefined') {
-    textEl.innerHTML = marked.parse(c.text);
+    textEl.innerHTML = renderCommentMarkdown(c.text);
   } else {
     textEl.textContent = c.text;
   }
@@ -317,7 +318,7 @@ document.querySelectorAll('.comment-tab-btn').forEach(btn => {
     const previewPane = document.getElementById('comment-preview-pane');
     if (isPreview) {
       _previewModeText = document.getElementById('comment-dialog-content').innerText;
-      const inner = typeof marked !== 'undefined' ? marked.parse(_previewModeText) : `<pre>${_previewModeText}</pre>`;
+      const inner = renderCommentMarkdown(_previewModeText);
       previewPane.innerHTML = `<div class="comment-item-text">${inner}</div>`;
       editorBox.style.display = 'none';
       previewPane.style.display = 'block';
@@ -358,13 +359,7 @@ document.getElementById('comment-dialog-content').addEventListener('input', () =
 });
 document.getElementById('comment-dialog-content').addEventListener('paste', e => {
   e.preventDefault();
-  const html = e.clipboardData.getData('text/html');
-  let text;
-  if (html && typeof TurndownService !== 'undefined') {
-    text = new TurndownService({ headingStyle: 'atx', bulletListMarker: '-' }).turndown(html);
-  } else {
-    text = e.clipboardData.getData('text/plain');
-  }
+  const text = pasteTextFromClipboard(e.clipboardData);
   document.execCommand('insertText', false, text);
   // Scroll cursor into view after insert (contenteditable doesn't do this automatically)
   const sel = window.getSelection();

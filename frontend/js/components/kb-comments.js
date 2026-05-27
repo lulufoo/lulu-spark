@@ -8,6 +8,7 @@ import {
 } from '../comment-reorder.js'
 import { nowTs } from '../utils.js'
 import { confirmDeleteComment, removeKbComment } from './comment-delete.js'
+import { pasteTextFromClipboard, renderCommentMarkdown } from '../comment-markdown.js'
 
 // ── Preview tip (shared DOM element) ──────────────────────────────────────
 const _tip = () => document.getElementById('comment-preview-tip');
@@ -16,7 +17,7 @@ function _showKbTip(text, e) {
   const tip = _tip();
   if (!tip) return;
   const preview = text.length > 600 ? text.slice(0, 600) + '\n\n…' : text;
-  const inner = typeof marked !== 'undefined' ? marked.parse(preview) : `<pre>${preview}</pre>`;
+  const inner = renderCommentMarkdown(preview);
   tip.innerHTML = `<div class="comment-item-text">${inner}</div>`;
   tip.style.display = 'block';
   _moveKbTip(e);
@@ -135,7 +136,7 @@ function buildKbCommentItem(comment, index, comments) {
   const textEl = document.createElement('div');
   textEl.className = 'comment-item-text';
   if (typeof marked !== 'undefined') {
-    textEl.innerHTML = marked.parse(comment.text || '');
+    textEl.innerHTML = renderCommentMarkdown(comment.text || '');
   } else {
     textEl.textContent = comment.text || '';
   }
@@ -303,6 +304,12 @@ export function initKbCommentEvents() {
     }
   });
 
+  document.getElementById('kb-comment-dialog-content')?.addEventListener('paste', e => {
+    e.preventDefault();
+    const text = pasteTextFromClipboard(e.clipboardData);
+    document.execCommand('insertText', false, text);
+  });
+
   // Tab switch: edit / preview
   document.querySelectorAll('#kb-comment-dialog .comment-tab-btn').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -313,7 +320,7 @@ export function initKbCommentEvents() {
       const previewPane = document.getElementById('kb-comment-preview-pane');
       if (isPreview) {
         const text = document.getElementById('kb-comment-dialog-content').textContent;
-        const inner = typeof marked !== 'undefined' ? marked.parse(text) : `<pre>${text}</pre>`;
+        const inner = renderCommentMarkdown(text);
         previewPane.innerHTML = `<div class="comment-item-text">${inner}</div>`;
         editorBox.style.display = 'none';
         previewPane.style.display = 'block';
