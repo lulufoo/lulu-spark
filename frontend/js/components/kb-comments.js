@@ -8,7 +8,11 @@ import {
 } from '../comment-reorder.js'
 import { nowTs } from '../utils.js'
 import { confirmDeleteComment, removeKbComment } from './comment-delete.js'
-import { pasteTextFromClipboard, renderCommentMarkdown } from '../comment-markdown.js'
+import {
+  pasteIntoCommentEditor,
+  prepareCommentMarkdown,
+  renderCommentMarkdown,
+} from '../comment-markdown.js'
 
 // ── Preview tip (shared DOM element) ──────────────────────────────────────
 const _tip = () => document.getElementById('comment-preview-tip');
@@ -252,7 +256,7 @@ export function closeKbCommentDialog() {
 export async function saveKbComment() {
   const content = document.getElementById('kb-comment-dialog-content');
   if (!content) return;
-  const text = content.textContent.trim();
+  const text = prepareCommentMarkdown(content.textContent.trim());
   if (!text) return;
 
   const { kbRepo, kbPath, annotation } = state.viewer;
@@ -306,8 +310,8 @@ export function initKbCommentEvents() {
 
   document.getElementById('kb-comment-dialog-content')?.addEventListener('paste', e => {
     e.preventDefault();
-    const text = pasteTextFromClipboard(e.clipboardData);
-    document.execCommand('insertText', false, text);
+    const el = document.getElementById('kb-comment-dialog-content');
+    pasteIntoCommentEditor(el, e.clipboardData);
   });
 
   // Tab switch: edit / preview
@@ -319,7 +323,9 @@ export function initKbCommentEvents() {
       const editorBox = document.getElementById('kb-comment-editor-box');
       const previewPane = document.getElementById('kb-comment-preview-pane');
       if (isPreview) {
-        const text = document.getElementById('kb-comment-dialog-content').textContent;
+        const text = prepareCommentMarkdown(
+          document.getElementById('kb-comment-dialog-content').textContent
+        );
         const inner = renderCommentMarkdown(text);
         previewPane.innerHTML = `<div class="comment-item-text">${inner}</div>`;
         editorBox.style.display = 'none';
