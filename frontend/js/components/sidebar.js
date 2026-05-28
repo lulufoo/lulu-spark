@@ -22,7 +22,44 @@ export function buildGroups(indexData) {
 
 // ── _renderTopicFilter ─────────────────────────────────────────────────
 
-function _renderTopicFilter(aside) {
+function _ensureSidebarZones(aside) {
+  let inner = aside.querySelector('.sidebar-inner');
+  let channelZone = aside.querySelector('#sidebar-channel-zone');
+  let dateZone = aside.querySelector('#sidebar-date-zone');
+  let resizer = aside.querySelector('#sidebar-resizer');
+
+  if (!inner) {
+    inner = document.createElement('div');
+    inner.className = 'sidebar-inner';
+    aside.appendChild(inner);
+  }
+  if (!channelZone) {
+    channelZone = document.createElement('div');
+    channelZone.id = 'sidebar-channel-zone';
+    channelZone.className = 'sidebar-channel-zone';
+    inner.appendChild(channelZone);
+  }
+  if (!dateZone) {
+    dateZone = document.createElement('div');
+    dateZone.id = 'sidebar-date-zone';
+    dateZone.className = 'sidebar-date-zone';
+    inner.appendChild(dateZone);
+  }
+  if (!resizer) {
+    resizer = document.createElement('div');
+    resizer.id = 'sidebar-resizer';
+    resizer.className = 'sidebar-resizer';
+    resizer.setAttribute('role', 'separator');
+    resizer.setAttribute('aria-orientation', 'vertical');
+    resizer.setAttribute('aria-label', '调整侧边栏宽度');
+    resizer.tabIndex = 0;
+    aside.appendChild(resizer);
+  }
+
+  return { channelZone, dateZone };
+}
+
+function _renderTopicFilter(parent) {
   const allEntries = Object.values(state.index.data || {});
   if (allEntries.length === 0) return;
   const topicCounts = {};
@@ -72,15 +109,18 @@ function _renderTopicFilter(aside) {
     countEl.style.display = 'none';
   }
   wrap.appendChild(countEl);
-  aside.appendChild(wrap);
+  parent.appendChild(wrap);
 }
 
 // ── renderSidebar ──────────────────────────────────────────────────────────
 
 export function renderSidebar() {
   const aside = document.getElementById('sidebar');
-  aside.innerHTML = '';
-  _renderTopicFilter(aside);
+  if (!aside) return;
+  const { channelZone, dateZone } = _ensureSidebarZones(aside);
+  channelZone.innerHTML = '';
+  dateZone.innerHTML = '';
+  _renderTopicFilter(channelZone);
   for (const { date, entries } of state.index.filteredGroups) {
     const d = formatDate(date);
     const tab = document.createElement('div');
@@ -92,7 +132,7 @@ export function renderSidebar() {
       <span class="count">${entries.length}</span>
     `;
     tab.addEventListener('click', () => selectDate(date));
-    aside.appendChild(tab);
+    dateZone.appendChild(tab);
   }
 }
 

@@ -4,17 +4,53 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 vi.mock('../frontend/js/utils.js', () => ({ formatDate: () => ({ full: '2025-01-01' }) }));
 vi.mock('../frontend/js/components/cards.js', () => ({ renderDocList: vi.fn(), loadTitles: vi.fn() }));
 
-// Provide minimal document stub
+// Provide minimal document stub (supports _ensureSidebarZones)
 const makeEl = (tag = 'div') => {
-  const el = { tag, className: '', value: '', textContent: '', title: '', disabled: false, children: [], style: {}, dataset: {}, innerHTML: '' };
-  el.appendChild = (child) => el.children.push(child);
+  const el = {
+    tag,
+    id: '',
+    className: '',
+    value: '',
+    textContent: '',
+    title: '',
+    disabled: false,
+    tabIndex: 0,
+    children: [],
+    style: {},
+    dataset: {},
+    innerHTML: '',
+  };
+  const matchSel = (node, sel) => {
+    if (sel.startsWith('#') && node.id === sel.slice(1)) return node;
+    if (sel.startsWith('.') && node.className === sel.slice(1)) return node;
+    return null;
+  };
+  const query = (sel) => {
+    const direct = matchSel(el, sel);
+    if (direct) return direct;
+    for (const child of el.children) {
+      const found = child.querySelector?.(sel);
+      if (found) return found;
+    }
+    return null;
+  };
+  el.appendChild = (child) => {
+    if (child.id) el[`#${child.id}`] = child;
+    el.children.push(child);
+    return child;
+  };
   el.addEventListener = vi.fn();
+  el.setAttribute = vi.fn();
+  el.querySelector = query;
   el.querySelectorAll = () => [];
   return el;
 };
 
+const sidebarEl = makeEl('aside');
+sidebarEl.id = 'sidebar';
+
 globalThis.document = {
-  getElementById: () => makeEl(),
+  getElementById: (id) => (id === 'sidebar' ? sidebarEl : makeEl()),
   createElement: (tag) => makeEl(tag),
   querySelectorAll: () => [],
 };
@@ -30,6 +66,8 @@ const makeGroup = (date, topics) => ({
 });
 
 beforeEach(() => {
+  sidebarEl.children = [];
+  sidebarEl.innerHTML = '';
   state.index.data = {
     a: { common_path: 'ai/x', created_at: '202501011200' },
     b: { common_path: 'ai/y', created_at: '202501021200' },
