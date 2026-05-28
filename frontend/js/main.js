@@ -3,6 +3,7 @@ import { escHtml } from './utils.js'
 import { LAYERS, setGithubUserUrl } from './constants.js'
 import * as api from './api.js'
 import { buildGroups, renderSidebar, selectDate, applyListFilters, selectTag } from './components/sidebar.js'
+import { initSidebarResize } from './components/sidebar-resize.js'
 import { enterEditMode, exitEditMode, saveDoc, openCommitDialog, openKbDoc, openDoc } from './components/viewer.js'
 import './components/comment-delete.js'
 import './components/comments.js'
@@ -645,6 +646,7 @@ api.fetchTopics().then(data => {
   state.index.topicDescriptions = descMap;
   state.index.topicRepos = repoMap;
 }).catch(() => {});
+initSidebarResize();
 loadIndex();
 initGlobalSearch();
 
