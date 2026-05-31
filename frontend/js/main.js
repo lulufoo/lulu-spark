@@ -678,8 +678,11 @@ document.addEventListener('cta:filter-tag', ({ detail }) => {
 // ── Global search navigation ───────────────────────────────────────────────
 document.addEventListener('cta:open-entry', ({ detail }) => {
   if (!detail?.common_path) return
-  const entry = Object.values(state.index.data || {})
-    .find(e => e.common_path === detail.common_path)
+  const allEntries = Object.values(state.index.data || {})
+  let entry = allEntries.find(e => e.common_path === detail.common_path)
+  // Fallback: detail.common_path may be a zh translation file (e.g. from a
+  // stale Meilisearch index). Resolve it to the main entry via translations.zh.
+  if (!entry) entry = allEntries.find(e => e.translations?.zh === detail.common_path)
   if (!entry) return
   const layer = detail.layer || entry.layers?.[0] || 'raw'
   const date = entry.created_at ? entry.created_at.slice(0, 8) : null

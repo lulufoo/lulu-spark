@@ -26,7 +26,12 @@ pub fn workbench_doc_id(layer: &str, common_path: &str) -> String {
 }
 
 pub fn should_skip_md(name: &str) -> bool {
-    SKIP_FILES.contains(&name)
+    if SKIP_FILES.contains(&name) {
+        return true;
+    }
+    // Skip zh translation files: they are language variants stored under
+    // `translations.zh` in index.json, not standalone entries.
+    name.strip_suffix(".md").is_some_and(|stem| stem.ends_with("-zh"))
 }
 
 /// Workbench title: first `# ` line, else filename stem without date prefix (L108–115).
