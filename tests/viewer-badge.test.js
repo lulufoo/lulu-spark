@@ -170,6 +170,27 @@ describe('enterEditMode', () => {
     enterEditMode();
     expect(makeEl('md-commit-dialog').classList.contains('open')).toBe(false);
   });
+
+  it('resets #md-edit-area scrollTop to 0', () => {
+    const editArea = makeEl('md-edit-area');
+    editArea.scrollTop = 500;
+    state.viewer.rawText = 'hello';
+    enterEditMode();
+    expect(editArea.scrollTop).toBe(0);
+  });
+
+  it('resets scrollTop to 0 after focus would scroll to bottom (long text)', () => {
+    const editArea = makeEl('md-edit-area');
+    editArea.setSelectionRange = vi.fn();
+    editArea.focus = vi.fn(function focusMock() {
+      this.scrollTop = 9999;
+    });
+    state.viewer.rawText = Array.from({ length: 60 }, (_, i) => `line ${i + 1}`).join('\n');
+    editArea.scrollTop = 500;
+    enterEditMode();
+    expect(editArea.scrollTop).toBe(0);
+    expect(editArea.focus).toHaveBeenCalled();
+  });
 });
 
 // ── exitEditMode ──────────────────────────────────────────────────────────

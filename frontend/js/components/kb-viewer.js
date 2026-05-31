@@ -1,5 +1,5 @@
 import { state } from '../state.js'
-import { escHtml } from '../utils.js'
+import { escHtml, resetEditAreaScroll } from '../utils.js'
 import * as api from '../api.js'
 import { renderKbComments, initKbCommentEvents } from './kb-comments.js'
 import { applyKbHighlights, initKbHighlightUI } from './kb-highlights.js'
@@ -452,7 +452,7 @@ function _kbEnterEditMode() {
   document.getElementById('kb-btn-save').style.display = '';
   document.getElementById('kb-btn-cancel-edit').style.display = '';
   document.getElementById('kb-btn-edit').style.display = 'none';
-  editArea.focus();
+  resetEditAreaScroll(editArea, { focus: true });
 }
 
 function _kbExitEditMode() {

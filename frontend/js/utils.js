@@ -43,6 +43,27 @@ export function escHtml(s) {
   return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
+function syncEditAreaScrollTop(editArea) {
+  editArea.scrollTop = 0;
+  try {
+    editArea.setSelectionRange(0, 0);
+  } catch (_e) {
+    // hidden/disabled textarea (jsdom or browser)
+  }
+}
+
+export function resetEditAreaScroll(editArea, { focus = false } = {}) {
+  if (!editArea) return;
+  syncEditAreaScrollTop(editArea);
+  if (!focus) return;
+  try {
+    editArea.focus({ preventScroll: true });
+  } catch (_e) {
+    editArea.focus();
+  }
+  requestAnimationFrame(() => syncEditAreaScrollTop(editArea));
+}
+
 export function nowTs() {
   const now = new Date();
   return [
