@@ -1,7 +1,7 @@
 import { state, getEntryId, loadDiffStatus } from '../state.js'
 import { getGithubUserUrl, workbenchGithubBlobBase } from '../constants.js'
 import { getActivePath } from '../corpus-path.js'
-import { escHtml, filenameFromPath, slugToTitle } from '../utils.js'
+import { escHtml, filenameFromPath, slugToTitle, resetEditAreaScroll } from '../utils.js'
 import * as api from '../api.js'
 import { updateTitlesInDOM, updateDiffInDOM } from './cards.js'
 import { renderLinksBar } from './links-bar.js'
@@ -281,8 +281,7 @@ export function enterEditMode() {
   editArea.value = state.viewer.rawText;
   body.style.display = 'none';
   editArea.style.display = '';
-  requestAnimationFrame(() => { editArea.scrollTop = 0; });
-  editArea.focus();
+  resetEditAreaScroll(editArea, { focus: true });
   document.getElementById('btn-edit').style.display = 'none';
   document.getElementById('btn-add-comment').style.display = 'none';
   hidePendingBadge();
