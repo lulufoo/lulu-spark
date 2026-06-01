@@ -112,6 +112,86 @@ function _renderTopicFilter(parent) {
   parent.appendChild(wrap);
 }
 
+function _entriesInTagCountScope() {
+  const allEntries = Object.values(state.index.data || {});
+  const topic = state.ui.activeTopic;
+  if (!topic) return allEntries;
+  return allEntries.filter(
+    (entry) => (entry.common_path?.split('/')[0] || 'unknown') === topic
+  );
+}
+
+function _tagLabel(key) {
+  return state.index.tagsRegistry?.keys?.[key]?.value || key;
+}
+
+function _renderTagFilter(parent) {
+  const scopeEntries = _entriesInTagCountScope();
+  if (scopeEntries.length === 0) return;
+
+  const tagCounts = {};
+  for (const entry of scopeEntries) {
+    for (const key of entry.tag_keys || []) {
+      tagCounts[key] = (tagCounts[key] || 0) + 1;
+    }
+  }
+
+  const total = scopeEntries.length;
+  const activeKey = state.ui.activeTagKey;
+
+  const wrap = document.createElement('div');
+  wrap.className = 'tag-filter';
+
+  const sel = document.createElement('select');
+  sel.className = 'tag-select';
+
+  const optAll = document.createElement('option');
+  optAll.value = '';
+  optAll.textContent = `全部 (${total})`;
+  sel.appendChild(optAll);
+
+  const sep = document.createElement('option');
+  sep.disabled = true;
+  sep.textContent = '─────────';
+  sel.appendChild(sep);
+
+  const sortedKeys = Object.keys(tagCounts).sort((a, b) =>
+    _tagLabel(a).localeCompare(_tagLabel(b))
+  );
+  for (const key of sortedKeys) {
+    const opt = document.createElement('option');
+    opt.value = key;
+    opt.textContent = `${_tagLabel(key)} (${tagCounts[key]})`;
+    sel.appendChild(opt);
+  }
+
+  if (activeKey && !tagCounts[activeKey]) {
+    const optOrphan = document.createElement('option');
+    optOrphan.value = activeKey;
+    optOrphan.textContent = `${_tagLabel(activeKey)} (0)`;
+    sel.appendChild(optOrphan);
+  }
+
+  sel.value = activeKey || '';
+  sel.addEventListener('change', (e) => {
+    const v = e.target.value;
+    if (v) selectTag(v);
+    else clearTagFilter();
+  });
+  wrap.appendChild(sel);
+
+  const countEl = document.createElement('div');
+  countEl.className = 'tag-count';
+  if (activeKey) {
+    countEl.textContent = `${tagCounts[activeKey] || 0} / ${total} 篇`;
+    countEl.style.display = '';
+  } else {
+    countEl.style.display = 'none';
+  }
+  wrap.appendChild(countEl);
+  parent.appendChild(wrap);
+}
+
 // ── renderSidebar ──────────────────────────────────────────────────────────
 
 export function renderSidebar() {
@@ -121,6 +201,7 @@ export function renderSidebar() {
   channelZone.innerHTML = '';
   dateZone.innerHTML = '';
   _renderTopicFilter(channelZone);
+  _renderTagFilter(channelZone);
   for (const { date, entries } of state.index.filteredGroups) {
     const d = formatDate(date);
     const tab = document.createElement('div');
