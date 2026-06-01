@@ -1,23 +1,23 @@
 {
   "version": 1,
-  "product": {
+  "product-plan": {
     "template_url": "https://github.com/lulufoo/ai-software-dev/blob/main/lulu-dev-workflow-template/product/10-product-doc-template.md",
     "review_checklist_url": "https://github.com/lulufoo/ai-software-dev/blob/main/lulu-dev-workflow-template/product/11-product-doc-review-checklist.md",
     "pdqa_url": "https://github.com/lulufoo/ai-software-dev/blob/main/lulu-dev-workflow-template/product/12-product-doc-evaluation-framework.md"
   },
-  "tech": {
+  "tech-plan": {
     "tpt_url": "https://github.com/lulufoo/ai-software-dev/blob/main/lulu-dev-workflow-template/tech/20-tech-plan-template.md",
     "tpef_url": "https://github.com/lulufoo/ai-software-dev/blob/main/lulu-dev-workflow-template/tech/21-tech-plan-evaluation-framework.md",
     "ptc_url": "https://github.com/lulufoo/ai-software-dev/blob/main/lulu-dev-workflow-template/tech/22-product-tech-crosscheck.md",
     "ac_url": ""
   },
-  "work_order": {
+  "tech-work-order": {
     "task_template_url": "https://github.com/lulufoo/ai-software-dev/blob/main/lulu-dev-workflow-template/work-order/30-work-order-task-template.md",
     "tasklist_template_url": "https://github.com/lulufoo/ai-software-dev/blob/main/lulu-dev-workflow-template/work-order/31-work-order-tasklist-template.md",
     "woqa_url": "https://github.com/lulufoo/ai-software-dev/blob/main/lulu-dev-workflow-template/work-order/32-work-order-evaluation-framework.md",
     "twca_url": "https://github.com/lulufoo/ai-software-dev/blob/main/lulu-dev-workflow-template/work-order/33-tech-workorder-crosscheck.md"
   },
-  "code": {
+  "tech-code": {
     "test_command": "npm test",
     "woqa_url": "",
     "git": {
