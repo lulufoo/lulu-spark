@@ -1,6 +1,6 @@
 # Archive Concepts (shared)
 
-> 供 `theme-line`、`theme-digest`、`dialogue-summary` 共用的路径与配置约定。
+> 供 `theme-archive`、`theme-fetch`、`theme-line`、`theme-digest`、`dialogue-summary`、`theme-summary` 共用的路径与配置约定。
 
 ---
 
@@ -85,5 +85,6 @@ slug 冲突 → 与用户确认后再继续。
 
 ## References
 
+- theme-archive（raw + index，不触发 digest）：[../theme-archive/SKILL.md](../theme-archive/SKILL.md)
 - theme-line archive 步骤：[../theme-line/references/archive-steps.md](../theme-line/references/archive-steps.md)
 - theme-digest workflow：[../theme-digest/SKILL.md](../theme-digest/SKILL.md)
