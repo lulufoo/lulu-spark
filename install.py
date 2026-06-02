@@ -53,7 +53,7 @@ def main() -> None:
     print(f"\n✅ lulu-workbench-skills installed ({platform})")
     print(f"   Root  : {root}")
     print(f"   Config: {config}")
-    print(f"   Skills: dialogue-summary, theme-summary, theme-line, theme-digest")
+    print(f"   Skills: dialogue-summary, theme-summary, theme-line, theme-fetch, theme-archive, theme-digest")
     if config.exists():
         print(f"\n   ⚠️  Remember to set archive_root in {config} if not already done.")
 
