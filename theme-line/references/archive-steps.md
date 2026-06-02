@@ -1,4 +1,4 @@
-# Save to Archive — Steps 1–9
+# Save to Archive — Steps 1–6
 
 > **路径与配置：** [archive-concepts.md](../../shared/archive-concepts.md)（`COMMON_PATH`、`prefix`、`layers`、读 `config.json`）
 
@@ -93,72 +93,36 @@ Translation path: `raw/<topic-path>/<ts>-<slug>-zh.md`
 
 ---
 
-### Step 5 · Generate entry ID
+### Step 5 · theme-archive Embedded
 
-32-character lowercase hex: `secrets.token_hex(16)` (Python) or equivalent.
+构造载荷（见 [../../theme-archive/references/input-schema.md](../../theme-archive/references/input-schema.md)）：
 
----
-
-### Step 6 · Prepare index.json entry
-
-**Chinese / mixed / unknown source:**
-
-```json
-"<id>": {
-  "common_path": "<topic-path>/<ts>-<slug>.md",
-  "created_at": "<ts>",
-  "layers": ["raw"],
-  "source_type": "theme-line"
-}
-```
-
-**English source:**
-
-```json
-"<id>": {
-  "common_path": "<topic-path>/<ts>-<slug>.md",
-  "created_at": "<ts>",
-  "layers": ["raw"],
-  "source_type": "theme-line",
-  "translations": {
-    "zh": "<topic-path>/<ts>-<slug>-zh.md"
+```text
+加载并完整执行 ../../theme-archive/SKILL.md（Embedded，从 [AR-1] 起：
+  COMMON_PATH = <topic-path>/<ts>-<slug>.md
+  documents = [
+    { rel: "raw/<COMMON_PATH>", content: "<Step 3 全文>" },
+    { rel: "raw/<topic-path>/<ts>-<slug>-zh.md", content: "..." }   # en 时
+  ]
+  index_entry = {
+    common_path, created_at: <ts>, source_type: "theme-line", layers: ["raw"],
+    translations: { zh: "..." }   # en 时
   }
-}
+）
 ```
 
----
+将 theme-archive `[AR-5]` 输出追加为中间结果。
 
-### Step 7 · Write files
+### Step 6 · theme-digest Embedded（theme-line 触发）
 
-Write in this order:
+Primary raw 作为 **RAW**（不对 `-zh.md` digest）：
 
-1. `{archive_root}/raw/<topic-path>/<ts>-<slug>.md` (source)
-2. `{archive_root}/raw/<topic-path>/<ts>-<slug>-zh.md` (English source only)
-3. `{archive_root}/index.json` (append new entry)
-
-Create directories if needed.
-
----
-
-### Step 8 · Completion output
-
-```
-✅ Save to Archive 完成
-📄 raw：raw/<topic-path>/<ts>-<slug>.md
-📄 zh： raw/<topic-path>/<ts>-<slug>-zh.md   (英文源时输出)
-🗂 index.json 已更新（新增条目 <id>）
+```text
+加载并完整执行 ../../theme-digest/SKILL.md（Embedded：RAW = raw/<COMMON_PATH>，从 [AD-0] 起）
 ```
 
-### Step 9 · Archive digest (auto)
-
-Use primary raw file from Step 7 — `{archive_root}/raw/<topic-path>/<ts>-<slug>.md` — as **RAW**. Do not digest `-zh.md`.
-
-Load and execute [../theme-digest/SKILL.md](../theme-digest/SKILL.md) (**Embedded**: primary `RAW` only; from `[AD-0]` onward). Skip if `[AD-0]` is not met.
-
-Append:
+Skip if `[AD-0]` is not met。将 digest 结果追加为完成输出：
 
 ```
 📋 digest: digest/<topic-path>/<ts>-<slug>.md  (or "skipped")
 ```
-
-Update `index.json` layers: `["raw"]` → append `"digest"`. Do **not** append `"trace"`.
