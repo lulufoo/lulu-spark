@@ -4,10 +4,12 @@ import { softwareDevSkillsContent } from '../frontend/js/skills-software-dev-con
 const WORKFLOW_CMDS = [
   'lulu-dev-workflow',
   'diagnostic',
-  'product',
-  'tech',
-  'work-order',
-  'code',
+  'product-diagnostic',
+  'product-plan',
+  'tech-diagnostic',
+  'tech-plan',
+  'tech-work-order',
+  'tech-code',
 ]
 
 test('softwareDev has 4 groups', () => {
@@ -19,7 +21,7 @@ test('third group is 规则守卫', () => {
   expect(softwareDevSkillsContent.groups[2].items[0].cmd).toBe('lulu-rule-guard')
 })
 
-test('研发工作流 group has 6 workflow commands', () => {
+test('研发工作流 group has 8 workflow commands', () => {
   const wf = softwareDevSkillsContent.groups.find((g) =>
     g.name.includes('研发工作流')
   )
@@ -28,20 +30,25 @@ test('研发工作流 group has 6 workflow commands', () => {
   expect(wf.items.map((i) => i.cmd)).toEqual(WORKFLOW_CMDS)
 })
 
-test('all 9 clickable cmds are unique', () => {
+test('all 11 clickable cmds are unique', () => {
   const cmds = softwareDevSkillsContent.groups.flatMap((g) =>
     g.items.map((i) => i.cmd)
   )
-  expect(cmds).toHaveLength(9)
-  expect(new Set(cmds).size).toBe(9)
+  expect(cmds).toHaveLength(11)
+  expect(new Set(cmds).size).toBe(11)
 })
 
-test('product desc reflects revision path and diagnostic prerequisite', () => {
+test('workflow items align with SKILL.md names and have desc tooltips', () => {
   const wf = softwareDevSkillsContent.groups.find((g) =>
     g.name.includes('研发工作流')
   )
-  const diagnostic = wf.items.find((i) => i.cmd === 'diagnostic')
-  const product = wf.items.find((i) => i.cmd === 'product')
-  expect(diagnostic.desc).toMatch(/product\/tech/)
-  expect(product.desc).toMatch(/revision/)
+  const techDiagnostic = wf.items.find((i) => i.cmd === 'tech-diagnostic')
+  const productPlan = wf.items.find((i) => i.cmd === 'product-plan')
+  expect(techDiagnostic.name).toBe('技术决策诊断')
+  expect(productPlan.name).toBe('产品文档')
+  expect(techDiagnostic.desc).toMatch(/DDF/)
+  expect(productPlan.desc).toMatch(/PDQA/)
+  wf.items.forEach((item) => {
+    expect(item.desc).toBeTruthy()
+  })
 })
