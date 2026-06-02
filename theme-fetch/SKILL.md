@@ -35,9 +35,19 @@ Full routing: [adapters/README.md](references/adapters/README.md)
 MUST read the matching adapter doc before any fetch. Do NOT improvise platform-specific commands.
 </HARD-GATE>
 
+<HARD-GATE platform="wechat">
+`mp.weixin.qq.com/s/*` 第一步 MUST 运行：
+
+```bash
+python3 scripts/acquire_wechat_browser.py "<url>" -o /tmp/wechat.html
+python3 scripts/fetch_html.py /tmp/wechat.html -o /tmp/wechat-bundle.json --selector "#js_content"
+```
+
+**禁止**先运行 `fetch_wechat.py`（默认已禁用 curl）。执行后浏览器 MUST 被打开；若未打开则说明用错了脚本。
+</HARD-GATE>
+
 - Output MUST conform to [references/bundle-schema.md](references/bundle-schema.md)
 - Read `references/adapters/{platform}.md` → Match / Acquire / Map / Quirks
-- **WeChat URL**：优先 Semi-auto（`acquire_wechat_browser.py` → `fetch_html.py`），curl 直抓仅作 best-effort
 - Prefer adapter scripts under `scripts/` when documented
 - Bundle is ephemeral (memory only); optional debug: `{archive_root}/.cache/{topic-path}/{ts}-{slug}-bundle.json`
 - **禁止** persist bundle to `trace/`
