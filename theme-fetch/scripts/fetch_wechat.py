@@ -200,7 +200,23 @@ def main() -> int:
     ap.add_argument("url", help="WeChat article URL")
     ap.add_argument("-o", "--output", help="Write bundle JSON to file")
     ap.add_argument("--save-html", help="Save raw HTML for debugging")
+    ap.add_argument(
+        "--allow-direct-curl",
+        action="store_true",
+        help="Allow curl direct fetch (non-default; WeChat should use acquire_wechat_browser.py)",
+    )
     args = ap.parse_args()
+    if not args.allow_direct_curl:
+        print(
+            "ERROR: fetch_wechat.py 默认已禁用 curl 直抓。\n"
+            "请改用半自动 Acquire（会 open 系统浏览器）：\n"
+            "  python3 scripts/acquire_wechat_browser.py \"<url>\" -o /tmp/wechat.html\n"
+            "  python3 scripts/fetch_html.py /tmp/wechat.html -o bundle.json --selector \"#js_content\"\n"
+            "详见 references/adapters/wechat.md · Semi-auto A\n"
+            "若确需 curl：追加 --allow-direct-curl",
+            file=sys.stderr,
+        )
+        return 2
     if "mp.weixin.qq.com" not in args.url:
         print("Warning: URL does not look like WeChat", file=sys.stderr)
     html = fetch_html(args.url)
