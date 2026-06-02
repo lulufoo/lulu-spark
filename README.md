@@ -12,4 +12,6 @@
 | 对话蒸馏 | `dialogue-summary` | [dialogue-summary/](dialogue-summary/)（原 `ddm/`） |
 | 总结归档 | `theme-summary` | [theme-summary/](theme-summary/) |
 | 主题时间线稿 | `theme-line` | [theme-line/](theme-line/) |
+| 网页文章采集 | `theme-fetch` | [theme-fetch/](theme-fetch/) |
+| 文档归档 | `theme-archive` | [theme-archive/](theme-archive/) |
 | 主题摘要 digest | `theme-digest` | [theme-digest/](theme-digest/) |
