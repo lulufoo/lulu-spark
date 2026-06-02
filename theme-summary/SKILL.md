@@ -11,14 +11,14 @@ description: >-
 
 > **Read this file in full before executing.** This skill has 2 mandatory phases:
 > 1. **ThemeSummary Generation** (§ Core Input → § Recommended Workflow)
-> 2. **Save to Archive Steps 1–8** (§ Save to Archive) — Step 8 (Archive digest) is required and must not be skipped.
+> 2. **Save to Archive** (§ Save to Archive) — 链式 **theme-archive**（raw/index）+ **theme-digest**（digest，不得跳过）。
 >
 > Both phases are required. Neither may be skipped.
 
 Archive a conversation summary — a written conclusion, recap, or distilled note
 produced from a dialogue — directly as a `raw/` document. Unlike `dialogue-summary`
-(`dtd_raw_dialogue`), no turn-by-turn reconstruction is performed; the summary
-body is stored as-is.
+(`dtd_raw_dialogue`), no turn-by-turn reconstruction is performed. The body is kept
+verbatim except **external-linked images are stripped** (see § Body sanitize).
 
 ## Core Input
 
@@ -31,6 +31,12 @@ Two accepted input sources (confirm before proceeding):
 
 When source is ambiguous, ask the user which applies before continuing.
 
+## Body sanitize
+
+<HARD-GATE>
+Before Step 2 (Build archive document), MUST apply [references/body-sanitize.md](references/body-sanitize.md) to the summary body. Do not archive raw bodies that still contain `![…](http…)` / `![…](https…)` or external `<img src="http…">`.
+</HARD-GATE>
+
 ## Core Output Shape
 
 ```markdown
@@ -42,7 +48,7 @@ When source is ambiguous, ask the user which applies before continuing.
 
 ---
 
-<Summary body — verbatim from input, no compression, no TURN_SEP>
+<Summary body — after body-sanitize; no compression, no TURN_SEP>
 ```
 
 Rules:
@@ -54,118 +60,58 @@ Rules:
 ## Recommended Workflow
 
 1. Confirm input source (A or B); if B, generate summary and await user approval.
-2. Execute Save to Archive (Steps 1–8, see § Save to Archive below).
+2. Sanitize body (§ Body sanitize).
+3. Execute Save to Archive (see § Save to Archive below).
 
 ---
 
 ## Save to Archive
 
-**Configuration**: Read `{skill_dir}/../config.json` (repository root) to get `archive_root`.
+Path/config: [../shared/archive-concepts.md](../shared/archive-concepts.md)
 
----
+<HARD-GATE chain="archive-digest">
+下游 skill **必须**从 GitHub 加载并完整执行；**禁止**仅用本地 `../theme-archive` 或 `../theme-digest` 替代（即使本机已安装同仓库副本）。
 
-### Step 1 · Select project and doc-theme, determine file names
+| Step | 仓库目录（查阅） | 执行入口（Agent 读取） |
+|------|------------------|------------------------|
+| theme-archive | [theme-archive](https://github.com/lulufoo/lulu-workbench-skills/tree/main/theme-archive) | `https://raw.githubusercontent.com/lulufoo/lulu-workbench-skills/main/theme-archive/SKILL.md` |
+| theme-digest | [theme-digest](https://github.com/lulufoo/lulu-workbench-skills/tree/main/theme-digest) | `https://raw.githubusercontent.com/lulufoo/lulu-workbench-skills/main/theme-digest/SKILL.md` |
 
-Read `{archive_root}/topics.json` and select a project:
+Embedded 载荷字段：[input-schema](https://raw.githubusercontent.com/lulufoo/lulu-workbench-skills/main/theme-archive/references/input-schema.md)
+</HARD-GATE>
 
-- Take each item's `dir` field (if present), otherwise take the last segment of `repo` (after `/`)
-- If no suitable project exists, set `project = inbox`
-- Infer `doc-theme` from the summary title or content (kebab-case, English, no spaces, 3–5 words)
+### Step 1 · Select project and doc-theme
 
-```
-select : project   = dir field or repo short name (e.g. "ai-software-dev")
-         doc-theme = semantic inference from summary title (e.g. "agentic-coding-session-recap")
-output : topic-path  = <project>/<doc-theme>
-         slug         = kebab-case matching the topic (English, no spaces)
-         ts            = YYYYMMDDHHMM (UTC+8)
-         source-file  = raw/<topic-path>/<ts>-<slug>.md
-```
-
-If a slug conflict exists, clarify with the user before proceeding.
-
----
+Read `{archive_root}/topics.json` → `project` + `doc-theme`（kebab-case）；无匹配 → `inbox`。推断 `slug`、`ts`、`COMMON_PATH`。slug 冲突 → 询问用户。
 
 ### Step 2 · Build archive document
 
-Compose the `.md` with this header, then the summary body verbatim:
+1. Apply [references/body-sanitize.md](references/body-sanitize.md) to the summary body.
+2. Compose full Markdown per § Core Output Shape（header + sanitized body).
 
-```markdown
-# {Document Title}
+### Step 3 · theme-archive Embedded
 
-> 创建时间：{YYYY年M月D日 HH:MM}
-> 来源：theme-summary
-> 导航：[distilled]({prefix}distilled/{COMMON_PATH}) · [digest]({prefix}digest/{COMMON_PATH}) · [trace]({prefix}trace/{COMMON_PATH})
+构造载荷并执行：
 
----
-
-{Summary body}
+```text
+加载并完整执行 https://raw.githubusercontent.com/lulufoo/lulu-workbench-skills/main/theme-archive/SKILL.md（Embedded，从 [AR-1] 起：
+  COMMON_PATH = <topic-path>/<ts>-<slug>.md
+  documents = [{ rel: "raw/<COMMON_PATH>", content: "<Step 2 全文>" }]
+  index_entry = { common_path, created_at: <ts>, source_type: "summary", layers: ["raw"] }
+）
 ```
 
-Where:
+theme-archive 负责写 raw、更新 index。将 `[AR-5]` 输出追加为本 skill 完成信息。
 
-```
-COMMON_PATH = <topic-path>/<ts>-<slug>.md
-prefix      = "../../../"   (topic-path is always 2 segments: project/doc-theme)
-```
+### Step 4 · theme-digest Embedded
 
-Navigation paths must be fully resolved — no placeholders.
+Primary raw 作为 **RAW**（不对 `-zh.md` digest）：
 
----
-
-### Step 3 · Generate entry ID
-
-Generate a 32-character lowercase hex ID using `secrets.token_hex(16)` (Python) or equivalent.
-
----
-
-### Step 4 · Prepare index.json entry
-
-```json
-"<id>": {
-  "common_path": "<topic-path>/<ts>-<slug>.md",
-  "created_at": "<ts>",
-  "layers": ["raw"],
-  "source_type": "summary"
-}
+```text
+加载并完整执行 https://raw.githubusercontent.com/lulufoo/lulu-workbench-skills/main/theme-digest/SKILL.md（Embedded：RAW = raw/<COMMON_PATH>，从 [AD-0] 起）
 ```
 
----
-
-### Step 5 · Write files
-
-Write in this order to avoid index pointing to non-existent files:
-
-1. `{archive_root}/raw/<topic-path>/<ts>-<slug>.md`
-2. `{archive_root}/index.json` (append new entry to `entries`)
-
-Create the directory if it does not exist.
-
----
-
-### Step 6 · Completion output
-
-```
-✅ ThemeSummary 归档完成
-📄 raw：raw/<topic-path>/<ts>-<slug>.md
-🗂 index.json 已更新（source_type: summary）
-```
-
----
-
-### Step 7 · Archive digest (auto)
-
-Use the raw file from Step 5 as **RAW**.
-
-Load and execute [../theme-digest/SKILL.md](../theme-digest/SKILL.md) (**Embedded**: `RAW` from Step 5, from `[AD-0]` onward).
-
-> Note: [AD-0] `source_type = summary` lowers the threshold to raw body ≥ 200 chars.
-> Skip only if that condition is not met.
-
-Append to the completion output:
-
-```
-📋 digest：digest/<topic-path>/<ts>-<slug>.md  (or "skipped")
-```
+`source_type = summary` 时 `[AD-0]` 阈值为 raw 正文 ≥ 200 字。将 digest 结果追加到完成输出。
 
 ---
 
@@ -178,3 +124,13 @@ Assume the following defaults:
 - Title: inferred from the first heading in the summary body, or ask once if absent
 - Project: closest match in topics.json; if unclear, use `inbox`
 - Language: Chinese (no translation step)
+- External images: always strip per body-sanitize (no confirmation)
+
+## References
+
+| Doc | Purpose |
+|-----|---------|
+| [references/body-sanitize.md](references/body-sanitize.md) | 外链图片删除规则 |
+| [theme-archive @ GitHub](https://github.com/lulufoo/lulu-workbench-skills/tree/main/theme-archive) | raw 落盘 + index |
+| [theme-digest @ GitHub](https://github.com/lulufoo/lulu-workbench-skills/tree/main/theme-digest) | digest 生成 |
+| [../shared/archive-concepts.md](../shared/archive-concepts.md) | `COMMON_PATH`、`archive_root` |
