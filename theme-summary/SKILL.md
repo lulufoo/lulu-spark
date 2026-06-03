@@ -84,6 +84,8 @@ Embedded 载荷字段：[input-schema](https://raw.githubusercontent.com/lulufoo
 
 Read `{archive_root}/topics.json` → `project` + `doc-theme`（kebab-case）；无匹配 → `inbox`。推断 `slug`、`ts`、`COMMON_PATH`。slug 冲突 → 询问用户。
 
+**`ts`（仅 GitHub URL）**：若用户输入为 `github.com/{owner}/{repo}/blob/{ref}/{path}` 或 `raw.githubusercontent.com/...`，MUST 在确定 `COMMON_PATH` 前按 [references/ts-inference.md](references/ts-inference.md) 从 Git 历史推断 `ts`（与 `> 创建时间：`、`created_at` 一致）。**非 GitHub 输入**：`ts` = 归档时刻（UTC+8）。
+
 ### Step 2 · Build archive document
 
 1. Apply [references/body-sanitize.md](references/body-sanitize.md) to the summary body.
@@ -125,12 +127,14 @@ Assume the following defaults:
 - Project: closest match in topics.json; if unclear, use `inbox`
 - Language: Chinese (no translation step)
 - External images: always strip per body-sanitize (no confirmation)
+- GitHub blob/raw URL: infer `ts` per [references/ts-inference.md](references/ts-inference.md); Git 失败时回退归档时刻
 
 ## References
 
 | Doc | Purpose |
 |-----|---------|
 | [references/body-sanitize.md](references/body-sanitize.md) | 外链图片删除规则 |
+| [references/ts-inference.md](references/ts-inference.md) | **仅 GitHub URL**：从 Git 历史推断 `ts` |
 | [theme-archive @ GitHub](https://github.com/lulufoo/lulu-workbench-skills/tree/main/theme-archive) | raw 落盘 + index |
 | [theme-digest @ GitHub](https://github.com/lulufoo/lulu-workbench-skills/tree/main/theme-digest) | digest 生成 |
 | [../shared/archive-concepts.md](../shared/archive-concepts.md) | `COMMON_PATH`、`archive_root` |
