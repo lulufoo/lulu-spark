@@ -11,6 +11,8 @@
     "tpt_url": "https://github.com/lulufoo/lulu-workflow-framework/blob/main/template/tech-plan/20-tech-plan-spec-template.md",
     "tpef_url": "https://github.com/lulufoo/lulu-workflow-framework/blob/main/template/tech-plan/21-tech-plan-spec-evaluation-framework.md",
     "ptc_url": "https://github.com/lulufoo/lulu-workflow-framework/blob/main/template/tech-plan/22-product-tech-spec-crosscheck.md",
+    "shaping_tpt_url": "https://github.com/lulufoo/lulu-workflow-framework/blob/main/template/tech-plan/23-tech-plan-shaping-template.md",
+    "shaping_tpef_url": "https://github.com/lulufoo/lulu-workflow-framework/blob/main/template/tech-plan/24-tech-plan-shaping-evaluation-framework.md",
     "ac_url": ""
   },
   "tech-work-order": {
