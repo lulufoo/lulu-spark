@@ -10,18 +10,14 @@ Applies when: creating or editing `.md` document files.
 
 ---
 
-## File Basics
+## Editing Basics
 
 - When interpreting source code, attach the official link at the top of the document.
 - File name must match the document title, using `a-b-c.md` format.
-- All newly created `.md` files must be placed under the workspace `.cache` directory.
+- Temporary files default to the workspace `.cache` directory.
 - Before editing an existing document, read through all affected sections first.
-
----
-
-## Language
-
-- **Document content**: Default to English unless explicitly stated otherwise.
+- Default document language is English unless explicitly specified otherwise.
+- Keep the document language consistent; do not mix languages within the same document.
 
 ---
 
