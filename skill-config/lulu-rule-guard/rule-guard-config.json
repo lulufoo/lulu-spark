@@ -18,5 +18,10 @@
     "allowExternalPaths": [
       "/Users/lulu/Code/lulu-workbench-knowledge/"
     ]
+  },
+  "pathGuard": {
+    "enabled": true,
+    "writeAllowExternalPaths": [],
+    "readAllowExternalPaths": ["~/.cursor/", "~/.copilot/"]
   }
 }
