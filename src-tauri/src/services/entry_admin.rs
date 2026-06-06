@@ -197,7 +197,7 @@ pub fn move_entry_project(payload: &Value) -> Value {
             zh_parts[1] = parts[1];
         }
         new_zh = Some(zh_parts.join("/"));
-        let zh_src = corpus.join("raw").join(zh_parts.join("/"));
+        let zh_src = corpus.join("raw").join(old_zh);
         let zh_dst = corpus.join("raw").join(new_zh.as_ref().unwrap());
         if zh_src.exists() {
             moves.push((zh_src, zh_dst));
