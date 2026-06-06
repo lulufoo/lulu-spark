@@ -1,0 +1,22 @@
+{
+  "version": 2,
+  "chimeEnabled": true,
+  "chime": {
+    "sound": "/System/Library/Sounds/Funk.aiff",
+    "volume": 1,
+    "gain": 25
+  },
+  "gitGuard": {
+    "enabled": true,
+    "referenceDoc": "docs/git/git-workflow-standard.md",
+    "mode": "strict",
+    "excludePaths": [
+      ".cursor/rules/",
+      "skill-config/",
+      "docs/"
+    ],
+    "allowExternalPaths": [
+      "/Users/lulu/Code/lulu-workbench-knowledge/"
+    ]
+  }
+}
