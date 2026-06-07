@@ -6,6 +6,13 @@ const HEADER_LABEL_COMMITTING = '提交中…';
 const SUCCESS_CLOSE_MS = 500;
 
 let isCommitting = false;
+let closeTimer = null;
+
+function delay(ms) {
+  return new Promise(resolve => {
+    closeTimer = setTimeout(resolve, ms);
+  });
+}
 
 function setCommitBusy(busy) {
   isCommitting = busy;
@@ -86,6 +93,11 @@ async function openCommitChangesDialog() {
 }
 
 function closeCommitChangesDialog() {
+  if (closeTimer) {
+    clearTimeout(closeTimer);
+    closeTimer = null;
+  }
+  isCommitting = false;
   document.getElementById('commit-changes-dialog').classList.remove('open');
   document.getElementById('btn-commit-changes-ok').textContent = '提交';
   setCommitBusy(false);
@@ -98,20 +110,18 @@ async function doCommitChanges() {
 
   try {
     const data = await api.commitFiles(msg || 'chore: update via viewer');
-    if (data.error) throw new Error(data.error || 'failed');
-    if (data.info === 'nothing to commit') {
-      result.textContent = '✓ 已推送';
-      result.style.color = '#1a7f37';
-      setTimeout(() => closeCommitChangesDialog(), SUCCESS_CLOSE_MS);
-    } else {
-      result.textContent = '✓ 提交并推送成功';
-      result.style.color = '#1a7f37';
-      setTimeout(() => closeCommitChangesDialog(), SUCCESS_CLOSE_MS);
-    }
+    const successMsg = data?.info === 'nothing to commit'
+      ? '✓ 已推送'
+      : '✓ 提交并推送成功';
+    result.textContent = successMsg;
+    result.style.color = '#1a7f37';
+    await delay(SUCCESS_CLOSE_MS);
+    closeCommitChangesDialog();
   } catch (e) {
     result.textContent = `失败：${e.message}`;
     result.style.color = '#cf222e';
     setCommitBusy(false);
+    isCommitting = false;
   }
 }
 

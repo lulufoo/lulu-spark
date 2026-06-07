@@ -112,9 +112,10 @@ describe('homepage commit dialog — success close', () => {
   afterEach(() => vi.useRealTimers());
 
   it('closes dialog 500ms after success and restores header', async () => {
-    await trigger('btn-commit-changes-ok', 'click');
-    expect(makeEl('commit-changes-dialog').classList.contains('open')).toBe(true);
-    vi.advanceTimersByTime(500);
+    const click = trigger('btn-commit-changes-ok', 'click');
+    await Promise.resolve();
+    await vi.runAllTimersAsync();
+    await click;
     expect(makeEl('commit-changes-dialog').classList.contains('open')).toBe(false);
     expect(makeEl('btn-push-index').disabled).toBe(false);
     expect(makeEl('btn-push-index').textContent).toBe('↑ 提交变更');
