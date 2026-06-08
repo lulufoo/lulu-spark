@@ -1,37 +1,8 @@
 import * as api from '../../api.js'
+import { showToast } from '../toast.js'
 
 const HEADER_LABEL_IDLE = '↑ 提交变更';
 const HEADER_LABEL_CHECKING = '检查中…';
-const HEADER_LABEL_COMMITTING = '提交中…';
-const SUCCESS_CLOSE_MS = 500;
-
-let isCommitting = false;
-let closeTimer = null;
-
-function delay(ms) {
-  return new Promise(resolve => {
-    closeTimer = setTimeout(resolve, ms);
-  });
-}
-
-function setCommitBusy(busy) {
-  isCommitting = busy;
-  const headerBtn = document.getElementById('btn-push-index');
-  const okBtn = document.getElementById('btn-commit-changes-ok');
-  const cancelBtn = document.getElementById('btn-commit-changes-cancel');
-  const msgInput = document.getElementById('commit-changes-msg');
-  const result = document.getElementById('commit-changes-result');
-
-  headerBtn.disabled = busy;
-  headerBtn.textContent = busy ? HEADER_LABEL_COMMITTING : HEADER_LABEL_IDLE;
-  okBtn.disabled = busy;
-  cancelBtn.disabled = busy;
-  msgInput.disabled = busy;
-  if (busy) {
-    result.textContent = '提交中…';
-    result.style.color = '#8c959f';
-  }
-}
 
 // ── openCommitChangesDialog ────────────────────────────────────────────────
 
@@ -93,36 +64,27 @@ async function openCommitChangesDialog() {
 }
 
 function closeCommitChangesDialog() {
-  if (closeTimer) {
-    clearTimeout(closeTimer);
-    closeTimer = null;
-  }
-  isCommitting = false;
   document.getElementById('commit-changes-dialog').classList.remove('open');
   document.getElementById('btn-commit-changes-ok').textContent = '提交';
-  setCommitBusy(false);
+  const headerBtn = document.getElementById('btn-push-index');
+  headerBtn.disabled = false;
+  headerBtn.textContent = HEADER_LABEL_IDLE;
 }
 
-async function doCommitChanges() {
-  const result = document.getElementById('commit-changes-result');
+function doCommitChanges() {
   const msg = document.getElementById('commit-changes-msg').value.trim();
-  setCommitBusy(true);
+  closeCommitChangesDialog();
 
-  try {
-    const data = await api.commitFiles(msg || 'chore: update via viewer');
-    const successMsg = data?.info === 'nothing to commit'
-      ? '✓ 已推送'
-      : '✓ 提交并推送成功';
-    result.textContent = successMsg;
-    result.style.color = '#1a7f37';
-    await delay(SUCCESS_CLOSE_MS);
-    closeCommitChangesDialog();
-  } catch (e) {
-    result.textContent = `失败：${e.message}`;
-    result.style.color = '#cf222e';
-    setCommitBusy(false);
-    isCommitting = false;
-  }
+  void api.commitFiles(msg || 'chore: update via viewer')
+    .then(data => {
+      const successMsg = data?.info === 'nothing to commit'
+        ? '✓ 已推送'
+        : '✓ 提交并推送成功';
+      showToast(successMsg, 'success');
+    })
+    .catch(e => {
+      showToast(`提交失败：${e.message}`, 'error');
+    });
 }
 
 // ── Event listeners ────────────────────────────────────────────────────────
@@ -131,6 +93,5 @@ document.getElementById('btn-push-index').addEventListener('click', openCommitCh
 document.getElementById('btn-commit-changes-cancel').addEventListener('click', closeCommitChangesDialog);
 document.getElementById('btn-commit-changes-ok').addEventListener('click', doCommitChanges);
 document.getElementById('commit-changes-dialog').addEventListener('click', e => {
-  if (isCommitting) return;
   if (e.target === document.getElementById('commit-changes-dialog')) closeCommitChangesDialog();
 });
