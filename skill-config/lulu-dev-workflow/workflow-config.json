@@ -1,26 +1,27 @@
 {
   "version": 1,
   "product-plan": {
-    "template_url": "https://github.com/lulufoo/lulu-workflow-framework/blob/main/template/product-plan/10-product-doc-template.md",
-    "review_checklist_url": "https://github.com/lulufoo/lulu-workflow-framework/blob/main/template/product-plan/11-product-doc-review-checklist.md",
-    "pdqa_url": "https://github.com/lulufoo/lulu-workflow-framework/blob/main/template/product-plan/12-product-doc-evaluation-framework.md",
-    "shaping_template_url": "https://github.com/lulufoo/lulu-workflow-framework/blob/main/template/product-plan/13-product-shaping-template.md",
-    "shaping_pdqa_url": "https://github.com/lulufoo/lulu-workflow-framework/blob/main/template/product-plan/14-product-shaping-pdqa.md"
+    "template_url": "https://github.com/lulufoo/lulu-workflow-framework/blob/main/lulu-dev-workflow/template/product-plan/10-product-doc-template.md",
+    "review_checklist_url": "https://github.com/lulufoo/lulu-workflow-framework/blob/main/lulu-dev-workflow/template/product-plan/11-product-doc-review-checklist.md",
+    "pdqa_url": "https://github.com/lulufoo/lulu-workflow-framework/blob/main/lulu-dev-workflow/template/product-plan/12-product-doc-evaluation-framework.md",
+    "shaping_template_url": "https://github.com/lulufoo/lulu-workflow-framework/blob/main/lulu-dev-workflow/template/product-plan/13-product-shaping-template.md",
+    "shaping_pdqa_url": "https://github.com/lulufoo/lulu-workflow-framework/blob/main/lulu-dev-workflow/template/product-plan/14-product-shaping-pdqa.md"
   },
   "tech-plan": {
-    "tpt_url": "https://github.com/lulufoo/lulu-workflow-framework/blob/main/template/tech-plan/20-tech-plan-spec-template.md",
-    "tpef_url": "https://github.com/lulufoo/lulu-workflow-framework/blob/main/template/tech-plan/21-tech-plan-spec-evaluation-framework.md",
-    "ptc_url": "https://github.com/lulufoo/lulu-workflow-framework/blob/main/template/tech-plan/22-product-tech-spec-crosscheck.md",
-    "shaping_tpt_url": "https://github.com/lulufoo/lulu-workflow-framework/blob/main/template/tech-plan/23-tech-plan-shaping-template.md",
-    "shaping_tpef_url": "https://github.com/lulufoo/lulu-workflow-framework/blob/main/template/tech-plan/24-tech-plan-shaping-evaluation-framework.md",
+    "tpt_url": "https://github.com/lulufoo/lulu-workflow-framework/blob/main/lulu-dev-workflow/template/tech-plan/20-tech-plan-spec-template.md",
+    "tpt_meta_url": "https://github.com/lulufoo/lulu-workflow-framework/blob/main/lulu-dev-workflow/template/tech-plan/20-tech-plan-spec-meta.md",
+    "tpef_url": "https://github.com/lulufoo/lulu-workflow-framework/blob/main/lulu-dev-workflow/template/tech-plan/21-tech-plan-spec-evaluation-framework.md",
+    "ptc_url": "https://github.com/lulufoo/lulu-workflow-framework/blob/main/lulu-dev-workflow/template/tech-plan/22-product-tech-spec-crosscheck.md",
+    "shaping_tpt_url": "https://github.com/lulufoo/lulu-workflow-framework/blob/main/lulu-dev-workflow/template/tech-plan/23-tech-plan-shaping-template.md",
+    "shaping_tpef_url": "https://github.com/lulufoo/lulu-workflow-framework/blob/main/lulu-dev-workflow/template/tech-plan/24-tech-plan-shaping-evaluation-framework.md",
     "ac_url": ""
   },
   "tech-work-order": {
-    "task_template_url": "https://github.com/lulufoo/lulu-workflow-framework/blob/main/template/work-order/30-work-order-task-template.md",
-    "tasklist_template_url": "https://github.com/lulufoo/lulu-workflow-framework/blob/main/template/work-order/31-work-order-tasklist-template.md",
-    "woqa_url": "https://github.com/lulufoo/lulu-workflow-framework/blob/main/template/work-order/32-work-order-evaluation-framework.md",
-    "twca_url": "https://github.com/lulufoo/lulu-workflow-framework/blob/main/template/work-order/33-tech-workorder-crosscheck.md",
-    "tda_url": "https://github.com/lulufoo/lulu-workflow-framework/blob/main/template/work-order/34-tech-doc-admission-framework.md"
+    "task_template_url": "https://github.com/lulufoo/lulu-workflow-framework/blob/main/lulu-dev-workflow/template/work-order/30-work-order-task-template.md",
+    "tasklist_template_url": "https://github.com/lulufoo/lulu-workflow-framework/blob/main/lulu-dev-workflow/template/work-order/31-work-order-tasklist-template.md",
+    "woqa_url": "https://github.com/lulufoo/lulu-workflow-framework/blob/main/lulu-dev-workflow/template/work-order/32-work-order-evaluation-framework.md",
+    "twca_url": "https://github.com/lulufoo/lulu-workflow-framework/blob/main/lulu-dev-workflow/template/work-order/33-tech-workorder-crosscheck.md",
+    "tda_url": "https://github.com/lulufoo/lulu-workflow-framework/blob/main/lulu-dev-workflow/template/work-order/34-tech-doc-admission-framework.md"
   },
   "tech-code": {
     "test_command": "npm test",
