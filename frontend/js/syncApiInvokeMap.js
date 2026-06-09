@@ -42,6 +42,10 @@ export const SYNC_API_INVOKE_MAP = {
         dst_dir_url: body.dst_dir_url,
       }),
   },
+  '/api/gh-delete': {
+    cmd: 'gh_delete_assets',
+    args: (body) => syncPayload({ url: body.url }),
+  },
   '/api/settle': {
     cmd: 'settle_entry',
     args: (body) =>

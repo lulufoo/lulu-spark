@@ -283,6 +283,10 @@ export async function ghMove(srcUrl, dstDirUrl) {
   return writePost('/api/gh-move', { src_url: srcUrl, dst_dir_url: dstDirUrl });
 }
 
+export async function ghDelete(url) {
+  return writePost('/api/gh-delete', { url });
+}
+
 export async function updateHighlight(commonPath, layer, highlight, ts) {
   return writePost('/api/update-highlights', {
     common_path: commonPath,
