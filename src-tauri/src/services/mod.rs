@@ -6,6 +6,7 @@ pub mod entry_admin;
 pub mod kb_git;
 pub mod kb_iterm;
 pub mod github_move;
+pub mod github_url;
 pub mod index_build;
 pub mod link_title;
 pub mod entry_write;
