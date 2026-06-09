@@ -5,6 +5,7 @@ pub mod draft;
 pub mod entry_admin;
 pub mod kb_git;
 pub mod kb_iterm;
+pub mod github_delete;
 pub mod github_move;
 pub mod github_url;
 pub mod index_build;
