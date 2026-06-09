@@ -1,5 +1,25 @@
 import * as api from '../../api.js'
 
+// ── Panel switching ──────────────────────────────────────────────────────────
+
+function switchGhOpsPanel(panelId) {
+  document.querySelectorAll('.gh-ops-nav-item').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.panel === panelId);
+  });
+  document.querySelectorAll('.gh-ops-panel').forEach(panel => {
+    panel.classList.toggle('active', panel.id === `gh-ops-panel-${panelId}`);
+  });
+}
+
+document.querySelectorAll('.gh-ops-nav-item').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const panelId = btn.dataset.panel;
+    switchGhOpsPanel(panelId);
+    if (panelId === 'move') document.getElementById('move-src-url').focus();
+    else document.getElementById('delete-url').focus();
+  });
+});
+
 // ── openMoveDocDialog / closeMoveDocDialog ─────────────────────────────────
 
 function resetDeleteColumn() {
@@ -25,6 +45,7 @@ function openMoveDocDialog() {
   document.getElementById('btn-move-doc-ok').disabled = false;
   document.getElementById('btn-move-doc-ok').textContent = '确认移动';
   resetDeleteColumn();
+  switchGhOpsPanel('move');
   document.getElementById('move-doc-dialog').classList.add('open');
   document.getElementById('move-src-url').focus();
 }
@@ -143,6 +164,10 @@ async function doDeleteDoc() {
 
 document.getElementById('btn-move-doc-header').addEventListener('click', openMoveDocDialog);
 document.getElementById('btn-move-doc-cancel').addEventListener('click', closeMoveDocDialog);
+document.getElementById('btn-move-doc-close').addEventListener('click', closeMoveDocDialog);
+document.getElementById('move-doc-dialog').addEventListener('click', (e) => {
+  if (e.target === document.getElementById('move-doc-dialog')) closeMoveDocDialog();
+});
 document.getElementById('btn-move-doc-ok').addEventListener('click', doMoveDoc);
 document.getElementById('btn-delete-doc-arm').addEventListener('click', armDeleteDoc);
 document.getElementById('btn-delete-doc-ok').addEventListener('click', doDeleteDoc);

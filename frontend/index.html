@@ -281,38 +281,47 @@
 <!-- GitHub ops dialog (move + delete) -->
 <div id="move-doc-dialog">
   <div id="move-doc-dialog-box">
-    <h3>GitHub 操作</h3>
-    <div class="gh-ops-columns">
-      <div class="gh-ops-col gh-ops-col-move">
-        <div class="gh-ops-col-title">移动</div>
-        <div class="move-doc-field">
-          <label>源 URL（文件用 blob 链接，目录用 tree 链接）</label>
-          <input id="move-src-url" type="text" placeholder="blob: …/blob/main/dir/file.md   或   tree: …/tree/main/dir" autocomplete="off" spellcheck="false" />
+    <div id="move-doc-dialog-header">
+      <span>GitHub 操作</span>
+      <button id="btn-move-doc-close" type="button" title="关闭">✕</button>
+    </div>
+    <div id="move-doc-dialog-body">
+      <nav id="gh-ops-nav">
+        <button type="button" class="gh-ops-nav-item active" data-panel="move">移动</button>
+        <button type="button" class="gh-ops-nav-item" data-panel="delete">删除</button>
+      </nav>
+      <div id="gh-ops-panels">
+        <div id="gh-ops-panel-move" class="gh-ops-panel active">
+          <div class="gh-ops-panel-title">移动</div>
+          <div class="gh-ops-field">
+            <label for="move-src-url">源 URL（文件用 blob 链接，目录用 tree 链接）</label>
+            <input id="move-src-url" type="text" placeholder="blob: …/blob/main/dir/file.md   或   tree: …/tree/main/dir" autocomplete="off" spellcheck="false" />
+          </div>
+          <div class="gh-ops-field">
+            <label for="move-dst-url">目标目录 URL（tree 目录链接，或 blob 文件链接取其所在目录）</label>
+            <input id="move-dst-url" type="text" placeholder="tree: …/tree/main/subdir   或   blob: …/blob/main/subdir/file.md" autocomplete="off" spellcheck="false" />
+          </div>
+          <div id="move-doc-result" class="gh-ops-result"></div>
+          <div class="gh-ops-panel-actions">
+            <button id="btn-move-doc-ok" type="button" class="btn-gh-ops-primary">确认移动</button>
+          </div>
         </div>
-        <div class="move-doc-field">
-          <label>目标目录 URL（tree 目录链接，或 blob 文件链接取其所在目录）</label>
-          <input id="move-dst-url" type="text" placeholder="tree: …/tree/main/subdir   或   blob: …/blob/main/subdir/file.md" autocomplete="off" spellcheck="false" />
-        </div>
-        <div id="move-doc-result"></div>
-        <div class="gh-ops-col-actions">
-          <button id="btn-move-doc-ok" class="md-header-btn primary">确认移动</button>
-        </div>
-      </div>
-      <div class="gh-ops-col gh-ops-col-delete">
-        <div class="gh-ops-col-title">删除</div>
-        <div class="move-doc-field">
-          <label>URL（文件用 blob 链接，目录用 tree 链接）</label>
-          <input id="delete-url" type="text" placeholder="blob: …/blob/main/dir/file.md   或   tree: …/tree/main/dir" autocomplete="off" spellcheck="false" />
-        </div>
-        <div id="delete-doc-result"></div>
-        <div class="gh-ops-col-actions gh-ops-delete-actions">
-          <button id="btn-delete-doc-arm" class="md-header-btn">确认删除意图</button>
-          <button id="btn-delete-doc-ok" class="md-header-btn gh-delete-ok-btn" disabled>确认删除</button>
+        <div id="gh-ops-panel-delete" class="gh-ops-panel">
+          <div class="gh-ops-panel-title">删除</div>
+          <div class="gh-ops-field">
+            <label for="delete-url">URL（文件用 blob 链接，目录用 tree 链接）</label>
+            <input id="delete-url" type="text" placeholder="blob: …/blob/main/dir/file.md   或   tree: …/tree/main/dir" autocomplete="off" spellcheck="false" />
+          </div>
+          <div id="delete-doc-result" class="gh-ops-result"></div>
+          <div class="gh-ops-panel-actions gh-ops-delete-actions">
+            <button id="btn-delete-doc-arm" type="button" class="btn-gh-ops-secondary">确认删除意图</button>
+            <button id="btn-delete-doc-ok" type="button" class="btn-gh-ops-danger" disabled>确认删除</button>
+          </div>
         </div>
       </div>
     </div>
-    <div id="move-doc-dialog-actions">
-      <button id="btn-move-doc-cancel" class="md-header-btn">取消</button>
+    <div id="move-doc-dialog-footer">
+      <button type="button" id="btn-move-doc-cancel">关闭</button>
     </div>
   </div>
 </div>
