@@ -1,49 +1,29 @@
 use super::*;
+use serde_json::json;
 
 #[test]
-fn parse_blob_url() {
-    let u = "https://github.com/o/r/blob/main/path/to/f.md";
-    let p = parse_github_blob(u).expect("blob");
-    assert_eq!(p.0, "o");
-    assert_eq!(p.3, "path/to/f.md");
+fn gh_move_assets_rejects_missing_urls() {
+    let r = gh_move_assets(&json!({}));
+    assert_eq!(r.get("_status"), Some(&json!(400)));
+    assert!(r.get("error").and_then(|v| v.as_str()).unwrap_or("").contains("required"));
 }
 
 #[test]
-fn parse_dst_url_tree_directory() {
-    let u = "https://github.com/o/r/tree/main/docs";
-    let p = parse_github_dst(u).expect("dst");
-    assert_eq!(p.0, "o");
-    assert_eq!(p.1, "r");
-    assert_eq!(p.2, "docs");
+fn gh_move_assets_rejects_invalid_dst_url() {
+    let r = gh_move_assets(&json!({
+        "src_url": "https://github.com/o/r/blob/main/f.md",
+        "dst_dir_url": "not-a-github-url"
+    }));
+    assert_eq!(r.get("_status"), Some(&json!(400)));
+    assert!(r.get("error").and_then(|v| v.as_str()).unwrap_or("").contains("目标目录"));
 }
 
 #[test]
-fn parse_dst_url_blob_file_uses_parent_directory() {
-    let u = "https://github.com/lulufoo/ai-software-dev/blob/main/lulu-sync-rules/rules_sync.json";
-    let p = parse_github_dst(u).expect("dst");
-    assert_eq!(p.0, "lulufoo");
-    assert_eq!(p.1, "ai-software-dev");
-    assert_eq!(p.2, "lulu-sync-rules");
-}
-
-#[test]
-fn parse_dst_url_blob_file_nested_directory() {
-    let u = "https://github.com/lulufoo/ai-software-dev/blob/main/cursor-rule-guard/v1/cursor-rule-guard-design.md";
-    let p = parse_github_dst(u).expect("dst");
-    assert_eq!(p.2, "cursor-rule-guard/v1");
-}
-
-#[test]
-fn parse_dst_url_blob_must_not_keep_blob_main_prefix() {
-    let u = "https://github.com/o/r/blob/main/cursor-rule-guard/v1/foo.md";
-    let p = parse_github_dst(u).expect("dst");
-    assert!(!p.2.starts_with("blob/"));
-    assert!(!p.2.contains("main/"));
-}
-
-#[test]
-fn parse_dst_url_blob_directory_segment_keeps_full_path() {
-    let u = "https://github.com/lulufoo/ai-software-dev/blob/main/cursor-rule-guard/v1";
-    let p = parse_github_dst(u).expect("dst");
-    assert_eq!(p.2, "cursor-rule-guard/v1");
+fn gh_move_assets_rejects_invalid_src_url() {
+    let r = gh_move_assets(&json!({
+        "src_url": "https://example.com/o/r/blob/main/f.md",
+        "dst_dir_url": "https://github.com/o/r/tree/main/docs"
+    }));
+    assert_eq!(r.get("_status"), Some(&json!(400)));
+    assert!(r.get("error").and_then(|v| v.as_str()).unwrap_or("").contains("源 URL"));
 }
