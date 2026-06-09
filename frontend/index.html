@@ -38,7 +38,7 @@
   <div id="tools-menu-wrap">
     <button id="btn-tools-menu">⛓ 工具</button>
     <div id="tools-menu-dropdown">
-      <button id="btn-move-doc-header">→ 移动</button>
+      <button id="btn-move-doc-header">GitHub 操作</button>
       <button id="btn-feed">📡 Builders</button>
       <button id="btn-base64">🔤 Base64</button>
     </div>
@@ -278,22 +278,41 @@
   </div>
 </div>
 
-<!-- Move doc dialog -->
+<!-- GitHub ops dialog (move + delete) -->
 <div id="move-doc-dialog">
   <div id="move-doc-dialog-box">
-    <h3>→ 移动 GitHub 文件 / 目录</h3>
-    <div class="move-doc-field">
-      <label>源 URL（文件用 blob 链接，目录用 tree 链接）</label>
-      <input id="move-src-url" type="text" placeholder="blob: …/blob/main/dir/file.md   或   tree: …/tree/main/dir" autocomplete="off" spellcheck="false" />
+    <h3>GitHub 操作</h3>
+    <div class="gh-ops-columns">
+      <div class="gh-ops-col gh-ops-col-move">
+        <div class="gh-ops-col-title">移动</div>
+        <div class="move-doc-field">
+          <label>源 URL（文件用 blob 链接，目录用 tree 链接）</label>
+          <input id="move-src-url" type="text" placeholder="blob: …/blob/main/dir/file.md   或   tree: …/tree/main/dir" autocomplete="off" spellcheck="false" />
+        </div>
+        <div class="move-doc-field">
+          <label>目标目录 URL（tree 目录链接，或 blob 文件链接取其所在目录）</label>
+          <input id="move-dst-url" type="text" placeholder="tree: …/tree/main/subdir   或   blob: …/blob/main/subdir/file.md" autocomplete="off" spellcheck="false" />
+        </div>
+        <div id="move-doc-result"></div>
+        <div class="gh-ops-col-actions">
+          <button id="btn-move-doc-ok" class="md-header-btn primary">确认移动</button>
+        </div>
+      </div>
+      <div class="gh-ops-col gh-ops-col-delete">
+        <div class="gh-ops-col-title">删除</div>
+        <div class="move-doc-field">
+          <label>URL（文件用 blob 链接，目录用 tree 链接）</label>
+          <input id="delete-url" type="text" placeholder="blob: …/blob/main/dir/file.md   或   tree: …/tree/main/dir" autocomplete="off" spellcheck="false" />
+        </div>
+        <div id="delete-doc-result"></div>
+        <div class="gh-ops-col-actions gh-ops-delete-actions">
+          <button id="btn-delete-doc-arm" class="md-header-btn">确认删除意图</button>
+          <button id="btn-delete-doc-ok" class="md-header-btn gh-delete-ok-btn" disabled>确认删除</button>
+        </div>
+      </div>
     </div>
-    <div class="move-doc-field">
-      <label>目标目录 URL（tree 目录链接，或 blob 文件链接取其所在目录）</label>
-      <input id="move-dst-url" type="text" placeholder="tree: …/tree/main/subdir   或   blob: …/blob/main/subdir/file.md" autocomplete="off" spellcheck="false" />
-    </div>
-    <div id="move-doc-result"></div>
     <div id="move-doc-dialog-actions">
       <button id="btn-move-doc-cancel" class="md-header-btn">取消</button>
-      <button id="btn-move-doc-ok" class="md-header-btn primary">确认移动</button>
     </div>
   </div>
 </div>
