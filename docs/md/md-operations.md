@@ -41,3 +41,16 @@ Applies when: creating or editing `.md` document files.
 - Only write or modify what is strictly necessary to fulfill the user's intent; do not produce sections outside that scope.
 - Before adding each new paragraph, ask: can the user still achieve their intent without it? Yes → omit it.
 - When output drifts from intent: retract it, do not follow through.
+
+## Writing Skill — Simplicity First
+
+**Minimum content that fulfills the intent. Nothing speculative.**
+
+Combat the tendency toward over-documentation:
+- No sections beyond what the user asked for
+- No abstractions for single-use explanations
+- No "background" or "context" that wasn't requested
+- No caveats for situations that cannot realistically arise
+- If 10 bullet points could be 3, rewrite it
+
+**The test:** Would a reader say this is over-explained? If yes, cut it.
