@@ -16,7 +16,12 @@ Applies when: creating or editing `.md` document files.
 - File name must match the document title, using `a-b-c.md` format.
 - Temporary files default to the workspace `.cache` directory.
 - Before editing an existing document, read through all affected sections first.
-- Default document language is English unless explicitly specified otherwise.
+
+---
+
+## Editing Language
+
+- SKILL files default to English, other documents default to Chinese.
 - Keep the document language consistent; do not mix languages within the same document.
 
 ---
