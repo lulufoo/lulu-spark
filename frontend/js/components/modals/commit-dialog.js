@@ -3,6 +3,16 @@ import { showToast } from '../toast.js'
 
 const HEADER_LABEL_IDLE = '↑ 提交变更';
 const HEADER_LABEL_CHECKING = '检查中…';
+const CLOSE_DELAY_MS = 500;
+
+let commitCloseTimer = null;
+
+function clearCommitCloseTimer() {
+  if (commitCloseTimer != null) {
+    clearTimeout(commitCloseTimer);
+    commitCloseTimer = null;
+  }
+}
 
 // ── openCommitChangesDialog ────────────────────────────────────────────────
 
@@ -64,6 +74,7 @@ async function openCommitChangesDialog() {
 }
 
 function closeCommitChangesDialog() {
+  clearCommitCloseTimer();
   document.getElementById('commit-changes-dialog').classList.remove('open');
   document.getElementById('btn-commit-changes-ok').textContent = '提交';
   const headerBtn = document.getElementById('btn-push-index');
@@ -73,18 +84,22 @@ function closeCommitChangesDialog() {
 
 function doCommitChanges() {
   const msg = document.getElementById('commit-changes-msg').value.trim();
-  closeCommitChangesDialog();
+  clearCommitCloseTimer();
+  commitCloseTimer = setTimeout(() => {
+    commitCloseTimer = null;
+    closeCommitChangesDialog();
 
-  void api.commitFiles(msg || 'chore: update via viewer')
-    .then(data => {
-      const successMsg = data?.info === 'nothing to commit'
-        ? '✓ 已推送'
-        : '✓ 提交并推送成功';
-      showToast(successMsg, 'success');
-    })
-    .catch(e => {
-      showToast(`提交失败：${e.message}`, 'error');
-    });
+    void api.commitFiles(msg || 'chore: update via viewer')
+      .then(data => {
+        const successMsg = data?.info === 'nothing to commit'
+          ? '✓ 已推送'
+          : '✓ 提交并推送成功';
+        showToast(successMsg, 'success');
+      })
+      .catch(e => {
+        showToast(`提交失败：${e.message}`, 'error');
+      });
+  }, CLOSE_DELAY_MS);
 }
 
 // ── Event listeners ────────────────────────────────────────────────────────
