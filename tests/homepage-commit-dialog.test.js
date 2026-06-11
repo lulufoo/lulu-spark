@@ -1,7 +1,10 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
-const { makeEl, trigger } = vi.hoisted(() => {
+const { makeEl, trigger, clearDom } = vi.hoisted(() => {
   const elements = {};
+  const clearDom = () => {
+    for (const key of Object.keys(elements)) delete elements[key];
+  };
   const makeEl = (id = '') => {
     if (id && elements[id]) return elements[id];
     const el = {
@@ -34,7 +37,7 @@ const { makeEl, trigger } = vi.hoisted(() => {
     getElementById: (id) => makeEl(id),
     addEventListener: () => {},
   };
-  return { makeEl, trigger };
+  return { makeEl, trigger, clearDom };
 });
 
 vi.mock('../frontend/js/api.js', () => ({
@@ -62,13 +65,15 @@ function seedDom() {
   makeEl('btn-commit-changes-cancel');
 }
 
-describe('homepage commit dialog — optimistic close + background submit', () => {
+describe('homepage commit dialog — delayed close + background submit', () => {
   let resolveCommit;
   let rejectCommit;
 
   beforeEach(async () => {
+    vi.useFakeTimers();
     vi.resetModules();
     vi.clearAllMocks();
+    clearDom();
     seedDom();
     resolveCommit = undefined;
     rejectCommit = undefined;
@@ -84,24 +89,43 @@ describe('homepage commit dialog — optimistic close + background submit', () =
     makeEl('btn-push-index').textContent = '↑ 提交变更';
   });
 
-  it('AC1: removes open class before api.commitFiles resolves', async () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('AC1: keeps open class within 500ms of clicking submit', async () => {
     void trigger('btn-commit-changes-ok', 'click');
     await Promise.resolve();
 
     const dialog = makeEl('commit-changes-dialog');
+    expect(dialog.classList.contains('open')).toBe(true);
+    expect(api.commitFiles).not.toHaveBeenCalled();
+  });
+
+  it('AC2: removes open class and calls commitFiles after 500ms', async () => {
+    void trigger('btn-commit-changes-ok', 'click');
+    await Promise.resolve();
+
+    vi.advanceTimersByTime(500);
+    await Promise.resolve();
+
+    const dialog = makeEl('commit-changes-dialog');
     expect(dialog.classList.contains('open')).toBe(false);
+    expect(api.commitFiles).toHaveBeenCalledTimes(1);
     expect(resolveCommit).toBeTypeOf('function');
   });
 
-  it('AC2: keeps btn-push-index enabled while commit is in flight', async () => {
+  it('AC3: keeps btn-push-index enabled while commit is in flight', async () => {
     void trigger('btn-commit-changes-ok', 'click');
+    vi.advanceTimersByTime(500);
     await Promise.resolve();
 
     expect(makeEl('btn-push-index').disabled).toBe(false);
   });
 
-  it('AC3: shows success toast after api.commitFiles resolves', async () => {
+  it('AC4: shows success toast after api.commitFiles resolves', async () => {
     void trigger('btn-commit-changes-ok', 'click');
+    vi.advanceTimersByTime(500);
     await Promise.resolve();
 
     resolveCommit({ ok: true });
@@ -111,7 +135,9 @@ describe('homepage commit dialog — optimistic close + background submit', () =
   });
 
   it('AC4: shows error toast with 提交失败 prefix on reject', async () => {
-    await trigger('btn-commit-changes-ok', 'click');
+    void trigger('btn-commit-changes-ok', 'click');
+    vi.advanceTimersByTime(500);
+    await Promise.resolve();
 
     rejectCommit(new Error('push failed'));
     await Promise.resolve();
@@ -120,7 +146,7 @@ describe('homepage commit dialog — optimistic close + background submit', () =
     expect(showToast).toHaveBeenCalledWith('提交失败：push failed', 'error');
   });
 
-  it('AC5: backdrop click closes dialog while commit is in flight', async () => {
+  it('AC5: backdrop click during delay closes dialog without committing', async () => {
     void trigger('btn-commit-changes-ok', 'click');
     await Promise.resolve();
 
@@ -129,5 +155,28 @@ describe('homepage commit dialog — optimistic close + background submit', () =
     backdropHandler?.({ target: dialog });
 
     expect(dialog.classList.contains('open')).toBe(false);
+    vi.advanceTimersByTime(500);
+    await Promise.resolve();
+    expect(api.commitFiles).not.toHaveBeenCalled();
+  });
+
+  it('AC6: cancel during delay does not call commitFiles', async () => {
+    void trigger('btn-commit-changes-ok', 'click');
+    await Promise.resolve();
+
+    await trigger('btn-commit-changes-cancel', 'click');
+
+    vi.advanceTimersByTime(500);
+    await Promise.resolve();
+    expect(api.commitFiles).not.toHaveBeenCalled();
+  });
+
+  it('A2: double-click submit schedules only one commitFiles call', async () => {
+    void trigger('btn-commit-changes-ok', 'click');
+    void trigger('btn-commit-changes-ok', 'click');
+    vi.advanceTimersByTime(500);
+    await Promise.resolve();
+
+    expect(api.commitFiles).toHaveBeenCalledTimes(1);
   });
 });
