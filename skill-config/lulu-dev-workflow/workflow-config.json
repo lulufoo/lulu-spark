@@ -8,13 +8,11 @@
     "shaping_pdqa_url": "https://github.com/lulufoo/lulu-workflow-framework/blob/main/lulu-dev-workflow/template/product-plan/14-product-shaping-pdqa.md"
   },
   "tech-plan": {
-    "tpt_url": "https://github.com/lulufoo/lulu-workflow-framework/blob/main/lulu-dev-workflow/template/tech-plan/20-tech-plan-spec-template.md",
-    "tpt_meta_url": "https://github.com/lulufoo/lulu-workflow-framework/blob/main/lulu-dev-workflow/template/tech-plan/20-tech-plan-spec-meta.md",
-    "tpef_url": "https://github.com/lulufoo/lulu-workflow-framework/blob/main/lulu-dev-workflow/template/tech-plan/21-tech-plan-spec-evaluation-framework.md",
+    "tpt_decision_doc_mapping_url": "https://github.com/lulufoo/lulu-workflow-framework/blob/main/lulu-dev-workflow/template/tech-plan/30-tech-plan-decision-doc-mapping.md",
     "ptc_url": "https://github.com/lulufoo/lulu-workflow-framework/blob/main/lulu-dev-workflow/template/tech-plan/22-product-tech-spec-crosscheck.md",
-    "shaping_tpt_url": "https://github.com/lulufoo/lulu-workflow-framework/blob/main/lulu-dev-workflow/template/tech-plan/23-tech-plan-shaping-template.md",
-    "shaping_tpef_url": "https://github.com/lulufoo/lulu-workflow-framework/blob/main/lulu-dev-workflow/template/tech-plan/24-tech-plan-shaping-evaluation-framework.md",
-    "ac_url": ""
+    "tpt_intent_eval_framework_url": "https://github.com/lulufoo/lulu-workflow-framework/blob/main/lulu-dev-workflow/template/tech-plan/32-tech-plan-intent-evaluation-framework.md",
+    "tpt_section_kw_criteria_url": "https://github.com/lulufoo/lulu-workflow-framework/blob/main/lulu-dev-workflow/template/tech-plan/33-tech-plan-section-kw-criteria.md",
+    "tpt_section_registry_url": "https://github.com/lulufoo/lulu-workflow-framework/blob/main/lulu-dev-workflow/template/tech-plan/34-tech-plan-section-registry.json"
   },
   "tech-work-order": {
     "task_template_url": "https://github.com/lulufoo/lulu-workflow-framework/blob/main/lulu-dev-workflow/template/work-order/30-work-order-task-template.md",
@@ -22,6 +20,9 @@
     "woqa_url": "https://github.com/lulufoo/lulu-workflow-framework/blob/main/lulu-dev-workflow/template/work-order/32-work-order-evaluation-framework.md",
     "twca_url": "https://github.com/lulufoo/lulu-workflow-framework/blob/main/lulu-dev-workflow/template/work-order/33-tech-workorder-crosscheck.md",
     "tda_url": "https://github.com/lulufoo/lulu-workflow-framework/blob/main/lulu-dev-workflow/template/work-order/34-tech-doc-admission-framework.md"
+  },
+  "diagnostic": {
+    "decision_doc_template_url": "https://github.com/lulufoo/lulu-workflow-framework/blob/main/lulu-dev-workflow/template/diagnostic/decision-doc.template.md"
   },
   "tech-code": {
     "test_command": "npm test",
