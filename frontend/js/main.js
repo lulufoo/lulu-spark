@@ -13,6 +13,7 @@ import './components/modals/commit-dialog.js'
 import { openKbDiffDialog } from './components/modals/kb-diff-dialog.js'
 import './components/modals/move-dialog.js'
 import { openBase64Dialog } from './components/modals/base64-dialog.js'
+import { openQrDialog } from './components/modals/qr-dialog.js'
 import { openSettingsDialog } from './components/modals/settings-dialog.js'
 import { renderFeed } from './feed.js'
 import { initGlobalSearch } from './components/global-search.js'
@@ -624,6 +625,11 @@ document.getElementById('btn-settings').addEventListener('click', () => {
 document.getElementById('btn-base64').addEventListener('click', () => {
   _closeAllMenuDropdowns();
   openBase64Dialog();
+});
+
+document.getElementById('btn-qr').addEventListener('click', () => {
+  _closeAllMenuDropdowns();
+  openQrDialog();
 });
 
 // ── Init ───────────────────────────────────────────────────────────────────
