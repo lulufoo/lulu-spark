@@ -1,0 +1,208 @@
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+
+const OVERFLOW_MSG = '⚠️ 文本过长，无法生成二维码（QR 容量上限约 2 KB UTF-8）';
+
+const { makeEl, trigger, clearDom, qrMocks } = vi.hoisted(() => {
+  const elements = {};
+  const qrMocks = {
+    toCanvas: vi.fn(),
+    toDataURL: vi.fn(),
+  };
+
+  const clearDom = () => {
+    for (const key of Object.keys(elements)) delete elements[key];
+  };
+
+  const makeEl = (id = '') => {
+    if (id && elements[id]) return elements[id];
+    const el = {
+      id,
+      tagName: '',
+      style: {},
+      classList: {
+        _set: new Set(),
+        contains(cls) { return this._set.has(cls); },
+        add(cls) { this._set.add(cls); },
+        remove(cls) { this._set.delete(cls); },
+      },
+      _listeners: {},
+      _focused: false,
+      children: [],
+      addEventListener(event, fn) {
+        if (!this._listeners[event]) this._listeners[event] = [];
+        this._listeners[event].push(fn);
+      },
+      appendChild(child) {
+        this.children.push(child);
+        return child;
+      },
+      focus() {
+        this._focused = true;
+      },
+      innerHTML: '',
+      textContent: '',
+      value: '',
+    };
+    if (id) elements[id] = el;
+    return el;
+  };
+
+  const trigger = async (id, event, eventData = {}) => {
+    const el = makeEl(id);
+    for (const fn of el._listeners[event] || []) await fn(eventData);
+  };
+
+  globalThis.document = {
+    getElementById: (id) => makeEl(id),
+    createElement: (tag) => {
+      const el = makeEl();
+      el.tagName = tag;
+      return el;
+    },
+    addEventListener: () => {},
+  };
+
+  globalThis.QRCode = qrMocks;
+
+  return { makeEl, trigger, clearDom, qrMocks };
+});
+
+function seedDom() {
+  makeEl('qr-dialog');
+  makeEl('qr-input');
+  makeEl('qr-preview');
+  makeEl('btn-qr-close');
+}
+
+describe('qr-dialog', () => {
+  beforeEach(async () => {
+    vi.resetModules();
+    vi.clearAllMocks();
+    clearDom();
+    seedDom();
+
+    qrMocks.toCanvas.mockImplementation((canvas, text, opts, cb) => {
+      cb(null);
+    });
+    qrMocks.toDataURL.mockImplementation((text, opts, cb) => {
+      cb(null, 'data:image/png;base64,mock');
+    });
+
+    await import('../frontend/js/components/modals/qr-dialog.js');
+  });
+
+  describe('openQrDialog', () => {
+    it('clears input and preview, opens dialog, and focuses input', async () => {
+      const { openQrDialog } = await import('../frontend/js/components/modals/qr-dialog.js');
+
+      makeEl('qr-input').value = 'stale';
+      makeEl('qr-preview').innerHTML = '<canvas></canvas>';
+
+      openQrDialog();
+
+      expect(makeEl('qr-input').value).toBe('');
+      expect(makeEl('qr-preview').innerHTML).toBe('');
+      expect(makeEl('qr-dialog').classList.contains('open')).toBe(true);
+      expect(makeEl('qr-input')._focused).toBe(true);
+    });
+
+    it('clears state when reopened after close', async () => {
+      const { openQrDialog } = await import('../frontend/js/components/modals/qr-dialog.js');
+
+      makeEl('qr-input').value = 'https://example.com';
+      makeEl('qr-preview').innerHTML = '<canvas></canvas>';
+      makeEl('qr-dialog').classList.add('open');
+
+      await trigger('btn-qr-close', 'click');
+      openQrDialog();
+
+      expect(makeEl('qr-input').value).toBe('');
+      expect(makeEl('qr-preview').innerHTML).toBe('');
+      expect(makeEl('qr-dialog').classList.contains('open')).toBe(true);
+    });
+  });
+
+  describe('renderQr', () => {
+    it('renders QR via toCanvas for valid input', async () => {
+      const { renderQr } = await import('../frontend/js/components/modals/qr-dialog.js');
+
+      renderQr('https://example.com');
+
+      expect(qrMocks.toCanvas).toHaveBeenCalledTimes(1);
+      expect(qrMocks.toCanvas).toHaveBeenCalledWith(
+        expect.objectContaining({ tagName: 'canvas' }),
+        'https://example.com',
+        { width: 256, margin: 2 },
+        expect.any(Function),
+      );
+      expect(makeEl('qr-preview').children).toHaveLength(1);
+      expect(makeEl('qr-preview').children[0].tagName).toBe('canvas');
+    });
+
+    it('does not call QRCode for empty or whitespace-only input', async () => {
+      const { renderQr } = await import('../frontend/js/components/modals/qr-dialog.js');
+
+      renderQr('');
+      renderQr('   \n\t  ');
+
+      expect(qrMocks.toCanvas).not.toHaveBeenCalled();
+      expect(qrMocks.toDataURL).not.toHaveBeenCalled();
+      expect(makeEl('qr-preview').innerHTML).toBe('');
+      expect(makeEl('qr-preview').children).toHaveLength(0);
+    });
+
+    it('shows visible overflow error with .qr-error for capacity failures', async () => {
+      const { renderQr } = await import('../frontend/js/components/modals/qr-dialog.js');
+
+      qrMocks.toCanvas.mockImplementation((canvas, text, opts, cb) => {
+        cb(new Error('code length overflow'));
+      });
+      qrMocks.toDataURL.mockImplementation((text, opts, cb) => {
+        cb(new Error('The amount of data is too big to be stored in a QR Code'));
+      });
+
+      renderQr('x'.repeat(3000));
+
+      expect(makeEl('qr-preview').innerHTML).toContain('qr-error');
+      expect(makeEl('qr-preview').innerHTML).toContain(OVERFLOW_MSG);
+      expect(qrMocks.toDataURL).not.toHaveBeenCalled();
+    });
+
+    it('falls back to toDataURL + img when toCanvas fails with non-overflow error', async () => {
+      const { renderQr } = await import('../frontend/js/components/modals/qr-dialog.js');
+
+      qrMocks.toCanvas.mockImplementation((canvas, text, opts, cb) => {
+        cb(new Error('canvas unsupported'));
+      });
+
+      renderQr('https://example.com');
+
+      expect(qrMocks.toDataURL).toHaveBeenCalledTimes(1);
+      expect(qrMocks.toDataURL).toHaveBeenCalledWith(
+        'https://example.com',
+        { width: 256, margin: 2 },
+        expect.any(Function),
+      );
+      expect(makeEl('qr-preview').innerHTML).toBe('<img src="data:image/png;base64,mock" alt="QR">');
+    });
+  });
+
+  describe('event bindings', () => {
+    it('removes open class when close button is clicked', async () => {
+      makeEl('qr-dialog').classList.add('open');
+
+      await trigger('btn-qr-close', 'click');
+
+      expect(makeEl('qr-dialog').classList.contains('open')).toBe(false);
+    });
+
+    it('calls renderQr on qr-input input events', async () => {
+      makeEl('qr-input').value = 'https://example.com';
+
+      await trigger('qr-input', 'input');
+
+      expect(qrMocks.toCanvas).toHaveBeenCalledTimes(1);
+      expect(qrMocks.toCanvas.mock.calls[0][1]).toBe('https://example.com');
+    });
+  });
+});
