@@ -41,6 +41,7 @@
       <button id="btn-move-doc-header">GitHub 操作</button>
       <button id="btn-feed">📡 Builders</button>
       <button id="btn-base64">🔤 Base64</button>
+      <button id="btn-qr">📱 二维码</button>
     </div>
   </div>
   <button id="btn-settings" type="button" title="设置">⚙ 设置</button>
@@ -86,6 +87,18 @@
     <div id="base64-dialog-footer">
       <button id="btn-base64-copy">复制结果</button>
     </div>
+  </div>
+</div>
+
+<!-- QR tool dialog -->
+<div id="qr-dialog">
+  <div id="qr-dialog-box">
+    <div id="qr-dialog-header">
+      <span>📱 文本转二维码</span>
+      <button id="btn-qr-close">✕ 关闭</button>
+    </div>
+    <textarea id="qr-input" placeholder="输入 URL 或文本…" spellcheck="false"></textarea>
+    <div id="qr-preview"></div>
   </div>
 </div>
 
