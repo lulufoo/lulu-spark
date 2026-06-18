@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "rwGuard": {
+    "enable": true,
+    "bypassWriteWhenDelivered": true,
+    "defaults": {
+      "readDirs": [
+        "."
+      ],
+      "writeDirs": [
+        ".cache/{platform}/lulu-dev-workflow"
+      ]
+    },
+    "stages": {
+      "tech-code": {
+        "readDirs": [
+          "."
+        ],
+        "writeDirs": [
+          "."
+        ]
+      }
+    }
+  }
+}
