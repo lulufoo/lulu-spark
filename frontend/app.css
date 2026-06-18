@@ -3005,3 +3005,68 @@
   transition: background .15s;
 }
 #btn-base64-copy:hover { background: #0757b8; }
+
+/* ── QR tool dialog ── */
+#qr-dialog {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,0,0,.55);
+}
+#qr-dialog.open { display: flex; }
+#qr-dialog-box {
+  background: #fff;
+  border-radius: 10px;
+  padding: 24px 24px 20px;
+  width: min(480px, 90vw);
+  box-shadow: 0 8px 40px rgba(0,0,0,.3);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+#qr-dialog-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 14px;
+  font-weight: 600;
+  color: #24292f;
+}
+#btn-qr-close {
+  background: none;
+  border: 1px solid #d0d7de;
+  border-radius: 6px;
+  padding: 3px 10px;
+  font-size: 12px;
+  cursor: pointer;
+  color: #57606a;
+}
+#btn-qr-close:hover { background: #eaeef2; }
+#qr-input {
+  width: 100%;
+  height: 100px;
+  padding: 8px 10px;
+  border: 1px solid #d0d7de;
+  border-radius: 6px;
+  font-size: 13px;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+  resize: vertical;
+  outline: none;
+  box-sizing: border-box;
+  color: #24292f;
+}
+#qr-input:focus { border-color: #0969da; }
+#qr-preview {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 280px;
+}
+#qr-preview canvas,
+#qr-preview img {
+  max-width: 100%;
+}
+.qr-error { color: #e5534b; }
