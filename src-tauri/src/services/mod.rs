@@ -1,4 +1,6 @@
 pub mod annotation;
+pub mod archive_parse;
+pub mod archive_write;
 pub mod id;
 pub mod corpus_git;
 pub mod draft;

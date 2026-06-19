@@ -16,3 +16,10 @@ fn random_hex12_consecutive_calls_differ() {
     let b = random_hex12();
     assert_ne!(a, b, "two calls should not return the same id");
 }
+
+#[test]
+fn random_entry_id_returns_32_lower_hex() {
+    let s = crate::services::id::random_entry_id();
+    assert_eq!(s.len(), 32);
+    assert!(s.chars().all(|c| c.is_ascii_hexdigit() && !c.is_uppercase()));
+}

@@ -48,7 +48,7 @@ function toolError(status, text) {
 
 function buildServer() {
   const server = new McpServer(
-    { name: 'workbench-knowledge-mcp', version: '0.2.0' },
+    { name: 'workbench-knowledge-mcp', version: '0.3.0' },
     { capabilities: {} },
   );
 
@@ -87,6 +87,59 @@ function buildServer() {
     },
     async ({ ids }) => {
       const result = await proxyPost('/api/corpus-files', { ids });
+      if (!result.ok) {
+        return toolError(result.status, result.text);
+      }
+      return { content: [{ type: 'text', text: result.text }] };
+    },
+  );
+
+  server.registerTool(
+    'archive_document',
+    {
+      description:
+        'Archive a formatted document to raw/ and index.json. Returns entry id. Proxy POST /api/archive-document',
+      inputSchema: {
+        document: z.string().min(1).describe('Full Markdown document with header and body'),
+        source_type: z
+          .string()
+          .optional()
+          .describe('Index source_type; defaults to summary'),
+      },
+    },
+    async ({ document, source_type }) => {
+      const body = { document };
+      if (source_type != null) {
+        body.source_type = source_type;
+      }
+      const result = await proxyPost('/api/archive-document', body);
+      if (!result.ok) {
+        return toolError(result.status, result.text);
+      }
+      return { content: [{ type: 'text', text: result.text }] };
+    },
+  );
+
+  server.registerTool(
+    'archive_digest',
+    {
+      description:
+        'Write digest markdown for an existing entry id and append digest layer. Proxy POST /api/archive-digest',
+      inputSchema: {
+        id: z.string().length(32).describe('Entry id from archive_document'),
+        digest: z.string().min(1).describe('Full digest Markdown'),
+        force: z
+          .boolean()
+          .optional()
+          .describe('Overwrite existing digest; default false'),
+      },
+    },
+    async ({ id, digest, force }) => {
+      const body = { id, digest };
+      if (force != null) {
+        body.force = force;
+      }
+      const result = await proxyPost('/api/archive-digest', body);
       if (!result.ok) {
         return toolError(result.status, result.text);
       }

@@ -207,8 +207,52 @@ fn start_fails_when_port_in_use_without_panic() {
     assert!(result.is_err());
 }
 
+fn setup_repo_for_archive() -> (tempfile::TempDir, PathBuf) {
+    let dir = tempfile::tempdir().expect("tmpdir");
+    let repo_root = dir.path().to_path_buf();
+    let corpus = repo_root.join("corpus");
+    fs::create_dir_all(corpus.join("raw")).expect("mkdir raw");
+    fs::create_dir_all(corpus.join("digest")).expect("mkdir digest");
+    fs::write(corpus.join("index.json"), br#"{"entries":{}}"#).expect("index");
+    crate::config::settings::write_test_config(&repo_root, &corpus, None);
+    (dir, repo_root)
+}
+
+const SAMPLE_DOC: &str = r#"# Test Title
+
+> 创建时间：2026年6月19日 14:30
+> 来源：theme-summary
+> 导航：[digest](../../../digest/inbox/test-topic/202606191430-test-slug.md)
+
+---
+
+Summary body here.
+"#;
+
 #[test]
-fn unknown_path_returns_404() {
+fn post_archive_document_and_digest() {
+    let (_dir, repo_root) = setup_repo_for_archive();
+    with_server(repo_root, |port| {
+        let (status, body) = http_post(
+            port,
+            "/api/archive-document",
+            &json!({ "document": SAMPLE_DOC }),
+        );
+        assert_eq!(status, 200);
+        assert_eq!(body["ok"], true);
+        let id = body["id"].as_str().expect("id");
+        let (d_status, d_body) = http_post(
+            port,
+            "/api/archive-digest",
+            &json!({ "id": id, "digest": "# T — 摘要\n\n## 概述\n\nok" }),
+        );
+        assert_eq!(d_status, 200);
+        assert_eq!(d_body["ok"], true);
+    });
+}
+
+#[test]
+fn post_unknown_returns_404() {
     let (_dir, repo_root) = setup_repo_with_corpus();
     with_server(repo_root, |port| {
         let (status, body) = http_get(port, "/api/unknown");

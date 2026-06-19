@@ -1,8 +1,8 @@
-//! Localhost read-only HTTP API for MCP sidecar proxy (`GET /api/corpus-*`, `/api/status`).
+//! Localhost HTTP API for MCP sidecar proxy (`GET/POST /api/corpus-*`, `/api/archive-*`, `/api/status`).
 
 use std::collections::HashMap;
 use std::io::Read;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
@@ -10,6 +10,7 @@ use std::thread::{self, JoinHandle};
 use serde_json::{json, Value};
 use tiny_http::{Header, Method, Response, Server, StatusCode};
 
+use crate::services::archive_write::{archive_digest, archive_document};
 use crate::services::workbench_read::{
     get_corpus_catalog_latest_per_topic, get_corpus_file, get_corpus_files_by_ids,
     get_corpus_index,
@@ -103,9 +104,22 @@ pub(crate) fn map_value_to_response(value: Value) -> (u16, String) {
 fn handle_request(repo_root: &PathBuf, port: u16, request: tiny_http::Request) {
     let path = request.url().split('?').next().unwrap_or("");
 
-    if request.method() == &Method::Post && path == "/api/corpus-files" {
-        handle_corpus_files_post(repo_root, request);
-        return;
+    if request.method() == &Method::Post {
+        match path {
+            "/api/corpus-files" => {
+                handle_corpus_files_post(repo_root, request);
+                return;
+            }
+            "/api/archive-document" => {
+                handle_archive_post(repo_root, request, archive_document);
+                return;
+            }
+            "/api/archive-digest" => {
+                handle_archive_post(repo_root, request, archive_digest);
+                return;
+            }
+            _ => {}
+        }
     }
 
     if request.method() != &Method::Get {
@@ -192,6 +206,27 @@ fn handle_corpus_files_post(repo_root: &PathBuf, mut request: tiny_http::Request
         return;
     }
     respond_json(request, 200, value);
+}
+
+fn handle_archive_post(
+    repo_root: &PathBuf,
+    mut request: tiny_http::Request,
+    handler: fn(&Path, &Value) -> Value,
+) {
+    let mut body = String::new();
+    if request.as_reader().read_to_string(&mut body).is_err() {
+        respond_json(request, 400, json!({ "error": "Failed to read body" }));
+        return;
+    }
+    let payload: Value = match serde_json::from_str(&body) {
+        Ok(v) => v,
+        Err(e) => {
+            respond_json(request, 400, json!({ "error": format!("Invalid JSON: {e}") }));
+            return;
+        }
+    };
+    let value = handler(repo_root, &payload);
+    respond_from_value(request, value);
 }
 
 fn parse_query(url: &str) -> HashMap<String, String> {
