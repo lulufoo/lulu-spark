@@ -11,7 +11,7 @@ description: >-
 
 > **Read this file in full before executing.** This skill has 2 mandatory phases:
 > 1. **ThemeSummary Generation** (§ Core Input → § Recommended Workflow)
-> 2. **Save to Archive** (§ Save to Archive) — 链式 **theme-archive**（raw/index）+ **theme-digest**（digest，不得跳过）。
+> 2. **Save to Archive** (§ Save to Archive) — MCP **archive_document** + **archive_digest**（不得跳过 digest 步骤当 `[AD-0]` 满足时）。
 >
 > Both phases are required. Neither may be skipped.
 
@@ -44,7 +44,7 @@ Before Step 2 (Build archive document), MUST apply [references/body-sanitize.md]
 
 > 创建时间：YYYY年M月D日 HH:MM
 > 来源：theme-summary
-> 导航：[distilled](<prefix>distilled/<COMMON_PATH>) · [digest](<prefix>digest/<COMMON_PATH>) · [trace](<prefix>trace/<COMMON_PATH>)
+> 导航：[digest](<prefix>digest/<COMMON_PATH>)
 
 ---
 
@@ -55,7 +55,8 @@ Rules:
 - No `<!-- DDM:TURN_SEP:v1 -->` markers
 - No per-turn attribution (User / AI labels)
 - No secondary summarization or compression of the body
-- Navigation links must be fully resolved — no placeholders
+- Navigation link must be fully resolved — no placeholders
+- `COMMON_PATH` = `<project>/<doc-theme>/<ts>-<slug>.md`（Agent 组稿时生成并写入导航行）
 
 ## Recommended Workflow
 
@@ -67,53 +68,58 @@ Rules:
 
 ## Save to Archive
 
-Path/config: [../shared/archive-concepts.md](../shared/archive-concepts.md)
+Path conventions: [../shared/archive-concepts.md](../shared/archive-concepts.md)（`COMMON_PATH`、`prefix`、`slug`、`ts`）
 
-<HARD-GATE chain="archive-digest">
-下游 skill **必须**从 GitHub 加载并完整执行；**禁止**仅用本地 `../theme-archive` 或 `../theme-digest` 替代（即使本机已安装同仓库副本）。
+<HARD-GATE mcp="archive">
+Workbench App **必须运行**（MCP `workbench-knowledge` 可用）。**禁止**直写 `archive_root` 或链式加载 theme-archive / theme-digest SKILL 落盘。
 
-| Step | 仓库目录（查阅） | 执行入口（Agent 读取） |
-|------|------------------|------------------------|
-| theme-archive | [theme-archive](https://github.com/lulufoo/lulu-workbench-skills/tree/main/theme-archive) | `https://raw.githubusercontent.com/lulufoo/lulu-workbench-skills/main/theme-archive/SKILL.md` |
-| theme-digest | [theme-digest](https://github.com/lulufoo/lulu-workbench-skills/tree/main/theme-digest) | `https://raw.githubusercontent.com/lulufoo/lulu-workbench-skills/main/theme-digest/SKILL.md` |
+| Step | MCP tool | 说明 |
+|------|----------|------|
+| 3 | `archive_document` | 写 raw + index；返回 `id` |
+| 4 | `archive_digest` | 传 `id` + digest 全文；写 digest + layers |
 
-Embedded 载荷字段：[input-schema](https://raw.githubusercontent.com/lulufoo/lulu-workbench-skills/main/theme-archive/references/input-schema.md)
+MCP 由 Workbench App spawn（`http://127.0.0.1:9876/mcp`）。不可用 → **明确报错并停止**。
 </HARD-GATE>
 
 ### Step 1 · Select project and doc-theme
 
-Read `{archive_root}/topics.json` → `project` + `doc-theme`（kebab-case）；无匹配 → `inbox`。推断 `slug`、`ts`、`COMMON_PATH`。slug 冲突 → 询问用户。
+推断 `project` + `doc-theme`（kebab-case）；无匹配 → `inbox`。推断 `slug`、`ts`、`COMMON_PATH`。slug 冲突 → 询问用户后重组 document。
 
-**`ts`（仅 GitHub URL）**：若用户输入为 `github.com/{owner}/{repo}/blob/{ref}/{path}` 或 `raw.githubusercontent.com/...`，MUST 在确定 `COMMON_PATH` 前按 [references/ts-inference.md](references/ts-inference.md) 从 Git 历史推断 `ts`（与 `> 创建时间：`、`created_at` 一致）。**非 GitHub 输入**：`ts` = 归档时刻（UTC+8）。
+**`ts`（仅 GitHub URL）**：若用户输入为 `github.com/{owner}/{repo}/blob/{ref}/{path}` 或 `raw.githubusercontent.com/...`，MUST 在确定 `COMMON_PATH` 前按 [references/ts-inference.md](references/ts-inference.md) 从 Git 历史推断 `ts`（与 `> 创建时间：` 一致）。**非 GitHub 输入**：`ts` = 归档时刻（UTC+8）。
 
 ### Step 2 · Build archive document
 
 1. Apply [references/body-sanitize.md](references/body-sanitize.md) to the summary body.
-2. Compose full Markdown per § Core Output Shape（header + sanitized body).
+2. Compose full Markdown per § Core Output Shape（header + sanitized body；导航行 **仅含 digest 链接**）。
 
-### Step 3 · theme-archive Embedded
+### Step 3 · archive_document
 
-构造载荷并执行：
+调用 MCP `archive_document`：
 
-```text
-加载并完整执行 https://raw.githubusercontent.com/lulufoo/lulu-workbench-skills/main/theme-archive/SKILL.md（Embedded，从 [AR-1] 起：
-  COMMON_PATH = <topic-path>/<ts>-<slug>.md
-  documents = [{ rel: "raw/<COMMON_PATH>", content: "<Step 2 全文>" }]
-  index_entry = { common_path, created_at: <ts>, source_type: "summary", layers: ["raw"] }
-）
+```json
+{
+  "document": "<Step 2 全文>",
+  "source_type": "summary"
+}
 ```
 
-theme-archive 负责写 raw、更新 index。将 `[AR-5]` 输出追加为本 skill 完成信息。
+`source_type` 可省略（默认 `summary`）。记录返回的 `id`、`common_path`、`raw_path`。
 
-### Step 4 · theme-digest Embedded
+### Step 4 · archive_digest
 
-Primary raw 作为 **RAW**（不对 `-zh.md` digest）：
+当 `[AD-0]` 适用（`theme-digest` 规则：`source_type = summary` 且 raw 正文 ≥ 200 字）：
 
-```text
-加载并完整执行 https://raw.githubusercontent.com/lulufoo/lulu-workbench-skills/main/theme-digest/SKILL.md（Embedded：RAW = raw/<COMMON_PATH>，从 [AD-0] 起）
+1. 依据 raw 撰写 digest 全文（`# 标题 — 摘要`、`> 创建时间：`、`## 概述`；见 [theme-digest @ GitHub](https://github.com/lulufoo/lulu-workbench-skills/tree/main/theme-digest) `[AD-1]`–`[AD-2]`）
+2. 调用 MCP `archive_digest`：
+
+```json
+{
+  "id": "<Step 3 返回的 id>",
+  "digest": "<完整 digest Markdown>"
+}
 ```
 
-`source_type = summary` 时 `[AD-0]` 阈值为 raw 正文 ≥ 200 字。将 digest 结果追加到完成输出。
+`digest` 已存在时需用户确认后传 `"force": true`。将 MCP 返回追加到完成输出。
 
 ---
 
@@ -124,7 +130,7 @@ Do not stop to ask about formatting if a reasonable default works.
 Assume the following defaults:
 
 - Title: inferred from the first heading in the summary body, or ask once if absent
-- Project: closest match in topics.json; if unclear, use `inbox`
+- Project: closest match in topics; if unclear, use `inbox`
 - Language: Chinese (no translation step)
 - External images: always strip per body-sanitize (no confirmation)
 - GitHub blob/raw URL: infer `ts` per [references/ts-inference.md](references/ts-inference.md); Git 失败时回退归档时刻
@@ -135,6 +141,5 @@ Assume the following defaults:
 |-----|---------|
 | [references/body-sanitize.md](references/body-sanitize.md) | 外链图片删除规则 |
 | [references/ts-inference.md](references/ts-inference.md) | **仅 GitHub URL**：从 Git 历史推断 `ts` |
-| [theme-archive @ GitHub](https://github.com/lulufoo/lulu-workbench-skills/tree/main/theme-archive) | raw 落盘 + index |
-| [theme-digest @ GitHub](https://github.com/lulufoo/lulu-workbench-skills/tree/main/theme-digest) | digest 生成 |
-| [../shared/archive-concepts.md](../shared/archive-concepts.md) | `COMMON_PATH`、`archive_root` |
+| [theme-digest @ GitHub](https://github.com/lulufoo/lulu-workbench-skills/tree/main/theme-digest) | digest 结构与 `[AD-0]` 阈值（撰写规则；落盘由 MCP） |
+| [../shared/archive-concepts.md](../shared/archive-concepts.md) | `COMMON_PATH`、`prefix` |
