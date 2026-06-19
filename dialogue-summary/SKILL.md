@@ -1,81 +1,171 @@
 ---
 name: dialogue-summary
 description: >-
-  对话归档与蒸馏（dialogue-summary）：产出 raw、digest、distilled、trace。
-  Use when: 蒸馏 distill dialogue-summary ddm 归档 对话整理 raw digest distilled compose topic
-argument-hint: 'dtd_raw_dialogue | dtd_distill_dialogue | dtd_distill_compose | dtd_distill_topic | dtd_trace'
+  Normalize the current dialogue into raw/ and generate digest automatically via MCP.
+  Use when: dialogue-summary、对话归档、对话整理、dtd_raw_dialogue、蒸馏归档、
+  归档这段对话、同步对话到 raw。
 ---
 
-# dialogue-summary — 执行说明
+# DialogueSummary
 
-> 参考：[ddm-concepts.md](references/ddm-concepts.md)
+> **Read this file in full before executing.** This skill has 2 mandatory phases:
+> 1. **Dialogue Normalization** (§ Core Input → § Recommended Workflow)
+> 2. **Save to Archive** (§ Save to Archive) — MCP **archive_document** + **archive_digest**（当 `[AD-0]` 满足时不得跳过 digest）。
+>
+> Both phases are required. Neither may be skipped.
+>
+> P1–P3 能力（distilled、trace 等）已移至 [references/legacy/](references/legacy/)，当前不挂载。
 
-## 触发后的首要动作
+Normalize the current session (or user-provided dialogue) into a turn-separated `raw/`
+document. Body text is kept verbatim except stripping AI折叠思考块 / 无关前缀；不得压缩或摘要化。
 
-1. 读取 `{skill_dir}/../config.json`（仓库根），获取 `archive_root`，确认存在：
+## Core Input
+
+| Source | Description |
+|--------|-------------|
+| A. Current session | All turns in the active chat |
+| B. User paste | User provides a complete dialogue document |
+
+When ambiguous, treat as current session unless the user explicitly pasted a document.
+
+## Core Output Shape
+
+```markdown
+# <总标题>
+
+> 创建时间：YYYY年M月D日 HH:MM
+> 来源：dialogue-summary
+> 导航：[digest](<prefix>digest/<COMMON_PATH>)
+
+---
+
+<!-- DDM:TURN_SEP:v1 -->
+
+## User（Turn 1）
+
+...
+
+<!-- DDM:TURN_SEP:v1 -->
+
+## AI
+
+...
+```
+
+Rules:
+- `<!-- DDM:TURN_SEP:v1 -->` between turns; `## User（Turn N）` / `## AI` headings
+- Body matches source dialogue verbatim (after strip rules); no compression or summarization
+- Navigation link must be fully resolved — **digest only**; no placeholders
+- `---` separator required before turn body (MCP archive parser)
+- `COMMON_PATH` = `<project>/<doc-theme>/<ts>-<slug>.md`（Agent 组稿时生成并写入导航行）
+- `prefix` = `../../../`（topic-path 固定 2 段）
+
+## Recommended Workflow
+
+1. Read `{skill_dir}/../config.json`，确认 `archive_root`：
 
    `> ✅ config.json 读取完成 · archive_root: <路径>`
 
-2. 根据下方「参数说明」选择模式，执行对应章节。
+2. Select project and doc-theme（§ Save to Archive Step 1）.
+3. Build normalized document（§ Save to Archive Step 2）.
+4. Execute Save to Archive（§ Save to Archive Step 3–4）.
 
-## 参数说明
+---
 
-| 参数 | 模式 | 说明 |
-|------|------|------|
-| `dtd_raw_dialogue` | 对话归一化 + digest | [dtd-raw-dialogue.md](references/dtd-raw-dialogue.md) → [theme-digest](../theme-digest/SKILL.md) (embedded) |
-| `dtd_distill_dialogue` | 对话体 distilled | [dtd_distill_dialogue.md](references/dtd_distill_dialogue.md) |
-| `dtd_distill_compose` | 合成文档 | [ddm-diagnose.md](references/ddm-diagnose.md) → [dtd_distill_compose.md](references/dtd_distill_compose.md) |
-| `dtd_distill_topic` | 子话题 distilled | [dtd_distill_topic.md](references/dtd_distill_topic.md) |
-| `dtd_trace` | 诊断 + 轨迹 | [ddm-diagnose.md](references/ddm-diagnose.md) → [ddm-trace.md](references/ddm-trace.md) |
+## Save to Archive
 
-## dtd_raw_dialogue 模式
+Path conventions: [../shared/archive-concepts.md](../shared/archive-concepts.md)（`COMMON_PATH`、`prefix`、`slug`、`ts`）
 
-**时间**：文件名前缀 `<ts>`、正文「创建时间」、`index.json` 的 `created_at` 均使用**东八区（UTC+8）**；`ts` 格式与「创建时间」展示换算见 [dtd-raw-dialogue.md](references/dtd-raw-dialogue.md) Step 1–2。
+<HARD-GATE mcp="archive">
+Workbench App **必须运行**（MCP `workbench-knowledge` 可用）。**禁止**直写 `archive_root` 或链式加载 theme-archive / theme-digest SKILL 落盘。
 
-**Step 1**：加载 [dtd-raw-dialogue.md](references/dtd-raw-dialogue.md)，执行 Step 1–6。
+| Step | MCP tool | 说明 |
+|------|----------|------|
+| 3 | `archive_document` | 写 raw + index；返回 `id` |
+| 4 | `archive_digest` | 传 `id` + digest 全文；写 digest + layers |
 
-**Step 2**：加载并完整执行 [theme-digest/SKILL.md](../theme-digest/SKILL.md)（**Embedded**：`RAW` = `raw/<COMMON_PATH>`，从 `[AD-0]` 起）。
+MCP 由 Workbench App spawn（`http://127.0.0.1:9876/mcp`）。不可用 → **明确报错并停止**。
+</HARD-GATE>
+
+### Step 1 · Select project and doc-theme
+
+读取 `{archive_root}/topics.json`，从 `topics` 数组中选择 project：
+
+- 取每项的 `dir` 字段（若存在），否则取 `repo` 的最后一段（`/` 之后）
+- 根据对话内容和标题，**语义推断 `doc-theme`**（kebab-case，英文，无空格，**3–5 个单词**）
+- **若无合适项目**，`project` 填 `inbox`，不得默认选一个相近项目
+
+```
+project   = dir 或 repo 短名；无匹配 → inbox
+doc-theme = 语义推断（如 agentic-coding-discipline）
+slug      = 与主题一致的 kebab-case（冲突先澄清）
+ts        = YYYYMMDDHHMM（东八区 UTC+8，归档时刻）
+COMMON_PATH = <project>/<doc-theme>/<ts>-<slug>.md
+```
+
+创建时间：由 `ts` 换算为 `YYYY年M月D日 HH:MM`（月、日不补零，时、分两位）。
+
+### Step 2 · Build archive document
+
+- input  : 当前对话全部轮次（或用户粘贴文档）
+- rule   : 正文与原始对话逐字一致；仅可加分隔符 / 标题 / 去格式噪音
+- 剥离   : AI 推导性独白（折叠思考块 / 无关前缀句）；讲解形式的推理保留
+- 禁止   : 压缩 / 改写 / 摘要化 / `{{…}}` 占位符 / 导航行占位符
+
+Compose full Markdown per § Core Output Shape.
+
+### Step 3 · archive_document
+
+调用 MCP `archive_document`：
+
+```json
+{
+  "document": "<Step 2 全文>",
+  "source_type": "dialogue"
+}
+```
+
+记录返回的 `id`、`common_path`、`raw_path`。
+
+### Step 4 · archive_digest
+
+当 `[AD-0]` 适用（`theme-digest` 规则：通常对话含 2+ Turn 块即满足）：
+
+1. 依据 raw 撰写 digest 全文（`# 标题 — 摘要`、`> 创建时间：`、`## 概述`；见 [theme-digest @ GitHub](https://github.com/lulufoo/lulu-workbench-skills/tree/main/theme-digest) `[AD-1]`–`[AD-2]`）
+2. 调用 MCP `archive_digest`：
+
+```json
+{
+  "id": "<Step 3 返回的 id>",
+  "digest": "<完整 digest Markdown>"
+}
+```
+
+`digest` 已存在时需用户确认后传 `"force": true`。将 MCP 返回追加到完成输出。
 
 完成汇总：
 
 ```
-> ✅ dtd_raw_dialogue 完成
+> ✅ dialogue-summary 完成
 > 📄 raw：raw/<COMMON_PATH>
 > 📋 digest：digest/<COMMON_PATH>（或「已跳过」）
-> 🗂 index.json 已更新
 ```
 
-## dtd_distill_dialogue 模式
+---
 
-**Step 1**: 解析 raw 路径（或 index id → common_path）；
+## Ask Only When Necessary
 
-**Step 2**: 加载 [dtd_distill_dialogue.md](references/dtd_distill_dialogue.md) 执行；
+Assume defaults:
 
-## dtd_distill_compose 模式
+- Title: inferred from dialogue topic or first user message theme
+- Project: closest match in topics; if unclear, use `inbox`
+- Language: preserve source language per turn (typically Chinese)
+- `ts`: archive moment (UTC+8)
 
-**Step 1**: 解析 raw；
+## References
 
-**Step 2**: 检测 diagnose，无diagnose文件，则先加载 [ddm-diagnose.md](references/ddm-diagnose.md) 执行；
-
-**Step 3**: 加载 [dtd_distill_compose.md](references/dtd_distill_compose.md) 执行；
-
-## dtd_distill_topic 模式
-
-**Step 1**: 解析 raw；
-
-**Step 2**: 加载 [dtd_distill_topic.md](references/dtd_distill_topic.md)，按规则落盘 distilled；
-
-完成汇总：
-
-```
-> ✅ dtd_distill_topic 完成
-> 📝 distilled：distilled/<COMMON_PATH>
-```
-
-## dtd_trace 模式
-
-**Step 1**: 解析 raw；
-
-**Step 2**: 检测 diagnose，无diagnose文件，则先加载 [ddm-diagnose.md](references/ddm-diagnose.md) 执行；
-
-**Step 3**: 加载 [ddm-trace.md](references/ddm-trace.md) 执行；
+| Doc | Purpose |
+|-----|---------|
+| [theme-digest @ GitHub](https://github.com/lulufoo/lulu-workbench-skills/tree/main/theme-digest) | digest 结构与 `[AD-0]` 阈值（撰写规则；落盘由 MCP） |
+| [../shared/archive-concepts.md](../shared/archive-concepts.md) | `COMMON_PATH`、`prefix` |
+| [references/legacy/](references/legacy/) | 旧 DDM P1–P3 手册（distilled、trace 等；暂不使用） |

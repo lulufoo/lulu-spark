@@ -56,11 +56,13 @@ Archive digest 完成后追加 `"digest"`：
 
 ## Navigation line
 
-raw 文件 header 导航行（路径须 fully resolved）：
+**MCP 产出者**（`theme-summary`、`theme-line`、`dialogue-summary`）raw header **仅含 digest 链接**（Workbench `archive_document` 解析要求）：
 
 ```markdown
-> 导航：[distilled]({prefix}distilled/{COMMON_PATH}) · [digest]({prefix}digest/{COMMON_PATH}) · [trace]({prefix}trace/{COMMON_PATH})
+> 导航：[digest]({prefix}digest/{COMMON_PATH})
 ```
+
+**Legacy / 全链格式**（`references/legacy/` 等旧手册）：可含 distilled · digest · trace 三链。
 
 digest 文件导航行：读取 `index.json` 对应条目 `layers`；含 `distilled` / `trace` 时追加链接。
 

@@ -29,7 +29,7 @@ argument-hint: '[COMMON_PATH | index id | raw 路径] [--force]'
 
 ## Embedded 模式
 
-由 `theme-fetch`、`theme-summary`、`theme-line`、`dialogue-summary` 在 `raw/` 落盘后链式调用。**不**由 theme-archive 触发。
+由 `theme-fetch` 在 `raw/` 落盘后链式调用。`theme-summary`、`theme-line`、`dialogue-summary` 经 MCP 自包含落盘（不链式加载本 skill）。**不**由 theme-archive 触发。
 
 - **不**重新解析路径；上游已确定 `COMMON_PATH` 与 `RAW`。
 - 从 **Archive Digest Workflow** 的 `[AD-0]` 起执行。

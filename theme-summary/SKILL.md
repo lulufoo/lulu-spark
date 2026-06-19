@@ -16,8 +16,7 @@ description: >-
 > Both phases are required. Neither may be skipped.
 
 Archive a conversation summary — a written conclusion, recap, or distilled note
-produced from a dialogue — directly as a `raw/` document. Unlike `dialogue-summary`
-(`dtd_raw_dialogue`), no turn-by-turn reconstruction is performed. The body is kept
+produced from a dialogue — directly as a `raw/` document. Unlike `dialogue-summary`, no turn-by-turn reconstruction is performed. The body is kept
 verbatim except **external-linked images are stripped** (see § Body sanitize).
 
 ## Core Input

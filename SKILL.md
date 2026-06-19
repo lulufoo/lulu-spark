@@ -40,7 +40,7 @@ python3 install.py --platform $PLATFORM_FLAG
 
 | 指令 | 目录 | 说明 |
 |------|------|------|
-| `dialogue-summary` | [dialogue-summary/](dialogue-summary/) | 对话蒸馏：`dtd_raw_dialogue`、`dtd_distill_*`、`dtd_trace` |
+| `dialogue-summary` | [dialogue-summary/](dialogue-summary/) | 对话归一化归档至 `raw/` 并自动 digest（MCP；`dtd_raw_dialogue` 触发词仍可用） |
 | `theme-summary` | [theme-summary/](theme-summary/) | 总结归档至 `raw/` 并自动 digest（`dtd_raw_summary`） |
 | `theme-line` | [theme-line/](theme-line/) | 多平台视频/访谈稿（YouTube、InfoQ、plain）→ TranscriptBundle → 主题优先时间线大纲，保存至 `raw/` 并自动 digest |
 | `theme-fetch` | [theme-fetch/](theme-fetch/) | 多平台网页文章（WeChat、plain HTML…）→ ArticleBundle → 格式化 Markdown；Phase 3 编排 theme-archive + theme-digest |
