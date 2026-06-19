@@ -9,43 +9,28 @@ argument-hint: '[文档路径 | Markdown 正文] [--source-type summary|article|
 
 # theme-archive — Workbench 文档归档
 
-> **路径与配置**：[archive-concepts.md](../shared/archive-concepts.md)（`COMMON_PATH`、`prefix`、`layers`、读 `config.json`）
+> **路径约定**：[archive-concepts.md](../shared/archive-concepts.md)（`COMMON_PATH`、`prefix`、`layers`）
 >
 > **输入**：已组好的 Markdown 文档（含 header + 正文）；可选附加文件（如 `-zh.md`）
 >
 > **输出**：`raw/<COMMON_PATH>`；更新 `index.json`（`layers: ["raw"]`）
 >
-> **边界**：本 skill **仅**负责 raw 落盘与 index 更新。**不**触发、**不**调用 [theme-digest](../theme-digest/SKILL.md)——digest 由 producer（如 theme-fetch）在归档完成后自行 Embedded 调用。
+> **边界**：本 skill **仅**负责 raw 落盘与 index 更新。**不**触发 digest——digest 由 producer 或用户另行调用 [theme-digest](../theme-digest/SKILL.md) / MCP `archive_digest`。
 
 ## 触发后的首要动作
 
-1. 读取 `{skill_dir}/../config.json`，获取 `archive_root`，确认存在：
-
-   `> ✅ config.json 读取完成 · archive_root: <路径>`
-
-2. 判断 **Embedded** 或 **Standalone**（见下），执行 **Archive Workflow** `[AR-0]`–`[AR-6]`。
+1. 确认 Workbench MCP 可用（见 [archive-concepts.md](../shared/archive-concepts.md) MCP Prerequisite）。
+2. 判断 **Embedded** 或 **Standalone**（见下），执行 **Archive Workflow** `[AR-0]`–`[AR-5]`。
 
 ---
 
 ## Embedded 模式
 
-由 `theme-fetch`、`theme-summary`、`theme-line` 等在文档组好后链式调用。
+由 producer 在文档组好后传入完整 Markdown 与元数据。
 
-- 上游已确定 `COMMON_PATH`、文档正文、index 元数据（`source_type` 等）。
+- 上游已确定 `COMMON_PATH`、文档正文、`source_type` 等。
 - 从 **Archive Workflow** 的 `[AR-1]` 起执行（跳过路径解析）。
-- 完成后将归档结果追加到上游输出。
-
-上游调用示例：
-
-```text
-加载并完整执行 ../theme-archive/SKILL.md（Embedded：
-  COMMON_PATH = <topic-path>/<ts>-<slug>.md
-  documents = [{ rel: "raw/<COMMON_PATH>", content: "<完整 Markdown>" }, ...]
-  index_entry = { common_path, created_at, source_type, layers: ["raw"], ... }
-）
-```
-
-Embedded 载荷字段见 [references/input-schema.md](references/input-schema.md)。
+- 完成后将 MCP 返回追加到上游输出。
 
 ---
 
@@ -67,13 +52,17 @@ Standalone 从 `[AR-0]` 起执行路径解析，见 [references/standalone-resol
 
 ## Archive Workflow
 
+<HARD-GATE mcp="archive">
+Workbench App **必须运行**（MCP `workbench-knowledge` 可用）。**禁止**直写 corpus 文件系统。
+</HARD-GATE>
+
 ### [AR-0] 路径与文件名（Standalone only）
 
 Embedded → 跳过，使用上游传入的 `COMMON_PATH`。
 
 Standalone：
 
-1. 读 `{archive_root}/topics.json` 选 `project`（`dir` 或 repo 短名；无匹配 → `inbox`）
+1. 语义推断 `project`（最接近 topics；无匹配 → `inbox`）
 2. 从文档 `# 标题` 或首行推断 `doc-theme`（kebab-case 英文，3–5 词）
 3. `slug` = 标题 kebab-case 英文摘要
 4. `ts` = `YYYYMMDDHHMM`（UTC+8）
@@ -90,92 +79,75 @@ Primary document 必须满足：
 ```text
 · 以 `# 标题` 开头
 · 含 `> 创建时间：` 元数据行
-· 含 `> 导航：` 行，且 distilled / digest / trace 链接已 fully resolved（无占位符）
+· 含 `> 导航：` 行，且 digest 链接已 fully resolved（无占位符）
 · 正文非空
 ```
 
 附加文件（可选）：`raw/<topic-path>/<ts>-<slug>-zh.md` 等同目录命名规则。
 
-Standalone 若 header 缺导航行，按 [archive-concepts.md](../shared/archive-concepts.md) 补全后再写入。
+Standalone 若 header 缺导航行，按 [archive-concepts.md](../shared/archive-concepts.md) 补全后再归档。
 
 ---
 
-### [AR-2] 生成 entry ID
+### [AR-2] archive_document (MCP)
 
-32 字符小写 hex：`secrets.token_hex(16)`（Python）或等效。
-
-Embedded 若上游已提供 `id` → 复用。
-
----
-
-### [AR-3] 准备 index.json 条目
-
-最小字段：
+调用 MCP `archive_document`：
 
 ```json
-"<id>": {
-  "common_path": "<topic-path>/<ts>-<slug>.md",
-  "created_at": "<ts>",
-  "layers": ["raw"],
-  "source_type": "<summary|article|theme-line|...>"
+{
+  "document": "<primary 全文 Markdown>",
+  "source_type": "<summary|article|theme-line|dialogue|...>",
+  "extra_documents": [
+    {
+      "rel": "raw/<topic-path>/<ts>-<slug>-zh.md",
+      "content": "<附加 raw 全文>"
+    }
+  ],
+  "index_extra": {
+    "translations": { "zh": "<topic-path>/<ts>-<slug>-zh.md" }
+  }
 }
 ```
 
-可选扩展（按上游传入合并，不臆造）：
-
-| 字段 | 用途 |
-|------|------|
-| `fetch` | theme-fetch：`platform`、`adapter`、`url` |
-| `translations` | 英文源：`{ "zh": "<topic-path>/<ts>-<slug>-zh.md" }` |
-
-`source_type` 默认：Standalone 未指定时 → `summary`；Embedded 必须显式传入。
+- 无附加文件时省略 `extra_documents` / `index_extra`。
+- `source_type` 默认：Standalone 未指定 → `summary`；Embedded 必须显式传入。
+- 记录返回的 `id`、`common_path`、`raw_path`、`extra_paths`。
 
 ---
 
-### [AR-4] 落盘顺序
-
-**先写文件，后写 index**（避免 index 指向不存在的路径）：
-
-1. `{archive_root}/raw/<topic-path>/<ts>-<slug>.md`（primary）
-2. 附加 raw 文件（如 `-zh.md`）
-3. `{archive_root}/index.json`（`entries` 追加新条目）
-
-目录不存在则创建。
-
----
-
-### [AR-5] 完成输出
+### [AR-3] 完成输出
 
 ```text
 > ✅ ThemeArchive 归档完成
 > 📄 raw：raw/<topic-path>/<ts>-<slug>.md
 > 📄 zh： raw/.../-zh.md          （有翻译文件时）
-> 🗂 index.json 已更新（source_type: <type> · id: <id>）
+> 🗂 id: <id> · source_type: <type>
 ```
 
 ---
 
-### [AR-6] 失败与回滚
+### [AR-4] 失败处理
 
-任一步失败 → **停止**；若 index 已写入但 raw 缺失，修正 index 或补写 raw。**不要**留下 `common_path` 指向不存在文件的 index 条目。
+MCP 返回错误 → **停止**；向用户报告 HTTP 状态与消息。**不要**尝试直写 corpus 作为回退。
 
 ---
 
 ## Producer 集成
 
-| Producer | 文档组稿 | 归档 (theme-archive) | digest (theme-digest) |
-|----------|----------|----------------------|------------------------|
-| theme-fetch | Phase 2 Format | Phase 3 Step 4 Embedded | Phase 3 Step 5 Embedded |
-| theme-summary | § Core Output Shape | Step 3 Embedded | Step 4 Embedded |
-| theme-line | Phase 2 Compose | Step 5 Embedded | Step 6 Embedded |
+| Producer | 文档组稿 | 归档 | digest |
+|----------|----------|------|--------|
+| theme-fetch | Phase 2 Format | Phase 3 Step 4 MCP | Phase 3 Step 5 MCP |
+| theme-summary | § Core Output Shape | Step 3 MCP | Step 4 MCP |
+| theme-line | Phase 2 Compose | Step 5 MCP | Step 6 MCP |
+| dialogue-summary | § Core Output Shape | Step 3 MCP | Step 4 MCP |
 
-各 producer **编排** theme-archive 与 theme-digest 两次链式调用；本 skill **不**代劳 digest。
+各 producer **编排** `archive_document` 与 `archive_digest`；本 skill **不**代劳 digest。
 
 ---
 
 ## Ask Only When Necessary
 
-默认：最近 `topics.json` 匹配 · 标题推断 slug。
+默认：语义推断 project · 标题推断 slug。
 
 仅当 slug 冲突、project 无法推断、或文档 header 缺关键字段时询问用户。
 
@@ -185,6 +157,6 @@ Embedded 若上游已提供 `id` → 复用。
 
 | Doc | Purpose |
 |-----|---------|
-| [input-schema.md](references/input-schema.md) | Embedded 载荷字段 |
+| [input-schema.md](references/input-schema.md) | Embedded 载荷字段（逻辑等价于 MCP 参数） |
 | [standalone-resolve.md](references/standalone-resolve.md) | Standalone 路径解析 |
 | [../shared/archive-concepts.md](../shared/archive-concepts.md) | 共享路径约定 |

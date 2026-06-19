@@ -13,8 +13,6 @@ description: >-
 > 2. **Save to Archive** (§ Save to Archive) — MCP **archive_document** + **archive_digest**（当 `[AD-0]` 满足时不得跳过 digest）。
 >
 > Both phases are required. Neither may be skipped.
->
-> P1–P3 能力（distilled、trace 等）已移至 [references/legacy/](references/legacy/)，当前不挂载。
 
 Normalize the current session (or user-provided dialogue) into a turn-separated `raw/`
 document. Body text is kept verbatim except stripping AI折叠思考块 / 无关前缀；不得压缩或摘要化。
@@ -62,10 +60,7 @@ Rules:
 
 ## Recommended Workflow
 
-1. Read `{skill_dir}/../config.json`，确认 `archive_root`：
-
-   `> ✅ config.json 读取完成 · archive_root: <路径>`
-
+1. Confirm Workbench MCP is available（§ Save to Archive HARD-GATE）.
 2. Select project and doc-theme（§ Save to Archive Step 1）.
 3. Build normalized document（§ Save to Archive Step 2）.
 4. Execute Save to Archive（§ Save to Archive Step 3–4）.
@@ -89,14 +84,10 @@ MCP 由 Workbench App spawn（`http://127.0.0.1:9876/mcp`）。不可用 → **�
 
 ### Step 1 · Select project and doc-theme
 
-读取 `{archive_root}/topics.json`，从 `topics` 数组中选择 project：
-
-- 取每项的 `dir` 字段（若存在），否则取 `repo` 的最后一段（`/` 之后）
-- 根据对话内容和标题，**语义推断 `doc-theme`**（kebab-case，英文，无空格，**3–5 个单词**）
-- **若无合适项目**，`project` 填 `inbox`，不得默认选一个相近项目
+推断 `project` + `doc-theme`（kebab-case，英文，无空格，**3–5 个单词**）；无匹配 → `inbox`。
 
 ```
-project   = dir 或 repo 短名；无匹配 → inbox
+project   = 语义最接近的 topics 项；不清楚 → inbox
 doc-theme = 语义推断（如 agentic-coding-discipline）
 slug      = 与主题一致的 kebab-case（冲突先澄清）
 ts        = YYYYMMDDHHMM（东八区 UTC+8，归档时刻）
@@ -168,4 +159,3 @@ Assume defaults:
 |-----|---------|
 | [theme-digest @ GitHub](https://github.com/lulufoo/lulu-workbench-skills/tree/main/theme-digest) | digest 结构与 `[AD-0]` 阈值（撰写规则；落盘由 MCP） |
 | [../shared/archive-concepts.md](../shared/archive-concepts.md) | `COMMON_PATH`、`prefix` |
-| [references/legacy/](references/legacy/) | 旧 DDM P1–P3 手册（distilled、trace 等；暂不使用） |

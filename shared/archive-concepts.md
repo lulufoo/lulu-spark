@@ -1,21 +1,24 @@
 # Archive Concepts (shared)
 
-> 供 `theme-archive`、`theme-fetch`、`theme-line`、`theme-digest`、`dialogue-summary`、`theme-summary` 共用的路径与配置约定。
+> 供 `theme-archive`、`theme-fetch`、`theme-line`、`theme-digest`、`dialogue-summary`、`theme-summary` 共用的路径约定。
 
 ---
 
-## Configuration
+## MCP Prerequisite
 
-读取 `{skill_dir}/../config.json`（repository 根）获取 `archive_root`：
+<HARD-GATE mcp="archive">
+Workbench App **必须运行**（MCP `workbench-knowledge` 可用，`http://127.0.0.1:9876/mcp`）。不可用 → **明确报错并停止**。
 
-```json
-{
-  "archive_root": "/path/to/lulu-workbench-knowledge"
-}
-```
+**禁止** Agent 直写 corpus 文件系统（raw / digest / index.json）。落盘 MUST 经 MCP：
 
-- `archive_root` 未配置或读 `config.json` 失败 → **立即中止**（不进入后续 Step）
-- 各 skill 首步确认：`> ✅ config.json 读取完成 · archive_root: <路径>`
+| 操作 | MCP tool |
+|------|----------|
+| 写 raw + index | `archive_document` |
+| 写 digest + layers | `archive_digest` |
+| 读 digest 目录 | `get_corpus_catalog` / `get_corpus_files` |
+</HARD-GATE>
+
+各 skill 首步确认：`> ✅ Workbench MCP 可用`
 
 ---
 
@@ -29,12 +32,18 @@ prefix      = "../../../"              # raw/ 文件内导航相对前缀
 
 | 目录 | 路径模式 |
 |------|---------|
-| raw | `{archive_root}/raw/<topic-path>/<ts>-<slug>.md` |
-| raw (zh) | `{archive_root}/raw/<topic-path>/<ts>-<slug>-zh.md` |
-| digest | `{archive_root}/digest/<COMMON_PATH>` |
-| debug bundle | `{archive_root}/.cache/<topic-path>/<ts>-<slug>-bundle.json` |
+| raw | `raw/<topic-path>/<ts>-<slug>.md` |
+| raw (zh) | `raw/<topic-path>/<ts>-<slug>-zh.md` |
+| digest | `digest/<COMMON_PATH>` |
+| debug bundle | `.cache/<topic-path>/<ts>-<slug>-bundle.json`（可选调试；禁止 Agent 直写） |
 
 **禁止** 将 TranscriptBundle 写入 `trace/`（trace 仅 DDM 认知 trace）。
+
+---
+
+## Project selection
+
+推断 `project`（语义最接近的 topics 项；不清楚 → `inbox`）。**不**读取本地 `topics.json` 文件。
 
 ---
 
@@ -56,15 +65,13 @@ Archive digest 完成后追加 `"digest"`：
 
 ## Navigation line
 
-**MCP 产出者**（`theme-summary`、`theme-line`、`dialogue-summary`）raw header **仅含 digest 链接**（Workbench `archive_document` 解析要求）：
+**MCP 产出者**（`theme-summary`、`theme-line`、`dialogue-summary`、`theme-fetch`）raw header **仅含 digest 链接**（Workbench `archive_document` 解析要求）：
 
 ```markdown
 > 导航：[digest]({prefix}digest/{COMMON_PATH})
 ```
 
-**Legacy / 全链格式**（`references/legacy/` 等旧手册）：可含 distilled · digest · trace 三链。
-
-digest 文件导航行：读取 `index.json` 对应条目 `layers`；含 `distilled` / `trace` 时追加链接。
+digest 文件导航行：若已知 index 条目 `layers` 含 `distilled` / `trace` 时追加链接。
 
 ---
 
@@ -81,7 +88,7 @@ slug 冲突 → 与用户确认后再继续。
 
 ## Entry ID
 
-32 字符小写 hex：`secrets.token_hex(16)`（Python）或等效。
+32 字符小写 hex：由 `archive_document` 返回；Agent **不**自行生成。
 
 ---
 

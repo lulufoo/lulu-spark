@@ -1,18 +1,31 @@
-# Save to Archive — theme-archive + theme-digest
+# Save to Archive — Steps 1–6
 
-> **路径与配置：** [archive-concepts.md](../../shared/archive-concepts.md)
->
-> **职责：** theme-fetch Phase 3 **编排**两次链式调用——先 [theme-archive](../../theme-archive/SKILL.md)（raw/index），再 [theme-digest](../../theme-digest/SKILL.md)（digest）。digest **不由** theme-archive 触发。
+> **路径约定：** [archive-concepts.md](../../shared/archive-concepts.md)（`COMMON_PATH`、`prefix`、`layers`）
 
-After Phase 2 Format produces the Markdown body:
+After Phase 2 Format produces the Markdown body, execute these steps to save via Workbench MCP.
+
+---
 
 ### Step 1 · Select project and doc-theme
 
-Read `{archive_root}/topics.json` → `project` + `doc-theme`；无匹配 → `inbox`。从 `bundle.meta.title` 推断 `slug`、`ts`、`COMMON_PATH`。
+Infer `project` from topics (closest match; unclear → `inbox`). Infer `doc-theme` from `bundle.meta.title` (kebab-case English). Infer `slug`, `ts`, `COMMON_PATH` from title.
+
+```
+topic-path  = <project>/<doc-theme>
+slug        = kebab-case summary of source title
+ts          = YYYYMMDDHHMM (UTC+8)
+COMMON_PATH = <topic-path>/<ts>-<slug>.md
+```
+
+Slug conflict → clarify with user before proceeding.
+
+---
 
 ### Step 2 · Detect source language
 
-Read `bundle.meta.language`：`en` → source + `-zh.md`；`zh` / `mixed` / `unknown` → source only。
+Read `bundle.meta.language`：`en` → source + `-zh.md`；`zh` / `mixed` / `unknown` → source only.
+
+---
 
 ### Step 3 · Build documents
 
@@ -20,37 +33,51 @@ Primary： [output-templates.md](output-templates.md) header + Phase 2 body。
 
 英文源 → 翻译 body → `-zh.md`（同 header 模板）。
 
-### Step 4 · theme-archive Embedded
+---
 
-构造载荷（见 [../../theme-archive/references/input-schema.md](../../theme-archive/references/input-schema.md)）：
+### Step 4 · archive_document (MCP)
 
-```text
-加载并完整执行 ../../theme-archive/SKILL.md（Embedded，从 [AR-1] 起：
-  COMMON_PATH = <topic-path>/<ts>-<slug>.md
-  documents = [
-    { rel: "raw/<COMMON_PATH>", content: "<primary 全文>" },
-    { rel: "raw/.../-zh.md", content: "..." }   # en 时
-  ]
-  index_entry = {
-    common_path, created_at: <ts>, source_type: "article", layers: ["raw"],
-    fetch: { platform, adapter, url },
-    translations: { zh: "..." }   # en 时
+<HARD-GATE>
+Workbench App **must be running** (`workbench-knowledge` MCP). On failure → stop; **do not** write corpus files directly.
+</HARD-GATE>
+
+```json
+{
+  "document": "<Step 3 primary full markdown>",
+  "source_type": "article",
+  "extra_documents": [
+    {
+      "rel": "raw/<topic-path>/<ts>-<slug>-zh.md",
+      "content": "<Step 3 -zh.md full markdown>"
+    }
+  ],
+  "index_extra": {
+    "translations": { "zh": "<topic-path>/<ts>-<slug>-zh.md" }
   }
-）
+}
 ```
 
-将 theme-archive `[AR-5]` 输出追加为 Phase 3 中间结果。
+- Omit `extra_documents` and `index_extra` when language is not `en`.
+- Record returned `id`, `common_path`, `raw_path`, `extra_paths`.
 
-### Step 5 · theme-digest Embedded（theme-fetch 触发）
+---
 
-Primary raw 作为 **RAW**（不对 `-zh.md` digest）：
+### Step 5 · archive_digest (MCP)
 
-```text
-加载并完整执行 ../../theme-digest/SKILL.md（Embedded：RAW = raw/<COMMON_PATH>，从 [AD-0] 起）
+When `[AD-0]` applies (`source_type = article` uses normal thresholds):
+
+1. Write digest per [theme-digest](../../theme-digest/SKILL.md) `[AD-1]`–`[AD-2]` from **primary raw only** (not `-zh.md`).
+2. Call MCP `archive_digest`:
+
+```json
+{
+  "id": "<Step 4 id>",
+  "digest": "<full digest markdown>"
+}
 ```
 
-`source_type = article` 时按 `[AD-0]` 常规阈值。将 digest 结果追加为 Phase 3 完成输出：
+Use `"force": true` only when user confirms overwrite.
 
-```text
-> 📋 digest：digest/<topic-path>/<ts>-<slug>.md  （或 "skipped"）
+```
+📋 digest: digest/<COMMON_PATH>  (or skipped)
 ```

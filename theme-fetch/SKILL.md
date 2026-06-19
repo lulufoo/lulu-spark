@@ -14,7 +14,7 @@ description: >-
 > 2. Format Article
 > 3. Save to Archive
 >
-> Read this file in full before executing. Phase 3 chains **theme-archive** (raw/index) then **theme-digest** (digest)—both orchestrated by theme-fetch.
+> Read this file in full before executing. Phase 3 saves via Workbench MCP (`archive_document` + `archive_digest`).
 
 Fetch external web articles, normalize structure, archive to `raw/` — **no summarization**, **no ThemeLine**.
 
@@ -76,7 +76,7 @@ Output patterns: [references/output-templates.md](references/output-templates.md
 
 ## Phase 3 · Save to Archive
 
-Load [references/archive-steps.md](references/archive-steps.md) — Step 4 **theme-archive** · Step 5 **theme-digest**（由 theme-fetch 编排）。
+Load [references/archive-steps.md](references/archive-steps.md) — Step 4 **archive_document** · Step 5 **archive_digest**（MCP）。
 
 Path/config: [../shared/archive-concepts.md](../shared/archive-concepts.md)
 
@@ -88,7 +88,7 @@ Path/config: [../shared/archive-concepts.md](../shared/archive-concepts.md)
 
 ## Ask Only When Necessary
 
-Defaults: source title · infer project from `topics.json` · `language` from bundle · auto digest
+Defaults: source title · infer project semantically · `language` from bundle · auto digest
 
 Ask only when: slug conflict · fetch blocked (verification page) · project ambiguous
 
