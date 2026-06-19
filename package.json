@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "(cd src-tauri && cargo test -p lulu-workbench local_http -- --test-threads=1) && npm install --prefix packages/knowledge-mcp && node packages/knowledge-mcp/scripts/verify.mjs",
+    "test": "(cd src-tauri && cargo test -p lulu-workbench 'local_http|knowledge_mcp' -- --test-threads=1) && npm install --prefix packages/knowledge-mcp && node packages/knowledge-mcp/scripts/verify.mjs",
     "tauri": "tauri",
     "icons:regen": "tauri icon frontend/icons/app-icon.svg -o src-tauri/icons && rm -rf src-tauri/icons/android src-tauri/icons/ios && rm -f src-tauri/icons/Square*.png src-tauri/icons/StoreLogo.png src-tauri/icons/64x64.png"
   },
