@@ -1,7 +1,7 @@
 ---
 name: lulu-workbench-skills
 description: >-
-  lulu-workbench 归档技能包安装。克隆到平台 skills 目录；归档经 Workbench App MCP 落盘。
+  lulu-workbench 归档技能包安装。克隆到平台 skills 目录（Cursor / Copilot / Claude / Codex）；归档经 Workbench App MCP 落盘。
   Use when: 安装 workbench skills、dialogue-summary theme-summary theme-line theme-fetch theme-archive theme-digest
 ---
 
@@ -11,9 +11,11 @@ description: >-
 
 **Detect once; substitute `$SKILL_DIR` throughout:**
 
-| | Cursor | Copilot |
-|---|---|---|
-| `$SKILL_DIR` | `~/.cursor/skills/lulu-workbench-skills` | `~/.copilot/skills/lulu-workbench-skills` |
+| | Cursor | Copilot | Claude | Codex |
+|---|---|---|---|---|
+| `$SKILL_DIR` | `~/.cursor/skills/lulu-workbench-skills` | `~/.copilot/skills/lulu-workbench-skills` | `~/.claude/skills/lulu-workbench-skills` | `~/.agents/skills/lulu-workbench-skills` |
+
+检测信号（优先级）：`CURSOR_AGENT` → Cursor · `COPILOT_AGENT` / `VSCODE_TARGET_SESSION_LOG` → Copilot · `CLAUDE_CODE` → Claude · `CODEX_AGENT` → Codex · 均无 → 向用户确认平台后再替换 `$SKILL_DIR`。
 
 ## 安装
 

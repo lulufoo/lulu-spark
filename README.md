@@ -4,7 +4,7 @@
 
 ## 安装
 
-支持 Cursor 和 Copilot。安装步骤见 [SKILL.md](SKILL.md)。
+支持 Cursor、Copilot、Claude Code、Codex。安装步骤见 [SKILL.md](SKILL.md)。
 
 | Skill | 指令 | 说明 |
 |-------|------|------|
