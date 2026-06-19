@@ -177,6 +177,107 @@ fn get_corpus_file_returns_content() {
 }
 
 #[test]
+fn get_corpus_catalog_latest_per_topic_picks_newest() {
+    let dir = tempfile::tempdir().expect("tmp");
+    let corpus = dir.path().join("corpus");
+    fs::create_dir_all(corpus.join("digest/ai")).expect("mkdir");
+    fs::create_dir_all(corpus.join("digest/personal-growth")).expect("mkdir");
+    fs::write(corpus.join("digest/ai/old.md"), b"old").expect("write");
+    fs::write(corpus.join("digest/ai/new.md"), b"new").expect("write");
+    fs::write(corpus.join("digest/personal-growth/speech.md"), b"speech").expect("write");
+    let id_old = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+    let id_new = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+    let id_pg = "cccccccccccccccccccccccccccccccc";
+    let index = json!({
+        "entries": {
+            id_old: {
+                "common_path": "ai/old.md",
+                "created_at": "202606010001",
+                "layers": ["digest"]
+            },
+            id_new: {
+                "common_path": "ai/new.md",
+                "created_at": "202606190004",
+                "layers": ["digest"]
+            },
+            id_pg: {
+                "common_path": "personal-growth/speech.md",
+                "created_at": "202606190947",
+                "layers": ["digest"]
+            },
+            "not-hex-id": {
+                "common_path": "ai/skip.md",
+                "created_at": "202606999999",
+                "layers": ["digest"]
+            },
+            "dddddddddddddddddddddddddddddddd": {
+                "common_path": "ai/no-digest.md",
+                "created_at": "202606999999",
+                "layers": ["raw"]
+            }
+        }
+    });
+    fs::write(corpus.join("index.json"), index.to_string()).expect("write index");
+    crate::config::settings::write_test_config(dir.path(), &corpus, None);
+
+    let v = get_corpus_catalog_latest_per_topic(dir.path());
+    let items = v["items"].as_array().expect("items");
+    assert_eq!(items.len(), 2);
+    let ai = items.iter().find(|i| i["topic"] == "ai").expect("ai topic");
+    assert_eq!(ai["id"], id_new);
+    assert_eq!(ai["created_at"], "202606190004");
+    assert!(ai.get("common_path").is_none());
+    let pg = items.iter().find(|i| i["topic"] == "personal-growth").expect("pg");
+    assert_eq!(pg["id"], id_pg);
+}
+
+#[test]
+fn get_corpus_files_by_ids_batch() {
+    let dir = tempfile::tempdir().expect("tmp");
+    let corpus = dir.path().join("corpus");
+    fs::create_dir_all(corpus.join("digest/ai")).expect("mkdir");
+    fs::write(corpus.join("digest/ai/note.md"), b"# digest body").expect("write");
+    let id_ok = "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
+    let index = json!({
+        "entries": {
+            id_ok: {
+                "common_path": "ai/note.md",
+                "created_at": "202606190004",
+                "layers": ["digest"]
+            }
+        }
+    });
+    fs::write(corpus.join("index.json"), index.to_string()).expect("write index");
+    crate::config::settings::write_test_config(dir.path(), &corpus, None);
+
+    let v = get_corpus_files_by_ids(
+        dir.path(),
+        &[
+            id_ok.to_string(),
+            "ffffffffffffffffffffffffffffffff".to_string(),
+            "bad".to_string(),
+        ],
+    );
+    let items = v["items"].as_array().expect("items");
+    assert_eq!(items.len(), 3);
+    assert_eq!(items[0]["ok"], true);
+    assert_eq!(items[0]["content"], "# digest body");
+    assert_eq!(items[1]["ok"], false);
+    assert_eq!(items[2]["ok"], false);
+}
+
+#[test]
+fn get_corpus_files_by_ids_rejects_empty() {
+    let dir = tempfile::tempdir().expect("tmp");
+    let corpus = dir.path().join("corpus");
+    fs::create_dir_all(&corpus).expect("mkdir");
+    fs::write(corpus.join("index.json"), br#"{"entries":{}}"#).expect("write");
+    crate::config::settings::write_test_config(dir.path(), &corpus, None);
+    let v = get_corpus_files_by_ids(dir.path(), &[]);
+    assert_eq!(v["_status"], 400);
+}
+
+#[test]
 fn get_annotation_decodes_percent_encoding() {
     let dir = tempfile::tempdir().expect("tmp");
     let corpus = dir.path().join("corpus");

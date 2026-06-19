@@ -8,8 +8,8 @@ LuLu Workbench 在 App 启动时会在本机暴露 **digest 只读** HTTP API，
 
 | 组件 | 默认地址 | 说明 |
 |------|----------|------|
-| Workbench read HTTP | `http://127.0.0.1:8765` | `GET /api/corpus-index`、`/api/corpus-file`、`/api/status` |
-| MCP sidecar | `http://127.0.0.1:9876/mcp` | tools：`get_corpus_index`、`get_corpus_file`（固定 `layer=digest`） |
+| Workbench read HTTP | `http://127.0.0.1:8765` | `GET /api/corpus-catalog`、`POST /api/corpus-files`、`/api/status`（旧路由 `/api/corpus-index`、`/api/corpus-file` 仍保留供 UI） |
+| MCP sidecar | `http://127.0.0.1:9876/mcp` | tools：`get_corpus_catalog`、`get_corpus_files` |
 
 App `setup()` 顺序：启动 `local_http`（8765）→ **仅当 HTTP listen 成功** 时 spawn `node packages/knowledge-mcp/index.mjs`；App `Exit` 时 kill sidecar 并停止 HTTP。
 
@@ -19,6 +19,26 @@ Sidecar 环境变量（由 App 注入，一般无需手改）：
 |------|------|
 | `WORKBENCH_HTTP_URL` | `http://127.0.0.1:8765` |
 | `MCP_PORT` | `9876` |
+
+## TPM 典型调用（2 次 MCP）
+
+目标画像模型（TPM）Step 1 只需 digest 背景，推荐流程：
+
+1. **`get_corpus_catalog`** — `{ "mode": "latest_per_topic" }`  
+   返回每个顶层 topic 最新一条 digest 的 `id`、`topic`、`created_at`（**不含** `common_path`）。
+2. **`get_corpus_files`** — `{ "ids": ["...", "..."] }`  
+   批量返回 digest 正文（最多 32 个 id）。
+
+示例 catalog 响应：
+
+```json
+{
+  "items": [
+    { "id": "138700959e5ddb1260c69e9e18169ac4", "topic": "ai-software-dev", "created_at": "202606190004" },
+    { "id": "027e4bc8a71e8def04695e9ce99a7565", "topic": "personal-growth", "created_at": "202606190947" }
+  ]
+}
+```
 
 ## 配置步骤
 
@@ -53,24 +73,31 @@ stderr 正常时应含 `[local_http]` bind 成功、`[knowledge-mcp] ready on po
 }
 ```
 
-保存后打开 Cursor MCP 面板，应能看到 `get_corpus_index`、`get_corpus_file`。
+保存后打开 Cursor MCP 面板，应能看到 `get_corpus_catalog`、`get_corpus_files`。
 
-### 3. 调用示例（AC-5）
+### 3. 调用示例
 
-在 MCP 面板或通过 Agent 调用：
+- `get_corpus_catalog` — `{ "mode": "latest_per_topic" }`
+- `get_corpus_files` — `{ "ids": ["138700959e5ddb1260c69e9e18169ac4"] }`
 
-- `get_corpus_index` — 返回与 Tauri `get_corpus_index` 一致的 `index.json` JSON 文本
-- `get_corpus_file` — 参数 `{ "path": "topic-id/relative/path.md" }`（digest 相对路径）
+HTTP 直连（调试）：
 
-## App 未运行 / HTTP 失败时的表现（AC-6）
+```bash
+curl -s 'http://127.0.0.1:8765/api/corpus-catalog?mode=latest_per_topic'
+curl -s -X POST http://127.0.0.1:8765/api/corpus-files \
+  -H 'Content-Type: application/json' \
+  -d '{"ids":["YOUR_ENTRY_ID"]}'
+```
+
+## App 未运行 / HTTP 失败时的表现
 
 | 场景 | MCP / HTTP 表现 |
 |------|-----------------|
 | **Workbench 未启动** | Cursor 连接 `http://127.0.0.1:9876/mcp` 失败（连接 refused / 超时）；无法 list tools 或 call tool |
-| **8765 bind 失败（端口占用等）** | App stderr：`[local_http] bind failed on port 8765: …`；**不** spawn sidecar（`HTTP unavailable, MCP sidecar skipped`）；9876 无监听 |
-| **8765 正常但 sidecar 未起** | HTTP `curl /api/corpus-index` 可能仍 200；MCP 不可用（9876 无进程） |
+| **8765 bind 失败（端口占用等）** | App stderr：`[local_http] bind failed on port 8765: …`；**不** spawn sidecar；9876 无监听 |
+| **8765 正常但 sidecar 未起** | HTTP `curl /api/corpus-catalog` 可能仍 200；MCP 不可用（9876 无进程） |
 | **App 运行中 HTTP 不可达** | sidecar tool 返回 **tool error**，文本形如 `HTTP 404: …` 或 `HTTP 500: …`（透传 HTTP status，无读盘 fallback） |
-| **关闭 App 后** | sidecar 随 App exit 被 kill；Cursor 再次 call tool → 连接失败或 tool error（AC-6） |
+| **关闭 App 后** | sidecar 随 App exit 被 kill；Cursor 再次 call tool → 连接失败或 tool error |
 
 Sidecar **禁止**读取 `workbench_knowledge_root` 文件系统；HTTP 不可达时不会静默返回空内容。
 
@@ -110,29 +137,6 @@ cd packages/knowledge-mcp
 npm install
 node scripts/verify.mjs
 ```
-
-App 联调（需 App 已启、语料已配置）：
-
-```bash
-curl -s http://127.0.0.1:8765/api/corpus-index | head
-curl -s "http://127.0.0.1:8765/api/corpus-file?layer=digest&path=YOUR_DIGEST_PATH" | head
-```
-
-## 手动验收清单（VF）
-
-与 tech-plan Verification 节（VF）对齐：
-
-| AC | 步骤 | 预期 |
-|----|------|------|
-| AC-1 | `curl -s http://127.0.0.1:8765/api/corpus-index` | 200 JSON |
-| AC-2 | `curl` 已知 digest path，对比 Tauri invoke | 内容一致 |
-| AC-3 | 启停 App；`ps aux \| grep knowledge-mcp` | 运行时有进程，退出后无残留 |
-| AC-4 | `rg 'readFile\|fs\.' packages/knowledge-mcp` | 无 corpus 路径读盘 |
-| AC-5 | Cursor MCP 面板 list + call `get_corpus_file` | 成功返回 digest 文本 |
-| AC-6 | 关闭 App 后再 call MCP tool | 连接失败或明确 tool error |
-| AC-7 | `curl ".../api/corpus-file?layer=raw&path=x"` | 400 |
-
-Tech plan 原文：`.cache/cursor/lulu-dev-workflow/feature-20260619075159-be47f7d7/tech/plan/revision1/tech-doc.md`（Verification / VF 节）。
 
 ## 明确排除与 follow-up
 
