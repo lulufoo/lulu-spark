@@ -1,6 +1,7 @@
 //! Localhost read-only HTTP API for MCP sidecar proxy (`GET /api/corpus-*`, `/api/status`).
 
 use std::collections::HashMap;
+use std::io::Read;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
@@ -9,7 +10,10 @@ use std::thread::{self, JoinHandle};
 use serde_json::{json, Value};
 use tiny_http::{Header, Method, Response, Server, StatusCode};
 
-use crate::services::workbench_read::{get_corpus_file, get_corpus_index};
+use crate::services::workbench_read::{
+    get_corpus_catalog_latest_per_topic, get_corpus_file, get_corpus_files_by_ids,
+    get_corpus_index,
+};
 
 pub const DEFAULT_HTTP_PORT: u16 = 8765;
 
@@ -97,6 +101,13 @@ pub(crate) fn map_value_to_response(value: Value) -> (u16, String) {
 }
 
 fn handle_request(repo_root: &PathBuf, port: u16, request: tiny_http::Request) {
+    let path = request.url().split('?').next().unwrap_or("");
+
+    if request.method() == &Method::Post && path == "/api/corpus-files" {
+        handle_corpus_files_post(repo_root, request);
+        return;
+    }
+
     if request.method() != &Method::Get {
         respond_json(
             request,
@@ -106,8 +117,21 @@ fn handle_request(repo_root: &PathBuf, port: u16, request: tiny_http::Request) {
         return;
     }
 
-    let path = request.url().split('?').next().unwrap_or("");
     match path {
+        "/api/corpus-catalog" => {
+            let params = parse_query(request.url());
+            let mode = params.get("mode").map(String::as_str).unwrap_or("");
+            if mode != "latest_per_topic" {
+                respond_json(
+                    request,
+                    400,
+                    json!({ "error": "Unsupported mode; use mode=latest_per_topic" }),
+                );
+                return;
+            }
+            let value = get_corpus_catalog_latest_per_topic(repo_root);
+            respond_from_value(request, value);
+        }
         "/api/corpus-index" => {
             let value = get_corpus_index(repo_root);
             respond_from_value(request, value);
@@ -139,6 +163,35 @@ fn handle_request(repo_root: &PathBuf, port: u16, request: tiny_http::Request) {
         }
         _ => respond_json(request, 404, json!({ "error": "Not found" })),
     }
+}
+
+fn handle_corpus_files_post(repo_root: &PathBuf, mut request: tiny_http::Request) {
+    let mut body = String::new();
+    if request.as_reader().read_to_string(&mut body).is_err() {
+        respond_json(request, 400, json!({ "error": "Failed to read body" }));
+        return;
+    }
+    let payload: Value = match serde_json::from_str(&body) {
+        Ok(v) => v,
+        Err(e) => {
+            respond_json(request, 400, json!({ "error": format!("Invalid JSON: {e}") }));
+            return;
+        }
+    };
+    let Some(ids_val) = payload.get("ids").and_then(|v| v.as_array()) else {
+        respond_json(request, 400, json!({ "error": "Missing ids array" }));
+        return;
+    };
+    let ids: Vec<String> = ids_val
+        .iter()
+        .filter_map(|v| v.as_str().map(str::to_string))
+        .collect();
+    let value = get_corpus_files_by_ids(repo_root, &ids);
+    if value.get("_status").is_some() {
+        respond_from_value(request, value);
+        return;
+    }
+    respond_json(request, 200, value);
 }
 
 fn parse_query(url: &str) -> HashMap<String, String> {

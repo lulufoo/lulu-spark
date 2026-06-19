@@ -25,6 +25,20 @@ async function proxyGet(pathAndQuery) {
   return { ok: true, text };
 }
 
+async function proxyPost(path, body) {
+  const url = `${WORKBENCH_HTTP_URL}${path}`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  const text = await res.text();
+  if (!res.ok) {
+    return { ok: false, status: res.status, text };
+  }
+  return { ok: true, text };
+}
+
 function toolError(status, text) {
   return {
     content: [{ type: 'text', text: `HTTP ${status}: ${text}` }],
@@ -34,18 +48,24 @@ function toolError(status, text) {
 
 function buildServer() {
   const server = new McpServer(
-    { name: 'workbench-knowledge-mcp', version: '0.1.0' },
+    { name: 'workbench-knowledge-mcp', version: '0.2.0' },
     { capabilities: {} },
   );
 
   server.registerTool(
-    'get_corpus_index',
+    'get_corpus_catalog',
     {
-      description: 'Proxy GET /api/corpus-index from Workbench read API',
-      inputSchema: {},
+      description:
+        'Slim digest catalog: latest entry per top-level topic (id, topic, created_at). Proxy GET /api/corpus-catalog?mode=latest_per_topic',
+      inputSchema: {
+        mode: z
+          .literal('latest_per_topic')
+          .describe('Catalog mode; only latest_per_topic is supported'),
+      },
     },
-    async () => {
-      const result = await proxyGet('/api/corpus-index');
+    async ({ mode }) => {
+      const q = new URLSearchParams({ mode });
+      const result = await proxyGet(`/api/corpus-catalog?${q}`);
       if (!result.ok) {
         return toolError(result.status, result.text);
       }
@@ -54,16 +74,19 @@ function buildServer() {
   );
 
   server.registerTool(
-    'get_corpus_file',
+    'get_corpus_files',
     {
-      description: 'Proxy GET /api/corpus-file?layer=digest&path=...',
+      description: 'Batch-read digest bodies by index entry id. Proxy POST /api/corpus-files',
       inputSchema: {
-        path: z.string().describe('digest relative path'),
+        ids: z
+          .array(z.string())
+          .min(1)
+          .max(32)
+          .describe('Index entry ids (32-char hex)'),
       },
     },
-    async ({ path }) => {
-      const q = new URLSearchParams({ layer: 'digest', path });
-      const result = await proxyGet(`/api/corpus-file?${q}`);
+    async ({ ids }) => {
+      const result = await proxyPost('/api/corpus-files', { ids });
       if (!result.ok) {
         return toolError(result.status, result.text);
       }

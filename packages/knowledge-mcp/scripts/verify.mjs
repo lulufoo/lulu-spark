@@ -13,12 +13,17 @@ import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PKG_ROOT = path.join(__dirname, '..');
 
-const INDEX = {
-  layers: { digest: { 'demo-topic': { latest: 'demo-topic/sample.md' } } },
+const DEMO_ID = '138700959e5ddb1260c69e9e18169ac4';
+const CATALOG = {
+  items: [
+    { id: DEMO_ID, topic: 'demo-topic', created_at: '202606190004' },
+  ],
 };
 
-const FILE_CONTENT = {
-  content: '# Demo digest\n\nknowledge-mcp mock digest body.\n',
+const FILE_BATCH = {
+  items: [
+    { id: DEMO_ID, ok: true, content: '# Demo digest\n\nknowledge-mcp mock digest body.\n' },
+  ],
 };
 
 function sleep(ms) {
@@ -49,33 +54,62 @@ async function waitFor(url, attempts = 40) {
   return false;
 }
 
+function readJsonBody(req) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    req.on('data', (chunk) => chunks.push(chunk));
+    req.on('end', () => {
+      try {
+        const text = Buffer.concat(chunks).toString('utf8');
+        resolve(text ? JSON.parse(text) : {});
+      } catch (err) {
+        reject(err);
+      }
+    });
+    req.on('error', reject);
+  });
+}
+
 function startMockHttp(port) {
-  const server = http.createServer((req, res) => {
+  const server = http.createServer(async (req, res) => {
     const url = new URL(req.url || '/', `http://127.0.0.1:${port}`);
-    if (req.method !== 'GET') {
-      res.writeHead(405).end(JSON.stringify({ error: 'method not allowed' }));
-      return;
-    }
-    if (url.pathname === '/api/corpus-index') {
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify(INDEX));
-      return;
-    }
-    if (url.pathname === '/api/corpus-file') {
-      const layer = url.searchParams.get('layer') || '';
-      const filePath = url.searchParams.get('path') || '';
-      if (layer !== 'digest') {
-        res.writeHead(400).end(JSON.stringify({ error: `Invalid layer: ${layer}` }));
-        return;
-      }
-      if (filePath !== 'demo-topic/sample.md') {
-        res.writeHead(404).end(JSON.stringify({ error: 'File not found' }));
+
+    if (req.method === 'GET' && url.pathname === '/api/corpus-catalog') {
+      const mode = url.searchParams.get('mode') || '';
+      if (mode !== 'latest_per_topic') {
+        res.writeHead(400).end(JSON.stringify({ error: 'Unsupported mode' }));
         return;
       }
       res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify(FILE_CONTENT));
+      res.end(JSON.stringify(CATALOG));
       return;
     }
+
+    if (req.method === 'POST' && url.pathname === '/api/corpus-files') {
+      let payload;
+      try {
+        payload = await readJsonBody(req);
+      } catch {
+        res.writeHead(400).end(JSON.stringify({ error: 'Invalid JSON' }));
+        return;
+      }
+      const ids = payload.ids || [];
+      if (!Array.isArray(ids) || ids.length === 0) {
+        res.writeHead(400).end(JSON.stringify({ error: 'Missing ids array' }));
+        return;
+      }
+      if (ids.includes('missing-id')) {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+          items: [{ id: 'missing-id', ok: false, error: 'Entry not found' }],
+        }));
+        return;
+      }
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(FILE_BATCH));
+      return;
+    }
+
     res.writeHead(404).end(JSON.stringify({ error: 'not found' }));
   });
 
@@ -107,32 +141,35 @@ async function runMcpClient(mcpPort) {
 
   const tools = await client.listTools();
   const names = tools.tools.map((t) => t.name);
-  if (!names.includes('get_corpus_index') || !names.includes('get_corpus_file')) {
+  if (!names.includes('get_corpus_catalog') || !names.includes('get_corpus_files')) {
     throw new Error(`missing tools: ${names.join(', ')}`);
   }
 
-  const indexResult = await client.callTool({ name: 'get_corpus_index', arguments: {} });
-  const indexText = indexResult.content?.[0]?.text || '';
-  if (!indexText.includes('demo-topic')) {
-    throw new Error(`unexpected index: ${indexText}`);
+  const catalogResult = await client.callTool({
+    name: 'get_corpus_catalog',
+    arguments: { mode: 'latest_per_topic' },
+  });
+  const catalogText = catalogResult.content?.[0]?.text || '';
+  if (!catalogText.includes('demo-topic') || catalogText.includes('common_path')) {
+    throw new Error(`unexpected catalog: ${catalogText}`);
   }
 
-  const fileResult = await client.callTool({
-    name: 'get_corpus_file',
-    arguments: { path: 'demo-topic/sample.md' },
+  const filesResult = await client.callTool({
+    name: 'get_corpus_files',
+    arguments: { ids: [DEMO_ID] },
   });
-  const fileText = fileResult.content?.[0]?.text || '';
-  if (!fileText.includes('knowledge-mcp mock digest')) {
-    throw new Error(`unexpected file: ${fileText}`);
+  const filesText = filesResult.content?.[0]?.text || '';
+  if (!filesText.includes('knowledge-mcp mock digest')) {
+    throw new Error(`unexpected files: ${filesText}`);
   }
 
-  const missingFile = await client.callTool({
-    name: 'get_corpus_file',
-    arguments: { path: 'missing.md' },
+  const missingResult = await client.callTool({
+    name: 'get_corpus_files',
+    arguments: { ids: ['missing-id'] },
   });
-  const missingText = missingFile.content?.[0]?.text || '';
-  if (!missingFile.isError || !missingText.includes('HTTP 404')) {
-    throw new Error(`expected HTTP 404 tool error, got: ${missingText}`);
+  const missingText = missingResult.content?.[0]?.text || '';
+  if (!missingText.includes('"ok":false')) {
+    throw new Error(`expected per-item error, got: ${missingText}`);
   }
 
   await client.close();

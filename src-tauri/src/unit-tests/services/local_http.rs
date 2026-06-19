@@ -45,6 +45,40 @@ fn http_get(port: u16, path: &str) -> (u16, Value) {
     (status, body)
 }
 
+fn http_post(port: u16, path: &str, payload: &Value) -> (u16, Value) {
+    let url = format!("http://127.0.0.1:{port}{path}");
+    let client = blocking::Client::new();
+    let response = client
+        .post(&url)
+        .json(payload)
+        .send()
+        .expect("http post");
+    let status = response.status().as_u16();
+    let body: Value = response.json().unwrap_or(json!({}));
+    (status, body)
+}
+
+fn setup_repo_with_catalog() -> (tempfile::TempDir, PathBuf, String) {
+    let dir = tempfile::tempdir().expect("tmpdir");
+    let corpus = dir.path().join("corpus");
+    fs::create_dir_all(corpus.join("digest/ai")).expect("mkdir digest");
+    let id = "11111111111111111111111111111111";
+    let index = json!({
+        "entries": {
+            id: {
+                "common_path": "ai/note.md",
+                "created_at": "202606190004",
+                "layers": ["digest"]
+            }
+        }
+    });
+    fs::write(corpus.join("index.json"), index.to_string()).expect("index");
+    fs::write(corpus.join("digest/ai/note.md"), b"digest body").expect("digest file");
+    crate::config::settings::write_test_config(dir.path(), &corpus, None);
+    let repo_root = dir.path().to_path_buf();
+    (dir, repo_root, id.to_string())
+}
+
 fn with_server<F: FnOnce(u16)>(repo_root: PathBuf, f: F) {
     let port = ephemeral_port();
     let handle = start(repo_root, port).expect("start server");
@@ -52,6 +86,58 @@ fn with_server<F: FnOnce(u16)>(repo_root: PathBuf, f: F) {
     f(port);
     stop(handle);
     crate::config::settings::set_test_config_dir(None);
+}
+
+#[test]
+fn get_corpus_catalog_latest_per_topic() {
+    let (_dir, repo_root, id) = setup_repo_with_catalog();
+    with_server(repo_root, |port| {
+        let (status, body) = http_get(port, "/api/corpus-catalog?mode=latest_per_topic");
+        assert_eq!(status, 200);
+        let items = body["items"].as_array().expect("items");
+        assert_eq!(items.len(), 1);
+        assert_eq!(items[0]["id"], id);
+        assert_eq!(items[0]["topic"], "ai");
+        assert!(items[0].get("common_path").is_none());
+    });
+}
+
+#[test]
+fn get_corpus_catalog_unsupported_mode_returns_400() {
+    let (_dir, repo_root, _) = setup_repo_with_catalog();
+    with_server(repo_root, |port| {
+        let (status, body) = http_get(port, "/api/corpus-catalog?mode=unknown");
+        assert_eq!(status, 400);
+        assert!(body.get("error").is_some());
+    });
+}
+
+#[test]
+fn post_corpus_files_returns_batch() {
+    let (_dir, repo_root, id) = setup_repo_with_catalog();
+    with_server(repo_root, |port| {
+        let (status, body) = http_post(
+            port,
+            "/api/corpus-files",
+            &json!({ "ids": [id, "22222222222222222222222222222222"] }),
+        );
+        assert_eq!(status, 200);
+        let items = body["items"].as_array().expect("items");
+        assert_eq!(items.len(), 2);
+        assert_eq!(items[0]["ok"], true);
+        assert_eq!(items[0]["content"], "digest body");
+        assert_eq!(items[1]["ok"], false);
+    });
+}
+
+#[test]
+fn post_corpus_files_empty_ids_returns_400() {
+    let (_dir, repo_root, _) = setup_repo_with_catalog();
+    with_server(repo_root, |port| {
+        let (status, body) = http_post(port, "/api/corpus-files", &json!({ "ids": [] }));
+        assert_eq!(status, 400);
+        assert!(body.get("error").is_some());
+    });
 }
 
 #[test]
