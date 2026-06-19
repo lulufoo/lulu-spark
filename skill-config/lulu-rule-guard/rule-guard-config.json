@@ -1,27 +1,39 @@
 {
   "version": 2,
-  "chimeEnabled": true,
   "chime": {
+    "enabled": true,
     "sound": "/System/Library/Sounds/Funk.aiff",
     "volume": 1,
     "gain": 25
   },
-  "gitGuard": {
-    "enabled": true,
-    "referenceDoc": "docs/git/git-workflow-standard.md",
-    "mode": "strict",
-    "excludePaths": [
-      ".cursor/rules/",
-      "skill-config/",
-      "docs/"
-    ],
-    "allowExternalPaths": [
-      "/Users/lulu/Code/lulu-workbench-knowledge/"
-    ]
-  },
   "pathGuard": {
     "enabled": true,
-    "writeAllowExternalPaths": [],
-    "readAllowExternalPaths": ["~/.cursor/", "~/.copilot/"]
+    "writeAllowExternalPaths": ["~/.cursor", "~/.copilot/"],
+    "readAllowExternalPaths": ["~/.cursor/", "~/.copilot/"],
+    "sessionAllow": true
+  },
+  "fileGuard": {
+    "enabled": true,
+    "rulesDocsDir": "docs",
+    "rules": [
+      {
+        "glob": "**/*.{js,ts,jsx,tsx,py,go,rs,rb,swift,html,css,json,java,kt}",
+        "required": [
+          "docs/coding/coding-global-discipline.md"
+        ]
+      },
+      {
+        "glob": "**/*.{ts,js}",
+        "required": [
+          "docs/coding/coding-workbench-discipline.md"
+        ]
+      },
+      {
+        "glob": "**/*.md",
+        "required": [
+          "docs/md/md-operations.md"
+        ]
+      }
+    ]
   }
 }
