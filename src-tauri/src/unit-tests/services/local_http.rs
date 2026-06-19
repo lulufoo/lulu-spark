@@ -142,3 +142,64 @@ fn map_value_to_response_strips_status_and_uses_code() {
     assert_eq!(parsed["error"], "missing");
     assert!(parsed.get("_status").is_none());
 }
+
+#[test]
+fn default_http_port_is_8765() {
+    assert_eq!(DEFAULT_HTTP_PORT, 8765);
+}
+
+#[test]
+fn local_http_state_start_sets_http_ready_and_listens() {
+    let (_dir, repo_root) = setup_repo_with_corpus();
+    let state = LocalHttpState::new();
+    let port = ephemeral_port();
+    state.try_start(repo_root, port);
+    assert!(state.is_ready());
+    thread::sleep(Duration::from_millis(50));
+    let (status, _) = http_get(port, "/api/corpus-index");
+    assert_eq!(status, 200);
+    state.stop();
+    crate::config::settings::set_test_config_dir(None);
+}
+
+#[test]
+fn local_http_state_stop_clears_http_ready_and_releases_port() {
+    let (_dir, repo_root) = setup_repo_with_corpus();
+    let state = LocalHttpState::new();
+    let port = ephemeral_port();
+    state.try_start(repo_root, port);
+    assert!(state.is_ready());
+    thread::sleep(Duration::from_millis(50));
+    state.stop();
+    assert!(!state.is_ready());
+    assert!(!crate::wait_for_port(port, Duration::from_millis(200)));
+    crate::config::settings::set_test_config_dir(None);
+}
+
+#[test]
+fn local_http_state_three_cycles_no_port_leak() {
+    let (_dir, repo_root) = setup_repo_with_corpus();
+    let state = LocalHttpState::new();
+    let port = ephemeral_port();
+    for _ in 0..3 {
+        state.try_start(repo_root.clone(), port);
+        assert!(state.is_ready());
+        thread::sleep(Duration::from_millis(50));
+        assert!(crate::wait_for_port(port, Duration::from_millis(500)));
+        state.stop();
+        assert!(!state.is_ready());
+        assert!(!crate::wait_for_port(port, Duration::from_millis(200)));
+    }
+    crate::config::settings::set_test_config_dir(None);
+}
+
+#[test]
+fn local_http_state_bind_failure_keeps_http_ready_false() {
+    let (_dir, repo_root) = setup_repo_with_corpus();
+    let port = ephemeral_port();
+    let _guard = TcpListener::bind(format!("127.0.0.1:{port}")).expect("occupy port");
+    let state = LocalHttpState::new();
+    state.try_start(repo_root, port);
+    assert!(!state.is_ready());
+    crate::config::settings::set_test_config_dir(None);
+}

@@ -2,13 +2,16 @@
 
 use std::collections::HashMap;
 use std::path::PathBuf;
-use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
 
 use serde_json::{json, Value};
 use tiny_http::{Header, Method, Response, Server, StatusCode};
 
 use crate::services::workbench_read::{get_corpus_file, get_corpus_index};
+
+pub const DEFAULT_HTTP_PORT: u16 = 8765;
 
 pub struct LocalHttpHandle {
     server: Arc<Server>,
@@ -18,6 +21,48 @@ pub struct LocalHttpHandle {
 #[derive(Debug)]
 pub enum LocalHttpError {
     BindFailed(String),
+}
+
+pub struct LocalHttpState {
+    handle: Mutex<Option<LocalHttpHandle>>,
+    http_ready: Arc<AtomicBool>,
+}
+
+impl LocalHttpState {
+    pub fn new() -> Self {
+        Self {
+            handle: Mutex::new(None),
+            http_ready: Arc::new(AtomicBool::new(false)),
+        }
+    }
+
+    pub fn is_ready(&self) -> bool {
+        self.http_ready.load(Ordering::SeqCst)
+    }
+
+    pub fn try_start(&self, repo_root: PathBuf, port: u16) {
+        match start(repo_root, port) {
+            Ok(handle) => {
+                if let Ok(mut guard) = self.handle.lock() {
+                    *guard = Some(handle);
+                    self.http_ready.store(true, Ordering::SeqCst);
+                }
+            }
+            Err(LocalHttpError::BindFailed(msg)) => {
+                eprintln!("[local_http] bind failed on port {port}: {msg}");
+                self.http_ready.store(false, Ordering::SeqCst);
+            }
+        }
+    }
+
+    pub fn stop(&self) {
+        if let Ok(mut guard) = self.handle.lock() {
+            if let Some(handle) = guard.take() {
+                stop(handle);
+            }
+        }
+        self.http_ready.store(false, Ordering::SeqCst);
+    }
 }
 
 pub fn start(repo_root: PathBuf, port: u16) -> Result<LocalHttpHandle, LocalHttpError> {
@@ -121,15 +166,15 @@ fn parse_query(url: &str) -> HashMap<String, String> {
 
 fn respond_from_value(request: tiny_http::Request, value: Value) {
     let (status, body) = map_value_to_response(value);
-    let mut response = Response::from_string(body).with_status_code(StatusCode(status));
-    if let Ok(header) = Header::from_bytes(&b"Content-Type"[..], &b"application/json"[..]) {
-        response = response.with_header(header);
-    }
-    let _ = request.respond(response);
+    respond_raw(request, status, body);
 }
 
 fn respond_json(request: tiny_http::Request, status: u16, value: Value) {
     let body = serde_json::to_string(&value).unwrap_or_else(|_| "{}".to_string());
+    respond_raw(request, status, body);
+}
+
+fn respond_raw(request: tiny_http::Request, status: u16, body: String) {
     let mut response = Response::from_string(body).with_status_code(StatusCode(status));
     if let Ok(header) = Header::from_bytes(&b"Content-Type"[..], &b"application/json"[..]) {
         response = response.with_header(header);

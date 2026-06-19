@@ -287,6 +287,13 @@ pub fn run() {
             // Auto-start Meilisearch if not already running
             let meili_child = try_autostart_meilisearch();
             app.manage(MeiliProcess::new(meili_child));
+
+            let local_http = services::local_http::LocalHttpState::new();
+            if let Ok(repo_root) = crate::config::paths::repo_root() {
+                local_http.try_start(repo_root, services::local_http::DEFAULT_HTTP_PORT);
+            }
+            app.manage(local_http);
+
             create_main_window(app)?;
             app.manage(services::reindex::ReindexState::new());
 
@@ -314,6 +321,10 @@ pub fn run() {
             if let tauri::RunEvent::Exit = event {
                 if let Some(meili) = app_handle.try_state::<MeiliProcess>() {
                     meili.kill();
+                }
+                if let Some(local_http) = app_handle.try_state::<services::local_http::LocalHttpState>()
+                {
+                    local_http.stop();
                 }
             }
         });
