@@ -1,7 +1,7 @@
 ---
 name: lulu-workbench-skills
 description: >-
-  lulu-workbench 归档技能包安装与配置。支持 Cursor 和 Copilot，通过 install.py 安装；编辑 config.json 的 archive_root。
+  lulu-workbench 归档技能包安装与配置。克隆到平台 skills 目录；本地创建 config.json 配置 archive_root。
   Use when: 安装 workbench skills、配置 archive_root、dialogue-summary theme-summary theme-line theme-fetch theme-archive theme-digest
 ---
 
@@ -14,19 +14,26 @@ description: >-
 | | Cursor | Copilot |
 |---|---|---|
 | `$SKILL_DIR` | `~/.cursor/skills/lulu-workbench-skills` | `~/.copilot/skills/lulu-workbench-skills` |
-| `$PLATFORM_FLAG` | cursor | copilot |
-		
-## 安裃
+
+## 安装
+
+首次克隆到平台 skills 目录：
 
 ```bash
-python3 install.py --platform $PLATFORM_FLAG
+git clone https://github.com/lulufoo/lulu-workbench-skills.git $SKILL_DIR
+```
+
+更新：
+
+```bash
+git -C $SKILL_DIR pull --rebase
 ```
 
 克隆完成后平台自动发现子 skill（`dialogue-summary`、`theme-summary`、`theme-line`、`theme-fetch`、`theme-archive`、`theme-digest`），均无需额外操作。
 
 ## 配置 archive_root
 
-编辑 `$SKILL_DIR/config.json`：
+在 `$SKILL_DIR` 下**本地创建** `config.json`（不入库，已在 `.gitignore`）：
 
 ```json
 {
