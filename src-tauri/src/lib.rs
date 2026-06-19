@@ -5,7 +5,7 @@ pub mod repositories;
 pub mod services;
 
 use std::net::{SocketAddr, TcpStream, ToSocketAddrs};
-#[cfg(not(test))]
+use std::path::Path;
 use std::sync::Mutex;
 use std::thread;
 use std::time::{Duration, Instant};
@@ -19,6 +19,7 @@ use tauri_plugin_opener::OpenerExt;
 
 const CONNECT_TIMEOUT: Duration = Duration::from_millis(100);
 const RETRY_INTERVAL: Duration = Duration::from_millis(500);
+pub const DEFAULT_MCP_PORT: u16 = 9876;
 
 fn localhost_addrs(port: u16) -> Vec<SocketAddr> {
     format!("localhost:{port}")
@@ -109,6 +110,104 @@ impl MeiliProcess {
                 let _ = child.kill();
                 let _ = child.wait();
             }
+        }
+    }
+}
+
+/// Holds the spawned knowledge-mcp sidecar so we can kill it on app exit.
+pub struct KnowledgeMcpProcess(Mutex<Option<std::process::Child>>);
+
+impl KnowledgeMcpProcess {
+    pub fn new(child: Option<std::process::Child>) -> Self {
+        Self(Mutex::new(child))
+    }
+
+    pub fn kill(&self) {
+        if let Ok(mut guard) = self.0.lock() {
+            if let Some(mut child) = guard.take() {
+                let _ = child.kill();
+                let _ = child.wait();
+            }
+        }
+    }
+}
+
+pub fn try_spawn_knowledge_mcp(
+    http_ready: bool,
+    repo_root: &Path,
+    http_port: u16,
+) -> Option<std::process::Child> {
+    try_spawn_knowledge_mcp_with_port_and_node(
+        http_ready,
+        repo_root,
+        http_port,
+        DEFAULT_MCP_PORT,
+        Path::new("node"),
+    )
+}
+
+#[doc(hidden)]
+pub fn try_spawn_knowledge_mcp_with_port(
+    http_ready: bool,
+    repo_root: &Path,
+    http_port: u16,
+    mcp_port: u16,
+) -> Option<std::process::Child> {
+    try_spawn_knowledge_mcp_with_port_and_node(http_ready, repo_root, http_port, mcp_port, Path::new("node"))
+}
+
+#[doc(hidden)]
+pub fn try_spawn_knowledge_mcp_with_port_and_node(
+    http_ready: bool,
+    repo_root: &Path,
+    http_port: u16,
+    mcp_port: u16,
+    node: &Path,
+) -> Option<std::process::Child> {
+    if !http_ready {
+        eprintln!("[knowledge-mcp] HTTP unavailable, MCP sidecar skipped");
+        return None;
+    }
+
+    let script = repo_root.join("packages/knowledge-mcp/index.mjs");
+    if !script.is_file() {
+        eprintln!(
+            "[knowledge-mcp] sidecar script not found: {}",
+            script.display()
+        );
+        return None;
+    }
+
+    if decide_spawn(mcp_port, Duration::from_millis(0)) == SpawnDecision::Skip {
+        eprintln!("[knowledge-mcp] port {mcp_port} already in use — spawn failed");
+        return None;
+    }
+
+    let workbench_url = format!("http://127.0.0.1:{http_port}");
+
+    match std::process::Command::new(node)
+        .arg(&script)
+        .env("WORKBENCH_HTTP_URL", &workbench_url)
+        .env("MCP_PORT", mcp_port.to_string())
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .spawn()
+    {
+        Ok(mut child) => {
+            eprintln!("[knowledge-mcp] spawned pid={}", child.id());
+            if wait_for_port(mcp_port, Duration::from_secs(5)) {
+                eprintln!("[knowledge-mcp] ready on port {mcp_port}");
+                Some(child)
+            } else {
+                eprintln!("[knowledge-mcp] warn: port {mcp_port} not ready after 5 s");
+                let _ = child.kill();
+                let _ = child.wait();
+                None
+            }
+        }
+        Err(e) => {
+            eprintln!("[knowledge-mcp] spawn failed ({e})");
+            None
         }
     }
 }
@@ -287,6 +386,21 @@ pub fn run() {
             // Auto-start Meilisearch if not already running
             let meili_child = try_autostart_meilisearch();
             app.manage(MeiliProcess::new(meili_child));
+
+            let local_http = services::local_http::LocalHttpState::new();
+            let mut knowledge_child = None;
+            if let Ok(repo_root) = crate::config::paths::repo_root() {
+                let http_port = services::local_http::DEFAULT_HTTP_PORT;
+                local_http.try_start(repo_root.clone(), http_port);
+                knowledge_child = try_spawn_knowledge_mcp(
+                    local_http.is_ready(),
+                    &repo_root,
+                    http_port,
+                );
+            }
+            app.manage(KnowledgeMcpProcess::new(knowledge_child));
+            app.manage(local_http);
+
             create_main_window(app)?;
             app.manage(services::reindex::ReindexState::new());
 
@@ -315,6 +429,13 @@ pub fn run() {
                 if let Some(meili) = app_handle.try_state::<MeiliProcess>() {
                     meili.kill();
                 }
+                if let Some(knowledge) = app_handle.try_state::<KnowledgeMcpProcess>() {
+                    knowledge.kill();
+                }
+                if let Some(local_http) = app_handle.try_state::<services::local_http::LocalHttpState>()
+                {
+                    local_http.stop();
+                }
             }
         });
 }
@@ -337,3 +458,7 @@ mod ping_tests;
 #[cfg(test)]
 #[path = "unit-tests/lib/spawn_decision_tests.rs"]
 mod spawn_decision_tests;
+
+#[cfg(test)]
+#[path = "unit-tests/lib/knowledge_mcp_tests.rs"]
+mod knowledge_mcp_tests;
