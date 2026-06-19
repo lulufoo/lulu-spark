@@ -105,12 +105,37 @@ function buildServer() {
           .string()
           .optional()
           .describe('Index source_type; defaults to summary'),
+        extra_documents: z
+          .array(
+            z.object({
+              rel: z.string().min(1).describe('raw/<topic-path>/<ts>-<slug>-zh.md'),
+              content: z.string().min(1).describe('Extra raw markdown body'),
+            }),
+          )
+          .optional()
+          .describe('Optional extra raw files (theme-line -zh.md)'),
+        index_extra: z
+          .object({
+            translations: z
+              .object({
+                zh: z.string().min(1).describe('common_path for -zh.md translation'),
+              })
+              .optional(),
+          })
+          .optional()
+          .describe('Optional index fields; only translations.zh supported'),
       },
     },
-    async ({ document, source_type }) => {
+    async ({ document, source_type, extra_documents, index_extra }) => {
       const body = { document };
       if (source_type != null) {
         body.source_type = source_type;
+      }
+      if (extra_documents != null) {
+        body.extra_documents = extra_documents;
+      }
+      if (index_extra != null) {
+        body.index_extra = index_extra;
       }
       const result = await proxyPost('/api/archive-document', body);
       if (!result.ok) {

@@ -95,6 +95,14 @@ fn normalize_common_path_from_digest_target(target: &str) -> Option<String> {
     Some(common)
 }
 
+pub fn expected_zh_common_path(primary_common_path: &str) -> Option<String> {
+    if !primary_common_path.ends_with(".md") {
+        return None;
+    }
+    let stem = &primary_common_path[..primary_common_path.len() - 3];
+    Some(format!("{stem}-zh.md"))
+}
+
 fn is_valid_common_path(common_path: &str) -> bool {
     let parts: Vec<&str> = common_path.split('/').collect();
     if parts.len() != 3 {

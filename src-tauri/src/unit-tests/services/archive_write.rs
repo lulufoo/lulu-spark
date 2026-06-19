@@ -100,3 +100,76 @@ fn archive_digest_force_overwrites_existing() {
     assert_eq!(ok.get("ok"), Some(&json!(true)));
     crate::config::settings::set_test_config_dir(None);
 }
+
+const THEME_LINE_DOC: &str = r#"# Interview Title
+
+> 创建时间：2026年6月19日 17:00
+> 时长：约 30 分钟 · 发布：2026-01-01
+> 导航：[digest](../../../digest/learning-ai-agent/waymo-interview/202606191700-waymo-interview.md)
+> 原文：[Video](https://example.com/watch)
+
+---
+
+## Theme one
+Host: hello
+"#;
+
+const THEME_LINE_ZH: &str = r#"# 中文标题
+
+> 创建时间：2026年6月19日 17:00
+
+---
+
+## 主题一
+主持人：你好
+"#;
+
+#[test]
+fn archive_document_theme_line_with_zh_extra() {
+    let (_dir, repo_root) = setup_corpus();
+    let zh_path = "learning-ai-agent/waymo-interview/202606191700-waymo-interview-zh.md";
+    let v = archive_document(
+        &repo_root,
+        &json!({
+            "document": THEME_LINE_DOC,
+            "source_type": "theme-line",
+            "extra_documents": [{
+                "rel": format!("raw/{zh_path}"),
+                "content": THEME_LINE_ZH
+            }],
+            "index_extra": { "translations": { "zh": zh_path } }
+        }),
+    );
+    assert_eq!(v.get("ok"), Some(&json!(true)), "failed: {v}");
+    let corpus = crate::config::meili_env::workbench_knowledge_root_path(&repo_root);
+    assert!(corpus
+        .join("raw/learning-ai-agent/waymo-interview/202606191700-waymo-interview-zh.md")
+        .is_file());
+    let id = v["id"].as_str().unwrap();
+    let index: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(corpus.join("index.json")).unwrap()).unwrap();
+    assert_eq!(
+        index["entries"][id]["translations"]["zh"],
+        json!(zh_path)
+    );
+    crate::config::settings::set_test_config_dir(None);
+}
+
+#[test]
+fn archive_document_rejects_mismatched_zh_path() {
+    let (_dir, repo_root) = setup_corpus();
+    let v = archive_document(
+        &repo_root,
+        &json!({
+            "document": THEME_LINE_DOC,
+            "source_type": "theme-line",
+            "extra_documents": [{
+                "rel": "raw/learning-ai-agent/waymo-interview/202606191700-waymo-interview-zh.md",
+                "content": THEME_LINE_ZH
+            }],
+            "index_extra": { "translations": { "zh": "wrong/path.md" } }
+        }),
+    );
+    assert_eq!(v.get("_status"), Some(&json!(400)));
+    crate::config::settings::set_test_config_dir(None);
+}
