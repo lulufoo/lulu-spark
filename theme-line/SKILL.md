@@ -15,7 +15,7 @@ description: >-
 > 2. Compose ThemeLine
 > 3. Save to Archive
 >
-> Read this file in full before executing. Phase 3 chains **theme-archive** (Steps 1–5) then **theme-digest** (Step 6).
+> Read this file in full before executing. Phase 3 saves via MCP **archive_document** + **archive_digest**.
 
 Produce a readable transcript-derived document: themes first, time second.
 

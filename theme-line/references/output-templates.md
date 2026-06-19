@@ -13,7 +13,7 @@ All archived `raw/` files use this header block (navigation paths resolved per [
 
 > 时长：约 {duration_min} 分钟 · 发布：{YYYY-MM-DD}
 
-> 导航：[distilled](...) · [digest](...) · [trace](...)
+> 导航：[digest](...)
 
 > 原文：[Video]({url})
 ```

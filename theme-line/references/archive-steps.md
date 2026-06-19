@@ -1,36 +1,29 @@
 # Save to Archive — Steps 1–6
 
-> **路径与配置：** [archive-concepts.md](../../shared/archive-concepts.md)（`COMMON_PATH`、`prefix`、`layers`、读 `config.json`）
+> **路径约定：** [archive-concepts.md](../../shared/archive-concepts.md)（`COMMON_PATH`、`prefix`、`layers`）
 
-After Phase 2 Compose produces the ThemeLine body, execute these steps to save to the local archive and update `index.json`.
-
-**Configuration**: Read `{skill_dir}/../config.json` (repository root) to get `archive_root`. If missing or unreadable → **stop immediately**.
+After Phase 2 Compose produces the ThemeLine body, execute these steps to save via Workbench MCP.
 
 ---
 
 ### Step 1 · Select project and doc-theme, determine file names
 
-Read `{archive_root}/topics.json` and select a project:
-
-- Take each item's `dir` field (if present), otherwise take the last segment of `repo` (after `/`)
-- Infer `doc-theme` from `bundle.meta.title` or source content (kebab-case, English, no spaces)
+Infer `project` from topics (closest match; unclear → `inbox`). Infer `doc-theme` from `bundle.meta.title` (kebab-case English).
 
 ```
-select : project   = dir field or repo short name (e.g. "learning-ai-agent")
-         doc-theme = semantic inference from source title (e.g. "waymo-20m-rides-interview")
-output : topic-path  = <project>/<doc-theme>
-         slug         = kebab-case summary of the source title (English, no spaces)
-         ts            = YYYYMMDDHHMM (UTC+8)
-         source-file  = raw/<topic-path>/<ts>-<slug>.md
+topic-path  = <project>/<doc-theme>
+slug        = kebab-case summary of source title
+ts          = YYYYMMDDHHMM (UTC+8)
+COMMON_PATH = <topic-path>/<ts>-<slug>.md
 ```
 
-If a slug conflict exists, clarify with the user before proceeding.
+Slug conflict → clarify with user before proceeding.
 
 ---
 
 ### Step 2 · Detect source language
 
-Read `bundle.meta.language` (do **not** examine body text):
+Read `bundle.meta.language`:
 
 | `language` | Action |
 |------------|--------|
@@ -42,8 +35,6 @@ Read `bundle.meta.language` (do **not** examine body text):
 
 ### Step 3 · Build source file content
 
-Compose the source `.md` with this header, then the ThemeLine body:
-
 ```markdown
 # {Document Title}
 
@@ -51,78 +42,71 @@ Compose the source `.md` with this header, then the ThemeLine body:
 
 > 时长：约 {duration_min} 分钟 · 发布：{YYYY-MM-DD}
 
-> 导航：[distilled]({prefix}distilled/{COMMON_PATH}) · [digest]({prefix}digest/{COMMON_PATH}) · [trace]({prefix}trace/{COMMON_PATH})
+> 导航：[digest]({prefix}digest/{COMMON_PATH})
 
 > 原文：[Video]({source_url})
 
-{ThemeLine body (no Source: line)}
+---
+
+{ThemeLine body}
 ```
 
-`时长` / `发布` from `bundle.meta.duration_sec` / `bundle.meta.published_at`. Omit 时长 when `duration_sec` is null.
-
-Where (see [archive-concepts.md](../../shared/archive-concepts.md)):
-
-```
-COMMON_PATH = <topic-path>/<ts>-<slug>.md
-prefix      = "../../../"
-```
-
-Navigation paths must be fully resolved — no placeholders.
+- Omit 时长 line when `duration_sec` is null.
+- `prefix` = `../../../` per [archive-concepts.md](../../shared/archive-concepts.md).
 
 ---
 
 ### Step 4 · Build Chinese translation file (English source only)
 
-When `bundle.meta.language == "en"`, translate the full ThemeLine body into Chinese. Keep structural elements (section headings, time lines, speaker labels); translate dialogue only.
+When `bundle.meta.language == "en"`, translate the full ThemeLine body. Same metadata lines; Chinese title.
 
-```markdown
-# {中文标题}
-
-> 创建时间：{YYYY年M月D日 HH:MM}
-
-> 时长：约 {duration_min} 分钟 · 发布：{YYYY-MM-DD}
-
-> 导航：[distilled]({prefix}distilled/<topic-path>/{ts}-{slug}.md) · [digest]({prefix}digest/<topic-path>/{ts}-{slug}.md) · [trace]({prefix}trace/<topic-path>/{ts}-{slug}.md)
-
-> 原文：[Video]({source_url})
-
-{Translated ThemeLine body}
-```
-
-Translation path: `raw/<topic-path>/<ts>-<slug>-zh.md`
+Path: `raw/<topic-path>/<ts>-<slug>-zh.md`
 
 ---
 
-### Step 5 · theme-archive Embedded
+### Step 5 · archive_document (MCP)
 
-构造载荷（见 [../../theme-archive/references/input-schema.md](../../theme-archive/references/input-schema.md)）：
+<HARD-GATE>
+Workbench App **must be running** (`workbench-knowledge` MCP). On failure → stop; **do not** write `archive_root` directly.
+</HARD-GATE>
 
-```text
-加载并完整执行 ../../theme-archive/SKILL.md（Embedded，从 [AR-1] 起：
-  COMMON_PATH = <topic-path>/<ts>-<slug>.md
-  documents = [
-    { rel: "raw/<COMMON_PATH>", content: "<Step 3 全文>" },
-    { rel: "raw/<topic-path>/<ts>-<slug>-zh.md", content: "..." }   # en 时
-  ]
-  index_entry = {
-    common_path, created_at: <ts>, source_type: "theme-line", layers: ["raw"],
-    translations: { zh: "..." }   # en 时
+```json
+{
+  "document": "<Step 3 full markdown>",
+  "source_type": "theme-line",
+  "extra_documents": [
+    {
+      "rel": "raw/<topic-path>/<ts>-<slug>-zh.md",
+      "content": "<Step 4 full markdown>"
+    }
+  ],
+  "index_extra": {
+    "translations": { "zh": "<topic-path>/<ts>-<slug>-zh.md" }
   }
-）
+}
 ```
 
-将 theme-archive `[AR-5]` 输出追加为中间结果。
+- Omit `extra_documents` and `index_extra` when language is not `en`.
+- Record returned `id`, `common_path`, `raw_path`, `extra_paths`.
 
-### Step 6 · theme-digest Embedded（theme-line 触发）
+---
 
-Primary raw 作为 **RAW**（不对 `-zh.md` digest）：
+### Step 6 · archive_digest (MCP)
 
-```text
-加载并完整执行 ../../theme-digest/SKILL.md（Embedded：RAW = raw/<COMMON_PATH>，从 [AD-0] 起）
+When `[AD-0]` applies (theme-line raw usually qualifies):
+
+1. Write digest per [theme-digest](../../theme-digest/SKILL.md) `[AD-1]`–`[AD-2]` from **primary raw only**.
+2. Call MCP `archive_digest`:
+
+```json
+{
+  "id": "<Step 5 id>",
+  "digest": "<full digest markdown>"
+}
 ```
 
-Skip if `[AD-0]` is not met。将 digest 结果追加为完成输出：
+Use `"force": true` only when user confirms overwrite.
 
 ```
-📋 digest: digest/<topic-path>/<ts>-<slug>.md  (or "skipped")
+📋 digest: digest/<COMMON_PATH>  (or skipped)
 ```
