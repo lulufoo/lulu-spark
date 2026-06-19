@@ -1,153 +1,171 @@
 # Git Workflow Standard
 
----
-
-## State Variables
-
-| Variable | Set in | Read in | Values |
-|---|---|---|---|
-| `PRE_MERGE` | P5 | E5 | git SHA |
+Universal git action limits for AI-assisted development in this repo.
 
 ---
 
-## Flow
+## Purpose and Scope
 
-Normal path: **P1 (Pre-check) → P2 (Sync) → P3 (Create Worktree) → P4 (Stage & Commit) → P5 (Merge) → P6 (Test) → P7 (Push) → P8 (Cleanup)**
+This document defines **what git operations AI may perform** — authorization, confirmation gates, forbidden actions, and conflict policy.
 
-Exception paths:
-- P6 fail → **E4** → P6
-- Any point before P7 → **E5** (Abandon)
+| Item | Detail |
+|---|---|
+| This doc | Git action limits (authorization, gates, forbidden ops, conflict policy) |
+| Not in this doc | Workflow-specific procedures (worktree setup, per-task commits, delivery) → see the active workflow SKILL |
+| GitHub URL content | See `docs/git/github-operations.md` |
+| Trigger | Read this doc before any git command |
 
 ---
 
-## Naming Convention
+## Authorization
+
+**Questions, statements, and discussion are not authorization.**
+
+The following require **explicit user request** before execution:
+
+- `commit`, `push`, `merge`, `rebase`, `stash`
+- Any `git config` change (never run unless the user explicitly requests it)
+
+**Commits:** Create a commit only when the user explicitly asks. Do not create empty commits when there are no changes.
+
+---
+
+## Operation Tiers
+
+### Tier A — Read-only (no confirm required)
+
+`status` · `diff` · `diff --cached` · `log` · `show` · `branch` (list) · `worktree list`
+
+### Tier B — Local write (confirm + user-authorized commit)
+
+`add` · `commit` · `stash` / `stash pop`
+
+### Tier C — Remote / integration (confirm + explicit authorization)
+
+`push` · `pull` / `pull --rebase` · `merge`
+
+---
+
+## Confirmation Gates
+
+| Operation | Show first | Wait for |
+|---|---|---|
+| `commit` | `git diff --cached --stat` (or equivalent staged diff) | Explicit `yes` / `ok` / `confirm` |
+| `push` | `git log origin/<branch>..HEAD --oneline` | Explicit `yes` / `ok` / `confirm` |
+
+Pass commit messages via HEREDOC to avoid shell escaping issues:
+
+```bash
+git commit -m "$(cat <<'EOF'
+<type>(<scope>): <subject>
+
+EOF
+)"
+```
+
+---
+
+## Forbidden — Destructive (AI must not execute)
+
+AI must **never** run the following, even if the user asks in chat.
+
+**STOP** — show the intended command and instruct the user to run it manually in their terminal:
+
+- `reset --hard` / `reset --merge`
+- `push --force` / `push -f`
+- `branch -D`
+- `clean -fd`
+- `worktree remove` (when it may discard uncommitted work)
+
+> `merge --abort` and `rebase --abort` are **allowed** under Conflict Policy — they exit a conflict safely and are not destructive ops.
+
+---
+
+## Forbidden and Restricted
+
+| Rule | Behavior |
+|---|---|
+| `--no-verify` | Forbidden unless the user explicitly requests it |
+| Force-push | Forbidden — no exception; see Forbidden — Destructive |
+| Self-resolve conflicts | Forbidden — see Conflict Policy |
+| Commit secrets | Do not commit `.env`, `credentials.json`, or similar; warn if the user asks to commit them |
+| Change git config | Forbidden unless the user explicitly requests it |
+
+---
+
+## Conflict Policy
+
+When `merge`, `rebase`, or `pull --rebase` hits a conflict:
+
+1. Abort immediately (`merge --abort` or `rebase --abort`)
+2. Report full conflict details to the user
+3. **Never self-resolve**
+
+---
+
+## Out of Scope (STOP)
+
+The following are not covered by this doc → **STOP** and tell the user to run manually or follow a workflow SKILL:
+
+Interactive `rebase` · `cherry-pick` · `tag` · `commit --amend` · `bisect` · `submodule` · dedicated hotfix flows · other advanced git operations not listed above
+
+> Out of scope does not mean permanently forbidden — AI must not run these automatically.
+
+---
+
+## Tool Split
+
+| Scenario | Tool |
+|---|---|
+| Local git operations | `git` |
+| GitHub: PRs, issues, checks, API | `gh` |
+| Read files from GitHub URLs | Do not fetch via HTTP — read `docs/git/github-operations.md` |
+
+---
+
+## Naming Conventions
 
 | Item | Format |
 |---|---|
-| Branch | `wt/<type>-<slug>` |
-| Worktree directory | `.cache/worktrees/<slug>/` |
 | Commit message | `<type>(<scope>): <subject>` |
 | Allowed types | `feat` `fix` `test` `chore` `docs` `refactor` `style` `perf` |
+| Branch | Descriptive name; do not develop directly on protected branches (`main`) |
+
+Branch and worktree path conventions for a specific workflow (e.g. `wt/<type>-<slug>`) are defined in that workflow's SKILL.
 
 ---
 
-## P1 — Pre-check
+## Worktree Policy
 
-1. `git status`
-2. `git worktree list`
-3. IF dirty:  
-   **STOP** — show `git status --short` output to user; instruct user to handle uncommitted changes (commit / stash / revert) before rerunning workflow
-4. IF `.cache/worktrees/<slug>/` already exists OR branch `wt/<type>-<slug>` already exists:  
-   **STOP** — report collision to user; do not self-resolve
+**Code changes for feature work must happen in a worktree, not in the main checkout.**
+
+Concrete commands and paths → see the active workflow SKILL (e.g. `lulu-dev-workflow/tech-code/SKILL.md` § Preparing).
 
 ---
 
-## P2 — Sync
+## Failure Modes
 
-1. `git pull --rebase`
-2. IF conflict: `git rebase --abort` → **STOP** — report conflict details to user
-
----
-
-## P3 — Create Worktree
-
-1. `git worktree add .cache/worktrees/<slug> -b wt/<type>-<slug>`
-2. `cd .cache/worktrees/<slug>/`
-
----
-
-## P4 — Stage & Commit `[CONFIRM]`
-
-Working dir: `.cache/worktrees/<slug>/`
-
-1. `git add <files>`
-2. `git diff --cached --stat` — show output to user
-3. **[CONFIRM]** — wait for explicit "yes" / "ok" / "confirm"
-4. `git commit -m "<type>(<scope>): <subject>"`
+| Scenario | Behavior |
+|---|---|
+| Pull / rebase conflict | Abort → STOP → report |
+| Merge conflict | Abort → STOP → report |
+| Push rejected by branch protection | STOP → suggest `gh pr create` |
+| Dirty working tree blocks the operation | STOP → show `git status --short`; user decides stash / commit / revert |
+| Worktree or branch already exists | STOP → report collision; do not delete or overwrite unilaterally |
+| User requests a destructive op | STOP → show command; user runs manually |
 
 ---
 
-## P5 — Merge
-
-1. `cd <original-dir>` (back to main checkout)
-2. `PRE_MERGE=$(git rev-parse HEAD)`
-3. `git merge --no-ff wt/<type>-<slug>`
-4. IF conflict: `git merge --abort` → **STOP** — report full conflict details to user
-
-> `--no-ff` always creates a merge commit. `PRE_MERGE` is required by E5.
-
----
-
-## P6 — Test
-
-Run tests. No git commands.  
-IF fail → **E4**
-
----
-
-## P7 — Push `[CONFIRM]`
-
-1. `git log origin/<branch>..HEAD --oneline` — show output to user
-2. **[CONFIRM]** — wait for explicit "yes" / "ok" / "confirm"
-3. `git push`
-4. IF rejected (branch protection): **STOP** — report; direct push not allowed; use `gh pr create`
-
----
-
-## P8 — Cleanup
-
-1. `git worktree remove .cache/worktrees/<slug>`
-2. `git branch -d wt/<type>-<slug>`
-
----
-
-## E4 — Test Fail Fix `[CONFIRM]`
-
-Triggered from P6. Working dir = original dir (current branch). Do **not** go back to worktree.
-
-1. `git add <files>`
-2. `git diff --cached --stat` — show to user
-3. **[CONFIRM]**
-4. `git commit -m "fix(<scope>): <subject>"`
-5. → return to P6
-
----
-
-## E5 — Abandon
-
-Triggered any time before P7. Requires `PRE_MERGE` from P5.
-
-1. `git log --oneline -3` — show to user
-2. **[CONFIRM]** reset to `$PRE_MERGE`
-3. `git reset --hard $PRE_MERGE`
-4. `git worktree remove .cache/worktrees/<slug>`
-5. `git branch -D wt/<type>-<slug>`
-
-> `-D` (force delete) — branch is no longer reachable after reset.
-
----
-
-## Edge Case Reference
-
-| # | Trigger | Handled In |
-|---|---|---|
-| A | `git pull --rebase` conflict | P2 |
-| B | Worktree directory already exists | P1 |
-| C | Branch `wt/type-slug` already exists | P1 |
-| D | Working tree dirty before workflow start | P1 |
-| E | Test fail after merge | E4 |
-| F | Abandon after merge, before push | E5 |
-| G | Push blocked by branch protection | P7 |
-
----
-
-## Non-negotiable Rules
+## Non-Negotiable Summary
 
 | Rule | Detail |
 |---|---|
-| Tool selection | `gh` for GitHub ops (PR / API); `git` for local ops |
-| Workflow enforcement | AI must follow P1-P8 for all feature development; **never execute git commands directly** outside this workflow |
-| Out-of-scope operations | Operations not covered by P1-P8 (e.g., `rebase`, `cherry-pick`, `tag`, `amend`, `bisect`, `submodule`, hotfix) → **STOP** — inform user that operation is out of scope; instruct user to execute manually |
-| Confirmation gate | Show diff before every `commit` and `push`; wait for explicit "yes" / "ok" / "confirm" |
-| Conflict handling | Immediately abort; report full details to user; never self-resolve |
-| No bypass | Never use `--no-verify` or force-push without explicit authorization |
+| Authorization | Commit / push / merge only on explicit user request |
+| Confirmation | Show diff / log before commit and push; wait for confirm |
+| Destructive ops | AI never executes; user runs manually |
+| Conflicts | Abort and report; never self-resolve |
+| No bypass | No `--no-verify`; never force-push |
+| Secrets | Do not commit credential files |
+| Tools | Local `git`; GitHub `gh` |
+| Out of scope | STOP; instruct user to run manually |
+| Worktree | Edit code in a worktree, not the main checkout |
