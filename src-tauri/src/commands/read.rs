@@ -304,7 +304,15 @@ pub fn sediment_kb_categories_json() -> Result<Value, String> {
     Ok(json!({ "categories": cats.categories }))
 }
 
-pub fn sediment_kb_repos_json() -> Result<Value, String> {
+fn sediment_kb_local_exists(repo_root: &std::path::Path, full_name: &str) -> bool {
+    let knowledge_corpus_root = std::path::PathBuf::from(
+        crate::config::meili_env::knowledge_corpus_root_string(repo_root),
+    );
+    let name = full_name.split('/').next_back().unwrap_or(full_name);
+    knowledge_corpus_root.join(name).is_dir()
+}
+
+pub fn sediment_kb_repos_json(repo_root: &std::path::Path) -> Result<Value, String> {
     sediment_kb::ensure_uncategorized().map_err(|e| e.to_string())?;
     let categories = sediment_kb::load_categories().map_err(|e| e.to_string())?;
     let repos = sediment_kb::load_repos().map_err(|e| e.to_string())?;
@@ -325,6 +333,7 @@ pub fn sediment_kb_repos_json() -> Result<Value, String> {
                     .get(r.category_id.as_str())
                     .copied()
                     .unwrap_or("未分类"),
+                "local_exists": sediment_kb_local_exists(repo_root, &r.full_name),
             })
         })
         .collect();
@@ -338,7 +347,7 @@ pub fn get_sediment_kb_categories(_app: AppHandle) -> Result<Value, String> {
 
 #[tauri::command]
 pub fn get_sediment_kb_repos(_app: AppHandle) -> Result<Value, String> {
-    sediment_kb_repos_json()
+    sediment_kb_repos_json(&repo_root()?)
 }
 
 #[cfg(test)]

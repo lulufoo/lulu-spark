@@ -362,12 +362,13 @@ async function loadSedimentKbList(forceRefresh = false) {
       type: 'KNOWLEDGE_CORPUS',
       category_id: r.category_id,
       category_name: r.category_name,
+      local_exists: r.local_exists === true,
     }));
     _kbCorpusStatus = _sedimentKbList.map((r) => ({
       full_name: r.full_name,
       name: r.name,
       description: r.description,
-      local_exists: false,
+      local_exists: r.local_exists === true,
     }));
   } catch (e) {
     if (_kbCorpusStatusType !== filterType) return;
@@ -378,6 +379,19 @@ async function loadSedimentKbList(forceRefresh = false) {
       content.innerHTML = `<div id="repo-list-loading" style="color:#cf222e">加载失败：${escHtml(_sedimentKbError)}</div>`;
     }
     return;
+  }
+  renderSedimentKbListByCategory(_sedimentKbList);
+
+  _kbCorpusDiffStatus = null;
+  try {
+    const diffData = await api.fetchKbDiffStatus();
+    if (_kbCorpusStatusType !== filterType) return;
+    _kbCorpusDiffStatus = new Map(
+      (diffData?.repos || []).map((repo) => [repo.full_name, repo.has_changes === true]),
+    );
+  } catch (e) {
+    if (_kbCorpusStatusType !== filterType) return;
+    _kbCorpusDiffStatus = new Map();
   }
   renderSedimentKbListByCategory(_sedimentKbList);
 }
@@ -587,6 +601,10 @@ document.getElementById('repo-list-filter').addEventListener('change', () => {
 });
 
 window.addEventListener('kb-diff-updated', () => {
+  if (_sedimentListMode) {
+    void loadSedimentKbList(true);
+    return;
+  }
   const filter = document.getElementById('repo-list-filter');
   const val = filter ? filter.value : 'KNOWLEDGE_CORPUS';
   if (_KB_TYPES.has(val)) {

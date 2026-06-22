@@ -46,7 +46,10 @@ describe('migrate_sediment_kb.py', () => {
 
     expect(categories).toEqual({
       version: 1,
-      categories: [{ id: 'uncategorized', name: '未分类' }],
+      categories: [
+        { id: 'uncategorized', name: '未分类' },
+        { id: 'knowledge_corpus', name: '沉淀知识库' },
+      ],
     });
     expect(repos).toEqual({
       version: 1,
@@ -54,7 +57,7 @@ describe('migrate_sediment_kb.py', () => {
         {
           full_name: 'acme/kb-a',
           description: 'desc a',
-          category_id: 'uncategorized',
+          category_id: 'knowledge_corpus',
         },
       ],
     });
@@ -96,7 +99,7 @@ describe('migrate_sediment_kb.py', () => {
       {
         full_name: 'acme/kb-a',
         description: 'desc a',
-        category_id: 'uncategorized',
+        category_id: 'knowledge_corpus',
       },
     ]);
   });
@@ -122,7 +125,7 @@ describe('migrate_sediment_kb.py', () => {
       {
         full_name: 'acme/kb-b',
         description: 'desc b',
-        category_id: 'uncategorized',
+        category_id: 'knowledge_corpus',
       },
     ]);
   });

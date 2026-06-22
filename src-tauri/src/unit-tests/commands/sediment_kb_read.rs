@@ -1,6 +1,7 @@
 use serde_json::json;
 
 use crate::commands::read::{sediment_kb_categories_json, sediment_kb_repos_json};
+use crate::config::paths;
 use crate::services::sediment_kb::{
     add_category, add_repo, ensure_uncategorized, set_test_repo_validator, UNCATEGORIZED_ID,
 };
@@ -42,7 +43,8 @@ fn get_sediment_kb_repos_resolves_category_names() {
         ensure_uncategorized().expect("ensure");
         let cat_id = add_category("Research").expect("cat");
         add_repo("acme/demo", Some(&cat_id)).expect("add");
-        let v = sediment_kb_repos_json().expect("repos");
+        let repo_root = paths::repo_root().expect("repo root");
+        let v = sediment_kb_repos_json(&repo_root).expect("repos");
         let repos = v["repos"].as_array().expect("array");
         assert_eq!(repos.len(), 1);
         assert_eq!(repos[0]["full_name"], "acme/demo");
@@ -56,7 +58,8 @@ fn get_sediment_kb_repos_resolves_category_names() {
 fn get_sediment_kb_repos_empty_by_default() {
     with_sediment_kb_cache(|_| {
         ensure_uncategorized().expect("ensure");
-        let v = sediment_kb_repos_json().expect("repos");
+        let repo_root = paths::repo_root().expect("repo root");
+        let v = sediment_kb_repos_json(&repo_root).expect("repos");
         assert_eq!(v["repos"], json!([]));
     });
 }

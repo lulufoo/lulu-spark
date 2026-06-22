@@ -12,6 +12,26 @@ KNOWLEDGE_CORPUS = "KNOWLEDGE_CORPUS"
 UNCATEGORIZED_ID = "uncategorized"
 UNCATEGORIZED_NAME = "未分类"
 
+# Keep in sync with frontend/js/main.js `_REPO_TYPE_LABELS`.
+TYPE_LABELS: dict[str, str] = {
+    "KNOWLEDGE_CORPUS": "沉淀知识库",
+    "WORKBENCH_KNOWLEDGE": "工作台知识库",
+}
+
+
+def type_to_category_id(repo_type: str | None) -> str:
+    value = (repo_type or "").strip()
+    if not value:
+        return UNCATEGORIZED_ID
+    return value.lower()
+
+
+def type_to_category_name(repo_type: str | None) -> str:
+    value = (repo_type or "").strip()
+    if not value:
+        return UNCATEGORIZED_NAME
+    return TYPE_LABELS.get(value, value)
+
 
 def load_repo_list_knowledge_corpus(cache_dir: Path) -> list[dict[str, str]]:
     path = cache_dir / "repo-list.json"
@@ -37,7 +57,14 @@ def load_repo_list_knowledge_corpus(cache_dir: Path) -> list[dict[str, str]]:
         if not full_name:
             continue
         description = str(item.get("description") or "").strip()
-        out.append({"full_name": full_name, "description": description})
+        repo_type = str(item.get("type") or "").strip()
+        out.append(
+            {
+                "full_name": full_name,
+                "description": description,
+                "type": repo_type,
+            }
+        )
     return out
 
 
@@ -61,35 +88,49 @@ def write_sediment_kb(categories: dict[str, Any], repos: dict[str, Any], sedimen
     )
 
 
-def _default_categories() -> dict[str, Any]:
-    return {
-        "version": 1,
-        "categories": [{"id": UNCATEGORIZED_ID, "name": UNCATEGORIZED_NAME}],
-    }
+def build_sediment_kb(entries: list[dict[str, str]]) -> tuple[dict[str, Any], dict[str, Any]]:
+    type_ids: dict[str, str] = {}
+    for entry in entries:
+        repo_type = entry.get("type") or ""
+        cat_id = type_to_category_id(repo_type or None)
+        if cat_id == UNCATEGORIZED_ID:
+            continue
+        type_ids[cat_id] = type_to_category_name(repo_type or None)
 
+    categories: list[dict[str, str]] = [
+        {"id": UNCATEGORIZED_ID, "name": UNCATEGORIZED_NAME},
+    ]
+    for cat_id in sorted(type_ids):
+        categories.append({"id": cat_id, "name": type_ids[cat_id]})
 
-def _repos_file(entries: list[dict[str, str]]) -> dict[str, Any]:
-    return {
-        "version": 1,
-        "repos": [
+    repos_out: list[dict[str, str]] = []
+    for entry in entries:
+        repo_type = entry.get("type") or ""
+        cat_id = type_to_category_id(repo_type or None)
+        repos_out.append(
             {
                 "full_name": entry["full_name"],
                 "description": entry["description"],
-                "category_id": UNCATEGORIZED_ID,
+                "category_id": cat_id,
             }
-            for entry in entries
-        ],
-    }
+        )
+
+    return (
+        {"version": 1, "categories": categories},
+        {"version": 1, "repos": repos_out},
+    )
 
 
 def _print_plan(entries: list[dict[str, str]], sediment_kb_dir: Path) -> None:
+    categories, repos = build_sediment_kb(entries)
     print(f"Would write sediment-kb under {sediment_kb_dir}")
-    print(f"categories: uncategorized ({UNCATEGORIZED_NAME})")
+    for cat in categories["categories"]:
+        print(f"category: {cat['id']} ({cat['name']})")
     if not entries:
         print("repos: (none)")
         return
-    for entry in entries:
-        print(f"repo: {entry['full_name']} → category_id={UNCATEGORIZED_ID}")
+    for entry, repo in zip(entries, repos["repos"]):
+        print(f"repo: {entry['full_name']} → category_id={repo['category_id']}")
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -116,8 +157,7 @@ def main(argv: list[str] | None = None) -> int:
         print(str(exc), file=sys.stderr)
         return 1
 
-    categories = _default_categories()
-    repos = _repos_file(entries)
+    categories, repos = build_sediment_kb(entries)
 
     if should_skip(sediment_kb_dir, args.force):
         print(f"skip: sediment-kb already exists at {sediment_kb_dir}", file=sys.stderr)
