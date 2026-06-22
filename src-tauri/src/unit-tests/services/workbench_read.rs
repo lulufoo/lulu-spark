@@ -28,52 +28,109 @@ fn get_config_has_frontend_contract_keys() {
     assert!(v.get("has_github_token").is_some());
 }
 
-#[test]
-fn get_topics_missing_repo_list_returns_error() {
-    let dir = tempfile::tempdir().expect("tmp");
-    let corpus = dir.path().join("corpus");
-    let cache = dir.path().join("empty-cache");
-    fs::create_dir_all(&corpus).expect("mkdir");
-    fs::create_dir_all(&cache).expect("cache mkdir");
-    crate::config::settings::write_test_config(dir.path(), &corpus, None);
-    let cfg = crate::config::settings::load().expect("load");
-    let mut s = cfg;
-    s.cache_dir = cache; // points to dir with no repo-list.json
-    crate::config::settings::save(&s).expect("save");
-    let v = get_topics(dir.path());
-    assert!(v.get("error").is_some(), "expected error, got {v:?}");
-    crate::config::settings::set_test_config_dir(None);
+fn with_sediment_kb_topics_cache<F: FnOnce(&std::path::Path, &std::path::Path)>(f: F) {
+    use crate::test_support::with_test_config_dir;
+
+    with_test_config_dir(|cfg| {
+        let corpus = cfg.join("corpus");
+        let cache = cfg.join("cache");
+        fs::create_dir_all(&corpus).expect("mkdir");
+        fs::write(
+            cfg.join("config.toml"),
+            format!(r#"cache_dir = "{}""#, cache.display()),
+        )
+        .expect("write config");
+        f(cfg, &corpus);
+    });
 }
 
 #[test]
-fn get_topics_derives_from_repo_list() {
-    let dir = tempfile::tempdir().expect("tmp");
-    let corpus = dir.path().join("corpus");
-    let cache = dir.path().join("cache");
-    fs::create_dir_all(&corpus).expect("mkdir");
-    fs::create_dir_all(&cache).expect("cache mkdir");
-    crate::config::settings::write_test_config(dir.path(), &corpus, None);
-    let cfg = crate::config::settings::load().expect("load");
-    let mut s = cfg;
-    s.cache_dir = cache.clone();
-    crate::config::settings::save(&s).expect("save");
-
-    let repo_list = serde_json::json!({
-        "repos": [
-            {"full_name": "lulufoo/kb-a", "name": "kb-a", "type": "KNOWLEDGE_CORPUS", "description": "desc a"},
-            {"full_name": "lulufoo/other", "name": "other", "type": "OTHER", "description": "ignored"},
-        ]
+fn get_topics_missing_sediment_kb_inits_and_returns_inbox_only() {
+    with_sediment_kb_topics_cache(|cfg, corpus| {
+        let v = get_topics(corpus);
+        assert!(v.get("error").is_none(), "expected init fallback, got {v:?}");
+        assert_eq!(v["source"], "sediment-kb");
+        let topics = v["topics"].as_array().expect("topics array");
+        assert_eq!(topics.len(), 1);
+        assert_eq!(topics[0]["dir"], "inbox");
+        assert_eq!(topics[0]["inbox"], true);
+        let _ = cfg;
     });
-    fs::write(cache.join("repo-list.json"), repo_list.to_string()).expect("write");
+}
 
-    let v = get_topics(dir.path());
-    assert!(v.get("error").is_none(), "unexpected error: {v:?}");
-    assert_eq!(v["source"], "repo-list.json");
-    let topics = v["topics"].as_array().expect("topics array");
-    assert!(topics.iter().any(|t| t.get("repo") == Some(&serde_json::json!("lulufoo/kb-a"))));
-    assert!(!topics.iter().any(|t| t.get("repo") == Some(&serde_json::json!("lulufoo/other"))));
-    assert!(topics.iter().any(|t| t.get("inbox") == Some(&serde_json::json!(true))));
-    crate::config::settings::set_test_config_dir(None);
+#[test]
+fn get_topics_reads_from_sediment_kb_with_category_fields() {
+    use crate::services::sediment_kb::{
+        add_repo, ensure_uncategorized, set_test_repo_validator, UNCATEGORIZED_ID,
+    };
+
+    with_sediment_kb_topics_cache(|cfg, corpus| {
+        set_test_repo_validator(Some(|name| Ok(name.to_string())));
+        ensure_uncategorized().expect("ensure");
+        add_repo("lulufoo/kb-a", None).expect("add");
+        set_test_repo_validator(None);
+
+        let cache = cfg.join("cache");
+        let repo_list = serde_json::json!({
+            "repos": [
+                {"full_name": "lulufoo/ignored", "type": "KNOWLEDGE_CORPUS", "description": "ignored"},
+            ]
+        });
+        fs::write(cache.join("repo-list.json"), repo_list.to_string()).expect("write");
+
+        let v = get_topics(corpus);
+        assert!(v.get("error").is_none(), "unexpected error: {v:?}");
+        assert_eq!(v["source"], "sediment-kb");
+        let topics = v["topics"].as_array().expect("topics array");
+        let kb = topics
+            .iter()
+            .find(|t| t.get("repo") == Some(&serde_json::json!("lulufoo/kb-a")))
+            .expect("sediment-kb repo topic");
+        assert_eq!(kb["description"], "");
+        assert_eq!(kb["category_id"], UNCATEGORIZED_ID);
+        assert_eq!(kb["category_name"], "未分类");
+        assert!(
+            !topics
+                .iter()
+                .any(|t| t.get("repo") == Some(&serde_json::json!("lulufoo/ignored")))
+        );
+        assert!(topics.iter().any(|t| t.get("inbox") == Some(&serde_json::json!(true))));
+    });
+}
+
+#[test]
+fn get_topics_empty_repos_returns_inbox_only() {
+    use crate::services::sediment_kb::ensure_uncategorized;
+
+    with_sediment_kb_topics_cache(|_, corpus| {
+        ensure_uncategorized().expect("ensure");
+        let v = get_topics(corpus);
+        assert!(v.get("error").is_none(), "unexpected error: {v:?}");
+        let topics = v["topics"].as_array().expect("topics array");
+        assert_eq!(topics.len(), 1);
+        assert_eq!(topics[0]["inbox"], true);
+    });
+}
+
+#[test]
+fn list_repos_for_topics_resolves_uncategorized_name() {
+    use crate::services::sediment_kb::{
+        add_repo, ensure_uncategorized, list_repos_for_topics, set_test_repo_validator,
+        UNCATEGORIZED_ID,
+    };
+
+    with_sediment_kb_topics_cache(|_, _| {
+        set_test_repo_validator(Some(|name| Ok(name.to_string())));
+        ensure_uncategorized().expect("ensure");
+        add_repo("acme/demo", None).expect("add");
+        set_test_repo_validator(None);
+
+        let rows = list_repos_for_topics().expect("list");
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].repo, "acme/demo");
+        assert_eq!(rows[0].category_id, UNCATEGORIZED_ID);
+        assert_eq!(rows[0].category_name, "未分类");
+    });
 }
 
 #[test]

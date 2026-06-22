@@ -25,6 +25,14 @@ type RepoValidatorFn = fn(&str) -> Result<String, SedimentKbError>;
 static TEST_REPO_VALIDATOR: OnceLock<Mutex<Option<RepoValidatorFn>>> = OnceLock::new();
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TopicRow {
+    pub repo: String,
+    pub description: String,
+    pub category_id: String,
+    pub category_name: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Category {
     pub id: String,
     pub name: String,
@@ -194,6 +202,31 @@ fn save_repos_unlocked(data: &ReposFile) -> Result<(), SedimentKbError> {
 
 pub fn ensure_uncategorized() -> Result<(), SedimentKbError> {
     with_write_lock(ensure_uncategorized_unlocked)
+}
+
+pub fn list_repos_for_topics() -> Result<Vec<TopicRow>, SedimentKbError> {
+    ensure_uncategorized()?;
+    let categories = load_categories()?;
+    let repos = load_repos()?;
+    let name_by_id: std::collections::HashMap<&str, &str> = categories
+        .categories
+        .iter()
+        .map(|c| (c.id.as_str(), c.name.as_str()))
+        .collect();
+    Ok(repos
+        .repos
+        .iter()
+        .map(|r| TopicRow {
+            repo: r.full_name.clone(),
+            description: r.description.clone(),
+            category_id: r.category_id.clone(),
+            category_name: name_by_id
+                .get(r.category_id.as_str())
+                .copied()
+                .unwrap_or("未分类")
+                .to_string(),
+        })
+        .collect())
 }
 
 fn ensure_uncategorized_unlocked() -> Result<(), SedimentKbError> {

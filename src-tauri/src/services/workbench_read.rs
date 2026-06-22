@@ -53,53 +53,46 @@ pub fn get_config(_repo_root: &Path) -> Value {
     )
 }
 
-/// Derive topics in-memory from `repo-list.json` (KNOWLEDGE_CORPUS entries + inbox virtual).
+/// Derive topics from sediment-kb repos (+ inbox virtual entry).
 pub fn get_topics(_repo_root: &Path) -> Value {
-    let cache_path = match crate::config::paths::repo_list_cache_path() {
-        Ok(p) => p,
-        Err(_) => return json!({ "error": "topics: cannot resolve cache_dir" }),
-    };
-    if !cache_path.is_file() {
-        return json!({ "error": "repo-list.json not found; run ⊙ 全量同步 in the app" });
-    }
-    let Ok(text) = fs::read_to_string(&cache_path) else {
-        return json!({ "error": "topics: cannot read repo-list.json" });
-    };
-    let Ok(data) = serde_json::from_str::<Value>(&text) else {
-        return json!({ "error": "topics: invalid repo-list.json" });
+    let _ = _repo_root;
+    let rows = match crate::services::sediment_kb::list_repos_for_topics() {
+        Ok(rows) => rows,
+        Err(e) => return json!({ "error": format!("topics: {e}") }),
     };
 
-    let mut topics_list: Vec<Value> = Vec::new();
-    if let Some(repos) = data.get("repos").and_then(|v| v.as_array()) {
-        for repo in repos {
-            if repo.get("type").and_then(|v| v.as_str()) != Some("KNOWLEDGE_CORPUS") {
-                continue;
-            }
-            let Some(full_name) = repo.get("full_name").and_then(|v| v.as_str()) else {
-                continue;
-            };
-            let desc = repo.get("description").and_then(|v| v.as_str()).unwrap_or("");
-            topics_list.push(json!({ "repo": full_name, "description": desc }));
-        }
-    }
+    let mut topics_list: Vec<Value> = rows
+        .iter()
+        .map(|r| {
+            json!({
+                "repo": r.repo,
+                "description": r.description,
+                "category_id": r.category_id,
+                "category_name": r.category_name,
+            })
+        })
+        .collect();
     topics_list.push(json!({ "dir": "inbox", "inbox": true }));
 
     let mut result = json!({
         "version": 4,
-        "source": "repo-list.json",
+        "source": "sediment-kb",
         "defaultBranch": "main",
         "topics": topics_list,
     });
-    if let Ok(meta) = cache_path.metadata().and_then(|m| m.modified()) {
-        let dur = meta.duration_since(UNIX_EPOCH).unwrap_or_default();
-        if let chrono::LocalResult::Single(dt) =
-            Utc.timestamp_opt(dur.as_secs() as i64, dur.subsec_nanos())
-        {
-            if let Some(obj) = result.as_object_mut() {
-                obj.insert(
-                    "cached_at".to_string(),
-                    json!(dt.to_rfc3339_opts(chrono::SecondsFormat::Millis, true)),
-                );
+
+    if let Ok(cache_path) = crate::config::paths::sediment_kb_repos_path() {
+        if let Ok(meta) = cache_path.metadata().and_then(|m| m.modified()) {
+            let dur = meta.duration_since(UNIX_EPOCH).unwrap_or_default();
+            if let chrono::LocalResult::Single(dt) =
+                Utc.timestamp_opt(dur.as_secs() as i64, dur.subsec_nanos())
+            {
+                if let Some(obj) = result.as_object_mut() {
+                    obj.insert(
+                        "cached_at".to_string(),
+                        json!(dt.to_rfc3339_opts(chrono::SecondsFormat::Millis, true)),
+                    );
+                }
             }
         }
     }
