@@ -1,14 +1,22 @@
 {
   "version": 1,
-  "product-plan": {
+  "product-arch": {
     "template_url": "https://github.com/lulufoo/lulu-workflow-framework/blob/main/lulu-dev-workflow/template/product-plan/10-product-doc-template.md",
     "review_checklist_url": "https://github.com/lulufoo/lulu-workflow-framework/blob/main/lulu-dev-workflow/template/product-plan/11-product-doc-review-checklist.md",
     "pdqa_url": "https://github.com/lulufoo/lulu-workflow-framework/blob/main/lulu-dev-workflow/template/product-plan/12-product-doc-evaluation-framework.md",
     "shaping_template_url": "https://github.com/lulufoo/lulu-workflow-framework/blob/main/lulu-dev-workflow/template/product-plan/13-product-shaping-template.md",
     "shaping_pdqa_url": "https://github.com/lulufoo/lulu-workflow-framework/blob/main/lulu-dev-workflow/template/product-plan/14-product-shaping-pdqa.md"
   },
+  "product-spec": {
+    "pst_section_registry_url": "https://github.com/lulufoo/lulu-workflow-framework/blob/main/lulu-dev-workflow/template/product-spec/20-product-spec-section-registry.json",
+    "pst_section_kw_criteria_url": "https://github.com/lulufoo/lulu-workflow-framework/blob/main/lulu-dev-workflow/template/product-spec/21-product-spec-section-kw-criteria.md",
+    "pst_outline_registry_url": "https://github.com/lulufoo/lulu-workflow-framework/blob/main/lulu-dev-workflow/template/product-spec/22-product-spec-feature-outline-registry.json",
+    "pst_feature_role_instance_url": "https://github.com/lulufoo/lulu-workflow-framework/blob/main/lulu-dev-workflow/template/product-spec/23-product-spec-feature-role-instance.json",
+    "pst_feature_domain_instance_url": "https://github.com/lulufoo/lulu-workflow-framework/blob/main/lulu-dev-workflow/template/product-spec/24-product-spec-feature-domain-instance.json",
+    "pst_product_eval_framework_url": "https://github.com/lulufoo/lulu-workflow-framework/blob/main/lulu-dev-workflow/template/product-spec/12-product-doc-evaluation-framework.md"
+  },
   "tech-plan": {
-    "ptc_url": "https://github.com/lulufoo/lulu-workflow-framework/blob/main/lulu-dev-workflow/template/tech-plan/40-tech-plan-product-tech-spec-crosscheck.md",
+    "tpt_product_tech_spec_crosscheck_url": "https://github.com/lulufoo/lulu-workflow-framework/blob/main/lulu-dev-workflow/template/tech-plan/40-tech-plan-product-tech-spec-crosscheck.md",
     "tpt_intent_eval_framework_url": "https://github.com/lulufoo/lulu-workflow-framework/blob/main/lulu-dev-workflow/template/tech-plan/41-tech-plan-intent-evaluation-framework.md",
     "tpt_section_kw_criteria_url": "https://github.com/lulufoo/lulu-workflow-framework/blob/main/lulu-dev-workflow/template/tech-plan/43-tech-plan-section-kw-criteria.md",
     "tpt_section_registry_url": "https://github.com/lulufoo/lulu-workflow-framework/blob/main/lulu-dev-workflow/template/tech-plan/42-tech-plan-section-registry.json",
@@ -23,6 +31,15 @@
     "woqa_url": "https://github.com/lulufoo/lulu-workflow-framework/blob/main/lulu-dev-workflow/template/work-order/32-work-order-evaluation-framework.md",
     "twca_url": "https://github.com/lulufoo/lulu-workflow-framework/blob/main/lulu-dev-workflow/template/work-order/33-tech-workorder-crosscheck.md",
     "tda_url": "https://github.com/lulufoo/lulu-workflow-framework/blob/main/lulu-dev-workflow/template/work-order/34-tech-doc-admission-framework.md"
+  },
+  "tech-design": {
+    "tdt_section_registry_url": "https://github.com/lulufoo/lulu-workflow-framework/blob/main/lulu-dev-workflow/template/tech-design/42-tech-design-section-registry.json",
+    "tdt_section_kw_criteria_url": "https://github.com/lulufoo/lulu-workflow-framework/blob/main/lulu-dev-workflow/template/tech-design/43-tech-design-section-kw-criteria.md",
+    "tdt_design_doc_template_url": "https://github.com/lulufoo/lulu-workflow-framework/blob/main/lulu-dev-workflow/template/tech-design/44-tech-design-design-doc-template.md",
+    "tdt_outline_registry_url": "https://github.com/lulufoo/lulu-workflow-framework/blob/main/lulu-dev-workflow/template/tech-design/45-tech-design-feature-outline-registry.json",
+    "tdt_feature_role_instance_url": "https://github.com/lulufoo/lulu-workflow-framework/blob/main/lulu-dev-workflow/template/tech-design/46-tech-design-feature-role-instance.json",
+    "tdt_feature_domain_instance_url": "https://github.com/lulufoo/lulu-workflow-framework/blob/main/lulu-dev-workflow/template/tech-design/47-tech-design-feature-domain-instance.json",
+    "tdt_design_quality_framework_url": "https://github.com/lulufoo/lulu-workflow-framework/blob/main/lulu-dev-workflow/template/tech-design/48-tech-design-design-quality-framework.md"
   },
   "diagnostic": {
     "decision_doc_template_url": "https://github.com/lulufoo/lulu-workflow-framework/blob/main/lulu-dev-workflow/template/diagnostic/decision-doc.template.md"
@@ -40,13 +57,5 @@
       "cursor": "Auto",
       "copilot": "GPT-5.4"
     }
-  },
-  "product-spec": {
-    "pst_section_registry_url": "https://github.com/lulufoo/lulu-workflow-framework/blob/main/lulu-dev-workflow/template/product-spec/20-product-spec-section-registry.json",
-    "pst_section_kw_criteria_url": "https://github.com/lulufoo/lulu-workflow-framework/blob/main/lulu-dev-workflow/template/product-spec/21-product-spec-section-kw-criteria.md",
-    "pst_outline_registry_url": "https://github.com/lulufoo/lulu-workflow-framework/blob/main/lulu-dev-workflow/template/product-spec/22-product-spec-feature-outline-registry.json",
-    "pst_feature_role_instance_url": "https://github.com/lulufoo/lulu-workflow-framework/blob/main/lulu-dev-workflow/template/product-spec/23-product-spec-feature-role-instance.json",
-    "pst_feature_domain_instance_url": "https://github.com/lulufoo/lulu-workflow-framework/blob/main/lulu-dev-workflow/template/product-spec/24-product-spec-feature-domain-instance.json",
-    "pst_product_eval_framework_url": "https://github.com/lulufoo/lulu-workflow-framework/blob/main/lulu-dev-workflow/template/product-spec/12-product-doc-evaluation-framework.md"
   }
 }
