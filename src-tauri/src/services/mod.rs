@@ -16,6 +16,7 @@ pub mod entry_write;
 pub mod kb;
 pub mod kb_write;
 pub mod reindex;
+pub mod sediment_kb;
 pub mod settle;
 pub mod tag_write;
 pub mod tags_registry;

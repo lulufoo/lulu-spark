@@ -41,6 +41,18 @@ pub fn repo_list_cache_path() -> Result<PathBuf, PathsError> {
     Ok(cache_dir()?.join("repo-list.json"))
 }
 
+pub fn sediment_kb_dir() -> Result<PathBuf, PathsError> {
+    Ok(cache_dir()?.join("sediment-kb"))
+}
+
+pub fn sediment_kb_categories_path() -> Result<PathBuf, PathsError> {
+    Ok(sediment_kb_dir()?.join("categories.json"))
+}
+
+pub fn sediment_kb_repos_path() -> Result<PathBuf, PathsError> {
+    Ok(sediment_kb_dir()?.join("repos.json"))
+}
+
 pub fn draft_path(common_path: &str) -> Result<PathBuf, PathsError> {
     let drafts_dir = cache_dir()?.join("drafts");
     let mut target = drafts_dir.clone();

@@ -28,3 +28,21 @@ fn repo_root_matches_cargo_manifest_parent() {
         .to_path_buf();
     assert_eq!(root, expected);
 }
+
+#[test]
+fn sediment_kb_paths_under_cache_dir() {
+    with_test_config_dir(|cfg| {
+        let cache = cfg.join("custom-cache");
+        fs::write(
+            cfg.join("config.toml"),
+            format!(r#"cache_dir = "{}""#, cache.display()),
+        )
+        .expect("write");
+        let dir = sediment_kb_dir().expect("dir");
+        let cats = sediment_kb_categories_path().expect("cats");
+        let repos = sediment_kb_repos_path().expect("repos");
+        assert_eq!(dir, cache.join("sediment-kb"));
+        assert_eq!(cats, dir.join("categories.json"));
+        assert_eq!(repos, dir.join("repos.json"));
+    });
+}
