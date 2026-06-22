@@ -5,6 +5,7 @@ use crate::config::paths;
 use crate::integrations::{gh_read, meilisearch};
 use crate::services::reindex::{finish_job_error, finish_job_success, start_job, ReindexState};
 use crate::config::meili_env::workbench_knowledge_root_path;
+use crate::services::sediment_kb;
 use crate::services::tags_registry;
 use crate::services::workbench_read;
 
@@ -312,3 +313,50 @@ pub fn get_kb_diff_status(_app: AppHandle) -> Result<Value, String> {
 
     Ok(json!({ "repos": repos }))
 }
+
+pub fn sediment_kb_categories_json() -> Result<Value, String> {
+    sediment_kb::ensure_uncategorized().map_err(|e| e.to_string())?;
+    let cats = sediment_kb::load_categories().map_err(|e| e.to_string())?;
+    Ok(json!({ "categories": cats.categories }))
+}
+
+pub fn sediment_kb_repos_json() -> Result<Value, String> {
+    sediment_kb::ensure_uncategorized().map_err(|e| e.to_string())?;
+    let categories = sediment_kb::load_categories().map_err(|e| e.to_string())?;
+    let repos = sediment_kb::load_repos().map_err(|e| e.to_string())?;
+    let name_by_id: std::collections::HashMap<&str, &str> = categories
+        .categories
+        .iter()
+        .map(|c| (c.id.as_str(), c.name.as_str()))
+        .collect();
+    let enriched: Vec<Value> = repos
+        .repos
+        .iter()
+        .map(|r| {
+            json!({
+                "full_name": r.full_name,
+                "description": r.description,
+                "category_id": r.category_id,
+                "category_name": name_by_id
+                    .get(r.category_id.as_str())
+                    .copied()
+                    .unwrap_or("未分类"),
+            })
+        })
+        .collect();
+    Ok(json!({ "repos": enriched }))
+}
+
+#[tauri::command]
+pub fn get_sediment_kb_categories(_app: AppHandle) -> Result<Value, String> {
+    sediment_kb_categories_json()
+}
+
+#[tauri::command]
+pub fn get_sediment_kb_repos(_app: AppHandle) -> Result<Value, String> {
+    sediment_kb_repos_json()
+}
+
+#[cfg(test)]
+#[path = "../unit-tests/commands/sediment_kb_read.rs"]
+mod sediment_kb_read_tests;

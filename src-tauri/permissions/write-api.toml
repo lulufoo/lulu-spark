@@ -18,4 +18,10 @@ commands.allow = [
   "tag_attach",
   "tag_detach",
   "tag_update_value",
+  "sediment_kb_add_repo",
+  "sediment_kb_remove_repo",
+  "sediment_kb_update_repo_category",
+  "sediment_kb_add_category",
+  "sediment_kb_rename_category",
+  "sediment_kb_remove_category",
 ]

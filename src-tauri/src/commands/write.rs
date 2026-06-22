@@ -2,10 +2,172 @@ use serde_json::Value;
 use tauri::AppHandle;
 
 use crate::config::paths;
+use crate::services::sediment_kb::{self, SedimentKbError};
 use crate::services::{annotation, entry_write, kb_write, tag_write};
 
 fn repo_root() -> Result<std::path::PathBuf, String> {
     paths::repo_root().map_err(|e| format!("{e:?}"))
+}
+
+pub fn map_sediment_kb_error(err: SedimentKbError) -> Value {
+    match err {
+        SedimentKbError::InvalidFormat => serde_json::json!({
+            "error": "无效的仓库地址，请使用 owner/repo 或 GitHub URL",
+            "code": "invalid_format",
+            "_status": 400,
+        }),
+        SedimentKbError::NotAccessible(msg) if msg.contains("GitHub Token") => serde_json::json!({
+            "error": "需要配置 GitHub Token 才能验证仓库",
+            "code": "no_token",
+            "_status": 401,
+        }),
+        SedimentKbError::NotAccessible(_) => serde_json::json!({
+            "error": "无法访问该仓库，请检查地址与 GitHub 权限",
+            "code": "not_accessible",
+            "_status": 403,
+        }),
+        SedimentKbError::Duplicate => serde_json::json!({
+            "error": "该仓库已在沉淀知识库中",
+            "code": "duplicate",
+            "_status": 409,
+        }),
+        SedimentKbError::InvalidName => serde_json::json!({
+            "error": "invalid category name",
+            "code": "invalid_name",
+            "_status": 400,
+        }),
+        SedimentKbError::ProtectedCategory => serde_json::json!({
+            "error": "protected category",
+            "code": "protected_category",
+            "_status": 400,
+        }),
+        SedimentKbError::CategoryNotFound => serde_json::json!({
+            "error": "category not found",
+            "code": "category_not_found",
+            "_status": 404,
+        }),
+        SedimentKbError::RepoNotFound => serde_json::json!({
+            "error": "repo not found",
+            "code": "repo_not_found",
+            "_status": 404,
+        }),
+        SedimentKbError::Io(msg) => serde_json::json!({
+            "error": msg,
+            "code": "io_error",
+            "_status": 500,
+        }),
+    }
+}
+
+fn sediment_kb_ok() -> Value {
+    serde_json::json!({ "ok": true })
+}
+
+pub fn sediment_kb_add_repo_json(payload: Value) -> Result<Value, String> {
+    let full_name = payload
+        .get("full_name")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| "missing full_name".to_string())?;
+    let category_id = payload
+        .get("category_id")
+        .and_then(|v| v.as_str());
+    match sediment_kb::add_repo(full_name, category_id) {
+        Ok(()) => Ok(sediment_kb_ok()),
+        Err(e) => Ok(map_sediment_kb_error(e)),
+    }
+}
+
+pub fn sediment_kb_remove_repo_json(payload: Value) -> Result<Value, String> {
+    let full_name = payload
+        .get("full_name")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| "missing full_name".to_string())?;
+    match sediment_kb::remove_repo(full_name) {
+        Ok(()) => Ok(sediment_kb_ok()),
+        Err(e) => Ok(map_sediment_kb_error(e)),
+    }
+}
+
+pub fn sediment_kb_update_repo_category_json(payload: Value) -> Result<Value, String> {
+    let full_name = payload
+        .get("full_name")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| "missing full_name".to_string())?;
+    let category_id = payload
+        .get("category_id")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| "missing category_id".to_string())?;
+    match sediment_kb::update_repo_category(full_name, category_id) {
+        Ok(()) => Ok(sediment_kb_ok()),
+        Err(e) => Ok(map_sediment_kb_error(e)),
+    }
+}
+
+pub fn sediment_kb_add_category_json(payload: Value) -> Result<Value, String> {
+    let name = payload
+        .get("name")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| "missing name".to_string())?;
+    match sediment_kb::add_category(name) {
+        Ok(id) => Ok(serde_json::json!({ "ok": true, "id": id })),
+        Err(e) => Ok(map_sediment_kb_error(e)),
+    }
+}
+
+pub fn sediment_kb_rename_category_json(payload: Value) -> Result<Value, String> {
+    let id = payload
+        .get("id")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| "missing id".to_string())?;
+    let name = payload
+        .get("name")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| "missing name".to_string())?;
+    match sediment_kb::rename_category(id, name) {
+        Ok(()) => Ok(sediment_kb_ok()),
+        Err(e) => Ok(map_sediment_kb_error(e)),
+    }
+}
+
+pub fn sediment_kb_remove_category_json(payload: Value) -> Result<Value, String> {
+    let id = payload
+        .get("id")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| "missing id".to_string())?;
+    match sediment_kb::remove_category(id) {
+        Ok(()) => Ok(sediment_kb_ok()),
+        Err(e) => Ok(map_sediment_kb_error(e)),
+    }
+}
+
+#[tauri::command]
+pub fn sediment_kb_add_repo(_app: AppHandle, payload: Value) -> Result<Value, String> {
+    sediment_kb_add_repo_json(payload)
+}
+
+#[tauri::command]
+pub fn sediment_kb_remove_repo(_app: AppHandle, payload: Value) -> Result<Value, String> {
+    sediment_kb_remove_repo_json(payload)
+}
+
+#[tauri::command]
+pub fn sediment_kb_update_repo_category(_app: AppHandle, payload: Value) -> Result<Value, String> {
+    sediment_kb_update_repo_category_json(payload)
+}
+
+#[tauri::command]
+pub fn sediment_kb_add_category(_app: AppHandle, payload: Value) -> Result<Value, String> {
+    sediment_kb_add_category_json(payload)
+}
+
+#[tauri::command]
+pub fn sediment_kb_rename_category(_app: AppHandle, payload: Value) -> Result<Value, String> {
+    sediment_kb_rename_category_json(payload)
+}
+
+#[tauri::command]
+pub fn sediment_kb_remove_category(_app: AppHandle, payload: Value) -> Result<Value, String> {
+    sediment_kb_remove_category_json(payload)
 }
 
 #[tauri::command]
@@ -201,3 +363,7 @@ pub fn tag_update_value(
 ) -> Result<Value, String> {
     Ok(tag_write::tag_update_value(&repo_root()?, &key, &value))
 }
+
+#[cfg(test)]
+#[path = "../unit-tests/commands/sediment_kb_write.rs"]
+mod sediment_kb_write_tests;

@@ -358,6 +358,8 @@ pub fn run() {
             commands::read::get_corpus_file,
             commands::read::get_kb_corpus_status,
             commands::read::get_kb_diff_status,
+            commands::read::get_sediment_kb_categories,
+            commands::read::get_sediment_kb_repos,
             commands::search::reindex_knowledge,
             commands::search::reindex_workbench,
             commands::search::reindex_kb_repo,
@@ -381,6 +383,12 @@ pub fn run() {
             commands::write::tag_attach,
             commands::write::tag_detach,
             commands::write::tag_update_value,
+            commands::write::sediment_kb_add_repo,
+            commands::write::sediment_kb_remove_repo,
+            commands::write::sediment_kb_update_repo_category,
+            commands::write::sediment_kb_add_category,
+            commands::write::sediment_kb_rename_category,
+            commands::write::sediment_kb_remove_category,
         ])
         .setup(|app| {
             // Auto-start Meilisearch if not already running
