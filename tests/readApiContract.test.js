@@ -50,4 +50,19 @@ describe('readApi contract map', () => {
     const b = { entries: [] };
     expect(normalizeForContract(a)).toEqual(normalizeForContract(b));
   });
+
+  it('resolveInvokeFromPath maps sediment-kb read routes', () => {
+    expect(resolveInvokeFromPath('/api/sediment-kb/categories')).toEqual({
+      cmd: 'get_sediment_kb_categories',
+      args: {},
+    });
+    expect(resolveInvokeFromPath('/api/sediment-kb/repos?_=' + Date.now())).toEqual({
+      cmd: 'get_sediment_kb_repos',
+      args: {},
+    });
+  });
+
+  it('resolveInvokeFromPath returns null for unknown sediment-kb route', () => {
+    expect(resolveInvokeFromPath('/api/sediment-kb/unknown')).toBeNull();
+  });
 });

@@ -21,11 +21,29 @@ const P2_PATHS = [
   ['/api/tag/attach', 'tag_attach', ['commonPath', 'key', 'value']],
   ['/api/tag/detach', 'tag_detach', ['commonPath', 'key']],
   ['/api/tag/update-value', 'tag_update_value', ['key', 'value']],
+  ['/api/sediment-kb/repos/add', 'sediment_kb_add_repo', ['payload']],
+  ['/api/sediment-kb/repos/remove', 'sediment_kb_remove_repo', ['payload']],
+  [
+    '/api/sediment-kb/repos/update-category',
+    'sediment_kb_update_repo_category',
+    ['payload'],
+  ],
+  ['/api/sediment-kb/categories/add', 'sediment_kb_add_category', ['payload']],
+  [
+    '/api/sediment-kb/categories/rename',
+    'sediment_kb_rename_category',
+    ['payload'],
+  ],
+  [
+    '/api/sediment-kb/categories/remove',
+    'sediment_kb_remove_category',
+    ['payload'],
+  ],
 ];
 
 describe('writeApiContract', () => {
-  it('covers all 16 P2 POST paths with command names', () => {
-    expect(Object.keys(WRITE_API_INVOKE_MAP)).toHaveLength(16);
+  it('covers all 22 P2 POST paths with command names', () => {
+    expect(Object.keys(WRITE_API_INVOKE_MAP)).toHaveLength(22);
     for (const [path, cmd] of P2_PATHS) {
       expect(WRITE_API_INVOKE_MAP[path]?.cmd, path).toBe(cmd);
     }
@@ -100,6 +118,33 @@ describe('writeApiContract', () => {
       expect(resolved.args.commonPath).toBe('ai/x.md');
       expect(resolved.args).not.toHaveProperty('common_path');
     }
+  });
+
+  it('sediment-kb write invoke args pass body as payload', () => {
+    expect(
+      resolveWriteInvoke('/api/sediment-kb/repos/add', {
+        full_name: 'acme/demo',
+        category_id: 'cat-1',
+      }),
+    ).toEqual({
+      cmd: 'sediment_kb_add_repo',
+      args: {
+        payload: { full_name: 'acme/demo', category_id: 'cat-1' },
+      },
+    });
+    expect(
+      resolveWriteInvoke('/api/sediment-kb/categories/rename', {
+        id: 'cat-1',
+        name: 'Docs',
+      }),
+    ).toEqual({
+      cmd: 'sediment_kb_rename_category',
+      args: { payload: { id: 'cat-1', name: 'Docs' } },
+    });
+  });
+
+  it('resolveWriteInvoke returns null for unknown sediment-kb route', () => {
+    expect(resolveWriteInvoke('/api/sediment-kb/repos/unknown', {})).toBeNull();
   });
 
   it('golden error shapes align with P1 kb_read style', () => {

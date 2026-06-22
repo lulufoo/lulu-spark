@@ -411,3 +411,42 @@ export async function getReindexWorkbenchStatus() {
   const { invokeSearch } = await import('./apiClient.js');
   return invokeSearch('getReindexWorkbenchStatus');
 }
+
+export async function fetchSedimentKbCategories() {
+  return readGet('/api/sediment-kb/categories');
+}
+
+export async function fetchSedimentKbRepos() {
+  return readGet('/api/sediment-kb/repos');
+}
+
+export async function addSedimentKbRepo(fullName, categoryId) {
+  const body = { full_name: fullName };
+  if (categoryId != null && categoryId !== '') {
+    body.category_id = categoryId;
+  }
+  return writePost('/api/sediment-kb/repos/add', body);
+}
+
+export async function removeSedimentKbRepo(fullName) {
+  return writePost('/api/sediment-kb/repos/remove', { full_name: fullName });
+}
+
+export async function updateSedimentKbRepoCategory(fullName, categoryId) {
+  return writePost('/api/sediment-kb/repos/update-category', {
+    full_name: fullName,
+    category_id: categoryId,
+  });
+}
+
+export async function addSedimentKbCategory(name) {
+  return writePost('/api/sediment-kb/categories/add', { name });
+}
+
+export async function renameSedimentKbCategory(id, name) {
+  return writePost('/api/sediment-kb/categories/rename', { id, name });
+}
+
+export async function removeSedimentKbCategory(id) {
+  return writePost('/api/sediment-kb/categories/remove', { id });
+}

@@ -136,6 +136,30 @@ export const WRITE_API_INVOKE_MAP = {
       value: body.value,
     }),
   },
+  '/api/sediment-kb/repos/add': {
+    cmd: 'sediment_kb_add_repo',
+    args: (body) => ({ payload: body ?? {} }),
+  },
+  '/api/sediment-kb/repos/remove': {
+    cmd: 'sediment_kb_remove_repo',
+    args: (body) => ({ payload: body ?? {} }),
+  },
+  '/api/sediment-kb/repos/update-category': {
+    cmd: 'sediment_kb_update_repo_category',
+    args: (body) => ({ payload: body ?? {} }),
+  },
+  '/api/sediment-kb/categories/add': {
+    cmd: 'sediment_kb_add_category',
+    args: (body) => ({ payload: body ?? {} }),
+  },
+  '/api/sediment-kb/categories/rename': {
+    cmd: 'sediment_kb_rename_category',
+    args: (body) => ({ payload: body ?? {} }),
+  },
+  '/api/sediment-kb/categories/remove': {
+    cmd: 'sediment_kb_remove_category',
+    args: (body) => ({ payload: body ?? {} }),
+  },
 };
 
 /**

@@ -103,6 +103,12 @@ export const READ_API_INVOKE_MAP = {
     cmd: 'fetch_link_title',
     args: (url) => ({ url: url.searchParams.get('url') ?? '' }),
   },
+  '/api/sediment-kb/categories': {
+    cmd: 'get_sediment_kb_categories',
+  },
+  '/api/sediment-kb/repos': {
+    cmd: 'get_sediment_kb_repos',
+  },
 };
 
 /**

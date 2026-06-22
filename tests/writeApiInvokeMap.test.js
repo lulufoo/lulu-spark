@@ -21,14 +21,20 @@ const P2_WRITE_PATHS = [
   '/api/tag/attach',
   '/api/tag/detach',
   '/api/tag/update-value',
+  '/api/sediment-kb/repos/add',
+  '/api/sediment-kb/repos/remove',
+  '/api/sediment-kb/repos/update-category',
+  '/api/sediment-kb/categories/add',
+  '/api/sediment-kb/categories/rename',
+  '/api/sediment-kb/categories/remove',
 ];
 
 describe('writeApiInvokeMap', () => {
-  it('covers all 16 P2 POST paths', () => {
+  it('covers all 22 P2 POST paths', () => {
     for (const p of P2_WRITE_PATHS) {
       expect(WRITE_API_INVOKE_MAP[p]?.cmd, p).toBeTruthy();
     }
-    expect(Object.keys(WRITE_API_INVOKE_MAP)).toHaveLength(16);
+    expect(Object.keys(WRITE_API_INVOKE_MAP)).toHaveLength(22);
   });
 
   it('resolveWriteInvoke maps set-done body to set_done command', () => {
@@ -45,6 +51,7 @@ describe('writeApiInvokeMap', () => {
 
   it('resolveWriteInvoke returns null for unknown path', () => {
     expect(resolveWriteInvoke('/api/commit', {})).toBeNull();
+    expect(resolveWriteInvoke('/api/sediment-kb/unknown', {})).toBeNull();
   });
 
   it('resolveWriteInvoke maps save_entry fields', () => {
