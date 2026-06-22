@@ -158,8 +158,56 @@ const _KB_TYPES = new Set(['KNOWLEDGE_CORPUS', 'WORKBENCH_KNOWLEDGE']);
 let _kbCorpusStatus = null;
 let _kbCorpusStatusType = null;
 let _kbCorpusDiffStatus = null;
+let _sedimentKbList = null;
+let _sedimentKbError = null;
+
+async function loadSedimentKbList(forceRefresh = false) {
+  const filterType = 'KNOWLEDGE_CORPUS';
+  if (!forceRefresh && _sedimentKbList && !_sedimentKbError) {
+    _renderRepoListFiltered();
+    return;
+  }
+  _kbCorpusStatusType = filterType;
+  _kbCorpusStatus = null;
+  _sedimentKbList = null;
+  _sedimentKbError = null;
+  _kbCorpusDiffStatus = null;
+  const content = document.getElementById('repo-list-content');
+  try {
+    const data = await api.fetchSedimentKbRepos();
+    if (_kbCorpusStatusType !== filterType) return;
+    if (data?.error) throw new Error(data.error);
+    _sedimentKbList = (data.repos || []).map((r) => ({
+      full_name: r.full_name,
+      name: (r.full_name || '').split('/').pop() || r.full_name,
+      description: r.description || '',
+      type: 'KNOWLEDGE_CORPUS',
+      category_id: r.category_id,
+      category_name: r.category_name,
+    }));
+    _kbCorpusStatus = _sedimentKbList.map((r) => ({
+      full_name: r.full_name,
+      name: r.name,
+      description: r.description,
+      local_exists: false,
+    }));
+  } catch (e) {
+    if (_kbCorpusStatusType !== filterType) return;
+    _sedimentKbError = e.message || String(e);
+    _sedimentKbList = [];
+    _kbCorpusStatus = [];
+    if (content) {
+      content.innerHTML = `<div id="repo-list-loading" style="color:#cf222e">加载失败：${escHtml(_sedimentKbError)}</div>`;
+    }
+    return;
+  }
+  _renderRepoListFiltered();
+}
 
 async function _loadKbCorpusStatus(filterType, forceRefresh = false) {
+  if (filterType === 'KNOWLEDGE_CORPUS') {
+    return loadSedimentKbList(forceRefresh);
+  }
   if (!forceRefresh && _kbCorpusStatus && _kbCorpusStatusType === filterType) {
     _renderRepoListFiltered();
     return;
@@ -176,23 +224,7 @@ async function _loadKbCorpusStatus(filterType, forceRefresh = false) {
   }
   _renderRepoListFiltered();
 
-  if (filterType !== 'KNOWLEDGE_CORPUS') {
-    _kbCorpusDiffStatus = null;
-    return;
-  }
-
   _kbCorpusDiffStatus = null;
-  try {
-    const data = await api.fetchKbDiffStatus();
-    if (_kbCorpusStatusType !== filterType) return;
-    _kbCorpusDiffStatus = new Map(
-      (data?.repos || []).map((repo) => [repo.full_name, repo.has_changes === true])
-    );
-  } catch (e) {
-    if (_kbCorpusStatusType !== filterType) return;
-    _kbCorpusDiffStatus = new Map();
-  }
-  _renderRepoListFiltered();
 }
 
 function _repoTypeKey(r) {
@@ -202,15 +234,24 @@ function _repoTypeKey(r) {
 function _renderRepoListFiltered() {
   const filter = document.getElementById('repo-list-filter');
   const selected = filter ? filter.value : '__ALL__';
-  const repos = selected === '__ALL__'
-    ? _repoListAll
-    : _repoListAll.filter(r => _repoTypeKey(r) === selected);
+  let repos;
+  if (selected === 'KNOWLEDGE_CORPUS' && _sedimentKbList) {
+    repos = _sedimentKbList;
+  } else {
+    repos = selected === '__ALL__'
+      ? _repoListAll
+      : _repoListAll.filter(r => _repoTypeKey(r) === selected);
+  }
 
   const isKbView = _KB_TYPES.has(selected);
   const syncBtn = document.getElementById('btn-kb-corpus-sync');
-  if (syncBtn) syncBtn.style.display = isKbView ? '' : 'none';
+  if (syncBtn) syncBtn.style.display = selected === 'WORKBENCH_KNOWLEDGE' ? '' : 'none';
 
   const content = document.getElementById('repo-list-content');
+  if (_sedimentKbError && selected === 'KNOWLEDGE_CORPUS') {
+    content.innerHTML = `<div id="repo-list-loading" style="color:#cf222e">加载失败：${escHtml(_sedimentKbError)}</div>`;
+    return;
+  }
   if (!repos || repos.length === 0) {
     content.innerHTML = '<div id="repo-list-loading">未找到任何仓库</div>';
     return;
@@ -358,6 +399,8 @@ document.getElementById('repo-list-filter').addEventListener('change', () => {
   _kbCorpusStatus = null;
   _kbCorpusStatusType = null;
   _kbCorpusDiffStatus = null;
+  _sedimentKbList = null;
+  _sedimentKbError = null;
   _renderRepoListFiltered();
   if (_KB_TYPES.has(val)) {
     _loadKbCorpusStatus(val);
@@ -454,12 +497,13 @@ document.getElementById('repo-list-dialog').addEventListener('click', e => {
 });
 
 document.getElementById('btn-kb-corpus-sync').addEventListener('click', async () => {
+  const filter = document.getElementById('repo-list-filter');
+  const filterType = filter ? filter.value : 'KNOWLEDGE_CORPUS';
+  if (filterType === 'KNOWLEDGE_CORPUS') return;
   const btn = document.getElementById('btn-kb-corpus-sync');
   btn.disabled = true;
   btn.textContent = '⊙ 同步中…';
   try {
-    const filter = document.getElementById('repo-list-filter');
-    const filterType = filter ? filter.value : 'KNOWLEDGE_CORPUS';
     let poll;
     if (filterType === 'WORKBENCH_KNOWLEDGE') {
       await api.syncWorkbenchCorpus();

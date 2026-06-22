@@ -197,82 +197,66 @@ pub fn get_corpus_file(
     Ok(workbench_read::get_corpus_file(&repo_root()?, &layer, &path))
 }
 
+/// Return WORKBENCH_KNOWLEDGE repos (derived from repo-list) with `local_exists`.
+/// KNOWLEDGE_CORPUS is deprecated for list UI — use `get_sediment_kb_repos` instead.
+pub fn kb_corpus_status_json(filter_type: Option<&str>) -> Result<Value, String> {
+    let filter = filter_type.unwrap_or("KNOWLEDGE_CORPUS");
+    if filter == "KNOWLEDGE_CORPUS" {
+        return Ok(json!({
+            "deprecated": true,
+            "repos": [],
+        }));
+    }
+
+    let repo_root = repo_root().map_err(|e| format!("{e:?}"))?;
+    let workbench_knowledge_root =
+        crate::config::meili_env::workbench_knowledge_root_path(&repo_root);
+
+    let cache_path = crate::config::paths::repo_list_cache_path().map_err(|e| format!("{e:?}"))?;
+    if !cache_path.is_file() {
+        return Ok(json!({ "repos": [] }));
+    }
+    let text = std::fs::read_to_string(&cache_path).map_err(|e| e.to_string())?;
+    let data: Value = serde_json::from_str(&text).map_err(|e| e.to_string())?;
+    let repos: Vec<Value> = data
+        .get("repos")
+        .and_then(|v| v.as_array())
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|repo| {
+                    if repo.get("type").and_then(|v| v.as_str()) != Some(filter) {
+                        return None;
+                    }
+                    let full_name = repo.get("full_name")?.as_str()?;
+                    let name = full_name.split('/').next_back().unwrap_or(full_name);
+                    let local_exists = workbench_knowledge_root
+                        .file_name()
+                        .and_then(|n| n.to_str())
+                        .map(|dir_name| dir_name == name)
+                        .unwrap_or(false)
+                        && workbench_knowledge_root.join(".git").exists();
+                    Some(json!({
+                        "full_name": full_name,
+                        "name": name,
+                        "description": repo.get("description").cloned().unwrap_or(Value::Null),
+                        "local_exists": local_exists,
+                    }))
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+    Ok(json!({ "repos": repos }))
+}
+
 /// Return every WORKBENCH_KNOWLEDGE repo (derived from repo-list) together with
 /// a `local_exists` flag indicating whether the repo is already cloned locally.
-/// `filter_type` defaults to `KNOWLEDGE_CORPUS`; pass `WORKBENCH_KNOWLEDGE` for the
-/// workbench corpus repos.
+/// KNOWLEDGE_CORPUS list UI must use sediment-kb API; this command returns deprecated empty data.
 #[tauri::command]
 pub fn get_kb_corpus_status(
     _app: AppHandle,
     filter_type: Option<String>,
 ) -> Result<Value, String> {
-    let repo_root = repo_root()?;
-    let filter = filter_type.as_deref().unwrap_or("KNOWLEDGE_CORPUS");
-    let knowledge_corpus_root = std::path::PathBuf::from(
-        crate::config::meili_env::knowledge_corpus_root_string(&repo_root),
-    );
-    let workbench_knowledge_root =
-        crate::config::meili_env::workbench_knowledge_root_path(&repo_root);
-
-    let repos: Vec<Value> = if filter == "KNOWLEDGE_CORPUS" {
-        // Fast path: use the already-filtered topics list
-        let topics = workbench_read::get_topics(&repo_root);
-        topics
-            .get("topics")
-            .and_then(|t| t.as_array())
-            .map(|arr| {
-                arr.iter()
-                    .filter_map(|item| {
-                        let full_name = item.get("repo")?.as_str()?;
-                        let name = full_name.split('/').next_back().unwrap_or(full_name);
-                        let local_exists = knowledge_corpus_root.join(name).is_dir();
-                        Some(json!({
-                            "full_name": full_name,
-                            "name": name,
-                            "description": item.get("description").cloned().unwrap_or(Value::Null),
-                            "local_exists": local_exists,
-                        }))
-                    })
-                    .collect()
-            })
-            .unwrap_or_default()
-    } else {
-        // Read repo-list.json and filter by the requested type
-        let cache_path = crate::config::paths::repo_list_cache_path()
-            .map_err(|e| format!("{e:?}"))?;
-        if !cache_path.is_file() {
-            return Ok(json!({ "repos": [] }));
-        }
-        let text = std::fs::read_to_string(&cache_path).map_err(|e| e.to_string())?;
-        let data: Value = serde_json::from_str(&text).map_err(|e| e.to_string())?;
-        data.get("repos")
-            .and_then(|v| v.as_array())
-            .map(|arr| {
-                arr.iter()
-                    .filter_map(|repo| {
-                        if repo.get("type").and_then(|v| v.as_str()) != Some(filter) {
-                            return None;
-                        }
-                        let full_name = repo.get("full_name")?.as_str()?;
-                        let name = full_name.split('/').next_back().unwrap_or(full_name);
-                        let local_exists = workbench_knowledge_root
-                            .file_name()
-                            .and_then(|n| n.to_str())
-                            .map(|dir_name| dir_name == name)
-                            .unwrap_or(false)
-                            && workbench_knowledge_root.join(".git").exists();
-                        Some(json!({
-                            "full_name": full_name,
-                            "name": name,
-                            "description": repo.get("description").cloned().unwrap_or(Value::Null),
-                            "local_exists": local_exists,
-                        }))
-                    })
-                    .collect()
-            })
-            .unwrap_or_default()
-    };
-    Ok(json!({ "repos": repos }))
+    kb_corpus_status_json(filter_type.as_deref())
 }
 
 #[tauri::command]
@@ -360,3 +344,7 @@ pub fn get_sediment_kb_repos(_app: AppHandle) -> Result<Value, String> {
 #[cfg(test)]
 #[path = "../unit-tests/commands/sediment_kb_read.rs"]
 mod sediment_kb_read_tests;
+
+#[cfg(test)]
+#[path = "../unit-tests/commands/kb_corpus_status.rs"]
+mod kb_corpus_status_tests;
