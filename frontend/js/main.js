@@ -144,14 +144,30 @@ function _closeAllMenuDropdowns() {
   _skillsMenuDropdown.classList.remove('open');
 }
 
-// ── 列表（repo-list：全量 Git 仓库，按 type 分组 + 筛选）────────────────
+// ── 沉淀知识库（sediment-kb：精选列表，按分类分组）────────────────────────
 
 function _closeRepoListDialog() {
   document.getElementById('repo-list-dialog').classList.remove('open');
+  if (_sedimentListMode) {
+    _sedimentListMode = false;
+    const filter = document.getElementById('repo-list-filter');
+    const title = document.querySelector('#repo-list-title-group h3');
+    if (filter) filter.style.display = '';
+    if (title) title.textContent = '☰ 仓库列表';
+  }
+}
+
+function _closeSedimentKbAddDialog() {
+  document.getElementById('sediment-kb-add-dialog').classList.remove('open');
+}
+
+function _closeSedimentKbManageDialog() {
+  document.getElementById('sediment-kb-manage-dialog').classList.remove('open');
 }
 
 let _repoListAll = [];
 let _repoListCache = null;
+let _sedimentListMode = false;
 
 const _KB_TYPES = new Set(['KNOWLEDGE_CORPUS', 'WORKBENCH_KNOWLEDGE']);
 
@@ -160,11 +176,169 @@ let _kbCorpusStatusType = null;
 let _kbCorpusDiffStatus = null;
 let _sedimentKbList = null;
 let _sedimentKbError = null;
+let _sedimentKbCategories = null;
+
+function _setSedimentKbError(elId, message) {
+  const el = document.getElementById(elId);
+  if (!el) return;
+  if (message) {
+    el.textContent = message;
+    el.style.display = '';
+  } else {
+    el.textContent = '';
+    el.style.display = 'none';
+  }
+}
+
+async function _ensureSedimentKbCategories() {
+  if (_sedimentKbCategories) return _sedimentKbCategories;
+  const data = await api.fetchSedimentKbCategories();
+  _sedimentKbCategories = data.categories || [];
+  return _sedimentKbCategories;
+}
+
+function renderSedimentKbListByCategory(repos) {
+  const content = document.getElementById('repo-list-content');
+  if (!repos || repos.length === 0) {
+    content.innerHTML = '<div id="repo-list-loading">未找到任何仓库</div>';
+    return;
+  }
+
+  const categories = _sedimentKbCategories || [];
+  const statusMap = {};
+  if (_kbCorpusStatus) {
+    for (const s of _kbCorpusStatus) statusMap[s.full_name] = s;
+  }
+
+  const groups = {};
+  for (const r of repos) {
+    const key = r.category_name || '未分类';
+    if (!groups[key]) groups[key] = [];
+    groups[key].push(r);
+  }
+  for (const key of Object.keys(groups)) {
+    groups[key].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'en', { sensitivity: 'base' }));
+  }
+
+  const sortedKeys = Object.keys(groups).sort((a, b) => {
+    if (a === '未分类') return 1;
+    if (b === '未分类') return -1;
+    return a.localeCompare(b, 'en', { sensitivity: 'base' });
+  });
+
+  const html = sortedKeys.map(key => {
+    const items = groups[key].map(r => {
+      const name = escHtml(r.name || r.full_name || '');
+      const desc = r.description ? `<div class="repo-list-item-desc">${escHtml(r.description)}</div>` : '';
+      const url = `https://github.com/${escHtml(r.full_name || r.name)}`;
+
+      let localBadge = '';
+      let diffBtnHtml = '';
+      let syncBtnHtml = '';
+      const st = statusMap[r.full_name];
+      if (st) {
+        localBadge = st.local_exists
+          ? `<span class="repo-local-badge repo-local-ok">已克隆</span>`
+          : `<span class="repo-local-badge repo-local-missing">未克隆</span>`;
+        if (_kbCorpusDiffStatus?.get(r.full_name) === true) {
+          diffBtnHtml = `<button class="repo-diff-badge" data-repo="${escHtml(r.full_name)}" title="查看本地变更">✎</button>`;
+        }
+        syncBtnHtml = `<button class="repo-sync-btn" data-repo="${escHtml(r.full_name)}" data-repotype="KNOWLEDGE_CORPUS">SYNC</button>`;
+      }
+
+      const catSelectOptions = categories.map(c => {
+        const sel = c.id === r.category_id ? ' selected' : '';
+        return `<option value="${escHtml(c.id)}"${sel}>${escHtml(c.name)}</option>`;
+      }).join('');
+
+      return `<div class="repo-list-item">
+        <div class="repo-list-item-info">
+          <div class="repo-list-item-name">${name}${localBadge}</div>
+          ${desc}
+        </div>
+        <div class="repo-list-item-actions">
+          <select class="sediment-kb-inline-category" data-repo="${escHtml(r.full_name)}">${catSelectOptions}</select>
+          ${diffBtnHtml}
+          ${syncBtnHtml}
+          <a class="repo-list-item-link" href="${url}" target="_blank" rel="noopener noreferrer">Link ↗</a>
+          <button type="button" class="sediment-kb-delete-btn" data-repo="${escHtml(r.full_name)}" title="从精选列表移除">删除</button>
+        </div>
+      </div>`;
+    }).join('');
+    return `<div class="repo-list-group-title">${escHtml(key)}</div>${items}`;
+  }).join('');
+
+  content.innerHTML = html;
+
+  content.querySelectorAll('.repo-sync-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const repo = btn.dataset.repo;
+      btn.disabled = true;
+      btn.textContent = '…';
+      try {
+        await api.reindexKbRepo(repo);
+        const poll = () => api.getReindexStatus();
+        for (let i = 0; i < 120; i++) {
+          await new Promise(r => setTimeout(r, 2000));
+          const s = await poll();
+          if (s?.status !== 'running') break;
+        }
+        _kbCorpusStatus = null;
+        await _loadKbCorpusStatus('KNOWLEDGE_CORPUS', true);
+      } catch (e) {
+        alert(`同步失败：${e.message}`);
+        btn.disabled = false;
+        btn.textContent = 'SYNC';
+      }
+    });
+  });
+
+  content.querySelectorAll('.repo-diff-badge').forEach(btn => {
+    btn.addEventListener('click', () => {
+      openKbDiffDialog(btn.dataset.repo);
+    });
+  });
+
+  content.querySelectorAll('.sediment-kb-inline-category').forEach(sel => {
+    sel.addEventListener('change', () => {
+      onInlineCategoryChange(sel.dataset.repo, sel.value);
+    });
+  });
+
+  content.querySelectorAll('.sediment-kb-delete-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      onDeleteSedimentKbRepo(btn.dataset.repo);
+    });
+  });
+}
+
+async function onInlineCategoryChange(fullName, categoryId) {
+  try {
+    const res = await api.updateSedimentKbRepoCategory(fullName, categoryId);
+    if (res?.error) throw new Error(res.error);
+    _sedimentKbList = null;
+    await loadSedimentKbList(true);
+  } catch (e) {
+    alert(`更新分类失败：${e.message}`);
+    await loadSedimentKbList(true);
+  }
+}
+
+async function onDeleteSedimentKbRepo(fullName) {
+  try {
+    const res = await api.removeSedimentKbRepo(fullName);
+    if (res?.error) throw new Error(res.error);
+    _sedimentKbList = null;
+    await loadSedimentKbList(true);
+  } catch (e) {
+    alert(`删除失败：${e.message}`);
+  }
+}
 
 async function loadSedimentKbList(forceRefresh = false) {
   const filterType = 'KNOWLEDGE_CORPUS';
   if (!forceRefresh && _sedimentKbList && !_sedimentKbError) {
-    _renderRepoListFiltered();
+    renderSedimentKbListByCategory(_sedimentKbList);
     return;
   }
   _kbCorpusStatusType = filterType;
@@ -174,10 +348,14 @@ async function loadSedimentKbList(forceRefresh = false) {
   _kbCorpusDiffStatus = null;
   const content = document.getElementById('repo-list-content');
   try {
-    const data = await api.fetchSedimentKbRepos();
+    const [reposData, catsData] = await Promise.all([
+      api.fetchSedimentKbRepos(),
+      api.fetchSedimentKbCategories(),
+    ]);
     if (_kbCorpusStatusType !== filterType) return;
-    if (data?.error) throw new Error(data.error);
-    _sedimentKbList = (data.repos || []).map((r) => ({
+    if (reposData?.error) throw new Error(reposData.error);
+    _sedimentKbCategories = catsData.categories || [];
+    _sedimentKbList = (reposData.repos || []).map((r) => ({
       full_name: r.full_name,
       name: (r.full_name || '').split('/').pop() || r.full_name,
       description: r.description || '',
@@ -201,7 +379,7 @@ async function loadSedimentKbList(forceRefresh = false) {
     }
     return;
   }
-  _renderRepoListFiltered();
+  renderSedimentKbListByCategory(_sedimentKbList);
 }
 
 async function _loadKbCorpusStatus(filterType, forceRefresh = false) {
@@ -244,10 +422,11 @@ function _renderRepoListFiltered() {
   }
 
   const isKbView = _KB_TYPES.has(selected);
-  const syncBtn = document.getElementById('btn-kb-corpus-sync');
-  if (syncBtn) syncBtn.style.display = selected === 'WORKBENCH_KNOWLEDGE' ? '' : 'none';
-
   const content = document.getElementById('repo-list-content');
+  if (selected === 'KNOWLEDGE_CORPUS' && _sedimentKbList) {
+    renderSedimentKbListByCategory(_sedimentKbList);
+    return;
+  }
   if (_sedimentKbError && selected === 'KNOWLEDGE_CORPUS') {
     content.innerHTML = `<div id="repo-list-loading" style="color:#cf222e">加载失败：${escHtml(_sedimentKbError)}</div>`;
     return;
@@ -470,17 +649,121 @@ async function _loadRepoListData() {
   }
 }
 
-document.getElementById('btn-repo-list').addEventListener('click', async () => {
-  _repoMenuDropdown.classList.remove('open');
-  document.getElementById('repo-list-dialog').classList.add('open');
-  await _loadRepoListData();
+async function openSedimentKbListDialog() {
+  _sedimentListMode = true;
   const filter = document.getElementById('repo-list-filter');
-  const val = filter ? filter.value : 'KNOWLEDGE_CORPUS';
-  if (_KB_TYPES.has(val)) _loadKbCorpusStatus(val);
+  const title = document.querySelector('#repo-list-title-group h3');
+  const cacheTime = document.getElementById('repo-list-cache-time');
+  if (filter) filter.style.display = 'none';
+  if (title) title.textContent = '☰ 沉淀知识库列表';
+  if (cacheTime) cacheTime.textContent = '';
+  document.getElementById('repo-list-dialog').classList.add('open');
+  const content = document.getElementById('repo-list-content');
+  content.innerHTML = '<div id="repo-list-loading">加载中…</div>';
+  await loadSedimentKbList(true);
+}
+
+async function openSedimentKbAddDialog() {
+  const urlInput = document.getElementById('sediment-kb-add-url');
+  _setSedimentKbError('sediment-kb-add-error', '');
+  urlInput.value = '';
+  try {
+    const categories = await _ensureSedimentKbCategories();
+    const catSelect = document.getElementById('sediment-kb-add-category');
+    catSelect.innerHTML = categories.map(c =>
+      `<option value="${escHtml(c.id)}">${escHtml(c.name)}</option>`,
+    ).join('');
+  } catch (e) {
+    document.getElementById('sediment-kb-add-category').innerHTML =
+      '<option value="uncategorized">未分类</option>';
+  }
+  document.getElementById('sediment-kb-add-dialog').classList.add('open');
+  urlInput.focus();
+}
+
+function _renderSedimentKbManageList(categories) {
+  const list = document.getElementById('sediment-kb-manage-list');
+  list.innerHTML = categories.map(c => {
+    const isProtected = c.id === 'uncategorized';
+    const deleteBtn = isProtected
+      ? ''
+      : `<button type="button" class="sediment-kb-cat-delete-btn" data-id="${escHtml(c.id)}">删除</button>`;
+    const nameCell = isProtected
+      ? `<span class="sediment-kb-cat-name-readonly">${escHtml(c.name)}</span>`
+      : `<input class="sediment-kb-cat-rename-input" data-id="${escHtml(c.id)}" type="text" value="${escHtml(c.name)}" />`;
+    return `<div class="sediment-kb-manage-row">${nameCell}${deleteBtn}</div>`;
+  }).join('');
+
+  list.querySelectorAll('.sediment-kb-cat-rename-input').forEach(input => {
+    input.addEventListener('change', async () => {
+      const id = input.dataset.id;
+      const name = input.value.trim();
+      if (!name) return;
+      try {
+        const res = await api.renameSedimentKbCategory(id, name);
+        if (res?.error) throw new Error(res.error);
+        _sedimentKbCategories = null;
+        const data = await api.fetchSedimentKbCategories();
+        _sedimentKbCategories = data.categories || [];
+        _renderSedimentKbManageList(_sedimentKbCategories);
+      } catch (e) {
+        _setSedimentKbError('sediment-kb-manage-error', e.message);
+      }
+    });
+  });
+
+  list.querySelectorAll('.sediment-kb-cat-delete-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      try {
+        const res = await api.removeSedimentKbCategory(btn.dataset.id);
+        if (res?.error) throw new Error(res.error);
+        _sedimentKbCategories = null;
+        _sedimentKbList = null;
+        const data = await api.fetchSedimentKbCategories();
+        _sedimentKbCategories = data.categories || [];
+        _renderSedimentKbManageList(_sedimentKbCategories);
+        _setSedimentKbError('sediment-kb-manage-error', '');
+      } catch (e) {
+        _setSedimentKbError('sediment-kb-manage-error', e.message);
+      }
+    });
+  });
+}
+
+async function openSedimentKbManageDialog() {
+  _setSedimentKbError('sediment-kb-manage-error', '');
+  document.getElementById('sediment-kb-manage-new-name').value = '';
+  try {
+    const categories = await _ensureSedimentKbCategories();
+    _renderSedimentKbManageList(categories);
+  } catch (e) {
+    document.getElementById('sediment-kb-manage-list').innerHTML =
+      `<div class="sediment-kb-error">${escHtml(e.message)}</div>`;
+  }
+  document.getElementById('sediment-kb-manage-dialog').classList.add('open');
+}
+
+document.getElementById('btn-sediment-kb-list').addEventListener('click', () => {
+  _repoMenuDropdown.classList.remove('open');
+  void openSedimentKbListDialog();
+});
+
+document.getElementById('btn-sediment-kb-add').addEventListener('click', () => {
+  _repoMenuDropdown.classList.remove('open');
+  void openSedimentKbAddDialog();
+});
+
+document.getElementById('btn-sediment-kb-manage').addEventListener('click', () => {
+  _repoMenuDropdown.classList.remove('open');
+  void openSedimentKbManageDialog();
 });
 
 document.getElementById('btn-repo-list-refresh').addEventListener('click', () => {
   void (async () => {
+    if (_sedimentListMode) {
+      await loadSedimentKbList(true);
+      return;
+    }
     await _showRepoListFromCache();
     const filter = document.getElementById('repo-list-filter');
     const val = filter ? filter.value : 'KNOWLEDGE_CORPUS';
@@ -496,37 +779,66 @@ document.getElementById('repo-list-dialog').addEventListener('click', e => {
   if (e.target === document.getElementById('repo-list-dialog')) _closeRepoListDialog();
 });
 
-document.getElementById('btn-kb-corpus-sync').addEventListener('click', async () => {
-  const filter = document.getElementById('repo-list-filter');
-  const filterType = filter ? filter.value : 'KNOWLEDGE_CORPUS';
-  if (filterType === 'KNOWLEDGE_CORPUS') return;
-  const btn = document.getElementById('btn-kb-corpus-sync');
-  btn.disabled = true;
-  btn.textContent = '⊙ 同步中…';
-  try {
-    let poll;
-    if (filterType === 'WORKBENCH_KNOWLEDGE') {
-      await api.syncWorkbenchCorpus();
-      poll = () => api.getReindexWorkbenchStatus();
-    } else {
-      await api.syncKnowledgeCorpus();
-      poll = () => api.getReindexStatus();
+document.getElementById('btn-sediment-kb-add-cancel').addEventListener('click', _closeSedimentKbAddDialog);
+document.getElementById('sediment-kb-add-dialog').addEventListener('click', e => {
+  if (e.target === document.getElementById('sediment-kb-add-dialog')) _closeSedimentKbAddDialog();
+});
+document.getElementById('btn-sediment-kb-add-submit').addEventListener('click', () => {
+  void (async () => {
+    const urlInput = document.getElementById('sediment-kb-add-url');
+    const catSelect = document.getElementById('sediment-kb-add-category');
+    const submitBtn = document.getElementById('btn-sediment-kb-add-submit');
+    const fullName = urlInput.value.trim();
+    if (!fullName) {
+      _setSedimentKbError('sediment-kb-add-error', '请输入仓库地址');
+      return;
     }
-    for (let i = 0; i < 120; i++) {
-      await new Promise(r => setTimeout(r, 2000));
-      const s = await poll();
-      if (s?.status !== 'running') break;
+    submitBtn.disabled = true;
+    _setSedimentKbError('sediment-kb-add-error', '');
+    try {
+      const categoryId = catSelect.value || undefined;
+      const res = await api.addSedimentKbRepo(fullName, categoryId);
+      if (res?.error) throw new Error(res.error);
+      _sedimentKbList = null;
+      _sedimentKbCategories = null;
+      _closeSedimentKbAddDialog();
+    } catch (e) {
+      _setSedimentKbError('sediment-kb-add-error', e.message);
+    } finally {
+      submitBtn.disabled = false;
     }
-    _kbCorpusStatus = null;
-    const filter2 = document.getElementById('repo-list-filter');
-    const val = filter2 ? filter2.value : 'KNOWLEDGE_CORPUS';
-    await _loadKbCorpusStatus(val, true);
-  } catch (e) {
-    alert(`全量同步失败：${e.message}`);
-  } finally {
-    btn.disabled = false;
-    btn.textContent = '⊙ 全量同步';
-  }
+  })();
+});
+
+document.getElementById('btn-sediment-kb-manage-close').addEventListener('click', _closeSedimentKbManageDialog);
+document.getElementById('sediment-kb-manage-dialog').addEventListener('click', e => {
+  if (e.target === document.getElementById('sediment-kb-manage-dialog')) _closeSedimentKbManageDialog();
+});
+document.getElementById('btn-sediment-kb-manage-add').addEventListener('click', () => {
+  void (async () => {
+    const input = document.getElementById('sediment-kb-manage-new-name');
+    const name = input.value.trim();
+    if (!name) return;
+    try {
+      const res = await api.addSedimentKbCategory(name);
+      if (res?.error) throw new Error(res.error);
+      input.value = '';
+      _sedimentKbCategories = null;
+      const data = await api.fetchSedimentKbCategories();
+      _sedimentKbCategories = data.categories || [];
+      _renderSedimentKbManageList(_sedimentKbCategories);
+      _setSedimentKbError('sediment-kb-manage-error', '');
+    } catch (e) {
+      _setSedimentKbError('sediment-kb-manage-error', e.message);
+    }
+  })();
+});
+
+document.getElementById('sediment-kb-add-url').addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('btn-sediment-kb-add-submit').click();
+});
+document.getElementById('sediment-kb-manage-new-name').addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('btn-sediment-kb-manage-add').click();
 });
 
 // ── Event listeners ────────────────────────────────────────────────────────

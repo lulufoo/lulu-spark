@@ -22,9 +22,11 @@
   </div>
   <a href="https://github.com/lulufoo/lulu-workbench" target="_blank">GitHub ↗</a>
   <div id="repo-menu-wrap">
-    <button id="btn-repo-menu">⚙ 知识库</button>
+    <button id="btn-repo-menu">⚙ 沉淀知识库</button>
     <div id="repo-menu-dropdown">
-      <button id="btn-repo-list">☰ 查看列表</button>
+      <button id="btn-sediment-kb-add">＋ 添加</button>
+      <button id="btn-sediment-kb-manage">⚙ 管理</button>
+      <button id="btn-sediment-kb-list">☰ 列表</button>
     </div>
   </div>
   <div id="sync-menu-wrap">
@@ -269,8 +271,43 @@
     </div>
     <div id="repo-list-content"></div>
     <div id="repo-list-dialog-actions">
-      <button id="btn-kb-corpus-sync" class="md-header-btn" style="display:none">⊙ 全量同步</button>
       <button id="btn-repo-list-close" class="md-header-btn">关闭</button>
+    </div>
+  </div>
+</div>
+
+<!-- Sediment KB add dialog -->
+<div id="sediment-kb-add-dialog">
+  <div id="sediment-kb-add-dialog-box">
+    <h3>＋ 添加仓库</h3>
+    <div class="sediment-kb-field">
+      <label for="sediment-kb-add-url">GitHub 仓库地址</label>
+      <input id="sediment-kb-add-url" type="text" placeholder="owner/repo 或 GitHub URL" autocomplete="off" spellcheck="false" />
+    </div>
+    <div class="sediment-kb-field">
+      <label for="sediment-kb-add-category">分类（可选）</label>
+      <select id="sediment-kb-add-category"></select>
+    </div>
+    <div id="sediment-kb-add-error" class="sediment-kb-error" style="display:none"></div>
+    <div id="sediment-kb-add-dialog-actions">
+      <button id="btn-sediment-kb-add-cancel" type="button" class="md-header-btn">取消</button>
+      <button id="btn-sediment-kb-add-submit" type="button" class="md-header-btn primary">添加</button>
+    </div>
+  </div>
+</div>
+
+<!-- Sediment KB manage dialog -->
+<div id="sediment-kb-manage-dialog">
+  <div id="sediment-kb-manage-dialog-box">
+    <h3>⚙ 管理分类</h3>
+    <div id="sediment-kb-manage-list"></div>
+    <div id="sediment-kb-manage-add-row">
+      <input id="sediment-kb-manage-new-name" type="text" placeholder="新分类名称" autocomplete="off" spellcheck="false" />
+      <button id="btn-sediment-kb-manage-add" type="button" class="md-header-btn">添加分类</button>
+    </div>
+    <div id="sediment-kb-manage-error" class="sediment-kb-error" style="display:none"></div>
+    <div id="sediment-kb-manage-dialog-actions">
+      <button id="btn-sediment-kb-manage-close" type="button" class="md-header-btn">关闭</button>
     </div>
   </div>
 </div>

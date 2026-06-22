@@ -684,6 +684,129 @@
     flex-shrink: 0;
   }
 
+  .sediment-kb-inline-category {
+    font-size: 11px;
+    padding: 2px 4px;
+    border: 1px solid #d0d7de;
+    border-radius: 4px;
+    background: #fff;
+    color: #24292f;
+    max-width: 100px;
+  }
+  .sediment-kb-delete-btn {
+    flex-shrink: 0;
+    font-size: 11px;
+    padding: 2px 8px;
+    background: #fff;
+    border: 1px solid #d0d7de;
+    border-radius: 4px;
+    color: #cf222e;
+    cursor: pointer;
+    white-space: nowrap;
+    line-height: 1.6;
+  }
+  .sediment-kb-delete-btn:hover { background: #ffebe9; border-color: #cf222e; }
+
+  #sediment-kb-add-dialog,
+  #sediment-kb-manage-dialog {
+    position: fixed;
+    inset: 0;
+    z-index: 2000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0,0,0,.55);
+  }
+  #sediment-kb-add-dialog.open,
+  #sediment-kb-manage-dialog.open { display: flex; }
+  #sediment-kb-add-dialog-box,
+  #sediment-kb-manage-dialog-box {
+    background: #fff;
+    border-radius: 10px;
+    padding: 24px 24px 20px;
+    width: min(480px, 90vw);
+    max-height: 70vh;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    box-shadow: 0 8px 40px rgba(0,0,0,.3);
+  }
+  #sediment-kb-add-dialog-box h3,
+  #sediment-kb-manage-dialog-box h3 {
+    font-size: 15px;
+    color: #24292f;
+    margin: 0;
+    font-weight: 600;
+  }
+  .sediment-kb-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .sediment-kb-field label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #57606a;
+  }
+  .sediment-kb-field input,
+  .sediment-kb-field select,
+  #sediment-kb-manage-new-name {
+    font-size: 13px;
+    padding: 6px 8px;
+    border: 1px solid #d0d7de;
+    border-radius: 6px;
+  }
+  .sediment-kb-error {
+    font-size: 12px;
+    color: #cf222e;
+  }
+  #sediment-kb-add-dialog-actions,
+  #sediment-kb-manage-dialog-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+  }
+  #sediment-kb-manage-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    overflow-y: auto;
+    max-height: 240px;
+  }
+  .sediment-kb-manage-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .sediment-kb-cat-rename-input {
+    flex: 1 1 auto;
+    font-size: 13px;
+    padding: 4px 8px;
+    border: 1px solid #d0d7de;
+    border-radius: 6px;
+  }
+  .sediment-kb-cat-name-readonly {
+    flex: 1 1 auto;
+    font-size: 13px;
+    color: #57606a;
+  }
+  .sediment-kb-cat-delete-btn {
+    font-size: 11px;
+    padding: 2px 8px;
+    background: #fff;
+    border: 1px solid #d0d7de;
+    border-radius: 4px;
+    color: #cf222e;
+    cursor: pointer;
+  }
+  .sediment-kb-cat-delete-btn:hover { background: #ffebe9; border-color: #cf222e; }
+  #sediment-kb-manage-add-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  #sediment-kb-manage-new-name { flex: 1 1 auto; }
+
   #btn-pull {
     background: #373e47;
     border: 1px solid #444c56;
