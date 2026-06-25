@@ -66,3 +66,36 @@ fn kb_revert_all_resets_unmerged_repo() {
     );
     settings::set_test_config_dir(None);
 }
+
+#[test]
+fn kb_revert_all_removes_untracked_nested_git_dirs() {
+    let dir = tempfile::tempdir().expect("tmp");
+    let kb = dir.path().join("kb");
+    let repo = kb.join("myrepo");
+    fs::create_dir_all(&repo).expect("mkdir");
+    exec_ok(&repo, &["init"]);
+    configure_repo(&repo);
+    fs::write(repo.join("README.md"), "base\n").expect("write base");
+    exec_ok(&repo, &["add", "README.md"]);
+    exec_ok(&repo, &["commit", "-m", "base"]);
+
+    let nested = repo.join(".cache/worktrees/feature-a");
+    fs::create_dir_all(&nested).expect("mkdir nested");
+    exec_ok(&nested, &["init"]);
+    fs::write(nested.join("scratch.txt"), "wip\n").expect("write scratch");
+
+    let status = git::status_porcelain(&repo).expect("status");
+    assert!(status.contains(".cache/"), "fixture should show untracked .cache/");
+
+    settings::write_test_config(dir.path(), dir.path(), Some(&kb));
+    let v = kb_git_revert(&json!({ "repo": "org/myrepo" }));
+    assert_eq!(v["ok"], json!(true));
+
+    assert!(
+        !repo.join(".cache").exists(),
+        "revert all should remove .cache/ including nested git worktrees"
+    );
+    let after = git::status_porcelain(&repo).expect("status after");
+    assert!(after.trim().is_empty(), "expected clean tree, got: {after}");
+    settings::set_test_config_dir(None);
+}

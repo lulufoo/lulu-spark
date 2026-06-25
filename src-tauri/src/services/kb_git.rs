@@ -176,8 +176,9 @@ pub fn kb_git_revert(payload: &Value) -> Value {
                 "_status": 500
             });
         }
-        let _ = git::clean_force(&local, &["-fdx", ".knowledge_annotations/"]);
-        let _ = git::clean_force(&local, &["-fd"]);
+        // -ff: remove untracked dirs even when they contain nested git repos (e.g. .cache/worktrees/)
+        let _ = git::clean_force(&local, &["-ffdx", ".knowledge_annotations/"]);
+        let _ = git::clean_force(&local, &["-ffdx"]);
     }
     json!({ "ok": true })
 }
