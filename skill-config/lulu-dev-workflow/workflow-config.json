@@ -34,6 +34,7 @@
   },
   "tech-design": {
     "tdt_section_registry_url": "https://github.com/lulufoo/lulu-workflow-framework/blob/main/lulu-dev-workflow/template/tech-design/42-tech-design-section-registry.json",
+    "tdt_section_form_registry_url": "https://github.com/lulufoo/lulu-workflow-framework/blob/main/lulu-dev-workflow/template/tech-design/49-tech-design-section-form-registry.json",
     "tdt_section_kw_criteria_url": "https://github.com/lulufoo/lulu-workflow-framework/blob/main/lulu-dev-workflow/template/tech-design/43-tech-design-section-kw-criteria.md",
     "tdt_design_doc_template_url": "https://github.com/lulufoo/lulu-workflow-framework/blob/main/lulu-dev-workflow/template/tech-design/44-tech-design-design-doc-template.md",
     "tdt_outline_registry_url": "https://github.com/lulufoo/lulu-workflow-framework/blob/main/lulu-dev-workflow/template/tech-design/45-tech-design-feature-outline-registry.json",
