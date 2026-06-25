@@ -2209,8 +2209,28 @@
     gap: 14px;
   }
   #kb-comment-dialog-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
     padding-bottom: 10px;
     border-bottom: 1px solid #d0d7de;
+  }
+  #kb-comment-dialog-tabs {
+    display: flex;
+    gap: 2px;
+    background: #f6f8fa;
+    border: 1px solid #d0d7de;
+    border-radius: 6px;
+    padding: 2px;
+  }
+  #kb-comment-preview-pane {
+    min-height: 160px;
+    max-height: 400px;
+    overflow-y: auto;
+    padding: 8px 10px;
+    background: #fefef7;
+    border: 1px solid #ede8c0;
+    border-radius: 6px;
   }
   #kb-comment-dialog-box h3 { font-size: 14px; color: #24292f; margin: 0; font-weight: 600; }
   #kb-comment-dialog-actions {
@@ -2276,6 +2296,23 @@
   #comment-preview-pane th {
     background: #f6f8fa;
     font-weight: 600;
+  }
+  .mermaid-diagram {
+    margin: 12px 0;
+    overflow-x: auto;
+  }
+  .mermaid-diagram svg {
+    max-width: 100%;
+    height: auto;
+  }
+  .mermaid-error {
+    margin-top: 8px;
+    padding: 8px 10px;
+    border-radius: 6px;
+    background: #fff8f8;
+    border: 1px solid #ffccc7;
+    color: #cf222e;
+    font-size: 12px;
   }
   .badge-comment-dot {
     position: absolute;

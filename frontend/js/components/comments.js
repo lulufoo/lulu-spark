@@ -15,6 +15,7 @@ import {
   prepareCommentMarkdown,
   renderCommentMarkdown,
 } from '../comment-markdown.js'
+import { renderMermaidBlocks } from '../mermaid-render.js'
 
 // ── renderComments ─────────────────────────────────────────────────────────
 
@@ -316,7 +317,7 @@ export async function saveComment() {
 
 // Tab switch: edit / preview
 document.querySelectorAll('.comment-tab-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
+  btn.addEventListener('click', async () => {
     document.querySelectorAll('.comment-tab-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     const isPreview = btn.dataset.tab === 'preview';
@@ -328,6 +329,7 @@ document.querySelectorAll('.comment-tab-btn').forEach(btn => {
       );
       const inner = renderCommentMarkdown(_previewModeText);
       previewPane.innerHTML = `<div class="comment-item-text">${inner}</div>`;
+      await renderMermaidBlocks(previewPane);
       editorBox.style.display = 'none';
       previewPane.style.display = 'block';
     } else {

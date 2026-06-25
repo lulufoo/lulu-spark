@@ -9,6 +9,7 @@ import { renderTagsBar } from './tags-bar.js'
 import { renderComments } from './comments.js'
 import { openDeleteDialog } from './modals/delete-dialog.js'
 import { applyHighlights, initHighlightUI } from './highlights.js'
+import { initMermaid, renderMermaidBlocks } from '../mermaid-render.js'
 import { openKbDoc, saveKbDoc } from './kb-viewer.js'
 export { openKbDoc }
 import { mountKnowledgeSearch, triggerKnowledgeSearch } from './knowledge-search.js'
@@ -117,7 +118,7 @@ function postProcessLinks(container, layer, commonPath) {
 
 // ── renderDocBody ──────────────────────────────────────────────────────────
 
-export function renderDocBody(text, layer, commonPath) {
+export async function renderDocBody(text, layer, commonPath) {
   const body = document.getElementById('md-body');
   if (typeof marked !== 'undefined') {
     body.innerHTML = marked.parse(text);
@@ -128,6 +129,7 @@ export function renderDocBody(text, layer, commonPath) {
   document.getElementById('btn-edit').style.display = '';
   renderLinksBar(state.viewer.entry);
   renderTagsBar(state.viewer.entry);
+  await renderMermaidBlocks(body);
   renderComments(state.viewer.annotation, layer, state.viewer.entry);
   const zone = document.createElement('div');
   zone.className = 'md-body-delete-zone';
@@ -225,7 +227,7 @@ export async function openDoc(entry, layer = 'raw') {
     : bytes < 1024 * 1024
       ? `${(bytes / 1024).toFixed(1)} KB`
       : `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-  renderDocBody(text, layer, activePath);
+  await renderDocBody(text, layer, activePath);
   applyHighlights(state.viewer.annotation, layer);
   const hasDiff = state.index.diffStatus.get(`${layer}/${entry.common_path}`);
   if (hasDiff) showPendingBadge(); else hidePendingBadge();
@@ -262,7 +264,7 @@ export async function switchLang(lang) {
       : bytes < 1024 * 1024
         ? `${(bytes / 1024).toFixed(1)} KB`
         : `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-    renderDocBody(text, layer, activePath);
+    await renderDocBody(text, layer, activePath);
     applyHighlights(state.viewer.annotation, layer);
     // restore scroll position
     const cacheKey = `${getEntryId(entry)}:${layer}`;
@@ -307,9 +309,11 @@ export function exitEditMode(rerender = true) {
   document.getElementById('md-github-link').style.display = '';
   if (rerender && state.viewer.entry) {
     const activePath = getActivePath(state.viewer.entry, state.viewer.lang, state.viewer.layer);
-    renderDocBody(state.viewer.rawText, state.viewer.layer, activePath);
+    void renderDocBody(state.viewer.rawText, state.viewer.layer, activePath);
   }
 }
+
+initMermaid();
 
 export async function saveDoc() {
   if (state.viewer.isKb) {

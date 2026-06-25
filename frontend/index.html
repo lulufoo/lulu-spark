@@ -7,6 +7,7 @@
 <link rel="icon" type="image/svg+xml" href="icons/app-icon.svg">
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/turndown/dist/turndown.min.js"></script>
+<script src="vendor/mermaid.min.js"></script>
 <link rel="stylesheet" href="app.css?v=20260521c">
 </head>
 <body>
@@ -170,10 +171,15 @@
   <div id="kb-comment-dialog-box">
     <div id="kb-comment-dialog-header">
       <h3 id="kb-comment-dialog-title">💬 添加笔记</h3>
+      <div id="kb-comment-dialog-tabs">
+        <button class="comment-tab-btn active" data-tab="edit">编辑</button>
+        <button class="comment-tab-btn" data-tab="preview">预览</button>
+      </div>
     </div>
     <div id="kb-comment-editor-box" class="comment-editor-box" onclick="document.getElementById('kb-comment-dialog-content').focus()">
       <div id="kb-comment-dialog-content" class="comment-editor-content" contenteditable="true" spellcheck="false" autocorrect="off" autocapitalize="off" data-placeholder="输入笔记内容…（Ctrl/Cmd+Enter 保存）"></div>
     </div>
+    <div id="kb-comment-preview-pane" class="md-body" style="display:none"></div>
     <div id="kb-comment-dialog-actions">
       <button id="kb-btn-comment-cancel" class="md-header-btn">取消</button>
       <button id="kb-btn-comment-save" class="md-header-btn primary">保存</button>

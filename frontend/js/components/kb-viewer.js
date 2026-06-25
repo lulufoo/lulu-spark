@@ -4,6 +4,7 @@ import * as api from '../api.js'
 import { renderKbComments, initKbCommentEvents } from './kb-comments.js'
 import { applyKbHighlights, initKbHighlightUI } from './kb-highlights.js'
 import { renderKbLinksBar } from './kb-links-bar.js'
+import { renderMermaidBlocks } from '../mermaid-render.js'
 
 // ── postProcessLinks (KB) ──────────────────────────────────────────────────
 function postProcessKbLinks(container) {
@@ -15,6 +16,20 @@ function postProcessKbLinks(container) {
       a.rel = 'noopener noreferrer';
     }
   });
+}
+
+async function renderKbMdBody(text) {
+  const body = document.getElementById('kb-md-body');
+  if (typeof marked !== 'undefined') {
+    body.innerHTML = marked.parse(text);
+  } else {
+    body.innerHTML = `<pre style="white-space:pre-wrap;font-size:13px">${escHtml(text)}</pre>`;
+  }
+  postProcessKbLinks(body);
+  await renderMermaidBlocks(body);
+  renderKbComments(state.viewer.annotation);
+  applyKbHighlights(state.viewer.annotation);
+  renderKbLinksBar(state.viewer.annotation);
 }
 
 // ── openKbDoc ──────────────────────────────────────────────────────────────
@@ -92,17 +107,13 @@ export async function openKbDoc(kbHit) {
         : `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 
     if (typeof marked !== 'undefined') {
-      body.innerHTML = marked.parse(text);
+      await renderKbMdBody(text);
     } else {
       body.innerHTML = `<pre style="white-space:pre-wrap;font-size:13px">${escHtml(text)}</pre>`;
     }
-    postProcessKbLinks(body);
 
     document.getElementById('kb-btn-edit').style.display = '';
 
-    renderKbComments(ann);
-    applyKbHighlights(ann);
-    renderKbLinksBar(ann);
     initKbCommentEvents();
     initKbHighlightUI();
 
@@ -137,14 +148,10 @@ export async function saveKbDoc() {
 
     const body = document.getElementById('kb-md-body');
     if (typeof marked !== 'undefined') {
-      body.innerHTML = marked.parse(newContent);
+      await renderKbMdBody(newContent);
     } else {
       body.innerHTML = `<pre style="white-space:pre-wrap;font-size:13px">${escHtml(newContent)}</pre>`;
     }
-    postProcessKbLinks(body);
-    renderKbComments(state.viewer.annotation);
-    applyKbHighlights(state.viewer.annotation);
-    renderKbLinksBar(state.viewer.annotation);
     document.getElementById('kb-btn-edit').style.display = '';
     if (newContent !== originalContent) {
       _kbShowPendingBadge('update: edit via viewer');

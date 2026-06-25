@@ -13,6 +13,7 @@ import {
   prepareCommentMarkdown,
   renderCommentMarkdown,
 } from '../comment-markdown.js'
+import { renderMermaidBlocks } from '../mermaid-render.js'
 
 // ── Preview tip (shared DOM element) ──────────────────────────────────────
 const _tip = () => document.getElementById('comment-preview-tip');
@@ -316,7 +317,7 @@ export function initKbCommentEvents() {
 
   // Tab switch: edit / preview
   document.querySelectorAll('#kb-comment-dialog .comment-tab-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
+    btn.addEventListener('click', async () => {
       document.querySelectorAll('#kb-comment-dialog .comment-tab-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       const isPreview = btn.dataset.tab === 'preview';
@@ -328,6 +329,7 @@ export function initKbCommentEvents() {
         );
         const inner = renderCommentMarkdown(text);
         previewPane.innerHTML = `<div class="comment-item-text">${inner}</div>`;
+        await renderMermaidBlocks(previewPane);
         editorBox.style.display = 'none';
         previewPane.style.display = 'block';
       } else {
