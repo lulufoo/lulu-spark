@@ -75,19 +75,6 @@ export const READ_API_INVOKE_MAP = {
   '/api/kb/diff-status': {
     cmd: 'get_kb_diff_status',
   },
-  '/api/repo-list': {
-    cmd: 'get_repo_list',
-    args: (url) => ({
-      force: url.searchParams.get('force') === '1',
-    }),
-  },
-  '/api/repo-list-status': {
-    cmd: 'get_repo_list_status',
-  },
-  '/api/kb-corpus-status': {
-    cmd: 'get_kb_corpus_status',
-    args: (url) => ({ filterType: url.searchParams.get('type') ?? null }),
-  },
   '/api/repo-dirs': {
     cmd: 'get_repo_dirs',
     args: (url) => ({ repo: url.searchParams.get('repo') ?? '' }),

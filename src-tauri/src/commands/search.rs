@@ -8,7 +8,6 @@ use crate::config::paths;
 use crate::services::reindex::{
     finish_job_error, finish_job_success, run_kb_sync_and_index_blocking,
     run_knowledge_pull_and_reindex, run_knowledge_reindex_blocking,
-    run_wb_sync_and_index_blocking, run_workbench_pull_and_reindex,
     run_workbench_reindex_blocking, set_job_log, start_job, ReindexState,
 };
 
@@ -134,67 +133,6 @@ pub fn sync_knowledge_corpus(
     tauri::async_runtime::spawn(async move {
         let result = tauri::async_runtime::spawn_blocking(move || {
             run_knowledge_pull_and_reindex(&repo_root, Some(&slot_blocking))
-        })
-        .await;
-        match result {
-            Ok(Ok(log)) => finish_job_success(&slot, log),
-            Ok(Err(e)) => finish_job_error(&slot, e),
-            Err(e) => finish_job_error(&slot, e.to_string()),
-        }
-    });
-    let _ = app;
-    Ok(json!({ "status": "running" }))
-}
-
-/// Sync a single WORKBENCH_KNOWLEDGE repo (clone/pull) then rebuild the workbench index.
-#[tauri::command]
-pub fn sync_workbench_repo(
-    app: AppHandle,
-    state: State<'_, ReindexState>,
-    repo: String,
-) -> Result<Value, String> {
-    let root = repo_root()?;
-    let repo_owned = repo.trim().to_string();
-    if repo_owned.is_empty() || !repo_owned.contains('/') {
-        return Ok(json!({ "error": "invalid repo format" }));
-    }
-    let repo_name = repo_owned.rsplit('/').next().unwrap_or("").to_string();
-    start_job(&state.workbench_job, &format!("准备同步 {repo_name}…"))?;
-    let slot = state.workbench_job.clone();
-    let repo_root = root.clone();
-    let repo_for_task = repo_owned.clone();
-    let repo_name_log = repo_name.clone();
-    tauri::async_runtime::spawn(async move {
-        set_job_log(&slot, format!("同步 {repo_name_log}…"));
-        let result = tauri::async_runtime::spawn_blocking(move || {
-            run_wb_sync_and_index_blocking(&repo_root, &repo_for_task)
-        })
-        .await;
-        match result {
-            Ok(Ok(log)) => finish_job_success(&slot, log),
-            Ok(Err(e)) => finish_job_error(&slot, e),
-            Err(e) => finish_job_error(&slot, e.to_string()),
-        }
-    });
-    let _ = app;
-    Ok(json!({ "status": "running" }))
-}
-
-/// Pull all locally-cloned WORKBENCH_KNOWLEDGE repos and rebuild the workbench index.
-/// Skips repos not yet cloned — use sync_workbench_repo for those.
-#[tauri::command]
-pub fn sync_workbench_corpus(
-    app: AppHandle,
-    state: State<'_, ReindexState>,
-) -> Result<Value, String> {
-    let root = repo_root()?;
-    start_job(&state.workbench_job, "启动中…")?;
-    let slot = state.workbench_job.clone();
-    let slot_blocking = Arc::clone(&slot);
-    let repo_root = root.clone();
-    tauri::async_runtime::spawn(async move {
-        let result = tauri::async_runtime::spawn_blocking(move || {
-            run_workbench_pull_and_reindex(&repo_root, Some(&slot_blocking))
         })
         .await;
         match result {

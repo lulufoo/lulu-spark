@@ -37,10 +37,6 @@ pub fn knowledge_corpus_root() -> Result<PathBuf, PathsError> {
     Ok(settings()?.knowledge_corpus_root)
 }
 
-pub fn repo_list_cache_path() -> Result<PathBuf, PathsError> {
-    Ok(cache_dir()?.join("repo-list.json"))
-}
-
 pub fn sediment_kb_dir() -> Result<PathBuf, PathsError> {
     Ok(cache_dir()?.join("sediment-kb"))
 }

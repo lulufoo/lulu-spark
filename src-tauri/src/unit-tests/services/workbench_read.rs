@@ -70,14 +70,6 @@ fn get_topics_reads_from_sediment_kb_with_category_fields() {
         add_repo("lulufoo/kb-a", None).expect("add");
         set_test_repo_validator(None);
 
-        let cache = cfg.join("cache");
-        let repo_list = serde_json::json!({
-            "repos": [
-                {"full_name": "lulufoo/ignored", "type": "KNOWLEDGE_CORPUS", "description": "ignored"},
-            ]
-        });
-        fs::write(cache.join("repo-list.json"), repo_list.to_string()).expect("write");
-
         let v = get_topics(corpus);
         assert!(v.get("error").is_none(), "unexpected error: {v:?}");
         assert_eq!(v["source"], "sediment-kb");

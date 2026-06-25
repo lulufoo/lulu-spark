@@ -332,33 +332,9 @@ export async function fetchRepoDirs(repo) {
   return readGet(`/api/repo-dirs?repo=${encodeURIComponent(repo)}`);
 }
 
-export async function fetchRepoList(force = false) {
-  const path = force ? '/api/repo-list?force=1' : '/api/repo-list';
-  return readGet(path);
-}
-
-export async function getRepoListStatus() {
-  return readGet('/api/repo-list-status');
-}
-
-export async function getKbCorpusStatus(filterType) {
-  const query = filterType ? `?type=${encodeURIComponent(filterType)}` : '';
-  return readGet(`/api/kb-corpus-status${query}`);
-}
-
 export async function syncKnowledgeCorpus() {
   const { invokeSearch } = await import('./apiClient.js');
   return invokeSearch('syncKnowledgeCorpus');
-}
-
-export async function syncWorkbenchRepo(repo) {
-  const { invokeSearch } = await import('./apiClient.js');
-  return invokeSearch('syncWorkbenchRepo', { repo });
-}
-
-export async function syncWorkbenchCorpus() {
-  const { invokeSearch } = await import('./apiClient.js');
-  return invokeSearch('syncWorkbenchCorpus');
 }
 
 export async function checkFileExists(repo, path) {

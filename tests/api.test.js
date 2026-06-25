@@ -283,9 +283,9 @@ test('fetchTopics 调用 /api/topics?_=<timestamp> 并返回数据', async () =>
   expect(result.topics[0].dir).toBe('ai')
 })
 
-test('fetchTopics topics.json 不存在时抛出服务器返回的错误信息', async () => {
-  mockFetch({ error: 'repo-list.json not found; run ⊙ 全量同步 in the app' }, false, 404)
-  await expect(fetchTopics()).rejects.toThrow('repo-list.json not found')
+test('fetchTopics API 错误时抛出服务器返回的错误信息', async () => {
+  mockFetch({ error: 'sediment-kb repos unavailable' }, false, 404)
+  await expect(fetchTopics()).rejects.toThrow('sediment-kb repos unavailable')
 })
 
 // 回归测试：复现 BUG —— 服务器返回 HTML 404 时 res.json() 在 res.ok 检查前抛出

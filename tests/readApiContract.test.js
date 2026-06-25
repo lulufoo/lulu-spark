@@ -32,10 +32,6 @@ describe('readApi contract map', () => {
       cmd: 'kb_read',
       args: { repo: 'o/r', path: 'docs/a.md' },
     });
-    expect(resolveInvokeFromPath('/api/repo-list?force=1')).toEqual({
-      cmd: 'get_repo_list',
-      args: { force: true },
-    });
   });
 
   it('resolveInvokeFromPath 映射 kb diff status', () => {

@@ -24,9 +24,3 @@ fn check_file_rejects_unknown_repo() {
     let v = check_file_json(dir.path(), "unknown/foo", "a.md");
     assert!(v.get("error").is_some());
 }
-
-#[test]
-fn type_meta_fetch_limit_is_reasonable() {
-    assert!(TYPE_META_FETCH_LIMIT > 0);
-    assert!(TYPE_META_FETCH_LIMIT <= 100);
-}

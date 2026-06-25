@@ -1,10 +1,9 @@
 use serde_json::{json, Value};
-use tauri::{AppHandle, State};
+use tauri::AppHandle;
 
 use crate::config::paths;
-use crate::integrations::{gh_read, meilisearch};
-use crate::services::reindex::{finish_job_error, finish_job_success, start_job, ReindexState};
 use crate::config::meili_env::workbench_knowledge_root_path;
+use crate::integrations::{gh_read, meilisearch};
 use crate::services::sediment_kb;
 use crate::services::tags_registry;
 use crate::services::workbench_read;
@@ -105,59 +104,6 @@ pub fn kb_status(_app: AppHandle, repo: String) -> Result<Value, String> {
     Ok(crate::services::kb::kb_status_json(&repo_root()?, &repo))
 }
 
-/// When `force=false`: reads from disk cache immediately (non-blocking).
-/// When `force=true`: spawns a background job that refreshes from GitHub,
-///   returns `{"status":"running"}`. Poll via `get_repo_list_status`.
-#[tauri::command]
-pub fn get_repo_list(
-    _app: AppHandle,
-    state: State<'_, ReindexState>,
-    force: Option<bool>,
-) -> Result<Value, String> {
-    let root = repo_root()?;
-    if !force.unwrap_or(false) {
-        return Ok(gh_read::repo_list_json(&root, false));
-    }
-
-    // If already running, just return running — don't double-start.
-    {
-        let job = state.repo_list_job.lock().map_err(|e| e.to_string())?;
-        if job.status == "running" {
-            return Ok(json!({ "status": "running" }));
-        }
-    }
-
-    start_job(&state.repo_list_job, "查询 GitHub 仓库列表…")?;
-    let slot = state.repo_list_job.clone();
-    let repo_root = root.clone();
-    tauri::async_runtime::spawn(async move {
-        let result = tauri::async_runtime::spawn_blocking(move || {
-            gh_read::repo_list_json(&repo_root, true)
-        })
-        .await;
-        match result {
-            Ok(v) => {
-                if v.get("error").is_some() {
-                    finish_job_error(
-                        &slot,
-                        v["error"].as_str().unwrap_or("unknown error").to_string(),
-                    );
-                } else {
-                    finish_job_success(&slot, "仓库列表已更新".to_string());
-                }
-            }
-            Err(e) => finish_job_error(&slot, e.to_string()),
-        }
-    });
-    Ok(json!({ "status": "running" }))
-}
-
-#[tauri::command]
-pub fn get_repo_list_status(state: State<'_, ReindexState>) -> Result<Value, String> {
-    let job = state.repo_list_job.lock().map_err(|e| e.to_string())?;
-    Ok(job.to_json())
-}
-
 #[tauri::command]
 pub async fn get_repo_dirs(_app: AppHandle, repo: String) -> Result<Value, String> {
     let root = repo_root()?;
@@ -195,68 +141,6 @@ pub fn get_corpus_file(
     path: String,
 ) -> Result<Value, String> {
     Ok(workbench_read::get_corpus_file(&repo_root()?, &layer, &path))
-}
-
-/// Return WORKBENCH_KNOWLEDGE repos (derived from repo-list) with `local_exists`.
-/// KNOWLEDGE_CORPUS is deprecated for list UI — use `get_sediment_kb_repos` instead.
-pub fn kb_corpus_status_json(filter_type: Option<&str>) -> Result<Value, String> {
-    let filter = filter_type.unwrap_or("KNOWLEDGE_CORPUS");
-    if filter == "KNOWLEDGE_CORPUS" {
-        return Ok(json!({
-            "deprecated": true,
-            "repos": [],
-        }));
-    }
-
-    let repo_root = repo_root().map_err(|e| format!("{e:?}"))?;
-    let workbench_knowledge_root =
-        crate::config::meili_env::workbench_knowledge_root_path(&repo_root);
-
-    let cache_path = crate::config::paths::repo_list_cache_path().map_err(|e| format!("{e:?}"))?;
-    if !cache_path.is_file() {
-        return Ok(json!({ "repos": [] }));
-    }
-    let text = std::fs::read_to_string(&cache_path).map_err(|e| e.to_string())?;
-    let data: Value = serde_json::from_str(&text).map_err(|e| e.to_string())?;
-    let repos: Vec<Value> = data
-        .get("repos")
-        .and_then(|v| v.as_array())
-        .map(|arr| {
-            arr.iter()
-                .filter_map(|repo| {
-                    if repo.get("type").and_then(|v| v.as_str()) != Some(filter) {
-                        return None;
-                    }
-                    let full_name = repo.get("full_name")?.as_str()?;
-                    let name = full_name.split('/').next_back().unwrap_or(full_name);
-                    let local_exists = workbench_knowledge_root
-                        .file_name()
-                        .and_then(|n| n.to_str())
-                        .map(|dir_name| dir_name == name)
-                        .unwrap_or(false)
-                        && workbench_knowledge_root.join(".git").exists();
-                    Some(json!({
-                        "full_name": full_name,
-                        "name": name,
-                        "description": repo.get("description").cloned().unwrap_or(Value::Null),
-                        "local_exists": local_exists,
-                    }))
-                })
-                .collect()
-        })
-        .unwrap_or_default();
-    Ok(json!({ "repos": repos }))
-}
-
-/// Return every WORKBENCH_KNOWLEDGE repo (derived from repo-list) together with
-/// a `local_exists` flag indicating whether the repo is already cloned locally.
-/// KNOWLEDGE_CORPUS list UI must use sediment-kb API; this command returns deprecated empty data.
-#[tauri::command]
-pub fn get_kb_corpus_status(
-    _app: AppHandle,
-    filter_type: Option<String>,
-) -> Result<Value, String> {
-    kb_corpus_status_json(filter_type.as_deref())
 }
 
 #[tauri::command]
@@ -353,7 +237,3 @@ pub fn get_sediment_kb_repos(_app: AppHandle) -> Result<Value, String> {
 #[cfg(test)]
 #[path = "../unit-tests/commands/sediment_kb_read.rs"]
 mod sediment_kb_read_tests;
-
-#[cfg(test)]
-#[path = "../unit-tests/commands/kb_corpus_status.rs"]
-mod kb_corpus_status_tests;

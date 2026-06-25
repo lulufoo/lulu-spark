@@ -146,15 +146,8 @@ function _closeAllMenuDropdowns() {
 
 // ── 沉淀知识库（sediment-kb：精选列表，按分类分组）────────────────────────
 
-function _closeRepoListDialog() {
+function _closeSedimentKbListDialog() {
   document.getElementById('repo-list-dialog').classList.remove('open');
-  if (_sedimentListMode) {
-    _sedimentListMode = false;
-    const filter = document.getElementById('repo-list-filter');
-    const title = document.querySelector('#repo-list-title-group h3');
-    if (filter) filter.style.display = '';
-    if (title) title.textContent = '☰ 仓库列表';
-  }
 }
 
 function _closeSedimentKbAddDialog() {
@@ -165,14 +158,7 @@ function _closeSedimentKbManageDialog() {
   document.getElementById('sediment-kb-manage-dialog').classList.remove('open');
 }
 
-let _repoListAll = [];
-let _repoListCache = null;
-let _sedimentListMode = false;
-
-const _KB_TYPES = new Set(['KNOWLEDGE_CORPUS', 'WORKBENCH_KNOWLEDGE']);
-
 let _kbCorpusStatus = null;
-let _kbCorpusStatusType = null;
 let _kbCorpusDiffStatus = null;
 let _sedimentKbList = null;
 let _sedimentKbError = null;
@@ -243,7 +229,7 @@ function renderSedimentKbListByCategory(repos) {
         if (_kbCorpusDiffStatus?.get(r.full_name) === true) {
           diffBtnHtml = `<button class="repo-diff-badge" data-repo="${escHtml(r.full_name)}" title="查看本地变更">✎</button>`;
         }
-        syncBtnHtml = `<button class="repo-sync-btn" data-repo="${escHtml(r.full_name)}" data-repotype="KNOWLEDGE_CORPUS">SYNC</button>`;
+        syncBtnHtml = `<button class="repo-sync-btn" data-repo="${escHtml(r.full_name)}">SYNC</button>`;
       }
 
       const catSelectOptions = categories.map(c => {
@@ -284,7 +270,7 @@ function renderSedimentKbListByCategory(repos) {
           if (s?.status !== 'running') break;
         }
         _kbCorpusStatus = null;
-        await _loadKbCorpusStatus('KNOWLEDGE_CORPUS', true);
+        await loadSedimentKbList(true);
       } catch (e) {
         alert(`同步失败：${e.message}`);
         btn.disabled = false;
@@ -336,12 +322,10 @@ async function onDeleteSedimentKbRepo(fullName) {
 }
 
 async function loadSedimentKbList(forceRefresh = false) {
-  const filterType = 'KNOWLEDGE_CORPUS';
   if (!forceRefresh && _sedimentKbList && !_sedimentKbError) {
     renderSedimentKbListByCategory(_sedimentKbList);
     return;
   }
-  _kbCorpusStatusType = filterType;
   _kbCorpusStatus = null;
   _sedimentKbList = null;
   _sedimentKbError = null;
@@ -352,14 +336,12 @@ async function loadSedimentKbList(forceRefresh = false) {
       api.fetchSedimentKbRepos(),
       api.fetchSedimentKbCategories(),
     ]);
-    if (_kbCorpusStatusType !== filterType) return;
     if (reposData?.error) throw new Error(reposData.error);
     _sedimentKbCategories = catsData.categories || [];
     _sedimentKbList = (reposData.repos || []).map((r) => ({
       full_name: r.full_name,
       name: (r.full_name || '').split('/').pop() || r.full_name,
       description: r.description || '',
-      type: 'KNOWLEDGE_CORPUS',
       category_id: r.category_id,
       category_name: r.category_name,
       local_exists: r.local_exists === true,
@@ -371,7 +353,6 @@ async function loadSedimentKbList(forceRefresh = false) {
       local_exists: r.local_exists === true,
     }));
   } catch (e) {
-    if (_kbCorpusStatusType !== filterType) return;
     _sedimentKbError = e.message || String(e);
     _sedimentKbList = [];
     _kbCorpusStatus = [];
@@ -385,296 +366,18 @@ async function loadSedimentKbList(forceRefresh = false) {
   _kbCorpusDiffStatus = null;
   try {
     const diffData = await api.fetchKbDiffStatus();
-    if (_kbCorpusStatusType !== filterType) return;
     _kbCorpusDiffStatus = new Map(
       (diffData?.repos || []).map((repo) => [repo.full_name, repo.has_changes === true]),
     );
-  } catch (e) {
-    if (_kbCorpusStatusType !== filterType) return;
+  } catch {
     _kbCorpusDiffStatus = new Map();
   }
   renderSedimentKbListByCategory(_sedimentKbList);
 }
 
-async function _loadKbCorpusStatus(filterType, forceRefresh = false) {
-  if (filterType === 'KNOWLEDGE_CORPUS') {
-    return loadSedimentKbList(forceRefresh);
-  }
-  if (!forceRefresh && _kbCorpusStatus && _kbCorpusStatusType === filterType) {
-    _renderRepoListFiltered();
-    return;
-  }
-  _kbCorpusStatusType = filterType;
-  _kbCorpusStatus = null;
-  try {
-    const data = await api.getKbCorpusStatus(filterType);
-    if (_kbCorpusStatusType !== filterType) return;
-    _kbCorpusStatus = (!data.error && data.repos) ? data.repos : [];
-  } catch (e) {
-    if (_kbCorpusStatusType !== filterType) return;
-    _kbCorpusStatus = [];
-  }
-  _renderRepoListFiltered();
-
-  _kbCorpusDiffStatus = null;
-}
-
-function _repoTypeKey(r) {
-  return (r.type && r.type.trim()) || '未分类';
-}
-
-function _renderRepoListFiltered() {
-  const filter = document.getElementById('repo-list-filter');
-  const selected = filter ? filter.value : '__ALL__';
-  let repos;
-  if (selected === 'KNOWLEDGE_CORPUS' && _sedimentKbList) {
-    repos = _sedimentKbList;
-  } else {
-    repos = selected === '__ALL__'
-      ? _repoListAll
-      : _repoListAll.filter(r => _repoTypeKey(r) === selected);
-  }
-
-  const isKbView = _KB_TYPES.has(selected);
-  const content = document.getElementById('repo-list-content');
-  if (selected === 'KNOWLEDGE_CORPUS' && _sedimentKbList) {
-    renderSedimentKbListByCategory(_sedimentKbList);
-    return;
-  }
-  if (_sedimentKbError && selected === 'KNOWLEDGE_CORPUS') {
-    content.innerHTML = `<div id="repo-list-loading" style="color:#cf222e">加载失败：${escHtml(_sedimentKbError)}</div>`;
-    return;
-  }
-  if (!repos || repos.length === 0) {
-    content.innerHTML = '<div id="repo-list-loading">未找到任何仓库</div>';
-    return;
-  }
-
-  const statusMap = {};
-  if (isKbView && _kbCorpusStatus) {
-    for (const s of _kbCorpusStatus) statusMap[s.full_name] = s;
-  }
-
-  const groups = {};
-  for (const r of repos) {
-    const key = _repoTypeKey(r);
-    if (!groups[key]) groups[key] = [];
-    groups[key].push(r);
-  }
-  for (const key of Object.keys(groups)) {
-    groups[key].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'en', { sensitivity: 'base' }));
-  }
-
-  const sortedKeys = Object.keys(groups).sort((a, b) => {
-    if (a === '未分类') return 1;
-    if (b === '未分类') return -1;
-    return a.localeCompare(b, 'en', { sensitivity: 'base' });
-  });
-
-  const showGroupTitle = selected === '__ALL__';
-  const html = sortedKeys.map(key => {
-    const items = groups[key].map(r => {
-      const name = escHtml(r.name || r.full_name || '');
-      const desc = r.description ? `<div class="repo-list-item-desc">${escHtml(r.description)}</div>` : '';
-      const url = `https://github.com/${escHtml(r.full_name || r.name)}`;
-
-      let localBadge = '';
-      let diffBtnHtml = '';
-      let syncBtnHtml = '';
-      if (isKbView) {
-        const st = statusMap[r.full_name];
-        if (st) {
-          if (st.local_exists) {
-            localBadge = `<span class="repo-local-badge repo-local-ok">已克隆</span>`;
-          } else {
-            localBadge = `<span class="repo-local-badge repo-local-missing">未克隆</span>`;
-          }
-          if (selected === 'KNOWLEDGE_CORPUS' && _kbCorpusDiffStatus?.get(r.full_name) === true) {
-            diffBtnHtml = `<button class="repo-diff-badge" data-repo="${escHtml(r.full_name)}" title="查看本地变更">✎</button>`;
-          }
-          syncBtnHtml = `<button class="repo-sync-btn" data-repo="${escHtml(r.full_name)}" data-repotype="${escHtml(selected)}">SYNC</button>`;
-        }
-      }
-
-      return `<div class="repo-list-item">
-        <div class="repo-list-item-info">
-          <div class="repo-list-item-name">${name}${localBadge}</div>
-          ${desc}
-        </div>
-        <div class="repo-list-item-actions">
-          ${diffBtnHtml}
-          ${syncBtnHtml}
-          <a class="repo-list-item-link" href="${url}" target="_blank" rel="noopener noreferrer">Link ↗</a>
-        </div>
-      </div>`;
-    }).join('');
-    const title = showGroupTitle ? `<div class="repo-list-group-title">${escHtml(key)}</div>` : '';
-    return `${title}${items}`;
-  }).join('');
-
-  content.innerHTML = html;
-
-  content.querySelectorAll('.repo-sync-btn').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      const repo = btn.dataset.repo;
-      const repoType = btn.dataset.repotype;
-      btn.disabled = true;
-      btn.textContent = '…';
-      try {
-        let poll;
-        if (repoType === 'WORKBENCH_KNOWLEDGE') {
-          await api.syncWorkbenchRepo(repo);
-          poll = () => api.getReindexWorkbenchStatus();
-        } else {
-          await api.reindexKbRepo(repo);
-          poll = () => api.getReindexStatus();
-        }
-        for (let i = 0; i < 120; i++) {
-          await new Promise(r => setTimeout(r, 2000));
-          const s = await poll();
-          if (s?.status !== 'running') break;
-        }
-        _kbCorpusStatus = null;
-        await _loadKbCorpusStatus(repoType, true);
-      } catch (e) {
-        alert(`同步失败：${e.message}`);
-        btn.disabled = false;
-        btn.textContent = 'SYNC';
-      }
-    });
-  });
-
-  content.querySelectorAll('.repo-diff-badge').forEach(btn => {
-    btn.addEventListener('click', () => {
-      openKbDiffDialog(btn.dataset.repo);
-    });
-  });
-}
-
-const _REPO_TYPE_LABELS = {
-  KNOWLEDGE_CORPUS: '沉淀知识库',
-  WORKBENCH_KNOWLEDGE: '工作台知识库',
-};
-
-function _populateRepoListFilter(repos, preferType = null) {
-  const filter = document.getElementById('repo-list-filter');
-  const types = [...new Set(repos.map(_repoTypeKey))].sort((a, b) => {
-    if (a === '未分类') return 1;
-    if (b === '未分类') return -1;
-    return a.localeCompare(b);
-  });
-  const selected = preferType && types.includes(preferType) ? preferType : 'KNOWLEDGE_CORPUS';
-  filter.innerHTML = types.map(t => {
-      const sel = t === selected ? ' selected' : '';
-      const label = _REPO_TYPE_LABELS[t] || t;
-      return `<option value="${escHtml(t)}"${sel}>${escHtml(label)}</option>`;
-    }).join('');
-}
-
-let _repoListBgRefreshing = false;
-
-function _applyRepoListPayload(data) {
-  if (!data || data.error) return false;
-  const cacheTime = document.getElementById('repo-list-cache-time');
-  const filter = document.getElementById('repo-list-filter');
-  const prevType = filter ? filter.value : null;
-  _repoListCache = data.repos || [];
-  _repoListAll = _repoListCache;
-  _populateRepoListFilter(_repoListAll, prevType);
-  _renderRepoListFiltered();
-  if (cacheTime && data.cached_at) cacheTime.textContent = `缓存于 ${data.cached_at}`;
-  return true;
-}
-
-document.getElementById('repo-list-filter').addEventListener('change', () => {
-  const filter = document.getElementById('repo-list-filter');
-  const val = filter ? filter.value : 'KNOWLEDGE_CORPUS';
-  _kbCorpusStatus = null;
-  _kbCorpusStatusType = null;
-  _kbCorpusDiffStatus = null;
-  _sedimentKbList = null;
-  _sedimentKbError = null;
-  _renderRepoListFiltered();
-  if (_KB_TYPES.has(val)) {
-    _loadKbCorpusStatus(val);
-  }
-});
-
-window.addEventListener('kb-diff-updated', () => {
-  if (_sedimentListMode) {
-    void loadSedimentKbList(true);
-    return;
-  }
-  const filter = document.getElementById('repo-list-filter');
-  const val = filter ? filter.value : 'KNOWLEDGE_CORPUS';
-  if (_KB_TYPES.has(val)) {
-    _kbCorpusStatus = null;
-    _kbCorpusDiffStatus = null;
-    _loadKbCorpusStatus(val, true);
-  }
-});
-
-/** Show latest repo list from `.cache/repo-list.json` (via read API). */
-async function _showRepoListFromCache() {
-  try {
-    const data = await api.fetchRepoList(false);
-    if (_applyRepoListPayload(data)) return;
-  } catch (_) {}
-  _repoListAll = _repoListCache || [];
-  _renderRepoListFiltered();
-}
-
-/** Kick GitHub refresh in background; update UI when cache file is written. */
-async function _refreshRepoListInBackground() {
-  if (_repoListBgRefreshing) return;
-  _repoListBgRefreshing = true;
-  const refreshBtn = document.getElementById('btn-repo-list-refresh');
-  const cacheTime = document.getElementById('repo-list-cache-time');
-  refreshBtn?.classList.add('spinning');
-  try {
-    const kick = await api.fetchRepoList(true);
-    if (kick?.error) throw new Error(kick.error);
-    if (kick?.status === 'running') {
-      for (let i = 0; i < 120; i++) {
-        await new Promise(r => setTimeout(r, 1000));
-        const st = await api.getRepoListStatus();
-        if (st?.status === 'error') throw new Error(st.log || '仓库列表刷新失败');
-        if (st?.status !== 'running') break;
-      }
-      const data = await api.fetchRepoList(false);
-      if (!_applyRepoListPayload(data)) throw new Error(data?.error || '仓库列表刷新失败');
-    } else {
-      const data = kick?.repos ? kick : await api.fetchRepoList(false);
-      if (!_applyRepoListPayload(data)) throw new Error(data?.error || '仓库列表刷新失败');
-    }
-  } catch (e) {
-    if (cacheTime) cacheTime.textContent = `刷新失败：${e.message}`;
-  } finally {
-    _repoListBgRefreshing = false;
-    refreshBtn?.classList.remove('spinning');
-  }
-}
-
-async function _loadRepoListData() {
-  const content = document.getElementById('repo-list-content');
-  content.innerHTML = '<div id="repo-list-loading">加载中…</div>';
-  try {
-    const data = await api.fetchRepoList(false);
-    if (data.error) throw new Error(data.error);
-    _applyRepoListPayload(data);
-  } catch (e) {
-    content.innerHTML = `<div id="repo-list-loading" style="color:#cf222e">加载失败：${escHtml(e.message)}</div>`;
-  }
-}
-
 async function openSedimentKbListDialog() {
-  _sedimentListMode = true;
-  const filter = document.getElementById('repo-list-filter');
   const title = document.querySelector('#repo-list-title-group h3');
-  const cacheTime = document.getElementById('repo-list-cache-time');
-  if (filter) filter.style.display = 'none';
   if (title) title.textContent = '☰ 沉淀知识库列表';
-  if (cacheTime) cacheTime.textContent = '';
   document.getElementById('repo-list-dialog').classList.add('open');
   const content = document.getElementById('repo-list-content');
   content.innerHTML = '<div id="repo-list-loading">加载中…</div>';
@@ -761,6 +464,10 @@ async function openSedimentKbManageDialog() {
   document.getElementById('sediment-kb-manage-dialog').classList.add('open');
 }
 
+window.addEventListener('kb-diff-updated', () => {
+  void loadSedimentKbList(true);
+});
+
 document.getElementById('btn-sediment-kb-list').addEventListener('click', () => {
   _repoMenuDropdown.classList.remove('open');
   void openSedimentKbListDialog();
@@ -777,24 +484,12 @@ document.getElementById('btn-sediment-kb-manage').addEventListener('click', () =
 });
 
 document.getElementById('btn-repo-list-refresh').addEventListener('click', () => {
-  void (async () => {
-    if (_sedimentListMode) {
-      await loadSedimentKbList(true);
-      return;
-    }
-    await _showRepoListFromCache();
-    const filter = document.getElementById('repo-list-filter');
-    const val = filter ? filter.value : 'KNOWLEDGE_CORPUS';
-    if (_KB_TYPES.has(val)) _loadKbCorpusStatus(val);
-    await _refreshRepoListInBackground();
-    const val2 = filter ? filter.value : 'KNOWLEDGE_CORPUS';
-    if (_KB_TYPES.has(val2)) _loadKbCorpusStatus(val2, true);
-  })();
+  void loadSedimentKbList(true);
 });
 
-document.getElementById('btn-repo-list-close').addEventListener('click', _closeRepoListDialog);
+document.getElementById('btn-repo-list-close').addEventListener('click', _closeSedimentKbListDialog);
 document.getElementById('repo-list-dialog').addEventListener('click', e => {
-  if (e.target === document.getElementById('repo-list-dialog')) _closeRepoListDialog();
+  if (e.target === document.getElementById('repo-list-dialog')) _closeSedimentKbListDialog();
 });
 
 document.getElementById('btn-sediment-kb-add-cancel').addEventListener('click', _closeSedimentKbAddDialog);

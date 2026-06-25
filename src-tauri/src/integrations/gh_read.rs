@@ -1,20 +1,9 @@
 //! GitHub read-only helpers via REST (`integrations/github.rs`).
 
-use std::collections::HashMap;
-use std::fs;
-
-use chrono::{FixedOffset, Utc};
 use serde_json::{json, Value};
 
-use crate::config::paths;
 use crate::integrations::github::{self, GithubError};
 use crate::services::workbench_read::get_topics;
-
-fn repo_list_cache_path(repo_root: &std::path::Path) -> std::path::PathBuf {
-    let _ = repo_root;
-    paths::repo_list_cache_path()
-        .unwrap_or_else(|_| repo_root.join(".cache").join("repo-list.json"))
-}
 
 pub fn topic_repos(repo_root: &std::path::Path) -> std::collections::HashSet<String> {
     let topics = get_topics(repo_root);
@@ -87,44 +76,6 @@ pub fn parse_repo_dirs(items: &Value) -> Result<Value, String> {
     Ok(json!({ "dirs": dirs }))
 }
 
-fn fetch_type_meta(full_name: &str, default_branch: &str) -> (String, Option<String>, Option<String>) {
-    let branch = if default_branch.is_empty() {
-        "main"
-    } else {
-        default_branch
-    };
-    let (owner, repo) = match full_name.split_once('/') {
-        Some(p) => p,
-        None => return (full_name.to_string(), None, None),
-    };
-    let Ok(meta) = github::get_contents(owner, repo, ".repository-type.json", Some(branch)) else {
-        return (full_name.to_string(), None, None);
-    };
-    let Ok(text) = github::decode_contents_payload(&meta) else {
-        return (full_name.to_string(), None, None);
-    };
-    let Ok(doc) = serde_json::from_str::<Value>(&text) else {
-        return (full_name.to_string(), None, None);
-    };
-    (
-        full_name.to_string(),
-        doc.get("type").and_then(|v| v.as_str()).map(str::to_string),
-        doc.get("description")
-            .and_then(|v| v.as_str())
-            .map(str::to_string),
-    )
-}
-
-const TYPE_META_FETCH_LIMIT: usize = 40;
-
-fn cached_at_label() -> String {
-    let offset = FixedOffset::east_opt(8 * 3600).unwrap();
-    Utc::now()
-        .with_timezone(&offset)
-        .format("%m月%d日 %H:%M")
-        .to_string()
-}
-
 pub fn check_file_json(repo_root: &std::path::Path, repo: &str, path: &str) -> Value {
     if let Err(v) = require_known_repo(repo_root, repo, "repo and path required") {
         return v;
@@ -159,88 +110,6 @@ pub fn repo_dirs_json(repo_root: &std::path::Path, repo: &str) -> Value {
         },
         Err(e) => gh_err_value(e),
     }
-}
-
-pub fn repo_list_json(repo_root: &std::path::Path, force: bool) -> Value {
-    let cache_path = repo_list_cache_path(repo_root);
-    if !force && cache_path.is_file() {
-        if let Ok(text) = fs::read_to_string(&cache_path) {
-            if let Ok(v) = serde_json::from_str::<Value>(&text) {
-                return v;
-            }
-        }
-    }
-
-    let mut all_repos = Vec::new();
-    let mut page = 1u32;
-    loop {
-        let batch = match github::list_user_repos_page(page) {
-            Ok(Value::Array(items)) => items,
-            Ok(_) => break,
-            Err(e) => return gh_err_value(e),
-        };
-        if batch.is_empty() {
-            break;
-        }
-        all_repos.extend(batch);
-        page += 1;
-        if page > 50 {
-            break;
-        }
-    }
-
-    let mut type_map: HashMap<String, (Option<String>, Option<String>)> = HashMap::new();
-    let mut meta_fetch_count = 0usize;
-    for repo in &all_repos {
-        if meta_fetch_count >= TYPE_META_FETCH_LIMIT {
-            break;
-        }
-        let full_name = repo.get("full_name").and_then(|v| v.as_str()).unwrap_or("");
-        if full_name.is_empty() {
-            continue;
-        }
-        let branch = repo
-            .get("default_branch")
-            .and_then(|v| v.as_str())
-            .unwrap_or("main");
-        let (name, ty, desc) = fetch_type_meta(full_name, branch);
-        type_map.insert(name, (ty, desc));
-        meta_fetch_count += 1;
-    }
-
-    let mut repos_out = Vec::new();
-    for repo in all_repos {
-        let full_name = repo.get("full_name").and_then(|v| v.as_str()).unwrap_or("");
-        let fallback_description = repo
-            .get("description")
-            .and_then(|v| v.as_str())
-            .map(str::to_string);
-        let (repo_type, description) = type_map
-            .get(full_name)
-            .cloned()
-            .unwrap_or((None, fallback_description));
-        repos_out.push(json!({
-            "name": repo.get("name").and_then(|v| v.as_str()).unwrap_or(""),
-            "full_name": full_name,
-            "type": repo_type,
-            "description": description,
-        }));
-    }
-
-    let payload = json!({
-        "repos": repos_out,
-        "cached_at": cached_at_label(),
-    });
-
-    if let Some(parent) = cache_path.parent() {
-        let _ = fs::create_dir_all(parent);
-    }
-    let _ = fs::write(
-        &cache_path,
-        serde_json::to_string_pretty(&payload).unwrap_or_default(),
-    );
-
-    payload
 }
 
 #[cfg(test)]

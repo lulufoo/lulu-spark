@@ -550,22 +550,6 @@
   #btn-repo-list-refresh:hover { color: #0969da; background: #f0f6ff; }
   #btn-repo-list-refresh.spinning { animation: repo-spin .6s linear infinite; }
   @keyframes repo-spin { to { transform: rotate(360deg); } }
-  #repo-list-cache-time {
-    font-size: 11px;
-    color: #8c959f;
-    white-space: nowrap;
-  }
-  #repo-list-filter {
-    font-size: 12px;
-    padding: 3px 6px;
-    border: 1px solid #d0d7de;
-    border-radius: 6px;
-    background: #f6f8fa;
-    color: #24292f;
-    cursor: pointer;
-    flex-shrink: 0;
-  }
-  #repo-list-filter:focus { outline: 2px solid #0969da; outline-offset: 1px; }
   #repo-list-content {
     overflow-y: auto;
     flex: 1 1 auto;

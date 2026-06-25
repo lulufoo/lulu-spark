@@ -7,7 +7,7 @@ use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
-use crate::config::meili_env::{knowledge_corpus_root_string, workbench_knowledge_root_path};
+use crate::config::meili_env::knowledge_corpus_root_string;
 use crate::config::paths;
 use crate::integrations::git;
 use crate::services::index_build::{rebuild_knowledge_index, rebuild_workbench_index};
@@ -41,7 +41,6 @@ impl JobState {
 pub struct ReindexState {
     pub knowledge_job: Arc<Mutex<JobState>>,
     pub workbench_job: Arc<Mutex<JobState>>,
-    pub repo_list_job: Arc<Mutex<JobState>>,
 }
 
 impl ReindexState {
@@ -49,7 +48,6 @@ impl ReindexState {
         Self {
             knowledge_job: Arc::new(Mutex::new(JobState::idle())),
             workbench_job: Arc::new(Mutex::new(JobState::idle())),
-            repo_list_job: Arc::new(Mutex::new(JobState::idle())),
         }
     }
 }
@@ -199,125 +197,6 @@ pub fn run_knowledge_reindex_blocking(
     let mut log = rebuild_knowledge_index(repo_root, false, None)?;
     if !failed_repos.is_empty() {
         log.push_str("\n⚠ 同步失败：");
-        log.push_str(&failed_repos.join("；"));
-    }
-    Ok(log)
-}
-
-/// Sync (clone/pull) a WORKBENCH_KNOWLEDGE repo, then rebuild the workbench index.
-/// Used by the per-repo SYNC button in the WORKBENCH_KNOWLEDGE list.
-pub fn run_wb_sync_and_index_blocking(repo_root: &Path, repo: &str) -> Result<String, String> {
-    let repo = repo.trim();
-    if repo.is_empty() || !repo.contains('/') {
-        return Err("invalid repo format".to_string());
-    }
-    let repo_name = repo.split('/').next_back().unwrap_or(repo);
-    let wb_root = workbench_knowledge_root_path(repo_root);
-    let synced_via_archive = wb_root
-        .file_name()
-        .and_then(|n| n.to_str())
-        .map(|dir_name| dir_name == repo_name)
-        .unwrap_or(false)
-        && wb_root.join(".git").exists();
-    if synced_via_archive {
-        match git::pull_rebase(&wb_root) {
-            Ok(o) if o.success => {}
-            Ok(o) => {
-                return Err(format!(
-                    "git pull failed for {repo_name}: {}",
-                    o.stderr.trim()
-                ));
-            }
-            Err(e) => return Err(format!("git pull failed for {repo_name}: {e}")),
-        }
-    } else {
-        let kb_root = PathBuf::from(knowledge_corpus_root_string(repo_root));
-        let (_, status, err) = sync_repo_blocking(repo, &kb_root);
-        if status.contains("failed") {
-            let msg = err.unwrap_or_else(|| "unknown error".to_string());
-            return Err(format!("git sync failed for {repo_name}: {msg}"));
-        }
-    }
-    rebuild_workbench_index(repo_root)
-}
-
-/// Pull all locally-cloned WORKBENCH_KNOWLEDGE repos, then rebuild the workbench index.
-/// Used by the bulk 全量同步 button in the WORKBENCH_KNOWLEDGE list view.
-pub fn run_workbench_pull_and_reindex(
-    repo_root: &Path,
-    slot: Option<&Arc<Mutex<JobState>>>,
-) -> Result<String, String> {
-    if let Some(s) = slot {
-        set_job_log(s, "拉取 workbench 仓库…");
-    }
-    // Collect WORKBENCH_KNOWLEDGE repos from repo-list.json
-    let repos: Vec<String> = {
-        let cache_path = paths::repo_list_cache_path().map_err(|e| format!("{e:?}"))?;
-        if cache_path.is_file() {
-            let text = fs::read_to_string(&cache_path).unwrap_or_default();
-            serde_json::from_str::<Value>(&text)
-                .ok()
-                .and_then(|v| v.get("repos").and_then(|r| r.as_array()).cloned())
-                .map(|arr| {
-                    arr.iter()
-                        .filter_map(|item| {
-                            if item.get("type").and_then(|v| v.as_str())
-                                != Some("WORKBENCH_KNOWLEDGE")
-                            {
-                                return None;
-                            }
-                            item.get("full_name").and_then(|v| v.as_str()).map(String::from)
-                        })
-                        .collect()
-                })
-                .unwrap_or_default()
-        } else {
-            Vec::new()
-        }
-    };
-
-    let wb_root = workbench_knowledge_root_path(repo_root);
-    let mut failed_repos = Vec::new();
-    if wb_root.join(".git").exists() {
-        match git::pull_rebase(&wb_root) {
-            Ok(o) if !o.success => {
-                failed_repos.push(format!(
-                    "workbench archive: {}",
-                    o.stderr.trim()
-                ));
-            }
-            Err(e) => failed_repos.push(format!("workbench archive: {e}")),
-            _ => {}
-        }
-    } else {
-        let kb_root = PathBuf::from(knowledge_corpus_root_string(repo_root));
-        let handles: Vec<_> = repos
-            .iter()
-            .filter(|repo| {
-                let name = repo.split('/').next_back().unwrap_or(repo);
-                kb_root.join(name).is_dir()
-            })
-            .map(|repo| {
-                let repo = repo.clone();
-                let kb = kb_root.clone();
-                thread::spawn(move || sync_repo_blocking(&repo, &kb))
-            })
-            .collect();
-        for handle in handles {
-            if let Ok((name, status, err)) = handle.join() {
-                if status.contains("failed") {
-                    failed_repos.push(format!("{name}: {}", err.unwrap_or_default()));
-                }
-            }
-        }
-    }
-
-    if let Some(s) = slot {
-        set_job_log(s, "重建 workbench 索引…");
-    }
-    let mut log = rebuild_workbench_index(repo_root)?;
-    if !failed_repos.is_empty() {
-        log.push_str("\n⚠ 拉取失败：");
         log.push_str(&failed_repos.join("；"));
     }
     Ok(log)
