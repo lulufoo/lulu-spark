@@ -2606,11 +2606,6 @@
     color: #57606a;
   }
   .btn-gh-ops-secondary:hover:not(:disabled) { background: #eaeef2; }
-  .btn-gh-ops-secondary.armed {
-    background: #fff8c5;
-    border-color: #d4a72c;
-    color: #7d4e00;
-  }
   .btn-gh-ops-danger {
     background: #cf222e;
     color: #fff;
