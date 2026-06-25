@@ -33,3 +33,25 @@ describe('sediment kb UI shell', () => {
     expect(mainJs).not.toMatch(/btn-kb-corpus-sync/);
   });
 });
+
+describe('gh-ops delete panel HTML', () => {
+  it('has no arming button in delete panel actions', () => {
+    expect(indexHtml).not.toContain('id="btn-delete-doc-arm"');
+  });
+
+  it('confirm delete button is enabled by default', () => {
+    const match = indexHtml.match(/<button id="btn-delete-doc-ok"[^>]*>/);
+    expect(match).not.toBeNull();
+    expect(match[0]).not.toMatch(/\bdisabled\b/);
+  });
+
+  it('delete actions only contain confirm delete button', () => {
+    const actionsMatch = indexHtml.match(
+      /<div class="gh-ops-panel-actions gh-ops-delete-actions">([\s\S]*?)<\/div>/
+    );
+    expect(actionsMatch).not.toBeNull();
+    const buttons = [...actionsMatch[1].matchAll(/<button\b/g)];
+    expect(buttons).toHaveLength(1);
+    expect(actionsMatch[1]).toContain('id="btn-delete-doc-ok"');
+  });
+});
