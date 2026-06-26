@@ -161,7 +161,7 @@ impl From<toml::ser::Error> for SettingsError {
     }
 }
 
-/// Config directory: test override → `$LULU_WB_CONFIG_DIR` → `~/.config/lulu-workbench`.
+/// Config directory: test override → `$LULU_WB_CONFIG_DIR` (tests only) → `~/.config/lulu-workbench`.
 pub fn settings_config_dir() -> PathBuf {
     #[cfg(test)]
     if let Some(lock) = TEST_CONFIG_DIR.get() {
@@ -169,10 +169,52 @@ pub fn settings_config_dir() -> PathBuf {
             return p.clone();
         }
     }
+    #[cfg(test)]
     if let Ok(dir) = std::env::var("LULU_WB_CONFIG_DIR") {
         return PathBuf::from(dir);
     }
     home_dir().join(".config").join("lulu-workbench")
+}
+
+/// True when `cache_dir` points at OS/tempfile ephemeral storage (must not persist in user config).
+pub(crate) fn is_unstable_cache_dir(path: &Path) -> bool {
+    let s = path.to_string_lossy();
+    if s.starts_with("/tmp/") || s == "/tmp" {
+        return true;
+    }
+    // macOS `$TMPDIR`: `/var/folders/.../T/.tmpXXXXXX/...`
+    if s.contains("/T/.tmp") {
+        return true;
+    }
+    for comp in path.components() {
+        if let std::path::Component::Normal(name) = comp {
+            let n = name.to_string_lossy();
+            if n.starts_with(".tmp") && n.len() > 4 {
+                return true;
+            }
+        }
+    }
+    false
+}
+
+fn skip_cache_dir_normalization() -> bool {
+    #[cfg(test)]
+    if let Some(lock) = TEST_CONFIG_DIR.get() {
+        if lock.lock().expect("test config lock").is_some() {
+            return true;
+        }
+    }
+    false
+}
+
+/// Reset poisoned `cache_dir` values (e.g. test temp paths written via `set_config`).
+pub(crate) fn normalize_cache_dir(settings: &mut AppSettings) {
+    if skip_cache_dir_normalization() {
+        return;
+    }
+    if is_unstable_cache_dir(&settings.cache_dir) {
+        settings.cache_dir = default_cache_dir();
+    }
 }
 
 #[cfg(test)]
@@ -206,7 +248,8 @@ pub fn load() -> Result<AppSettings, SettingsError> {
         return Ok(AppSettings::default());
     }
     let text = fs::read_to_string(&path)?;
-    let settings: AppSettings = toml::from_str(&text)?;
+    let mut settings: AppSettings = toml::from_str(&text)?;
+    normalize_cache_dir(&mut settings);
     Ok(settings)
 }
 
@@ -255,9 +298,7 @@ pub fn apply_config_payload(settings: &mut AppSettings, payload: &serde_json::Va
     if let Some(v) = payload.get("meili_url").and_then(|x| x.as_str()) {
         settings.meili_url = v.to_string();
     }
-    if let Some(v) = payload.get("cache_dir").and_then(|x| x.as_str()) {
-        settings.cache_dir = PathBuf::from(v);
-    }
+    // `cache_dir` is not user-settable via API; use `default_cache_dir()` / manual toml edit.
 }
 
 #[cfg(test)]

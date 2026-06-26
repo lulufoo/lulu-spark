@@ -107,3 +107,32 @@ fn to_config_json_includes_flags_without_token() {
     assert!(v.get("github_token").is_none());
     assert!(v.get("meili_master_key").is_none());
 }
+
+#[test]
+fn is_unstable_cache_dir_detects_macos_tempfile() {
+    assert!(is_unstable_cache_dir(Path::new(
+        "/var/folders/xx/T/.tmp7vvARz/cache"
+    )));
+    assert!(!is_unstable_cache_dir(Path::new(
+        "/Users/me/.cache/lulu-workbench"
+    )));
+}
+
+#[test]
+fn normalize_cache_dir_resets_ephemeral_path() {
+    let mut s = AppSettings::default();
+    s.cache_dir = PathBuf::from("/var/folders/xx/T/.tmp7vvARz/cache");
+    normalize_cache_dir(&mut s);
+    assert_eq!(s.cache_dir, default_cache_dir());
+}
+
+#[test]
+fn apply_config_payload_ignores_cache_dir() {
+    let mut s = AppSettings::default();
+    let before = s.cache_dir.clone();
+    apply_config_payload(
+        &mut s,
+        &serde_json::json!({ "cache_dir": "/var/folders/x/T/.tmp7vvARz/cache" }),
+    );
+    assert_eq!(s.cache_dir, before);
+}

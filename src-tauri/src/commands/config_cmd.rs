@@ -11,6 +11,7 @@ pub fn set_config(_app: AppHandle, payload: Value) -> Result<Value, String> {
     }
     let mut settings = settings::load().map_err(|e| format!("{e}"))?;
     settings::apply_config_payload(&mut settings, &payload);
+    settings::normalize_cache_dir(&mut settings);
     settings::save(&settings).map_err(|e| format!("{e}"))?;
     Ok(settings::to_config_json(
         &settings,
