@@ -111,6 +111,23 @@ export function renderTagsBar(entry) {
   bar.appendChild(addBtn);
 }
 
+function findTagKeyByValue(registry, value) {
+  const trimmed = (value || '').trim();
+  if (!trimmed) return null;
+  const keys = registry?.keys || {};
+  let bestKey = null;
+  let bestRefs = -1;
+  for (const [key, meta] of Object.entries(keys)) {
+    if ((meta?.value || '') !== trimmed) continue;
+    const refs = meta?.refs ?? 0;
+    if (refs > bestRefs) {
+      bestRefs = refs;
+      bestKey = key;
+    }
+  }
+  return bestKey;
+}
+
 async function detachTag(entry, key) {
   try {
     const data = await api.tagDetach(entry.common_path, key);
@@ -261,7 +278,11 @@ function showAddTagInput(entry, bar) {
   }
 
   input.addEventListener('input', renderSuggestions);
-  okBtn.addEventListener('click', () => submitAttach(entry, { value: input.value.trim() }, preview, row));
+  okBtn.addEventListener('click', () => {
+    const trimmed = input.value.trim();
+    const existingKey = findTagKeyByValue(state.index.tagsRegistry, trimmed);
+    submitAttach(entry, existingKey ? { key: existingKey } : { value: trimmed }, preview, row);
+  });
   cancelBtn.addEventListener('click', () => row.remove());
   row.append(wrap, okBtn, cancelBtn, preview);
   bar.appendChild(row);

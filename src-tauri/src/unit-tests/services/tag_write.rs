@@ -78,6 +78,24 @@ fn tag_update_value_only_changes_registry() {
 }
 
 #[test]
+fn tag_attach_reuses_existing_key_for_same_value() {
+    with_corpus(true, |dir, corpus| {
+        let cp1 = "ai/first.md";
+        let cp2 = "ai/second.md";
+        let first = tag_attach(dir.path(), cp1, &json!({ "value": "Obsidian" }));
+        let key = first["key"].as_str().expect("key").to_string();
+
+        let second = tag_attach(dir.path(), cp2, &json!({ "value": "Obsidian" }));
+        assert_eq!(second["ok"], true);
+        assert_eq!(second["key"].as_str(), Some(key.as_str()));
+
+        let reg = read_registry(&corpus);
+        assert_eq!(reg["keys"].as_object().unwrap().len(), 1);
+        assert_eq!(reg["keys"][&key]["refs"], 2);
+    });
+}
+
+#[test]
 fn tag_attach_rejects_empty_value() {
     with_corpus(true, |dir, _| {
         let v = tag_attach(dir.path(), "ai/bad.md", &json!({ "value": "   " }));

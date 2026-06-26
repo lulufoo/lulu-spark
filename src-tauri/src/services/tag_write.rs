@@ -71,6 +71,24 @@ fn tag_keys_vec(ann: &Value) -> Vec<String> {
         .unwrap_or_default()
 }
 
+fn find_key_by_value(registry: &Value, value: &str) -> Option<String> {
+    let keys = registry.get("keys")?.as_object()?;
+    keys.iter()
+        .filter_map(|(key, entry)| {
+            let matches = entry
+                .get("value")
+                .and_then(|v| v.as_str())
+                .is_some_and(|v| v == value);
+            if !matches {
+                return None;
+            }
+            let refs = entry.get("refs").and_then(|v| v.as_u64()).unwrap_or(0);
+            Some((key.clone(), refs))
+        })
+        .max_by_key(|(_, refs)| *refs)
+        .map(|(key, _)| key)
+}
+
 pub fn tag_attach(repo_root: &Path, common_path: &str, payload: &Value) -> Value {
     let Ok((corpus, target)) = corpus_and_path(repo_root, common_path) else {
         return invalid_common_path();
@@ -123,6 +141,24 @@ pub fn tag_attach(repo_root: &Path, common_path: &str, payload: &Value) -> Value
             return json!({ "error": "value required when key omitted", "_status": 400 });
         }
     };
+
+    if let Some(existing_key) = find_key_by_value(&registry, &value) {
+        if keys.iter().any(|k| k == &existing_key) {
+            return json!({ "ok": true, "idempotent": true, "key": existing_key });
+        }
+        keys.push(existing_key.clone());
+        adjust_refs(&mut registry, &[existing_key.clone()], 1);
+        dedup_tag_keys(&mut keys);
+        ann_map.insert("tag_keys".into(), json!(keys));
+        if let Some(err) = save_registry(&corpus, &registry) {
+            return err;
+        }
+        if let Some(err) = persist_annotation_file(&target, &ann) {
+            let _ = save_registry(&corpus, &registry_snapshot);
+            return err;
+        }
+        return json!({ "ok": true, "key": existing_key });
+    }
 
     let new_key = random_hex12();
     keys.push(new_key.clone());
