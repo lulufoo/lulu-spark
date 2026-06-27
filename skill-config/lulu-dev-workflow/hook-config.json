@@ -17,7 +17,8 @@
           "."
         ],
         "writeDirs": [
-          "."
+          ".cache/worktrees",
+          ".cache/{platform}/lulu-dev-workflow"        
         ]
       }
     }
