@@ -5,7 +5,8 @@
     "bypassWriteWhenDelivered": true,
     "defaults": {
       "readDirs": [
-        "."
+        ".",
+        "{platform-skills}"
       ],
       "writeDirs": [
         ".cache/{platform}/lulu-dev-workflow"
@@ -14,7 +15,8 @@
     "stages": {
       "tech-code": {
         "readDirs": [
-          "."
+          ".",
+          "{platform-skills}"
         ],
         "writeDirs": [
           ".cache/worktrees",
