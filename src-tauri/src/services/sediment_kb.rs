@@ -425,5 +425,45 @@ pub fn remove_category(id: &str) -> Result<(), SedimentKbError> {
 }
 
 #[cfg(test)]
+pub fn validate_description_source_constraints() {
+    let sediment_kb = include_str!("sediment_kb.rs");
+    let write_cmd = include_str!("../commands/write.rs");
+    let workbench_read = include_str!("workbench_read.rs");
+
+    let validate_fn = sediment_kb
+        .split("fn validate_repo_access")
+        .nth(1)
+        .and_then(|s| s.split("\nfn ").next())
+        .expect("validate_repo_access");
+    assert!(
+        !validate_fn.contains("description"),
+        "validate_repo_access must not extract GitHub description"
+    );
+
+    for (label, src) in [
+        ("sediment_kb", sediment_kb),
+        ("write", write_cmd),
+        ("workbench_read", workbench_read),
+    ] {
+        for forbidden in ["README", "frontmatter"] {
+            assert!(
+                !src.contains(forbidden),
+                "{label} must not use {forbidden} for description"
+            );
+        }
+    }
+
+    let get_topics = workbench_read
+        .split("pub fn get_topics")
+        .nth(1)
+        .and_then(|s| s.split("\npub fn ").next())
+        .expect("get_topics");
+    assert!(
+        !get_topics.contains("index.json"),
+        "get_topics must not read index.json for description"
+    );
+}
+
+#[cfg(test)]
 #[path = "../unit-tests/services/sediment_kb.rs"]
 mod tests;

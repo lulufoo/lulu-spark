@@ -44,6 +44,7 @@ fn sediment_kb_add_repo_json_defaults_to_uncategorized() {
         assert!(v.get("error").is_none());
         let repos = load_repos().expect("load");
         assert_eq!(repos.repos[0].category_id, UNCATEGORIZED_ID);
+        assert_eq!(repos.repos[0].description, "");
         set_test_repo_validator(None);
     });
 }
@@ -184,6 +185,11 @@ fn sediment_kb_add_repo_json_duplicate_returns_error_json() {
         assert_eq!(v["code"], "duplicate");
         set_test_repo_validator(None);
     });
+}
+
+#[test]
+fn sediment_kb_description_source_constraints_hold() {
+    crate::services::sediment_kb::validate_description_source_constraints();
 }
 
 #[test]
