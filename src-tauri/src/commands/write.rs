@@ -71,7 +71,11 @@ pub fn sediment_kb_add_repo_json(payload: Value) -> Result<Value, String> {
     let category_id = payload
         .get("category_id")
         .and_then(|v| v.as_str());
-    match sediment_kb::add_repo(full_name, category_id) {
+    let description = payload
+        .get("description")
+        .and_then(|v| v.as_str())
+        .unwrap_or("");
+    match sediment_kb::add_repo(full_name, category_id, description) {
         Ok(()) => Ok(sediment_kb_ok()),
         Err(e) => Ok(map_sediment_kb_error(e)),
     }

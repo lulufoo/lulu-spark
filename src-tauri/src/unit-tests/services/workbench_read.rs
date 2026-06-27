@@ -67,7 +67,7 @@ fn get_topics_reads_from_sediment_kb_with_category_fields() {
     with_sediment_kb_topics_cache(|cfg, corpus| {
         set_test_repo_validator(Some(|name| Ok(name.to_string())));
         ensure_uncategorized().expect("ensure");
-        add_repo("lulufoo/kb-a", None).expect("add");
+        add_repo("lulufoo/kb-a", None, "").expect("add");
         set_test_repo_validator(None);
 
         let v = get_topics(corpus);
@@ -114,7 +114,7 @@ fn list_repos_for_topics_resolves_uncategorized_name() {
     with_sediment_kb_topics_cache(|_, _| {
         set_test_repo_validator(Some(|name| Ok(name.to_string())));
         ensure_uncategorized().expect("ensure");
-        add_repo("acme/demo", None).expect("add");
+        add_repo("acme/demo", None, "").expect("add");
         set_test_repo_validator(None);
 
         let rows = list_repos_for_topics().expect("list");

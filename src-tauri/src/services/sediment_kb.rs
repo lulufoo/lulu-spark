@@ -304,7 +304,11 @@ fn category_exists(categories: &CategoriesFile, category_id: &str) -> bool {
     categories.categories.iter().any(|c| c.id == category_id)
 }
 
-pub fn add_repo(full_name: &str, category_id: Option<&str>) -> Result<(), SedimentKbError> {
+pub fn add_repo(
+    full_name: &str,
+    category_id: Option<&str>,
+    description: &str,
+) -> Result<(), SedimentKbError> {
     with_write_lock(|| {
         ensure_uncategorized_unlocked()?;
         let normalized = normalize_full_name(full_name)?;
@@ -323,7 +327,7 @@ pub fn add_repo(full_name: &str, category_id: Option<&str>) -> Result<(), Sedime
 
         repos.repos.push(RepoEntry {
             full_name: validated,
-            description: String::new(),
+            description: description.trim().to_string(),
             category_id: cat_id.to_string(),
         });
         save_repos_unlocked(&repos)?;

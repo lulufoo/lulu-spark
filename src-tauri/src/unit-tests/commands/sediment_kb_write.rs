@@ -74,7 +74,7 @@ fn sediment_kb_category_crud() {
         let id = v["id"].as_str().expect("id");
         sediment_kb_rename_category_json(json!({ "id": id, "name": "ML" })).expect("rename");
         set_test_repo_validator(Some(ok_validator));
-        add_repo("acme/x", Some(id)).expect("seed");
+        add_repo("acme/x", Some(id), "").expect("seed");
         sediment_kb_remove_category_json(json!({ "id": id })).expect("remove cat");
         let repos = load_repos().expect("repos");
         assert!(repos.repos.iter().all(|r| r.category_id == UNCATEGORIZED_ID));

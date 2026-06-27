@@ -42,7 +42,7 @@ fn get_sediment_kb_repos_resolves_category_names() {
         set_test_repo_validator(Some(ok_validator));
         ensure_uncategorized().expect("ensure");
         let cat_id = add_category("Research").expect("cat");
-        add_repo("acme/demo", Some(&cat_id)).expect("add");
+        add_repo("acme/demo", Some(&cat_id), "").expect("add");
         let repo_root = paths::repo_root().expect("repo root");
         let v = sediment_kb_repos_json(&repo_root).expect("repos");
         let repos = v["repos"].as_array().expect("array");

@@ -60,7 +60,7 @@ fn add_repo_accepts_owner_slash_repo() {
     with_sediment_kb_cache(|_| {
         set_test_repo_validator(Some(ok_validator));
         ensure_uncategorized().expect("ensure");
-        add_repo("acme/demo", None).expect("add");
+        add_repo("acme/demo", None, "").expect("add");
         let repos = load_repos().expect("load");
         assert_eq!(repos.repos.len(), 1);
         assert_eq!(repos.repos[0].full_name, "acme/demo");
@@ -70,11 +70,40 @@ fn add_repo_accepts_owner_slash_repo() {
 }
 
 #[test]
+fn add_repo_saves_trimmed_description() {
+    with_sediment_kb_cache(|_| {
+        set_test_repo_validator(Some(ok_validator));
+        ensure_uncategorized().expect("ensure");
+        add_repo("acme/demo", None, "  demo desc  ").expect("add");
+
+        let repos = load_repos().expect("load");
+        assert_eq!(repos.repos[0].description, "demo desc");
+
+        let topics = list_repos_for_topics().expect("topics");
+        assert_eq!(topics[0].description, "demo desc");
+        set_test_repo_validator(None);
+    });
+}
+
+#[test]
+fn add_repo_saves_empty_description_when_blank() {
+    with_sediment_kb_cache(|_| {
+        set_test_repo_validator(Some(ok_validator));
+        ensure_uncategorized().expect("ensure");
+        add_repo("acme/demo", None, "  ").expect("add");
+
+        let repos = load_repos().expect("load");
+        assert_eq!(repos.repos[0].description, "");
+        set_test_repo_validator(None);
+    });
+}
+
+#[test]
 fn add_repo_accepts_github_url() {
     with_sediment_kb_cache(|_| {
         set_test_repo_validator(Some(ok_validator));
         ensure_uncategorized().expect("ensure");
-        add_repo("https://github.com/acme/demo/", None).expect("add");
+        add_repo("https://github.com/acme/demo/", None, "").expect("add");
         let repos = load_repos().expect("load");
         assert_eq!(repos.repos[0].full_name, "acme/demo");
         set_test_repo_validator(None);
@@ -87,7 +116,7 @@ fn add_repo_with_category() {
         set_test_repo_validator(Some(ok_validator));
         ensure_uncategorized().expect("ensure");
         let cat_id = add_category("AI").expect("add cat");
-        add_repo("acme/demo", Some(&cat_id)).expect("add");
+        add_repo("acme/demo", Some(&cat_id), "").expect("add");
         let repos = load_repos().expect("load");
         assert_eq!(repos.repos[0].category_id, cat_id);
         set_test_repo_validator(None);
@@ -99,8 +128,8 @@ fn add_repo_duplicate_rejected() {
     with_sediment_kb_cache(|_| {
         set_test_repo_validator(Some(ok_validator));
         ensure_uncategorized().expect("ensure");
-        add_repo("acme/demo", None).expect("first");
-        let err = add_repo("acme/demo", None).expect_err("dup");
+        add_repo("acme/demo", None, "").expect("first");
+        let err = add_repo("acme/demo", None, "").expect_err("dup");
         assert!(err.is_duplicate());
         set_test_repo_validator(None);
     });
@@ -111,7 +140,7 @@ fn add_repo_invalid_format_rejected() {
     with_sediment_kb_cache(|_| {
         set_test_repo_validator(Some(ok_validator));
         ensure_uncategorized().expect("ensure");
-        let err = add_repo("not-a-repo", None).expect_err("invalid");
+        let err = add_repo("not-a-repo", None, "").expect_err("invalid");
         assert!(err.is_invalid_format());
         set_test_repo_validator(None);
     });
@@ -122,7 +151,7 @@ fn add_repo_not_accessible_rejected() {
     with_sediment_kb_cache(|_| {
         set_test_repo_validator(Some(inaccessible_validator));
         ensure_uncategorized().expect("ensure");
-        let err = add_repo("acme/missing", None).expect_err("missing");
+        let err = add_repo("acme/missing", None, "").expect_err("missing");
         assert!(err.is_not_accessible());
         set_test_repo_validator(None);
     });
@@ -133,7 +162,7 @@ fn remove_repo_removes_entry() {
     with_sediment_kb_cache(|_| {
         set_test_repo_validator(Some(ok_validator));
         ensure_uncategorized().expect("ensure");
-        add_repo("acme/demo", None).expect("add");
+        add_repo("acme/demo", None, "").expect("add");
         super::remove_repo("acme/demo").expect("remove");
         assert!(load_repos().expect("load").repos.is_empty());
         set_test_repo_validator(None);
@@ -146,7 +175,7 @@ fn update_repo_category_changes_category() {
         set_test_repo_validator(Some(ok_validator));
         ensure_uncategorized().expect("ensure");
         let cat_id = add_category("Docs").expect("cat");
-        add_repo("acme/demo", None).expect("add");
+        add_repo("acme/demo", None, "").expect("add");
         super::update_repo_category("acme/demo", &cat_id).expect("update");
         assert_eq!(
             load_repos().expect("load").repos[0].category_id,
@@ -187,8 +216,8 @@ fn remove_category_reassigns_repos_to_uncategorized() {
         set_test_repo_validator(Some(ok_validator));
         ensure_uncategorized().expect("ensure");
         let cat_id = add_category("Temp").expect("cat");
-        add_repo("acme/a", Some(&cat_id)).expect("a");
-        add_repo("acme/b", Some(&cat_id)).expect("b");
+        add_repo("acme/a", Some(&cat_id), "").expect("a");
+        add_repo("acme/b", Some(&cat_id), "").expect("b");
         remove_category(&cat_id).expect("remove cat");
         let repos = load_repos().expect("load");
         assert!(repos.repos.iter().all(|r| r.category_id == UNCATEGORIZED_ID));
@@ -219,7 +248,7 @@ fn concurrent_writes_do_not_corrupt_json() {
             handles.push(thread::spawn(move || {
                 let n = counter.fetch_add(1, Ordering::SeqCst);
                 let name = format!("org/repo{n}");
-                add_repo(&name, None).expect("add");
+                add_repo(&name, None, "").expect("add");
             }));
         }
         for h in handles {
