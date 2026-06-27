@@ -2,8 +2,10 @@
 
 use std::collections::HashMap;
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::time::UNIX_EPOCH;
+
+use base64::Engine;
 
 use chrono::{TimeZone, Utc};
 use serde_json::{json, Map, Value};
@@ -429,6 +431,103 @@ pub fn get_corpus_file(_repo_root: &Path, layer: &str, common_path: &str) -> Val
     }
     match fs::read_to_string(&target_canon) {
         Ok(content) => json!({ "content": content }),
+        Err(e) => json!({ "error": e.to_string(), "_status": 500 }),
+    }
+}
+
+/// MIME whitelist for corpus raster assets (PNG/JPEG/GIF/WebP).
+pub fn mime_from_extension(path: &Path) -> Option<&'static str> {
+    let ext = path.extension()?.to_str()?.to_ascii_lowercase();
+    match ext.as_str() {
+        "png" => Some("image/png"),
+        "jpg" | "jpeg" => Some("image/jpeg"),
+        "gif" => Some("image/gif"),
+        "webp" => Some("image/webp"),
+        _ => None,
+    }
+}
+
+fn corpus_asset_common_path(base: &str, href: &str) -> Result<String, Value> {
+    let base = base.trim();
+    let href = href.trim();
+    if base.is_empty() || href.is_empty() {
+        return Err(json!({ "error": "Invalid path", "_status": 400 }));
+    }
+    if base.contains("..") || href.contains("..") {
+        return Err(json!({ "error": "Invalid path", "_status": 400 }));
+    }
+    if href.starts_with("http://")
+        || href.starts_with("https://")
+        || href.starts_with("data:")
+        || href.starts_with("blob:")
+        || href.starts_with('/')
+    {
+        return Err(json!({ "error": "Invalid path", "_status": 400 }));
+    }
+    let joined = Path::new(base)
+        .parent()
+        .unwrap_or_else(|| Path::new(""))
+        .join(href);
+    let joined_str = joined.to_string_lossy().replace('\\', "/");
+    if joined_str.is_empty() {
+        return Err(json!({ "error": "Invalid path", "_status": 400 }));
+    }
+    Ok(joined_str)
+}
+
+fn corpus_target_within_root(repo_root: &Path, layer: &str, common_path: &str) -> Result<PathBuf, Value> {
+    let corpus = workbench_knowledge_root_path(repo_root);
+    let target = corpus.join(layer).join(common_path);
+    let corpus_canon = match corpus.canonicalize() {
+        Ok(p) => p,
+        Err(e) => return Err(json!({ "error": e.to_string(), "_status": 500 })),
+    };
+    let target_canon = target.canonicalize().unwrap_or(target);
+    let prefix = format!(
+        "{}{}",
+        corpus_canon.to_string_lossy(),
+        std::path::MAIN_SEPARATOR
+    );
+    if !target_canon.to_string_lossy().starts_with(&prefix) {
+        return Err(json!({ "error": "Path traversal not allowed", "_status": 400 }));
+    }
+    Ok(target_canon)
+}
+
+/// Corpus binary asset (`{layer}/{dirname(base)}/{relative_href}`), base64 in JSON for invoke.
+pub fn get_corpus_asset(repo_root: &Path, layer: &str, base: &str, href: &str) -> Value {
+    let layer = layer.trim();
+    if !CORPUS_LAYERS.contains(&layer) {
+        return json!({ "error": format!("Invalid layer: {layer}"), "_status": 400 });
+    }
+    let common_path = match corpus_asset_common_path(base, href) {
+        Ok(p) => p,
+        Err(v) => return v,
+    };
+    let target_canon = match corpus_target_within_root(repo_root, layer, &common_path) {
+        Ok(p) => p,
+        Err(v) => return v,
+    };
+    let mime = match mime_from_extension(&target_canon) {
+        Some(m) => m,
+        None => {
+            return json!({
+                "error": "Unsupported media type",
+                "_status": 400
+            });
+        }
+    };
+    if !target_canon.is_file() {
+        return json!({
+            "error": format!("File not found: {layer}/{common_path}"),
+            "_status": 404
+        });
+    }
+    match fs::read(&target_canon) {
+        Ok(bytes) => {
+            let data_b64 = base64::engine::general_purpose::STANDARD.encode(bytes);
+            json!({ "data_b64": data_b64, "mime_type": mime })
+        }
         Err(e) => json!({ "error": e.to_string(), "_status": 500 }),
     }
 }

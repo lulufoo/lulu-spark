@@ -226,6 +226,43 @@ fn get_corpus_file_returns_content() {
 }
 
 #[test]
+fn get_corpus_asset_returns_png_bytes() {
+    let dir = tempfile::tempdir().expect("tmp");
+    let corpus = dir.path().join("corpus");
+    let png = corpus.join("raw").join("ai").join("note.png");
+    fs::create_dir_all(png.parent().unwrap()).expect("mkdir");
+    fs::write(&png, b"\x89PNG\r\n").expect("write");
+    fs::write(corpus.join("raw").join("ai").join("note.md"), b"# x").expect("md");
+    crate::config::settings::write_test_config(dir.path(), &corpus, None);
+    let v = get_corpus_asset(dir.path(), "raw", "ai/note.md", "note.png");
+    assert!(v.get("data_b64").and_then(|x| x.as_str()).is_some());
+    assert_eq!(v["mime_type"], "image/png");
+}
+
+#[test]
+fn get_corpus_asset_rejects_traversal() {
+    let dir = tempfile::tempdir().expect("tmp");
+    let corpus = dir.path().join("corpus");
+    fs::create_dir_all(corpus.join("raw")).expect("mkdir");
+    crate::config::settings::write_test_config(dir.path(), &corpus, None);
+    let v = get_corpus_asset(dir.path(), "raw", "ai/note.md", "../index.json");
+    assert_eq!(v["error"], "Invalid path");
+}
+
+#[test]
+fn get_corpus_asset_rejects_non_whitelist_ext() {
+    let dir = tempfile::tempdir().expect("tmp");
+    let corpus = dir.path().join("corpus");
+    let svg = corpus.join("raw").join("x.svg");
+    fs::create_dir_all(svg.parent().unwrap()).expect("mkdir");
+    fs::write(&svg, b"<svg").expect("write");
+    fs::write(corpus.join("raw").join("x.md"), b"#").expect("md");
+    crate::config::settings::write_test_config(dir.path(), &corpus, None);
+    let v = get_corpus_asset(dir.path(), "raw", "x.md", "x.svg");
+    assert_eq!(v["error"], "Unsupported media type");
+}
+
+#[test]
 fn get_corpus_catalog_latest_per_topic_picks_newest() {
     let dir = tempfile::tempdir().expect("tmp");
     let corpus = dir.path().join("corpus");
