@@ -416,10 +416,13 @@ export async function fetchSedimentKbRepos() {
   return readGet('/api/sediment-kb/repos');
 }
 
-export async function addSedimentKbRepo(fullName, categoryId) {
+export async function addSedimentKbRepo(fullName, categoryId, description) {
   const body = { full_name: fullName };
   if (categoryId != null && categoryId !== '') {
     body.category_id = categoryId;
+  }
+  if (description != null && description !== '') {
+    body.description = description;
   }
   return writePost('/api/sediment-kb/repos/add', body);
 }

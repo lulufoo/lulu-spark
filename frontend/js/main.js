@@ -388,6 +388,7 @@ async function openSedimentKbAddDialog() {
   const urlInput = document.getElementById('sediment-kb-add-url');
   _setSedimentKbError('sediment-kb-add-error', '');
   urlInput.value = '';
+  document.getElementById('sediment-kb-add-description').value = '';
   try {
     const categories = await _ensureSedimentKbCategories();
     const catSelect = document.getElementById('sediment-kb-add-category');
@@ -500,6 +501,7 @@ document.getElementById('btn-sediment-kb-add-submit').addEventListener('click', 
   void (async () => {
     const urlInput = document.getElementById('sediment-kb-add-url');
     const catSelect = document.getElementById('sediment-kb-add-category');
+    const descInput = document.getElementById('sediment-kb-add-description');
     const submitBtn = document.getElementById('btn-sediment-kb-add-submit');
     const fullName = urlInput.value.trim();
     if (!fullName) {
@@ -510,7 +512,8 @@ document.getElementById('btn-sediment-kb-add-submit').addEventListener('click', 
     _setSedimentKbError('sediment-kb-add-error', '');
     try {
       const categoryId = catSelect.value || undefined;
-      const res = await api.addSedimentKbRepo(fullName, categoryId);
+      const description = descInput.value.trim() || undefined;
+      const res = await api.addSedimentKbRepo(fullName, categoryId, description);
       if (res?.error) throw new Error(res.error);
       _sedimentKbList = null;
       _sedimentKbCategories = null;

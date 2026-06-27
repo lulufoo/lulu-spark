@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 
 const indexHtml = readFileSync(new URL('../frontend/index.html', import.meta.url), 'utf8');
 const mainJs = readFileSync(new URL('../frontend/js/main.js', import.meta.url), 'utf8');
+const apiJs = readFileSync(new URL('../frontend/js/api.js', import.meta.url), 'utf8');
 const moveDialogJs = readFileSync(
   new URL('../frontend/js/components/modals/move-dialog.js', import.meta.url),
   'utf8'
@@ -26,6 +27,29 @@ describe('sediment kb UI shell', () => {
     expect(indexHtml).toContain('id="sediment-kb-manage-dialog"');
     expect(indexHtml).toContain('id="sediment-kb-add-url"');
     expect(indexHtml).toContain('id="sediment-kb-add-category"');
+    expect(indexHtml).toContain('id="sediment-kb-add-description"');
+  });
+
+  it('add dialog description field is optional textarea', () => {
+    const match = indexHtml.match(/<textarea id="sediment-kb-add-description"[^>]*>/);
+    expect(match).not.toBeNull();
+  });
+
+  it('openSedimentKbAddDialog clears description input', () => {
+    expect(mainJs).toMatch(
+      /function openSedimentKbAddDialog\(\)[\s\S]*?getElementById\('sediment-kb-add-description'\)\.value = ''/
+    );
+  });
+
+  it('submit handler passes description to addSedimentKbRepo', () => {
+    expect(mainJs).toMatch(
+      /btn-sediment-kb-add-submit[\s\S]*?getElementById\('sediment-kb-add-description'\)[\s\S]*?api\.addSedimentKbRepo\([^)]*description/
+    );
+  });
+
+  it('addSedimentKbRepo includes description in request body', () => {
+    expect(apiJs).toMatch(/export async function addSedimentKbRepo\(fullName, categoryId, description\)/);
+    expect(apiJs).toMatch(/body\.description = description/);
   });
 
   it('main.js wires sediment kb helpers', () => {
