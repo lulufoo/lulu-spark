@@ -49,6 +49,80 @@ fn sediment_kb_add_repo_json_defaults_to_uncategorized() {
 }
 
 #[test]
+fn sediment_kb_add_repo_json_saves_description() {
+    with_sediment_kb_cache(|_| {
+        set_test_repo_validator(Some(ok_validator));
+        ensure_uncategorized().expect("ensure");
+        let v = sediment_kb_add_repo_json(json!({
+            "full_name": "acme/demo",
+            "description": "demo desc"
+        }))
+        .expect("add");
+        assert!(v.get("error").is_none());
+        let repos = load_repos().expect("load");
+        assert_eq!(repos.repos[0].description, "demo desc");
+        set_test_repo_validator(None);
+    });
+}
+
+#[test]
+fn sediment_kb_add_repo_json_saves_description_with_category() {
+    with_sediment_kb_cache(|_| {
+        set_test_repo_validator(Some(ok_validator));
+        ensure_uncategorized().expect("ensure");
+        let cat_id = add_category("Docs").expect("cat");
+        let v = sediment_kb_add_repo_json(json!({
+            "full_name": "acme/demo",
+            "category_id": cat_id,
+            "description": "demo desc"
+        }))
+        .expect("add");
+        assert!(v.get("error").is_none());
+        let repos = load_repos().expect("load");
+        assert_eq!(repos.repos[0].category_id, cat_id);
+        assert_eq!(repos.repos[0].description, "demo desc");
+        set_test_repo_validator(None);
+    });
+}
+
+#[test]
+fn sediment_kb_add_repo_json_defaults_missing_description_to_empty_string() {
+    with_sediment_kb_cache(|_| {
+        set_test_repo_validator(Some(ok_validator));
+        ensure_uncategorized().expect("ensure");
+        let v = sediment_kb_add_repo_json(json!({ "full_name": "acme/demo" })).expect("add");
+        assert!(v.get("error").is_none());
+        let repos = load_repos().expect("load");
+        assert_eq!(repos.repos[0].description, "");
+        set_test_repo_validator(None);
+    });
+}
+
+#[test]
+fn sediment_kb_add_repo_json_keeps_empty_description() {
+    with_sediment_kb_cache(|_| {
+        set_test_repo_validator(Some(ok_validator));
+        ensure_uncategorized().expect("ensure");
+        let v = sediment_kb_add_repo_json(json!({
+            "full_name": "acme/demo",
+            "description": ""
+        }))
+        .expect("add");
+        assert!(v.get("error").is_none());
+        let repos = load_repos().expect("load");
+        assert_eq!(repos.repos[0].description, "");
+        set_test_repo_validator(None);
+    });
+}
+
+#[test]
+fn sediment_kb_add_repo_json_requires_full_name_before_description() {
+    let err = sediment_kb_add_repo_json(json!({ "description": "demo desc" }))
+        .expect_err("missing full_name should be an Err");
+    assert_eq!(err, "missing full_name");
+}
+
+#[test]
 fn sediment_kb_add_repo_json_crud_roundtrip() {
     with_sediment_kb_cache(|_| {
         set_test_repo_validator(Some(ok_validator));
