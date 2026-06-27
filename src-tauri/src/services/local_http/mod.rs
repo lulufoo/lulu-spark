@@ -12,7 +12,7 @@ use tiny_http::{Header, Method, Response, Server, StatusCode};
 
 use crate::services::archive_write::{archive_digest, archive_document};
 use crate::services::workbench_read::{
-    get_corpus_catalog_latest_per_topic, get_corpus_file, get_corpus_files_by_ids,
+    get_corpus_asset, get_corpus_catalog_latest_per_topic, get_corpus_file, get_corpus_files_by_ids,
     get_corpus_index,
 };
 
@@ -163,6 +163,14 @@ fn handle_request(repo_root: &PathBuf, port: u16, request: tiny_http::Request) {
                 return;
             }
             let value = get_corpus_file(repo_root, layer, common_path);
+            respond_from_value(request, value);
+        }
+        "/api/corpus-asset" => {
+            let params = parse_query(request.url());
+            let layer = params.get("layer").map(String::as_str).unwrap_or("");
+            let base = params.get("base").map(String::as_str).unwrap_or("");
+            let href = params.get("href").map(String::as_str).unwrap_or("");
+            let value = get_corpus_asset(repo_root, layer, base, href);
             respond_from_value(request, value);
         }
         "/api/status" => {

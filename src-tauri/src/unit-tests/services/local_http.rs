@@ -187,6 +187,24 @@ fn get_corpus_file_raw_layer_returns_400() {
 }
 
 #[test]
+fn get_corpus_asset_raw_returns_base64_png() {
+    let dir = tempfile::tempdir().expect("tmpdir");
+    let corpus = dir.path().join("corpus");
+    fs::create_dir_all(corpus.join("raw/ai")).expect("mkdir raw");
+    fs::write(corpus.join("raw/ai/note.png"), b"\x89PNG\r\n").expect("png");
+    fs::write(corpus.join("raw/ai/note.md"), b"# note").expect("md");
+    crate::config::settings::write_test_config(dir.path(), &corpus, None);
+    let repo_root = dir.path().to_path_buf();
+    with_server(repo_root, |port| {
+        let q = "/api/corpus-asset?layer=raw&base=ai/note.md&href=note.png";
+        let (status, body) = http_get(port, q);
+        assert_eq!(status, 200);
+        assert!(body.get("data_b64").and_then(|x| x.as_str()).is_some());
+        assert_eq!(body["mime_type"], "image/png");
+    });
+}
+
+#[test]
 fn maps_workbench_read_status_404_without_status_in_body() {
     let (_dir, repo_root) = setup_repo_without_index();
     with_server(repo_root, |port| {
