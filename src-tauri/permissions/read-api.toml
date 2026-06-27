@@ -19,6 +19,7 @@ commands.allow = [
   "fetch_link_title",
   "get_corpus_index",
   "get_corpus_file",
+  "get_corpus_asset",
   "get_kb_diff_status",
   "get_sediment_kb_categories",
   "get_sediment_kb_repos",

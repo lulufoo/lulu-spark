@@ -354,6 +354,7 @@ pub fn run() {
             commands::read::fetch_link_title,
             commands::read::get_corpus_index,
             commands::read::get_corpus_file,
+            commands::read::get_corpus_asset,
             commands::read::get_kb_diff_status,
             commands::read::get_sediment_kb_categories,
             commands::read::get_sediment_kb_repos,

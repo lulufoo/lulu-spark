@@ -144,6 +144,21 @@ pub fn get_corpus_file(
 }
 
 #[tauri::command]
+pub fn get_corpus_asset(
+    _app: AppHandle,
+    layer: String,
+    base: String,
+    href: String,
+) -> Result<Value, String> {
+    Ok(workbench_read::get_corpus_asset(
+        &repo_root()?,
+        &layer,
+        &base,
+        &href,
+    ))
+}
+
+#[tauri::command]
 pub fn get_kb_diff_status(_app: AppHandle) -> Result<Value, String> {
     let repo_root = repo_root()?;
     let knowledge_corpus_root = std::path::PathBuf::from(
