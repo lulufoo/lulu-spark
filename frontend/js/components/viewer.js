@@ -116,6 +116,36 @@ function postProcessLinks(container, layer, commonPath) {
   });
 }
 
+const _corpusBlobUrls = new Set();
+
+function revokeCorpusBlobUrls() {
+  for (const url of _corpusBlobUrls) {
+    URL.revokeObjectURL(url);
+  }
+  _corpusBlobUrls.clear();
+}
+
+function isExternalOrSpecialImgSrc(src) {
+  return /^(https?:|data:|blob:|\/)/i.test(src);
+}
+
+async function postProcessImages(container, layer, commonPath) {
+  const imgs = [...container.querySelectorAll('img[src]')];
+  await Promise.all(
+    imgs.map(async (img) => {
+      const href = img.getAttribute('src');
+      if (!href || href.startsWith('#') || isExternalOrSpecialImgSrc(href)) return;
+      try {
+        const blobUrl = await api.fetchCorpusAssetAsBlobUrl(layer, commonPath, href);
+        _corpusBlobUrls.add(blobUrl);
+        img.src = blobUrl;
+      } catch {
+        img.alt = img.alt || href;
+      }
+    }),
+  );
+}
+
 // ── renderDocBody ──────────────────────────────────────────────────────────
 
 export async function renderDocBody(text, layer, commonPath) {
@@ -129,6 +159,8 @@ export async function renderDocBody(text, layer, commonPath) {
   document.getElementById('btn-edit').style.display = '';
   renderLinksBar(state.viewer.entry);
   renderTagsBar(state.viewer.entry);
+  revokeCorpusBlobUrls();
+  await postProcessImages(body, layer, commonPath);
   await renderMermaidBlocks(body);
   renderComments(state.viewer.annotation, layer, state.viewer.entry);
   const zone = document.createElement('div');

@@ -15,6 +15,14 @@ export const READ_API_INVOKE_MAP = {
       path: url.searchParams.get('path') ?? '',
     }),
   },
+  '/api/corpus-asset': {
+    cmd: 'get_corpus_asset',
+    args: (url) => ({
+      layer: url.searchParams.get('layer') ?? '',
+      base: url.searchParams.get('base') ?? '',
+      href: url.searchParams.get('href') ?? '',
+    }),
+  },
   '/api/topics': { cmd: 'get_topics' },
   '/api/search-knowledge': {
     cmd: 'search_knowledge',

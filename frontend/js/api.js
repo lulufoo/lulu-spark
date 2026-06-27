@@ -133,6 +133,26 @@ export async function fetchFileContent(layer, commonPath) {
   return typeof data === 'string' ? data : (data?.content ?? '');
 }
 
+/** Load corpus raster asset via invoke; returns blob: URL (caller may revoke). */
+export async function fetchCorpusAssetAsBlobUrl(layer, baseCommonPath, href) {
+  const data = await readGet(
+    `/api/corpus-asset?layer=${encodeURIComponent(layer)}&base=${encodeURIComponent(baseCommonPath)}&href=${encodeURIComponent(href)}&_=${Date.now()}`
+  );
+  if (data && typeof data === 'object' && data.error) {
+    throw new Error(String(data.error));
+  }
+  const mime = data?.mime_type || 'application/octet-stream';
+  const b64 = data?.data_b64;
+  if (!b64 || typeof b64 !== 'string') {
+    throw new Error('Missing asset payload');
+  }
+  const binary = atob(b64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  const blob = new Blob([bytes], { type: mime });
+  return URL.createObjectURL(blob);
+}
+
 export async function fetchLinkTitle(url) {
   return readGet(`/api/fetch-title?url=${encodeURIComponent(url)}`);
 }

@@ -1561,6 +1561,10 @@
   .viewer-body table { border-collapse: collapse; width: 100%; margin: .8em 0; }
   .viewer-body th,.viewer-body td { border: 1px solid #d0d7de; padding: 6px 12px; font-size: 13px; }
   .viewer-body th { background: #f6f8fa; font-weight: 600; }
+  .viewer-body img {
+    max-width: 100%;
+    height: auto;
+  }
 
   /* ── Comment note delete confirm ── */
   #comment-delete-dialog {
