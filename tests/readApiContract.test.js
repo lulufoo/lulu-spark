@@ -58,6 +58,17 @@ describe('readApi contract map', () => {
     });
   });
 
+  it('resolveInvokeFromPath maps corpus-asset query args', () => {
+    expect(
+      resolveInvokeFromPath(
+        '/api/corpus-asset?layer=raw&base=ai/note.md&href=note.png',
+      ),
+    ).toEqual({
+      cmd: 'get_corpus_asset',
+      args: { layer: 'raw', base: 'ai/note.md', href: 'note.png' },
+    });
+  });
+
   it('resolveInvokeFromPath returns null for unknown sediment-kb route', () => {
     expect(resolveInvokeFromPath('/api/sediment-kb/unknown')).toBeNull();
   });
