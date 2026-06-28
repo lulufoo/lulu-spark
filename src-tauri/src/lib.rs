@@ -358,6 +358,7 @@ pub fn run() {
             commands::read::get_kb_diff_status,
             commands::read::get_sediment_kb_categories,
             commands::read::get_sediment_kb_repos,
+            commands::read::get_sediment_kb_docs,
             commands::search::reindex_knowledge,
             commands::search::reindex_workbench,
             commands::search::reindex_kb_repo,

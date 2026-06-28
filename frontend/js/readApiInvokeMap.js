@@ -104,6 +104,10 @@ export const READ_API_INVOKE_MAP = {
   '/api/sediment-kb/repos': {
     cmd: 'get_sediment_kb_repos',
   },
+  '/api/sediment-kb/docs': {
+    cmd: 'get_sediment_kb_docs',
+    args: (url) => ({ repo: url.searchParams.get('repo') ?? '' }),
+  },
 };
 
 /**

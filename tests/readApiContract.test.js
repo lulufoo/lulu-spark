@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
+  fetchSedimentKbDocs,
+  fetchSedimentKbRepos,
+} from '../frontend/js/api.js';
+import {
   READ_API_INVOKE_MAP,
   normalizeForContract,
   resolveInvokeFromPath,
@@ -56,6 +60,15 @@ describe('readApi contract map', () => {
       cmd: 'get_sediment_kb_repos',
       args: {},
     });
+    expect(resolveInvokeFromPath('/api/sediment-kb/docs?repo=owner%2Fname')).toEqual({
+      cmd: 'get_sediment_kb_docs',
+      args: { repo: 'owner/name' },
+    });
+  });
+
+  it('api.js exposes sediment-kb docs reader', () => {
+    expect(typeof fetchSedimentKbRepos).toBe('function');
+    expect(typeof fetchSedimentKbDocs).toBe('function');
   });
 
   it('resolveInvokeFromPath maps corpus-asset query args', () => {
