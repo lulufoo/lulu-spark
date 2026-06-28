@@ -232,8 +232,11 @@ function renderSedimentKbHome({ categories = [], repos = [], selectedCategoryId 
         });
         return;
       }
-      if (selected.local_exists) await loadSedimentKbList(false);
-      status.querySelector('.sediment-kb-selected').textContent = `已进入：${selected.full_name}`;
+      if (selected.local_exists) {
+        const data = await api.fetchSedimentKbDocs(selected.full_name);
+        if (data?.error) throw new Error(data.error);
+        renderSedimentKbDocList(data.docs || []);
+      }
     })();
   });
   status.querySelector('#sediment-kb-sync').addEventListener('click', () => {
@@ -251,6 +254,48 @@ function selectSedimentKbRepo(repoFullName) {
     category_name: repo.category_name,
     local_exists: repo.local_exists === true,
   };
+}
+
+function renderSedimentKbDocList(docs) {
+  const status = document.getElementById('status');
+  const selectedName = selectedSedimentKbRepo?.full_name || '';
+  const rows = Array.isArray(docs) ? docs : [];
+  const listHtml = rows.length > 0
+    ? rows.map((doc, index) => {
+      const label = doc.path || doc.url || '未知文档';
+      if (!doc.repo || !doc.path) {
+        return `<div class="sediment-kb-doc-row sediment-kb-doc-invalid">
+          <button type="button" disabled>缺少 repo 或 path</button>
+          <span>${escHtml(label)}</span>
+        </div>`;
+      }
+      return `<button type="button" class="sediment-kb-doc-row sediment-kb-doc-item" data-index="${index}">
+        <span>${escHtml(doc.path)}</span>
+      </button>`;
+    }).join('')
+    : '<div class="sediment-kb-doc-empty">该知识库暂无文档。</div>';
+
+  status.innerHTML = `<div class="knowledge-shell-placeholder sediment-kb-doc-list">
+    <div class="knowledge-home-title">${escHtml(selectedName)} 文档列表</div>
+    <div class="sediment-kb-doc-list-body">${listHtml}</div>
+    <div class="sediment-kb-actions">
+      <button type="button" id="sediment-kb-doc-back">返回仓库选择</button>
+    </div>
+  </div>`;
+
+  status.querySelectorAll('.sediment-kb-doc-item').forEach(btn => {
+    btn.addEventListener('click', () => {
+      void openSedimentKbDoc(rows[Number(btn.dataset.index)]);
+    });
+  });
+  status.querySelector('#sediment-kb-doc-back').addEventListener('click', () => {
+    void showSedimentKnowledgeShell(false);
+  });
+}
+
+async function openSedimentKbDoc(doc) {
+  if (!doc?.repo || !doc?.path) return;
+  await openKbDoc({ repo: doc.repo, path: doc.path, url: doc.url });
 }
 
 async function showSedimentKnowledgeShell(forceRefresh = false) {

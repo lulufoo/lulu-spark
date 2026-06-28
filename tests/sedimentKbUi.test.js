@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 const indexHtml = readFileSync(new URL('../frontend/index.html', import.meta.url), 'utf8');
 const mainJs = readFileSync(new URL('../frontend/js/main.js', import.meta.url), 'utf8');
 const apiJs = readFileSync(new URL('../frontend/js/api.js', import.meta.url), 'utf8');
+const kbViewerJs = readFileSync(new URL('../frontend/js/components/kb-viewer.js', import.meta.url), 'utf8');
 const moveDialogJs = readFileSync(
   new URL('../frontend/js/components/modals/move-dialog.js', import.meta.url),
   'utf8'
@@ -137,6 +138,37 @@ describe('sediment kb selection home', () => {
     expect(mainJs).toMatch(/未克隆/);
     expect(mainJs).toMatch(/if \(!selected\.local_exists\)[\s\S]*?return/);
     expect(mainJs).toMatch(/if \(selected\.local_exists\)[\s\S]*?loadSedimentKbList/);
+  });
+});
+
+describe('sediment kb document list handoff', () => {
+  it('loads selected repo documents and renders the in-repo document list', () => {
+    expect(apiJs).toMatch(/export async function fetchSedimentKbDocs\(repo\)/);
+    expect(mainJs).toMatch(/api\.fetchSedimentKbDocs\(selected\.full_name\)/);
+    expect(mainJs).toMatch(/function renderSedimentKbDocList\(docs\)/);
+    expect(mainJs).toMatch(/renderSedimentKbDocList\([^)]*docs/);
+  });
+
+  it('renders empty and invalid document rows without entering the KB modal', () => {
+    expect(mainJs).toMatch(/sediment-kb-doc-empty/);
+    expect(mainJs).toMatch(/sediment-kb-doc-invalid/);
+    expect(mainJs).toMatch(/disabled[^>]*>[^<]*缺少 repo 或 path|缺少 repo 或 path[\s\S]*disabled/);
+  });
+
+  it('delegates valid document clicks to the existing KB modal opener', () => {
+    const openDocBody = mainJs.match(/async function openSedimentKbDoc\(doc\) \{[\s\S]*?\n\}/)?.[0] || '';
+    expect(openDocBody).toContain('if (!doc?.repo || !doc?.path)');
+    expect(openDocBody).toContain('openKbDoc({ repo: doc.repo, path: doc.path, url: doc.url })');
+  });
+
+  it('keeps KB modal reading, annotations, highlights, links, and pending badge in openKbDoc', () => {
+    expect(kbViewerJs).toMatch(/export async function openKbDoc\(kbHit\)/);
+    expect(kbViewerJs).toMatch(/api\.fetchKbFileContent\(repo, path\)/);
+    expect(kbViewerJs).toMatch(/api\.fetchKbAnnotation\(repo, path\)/);
+    expect(kbViewerJs).toMatch(/applyKbHighlights\(state\.viewer\.annotation\)/);
+    expect(kbViewerJs).toMatch(/renderKbLinksBar\(state\.viewer\.annotation\)/);
+    expect(kbViewerJs).toMatch(/_kbShowPendingBadge\('chore: update via viewer'\)/);
+    expect(kbViewerJs).toMatch(/无法加载文件/);
   });
 });
 
