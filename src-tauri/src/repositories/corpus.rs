@@ -40,6 +40,51 @@ pub fn kb_safe_path(kb_root: &Path, repo: &str, rel_path: &str) -> Result<PathBu
     Ok(target)
 }
 
+/// List-only path resolver: allows `rel_path == ""` for repo root directory.
+pub fn kb_list_dir(kb_root: &Path, repo: &str, rel_path: &str) -> Result<PathBuf, String> {
+    let repo = repo.trim();
+    let rel_path = rel_path.trim();
+    if repo.is_empty() || !repo.contains('/') {
+        return Err("invalid repo format".into());
+    }
+    if rel_path.contains("..") {
+        return Err("invalid path".into());
+    }
+    let repo_name = repo.split('/').next_back().unwrap_or("");
+    let local_dir = kb_root.join(repo_name);
+    if !local_dir.is_dir() {
+        return Err(format!("repo not cloned locally: {repo_name}"));
+    }
+    let kb_canon = kb_root
+        .canonicalize()
+        .map_err(|e| format!("kb root: {e}"))?;
+    let mut target = local_dir
+        .canonicalize()
+        .unwrap_or_else(|_| local_dir.clone());
+    if !rel_path.is_empty() {
+        for comp in Path::new(rel_path).components() {
+            match comp {
+                std::path::Component::Normal(s) => target.push(s),
+                std::path::Component::CurDir => {}
+                _ => return Err("invalid path".into()),
+            }
+        }
+    }
+    let prefix = format!(
+        "{}{}",
+        kb_canon.to_string_lossy(),
+        std::path::MAIN_SEPARATOR
+    );
+    let target_str = target.to_string_lossy();
+    if !target_str.starts_with(&prefix) && target != kb_canon {
+        return Err("path traversal not allowed".into());
+    }
+    if !target.is_dir() {
+        return Err("invalid path".into());
+    }
+    Ok(target)
+}
+
 /// Aligns with `server.py::_kb_annotation_path`.
 pub fn kb_annotation_path(kb_root: &Path, repo: &str, rel_path: &str) -> Result<PathBuf, String> {
     kb_safe_path(kb_root, repo, rel_path)?;

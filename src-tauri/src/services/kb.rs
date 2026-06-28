@@ -3,7 +3,7 @@ use std::path::Path;
 
 use serde_json::{json, Value};
 
-use crate::repositories::corpus::{kb_annotation_path, kb_safe_path};
+use crate::repositories::corpus::{kb_annotation_path, kb_list_dir, kb_safe_path};
 use crate::services::workbench_read::{categories_from_git_status, knowledge_corpus_root_string};
 
 fn err_status_code(msg: &str) -> u16 {
@@ -43,6 +43,61 @@ pub fn kb_annotation_json(repo_root: &Path, repo: &str, path: &str) -> Value {
                 return json!({});
             };
             serde_json::from_str(&text).unwrap_or_else(|_| json!({}))
+        }
+    }
+}
+
+pub fn kb_list_json(repo_root: &Path, repo: &str, path: &str, mode: &str) -> Value {
+    if mode != "flat" {
+        return json!({
+            "error": "mode tree not implemented",
+            "_status": 400,
+        });
+    }
+    let kb_root_str = knowledge_corpus_root_string(repo_root);
+    let kb_root = Path::new(&kb_root_str);
+    match kb_list_dir(kb_root, repo, path) {
+        Err(e) => json!({ "error": e, "_status": err_status_code(&e) }),
+        Ok(dir) => {
+            let mut entries: Vec<Value> = Vec::new();
+            let read_dir = match fs::read_dir(&dir) {
+                Ok(rd) => rd,
+                Err(e) => {
+                    return json!({
+                        "error": format!("read dir: {e}"),
+                        "_status": 500,
+                    });
+                }
+            };
+            let base_path = path.trim();
+            for entry in read_dir.flatten() {
+                let file_name = entry.file_name();
+                let name = file_name.to_string_lossy().to_string();
+                let relative_path = if base_path.is_empty() {
+                    name.clone()
+                } else {
+                    format!("{base_path}/{name}")
+                };
+                let is_dir = entry.file_type().map(|t| t.is_dir()).unwrap_or(false);
+                entries.push(json!({
+                    "name": name,
+                    "relative_path": relative_path,
+                    "is_dir": is_dir,
+                }));
+            }
+            entries.sort_by(|a, b| {
+                let a_dir = a["is_dir"].as_bool().unwrap_or(false);
+                let b_dir = b["is_dir"].as_bool().unwrap_or(false);
+                match (a_dir, b_dir) {
+                    (true, false) => std::cmp::Ordering::Less,
+                    (false, true) => std::cmp::Ordering::Greater,
+                    _ => a["name"]
+                        .as_str()
+                        .unwrap_or("")
+                        .cmp(b["name"].as_str().unwrap_or("")),
+                }
+            });
+            Value::Array(entries)
         }
     }
 }

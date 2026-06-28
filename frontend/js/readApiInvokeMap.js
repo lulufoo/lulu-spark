@@ -69,6 +69,14 @@ export const READ_API_INVOKE_MAP = {
       path: url.searchParams.get('path') ?? '',
     }),
   },
+  '/api/kb/list': {
+    cmd: 'kb_list',
+    args: (url) => ({
+      repo: url.searchParams.get('repo') ?? '',
+      path: url.searchParams.get('path') ?? '',
+      mode: url.searchParams.get('mode') ?? 'flat',
+    }),
+  },
   '/api/kb/annotation': {
     cmd: 'kb_annotation',
     args: (url) => ({

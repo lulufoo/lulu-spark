@@ -34,6 +34,15 @@ describe('readApi contract map', () => {
     });
   });
 
+  it('resolveInvokeFromPath maps kb list query args', () => {
+    expect(
+      resolveInvokeFromPath('/api/kb/list?repo=o/r&path=&mode=flat'),
+    ).toEqual({
+      cmd: 'kb_list',
+      args: { repo: 'o/r', path: '', mode: 'flat' },
+    });
+  });
+
   it('resolveInvokeFromPath 映射 kb diff status', () => {
     expect(resolveInvokeFromPath('/api/kb/diff-status?_=123')).toEqual({
       cmd: 'get_kb_diff_status',

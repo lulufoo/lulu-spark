@@ -184,6 +184,11 @@ export async function fetchKbFileContent(repo, path) {
   return res.json();
 }
 
+export async function fetchKbList(repo, path = '', mode = 'flat') {
+  const params = new URLSearchParams({ repo, path, mode });
+  return readGet(`/api/kb/list?${params.toString()}`);
+}
+
 export async function fetchKbAnnotation(repo, path) {
   const res = await getReadDriver().fetchGet(
     `/api/kb/annotation?repo=${encodeURIComponent(repo)}&path=${encodeURIComponent(path)}`

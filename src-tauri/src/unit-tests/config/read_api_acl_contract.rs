@@ -48,6 +48,7 @@ const INVOKE_MAP_COMMANDS: &[&str] = &[
     "check_workbench_knowledge_root",
     "get_status",
     "kb_read",
+    "kb_list",
     "kb_annotation",
     "kb_status",
     "get_repo_dirs",

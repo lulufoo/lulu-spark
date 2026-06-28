@@ -22,3 +22,32 @@ fn resolves_file_under_repo() {
     let p = kb_safe_path(&kb, "lulufoo/myrepo", "docs/a.md").expect("ok");
     assert!(p.is_file());
 }
+
+#[test]
+fn kb_safe_path_rejects_empty_path() {
+    let dir = tempfile::tempdir().expect("tmp");
+    let kb = dir.path().join("kb");
+    fs::create_dir_all(kb.join("myrepo")).expect("mkdir");
+    let err = kb_safe_path(&kb, "lulufoo/myrepo", "").unwrap_err();
+    assert_eq!(err, "invalid path");
+}
+
+#[test]
+fn kb_list_dir_allows_empty_path_for_repo_root() {
+    let dir = tempfile::tempdir().expect("tmp");
+    let kb = dir.path().join("kb");
+    let repo_dir = kb.join("myrepo");
+    fs::create_dir_all(&repo_dir).expect("mkdir");
+    let p = kb_list_dir(&kb, "lulufoo/myrepo", "").expect("ok");
+    assert!(p.is_dir());
+    assert_eq!(p, repo_dir.canonicalize().unwrap_or(repo_dir));
+}
+
+#[test]
+fn kb_list_dir_rejects_traversal() {
+    let dir = tempfile::tempdir().expect("tmp");
+    let kb = dir.path().join("kb");
+    fs::create_dir_all(kb.join("myrepo")).expect("mkdir");
+    let err = kb_list_dir(&kb, "lulufoo/myrepo", "..").unwrap_err();
+    assert_eq!(err, "invalid path");
+}

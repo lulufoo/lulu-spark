@@ -347,6 +347,7 @@ pub fn run() {
             commands::sync::open_kb_in_iterm,
             commands::read::get_status,
             commands::read::kb_read,
+            commands::read::kb_list,
             commands::read::kb_annotation,
             commands::read::kb_status,
             commands::read::get_repo_dirs,

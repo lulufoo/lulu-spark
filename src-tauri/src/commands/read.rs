@@ -95,6 +95,22 @@ pub fn kb_read(_app: AppHandle, repo: String, path: String) -> Result<Value, Str
 }
 
 #[tauri::command]
+pub fn kb_list(
+    _app: AppHandle,
+    repo: String,
+    path: String,
+    mode: Option<String>,
+) -> Result<Value, String> {
+    let mode = mode.unwrap_or_else(|| "flat".into());
+    Ok(crate::services::kb::kb_list_json(
+        &repo_root()?,
+        &repo,
+        &path,
+        &mode,
+    ))
+}
+
+#[tauri::command]
 pub fn kb_annotation(_app: AppHandle, repo: String, path: String) -> Result<Value, String> {
     Ok(crate::services::kb::kb_annotation_json(&repo_root()?, &repo, &path))
 }

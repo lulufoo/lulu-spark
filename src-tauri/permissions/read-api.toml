@@ -12,6 +12,7 @@ commands.allow = [
   "get_config",
   "get_status",
   "kb_read",
+  "kb_list",
   "kb_annotation",
   "kb_status",
   "get_repo_dirs",
