@@ -17,6 +17,7 @@ import { openQrDialog } from './components/modals/qr-dialog.js'
 import { openSettingsDialog } from './components/modals/settings-dialog.js'
 import { renderFeed } from './feed.js'
 import { initGlobalSearch } from './components/global-search.js'
+import { initRouter, navigate } from './router/index.js'
 import { softwareDevSkillsContent } from './skills-software-dev-content.js'
 import { normalizeCorpusIndex } from './corpus-index.js'
 
@@ -661,7 +662,7 @@ function showFeedView() {
   }
 }
 
-function showArchiveView() {
+function mountWorkbench() {
   feedView.style.display = 'none';
   document.getElementById('btn-feed').classList.remove('active');
   // Restore archive elements to their natural display state
@@ -678,6 +679,10 @@ function showArchiveView() {
     if (dateHeading) dateHeading.style.display = 'none';
     if (docList) docList.style.display = '';
   }
+}
+
+function showArchiveView() {
+  mountWorkbench();
 }
 
 document.getElementById('btn-feed').addEventListener('click', () => {
@@ -727,6 +732,14 @@ api.fetchTopics().then(data => {
 initSidebarResize();
 loadIndex();
 initGlobalSearch();
+
+const redirectToWorkbench = () => navigate('#/workbench');
+initRouter({
+  workbench: () => mountWorkbench(),
+  home: redirectToWorkbench,
+  'corpus-pick': redirectToWorkbench,
+  'corpus-doc': redirectToWorkbench,
+}, { fallback: '#/workbench' });
 
 function registerTagsReconciledListener() {
   const onReconciled = async () => {
