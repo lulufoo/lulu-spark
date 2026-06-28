@@ -32,6 +32,12 @@ export function parseHash(hash) {
   return { name: 'unknown', params: {} };
 }
 
+/** @param {string} hash */
+export function normalizeHash(hash) {
+  if (parseHash(hash).name === 'unknown') return DEFAULT_FALLBACK;
+  return hash.startsWith('#') ? hash : `#/${hash.replace(/^\/+/, '')}`;
+}
+
 function mountCurrentRoute() {
   const route = parseHash();
   if (route.name === 'unknown') {

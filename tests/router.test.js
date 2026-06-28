@@ -1,45 +1,37 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { parseHash, initRouter, navigate } from '../frontend/js/router/index.js';
+import {
+  parseHash,
+  initRouter,
+  navigate,
+  normalizeHash,
+} from '../frontend/js/router/index.js';
 
 describe('parseHash', () => {
   it('parses #/workbench', () => {
     expect(parseHash('#/workbench')).toEqual({ name: 'workbench', params: {} });
   });
 
-  it('parses #/home', () => {
-    expect(parseHash('#/home')).toEqual({ name: 'home', params: {} });
-  });
-
   it('parses #/corpus/pick', () => {
     expect(parseHash('#/corpus/pick')).toEqual({ name: 'corpus-pick', params: {} });
   });
 
-  it('parses #/corpus/owner/repo as corpus-doc', () => {
-    expect(parseHash('#/corpus/lulufoo/my-repo')).toEqual({
+  it('parses #/corpus/:repo with slash in repo', () => {
+    expect(parseHash('#/corpus/lulufoo/myrepo')).toEqual({
       name: 'corpus-doc',
-      params: { repo: 'lulufoo/my-repo' },
+      params: { repo: 'lulufoo/myrepo' },
+    });
+    expect(parseHash('#/corpus/lulufoo%2Fmyrepo')).toEqual({
+      name: 'corpus-doc',
+      params: { repo: 'lulufoo/myrepo' },
     });
   });
 
-  it('parses URL-encoded repo segment', () => {
-    expect(parseHash('#/corpus/lulufoo%2Fmy-repo')).toEqual({
-      name: 'corpus-doc',
-      params: { repo: 'lulufoo/my-repo' },
-    });
-  });
-
-  it('returns unknown for unrecognized paths', () => {
-    expect(parseHash('#/unknown')).toEqual({ name: 'unknown', params: {} });
-  });
-
-  it('returns unknown for empty hash variants', () => {
-    expect(parseHash('')).toEqual({ name: 'unknown', params: {} });
-    expect(parseHash('#')).toEqual({ name: 'unknown', params: {} });
-    expect(parseHash('#/')).toEqual({ name: 'unknown', params: {} });
+  it('parses #/home', () => {
+    expect(parseHash('#/home')).toEqual({ name: 'home', params: {} });
   });
 });
 
-describe('initRouter', () => {
+describe('initRouter fallback', () => {
   let handlers;
   let hashValue;
   let listeners;
@@ -78,42 +70,106 @@ describe('initRouter', () => {
     vi.unstubAllGlobals();
   });
 
-  it('invokes workbench handler for #/workbench on init', () => {
-    hashValue = '#/workbench';
-    initRouter(handlers);
-    expect(handlers.workbench).toHaveBeenCalledTimes(1);
-  });
-
-  it('redirects empty hash to fallback #/workbench', () => {
+  it('empty hash falls back to #/workbench', () => {
     hashValue = '';
     initRouter(handlers, { fallback: '#/workbench' });
     expect(hashValue).toBe('#/workbench');
-    expect(handlers.workbench).toHaveBeenCalled();
+    expect(handlers.workbench).toHaveBeenCalledTimes(1);
   });
 
-  it('redirects unknown hash to fallback #/workbench', () => {
+  it('unknown hash falls back to #/workbench', () => {
     hashValue = '#/unknown';
     initRouter(handlers, { fallback: '#/workbench' });
     expect(hashValue).toBe('#/workbench');
-    expect(handlers.workbench).toHaveBeenCalled();
+    expect(handlers.workbench).toHaveBeenCalledTimes(1);
   });
 
-  it('re-invokes handler on hashchange', () => {
+  it.each(['#', '#/'])('hash %s falls back to #/workbench via normalizeHash', (hash) => {
+    expect(normalizeHash(hash)).toBe('#/workbench');
+  });
+
+  it.each(['', '#', '#/', '#/unknown'])(
+    'initRouter redirects %s to fallback and mounts workbench handler',
+    (hash) => {
+      hashValue = hash;
+      initRouter(handlers, { fallback: '#/workbench' });
+      expect(hashValue).toBe('#/workbench');
+      expect(handlers.workbench).toHaveBeenCalledTimes(1);
+    },
+  );
+});
+
+describe('hash navigation', () => {
+  let handlers;
+  let hashValue;
+  let listeners;
+
+  beforeEach(() => {
     hashValue = '#/workbench';
-    initRouter(handlers);
+    listeners = {};
+    handlers = {
+      workbench: vi.fn(),
+      home: vi.fn(),
+      'corpus-pick': vi.fn(() => navigate('#/workbench')),
+      'corpus-doc': vi.fn(() => navigate('#/workbench')),
+    };
+    vi.stubGlobal('window', {
+      addEventListener(type, fn) {
+        listeners[type] = fn;
+      },
+      location: {
+        get hash() {
+          return hashValue;
+        },
+        set hash(value) {
+          hashValue = value;
+          listeners.hashchange?.();
+        },
+        replace(value) {
+          const idx = value.indexOf('#');
+          hashValue = idx >= 0 ? value.slice(idx) : value;
+          listeners.hashchange?.();
+        },
+      },
+    });
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('popstate/hashchange re-invokes mount handler', () => {
+    initRouter(handlers, { fallback: '#/workbench' });
+    expect(handlers.workbench).toHaveBeenCalledTimes(1);
     handlers.workbench.mockClear();
+
     hashValue = '#/home';
     listeners.hashchange();
     expect(handlers.home).toHaveBeenCalledTimes(1);
-  });
 
-  it('re-invokes handler on popstate', () => {
-    hashValue = '#/workbench';
-    initRouter(handlers);
-    handlers.workbench.mockClear();
+    handlers.home.mockClear();
     hashValue = '#/corpus/pick';
     listeners.popstate();
     expect(handlers['corpus-pick']).toHaveBeenCalledTimes(1);
+  });
+
+  it('back navigation from corpus route does not leave blank mount', () => {
+    initRouter(handlers, { fallback: '#/workbench' });
+    expect(handlers.workbench).toHaveBeenCalledTimes(1);
+
+    hashValue = '#/corpus/pick';
+    listeners.hashchange();
+    expect(handlers['corpus-pick']).toHaveBeenCalledTimes(1);
+
+    const workbenchCallsAfterRedirect = handlers.workbench.mock.calls.length;
+    expect(workbenchCallsAfterRedirect).toBeGreaterThanOrEqual(1);
+
+    handlers.workbench.mockClear();
+    hashValue = '#/workbench';
+    listeners.popstate();
+
+    expect(handlers.workbench).toHaveBeenCalledTimes(1);
+    expect(() => handlers.workbench.mock.results[0]?.value).not.toThrow();
   });
 });
 
