@@ -95,6 +95,28 @@ describe('knowledge home entry shell', () => {
     const bindHomeEvents = mainJs.match(/function bindKnowledgeHomeEvents\(\) \{[\s\S]*?\n\}/)?.[0] || '';
     expect(bindHomeEvents).not.toContain('openSedimentKbListDialog');
   });
+
+  it('workbench entry delegates to the existing corpus reading path', () => {
+    const handler = mainJs.match(/function enterWorkbenchKnowledgeHome\(\) \{[\s\S]*?\n\}/)?.[0] || '';
+
+    expect(handler).toContain('resetSedimentKbViewState()');
+    expect(handler).toMatch(/api\.fetchIndex\(\)/);
+    expect(handler).toContain('normalizeCorpusIndex');
+    expect(handler).toContain('buildGroups');
+    expect(handler).toContain('renderSidebar');
+    expect(handler).toContain('selectDate');
+    expect(handler).not.toMatch(/fetchSedimentKb(?:Categories|Repos|Docs)/);
+    expect(handler).not.toContain('openKbDoc');
+  });
+
+  it('clears sediment selection state before returning to workbench', () => {
+    const reset = mainJs.match(/function resetSedimentKbViewState\(\) \{[\s\S]*?\n\}/)?.[0] || '';
+    const bindHomeEvents = mainJs.match(/function bindKnowledgeHomeEvents\(\) \{[\s\S]*?\n\}/)?.[0] || '';
+
+    expect(reset).toContain("selectedSedimentKbCategoryId = 'all'");
+    expect(reset).toContain('selectedSedimentKbRepo = null');
+    expect(bindHomeEvents).toContain('enterWorkbenchKnowledgeHome()');
+  });
 });
 
 describe('sediment kb selection home', () => {

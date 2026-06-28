@@ -134,7 +134,7 @@ function bindKnowledgeHomeEvents() {
       return;
     }
     if (e.target.closest('#knowledge-home-workbench')) {
-      showWorkbenchKnowledgeShell();
+      void enterWorkbenchKnowledgeHome();
     }
   });
 }
@@ -342,6 +342,35 @@ async function showSedimentKnowledgeShell(forceRefresh = false) {
       error: _sedimentKbError,
     });
   }
+}
+
+function resetSedimentKbViewState() {
+  selectedSedimentKbCategoryId = 'all';
+  selectedSedimentKbRepo = null;
+}
+
+function enterWorkbenchKnowledgeHome() {
+  resetSedimentKbViewState();
+  document.body.dataset.knowledgeMode = 'workbench';
+  hideKnowledgeHome();
+  return api.fetchIndex()
+    .then(async data => {
+      state.index.data = normalizeCorpusIndex(data);
+      state.index.groupedByDate = buildGroups(state.index.data);
+      state.ui.activeTopic = null;
+      state.ui.activeTagKey = null;
+      applyListFilters();
+      renderSidebar();
+      await Promise.all([loadDiffStatus(), loadAnnotationsSummary(), loadTagsRegistry()]);
+      applyListFilters();
+      renderSidebar();
+      showArchiveView();
+      const targetDate = getDefaultArchiveDate();
+      if (targetDate) selectDate(targetDate);
+    })
+    .catch(e => {
+      showError(`无法加载 index.json：${e.message}`);
+    });
 }
 
 function showWorkbenchKnowledgeShell() {
