@@ -36,11 +36,11 @@ async function loadIndex({ managedBtn = false } = {}) {
     await Promise.all([loadDiffStatus(), loadAnnotationsSummary(), loadTagsRegistry()]);
     applyListFilters();
     renderSidebar();
-    const savedDate = sessionStorage.getItem('cta_active_date');
-    const targetDate = (savedDate && state.index.filteredGroups.find(g => g.date === savedDate))
-      ? savedDate
-      : (state.index.filteredGroups.length > 0 ? state.index.filteredGroups[0].date : null);
-    if (targetDate) selectDate(targetDate);
+    if (document.body.dataset.knowledgeMode === 'workbench') {
+      showWorkbenchKnowledgeShell();
+    } else {
+      renderKnowledgeHome();
+    }
   } catch (e) {
     showError(`无法加载 index.json：${e.message}`);
   }
@@ -82,6 +82,86 @@ function showError(msg) {
   status.appendChild(errDiv);
   document.getElementById('date-heading').style.display = 'none';
   document.getElementById('doc-list').innerHTML = '';
+}
+
+function getDefaultArchiveDate() {
+  const savedDate = sessionStorage.getItem('cta_active_date');
+  if (savedDate && state.index.filteredGroups.find(g => g.date === savedDate)) return savedDate;
+  return state.index.filteredGroups.length > 0 ? state.index.filteredGroups[0].date : null;
+}
+
+function ensureKnowledgeHome() {
+  const main = document.getElementById('main');
+  let home = document.getElementById('knowledge-home');
+  if (!home) {
+    document.getElementById('status').insertAdjacentHTML('beforebegin', '<div id="knowledge-home" class="knowledge-home"></div>');
+    home = document.getElementById('knowledge-home');
+  }
+  return home;
+}
+
+function renderKnowledgeHome() {
+  document.body.dataset.knowledgeMode = 'home';
+  state.ui.activeDate = null;
+  const home = ensureKnowledgeHome();
+  home.innerHTML = `
+    <div class="knowledge-home-title">选择知识库</div>
+    <div class="knowledge-home-grid">
+      <button type="button" id="knowledge-home-sediment" class="knowledge-home-entry">
+        <span class="knowledge-home-entry-title">沉淀知识库</span>
+        <span class="knowledge-home-entry-desc">进入沉淀知识库选择视图</span>
+      </button>
+      <button type="button" id="knowledge-home-workbench" class="knowledge-home-entry">
+        <span class="knowledge-home-entry-title">workbench 知识库</span>
+        <span class="knowledge-home-entry-desc">继续阅读已有 workbench 文档</span>
+      </button>
+    </div>`;
+  home.style.display = '';
+  document.getElementById('status').style.display = 'none';
+  document.getElementById('date-heading').style.display = 'none';
+  document.getElementById('doc-list').style.display = 'none';
+  feedView.style.display = 'none';
+  document.getElementById('btn-feed').classList.remove('active');
+  bindKnowledgeHomeEvents();
+}
+
+function bindKnowledgeHomeEvents() {
+  if (document.body.dataset.knowledgeHomeBound === 'true') return;
+  document.body.dataset.knowledgeHomeBound = 'true';
+  document.addEventListener('click', e => {
+    if (e.target.closest('#knowledge-home-sediment')) {
+      showSedimentKnowledgeShell();
+      return;
+    }
+    if (e.target.closest('#knowledge-home-workbench')) {
+      showWorkbenchKnowledgeShell();
+    }
+  });
+}
+
+function hideKnowledgeHome() {
+  const home = document.getElementById('knowledge-home');
+  if (home) home.style.display = 'none';
+}
+
+function showSedimentKnowledgeShell() {
+  document.body.dataset.knowledgeMode = 'sediment';
+  hideKnowledgeHome();
+  feedView.style.display = 'none';
+  document.getElementById('btn-feed').classList.remove('active');
+  document.getElementById('date-heading').style.display = 'none';
+  document.getElementById('doc-list').style.display = 'none';
+  const status = document.getElementById('status');
+  status.style.display = '';
+  status.innerHTML = '<div class="knowledge-shell-placeholder"><strong>沉淀知识库</strong><span>请选择后续入口；当前任务仅提供选择视图外壳。</span></div>';
+}
+
+function showWorkbenchKnowledgeShell() {
+  document.body.dataset.knowledgeMode = 'workbench';
+  hideKnowledgeHome();
+  showArchiveView();
+  const targetDate = getDefaultArchiveDate();
+  if (targetDate) selectDate(targetDate);
 }
 
 // ── Pull project ───────────────────────────────────────────────────────────

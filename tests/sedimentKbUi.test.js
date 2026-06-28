@@ -62,6 +62,40 @@ describe('sediment kb UI shell', () => {
   });
 });
 
+describe('knowledge home entry shell', () => {
+  it('keeps global search in header and fallback archive regions in main', () => {
+    const headerMatch = indexHtml.match(/<header>[\s\S]*?<\/header>/);
+    expect(headerMatch).not.toBeNull();
+    expect(headerMatch[0]).toContain('id="gs-wrap"');
+    expect(headerMatch[0]).toContain('id="gs-input"');
+    expect(headerMatch[0]).toContain('id="gs-rebuild-btn"');
+    expect(headerMatch[0]).toContain('id="gs-kb-rebuild-btn"');
+    expect(headerMatch[0]).toContain('id="gs-dropdown"');
+
+    const mainMatch = indexHtml.match(/<main id="main">[\s\S]*?<\/main>/);
+    expect(mainMatch).not.toBeNull();
+    expect(mainMatch[0]).toContain('id="status"');
+    expect(mainMatch[0]).toContain('id="doc-list"');
+  });
+
+  it('renders a two-entry knowledge home before archive selection', () => {
+    expect(mainJs).toMatch(/function renderKnowledgeHome\(\)/);
+    expect(mainJs).toMatch(/id="knowledge-home"/);
+    expect(mainJs).toMatch(/沉淀知识库/);
+    expect(mainJs).toMatch(/workbench 知识库/);
+    expect(mainJs).toMatch(/renderKnowledgeHome\(\)/);
+  });
+
+  it('binds home entry events once and avoids opening the full sediment list shell', () => {
+    expect(mainJs).toMatch(/function bindKnowledgeHomeEvents\(\)/);
+    expect(mainJs).toMatch(/knowledgeHomeBound/);
+    expect(mainJs).toMatch(/showSedimentKnowledgeShell/);
+    expect(mainJs).toMatch(/showWorkbenchKnowledgeShell/);
+    const bindHomeEvents = mainJs.match(/function bindKnowledgeHomeEvents\(\) \{[\s\S]*?\n\}/)?.[0] || '';
+    expect(bindHomeEvents).not.toContain('openSedimentKbListDialog');
+  });
+});
+
 describe('gh-ops delete panel HTML', () => {
   it('has no arming button in delete panel actions', () => {
     expect(indexHtml).not.toContain('id="btn-delete-doc-arm"');
