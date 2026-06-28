@@ -144,7 +144,116 @@ function hideKnowledgeHome() {
   if (home) home.style.display = 'none';
 }
 
-function showSedimentKnowledgeShell() {
+function renderSedimentKbHome({ categories = [], repos = [], selectedCategoryId = 'all', selectedRepo = null, error = '' } = {}) {
+  const status = document.getElementById('status');
+  const visibleRepos = selectedCategoryId === 'all'
+    ? repos
+    : repos.filter(repo => repo.category_id === selectedCategoryId);
+  const selected = selectedRepo;
+  const categoryOptions = [
+    '<option value="all">全部分类</option>',
+    ...categories.map(category => {
+      const sel = category.id === selectedCategoryId ? ' selected' : '';
+      return `<option value="${escHtml(category.id)}"${sel}>${escHtml(category.name)}</option>`;
+    }),
+  ].join('');
+  const repoHtml = visibleRepos.length > 0
+    ? visibleRepos.map(repo => {
+      const checked = selected?.full_name === repo.full_name ? ' checked' : '';
+      const localBadge = repo.local_exists === true
+        ? '<span class="repo-local-badge repo-local-ok">已克隆</span>'
+        : '<span class="repo-local-badge repo-local-missing">未克隆</span>';
+      const desc = repo.description ? `<div class="repo-list-item-desc">${escHtml(repo.description)}</div>` : '';
+      return `<label class="sediment-kb-repo-option">
+        <input type="radio" name="sediment-kb-repo" value="${escHtml(repo.full_name)}"${checked} />
+        <span>
+          <strong>${escHtml(repo.full_name)}</strong>${localBadge}
+          <span>${escHtml(repo.category_name || '未分类')}</span>
+          ${desc}
+        </span>
+      </label>`;
+    }).join('')
+    : '<div class="sediment-kb-empty">暂无仓库候选。可先同步或返回首页。</div>';
+  const selectedHtml = selected
+    ? `<div class="sediment-kb-selected">已选择：${escHtml(selected.full_name)}</div>`
+    : '<div class="sediment-kb-selected">请选择一个具体仓库后继续。</div>';
+  const errorHtml = error
+    ? `<div class="sediment-kb-error">加载失败：${escHtml(error)}</div>`
+    : '';
+
+  status.innerHTML = `<div class="knowledge-shell-placeholder sediment-kb-home">
+    <div class="knowledge-home-title">沉淀知识库</div>
+    ${errorHtml}
+    <label>分类筛选
+      <select id="sediment-kb-category-filter">${categoryOptions}</select>
+    </label>
+    <div class="sediment-kb-repo-list">${repoHtml}</div>
+    ${selectedHtml}
+    <div class="sediment-kb-actions">
+      <button type="button" id="sediment-kb-enter-list"${selected ? '' : ' disabled'}>进入库内列表</button>
+      <button type="button" id="sediment-kb-sync">同步</button>
+      <button type="button" id="sediment-kb-back">返回</button>
+    </div>
+  </div>`;
+
+  status.querySelector('#sediment-kb-category-filter').addEventListener('change', e => {
+    selectedSedimentKbCategoryId = e.target.value;
+    renderSedimentKbHome({
+      categories,
+      repos,
+      selectedCategoryId: selectedSedimentKbCategoryId,
+      selectedRepo: selectedSedimentKbRepo,
+      error,
+    });
+  });
+  status.querySelectorAll('.sediment-kb-repo-option input').forEach(input => {
+    input.addEventListener('change', () => {
+      selectSedimentKbRepo(input.value);
+      renderSedimentKbHome({
+        categories,
+        repos,
+        selectedCategoryId: selectedSedimentKbCategoryId,
+        selectedRepo: selectedSedimentKbRepo,
+        error,
+      });
+    });
+  });
+  status.querySelector('#sediment-kb-enter-list').addEventListener('click', () => {
+    void (async () => {
+      const selected = selectedSedimentKbRepo;
+      if (!selected) return;
+      if (!selected.local_exists) {
+        renderSedimentKbHome({
+          categories,
+          repos,
+          selectedCategoryId: selectedSedimentKbCategoryId,
+          selectedRepo: selectedSedimentKbRepo,
+          error: '该仓库未克隆，不能读取库内文档列表。',
+        });
+        return;
+      }
+      if (selected.local_exists) await loadSedimentKbList(false);
+      status.querySelector('.sediment-kb-selected').textContent = `已进入：${selected.full_name}`;
+    })();
+  });
+  status.querySelector('#sediment-kb-sync').addEventListener('click', () => {
+    void showSedimentKnowledgeShell(true);
+  });
+  status.querySelector('#sediment-kb-back').addEventListener('click', renderKnowledgeHome);
+}
+
+function selectSedimentKbRepo(repoFullName) {
+  const repo = (_sedimentKbList || []).find(item => item.full_name === repoFullName);
+  if (!repo) return;
+  selectedSedimentKbRepo = {
+    full_name: repo.full_name,
+    category_id: repo.category_id,
+    category_name: repo.category_name,
+    local_exists: repo.local_exists === true,
+  };
+}
+
+async function showSedimentKnowledgeShell(forceRefresh = false) {
   document.body.dataset.knowledgeMode = 'sediment';
   hideKnowledgeHome();
   feedView.style.display = 'none';
@@ -153,7 +262,41 @@ function showSedimentKnowledgeShell() {
   document.getElementById('doc-list').style.display = 'none';
   const status = document.getElementById('status');
   status.style.display = '';
-  status.innerHTML = '<div class="knowledge-shell-placeholder"><strong>沉淀知识库</strong><span>请选择后续入口；当前任务仅提供选择视图外壳。</span></div>';
+  status.innerHTML = '<div class="knowledge-shell-placeholder">加载沉淀知识库…</div>';
+  try {
+    if (forceRefresh || !_sedimentKbList || !_sedimentKbCategories || _sedimentKbError) {
+      _sedimentKbError = null;
+      const [catsData, reposData] = await Promise.all([
+        api.fetchSedimentKbCategories(),
+        api.fetchSedimentKbRepos(),
+      ]);
+      _sedimentKbCategories = catsData.categories || [];
+      _sedimentKbList = (reposData.repos || []).map(repo => ({
+        full_name: repo.full_name,
+        name: (repo.full_name || '').split('/').pop() || repo.full_name,
+        description: repo.description || '',
+        category_id: repo.category_id,
+        category_name: repo.category_name,
+        local_exists: repo.local_exists === true,
+      }));
+    }
+    renderSedimentKbHome({
+      categories: _sedimentKbCategories,
+      repos: _sedimentKbList,
+      selectedCategoryId: selectedSedimentKbCategoryId,
+      selectedRepo: selectedSedimentKbRepo,
+    });
+  } catch (e) {
+    _sedimentKbError = e.message || String(e);
+    _sedimentKbList = [];
+    renderSedimentKbHome({
+      categories: _sedimentKbCategories || [],
+      repos: [],
+      selectedCategoryId: selectedSedimentKbCategoryId,
+      selectedRepo: null,
+      error: _sedimentKbError,
+    });
+  }
 }
 
 function showWorkbenchKnowledgeShell() {
@@ -243,6 +386,8 @@ let _kbCorpusDiffStatus = null;
 let _sedimentKbList = null;
 let _sedimentKbError = null;
 let _sedimentKbCategories = null;
+let selectedSedimentKbCategoryId = 'all';
+let selectedSedimentKbRepo = null;
 
 function _setSedimentKbError(elId, message) {
   const el = document.getElementById(elId);

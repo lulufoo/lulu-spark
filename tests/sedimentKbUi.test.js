@@ -96,6 +96,50 @@ describe('knowledge home entry shell', () => {
   });
 });
 
+describe('sediment kb selection home', () => {
+  it('loads categories and repos when entering the sediment kb home', () => {
+    expect(mainJs).toMatch(/async function showSedimentKnowledgeShell\([^)]*\)/);
+    expect(mainJs).toMatch(/api\.fetchSedimentKbCategories\(\)/);
+    expect(mainJs).toMatch(/api\.fetchSedimentKbRepos\(\)/);
+    expect(mainJs).toMatch(/function renderSedimentKbHome\(/);
+    expect(mainJs).toMatch(/sediment-kb-category-filter/);
+    expect(mainJs).toMatch(/sediment-kb-repo-option/);
+  });
+
+  it('selects one repo with category metadata and local clone status before list entry', () => {
+    expect(mainJs).toMatch(/function selectSedimentKbRepo\(repoFullName\)/);
+    expect(mainJs).toMatch(/selectedSedimentKbRepo/);
+    expect(mainJs).toMatch(/full_name: repo\.full_name/);
+    expect(mainJs).toMatch(/category_id: repo\.category_id/);
+    expect(mainJs).toMatch(/category_name: repo\.category_name/);
+    expect(mainJs).toMatch(/local_exists: repo\.local_exists === true/);
+    expect(mainJs).toMatch(/sediment-kb-enter-list/);
+  });
+
+  it('filters repo candidates without opening the manage/list modal', () => {
+    const filterHandler = mainJs.match(/sediment-kb-category-filter[\s\S]*?addEventListener\('change'[\s\S]*?\n\s*\}\);/)?.[0] || '';
+    expect(filterHandler).toContain('selectedSedimentKbCategoryId');
+    expect(filterHandler).toContain('renderSedimentKbHome');
+    expect(filterHandler).not.toContain('openSedimentKbListDialog');
+    expect(filterHandler).not.toContain('repo-list-dialog');
+  });
+
+  it('keeps empty/error selection states out of the aggregate document list', () => {
+    expect(mainJs).toMatch(/sediment-kb-empty/);
+    expect(mainJs).toMatch(/同步/);
+    expect(mainJs).toMatch(/返回/);
+    expect(mainJs).toMatch(/sediment-kb-error/);
+    expect(mainJs).not.toMatch(/全部沉淀知识库/);
+  });
+
+  it('shows missing local repos but does not read their document list', () => {
+    expect(mainJs).toMatch(/repo-local-missing/);
+    expect(mainJs).toMatch(/未克隆/);
+    expect(mainJs).toMatch(/if \(!selected\.local_exists\)[\s\S]*?return/);
+    expect(mainJs).toMatch(/if \(selected\.local_exists\)[\s\S]*?loadSedimentKbList/);
+  });
+});
+
 describe('gh-ops delete panel HTML', () => {
   it('has no arming button in delete panel actions', () => {
     expect(indexHtml).not.toContain('id="btn-delete-doc-arm"');
