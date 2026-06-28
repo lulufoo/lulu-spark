@@ -1,8 +1,6 @@
 use serde_json::json;
 
-use crate::commands::read::{
-    sediment_kb_categories_json, sediment_kb_docs_json, sediment_kb_repos_json,
-};
+use crate::commands::read::{sediment_kb_categories_json, sediment_kb_repos_json};
 use crate::config::paths;
 use crate::services::sediment_kb::{
     add_category, add_repo, ensure_uncategorized, set_test_repo_validator, UNCATEGORIZED_ID,
@@ -64,28 +62,4 @@ fn get_sediment_kb_repos_empty_by_default() {
         let v = sediment_kb_repos_json(&repo_root).expect("repos");
         assert_eq!(v["repos"], json!([]));
     });
-}
-
-#[test]
-fn get_sediment_kb_docs_returns_repo_doc_entries() {
-    let dir = tempfile::tempdir().expect("tmp");
-    let kb = dir.path().join("kb");
-    let repo_dir = kb.join("demo");
-    fs::create_dir_all(repo_dir.join("notes")).expect("mkdir notes");
-    fs::write(repo_dir.join("notes/a.md"), "# A").expect("write doc");
-    crate::config::settings::write_test_config(dir.path(), dir.path(), Some(&kb));
-
-    let v = sediment_kb_docs_json(dir.path(), "acme/demo").expect("docs");
-
-    assert_eq!(
-        v["docs"],
-        json!([
-            {
-                "repo": "acme/demo",
-                "path": "notes/a.md",
-                "url": "https://github.com/acme/demo/blob/main/notes/a.md"
-            }
-        ])
-    );
-    crate::config::settings::set_test_config_dir(None);
 }

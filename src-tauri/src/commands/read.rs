@@ -239,10 +239,6 @@ pub fn sediment_kb_repos_json(repo_root: &std::path::Path) -> Result<Value, Stri
     Ok(json!({ "repos": enriched }))
 }
 
-pub fn sediment_kb_docs_json(repo_root: &std::path::Path, repo: &str) -> Result<Value, String> {
-    Ok(crate::services::kb::kb_list_docs_json(repo_root, repo))
-}
-
 #[tauri::command]
 pub fn get_sediment_kb_categories(_app: AppHandle) -> Result<Value, String> {
     sediment_kb_categories_json()
@@ -251,11 +247,6 @@ pub fn get_sediment_kb_categories(_app: AppHandle) -> Result<Value, String> {
 #[tauri::command]
 pub fn get_sediment_kb_repos(_app: AppHandle) -> Result<Value, String> {
     sediment_kb_repos_json(&repo_root()?)
-}
-
-#[tauri::command]
-pub fn get_sediment_kb_docs(_app: AppHandle, repo: String) -> Result<Value, String> {
-    sediment_kb_docs_json(&repo_root()?, &repo)
 }
 
 #[cfg(test)]
