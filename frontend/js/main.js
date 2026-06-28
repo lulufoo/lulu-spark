@@ -18,6 +18,7 @@ import { openSettingsDialog } from './components/modals/settings-dialog.js'
 import { renderFeed } from './feed.js'
 import { initGlobalSearch } from './components/global-search.js'
 import { initRouter, navigate } from './router/index.js'
+import { mountCorpusPicker } from './components/corpus-picker.js'
 import { softwareDevSkillsContent } from './skills-software-dev-content.js'
 import { normalizeCorpusIndex } from './corpus-index.js'
 
@@ -662,7 +663,33 @@ function showFeedView() {
   }
 }
 
+let unmountCorpusPicker = null;
+
+function hideCorpusPickView() {
+  const pickView = document.getElementById('corpus-pick-view');
+  if (pickView) pickView.style.display = 'none';
+  const layout = document.querySelector('.layout');
+  if (layout) layout.style.display = '';
+}
+
+function mountCorpusPickRoute() {
+  unmountCorpusPicker?.();
+  unmountCorpusPicker = null;
+
+  const layout = document.querySelector('.layout');
+  if (layout) layout.style.display = 'none';
+
+  const pickView = document.getElementById('corpus-pick-view');
+  if (!pickView) return;
+  pickView.style.display = '';
+  unmountCorpusPicker = mountCorpusPicker(pickView, { navigate });
+}
+
 function mountWorkbench() {
+  unmountCorpusPicker?.();
+  unmountCorpusPicker = null;
+  hideCorpusPickView();
+
   feedView.style.display = 'none';
   document.getElementById('btn-feed').classList.remove('active');
   // Restore archive elements to their natural display state
@@ -737,7 +764,7 @@ const redirectToWorkbench = () => navigate('#/workbench');
 initRouter({
   workbench: () => mountWorkbench(),
   home: redirectToWorkbench,
-  'corpus-pick': redirectToWorkbench,
+  'corpus-pick': mountCorpusPickRoute,
   'corpus-doc': redirectToWorkbench,
 }, { fallback: '#/workbench' });
 
