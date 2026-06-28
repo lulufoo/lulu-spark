@@ -268,6 +268,10 @@
   }
 
   /* ── Sync / Tools menu dropdowns ── */
+  /* Phase1c: workbench sync UI migrated to corpus SYNC panel */
+  #sync-menu-wrap {
+    display: none !important;
+  }
   #sync-menu-wrap,
   #tools-menu-wrap { position: relative; }
   #sync-menu-wrap::after,
@@ -3235,6 +3239,42 @@
   border-bottom: 1px solid #d0d7de;
   color: #24292f;
 }
+.corpus-doc-sync-panel {
+  padding: 10px 14px;
+  border-bottom: 1px solid #d0d7de;
+  background: #f6f8fa;
+}
+.corpus-doc-sync-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: #57606a;
+  margin-bottom: 8px;
+}
+.corpus-doc-sync-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.corpus-sync-btn {
+  background: #fff;
+  border: 1px solid #d0d7de;
+  border-radius: 6px;
+  color: #24292f;
+  padding: 5px 10px;
+  font-size: 12px;
+  cursor: pointer;
+  text-align: left;
+  transition: background .15s;
+}
+.corpus-sync-btn:hover { background: #f3f4f6; }
+.corpus-sync-btn:disabled { opacity: .5; cursor: default; }
+.corpus-sync-btn-commit {
+  background: #dafbe1;
+  border-color: #2da44e;
+  color: #1a7f37;
+}
+.corpus-sync-btn-commit:hover { background: #ccf4d6; }
 .corpus-doc-sidebar-tree {
   padding: 8px 0;
 }

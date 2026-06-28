@@ -1,6 +1,11 @@
 import * as api from '../api.js';
 import { escHtml } from '../utils.js';
 import { openKbDoc } from './viewer.js';
+import { openKbDiffDialog } from './modals/kb-diff-dialog.js';
+
+const CORPUS_SYNC_LABEL_COMMIT = '↑ 提交变更';
+const CORPUS_SYNC_LABEL_PULL = '↓ 更新项目';
+const CORPUS_SYNC_LABEL_REFRESH = '⟳ 本地刷新';
 
 /**
  * @typedef {{ name: string, relative_path: string, is_dir: boolean, expanded: boolean, loaded: boolean, children: TreeNode[] }} TreeNode
@@ -76,11 +81,71 @@ export function renderMainList(mainEl, entries, repo, onOpenFile) {
 }
 
 /**
+ * @param {HTMLElement} panelEl
+ * @param {string} repo
+ * @param {{ onLocalRefresh?: () => void | Promise<void> }} [opts]
+ */
+export function renderCorpusSyncPanel(panelEl, repo, { onLocalRefresh } = {}) {
+  if (!panelEl) return;
+
+  panelEl.innerHTML = `
+    <div class="corpus-doc-sync-label">SYNC</div>
+    <div class="corpus-doc-sync-actions">
+      <button type="button" class="corpus-sync-btn corpus-sync-btn-commit" data-action="commit">${CORPUS_SYNC_LABEL_COMMIT}</button>
+      <button type="button" class="corpus-sync-btn" data-action="pull">${CORPUS_SYNC_LABEL_PULL}</button>
+      <button type="button" class="corpus-sync-btn" data-action="refresh">${CORPUS_SYNC_LABEL_REFRESH}</button>
+    </div>
+  `;
+
+  const commitBtn = panelEl.querySelector('[data-action="commit"]');
+  const pullBtn = panelEl.querySelector('[data-action="pull"]');
+  const refreshBtn = panelEl.querySelector('[data-action="refresh"]');
+
+  commitBtn?.addEventListener('click', () => {
+    void openKbDiffDialog(repo);
+  });
+
+  pullBtn?.addEventListener('click', () => {
+    if (!pullBtn) return;
+    pullBtn.disabled = true;
+    pullBtn.textContent = '更新中…';
+    void (async () => {
+      try {
+        await api.reindexKbRepo(repo);
+        for (let i = 0; i < 120; i++) {
+          await new Promise((r) => setTimeout(r, 2000));
+          const status = await api.getReindexStatus();
+          if (status?.status !== 'running') break;
+        }
+        if (typeof onLocalRefresh === 'function') {
+          await onLocalRefresh();
+        }
+      } catch (err) {
+        alert(`更新失败：${err?.message || '未知错误'}`);
+      } finally {
+        pullBtn.disabled = false;
+        pullBtn.textContent = CORPUS_SYNC_LABEL_PULL;
+      }
+    })();
+  });
+
+  refreshBtn?.addEventListener('click', () => {
+    if (!refreshBtn || typeof onLocalRefresh !== 'function') return;
+    refreshBtn.disabled = true;
+    refreshBtn.textContent = '⟳ 刷新中…';
+    void Promise.resolve(onLocalRefresh()).finally(() => {
+      refreshBtn.disabled = false;
+      refreshBtn.textContent = CORPUS_SYNC_LABEL_REFRESH;
+    });
+  });
+}
+
+/**
  * @param {HTMLElement} container
  * @param {{ repo: string, navigate: (hash: string) => void }} opts
  * @returns {() => void}
  */
-export function mountCorpusDocList(container, { repo, navigate }) {
+export function mountCorpusDocList(container, { repo, navigate: _navigate }) {
   let disposed = false;
   /** @type {TreeNode[]} */
   let rootNodes = [];
@@ -137,11 +202,24 @@ export function mountCorpusDocList(container, { repo, navigate }) {
       : '<div class="corpus-doc-empty">仓库为空</div>';
   }
 
+  async function reloadFromDisk() {
+    dirCache.clear();
+    rootNodes = [];
+    selectedPath = '';
+    const entries = await api.fetchKbList(repo, '', 'flat');
+    if (disposed) return;
+    dirCache.set('', entries);
+    rootNodes = buildTreeNodes(entries, '');
+    renderSidebar();
+    await selectDirectory('');
+  }
+
   function renderShell() {
     container.innerHTML = `
       <div class="corpus-doc-layout">
         <aside class="corpus-doc-sidebar">
           <div class="corpus-doc-sidebar-header">${escHtml(repo)}</div>
+          <div class="corpus-doc-sync-panel"></div>
           <div class="corpus-doc-sidebar-tree"></div>
         </aside>
         <main class="corpus-doc-main">
@@ -149,7 +227,26 @@ export function mountCorpusDocList(container, { repo, navigate }) {
         </main>
       </div>
     `;
+    const syncPanelEl = container.querySelector('.corpus-doc-sync-panel');
+    renderCorpusSyncPanel(syncPanelEl, repo, {
+      onLocalRefresh: async () => {
+        try {
+          await reloadFromDisk();
+        } catch (err) {
+          const mainEl = container.querySelector('.corpus-doc-main-list');
+          if (mainEl) {
+            mainEl.innerHTML = `<div class="corpus-doc-error">${escHtml(err?.message || '刷新失败')}</div>`;
+          }
+        }
+      },
+    });
   }
+
+  const onKbDiffUpdated = (event) => {
+    if (event.detail?.repo !== repo) return;
+    void reloadFromDisk().catch(() => {});
+  };
+  window.addEventListener('kb-diff-updated', onKbDiffUpdated);
 
   async function selectDirectory(relativePath) {
     selectedPath = relativePath;
@@ -247,6 +344,7 @@ export function mountCorpusDocList(container, { repo, navigate }) {
 
   return () => {
     disposed = true;
+    window.removeEventListener('kb-diff-updated', onKbDiffUpdated);
     container.innerHTML = '';
   };
 }
