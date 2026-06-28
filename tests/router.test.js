@@ -84,10 +84,6 @@ describe('initRouter fallback', () => {
     expect(handlers.workbench).toHaveBeenCalledTimes(1);
   });
 
-  it.each(['#', '#/'])('hash %s falls back to #/workbench via normalizeHash', (hash) => {
-    expect(normalizeHash(hash)).toBe('#/workbench');
-  });
-
   it.each(['', '#', '#/', '#/unknown'])(
     'initRouter redirects %s to fallback and mounts workbench handler',
     (hash) => {
@@ -203,5 +199,101 @@ describe('navigate', () => {
   it('sets location.hash', () => {
     navigate('#/home');
     expect(hashValue).toBe('#/home');
+  });
+});
+
+describe('Phase2 fallback (default #/home)', () => {
+  let handlers;
+  let hashValue;
+  let listeners;
+
+  beforeEach(() => {
+    handlers = {
+      workbench: vi.fn(),
+      home: vi.fn(),
+      'corpus-pick': vi.fn(),
+      'corpus-doc': vi.fn(),
+    };
+    hashValue = '';
+    listeners = {};
+    vi.stubGlobal('window', {
+      addEventListener(type, fn) {
+        listeners[type] = fn;
+      },
+      location: {
+        get hash() {
+          return hashValue;
+        },
+        set hash(value) {
+          hashValue = value;
+          listeners.hashchange?.();
+        },
+        replace(value) {
+          const idx = value.indexOf('#');
+          hashValue = idx >= 0 ? value.slice(idx) : value;
+          listeners.hashchange?.();
+        },
+      },
+    });
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('empty hash falls back to #/home with default options', () => {
+    hashValue = '';
+    initRouter(handlers);
+    expect(hashValue).toBe('#/home');
+    expect(handlers.home).toHaveBeenCalledTimes(1);
+  });
+
+  it('unknown hash falls back to #/home with default options', () => {
+    hashValue = '#/unknown';
+    initRouter(handlers);
+    expect(hashValue).toBe('#/home');
+    expect(handlers.home).toHaveBeenCalledTimes(1);
+  });
+
+  it.each(['#', '#/'])('hash %s falls back to #/home via normalizeHash', (hash) => {
+    expect(normalizeHash(hash)).toBe('#/home');
+  });
+
+  it.each(['', '#', '#/', '#/unknown'])(
+    'initRouter redirects %s to #/home and mounts home handler',
+    (hash) => {
+      hashValue = hash;
+      initRouter(handlers);
+      expect(hashValue).toBe('#/home');
+      expect(handlers.home).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it('back navigation from workbench returns to home hub', () => {
+    initRouter(handlers);
+    expect(handlers.home).toHaveBeenCalledTimes(1);
+
+    hashValue = '#/workbench';
+    listeners.hashchange();
+    expect(handlers.workbench).toHaveBeenCalledTimes(1);
+
+    handlers.home.mockClear();
+    hashValue = '#/home';
+    listeners.popstate();
+    expect(handlers.home).toHaveBeenCalledTimes(1);
+  });
+
+  it('back navigation from corpus pick returns to home hub', () => {
+    initRouter(handlers);
+    expect(handlers.home).toHaveBeenCalledTimes(1);
+
+    hashValue = '#/corpus/pick';
+    listeners.hashchange();
+    expect(handlers['corpus-pick']).toHaveBeenCalledTimes(1);
+
+    handlers.home.mockClear();
+    hashValue = '#/home';
+    listeners.popstate();
+    expect(handlers.home).toHaveBeenCalledTimes(1);
   });
 });

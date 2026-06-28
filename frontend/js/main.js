@@ -20,6 +20,7 @@ import { initGlobalSearch } from './components/global-search.js'
 import { initRouter, navigate } from './router/index.js'
 import { mountCorpusPicker } from './components/corpus-picker.js'
 import { mountCorpusDocList } from './components/corpus-doc-list.js'
+import { mountHomeHub } from './components/home-hub.js'
 import { softwareDevSkillsContent } from './skills-software-dev-content.js'
 import { normalizeCorpusIndex } from './corpus-index.js'
 
@@ -666,6 +667,12 @@ function showFeedView() {
 
 let unmountCorpusPicker = null;
 let unmountCorpusDocList = null;
+let unmountHomeHub = null;
+
+function hideHomeView() {
+  const homeView = document.getElementById('home-view');
+  if (homeView) homeView.style.display = 'none';
+}
 
 function hideCorpusPickView() {
   const pickView = document.getElementById('corpus-pick-view');
@@ -681,7 +688,32 @@ function hideCorpusDocView() {
   if (layout) layout.style.display = '';
 }
 
+function mountHomeRoute() {
+  unmountCorpusPicker?.();
+  unmountCorpusPicker = null;
+  hideCorpusPickView();
+  unmountCorpusDocList?.();
+  unmountCorpusDocList = null;
+  hideCorpusDocView();
+
+  feedView.style.display = 'none';
+  document.getElementById('btn-feed').classList.remove('active');
+
+  const layout = document.querySelector('.layout');
+  if (layout) layout.style.display = 'none';
+
+  const homeView = document.getElementById('home-view');
+  if (!homeView) return;
+  homeView.style.display = '';
+
+  unmountHomeHub?.();
+  unmountHomeHub = mountHomeHub(homeView, { navigate });
+}
+
 function mountCorpusPickRoute() {
+  unmountHomeHub?.();
+  unmountHomeHub = null;
+  hideHomeView();
   unmountCorpusPicker?.();
   unmountCorpusPicker = null;
   unmountCorpusDocList?.();
@@ -698,6 +730,9 @@ function mountCorpusPickRoute() {
 }
 
 function mountCorpusDocRoute(route) {
+  unmountHomeHub?.();
+  unmountHomeHub = null;
+  hideHomeView();
   unmountCorpusPicker?.();
   unmountCorpusPicker = null;
   hideCorpusPickView();
@@ -721,6 +756,9 @@ function mountCorpusDocRoute(route) {
 }
 
 function mountWorkbench() {
+  unmountHomeHub?.();
+  unmountHomeHub = null;
+  hideHomeView();
   unmountCorpusPicker?.();
   unmountCorpusPicker = null;
   hideCorpusPickView();
@@ -798,13 +836,12 @@ initSidebarResize();
 loadIndex();
 initGlobalSearch();
 
-const redirectToWorkbench = () => navigate('#/workbench');
 initRouter({
   workbench: () => mountWorkbench(),
-  home: redirectToWorkbench,
+  home: mountHomeRoute,
   'corpus-pick': mountCorpusPickRoute,
   'corpus-doc': mountCorpusDocRoute,
-}, { fallback: '#/workbench' });
+}, { fallback: '#/home' });
 
 function registerTagsReconciledListener() {
   const onReconciled = async () => {

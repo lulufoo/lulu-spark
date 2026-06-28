@@ -1,4 +1,4 @@
-const DEFAULT_FALLBACK = '#/workbench';
+const DEFAULT_FALLBACK = '#/home';
 
 /** @type {Record<string, (ctx: { name: string, params: Record<string, string> }) => void> | null} */
 let handlersRef = null;
