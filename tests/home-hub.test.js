@@ -22,15 +22,23 @@ describe('mountHomeHub', () => {
     container.remove();
   });
 
-  it('renders dual-entry hub with workbench and corpus pick links', () => {
+  it('renders desktop shortcuts without page heading labels', () => {
     mountHomeHub(container, { navigate });
+
+    expect(container.querySelector('.home-hub-title')).toBeNull();
+    expect(container.querySelector('.home-hub-subtitle')).toBeNull();
+    expect(container.querySelector('.home-desktop')).not.toBeNull();
+    expect(container.querySelector('.home-desktop-wallpaper')).not.toBeNull();
+
+    const shortcuts = container.querySelectorAll('.home-desktop-shortcut');
+    expect(shortcuts).toHaveLength(2);
 
     const workbenchEntry = container.querySelector('[data-home-entry="workbench"]');
     const corpusEntry = container.querySelector('[data-home-entry="corpus"]');
     expect(workbenchEntry).not.toBeNull();
     expect(corpusEntry).not.toBeNull();
     expect(workbenchEntry.textContent).toMatch(/workbench|归档/i);
-    expect(corpusEntry.textContent).toMatch(/沉淀|知识库|选库/i);
+    expect(corpusEntry.textContent).toMatch(/沉淀|知识库/i);
   });
 
   it('navigates to #/workbench when workbench entry is clicked', () => {
@@ -60,5 +68,11 @@ describe('home hub shell integration', () => {
     expect(mainJs).toMatch(/mountHomeHub/);
     expect(mainJs).not.toMatch(/home:\s*redirectToWorkbench/);
     expect(mainJs).toMatch(/fallback:\s*['"]#\/home['"]/);
+  });
+
+  it('main.js swaps left header title for back link off home', () => {
+    expect(mainJs).toMatch(/btn-nav-home-title/);
+    expect(mainJs).toMatch(/homeTitle\) homeTitle\.hidden = !onHome/);
+    expect(mainJs).toMatch(/homeNav\) homeNav\.hidden = onHome/);
   });
 });

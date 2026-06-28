@@ -20,11 +20,16 @@
     flex-shrink: 0;
   }
   header h1 { font-size: 15px; font-weight: 600; letter-spacing: .3px; flex: 1; }
+  header h1 .header-home-link,
+  header h1 .header-nav-back {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: .3px;
+  }
   .header-home-link { color: inherit; text-decoration: none; }
   .header-home-link:hover { color: #fff; }
   .header-nav-back {
     color: #8b949e;
-    font-size: 12px;
     text-decoration: none;
     white-space: nowrap;
   }
@@ -3383,4 +3388,106 @@
 }
 .corpus-doc-error {
   color: #cf222e;
+}
+
+/* ── Home desktop (Phase2) ── */
+.home-desktop {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: calc(100vh - 52px);
+  overflow: hidden;
+  box-sizing: border-box;
+}
+.home-desktop-wallpaper {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 80% 60% at 15% 20%, rgba(120, 180, 255, 0.22) 0%, transparent 55%),
+    radial-gradient(ellipse 70% 50% at 85% 75%, rgba(90, 140, 220, 0.18) 0%, transparent 50%),
+    linear-gradient(165deg, #1a2332 0%, #243b55 42%, #1e3a5f 100%);
+}
+.home-desktop-wallpaper::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: radial-gradient(ellipse 90% 80% at 30% 30%, black 20%, transparent 75%);
+  pointer-events: none;
+}
+.home-desktop-icons {
+  position: relative;
+  z-index: 1;
+  list-style: none;
+  margin: 0;
+  padding: 48px 40px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 28px;
+}
+.home-desktop-icons li {
+  margin: 0;
+  padding: 0;
+}
+.home-desktop-shortcut {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: 88px;
+  padding: 6px 4px;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: #fff;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.15s;
+}
+.home-desktop-shortcut:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+.home-desktop-shortcut:active {
+  transform: scale(0.96);
+}
+.home-desktop-shortcut:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.85);
+  outline-offset: 2px;
+}
+.home-desktop-shortcut-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 72px;
+  height: 72px;
+  font-size: 36px;
+  line-height: 1;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  box-shadow:
+    0 8px 24px rgba(0, 0, 0, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  transition: transform 0.15s, background 0.15s, box-shadow 0.15s;
+}
+.home-desktop-shortcut:hover .home-desktop-shortcut-icon {
+  transform: translateY(-2px);
+  background: rgba(255, 255, 255, 0.22);
+  box-shadow:
+    0 12px 28px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.28);
+}
+.home-desktop-shortcut-label {
+  max-width: 88px;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.35;
+  text-align: center;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.75);
+  word-break: break-word;
 }

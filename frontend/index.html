@@ -13,8 +13,10 @@
 <body>
 
 <header>
-  <h1><a id="btn-nav-home-title" href="#/home" class="header-home-link">LuLu Workbench</a></h1>
-  <a id="btn-nav-home" href="#/home" class="header-nav-back" hidden>← 首页</a>
+  <h1>
+    <a id="btn-nav-home-title" href="#/home" class="header-home-link">LuLu Workbench</a>
+    <a id="btn-nav-home" href="#/home" class="header-nav-back" hidden>← 首页</a>
+  </h1>
   <div id="gs-wrap">
     <span id="gs-mode-pill" style="display:none">Workbench</span>
     <input id="gs-input" type="text" placeholder="搜索知识库…" autocomplete="off" spellcheck="false" />
@@ -59,7 +61,7 @@
   </div>
 </header>
 
-<div id="home-view" style="display:none;padding:20px;overflow-y:auto;height:calc(100vh - 52px);box-sizing:border-box;"></div>
+<div id="home-view" style="display:none;overflow:hidden;height:calc(100vh - 52px);box-sizing:border-box;"></div>
 <div id="corpus-doc-view" style="display:none;height:calc(100vh - 52px);box-sizing:border-box;"></div>
 
 <div class="layout">

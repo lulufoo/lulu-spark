@@ -660,8 +660,11 @@ let unmountCorpusDocList = null;
 let unmountHomeHub = null;
 
 function updateNavChrome(routeName) {
+  const onHome = routeName === 'home';
+  const homeTitle = document.getElementById('btn-nav-home-title');
   const homeNav = document.getElementById('btn-nav-home');
-  if (homeNav) homeNav.hidden = routeName === 'home';
+  if (homeTitle) homeTitle.hidden = !onHome;
+  if (homeNav) homeNav.hidden = onHome;
 }
 
 function wrapRouteMount(routeName, mountFn) {
