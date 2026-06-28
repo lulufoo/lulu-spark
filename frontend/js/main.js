@@ -19,6 +19,7 @@ import { renderFeed } from './feed.js'
 import { initGlobalSearch } from './components/global-search.js'
 import { initRouter, navigate } from './router/index.js'
 import { mountCorpusPicker } from './components/corpus-picker.js'
+import { mountCorpusDocList } from './components/corpus-doc-list.js'
 import { softwareDevSkillsContent } from './skills-software-dev-content.js'
 import { normalizeCorpusIndex } from './corpus-index.js'
 
@@ -664,6 +665,7 @@ function showFeedView() {
 }
 
 let unmountCorpusPicker = null;
+let unmountCorpusDocList = null;
 
 function hideCorpusPickView() {
   const pickView = document.getElementById('corpus-pick-view');
@@ -672,9 +674,19 @@ function hideCorpusPickView() {
   if (layout) layout.style.display = '';
 }
 
+function hideCorpusDocView() {
+  const docView = document.getElementById('corpus-doc-view');
+  if (docView) docView.style.display = 'none';
+  const layout = document.querySelector('.layout');
+  if (layout) layout.style.display = '';
+}
+
 function mountCorpusPickRoute() {
   unmountCorpusPicker?.();
   unmountCorpusPicker = null;
+  unmountCorpusDocList?.();
+  unmountCorpusDocList = null;
+  hideCorpusDocView();
 
   const layout = document.querySelector('.layout');
   if (layout) layout.style.display = 'none';
@@ -685,10 +697,36 @@ function mountCorpusPickRoute() {
   unmountCorpusPicker = mountCorpusPicker(pickView, { navigate });
 }
 
+function mountCorpusDocRoute(route) {
+  unmountCorpusPicker?.();
+  unmountCorpusPicker = null;
+  hideCorpusPickView();
+  unmountCorpusDocList?.();
+  unmountCorpusDocList = null;
+
+  const layout = document.querySelector('.layout');
+  if (layout) layout.style.display = 'none';
+
+  const docView = document.getElementById('corpus-doc-view');
+  if (!docView) return;
+  docView.style.display = '';
+
+  const repo = route?.params?.repo;
+  if (!repo) {
+    navigate('#/corpus/pick');
+    return;
+  }
+
+  unmountCorpusDocList = mountCorpusDocList(docView, { repo, navigate });
+}
+
 function mountWorkbench() {
   unmountCorpusPicker?.();
   unmountCorpusPicker = null;
   hideCorpusPickView();
+  unmountCorpusDocList?.();
+  unmountCorpusDocList = null;
+  hideCorpusDocView();
 
   feedView.style.display = 'none';
   document.getElementById('btn-feed').classList.remove('active');
@@ -765,7 +803,7 @@ initRouter({
   workbench: () => mountWorkbench(),
   home: redirectToWorkbench,
   'corpus-pick': mountCorpusPickRoute,
-  'corpus-doc': redirectToWorkbench,
+  'corpus-doc': mountCorpusDocRoute,
 }, { fallback: '#/workbench' });
 
 function registerTagsReconciledListener() {
