@@ -16,7 +16,7 @@ function clearCommitCloseTimer() {
 
 // ── openCommitChangesDialog ────────────────────────────────────────────────
 
-async function openCommitChangesDialog() {
+export async function openCommitChangesDialog() {
   const btn = document.getElementById('btn-push-index');
   btn.disabled = true;
   btn.textContent = HEADER_LABEL_CHECKING;
@@ -104,7 +104,6 @@ function doCommitChanges() {
 
 // ── Event listeners ────────────────────────────────────────────────────────
 
-document.getElementById('btn-push-index').addEventListener('click', openCommitChangesDialog);
 document.getElementById('btn-commit-changes-cancel').addEventListener('click', closeCommitChangesDialog);
 document.getElementById('btn-commit-changes-ok').addEventListener('click', doCommitChanges);
 document.getElementById('commit-changes-dialog').addEventListener('click', e => {

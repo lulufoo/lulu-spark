@@ -71,13 +71,24 @@ export function mountCorpusPicker(container, { navigate }) {
     }
   }
 
+  const onNavClick = (event) => {
+    const btn = event.target.closest('[data-nav-target]');
+    if (!btn) return;
+    const target = btn.dataset.navTarget;
+    if (target) navigate(target);
+  };
+
   function renderShell() {
     container.innerHTML = `
       <div class="corpus-picker">
+        <div class="corpus-picker-nav">
+          <button type="button" class="corpus-nav-back" data-nav-target="#/home">← 返回首页</button>
+        </div>
         <div class="corpus-picker-filter"></div>
         <div class="corpus-picker-repo-list"></div>
       </div>
     `;
+    container.querySelector('.corpus-picker')?.addEventListener('click', onNavClick);
     container.querySelector('.corpus-picker')?.addEventListener('click', onRepoClick);
     renderCategoryFilter();
     renderList();

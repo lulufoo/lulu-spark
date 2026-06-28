@@ -18,9 +18,9 @@ import { openSettingsDialog } from './components/modals/settings-dialog.js'
 import { renderFeed } from './feed.js'
 import { initGlobalSearch } from './components/global-search.js'
 import { initRouter, navigate } from './router/index.js'
-import { mountCorpusPicker } from './components/corpus-picker.js'
 import { mountCorpusDocList } from './components/corpus-doc-list.js'
 import { mountHomeHub } from './components/home-hub.js'
+import { initHeaderSync, clearHeaderSyncCorpusContext } from './header-sync.js'
 import { softwareDevSkillsContent } from './skills-software-dev-content.js'
 import { normalizeCorpusIndex } from './corpus-index.js'
 
@@ -575,16 +575,7 @@ document.getElementById('btn-cancel-edit').addEventListener('click', () => exitE
 
 document.getElementById('btn-panel-commit').addEventListener('click', openCommitDialog);
 
-document.getElementById('btn-pull').addEventListener('click', pullProject);
-document.getElementById('btn-local-refresh').addEventListener('click', () => {
-  const btn = document.getElementById('btn-local-refresh');
-  btn.disabled = true;
-  btn.textContent = '⟳ 刷新中…';
-  loadIndex().finally(() => {
-    btn.disabled = false;
-    btn.textContent = '⟳ 本地刷新';
-  });
-});
+initHeaderSync({ pullProject, loadIndex });
 
 // ── Fast tooltip shim ─────────────────────────────────────────────────────
 
@@ -665,20 +656,24 @@ function showFeedView() {
   }
 }
 
-let unmountCorpusPicker = null;
 let unmountCorpusDocList = null;
 let unmountHomeHub = null;
+
+function updateNavChrome(routeName) {
+  const homeNav = document.getElementById('btn-nav-home');
+  if (homeNav) homeNav.hidden = routeName === 'home';
+}
+
+function wrapRouteMount(routeName, mountFn) {
+  return (route) => {
+    updateNavChrome(routeName);
+    return mountFn(route);
+  };
+}
 
 function hideHomeView() {
   const homeView = document.getElementById('home-view');
   if (homeView) homeView.style.display = 'none';
-}
-
-function hideCorpusPickView() {
-  const pickView = document.getElementById('corpus-pick-view');
-  if (pickView) pickView.style.display = 'none';
-  const layout = document.querySelector('.layout');
-  if (layout) layout.style.display = '';
 }
 
 function hideCorpusDocView() {
@@ -689,9 +684,7 @@ function hideCorpusDocView() {
 }
 
 function mountHomeRoute() {
-  unmountCorpusPicker?.();
-  unmountCorpusPicker = null;
-  hideCorpusPickView();
+  clearHeaderSyncCorpusContext();
   unmountCorpusDocList?.();
   unmountCorpusDocList = null;
   hideCorpusDocView();
@@ -710,32 +703,10 @@ function mountHomeRoute() {
   unmountHomeHub = mountHomeHub(homeView, { navigate });
 }
 
-function mountCorpusPickRoute() {
-  unmountHomeHub?.();
-  unmountHomeHub = null;
-  hideHomeView();
-  unmountCorpusPicker?.();
-  unmountCorpusPicker = null;
-  unmountCorpusDocList?.();
-  unmountCorpusDocList = null;
-  hideCorpusDocView();
-
-  const layout = document.querySelector('.layout');
-  if (layout) layout.style.display = 'none';
-
-  const pickView = document.getElementById('corpus-pick-view');
-  if (!pickView) return;
-  pickView.style.display = '';
-  unmountCorpusPicker = mountCorpusPicker(pickView, { navigate });
-}
-
 function mountCorpusDocRoute(route) {
   unmountHomeHub?.();
   unmountHomeHub = null;
   hideHomeView();
-  unmountCorpusPicker?.();
-  unmountCorpusPicker = null;
-  hideCorpusPickView();
   unmountCorpusDocList?.();
   unmountCorpusDocList = null;
 
@@ -746,22 +717,15 @@ function mountCorpusDocRoute(route) {
   if (!docView) return;
   docView.style.display = '';
 
-  const repo = route?.params?.repo;
-  if (!repo) {
-    navigate('#/corpus/pick');
-    return;
-  }
-
+  const repo = route?.params?.repo || '';
   unmountCorpusDocList = mountCorpusDocList(docView, { repo, navigate });
 }
 
 function mountWorkbench() {
+  clearHeaderSyncCorpusContext();
   unmountHomeHub?.();
   unmountHomeHub = null;
   hideHomeView();
-  unmountCorpusPicker?.();
-  unmountCorpusPicker = null;
-  hideCorpusPickView();
   unmountCorpusDocList?.();
   unmountCorpusDocList = null;
   hideCorpusDocView();
@@ -837,10 +801,9 @@ loadIndex();
 initGlobalSearch();
 
 initRouter({
-  workbench: () => mountWorkbench(),
-  home: mountHomeRoute,
-  'corpus-pick': mountCorpusPickRoute,
-  'corpus-doc': mountCorpusDocRoute,
+  workbench: wrapRouteMount('workbench', () => mountWorkbench()),
+  home: wrapRouteMount('home', mountHomeRoute),
+  'corpus-doc': wrapRouteMount('corpus-doc', mountCorpusDocRoute),
 }, { fallback: '#/home' });
 
 function registerTagsReconciledListener() {

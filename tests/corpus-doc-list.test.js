@@ -6,6 +6,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
 vi.mock('../frontend/js/api.js', () => ({
   fetchKbList: vi.fn(),
+  fetchSedimentKbRepos: vi.fn(),
 }));
 
 vi.mock('../frontend/js/components/viewer.js', () => ({
@@ -69,6 +70,12 @@ describe('mountCorpusDocList', () => {
     document.body.appendChild(container);
     navigate = vi.fn();
     vi.clearAllMocks();
+    api.fetchSedimentKbRepos.mockResolvedValue({
+      repos: [
+        { full_name: 'owner/repo' },
+        { full_name: 'owner/other' },
+      ],
+    });
   });
 
   afterEach(() => {
@@ -90,7 +97,7 @@ describe('mountCorpusDocList', () => {
     expect(api.fetchKbList).toHaveBeenCalledTimes(1);
   });
 
-  it('renders dual-column sidebar and main layout', async () => {
+  it('renders sidebar-only layout without main file list', async () => {
     api.fetchKbList.mockResolvedValue(sampleRootEntries);
 
     mountCorpusDocList(container, { repo: 'owner/repo', navigate });
@@ -98,7 +105,8 @@ describe('mountCorpusDocList', () => {
 
     expect(container.querySelector('.corpus-doc-layout')).not.toBeNull();
     expect(container.querySelector('.corpus-doc-sidebar')).not.toBeNull();
-    expect(container.querySelector('.corpus-doc-main')).not.toBeNull();
+    expect(container.querySelector('.corpus-doc-main')).toBeNull();
+    expect(container.querySelector('.corpus-doc-main-list')).toBeNull();
   });
 
   it('lazy-loads children when expanding a directory', async () => {
@@ -148,7 +156,7 @@ describe('mountCorpusDocList', () => {
     expect(docsCalls).toHaveLength(1);
   });
 
-  it('shows selected directory children in main list', async () => {
+  it('expands directory in tree when clicking a folder label', async () => {
     api.fetchKbList.mockImplementation(async (_repo, path) => {
       if (path === '') return sampleRootEntries;
       if (path === 'docs') return sampleDocsEntries;
@@ -164,19 +172,22 @@ describe('mountCorpusDocList', () => {
     dirRow.click();
     await flushPromises();
 
-    const mainRows = container.querySelectorAll('.corpus-doc-main-row');
-    expect(mainRows.length).toBe(2);
-    expect(container.textContent).toContain('guide.md');
+    expect(
+      container.querySelector('.corpus-doc-tree-node[data-relative-path="docs/guide.md"]'),
+    ).not.toBeNull();
+    expect(container.querySelectorAll('.corpus-doc-main-row')).toHaveLength(0);
   });
 
-  it('opens kb modal when clicking a markdown file in main', async () => {
+  it('opens kb modal when clicking a markdown file in tree', async () => {
     api.fetchKbList.mockResolvedValue(sampleRootEntries);
     openKbDoc.mockResolvedValue(undefined);
 
     mountCorpusDocList(container, { repo: 'owner/repo', navigate });
     await flushPromises();
 
-    const fileRow = container.querySelector('.corpus-doc-main-row[data-relative-path="readme.md"]');
+    const fileRow = container.querySelector(
+      '.corpus-doc-tree-node[data-relative-path="readme.md"] .corpus-doc-tree-label',
+    );
     expect(fileRow).not.toBeNull();
     fileRow.click();
     await flushPromises();
@@ -205,7 +216,9 @@ describe('mountCorpusDocList', () => {
     mountCorpusDocList(container, { repo: 'owner/single', navigate });
     await flushPromises();
 
-    const fileRow = container.querySelector('.corpus-doc-main-row[data-relative-path="only.md"]');
+    const fileRow = container.querySelector(
+      '.corpus-doc-tree-node[data-relative-path="only.md"] .corpus-doc-tree-label',
+    );
     fileRow.click();
     await flushPromises();
 
@@ -222,6 +235,37 @@ describe('mountCorpusDocList', () => {
 
     expect(container.querySelector('.corpus-doc-error')).not.toBeNull();
     expect(container.textContent).toMatch(/repo not cloned|加载失败/);
+  });
+
+  it('does not render duplicate sidebar back button', async () => {
+    api.fetchKbList.mockResolvedValue(sampleRootEntries);
+
+    mountCorpusDocList(container, { repo: 'owner/repo', navigate });
+    await flushPromises();
+
+    expect(container.querySelector('.corpus-nav-back')).toBeNull();
+    expect(container.querySelector('.corpus-repo-select')).not.toBeNull();
+    expect(container.querySelector('.corpus-doc-sync-panel')).toBeNull();
+  });
+
+  it('repo select navigates to chosen repository', async () => {
+    api.fetchKbList.mockResolvedValue(sampleRootEntries);
+
+    mountCorpusDocList(container, { repo: 'owner/repo', navigate });
+    await flushPromises();
+
+    const select = container.querySelector('.corpus-repo-select');
+    expect(select).not.toBeNull();
+    select.value = 'owner/other';
+    select.dispatchEvent(new Event('change'));
+    expect(navigate).toHaveBeenCalledWith('#/corpus/' + encodeURIComponent('owner/other'));
+  });
+
+  it('auto-selects first repo when route has no repo', async () => {
+    mountCorpusDocList(container, { repo: '', navigate });
+    await flushPromises();
+
+    expect(navigate).toHaveBeenCalledWith('#/corpus/' + encodeURIComponent('owner/repo'));
   });
 
   it('returns cleanup that clears container', async () => {

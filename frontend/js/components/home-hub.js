@@ -9,7 +9,7 @@ export function mountHomeHub(container, { navigate }) {
     if (!entry) return;
     const target = entry.dataset.homeEntry;
     if (target === 'workbench') navigate('#/workbench');
-    else if (target === 'corpus-pick') navigate('#/corpus/pick');
+    else if (target === 'corpus') navigate('#/corpus');
   };
 
   container.innerHTML = `
@@ -21,9 +21,9 @@ export function mountHomeHub(container, { navigate }) {
           <span class="home-hub-card-title">Workbench 归档</span>
           <span class="home-hub-card-desc">浏览与管理对话归档</span>
         </button>
-        <button type="button" class="home-hub-card" data-home-entry="corpus-pick">
-          <span class="home-hub-card-title">沉淀知识库选库</span>
-          <span class="home-hub-card-desc">选择知识库并开始阅读</span>
+        <button type="button" class="home-hub-card" data-home-entry="corpus">
+          <span class="home-hub-card-title">沉淀知识库</span>
+          <span class="home-hub-card-desc">浏览与阅读知识库文档</span>
         </button>
       </div>
     </div>

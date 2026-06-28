@@ -145,6 +145,17 @@ describe('mountCorpusPicker', () => {
     expect(container.textContent).toMatch(/network down|加载失败/);
   });
 
+  it('back button navigates to home', async () => {
+    api.fetchSedimentKbCategories.mockResolvedValue({ categories: sampleCategories });
+    api.fetchSedimentKbRepos.mockResolvedValue({ repos: sampleRepos });
+
+    mountCorpusPicker(container, { navigate });
+    await flushPromises();
+
+    container.querySelector('.corpus-nav-back')?.click();
+    expect(navigate).toHaveBeenCalledWith('#/home');
+  });
+
   it('returns cleanup that removes listeners', async () => {
     api.fetchSedimentKbCategories.mockResolvedValue({ categories: sampleCategories });
     api.fetchSedimentKbRepos.mockResolvedValue({ repos: sampleRepos });
@@ -162,6 +173,7 @@ describe('corpus pick shell integration', () => {
   it('header has temporary entry linking to #/corpus/pick', () => {
     expect(indexHtml).toMatch(/href="#\/corpus\/pick"/);
     expect(indexHtml).toContain('id="btn-corpus-pick"');
+    expect(indexHtml).toContain('id="btn-nav-home"');
     expect(indexHtml).toContain('id="repo-menu-wrap"');
   });
 

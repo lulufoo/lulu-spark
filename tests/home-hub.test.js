@@ -26,7 +26,7 @@ describe('mountHomeHub', () => {
     mountHomeHub(container, { navigate });
 
     const workbenchEntry = container.querySelector('[data-home-entry="workbench"]');
-    const corpusEntry = container.querySelector('[data-home-entry="corpus-pick"]');
+    const corpusEntry = container.querySelector('[data-home-entry="corpus"]');
     expect(workbenchEntry).not.toBeNull();
     expect(corpusEntry).not.toBeNull();
     expect(workbenchEntry.textContent).toMatch(/workbench|归档/i);
@@ -40,11 +40,11 @@ describe('mountHomeHub', () => {
     expect(navigate).toHaveBeenCalledWith('#/workbench');
   });
 
-  it('navigates to #/corpus/pick when corpus pick entry is clicked', () => {
+  it('navigates to #/corpus when corpus entry is clicked', () => {
     mountHomeHub(container, { navigate });
 
-    container.querySelector('[data-home-entry="corpus-pick"]').click();
-    expect(navigate).toHaveBeenCalledWith('#/corpus/pick');
+    container.querySelector('[data-home-entry="corpus"]').click();
+    expect(navigate).toHaveBeenCalledWith('#/corpus');
   });
 
   it('returns cleanup that clears container', () => {

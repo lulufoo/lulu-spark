@@ -11,8 +11,12 @@ describe('parseHash', () => {
     expect(parseHash('#/workbench')).toEqual({ name: 'workbench', params: {} });
   });
 
-  it('parses #/corpus/pick', () => {
-    expect(parseHash('#/corpus/pick')).toEqual({ name: 'corpus-pick', params: {} });
+  it('parses #/corpus as empty repo corpus-doc', () => {
+    expect(parseHash('#/corpus')).toEqual({ name: 'corpus-doc', params: { repo: '' } });
+  });
+
+  it('parses legacy #/corpus/pick as empty repo corpus-doc', () => {
+    expect(parseHash('#/corpus/pick')).toEqual({ name: 'corpus-doc', params: { repo: '' } });
   });
 
   it('parses #/corpus/:repo with slash in repo', () => {
@@ -40,7 +44,6 @@ describe('initRouter fallback', () => {
     handlers = {
       workbench: vi.fn(),
       home: vi.fn(),
-      'corpus-pick': vi.fn(),
       'corpus-doc': vi.fn(),
     };
     hashValue = '';
@@ -106,7 +109,6 @@ describe('hash navigation', () => {
     handlers = {
       workbench: vi.fn(),
       home: vi.fn(),
-      'corpus-pick': vi.fn(() => navigate('#/workbench')),
       'corpus-doc': vi.fn(() => navigate('#/workbench')),
     };
     vi.stubGlobal('window', {
@@ -144,18 +146,18 @@ describe('hash navigation', () => {
     expect(handlers.home).toHaveBeenCalledTimes(1);
 
     handlers.home.mockClear();
-    hashValue = '#/corpus/pick';
+    hashValue = '#/corpus/owner/repo';
     listeners.popstate();
-    expect(handlers['corpus-pick']).toHaveBeenCalledTimes(1);
+    expect(handlers['corpus-doc']).toHaveBeenCalledTimes(1);
   });
 
   it('back navigation from corpus route does not leave blank mount', () => {
     initRouter(handlers, { fallback: '#/workbench' });
     expect(handlers.workbench).toHaveBeenCalledTimes(1);
 
-    hashValue = '#/corpus/pick';
+    hashValue = '#/corpus/owner/repo';
     listeners.hashchange();
-    expect(handlers['corpus-pick']).toHaveBeenCalledTimes(1);
+    expect(handlers['corpus-doc']).toHaveBeenCalledTimes(1);
 
     const workbenchCallsAfterRedirect = handlers.workbench.mock.calls.length;
     expect(workbenchCallsAfterRedirect).toBeGreaterThanOrEqual(1);
@@ -211,7 +213,6 @@ describe('Phase2 fallback (default #/home)', () => {
     handlers = {
       workbench: vi.fn(),
       home: vi.fn(),
-      'corpus-pick': vi.fn(),
       'corpus-doc': vi.fn(),
     };
     hashValue = '';
@@ -283,13 +284,13 @@ describe('Phase2 fallback (default #/home)', () => {
     expect(handlers.home).toHaveBeenCalledTimes(1);
   });
 
-  it('back navigation from corpus pick returns to home hub', () => {
+  it('back navigation from corpus doc returns to home hub', () => {
     initRouter(handlers);
     expect(handlers.home).toHaveBeenCalledTimes(1);
 
-    hashValue = '#/corpus/pick';
+    hashValue = '#/corpus/owner/repo';
     listeners.hashchange();
-    expect(handlers['corpus-pick']).toHaveBeenCalledTimes(1);
+    expect(handlers['corpus-doc']).toHaveBeenCalledTimes(1);
 
     handlers.home.mockClear();
     hashValue = '#/home';
