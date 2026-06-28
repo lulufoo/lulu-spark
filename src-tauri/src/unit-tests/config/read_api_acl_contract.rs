@@ -59,6 +59,7 @@ const INVOKE_MAP_COMMANDS: &[&str] = &[
 const SEDIMENT_KB_READ_COMMANDS: &[&str] = &[
     "get_sediment_kb_categories",
     "get_sediment_kb_repos",
+    "get_sediment_kb_docs",
 ];
 
 #[test]

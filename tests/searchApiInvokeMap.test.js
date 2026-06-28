@@ -28,6 +28,14 @@ describe('searchApiInvokeMap', () => {
     });
   });
 
+  it('keeps sediment repo sync on the existing reindex command', () => {
+    expect(REINDEX_INVOKE_MAP.reindexKbRepo.cmd).toBe('reindex_kb_repo');
+    expect(resolveReindexInvoke('reindexKbRepo', {})).toEqual({
+      cmd: 'reindex_kb_repo',
+      args: { repo: '' },
+    });
+  });
+
   it('resolveReindexInvoke maps status commands without args', () => {
     expect(resolveReindexInvoke('getReindexStatus')).toEqual({
       cmd: 'get_reindex_status',

@@ -163,6 +163,14 @@ describe('syncApiInvokeMap', () => {
     });
   });
 
+  it('does not move search reindex commands into the sync API map', () => {
+    const syncCommands = Object.values(SYNC_API_INVOKE_MAP).map((entry) => entry.cmd);
+
+    expect(syncCommands).not.toContain('reindex_kb_repo');
+    expect(syncCommands).not.toContain('reindex_workbench');
+    expect(syncCommands).not.toContain('sync_knowledge_corpus');
+  });
+
   it('resolveSyncInvoke returns null for unknown path', () => {
     expect(resolveSyncInvoke('/api/nope', {})).toBeNull();
   });

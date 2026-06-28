@@ -9,6 +9,12 @@ import {
   resolveInvokeFromPath,
 } from '../frontend/js/readApiInvokeMap.js';
 
+const SEDIMENT_KB_READ_ROUTES = [
+  ['/api/sediment-kb/categories', 'get_sediment_kb_categories'],
+  ['/api/sediment-kb/repos', 'get_sediment_kb_repos'],
+  ['/api/sediment-kb/docs', 'get_sediment_kb_docs'],
+];
+
 describe('readApi contract map', () => {
   it('READ_API_INVOKE_MAP 的 path 与 cmd 一一对应（无遗漏路径）', () => {
     const paths = Object.keys(READ_API_INVOKE_MAP).sort();
@@ -63,6 +69,19 @@ describe('readApi contract map', () => {
     expect(resolveInvokeFromPath('/api/sediment-kb/docs?repo=owner%2Fname')).toEqual({
       cmd: 'get_sediment_kb_docs',
       args: { repo: 'owner/name' },
+    });
+  });
+
+  it('covers all sediment-kb read routes in the invoke map', () => {
+    for (const [path, cmd] of SEDIMENT_KB_READ_ROUTES) {
+      expect(READ_API_INVOKE_MAP[path]?.cmd, path).toBe(cmd);
+    }
+  });
+
+  it('maps sediment-kb docs with an explicit repo argument', () => {
+    expect(resolveInvokeFromPath('/api/sediment-kb/docs?repo=')).toEqual({
+      cmd: 'get_sediment_kb_docs',
+      args: { repo: '' },
     });
   });
 

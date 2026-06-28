@@ -109,10 +109,23 @@ const indexHtml = readFileSync(new URL('../frontend/index.html', import.meta.url
 const mainJs = readFileSync(new URL('../frontend/js/main.js', import.meta.url), 'utf8');
 const apiJs = readFileSync(new URL('../frontend/js/api.js', import.meta.url), 'utf8');
 const kbViewerJs = readFileSync(new URL('../frontend/js/components/kb-viewer.js', import.meta.url), 'utf8');
+const packageJson = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
 const moveDialogJs = readFileSync(
   new URL('../frontend/js/components/modals/move-dialog.js', import.meta.url),
   'utf8'
 );
+
+describe('regression test command coverage', () => {
+  it('npm test runs all knowledge regression contract suites', () => {
+    const testCommand = packageJson.scripts?.test || '';
+
+    expect(testCommand).toContain('tests/sedimentKbUi.test.js');
+    expect(testCommand).toContain('tests/readApiContract.test.js');
+    expect(testCommand).toContain('tests/searchApiInvokeMap.test.js');
+    expect(testCommand).toContain('tests/syncApiInvokeMap.test.js');
+    expect(testCommand).toContain('read_api_acl_contract');
+  });
+});
 
 describe('sediment kb UI shell', () => {
   it('menu renamed to 沉淀知识库 with add/manage/list entries', () => {
@@ -186,9 +199,13 @@ describe('knowledge home entry shell', () => {
   it('renders a two-entry knowledge home before archive selection', () => {
     expect(mainJs).toMatch(/function renderKnowledgeHome\(\)/);
     expect(mainJs).toMatch(/id="knowledge-home"/);
+    expect(mainJs).toMatch(/id="knowledge-home-sediment"/);
+    expect(mainJs).toMatch(/id="knowledge-home-workbench"/);
     expect(mainJs).toMatch(/沉淀知识库/);
     expect(mainJs).toMatch(/workbench 知识库/);
     expect(mainJs).toMatch(/renderKnowledgeHome\(\)/);
+    const renderHome = mainJs.match(/function renderKnowledgeHome\(\) \{[\s\S]*?\n\}/)?.[0] || '';
+    expect(renderHome).not.toContain('openSedimentKbListDialog');
   });
 
   it('binds home entry events once and avoids opening the full sediment list shell', () => {
@@ -270,6 +287,7 @@ describe('sediment kb selection home', () => {
 describe('sediment kb document list handoff', () => {
   it('loads selected repo documents and renders the in-repo document list', () => {
     expect(apiJs).toMatch(/export async function fetchSedimentKbDocs\(repo\)/);
+    expect(apiJs).toMatch(/\/api\/sediment-kb\/docs\?repo=\$\{encodeURIComponent\(repo\)\}/);
     expect(mainJs).toMatch(/api\.fetchSedimentKbDocs\(selected\.full_name\)/);
     expect(mainJs).toMatch(/function renderSedimentKbDocList\(docs\)/);
     expect(mainJs).toMatch(/renderSedimentKbDocList\([^)]*docs/);

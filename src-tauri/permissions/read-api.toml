@@ -23,6 +23,7 @@ commands.allow = [
   "get_kb_diff_status",
   "get_sediment_kb_categories",
   "get_sediment_kb_repos",
+  "get_sediment_kb_docs",
   "infer_github_user_url",
   "check_workbench_knowledge_root",
   "get_tags_registry",
