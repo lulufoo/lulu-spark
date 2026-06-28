@@ -19,6 +19,11 @@ import { renderFeed } from './feed.js'
 import { initGlobalSearch } from './components/global-search.js'
 import { softwareDevSkillsContent } from './skills-software-dev-content.js'
 import { normalizeCorpusIndex } from './corpus-index.js'
+import {
+  renderKnowledgeSyncControls,
+  runSedimentKbSync,
+  runWorkbenchKnowledgeSync,
+} from './knowledgeSyncControls.js'
 
 const titleCache = state.index.titleCache;
 
@@ -103,6 +108,7 @@ function ensureKnowledgeHome() {
 function renderKnowledgeHome() {
   document.body.dataset.knowledgeMode = 'home';
   state.ui.activeDate = null;
+  removeWorkbenchSyncControls();
   const home = ensureKnowledgeHome();
   home.innerHTML = `
     <div class="knowledge-home-title">选择知识库</div>
@@ -189,12 +195,22 @@ function renderSedimentKbHome({ categories = [], repos = [], selectedCategoryId 
     </label>
     <div class="sediment-kb-repo-list">${repoHtml}</div>
     ${selectedHtml}
+    <div id="sediment-kb-sync-controls"></div>
     <div class="sediment-kb-actions">
       <button type="button" id="sediment-kb-enter-list"${selected ? '' : ' disabled'}>进入库内列表</button>
-      <button type="button" id="sediment-kb-sync">同步</button>
       <button type="button" id="sediment-kb-back">返回</button>
     </div>
   </div>`;
+
+  renderKnowledgeSyncControls({
+    container: status.querySelector('#sediment-kb-sync-controls'),
+    kind: 'sediment',
+    repo: selected?.full_name || '',
+    localExists: selected?.local_exists === true,
+    onSync: repo => {
+      void syncSelectedSedimentKbRepo(repo);
+    },
+  });
 
   status.querySelector('#sediment-kb-category-filter').addEventListener('change', e => {
     selectedSedimentKbCategoryId = e.target.value;
@@ -239,10 +255,28 @@ function renderSedimentKbHome({ categories = [], repos = [], selectedCategoryId 
       }
     })();
   });
-  status.querySelector('#sediment-kb-sync').addEventListener('click', () => {
-    void showSedimentKnowledgeShell(true);
-  });
   status.querySelector('#sediment-kb-back').addEventListener('click', renderKnowledgeHome);
+}
+
+async function syncSelectedSedimentKbRepo(repo) {
+  const button = document.querySelector('#sediment-kb-sync-controls [data-knowledge-sync-button]');
+  if (button) {
+    button.disabled = true;
+    button.textContent = '…';
+  }
+  try {
+    await runSedimentKbSync(repo);
+    _kbCorpusStatus = null;
+    _sedimentKbList = null;
+    await showSedimentKnowledgeShell(true);
+  } catch (e) {
+    alert(`同步失败：${e.message}`);
+  } finally {
+    if (button?.isConnected) {
+      button.disabled = false;
+      button.textContent = 'SYNC';
+    }
+  }
 }
 
 function selectSedimentKbRepo(repoFullName) {
@@ -301,6 +335,7 @@ async function openSedimentKbDoc(doc) {
 async function showSedimentKnowledgeShell(forceRefresh = false) {
   document.body.dataset.knowledgeMode = 'sediment';
   hideKnowledgeHome();
+  removeWorkbenchSyncControls();
   feedView.style.display = 'none';
   document.getElementById('btn-feed').classList.remove('active');
   document.getElementById('date-heading').style.display = 'none';
@@ -367,6 +402,7 @@ function enterWorkbenchKnowledgeHome() {
       showArchiveView();
       const targetDate = getDefaultArchiveDate();
       if (targetDate) selectDate(targetDate);
+      renderWorkbenchKnowledgeSyncControls();
     })
     .catch(e => {
       showError(`无法加载 index.json：${e.message}`);
@@ -379,6 +415,50 @@ function showWorkbenchKnowledgeShell() {
   showArchiveView();
   const targetDate = getDefaultArchiveDate();
   if (targetDate) selectDate(targetDate);
+  renderWorkbenchKnowledgeSyncControls();
+}
+
+function removeWorkbenchSyncControls() {
+  const controls = document.getElementById('workbench-knowledge-sync-controls');
+  if (controls) controls.remove();
+}
+
+function renderWorkbenchKnowledgeSyncControls() {
+  const heading = document.getElementById('date-heading');
+  if (!heading) return;
+  let controls = document.getElementById('workbench-knowledge-sync-controls');
+  if (!controls) {
+    controls = document.createElement('div');
+    controls.id = 'workbench-knowledge-sync-controls';
+    heading.insertAdjacentElement('afterend', controls);
+  }
+  controls.style.display = '';
+  renderKnowledgeSyncControls({
+    container: controls,
+    kind: 'workbench',
+    onSync: () => {
+      void syncWorkbenchKnowledge();
+    },
+  });
+}
+
+async function syncWorkbenchKnowledge() {
+  const button = document.querySelector('#workbench-knowledge-sync-controls [data-knowledge-sync-button]');
+  if (button) {
+    button.disabled = true;
+    button.textContent = '…';
+  }
+  try {
+    await runWorkbenchKnowledgeSync();
+    await loadIndex();
+  } catch (e) {
+    alert(`同步失败：${e.message}`);
+  } finally {
+    if (button?.isConnected) {
+      button.disabled = false;
+      button.textContent = '同步';
+    }
+  }
 }
 
 // ── Pull project ───────────────────────────────────────────────────────────

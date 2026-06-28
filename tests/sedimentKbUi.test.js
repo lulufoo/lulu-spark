@@ -1,3 +1,107 @@
+import { JSDOM } from 'jsdom';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  renderKnowledgeSyncControls,
+  runSedimentKbSync,
+  runWorkbenchKnowledgeSync,
+} from '../frontend/js/knowledgeSyncControls.js';
+
+describe('knowledge sync controls', () => {
+  beforeEach(() => {
+    const dom = new JSDOM('<!doctype html><html><body></body></html>');
+    globalThis.document = dom.window.document;
+    globalThis.HTMLElement = dom.window.HTMLElement;
+    document.body.innerHTML = '<div id="sync-host"></div>';
+  });
+
+  it('renders a sediment repo sync entry inside the selected knowledge view', () => {
+    const onSync = vi.fn();
+
+    renderKnowledgeSyncControls({
+      container: document.getElementById('sync-host'),
+      kind: 'sediment',
+      repo: 'lulufoo/foo',
+      localExists: true,
+      onSync,
+    });
+
+    const button = document.querySelector('[data-knowledge-sync-button]');
+    expect(button?.textContent).toContain('SYNC');
+    expect(button?.disabled).toBe(false);
+
+    button.click();
+    expect(onSync).toHaveBeenCalledWith('lulufoo/foo');
+  });
+
+  it('does not allow sediment repo sync without a selected repo', () => {
+    renderKnowledgeSyncControls({
+      container: document.getElementById('sync-host'),
+      kind: 'sediment',
+    });
+
+    const button = document.querySelector('[data-knowledge-sync-button]');
+    expect(button?.disabled).toBe(true);
+    expect(document.getElementById('sync-host').textContent).toContain('请选择一个具体仓库');
+  });
+
+  it('explains that an uncloned sediment repo cannot be reindexed', () => {
+    renderKnowledgeSyncControls({
+      container: document.getElementById('sync-host'),
+      kind: 'sediment',
+      repo: 'lulufoo/foo',
+      localExists: false,
+    });
+
+    const button = document.querySelector('[data-knowledge-sync-button]');
+    expect(button?.disabled).toBe(true);
+    expect(document.getElementById('sync-host').textContent).toContain('未克隆');
+  });
+
+  it('runs existing sediment repo reindex and status polling', async () => {
+    const apiClient = {
+      reindexKbRepo: vi.fn().mockResolvedValue({ ok: true }),
+      getReindexStatus: vi.fn()
+        .mockResolvedValueOnce({ status: 'running' })
+        .mockResolvedValueOnce({ status: 'done' }),
+    };
+
+    await runSedimentKbSync('lulufoo/foo', {
+      apiClient,
+      sleep: () => Promise.resolve(),
+    });
+
+    expect(apiClient.reindexKbRepo).toHaveBeenCalledWith('lulufoo/foo');
+    expect(apiClient.getReindexStatus).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not swallow sediment reindex failures', async () => {
+    const apiClient = {
+      reindexKbRepo: vi.fn().mockRejectedValue(new Error('boom')),
+      getReindexStatus: vi.fn(),
+    };
+
+    await expect(runSedimentKbSync('lulufoo/foo', { apiClient })).rejects.toThrow('boom');
+  });
+
+  it('runs existing workbench corpus sync and reindex status polling', async () => {
+    const apiClient = {
+      syncKnowledgeCorpus: vi.fn().mockResolvedValue({ ok: true }),
+      reindexWorkbench: vi.fn().mockResolvedValue({ ok: true }),
+      getReindexWorkbenchStatus: vi.fn()
+        .mockResolvedValueOnce({ status: 'running' })
+        .mockResolvedValueOnce({ status: 'done' }),
+    };
+
+    await runWorkbenchKnowledgeSync({
+      apiClient,
+      sleep: () => Promise.resolve(),
+    });
+
+    expect(apiClient.syncKnowledgeCorpus).toHaveBeenCalledTimes(1);
+    expect(apiClient.reindexWorkbench).toHaveBeenCalledTimes(1);
+    expect(apiClient.getReindexWorkbenchStatus).toHaveBeenCalledTimes(2);
+  });
+});
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
