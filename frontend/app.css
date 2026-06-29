@@ -43,27 +43,14 @@
   #btn-refresh { display: none; } /* replaced by repo-menu */
 
   /* ── Global search ── */
-  #gs-wrap {
+  .gs-search-wrap {
     position: relative;
     flex-shrink: 0;
     display: flex;
     align-items: center;
     gap: 4px;
   }
-  #gs-mode-pill {
-    display: inline-flex;
-    align-items: center;
-    background: #388bfd;
-    color: #fff;
-    font-size: 10px;
-    font-weight: 600;
-    padding: 2px 7px;
-    border-radius: 10px;
-    white-space: nowrap;
-    letter-spacing: .3px;
-    flex-shrink: 0;
-  }
-  #gs-input {
+  .gs-search-input {
     background: #373e47;
     border: 1px solid #444c56;
     border-radius: 6px;
@@ -74,8 +61,8 @@
     outline: none;
     transition: border-color 0.15s, width 0.2s;
   }
-  #gs-input::placeholder { color: #768390; }
-  #gs-input:focus {
+  .gs-search-input::placeholder { color: #768390; }
+  .gs-search-input:focus {
     border-color: #388bfd;
     width: 280px;
   }
@@ -111,7 +98,7 @@
     border-radius: 50%;
     animation: gs-spin 0.7s linear infinite;
   }
-  #gs-dropdown {
+  .gs-search-dropdown {
     position: absolute;
     top: calc(100% + 6px);
     left: 0;

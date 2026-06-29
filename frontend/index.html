@@ -17,12 +17,15 @@
     <a id="btn-nav-home-title" href="#/home" class="header-home-link">LuLu Workbench</a>
     <a id="btn-nav-home" href="#/home" class="header-nav-back" hidden>← 首页</a>
   </h1>
-  <div id="gs-wrap">
-    <span id="gs-mode-pill" style="display:none">Workbench</span>
-    <input id="gs-input" type="text" placeholder="搜索知识库…" autocomplete="off" spellcheck="false" />
-    <button id="gs-rebuild-btn" class="gs-rebuild-btn" style="display:none" title="重建 Workbench 索引">↺</button>
+  <div id="gs-wb-wrap" class="gs-search-wrap" hidden>
+    <input id="gs-wb-input" class="gs-search-input" type="text" placeholder="搜索归档…" autocomplete="off" spellcheck="false" />
+    <button id="gs-wb-rebuild-btn" class="gs-rebuild-btn" style="display:none" title="重建 Workbench 索引">↺</button>
+    <div id="gs-wb-dropdown" class="gs-search-dropdown" style="display:none"></div>
+  </div>
+  <div id="gs-kb-wrap" class="gs-search-wrap" hidden>
+    <input id="gs-kb-input" class="gs-search-input" type="text" placeholder="搜索知识库…" autocomplete="off" spellcheck="false" />
     <button id="gs-kb-rebuild-btn" class="gs-rebuild-btn" style="display:none" title="重建知识库索引">↺</button>
-    <div id="gs-dropdown" style="display:none"></div>
+    <div id="gs-kb-dropdown" class="gs-search-dropdown" style="display:none"></div>
   </div>
   <a href="https://github.com/lulufoo/lulu-workbench" target="_blank">GitHub ↗</a>
   <div id="repo-menu-wrap">
