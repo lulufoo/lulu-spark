@@ -50,6 +50,9 @@
     align-items: center;
     gap: 4px;
   }
+  .gs-search-wrap[hidden] {
+    display: none !important;
+  }
   .gs-search-input {
     background: #373e47;
     border: 1px solid #444c56;

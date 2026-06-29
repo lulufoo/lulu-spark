@@ -52,4 +52,8 @@ describe('dual search CSS (app.css)', () => {
     expect(appCss).toMatch(/\.gs-hit\b/);
     expect(appCss).toMatch(/\.gs-hist-/);
   });
+
+  it('hidden attribute wins over flex display on search wraps', () => {
+    expect(appCss).toMatch(/\.gs-search-wrap\[hidden\][\s\S]*display:\s*none\s*!important/);
+  });
 });
