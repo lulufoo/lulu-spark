@@ -19,6 +19,7 @@ import { renderFeed } from './feed.js'
 import { initRouter, navigate } from './router/index.js'
 import { applySearchNavChrome } from './nav-chrome.js'
 import { initWorkbenchSearch } from './components/workbench-search.js'
+import { initCorpusSearch } from './components/corpus-search.js'
 import { mountCorpusDocList } from './components/corpus-doc-list.js'
 import { mountHomeHub } from './components/home-hub.js'
 import { initHeaderSync, clearHeaderSyncCorpusContext } from './header-sync.js'
@@ -673,6 +674,7 @@ function wrapRouteMount(routeName, mountFn) {
   return (route) => {
     updateNavChrome(routeName);
     if (routeName === 'workbench') initWorkbenchSearch();
+    if (routeName === 'corpus-doc') initCorpusSearch();
     return mountFn(route);
   };
 }
