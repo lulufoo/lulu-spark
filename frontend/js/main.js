@@ -16,8 +16,8 @@ import { openBase64Dialog } from './components/modals/base64-dialog.js'
 import { openQrDialog } from './components/modals/qr-dialog.js'
 import { openSettingsDialog } from './components/modals/settings-dialog.js'
 import { renderFeed } from './feed.js'
-import { initGlobalSearch } from './components/global-search.js'
 import { initRouter, navigate } from './router/index.js'
+import { applySearchNavChrome } from './nav-chrome.js'
 import { mountCorpusDocList } from './components/corpus-doc-list.js'
 import { mountHomeHub } from './components/home-hub.js'
 import { initHeaderSync, clearHeaderSyncCorpusContext } from './header-sync.js'
@@ -665,6 +665,7 @@ function updateNavChrome(routeName) {
   const homeNav = document.getElementById('btn-nav-home');
   if (homeTitle) homeTitle.hidden = !onHome;
   if (homeNav) homeNav.hidden = onHome;
+  applySearchNavChrome(routeName);
 }
 
 function wrapRouteMount(routeName, mountFn) {
@@ -801,7 +802,6 @@ api.fetchTopics().then(data => {
 }).catch(() => {});
 initSidebarResize();
 loadIndex();
-initGlobalSearch();
 
 initRouter({
   workbench: wrapRouteMount('workbench', () => mountWorkbench()),
