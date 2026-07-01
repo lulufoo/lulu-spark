@@ -897,6 +897,37 @@
     background: #c9d1d9;
     border-radius: 3px;
   }
+  .sidebar-channel-nav {
+    display: flex;
+    gap: 4px;
+    padding: 8px 10px 6px;
+    border-bottom: 1px solid #d0d7de;
+  }
+  .sidebar-channel-tab {
+    flex: 1;
+    min-height: 32px;
+    padding: 6px 10px;
+    border: 1px solid #d0d7de;
+    border-radius: 6px;
+    background: #f6f8fa;
+    color: #57606a;
+    font: inherit;
+    font-size: 13px;
+    line-height: 1.4;
+    cursor: pointer;
+    transition: background .1s, border-color .1s, color .1s;
+  }
+  .sidebar-channel-tab:hover {
+    background: #fff;
+    color: #24292f;
+    border-color: #afb8c1;
+  }
+  .sidebar-channel-tab.active {
+    background: #ddf4ff;
+    border-color: #0969da;
+    color: #0969da;
+    font-weight: 600;
+  }
   .sidebar-resizer {
     position: absolute;
     top: 0;
@@ -1088,6 +1119,93 @@
 
   /* ── Doc cards ── */
   .doc-list { display: flex; flex-direction: column; gap: 12px; }
+
+  /* ── Read Later list ── */
+  .read-later-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .read-later-item {
+    border: 1px solid #d0d7de;
+    border-radius: 8px;
+    padding: 12px 14px;
+    line-height: 1.5;
+    background: #fff;
+    transition: background .12s, box-shadow .12s;
+  }
+  .read-later-item:hover {
+    background: #f6f8fa;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, .06);
+  }
+  .read-later-item--unread {
+    border-left: 3px solid #0969da;
+  }
+  .read-later-item--read {
+    border-left: 3px solid transparent;
+    opacity: .82;
+  }
+  .read-later-item--read .read-later-title {
+    color: #57606a;
+    font-weight: 500;
+  }
+  .read-later-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #24292f;
+    line-height: 1.45;
+    margin-bottom: 4px;
+    word-break: break-word;
+  }
+  .read-later-url {
+    font-size: 12px;
+    color: #57606a;
+    line-height: 1.4;
+    word-break: break-all;
+    margin-bottom: 4px;
+  }
+  .read-later-saved-at {
+    font-size: 11px;
+    color: #8c959f;
+    line-height: 1.3;
+    margin-bottom: 8px;
+  }
+  .read-later-mark-read {
+    padding: 4px 10px;
+    border: 1px solid #d0d7de;
+    border-radius: 6px;
+    background: #fff;
+    color: #24292f;
+    font-size: 12px;
+    line-height: 1.4;
+    cursor: pointer;
+  }
+  .read-later-mark-read:hover:not(:disabled) {
+    background: #f6f8fa;
+    border-color: #0969da;
+    color: #0969da;
+  }
+  .read-later-mark-read:disabled {
+    opacity: .6;
+    cursor: default;
+  }
+  .read-later-empty,
+  .read-later-loading,
+  .read-later-unavailable,
+  .read-later-error {
+    padding: 24px 16px;
+    font-size: 13px;
+    line-height: 1.5;
+    color: #57606a;
+    text-align: center;
+  }
+  .read-later-unavailable,
+  .read-later-error {
+    color: #cf222e;
+  }
 
   .doc-card {
     background: #fff;

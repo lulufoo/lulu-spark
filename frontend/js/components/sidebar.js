@@ -2,6 +2,12 @@ import { state } from '../state.js'
 import { formatDate } from '../utils.js'
 import { renderDocList, loadTitles } from './cards.js'
 import { closeFloatingListSelect, createFloatingListSelect } from './floating-list-select.js'
+import { mountReadLaterList } from './read-later-list.js'
+
+/** @type {'archive' | 'read-later'} */
+let activeSidebarChannel = 'archive'
+/** @type {{ unmount(): void } | null} */
+let readLaterMount = null
 
 // ── buildGroups ────────────────────────────────────────────────────────────
 
@@ -58,6 +64,87 @@ function _ensureSidebarZones(aside) {
   }
 
   return { channelZone, dateZone };
+}
+
+function _unmountReadLaterList() {
+  readLaterMount?.unmount();
+  readLaterMount = null;
+}
+
+function _setSidebarChannelActive(channel) {
+  document.querySelectorAll('.sidebar-channel-tab').forEach((tab) => {
+    tab.classList.toggle('active', tab.dataset.channel === channel);
+  });
+}
+
+function _showReadLaterMain() {
+  const status = document.getElementById('status');
+  const heading = document.getElementById('date-heading');
+  const list = document.getElementById('doc-list');
+  if (!list) return;
+  if (status) status.style.display = 'none';
+  if (heading) {
+    heading.style.display = '';
+    heading.textContent = '待读';
+  }
+  _unmountReadLaterList();
+  list.innerHTML = '';
+  readLaterMount = mountReadLaterList(list);
+}
+
+function _renderChannelNav(parent) {
+  const nav = document.createElement('div');
+  nav.className = 'sidebar-channel-nav';
+
+  const archiveTab = document.createElement('button');
+  archiveTab.type = 'button';
+  archiveTab.className = 'sidebar-channel-tab';
+  archiveTab.dataset.channel = 'archive';
+  archiveTab.textContent = '归档';
+  archiveTab.addEventListener('click', () => selectArchiveChannel());
+
+  const readLaterTab = document.createElement('button');
+  readLaterTab.type = 'button';
+  readLaterTab.className = 'sidebar-channel-tab';
+  readLaterTab.dataset.channel = 'read-later';
+  readLaterTab.textContent = '待读';
+  readLaterTab.addEventListener('click', () => selectReadLaterChannel());
+
+  nav.append(archiveTab, readLaterTab);
+  parent.appendChild(nav);
+  _setSidebarChannelActive(activeSidebarChannel);
+}
+
+export function selectReadLaterChannel() {
+  if (activeSidebarChannel === 'read-later') return;
+  activeSidebarChannel = 'read-later';
+  document.querySelectorAll('.date-tab').forEach((t) => t.classList.remove('active'));
+  _setSidebarChannelActive('read-later');
+  _showReadLaterMain();
+}
+
+export function selectArchiveChannel() {
+  if (activeSidebarChannel === 'archive') return;
+  activeSidebarChannel = 'archive';
+  _unmountReadLaterList();
+  _setSidebarChannelActive('archive');
+  if (state.index.filteredGroups.length > 0) {
+    const date = state.ui.activeDate && state.index.filteredGroups.some((g) => g.date === state.ui.activeDate)
+      ? state.ui.activeDate
+      : state.index.filteredGroups[0].date;
+    selectDate(date);
+  } else {
+    state.ui.activeDate = null;
+    const status = document.getElementById('status');
+    const heading = document.getElementById('date-heading');
+    const list = document.getElementById('doc-list');
+    if (status) status.style.display = '';
+    if (heading) {
+      heading.style.display = 'none';
+      heading.textContent = '';
+    }
+    if (list) list.innerHTML = '';
+  }
 }
 
 function _renderTopicFilter(parent) {
@@ -183,6 +270,7 @@ export function renderSidebar() {
   const { channelZone, dateZone } = _ensureSidebarZones(aside);
   channelZone.innerHTML = '';
   dateZone.innerHTML = '';
+  _renderChannelNav(channelZone);
   _renderTopicFilter(channelZone);
   _renderTagFilter(channelZone);
   for (const { date, entries } of state.index.filteredGroups) {
@@ -298,6 +386,11 @@ function _refreshFilteredList() {
 // ── selectDate ────────────────────────────────────────────────────────
 
 export function selectDate(date) {
+  if (activeSidebarChannel === 'read-later') {
+    activeSidebarChannel = 'archive';
+    _unmountReadLaterList();
+    _setSidebarChannelActive('archive');
+  }
   state.ui.activeDate = date;
   sessionStorage.setItem('cta_active_date', date);
 
