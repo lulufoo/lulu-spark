@@ -1,5 +1,30 @@
   * { box-sizing: border-box; margin: 0; padding: 0; }
 
+  /* ── Global overscroll disable ── */
+  html,
+  body {
+    overscroll-behavior: none;
+  }
+
+  html,
+  body,
+  main,
+  .sidebar-channel-zone,
+  .sidebar-date-zone,
+  .corpus-doc-sidebar,
+  .corpus-doc-reader-pane,
+  .corpus-doc-main,
+  #feed-view,
+  #home-view,
+  #md-body,
+  #kb-md-body,
+  .viewer-body,
+  .ks-results,
+  #settings-panels,
+  #gh-ops-panels {
+    overscroll-behavior: none;
+  }
+
   body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     background: #f6f8fa;
