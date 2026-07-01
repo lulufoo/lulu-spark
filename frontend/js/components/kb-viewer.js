@@ -18,8 +18,9 @@ function postProcessKbLinks(container) {
   });
 }
 
-async function renderKbMdBody(text) {
-  const body = document.getElementById('kb-md-body');
+async function renderKbMdBody(text, bodyEl) {
+  const body = bodyEl ?? document.getElementById('kb-md-body');
+  if (!body) return;
   if (typeof marked !== 'undefined') {
     body.innerHTML = marked.parse(text);
   } else {
@@ -30,6 +31,314 @@ async function renderKbMdBody(text) {
   renderKbComments(state.viewer.annotation);
   applyKbHighlights(state.viewer.annotation);
   renderKbLinksBar(state.viewer.annotation);
+}
+
+let loadToken = 0;
+
+function bindReaderListener(listeners, el, type, handler) {
+  el.addEventListener(type, handler);
+  listeners.push([el, type, handler]);
+}
+
+function formatFileSize(text) {
+  const bytes = new Blob([text]).size;
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function buildReaderTitle(repo, path) {
+  const pathParts = (path || '').split('/');
+  const fileName = pathParts.pop();
+  const repoName = (repo || '').split('/').pop();
+  return pathParts.length > 0 ? `${repoName}/.../${fileName}` : `${repoName}/${fileName}`;
+}
+
+function readerShellHtml() {
+  return `
+    <div class="kb-reader">
+      <div class="kb-reader-header viewer-header">
+        <span class="kb-reader-title viewer-panel-title"></span>
+        <span class="kb-file-size" style="font-size:10px;color:#8c959f;flex-shrink:0;"></span>
+        <a class="kb-github-link" href="#" target="_blank" style="font-size:12px;color:#0969da;text-decoration:none;flex-shrink:0;">GitHub ↗</a>
+        <button type="button" class="md-header-btn kb-btn-open-iterm" style="display:none" title="在 iTerm 中打开仓库目录">⌨️ 终端</button>
+        <button type="button" class="md-header-btn kb-btn-copy-http" data-tip="">&#127760;</button>
+        <button type="button" class="md-header-btn kb-btn-copy-path" data-tip="">&#128194;</button>
+        <button type="button" class="md-header-btn kb-btn-edit">✏️ 编辑</button>
+        <button type="button" class="md-header-btn kb-btn-add-comment">💬 笔记</button>
+        <button type="button" class="md-header-btn primary kb-btn-save" style="display:none">💾 保存</button>
+        <button type="button" class="md-header-btn kb-btn-cancel-edit" style="display:none">取消</button>
+        <button type="button" class="md-header-btn kb-btn-pending" style="display:none">● 待提交</button>
+        <button type="button" class="md-header-btn kb-btn-reindex" style="display:none">↺ 重建索引</button>
+      </div>
+      <div class="kb-reader-links-bar" style="display:none;padding:8px 20px;border-bottom:1px solid #d0d7de;"></div>
+      <div class="kb-reader-content-row viewer-content-row">
+        <div class="kb-reader-body viewer-body"></div>
+        <textarea class="kb-reader-edit-area viewer-edit-area" style="display:none" spellcheck="false"></textarea>
+        <div class="kb-comment-float-nav"></div>
+      </div>
+    </div>
+  `;
+}
+
+function wireReindexBtn(btn, repo) {
+  btn.textContent = '↺ 重建索引';
+  btn.title = '重建此知识库的搜索索引';
+  btn.disabled = false;
+  btn.style.display = '';
+  btn.onclick = async () => {
+    btn.disabled = true;
+    btn.textContent = '重建中…';
+    try {
+      const res = await api.reindexKbRepo(repo);
+      if (res.error) throw new Error(res.error);
+      const poll = setInterval(async () => {
+        try {
+          const status = await api.getReindexStatus();
+          if (status.status === 'done') {
+            clearInterval(poll);
+            btn.textContent = '✓ 已重建';
+            btn.disabled = false;
+            setTimeout(() => { btn.style.display = 'none'; }, 2000);
+          } else if (status.status === 'error') {
+            clearInterval(poll);
+            btn.textContent = '重建失败';
+            btn.disabled = false;
+            btn.title = status.log || '未知错误';
+          }
+        } catch (_) {}
+      }, 2000);
+    } catch (e) {
+      btn.textContent = '重建失败';
+      btn.disabled = false;
+      btn.title = e.message;
+    }
+  };
+}
+
+/**
+ * @param {HTMLElement} container
+ * @param {{ repo: string, path: string, url?: string }} opts
+ * @returns {Promise<{ unmount: () => void }>}
+ */
+export async function mountKbReader(container, { repo, path, url }) {
+  if (container._kbUnmount) {
+    container._kbUnmount();
+  }
+
+  loadToken += 1;
+  const token = loadToken;
+
+  state.viewer.entry = null;
+  state.viewer.isKb = true;
+  state.viewer.kbRepo = repo;
+  state.viewer.kbPath = path;
+  state.viewer.layer = 'raw';
+  state.viewer.rawText = '';
+  state.viewer.annotation = {};
+  state.viewer.lang = null;
+
+  container.innerHTML = readerShellHtml();
+
+  const ui = {
+    title: container.querySelector('.kb-reader-title'),
+    fileSize: container.querySelector('.kb-file-size'),
+    githubLink: container.querySelector('.kb-github-link'),
+    itermBtn: container.querySelector('.kb-btn-open-iterm'),
+    btnCopyHttp: container.querySelector('.kb-btn-copy-http'),
+    btnCopyPath: container.querySelector('.kb-btn-copy-path'),
+    btnEdit: container.querySelector('.kb-btn-edit'),
+    btnSave: container.querySelector('.kb-btn-save'),
+    btnCancelEdit: container.querySelector('.kb-btn-cancel-edit'),
+    btnAddComment: container.querySelector('.kb-btn-add-comment'),
+    btnPending: container.querySelector('.kb-btn-pending'),
+    btnReindex: container.querySelector('.kb-btn-reindex'),
+    body: container.querySelector('.kb-reader-body'),
+    editArea: container.querySelector('.kb-reader-edit-area'),
+  };
+
+  /** @type {Array<[HTMLElement, string, (...args: any[]) => void]>} */
+  const listeners = [];
+  let pendingMsg = '';
+
+  ui.title.textContent = buildReaderTitle(repo, path);
+  ui.githubLink.href = url || '#';
+  ui.btnCopyHttp.dataset.url = url || '';
+  ui.btnCopyHttp.dataset.tip = url || '';
+  const localPath = state.ui.knowledgeCorpusRoot
+    ? `${state.ui.knowledgeCorpusRoot}/${(repo || '').split('/').pop()}/${path}`
+    : `${(repo || '').split('/').pop()}/${path}`;
+  ui.btnCopyPath.dataset.path = localPath;
+  ui.btnCopyPath.dataset.tip = localPath;
+  ui.fileSize.textContent = '';
+  ui.itermBtn.style.display = '';
+  wireReindexBtn(ui.btnReindex, repo);
+
+  function showPendingBadge(msg) {
+    pendingMsg = msg;
+    ui.btnPending.style.display = '';
+  }
+
+  function hidePendingBadge() {
+    pendingMsg = '';
+    ui.btnPending.style.display = 'none';
+  }
+
+  function enterEditMode() {
+    ui.editArea.value = state.viewer.rawText;
+    ui.body.style.display = 'none';
+    ui.editArea.style.display = '';
+    ui.btnSave.style.display = '';
+    ui.btnCancelEdit.style.display = '';
+    ui.btnEdit.style.display = 'none';
+    resetEditAreaScroll(ui.editArea, { focus: true });
+  }
+
+  function exitEditMode() {
+    ui.body.style.display = '';
+    ui.editArea.style.display = 'none';
+    ui.btnSave.style.display = 'none';
+    ui.btnCancelEdit.style.display = 'none';
+    ui.btnEdit.style.display = '';
+  }
+
+  async function saveDoc() {
+    const newContent = ui.editArea.value;
+    ui.btnSave.disabled = true;
+    ui.btnSave.textContent = '保存中…';
+    try {
+      const originalContent = state.viewer.rawText;
+      const data = await api.saveKbFile(state.viewer.kbRepo, state.viewer.kbPath, newContent);
+      if (data.error) throw new Error(data.error);
+      state.viewer.rawText = newContent;
+      exitEditMode();
+      if (typeof marked !== 'undefined') {
+        await renderKbMdBody(newContent, ui.body);
+      } else {
+        ui.body.innerHTML = `<pre style="white-space:pre-wrap;font-size:13px">${escHtml(newContent)}</pre>`;
+      }
+      ui.btnEdit.style.display = '';
+      if (newContent !== originalContent) {
+        showPendingBadge('update: edit via viewer');
+        wireReindexBtn(ui.btnReindex, state.viewer.kbRepo);
+      }
+    } catch (e) {
+      alert(`保存失败：${e.message}`);
+    } finally {
+      ui.btnSave.disabled = false;
+      ui.btnSave.textContent = '💾 保存';
+    }
+  }
+
+  function onDirty(e) {
+    showPendingBadge(e.detail?.msg || 'chore: update via viewer');
+  }
+
+  function unmount() {
+    if (token !== loadToken) return;
+    loadToken += 1;
+    exitEditMode();
+    for (const [el, type, handler] of listeners) {
+      el.removeEventListener(type, handler);
+    }
+    document.removeEventListener('kb:dirty', onDirty);
+    container.innerHTML = '';
+    delete container._kbUnmount;
+    state.viewer.isKb = false;
+    state.viewer.kbRepo = null;
+    state.viewer.kbPath = null;
+    state.viewer.annotation = {};
+    hidePendingBadge();
+  }
+
+  container._kbUnmount = unmount;
+
+  bindReaderListener(listeners, ui.btnEdit, 'click', enterEditMode);
+  bindReaderListener(listeners, ui.btnSave, 'click', () => { void saveDoc(); });
+  bindReaderListener(listeners, ui.btnCancelEdit, 'click', exitEditMode);
+  bindReaderListener(listeners, ui.btnPending, 'click', openKbCommitDialog);
+  bindReaderListener(listeners, ui.btnCopyHttp, 'click', (e) => {
+    const btn = e.currentTarget;
+    const copyUrl = btn.dataset.url || '';
+    if (!copyUrl) return;
+    navigator.clipboard.writeText(copyUrl).then(() => {
+      const orig = btn.textContent;
+      btn.textContent = '✓';
+      setTimeout(() => { btn.textContent = orig; }, 1200);
+    }).catch(() => {});
+  });
+  bindReaderListener(listeners, ui.btnCopyPath, 'click', (e) => {
+    const btn = e.currentTarget;
+    const copyPath = btn.dataset.path || '';
+    if (!copyPath) return;
+    navigator.clipboard.writeText(copyPath).then(() => {
+      const orig = btn.textContent;
+      btn.textContent = '✓';
+      setTimeout(() => { btn.textContent = orig; }, 1200);
+    }).catch(() => {});
+  });
+  bindReaderListener(listeners, ui.itermBtn, 'click', async () => {
+    ui.itermBtn.disabled = true;
+    try {
+      const res = await api.openItermAt(repo);
+      if (res.error) alert(`打开终端失败：${res.error}`);
+    } catch (e) {
+      alert(`打开终端失败：${e.message}`);
+    } finally {
+      ui.itermBtn.disabled = false;
+    }
+  });
+
+  document.addEventListener('kb:dirty', onDirty);
+
+  ui.body.innerHTML = '<div style="color:#8c959f;padding:20px;font-size:13px;">加载中…</div>';
+
+  void (async () => {
+    try {
+      const [mdResult, annResult] = await Promise.allSettled([
+        api.fetchKbFileContent(repo, path),
+        api.fetchKbAnnotation(repo, path),
+      ]);
+
+      if (token !== loadToken) return;
+
+      const ann = annResult.status === 'fulfilled' ? (annResult.value || {}) : {};
+      state.viewer.annotation = ann;
+
+      if (mdResult.status === 'rejected') {
+        throw new Error(mdResult.reason?.message || 'fetch failed');
+      }
+      const result = mdResult.value;
+      if (result.error) throw new Error(result.error);
+
+      const text = result.content;
+      state.viewer.rawText = text;
+      ui.fileSize.textContent = formatFileSize(text);
+
+      if (typeof marked !== 'undefined') {
+        await renderKbMdBody(text, ui.body);
+      } else {
+        ui.body.innerHTML = `<pre style="white-space:pre-wrap;font-size:13px">${escHtml(text)}</pre>`;
+      }
+
+      ui.btnEdit.style.display = '';
+      initKbCommentEvents();
+      initKbHighlightUI();
+
+      api.fetchKbStatus(repo).then((data) => {
+        if (token !== loadToken) return;
+        if (!data.error && (data.total > 0 || data.ahead > 0)) {
+          showPendingBadge('chore: update via viewer');
+        }
+      }).catch(() => {});
+    } catch (e) {
+      if (token !== loadToken) return;
+      ui.body.innerHTML = `<div style="color:#7d4e00;padding:20px">无法加载文件：${escHtml(e.message)}</div>`;
+      ui.btnEdit.style.display = 'none';
+    }
+  })();
+
+  return { unmount };
 }
 
 // ── openKbDoc ──────────────────────────────────────────────────────────────
