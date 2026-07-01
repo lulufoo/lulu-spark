@@ -111,6 +111,30 @@ describe('mountCorpusDocList', () => {
     expect(container.querySelector('.corpus-doc-main-list')).toBeNull();
   });
 
+  it('applies depth * 16px padding to tree nodes', async () => {
+    api.fetchKbList.mockImplementation(async (_repo, path) => {
+      if (path === '') return sampleRootEntries;
+      if (path === 'docs') return sampleDocsEntries;
+      return [];
+    });
+
+    mountCorpusDocList(container, { repo: 'owner/repo', navigate });
+    await flushPromises();
+
+    const rootNode = container.querySelector(
+      '.corpus-doc-tree-node[data-relative-path="docs"]',
+    );
+    expect(rootNode.style.paddingLeft).toBe('0px');
+
+    rootNode.querySelector('.corpus-doc-tree-expand').click();
+    await flushPromises();
+
+    const childNode = container.querySelector(
+      '.corpus-doc-tree-node[data-relative-path="docs/guide.md"]',
+    );
+    expect(childNode.style.paddingLeft).toBe('16px');
+  });
+
   it('lazy-loads children when expanding a directory', async () => {
     api.fetchKbList.mockImplementation(async (_repo, path) => {
       if (path === '') return sampleRootEntries;

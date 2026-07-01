@@ -87,7 +87,7 @@ export function mountCorpusDocList(container, { repo, navigate, initialPath }) {
      */
     function renderNodes(nodes, depth = 0) {
       return nodes.map((node) => {
-        const pad = depth * 12;
+        const pad = depth * 16;
         const expandHtml = node.is_dir
           ? `<button type="button" class="corpus-doc-tree-expand" aria-label="expand">${node.expanded ? '▼' : '▶'}</button>`
           : '<span class="corpus-doc-tree-spacer"></span>';

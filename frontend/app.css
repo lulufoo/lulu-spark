@@ -3350,6 +3350,8 @@
   align-items: center;
   gap: 4px;
   min-height: 28px;
+  max-height: 32px;
+  font-size: 13px;
 }
 .corpus-doc-tree-expand,
 .corpus-doc-tree-label,
@@ -3362,13 +3364,13 @@
   text-align: left;
 }
 .corpus-doc-tree-expand {
-  width: 18px;
+  width: 16px;
   flex-shrink: 0;
   padding: 0;
   color: #57606a;
 }
 .corpus-doc-tree-spacer {
-  width: 18px;
+  width: 16px;
   flex-shrink: 0;
 }
 .corpus-doc-tree-label {
@@ -3376,7 +3378,9 @@
   padding: 4px 8px 4px 0;
   border-radius: 4px;
 }
-.corpus-doc-tree-label:hover,
+.corpus-doc-tree-label:hover {
+  background: #f6f8fa;
+}
 .corpus-doc-main-row:hover {
   background: #eaeef2;
 }
