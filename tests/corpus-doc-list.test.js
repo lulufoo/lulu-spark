@@ -9,12 +9,12 @@ vi.mock('../frontend/js/api.js', () => ({
   fetchSedimentKbRepos: vi.fn(),
 }));
 
-vi.mock('../frontend/js/components/viewer.js', () => ({
-  openKbDoc: vi.fn(),
+vi.mock('../frontend/js/components/kb-viewer.js', () => ({
+  mountKbReader: vi.fn(),
 }));
 
 import * as api from '../frontend/js/api.js';
-import { openKbDoc } from '../frontend/js/components/viewer.js';
+import { mountKbReader } from '../frontend/js/components/kb-viewer.js';
 import {
   buildTreeNodes,
   mountCorpusDocList,
@@ -70,6 +70,7 @@ describe('mountCorpusDocList', () => {
     document.body.appendChild(container);
     navigate = vi.fn();
     vi.clearAllMocks();
+    mountKbReader.mockResolvedValue({ unmount: vi.fn() });
     api.fetchSedimentKbRepos.mockResolvedValue({
       repos: [
         { full_name: 'owner/repo' },
@@ -97,7 +98,7 @@ describe('mountCorpusDocList', () => {
     expect(api.fetchKbList).toHaveBeenCalledTimes(1);
   });
 
-  it('renders sidebar-only layout without main file list', async () => {
+  it('renders sidebar and reader pane layout', async () => {
     api.fetchKbList.mockResolvedValue(sampleRootEntries);
 
     mountCorpusDocList(container, { repo: 'owner/repo', navigate });
@@ -105,6 +106,7 @@ describe('mountCorpusDocList', () => {
 
     expect(container.querySelector('.corpus-doc-layout')).not.toBeNull();
     expect(container.querySelector('.corpus-doc-sidebar')).not.toBeNull();
+    expect(container.querySelector('.corpus-doc-reader-pane')).not.toBeNull();
     expect(container.querySelector('.corpus-doc-main')).toBeNull();
     expect(container.querySelector('.corpus-doc-main-list')).toBeNull();
   });
@@ -178,9 +180,8 @@ describe('mountCorpusDocList', () => {
     expect(container.querySelectorAll('.corpus-doc-main-row')).toHaveLength(0);
   });
 
-  it('opens kb modal when clicking a markdown file in tree', async () => {
+  it('navigates with path query when clicking a markdown file in tree', async () => {
     api.fetchKbList.mockResolvedValue(sampleRootEntries);
-    openKbDoc.mockResolvedValue(undefined);
 
     mountCorpusDocList(container, { repo: 'owner/repo', navigate });
     await flushPromises();
@@ -192,9 +193,10 @@ describe('mountCorpusDocList', () => {
     fileRow.click();
     await flushPromises();
 
-    expect(openKbDoc).toHaveBeenCalledWith(
-      expect.objectContaining({ repo: 'owner/repo', path: 'readme.md' }),
+    expect(navigate).toHaveBeenCalledWith(
+      '#/corpus/' + encodeURIComponent('owner/repo') + '?path=' + encodeURIComponent('readme.md'),
     );
+    expect(mountKbReader).not.toHaveBeenCalled();
   });
 
   it('shows placeholder when repo root is empty', async () => {
@@ -207,11 +209,10 @@ describe('mountCorpusDocList', () => {
     expect(container.querySelector('.corpus-doc-empty')).not.toBeNull();
   });
 
-  it('allows opening a single file at repo root', async () => {
+  it('allows navigating to a single file at repo root', async () => {
     api.fetchKbList.mockResolvedValue([
       { name: 'only.md', relative_path: 'only.md', is_dir: false },
     ]);
-    openKbDoc.mockResolvedValue(undefined);
 
     mountCorpusDocList(container, { repo: 'owner/single', navigate });
     await flushPromises();
@@ -222,8 +223,8 @@ describe('mountCorpusDocList', () => {
     fileRow.click();
     await flushPromises();
 
-    expect(openKbDoc).toHaveBeenCalledWith(
-      expect.objectContaining({ repo: 'owner/single', path: 'only.md' }),
+    expect(navigate).toHaveBeenCalledWith(
+      '#/corpus/' + encodeURIComponent('owner/single') + '?path=' + encodeURIComponent('only.md'),
     );
   });
 
@@ -268,15 +269,38 @@ describe('mountCorpusDocList', () => {
     expect(navigate).toHaveBeenCalledWith('#/corpus/' + encodeURIComponent('owner/repo'));
   });
 
-  it('returns cleanup that clears container', async () => {
+  it('returns cleanup that clears container and unmounts reader', async () => {
     api.fetchKbList.mockResolvedValue(sampleRootEntries);
+    const unmountReader = vi.fn();
+    mountKbReader.mockResolvedValue({ unmount: unmountReader });
 
-    const cleanup = mountCorpusDocList(container, { repo: 'owner/repo', navigate });
+    const cleanup = mountCorpusDocList(container, {
+      repo: 'owner/repo',
+      navigate,
+      initialPath: 'readme.md',
+    });
     await flushPromises();
 
     expect(typeof cleanup).toBe('function');
     cleanup();
+    expect(unmountReader).toHaveBeenCalled();
     expect(container.innerHTML).toBe('');
+  });
+
+  it('mounts reader when initialPath is provided', async () => {
+    api.fetchKbList.mockResolvedValue(sampleRootEntries);
+
+    mountCorpusDocList(container, {
+      repo: 'owner/repo',
+      navigate,
+      initialPath: 'docs/guide.md',
+    });
+    await flushPromises();
+
+    expect(mountKbReader).toHaveBeenCalledWith(
+      container.querySelector('.corpus-doc-reader-pane'),
+      expect.objectContaining({ repo: 'owner/repo', path: 'docs/guide.md' }),
+    );
   });
 });
 

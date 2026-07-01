@@ -1,6 +1,6 @@
 import * as api from '../api.js';
 import { escHtml } from '../utils.js';
-import { openKbDoc } from './viewer.js';
+import { mountKbReader } from './kb-viewer.js';
 import { setHeaderSyncCorpusContext, clearHeaderSyncCorpusContext } from '../header-sync.js';
 
 /**
@@ -56,6 +56,8 @@ export function mountCorpusDocList(container, { repo, navigate, initialPath }) {
   /** @type {TreeNode[]} */
   let rootNodes = [];
   let selectedPath = '';
+  /** @type {(() => void) | null} */
+  let unmountReader = null;
   /** @type {Map<string, Array<{ name: string, relative_path: string, is_dir: boolean }>>} */
   const dirCache = new Map();
 
@@ -117,6 +119,28 @@ export function mountCorpusDocList(container, { repo, navigate, initialPath }) {
     dirCache.set('', entries);
     rootNodes = buildTreeNodes(entries, '');
     renderSidebar();
+  }
+
+  /**
+   * @param {string} path
+   */
+  async function mountReaderAt(path) {
+    if (unmountReader) {
+      unmountReader();
+      unmountReader = null;
+    }
+    const pane = container.querySelector('.corpus-doc-reader-pane');
+    if (!pane || !path) return;
+    const { unmount } = await mountKbReader(pane, { repo, path });
+    if (disposed) {
+      unmount();
+      return;
+    }
+    unmountReader = unmount;
+  }
+
+  function corpusDocHash(path) {
+    return '#/corpus/' + encodeURIComponent(repo) + '?path=' + encodeURIComponent(path);
   }
 
   const onRepoChange = (event) => {
@@ -220,7 +244,8 @@ export function mountCorpusDocList(container, { repo, navigate, initialPath }) {
         renderSidebar();
       }
     } else {
-      void openKbDoc({ repo, path: relativePath });
+      selectedPath = relativePath;
+      navigate(corpusDocHash(relativePath));
     }
   };
 
@@ -250,6 +275,11 @@ export function mountCorpusDocList(container, { repo, navigate, initialPath }) {
       container.querySelector('.corpus-repo-select')?.addEventListener('change', onRepoChange);
       container.querySelector('.corpus-doc-sidebar')?.addEventListener('click', onSidebarClick);
       renderSidebar();
+      if (initialPath) {
+        selectedPath = initialPath;
+        renderSidebar();
+        await mountReaderAt(initialPath);
+      }
     } catch (err) {
       if (disposed) return;
       container.innerHTML = `<div class="corpus-doc-error">${escHtml(err?.message || '加载失败')}</div>`;
@@ -258,6 +288,8 @@ export function mountCorpusDocList(container, { repo, navigate, initialPath }) {
 
   return () => {
     disposed = true;
+    unmountReader?.();
+    unmountReader = null;
     clearHeaderSyncCorpusContext();
     window.removeEventListener('kb-diff-updated', onKbDiffUpdated);
     container.innerHTML = '';

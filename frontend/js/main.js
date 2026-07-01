@@ -726,7 +726,8 @@ function mountCorpusDocRoute(route) {
   docView.style.display = '';
 
   const repo = route?.params?.repo || '';
-  unmountCorpusDocList = mountCorpusDocList(docView, { repo, navigate });
+  const initialPath = route?.params?.path;
+  unmountCorpusDocList = mountCorpusDocList(docView, { repo, navigate, initialPath });
 }
 
 function mountWorkbench() {
