@@ -475,6 +475,17 @@ describe('mountCorpusDocList', () => {
     expect(container.querySelector('.corpus-doc-sync-panel')).toBeNull();
   });
 
+  it('mount attaches corpus sidebar resizer', async () => {
+    api.fetchKbList.mockResolvedValue(sampleRootEntries);
+
+    mountCorpusDocList(container, { repo: 'owner/repo', navigate });
+    await flushPromises();
+
+    const resizer = container.querySelector('.corpus-sidebar-resizer.sidebar-resizer');
+    expect(resizer).not.toBeNull();
+    expect(resizer?.getAttribute('aria-label')).toMatch(/知识库目录宽度/);
+  });
+
   it('repo select navigates to chosen repository', async () => {
     api.fetchKbList.mockResolvedValue(sampleRootEntries);
 

@@ -2,6 +2,7 @@ import * as api from '../api.js';
 import { escHtml, repoShortName } from '../utils.js';
 import { mountKbReader } from './kb-viewer.js';
 import { setHeaderSyncCorpusContext, clearHeaderSyncCorpusContext } from '../header-sync.js';
+import { attachCorpusSidebarResize, detachCorpusSidebarResize } from './corpus-sidebar-resize.js';
 import { getKbHidePattern, shouldHideEntry } from '../kb-hide-pattern.js';
 
 /**
@@ -421,6 +422,7 @@ export function mountCorpusDocList(container, { repo, navigate, initialPath }) {
       dirCache.set('', entries);
       rootNodes = buildTreeNodes(entries, '');
       renderShell(repos);
+      attachCorpusSidebarResize(container.querySelector('.corpus-doc-sidebar'));
       setHeaderSyncCorpusContext(repo, reloadFromDisk);
       container.querySelector('.corpus-repo-picker')?.addEventListener('click', onRepoPickerClick);
       container.querySelector('.corpus-doc-sidebar')?.addEventListener('click', onSidebarClick);
@@ -437,6 +439,7 @@ export function mountCorpusDocList(container, { repo, navigate, initialPath }) {
   function unmount() {
     disposed = true;
     closeRepoMenu();
+    detachCorpusSidebarResize();
     unmountReader?.();
     unmountReader = null;
     clearHeaderSyncCorpusContext();
