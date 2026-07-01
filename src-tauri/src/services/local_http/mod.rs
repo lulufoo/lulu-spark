@@ -1,4 +1,4 @@
-//! Localhost HTTP API for MCP sidecar proxy (`GET/POST /api/corpus-*`, `/api/archive-*`, `/api/status`).
+//! Localhost HTTP API for MCP sidecar proxy (`GET/POST /api/corpus-*`, `/api/archive-*`, `/api/read-later*`, `/api/status`).
 
 use std::collections::HashMap;
 use std::io::Read;
@@ -11,6 +11,7 @@ use serde_json::{json, Value};
 use tiny_http::{Header, Method, Response, Server, StatusCode};
 
 use crate::services::archive_write::{archive_digest, archive_document};
+use crate::services::read_later;
 use crate::services::workbench_read::{
     get_corpus_asset, get_corpus_catalog_latest_per_topic, get_corpus_file, get_corpus_files_by_ids,
     get_corpus_index,
@@ -101,11 +102,40 @@ pub(crate) fn map_value_to_response(value: Value) -> (u16, String) {
     (status, json)
 }
 
+fn is_read_later_path(path: &str) -> bool {
+    path == "/api/read-later" || path.starts_with("/api/read-later/")
+}
+
 fn handle_request(repo_root: &PathBuf, port: u16, request: tiny_http::Request) {
-    let path = request.url().split('?').next().unwrap_or("");
+    let url = request.url().to_string();
+    let path = url.split('?').next().unwrap_or("").to_string();
+
+    if request.method() == &Method::Options {
+        if is_read_later_path(&path) {
+            respond_with_cors_empty(request, 204);
+            return;
+        }
+        respond_json(request, 405, json!({ "error": "Method not allowed" }));
+        return;
+    }
+
+    if request.method() == &Method::Patch {
+        if let Some(id) = path.strip_prefix("/api/read-later/") {
+            if !id.is_empty() && !id.contains('/') {
+                handle_read_later_patch(request, id);
+                return;
+            }
+        }
+        respond_json(request, 405, json!({ "error": "Method not allowed" }));
+        return;
+    }
 
     if request.method() == &Method::Post {
-        match path {
+        match path.as_str() {
+            "/api/read-later" => {
+                handle_read_later_post(request);
+                return;
+            }
             "/api/corpus-files" => {
                 handle_corpus_files_post(repo_root, request);
                 return;
@@ -122,69 +152,130 @@ fn handle_request(repo_root: &PathBuf, port: u16, request: tiny_http::Request) {
         }
     }
 
-    if request.method() != &Method::Get {
-        respond_json(
-            request,
-            405,
-            json!({ "error": "Method not allowed" }),
-        );
-        return;
+    if request.method() == &Method::Get {
+        match path.as_str() {
+            "/api/read-later" => {
+                handle_read_later_get(request);
+                return;
+            }
+            "/api/corpus-catalog" => {
+                let params = parse_query(request.url());
+                let mode = params.get("mode").map(String::as_str).unwrap_or("");
+                if mode != "latest_per_topic" {
+                    respond_json(
+                        request,
+                        400,
+                        json!({ "error": "Unsupported mode; use mode=latest_per_topic" }),
+                    );
+                    return;
+                }
+                let value = get_corpus_catalog_latest_per_topic(repo_root);
+                respond_from_value(request, value);
+                return;
+            }
+            "/api/corpus-index" => {
+                let value = get_corpus_index(repo_root);
+                respond_from_value(request, value);
+                return;
+            }
+            "/api/corpus-file" => {
+                let params = parse_query(request.url());
+                let layer = params.get("layer").map(String::as_str).unwrap_or("");
+                let common_path = params.get("path").map(String::as_str).unwrap_or("");
+                if layer != "digest" {
+                    respond_json(
+                        request,
+                        400,
+                        json!({ "error": format!("Invalid layer: {layer}") }),
+                    );
+                    return;
+                }
+                let value = get_corpus_file(repo_root, layer, common_path);
+                respond_from_value(request, value);
+                return;
+            }
+            "/api/corpus-asset" => {
+                let params = parse_query(request.url());
+                let layer = params.get("layer").map(String::as_str).unwrap_or("");
+                let base = params.get("base").map(String::as_str).unwrap_or("");
+                let href = params.get("href").map(String::as_str).unwrap_or("");
+                let value = get_corpus_asset(repo_root, layer, base, href);
+                respond_from_value(request, value);
+                return;
+            }
+            "/api/status" => {
+                respond_json(
+                    request,
+                    200,
+                    json!({
+                        "ok": true,
+                        "http_port": port,
+                    }),
+                );
+                return;
+            }
+            _ => {
+                respond_json(request, 404, json!({ "error": "Not found" }));
+                return;
+            }
+        }
     }
 
-    match path {
-        "/api/corpus-catalog" => {
-            let params = parse_query(request.url());
-            let mode = params.get("mode").map(String::as_str).unwrap_or("");
-            if mode != "latest_per_topic" {
-                respond_json(
-                    request,
-                    400,
-                    json!({ "error": "Unsupported mode; use mode=latest_per_topic" }),
-                );
-                return;
-            }
-            let value = get_corpus_catalog_latest_per_topic(repo_root);
-            respond_from_value(request, value);
-        }
-        "/api/corpus-index" => {
-            let value = get_corpus_index(repo_root);
-            respond_from_value(request, value);
-        }
-        "/api/corpus-file" => {
-            let params = parse_query(request.url());
-            let layer = params.get("layer").map(String::as_str).unwrap_or("");
-            let common_path = params.get("path").map(String::as_str).unwrap_or("");
-            if layer != "digest" {
-                respond_json(
-                    request,
-                    400,
-                    json!({ "error": format!("Invalid layer: {layer}") }),
-                );
-                return;
-            }
-            let value = get_corpus_file(repo_root, layer, common_path);
-            respond_from_value(request, value);
-        }
-        "/api/corpus-asset" => {
-            let params = parse_query(request.url());
-            let layer = params.get("layer").map(String::as_str).unwrap_or("");
-            let base = params.get("base").map(String::as_str).unwrap_or("");
-            let href = params.get("href").map(String::as_str).unwrap_or("");
-            let value = get_corpus_asset(repo_root, layer, base, href);
-            respond_from_value(request, value);
-        }
-        "/api/status" => {
-            respond_json(
-                request,
-                200,
-                json!({
-                    "ok": true,
-                    "http_port": port,
-                }),
-            );
-        }
-        _ => respond_json(request, 404, json!({ "error": "Not found" })),
+    respond_json(request, 405, json!({ "error": "Method not allowed" }));
+}
+
+fn handle_read_later_get(request: tiny_http::Request) {
+    let entries = read_later::list_entries();
+    let body = serde_json::to_string(&entries).unwrap_or_else(|_| "[]".to_string());
+    respond_with_cors(request, 200, body);
+}
+
+fn handle_read_later_post(mut request: tiny_http::Request) {
+    let mut body = String::new();
+    if request.as_reader().read_to_string(&mut body).is_err() {
+        respond_read_later_json(request, 400, json!({ "error": "Failed to read body" }));
+        return;
     }
+    let payload: Value = match serde_json::from_str(&body) {
+        Ok(v) => v,
+        Err(e) => {
+            respond_read_later_json(
+                request,
+                400,
+                json!({ "error": format!("Invalid JSON: {e}") }),
+            );
+            return;
+        }
+    };
+    let url = payload.get("url").and_then(|v| v.as_str());
+    let title = payload.get("title").and_then(|v| v.as_str());
+    let value = match url {
+        Some(u) => read_later::create_entry(u, title),
+        None => json!({ "error": "Missing url", "_status": 400 }),
+    };
+    respond_read_later_from_value(request, value);
+}
+
+fn handle_read_later_patch(mut request: tiny_http::Request, id: &str) {
+    let mut body = String::new();
+    if request.as_reader().read_to_string(&mut body).is_err() {
+        respond_read_later_json(request, 400, json!({ "error": "Failed to read body" }));
+        return;
+    }
+    let payload: Value = match serde_json::from_str(&body) {
+        Ok(v) => v,
+        Err(e) => {
+            respond_read_later_json(
+                request,
+                400,
+                json!({ "error": format!("Invalid JSON: {e}") }),
+            );
+            return;
+        }
+    };
+    let read = payload.get("read").and_then(|v| v.as_bool()).unwrap_or(false);
+    let value = read_later::mark_read(id, read);
+    respond_read_later_from_value(request, value);
 }
 
 fn handle_corpus_files_post(repo_root: &PathBuf, mut request: tiny_http::Request) {
@@ -268,6 +359,44 @@ fn respond_from_value(request: tiny_http::Request, value: Value) {
 fn respond_json(request: tiny_http::Request, status: u16, value: Value) {
     let body = serde_json::to_string(&value).unwrap_or_else(|_| "{}".to_string());
     respond_raw(request, status, body);
+}
+
+fn respond_read_later_from_value(request: tiny_http::Request, value: Value) {
+    let (status, body) = map_value_to_response(value);
+    respond_with_cors(request, status, body);
+}
+
+fn respond_read_later_json(request: tiny_http::Request, status: u16, value: Value) {
+    let body = serde_json::to_string(&value).unwrap_or_else(|_| "{}".to_string());
+    respond_with_cors(request, status, body);
+}
+
+fn cors_headers() -> [Header; 3] {
+    [
+        Header::from_bytes(b"Access-Control-Allow-Origin", b"*").expect("cors origin"),
+        Header::from_bytes(b"Access-Control-Allow-Methods", b"GET, POST, PATCH, OPTIONS")
+            .expect("cors methods"),
+        Header::from_bytes(b"Access-Control-Allow-Headers", b"Content-Type").expect("cors headers"),
+    ]
+}
+
+fn respond_with_cors(request: tiny_http::Request, status: u16, body: String) {
+    let mut response = Response::from_string(body).with_status_code(StatusCode(status));
+    if let Ok(header) = Header::from_bytes(&b"Content-Type"[..], &b"application/json"[..]) {
+        response = response.with_header(header);
+    }
+    for header in cors_headers() {
+        response = response.with_header(header);
+    }
+    let _ = request.respond(response);
+}
+
+fn respond_with_cors_empty(request: tiny_http::Request, status: u16) {
+    let mut response = Response::from_string("").with_status_code(StatusCode(status));
+    for header in cors_headers() {
+        response = response.with_header(header);
+    }
+    let _ = request.respond(response);
 }
 
 fn respond_raw(request: tiny_http::Request, status: u16, body: String) {
