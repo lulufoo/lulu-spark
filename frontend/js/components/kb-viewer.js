@@ -71,7 +71,7 @@ function readerShellHtml() {
         <button type="button" class="md-header-btn kb-btn-pending" style="display:none">● 待提交</button>
         <button type="button" class="md-header-btn kb-btn-reindex" style="display:none">↺ 重建索引</button>
       </div>
-      <div class="kb-reader-links-bar" style="display:none;padding:8px 20px;border-bottom:1px solid #d0d7de;"></div>
+      <div id="kb-md-links-bar" class="kb-reader-links-bar" style="display:none;padding:8px 20px;border-bottom:1px solid #d0d7de;"></div>
       <div class="kb-reader-content-row viewer-content-row">
         <div class="kb-reader-body viewer-body"></div>
         <textarea class="kb-reader-edit-area viewer-edit-area" style="display:none" spellcheck="false"></textarea>

@@ -146,7 +146,9 @@ function showAddKbLinkInput(bar) {
 // ── renderKbLinksBar ───────────────────────────────────────────────────────
 
 export function renderKbLinksBar(annotation) {
-  const bar = document.getElementById('kb-md-links-bar');
+  const bar = document.getElementById('kb-md-links-bar')
+    ?? document.querySelector('.kb-reader .kb-reader-links-bar');
+  if (!bar) return;
   bar.innerHTML = '';
   const links = annotation && annotation.links;
 
