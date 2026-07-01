@@ -15,6 +15,7 @@ vi.mock('../frontend/js/components/kb-viewer.js', () => ({
 
 import * as api from '../frontend/js/api.js';
 import { mountKbReader } from '../frontend/js/components/kb-viewer.js';
+import { getKbHidePattern } from '../frontend/js/kb-hide-pattern.js';
 import {
   buildTreeNodes,
   mountCorpusDocList,
@@ -33,7 +34,29 @@ const sampleDocsEntries = [
   { name: 'nested', relative_path: 'docs/nested', is_dir: true },
 ];
 
+function installLocalStorageMock() {
+  const store = {};
+  globalThis.localStorage = {
+    getItem(key) {
+      return Object.prototype.hasOwnProperty.call(store, key) ? store[key] : null;
+    },
+    setItem(key, value) {
+      store[key] = String(value);
+    },
+    removeItem(key) {
+      delete store[key];
+    },
+    clear() {
+      for (const key of Object.keys(store)) delete store[key];
+    },
+  };
+}
+
 describe('buildTreeNodes', () => {
+  beforeEach(() => {
+    installLocalStorageMock();
+  });
+
   it('maps flat entries to tree nodes with defaults', () => {
     const nodes = buildTreeNodes(sampleRootEntries, '');
     expect(nodes).toHaveLength(2);
@@ -59,6 +82,37 @@ describe('buildTreeNodes', () => {
     ];
     expect(buildTreeNodes(dupes, '')).toHaveLength(1);
   });
+
+  it('hides entries whose name matches kb hide pattern (I5: name only)', () => {
+    localStorage.setItem('kb_hide_pattern', '\\.xxx$');
+    const entries = [
+      { name: 'noise.xxx', relative_path: 'noise.xxx', is_dir: false },
+      { name: 'readme.md', relative_path: 'readme.md', is_dir: false },
+      { name: 'hidden.xxx', relative_path: 'docs/hidden.xxx', is_dir: false },
+    ];
+    const nodes = buildTreeNodes(entries, '');
+    expect(nodes.map((n) => n.name)).toEqual(['readme.md']);
+  });
+
+  it('keeps parent directory when all children would be hidden (I4)', () => {
+    localStorage.setItem('kb_hide_pattern', '\\.xxx$');
+    const entries = [
+      { name: 'empty-dir', relative_path: 'empty-dir', is_dir: true },
+      { name: 'only.xxx', relative_path: 'only.xxx', is_dir: false },
+    ];
+    const nodes = buildTreeNodes(entries, '');
+    expect(nodes.map((n) => n.name)).toEqual(['empty-dir']);
+  });
+
+  it('does not filter when hide pattern is empty', () => {
+    localStorage.clear();
+    const entries = [
+      { name: 'noise.xxx', relative_path: 'noise.xxx', is_dir: false },
+      { name: 'readme.md', relative_path: 'readme.md', is_dir: false },
+    ];
+    expect(buildTreeNodes(entries, '')).toHaveLength(2);
+    expect(getKbHidePattern()).toBe('');
+  });
 });
 
 describe('mountCorpusDocList', () => {
@@ -66,6 +120,7 @@ describe('mountCorpusDocList', () => {
   let navigate;
 
   beforeEach(() => {
+    installLocalStorageMock();
     container = document.createElement('div');
     document.body.appendChild(container);
     navigate = vi.fn();
@@ -325,6 +380,52 @@ describe('mountCorpusDocList', () => {
       container.querySelector('.corpus-doc-reader-pane'),
       expect.objectContaining({ repo: 'owner/repo', path: 'docs/guide.md' }),
     );
+  });
+
+  it('reloads tree when kb:hide-pattern-changed fires', async () => {
+    localStorage.setItem('kb_hide_pattern', '\\.xxx$');
+    api.fetchKbList.mockResolvedValue([
+      { name: 'noise.xxx', relative_path: 'noise.xxx', is_dir: false },
+      { name: 'readme.md', relative_path: 'readme.md', is_dir: false },
+    ]);
+
+    mountCorpusDocList(container, { repo: 'owner/repo', navigate });
+    await flushPromises();
+
+    expect(container.textContent).not.toMatch(/noise\.xxx/);
+    expect(container.textContent).toMatch(/readme\.md/);
+
+    api.fetchKbList.mockClear();
+    api.fetchKbList.mockResolvedValue([
+      { name: 'noise.xxx', relative_path: 'noise.xxx', is_dir: false },
+      { name: 'readme.md', relative_path: 'readme.md', is_dir: false },
+    ]);
+    localStorage.removeItem('kb_hide_pattern');
+    window.dispatchEvent(new CustomEvent('kb:hide-pattern-changed'));
+    await flushPromises();
+
+    expect(api.fetchKbList).toHaveBeenCalledWith('owner/repo', '', 'flat');
+    expect(container.textContent).toMatch(/noise\.xxx/);
+  });
+
+  it('removes kb:hide-pattern-changed listener on unmount', async () => {
+    api.fetchKbList.mockResolvedValue(sampleRootEntries);
+    const addSpy = vi.spyOn(window, 'addEventListener');
+    const removeSpy = vi.spyOn(window, 'removeEventListener');
+
+    const cleanup = mountCorpusDocList(container, { repo: 'owner/repo', navigate });
+    await flushPromises();
+
+    const addCalls = addSpy.mock.calls.filter(([evt]) => evt === 'kb:hide-pattern-changed');
+    expect(addCalls.length).toBeGreaterThan(0);
+
+    cleanup();
+
+    const removeCalls = removeSpy.mock.calls.filter(([evt]) => evt === 'kb:hide-pattern-changed');
+    expect(removeCalls.length).toBeGreaterThan(0);
+
+    addSpy.mockRestore();
+    removeSpy.mockRestore();
   });
 });
 

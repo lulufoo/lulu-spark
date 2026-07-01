@@ -450,6 +450,7 @@
       <nav id="settings-nav">
         <button type="button" class="settings-nav-item active" data-panel="directories">目录</button>
         <button type="button" class="settings-nav-item" data-panel="github">GitHub</button>
+        <button type="button" class="settings-nav-item" data-panel="knowledge">知识库</button>
       </nav>
       <div id="settings-panels">
         <div id="settings-panel-directories" class="settings-panel active">
@@ -467,6 +468,18 @@
           <div id="settings-result-directories" class="settings-result"></div>
           <div class="settings-panel-actions">
             <button type="button" id="btn-settings-save-directories" class="btn-settings-save">保存</button>
+          </div>
+        </div>
+        <div id="settings-panel-knowledge" class="settings-panel">
+          <div class="settings-panel-title">知识库</div>
+          <div class="settings-field">
+            <label for="settings-kb-hide-pattern">隐藏文件名正则（kb_hide_pattern）</label>
+            <input id="settings-kb-hide-pattern" type="text" spellcheck="false" autocomplete="off" placeholder="" />
+            <span class="settings-field-hint">匹配 entry.name 的文件不在目录树中显示；留空表示不过滤。示例：<code>\.xxx$</code></span>
+          </div>
+          <div id="settings-result-knowledge" class="settings-result"></div>
+          <div class="settings-panel-actions">
+            <button type="button" id="btn-settings-save-knowledge" class="btn-settings-save">保存</button>
           </div>
         </div>
         <div id="settings-panel-github" class="settings-panel">

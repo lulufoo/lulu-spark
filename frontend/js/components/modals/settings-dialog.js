@@ -1,5 +1,6 @@
 import * as api from '../../api.js';
 import { setGithubUserUrl } from '../../constants.js';
+import { getKbHidePattern, saveKbHidePattern } from '../../kb-hide-pattern.js';
 
 const GITHUB_USER_HINT_DEFAULT =
   '个人 GitHub 地址，用于 Viewer 远程链接与沉淀来源；可与 Token 一并保存。';
@@ -74,6 +75,13 @@ function setGithubUserUrlInferredLock(inferredUrl, locked) {
 
 function clearGithubUserUrlInferredLock() {
   setGithubUserUrlInferredLock('', false);
+}
+
+function syncKbHidePatternInput() {
+  const kbHideInput = document.getElementById('settings-kb-hide-pattern');
+  if (kbHideInput) {
+    kbHideInput.value = getKbHidePattern();
+  }
 }
 
 function isGithubUserUrlInferredLocked() {
@@ -211,10 +219,12 @@ async function loadSettingsSnapshot() {
       : '当前未配置 GitHub Token。';
 
     await syncGithubUserUrlLockFromWorkbenchRoot();
+    syncKbHidePatternInput();
   } catch {
     document.getElementById('settings-token-hint').textContent =
       '读取当前配置失败，可直接输入并保存。';
     clearGithubUserUrlInferredLock();
+    syncKbHidePatternInput();
   }
 }
 
@@ -223,6 +233,7 @@ async function loadSettingsSnapshot() {
 export async function openSettingsDialog() {
   setResult('settings-result-directories', '');
   setResult('settings-result-github', '');
+  setResult('settings-result-knowledge', '');
   document.getElementById('settings-github-token').value = '';
   switchPanel('directories');
   await loadSettingsSnapshot();
@@ -373,6 +384,26 @@ document.getElementById('btn-settings-save-directories').addEventListener('click
     await loadSettingsSnapshot();
   } catch (e) {
     setResult('settings-result-directories', `保存失败：${e.message || String(e)}`, true);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '保存';
+  }
+});
+
+// ── Save: 知识库 hide pattern ───────────────────────────────────────────────
+
+document.getElementById('btn-settings-save-knowledge').addEventListener('click', () => {
+  const btn = document.getElementById('btn-settings-save-knowledge');
+  const pattern = document.getElementById('settings-kb-hide-pattern').value;
+  btn.disabled = true;
+  btn.textContent = '保存中…';
+  try {
+    const result = saveKbHidePattern(pattern);
+    if (!result.ok) {
+      setResult('settings-result-knowledge', `无效正则：${result.error}`, true);
+      return;
+    }
+    setResult('settings-result-knowledge', '已保存隐藏规则。');
   } finally {
     btn.disabled = false;
     btn.textContent = '保存';

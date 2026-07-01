@@ -2,6 +2,7 @@ import * as api from '../api.js';
 import { escHtml } from '../utils.js';
 import { mountKbReader } from './kb-viewer.js';
 import { setHeaderSyncCorpusContext, clearHeaderSyncCorpusContext } from '../header-sync.js';
+import { getKbHidePattern, shouldHideEntry } from '../kb-hide-pattern.js';
 
 /**
  * @typedef {{ name: string, relative_path: string, is_dir: boolean, expanded: boolean, loaded: boolean, children: TreeNode[] }} TreeNode
@@ -13,10 +14,13 @@ import { setHeaderSyncCorpusContext, clearHeaderSyncCorpusContext } from '../hea
  * @returns {TreeNode[]}
  */
 export function buildTreeNodes(entries, _parentPath) {
+  const hidePattern = getKbHidePattern();
   const seen = new Set();
   /** @type {TreeNode[]} */
   const nodes = [];
   for (const entry of entries || []) {
+    const name = entry.name || (entry.relative_path || '').split('/').pop() || '';
+    if (shouldHideEntry(name, hidePattern)) continue;
     const relative_path = entry.relative_path || entry.name || '';
     if (!relative_path || seen.has(relative_path)) continue;
     seen.add(relative_path);
@@ -190,6 +194,11 @@ export function mountCorpusDocList(container, { repo, navigate, initialPath }) {
   };
   window.addEventListener('kb-diff-updated', onKbDiffUpdated);
 
+  const onHidePatternChanged = () => {
+    void reloadFromDisk().catch(() => {});
+  };
+  window.addEventListener('kb:hide-pattern-changed', onHidePatternChanged);
+
   async function onExpandNode(node) {
     if (node.expanded) {
       node.expanded = false;
@@ -292,6 +301,7 @@ export function mountCorpusDocList(container, { repo, navigate, initialPath }) {
     unmountReader = null;
     clearHeaderSyncCorpusContext();
     window.removeEventListener('kb-diff-updated', onKbDiffUpdated);
+    window.removeEventListener('kb:hide-pattern-changed', onHidePatternChanged);
     container.innerHTML = '';
   };
 }
