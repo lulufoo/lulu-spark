@@ -23,7 +23,11 @@ const makeEl = (tag = 'div') => {
   };
   const matchSel = (node, sel) => {
     if (sel.startsWith('#') && node.id === sel.slice(1)) return node;
-    if (sel.startsWith('.') && node.className === sel.slice(1)) return node;
+    if (sel.startsWith('.')) {
+      const cls = sel.slice(1);
+      if (node.className === cls) return node;
+      if (typeof node.className === 'string' && node.className.split(/\s+/).includes(cls)) return node;
+    }
     return null;
   };
   const query = (sel) => {
@@ -111,8 +115,8 @@ function findTagSelect() {
   return sidebarEl.querySelector('.tag-select');
 }
 
-function tagOptionTexts(sel) {
-  return (sel?.options || sel?.children || []).map((o) => o.textContent).filter(Boolean);
+function tagOptionTexts(picker) {
+  return (picker?._listSelectOptions || []).map((o) => o.label);
 }
 
 beforeEach(() => {
@@ -287,7 +291,8 @@ describe('renderSidebar tag filter', () => {
     applyListFilters();
     renderSidebar();
     const sel = findTagSelect();
-    expect(sel.value).toBe('ghost');
+    expect(sel).toBeTruthy();
+    expect(sel._listSelectValue).toBe('ghost');
     expect(tagOptionTexts(sel)).toContain('ghost (0)');
   });
 });

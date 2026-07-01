@@ -19,8 +19,8 @@ import { getKbHidePattern } from '../frontend/js/kb-hide-pattern.js';
 import {
   buildTreeNodes,
   mountCorpusDocList,
-  positionFloatingListMenu,
 } from '../frontend/js/components/corpus-doc-list.js';
+import { positionFloatingListMenu } from '../frontend/js/components/floating-list-menu.js';
 
 const fixtureRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 const mainJs = readFileSync(join(fixtureRoot, 'frontend/js/main.js'), 'utf8');
@@ -143,16 +143,16 @@ describe('positionFloatingListMenu', () => {
    */
   function makeMenu(optionCount) {
     const menu = document.createElement('div');
-    menu.className = 'corpus-repo-select-menu';
+    menu.className = 'list-select-menu';
     menu.innerHTML = Array.from({ length: optionCount }, (_, i) =>
-      `<button type="button" class="corpus-repo-select-option">item ${i}</button>`,
+      `<button type="button" class="list-select-option">item ${i}</button>`,
     ).join('');
     document.body.appendChild(menu);
     return menu;
   }
 
   afterEach(() => {
-    document.querySelectorAll('.corpus-repo-select-menu').forEach((el) => el.remove());
+    document.querySelectorAll('.list-select-menu').forEach((el) => el.remove());
   });
 
   it('expands to natural height when viewport space is sufficient', () => {
@@ -471,7 +471,7 @@ describe('mountCorpusDocList', () => {
     await flushPromises();
 
     expect(container.querySelector('.corpus-nav-back')).toBeNull();
-    expect(container.querySelector('.corpus-repo-select-trigger')).not.toBeNull();
+    expect(container.querySelector('.list-select-trigger')).not.toBeNull();
     expect(container.querySelector('.corpus-doc-sync-panel')).toBeNull();
   });
 
@@ -492,7 +492,7 @@ describe('mountCorpusDocList', () => {
     mountCorpusDocList(container, { repo: 'owner/repo', navigate });
     await flushPromises();
 
-    const trigger = container.querySelector('.corpus-repo-select-trigger');
+    const trigger = container.querySelector('.list-select-trigger');
     expect(trigger).not.toBeNull();
     trigger.getBoundingClientRect = () => ({
       top: 100,
@@ -507,15 +507,15 @@ describe('mountCorpusDocList', () => {
     });
     trigger.click();
 
-    const menu = document.querySelector('.corpus-repo-select-menu');
+    const menu = document.querySelector('.list-select-menu');
     expect(menu).not.toBeNull();
     expect(menu.style.maxHeight).toBe('');
-    const labels = Array.from(menu.querySelectorAll('.corpus-repo-select-option')).map((o) => o.textContent);
+    const labels = Array.from(menu.querySelectorAll('.list-select-option')).map((o) => o.textContent);
     expect(labels).toEqual(['repo', 'other']);
 
-    menu.querySelector('[data-full-name="owner/other"]').click();
+    menu.querySelector('[data-value="owner/other"]').click();
     expect(navigate).toHaveBeenCalledWith('#/corpus/' + encodeURIComponent('owner/other'));
-    expect(document.querySelector('.corpus-repo-select-menu')).toBeNull();
+    expect(document.querySelector('.list-select-menu')).toBeNull();
   });
 
   it('auto-selects first repo when route has no repo', async () => {

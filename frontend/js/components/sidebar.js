@@ -1,6 +1,7 @@
 import { state } from '../state.js'
 import { formatDate } from '../utils.js'
 import { renderDocList, loadTitles } from './cards.js'
+import { closeFloatingListSelect, createFloatingListSelect } from './floating-list-select.js'
 
 // ── buildGroups ────────────────────────────────────────────────────────────
 
@@ -73,32 +74,27 @@ function _renderTopicFilter(parent) {
   const wrap = document.createElement('div');
   wrap.className = 'topic-filter';
 
-  const sel = document.createElement('select');
-  sel.className = 'topic-select';
-  const optAll = document.createElement('option');
-  optAll.value = '';
-  optAll.textContent = `全部 (${total})`;
-  sel.appendChild(optAll);
-  const sep = document.createElement('option');
-  sep.disabled = true;
-  sep.textContent = '─────────';
-  sel.appendChild(sep);
+  /** @type {import('./floating-list-select.js').FloatingListSelectOption[]} */
+  const options = [{ value: '', label: `全部 (${total})` }];
   for (const t of topics) {
-    const opt = document.createElement('option');
-    opt.value = t;
-    opt.textContent = `${t} (${topicCounts[t]})`;
-    sel.appendChild(opt);
+    options.push({ value: t, label: `${t} (${topicCounts[t]})` });
   }
   if (topicCounts['unknown']) {
-    const optUnknown = document.createElement('option');
-    optUnknown.value = 'unknown';
-    optUnknown.textContent = `unknown (${topicCounts['unknown']})`;
-    optUnknown.title = 'common_path 格式异常的条目';
-    sel.appendChild(optUnknown);
+    options.push({
+      value: 'unknown',
+      label: `unknown (${topicCounts['unknown']})`,
+      title: 'common_path 格式异常的条目',
+    });
   }
-  sel.value = state.ui.activeTopic || '';
-  sel.addEventListener('change', (e) => selectTopic(e.target.value || null));
-  wrap.appendChild(sel);
+
+  const { picker } = createFloatingListSelect({
+    ariaLabel: '筛选主题',
+    pickerClass: 'topic-select',
+    value: state.ui.activeTopic || '',
+    options,
+    onSelect: (v) => selectTopic(v || null),
+  });
+  wrap.appendChild(picker);
 
   const countEl = document.createElement('div');
   countEl.className = 'topic-count';
@@ -142,43 +138,29 @@ function _renderTagFilter(parent) {
   const wrap = document.createElement('div');
   wrap.className = 'tag-filter';
 
-  const sel = document.createElement('select');
-  sel.className = 'tag-select';
-
-  const optAll = document.createElement('option');
-  optAll.value = '';
-  optAll.textContent = `全部 (${total})`;
-  sel.appendChild(optAll);
-
-  const sep = document.createElement('option');
-  sep.disabled = true;
-  sep.textContent = '─────────';
-  sel.appendChild(sep);
-
+  /** @type {import('./floating-list-select.js').FloatingListSelectOption[]} */
+  const options = [{ value: '', label: `全部 (${total})` }];
   const sortedKeys = Object.keys(tagCounts).sort((a, b) =>
     _tagLabel(a).localeCompare(_tagLabel(b))
   );
   for (const key of sortedKeys) {
-    const opt = document.createElement('option');
-    opt.value = key;
-    opt.textContent = `${_tagLabel(key)} (${tagCounts[key]})`;
-    sel.appendChild(opt);
+    options.push({ value: key, label: `${_tagLabel(key)} (${tagCounts[key]})` });
   }
-
   if (activeKey && !tagCounts[activeKey]) {
-    const optOrphan = document.createElement('option');
-    optOrphan.value = activeKey;
-    optOrphan.textContent = `${_tagLabel(activeKey)} (0)`;
-    sel.appendChild(optOrphan);
+    options.push({ value: activeKey, label: `${_tagLabel(activeKey)} (0)` });
   }
 
-  sel.value = activeKey || '';
-  sel.addEventListener('change', (e) => {
-    const v = e.target.value;
-    if (v) selectTag(v);
-    else clearTagFilter();
+  const { picker } = createFloatingListSelect({
+    ariaLabel: '筛选标签',
+    pickerClass: 'tag-select',
+    value: activeKey || '',
+    options,
+    onSelect: (v) => {
+      if (v) selectTag(v);
+      else clearTagFilter();
+    },
   });
-  wrap.appendChild(sel);
+  wrap.appendChild(picker);
 
   const countEl = document.createElement('div');
   countEl.className = 'tag-count';
@@ -197,6 +179,7 @@ function _renderTagFilter(parent) {
 export function renderSidebar() {
   const aside = document.getElementById('sidebar');
   if (!aside) return;
+  closeFloatingListSelect();
   const { channelZone, dateZone } = _ensureSidebarZones(aside);
   channelZone.innerHTML = '';
   dateZone.innerHTML = '';

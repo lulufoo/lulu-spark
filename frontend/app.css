@@ -949,15 +949,6 @@
     padding: 8px 10px 6px;
     border-bottom: 1px solid #d0d7de;
   }
-  .topic-select {
-    width: 100%;
-    font-size: 12px;
-    box-sizing: border-box;
-    border: 1px solid #d0d7de;
-    border-radius: 4px;
-    padding: 3px 4px;
-    background: #fff;
-  }
   .topic-count {
     font-size: 11px;
     color: #57606a;
@@ -970,20 +961,113 @@
     padding: 8px 10px 6px;
     border-bottom: 1px solid #d0d7de;
   }
-  .tag-select {
-    width: 100%;
-    font-size: 12px;
-    box-sizing: border-box;
-    border: 1px solid #d0d7de;
-    border-radius: 4px;
-    padding: 3px 4px;
-    background: #fff;
-  }
   .tag-count {
     font-size: 11px;
     color: #57606a;
     margin-top: 4px;
     padding-left: 2px;
+  }
+
+  /* ── Floating list select (sidebar filters, corpus repo picker) ── */
+  .list-select-picker {
+    width: 100%;
+    min-width: 0;
+  }
+  .list-select-trigger {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    min-height: 34px;
+    margin: 0;
+    padding: 7px 10px;
+    border: 1px solid #d0d7de;
+    border-radius: 6px;
+    background: #fff;
+    color: #24292f;
+    cursor: pointer;
+    text-align: left;
+    font: inherit;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  .list-select-trigger:hover {
+    border-color: #afb8c1;
+  }
+  .list-select-trigger:focus-visible {
+    outline: none;
+    border-color: #0969da;
+    box-shadow: 0 0 0 3px rgba(9, 105, 218, 0.15);
+  }
+  .list-select-picker.is-open .list-select-trigger {
+    border-color: #0969da;
+    box-shadow: 0 0 0 3px rgba(9, 105, 218, 0.12);
+  }
+  .list-select-label {
+    flex: 1;
+    min-width: 0;
+    font-size: 13px;
+    font-weight: 400;
+    line-height: 1.4;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .list-select-chevron {
+    flex-shrink: 0;
+    color: #57606a;
+  }
+  .list-select-chevron::before {
+    content: '';
+    display: block;
+    width: 0;
+    height: 0;
+    border-left: 4px solid transparent;
+    border-right: 4px solid transparent;
+    border-top: 5px solid currentColor;
+  }
+  .list-select-menu {
+    position: fixed;
+    z-index: 1200;
+    overflow-y: auto;
+    background: #fff;
+    border: 1px solid #d0d7de;
+    border-radius: 6px;
+    box-shadow: 0 8px 24px rgba(27, 31, 36, 0.12);
+    padding: 4px 0;
+  }
+  .list-select-option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 7px 12px;
+    border: none;
+    background: none;
+    color: #24292f;
+    font-size: 13px;
+    font-weight: 400;
+    line-height: 1.4;
+    text-align: left;
+    cursor: pointer;
+  }
+  .list-select-option::before {
+    content: '';
+    flex-shrink: 0;
+    width: 14px;
+    font-size: 12px;
+    line-height: 1;
+    text-align: center;
+  }
+  .list-select-option:hover {
+    background: #f6f8fa;
+  }
+  .list-select-option.selected {
+    color: #0969da;
+    font-weight: 500;
+  }
+  .list-select-option.selected::before {
+    content: '✓';
+    color: #0969da;
   }
 
   /* ── Main content ── */
@@ -3301,105 +3385,12 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.corpus-repo-picker-host {
+  flex: 1;
+  min-width: 0;
+}
 .corpus-repo-picker {
-  flex: 1;
-  min-width: 0;
-}
-.corpus-repo-select-trigger {
-  display: flex;
-  align-items: center;
-  gap: 8px;
   width: 100%;
-  min-height: 34px;
-  margin: 0;
-  padding: 7px 10px;
-  border: 1px solid #d0d7de;
-  border-radius: 6px;
-  background: #fff;
-  color: #24292f;
-  cursor: pointer;
-  text-align: left;
-  font: inherit;
-  transition: border-color 0.15s, box-shadow 0.15s;
-}
-.corpus-repo-select-trigger:hover {
-  border-color: #afb8c1;
-}
-.corpus-repo-select-trigger:focus-visible {
-  outline: none;
-  border-color: #0969da;
-  box-shadow: 0 0 0 3px rgba(9, 105, 218, 0.15);
-}
-.corpus-repo-picker.is-open .corpus-repo-select-trigger {
-  border-color: #0969da;
-  box-shadow: 0 0 0 3px rgba(9, 105, 218, 0.12);
-}
-.corpus-repo-select-label {
-  flex: 1;
-  min-width: 0;
-  font-size: 13px;
-  font-weight: 400;
-  line-height: 1.4;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.corpus-repo-select-chevron {
-  flex-shrink: 0;
-  color: #57606a;
-}
-.corpus-repo-select-chevron::before {
-  content: '';
-  display: block;
-  width: 0;
-  height: 0;
-  border-left: 4px solid transparent;
-  border-right: 4px solid transparent;
-  border-top: 5px solid currentColor;
-}
-.corpus-repo-select-menu {
-  position: fixed;
-  z-index: 1200;
-  overflow-y: auto;
-  background: #fff;
-  border: 1px solid #d0d7de;
-  border-radius: 6px;
-  box-shadow: 0 8px 24px rgba(27, 31, 36, 0.12);
-  padding: 4px 0;
-}
-.corpus-repo-select-option {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  padding: 7px 12px;
-  border: none;
-  background: none;
-  color: #24292f;
-  font-size: 13px;
-  font-weight: 400;
-  line-height: 1.4;
-  text-align: left;
-  cursor: pointer;
-}
-.corpus-repo-select-option::before {
-  content: '';
-  flex-shrink: 0;
-  width: 14px;
-  font-size: 12px;
-  line-height: 1;
-  text-align: center;
-}
-.corpus-repo-select-option:hover {
-  background: #f6f8fa;
-}
-.corpus-repo-select-option.selected {
-  color: #0969da;
-  font-weight: 500;
-}
-.corpus-repo-select-option.selected::before {
-  content: '✓';
-  color: #0969da;
 }
 .corpus-nav-back,
 .corpus-picker-nav .corpus-nav-back {
