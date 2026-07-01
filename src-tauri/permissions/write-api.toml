@@ -24,4 +24,6 @@ commands.allow = [
   "sediment_kb_add_category",
   "sediment_kb_rename_category",
   "sediment_kb_remove_category",
+  "create_read_later",
+  "mark_read_later",
 ]

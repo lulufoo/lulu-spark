@@ -55,6 +55,7 @@ const INVOKE_MAP_COMMANDS: &[&str] = &[
     "check_file",
     "fetch_link_title",
     "get_tags_registry",
+    "get_read_later",
 ];
 
 const SEDIMENT_KB_READ_COMMANDS: &[&str] = &[

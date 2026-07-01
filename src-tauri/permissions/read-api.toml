@@ -27,4 +27,5 @@ commands.allow = [
   "infer_github_user_url",
   "check_workbench_knowledge_root",
   "get_tags_registry",
+  "get_read_later",
 ]
