@@ -33,6 +33,50 @@ describe('parseHash', () => {
   it('parses #/home', () => {
     expect(parseHash('#/home')).toEqual({ name: 'home', params: {} });
   });
+
+  it('parses #/corpus/:repo?path= for deep link', () => {
+    expect(parseHash('#/corpus/owner/repo?path=docs/guide.md')).toEqual({
+      name: 'corpus-doc',
+      params: { repo: 'owner/repo', path: 'docs/guide.md' },
+    });
+  });
+
+  it('decodes repo and path when encoded', () => {
+    expect(parseHash('#/corpus/lulufoo%2Fmyrepo?path=readme.md')).toEqual({
+      name: 'corpus-doc',
+      params: { repo: 'lulufoo/myrepo', path: 'readme.md' },
+    });
+  });
+
+  it('omits path when ?path= query is absent', () => {
+    const result = parseHash('#/corpus/lulufoo/myrepo');
+    expect(result).toEqual({
+      name: 'corpus-doc',
+      params: { repo: 'lulufoo/myrepo' },
+    });
+    expect(result.params).not.toHaveProperty('path');
+  });
+
+  it('handles empty ?path= value', () => {
+    expect(parseHash('#/corpus/owner/repo?path=')).toEqual({
+      name: 'corpus-doc',
+      params: { repo: 'owner/repo', path: '' },
+    });
+  });
+
+  it('does not merge query into repo when repo contains slash', () => {
+    expect(parseHash('#/corpus/lulufoo/myrepo?path=a.md')).toEqual({
+      name: 'corpus-doc',
+      params: { repo: 'lulufoo/myrepo', path: 'a.md' },
+    });
+  });
+
+  it('returns unknown for invalid repo encoding with query', () => {
+    expect(parseHash('#/corpus/%?path=foo.md')).toEqual({
+      name: 'unknown',
+      params: {},
+    });
+  });
 });
 
 describe('initRouter fallback', () => {

@@ -22,7 +22,16 @@ export function parseHash(hash) {
     const repoPart = path.slice('corpus/'.length);
     if (repoPart) {
       try {
-        return { name: 'corpus-doc', params: { repo: decodeURIComponent(repoPart) } };
+        const [repoEncoded, ...queryParts] = repoPart.split('?');
+        const queryString = queryParts.length > 0 ? queryParts.join('?') : '';
+        const params = { repo: decodeURIComponent(repoEncoded) };
+        if (queryString) {
+          const searchParams = new URLSearchParams(queryString);
+          if (searchParams.has('path')) {
+            params.path = searchParams.get('path') ?? '';
+          }
+        }
+        return { name: 'corpus-doc', params };
       } catch {
         return { name: 'unknown', params: {} };
       }
