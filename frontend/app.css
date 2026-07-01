@@ -3226,10 +3226,16 @@
   background: #f6f8fa;
 }
 .corpus-doc-sidebar {
-  width: 100%;
+  width: 360px;
   max-width: 360px;
   flex-shrink: 0;
   border-right: 1px solid #d0d7de;
+  overflow-y: auto;
+  background: #fff;
+}
+.corpus-doc-reader-pane {
+  flex: 1;
+  min-width: 0;
   overflow-y: auto;
   background: #fff;
 }

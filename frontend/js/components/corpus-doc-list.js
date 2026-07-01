@@ -48,10 +48,10 @@ export async function loadDirChildren(repo, relativePath) {
 
 /**
  * @param {HTMLElement} container
- * @param {{ repo: string, navigate: (hash: string) => void }} opts
+ * @param {{ repo: string, navigate: (hash: string) => void, initialPath?: string }} opts
  * @returns {() => void}
  */
-export function mountCorpusDocList(container, { repo, navigate }) {
+export function mountCorpusDocList(container, { repo, navigate, initialPath }) {
   let disposed = false;
   /** @type {TreeNode[]} */
   let rootNodes = [];
@@ -155,6 +155,7 @@ export function mountCorpusDocList(container, { repo, navigate }) {
           </div>
           <div class="corpus-doc-sidebar-tree"></div>
         </aside>
+        <section class="corpus-doc-reader-pane"></section>
       </div>
     `;
   }
