@@ -1,5 +1,5 @@
 import * as api from '../api.js';
-import { escHtml } from '../utils.js';
+import { escHtml, repoShortName } from '../utils.js';
 import { mountKbReader } from './kb-viewer.js';
 import { setHeaderSyncCorpusContext, clearHeaderSyncCorpusContext } from '../header-sync.js';
 import { getKbHidePattern, shouldHideEntry } from '../kb-hide-pattern.js';
@@ -48,6 +48,53 @@ export function buildTreeNodes(entries, _parentPath) {
 export async function loadDirChildren(repo, relativePath) {
   const entries = await api.fetchKbList(repo, relativePath, 'flat');
   return buildTreeNodes(entries, relativePath);
+}
+
+/**
+ * Position a fixed list menu near a trigger; expand to natural height when space allows.
+ * @param {HTMLElement} menu
+ * @param {DOMRect} rect
+ * @param {number} [viewportHeight]
+ * @returns {boolean} true when menu is clipped and caller should scroll selected item into view
+ */
+export function positionFloatingListMenu(menu, rect, viewportHeight = window.innerHeight) {
+  const gap = 4;
+  const margin = 8;
+
+  menu.style.left = `${rect.left}px`;
+  menu.style.width = `${rect.width}px`;
+  menu.style.maxHeight = 'none';
+  menu.style.visibility = 'hidden';
+  const naturalHeight = menu.scrollHeight;
+  menu.style.visibility = '';
+
+  const spaceBelow = viewportHeight - rect.bottom - margin;
+  const spaceAbove = rect.top - margin;
+  const clippedMaxBelow = Math.floor(spaceBelow * 0.8);
+  const clippedMaxAbove = Math.floor(spaceAbove * 0.8);
+  let top;
+  let maxHeight = null;
+
+  if (naturalHeight <= spaceBelow) {
+    top = rect.bottom + gap;
+  } else if (naturalHeight <= spaceAbove) {
+    top = rect.top - naturalHeight - gap;
+  } else if (spaceBelow >= spaceAbove) {
+    top = rect.bottom + gap;
+    maxHeight = clippedMaxBelow;
+  } else {
+    maxHeight = clippedMaxAbove;
+    top = Math.max(margin, rect.top - maxHeight - gap);
+  }
+
+  menu.style.top = `${top}px`;
+  if (maxHeight != null) {
+    menu.style.maxHeight = `${maxHeight}px`;
+  } else {
+    menu.style.maxHeight = '';
+  }
+
+  return naturalHeight > (maxHeight ?? naturalHeight);
 }
 
 /**
@@ -151,39 +198,106 @@ export function mountCorpusDocList(container, { repo, navigate, initialPath }) {
     history.replaceState(null, '', href);
   }
 
-  const onRepoChange = (event) => {
-    const select = event.target.closest('.corpus-repo-select');
-    if (!select) return;
-    const fullName = select.value;
-    if (fullName && fullName !== repo) {
-      navigate('#/corpus/' + encodeURIComponent(fullName));
+  /** @type {Array<{ full_name: string }>} */
+  let sedimentRepos = [];
+  /** @type {HTMLElement | null} */
+  let repoMenuEl = null;
+
+  function closeRepoMenu() {
+    document.querySelectorAll('.corpus-repo-select-trigger[aria-expanded="true"]').forEach((el) => {
+      el.setAttribute('aria-expanded', 'false');
+      el.closest('.corpus-repo-picker')?.classList.remove('is-open');
+    });
+    repoMenuEl?.remove();
+    repoMenuEl = null;
+    document.removeEventListener('mousedown', onDocMouseDownForRepoMenu);
+  }
+
+  /** @param {MouseEvent} event */
+  function onDocMouseDownForRepoMenu(event) {
+    if (event.target.closest('.corpus-repo-select-trigger') || event.target.closest('.corpus-repo-select-menu')) {
+      return;
     }
+    closeRepoMenu();
+  }
+
+  /**
+   * @param {HTMLElement} triggerBtn
+   */
+  function openRepoMenu(triggerBtn) {
+    closeRepoMenu();
+    if (!sedimentRepos.length) return;
+
+    const rect = triggerBtn.getBoundingClientRect();
+    const menu = document.createElement('div');
+    menu.className = 'corpus-repo-select-menu';
+    menu.setAttribute('role', 'listbox');
+    menu.innerHTML = sedimentRepos.map((r) => {
+      const fullName = r.full_name || '';
+      const label = repoShortName(fullName);
+      const selected = fullName === repo ? ' selected' : '';
+      return `<button type="button" class="corpus-repo-select-option${selected}" data-full-name="${escHtml(fullName)}" title="${escHtml(fullName)}">${escHtml(label)}</button>`;
+    }).join('');
+
+    document.body.appendChild(menu);
+    repoMenuEl = menu;
+
+    const clipped = positionFloatingListMenu(menu, rect);
+
+    menu.addEventListener('click', (event) => {
+      const option = event.target.closest('.corpus-repo-select-option');
+      if (!option) return;
+      const fullName = option.dataset.fullName;
+      closeRepoMenu();
+      if (fullName && fullName !== repo) {
+        navigate('#/corpus/' + encodeURIComponent(fullName));
+      }
+    });
+
+    document.addEventListener('mousedown', onDocMouseDownForRepoMenu);
+    triggerBtn.setAttribute('aria-expanded', 'true');
+    triggerBtn.closest('.corpus-repo-picker')?.classList.add('is-open');
+    if (clipped) {
+      const selectedOption = menu.querySelector('.corpus-repo-select-option.selected');
+      selectedOption?.scrollIntoView?.({ block: 'nearest' });
+    }
+  }
+
+  const onRepoPickerClick = (event) => {
+    const trigger = event.target.closest('.corpus-repo-select-trigger');
+    if (!trigger) return;
+    if (repoMenuEl) {
+      closeRepoMenu();
+      return;
+    }
+    openRepoMenu(trigger);
   };
 
   /**
    * @param {Array<{ full_name: string }>} repos
    */
-  function renderRepoSelectOptions(repos) {
-    return repos.map((r) => {
-      const fullName = r.full_name || '';
-      const selected = fullName === repo ? ' selected' : '';
-      return `<option value="${escHtml(fullName)}"${selected}>${escHtml(fullName)}</option>`;
-    }).join('');
+  function renderRepoPickerTrigger(repos) {
+    const label = repo ? repoShortName(repo) : '选择知识库';
+    return `
+      <div class="corpus-repo-picker">
+        <button type="button" class="corpus-repo-select-trigger" aria-label="选择知识库" aria-haspopup="listbox" aria-expanded="false">
+          <span class="corpus-repo-select-label">${escHtml(label)}</span>
+          <span class="corpus-repo-select-chevron" aria-hidden="true"></span>
+        </button>
+      </div>
+    `;
   }
 
   /**
    * @param {Array<{ full_name: string }>} repos
    */
   function renderShell(repos) {
-    const repoOptions = renderRepoSelectOptions(repos);
+    sedimentRepos = repos;
     container.innerHTML = `
       <div class="corpus-doc-layout">
         <aside class="corpus-doc-sidebar">
           <div class="corpus-doc-sidebar-header">
-            <select class="corpus-repo-select" aria-label="选择知识库">
-              <option value="" disabled${repo ? '' : ' selected'}>选择知识库</option>
-              ${repoOptions}
-            </select>
+            ${renderRepoPickerTrigger(repos)}
           </div>
           <div class="corpus-doc-sidebar-tree"></div>
         </aside>
@@ -308,7 +422,7 @@ export function mountCorpusDocList(container, { repo, navigate, initialPath }) {
       rootNodes = buildTreeNodes(entries, '');
       renderShell(repos);
       setHeaderSyncCorpusContext(repo, reloadFromDisk);
-      container.querySelector('.corpus-repo-select')?.addEventListener('change', onRepoChange);
+      container.querySelector('.corpus-repo-picker')?.addEventListener('click', onRepoPickerClick);
       container.querySelector('.corpus-doc-sidebar')?.addEventListener('click', onSidebarClick);
       renderSidebar();
       if (initialPath) {
@@ -322,6 +436,7 @@ export function mountCorpusDocList(container, { repo, navigate, initialPath }) {
 
   function unmount() {
     disposed = true;
+    closeRepoMenu();
     unmountReader?.();
     unmountReader = null;
     clearHeaderSyncCorpusContext();

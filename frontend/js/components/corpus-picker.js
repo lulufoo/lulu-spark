@@ -1,5 +1,5 @@
 import * as api from '../api.js';
-import { escHtml } from '../utils.js';
+import { escHtml, repoShortName } from '../utils.js';
 
 /**
  * @param {Array<{ category_id?: string }>} repos
@@ -52,7 +52,8 @@ export function mountCorpusPicker(container, { navigate }) {
 
     listEl.innerHTML = filtered.map((r) => {
       const fullName = r.full_name || '';
-      return `<button type="button" class="corpus-picker-repo-row" data-full-name="${escHtml(fullName)}">${escHtml(fullName)}</button>`;
+      const label = repoShortName(fullName);
+      return `<button type="button" class="corpus-picker-repo-row" data-full-name="${escHtml(fullName)}" title="${escHtml(fullName)}">${escHtml(label)}</button>`;
     }).join('');
   }
 

@@ -19,6 +19,7 @@ import { getKbHidePattern } from '../frontend/js/kb-hide-pattern.js';
 import {
   buildTreeNodes,
   mountCorpusDocList,
+  positionFloatingListMenu,
 } from '../frontend/js/components/corpus-doc-list.js';
 
 const fixtureRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -121,6 +122,58 @@ describe('buildTreeNodes', () => {
     ];
     expect(buildTreeNodes(entries, '')).toHaveLength(2);
     expect(getKbHidePattern()).toBe('');
+  });
+});
+
+describe('positionFloatingListMenu', () => {
+  const triggerRect = {
+    top: 100,
+    bottom: 136,
+    left: 10,
+    width: 200,
+    right: 210,
+    height: 36,
+    x: 10,
+    y: 100,
+    toJSON: () => ({}),
+  };
+
+  /**
+   * @param {number} optionCount
+   */
+  function makeMenu(optionCount) {
+    const menu = document.createElement('div');
+    menu.className = 'corpus-repo-select-menu';
+    menu.innerHTML = Array.from({ length: optionCount }, (_, i) =>
+      `<button type="button" class="corpus-repo-select-option">item ${i}</button>`,
+    ).join('');
+    document.body.appendChild(menu);
+    return menu;
+  }
+
+  afterEach(() => {
+    document.querySelectorAll('.corpus-repo-select-menu').forEach((el) => el.remove());
+  });
+
+  it('expands to natural height when viewport space is sufficient', () => {
+    const menu = makeMenu(3);
+    Object.defineProperty(menu, 'scrollHeight', { value: 120, configurable: true });
+
+    const clipped = positionFloatingListMenu(menu, triggerRect, 800);
+
+    expect(clipped).toBe(false);
+    expect(menu.style.maxHeight).toBe('');
+    expect(menu.style.top).toBe('140px');
+  });
+
+  it('clips to available viewport space when list is taller', () => {
+    const menu = makeMenu(20);
+    Object.defineProperty(menu, 'scrollHeight', { value: 600, configurable: true });
+
+    const clipped = positionFloatingListMenu(menu, triggerRect, 400);
+
+    expect(clipped).toBe(true);
+    expect(menu.style.maxHeight).toBe('204px');
   });
 });
 
@@ -418,7 +471,7 @@ describe('mountCorpusDocList', () => {
     await flushPromises();
 
     expect(container.querySelector('.corpus-nav-back')).toBeNull();
-    expect(container.querySelector('.corpus-repo-select')).not.toBeNull();
+    expect(container.querySelector('.corpus-repo-select-trigger')).not.toBeNull();
     expect(container.querySelector('.corpus-doc-sync-panel')).toBeNull();
   });
 
@@ -428,11 +481,30 @@ describe('mountCorpusDocList', () => {
     mountCorpusDocList(container, { repo: 'owner/repo', navigate });
     await flushPromises();
 
-    const select = container.querySelector('.corpus-repo-select');
-    expect(select).not.toBeNull();
-    select.value = 'owner/other';
-    select.dispatchEvent(new Event('change'));
+    const trigger = container.querySelector('.corpus-repo-select-trigger');
+    expect(trigger).not.toBeNull();
+    trigger.getBoundingClientRect = () => ({
+      top: 100,
+      bottom: 136,
+      left: 10,
+      width: 200,
+      right: 210,
+      height: 36,
+      x: 10,
+      y: 100,
+      toJSON: () => ({}),
+    });
+    trigger.click();
+
+    const menu = document.querySelector('.corpus-repo-select-menu');
+    expect(menu).not.toBeNull();
+    expect(menu.style.maxHeight).toBe('');
+    const labels = Array.from(menu.querySelectorAll('.corpus-repo-select-option')).map((o) => o.textContent);
+    expect(labels).toEqual(['repo', 'other']);
+
+    menu.querySelector('[data-full-name="owner/other"]').click();
     expect(navigate).toHaveBeenCalledWith('#/corpus/' + encodeURIComponent('owner/other'));
+    expect(document.querySelector('.corpus-repo-select-menu')).toBeNull();
   });
 
   it('auto-selects first repo when route has no repo', async () => {
