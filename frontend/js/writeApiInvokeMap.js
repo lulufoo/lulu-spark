@@ -72,6 +72,13 @@ export const WRITE_API_INVOKE_MAP = {
       importance: body.importance,
     }),
   },
+  '/api/read-later': {
+    cmd: 'create_read_later',
+    args: (body) => ({
+      url: body.url,
+      ...(body.title != null ? { title: body.title } : {}),
+    }),
+  },
   '/api/kb/save': {
     cmd: 'kb_save',
     args: (body) => ({

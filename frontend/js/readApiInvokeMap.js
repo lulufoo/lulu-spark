@@ -62,6 +62,7 @@ export const READ_API_INVOKE_MAP = {
     args: (url) => ({ path: url.searchParams.get('path') ?? '' }),
   },
   '/api/status': { cmd: 'get_status' },
+  '/api/read-later': { cmd: 'get_read_later' },
   '/api/kb/read': {
     cmd: 'kb_read',
     args: (url) => ({

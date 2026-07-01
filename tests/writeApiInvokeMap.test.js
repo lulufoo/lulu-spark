@@ -13,6 +13,7 @@ const P2_WRITE_PATHS = [
   '/api/update-links',
   '/api/set-done',
   '/api/set-importance',
+  '/api/read-later',
   '/api/kb/save',
   '/api/kb/update-comments',
   '/api/kb/reorder-comments',
@@ -30,11 +31,11 @@ const P2_WRITE_PATHS = [
 ];
 
 describe('writeApiInvokeMap', () => {
-  it('covers all 22 P2 POST paths', () => {
+  it('covers all 23 P2 POST paths', () => {
     for (const p of P2_WRITE_PATHS) {
       expect(WRITE_API_INVOKE_MAP[p]?.cmd, p).toBeTruthy();
     }
-    expect(Object.keys(WRITE_API_INVOKE_MAP)).toHaveLength(22);
+    expect(Object.keys(WRITE_API_INVOKE_MAP)).toHaveLength(23);
   });
 
   it('resolveWriteInvoke maps set-done body to set_done command', () => {
@@ -64,6 +65,29 @@ describe('writeApiInvokeMap', () => {
     ).toEqual({
       cmd: 'save_entry',
       args: { layer: 'digest', commonPath: 'x/y.md', content: '# hi' },
+    });
+  });
+
+  it('resolveWriteInvoke maps read-later body to create_read_later command', () => {
+    expect(
+      resolveWriteInvoke('/api/read-later', {
+        url: 'https://example.com/a',
+        title: 'Example',
+      })
+    ).toEqual({
+      cmd: 'create_read_later',
+      args: { url: 'https://example.com/a', title: 'Example' },
+    });
+  });
+
+  it('resolveWriteInvoke maps read-later without title', () => {
+    expect(
+      resolveWriteInvoke('/api/read-later', {
+        url: 'https://example.com/b',
+      })
+    ).toEqual({
+      cmd: 'create_read_later',
+      args: { url: 'https://example.com/b' },
     });
   });
 });

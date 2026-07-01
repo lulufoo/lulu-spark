@@ -81,4 +81,14 @@ describe('readApi contract map', () => {
   it('resolveInvokeFromPath returns null for unknown sediment-kb route', () => {
     expect(resolveInvokeFromPath('/api/sediment-kb/unknown')).toBeNull();
   });
+
+  it('resolveInvokeFromPath maps read-later to get_read_later', () => {
+    expect(resolveInvokeFromPath('/api/read-later')).toEqual({
+      cmd: 'get_read_later',
+      args: {},
+    });
+    expect(READ_API_INVOKE_MAP['/api/read-later']).toEqual({
+      cmd: 'get_read_later',
+    });
+  });
 });
