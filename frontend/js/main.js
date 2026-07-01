@@ -659,6 +659,7 @@ function showFeedView() {
 }
 
 let unmountCorpusDocList = null;
+let corpusDocListRepo = '';
 let unmountHomeHub = null;
 
 function updateNavChrome(routeName) {
@@ -695,6 +696,7 @@ function mountHomeRoute() {
   clearHeaderSyncCorpusContext();
   unmountCorpusDocList?.();
   unmountCorpusDocList = null;
+  corpusDocListRepo = '';
   hideCorpusDocView();
 
   feedView.style.display = 'none';
@@ -715,8 +717,6 @@ function mountCorpusDocRoute(route) {
   unmountHomeHub?.();
   unmountHomeHub = null;
   hideHomeView();
-  unmountCorpusDocList?.();
-  unmountCorpusDocList = null;
 
   const layout = document.querySelector('.layout');
   if (layout) layout.style.display = 'none';
@@ -726,8 +726,20 @@ function mountCorpusDocRoute(route) {
   docView.style.display = '';
 
   const repo = route?.params?.repo || '';
-  const initialPath = route?.params?.path;
+  const initialPath = route?.params?.path || '';
+
+  if (unmountCorpusDocList && corpusDocListRepo === repo) {
+    // Same repo: update path in-place. Do not remount — remount resets expanded tree state.
+    void unmountCorpusDocList.navigateToPath?.(initialPath);
+    return;
+  }
+
+  unmountCorpusDocList?.();
+  unmountCorpusDocList = null;
+  corpusDocListRepo = '';
+
   unmountCorpusDocList = mountCorpusDocList(docView, { repo, navigate, initialPath });
+  corpusDocListRepo = unmountCorpusDocList.repo ?? repo;
 }
 
 function mountWorkbench() {
@@ -737,6 +749,7 @@ function mountWorkbench() {
   hideHomeView();
   unmountCorpusDocList?.();
   unmountCorpusDocList = null;
+  corpusDocListRepo = '';
   hideCorpusDocView();
 
   feedView.style.display = 'none';

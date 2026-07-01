@@ -20,10 +20,10 @@ describe('AC invariants', () => {
     expect(routerTest).toMatch(/parseHash\('#\/corpus\/owner\/repo\?path=docs\/guide\.md'\)/);
   });
 
-  it('corpus-doc-list tests cover navigate + mountKbReader mock', async () => {
+  it('corpus-doc-list tests cover in-tree open + mountKbReader mock', async () => {
     const { readFileSync } = await import('node:fs');
     const corpusTest = readFileSync(join(repoRoot, 'tests/corpus-doc-list.test.js'), 'utf8');
     expect(corpusTest).toMatch(/mountKbReader/);
-    expect(corpusTest).toMatch(/\?path=/);
+    expect(corpusTest).toMatch(/replaceState|syncCorpusHash/);
   });
 });

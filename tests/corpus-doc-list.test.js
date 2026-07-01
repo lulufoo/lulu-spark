@@ -34,6 +34,15 @@ const sampleDocsEntries = [
   { name: 'nested', relative_path: 'docs/nested', is_dir: true },
 ];
 
+/** @param {HTMLElement} container @param {string} relativePath */
+function clickDirLabel(container, relativePath) {
+  const label = container.querySelector(
+    `.corpus-doc-tree-node[data-relative-path="${relativePath}"] .corpus-doc-tree-label`,
+  );
+  expect(label).not.toBeNull();
+  label.click();
+}
+
 function installLocalStorageMock() {
   const store = {};
   globalThis.localStorage = {
@@ -141,6 +150,7 @@ describe('mountCorpusDocList', () => {
   async function flushPromises() {
     await Promise.resolve();
     await Promise.resolve();
+    await new Promise((resolve) => setTimeout(resolve, 0));
   }
 
   it('fetches root flat list on mount', async () => {
@@ -181,7 +191,7 @@ describe('mountCorpusDocList', () => {
     );
     expect(rootNode.style.paddingLeft).toBe('0px');
 
-    rootNode.querySelector('.corpus-doc-tree-expand').click();
+    rootNode.querySelector('.corpus-doc-tree-label').click();
     await flushPromises();
 
     const childNode = container.querySelector(
@@ -200,11 +210,11 @@ describe('mountCorpusDocList', () => {
     mountCorpusDocList(container, { repo: 'owner/repo', navigate });
     await flushPromises();
 
-    const expandBtn = container.querySelector(
-      '.corpus-doc-tree-node[data-relative-path="docs"] .corpus-doc-tree-expand',
+    const dirLabel = container.querySelector(
+      '.corpus-doc-tree-node[data-relative-path="docs"] .corpus-doc-tree-label',
     );
-    expect(expandBtn).not.toBeNull();
-    expandBtn.click();
+    expect(dirLabel).not.toBeNull();
+    dirLabel.click();
     await flushPromises();
 
     expect(api.fetchKbList).toHaveBeenCalledWith('owner/repo', 'docs', 'flat');
@@ -223,18 +233,38 @@ describe('mountCorpusDocList', () => {
     mountCorpusDocList(container, { repo: 'owner/repo', navigate });
     await flushPromises();
 
-    const expandBtn = container.querySelector(
-      '.corpus-doc-tree-node[data-relative-path="docs"] .corpus-doc-tree-expand',
-    );
-    expandBtn.click();
+    clickDirLabel(container, 'docs');
     await flushPromises();
-    expandBtn.click();
+    clickDirLabel(container, 'docs');
     await flushPromises();
-    expandBtn.click();
+    clickDirLabel(container, 'docs');
     await flushPromises();
 
     const docsCalls = api.fetchKbList.mock.calls.filter(([, p]) => p === 'docs');
     expect(docsCalls).toHaveLength(1);
+  });
+
+  it('collapses directory when clicking folder label again', async () => {
+    api.fetchKbList.mockImplementation(async (_repo, path) => {
+      if (path === '') return sampleRootEntries;
+      if (path === 'docs') return sampleDocsEntries;
+      return [];
+    });
+
+    mountCorpusDocList(container, { repo: 'owner/repo', navigate });
+    await flushPromises();
+
+    clickDirLabel(container, 'docs');
+    await flushPromises();
+    expect(
+      container.querySelector('.corpus-doc-tree-node[data-relative-path="docs/guide.md"]'),
+    ).not.toBeNull();
+
+    clickDirLabel(container, 'docs');
+    await flushPromises();
+    expect(
+      container.querySelector('.corpus-doc-tree-node[data-relative-path="docs/guide.md"]'),
+    ).toBeNull();
   });
 
   it('expands directory in tree when clicking a folder label', async () => {
@@ -259,8 +289,9 @@ describe('mountCorpusDocList', () => {
     expect(container.querySelectorAll('.corpus-doc-main-row')).toHaveLength(0);
   });
 
-  it('navigates with path query when clicking a markdown file in tree', async () => {
+  it('opens file in reader and syncs hash without router navigate', async () => {
     api.fetchKbList.mockResolvedValue(sampleRootEntries);
+    const replaceState = vi.spyOn(history, 'replaceState');
 
     mountCorpusDocList(container, { repo: 'owner/repo', navigate });
     await flushPromises();
@@ -272,10 +303,71 @@ describe('mountCorpusDocList', () => {
     fileRow.click();
     await flushPromises();
 
-    expect(navigate).toHaveBeenCalledWith(
-      '#/corpus/' + encodeURIComponent('owner/repo') + '?path=' + encodeURIComponent('readme.md'),
+    expect(navigate).not.toHaveBeenCalled();
+    expect(mountKbReader).toHaveBeenCalledWith(
+      container.querySelector('.corpus-doc-reader-pane'),
+      expect.objectContaining({ repo: 'owner/repo', path: 'readme.md' }),
     );
-    expect(mountKbReader).not.toHaveBeenCalled();
+    expect(replaceState).toHaveBeenCalled();
+    replaceState.mockRestore();
+  });
+
+  it('clicking a file keeps expanded directories visible', async () => {
+    api.fetchKbList.mockImplementation(async (_repo, path) => {
+      if (path === '') return sampleRootEntries;
+      if (path === 'docs') return sampleDocsEntries;
+      return [];
+    });
+
+    mountCorpusDocList(container, { repo: 'owner/repo', navigate });
+    await flushPromises();
+
+    clickDirLabel(container, 'docs');
+    await flushPromises();
+
+    const fileRow = container.querySelector(
+      '.corpus-doc-tree-node[data-relative-path="docs/guide.md"] .corpus-doc-tree-label',
+    );
+    fileRow.click();
+    await flushPromises();
+
+    expect(
+      container.querySelector('.corpus-doc-tree-node[data-relative-path="docs/nested"]'),
+    ).not.toBeNull();
+    expect(mountKbReader).toHaveBeenCalled();
+    expect(navigate).not.toHaveBeenCalled();
+  });
+
+  it('navigateToPath keeps expanded directories when switching files', async () => {
+    api.fetchKbList.mockImplementation(async (_repo, path) => {
+      if (path === '') return sampleRootEntries;
+      if (path === 'docs') return sampleDocsEntries;
+      return [];
+    });
+
+    const handle = mountCorpusDocList(container, { repo: 'owner/repo', navigate });
+    await flushPromises();
+
+    clickDirLabel(container, 'docs');
+    await flushPromises();
+    expect(
+      container.querySelector('.corpus-doc-tree-node[data-relative-path="docs/guide.md"]'),
+    ).not.toBeNull();
+
+    await handle.navigateToPath('docs/guide.md');
+    await flushPromises();
+
+    expect(
+      container.querySelector('.corpus-doc-tree-node[data-relative-path="docs/guide.md"]'),
+    ).not.toBeNull();
+    expect(
+      container.querySelector('.corpus-doc-tree-node[data-relative-path="docs"] .corpus-doc-tree-label.selected'),
+    ).toBeNull();
+    const guideLabel = container.querySelector(
+      '.corpus-doc-tree-node[data-relative-path="docs/guide.md"] .corpus-doc-tree-label',
+    );
+    expect(guideLabel?.classList.contains('selected')).toBe(true);
+    expect(mountKbReader).toHaveBeenCalled();
   });
 
   it('shows placeholder when repo root is empty', async () => {
@@ -302,8 +394,10 @@ describe('mountCorpusDocList', () => {
     fileRow.click();
     await flushPromises();
 
-    expect(navigate).toHaveBeenCalledWith(
-      '#/corpus/' + encodeURIComponent('owner/single') + '?path=' + encodeURIComponent('only.md'),
+    expect(navigate).not.toHaveBeenCalled();
+    expect(mountKbReader).toHaveBeenCalledWith(
+      container.querySelector('.corpus-doc-reader-pane'),
+      expect.objectContaining({ repo: 'owner/single', path: 'only.md' }),
     );
   });
 
@@ -367,7 +461,11 @@ describe('mountCorpusDocList', () => {
   });
 
   it('mounts reader when initialPath is provided', async () => {
-    api.fetchKbList.mockResolvedValue(sampleRootEntries);
+    api.fetchKbList.mockImplementation(async (_repo, path) => {
+      if (path === '') return sampleRootEntries;
+      if (path === 'docs') return sampleDocsEntries;
+      return [];
+    });
 
     mountCorpusDocList(container, {
       repo: 'owner/repo',

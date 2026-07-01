@@ -3343,40 +3343,31 @@
 }
 .corpus-sync-btn-commit:hover { background: #ccf4d6; }
 .corpus-doc-sidebar-tree {
-  padding: 8px 0;
+  padding: 8px 8px 8px 12px;
 }
 .corpus-doc-tree-node {
   display: flex;
   align-items: center;
-  gap: 4px;
   min-height: 28px;
   max-height: 32px;
   font-size: 13px;
 }
-.corpus-doc-tree-expand,
 .corpus-doc-tree-label,
 .corpus-doc-main-row {
   background: none;
   border: none;
   cursor: pointer;
   font: inherit;
+  font-size: 13px;
   color: #24292f;
   text-align: left;
 }
-.corpus-doc-tree-expand {
-  width: 16px;
-  flex-shrink: 0;
-  padding: 0;
-  color: #57606a;
-}
-.corpus-doc-tree-spacer {
-  width: 16px;
-  flex-shrink: 0;
-}
 .corpus-doc-tree-label {
   flex: 1;
-  padding: 4px 8px 4px 0;
+  width: 100%;
+  padding: 4px 8px;
   border-radius: 4px;
+  line-height: 1.4;
 }
 .corpus-doc-tree-label:hover {
   background: #f6f8fa;

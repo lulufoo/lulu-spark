@@ -92,16 +92,12 @@ export function mountCorpusDocList(container, { repo, navigate, initialPath }) {
     function renderNodes(nodes, depth = 0) {
       return nodes.map((node) => {
         const pad = depth * 16;
-        const expandHtml = node.is_dir
-          ? `<button type="button" class="corpus-doc-tree-expand" aria-label="expand">${node.expanded ? '▼' : '▶'}</button>`
-          : '<span class="corpus-doc-tree-spacer"></span>';
         const selectedClass = selectedPath === node.relative_path ? ' selected' : '';
         const childrenHtml = node.expanded && node.children.length
           ? `<div class="corpus-doc-tree-children">${renderNodes(node.children, depth + 1)}</div>`
           : '';
         return `
           <div class="corpus-doc-tree-node" data-relative-path="${escHtml(node.relative_path)}" data-is-dir="${node.is_dir ? '1' : '0'}" style="padding-left:${pad}px">
-            ${expandHtml}
             <button type="button" class="corpus-doc-tree-label${selectedClass}">${escHtml(node.name)}</button>
           </div>
           ${childrenHtml}
@@ -145,6 +141,14 @@ export function mountCorpusDocList(container, { repo, navigate, initialPath }) {
 
   function corpusDocHash(path) {
     return '#/corpus/' + encodeURIComponent(repo) + '?path=' + encodeURIComponent(path);
+  }
+
+  /** Sync URL for bookmarking without hashchange (avoids router remounting the tree). */
+  function syncCorpusHash(relativePath) {
+    const hash = corpusDocHash(relativePath);
+    if (window.location.hash === hash) return;
+    const href = `${window.location.pathname || ''}${window.location.search || ''}${hash}`;
+    history.replaceState(null, '', href);
   }
 
   const onRepoChange = (event) => {
@@ -199,13 +203,7 @@ export function mountCorpusDocList(container, { repo, navigate, initialPath }) {
   };
   window.addEventListener('kb:hide-pattern-changed', onHidePatternChanged);
 
-  async function onExpandNode(node) {
-    if (node.expanded) {
-      node.expanded = false;
-      renderSidebar();
-      return;
-    }
-
+  async function expandNode(node) {
     node.expanded = true;
     if (!node.loaded) {
       try {
@@ -220,24 +218,54 @@ export function mountCorpusDocList(container, { repo, navigate, initialPath }) {
         if (sidebarEl) {
           sidebarEl.innerHTML = `<div class="corpus-doc-error">${escHtml(err?.message || '加载失败')}</div>`;
         }
-        return;
+        throw err;
       }
     }
     renderSidebar();
   }
 
-  const onSidebarClick = (event) => {
-    const expandBtn = event.target.closest('.corpus-doc-tree-expand');
-    if (expandBtn) {
-      const nodeEl = expandBtn.closest('.corpus-doc-tree-node');
-      const relativePath = nodeEl?.dataset.relativePath;
-      if (!relativePath) return;
-      const node = findNode(rootNodes, relativePath);
-      if (!node?.is_dir) return;
-      void onExpandNode(node);
+  async function ensurePathVisible(relativePath) {
+    if (!relativePath || !relativePath.includes('/')) return;
+    const segments = relativePath.split('/').filter(Boolean);
+    segments.pop();
+    let built = '';
+    for (const seg of segments) {
+      built = built ? `${built}/${seg}` : seg;
+      const node = findNode(rootNodes, built);
+      if (!node?.is_dir || node.expanded) continue;
+      await expandNode(node);
+    }
+  }
+
+  async function onExpandNode(node) {
+    if (node.expanded) {
+      node.expanded = false;
+      renderSidebar();
       return;
     }
+    await expandNode(node);
+  }
 
+  /**
+   * @param {string} path
+   */
+  async function navigateToPath(path) {
+    if (!path) {
+      selectedPath = '';
+      if (unmountReader) {
+        unmountReader();
+        unmountReader = null;
+      }
+      renderSidebar();
+      return;
+    }
+    selectedPath = path;
+    await ensurePathVisible(path);
+    renderSidebar();
+    await mountReaderAt(path);
+  }
+
+  const onSidebarClick = (event) => {
     const labelBtn = event.target.closest('.corpus-doc-tree-label');
     if (!labelBtn) return;
     const nodeEl = labelBtn.closest('.corpus-doc-tree-node');
@@ -247,15 +275,14 @@ export function mountCorpusDocList(container, { repo, navigate, initialPath }) {
       selectedPath = relativePath;
       const node = findNode(rootNodes, relativePath);
       if (!node) return;
-      if (!node.expanded) {
-        void onExpandNode(node);
-      } else {
-        renderSidebar();
-      }
-    } else {
-      selectedPath = relativePath;
-      navigate(corpusDocHash(relativePath));
+      void onExpandNode(node);
+      return;
     }
+    selectedPath = relativePath;
+    void (async () => {
+      await navigateToPath(relativePath);
+      syncCorpusHash(relativePath);
+    })();
   };
 
   container.innerHTML = '<div class="corpus-doc-loading">加载中…</div>';
@@ -285,9 +312,7 @@ export function mountCorpusDocList(container, { repo, navigate, initialPath }) {
       container.querySelector('.corpus-doc-sidebar')?.addEventListener('click', onSidebarClick);
       renderSidebar();
       if (initialPath) {
-        selectedPath = initialPath;
-        renderSidebar();
-        await mountReaderAt(initialPath);
+        await navigateToPath(initialPath);
       }
     } catch (err) {
       if (disposed) return;
@@ -295,7 +320,7 @@ export function mountCorpusDocList(container, { repo, navigate, initialPath }) {
     }
   })();
 
-  return () => {
+  function unmount() {
     disposed = true;
     unmountReader?.();
     unmountReader = null;
@@ -303,5 +328,9 @@ export function mountCorpusDocList(container, { repo, navigate, initialPath }) {
     window.removeEventListener('kb-diff-updated', onKbDiffUpdated);
     window.removeEventListener('kb:hide-pattern-changed', onHidePatternChanged);
     container.innerHTML = '';
-  };
+  }
+
+  unmount.navigateToPath = navigateToPath;
+  unmount.repo = repo;
+  return unmount;
 }
