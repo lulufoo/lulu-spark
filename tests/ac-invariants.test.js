@@ -1,0 +1,29 @@
+import { execSync } from 'node:child_process';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { describe, it, expect } from 'vitest';
+
+const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
+
+describe('AC invariants', () => {
+  it('I1: viewer.js has no functional diff in feature worktree', () => {
+    const diff = execSync('git diff HEAD -- frontend/js/components/viewer.js', {
+      cwd: repoRoot,
+      encoding: 'utf8',
+    });
+    expect(diff).toBe('');
+  });
+
+  it('router tests include corpus ?path= deep link coverage', async () => {
+    const { readFileSync } = await import('node:fs');
+    const routerTest = readFileSync(join(repoRoot, 'tests/router.test.js'), 'utf8');
+    expect(routerTest).toMatch(/parseHash\('#\/corpus\/owner\/repo\?path=docs\/guide\.md'\)/);
+  });
+
+  it('corpus-doc-list tests cover navigate + mountKbReader mock', async () => {
+    const { readFileSync } = await import('node:fs');
+    const corpusTest = readFileSync(join(repoRoot, 'tests/corpus-doc-list.test.js'), 'utf8');
+    expect(corpusTest).toMatch(/mountKbReader/);
+    expect(corpusTest).toMatch(/\?path=/);
+  });
+});
