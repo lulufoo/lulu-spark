@@ -9,6 +9,8 @@ const BTN_ID = 'kb-highlight-add-btn';
 
 /** @type {HTMLElement | null} */
 let _kbHighlightRoot = null;
+/** @type {HTMLButtonElement | null} */
+let _kbHighlightBtn = null;
 /** @type {Array<() => void>} */
 const _kbHighlightCleanups = [];
 
@@ -24,10 +26,24 @@ function kbCommentsBarSelector() {
 }
 
 function kbHighlightBtnEl() {
-  if (_kbHighlightRoot) {
-    return _kbHighlightRoot.querySelector(`#${BTN_ID}`) ?? document.getElementById(BTN_ID);
+  return _kbHighlightBtn ?? document.getElementById(BTN_ID);
+}
+
+function resolveKbHighlightBtn() {
+  const nodes = document.querySelectorAll(`#${BTN_ID}`);
+  if (nodes.length > 1) {
+    for (let i = 1; i < nodes.length; i += 1) nodes[i].remove();
   }
-  return document.getElementById(BTN_ID);
+  let btn = document.getElementById(BTN_ID);
+  if (!btn) {
+    btn = document.createElement('button');
+    btn.id = BTN_ID;
+    btn.className = 'viewer-highlight-btn highlight-add-btn';
+    btn.style.cssText = 'display:none;position:fixed;z-index:9999;';
+    btn.textContent = '高亮';
+    document.body.appendChild(btn);
+  }
+  return btn;
 }
 
 // ── applyKbHighlights ──────────────────────────────────────────────────────
@@ -85,6 +101,7 @@ export function cleanupKbHighlightUI() {
   _kbHighlightCleanups.length = 0;
   hideKbBtn();
   _kbHighlightRoot = null;
+  _kbHighlightBtn = null;
 }
 
 export function initKbHighlightUI(container) {
@@ -97,15 +114,8 @@ export function initKbHighlightUI(container) {
   cleanupKbHighlightUI();
   _kbHighlightRoot = container;
 
-  let btn = container.querySelector(`#${BTN_ID}`);
-  if (!btn) {
-    btn = document.createElement('button');
-    btn.id = BTN_ID;
-    btn.className = 'highlight-add-btn';
-    btn.style.cssText = 'display:none;position:fixed;z-index:9999;';
-    btn.textContent = '高亮';
-    document.body.appendChild(btn);
-  }
+  const btn = resolveKbHighlightBtn();
+  _kbHighlightBtn = btn;
 
   const body = kbHighlightBodyEl();
   if (!body) return;

@@ -60,4 +60,31 @@ describe('kb comments/highlights scope', () => {
       cleanupKbHighlightUI();
     }
   });
+
+  it('does not duplicate #kb-highlight-add-btn and hides it on click', async () => {
+    document.body.insertAdjacentHTML(
+      'beforeend',
+      '<button id="kb-highlight-add-btn" style="display:none">高亮</button>',
+    );
+    const root = document.createElement('div');
+    root.innerHTML = `
+      <div class="kb-reader">
+        <div class="kb-reader-body"><p>hello world</p></div>
+      </div>
+    `;
+    document.body.appendChild(root);
+    const reader = root.querySelector('.kb-reader');
+
+    initKbHighlightUI(reader);
+    initKbHighlightUI(reader);
+
+    expect(document.querySelectorAll('#kb-highlight-add-btn')).toHaveLength(1);
+    const btn = document.getElementById('kb-highlight-add-btn');
+    btn.style.display = 'block';
+
+    btn.click();
+    expect(btn.style.display).toBe('none');
+
+    cleanupKbHighlightUI();
+  });
 });
