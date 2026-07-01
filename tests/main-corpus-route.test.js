@@ -101,6 +101,14 @@ describe('main.js corpus-doc route init wiring (source)', () => {
   it('registers corpus-doc handler via wrapRouteMount', () => {
     expect(mainJs).toMatch(/['"]corpus-doc['"]:\s*wrapRouteMount\s*\(\s*['"]corpus-doc['"]/);
   });
+
+  it('cta:open-kb-doc navigates to corpus deep link instead of openKbDoc', () => {
+    expect(mainJs).toMatch(/document\.addEventListener\(\s*['"]cta:open-kb-doc['"]/);
+    expect(mainJs).toMatch(
+      /navigate\s*\(\s*['"`]#\/corpus\/['"`]\s*\+\s*encodeURIComponent\(detail\.repo\)\s*\+\s*['"`]\?path=['"`]\s*\+\s*encodeURIComponent\(detail\.path\)\s*\)/,
+    );
+    expect(mainJs).not.toMatch(/openKbDoc\s*\(\s*detail\s*\)/);
+  });
 });
 
 describe('corpus-doc route mount behavior', () => {

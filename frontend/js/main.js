@@ -4,7 +4,7 @@ import { LAYERS, setGithubUserUrl } from './constants.js'
 import * as api from './api.js'
 import { buildGroups, renderSidebar, selectDate, applyListFilters, selectTag } from './components/sidebar.js'
 import { initSidebarResize } from './components/sidebar-resize.js'
-import { enterEditMode, exitEditMode, saveDoc, openCommitDialog, openKbDoc, openDoc } from './components/viewer.js'
+import { enterEditMode, exitEditMode, saveDoc, openCommitDialog, openDoc } from './components/viewer.js'
 import './components/comment-delete.js'
 import './components/comments.js'
 import './components/kb-viewer.js'
@@ -856,7 +856,7 @@ document.addEventListener('cta:open-entry', ({ detail }) => {
 
 document.addEventListener('cta:open-kb-doc', ({ detail }) => {
   if (!detail || !detail.repo || !detail.path) return
-  openKbDoc(detail)
+  navigate('#/corpus/' + encodeURIComponent(detail.repo) + '?path=' + encodeURIComponent(detail.path))
 });
 
 // ── Skills dialog ─────────────────────────────────────────────────────────
