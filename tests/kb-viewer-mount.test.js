@@ -27,12 +27,14 @@ vi.mock('../frontend/js/api.js', () => ({
 
 vi.mock('../frontend/js/components/kb-comments.js', () => ({
   renderKbComments: vi.fn(),
-  initKbCommentEvents: vi.fn(),
+  initKbComments: vi.fn(),
+  cleanupKbComments: vi.fn(),
 }));
 
 vi.mock('../frontend/js/components/kb-highlights.js', () => ({
   applyKbHighlights: vi.fn(),
   initKbHighlightUI: vi.fn(),
+  cleanupKbHighlightUI: vi.fn(),
 }));
 
 vi.mock('../frontend/js/components/kb-links-bar.js', () => ({

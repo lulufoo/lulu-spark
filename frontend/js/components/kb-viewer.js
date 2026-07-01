@@ -1,8 +1,8 @@
 import { state } from '../state.js'
 import { escHtml, resetEditAreaScroll } from '../utils.js'
 import * as api from '../api.js'
-import { renderKbComments, initKbCommentEvents } from './kb-comments.js'
-import { applyKbHighlights, initKbHighlightUI } from './kb-highlights.js'
+import { renderKbComments, initKbComments, cleanupKbComments } from './kb-comments.js'
+import { applyKbHighlights, initKbHighlightUI, cleanupKbHighlightUI } from './kb-highlights.js'
 import { renderKbLinksBar } from './kb-links-bar.js'
 import { renderMermaidBlocks } from '../mermaid-render.js'
 
@@ -238,6 +238,8 @@ export async function mountKbReader(container, { repo, path, url }) {
     if (token !== loadToken) return;
     loadToken += 1;
     exitEditMode();
+    cleanupKbComments();
+    cleanupKbHighlightUI();
     for (const [el, type, handler] of listeners) {
       el.removeEventListener(type, handler);
     }
@@ -322,8 +324,9 @@ export async function mountKbReader(container, { repo, path, url }) {
       }
 
       ui.btnEdit.style.display = '';
-      initKbCommentEvents();
-      initKbHighlightUI();
+      const readerRoot = container.querySelector('.kb-reader') ?? container;
+      initKbComments(readerRoot);
+      initKbHighlightUI(readerRoot);
 
       api.fetchKbStatus(repo).then((data) => {
         if (token !== loadToken) return;

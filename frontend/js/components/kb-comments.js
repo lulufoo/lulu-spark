@@ -15,6 +15,26 @@ import {
 } from '../comment-markdown.js'
 import { renderMermaidBlocks } from '../mermaid-render.js'
 
+/** @type {HTMLElement | null} */
+let _kbCommentsRoot = null;
+/** @type {Array<() => void>} */
+const _kbCommentsCleanups = [];
+let _kbDialogEventsBound = false;
+
+function kbCommentsBodyEl() {
+  if (_kbCommentsRoot) {
+    return _kbCommentsRoot.querySelector('.kb-reader-body');
+  }
+  return document.getElementById('kb-md-body');
+}
+
+function kbFloatNavEl() {
+  if (_kbCommentsRoot) {
+    return _kbCommentsRoot.querySelector('.kb-comment-float-nav');
+  }
+  return document.getElementById('kb-comment-float-nav');
+}
+
 // ── Preview tip (shared DOM element) ──────────────────────────────────────
 const _tip = () => document.getElementById('comment-preview-tip');
 
@@ -51,7 +71,7 @@ function _hideKbTip() {
 let _kbFloatNavObserver = null;
 
 function updateKbFloatNav(comments) {
-  const nav = document.getElementById('kb-comment-float-nav');
+  const nav = kbFloatNavEl();
   if (!nav) return;
   nav.innerHTML = '';
   nav.style.display = 'none';
@@ -73,9 +93,9 @@ function updateKbFloatNav(comments) {
     nav.appendChild(btn);
   });
 
-  const bar = document.getElementById('kb-md-comments-bar');
+  const bar = kbCommentsBodyEl()?.querySelector('.md-comments-bar');
   if (!bar) return;
-  const mdBody = document.getElementById('kb-md-body');
+  const mdBody = kbCommentsBodyEl();
   _kbFloatNavObserver = new IntersectionObserver(
     ([e]) => { nav.style.display = e.isIntersecting ? 'none' : 'flex'; },
     { root: mdBody, threshold: 0 }
@@ -84,8 +104,8 @@ function updateKbFloatNav(comments) {
 }
 // ── renderKbComments ───────────────────────────────────────────────────────
 export function renderKbComments(annotation) {
-  const existing = document.getElementById('kb-md-comments-bar');
-  if (existing) existing.remove();
+  const body = kbCommentsBodyEl();
+  body?.querySelector('.md-comments-bar')?.remove();
 
   const comments = annotation?.comments || [];
   if (!comments.length) {
@@ -94,8 +114,8 @@ export function renderKbComments(annotation) {
     return;
   }
 
-  const body = document.getElementById('kb-md-body');
-  if (!body) return;
+  const bodyEl = kbCommentsBodyEl();
+  if (!bodyEl) return;
 
   const bar = document.createElement('div');
   bar.id = 'kb-md-comments-bar';
@@ -105,7 +125,7 @@ export function renderKbComments(annotation) {
     bar.appendChild(buildKbCommentItem(c, i, comments));
   });
 
-  body.prepend(bar);
+  bodyEl.prepend(bar);
   // Must call after bar is in DOM so IntersectionObserver can find it
   updateKbFloatNav(comments);
 }
@@ -287,17 +307,14 @@ export async function saveKbComment() {
   }
 }
 
-// ── initKbCommentEvents ────────────────────────────────────────────────────
-let _kbEventsInited = false;
-
-export function initKbCommentEvents() {
-  if (_kbEventsInited) return;
-  _kbEventsInited = true;
+// ── initKbComments / cleanupKbComments ─────────────────────────────────────
+function bindKbCommentDialogEvents() {
+  if (_kbDialogEventsBound) return;
+  _kbDialogEventsBound = true;
 
   document.getElementById('kb-btn-comment-cancel')?.addEventListener('click', closeKbCommentDialog);
   document.getElementById('kb-btn-comment-save')?.addEventListener('click', saveKbComment);
 
-  // ESC on the dialog container (catches all focus states)
   document.getElementById('kb-comment-dialog')?.addEventListener('keydown', e => {
     if (e.key === 'Escape') { e.stopPropagation(); closeKbCommentDialog(); }
   });
@@ -315,7 +332,6 @@ export function initKbCommentEvents() {
     pasteIntoCommentEditor(el, e.clipboardData);
   });
 
-  // Tab switch: edit / preview
   document.querySelectorAll('#kb-comment-dialog .comment-tab-btn').forEach(btn => {
     btn.addEventListener('click', async () => {
       document.querySelectorAll('#kb-comment-dialog .comment-tab-btn').forEach(b => b.classList.remove('active'));
@@ -338,9 +354,41 @@ export function initKbCommentEvents() {
       }
     });
   });
+}
 
-  // Add comment button in KB header
-  document.getElementById('kb-btn-add-comment')?.addEventListener('click', () => {
-    openKbCommentDialog();
-  });
+export function cleanupKbComments() {
+  for (const fn of _kbCommentsCleanups) fn();
+  _kbCommentsCleanups.length = 0;
+  if (_kbFloatNavObserver) {
+    _kbFloatNavObserver.disconnect();
+    _kbFloatNavObserver = null;
+  }
+  kbCommentsBodyEl()?.querySelector('.md-comments-bar')?.remove();
+  const nav = kbFloatNavEl();
+  if (nav) {
+    nav.innerHTML = '';
+    nav.style.display = 'none';
+  }
+  _kbCommentsRoot = null;
+}
+
+export function initKbComments(container) {
+  if (!container) return;
+  cleanupKbComments();
+  _kbCommentsRoot = container;
+  bindKbCommentDialogEvents();
+
+  const addBtn = container.querySelector('.kb-btn-add-comment');
+  if (addBtn) {
+    const onAdd = () => openKbCommentDialog();
+    addBtn.addEventListener('click', onAdd);
+    _kbCommentsCleanups.push(() => addBtn.removeEventListener('click', onAdd));
+  }
+}
+
+/** @deprecated use initKbComments(container) */
+export function initKbCommentEvents() {
+  const legacyBody = document.getElementById('kb-md-body');
+  const root = legacyBody?.closest('.kb-reader') ?? legacyBody?.parentElement;
+  if (root) initKbComments(root);
 }
