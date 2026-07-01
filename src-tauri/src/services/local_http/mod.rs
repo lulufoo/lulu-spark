@@ -159,7 +159,7 @@ fn handle_request(repo_root: &PathBuf, port: u16, request: tiny_http::Request) {
                 return;
             }
             "/api/corpus-catalog" => {
-                let params = parse_query(request.url());
+                let params = parse_query(&url);
                 let mode = params.get("mode").map(String::as_str).unwrap_or("");
                 if mode != "latest_per_topic" {
                     respond_json(
@@ -179,7 +179,7 @@ fn handle_request(repo_root: &PathBuf, port: u16, request: tiny_http::Request) {
                 return;
             }
             "/api/corpus-file" => {
-                let params = parse_query(request.url());
+                let params = parse_query(&url);
                 let layer = params.get("layer").map(String::as_str).unwrap_or("");
                 let common_path = params.get("path").map(String::as_str).unwrap_or("");
                 if layer != "digest" {
@@ -195,7 +195,7 @@ fn handle_request(repo_root: &PathBuf, port: u16, request: tiny_http::Request) {
                 return;
             }
             "/api/corpus-asset" => {
-                let params = parse_query(request.url());
+                let params = parse_query(&url);
                 let layer = params.get("layer").map(String::as_str).unwrap_or("");
                 let base = params.get("base").map(String::as_str).unwrap_or("");
                 let href = params.get("href").map(String::as_str).unwrap_or("");
