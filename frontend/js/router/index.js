@@ -15,6 +15,7 @@ export function parseHash(hash) {
 
   if (!path) return { name: 'unknown', params: {} };
   if (path === 'home') return { name: 'home', params: {} };
+  if (path === 'read-later') return { name: 'read-later', params: {} };
   if (path === 'workbench') return { name: 'workbench', params: {} };
   if (path === 'corpus' || path === 'corpus/pick') return { name: 'corpus-doc', params: { repo: '' } };
 

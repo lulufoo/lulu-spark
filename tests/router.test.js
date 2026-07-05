@@ -34,6 +34,14 @@ describe('parseHash', () => {
     expect(parseHash('#/home')).toEqual({ name: 'home', params: {} });
   });
 
+  it('parses #/read-later', () => {
+    expect(parseHash('#/read-later')).toEqual({ name: 'read-later', params: {} });
+  });
+
+  it('parses #/read-later/ with trailing slash', () => {
+    expect(parseHash('#/read-later/')).toEqual({ name: 'read-later', params: {} });
+  });
+
   it('parses #/corpus/:repo?path= for deep link', () => {
     expect(parseHash('#/corpus/owner/repo?path=docs/guide.md')).toEqual({
       name: 'corpus-doc',
@@ -340,5 +348,61 @@ describe('Phase2 fallback (default #/home)', () => {
     hashValue = '#/home';
     listeners.popstate();
     expect(handlers.home).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('read-later route navigation', () => {
+  let handlers;
+  let hashValue;
+  let listeners;
+
+  beforeEach(() => {
+    handlers = {
+      home: vi.fn(),
+      'read-later': vi.fn(),
+    };
+    hashValue = '#/home';
+    listeners = {};
+    vi.stubGlobal('window', {
+      addEventListener(type, fn) {
+        listeners[type] = fn;
+      },
+      location: {
+        get hash() {
+          return hashValue;
+        },
+        set hash(value) {
+          hashValue = value;
+          listeners.hashchange?.();
+        },
+        replace(value) {
+          const idx = value.indexOf('#');
+          hashValue = idx >= 0 ? value.slice(idx) : value;
+          listeners.hashchange?.();
+        },
+      },
+    });
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('initRouter invokes read-later handler for #/read-later', () => {
+    hashValue = '#/read-later';
+    initRouter(handlers, { fallback: '#/home' });
+    expect(handlers['read-later']).toHaveBeenCalledTimes(1);
+    expect(handlers['read-later']).toHaveBeenCalledWith({
+      name: 'read-later',
+      params: {},
+    });
+  });
+
+  it('unknown hash still falls back to #/home without invoking read-later handler', () => {
+    hashValue = '#/not-a-route';
+    initRouter(handlers, { fallback: '#/home' });
+    expect(hashValue).toBe('#/home');
+    expect(handlers.home).toHaveBeenCalledTimes(1);
+    expect(handlers['read-later']).not.toHaveBeenCalled();
   });
 });

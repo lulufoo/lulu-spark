@@ -22,6 +22,7 @@ import { initWorkbenchSearch } from './components/workbench-search.js'
 import { initCorpusSearch } from './components/corpus-search.js'
 import { mountCorpusDocList } from './components/corpus-doc-list.js'
 import { mountHomeHub } from './components/home-hub.js'
+import { mountReadLaterList } from './components/read-later-list.js'
 import { initHeaderSync, clearHeaderSyncCorpusContext } from './header-sync.js'
 import { softwareDevSkillsContent } from './skills-software-dev-content.js'
 import { normalizeCorpusIndex } from './corpus-index.js'
@@ -661,6 +662,7 @@ function showFeedView() {
 let unmountCorpusDocList = null;
 let corpusDocListRepo = '';
 let unmountHomeHub = null;
+let unmountReadLaterList = null;
 
 function updateNavChrome(routeName) {
   const onHome = routeName === 'home';
@@ -692,12 +694,20 @@ function hideCorpusDocView() {
   if (layout) layout.style.display = '';
 }
 
+function hideReadLaterView() {
+  const readLaterView = document.getElementById('read-later-view');
+  if (readLaterView) readLaterView.style.display = 'none';
+  unmountReadLaterList?.();
+  unmountReadLaterList = null;
+}
+
 function mountHomeRoute() {
   clearHeaderSyncCorpusContext();
   unmountCorpusDocList?.();
   unmountCorpusDocList = null;
   corpusDocListRepo = '';
   hideCorpusDocView();
+  hideReadLaterView();
 
   feedView.style.display = 'none';
   document.getElementById('btn-feed').classList.remove('active');
@@ -717,6 +727,7 @@ function mountCorpusDocRoute(route) {
   unmountHomeHub?.();
   unmountHomeHub = null;
   hideHomeView();
+  hideReadLaterView();
 
   const layout = document.querySelector('.layout');
   if (layout) layout.style.display = 'none';
@@ -742,6 +753,31 @@ function mountCorpusDocRoute(route) {
   corpusDocListRepo = unmountCorpusDocList.repo ?? repo;
 }
 
+function mountReadLaterRoute() {
+  unmountHomeHub?.();
+  unmountHomeHub = null;
+  hideHomeView();
+  unmountCorpusDocList?.();
+  unmountCorpusDocList = null;
+  hideCorpusDocView();
+
+  feedView.style.display = 'none';
+  document.getElementById('btn-feed')?.classList.remove('active');
+
+  const layout = document.querySelector('.layout');
+  if (layout) layout.style.display = 'none';
+
+  const readLaterView = document.getElementById('read-later-view');
+  if (!readLaterView) {
+    console.warn('read-later-view DOM element not found');
+    return;
+  }
+  readLaterView.style.display = '';
+
+  unmountReadLaterList?.();
+  unmountReadLaterList = mountReadLaterList(readLaterView).unmount;
+}
+
 function mountWorkbench() {
   clearHeaderSyncCorpusContext();
   unmountHomeHub?.();
@@ -751,6 +787,7 @@ function mountWorkbench() {
   unmountCorpusDocList = null;
   corpusDocListRepo = '';
   hideCorpusDocView();
+  hideReadLaterView();
 
   feedView.style.display = 'none';
   document.getElementById('btn-feed').classList.remove('active');
@@ -825,6 +862,7 @@ initRouter({
   workbench: wrapRouteMount('workbench', () => mountWorkbench()),
   home: wrapRouteMount('home', mountHomeRoute),
   'corpus-doc': wrapRouteMount('corpus-doc', mountCorpusDocRoute),
+  'read-later': wrapRouteMount('read-later', mountReadLaterRoute),
 }, { fallback: '#/home' });
 
 function registerTagsReconciledListener() {
