@@ -24,7 +24,10 @@ import {
   loadReadLaterEntries,
   markEntryRead,
   mountReadLaterList,
+  renderUnavailableState,
 } from '../frontend/js/components/read-later-list.js';
+
+const UNAVAILABLE_MSG = '列表暂时不可用，请稍后重试';
 
 const fixtureRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 const mainJs = readFileSync(join(fixtureRoot, 'frontend/js/main.js'), 'utf8');
@@ -548,5 +551,169 @@ describe('mountReadLaterList', () => {
     expect(container.innerHTML).toBe('');
     await new Promise((r) => setTimeout(r, 60));
     expect(container.innerHTML).toBe('');
+  });
+});
+
+describe('renderUnavailableState', () => {
+  let container;
+
+  beforeEach(() => {
+    container = document.createElement('div');
+    document.body.appendChild(container);
+  });
+
+  afterEach(() => {
+    container.remove();
+  });
+
+  it('renders error-empty with empty state and unavailable banner', () => {
+    renderUnavailableState(container, { mode: 'empty', message: UNAVAILABLE_MSG });
+    expect(container.querySelector('.read-later-empty')).not.toBeNull();
+    expect(container.querySelector('.read-later-unavailable')?.textContent).toBe(
+      UNAVAILABLE_MSG,
+    );
+    expect(container.querySelector('.read-later-item')).toBeNull();
+  });
+
+  it('renders error-retained with list snapshot and unavailable banner', () => {
+    renderUnavailableState(container, {
+      mode: 'retained',
+      message: UNAVAILABLE_MSG,
+      entries: sampleEntries,
+    });
+    expect(container.querySelector('.read-later-unavailable')?.textContent).toBe(
+      UNAVAILABLE_MSG,
+    );
+    expect(container.querySelectorAll('.read-later-item')).toHaveLength(2);
+    expect(container.querySelector('.read-later-empty')).toBeNull();
+  });
+});
+
+describe('TAC-9 main window unavailable UI', () => {
+  let container;
+
+  beforeEach(() => {
+    container = document.createElement('div');
+    document.body.appendChild(container);
+    getJsonMock.mockReset();
+    invokeMock.mockReset();
+    window.__TAURI__ = { core: { invoke: invokeMock } };
+    Object.defineProperty(document, 'visibilityState', {
+      configurable: true,
+      value: 'visible',
+    });
+  });
+
+  afterEach(() => {
+    container.remove();
+    delete window.__TAURI__;
+  });
+
+  function expectUnavailableMessage(root) {
+    expect(root.querySelector('.read-later-unavailable')?.textContent).toBe(
+      UNAVAILABLE_MSG,
+    );
+  }
+
+  it('error-empty: local_http connection failure shows empty state and unavailable banner', async () => {
+    getJsonMock.mockRejectedValue(new Error('Failed to fetch'));
+    const { dispose } = mountReadLaterList(container);
+    await vi.waitFor(() => {
+      expect(container.querySelector('.read-later-empty')).not.toBeNull();
+      expectUnavailableMessage(container);
+    });
+    expect(container.querySelector('.read-later-item')).toBeNull();
+    dispose();
+  });
+
+  it('error-empty: GET HTTP 404 shows empty state and unavailable banner', async () => {
+    getJsonMock.mockRejectedValue(Object.assign(new Error('HTTP 404'), { status: 404 }));
+    const { dispose } = mountReadLaterList(container);
+    await vi.waitFor(() => {
+      expect(container.querySelector('.read-later-empty')).not.toBeNull();
+      expectUnavailableMessage(container);
+    });
+    expect(container.querySelector('.read-later-item')).toBeNull();
+    dispose();
+  });
+
+  it('error-empty: GET HTTP 400 shows empty state and unavailable banner', async () => {
+    getJsonMock.mockRejectedValue(Object.assign(new Error('HTTP 400'), { status: 400 }));
+    const { dispose } = mountReadLaterList(container);
+    await vi.waitFor(() => {
+      expect(container.querySelector('.read-later-empty')).not.toBeNull();
+      expectUnavailableMessage(container);
+    });
+    expect(container.querySelector('.read-later-item')).toBeNull();
+    dispose();
+  });
+
+  it('error-empty: GET HTTP 500 shows empty state and unavailable banner', async () => {
+    getJsonMock.mockRejectedValue(Object.assign(new Error('HTTP 500'), { status: 500 }));
+    const { dispose } = mountReadLaterList(container);
+    await vi.waitFor(() => {
+      expect(container.querySelector('.read-later-empty')).not.toBeNull();
+      expectUnavailableMessage(container);
+    });
+    expect(container.querySelector('.read-later-item')).toBeNull();
+    dispose();
+  });
+
+  it('error-retained: GET failure after snapshot retains list and shows unavailable banner', async () => {
+    getJsonMock.mockResolvedValueOnce([sampleEntries[0]]);
+    const { dispose } = mountReadLaterList(container);
+    await vi.waitFor(() => {
+      expect(container.querySelector('.read-later-item')).not.toBeNull();
+    });
+    getJsonMock.mockRejectedValueOnce(new Error('Failed to fetch'));
+    window.dispatchEvent(new Event('focus'));
+    await vi.waitFor(() => {
+      expect(container.querySelector('.read-later-item')).not.toBeNull();
+      expectUnavailableMessage(container);
+    });
+    expect(container.querySelector('.read-later-empty')).toBeNull();
+    dispose();
+  });
+
+  it('does not silently succeed when mark_read_later invoke fails', async () => {
+    getJsonMock.mockResolvedValue([sampleEntries[0]]);
+    invokeMock.mockRejectedValue(new Error('IPC failed'));
+    const { dispose } = mountReadLaterList(container);
+    await vi.waitFor(() => {
+      expect(container.querySelector('.read-later-mark-read')).not.toBeNull();
+    });
+    container.querySelector('.read-later-mark-read').click();
+    await vi.waitFor(() => {
+      expect(container.querySelector('.read-later-action-error')).not.toBeNull();
+    });
+    expect(
+      container
+        .querySelector('[data-entry-id="abc123"]')
+        ?.classList.contains('read-later-item--unread'),
+    ).toBe(true);
+    expect(container.querySelector('.read-later-unavailable')).toBeNull();
+    dispose();
+  });
+
+  it('does not fake read success when mark_read_later returns service error payload', async () => {
+    getJsonMock.mockResolvedValue([sampleEntries[0]]);
+    invokeMock.mockResolvedValue({
+      error: 'mark_read_later failed',
+      _status: 500,
+    });
+    const { dispose } = mountReadLaterList(container);
+    await vi.waitFor(() => {
+      expect(container.querySelector('.read-later-mark-read')).not.toBeNull();
+    });
+    container.querySelector('.read-later-mark-read').click();
+    await vi.waitFor(() => {
+      expect(container.querySelector('.read-later-action-error')).not.toBeNull();
+    });
+    expect(
+      container
+        .querySelector('[data-entry-id="abc123"]')
+        ?.classList.contains('read-later-item--unread'),
+    ).toBe(true);
+    dispose();
   });
 });

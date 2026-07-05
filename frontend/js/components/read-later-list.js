@@ -97,15 +97,28 @@ function renderErrorEmpty(message = UNAVAILABLE_MSG) {
   `;
 }
 
-function renderList(container, entries, { showUnavailable = false } = {}) {
-  const bannerHtml = showUnavailable ? renderUnavailableBanner() : '';
+function renderList(container, entries, { showUnavailable = false, message = UNAVAILABLE_MSG } = {}) {
+  const bannerHtml = showUnavailable ? renderUnavailableBanner(message) : '';
   if (!entries.length) {
     container.innerHTML = showUnavailable
-      ? renderErrorEmpty()
+      ? renderErrorEmpty(message)
       : '<div class="read-later-empty">暂无待读</div>';
     return;
   }
   container.innerHTML = `${bannerHtml}<ul class="read-later-list">${entries.map(renderEntry).join('')}</ul>`;
+}
+
+export function renderUnavailableState(
+  container,
+  { mode, message = UNAVAILABLE_MSG, entries = [] } = {},
+) {
+  if (mode === 'empty') {
+    container.innerHTML = renderErrorEmpty(message);
+    return;
+  }
+  if (mode === 'retained') {
+    renderList(container, entries, { showUnavailable: true, message });
+  }
 }
 
 function updateEntryRead(container, id) {
@@ -143,9 +156,12 @@ export function mountReadLaterList(container) {
       } catch (err) {
         if (disposed) return;
         if (lastSuccessfulEntries !== null) {
-          renderList(container, lastSuccessfulEntries, { showUnavailable: true });
+          renderUnavailableState(container, {
+            mode: 'retained',
+            entries: lastSuccessfulEntries,
+          });
         } else {
-          container.innerHTML = renderErrorEmpty();
+          renderUnavailableState(container, { mode: 'empty' });
         }
       }
     })().finally(() => {
