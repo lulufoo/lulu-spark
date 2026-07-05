@@ -24,7 +24,7 @@ import {
   loadAssistantEntries,
   mountReadLaterAssistant,
   mountReadLaterAssistantWidget,
-  selectTop3Unread,
+  selectTop3Latest,
 } from '../frontend/js/read-later-assistant.js';
 import { openExternalUrl } from '../frontend/js/components/read-later-list.js';
 
@@ -113,23 +113,22 @@ describe('loadAssistantEntries', () => {
   });
 });
 
-describe('selectTop3Unread', () => {
-  it('filters unread, sorts saved_at desc, and slices to 3', () => {
-    const top3 = selectTop3Unread(sampleEntries);
+describe('selectTop3Latest', () => {
+  it('sorts saved_at desc and slices to 3 regardless of read status', () => {
+    const top3 = selectTop3Latest(sampleEntries);
     expect(top3).toHaveLength(3);
-    expect(top3.map((e) => e.id)).toEqual(['n1', 'x1', 'm1']);
+    expect(top3.map((e) => e.id)).toEqual(['n1', 'r1', 'x1']);
   });
 
-  it('returns fewer than 3 when unread count is below 3', () => {
+  it('returns fewer than 3 when total count is below 3', () => {
     const entries = [sampleEntries[0], sampleEntries[1], sampleEntries[2]];
-    const top3 = selectTop3Unread(entries);
-    expect(top3).toHaveLength(2);
-    expect(top3.map((e) => e.id)).toEqual(['m1', 'a1']);
+    const top3 = selectTop3Latest(entries);
+    expect(top3).toHaveLength(3);
+    expect(top3.map((e) => e.id)).toEqual(['r1', 'm1', 'a1']);
   });
 
-  it('returns empty array when no unread entries', () => {
-    expect(selectTop3Unread([sampleEntries[1]])).toEqual([]);
-    expect(selectTop3Unread([])).toEqual([]);
+  it('returns empty array when no entries', () => {
+    expect(selectTop3Latest([])).toEqual([]);
   });
 });
 
@@ -177,7 +176,7 @@ describe('mountReadLaterAssistant', () => {
     delete window.__TAURI__;
   });
 
-  it('loads full GET on mount and displays Top3 unread', async () => {
+  it('loads full GET on mount and displays Top3 latest entries', async () => {
     getJsonMock.mockResolvedValue(sampleEntries);
     const { dispose } = mountReadLaterAssistant(root);
     await vi.waitFor(() => {
@@ -188,11 +187,26 @@ describe('mountReadLaterAssistant', () => {
     expect(root.querySelector('.read-later-assistant-current-title')?.textContent).toBe(
       'Newest Unread',
     );
+    expect(
+      root.querySelector('[data-entry-id="n1"]')?.classList.contains(
+        'read-later-assistant-picker-item--unread',
+      ),
+    ).toBe(true);
+    expect(
+      root.querySelector('[data-entry-id="r1"]')?.classList.contains(
+        'read-later-assistant-picker-item--read',
+      ),
+    ).toBe(true);
+    expect(
+      root.querySelector('.read-later-assistant-current')?.classList.contains(
+        'read-later-assistant-current--unread',
+      ),
+    ).toBe(true);
     dispose();
   });
 
-  it('shows empty state when no unread entries', async () => {
-    getJsonMock.mockResolvedValue([sampleEntries[1]]);
+  it('shows empty state when no entries', async () => {
+    getJsonMock.mockResolvedValue([]);
     const { dispose } = mountReadLaterAssistant(root);
     await vi.waitFor(() => {
       expect(root.querySelector('.read-later-assistant-empty')).not.toBeNull();
@@ -252,16 +266,26 @@ describe('mountReadLaterAssistant', () => {
       expect(invokeMock).toHaveBeenCalledWith('mark_read_later', { id: 'n1', read: true });
     });
     await vi.waitFor(() => {
-      expect(root.querySelector('[data-entry-id="n1"]')).toBeNull();
+      expect(root.querySelector('[data-entry-id="n1"]')).not.toBeNull();
+      expect(
+        root.querySelector('[data-entry-id="n1"]')?.classList.contains(
+          'read-later-assistant-picker-item--read',
+        ),
+      ).toBe(true);
+      expect(
+        root.querySelector('.read-later-assistant-current')?.classList.contains(
+          'read-later-assistant-current--read',
+        ),
+      ).toBe(true);
       expect(root.querySelector('.read-later-assistant-current-title')?.textContent).toBe(
-        'Extra Unread 4',
+        'Newest Unread',
       );
     });
     dispose();
   });
 
-  it('hides cycle control and picker when only one unread entry', async () => {
-    getJsonMock.mockResolvedValue([sampleEntries[3]]);
+  it('hides cycle control and picker when only one entry', async () => {
+    getJsonMock.mockResolvedValue([sampleEntries[1]]);
     const { dispose } = mountReadLaterAssistant(root);
     await vi.waitFor(() => {
       expect(root.querySelector('.read-later-assistant-panel')).not.toBeNull();
@@ -285,11 +309,11 @@ describe('mountReadLaterAssistant', () => {
     );
     root.querySelector('.read-later-assistant-cycle').click();
     expect(root.querySelector('.read-later-assistant-current-title')?.textContent).toBe(
-      'Extra Unread 4',
+      'Read Item',
     );
     root.querySelector('.read-later-assistant-cycle').click();
     expect(root.querySelector('.read-later-assistant-current-title')?.textContent).toBe(
-      'Mid Unread',
+      'Extra Unread 4',
     );
     dispose();
   });
@@ -324,18 +348,19 @@ describe('mountReadLaterAssistant', () => {
     await vi.waitFor(() => {
       expect(root.querySelector('.read-later-assistant-panel')).not.toBeNull();
     });
+    getJsonMock.mockClear();
     const afterMarkRead = sampleEntries.map((entry) =>
       entry.id === 'n1' ? { ...entry, read: true } : entry,
     );
     getJsonMock.mockResolvedValue(afterMarkRead);
     window.dispatchEvent(new Event('focus'));
     await vi.waitFor(() => {
-      expect(getJsonMock).toHaveBeenCalledTimes(2);
+      expect(getJsonMock).toHaveBeenCalledTimes(1);
     });
     await vi.waitFor(() => {
-      expect(root.querySelector('[data-entry-id="n1"]')).toBeNull();
+      expect(root.querySelector('[data-entry-id="n1"]')).not.toBeNull();
       expect(root.querySelector('.read-later-assistant-current-title')?.textContent).toBe(
-        'Extra Unread 4',
+        'Newest Unread',
       );
     });
     dispose();
@@ -347,16 +372,17 @@ describe('mountReadLaterAssistant', () => {
     await vi.waitFor(() => {
       expect(root.querySelector('.read-later-assistant-panel')).not.toBeNull();
     });
+    getJsonMock.mockClear();
     const afterMarkRead = sampleEntries.map((entry) =>
       entry.id === 'n1' ? { ...entry, read: true } : entry,
     );
     getJsonMock.mockResolvedValue(afterMarkRead);
     document.dispatchEvent(new Event('visibilitychange'));
     await vi.waitFor(() => {
-      expect(getJsonMock).toHaveBeenCalledTimes(2);
+      expect(getJsonMock).toHaveBeenCalledTimes(1);
     });
     await vi.waitFor(() => {
-      expect(root.querySelector('[data-entry-id="n1"]')).toBeNull();
+      expect(root.querySelector('[data-entry-id="n1"]')).not.toBeNull();
     });
     dispose();
   });
@@ -387,15 +413,15 @@ describe('mountReadLaterAssistant', () => {
       entry.id === 'n1' ? { ...entry, read: true } : entry,
     );
     getJsonMock.mockResolvedValue(afterMarkRead);
+    getJsonMock.mockClear();
     expect(root.querySelector('[data-entry-id="n1"]')).not.toBeNull();
-    expect(getJsonMock).toHaveBeenCalledTimes(1);
     window.dispatchEvent(new Event('focus'));
     await vi.waitFor(() => {
-      expect(getJsonMock).toHaveBeenCalledTimes(2);
-      expect(root.querySelector('[data-entry-id="n1"]')).toBeNull();
+      expect(getJsonMock).toHaveBeenCalledTimes(1);
+      expect(root.querySelector('[data-entry-id="n1"]')).not.toBeNull();
       expect(root.querySelectorAll('.read-later-assistant-picker-item')).toHaveLength(3);
       expect(root.querySelector('.read-later-assistant-current-title')?.textContent).toBe(
-        'Extra Unread 4',
+        'Newest Unread',
       );
     });
     dispose();
@@ -424,7 +450,7 @@ describe('mountReadLaterAssistant', () => {
       ),
     );
     await vi.waitFor(() => {
-      expect(root.querySelector('[data-entry-id="n1"]')).toBeNull();
+      expect(root.querySelector('[data-entry-id="n1"]')).not.toBeNull();
     });
     dispose();
   });
@@ -435,6 +461,7 @@ describe('mountReadLaterAssistant', () => {
     await vi.waitFor(() => {
       expect(root.querySelector('.read-later-assistant-panel')).not.toBeNull();
     });
+    getJsonMock.mockClear();
     getJsonMock.mockRejectedValueOnce(
       Object.assign(new Error('HTTP 500'), { status: 500 }),
     );
@@ -453,6 +480,7 @@ describe('mountReadLaterAssistant', () => {
     await vi.waitFor(() => {
       expect(root.querySelector('.read-later-assistant-panel')).not.toBeNull();
     });
+    getJsonMock.mockClear();
     getJsonMock.mockRejectedValueOnce(new Error('Failed to fetch'));
     window.dispatchEvent(new Event('focus'));
     await vi.waitFor(() => {
@@ -470,10 +498,10 @@ describe('mountReadLaterAssistant', () => {
       expect(root.querySelector('.read-later-assistant-panel')).not.toBeNull();
     });
     dispose();
-    getJsonMock.mockClear();
+    const callsBeforeFocus = getJsonMock.mock.calls.length;
     window.dispatchEvent(new Event('focus'));
     await new Promise((r) => setTimeout(r, 20));
-    expect(getJsonMock).not.toHaveBeenCalled();
+    expect(getJsonMock.mock.calls.length).toBe(callsBeforeFocus);
   });
 });
 

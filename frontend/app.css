@@ -1414,6 +1414,17 @@
     border-color: #0969da;
     background: #f6f8fa;
   }
+  .read-later-assistant-picker-item--unread {
+    border-left: 3px solid #0969da;
+  }
+  .read-later-assistant-picker-item--read {
+    border-left: 3px solid transparent;
+    opacity: 0.82;
+  }
+  .read-later-assistant-picker-item--read .read-later-assistant-picker-label {
+    color: #57606a;
+    font-weight: 500;
+  }
   .read-later-assistant-picker-item--active {
     border-color: #0969da;
     background: #ddf4ff;
@@ -1451,6 +1462,17 @@
     border-radius: 10px;
     background: #f6f8fa;
     overflow: hidden;
+  }
+  .read-later-assistant-current--unread {
+    border-left: 3px solid #0969da;
+  }
+  .read-later-assistant-current--read {
+    border-left: 3px solid transparent;
+    opacity: 0.82;
+  }
+  .read-later-assistant-current--read .read-later-assistant-current-title {
+    color: #57606a;
+    font-weight: 500;
   }
   .read-later-assistant-current-main {
     padding: 12px;

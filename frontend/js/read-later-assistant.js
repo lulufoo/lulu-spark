@@ -14,9 +14,8 @@ export async function loadAssistantEntries() {
   return loadReadLaterEntries();
 }
 
-export function selectTop3Unread(entries) {
-  return entries
-    .filter((entry) => !entry.read)
+export function selectTop3Latest(entries) {
+  return [...entries]
     .sort((a, b) => {
       const aTime = Date.parse(a.saved_at ?? '') || 0;
       const bTime = Date.parse(b.saved_at ?? '') || 0;
@@ -41,7 +40,7 @@ function renderEmpty() {
   return `
     <div class="read-later-assistant-empty read-later-assistant-state">
       <p class="read-later-assistant-state-title">暂无待读</p>
-      <p class="read-later-assistant-state-detail">用 Chrome 插件保存后，最新未读会出现在这里</p>
+      <p class="read-later-assistant-state-detail">用 Chrome 插件保存后，最新条目会出现在这里</p>
     </div>
   `;
 }
@@ -59,16 +58,26 @@ function renderErrorEmpty(message = UNAVAILABLE_MSG) {
   `;
 }
 
+function entryReadClass(baseClass, read) {
+  const stateClass = read
+    ? 'read-later-assistant-current--read'
+    : 'read-later-assistant-current--unread';
+  return `${baseClass} ${stateClass}`;
+}
+
 function renderPanel(entries, selectedIndex) {
   const current = entries[selectedIndex];
   const showCycle = entries.length > 1;
   const pickerHtml = showCycle
-    ? `<div class="read-later-assistant-picker" role="tablist" aria-label="未读条目">${entries
+    ? `<div class="read-later-assistant-picker" role="tablist" aria-label="最近条目">${entries
         .map((entry, index) => {
           const activeClass =
             index === selectedIndex ? ' read-later-assistant-picker-item--active' : '';
+          const readClass = entry.read
+            ? ' read-later-assistant-picker-item--read'
+            : ' read-later-assistant-picker-item--unread';
           const label = entry.title || entry.url;
-          return `<button type="button" class="read-later-assistant-picker-item${activeClass}" data-entry-id="${escHtml(entry.id)}" data-index="${index}" title="${escHtml(label)}"><span class="read-later-assistant-picker-rank">${index + 1}</span><span class="read-later-assistant-picker-label">${escHtml(label)}</span></button>`;
+          return `<button type="button" class="read-later-assistant-picker-item${readClass}${activeClass}" data-entry-id="${escHtml(entry.id)}" data-index="${index}" title="${escHtml(label)}"><span class="read-later-assistant-picker-rank">${index + 1}</span><span class="read-later-assistant-picker-label">${escHtml(label)}</span></button>`;
         })
         .join('')}</div>`
     : '';
@@ -78,9 +87,12 @@ function renderPanel(entries, selectedIndex) {
   const cycleHtml = showCycle
     ? '<button type="button" class="read-later-assistant-cycle" aria-label="下一篇">›</button>'
     : '';
-  const currentClass = showCycle
-    ? 'read-later-assistant-current read-later-assistant-current--has-cycle'
-    : 'read-later-assistant-current';
+  const currentClass = entryReadClass(
+    showCycle
+      ? 'read-later-assistant-current read-later-assistant-current--has-cycle'
+      : 'read-later-assistant-current',
+    current.read,
+  );
 
   return `
     <div class="read-later-assistant-panel">
@@ -144,7 +156,7 @@ export function mountReadLaterAssistant(root, opts = {}) {
       try {
         const entries = await loadAssistantEntries();
         if (disposed) return;
-        top3Entries = selectTop3Unread(entries);
+        top3Entries = selectTop3Latest(entries);
         lastSuccessfulTop3 = top3Entries;
         selectedIndex = 0;
         renderCurrent();
@@ -197,11 +209,10 @@ export function mountReadLaterAssistant(root, opts = {}) {
         })
         .then(() => {
           if (disposed || !id || current?.read) return;
-          top3Entries = top3Entries.filter((entry) => entry.id !== id);
+          top3Entries = top3Entries.map((entry) =>
+            entry.id === id ? { ...entry, read: true } : entry,
+          );
           lastSuccessfulTop3 = top3Entries;
-          if (selectedIndex >= top3Entries.length) {
-            selectedIndex = Math.max(0, top3Entries.length - 1);
-          }
           renderCurrent();
         })
         .catch((err) => {
