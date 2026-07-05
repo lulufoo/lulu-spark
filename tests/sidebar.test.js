@@ -297,6 +297,29 @@ describe('renderSidebar tag filter', () => {
   });
 });
 
+describe('sidebar channel nav', () => {
+  function channelTabChannels() {
+    const tabs = [];
+    const walk = (node) => {
+      if (node.className === 'sidebar-channel-tab') tabs.push(node.dataset.channel);
+      for (const child of node.children || []) walk(child);
+    };
+    walk(sidebarEl);
+    return tabs;
+  }
+
+  it('does not render read-later channel tab', () => {
+    applyListFilters();
+    renderSidebar();
+    expect(channelTabChannels()).not.toContain('read-later');
+  });
+
+  it('does not export selectReadLaterChannel', async () => {
+    const mod = await import('../frontend/js/components/sidebar.js');
+    expect(mod.selectReadLaterChannel).toBeUndefined();
+  });
+});
+
 describe('buildGroups', () => {
   it('忽略缺少 created_at 的异常条目', () => {
     const grouped = buildGroups({

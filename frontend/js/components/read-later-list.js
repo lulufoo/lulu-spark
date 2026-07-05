@@ -53,18 +53,18 @@ export async function markEntryRead(id) {
 }
 
 export function bindFocusRefresh(refresh) {
-  const onFocus = () => {
+  const runRefresh = () => {
     void refresh();
   };
   const onVisibility = () => {
     if (document.visibilityState === 'visible') {
-      void refresh();
+      runRefresh();
     }
   };
-  window.addEventListener('focus', onFocus);
+  window.addEventListener('focus', runRefresh);
   document.addEventListener('visibilitychange', onVisibility);
   return () => {
-    window.removeEventListener('focus', onFocus);
+    window.removeEventListener('focus', runRefresh);
     document.removeEventListener('visibilitychange', onVisibility);
   };
 }
