@@ -5,7 +5,7 @@ import {
 } from './components/read-later-list.js';
 import { escHtml } from './utils.js';
 
-export { bindFocusRefresh, openExternalUrl };
+export { bindFocusRefresh };
 
 const UNAVAILABLE_MSG = '列表暂时不可用，请稍后重试';
 
@@ -60,27 +60,39 @@ function renderErrorEmpty(message = UNAVAILABLE_MSG) {
 
 function renderPanel(entries, selectedIndex) {
   const current = entries[selectedIndex];
-  const pickerItems = entries
-    .map((entry, index) => {
-      const activeClass =
-        index === selectedIndex ? ' read-later-assistant-picker-item--active' : '';
-      const label = entry.title || entry.url;
-      return `<button type="button" class="read-later-assistant-picker-item${activeClass}" data-entry-id="${escHtml(entry.id)}" data-index="${index}" title="${escHtml(label)}"><span class="read-later-assistant-picker-rank">${index + 1}</span><span class="read-later-assistant-picker-label">${escHtml(label)}</span></button>`;
-    })
-    .join('');
+  const showCycle = entries.length > 1;
+  const pickerHtml = showCycle
+    ? `<div class="read-later-assistant-picker" role="tablist" aria-label="未读条目">${entries
+        .map((entry, index) => {
+          const activeClass =
+            index === selectedIndex ? ' read-later-assistant-picker-item--active' : '';
+          const label = entry.title || entry.url;
+          return `<button type="button" class="read-later-assistant-picker-item${activeClass}" data-entry-id="${escHtml(entry.id)}" data-index="${index}" title="${escHtml(label)}"><span class="read-later-assistant-picker-rank">${index + 1}</span><span class="read-later-assistant-picker-label">${escHtml(label)}</span></button>`;
+        })
+        .join('')}</div>`
+    : '';
+
+  const url = escHtml(current.url);
+  const title = escHtml(current.title || current.url);
+  const cycleHtml = showCycle
+    ? '<button type="button" class="read-later-assistant-cycle" aria-label="下一篇">›</button>'
+    : '';
+  const currentClass = showCycle
+    ? 'read-later-assistant-current read-later-assistant-current--has-cycle'
+    : 'read-later-assistant-current';
 
   return `
     <div class="read-later-assistant-panel">
-      <div class="read-later-assistant-picker" role="tablist" aria-label="未读条目">${pickerItems}</div>
-      <article class="read-later-assistant-current">
-        <h3 class="read-later-assistant-current-title">${escHtml(current.title || current.url)}</h3>
-        <p class="read-later-assistant-current-url" title="${escHtml(current.url)}">${escHtml(current.url)}</p>
-        <p class="read-later-assistant-current-saved-at">${escHtml(formatSavedAt(current.saved_at))}</p>
-        <div class="read-later-assistant-nav">
-          <button type="button" class="read-later-assistant-prev" aria-label="上一篇">‹</button>
-          <button type="button" class="read-later-assistant-open-link">打开链接</button>
-          <button type="button" class="read-later-assistant-next" aria-label="下一篇">›</button>
+      ${pickerHtml}
+      <article class="${currentClass}">
+        <div class="read-later-assistant-current-main">
+          <a class="read-later-assistant-entry-link" href="${url}" data-url="${url}">
+            <h3 class="read-later-assistant-current-title">${title}</h3>
+            <p class="read-later-assistant-current-url" title="${url}">${url}</p>
+          </a>
+          <p class="read-later-assistant-current-saved-at">${escHtml(formatSavedAt(current.saved_at))}</p>
         </div>
+        ${cycleHtml}
       </article>
     </div>
   `;
@@ -170,27 +182,21 @@ export function mountReadLaterAssistant(root, opts = {}) {
       return;
     }
 
-    if (event.target.closest('.read-later-assistant-prev')) {
-      if (!top3Entries.length) return;
-      selectedIndex =
-        (selectedIndex - 1 + top3Entries.length) % top3Entries.length;
-      renderCurrent();
+    const entryLink = event.target.closest('.read-later-assistant-entry-link');
+    if (entryLink) {
+      event.preventDefault();
+      const url = entryLink.dataset.url || entryLink.getAttribute('href');
+      if (!url) return;
+      void openExternalUrl(url).catch((err) => {
+        console.error('[read-later-assistant] open link failed', err);
+      });
       return;
     }
 
-    if (event.target.closest('.read-later-assistant-next')) {
+    if (event.target.closest('.read-later-assistant-cycle')) {
       if (!top3Entries.length) return;
       selectedIndex = (selectedIndex + 1) % top3Entries.length;
       renderCurrent();
-      return;
-    }
-
-    if (event.target.closest('.read-later-assistant-open-link')) {
-      const current = top3Entries[selectedIndex];
-      if (!current?.url) return;
-      void openExternalUrl(current.url).catch((err) => {
-        console.error('[read-later-assistant] open link failed', err);
-      });
     }
   };
 

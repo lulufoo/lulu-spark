@@ -23,9 +23,9 @@ import {
   loadAssistantEntries,
   mountReadLaterAssistant,
   mountReadLaterAssistantWidget,
-  openExternalUrl,
   selectTop3Unread,
 } from '../frontend/js/read-later-assistant.js';
+import { openExternalUrl } from '../frontend/js/components/read-later-list.js';
 
 const fixtureRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 const mainJs = readFileSync(join(fixtureRoot, 'frontend/js/main.js'), 'utf8');
@@ -234,36 +234,50 @@ describe('mountReadLaterAssistant', () => {
     dispose();
   });
 
-  it('updates current display via next and previous controls', async () => {
+  it('opens current entry url when entry link is clicked', async () => {
     getJsonMock.mockResolvedValue(sampleEntries);
     const { dispose } = mountReadLaterAssistant(root);
     await vi.waitFor(() => {
-      expect(root.querySelector('.read-later-assistant-next')).not.toBeNull();
+      expect(root.querySelector('.read-later-assistant-entry-link')).not.toBeNull();
     });
-    expect(root.querySelector('.read-later-assistant-current-title')?.textContent).toBe(
-      'Newest Unread',
-    );
-    root.querySelector('.read-later-assistant-next').click();
-    expect(root.querySelector('.read-later-assistant-current-title')?.textContent).toBe(
-      'Extra Unread 4',
-    );
-    root.querySelector('.read-later-assistant-prev').click();
-    expect(root.querySelector('.read-later-assistant-current-title')?.textContent).toBe(
-      'Newest Unread',
-    );
-    dispose();
-  });
-
-  it('opens current entry url in system browser when open link is clicked', async () => {
-    getJsonMock.mockResolvedValue(sampleEntries);
-    const { dispose } = mountReadLaterAssistant(root);
-    await vi.waitFor(() => {
-      expect(root.querySelector('.read-later-assistant-open-link')).not.toBeNull();
-    });
-    root.querySelector('.read-later-assistant-open-link').click();
+    root.querySelector('.read-later-assistant-entry-link').click();
     await vi.waitFor(() => {
       expect(openUrlMock).toHaveBeenCalledWith('https://example.com/newest-unread');
     });
+    dispose();
+  });
+
+  it('hides cycle control and picker when only one unread entry', async () => {
+    getJsonMock.mockResolvedValue([sampleEntries[3]]);
+    const { dispose } = mountReadLaterAssistant(root);
+    await vi.waitFor(() => {
+      expect(root.querySelector('.read-later-assistant-panel')).not.toBeNull();
+    });
+    expect(root.querySelector('.read-later-assistant-cycle')).toBeNull();
+    expect(root.querySelector('.read-later-assistant-picker')).toBeNull();
+    expect(root.querySelector('.read-later-assistant-entry-link')).not.toBeNull();
+    dispose();
+  });
+
+  it('cycles current display via single next arrow control', async () => {
+    getJsonMock.mockResolvedValue(sampleEntries);
+    const { dispose } = mountReadLaterAssistant(root);
+    await vi.waitFor(() => {
+      expect(root.querySelector('.read-later-assistant-cycle')).not.toBeNull();
+    });
+    expect(root.querySelector('.read-later-assistant-prev')).toBeNull();
+    expect(root.querySelector('.read-later-assistant-open-link')).toBeNull();
+    expect(root.querySelector('.read-later-assistant-current-title')?.textContent).toBe(
+      'Newest Unread',
+    );
+    root.querySelector('.read-later-assistant-cycle').click();
+    expect(root.querySelector('.read-later-assistant-current-title')?.textContent).toBe(
+      'Extra Unread 4',
+    );
+    root.querySelector('.read-later-assistant-cycle').click();
+    expect(root.querySelector('.read-later-assistant-current-title')?.textContent).toBe(
+      'Mid Unread',
+    );
     dispose();
   });
 
