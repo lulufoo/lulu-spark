@@ -60,25 +60,7 @@ describe('readLaterApi.save', () => {
     expect(result).toEqual({ ok: true, status: 201, entry });
   });
 
-  it('returns ok:false with status 503 when Workbench is unavailable', async () => {
-    fetch.mockResolvedValue({
-      status: 503,
-      json: async () => ({ error: 'Workbench not running' }),
-    });
-
-    const result = await save({
-      url: 'https://example.com',
-      title: 'Example',
-    });
-
-    expect(result).toEqual({
-      ok: false,
-      status: 503,
-      error: 'Workbench not running',
-    });
-  });
-
-  it('returns ok:false with status 0 on network failure', async () => {
+  it('returns ok:false with status 0 on network failure when Workbench is unavailable', async () => {
     fetch.mockRejectedValue(new TypeError('Failed to fetch'));
 
     const result = await save({
@@ -89,6 +71,59 @@ describe('readLaterApi.save', () => {
     expect(result.ok).toBe(false);
     expect(result.status).toBe(0);
     expect(result.error).toMatch(/fetch/i);
+  });
+
+  it('does not special-case HTTP 503 (handler does not return 503)', async () => {
+    fetch.mockResolvedValue({
+      status: 503,
+      json: async () => ({}),
+    });
+
+    const result = await save({
+      url: 'https://example.com',
+      title: 'Example',
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      status: 503,
+      error: 'HTTP 503',
+    });
+  });
+
+  it('returns 201 for duplicate URL saves (each POST creates a new entry)', async () => {
+    const firstEntry = {
+      id: 'abc123',
+      url: 'https://example.com',
+      title: 'Example',
+      saved_at: '2026-07-02T00:00:00Z',
+      read: false,
+    };
+    const secondEntry = {
+      id: 'def456',
+      url: 'https://example.com',
+      title: 'Example again',
+      saved_at: '2026-07-02T01:00:00Z',
+      read: false,
+    };
+
+    fetch
+      .mockResolvedValueOnce({
+        status: 201,
+        json: async () => firstEntry,
+      })
+      .mockResolvedValueOnce({
+        status: 201,
+        json: async () => secondEntry,
+      });
+
+    const payload = { url: 'https://example.com', title: 'Example' };
+    const first = await save(payload);
+    const second = await save({ ...payload, title: 'Example again' });
+
+    expect(first).toEqual({ ok: true, status: 201, entry: firstEntry });
+    expect(second).toEqual({ ok: true, status: 201, entry: secondEntry });
+    expect(fetch).toHaveBeenCalledTimes(2);
   });
 });
 
@@ -102,16 +137,7 @@ describe('badgeFeedbackForResult', () => {
     });
   });
 
-  it('shows Workbench offline message on 503', () => {
-    expect(
-      badgeFeedbackForResult({ ok: false, status: 503 })
-    ).toEqual({
-      badgeText: '!',
-      title: '请先启动 Workbench',
-    });
-  });
-
-  it('shows network error message on status 0', () => {
+  it('shows Workbench unavailable message on status 0 (network failure)', () => {
     expect(
       badgeFeedbackForResult({
         ok: false,
@@ -120,7 +146,7 @@ describe('badgeFeedbackForResult', () => {
       })
     ).toEqual({
       badgeText: '!',
-      title: '网络错误，请检查 Workbench',
+      title: '请先启动 Workbench',
     });
   });
 });

@@ -21,14 +21,6 @@ export async function save({ url, title }) {
       return { ok: true, status: 201, entry: data };
     }
 
-    if (response.status === 503) {
-      return {
-        ok: false,
-        status: 503,
-        error: data.error || 'Workbench not running',
-      };
-    }
-
     return {
       ok: false,
       status: response.status,
