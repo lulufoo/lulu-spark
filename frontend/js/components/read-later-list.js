@@ -153,7 +153,7 @@ export function mountReadLaterList(container) {
         if (disposed) return;
         lastSuccessfulEntries = entries;
         renderList(container, entries);
-      } catch (err) {
+      } catch {
         if (disposed) return;
         if (lastSuccessfulEntries !== null) {
           renderUnavailableState(container, {
