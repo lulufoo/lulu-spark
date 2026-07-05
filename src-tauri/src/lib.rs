@@ -13,13 +13,33 @@ use std::time::{Duration, Instant};
 #[cfg(not(test))]
 use tauri::webview::{NewWindowResponse, WebviewWindowBuilder};
 #[cfg(not(test))]
-use tauri::{Manager, Url};
+use tauri::{Manager, Url, WebviewUrl, WindowEvent};
 #[cfg(not(test))]
 use tauri_plugin_opener::OpenerExt;
 
 const CONNECT_TIMEOUT: Duration = Duration::from_millis(100);
 const RETRY_INTERVAL: Duration = Duration::from_millis(500);
 pub const DEFAULT_MCP_PORT: u16 = 9876;
+pub const READ_LATER_ASSISTANT_LABEL: &str = "read-later-assistant";
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct ReadLaterAssistantWindowSpec {
+    pub label: &'static str,
+    pub entry: &'static str,
+    pub always_on_top: bool,
+}
+
+pub fn read_later_assistant_entry_path() -> &'static str {
+    "read-later-assistant.html"
+}
+
+pub fn read_later_assistant_spec() -> ReadLaterAssistantWindowSpec {
+    ReadLaterAssistantWindowSpec {
+        label: READ_LATER_ASSISTANT_LABEL,
+        entry: read_later_assistant_entry_path(),
+        always_on_top: true,
+    }
+}
 
 fn localhost_addrs(port: u16) -> Vec<SocketAddr> {
     format!("localhost:{port}")
@@ -287,7 +307,7 @@ fn create_main_window(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>
         .ok_or("tauri.conf.json must define at least one window")?;
 
     let app_handle = app.handle().clone();
-    WebviewWindowBuilder::from_config(app, window_config)?
+    let window = WebviewWindowBuilder::from_config(app, window_config)?
         .on_navigation({
             let app_handle = app_handle.clone();
             move |url| {
@@ -312,6 +332,29 @@ fn create_main_window(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>
             }
         })
         .build()?;
+
+    let hide_target = window.clone();
+    window.on_window_event(move |event| {
+        if let WindowEvent::CloseRequested { api, .. } = event {
+            api.prevent_close();
+            let _ = hide_target.hide();
+        }
+    });
+    Ok(())
+}
+
+#[cfg(not(test))]
+fn create_read_later_assistant_window(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
+    if app.get_webview_window(READ_LATER_ASSISTANT_LABEL).is_some() {
+        return Ok(());
+    }
+    WebviewWindowBuilder::new(
+        app,
+        "read-later-assistant",
+        WebviewUrl::App("read-later-assistant.html".into()),
+    )
+    .always_on_top(true)
+    .build()?;
     Ok(())
 }
 
@@ -410,6 +453,9 @@ pub fn run() {
             app.manage(local_http);
 
             create_main_window(app)?;
+            if let Err(error) = create_read_later_assistant_window(app) {
+                eprintln!("[read-later-assistant] window create failed: {error}");
+            }
             app.manage(services::reindex::ReindexState::new());
 
             let app_handle = app.handle().clone();
@@ -470,3 +516,7 @@ mod spawn_decision_tests;
 #[cfg(test)]
 #[path = "unit-tests/lib/knowledge_mcp_tests.rs"]
 mod knowledge_mcp_tests;
+
+#[cfg(test)]
+#[path = "unit-tests/lib/read_later_assistant_window_tests.rs"]
+mod read_later_assistant_window_tests;
