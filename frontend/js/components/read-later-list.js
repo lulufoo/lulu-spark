@@ -1,6 +1,8 @@
 import { createApiClient, resolveReadDriver } from '../apiClient.js';
 import { escHtml } from '../utils.js';
 
+const UNAVAILABLE_MSG = '列表暂时不可用，请稍后重试';
+
 function getTauriInvoke() {
   if (typeof window === 'undefined') return null;
   const invoke =
@@ -50,6 +52,23 @@ export async function markEntryRead(id) {
   if (unavailable) throw unavailable;
 }
 
+export function bindFocusRefresh(refresh) {
+  const onFocus = () => {
+    void refresh();
+  };
+  const onVisibility = () => {
+    if (document.visibilityState === 'visible') {
+      void refresh();
+    }
+  };
+  window.addEventListener('focus', onFocus);
+  document.addEventListener('visibilitychange', onVisibility);
+  return () => {
+    window.removeEventListener('focus', onFocus);
+    document.removeEventListener('visibilitychange', onVisibility);
+  };
+}
+
 function renderEntry(entry) {
   const readClass = entry.read
     ? 'read-later-item--read'
@@ -67,12 +86,26 @@ function renderEntry(entry) {
   `;
 }
 
-function renderList(container, entries) {
+function renderUnavailableBanner(message = UNAVAILABLE_MSG) {
+  return `<div class="read-later-unavailable">${escHtml(message)}</div>`;
+}
+
+function renderErrorEmpty(message = UNAVAILABLE_MSG) {
+  return `
+    <div class="read-later-empty">暂无待读</div>
+    ${renderUnavailableBanner(message)}
+  `;
+}
+
+function renderList(container, entries, { showUnavailable = false } = {}) {
+  const bannerHtml = showUnavailable ? renderUnavailableBanner() : '';
   if (!entries.length) {
-    container.innerHTML = '<div class="read-later-empty">暂无待读</div>';
+    container.innerHTML = showUnavailable
+      ? renderErrorEmpty()
+      : '<div class="read-later-empty">暂无待读</div>';
     return;
   }
-  container.innerHTML = `<ul class="read-later-list">${entries.map(renderEntry).join('')}</ul>`;
+  container.innerHTML = `${bannerHtml}<ul class="read-later-list">${entries.map(renderEntry).join('')}</ul>`;
 }
 
 function updateEntryRead(container, id) {
@@ -81,28 +114,48 @@ function updateEntryRead(container, id) {
   item.classList.remove('read-later-item--unread');
   item.classList.add('read-later-item--read');
   item.querySelector('.read-later-mark-read')?.remove();
+  item.querySelector('.read-later-action-error')?.remove();
 }
 
 export function mountReadLaterList(container) {
   let disposed = false;
+  let lastSuccessfulEntries = null;
+  let refreshPromise = null;
 
   container.innerHTML = '<div class="read-later-loading">加载中…</div>';
 
   async function refresh() {
-    try {
-      const entries = await loadReadLaterEntries();
-      if (disposed) return;
-      renderList(container, entries);
-    } catch (err) {
-      if (disposed) return;
-      if (err?.status === 503) {
-        container.innerHTML =
-          '<div class="read-later-unavailable">请先启动 Workbench</div>';
-        return;
-      }
-      container.innerHTML = `<div class="read-later-error">${escHtml(err?.message || '加载失败')}</div>`;
+    if (refreshPromise) {
+      return refreshPromise;
     }
+
+    refreshPromise = (async () => {
+      const hasSnapshot = lastSuccessfulEntries !== null;
+      if (!hasSnapshot) {
+        container.innerHTML = '<div class="read-later-loading">加载中…</div>';
+      }
+
+      try {
+        const entries = await loadReadLaterEntries();
+        if (disposed) return;
+        lastSuccessfulEntries = entries;
+        renderList(container, entries);
+      } catch (err) {
+        if (disposed) return;
+        if (lastSuccessfulEntries !== null) {
+          renderList(container, lastSuccessfulEntries, { showUnavailable: true });
+        } else {
+          container.innerHTML = renderErrorEmpty();
+        }
+      }
+    })().finally(() => {
+      refreshPromise = null;
+    });
+
+    return refreshPromise;
   }
+
+  const disposeFocusRefresh = bindFocusRefresh(refresh);
 
   const onClick = (event) => {
     const btn = event.target.closest('.read-later-mark-read');
@@ -110,26 +163,38 @@ export function mountReadLaterList(container) {
     const { id } = btn.dataset;
     if (!id) return;
     btn.disabled = true;
+    btn.closest('.read-later-item')?.querySelector('.read-later-action-error')?.remove();
     void markEntryRead(id)
       .then(() => {
         if (disposed) return;
         updateEntryRead(container, id);
+        if (lastSuccessfulEntries) {
+          lastSuccessfulEntries = lastSuccessfulEntries.map((entry) =>
+            entry.id === id ? { ...entry, read: true } : entry,
+          );
+        }
       })
       .catch((err) => {
         if (disposed) return;
         btn.disabled = false;
-        console.error('markEntryRead failed', err);
+        const item = btn.closest('.read-later-item');
+        if (!item) return;
+        const errEl = document.createElement('div');
+        errEl.className = 'read-later-action-error';
+        errEl.textContent = err?.message || '标记已读失败';
+        item.appendChild(errEl);
       });
   };
 
   container.addEventListener('click', onClick);
   void refresh();
 
-  return {
-    unmount() {
-      disposed = true;
-      container.removeEventListener('click', onClick);
-      container.innerHTML = '';
-    },
-  };
+  function dispose() {
+    disposed = true;
+    disposeFocusRefresh();
+    container.removeEventListener('click', onClick);
+    container.innerHTML = '';
+  }
+
+  return { dispose, unmount: dispose };
 }

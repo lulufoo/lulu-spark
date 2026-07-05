@@ -20,6 +20,7 @@ vi.mock('../frontend/js/apiClient.js', async (importOriginal) => {
 
 import { parseHash } from '../frontend/js/router/index.js';
 import {
+  bindFocusRefresh,
   loadReadLaterEntries,
   markEntryRead,
   mountReadLaterList,
@@ -123,28 +124,33 @@ describe('read-later route', () => {
   });
 
   describe('mountReadLaterRoute view visibility', () => {
-    let unmountReadLaterList;
+    let routeUnmount;
 
     beforeEach(() => {
       seedReadLaterRouteDom();
-      unmountReadLaterList = null;
+      routeUnmount = null;
       getJsonMock.mockResolvedValue([sampleEntries[0]]);
     });
 
     afterEach(() => {
-      unmountReadLaterList?.();
-      unmountReadLaterList = null;
+      routeUnmount?.();
+      routeUnmount = null;
     });
 
     function invokeMountReadLaterRoute() {
       const factory = createMountReadLaterRouteFromMain();
       expect(factory).not.toBeNull();
+      const mountWithCapture = (container) => {
+        const handle = mountReadLaterList(container);
+        routeUnmount = handle.dispose;
+        return { ...handle, unmount: handle.dispose };
+      };
       const mountReadLaterRoute = factory(
         null,
         null,
-        unmountReadLaterList,
+        null,
         document.getElementById('feed-view'),
-        mountReadLaterList,
+        mountWithCapture,
         () => {
           const homeView = document.getElementById('home-view');
           if (homeView) homeView.style.display = 'none';
@@ -156,7 +162,7 @@ describe('read-later route', () => {
           if (layout) layout.style.display = 'none';
         },
       );
-      return mountReadLaterRoute();
+      mountReadLaterRoute();
     }
 
     it('shows read-later-view and hides other top-level views', async () => {
@@ -232,6 +238,52 @@ describe('markEntryRead', () => {
   });
 });
 
+describe('bindFocusRefresh', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('calls refresh on window focus', () => {
+    const refresh = vi.fn().mockResolvedValue(undefined);
+    const dispose = bindFocusRefresh(refresh);
+    window.dispatchEvent(new Event('focus'));
+    expect(refresh).toHaveBeenCalledTimes(1);
+    dispose();
+  });
+
+  it('calls refresh when document becomes visible', () => {
+    const refresh = vi.fn().mockResolvedValue(undefined);
+    const dispose = bindFocusRefresh(refresh);
+    Object.defineProperty(document, 'visibilityState', {
+      configurable: true,
+      value: 'visible',
+    });
+    document.dispatchEvent(new Event('visibilitychange'));
+    expect(refresh).toHaveBeenCalledTimes(1);
+    dispose();
+  });
+
+  it('does not call refresh when document becomes hidden', () => {
+    const refresh = vi.fn().mockResolvedValue(undefined);
+    const dispose = bindFocusRefresh(refresh);
+    Object.defineProperty(document, 'visibilityState', {
+      configurable: true,
+      value: 'hidden',
+    });
+    document.dispatchEvent(new Event('visibilitychange'));
+    expect(refresh).not.toHaveBeenCalled();
+    dispose();
+  });
+
+  it('dispose removes listeners so later events do not refresh', () => {
+    const refresh = vi.fn().mockResolvedValue(undefined);
+    const dispose = bindFocusRefresh(refresh);
+    dispose();
+    window.dispatchEvent(new Event('focus'));
+    expect(refresh).not.toHaveBeenCalled();
+  });
+});
+
 describe('mountReadLaterList', () => {
   let container;
 
@@ -241,6 +293,10 @@ describe('mountReadLaterList', () => {
     getJsonMock.mockReset();
     invokeMock.mockReset();
     window.__TAURI__ = { core: { invoke: invokeMock } };
+    Object.defineProperty(document, 'visibilityState', {
+      configurable: true,
+      value: 'visible',
+    });
   });
 
   afterEach(() => {
@@ -250,7 +306,7 @@ describe('mountReadLaterList', () => {
 
   it('renders title, url, and saved_at after mount', async () => {
     getJsonMock.mockResolvedValue([sampleEntries[0]]);
-    const { unmount } = mountReadLaterList(container);
+    const { dispose } = mountReadLaterList(container);
     await vi.waitFor(() => {
       expect(container.querySelector('.read-later-item')).not.toBeNull();
     });
@@ -264,12 +320,12 @@ describe('mountReadLaterList', () => {
     expect(item.querySelector('.read-later-saved-at')?.textContent).toBe(
       '2026-07-01T10:00:00Z',
     );
-    unmount();
+    dispose();
   });
 
   it('distinguishes unread and read entry styles', async () => {
     getJsonMock.mockResolvedValue(sampleEntries);
-    const { unmount } = mountReadLaterList(container);
+    const { dispose } = mountReadLaterList(container);
     await vi.waitFor(() => {
       expect(container.querySelectorAll('.read-later-item')).toHaveLength(2);
     });
@@ -283,28 +339,154 @@ describe('mountReadLaterList', () => {
         'read-later-item--read',
       ),
     ).toBe(true);
-    unmount();
+    dispose();
   });
 
   it('shows empty state for empty list without error', async () => {
     getJsonMock.mockResolvedValue([]);
-    const { unmount } = mountReadLaterList(container);
+    const { dispose } = mountReadLaterList(container);
     await vi.waitFor(() => {
       expect(container.querySelector('.read-later-empty')).not.toBeNull();
     });
-    expect(container.querySelector('.read-later-error')).toBeNull();
-    unmount();
+    expect(container.querySelector('.read-later-unavailable')).toBeNull();
+    dispose();
   });
 
-  it('shows 请先启动 Workbench on 503', async () => {
+  it('refreshes list on window focus', async () => {
+    getJsonMock.mockResolvedValue([sampleEntries[0]]);
+    const { dispose } = mountReadLaterList(container);
+    await vi.waitFor(() => {
+      expect(container.querySelector('.read-later-item')).not.toBeNull();
+    });
+    getJsonMock.mockResolvedValue([
+      { ...sampleEntries[0], title: 'Updated After Focus' },
+    ]);
+    window.dispatchEvent(new Event('focus'));
+    await vi.waitFor(() => {
+      expect(getJsonMock).toHaveBeenCalledTimes(2);
+    });
+    await vi.waitFor(() => {
+      expect(container.querySelector('.read-later-title')?.textContent).toBe(
+        'Updated After Focus',
+      );
+    });
+    dispose();
+  });
+
+  it('refreshes list when document visibility becomes visible', async () => {
+    getJsonMock.mockResolvedValue([sampleEntries[0]]);
+    const { dispose } = mountReadLaterList(container);
+    await vi.waitFor(() => {
+      expect(container.querySelector('.read-later-item')).not.toBeNull();
+    });
+    getJsonMock.mockResolvedValue([
+      { ...sampleEntries[0], title: 'Updated After Visibility' },
+    ]);
+    document.dispatchEvent(new Event('visibilitychange'));
+    await vi.waitFor(() => {
+      expect(getJsonMock).toHaveBeenCalledTimes(2);
+    });
+    await vi.waitFor(() => {
+      expect(container.querySelector('.read-later-title')?.textContent).toBe(
+        'Updated After Visibility',
+      );
+    });
+    dispose();
+  });
+
+  it('keeps prior snapshot visible while focus refresh is in flight', async () => {
+    let resolveRefresh;
+    getJsonMock
+      .mockResolvedValueOnce([sampleEntries[0]])
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolveRefresh = resolve;
+          }),
+      );
+    const { dispose } = mountReadLaterList(container);
+    await vi.waitFor(() => {
+      expect(container.querySelector('.read-later-item')).not.toBeNull();
+    });
+    window.dispatchEvent(new Event('focus'));
+    expect(container.querySelector('.read-later-item')).not.toBeNull();
+    expect(container.querySelector('.read-later-empty')).toBeNull();
+    resolveRefresh([{ ...sampleEntries[0], title: 'After Slow Refresh' }]);
+    await vi.waitFor(() => {
+      expect(container.querySelector('.read-later-title')?.textContent).toBe(
+        'After Slow Refresh',
+      );
+    });
+    dispose();
+  });
+
+  it('shows error-empty on first mount GET failure (connection error)', async () => {
+    getJsonMock.mockRejectedValue(new Error('Failed to fetch'));
+    const { dispose } = mountReadLaterList(container);
+    await vi.waitFor(() => {
+      expect(container.querySelector('.read-later-empty')).not.toBeNull();
+      expect(container.querySelector('.read-later-unavailable')).not.toBeNull();
+    });
+    expect(container.querySelector('.read-later-item')).toBeNull();
+    expect(container.textContent).not.toContain('请先启动 Workbench');
+    dispose();
+  });
+
+  it('shows error-empty on first mount handler failure', async () => {
+    getJsonMock.mockRejectedValue(Object.assign(new Error('HTTP 500'), { status: 500 }));
+    const { dispose } = mountReadLaterList(container);
+    await vi.waitFor(() => {
+      expect(container.querySelector('.read-later-empty')).not.toBeNull();
+      expect(container.querySelector('.read-later-unavailable')).not.toBeNull();
+    });
+    expect(container.querySelector('.read-later-item')).toBeNull();
+    dispose();
+  });
+
+  it('does not use stale 503-specific unavailable copy', async () => {
     getJsonMock.mockResolvedValue({
       error: 'Workbench not running',
       _status: 503,
     });
-    mountReadLaterList(container);
+    const { dispose } = mountReadLaterList(container);
     await vi.waitFor(() => {
-      expect(container.textContent).toContain('请先启动 Workbench');
+      expect(container.querySelector('.read-later-unavailable')).not.toBeNull();
     });
+    expect(container.textContent).not.toContain('请先启动 Workbench');
+    dispose();
+  });
+
+  it('retains snapshot with unavailable banner on focus refresh handler error', async () => {
+    getJsonMock.mockResolvedValueOnce([sampleEntries[0]]);
+    const { dispose } = mountReadLaterList(container);
+    await vi.waitFor(() => {
+      expect(container.querySelector('.read-later-item')).not.toBeNull();
+    });
+    getJsonMock.mockRejectedValueOnce(
+      Object.assign(new Error('HTTP 500'), { status: 500 }),
+    );
+    window.dispatchEvent(new Event('focus'));
+    await vi.waitFor(() => {
+      expect(container.querySelector('.read-later-item')).not.toBeNull();
+      expect(container.querySelector('.read-later-unavailable')).not.toBeNull();
+    });
+    expect(container.querySelector('.read-later-empty')).toBeNull();
+    dispose();
+  });
+
+  it('retains snapshot with unavailable banner on focus refresh connection error', async () => {
+    getJsonMock.mockResolvedValueOnce(sampleEntries);
+    const { dispose } = mountReadLaterList(container);
+    await vi.waitFor(() => {
+      expect(container.querySelectorAll('.read-later-item')).toHaveLength(2);
+    });
+    getJsonMock.mockRejectedValueOnce(new Error('Failed to fetch'));
+    window.dispatchEvent(new Event('focus'));
+    await vi.waitFor(() => {
+      expect(container.querySelectorAll('.read-later-item')).toHaveLength(2);
+      expect(container.querySelector('.read-later-unavailable')).not.toBeNull();
+    });
+    dispose();
   });
 
   it('mark read button invokes mark_read_later and updates UI', async () => {
@@ -312,7 +494,7 @@ describe('mountReadLaterList', () => {
     invokeMock.mockResolvedValue({
       entry: { ...sampleEntries[0], read: true },
     });
-    const { unmount } = mountReadLaterList(container);
+    const { dispose } = mountReadLaterList(container);
     await vi.waitFor(() => {
       expect(container.querySelector('.read-later-mark-read')).not.toBeNull();
     });
@@ -330,18 +512,39 @@ describe('mountReadLaterList', () => {
           ?.classList.contains('read-later-item--read'),
       ).toBe(true);
     });
-    unmount();
+    dispose();
   });
 
-  it('unmount clears container and stops updates', async () => {
+  it('shows action error and re-enables button when mark_read_later fails', async () => {
+    getJsonMock.mockResolvedValue([sampleEntries[0]]);
+    invokeMock.mockRejectedValue(new Error('IPC failed'));
+    const { dispose } = mountReadLaterList(container);
+    await vi.waitFor(() => {
+      expect(container.querySelector('.read-later-mark-read')).not.toBeNull();
+    });
+    const btn = container.querySelector('.read-later-mark-read');
+    btn.click();
+    await vi.waitFor(() => {
+      expect(container.querySelector('.read-later-action-error')).not.toBeNull();
+    });
+    expect(btn.disabled).toBe(false);
+    expect(
+      container
+        .querySelector('[data-entry-id="abc123"]')
+        ?.classList.contains('read-later-item--unread'),
+    ).toBe(true);
+    dispose();
+  });
+
+  it('dispose clears container and stops updates', async () => {
     getJsonMock.mockImplementation(
       () =>
         new Promise((resolve) => {
           setTimeout(() => resolve(sampleEntries), 50);
         }),
     );
-    const { unmount } = mountReadLaterList(container);
-    unmount();
+    const { dispose } = mountReadLaterList(container);
+    dispose();
     expect(container.innerHTML).toBe('');
     await new Promise((r) => setTimeout(r, 60));
     expect(container.innerHTML).toBe('');
