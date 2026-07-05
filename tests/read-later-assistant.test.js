@@ -22,11 +22,13 @@ import {
   bindFocusRefresh,
   loadAssistantEntries,
   mountReadLaterAssistant,
+  mountReadLaterAssistantWidget,
   openExternalUrl,
   selectTop3Unread,
 } from '../frontend/js/read-later-assistant.js';
 
 const fixtureRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
+const mainJs = readFileSync(join(fixtureRoot, 'frontend/js/main.js'), 'utf8');
 const assistantHtml = readFileSync(
   join(fixtureRoot, 'frontend/read-later-assistant.html'),
   'utf8',
@@ -198,8 +200,7 @@ describe('mountReadLaterAssistant', () => {
     getJsonMock.mockRejectedValue(new Error('Failed to fetch'));
     const { dispose } = mountReadLaterAssistant(root);
     await vi.waitFor(() => {
-      expect(root.querySelector('.read-later-assistant-empty')).not.toBeNull();
-      expect(root.querySelector('.read-later-assistant-unavailable')).not.toBeNull();
+      expect(root.querySelector('.read-later-assistant-state--error')).not.toBeNull();
     });
     expect(root.querySelector('.read-later-assistant-picker-item')).toBeNull();
     expect(root.querySelector('.read-later-assistant-current-title')).toBeNull();
@@ -210,7 +211,7 @@ describe('mountReadLaterAssistant', () => {
     getJsonMock.mockRejectedValue(Object.assign(new Error('HTTP 500'), { status: 500 }));
     const { dispose } = mountReadLaterAssistant(root);
     await vi.waitFor(() => {
-      expect(root.querySelector('.read-later-assistant-unavailable')).not.toBeNull();
+      expect(root.querySelector('.read-later-assistant-state--error')).not.toBeNull();
     });
     expect(root.querySelector('.read-later-assistant-picker-item')).toBeNull();
     dispose();
@@ -492,5 +493,54 @@ describe('bindFocusRefresh (assistant)', () => {
     dispose();
     window.dispatchEvent(new Event('focus'));
     expect(refresh).not.toHaveBeenCalled();
+  });
+});
+
+describe('mountReadLaterAssistantWidget', () => {
+  let anchor;
+
+  beforeEach(() => {
+    anchor = document.createElement('div');
+    document.body.appendChild(anchor);
+    getJsonMock.mockReset();
+  });
+
+  afterEach(() => {
+    anchor.remove();
+    document.querySelectorAll('.rl-assistant-widget').forEach((el) => el.remove());
+  });
+
+  it('renders fixed launcher hidden panel by default', () => {
+    mountReadLaterAssistantWidget(anchor);
+    expect(document.querySelector('.rl-assistant-fab')).not.toBeNull();
+    expect(document.querySelector('.rl-assistant-popover')?.hidden).toBe(true);
+  });
+
+  it('opens popover beside launcher and loads Top3 on first open', async () => {
+    getJsonMock.mockResolvedValue(sampleEntries);
+    const { setOpen } = mountReadLaterAssistantWidget(anchor);
+    setOpen(true);
+    const popover = document.querySelector('.rl-assistant-popover');
+    expect(popover?.hidden).toBe(false);
+    await vi.waitFor(() => {
+      expect(document.querySelector('.read-later-assistant-panel')).not.toBeNull();
+    });
+  });
+
+  it('closes popover via close button', async () => {
+    getJsonMock.mockResolvedValue(sampleEntries);
+    const { setOpen } = mountReadLaterAssistantWidget(anchor);
+    setOpen(true);
+    await vi.waitFor(() => {
+      expect(document.querySelector('.read-later-assistant-panel')).not.toBeNull();
+    });
+    document.querySelector('.rl-assistant-close')?.click();
+    expect(document.querySelector('.rl-assistant-popover')?.hidden).toBe(true);
+  });
+});
+
+describe('main window assistant integration', () => {
+  it('main.js mounts in-window assistant widget instead of separate route shell', () => {
+    expect(mainJs).toMatch(/mountReadLaterAssistantWidget/);
   });
 });

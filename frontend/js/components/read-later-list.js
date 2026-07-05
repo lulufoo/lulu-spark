@@ -10,6 +10,20 @@ function getTauriInvoke() {
   return typeof invoke === 'function' ? invoke : null;
 }
 
+function getTauriOpener() {
+  if (typeof window === 'undefined') return null;
+  const openUrl = window.__TAURI__?.opener?.openUrl;
+  return typeof openUrl === 'function' ? openUrl.bind(window.__TAURI__.opener) : null;
+}
+
+export async function openExternalUrl(url) {
+  const openUrl = getTauriOpener();
+  if (!openUrl) {
+    throw new Error('Tauri opener unavailable');
+  }
+  await openUrl(url);
+}
+
 function serviceError(data) {
   if (!data || typeof data !== 'object' || Array.isArray(data)) return null;
   if (!data.error) return null;
@@ -25,6 +39,18 @@ function httpStatusError(error) {
   const err = new Error(message);
   err.status = Number(match[1]);
   return err;
+}
+
+function formatSavedAt(savedAt) {
+  if (!savedAt) return '';
+  const date = new Date(savedAt);
+  if (Number.isNaN(date.getTime())) return savedAt;
+  return date.toLocaleString('zh-CN', {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
 }
 
 export async function loadReadLaterEntries() {
@@ -52,6 +78,16 @@ export async function markEntryRead(id) {
   if (unavailable) throw unavailable;
 }
 
+export async function deleteReadLaterEntry(id) {
+  const invoke = getTauriInvoke();
+  if (!invoke) {
+    throw new Error('Tauri invoke unavailable');
+  }
+  const result = await invoke('delete_read_later', { id });
+  const unavailable = serviceError(result);
+  if (unavailable) throw unavailable;
+}
+
 export function bindFocusRefresh(refresh) {
   const runRefresh = () => {
     void refresh();
@@ -69,73 +105,143 @@ export function bindFocusRefresh(refresh) {
   };
 }
 
-function renderEntry(entry) {
-  const readClass = entry.read
-    ? 'read-later-item--read'
-    : 'read-later-item--unread';
-  const markBtn = entry.read
-    ? ''
-    : `<button type="button" class="read-later-mark-read" data-id="${escHtml(entry.id)}">标记已读</button>`;
+/** @typedef {'all' | 'unread'} ReadLaterFilter */
+
+function sortEntries(entries) {
+  return [...entries].sort((a, b) => {
+    const aTime = Date.parse(a.saved_at ?? '') || 0;
+    const bTime = Date.parse(b.saved_at ?? '') || 0;
+    return bTime - aTime;
+  });
+}
+
+function filterEntries(entries, filter) {
+  if (filter === 'unread') {
+    return sortEntries(entries.filter((entry) => !entry.read));
+  }
+  return sortEntries(entries);
+}
+
+function renderTabs(activeFilter) {
+  const allActive = activeFilter === 'all' ? ' read-later-tab--active' : '';
+  const unreadActive = activeFilter === 'unread' ? ' read-later-tab--active' : '';
   return `
-    <li class="read-later-item ${readClass}" data-entry-id="${escHtml(entry.id)}">
-      <div class="read-later-title">${escHtml(entry.title || entry.url)}</div>
-      <div class="read-later-url">${escHtml(entry.url)}</div>
-      <div class="read-later-saved-at">${escHtml(entry.saved_at ?? '')}</div>
-      ${markBtn}
+    <div class="read-later-tabs" role="tablist" aria-label="待读筛选">
+      <button type="button" class="read-later-tab${allActive}" data-filter="all" role="tab" aria-selected="${activeFilter === 'all'}">所有</button>
+      <button type="button" class="read-later-tab${unreadActive}" data-filter="unread" role="tab" aria-selected="${activeFilter === 'unread'}">未读</button>
+    </div>
+  `;
+}
+
+function renderLinkEntry(entry) {
+  const title = escHtml(entry.title || entry.url);
+  const url = escHtml(entry.url);
+  const savedAt = formatSavedAt(entry.saved_at);
+  const meta = savedAt ? `<span class="read-later-link-meta">${escHtml(savedAt)}</span>` : '';
+  const readClass = entry.read ? ' read-later-item--read' : ' read-later-item--unread';
+  return `
+    <li class="read-later-item${readClass}" data-entry-id="${escHtml(entry.id)}">
+      <a class="read-later-link" href="${url}" data-url="${url}">
+        <span class="read-later-link-title">${title}</span>
+        ${meta}
+      </a>
+      <button type="button" class="read-later-delete" data-id="${escHtml(entry.id)}" aria-label="删除">×</button>
     </li>
   `;
+}
+
+function emptyMessage(filter) {
+  return filter === 'unread' ? '暂无待读' : '暂无条目';
 }
 
 function renderUnavailableBanner(message = UNAVAILABLE_MSG) {
   return `<div class="read-later-unavailable">${escHtml(message)}</div>`;
 }
 
-function renderErrorEmpty(message = UNAVAILABLE_MSG) {
+function renderErrorEmpty(message = UNAVAILABLE_MSG, filter = 'unread') {
   return `
-    <div class="read-later-empty">暂无待读</div>
+    <div class="read-later-empty">${emptyMessage(filter)}</div>
     ${renderUnavailableBanner(message)}
   `;
 }
 
-function renderList(container, entries, { showUnavailable = false, message = UNAVAILABLE_MSG } = {}) {
+function renderListBody(entries, { showUnavailable = false, message = UNAVAILABLE_MSG, filter = 'unread' } = {}) {
   const bannerHtml = showUnavailable ? renderUnavailableBanner(message) : '';
-  if (!entries.length) {
-    container.innerHTML = showUnavailable
-      ? renderErrorEmpty(message)
-      : '<div class="read-later-empty">暂无待读</div>';
-    return;
+  const displayEntries = filterEntries(entries, filter);
+  if (!displayEntries.length) {
+    return showUnavailable
+      ? renderErrorEmpty(message, filter)
+      : `<div class="read-later-empty">${emptyMessage(filter)}</div>`;
   }
-  container.innerHTML = `${bannerHtml}<ul class="read-later-list">${entries.map(renderEntry).join('')}</ul>`;
+  const items = displayEntries.map((entry) => renderLinkEntry(entry)).join('');
+  return `${bannerHtml}<ul class="read-later-list">${items}</ul>`;
 }
 
 export function renderUnavailableState(
   container,
-  { mode, message = UNAVAILABLE_MSG, entries = [] } = {},
+  { mode, message = UNAVAILABLE_MSG, entries = [], filter = 'unread', showTabs = false } = {},
 ) {
   if (mode === 'empty') {
-    container.innerHTML = renderErrorEmpty(message);
+    container.innerHTML = showTabs
+      ? `${renderTabs(filter)}<div class="read-later-list-host">${renderErrorEmpty(message, filter)}</div>`
+      : renderErrorEmpty(message, filter);
     return;
   }
   if (mode === 'retained') {
-    renderList(container, entries, { showUnavailable: true, message });
+    container.innerHTML = showTabs
+      ? `${renderTabs(filter)}<div class="read-later-list-host">${renderListBody(entries, { showUnavailable: true, message, filter })}</div>`
+      : renderListBody(entries, { showUnavailable: true, message, filter });
   }
 }
 
-function updateEntryRead(container, id) {
-  const item = container.querySelector(`[data-entry-id="${id}"]`);
-  if (!item) return;
-  item.classList.remove('read-later-item--unread');
-  item.classList.add('read-later-item--read');
-  item.querySelector('.read-later-mark-read')?.remove();
-  item.querySelector('.read-later-action-error')?.remove();
+function paintList(host, entries, { filter, showUnavailable = false, message = UNAVAILABLE_MSG } = {}) {
+  host.innerHTML = renderListBody(entries, { showUnavailable, message, filter });
 }
 
-export function mountReadLaterList(container) {
+function updateTabState(container, filter) {
+  container.querySelectorAll('.read-later-tab').forEach((tab) => {
+    const active = tab.dataset.filter === filter;
+    tab.classList.toggle('read-later-tab--active', active);
+    tab.setAttribute('aria-selected', String(active));
+  });
+}
+
+/**
+ * @param {HTMLElement} container
+ * @param {{ showTabs?: boolean, initialFilter?: ReadLaterFilter }} [opts]
+ */
+export function mountReadLaterList(container, opts = {}) {
+  const { showTabs = false, initialFilter = 'unread' } = opts;
+  let filter = initialFilter;
   let disposed = false;
   let lastSuccessfulEntries = null;
   let refreshPromise = null;
+  let listHost = container;
 
   container.innerHTML = '<div class="read-later-loading">加载中…</div>';
+
+  function ensureChrome() {
+    if (!showTabs) {
+      listHost = container;
+      return;
+    }
+    if (container.querySelector('.read-later-list-host')) {
+      listHost = container.querySelector('.read-later-list-host');
+      updateTabState(container, filter);
+      return;
+    }
+    container.innerHTML = `${renderTabs(filter)}<div class="read-later-list-host"><div class="read-later-loading">加载中…</div></div>`;
+    listHost = container.querySelector('.read-later-list-host');
+  }
+
+  function renderEntries({ showUnavailable = false, message = UNAVAILABLE_MSG } = {}) {
+    ensureChrome();
+    if (!lastSuccessfulEntries) {
+      listHost.innerHTML = '<div class="read-later-loading">加载中…</div>';
+      return;
+    }
+    paintList(listHost, lastSuccessfulEntries, { filter, showUnavailable, message });
+  }
 
   async function refresh() {
     if (refreshPromise) {
@@ -152,16 +258,20 @@ export function mountReadLaterList(container) {
         const entries = await loadReadLaterEntries();
         if (disposed) return;
         lastSuccessfulEntries = entries;
-        renderList(container, entries);
+        renderEntries();
       } catch {
         if (disposed) return;
         if (lastSuccessfulEntries !== null) {
           renderUnavailableState(container, {
             mode: 'retained',
             entries: lastSuccessfulEntries,
+            filter,
+            showTabs,
           });
+          listHost = container.querySelector('.read-later-list-host') ?? container;
         } else {
-          renderUnavailableState(container, { mode: 'empty' });
+          renderUnavailableState(container, { mode: 'empty', filter, showTabs });
+          listHost = container.querySelector('.read-later-list-host') ?? container;
         }
       }
     })().finally(() => {
@@ -174,30 +284,78 @@ export function mountReadLaterList(container) {
   const disposeFocusRefresh = bindFocusRefresh(refresh);
 
   const onClick = (event) => {
-    const btn = event.target.closest('.read-later-mark-read');
-    if (!btn) return;
-    const { id } = btn.dataset;
-    if (!id) return;
-    btn.disabled = true;
-    btn.closest('.read-later-item')?.querySelector('.read-later-action-error')?.remove();
-    void markEntryRead(id)
+    const tab = event.target.closest('.read-later-tab');
+    if (tab?.dataset.filter) {
+      filter = tab.dataset.filter === 'all' ? 'all' : 'unread';
+      updateTabState(container, filter);
+      renderEntries();
+      return;
+    }
+
+    const deleteBtn = event.target.closest('.read-later-delete');
+    if (deleteBtn) {
+      event.preventDefault();
+      const { id } = deleteBtn.dataset;
+      if (!id) return;
+      const item = deleteBtn.closest('.read-later-item');
+      deleteBtn.disabled = true;
+      item?.querySelector('.read-later-action-error')?.remove();
+      void deleteReadLaterEntry(id)
+        .then(() => {
+          if (disposed) return;
+          if (lastSuccessfulEntries) {
+            lastSuccessfulEntries = lastSuccessfulEntries.filter((entry) => entry.id !== id);
+          }
+          renderEntries();
+        })
+        .catch((err) => {
+          if (disposed || !item) return;
+          deleteBtn.disabled = false;
+          const errEl = document.createElement('div');
+          errEl.className = 'read-later-action-error';
+          errEl.textContent = err?.message || '删除失败';
+          item.appendChild(errEl);
+        });
+      return;
+    }
+
+    const link = event.target.closest('.read-later-link');
+    if (!link) return;
+    event.preventDefault();
+    const item = link.closest('.read-later-item');
+    const { entryId: id } = item?.dataset ?? {};
+    const url = link.dataset.url || link.getAttribute('href');
+    if (!url) return;
+
+    item?.querySelector('.read-later-action-error')?.remove();
+    void openExternalUrl(url)
       .then(() => {
-        if (disposed) return;
-        updateEntryRead(container, id);
-        if (lastSuccessfulEntries) {
-          lastSuccessfulEntries = lastSuccessfulEntries.map((entry) =>
-            entry.id === id ? { ...entry, read: true } : entry,
-          );
-        }
+        if (disposed || !id) return;
+        const entry = lastSuccessfulEntries?.find((e) => e.id === id);
+        if (entry?.read) return;
+        void markEntryRead(id)
+          .then(() => {
+            if (disposed) return;
+            if (lastSuccessfulEntries) {
+              lastSuccessfulEntries = lastSuccessfulEntries.map((e) =>
+                e.id === id ? { ...e, read: true } : e,
+              );
+            }
+            renderEntries();
+          })
+          .catch((err) => {
+            if (disposed || !item) return;
+            const errEl = document.createElement('div');
+            errEl.className = 'read-later-action-error';
+            errEl.textContent = err?.message || '标记已读失败';
+            item.appendChild(errEl);
+          });
       })
       .catch((err) => {
-        if (disposed) return;
-        btn.disabled = false;
-        const item = btn.closest('.read-later-item');
-        if (!item) return;
+        if (disposed || !item) return;
         const errEl = document.createElement('div');
         errEl.className = 'read-later-action-error';
-        errEl.textContent = err?.message || '标记已读失败';
+        errEl.textContent = err?.message || '打开链接失败';
         item.appendChild(errEl);
       });
   };
@@ -212,5 +370,5 @@ export function mountReadLaterList(container) {
     container.innerHTML = '';
   }
 
-  return { dispose, unmount: dispose };
+  return { dispose, unmount: dispose, refresh };
 }

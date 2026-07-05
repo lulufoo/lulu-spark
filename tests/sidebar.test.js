@@ -314,6 +314,13 @@ describe('sidebar channel nav', () => {
     expect(channelTabChannels()).not.toContain('read-later');
   });
 
+  it('does not render archive channel tab', () => {
+    applyListFilters();
+    renderSidebar();
+    expect(channelTabChannels()).not.toContain('archive');
+    expect(channelTabChannels()).toHaveLength(0);
+  });
+
   it('does not export selectReadLaterChannel', async () => {
     const mod = await import('../frontend/js/components/sidebar.js');
     expect(mod.selectReadLaterChannel).toBeUndefined();

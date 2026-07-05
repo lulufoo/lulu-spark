@@ -5,7 +5,7 @@ use std::thread;
 use std::time::Duration;
 
 use crate::commands::read_later::{
-    create_read_later_json, get_read_later_json, mark_read_later_json,
+    create_read_later_json, delete_read_later_json, get_read_later_json, mark_read_later_json,
 };
 use crate::test_support::with_test_config_dir;
 
@@ -89,5 +89,18 @@ fn mark_read_later_json_unknown_id_returns_404_class() {
             .expect("invoke");
         assert_eq!(v["error"], "Not found");
         assert_eq!(v["_status"], 404);
+    });
+}
+
+#[test]
+fn delete_read_later_json_removes_entry() {
+    with_read_later_cache(|_| {
+        let created = create_read_later_json("https://example.com/del", Some("del"))
+            .expect("create");
+        let id = created["entry"]["id"].as_str().expect("id").to_string();
+        let deleted = delete_read_later_json(&id).expect("delete");
+        assert_eq!(deleted["entry"]["id"], id);
+        let list = get_read_later_json().expect("list");
+        assert_eq!(list.as_array().expect("array").len(), 0);
     });
 }

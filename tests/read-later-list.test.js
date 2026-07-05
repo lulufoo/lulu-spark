@@ -21,6 +21,7 @@ vi.mock('../frontend/js/apiClient.js', async (importOriginal) => {
 import { parseHash } from '../frontend/js/router/index.js';
 import {
   bindFocusRefresh,
+  deleteReadLaterEntry,
   loadReadLaterEntries,
   markEntryRead,
   mountReadLaterList,
@@ -110,9 +111,15 @@ describe('read-later route', () => {
       );
     });
 
-    it('mountReadLaterRoute calls mountReadLaterList', () => {
+    it('mountReadLaterRoute opens read-later dialog on home', () => {
       const body = extractFunctionBody(mainJs, 'mountReadLaterRoute');
-      expect(body).toMatch(/mountReadLaterList\s*\(/);
+      expect(body).toMatch(/mountHomeRoute\s*\(/);
+      expect(body).toMatch(/openReadLaterDialog\s*\(/);
+    });
+
+    it('index.html includes read-later dialog shell', () => {
+      expect(indexHtml).toMatch(/id="read-later-dialog"/);
+      expect(indexHtml).toMatch(/id="read-later-dialog-body"/);
     });
   });
 
@@ -127,70 +134,9 @@ describe('read-later route', () => {
   });
 
   describe('mountReadLaterRoute view visibility', () => {
-    let routeUnmount;
-
-    beforeEach(() => {
-      seedReadLaterRouteDom();
-      routeUnmount = null;
-      getJsonMock.mockResolvedValue([sampleEntries[0]]);
-    });
-
-    afterEach(() => {
-      routeUnmount?.();
-      routeUnmount = null;
-    });
-
-    function invokeMountReadLaterRoute() {
-      const factory = createMountReadLaterRouteFromMain();
-      expect(factory).not.toBeNull();
-      const mountWithCapture = (container) => {
-        const handle = mountReadLaterList(container);
-        routeUnmount = handle.dispose;
-        return { ...handle, unmount: handle.dispose };
-      };
-      const mountReadLaterRoute = factory(
-        null,
-        null,
-        null,
-        document.getElementById('feed-view'),
-        mountWithCapture,
-        () => {
-          const homeView = document.getElementById('home-view');
-          if (homeView) homeView.style.display = 'none';
-        },
-        () => {
-          const docView = document.getElementById('corpus-doc-view');
-          if (docView) docView.style.display = 'none';
-          const layout = document.querySelector('.layout');
-          if (layout) layout.style.display = 'none';
-        },
-      );
-      mountReadLaterRoute();
-    }
-
-    it('shows read-later-view and hides other top-level views', async () => {
-      await invokeMountReadLaterRoute();
-
-      expect(document.getElementById('read-later-view').style.display).not.toBe('none');
-      expect(document.getElementById('home-view').style.display).toBe('none');
-      expect(document.getElementById('corpus-doc-view').style.display).toBe('none');
-      expect(document.querySelector('.layout').style.display).toBe('none');
-    });
-
-    it('mounts list into read-later-view with mock data', async () => {
-      await invokeMountReadLaterRoute();
-
-      const container = document.getElementById('read-later-view');
-      await vi.waitFor(() => {
-        expect(container.querySelector('.read-later-item')).not.toBeNull();
-      });
-    });
-
-    it('does not throw when read-later-view DOM is missing', () => {
-      seedReadLaterRouteDom({ includeReadLaterView: false });
-      vi.spyOn(console, 'warn').mockImplementation(() => {});
-
-      expect(() => invokeMountReadLaterRoute()).not.toThrow();
+    it('mountReadLaterRoute is wired to home + dialog in main.js', () => {
+      expect(mainJs).toMatch(/openReadLaterDialog/);
+      expect(mainJs).toMatch(/mountHomeRoute\(\)/);
     });
   });
 });
@@ -215,6 +161,23 @@ describe('loadReadLaterEntries', () => {
     await expect(loadReadLaterEntries()).rejects.toMatchObject({
       status: 503,
     });
+  });
+});
+
+describe('deleteReadLaterEntry', () => {
+  beforeEach(() => {
+    invokeMock.mockReset();
+    window.__TAURI__ = { core: { invoke: invokeMock } };
+  });
+
+  afterEach(() => {
+    delete window.__TAURI__;
+  });
+
+  it('invokes delete_read_later with id', async () => {
+    invokeMock.mockResolvedValue({ entry: sampleEntries[0] });
+    await deleteReadLaterEntry('abc123');
+    expect(invokeMock).toHaveBeenCalledWith('delete_read_later', { id: 'abc123' });
   });
 });
 
@@ -295,7 +258,11 @@ describe('mountReadLaterList', () => {
     document.body.appendChild(container);
     getJsonMock.mockReset();
     invokeMock.mockReset();
-    window.__TAURI__ = { core: { invoke: invokeMock } };
+    const openUrlMock = vi.fn().mockResolvedValue(undefined);
+    window.__TAURI__ = {
+      core: { invoke: invokeMock },
+      opener: { openUrl: openUrlMock },
+    };
     Object.defineProperty(document, 'visibilityState', {
       configurable: true,
       value: 'visible',
@@ -307,41 +274,50 @@ describe('mountReadLaterList', () => {
     delete window.__TAURI__;
   });
 
-  it('renders title, url, and saved_at after mount', async () => {
-    getJsonMock.mockResolvedValue([sampleEntries[0]]);
-    const { dispose } = mountReadLaterList(container);
+  it('renders unread links sorted by saved_at after mount', async () => {
+    getJsonMock.mockResolvedValue(sampleEntries);
+    const { dispose } = mountReadLaterList(container, { showTabs: false, initialFilter: 'unread' });
     await vi.waitFor(() => {
       expect(container.querySelector('.read-later-item')).not.toBeNull();
     });
-    const item = container.querySelector('.read-later-item');
-    expect(item.querySelector('.read-later-title')?.textContent).toBe(
+    expect(container.querySelectorAll('.read-later-item')).toHaveLength(1);
+    const link = container.querySelector('.read-later-link');
+    expect(link?.querySelector('.read-later-link-title')?.textContent).toBe(
       'Unread Article',
     );
-    expect(item.querySelector('.read-later-url')?.textContent).toBe(
-      'https://example.com/unread',
-    );
-    expect(item.querySelector('.read-later-saved-at')?.textContent).toBe(
-      '2026-07-01T10:00:00Z',
-    );
+    expect(link?.getAttribute('href')).toBe('https://example.com/unread');
     dispose();
   });
 
-  it('distinguishes unread and read entry styles', async () => {
+  it('hides read entries in default unread filter', async () => {
     getJsonMock.mockResolvedValue(sampleEntries);
-    const { dispose } = mountReadLaterList(container);
+    const { dispose } = mountReadLaterList(container, { showTabs: false, initialFilter: 'unread' });
+    await vi.waitFor(() => {
+      expect(container.querySelectorAll('.read-later-item')).toHaveLength(1);
+    });
+    expect(container.querySelector('[data-entry-id="def456"]')).toBeNull();
+    dispose();
+  });
+
+  it('shows all entries when filter is all', async () => {
+    getJsonMock.mockResolvedValue(sampleEntries);
+    const { dispose } = mountReadLaterList(container, { showTabs: true, initialFilter: 'all' });
     await vi.waitFor(() => {
       expect(container.querySelectorAll('.read-later-item')).toHaveLength(2);
     });
-    expect(
-      container.querySelector('[data-entry-id="abc123"]')?.classList.contains(
-        'read-later-item--unread',
-      ),
-    ).toBe(true);
-    expect(
-      container.querySelector('[data-entry-id="def456"]')?.classList.contains(
-        'read-later-item--read',
-      ),
-    ).toBe(true);
+    dispose();
+  });
+
+  it('switches between all and unread tabs', async () => {
+    getJsonMock.mockResolvedValue(sampleEntries);
+    const { dispose } = mountReadLaterList(container, { showTabs: true, initialFilter: 'unread' });
+    await vi.waitFor(() => {
+      expect(container.querySelectorAll('.read-later-item')).toHaveLength(1);
+    });
+    container.querySelector('[data-filter="all"]').click();
+    expect(container.querySelectorAll('.read-later-item')).toHaveLength(2);
+    container.querySelector('[data-filter="unread"]').click();
+    expect(container.querySelectorAll('.read-later-item')).toHaveLength(1);
     dispose();
   });
 
@@ -369,7 +345,7 @@ describe('mountReadLaterList', () => {
       expect(getJsonMock).toHaveBeenCalledTimes(2);
     });
     await vi.waitFor(() => {
-      expect(container.querySelector('.read-later-title')?.textContent).toBe(
+      expect(container.querySelector('.read-later-link-title')?.textContent).toBe(
         'Updated After Focus',
       );
     });
@@ -390,7 +366,7 @@ describe('mountReadLaterList', () => {
       expect(getJsonMock).toHaveBeenCalledTimes(2);
     });
     await vi.waitFor(() => {
-      expect(container.querySelector('.read-later-title')?.textContent).toBe(
+      expect(container.querySelector('.read-later-link-title')?.textContent).toBe(
         'Updated After Visibility',
       );
     });
@@ -416,7 +392,7 @@ describe('mountReadLaterList', () => {
     expect(container.querySelector('.read-later-empty')).toBeNull();
     resolveRefresh([{ ...sampleEntries[0], title: 'After Slow Refresh' }]);
     await vi.waitFor(() => {
-      expect(container.querySelector('.read-later-title')?.textContent).toBe(
+      expect(container.querySelector('.read-later-link-title')?.textContent).toBe(
         'After Slow Refresh',
       );
     });
@@ -477,32 +453,35 @@ describe('mountReadLaterList', () => {
     dispose();
   });
 
-  it('retains snapshot with unavailable banner on focus refresh connection error', async () => {
-    getJsonMock.mockResolvedValueOnce(sampleEntries);
+  it('retains unread snapshot with unavailable banner on focus refresh connection error', async () => {
+    getJsonMock.mockResolvedValueOnce([sampleEntries[0]]);
     const { dispose } = mountReadLaterList(container);
     await vi.waitFor(() => {
-      expect(container.querySelectorAll('.read-later-item')).toHaveLength(2);
+      expect(container.querySelectorAll('.read-later-item')).toHaveLength(1);
     });
     getJsonMock.mockRejectedValueOnce(new Error('Failed to fetch'));
     window.dispatchEvent(new Event('focus'));
     await vi.waitFor(() => {
-      expect(container.querySelectorAll('.read-later-item')).toHaveLength(2);
+      expect(container.querySelectorAll('.read-later-item')).toHaveLength(1);
       expect(container.querySelector('.read-later-unavailable')).not.toBeNull();
     });
     dispose();
   });
 
-  it('mark read button invokes mark_read_later and updates UI', async () => {
+  it('link click opens url, marks read, and keeps item in all tab', async () => {
     getJsonMock.mockResolvedValue([sampleEntries[0]]);
     invokeMock.mockResolvedValue({
       entry: { ...sampleEntries[0], read: true },
     });
-    const { dispose } = mountReadLaterList(container);
+    const { dispose } = mountReadLaterList(container, { showTabs: true, initialFilter: 'all' });
     await vi.waitFor(() => {
-      expect(container.querySelector('.read-later-mark-read')).not.toBeNull();
+      expect(container.querySelector('.read-later-link')).not.toBeNull();
     });
-    container.querySelector('.read-later-mark-read').click();
+    container.querySelector('.read-later-link').click();
     await vi.waitFor(() => {
+      expect(window.__TAURI__.opener.openUrl).toHaveBeenCalledWith(
+        'https://example.com/unread',
+      );
       expect(invokeMock).toHaveBeenCalledWith('mark_read_later', {
         id: 'abc123',
         read: true,
@@ -515,27 +494,38 @@ describe('mountReadLaterList', () => {
           ?.classList.contains('read-later-item--read'),
       ).toBe(true);
     });
+    container.querySelector('[data-filter="unread"]').click();
+    expect(container.querySelector('[data-entry-id="abc123"]')).toBeNull();
     dispose();
   });
 
-  it('shows action error and re-enables button when mark_read_later fails', async () => {
+  it('delete button removes entry from list', async () => {
+    getJsonMock.mockResolvedValue([sampleEntries[0]]);
+    invokeMock.mockResolvedValue({ entry: sampleEntries[0] });
+    const { dispose } = mountReadLaterList(container, { showTabs: true, initialFilter: 'all' });
+    await vi.waitFor(() => {
+      expect(container.querySelector('.read-later-delete')).not.toBeNull();
+    });
+    container.querySelector('.read-later-delete').click();
+    await vi.waitFor(() => {
+      expect(invokeMock).toHaveBeenCalledWith('delete_read_later', { id: 'abc123' });
+      expect(container.querySelector('[data-entry-id="abc123"]')).toBeNull();
+    });
+    dispose();
+  });
+
+  it('shows action error when mark_read_later fails after link open', async () => {
     getJsonMock.mockResolvedValue([sampleEntries[0]]);
     invokeMock.mockRejectedValue(new Error('IPC failed'));
     const { dispose } = mountReadLaterList(container);
     await vi.waitFor(() => {
-      expect(container.querySelector('.read-later-mark-read')).not.toBeNull();
+      expect(container.querySelector('.read-later-link')).not.toBeNull();
     });
-    const btn = container.querySelector('.read-later-mark-read');
-    btn.click();
+    container.querySelector('.read-later-link').click();
     await vi.waitFor(() => {
       expect(container.querySelector('.read-later-action-error')).not.toBeNull();
     });
-    expect(btn.disabled).toBe(false);
-    expect(
-      container
-        .querySelector('[data-entry-id="abc123"]')
-        ?.classList.contains('read-later-item--unread'),
-    ).toBe(true);
+    expect(container.querySelector('[data-entry-id="abc123"]')).not.toBeNull();
     dispose();
   });
 
@@ -580,6 +570,7 @@ describe('renderUnavailableState', () => {
       mode: 'retained',
       message: UNAVAILABLE_MSG,
       entries: sampleEntries,
+      filter: 'all',
     });
     expect(container.querySelector('.read-later-unavailable')?.textContent).toBe(
       UNAVAILABLE_MSG,
@@ -597,7 +588,11 @@ describe('TAC-9 main window unavailable UI', () => {
     document.body.appendChild(container);
     getJsonMock.mockReset();
     invokeMock.mockReset();
-    window.__TAURI__ = { core: { invoke: invokeMock } };
+    const openUrlMock = vi.fn().mockResolvedValue(undefined);
+    window.__TAURI__ = {
+      core: { invoke: invokeMock },
+      opener: { openUrl: openUrlMock },
+    };
     Object.defineProperty(document, 'visibilityState', {
       configurable: true,
       value: 'visible',
@@ -680,17 +675,13 @@ describe('TAC-9 main window unavailable UI', () => {
     invokeMock.mockRejectedValue(new Error('IPC failed'));
     const { dispose } = mountReadLaterList(container);
     await vi.waitFor(() => {
-      expect(container.querySelector('.read-later-mark-read')).not.toBeNull();
+      expect(container.querySelector('.read-later-link')).not.toBeNull();
     });
-    container.querySelector('.read-later-mark-read').click();
+    container.querySelector('.read-later-link').click();
     await vi.waitFor(() => {
       expect(container.querySelector('.read-later-action-error')).not.toBeNull();
     });
-    expect(
-      container
-        .querySelector('[data-entry-id="abc123"]')
-        ?.classList.contains('read-later-item--unread'),
-    ).toBe(true);
+    expect(container.querySelector('[data-entry-id="abc123"]')).not.toBeNull();
     expect(container.querySelector('.read-later-unavailable')).toBeNull();
     dispose();
   });
@@ -703,17 +694,13 @@ describe('TAC-9 main window unavailable UI', () => {
     });
     const { dispose } = mountReadLaterList(container);
     await vi.waitFor(() => {
-      expect(container.querySelector('.read-later-mark-read')).not.toBeNull();
+      expect(container.querySelector('.read-later-link')).not.toBeNull();
     });
-    container.querySelector('.read-later-mark-read').click();
+    container.querySelector('.read-later-link').click();
     await vi.waitFor(() => {
       expect(container.querySelector('.read-later-action-error')).not.toBeNull();
     });
-    expect(
-      container
-        .querySelector('[data-entry-id="abc123"]')
-        ?.classList.contains('read-later-item--unread'),
-    ).toBe(true);
+    expect(container.querySelector('[data-entry-id="abc123"]')).not.toBeNull();
     dispose();
   });
 });

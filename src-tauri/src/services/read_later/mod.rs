@@ -132,6 +132,20 @@ pub fn mark_read(id: &str, read: bool) -> Value {
     })
 }
 
+pub fn delete_entry(id: &str) -> Value {
+    with_write_lock(|| {
+        let mut file = load_file_unlocked();
+        let Some(idx) = file.entries.iter().position(|e| e.id == id) else {
+            return json!({ "error": "Not found", "_status": 404 });
+        };
+        let removed = file.entries.remove(idx);
+        match save_file_unlocked(&file) {
+            Ok(()) => json!({ "entry": entry_to_value(&removed), "_status": 200 }),
+            Err(e) => json!({ "error": e, "_status": 500 }),
+        }
+    })
+}
+
 #[cfg(test)]
 #[path = "../../unit-tests/services/read_later.rs"]
 mod tests;

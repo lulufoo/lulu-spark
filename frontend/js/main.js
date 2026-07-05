@@ -17,12 +17,13 @@ import { openQrDialog } from './components/modals/qr-dialog.js'
 import { openSettingsDialog } from './components/modals/settings-dialog.js'
 import { renderFeed } from './feed.js'
 import { initRouter, navigate } from './router/index.js'
+import { mountReadLaterAssistantWidget } from './read-later-assistant.js'
+import { openReadLaterDialog } from './components/modals/read-later-dialog.js'
 import { applySearchNavChrome } from './nav-chrome.js'
 import { initWorkbenchSearch } from './components/workbench-search.js'
 import { initCorpusSearch } from './components/corpus-search.js'
 import { mountCorpusDocList } from './components/corpus-doc-list.js'
 import { mountHomeHub } from './components/home-hub.js'
-import { mountReadLaterList } from './components/read-later-list.js'
 import { initHeaderSync, clearHeaderSyncCorpusContext } from './header-sync.js'
 import { softwareDevSkillsContent } from './skills-software-dev-content.js'
 import { normalizeCorpusIndex } from './corpus-index.js'
@@ -662,7 +663,6 @@ function showFeedView() {
 let unmountCorpusDocList = null;
 let corpusDocListRepo = '';
 let unmountHomeHub = null;
-let unmountReadLaterList = null;
 
 function updateNavChrome(routeName) {
   const onHome = routeName === 'home';
@@ -697,8 +697,6 @@ function hideCorpusDocView() {
 function hideReadLaterView() {
   const readLaterView = document.getElementById('read-later-view');
   if (readLaterView) readLaterView.style.display = 'none';
-  unmountReadLaterList?.();
-  unmountReadLaterList = null;
 }
 
 function mountHomeRoute() {
@@ -720,7 +718,7 @@ function mountHomeRoute() {
   homeView.style.display = '';
 
   unmountHomeHub?.();
-  unmountHomeHub = mountHomeHub(homeView, { navigate });
+  unmountHomeHub = mountHomeHub(homeView, { navigate, openReadLater: openReadLaterDialog });
 }
 
 function mountCorpusDocRoute(route) {
@@ -754,28 +752,8 @@ function mountCorpusDocRoute(route) {
 }
 
 function mountReadLaterRoute() {
-  unmountHomeHub?.();
-  unmountHomeHub = null;
-  hideHomeView();
-  unmountCorpusDocList?.();
-  unmountCorpusDocList = null;
-  hideCorpusDocView();
-
-  feedView.style.display = 'none';
-  document.getElementById('btn-feed')?.classList.remove('active');
-
-  const layout = document.querySelector('.layout');
-  if (layout) layout.style.display = 'none';
-
-  const readLaterView = document.getElementById('read-later-view');
-  if (!readLaterView) {
-    console.warn('read-later-view DOM element not found');
-    return;
-  }
-  readLaterView.style.display = '';
-
-  unmountReadLaterList?.();
-  unmountReadLaterList = mountReadLaterList(readLaterView).unmount;
+  mountHomeRoute();
+  openReadLaterDialog();
 }
 
 function mountWorkbench() {
@@ -864,6 +842,8 @@ initRouter({
   'corpus-doc': wrapRouteMount('corpus-doc', mountCorpusDocRoute),
   'read-later': wrapRouteMount('read-later', mountReadLaterRoute),
 }, { fallback: '#/home' });
+
+mountReadLaterAssistantWidget(document.body, { navigate, openReadLater: openReadLaterDialog });
 
 function registerTagsReconciledListener() {
   const onReconciled = async () => {

@@ -5,6 +5,12 @@ import { describe, expect, it } from 'vitest';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 const libRs = readFileSync(join(repoRoot, 'src-tauri/src/lib.rs'), 'utf8');
+const assistantCapability = JSON.parse(
+  readFileSync(
+    join(repoRoot, 'src-tauri/capabilities/read-later-assistant.json'),
+    'utf8',
+  ),
+);
 
 describe('read-later-assistant WebviewWindow (lib.rs)', () => {
   it('defines create_read_later_assistant_window helper', () => {
@@ -36,13 +42,10 @@ describe('read-later-assistant WebviewWindow (lib.rs)', () => {
     expect(fnBody).toMatch(/read-later-assistant\.html/);
   });
 
-  it('setup invokes assistant window creation without aborting on error', () => {
+  it('setup does not create separate assistant WebviewWindow', () => {
     const setupBody = libRs.match(/\.setup\s*\(\s*\|app\|[\s\S]*?Ok\s*\(\s*\(\s*\)\s*\)/m)?.[0];
     expect(setupBody, 'setup closure').toBeTruthy();
-    expect(setupBody).toMatch(/create_read_later_assistant_window\s*\(/);
-    expect(setupBody).toMatch(
-      /create_read_later_assistant_window[\s\S]*?(if let Err|let _|\.ok\(\)|\.unwrap_or)/,
-    );
+    expect(setupBody).not.toMatch(/create_read_later_assistant_window\s*\(/);
   });
 
   it('guards against duplicate assistant windows (singleton)', () => {
@@ -55,5 +58,11 @@ describe('read-later-assistant WebviewWindow (lib.rs)', () => {
   it('keeps assistant alive when main window closes', () => {
     expect(libRs).toMatch(/CloseRequested/);
     expect(libRs).toMatch(/prevent_close|hide\s*\(/);
+  });
+
+  it('grants read-api and opener to read-later-assistant window', () => {
+    expect(assistantCapability.windows).toContain('read-later-assistant');
+    expect(assistantCapability.permissions).toContain('read-api');
+    expect(assistantCapability.permissions).toContain('opener:default');
   });
 });

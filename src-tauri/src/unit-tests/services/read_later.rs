@@ -134,6 +134,28 @@ fn mark_read_unknown_id_returns_404() {
 }
 
 #[test]
+fn delete_entry_removes_from_list() {
+    with_read_later_cache(|_| {
+        let created = create_entry("https://example.com/del", Some("del"));
+        let id = created["entry"]["id"].as_str().expect("id").to_string();
+        let deleted = delete_entry(&id);
+        assert_eq!(deleted["_status"], 200);
+        assert_eq!(deleted["entry"]["id"], id);
+        let list_val = list_entries();
+        let list = list_val.as_array().expect("array");
+        assert!(list.is_empty());
+    });
+}
+
+#[test]
+fn delete_entry_unknown_id_returns_404() {
+    with_read_later_cache(|_| {
+        let v = delete_entry("00000000000000000000000000000000");
+        assert_eq!(v["_status"], 404);
+    });
+}
+
+#[test]
 fn create_and_mark_read_persists_valid_json() {
     with_read_later_cache(|cache| {
         let created = create_entry("https://example.com/persist", Some("persist"));

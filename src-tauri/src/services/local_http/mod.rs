@@ -130,6 +130,17 @@ fn handle_request(repo_root: &PathBuf, port: u16, request: tiny_http::Request) {
         return;
     }
 
+    if request.method() == &Method::Delete {
+        if let Some(id) = path.strip_prefix("/api/read-later/") {
+            if !id.is_empty() && !id.contains('/') {
+                handle_read_later_delete(request, id);
+                return;
+            }
+        }
+        respond_json(request, 405, json!({ "error": "Method not allowed" }));
+        return;
+    }
+
     if request.method() == &Method::Post {
         match path.as_str() {
             "/api/read-later" => {
@@ -275,6 +286,11 @@ fn handle_read_later_patch(mut request: tiny_http::Request, id: &str) {
     };
     let read = payload.get("read").and_then(|v| v.as_bool()).unwrap_or(false);
     let value = read_later::mark_read(id, read);
+    respond_read_later_from_value(request, value);
+}
+
+fn handle_read_later_delete(request: tiny_http::Request, id: &str) {
+    let value = read_later::delete_entry(id);
     respond_read_later_from_value(request, value);
 }
 

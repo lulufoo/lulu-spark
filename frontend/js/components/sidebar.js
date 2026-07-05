@@ -60,49 +60,6 @@ function _ensureSidebarZones(aside) {
   return { channelZone, dateZone };
 }
 
-function _setSidebarChannelActive(channel) {
-  document.querySelectorAll('.sidebar-channel-tab').forEach((tab) => {
-    tab.classList.toggle('active', tab.dataset.channel === channel);
-  });
-}
-
-function _renderChannelNav(parent) {
-  const nav = document.createElement('div');
-  nav.className = 'sidebar-channel-nav';
-
-  const archiveTab = document.createElement('button');
-  archiveTab.type = 'button';
-  archiveTab.className = 'sidebar-channel-tab';
-  archiveTab.dataset.channel = 'archive';
-  archiveTab.textContent = '归档';
-  archiveTab.addEventListener('click', () => selectArchiveChannel());
-
-  nav.append(archiveTab);
-  parent.appendChild(nav);
-  _setSidebarChannelActive('archive');
-}
-
-export function selectArchiveChannel() {
-  _setSidebarChannelActive('archive');
-  if (state.index.filteredGroups.length > 0) {
-    const date = state.ui.activeDate && state.index.filteredGroups.some((g) => g.date === state.ui.activeDate)
-      ? state.ui.activeDate
-      : state.index.filteredGroups[0].date;
-    selectDate(date);
-  } else {
-    state.ui.activeDate = null;
-    const status = document.getElementById('status');
-    const heading = document.getElementById('date-heading');
-    const list = document.getElementById('doc-list');
-    if (status) status.style.display = '';
-    if (heading) {
-      heading.style.display = 'none';
-      heading.textContent = '';
-    }
-    if (list) list.innerHTML = '';
-  }
-}
-
 function _renderTopicFilter(parent) {
   const allEntries = Object.values(state.index.data || {});
   if (allEntries.length === 0) return;
@@ -226,7 +183,6 @@ export function renderSidebar() {
   const { channelZone, dateZone } = _ensureSidebarZones(aside);
   channelZone.innerHTML = '';
   dateZone.innerHTML = '';
-  _renderChannelNav(channelZone);
   _renderTopicFilter(channelZone);
   _renderTagFilter(channelZone);
   for (const { date, entries } of state.index.filteredGroups) {

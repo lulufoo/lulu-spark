@@ -31,13 +31,16 @@ describe('mountHomeHub', () => {
     expect(container.querySelector('.home-desktop-wallpaper')).not.toBeNull();
 
     const shortcuts = container.querySelectorAll('.home-desktop-shortcut');
-    expect(shortcuts).toHaveLength(2);
+    expect(shortcuts).toHaveLength(3);
 
     const workbenchEntry = container.querySelector('[data-home-entry="workbench"]');
+    const readLaterEntry = container.querySelector('[data-home-entry="read-later"]');
     const corpusEntry = container.querySelector('[data-home-entry="corpus"]');
     expect(workbenchEntry).not.toBeNull();
+    expect(readLaterEntry).not.toBeNull();
     expect(corpusEntry).not.toBeNull();
     expect(workbenchEntry.textContent).toMatch(/workbench|归档/i);
+    expect(readLaterEntry.textContent).toMatch(/read later|待读/i);
     expect(corpusEntry.textContent).toMatch(/沉淀|知识库/i);
   });
 
@@ -53,6 +56,15 @@ describe('mountHomeHub', () => {
 
     container.querySelector('[data-home-entry="corpus"]').click();
     expect(navigate).toHaveBeenCalledWith('#/corpus');
+  });
+
+  it('opens read-later dialog when read-later entry is clicked', () => {
+    const openReadLater = vi.fn();
+    mountHomeHub(container, { navigate, openReadLater });
+
+    container.querySelector('[data-home-entry="read-later"]').click();
+    expect(openReadLater).toHaveBeenCalledTimes(1);
+    expect(navigate).not.toHaveBeenCalledWith('#/read-later');
   });
 
   it('returns cleanup that clears container', () => {

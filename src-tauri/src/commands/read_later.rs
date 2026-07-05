@@ -31,6 +31,10 @@ pub fn mark_read_later_json(id: &str, read: bool) -> Result<Value, String> {
     map_invoke_value(read_later::mark_read(id, read))
 }
 
+pub fn delete_read_later_json(id: &str) -> Result<Value, String> {
+    map_invoke_value(read_later::delete_entry(id))
+}
+
 #[tauri::command]
 pub async fn create_read_later(
     _app: AppHandle,
@@ -54,6 +58,13 @@ pub async fn get_read_later(_app: AppHandle) -> Result<Value, String> {
 #[tauri::command]
 pub async fn mark_read_later(_app: AppHandle, id: String, read: bool) -> Result<Value, String> {
     tauri::async_runtime::spawn_blocking(move || mark_read_later_json(&id, read))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+pub async fn delete_read_later(_app: AppHandle, id: String) -> Result<Value, String> {
+    tauri::async_runtime::spawn_blocking(move || delete_read_later_json(&id))
         .await
         .map_err(|e| e.to_string())?
 }

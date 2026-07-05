@@ -1,14 +1,18 @@
 /**
  * @param {HTMLElement} container
- * @param {{ navigate: (hash: string) => void }} opts
+ * @param {{ navigate?: (hash: string) => void, openReadLater?: () => void }} opts
  * @returns {() => void}
  */
-export function mountHomeHub(container, { navigate }) {
+export function mountHomeHub(container, { navigate, openReadLater } = {}) {
   const onClick = (event) => {
     const entry = event.target.closest('[data-home-entry]');
     if (!entry) return;
     const target = entry.dataset.homeEntry;
     if (target === 'workbench') navigate('#/workbench');
+    else if (target === 'read-later') {
+      if (typeof openReadLater === 'function') openReadLater();
+      else navigate('#/read-later');
+    }
     else if (target === 'corpus') navigate('#/corpus');
   };
 
@@ -20,6 +24,12 @@ export function mountHomeHub(container, { navigate }) {
           <button type="button" class="home-desktop-shortcut" data-home-entry="workbench">
             <span class="home-desktop-shortcut-icon" aria-hidden="true">📂</span>
             <span class="home-desktop-shortcut-label">Workbench 归档</span>
+          </button>
+        </li>
+        <li>
+          <button type="button" class="home-desktop-shortcut" data-home-entry="read-later">
+            <span class="home-desktop-shortcut-icon" aria-hidden="true">📑</span>
+            <span class="home-desktop-shortcut-label">Read Later 待读</span>
           </button>
         </li>
         <li>

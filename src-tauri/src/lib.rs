@@ -405,6 +405,7 @@ pub fn run() {
             commands::read_later::create_read_later,
             commands::read_later::get_read_later,
             commands::read_later::mark_read_later,
+            commands::read_later::delete_read_later,
             commands::search::reindex_knowledge,
             commands::search::reindex_workbench,
             commands::search::reindex_kb_repo,
@@ -453,9 +454,6 @@ pub fn run() {
             app.manage(local_http);
 
             create_main_window(app)?;
-            if let Err(error) = create_read_later_assistant_window(app) {
-                eprintln!("[read-later-assistant] window create failed: {error}");
-            }
             app.manage(services::reindex::ReindexState::new());
 
             let app_handle = app.handle().clone();
