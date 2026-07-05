@@ -6,6 +6,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
 const openUrlMock = vi.fn();
 const getJsonMock = vi.fn();
+const invokeMock = vi.fn();
 
 vi.mock('../frontend/js/apiClient.js', async (importOriginal) => {
   const actual = await importOriginal();
@@ -157,9 +158,14 @@ describe('mountReadLaterAssistant', () => {
     root.id = 'read-later-assistant-root';
     document.body.appendChild(root);
     getJsonMock.mockReset();
+    invokeMock.mockReset();
+    invokeMock.mockResolvedValue({ entry: { id: 'n1', read: true } });
     openUrlMock.mockReset();
     openUrlMock.mockResolvedValue(undefined);
-    window.__TAURI__ = { opener: { openUrl: openUrlMock } };
+    window.__TAURI__ = {
+      opener: { openUrl: openUrlMock },
+      core: { invoke: invokeMock },
+    };
     Object.defineProperty(document, 'visibilityState', {
       configurable: true,
       value: 'visible',
@@ -234,7 +240,7 @@ describe('mountReadLaterAssistant', () => {
     dispose();
   });
 
-  it('opens current entry url when entry link is clicked', async () => {
+  it('opens current entry url and marks it read when entry link is clicked', async () => {
     getJsonMock.mockResolvedValue(sampleEntries);
     const { dispose } = mountReadLaterAssistant(root);
     await vi.waitFor(() => {
@@ -243,6 +249,13 @@ describe('mountReadLaterAssistant', () => {
     root.querySelector('.read-later-assistant-entry-link').click();
     await vi.waitFor(() => {
       expect(openUrlMock).toHaveBeenCalledWith('https://example.com/newest-unread');
+      expect(invokeMock).toHaveBeenCalledWith('mark_read_later', { id: 'n1', read: true });
+    });
+    await vi.waitFor(() => {
+      expect(root.querySelector('[data-entry-id="n1"]')).toBeNull();
+      expect(root.querySelector('.read-later-assistant-current-title')?.textContent).toBe(
+        'Extra Unread 4',
+      );
     });
     dispose();
   });

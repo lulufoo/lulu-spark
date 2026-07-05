@@ -1,6 +1,7 @@
 import {
   bindFocusRefresh,
   loadReadLaterEntries,
+  markEntryRead,
   openExternalUrl,
 } from './components/read-later-list.js';
 import { escHtml } from './utils.js';
@@ -86,7 +87,7 @@ function renderPanel(entries, selectedIndex) {
       ${pickerHtml}
       <article class="${currentClass}">
         <div class="read-later-assistant-current-main">
-          <a class="read-later-assistant-entry-link" href="${url}" data-url="${url}">
+          <a class="read-later-assistant-entry-link" href="${url}" data-url="${url}" data-entry-id="${escHtml(current.id)}">
             <h3 class="read-later-assistant-current-title">${title}</h3>
             <p class="read-later-assistant-current-url" title="${url}">${url}</p>
           </a>
@@ -186,10 +187,26 @@ export function mountReadLaterAssistant(root, opts = {}) {
     if (entryLink) {
       event.preventDefault();
       const url = entryLink.dataset.url || entryLink.getAttribute('href');
+      const id = entryLink.dataset.entryId;
       if (!url) return;
-      void openExternalUrl(url).catch((err) => {
-        console.error('[read-later-assistant] open link failed', err);
-      });
+      const current = top3Entries[selectedIndex];
+      void openExternalUrl(url)
+        .then(() => {
+          if (disposed || !id || current?.read) return;
+          return markEntryRead(id);
+        })
+        .then(() => {
+          if (disposed || !id || current?.read) return;
+          top3Entries = top3Entries.filter((entry) => entry.id !== id);
+          lastSuccessfulTop3 = top3Entries;
+          if (selectedIndex >= top3Entries.length) {
+            selectedIndex = Math.max(0, top3Entries.length - 1);
+          }
+          renderCurrent();
+        })
+        .catch((err) => {
+          console.error('[read-later-assistant] open link or mark read failed', err);
+        });
       return;
     }
 
