@@ -19,6 +19,7 @@ vi.mock('../frontend/js/apiClient.js', async (importOriginal) => {
 });
 
 import {
+  bindFocusRefresh,
   loadAssistantEntries,
   mountReadLaterAssistant,
   openExternalUrl,
@@ -157,6 +158,10 @@ describe('mountReadLaterAssistant', () => {
     openUrlMock.mockReset();
     openUrlMock.mockResolvedValue(undefined);
     window.__TAURI__ = { opener: { openUrl: openUrlMock } };
+    Object.defineProperty(document, 'visibilityState', {
+      configurable: true,
+      value: 'visible',
+    });
   });
 
   afterEach(() => {
@@ -283,5 +288,209 @@ describe('mountReadLaterAssistant', () => {
     expect(root.innerHTML).toBe('');
     await new Promise((r) => setTimeout(r, 60));
     expect(root.innerHTML).toBe('');
+  });
+
+  it('refreshes Top3 on window focus', async () => {
+    getJsonMock.mockResolvedValue(sampleEntries);
+    const { dispose } = mountReadLaterAssistant(root);
+    await vi.waitFor(() => {
+      expect(root.querySelector('.read-later-assistant-panel')).not.toBeNull();
+    });
+    const afterMarkRead = sampleEntries.map((entry) =>
+      entry.id === 'n1' ? { ...entry, read: true } : entry,
+    );
+    getJsonMock.mockResolvedValue(afterMarkRead);
+    window.dispatchEvent(new Event('focus'));
+    await vi.waitFor(() => {
+      expect(getJsonMock).toHaveBeenCalledTimes(2);
+    });
+    await vi.waitFor(() => {
+      expect(root.querySelector('[data-entry-id="n1"]')).toBeNull();
+      expect(root.querySelector('.read-later-assistant-current-title')?.textContent).toBe(
+        'Extra Unread 4',
+      );
+    });
+    dispose();
+  });
+
+  it('refreshes Top3 when document visibility becomes visible', async () => {
+    getJsonMock.mockResolvedValue(sampleEntries);
+    const { dispose } = mountReadLaterAssistant(root);
+    await vi.waitFor(() => {
+      expect(root.querySelector('.read-later-assistant-panel')).not.toBeNull();
+    });
+    const afterMarkRead = sampleEntries.map((entry) =>
+      entry.id === 'n1' ? { ...entry, read: true } : entry,
+    );
+    getJsonMock.mockResolvedValue(afterMarkRead);
+    document.dispatchEvent(new Event('visibilitychange'));
+    await vi.waitFor(() => {
+      expect(getJsonMock).toHaveBeenCalledTimes(2);
+    });
+    await vi.waitFor(() => {
+      expect(root.querySelector('[data-entry-id="n1"]')).toBeNull();
+    });
+    dispose();
+  });
+
+  it('does not refresh Top3 when document becomes hidden', async () => {
+    getJsonMock.mockResolvedValue(sampleEntries);
+    const { dispose } = mountReadLaterAssistant(root);
+    await vi.waitFor(() => {
+      expect(root.querySelector('.read-later-assistant-panel')).not.toBeNull();
+    });
+    Object.defineProperty(document, 'visibilityState', {
+      configurable: true,
+      value: 'hidden',
+    });
+    document.dispatchEvent(new Event('visibilitychange'));
+    await new Promise((r) => setTimeout(r, 20));
+    expect(getJsonMock).toHaveBeenCalledTimes(1);
+    dispose();
+  });
+
+  it('updates Top3 after SSOT mark_read when assistant gains focus (TAC-7)', async () => {
+    getJsonMock.mockResolvedValue(sampleEntries);
+    const { dispose } = mountReadLaterAssistant(root);
+    await vi.waitFor(() => {
+      expect(root.querySelector('[data-entry-id="n1"]')).not.toBeNull();
+    });
+    const afterMarkRead = sampleEntries.map((entry) =>
+      entry.id === 'n1' ? { ...entry, read: true } : entry,
+    );
+    getJsonMock.mockResolvedValue(afterMarkRead);
+    expect(root.querySelector('[data-entry-id="n1"]')).not.toBeNull();
+    expect(getJsonMock).toHaveBeenCalledTimes(1);
+    window.dispatchEvent(new Event('focus'));
+    await vi.waitFor(() => {
+      expect(getJsonMock).toHaveBeenCalledTimes(2);
+      expect(root.querySelector('[data-entry-id="n1"]')).toBeNull();
+      expect(root.querySelectorAll('.read-later-assistant-picker-item')).toHaveLength(3);
+      expect(root.querySelector('.read-later-assistant-current-title')?.textContent).toBe(
+        'Extra Unread 4',
+      );
+    });
+    dispose();
+  });
+
+  it('keeps prior Top3 visible while focus refresh is in flight', async () => {
+    let resolveRefresh;
+    getJsonMock
+      .mockResolvedValueOnce(sampleEntries)
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolveRefresh = resolve;
+          }),
+      );
+    const { dispose } = mountReadLaterAssistant(root);
+    await vi.waitFor(() => {
+      expect(root.querySelector('.read-later-assistant-panel')).not.toBeNull();
+    });
+    window.dispatchEvent(new Event('focus'));
+    expect(root.querySelector('.read-later-assistant-panel')).not.toBeNull();
+    expect(root.querySelector('.read-later-assistant-empty')).toBeNull();
+    resolveRefresh(
+      sampleEntries.map((entry) =>
+        entry.id === 'n1' ? { ...entry, read: true } : entry,
+      ),
+    );
+    await vi.waitFor(() => {
+      expect(root.querySelector('[data-entry-id="n1"]')).toBeNull();
+    });
+    dispose();
+  });
+
+  it('retains Top3 snapshot with unavailable banner on focus refresh failure', async () => {
+    getJsonMock.mockResolvedValueOnce(sampleEntries);
+    const { dispose } = mountReadLaterAssistant(root);
+    await vi.waitFor(() => {
+      expect(root.querySelector('.read-later-assistant-panel')).not.toBeNull();
+    });
+    getJsonMock.mockRejectedValueOnce(
+      Object.assign(new Error('HTTP 500'), { status: 500 }),
+    );
+    window.dispatchEvent(new Event('focus'));
+    await vi.waitFor(() => {
+      expect(root.querySelector('.read-later-assistant-panel')).not.toBeNull();
+      expect(root.querySelector('.read-later-assistant-unavailable')).not.toBeNull();
+    });
+    expect(root.querySelectorAll('.read-later-assistant-picker-item')).toHaveLength(3);
+    dispose();
+  });
+
+  it('retains Top3 snapshot with unavailable banner on focus refresh connection error', async () => {
+    getJsonMock.mockResolvedValueOnce(sampleEntries);
+    const { dispose } = mountReadLaterAssistant(root);
+    await vi.waitFor(() => {
+      expect(root.querySelector('.read-later-assistant-panel')).not.toBeNull();
+    });
+    getJsonMock.mockRejectedValueOnce(new Error('Failed to fetch'));
+    window.dispatchEvent(new Event('focus'));
+    await vi.waitFor(() => {
+      expect(root.querySelector('.read-later-assistant-panel')).not.toBeNull();
+      expect(root.querySelector('.read-later-assistant-unavailable')).not.toBeNull();
+    });
+    expect(root.querySelectorAll('.read-later-assistant-picker-item')).toHaveLength(3);
+    dispose();
+  });
+
+  it('dispose removes focus refresh listeners', async () => {
+    getJsonMock.mockResolvedValue(sampleEntries);
+    const { dispose } = mountReadLaterAssistant(root);
+    await vi.waitFor(() => {
+      expect(root.querySelector('.read-later-assistant-panel')).not.toBeNull();
+    });
+    dispose();
+    getJsonMock.mockClear();
+    window.dispatchEvent(new Event('focus'));
+    await new Promise((r) => setTimeout(r, 20));
+    expect(getJsonMock).not.toHaveBeenCalled();
+  });
+});
+
+describe('bindFocusRefresh (assistant)', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('calls refresh on window focus', () => {
+    const refresh = vi.fn().mockResolvedValue(undefined);
+    const dispose = bindFocusRefresh(refresh);
+    window.dispatchEvent(new Event('focus'));
+    expect(refresh).toHaveBeenCalledTimes(1);
+    dispose();
+  });
+
+  it('calls refresh when document becomes visible', () => {
+    const refresh = vi.fn().mockResolvedValue(undefined);
+    const dispose = bindFocusRefresh(refresh);
+    Object.defineProperty(document, 'visibilityState', {
+      configurable: true,
+      value: 'visible',
+    });
+    document.dispatchEvent(new Event('visibilitychange'));
+    expect(refresh).toHaveBeenCalledTimes(1);
+    dispose();
+  });
+
+  it('does not call refresh when document becomes hidden', () => {
+    const refresh = vi.fn().mockResolvedValue(undefined);
+    const dispose = bindFocusRefresh(refresh);
+    Object.defineProperty(document, 'visibilityState', {
+      configurable: true,
+      value: 'hidden',
+    });
+    document.dispatchEvent(new Event('visibilitychange'));
+    expect(refresh).not.toHaveBeenCalled();
+    dispose();
+  });
+
+  it('dispose removes listeners so later events do not refresh', () => {
+    const refresh = vi.fn().mockResolvedValue(undefined);
+    const dispose = bindFocusRefresh(refresh);
+    dispose();
+    window.dispatchEvent(new Event('focus'));
+    expect(refresh).not.toHaveBeenCalled();
   });
 });

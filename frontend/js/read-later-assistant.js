@@ -1,38 +1,15 @@
-import { createApiClient, resolveReadDriver } from './apiClient.js';
+import {
+  bindFocusRefresh,
+  loadReadLaterEntries,
+} from './components/read-later-list.js';
 import { escHtml } from './utils.js';
+
+export { bindFocusRefresh };
 
 const UNAVAILABLE_MSG = '列表暂时不可用，请稍后重试';
 
-function serviceError(data) {
-  if (!data || typeof data !== 'object' || Array.isArray(data)) return null;
-  if (!data.error) return null;
-  const err = new Error(String(data.error));
-  err.status = typeof data._status === 'number' ? data._status : 500;
-  return err;
-}
-
-function httpStatusError(error) {
-  const message = error instanceof Error ? error.message : String(error);
-  const match = message.match(/^HTTP (\d+)/);
-  if (!match) return null;
-  const err = new Error(message);
-  err.status = Number(match[1]);
-  return err;
-}
-
 export async function loadAssistantEntries() {
-  const mode = resolveReadDriver();
-  const client = createApiClient(resolveReadDriver(mode));
-  try {
-    const data = await client.getJson('/api/read-later');
-    const unavailable = serviceError(data);
-    if (unavailable) throw unavailable;
-    return Array.isArray(data) ? data : [];
-  } catch (error) {
-    const httpErr = httpStatusError(error);
-    if (httpErr) throw httpErr;
-    throw error;
-  }
+  return loadReadLaterEntries();
 }
 
 export function selectTop3Unread(entries) {
@@ -103,29 +80,52 @@ export function mountReadLaterAssistant(root) {
   let disposed = false;
   let top3Entries = [];
   let selectedIndex = 0;
+  let lastSuccessfulTop3 = null;
+  let refreshPromise = null;
 
-  function renderCurrent() {
+  function renderCurrent({ showUnavailable = false } = {}) {
     if (!top3Entries.length) {
-      root.innerHTML = renderEmpty();
+      root.innerHTML = showUnavailable ? renderErrorEmpty() : renderEmpty();
       return;
     }
-    root.innerHTML = renderPanel(top3Entries, selectedIndex);
+    const bannerHtml = showUnavailable ? renderUnavailable() : '';
+    root.innerHTML = `${bannerHtml}${renderPanel(top3Entries, selectedIndex)}`;
   }
 
-  async function loadAndRender() {
-    root.innerHTML = '<div class="read-later-assistant-loading">加载中…</div>';
-    try {
-      const entries = await loadAssistantEntries();
-      if (disposed) return;
-      top3Entries = selectTop3Unread(entries);
-      selectedIndex = 0;
-      renderCurrent();
-    } catch {
-      if (disposed) return;
-      top3Entries = [];
-      selectedIndex = 0;
-      root.innerHTML = renderErrorEmpty();
+  async function refreshAssistantTop3() {
+    if (refreshPromise) {
+      return refreshPromise;
     }
+
+    refreshPromise = (async () => {
+      const hasSnapshot = lastSuccessfulTop3 !== null;
+      if (!hasSnapshot) {
+        root.innerHTML = '<div class="read-later-assistant-loading">加载中…</div>';
+      }
+
+      try {
+        const entries = await loadAssistantEntries();
+        if (disposed) return;
+        top3Entries = selectTop3Unread(entries);
+        lastSuccessfulTop3 = top3Entries;
+        selectedIndex = 0;
+        renderCurrent();
+      } catch {
+        if (disposed) return;
+        if (lastSuccessfulTop3 !== null) {
+          top3Entries = lastSuccessfulTop3;
+          renderCurrent({ showUnavailable: true });
+        } else {
+          top3Entries = [];
+          selectedIndex = 0;
+          root.innerHTML = renderErrorEmpty();
+        }
+      }
+    })().finally(() => {
+      refreshPromise = null;
+    });
+
+    return refreshPromise;
   }
 
   const onClick = (event) => {
@@ -164,10 +164,12 @@ export function mountReadLaterAssistant(root) {
   };
 
   root.addEventListener('click', onClick);
-  void loadAndRender();
+  const disposeFocusRefresh = bindFocusRefresh(refreshAssistantTop3);
+  void refreshAssistantTop3();
 
   function dispose() {
     disposed = true;
+    disposeFocusRefresh();
     root.removeEventListener('click', onClick);
     root.innerHTML = '';
   }
