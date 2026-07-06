@@ -4,6 +4,7 @@ import { parseHash } from './router/index.js';
 export const BADGE_BASE_TITLE = '⚙ 沉淀知识库';
 
 const DEBOUNCE_MS = 300;
+const FETCH_TIMEOUT_MS = 10_000;
 
 let debounceTimer = null;
 let requestSeq = 0;
@@ -59,14 +60,21 @@ async function refreshBadge() {
 
   inFlightRefreshRepo = repo;
   inFlightRefresh = (async () => {
+    let timeoutId;
     try {
-      const count = await fetchKbDocCount(repo);
+      const count = await Promise.race([
+        fetchKbDocCount(repo),
+        new Promise((_, reject) => {
+          timeoutId = setTimeout(() => reject(new Error('timeout')), FETCH_TIMEOUT_MS);
+        }),
+      ]);
       if (getCorpusRepoFromHash() !== repo || seq !== requestSeq) return;
       applyBadgeTitle(count);
     } catch {
       if (getCorpusRepoFromHash() !== repo || seq !== requestSeq) return;
       applyBadgeTitle(null);
     } finally {
+      clearTimeout(timeoutId);
       if (inFlightRefreshRepo === repo) {
         inFlightRefresh = null;
         inFlightRefreshRepo = null;

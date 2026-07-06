@@ -154,4 +154,122 @@ describe('initSedimentKbBadge', () => {
     });
     vi.useRealTimers();
   });
+
+  it('debounces kb:hide-pattern-changed before re-fetch', async () => {
+    vi.useFakeTimers();
+    window.location.hash = '#/corpus/owner/repo';
+    fetchKbDocCount.mockResolvedValue(2);
+
+    initSedimentKbBadge();
+    await vi.waitFor(() => expect(fetchKbDocCount).toHaveBeenCalledTimes(1));
+
+    fetchKbDocCount.mockResolvedValue(6);
+    window.dispatchEvent(new CustomEvent('kb:hide-pattern-changed'));
+    await vi.advanceTimersByTimeAsync(299);
+    expect(fetchKbDocCount).toHaveBeenCalledTimes(1);
+
+    await vi.advanceTimersByTimeAsync(1);
+    await vi.waitFor(() => expect(fetchKbDocCount).toHaveBeenCalledTimes(2));
+    await vi.waitFor(() => {
+      expect(getBtnText()).toBe(`${BADGE_BASE_TITLE} · 6`);
+    });
+    vi.useRealTimers();
+  });
+
+  it('does not apply stale suffix when leaving corpus during debounce window', async () => {
+    vi.useFakeTimers();
+    window.location.hash = '#/corpus/owner/repo';
+    fetchKbDocCount.mockResolvedValue(3);
+
+    initSedimentKbBadge();
+    await vi.waitFor(() => {
+      expect(getBtnText()).toBe(`${BADGE_BASE_TITLE} · 3`);
+    });
+
+    fetchKbDocCount.mockResolvedValue(99);
+    window.dispatchEvent(new CustomEvent('kb-diff-updated'));
+    await vi.advanceTimersByTimeAsync(150);
+
+    window.location.hash = '#/home';
+    window.dispatchEvent(new HashChangeEvent('hashchange'));
+    expect(getBtnText()).toBe(BADGE_BASE_TITLE);
+
+    await vi.advanceTimersByTimeAsync(300);
+    await Promise.resolve();
+    expect(getBtnText()).toBe(BADGE_BASE_TITLE);
+    expect(getBtnText()).not.toMatch(/·\s*\d/);
+    vi.useRealTimers();
+  });
+
+  it('does not apply stale suffix when slow re-fetch completes after leaving corpus', async () => {
+    vi.useFakeTimers();
+    window.location.hash = '#/corpus/owner/repo';
+    fetchKbDocCount.mockResolvedValue(3);
+
+    initSedimentKbBadge();
+    await vi.waitFor(() => {
+      expect(getBtnText()).toBe(`${BADGE_BASE_TITLE} · 3`);
+    });
+
+    let resolveSlow;
+    fetchKbDocCount.mockImplementation(
+      () => new Promise((resolve) => { resolveSlow = resolve; }),
+    );
+    window.dispatchEvent(new CustomEvent('kb-diff-updated'));
+    await vi.advanceTimersByTimeAsync(300);
+
+    window.location.hash = '#/home';
+    window.dispatchEvent(new HashChangeEvent('hashchange'));
+    expect(getBtnText()).toBe(BADGE_BASE_TITLE);
+
+    resolveSlow(88);
+    await Promise.resolve();
+    expect(getBtnText()).toBe(BADGE_BASE_TITLE);
+    expect(getBtnText()).not.toMatch(/·\s*\d/);
+    vi.useRealTimers();
+  });
+
+  it('restores base title when initial fetch rejects after 10s timeout', async () => {
+    vi.useFakeTimers();
+    window.location.hash = '#/corpus/owner/repo';
+    fetchKbDocCount.mockImplementation(
+      () =>
+        new Promise((_, reject) => {
+          setTimeout(() => reject(new Error('timeout')), 10_000);
+        }),
+    );
+
+    initSedimentKbBadge();
+    await Promise.resolve();
+    expect(getBtnText()).toBe(BADGE_BASE_TITLE);
+
+    await vi.advanceTimersByTimeAsync(10_000);
+    await vi.waitFor(() => {
+      expect(getBtnText()).toBe(BADGE_BASE_TITLE);
+    });
+    expect(getBtnText()).not.toMatch(/·\s*\d/);
+    vi.useRealTimers();
+  });
+
+  it('clears stale suffix when re-fetch hangs past 10s timeout', async () => {
+    vi.useFakeTimers();
+    window.location.hash = '#/corpus/owner/repo';
+    fetchKbDocCount.mockResolvedValueOnce(5);
+
+    initSedimentKbBadge();
+    await vi.waitFor(() => {
+      expect(getBtnText()).toBe(`${BADGE_BASE_TITLE} · 5`);
+    });
+
+    fetchKbDocCount.mockImplementation(() => new Promise(() => {}));
+    window.dispatchEvent(new CustomEvent('kb-diff-updated'));
+    await vi.advanceTimersByTimeAsync(300);
+
+    await vi.advanceTimersByTimeAsync(10_000);
+    await Promise.resolve();
+
+    expect(getBtnText()).toBe(BADGE_BASE_TITLE);
+    expect(getBtnText()).not.toMatch(/·\s*\d/);
+    vi.useRealTimers();
+  });
 });
