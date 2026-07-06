@@ -106,6 +106,17 @@ fn sediment_kb_read_commands_are_acl_allowed() {
 }
 
 #[test]
+fn kb_doc_count_command_is_acl_allowed() {
+    let root = manifest_dir();
+    let toml = fs::read_to_string(root.join("permissions/read-api.toml")).expect("toml");
+    let allow = parse_read_api_toml_allow(&toml);
+    assert!(
+        allow.contains("kb_doc_count"),
+        "kb_doc_count must be in read-api.toml ACL"
+    );
+}
+
+#[test]
 fn settings_github_infer_commands_are_acl_allowed() {
     let root = manifest_dir();
     let toml = fs::read_to_string(root.join("permissions/read-api.toml")).expect("toml");

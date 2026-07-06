@@ -391,6 +391,7 @@ pub fn run() {
             commands::read::get_status,
             commands::read::kb_read,
             commands::read::kb_list,
+            commands::read::kb_doc_count,
             commands::read::kb_annotation,
             commands::read::kb_status,
             commands::read::get_repo_dirs,

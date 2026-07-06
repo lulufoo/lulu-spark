@@ -111,6 +111,21 @@ pub fn kb_list(
 }
 
 #[tauri::command]
+pub fn kb_doc_count(
+    _app: AppHandle,
+    repo: String,
+    hide_pattern: Option<String>,
+    category_id: Option<String>,
+) -> Result<Value, String> {
+    Ok(crate::services::kb::kb_doc_count_json(
+        &repo_root()?,
+        &repo,
+        hide_pattern.as_deref(),
+        category_id.as_deref(),
+    ))
+}
+
+#[tauri::command]
 pub fn kb_annotation(_app: AppHandle, repo: String, path: String) -> Result<Value, String> {
     Ok(crate::services::kb::kb_annotation_json(&repo_root()?, &repo, &path))
 }
@@ -264,6 +279,10 @@ pub fn get_sediment_kb_categories(_app: AppHandle) -> Result<Value, String> {
 pub fn get_sediment_kb_repos(_app: AppHandle) -> Result<Value, String> {
     sediment_kb_repos_json(&repo_root()?)
 }
+
+#[cfg(test)]
+#[path = "../unit-tests/commands/kb_doc_count.rs"]
+mod kb_doc_count_tests;
 
 #[cfg(test)]
 #[path = "../unit-tests/commands/sediment_kb_read.rs"]
