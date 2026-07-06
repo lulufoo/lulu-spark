@@ -4,6 +4,7 @@ import {
   createTauriDriver,
   resolveReadDriver,
 } from './apiClient.js';
+import { getKbHidePattern } from './kb-hide-pattern.js';
 
 function isTauriRuntime() {
   if (typeof window === 'undefined') return false;
@@ -187,6 +188,52 @@ export async function fetchKbFileContent(repo, path) {
 export async function fetchKbList(repo, path = '', mode = 'flat') {
   const params = new URLSearchParams({ repo, path, mode });
   return readGet(`/api/kb/list?${params.toString()}`);
+}
+
+const KB_DOC_COUNT_TIMEOUT_MS = 10_000;
+
+export async function fetchKbDocCount(repo, hidePattern) {
+  const resolvedHide =
+    hidePattern !== undefined ? hidePattern : getKbHidePattern();
+  const params = new URLSearchParams({ repo });
+  if (resolvedHide) {
+    params.set('hide_pattern', resolvedHide);
+  }
+  const path = `/api/kb/doc-count?${params.toString()}`;
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), KB_DOC_COUNT_TIMEOUT_MS);
+  try {
+    const res = await Promise.race([
+      getReadDriver().fetchGet(path),
+      new Promise((_, reject) => {
+        controller.signal.addEventListener(
+          'abort',
+          () => {
+            reject(controller.signal.reason ?? new DOMException('Aborted', 'AbortError'));
+          },
+          { once: true },
+        );
+      }),
+    ]);
+    if (!res.ok) {
+      let msg = `HTTP ${res.status}`;
+      try {
+        const d = await res.json();
+        if (d.error) msg = d.error;
+      } catch (_) {}
+      throw new Error(msg);
+    }
+    const data = await res.json();
+    if (data && typeof data === 'object' && data.error) {
+      throw new Error(typeof data.error === 'string' ? data.error : '请求失败');
+    }
+    return data?.count ?? 0;
+  } catch (error) {
+    throw normalizeReadError(error);
+  } finally {
+    clearTimeout(timeoutId);
+  }
 }
 
 export async function fetchKbAnnotation(repo, path) {
