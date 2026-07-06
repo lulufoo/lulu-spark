@@ -80,11 +80,18 @@ export const READ_API_INVOKE_MAP = {
   },
   '/api/kb/doc-count': {
     cmd: 'kb_doc_count',
-    args: (url) => ({
-      repo: url.searchParams.get('repo') ?? '',
-      hide_pattern: url.searchParams.get('hide_pattern') ?? undefined,
-      category_id: url.searchParams.get('category_id') ?? undefined,
-    }),
+    args: (url) => {
+      const args = { repo: url.searchParams.get('repo') ?? '' };
+      const hidePattern = url.searchParams.get('hide_pattern');
+      if (hidePattern != null && hidePattern !== '') {
+        args.hide_pattern = hidePattern;
+      }
+      const categoryId = url.searchParams.get('category_id');
+      if (categoryId != null && categoryId !== '') {
+        args.category_id = categoryId;
+      }
+      return args;
+    },
   },
   '/api/kb/annotation': {
     cmd: 'kb_annotation',

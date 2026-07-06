@@ -6,6 +6,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
 vi.mock('../frontend/js/api.js', () => ({
   fetchKbList: vi.fn(),
+  fetchKbDocCount: vi.fn(),
   fetchSedimentKbRepos: vi.fn(),
 }));
 
@@ -18,6 +19,8 @@ import { mountKbReader } from '../frontend/js/components/kb-viewer.js';
 import { getKbHidePattern } from '../frontend/js/kb-hide-pattern.js';
 import {
   buildTreeNodes,
+  buildRepoPickerOptions,
+  formatRepoMenuLabel,
   mountCorpusDocList,
 } from '../frontend/js/components/corpus-doc-list.js';
 import { positionFloatingListMenu } from '../frontend/js/components/floating-list-menu.js';
@@ -177,6 +180,21 @@ describe('positionFloatingListMenu', () => {
   });
 });
 
+describe('formatRepoMenuLabel', () => {
+  it('appends middle dot count when available', () => {
+    expect(formatRepoMenuLabel('repo', 5)).toBe('repo · 5');
+    expect(formatRepoMenuLabel('repo', null)).toBe('repo');
+  });
+
+  it('buildRepoPickerOptions maps counts onto labels', () => {
+    const opts = buildRepoPickerOptions(
+      [{ full_name: 'owner/repo' }],
+      new Map([['owner/repo', 7]]),
+    );
+    expect(opts[0].label).toBe('repo · 7');
+  });
+});
+
 describe('mountCorpusDocList', () => {
   let container;
   let navigate;
@@ -193,6 +211,11 @@ describe('mountCorpusDocList', () => {
         { full_name: 'owner/repo' },
         { full_name: 'owner/other' },
       ],
+    });
+    api.fetchKbDocCount.mockImplementation((repo) => {
+      if (repo === 'owner/repo') return Promise.resolve(5);
+      if (repo === 'owner/other') return Promise.resolve(12);
+      return Promise.resolve(0);
     });
   });
 
@@ -491,6 +514,7 @@ describe('mountCorpusDocList', () => {
 
     mountCorpusDocList(container, { repo: 'owner/repo', navigate });
     await flushPromises();
+    await flushPromises();
 
     const trigger = container.querySelector('.list-select-trigger');
     expect(trigger).not.toBeNull();
@@ -511,7 +535,8 @@ describe('mountCorpusDocList', () => {
     expect(menu).not.toBeNull();
     expect(menu.style.maxHeight).toBe('');
     const labels = Array.from(menu.querySelectorAll('.list-select-option')).map((o) => o.textContent);
-    expect(labels).toEqual(['repo', 'other']);
+    expect(labels).toEqual(['repo · 5', 'other · 12']);
+    expect(trigger.textContent).toMatch(/repo · 5/);
 
     menu.querySelector('[data-value="owner/other"]').click();
     expect(navigate).toHaveBeenCalledWith('#/corpus/' + encodeURIComponent('owner/other'));

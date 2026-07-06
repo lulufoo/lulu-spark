@@ -11,6 +11,32 @@ import { closeFloatingListSelect, createFloatingListSelect } from './floating-li
  */
 
 /**
+ * @param {string} shortName
+ * @param {number | null | undefined} count
+ */
+export function formatRepoMenuLabel(shortName, count) {
+  if (count == null || Number.isNaN(count)) return shortName;
+  return `${shortName} · ${Math.floor(count)}`;
+}
+
+/**
+ * @param {Array<{ full_name: string }>} repos
+ * @param {Map<string, number>} [countByRepo]
+ */
+export function buildRepoPickerOptions(repos, countByRepo = new Map()) {
+  return repos.map((r) => {
+    const fullName = r.full_name || '';
+    const short = repoShortName(fullName);
+    const count = countByRepo.has(fullName) ? countByRepo.get(fullName) : null;
+    return {
+      value: fullName,
+      label: formatRepoMenuLabel(short, count ?? null),
+      title: fullName,
+    };
+  });
+}
+
+/**
  * @param {Array<{ name?: string, relative_path?: string, is_dir?: boolean }>} entries
  * @param {string} _parentPath
  * @returns {TreeNode[]}
@@ -157,6 +183,30 @@ export function mountCorpusDocList(container, { repo, navigate, initialPath }) {
 
   /** @type {Array<{ full_name: string }>} */
   let sedimentRepos = [];
+  /** @type {((next: { value: string, options: ReturnType<typeof buildRepoPickerOptions> }) => void) | null} */
+  let repoPickerSync = null;
+
+  async function refreshRepoPickerCounts(repos) {
+    if (disposed || !repoPickerSync || !repos.length) return;
+    /** @type {Map<string, number>} */
+    const countByRepo = new Map();
+    await Promise.all(
+      repos.map(async (r) => {
+        const fullName = r.full_name;
+        if (!fullName) return;
+        try {
+          countByRepo.set(fullName, await api.fetchKbDocCount(fullName));
+        } catch {
+          // keep short label on failure
+        }
+      }),
+    );
+    if (disposed || !repoPickerSync) return;
+    repoPickerSync({
+      value: repo,
+      options: buildRepoPickerOptions(repos, countByRepo),
+    });
+  }
 
   /**
    * @param {Array<{ full_name: string }>} repos
@@ -168,25 +218,20 @@ export function mountCorpusDocList(container, { repo, navigate, initialPath }) {
     host.replaceChildren();
     if (!repos.length) return;
 
-    const { picker } = createFloatingListSelect({
+    const { picker, sync } = createFloatingListSelect({
       ariaLabel: '选择知识库',
       pickerClass: 'corpus-repo-picker',
       value: repo,
-      options: repos.map((r) => {
-        const fullName = r.full_name || '';
-        return {
-          value: fullName,
-          label: repoShortName(fullName),
-          title: fullName,
-        };
-      }),
+      options: buildRepoPickerOptions(repos),
       onSelect: (fullName) => {
         if (fullName && fullName !== repo) {
           navigate('#/corpus/' + encodeURIComponent(fullName));
         }
       },
     });
+    repoPickerSync = sync;
     host.appendChild(picker);
+    void refreshRepoPickerCounts(repos);
   }
 
   /**
@@ -210,11 +255,13 @@ export function mountCorpusDocList(container, { repo, navigate, initialPath }) {
   const onKbDiffUpdated = (event) => {
     if (event.detail?.repo !== repo) return;
     void reloadFromDisk().catch(() => {});
+    if (sedimentRepos.length) void refreshRepoPickerCounts(sedimentRepos);
   };
   window.addEventListener('kb-diff-updated', onKbDiffUpdated);
 
   const onHidePatternChanged = () => {
     void reloadFromDisk().catch(() => {});
+    if (sedimentRepos.length) void refreshRepoPickerCounts(sedimentRepos);
   };
   window.addEventListener('kb:hide-pattern-changed', onHidePatternChanged);
 
@@ -337,6 +384,7 @@ export function mountCorpusDocList(container, { repo, navigate, initialPath }) {
 
   function unmount() {
     disposed = true;
+    repoPickerSync = null;
     closeFloatingListSelect();
     detachCorpusSidebarResize();
     unmountReader?.();
