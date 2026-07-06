@@ -60,6 +60,11 @@ describe('sediment kb UI shell', () => {
     expect(mainJs).toMatch(/function onDeleteSedimentKbRepo\(/);
     expect(mainJs).not.toMatch(/btn-kb-corpus-sync/);
   });
+
+  it('main.js imports and calls initSedimentKbBadge', () => {
+    expect(mainJs).toMatch(/from '\.\/sediment-kb-badge\.js'/);
+    expect(mainJs).toMatch(/initSedimentKbBadge\(\)/);
+  });
 });
 
 describe('gh-ops delete panel HTML', () => {

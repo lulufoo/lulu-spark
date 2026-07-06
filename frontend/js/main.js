@@ -25,6 +25,7 @@ import { initCorpusSearch } from './components/corpus-search.js'
 import { mountCorpusDocList } from './components/corpus-doc-list.js'
 import { mountHomeHub } from './components/home-hub.js'
 import { initHeaderSync, clearHeaderSyncCorpusContext } from './header-sync.js'
+import { initSedimentKbBadge } from './sediment-kb-badge.js'
 import { softwareDevSkillsContent } from './skills-software-dev-content.js'
 import { normalizeCorpusIndex } from './corpus-index.js'
 
@@ -842,6 +843,8 @@ initRouter({
   'corpus-doc': wrapRouteMount('corpus-doc', mountCorpusDocRoute),
   'read-later': wrapRouteMount('read-later', mountReadLaterRoute),
 }, { fallback: '#/home' });
+
+initSedimentKbBadge();
 
 mountReadLaterAssistantWidget(document.body, { navigate, openReadLater: openReadLaterDialog });
 
