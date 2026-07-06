@@ -78,6 +78,14 @@ export const READ_API_INVOKE_MAP = {
       mode: url.searchParams.get('mode') ?? 'flat',
     }),
   },
+  '/api/kb/doc-count': {
+    cmd: 'kb_doc_count',
+    args: (url) => ({
+      repo: url.searchParams.get('repo') ?? '',
+      hide_pattern: url.searchParams.get('hide_pattern') ?? undefined,
+      category_id: url.searchParams.get('category_id') ?? undefined,
+    }),
+  },
   '/api/kb/annotation': {
     cmd: 'kb_annotation',
     args: (url) => ({

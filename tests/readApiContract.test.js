@@ -43,6 +43,38 @@ describe('readApi contract map', () => {
     });
   });
 
+  it('READ_API_INVOKE_MAP maps /api/kb/doc-count to kb_doc_count', () => {
+    const entry = READ_API_INVOKE_MAP['/api/kb/doc-count'];
+    expect(entry?.cmd).toBe('kb_doc_count');
+    expect(typeof entry?.args).toBe('function');
+  });
+
+  it('resolveInvokeFromPath maps kb doc-count query args', () => {
+    expect(
+      resolveInvokeFromPath('/api/kb/doc-count?repo=o/r&hide_pattern=^draft'),
+    ).toEqual({
+      cmd: 'kb_doc_count',
+      args: { repo: 'o/r', hide_pattern: '^draft', category_id: undefined },
+    });
+  });
+
+  it('resolveInvokeFromPath maps kb doc-count with repo-only query', () => {
+    const result = resolveInvokeFromPath('/api/kb/doc-count?repo=o/r');
+    expect(result).toEqual({
+      cmd: 'kb_doc_count',
+      args: { repo: 'o/r', hide_pattern: undefined, category_id: undefined },
+    });
+  });
+
+  it('resolveInvokeFromPath decodes URL-encoded repo for kb doc-count', () => {
+    expect(
+      resolveInvokeFromPath('/api/kb/doc-count?repo=o%2Fr&hide_pattern=^draft'),
+    ).toEqual({
+      cmd: 'kb_doc_count',
+      args: { repo: 'o/r', hide_pattern: '^draft', category_id: undefined },
+    });
+  });
+
   it('resolveInvokeFromPath 映射 kb diff status', () => {
     expect(resolveInvokeFromPath('/api/kb/diff-status?_=123')).toEqual({
       cmd: 'get_kb_diff_status',
