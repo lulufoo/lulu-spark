@@ -1,9 +1,11 @@
 use std::fs;
 use std::path::Path;
 
+use regex::Regex;
 use serde_json::{json, Value};
 
 use crate::repositories::corpus::{kb_annotation_path, kb_list_dir, kb_safe_path};
+use crate::services::sediment_kb;
 use crate::services::workbench_read::{categories_from_git_status, knowledge_corpus_root_string};
 
 fn err_status_code(msg: &str) -> u16 {
@@ -168,6 +170,87 @@ pub fn kb_status_json(repo_root: &Path, repo: &str) -> Value {
     categories.insert("total".into(), json!(total));
     categories.insert("ahead".into(), json!(ahead));
     Value::Object(categories)
+}
+
+fn parse_hide_regex(hide_pattern: Option<&str>) -> Option<Regex> {
+    let pattern = hide_pattern?.trim();
+    if pattern.is_empty() {
+        return None;
+    }
+    Regex::new(pattern).ok()
+}
+
+fn count_md_in_repo_dir(kb_root: &Path, repo_name: &str, hide_regex: Option<&Regex>) -> usize {
+    let local_dir = kb_root.join(repo_name);
+    if !local_dir.is_dir() {
+        return 0;
+    }
+    count_md_recursive(&local_dir, hide_regex)
+}
+
+fn count_md_recursive(dir: &Path, hide_regex: Option<&Regex>) -> usize {
+    let Ok(entries) = fs::read_dir(dir) else {
+        return 0;
+    };
+    let mut count = 0;
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.is_dir() {
+            count += count_md_recursive(&path, hide_regex);
+        } else if path.extension().and_then(|s| s.to_str()) == Some("md") {
+            let file_name = entry.file_name();
+            let name = file_name.to_string_lossy();
+            if hide_regex.is_some_and(|re| re.is_match(&name)) {
+                continue;
+            }
+            count += 1;
+        }
+    }
+    count
+}
+
+pub fn kb_doc_count_json(
+    repo_root: &Path,
+    repo: &str,
+    hide_pattern: Option<&str>,
+    category_id: Option<&str>,
+) -> Value {
+    let hide_regex = parse_hide_regex(hide_pattern);
+    let kb_root_str = knowledge_corpus_root_string(repo_root);
+    let kb_root = Path::new(&kb_root_str);
+
+    if let Some(cat_id) = category_id.map(str::trim).filter(|s| !s.is_empty()) {
+        let repos = match sediment_kb::load_repos() {
+            Ok(repos) => repos,
+            Err(e) => return json!({ "error": e.to_string(), "_status": 500 }),
+        };
+        let count: usize = repos
+            .repos
+            .iter()
+            .filter(|r| r.category_id == cat_id)
+            .map(|r| {
+                let repo_name = r.full_name.split('/').next_back().unwrap_or("");
+                count_md_in_repo_dir(kb_root, repo_name, hide_regex.as_ref())
+            })
+            .sum();
+        return json!({ "count": count });
+    }
+
+    let repo = repo.trim();
+    if repo.is_empty() || !repo.contains('/') || repo.contains("..") {
+        return json!({ "error": "invalid repo format", "_status": 400 });
+    }
+    let repo_name = repo.split('/').next_back().unwrap_or("");
+    let local_dir = kb_root.join(repo_name);
+    if !local_dir.is_dir() {
+        return json!({
+            "error": format!("repo not cloned: {repo_name}"),
+            "_status": 404,
+        });
+    }
+    json!({
+        "count": count_md_in_repo_dir(kb_root, repo_name, hide_regex.as_ref()),
+    })
 }
 
 #[cfg(test)]
