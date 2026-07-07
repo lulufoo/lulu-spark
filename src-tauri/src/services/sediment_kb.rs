@@ -1,4 +1,4 @@
-//! Sediment knowledge-base SSOT (`.cache/sediment-kb/{categories,repos}.json`).
+//! Sediment knowledge-base SSOT (`paths::sediment_kb_*` under `workbench_knowledge_root`).
 
 use std::fs;
 use std::sync::Mutex;
@@ -422,6 +422,29 @@ pub fn remove_category(id: &str) -> Result<(), SedimentKbError> {
         save_categories_unlocked(&categories)?;
         save_repos_unlocked(&repos)
     })
+}
+
+#[cfg(test)]
+pub fn validate_paths_ssot_constraints() {
+    let src = include_str!("sediment_kb.rs");
+    let prod = src.split("#[cfg(test)]").next().expect("prod section");
+    for forbidden in [".cache/sediment-kb", "cache_dir()", r#"join("sediment-kb")"#] {
+        assert!(
+            !prod.contains(forbidden),
+            "sediment_kb must resolve paths via paths::sediment_kb_* (found {forbidden:?})"
+        );
+    }
+    for required in [
+        "paths::sediment_kb_dir",
+        "paths::sediment_kb_categories_path",
+        "paths::sediment_kb_repos_path",
+        "atomic_json::write_json",
+    ] {
+        assert!(
+            prod.contains(required),
+            "sediment_kb must use {required}"
+        );
+    }
 }
 
 #[cfg(test)]

@@ -8,18 +8,14 @@ use std::thread;
 use serde_json::json;
 
 use crate::config::paths;
-use crate::test_support::with_test_config_dir;
+use crate::test_support::TestSandbox;
 
 fn with_sediment_kb_cache<F: FnOnce(&Path)>(f: F) {
-    with_test_config_dir(|cfg| {
-        let cache = cfg.join("cache");
-        fs::write(
-            cfg.join("config.toml"),
-            format!(r#"cache_dir = "{}""#, cache.display()),
-        )
-        .expect("write config");
-        f(&cache);
-    });
+    let _sandbox = TestSandbox::new();
+    let wb = crate::config::settings::load()
+        .expect("load")
+        .workbench_knowledge_root;
+    f(wb.as_path());
 }
 
 fn ok_validator(full_name: &str) -> Result<String, SedimentKbError> {
@@ -32,12 +28,15 @@ fn inaccessible_validator(_full_name: &str) -> Result<String, SedimentKbError> {
 
 #[test]
 fn init_creates_categories_and_repos_with_uncategorized() {
-    with_sediment_kb_cache(|cache| {
+    with_sediment_kb_cache(|wb_root| {
         ensure_uncategorized().expect("ensure");
         let cat_path = paths::sediment_kb_categories_path().expect("cat path");
         let repo_path = paths::sediment_kb_repos_path().expect("repo path");
-        assert!(cat_path.starts_with(cache.join("sediment-kb")));
-        assert!(repo_path.starts_with(cache.join("sediment-kb")));
+        assert_eq!(cat_path, wb_root.join("sediment-kb").join("categories.json"));
+        assert_eq!(repo_path, wb_root.join("sediment-kb").join("repos.json"));
+        let cache = paths::cache_dir().expect("cache");
+        assert!(!cat_path.starts_with(cache.join("sediment-kb")));
+        assert!(!repo_path.starts_with(cache.join("sediment-kb")));
         assert!(cat_path.is_file());
         assert!(repo_path.is_file());
 
@@ -262,4 +261,9 @@ fn concurrent_writes_do_not_corrupt_json() {
         assert_eq!(parsed["version"], json!(1));
         set_test_repo_validator(None);
     });
+}
+
+#[test]
+fn service_source_uses_paths_ssot_not_hardcoded_cache() {
+    validate_paths_ssot_constraints();
 }
