@@ -38,7 +38,13 @@ pub fn knowledge_corpus_root() -> Result<PathBuf, PathsError> {
 }
 
 pub fn sediment_kb_dir() -> Result<PathBuf, PathsError> {
-    Ok(cache_dir()?.join("sediment-kb"))
+    Ok(workbench_knowledge_root()?.join("sediment-kb"))
+}
+
+pub fn read_later_path() -> Result<PathBuf, PathsError> {
+    Ok(workbench_knowledge_root()?
+        .join("read_later")
+        .join("read_later.json"))
 }
 
 pub fn sediment_kb_categories_path() -> Result<PathBuf, PathsError> {
