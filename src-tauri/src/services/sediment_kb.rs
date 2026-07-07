@@ -427,7 +427,10 @@ pub fn remove_category(id: &str) -> Result<(), SedimentKbError> {
 #[cfg(test)]
 pub fn validate_paths_ssot_constraints() {
     let src = include_str!("sediment_kb.rs");
-    let prod = src.split("#[cfg(test)]").next().expect("prod section");
+    let prod = src
+        .split("pub fn validate_paths_ssot_constraints")
+        .next()
+        .expect("prod section");
     for forbidden in [".cache/sediment-kb", "cache_dir()", r#"join("sediment-kb")"#] {
         assert!(
             !prod.contains(forbidden),
@@ -450,10 +453,14 @@ pub fn validate_paths_ssot_constraints() {
 #[cfg(test)]
 pub fn validate_description_source_constraints() {
     let sediment_kb = include_str!("sediment_kb.rs");
+    let sediment_prod = sediment_kb
+        .split("pub fn validate_description_source_constraints")
+        .next()
+        .expect("sediment prod");
     let write_cmd = include_str!("../commands/write.rs");
     let workbench_read = include_str!("workbench_read.rs");
 
-    let validate_fn = sediment_kb
+    let validate_fn = sediment_prod
         .split("fn validate_repo_access")
         .nth(1)
         .and_then(|s| s.split("\nfn ").next())
@@ -464,7 +471,7 @@ pub fn validate_description_source_constraints() {
     );
 
     for (label, src) in [
-        ("sediment_kb", sediment_kb),
+        ("sediment_kb", sediment_prod),
         ("write", write_cmd),
         ("workbench_read", workbench_read),
     ] {
