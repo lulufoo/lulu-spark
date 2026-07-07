@@ -249,24 +249,45 @@ pub(crate) fn normalize_cache_dir(settings: &mut AppSettings) {
 }
 
 #[cfg(test)]
+pub fn test_config_dir_snapshot() -> Option<PathBuf> {
+    let lock = TEST_CONFIG_DIR.get_or_init(|| Mutex::new(None));
+    lock.lock().expect("test config lock").clone()
+}
+
+#[cfg(test)]
 pub fn write_test_config(
     dir: &Path,
     workbench_knowledge_root: &Path,
     knowledge_corpus_root: Option<&Path>,
 ) {
-    let kb = knowledge_corpus_root
+    write_test_config_with_cache(dir, workbench_knowledge_root, knowledge_corpus_root, None);
+    set_test_config_dir(Some(dir.to_path_buf()));
+}
+
+#[cfg(test)]
+pub fn write_test_config_with_cache(
+    dir: &Path,
+    workbench_knowledge_root: &Path,
+    knowledge_corpus_root: Option<&Path>,
+    cache_dir: Option<&Path>,
+) {
+    let corpus = knowledge_corpus_root
         .map(|p| p.display().to_string())
         .unwrap_or_else(|| home_dir().join("Code").display().to_string());
+    let cache = cache_dir
+        .map(|p| p.to_path_buf())
+        .unwrap_or_else(|| dir.join("cache"));
+    fs::create_dir_all(&cache).expect("mkdir cache");
     fs::write(
         dir.join("config.toml"),
         format!(
-            "workbench_knowledge_root = \"{}\"\nknowledge_corpus_root = \"{}\"\n",
+            "workbench_knowledge_root = \"{}\"\nknowledge_corpus_root = \"{}\"\ncache_dir = \"{}\"\n",
             workbench_knowledge_root.display(),
-            kb
+            corpus,
+            cache.display()
         ),
     )
     .expect("write test config");
-    set_test_config_dir(Some(dir.to_path_buf()));
 }
 
 pub fn config_file_path() -> PathBuf {
