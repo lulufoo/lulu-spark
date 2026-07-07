@@ -1,0 +1,83 @@
+#!/usr/bin/env python3
+"""One-shot idempotent migration: cache_dir SSOT → workbench_knowledge_root.
+
+Reads ``config.toml`` (``LULU_WB_CONFIG_DIR`` or ``~/.config/lulu-workbench``).
+Not invoked at application startup — run manually after deploy.
+"""
+from __future__ import annotations
+
+import os
+import shutil
+import sys
+from pathlib import Path
+
+try:
+    import tomllib
+except ImportError:  # pragma: no cover - Python < 3.11
+    import tomli as tomllib  # type: ignore[no-redef]
+
+MIGRATIONS: tuple[tuple[str, str], ...] = (
+    ("sediment-kb/categories.json", "sediment-kb/categories.json"),
+    ("sediment-kb/repos.json", "sediment-kb/repos.json"),
+    ("read_later.json", "read_later/read_later.json"),
+)
+
+
+def config_dir() -> Path:
+    if env := os.environ.get("LULU_WB_CONFIG_DIR"):
+        return Path(env)
+    return Path.home() / ".config" / "lulu-workbench"
+
+
+def default_cache_dir() -> Path:
+    return Path.home() / ".cache" / "lulu-workbench"
+
+
+def default_workbench_knowledge_root() -> Path:
+    return Path.home() / "Code"
+
+
+def load_roots() -> tuple[Path, Path]:
+    path = config_dir() / "config.toml"
+    if path.is_file():
+        data = tomllib.loads(path.read_text(encoding="utf-8"))
+    else:
+        data = {}
+    cache = Path(data["cache_dir"]) if "cache_dir" in data else default_cache_dir()
+    wb = (
+        Path(data["workbench_knowledge_root"])
+        if "workbench_knowledge_root" in data
+        else default_workbench_knowledge_root()
+    )
+    return cache, wb
+
+
+def files_equal(left: Path, right: Path) -> bool:
+    return left.read_bytes() == right.read_bytes()
+
+
+def migrate_file(cache_root: Path, wb_root: Path, src_rel: str, dst_rel: str) -> str:
+    src = cache_root / src_rel
+    dst = wb_root / dst_rel
+    if not src.is_file():
+        return "missing_source"
+    if dst.is_file():
+        if files_equal(src, dst):
+            return "skip_same"
+        print(f"skip (target differs): {dst}", file=sys.stderr)
+        return "skip_diff"
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(src, dst)
+    print(f"migrated: {src} → {dst}", file=sys.stderr)
+    return "copied"
+
+
+def main() -> int:
+    cache_root, wb_root = load_roots()
+    for src_rel, dst_rel in MIGRATIONS:
+        migrate_file(cache_root, wb_root, src_rel, dst_rel)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
