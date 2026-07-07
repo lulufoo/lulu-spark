@@ -43,14 +43,25 @@ fn read_later_path_under_workbench_knowledge_root() {
 }
 
 #[test]
+fn plan_tasks_path_under_workbench_knowledge_root() {
+    let sandbox = TestSandbox::new();
+    let wb = sandbox.workbench_knowledge_root();
+    let path = plan_tasks_path().expect("plan_tasks");
+    assert_eq!(path, wb.join("plan_tasks").join("plan_tasks.json"));
+}
+
+#[test]
 fn ssot_paths_use_configured_workbench_root_not_cache() {
     let sandbox = TestSandbox::new();
     let wb = sandbox.workbench_knowledge_root();
     let sediment = sediment_kb_dir().expect("sediment");
     let read_later = read_later_path().expect("read_later");
+    let plan_tasks = plan_tasks_path().expect("plan_tasks");
     assert!(sediment.starts_with(&wb));
     assert!(read_later.starts_with(&wb));
+    assert!(plan_tasks.starts_with(&wb));
     let cache = cache_dir().expect("cache");
     assert!(!sediment.starts_with(&cache));
     assert!(!read_later.starts_with(&cache));
+    assert!(!plan_tasks.starts_with(&cache));
 }

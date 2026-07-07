@@ -47,6 +47,12 @@ pub fn read_later_path() -> Result<PathBuf, PathsError> {
         .join("read_later.json"))
 }
 
+pub fn plan_tasks_path() -> Result<PathBuf, PathsError> {
+    Ok(workbench_knowledge_root()?
+        .join("plan_tasks")
+        .join("plan_tasks.json"))
+}
+
 pub fn sediment_kb_categories_path() -> Result<PathBuf, PathsError> {
     Ok(sediment_kb_dir()?.join("categories.json"))
 }
