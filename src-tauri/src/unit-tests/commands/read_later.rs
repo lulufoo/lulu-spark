@@ -1,5 +1,3 @@
-use std::fs;
-use std::path::Path;
 use std::sync::Mutex;
 use std::thread;
 use std::time::Duration;
@@ -7,28 +5,21 @@ use std::time::Duration;
 use crate::commands::read_later::{
     create_read_later_json, delete_read_later_json, get_read_later_json, mark_read_later_json,
 };
-use crate::test_support::with_test_config_dir;
+use crate::test_support::TestSandbox;
 
 static READ_LATER_CMD_TEST_LOCK: Mutex<()> = Mutex::new(());
 
-fn with_read_later_cache<F: FnOnce(&Path)>(f: F) {
+fn with_read_later_sandbox<F: FnOnce()>(f: F) {
     let _guard = READ_LATER_CMD_TEST_LOCK
         .lock()
         .expect("read_later command test lock");
-    with_test_config_dir(|cfg| {
-        let cache = cfg.join("cache");
-        fs::write(
-            cfg.join("config.toml"),
-            format!(r#"cache_dir = "{}""#, cache.display()),
-        )
-        .expect("write config");
-        f(&cache);
-    });
+    let _sandbox = TestSandbox::new();
+    f();
 }
 
 #[test]
 fn create_read_later_json_returns_entry_without_status() {
-    with_read_later_cache(|_| {
+    with_read_later_sandbox(|| {
         let v = create_read_later_json("https://example.com/a", Some("Example"))
             .expect("create");
         assert!(v.get("_status").is_none());
@@ -43,7 +34,7 @@ fn create_read_later_json_returns_entry_without_status() {
 
 #[test]
 fn get_read_later_json_returns_desc_sorted_array() {
-    with_read_later_cache(|_| {
+    with_read_later_sandbox(|| {
         create_read_later_json("https://example.com/1", Some("first")).expect("first");
         thread::sleep(Duration::from_millis(5));
         create_read_later_json("https://example.com/2", Some("second")).expect("second");
@@ -58,7 +49,7 @@ fn get_read_later_json_returns_desc_sorted_array() {
 
 #[test]
 fn mark_read_later_json_updates_entry_and_list() {
-    with_read_later_cache(|_| {
+    with_read_later_sandbox(|| {
         let created =
             create_read_later_json("https://example.com/x", Some("x")).expect("create");
         let id = created["entry"]["id"].as_str().expect("id").to_string();
@@ -75,7 +66,7 @@ fn mark_read_later_json_updates_entry_and_list() {
 
 #[test]
 fn create_read_later_json_empty_url_returns_400_class() {
-    with_read_later_cache(|_| {
+    with_read_later_sandbox(|| {
         let v = create_read_later_json("", None).expect("invoke");
         assert_eq!(v["error"], "Missing url");
         assert_eq!(v["_status"], 400);
@@ -84,7 +75,7 @@ fn create_read_later_json_empty_url_returns_400_class() {
 
 #[test]
 fn mark_read_later_json_unknown_id_returns_404_class() {
-    with_read_later_cache(|_| {
+    with_read_later_sandbox(|| {
         let v = mark_read_later_json("00000000000000000000000000000000", true)
             .expect("invoke");
         assert_eq!(v["error"], "Not found");
@@ -94,7 +85,7 @@ fn mark_read_later_json_unknown_id_returns_404_class() {
 
 #[test]
 fn delete_read_later_json_removes_entry() {
-    with_read_later_cache(|_| {
+    with_read_later_sandbox(|| {
         let created = create_read_later_json("https://example.com/del", Some("del"))
             .expect("create");
         let id = created["entry"]["id"].as_str().expect("id").to_string();

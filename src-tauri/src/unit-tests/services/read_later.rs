@@ -6,21 +6,15 @@ use std::thread;
 use std::time::Duration;
 
 use crate::config::paths;
-use crate::test_support::with_test_config_dir;
+use crate::test_support::TestSandbox;
 
 static READ_LATER_TEST_LOCK: Mutex<()> = Mutex::new(());
 
-fn with_read_later_cache<F: FnOnce(&Path)>(f: F) {
+fn with_read_later_sandbox<F: FnOnce(&Path)>(f: F) {
     let _guard = READ_LATER_TEST_LOCK.lock().expect("read_later test lock");
-    with_test_config_dir(|cfg| {
-        let cache = cfg.join("cache");
-        fs::write(
-            cfg.join("config.toml"),
-            format!(r#"cache_dir = "{}""#, cache.display()),
-        )
-        .expect("write config");
-        f(&cache);
-    });
+    let _sandbox = TestSandbox::new();
+    let wb = paths::workbench_knowledge_root().expect("workbench root");
+    f(&wb);
 }
 
 fn is_iso8601(s: &str) -> bool {
@@ -28,21 +22,32 @@ fn is_iso8601(s: &str) -> bool {
 }
 
 #[test]
-fn read_later_path_is_under_cache_dir() {
-    with_read_later_cache(|cache| {
-        let path = read_later_path().expect("path");
-        assert_eq!(path, cache.join("read_later.json"));
-        let corpus = paths::workbench_knowledge_root().expect("corpus root");
-        assert!(
-            !path.starts_with(&corpus),
-            "read_later.json must not live under corpus tree"
-        );
+fn read_later_path_is_under_workbench_knowledge_root() {
+    with_read_later_sandbox(|wb| {
+        let path = paths::read_later_path().expect("path");
+        assert_eq!(path, wb.join("read_later").join("read_later.json"));
+        let cache = paths::cache_dir().expect("cache");
+        assert_ne!(path, cache.join("read_later.json"));
+        assert!(!path.starts_with(&cache));
+    });
+}
+
+#[test]
+fn first_write_creates_read_later_directory() {
+    with_read_later_sandbox(|wb| {
+        let read_later_dir = wb.join("read_later");
+        assert!(!read_later_dir.exists());
+        let v = create_entry("https://example.com/a", Some("Example"));
+        assert_eq!(v["_status"], 201);
+        assert!(read_later_dir.is_dir());
+        let path = paths::read_later_path().expect("path");
+        assert!(path.is_file());
     });
 }
 
 #[test]
 fn list_entries_empty_store_returns_empty_array() {
-    with_read_later_cache(|_| {
+    with_read_later_sandbox(|_| {
         let v = list_entries();
         assert_eq!(v.as_array().expect("array").len(), 0);
         assert!(v.get("_status").is_none());
@@ -51,7 +56,7 @@ fn list_entries_empty_store_returns_empty_array() {
 
 #[test]
 fn create_entry_returns_id_saved_at_and_unread() {
-    with_read_later_cache(|_| {
+    with_read_later_sandbox(|_| {
         let v = create_entry("https://example.com/a", Some("Example"));
         assert_eq!(v["_status"], 201);
         let entry = &v["entry"];
@@ -68,7 +73,7 @@ fn create_entry_returns_id_saved_at_and_unread() {
 
 #[test]
 fn create_entry_allows_missing_or_empty_title() {
-    with_read_later_cache(|_| {
+    with_read_later_sandbox(|_| {
         let no_title = create_entry("https://example.com/b", None);
         assert_eq!(no_title["_status"], 201);
         assert_eq!(no_title["entry"]["title"], "");
@@ -81,7 +86,7 @@ fn create_entry_allows_missing_or_empty_title() {
 
 #[test]
 fn create_entry_rejects_missing_url() {
-    with_read_later_cache(|_| {
+    with_read_later_sandbox(|_| {
         let v = create_entry("", None);
         assert_eq!(v["_status"], 400);
     });
@@ -89,7 +94,7 @@ fn create_entry_rejects_missing_url() {
 
 #[test]
 fn list_entries_sorted_by_saved_at_desc() {
-    with_read_later_cache(|_| {
+    with_read_later_sandbox(|_| {
         create_entry("https://example.com/1", Some("first"));
         thread::sleep(Duration::from_millis(5));
         create_entry("https://example.com/2", Some("second"));
@@ -110,7 +115,7 @@ fn list_entries_sorted_by_saved_at_desc() {
 
 #[test]
 fn mark_read_updates_existing_entry() {
-    with_read_later_cache(|_| {
+    with_read_later_sandbox(|_| {
         let created = create_entry("https://example.com/x", Some("x"));
         let id = created["entry"]["id"].as_str().expect("id").to_string();
 
@@ -127,7 +132,7 @@ fn mark_read_updates_existing_entry() {
 
 #[test]
 fn mark_read_unknown_id_returns_404() {
-    with_read_later_cache(|_| {
+    with_read_later_sandbox(|_| {
         let v = mark_read("00000000000000000000000000000000", true);
         assert_eq!(v["_status"], 404);
     });
@@ -135,7 +140,7 @@ fn mark_read_unknown_id_returns_404() {
 
 #[test]
 fn delete_entry_removes_from_list() {
-    with_read_later_cache(|_| {
+    with_read_later_sandbox(|_| {
         let created = create_entry("https://example.com/del", Some("del"));
         let id = created["entry"]["id"].as_str().expect("id").to_string();
         let deleted = delete_entry(&id);
@@ -149,7 +154,7 @@ fn delete_entry_removes_from_list() {
 
 #[test]
 fn delete_entry_unknown_id_returns_404() {
-    with_read_later_cache(|_| {
+    with_read_later_sandbox(|_| {
         let v = delete_entry("00000000000000000000000000000000");
         assert_eq!(v["_status"], 404);
     });
@@ -157,13 +162,13 @@ fn delete_entry_unknown_id_returns_404() {
 
 #[test]
 fn create_and_mark_read_persists_valid_json() {
-    with_read_later_cache(|cache| {
+    with_read_later_sandbox(|wb| {
         let created = create_entry("https://example.com/persist", Some("persist"));
         let id = created["entry"]["id"].as_str().expect("id").to_string();
         let marked = mark_read(&id, true);
         assert_eq!(marked["_status"], 200);
 
-        let path = cache.join("read_later.json");
+        let path = wb.join("read_later").join("read_later.json");
         assert!(path.is_file());
         let text = fs::read_to_string(&path).expect("read json");
         let parsed: serde_json::Value = serde_json::from_str(&text).expect("valid json");
@@ -176,9 +181,9 @@ fn create_and_mark_read_persists_valid_json() {
 
 #[test]
 fn corrupt_json_recovers_to_empty_and_rebuilds() {
-    with_read_later_cache(|cache| {
-        let path = cache.join("read_later.json");
-        fs::create_dir_all(cache).expect("mkdir");
+    with_read_later_sandbox(|wb| {
+        let path = wb.join("read_later").join("read_later.json");
+        fs::create_dir_all(wb.join("read_later")).expect("mkdir");
         fs::write(&path, "{not valid json").expect("write corrupt");
 
         let list = list_entries();

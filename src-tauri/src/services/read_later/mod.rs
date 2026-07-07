@@ -1,7 +1,6 @@
-//! Read Later queue persisted at `{cache_dir}/read_later.json`.
+//! Read Later queue persisted at `{workbench_knowledge_root}/read_later/read_later.json`.
 
 use std::fs;
-use std::path::PathBuf;
 use std::sync::Mutex;
 
 use chrono::Utc;
@@ -30,10 +29,6 @@ pub struct ReadLaterFile {
     pub entries: Vec<ReadLaterEntry>,
 }
 
-pub fn read_later_path() -> Result<PathBuf, crate::config::paths::PathsError> {
-    Ok(paths::cache_dir()?.join("read_later.json"))
-}
-
 fn default_file() -> ReadLaterFile {
     ReadLaterFile {
         version: 1,
@@ -49,8 +44,16 @@ where
     f()
 }
 
+fn ensure_storage_dir() -> Result<(), String> {
+    let path = paths::read_later_path().map_err(|e| format!("{e:?}"))?;
+    let parent = path
+        .parent()
+        .ok_or_else(|| "read_later path has no parent".to_string())?;
+    fs::create_dir_all(parent).map_err(|e| e.to_string())
+}
+
 fn load_file_unlocked() -> ReadLaterFile {
-    let path = match read_later_path() {
+    let path = match paths::read_later_path() {
         Ok(p) => p,
         Err(_) => return default_file(),
     };
@@ -73,7 +76,8 @@ fn load_file_unlocked() -> ReadLaterFile {
 }
 
 fn save_file_unlocked(file: &ReadLaterFile) -> Result<(), String> {
-    let path = read_later_path().map_err(|e| format!("{e:?}"))?;
+    ensure_storage_dir()?;
+    let path = paths::read_later_path().map_err(|e| format!("{e:?}"))?;
     let value = serde_json::to_value(file).map_err(|e| e.to_string())?;
     atomic_json::write_json(&path, &value)
 }
