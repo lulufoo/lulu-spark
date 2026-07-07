@@ -38,6 +38,7 @@ const assistantCapability = JSON.parse(
   ),
 );
 const appCss = readFileSync(join(fixtureRoot, 'frontend/app.css'), 'utf8');
+const mainJs = readFileSync(join(fixtureRoot, 'frontend/js/main.js'), 'utf8');
 
 const sampleMasters = [
   {
@@ -298,6 +299,19 @@ describe('mountPlanTaskAssistant', () => {
       '#/plan-tasks?master=task_newest&sub=task_newest_sub_02',
     );
     dispose();
+  });
+});
+
+describe('main window wiring', () => {
+  it('main.js mounts plan-task assistant widget alongside read-later', () => {
+    expect(mainJs).toMatch(/import \{ mountPlanTaskAssistantWidget \} from '\.\/plan-task-assistant\.js'/);
+    expect(mainJs).toMatch(/mountPlanTaskAssistantWidget\(document\.body, \{ navigate \}\)/);
+    expect(mainJs).toMatch(/mountReadLaterAssistantWidget\(document\.body/);
+  });
+
+  it('plan FAB sits 56px above read-later FAB in app.css', () => {
+    expect(appCss).toMatch(/\.rl-assistant-widget[\s\S]*?bottom:\s*20px/);
+    expect(appCss).toMatch(/\.pt-assistant-widget[\s\S]*?bottom:\s*76px/);
   });
 });
 

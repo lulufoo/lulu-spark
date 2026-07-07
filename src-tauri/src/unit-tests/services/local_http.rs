@@ -634,6 +634,48 @@ fn options_non_read_later_path_returns_405() {
 }
 
 #[test]
+fn get_plan_tasks_empty_returns_200_array() {
+    with_plan_task_http_test(|| {
+        let fixture = setup_repo_for_plan_task();
+        let repo_root = fixture.repo_root.clone();
+        with_server(repo_root, |port| {
+            let (status, body) = http_get_with_response(port, "/api/plan-tasks");
+            assert_eq!(status, 200);
+            assert!(body.is_array());
+            assert_eq!(body.as_array().expect("array").len(), 0);
+        });
+    });
+}
+
+#[test]
+fn get_plan_tasks_returns_created_masters() {
+    with_plan_task_http_test(|| {
+        let fixture = setup_repo_for_plan_task();
+        let repo_root = fixture.repo_root.clone();
+        with_server(repo_root, |port| {
+            let (create_status, create_body) = http_post(
+                port,
+                "/api/plan-task-create",
+                &json!({ "title": "Listed master", "sub_titles": ["Sub A", "Sub B"] }),
+            );
+            assert_eq!(create_status, 201);
+            let master_id = create_body["master_task_id"]
+                .as_str()
+                .expect("master_task_id");
+
+            let (status, body) = http_get_with_response(port, "/api/plan-tasks");
+            assert_eq!(status, 200);
+            let list = body.as_array().expect("array");
+            assert_eq!(list.len(), 1);
+            assert_eq!(list[0]["master_task_id"], master_id);
+            assert_eq!(list[0]["title"], "Listed master");
+            let subs = list[0]["sub_tasks"].as_array().expect("sub_tasks");
+            assert_eq!(subs.len(), 2);
+        });
+    });
+}
+
+#[test]
 fn post_plan_task_create_omit_sub_titles_creates_implicit_sub() {
     with_plan_task_http_test(|| {
         let fixture = setup_repo_for_plan_task();

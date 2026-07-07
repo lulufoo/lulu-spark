@@ -407,6 +407,7 @@ pub fn run() {
             commands::read_later::get_read_later,
             commands::read_later::mark_read_later,
             commands::read_later::delete_read_later,
+            commands::plan_task::get_plan_tasks,
             commands::search::reindex_knowledge,
             commands::search::reindex_workbench,
             commands::search::reindex_kb_repo,

@@ -1,7 +1,6 @@
-//! Localhost HTTP API for MCP sidecar proxy (`GET/POST /api/corpus-*`, `/api/archive-*`, `/api/read-later*`, `/api/status`).
+//! Localhost HTTP API for MCP sidecar proxy (`GET/POST /api/corpus-*`, `/api/archive-*`, `/api/read-later*`, `/api/plan-tasks`, `/api/status`).
 
 use std::collections::HashMap;
-use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
@@ -174,6 +173,10 @@ fn handle_request(repo_root: &PathBuf, port: u16, request: tiny_http::Request) {
                 handle_read_later_get(request);
                 return;
             }
+            "/api/plan-tasks" => {
+                handle_plan_tasks_get(request);
+                return;
+            }
             "/api/corpus-catalog" => {
                 let params = parse_query(&url);
                 let mode = params.get("mode").map(String::as_str).unwrap_or("");
@@ -244,6 +247,16 @@ fn handle_read_later_get(request: tiny_http::Request) {
     let entries = read_later::list_entries();
     let body = serde_json::to_string(&entries).unwrap_or_else(|_| "[]".to_string());
     respond_with_cors(request, 200, body);
+}
+
+fn handle_plan_tasks_get(request: tiny_http::Request) {
+    let value = plan_task::list_all();
+    if value.is_array() {
+        let body = serde_json::to_string(&value).unwrap_or_else(|_| "[]".to_string());
+        respond_with_cors(request, 200, body);
+        return;
+    }
+    respond_read_later_from_value(request, value);
 }
 
 fn handle_read_later_post(mut request: tiny_http::Request) {

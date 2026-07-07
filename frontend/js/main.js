@@ -18,6 +18,7 @@ import { openSettingsDialog } from './components/modals/settings-dialog.js'
 import { renderFeed } from './feed.js'
 import { initRouter, navigate } from './router/index.js'
 import { mountReadLaterAssistantWidget } from './read-later-assistant.js'
+import { mountPlanTaskAssistantWidget } from './plan-task-assistant.js'
 import { openReadLaterDialog } from './components/modals/read-later-dialog.js'
 import { applySearchNavChrome } from './nav-chrome.js'
 import { initWorkbenchSearch } from './components/workbench-search.js'
@@ -893,6 +894,7 @@ initRouter({
 }, { fallback: '#/home' });
 
 mountReadLaterAssistantWidget(document.body, { navigate, openReadLater: openReadLaterDialog });
+mountPlanTaskAssistantWidget(document.body, { navigate });
 
 function registerTagsReconciledListener() {
   const onReconciled = async () => {

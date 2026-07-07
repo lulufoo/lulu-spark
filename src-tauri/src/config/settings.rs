@@ -1,20 +1,12 @@
-//! User settings in `~/.config/lulu-workbench/config.toml` (override via `LULU_WB_CONFIG_DIR` in tests).
+//! User settings in `~/.config/lulu-workbench/config.toml` (prod) or `dev.config.toml` (TEST_MODE / tests).
 
 use std::fs;
 use std::path::{Path, PathBuf};
-#[cfg(test)]
-use std::sync::{Mutex, OnceLock};
 
 use serde::{Deserialize, Serialize};
 
-#[cfg(test)]
-static TEST_CONFIG_DIR: OnceLock<Mutex<Option<PathBuf>>> = OnceLock::new();
-
-#[cfg(test)]
-pub fn set_test_config_dir(dir: Option<PathBuf>) {
-    let lock = TEST_CONFIG_DIR.get_or_init(|| Mutex::new(None));
-    *lock.lock().expect("test config lock") = dir;
-}
+pub const DEV_CONFIG_FILE_NAME: &str = "dev.config.toml";
+pub const PROD_CONFIG_FILE_NAME: &str = "config.toml";
 
 pub const DEFAULT_GITHUB_USER_URL: &str = "";
 
@@ -162,6 +154,7 @@ pub enum SettingsError {
     Io(std::io::Error),
     Parse(toml::de::Error),
     Serialize(toml::ser::Error),
+    ConfigGuard(String),
 }
 
 impl std::fmt::Display for SettingsError {
@@ -170,6 +163,7 @@ impl std::fmt::Display for SettingsError {
             SettingsError::Io(e) => write!(f, "io: {e}"),
             SettingsError::Parse(e) => write!(f, "parse: {e}"),
             SettingsError::Serialize(e) => write!(f, "serialize: {e}"),
+            SettingsError::ConfigGuard(msg) => write!(f, "config guard: {msg}"),
         }
     }
 }
@@ -192,23 +186,74 @@ impl From<toml::ser::Error> for SettingsError {
     }
 }
 
-/// Config directory: test override → `$LULU_WB_CONFIG_DIR` (tests only) → `~/.config/lulu-workbench`.
+/// Isolated config dir for script/subprocess tests (`LULU_WB_CONFIG_DIR`), not dev.config.toml.
+#[cfg(test)]
+fn isolated_config_dir() -> Option<PathBuf> {
+    std::env::var("LULU_WB_CONFIG_DIR")
+        .ok()
+        .map(PathBuf::from)
+}
+
+/// Config directory: `$LULU_WB_CONFIG_DIR` (isolated tests) → `~/.config/lulu-workbench`.
 pub fn settings_config_dir() -> PathBuf {
     #[cfg(test)]
-    if let Some(lock) = TEST_CONFIG_DIR.get() {
-        if let Some(ref p) = *lock.lock().expect("test config lock") {
-            return p.clone();
-        }
-    }
-    #[cfg(test)]
-    if let Ok(dir) = std::env::var("LULU_WB_CONFIG_DIR") {
-        return PathBuf::from(dir);
+    if let Some(dir) = isolated_config_dir() {
+        return dir;
     }
     home_dir().join(".config").join("lulu-workbench")
 }
 
-/// True when `cache_dir` points at OS/tempfile ephemeral storage (must not persist in user config).
-pub(crate) fn is_unstable_cache_dir(path: &Path) -> bool {
+/// True when loading/saving `dev.config.toml` instead of prod `config.toml`.
+pub fn uses_dev_config() -> bool {
+    #[cfg(test)]
+    if isolated_config_dir().is_some() {
+        return false;
+    }
+    if is_test_mode() {
+        return true;
+    }
+    #[cfg(test)]
+    {
+        return true;
+    }
+    #[cfg(not(test))]
+    false
+}
+
+pub fn prod_config_file_path() -> PathBuf {
+    settings_config_dir().join(PROD_CONFIG_FILE_NAME)
+}
+
+pub fn dev_config_file_path() -> PathBuf {
+    settings_config_dir().join(DEV_CONFIG_FILE_NAME)
+}
+
+pub fn config_file_path() -> PathBuf {
+    if uses_dev_config() {
+        dev_config_file_path()
+    } else {
+        prod_config_file_path()
+    }
+}
+
+/// Read prod `config.toml` only (for TestSandbox prod-path guards).
+pub fn load_prod_settings() -> AppSettings {
+    let path = prod_config_file_path();
+    if !path.is_file() {
+        return AppSettings::default();
+    }
+    let Ok(text) = fs::read_to_string(&path) else {
+        return AppSettings::default();
+    };
+    let Ok(mut settings) = toml::from_str::<AppSettings>(&text) else {
+        return AppSettings::default();
+    };
+    normalize_prod_paths(&mut settings);
+    settings
+}
+
+/// True when path points at OS/tempfile ephemeral storage (must not persist in prod config).
+pub(crate) fn is_unstable_path(path: &Path) -> bool {
     let s = path.to_string_lossy();
     if s.starts_with("/tmp/") || s == "/tmp" {
         return true;
@@ -228,45 +273,62 @@ pub(crate) fn is_unstable_cache_dir(path: &Path) -> bool {
     false
 }
 
-fn skip_cache_dir_normalization() -> bool {
+pub(crate) fn is_unstable_cache_dir(path: &Path) -> bool {
+    is_unstable_path(path)
+}
+
+fn config_is_prod_file(path: &Path) -> bool {
+    path.file_name().and_then(|n| n.to_str()) == Some(PROD_CONFIG_FILE_NAME)
+}
+
+fn should_normalize_for_path(path: &Path) -> bool {
     #[cfg(test)]
-    if let Some(lock) = TEST_CONFIG_DIR.get() {
-        if lock.lock().expect("test config lock").is_some() {
-            return true;
-        }
+    if isolated_config_dir().is_some() {
+        return false;
     }
-    false
+    config_is_prod_file(path)
+}
+
+pub(crate) fn normalize_prod_paths(settings: &mut AppSettings) {
+    if is_unstable_cache_dir(&settings.cache_dir) {
+        settings.cache_dir = default_cache_dir();
+    }
+    if is_unstable_path(&settings.workbench_knowledge_root) {
+        settings.workbench_knowledge_root = default_workbench_knowledge_root();
+    }
+    if is_unstable_path(&settings.knowledge_corpus_root) {
+        settings.knowledge_corpus_root = default_knowledge_corpus_root();
+    }
 }
 
 /// Reset poisoned `cache_dir` values (e.g. test temp paths written via `set_config`).
 pub(crate) fn normalize_cache_dir(settings: &mut AppSettings) {
-    if skip_cache_dir_normalization() {
-        return;
-    }
     if is_unstable_cache_dir(&settings.cache_dir) {
         settings.cache_dir = default_cache_dir();
     }
 }
 
-#[cfg(test)]
-pub fn test_config_dir_snapshot() -> Option<PathBuf> {
-    let lock = TEST_CONFIG_DIR.get_or_init(|| Mutex::new(None));
-    lock.lock().expect("test config lock").clone()
-}
-
-#[cfg(test)]
-pub fn write_test_config(
-    dir: &Path,
-    workbench_knowledge_root: &Path,
-    knowledge_corpus_root: Option<&Path>,
-) {
-    write_test_config_with_cache(dir, workbench_knowledge_root, knowledge_corpus_root, None);
-    set_test_config_dir(Some(dir.to_path_buf()));
+fn guard_save_path(path: &Path) -> Result<(), SettingsError> {
+    let file = path
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or_default();
+    if uses_dev_config() && file == PROD_CONFIG_FILE_NAME {
+        return Err(SettingsError::ConfigGuard(
+            "tests/TEST_MODE must not write config.toml; use dev.config.toml".into(),
+        ));
+    }
+    if !uses_dev_config() && file == DEV_CONFIG_FILE_NAME {
+        return Err(SettingsError::ConfigGuard(
+            "prod runtime must not write dev.config.toml".into(),
+        ));
+    }
+    Ok(())
 }
 
 #[cfg(test)]
 pub fn write_test_config_with_cache(
-    dir: &Path,
+    _dir: &Path,
     workbench_knowledge_root: &Path,
     knowledge_corpus_root: Option<&Path>,
     cache_dir: Option<&Path>,
@@ -276,10 +338,14 @@ pub fn write_test_config_with_cache(
         .unwrap_or_else(|| home_dir().join("Code").display().to_string());
     let cache = cache_dir
         .map(|p| p.to_path_buf())
-        .unwrap_or_else(|| dir.join("cache"));
+        .unwrap_or_else(|| _dir.join("cache"));
     fs::create_dir_all(&cache).expect("mkdir cache");
+    let path = config_file_path();
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).expect("mkdir config dir");
+    }
     fs::write(
-        dir.join("config.toml"),
+        &path,
         format!(
             "workbench_knowledge_root = \"{}\"\nknowledge_corpus_root = \"{}\"\ncache_dir = \"{}\"\n",
             workbench_knowledge_root.display(),
@@ -290,10 +356,6 @@ pub fn write_test_config_with_cache(
     .expect("write test config");
 }
 
-pub fn config_file_path() -> PathBuf {
-    settings_config_dir().join("config.toml")
-}
-
 pub fn load() -> Result<AppSettings, SettingsError> {
     let path = config_file_path();
     if !path.is_file() {
@@ -301,15 +363,23 @@ pub fn load() -> Result<AppSettings, SettingsError> {
     }
     let text = fs::read_to_string(&path)?;
     let mut settings: AppSettings = toml::from_str(&text)?;
-    normalize_cache_dir(&mut settings);
+    if should_normalize_for_path(&path) {
+        normalize_prod_paths(&mut settings);
+    }
     Ok(settings)
 }
 
 pub fn save(settings: &AppSettings) -> Result<(), SettingsError> {
+    let path = config_file_path();
+    guard_save_path(&path)?;
+    let mut to_save = settings.clone();
+    if should_normalize_for_path(&path) {
+        normalize_prod_paths(&mut to_save);
+    }
     let dir = settings_config_dir();
     fs::create_dir_all(&dir)?;
-    let text = toml::to_string_pretty(settings)?;
-    fs::write(config_file_path(), text)?;
+    let text = toml::to_string_pretty(&to_save)?;
+    fs::write(path, text)?;
     Ok(())
 }
 

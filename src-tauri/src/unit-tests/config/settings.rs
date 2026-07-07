@@ -2,19 +2,25 @@ use super::*;
 use std::fs;
 use std::path::Path;
 
-struct EnvGuard;
+struct IsolatedConfigGuard {
+    prev: Option<String>,
+}
 
-impl EnvGuard {
-    fn with_config_dir(dir: &Path) -> Self {
-        set_test_config_dir(Some(dir.to_path_buf()));
+impl IsolatedConfigGuard {
+    fn set(dir: &Path) -> Self {
+        let prev = std::env::var("LULU_WB_CONFIG_DIR").ok();
+        unsafe { std::env::set_var("LULU_WB_CONFIG_DIR", dir) };
         crate::config::secrets::test_secrets_clear();
-        Self
+        Self { prev }
     }
 }
 
-impl Drop for EnvGuard {
+impl Drop for IsolatedConfigGuard {
     fn drop(&mut self) {
-        set_test_config_dir(None);
+        match self.prev.take() {
+            Some(v) => unsafe { std::env::set_var("LULU_WB_CONFIG_DIR", v) },
+            None => unsafe { std::env::remove_var("LULU_WB_CONFIG_DIR") },
+        }
         crate::config::secrets::test_secrets_clear();
     }
 }
@@ -22,12 +28,12 @@ impl Drop for EnvGuard {
 #[test]
 fn load_reads_config_toml_fields() {
     let dir = tempfile::tempdir().expect("tmp");
-    let _guard = EnvGuard::with_config_dir(dir.path());
+    let _guard = IsolatedConfigGuard::set(dir.path());
     let wb = dir.path().join("my-workbench-knowledge");
     let kc = dir.path().join("my-knowledge-corpus");
     let cache = dir.path().join("my-cache");
     fs::write(
-        dir.path().join("config.toml"),
+        dir.path().join(PROD_CONFIG_FILE_NAME),
         format!(
             r#"
 workbench_knowledge_root = "{}"
@@ -81,7 +87,7 @@ fn workbench_github_blob_base_from_user_url_and_root() {
 #[test]
 fn load_defaults_when_no_config_file() {
     let dir = tempfile::tempdir().expect("tmp");
-    let _guard = EnvGuard::with_config_dir(dir.path());
+    let _guard = IsolatedConfigGuard::set(dir.path());
     let s = load().expect("load");
     assert_eq!(s.cache_dir, default_cache_dir());
     assert_eq!(s.meili_url, "http://localhost:7700");
@@ -90,7 +96,7 @@ fn load_defaults_when_no_config_file() {
 #[test]
 fn save_roundtrip_updates_file() {
     let dir = tempfile::tempdir().expect("tmp");
-    let _guard = EnvGuard::with_config_dir(dir.path());
+    let _guard = IsolatedConfigGuard::set(dir.path());
     let mut s = AppSettings::default();
     s.workbench_knowledge_root = dir.path().join("workbench-x");
     save(&s).expect("save");
@@ -183,15 +189,38 @@ fn is_test_mode_false_for_non_one_values() {
 }
 
 #[test]
-fn test_mode_env_not_written_to_config_toml() {
-    let dir = tempfile::tempdir().expect("tmp");
-    let _guard = EnvGuard::with_config_dir(dir.path());
-    let _tm = TestModeGuard::set(Some("1"));
-    let mut s = AppSettings::default();
-    s.workbench_knowledge_root = dir.path().join("wb");
-    save(&s).expect("save");
-    let text = fs::read_to_string(dir.path().join("config.toml")).expect("read config");
-    assert!(!text.contains("test_mode"));
-    assert!(!text.contains("TEST_MODE"));
-    assert!(!text.contains("debug"));
+fn test_mode_save_writes_dev_config_not_prod() {
+    crate::test_support::with_config_test_serial(|| {
+        let _tm = TestModeGuard::set(Some("1"));
+        let dir = tempfile::tempdir().expect("tmp");
+        let wb = dir.path().join("wb");
+        fs::create_dir_all(&wb).expect("mkdir wb");
+        let mut s = AppSettings::default();
+        s.workbench_knowledge_root = wb;
+        save(&s).expect("save");
+        let dev_path = dev_config_file_path();
+        assert!(dev_path.is_file());
+        let text = fs::read_to_string(&dev_path).expect("read dev config");
+        assert!(text.contains("workbench_knowledge_root"));
+        assert!(!text.contains("test_mode"));
+        assert!(!text.contains("TEST_MODE"));
+    });
+}
+
+#[test]
+fn save_rejects_writing_prod_config_in_test_mode() {
+    crate::test_support::with_config_test_serial(|| {
+        let _tm = TestModeGuard::set(Some("1"));
+        let prod = prod_config_file_path();
+        let before = prod.is_file().then(|| fs::read_to_string(&prod).ok()).flatten();
+        let mut s = AppSettings::default();
+        s.workbench_knowledge_root = PathBuf::from("/tmp/should-not-persist");
+        let err = save(&s);
+        assert!(err.is_ok());
+        if let Some(prev) = before {
+            assert_eq!(fs::read_to_string(&prod).ok(), Some(prev));
+        } else {
+            assert!(!prod.is_file());
+        }
+    });
 }

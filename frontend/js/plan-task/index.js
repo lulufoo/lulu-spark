@@ -12,7 +12,8 @@ function serviceError(data) {
 }
 
 export async function loadPlanTasks() {
-  const client = createApiClient(resolveReadDriver());
+  const mode = resolveReadDriver();
+  const client = createApiClient(resolveReadDriver(mode));
   const data = await client.getJson('/api/plan-tasks');
   const err = serviceError(data);
   if (err) throw err;

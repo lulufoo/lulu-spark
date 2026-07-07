@@ -7,7 +7,7 @@ use crate::config::settings;
 
 static CONFIG_TEST_SERIAL: Mutex<()> = Mutex::new(());
 
-/// Serialize tests that mutate process-wide test config dir (TestSandbox).
+/// Serialize tests that mutate `dev.config.toml` (TestSandbox).
 pub fn with_config_test_serial<F: FnOnce()>(f: F) {
     let _guard = CONFIG_TEST_SERIAL
         .lock()
@@ -27,25 +27,6 @@ fn prepare_sandbox_roots(dir: &Path) -> (PathBuf, PathBuf, PathBuf) {
 
 fn write_sandbox_config(dir: &Path, wb: &Path, corpus: &Path, cache: &Path) {
     settings::write_test_config_with_cache(dir, wb, Some(corpus), Some(cache));
-}
-
-/// RAII guard restoring the previous test config dir on drop (supports nested sandboxes).
-struct ConfigDirGuard {
-    prev: Option<PathBuf>,
-}
-
-impl ConfigDirGuard {
-    fn install(dir: PathBuf) -> Self {
-        let prev = settings::test_config_dir_snapshot();
-        settings::set_test_config_dir(Some(dir));
-        Self { prev }
-    }
-}
-
-impl Drop for ConfigDirGuard {
-    fn drop(&mut self) {
-        settings::set_test_config_dir(self.prev.take());
-    }
 }
 
 fn path_under_prod_root(path: &Path, root: &Path) -> bool {
@@ -92,10 +73,9 @@ fn assert_path_not_under_prod_roots(
     Ok(())
 }
 
-/// Isolated temp config + sandbox roots (`workbench_knowledge_root`, `knowledge_corpus_root`, `cache_dir`).
+/// Isolated temp data roots + `dev.config.toml` (never prod `config.toml`).
 pub struct TestSandbox {
     dir: tempfile::TempDir,
-    _guard: ConfigDirGuard,
     prod_workbench_knowledge_root: PathBuf,
     prod_knowledge_corpus_root: PathBuf,
     prod_cache_dir: PathBuf,
@@ -103,34 +83,33 @@ pub struct TestSandbox {
 
 impl TestSandbox {
     pub fn new() -> Self {
-        let defaults = settings::AppSettings::default();
-        let prod_workbench_knowledge_root = defaults.workbench_knowledge_root.clone();
-        let prod_knowledge_corpus_root = defaults.knowledge_corpus_root.clone();
-        let prod_cache_dir = defaults.cache_dir.clone();
+        let prod = settings::load_prod_settings();
+        let prod_workbench_knowledge_root = prod.workbench_knowledge_root.clone();
+        let prod_knowledge_corpus_root = prod.knowledge_corpus_root.clone();
+        let prod_cache_dir = prod.cache_dir.clone();
 
         let dir = tempfile::tempdir().expect("tmp");
         let (wb, corpus, cache) = prepare_sandbox_roots(dir.path());
-        let guard = ConfigDirGuard::install(dir.path().to_path_buf());
-        write_sandbox_config(dir.path(), &wb, &corpus, &cache);
-
-        let cfg = settings::load().expect("load");
-        for path in [
-            cfg.workbench_knowledge_root.as_path(),
-            cfg.knowledge_corpus_root.as_path(),
-            cfg.cache_dir.as_path(),
-        ] {
-            assert_path_not_under_prod_roots(
-                path,
-                &prod_workbench_knowledge_root,
-                &prod_knowledge_corpus_root,
-                &prod_cache_dir,
-            )
-            .expect("TestSandbox must not use prod roots");
-        }
+        with_config_test_serial(|| {
+            write_sandbox_config(dir.path(), &wb, &corpus, &cache);
+            let cfg = settings::load().expect("load");
+            for path in [
+                cfg.workbench_knowledge_root.as_path(),
+                cfg.knowledge_corpus_root.as_path(),
+                cfg.cache_dir.as_path(),
+            ] {
+                assert_path_not_under_prod_roots(
+                    path,
+                    &prod_workbench_knowledge_root,
+                    &prod_knowledge_corpus_root,
+                    &prod_cache_dir,
+                )
+                .expect("TestSandbox must not use prod roots");
+            }
+        });
 
         Self {
             dir,
-            _guard: guard,
             prod_workbench_knowledge_root,
             prod_knowledge_corpus_root,
             prod_cache_dir,
@@ -202,14 +181,36 @@ pub fn with_sandbox_corpus<F: FnOnce(&Path, &Path)>(prepare_ai_subdir: bool, f: 
     f(sandbox.config_dir(), wb.as_path());
 }
 
-/// Minimal test config helper: temp dir → set config dir → run `f` → clear.
+struct IsolatedConfigDirGuard {
+    prev: Option<String>,
+}
+
+impl IsolatedConfigDirGuard {
+    fn set(dir: &Path) -> Self {
+        let prev = std::env::var("LULU_WB_CONFIG_DIR").ok();
+        // SAFETY: test-only env mutation
+        unsafe { std::env::set_var("LULU_WB_CONFIG_DIR", dir) };
+        Self { prev }
+    }
+}
+
+impl Drop for IsolatedConfigDirGuard {
+    fn drop(&mut self) {
+        match self.prev.take() {
+            Some(v) => unsafe { std::env::set_var("LULU_WB_CONFIG_DIR", v) },
+            None => unsafe { std::env::remove_var("LULU_WB_CONFIG_DIR") },
+        }
+    }
+}
+
+/// Temp config dir via `LULU_WB_CONFIG_DIR` (uses `config.toml` inside, not dev.config.toml).
 pub fn with_test_config_dir<F: FnOnce(&std::path::Path)>(f: F) {
     let dir = tempfile::tempdir().expect("tmp");
-    let _guard = ConfigDirGuard::install(dir.path().to_path_buf());
+    let _guard = IsolatedConfigDirGuard::set(dir.path());
     f(dir.path());
 }
 
-/// Corpus helper: create corpus tree, write sandbox three-root config, run `f`, restore config dir.
+/// Corpus helper: create corpus tree, write sandbox three-root config, run `f`.
 pub fn with_corpus<F: FnOnce(tempfile::TempDir, PathBuf)>(prepare_ai_subdir: bool, f: F) {
     let dir = tempfile::tempdir().expect("tmp");
     let corpus = dir.path().join("corpus");
@@ -222,7 +223,7 @@ pub fn with_corpus<F: FnOnce(tempfile::TempDir, PathBuf)>(prepare_ai_subdir: boo
     let cache = dir.path().join("cache");
     std::fs::create_dir_all(&wb).expect("mkdir wb");
     std::fs::create_dir_all(&cache).expect("mkdir cache");
-    let _guard = ConfigDirGuard::install(dir.path().to_path_buf());
+    let _guard = IsolatedConfigDirGuard::set(dir.path());
     write_sandbox_config(dir.path(), &wb, &corpus, &cache);
     f(dir, corpus);
 }

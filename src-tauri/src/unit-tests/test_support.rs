@@ -4,12 +4,18 @@ use std::fs;
 use std::path::PathBuf;
 use std::time::SystemTime;
 
-use crate::config::settings::{self, default_cache_dir, AppSettings};
+use crate::config::settings::{self, default_cache_dir, load_prod_settings, prod_config_file_path, DEV_CONFIG_FILE_NAME};
 use crate::test_support::{TestSandbox, with_corpus, with_sandbox_corpus, with_test_config_dir};
 
 fn prod_cache_dir_mtime() -> Option<SystemTime> {
     let path = default_cache_dir();
     fs::metadata(path).ok().and_then(|m| m.modified().ok())
+}
+
+fn prod_config_mtime() -> Option<SystemTime> {
+    fs::metadata(prod_config_file_path())
+        .ok()
+        .and_then(|m| m.modified().ok())
 }
 
 #[test]
@@ -24,44 +30,27 @@ fn test_sandbox_new_creates_isolated_three_roots() {
 }
 
 #[test]
-fn test_sandbox_drop_clears_config_dir_override() {
-    let outer = tempfile::tempdir().expect("tmp");
-    settings::set_test_config_dir(Some(outer.path().to_path_buf()));
-    {
-        let _sandbox = TestSandbox::new();
-        assert_ne!(
-            settings::config_file_path().parent(),
-            Some(outer.path())
-        );
-    }
-    assert_eq!(
-        settings::config_file_path().parent(),
-        Some(outer.path())
-    );
-    settings::set_test_config_dir(None);
-}
+fn write_test_config_persists_to_dev_config() {
+    crate::test_support::with_config_test_serial(|| {
+        let dir = tempfile::tempdir().expect("tmp");
+        let wb = dir.path().join("wb");
+        let corpus = dir.path().join("corpus");
+        let cache = dir.path().join("cache");
+        fs::create_dir_all(&wb).expect("mkdir wb");
+        fs::create_dir_all(&corpus).expect("mkdir corpus");
+        fs::create_dir_all(&cache).expect("mkdir cache");
 
-#[test]
-fn write_test_config_persists_three_roots() {
-    let dir = tempfile::tempdir().expect("tmp");
-    let wb = dir.path().join("wb");
-    let corpus = dir.path().join("corpus");
-    let cache = dir.path().join("cache");
-    fs::create_dir_all(&wb).expect("mkdir wb");
-    fs::create_dir_all(&corpus).expect("mkdir corpus");
-    fs::create_dir_all(&cache).expect("mkdir cache");
-
-    settings::write_test_config_with_cache(dir.path(), &wb, Some(&corpus), Some(&cache));
-    settings::set_test_config_dir(Some(dir.path().to_path_buf()));
-    let text = fs::read_to_string(dir.path().join("config.toml")).expect("read config");
-    assert!(text.contains("workbench_knowledge_root"));
-    assert!(text.contains("knowledge_corpus_root"));
-    assert!(text.contains("cache_dir"));
-    let loaded = settings::load().expect("load");
-    assert_eq!(loaded.workbench_knowledge_root, wb);
-    assert_eq!(loaded.knowledge_corpus_root, corpus);
-    assert_eq!(loaded.cache_dir, cache);
-    settings::set_test_config_dir(None);
+        settings::write_test_config_with_cache(dir.path(), &wb, Some(&corpus), Some(&cache));
+        let dev_path = settings::dev_config_file_path();
+        let text = fs::read_to_string(&dev_path).expect("read dev config");
+        assert!(text.contains("workbench_knowledge_root"));
+        assert!(text.contains("knowledge_corpus_root"));
+        assert!(text.contains("cache_dir"));
+        let loaded = settings::load().expect("load");
+        assert_eq!(loaded.workbench_knowledge_root, wb);
+        assert_eq!(loaded.knowledge_corpus_root, corpus);
+        assert_eq!(loaded.cache_dir, cache);
+    });
 }
 
 #[test]
@@ -75,16 +64,22 @@ fn with_corpus_sets_sandbox_cache_dir_not_prod() {
 }
 
 #[test]
-fn nested_test_sandbox_inner_overrides_outer_restores() {
-    let outer = TestSandbox::new();
-    let outer_cfg = settings::config_file_path();
-    {
-        let inner = TestSandbox::new();
-        assert_ne!(settings::config_file_path(), outer_cfg);
-        assert!(settings::config_file_path().starts_with(inner.config_dir()));
-        drop(inner);
-    }
-    assert_eq!(settings::config_file_path(), outer_cfg);
+fn nested_test_sandbox_serializes_on_dev_config() {
+    crate::test_support::with_config_test_serial(|| {
+        let outer = TestSandbox::new();
+        let outer_wb = settings::load().expect("load").workbench_knowledge_root;
+        {
+            let inner = TestSandbox::new();
+            let inner_wb = settings::load().expect("load").workbench_knowledge_root;
+            assert_ne!(outer_wb, inner_wb);
+            assert!(settings::config_file_path().ends_with(DEV_CONFIG_FILE_NAME));
+            drop(inner);
+        }
+        assert_eq!(
+            settings::load().expect("load").workbench_knowledge_root,
+            outer_wb
+        );
+    });
 }
 
 #[test]
@@ -101,11 +96,22 @@ fn lib_tests_do_not_touch_prod_cache_dir_mtime() {
 }
 
 #[test]
-fn with_test_config_dir_sets_and_clears_config_dir() {
+fn lib_tests_do_not_touch_prod_config_mtime() {
+    let before = prod_config_mtime();
+    {
+        let _sandbox = TestSandbox::new();
+    }
+    let after = prod_config_mtime();
+    assert_eq!(before, after);
+}
+
+#[test]
+fn with_test_config_dir_uses_isolated_config_toml() {
     let mut inner_path = None::<PathBuf>;
     with_test_config_dir(|p| {
         inner_path = Some(p.to_path_buf());
         assert_eq!(settings::config_file_path().parent(), Some(p));
+        assert!(settings::config_file_path().ends_with("config.toml"));
     });
     assert!(inner_path.is_some());
 }
@@ -127,17 +133,17 @@ fn with_corpus_true_creates_ai_subdir() {
 
 #[test]
 fn test_sandbox_records_prod_three_roots_at_new() {
-    let defaults = AppSettings::default();
+    let prod = load_prod_settings();
     let sandbox = TestSandbox::new();
     assert_eq!(
         sandbox.prod_workbench_knowledge_root(),
-        defaults.workbench_knowledge_root
+        prod.workbench_knowledge_root
     );
     assert_eq!(
         sandbox.prod_knowledge_corpus_root(),
-        defaults.knowledge_corpus_root
+        prod.knowledge_corpus_root
     );
-    assert_eq!(sandbox.prod_cache_dir(), defaults.cache_dir);
+    assert_eq!(sandbox.prod_cache_dir(), prod.cache_dir);
 }
 
 #[test]

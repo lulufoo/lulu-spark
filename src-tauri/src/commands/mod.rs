@@ -1,4 +1,5 @@
 pub mod config_cmd;
+pub mod plan_task;
 pub mod read;
 pub mod read_later;
 pub mod search;
