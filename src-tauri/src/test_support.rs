@@ -1,8 +1,19 @@
 //! Shared test fixtures for unit tests (compiled only under `#[cfg(test)]`).
 
 use std::path::{Path, PathBuf};
+use std::sync::Mutex;
 
 use crate::config::settings;
+
+static CONFIG_TEST_SERIAL: Mutex<()> = Mutex::new(());
+
+/// Serialize tests that mutate process-wide test config dir (TestSandbox).
+pub fn with_config_test_serial<F: FnOnce()>(f: F) {
+    let _guard = CONFIG_TEST_SERIAL
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    f();
+}
 
 fn prepare_sandbox_roots(dir: &Path) -> (PathBuf, PathBuf, PathBuf) {
     let wb = dir.join("workbench-knowledge");
@@ -38,7 +49,10 @@ impl Drop for ConfigDirGuard {
 }
 
 fn path_under_prod_root(path: &Path, root: &Path) -> bool {
-    path == root || path.starts_with(root)
+    if path == root {
+        return true;
+    }
+    path.starts_with(root.join(""))
 }
 
 /// Error returned when a test write targets a prod root path.

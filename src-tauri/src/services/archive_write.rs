@@ -11,6 +11,7 @@ use crate::services::archive_parse::{
     expected_zh_common_path, is_valid_entry_id, parse_archive_document,
 };
 use crate::services::id::random_entry_id;
+use crate::services::plan_task;
 use crate::services::workbench_read::get_corpus_index;
 
 struct ExtraDocument {
@@ -68,6 +69,17 @@ fn load_entries_map(repo_root: &Path) -> Result<(PathBuf, Map<String, Value>), V
 
 fn save_entries(index_path: &Path, entries: &Map<String, Value>) -> Result<(), Value> {
     let data = json!({ "entries": entries });
+    if entries.is_empty() {
+        if let Some(parent) = index_path.parent() {
+            fs::create_dir_all(parent).map_err(|e| json!({ "error": e.to_string(), "_status": 500 }))?;
+        }
+        let tmp = index_path.with_extension("json.tmp");
+        let text = serde_json::to_string_pretty(&data)
+            .map_err(|e| json!({ "error": e.to_string(), "_status": 500 }))?;
+        fs::write(&tmp, text).map_err(|e| json!({ "error": e.to_string(), "_status": 500 }))?;
+        fs::rename(&tmp, index_path).map_err(|e| json!({ "error": e.to_string(), "_status": 500 }))?;
+        return Ok(());
+    }
     atomic_json::write_json(index_path, &data).map_err(|e| json!({ "error": e, "_status": 500 }))
 }
 
@@ -168,6 +180,57 @@ fn rollback_written(paths: &[PathBuf]) {
     }
 }
 
+fn dual_store_rollback(
+    written: &[PathBuf],
+    index_path: &Path,
+    snapshot_entries: &Map<String, Value>,
+) {
+    rollback_written(written);
+    let _ = save_entries(index_path, snapshot_entries);
+}
+
+fn parse_task_ref(payload: &Value) -> Result<Option<(String, String)>, Value> {
+    let master = payload
+        .get("master_task_id")
+        .and_then(|v| v.as_str())
+        .map(str::trim)
+        .filter(|s| !s.is_empty());
+    let sub = payload
+        .get("sub_task_id")
+        .and_then(|v| v.as_str())
+        .map(str::trim)
+        .filter(|s| !s.is_empty());
+    match (master, sub) {
+        (None, None) => Ok(None),
+        (Some(m), Some(s)) => Ok(Some((m.to_string(), s.to_string()))),
+        _ => Err(json!({
+            "error": "master_task_id and sub_task_id must appear together",
+            "_status": 400
+        })),
+    }
+}
+
+fn finalize_task_linked_archive(
+    written: &[PathBuf],
+    index_path: &Path,
+    index_snapshot: &Map<String, Value>,
+    master_task_id: &str,
+    sub_task_id: &str,
+    archive_id: &str,
+) -> Value {
+    let complete = plan_task::complete_sub(master_task_id, sub_task_id);
+    if complete.get("_status").and_then(|v| v.as_u64()) != Some(200) {
+        dual_store_rollback(written, index_path, index_snapshot);
+        return complete;
+    }
+    let linked = plan_task::link_archive(master_task_id, sub_task_id, archive_id);
+    if linked.get("_status").and_then(|v| v.as_u64()) != Some(200) {
+        dual_store_rollback(written, index_path, index_snapshot);
+        return linked;
+    }
+    json!({ "ok": true })
+}
+
 pub fn archive_document(repo_root: &Path, payload: &Value) -> Value {
     let document = payload
         .get("document")
@@ -200,6 +263,10 @@ pub fn archive_document(repo_root: &Path, payload: &Value) -> Value {
         Err(v) => return v,
     };
     let translations_zh = match parse_translations_zh(payload) {
+        Ok(v) => v,
+        Err(v) => return v,
+    };
+    let task_ref = match parse_task_ref(payload) {
         Ok(v) => v,
         Err(v) => return v,
     };
@@ -291,6 +358,7 @@ pub fn archive_document(repo_root: &Path, payload: &Value) -> Value {
             return v;
         }
     };
+    let index_snapshot = entries.clone();
 
     let mut entry = Map::new();
     entry.insert("common_path".to_string(), json!(parsed.common_path));
@@ -303,11 +371,34 @@ pub fn archive_document(repo_root: &Path, payload: &Value) -> Value {
             json!({ "zh": zh }),
         );
     }
+    if let Some((master_task_id, sub_task_id)) = &task_ref {
+        entry.insert(
+            "task_ref".to_string(),
+            json!({
+                "master_task_id": master_task_id,
+                "sub_task_id": sub_task_id,
+            }),
+        );
+    }
     entries.insert(id.clone(), Value::Object(entry));
 
     if let Err(v) = save_entries(&index_path, &entries) {
-        rollback_written(&written);
+        dual_store_rollback(&written, &index_path, &index_snapshot);
         return v;
+    }
+
+    if let Some((master_task_id, sub_task_id)) = task_ref {
+        let plan_result = finalize_task_linked_archive(
+            &written,
+            &index_path,
+            &index_snapshot,
+            &master_task_id,
+            &sub_task_id,
+            &id,
+        );
+        if plan_result.get("ok") != Some(&json!(true)) {
+            return plan_result;
+        }
     }
 
     let extra_rel_paths: Vec<String> = extra_docs.iter().map(|e| e.rel.clone()).collect();

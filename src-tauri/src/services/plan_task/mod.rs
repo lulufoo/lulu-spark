@@ -6,6 +6,9 @@ use std::collections::HashMap;
 use std::fs;
 use std::sync::Mutex;
 
+#[cfg(test)]
+use std::sync::atomic::{AtomicBool, Ordering};
+
 use chrono::Utc;
 use serde_json::{json, Value};
 
@@ -18,6 +21,19 @@ use types::{
 };
 
 static WRITE_LOCK: Mutex<()> = Mutex::new(());
+
+#[cfg(test)]
+static TEST_FAIL_COMPLETE_SUB: AtomicBool = AtomicBool::new(false);
+
+#[cfg(test)]
+pub fn test_set_fail_complete_sub(fail: bool) {
+    TEST_FAIL_COMPLETE_SUB.store(fail, Ordering::SeqCst);
+}
+
+#[cfg(test)]
+fn test_take_fail_complete_sub() -> bool {
+    TEST_FAIL_COMPLETE_SUB.swap(false, Ordering::SeqCst)
+}
 
 const CORRUPT_JSON_ERROR: &str = "Invalid plan_tasks.json";
 
@@ -233,6 +249,11 @@ pub fn list_all() -> Value {
 
 pub fn complete_sub(master_task_id: &str, sub_task_id: &str) -> Value {
     with_write_lock(|| {
+        #[cfg(test)]
+        if test_take_fail_complete_sub() {
+            return json!({ "error": "injected plan_task failure", "_status": 500 });
+        }
+
         let (mut file, outcome) = load_file_unlocked();
         if outcome == LoadOutcome::Corrupt {
             return corrupt_json_error();

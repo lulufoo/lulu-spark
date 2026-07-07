@@ -1,6 +1,7 @@
 use std::fs;
 use std::net::TcpListener;
 use std::path::PathBuf;
+use std::sync::Mutex;
 use std::thread;
 use std::time::Duration;
 
@@ -9,6 +10,15 @@ use serde_json::{json, Value};
 
 use super::*;
 use crate::test_support::TestSandbox;
+
+static PLAN_TASK_HTTP_TEST_LOCK: Mutex<()> = Mutex::new(());
+
+fn with_plan_task_http_test<F: FnOnce()>(f: F) {
+    let _guard = PLAN_TASK_HTTP_TEST_LOCK
+        .lock()
+        .expect("plan_task http test lock");
+    f();
+}
 
 struct RepoFixture {
     _sandbox: TestSandbox,
@@ -631,104 +641,116 @@ fn options_non_read_later_path_returns_405() {
 
 #[test]
 fn post_plan_task_create_omit_sub_titles_creates_implicit_sub() {
-    let fixture = setup_repo_for_plan_task();
-    let repo_root = fixture.repo_root.clone();
-    with_server(repo_root, |port| {
-        let (status, body) = http_post(
-            port,
-            "/api/plan-task-create",
-            &json!({ "title": "Master only" }),
-        );
-        assert_eq!(status, 201);
-        assert!(body.get("master_task_id").and_then(|v| v.as_str()).is_some());
-        let task = &body["task"];
-        let subs = task["sub_tasks"].as_array().expect("sub_tasks");
-        assert_eq!(subs.len(), 1);
-        assert_eq!(subs[0]["implicit"], true);
+    with_plan_task_http_test(|| {
+        let fixture = setup_repo_for_plan_task();
+        let repo_root = fixture.repo_root.clone();
+        with_server(repo_root, |port| {
+            let (status, body) = http_post(
+                port,
+                "/api/plan-task-create",
+                &json!({ "title": "Master only" }),
+            );
+            assert_eq!(status, 201);
+            assert!(body.get("master_task_id").and_then(|v| v.as_str()).is_some());
+            let task = &body["task"];
+            let subs = task["sub_tasks"].as_array().expect("sub_tasks");
+            assert_eq!(subs.len(), 1);
+            assert_eq!(subs[0]["implicit"], true);
+        });
     });
 }
 
 #[test]
 fn post_plan_task_create_empty_sub_titles_matches_omit() {
-    let fixture = setup_repo_for_plan_task();
-    let repo_root = fixture.repo_root.clone();
-    with_server(repo_root, |port| {
-        let (status, body) = http_post(
-            port,
-            "/api/plan-task-create",
-            &json!({ "title": "Empty array", "sub_titles": [] }),
-        );
-        assert_eq!(status, 201);
-        let subs = body["task"]["sub_tasks"].as_array().expect("sub_tasks");
-        assert_eq!(subs.len(), 1);
-        assert_eq!(subs[0]["implicit"], true);
+    with_plan_task_http_test(|| {
+        let fixture = setup_repo_for_plan_task();
+        let repo_root = fixture.repo_root.clone();
+        with_server(repo_root, |port| {
+            let (status, body) = http_post(
+                port,
+                "/api/plan-task-create",
+                &json!({ "title": "Empty array", "sub_titles": [] }),
+            );
+            assert_eq!(status, 201);
+            let subs = body["task"]["sub_tasks"].as_array().expect("sub_tasks");
+            assert_eq!(subs.len(), 1);
+            assert_eq!(subs[0]["implicit"], true);
+        });
     });
 }
 
 #[test]
 fn post_plan_task_create_single_explicit_sub() {
-    let fixture = setup_repo_for_plan_task();
-    let repo_root = fixture.repo_root.clone();
-    with_server(repo_root, |port| {
-        let (status, body) = http_post(
-            port,
-            "/api/plan-task-create",
-            &json!({ "title": "Master", "sub_titles": ["Sub A"] }),
-        );
-        assert_eq!(status, 201);
-        let subs = body["task"]["sub_tasks"].as_array().expect("sub_tasks");
-        assert_eq!(subs.len(), 1);
-        assert_eq!(subs[0]["implicit"], false);
-        assert_eq!(subs[0]["title"], "Sub A");
+    with_plan_task_http_test(|| {
+        let fixture = setup_repo_for_plan_task();
+        let repo_root = fixture.repo_root.clone();
+        with_server(repo_root, |port| {
+            let (status, body) = http_post(
+                port,
+                "/api/plan-task-create",
+                &json!({ "title": "Master", "sub_titles": ["Sub A"] }),
+            );
+            assert_eq!(status, 201);
+            let subs = body["task"]["sub_tasks"].as_array().expect("sub_tasks");
+            assert_eq!(subs.len(), 1);
+            assert_eq!(subs[0]["implicit"], false);
+            assert_eq!(subs[0]["title"], "Sub A");
+        });
     });
 }
 
 #[test]
 fn post_plan_task_create_multiple_explicit_subs() {
-    let fixture = setup_repo_for_plan_task();
-    let repo_root = fixture.repo_root.clone();
-    with_server(repo_root, |port| {
-        let (status, body) = http_post(
-            port,
-            "/api/plan-task-create",
-            &json!({ "title": "Master", "sub_titles": ["Sub A", "Sub B"] }),
-        );
-        assert_eq!(status, 201);
-        let subs = body["task"]["sub_tasks"].as_array().expect("sub_tasks");
-        assert_eq!(subs.len(), 2);
-        assert_eq!(subs[0]["implicit"], false);
-        assert_eq!(subs[1]["implicit"], false);
-        assert_eq!(subs[0]["title"], "Sub A");
-        assert_eq!(subs[1]["title"], "Sub B");
+    with_plan_task_http_test(|| {
+        let fixture = setup_repo_for_plan_task();
+        let repo_root = fixture.repo_root.clone();
+        with_server(repo_root, |port| {
+            let (status, body) = http_post(
+                port,
+                "/api/plan-task-create",
+                &json!({ "title": "Master", "sub_titles": ["Sub A", "Sub B"] }),
+            );
+            assert_eq!(status, 201);
+            let subs = body["task"]["sub_tasks"].as_array().expect("sub_tasks");
+            assert_eq!(subs.len(), 2);
+            assert_eq!(subs[0]["implicit"], false);
+            assert_eq!(subs[1]["implicit"], false);
+            assert_eq!(subs[0]["title"], "Sub A");
+            assert_eq!(subs[1]["title"], "Sub B");
+        });
     });
 }
 
 #[test]
 fn post_plan_task_create_blank_title_returns_400() {
-    let fixture = setup_repo_for_plan_task();
-    let repo_root = fixture.repo_root.clone();
-    with_server(repo_root, |port| {
-        let (status, body) = http_post(
-            port,
-            "/api/plan-task-create",
-            &json!({ "title": "   " }),
-        );
-        assert_eq!(status, 400);
-        assert!(body.get("error").is_some());
+    with_plan_task_http_test(|| {
+        let fixture = setup_repo_for_plan_task();
+        let repo_root = fixture.repo_root.clone();
+        with_server(repo_root, |port| {
+            let (status, body) = http_post(
+                port,
+                "/api/plan-task-create",
+                &json!({ "title": "   " }),
+            );
+            assert_eq!(status, 400);
+            assert!(body.get("error").is_some());
+        });
     });
 }
 
 #[test]
 fn post_plan_task_create_blank_sub_title_element_returns_400() {
-    let fixture = setup_repo_for_plan_task();
-    let repo_root = fixture.repo_root.clone();
-    with_server(repo_root, |port| {
-        let (status, body) = http_post(
-            port,
-            "/api/plan-task-create",
-            &json!({ "title": "Master", "sub_titles": ["ok", "  "] }),
-        );
-        assert_eq!(status, 400);
-        assert!(body.get("error").is_some());
+    with_plan_task_http_test(|| {
+        let fixture = setup_repo_for_plan_task();
+        let repo_root = fixture.repo_root.clone();
+        with_server(repo_root, |port| {
+            let (status, body) = http_post(
+                port,
+                "/api/plan-task-create",
+                &json!({ "title": "Master", "sub_titles": ["ok", "  "] }),
+            );
+            assert_eq!(status, 400);
+            assert!(body.get("error").is_some());
+        });
     });
 }

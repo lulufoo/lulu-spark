@@ -1,18 +1,18 @@
 use super::*;
 use std::fs;
 use std::path::Path;
-use std::sync::Mutex;
+use std::time::SystemTime;
 
 use crate::config::paths;
+use crate::config::settings::{self, default_cache_dir};
 use crate::test_support::TestSandbox;
 
-static PLAN_TASK_TEST_LOCK: Mutex<()> = Mutex::new(());
-
 fn with_plan_task_sandbox<F: FnOnce(&Path)>(f: F) {
-    let _guard = PLAN_TASK_TEST_LOCK.lock().expect("plan_task test lock");
-    let _sandbox = TestSandbox::new();
-    let wb = paths::workbench_knowledge_root().expect("workbench root");
-    f(&wb);
+    crate::test_support::with_config_test_serial(|| {
+        let _sandbox = TestSandbox::new();
+        let wb = paths::workbench_knowledge_root().expect("workbench root");
+        f(&wb);
+    });
 }
 
 fn is_iso8601(s: &str) -> bool {
@@ -21,6 +21,24 @@ fn is_iso8601(s: &str) -> bool {
 
 fn master_from_value(v: &serde_json::Value) -> &serde_json::Value {
     v.get("task").expect("task field")
+}
+
+fn prod_plan_tasks_mtime() -> Option<SystemTime> {
+    settings::AppSettings::default()
+        .workbench_knowledge_root
+        .join("plan_tasks")
+        .join("plan_tasks.json")
+        .metadata()
+        .ok()
+        .and_then(|m| m.modified().ok())
+}
+
+fn prod_cache_plan_tasks_mtime() -> Option<SystemTime> {
+    default_cache_dir()
+        .join("plan_tasks.json")
+        .metadata()
+        .ok()
+        .and_then(|m| m.modified().ok())
 }
 
 #[test]
@@ -53,6 +71,108 @@ fn list_all_empty_store_returns_empty_array() {
         let v = list_all();
         assert_eq!(v.as_array().expect("array").len(), 0);
         assert!(v.get("_status").is_none());
+    });
+}
+
+#[test]
+fn create_single_explicit_sub_implicit_false() {
+    with_plan_task_sandbox(|_| {
+        let v = create_master_with_subs("Master", Some(&["Sub A"]));
+        assert_eq!(v["_status"], 201);
+        let task = master_from_value(&v);
+        let subs = task["sub_tasks"].as_array().expect("sub_tasks");
+        assert_eq!(subs.len(), 1);
+        assert_eq!(subs[0]["implicit"], false);
+        assert_eq!(subs[0]["title"], "Sub A");
+        assert_eq!(subs[0]["status"], "incomplete");
+    });
+}
+
+#[test]
+fn multi_sub_create_and_read_fixture() {
+    with_plan_task_sandbox(|wb| {
+        let created = create_master_with_subs("Multi master", Some(&["Sub A", "Sub B"]));
+        assert_eq!(created["_status"], 201);
+        let master_id = created["master_task_id"].as_str().expect("master_task_id");
+
+        let listed = list_all();
+        let listed = listed.as_array().expect("array");
+        assert_eq!(listed.len(), 1);
+        let listed_subs = listed[0]["sub_tasks"].as_array().expect("sub_tasks");
+        assert_eq!(listed_subs.len(), 2);
+        assert_eq!(listed_subs[0]["implicit"], false);
+        assert_eq!(listed_subs[1]["implicit"], false);
+        assert_eq!(listed_subs[0]["status"], "incomplete");
+        assert_eq!(listed_subs[1]["status"], "incomplete");
+
+        let sub_a = listed_subs[0]["sub_task_id"].as_str().unwrap();
+        let sub_b = listed_subs[1]["sub_task_id"].as_str().unwrap();
+
+        let got = get_by_id(master_id);
+        assert_eq!(got["sub_tasks"].as_array().unwrap().len(), 2);
+
+        let linked_a = link_archive(master_id, sub_a, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
+        assert_eq!(linked_a["_status"], 200);
+        let linked_b = link_archive(master_id, sub_b, "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb");
+        assert_eq!(linked_b["_status"], 200);
+
+        let after_link = get_by_id(master_id);
+        let subs = after_link["sub_tasks"].as_array().unwrap();
+        assert_eq!(
+            subs[0]["linked_archive_ids"].as_array().unwrap()[0],
+            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        );
+        assert_eq!(
+            subs[1]["linked_archive_ids"].as_array().unwrap()[0],
+            "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        );
+
+        let path = wb.join("plan_tasks").join("plan_tasks.json");
+        assert!(path.is_file());
+        let cache = paths::cache_dir().expect("cache");
+        assert!(!path.starts_with(&cache));
+    });
+}
+
+#[test]
+fn plan_task_tests_do_not_touch_prod_plan_tasks_or_cache() {
+    let before_wb = prod_plan_tasks_mtime();
+    let before_cache = prod_cache_plan_tasks_mtime();
+    with_plan_task_sandbox(|_| {
+        create_master_with_subs("Isolation", Some(&["a", "b"]));
+        list_all();
+    });
+    assert_eq!(before_wb, prod_plan_tasks_mtime());
+    assert_eq!(before_cache, prod_cache_plan_tasks_mtime());
+}
+
+#[test]
+fn plan_task_fixture_rejects_prod_plan_tasks_path() {
+    crate::test_support::with_config_test_serial(|| {
+        let sandbox = TestSandbox::new();
+        let prod_wb = sandbox.prod_workbench_knowledge_root();
+        let prod_plan_tasks = prod_wb.join("plan_tasks").join("plan_tasks.json");
+        assert!(sandbox.assert_not_prod_path(&prod_plan_tasks).is_err());
+        let prod_cache_plan = sandbox.prod_cache_dir().join("plan_tasks.json");
+        assert!(sandbox.assert_not_prod_path(&prod_cache_plan).is_err());
+    });
+}
+
+#[test]
+fn plan_task_paths_require_sandbox_isolation() {
+    crate::test_support::with_config_test_serial(|| {
+        let sandbox = TestSandbox::new();
+        let wb = paths::workbench_knowledge_root().expect("wb");
+        let plan_path = paths::plan_tasks_path().expect("plan_tasks");
+        assert!(plan_path.starts_with(&wb));
+        assert_ne!(
+            plan_path,
+            sandbox
+                .prod_workbench_knowledge_root()
+                .join("plan_tasks")
+                .join("plan_tasks.json")
+        );
+        assert_ne!(plan_path, sandbox.prod_cache_dir().join("plan_tasks.json"));
     });
 }
 
