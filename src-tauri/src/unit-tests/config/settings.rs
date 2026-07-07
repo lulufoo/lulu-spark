@@ -136,3 +136,62 @@ fn apply_config_payload_ignores_cache_dir() {
     );
     assert_eq!(s.cache_dir, before);
 }
+
+struct TestModeGuard(Option<String>);
+
+impl TestModeGuard {
+    fn set(value: Option<&str>) -> Self {
+        let prev = std::env::var("TEST_MODE").ok();
+        match value {
+            Some(v) => unsafe { std::env::set_var("TEST_MODE", v) },
+            None => unsafe { std::env::remove_var("TEST_MODE") },
+        }
+        TestModeGuard(prev)
+    }
+}
+
+impl Drop for TestModeGuard {
+    fn drop(&mut self) {
+        match &self.0 {
+            Some(v) => unsafe { std::env::set_var("TEST_MODE", v) },
+            None => unsafe { std::env::remove_var("TEST_MODE") },
+        }
+    }
+}
+
+#[test]
+fn is_test_mode_false_when_unset() {
+    let _g = TestModeGuard::set(None);
+    assert!(!is_test_mode());
+    assert_eq!(test_mode_kind(), TestModeKind::Prod);
+}
+
+#[test]
+fn is_test_mode_true_when_one() {
+    let _g = TestModeGuard::set(Some("1"));
+    assert!(is_test_mode());
+    assert_eq!(test_mode_kind(), TestModeKind::TestSandbox);
+}
+
+#[test]
+fn is_test_mode_false_for_non_one_values() {
+    for v in ["0", "", "true", "2"] {
+        let _g = TestModeGuard::set(Some(v));
+        assert!(!is_test_mode(), "TEST_MODE={v}");
+        assert_eq!(test_mode_kind(), TestModeKind::Prod, "TEST_MODE={v}");
+    }
+}
+
+#[test]
+fn test_mode_env_not_written_to_config_toml() {
+    let dir = tempfile::tempdir().expect("tmp");
+    let _guard = EnvGuard::with_config_dir(dir.path());
+    let _tm = TestModeGuard::set(Some("1"));
+    let mut s = AppSettings::default();
+    s.workbench_knowledge_root = dir.path().join("wb");
+    save(&s).expect("save");
+    let text = fs::read_to_string(dir.path().join("config.toml")).expect("read config");
+    assert!(!text.contains("test_mode"));
+    assert!(!text.contains("TEST_MODE"));
+    assert!(!text.contains("debug"));
+}

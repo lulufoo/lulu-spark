@@ -18,6 +18,37 @@ pub fn set_test_config_dir(dir: Option<PathBuf>) {
 
 pub const DEFAULT_GITHUB_USER_URL: &str = "";
 
+/// Runtime branch for prod vs automated test sandbox vs manual cache-first debug.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TestModeKind {
+    Prod,
+    TestSandbox,
+    ManualCacheFirst,
+}
+
+/// True when process env `TEST_MODE` equals `"1"`.
+pub fn is_test_mode() -> bool {
+    std::env::var("TEST_MODE").ok().as_deref() == Some("1")
+}
+
+/// Three-state branch: prod / automated test sandbox / manual cache-first debug.
+///
+/// Both automated tests and manual debugging use `TEST_MODE=1`; `cfg(test)` distinguishes
+/// the automated sandbox from manual cache-first overlay at runtime.
+pub fn test_mode_kind() -> TestModeKind {
+    if !is_test_mode() {
+        return TestModeKind::Prod;
+    }
+    #[cfg(test)]
+    {
+        return TestModeKind::TestSandbox;
+    }
+    #[cfg(not(test))]
+    {
+        return TestModeKind::ManualCacheFirst;
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AppSettings {
     #[serde(default = "default_workbench_knowledge_root")]
