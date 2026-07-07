@@ -127,6 +127,13 @@ impl TestSandbox {
         self.dir.path()
     }
 
+    /// Sandbox `workbench_knowledge_root` from loaded test config.
+    pub fn workbench_knowledge_root(&self) -> PathBuf {
+        settings::load()
+            .expect("load sandbox config")
+            .workbench_knowledge_root
+    }
+
     pub fn prod_workbench_knowledge_root(&self) -> &Path {
         &self.prod_workbench_knowledge_root
     }
