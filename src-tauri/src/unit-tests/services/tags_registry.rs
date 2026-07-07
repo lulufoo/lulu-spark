@@ -6,11 +6,11 @@ use serde_json::json;
 use crate::repositories::annotation_paths::annotation_json_path;
 use crate::repositories::atomic_json;
 use crate::services::annotation::read_annotation_object;
-use crate::test_support::with_corpus;
+use crate::test_support::with_sandbox_corpus;
 
 #[test]
 fn registry_path_points_under_corpus_tags() {
-    with_corpus(false, |_dir, corpus| {
+    with_sandbox_corpus(false, |_dir, corpus| {
         assert_eq!(
             registry_path(&corpus),
             corpus.join("tags/registry.json")
@@ -20,7 +20,7 @@ fn registry_path_points_under_corpus_tags() {
 
 #[test]
 fn read_registry_missing_file_returns_empty_keys() {
-    with_corpus(false, |_dir, corpus| {
+    with_sandbox_corpus(false, |_dir, corpus| {
         let reg = read_registry(&corpus);
         assert_eq!(reg["keys"], json!({}));
     });
@@ -28,7 +28,7 @@ fn read_registry_missing_file_returns_empty_keys() {
 
 #[test]
 fn save_registry_creates_tags_dir() {
-    with_corpus(false, |_dir, corpus| {
+    with_sandbox_corpus(false, |_dir, corpus| {
         let mut reg = empty_registry();
         adjust_refs(
             &mut reg,
@@ -60,7 +60,7 @@ fn adjust_refs_empty_keys_no_panic() {
 
 #[test]
 fn reconcile_drops_registry_key_with_zero_refs() {
-    with_corpus(true, |dir, corpus| {
+    with_sandbox_corpus(true, |dir, corpus| {
         let cp1 = "ai/a.md";
         let cp2 = "ai/b.md";
         fs::write(corpus.join("index.json"), index_two_entries(cp1, cp2)).expect("index");
@@ -71,13 +71,13 @@ fn reconcile_drops_registry_key_with_zero_refs() {
         reg["keys"]["tagabc123456"] = json!({ "value": "x", "refs": 99 });
         assert!(save_registry(&corpus, &reg).is_none());
 
-        assert!(reconcile_tags(dir.path()).is_none());
+        assert!(reconcile_tags(dir).is_none());
         let after = read_registry(&corpus);
         assert_eq!(after["keys"]["tagabc123456"]["refs"], 2);
 
         write_annotation(&corpus, cp1, json!({}));
         write_annotation(&corpus, cp2, json!({}));
-        assert!(reconcile_tags(dir.path()).is_none());
+        assert!(reconcile_tags(dir).is_none());
         let final_reg = read_registry(&corpus);
         assert!(final_reg["keys"].get("tagabc123456").is_none());
     });
@@ -85,7 +85,7 @@ fn reconcile_drops_registry_key_with_zero_refs() {
 
 #[test]
 fn reconcile_removes_stale_tag_keys_from_annotation() {
-    with_corpus(true, |dir, corpus| {
+    with_sandbox_corpus(true, |dir, corpus| {
         let cp = "ai/stale.md";
         fs::write(corpus.join("index.json"), index_one_entry(cp)).expect("index");
         write_annotation(
@@ -97,7 +97,7 @@ fn reconcile_removes_stale_tag_keys_from_annotation() {
         reg["keys"]["realkey12345678"] = json!({ "value": "ok", "refs": 0 });
         assert!(save_registry(&corpus, &reg).is_none());
 
-        assert!(reconcile_tags(dir.path()).is_none());
+        assert!(reconcile_tags(dir).is_none());
 
         let ann = read_annotation_object(&corpus, cp);
         let keys = ann["tag_keys"].as_array().expect("tag_keys");

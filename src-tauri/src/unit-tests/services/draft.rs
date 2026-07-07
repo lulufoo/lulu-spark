@@ -1,18 +1,11 @@
 use super::*;
 use std::fs;
 
-use crate::test_support::with_test_config_dir;
+use crate::test_support::TestSandbox;
 
 fn with_cache<F: FnOnce()>(f: F) {
-    with_test_config_dir(|cfg| {
-        let cache = cfg.join("cache");
-        fs::write(
-            cfg.join("config.toml"),
-            format!(r#"cache_dir = "{}""#, cache.display()),
-        )
-        .expect("write");
-        f();
-    });
+    let _sandbox = TestSandbox::new();
+    f();
 }
 
 #[test]

@@ -134,6 +134,18 @@ impl TestSandbox {
             .workbench_knowledge_root
     }
 
+    /// Sandbox `knowledge_corpus_root` from loaded test config.
+    pub fn knowledge_corpus_root(&self) -> PathBuf {
+        settings::load()
+            .expect("load sandbox config")
+            .knowledge_corpus_root
+    }
+
+    /// Sandbox `cache_dir` from loaded test config.
+    pub fn cache_dir(&self) -> PathBuf {
+        settings::load().expect("load sandbox config").cache_dir
+    }
+
     pub fn prod_workbench_knowledge_root(&self) -> &Path {
         &self.prod_workbench_knowledge_root
     }
@@ -155,6 +167,25 @@ impl TestSandbox {
             &self.prod_cache_dir,
         )
     }
+}
+
+/// Isolated sandbox config dir (preferred over bare `with_test_config_dir`).
+pub fn with_sandbox<F: FnOnce(&Path)>(f: F) {
+    let sandbox = TestSandbox::new();
+    f(sandbox.config_dir());
+}
+
+/// Corpus fixture on `TestSandbox`; files live under sandbox `workbench_knowledge_root`
+/// (matches service path resolution via `workbench_knowledge_root_path`).
+pub fn with_sandbox_corpus<F: FnOnce(&Path, &Path)>(prepare_ai_subdir: bool, f: F) {
+    let sandbox = TestSandbox::new();
+    let wb = sandbox.workbench_knowledge_root();
+    if prepare_ai_subdir {
+        std::fs::create_dir_all(wb.join("annotations/ai")).expect("mkdir");
+    } else {
+        std::fs::create_dir_all(wb.join("annotations")).expect("mkdir");
+    }
+    f(sandbox.config_dir(), wb.as_path());
 }
 
 /// Minimal test config helper: temp dir → set config dir → run `f` → clear.

@@ -3,6 +3,7 @@ use std::fs;
 use serde_json::json;
 
 use crate::services::archive_write::{archive_digest, archive_document};
+use crate::test_support::TestSandbox;
 
 const SAMPLE_DOC: &str = r#"# Test Title
 
@@ -15,20 +16,19 @@ const SAMPLE_DOC: &str = r#"# Test Title
 Summary body here with enough content.
 "#;
 
-fn setup_corpus() -> (tempfile::TempDir, std::path::PathBuf) {
-    let dir = tempfile::tempdir().expect("tmpdir");
-    let repo_root = dir.path().to_path_buf();
-    let corpus = repo_root.join("corpus");
-    fs::create_dir_all(corpus.join("raw")).expect("raw dir");
-    fs::create_dir_all(corpus.join("digest")).expect("digest dir");
-    fs::write(corpus.join("index.json"), br#"{"entries":{}}"#).expect("index");
-    crate::config::settings::write_test_config(&repo_root, &corpus, None);
-    (dir, repo_root)
+fn setup_corpus() -> (TestSandbox, std::path::PathBuf) {
+    let sandbox = TestSandbox::new();
+    let wb = sandbox.workbench_knowledge_root();
+    fs::create_dir_all(wb.join("raw")).expect("raw dir");
+    fs::create_dir_all(wb.join("digest")).expect("digest dir");
+    fs::write(wb.join("index.json"), br#"{"entries":{}}"#).expect("index");
+    let repo_root = sandbox.config_dir().to_path_buf();
+    (sandbox, repo_root)
 }
 
 #[test]
 fn archive_document_writes_raw_and_index() {
-    let (_dir, repo_root) = setup_corpus();
+    let (_sandbox, repo_root) = setup_corpus();
     let v = archive_document(
         &repo_root,
         &json!({ "document": SAMPLE_DOC, "source_type": "summary" }),
@@ -50,7 +50,7 @@ fn archive_document_writes_raw_and_index() {
 
 #[test]
 fn archive_document_conflict_returns_409() {
-    let (_dir, repo_root) = setup_corpus();
+    let (_sandbox, repo_root) = setup_corpus();
     let payload = json!({ "document": SAMPLE_DOC });
     assert_eq!(archive_document(&repo_root, &payload).get("ok"), Some(&json!(true)));
     let v = archive_document(&repo_root, &payload);
@@ -60,7 +60,7 @@ fn archive_document_conflict_returns_409() {
 
 #[test]
 fn archive_digest_writes_digest_and_updates_layers() {
-    let (_dir, repo_root) = setup_corpus();
+    let (_sandbox, repo_root) = setup_corpus();
     let created = archive_document(&repo_root, &json!({ "document": SAMPLE_DOC }));
     let id = created["id"].as_str().unwrap();
     let digest_body = "# Test — 摘要\n\n> 创建时间：2026年6月19日 14:30\n\n## 概述\n\noverview";
@@ -83,7 +83,7 @@ fn archive_digest_writes_digest_and_updates_layers() {
 
 #[test]
 fn archive_digest_force_overwrites_existing() {
-    let (_dir, repo_root) = setup_corpus();
+    let (_sandbox, repo_root) = setup_corpus();
     let created = archive_document(&repo_root, &json!({ "document": SAMPLE_DOC }));
     let id = created["id"].as_str().unwrap();
     let digest_body = "# Test — 摘要\n\n## 概述\n\nv1";
@@ -126,7 +126,7 @@ const THEME_LINE_ZH: &str = r#"# 中文标题
 
 #[test]
 fn archive_document_theme_line_with_zh_extra() {
-    let (_dir, repo_root) = setup_corpus();
+    let (_sandbox, repo_root) = setup_corpus();
     let zh_path = "learning-ai-agent/waymo-interview/202606191700-waymo-interview-zh.md";
     let v = archive_document(
         &repo_root,
@@ -157,7 +157,7 @@ fn archive_document_theme_line_with_zh_extra() {
 
 #[test]
 fn archive_document_rejects_mismatched_zh_path() {
-    let (_dir, repo_root) = setup_corpus();
+    let (_sandbox, repo_root) = setup_corpus();
     let v = archive_document(
         &repo_root,
         &json!({

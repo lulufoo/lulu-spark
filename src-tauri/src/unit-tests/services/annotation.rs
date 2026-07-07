@@ -1,13 +1,13 @@
 use super::*;
 use std::fs;
 
-use crate::test_support::with_corpus;
+use crate::test_support::with_sandbox_corpus;
 
 #[test]
 fn set_done_true_writes_done_key() {
-    with_corpus(true, |dir, corpus| {
+    with_sandbox_corpus(true, |dir, corpus| {
         let cp = "ai/note-done.md";
-        let v = set_done(dir.path(), cp, true);
+        let v = set_done(dir, cp, true);
         assert_eq!(v["ok"], json!(true));
         let p = annotation_json_path(&corpus, cp).expect("path");
         let read: Value =
@@ -18,9 +18,9 @@ fn set_done_true_writes_done_key() {
 
 #[test]
 fn set_importance_high() {
-    with_corpus(true, |dir, corpus| {
+    with_sandbox_corpus(true, |dir, corpus| {
         let cp = "ai/note-importance.md";
-        let v = set_importance(dir.path(), cp, Some("high".into()));
+        let v = set_importance(dir, cp, Some("high".into()));
         assert_eq!(v["ok"], json!(true));
         let p = annotation_json_path(&corpus, cp).expect("path");
         let read: Value =
@@ -31,9 +31,9 @@ fn set_importance_high() {
 
 #[test]
 fn update_comments_new_returns_id() {
-    with_corpus(true, |dir, _corpus| {
+    with_sandbox_corpus(true, |dir, _corpus| {
         let v = update_comments(
-            dir.path(),
+            dir,
             "ai/note-comments.md",
             "raw",
             json!({ "text": "hi" }),
@@ -46,9 +46,9 @@ fn update_comments_new_returns_id() {
 
 #[test]
 fn update_links_invalid_url() {
-    with_corpus(true, |dir, _corpus| {
+    with_sandbox_corpus(true, |dir, _corpus| {
         let v = update_links(
-            dir.path(),
+            dir,
             "ai/note-bad-url.md",
             json!([{ "url": "ftp://bad" }]),
         );
@@ -58,9 +58,9 @@ fn update_links_invalid_url() {
 
 #[test]
 fn update_links_invalid_common_path() {
-    with_corpus(true, |dir, _corpus| {
+    with_sandbox_corpus(true, |dir, _corpus| {
         let v = update_links(
-            dir.path(),
+            dir,
             "../evil.md",
             json!([{ "url": "https://github.com/foo/bar" }]),
         );
@@ -71,10 +71,10 @@ fn update_links_invalid_common_path() {
 
 #[test]
 fn update_links_persists_links_array() {
-    with_corpus(true, |dir, corpus| {
+    with_sandbox_corpus(true, |dir, corpus| {
         let cp = "ai/note-links.md";
         let links = json!([{ "url": "https://github.com/foo/bar" }]);
-        let v = update_links(dir.path(), cp, links.clone());
+        let v = update_links(dir, cp, links.clone());
         assert_eq!(v["ok"], json!(true));
         let p = annotation_json_path(&corpus, cp).expect("path");
         let read: Value =
@@ -85,15 +85,15 @@ fn update_links_persists_links_array() {
 
 #[test]
 fn update_links_empty_array_removes_links_key() {
-    with_corpus(true, |dir, corpus| {
+    with_sandbox_corpus(true, |dir, corpus| {
         let cp = "ai/note-clear-links.md";
         let seed = update_links(
-            dir.path(),
+            dir,
             cp,
             json!([{ "url": "https://github.com/foo/bar" }]),
         );
         assert_eq!(seed["ok"], json!(true));
-        let v = update_links(dir.path(), cp, json!([]));
+        let v = update_links(dir, cp, json!([]));
         assert_eq!(v["ok"], json!(true));
         let p = annotation_json_path(&corpus, cp).expect("path");
         assert!(!p.exists());
@@ -102,10 +102,10 @@ fn update_links_empty_array_removes_links_key() {
 
 #[test]
 fn update_links_creates_annotation_when_topic_dir_missing() {
-    with_corpus(false, |dir, corpus| {
+    with_sandbox_corpus(false, |dir, corpus| {
         let cp = "inbox/new-note.md";
         let v = update_links(
-            dir.path(),
+            dir,
             cp,
             json!([{ "url": "https://github.com/foo/bar" }]),
         );
@@ -117,10 +117,10 @@ fn update_links_creates_annotation_when_topic_dir_missing() {
 
 #[test]
 fn reorder_comments_persists_new_order() {
-    with_corpus(true, |dir, corpus| {
+    with_sandbox_corpus(true, |dir, corpus| {
         let cp = "ai/note-reorder.md";
         let seed = update_comments(
-            dir.path(),
+            dir,
             cp,
             "raw",
             json!({ "text": "first" }),
@@ -129,7 +129,7 @@ fn reorder_comments_persists_new_order() {
         assert_eq!(seed["ok"], json!(true));
         let id1 = seed["id"].as_str().expect("id1").to_string();
         let second = update_comments(
-            dir.path(),
+            dir,
             cp,
             "raw",
             json!({ "text": "second" }),
@@ -137,7 +137,7 @@ fn reorder_comments_persists_new_order() {
         );
         let id2 = second["id"].as_str().expect("id2").to_string();
         let third = update_comments(
-            dir.path(),
+            dir,
             cp,
             "raw",
             json!({ "text": "third" }),
@@ -146,7 +146,7 @@ fn reorder_comments_persists_new_order() {
         let id3 = third["id"].as_str().expect("id3").to_string();
 
         let v = reorder_comments(
-            dir.path(),
+            dir,
             cp,
             "raw",
             vec![id3.clone(), id1.clone(), id2.clone()],
@@ -195,17 +195,17 @@ fn repro_legacy_reorder_drops_unknown_id_without_error() {
 
 #[test]
 fn reorder_comments_rejects_unknown_id() {
-    with_corpus(true, |dir, _corpus| {
+    with_sandbox_corpus(true, |dir, _corpus| {
         let cp = "ai/note-reorder-bad.md";
         let seed = update_comments(
-            dir.path(),
+            dir,
             cp,
             "raw",
             json!({ "text": "only" }),
             String::new(),
         );
         let id1 = seed["id"].as_str().expect("id").to_string();
-        let v = reorder_comments(dir.path(), cp, "raw", vec![id1, "nope00000000".into()]);
+        let v = reorder_comments(dir, cp, "raw", vec![id1, "nope00000000".into()]);
         assert_eq!(v["error"], "Comment id not found");
         assert_eq!(v["_status"], 404);
     });
@@ -213,8 +213,8 @@ fn reorder_comments_rejects_unknown_id() {
 
 #[test]
 fn repro_reorder_invalid_common_path_returns_400() {
-    with_corpus(true, |dir, _corpus| {
-        let v = reorder_comments(dir.path(), "../evil.md", "raw", vec!["x".into()]);
+    with_sandbox_corpus(true, |dir, _corpus| {
+        let v = reorder_comments(dir, "../evil.md", "raw", vec!["x".into()]);
         assert_eq!(v["error"], "Invalid common_path");
         assert_eq!(v["_status"], 400);
     });

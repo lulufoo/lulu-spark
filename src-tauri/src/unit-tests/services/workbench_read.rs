@@ -2,6 +2,8 @@ use super::*;
 use std::fs;
 use std::path::PathBuf;
 
+use crate::test_support::{TestSandbox, with_sandbox_corpus};
+
 #[test]
 fn git_status_categories_sample() {
     let sample = " M raw/a.md\n?? b.txt\nUU c.md\nR  old -> new\n D gone.md\n";
@@ -28,20 +30,24 @@ fn get_config_has_frontend_contract_keys() {
     assert!(v.get("has_github_token").is_some());
 }
 
-fn with_sediment_kb_topics_cache<F: FnOnce(&std::path::Path, &std::path::Path)>(f: F) {
-    use crate::test_support::with_test_config_dir;
 
-    with_test_config_dir(|cfg| {
-        let corpus = cfg.join("corpus");
-        let cache = cfg.join("cache");
-        fs::create_dir_all(&corpus).expect("mkdir");
-        fs::write(
-            cfg.join("config.toml"),
-            format!(r#"cache_dir = "{}""#, cache.display()),
-        )
-        .expect("write config");
-        f(cfg, &corpus);
-    });
+fn with_sediment_kb_topics_cache<F: FnOnce(&std::path::Path, &std::path::Path)>(f: F) {
+    let sandbox = TestSandbox::new();
+    let cfg_dir = sandbox.config_dir();
+    let wb = sandbox.workbench_knowledge_root();
+    fs::create_dir_all(&wb).expect("mkdir");
+    f(cfg_dir, wb.as_path());
+}
+
+fn with_corpus_repo<F: FnOnce(&std::path::Path)>(
+    setup: impl FnOnce(&std::path::Path, &std::path::Path),
+    f: F,
+) {
+    let sandbox = TestSandbox::new();
+    let cfg_dir = sandbox.config_dir();
+    let wb = sandbox.workbench_knowledge_root();
+    setup(cfg_dir, wb.as_path());
+    f(cfg_dir);
 }
 
 #[test]
@@ -181,32 +187,38 @@ fn check_workbench_knowledge_root_requires_dir_and_index() {
 
 #[test]
 fn get_corpus_index_reads_json() {
-    let dir = tempfile::tempdir().expect("tmp");
-    let corpus = dir.path().join("corpus");
-    fs::create_dir_all(&corpus).expect("mkdir");
-    fs::write(corpus.join("index.json"), br#"{"entries":[]}"#).expect("write");
-    crate::config::settings::write_test_config(dir.path(), &corpus, None);
-    let v = get_corpus_index(dir.path());
-    assert_eq!(v["entries"], json!([]));
+    with_corpus_repo(
+        |_, corpus| {
+            fs::create_dir_all(corpus).expect("mkdir");
+            fs::write(corpus.join("index.json"), br#"{"entries":[]}"#).expect("write");
+        },
+        |cfg_dir| {
+            let v = get_corpus_index(cfg_dir);
+            assert_eq!(v["entries"], json!([]));
+        },
+    );
 }
 
 #[test]
 fn get_corpus_file_rejects_traversal() {
-    let dir = tempfile::tempdir().expect("tmp");
-    let corpus = dir.path().join("corpus");
-    fs::create_dir_all(corpus.join("raw")).expect("mkdir");
-    crate::config::settings::write_test_config(dir.path(), &corpus, None);
-    let v = get_corpus_file(dir.path(), "raw", "../index.json");
-    assert_eq!(v["error"], "Invalid path");
+    with_corpus_repo(
+        |_, corpus| {
+            fs::create_dir_all(corpus.join("raw")).expect("mkdir");
+        },
+        |cfg_dir| {
+            let v = get_corpus_file(cfg_dir, "raw", "../index.json");
+            assert_eq!(v["error"], "Invalid path");
+        },
+    );
 }
 
 #[test]
 fn get_annotations_summary_includes_resolved_tags() {
     use crate::repositories::annotation_paths::annotation_json_path;
     use crate::repositories::atomic_json;
-    use crate::test_support::with_corpus;
+    use crate::test_support::with_sandbox_corpus;
 
-    with_corpus(true, |dir, corpus| {
+    with_sandbox_corpus(true, |dir, corpus| {
         let cp = "ai/tags.md";
         fs::write(
             corpus.join("index.json"),
@@ -229,7 +241,7 @@ fn get_annotations_summary_includes_resolved_tags() {
         reg["keys"]["knownkey123456"] = serde_json::json!({ "value": "Known", "refs": 1 });
         assert!(crate::services::tags_registry::save_registry(&corpus, &reg).is_none());
 
-        let summary = get_annotations_summary(dir.path());
+        let summary = get_annotations_summary(dir);
         let entry = summary[cp].as_object().expect("entry");
         let tags = entry["tags"].as_array().expect("tags");
         assert_eq!(tags.len(), 2);
@@ -243,162 +255,184 @@ fn get_annotations_summary_includes_resolved_tags() {
 
 #[test]
 fn get_corpus_file_returns_content() {
-    let dir = tempfile::tempdir().expect("tmp");
-    let corpus = dir.path().join("corpus");
-    let raw = corpus.join("raw").join("a.md");
-    fs::create_dir_all(raw.parent().unwrap()).expect("mkdir");
-    fs::write(&raw, b"hello").expect("write");
-    crate::config::settings::write_test_config(dir.path(), &corpus, None);
-    let v = get_corpus_file(dir.path(), "raw", "a.md");
-    assert_eq!(v["content"], "hello");
+    with_corpus_repo(
+        |_, corpus| {
+            let raw = corpus.join("raw").join("a.md");
+            fs::create_dir_all(raw.parent().unwrap()).expect("mkdir");
+            fs::write(&raw, b"hello").expect("write");
+        },
+        |cfg_dir| {
+            let v = get_corpus_file(cfg_dir, "raw", "a.md");
+            assert_eq!(v["content"], "hello");
+        },
+    );
 }
 
 #[test]
 fn get_corpus_asset_returns_png_bytes() {
-    let dir = tempfile::tempdir().expect("tmp");
-    let corpus = dir.path().join("corpus");
-    let png = corpus.join("raw").join("ai").join("note.png");
-    fs::create_dir_all(png.parent().unwrap()).expect("mkdir");
-    fs::write(&png, b"\x89PNG\r\n").expect("write");
-    fs::write(corpus.join("raw").join("ai").join("note.md"), b"# x").expect("md");
-    crate::config::settings::write_test_config(dir.path(), &corpus, None);
-    let v = get_corpus_asset(dir.path(), "raw", "ai/note.md", "note.png");
-    assert!(v.get("data_b64").and_then(|x| x.as_str()).is_some());
-    assert_eq!(v["mime_type"], "image/png");
+    with_corpus_repo(
+        |_, corpus| {
+            let png = corpus.join("raw").join("ai").join("note.png");
+            fs::create_dir_all(png.parent().unwrap()).expect("mkdir");
+            fs::write(&png, b"\x89PNG\r\n").expect("write");
+            fs::write(corpus.join("raw").join("ai").join("note.md"), b"# x").expect("md");
+        },
+        |cfg_dir| {
+            let v = get_corpus_asset(cfg_dir, "raw", "ai/note.md", "note.png");
+            assert!(v.get("data_b64").and_then(|x| x.as_str()).is_some());
+            assert_eq!(v["mime_type"], "image/png");
+        },
+    );
 }
 
 #[test]
 fn get_corpus_asset_rejects_traversal() {
-    let dir = tempfile::tempdir().expect("tmp");
-    let corpus = dir.path().join("corpus");
-    fs::create_dir_all(corpus.join("raw")).expect("mkdir");
-    crate::config::settings::write_test_config(dir.path(), &corpus, None);
-    let v = get_corpus_asset(dir.path(), "raw", "ai/note.md", "../index.json");
-    assert_eq!(v["error"], "Invalid path");
+    with_corpus_repo(
+        |_, corpus| {
+            fs::create_dir_all(corpus.join("raw")).expect("mkdir");
+        },
+        |cfg_dir| {
+            let v = get_corpus_asset(cfg_dir, "raw", "ai/note.md", "../index.json");
+            assert_eq!(v["error"], "Invalid path");
+        },
+    );
 }
 
 #[test]
 fn get_corpus_asset_rejects_non_whitelist_ext() {
-    let dir = tempfile::tempdir().expect("tmp");
-    let corpus = dir.path().join("corpus");
-    let svg = corpus.join("raw").join("x.svg");
-    fs::create_dir_all(svg.parent().unwrap()).expect("mkdir");
-    fs::write(&svg, b"<svg").expect("write");
-    fs::write(corpus.join("raw").join("x.md"), b"#").expect("md");
-    crate::config::settings::write_test_config(dir.path(), &corpus, None);
-    let v = get_corpus_asset(dir.path(), "raw", "x.md", "x.svg");
-    assert_eq!(v["error"], "Unsupported media type");
+    with_corpus_repo(
+        |_, corpus| {
+            let svg = corpus.join("raw").join("x.svg");
+            fs::create_dir_all(svg.parent().unwrap()).expect("mkdir");
+            fs::write(&svg, b"<svg").expect("write");
+            fs::write(corpus.join("raw").join("x.md"), b"#").expect("md");
+        },
+        |cfg_dir| {
+            let v = get_corpus_asset(cfg_dir, "raw", "x.md", "x.svg");
+            assert_eq!(v["error"], "Unsupported media type");
+        },
+    );
 }
 
 #[test]
 fn get_corpus_catalog_latest_per_topic_picks_newest() {
-    let dir = tempfile::tempdir().expect("tmp");
-    let corpus = dir.path().join("corpus");
-    fs::create_dir_all(corpus.join("digest/ai")).expect("mkdir");
-    fs::create_dir_all(corpus.join("digest/personal-growth")).expect("mkdir");
-    fs::write(corpus.join("digest/ai/old.md"), b"old").expect("write");
-    fs::write(corpus.join("digest/ai/new.md"), b"new").expect("write");
-    fs::write(corpus.join("digest/personal-growth/speech.md"), b"speech").expect("write");
     let id_old = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
     let id_new = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
     let id_pg = "cccccccccccccccccccccccccccccccc";
-    let index = json!({
-        "entries": {
-            id_old: {
-                "common_path": "ai/old.md",
-                "created_at": "202606010001",
-                "layers": ["digest"]
-            },
-            id_new: {
-                "common_path": "ai/new.md",
-                "created_at": "202606190004",
-                "layers": ["digest"]
-            },
-            id_pg: {
-                "common_path": "personal-growth/speech.md",
-                "created_at": "202606190947",
-                "layers": ["digest"]
-            },
-            "not-hex-id": {
-                "common_path": "ai/skip.md",
-                "created_at": "202606999999",
-                "layers": ["digest"]
-            },
-            "dddddddddddddddddddddddddddddddd": {
-                "common_path": "ai/no-digest.md",
-                "created_at": "202606999999",
-                "layers": ["raw"]
-            }
-        }
-    });
-    fs::write(corpus.join("index.json"), index.to_string()).expect("write index");
-    crate::config::settings::write_test_config(dir.path(), &corpus, None);
-
-    let v = get_corpus_catalog_latest_per_topic(dir.path());
-    let items = v["items"].as_array().expect("items");
-    assert_eq!(items.len(), 2);
-    let ai = items.iter().find(|i| i["topic"] == "ai").expect("ai topic");
-    assert_eq!(ai["id"], id_new);
-    assert_eq!(ai["created_at"], "202606190004");
-    assert!(ai.get("common_path").is_none());
-    let pg = items.iter().find(|i| i["topic"] == "personal-growth").expect("pg");
-    assert_eq!(pg["id"], id_pg);
+    with_corpus_repo(
+        move |_, corpus| {
+            fs::create_dir_all(corpus.join("digest/ai")).expect("mkdir");
+            fs::create_dir_all(corpus.join("digest/personal-growth")).expect("mkdir");
+            fs::write(corpus.join("digest/ai/old.md"), b"old").expect("write");
+            fs::write(corpus.join("digest/ai/new.md"), b"new").expect("write");
+            fs::write(corpus.join("digest/personal-growth/speech.md"), b"speech").expect("write");
+            let index = json!({
+                "entries": {
+                    id_old: {
+                        "common_path": "ai/old.md",
+                        "created_at": "202606010001",
+                        "layers": ["digest"]
+                    },
+                    id_new: {
+                        "common_path": "ai/new.md",
+                        "created_at": "202606190004",
+                        "layers": ["digest"]
+                    },
+                    id_pg: {
+                        "common_path": "personal-growth/speech.md",
+                        "created_at": "202606190947",
+                        "layers": ["digest"]
+                    },
+                    "not-hex-id": {
+                        "common_path": "ai/skip.md",
+                        "created_at": "202606999999",
+                        "layers": ["digest"]
+                    },
+                    "dddddddddddddddddddddddddddddddd": {
+                        "common_path": "ai/no-digest.md",
+                        "created_at": "202606999999",
+                        "layers": ["raw"]
+                    }
+                }
+            });
+            fs::write(corpus.join("index.json"), index.to_string()).expect("write index");
+        },
+        move |cfg_dir| {
+            let v = get_corpus_catalog_latest_per_topic(cfg_dir);
+            let items = v["items"].as_array().expect("items");
+            assert_eq!(items.len(), 2);
+            let ai = items.iter().find(|i| i["topic"] == "ai").expect("ai topic");
+            assert_eq!(ai["id"], id_new);
+            assert_eq!(ai["created_at"], "202606190004");
+            assert!(ai.get("common_path").is_none());
+            let pg = items.iter().find(|i| i["topic"] == "personal-growth").expect("pg");
+            assert_eq!(pg["id"], id_pg);
+        },
+    );
 }
 
 #[test]
 fn get_corpus_files_by_ids_batch() {
-    let dir = tempfile::tempdir().expect("tmp");
-    let corpus = dir.path().join("corpus");
-    fs::create_dir_all(corpus.join("digest/ai")).expect("mkdir");
-    fs::write(corpus.join("digest/ai/note.md"), b"# digest body").expect("write");
     let id_ok = "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
-    let index = json!({
-        "entries": {
-            id_ok: {
-                "common_path": "ai/note.md",
-                "created_at": "202606190004",
-                "layers": ["digest"]
-            }
-        }
-    });
-    fs::write(corpus.join("index.json"), index.to_string()).expect("write index");
-    crate::config::settings::write_test_config(dir.path(), &corpus, None);
-
-    let v = get_corpus_files_by_ids(
-        dir.path(),
-        &[
-            id_ok.to_string(),
-            "ffffffffffffffffffffffffffffffff".to_string(),
-            "bad".to_string(),
-        ],
+    with_corpus_repo(
+        move |_, corpus| {
+            fs::create_dir_all(corpus.join("digest/ai")).expect("mkdir");
+            fs::write(corpus.join("digest/ai/note.md"), b"# digest body").expect("write");
+            let index = json!({
+                "entries": {
+                    id_ok: {
+                        "common_path": "ai/note.md",
+                        "created_at": "202606190004",
+                        "layers": ["digest"]
+                    }
+                }
+            });
+            fs::write(corpus.join("index.json"), index.to_string()).expect("write index");
+        },
+        move |cfg_dir| {
+            let v = get_corpus_files_by_ids(
+                cfg_dir,
+                &[
+                    id_ok.to_string(),
+                    "ffffffffffffffffffffffffffffffff".to_string(),
+                    "bad".to_string(),
+                ],
+            );
+            let items = v["items"].as_array().expect("items");
+            assert_eq!(items.len(), 3);
+            assert_eq!(items[0]["ok"], true);
+            assert_eq!(items[0]["content"], "# digest body");
+            assert_eq!(items[1]["ok"], false);
+            assert_eq!(items[2]["ok"], false);
+        },
     );
-    let items = v["items"].as_array().expect("items");
-    assert_eq!(items.len(), 3);
-    assert_eq!(items[0]["ok"], true);
-    assert_eq!(items[0]["content"], "# digest body");
-    assert_eq!(items[1]["ok"], false);
-    assert_eq!(items[2]["ok"], false);
 }
 
 #[test]
 fn get_corpus_files_by_ids_rejects_empty() {
-    let dir = tempfile::tempdir().expect("tmp");
-    let corpus = dir.path().join("corpus");
-    fs::create_dir_all(&corpus).expect("mkdir");
-    fs::write(corpus.join("index.json"), br#"{"entries":{}}"#).expect("write");
-    crate::config::settings::write_test_config(dir.path(), &corpus, None);
-    let v = get_corpus_files_by_ids(dir.path(), &[]);
-    assert_eq!(v["_status"], 400);
+    with_corpus_repo(
+        |_, corpus| {
+            fs::create_dir_all(corpus).expect("mkdir");
+            fs::write(corpus.join("index.json"), br#"{"entries":{}}"#).expect("write");
+        },
+        |cfg_dir| {
+            let v = get_corpus_files_by_ids(cfg_dir, &[]);
+            assert_eq!(v["_status"], 400);
+        },
+    );
 }
 
 #[test]
 fn get_annotation_decodes_percent_encoding() {
-    let dir = tempfile::tempdir().expect("tmp");
-    let corpus = dir.path().join("corpus");
-    fs::create_dir_all(corpus.join("annotations").join("ai")).expect("mkdir");
-    let ann_path = corpus.join("annotations/ai/note.json");
-    fs::write(&ann_path, br#"{"done":true}"#).expect("write");
-    crate::config::settings::write_test_config(dir.path(), &corpus, None);
-    let v = get_annotation(dir.path(), "ai/note.md");
-    assert_eq!(v["done"], json!(true));
+    with_corpus_repo(
+        |_, corpus| {
+            fs::create_dir_all(corpus.join("annotations").join("ai")).expect("mkdir");
+            let ann_path = corpus.join("annotations/ai/note.json");
+            fs::write(&ann_path, br#"{"done":true}"#).expect("write");
+        },
+        |cfg_dir| {
+            let v = get_annotation(cfg_dir, "ai/note.md");
+            assert_eq!(v["done"], json!(true));
+        },
+    );
 }

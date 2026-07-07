@@ -9,22 +9,12 @@ use crate::services::sediment_kb::{
     add_category, add_repo, ensure_uncategorized, load_repos, set_test_repo_validator,
     SedimentKbError, UNCATEGORIZED_ID,
 };
-use crate::test_support::with_test_config_dir;
+use crate::test_support::TestSandbox;
 
-use std::fs;
-use std::path::Path;
-
-fn with_sediment_kb_cache<F: FnOnce(&Path)>(f: F) {
-    with_test_config_dir(|cfg| {
-        let cache = cfg.join("cache");
-        fs::write(
-            cfg.join("config.toml"),
-            format!(r#"cache_dir = "{}""#, cache.display()),
-        )
-        .expect("write config");
-        crate::config::secrets::test_secrets_clear();
-        f(&cache);
-    });
+fn with_sediment_kb_cache<F: FnOnce()>(f: F) {
+    let _sandbox = TestSandbox::new();
+    crate::config::secrets::test_secrets_clear();
+    f();
 }
 
 fn ok_validator(full_name: &str) -> Result<String, SedimentKbError> {
@@ -37,7 +27,7 @@ fn no_token_validator(_: &str) -> Result<String, SedimentKbError> {
 
 #[test]
 fn sediment_kb_add_repo_json_defaults_to_uncategorized() {
-    with_sediment_kb_cache(|_| {
+    with_sediment_kb_cache(|| {
         set_test_repo_validator(Some(ok_validator));
         ensure_uncategorized().expect("ensure");
         let v = sediment_kb_add_repo_json(json!({ "full_name": "acme/demo" })).expect("add");
@@ -51,7 +41,7 @@ fn sediment_kb_add_repo_json_defaults_to_uncategorized() {
 
 #[test]
 fn sediment_kb_add_repo_json_saves_description() {
-    with_sediment_kb_cache(|_| {
+    with_sediment_kb_cache(|| {
         set_test_repo_validator(Some(ok_validator));
         ensure_uncategorized().expect("ensure");
         let v = sediment_kb_add_repo_json(json!({
@@ -68,7 +58,7 @@ fn sediment_kb_add_repo_json_saves_description() {
 
 #[test]
 fn sediment_kb_add_repo_json_saves_description_with_category() {
-    with_sediment_kb_cache(|_| {
+    with_sediment_kb_cache(|| {
         set_test_repo_validator(Some(ok_validator));
         ensure_uncategorized().expect("ensure");
         let cat_id = add_category("Docs").expect("cat");
@@ -88,7 +78,7 @@ fn sediment_kb_add_repo_json_saves_description_with_category() {
 
 #[test]
 fn sediment_kb_add_repo_json_defaults_missing_description_to_empty_string() {
-    with_sediment_kb_cache(|_| {
+    with_sediment_kb_cache(|| {
         set_test_repo_validator(Some(ok_validator));
         ensure_uncategorized().expect("ensure");
         let v = sediment_kb_add_repo_json(json!({ "full_name": "acme/demo" })).expect("add");
@@ -101,7 +91,7 @@ fn sediment_kb_add_repo_json_defaults_missing_description_to_empty_string() {
 
 #[test]
 fn sediment_kb_add_repo_json_keeps_empty_description() {
-    with_sediment_kb_cache(|_| {
+    with_sediment_kb_cache(|| {
         set_test_repo_validator(Some(ok_validator));
         ensure_uncategorized().expect("ensure");
         let v = sediment_kb_add_repo_json(json!({
@@ -125,7 +115,7 @@ fn sediment_kb_add_repo_json_requires_full_name_before_description() {
 
 #[test]
 fn sediment_kb_add_repo_json_crud_roundtrip() {
-    with_sediment_kb_cache(|_| {
+    with_sediment_kb_cache(|| {
         set_test_repo_validator(Some(ok_validator));
         ensure_uncategorized().expect("ensure");
         sediment_kb_add_repo_json(json!({ "full_name": "acme/a" })).expect("add");
@@ -143,7 +133,7 @@ fn sediment_kb_add_repo_json_crud_roundtrip() {
 
 #[test]
 fn sediment_kb_category_crud() {
-    with_sediment_kb_cache(|_| {
+    with_sediment_kb_cache(|| {
         ensure_uncategorized().expect("ensure");
         let v = sediment_kb_add_category_json(json!({ "name": "AI" })).expect("add cat");
         let id = v["id"].as_str().expect("id");
@@ -177,7 +167,7 @@ fn map_sediment_kb_error_codes() {
 
 #[test]
 fn sediment_kb_add_repo_json_duplicate_returns_error_json() {
-    with_sediment_kb_cache(|_| {
+    with_sediment_kb_cache(|| {
         set_test_repo_validator(Some(ok_validator));
         ensure_uncategorized().expect("ensure");
         sediment_kb_add_repo_json(json!({ "full_name": "acme/dup" })).expect("first");
@@ -194,7 +184,7 @@ fn sediment_kb_description_source_constraints_hold() {
 
 #[test]
 fn sediment_kb_add_repo_json_no_token_error() {
-    with_sediment_kb_cache(|_| {
+    with_sediment_kb_cache(|| {
         set_test_repo_validator(Some(no_token_validator));
         ensure_uncategorized().expect("ensure");
         let v = sediment_kb_add_repo_json(json!({ "full_name": "acme/private" })).expect("err");

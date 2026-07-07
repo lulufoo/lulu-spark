@@ -1,13 +1,12 @@
 use super::*;
 use crate::config::secrets::{self, KEY_GITHUB_TOKEN};
 use crate::config::settings;
-use crate::test_support::with_test_config_dir;
+use crate::test_support::TestSandbox;
 
 fn with_config<F: FnOnce()>(f: F) {
-    with_test_config_dir(|_| {
-        secrets::test_secrets_clear();
-        f();
-    });
+    let _sandbox = TestSandbox::new();
+    secrets::test_secrets_clear();
+    f();
 }
 
 #[test]

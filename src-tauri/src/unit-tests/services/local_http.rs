@@ -8,6 +8,18 @@ use reqwest::blocking;
 use serde_json::{json, Value};
 
 use super::*;
+use crate::test_support::TestSandbox;
+
+struct RepoFixture {
+    _sandbox: TestSandbox,
+    repo_root: PathBuf,
+}
+
+struct CatalogFixture {
+    _sandbox: TestSandbox,
+    repo_root: PathBuf,
+    id: String,
+}
 
 fn ephemeral_port() -> u16 {
     TcpListener::bind("127.0.0.1:0")
@@ -17,24 +29,71 @@ fn ephemeral_port() -> u16 {
         .port()
 }
 
-fn setup_repo_without_index() -> (tempfile::TempDir, PathBuf) {
-    let dir = tempfile::tempdir().expect("tmpdir");
-    let corpus = dir.path().join("corpus");
-    fs::create_dir_all(&corpus).expect("mkdir corpus");
-    crate::config::settings::write_test_config(dir.path(), &corpus, None);
-    let repo_root = dir.path().to_path_buf();
-    (dir, repo_root)
+fn setup_repo_without_index() -> RepoFixture {
+    let sandbox = TestSandbox::new();
+    let wb = sandbox.workbench_knowledge_root();
+    fs::create_dir_all(&wb).expect("mkdir corpus");
+    RepoFixture {
+        repo_root: sandbox.config_dir().to_path_buf(),
+        _sandbox: sandbox,
+    }
 }
 
-fn setup_repo_with_corpus() -> (tempfile::TempDir, PathBuf) {
-    let dir = tempfile::tempdir().expect("tmpdir");
-    let corpus = dir.path().join("corpus");
-    fs::create_dir_all(corpus.join("digest")).expect("mkdir digest");
-    fs::write(corpus.join("index.json"), br#"{"entries":[]}"#).expect("index");
-    fs::write(corpus.join("digest/note.md"), b"digest body").expect("digest file");
-    crate::config::settings::write_test_config(dir.path(), &corpus, None);
-    let repo_root = dir.path().to_path_buf();
-    (dir, repo_root)
+fn setup_repo_with_corpus() -> RepoFixture {
+    let sandbox = TestSandbox::new();
+    let wb = sandbox.workbench_knowledge_root();
+    fs::create_dir_all(wb.join("digest")).expect("mkdir digest");
+    fs::write(wb.join("index.json"), br#"{"entries":[]}"#).expect("index");
+    fs::write(wb.join("digest/note.md"), b"digest body").expect("digest file");
+    RepoFixture {
+        repo_root: sandbox.config_dir().to_path_buf(),
+        _sandbox: sandbox,
+    }
+}
+
+fn setup_repo_for_read_later() -> RepoFixture {
+    let sandbox = TestSandbox::new();
+    let wb = sandbox.workbench_knowledge_root();
+    fs::create_dir_all(&wb).expect("mkdir corpus");
+    RepoFixture {
+        repo_root: sandbox.config_dir().to_path_buf(),
+        _sandbox: sandbox,
+    }
+}
+
+fn setup_repo_with_catalog() -> CatalogFixture {
+    let sandbox = TestSandbox::new();
+    let wb = sandbox.workbench_knowledge_root();
+    fs::create_dir_all(wb.join("digest/ai")).expect("mkdir digest");
+    let id = "11111111111111111111111111111111";
+    let index = json!({
+        "entries": {
+            id: {
+                "common_path": "ai/note.md",
+                "created_at": "202606190004",
+                "layers": ["digest"]
+            }
+        }
+    });
+    fs::write(wb.join("index.json"), index.to_string()).expect("index");
+    fs::write(wb.join("digest/ai/note.md"), b"digest body").expect("digest file");
+    CatalogFixture {
+        repo_root: sandbox.config_dir().to_path_buf(),
+        id: id.to_string(),
+        _sandbox: sandbox,
+    }
+}
+
+fn setup_repo_for_archive() -> RepoFixture {
+    let sandbox = TestSandbox::new();
+    let wb = sandbox.workbench_knowledge_root();
+    fs::create_dir_all(wb.join("raw")).expect("mkdir raw");
+    fs::create_dir_all(wb.join("digest")).expect("mkdir digest");
+    fs::write(wb.join("index.json"), br#"{"entries":{}}"#).expect("index");
+    RepoFixture {
+        repo_root: sandbox.config_dir().to_path_buf(),
+        _sandbox: sandbox,
+    }
 }
 
 fn http_get(port: u16, path: &str) -> (u16, Value) {
@@ -151,63 +210,19 @@ fn assert_cors_headers(response: &blocking::Response) {
     );
 }
 
-fn setup_repo_for_read_later() -> (tempfile::TempDir, PathBuf) {
-    let dir = tempfile::tempdir().expect("tmpdir");
-    let corpus = dir.path().join("corpus");
-    fs::create_dir_all(&corpus).expect("mkdir corpus");
-    let cache = dir.path().join("cache");
-    fs::create_dir_all(&cache).expect("mkdir cache");
-    fs::write(
-        dir.path().join("config.toml"),
-        format!(
-            r#"workbench_knowledge_root = "{}"
-knowledge_corpus_root = "{}"
-cache_dir = "{}"
-"#,
-            dir.path().display(),
-            corpus.display(),
-            cache.display()
-        ),
-    )
-    .expect("write config");
-    crate::config::settings::set_test_config_dir(Some(dir.path().to_path_buf()));
-    let repo_root = dir.path().to_path_buf();
-    (dir, repo_root)
-}
-
-fn setup_repo_with_catalog() -> (tempfile::TempDir, PathBuf, String) {
-    let dir = tempfile::tempdir().expect("tmpdir");
-    let corpus = dir.path().join("corpus");
-    fs::create_dir_all(corpus.join("digest/ai")).expect("mkdir digest");
-    let id = "11111111111111111111111111111111";
-    let index = json!({
-        "entries": {
-            id: {
-                "common_path": "ai/note.md",
-                "created_at": "202606190004",
-                "layers": ["digest"]
-            }
-        }
-    });
-    fs::write(corpus.join("index.json"), index.to_string()).expect("index");
-    fs::write(corpus.join("digest/ai/note.md"), b"digest body").expect("digest file");
-    crate::config::settings::write_test_config(dir.path(), &corpus, None);
-    let repo_root = dir.path().to_path_buf();
-    (dir, repo_root, id.to_string())
-}
-
 fn with_server<F: FnOnce(u16)>(repo_root: PathBuf, f: F) {
     let port = ephemeral_port();
     let handle = start(repo_root, port).expect("start server");
     thread::sleep(Duration::from_millis(50));
     f(port);
     stop(handle);
-    crate::config::settings::set_test_config_dir(None);
 }
 
 #[test]
 fn get_corpus_catalog_latest_per_topic() {
-    let (_dir, repo_root, id) = setup_repo_with_catalog();
+    let catalog = setup_repo_with_catalog();
+    let repo_root = catalog.repo_root.clone();
+    let id = catalog.id.clone();
     with_server(repo_root, |port| {
         let (status, body) = http_get(port, "/api/corpus-catalog?mode=latest_per_topic");
         assert_eq!(status, 200);
@@ -221,7 +236,8 @@ fn get_corpus_catalog_latest_per_topic() {
 
 #[test]
 fn get_corpus_catalog_unsupported_mode_returns_400() {
-    let (_dir, repo_root, _) = setup_repo_with_catalog();
+    let catalog = setup_repo_with_catalog();
+    let repo_root = catalog.repo_root.clone();
     with_server(repo_root, |port| {
         let (status, body) = http_get(port, "/api/corpus-catalog?mode=unknown");
         assert_eq!(status, 400);
@@ -231,7 +247,9 @@ fn get_corpus_catalog_unsupported_mode_returns_400() {
 
 #[test]
 fn post_corpus_files_returns_batch() {
-    let (_dir, repo_root, id) = setup_repo_with_catalog();
+    let catalog = setup_repo_with_catalog();
+    let repo_root = catalog.repo_root.clone();
+    let id = catalog.id.clone();
     with_server(repo_root, |port| {
         let (status, body) = http_post(
             port,
@@ -249,7 +267,8 @@ fn post_corpus_files_returns_batch() {
 
 #[test]
 fn post_corpus_files_empty_ids_returns_400() {
-    let (_dir, repo_root, _) = setup_repo_with_catalog();
+    let catalog = setup_repo_with_catalog();
+    let repo_root = catalog.repo_root.clone();
     with_server(repo_root, |port| {
         let (status, body) = http_post(port, "/api/corpus-files", &json!({ "ids": [] }));
         assert_eq!(status, 400);
@@ -259,7 +278,8 @@ fn post_corpus_files_empty_ids_returns_400() {
 
 #[test]
 fn get_corpus_index_matches_workbench_read() {
-    let (_dir, repo_root) = setup_repo_with_corpus();
+    let fixture = setup_repo_with_corpus();
+    let repo_root = fixture.repo_root.clone();
     let expected = crate::services::workbench_read::get_corpus_index(&repo_root);
     with_server(repo_root, |port| {
         let (status, body) = http_get(port, "/api/corpus-index");
@@ -271,7 +291,8 @@ fn get_corpus_index_matches_workbench_read() {
 
 #[test]
 fn get_corpus_file_digest_returns_content() {
-    let (_dir, repo_root) = setup_repo_with_corpus();
+    let fixture = setup_repo_with_corpus();
+    let repo_root = fixture.repo_root.clone();
     with_server(repo_root, |port| {
         let (status, body) = http_get(port, "/api/corpus-file?layer=digest&path=note.md");
         assert_eq!(status, 200);
@@ -281,13 +302,13 @@ fn get_corpus_file_digest_returns_content() {
 
 #[test]
 fn get_status_returns_ok_and_http_port() {
-    let (_dir, repo_root) = setup_repo_with_corpus();
+    let fixture = setup_repo_with_corpus();
+    let repo_root = fixture.repo_root.clone();
     let port = ephemeral_port();
     let handle = start(repo_root, port).expect("start");
     thread::sleep(Duration::from_millis(50));
     let (status, body) = http_get(port, "/api/status");
     stop(handle);
-    crate::config::settings::set_test_config_dir(None);
     assert_eq!(status, 200);
     assert_eq!(body["ok"], true);
     assert_eq!(body["http_port"], port);
@@ -295,7 +316,8 @@ fn get_status_returns_ok_and_http_port() {
 
 #[test]
 fn get_corpus_file_raw_layer_returns_400() {
-    let (_dir, repo_root) = setup_repo_with_corpus();
+    let fixture = setup_repo_with_corpus();
+    let repo_root = fixture.repo_root.clone();
     with_server(repo_root, |port| {
         let (status, body) = http_get(port, "/api/corpus-file?layer=raw&path=x");
         assert_eq!(status, 400);
@@ -305,13 +327,12 @@ fn get_corpus_file_raw_layer_returns_400() {
 
 #[test]
 fn get_corpus_asset_raw_returns_base64_png() {
-    let dir = tempfile::tempdir().expect("tmpdir");
-    let corpus = dir.path().join("corpus");
-    fs::create_dir_all(corpus.join("raw/ai")).expect("mkdir raw");
-    fs::write(corpus.join("raw/ai/note.png"), b"\x89PNG\r\n").expect("png");
-    fs::write(corpus.join("raw/ai/note.md"), b"# note").expect("md");
-    crate::config::settings::write_test_config(dir.path(), &corpus, None);
-    let repo_root = dir.path().to_path_buf();
+    let sandbox = TestSandbox::new();
+    let wb = sandbox.workbench_knowledge_root();
+    fs::create_dir_all(wb.join("raw/ai")).expect("mkdir raw");
+    fs::write(wb.join("raw/ai/note.png"), b"\x89PNG\r\n").expect("png");
+    fs::write(wb.join("raw/ai/note.md"), b"# note").expect("md");
+    let repo_root = sandbox.config_dir().to_path_buf();
     with_server(repo_root, |port| {
         let q = "/api/corpus-asset?layer=raw&base=ai/note.md&href=note.png";
         let (status, body) = http_get(port, q);
@@ -323,7 +344,8 @@ fn get_corpus_asset_raw_returns_base64_png() {
 
 #[test]
 fn maps_workbench_read_status_404_without_status_in_body() {
-    let (_dir, repo_root) = setup_repo_without_index();
+    let fixture = setup_repo_without_index();
+    let repo_root = fixture.repo_root.clone();
     with_server(repo_root, |port| {
         let (status, body) = http_get(port, "/api/corpus-index");
         assert_eq!(status, 404);
@@ -334,23 +356,12 @@ fn maps_workbench_read_status_404_without_status_in_body() {
 
 #[test]
 fn start_fails_when_port_in_use_without_panic() {
-    let (_dir, repo_root) = setup_repo_with_corpus();
+    let fixture = setup_repo_with_corpus();
+    let repo_root = fixture.repo_root.clone();
     let port = ephemeral_port();
     let _guard = TcpListener::bind(format!("127.0.0.1:{port}")).expect("occupy port");
     let result = start(repo_root, port);
-    crate::config::settings::set_test_config_dir(None);
     assert!(result.is_err());
-}
-
-fn setup_repo_for_archive() -> (tempfile::TempDir, PathBuf) {
-    let dir = tempfile::tempdir().expect("tmpdir");
-    let repo_root = dir.path().to_path_buf();
-    let corpus = repo_root.join("corpus");
-    fs::create_dir_all(corpus.join("raw")).expect("mkdir raw");
-    fs::create_dir_all(corpus.join("digest")).expect("mkdir digest");
-    fs::write(corpus.join("index.json"), br#"{"entries":{}}"#).expect("index");
-    crate::config::settings::write_test_config(&repo_root, &corpus, None);
-    (dir, repo_root)
 }
 
 const SAMPLE_DOC: &str = r#"# Test Title
@@ -366,7 +377,8 @@ Summary body here.
 
 #[test]
 fn post_archive_document_and_digest() {
-    let (_dir, repo_root) = setup_repo_for_archive();
+    let fixture = setup_repo_for_archive();
+    let repo_root = fixture.repo_root.clone();
     with_server(repo_root, |port| {
         let (status, body) = http_post(
             port,
@@ -388,7 +400,8 @@ fn post_archive_document_and_digest() {
 
 #[test]
 fn post_unknown_returns_404() {
-    let (_dir, repo_root) = setup_repo_with_corpus();
+    let fixture = setup_repo_with_corpus();
+    let repo_root = fixture.repo_root.clone();
     with_server(repo_root, |port| {
         let (status, body) = http_get(port, "/api/unknown");
         assert_eq!(status, 404);
@@ -415,7 +428,8 @@ fn default_http_port_is_8765() {
 
 #[test]
 fn local_http_state_start_sets_http_ready_and_listens() {
-    let (_dir, repo_root) = setup_repo_with_corpus();
+    let fixture = setup_repo_with_corpus();
+    let repo_root = fixture.repo_root.clone();
     let state = LocalHttpState::new();
     let port = ephemeral_port();
     state.try_start(repo_root, port);
@@ -424,12 +438,12 @@ fn local_http_state_start_sets_http_ready_and_listens() {
     let (status, _) = http_get(port, "/api/corpus-index");
     assert_eq!(status, 200);
     state.stop();
-    crate::config::settings::set_test_config_dir(None);
 }
 
 #[test]
 fn local_http_state_stop_clears_http_ready_and_releases_port() {
-    let (_dir, repo_root) = setup_repo_with_corpus();
+    let fixture = setup_repo_with_corpus();
+    let repo_root = fixture.repo_root.clone();
     let state = LocalHttpState::new();
     let port = ephemeral_port();
     state.try_start(repo_root, port);
@@ -438,12 +452,12 @@ fn local_http_state_stop_clears_http_ready_and_releases_port() {
     state.stop();
     assert!(!state.is_ready());
     assert!(!crate::wait_for_port(port, Duration::from_millis(200)));
-    crate::config::settings::set_test_config_dir(None);
 }
 
 #[test]
 fn local_http_state_three_cycles_no_port_leak() {
-    let (_dir, repo_root) = setup_repo_with_corpus();
+    let fixture = setup_repo_with_corpus();
+    let repo_root = fixture.repo_root.clone();
     let state = LocalHttpState::new();
     let port = ephemeral_port();
     for _ in 0..3 {
@@ -455,23 +469,23 @@ fn local_http_state_three_cycles_no_port_leak() {
         assert!(!state.is_ready());
         assert!(!crate::wait_for_port(port, Duration::from_millis(200)));
     }
-    crate::config::settings::set_test_config_dir(None);
 }
 
 #[test]
 fn local_http_state_bind_failure_keeps_http_ready_false() {
-    let (_dir, repo_root) = setup_repo_with_corpus();
+    let fixture = setup_repo_with_corpus();
+    let repo_root = fixture.repo_root.clone();
     let port = ephemeral_port();
     let _guard = TcpListener::bind(format!("127.0.0.1:{port}")).expect("occupy port");
     let state = LocalHttpState::new();
     state.try_start(repo_root, port);
     assert!(!state.is_ready());
-    crate::config::settings::set_test_config_dir(None);
 }
 
 #[test]
 fn get_read_later_empty_returns_200_array() {
-    let (_dir, repo_root) = setup_repo_for_read_later();
+    let fixture = setup_repo_for_read_later();
+    let repo_root = fixture.repo_root.clone();
     with_server(repo_root, |port| {
         let (status, body) = http_get_with_response(port, "/api/read-later");
         assert_eq!(status, 200);
@@ -482,7 +496,8 @@ fn get_read_later_empty_returns_200_array() {
 
 #[test]
 fn post_read_later_creates_entry_with_cors() {
-    let (_dir, repo_root) = setup_repo_for_read_later();
+    let fixture = setup_repo_for_read_later();
+    let repo_root = fixture.repo_root.clone();
     with_server(repo_root, |port| {
         let (status, body) = http_post_with_response(
             port,
@@ -501,7 +516,8 @@ fn post_read_later_creates_entry_with_cors() {
 
 #[test]
 fn get_read_later_returns_entries_desc_by_saved_at() {
-    let (_dir, repo_root) = setup_repo_for_read_later();
+    let fixture = setup_repo_for_read_later();
+    let repo_root = fixture.repo_root.clone();
     with_server(repo_root, |port| {
         http_post(
             port,
@@ -526,7 +542,8 @@ fn get_read_later_returns_entries_desc_by_saved_at() {
 
 #[test]
 fn patch_read_later_marks_entry_read() {
-    let (_dir, repo_root) = setup_repo_for_read_later();
+    let fixture = setup_repo_for_read_later();
+    let repo_root = fixture.repo_root.clone();
     with_server(repo_root, |port| {
         let (_, created) = http_post(
             port,
@@ -545,7 +562,8 @@ fn patch_read_later_marks_entry_read() {
 
 #[test]
 fn options_read_later_returns_204_with_cors() {
-    let (_dir, repo_root) = setup_repo_for_read_later();
+    let fixture = setup_repo_for_read_later();
+    let repo_root = fixture.repo_root.clone();
     with_server(repo_root, |port| {
         let (status, response) = http_options(port, "/api/read-later");
         assert_eq!(status, 204);
@@ -555,7 +573,8 @@ fn options_read_later_returns_204_with_cors() {
 
 #[test]
 fn post_read_later_missing_url_returns_400_with_cors() {
-    let (_dir, repo_root) = setup_repo_for_read_later();
+    let fixture = setup_repo_for_read_later();
+    let repo_root = fixture.repo_root.clone();
     with_server(repo_root, |port| {
         let (status, body) =
             http_post_with_response(port, "/api/read-later", &json!({ "title": "no url" }));
@@ -566,7 +585,8 @@ fn post_read_later_missing_url_returns_400_with_cors() {
 
 #[test]
 fn patch_read_later_unknown_id_returns_404_with_cors() {
-    let (_dir, repo_root) = setup_repo_for_read_later();
+    let fixture = setup_repo_for_read_later();
+    let repo_root = fixture.repo_root.clone();
     with_server(repo_root, |port| {
         let (status, body) = http_patch_with_response(
             port,
@@ -580,7 +600,8 @@ fn patch_read_later_unknown_id_returns_404_with_cors() {
 
 #[test]
 fn patch_non_read_later_path_returns_405() {
-    let (_dir, repo_root) = setup_repo_with_corpus();
+    let fixture = setup_repo_with_corpus();
+    let repo_root = fixture.repo_root.clone();
     with_server(repo_root, |port| {
         let (status, _) =
             http_patch(port, "/api/status", &json!({ "read": true }));
@@ -590,7 +611,8 @@ fn patch_non_read_later_path_returns_405() {
 
 #[test]
 fn options_non_read_later_path_returns_405() {
-    let (_dir, repo_root) = setup_repo_with_corpus();
+    let fixture = setup_repo_with_corpus();
+    let repo_root = fixture.repo_root.clone();
     with_server(repo_root, |port| {
         let (status, _) = http_options(port, "/api/status");
         assert_eq!(status, 405);

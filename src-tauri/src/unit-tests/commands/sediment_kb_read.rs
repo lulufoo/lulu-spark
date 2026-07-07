@@ -5,30 +5,20 @@ use crate::config::paths;
 use crate::services::sediment_kb::{
     add_category, add_repo, ensure_uncategorized, set_test_repo_validator, UNCATEGORIZED_ID,
 };
-use crate::test_support::with_test_config_dir;
-
-use std::fs;
-use std::path::Path;
-
-fn with_sediment_kb_cache<F: FnOnce(&Path)>(f: F) {
-    with_test_config_dir(|cfg| {
-        let cache = cfg.join("cache");
-        fs::write(
-            cfg.join("config.toml"),
-            format!(r#"cache_dir = "{}""#, cache.display()),
-        )
-        .expect("write config");
-        f(&cache);
-    });
-}
+use crate::test_support::TestSandbox;
 
 fn ok_validator(full_name: &str) -> Result<String, crate::services::sediment_kb::SedimentKbError> {
     Ok(full_name.to_string())
 }
 
+fn with_sediment_kb_cache<F: FnOnce()>(f: F) {
+    let _sandbox = TestSandbox::new();
+    f();
+}
+
 #[test]
 fn get_sediment_kb_categories_returns_list() {
-    with_sediment_kb_cache(|_| {
+    with_sediment_kb_cache(|| {
         ensure_uncategorized().expect("ensure");
         let v = sediment_kb_categories_json().expect("categories");
         let cats = v["categories"].as_array().expect("array");
@@ -38,7 +28,7 @@ fn get_sediment_kb_categories_returns_list() {
 
 #[test]
 fn get_sediment_kb_repos_resolves_category_names() {
-    with_sediment_kb_cache(|_| {
+    with_sediment_kb_cache(|| {
         set_test_repo_validator(Some(ok_validator));
         ensure_uncategorized().expect("ensure");
         let cat_id = add_category("Research").expect("cat");
@@ -56,7 +46,7 @@ fn get_sediment_kb_repos_resolves_category_names() {
 
 #[test]
 fn get_sediment_kb_repos_empty_by_default() {
-    with_sediment_kb_cache(|_| {
+    with_sediment_kb_cache(|| {
         ensure_uncategorized().expect("ensure");
         let repo_root = paths::repo_root().expect("repo root");
         let v = sediment_kb_repos_json(&repo_root).expect("repos");

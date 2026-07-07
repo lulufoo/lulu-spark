@@ -5,7 +5,7 @@ use std::path::PathBuf;
 use std::time::SystemTime;
 
 use crate::config::settings::{self, default_cache_dir, AppSettings};
-use crate::test_support::{TestSandbox, with_corpus, with_test_config_dir};
+use crate::test_support::{TestSandbox, with_corpus, with_sandbox_corpus, with_test_config_dir};
 
 fn prod_cache_dir_mtime() -> Option<SystemTime> {
     let path = default_cache_dir();
@@ -92,7 +92,7 @@ fn lib_tests_do_not_touch_prod_cache_dir_mtime() {
     let before = prod_cache_dir_mtime();
     {
         let _sandbox = TestSandbox::new();
-        with_corpus(true, |_dir, corpus| {
+        with_sandbox_corpus(true, |_dir, corpus| {
             let _ = fs::create_dir_all(corpus.join("annotations/ai"));
         });
     }

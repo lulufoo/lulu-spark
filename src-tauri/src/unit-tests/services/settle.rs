@@ -1,22 +1,17 @@
 use super::*;
 use crate::config::settings;
+use crate::test_support::TestSandbox;
 use std::fs;
 use std::path::Path;
 
 fn with_repo_list<F: FnOnce(&Path)>(repos_json: &str, f: F) {
-    let dir = tempfile::tempdir().expect("tmp");
-    let corpus = dir.path().join("corpus");
-    fs::create_dir_all(&corpus).expect("mkdir");
-    let cache = dir.path().join("cache");
-    fs::create_dir_all(&cache).expect("cache");
+    let sandbox = TestSandbox::new();
+    let cache = sandbox.cache_dir();
     fs::write(cache.join("repo-list.json"), repos_json).expect("repo-list");
-    settings::write_test_config(dir.path(), &corpus, None);
-    let cfg = settings::load().expect("load");
-    let mut s = cfg;
-    s.cache_dir = cache;
-    settings::save(&s).expect("save");
-    f(dir.path());
-    settings::set_test_config_dir(None);
+    let mut cfg = settings::load().expect("load");
+    cfg.cache_dir = cache;
+    settings::save(&cfg).expect("save");
+    f(sandbox.config_dir());
 }
 
 #[test]
@@ -127,7 +122,9 @@ fn local_annotation_updated_when_put_would_succeed() {
     with_repo_list(
         r#"{"repos":[{"full_name":"o/proj","name":"proj","type":"KNOWLEDGE_CORPUS","description":""}]}"#,
         |root| {
-            let corpus = root.join("corpus");
+            let corpus = crate::config::settings::load()
+                .expect("load")
+                .workbench_knowledge_root;
             fs::create_dir_all(corpus.join("annotations/proj")).expect("ann dir");
             let ann_path = corpus.join("annotations/proj/note.json");
             fs::write(

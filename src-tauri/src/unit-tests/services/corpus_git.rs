@@ -1,5 +1,5 @@
 use super::*;
-use crate::config::settings;
+use crate::test_support::TestSandbox;
 use std::fs;
 
 fn exec_ok(repo: &std::path::Path, args: &[&str]) {
@@ -7,59 +7,43 @@ fn exec_ok(repo: &std::path::Path, args: &[&str]) {
     assert!(out.success, "git {:?} failed: {}", args, out.stderr);
 }
 
-fn with_git_corpus<F: FnOnce(&std::path::Path)>(f: F) {
-    let dir = tempfile::tempdir().expect("tmp");
-    let corpus = dir.path().join("corpus");
-    fs::create_dir_all(&corpus).expect("mkdir");
-    git::exec(&corpus, &["init"]).expect("init");
-    git::exec(&corpus, &["config", "user.email", "t@t.com"]).expect("e");
-    git::exec(&corpus, &["config", "user.name", "t"]).expect("n");
-    fs::write(corpus.join("f.md"), "a").expect("w");
-    settings::write_test_config(dir.path(), &corpus, None);
-    f(dir.path());
-    settings::set_test_config_dir(None);
-}
-
 /// Sets up a temp git repo with a committed `f.md` ("original"), then calls `f(&corpus)`.
 fn with_committed_corpus<F: FnOnce(&std::path::Path)>(f: F) {
-    let dir = tempfile::tempdir().expect("tmp");
-    let corpus = dir.path().join("corpus");
-    fs::create_dir_all(&corpus).expect("mkdir");
-    exec_ok(&corpus, &["init"]);
-    exec_ok(&corpus, &["config", "user.email", "t@t.com"]);
-    exec_ok(&corpus, &["config", "user.name", "t"]);
-    fs::write(corpus.join("f.md"), "original").expect("write f.md");
-    exec_ok(&corpus, &["add", "f.md"]);
-    exec_ok(&corpus, &["commit", "-m", "base"]);
-    settings::write_test_config(dir.path(), &corpus, None);
-    f(&corpus);
-    settings::set_test_config_dir(None);
+    let sandbox = TestSandbox::new();
+    let wb = sandbox.workbench_knowledge_root();
+    fs::create_dir_all(&wb).expect("mkdir");
+    exec_ok(&wb, &["init"]);
+    exec_ok(&wb, &["config", "user.email", "t@t.com"]);
+    exec_ok(&wb, &["config", "user.name", "t"]);
+    fs::write(wb.join("f.md"), "original").expect("write f.md");
+    exec_ok(&wb, &["add", "f.md"]);
+    exec_ok(&wb, &["commit", "-m", "base"]);
+    f(wb.as_path());
+}
+
+fn with_plain_corpus<F: FnOnce()>(f: F) {
+    let _sandbox = TestSandbox::new();
+    f();
 }
 
 // ── corpus_git_commit ─────────────────────────────────────────────────────────
 
 #[test]
 fn corpus_commit_errors_when_corpus_not_git() {
-    let dir = tempfile::tempdir().expect("tmp");
-    let corpus = dir.path().join("corpus");
-    fs::create_dir_all(&corpus).expect("mkdir");
-    settings::write_test_config(dir.path(), &corpus, None);
-    let v = corpus_git_commit(&json!({}));
-    assert!(v.get("error").is_some());
-    settings::set_test_config_dir(None);
+    with_plain_corpus(|| {
+        let v = corpus_git_commit(&json!({}));
+        assert!(v.get("error").is_some());
+    });
 }
 
 // ── corpus_git_revert ─────────────────────────────────────────────────────────
 
 #[test]
 fn corpus_revert_errors_when_corpus_not_git() {
-    let dir = tempfile::tempdir().expect("tmp");
-    let corpus = dir.path().join("corpus");
-    fs::create_dir_all(&corpus).expect("mkdir");
-    settings::write_test_config(dir.path(), &corpus, None);
-    let v = corpus_git_revert(&json!({ "path": "f.md", "type": "modified" }));
-    assert!(v.get("error").is_some(), "expected error, got: {v}");
-    settings::set_test_config_dir(None);
+    with_plain_corpus(|| {
+        let v = corpus_git_revert(&json!({ "path": "f.md", "type": "modified" }));
+        assert!(v.get("error").is_some(), "expected error, got: {v}");
+    });
 }
 
 #[test]
