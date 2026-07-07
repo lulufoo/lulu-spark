@@ -12,8 +12,10 @@ export function mountHomeHub(container, { navigate, openReadLater } = {}) {
     else if (target === 'read-later') {
       if (typeof openReadLater === 'function') openReadLater();
       else navigate('#/read-later');
+    } else if (target === 'corpus') navigate('#/corpus');
+    else if (target === 'plan-tasks') {
+      if (typeof navigate === 'function') navigate('#/plan-tasks');
     }
-    else if (target === 'corpus') navigate('#/corpus');
   };
 
   container.innerHTML = `
@@ -38,13 +40,21 @@ export function mountHomeHub(container, { navigate, openReadLater } = {}) {
             <span class="home-desktop-shortcut-label">沉淀知识库</span>
           </button>
         </li>
+        <li>
+          <button type="button" class="home-desktop-shortcut" data-home-entry="plan-tasks">
+            <span class="home-desktop-shortcut-icon" aria-hidden="true">📋</span>
+            <span class="home-desktop-shortcut-label">计划任务</span>
+          </button>
+        </li>
       </ul>
     </div>
   `;
 
-  container.querySelector('.home-desktop')?.addEventListener('click', onClick);
+  const desktop = container.querySelector('.home-desktop');
+  desktop?.addEventListener('click', onClick);
 
   return () => {
+    desktop?.removeEventListener('click', onClick);
     container.innerHTML = '';
   };
 }

@@ -1,7 +1,6 @@
 use std::fs;
 use std::net::TcpListener;
 use std::path::PathBuf;
-use std::sync::Mutex;
 use std::thread;
 use std::time::Duration;
 
@@ -9,15 +8,10 @@ use reqwest::blocking;
 use serde_json::{json, Value};
 
 use super::*;
-use crate::test_support::TestSandbox;
-
-static PLAN_TASK_HTTP_TEST_LOCK: Mutex<()> = Mutex::new(());
+use crate::test_support::{TestSandbox, with_config_test_serial};
 
 fn with_plan_task_http_test<F: FnOnce()>(f: F) {
-    let _guard = PLAN_TASK_HTTP_TEST_LOCK
-        .lock()
-        .expect("plan_task http test lock");
-    f();
+    with_config_test_serial(f);
 }
 
 struct RepoFixture {

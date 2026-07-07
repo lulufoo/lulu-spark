@@ -31,17 +31,20 @@ describe('mountHomeHub', () => {
     expect(container.querySelector('.home-desktop-wallpaper')).not.toBeNull();
 
     const shortcuts = container.querySelectorAll('.home-desktop-shortcut');
-    expect(shortcuts).toHaveLength(3);
+    expect(shortcuts).toHaveLength(4);
 
     const workbenchEntry = container.querySelector('[data-home-entry="workbench"]');
     const readLaterEntry = container.querySelector('[data-home-entry="read-later"]');
     const corpusEntry = container.querySelector('[data-home-entry="corpus"]');
+    const planTasksEntry = container.querySelector('[data-home-entry="plan-tasks"]');
     expect(workbenchEntry).not.toBeNull();
     expect(readLaterEntry).not.toBeNull();
     expect(corpusEntry).not.toBeNull();
+    expect(planTasksEntry).not.toBeNull();
     expect(workbenchEntry.textContent).toMatch(/workbench|归档/i);
     expect(readLaterEntry.textContent).toMatch(/read later|待读/i);
     expect(corpusEntry.textContent).toMatch(/沉淀|知识库/i);
+    expect(planTasksEntry.textContent).toMatch(/计划任务/);
   });
 
   it('navigates to #/workbench when workbench entry is clicked', () => {
@@ -67,11 +70,43 @@ describe('mountHomeHub', () => {
     expect(navigate).not.toHaveBeenCalledWith('#/read-later');
   });
 
+  it('navigates to #/plan-tasks when plan-tasks entry is clicked', () => {
+    mountHomeHub(container, { navigate });
+
+    container.querySelector('[data-home-entry="plan-tasks"]').click();
+    expect(navigate).toHaveBeenCalledWith('#/plan-tasks');
+  });
+
+  it('does not throw when plan-tasks entry is clicked without navigate', () => {
+    mountHomeHub(container, {});
+
+    expect(() => {
+      container.querySelector('[data-home-entry="plan-tasks"]').click();
+    }).not.toThrow();
+  });
+
   it('returns cleanup that clears container', () => {
     const cleanup = mountHomeHub(container, { navigate });
     expect(typeof cleanup).toBe('function');
     cleanup();
     expect(container.innerHTML).toBe('');
+  });
+
+  it('does not leak listeners after repeated mount and unmount', () => {
+    const addSpy = vi.spyOn(HTMLElement.prototype, 'addEventListener');
+    const removeSpy = vi.spyOn(HTMLElement.prototype, 'removeEventListener');
+
+    const cleanup1 = mountHomeHub(container, { navigate });
+    cleanup1();
+    const cleanup2 = mountHomeHub(container, { navigate });
+    cleanup2();
+
+    const clickAdds = addSpy.mock.calls.filter(([type]) => type === 'click').length;
+    const clickRemoves = removeSpy.mock.calls.filter(([type]) => type === 'click').length;
+    expect(clickAdds).toBe(clickRemoves);
+
+    addSpy.mockRestore();
+    removeSpy.mockRestore();
   });
 });
 
