@@ -4,7 +4,7 @@ use std::fs;
 use std::path::PathBuf;
 use std::time::SystemTime;
 
-use crate::config::settings::{self, default_cache_dir};
+use crate::config::settings::{self, default_cache_dir, AppSettings};
 use crate::test_support::{TestSandbox, with_corpus, with_test_config_dir};
 
 fn prod_cache_dir_mtime() -> Option<SystemTime> {
@@ -123,4 +123,64 @@ fn with_corpus_true_creates_ai_subdir() {
     with_corpus(true, |_dir, corpus| {
         assert!(corpus.join("annotations/ai").is_dir());
     });
+}
+
+#[test]
+fn test_sandbox_records_prod_three_roots_at_new() {
+    let defaults = AppSettings::default();
+    let sandbox = TestSandbox::new();
+    assert_eq!(
+        sandbox.prod_workbench_knowledge_root(),
+        defaults.workbench_knowledge_root
+    );
+    assert_eq!(
+        sandbox.prod_knowledge_corpus_root(),
+        defaults.knowledge_corpus_root
+    );
+    assert_eq!(sandbox.prod_cache_dir(), defaults.cache_dir);
+}
+
+#[test]
+fn test_sandbox_write_paths_not_equal_prod_roots() {
+    let sandbox = TestSandbox::new();
+    let cfg = settings::load().expect("load");
+    assert_ne!(
+        cfg.workbench_knowledge_root,
+        sandbox.prod_workbench_knowledge_root()
+    );
+    assert_ne!(cfg.cache_dir, sandbox.prod_cache_dir());
+    assert_ne!(
+        cfg.knowledge_corpus_root,
+        sandbox.prod_knowledge_corpus_root()
+    );
+}
+
+#[test]
+fn assert_not_prod_path_rejects_prod_workbench_knowledge_root() {
+    let sandbox = TestSandbox::new();
+    let prod = sandbox.prod_workbench_knowledge_root();
+    assert!(sandbox.assert_not_prod_path(&prod).is_err());
+    assert!(sandbox
+        .assert_not_prod_path(&prod.join("sediment-kb"))
+        .is_err());
+}
+
+#[test]
+fn assert_not_prod_path_rejects_prod_cache_dir() {
+    let sandbox = TestSandbox::new();
+    let prod = sandbox.prod_cache_dir();
+    assert!(sandbox.assert_not_prod_path(&prod).is_err());
+    assert!(sandbox
+        .assert_not_prod_path(&prod.join("read_later.json"))
+        .is_err());
+}
+
+#[test]
+fn assert_not_prod_path_accepts_sandbox_paths() {
+    let sandbox = TestSandbox::new();
+    let cfg = settings::load().expect("load");
+    assert!(sandbox
+        .assert_not_prod_path(&cfg.workbench_knowledge_root)
+        .is_ok());
+    assert!(sandbox.assert_not_prod_path(&cfg.cache_dir).is_ok());
 }
