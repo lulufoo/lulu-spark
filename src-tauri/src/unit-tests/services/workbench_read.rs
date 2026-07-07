@@ -2,7 +2,7 @@ use super::*;
 use std::fs;
 use std::path::PathBuf;
 
-use crate::test_support::{TestSandbox, with_sandbox_corpus};
+use crate::test_support::TestSandbox;
 
 #[test]
 fn git_status_categories_sample() {
