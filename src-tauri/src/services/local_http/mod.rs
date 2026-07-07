@@ -11,6 +11,7 @@ use serde_json::{json, Value};
 use tiny_http::{Header, Method, Response, Server, StatusCode};
 
 use crate::services::archive_write::{archive_digest, archive_document};
+use crate::services::plan_task;
 use crate::services::read_later;
 use crate::services::workbench_read::{
     get_corpus_asset, get_corpus_catalog_latest_per_topic, get_corpus_file, get_corpus_files_by_ids,
@@ -157,6 +158,10 @@ fn handle_request(repo_root: &PathBuf, port: u16, request: tiny_http::Request) {
             }
             "/api/archive-digest" => {
                 handle_archive_post(repo_root, request, archive_digest);
+                return;
+            }
+            "/api/plan-task-create" => {
+                handle_plan_task_create(request);
                 return;
             }
             _ => {}
@@ -341,6 +346,59 @@ fn handle_archive_post(
         }
     };
     let value = handler(repo_root, &payload);
+    respond_from_value(request, value);
+}
+
+fn handle_plan_task_create(mut request: tiny_http::Request) {
+    let mut body = String::new();
+    if request.as_reader().read_to_string(&mut body).is_err() {
+        respond_json(request, 400, json!({ "error": "Failed to read body" }));
+        return;
+    }
+    let payload: Value = match serde_json::from_str(&body) {
+        Ok(v) => v,
+        Err(e) => {
+            respond_json(request, 400, json!({ "error": format!("Invalid JSON: {e}") }));
+            return;
+        }
+    };
+    let Some(title) = payload.get("title").and_then(|v| v.as_str()) else {
+        respond_json(request, 400, json!({ "error": "Missing title" }));
+        return;
+    };
+
+    let sub_titles: Option<Vec<String>> = match payload.get("sub_titles") {
+        None | Some(Value::Null) => None,
+        Some(Value::Array(arr)) if arr.is_empty() => None,
+        Some(Value::Array(arr)) => {
+            let mut subs = Vec::with_capacity(arr.len());
+            for item in arr {
+                let Some(raw) = item.as_str() else {
+                    respond_json(request, 400, json!({ "error": "Invalid sub_titles element" }));
+                    return;
+                };
+                let trimmed = raw.trim();
+                if trimmed.is_empty() {
+                    respond_json(request, 400, json!({ "error": "Invalid sub_titles element" }));
+                    return;
+                }
+                subs.push(trimmed.to_string());
+            }
+            Some(subs)
+        }
+        Some(_) => {
+            respond_json(request, 400, json!({ "error": "Invalid sub_titles" }));
+            return;
+        }
+    };
+
+    let value = match &sub_titles {
+        Some(subs) => {
+            let refs: Vec<&str> = subs.iter().map(String::as_str).collect();
+            plan_task::create_master_with_subs(title, Some(&refs))
+        }
+        None => plan_task::create_master_with_subs(title, None),
+    };
     respond_from_value(request, value);
 }
 

@@ -172,6 +172,32 @@ function buildServer() {
     },
   );
 
+  server.registerTool(
+    'create_plan_task',
+    {
+      description:
+        'Create a plan task master with optional explicit sub tasks. Proxy POST /api/plan-task-create',
+      inputSchema: {
+        title: z.string().trim().min(1).describe('Master task title'),
+        sub_titles: z
+          .array(z.string().trim().min(1))
+          .optional()
+          .describe('Optional explicit sub task titles; omit or empty → one implicit sub'),
+      },
+    },
+    async ({ title, sub_titles }) => {
+      const body = { title };
+      if (sub_titles != null && sub_titles.length > 0) {
+        body.sub_titles = sub_titles;
+      }
+      const result = await proxyPost('/api/plan-task-create', body);
+      if (!result.ok) {
+        return toolError(result.status, result.text);
+      }
+      return { content: [{ type: 'text', text: result.text }] };
+    },
+  );
+
   return server;
 }
 

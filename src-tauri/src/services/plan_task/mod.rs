@@ -143,8 +143,15 @@ pub fn create_master_with_subs(title: &str, sub_titles: Option<&[&str]>) -> Valu
 
         let master_id = new_master_id();
         let created_at = Utc::now().to_rfc3339();
-        let titles: Vec<&str> = match sub_titles {
-            Some(slice) if !slice.is_empty() => slice.to_vec(),
+        let titles: Vec<String> = match sub_titles {
+            Some(slice) if !slice.is_empty() => {
+                for t in slice {
+                    if t.trim().is_empty() {
+                        return json!({ "error": "Invalid sub_titles element", "_status": 400 });
+                    }
+                }
+                slice.iter().map(|t| t.trim().to_string()).collect()
+            }
             _ => vec![],
         };
 
@@ -163,7 +170,7 @@ pub fn create_master_with_subs(title: &str, sub_titles: Option<&[&str]>) -> Valu
                 .enumerate()
                 .map(|(i, t)| SubTask {
                     sub_task_id: format_sub_id(&master_id, i + 1),
-                    title: Some((*t).to_string()),
+                    title: Some(t.clone()),
                     status: SubTaskStatus::Incomplete,
                     implicit: false,
                     linked_archive_ids: vec![],

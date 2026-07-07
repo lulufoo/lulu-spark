@@ -41,6 +41,29 @@ const ARCHIVE_DIGEST_RESPONSE = {
   digest_path: 'digest/demo-topic/note.md',
 };
 
+const PLAN_TASK_CREATE_RESPONSE = {
+  master_task_id: 'task_mock001',
+  sub_task_id: 'task_mock001_sub_01',
+  task: {
+    master_task_id: 'task_mock001',
+    title: 'Mock master',
+    status: 'incomplete',
+    created_at: '2026-07-07T00:00:00Z',
+    sub_tasks: [
+      {
+        sub_task_id: 'task_mock001_sub_01',
+        title: 'Mock master',
+        status: 'incomplete',
+        implicit: true,
+        linked_archive_ids: [],
+      },
+    ],
+  },
+};
+
+/** @type {Array<{ title: string, sub_titles?: string[] }>} */
+const planTaskCreateCalls = [];
+
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -137,6 +160,57 @@ function startMockHttp(port) {
       return;
     }
 
+    if (req.method === 'POST' && url.pathname === '/api/plan-task-create') {
+      let payload;
+      try {
+        payload = await readJsonBody(req);
+      } catch {
+        res.writeHead(400).end(JSON.stringify({ error: 'Invalid JSON' }));
+        return;
+      }
+      const title = typeof payload.title === 'string' ? payload.title.trim() : '';
+      if (!title) {
+        res.writeHead(400).end(JSON.stringify({ error: 'Missing title' }));
+        return;
+      }
+      const subTitles = Array.isArray(payload.sub_titles) ? payload.sub_titles : undefined;
+      if (subTitles != null) {
+        for (const item of subTitles) {
+          if (typeof item !== 'string' || item.trim() === '') {
+            res.writeHead(400).end(JSON.stringify({ error: 'Invalid sub_titles element' }));
+            return;
+          }
+        }
+      }
+      planTaskCreateCalls.push({
+        title,
+        ...(subTitles != null ? { sub_titles: subTitles } : {}),
+      });
+      const explicit = subTitles != null && subTitles.length > 0;
+      const subs = explicit
+        ? subTitles.map((t, i) => ({
+            sub_task_id: `task_mock001_sub_${String(i + 1).padStart(2, '0')}`,
+            title: t,
+            status: 'incomplete',
+            implicit: false,
+            linked_archive_ids: [],
+          }))
+        : PLAN_TASK_CREATE_RESPONSE.task.sub_tasks;
+      res.writeHead(201, { 'Content-Type': 'application/json' });
+      res.end(
+        JSON.stringify({
+          master_task_id: 'task_mock001',
+          sub_task_id: subs[0].sub_task_id,
+          task: {
+            ...PLAN_TASK_CREATE_RESPONSE.task,
+            title,
+            sub_tasks: subs,
+          },
+        }),
+      );
+      return;
+    }
+
     res.writeHead(404).end(JSON.stringify({ error: 'not found' }));
   });
 
@@ -173,6 +247,9 @@ async function runMcpClient(mcpPort) {
   }
   if (!names.includes('archive_document') || !names.includes('archive_digest')) {
     throw new Error(`missing archive tools: ${names.join(', ')}`);
+  }
+  if (!names.includes('create_plan_task')) {
+    throw new Error(`missing create_plan_task tool: ${names.join(', ')}`);
   }
 
   const catalogResult = await client.callTool({
@@ -221,6 +298,54 @@ async function runMcpClient(mcpPort) {
   const archiveDigestText = archiveDigestResult.content?.[0]?.text || '';
   if (!archiveDigestText.includes('digest/demo-topic/note.md')) {
     throw new Error(`unexpected archive_digest: ${archiveDigestText}`);
+  }
+
+  planTaskCreateCalls.length = 0;
+
+  const planOmitResult = await client.callTool({
+    name: 'create_plan_task',
+    arguments: { title: 'Omit subs' },
+  });
+  const planOmitText = planOmitResult.content?.[0]?.text || '';
+  if (planOmitResult.isError || !planOmitText.includes('task_mock001')) {
+    throw new Error(`unexpected create_plan_task omit: ${planOmitText}`);
+  }
+  if (planTaskCreateCalls.length !== 1 || planTaskCreateCalls[0].title !== 'Omit subs') {
+    throw new Error(`unexpected plan-task-create omit payload: ${JSON.stringify(planTaskCreateCalls)}`);
+  }
+
+  planTaskCreateCalls.length = 0;
+  const planSingleResult = await client.callTool({
+    name: 'create_plan_task',
+    arguments: { title: 'One sub', sub_titles: ['Sub A'] },
+  });
+  const planSingleText = planSingleResult.content?.[0]?.text || '';
+  if (planSingleResult.isError || !planSingleText.includes('"implicit":false')) {
+    throw new Error(`unexpected create_plan_task single: ${planSingleText}`);
+  }
+  if (
+    planTaskCreateCalls.length !== 1 ||
+    JSON.stringify(planTaskCreateCalls[0]) !== JSON.stringify({ title: 'One sub', sub_titles: ['Sub A'] })
+  ) {
+    throw new Error(`unexpected plan-task-create single payload: ${JSON.stringify(planTaskCreateCalls)}`);
+  }
+
+  planTaskCreateCalls.length = 0;
+  const planMultiResult = await client.callTool({
+    name: 'create_plan_task',
+    arguments: { title: 'Two subs', sub_titles: ['Sub A', 'Sub B'] },
+  });
+  const planMultiText = planMultiResult.content?.[0]?.text || '';
+  if (planMultiResult.isError || !planMultiText.includes('task_mock001_sub_02')) {
+    throw new Error(`unexpected create_plan_task multi: ${planMultiText}`);
+  }
+
+  const planInvalidResult = await client.callTool({
+    name: 'create_plan_task',
+    arguments: { title: 'Bad', sub_titles: ['ok', '  '] },
+  });
+  if (!planInvalidResult.isError) {
+    throw new Error('expected create_plan_task validation error for blank sub_titles element');
   }
 
   await client.close();
