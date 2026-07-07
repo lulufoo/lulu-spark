@@ -1,4 +1,4 @@
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import {
   existsSync,
   mkdirSync,
@@ -38,11 +38,33 @@ function makeSandbox() {
   return { configDir, cacheDir, wbRoot };
 }
 
-function runMigrate(configDir) {
+function runMigrate(configDir, { captureStderr = false } = {}) {
+  const env = { ...process.env, LULU_WB_CONFIG_DIR: configDir };
+  if (captureStderr) {
+    const { stderr } = spawnSync(scriptPath, [], {
+      cwd: repoRoot,
+      env,
+      encoding: 'utf8',
+    });
+    return stderr;
+  }
   return execFileSync(scriptPath, [], {
     cwd: repoRoot,
-    env: { ...process.env, LULU_WB_CONFIG_DIR: configDir },
+    env,
     encoding: 'utf8',
+  });
+}
+
+function samplePlanTasks() {
+  return JSON.stringify({
+    version: 1,
+    tasks: {
+      abc123def45678901234567890123456: {
+        title: 'Sample plan task',
+        status: 'incomplete',
+        sub_tasks: [],
+      },
+    },
   });
 }
 
@@ -73,13 +95,63 @@ describe('migrate-local-state', () => {
     });
     writeFileSync(join(cacheDir, 'sediment-kb', 'categories.json'), categories);
     writeFileSync(join(cacheDir, 'sediment-kb', 'repos.json'), repos);
+    const planTasks = JSON.stringify({
+      version: 1,
+      tasks: [{ id: 'pt1', title: 'Plan task', status: 'open' }],
+    });
     writeFileSync(join(cacheDir, 'read_later.json'), readLater);
+    writeFileSync(join(cacheDir, 'plan_tasks.json'), planTasks);
 
     runMigrate(configDir);
 
     expect(readFileSync(join(wbRoot, 'sediment-kb', 'categories.json'), 'utf8')).toBe(categories);
     expect(readFileSync(join(wbRoot, 'sediment-kb', 'repos.json'), 'utf8')).toBe(repos);
     expect(readFileSync(join(wbRoot, 'read_later', 'read_later.json'), 'utf8')).toBe(readLater);
+    expect(readFileSync(join(wbRoot, 'plan_tasks', 'plan_tasks.json'), 'utf8')).toBe(planTasks);
+  });
+
+  it('plan_tasks: copied when source exists and target is absent (creates plan_tasks/)', () => {
+    const { configDir, cacheDir, wbRoot } = makeSandbox();
+    const planTasks = JSON.stringify({ version: 1, tasks: [{ id: 'copied', title: 'New' }] });
+    writeFileSync(join(cacheDir, 'plan_tasks.json'), planTasks);
+
+    runMigrate(configDir);
+
+    expect(readFileSync(join(wbRoot, 'plan_tasks', 'plan_tasks.json'), 'utf8')).toBe(planTasks);
+  });
+
+  it('plan_tasks: skip_same when source and target have identical content', () => {
+    const { configDir, cacheDir, wbRoot } = makeSandbox();
+    const planTasks = JSON.stringify({ version: 1, tasks: [] });
+    writeFileSync(join(cacheDir, 'plan_tasks.json'), planTasks);
+    mkdirSync(join(wbRoot, 'plan_tasks'), { recursive: true });
+    writeFileSync(join(wbRoot, 'plan_tasks', 'plan_tasks.json'), planTasks);
+    const mtimeBefore = statSync(join(wbRoot, 'plan_tasks', 'plan_tasks.json')).mtimeMs;
+
+    runMigrate(configDir);
+
+    expect(statSync(join(wbRoot, 'plan_tasks', 'plan_tasks.json')).mtimeMs).toBe(mtimeBefore);
+  });
+
+  it('plan_tasks: skip_diff when target exists with different content (does not overwrite)', () => {
+    const { configDir, cacheDir, wbRoot } = makeSandbox();
+    writeFileSync(
+      join(cacheDir, 'plan_tasks.json'),
+      JSON.stringify({ version: 1, tasks: [{ id: 'cache', title: 'Cache' }] }),
+    );
+    mkdirSync(join(wbRoot, 'plan_tasks'), { recursive: true });
+    const existing = JSON.stringify({ version: 1, tasks: [{ id: 'corpus', title: 'Corpus' }] });
+    writeFileSync(join(wbRoot, 'plan_tasks', 'plan_tasks.json'), existing);
+
+    runMigrate(configDir);
+
+    expect(readFileSync(join(wbRoot, 'plan_tasks', 'plan_tasks.json'), 'utf8')).toBe(existing);
+  });
+
+  it('plan_tasks: missing_source when cache plan_tasks.json is absent (script continues)', () => {
+    const { configDir, wbRoot } = makeSandbox();
+    expect(() => runMigrate(configDir)).not.toThrow();
+    expect(existsSync(join(wbRoot, 'plan_tasks', 'plan_tasks.json'))).toBe(false);
   });
 
   it('is idempotent: second run does not rewrite unchanged targets', () => {
@@ -130,6 +202,54 @@ describe('migrate-local-state', () => {
   it('exits gracefully when cache sources are absent', () => {
     const { configDir } = makeSandbox();
     expect(() => runMigrate(configDir)).not.toThrow();
+  });
+
+  describe('plan_tasks migration (cache plan_tasks.json → corpus plan_tasks/plan_tasks.json)', () => {
+    it('copied: copies source when target is absent and creates plan_tasks/', () => {
+      const { configDir, cacheDir, wbRoot } = makeSandbox();
+      const planTasks = samplePlanTasks();
+      writeFileSync(join(cacheDir, 'plan_tasks.json'), planTasks);
+      expect(existsSync(join(wbRoot, 'plan_tasks', 'plan_tasks.json'))).toBe(false);
+
+      runMigrate(configDir);
+
+      expect(readFileSync(join(wbRoot, 'plan_tasks', 'plan_tasks.json'), 'utf8')).toBe(planTasks);
+    });
+
+    it('skip_same: leaves target unchanged when content matches', () => {
+      const { configDir, cacheDir, wbRoot } = makeSandbox();
+      const planTasks = samplePlanTasks();
+      writeFileSync(join(cacheDir, 'plan_tasks.json'), planTasks);
+      mkdirSync(join(wbRoot, 'plan_tasks'), { recursive: true });
+      writeFileSync(join(wbRoot, 'plan_tasks', 'plan_tasks.json'), planTasks);
+      const mtimeBefore = statSync(join(wbRoot, 'plan_tasks', 'plan_tasks.json')).mtimeMs;
+
+      runMigrate(configDir);
+
+      expect(statSync(join(wbRoot, 'plan_tasks', 'plan_tasks.json')).mtimeMs).toBe(mtimeBefore);
+      expect(readFileSync(join(wbRoot, 'plan_tasks', 'plan_tasks.json'), 'utf8')).toBe(planTasks);
+    });
+
+    it('skip_diff: preserves corpus file when content differs', () => {
+      const { configDir, cacheDir, wbRoot } = makeSandbox();
+      writeFileSync(join(cacheDir, 'plan_tasks.json'), samplePlanTasks());
+      mkdirSync(join(wbRoot, 'plan_tasks'), { recursive: true });
+      const existing = JSON.stringify({ version: 1, tasks: {} });
+      writeFileSync(join(wbRoot, 'plan_tasks', 'plan_tasks.json'), existing);
+
+      const stderr = runMigrate(configDir, { captureStderr: true });
+
+      expect(readFileSync(join(wbRoot, 'plan_tasks', 'plan_tasks.json'), 'utf8')).toBe(existing);
+      expect(stderr).toMatch(/skip \(target differs\)/);
+    });
+
+    it('missing_source: continues without error when cache file is absent', () => {
+      const { configDir, wbRoot } = makeSandbox();
+      expect(existsSync(join(wbRoot, 'plan_tasks', 'plan_tasks.json'))).toBe(false);
+
+      expect(() => runMigrate(configDir)).not.toThrow();
+      expect(existsSync(join(wbRoot, 'plan_tasks', 'plan_tasks.json'))).toBe(false);
+    });
   });
 
   it('I.5: is not registered as a Tauri startup hook', () => {

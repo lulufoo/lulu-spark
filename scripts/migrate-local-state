@@ -20,6 +20,7 @@ MIGRATIONS: tuple[tuple[str, str], ...] = (
     ("sediment-kb/categories.json", "sediment-kb/categories.json"),
     ("sediment-kb/repos.json", "sediment-kb/repos.json"),
     ("read_later.json", "read_later/read_later.json"),
+    ("plan_tasks.json", "plan_tasks/plan_tasks.json"),
 )
 
 

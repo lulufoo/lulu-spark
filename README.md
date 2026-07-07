@@ -40,6 +40,7 @@ sediment-kb 与 Read Later 的 SSOT（单一数据源）已迁入语料仓 `work
 
 - `sediment-kb/categories.json`、`sediment-kb/repos.json`
 - `read_later/read_later.json`
+- `plan_tasks/plan_tasks.json`
 
 `cache_dir` 仍保留 drafts、repo-commits、Meili 等可重建数据。**`TEST_MODE` 仅作进程环境变量，不写入 `config.toml`。**
 
@@ -68,7 +69,7 @@ sediment-kb 与 Read Later 的 SSOT（单一数据源）已迁入语料仓 `work
 用于确认 `TEST_MODE=1` 下读 cache、写语料仓的行为（与 `npm test` / `cargo test` 的 TestSandbox 无关）：
 
 1. 确认 `config.toml` 中 `workbench_knowledge_root` 与 `cache_dir` 已配置。
-2. **故意不一致**：在语料仓写入 SSOT 文件 A；在 `cache_dir/sediment-kb/` 或 `cache_dir/read_later.json` 写入不同内容的旧路径文件 B。
+2. **故意不一致**：在语料仓写入 SSOT 文件 A；在 `cache_dir/sediment-kb/`、`cache_dir/read_later.json` 或 `cache_dir/plan_tasks.json` 写入不同内容的旧路径文件 B。
 3. `export TEST_MODE=1`，手动启动 App（`cargo tauri dev` 或 release）。
 4. **读 cache**：在 App 中查看 sediment-kb 或 Read Later，应显示 cache 内容 B。
 5. **写语料仓**：执行一次写操作（如新增 Read Later 条目或修改分类），确认更新的是语料仓路径下的文件，而非 cache。
