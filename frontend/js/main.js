@@ -24,6 +24,7 @@ import { initWorkbenchSearch } from './components/workbench-search.js'
 import { initCorpusSearch } from './components/corpus-search.js'
 import { mountCorpusDocList } from './components/corpus-doc-list.js'
 import { mountHomeHub } from './components/home-hub.js'
+import { mountPlanTaskSplit } from './plan-task/index.js'
 import { initHeaderSync, clearHeaderSyncCorpusContext } from './header-sync.js'
 import { softwareDevSkillsContent } from './skills-software-dev-content.js'
 import { normalizeCorpusIndex } from './corpus-index.js'
@@ -663,6 +664,7 @@ function showFeedView() {
 let unmountCorpusDocList = null;
 let corpusDocListRepo = '';
 let unmountHomeHub = null;
+let unmountPlanTaskSplit = null;
 
 function updateNavChrome(routeName) {
   const onHome = routeName === 'home';
@@ -699,6 +701,11 @@ function hideReadLaterView() {
   if (readLaterView) readLaterView.style.display = 'none';
 }
 
+function hidePlanTasksView() {
+  const planTasksView = document.getElementById('plan-tasks-view');
+  if (planTasksView) planTasksView.style.display = 'none';
+}
+
 function mountHomeRoute() {
   clearHeaderSyncCorpusContext();
   unmountCorpusDocList?.();
@@ -706,6 +713,7 @@ function mountHomeRoute() {
   corpusDocListRepo = '';
   hideCorpusDocView();
   hideReadLaterView();
+  hidePlanTasksView();
 
   feedView.style.display = 'none';
   document.getElementById('btn-feed').classList.remove('active');
@@ -717,6 +725,8 @@ function mountHomeRoute() {
   if (!homeView) return;
   homeView.style.display = '';
 
+  unmountPlanTaskSplit?.();
+  unmountPlanTaskSplit = null;
   unmountHomeHub?.();
   unmountHomeHub = mountHomeHub(homeView, { navigate, openReadLater: openReadLaterDialog });
 }
@@ -724,8 +734,11 @@ function mountHomeRoute() {
 function mountCorpusDocRoute(route) {
   unmountHomeHub?.();
   unmountHomeHub = null;
+  unmountPlanTaskSplit?.();
+  unmountPlanTaskSplit = null;
   hideHomeView();
   hideReadLaterView();
+  hidePlanTasksView();
 
   const layout = document.querySelector('.layout');
   if (layout) layout.style.display = 'none';
@@ -756,16 +769,51 @@ function mountReadLaterRoute() {
   openReadLaterDialog();
 }
 
+function mountPlanTasksRoute(route) {
+  clearHeaderSyncCorpusContext();
+  unmountHomeHub?.();
+  unmountHomeHub = null;
+  unmountCorpusDocList?.();
+  unmountCorpusDocList = null;
+  corpusDocListRepo = '';
+  hideHomeView();
+  hideCorpusDocView();
+  hideReadLaterView();
+
+  feedView.style.display = 'none';
+  document.getElementById('btn-feed').classList.remove('active');
+
+  const layout = document.querySelector('.layout');
+  if (layout) layout.style.display = 'none';
+
+  const planTasksView = document.getElementById('plan-tasks-view');
+  if (!planTasksView) return;
+  planTasksView.style.display = '';
+
+  unmountPlanTaskSplit?.();
+  const masterId = route?.params?.master ?? '';
+  const subId = route?.params?.sub ?? '';
+  const mounted = mountPlanTaskSplit(planTasksView, {
+    masterId,
+    subId,
+    navigate,
+  });
+  unmountPlanTaskSplit = mounted.unmount;
+}
+
 function mountWorkbench() {
   clearHeaderSyncCorpusContext();
   unmountHomeHub?.();
   unmountHomeHub = null;
+  unmountPlanTaskSplit?.();
+  unmountPlanTaskSplit = null;
   hideHomeView();
   unmountCorpusDocList?.();
   unmountCorpusDocList = null;
   corpusDocListRepo = '';
   hideCorpusDocView();
   hideReadLaterView();
+  hidePlanTasksView();
 
   feedView.style.display = 'none';
   document.getElementById('btn-feed').classList.remove('active');
@@ -841,6 +889,7 @@ initRouter({
   home: wrapRouteMount('home', mountHomeRoute),
   'corpus-doc': wrapRouteMount('corpus-doc', mountCorpusDocRoute),
   'read-later': wrapRouteMount('read-later', mountReadLaterRoute),
+  'plan-tasks': wrapRouteMount('plan-tasks', mountPlanTasksRoute),
 }, { fallback: '#/home' });
 
 mountReadLaterAssistantWidget(document.body, { navigate, openReadLater: openReadLaterDialog });
