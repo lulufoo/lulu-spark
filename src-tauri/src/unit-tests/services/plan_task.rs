@@ -1,4 +1,7 @@
 use super::*;
+use crate::services::plan_task::types::{
+    IndexEntry, MasterTaskStatus, SubTask, SubTaskStatus, SubTasksFile,
+};
 use std::fs;
 use std::path::Path;
 use std::time::SystemTime;
@@ -561,5 +564,134 @@ fn bootstrap_rewrites_corrupt_index() {
             parsed["tasks"].as_object().map(|m| m.len()).unwrap_or(0),
             0
         );
+    });
+}
+
+fn sample_index_entry(master_id: &str) -> IndexEntry {
+    IndexEntry {
+        master_task_id: master_id.to_string(),
+        title: "Batch task".to_string(),
+        status: MasterTaskStatus::Incomplete,
+        created_at: "2026-07-08T00:00:00+00:00".to_string(),
+        task_dir: format!("tasks/{master_id}"),
+    }
+}
+
+fn sample_sub_tasks(master_id: &str) -> SubTasksFile {
+    SubTasksFile {
+        sub_tasks: vec![SubTask {
+            sub_task_id: format!("{master_id}_sub_01"),
+            title: Some("Batch task".to_string()),
+            status: SubTaskStatus::Incomplete,
+            implicit: true,
+            linked_archive_ids: vec![],
+            completed_at: None,
+        }],
+    }
+}
+
+#[test]
+fn write_task_batch_creates_v2_files_and_index_entry() {
+    with_plan_task_sandbox(|wb| {
+        let master_id = "task_batch001";
+        test_run_write_task_batch(
+            master_id,
+            &sample_index_entry(master_id),
+            &sample_sub_tasks(master_id),
+            "",
+        )
+        .expect("batch write");
+
+        let task_dir = wb.join("plan_tasks").join("tasks").join(master_id);
+        assert!(task_dir.join("sub_tasks.json").is_file());
+        assert!(task_dir.join("plan.md").is_file());
+        assert_eq!(fs::read_to_string(task_dir.join("plan.md")).unwrap(), "");
+
+        let index: serde_json::Value = serde_json::from_str(
+            &fs::read_to_string(wb.join("plan_tasks").join("index.json")).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(index["version"], 2);
+        assert!(index["tasks"].get(master_id).is_some());
+    });
+}
+
+#[test]
+fn write_task_batch_sub_tasks_failure_removes_task_dir() {
+    with_plan_task_sandbox(|wb| {
+        let master_id = "task_batch002";
+        test_set_fail_batch_sub_tasks(true);
+        assert!(test_run_write_task_batch(
+            master_id,
+            &sample_index_entry(master_id),
+            &sample_sub_tasks(master_id),
+            "",
+        )
+        .is_err());
+
+        let task_dir = wb.join("plan_tasks").join("tasks").join(master_id);
+        assert!(!task_dir.exists());
+        let index: serde_json::Value = serde_json::from_str(
+            &fs::read_to_string(wb.join("plan_tasks").join("index.json")).unwrap(),
+        )
+        .unwrap();
+        assert!(index["tasks"].get(master_id).is_none());
+    });
+}
+
+#[test]
+fn write_task_batch_plan_md_failure_removes_task_dir() {
+    with_plan_task_sandbox(|wb| {
+        let master_id = "task_batch003";
+        test_set_fail_batch_plan_md(true);
+        assert!(test_run_write_task_batch(
+            master_id,
+            &sample_index_entry(master_id),
+            &sample_sub_tasks(master_id),
+            "body",
+        )
+        .is_err());
+
+        let task_dir = wb.join("plan_tasks").join("tasks").join(master_id);
+        assert!(!task_dir.exists());
+    });
+}
+
+#[test]
+fn write_task_batch_index_failure_restores_snapshot_and_leaves_orphan() {
+    with_plan_task_sandbox(|wb| {
+        let existing_id = "task_existing";
+        let existing_entry = sample_index_entry(existing_id);
+        test_run_write_task_batch(
+            existing_id,
+            &existing_entry,
+            &sample_sub_tasks(existing_id),
+            "keep",
+        )
+        .expect("seed existing");
+
+        let index_path = wb.join("plan_tasks").join("index.json");
+        let snapshot_before = fs::read_to_string(&index_path).unwrap();
+
+        let master_id = "task_batch004";
+        test_set_fail_batch_index(true);
+        assert!(test_run_write_task_batch(
+            master_id,
+            &sample_index_entry(master_id),
+            &sample_sub_tasks(master_id),
+            "orphan",
+        )
+        .is_err());
+
+        let snapshot_after = fs::read_to_string(&index_path).unwrap();
+        assert_eq!(snapshot_before, snapshot_after);
+
+        let orphan_dir = wb.join("plan_tasks").join("tasks").join(master_id);
+        assert!(orphan_dir.join("sub_tasks.json").is_file());
+        assert!(orphan_dir.join("plan.md").is_file());
+
+        let index: serde_json::Value = serde_json::from_str(&snapshot_after).unwrap();
+        assert!(index["tasks"].get(master_id).is_none());
+        assert!(index["tasks"].get(existing_id).is_some());
     });
 }

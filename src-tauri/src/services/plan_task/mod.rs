@@ -4,6 +4,7 @@ pub mod types;
 
 use std::collections::HashMap;
 use std::fs;
+use std::path::Path;
 use std::sync::Mutex;
 
 #[cfg(test)]
@@ -17,7 +18,8 @@ use crate::repositories::atomic_json;
 use crate::services::id::random_hex12;
 
 use types::{
-    MasterTask, MasterTaskStatus, PlanTasksFile, PlanTasksIndex, SubTask, SubTaskStatus,
+    IndexEntry, MasterTask, MasterTaskStatus, PlanTasksFile, PlanTasksIndex, SubTask, SubTaskStatus,
+    SubTasksFile,
 };
 
 static WRITE_LOCK: Mutex<()> = Mutex::new(());
@@ -26,8 +28,47 @@ static WRITE_LOCK: Mutex<()> = Mutex::new(());
 static TEST_FAIL_COMPLETE_SUB: AtomicBool = AtomicBool::new(false);
 
 #[cfg(test)]
+static TEST_FAIL_BATCH_SUB_TASKS: AtomicBool = AtomicBool::new(false);
+
+#[cfg(test)]
+static TEST_FAIL_BATCH_PLAN_MD: AtomicBool = AtomicBool::new(false);
+
+#[cfg(test)]
+static TEST_FAIL_BATCH_INDEX: AtomicBool = AtomicBool::new(false);
+
+#[cfg(test)]
 pub fn test_set_fail_complete_sub(fail: bool) {
     TEST_FAIL_COMPLETE_SUB.store(fail, Ordering::SeqCst);
+}
+
+#[cfg(test)]
+pub fn test_set_fail_batch_sub_tasks(fail: bool) {
+    TEST_FAIL_BATCH_SUB_TASKS.store(fail, Ordering::SeqCst);
+}
+
+#[cfg(test)]
+pub fn test_set_fail_batch_plan_md(fail: bool) {
+    TEST_FAIL_BATCH_PLAN_MD.store(fail, Ordering::SeqCst);
+}
+
+#[cfg(test)]
+pub fn test_set_fail_batch_index(fail: bool) {
+    TEST_FAIL_BATCH_INDEX.store(fail, Ordering::SeqCst);
+}
+
+#[cfg(test)]
+fn test_take_fail_batch_sub_tasks() -> bool {
+    TEST_FAIL_BATCH_SUB_TASKS.swap(false, Ordering::SeqCst)
+}
+
+#[cfg(test)]
+fn test_take_fail_batch_plan_md() -> bool {
+    TEST_FAIL_BATCH_PLAN_MD.swap(false, Ordering::SeqCst)
+}
+
+#[cfg(test)]
+fn test_take_fail_batch_index() -> bool {
+    TEST_FAIL_BATCH_INDEX.swap(false, Ordering::SeqCst)
 }
 
 #[cfg(test)]
@@ -109,6 +150,113 @@ fn ensure_bootstrap() -> Result<(), String> {
 
 fn bootstrap_error(err: String) -> Value {
     json!({ "error": err, "_status": 500 })
+}
+
+fn snapshot_index() -> Result<PlanTasksIndex, String> {
+    let index_path = paths::plan_tasks_index_path().map_err(|e| format!("{e:?}"))?;
+    if !index_path.is_file() {
+        return Ok(PlanTasksIndex::default());
+    }
+    let text = fs::read_to_string(&index_path).map_err(|e| e.to_string())?;
+    serde_json::from_str(&text).map_err(|e| e.to_string())
+}
+
+fn write_plan_md_atomic(path: &Path, content: &str) -> Result<(), String> {
+    #[cfg(test)]
+    if test_take_fail_batch_plan_md() {
+        return Err("injected plan.md write failure".to_string());
+    }
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    let tmp = path.with_extension("md.tmp");
+    fs::write(&tmp, content).map_err(|e| e.to_string())?;
+    fs::rename(&tmp, path).map_err(|e| e.to_string())
+}
+
+fn write_sub_tasks_json(path: &Path, sub_tasks: &SubTasksFile) -> Result<(), String> {
+    #[cfg(test)]
+    if test_take_fail_batch_sub_tasks() {
+        return Err("injected sub_tasks.json write failure".to_string());
+    }
+    let value = serde_json::to_value(sub_tasks).map_err(|e| e.to_string())?;
+    atomic_json::write_json(path, &value)
+}
+
+fn write_index_snapshot(path: &Path, index: &PlanTasksIndex) -> Result<(), String> {
+    #[cfg(test)]
+    if test_take_fail_batch_index() {
+        return Err("injected index.json write failure".to_string());
+    }
+    if index.tasks.is_empty() {
+        return write_plan_tasks_index(path, index);
+    }
+    let value = serde_json::to_value(index).map_err(|e| e.to_string())?;
+    atomic_json::write_json(path, &value)
+}
+
+fn rollback_before_index(master_task_id: &str) -> Result<(), String> {
+    let task_dir = paths::plan_tasks_task_dir(master_task_id).map_err(|e| format!("{e:?}"))?;
+    if task_dir.exists() {
+        fs::remove_dir_all(&task_dir).map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
+fn rollback_index_failure(snapshot: &PlanTasksIndex) -> Result<(), String> {
+    let index_path = paths::plan_tasks_index_path().map_err(|e| format!("{e:?}"))?;
+    write_index_snapshot(&index_path, snapshot)
+}
+
+/// I-2 atomic batch: sub_tasks.json → plan.md → index entry. Caller must hold `WRITE_LOCK`.
+fn write_task_batch(
+    master_task_id: &str,
+    index_entry: &IndexEntry,
+    sub_tasks: &SubTasksFile,
+    plan_md: &str,
+) -> Result<(), String> {
+    let snapshot = snapshot_index()?;
+    let task_dir = paths::plan_tasks_task_dir(master_task_id).map_err(|e| format!("{e:?}"))?;
+    fs::create_dir_all(&task_dir).map_err(|e| e.to_string())?;
+
+    let sub_tasks_path = paths::plan_tasks_sub_tasks_path(master_task_id).map_err(|e| format!("{e:?}"))?;
+    let plan_md_path = paths::plan_tasks_plan_md_path(master_task_id).map_err(|e| format!("{e:?}"))?;
+    let index_path = paths::plan_tasks_index_path().map_err(|e| format!("{e:?}"))?;
+
+    if let Err(e) = write_sub_tasks_json(&sub_tasks_path, sub_tasks) {
+        let _ = rollback_before_index(master_task_id);
+        return Err(e);
+    }
+
+    if let Err(e) = write_plan_md_atomic(&plan_md_path, plan_md) {
+        let _ = rollback_before_index(master_task_id);
+        return Err(e);
+    }
+
+    let mut index = snapshot.clone();
+    index
+        .tasks
+        .insert(master_task_id.to_string(), index_entry.clone());
+
+    if let Err(e) = write_index_snapshot(&index_path, &index) {
+        let _ = rollback_index_failure(&snapshot);
+        return Err(e);
+    }
+
+    Ok(())
+}
+
+#[cfg(test)]
+pub fn test_run_write_task_batch(
+    master_task_id: &str,
+    index_entry: &IndexEntry,
+    sub_tasks: &SubTasksFile,
+    plan_md: &str,
+) -> Result<(), String> {
+    with_write_lock(|| {
+        ensure_bootstrap()?;
+        write_task_batch(master_task_id, index_entry, sub_tasks, plan_md)
+    })
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
