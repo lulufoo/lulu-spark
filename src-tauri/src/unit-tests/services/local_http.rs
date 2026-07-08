@@ -949,6 +949,28 @@ fn get_plan_task_unknown_id_returns_404() {
 }
 
 #[test]
+fn post_plan_task_add_sub_missing_or_blank_title_returns_400() {
+    with_plan_task_http_test(|| {
+        let fixture = setup_repo_for_plan_task();
+        let repo_root = fixture.repo_root.clone();
+        with_server(repo_root, |port| {
+            let (master_id, _, _) = create_plan_master(port, "Master", &["Sub A"]);
+
+            for payload in [
+                json!({ "master_task_id": master_id }),
+                json!({ "master_task_id": master_id, "title": "" }),
+                json!({ "master_task_id": master_id, "title": "   " }),
+            ] {
+                let (status, body) = http_post(port, "/api/plan-task-add-sub", &payload);
+                assert_eq!(status, 400);
+                assert!(body.get("error").is_some());
+                assert!(body.get("_status").is_none());
+            }
+        });
+    });
+}
+
+#[test]
 fn post_plan_task_delete_sub_last_sub_returns_400() {
     with_plan_task_http_test(|| {
         let fixture = setup_repo_for_plan_task();
