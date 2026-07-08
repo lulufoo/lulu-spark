@@ -25,6 +25,7 @@ pub struct SubTask {
     pub title: Option<String>,
     pub status: SubTaskStatus,
     pub implicit: bool,
+    #[serde(default)]
     pub linked_archive_ids: Vec<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub completed_at: Option<String>,
@@ -44,3 +45,40 @@ pub struct PlanTasksFile {
     pub version: u32,
     pub tasks: HashMap<String, MasterTask>,
 }
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PlanTasksIndex {
+    pub version: u32,
+    pub tasks: HashMap<String, IndexEntry>,
+}
+
+impl Default for PlanTasksIndex {
+    fn default() -> Self {
+        Self {
+            version: 2,
+            tasks: HashMap::new(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct IndexEntry {
+    pub master_task_id: String,
+    pub title: String,
+    pub status: MasterTaskStatus,
+    pub created_at: String,
+    pub task_dir: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SubTasksFile {
+    pub sub_tasks: Vec<SubTask>,
+}
+
+pub fn index_entry_task_dir(master_task_id: &str) -> String {
+    format!("tasks/{master_task_id}")
+}
+
+#[cfg(test)]
+#[path = "../../unit-tests/services/plan_task_types.rs"]
+mod types_tests;

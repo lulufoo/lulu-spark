@@ -6,6 +6,7 @@ use crate::config::settings::{self, AppSettings, SettingsError};
 pub enum PathsError {
     Settings(SettingsError),
     RepoRootUnavailable,
+    InvalidMasterTaskId,
 }
 
 impl From<SettingsError> for PathsError {
@@ -51,6 +52,38 @@ pub fn plan_tasks_path() -> Result<PathBuf, PathsError> {
     Ok(workbench_knowledge_root()?
         .join("plan_tasks")
         .join("plan_tasks.json"))
+}
+
+pub fn plan_tasks_dir() -> Result<PathBuf, PathsError> {
+    Ok(workbench_knowledge_root()?.join("plan_tasks"))
+}
+
+pub fn plan_tasks_index_path() -> Result<PathBuf, PathsError> {
+    Ok(plan_tasks_dir()?.join("index.json"))
+}
+
+fn validate_master_task_id(master_task_id: &str) -> Result<&str, PathsError> {
+    if master_task_id.trim().is_empty() {
+        return Err(PathsError::InvalidMasterTaskId);
+    }
+    Ok(master_task_id)
+}
+
+pub fn plan_tasks_task_dir(master_task_id: &str) -> Result<PathBuf, PathsError> {
+    let master_task_id = validate_master_task_id(master_task_id)?;
+    Ok(plan_tasks_dir()?.join("tasks").join(master_task_id))
+}
+
+pub fn plan_tasks_sub_tasks_path(master_task_id: &str) -> Result<PathBuf, PathsError> {
+    Ok(plan_tasks_task_dir(master_task_id)?.join("sub_tasks.json"))
+}
+
+pub fn plan_tasks_plan_md_path(master_task_id: &str) -> Result<PathBuf, PathsError> {
+    Ok(plan_tasks_task_dir(master_task_id)?.join("plan.md"))
+}
+
+pub fn cache_plan_tasks_v1_path() -> Result<PathBuf, PathsError> {
+    Ok(cache_dir()?.join("plan_tasks.json"))
 }
 
 pub fn sediment_kb_categories_path() -> Result<PathBuf, PathsError> {
