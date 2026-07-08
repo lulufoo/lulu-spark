@@ -64,6 +64,40 @@ const PLAN_TASK_CREATE_RESPONSE = {
 /** @type {Array<{ title: string, sub_titles?: string[] }>} */
 const planTaskCreateCalls = [];
 
+const PLAN_TOOL_NAMES = [
+  'create_plan_task',
+  'list_plan_tasks',
+  'get_plan_task',
+  'delete_plan_task',
+  'add_plan_sub',
+  'delete_plan_sub',
+  'complete_plan_sub',
+  'link_plan_archive',
+];
+
+/** @type {Map<string, object>} */
+const planTaskStore = new Map();
+let planSubSeq = 0;
+
+function resetPlanTaskStore() {
+  planTaskStore.clear();
+  planSubSeq = 0;
+}
+
+function nextSubId(masterId) {
+  planSubSeq += 1;
+  return `${masterId}_sub_${String(planSubSeq).padStart(2, '0')}`;
+}
+
+function planTaskSnapshot() {
+  return Array.from(planTaskStore.values());
+}
+
+function respondJson(res, status, body) {
+  res.writeHead(status, { 'Content-Type': 'application/json' });
+  res.end(JSON.stringify(body));
+}
+
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -160,24 +194,44 @@ function startMockHttp(port) {
       return;
     }
 
+    if (req.method === 'GET' && url.pathname === '/api/plan-tasks') {
+      respondJson(res, 200, planTaskSnapshot());
+      return;
+    }
+
+    if (req.method === 'GET' && url.pathname === '/api/plan-task') {
+      const id = (url.searchParams.get('id') || '').trim();
+      if (!id) {
+        respondJson(res, 400, { error: 'Missing id' });
+        return;
+      }
+      const task = planTaskStore.get(id);
+      if (!task) {
+        respondJson(res, 404, { error: 'Task not found' });
+        return;
+      }
+      respondJson(res, 200, task);
+      return;
+    }
+
     if (req.method === 'POST' && url.pathname === '/api/plan-task-create') {
       let payload;
       try {
         payload = await readJsonBody(req);
       } catch {
-        res.writeHead(400).end(JSON.stringify({ error: 'Invalid JSON' }));
+        respondJson(res, 400, { error: 'Invalid JSON' });
         return;
       }
       const title = typeof payload.title === 'string' ? payload.title.trim() : '';
       if (!title) {
-        res.writeHead(400).end(JSON.stringify({ error: 'Missing title' }));
+        respondJson(res, 400, { error: 'Missing title' });
         return;
       }
       const subTitles = Array.isArray(payload.sub_titles) ? payload.sub_titles : undefined;
       if (subTitles != null) {
         for (const item of subTitles) {
           if (typeof item !== 'string' || item.trim() === '') {
-            res.writeHead(400).end(JSON.stringify({ error: 'Invalid sub_titles element' }));
+            respondJson(res, 400, { error: 'Invalid sub_titles element' });
             return;
           }
         }
@@ -186,28 +240,188 @@ function startMockHttp(port) {
         title,
         ...(subTitles != null ? { sub_titles: subTitles } : {}),
       });
+      const masterId = 'task_mock001';
       const explicit = subTitles != null && subTitles.length > 0;
       const subs = explicit
-        ? subTitles.map((t, i) => ({
-            sub_task_id: `task_mock001_sub_${String(i + 1).padStart(2, '0')}`,
+        ? subTitles.map((t) => ({
+            sub_task_id: nextSubId(masterId),
             title: t,
             status: 'incomplete',
             implicit: false,
             linked_archive_ids: [],
           }))
-        : PLAN_TASK_CREATE_RESPONSE.task.sub_tasks;
-      res.writeHead(201, { 'Content-Type': 'application/json' });
-      res.end(
-        JSON.stringify({
-          master_task_id: 'task_mock001',
-          sub_task_id: subs[0].sub_task_id,
-          task: {
-            ...PLAN_TASK_CREATE_RESPONSE.task,
-            title,
-            sub_tasks: subs,
-          },
-        }),
-      );
+        : [
+            {
+              sub_task_id: nextSubId(masterId),
+              title,
+              status: 'incomplete',
+              implicit: true,
+              linked_archive_ids: [],
+            },
+          ];
+      const task = {
+        master_task_id: masterId,
+        title,
+        status: 'incomplete',
+        created_at: '2026-07-07T00:00:00Z',
+        sub_tasks: subs,
+      };
+      planTaskStore.set(masterId, task);
+      respondJson(res, 201, {
+        master_task_id: masterId,
+        sub_task_id: subs[0].sub_task_id,
+        task,
+      });
+      return;
+    }
+
+    if (req.method === 'POST' && url.pathname === '/api/plan-task-delete') {
+      let payload;
+      try {
+        payload = await readJsonBody(req);
+      } catch {
+        respondJson(res, 400, { error: 'Invalid JSON' });
+        return;
+      }
+      const masterId = typeof payload.master_task_id === 'string' ? payload.master_task_id.trim() : '';
+      if (!masterId) {
+        respondJson(res, 400, { error: 'Missing master_task_id' });
+        return;
+      }
+      if (!planTaskStore.has(masterId)) {
+        respondJson(res, 404, { error: 'Task not found' });
+        return;
+      }
+      planTaskStore.delete(masterId);
+      respondJson(res, 200, { ok: true });
+      return;
+    }
+
+    if (req.method === 'POST' && url.pathname === '/api/plan-task-add-sub') {
+      let payload;
+      try {
+        payload = await readJsonBody(req);
+      } catch {
+        respondJson(res, 400, { error: 'Invalid JSON' });
+        return;
+      }
+      const masterId = typeof payload.master_task_id === 'string' ? payload.master_task_id.trim() : '';
+      const title = typeof payload.title === 'string' ? payload.title.trim() : '';
+      if (!masterId) {
+        respondJson(res, 400, { error: 'Missing master_task_id' });
+        return;
+      }
+      if (!title) {
+        respondJson(res, 400, { error: 'Missing title' });
+        return;
+      }
+      const task = planTaskStore.get(masterId);
+      if (!task) {
+        respondJson(res, 404, { error: 'Task not found' });
+        return;
+      }
+      const sub = {
+        sub_task_id: nextSubId(masterId),
+        title,
+        status: 'incomplete',
+        implicit: false,
+        linked_archive_ids: [],
+      };
+      task.sub_tasks.push(sub);
+      respondJson(res, 201, { sub_task_id: sub.sub_task_id, task });
+      return;
+    }
+
+    if (req.method === 'POST' && url.pathname === '/api/plan-task-delete-sub') {
+      let payload;
+      try {
+        payload = await readJsonBody(req);
+      } catch {
+        respondJson(res, 400, { error: 'Invalid JSON' });
+        return;
+      }
+      const masterId = typeof payload.master_task_id === 'string' ? payload.master_task_id.trim() : '';
+      const subId = typeof payload.sub_task_id === 'string' ? payload.sub_task_id.trim() : '';
+      if (!masterId || !subId) {
+        respondJson(res, 400, { error: 'Missing master_task_id or sub_task_id' });
+        return;
+      }
+      const task = planTaskStore.get(masterId);
+      if (!task) {
+        respondJson(res, 404, { error: 'Task not found' });
+        return;
+      }
+      if (task.sub_tasks.length <= 1) {
+        respondJson(res, 400, { error: 'Cannot delete last sub task' });
+        return;
+      }
+      task.sub_tasks = task.sub_tasks.filter((s) => s.sub_task_id !== subId);
+      respondJson(res, 200, { task });
+      return;
+    }
+
+    if (req.method === 'POST' && url.pathname === '/api/plan-task-complete-sub') {
+      let payload;
+      try {
+        payload = await readJsonBody(req);
+      } catch {
+        respondJson(res, 400, { error: 'Invalid JSON' });
+        return;
+      }
+      const masterId = typeof payload.master_task_id === 'string' ? payload.master_task_id.trim() : '';
+      const subId = typeof payload.sub_task_id === 'string' ? payload.sub_task_id.trim() : '';
+      if (!masterId || !subId) {
+        respondJson(res, 400, { error: 'Missing master_task_id or sub_task_id' });
+        return;
+      }
+      const task = planTaskStore.get(masterId);
+      if (!task) {
+        respondJson(res, 404, { error: 'Task not found' });
+        return;
+      }
+      const sub = task.sub_tasks.find((s) => s.sub_task_id === subId);
+      if (!sub) {
+        respondJson(res, 404, { error: 'Sub task not found' });
+        return;
+      }
+      sub.status = 'complete';
+      respondJson(res, 200, { task });
+      return;
+    }
+
+    if (req.method === 'POST' && url.pathname === '/api/plan-task-link-archive') {
+      let payload;
+      try {
+        payload = await readJsonBody(req);
+      } catch {
+        respondJson(res, 400, { error: 'Invalid JSON' });
+        return;
+      }
+      const masterId = typeof payload.master_task_id === 'string' ? payload.master_task_id.trim() : '';
+      const subId = typeof payload.sub_task_id === 'string' ? payload.sub_task_id.trim() : '';
+      const archiveId = typeof payload.archive_id === 'string' ? payload.archive_id.trim() : '';
+      if (!masterId || !subId || !archiveId) {
+        respondJson(res, 400, { error: 'Missing master_task_id, sub_task_id, or archive_id' });
+        return;
+      }
+      const task = planTaskStore.get(masterId);
+      if (!task) {
+        respondJson(res, 404, { error: 'Task not found' });
+        return;
+      }
+      const sub = task.sub_tasks.find((s) => s.sub_task_id === subId);
+      if (!sub) {
+        respondJson(res, 404, { error: 'Sub task not found' });
+        return;
+      }
+      if (sub.status !== 'complete') {
+        respondJson(res, 400, { error: 'Sub task must be complete before linking archive' });
+        return;
+      }
+      if (!sub.linked_archive_ids.includes(archiveId)) {
+        sub.linked_archive_ids.push(archiveId);
+      }
+      respondJson(res, 200, { task });
       return;
     }
 
@@ -250,6 +464,11 @@ async function runMcpClient(mcpPort) {
   }
   if (!names.includes('create_plan_task')) {
     throw new Error(`missing create_plan_task tool: ${names.join(', ')}`);
+  }
+  for (const tool of PLAN_TOOL_NAMES) {
+    if (!names.includes(tool)) {
+      throw new Error(`missing plan tool ${tool}: ${names.join(', ')}`);
+    }
   }
 
   const catalogResult = await client.callTool({
@@ -301,6 +520,7 @@ async function runMcpClient(mcpPort) {
   }
 
   planTaskCreateCalls.length = 0;
+  resetPlanTaskStore();
 
   const planOmitResult = await client.callTool({
     name: 'create_plan_task',
@@ -315,6 +535,7 @@ async function runMcpClient(mcpPort) {
   }
 
   planTaskCreateCalls.length = 0;
+  resetPlanTaskStore();
   const planSingleResult = await client.callTool({
     name: 'create_plan_task',
     arguments: { title: 'One sub', sub_titles: ['Sub A'] },
@@ -331,6 +552,7 @@ async function runMcpClient(mcpPort) {
   }
 
   planTaskCreateCalls.length = 0;
+  resetPlanTaskStore();
   const planMultiResult = await client.callTool({
     name: 'create_plan_task',
     arguments: { title: 'Two subs', sub_titles: ['Sub A', 'Sub B'] },
@@ -346,6 +568,91 @@ async function runMcpClient(mcpPort) {
   });
   if (!planInvalidResult.isError) {
     throw new Error('expected create_plan_task validation error for blank sub_titles element');
+  }
+
+  resetPlanTaskStore();
+  const crudCreate = await client.callTool({
+    name: 'create_plan_task',
+    arguments: { title: 'CRUD master', sub_titles: ['Sub A', 'Sub B'] },
+  });
+  const crudCreateText = crudCreate.content?.[0]?.text || '';
+  if (crudCreate.isError || !crudCreateText.includes('task_mock001')) {
+    throw new Error(`unexpected CRUD create: ${crudCreateText}`);
+  }
+
+  const listResult = await client.callTool({ name: 'list_plan_tasks', arguments: {} });
+  const listText = listResult.content?.[0]?.text || '';
+  if (listResult.isError || !listText.includes('CRUD master')) {
+    throw new Error(`unexpected list_plan_tasks: ${listText}`);
+  }
+
+  const getResult = await client.callTool({
+    name: 'get_plan_task',
+    arguments: { id: 'task_mock001' },
+  });
+  const getText = getResult.content?.[0]?.text || '';
+  if (getResult.isError || !getText.includes('Sub B')) {
+    throw new Error(`unexpected get_plan_task: ${getText}`);
+  }
+
+  const getMissing = await client.callTool({
+    name: 'get_plan_task',
+    arguments: { id: 'missing-master-id' },
+  });
+  if (!getMissing.isError) {
+    throw new Error('expected get_plan_task error for unknown id');
+  }
+
+  const addSub = await client.callTool({
+    name: 'add_plan_sub',
+    arguments: { master_task_id: 'task_mock001', title: 'Sub C' },
+  });
+  const addSubText = addSub.content?.[0]?.text || '';
+  if (addSub.isError || !addSubText.includes('Sub C')) {
+    throw new Error(`unexpected add_plan_sub: ${addSubText}`);
+  }
+
+  const parsedAdd = JSON.parse(addSubText);
+  const subToComplete = parsedAdd.task.sub_tasks.find((s) => s.title === 'Sub A').sub_task_id;
+
+  const completeSub = await client.callTool({
+    name: 'complete_plan_sub',
+    arguments: { master_task_id: 'task_mock001', sub_task_id: subToComplete },
+  });
+  const completeText = completeSub.content?.[0]?.text || '';
+  if (completeSub.isError || !completeText.includes('complete')) {
+    throw new Error(`unexpected complete_plan_sub: ${completeText}`);
+  }
+
+  const linkArchive = await client.callTool({
+    name: 'link_plan_archive',
+    arguments: {
+      master_task_id: 'task_mock001',
+      sub_task_id: subToComplete,
+      archive_id: DEMO_ID,
+    },
+  });
+  const linkText = linkArchive.content?.[0]?.text || '';
+  if (linkArchive.isError || !linkText.includes(DEMO_ID)) {
+    throw new Error(`unexpected link_plan_archive: ${linkText}`);
+  }
+
+  const subToDelete = parsedAdd.task.sub_tasks.find((s) => s.title === 'Sub B').sub_task_id;
+  const deleteSub = await client.callTool({
+    name: 'delete_plan_sub',
+    arguments: { master_task_id: 'task_mock001', sub_task_id: subToDelete },
+  });
+  if (deleteSub.isError) {
+    throw new Error(`unexpected delete_plan_sub: ${deleteSub.content?.[0]?.text || ''}`);
+  }
+
+  const deleteMaster = await client.callTool({
+    name: 'delete_plan_task',
+    arguments: { master_task_id: 'task_mock001' },
+  });
+  const deleteMasterText = deleteMaster.content?.[0]?.text || '';
+  if (deleteMaster.isError || !deleteMasterText.includes('"ok":true')) {
+    throw new Error(`unexpected delete_plan_task: ${deleteMasterText}`);
   }
 
   await client.close();
