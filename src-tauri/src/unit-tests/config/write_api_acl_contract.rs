@@ -41,6 +41,13 @@ const SEDIMENT_KB_WRITE_COMMANDS: &[&str] = &[
     "sediment_kb_remove_category",
 ];
 
+const PLAN_TASK_WRITE_COMMANDS: &[&str] = &[
+    "create_plan_task",
+    "delete_plan_task",
+    "add_plan_sub",
+    "delete_plan_sub",
+];
+
 #[test]
 fn write_api_toml_and_acl_manifest_allow_lists_match() {
     let root = manifest_dir();
@@ -57,6 +64,22 @@ fn sediment_kb_write_commands_are_acl_allowed() {
     let toml = fs::read_to_string(root.join("permissions/write-api.toml")).expect("toml");
     let allow = parse_write_api_toml_allow(&toml);
     let missing: Vec<_> = SEDIMENT_KB_WRITE_COMMANDS
+        .iter()
+        .filter(|cmd| !allow.contains(**cmd))
+        .copied()
+        .collect();
+    assert!(
+        missing.is_empty(),
+        "commands missing from write-api.toml ACL: {missing:?}"
+    );
+}
+
+#[test]
+fn plan_task_write_commands_are_acl_allowed() {
+    let root = manifest_dir();
+    let toml = fs::read_to_string(root.join("permissions/write-api.toml")).expect("toml");
+    let allow = parse_write_api_toml_allow(&toml);
+    let missing: Vec<_> = PLAN_TASK_WRITE_COMMANDS
         .iter()
         .filter(|cmd| !allow.contains(**cmd))
         .copied()
