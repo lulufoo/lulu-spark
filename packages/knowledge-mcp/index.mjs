@@ -198,6 +198,134 @@ function buildServer() {
     },
   );
 
+  server.registerTool(
+    'list_plan_tasks',
+    {
+      description: 'List all plan task masters. Proxy GET /api/plan-tasks',
+      inputSchema: {},
+    },
+    async () => {
+      const result = await proxyGet('/api/plan-tasks');
+      if (!result.ok) {
+        return toolError(result.status, result.text);
+      }
+      return { content: [{ type: 'text', text: result.text }] };
+    },
+  );
+
+  server.registerTool(
+    'get_plan_task',
+    {
+      description: 'Get a plan task master by id. Proxy GET /api/plan-task?id=',
+      inputSchema: {
+        id: z.string().trim().min(1).describe('Master task id'),
+      },
+    },
+    async ({ id }) => {
+      const q = new URLSearchParams({ id });
+      const result = await proxyGet(`/api/plan-task?${q}`);
+      if (!result.ok) {
+        return toolError(result.status, result.text);
+      }
+      return { content: [{ type: 'text', text: result.text }] };
+    },
+  );
+
+  server.registerTool(
+    'delete_plan_task',
+    {
+      description: 'Delete a plan task master and its directory. Proxy POST /api/plan-task-delete',
+      inputSchema: {
+        master_task_id: z.string().trim().min(1).describe('Master task id'),
+      },
+    },
+    async ({ master_task_id }) => {
+      const result = await proxyPost('/api/plan-task-delete', { master_task_id });
+      if (!result.ok) {
+        return toolError(result.status, result.text);
+      }
+      return { content: [{ type: 'text', text: result.text }] };
+    },
+  );
+
+  server.registerTool(
+    'add_plan_sub',
+    {
+      description: 'Add a sub task to a plan master. Proxy POST /api/plan-task-add-sub',
+      inputSchema: {
+        master_task_id: z.string().trim().min(1).describe('Master task id'),
+        title: z.string().trim().min(1).describe('Sub task title'),
+      },
+    },
+    async ({ master_task_id, title }) => {
+      const result = await proxyPost('/api/plan-task-add-sub', { master_task_id, title });
+      if (!result.ok) {
+        return toolError(result.status, result.text);
+      }
+      return { content: [{ type: 'text', text: result.text }] };
+    },
+  );
+
+  server.registerTool(
+    'delete_plan_sub',
+    {
+      description: 'Delete a sub task (not the last one). Proxy POST /api/plan-task-delete-sub',
+      inputSchema: {
+        master_task_id: z.string().trim().min(1).describe('Master task id'),
+        sub_task_id: z.string().trim().min(1).describe('Sub task id'),
+      },
+    },
+    async ({ master_task_id, sub_task_id }) => {
+      const result = await proxyPost('/api/plan-task-delete-sub', { master_task_id, sub_task_id });
+      if (!result.ok) {
+        return toolError(result.status, result.text);
+      }
+      return { content: [{ type: 'text', text: result.text }] };
+    },
+  );
+
+  server.registerTool(
+    'complete_plan_sub',
+    {
+      description: 'Mark a sub task complete. Proxy POST /api/plan-task-complete-sub',
+      inputSchema: {
+        master_task_id: z.string().trim().min(1).describe('Master task id'),
+        sub_task_id: z.string().trim().min(1).describe('Sub task id'),
+      },
+    },
+    async ({ master_task_id, sub_task_id }) => {
+      const result = await proxyPost('/api/plan-task-complete-sub', { master_task_id, sub_task_id });
+      if (!result.ok) {
+        return toolError(result.status, result.text);
+      }
+      return { content: [{ type: 'text', text: result.text }] };
+    },
+  );
+
+  server.registerTool(
+    'link_plan_archive',
+    {
+      description:
+        'Link an archive entry id to a completed sub task. Proxy POST /api/plan-task-link-archive',
+      inputSchema: {
+        master_task_id: z.string().trim().min(1).describe('Master task id'),
+        sub_task_id: z.string().trim().min(1).describe('Sub task id'),
+        archive_id: z.string().trim().min(1).describe('Archive entry id (32-char hex)'),
+      },
+    },
+    async ({ master_task_id, sub_task_id, archive_id }) => {
+      const result = await proxyPost('/api/plan-task-link-archive', {
+        master_task_id,
+        sub_task_id,
+        archive_id,
+      });
+      if (!result.ok) {
+        return toolError(result.status, result.text);
+      }
+      return { content: [{ type: 'text', text: result.text }] };
+    },
+  );
+
   return server;
 }
 
