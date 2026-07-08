@@ -1,17 +1,39 @@
 //! Shared test fixtures for unit tests (compiled only under `#[cfg(test)]`).
 
+use std::cell::Cell;
 use std::path::{Path, PathBuf};
-use std::sync::Mutex;
+use std::sync::{Mutex, MutexGuard};
 
 use crate::config::settings;
 
 static CONFIG_TEST_SERIAL: Mutex<()> = Mutex::new(());
 
+thread_local! {
+    static CONFIG_TEST_SERIAL_DEPTH: Cell<u32> = const { Cell::new(0) };
+}
+
 /// Serialize tests that mutate `dev.config.toml` (TestSandbox).
+/// Same-thread re-entry is allowed so nested `TestSandbox::new` does not deadlock.
 pub fn with_config_test_serial<F: FnOnce()>(f: F) {
-    let _guard = CONFIG_TEST_SERIAL
-        .lock()
-        .unwrap_or_else(|e| e.into_inner());
+    struct DepthGuard;
+    impl Drop for DepthGuard {
+        fn drop(&mut self) {
+            CONFIG_TEST_SERIAL_DEPTH.with(|d| d.set(d.get().saturating_sub(1)));
+        }
+    }
+
+    let depth = CONFIG_TEST_SERIAL_DEPTH.with(|d| d.get());
+    let _lock: Option<MutexGuard<'_, ()>> = if depth == 0 {
+        Some(
+            CONFIG_TEST_SERIAL
+                .lock()
+                .unwrap_or_else(|e| e.into_inner()),
+        )
+    } else {
+        None
+    };
+    CONFIG_TEST_SERIAL_DEPTH.with(|d| d.set(depth + 1));
+    let _depth_guard = DepthGuard;
     f();
 }
 
@@ -76,6 +98,8 @@ fn assert_path_not_under_prod_roots(
 /// Isolated temp data roots + `dev.config.toml` (never prod `config.toml`).
 pub struct TestSandbox {
     dir: tempfile::TempDir,
+    /// Previous `dev.config.toml` body, restored on Drop (supports nested sandboxes).
+    prev_dev_config: Option<String>,
     prod_workbench_knowledge_root: PathBuf,
     prod_knowledge_corpus_root: PathBuf,
     prod_cache_dir: PathBuf,
@@ -90,7 +114,10 @@ impl TestSandbox {
 
         let dir = tempfile::tempdir().expect("tmp");
         let (wb, corpus, cache) = prepare_sandbox_roots(dir.path());
+        let mut prev_dev_config = None;
         with_config_test_serial(|| {
+            let path = settings::dev_config_file_path();
+            prev_dev_config = std::fs::read_to_string(&path).ok();
             write_sandbox_config(dir.path(), &wb, &corpus, &cache);
             let cfg = settings::load().expect("load");
             for path in [
@@ -110,6 +137,7 @@ impl TestSandbox {
 
         Self {
             dir,
+            prev_dev_config,
             prod_workbench_knowledge_root,
             prod_knowledge_corpus_root,
             prod_cache_dir,
@@ -159,6 +187,23 @@ impl TestSandbox {
             &self.prod_knowledge_corpus_root,
             &self.prod_cache_dir,
         )
+    }
+}
+
+impl Drop for TestSandbox {
+    fn drop(&mut self) {
+        let prev = self.prev_dev_config.take();
+        with_config_test_serial(|| {
+            let path = settings::dev_config_file_path();
+            match prev {
+                Some(text) => {
+                    let _ = std::fs::write(&path, text);
+                }
+                None => {
+                    let _ = std::fs::remove_file(&path);
+                }
+            }
+        });
     }
 }
 
