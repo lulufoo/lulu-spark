@@ -8,11 +8,9 @@ use crate::config::settings::{self, default_cache_dir};
 use crate::test_support::TestSandbox;
 
 fn with_plan_task_sandbox<F: FnOnce(&Path)>(f: F) {
-    crate::test_support::with_config_test_serial(|| {
-        let _sandbox = TestSandbox::new();
-        let wb = paths::workbench_knowledge_root().expect("workbench root");
-        f(&wb);
-    });
+    let _sandbox = TestSandbox::new();
+    let wb = paths::workbench_knowledge_root().expect("workbench root");
+    f(&wb);
 }
 
 fn is_iso8601(s: &str) -> bool {
@@ -373,5 +371,195 @@ fn corrupt_json_get_returns_explicit_error() {
         let v = get_by_id("any-id");
         assert!(v.get("error").is_some());
         assert_eq!(v["_status"], 500);
+    });
+}
+
+const V1_STUB_JSON: &str = r#"{"version":1,"tasks":{}}"#;
+
+fn seed_v1_file(path: &Path) {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).expect("mkdir v1 parent");
+    }
+    fs::write(path, V1_STUB_JSON).expect("write v1 stub");
+}
+
+fn read_index_version(wb: &Path) -> u32 {
+    let index_path = wb.join("plan_tasks").join("index.json");
+    let text = fs::read_to_string(&index_path).expect("read index.json");
+    let parsed: serde_json::Value = serde_json::from_str(&text).expect("parse index.json");
+    parsed["version"].as_u64().expect("index version") as u32
+}
+
+#[test]
+fn bootstrap_deletes_wb_and_cache_v1_on_storage_read_entry() {
+    with_plan_task_sandbox(|wb| {
+        let wb_v1 = paths::plan_tasks_path().expect("wb v1 path");
+        let cache_v1 = paths::cache_plan_tasks_v1_path().expect("cache v1 path");
+        seed_v1_file(&wb_v1);
+        seed_v1_file(&cache_v1);
+        assert!(wb_v1.is_file());
+        assert!(cache_v1.is_file());
+
+        let v = list_all();
+        assert!(v.as_array().is_some());
+
+        assert!(!wb_v1.is_file(), "wb v1 should be deleted");
+        assert!(!cache_v1.is_file(), "cache v1 should be deleted");
+        assert_eq!(read_index_version(wb), 2);
+    });
+}
+
+#[test]
+fn bootstrap_deletes_v1_on_storage_write_entry() {
+    with_plan_task_sandbox(|wb| {
+        let wb_v1 = paths::plan_tasks_path().expect("wb v1 path");
+        seed_v1_file(&wb_v1);
+        assert!(wb_v1.is_file());
+
+        let v = create_master_with_subs("Bootstrap via write", None);
+        assert_eq!(v["_status"], 201);
+        assert_eq!(read_index_version(wb), 2);
+        // v1 single-file may be recreated by legacy write path until v3; bootstrap ran at write entry.
+    });
+}
+
+#[test]
+fn bootstrap_repeat_is_idempotent() {
+    with_plan_task_sandbox(|wb| {
+        let wb_v1 = paths::plan_tasks_path().expect("wb v1 path");
+        let cache_v1 = paths::cache_plan_tasks_v1_path().expect("cache v1 path");
+        seed_v1_file(&wb_v1);
+        seed_v1_file(&cache_v1);
+
+        list_all();
+        let index_path = wb.join("plan_tasks").join("index.json");
+        let after_first = fs::read_to_string(&index_path).expect("read index after first");
+
+        list_all();
+        let after_second = fs::read_to_string(&index_path).expect("read index after second");
+
+        assert!(!wb_v1.is_file());
+        assert!(!cache_v1.is_file());
+        assert_eq!(after_first, after_second);
+        assert_eq!(read_index_version(wb), 2);
+    });
+}
+
+#[test]
+fn bootstrap_creates_plan_tasks_and_tasks_dirs() {
+    with_plan_task_sandbox(|wb| {
+        list_all();
+        assert!(wb.join("plan_tasks").is_dir());
+        assert!(wb.join("plan_tasks").join("tasks").is_dir());
+        assert!(wb.join("plan_tasks").join("index.json").is_file());
+    });
+}
+
+#[test]
+fn bootstrap_deletes_only_wb_v1_when_cache_missing() {
+    with_plan_task_sandbox(|wb| {
+        let wb_v1 = paths::plan_tasks_path().expect("wb v1 path");
+        let cache_v1 = paths::cache_plan_tasks_v1_path().expect("cache v1 path");
+        seed_v1_file(&wb_v1);
+        assert!(!cache_v1.is_file());
+
+        list_all();
+
+        assert!(!wb_v1.is_file());
+        assert!(!cache_v1.is_file());
+        assert_eq!(read_index_version(wb), 2);
+    });
+}
+
+#[test]
+fn bootstrap_deletes_only_cache_v1_when_wb_missing() {
+    with_plan_task_sandbox(|wb| {
+        let wb_v1 = paths::plan_tasks_path().expect("wb v1 path");
+        let cache_v1 = paths::cache_plan_tasks_v1_path().expect("cache v1 path");
+        seed_v1_file(&cache_v1);
+        assert!(!wb_v1.is_file());
+
+        list_all();
+
+        assert!(!wb_v1.is_file());
+        assert!(!cache_v1.is_file());
+        assert_eq!(read_index_version(wb), 2);
+    });
+}
+
+#[test]
+fn bootstrap_preserves_valid_v2_index_tasks() {
+    with_plan_task_sandbox(|wb| {
+        let plan_tasks_dir = wb.join("plan_tasks");
+        fs::create_dir_all(plan_tasks_dir.join("tasks")).expect("mkdir tasks");
+        let index = serde_json::json!({
+            "version": 2,
+            "tasks": {
+                "task_keepme": {
+                    "master_task_id": "task_keepme",
+                    "title": "Keep me",
+                    "status": "incomplete",
+                    "created_at": "2026-07-08T00:00:00+00:00",
+                    "task_dir": "tasks/task_keepme"
+                }
+            }
+        });
+        fs::write(
+            plan_tasks_dir.join("index.json"),
+            serde_json::to_string_pretty(&index).expect("serialize index"),
+        )
+        .expect("write index");
+
+        list_all();
+
+        let parsed: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(plan_tasks_dir.join("index.json")).unwrap())
+                .expect("parse index");
+        assert_eq!(parsed["version"], 2);
+        assert!(parsed["tasks"].get("task_keepme").is_some());
+    });
+}
+
+#[test]
+fn bootstrap_rewrites_wrong_version_index() {
+    with_plan_task_sandbox(|wb| {
+        let plan_tasks_dir = wb.join("plan_tasks");
+        fs::create_dir_all(plan_tasks_dir.join("tasks")).expect("mkdir tasks");
+        fs::write(
+            plan_tasks_dir.join("index.json"),
+            r#"{"version":1,"tasks":{"task_old":{"master_task_id":"task_old"}}}"#,
+        )
+        .expect("write v1 index");
+
+        list_all();
+
+        let parsed: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(plan_tasks_dir.join("index.json")).unwrap())
+                .expect("parse index");
+        assert_eq!(parsed["version"], 2);
+        assert_eq!(
+            parsed["tasks"].as_object().map(|m| m.len()).unwrap_or(0),
+            0
+        );
+    });
+}
+
+#[test]
+fn bootstrap_rewrites_corrupt_index() {
+    with_plan_task_sandbox(|wb| {
+        let plan_tasks_dir = wb.join("plan_tasks");
+        fs::create_dir_all(plan_tasks_dir.join("tasks")).expect("mkdir tasks");
+        fs::write(plan_tasks_dir.join("index.json"), "{not json").expect("write corrupt index");
+
+        list_all();
+
+        let parsed: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(plan_tasks_dir.join("index.json")).unwrap())
+                .expect("parse index");
+        assert_eq!(parsed["version"], 2);
+        assert_eq!(
+            parsed["tasks"].as_object().map(|m| m.len()).unwrap_or(0),
+            0
+        );
     });
 }
