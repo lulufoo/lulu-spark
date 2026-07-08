@@ -1,8 +1,7 @@
-//! Plan tasks persisted at `{workbench_knowledge_root}/plan_tasks/plan_tasks.json`.
+//! Plan tasks persisted at `{workbench_knowledge_root}/plan_tasks/` (v2: index + per-task files).
 
 pub mod types;
 
-use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
 use std::sync::Mutex;
@@ -18,8 +17,8 @@ use crate::repositories::atomic_json;
 use crate::services::id::random_hex12;
 
 use types::{
-    IndexEntry, MasterTask, MasterTaskStatus, PlanTasksFile, PlanTasksIndex, SubTask, SubTaskStatus,
-    SubTasksFile,
+    index_entry_task_dir, IndexEntry, MasterTask, MasterTaskStatus, PlanTasksIndex, SubTask,
+    SubTaskStatus, SubTasksFile,
 };
 
 static WRITE_LOCK: Mutex<()> = Mutex::new(());
@@ -76,14 +75,7 @@ fn test_take_fail_complete_sub() -> bool {
     TEST_FAIL_COMPLETE_SUB.swap(false, Ordering::SeqCst)
 }
 
-const CORRUPT_JSON_ERROR: &str = "Invalid plan_tasks.json";
-
-fn default_file() -> PlanTasksFile {
-    PlanTasksFile {
-        version: 1,
-        tasks: HashMap::new(),
-    }
-}
+const CORRUPT_STORAGE_ERROR: &str = "Invalid plan_tasks storage";
 
 fn with_write_lock<F, T>(f: F) -> T
 where
@@ -91,14 +83,6 @@ where
 {
     let _guard = WRITE_LOCK.lock().expect("plan_task write lock");
     f()
-}
-
-fn ensure_storage_dir() -> Result<(), String> {
-    let path = paths::plan_tasks_path().map_err(|e| format!("{e:?}"))?;
-    let parent = path
-        .parent()
-        .ok_or_else(|| "plan_tasks path has no parent".to_string())?;
-    fs::create_dir_all(parent).map_err(|e| e.to_string())
 }
 
 fn delete_v1_if_present(path: &std::path::Path) -> Result<bool, String> {
@@ -266,41 +250,130 @@ enum LoadOutcome {
     Corrupt,
 }
 
-fn load_file_unlocked() -> (PlanTasksFile, LoadOutcome) {
-    let path = match paths::plan_tasks_path() {
+fn load_v2_index_unlocked() -> Result<PlanTasksIndex, LoadOutcome> {
+    let index_path = match paths::plan_tasks_index_path() {
         Ok(p) => p,
-        Err(_) => return (default_file(), LoadOutcome::Missing),
+        Err(_) => return Ok(PlanTasksIndex::default()),
+    };
+    if !index_path.is_file() {
+        return Ok(PlanTasksIndex::default());
+    }
+    let text = match fs::read_to_string(&index_path) {
+        Ok(t) => t,
+        Err(_) => return Err(LoadOutcome::Corrupt),
+    };
+    match serde_json::from_str::<PlanTasksIndex>(&text) {
+        Ok(index) if index.version == 2 => Ok(index),
+        _ => Err(LoadOutcome::Corrupt),
+    }
+}
+
+fn load_sub_tasks_file(master_id: &str) -> Result<SubTasksFile, LoadOutcome> {
+    let path = match paths::plan_tasks_sub_tasks_path(master_id) {
+        Ok(p) => p,
+        Err(_) => return Err(LoadOutcome::Corrupt),
     };
     if !path.is_file() {
-        return (default_file(), LoadOutcome::Missing);
+        return Err(LoadOutcome::Corrupt);
     }
-    let Ok(text) = fs::read_to_string(&path) else {
-        return (default_file(), LoadOutcome::Corrupt);
+    let text = match fs::read_to_string(&path) {
+        Ok(t) => t,
+        Err(_) => return Err(LoadOutcome::Corrupt),
     };
-    match serde_json::from_str::<PlanTasksFile>(&text) {
-        Ok(file) => (file, LoadOutcome::Ok),
-        Err(_) => (default_file(), LoadOutcome::Corrupt),
+    serde_json::from_str(&text).map_err(|_| LoadOutcome::Corrupt)
+}
+
+fn corrupt_storage_error() -> Value {
+    json!({ "error": CORRUPT_STORAGE_ERROR, "_status": 500 })
+}
+
+fn load_v2_for_read() -> Result<PlanTasksIndex, Value> {
+    if let Err(e) = ensure_bootstrap() {
+        return Err(bootstrap_error(e));
+    }
+    match load_v2_index_unlocked() {
+        Ok(index) => Ok(index),
+        Err(LoadOutcome::Corrupt) => Err(corrupt_storage_error()),
+        Err(LoadOutcome::Missing) | Err(LoadOutcome::Ok) => Ok(PlanTasksIndex::default()),
     }
 }
 
-fn load_for_read() -> Result<PlanTasksFile, Value> {
-    ensure_bootstrap().map_err(bootstrap_error)?;
-    let (file, outcome) = load_file_unlocked();
-    if outcome == LoadOutcome::Corrupt {
-        return Err(corrupt_json_error());
+fn assemble_master_task(entry: &IndexEntry, subs: &SubTasksFile) -> MasterTask {
+    let mut master = MasterTask {
+        master_task_id: entry.master_task_id.clone(),
+        title: entry.title.clone(),
+        status: entry.status.clone(),
+        created_at: entry.created_at.clone(),
+        sub_tasks: subs.sub_tasks.clone(),
+    };
+    recompute_master_status(&mut master);
+    master
+}
+
+fn load_master_task_unlocked(master_id: &str) -> Result<MasterTask, Value> {
+    let index = match load_v2_index_unlocked() {
+        Ok(i) => i,
+        Err(LoadOutcome::Corrupt) => return Err(corrupt_storage_error()),
+        Err(LoadOutcome::Missing) | Err(LoadOutcome::Ok) => PlanTasksIndex::default(),
+    };
+    let entry = index
+        .tasks
+        .get(master_id)
+        .ok_or_else(|| json!({ "error": "Task not found", "_status": 404 }))?;
+    let subs = match load_sub_tasks_file(master_id) {
+        Ok(s) => s,
+        Err(LoadOutcome::Corrupt) | Err(LoadOutcome::Missing) | Err(LoadOutcome::Ok) => {
+            return Err(corrupt_storage_error());
+        }
+    };
+    Ok(assemble_master_task(entry, &subs))
+}
+
+fn load_master_task(master_id: &str) -> Result<MasterTask, Value> {
+    load_v2_for_read()?;
+    load_master_task_unlocked(master_id)
+}
+
+fn find_master_id_for_any_id(index: &PlanTasksIndex, id: &str) -> Result<Option<String>, Value> {
+    if index.tasks.contains_key(id) {
+        return Ok(Some(id.to_string()));
     }
-    Ok(file)
+    for master_id in index.tasks.keys() {
+        let subs = match load_sub_tasks_file(master_id) {
+            Ok(s) => s,
+            Err(LoadOutcome::Corrupt) => return Err(corrupt_storage_error()),
+            Err(LoadOutcome::Missing) | Err(LoadOutcome::Ok) => return Err(corrupt_storage_error()),
+        };
+        if subs.sub_tasks.iter().any(|s| s.sub_task_id == id) {
+            return Ok(Some(master_id.clone()));
+        }
+    }
+    Ok(None)
 }
 
-fn corrupt_json_error() -> Value {
-    json!({ "error": CORRUPT_JSON_ERROR, "_status": 500 })
+fn read_plan_md_or_empty(master_id: &str) -> Result<String, String> {
+    let path = paths::plan_tasks_plan_md_path(master_id).map_err(|e| format!("{e:?}"))?;
+    if !path.is_file() {
+        return Ok(String::new());
+    }
+    fs::read_to_string(&path).map_err(|e| e.to_string())
 }
 
-fn save_file_unlocked(file: &PlanTasksFile) -> Result<(), String> {
-    ensure_storage_dir()?;
-    let path = paths::plan_tasks_path().map_err(|e| format!("{e:?}"))?;
-    let value = serde_json::to_value(file).map_err(|e| e.to_string())?;
-    atomic_json::write_json(&path, &value)
+fn persist_master(master: &MasterTask) -> Result<(), String> {
+    let mut master = master.clone();
+    recompute_master_status(&mut master);
+    let plan_md = read_plan_md_or_empty(&master.master_task_id)?;
+    let entry = IndexEntry {
+        master_task_id: master.master_task_id.clone(),
+        title: master.title.clone(),
+        status: master.status.clone(),
+        created_at: master.created_at.clone(),
+        task_dir: index_entry_task_dir(&master.master_task_id),
+    };
+    let subs = SubTasksFile {
+        sub_tasks: master.sub_tasks.clone(),
+    };
+    write_task_batch(&master.master_task_id, &entry, &subs, &plan_md)
 }
 
 fn new_master_id() -> String {
@@ -327,24 +400,6 @@ fn master_to_value(master: &MasterTask) -> Value {
     serde_json::to_value(master).unwrap_or_else(|_| json!({}))
 }
 
-fn find_master_by_any_id(file: &PlanTasksFile, id: &str) -> Option<MasterTask> {
-    if let Some(master) = file.tasks.get(id) {
-        return Some(master.clone());
-    }
-    file.tasks.values().find(|m| {
-        m.sub_tasks
-            .iter()
-            .any(|s| s.sub_task_id == id)
-    }).cloned()
-}
-
-fn find_master_mut<'a>(
-    file: &'a mut PlanTasksFile,
-    master_task_id: &str,
-) -> Option<&'a mut MasterTask> {
-    file.tasks.get_mut(master_task_id)
-}
-
 pub fn create_master_with_subs(title: &str, sub_titles: Option<&[&str]>) -> Value {
     let title = title.trim();
     if title.is_empty() {
@@ -356,9 +411,8 @@ pub fn create_master_with_subs(title: &str, sub_titles: Option<&[&str]>) -> Valu
             return bootstrap_error(e);
         }
 
-        let (mut file, outcome) = load_file_unlocked();
-        if outcome == LoadOutcome::Corrupt {
-            return corrupt_json_error();
+        if let Err(LoadOutcome::Corrupt) = load_v2_index_unlocked() {
+            return corrupt_storage_error();
         }
 
         let master_id = new_master_id();
@@ -408,8 +462,7 @@ pub fn create_master_with_subs(title: &str, sub_titles: Option<&[&str]>) -> Valu
             sub_tasks,
         };
 
-        file.tasks.insert(master_id.clone(), master.clone());
-        match save_file_unlocked(&file) {
+        match persist_master(&master) {
             Ok(()) => json!({
                 "master_task_id": master_id,
                 "sub_task_id": first_sub_id,
@@ -427,19 +480,29 @@ pub fn get_by_id(id: &str) -> Value {
         return json!({ "error": "Missing id", "_status": 400 });
     }
 
-    match load_for_read() {
-        Ok(file) => match find_master_by_any_id(&file, id) {
-            Some(master) => master_to_value(&master),
-            None => json!({ "error": "Task not found", "_status": 404 }),
+    match load_v2_for_read() {
+        Ok(index) => match find_master_id_for_any_id(&index, id) {
+            Ok(Some(master_id)) => match load_master_task(&master_id) {
+                Ok(master) => master_to_value(&master),
+                Err(err) => err,
+            },
+            Ok(None) => json!({ "error": "Task not found", "_status": 404 }),
+            Err(err) => err,
         },
         Err(err) => err,
     }
 }
 
 pub fn list_all() -> Value {
-    match load_for_read() {
-        Ok(file) => {
-            let mut masters: Vec<Value> = file.tasks.values().map(master_to_value).collect();
+    match load_v2_for_read() {
+        Ok(index) => {
+            let mut masters: Vec<Value> = Vec::new();
+            for master_id in index.tasks.keys() {
+                match load_master_task(master_id) {
+                    Ok(master) => masters.push(master_to_value(&master)),
+                    Err(err) => return err,
+                }
+            }
             masters.sort_by(|a, b| {
                 let a_ts = a.get("created_at").and_then(|v| v.as_str()).unwrap_or("");
                 let b_ts = b.get("created_at").and_then(|v| v.as_str()).unwrap_or("");
@@ -449,6 +512,117 @@ pub fn list_all() -> Value {
         }
         Err(err) => err,
     }
+}
+
+pub fn delete_master(master_task_id: &str) -> Value {
+    with_write_lock(|| {
+        if let Err(e) = ensure_bootstrap() {
+            return bootstrap_error(e);
+        }
+
+        let index = match load_v2_index_unlocked() {
+            Ok(i) => i,
+            Err(LoadOutcome::Corrupt) => return corrupt_storage_error(),
+            Err(LoadOutcome::Missing) | Err(LoadOutcome::Ok) => PlanTasksIndex::default(),
+        };
+
+        if !index.tasks.contains_key(master_task_id) {
+            return json!({ "error": "Task not found", "_status": 404 });
+        }
+
+        if let Err(e) = rollback_before_index(master_task_id) {
+            return json!({ "error": e, "_status": 500 });
+        }
+
+        let index_path = match paths::plan_tasks_index_path() {
+            Ok(p) => p,
+            Err(e) => return json!({ "error": format!("{e:?}"), "_status": 500 }),
+        };
+
+        let mut updated = index;
+        updated.tasks.remove(master_task_id);
+        match write_index_snapshot(&index_path, &updated) {
+            Ok(()) => json!({ "ok": true, "_status": 200 }),
+            Err(e) => json!({ "error": e, "_status": 500 }),
+        }
+    })
+}
+
+pub fn add_sub(master_task_id: &str, title: &str) -> Value {
+    let title = title.trim();
+    if title.is_empty() {
+        return json!({ "error": "Missing title", "_status": 400 });
+    }
+
+    with_write_lock(|| {
+        if let Err(e) = ensure_bootstrap() {
+            return bootstrap_error(e);
+        }
+
+        let mut master = match load_master_task_unlocked(master_task_id) {
+            Ok(m) => m,
+            Err(err) => return err,
+        };
+
+        let next_index = master.sub_tasks.len() + 1;
+        let new_sub = SubTask {
+            sub_task_id: format_sub_id(master_task_id, next_index),
+            title: Some(title.to_string()),
+            status: SubTaskStatus::Incomplete,
+            implicit: false,
+            linked_archive_ids: vec![],
+            completed_at: None,
+        };
+        let new_sub_id = new_sub.sub_task_id.clone();
+        master.sub_tasks.push(new_sub);
+        recompute_master_status(&mut master);
+
+        match persist_master(&master) {
+            Ok(()) => json!({
+                "sub_task_id": new_sub_id,
+                "task": master_to_value(&master),
+                "_status": 201,
+            }),
+            Err(e) => json!({ "error": e, "_status": 500 }),
+        }
+    })
+}
+
+pub fn delete_sub(master_task_id: &str, sub_task_id: &str) -> Value {
+    with_write_lock(|| {
+        if let Err(e) = ensure_bootstrap() {
+            return bootstrap_error(e);
+        }
+
+        let mut master = match load_master_task_unlocked(master_task_id) {
+            Ok(m) => m,
+            Err(err) => return err,
+        };
+
+        if master.sub_tasks.len() <= 1 {
+            return json!({ "error": "Cannot delete last sub", "_status": 400 });
+        }
+
+        let pos = match master
+            .sub_tasks
+            .iter()
+            .position(|s| s.sub_task_id == sub_task_id)
+        {
+            Some(p) => p,
+            None => return json!({ "error": "Task not found", "_status": 404 }),
+        };
+
+        master.sub_tasks.remove(pos);
+        recompute_master_status(&mut master);
+
+        match persist_master(&master) {
+            Ok(()) => json!({
+                "task": master_to_value(&master),
+                "_status": 200,
+            }),
+            Err(e) => json!({ "error": e, "_status": 500 }),
+        }
+    })
 }
 
 pub fn complete_sub(master_task_id: &str, sub_task_id: &str) -> Value {
@@ -462,14 +636,11 @@ pub fn complete_sub(master_task_id: &str, sub_task_id: &str) -> Value {
             return json!({ "error": "injected plan_task failure", "_status": 500 });
         }
 
-        let (mut file, outcome) = load_file_unlocked();
-        if outcome == LoadOutcome::Corrupt {
-            return corrupt_json_error();
-        }
-
-        let Some(master) = find_master_mut(&mut file, master_task_id) else {
-            return json!({ "error": "Task not found", "_status": 404 });
+        let mut master = match load_master_task_unlocked(master_task_id) {
+            Ok(m) => m,
+            Err(err) => return err,
         };
+
         let Some(sub) = master
             .sub_tasks
             .iter_mut()
@@ -480,10 +651,10 @@ pub fn complete_sub(master_task_id: &str, sub_task_id: &str) -> Value {
 
         sub.status = SubTaskStatus::Complete;
         sub.completed_at = Some(Utc::now().to_rfc3339());
-        recompute_master_status(master);
+        recompute_master_status(&mut master);
         let updated = master.clone();
 
-        match save_file_unlocked(&file) {
+        match persist_master(&master) {
             Ok(()) => json!({
                 "task": master_to_value(&updated),
                 "_status": 200,
@@ -504,14 +675,11 @@ pub fn link_archive(master_task_id: &str, sub_task_id: &str, archive_id: &str) -
             return bootstrap_error(e);
         }
 
-        let (mut file, outcome) = load_file_unlocked();
-        if outcome == LoadOutcome::Corrupt {
-            return corrupt_json_error();
-        }
-
-        let Some(master) = find_master_mut(&mut file, master_task_id) else {
-            return json!({ "error": "Task not found", "_status": 404 });
+        let mut master = match load_master_task_unlocked(master_task_id) {
+            Ok(m) => m,
+            Err(err) => return err,
         };
+
         let Some(sub) = master
             .sub_tasks
             .iter_mut()
@@ -525,7 +693,7 @@ pub fn link_archive(master_task_id: &str, sub_task_id: &str, archive_id: &str) -
         }
         let updated = master.clone();
 
-        match save_file_unlocked(&file) {
+        match persist_master(&master) {
             Ok(()) => json!({
                 "task": master_to_value(&updated),
                 "_status": 200,

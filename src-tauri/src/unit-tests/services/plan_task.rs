@@ -61,8 +61,8 @@ fn first_write_creates_plan_tasks_directory() {
         let v = create_master_with_subs("预习：第三章", None);
         assert_eq!(v["_status"], 201);
         assert!(plan_tasks_dir.is_dir());
-        let path = paths::plan_tasks_path().expect("path");
-        assert!(path.is_file());
+        assert!(plan_tasks_dir.join("index.json").is_file());
+        assert!(plan_tasks_dir.join("tasks").is_dir());
     });
 }
 
@@ -128,7 +128,7 @@ fn multi_sub_create_and_read_fixture() {
             "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
         );
 
-        let path = wb.join("plan_tasks").join("plan_tasks.json");
+        let path = wb.join("plan_tasks").join("index.json");
         assert!(path.is_file());
         let cache = paths::cache_dir().expect("cache");
         assert!(!path.starts_with(&cache));
@@ -149,32 +149,28 @@ fn plan_task_tests_do_not_touch_prod_plan_tasks_or_cache() {
 
 #[test]
 fn plan_task_fixture_rejects_prod_plan_tasks_path() {
-    crate::test_support::with_config_test_serial(|| {
-        let sandbox = TestSandbox::new();
-        let prod_wb = sandbox.prod_workbench_knowledge_root();
-        let prod_plan_tasks = prod_wb.join("plan_tasks").join("plan_tasks.json");
-        assert!(sandbox.assert_not_prod_path(&prod_plan_tasks).is_err());
-        let prod_cache_plan = sandbox.prod_cache_dir().join("plan_tasks.json");
-        assert!(sandbox.assert_not_prod_path(&prod_cache_plan).is_err());
-    });
+    let sandbox = TestSandbox::new();
+    let prod_wb = sandbox.prod_workbench_knowledge_root();
+    let prod_plan_tasks = prod_wb.join("plan_tasks").join("plan_tasks.json");
+    assert!(sandbox.assert_not_prod_path(&prod_plan_tasks).is_err());
+    let prod_cache_plan = sandbox.prod_cache_dir().join("plan_tasks.json");
+    assert!(sandbox.assert_not_prod_path(&prod_cache_plan).is_err());
 }
 
 #[test]
 fn plan_task_paths_require_sandbox_isolation() {
-    crate::test_support::with_config_test_serial(|| {
-        let sandbox = TestSandbox::new();
-        let wb = paths::workbench_knowledge_root().expect("wb");
-        let plan_path = paths::plan_tasks_path().expect("plan_tasks");
-        assert!(plan_path.starts_with(&wb));
-        assert_ne!(
-            plan_path,
-            sandbox
-                .prod_workbench_knowledge_root()
-                .join("plan_tasks")
-                .join("plan_tasks.json")
-        );
-        assert_ne!(plan_path, sandbox.prod_cache_dir().join("plan_tasks.json"));
-    });
+    let sandbox = TestSandbox::new();
+    let wb = paths::workbench_knowledge_root().expect("wb");
+    let plan_path = paths::plan_tasks_path().expect("plan_tasks");
+    assert!(plan_path.starts_with(&wb));
+    assert_ne!(
+        plan_path,
+        sandbox
+            .prod_workbench_knowledge_root()
+            .join("plan_tasks")
+            .join("plan_tasks.json")
+    );
+    assert_ne!(plan_path, sandbox.prod_cache_dir().join("plan_tasks.json"));
 }
 
 #[test]
@@ -334,45 +330,91 @@ fn link_archive_updates_reverse_index() {
 }
 
 #[test]
-fn create_persists_valid_json_via_atomic_write() {
+fn create_persists_v2_layout_via_write_task_batch() {
     with_plan_task_sandbox(|wb| {
         let created = create_master_with_subs("Persist", None);
         assert_eq!(created["_status"], 201);
 
-        let path = wb.join("plan_tasks").join("plan_tasks.json");
-        assert!(path.is_file());
-        let text = fs::read_to_string(&path).expect("read json");
-        let parsed: serde_json::Value = serde_json::from_str(&text).expect("valid json");
-        assert_eq!(parsed["version"], 1);
-        let tasks = parsed["tasks"].as_object().expect("tasks map");
-        assert_eq!(tasks.len(), 1);
         let master_id = created["master_task_id"].as_str().unwrap();
-        assert!(tasks.contains_key(master_id));
+        let task_dir = wb.join("plan_tasks").join("tasks").join(master_id);
+        assert!(task_dir.join("sub_tasks.json").is_file());
+        assert!(task_dir.join("plan.md").is_file());
+
+        let index: serde_json::Value = serde_json::from_str(
+            &fs::read_to_string(wb.join("plan_tasks").join("index.json")).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(index["version"], 2);
+        assert!(index["tasks"].get(master_id).is_some());
     });
 }
 
 #[test]
-fn corrupt_json_list_returns_explicit_error() {
+fn corrupt_storage_list_returns_explicit_error() {
     with_plan_task_sandbox(|wb| {
-        let path = wb.join("plan_tasks").join("plan_tasks.json");
-        fs::create_dir_all(wb.join("plan_tasks")).expect("mkdir");
-        fs::write(&path, "{not valid json").expect("write corrupt");
+        let master_id = "task_corrupt_list";
+        let plan_tasks_dir = wb.join("plan_tasks");
+        fs::create_dir_all(plan_tasks_dir.join("tasks").join(master_id)).expect("mkdir");
+        let index = serde_json::json!({
+            "version": 2,
+            "tasks": {
+                master_id: {
+                    "master_task_id": master_id,
+                    "title": "Corrupt",
+                    "status": "incomplete",
+                    "created_at": "2026-07-08T00:00:00+00:00",
+                    "task_dir": format!("tasks/{master_id}")
+                }
+            }
+        });
+        fs::write(
+            plan_tasks_dir.join("index.json"),
+            serde_json::to_string_pretty(&index).expect("serialize"),
+        )
+        .expect("write index");
+        fs::write(
+            plan_tasks_dir.join("tasks").join(master_id).join("sub_tasks.json"),
+            "{not valid json",
+        )
+        .expect("write corrupt sub_tasks");
 
         let v = list_all();
-        assert!(v.get("error").is_some());
+        assert_eq!(v["error"], "Invalid plan_tasks storage");
         assert_eq!(v["_status"], 500);
     });
 }
 
 #[test]
-fn corrupt_json_get_returns_explicit_error() {
+fn corrupt_storage_get_returns_explicit_error() {
     with_plan_task_sandbox(|wb| {
-        let path = wb.join("plan_tasks").join("plan_tasks.json");
-        fs::create_dir_all(wb.join("plan_tasks")).expect("mkdir");
-        fs::write(&path, "{not valid json").expect("write corrupt");
+        let master_id = "task_corrupt_get";
+        let plan_tasks_dir = wb.join("plan_tasks");
+        fs::create_dir_all(plan_tasks_dir.join("tasks").join(master_id)).expect("mkdir");
+        let index = serde_json::json!({
+            "version": 2,
+            "tasks": {
+                master_id: {
+                    "master_task_id": master_id,
+                    "title": "Corrupt",
+                    "status": "incomplete",
+                    "created_at": "2026-07-08T00:00:00+00:00",
+                    "task_dir": format!("tasks/{master_id}")
+                }
+            }
+        });
+        fs::write(
+            plan_tasks_dir.join("index.json"),
+            serde_json::to_string_pretty(&index).expect("serialize"),
+        )
+        .expect("write index");
+        fs::write(
+            plan_tasks_dir.join("tasks").join(master_id).join("sub_tasks.json"),
+            "{not valid json",
+        )
+        .expect("write corrupt sub_tasks");
 
-        let v = get_by_id("any-id");
-        assert!(v.get("error").is_some());
+        let v = get_by_id(master_id);
+        assert_eq!(v["error"], "Invalid plan_tasks storage");
         assert_eq!(v["_status"], 500);
     });
 }
@@ -422,7 +464,7 @@ fn bootstrap_deletes_v1_on_storage_write_entry() {
         let v = create_master_with_subs("Bootstrap via write", None);
         assert_eq!(v["_status"], 201);
         assert_eq!(read_index_version(wb), 2);
-        // v1 single-file may be recreated by legacy write path until v3; bootstrap ran at write entry.
+        assert!(!wb_v1.is_file(), "v2 create must not recreate v1 file");
     });
 }
 
@@ -512,6 +554,26 @@ fn bootstrap_preserves_valid_v2_index_tasks() {
             serde_json::to_string_pretty(&index).expect("serialize index"),
         )
         .expect("write index");
+        let sub_tasks = serde_json::json!({
+            "sub_tasks": [{
+                "sub_task_id": "task_keepme_sub_01",
+                "title": "Keep me",
+                "status": "incomplete",
+                "implicit": true,
+                "linked_archive_ids": []
+            }]
+        });
+        fs::create_dir_all(plan_tasks_dir.join("tasks").join("task_keepme")).expect("mkdir task");
+        fs::write(
+            plan_tasks_dir.join("tasks").join("task_keepme").join("sub_tasks.json"),
+            serde_json::to_string_pretty(&sub_tasks).expect("serialize subs"),
+        )
+        .expect("write sub_tasks");
+        fs::write(
+            plan_tasks_dir.join("tasks").join("task_keepme").join("plan.md"),
+            "",
+        )
+        .expect("write plan.md");
 
         list_all();
 
@@ -693,5 +755,131 @@ fn write_task_batch_index_failure_restores_snapshot_and_leaves_orphan() {
         let index: serde_json::Value = serde_json::from_str(&snapshot_after).unwrap();
         assert!(index["tasks"].get(master_id).is_none());
         assert!(index["tasks"].get(existing_id).is_some());
+    });
+}
+
+#[test]
+fn add_sub_appends_incomplete_sub_and_recomputes_master_incomplete() {
+    with_plan_task_sandbox(|_| {
+        let created = create_master_with_subs("Add sub", Some(&["A"]));
+        let master_id = created["master_task_id"].as_str().unwrap();
+        complete_sub(master_id, created["sub_task_id"].as_str().unwrap());
+        let got_before = get_by_id(master_id);
+        assert_eq!(got_before["status"], "complete");
+
+        let added = add_sub(master_id, "B");
+        assert_eq!(added["_status"], 201);
+        assert!(added.get("sub_task_id").is_some());
+        let task = master_from_value(&added);
+        assert_eq!(task["status"], "incomplete");
+        let subs = task["sub_tasks"].as_array().unwrap();
+        assert_eq!(subs.len(), 2);
+        assert_eq!(subs[1]["status"], "incomplete");
+        assert_eq!(subs[1]["implicit"], false);
+    });
+}
+
+#[test]
+fn complete_sub_partial_multi_sub_keeps_master_incomplete() {
+    with_plan_task_sandbox(|_| {
+        let created = create_master_with_subs("Partial", Some(&["A", "B"]));
+        let master_id = created["master_task_id"].as_str().unwrap();
+        let sub_a = created["task"]["sub_tasks"][0]["sub_task_id"]
+            .as_str()
+            .unwrap();
+        let v = complete_sub(master_id, sub_a);
+        assert_eq!(v["_status"], 200);
+        assert_eq!(master_from_value(&v)["status"], "incomplete");
+    });
+}
+
+#[test]
+fn link_archive_does_not_change_sub_or_master_status() {
+    with_plan_task_sandbox(|_| {
+        let created = create_master_with_subs("Link status", Some(&["A", "B"]));
+        let master_id = created["master_task_id"].as_str().unwrap();
+        let sub_a = created["task"]["sub_tasks"][0]["sub_task_id"]
+            .as_str()
+            .unwrap();
+        complete_sub(master_id, sub_a);
+        let before = get_by_id(master_id);
+        let linked = link_archive(master_id, sub_a, "archive_id_123456789012345678901234");
+        assert_eq!(linked["_status"], 200);
+        let after = master_from_value(&linked);
+        assert_eq!(after["status"], before["status"]);
+        assert_eq!(after["sub_tasks"][0]["status"], before["sub_tasks"][0]["status"]);
+    });
+}
+
+#[test]
+fn delete_sub_recomputes_master_and_rejects_last_sub() {
+    with_plan_task_sandbox(|_| {
+        let created = create_master_with_subs("Delete sub", Some(&["A", "B"]));
+        let master_id = created["master_task_id"].as_str().unwrap();
+        let sub_a = created["task"]["sub_tasks"][0]["sub_task_id"]
+            .as_str()
+            .unwrap();
+        complete_sub(master_id, sub_a);
+
+        let deleted = delete_sub(master_id, sub_a);
+        assert_eq!(deleted["_status"], 200);
+        assert_eq!(master_from_value(&deleted)["status"], "incomplete");
+
+        let last_sub = get_by_id(master_id)["sub_tasks"][0]["sub_task_id"]
+            .as_str()
+            .unwrap()
+            .to_string();
+        let blocked = delete_sub(master_id, &last_sub);
+        assert_eq!(blocked["_status"], 400);
+        assert_eq!(blocked["error"], "Cannot delete last sub");
+    });
+}
+
+#[test]
+fn delete_master_removes_index_entry_and_task_directory() {
+    with_plan_task_sandbox(|wb| {
+        let created = create_master_with_subs("Delete me", None);
+        let master_id = created["master_task_id"].as_str().unwrap();
+        let task_dir = wb.join("plan_tasks").join("tasks").join(master_id);
+        assert!(task_dir.is_dir());
+
+        let v = delete_master(master_id);
+        assert_eq!(v["_status"], 200);
+        assert_eq!(v["ok"], true);
+        assert!(!task_dir.exists());
+        let index: serde_json::Value = serde_json::from_str(
+            &fs::read_to_string(wb.join("plan_tasks").join("index.json")).unwrap(),
+        )
+        .unwrap();
+        assert!(index["tasks"].get(master_id).is_none());
+        assert_eq!(get_by_id(master_id)["_status"], 404);
+    });
+}
+
+#[test]
+fn create_batch_failure_leaves_no_partial_commit() {
+    with_plan_task_sandbox(|wb| {
+        test_set_fail_batch_index(true);
+        let v = create_master_with_subs("Fail batch", None);
+        assert_eq!(v["_status"], 500);
+
+        let index: serde_json::Value = serde_json::from_str(
+            &fs::read_to_string(wb.join("plan_tasks").join("index.json")).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(index["tasks"].as_object().map(|m| m.len()).unwrap_or(0), 0);
+
+        let list = list_all();
+        let list = list.as_array().expect("array");
+        assert!(list.is_empty());
+    });
+}
+
+#[test]
+fn create_response_omits_completed_at_on_new_subs() {
+    with_plan_task_sandbox(|_| {
+        let v = create_master_with_subs("New", None);
+        let subs = v["task"]["sub_tasks"].as_array().unwrap();
+        assert!(subs[0].get("completed_at").is_none() || subs[0]["completed_at"].is_null());
     });
 }
