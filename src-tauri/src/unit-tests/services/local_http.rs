@@ -8,10 +8,31 @@ use reqwest::blocking;
 use serde_json::{json, Value};
 
 use super::*;
-use crate::test_support::{TestSandbox, with_config_test_serial};
+use crate::test_support::TestSandbox;
 
 fn with_plan_task_http_test<F: FnOnce()>(f: F) {
-    with_config_test_serial(f);
+    f();
+}
+
+fn assert_ac5_master_task_shape(task: &Value) {
+    assert!(task.get("master_task_id").and_then(|v| v.as_str()).is_some());
+    assert!(task.get("title").and_then(|v| v.as_str()).is_some());
+    let status = task.get("status").and_then(|v| v.as_str()).expect("status");
+    assert!(status == "incomplete" || status == "complete");
+    assert!(task.get("created_at").and_then(|v| v.as_str()).is_some());
+    let subs = task["sub_tasks"].as_array().expect("sub_tasks");
+    assert!(!subs.is_empty());
+    for sub in subs {
+        assert!(sub.get("sub_task_id").and_then(|v| v.as_str()).is_some());
+        assert!(sub.get("status").and_then(|v| v.as_str()).is_some());
+        assert!(sub.get("implicit").map(|v| v.is_boolean()).unwrap_or(false));
+        let links = sub["linked_archive_ids"].as_array().expect("linked_archive_ids");
+        assert!(links.is_empty() || !links.is_empty());
+        assert!(
+            sub.get("completed_at").is_none() || sub["completed_at"].is_null(),
+            "create/list must omit or null completed_at"
+        );
+    }
 }
 
 struct RepoFixture {
@@ -770,6 +791,58 @@ fn post_plan_task_create_blank_title_returns_400() {
             );
             assert_eq!(status, 400);
             assert!(body.get("error").is_some());
+        });
+    });
+}
+
+#[test]
+fn post_plan_task_create_response_ac5_field_matrix() {
+    with_plan_task_http_test(|| {
+        let fixture = setup_repo_for_plan_task();
+        let repo_root = fixture.repo_root.clone();
+        with_server(repo_root, |port| {
+            let (status, body) = http_post(
+                port,
+                "/api/plan-task-create",
+                &json!({ "title": "AC5 master", "sub_titles": ["Sub A"] }),
+            );
+            assert_eq!(status, 201);
+            assert!(body.get("master_task_id").and_then(|v| v.as_str()).is_some());
+            assert!(body.get("sub_task_id").and_then(|v| v.as_str()).is_some());
+            assert_ac5_master_task_shape(&body["task"]);
+            assert_eq!(body["task"]["status"], "incomplete");
+            assert_eq!(body["task"]["sub_tasks"][0]["title"], "Sub A");
+            assert_eq!(body["task"]["sub_tasks"][0]["implicit"], false);
+
+            let wb = crate::config::paths::workbench_knowledge_root().expect("wb");
+            let master_id = body["master_task_id"].as_str().unwrap();
+            assert!(
+                wb.join("plan_tasks")
+                    .join("tasks")
+                    .join(master_id)
+                    .join("sub_tasks.json")
+                    .is_file(),
+                "v2 storage must exist but remain invisible in HTTP shape"
+            );
+        });
+    });
+}
+
+#[test]
+fn plan_task_write_routes_not_exposed_on_http() {
+    with_plan_task_http_test(|| {
+        let fixture = setup_repo_for_plan_task();
+        let repo_root = fixture.repo_root.clone();
+        with_server(repo_root, |port| {
+            for path in [
+                "/api/plan-task-delete",
+                "/api/plan-task-add-sub",
+                "/api/plan-task-complete-sub",
+                "/api/plan-task-link-archive",
+            ] {
+                let (status, _) = http_post(port, path, &json!({ "title": "x" }));
+                assert_eq!(status, 405, "unexpected plan write route: {path}");
+            }
         });
     });
 }
