@@ -1708,9 +1708,32 @@
     text-decoration: underline;
   }
 
+  .plan-tasks-page {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+    background: #fff;
+  }
+  .plan-tasks-page-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 16px 20px;
+    border-bottom: 1px solid #d0d7de;
+    background: #f6f8fa;
+    flex-shrink: 0;
+  }
+  .plan-tasks-page-title {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+    color: #24292f;
+  }
   .plan-task-split {
     display: flex;
-    height: 100%;
+    flex: 1 1 auto;
     min-height: 0;
     background: #fff;
   }
@@ -1758,7 +1781,9 @@
     gap: 6px;
   }
   .plan-task-master-item {
-    display: block;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
     width: 100%;
     padding: 10px 12px;
     border: 1px solid #d0d7de;
@@ -1778,12 +1803,42 @@
   .plan-task-master-title {
     font-size: 13px;
     line-height: 1.4;
+    font-weight: 600;
     color: #24292f;
   }
+  .plan-task-master-meta {
+    font-size: 11px;
+    line-height: 1.35;
+    color: #57606a;
+  }
+  .plan-task-detail-header {
+    margin-bottom: 12px;
+  }
   .plan-task-detail-title {
-    margin: 0 0 16px;
+    margin: 0 0 4px;
     font-size: 18px;
     color: #24292f;
+  }
+  .plan-task-detail-meta {
+    margin: 0;
+    font-size: 12px;
+    color: #57606a;
+  }
+  .plan-task-detail-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #eaeef2;
+  }
+  .plan-task-btn-danger {
+    color: #cf222e;
+    border-color: #ff8182;
+  }
+  .plan-task-btn-danger:hover {
+    background: #fff1f0;
+    border-color: #cf222e;
   }
   .plan-task-sub-list {
     display: flex;
@@ -1813,16 +1868,108 @@
     font-weight: 600;
     color: #24292f;
   }
+  .plan-task-sub-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+  }
   .plan-task-sub-status {
+    font-size: 11px;
+    font-weight: 500;
+    padding: 2px 8px;
+    border-radius: 999px;
+    line-height: 1.4;
+  }
+  .plan-task-sub-status--incomplete {
+    color: #0969da;
+    background: #ddf4ff;
+  }
+  .plan-task-sub-status--complete {
+    color: #1a7f37;
+    background: #dafbe1;
+  }
+  .plan-task-sub-menu {
+    position: relative;
+  }
+  .plan-task-sub-menu-btn {
+    border: none;
+    background: transparent;
+    color: #57606a;
+    font-size: 16px;
+    line-height: 1;
+    padding: 2px 6px;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+  .plan-task-sub-menu-btn:hover {
+    background: #eaeef2;
+    color: #24292f;
+  }
+  .plan-task-sub-menu-panel {
+    position: absolute;
+    top: calc(100% + 4px);
+    right: 0;
+    z-index: 10;
+    min-width: 120px;
+    background: #fff;
+    border: 1px solid #d0d7de;
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(31, 35, 40, .12);
+    padding: 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .plan-task-sub-menu-panel[hidden] {
+    display: none !important;
+  }
+  .plan-task-sub-menu-panel button {
+    border: none;
+    background: transparent;
+    text-align: left;
+    padding: 8px 10px;
+    border-radius: 6px;
     font-size: 12px;
-    text-transform: lowercase;
+    color: #24292f;
+    cursor: pointer;
+  }
+  .plan-task-sub-menu-panel button:hover {
+    background: #f6f8fa;
+  }
+  .plan-task-sub-menu-panel button[data-action="delete-sub"] {
+    color: #cf222e;
+  }
+  .plan-task-empty {
+    padding: 32px 16px;
+    text-align: center;
     color: #57606a;
   }
-  .plan-task-sub-copy {
-    font-size: 12px;
-    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  .plan-task-empty--sidebar {
+    margin-top: 24px;
+  }
+  .plan-task-empty--detail {
+    border: 1px dashed #d0d7de;
+    border-radius: 8px;
+    padding: 32px 20px;
+  }
+  .plan-task-empty-title {
+    margin: 0 0 8px;
+    font-size: 14px;
+    font-weight: 600;
     color: #24292f;
-    margin-bottom: 6px;
+  }
+  .plan-task-empty-detail {
+    margin: 0 0 16px;
+    font-size: 12px;
+    line-height: 1.45;
+  }
+  .plan-task-refresh-warning {
+    margin-bottom: 12px;
+    padding: 12px;
+    border: 1px solid #d4a72c;
+    border-radius: 8px;
+    background: #fff8c5;
   }
   .plan-task-sub-archives {
     font-size: 12px;
@@ -4004,6 +4151,154 @@
   transition: background .15s;
 }
 #btn-base64-copy:hover { background: #0757b8; }
+
+/* ── Plan Task dialog ── */
+#plan-task-dialog {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, .45);
+}
+#plan-task-dialog.open { display: flex; }
+#plan-task-dialog-box {
+  background: #fff;
+  border-radius: 12px;
+  width: min(440px, 92vw);
+  max-height: min(80vh, 640px);
+  box-shadow: 0 12px 40px rgba(31, 35, 40, .22);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+#plan-task-dialog-header {
+  padding: 14px 16px;
+  border-bottom: 1px solid #d0d7de;
+  background: #f6f8fa;
+}
+#plan-task-dialog-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: #24292f;
+}
+#plan-task-dialog-body {
+  overflow: auto;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+#plan-task-dialog-error {
+  margin: 0 16px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: #fff1f0;
+  color: #cf222e;
+  font-size: 12px;
+  line-height: 1.4;
+}
+#plan-task-dialog-error[hidden] { display: none; }
+#plan-task-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 16px;
+  border-top: 1px solid #d0d7de;
+  background: #f6f8fa;
+}
+#plan-task-dialog-primary.danger {
+  background: #cf222e;
+  border-color: #cf222e;
+  color: #fff;
+}
+#plan-task-dialog-primary.danger:hover {
+  background: #a40e26;
+  border-color: #a40e26;
+}
+.plan-task-dialog-label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.plan-task-dialog-label-text {
+  font-size: 12px;
+  font-weight: 600;
+  color: #24292f;
+}
+.plan-task-dialog-required {
+  color: #cf222e;
+}
+.plan-task-dialog-field {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 10px;
+  border: 1px solid #d0d7de;
+  border-radius: 6px;
+  font-size: 13px;
+  color: #24292f;
+}
+.plan-task-dialog-field:focus {
+  outline: none;
+  border-color: #0969da;
+  box-shadow: 0 0 0 3px rgba(9, 105, 218, .15);
+}
+.plan-task-dialog-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.plan-task-dialog-sub-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.plan-task-dialog-sub-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.plan-task-dialog-row-remove {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border: 1px solid #d0d7de;
+  border-radius: 6px;
+  background: #fff;
+  color: #57606a;
+  cursor: pointer;
+}
+.plan-task-dialog-row-remove:disabled {
+  opacity: .45;
+  cursor: not-allowed;
+}
+.plan-task-dialog-add-row {
+  align-self: flex-start;
+  border: none;
+  background: transparent;
+  color: #0969da;
+  font-size: 12px;
+  cursor: pointer;
+  padding: 0;
+}
+.plan-task-dialog-hint {
+  margin: 0;
+  font-size: 11px;
+  color: #57606a;
+}
+.plan-task-dialog-readonly {
+  margin: 0;
+  font-size: 12px;
+  color: #57606a;
+}
+.plan-task-dialog-message {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #24292f;
+}
 
 /* ── Read Later dialog ── */
 #read-later-dialog {

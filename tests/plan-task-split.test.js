@@ -117,14 +117,14 @@ describe('copySubIdPair', () => {
 });
 
 describe('renderSubDetail', () => {
-  it('renders all subs with status labels and copy text', () => {
+  it('renders all subs with Chinese status labels and copy in menu', () => {
     const html = renderSubDetail(sampleMasters[0], 'task_alpha_sub_01');
     expect(html).toContain('Alpha Sub A');
     expect(html).toContain('Alpha Sub B');
-    expect(html).toContain('incomplete');
-    expect(html).toContain('complete');
-    expect(html).toContain('task_alpha → task_alpha_sub_01');
-    expect(html).toContain('task_alpha → task_alpha_sub_02');
+    expect(html).toContain('进行中');
+    expect(html).toContain('已完成');
+    expect(html).toContain('data-copy-text="task_alpha → task_alpha_sub_01"');
+    expect(html).toContain('data-copy-text="task_alpha → task_alpha_sub_02"');
   });
 
   it('renders linked_archive_ids as comma list with prefix', () => {
@@ -141,8 +141,8 @@ describe('renderSubDetail', () => {
   it('renders implicit single sub master correctly', () => {
     const html = renderSubDetail(sampleMasters[1], 'task_beta_sub_01');
     expect(html).toContain('Implicit only');
-    expect(html).toContain('task_beta → task_beta_sub_01');
-    expect(html).toContain('incomplete');
+    expect(html).toContain('data-copy-text="task_beta → task_beta_sub_01"');
+    expect(html).toContain('进行中');
   });
 });
 
@@ -293,6 +293,11 @@ describe('mountPlanTaskSplit', () => {
 describe('plan-tasks route source wiring', () => {
   it('index.html includes #plan-tasks-view shell', () => {
     expect(indexHtml).toMatch(/id="plan-tasks-view"/);
+  });
+
+  it('index.html includes plan-task dialog shell', () => {
+    expect(indexHtml).toMatch(/id="plan-task-dialog"/);
+    expect(indexHtml).toMatch(/id="plan-task-dialog-primary"/);
   });
 
   it('main.js defines mountPlanTasksRoute', () => {

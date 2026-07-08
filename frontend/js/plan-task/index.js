@@ -1,8 +1,14 @@
 import { createApiClient, resolveReadDriver } from '../apiClient.js';
 import { escHtml } from '../utils.js';
+import { closePlanTaskDialog, isPlanTaskDialogOpen, openPlanTaskDialog } from './dialog.js';
 
 const UNAVAILABLE_MSG = '列表暂时不可用，请稍后重试';
 const REFRESH_WARNING_MSG = '已保存，列表刷新失败，请重试';
+
+const STATUS_LABELS = {
+  incomplete: '进行中',
+  complete: '已完成',
+};
 
 function getTauriInvoke() {
   if (typeof window === 'undefined') return null;
@@ -63,6 +69,10 @@ export function copySubIdPair(masterId, subId) {
   return `${masterId} → ${subId}`;
 }
 
+export function formatPlanTaskStatus(status) {
+  return STATUS_LABELS[status] ?? status;
+}
+
 function buildDeepLink(masterId, subId) {
   const params = new URLSearchParams({ master: masterId, sub: subId });
   return `#/plan-tasks?${params.toString()}`;
@@ -82,27 +92,22 @@ function pickDefaultSub(master) {
   return incomplete ?? subs[0] ?? null;
 }
 
-function writeControlsDisabled(writeState) {
-  return writeState === 'writing' || writeState === 'refresh';
+function formatRelativeTime(iso) {
+  const time = Date.parse(iso ?? '');
+  if (!time) return '';
+  const diffMs = Date.now() - time;
+  const minutes = Math.floor(diffMs / 60000);
+  if (minutes < 1) return '刚刚';
+  if (minutes < 60) return `${minutes} 分钟前`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours} 小时前`;
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `${days} 天前`;
+  return new Date(time).toLocaleDateString('zh-CN');
 }
 
-function parseSubTitles(raw) {
-  const trimmed = raw?.trim();
-  if (!trimmed) return undefined;
-  const titles = trimmed
-    .split(',')
-    .map((part) => part.trim())
-    .filter(Boolean);
-  return titles.length ? titles : undefined;
-}
-
-function renderWriteError(writeError) {
-  if (!writeError) return '';
-  return `
-    <div class="plan-task-write-error plan-task-split-state plan-task-split-state--error" role="alert">
-      <p class="plan-task-split-state-detail">${escHtml(writeError)}</p>
-    </div>
-  `;
+function controlsDisabled(busy) {
+  return busy || isPlanTaskDialogOpen();
 }
 
 function renderRefreshWarning(refreshWarning, disabled) {
@@ -116,43 +121,29 @@ function renderRefreshWarning(refreshWarning, disabled) {
   `;
 }
 
-function renderMasterToolbar({ writeState, inputKind }) {
-  const disabled = writeControlsDisabled(writeState);
+function renderPageHeader(disabled) {
   const disabledAttr = disabled ? ' disabled' : '';
-  if (writeState === 'input' && inputKind === 'create-master') {
-    return `
-      <div class="plan-task-master-toolbar plan-task-write-input" data-write-zone="create-master">
-        <label class="plan-task-write-label">
-          <span>计划标题</span>
-          <input type="text" class="plan-task-write-field" data-input="create-title" placeholder="必填" />
-        </label>
-        <label class="plan-task-write-label">
-          <span>子任务标题（可选，逗号分隔）</span>
-          <input type="text" class="plan-task-write-field" data-input="create-subtitles" placeholder="例如：调研, 实现" />
-        </label>
-        <div class="plan-task-write-actions">
-          <button type="button" class="md-header-btn primary" data-action="submit-create-master">创建</button>
-          <button type="button" class="md-header-btn" data-action="cancel-input">取消</button>
-        </div>
-      </div>
-    `;
-  }
   return `
-    <div class="plan-task-master-toolbar">
-      <button type="button" class="md-header-btn primary plan-task-write-btn" data-action="create-master"${disabledAttr}>新建计划</button>
-    </div>
+    <header class="plan-tasks-page-header">
+      <h1 class="plan-tasks-page-title">计划任务</h1>
+      <button type="button" class="md-header-btn primary" data-action="create-master"${disabledAttr}>+ 新建计划</button>
+    </header>
   `;
 }
 
-function renderMasterList(masters, selectedMasterId) {
+function renderMasterList(masters, selectedMasterId, disabled) {
+  const disabledAttr = disabled ? ' disabled' : '';
   const items = sortMasters(masters)
     .map((master) => {
       const selected =
         master.master_task_id === selectedMasterId ? ' plan-task-master-item--selected' : '';
+      const subCount = master.sub_tasks?.length ?? 0;
+      const meta = `${subCount} 个子任务 · ${formatRelativeTime(master.created_at) || '未知时间'}`;
       return `
         <li>
-          <button type="button" class="plan-task-master-item${selected}" data-master-id="${escHtml(master.master_task_id)}">
+          <button type="button" class="plan-task-master-item${selected}" data-master-id="${escHtml(master.master_task_id)}"${disabledAttr}>
             <span class="plan-task-master-title">${escHtml(master.title)}</span>
+            <span class="plan-task-master-meta">${escHtml(meta)}</span>
           </button>
         </li>
       `;
@@ -161,14 +152,22 @@ function renderMasterList(masters, selectedMasterId) {
   return `<ul class="plan-task-master-list" role="list">${items}</ul>`;
 }
 
-function renderMasterPane(masters, selectedMasterId, writeUi) {
-  const toolbar = renderMasterToolbar(writeUi);
-  const list = masters.length
-    ? renderMasterList(masters, selectedMasterId)
-    : '<div class="plan-task-split-state"><p class="plan-task-split-state-title">暂无计划任务</p></div>';
-  const masterError =
-    writeUi.writeError && writeUi.inputKind === 'create-master' ? writeUi.writeError : '';
-  return `${toolbar}${renderWriteError(masterError)}${list}`;
+function renderMasterEmpty(disabled) {
+  const disabledAttr = disabled ? ' disabled' : '';
+  return `
+    <div class="plan-task-empty plan-task-empty--sidebar">
+      <p class="plan-task-empty-title">还没有计划</p>
+      <p class="plan-task-empty-detail">创建第一个计划，开始管理子任务</p>
+      <button type="button" class="md-header-btn primary" data-action="create-master"${disabledAttr}>新建计划</button>
+    </div>
+  `;
+}
+
+function renderMasterPane(masters, selectedMasterId, disabled) {
+  if (!masters.length) {
+    return renderMasterEmpty(disabled);
+  }
+  return renderMasterList(masters, selectedMasterId, disabled);
 }
 
 function renderLinkedArchives(linkedArchiveIds) {
@@ -176,22 +175,27 @@ function renderLinkedArchives(linkedArchiveIds) {
   return `<div class="plan-task-sub-archives">关联归档：${escHtml(linkedArchiveIds.join(', '))}</div>`;
 }
 
-function renderSubRow(master, sub, selectedSubId, writeUi) {
+function renderSubRow(master, sub, selectedSubId, disabled) {
   const selected = sub.sub_task_id === selectedSubId ? ' plan-task-sub--selected' : '';
-  const copyText = copySubIdPair(master.master_task_id, sub.sub_task_id);
   const title = sub.title || sub.sub_task_id;
-  const disabled = writeControlsDisabled(writeUi.writeState);
+  const statusLabel = formatPlanTaskStatus(sub.status);
   const disabledAttr = disabled ? ' disabled' : '';
+  const copyText = copySubIdPair(master.master_task_id, sub.sub_task_id);
   return `
     <article data-sub-id="${escHtml(sub.sub_task_id)}" class="plan-task-sub${selected}">
       <header class="plan-task-sub-header">
         <h3 class="plan-task-sub-title">${escHtml(title)}</h3>
         <div class="plan-task-sub-header-actions">
-          <span class="plan-task-sub-status plan-task-sub-status--${escHtml(sub.status)}">${escHtml(sub.status)}</span>
-          <button type="button" class="plan-task-sub-delete" data-action="delete-sub" data-sub-id="${escHtml(sub.sub_task_id)}" aria-label="删除子任务"${disabledAttr}>×</button>
+          <span class="plan-task-sub-status plan-task-sub-status--${escHtml(sub.status)}">${escHtml(statusLabel)}</span>
+          <div class="plan-task-sub-menu">
+            <button type="button" class="plan-task-sub-menu-btn" data-action="toggle-sub-menu" aria-label="更多操作"${disabledAttr}>⋯</button>
+            <div class="plan-task-sub-menu-panel" hidden>
+              <button type="button" data-action="copy-sub-id" data-copy-text="${escHtml(copyText)}">复制 ID</button>
+              <button type="button" data-action="delete-sub" data-sub-id="${escHtml(sub.sub_task_id)}" data-sub-title="${escHtml(title)}">删除</button>
+            </div>
+          </div>
         </div>
       </header>
-      <div class="plan-task-sub-copy">${escHtml(copyText)}</div>
       ${renderLinkedArchives(sub.linked_archive_ids)}
     </article>
   `;
@@ -199,7 +203,7 @@ function renderSubRow(master, sub, selectedSubId, writeUi) {
 
 export function renderSubDetail(master, selectedSubId) {
   const subs = master.sub_tasks ?? [];
-  const items = subs.map((sub) => renderSubRow(master, sub, selectedSubId, { writeState: 'idle' })).join('');
+  const items = subs.map((sub) => renderSubRow(master, sub, selectedSubId, false)).join('');
   return `
     <div class="plan-task-detail-body">
       <h2 class="plan-task-detail-title">${escHtml(master.title)}</h2>
@@ -208,64 +212,48 @@ export function renderSubDetail(master, selectedSubId) {
   `;
 }
 
-function renderDetailHeader(master, writeUi) {
-  const disabled = writeControlsDisabled(writeUi.writeState);
+function renderDetailMeta(master) {
+  const subCount = master.sub_tasks?.length ?? 0;
+  const created = formatRelativeTime(master.created_at) || '未知时间';
+  return `<p class="plan-task-detail-meta">${subCount} 个子任务 · 创建于 ${escHtml(created)}</p>`;
+}
+
+function renderDetailToolbar(masterTaskId, disabled) {
   const disabledAttr = disabled ? ' disabled' : '';
-  if (writeUi.pendingDeleteMaster) {
-    return `
-      <div class="plan-task-detail-header plan-task-delete-confirm" data-write-zone="delete-master">
-        <h2 class="plan-task-detail-title">${escHtml(master.title)}</h2>
-        <div class="plan-task-write-actions">
-          <span class="plan-task-delete-confirm-text">确认删除此计划？</span>
-          <button type="button" class="md-header-btn primary" data-action="confirm-delete-master">确认删除</button>
-          <button type="button" class="md-header-btn" data-action="cancel-delete-master">取消</button>
-        </div>
-      </div>
-    `;
-  }
   return `
-    <div class="plan-task-detail-header">
-      <h2 class="plan-task-detail-title">${escHtml(master.title)}</h2>
-      <button type="button" class="md-header-btn plan-task-delete-master" data-action="delete-master"${disabledAttr}>删除计划</button>
+    <div class="plan-task-detail-toolbar">
+      <button type="button" class="md-header-btn" data-action="add-sub" data-master-id="${escHtml(masterTaskId)}"${disabledAttr}>添加子任务</button>
+      <button type="button" class="md-header-btn plan-task-btn-danger" data-action="delete-master"${disabledAttr}>删除计划</button>
     </div>
   `;
 }
 
-function renderAddSubControls(masterTaskId, writeUi) {
-  const disabled = writeControlsDisabled(writeUi.writeState);
+function renderSubEmpty(disabled) {
   const disabledAttr = disabled ? ' disabled' : '';
-  if (writeUi.writeState === 'input' && writeUi.inputKind === 'add-sub') {
-    return `
-      <div class="plan-task-add-sub plan-task-write-input" data-write-zone="add-sub" data-master-id="${escHtml(masterTaskId)}">
-        <label class="plan-task-write-label">
-          <span>子任务标题</span>
-          <input type="text" class="plan-task-write-field" data-input="add-sub-title" placeholder="必填" />
-        </label>
-        <div class="plan-task-write-actions">
-          <button type="button" class="md-header-btn primary" data-action="submit-add-sub">添加</button>
-          <button type="button" class="md-header-btn" data-action="cancel-input">取消</button>
-        </div>
-      </div>
-    `;
-  }
   return `
-    <div class="plan-task-add-sub">
-      <button type="button" class="md-header-btn plan-task-write-btn" data-action="add-sub" data-master-id="${escHtml(masterTaskId)}"${disabledAttr}>添加子任务</button>
+    <div class="plan-task-empty plan-task-empty--detail">
+      <p class="plan-task-empty-title">还没有子任务</p>
+      <p class="plan-task-empty-detail">添加第一个子任务开始执行</p>
+      <button type="button" class="md-header-btn primary" data-action="add-sub"${disabledAttr}>添加子任务</button>
     </div>
   `;
 }
 
-function renderSubDetailWithControls(master, selectedSubId, writeUi) {
+function renderSubDetailPane(master, selectedSubId, ui) {
   const subs = master.sub_tasks ?? [];
-  const items = subs.map((sub) => renderSubRow(master, sub, selectedSubId, writeUi)).join('');
-  const detailError =
-    writeUi.writeError && writeUi.inputKind !== 'create-master' ? writeUi.writeError : '';
+  const items = subs.length
+    ? subs.map((sub) => renderSubRow(master, sub, selectedSubId, ui.disabled)).join('')
+    : renderSubEmpty(ui.disabled);
   return `
     <div class="plan-task-detail-body">
-      ${renderDetailHeader(master, writeUi)}
-      ${renderRefreshWarning(writeUi.refreshWarning, writeControlsDisabled(writeUi.writeState))}
-      ${renderWriteError(detailError)}
-      ${renderAddSubControls(master.master_task_id, writeUi)}
+      <div class="plan-task-detail-header">
+        <div>
+          <h2 class="plan-task-detail-title">${escHtml(master.title)}</h2>
+          ${renderDetailMeta(master)}
+        </div>
+      </div>
+      ${renderRefreshWarning(ui.refreshWarning, ui.disabled)}
+      ${renderDetailToolbar(master.master_task_id, ui.disabled)}
       <div class="plan-task-sub-list">${items}</div>
     </div>
   `;
@@ -273,8 +261,9 @@ function renderSubDetailWithControls(master, selectedSubId, writeUi) {
 
 function renderDetailEmpty() {
   return `
-    <div class="plan-task-split-detail-empty plan-task-split-state">
-      <p class="plan-task-split-state-title">选择左侧任务查看详情</p>
+    <div class="plan-task-split-detail-empty plan-task-empty">
+      <p class="plan-task-empty-title">选择左侧计划</p>
+      <p class="plan-task-empty-detail">或点击右上角新建计划</p>
     </div>
   `;
 }
@@ -297,11 +286,14 @@ function renderErrorEmpty(message = UNAVAILABLE_MSG) {
   `;
 }
 
-function renderSplitShell({ masterHtml, detailHtml }) {
+function renderPageShell({ masterHtml, detailHtml, disabled = false }) {
   return `
-    <div class="plan-task-split">
-      <aside class="plan-task-split-master" aria-label="计划任务列表">${masterHtml}</aside>
-      <section class="plan-task-split-detail" aria-label="任务详情">${detailHtml}</section>
+    <div class="plan-tasks-page">
+      ${renderPageHeader(disabled)}
+      <div class="plan-task-split">
+        <aside class="plan-task-split-master" aria-label="计划任务列表">${masterHtml}</aside>
+        <section class="plan-task-split-detail" aria-label="任务详情">${detailHtml}</section>
+      </div>
     </div>
   `;
 }
@@ -335,58 +327,23 @@ export function mountPlanTaskSplit(container, opts = {}) {
   let selectedSubId = initialSubId;
   let deadLink = false;
   let refreshPromise = null;
-  let writeState = 'idle';
-  /** @type {'create-master' | 'add-sub' | null} */
-  let inputKind = null;
-  let writeError = '';
+  let busy = false;
   let refreshWarning = '';
-  let pendingDeleteMaster = false;
 
   container.innerHTML = '<div class="plan-task-split-loading">加载中…</div>';
-
-  function getWriteUi() {
-    return { writeState, inputKind, writeError, refreshWarning, pendingDeleteMaster };
-  }
 
   function findMaster(id) {
     return masters.find((master) => master.master_task_id === id) ?? null;
   }
 
-  function resetWriteInteraction({ keepRefreshWarning = false } = {}) {
-    writeState = 'idle';
-    inputKind = null;
-    writeError = '';
-    pendingDeleteMaster = false;
-    if (!keepRefreshWarning) {
-      refreshWarning = '';
-    }
+  function getUi() {
+    return { disabled: controlsDisabled(busy), refreshWarning };
   }
 
-  function paintWriteUi() {
-    paint();
-  }
-
-  function showInputError(message, kind) {
-    writeState = 'input';
-    inputKind = kind;
-    writeError = message;
-    paintWriteUi();
-  }
-
-  function setWriteState(next, { error = '', nextInputKind = null, keepRefreshWarning = false } = {}) {
-    writeState = next;
-    writeError = error;
-    if (next === 'input') {
-      inputKind = nextInputKind;
-      pendingDeleteMaster = false;
-    }
-    if (next === 'idle' && !keepRefreshWarning) {
-      refreshWarning = '';
-    }
-    if (next !== 'input' && nextInputKind == null && next !== 'error') {
-      inputKind = null;
-    }
-    paintWriteUi();
+  function closeSubMenus() {
+    container.querySelectorAll('.plan-task-sub-menu-panel').forEach((panel) => {
+      panel.hidden = true;
+    });
   }
 
   function resolveSelection() {
@@ -421,18 +378,19 @@ export function mountPlanTaskSplit(container, opts = {}) {
     if (!selectedMasterId) return renderDetailEmpty();
     const master = findMaster(selectedMasterId);
     if (!master) return renderDeadLink();
-    return renderSubDetailWithControls(master, selectedSubId, getWriteUi());
+    return renderSubDetailPane(master, selectedSubId, getUi());
   }
 
   function paint() {
     if (!masters.length && container.querySelector('.plan-task-split-error')) {
       return;
     }
-    const writeUi = getWriteUi();
-    const masterHtml = renderMasterPane(masters, selectedMasterId, writeUi);
-    container.innerHTML = renderSplitShell({
+    const ui = getUi();
+    const masterHtml = renderMasterPane(masters, selectedMasterId, ui.disabled);
+    container.innerHTML = renderPageShell({
       masterHtml,
       detailHtml: renderDetailPane(),
+      disabled: ui.disabled,
     });
   }
 
@@ -443,22 +401,21 @@ export function mountPlanTaskSplit(container, opts = {}) {
       masters = entries;
       resolveSelection();
       if (afterWrite) {
-        resetWriteInteraction({ keepRefreshWarning: false });
+        refreshWarning = '';
       }
       paint();
     } catch {
       if (disposed) return;
       if (afterWrite) {
         refreshWarning = REFRESH_WARNING_MSG;
-        resetWriteInteraction({ keepRefreshWarning: true });
         paint();
         return;
       }
       masters = [];
       selectedMasterId = '';
       selectedSubId = '';
-      resetWriteInteraction();
-      container.innerHTML = renderSplitShell({
+      refreshWarning = '';
+      container.innerHTML = renderPageShell({
         masterHtml: '<div class="plan-task-split-state"></div>',
         detailHtml: renderErrorEmpty(),
       });
@@ -469,31 +426,95 @@ export function mountPlanTaskSplit(container, opts = {}) {
     if (refreshPromise) {
       return refreshPromise;
     }
-
     refreshPromise = reloadList().finally(() => {
       refreshPromise = null;
     });
-
     return refreshPromise;
   }
 
-  async function refreshAfterWrite() {
-    setWriteState('refresh');
-    await reloadList({ afterWrite: true });
-    if (writeState === 'refresh') {
-      setWriteState('idle', { keepRefreshWarning: Boolean(refreshWarning) });
+  async function runWriteAction(actionFn) {
+    busy = true;
+    try {
+      await actionFn();
+      busy = false;
+      await reloadList({ afterWrite: true });
+    } catch (err) {
+      busy = false;
+      throw err;
     }
   }
 
-  async function runWriteAction(actionFn) {
-    if (writeControlsDisabled(writeState)) return;
-    setWriteState('writing');
-    try {
-      await actionFn();
-      await refreshAfterWrite();
-    } catch (err) {
-      setWriteState('error', { error: err?.message || '操作失败' });
-    }
+  function openCreateDialog(triggerEl) {
+    openPlanTaskDialog({
+      type: 'create-master',
+      triggerEl,
+      onSubmit: async ({ title, subTitles }) => {
+        await runWriteAction(async () => {
+          const result = await createPlanTask({ title, subTitles });
+          const createdId = result?.master_task_id ?? result?.task?.master_task_id;
+          if (createdId) {
+            selectedMasterId = createdId;
+            selectedSubId = '';
+            deadLink = false;
+          }
+        });
+      },
+    });
+  }
+
+  function openAddSubDialog(triggerEl) {
+    const master = findMaster(selectedMasterId);
+    if (!master) return;
+    openPlanTaskDialog({
+      type: 'add-sub',
+      triggerEl,
+      payload: { masterTitle: master.title },
+      onSubmit: async ({ title }) => {
+        const masterTaskId = selectedMasterId;
+        await runWriteAction(async () => {
+          await addPlanSub({ masterTaskId, title });
+        });
+      },
+    });
+  }
+
+  function openDeleteMasterDialog(triggerEl) {
+    const master = findMaster(selectedMasterId);
+    if (!master) return;
+    openPlanTaskDialog({
+      type: 'delete-master',
+      triggerEl,
+      payload: {
+        masterTitle: master.title,
+        subCount: master.sub_tasks?.length ?? 0,
+      },
+      onSubmit: async () => {
+        const masterTaskId = selectedMasterId;
+        await runWriteAction(async () => {
+          await deletePlanTask({ masterTaskId });
+          selectedMasterId = '';
+          selectedSubId = '';
+          deadLink = false;
+          if (typeof navigate === 'function') {
+            navigate('#/plan-tasks');
+          }
+        });
+      },
+    });
+  }
+
+  function openDeleteSubDialog(triggerEl, subTaskId, subTitle) {
+    openPlanTaskDialog({
+      type: 'delete-sub',
+      triggerEl,
+      payload: { subTitle },
+      onSubmit: async () => {
+        const masterTaskId = selectedMasterId;
+        await runWriteAction(async () => {
+          await deletePlanSub({ masterTaskId, subTaskId });
+        });
+      },
+    });
   }
 
   const onClick = (event) => {
@@ -502,7 +523,7 @@ export function mountPlanTaskSplit(container, opts = {}) {
 
     if (action === 'retry-refresh') {
       event.preventDefault();
-      if (writeControlsDisabled(writeState)) return;
+      if (controlsDisabled(busy)) return;
       refreshWarning = '';
       void refresh();
       return;
@@ -510,120 +531,73 @@ export function mountPlanTaskSplit(container, opts = {}) {
 
     if (action === 'create-master') {
       event.preventDefault();
-      if (writeControlsDisabled(writeState)) return;
-      setWriteState('input', { nextInputKind: 'create-master' });
-      return;
-    }
-
-    if (action === 'cancel-input') {
-      event.preventDefault();
-      resetWriteInteraction({ keepRefreshWarning: Boolean(refreshWarning) });
-      paintWriteUi();
-      return;
-    }
-
-    if (action === 'submit-create-master') {
-      event.preventDefault();
-      if (writeControlsDisabled(writeState)) return;
-      const zone = container.querySelector('[data-write-zone="create-master"]');
-      const title = zone?.querySelector('[data-input="create-title"]')?.value?.trim() ?? '';
-      const subTitlesRaw = zone?.querySelector('[data-input="create-subtitles"]')?.value ?? '';
-      if (!title) {
-        showInputError('请填写计划标题', 'create-master');
-        return;
-      }
-      void runWriteAction(async () => {
-        const result = await createPlanTask({ title, subTitles: parseSubTitles(subTitlesRaw) });
-        const createdId = result?.master_task_id;
-        if (createdId) {
-          selectedMasterId = createdId;
-          selectedSubId = '';
-          deadLink = false;
-        }
-      });
-      return;
-    }
-
-    if (action === 'delete-master') {
-      event.preventDefault();
-      if (writeControlsDisabled(writeState)) return;
-      pendingDeleteMaster = true;
-      writeError = '';
-      paintWriteUi();
-      return;
-    }
-
-    if (action === 'cancel-delete-master') {
-      event.preventDefault();
-      pendingDeleteMaster = false;
-      writeError = '';
-      paintWriteUi();
-      return;
-    }
-
-    if (action === 'confirm-delete-master') {
-      event.preventDefault();
-      if (writeControlsDisabled(writeState) || !selectedMasterId) return;
-      const masterTaskId = selectedMasterId;
-      void runWriteAction(async () => {
-        await deletePlanTask({ masterTaskId });
-        selectedMasterId = '';
-        selectedSubId = '';
-        deadLink = false;
-        pendingDeleteMaster = false;
-        if (typeof navigate === 'function') {
-          navigate('#/plan-tasks');
-        }
-      });
+      if (controlsDisabled(busy)) return;
+      openCreateDialog(actionEl instanceof HTMLElement ? actionEl : null);
       return;
     }
 
     if (action === 'add-sub') {
       event.preventDefault();
-      if (writeControlsDisabled(writeState)) return;
-      setWriteState('input', { nextInputKind: 'add-sub' });
+      if (controlsDisabled(busy) || !selectedMasterId) return;
+      openAddSubDialog(actionEl instanceof HTMLElement ? actionEl : null);
       return;
     }
 
-    if (action === 'submit-add-sub') {
+    if (action === 'delete-master') {
       event.preventDefault();
-      if (writeControlsDisabled(writeState) || !selectedMasterId) return;
-      const zone = container.querySelector('[data-write-zone="add-sub"]');
-      const title = zone?.querySelector('[data-input="add-sub-title"]')?.value?.trim() ?? '';
-      if (!title) {
-        showInputError('请填写子任务标题', 'add-sub');
-        return;
-      }
-      const masterTaskId = selectedMasterId;
-      void runWriteAction(async () => {
-        await addPlanSub({ masterTaskId, title });
-      });
+      if (controlsDisabled(busy) || !selectedMasterId) return;
+      openDeleteMasterDialog(actionEl instanceof HTMLElement ? actionEl : null);
       return;
     }
 
     if (action === 'delete-sub') {
       event.preventDefault();
       event.stopPropagation();
-      if (writeControlsDisabled(writeState) || !selectedMasterId) return;
+      closeSubMenus();
+      if (controlsDisabled(busy) || !selectedMasterId) return;
       const subTaskId = actionEl?.dataset.subId;
+      const subTitle = actionEl?.dataset.subTitle ?? '';
       if (!subTaskId) return;
-      const masterTaskId = selectedMasterId;
-      void runWriteAction(async () => {
-        await deletePlanSub({ masterTaskId, subTaskId });
-      });
+      openDeleteSubDialog(
+        actionEl instanceof HTMLElement ? actionEl : null,
+        subTaskId,
+        subTitle,
+      );
+      return;
+    }
+
+    if (action === 'toggle-sub-menu') {
+      event.preventDefault();
+      event.stopPropagation();
+      const panel = actionEl?.closest('.plan-task-sub-menu')?.querySelector('.plan-task-sub-menu-panel');
+      if (!(panel instanceof HTMLElement)) return;
+      const willOpen = panel.hidden;
+      closeSubMenus();
+      panel.hidden = !willOpen;
+      return;
+    }
+
+    if (action === 'copy-sub-id') {
+      event.preventDefault();
+      event.stopPropagation();
+      const text = actionEl?.dataset.copyText ?? '';
+      if (text && navigator.clipboard?.writeText) {
+        void navigator.clipboard.writeText(text);
+      }
+      closeSubMenus();
       return;
     }
 
     const masterBtn = event.target.closest('.plan-task-master-item');
     if (masterBtn?.dataset.masterId) {
-      if (writeControlsDisabled(writeState)) return;
+      if (controlsDisabled(busy)) return;
+      closeSubMenus();
       selectedMasterId = masterBtn.dataset.masterId;
       const master = findMaster(selectedMasterId);
       const fallback = master ? pickDefaultSub(master) : null;
       selectedSubId = fallback?.sub_task_id ?? '';
       deadLink = false;
-      resetWriteInteraction({ keepRefreshWarning: Boolean(refreshWarning) });
-      paintWriteUi();
+      paint();
       if (typeof navigate === 'function' && selectedMasterId && selectedSubId) {
         navigate(buildDeepLink(selectedMasterId, selectedSubId));
       }
@@ -632,13 +606,20 @@ export function mountPlanTaskSplit(container, opts = {}) {
 
     const subEl = event.target.closest('.plan-task-sub');
     if (subEl?.dataset.subId && selectedMasterId) {
-      if (writeControlsDisabled(writeState)) return;
+      if (controlsDisabled(busy)) return;
+      if (event.target.closest('.plan-task-sub-menu')) return;
+      closeSubMenus();
       selectedSubId = subEl.dataset.subId;
       deadLink = false;
-      paintWriteUi();
+      paint();
       if (typeof navigate === 'function') {
         navigate(buildDeepLink(selectedMasterId, selectedSubId));
       }
+      return;
+    }
+
+    if (!event.target.closest('.plan-task-sub-menu')) {
+      closeSubMenus();
     }
   };
 
@@ -648,6 +629,7 @@ export function mountPlanTaskSplit(container, opts = {}) {
 
   function dispose() {
     disposed = true;
+    closePlanTaskDialog();
     disposeFocusRefresh();
     container.removeEventListener('click', onClick);
     container.innerHTML = '';
