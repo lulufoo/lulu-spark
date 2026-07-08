@@ -3,6 +3,13 @@ import { escHtml } from '../utils.js';
 
 const UNAVAILABLE_MSG = '列表暂时不可用，请稍后重试';
 
+function getTauriInvoke() {
+  if (typeof window === 'undefined') return null;
+  const invoke =
+    window.__TAURI__?.core?.invoke || window.__TAURI_INTERNALS__?.invoke;
+  return typeof invoke === 'function' ? invoke : null;
+}
+
 function serviceError(data) {
   if (!data || typeof data !== 'object' || Array.isArray(data)) return null;
   if (!data.error) return null;
@@ -18,6 +25,37 @@ export async function loadPlanTasks() {
   const err = serviceError(data);
   if (err) throw err;
   return Array.isArray(data) ? data : [];
+}
+
+async function invokePlanWrite(command, args) {
+  const invoke = getTauriInvoke();
+  if (!invoke) {
+    throw new Error('Tauri invoke unavailable');
+  }
+  const result = await invoke(command, args);
+  const err = serviceError(result);
+  if (err) throw err;
+  return result;
+}
+
+export async function createPlanTask({ title, subTitles } = {}) {
+  const args = { title };
+  if (subTitles != null) {
+    args.subTitles = subTitles;
+  }
+  return invokePlanWrite('create_plan_task', args);
+}
+
+export async function deletePlanTask({ masterTaskId } = {}) {
+  return invokePlanWrite('delete_plan_task', { masterTaskId });
+}
+
+export async function addPlanSub({ masterTaskId, title } = {}) {
+  return invokePlanWrite('add_plan_sub', { masterTaskId, title });
+}
+
+export async function deletePlanSub({ masterTaskId, subTaskId } = {}) {
+  return invokePlanWrite('delete_plan_sub', { masterTaskId, subTaskId });
 }
 
 export function copySubIdPair(masterId, subId) {
