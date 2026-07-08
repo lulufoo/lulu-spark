@@ -163,6 +163,26 @@ fn handle_request(repo_root: &PathBuf, port: u16, request: tiny_http::Request) {
                 handle_plan_task_create(request);
                 return;
             }
+            "/api/plan-task-delete" => {
+                handle_plan_task_post(request, handle_plan_task_delete_payload);
+                return;
+            }
+            "/api/plan-task-add-sub" => {
+                handle_plan_task_post(request, handle_plan_task_add_sub_payload);
+                return;
+            }
+            "/api/plan-task-delete-sub" => {
+                handle_plan_task_post(request, handle_plan_task_delete_sub_payload);
+                return;
+            }
+            "/api/plan-task-complete-sub" => {
+                handle_plan_task_post(request, handle_plan_task_complete_sub_payload);
+                return;
+            }
+            "/api/plan-task-link-archive" => {
+                handle_plan_task_post(request, handle_plan_task_link_archive_payload);
+                return;
+            }
             _ => {}
         }
     }
@@ -175,6 +195,12 @@ fn handle_request(repo_root: &PathBuf, port: u16, request: tiny_http::Request) {
             }
             "/api/plan-tasks" => {
                 handle_plan_tasks_get(request);
+                return;
+            }
+            "/api/plan-task" => {
+                let params = parse_query(&url);
+                let id = params.get("id").map(String::as_str).unwrap_or("");
+                respond_from_value(request, plan_task::get_by_id(id));
                 return;
             }
             "/api/corpus-catalog" => {
@@ -360,6 +386,78 @@ fn handle_archive_post(
     };
     let value = handler(repo_root, &payload);
     respond_from_value(request, value);
+}
+
+fn read_json_body(request: &mut tiny_http::Request) -> Result<Value, Value> {
+    let mut body = String::new();
+    if request.as_reader().read_to_string(&mut body).is_err() {
+        return Err(json!({ "error": "Failed to read body" }));
+    }
+    serde_json::from_str(&body).map_err(|e| json!({ "error": format!("Invalid JSON: {e}") }))
+}
+
+fn handle_plan_task_post(
+    mut request: tiny_http::Request,
+    handler: fn(&Value) -> Value,
+) {
+    let payload = match read_json_body(&mut request) {
+        Ok(v) => v,
+        Err(err) => {
+            respond_json(request, 400, err);
+            return;
+        }
+    };
+    respond_from_value(request, handler(&payload));
+}
+
+fn handle_plan_task_delete_payload(payload: &Value) -> Value {
+    let Some(master_task_id) = payload.get("master_task_id").and_then(|v| v.as_str()) else {
+        return json!({ "error": "Missing master_task_id", "_status": 400 });
+    };
+    plan_task::delete_master(master_task_id)
+}
+
+fn handle_plan_task_add_sub_payload(payload: &Value) -> Value {
+    let Some(master_task_id) = payload.get("master_task_id").and_then(|v| v.as_str()) else {
+        return json!({ "error": "Missing master_task_id", "_status": 400 });
+    };
+    let Some(title) = payload.get("title").and_then(|v| v.as_str()) else {
+        return json!({ "error": "Missing title", "_status": 400 });
+    };
+    plan_task::add_sub(master_task_id, title)
+}
+
+fn handle_plan_task_delete_sub_payload(payload: &Value) -> Value {
+    let Some(master_task_id) = payload.get("master_task_id").and_then(|v| v.as_str()) else {
+        return json!({ "error": "Missing master_task_id", "_status": 400 });
+    };
+    let Some(sub_task_id) = payload.get("sub_task_id").and_then(|v| v.as_str()) else {
+        return json!({ "error": "Missing sub_task_id", "_status": 400 });
+    };
+    plan_task::delete_sub(master_task_id, sub_task_id)
+}
+
+fn handle_plan_task_complete_sub_payload(payload: &Value) -> Value {
+    let Some(master_task_id) = payload.get("master_task_id").and_then(|v| v.as_str()) else {
+        return json!({ "error": "Missing master_task_id", "_status": 400 });
+    };
+    let Some(sub_task_id) = payload.get("sub_task_id").and_then(|v| v.as_str()) else {
+        return json!({ "error": "Missing sub_task_id", "_status": 400 });
+    };
+    plan_task::complete_sub(master_task_id, sub_task_id)
+}
+
+fn handle_plan_task_link_archive_payload(payload: &Value) -> Value {
+    let Some(master_task_id) = payload.get("master_task_id").and_then(|v| v.as_str()) else {
+        return json!({ "error": "Missing master_task_id", "_status": 400 });
+    };
+    let Some(sub_task_id) = payload.get("sub_task_id").and_then(|v| v.as_str()) else {
+        return json!({ "error": "Missing sub_task_id", "_status": 400 });
+    };
+    let Some(archive_id) = payload.get("archive_id").and_then(|v| v.as_str()) else {
+        return json!({ "error": "Missing archive_id", "_status": 400 });
+    };
+    plan_task::link_archive(master_task_id, sub_task_id, archive_id)
 }
 
 fn handle_plan_task_create(mut request: tiny_http::Request) {

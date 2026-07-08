@@ -828,20 +828,218 @@ fn post_plan_task_create_response_ac5_field_matrix() {
     });
 }
 
+fn create_plan_master(port: u16, title: &str, sub_titles: &[&str]) -> (String, String, Value) {
+    let payload = if sub_titles.is_empty() {
+        json!({ "title": title })
+    } else {
+        json!({ "title": title, "sub_titles": sub_titles })
+    };
+    let (status, body) = http_post(port, "/api/plan-task-create", &payload);
+    assert_eq!(status, 201);
+    let master_id = body["master_task_id"].as_str().expect("master_task_id").to_string();
+    let sub_id = body["sub_task_id"].as_str().expect("sub_task_id").to_string();
+    (master_id, sub_id, body)
+}
+
 #[test]
-fn plan_task_write_routes_not_exposed_on_http() {
+fn plan_task_crud_http_flow() {
     with_plan_task_http_test(|| {
         let fixture = setup_repo_for_plan_task();
         let repo_root = fixture.repo_root.clone();
         with_server(repo_root, |port| {
+            let (master_id, sub_a, create_body) =
+                create_plan_master(port, "CRUD master", &["Sub A", "Sub B"]);
+            assert_eq!(create_body["task"]["sub_tasks"].as_array().unwrap().len(), 2);
+
+            let (get_status, get_body) =
+                http_get(port, &format!("/api/plan-task?id={master_id}"));
+            assert_eq!(get_status, 200);
+            assert_eq!(get_body["master_task_id"], master_id);
+            assert_eq!(get_body["title"], "CRUD master");
+            assert!(get_body.get("_status").is_none());
+
+            let (add_status, add_body) = http_post(
+                port,
+                "/api/plan-task-add-sub",
+                &json!({ "master_task_id": master_id, "title": "Sub C" }),
+            );
+            assert_eq!(add_status, 201);
+            let sub_c = add_body["sub_task_id"].as_str().expect("sub_task_id");
+            assert_eq!(add_body["task"]["sub_tasks"].as_array().unwrap().len(), 3);
+
+            let (complete_status, complete_body) = http_post(
+                port,
+                "/api/plan-task-complete-sub",
+                &json!({ "master_task_id": master_id, "sub_task_id": sub_a }),
+            );
+            assert_eq!(complete_status, 200);
+            assert_eq!(complete_body["task"]["sub_tasks"][0]["status"], "complete");
+            assert!(complete_body["task"]["sub_tasks"][0]
+                .get("completed_at")
+                .and_then(|v| v.as_str())
+                .is_some());
+
+            let (link_status, link_body) = http_post(
+                port,
+                "/api/plan-task-link-archive",
+                &json!({
+                    "master_task_id": master_id,
+                    "sub_task_id": sub_a,
+                    "archive_id": "11111111111111111111111111111111",
+                }),
+            );
+            assert_eq!(link_status, 200);
+            let linked = link_body["task"]["sub_tasks"][0]["linked_archive_ids"]
+                .as_array()
+                .expect("linked_archive_ids");
+            assert_eq!(linked.len(), 1);
+            assert_eq!(linked[0], "11111111111111111111111111111111");
+
+            let (del_sub_status, del_sub_body) = http_post(
+                port,
+                "/api/plan-task-delete-sub",
+                &json!({ "master_task_id": master_id, "sub_task_id": sub_c }),
+            );
+            assert_eq!(del_sub_status, 200);
+            assert_eq!(del_sub_body["task"]["sub_tasks"].as_array().unwrap().len(), 2);
+
+            let (delete_status, delete_body) = http_post(
+                port,
+                "/api/plan-task-delete",
+                &json!({ "master_task_id": master_id }),
+            );
+            assert_eq!(delete_status, 200);
+            assert_eq!(delete_body["ok"], true);
+            assert!(delete_body.get("_status").is_none());
+
+            let (list_status, list_body) = http_get_with_response(port, "/api/plan-tasks");
+            assert_eq!(list_status, 200);
+            assert_eq!(list_body.as_array().unwrap().len(), 0);
+        });
+    });
+}
+
+#[test]
+fn get_plan_task_missing_id_returns_400() {
+    with_plan_task_http_test(|| {
+        let fixture = setup_repo_for_plan_task();
+        let repo_root = fixture.repo_root.clone();
+        with_server(repo_root, |port| {
+            let (status, body) = http_get(port, "/api/plan-task");
+            assert_eq!(status, 400);
+            assert!(body.get("error").is_some());
+            assert!(body.get("_status").is_none());
+        });
+    });
+}
+
+#[test]
+fn get_plan_task_unknown_id_returns_404() {
+    with_plan_task_http_test(|| {
+        let fixture = setup_repo_for_plan_task();
+        let repo_root = fixture.repo_root.clone();
+        with_server(repo_root, |port| {
+            let (status, body) =
+                http_get(port, "/api/plan-task?id=00000000000000000000000000000000");
+            assert_eq!(status, 404);
+            assert_eq!(body["error"], "Task not found");
+            assert!(body.get("_status").is_none());
+        });
+    });
+}
+
+#[test]
+fn post_plan_task_delete_sub_last_sub_returns_400() {
+    with_plan_task_http_test(|| {
+        let fixture = setup_repo_for_plan_task();
+        let repo_root = fixture.repo_root.clone();
+        with_server(repo_root, |port| {
+            let (master_id, sub_id, _) = create_plan_master(port, "Single sub", &[]);
+            let (status, body) = http_post(
+                port,
+                "/api/plan-task-delete-sub",
+                &json!({ "master_task_id": master_id, "sub_task_id": sub_id }),
+            );
+            assert_eq!(status, 400);
+            assert!(body.get("error").is_some());
+            assert!(body.get("_status").is_none());
+        });
+    });
+}
+
+#[test]
+fn post_plan_task_unknown_master_returns_404() {
+    with_plan_task_http_test(|| {
+        let fixture = setup_repo_for_plan_task();
+        let repo_root = fixture.repo_root.clone();
+        with_server(repo_root, |port| {
+            let unknown = "00000000000000000000000000000000";
             for path in [
                 "/api/plan-task-delete",
                 "/api/plan-task-add-sub",
+                "/api/plan-task-delete-sub",
                 "/api/plan-task-complete-sub",
                 "/api/plan-task-link-archive",
             ] {
-                let (status, _) = http_post(port, path, &json!({ "title": "x" }));
-                assert_eq!(status, 405, "unexpected plan write route: {path}");
+                let payload = match path {
+                    "/api/plan-task-delete" => json!({ "master_task_id": unknown }),
+                    "/api/plan-task-add-sub" => {
+                        json!({ "master_task_id": unknown, "title": "Sub" })
+                    }
+                    "/api/plan-task-delete-sub" | "/api/plan-task-complete-sub" => {
+                        json!({
+                            "master_task_id": unknown,
+                            "sub_task_id": "00000000000000000000000000000001",
+                        })
+                    }
+                    "/api/plan-task-link-archive" => {
+                        json!({
+                            "master_task_id": unknown,
+                            "sub_task_id": "00000000000000000000000000000001",
+                            "archive_id": "11111111111111111111111111111111",
+                        })
+                    }
+                    _ => unreachable!(),
+                };
+                let (status, body) = http_post(port, path, &payload);
+                assert_eq!(status, 404, "expected 404 for {path}");
+                assert_eq!(body["error"], "Task not found");
+                assert!(body.get("_status").is_none());
+            }
+        });
+    });
+}
+
+#[test]
+fn post_plan_task_unknown_sub_returns_404() {
+    with_plan_task_http_test(|| {
+        let fixture = setup_repo_for_plan_task();
+        let repo_root = fixture.repo_root.clone();
+        with_server(repo_root, |port| {
+            let (master_id, _, _) = create_plan_master(port, "Master", &["Sub A", "Sub B"]);
+            let unknown_sub = "00000000000000000000000000000099";
+            for path in [
+                "/api/plan-task-delete-sub",
+                "/api/plan-task-complete-sub",
+                "/api/plan-task-link-archive",
+            ] {
+                let payload = match path {
+                    "/api/plan-task-delete-sub" | "/api/plan-task-complete-sub" => {
+                        json!({ "master_task_id": master_id, "sub_task_id": unknown_sub })
+                    }
+                    "/api/plan-task-link-archive" => {
+                        json!({
+                            "master_task_id": master_id,
+                            "sub_task_id": unknown_sub,
+                            "archive_id": "11111111111111111111111111111111",
+                        })
+                    }
+                    _ => unreachable!(),
+                };
+                let (status, body) = http_post(port, path, &payload);
+                assert_eq!(status, 404, "expected 404 for {path}");
+                assert_eq!(body["error"], "Task not found");
+                assert!(body.get("_status").is_none());
             }
         });
     });
