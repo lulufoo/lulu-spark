@@ -27,6 +27,9 @@ static WRITE_LOCK: Mutex<()> = Mutex::new(());
 static TEST_FAIL_COMPLETE_SUB: AtomicBool = AtomicBool::new(false);
 
 #[cfg(test)]
+static TEST_FAIL_LINK_ARCHIVE: AtomicBool = AtomicBool::new(false);
+
+#[cfg(test)]
 static TEST_FAIL_BATCH_SUB_TASKS: AtomicBool = AtomicBool::new(false);
 
 #[cfg(test)]
@@ -38,6 +41,11 @@ static TEST_FAIL_BATCH_INDEX: AtomicBool = AtomicBool::new(false);
 #[cfg(test)]
 pub fn test_set_fail_complete_sub(fail: bool) {
     TEST_FAIL_COMPLETE_SUB.store(fail, Ordering::SeqCst);
+}
+
+#[cfg(test)]
+pub fn test_set_fail_link_archive(fail: bool) {
+    TEST_FAIL_LINK_ARCHIVE.store(fail, Ordering::SeqCst);
 }
 
 #[cfg(test)]
@@ -53,6 +61,11 @@ pub fn test_set_fail_batch_plan_md(fail: bool) {
 #[cfg(test)]
 pub fn test_set_fail_batch_index(fail: bool) {
     TEST_FAIL_BATCH_INDEX.store(fail, Ordering::SeqCst);
+}
+
+#[cfg(test)]
+fn test_take_fail_link_archive() -> bool {
+    TEST_FAIL_LINK_ARCHIVE.swap(false, Ordering::SeqCst)
 }
 
 #[cfg(test)]
@@ -673,6 +686,11 @@ pub fn link_archive(master_task_id: &str, sub_task_id: &str, archive_id: &str) -
     with_write_lock(|| {
         if let Err(e) = ensure_bootstrap() {
             return bootstrap_error(e);
+        }
+
+        #[cfg(test)]
+        if test_take_fail_link_archive() {
+            return json!({ "error": "injected link_archive failure", "_status": 500 });
         }
 
         let mut master = match load_master_task_unlocked(master_task_id) {

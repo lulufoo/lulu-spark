@@ -225,6 +225,7 @@ fn finalize_task_linked_archive(
     }
     let linked = plan_task::link_archive(master_task_id, sub_task_id, archive_id);
     if linked.get("_status").and_then(|v| v.as_u64()) != Some(200) {
+        // link-fail asymmetry (FM-5): complete_sub already persisted; corpus rolls back only.
         dual_store_rollback(written, index_path, index_snapshot);
         return linked;
     }

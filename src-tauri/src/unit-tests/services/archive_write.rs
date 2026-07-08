@@ -4,7 +4,9 @@ use std::path::{Path, PathBuf};
 use serde_json::json;
 
 use crate::services::archive_write::{archive_digest, archive_document};
-use crate::services::plan_task::{create_master_with_subs, get_by_id, test_set_fail_complete_sub};
+use crate::services::plan_task::{
+    create_master_with_subs, get_by_id, test_set_fail_complete_sub, test_set_fail_link_archive,
+};
 use crate::test_support::TestSandbox;
 
 const SAMPLE_DOC: &str = r#"# Test Title
@@ -32,16 +34,15 @@ fn setup_corpus_with_plan_tasks() -> (TestSandbox, PathBuf) {
     setup_corpus()
 }
 
-fn read_plan_tasks_snapshot(wb: &Path) -> Option<serde_json::Value> {
-    let path = wb.join("plan_tasks").join("plan_tasks.json");
-    if !path.is_file() {
-        return None;
-    }
-    Some(serde_json::from_str(&fs::read_to_string(path).unwrap()).unwrap())
+fn read_v2_index(wb: &Path) -> serde_json::Value {
+    serde_json::from_str(
+        &fs::read_to_string(wb.join("plan_tasks").join("index.json")).expect("index.json"),
+    )
+    .expect("parse index.json")
 }
 
 fn with_archive_plan_task_test<F: FnOnce()>(f: F) {
-    crate::test_support::with_config_test_serial(f);
+    f();
 }
 
 #[test]
@@ -222,8 +223,11 @@ fn archive_document_with_task_ref_completes_sub_in_sandbox() {
             archive_id
         );
 
-        let snapshot = read_plan_tasks_snapshot(&wb).expect("plan_tasks.json");
-        assert!(snapshot["tasks"].get(master_id).is_some());
+        let index = read_v2_index(&wb);
+        assert_eq!(index["version"], 2);
+        assert!(index["tasks"].get(master_id).is_some());
+        let task_dir = wb.join("plan_tasks").join("tasks").join(master_id);
+        assert!(task_dir.join("sub_tasks.json").is_file());
     });
 }
 
@@ -316,5 +320,49 @@ fn archive_document_index_snapshot_restore_on_plan_task_fail() {
             "rollback must restore full entries map including pre-existing keys"
         );
 
+    });
+}
+
+#[test]
+fn archive_document_link_fail_corpus_rollback_plan_stays_complete() {
+    with_archive_plan_task_test(|| {
+        let (_sandbox, repo_root) = setup_corpus();
+        let wb = crate::config::meili_env::workbench_knowledge_root_path(&repo_root);
+        let created = create_master_with_subs("Link fail", None);
+        let master_id = created["master_task_id"].as_str().unwrap();
+        let sub_id = created["sub_task_id"].as_str().unwrap();
+
+        let index_before: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(wb.join("index.json")).unwrap()).unwrap();
+
+        test_set_fail_link_archive(true);
+        let result = archive_document(
+            &repo_root,
+            &json!({
+                "document": SAMPLE_DOC,
+                "source_type": "summary",
+                "master_task_id": master_id,
+                "sub_task_id": sub_id,
+            }),
+        );
+
+        assert_ne!(result.get("ok"), Some(&json!(true)), "expected link failure: {result}");
+        assert_eq!(result.get("_status"), Some(&json!(500)));
+
+        let raw = wb.join("raw/inbox/test-topic/202606191430-test-slug.md");
+        assert!(!raw.exists(), "corpus raw must rollback on link failure");
+
+        let index_after: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(wb.join("index.json")).unwrap()).unwrap();
+        assert_eq!(index_after, index_before, "corpus index must restore to pre-request snapshot");
+
+        let task = get_by_id(master_id);
+        let sub = &task["sub_tasks"][0];
+        assert_eq!(sub["status"], "complete", "complete_sub succeeded before link failure");
+        assert_eq!(
+            sub["linked_archive_ids"].as_array().unwrap().len(),
+            0,
+            "link_archive must not append on failure"
+        );
     });
 }
