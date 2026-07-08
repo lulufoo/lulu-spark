@@ -11,6 +11,8 @@ const PLAN_TASK_VITEST = [
   'tests/home-hub.test.js',
   'tests/plan-task-assistant.test.js',
   'tests/plan-task-split.test.js',
+  'tests/plan-task-write.test.js',
+  'tests/plan-task-ac-gate.test.js',
 ];
 
 describe('AC-全量回归 gate (tech-doc T-08 / VF)', () => {
