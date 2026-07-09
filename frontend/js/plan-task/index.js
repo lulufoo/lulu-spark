@@ -1,4 +1,5 @@
 import { createApiClient, resolveReadDriver } from '../apiClient.js';
+import { renderCommentMarkdown } from '../comment-markdown.js';
 import { escHtml } from '../utils.js';
 import { closePlanTaskDialog, isPlanTaskDialogOpen, openPlanTaskDialog } from './dialog.js';
 
@@ -8,6 +9,7 @@ const REFRESH_WARNING_MSG = '已保存，列表刷新失败，请重试';
 const STATUS_LABELS = {
   incomplete: '进行中',
   complete: '已完成',
+  abandoned: '已废弃',
 };
 
 function getTauriInvoke() {
@@ -63,6 +65,33 @@ export async function addPlanSub({ masterTaskId, title } = {}) {
 
 export async function deletePlanSub({ masterTaskId, subTaskId } = {}) {
   return invokePlanWrite('delete_plan_sub', { masterTaskId, subTaskId });
+}
+
+async function invokePlanPlain(command, args) {
+  const invoke = getTauriInvoke();
+  if (!invoke) {
+    throw new Error('Tauri invoke unavailable');
+  }
+  const result = await invoke(command, args);
+  const err = serviceError(result);
+  if (err) throw err;
+  return result;
+}
+
+export async function readPlanMd({ masterTaskId } = {}) {
+  return invokePlanPlain('read_plan_md', { masterTaskId });
+}
+
+export async function updatePlanMd({ masterTaskId, planMd } = {}) {
+  await invokePlanPlain('update_plan_md', { masterTaskId, planMd });
+}
+
+export async function completePlanSub({ masterTaskId, subTaskId } = {}) {
+  return invokePlanWrite('complete_plan_sub', { masterTaskId, subTaskId });
+}
+
+export async function abandonPlanSub({ masterTaskId, subTaskId } = {}) {
+  return invokePlanWrite('abandon_plan_sub', { masterTaskId, subTaskId });
 }
 
 export function copySubIdPair(masterId, subId) {
@@ -175,18 +204,38 @@ function renderLinkedArchives(linkedArchiveIds) {
   return `<div class="plan-task-sub-archives">关联归档：${escHtml(linkedArchiveIds.join(', '))}</div>`;
 }
 
-function renderSubRow(master, sub, selectedSubId, disabled) {
+function renderSubStatusActions(sub, disabled) {
+  if (sub.status !== 'incomplete') return '';
+  const disabledAttr = disabled ? ' disabled' : '';
+  return `
+    <div class="plan-task-sub-actions">
+      <button type="button" class="md-header-btn" data-action="complete-sub" data-sub-id="${escHtml(sub.sub_task_id)}"${disabledAttr}>完成</button>
+      <button type="button" class="md-header-btn" data-action="abandon-sub" data-sub-id="${escHtml(sub.sub_task_id)}"${disabledAttr}>废弃</button>
+    </div>
+  `;
+}
+
+function renderSubActionError(error) {
+  if (!error) return '';
+  return `<p class="plan-task-sub-action-error" role="alert">${escHtml(error)}</p>`;
+}
+
+function renderSubRow(master, sub, selectedSubId, ui) {
+  const effectiveStatus = ui.subStatus?.[sub.sub_task_id] ?? sub.status;
+  const subForRender = { ...sub, status: effectiveStatus };
   const selected = sub.sub_task_id === selectedSubId ? ' plan-task-sub--selected' : '';
   const title = sub.title || sub.sub_task_id;
-  const statusLabel = formatPlanTaskStatus(sub.status);
-  const disabledAttr = disabled ? ' disabled' : '';
+  const statusLabel = formatPlanTaskStatus(effectiveStatus);
+  const disabledAttr = ui.disabled ? ' disabled' : '';
   const copyText = copySubIdPair(master.master_task_id, sub.sub_task_id);
+  const subError = ui.subActionErrors?.[sub.sub_task_id] ?? '';
   return `
     <article data-sub-id="${escHtml(sub.sub_task_id)}" class="plan-task-sub${selected}">
       <header class="plan-task-sub-header">
         <h3 class="plan-task-sub-title">${escHtml(title)}</h3>
         <div class="plan-task-sub-header-actions">
-          <span class="plan-task-sub-status plan-task-sub-status--${escHtml(sub.status)}">${escHtml(statusLabel)}</span>
+          <span class="plan-task-sub-status plan-task-sub-status--${escHtml(effectiveStatus)}">${escHtml(statusLabel)}</span>
+          ${renderSubStatusActions(subForRender, ui.disabled)}
           <div class="plan-task-sub-menu">
             <button type="button" class="plan-task-sub-menu-btn" data-action="toggle-sub-menu" aria-label="更多操作"${disabledAttr}>⋯</button>
             <div class="plan-task-sub-menu-panel" hidden>
@@ -196,6 +245,7 @@ function renderSubRow(master, sub, selectedSubId, disabled) {
           </div>
         </div>
       </header>
+      ${renderSubActionError(subError)}
       ${renderLinkedArchives(sub.linked_archive_ids)}
     </article>
   `;
@@ -203,7 +253,8 @@ function renderSubRow(master, sub, selectedSubId, disabled) {
 
 export function renderSubDetail(master, selectedSubId) {
   const subs = master.sub_tasks ?? [];
-  const items = subs.map((sub) => renderSubRow(master, sub, selectedSubId, false)).join('');
+  const ui = { disabled: false, subStatus: {}, subActionErrors: {} };
+  const items = subs.map((sub) => renderSubRow(master, sub, selectedSubId, ui)).join('');
   return `
     <div class="plan-task-detail-body">
       <h2 class="plan-task-detail-title">${escHtml(master.title)}</h2>
@@ -239,10 +290,46 @@ function renderSubEmpty(disabled) {
   `;
 }
 
+function renderPlanMdSection(master, ui) {
+  const disabledAttr = ui.disabled ? ' disabled' : '';
+  if (ui.planMdLoading) {
+    return `
+      <section class="plan-task-plan-md-section" aria-label="计划说明">
+        <p class="plan-task-plan-md-loading">加载说明…</p>
+      </section>
+    `;
+  }
+  if (ui.planMdEditMode) {
+    return `
+      <section class="plan-task-plan-md-section" aria-label="计划说明">
+        ${ui.planMdError ? `<p class="plan-task-plan-md-error" role="alert">${escHtml(ui.planMdError)}</p>` : ''}
+        <textarea class="plan-task-plan-md-editor"${disabledAttr}>${escHtml(ui.planMdDraft ?? '')}</textarea>
+        <div class="plan-task-plan-md-toolbar">
+          <button type="button" class="md-header-btn primary" data-action="save-plan-md"${disabledAttr}>保存</button>
+          <button type="button" class="md-header-btn" data-action="cancel-plan-md"${disabledAttr}>取消</button>
+        </div>
+      </section>
+    `;
+  }
+  const planMd = master.plan_md ?? '';
+  const previewHtml = planMd
+    ? renderCommentMarkdown(planMd)
+    : '<p class="plan-task-plan-md-empty">暂无说明</p>';
+  return `
+    <section class="plan-task-plan-md-section" aria-label="计划说明">
+      <div class="plan-task-plan-md-header">
+        <h3 class="plan-task-plan-md-title">计划说明</h3>
+        <button type="button" class="md-header-btn" data-action="edit-plan-md"${disabledAttr}>编辑</button>
+      </div>
+      <div class="plan-task-plan-md-preview">${previewHtml}</div>
+    </section>
+  `;
+}
+
 function renderSubDetailPane(master, selectedSubId, ui) {
   const subs = master.sub_tasks ?? [];
   const items = subs.length
-    ? subs.map((sub) => renderSubRow(master, sub, selectedSubId, ui.disabled)).join('')
+    ? subs.map((sub) => renderSubRow(master, sub, selectedSubId, ui)).join('')
     : renderSubEmpty(ui.disabled);
   return `
     <div class="plan-task-detail-body">
@@ -252,6 +339,7 @@ function renderSubDetailPane(master, selectedSubId, ui) {
           ${renderDetailMeta(master)}
         </div>
       </div>
+      ${renderPlanMdSection(master, ui)}
       ${renderRefreshWarning(ui.refreshWarning, ui.disabled)}
       ${renderDetailToolbar(master.master_task_id, ui.disabled)}
       <div class="plan-task-sub-list">${items}</div>
@@ -329,6 +417,12 @@ export function mountPlanTaskSplit(container, opts = {}) {
   let refreshPromise = null;
   let busy = false;
   let refreshWarning = '';
+  let planMdEditMode = false;
+  let planMdDraft = '';
+  let planMdError = '';
+  let planMdLoading = false;
+  const optimisticSubStatus = {};
+  const subActionErrors = {};
 
   container.innerHTML = '<div class="plan-task-split-loading">加载中…</div>';
 
@@ -337,7 +431,32 @@ export function mountPlanTaskSplit(container, opts = {}) {
   }
 
   function getUi() {
-    return { disabled: controlsDisabled(busy), refreshWarning };
+    return {
+      disabled: controlsDisabled(busy),
+      refreshWarning,
+      planMdEditMode,
+      planMdDraft,
+      planMdError,
+      planMdLoading,
+      subStatus: optimisticSubStatus,
+      subActionErrors,
+    };
+  }
+
+  function resetPlanMdEdit() {
+    planMdEditMode = false;
+    planMdDraft = '';
+    planMdError = '';
+    planMdLoading = false;
+  }
+
+  function clearSubActionState() {
+    for (const key of Object.keys(optimisticSubStatus)) {
+      delete optimisticSubStatus[key];
+    }
+    for (const key of Object.keys(subActionErrors)) {
+      delete subActionErrors[key];
+    }
   }
 
   function closeSubMenus() {
@@ -434,6 +553,7 @@ export function mountPlanTaskSplit(container, opts = {}) {
 
   async function runWriteAction(actionFn) {
     busy = true;
+    paint();
     try {
       await actionFn();
       busy = false;
@@ -441,6 +561,69 @@ export function mountPlanTaskSplit(container, opts = {}) {
     } catch (err) {
       busy = false;
       throw err;
+    }
+  }
+
+  async function enterPlanMdEdit() {
+    if (!selectedMasterId || controlsDisabled(busy)) return;
+    planMdLoading = true;
+    planMdError = '';
+    paint();
+    try {
+      planMdDraft = await readPlanMd({ masterTaskId: selectedMasterId });
+      planMdEditMode = true;
+    } catch (err) {
+      planMdError = err?.message || '加载说明失败';
+      planMdEditMode = false;
+    } finally {
+      planMdLoading = false;
+      paint();
+    }
+  }
+
+  async function savePlanMd() {
+    if (!selectedMasterId || controlsDisabled(busy)) return;
+    const editor = container.querySelector('.plan-task-plan-md-editor');
+    planMdDraft = editor instanceof HTMLTextAreaElement ? editor.value : planMdDraft;
+    planMdError = '';
+    busy = true;
+    paint();
+    try {
+      await updatePlanMd({ masterTaskId: selectedMasterId, planMd: planMdDraft });
+      resetPlanMdEdit();
+      busy = false;
+      await reloadList({ afterWrite: true });
+    } catch (err) {
+      busy = false;
+      planMdEditMode = true;
+      planMdError = err?.message || '保存失败';
+      paint();
+    }
+  }
+
+  function cancelPlanMdEdit() {
+    resetPlanMdEdit();
+    paint();
+  }
+
+  async function runSubStatusAction(subTaskId, targetStatus, actionFn) {
+    const master = findMaster(selectedMasterId);
+    const sub = master?.sub_tasks?.find((item) => item.sub_task_id === subTaskId);
+    if (!master || !sub || sub.status !== 'incomplete') return;
+    delete subActionErrors[subTaskId];
+    optimisticSubStatus[subTaskId] = targetStatus;
+    busy = true;
+    paint();
+    try {
+      await actionFn({ masterTaskId: selectedMasterId, subTaskId });
+      delete optimisticSubStatus[subTaskId];
+      busy = false;
+      await reloadList({ afterWrite: true });
+    } catch (err) {
+      delete optimisticSubStatus[subTaskId];
+      busy = false;
+      subActionErrors[subTaskId] = err?.message || '操作失败';
+      paint();
     }
   }
 
@@ -529,6 +712,47 @@ export function mountPlanTaskSplit(container, opts = {}) {
       return;
     }
 
+    if (action === 'edit-plan-md') {
+      event.preventDefault();
+      if (controlsDisabled(busy)) return;
+      void enterPlanMdEdit();
+      return;
+    }
+
+    if (action === 'save-plan-md') {
+      event.preventDefault();
+      if (controlsDisabled(busy)) return;
+      void savePlanMd();
+      return;
+    }
+
+    if (action === 'cancel-plan-md') {
+      event.preventDefault();
+      if (controlsDisabled(busy)) return;
+      cancelPlanMdEdit();
+      return;
+    }
+
+    if (action === 'complete-sub') {
+      event.preventDefault();
+      event.stopPropagation();
+      if (controlsDisabled(busy) || !selectedMasterId) return;
+      const subTaskId = actionEl?.dataset.subId;
+      if (!subTaskId) return;
+      void runSubStatusAction(subTaskId, 'complete', completePlanSub);
+      return;
+    }
+
+    if (action === 'abandon-sub') {
+      event.preventDefault();
+      event.stopPropagation();
+      if (controlsDisabled(busy) || !selectedMasterId) return;
+      const subTaskId = actionEl?.dataset.subId;
+      if (!subTaskId) return;
+      void runSubStatusAction(subTaskId, 'abandoned', abandonPlanSub);
+      return;
+    }
+
     if (action === 'create-master') {
       event.preventDefault();
       if (controlsDisabled(busy)) return;
@@ -592,6 +816,8 @@ export function mountPlanTaskSplit(container, opts = {}) {
     if (masterBtn?.dataset.masterId) {
       if (controlsDisabled(busy)) return;
       closeSubMenus();
+      resetPlanMdEdit();
+      clearSubActionState();
       selectedMasterId = masterBtn.dataset.masterId;
       const master = findMaster(selectedMasterId);
       const fallback = master ? pickDefaultSub(master) : null;

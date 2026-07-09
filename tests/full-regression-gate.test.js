@@ -12,6 +12,7 @@ const PLAN_TASK_VITEST = [
   'tests/plan-task-assistant.test.js',
   'tests/plan-task-split.test.js',
   'tests/plan-task-write.test.js',
+  'tests/plan-task-preview-edit.test.js',
   'tests/plan-task-ac-gate.test.js',
 ];
 
