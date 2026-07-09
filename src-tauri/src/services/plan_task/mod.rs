@@ -508,6 +508,13 @@ fn recompute_master_status(master: &mut MasterTask) {
     };
 }
 
+fn is_terminal_sub_status(status: &SubTaskStatus) -> bool {
+    matches!(
+        status,
+        SubTaskStatus::Complete | SubTaskStatus::Abandoned
+    )
+}
+
 fn master_to_value(master: &MasterTask) -> Value {
     serde_json::to_value(master).unwrap_or_else(|_| json!({}))
 }
@@ -806,10 +813,6 @@ pub fn delete_sub(master_task_id: &str, sub_task_id: &str) -> Value {
             Err(err) => return err,
         };
 
-        if master.sub_tasks.len() <= 1 {
-            return json!({ "error": "Cannot delete last sub", "_status": 400 });
-        }
-
         let pos = match master
             .sub_tasks
             .iter()
@@ -856,8 +859,49 @@ pub fn complete_sub(master_task_id: &str, sub_task_id: &str) -> Value {
             return json!({ "error": "Task not found", "_status": 404 });
         };
 
+        if is_terminal_sub_status(&sub.status) {
+            return json!({ "error": "Sub task is in terminal status", "_status": 409 });
+        }
+
         sub.status = SubTaskStatus::Complete;
         sub.completed_at = Some(Utc::now().to_rfc3339());
+        recompute_master_status(&mut master);
+        let updated = master.clone();
+
+        match persist_master(&master) {
+            Ok(()) => json!({
+                "task": master_to_value(&updated),
+                "_status": 200,
+            }),
+            Err(e) => json!({ "error": e, "_status": 500 }),
+        }
+    })
+}
+
+pub fn abandon_sub(master_task_id: &str, sub_task_id: &str) -> Value {
+    with_write_lock(|| {
+        if let Err(e) = ensure_bootstrap() {
+            return bootstrap_error(e);
+        }
+
+        let mut master = match load_master_task_unlocked(master_task_id) {
+            Ok(m) => m,
+            Err(err) => return err,
+        };
+
+        let Some(sub) = master
+            .sub_tasks
+            .iter_mut()
+            .find(|s| s.sub_task_id == sub_task_id)
+        else {
+            return json!({ "error": "Task not found", "_status": 404 });
+        };
+
+        if is_terminal_sub_status(&sub.status) {
+            return json!({ "error": "Sub task is in terminal status", "_status": 409 });
+        }
+
+        sub.status = SubTaskStatus::Abandoned;
         recompute_master_status(&mut master);
         let updated = master.clone();
 

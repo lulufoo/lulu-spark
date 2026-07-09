@@ -981,7 +981,7 @@ fn post_plan_task_add_sub_missing_or_blank_title_returns_400() {
 }
 
 #[test]
-fn post_plan_task_delete_sub_last_sub_returns_400() {
+fn post_plan_task_delete_sub_last_sub_allows_empty() {
     with_plan_task_http_test(|| {
         let fixture = setup_repo_for_plan_task();
         let repo_root = fixture.repo_root.clone();
@@ -992,9 +992,10 @@ fn post_plan_task_delete_sub_last_sub_returns_400() {
                 "/api/plan-task-delete-sub",
                 &json!({ "master_task_id": master_id, "sub_task_id": sub_id }),
             );
-            assert_eq!(status, 400);
-            assert!(body.get("error").is_some());
+            assert_eq!(status, 200);
             assert!(body.get("_status").is_none());
+            assert!(body["task"]["sub_tasks"].as_array().unwrap().is_empty());
+            assert_eq!(body["task"]["status"], "incomplete");
         });
     });
 }

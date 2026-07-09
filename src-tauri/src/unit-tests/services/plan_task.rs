@@ -855,7 +855,7 @@ fn link_archive_does_not_change_sub_or_master_status() {
 }
 
 #[test]
-fn delete_sub_recomputes_master_and_rejects_last_sub() {
+fn delete_sub_recomputes_master_and_allows_delete_to_empty() {
     with_plan_task_sandbox(|_| {
         let created = create_master_with_subs("Delete sub", Some(&["A", "B"]));
         let master_id = created["master_task_id"].as_str().unwrap();
@@ -872,9 +872,132 @@ fn delete_sub_recomputes_master_and_rejects_last_sub() {
             .as_str()
             .unwrap()
             .to_string();
-        let blocked = delete_sub(master_id, &last_sub);
-        assert_eq!(blocked["_status"], 400);
-        assert_eq!(blocked["error"], "Cannot delete last sub");
+        let deleted_last = delete_sub(master_id, &last_sub);
+        assert_eq!(deleted_last["_status"], 200);
+        assert_eq!(master_from_value(&deleted_last)["status"], "incomplete");
+        assert!(master_from_value(&deleted_last)["sub_tasks"]
+            .as_array()
+            .unwrap()
+            .is_empty());
+
+        let got = get_by_id(master_id);
+        assert_eq!(got["status"], "incomplete");
+        assert!(got["sub_tasks"].as_array().unwrap().is_empty());
+    });
+}
+
+#[test]
+fn abandon_sub_marks_sub_abandoned_and_recomputes_master_incomplete() {
+    with_plan_task_sandbox(|_| {
+        let created = create_master_with_subs("Abandon", Some(&["A", "B"]));
+        let master_id = created["master_task_id"].as_str().unwrap();
+        let sub_a = created["task"]["sub_tasks"][0]["sub_task_id"]
+            .as_str()
+            .unwrap();
+
+        let v = abandon_sub(master_id, sub_a);
+        assert_eq!(v["_status"], 200);
+        let task = master_from_value(&v);
+        assert_eq!(task["status"], "incomplete");
+        assert_eq!(task["sub_tasks"][0]["status"], "abandoned");
+        assert_eq!(task["sub_tasks"][1]["status"], "incomplete");
+    });
+}
+
+#[test]
+fn abandon_sub_all_abandoned_keeps_master_incomplete() {
+    with_plan_task_sandbox(|_| {
+        let created = create_master_with_subs("All abandoned", Some(&["A", "B"]));
+        let master_id = created["master_task_id"].as_str().unwrap();
+        for sub in created["task"]["sub_tasks"].as_array().unwrap() {
+            let sub_id = sub["sub_task_id"].as_str().unwrap();
+            let v = abandon_sub(master_id, sub_id);
+            assert_eq!(v["_status"], 200);
+        }
+        let got = get_by_id(master_id);
+        assert_eq!(got["status"], "incomplete");
+        for sub in got["sub_tasks"].as_array().unwrap() {
+            assert_eq!(sub["status"], "abandoned");
+        }
+    });
+}
+
+#[test]
+fn complete_and_abandoned_mix_keeps_master_incomplete() {
+    with_plan_task_sandbox(|_| {
+        let created = create_master_with_subs("Mixed terminal", Some(&["A", "B"]));
+        let master_id = created["master_task_id"].as_str().unwrap();
+        let sub_a = created["task"]["sub_tasks"][0]["sub_task_id"]
+            .as_str()
+            .unwrap();
+        let sub_b = created["task"]["sub_tasks"][1]["sub_task_id"]
+            .as_str()
+            .unwrap();
+
+        assert_eq!(complete_sub(master_id, sub_a)["_status"], 200);
+        assert_eq!(abandon_sub(master_id, sub_b)["_status"], 200);
+
+        let got = get_by_id(master_id);
+        assert_eq!(got["status"], "incomplete");
+        assert_eq!(got["sub_tasks"][0]["status"], "complete");
+        assert_eq!(got["sub_tasks"][1]["status"], "abandoned");
+    });
+}
+
+#[test]
+fn complete_sub_rejects_terminal_sub_returns_409() {
+    with_plan_task_sandbox(|_| {
+        let created = create_master_with_subs("Terminal guard", Some(&["A", "B"]));
+        let master_id = created["master_task_id"].as_str().unwrap();
+        let sub_a = created["task"]["sub_tasks"][0]["sub_task_id"]
+            .as_str()
+            .unwrap();
+        let sub_b = created["task"]["sub_tasks"][1]["sub_task_id"]
+            .as_str()
+            .unwrap();
+
+        assert_eq!(complete_sub(master_id, sub_a)["_status"], 200);
+        let again = complete_sub(master_id, sub_a);
+        assert_eq!(again["_status"], 409);
+
+        assert_eq!(abandon_sub(master_id, sub_b)["_status"], 200);
+        let on_abandoned = complete_sub(master_id, sub_b);
+        assert_eq!(on_abandoned["_status"], 409);
+    });
+}
+
+#[test]
+fn abandon_sub_rejects_terminal_sub_returns_409() {
+    with_plan_task_sandbox(|_| {
+        let created = create_master_with_subs("Abandon guard", Some(&["A", "B"]));
+        let master_id = created["master_task_id"].as_str().unwrap();
+        let sub_a = created["task"]["sub_tasks"][0]["sub_task_id"]
+            .as_str()
+            .unwrap();
+        let sub_b = created["task"]["sub_tasks"][1]["sub_task_id"]
+            .as_str()
+            .unwrap();
+
+        assert_eq!(abandon_sub(master_id, sub_a)["_status"], 200);
+        let again = abandon_sub(master_id, sub_a);
+        assert_eq!(again["_status"], 409);
+
+        assert_eq!(complete_sub(master_id, sub_b)["_status"], 200);
+        let on_complete = abandon_sub(master_id, sub_b);
+        assert_eq!(on_complete["_status"], 409);
+    });
+}
+
+#[test]
+fn abandon_sub_unknown_ids_return_404() {
+    with_plan_task_sandbox(|_| {
+        let v = abandon_sub("task_missing", "task_missing_sub_01");
+        assert_eq!(v["_status"], 404);
+
+        let created = create_master_with_subs("Exists", Some(&["A"]));
+        let master_id = created["master_task_id"].as_str().unwrap();
+        let missing = abandon_sub(master_id, "task_nosuch_sub_99");
+        assert_eq!(missing["_status"], 404);
     });
 }
 

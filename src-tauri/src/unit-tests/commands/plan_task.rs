@@ -236,7 +236,7 @@ fn delete_plan_sub_json_keeps_remaining_when_not_last() {
 }
 
 #[test]
-fn delete_plan_sub_json_last_sub_returns_400_and_data_unchanged() {
+fn delete_plan_sub_json_last_sub_allows_empty_sub_tasks() {
     with_commands_plan_test(|| {
         let created = create_plan_task_json("Last sub", Some(&["Only"]))
             .expect("create");
@@ -246,9 +246,11 @@ fn delete_plan_sub_json_last_sub_returns_400_and_data_unchanged() {
             .expect("sub")
             .to_string();
 
-        let blocked = delete_plan_sub_json(&master_id, &last_sub).expect("invoke");
-        assert_eq!(blocked["error"], "Cannot delete last sub");
-        assert_eq!(blocked["_status"], 400);
+        let deleted = delete_plan_sub_json(&master_id, &last_sub).expect("invoke");
+        assert!(deleted.get("_status").is_none());
+        let task = master_from_invoke(&deleted);
+        assert_eq!(task["status"], "incomplete");
+        assert!(task["sub_tasks"].as_array().expect("subs").is_empty());
 
         let listed = get_plan_tasks_json().expect("list");
         let task = listed
@@ -257,7 +259,7 @@ fn delete_plan_sub_json_last_sub_returns_400_and_data_unchanged() {
             .iter()
             .find(|t| t["master_task_id"] == master_id)
             .expect("still present");
-        assert_eq!(task["sub_tasks"].as_array().expect("subs").len(), 1);
+        assert!(task["sub_tasks"].as_array().expect("subs").is_empty());
     });
 }
 
