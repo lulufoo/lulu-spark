@@ -1094,3 +1094,269 @@ fn post_plan_task_create_blank_sub_title_element_returns_400() {
         });
     });
 }
+
+fn seed_v2_plan_for_http(
+    wb: &std::path::Path,
+    master_id: &str,
+    title: &str,
+    sub_tasks: &Value,
+    merge_index: bool,
+) {
+    let plan_tasks_dir = wb.join("plan_tasks");
+    fs::create_dir_all(plan_tasks_dir.join("tasks").join(master_id)).expect("mkdir task");
+    if merge_index {
+        let index_path = plan_tasks_dir.join("index.json");
+        let mut index: Value = if index_path.is_file() {
+            serde_json::from_str(&fs::read_to_string(&index_path).unwrap()).unwrap_or_else(|_| {
+                json!({ "version": 2, "tasks": {} })
+            })
+        } else {
+            fs::create_dir_all(plan_tasks_dir.join("tasks")).expect("mkdir tasks");
+            json!({ "version": 2, "tasks": {} })
+        };
+        index["tasks"][master_id] = json!({
+            "master_task_id": master_id,
+            "title": title,
+            "status": "incomplete",
+            "created_at": "2026-07-08T00:00:00+00:00",
+            "task_dir": format!("tasks/{master_id}")
+        });
+        fs::write(
+            index_path,
+            serde_json::to_string_pretty(&index).expect("serialize index"),
+        )
+        .expect("write index");
+    }
+    fs::write(
+        plan_tasks_dir
+            .join("tasks")
+            .join(master_id)
+            .join("sub_tasks.json"),
+        serde_json::to_string_pretty(sub_tasks).expect("serialize subs"),
+    )
+    .expect("write sub_tasks");
+    fs::write(
+        plan_tasks_dir
+            .join("tasks")
+            .join(master_id)
+            .join("plan.md"),
+        "",
+    )
+    .expect("write plan.md");
+}
+
+fn assert_http_master_has_plan_fields(task: &Value) {
+    assert!(
+        task.get("plan_md").is_some(),
+        "plan_md must be a top-level field"
+    );
+    assert!(
+        task.get("migration_error").and_then(|v| v.as_bool()).is_some(),
+        "migration_error must be a top-level boolean"
+    );
+}
+
+#[test]
+fn get_plan_tasks_includes_plan_md_and_migration_error_fields() {
+    with_plan_task_http_test(|| {
+        let fixture = setup_repo_for_plan_task();
+        let repo_root = fixture.repo_root.clone();
+        with_server(repo_root, |port| {
+            let (create_status, _) = http_post(
+                port,
+                "/api/plan-task-create",
+                &json!({ "title": "HTTP plan fields" }),
+            );
+            assert_eq!(create_status, 201);
+
+            let (status, body) = http_get_with_response(port, "/api/plan-tasks");
+            assert_eq!(status, 200);
+            let list = body.as_array().expect("array");
+            assert_eq!(list.len(), 1);
+            assert_http_master_has_plan_fields(&list[0]);
+            assert_eq!(list[0]["plan_md"], "");
+            assert_eq!(list[0]["migration_error"], false);
+
+            let expected = crate::services::plan_task::list_all();
+            assert_eq!(body, expected);
+        });
+    });
+}
+
+#[test]
+fn get_plan_task_by_id_includes_plan_md_and_migration_error_matching_list() {
+    with_plan_task_http_test(|| {
+        let fixture = setup_repo_for_plan_task();
+        let repo_root = fixture.repo_root.clone();
+        with_server(repo_root, |port| {
+            let (create_status, create_body) = http_post(
+                port,
+                "/api/plan-task-create",
+                &json!({ "title": "HTTP get by id fields" }),
+            );
+            assert_eq!(create_status, 201);
+            let master_id = create_body["master_task_id"]
+                .as_str()
+                .expect("master_task_id");
+
+            let (list_status, list_body) = http_get_with_response(port, "/api/plan-tasks");
+            assert_eq!(list_status, 200);
+            let list = list_body.as_array().expect("array");
+            assert_eq!(list.len(), 1);
+
+            let (get_status, get_body) =
+                http_get(port, &format!("/api/plan-task?id={master_id}"));
+            assert_eq!(get_status, 200);
+            assert_http_master_has_plan_fields(&get_body);
+            assert_eq!(get_body["plan_md"], list[0]["plan_md"]);
+            assert_eq!(get_body["migration_error"], list[0]["migration_error"]);
+            assert!(get_body.get("_status").is_none());
+
+            let expected = crate::services::plan_task::get_by_id(master_id);
+            assert_eq!(get_body, expected);
+        });
+    });
+}
+
+#[test]
+fn get_plan_tasks_plan_md_matches_disk_bytes() {
+    with_plan_task_http_test(|| {
+        let fixture = setup_repo_for_plan_task();
+        let repo_root = fixture.repo_root.clone();
+        with_server(repo_root, |port| {
+            let (create_status, create_body) = http_post(
+                port,
+                "/api/plan-task-create",
+                &json!({ "title": "Disk plan md" }),
+            );
+            assert_eq!(create_status, 201);
+            let master_id = create_body["master_task_id"]
+                .as_str()
+                .expect("master_task_id");
+
+            let wb = crate::config::paths::workbench_knowledge_root().expect("wb");
+            let plan_path = wb
+                .join("plan_tasks")
+                .join("tasks")
+                .join(master_id)
+                .join("plan.md");
+            let content = "# Title\n\n## Section\n\n- item one\n";
+            fs::write(&plan_path, content).expect("write plan.md");
+
+            let (list_status, list_body) = http_get_with_response(port, "/api/plan-tasks");
+            assert_eq!(list_status, 200);
+            assert_eq!(list_body[0]["plan_md"], content);
+            assert_eq!(fs::read_to_string(&plan_path).unwrap(), content);
+
+            let (get_status, get_body) =
+                http_get(port, &format!("/api/plan-task?id={master_id}"));
+            assert_eq!(get_status, 200);
+            assert_eq!(get_body["plan_md"], content);
+        });
+    });
+}
+
+#[test]
+fn get_plan_tasks_empty_plan_md_matches_empty_disk_file() {
+    with_plan_task_http_test(|| {
+        let fixture = setup_repo_for_plan_task();
+        let repo_root = fixture.repo_root.clone();
+        with_server(repo_root, |port| {
+            let (create_status, create_body) = http_post(
+                port,
+                "/api/plan-task-create",
+                &json!({ "title": "Empty plan md" }),
+            );
+            assert_eq!(create_status, 201);
+            let master_id = create_body["master_task_id"]
+                .as_str()
+                .expect("master_task_id");
+
+            let wb = crate::config::paths::workbench_knowledge_root().expect("wb");
+            let plan_path = wb
+                .join("plan_tasks")
+                .join("tasks")
+                .join(master_id)
+                .join("plan.md");
+            assert_eq!(fs::read_to_string(&plan_path).unwrap(), "");
+
+            let (list_status, list_body) = http_get_with_response(port, "/api/plan-tasks");
+            assert_eq!(list_status, 200);
+            assert_eq!(list_body[0]["plan_md"], "");
+            assert_eq!(list_body[0]["migration_error"], false);
+        });
+    });
+}
+
+#[test]
+fn plan_tasks_http_body_helpers_preserve_read_path_fields() {
+    with_plan_task_http_test(|| {
+        let fixture = setup_repo_for_plan_task();
+        let repo_root = fixture.repo_root.clone();
+        with_server(repo_root, |port| {
+            let (create_status, create_body) = http_post(
+                port,
+                "/api/plan-task-create",
+                &json!({ "title": "Body helper fields" }),
+            );
+            assert_eq!(create_status, 201);
+            let master_id = create_body["master_task_id"]
+                .as_str()
+                .expect("master_task_id");
+
+            let list_value = crate::services::plan_task::list_all();
+            let list_body = plan_tasks_list_response_body(&list_value);
+            let list_parsed: Value = serde_json::from_str(&list_body).expect("list json");
+            assert_eq!(list_parsed, list_value);
+            assert_http_master_has_plan_fields(&list_parsed[0]);
+
+            let get_value = crate::services::plan_task::get_by_id(master_id);
+            let (get_status, get_body) = plan_task_get_response_body(&get_value);
+            assert_eq!(get_status, 200);
+            let get_parsed: Value = serde_json::from_str(&get_body).expect("get json");
+            assert_eq!(get_parsed, get_value);
+            assert_http_master_has_plan_fields(&get_parsed);
+        });
+    });
+}
+
+#[test]
+fn get_plan_tasks_migration_error_plan_still_in_list() {
+    with_plan_task_http_test(|| {
+        let fixture = setup_repo_for_plan_task();
+        let repo_root = fixture.repo_root.clone();
+        with_server(repo_root, |port| {
+            let wb = crate::config::paths::workbench_knowledge_root().expect("wb");
+            let master_id = "task_http_migrate_err";
+            seed_v2_plan_for_http(
+                &wb,
+                master_id,
+                "Migration error plan",
+                &json!({ "sub_tasks": [] }),
+                true,
+            );
+            fs::write(
+                wb.join("plan_tasks")
+                    .join("tasks")
+                    .join(master_id)
+                    .join("sub_tasks.json"),
+                "{not valid json",
+            )
+            .expect("write corrupt sub_tasks");
+
+            let (status, body) = http_get_with_response(port, "/api/plan-tasks");
+            assert_eq!(status, 200);
+            let list = body.as_array().expect("array");
+            assert_eq!(list.len(), 1);
+            assert_eq!(list[0]["master_task_id"], master_id);
+            assert_eq!(list[0]["migration_error"], true);
+            assert_http_master_has_plan_fields(&list[0]);
+
+            let (get_status, get_body) =
+                http_get(port, &format!("/api/plan-task?id={master_id}"));
+            assert_eq!(get_status, 200);
+            assert_eq!(get_body["migration_error"], true);
+            assert_eq!(get_body["plan_md"], "");
+        });
+    });
+}
