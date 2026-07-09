@@ -174,24 +174,64 @@ fn plan_task_paths_require_sandbox_isolation() {
 }
 
 #[test]
-fn create_minimal_generates_implicit_sub_01() {
+fn create_without_sub_titles_yields_empty_sub_tasks() {
     with_plan_task_sandbox(|_| {
         let v = create_master_with_subs("预习：第三章", None);
         assert_eq!(v["_status"], 201);
-        let master_id = v["master_task_id"].as_str().expect("master_task_id");
-        let sub_id = v["sub_task_id"].as_str().expect("sub_task_id");
-        assert_eq!(sub_id, format!("{master_id}_sub_01"));
-        assert!(sub_id.ends_with("_sub_01"));
+        assert!(v.get("sub_task_id").is_none());
 
         let task = master_from_value(&v);
         assert_eq!(task["title"], "预习：第三章");
         assert_eq!(task["status"], "incomplete");
         let subs = task["sub_tasks"].as_array().expect("sub_tasks");
-        assert_eq!(subs.len(), 1);
-        assert_eq!(subs[0]["sub_task_id"], sub_id);
-        assert_eq!(subs[0]["implicit"], true);
-        assert_eq!(subs[0]["status"], "incomplete");
-        assert_eq!(subs[0]["linked_archive_ids"].as_array().unwrap().len(), 0);
+        assert!(subs.is_empty());
+    });
+}
+
+#[test]
+fn create_with_empty_sub_titles_slice_yields_empty_sub_tasks() {
+    with_plan_task_sandbox(|_| {
+        let empty: &[&str] = &[];
+        let v = create_master_with_subs("Empty slice", Some(empty));
+        assert_eq!(v["_status"], 201);
+        let subs = master_from_value(&v)["sub_tasks"].as_array().expect("sub_tasks");
+        assert!(subs.is_empty());
+        assert_eq!(master_from_value(&v)["status"], "incomplete");
+    });
+}
+
+#[test]
+fn recompute_master_status_empty_sub_tasks_stays_incomplete() {
+    with_plan_task_sandbox(|_| {
+        let master_id = "task_empty_subs";
+        let mut entry = sample_index_entry(master_id);
+        entry.status = MasterTaskStatus::Complete;
+        test_run_write_task_batch(
+            master_id,
+            &entry,
+            &SubTasksFile { sub_tasks: vec![] },
+            "",
+        )
+        .expect("batch write");
+
+        let got = get_by_id(master_id);
+        assert_eq!(got["status"], "incomplete");
+        assert_eq!(got["sub_tasks"].as_array().unwrap().len(), 0);
+    });
+}
+
+#[test]
+fn recompute_master_status_all_complete_marks_master_complete() {
+    with_plan_task_sandbox(|_| {
+        let created = create_master_with_subs("All done", Some(&["A", "B"]));
+        let master_id = created["master_task_id"].as_str().unwrap();
+        for sub in created["task"]["sub_tasks"].as_array().unwrap() {
+            let sub_id = sub["sub_task_id"].as_str().unwrap();
+            let v = complete_sub(master_id, sub_id);
+            assert_eq!(v["_status"], 200);
+        }
+        let got = get_by_id(master_id);
+        assert_eq!(got["status"], "complete");
     });
 }
 
@@ -216,7 +256,7 @@ fn create_multiple_subs_increments_sub_suffix() {
 #[test]
 fn get_by_id_returns_master_tree() {
     with_plan_task_sandbox(|_| {
-        let created = create_master_with_subs("Get me", None);
+        let created = create_master_with_subs("Get me", Some(&["Sub"]));
         let master_id = created["master_task_id"].as_str().unwrap();
         let got = get_by_id(master_id);
         assert!(got.get("_status").is_none() || got["_status"] == 200);
@@ -228,7 +268,7 @@ fn get_by_id_returns_master_tree() {
 #[test]
 fn get_by_id_resolves_sub_task_id() {
     with_plan_task_sandbox(|_| {
-        let created = create_master_with_subs("Sub lookup", None);
+        let created = create_master_with_subs("Sub lookup", Some(&["Sub"]));
         let sub_id = created["sub_task_id"].as_str().unwrap();
         let got = get_by_id(sub_id);
         assert_eq!(got["master_task_id"], created["master_task_id"]);
@@ -243,12 +283,12 @@ fn list_all_returns_master_trees() {
         assert!(empty.as_array().expect("array").is_empty());
 
         create_master_with_subs("One", None);
-        create_master_with_subs("Two", None);
+        create_master_with_subs("Two", Some(&["Sub"]));
         let list = list_all().as_array().expect("array").clone();
         assert_eq!(list.len(), 2);
         for item in &list {
             assert!(item.get("master_task_id").is_some());
-            assert!(item["sub_tasks"].as_array().unwrap().len() >= 1);
+            assert!(item["sub_tasks"].as_array().is_some());
         }
     });
 }
@@ -303,7 +343,7 @@ fn get_by_id_unknown_returns_404() {
 #[test]
 fn link_archive_updates_reverse_index() {
     with_plan_task_sandbox(|_| {
-        let created = create_master_with_subs("Link", None);
+        let created = create_master_with_subs("Link", Some(&["Sub"]));
         let master_id = created["master_task_id"].as_str().unwrap();
         let sub_id = created["sub_task_id"].as_str().unwrap();
 
@@ -878,7 +918,7 @@ fn create_batch_failure_leaves_no_partial_commit() {
 #[test]
 fn create_response_omits_completed_at_on_new_subs() {
     with_plan_task_sandbox(|_| {
-        let v = create_master_with_subs("New", None);
+        let v = create_master_with_subs("New", Some(&["Sub"]));
         let subs = v["task"]["sub_tasks"].as_array().unwrap();
         assert!(subs[0].get("completed_at").is_none() || subs[0]["completed_at"].is_null());
     });

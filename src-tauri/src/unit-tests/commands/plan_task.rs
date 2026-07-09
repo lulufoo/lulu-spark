@@ -25,7 +25,6 @@ fn assert_master_task_shape(task: &serde_json::Value) {
     assert!(status == "incomplete" || status == "complete");
     assert!(task.get("created_at").and_then(|v| v.as_str()).is_some());
     let subs = task["sub_tasks"].as_array().expect("sub_tasks");
-    assert!(!subs.is_empty());
     for sub in subs {
         assert!(sub.get("sub_task_id").and_then(|v| v.as_str()).is_some());
         assert!(sub.get("status").and_then(|v| v.as_str()).is_some());
@@ -55,16 +54,15 @@ fn get_plan_tasks_json_returns_desc_sorted_array() {
 }
 
 #[test]
-fn get_plan_tasks_json_v2_implicit_sub_shape() {
+fn get_plan_tasks_json_v2_empty_sub_tasks_shape() {
     with_commands_plan_test(|| {
-        create_master_with_subs("Implicit UI", None);
+        create_master_with_subs("Empty UI", None);
         let listed = get_plan_tasks_json().expect("list");
         let task = &listed.as_array().expect("array")[0];
         assert_master_task_shape(task);
         let subs = task["sub_tasks"].as_array().expect("sub_tasks");
-        assert_eq!(subs.len(), 1);
-        assert_eq!(subs[0]["implicit"], true);
-        assert_eq!(subs[0]["status"], "incomplete");
+        assert!(subs.is_empty());
+        assert_eq!(task["status"], "incomplete");
     });
 }
 
@@ -135,17 +133,18 @@ fn get_plan_tasks_json_corrupt_v2_storage_returns_err() {
 }
 
 #[test]
-fn create_plan_task_json_title_only_implicit_sub_strips_status() {
+fn create_plan_task_json_title_only_creates_empty_sub_tasks() {
     with_commands_plan_test(|| {
-        let v = create_plan_task_json("Implicit cmd", None).expect("create");
+        let v = create_plan_task_json("Empty cmd", None).expect("create");
         assert!(v.get("_status").is_none());
         assert!(v.get("master_task_id").and_then(|x| x.as_str()).is_some());
+        assert!(v.get("sub_task_id").is_none());
         let task = master_from_invoke(&v);
         assert_master_task_shape(task);
-        assert_eq!(task["title"], "Implicit cmd");
+        assert_eq!(task["title"], "Empty cmd");
+        assert_eq!(task["status"], "incomplete");
         let subs = task["sub_tasks"].as_array().expect("sub_tasks");
-        assert_eq!(subs.len(), 1);
-        assert_eq!(subs[0]["implicit"], true);
+        assert!(subs.is_empty());
     });
 }
 

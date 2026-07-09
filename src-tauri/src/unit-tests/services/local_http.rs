@@ -697,7 +697,7 @@ fn get_plan_tasks_returns_created_masters() {
 }
 
 #[test]
-fn post_plan_task_create_omit_sub_titles_creates_implicit_sub() {
+fn post_plan_task_create_omit_sub_titles_creates_empty_sub_tasks() {
     with_plan_task_http_test(|| {
         let fixture = setup_repo_for_plan_task();
         let repo_root = fixture.repo_root.clone();
@@ -709,10 +709,11 @@ fn post_plan_task_create_omit_sub_titles_creates_implicit_sub() {
             );
             assert_eq!(status, 201);
             assert!(body.get("master_task_id").and_then(|v| v.as_str()).is_some());
+            assert!(body.get("sub_task_id").is_none());
             let task = &body["task"];
             let subs = task["sub_tasks"].as_array().expect("sub_tasks");
-            assert_eq!(subs.len(), 1);
-            assert_eq!(subs[0]["implicit"], true);
+            assert!(subs.is_empty());
+            assert_eq!(task["status"], "incomplete");
         });
     });
 }
@@ -730,8 +731,8 @@ fn post_plan_task_create_empty_sub_titles_matches_omit() {
             );
             assert_eq!(status, 201);
             let subs = body["task"]["sub_tasks"].as_array().expect("sub_tasks");
-            assert_eq!(subs.len(), 1);
-            assert_eq!(subs[0]["implicit"], true);
+            assert!(subs.is_empty());
+            assert_eq!(body["task"]["status"], "incomplete");
         });
     });
 }
@@ -837,7 +838,16 @@ fn create_plan_master(port: u16, title: &str, sub_titles: &[&str]) -> (String, S
     let (status, body) = http_post(port, "/api/plan-task-create", &payload);
     assert_eq!(status, 201);
     let master_id = body["master_task_id"].as_str().expect("master_task_id").to_string();
-    let sub_id = body["sub_task_id"].as_str().expect("sub_task_id").to_string();
+    let sub_id = body["sub_task_id"]
+        .as_str()
+        .or_else(|| {
+            body["task"]["sub_tasks"]
+                .as_array()
+                .and_then(|subs| subs.first())
+                .and_then(|sub| sub["sub_task_id"].as_str())
+        })
+        .expect("sub_task_id")
+        .to_string();
     (master_id, sub_id, body)
 }
 
@@ -976,7 +986,7 @@ fn post_plan_task_delete_sub_last_sub_returns_400() {
         let fixture = setup_repo_for_plan_task();
         let repo_root = fixture.repo_root.clone();
         with_server(repo_root, |port| {
-            let (master_id, sub_id, _) = create_plan_master(port, "Single sub", &[]);
+            let (master_id, sub_id, _) = create_plan_master(port, "Single sub", &["Single sub"]);
             let (status, body) = http_post(
                 port,
                 "/api/plan-task-delete-sub",

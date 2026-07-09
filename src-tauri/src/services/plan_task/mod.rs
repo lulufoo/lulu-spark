@@ -398,11 +398,13 @@ fn format_sub_id(master_id: &str, index: usize) -> String {
 }
 
 fn recompute_master_status(master: &mut MasterTask) {
-    let all_complete = master
+    master.status = if master.sub_tasks.is_empty() {
+        MasterTaskStatus::Incomplete
+    } else if master
         .sub_tasks
         .iter()
-        .all(|s| s.status == SubTaskStatus::Complete);
-    master.status = if all_complete {
+        .all(|s| s.status == SubTaskStatus::Complete)
+    {
         MasterTaskStatus::Complete
     } else {
         MasterTaskStatus::Incomplete
@@ -443,14 +445,7 @@ pub fn create_master_with_subs(title: &str, sub_titles: Option<&[&str]>) -> Valu
         };
 
         let sub_tasks = if titles.is_empty() {
-            vec![SubTask {
-                sub_task_id: format_sub_id(&master_id, 1),
-                title: Some(title.to_string()),
-                status: SubTaskStatus::Incomplete,
-                implicit: true,
-                linked_archive_ids: vec![],
-                completed_at: None,
-            }]
+            vec![]
         } else {
             titles
                 .iter()
@@ -466,7 +461,6 @@ pub fn create_master_with_subs(title: &str, sub_titles: Option<&[&str]>) -> Valu
                 .collect()
         };
 
-        let first_sub_id = sub_tasks[0].sub_task_id.clone();
         let master = MasterTask {
             master_task_id: master_id.clone(),
             title: title.to_string(),
@@ -476,12 +470,17 @@ pub fn create_master_with_subs(title: &str, sub_titles: Option<&[&str]>) -> Valu
         };
 
         match persist_master(&master) {
-            Ok(()) => json!({
-                "master_task_id": master_id,
-                "sub_task_id": first_sub_id,
-                "task": master_to_value(&master),
-                "_status": 201,
-            }),
+            Ok(()) => {
+                let mut response = json!({
+                    "master_task_id": master_id,
+                    "task": master_to_value(&master),
+                    "_status": 201,
+                });
+                if let Some(first_sub) = master.sub_tasks.first() {
+                    response["sub_task_id"] = json!(first_sub.sub_task_id);
+                }
+                response
+            }
             Err(e) => json!({ "error": e, "_status": 500 }),
         }
     })

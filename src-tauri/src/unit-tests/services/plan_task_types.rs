@@ -110,6 +110,50 @@ fn sub_task_linked_archive_ids_default_empty_array() {
 }
 
 #[test]
+fn sub_task_status_serializes_three_lowercase_variants() {
+    for (status, expected) in [
+        (SubTaskStatus::Incomplete, "incomplete"),
+        (SubTaskStatus::Complete, "complete"),
+        (SubTaskStatus::Abandoned, "abandoned"),
+    ] {
+        let sub = SubTask {
+            sub_task_id: "task_abc_sub_01".to_string(),
+            title: Some("Sub".to_string()),
+            status,
+            implicit: false,
+            linked_archive_ids: vec![],
+            completed_at: None,
+        };
+        let v: Value = serde_json::to_value(&sub).expect("serialize");
+        assert_eq!(v["status"], expected);
+    }
+}
+
+#[test]
+fn sub_task_status_abandoned_roundtrip() {
+    let raw = json!({
+        "sub_task_id": "task_abc_sub_01",
+        "title": "Sub",
+        "status": "abandoned",
+        "implicit": false,
+        "linked_archive_ids": []
+    });
+    let sub: SubTask = serde_json::from_value(raw).expect("deserialize");
+    assert_eq!(sub.status, SubTaskStatus::Abandoned);
+}
+
+#[test]
+fn sub_task_deserialize_unknown_status_rejects() {
+    let raw = json!({
+        "sub_task_id": "task_abc_sub_01",
+        "status": "not_a_status",
+        "implicit": false
+    });
+    let result: Result<SubTask, _> = serde_json::from_value(raw);
+    assert!(result.is_err());
+}
+
+#[test]
 fn plan_tasks_index_roundtrip_preserves_tasks_map() {
     let mut tasks = HashMap::new();
     tasks.insert(

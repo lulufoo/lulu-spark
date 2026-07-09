@@ -192,7 +192,7 @@ fn archive_document_with_task_ref_completes_sub_in_sandbox() {
     with_archive_plan_task_test(|| {
         let (_sandbox, repo_root) = setup_corpus();
         let wb = crate::config::meili_env::workbench_knowledge_root_path(&repo_root);
-        let created = create_master_with_subs("Archive link", None);
+        let created = create_master_with_subs("Archive link", Some(&["Sub"]));
         assert_eq!(created["_status"], 201);
         let master_id = created["master_task_id"].as_str().unwrap();
         let sub_id = created["sub_task_id"].as_str().unwrap();
@@ -236,7 +236,7 @@ fn archive_document_plan_task_fail_dual_store_rollback() {
     with_archive_plan_task_test(|| {
         let (_sandbox, repo_root) = setup_corpus();
         let wb = crate::config::meili_env::workbench_knowledge_root_path(&repo_root);
-        let created = create_master_with_subs("A2 rollback", None);
+        let created = create_master_with_subs("A2 rollback", Some(&["Sub"]));
         let master_id = created["master_task_id"].as_str().unwrap();
         let sub_id = created["sub_task_id"].as_str().unwrap();
 
@@ -285,7 +285,7 @@ fn archive_document_index_snapshot_restore_on_plan_task_fail() {
     with_archive_plan_task_test(|| {
         let (_sandbox, repo_root) = setup_corpus();
         let wb = crate::config::meili_env::workbench_knowledge_root_path(&repo_root);
-        let created = create_master_with_subs("Index snapshot", None);
+        let created = create_master_with_subs("Index snapshot", Some(&["Sub"]));
         let master_id = created["master_task_id"].as_str().unwrap();
         let sub_id = created["sub_task_id"].as_str().unwrap();
 
@@ -328,7 +328,7 @@ fn archive_document_link_fail_corpus_rollback_plan_stays_complete() {
     with_archive_plan_task_test(|| {
         let (_sandbox, repo_root) = setup_corpus();
         let wb = crate::config::meili_env::workbench_knowledge_root_path(&repo_root);
-        let created = create_master_with_subs("Link fail", None);
+        let created = create_master_with_subs("Link fail", Some(&["Sub"]));
         let master_id = created["master_task_id"].as_str().unwrap();
         let sub_id = created["sub_task_id"].as_str().unwrap();
 
