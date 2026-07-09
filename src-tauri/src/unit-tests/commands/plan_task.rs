@@ -6,7 +6,7 @@ use crate::commands::plan_task::{
     add_plan_sub_json, create_plan_task_json, delete_plan_sub_json, delete_plan_task_json,
     get_plan_tasks_json,
 };
-use crate::services::plan_task::{create_master_with_subs, list_all};
+use crate::services::plan_task::{create_master_with_subs, list_all, test_reset_all_injection_flags};
 use crate::test_support::TestSandbox;
 
 fn master_from_invoke(v: &serde_json::Value) -> &serde_json::Value {
@@ -15,6 +15,7 @@ fn master_from_invoke(v: &serde_json::Value) -> &serde_json::Value {
 
 fn with_commands_plan_test<F: FnOnce()>(f: F) {
     let _sandbox = TestSandbox::new();
+    test_reset_all_injection_flags();
     f();
 }
 

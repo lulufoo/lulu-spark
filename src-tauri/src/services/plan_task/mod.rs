@@ -73,6 +73,16 @@ pub fn test_set_fail_migrate_implicit_write(fail: bool) {
 }
 
 #[cfg(test)]
+pub fn test_reset_all_injection_flags() {
+    TEST_FAIL_COMPLETE_SUB.store(false, Ordering::SeqCst);
+    TEST_FAIL_LINK_ARCHIVE.store(false, Ordering::SeqCst);
+    TEST_FAIL_BATCH_SUB_TASKS.store(false, Ordering::SeqCst);
+    TEST_FAIL_BATCH_PLAN_MD.store(false, Ordering::SeqCst);
+    TEST_FAIL_BATCH_INDEX.store(false, Ordering::SeqCst);
+    TEST_FAIL_MIGRATE_IMPLICIT_WRITE.store(false, Ordering::SeqCst);
+}
+
+#[cfg(test)]
 fn test_take_fail_link_archive() -> bool {
     TEST_FAIL_LINK_ARCHIVE.swap(false, Ordering::SeqCst)
 }

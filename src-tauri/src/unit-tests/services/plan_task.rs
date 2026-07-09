@@ -8,10 +8,12 @@ use std::time::SystemTime;
 
 use crate::config::paths;
 use crate::config::settings::{self, default_cache_dir};
+use crate::services::plan_task::test_reset_all_injection_flags;
 use crate::test_support::TestSandbox;
 
 fn with_plan_task_sandbox<F: FnOnce(&Path)>(f: F) {
     let _sandbox = TestSandbox::new();
+    test_reset_all_injection_flags();
     let wb = paths::workbench_knowledge_root().expect("workbench root");
     f(&wb);
 }
@@ -883,6 +885,59 @@ fn delete_sub_recomputes_master_and_allows_delete_to_empty() {
         let got = get_by_id(master_id);
         assert_eq!(got["status"], "incomplete");
         assert!(got["sub_tasks"].as_array().unwrap().is_empty());
+    });
+}
+
+#[test]
+fn complete_sub_transitions_incomplete_to_complete_terminal() {
+    with_plan_task_sandbox(|_| {
+        let created = create_master_with_subs("Complete transition", Some(&["A"]));
+        let master_id = created["master_task_id"].as_str().unwrap();
+        let sub_id = created["task"]["sub_tasks"][0]["sub_task_id"]
+            .as_str()
+            .unwrap();
+        assert_eq!(created["task"]["sub_tasks"][0]["status"], "incomplete");
+
+        let v = complete_sub(master_id, sub_id);
+        assert_eq!(v["_status"], 200);
+        assert_eq!(master_from_value(&v)["sub_tasks"][0]["status"], "complete");
+        assert!(master_from_value(&v)["sub_tasks"][0]
+            .get("completed_at")
+            .and_then(|v| v.as_str())
+            .map(is_iso8601)
+            .unwrap_or(false));
+    });
+}
+
+#[test]
+fn abandon_sub_transitions_incomplete_to_abandoned_terminal() {
+    with_plan_task_sandbox(|_| {
+        let created = create_master_with_subs("Abandon transition", Some(&["A"]));
+        let master_id = created["master_task_id"].as_str().unwrap();
+        let sub_id = created["task"]["sub_tasks"][0]["sub_task_id"]
+            .as_str()
+            .unwrap();
+        assert_eq!(created["task"]["sub_tasks"][0]["status"], "incomplete");
+
+        let v = abandon_sub(master_id, sub_id);
+        assert_eq!(v["_status"], 200);
+        assert_eq!(master_from_value(&v)["sub_tasks"][0]["status"], "abandoned");
+        assert!(master_from_value(&v)["sub_tasks"][0]
+            .get("completed_at")
+            .is_none());
+    });
+}
+
+#[test]
+fn injection_flags_reset_before_each_sandbox_test() {
+    with_plan_task_sandbox(|_| {
+        test_set_fail_batch_sub_tasks(true);
+        let created = create_master_with_subs("Flag reset", None);
+        assert_eq!(created["_status"], 500);
+    });
+    with_plan_task_sandbox(|_| {
+        let created = create_master_with_subs("After reset", None);
+        assert_eq!(created["_status"], 201);
     });
 }
 
