@@ -31,4 +31,8 @@ commands.allow = [
   "delete_plan_task",
   "add_plan_sub",
   "delete_plan_sub",
+  "read_plan_md",
+  "update_plan_md",
+  "complete_plan_sub",
+  "abandon_plan_sub",
 ]

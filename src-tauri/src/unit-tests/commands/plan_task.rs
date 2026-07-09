@@ -413,6 +413,18 @@ fn complete_plan_sub_json_terminal_returns_409_class() {
 }
 
 #[test]
+fn abandon_plan_sub_json_unknown_returns_404_class() {
+    with_commands_plan_test(|| {
+        let created = create_plan_task_json("Abandon 404", Some(&["A"])).expect("create");
+        let master_id = created["master_task_id"].as_str().expect("id");
+
+        let v = abandon_plan_sub_json(master_id, "task_missing_sub_01").expect("invoke");
+        assert_eq!(v["error"], "Task not found");
+        assert_eq!(v["_status"], 404);
+    });
+}
+
+#[test]
 fn abandon_plan_sub_json_marks_sub_abandoned() {
     with_commands_plan_test(|| {
         let created = create_plan_task_json("Abandon cmd", Some(&["A"])).expect("create");

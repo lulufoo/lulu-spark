@@ -48,6 +48,13 @@ const PLAN_TASK_WRITE_COMMANDS: &[&str] = &[
     "delete_plan_sub",
 ];
 
+const PLAN_TASK_LIFECYCLE_COMMANDS: &[&str] = &[
+    "read_plan_md",
+    "update_plan_md",
+    "complete_plan_sub",
+    "abandon_plan_sub",
+];
+
 #[test]
 fn write_api_toml_and_acl_manifest_allow_lists_match() {
     let root = manifest_dir();
@@ -87,5 +94,43 @@ fn plan_task_write_commands_are_acl_allowed() {
     assert!(
         missing.is_empty(),
         "commands missing from write-api.toml ACL: {missing:?}"
+    );
+}
+
+#[test]
+fn plan_task_lifecycle_commands_are_acl_allowed() {
+    let root = manifest_dir();
+    let toml = fs::read_to_string(root.join("permissions/write-api.toml")).expect("toml");
+    let allow = parse_write_api_toml_allow(&toml);
+    let missing: Vec<_> = PLAN_TASK_LIFECYCLE_COMMANDS
+        .iter()
+        .filter(|cmd| !allow.contains(**cmd))
+        .copied()
+        .collect();
+    assert!(
+        missing.is_empty(),
+        "commands missing from write-api.toml ACL: {missing:?}"
+    );
+}
+
+#[test]
+fn plan_task_fm4_and_lifecycle_commands_coexist_in_acl() {
+    let root = manifest_dir();
+    let toml = fs::read_to_string(root.join("permissions/write-api.toml")).expect("toml");
+    let allow = parse_write_api_toml_allow(&toml);
+    let all: Vec<_> = PLAN_TASK_WRITE_COMMANDS
+        .iter()
+        .chain(PLAN_TASK_LIFECYCLE_COMMANDS.iter())
+        .copied()
+        .collect();
+    let missing: Vec<_> = all.iter().filter(|cmd| !allow.contains(**cmd)).copied().collect();
+    assert!(
+        missing.is_empty(),
+        "plan task commands missing from write-api.toml ACL: {missing:?}"
+    );
+    assert_eq!(
+        all.len(),
+        PLAN_TASK_WRITE_COMMANDS.len() + PLAN_TASK_LIFECYCLE_COMMANDS.len(),
+        "expected eight distinct plan task ACL entries"
     );
 }
