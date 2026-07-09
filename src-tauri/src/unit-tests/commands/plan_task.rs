@@ -127,8 +127,11 @@ fn get_plan_tasks_json_corrupt_v2_storage_returns_err() {
         )
         .expect("write corrupt sub_tasks");
 
-        let err = get_plan_tasks_json().expect_err("corrupt storage");
-        assert_eq!(err, "Invalid plan_tasks storage");
+        let listed = get_plan_tasks_json().expect("list with migration_error");
+        let arr = listed.as_array().expect("array");
+        assert_eq!(arr.len(), 1);
+        assert_eq!(arr[0]["master_task_id"], master_id);
+        assert_eq!(arr[0]["migration_error"], true);
     });
 }
 

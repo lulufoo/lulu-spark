@@ -419,8 +419,10 @@ fn corrupt_storage_list_returns_explicit_error() {
         .expect("write corrupt sub_tasks");
 
         let v = list_all();
-        assert_eq!(v["error"], "Invalid plan_tasks storage");
-        assert_eq!(v["_status"], 500);
+        let listed = v.as_array().expect("array");
+        assert_eq!(listed.len(), 1);
+        assert_eq!(listed[0]["master_task_id"], master_id);
+        assert_eq!(listed[0]["migration_error"], true);
     });
 }
 
@@ -454,8 +456,9 @@ fn corrupt_storage_get_returns_explicit_error() {
         .expect("write corrupt sub_tasks");
 
         let v = get_by_id(master_id);
-        assert_eq!(v["error"], "Invalid plan_tasks storage");
-        assert_eq!(v["_status"], 500);
+        assert_eq!(v["master_task_id"], master_id);
+        assert_eq!(v["migration_error"], true);
+        assert!(v.get("_status").is_none());
     });
 }
 
@@ -921,5 +924,345 @@ fn create_response_omits_completed_at_on_new_subs() {
         let v = create_master_with_subs("New", Some(&["Sub"]));
         let subs = v["task"]["sub_tasks"].as_array().unwrap();
         assert!(subs[0].get("completed_at").is_none() || subs[0]["completed_at"].is_null());
+    });
+}
+
+fn seed_v2_plan_with_subs(
+    wb: &Path,
+    master_id: &str,
+    title: &str,
+    sub_tasks: &serde_json::Value,
+    merge_index: bool,
+) {
+    let plan_tasks_dir = wb.join("plan_tasks");
+    fs::create_dir_all(plan_tasks_dir.join("tasks").join(master_id)).expect("mkdir task");
+    if merge_index {
+        let index_path = plan_tasks_dir.join("index.json");
+        let mut index: serde_json::Value = if index_path.is_file() {
+            serde_json::from_str(&fs::read_to_string(&index_path).unwrap()).unwrap_or_else(|_| {
+                serde_json::json!({ "version": 2, "tasks": {} })
+            })
+        } else {
+            fs::create_dir_all(plan_tasks_dir.join("tasks")).expect("mkdir tasks");
+            serde_json::json!({ "version": 2, "tasks": {} })
+        };
+        index["tasks"][master_id] = serde_json::json!({
+            "master_task_id": master_id,
+            "title": title,
+            "status": "incomplete",
+            "created_at": "2026-07-08T00:00:00+00:00",
+            "task_dir": format!("tasks/{master_id}")
+        });
+        fs::write(
+            index_path,
+            serde_json::to_string_pretty(&index).expect("serialize index"),
+        )
+        .expect("write index");
+    }
+    fs::write(
+        plan_tasks_dir
+            .join("tasks")
+            .join(master_id)
+            .join("sub_tasks.json"),
+        serde_json::to_string_pretty(sub_tasks).expect("serialize subs"),
+    )
+    .expect("write sub_tasks");
+    fs::write(
+        plan_tasks_dir
+            .join("tasks")
+            .join(master_id)
+            .join("plan.md"),
+        "",
+    )
+    .expect("write plan.md");
+}
+
+fn subs_on_disk(wb: &Path, master_id: &str) -> serde_json::Value {
+    let path = wb
+        .join("plan_tasks")
+        .join("tasks")
+        .join(master_id)
+        .join("sub_tasks.json");
+    serde_json::from_str(&fs::read_to_string(path).unwrap()).expect("parse sub_tasks.json")
+}
+
+#[test]
+fn migrate_implicit_subs_removes_implicit_on_bootstrap() {
+    with_plan_task_sandbox(|wb| {
+        seed_v2_plan_with_subs(
+            wb,
+            "task_implicit",
+            "Implicit plan",
+            &serde_json::json!({
+                "sub_tasks": [{
+                    "sub_task_id": "task_implicit_sub_01",
+                    "title": "Implicit plan",
+                    "status": "incomplete",
+                    "implicit": true,
+                    "linked_archive_ids": []
+                }]
+            }),
+            true,
+        );
+
+        let list = list_all();
+        let listed = list.as_array().expect("array");
+        assert_eq!(listed.len(), 1);
+        assert_eq!(listed[0]["migration_error"], false);
+        assert_eq!(listed[0]["sub_tasks"].as_array().unwrap().len(), 0);
+
+        let got = get_by_id("task_implicit");
+        assert_eq!(got["migration_error"], false);
+        assert!(got["sub_tasks"].as_array().unwrap().is_empty());
+
+        let on_disk = subs_on_disk(wb, "task_implicit");
+        assert_eq!(on_disk["sub_tasks"].as_array().unwrap().len(), 0);
+    });
+}
+
+#[test]
+fn migrate_implicit_subs_preserves_explicit_subs() {
+    with_plan_task_sandbox(|wb| {
+        seed_v2_plan_with_subs(
+            wb,
+            "task_mixed",
+            "Mixed",
+            &serde_json::json!({
+                "sub_tasks": [
+                    {
+                        "sub_task_id": "task_mixed_sub_01",
+                        "title": "Implicit",
+                        "status": "incomplete",
+                        "implicit": true,
+                        "linked_archive_ids": []
+                    },
+                    {
+                        "sub_task_id": "task_mixed_sub_02",
+                        "title": "Explicit",
+                        "status": "incomplete",
+                        "implicit": false,
+                        "linked_archive_ids": []
+                    }
+                ]
+            }),
+            true,
+        );
+
+        let got = get_by_id("task_mixed");
+        assert_eq!(got["migration_error"], false);
+        let subs = got["sub_tasks"].as_array().unwrap();
+        assert_eq!(subs.len(), 1);
+        assert_eq!(subs[0]["sub_task_id"], "task_mixed_sub_02");
+        assert_eq!(subs[0]["implicit"], false);
+
+        let on_disk = subs_on_disk(wb, "task_mixed");
+        assert_eq!(on_disk["sub_tasks"].as_array().unwrap().len(), 1);
+    });
+}
+
+#[test]
+fn migrate_implicit_subs_no_implicit_plans_unchanged() {
+    with_plan_task_sandbox(|wb| {
+        seed_v2_plan_with_subs(
+            wb,
+            "task_explicit",
+            "Explicit only",
+            &serde_json::json!({
+                "sub_tasks": [{
+                    "sub_task_id": "task_explicit_sub_01",
+                    "title": "Keep",
+                    "status": "incomplete",
+                    "implicit": false,
+                    "linked_archive_ids": []
+                }]
+            }),
+            true,
+        );
+
+        let before = subs_on_disk(wb, "task_explicit");
+        list_all();
+        let after = subs_on_disk(wb, "task_explicit");
+        assert_eq!(before, after);
+
+        let got = get_by_id("task_explicit");
+        assert_eq!(got["migration_error"], false);
+        assert_eq!(got["sub_tasks"].as_array().unwrap().len(), 1);
+    });
+}
+
+#[test]
+fn migrate_implicit_subs_idempotent_second_bootstrap() {
+    with_plan_task_sandbox(|wb| {
+        seed_v2_plan_with_subs(
+            wb,
+            "task_idempotent",
+            "Idempotent",
+            &serde_json::json!({
+                "sub_tasks": [{
+                    "sub_task_id": "task_idempotent_sub_01",
+                    "title": "Idempotent",
+                    "status": "incomplete",
+                    "implicit": true,
+                    "linked_archive_ids": []
+                }]
+            }),
+            true,
+        );
+
+        list_all();
+        let after_first = fs::read_to_string(
+            wb.join("plan_tasks")
+                .join("tasks")
+                .join("task_idempotent")
+                .join("sub_tasks.json"),
+        )
+        .unwrap();
+
+        list_all();
+        let after_second = fs::read_to_string(
+            wb.join("plan_tasks")
+                .join("tasks")
+                .join("task_idempotent")
+                .join("sub_tasks.json"),
+        )
+        .unwrap();
+
+        assert_eq!(after_first, after_second);
+        let got = get_by_id("task_idempotent");
+        assert_eq!(got["migration_error"], false);
+        assert!(got["sub_tasks"].as_array().unwrap().is_empty());
+    });
+}
+
+#[test]
+fn migrate_implicit_subs_marks_migration_error_on_corrupt_plan() {
+    with_plan_task_sandbox(|wb| {
+        seed_v2_plan_with_subs(
+            wb,
+            "task_corrupt_migrate",
+            "Corrupt migrate",
+            &serde_json::json!({ "sub_tasks": [] }),
+            true,
+        );
+        fs::write(
+            wb.join("plan_tasks")
+                .join("tasks")
+                .join("task_corrupt_migrate")
+                .join("sub_tasks.json"),
+            "{not valid json",
+        )
+        .expect("write corrupt sub_tasks");
+
+        let list = list_all();
+        let listed = list.as_array().expect("array");
+        assert_eq!(listed.len(), 1);
+        assert_eq!(listed[0]["master_task_id"], "task_corrupt_migrate");
+        assert_eq!(listed[0]["migration_error"], true);
+    });
+}
+
+#[test]
+fn migrate_implicit_subs_other_plans_unaffected_on_single_failure() {
+    with_plan_task_sandbox(|wb| {
+        seed_v2_plan_with_subs(
+            wb,
+            "task_ok",
+            "OK plan",
+            &serde_json::json!({
+                "sub_tasks": [{
+                    "sub_task_id": "task_ok_sub_01",
+                    "title": "Explicit",
+                    "status": "incomplete",
+                    "implicit": false,
+                    "linked_archive_ids": []
+                }]
+            }),
+            true,
+        );
+        seed_v2_plan_with_subs(
+            wb,
+            "task_bad",
+            "Bad plan",
+            &serde_json::json!({ "sub_tasks": [] }),
+            true,
+        );
+        fs::write(
+            wb.join("plan_tasks")
+                .join("tasks")
+                .join("task_bad")
+                .join("sub_tasks.json"),
+            "{not valid json",
+        )
+        .expect("write corrupt sub_tasks");
+
+        let list = list_all();
+        let listed = list.as_array().expect("array");
+        assert_eq!(listed.len(), 2);
+
+        let ok = listed
+            .iter()
+            .find(|v| v["master_task_id"] == "task_ok")
+            .expect("ok plan");
+        assert_eq!(ok["migration_error"], false);
+        assert_eq!(ok["sub_tasks"].as_array().unwrap().len(), 1);
+
+        let bad = listed
+            .iter()
+            .find(|v| v["master_task_id"] == "task_bad")
+            .expect("bad plan");
+        assert_eq!(bad["migration_error"], true);
+    });
+}
+
+#[test]
+fn get_by_id_includes_migration_error_on_corrupt_plan() {
+    with_plan_task_sandbox(|wb| {
+        seed_v2_plan_with_subs(
+            wb,
+            "task_corrupt_get_migrate",
+            "Corrupt get",
+            &serde_json::json!({ "sub_tasks": [] }),
+            true,
+        );
+        fs::write(
+            wb.join("plan_tasks")
+                .join("tasks")
+                .join("task_corrupt_get_migrate")
+                .join("sub_tasks.json"),
+            "{not valid json",
+        )
+        .expect("write corrupt sub_tasks");
+
+        let got = get_by_id("task_corrupt_get_migrate");
+        assert_eq!(got["master_task_id"], "task_corrupt_get_migrate");
+        assert_eq!(got["migration_error"], true);
+        assert!(got.get("_status").is_none());
+    });
+}
+
+#[test]
+fn migrate_implicit_subs_write_failure_marks_migration_error() {
+    with_plan_task_sandbox(|wb| {
+        seed_v2_plan_with_subs(
+            wb,
+            "task_write_fail",
+            "Write fail",
+            &serde_json::json!({
+                "sub_tasks": [{
+                    "sub_task_id": "task_write_fail_sub_01",
+                    "title": "Implicit",
+                    "status": "incomplete",
+                    "implicit": true,
+                    "linked_archive_ids": []
+                }]
+            }),
+            true,
+        );
+        test_set_fail_migrate_implicit_write(true);
+
+        let list = list_all();
+        let listed = list.as_array().expect("array");
+        assert_eq!(listed.len(), 1);
+        assert_eq!(listed[0]["migration_error"], true);
     });
 }
