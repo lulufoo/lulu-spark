@@ -120,6 +120,23 @@ function parseJson(text) {
   return JSON.parse(text);
 }
 
+async function callPlanTool(name, args = {}) {
+  const result = await client.callTool({ name, arguments: args });
+  const text = toolText(result);
+  if (result.isError) {
+    throw new Error(`${name} failed: ${text}`);
+  }
+  return parseJson(text);
+}
+
+function findMaster(list, masterId, label) {
+  const row = list.find((t) => t.master_task_id === masterId);
+  if (!row) {
+    throw new Error(`${label} missing master ${masterId}`);
+  }
+  return row;
+}
+
 const createResult = await client.callTool({
   name: 'create_plan_task',
   arguments: { title: 'MCP E2E', sub_titles: ['Sub A', 'Sub B'] },
@@ -173,20 +190,21 @@ assertPlanMdMatchesDisk(getBody.plan_md, diskBefore, 'get_plan_task');
 if (tasksDir) {
   const fixtureContent = '# MCP E2E plan.md\n\nRound-trip fixture paragraph.\n';
   writePlanMdToDisk(tasksDir, masterId, fixtureContent);
-  const listAfterWrite = parseJson(toolText(await client.callTool({ name: 'list_plan_tasks', arguments: {} })));
-  const listRow = listAfterWrite.find((t) => t.master_task_id === masterId);
-  if (!listRow) {
-    throw new Error(`list_plan_tasks missing master after plan.md write: ${masterId}`);
-  }
-  assertPlanMdMatchesDisk(listRow.plan_md, fixtureContent, 'list_plan_tasks after disk write');
-  const getAfterWrite = parseJson(
-    toolText(await client.callTool({ name: 'get_plan_task', arguments: { id: masterId } })),
+  const listRow = findMaster(
+    await callPlanTool('list_plan_tasks'),
+    masterId,
+    'list_plan_tasks after disk write',
   );
+  assertPlanMdMatchesDisk(listRow.plan_md, fixtureContent, 'list_plan_tasks after disk write');
+  const getAfterWrite = await callPlanTool('get_plan_task', { id: masterId });
   assertPlanMdMatchesDisk(getAfterWrite.plan_md, fixtureContent, 'get_plan_task after disk write');
 
   writePlanMdToDisk(tasksDir, masterId, '');
-  const listEmpty = parseJson(toolText(await client.callTool({ name: 'list_plan_tasks', arguments: {} })));
-  const listEmptyRow = listEmpty.find((t) => t.master_task_id === masterId);
+  const listEmptyRow = findMaster(
+    await callPlanTool('list_plan_tasks'),
+    masterId,
+    'list_plan_tasks empty plan.md',
+  );
   assertPlanMdMatchesDisk(listEmptyRow.plan_md, '', 'list_plan_tasks empty plan.md');
 } else if (listMaster.plan_md !== '') {
   throw new Error(`list_plan_tasks plan_md should be empty for new task without plan.md, got: ${JSON.stringify(listMaster.plan_md)}`);
