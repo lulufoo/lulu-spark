@@ -89,7 +89,7 @@ function renderSubTitleRows(rows = ['']) {
         .join('')}
     </div>
     <button type="button" class="plan-task-dialog-add-row" data-action="add-sub-row">+ 添加子任务行</button>
-    <p class="plan-task-dialog-hint">留空则创建默认子任务</p>
+    <p class="plan-task-dialog-hint">不填写子任务时，计划将不含任何子任务</p>
   `;
 }
 
