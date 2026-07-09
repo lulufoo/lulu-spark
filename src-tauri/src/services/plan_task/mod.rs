@@ -444,11 +444,6 @@ fn load_master_task_unlocked(master_id: &str) -> Result<MasterTask, Value> {
     Ok(assemble_master_task(entry, &subs))
 }
 
-fn load_master_task(master_id: &str) -> Result<MasterTask, Value> {
-    load_v2_for_read()?;
-    load_master_task_unlocked(master_id)
-}
-
 fn find_master_id_for_any_id(index: &PlanTasksIndex, id: &str) -> Result<Option<String>, Value> {
     if index.tasks.contains_key(id) {
         return Ok(Some(id.to_string()));
@@ -518,8 +513,10 @@ fn master_to_value(master: &MasterTask) -> Value {
 }
 
 fn master_to_response(master: &MasterTask, migration_error: bool) -> Value {
+    let plan_md = read_plan_md_or_empty(&master.master_task_id).unwrap_or_default();
     let mut value = master_to_value(master);
     if let Value::Object(ref mut map) = value {
+        map.insert("plan_md".to_string(), json!(plan_md));
         map.insert("migration_error".to_string(), json!(migration_error));
     }
     value
@@ -558,6 +555,59 @@ fn load_master_response_unlocked(master_id: &str) -> Result<Value, Value> {
         &assemble_master_task(entry, &subs),
         false,
     ))
+}
+
+pub fn read_plan_md(master_task_id: &str) -> Value {
+    let master_task_id = master_task_id.trim();
+    if master_task_id.is_empty() {
+        return json!({ "error": "Missing id", "_status": 400 });
+    }
+
+    match load_v2_for_read() {
+        Ok(index) => {
+            if !index.tasks.contains_key(master_task_id) {
+                return json!({ "error": "Task not found", "_status": 404 });
+            }
+            match read_plan_md_or_empty(master_task_id) {
+                Ok(plan_md) => json!({ "plan_md": plan_md, "_status": 200 }),
+                Err(e) => json!({ "error": e, "_status": 500 }),
+            }
+        }
+        Err(err) => err,
+    }
+}
+
+pub fn update_plan_md(master_task_id: &str, plan_md: &str) -> Value {
+    let master_task_id = master_task_id.trim();
+    if master_task_id.is_empty() {
+        return json!({ "error": "Missing id", "_status": 400 });
+    }
+
+    with_write_lock(|| {
+        if let Err(e) = ensure_bootstrap() {
+            return bootstrap_error(e);
+        }
+
+        let index = match load_v2_index_unlocked() {
+            Ok(i) => i,
+            Err(LoadOutcome::Corrupt) => return corrupt_storage_error(),
+            Err(LoadOutcome::Missing) | Err(LoadOutcome::Ok) => PlanTasksIndex::default(),
+        };
+
+        if !index.tasks.contains_key(master_task_id) {
+            return json!({ "error": "Task not found", "_status": 404 });
+        }
+
+        let plan_md_path = match paths::plan_tasks_plan_md_path(master_task_id) {
+            Ok(p) => p,
+            Err(e) => return json!({ "error": format!("{e:?}"), "_status": 500 }),
+        };
+
+        match write_plan_md_atomic(&plan_md_path, plan_md) {
+            Ok(()) => json!({ "ok": true, "_status": 200 }),
+            Err(e) => json!({ "error": e, "_status": 500 }),
+        }
+    })
 }
 
 pub fn create_master_with_subs(title: &str, sub_titles: Option<&[&str]>) -> Value {
