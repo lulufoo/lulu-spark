@@ -1,6 +1,6 @@
 import { createApiClient, resolveReadDriver } from '../apiClient.js';
 import { escHtml } from '../utils.js';
-import { closePlanTaskDialog, isPlanTaskDialogOpen, openPlanTaskDialog } from './dialog.js';
+import { closePlanTaskDialog, openPlanTaskDialog } from './dialog.js';
 
 const UNAVAILABLE_MSG = '列表暂时不可用，请稍后重试';
 const REFRESH_WARNING_MSG = '已保存，列表刷新失败，请重试';
@@ -78,6 +78,11 @@ function buildDeepLink(masterId, subId) {
   return `#/plan-tasks?${params.toString()}`;
 }
 
+function buildMasterDeepLink(masterId) {
+  const params = new URLSearchParams({ master: masterId });
+  return `#/plan-tasks?${params.toString()}`;
+}
+
 function sortMasters(masters) {
   return [...masters].sort((a, b) => {
     const aTime = Date.parse(a.created_at ?? '') || 0;
@@ -107,7 +112,7 @@ function formatRelativeTime(iso) {
 }
 
 function controlsDisabled(busy) {
-  return busy || isPlanTaskDialogOpen();
+  return busy;
 }
 
 function renderRefreshWarning(refreshWarning, disabled) {
@@ -326,6 +331,7 @@ export function mountPlanTaskSplit(container, opts = {}) {
   let selectedMasterId = initialMasterId;
   let selectedSubId = initialSubId;
   let deadLink = false;
+  let validateInitialSubLink = Boolean(initialSubId);
   let refreshPromise = null;
   let busy = false;
   let refreshWarning = '';
@@ -359,7 +365,8 @@ export function mountPlanTaskSplit(container, opts = {}) {
       return;
     }
     const subs = master.sub_tasks ?? [];
-    if (initialSubId && selectedSubId === initialSubId) {
+    if (validateInitialSubLink && initialSubId && selectedSubId === initialSubId) {
+      validateInitialSubLink = false;
       const sub = subs.find((item) => item.sub_task_id === selectedSubId);
       if (!sub) {
         deadLink = true;
@@ -510,8 +517,16 @@ export function mountPlanTaskSplit(container, opts = {}) {
       payload: { subTitle },
       onSubmit: async () => {
         const masterTaskId = selectedMasterId;
+        const deletingSelected = selectedSubId === subTaskId;
         await runWriteAction(async () => {
           await deletePlanSub({ masterTaskId, subTaskId });
+          if (deletingSelected) {
+            selectedSubId = '';
+            deadLink = false;
+            if (typeof navigate === 'function' && masterTaskId) {
+              navigate(buildMasterDeepLink(masterTaskId));
+            }
+          }
         });
       },
     });
@@ -624,11 +639,16 @@ export function mountPlanTaskSplit(container, opts = {}) {
   };
 
   container.addEventListener('click', onClick);
+  const onDialogClose = () => {
+    if (!disposed) paint();
+  };
+  document.addEventListener('plan-task-dialog-close', onDialogClose);
   const disposeFocusRefresh = bindFocusRefresh(refresh);
   void refresh();
 
   function dispose() {
     disposed = true;
+    document.removeEventListener('plan-task-dialog-close', onDialogClose);
     closePlanTaskDialog();
     disposeFocusRefresh();
     container.removeEventListener('click', onClick);

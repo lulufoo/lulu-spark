@@ -188,6 +188,7 @@ export function closePlanTaskDialog() {
     keydownHandler = null;
   }
   restoreFocus();
+  document.dispatchEvent(new CustomEvent('plan-task-dialog-close'));
 }
 
 export function isPlanTaskDialogOpen() {
