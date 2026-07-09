@@ -165,7 +165,9 @@ fn create_plan_task_mcp_tool_e2e_with_local_http() {
 
     let _sandbox = TestSandbox::new();
     let wb = _sandbox.workbench_knowledge_root();
-    std::fs::create_dir_all(wb).expect("mkdir corpus");
+    std::fs::create_dir_all(&wb).expect("mkdir corpus");
+    let plan_tasks_tasks_dir = wb.join("plan_tasks").join("tasks");
+    std::fs::create_dir_all(&plan_tasks_tasks_dir).expect("mkdir plan_tasks/tasks");
     let config_root = _sandbox.config_dir().to_path_buf();
 
     let (http_port, http_handle) = setup_http(config_root);
@@ -181,6 +183,10 @@ fn create_plan_task_mcp_tool_e2e_with_local_http() {
     let status = Command::new("node")
         .arg(&e2e)
         .env("MCP_PORT", mcp_port.to_string())
+        .env(
+            "E2E_PLAN_TASKS_TASKS_DIR",
+            plan_tasks_tasks_dir.to_string_lossy().as_ref(),
+        )
         .status()
         .expect("run plan-task-mcp-e2e");
     assert!(status.success(), "plan-task-mcp-e2e should pass");
