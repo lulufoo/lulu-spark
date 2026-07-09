@@ -5,6 +5,7 @@ import { closePlanTaskDialog, isPlanTaskDialogOpen, openPlanTaskDialog } from '.
 
 const UNAVAILABLE_MSG = '列表暂时不可用，请稍后重试';
 const REFRESH_WARNING_MSG = '已保存，列表刷新失败，请重试';
+const MIGRATION_WARNING_MSG = '此计划的数据迁移未完成，部分信息可能不完整';
 
 const STATUS_LABELS = {
   incomplete: '进行中',
@@ -137,6 +138,14 @@ function formatRelativeTime(iso) {
 
 function controlsDisabled(busy) {
   return busy || isPlanTaskDialogOpen();
+}
+
+function renderMigrationWarning() {
+  return `
+    <div class="plan-task-migration-warning plan-task-split-state" role="status">
+      <p class="plan-task-split-state-detail">${escHtml(MIGRATION_WARNING_MSG)}</p>
+    </div>
+  `;
 }
 
 function renderRefreshWarning(refreshWarning, disabled) {
@@ -283,8 +292,7 @@ function renderSubEmpty(disabled) {
   const disabledAttr = disabled ? ' disabled' : '';
   return `
     <div class="plan-task-empty plan-task-empty--detail">
-      <p class="plan-task-empty-title">还没有子任务</p>
-      <p class="plan-task-empty-detail">添加第一个子任务开始执行</p>
+      <p class="plan-task-empty-title">暂无子任务</p>
       <button type="button" class="md-header-btn primary" data-action="add-sub"${disabledAttr}>添加子任务</button>
     </div>
   `;
@@ -339,6 +347,7 @@ function renderSubDetailPane(master, selectedSubId, ui) {
           ${renderDetailMeta(master)}
         </div>
       </div>
+      ${master.migration_error ? renderMigrationWarning() : ''}
       ${renderPlanMdSection(master, ui)}
       ${renderRefreshWarning(ui.refreshWarning, ui.disabled)}
       ${renderDetailToolbar(master.master_task_id, ui.disabled)}

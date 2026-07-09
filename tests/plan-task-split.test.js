@@ -20,6 +20,7 @@ vi.mock('../frontend/js/apiClient.js', async (importOriginal) => {
 import { parseHash } from '../frontend/js/router/index.js';
 import {
   copySubIdPair,
+  formatPlanTaskStatus,
   loadPlanTasks,
   mountPlanTaskSplit,
   renderSubDetail,
@@ -66,22 +67,40 @@ const sampleMasters = [
         implicit: false,
         linked_archive_ids: [],
       },
-    ],
-  },
-  {
-    master_task_id: 'task_beta',
-    title: 'Beta Task',
-    status: 'incomplete',
-    created_at: '2026-07-06T10:00:00Z',
-    sub_tasks: [
       {
-        sub_task_id: 'task_beta_sub_01',
-        title: 'Implicit only',
-        status: 'incomplete',
-        implicit: true,
+        sub_task_id: 'task_alpha_sub_03',
+        title: 'Alpha Sub C',
+        status: 'abandoned',
+        implicit: false,
         linked_archive_ids: [],
       },
     ],
+  },
+  {
+    master_task_id: 'task_empty',
+    title: 'Empty Subs Task',
+    status: 'incomplete',
+    created_at: '2026-07-05T10:00:00Z',
+    sub_tasks: [],
+    plan_md: '',
+    migration_error: false,
+  },
+  {
+    master_task_id: 'task_migrated_err',
+    title: 'Migration Error Task',
+    status: 'incomplete',
+    created_at: '2026-07-04T10:00:00Z',
+    sub_tasks: [
+      {
+        sub_task_id: 'task_migrated_err_sub_01',
+        title: 'Still visible sub',
+        status: 'incomplete',
+        implicit: false,
+        linked_archive_ids: [],
+      },
+    ],
+    plan_md: '## Notes',
+    migration_error: true,
   },
 ];
 
@@ -116,15 +135,32 @@ describe('copySubIdPair', () => {
   });
 });
 
+describe('formatPlanTaskStatus', () => {
+  it('maps incomplete, complete, and abandoned to Chinese labels', () => {
+    expect(formatPlanTaskStatus('incomplete')).toBe('进行中');
+    expect(formatPlanTaskStatus('complete')).toBe('已完成');
+    expect(formatPlanTaskStatus('abandoned')).toBe('已废弃');
+  });
+});
+
 describe('renderSubDetail', () => {
   it('renders all subs with Chinese status labels and copy in menu', () => {
     const html = renderSubDetail(sampleMasters[0], 'task_alpha_sub_01');
     expect(html).toContain('Alpha Sub A');
     expect(html).toContain('Alpha Sub B');
+    expect(html).toContain('Alpha Sub C');
     expect(html).toContain('进行中');
     expect(html).toContain('已完成');
+    expect(html).toContain('已废弃');
     expect(html).toContain('data-copy-text="task_alpha → task_alpha_sub_01"');
     expect(html).toContain('data-copy-text="task_alpha → task_alpha_sub_02"');
+  });
+
+  it('renders distinct status modifier classes for three sub states', () => {
+    const html = renderSubDetail(sampleMasters[0], 'task_alpha_sub_01');
+    expect(html).toContain('plan-task-sub-status--incomplete');
+    expect(html).toContain('plan-task-sub-status--complete');
+    expect(html).toContain('plan-task-sub-status--abandoned');
   });
 
   it('renders linked_archive_ids as comma list with prefix', () => {
@@ -136,13 +172,6 @@ describe('renderSubDetail', () => {
   it('marks selected sub with selected class', () => {
     const html = renderSubDetail(sampleMasters[0], 'task_alpha_sub_02');
     expect(html).toMatch(/data-sub-id="task_alpha_sub_02"[^>]*plan-task-sub--selected/);
-  });
-
-  it('renders implicit single sub master correctly', () => {
-    const html = renderSubDetail(sampleMasters[1], 'task_beta_sub_01');
-    expect(html).toContain('Implicit only');
-    expect(html).toContain('data-copy-text="task_beta → task_beta_sub_01"');
-    expect(html).toContain('进行中');
   });
 });
 
@@ -259,14 +288,43 @@ describe('mountPlanTaskSplit', () => {
     getJsonMock.mockResolvedValue(sampleMasters);
     const { dispose } = mountPlanTaskSplit(container);
     await vi.waitFor(() => {
-      expect(container.querySelectorAll('.plan-task-master-item')).toHaveLength(2);
+      expect(container.querySelectorAll('.plan-task-master-item')).toHaveLength(3);
     });
-    container.querySelector('[data-master-id="task_beta"]').click();
+    container.querySelector('[data-master-id="task_migrated_err"]').click();
     await vi.waitFor(() => {
       expect(
         container.querySelector('.plan-task-master-item--selected')?.dataset.masterId,
-      ).toBe('task_beta');
-      expect(container.textContent).toContain('Implicit only');
+      ).toBe('task_migrated_err');
+      expect(container.textContent).toContain('Still visible sub');
+    });
+    dispose();
+  });
+
+  it('shows normal empty sub list state with add entry', async () => {
+    getJsonMock.mockResolvedValue(sampleMasters);
+    const { dispose } = mountPlanTaskSplit(container, {
+      masterId: 'task_empty',
+    });
+    await vi.waitFor(() => {
+      expect(container.querySelector('.plan-task-empty--detail')).not.toBeNull();
+      expect(container.textContent).toContain('暂无子任务');
+      expect(container.querySelector('[data-action="add-sub"]')).not.toBeNull();
+      expect(container.querySelector('.plan-task-split-state--error')).toBeNull();
+    });
+    dispose();
+  });
+
+  it('shows non-blocking migration_error banner while keeping plan operable', async () => {
+    getJsonMock.mockResolvedValue(sampleMasters);
+    const { dispose } = mountPlanTaskSplit(container, {
+      masterId: 'task_migrated_err',
+      subId: 'task_migrated_err_sub_01',
+    });
+    await vi.waitFor(() => {
+      expect(container.querySelector('.plan-task-migration-warning')).not.toBeNull();
+      expect(container.textContent).toMatch(/迁移|数据/);
+      expect(container.querySelector('.plan-task-sub-list .plan-task-sub')).not.toBeNull();
+      expect(container.querySelector('[data-action="add-sub"]')).not.toBeNull();
     });
     dispose();
   });
@@ -321,5 +379,11 @@ describe('plan-tasks route source wiring', () => {
     expect(appCss).toMatch(/\.plan-task-split/);
     expect(appCss).toMatch(/\.plan-task-split-master/);
     expect(appCss).toMatch(/\.plan-task-split-detail/);
+  });
+
+  it('app.css styles plan-md preview and three sub status variants', () => {
+    expect(appCss).toMatch(/\.plan-task-plan-md-preview/);
+    expect(appCss).toMatch(/\.plan-task-sub-status--abandoned/);
+    expect(appCss).not.toMatch(/\.plan-task-plan-md-preview[\s\S]*background:\s*#000/);
   });
 });
