@@ -16,9 +16,21 @@ const PLAN_TASK_VITEST = [
   'tests/plan-task-ac-gate.test.js',
 ];
 
+const NOTE_FEATURE_VITEST = [
+  'tests/note-assistant.test.js',
+  'tests/viewer-create-note.test.js',
+  'tests/note-ac-gate.test.js',
+];
+
 describe('AC-全量回归 gate (tech-doc T-08 / VF)', () => {
   it('npm test includes plan-task feature vitest files', () => {
     for (const file of PLAN_TASK_VITEST) {
+      expect(testScript, `missing ${file} in npm test`).toContain(file);
+    }
+  });
+
+  it('npm test includes note feature vitest files (tech-doc T-13 / VF)', () => {
+    for (const file of NOTE_FEATURE_VITEST) {
       expect(testScript, `missing ${file} in npm test`).toContain(file);
     }
   });
