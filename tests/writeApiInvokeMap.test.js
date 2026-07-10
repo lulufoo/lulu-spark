@@ -28,14 +28,24 @@ const P2_WRITE_PATHS = [
   '/api/sediment-kb/categories/add',
   '/api/sediment-kb/categories/rename',
   '/api/sediment-kb/categories/remove',
+  '/api/archive-document',
 ];
 
+const ANNOTATION_WRITE_CMDS = new Set([
+  'update_comments',
+  'reorder_comments',
+  'update_highlights',
+  'update_links',
+  'set_done',
+  'set_importance',
+]);
+
 describe('writeApiInvokeMap', () => {
-  it('covers all 23 P2 POST paths', () => {
+  it('covers all 24 P2 POST paths', () => {
     for (const p of P2_WRITE_PATHS) {
       expect(WRITE_API_INVOKE_MAP[p]?.cmd, p).toBeTruthy();
     }
-    expect(Object.keys(WRITE_API_INVOKE_MAP)).toHaveLength(23);
+    expect(Object.keys(WRITE_API_INVOKE_MAP)).toHaveLength(24);
   });
 
   it('resolveWriteInvoke maps set-done body to set_done command', () => {
@@ -89,5 +99,26 @@ describe('writeApiInvokeMap', () => {
       cmd: 'create_read_later',
       args: { url: 'https://example.com/b' },
     });
+  });
+
+  it('resolveWriteInvoke maps archive-document to archive_document (snake↔camel style)', () => {
+    const body = {
+      document: '# Note\n\nbody',
+      source_type: 'note',
+    };
+    expect(resolveWriteInvoke('/api/archive-document', body)).toEqual({
+      cmd: 'archive_document',
+      args: { payload: body },
+    });
+  });
+
+  it('archive-document invoke does not route to Annotation write commands', () => {
+    const resolved = resolveWriteInvoke('/api/archive-document', {
+      document: '# Note\n\nbody',
+      source_type: 'note',
+    });
+    expect(resolved).not.toBeNull();
+    expect(ANNOTATION_WRITE_CMDS.has(resolved.cmd)).toBe(false);
+    expect(resolved.cmd).toBe('archive_document');
   });
 });

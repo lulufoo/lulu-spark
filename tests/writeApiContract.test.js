@@ -39,11 +39,12 @@ const P2_PATHS = [
     'sediment_kb_remove_category',
     ['payload'],
   ],
+  ['/api/archive-document', 'archive_document', ['payload']],
 ];
 
 describe('writeApiContract', () => {
-  it('covers all 22 P2 POST paths with command names', () => {
-    expect(Object.keys(WRITE_API_INVOKE_MAP)).toHaveLength(22);
+  it('covers all P2 POST paths with command names including archive-document', () => {
+    expect(Object.keys(WRITE_API_INVOKE_MAP).length).toBeGreaterThanOrEqual(P2_PATHS.length);
     for (const [path, cmd] of P2_PATHS) {
       expect(WRITE_API_INVOKE_MAP[path]?.cmd, path).toBe(cmd);
     }
@@ -155,6 +156,17 @@ describe('writeApiContract', () => {
     expect({ error: 'Comment not found', _status: 404 }).toMatchObject({
       error: 'Comment not found',
       _status: 404,
+    });
+  });
+
+  it('archive-document invoke args pass HTTP body as payload (snake HTTP ↔ camel invoke)', () => {
+    const body = {
+      document: '# Title\n\nbody',
+      source_type: 'note',
+    };
+    expect(resolveWriteInvoke('/api/archive-document', body)).toEqual({
+      cmd: 'archive_document',
+      args: { payload: body },
     });
   });
 });

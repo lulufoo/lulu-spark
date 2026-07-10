@@ -501,3 +501,8 @@ export async function renameSedimentKbCategory(id, name) {
 export async function removeSedimentKbCategory(id) {
   return writePost('/api/sediment-kb/categories/remove', { id });
 }
+
+/** Archive a formatted document to raw/ + index (HTTP/MCP `archive_document` parity). */
+export async function archiveDocument(payload) {
+  return writePost('/api/archive-document', payload || {});
+}

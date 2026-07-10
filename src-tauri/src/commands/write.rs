@@ -3,7 +3,7 @@ use tauri::AppHandle;
 
 use crate::config::paths;
 use crate::services::sediment_kb::{self, SedimentKbError};
-use crate::services::{annotation, entry_write, kb_write, tag_write};
+use crate::services::{annotation, archive_write, entry_write, kb_write, tag_write};
 
 fn repo_root() -> Result<std::path::PathBuf, String> {
     paths::repo_root().map_err(|e| format!("{e:?}"))
@@ -368,6 +368,21 @@ pub fn tag_update_value(
     Ok(tag_write::tag_update_value(&repo_root()?, &key, &value))
 }
 
+/// Thin Tauri/HTTP-parity wrapper around `archive_write::archive_document`.
+/// Business errors stay in the Value (`error` + `_status`); do not convert to Err.
+pub fn archive_document_json(payload: Value) -> Result<Value, String> {
+    Ok(archive_write::archive_document(&repo_root()?, &payload))
+}
+
+#[tauri::command]
+pub fn archive_document(_app: AppHandle, payload: Value) -> Result<Value, String> {
+    archive_document_json(payload)
+}
+
 #[cfg(test)]
 #[path = "../unit-tests/commands/sediment_kb_write.rs"]
 mod sediment_kb_write_tests;
+
+#[cfg(test)]
+#[path = "../unit-tests/commands/archive_document_write.rs"]
+mod archive_document_write_tests;

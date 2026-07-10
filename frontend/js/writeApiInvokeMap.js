@@ -167,6 +167,10 @@ export const WRITE_API_INVOKE_MAP = {
     cmd: 'sediment_kb_remove_category',
     args: (body) => ({ payload: body ?? {} }),
   },
+  '/api/archive-document': {
+    cmd: 'archive_document',
+    args: (body) => ({ payload: body ?? {} }),
+  },
 };
 
 /**

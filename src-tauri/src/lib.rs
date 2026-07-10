@@ -444,6 +444,7 @@ pub fn run() {
             commands::write::sediment_kb_add_category,
             commands::write::sediment_kb_rename_category,
             commands::write::sediment_kb_remove_category,
+            commands::write::archive_document,
         ])
         .setup(|app| {
             // Auto-start Meilisearch if not already running
