@@ -13,6 +13,23 @@ fn cache_dir_uses_settings_not_repo_dot_cache() {
 }
 
 #[test]
+fn notes_draft_path_resolves_under_cache_drafts_notes() {
+    let _sandbox = TestSandbox::new();
+    let cache = cache_dir().expect("cache");
+    let temp_id = "tmp-path-1";
+    let got = notes_draft_path(temp_id).expect("notes_draft_path");
+    assert_eq!(got, cache.join("drafts").join("notes").join(temp_id));
+}
+
+#[test]
+fn notes_draft_path_rejects_empty_or_traversal_temp_id() {
+    let _sandbox = TestSandbox::new();
+    assert!(notes_draft_path("").is_err());
+    assert!(notes_draft_path("..").is_err());
+    assert!(notes_draft_path("a/../b").is_err());
+}
+
+#[test]
 fn repo_root_matches_cargo_manifest_parent() {
     let root = repo_root().expect("repo_root");
     let expected = PathBuf::from(env!("CARGO_MANIFEST_DIR"))

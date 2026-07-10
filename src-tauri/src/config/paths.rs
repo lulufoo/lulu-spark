@@ -109,6 +109,25 @@ pub fn draft_path(common_path: &str) -> Result<PathBuf, PathsError> {
     Ok(target)
 }
 
+/// Crash-buffer path for note create: `{cache_dir}/drafts/notes/<temp_id>`.
+pub fn notes_draft_path(temp_id: &str) -> Result<PathBuf, PathsError> {
+    if temp_id.trim().is_empty() {
+        return Err(PathsError::RepoRootUnavailable);
+    }
+    let notes_dir = cache_dir()?.join("drafts").join("notes");
+    let mut target = notes_dir.clone();
+    for comp in std::path::Path::new(temp_id).components() {
+        match comp {
+            std::path::Component::Normal(s) => target.push(s),
+            _ => return Err(PathsError::RepoRootUnavailable),
+        }
+    }
+    if !target.starts_with(&notes_dir) || target == notes_dir {
+        return Err(PathsError::RepoRootUnavailable);
+    }
+    Ok(target)
+}
+
 #[cfg(test)]
 #[path = "../unit-tests/config/paths.rs"]
 mod tests;
