@@ -25,7 +25,7 @@ export function mountHomeHub(container, { navigate, openReadLater } = {}) {
         <li>
           <button type="button" class="home-desktop-shortcut" data-home-entry="workbench">
             <span class="home-desktop-shortcut-icon" aria-hidden="true">📂</span>
-            <span class="home-desktop-shortcut-label">Workbench 归档</span>
+            <span class="home-desktop-shortcut-label">Workbench 笔记</span>
           </button>
         </li>
         <li>

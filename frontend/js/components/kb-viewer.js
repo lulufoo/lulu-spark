@@ -65,7 +65,7 @@ function readerShellHtml() {
         <button type="button" class="md-header-btn kb-btn-copy-http" data-tip="">&#127760;</button>
         <button type="button" class="md-header-btn kb-btn-copy-path" data-tip="">&#128194;</button>
         <button type="button" class="md-header-btn kb-btn-edit">✏️ 编辑</button>
-        <button type="button" class="md-header-btn kb-btn-add-comment">💬 笔记</button>
+        <button type="button" class="md-header-btn kb-btn-add-comment">💬 批注</button>
         <button type="button" class="md-header-btn primary kb-btn-save" style="display:none">💾 保存</button>
         <button type="button" class="md-header-btn kb-btn-cancel-edit" style="display:none">取消</button>
         <button type="button" class="md-header-btn kb-btn-pending" style="display:none">● 待提交</button>

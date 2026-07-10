@@ -82,6 +82,7 @@ const SOURCE_TYPE_LABELS = {
   dialogue: '对话',
   summary: '总结',
   'theme-line': '视频',
+  note: '随记',
 };
 
 export function sourceTypeBadgeHtml(sourceType) {

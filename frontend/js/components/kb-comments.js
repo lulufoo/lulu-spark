@@ -85,7 +85,7 @@ function updateKbFloatNav(comments) {
     const btn = document.createElement('button');
     btn.className = 'comment-float-btn';
     btn.textContent = String(i + 1);
-    btn.title = `编辑笔记 ${i + 1}`;
+    btn.title = `编辑批注 ${i + 1}`;
     btn.addEventListener('click', () => openKbCommentDialog(c, i));
     btn.addEventListener('mouseenter', e => _showKbTip(c.text, e));
     btn.addEventListener('mousemove',  e => _moveKbTip(e));
@@ -250,7 +250,7 @@ export function openKbCommentDialog(editComment = null, noteIndex = null) {
   const content = document.getElementById('kb-comment-dialog-content');
   if (!dialog || !content) return;
 
-  title.textContent = editComment ? '💬 编辑笔记' : '💬 添加笔记';
+  title.textContent = editComment ? '💬 编辑批注' : '💬 添加批注';
   content.textContent = editComment?.text || '';
   dialog.style.display = 'flex';
   _resetKbDialogTabs();

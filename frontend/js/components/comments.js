@@ -67,7 +67,7 @@ function updateFloatNav(comments, layer, entry) {
     const btn = document.createElement('button');
     btn.className = 'comment-float-btn';
     btn.textContent = String(i + 1);
-    btn.title = `编辑笔记 ${i + 1}`;
+    btn.title = `编辑批注 ${i + 1}`;
     btn.addEventListener('click', () => openCommentDialog(c, layer, entry, i + 1));
     btn.addEventListener('mouseenter', e => _showTip(c.text, e));
     btn.addEventListener('mousemove',  e => _moveTip(e));
@@ -101,7 +101,7 @@ export function renderComments(annotation, layer, entry) {
 
   const hdr = document.createElement('div');
   hdr.className = 'comment-bar-header';
-  hdr.innerHTML = `<span>💬 笔记 · ${comments.length} 条</span>`;
+  hdr.innerHTML = `<span>💬 批注 · ${comments.length} 条</span>`;
   bar.appendChild(hdr);
 
   for (let i = 0; i < comments.length; i++) {
@@ -240,13 +240,13 @@ export async function openCommentDialog(editComment, layer, entry, noteIndex) {
   if (editComment) {
     _commentEditCtx = { c: editComment, layer, entry, noteIndex };
     _draftKey = null;
-    titleEl.textContent = '💬 编辑笔记';
+    titleEl.textContent = '💬 编辑批注';
     content.innerText = editComment.text;
   } else {
     _commentEditCtx = { noteIndex };
     const commonPath = (entry || state.viewer.entry).common_path;
     _draftKey = commonPath;
-    titleEl.textContent = '💬 添加笔记';
+    titleEl.textContent = '💬 添加批注';
     content.innerText = '';
     // Load cached draft
     try {

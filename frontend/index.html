@@ -18,7 +18,7 @@
     <a id="btn-nav-home" href="#/home" class="header-nav-back" hidden>← 首页</a>
   </h1>
   <div id="gs-wb-wrap" class="gs-search-wrap" hidden>
-    <input id="gs-wb-input" class="gs-search-input" type="text" placeholder="搜索归档…" autocomplete="off" spellcheck="false" />
+    <input id="gs-wb-input" class="gs-search-input" type="text" placeholder="搜索笔记…" autocomplete="off" spellcheck="false" />
     <button id="gs-wb-rebuild-btn" class="gs-rebuild-btn" style="display:none" title="重建 Workbench 索引">↺</button>
     <div id="gs-wb-dropdown" class="gs-search-dropdown" style="display:none"></div>
   </div>
@@ -154,14 +154,14 @@
 <div id="kb-comment-dialog">
   <div id="kb-comment-dialog-box">
     <div id="kb-comment-dialog-header">
-      <h3 id="kb-comment-dialog-title">💬 添加笔记</h3>
+      <h3 id="kb-comment-dialog-title">💬 添加批注</h3>
       <div id="kb-comment-dialog-tabs">
         <button class="comment-tab-btn active" data-tab="edit">编辑</button>
         <button class="comment-tab-btn" data-tab="preview">预览</button>
       </div>
     </div>
     <div id="kb-comment-editor-box" class="comment-editor-box" onclick="document.getElementById('kb-comment-dialog-content').focus()">
-      <div id="kb-comment-dialog-content" class="comment-editor-content" contenteditable="true" spellcheck="false" autocorrect="off" autocapitalize="off" data-placeholder="输入笔记内容…（Ctrl/Cmd+Enter 保存）"></div>
+      <div id="kb-comment-dialog-content" class="comment-editor-content" contenteditable="true" spellcheck="false" autocorrect="off" autocapitalize="off" data-placeholder="输入批注内容…（Ctrl/Cmd+Enter 保存）"></div>
     </div>
     <div id="kb-comment-preview-pane" class="md-body" style="display:none"></div>
     <div id="kb-comment-dialog-actions">
@@ -188,7 +188,7 @@
       <button class="md-header-btn viewer-chrome-persisted" id="btn-copy-http" data-tip="">&#127760;</button>
       <button class="md-header-btn viewer-chrome-persisted" id="btn-copy-path" data-tip="">&#128194;</button>
       <button class="md-header-btn viewer-chrome-persisted" id="btn-edit">✏️ 编辑</button>
-      <button class="md-header-btn viewer-chrome-persisted" id="btn-add-comment">💬 笔记</button>
+      <button class="md-header-btn viewer-chrome-persisted" id="btn-add-comment">💬 批注</button>
       <button class="md-header-btn primary viewer-chrome-persisted" id="btn-save" style="display:none">💾 保存</button>
       <button class="md-header-btn viewer-chrome-persisted" id="btn-cancel-edit" style="display:none">取消</button>
       <button class="md-header-btn viewer-chrome-persisted" id="btn-panel-commit" style="display:none">● 待提交</button>
@@ -217,14 +217,14 @@
 <div id="comment-dialog">
   <div id="comment-dialog-box">
     <div id="comment-dialog-header">
-      <h3 id="comment-dialog-title">💬 添加笔记</h3>
+      <h3 id="comment-dialog-title">💬 添加批注</h3>
       <div id="comment-dialog-tabs">
         <button class="comment-tab-btn active" data-tab="edit">编辑</button>
         <button class="comment-tab-btn" data-tab="preview">预览</button>
       </div>
     </div>
     <div id="comment-editor-box" class="comment-editor-box" onclick="document.getElementById('comment-dialog-content').focus()">
-      <div id="comment-dialog-content" class="comment-editor-content" contenteditable="true" spellcheck="false" autocorrect="off" autocapitalize="off" data-placeholder="输入笔记内容…（Ctrl/Cmd+Enter 保存）"></div>
+      <div id="comment-dialog-content" class="comment-editor-content" contenteditable="true" spellcheck="false" autocorrect="off" autocapitalize="off" data-placeholder="输入批注内容…（Ctrl/Cmd+Enter 保存）"></div>
     </div>
     <div id="comment-preview-pane" class="md-body" style="display:none"></div>
     <div id="comment-dialog-actions">
@@ -370,8 +370,8 @@
 <!-- Comment note delete confirm -->
 <div id="comment-delete-dialog">
   <div id="comment-delete-dialog-box">
-    <h3>删除笔记</h3>
-    <p>确定删除此笔记？此操作不可撤销。</p>
+    <h3>删除批注</h3>
+    <p>确定删除此批注？此操作不可撤销。</p>
     <div id="comment-delete-dialog-actions">
       <button type="button" id="btn-comment-delete-cancel" class="md-header-btn">取消</button>
       <button type="button" id="btn-comment-delete-ok" class="md-header-btn comment-delete-ok-btn">删除</button>
