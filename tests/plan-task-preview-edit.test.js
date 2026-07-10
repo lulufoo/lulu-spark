@@ -262,7 +262,7 @@ describe('mountPlanTaskSplit plan_md preview and edit', () => {
   });
 });
 
-describe('mountPlanTaskSplit complete/abandon actions', () => {
+describe('mountPlanTaskSplit status select actions', () => {
   let container;
 
   beforeEach(() => {
@@ -299,20 +299,28 @@ describe('mountPlanTaskSplit complete/abandon actions', () => {
     return container.querySelector(`[data-sub-id="${subId}"]`);
   }
 
-  it('shows complete and abandon buttons only for incomplete subs', async () => {
+  function statusSelect(subId) {
+    return subRow(subId).querySelector('[data-action="change-sub-status"]');
+  }
+
+  function changeSubStatus(subId, nextStatus) {
+    const select = statusSelect(subId);
+    select.value = nextStatus;
+    select.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+
+  it('enables status select only for incomplete subs', async () => {
     getJsonMock.mockResolvedValue([sampleMaster]);
     const { dispose } = await mountAndWait();
-    expect(subRow('task_alpha_sub_01').querySelector('[data-action="complete-sub"]')).not.toBeNull();
-    expect(subRow('task_alpha_sub_01').querySelector('[data-action="abandon-sub"]')).not.toBeNull();
-    expect(subRow('task_alpha_sub_02').querySelector('[data-action="complete-sub"]')).toBeNull();
-    expect(subRow('task_alpha_sub_02').querySelector('[data-action="abandon-sub"]')).toBeNull();
-    expect(subRow('task_alpha_sub_03').querySelector('[data-action="complete-sub"]')).toBeNull();
-    expect(subRow('task_alpha_sub_03').querySelector('[data-action="abandon-sub"]')).toBeNull();
+    expect(statusSelect('task_alpha_sub_01')).not.toBeNull();
+    expect(statusSelect('task_alpha_sub_01').disabled).toBe(false);
+    expect(statusSelect('task_alpha_sub_02').disabled).toBe(true);
+    expect(statusSelect('task_alpha_sub_03').disabled).toBe(true);
     expect(subRow('task_alpha_sub_02').querySelector('[data-action="delete-sub"]')).not.toBeNull();
     dispose();
   });
 
-  it('completes sub via invoke and refreshes to terminal state', async () => {
+  it('completes sub via status select and refreshes to terminal state', async () => {
     getJsonMock.mockResolvedValueOnce([sampleMaster]);
     getJsonMock.mockResolvedValueOnce([
       {
@@ -326,7 +334,7 @@ describe('mountPlanTaskSplit complete/abandon actions', () => {
     ]);
     invokeMock.mockResolvedValue({ task: sampleMaster });
     const { dispose } = await mountAndWait();
-    subRow('task_alpha_sub_01').querySelector('[data-action="complete-sub"]').click();
+    changeSubStatus('task_alpha_sub_01', 'complete');
     await vi.waitFor(() => {
       expect(invokeMock).toHaveBeenCalledWith('complete_plan_sub', {
         masterTaskId: 'task_alpha',
@@ -334,12 +342,13 @@ describe('mountPlanTaskSplit complete/abandon actions', () => {
       });
     });
     await vi.waitFor(() => {
-      expect(subRow('task_alpha_sub_01').querySelector('[data-action="complete-sub"]')).toBeNull();
+      expect(statusSelect('task_alpha_sub_01').disabled).toBe(true);
+      expect(statusSelect('task_alpha_sub_01').value).toBe('complete');
     });
     dispose();
   });
 
-  it('abandons sub via invoke and refreshes to terminal state', async () => {
+  it('abandons sub via status select and refreshes to terminal state', async () => {
     getJsonMock.mockResolvedValueOnce([sampleMaster]);
     getJsonMock.mockResolvedValueOnce([
       {
@@ -353,7 +362,7 @@ describe('mountPlanTaskSplit complete/abandon actions', () => {
     ]);
     invokeMock.mockResolvedValue({ task: sampleMaster });
     const { dispose } = await mountAndWait();
-    subRow('task_alpha_sub_01').querySelector('[data-action="abandon-sub"]').click();
+    changeSubStatus('task_alpha_sub_01', 'abandoned');
     await vi.waitFor(() => {
       expect(invokeMock).toHaveBeenCalledWith('abandon_plan_sub', {
         masterTaskId: 'task_alpha',
@@ -361,7 +370,8 @@ describe('mountPlanTaskSplit complete/abandon actions', () => {
       });
     });
     await vi.waitFor(() => {
-      expect(subRow('task_alpha_sub_01').textContent).toContain('已废弃');
+      expect(statusSelect('task_alpha_sub_01').value).toBe('abandoned');
+      expect(statusSelect('task_alpha_sub_01').textContent).toContain('已废弃');
     });
     dispose();
   });
@@ -370,12 +380,12 @@ describe('mountPlanTaskSplit complete/abandon actions', () => {
     getJsonMock.mockResolvedValue([sampleMaster]);
     invokeMock.mockResolvedValue({ error: 'Already complete', _status: 409 });
     const { dispose } = await mountAndWait();
-    subRow('task_alpha_sub_01').querySelector('[data-action="complete-sub"]').click();
+    changeSubStatus('task_alpha_sub_01', 'complete');
     await vi.waitFor(() => {
       expect(container.querySelector('.plan-task-sub-action-error')).not.toBeNull();
     });
-    expect(subRow('task_alpha_sub_01').textContent).toContain('进行中');
-    expect(subRow('task_alpha_sub_01').querySelector('[data-action="complete-sub"]')).not.toBeNull();
+    expect(statusSelect('task_alpha_sub_01').value).toBe('incomplete');
+    expect(statusSelect('task_alpha_sub_01').disabled).toBe(false);
     dispose();
   });
 
@@ -383,7 +393,7 @@ describe('mountPlanTaskSplit complete/abandon actions', () => {
     getJsonMock.mockResolvedValue([sampleMaster]);
     invokeMock.mockResolvedValue({ error: 'Sub not found', _status: 404 });
     const { dispose } = await mountAndWait();
-    subRow('task_alpha_sub_01').querySelector('[data-action="abandon-sub"]').click();
+    changeSubStatus('task_alpha_sub_01', 'abandoned');
     await vi.waitFor(() => {
       expect(container.textContent).toContain('Sub not found');
     });

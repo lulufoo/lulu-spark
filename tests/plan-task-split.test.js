@@ -158,9 +158,9 @@ describe('renderSubDetail', () => {
 
   it('renders distinct status modifier classes for three sub states', () => {
     const html = renderSubDetail(sampleMasters[0], 'task_alpha_sub_01');
-    expect(html).toContain('plan-task-sub-status--incomplete');
-    expect(html).toContain('plan-task-sub-status--complete');
-    expect(html).toContain('plan-task-sub-status--abandoned');
+    expect(html).toContain('plan-task-sub-status-select--incomplete');
+    expect(html).toContain('plan-task-sub-status-select--complete');
+    expect(html).toContain('plan-task-sub-status-select--abandoned');
   });
 
   it('renders linked_archive_ids as comma list with prefix', () => {
@@ -295,7 +295,9 @@ describe('mountPlanTaskSplit', () => {
       expect(
         container.querySelector('.plan-task-master-item--selected')?.dataset.masterId,
       ).toBe('task_migrated_err');
-      expect(container.textContent).toContain('Still visible sub');
+      expect(
+        container.querySelector('.plan-task-sub-title-input')?.value,
+      ).toBe('Still visible sub');
     });
     dispose();
   });
@@ -383,7 +385,7 @@ describe('plan-tasks route source wiring', () => {
 
   it('app.css styles plan-md preview and three sub status variants', () => {
     expect(appCss).toMatch(/\.plan-task-plan-md-preview/);
-    expect(appCss).toMatch(/\.plan-task-sub-status--abandoned/);
+    expect(appCss).toMatch(/\.plan-task-sub-status-select--abandoned/);
     expect(appCss).not.toMatch(/\.plan-task-plan-md-preview[\s\S]*background:\s*#000/);
   });
 });
