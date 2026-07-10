@@ -1,4 +1,3 @@
-import { execSync } from 'node:child_process';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, it, expect } from 'vitest';
@@ -6,12 +5,13 @@ import { describe, it, expect } from 'vitest';
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 
 describe('AC invariants', () => {
-  it('I1: viewer.js has no functional diff in feature worktree', () => {
-    const diff = execSync('git diff HEAD -- frontend/js/components/viewer.js', {
-      cwd: repoRoot,
-      encoding: 'utf8',
-    });
-    expect(diff).toBe('');
+  it('I1: create/edit share the same viewer.js shell (no second editor module)', async () => {
+    const { readFileSync, existsSync } = await import('node:fs');
+    const viewer = readFileSync(join(repoRoot, 'frontend/js/components/viewer.js'), 'utf8');
+    expect(viewer).toMatch(/export async function openDoc\s*\(/);
+    expect(viewer).toMatch(/export async function openCreateNote\s*\(/);
+    expect(existsSync(join(repoRoot, 'frontend/js/components/note-editor.js'))).toBe(false);
+    expect(existsSync(join(repoRoot, 'frontend/js/note-editor.js'))).toBe(false);
   });
 
   it('router tests include corpus ?path= deep link coverage', async () => {

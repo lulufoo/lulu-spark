@@ -67,6 +67,11 @@ pub fn get_draft(_app: AppHandle, path: String) -> Result<Value, String> {
 }
 
 #[tauri::command]
+pub fn get_note_draft(_app: AppHandle, temp_id: String) -> Result<Value, String> {
+    Ok(crate::services::draft::load_note_draft_json(&temp_id))
+}
+
+#[tauri::command]
 pub fn get_config(_app: AppHandle) -> Result<Value, String> {
     Ok(workbench_read::get_config(&repo_root()?))
 }

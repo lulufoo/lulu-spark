@@ -441,22 +441,135 @@ export async function commitCurrentFile() {
 
 // ── Close viewer ───────────────────────────────────────────────────────────
 
-export function closeModal() {
+const CREATE_CHROME_HIDDEN_IDS = [
+  'btn-edit',
+  'btn-add-comment',
+  'btn-save',
+  'btn-cancel-edit',
+  'btn-panel-commit',
+  'md-github-link',
+  'md-lang-bar',
+  'md-file-size',
+  'md-links-bar',
+  'md-tags-bar',
+  'knowledge-panel',
+];
+
+function applyCreateChrome() {
+  const modal = document.getElementById('md-modal');
+  modal.classList.add('is-create');
+  for (const id of CREATE_CHROME_HIDDEN_IDS) {
+    const el = document.getElementById(id);
+    if (el) el.style.display = 'none';
+  }
+  const commitBar = document.getElementById('md-commit-bar');
+  if (commitBar) commitBar.style.display = 'none';
+  document.getElementById('md-panel-title').textContent = '新随记';
+  document.getElementById('md-body').style.display = 'none';
+  const editArea = document.getElementById('md-edit-area');
+  editArea.style.display = '';
+}
+
+function clearCreateChrome() {
+  const modal = document.getElementById('md-modal');
+  modal.classList.remove('is-create');
+}
+
+function dismissViewerModal() {
+  clearCreateChrome();
   document.getElementById('md-modal').style.display = 'none';
   document.body.style.overflow = '';
   exitEditMode(false);
   closeCommitDialog();
-
 }
 
-document.getElementById('md-close').addEventListener('click', closeModal);
-document.getElementById('md-backdrop').addEventListener('click', closeModal);
+/**
+ * Enter create session on the shared viewer (body-only chrome).
+ * Binds crash buffer at drafts/notes/<temp_id>. Does not pretend an index entry exists.
+ * @param {{ temp_id: string }} opts
+ */
+export async function openCreateNote({ temp_id } = {}) {
+  if (!temp_id) return;
+  const modal = document.getElementById('md-modal');
+  const prevDisplay = modal.style.display;
+  try {
+    let content = '';
+    try {
+      const draft = await api.getNoteDraft(temp_id);
+      content = typeof draft?.content === 'string' ? draft.content : '';
+    } catch {
+      content = '';
+    }
+    await api.saveNoteDraft(temp_id, content);
+
+    state.viewer.entry = null;
+    state.viewer.layer = 'raw';
+    state.viewer.lang = null;
+    state.viewer.annotation = {};
+    state.viewer.rawText = content;
+    state.viewer.isKb = false;
+    state.viewer.createSession = { tempId: temp_id, status: 'creating' };
+
+    closeCommitDialog();
+    applyCreateChrome();
+
+    const editArea = document.getElementById('md-edit-area');
+    editArea.value = content;
+    resetEditAreaScroll(editArea, { focus: true });
+
+    modal.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+  } catch {
+    state.viewer.createSession = null;
+    clearCreateChrome();
+    modal.style.display = prevDisplay;
+  }
+}
+
+async function finalizeCreateSession() {
+  const session = state.viewer.createSession;
+  if (!session || session.status === 'saving') return;
+
+  const editArea = document.getElementById('md-edit-area');
+  const trimmed = (editArea?.value ?? '').trim();
+
+  if (!trimmed) {
+    await api.clearNoteDraft(session.tempId);
+    state.viewer.createSession = null;
+    dismissViewerModal();
+    return;
+  }
+
+  session.status = 'saving';
+  try {
+    await api.saveNoteDraft(session.tempId, trimmed);
+    await api.archiveDocument({ body: trimmed, source_type: 'note' });
+    await api.clearNoteDraft(session.tempId);
+    state.viewer.createSession = null;
+    dismissViewerModal();
+    document.dispatchEvent(new CustomEvent('cta:reload'));
+  } catch (e) {
+    session.status = 'creating';
+    alert(`保存失败：${e.message}`);
+  }
+}
+
+export async function closeModal() {
+  if (state.viewer.createSession) {
+    await finalizeCreateSession();
+    return;
+  }
+  dismissViewerModal();
+}
+
+document.getElementById('md-close').addEventListener('click', () => { void closeModal(); });
+document.getElementById('md-backdrop').addEventListener('click', () => { void closeModal(); });
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') {
     // Don't close modal if comment dialog is open — let it handle ESC itself
     if (document.getElementById('comment-dialog').classList.contains('open')) return;
     if (document.getElementById('md-commit-dialog').classList.contains('open')) return;
-    closeModal();
+    void closeModal();
   }
 });
 

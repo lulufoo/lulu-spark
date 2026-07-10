@@ -52,6 +52,10 @@ export const READ_API_INVOKE_MAP = {
     cmd: 'get_draft',
     args: (url) => ({ path: url.searchParams.get('path') ?? '' }),
   },
+  '/api/note-draft': {
+    cmd: 'get_note_draft',
+    args: (url) => ({ tempId: url.searchParams.get('temp_id') ?? '' }),
+  },
   '/api/config': { cmd: 'get_config' },
   '/api/infer-github-user-url': {
     cmd: 'infer_github_user_url',

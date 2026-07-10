@@ -49,6 +49,15 @@ pub fn save_note_draft(temp_id: &str, content: &str) -> Result<(), String> {
     Ok(())
 }
 
+/// Read note create crash-buffer content (empty string if missing).
+pub fn load_note_draft(temp_id: &str) -> Result<String, String> {
+    let draft_file = paths::notes_draft_path(temp_id).map_err(|_| "Invalid path".to_string())?;
+    if !draft_file.exists() {
+        return Ok(String::new());
+    }
+    fs::read_to_string(&draft_file).map_err(|e| e.to_string())
+}
+
 /// Remove note create crash-buffer file (success or empty-exit cleanup).
 pub fn clear_note_draft(temp_id: &str) -> Result<(), String> {
     let draft_file = paths::notes_draft_path(temp_id).map_err(|_| "Invalid path".to_string())?;
@@ -56,6 +65,28 @@ pub fn clear_note_draft(temp_id: &str) -> Result<(), String> {
         fs::remove_file(&draft_file).map_err(|e| e.to_string())?;
     }
     Ok(())
+}
+
+/// JSON wrapper for App/Tauri: `{ ok: true }` or `{ error, _status }`.
+pub fn save_note_draft_json(temp_id: &str, content: &str) -> Value {
+    match save_note_draft(temp_id, content) {
+        Ok(()) => json!({ "ok": true }),
+        Err(e) => json!({ "error": e, "_status": 400 }),
+    }
+}
+
+pub fn clear_note_draft_json(temp_id: &str) -> Value {
+    match clear_note_draft(temp_id) {
+        Ok(()) => json!({ "ok": true }),
+        Err(e) => json!({ "error": e, "_status": 400 }),
+    }
+}
+
+pub fn load_note_draft_json(temp_id: &str) -> Value {
+    match load_note_draft(temp_id) {
+        Ok(content) => json!({ "content": content }),
+        Err(e) => json!({ "error": e, "_status": 400 }),
+    }
 }
 
 #[cfg(test)]

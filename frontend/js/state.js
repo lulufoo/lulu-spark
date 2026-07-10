@@ -32,6 +32,8 @@ export const state = {
     isKb: false,
     kbRepo: null,
     kbPath: null,
+    /** @type {{ tempId: string, status: 'creating' | 'saving' } | null} */
+    createSession: null,
   }
 }
 

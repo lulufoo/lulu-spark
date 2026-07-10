@@ -13,6 +13,20 @@ pub async fn save_comment_draft(_app: AppHandle, payload: Value) -> Result<Value
 }
 
 #[tauri::command]
+pub fn save_note_draft(
+    _app: AppHandle,
+    temp_id: String,
+    content: String,
+) -> Result<Value, String> {
+    Ok(draft::save_note_draft_json(&temp_id, &content))
+}
+
+#[tauri::command]
+pub fn clear_note_draft(_app: AppHandle, temp_id: String) -> Result<Value, String> {
+    Ok(draft::clear_note_draft_json(&temp_id))
+}
+
+#[tauri::command]
 pub async fn corpus_git_commit(_app: AppHandle, payload: Value) -> Result<Value, String> {
     tauri::async_runtime::spawn_blocking(move || corpus_git::corpus_git_commit(&payload))
         .await

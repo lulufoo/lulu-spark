@@ -506,3 +506,20 @@ export async function removeSedimentKbCategory(id) {
 export async function archiveDocument(payload) {
   return writePost('/api/archive-document', payload || {});
 }
+
+/** Note-create crash buffer under `drafts/notes/<temp_id>`. */
+export async function saveNoteDraft(tempId, content) {
+  return writePost('/api/note-draft', { temp_id: tempId, content: content ?? '' });
+}
+
+export async function clearNoteDraft(tempId) {
+  return writePost('/api/note-draft/clear', { temp_id: tempId });
+}
+
+export async function getNoteDraft(tempId) {
+  const res = await getReadDriver().fetchGet(
+    `/api/note-draft?temp_id=${encodeURIComponent(tempId)}`,
+  );
+  if (!res.ok) return { content: '' };
+  return res.json();
+}

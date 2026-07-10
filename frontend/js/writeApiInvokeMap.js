@@ -171,6 +171,17 @@ export const WRITE_API_INVOKE_MAP = {
     cmd: 'archive_document',
     args: (body) => ({ payload: body ?? {} }),
   },
+  '/api/note-draft': {
+    cmd: 'save_note_draft',
+    args: (body) => ({
+      tempId: body?.temp_id ?? '',
+      content: body?.content ?? '',
+    }),
+  },
+  '/api/note-draft/clear': {
+    cmd: 'clear_note_draft',
+    args: (body) => ({ tempId: body?.temp_id ?? '' }),
+  },
 };
 
 /**
