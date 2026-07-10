@@ -1304,8 +1304,8 @@
   }
   .rl-assistant-popover {
     position: absolute;
-    right: 0;
-    bottom: calc(100% + 12px);
+    right: calc(100% + 12px);
+    bottom: 0;
     width: 340px;
     max-height: min(460px, calc(100vh - 120px));
     display: flex;
@@ -1595,8 +1595,8 @@
   }
   .pt-assistant-popover {
     position: absolute;
-    right: 0;
-    bottom: calc(100% + 12px);
+    right: calc(100% + 12px);
+    bottom: 0;
     width: 340px;
     max-height: min(460px, calc(100vh - 120px));
     display: flex;
@@ -1706,6 +1706,166 @@
   }
   .plan-task-assistant-manage-link:hover {
     text-decoration: underline;
+  }
+
+  /* ── Note assistant widget (main window, one tier above Plan Task FAB) ── */
+  .note-assistant-widget {
+    position: fixed;
+    right: 20px;
+    bottom: 132px;
+    z-index: 1200;
+    pointer-events: none;
+  }
+  .note-assistant-fab,
+  .note-assistant-popover {
+    pointer-events: auto;
+  }
+  .note-assistant-fab {
+    width: 40px;
+    height: 40px;
+    border: none;
+    border-radius: 50%;
+    background: #8250df;
+    color: #fff;
+    box-shadow: 0 3px 12px rgba(130, 80, 223, 0.3);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+  }
+  .note-assistant-fab:hover {
+    background: #6639ba;
+    box-shadow: 0 4px 16px rgba(130, 80, 223, 0.38);
+  }
+  .note-assistant-fab--active {
+    transform: scale(0.96);
+    background: #6639ba;
+  }
+  .note-assistant-fab-icon {
+    width: 16px;
+    height: 16px;
+    display: block;
+    flex-shrink: 0;
+  }
+  .note-assistant-popover {
+    position: absolute;
+    right: calc(100% + 12px);
+    bottom: 0;
+    width: 340px;
+    max-height: min(460px, calc(100vh - 120px));
+    display: flex;
+    flex-direction: column;
+    background: #fff;
+    border: 1px solid #d0d7de;
+    border-radius: 12px;
+    box-shadow: 0 12px 32px rgba(31, 35, 40, 0.18);
+    overflow: hidden;
+  }
+  .note-assistant-popover[hidden] {
+    display: none !important;
+  }
+  .note-assistant-popover-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 10px 12px 10px 14px;
+    border-bottom: 1px solid #525960;
+    background: #424a53;
+    flex-shrink: 0;
+  }
+  .note-assistant-popover-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: #f0f3f6;
+  }
+  .note-assistant-close {
+    width: 28px;
+    height: 28px;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: #f0f3f6;
+    font-size: 20px;
+    line-height: 1;
+    cursor: pointer;
+  }
+  .note-assistant-close:hover {
+    background: rgba(255, 255, 255, 0.12);
+  }
+  .note-assistant-popover-body {
+    padding: 12px 14px 14px;
+    overflow-y: auto;
+  }
+  .note-assistant-loading {
+    padding: 16px 0;
+    text-align: center;
+    font-size: 13px;
+    color: #57606a;
+  }
+  .note-assistant-state {
+    padding: 12px 0;
+    text-align: center;
+  }
+  .note-assistant-state-title {
+    margin: 0 0 6px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #24292f;
+  }
+  .note-assistant-state-detail {
+    margin: 0;
+    font-size: 12px;
+    color: #57606a;
+    line-height: 1.45;
+  }
+  .note-assistant-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .note-assistant-item-link {
+    display: block;
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #d0d7de;
+    border-radius: 8px;
+    text-align: left;
+    text-decoration: none;
+    color: inherit;
+    background: #fff;
+    cursor: pointer;
+  }
+  .note-assistant-item-link:hover {
+    border-color: #8250df;
+    background: #f6f0ff;
+  }
+  .note-assistant-item-summary {
+    font-size: 13px;
+    line-height: 1.4;
+    color: #24292f;
+    word-break: break-word;
+  }
+  .note-assistant-create {
+    display: block;
+    width: 100%;
+    margin-top: 10px;
+    padding: 8px 12px;
+    border: 1px solid #8250df;
+    border-radius: 8px;
+    background: #8250df;
+    color: #fff;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+  }
+  .note-assistant-create:hover {
+    background: #6639ba;
+    border-color: #6639ba;
   }
 
   .plan-tasks-page {

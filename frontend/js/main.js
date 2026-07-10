@@ -4,7 +4,7 @@ import { LAYERS, setGithubUserUrl } from './constants.js'
 import * as api from './api.js'
 import { buildGroups, renderSidebar, selectDate, applyListFilters, selectTag } from './components/sidebar.js'
 import { initSidebarResize } from './components/sidebar-resize.js'
-import { enterEditMode, exitEditMode, saveDoc, openCommitDialog, openDoc } from './components/viewer.js'
+import { enterEditMode, exitEditMode, saveDoc, openCommitDialog, openDoc, openCreateNote } from './components/viewer.js'
 import './components/comment-delete.js'
 import './components/comments.js'
 import './components/kb-viewer.js'
@@ -19,6 +19,7 @@ import { renderFeed } from './feed.js'
 import { initRouter, navigate } from './router/index.js'
 import { mountReadLaterAssistantWidget } from './read-later-assistant.js'
 import { mountPlanTaskAssistantWidget } from './plan-task-assistant.js'
+import { mountNoteAssistantWidget } from './note-assistant.js'
 import { openReadLaterDialog } from './components/modals/read-later-dialog.js'
 import { applySearchNavChrome } from './nav-chrome.js'
 import { initWorkbenchSearch } from './components/workbench-search.js'
@@ -893,8 +894,61 @@ initRouter({
   'plan-tasks': wrapRouteMount('plan-tasks', mountPlanTasksRoute),
 }, { fallback: '#/home' });
 
-mountReadLaterAssistantWidget(document.body, { navigate, openReadLater: openReadLaterDialog });
-mountPlanTaskAssistantWidget(document.body, { navigate });
+const readLaterAssistant = mountReadLaterAssistantWidget(document.body, {
+  navigate,
+  openReadLater: openReadLaterDialog,
+});
+const planTaskAssistant = mountPlanTaskAssistantWidget(document.body, { navigate });
+
+let noteAssistant = null;
+function closeNoteAssistantPanel() {
+  noteAssistant?.setOpen(false);
+}
+
+function openCreateNoteFromFab(opts = {}) {
+  closeNoteAssistantPanel();
+  const temp_id =
+    opts?.temp_id ||
+    (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+      ? crypto.randomUUID()
+      : `note-${Date.now()}`);
+  return openCreateNote({ temp_id });
+}
+
+noteAssistant = mountNoteAssistantWidget(document.body, {
+  openCreateNote: openCreateNoteFromFab,
+});
+
+document.addEventListener(
+  'click',
+  (event) => {
+    const target = event.target;
+    if (!(target instanceof Element)) return;
+    if (target.closest('.rl-assistant-fab')) {
+      planTaskAssistant.setOpen(false);
+      noteAssistant?.setOpen(false);
+      return;
+    }
+    if (target.closest('.pt-assistant-fab')) {
+      readLaterAssistant.setOpen(false);
+      noteAssistant?.setOpen(false);
+      return;
+    }
+    if (target.closest('.note-assistant-fab')) {
+      readLaterAssistant.setOpen(false);
+      planTaskAssistant.setOpen(false);
+    }
+  },
+  true,
+);
+
+document.getElementById('btn-edit')?.addEventListener(
+  'click',
+  () => {
+    closeNoteAssistantPanel();
+  },
+  true,
+);
 
 function registerTagsReconciledListener() {
   const onReconciled = async () => {
@@ -923,6 +977,7 @@ document.addEventListener('cta:filter-tag', ({ detail }) => {
 
 // ── Global search navigation ───────────────────────────────────────────────
 document.addEventListener('cta:open-entry', ({ detail }) => {
+  closeNoteAssistantPanel();
   if (!detail?.common_path) return
   const allEntries = Object.values(state.index.data || {})
   let entry = allEntries.find(e => e.common_path === detail.common_path)
