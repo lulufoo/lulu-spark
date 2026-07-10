@@ -1,7 +1,7 @@
 import { createApiClient, resolveReadDriver } from '../apiClient.js';
 import { renderCommentMarkdown } from '../comment-markdown.js';
 import { escHtml } from '../utils.js';
-import { closePlanTaskDialog, isPlanTaskDialogOpen, openPlanTaskDialog } from './dialog.js';
+import { closePlanTaskDialog, openPlanTaskDialog } from './dialog.js';
 
 const UNAVAILABLE_MSG = '列表暂时不可用，请稍后重试';
 const REFRESH_WARNING_MSG = '已保存，列表刷新失败，请重试';
@@ -95,6 +95,10 @@ export async function abandonPlanSub({ masterTaskId, subTaskId } = {}) {
   return invokePlanWrite('abandon_plan_sub', { masterTaskId, subTaskId });
 }
 
+export async function updatePlanSub({ masterTaskId, subTaskId, title } = {}) {
+  return invokePlanWrite('update_plan_sub', { masterTaskId, subTaskId, title });
+}
+
 export function copySubIdPair(masterId, subId) {
   return `${masterId} → ${subId}`;
 }
@@ -105,6 +109,11 @@ export function formatPlanTaskStatus(status) {
 
 function buildDeepLink(masterId, subId) {
   const params = new URLSearchParams({ master: masterId, sub: subId });
+  return `#/plan-tasks?${params.toString()}`;
+}
+
+function buildMasterDeepLink(masterId) {
+  const params = new URLSearchParams({ master: masterId });
   return `#/plan-tasks?${params.toString()}`;
 }
 
@@ -137,7 +146,7 @@ function formatRelativeTime(iso) {
 }
 
 function controlsDisabled(busy) {
-  return busy || isPlanTaskDialogOpen();
+  return busy;
 }
 
 function renderMigrationWarning() {
@@ -213,15 +222,27 @@ function renderLinkedArchives(linkedArchiveIds) {
   return `<div class="plan-task-sub-archives">关联归档：${escHtml(linkedArchiveIds.join(', '))}</div>`;
 }
 
-function renderSubStatusActions(sub, disabled) {
-  if (sub.status !== 'incomplete') return '';
-  const disabledAttr = disabled ? ' disabled' : '';
+function renderSubStatusSelect(sub, disabled) {
+  const disabledAttr = disabled || sub.status !== 'incomplete' ? ' disabled' : '';
+  const options = ['incomplete', 'complete', 'abandoned']
+    .map((status) => {
+      const selected = sub.status === status ? ' selected' : '';
+      return `<option value="${escHtml(status)}"${selected}>${escHtml(formatPlanTaskStatus(status))}</option>`;
+    })
+    .join('');
   return `
-    <div class="plan-task-sub-actions">
-      <button type="button" class="md-header-btn" data-action="complete-sub" data-sub-id="${escHtml(sub.sub_task_id)}"${disabledAttr}>完成</button>
-      <button type="button" class="md-header-btn" data-action="abandon-sub" data-sub-id="${escHtml(sub.sub_task_id)}"${disabledAttr}>废弃</button>
-    </div>
+    <select
+      class="plan-task-sub-status-select plan-task-sub-status-select--${escHtml(sub.status)}"
+      data-action="change-sub-status"
+      data-sub-id="${escHtml(sub.sub_task_id)}"
+      aria-label="子任务状态"${disabledAttr}
+    >${options}</select>
   `;
+}
+
+function renderSubTitleError(error) {
+  if (!error) return '';
+  return `<p class="plan-task-sub-title-error" role="alert">${escHtml(error)}</p>`;
 }
 
 function renderSubActionError(error) {
@@ -233,18 +254,24 @@ function renderSubRow(master, sub, selectedSubId, ui) {
   const effectiveStatus = ui.subStatus?.[sub.sub_task_id] ?? sub.status;
   const subForRender = { ...sub, status: effectiveStatus };
   const selected = sub.sub_task_id === selectedSubId ? ' plan-task-sub--selected' : '';
-  const title = sub.title || sub.sub_task_id;
-  const statusLabel = formatPlanTaskStatus(effectiveStatus);
+  const title = ui.subTitleDrafts?.[sub.sub_task_id] ?? (sub.title || sub.sub_task_id);
   const disabledAttr = ui.disabled ? ' disabled' : '';
   const copyText = copySubIdPair(master.master_task_id, sub.sub_task_id);
   const subError = ui.subActionErrors?.[sub.sub_task_id] ?? '';
   return `
     <article data-sub-id="${escHtml(sub.sub_task_id)}" class="plan-task-sub${selected}">
       <header class="plan-task-sub-header">
-        <h3 class="plan-task-sub-title">${escHtml(title)}</h3>
+        <input
+          type="text"
+          class="plan-task-sub-title-input"
+          data-action="edit-sub-title"
+          data-sub-id="${escHtml(sub.sub_task_id)}"
+          value="${escHtml(title)}"
+          aria-label="子任务标题"
+          ${ui.disabled ? 'disabled' : ''}
+        />
         <div class="plan-task-sub-header-actions">
-          <span class="plan-task-sub-status plan-task-sub-status--${escHtml(effectiveStatus)}">${escHtml(statusLabel)}</span>
-          ${renderSubStatusActions(subForRender, ui.disabled)}
+          ${renderSubStatusSelect(subForRender, ui.disabled)}
           <div class="plan-task-sub-menu">
             <button type="button" class="plan-task-sub-menu-btn" data-action="toggle-sub-menu" aria-label="更多操作"${disabledAttr}>⋯</button>
             <div class="plan-task-sub-menu-panel" hidden>
@@ -254,6 +281,7 @@ function renderSubRow(master, sub, selectedSubId, ui) {
           </div>
         </div>
       </header>
+      ${renderSubTitleError(ui.subTitleErrors?.[sub.sub_task_id] ?? '')}
       ${renderSubActionError(subError)}
       ${renderLinkedArchives(sub.linked_archive_ids)}
     </article>
@@ -423,6 +451,7 @@ export function mountPlanTaskSplit(container, opts = {}) {
   let selectedMasterId = initialMasterId;
   let selectedSubId = initialSubId;
   let deadLink = false;
+  let validateInitialSubLink = Boolean(initialSubId);
   let refreshPromise = null;
   let busy = false;
   let refreshWarning = '';
@@ -432,6 +461,8 @@ export function mountPlanTaskSplit(container, opts = {}) {
   let planMdLoading = false;
   const optimisticSubStatus = {};
   const subActionErrors = {};
+  const subTitleErrors = {};
+  const subTitleDrafts = {};
 
   container.innerHTML = '<div class="plan-task-split-loading">加载中…</div>';
 
@@ -449,6 +480,8 @@ export function mountPlanTaskSplit(container, opts = {}) {
       planMdLoading,
       subStatus: optimisticSubStatus,
       subActionErrors,
+      subTitleErrors,
+      subTitleDrafts,
     };
   }
 
@@ -457,6 +490,15 @@ export function mountPlanTaskSplit(container, opts = {}) {
     planMdDraft = '';
     planMdError = '';
     planMdLoading = false;
+  }
+
+  function clearSubTitleState() {
+    for (const key of Object.keys(subTitleDrafts)) {
+      delete subTitleDrafts[key];
+    }
+    for (const key of Object.keys(subTitleErrors)) {
+      delete subTitleErrors[key];
+    }
   }
 
   function clearSubActionState() {
@@ -487,7 +529,8 @@ export function mountPlanTaskSplit(container, opts = {}) {
       return;
     }
     const subs = master.sub_tasks ?? [];
-    if (initialSubId && selectedSubId === initialSubId) {
+    if (validateInitialSubLink && initialSubId && selectedSubId === initialSubId) {
+      validateInitialSubLink = false;
       const sub = subs.find((item) => item.sub_task_id === selectedSubId);
       if (!sub) {
         deadLink = true;
@@ -636,6 +679,68 @@ export function mountPlanTaskSplit(container, opts = {}) {
     }
   }
 
+  async function runSubTitleSave(subTaskId, title) {
+    const master = findMaster(selectedMasterId);
+    const sub = master?.sub_tasks?.find((item) => item.sub_task_id === subTaskId);
+    if (!master || !sub) return;
+    const trimmed = title.trim();
+    if (!trimmed) {
+      subTitleErrors[subTaskId] = '标题不能为空';
+      paint();
+      return;
+    }
+    if (trimmed === (sub.title || sub.sub_task_id)) {
+      delete subTitleDrafts[subTaskId];
+      delete subTitleErrors[subTaskId];
+      return;
+    }
+    delete subTitleErrors[subTaskId];
+    subTitleDrafts[subTaskId] = trimmed;
+    busy = true;
+    paint();
+    try {
+      await updatePlanSub({ masterTaskId: selectedMasterId, subTaskId, title: trimmed });
+      delete subTitleDrafts[subTaskId];
+      busy = false;
+      await reloadList({ afterWrite: true });
+    } catch (err) {
+      delete subTitleDrafts[subTaskId];
+      busy = false;
+      subTitleErrors[subTaskId] = err?.message || '保存失败';
+      paint();
+    }
+  }
+
+  async function runSubStatusChange(subTaskId, targetStatus, selectEl) {
+    const master = findMaster(selectedMasterId);
+    const sub = master?.sub_tasks?.find((item) => item.sub_task_id === subTaskId);
+    const priorStatus = sub?.status ?? 'incomplete';
+    if (!master || !sub || sub.status !== 'incomplete') {
+      if (selectEl instanceof HTMLSelectElement) {
+        selectEl.value = priorStatus;
+      }
+      return;
+    }
+    if (targetStatus === priorStatus) return;
+    if (targetStatus !== 'complete' && targetStatus !== 'abandoned') {
+      if (selectEl instanceof HTMLSelectElement) {
+        selectEl.value = priorStatus;
+      }
+      return;
+    }
+    try {
+      if (targetStatus === 'complete') {
+        await runSubStatusAction(subTaskId, 'complete', completePlanSub);
+      } else {
+        await runSubStatusAction(subTaskId, 'abandoned', abandonPlanSub);
+      }
+    } catch {
+      if (selectEl instanceof HTMLSelectElement) {
+        selectEl.value = priorStatus;
+      }
+    }
+  }
+
   function openCreateDialog(triggerEl) {
     openPlanTaskDialog({
       type: 'create-master',
@@ -702,8 +807,16 @@ export function mountPlanTaskSplit(container, opts = {}) {
       payload: { subTitle },
       onSubmit: async () => {
         const masterTaskId = selectedMasterId;
+        const deletingSelected = selectedSubId === subTaskId;
         await runWriteAction(async () => {
           await deletePlanSub({ masterTaskId, subTaskId });
+          if (deletingSelected) {
+            selectedSubId = '';
+            deadLink = false;
+            if (typeof navigate === 'function' && masterTaskId) {
+              navigate(buildMasterDeepLink(masterTaskId));
+            }
+          }
         });
       },
     });
@@ -739,26 +852,6 @@ export function mountPlanTaskSplit(container, opts = {}) {
       event.preventDefault();
       if (controlsDisabled(busy)) return;
       cancelPlanMdEdit();
-      return;
-    }
-
-    if (action === 'complete-sub') {
-      event.preventDefault();
-      event.stopPropagation();
-      if (controlsDisabled(busy) || !selectedMasterId) return;
-      const subTaskId = actionEl?.dataset.subId;
-      if (!subTaskId) return;
-      void runSubStatusAction(subTaskId, 'complete', completePlanSub);
-      return;
-    }
-
-    if (action === 'abandon-sub') {
-      event.preventDefault();
-      event.stopPropagation();
-      if (controlsDisabled(busy) || !selectedMasterId) return;
-      const subTaskId = actionEl?.dataset.subId;
-      if (!subTaskId) return;
-      void runSubStatusAction(subTaskId, 'abandoned', abandonPlanSub);
       return;
     }
 
@@ -827,6 +920,7 @@ export function mountPlanTaskSplit(container, opts = {}) {
       closeSubMenus();
       resetPlanMdEdit();
       clearSubActionState();
+      clearSubTitleState();
       selectedMasterId = masterBtn.dataset.masterId;
       const master = findMaster(selectedMasterId);
       const fallback = master ? pickDefaultSub(master) : null;
@@ -843,6 +937,8 @@ export function mountPlanTaskSplit(container, opts = {}) {
     if (subEl?.dataset.subId && selectedMasterId) {
       if (controlsDisabled(busy)) return;
       if (event.target.closest('.plan-task-sub-menu')) return;
+      if (event.target.closest('.plan-task-sub-title-input')) return;
+      if (event.target.closest('.plan-task-sub-status-select')) return;
       closeSubMenus();
       selectedSubId = subEl.dataset.subId;
       deadLink = false;
@@ -858,15 +954,64 @@ export function mountPlanTaskSplit(container, opts = {}) {
     }
   };
 
+  const onInput = (event) => {
+    const input = event.target.closest('[data-action="edit-sub-title"]');
+    if (!(input instanceof HTMLInputElement) || controlsDisabled(busy) || !selectedMasterId) return;
+    subTitleDrafts[input.dataset.subId ?? ''] = input.value;
+  };
+
+  const onSubTitleKeydown = (event) => {
+    const input = event.target.closest('[data-action="edit-sub-title"]');
+    if (!(input instanceof HTMLInputElement)) return;
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      input.blur();
+    }
+  };
+
+  const onSubTitleBlur = (event) => {
+    const input = event.target.closest('[data-action="edit-sub-title"]');
+    if (!(input instanceof HTMLInputElement) || controlsDisabled(busy) || !selectedMasterId) return;
+    const subTaskId = input.dataset.subId;
+    if (!subTaskId) return;
+    void runSubTitleSave(subTaskId, input.value);
+  };
+
+  const onChange = (event) => {
+    const select = event.target.closest('[data-action="change-sub-status"]');
+    if (!(select instanceof HTMLSelectElement)) return;
+    if (controlsDisabled(busy) || !selectedMasterId) {
+      select.value = select.dataset.currentStatus ?? select.value;
+      return;
+    }
+    const subTaskId = select.dataset.subId;
+    const targetStatus = select.value;
+    if (!subTaskId) return;
+    void runSubStatusChange(subTaskId, targetStatus, select);
+  };
+
   container.addEventListener('click', onClick);
+  container.addEventListener('input', onInput);
+  container.addEventListener('keydown', onSubTitleKeydown);
+  container.addEventListener('focusout', onSubTitleBlur);
+  container.addEventListener('change', onChange);
+  const onDialogClose = () => {
+    if (!disposed) paint();
+  };
+  document.addEventListener('plan-task-dialog-close', onDialogClose);
   const disposeFocusRefresh = bindFocusRefresh(refresh);
   void refresh();
 
   function dispose() {
     disposed = true;
+    document.removeEventListener('plan-task-dialog-close', onDialogClose);
     closePlanTaskDialog();
     disposeFocusRefresh();
     container.removeEventListener('click', onClick);
+    container.removeEventListener('input', onInput);
+    container.removeEventListener('keydown', onSubTitleKeydown);
+    container.removeEventListener('focusout', onSubTitleBlur);
+    container.removeEventListener('change', onChange);
     container.innerHTML = '';
   }
 

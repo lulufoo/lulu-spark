@@ -64,6 +64,14 @@ pub fn abandon_plan_sub_json(master_task_id: &str, sub_task_id: &str) -> Result<
     map_invoke_value(plan_task::abandon_sub(master_task_id, sub_task_id))
 }
 
+pub fn update_plan_sub_json(
+    master_task_id: &str,
+    sub_task_id: &str,
+    title: &str,
+) -> Result<Value, String> {
+    map_invoke_value(plan_task::update_sub_title(master_task_id, sub_task_id, title))
+}
+
 #[tauri::command]
 pub async fn get_plan_tasks(_app: AppHandle) -> Result<Value, String> {
     tauri::async_runtime::spawn_blocking(get_plan_tasks_json)
@@ -184,6 +192,20 @@ pub async fn abandon_plan_sub(
 ) -> Result<Value, String> {
     tauri::async_runtime::spawn_blocking(move || {
         abandon_plan_sub_json(&master_task_id, &sub_task_id)
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+pub async fn update_plan_sub(
+    _app: AppHandle,
+    master_task_id: String,
+    sub_task_id: String,
+    title: String,
+) -> Result<Value, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        update_plan_sub_json(&master_task_id, &sub_task_id, &title)
     })
     .await
     .map_err(|e| e.to_string())?

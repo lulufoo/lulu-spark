@@ -53,6 +53,7 @@ const PLAN_TASK_LIFECYCLE_COMMANDS: &[&str] = &[
     "update_plan_md",
     "complete_plan_sub",
     "abandon_plan_sub",
+        "update_plan_sub",
 ];
 
 #[test]
