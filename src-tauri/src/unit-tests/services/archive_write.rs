@@ -3,7 +3,11 @@ use std::path::{Path, PathBuf};
 
 use serde_json::json;
 
-use crate::services::archive_write::{archive_digest, archive_document};
+use crate::services::archive_parse::parse_archive_document;
+use crate::services::archive_write::{
+    archive_digest, archive_document, archive_note_document, synthesize_note_archive_document,
+    NoteCreateOpts,
+};
 use crate::services::plan_task::{
     create_master_with_subs, get_by_id, test_set_fail_complete_sub, test_set_fail_link_archive,
 };
@@ -364,5 +368,158 @@ fn archive_document_link_fail_corpus_rollback_plan_stays_complete() {
             0,
             "link_archive must not append on failure"
         );
+    });
+}
+
+fn note_opts_with_ts(ts: &str) -> NoteCreateOpts {
+    NoteCreateOpts {
+        ts: Some(ts.to_string()),
+        ..NoteCreateOpts::default()
+    }
+}
+
+#[test]
+fn synthesize_note_archive_document_builds_parseable_shell() {
+    let body = "First line title\n\nMore body content.";
+    let doc = synthesize_note_archive_document(body, &note_opts_with_ts("202607101430"))
+        .expect("synthesize");
+    let parsed = parse_archive_document(&doc).expect("parse must accept synthesized shell");
+    assert_eq!(
+        parsed.common_path,
+        "inbox/notes/202607101430-first-line-title.md"
+    );
+    assert!(doc.starts_with("# First line title\n"), "H1 from first line: {doc}");
+    assert!(
+        doc.contains("> 创建时间：2026年7月10日 14:30"),
+        "created_at line: {doc}"
+    );
+    assert!(
+        doc.contains("[digest](../../../digest/inbox/notes/202607101430-first-line-title.md)"),
+        "digest nav: {doc}"
+    );
+    assert!(
+        doc.contains("---\n\nFirst line title\n\nMore body content."),
+        "body preserved after separator: {doc}"
+    );
+}
+
+#[test]
+fn synthesize_note_archive_document_empty_first_line_falls_back_to_ts_slug() {
+    let body = "\n\nBody without a title line.";
+    let doc = synthesize_note_archive_document(body, &note_opts_with_ts("202607101431"))
+        .expect("synthesize");
+    let parsed = parse_archive_document(&doc).expect("parse");
+    assert_eq!(
+        parsed.common_path,
+        "inbox/notes/202607101431-note.md"
+    );
+    assert!(
+        doc.starts_with("# 202607101431-note\n") || doc.starts_with("# note\n"),
+        "H1 falls back to timestamp/slug: {doc}"
+    );
+}
+
+#[test]
+fn synthesize_note_archive_document_defaults_topic_inbox() {
+    let doc = synthesize_note_archive_document("Hello note", &note_opts_with_ts("202607101432"))
+        .expect("synthesize");
+    let parsed = parse_archive_document(&doc).expect("parse");
+    assert!(
+        parsed.common_path.starts_with("inbox/"),
+        "topic must default to inbox: {}",
+        parsed.common_path
+    );
+}
+
+#[test]
+fn archive_note_document_writes_raw_index_with_source_type_note() {
+    let (_sandbox, repo_root) = setup_corpus();
+    let body = "Quick capture\n\nDetails here.";
+    let v = archive_note_document(&repo_root, body, &note_opts_with_ts("202607101433"))
+        .expect("archive_note_document");
+    assert_eq!(v.get("ok"), Some(&json!(true)), "failed: {v}");
+    let id = v["id"].as_str().expect("id");
+    let common_path = v["common_path"].as_str().expect("common_path");
+    assert_eq!(common_path, "inbox/notes/202607101433-quick-capture.md");
+
+    let corpus = crate::config::meili_env::workbench_knowledge_root_path(&repo_root);
+    let raw = corpus.join("raw").join(common_path);
+    assert!(raw.is_file(), "raw must exist at {raw:?}");
+    let raw_text = fs::read_to_string(&raw).expect("read raw");
+    assert!(raw_text.contains("Quick capture"));
+    parse_archive_document(&raw_text).expect("stored doc must remain parseable");
+
+    let index: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(corpus.join("index.json")).unwrap()).unwrap();
+    let entry = &index["entries"][id];
+    assert_eq!(entry["source_type"], json!("note"));
+    assert_eq!(entry["common_path"], json!(common_path));
+    assert!(entry["layers"]
+        .as_array()
+        .unwrap()
+        .contains(&json!("raw")));
+    assert!(
+        !corpus.join("annotations").exists()
+            || fs::read_dir(corpus.join("annotations"))
+                .map(|mut d| d.next().is_none())
+                .unwrap_or(true),
+        "must not write Annotation path"
+    );
+}
+
+#[test]
+fn archive_note_document_conflict_does_not_mutate_history() {
+    let (_sandbox, repo_root) = setup_corpus();
+    let opts = note_opts_with_ts("202607101434");
+    let body = "Same path note";
+    let first = archive_note_document(&repo_root, body, &opts).expect("first create");
+    assert_eq!(first.get("ok"), Some(&json!(true)));
+    let id = first["id"].as_str().unwrap().to_string();
+    let corpus = crate::config::meili_env::workbench_knowledge_root_path(&repo_root);
+    let index_before: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(corpus.join("index.json")).unwrap()).unwrap();
+    let raw_before = fs::read_to_string(
+        corpus.join("raw/inbox/notes/202607101434-same-path-note.md"),
+    )
+    .unwrap();
+
+    let err = archive_note_document(&repo_root, body, &opts).expect_err("409 conflict");
+    assert!(
+        err.contains("409") || err.to_lowercase().contains("already exists"),
+        "expected conflict error: {err}"
+    );
+
+    let index_after: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(corpus.join("index.json")).unwrap()).unwrap();
+    assert_eq!(index_after, index_before, "history Entry must not change on conflict");
+    assert_eq!(
+        index_after["entries"][&id]["source_type"],
+        json!("note")
+    );
+    let raw_after = fs::read_to_string(
+        corpus.join("raw/inbox/notes/202607101434-same-path-note.md"),
+    )
+    .unwrap();
+    assert_eq!(raw_after, raw_before, "raw must not be rewritten on conflict");
+}
+
+#[test]
+fn archive_note_document_rejects_empty_body_without_writing() {
+    let (_sandbox, repo_root) = setup_corpus();
+    let corpus = crate::config::meili_env::workbench_knowledge_root_path(&repo_root);
+    let index_before: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(corpus.join("index.json")).unwrap()).unwrap();
+
+    let err = archive_note_document(&repo_root, "   \n  ", &note_opts_with_ts("202607101435"))
+        .expect_err("empty body");
+    assert!(!err.is_empty());
+
+    let index_after: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(corpus.join("index.json")).unwrap()).unwrap();
+    assert_eq!(index_after, index_before);
+    assert!(!corpus.join("raw/inbox/notes").exists() || {
+        fs::read_dir(corpus.join("raw/inbox/notes"))
+            .map(|mut d| d.next().is_none())
+            .unwrap_or(true)
     });
 }
