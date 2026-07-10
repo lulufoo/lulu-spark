@@ -176,13 +176,13 @@ function buildServer() {
     'create_plan_task',
     {
       description:
-        'Create a plan task master with optional explicit sub tasks. Proxy POST /api/plan-task-create',
+        'Create a plan task master. Omit sub_titles or pass an empty array to create a plan with empty sub_tasks. Proxy POST /api/plan-task-create',
       inputSchema: {
         title: z.string().trim().min(1).describe('Master task title'),
         sub_titles: z
           .array(z.string().trim().min(1))
           .optional()
-          .describe('Optional explicit sub task titles; omit or empty → one implicit sub'),
+          .describe('Optional explicit sub task titles; omit or empty array → empty sub_tasks'),
       },
     },
     async ({ title, sub_titles }) => {

@@ -2,6 +2,7 @@
 
 pub mod types;
 
+use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
 use std::sync::Mutex;
@@ -39,6 +40,9 @@ static TEST_FAIL_BATCH_PLAN_MD: AtomicBool = AtomicBool::new(false);
 static TEST_FAIL_BATCH_INDEX: AtomicBool = AtomicBool::new(false);
 
 #[cfg(test)]
+static TEST_FAIL_MIGRATE_IMPLICIT_WRITE: AtomicBool = AtomicBool::new(false);
+
+#[cfg(test)]
 pub fn test_set_fail_complete_sub(fail: bool) {
     TEST_FAIL_COMPLETE_SUB.store(fail, Ordering::SeqCst);
 }
@@ -64,6 +68,21 @@ pub fn test_set_fail_batch_index(fail: bool) {
 }
 
 #[cfg(test)]
+pub fn test_set_fail_migrate_implicit_write(fail: bool) {
+    TEST_FAIL_MIGRATE_IMPLICIT_WRITE.store(fail, Ordering::SeqCst);
+}
+
+#[cfg(test)]
+pub fn test_reset_all_injection_flags() {
+    TEST_FAIL_COMPLETE_SUB.store(false, Ordering::SeqCst);
+    TEST_FAIL_LINK_ARCHIVE.store(false, Ordering::SeqCst);
+    TEST_FAIL_BATCH_SUB_TASKS.store(false, Ordering::SeqCst);
+    TEST_FAIL_BATCH_PLAN_MD.store(false, Ordering::SeqCst);
+    TEST_FAIL_BATCH_INDEX.store(false, Ordering::SeqCst);
+    TEST_FAIL_MIGRATE_IMPLICIT_WRITE.store(false, Ordering::SeqCst);
+}
+
+#[cfg(test)]
 fn test_take_fail_link_archive() -> bool {
     TEST_FAIL_LINK_ARCHIVE.swap(false, Ordering::SeqCst)
 }
@@ -81,6 +100,11 @@ fn test_take_fail_batch_plan_md() -> bool {
 #[cfg(test)]
 fn test_take_fail_batch_index() -> bool {
     TEST_FAIL_BATCH_INDEX.swap(false, Ordering::SeqCst)
+}
+
+#[cfg(test)]
+fn test_take_fail_migrate_implicit_write() -> bool {
+    TEST_FAIL_MIGRATE_IMPLICIT_WRITE.swap(false, Ordering::SeqCst)
 }
 
 #[cfg(test)]
@@ -142,7 +166,95 @@ fn ensure_bootstrap() -> Result<(), String> {
     let _deleted_wb = delete_v1_if_present(&wb_v1)?;
     let _deleted_cache = delete_v1_if_present(&cache_v1)?;
 
-    init_v2_index()
+    init_v2_index()?;
+    migrate_implicit_subs();
+    Ok(())
+}
+
+fn migration_errors_path() -> Result<std::path::PathBuf, String> {
+    paths::plan_tasks_dir()
+        .map(|d| d.join("migration_errors.json"))
+        .map_err(|e| format!("{e:?}"))
+}
+
+fn load_migration_errors_unlocked() -> HashMap<String, String> {
+    let Ok(path) = migration_errors_path() else {
+        return HashMap::new();
+    };
+    if !path.is_file() {
+        return HashMap::new();
+    }
+    let Ok(text) = fs::read_to_string(&path) else {
+        return HashMap::new();
+    };
+    serde_json::from_str(&text).unwrap_or_default()
+}
+
+fn save_migration_errors(errors: &HashMap<String, String>) {
+    let Ok(path) = migration_errors_path() else {
+        return;
+    };
+    if let Some(parent) = path.parent() {
+        let _ = fs::create_dir_all(parent);
+    }
+    if errors.is_empty() {
+        if path.is_file() {
+            let _ = fs::remove_file(&path);
+        }
+        return;
+    }
+    if let Ok(text) = serde_json::to_string_pretty(errors) {
+        let tmp = path.with_extension("json.tmp");
+        if fs::write(&tmp, &text).is_ok() {
+            let _ = fs::rename(&tmp, &path);
+        }
+    }
+}
+
+fn plan_has_migration_error(master_id: &str) -> bool {
+    load_migration_errors_unlocked().contains_key(master_id)
+}
+
+fn write_migrated_sub_tasks(path: &Path, sub_tasks: &SubTasksFile) -> Result<(), String> {
+    #[cfg(test)]
+    if test_take_fail_migrate_implicit_write() {
+        return Err("injected migrate_implicit_subs write failure".to_string());
+    }
+    write_sub_tasks_json(path, sub_tasks)
+}
+
+fn migrate_one_plan_implicit_subs(master_id: &str) -> Result<(), String> {
+    let path = paths::plan_tasks_sub_tasks_path(master_id).map_err(|e| format!("{e:?}"))?;
+    if !path.is_file() {
+        return Err("missing sub_tasks.json".to_string());
+    }
+    let text = fs::read_to_string(&path).map_err(|e| e.to_string())?;
+    let mut file: SubTasksFile = serde_json::from_str(&text).map_err(|e| e.to_string())?;
+    let before = file.sub_tasks.len();
+    file.sub_tasks.retain(|s| !s.implicit);
+    if file.sub_tasks.len() == before {
+        return Ok(());
+    }
+    write_migrated_sub_tasks(&path, &file)
+}
+
+fn migrate_implicit_subs() {
+    let index = match load_v2_index_unlocked() {
+        Ok(i) => i,
+        Err(_) => return,
+    };
+    let mut errors = load_migration_errors_unlocked();
+    for master_id in index.tasks.keys() {
+        match migrate_one_plan_implicit_subs(master_id) {
+            Ok(()) => {
+                errors.remove(master_id);
+            }
+            Err(message) => {
+                errors.insert(master_id.clone(), message);
+            }
+        }
+    }
+    save_migration_errors(&errors);
 }
 
 fn bootstrap_error(err: String) -> Value {
@@ -342,11 +454,6 @@ fn load_master_task_unlocked(master_id: &str) -> Result<MasterTask, Value> {
     Ok(assemble_master_task(entry, &subs))
 }
 
-fn load_master_task(master_id: &str) -> Result<MasterTask, Value> {
-    load_v2_for_read()?;
-    load_master_task_unlocked(master_id)
-}
-
 fn find_master_id_for_any_id(index: &PlanTasksIndex, id: &str) -> Result<Option<String>, Value> {
     if index.tasks.contains_key(id) {
         return Ok(Some(id.to_string()));
@@ -398,19 +505,126 @@ fn format_sub_id(master_id: &str, index: usize) -> String {
 }
 
 fn recompute_master_status(master: &mut MasterTask) {
-    let all_complete = master
+    master.status = if master.sub_tasks.is_empty() {
+        MasterTaskStatus::Incomplete
+    } else if master
         .sub_tasks
         .iter()
-        .all(|s| s.status == SubTaskStatus::Complete);
-    master.status = if all_complete {
+        .all(|s| s.status == SubTaskStatus::Complete)
+    {
         MasterTaskStatus::Complete
     } else {
         MasterTaskStatus::Incomplete
     };
 }
 
+fn is_terminal_sub_status(status: &SubTaskStatus) -> bool {
+    matches!(
+        status,
+        SubTaskStatus::Complete | SubTaskStatus::Abandoned
+    )
+}
+
 fn master_to_value(master: &MasterTask) -> Value {
     serde_json::to_value(master).unwrap_or_else(|_| json!({}))
+}
+
+fn master_to_response(master: &MasterTask, migration_error: bool) -> Value {
+    let plan_md = read_plan_md_or_empty(&master.master_task_id).unwrap_or_default();
+    let mut value = master_to_value(master);
+    if let Value::Object(ref mut map) = value {
+        map.insert("plan_md".to_string(), json!(plan_md));
+        map.insert("migration_error".to_string(), json!(migration_error));
+    }
+    value
+}
+
+fn load_master_response_unlocked(master_id: &str) -> Result<Value, Value> {
+    let index = match load_v2_index_unlocked() {
+        Ok(i) => i,
+        Err(LoadOutcome::Corrupt) => return Err(corrupt_storage_error()),
+        Err(LoadOutcome::Missing) | Err(LoadOutcome::Ok) => PlanTasksIndex::default(),
+    };
+    let entry = index
+        .tasks
+        .get(master_id)
+        .ok_or_else(|| json!({ "error": "Task not found", "_status": 404 }))?;
+    let migration_error = plan_has_migration_error(master_id);
+    if migration_error {
+        let subs = match load_sub_tasks_file(master_id) {
+            Ok(s) => s,
+            Err(_) => SubTasksFile {
+                sub_tasks: vec![],
+            },
+        };
+        return Ok(master_to_response(
+            &assemble_master_task(entry, &subs),
+            true,
+        ));
+    }
+    let subs = match load_sub_tasks_file(master_id) {
+        Ok(s) => s,
+        Err(LoadOutcome::Corrupt) | Err(LoadOutcome::Missing) | Err(LoadOutcome::Ok) => {
+            return Err(corrupt_storage_error());
+        }
+    };
+    Ok(master_to_response(
+        &assemble_master_task(entry, &subs),
+        false,
+    ))
+}
+
+pub fn read_plan_md(master_task_id: &str) -> Value {
+    let master_task_id = master_task_id.trim();
+    if master_task_id.is_empty() {
+        return json!({ "error": "Missing id", "_status": 400 });
+    }
+
+    match load_v2_for_read() {
+        Ok(index) => {
+            if !index.tasks.contains_key(master_task_id) {
+                return json!({ "error": "Task not found", "_status": 404 });
+            }
+            match read_plan_md_or_empty(master_task_id) {
+                Ok(plan_md) => json!({ "plan_md": plan_md, "_status": 200 }),
+                Err(e) => json!({ "error": e, "_status": 500 }),
+            }
+        }
+        Err(err) => err,
+    }
+}
+
+pub fn update_plan_md(master_task_id: &str, plan_md: &str) -> Value {
+    let master_task_id = master_task_id.trim();
+    if master_task_id.is_empty() {
+        return json!({ "error": "Missing id", "_status": 400 });
+    }
+
+    with_write_lock(|| {
+        if let Err(e) = ensure_bootstrap() {
+            return bootstrap_error(e);
+        }
+
+        let index = match load_v2_index_unlocked() {
+            Ok(i) => i,
+            Err(LoadOutcome::Corrupt) => return corrupt_storage_error(),
+            Err(LoadOutcome::Missing) | Err(LoadOutcome::Ok) => PlanTasksIndex::default(),
+        };
+
+        if !index.tasks.contains_key(master_task_id) {
+            return json!({ "error": "Task not found", "_status": 404 });
+        }
+
+        let plan_md_path = match paths::plan_tasks_plan_md_path(master_task_id) {
+            Ok(p) => p,
+            Err(e) => return json!({ "error": format!("{e:?}"), "_status": 500 }),
+        };
+
+        match write_plan_md_atomic(&plan_md_path, plan_md) {
+            Ok(()) => json!({ "ok": true, "_status": 200 }),
+            Err(e) => json!({ "error": e, "_status": 500 }),
+        }
+    })
 }
 
 pub fn create_master_with_subs(title: &str, sub_titles: Option<&[&str]>) -> Value {
@@ -443,14 +657,7 @@ pub fn create_master_with_subs(title: &str, sub_titles: Option<&[&str]>) -> Valu
         };
 
         let sub_tasks = if titles.is_empty() {
-            vec![SubTask {
-                sub_task_id: format_sub_id(&master_id, 1),
-                title: Some(title.to_string()),
-                status: SubTaskStatus::Incomplete,
-                implicit: true,
-                linked_archive_ids: vec![],
-                completed_at: None,
-            }]
+            vec![]
         } else {
             titles
                 .iter()
@@ -466,7 +673,6 @@ pub fn create_master_with_subs(title: &str, sub_titles: Option<&[&str]>) -> Valu
                 .collect()
         };
 
-        let first_sub_id = sub_tasks[0].sub_task_id.clone();
         let master = MasterTask {
             master_task_id: master_id.clone(),
             title: title.to_string(),
@@ -476,12 +682,17 @@ pub fn create_master_with_subs(title: &str, sub_titles: Option<&[&str]>) -> Valu
         };
 
         match persist_master(&master) {
-            Ok(()) => json!({
-                "master_task_id": master_id,
-                "sub_task_id": first_sub_id,
-                "task": master_to_value(&master),
-                "_status": 201,
-            }),
+            Ok(()) => {
+                let mut response = json!({
+                    "master_task_id": master_id,
+                    "task": master_to_value(&master),
+                    "_status": 201,
+                });
+                if let Some(first_sub) = master.sub_tasks.first() {
+                    response["sub_task_id"] = json!(first_sub.sub_task_id);
+                }
+                response
+            }
             Err(e) => json!({ "error": e, "_status": 500 }),
         }
     })
@@ -495,8 +706,8 @@ pub fn get_by_id(id: &str) -> Value {
 
     match load_v2_for_read() {
         Ok(index) => match find_master_id_for_any_id(&index, id) {
-            Ok(Some(master_id)) => match load_master_task(&master_id) {
-                Ok(master) => master_to_value(&master),
+            Ok(Some(master_id)) => match load_master_response_unlocked(&master_id) {
+                Ok(response) => response,
                 Err(err) => err,
             },
             Ok(None) => json!({ "error": "Task not found", "_status": 404 }),
@@ -511,8 +722,8 @@ pub fn list_all() -> Value {
         Ok(index) => {
             let mut masters: Vec<Value> = Vec::new();
             for master_id in index.tasks.keys() {
-                match load_master_task(master_id) {
-                    Ok(master) => masters.push(master_to_value(&master)),
+                match load_master_response_unlocked(master_id) {
+                    Ok(response) => masters.push(response),
                     Err(err) => return err,
                 }
             }
@@ -612,10 +823,6 @@ pub fn delete_sub(master_task_id: &str, sub_task_id: &str) -> Value {
             Err(err) => return err,
         };
 
-        if master.sub_tasks.len() <= 1 {
-            return json!({ "error": "Cannot delete last sub", "_status": 400 });
-        }
-
         let pos = match master
             .sub_tasks
             .iter()
@@ -662,8 +869,86 @@ pub fn complete_sub(master_task_id: &str, sub_task_id: &str) -> Value {
             return json!({ "error": "Task not found", "_status": 404 });
         };
 
+        if is_terminal_sub_status(&sub.status) {
+            return json!({ "error": "Sub task is in terminal status", "_status": 409 });
+        }
+
         sub.status = SubTaskStatus::Complete;
         sub.completed_at = Some(Utc::now().to_rfc3339());
+        recompute_master_status(&mut master);
+        let updated = master.clone();
+
+        match persist_master(&master) {
+            Ok(()) => json!({
+                "task": master_to_value(&updated),
+                "_status": 200,
+            }),
+            Err(e) => json!({ "error": e, "_status": 500 }),
+        }
+    })
+}
+
+pub fn update_sub_title(master_task_id: &str, sub_task_id: &str, title: &str) -> Value {
+    let title = title.trim();
+    if title.is_empty() {
+        return json!({ "error": "Missing title", "_status": 400 });
+    }
+
+    with_write_lock(|| {
+        if let Err(e) = ensure_bootstrap() {
+            return bootstrap_error(e);
+        }
+
+        let mut master = match load_master_task_unlocked(master_task_id) {
+            Ok(m) => m,
+            Err(err) => return err,
+        };
+
+        let Some(sub) = master
+            .sub_tasks
+            .iter_mut()
+            .find(|s| s.sub_task_id == sub_task_id)
+        else {
+            return json!({ "error": "Task not found", "_status": 404 });
+        };
+
+        sub.title = Some(title.to_string());
+        let updated = master.clone();
+
+        match persist_master(&master) {
+            Ok(()) => json!({
+                "task": master_to_value(&updated),
+                "_status": 200,
+            }),
+            Err(e) => json!({ "error": e, "_status": 500 }),
+        }
+    })
+}
+
+pub fn abandon_sub(master_task_id: &str, sub_task_id: &str) -> Value {
+    with_write_lock(|| {
+        if let Err(e) = ensure_bootstrap() {
+            return bootstrap_error(e);
+        }
+
+        let mut master = match load_master_task_unlocked(master_task_id) {
+            Ok(m) => m,
+            Err(err) => return err,
+        };
+
+        let Some(sub) = master
+            .sub_tasks
+            .iter_mut()
+            .find(|s| s.sub_task_id == sub_task_id)
+        else {
+            return json!({ "error": "Task not found", "_status": 404 });
+        };
+
+        if is_terminal_sub_status(&sub.status) {
+            return json!({ "error": "Sub task is in terminal status", "_status": 409 });
+        }
+
+        sub.status = SubTaskStatus::Abandoned;
         recompute_master_status(&mut master);
         let updated = master.clone();
 

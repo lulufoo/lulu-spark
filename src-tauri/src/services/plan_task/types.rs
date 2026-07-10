@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 pub enum SubTaskStatus {
     Incomplete,
     Complete,
+    Abandoned,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

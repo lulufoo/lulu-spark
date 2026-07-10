@@ -8,10 +8,12 @@ use std::time::SystemTime;
 
 use crate::config::paths;
 use crate::config::settings::{self, default_cache_dir};
+use crate::services::plan_task::test_reset_all_injection_flags;
 use crate::test_support::TestSandbox;
 
 fn with_plan_task_sandbox<F: FnOnce(&Path)>(f: F) {
     let _sandbox = TestSandbox::new();
+    test_reset_all_injection_flags();
     let wb = paths::workbench_knowledge_root().expect("workbench root");
     f(&wb);
 }
@@ -174,24 +176,64 @@ fn plan_task_paths_require_sandbox_isolation() {
 }
 
 #[test]
-fn create_minimal_generates_implicit_sub_01() {
+fn create_without_sub_titles_yields_empty_sub_tasks() {
     with_plan_task_sandbox(|_| {
         let v = create_master_with_subs("预习：第三章", None);
         assert_eq!(v["_status"], 201);
-        let master_id = v["master_task_id"].as_str().expect("master_task_id");
-        let sub_id = v["sub_task_id"].as_str().expect("sub_task_id");
-        assert_eq!(sub_id, format!("{master_id}_sub_01"));
-        assert!(sub_id.ends_with("_sub_01"));
+        assert!(v.get("sub_task_id").is_none());
 
         let task = master_from_value(&v);
         assert_eq!(task["title"], "预习：第三章");
         assert_eq!(task["status"], "incomplete");
         let subs = task["sub_tasks"].as_array().expect("sub_tasks");
-        assert_eq!(subs.len(), 1);
-        assert_eq!(subs[0]["sub_task_id"], sub_id);
-        assert_eq!(subs[0]["implicit"], true);
-        assert_eq!(subs[0]["status"], "incomplete");
-        assert_eq!(subs[0]["linked_archive_ids"].as_array().unwrap().len(), 0);
+        assert!(subs.is_empty());
+    });
+}
+
+#[test]
+fn create_with_empty_sub_titles_slice_yields_empty_sub_tasks() {
+    with_plan_task_sandbox(|_| {
+        let empty: &[&str] = &[];
+        let v = create_master_with_subs("Empty slice", Some(empty));
+        assert_eq!(v["_status"], 201);
+        let subs = master_from_value(&v)["sub_tasks"].as_array().expect("sub_tasks");
+        assert!(subs.is_empty());
+        assert_eq!(master_from_value(&v)["status"], "incomplete");
+    });
+}
+
+#[test]
+fn recompute_master_status_empty_sub_tasks_stays_incomplete() {
+    with_plan_task_sandbox(|_| {
+        let master_id = "task_empty_subs";
+        let mut entry = sample_index_entry(master_id);
+        entry.status = MasterTaskStatus::Complete;
+        test_run_write_task_batch(
+            master_id,
+            &entry,
+            &SubTasksFile { sub_tasks: vec![] },
+            "",
+        )
+        .expect("batch write");
+
+        let got = get_by_id(master_id);
+        assert_eq!(got["status"], "incomplete");
+        assert_eq!(got["sub_tasks"].as_array().unwrap().len(), 0);
+    });
+}
+
+#[test]
+fn recompute_master_status_all_complete_marks_master_complete() {
+    with_plan_task_sandbox(|_| {
+        let created = create_master_with_subs("All done", Some(&["A", "B"]));
+        let master_id = created["master_task_id"].as_str().unwrap();
+        for sub in created["task"]["sub_tasks"].as_array().unwrap() {
+            let sub_id = sub["sub_task_id"].as_str().unwrap();
+            let v = complete_sub(master_id, sub_id);
+            assert_eq!(v["_status"], 200);
+        }
+        let got = get_by_id(master_id);
+        assert_eq!(got["status"], "complete");
     });
 }
 
@@ -216,7 +258,7 @@ fn create_multiple_subs_increments_sub_suffix() {
 #[test]
 fn get_by_id_returns_master_tree() {
     with_plan_task_sandbox(|_| {
-        let created = create_master_with_subs("Get me", None);
+        let created = create_master_with_subs("Get me", Some(&["Sub"]));
         let master_id = created["master_task_id"].as_str().unwrap();
         let got = get_by_id(master_id);
         assert!(got.get("_status").is_none() || got["_status"] == 200);
@@ -228,7 +270,7 @@ fn get_by_id_returns_master_tree() {
 #[test]
 fn get_by_id_resolves_sub_task_id() {
     with_plan_task_sandbox(|_| {
-        let created = create_master_with_subs("Sub lookup", None);
+        let created = create_master_with_subs("Sub lookup", Some(&["Sub"]));
         let sub_id = created["sub_task_id"].as_str().unwrap();
         let got = get_by_id(sub_id);
         assert_eq!(got["master_task_id"], created["master_task_id"]);
@@ -243,12 +285,12 @@ fn list_all_returns_master_trees() {
         assert!(empty.as_array().expect("array").is_empty());
 
         create_master_with_subs("One", None);
-        create_master_with_subs("Two", None);
+        create_master_with_subs("Two", Some(&["Sub"]));
         let list = list_all().as_array().expect("array").clone();
         assert_eq!(list.len(), 2);
         for item in &list {
             assert!(item.get("master_task_id").is_some());
-            assert!(item["sub_tasks"].as_array().unwrap().len() >= 1);
+            assert!(item["sub_tasks"].as_array().is_some());
         }
     });
 }
@@ -303,7 +345,7 @@ fn get_by_id_unknown_returns_404() {
 #[test]
 fn link_archive_updates_reverse_index() {
     with_plan_task_sandbox(|_| {
-        let created = create_master_with_subs("Link", None);
+        let created = create_master_with_subs("Link", Some(&["Sub"]));
         let master_id = created["master_task_id"].as_str().unwrap();
         let sub_id = created["sub_task_id"].as_str().unwrap();
 
@@ -379,8 +421,10 @@ fn corrupt_storage_list_returns_explicit_error() {
         .expect("write corrupt sub_tasks");
 
         let v = list_all();
-        assert_eq!(v["error"], "Invalid plan_tasks storage");
-        assert_eq!(v["_status"], 500);
+        let listed = v.as_array().expect("array");
+        assert_eq!(listed.len(), 1);
+        assert_eq!(listed[0]["master_task_id"], master_id);
+        assert_eq!(listed[0]["migration_error"], true);
     });
 }
 
@@ -414,8 +458,9 @@ fn corrupt_storage_get_returns_explicit_error() {
         .expect("write corrupt sub_tasks");
 
         let v = get_by_id(master_id);
-        assert_eq!(v["error"], "Invalid plan_tasks storage");
-        assert_eq!(v["_status"], 500);
+        assert_eq!(v["master_task_id"], master_id);
+        assert_eq!(v["migration_error"], true);
+        assert!(v.get("_status").is_none());
     });
 }
 
@@ -812,7 +857,7 @@ fn link_archive_does_not_change_sub_or_master_status() {
 }
 
 #[test]
-fn delete_sub_recomputes_master_and_rejects_last_sub() {
+fn delete_sub_recomputes_master_and_allows_delete_to_empty() {
     with_plan_task_sandbox(|_| {
         let created = create_master_with_subs("Delete sub", Some(&["A", "B"]));
         let master_id = created["master_task_id"].as_str().unwrap();
@@ -829,9 +874,185 @@ fn delete_sub_recomputes_master_and_rejects_last_sub() {
             .as_str()
             .unwrap()
             .to_string();
-        let blocked = delete_sub(master_id, &last_sub);
-        assert_eq!(blocked["_status"], 400);
-        assert_eq!(blocked["error"], "Cannot delete last sub");
+        let deleted_last = delete_sub(master_id, &last_sub);
+        assert_eq!(deleted_last["_status"], 200);
+        assert_eq!(master_from_value(&deleted_last)["status"], "incomplete");
+        assert!(master_from_value(&deleted_last)["sub_tasks"]
+            .as_array()
+            .unwrap()
+            .is_empty());
+
+        let got = get_by_id(master_id);
+        assert_eq!(got["status"], "incomplete");
+        assert!(got["sub_tasks"].as_array().unwrap().is_empty());
+    });
+}
+
+#[test]
+fn complete_sub_transitions_incomplete_to_complete_terminal() {
+    with_plan_task_sandbox(|_| {
+        let created = create_master_with_subs("Complete transition", Some(&["A"]));
+        let master_id = created["master_task_id"].as_str().unwrap();
+        let sub_id = created["task"]["sub_tasks"][0]["sub_task_id"]
+            .as_str()
+            .unwrap();
+        assert_eq!(created["task"]["sub_tasks"][0]["status"], "incomplete");
+
+        let v = complete_sub(master_id, sub_id);
+        assert_eq!(v["_status"], 200);
+        assert_eq!(master_from_value(&v)["sub_tasks"][0]["status"], "complete");
+        assert!(master_from_value(&v)["sub_tasks"][0]
+            .get("completed_at")
+            .and_then(|v| v.as_str())
+            .map(is_iso8601)
+            .unwrap_or(false));
+    });
+}
+
+#[test]
+fn abandon_sub_transitions_incomplete_to_abandoned_terminal() {
+    with_plan_task_sandbox(|_| {
+        let created = create_master_with_subs("Abandon transition", Some(&["A"]));
+        let master_id = created["master_task_id"].as_str().unwrap();
+        let sub_id = created["task"]["sub_tasks"][0]["sub_task_id"]
+            .as_str()
+            .unwrap();
+        assert_eq!(created["task"]["sub_tasks"][0]["status"], "incomplete");
+
+        let v = abandon_sub(master_id, sub_id);
+        assert_eq!(v["_status"], 200);
+        assert_eq!(master_from_value(&v)["sub_tasks"][0]["status"], "abandoned");
+        assert!(master_from_value(&v)["sub_tasks"][0]
+            .get("completed_at")
+            .is_none());
+    });
+}
+
+#[test]
+fn injection_flags_reset_before_each_sandbox_test() {
+    with_plan_task_sandbox(|_| {
+        test_set_fail_batch_sub_tasks(true);
+        let created = create_master_with_subs("Flag reset", None);
+        assert_eq!(created["_status"], 500);
+    });
+    with_plan_task_sandbox(|_| {
+        let created = create_master_with_subs("After reset", None);
+        assert_eq!(created["_status"], 201);
+    });
+}
+
+#[test]
+fn abandon_sub_marks_sub_abandoned_and_recomputes_master_incomplete() {
+    with_plan_task_sandbox(|_| {
+        let created = create_master_with_subs("Abandon", Some(&["A", "B"]));
+        let master_id = created["master_task_id"].as_str().unwrap();
+        let sub_a = created["task"]["sub_tasks"][0]["sub_task_id"]
+            .as_str()
+            .unwrap();
+
+        let v = abandon_sub(master_id, sub_a);
+        assert_eq!(v["_status"], 200);
+        let task = master_from_value(&v);
+        assert_eq!(task["status"], "incomplete");
+        assert_eq!(task["sub_tasks"][0]["status"], "abandoned");
+        assert_eq!(task["sub_tasks"][1]["status"], "incomplete");
+    });
+}
+
+#[test]
+fn abandon_sub_all_abandoned_keeps_master_incomplete() {
+    with_plan_task_sandbox(|_| {
+        let created = create_master_with_subs("All abandoned", Some(&["A", "B"]));
+        let master_id = created["master_task_id"].as_str().unwrap();
+        for sub in created["task"]["sub_tasks"].as_array().unwrap() {
+            let sub_id = sub["sub_task_id"].as_str().unwrap();
+            let v = abandon_sub(master_id, sub_id);
+            assert_eq!(v["_status"], 200);
+        }
+        let got = get_by_id(master_id);
+        assert_eq!(got["status"], "incomplete");
+        for sub in got["sub_tasks"].as_array().unwrap() {
+            assert_eq!(sub["status"], "abandoned");
+        }
+    });
+}
+
+#[test]
+fn complete_and_abandoned_mix_keeps_master_incomplete() {
+    with_plan_task_sandbox(|_| {
+        let created = create_master_with_subs("Mixed terminal", Some(&["A", "B"]));
+        let master_id = created["master_task_id"].as_str().unwrap();
+        let sub_a = created["task"]["sub_tasks"][0]["sub_task_id"]
+            .as_str()
+            .unwrap();
+        let sub_b = created["task"]["sub_tasks"][1]["sub_task_id"]
+            .as_str()
+            .unwrap();
+
+        assert_eq!(complete_sub(master_id, sub_a)["_status"], 200);
+        assert_eq!(abandon_sub(master_id, sub_b)["_status"], 200);
+
+        let got = get_by_id(master_id);
+        assert_eq!(got["status"], "incomplete");
+        assert_eq!(got["sub_tasks"][0]["status"], "complete");
+        assert_eq!(got["sub_tasks"][1]["status"], "abandoned");
+    });
+}
+
+#[test]
+fn complete_sub_rejects_terminal_sub_returns_409() {
+    with_plan_task_sandbox(|_| {
+        let created = create_master_with_subs("Terminal guard", Some(&["A", "B"]));
+        let master_id = created["master_task_id"].as_str().unwrap();
+        let sub_a = created["task"]["sub_tasks"][0]["sub_task_id"]
+            .as_str()
+            .unwrap();
+        let sub_b = created["task"]["sub_tasks"][1]["sub_task_id"]
+            .as_str()
+            .unwrap();
+
+        assert_eq!(complete_sub(master_id, sub_a)["_status"], 200);
+        let again = complete_sub(master_id, sub_a);
+        assert_eq!(again["_status"], 409);
+
+        assert_eq!(abandon_sub(master_id, sub_b)["_status"], 200);
+        let on_abandoned = complete_sub(master_id, sub_b);
+        assert_eq!(on_abandoned["_status"], 409);
+    });
+}
+
+#[test]
+fn abandon_sub_rejects_terminal_sub_returns_409() {
+    with_plan_task_sandbox(|_| {
+        let created = create_master_with_subs("Abandon guard", Some(&["A", "B"]));
+        let master_id = created["master_task_id"].as_str().unwrap();
+        let sub_a = created["task"]["sub_tasks"][0]["sub_task_id"]
+            .as_str()
+            .unwrap();
+        let sub_b = created["task"]["sub_tasks"][1]["sub_task_id"]
+            .as_str()
+            .unwrap();
+
+        assert_eq!(abandon_sub(master_id, sub_a)["_status"], 200);
+        let again = abandon_sub(master_id, sub_a);
+        assert_eq!(again["_status"], 409);
+
+        assert_eq!(complete_sub(master_id, sub_b)["_status"], 200);
+        let on_complete = abandon_sub(master_id, sub_b);
+        assert_eq!(on_complete["_status"], 409);
+    });
+}
+
+#[test]
+fn abandon_sub_unknown_ids_return_404() {
+    with_plan_task_sandbox(|_| {
+        let v = abandon_sub("task_missing", "task_missing_sub_01");
+        assert_eq!(v["_status"], 404);
+
+        let created = create_master_with_subs("Exists", Some(&["A"]));
+        let master_id = created["master_task_id"].as_str().unwrap();
+        let missing = abandon_sub(master_id, "task_nosuch_sub_99");
+        assert_eq!(missing["_status"], 404);
     });
 }
 
@@ -878,8 +1099,459 @@ fn create_batch_failure_leaves_no_partial_commit() {
 #[test]
 fn create_response_omits_completed_at_on_new_subs() {
     with_plan_task_sandbox(|_| {
-        let v = create_master_with_subs("New", None);
+        let v = create_master_with_subs("New", Some(&["Sub"]));
         let subs = v["task"]["sub_tasks"].as_array().unwrap();
         assert!(subs[0].get("completed_at").is_none() || subs[0]["completed_at"].is_null());
+    });
+}
+
+fn seed_v2_plan_with_subs(
+    wb: &Path,
+    master_id: &str,
+    title: &str,
+    sub_tasks: &serde_json::Value,
+    merge_index: bool,
+) {
+    let plan_tasks_dir = wb.join("plan_tasks");
+    fs::create_dir_all(plan_tasks_dir.join("tasks").join(master_id)).expect("mkdir task");
+    if merge_index {
+        let index_path = plan_tasks_dir.join("index.json");
+        let mut index: serde_json::Value = if index_path.is_file() {
+            serde_json::from_str(&fs::read_to_string(&index_path).unwrap()).unwrap_or_else(|_| {
+                serde_json::json!({ "version": 2, "tasks": {} })
+            })
+        } else {
+            fs::create_dir_all(plan_tasks_dir.join("tasks")).expect("mkdir tasks");
+            serde_json::json!({ "version": 2, "tasks": {} })
+        };
+        index["tasks"][master_id] = serde_json::json!({
+            "master_task_id": master_id,
+            "title": title,
+            "status": "incomplete",
+            "created_at": "2026-07-08T00:00:00+00:00",
+            "task_dir": format!("tasks/{master_id}")
+        });
+        fs::write(
+            index_path,
+            serde_json::to_string_pretty(&index).expect("serialize index"),
+        )
+        .expect("write index");
+    }
+    fs::write(
+        plan_tasks_dir
+            .join("tasks")
+            .join(master_id)
+            .join("sub_tasks.json"),
+        serde_json::to_string_pretty(sub_tasks).expect("serialize subs"),
+    )
+    .expect("write sub_tasks");
+    fs::write(
+        plan_tasks_dir
+            .join("tasks")
+            .join(master_id)
+            .join("plan.md"),
+        "",
+    )
+    .expect("write plan.md");
+}
+
+fn subs_on_disk(wb: &Path, master_id: &str) -> serde_json::Value {
+    let path = wb
+        .join("plan_tasks")
+        .join("tasks")
+        .join(master_id)
+        .join("sub_tasks.json");
+    serde_json::from_str(&fs::read_to_string(path).unwrap()).expect("parse sub_tasks.json")
+}
+
+#[test]
+fn migrate_implicit_subs_removes_implicit_on_bootstrap() {
+    with_plan_task_sandbox(|wb| {
+        seed_v2_plan_with_subs(
+            wb,
+            "task_implicit",
+            "Implicit plan",
+            &serde_json::json!({
+                "sub_tasks": [{
+                    "sub_task_id": "task_implicit_sub_01",
+                    "title": "Implicit plan",
+                    "status": "incomplete",
+                    "implicit": true,
+                    "linked_archive_ids": []
+                }]
+            }),
+            true,
+        );
+
+        let list = list_all();
+        let listed = list.as_array().expect("array");
+        assert_eq!(listed.len(), 1);
+        assert_eq!(listed[0]["migration_error"], false);
+        assert_eq!(listed[0]["sub_tasks"].as_array().unwrap().len(), 0);
+
+        let got = get_by_id("task_implicit");
+        assert_eq!(got["migration_error"], false);
+        assert!(got["sub_tasks"].as_array().unwrap().is_empty());
+
+        let on_disk = subs_on_disk(wb, "task_implicit");
+        assert_eq!(on_disk["sub_tasks"].as_array().unwrap().len(), 0);
+    });
+}
+
+#[test]
+fn migrate_implicit_subs_preserves_explicit_subs() {
+    with_plan_task_sandbox(|wb| {
+        seed_v2_plan_with_subs(
+            wb,
+            "task_mixed",
+            "Mixed",
+            &serde_json::json!({
+                "sub_tasks": [
+                    {
+                        "sub_task_id": "task_mixed_sub_01",
+                        "title": "Implicit",
+                        "status": "incomplete",
+                        "implicit": true,
+                        "linked_archive_ids": []
+                    },
+                    {
+                        "sub_task_id": "task_mixed_sub_02",
+                        "title": "Explicit",
+                        "status": "incomplete",
+                        "implicit": false,
+                        "linked_archive_ids": []
+                    }
+                ]
+            }),
+            true,
+        );
+
+        let got = get_by_id("task_mixed");
+        assert_eq!(got["migration_error"], false);
+        let subs = got["sub_tasks"].as_array().unwrap();
+        assert_eq!(subs.len(), 1);
+        assert_eq!(subs[0]["sub_task_id"], "task_mixed_sub_02");
+        assert_eq!(subs[0]["implicit"], false);
+
+        let on_disk = subs_on_disk(wb, "task_mixed");
+        assert_eq!(on_disk["sub_tasks"].as_array().unwrap().len(), 1);
+    });
+}
+
+#[test]
+fn migrate_implicit_subs_no_implicit_plans_unchanged() {
+    with_plan_task_sandbox(|wb| {
+        seed_v2_plan_with_subs(
+            wb,
+            "task_explicit",
+            "Explicit only",
+            &serde_json::json!({
+                "sub_tasks": [{
+                    "sub_task_id": "task_explicit_sub_01",
+                    "title": "Keep",
+                    "status": "incomplete",
+                    "implicit": false,
+                    "linked_archive_ids": []
+                }]
+            }),
+            true,
+        );
+
+        let before = subs_on_disk(wb, "task_explicit");
+        list_all();
+        let after = subs_on_disk(wb, "task_explicit");
+        assert_eq!(before, after);
+
+        let got = get_by_id("task_explicit");
+        assert_eq!(got["migration_error"], false);
+        assert_eq!(got["sub_tasks"].as_array().unwrap().len(), 1);
+    });
+}
+
+#[test]
+fn migrate_implicit_subs_idempotent_second_bootstrap() {
+    with_plan_task_sandbox(|wb| {
+        seed_v2_plan_with_subs(
+            wb,
+            "task_idempotent",
+            "Idempotent",
+            &serde_json::json!({
+                "sub_tasks": [{
+                    "sub_task_id": "task_idempotent_sub_01",
+                    "title": "Idempotent",
+                    "status": "incomplete",
+                    "implicit": true,
+                    "linked_archive_ids": []
+                }]
+            }),
+            true,
+        );
+
+        list_all();
+        let after_first = fs::read_to_string(
+            wb.join("plan_tasks")
+                .join("tasks")
+                .join("task_idempotent")
+                .join("sub_tasks.json"),
+        )
+        .unwrap();
+
+        list_all();
+        let after_second = fs::read_to_string(
+            wb.join("plan_tasks")
+                .join("tasks")
+                .join("task_idempotent")
+                .join("sub_tasks.json"),
+        )
+        .unwrap();
+
+        assert_eq!(after_first, after_second);
+        let got = get_by_id("task_idempotent");
+        assert_eq!(got["migration_error"], false);
+        assert!(got["sub_tasks"].as_array().unwrap().is_empty());
+    });
+}
+
+#[test]
+fn migrate_implicit_subs_marks_migration_error_on_corrupt_plan() {
+    with_plan_task_sandbox(|wb| {
+        seed_v2_plan_with_subs(
+            wb,
+            "task_corrupt_migrate",
+            "Corrupt migrate",
+            &serde_json::json!({ "sub_tasks": [] }),
+            true,
+        );
+        fs::write(
+            wb.join("plan_tasks")
+                .join("tasks")
+                .join("task_corrupt_migrate")
+                .join("sub_tasks.json"),
+            "{not valid json",
+        )
+        .expect("write corrupt sub_tasks");
+
+        let list = list_all();
+        let listed = list.as_array().expect("array");
+        assert_eq!(listed.len(), 1);
+        assert_eq!(listed[0]["master_task_id"], "task_corrupt_migrate");
+        assert_eq!(listed[0]["migration_error"], true);
+    });
+}
+
+#[test]
+fn migrate_implicit_subs_other_plans_unaffected_on_single_failure() {
+    with_plan_task_sandbox(|wb| {
+        seed_v2_plan_with_subs(
+            wb,
+            "task_ok",
+            "OK plan",
+            &serde_json::json!({
+                "sub_tasks": [{
+                    "sub_task_id": "task_ok_sub_01",
+                    "title": "Explicit",
+                    "status": "incomplete",
+                    "implicit": false,
+                    "linked_archive_ids": []
+                }]
+            }),
+            true,
+        );
+        seed_v2_plan_with_subs(
+            wb,
+            "task_bad",
+            "Bad plan",
+            &serde_json::json!({ "sub_tasks": [] }),
+            true,
+        );
+        fs::write(
+            wb.join("plan_tasks")
+                .join("tasks")
+                .join("task_bad")
+                .join("sub_tasks.json"),
+            "{not valid json",
+        )
+        .expect("write corrupt sub_tasks");
+
+        let list = list_all();
+        let listed = list.as_array().expect("array");
+        assert_eq!(listed.len(), 2);
+
+        let ok = listed
+            .iter()
+            .find(|v| v["master_task_id"] == "task_ok")
+            .expect("ok plan");
+        assert_eq!(ok["migration_error"], false);
+        assert_eq!(ok["sub_tasks"].as_array().unwrap().len(), 1);
+
+        let bad = listed
+            .iter()
+            .find(|v| v["master_task_id"] == "task_bad")
+            .expect("bad plan");
+        assert_eq!(bad["migration_error"], true);
+    });
+}
+
+#[test]
+fn get_by_id_includes_migration_error_on_corrupt_plan() {
+    with_plan_task_sandbox(|wb| {
+        seed_v2_plan_with_subs(
+            wb,
+            "task_corrupt_get_migrate",
+            "Corrupt get",
+            &serde_json::json!({ "sub_tasks": [] }),
+            true,
+        );
+        fs::write(
+            wb.join("plan_tasks")
+                .join("tasks")
+                .join("task_corrupt_get_migrate")
+                .join("sub_tasks.json"),
+            "{not valid json",
+        )
+        .expect("write corrupt sub_tasks");
+
+        let got = get_by_id("task_corrupt_get_migrate");
+        assert_eq!(got["master_task_id"], "task_corrupt_get_migrate");
+        assert_eq!(got["migration_error"], true);
+        assert!(got.get("_status").is_none());
+    });
+}
+
+#[test]
+fn read_plan_md_missing_master_returns_404() {
+    with_plan_task_sandbox(|_| {
+        let v = read_plan_md("task_does_not_exist");
+        assert_eq!(v["_status"], 404);
+        assert!(v.get("error").is_some());
+    });
+}
+
+#[test]
+fn update_plan_md_missing_master_returns_404() {
+    with_plan_task_sandbox(|_| {
+        let v = update_plan_md("task_does_not_exist", "# Plan");
+        assert_eq!(v["_status"], 404);
+        assert!(v.get("error").is_some());
+    });
+}
+
+#[test]
+fn list_and_get_include_plan_md_and_migration_error() {
+    with_plan_task_sandbox(|_| {
+        let created = create_master_with_subs("Plan md fields", None);
+        let master_id = created["master_task_id"].as_str().unwrap();
+
+        let list = list_all();
+        let listed = list.as_array().unwrap();
+        assert_eq!(listed.len(), 1);
+        assert_eq!(listed[0]["plan_md"], "");
+        assert_eq!(listed[0]["migration_error"], false);
+
+        let got = get_by_id(master_id);
+        assert_eq!(got["plan_md"], "");
+        assert_eq!(got["migration_error"], false);
+    });
+}
+
+#[test]
+fn update_plan_md_empty_round_trip() {
+    with_plan_task_sandbox(|wb| {
+        let created = create_master_with_subs("Empty plan", None);
+        let master_id = created["master_task_id"].as_str().unwrap();
+
+        let updated = update_plan_md(master_id, "");
+        assert_eq!(updated["_status"], 200);
+
+        let read = read_plan_md(master_id);
+        assert_eq!(read["_status"], 200);
+        assert_eq!(read["plan_md"], "");
+
+        let plan_path = wb
+            .join("plan_tasks")
+            .join("tasks")
+            .join(master_id)
+            .join("plan.md");
+        assert_eq!(fs::read_to_string(plan_path).unwrap(), "");
+
+        let got = get_by_id(master_id);
+        assert_eq!(got["plan_md"], "");
+    });
+}
+
+#[test]
+fn update_plan_md_multiline_round_trip() {
+    with_plan_task_sandbox(|wb| {
+        let created = create_master_with_subs("Markdown plan", None);
+        let master_id = created["master_task_id"].as_str().unwrap();
+        let content = "# Title\n\n## Section\n\n- item one\n- item two\n";
+
+        let updated = update_plan_md(master_id, content);
+        assert_eq!(updated["_status"], 200);
+
+        let read = read_plan_md(master_id);
+        assert_eq!(read["_status"], 200);
+        assert_eq!(read["plan_md"], content);
+
+        let plan_path = wb
+            .join("plan_tasks")
+            .join("tasks")
+            .join(master_id)
+            .join("plan.md");
+        assert_eq!(fs::read_to_string(plan_path).unwrap(), content);
+
+        let got = get_by_id(master_id);
+        assert_eq!(got["plan_md"], content);
+
+        let list = list_all();
+        let listed = list.as_array().unwrap();
+        assert_eq!(listed[0]["plan_md"], content);
+    });
+}
+
+#[test]
+fn update_plan_md_io_failure_returns_500_without_corrupting_index() {
+    with_plan_task_sandbox(|wb| {
+        let created = create_master_with_subs("IO fail", Some(&["Sub"]));
+        let master_id = created["master_task_id"].as_str().unwrap();
+        let index_before = fs::read_to_string(wb.join("plan_tasks").join("index.json")).unwrap();
+        let subs_before = subs_on_disk(wb, master_id);
+
+        test_set_fail_batch_plan_md(true);
+        let v = update_plan_md(master_id, "should not persist");
+        assert_eq!(v["_status"], 500);
+        assert!(v.get("error").is_some());
+
+        let index_after = fs::read_to_string(wb.join("plan_tasks").join("index.json")).unwrap();
+        let subs_after = subs_on_disk(wb, master_id);
+        assert_eq!(index_before, index_after);
+        assert_eq!(subs_before, subs_after);
+    });
+}
+
+#[test]
+fn migrate_implicit_subs_write_failure_marks_migration_error() {
+    with_plan_task_sandbox(|wb| {
+        seed_v2_plan_with_subs(
+            wb,
+            "task_write_fail",
+            "Write fail",
+            &serde_json::json!({
+                "sub_tasks": [{
+                    "sub_task_id": "task_write_fail_sub_01",
+                    "title": "Implicit",
+                    "status": "incomplete",
+                    "implicit": true,
+                    "linked_archive_ids": []
+                }]
+            }),
+            true,
+        );
+        test_set_fail_migrate_implicit_write(true);
+
+        let list = list_all();
+        let listed = list.as_array().expect("array");
+        assert_eq!(listed.len(), 1);
+        assert_eq!(listed[0]["migration_error"], true);
     });
 }

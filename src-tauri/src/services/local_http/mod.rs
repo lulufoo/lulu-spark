@@ -102,6 +102,16 @@ pub(crate) fn map_value_to_response(value: Value) -> (u16, String) {
     (status, json)
 }
 
+/// Serialize `plan_task::list_all` for HTTP GET `/api/plan-tasks` (includes `plan_md`, `migration_error`).
+pub(crate) fn plan_tasks_list_response_body(value: &Value) -> String {
+    serde_json::to_string(value).unwrap_or_else(|_| "[]".to_string())
+}
+
+/// Serialize `plan_task::get_by_id` for HTTP GET `/api/plan-task` (includes `plan_md`, `migration_error`).
+pub(crate) fn plan_task_get_response_body(value: &Value) -> (u16, String) {
+    map_value_to_response(value.clone())
+}
+
 fn is_read_later_path(path: &str) -> bool {
     path == "/api/read-later" || path.starts_with("/api/read-later/")
 }
@@ -200,7 +210,9 @@ fn handle_request(repo_root: &PathBuf, port: u16, request: tiny_http::Request) {
             "/api/plan-task" => {
                 let params = parse_query(&url);
                 let id = params.get("id").map(String::as_str).unwrap_or("");
-                respond_from_value(request, plan_task::get_by_id(id));
+                let value = plan_task::get_by_id(id);
+                let (status, body) = plan_task_get_response_body(&value);
+                respond_raw(request, status, body);
                 return;
             }
             "/api/corpus-catalog" => {
@@ -278,7 +290,7 @@ fn handle_read_later_get(request: tiny_http::Request) {
 fn handle_plan_tasks_get(request: tiny_http::Request) {
     let value = plan_task::list_all();
     if value.is_array() {
-        let body = serde_json::to_string(&value).unwrap_or_else(|_| "[]".to_string());
+        let body = plan_tasks_list_response_body(&value);
         respond_with_cors(request, 200, body);
         return;
     }

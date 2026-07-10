@@ -3,10 +3,13 @@ use std::fs;
 use serde_json::json;
 
 use crate::commands::plan_task::{
-    add_plan_sub_json, create_plan_task_json, delete_plan_sub_json, delete_plan_task_json,
-    get_plan_tasks_json,
+    abandon_plan_sub_json, add_plan_sub_json, complete_plan_sub_json, create_plan_task_json,
+    delete_plan_sub_json, delete_plan_task_json, get_plan_tasks_json, read_plan_md_json,
+    update_plan_md_json,
 };
-use crate::services::plan_task::{create_master_with_subs, list_all};
+use crate::services::plan_task::{
+    create_master_with_subs, list_all, test_reset_all_injection_flags, test_set_fail_batch_plan_md,
+};
 use crate::test_support::TestSandbox;
 
 fn master_from_invoke(v: &serde_json::Value) -> &serde_json::Value {
@@ -15,6 +18,7 @@ fn master_from_invoke(v: &serde_json::Value) -> &serde_json::Value {
 
 fn with_commands_plan_test<F: FnOnce()>(f: F) {
     let _sandbox = TestSandbox::new();
+    test_reset_all_injection_flags();
     f();
 }
 
@@ -25,7 +29,6 @@ fn assert_master_task_shape(task: &serde_json::Value) {
     assert!(status == "incomplete" || status == "complete");
     assert!(task.get("created_at").and_then(|v| v.as_str()).is_some());
     let subs = task["sub_tasks"].as_array().expect("sub_tasks");
-    assert!(!subs.is_empty());
     for sub in subs {
         assert!(sub.get("sub_task_id").and_then(|v| v.as_str()).is_some());
         assert!(sub.get("status").and_then(|v| v.as_str()).is_some());
@@ -55,16 +58,15 @@ fn get_plan_tasks_json_returns_desc_sorted_array() {
 }
 
 #[test]
-fn get_plan_tasks_json_v2_implicit_sub_shape() {
+fn get_plan_tasks_json_v2_empty_sub_tasks_shape() {
     with_commands_plan_test(|| {
-        create_master_with_subs("Implicit UI", None);
+        create_master_with_subs("Empty UI", None);
         let listed = get_plan_tasks_json().expect("list");
         let task = &listed.as_array().expect("array")[0];
         assert_master_task_shape(task);
         let subs = task["sub_tasks"].as_array().expect("sub_tasks");
-        assert_eq!(subs.len(), 1);
-        assert_eq!(subs[0]["implicit"], true);
-        assert_eq!(subs[0]["status"], "incomplete");
+        assert!(subs.is_empty());
+        assert_eq!(task["status"], "incomplete");
     });
 }
 
@@ -129,23 +131,27 @@ fn get_plan_tasks_json_corrupt_v2_storage_returns_err() {
         )
         .expect("write corrupt sub_tasks");
 
-        let err = get_plan_tasks_json().expect_err("corrupt storage");
-        assert_eq!(err, "Invalid plan_tasks storage");
+        let listed = get_plan_tasks_json().expect("list with migration_error");
+        let arr = listed.as_array().expect("array");
+        assert_eq!(arr.len(), 1);
+        assert_eq!(arr[0]["master_task_id"], master_id);
+        assert_eq!(arr[0]["migration_error"], true);
     });
 }
 
 #[test]
-fn create_plan_task_json_title_only_implicit_sub_strips_status() {
+fn create_plan_task_json_title_only_creates_empty_sub_tasks() {
     with_commands_plan_test(|| {
-        let v = create_plan_task_json("Implicit cmd", None).expect("create");
+        let v = create_plan_task_json("Empty cmd", None).expect("create");
         assert!(v.get("_status").is_none());
         assert!(v.get("master_task_id").and_then(|x| x.as_str()).is_some());
+        assert!(v.get("sub_task_id").is_none());
         let task = master_from_invoke(&v);
         assert_master_task_shape(task);
-        assert_eq!(task["title"], "Implicit cmd");
+        assert_eq!(task["title"], "Empty cmd");
+        assert_eq!(task["status"], "incomplete");
         let subs = task["sub_tasks"].as_array().expect("sub_tasks");
-        assert_eq!(subs.len(), 1);
-        assert_eq!(subs[0]["implicit"], true);
+        assert!(subs.is_empty());
     });
 }
 
@@ -234,7 +240,7 @@ fn delete_plan_sub_json_keeps_remaining_when_not_last() {
 }
 
 #[test]
-fn delete_plan_sub_json_last_sub_returns_400_and_data_unchanged() {
+fn delete_plan_sub_json_last_sub_allows_empty_sub_tasks() {
     with_commands_plan_test(|| {
         let created = create_plan_task_json("Last sub", Some(&["Only"]))
             .expect("create");
@@ -244,9 +250,11 @@ fn delete_plan_sub_json_last_sub_returns_400_and_data_unchanged() {
             .expect("sub")
             .to_string();
 
-        let blocked = delete_plan_sub_json(&master_id, &last_sub).expect("invoke");
-        assert_eq!(blocked["error"], "Cannot delete last sub");
-        assert_eq!(blocked["_status"], 400);
+        let deleted = delete_plan_sub_json(&master_id, &last_sub).expect("invoke");
+        assert!(deleted.get("_status").is_none());
+        let task = master_from_invoke(&deleted);
+        assert_eq!(task["status"], "incomplete");
+        assert!(task["sub_tasks"].as_array().expect("subs").is_empty());
 
         let listed = get_plan_tasks_json().expect("list");
         let task = listed
@@ -255,7 +263,7 @@ fn delete_plan_sub_json_last_sub_returns_400_and_data_unchanged() {
             .iter()
             .find(|t| t["master_task_id"] == master_id)
             .expect("still present");
-        assert_eq!(task["sub_tasks"].as_array().expect("subs").len(), 1);
+        assert!(task["sub_tasks"].as_array().expect("subs").is_empty());
     });
 }
 
@@ -266,5 +274,187 @@ fn delete_plan_task_json_unknown_id_returns_404_class() {
             .expect("invoke");
         assert_eq!(v["error"], "Task not found");
         assert_eq!(v["_status"], 404);
+    });
+}
+
+#[test]
+fn read_plan_md_json_returns_plan_md_without_status() {
+    with_commands_plan_test(|| {
+        let created = create_plan_task_json("Plan md cmd", None).expect("create");
+        let master_id = created["master_task_id"].as_str().expect("id");
+
+        let read = read_plan_md_json(master_id).expect("read");
+        assert!(read.get("_status").is_none());
+        assert_eq!(read["plan_md"], "");
+    });
+}
+
+#[test]
+fn read_plan_md_json_missing_id_returns_400_class() {
+    with_commands_plan_test(|| {
+        let v = read_plan_md_json("").expect("invoke");
+        assert_eq!(v["error"], "Missing id");
+        assert_eq!(v["_status"], 400);
+    });
+}
+
+#[test]
+fn read_plan_md_json_unknown_master_returns_404_class() {
+    with_commands_plan_test(|| {
+        let v = read_plan_md_json("task_nonexistent_aaaaaaaaaaaaaaaa").expect("invoke");
+        assert_eq!(v["error"], "Task not found");
+        assert_eq!(v["_status"], 404);
+    });
+}
+
+#[test]
+fn update_plan_md_json_round_trip_consistent_with_list() {
+    with_commands_plan_test(|| {
+        let created = create_plan_task_json("Update md", None).expect("create");
+        let master_id = created["master_task_id"].as_str().expect("id");
+        let content = "# Plan\n\nBody text\n";
+
+        let updated = update_plan_md_json(master_id, content).expect("update");
+        assert!(updated.get("_status").is_none());
+        assert_eq!(updated["ok"], true);
+
+        let read = read_plan_md_json(master_id).expect("read");
+        assert_eq!(read["plan_md"], content);
+
+        let listed = get_plan_tasks_json().expect("list");
+        let task = listed
+            .as_array()
+            .expect("array")
+            .iter()
+            .find(|t| t["master_task_id"] == master_id)
+            .expect("listed");
+        assert_eq!(task["plan_md"], content);
+    });
+}
+
+#[test]
+fn update_plan_md_json_missing_id_returns_400_class() {
+    with_commands_plan_test(|| {
+        let v = update_plan_md_json("", "# Plan").expect("invoke");
+        assert_eq!(v["error"], "Missing id");
+        assert_eq!(v["_status"], 400);
+    });
+}
+
+#[test]
+fn update_plan_md_json_unknown_master_returns_404_class() {
+    with_commands_plan_test(|| {
+        let v = update_plan_md_json("task_nonexistent_aaaaaaaaaaaaaaaa", "# Plan")
+            .expect("invoke");
+        assert_eq!(v["error"], "Task not found");
+        assert_eq!(v["_status"], 404);
+    });
+}
+
+#[test]
+fn update_plan_md_json_io_failure_returns_500_class() {
+    with_commands_plan_test(|| {
+        let created = create_plan_task_json("IO fail cmd", Some(&["Sub"])).expect("create");
+        let master_id = created["master_task_id"].as_str().expect("id");
+
+        test_set_fail_batch_plan_md(true);
+        let v = update_plan_md_json(master_id, "should not persist").expect("invoke");
+        assert_eq!(v["_status"], 500);
+        assert!(v.get("error").is_some());
+    });
+}
+
+#[test]
+fn complete_plan_sub_json_marks_sub_complete_and_recomputes_master() {
+    with_commands_plan_test(|| {
+        let created = create_plan_task_json("Complete cmd", Some(&["A", "B"])).expect("create");
+        let master_id = created["master_task_id"].as_str().expect("id").to_string();
+        let sub_a = master_from_invoke(&created)["sub_tasks"][0]["sub_task_id"]
+            .as_str()
+            .expect("sub_a")
+            .to_string();
+
+        let completed = complete_plan_sub_json(&master_id, &sub_a).expect("complete");
+        assert!(completed.get("_status").is_none());
+        let task = master_from_invoke(&completed);
+        assert_eq!(task["status"], "incomplete");
+        assert_eq!(task["sub_tasks"][0]["status"], "complete");
+        assert_eq!(task["sub_tasks"][1]["status"], "incomplete");
+    });
+}
+
+#[test]
+fn complete_plan_sub_json_unknown_returns_404_class() {
+    with_commands_plan_test(|| {
+        let created = create_plan_task_json("Complete 404", Some(&["A"])).expect("create");
+        let master_id = created["master_task_id"].as_str().expect("id");
+
+        let v = complete_plan_sub_json(master_id, "task_missing_sub_01").expect("invoke");
+        assert_eq!(v["error"], "Task not found");
+        assert_eq!(v["_status"], 404);
+    });
+}
+
+#[test]
+fn complete_plan_sub_json_terminal_returns_409_class() {
+    with_commands_plan_test(|| {
+        let created = create_plan_task_json("Terminal cmd", Some(&["A"])).expect("create");
+        let master_id = created["master_task_id"].as_str().expect("id").to_string();
+        let sub_a = master_from_invoke(&created)["sub_tasks"][0]["sub_task_id"]
+            .as_str()
+            .expect("sub_a")
+            .to_string();
+
+        complete_plan_sub_json(&master_id, &sub_a).expect("first complete");
+        let again = complete_plan_sub_json(&master_id, &sub_a).expect("invoke");
+        assert_eq!(again["error"], "Sub task is in terminal status");
+        assert_eq!(again["_status"], 409);
+    });
+}
+
+#[test]
+fn abandon_plan_sub_json_unknown_returns_404_class() {
+    with_commands_plan_test(|| {
+        let created = create_plan_task_json("Abandon 404", Some(&["A"])).expect("create");
+        let master_id = created["master_task_id"].as_str().expect("id");
+
+        let v = abandon_plan_sub_json(master_id, "task_missing_sub_01").expect("invoke");
+        assert_eq!(v["error"], "Task not found");
+        assert_eq!(v["_status"], 404);
+    });
+}
+
+#[test]
+fn abandon_plan_sub_json_marks_sub_abandoned() {
+    with_commands_plan_test(|| {
+        let created = create_plan_task_json("Abandon cmd", Some(&["A"])).expect("create");
+        let master_id = created["master_task_id"].as_str().expect("id").to_string();
+        let sub_a = master_from_invoke(&created)["sub_tasks"][0]["sub_task_id"]
+            .as_str()
+            .expect("sub_a")
+            .to_string();
+
+        let abandoned = abandon_plan_sub_json(&master_id, &sub_a).expect("abandon");
+        assert!(abandoned.get("_status").is_none());
+        let task = master_from_invoke(&abandoned);
+        assert_eq!(task["status"], "incomplete");
+        assert_eq!(task["sub_tasks"][0]["status"], "abandoned");
+    });
+}
+
+#[test]
+fn abandon_plan_sub_json_terminal_returns_409_class() {
+    with_commands_plan_test(|| {
+        let created = create_plan_task_json("Abandon terminal", Some(&["A"])).expect("create");
+        let master_id = created["master_task_id"].as_str().expect("id").to_string();
+        let sub_a = master_from_invoke(&created)["sub_tasks"][0]["sub_task_id"]
+            .as_str()
+            .expect("sub_a")
+            .to_string();
+
+        abandon_plan_sub_json(&master_id, &sub_a).expect("first abandon");
+        let again = abandon_plan_sub_json(&master_id, &sub_a).expect("invoke");
+        assert_eq!(again["error"], "Sub task is in terminal status");
+        assert_eq!(again["_status"], 409);
     });
 }

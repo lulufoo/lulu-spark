@@ -103,6 +103,8 @@ pub struct TestSandbox {
     prod_workbench_knowledge_root: PathBuf,
     prod_knowledge_corpus_root: PathBuf,
     prod_cache_dir: PathBuf,
+    /// Held for the sandbox lifetime on the outermost instance to serialize `dev.config.toml`.
+    _config_lock: Option<MutexGuard<'static, ()>>,
 }
 
 impl TestSandbox {
@@ -112,28 +114,37 @@ impl TestSandbox {
         let prod_knowledge_corpus_root = prod.knowledge_corpus_root.clone();
         let prod_cache_dir = prod.cache_dir.clone();
 
+        let depth = CONFIG_TEST_SERIAL_DEPTH.with(|d| d.get());
+        let config_lock = if depth == 0 {
+            Some(
+                CONFIG_TEST_SERIAL
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner()),
+            )
+        } else {
+            None
+        };
+        CONFIG_TEST_SERIAL_DEPTH.with(|d| d.set(depth + 1));
+
         let dir = tempfile::tempdir().expect("tmp");
         let (wb, corpus, cache) = prepare_sandbox_roots(dir.path());
-        let mut prev_dev_config = None;
-        with_config_test_serial(|| {
-            let path = settings::dev_config_file_path();
-            prev_dev_config = std::fs::read_to_string(&path).ok();
-            write_sandbox_config(dir.path(), &wb, &corpus, &cache);
-            let cfg = settings::load().expect("load");
-            for path in [
-                cfg.workbench_knowledge_root.as_path(),
-                cfg.knowledge_corpus_root.as_path(),
-                cfg.cache_dir.as_path(),
-            ] {
-                assert_path_not_under_prod_roots(
-                    path,
-                    &prod_workbench_knowledge_root,
-                    &prod_knowledge_corpus_root,
-                    &prod_cache_dir,
-                )
-                .expect("TestSandbox must not use prod roots");
-            }
-        });
+        let path = settings::dev_config_file_path();
+        let prev_dev_config = std::fs::read_to_string(&path).ok();
+        write_sandbox_config(dir.path(), &wb, &corpus, &cache);
+        let cfg = settings::load().expect("load");
+        for path in [
+            cfg.workbench_knowledge_root.as_path(),
+            cfg.knowledge_corpus_root.as_path(),
+            cfg.cache_dir.as_path(),
+        ] {
+            assert_path_not_under_prod_roots(
+                path,
+                &prod_workbench_knowledge_root,
+                &prod_knowledge_corpus_root,
+                &prod_cache_dir,
+            )
+            .expect("TestSandbox must not use prod roots");
+        }
 
         Self {
             dir,
@@ -141,6 +152,7 @@ impl TestSandbox {
             prod_workbench_knowledge_root,
             prod_knowledge_corpus_root,
             prod_cache_dir,
+            _config_lock: config_lock,
         }
     }
 
@@ -193,17 +205,17 @@ impl TestSandbox {
 impl Drop for TestSandbox {
     fn drop(&mut self) {
         let prev = self.prev_dev_config.take();
-        with_config_test_serial(|| {
-            let path = settings::dev_config_file_path();
-            match prev {
-                Some(text) => {
-                    let _ = std::fs::write(&path, text);
-                }
-                None => {
-                    let _ = std::fs::remove_file(&path);
-                }
+        let path = settings::dev_config_file_path();
+        match prev {
+            Some(text) => {
+                let _ = std::fs::write(&path, text);
             }
-        });
+            None => {
+                let _ = std::fs::remove_file(&path);
+            }
+        }
+        drop(self._config_lock.take());
+        CONFIG_TEST_SERIAL_DEPTH.with(|d| d.set(d.get().saturating_sub(1)));
     }
 }
 
