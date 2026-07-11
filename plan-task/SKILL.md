@@ -45,7 +45,7 @@ Workbench App **必须运行**，且 `knowledge-mcp` sidecar 已 spawn（默认 
 
 ### 请求体 / 查询键（snake_case，无 camelCase 转换）
 
-- **create**：`title`（必填）；`sub_titles`（可选 string 数组，省略或空 → 一个 implicit sub）
+- **create**：`title`（必填）；`sub_titles`（可选 string 数组；省略或空 → `sub_tasks: []`；需 sub 时显式传入标题，或创建后再 `add_plan_sub`）
 - **get**：`id`（master task id）
 - **delete master**：`master_task_id`
 - **add sub**：`master_task_id`, `title`
