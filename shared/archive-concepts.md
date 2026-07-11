@@ -1,6 +1,6 @@
 # Archive Concepts (shared)
 
-> 供 `theme-archive`、`theme-fetch`、`theme-line`、`theme-digest`、`dialogue-summary`、`theme-summary` 共用的路径约定。
+> 供 `theme-archive`、`theme-fetch`、`theme-line`、`dialogue-summary` 共用的路径约定（digest 规则见 theme-archive shared 契约）。
 
 ---
 
@@ -65,7 +65,7 @@ Archive digest 完成后追加 `"digest"`：
 
 ## Navigation line
 
-**MCP 产出者**（`theme-summary`、`theme-line`、`dialogue-summary`、`theme-fetch`）raw header **仅含 digest 链接**（Workbench `archive_document` 解析要求）：
+**MCP 产出者**（`theme-archive`、`theme-line`、`dialogue-summary`、`theme-fetch`）raw header **仅含 digest 链接**（Workbench `archive_document` 解析要求）：
 
 ```markdown
 > 导航：[digest]({prefix}digest/{COMMON_PATH})
@@ -96,4 +96,4 @@ slug 冲突 → 与用户确认后再继续。
 
 - theme-archive（raw + index，不触发 digest）：[../theme-archive/SKILL.md](../theme-archive/SKILL.md)
 - theme-line archive 步骤：[../theme-line/references/archive-steps.md](../theme-line/references/archive-steps.md)
-- theme-digest workflow：[../theme-digest/SKILL.md](../theme-digest/SKILL.md)
+- digest workflow（shared）：[digest-workflow.md](digest-workflow.md)

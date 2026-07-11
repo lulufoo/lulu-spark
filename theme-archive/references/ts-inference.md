@@ -1,6 +1,6 @@
 # ts 推断 — 仅 GitHub URL
 
-由 `theme-summary` 在 **Save to Archive · Step 1** 调用。`ts` 与 `index.created_at`、raw/digest 的 `> 创建时间：` 一致（UTC+8，`YYYYMMDDHHMM`）。
+由 `theme-archive` Standalone 在确定 `COMMON_PATH` 前调用（若输入为 GitHub URL）。`ts` 与 `index.created_at`、raw/digest 的 `> 创建时间：` 一致（UTC+8，`YYYYMMDDHHMM`）。
 
 ## 适用条件
 
@@ -9,7 +9,7 @@
 - `github.com/{owner}/{repo}/blob/{ref}/{path}`
 - `raw.githubusercontent.com/{owner}/{repo}/{ref}/{path}`
 
-不匹配 → **不适用**；`theme-summary` 使用归档时刻作为 `ts`。
+不匹配 → **不适用**；`theme-archive` 使用归档时刻作为 `ts`。
 
 ## 推断规则
 

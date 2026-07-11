@@ -4,7 +4,7 @@ description: >-
   Process retrospective of a dialogue: prune a narrative spine, deepen ≤4 core
   topics, embed shape-making user stances, then archive via Workbench MCP.
   Use when: dialogue-summary、过程回顾、决策回顾、方案怎么定的、dtd_raw_summary、
-  theme-summary（legacy alias）、总结归档（process form）.
+  总结归档（process form）.
   Not for verbatim turn archive — use dialogue-archive.
   If an older workbench “dialogue-summary” (verbatim) is also installed, prefer
   this skill for 过程回顾 and dialogue-archive for 原文.

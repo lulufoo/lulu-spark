@@ -95,7 +95,7 @@ Workbench App **must be running** (`workbench-knowledge` MCP). On failure → st
 
 When `[AD-0]` applies (theme-line raw usually qualifies):
 
-1. Write digest per [theme-digest](../../theme-digest/SKILL.md) `[AD-1]`–`[AD-2]` from **primary raw only**.
+1. Write digest per [digest-workflow](../../shared/digest-workflow.md) `[AD-1]`–`[AD-2]` from **primary raw only**.
 2. Call MCP `archive_digest`:
 
 ```json

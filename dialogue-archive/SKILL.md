@@ -96,7 +96,7 @@ Record `id`, `common_path`, `raw_path`.
 
 ### archive_digest
 
-When applicable, draft digest (`# 标题 — 摘要`, `> 创建时间：`, `## 概述`) per [theme-digest](https://github.com/lulufoo/lulu-workbench-skills/tree/main/theme-digest) `[AD-1]`–`[AD-2]`, then:
+When applicable, draft digest (`# 标题 — 摘要`, `> 创建时间：`, `## 概述`) per [digest-workflow](../shared/digest-workflow.md) `[AD-1]`–`[AD-2]`, then:
 
 ```json
 {
@@ -129,4 +129,4 @@ Done:
 | Doc | Purpose |
 |-----|---------|
 | [references/archive.md](references/archive.md) | MCP paths / HARD-GATE |
-| [theme-digest @ GitHub](https://github.com/lulufoo/lulu-workbench-skills/tree/main/theme-digest) | digest structure / `[AD-0]` |
+| [digest-workflow](../shared/digest-workflow.md) | digest structure / `[AD-0]`（shared） |

@@ -1,6 +1,6 @@
 # Embedded Input Schema
 
-> Producer（theme-fetch、theme-summary、theme-line）链式调用 theme-archive 时使用的载荷。
+> Producer（theme-fetch、theme-line、dialogue-*）链式调用 theme-archive 时使用的载荷。
 
 ## Required fields
 
@@ -40,7 +40,6 @@ index_entry:
 
 | Producer | source_type | Typical extra |
 |----------|-------------|---------------|
-| theme-summary | `summary` | — |
 | theme-fetch | `article` | `fetch` |
 | theme-line | `theme-line` | `translations` when `language == en` |
 
@@ -51,6 +50,6 @@ Phase N 组稿完成 → 构造上述载荷 →
 加载并完整执行 ../theme-archive/SKILL.md（Embedded，从 [AR-1] 起）
 ```
 
-Producer 仍负责：选 project/doc-theme、组 header、Format/Compose 正文；**以及** theme-archive 完成后自行链式 theme-digest。
+Producer 仍负责：选 project/doc-theme、组 header、Format/Compose 正文。若走 theme-archive skill，digest 由 `[AR-3]` 自动执行；若自管 MCP `archive_document`，须按 [../../shared/digest-workflow.md](../../shared/digest-workflow.md) Embedded 补 digest。
 
 theme-archive 负责：**仅**写 raw、更新 index（`layers: ["raw"]`）。**不**触发 digest。

@@ -9,10 +9,8 @@
 | Skill | 指令 | 说明 |
 |-------|------|------|
 | 安装 / 配置 | `lulu-workbench-skills` | 见 [SKILL.md](SKILL.md) |
-| 过程回顾 | `dialogue-summary` | [dialogue-summary/](dialogue-summary/) — 骨架 + 核心加深 + `〔User〕` 定调 → 归档（承接原 `theme-summary` 生成定位） |
+| 过程回顾 | `dialogue-summary` | [dialogue-summary/](dialogue-summary/) — 骨架 + 核心加深 + `〔User〕` 定调 → 归档（过程回顾；已定稿文档落盘用 `theme-archive`） |
 | 原文归档 | `dialogue-archive` | [dialogue-archive/](dialogue-archive/) — 逐轮原文归一化归档（原 `dialogue-summary` 逐字能力；`dtd_raw_dialogue`） |
-| 总结落盘（legacy） | `theme-summary` | [theme-summary/](theme-summary/) — 已写好的总结原文落盘；过程回顾请用 `dialogue-summary` |
 | 主题时间线稿 | `theme-line` | [theme-line/](theme-line/) |
 | 网页文章采集 | `theme-fetch` | [theme-fetch/](theme-fetch/) |
-| 文档归档 | `theme-archive` | [theme-archive/](theme-archive/) |
-| 主题摘要 digest | `theme-digest` | [theme-digest/](theme-digest/) |
+| 文档归档 | `theme-archive` | [theme-archive/](theme-archive/) — raw 落盘；适用时**自动** digest（shared 契约，非公开 skill） |

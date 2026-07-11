@@ -1,6 +1,6 @@
 # Body sanitize — external images
 
-Apply to the summary body **after** input is confirmed and **before** composing the archive document (theme-summary Step 2).
+Apply to the summary body **after** input is confirmed and **before** composing the archive document (theme-archive [AR-1] 之前).
 
 ## Goal
 
