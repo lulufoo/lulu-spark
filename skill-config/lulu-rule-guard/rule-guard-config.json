@@ -6,12 +6,6 @@
     "volume": 1,
     "gain": 25
   },
-  "pathGuard": {
-    "enabled": true,
-    "writeAllowExternalPaths": ["~/.cursor", "~/.copilot/"],
-    "readAllowExternalPaths": ["~/.cursor/", "~/.copilot/"],
-    "sessionAllow": true
-  },
   "fileGuard": {
     "enabled": true,
     "rulesDocsDir": "docs",
