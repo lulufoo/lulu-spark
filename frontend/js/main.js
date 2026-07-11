@@ -29,6 +29,7 @@ import { mountHomeHub } from './components/home-hub.js'
 import { mountPlanTaskSplit } from './plan-task/index.js'
 import { initHeaderSync, clearHeaderSyncCorpusContext } from './header-sync.js'
 import { softwareDevSkillsContent } from './skills-software-dev-content.js'
+import { workbenchSkillsContent } from './skills-workbench-content.js'
 import { normalizeCorpusIndex } from './corpus-index.js'
 
 const titleCache = state.index.titleCache;
@@ -999,36 +1000,7 @@ document.addEventListener('cta:open-kb-doc', ({ detail }) => {
 // ── Skills dialog ─────────────────────────────────────────────────────────
 
 const _SKILLS_CONTENT = {
-  workbench: {
-    title: '✦ Lulu Workbench Skills',
-    groups: [
-      {
-        name: 'Dialogue Summary',
-        url: 'https://github.com/lulufoo/lulu-workbench-skills/tree/main/dialogue-summary',
-        items: [
-          { cmd: 'dtd_raw_dialogue', name: '对话归一化', desc: '对话归一化 + digest' },
-          { cmd: 'dtd_distill_dialogue', name: '蒸馏（对话体）', desc: '对话体 distilled' },
-          { cmd: 'dtd_distill_compose', name: '蒸馏（合成文档）', desc: '合成文档' },
-          { cmd: 'dtd_distill_topic', name: '蒸馏（子话题）', desc: '子话题 distilled' },
-          { cmd: 'dtd_trace', name: '轨迹与摘要', desc: '诊断 + 轨迹' }
-        ]
-      },
-      {
-        name: 'Theme Summary',
-        url: 'https://github.com/lulufoo/lulu-workbench-skills/tree/main/theme-summary',
-        items: [
-          { cmd: 'theme-summary', name: '总结归档', desc: '总结正文归档至 raw/ 并自动 digest' }
-        ]
-      },
-      {
-        name: 'ThemeLine',
-        url: 'https://github.com/lulufoo/lulu-workbench-skills/tree/main/theme-line',
-        items: [
-          { cmd: 'theme-line', name: '主题线整理', desc: '视频/访谈 transcript 按主题重组为时间线大纲' }
-        ]
-      }
-    ]
-  },
+  workbench: workbenchSkillsContent,
   softwareDev: softwareDevSkillsContent,
   lulu: {
     title: '✦ Lulu Learning Skills',
