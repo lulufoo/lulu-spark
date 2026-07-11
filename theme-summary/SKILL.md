@@ -1,13 +1,15 @@
 ---
 name: theme-summary
 description: >-
-  Archive a conversation summary directly to raw/ and run digest automatically.
-  Use when the user wants to sync a summary note, written conclusion, or
-  session recap from a dialogue into the archive. Triggers on: 总结归档、归档总结、
-  summary sync、theme-summary、dtd_raw_summary、归档这段总结、同步到 raw。
+  Legacy: archive an already-written summary note to raw/ + digest (no process
+  rewrite). Prefer dialogue-summary for 过程回顾 / dtd_raw_summary / 总结归档
+  (process form). Use theme-summary only when the body is already final and
+  should be saved verbatim. Triggers: theme-summary、已写好的总结落盘.
 ---
 
 # ThemeSummary
+
+> **Routing:** 过程回顾 / 决策回顾 / `dtd_raw_summary` → use sibling [`dialogue-summary`](../dialogue-summary/). 本 skill 仅保留「已定稿总结原文落盘」。
 
 > **Read this file in full before executing.** This skill has 2 mandatory phases:
 > 1. **ThemeSummary Generation** (§ Core Input → § Recommended Workflow)
@@ -16,7 +18,7 @@ description: >-
 > Both phases are required. Neither may be skipped.
 
 Archive a conversation summary — a written conclusion, recap, or distilled note
-produced from a dialogue — directly as a `raw/` document. Unlike `dialogue-summary`, no turn-by-turn reconstruction is performed. The body is kept
+produced from a dialogue — directly as a `raw/` document. Unlike `dialogue-archive` (verbatim turns) and `dialogue-summary` (process retrospective), this skill does **not** rewrite the body — paste/confirm then archive. The body is kept
 verbatim except **external-linked images are stripped** (see § Body sanitize).
 
 ## Core Input

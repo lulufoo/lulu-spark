@@ -2,7 +2,7 @@
 name: lulu-workbench-skills
 description: >-
   lulu-workbench 归档技能包安装。克隆到平台 skills 目录（Cursor / Copilot / Claude / Codex）；归档经 Workbench App MCP 落盘。
-  Use when: 安装 workbench skills、dialogue-summary theme-summary theme-line theme-fetch theme-archive theme-digest plan-task
+  Use when: 安装 workbench skills、dialogue-summary dialogue-archive theme-summary theme-line theme-fetch theme-archive theme-digest plan-task
 ---
 
 # lulu-workbench-skills — 安装
@@ -31,7 +31,7 @@ git clone https://github.com/lulufoo/lulu-workbench-skills.git $SKILL_DIR
 git -C $SKILL_DIR pull --rebase
 ```
 
-克隆完成后平台自动发现子 skill（`dialogue-summary`、`theme-summary`、`theme-line`、`theme-fetch`、`theme-archive`、`theme-digest`、`plan-task`），均无需额外操作。
+克隆完成后平台自动发现子 skill（`dialogue-summary`、`dialogue-archive`、`theme-summary`、`theme-line`、`theme-fetch`、`theme-archive`、`theme-digest`、`plan-task`），均无需额外操作。
 
 ## 前置条件
 
@@ -41,8 +41,9 @@ git -C $SKILL_DIR pull --rebase
 
 | 指令 | 目录 | 说明 |
 |------|------|------|
-| `dialogue-summary` | [dialogue-summary/](dialogue-summary/) | 对话归一化归档至 `raw/` 并自动 digest（MCP；`dtd_raw_dialogue` 触发词仍可用） |
-| `theme-summary` | [theme-summary/](theme-summary/) | 总结归档至 `raw/` 并自动 digest（`dtd_raw_summary`） |
+| `dialogue-summary` | [dialogue-summary/](dialogue-summary/) | 过程回顾：骨架脉络 + 核心加深 + `〔User〕` → MCP 归档（`dtd_raw_summary` / 过程回顾；替代旧 theme-summary 生成定位） |
+| `dialogue-archive` | [dialogue-archive/](dialogue-archive/) | 对话逐轮原文归一化归档（原 `dialogue-summary` 逐字；`dtd_raw_dialogue`） |
+| `theme-summary` | [theme-summary/](theme-summary/) | **Legacy：** 已写好的总结原文落盘 + digest；过程性整理请用 `dialogue-summary` |
 | `theme-line` | [theme-line/](theme-line/) | 多平台视频/访谈稿（YouTube、InfoQ、plain）→ TranscriptBundle → 主题优先时间线大纲，保存至 `raw/` 并自动 digest |
 | `theme-fetch` | [theme-fetch/](theme-fetch/) | 多平台网页文章（WeChat、plain HTML…）→ ArticleBundle → 格式化 Markdown；Phase 3 经 MCP 落盘 + digest |
 | `theme-archive` | [theme-archive/](theme-archive/) | 文档落盘 `raw/` + 更新 `index.json`（MCP；不触发 digest） |

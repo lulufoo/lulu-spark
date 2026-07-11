@@ -1,161 +1,186 @@
 ---
 name: dialogue-summary
 description: >-
-  Normalize the current dialogue into raw/ and generate digest automatically via MCP.
-  Use when: dialogue-summary、对话归档、对话整理、dtd_raw_dialogue、蒸馏归档、
-  归档这段对话、同步对话到 raw。
+  Process retrospective of a dialogue: prune a narrative spine, deepen ≤4 core
+  topics, embed shape-making user stances, then archive via Workbench MCP.
+  Use when: dialogue-summary、过程回顾、决策回顾、方案怎么定的、dtd_raw_summary、
+  theme-summary（legacy alias）、总结归档（process form）.
+  Not for verbatim turn archive — use dialogue-archive.
+  If an older workbench “dialogue-summary” (verbatim) is also installed, prefer
+  this skill for 过程回顾 and dialogue-archive for 原文.
 ---
 
-# DialogueSummary
+# dialogue-summary
 
-> **Read this file in full before executing.** This skill has 2 mandatory phases:
-> 1. **Dialogue Normalization** (§ Core Input → § Recommended Workflow)
-> 2. **Save to Archive** (§ Save to Archive) — MCP **archive_document** + **archive_digest**（当 `[AD-0]` 满足时不得跳过 digest）。
+> **Read this file in full before executing.** Two phases:
+> 1. **Phase A — Process retrospective** (Steps 0–6 Gate)
+> 2. **Phase B — Save to Archive** (MCP only after Gate; skip if user opts out)
 >
-> Both phases are required. Neither may be skipped.
+> Do **not** start Phase B until Step 3.5 has passed and Step 6 Gate has passed.
 
-Normalize the current session (or user-provided dialogue) into a turn-separated `raw/`
-document. Body text is kept verbatim except stripping AI折叠思考块 / 无关前缀；不得压缩或摘要化。
+**Not** verbatim dialogue (`dialogue-archive`). **Not** a conclusion-only abstract.
 
-## Core Input
+**Formula:** pruned spine + core deepening (3 faces) + shape-making stances marked `〔User〕` + dialogue fill → process doc → (optional) archive.
 
-| Source | Description |
-|--------|-------------|
-| A. Current session | All turns in the active chat |
-| B. User paste | User provides a complete dialogue document |
+This `SKILL.md` + `references/` are the runtime contract. Do **not** require any `.cache` scheme file to run.
 
-When ambiguous, treat as current session unless the user explicitly pasted a document.
+## Writing constraints
 
-## Core Output Shape
+Applies to **all** Phase A finished body (and paste-path Gate). SSOT: [references/output-shape.md](references/output-shape.md) — four sections:
 
-```markdown
-# <总标题>
+| Section | Meaning |
+|---------|---------|
+| **Lexicon（用语）** | Domain terms as primary words; short first-use gloss only |
+| **Craft（工艺）** | Full mechanisms + scannable technical-doc structure |
+| **Voice（视角）** | One process narrative; shape-making stances marked `〔User〕` |
+| **Fidelity（忠实）** | In-scope only; no hindsight invent; honest gaps |
 
-> 创建时间：YYYY年M月D日 HH:MM
-> 来源：dialogue-summary
-> 导航：[digest](<prefix>digest/<COMMON_PATH>)
+Do not restate the full contract in steps; compose and Gate against that file.
 
 ---
 
-<!-- DDM:TURN_SEP:v1 -->
+## Phase A — Process retrospective
 
-## User（Turn 1）
+**Visibility:** Steps 1–3 are **internal** by default (do not flood the user with candidate lists). User-facing stops: Step 0 only if scope is ambiguous; **Step 3.5** (required); Step 6 delivers the body in chat then Phase B (unless opt-out).
 
-...
+### Step 0 — Scope
 
-<!-- DDM:TURN_SEP:v1 -->
+| Mode | Meaning |
+|------|---------|
+| Default | Full current session |
+| **Turn window** | User `Turn X`–`Turn Y` (inclusive). Parse `Turn12-40` / `turn 12 到 40` / `T12-T40`. Require `X ≤ Y`. Illegal/OOB → ask once; never silently expand. Prefer in-session `TurnN` labels; if ambiguous, ask. If the window lacks enough stance signal → say so and **suggest** widening; do not change scope unilaterally. |
+| Topic filter | Optional; default **window first**, then organize inside window |
+| Paste | See **Paste path** below |
 
-## AI
+Declare scope in the final doc header. Out-of-window content is not primary evidence.
 
-...
+**Done:** scope mode (+ interval) fixed.
+
+### Step 1 — Candidate subtopics (internal)
+
+List issue raw material from in-scope dialogue (short titles; branches allowed).
+
+**Done:** candidate list ≥ 1 covering the main timeline.
+
+### Step 2 — Prune to spine (internal)
+
+Candidates **discover** the narrative; the **spine** is the **pruned** chain — not the full candidate list.
+
+| Keep | Cut | Merge |
+|------|-----|-------|
+| Advances mainline; later steps depend; holds stances | One-off branch; abandoned **noise**; pure execute-confirm; parallel probe | Tiny consecutive steps → one node |
+
+Detours that **shaped** the mainline: keep as a **short** spine node or one line in 曾议 — do not erase the bend entirely.
+
+**Spine acceptance:** From node titles + one-line “what this segment did” only, a reader can **coherently reconstruct what the dialogue did in order**. If they only learn the final scheme name → fail (became a summary).
+
+**Done:** ordered spine passes acceptance.
+
+### Step 3 — Mark core topics (internal)
+
+Mark **at most 4** cores on the spine (typical 2–4; short sessions may have 1; extremely short may have 0 with all-spine short write).
+
+| Face (EN) | 中文稿用名 | Meaning |
+|-----------|------------|---------|
+| Make-or-break | **成败关键** | Factual focus; wrong/missing → whole effort skews or fails |
+| Load-bearing | **基础承重** | Key decisions / theory / abstract stance later steps rest on |
+| Contract & boundary | **契约与边界** | Hard constraints after fork-converge, or needed boundary patches |
+
+Enter core if ≥2 faces, or one face is very strong. Do **not** core: pure execute chores; abandoned probes that do not affect mainline understanding.
+
+**Self-check:** Cores alone answer “why this could succeed / what it rests on”; non-core spine alone still answers “what happened in order.”
+
+**Done:** cores marked with faces. Do **not** draft the full body yet.
+
+### Step 3.5 — Spine + core overview (HARD STOP · only user confirm)
+
+**After Step 3 only.** Show:
+
+```text
+Scope: full | Turn X～Y
+Spine:
+  1. …
+  2. …  [core]
+  …
+Cores (≤4): title + faces (one line each; use 中文面名 when doc will be Chinese)
 ```
 
-Rules:
-- `<!-- DDM:TURN_SEP:v1 -->` between turns; `## User（Turn N）` / `## AI` headings
-- Body matches source dialogue verbatim (after strip rules); no compression or summarization
-- Navigation link must be fully resolved — **digest only**; no placeholders
-- `---` separator required before turn body (MCP archive parser)
-- `COMMON_PATH` = `<project>/<doc-theme>/<ts>-<slug>.md`（Agent 组稿时生成并写入导航行）
-- `prefix` = `../../../`（topic-path 固定 2 段）
+User confirms / edits spine / edits cores → if edited, revise Step 2/3 and **re-show 3.5**.  
+**No** Step 4 / compose / Phase B without 3.5 pass.
 
-## Recommended Workflow
+### Step 4 — Embed shape-making user stances
 
-1. Confirm Workbench MCP is available（§ Save to Archive HARD-GATE）.
-2. Select project and doc-theme（§ Save to Archive Step 1）.
-3. Build normalized document（§ Save to Archive Step 2）.
-4. Execute Save to Archive（§ Save to Archive Step 3–4）.
+Only stances that **materially shaped process shape**. Rules: [references/by-user-rules.md](references/by-user-rules.md). Finished body must also satisfy **Writing constraints** (Lexicon / Craft / Voice / Fidelity).
+
+### Step 5 — Compose along spine
+
+Write body per [references/output-shape.md](references/output-shape.md) (Lexicon / Craft / Voice / Fidelity).
+
+- Order = confirmed spine; cut branches → optional “曾议/否决” table, not chapters
+- Core nodes: deepen (tension → directions → stance `〔User〕` → process consequence → evidence)
+- Non-core nodes: short bridge
+- Self-contained prose; paths/commits only in optional appendix (default: omit / independent on)
+- Fill from in-scope dialogue only
+
+### Step 6 — Gate → deliver body
+
+Gate:
+
+- [ ] Body follows confirmed spine; cores match 3.5
+- [ ] Writing constraints: Lexicon / Craft / Voice / Fidelity ([output-shape.md](references/output-shape.md))
+- [ ] Shape-making stances attributed with `〔User〕` (or rare `— User` blockquote); no speaker-staged「追问/回答」; no `〔By User〕`/`因此：` couplets
+- [ ] **`〔User〕` coverage:** every shape-making item on the Step 4 internal list carries `〔User〕` in the body **including tables**; no user 定案 silently demoted to subject-less「定案」in condensed/table form
+- [ ] Scope declared; reads as process replay, not conclusion abstract
+
+**On pass:**
+
+1. Post the **full retrospective body** in chat (so the user can see it; this is **not** a second confirm gate).
+2. If user said 不归档 / no archive → **stop** (Phase A complete).
+3. Else → **Phase B** immediately (no waiting for another “ok” unless the user interrupts).
+
+If spine/cores must change after compose → back to Step 2/3 → **3.5 again** → recompose. Do not silently change spine in Phase B.
+
+### Paste path
+
+User-supplied Markdown:
+
+1. Check **spine feel** (all three): ordered process sections; not conclusion-only; scope declared (or addable). Fail → reject or offer regenerate via Steps 0–5.
+2. Show title + spine outline once for ack (substitutes 3.5 when paste skipped generation).
+3. Step 6 Gate → deliver body → Phase B (unless opt-out).
 
 ---
 
-## Save to Archive
+## Phase B — Save to Archive
 
-Path conventions: [../shared/archive-concepts.md](../shared/archive-concepts.md)（`COMMON_PATH`、`prefix`、`slug`、`ts`）
+**Only** entry for MCP archive. Conventions: [references/archive.md](references/archive.md). Sanitize: [references/body-sanitize.md](references/body-sanitize.md).
 
 <HARD-GATE mcp="archive">
-Workbench App **必须运行**（MCP `workbench-knowledge` 可用）。**禁止**直写 `archive_root` 或链式加载 theme-archive / theme-digest SKILL 落盘。
-
-| Step | MCP tool | 说明 |
-|------|----------|------|
-| 3 | `archive_document` | 写 raw + index；返回 `id` |
-| 4 | `archive_digest` | 传 `id` + digest 全文；写 digest + layers |
-
-MCP 由 Workbench App spawn（`http://127.0.0.1:9876/mcp`）。不可用 → **明确报错并停止**。
+Workbench App must be running (`workbench-knowledge` MCP). **Do not** write corpus files directly. Unavailable → error and stop (body already delivered in chat).
 </HARD-GATE>
 
-### Step 1 · Select project and doc-theme
+1. Infer `project` / `doc-theme` / `slug` / `ts` / `COMMON_PATH` (defaults: `inbox`, archive time UTC+8).
+2. Sanitize body; wrap per archive output shape (`来源：dialogue-summary`).
+3. MCP `archive_document` with `source_type: "summary"`.
+4. If digest threshold met (raw body ≳ 200 chars): write digest per [references/digest-shape.md](references/digest-shape.md); MCP `archive_digest`.
 
-推断 `project` + `doc-theme`（kebab-case，英文，无空格，**3–5 个单词**）；无匹配 → `inbox`。
+Done output:
 
-```
-project   = 语义最接近的 topics 项；不清楚 → inbox
-doc-theme = 语义推断（如 agentic-coding-discipline）
-slug      = 与主题一致的 kebab-case（冲突先澄清）
-ts        = YYYYMMDDHHMM（东八区 UTC+8，归档时刻）
-COMMON_PATH = <project>/<doc-theme>/<ts>-<slug>.md
-```
-
-创建时间：由 `ts` 换算为 `YYYY年M月D日 HH:MM`（月、日不补零，时、分两位）。
-
-### Step 2 · Build archive document
-
-- input  : 当前对话全部轮次（或用户粘贴文档）
-- rule   : 正文与原始对话逐字一致；仅可加分隔符 / 标题 / 去格式噪音
-- 剥离   : AI 推导性独白（折叠思考块 / 无关前缀句）；讲解形式的推理保留
-- 禁止   : 压缩 / 改写 / 摘要化 / `{{…}}` 占位符 / 导航行占位符
-
-Compose full Markdown per § Core Output Shape.
-
-### Step 3 · archive_document
-
-调用 MCP `archive_document`：
-
-```json
-{
-  "document": "<Step 2 全文>",
-  "source_type": "dialogue"
-}
-```
-
-记录返回的 `id`、`common_path`、`raw_path`。
-
-### Step 4 · archive_digest
-
-当 `[AD-0]` 适用（`theme-digest` 规则：通常对话含 2+ Turn 块即满足）：
-
-1. 依据 raw 撰写 digest 全文（`# 标题 — 摘要`、`> 创建时间：`、`## 概述`；见 [theme-digest @ GitHub](https://github.com/lulufoo/lulu-workbench-skills/tree/main/theme-digest) `[AD-1]`–`[AD-2]`）
-2. 调用 MCP `archive_digest`：
-
-```json
-{
-  "id": "<Step 3 返回的 id>",
-  "digest": "<完整 digest Markdown>"
-}
-```
-
-`digest` 已存在时需用户确认后传 `"force": true`。将 MCP 返回追加到完成输出。
-
-完成汇总：
-
-```
-> ✅ dialogue-summary 完成
+```text
+> ✅ dialogue-summary complete
 > 📄 raw：raw/<COMMON_PATH>
-> 📋 digest：digest/<COMMON_PATH>（或「已跳过」）
+> 📋 digest：digest/<COMMON_PATH> (or skipped)
 ```
+
+Post-archive fixes: new run or `archive_digest` with `force` after user confirm — do not silently rewrite spine.
 
 ---
-
-## Ask Only When Necessary
-
-Assume defaults:
-
-- Title: inferred from dialogue topic or first user message theme
-- Project: closest match in topics; if unclear, use `inbox`
-- Language: preserve source language per turn (typically Chinese)
-- `ts`: archive moment (UTC+8)
 
 ## References
 
 | Doc | Purpose |
 |-----|---------|
-| [theme-digest @ GitHub](https://github.com/lulufoo/lulu-workbench-skills/tree/main/theme-digest) | digest 结构与 `[AD-0]` 阈值（撰写规则；落盘由 MCP） |
-| [../shared/archive-concepts.md](../shared/archive-concepts.md) | `COMMON_PATH`、`prefix` |
+| [references/by-user-rules.md](references/by-user-rules.md) | Shape-making stances; `〔User〕` mark |
+| [references/output-shape.md](references/output-shape.md) | Writing constraints: Lexicon / Craft / Voice / Fidelity |
+| [references/digest-shape.md](references/digest-shape.md) | Digest short form |
+| [references/body-sanitize.md](references/body-sanitize.md) | Strip external images |
+| [references/archive.md](references/archive.md) | MCP paths / header |
