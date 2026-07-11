@@ -131,6 +131,12 @@ const CREATE_CHROME_HIDDEN_IDS = [
   'md-links-bar',
   'md-tags-bar',
   'knowledge-panel',
+  'btn-copy-http',
+  'btn-copy-path',
+  'btn-goto-kb',
+  'btn-open-iterm',
+  'comment-float-nav',
+  'md-commit-bar',
 ];
 
 function resetViewerDom() {
@@ -141,7 +147,8 @@ function resetViewerDom() {
     'md-links-bar', 'md-tags-bar', 'knowledge-panel', 'md-commit-bar', 'md-commit-msg',
     'md-commit-result', 'btn-commit-file', 'md-btn-commit-cancel', 'md-btn-commit-ok',
     'md-btn-revert-all', 'md-commit-dialog-msg', 'md-commit-dialog-result',
-    'md-commit-file-list',
+    'md-commit-file-list', 'btn-copy-http', 'btn-copy-path', 'btn-goto-kb', 'btn-open-iterm',
+    'comment-float-nav',
   ]) {
     const el = makeEl(id);
     el.style.display = id === 'md-edit-area' || id === 'btn-save' || id === 'btn-cancel-edit'
@@ -199,6 +206,19 @@ describe('openCreateNote', () => {
     expect(document.querySelector('#create-h1')).toBeNull();
     expect(document.querySelector('#create-created-at')).toBeNull();
     expect(makeEl('md-modal').classList.contains('is-create')).toBe(true);
+    // Close stays available (not in hide list)
+    expect(makeEl('md-close').style.display).not.toBe('none');
+  });
+
+  it('restores persisted chrome display when create session is cleared', async () => {
+    makeEl('btn-copy-http').style.display = '';
+    makeEl('btn-copy-path').style.display = '';
+    await openCreateNote({ temp_id: 'tmp-restore' });
+    expect(makeEl('btn-copy-http').style.display).toBe('none');
+    await closeModal();
+    expect(makeEl('md-modal').classList.contains('is-create')).toBe(false);
+    expect(makeEl('btn-copy-http').style.display).toBe('');
+    expect(makeEl('btn-copy-path').style.display).toBe('');
   });
 
   it('reuses the same viewer modal (no second editor route)', async () => {

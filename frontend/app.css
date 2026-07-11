@@ -2506,6 +2506,16 @@
     justify-content: center;
     background: rgba(0,0,0,.45);
   }
+  /* create chrome: hide persisted entry chrome; keep close + body editor */
+  .viewer-modal.is-create .viewer-chrome-persisted {
+    display: none !important;
+  }
+  .viewer-modal.is-create #md-body {
+    display: none !important;
+  }
+  .viewer-modal.is-create #md-edit-area {
+    display: block !important;
+  }
   .viewer-backdrop {
     position: fixed;
     inset: 0;

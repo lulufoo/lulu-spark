@@ -453,17 +453,27 @@ const CREATE_CHROME_HIDDEN_IDS = [
   'md-links-bar',
   'md-tags-bar',
   'knowledge-panel',
+  'btn-copy-http',
+  'btn-copy-path',
+  'btn-goto-kb',
+  'btn-open-iterm',
+  'comment-float-nav',
+  'md-commit-bar',
 ];
+
+/** @type {Record<string, string>|null} */
+let createChromePrevDisplay = null;
 
 function applyCreateChrome() {
   const modal = document.getElementById('md-modal');
   modal.classList.add('is-create');
+  createChromePrevDisplay = {};
   for (const id of CREATE_CHROME_HIDDEN_IDS) {
     const el = document.getElementById(id);
-    if (el) el.style.display = 'none';
+    if (!el) continue;
+    createChromePrevDisplay[id] = el.style.display;
+    el.style.display = 'none';
   }
-  const commitBar = document.getElementById('md-commit-bar');
-  if (commitBar) commitBar.style.display = 'none';
   document.getElementById('md-panel-title').textContent = '新随记';
   document.getElementById('md-body').style.display = 'none';
   const editArea = document.getElementById('md-edit-area');
@@ -473,6 +483,13 @@ function applyCreateChrome() {
 function clearCreateChrome() {
   const modal = document.getElementById('md-modal');
   modal.classList.remove('is-create');
+  if (createChromePrevDisplay) {
+    for (const [id, display] of Object.entries(createChromePrevDisplay)) {
+      const el = document.getElementById(id);
+      if (el) el.style.display = display;
+    }
+    createChromePrevDisplay = null;
+  }
 }
 
 function dismissViewerModal() {
