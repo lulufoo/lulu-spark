@@ -161,7 +161,8 @@ export function mountCorpusDocList(container, { repo, navigate, initialPath }) {
     }
     const pane = container.querySelector('.corpus-doc-reader-pane');
     if (!pane || !path) return;
-    const { unmount } = await mountKbReader(pane, { repo, path });
+    const blobUrl = buildKbBlobUrl(repo, path);
+    const { unmount } = await mountKbReader(pane, { repo, path, url: blobUrl });
     if (disposed) {
       unmount();
       return;
@@ -171,6 +172,20 @@ export function mountCorpusDocList(container, { repo, navigate, initialPath }) {
 
   function corpusDocHash(path) {
     return '#/corpus/' + encodeURIComponent(repo) + '?path=' + encodeURIComponent(path);
+  }
+
+  /**
+   * @param {string} repoFullName
+   * @param {string} relativePath
+   * @returns {string}
+   */
+  function buildKbBlobUrl(repoFullName, relativePath) {
+    if (!repoFullName || !relativePath) return '';
+    const encodedPath = relativePath
+      .split('/')
+      .map((seg) => encodeURIComponent(seg))
+      .join('/');
+    return `https://github.com/${repoFullName}/blob/main/${encodedPath}`;
   }
 
   /** Sync URL for bookmarking without hashchange (avoids router remounting the tree). */

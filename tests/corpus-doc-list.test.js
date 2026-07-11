@@ -388,6 +388,29 @@ describe('mountCorpusDocList', () => {
     replaceState.mockRestore();
   });
 
+  it('passes fallback GitHub blob URL to reader', async () => {
+    api.fetchKbList.mockResolvedValue(sampleRootEntries);
+
+    mountCorpusDocList(container, { repo: 'owner/repo', navigate });
+    await flushPromises();
+
+    const fileRow = container.querySelector(
+      '.corpus-doc-tree-node[data-relative-path="readme.md"] .corpus-doc-tree-label',
+    );
+    expect(fileRow).not.toBeNull();
+    fileRow.click();
+    await flushPromises();
+
+    expect(mountKbReader).toHaveBeenCalledWith(
+      container.querySelector('.corpus-doc-reader-pane'),
+      expect.objectContaining({
+        repo: 'owner/repo',
+        path: 'readme.md',
+        url: 'https://github.com/owner/repo/blob/main/readme.md',
+      }),
+    );
+  });
+
   it('clicking a file keeps expanded directories visible', async () => {
     api.fetchKbList.mockImplementation(async (_repo, path) => {
       if (path === '') return sampleRootEntries;
