@@ -30,8 +30,8 @@ Applies to **all** Phase A finished body (and paste-path Gate). SSOT: [reference
 
 | Section | Meaning |
 |---------|---------|
-| **Lexicon（用语）** | Domain terms as primary words; short first-use gloss only |
-| **Craft（工艺）** | Full mechanisms + scannable technical-doc structure |
+| **Lexicon（用语）** | Domain terms as primary; required first-use gloss for opaque terms (§0-exclusive) |
+| **Craft（工艺）** | Full substance + scannable process-note structure |
 | **Voice（视角）** | One process narrative; shape-making stances marked `〔User〕` |
 | **Fidelity（忠实）** | In-scope only; no hindsight invent; honest gaps |
 

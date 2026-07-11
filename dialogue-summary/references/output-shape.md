@@ -11,7 +11,8 @@ Global writing constraints for Phase A body (and paste-path Gate). Four sections
 Keep the dialogue’s **domain lexicon** as **primary terms**.
 
 - Use the words the dialogue used (`home`, `i_star`, partition, 包含式匹配, … — or philosophy terms in a philosophy dialogue).
-- First use: **short apposition** OK (one gloss).
+- **First-use gloss (required for opaque terms):** coined compounds / nicknames / bare abbrevs（物化分派, 正主, 归 I）get **one** apposition on first use; plainly shared words（partition, home）none.
+- **§0 mutual exclusion:** glossed in §0 → body first use is the bare term (never gloss twice).
 - After first use: **continue with the original term**. Do **not** switch the rest of the doc to a parallel everyday thesaurus（主章节 / 分家 / 捞料 一类替代词）.
 - **Non-term words follow the doc language:** non-term verbs / connectives take the body’s language（写「外挂」不写 bolt）; keep a foreign word only when it **is** the domain term.
 
@@ -21,14 +22,15 @@ Keep the dialogue’s **domain lexicon** as **primary terms**.
 
 ## Craft（工艺）
 
-Write like a **good technical process note**: scannable **and** complete.
+Write like a **good process note**: scannable **and** complete.
 
-- State mechanisms **fully** — inputs, action, output, failure mode; not slogans or telegram compression.
+- State the substance **fully** — mechanism: inputs / action / output / failure mode; argument: premise / move / conclusion / defeater. Not slogans or telegram compression.
 - Structure: spine headings, 【核心】 on cores, short sections; lists/tables when they clarify step shapes, causal chains, 定案 / 否决 / defer.
 - Explicit decisions: 定案 / 否决 / defer named as such when the dialogue did.
 - **Single statement (去冗余):** state each fact / decision in full **once**, at its owning section; elsewhere reference it by section name / anchor — a one-line reminder is fine, a full restate is not.
 - **Granularity:** one decision per sentence or list item; when a sentence carries **≥3** independent 定案, split into a list.
-- Not literary essay; not watered-down paraphrase that drops mechanism.
+- **Rule + examples:** a rule with **≥2** examples → rule sentence + example list, not a comma/semicolon chain.
+- Not literary essay; not watered-down paraphrase that drops substance.
 
 **Skeleton:**
 
@@ -40,6 +42,8 @@ Write like a **good technical process note**: scannable **and** complete.
 ```
 
 **§0 purity:** §0 carries reader-orientation only (scope / spine / term list / mark legend). Do **not** restate this skill’s own writing laws (Lexicon / Craft / Voice / Fidelity) into the artifact.
+
+**§0 term list = one line per term:** opaque spine/core terms only; one gloss each（`正主 — 命题唯一完整陈述所在的 section`）; no mechanism expansion here.
 
 **Anti-patterns:** slogan / telegram **compression**; literary **essay** dilution; self-redundancy across sections; tool-rule leakage into §0.
 
