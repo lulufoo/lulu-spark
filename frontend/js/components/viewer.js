@@ -536,10 +536,12 @@ export async function openCreateNote({ temp_id } = {}) {
 
     modal.style.display = 'flex';
     document.body.style.overflow = 'hidden';
-  } catch {
+  } catch (e) {
     state.viewer.createSession = null;
     clearCreateChrome();
     modal.style.display = prevDisplay;
+    const msg = e instanceof Error ? e.message : String(e);
+    alert(`无法打开新建随记：${msg}`);
   }
 }
 

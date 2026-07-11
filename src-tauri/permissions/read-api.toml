@@ -9,6 +9,7 @@ commands.allow = [
   "get_annotations",
   "get_annotation",
   "get_draft",
+  "get_note_draft",
   "get_config",
   "get_status",
   "kb_read",

@@ -56,6 +56,8 @@ const PLAN_TASK_LIFECYCLE_COMMANDS: &[&str] = &[
         "update_plan_sub",
 ];
 
+const NOTE_WRITE_COMMANDS: &[&str] = &["archive_document"];
+
 #[test]
 fn write_api_toml_and_acl_manifest_allow_lists_match() {
     let root = manifest_dir();
@@ -133,5 +135,21 @@ fn plan_task_fm4_and_lifecycle_commands_coexist_in_acl() {
         all.len(),
         PLAN_TASK_WRITE_COMMANDS.len() + PLAN_TASK_LIFECYCLE_COMMANDS.len(),
         "expected eight distinct plan task ACL entries"
+    );
+}
+
+#[test]
+fn note_archive_write_command_is_acl_allowed() {
+    let root = manifest_dir();
+    let toml = fs::read_to_string(root.join("permissions/write-api.toml")).expect("toml");
+    let allow = parse_write_api_toml_allow(&toml);
+    let missing: Vec<_> = NOTE_WRITE_COMMANDS
+        .iter()
+        .filter(|cmd| !allow.contains(**cmd))
+        .copied()
+        .collect();
+    assert!(
+        missing.is_empty(),
+        "commands missing from write-api.toml ACL: {missing:?}"
     );
 }

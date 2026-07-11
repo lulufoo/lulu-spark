@@ -43,6 +43,7 @@ const INVOKE_MAP_COMMANDS: &[&str] = &[
     "get_annotations",
     "get_annotation",
     "get_draft",
+    "get_note_draft",
     "get_config",
     "infer_github_user_url",
     "check_workbench_knowledge_root",
