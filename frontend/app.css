@@ -1868,6 +1868,44 @@
     border-color: #6639ba;
   }
 
+  /* ── Builders entry FAB (main window, one tier above Note assistant) ── */
+  .builders-entry {
+    position: fixed;
+    right: 20px;
+    bottom: 188px;
+    z-index: 1200;
+    pointer-events: none;
+  }
+  .builders-entry-fab {
+    pointer-events: auto;
+    width: 40px;
+    height: 40px;
+    border: none;
+    border-radius: 50%;
+    background: #bf8700;
+    color: #fff;
+    box-shadow: 0 3px 12px rgba(191, 135, 0, 0.3);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+  }
+  .builders-entry-fab:hover {
+    background: #9a6700;
+    box-shadow: 0 4px 16px rgba(191, 135, 0, 0.38);
+  }
+  .builders-entry-fab--active {
+    transform: scale(0.96);
+    background: #9a6700;
+  }
+  .builders-entry-fab-icon {
+    width: 16px;
+    height: 16px;
+    display: block;
+    flex-shrink: 0;
+  }
+
   .plan-tasks-page {
     display: flex;
     flex-direction: column;

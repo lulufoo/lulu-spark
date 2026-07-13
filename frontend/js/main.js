@@ -15,11 +15,11 @@ import './components/modals/move-dialog.js'
 import { openBase64Dialog } from './components/modals/base64-dialog.js'
 import { openQrDialog } from './components/modals/qr-dialog.js'
 import { openSettingsDialog } from './components/modals/settings-dialog.js'
-import { renderFeed } from './feed.js'
 import { initRouter, navigate } from './router/index.js'
 import { mountReadLaterAssistantWidget } from './read-later-assistant.js'
 import { mountPlanTaskAssistantWidget } from './plan-task-assistant.js'
 import { mountNoteAssistantWidget } from './note-assistant.js'
+import { mountBuildersAssistantWidget } from './builders-assistant.js'
 import { openReadLaterDialog } from './components/modals/read-later-dialog.js'
 import { applySearchNavChrome } from './nav-chrome.js'
 import { initWorkbenchSearch } from './components/workbench-search.js'
@@ -648,21 +648,9 @@ initHeaderSync({ pullProject, loadIndex });
 
 document.addEventListener('cta:reload', () => loadIndex());
 
-// ── Feed Tab ───────────────────────────────────────────────────────────────
+// ── Feed Tab (legacy #feed-view kept hidden; Builders entry is FAB-only) ───
 
-const ARCHIVE_ELS = ['status', 'date-heading', 'doc-list'].map(id => document.getElementById(id));
 const feedView = document.getElementById('feed-view');
-let feedLoaded = false;
-
-function showFeedView() {
-  ARCHIVE_ELS.forEach(el => { if (el) el.style.display = 'none'; });
-  feedView.style.display = '';
-  document.getElementById('btn-feed').classList.add('active');
-  if (!feedLoaded) {
-    feedLoaded = true;
-    renderFeed(feedView);
-  }
-}
 
 let unmountCorpusDocList = null;
 let corpusDocListRepo = '';
@@ -718,8 +706,7 @@ function mountHomeRoute() {
   hideReadLaterView();
   hidePlanTasksView();
 
-  feedView.style.display = 'none';
-  document.getElementById('btn-feed').classList.remove('active');
+  if (feedView) feedView.style.display = 'none';
 
   const layout = document.querySelector('.layout');
   if (layout) layout.style.display = 'none';
@@ -783,8 +770,7 @@ function mountPlanTasksRoute(route) {
   hideCorpusDocView();
   hideReadLaterView();
 
-  feedView.style.display = 'none';
-  document.getElementById('btn-feed').classList.remove('active');
+  if (feedView) feedView.style.display = 'none';
 
   const layout = document.querySelector('.layout');
   if (layout) layout.style.display = 'none';
@@ -818,8 +804,7 @@ function mountWorkbench() {
   hideReadLaterView();
   hidePlanTasksView();
 
-  feedView.style.display = 'none';
-  document.getElementById('btn-feed').classList.remove('active');
+  if (feedView) feedView.style.display = 'none';
   // Restore archive elements to their natural display state
   const status = document.getElementById('status');
   const dateHeading = document.getElementById('date-heading');
@@ -835,19 +820,6 @@ function mountWorkbench() {
     if (docList) docList.style.display = '';
   }
 }
-
-function showArchiveView() {
-  mountWorkbench();
-}
-
-document.getElementById('btn-feed').addEventListener('click', () => {
-  const isFeedActive = feedView.style.display !== 'none';
-  if (isFeedActive) {
-    showArchiveView();
-  } else {
-    showFeedView();
-  }
-});
 
 document.getElementById('btn-settings').addEventListener('click', () => {
   _closeAllMenuDropdowns();
@@ -920,24 +892,35 @@ noteAssistant = mountNoteAssistantWidget(document.body, {
   openCreateNote: openCreateNoteFromFab,
 });
 
+const buildersAssistant = mountBuildersAssistantWidget(document.body);
+
 document.addEventListener(
   'click',
   (event) => {
     const target = event.target;
     if (!(target instanceof Element)) return;
+    if (target.closest('.builders-entry-fab')) {
+      readLaterAssistant?.setOpen(false);
+      planTaskAssistant?.setOpen(false);
+      noteAssistant?.setOpen(false);
+      return;
+    }
     if (target.closest('.rl-assistant-fab')) {
       planTaskAssistant.setOpen(false);
       noteAssistant?.setOpen(false);
+      buildersAssistant?.setOpen(false);
       return;
     }
     if (target.closest('.pt-assistant-fab')) {
       readLaterAssistant.setOpen(false);
       noteAssistant?.setOpen(false);
+      buildersAssistant?.setOpen(false);
       return;
     }
     if (target.closest('.note-assistant-fab')) {
       readLaterAssistant.setOpen(false);
       planTaskAssistant.setOpen(false);
+      buildersAssistant?.setOpen(false);
     }
   },
   true,
