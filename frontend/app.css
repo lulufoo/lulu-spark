@@ -1906,6 +1906,70 @@
     flex-shrink: 0;
   }
 
+  /* Builders modal host — fixed dialog chrome (not document-flow page) */
+  .builders-modal-host {
+    position: fixed;
+    right: 72px;
+    bottom: 188px;
+    z-index: 1200;
+    width: 480px;
+    height: 520px;
+    max-width: calc(100vw - 96px);
+    max-height: calc(100vh - 100px);
+    display: flex;
+    flex-direction: column;
+    background: #fff;
+    border: 1px solid #d0d7de;
+    border-radius: 12px;
+    box-shadow: 0 12px 32px rgba(31, 35, 40, 0.18);
+    overflow: hidden;
+    pointer-events: auto;
+  }
+  .builders-modal-host[hidden] {
+    display: none !important;
+  }
+  .builders-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 10px 12px 10px 14px;
+    border-bottom: 1px solid #525960;
+    background: #424a53;
+    flex-shrink: 0;
+  }
+  .builders-modal-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: #f0f3f6;
+  }
+  .builders-modal-close {
+    width: 28px;
+    height: 28px;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: #f0f3f6;
+    font-size: 20px;
+    line-height: 1;
+    cursor: pointer;
+  }
+  .builders-modal-close:hover {
+    background: rgba(240, 243, 246, 0.12);
+  }
+  .builders-modal-body {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    padding: 12px 14px 14px;
+  }
+  .builders-modal-body .feed-section {
+    margin-bottom: 20px;
+  }
+  .builders-modal-body .feed-section-title {
+    font-size: 14px;
+  }
+
   .plan-tasks-page {
     display: flex;
     flex-direction: column;
