@@ -928,19 +928,28 @@ document.addEventListener(
   (event) => {
     const target = event.target;
     if (!(target instanceof Element)) return;
+    if (target.closest('.builders-entry-fab')) {
+      readLaterAssistant?.setOpen(false);
+      planTaskAssistant?.setOpen(false);
+      noteAssistant?.setOpen(false);
+      return;
+    }
     if (target.closest('.rl-assistant-fab')) {
       planTaskAssistant.setOpen(false);
       noteAssistant?.setOpen(false);
+      buildersAssistant?.setOpen(false);
       return;
     }
     if (target.closest('.pt-assistant-fab')) {
       readLaterAssistant.setOpen(false);
       noteAssistant?.setOpen(false);
+      buildersAssistant?.setOpen(false);
       return;
     }
     if (target.closest('.note-assistant-fab')) {
       readLaterAssistant.setOpen(false);
       planTaskAssistant.setOpen(false);
+      buildersAssistant?.setOpen(false);
     }
   },
   true,
