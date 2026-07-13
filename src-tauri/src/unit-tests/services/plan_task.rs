@@ -1530,6 +1530,61 @@ fn update_plan_md_io_failure_returns_500_without_corrupting_index() {
 }
 
 #[test]
+fn title_unit_count_chinese_and_english() {
+    assert_eq!(title_unit_count("预习第三章内容大纲"), 9);
+    assert_eq!(title_unit_count("预习：第三章"), 5);
+    assert_eq!(title_unit_count("Short title"), 2);
+    assert_eq!(
+        title_unit_count("one two three four five six seven eight nine ten eleven"),
+        11
+    );
+    assert_eq!(title_unit_count("计划 MCP rollout"), 4);
+}
+
+#[test]
+fn create_rejects_title_over_twenty_units() {
+    with_plan_task_sandbox(|_| {
+        let long_en = "one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen twenty twentyone";
+        let v = create_master_with_subs(long_en, None);
+        assert_eq!(v["_status"], 400);
+        assert!(
+            v["error"]
+                .as_str()
+                .unwrap_or("")
+                .contains("Title too long"),
+            "error={:?}",
+            v["error"]
+        );
+
+        let long_zh = "一二三四五六七八九十十一十二十三十四十五十六十七十八十九二十廿一";
+        let v2 = create_master_with_subs(long_zh, None);
+        assert_eq!(v2["_status"], 400);
+    });
+}
+
+#[test]
+fn create_with_plan_md_persists_to_disk_and_list() {
+    with_plan_task_sandbox(|wb| {
+        let content = "## Notes\n\nHello plan";
+        let created = create_master_with_subs_and_plan("With plan", None, content);
+        assert_eq!(created["_status"], 201);
+        let master_id = created["master_task_id"].as_str().unwrap();
+
+        let plan_path = wb
+            .join("plan_tasks")
+            .join("tasks")
+            .join(master_id)
+            .join("plan.md");
+        assert_eq!(fs::read_to_string(&plan_path).unwrap(), content);
+
+        let got = get_by_id(master_id);
+        assert_eq!(got["plan_md"], content);
+        let list = list_all();
+        assert_eq!(list.as_array().unwrap()[0]["plan_md"], content);
+    });
+}
+
+#[test]
 fn migrate_implicit_subs_write_failure_marks_migration_error() {
     with_plan_task_sandbox(|wb| {
         seed_v2_plan_with_subs(

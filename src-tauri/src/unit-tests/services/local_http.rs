@@ -1321,6 +1321,69 @@ fn plan_tasks_http_body_helpers_preserve_read_path_fields() {
 }
 
 #[test]
+fn post_plan_task_create_with_plan_md_persists_and_lists() {
+    with_plan_task_http_test(|| {
+        let fixture = setup_repo_for_plan_task();
+        let repo_root = fixture.repo_root.clone();
+        with_server(repo_root, |port| {
+            let content = "## HTTP create\n\nBody";
+            let (create_status, create_body) = http_post(
+                port,
+                "/api/plan-task-create",
+                &json!({ "title": "Create with md", "plan_md": content }),
+            );
+            assert_eq!(create_status, 201);
+            let master_id = create_body["master_task_id"]
+                .as_str()
+                .expect("master_task_id");
+
+            let wb = crate::config::paths::workbench_knowledge_root().expect("wb");
+            let plan_path = wb
+                .join("plan_tasks")
+                .join("tasks")
+                .join(master_id)
+                .join("plan.md");
+            assert_eq!(fs::read_to_string(&plan_path).unwrap(), content);
+
+            let (list_status, list_body) = http_get_with_response(port, "/api/plan-tasks");
+            assert_eq!(list_status, 200);
+            assert_eq!(list_body[0]["plan_md"], content);
+
+            let (get_status, get_body) =
+                http_get(port, &format!("/api/plan-task?id={master_id}"));
+            assert_eq!(get_status, 200);
+            assert_eq!(get_body["plan_md"], content);
+        });
+    });
+}
+
+#[test]
+fn post_plan_task_create_title_too_long_returns_400() {
+    with_plan_task_http_test(|| {
+        let fixture = setup_repo_for_plan_task();
+        let repo_root = fixture.repo_root.clone();
+        with_server(repo_root, |port| {
+            let (status, body) = http_post(
+                port,
+                "/api/plan-task-create",
+                &json!({
+                    "title": "one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen twenty twentyone"
+                }),
+            );
+            assert_eq!(status, 400);
+            assert!(
+                body["error"]
+                    .as_str()
+                    .unwrap_or("")
+                    .contains("Title too long"),
+                "error={:?}",
+                body["error"]
+            );
+        });
+    });
+}
+
+#[test]
 fn get_plan_tasks_migration_error_plan_still_in_list() {
     with_plan_task_http_test(|| {
         let fixture = setup_repo_for_plan_task();

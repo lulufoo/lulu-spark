@@ -139,7 +139,7 @@ function findMaster(list, masterId, label) {
 
 const createResult = await client.callTool({
   name: 'create_plan_task',
-  arguments: { title: 'MCP E2E', sub_titles: ['Sub A', 'Sub B'] },
+  arguments: { title: 'MCP E2E', plan_md: '## E2E plan\n\nBody' },
 });
 const createText = toolText(createResult);
 if (createResult.isError) {
@@ -149,10 +149,22 @@ if (createResult.isError) {
 }
 const created = parseJson(createText);
 const masterId = created.master_task_id;
-const subA = created.task.sub_tasks.find((s) => s.title === 'Sub A')?.sub_task_id;
-const subB = created.task.sub_tasks.find((s) => s.title === 'Sub B')?.sub_task_id;
-if (!masterId || !subA || !subB) {
+if (!masterId) {
   throw new Error(`unexpected create_plan_task response: ${createText}`);
+}
+
+const addA = await callPlanTool('add_plan_sub', {
+  master_task_id: masterId,
+  title: 'Sub A',
+});
+const addB = await callPlanTool('add_plan_sub', {
+  master_task_id: masterId,
+  title: 'Sub B',
+});
+const subA = addA.task.sub_tasks.find((s) => s.title === 'Sub A')?.sub_task_id;
+const subB = addB.task.sub_tasks.find((s) => s.title === 'Sub B')?.sub_task_id;
+if (!subA || !subB) {
+  throw new Error(`unexpected add_plan_sub response after create: ${JSON.stringify({ addA, addB })}`);
 }
 
 const listResult = await client.callTool({ name: 'list_plan_tasks', arguments: {} });
@@ -169,8 +181,14 @@ if (!listMaster) {
   throw new Error(`list_plan_tasks missing created master ${masterId}: ${listText}`);
 }
 assertMasterPlanMdFields(listMaster, 'list_plan_tasks');
-const diskBefore = tasksDir ? readPlanMdFromDisk(tasksDir, masterId) : '';
+const expectedInitialPlanMd = '## E2E plan\n\nBody';
+const diskBefore = tasksDir ? readPlanMdFromDisk(tasksDir, masterId) : expectedInitialPlanMd;
 assertPlanMdMatchesDisk(listMaster.plan_md, diskBefore, 'list_plan_tasks');
+if (listMaster.plan_md !== expectedInitialPlanMd) {
+  throw new Error(
+    `list_plan_tasks plan_md should match create plan_md, got: ${JSON.stringify(listMaster.plan_md)}`,
+  );
+}
 
 const getResult = await client.callTool({
   name: 'get_plan_task',
@@ -206,8 +224,6 @@ if (tasksDir) {
     'list_plan_tasks empty plan.md',
   );
   assertPlanMdMatchesDisk(listEmptyRow.plan_md, '', 'list_plan_tasks empty plan.md');
-} else if (listMaster.plan_md !== '') {
-  throw new Error(`list_plan_tasks plan_md should be empty for new task without plan.md, got: ${JSON.stringify(listMaster.plan_md)}`);
 }
 
 const unknownGet = await client.callTool({
@@ -265,10 +281,13 @@ if (deleteMasterResult.isError || !deleteMasterText.includes('"ok":true')) {
 
 const invalid = await client.callTool({
   name: 'create_plan_task',
-  arguments: { title: 'Bad', sub_titles: ['  '] },
+  arguments: {
+    title:
+      'one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen twenty twentyone',
+  },
 });
 if (!invalid.isError) {
-  throw new Error('expected validation error for blank sub_titles element');
+  throw new Error('expected validation error for title over 20 words');
 }
 
 await client.close();

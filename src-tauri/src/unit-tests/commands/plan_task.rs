@@ -142,7 +142,7 @@ fn get_plan_tasks_json_corrupt_v2_storage_returns_err() {
 #[test]
 fn create_plan_task_json_title_only_creates_empty_sub_tasks() {
     with_commands_plan_test(|| {
-        let v = create_plan_task_json("Empty cmd", None).expect("create");
+        let v = create_plan_task_json("Empty cmd", None, "").expect("create");
         assert!(v.get("_status").is_none());
         assert!(v.get("master_task_id").and_then(|x| x.as_str()).is_some());
         assert!(v.get("sub_task_id").is_none());
@@ -158,7 +158,7 @@ fn create_plan_task_json_title_only_creates_empty_sub_tasks() {
 #[test]
 fn create_plan_task_json_explicit_subs_strips_status() {
     with_commands_plan_test(|| {
-        let v = create_plan_task_json("Multi cmd", Some(&["A", "B"])).expect("create");
+        let v = create_plan_task_json("Multi cmd", Some(&["A", "B"]), "").expect("create");
         assert!(v.get("_status").is_none());
         let task = master_from_invoke(&v);
         assert_master_task_shape(task);
@@ -174,7 +174,7 @@ fn create_plan_task_json_explicit_subs_strips_status() {
 #[test]
 fn create_plan_task_json_empty_title_returns_400_class() {
     with_commands_plan_test(|| {
-        let v = create_plan_task_json("", None).expect("invoke");
+        let v = create_plan_task_json("", None, "").expect("invoke");
         assert_eq!(v["error"], "Missing title");
         assert_eq!(v["_status"], 400);
     });
@@ -183,7 +183,7 @@ fn create_plan_task_json_empty_title_returns_400_class() {
 #[test]
 fn delete_plan_task_json_removes_master_from_list() {
     with_commands_plan_test(|| {
-        let created = create_plan_task_json("Delete me", None).expect("create");
+        let created = create_plan_task_json("Delete me", None, "").expect("create");
         let master_id = created["master_task_id"].as_str().expect("id").to_string();
 
         let deleted = delete_plan_task_json(&master_id).expect("delete");
@@ -203,7 +203,7 @@ fn delete_plan_task_json_removes_master_from_list() {
 #[test]
 fn add_plan_sub_json_appends_and_returns_updated_master() {
     with_commands_plan_test(|| {
-        let created = create_plan_task_json("Add sub", Some(&["A"])).expect("create");
+        let created = create_plan_task_json("Add sub", Some(&["A"]), "").expect("create");
         let master_id = created["master_task_id"].as_str().expect("id").to_string();
         let before_len = master_from_invoke(&created)["sub_tasks"]
             .as_array()
@@ -223,7 +223,7 @@ fn add_plan_sub_json_appends_and_returns_updated_master() {
 #[test]
 fn delete_plan_sub_json_keeps_remaining_when_not_last() {
     with_commands_plan_test(|| {
-        let created = create_plan_task_json("Del sub", Some(&["A", "B"])).expect("create");
+        let created = create_plan_task_json("Del sub", Some(&["A", "B"]), "").expect("create");
         let master_id = created["master_task_id"].as_str().expect("id").to_string();
         let sub_a = master_from_invoke(&created)["sub_tasks"][0]["sub_task_id"]
             .as_str()
@@ -242,7 +242,7 @@ fn delete_plan_sub_json_keeps_remaining_when_not_last() {
 #[test]
 fn delete_plan_sub_json_last_sub_allows_empty_sub_tasks() {
     with_commands_plan_test(|| {
-        let created = create_plan_task_json("Last sub", Some(&["Only"]))
+        let created = create_plan_task_json("Last sub", Some(&["Only"]), "")
             .expect("create");
         let master_id = created["master_task_id"].as_str().expect("id").to_string();
         let last_sub = master_from_invoke(&created)["sub_tasks"][0]["sub_task_id"]
@@ -280,7 +280,7 @@ fn delete_plan_task_json_unknown_id_returns_404_class() {
 #[test]
 fn read_plan_md_json_returns_plan_md_without_status() {
     with_commands_plan_test(|| {
-        let created = create_plan_task_json("Plan md cmd", None).expect("create");
+        let created = create_plan_task_json("Plan md cmd", None, "").expect("create");
         let master_id = created["master_task_id"].as_str().expect("id");
 
         let read = read_plan_md_json(master_id).expect("read");
@@ -310,7 +310,7 @@ fn read_plan_md_json_unknown_master_returns_404_class() {
 #[test]
 fn update_plan_md_json_round_trip_consistent_with_list() {
     with_commands_plan_test(|| {
-        let created = create_plan_task_json("Update md", None).expect("create");
+        let created = create_plan_task_json("Update md", None, "").expect("create");
         let master_id = created["master_task_id"].as_str().expect("id");
         let content = "# Plan\n\nBody text\n";
 
@@ -354,7 +354,7 @@ fn update_plan_md_json_unknown_master_returns_404_class() {
 #[test]
 fn update_plan_md_json_io_failure_returns_500_class() {
     with_commands_plan_test(|| {
-        let created = create_plan_task_json("IO fail cmd", Some(&["Sub"])).expect("create");
+        let created = create_plan_task_json("IO fail cmd", Some(&["Sub"]), "").expect("create");
         let master_id = created["master_task_id"].as_str().expect("id");
 
         test_set_fail_batch_plan_md(true);
@@ -367,7 +367,7 @@ fn update_plan_md_json_io_failure_returns_500_class() {
 #[test]
 fn complete_plan_sub_json_marks_sub_complete_and_recomputes_master() {
     with_commands_plan_test(|| {
-        let created = create_plan_task_json("Complete cmd", Some(&["A", "B"])).expect("create");
+        let created = create_plan_task_json("Complete cmd", Some(&["A", "B"]), "").expect("create");
         let master_id = created["master_task_id"].as_str().expect("id").to_string();
         let sub_a = master_from_invoke(&created)["sub_tasks"][0]["sub_task_id"]
             .as_str()
@@ -386,7 +386,7 @@ fn complete_plan_sub_json_marks_sub_complete_and_recomputes_master() {
 #[test]
 fn complete_plan_sub_json_unknown_returns_404_class() {
     with_commands_plan_test(|| {
-        let created = create_plan_task_json("Complete 404", Some(&["A"])).expect("create");
+        let created = create_plan_task_json("Complete 404", Some(&["A"]), "").expect("create");
         let master_id = created["master_task_id"].as_str().expect("id");
 
         let v = complete_plan_sub_json(master_id, "task_missing_sub_01").expect("invoke");
@@ -398,7 +398,7 @@ fn complete_plan_sub_json_unknown_returns_404_class() {
 #[test]
 fn complete_plan_sub_json_terminal_returns_409_class() {
     with_commands_plan_test(|| {
-        let created = create_plan_task_json("Terminal cmd", Some(&["A"])).expect("create");
+        let created = create_plan_task_json("Terminal cmd", Some(&["A"]), "").expect("create");
         let master_id = created["master_task_id"].as_str().expect("id").to_string();
         let sub_a = master_from_invoke(&created)["sub_tasks"][0]["sub_task_id"]
             .as_str()
@@ -415,7 +415,7 @@ fn complete_plan_sub_json_terminal_returns_409_class() {
 #[test]
 fn abandon_plan_sub_json_unknown_returns_404_class() {
     with_commands_plan_test(|| {
-        let created = create_plan_task_json("Abandon 404", Some(&["A"])).expect("create");
+        let created = create_plan_task_json("Abandon 404", Some(&["A"]), "").expect("create");
         let master_id = created["master_task_id"].as_str().expect("id");
 
         let v = abandon_plan_sub_json(master_id, "task_missing_sub_01").expect("invoke");
@@ -427,7 +427,7 @@ fn abandon_plan_sub_json_unknown_returns_404_class() {
 #[test]
 fn abandon_plan_sub_json_marks_sub_abandoned() {
     with_commands_plan_test(|| {
-        let created = create_plan_task_json("Abandon cmd", Some(&["A"])).expect("create");
+        let created = create_plan_task_json("Abandon cmd", Some(&["A"]), "").expect("create");
         let master_id = created["master_task_id"].as_str().expect("id").to_string();
         let sub_a = master_from_invoke(&created)["sub_tasks"][0]["sub_task_id"]
             .as_str()
@@ -445,7 +445,7 @@ fn abandon_plan_sub_json_marks_sub_abandoned() {
 #[test]
 fn abandon_plan_sub_json_terminal_returns_409_class() {
     with_commands_plan_test(|| {
-        let created = create_plan_task_json("Abandon terminal", Some(&["A"])).expect("create");
+        let created = create_plan_task_json("Abandon terminal", Some(&["A"]), "").expect("create");
         let master_id = created["master_task_id"].as_str().expect("id").to_string();
         let sub_a = master_from_invoke(&created)["sub_tasks"][0]["sub_task_id"]
             .as_str()

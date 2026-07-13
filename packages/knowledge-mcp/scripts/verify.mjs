@@ -61,7 +61,7 @@ const PLAN_TASK_CREATE_RESPONSE = {
   },
 };
 
-/** @type {Array<{ title: string, sub_titles?: string[] }>} */
+/** @type {Array<{ title: string, plan_md?: string }>} */
 const planTaskCreateCalls = [];
 
 const PLAN_TOOL_NAMES = [
@@ -227,49 +227,28 @@ function startMockHttp(port) {
         respondJson(res, 400, { error: 'Missing title' });
         return;
       }
-      const subTitles = Array.isArray(payload.sub_titles) ? payload.sub_titles : undefined;
-      if (subTitles != null) {
-        for (const item of subTitles) {
-          if (typeof item !== 'string' || item.trim() === '') {
-            respondJson(res, 400, { error: 'Invalid sub_titles element' });
-            return;
-          }
-        }
+      if (typeof payload.plan_md !== 'undefined' && typeof payload.plan_md !== 'string') {
+        respondJson(res, 400, { error: 'Invalid plan_md' });
+        return;
       }
+      const planMd = typeof payload.plan_md === 'string' ? payload.plan_md : '';
       planTaskCreateCalls.push({
         title,
-        ...(subTitles != null ? { sub_titles: subTitles } : {}),
+        ...(planMd !== '' ? { plan_md: planMd } : {}),
       });
       const masterId = 'task_mock001';
-      const explicit = subTitles != null && subTitles.length > 0;
-      const subs = explicit
-        ? subTitles.map((t) => ({
-            sub_task_id: nextSubId(masterId),
-            title: t,
-            status: 'incomplete',
-            implicit: false,
-            linked_archive_ids: [],
-          }))
-        : [
-            {
-              sub_task_id: nextSubId(masterId),
-              title,
-              status: 'incomplete',
-              implicit: true,
-              linked_archive_ids: [],
-            },
-          ];
       const task = {
         master_task_id: masterId,
         title,
         status: 'incomplete',
         created_at: '2026-07-07T00:00:00Z',
-        sub_tasks: subs,
+        sub_tasks: [],
+        plan_md: planMd,
+        migration_error: false,
       };
       planTaskStore.set(masterId, task);
       respondJson(res, 201, {
         master_task_id: masterId,
-        sub_task_id: subs[0].sub_task_id,
         task,
       });
       return;
@@ -524,60 +503,78 @@ async function runMcpClient(mcpPort) {
 
   const planOmitResult = await client.callTool({
     name: 'create_plan_task',
-    arguments: { title: 'Omit subs' },
+    arguments: { title: 'Omit body' },
   });
   const planOmitText = planOmitResult.content?.[0]?.text || '';
   if (planOmitResult.isError || !planOmitText.includes('task_mock001')) {
     throw new Error(`unexpected create_plan_task omit: ${planOmitText}`);
   }
-  if (planTaskCreateCalls.length !== 1 || planTaskCreateCalls[0].title !== 'Omit subs') {
+  if (
+    planTaskCreateCalls.length !== 1 ||
+    JSON.stringify(planTaskCreateCalls[0]) !== JSON.stringify({ title: 'Omit body' })
+  ) {
     throw new Error(`unexpected plan-task-create omit payload: ${JSON.stringify(planTaskCreateCalls)}`);
+  }
+  const omitTask = JSON.parse(planOmitText).task;
+  if (!Array.isArray(omitTask.sub_tasks) || omitTask.sub_tasks.length !== 0) {
+    throw new Error(`expected empty sub_tasks on create, got: ${planOmitText}`);
   }
 
   planTaskCreateCalls.length = 0;
   resetPlanTaskStore();
-  const planSingleResult = await client.callTool({
+  const planBodyResult = await client.callTool({
     name: 'create_plan_task',
-    arguments: { title: 'One sub', sub_titles: ['Sub A'] },
+    arguments: { title: 'With body', plan_md: '## Notes\n\nHello' },
   });
-  const planSingleText = planSingleResult.content?.[0]?.text || '';
-  if (planSingleResult.isError || !planSingleText.includes('"implicit":false')) {
-    throw new Error(`unexpected create_plan_task single: ${planSingleText}`);
+  const planBodyText = planBodyResult.content?.[0]?.text || '';
+  if (planBodyResult.isError || !planBodyText.includes('task_mock001')) {
+    throw new Error(`unexpected create_plan_task with plan_md: ${planBodyText}`);
   }
   if (
     planTaskCreateCalls.length !== 1 ||
-    JSON.stringify(planTaskCreateCalls[0]) !== JSON.stringify({ title: 'One sub', sub_titles: ['Sub A'] })
+    JSON.stringify(planTaskCreateCalls[0]) !==
+      JSON.stringify({ title: 'With body', plan_md: '## Notes\n\nHello' })
   ) {
-    throw new Error(`unexpected plan-task-create single payload: ${JSON.stringify(planTaskCreateCalls)}`);
+    throw new Error(`unexpected plan-task-create body payload: ${JSON.stringify(planTaskCreateCalls)}`);
+  }
+  if (!planBodyText.includes('## Notes')) {
+    throw new Error(`create response missing plan_md echo: ${planBodyText}`);
   }
 
-  planTaskCreateCalls.length = 0;
-  resetPlanTaskStore();
-  const planMultiResult = await client.callTool({
+  const planTitleLong = await client.callTool({
     name: 'create_plan_task',
-    arguments: { title: 'Two subs', sub_titles: ['Sub A', 'Sub B'] },
+    arguments: {
+      title:
+        'one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen twenty twentyone',
+    },
   });
-  const planMultiText = planMultiResult.content?.[0]?.text || '';
-  if (planMultiResult.isError || !planMultiText.includes('task_mock001_sub_02')) {
-    throw new Error(`unexpected create_plan_task multi: ${planMultiText}`);
-  }
-
-  const planInvalidResult = await client.callTool({
-    name: 'create_plan_task',
-    arguments: { title: 'Bad', sub_titles: ['ok', '  '] },
-  });
-  if (!planInvalidResult.isError) {
-    throw new Error('expected create_plan_task validation error for blank sub_titles element');
+  if (!planTitleLong.isError) {
+    throw new Error('expected create_plan_task validation error for title over 20 words');
   }
 
   resetPlanTaskStore();
   const crudCreate = await client.callTool({
     name: 'create_plan_task',
-    arguments: { title: 'CRUD master', sub_titles: ['Sub A', 'Sub B'] },
+    arguments: { title: 'CRUD master', plan_md: '# Plan' },
   });
   const crudCreateText = crudCreate.content?.[0]?.text || '';
   if (crudCreate.isError || !crudCreateText.includes('task_mock001')) {
     throw new Error(`unexpected CRUD create: ${crudCreateText}`);
+  }
+
+  const addSubA = await client.callTool({
+    name: 'add_plan_sub',
+    arguments: { master_task_id: 'task_mock001', title: 'Sub A' },
+  });
+  if (addSubA.isError) {
+    throw new Error(`unexpected add_plan_sub A: ${addSubA.content?.[0]?.text || ''}`);
+  }
+  const addSubB = await client.callTool({
+    name: 'add_plan_sub',
+    arguments: { master_task_id: 'task_mock001', title: 'Sub B' },
+  });
+  if (addSubB.isError) {
+    throw new Error(`unexpected add_plan_sub B: ${addSubB.content?.[0]?.text || ''}`);
   }
 
   const listResult = await client.callTool({ name: 'list_plan_tasks', arguments: {} });

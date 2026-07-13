@@ -15,6 +15,46 @@ if (!WORKBENCH_HTTP_URL) {
 
 const MCP_PORT = Number(process.env.MCP_PORT || 9876);
 
+/** Count title units: each CJK ideograph = 1; each whitespace-delimited word token = 1. */
+export function titleUnitCount(title) {
+  let units = 0;
+  let inWord = false;
+  for (const c of title) {
+    const cp = c.codePointAt(0);
+    const isCjk =
+      (cp >= 0x4e00 && cp <= 0x9fff) ||
+      (cp >= 0x3400 && cp <= 0x4dbf) ||
+      (cp >= 0xf900 && cp <= 0xfaff) ||
+      (cp >= 0x20000 && cp <= 0x2a6df) ||
+      (cp >= 0x2a700 && cp <= 0x2b73f) ||
+      (cp >= 0x2b740 && cp <= 0x2b81f) ||
+      (cp >= 0x2b820 && cp <= 0x2ceaf) ||
+      (cp >= 0x2ceb0 && cp <= 0x2ebef) ||
+      (cp >= 0x30000 && cp <= 0x3134f);
+    if (isCjk) {
+      if (inWord) {
+        units += 1;
+        inWord = false;
+      }
+      units += 1;
+    } else if (/\s/u.test(c)) {
+      if (inWord) {
+        units += 1;
+        inWord = false;
+      }
+    } else if (/[0-9A-Za-z\u00C0-\u024F\u1E00-\u1EFF]/u.test(c)) {
+      inWord = true;
+    } else if (inWord) {
+      units += 1;
+      inWord = false;
+    }
+  }
+  if (inWord) {
+    units += 1;
+  }
+  return units;
+}
+
 async function proxyGet(pathAndQuery) {
   const url = `${WORKBENCH_HTTP_URL}${pathAndQuery}`;
   const res = await fetch(url);
@@ -176,19 +216,26 @@ function buildServer() {
     'create_plan_task',
     {
       description:
-        'Create a plan task master. Omit sub_titles or pass an empty array to create a plan with empty sub_tasks. Proxy POST /api/plan-task-create',
+        'Create a plan task master with title and optional plan body (plan_md). Title max 20 Chinese characters or English words. Creates empty sub_tasks; use add_plan_sub for subs. Proxy POST /api/plan-task-create',
       inputSchema: {
-        title: z.string().trim().min(1).describe('Master task title'),
-        sub_titles: z
-          .array(z.string().trim().min(1))
+        title: z
+          .string()
+          .trim()
+          .min(1)
+          .refine((t) => titleUnitCount(t) <= 20, {
+            message: 'Title too long (max 20 Chinese characters or English words)',
+          })
+          .describe('Master task title (max 20 Chinese characters or English words)'),
+        plan_md: z
+          .string()
           .optional()
-          .describe('Optional explicit sub task titles; omit or empty array → empty sub_tasks'),
+          .describe('Plan body markdown; omit or empty → empty plan.md'),
       },
     },
-    async ({ title, sub_titles }) => {
+    async ({ title, plan_md }) => {
       const body = { title };
-      if (sub_titles != null && sub_titles.length > 0) {
-        body.sub_titles = sub_titles;
+      if (plan_md != null) {
+        body.plan_md = plan_md;
       }
       const result = await proxyPost('/api/plan-task-create', body);
       if (!result.ok) {

@@ -32,8 +32,14 @@ pub fn get_plan_tasks_json() -> Result<Value, String> {
     }
 }
 
-pub fn create_plan_task_json(title: &str, sub_titles: Option<&[&str]>) -> Result<Value, String> {
-    map_invoke_value(plan_task::create_master_with_subs(title, sub_titles))
+pub fn create_plan_task_json(
+    title: &str,
+    sub_titles: Option<&[&str]>,
+    plan_md: &str,
+) -> Result<Value, String> {
+    map_invoke_value(plan_task::create_master_with_subs_and_plan(
+        title, sub_titles, plan_md,
+    ))
 }
 
 pub fn delete_plan_task_json(master_task_id: &str) -> Result<Value, String> {
@@ -84,12 +90,14 @@ pub async fn create_plan_task(
     _app: AppHandle,
     title: String,
     sub_titles: Option<Vec<String>>,
+    plan_md: Option<String>,
 ) -> Result<Value, String> {
     tauri::async_runtime::spawn_blocking(move || {
         let refs: Option<Vec<&str>> = sub_titles
             .as_ref()
             .map(|v| v.iter().map(String::as_str).collect());
-        create_plan_task_json(&title, refs.as_deref())
+        let md = plan_md.as_deref().unwrap_or("");
+        create_plan_task_json(&title, refs.as_deref(), md)
     })
     .await
     .map_err(|e| e.to_string())?

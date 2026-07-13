@@ -480,9 +480,13 @@ fn read_plan_md_or_empty(master_id: &str) -> Result<String, String> {
 }
 
 fn persist_master(master: &MasterTask) -> Result<(), String> {
+    let plan_md = read_plan_md_or_empty(&master.master_task_id)?;
+    persist_master_with_plan_md(master, &plan_md)
+}
+
+fn persist_master_with_plan_md(master: &MasterTask, plan_md: &str) -> Result<(), String> {
     let mut master = master.clone();
     recompute_master_status(&mut master);
-    let plan_md = read_plan_md_or_empty(&master.master_task_id)?;
     let entry = IndexEntry {
         master_task_id: master.master_task_id.clone(),
         title: master.title.clone(),
@@ -493,8 +497,57 @@ fn persist_master(master: &MasterTask) -> Result<(), String> {
     let subs = SubTasksFile {
         sub_tasks: master.sub_tasks.clone(),
     };
-    write_task_batch(&master.master_task_id, &entry, &subs, &plan_md)
+    write_task_batch(&master.master_task_id, &entry, &subs, plan_md)
 }
+
+/// Count title units: each CJK ideograph = 1; each whitespace-delimited word token = 1.
+/// Punctuation and other symbols do not count.
+pub fn title_unit_count(title: &str) -> usize {
+    let mut units = 0usize;
+    let mut in_word = false;
+    for c in title.chars() {
+        if is_cjk_ideograph(c) {
+            if in_word {
+                units += 1;
+                in_word = false;
+            }
+            units += 1;
+        } else if c.is_whitespace() {
+            if in_word {
+                units += 1;
+                in_word = false;
+            }
+        } else if c.is_ascii_alphanumeric()
+            || matches!(c, '\u{00C0}'..='\u{024F}' | '\u{1E00}'..='\u{1EFF}')
+        {
+            in_word = true;
+        } else if in_word {
+            units += 1;
+            in_word = false;
+        }
+    }
+    if in_word {
+        units += 1;
+    }
+    units
+}
+
+fn is_cjk_ideograph(c: char) -> bool {
+    matches!(
+        c,
+        '\u{4E00}'..='\u{9FFF}'
+            | '\u{3400}'..='\u{4DBF}'
+            | '\u{F900}'..='\u{FAFF}'
+            | '\u{20000}'..='\u{2A6DF}'
+            | '\u{2A700}'..='\u{2B73F}'
+            | '\u{2B740}'..='\u{2B81F}'
+            | '\u{2B820}'..='\u{2CEAF}'
+            | '\u{2CEB0}'..='\u{2EBEF}'
+            | '\u{30000}'..='\u{3134F}'
+    )
+}
+
+const TITLE_UNIT_LIMIT: usize = 20;
 
 fn new_master_id() -> String {
     format!("task_{}", random_hex12())
@@ -628,9 +681,24 @@ pub fn update_plan_md(master_task_id: &str, plan_md: &str) -> Value {
 }
 
 pub fn create_master_with_subs(title: &str, sub_titles: Option<&[&str]>) -> Value {
+    create_master_with_subs_and_plan(title, sub_titles, "")
+}
+
+/// Create a master task. `plan_md` is written atomically with the task batch (empty → empty `plan.md`).
+pub fn create_master_with_subs_and_plan(
+    title: &str,
+    sub_titles: Option<&[&str]>,
+    plan_md: &str,
+) -> Value {
     let title = title.trim();
     if title.is_empty() {
         return json!({ "error": "Missing title", "_status": 400 });
+    }
+    if title_unit_count(title) > TITLE_UNIT_LIMIT {
+        return json!({
+            "error": "Title too long (max 20 Chinese characters or English words)",
+            "_status": 400
+        });
     }
 
     with_write_lock(|| {
@@ -681,7 +749,7 @@ pub fn create_master_with_subs(title: &str, sub_titles: Option<&[&str]>) -> Valu
             sub_tasks,
         };
 
-        match persist_master(&master) {
+        match persist_master_with_plan_md(&master, plan_md) {
             Ok(()) => {
                 let mut response = json!({
                     "master_task_id": master_id,

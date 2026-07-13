@@ -490,6 +490,15 @@ fn handle_plan_task_create(mut request: tiny_http::Request) {
         return;
     };
 
+    let plan_md = match payload.get("plan_md") {
+        None | Some(Value::Null) => "",
+        Some(Value::String(s)) => s.as_str(),
+        Some(_) => {
+            respond_json(request, 400, json!({ "error": "Invalid plan_md" }));
+            return;
+        }
+    };
+
     let sub_titles: Option<Vec<String>> = match payload.get("sub_titles") {
         None | Some(Value::Null) => None,
         Some(Value::Array(arr)) if arr.is_empty() => None,
@@ -518,9 +527,9 @@ fn handle_plan_task_create(mut request: tiny_http::Request) {
     let value = match &sub_titles {
         Some(subs) => {
             let refs: Vec<&str> = subs.iter().map(String::as_str).collect();
-            plan_task::create_master_with_subs(title, Some(&refs))
+            plan_task::create_master_with_subs_and_plan(title, Some(&refs), plan_md)
         }
-        None => plan_task::create_master_with_subs(title, None),
+        None => plan_task::create_master_with_subs_and_plan(title, None, plan_md),
     };
     respond_from_value(request, value);
 }
