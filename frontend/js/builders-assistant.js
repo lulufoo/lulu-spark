@@ -1,8 +1,9 @@
 /**
- * Builders entry FAB + layout-external modal host scaffold.
- * Open/close business + renderFeed mount are wired in a later task;
- * this module only establishes the DOM shape on body.
+ * Builders entry FAB + layout-external modal host.
+ * Open/close shows/hides the host; renderFeed mounts only into builders-modal-body.
  */
+
+import { renderFeed } from './feed.js';
 
 export function mountBuildersAssistantWidget(anchor = document.body, _opts = {}) {
   const entry = document.createElement('div');
@@ -40,12 +41,36 @@ export function mountBuildersAssistantWidget(anchor = document.body, _opts = {})
     host.hidden = !open;
     fab.setAttribute('aria-expanded', String(open));
     fab.classList.toggle('builders-entry-fab--active', open);
+    if (open) {
+      void renderFeed(body);
+    }
   }
 
+  function close() {
+    setOpen(false);
+  }
+
+  fab.addEventListener('click', (event) => {
+    event.stopPropagation();
+    setOpen(true);
+  });
+  closeBtn.addEventListener('click', (event) => {
+    event.stopPropagation();
+    close();
+  });
+
+  const onDocClick = (event) => {
+    if (!open) return;
+    if (entry.contains(event.target) || host.contains(event.target)) return;
+    close();
+  };
+  document.addEventListener('click', onDocClick, true);
+
   function dispose() {
+    document.removeEventListener('click', onDocClick, true);
     entry.remove();
     host.remove();
   }
 
-  return { dispose, setOpen, entry, host, body, closeBtn, fab };
+  return { dispose, setOpen, close, entry, host, body, closeBtn, fab };
 }
