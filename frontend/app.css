@@ -16,6 +16,7 @@
   .corpus-doc-main,
   #feed-view,
   #home-view,
+  #plan-tasks-view,
   #md-body,
   #kb-md-body,
   .viewer-body,
@@ -1970,11 +1971,19 @@
     font-size: 14px;
   }
 
+  #plan-tasks-view {
+    width: 100%;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+  }
   .plan-tasks-page {
     display: flex;
     flex-direction: column;
     height: 100%;
+    min-width: 0;
     min-height: 0;
+    overflow: hidden;
     background: #fff;
   }
   .plan-tasks-page-header {
@@ -1996,18 +2005,23 @@
   .plan-task-split {
     display: flex;
     flex: 1 1 auto;
+    min-width: 0;
     min-height: 0;
+    overflow: hidden;
     background: #fff;
   }
   .plan-task-split-master {
     flex: 0 0 280px;
     border-right: 1px solid #d0d7de;
+    overflow-x: hidden;
     overflow-y: auto;
     padding: 16px 12px;
     box-sizing: border-box;
   }
   .plan-task-split-detail {
     flex: 1 1 auto;
+    min-width: 0;
+    overflow-x: hidden;
     overflow-y: auto;
     padding: 20px 24px;
     box-sizing: border-box;
@@ -2067,6 +2081,8 @@
     line-height: 1.4;
     font-weight: 600;
     color: #24292f;
+    overflow-wrap: anywhere;
+    word-break: break-word;
   }
   .plan-task-master-meta {
     font-size: 11px;
@@ -2315,6 +2331,8 @@
     margin-bottom: 16px;
     padding-bottom: 16px;
     border-bottom: 1px solid #eaeef2;
+    min-width: 0;
+    max-width: 100%;
   }
   .plan-task-plan-md-header {
     display: flex;
@@ -2329,7 +2347,16 @@
     font-weight: 600;
     color: #24292f;
   }
+  .plan-task-detail-body {
+    min-width: 0;
+    max-width: 100%;
+  }
   .plan-task-plan-md-preview {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
     padding: 12px 14px;
     border: 1px solid #d0d7de;
     border-radius: 8px;
@@ -2337,19 +2364,61 @@
     color: #24292f;
     font-size: 13px;
     line-height: 1.55;
+    overflow-x: auto;
+    overflow-wrap: anywhere;
+    word-break: break-word;
   }
   .plan-task-plan-md-preview p {
     margin: 0 0 10px;
+    overflow-wrap: anywhere;
+    word-break: break-word;
   }
   .plan-task-plan-md-preview p:last-child {
     margin-bottom: 0;
   }
   .plan-task-plan-md-preview h1,
   .plan-task-plan-md-preview h2,
-  .plan-task-plan-md-preview h3 {
-    margin: 0 0 8px;
+  .plan-task-plan-md-preview h3,
+  .plan-task-plan-md-preview h4 {
+    margin: 0.8em 0 0.4em;
     color: #24292f;
     line-height: 1.35;
+    overflow-wrap: anywhere;
+  }
+  .plan-task-plan-md-preview h1:first-child,
+  .plan-task-plan-md-preview h2:first-child,
+  .plan-task-plan-md-preview h3:first-child,
+  .plan-task-plan-md-preview h4:first-child {
+    margin-top: 0;
+  }
+  /* Global * { padding:0 } zeros list indent; restore so markers are not clipped. */
+  .plan-task-plan-md-preview ul,
+  .plan-task-plan-md-preview ol {
+    margin: 0.4em 0 0.4em 1.5em;
+    padding-left: 0.25em;
+  }
+  .plan-task-plan-md-preview li {
+    margin: 0.2em 0;
+  }
+  .plan-task-plan-md-preview blockquote {
+    border-left: 3px solid #d0d7de;
+    padding-left: 12px;
+    color: #57606a;
+    margin: 0.5em 0;
+  }
+  .plan-task-plan-md-preview img,
+  .plan-task-plan-md-preview table {
+    max-width: 100%;
+  }
+  .plan-task-plan-md-preview table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 0.8em 0;
+  }
+  .plan-task-plan-md-preview th,
+  .plan-task-plan-md-preview td {
+    border: 1px solid #d0d7de;
+    padding: 6px 12px;
   }
   .plan-task-plan-md-preview pre,
   .plan-task-plan-md-preview code {
@@ -2360,11 +2429,18 @@
     padding: 10px 12px;
     border-radius: 6px;
     overflow-x: auto;
+    max-width: 100%;
+    white-space: pre;
   }
   .plan-task-plan-md-preview code {
     padding: 1px 4px;
     border-radius: 4px;
     font-size: 12px;
+    white-space: break-spaces;
+  }
+  .plan-task-plan-md-preview pre code {
+    padding: 0;
+    white-space: inherit;
   }
   .plan-task-plan-md-empty {
     margin: 0;

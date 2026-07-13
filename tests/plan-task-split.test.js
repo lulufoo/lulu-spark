@@ -388,4 +388,22 @@ describe('plan-tasks route source wiring', () => {
     expect(appCss).toMatch(/\.plan-task-sub-status-select--abandoned/);
     expect(appCss).not.toMatch(/\.plan-task-plan-md-preview[\s\S]*background:\s*#000/);
   });
+
+  it('app.css keeps plan-md preview inside bordered box under flex layout', () => {
+    expect(appCss).toMatch(/#plan-tasks-view\s*\{[^}]*min-width:\s*0/s);
+    expect(appCss).toMatch(/\.plan-tasks-page\s*\{[^}]*min-width:\s*0/s);
+    expect(appCss).toMatch(/\.plan-task-split\s*\{[^}]*min-width:\s*0/s);
+    expect(appCss).toMatch(
+      /\.plan-task-split-detail\s*\{[^}]*min-width:\s*0/s,
+    );
+    expect(appCss).toMatch(
+      /\.plan-task-plan-md-preview\s*\{[^}]*width:\s*100%/s,
+    );
+    expect(appCss).toMatch(
+      /\.plan-task-plan-md-preview\s*\{[^}]*overflow-wrap:\s*anywhere/s,
+    );
+    expect(appCss).toMatch(
+      /\.plan-task-plan-md-preview ul,\s*\n\s*\.plan-task-plan-md-preview ol/,
+    );
+  });
 });
