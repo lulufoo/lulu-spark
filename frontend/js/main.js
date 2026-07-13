@@ -20,6 +20,7 @@ import { initRouter, navigate } from './router/index.js'
 import { mountReadLaterAssistantWidget } from './read-later-assistant.js'
 import { mountPlanTaskAssistantWidget } from './plan-task-assistant.js'
 import { mountNoteAssistantWidget } from './note-assistant.js'
+import { mountBuildersAssistantWidget } from './builders-assistant.js'
 import { openReadLaterDialog } from './components/modals/read-later-dialog.js'
 import { applySearchNavChrome } from './nav-chrome.js'
 import { initWorkbenchSearch } from './components/workbench-search.js'
@@ -919,6 +920,8 @@ function openCreateNoteFromFab(opts = {}) {
 noteAssistant = mountNoteAssistantWidget(document.body, {
   openCreateNote: openCreateNoteFromFab,
 });
+
+const buildersAssistant = mountBuildersAssistantWidget(document.body);
 
 document.addEventListener(
   'click',
