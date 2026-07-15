@@ -41,7 +41,7 @@ git -C $SKILL_DIR pull --rebase
 
 | 指令 | 目录 | 说明 |
 |------|------|------|
-| `dialogue-summary` | [dialogue-summary/](dialogue-summary/) | 过程回顾：骨架脉络 + 核心加深 + `〔User〕` → MCP 归档（`dtd_raw_summary` / 过程回顾；已定稿落盘用 `theme-archive`） |
+| `dialogue-summary` | [dialogue-summary/](dialogue-summary/) | 自包含总结：覆盖面随对话、单元丰富度固定、忠实整合不灌水 + `〔User〕` → MCP 归档（`dtd_raw_summary`；已定稿落盘用 `theme-archive`） |
 | `dialogue-archive` | [dialogue-archive/](dialogue-archive/) | 对话逐轮原文归一化归档（原 `dialogue-summary` 逐字；`dtd_raw_dialogue`） |
 | `theme-line` | [theme-line/](theme-line/) | 多平台视频/访谈稿（YouTube、InfoQ、plain）→ TranscriptBundle → 主题优先时间线大纲，保存至 `raw/` 并自动 digest |
 | `theme-fetch` | [theme-fetch/](theme-fetch/) | 多平台网页文章（WeChat、plain HTML…）→ ArticleBundle → 格式化 Markdown；Phase 3 经 MCP 落盘 + digest |
