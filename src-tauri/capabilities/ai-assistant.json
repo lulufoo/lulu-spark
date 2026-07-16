@@ -1,0 +1,10 @@
+{
+  "$schema": "../node_modules/@tauri-apps/cli/schema/acl/schemas/capability.schema.json",
+  "identifier": "ai-assistant",
+  "description": "Plan-page AI assistant window — chat via agent_chat_turn only",
+  "windows": ["ai-assistant"],
+  "permissions": [
+    "core:default",
+    "write-api"
+  ]
+}

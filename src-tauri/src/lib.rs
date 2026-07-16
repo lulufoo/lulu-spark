@@ -21,9 +21,17 @@ const CONNECT_TIMEOUT: Duration = Duration::from_millis(100);
 const RETRY_INTERVAL: Duration = Duration::from_millis(500);
 pub const DEFAULT_MCP_PORT: u16 = 9876;
 pub const READ_LATER_ASSISTANT_LABEL: &str = "read-later-assistant";
+pub const AI_ASSISTANT_LABEL: &str = "ai-assistant";
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct ReadLaterAssistantWindowSpec {
+    pub label: &'static str,
+    pub entry: &'static str,
+    pub always_on_top: bool,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct AiAssistantWindowSpec {
     pub label: &'static str,
     pub entry: &'static str,
     pub always_on_top: bool,
@@ -37,6 +45,18 @@ pub fn read_later_assistant_spec() -> ReadLaterAssistantWindowSpec {
     ReadLaterAssistantWindowSpec {
         label: READ_LATER_ASSISTANT_LABEL,
         entry: read_later_assistant_entry_path(),
+        always_on_top: true,
+    }
+}
+
+pub fn ai_assistant_entry_path() -> &'static str {
+    "ai-assistant.html"
+}
+
+pub fn ai_assistant_spec() -> AiAssistantWindowSpec {
+    AiAssistantWindowSpec {
+        label: AI_ASSISTANT_LABEL,
+        entry: ai_assistant_entry_path(),
         always_on_top: true,
     }
 }
@@ -358,6 +378,26 @@ fn create_read_later_assistant_window(app: &tauri::App) -> Result<(), Box<dyn st
     Ok(())
 }
 
+/// Create the plan-page AI assistant window, or focus/show it if it already exists.
+#[cfg(not(test))]
+pub fn create_or_focus_ai_assistant_window(
+    app: &tauri::AppHandle,
+) -> Result<(), Box<dyn std::error::Error>> {
+    if let Some(window) = app.get_webview_window("ai-assistant") {
+        window.show()?;
+        window.set_focus()?;
+        return Ok(());
+    }
+    WebviewWindowBuilder::new(
+        app,
+        "ai-assistant",
+        WebviewUrl::App("ai-assistant.html".into()),
+    )
+    .always_on_top(true)
+    .build()?;
+    Ok(())
+}
+
 #[cfg(not(test))]
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -536,3 +576,7 @@ mod knowledge_mcp_tests;
 #[cfg(test)]
 #[path = "unit-tests/lib/read_later_assistant_window_tests.rs"]
 mod read_later_assistant_window_tests;
+
+#[cfg(test)]
+#[path = "unit-tests/lib/ai_assistant_window_tests.rs"]
+mod ai_assistant_window_tests;
