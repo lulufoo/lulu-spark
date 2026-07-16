@@ -14,7 +14,7 @@
 
 ## PART 1 — 理论与规则
 
-> 双轴归属模型、认知事件完整语境、认知事件层次定义见 [ddm-p1-diagnose.md](ddm-diagnose.md) PART 1，此处不重复。
+> 双轴归属模型、认知事件完整语境、认知事件层次定义见 [ddm-diagnose.md](https://github.com/lulufoo/lulu-workbench-skills/blob/main/dialogue-archive/references/legacy/ddm-diagnose.md) PART 1，此处不重复。
 
 ### 叙事主轴
 
