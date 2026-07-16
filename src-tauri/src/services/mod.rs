@@ -1,3 +1,4 @@
+pub mod agent;
 pub mod annotation;
 pub mod archive_parse;
 pub mod archive_write;
