@@ -378,14 +378,28 @@ function buildServer() {
 
 const app = createMcpExpressApp({ host: '127.0.0.1' });
 
-app.post('/mcp', async (req, res) => {
+// Some MCP clients probe /mcp with GET/DELETE during discovery/session checks.
+// Route all methods through the transport so unsupported verbs return protocol
+// errors instead of a misleading 404 from Express routing.
+app.all('/mcp', async (req, res) => {
+  const accept = String(req.headers.accept || '');
+  if (req.method === 'GET' && !accept.includes('text/event-stream')) {
+    res.json({
+      ok: true,
+      transport: 'streamable-http',
+      endpoint: `http://127.0.0.1:${MCP_PORT}/mcp`,
+      hint: 'Use POST /mcp for JSON-RPC and GET /mcp with Accept: text/event-stream for streams.',
+    });
+    return;
+  }
+
   const server = buildServer();
   try {
     const transport = new StreamableHTTPServerTransport({
       sessionIdGenerator: undefined,
     });
     await server.connect(transport);
-    await transport.handleRequest(req, res, req.body);
+    await transport.handleRequest(req, res, req.body ?? undefined);
     res.on('close', () => {
       transport.close();
       server.close();
