@@ -37,5 +37,7 @@ commands.allow = [
   "abandon_plan_sub",
   "update_plan_sub",
   "update_plan_master_title",
+  "open_ai_assistant",
+  "agent_chat_turn",
   "archive_document",
 ]

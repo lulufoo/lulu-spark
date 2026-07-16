@@ -18,13 +18,11 @@ pub fn openai_tool_definitions() -> Vec<Value> {
             "get_plan",
             "获取当前绑定计划标题/状态/子计划摘要",
             json!({ "type": "object", "properties": {}, "additionalProperties": false }),
-            &[],
         ),
         tool_def(
             "list_sub_tasks",
             "列出子计划 id 与标题",
             json!({ "type": "object", "properties": {}, "additionalProperties": false }),
-            &[],
         ),
         tool_def(
             "add_sub_task",
@@ -35,7 +33,6 @@ pub fn openai_tool_definitions() -> Vec<Value> {
                 "required": ["title"],
                 "additionalProperties": false
             }),
-            &["title"],
         ),
         tool_def(
             "update_sub_title",
@@ -49,7 +46,6 @@ pub fn openai_tool_definitions() -> Vec<Value> {
                 "required": ["sub_task_id", "title"],
                 "additionalProperties": false
             }),
-            &["sub_task_id", "title"],
         ),
         tool_def(
             "update_master_title",
@@ -60,12 +56,11 @@ pub fn openai_tool_definitions() -> Vec<Value> {
                 "required": ["title"],
                 "additionalProperties": false
             }),
-            &["title"],
         ),
     ]
 }
 
-fn tool_def(name: &str, description: &str, parameters: Value, _required: &[&str]) -> Value {
+fn tool_def(name: &str, description: &str, parameters: Value) -> Value {
     json!({
         "type": "function",
         "function": {
@@ -93,20 +88,13 @@ fn binding_master_id(bound: Option<&str>) -> Result<String, Value> {
         return Err(err("forbidden", "No bound plan"));
     }
     let got = plan_task::get_by_id(id);
-    if got.get("_status").and_then(|s| s.as_u64()) == Some(404)
-        || got.get("error").and_then(|e| e.as_str()) == Some("Task not found")
-    {
-        return Err(err("forbidden", "Invalid bound plan"));
-    }
-    if let Some(status) = got.get("_status").and_then(|s| s.as_u64()) {
-        if status >= 400 {
-            return Err(err("forbidden", "Invalid bound plan"));
-        }
-    }
-    // get_by_id success returns the task object (no _status) or with fields.
-    if got.get("master_task_id").and_then(|v| v.as_str()).is_none()
-        && got.get("error").is_some()
-    {
+    let invalid = got.get("error").is_some()
+        || got
+            .get("_status")
+            .and_then(|s| s.as_u64())
+            .is_some_and(|s| s >= 400)
+        || got.get("master_task_id").and_then(|v| v.as_str()).is_none();
+    if invalid {
         return Err(err("forbidden", "Invalid bound plan"));
     }
     Ok(id.to_string())

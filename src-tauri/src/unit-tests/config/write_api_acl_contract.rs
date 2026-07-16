@@ -59,6 +59,8 @@ const PLAN_TASK_LIFECYCLE_COMMANDS: &[&str] = &[
 
 const NOTE_WRITE_COMMANDS: &[&str] = &["archive_document"];
 
+const AI_ASSISTANT_WRITE_COMMANDS: &[&str] = &["open_ai_assistant", "agent_chat_turn"];
+
 #[test]
 fn write_api_toml_and_acl_manifest_allow_lists_match() {
     let root = manifest_dir();
@@ -145,6 +147,22 @@ fn note_archive_write_command_is_acl_allowed() {
     let toml = fs::read_to_string(root.join("permissions/write-api.toml")).expect("toml");
     let allow = parse_write_api_toml_allow(&toml);
     let missing: Vec<_> = NOTE_WRITE_COMMANDS
+        .iter()
+        .filter(|cmd| !allow.contains(**cmd))
+        .copied()
+        .collect();
+    assert!(
+        missing.is_empty(),
+        "commands missing from write-api.toml ACL: {missing:?}"
+    );
+}
+
+#[test]
+fn ai_assistant_write_commands_are_acl_allowed() {
+    let root = manifest_dir();
+    let toml = fs::read_to_string(root.join("permissions/write-api.toml")).expect("toml");
+    let allow = parse_write_api_toml_allow(&toml);
+    let missing: Vec<_> = AI_ASSISTANT_WRITE_COMMANDS
         .iter()
         .filter(|cmd| !allow.contains(**cmd))
         .copied()

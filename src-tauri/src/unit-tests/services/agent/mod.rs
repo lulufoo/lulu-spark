@@ -1,4 +1,7 @@
-//! Agent module tests (Session / Tools / LLM).
+//! Agent module tests (Session / Tools / LLM / Loop).
+
+#[path = "loop_tests.rs"]
+mod loop_tests;
 
 use std::fs;
 use std::io::{Read, Write};
