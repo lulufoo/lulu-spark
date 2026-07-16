@@ -6,6 +6,7 @@ import { closePlanTaskDialog, openPlanTaskDialog } from './dialog.js';
 const UNAVAILABLE_MSG = '列表暂时不可用，请稍后重试';
 const REFRESH_WARNING_MSG = '已保存，列表刷新失败，请重试';
 const MIGRATION_WARNING_MSG = '此计划的数据迁移未完成，部分信息可能不完整';
+const AI_ASSISTANT_TURN_COMPLETED = 'ai-assistant:turn-completed';
 
 const STATUS_LABELS = {
   incomplete: '进行中',
@@ -18,6 +19,12 @@ function getTauriInvoke() {
   const invoke =
     window.__TAURI__?.core?.invoke || window.__TAURI_INTERNALS__?.invoke;
   return typeof invoke === 'function' ? invoke : null;
+}
+
+function getTauriListen() {
+  if (typeof window === 'undefined') return null;
+  const listen = window.__TAURI__?.event?.listen;
+  return typeof listen === 'function' ? listen : null;
 }
 
 function serviceError(data) {
@@ -310,6 +317,7 @@ function renderDetailToolbar(masterTaskId, disabled) {
   const disabledAttr = disabled ? ' disabled' : '';
   return `
     <div class="plan-task-detail-toolbar">
+      <button type="button" class="md-header-btn" data-action="open-ai-assistant" data-master-id="${escHtml(masterTaskId)}"${disabledAttr}>AI 助手</button>
       <button type="button" class="md-header-btn" data-action="add-sub" data-master-id="${escHtml(masterTaskId)}"${disabledAttr}>添加子任务</button>
       <button type="button" class="md-header-btn plan-task-btn-danger" data-action="delete-master"${disabledAttr}>删除计划</button>
     </div>
@@ -741,6 +749,24 @@ export function mountPlanTaskSplit(container, opts = {}) {
     }
   }
 
+  async function openPlanAiAssistant() {
+    if (!selectedMasterId || controlsDisabled(busy)) return;
+    const invoke = getTauriInvoke();
+    if (!invoke) return;
+    try {
+      await invoke('open_ai_assistant', { masterTaskId: selectedMasterId });
+    } catch {
+      // Open/focus failure is non-fatal; Host returns explicit errors when busy.
+    }
+  }
+
+  function onAiAssistantTurnCompleted(event) {
+    if (disposed) return;
+    const payload = event?.payload;
+    if (!payload || payload.wrote !== true) return;
+    void reloadList({ afterWrite: true });
+  }
+
   function openCreateDialog(triggerEl) {
     openPlanTaskDialog({
       type: 'create-master',
@@ -859,6 +885,13 @@ export function mountPlanTaskSplit(container, opts = {}) {
       event.preventDefault();
       if (controlsDisabled(busy)) return;
       openCreateDialog(actionEl instanceof HTMLElement ? actionEl : null);
+      return;
+    }
+
+    if (action === 'open-ai-assistant') {
+      event.preventDefault();
+      if (controlsDisabled(busy) || !selectedMasterId) return;
+      void openPlanAiAssistant();
       return;
     }
 
@@ -1000,6 +1033,21 @@ export function mountPlanTaskSplit(container, opts = {}) {
   };
   document.addEventListener('plan-task-dialog-close', onDialogClose);
   const disposeFocusRefresh = bindFocusRefresh(refresh);
+
+  let unlistenTurnCompleted = null;
+  const listen = getTauriListen();
+  if (listen) {
+    void listen(AI_ASSISTANT_TURN_COMPLETED, onAiAssistantTurnCompleted).then(
+      (unlisten) => {
+        if (disposed) {
+          if (typeof unlisten === 'function') void unlisten();
+          return;
+        }
+        unlistenTurnCompleted = unlisten;
+      },
+    );
+  }
+
   void refresh();
 
   function dispose() {
@@ -1007,6 +1055,10 @@ export function mountPlanTaskSplit(container, opts = {}) {
     document.removeEventListener('plan-task-dialog-close', onDialogClose);
     closePlanTaskDialog();
     disposeFocusRefresh();
+    if (typeof unlistenTurnCompleted === 'function') {
+      void unlistenTurnCompleted();
+      unlistenTurnCompleted = null;
+    }
     container.removeEventListener('click', onClick);
     container.removeEventListener('input', onInput);
     container.removeEventListener('keydown', onSubTitleKeydown);
