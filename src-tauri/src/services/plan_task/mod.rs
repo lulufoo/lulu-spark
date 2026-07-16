@@ -993,6 +993,41 @@ pub fn update_sub_title(master_task_id: &str, sub_task_id: &str, title: &str) ->
     })
 }
 
+pub fn update_master_title(master_task_id: &str, title: &str) -> Value {
+    let title = title.trim();
+    if title.is_empty() {
+        return json!({ "error": "Missing title", "_status": 400 });
+    }
+    if title_unit_count(title) > TITLE_UNIT_LIMIT {
+        return json!({
+            "error": "Title too long (max 20 Chinese characters or English words)",
+            "_status": 400
+        });
+    }
+
+    with_write_lock(|| {
+        if let Err(e) = ensure_bootstrap() {
+            return bootstrap_error(e);
+        }
+
+        let mut master = match load_master_task_unlocked(master_task_id) {
+            Ok(m) => m,
+            Err(err) => return err,
+        };
+
+        master.title = title.to_string();
+        let updated = master.clone();
+
+        match persist_master(&master) {
+            Ok(()) => json!({
+                "task": master_to_value(&updated),
+                "_status": 200,
+            }),
+            Err(e) => json!({ "error": e, "_status": 500 }),
+        }
+    })
+}
+
 pub fn abandon_sub(master_task_id: &str, sub_task_id: &str) -> Value {
     with_write_lock(|| {
         if let Err(e) = ensure_bootstrap() {

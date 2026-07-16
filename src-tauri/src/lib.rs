@@ -420,6 +420,7 @@ pub fn run() {
             commands::plan_task::complete_plan_sub,
             commands::plan_task::abandon_plan_sub,
             commands::plan_task::update_plan_sub,
+            commands::plan_task::update_plan_master_title,
             commands::search::reindex_knowledge,
             commands::search::reindex_workbench,
             commands::search::reindex_kb_repo,

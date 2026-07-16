@@ -78,6 +78,13 @@ pub fn update_plan_sub_json(
     map_invoke_value(plan_task::update_sub_title(master_task_id, sub_task_id, title))
 }
 
+pub fn update_plan_master_title_json(
+    master_task_id: &str,
+    title: &str,
+) -> Result<Value, String> {
+    map_invoke_value(plan_task::update_master_title(master_task_id, title))
+}
+
 #[tauri::command]
 pub async fn get_plan_tasks(_app: AppHandle) -> Result<Value, String> {
     tauri::async_runtime::spawn_blocking(get_plan_tasks_json)
@@ -214,6 +221,19 @@ pub async fn update_plan_sub(
 ) -> Result<Value, String> {
     tauri::async_runtime::spawn_blocking(move || {
         update_plan_sub_json(&master_task_id, &sub_task_id, &title)
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+pub async fn update_plan_master_title(
+    _app: AppHandle,
+    master_task_id: String,
+    title: String,
+) -> Result<Value, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        update_plan_master_title_json(&master_task_id, &title)
     })
     .await
     .map_err(|e| e.to_string())?

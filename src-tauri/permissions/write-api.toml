@@ -36,5 +36,6 @@ commands.allow = [
   "complete_plan_sub",
   "abandon_plan_sub",
   "update_plan_sub",
+  "update_plan_master_title",
   "archive_document",
 ]

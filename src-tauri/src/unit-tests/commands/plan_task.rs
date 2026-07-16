@@ -5,7 +5,7 @@ use serde_json::json;
 use crate::commands::plan_task::{
     abandon_plan_sub_json, add_plan_sub_json, complete_plan_sub_json, create_plan_task_json,
     delete_plan_sub_json, delete_plan_task_json, get_plan_tasks_json, read_plan_md_json,
-    update_plan_md_json,
+    update_plan_master_title_json, update_plan_md_json,
 };
 use crate::services::plan_task::{
     create_master_with_subs, list_all, test_reset_all_injection_flags, test_set_fail_batch_plan_md,
@@ -456,5 +456,50 @@ fn abandon_plan_sub_json_terminal_returns_409_class() {
         let again = abandon_plan_sub_json(&master_id, &sub_a).expect("invoke");
         assert_eq!(again["error"], "Sub task is in terminal status");
         assert_eq!(again["_status"], 409);
+    });
+}
+
+#[test]
+fn update_plan_master_title_json_success_strips_status() {
+    with_commands_plan_test(|| {
+        let created = create_plan_task_json("Old cmd title", None, "").expect("create");
+        let master_id = created["master_task_id"].as_str().expect("id").to_string();
+
+        let updated = update_plan_master_title_json(&master_id, "  Renamed  ").expect("update");
+        assert!(updated.get("_status").is_none());
+        let task = master_from_invoke(&updated);
+        assert_master_task_shape(task);
+        assert_eq!(task["title"], "Renamed");
+
+        let listed = get_plan_tasks_json().expect("list");
+        let found = listed
+            .as_array()
+            .expect("array")
+            .iter()
+            .find(|t| t["master_task_id"] == master_id)
+            .expect("listed");
+        assert_eq!(found["title"], "Renamed");
+    });
+}
+
+#[test]
+fn update_plan_master_title_json_blank_returns_400_class() {
+    with_commands_plan_test(|| {
+        let created = create_plan_task_json("Keep cmd", None, "").expect("create");
+        let master_id = created["master_task_id"].as_str().expect("id");
+
+        let v = update_plan_master_title_json(master_id, "  ").expect("invoke");
+        assert_eq!(v["error"], "Missing title");
+        assert_eq!(v["_status"], 400);
+    });
+}
+
+#[test]
+fn update_plan_master_title_json_unknown_returns_404_class() {
+    with_commands_plan_test(|| {
+        let v = update_plan_master_title_json("task_nonexistent_aaaaaaaaaaaaaaaa", "New")
+            .expect("invoke");
+        assert_eq!(v["error"], "Task not found");
+        assert_eq!(v["_status"], 404);
     });
 }

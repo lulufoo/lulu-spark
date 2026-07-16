@@ -53,7 +53,8 @@ const PLAN_TASK_LIFECYCLE_COMMANDS: &[&str] = &[
     "update_plan_md",
     "complete_plan_sub",
     "abandon_plan_sub",
-        "update_plan_sub",
+    "update_plan_sub",
+    "update_plan_master_title",
 ];
 
 const NOTE_WRITE_COMMANDS: &[&str] = &["archive_document"];
@@ -134,7 +135,7 @@ fn plan_task_fm4_and_lifecycle_commands_coexist_in_acl() {
     assert_eq!(
         all.len(),
         PLAN_TASK_WRITE_COMMANDS.len() + PLAN_TASK_LIFECYCLE_COMMANDS.len(),
-        "expected eight distinct plan task ACL entries"
+        "expected nine distinct plan task ACL entries"
     );
 }
 

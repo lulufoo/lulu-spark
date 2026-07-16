@@ -1610,3 +1610,64 @@ fn migrate_implicit_subs_write_failure_marks_migration_error() {
         assert_eq!(listed[0]["migration_error"], true);
     });
 }
+
+#[test]
+fn update_master_title_success_trims_and_persists() {
+    with_plan_task_sandbox(|_| {
+        let created = create_master_with_subs("Old title", None);
+        assert_eq!(created["_status"], 201);
+        let master_id = created["master_task_id"].as_str().unwrap();
+
+        let updated = update_master_title(master_id, "  New title  ");
+        assert_eq!(updated["_status"], 200);
+        assert_eq!(master_from_value(&updated)["title"], "New title");
+
+        let got = get_by_id(master_id);
+        assert_eq!(got["title"], "New title");
+        let listed = list_all();
+        assert_eq!(listed.as_array().unwrap()[0]["title"], "New title");
+    });
+}
+
+#[test]
+fn update_master_title_blank_after_trim_returns_400() {
+    with_plan_task_sandbox(|_| {
+        let created = create_master_with_subs("Keep me", None);
+        let master_id = created["master_task_id"].as_str().unwrap();
+
+        let v = update_master_title(master_id, "   \t  ");
+        assert_eq!(v["_status"], 400);
+        assert_eq!(v["error"], "Missing title");
+        assert_eq!(get_by_id(master_id)["title"], "Keep me");
+    });
+}
+
+#[test]
+fn update_master_title_rejects_over_twenty_units() {
+    with_plan_task_sandbox(|_| {
+        let created = create_master_with_subs("Short", None);
+        let master_id = created["master_task_id"].as_str().unwrap();
+        let long_en = "one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen twenty twentyone";
+
+        let v = update_master_title(master_id, long_en);
+        assert_eq!(v["_status"], 400);
+        assert!(
+            v["error"]
+                .as_str()
+                .unwrap_or("")
+                .contains("Title too long"),
+            "error={:?}",
+            v["error"]
+        );
+        assert_eq!(get_by_id(master_id)["title"], "Short");
+    });
+}
+
+#[test]
+fn update_master_title_unknown_master_returns_404() {
+    with_plan_task_sandbox(|_| {
+        let v = update_master_title("task_nonexistent_aaaaaaaaaaaaaaaa", "New");
+        assert_eq!(v["_status"], 404);
+        assert_eq!(v["error"], "Task not found");
+    });
+}
