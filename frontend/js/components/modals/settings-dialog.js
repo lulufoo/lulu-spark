@@ -218,11 +218,29 @@ async function loadSettingsSnapshot() {
       ? '当前已配置 GitHub Token。输入新 Token 可覆盖。'
       : '当前未配置 GitHub Token。';
 
+    const llm = cfg?.llm ?? {};
+    const platformInput = document.getElementById('settings-llm-platform');
+    const baseUrlInput = document.getElementById('settings-llm-base-url');
+    const modelInput = document.getElementById('settings-llm-model');
+    const llmKeyHint = document.getElementById('settings-llm-key-hint');
+    if (platformInput) platformInput.value = llm.platform ?? '';
+    if (baseUrlInput) baseUrlInput.value = llm.base_url ?? '';
+    if (modelInput) modelInput.value = llm.model ?? '';
+    if (llmKeyHint) {
+      llmKeyHint.textContent = cfg?.has_llm_key
+        ? '当前已配置 API Key。输入新 Key 可覆盖。'
+        : '当前未配置 API Key。';
+    }
+
     await syncGithubUserUrlLockFromWorkbenchRoot();
     syncKbHidePatternInput();
   } catch {
     document.getElementById('settings-token-hint').textContent =
       '读取当前配置失败，可直接输入并保存。';
+    const llmKeyHint = document.getElementById('settings-llm-key-hint');
+    if (llmKeyHint) {
+      llmKeyHint.textContent = '读取当前配置失败，可直接输入并保存。';
+    }
     clearGithubUserUrlInferredLock();
     syncKbHidePatternInput();
   }
@@ -234,7 +252,10 @@ export async function openSettingsDialog() {
   setResult('settings-result-directories', '');
   setResult('settings-result-github', '');
   setResult('settings-result-knowledge', '');
+  setResult('settings-result-llm', '');
   document.getElementById('settings-github-token').value = '';
+  const llmKeyInput = document.getElementById('settings-llm-api-key');
+  if (llmKeyInput) llmKeyInput.value = '';
   switchPanel('directories');
   await loadSettingsSnapshot();
   document.getElementById('settings-dialog').classList.add('open');
@@ -462,6 +483,43 @@ document.getElementById('btn-settings-save-github').addEventListener('click', as
     await loadSettingsSnapshot();
   } catch (e) {
     setResult('settings-result-github', `保存失败：${e.message || String(e)}`, true);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '保存';
+  }
+});
+
+// ── Save: LLM platform / base_url / model / api_key ─────────────────────────
+
+document.getElementById('btn-settings-save-llm')?.addEventListener('click', async () => {
+  const btn = document.getElementById('btn-settings-save-llm');
+  const platform = document.getElementById('settings-llm-platform')?.value.trim() ?? '';
+  const baseUrl = document.getElementById('settings-llm-base-url')?.value.trim() ?? '';
+  const model = document.getElementById('settings-llm-model')?.value.trim() ?? '';
+  const apiKey = document.getElementById('settings-llm-api-key')?.value.trim() ?? '';
+
+  const payload = {
+    llm: {
+      platform,
+      base_url: baseUrl,
+      model,
+    },
+  };
+  if (apiKey) payload.api_key = apiKey;
+
+  btn.disabled = true;
+  btn.textContent = '保存中…';
+  try {
+    const resp = await api.setConfig(payload);
+    if (resp?.error) throw new Error(resp.error);
+    const parts = ['platform', 'base_url', 'model'];
+    if (payload.api_key) parts.push('API Key');
+    setResult('settings-result-llm', `已保存：${parts.join('、')}。`);
+    const keyInput = document.getElementById('settings-llm-api-key');
+    if (keyInput) keyInput.value = '';
+    await loadSettingsSnapshot();
+  } catch (e) {
+    setResult('settings-result-llm', `保存失败：${e.message || String(e)}`, true);
   } finally {
     btn.disabled = false;
     btn.textContent = '保存';

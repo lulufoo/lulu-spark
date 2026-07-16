@@ -11,6 +11,7 @@ const SERVICE: &str = "lulu-workbench";
 
 pub const KEY_GITHUB_TOKEN: &str = "github_token";
 pub const KEY_MEILI_MASTER: &str = "meili_master_key";
+pub const KEY_LLM_API_KEY: &str = "llm_api_key";
 
 #[derive(Debug)]
 pub enum SecretError {
@@ -163,6 +164,14 @@ pub fn has_meili_key() -> bool {
         .unwrap_or(false)
 }
 
+pub fn has_llm_key() -> bool {
+    get_secret(KEY_LLM_API_KEY)
+        .ok()
+        .flatten()
+        .map(|s| !s.is_empty())
+        .unwrap_or(false)
+}
+
 /// Apply token fields from `set_config` payload.
 pub fn apply_token_payload(payload: &serde_json::Value) -> Result<(), SecretError> {
     if let Some(v) = payload.get("github_token").and_then(|x| x.as_str()) {
@@ -177,6 +186,13 @@ pub fn apply_token_payload(payload: &serde_json::Value) -> Result<(), SecretErro
             delete_secret(KEY_MEILI_MASTER)?;
         } else {
             set_secret(KEY_MEILI_MASTER, v)?;
+        }
+    }
+    if let Some(v) = payload.get("api_key").and_then(|x| x.as_str()) {
+        if v.is_empty() {
+            delete_secret(KEY_LLM_API_KEY)?;
+        } else {
+            set_secret(KEY_LLM_API_KEY, v)?;
         }
     }
     Ok(())

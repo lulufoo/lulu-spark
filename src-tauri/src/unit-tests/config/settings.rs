@@ -107,11 +107,89 @@ fn save_roundtrip_updates_file() {
 #[test]
 fn to_config_json_includes_flags_without_token() {
     let s = AppSettings::default();
-    let v = to_config_json(&s, true, false);
+    let v = to_config_json(&s, true, false, false);
     assert_eq!(v["has_github_token"], true);
     assert_eq!(v["has_meili_key"], false);
+    assert_eq!(v["has_llm_key"], false);
     assert!(v.get("github_token").is_none());
     assert!(v.get("meili_master_key").is_none());
+    assert!(v.get("api_key").is_none());
+}
+
+#[test]
+fn to_config_json_includes_llm_fields_without_plaintext_key() {
+    let mut s = AppSettings::default();
+    s.llm.platform = "kimi".into();
+    s.llm.base_url = "https://api.moonshot.cn".into();
+    s.llm.model = "moonshot-v1-8k".into();
+    let v = to_config_json(&s, false, false, true);
+    assert_eq!(v["llm"]["platform"], "kimi");
+    assert_eq!(v["llm"]["base_url"], "https://api.moonshot.cn");
+    assert_eq!(v["llm"]["model"], "moonshot-v1-8k");
+    assert_eq!(v["has_llm_key"], true);
+    assert!(v.get("api_key").is_none());
+    assert!(v["llm"].get("api_key").is_none());
+}
+
+#[test]
+fn apply_config_payload_updates_llm_non_sensitive_fields() {
+    let mut s = AppSettings::default();
+    apply_config_payload(
+        &mut s,
+        &serde_json::json!({
+            "llm": {
+                "platform": "glm",
+                "base_url": "https://open.bigmodel.cn",
+                "model": "glm-4"
+            },
+            "api_key": "should-not-land-in-settings"
+        }),
+    );
+    assert_eq!(s.llm.platform, "glm");
+    assert_eq!(s.llm.base_url, "https://open.bigmodel.cn");
+    assert_eq!(s.llm.model, "glm-4");
+    let text = toml::to_string(&s).expect("serialize");
+    assert!(!text.contains("should-not-land-in-settings"));
+    assert!(!text.contains("api_key"));
+}
+
+#[test]
+fn apply_config_payload_ignores_illegal_llm_types_without_clobber() {
+    let mut s = AppSettings::default();
+    s.llm.platform = "openai_compatible".into();
+    s.llm.base_url = "https://example.com".into();
+    s.llm.model = "gpt-4o".into();
+    apply_config_payload(
+        &mut s,
+        &serde_json::json!({
+            "llm": {
+                "platform": 123,
+                "base_url": true,
+                "model": {"x": 1}
+            }
+        }),
+    );
+    assert_eq!(s.llm.platform, "openai_compatible");
+    assert_eq!(s.llm.base_url, "https://example.com");
+    assert_eq!(s.llm.model, "gpt-4o");
+}
+
+#[test]
+fn llm_fields_roundtrip_in_config_toml_without_api_key() {
+    let dir = tempfile::tempdir().expect("tmp");
+    let _guard = IsolatedConfigGuard::set(dir.path());
+    let mut s = AppSettings::default();
+    s.llm.platform = "openai_compatible".into();
+    s.llm.base_url = "https://api.openai.com".into();
+    s.llm.model = "gpt-4o-mini".into();
+    save(&s).expect("save");
+    let text = fs::read_to_string(config_file_path()).expect("read");
+    assert!(text.contains("[llm]") || text.contains("platform"));
+    assert!(!text.contains("api_key"));
+    let s2 = load().expect("reload");
+    assert_eq!(s2.llm.platform, "openai_compatible");
+    assert_eq!(s2.llm.base_url, "https://api.openai.com");
+    assert_eq!(s2.llm.model, "gpt-4o-mini");
 }
 
 #[test]

@@ -20,6 +20,7 @@ pub fn set_config(_app: AppHandle, payload: Value) -> Result<Value, String> {
         &settings,
         secrets::has_github_token(),
         secrets::has_meili_key(),
+        secrets::has_llm_key(),
     ))
 }
 

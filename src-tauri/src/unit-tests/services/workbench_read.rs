@@ -28,6 +28,10 @@ fn get_config_has_frontend_contract_keys() {
     assert!(v.get("meili_url").is_some());
     assert!(v.get("cache_dir").is_some());
     assert!(v.get("has_github_token").is_some());
+    assert!(v.get("has_llm_key").is_some());
+    assert!(v.get("llm").is_some());
+    assert!(v.get("api_key").is_none());
+    assert!(v["llm"].get("api_key").is_none());
 }
 
 

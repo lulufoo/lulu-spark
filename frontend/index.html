@@ -452,6 +452,7 @@
         <button type="button" class="settings-nav-item active" data-panel="directories">目录</button>
         <button type="button" class="settings-nav-item" data-panel="github">GitHub</button>
         <button type="button" class="settings-nav-item" data-panel="knowledge">知识库</button>
+        <button type="button" class="settings-nav-item" data-panel="llm">LLM</button>
       </nav>
       <div id="settings-panels">
         <div id="settings-panel-directories" class="settings-panel active">
@@ -498,6 +499,31 @@
           <div id="settings-result-github" class="settings-result"></div>
           <div class="settings-panel-actions">
             <button type="button" id="btn-settings-save-github" class="btn-settings-save">保存</button>
+          </div>
+        </div>
+        <div id="settings-panel-llm" class="settings-panel">
+          <div class="settings-panel-title">LLM / 助手</div>
+          <div class="settings-field">
+            <label for="settings-llm-platform">平台（platform）</label>
+            <input id="settings-llm-platform" type="text" spellcheck="false" autocomplete="off" placeholder="openai_compatible / kimi / glm" />
+            <span class="settings-field-hint">影响展示名与默认 base_url；请求方言统一为 OpenAI 兼容。</span>
+          </div>
+          <div class="settings-field">
+            <label for="settings-llm-base-url">Base URL（base_url）</label>
+            <input id="settings-llm-base-url" type="text" spellcheck="false" autocomplete="off" placeholder="https://api.openai.com" />
+          </div>
+          <div class="settings-field">
+            <label for="settings-llm-model">模型（model）</label>
+            <input id="settings-llm-model" type="text" spellcheck="false" autocomplete="off" placeholder="gpt-4o-mini" />
+          </div>
+          <div class="settings-field">
+            <label for="settings-llm-api-key">API Key</label>
+            <input id="settings-llm-api-key" type="password" autocomplete="off" />
+            <span id="settings-llm-key-hint" class="settings-field-hint"></span>
+          </div>
+          <div id="settings-result-llm" class="settings-result"></div>
+          <div class="settings-panel-actions">
+            <button type="button" id="btn-settings-save-llm" class="btn-settings-save">保存</button>
           </div>
         </div>
       </div>

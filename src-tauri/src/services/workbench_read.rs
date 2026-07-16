@@ -52,6 +52,7 @@ pub fn get_config(_repo_root: &Path) -> Value {
         &s,
         secrets::has_github_token(),
         secrets::has_meili_key(),
+        secrets::has_llm_key(),
     )
 }
 

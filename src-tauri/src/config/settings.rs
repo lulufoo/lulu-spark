@@ -41,6 +41,16 @@ pub fn test_mode_kind() -> TestModeKind {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct LlmSettings {
+    #[serde(default)]
+    pub platform: String,
+    #[serde(default)]
+    pub base_url: String,
+    #[serde(default)]
+    pub model: String,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AppSettings {
     #[serde(default = "default_workbench_knowledge_root")]
@@ -53,6 +63,8 @@ pub struct AppSettings {
     pub meili_url: String,
     #[serde(default = "default_github_user_url")]
     pub github_user_url: String,
+    #[serde(default)]
+    pub llm: LlmSettings,
 }
 
 fn home_dir() -> PathBuf {
@@ -145,6 +157,7 @@ impl Default for AppSettings {
             cache_dir: default_cache_dir(),
             meili_url: default_meili_url(),
             github_user_url: default_github_user_url(),
+            llm: LlmSettings::default(),
         }
     }
 }
@@ -388,6 +401,7 @@ pub fn to_config_json(
     settings: &AppSettings,
     has_github_token: bool,
     has_meili_key: bool,
+    has_llm_key: bool,
 ) -> serde_json::Value {
     serde_json::json!({
         "workbench_knowledge_root": settings.workbench_knowledge_root.to_string_lossy(),
@@ -397,6 +411,12 @@ pub fn to_config_json(
         "cache_dir": settings.cache_dir.to_string_lossy(),
         "has_github_token": has_github_token,
         "has_meili_key": has_meili_key,
+        "has_llm_key": has_llm_key,
+        "llm": {
+            "platform": settings.llm.platform,
+            "base_url": settings.llm.base_url,
+            "model": settings.llm.model,
+        },
     })
 }
 
@@ -419,6 +439,17 @@ pub fn apply_config_payload(settings: &mut AppSettings, payload: &serde_json::Va
     }
     if let Some(v) = payload.get("meili_url").and_then(|x| x.as_str()) {
         settings.meili_url = v.to_string();
+    }
+    if let Some(llm) = payload.get("llm").and_then(|x| x.as_object()) {
+        if let Some(v) = llm.get("platform").and_then(|x| x.as_str()) {
+            settings.llm.platform = v.to_string();
+        }
+        if let Some(v) = llm.get("base_url").and_then(|x| x.as_str()) {
+            settings.llm.base_url = v.to_string();
+        }
+        if let Some(v) = llm.get("model").and_then(|x| x.as_str()) {
+            settings.llm.model = v.to_string();
+        }
     }
     // `cache_dir` is not user-settable via API; use `default_cache_dir()` / manual toml edit.
 }
