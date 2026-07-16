@@ -14,6 +14,8 @@ const PLAN_TASK_VITEST = [
   'tests/plan-task-write.test.js',
   'tests/plan-task-preview-edit.test.js',
   'tests/plan-task-ac-gate.test.js',
+  'tests/plan-task-ai-assistant-entry.test.js',
+  'tests/ai-assistant-p4-smoke.test.js',
 ];
 
 const NOTE_FEATURE_VITEST = [

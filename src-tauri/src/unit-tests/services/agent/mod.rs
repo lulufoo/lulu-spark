@@ -284,6 +284,41 @@ fn tools_error_codes_are_from_allowed_set() {
     });
 }
 
+#[test]
+fn tools_update_master_title_success_and_validation_failures() {
+    with_agent_sandbox(|_| {
+        let master_id = create_bound_plan("主标题校验");
+
+        let ok_v = tools::dispatch(
+            "update_master_title",
+            &json!({ "title": "  合法标题  " }),
+            Some(&master_id),
+        );
+        assert_tool_shell_ok(&ok_v);
+        assert_eq!(ok_v["data"]["title"], "合法标题");
+        assert_eq!(ok_v["data"]["master_task_id"], master_id);
+
+        let blank = tools::dispatch(
+            "update_master_title",
+            &json!({ "title": "   \t  " }),
+            Some(&master_id),
+        );
+        assert_tool_shell_err(&blank, "bad_request");
+
+        // title_unit_count: English tokens (words), not characters — 21 words > TITLE_UNIT_LIMIT=20
+        let over = "one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen twenty twentyone";
+        let too_long = tools::dispatch(
+            "update_master_title",
+            &json!({ "title": over }),
+            Some(&master_id),
+        );
+        assert_tool_shell_err(&too_long, "bad_request");
+
+        let after = plan_task::get_by_id(&master_id);
+        assert_eq!(after["title"], "合法标题");
+    });
+}
+
 // ── LLM ──────────────────────────────────────────────────────────────────────
 
 struct MockLlm {

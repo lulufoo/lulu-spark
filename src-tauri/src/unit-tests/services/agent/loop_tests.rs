@@ -398,6 +398,8 @@ fn length_and_http_errors_map_to_error_terminal_no_retry() {
                 }),
             ),
             (401, json!({"error":{"message":"no"}})),
+            (403, json!({"error":{"message":"forbid"}})),
+            (400, json!({"error":{"message":"bad"}})),
             (429, json!({"error":{"message":"slow"}})),
             (500, json!({"error":{"message":"boom"}})),
         ] {
@@ -408,6 +410,127 @@ fn length_and_http_errors_map_to_error_terminal_no_retry() {
             assert_outcome(&out, "error", false);
             assert_eq!(mock.hits.lock().unwrap().len(), 1, "no retry");
         }
+    });
+}
+
+#[test]
+fn run_loop_add_sub_and_update_sub_title_paths_are_observable() {
+    with_sandbox(|| {
+        let master = create_bound_plan("子路径");
+        let listed = plan_task::get_by_id(&master);
+        let sub_id = listed["sub_tasks"][0]["sub_task_id"]
+            .as_str()
+            .unwrap()
+            .to_string();
+
+        let upd_args = format!(
+            "{{\"sub_task_id\":\"{sub_id}\",\"title\":\"改后子标题\"}}"
+        );
+        let mock = spawn_scripted_llm(vec![
+            assistant_tools(
+                json!([{
+                    "id": "c_add",
+                    "type": "function",
+                    "function": {
+                        "name": "add_sub_task",
+                        "arguments": "{\"title\":\"新观察子项\"}"
+                    }
+                }]),
+                None,
+            ),
+            assistant_text("已新增子计划"),
+            assistant_tools(
+                json!([{
+                    "id": "c_upd",
+                    "type": "function",
+                    "function": {
+                        "name": "update_sub_title",
+                        "arguments": upd_args
+                    }
+                }]),
+                None,
+            ),
+            assistant_text("已改子标题"),
+        ]);
+        let mut sess = session::create_session(Some(&master), Some("子路径")).unwrap();
+
+        let out_add = r#loop::run_loop(&mut sess, "加一个子计划叫新观察子项", &cfg_for(&mock));
+        assert_outcome(&out_add, "none", true);
+        let titles_after_add: Vec<_> = plan_task::get_by_id(&master)["sub_tasks"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|s| s["title"].as_str().unwrap().to_string())
+            .collect();
+        assert!(titles_after_add.iter().any(|t| t == "新观察子项"));
+
+        let out_upd = r#loop::run_loop(&mut sess, "把原子项标题改成改后子标题", &cfg_for(&mock));
+        assert_outcome(&out_upd, "none", true);
+        let updated = plan_task::get_by_id(&master);
+        let old = updated["sub_tasks"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|s| s["sub_task_id"] == sub_id)
+            .unwrap();
+        assert_eq!(old["title"], "改后子标题");
+    });
+}
+
+#[test]
+fn terminal_no_plan_unsupported_and_error_are_distinguishable() {
+    with_sandbox(|| {
+        let mock_unused = spawn_scripted_llm(vec![assistant_text("should-not-run")]);
+        let mut unbound = session::create_session(None, None).unwrap();
+        let no_plan = r#loop::run_loop(&mut unbound, "加子计划", &cfg_for(&mock_unused));
+        assert_outcome(&no_plan, "business", false);
+        assert!(
+            no_plan.reply_text.contains("无计划") || no_plan.reply_text.contains("没有"),
+            "{}",
+            no_plan.reply_text
+        );
+
+        let master = create_bound_plan("分型");
+        let mock_unsup = spawn_scripted_llm(vec![assistant_text(
+            "目前不支持删除计划，我只能查看、加子计划或改标题。",
+        )]);
+        let mut sess = session::create_session(Some(&master), Some("分型")).unwrap();
+        let unsupported = r#loop::run_loop(&mut sess, "删掉这个计划", &cfg_for(&mock_unsup));
+        assert_outcome(&unsupported, "business", false);
+        assert!(
+            unsupported.reply_text.contains("目前不支持"),
+            "{}",
+            unsupported.reply_text
+        );
+
+        r#loop::reset_runtime_for_tests();
+        let mock_err = spawn_scripted_llm(vec![(
+            200,
+            json!({
+                "choices": [{
+                    "finish_reason": "length",
+                    "message": { "role": "assistant", "content": "cut" }
+                }]
+            }),
+        )]);
+        let mut sess2 = session::create_session(Some(&master), Some("分型")).unwrap();
+        let tech_err = r#loop::run_loop(&mut sess2, "继续", &cfg_for(&mock_err));
+        assert_outcome(&tech_err, "error", false);
+        assert!(
+            tech_err.reply_text.contains("截断") || tech_err.reply_text.contains("重试"),
+            "{}",
+            tech_err.reply_text
+        );
+
+        assert_ne!(no_plan.reply_text, unsupported.reply_text);
+        assert_ne!(no_plan.reply_text, tech_err.reply_text);
+        assert_ne!(unsupported.reply_text, tech_err.reply_text);
+        assert_ne!(
+            format!("{:?}", no_plan.terminal),
+            format!("{:?}", tech_err.terminal)
+        );
+        assert_eq!(unsupported.terminal, Terminal::Business);
+        assert_eq!(tech_err.terminal, Terminal::Error);
     });
 }
 
