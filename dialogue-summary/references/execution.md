@@ -2,6 +2,9 @@
 
 Runtime orchestration for `dialogue-summary`. Parent agent **orchestrates**; compose work **defaults to a sub-agent**.
 
+Shared spine: [`../../shared/dialogue-execution.md`](../../shared/dialogue-execution.md).  
+Clean contract: [`../../shared/transcript-clean.md`](../../shared/transcript-clean.md).
+
 ---
 
 ## Roles
@@ -13,16 +16,24 @@ Runtime orchestration for `dialogue-summary`. Parent agent **orchestrates**; com
 
 ---
 
+## Script macros
+
+`$SKILL_DIR` = `lulu-workbench-skills` install root (Cursor: `~/.cursor/skills/lulu-workbench-skills`).
+
+| Macro | Command |
+|-------|---------|
+| `$TRANSCRIPT_CLEAN` | `python3 "$SKILL_DIR/scripts/transcript-clean-control.py"` |
+
+---
+
 ## Mechanical clean (required before compose)
 
 **Why:** Cursor jsonl carries tool_use, chrome wrappers, process lines. Clean feedstock improves skeleton extraction and saves tokens.
 
-**Default tool** (reuse `lulu-dialogue-distill`, do not fork rules):
+**Default tool** (package SSOT — do not require a separate `lulu-dialogue-distill` checkout):
 
 ```bash
-python3 "$DISTILL_REPO/scripts/transcript-clean-control.py" \
-  --repo "$DISTILL_REPO" \
-  from-jsonl \
+$TRANSCRIPT_CLEAN from-jsonl \
   --session-id <SESSION_ID> \
   --jsonl <ABS_JSONL> \
   --out <ABS_OUT_CLEAN_RAW.json>
@@ -30,11 +41,12 @@ python3 "$DISTILL_REPO/scripts/transcript-clean-control.py" \
 
 | Variable | Meaning |
 |----------|---------|
-| `$DISTILL_REPO` | Absolute path to `lulu-dialogue-distill` repo (caller supplies; common: `~/Code/lulu-dialogue-distill`) |
 | `<SESSION_ID>` | Cursor session uuid (folder / jsonl basename), **not** a request-id shortcut alone |
 | `<ABS_OUT_CLEAN_RAW.json>` | Eval/default: workspace `.cache/dialogue-summary-<id>-clean-raw.json` |
 
-**Done when:** clean-raw json exists; parent passes its path to the worker. Refuse compose if clean failed.
+Optional turn window: `--turn-from N --turn-to N` (inclusive).
+
+**Done when:** clean-raw json exists; parent passes its path to the worker. Refuse compose if clean failed (`chrome_tags_remaining` non-empty or `user_turns == 0`).
 
 Paste path: no jsonl → skip clean; feedstock = pasted Markdown.
 
@@ -56,11 +68,11 @@ User need **not** say “用 sub-agent / 用 Grok” each run. Override only whe
 ```text
 You are the dialogue-summary worker for one session.
 Load and follow in full:
-  {SKILL_DIR}/SKILL.md
+  {SKILL_DIR}/dialogue-summary/SKILL.md
   and its references/ (especially principles, substance-gate, output-shape, by-user-rules).
 
 ## Input
-SKILL_DIR: {abs}
+SKILL_DIR: {abs package root}
 clean_raw_json: {abs path from mechanical clean}
 scope: full | Turn X～Y | topic filter…
 genre_hint: G-arg | G-mech | infer

@@ -33,6 +33,8 @@ git -C $SKILL_DIR pull --rebase
 
 克隆完成后平台自动发现子 skill（`dialogue-summary`、`dialogue-archive`、`theme-line`、`theme-fetch`、`theme-archive`、`plan-task`），均无需额外操作。digest 为 `shared/digest-workflow` shared 契约，不单独发现。
 
+对话 jsonl 清洗与 archive 渲染脚本在包内 [`scripts/transcript-clean-control.py`](scripts/transcript-clean-control.py)（契约 [`shared/transcript-clean.md`](shared/transcript-clean.md)）；`dialogue-summary` / `dialogue-archive` 共用，parent/worker 编排见 [`shared/dialogue-execution.md`](shared/dialogue-execution.md)。
+
 ## 前置条件
 
 归档 skill 执行前 **Workbench App 必须运行**（MCP `workbench-knowledge` 可用，`http://127.0.0.1:9876/mcp`）。corpus 根目录由 Workbench 管理，**无需**本地配置文件。

@@ -11,15 +11,25 @@ description: >-
 
 # dialogue-archive
 
-> **Read this file in full before executing.** Two mandatory phases:
-> 1. **Dialogue normalization** (verbatim turns)
-> 2. **Save to Archive** — MCP `archive_document` + `archive_digest` when applicable
+> **Read this file in full before executing.** Two phases:
+> 1. **Phase A — Normalize** (mechanical clean + sub-agent metadata / render)
+> 2. **Phase B — Save to Archive** (MCP only after Phase A)
 
-**Renamed from** the former verbatim `dialogue-summary`. Process understanding → `dialogue-summary` (sibling skill in this repo).
+**Not** process summary (`dialogue-summary`). Body stays **verbatim** after chrome strip — no compression.
 
-Normalize the current session (or user-pasted dialogue) into a turn-separated `raw/` document. Body stays **verbatim** except stripping AI折叠思考块 / irrelevant prefixes. **No** compression or summarization.
+Orchestration SSOT: [`../shared/dialogue-execution.md`](../shared/dialogue-execution.md).  
+Clean / render SSOT: [`../shared/transcript-clean.md`](../shared/transcript-clean.md).  
+Skill-local steps: [`references/execution.md`](references/execution.md).
 
-This `SKILL.md` + `references/` are self-contained. Do **not** require files under `dialogue-summary/`.
+---
+
+## Script Macros
+
+`$SKILL_DIR` = `lulu-workbench-skills` install root (Cursor: `~/.cursor/skills/lulu-workbench-skills`).
+
+| Macro | Command |
+|-------|---------|
+| `$TRANSCRIPT_CLEAN` | `python3 "$SKILL_DIR/scripts/transcript-clean-control.py"` |
 
 ---
 
@@ -27,17 +37,15 @@ This `SKILL.md` + `references/` are self-contained. Do **not** require files und
 
 | Source | Description |
 |--------|-------------|
-| A. Current session | All turns in the active chat |
-| B. User paste | User provides a complete dialogue document |
-
-When ambiguous, treat as current session unless the user explicitly pasted a document.
+| A. Current session | Resolve jsonl → `$TRANSCRIPT_CLEAN from-jsonl` → clean-raw |
+| B. User paste | Finished TURN_SEP markdown; skip clean + worker |
 
 ---
 
 ## Core Output Shape
 
 ```markdown
-# <总标题>
+# <Title>
 
 > 创建时间：YYYY年M月D日 HH:MM
 > 来源：dialogue-archive
@@ -58,54 +66,30 @@ When ambiguous, treat as current session unless the user explicitly pasted a doc
 ...
 ```
 
-Rules:
-
-- `<!-- DDM:TURN_SEP:v1 -->` between turns; `## User（Turn N）` / `## AI` headings
-- Body matches source dialogue verbatim (after strip rules)
-- Navigation: digest only; fully resolved; no placeholders
-- `---` required before turn body (MCP parser)
-- `COMMON_PATH` = `<project>/<doc-theme>/<ts>-<slug>.md`
+`COMMON_PATH` = `<project>/<doc-theme>/<ts>-<slug>.md`.  
+Render **only** via `$TRANSCRIPT_CLEAN to-archive-md` (verbatim `u`/`a`).
 
 ---
 
 ## Workflow
 
-1. Confirm Workbench MCP available ([references/archive.md](references/archive.md)).
-2. Select project and doc-theme (kebab-case; else `inbox`).
-3. Build normalized document per § Core Output Shape.
-4. `archive_document` with `source_type: "dialogue"`.
-5. When digest applies (typically 2+ Turn blocks): write digest overview; `archive_digest`.
+### Phase A — Normalize
 
-### Build rules
+1. Confirm Workbench MCP ([references/archive.md](references/archive.md)).
+2. Resolve session jsonl; run `$TRANSCRIPT_CLEAN from-jsonl` → `{workspace}/.cache/dialogue-archive-<sid>-clean-raw.json`. Fail closed on chrome residue / zero turns.
+3. Dispatch **Grok** worker per [`references/execution.md`](references/execution.md) (default; do not re-ask). Worker infers title / project / doc-theme / slug / ts; runs `to-archive-md --omit-empty-ai`; does **not** rewrite turn text; does **not** MCP-archive.
+4. Parent takes archive markdown path from worker receipt.
 
-- Input: all in-scope turns (or paste)
-- Keep wording; only add separators / titles / strip format noise
-- Strip: AI折叠思考块 / irrelevant prefix lines; keep explanatory reasoning that is part of the reply
-- Forbid: compress / rewrite / summarize / `{{…}}` placeholders / nav placeholders
+Paste path: skip steps 2–3 when user pasted a complete document.
 
-### archive_document
+### Phase B — Archive
 
-```json
-{
-  "document": "<full markdown>",
-  "source_type": "dialogue"
-}
-```
-
-Record `id`, `common_path`, `raw_path`.
-
-### archive_digest
-
-When applicable, draft digest (`# 标题 — 摘要`, `> 创建时间：`, `## 概述`) per [digest-workflow](../shared/digest-workflow.md) `[AD-1]`–`[AD-2]`, then:
+1. `archive_document` with `source_type: "dialogue"`.
+2. When digest applies (≥2 Turn blocks): overview per [`../shared/digest-workflow.md`](../shared/digest-workflow.md); `archive_digest`.
 
 ```json
-{
-  "id": "<archive_document id>",
-  "digest": "<full digest markdown>"
-}
+{ "document": "<full markdown>", "source_type": "dialogue" }
 ```
-
-Existing digest → confirm then `"force": true`.
 
 Done:
 
@@ -117,16 +101,27 @@ Done:
 
 ---
 
+## Hard constraints
+
+1. **No hand extract** — Agent MUST NOT parse jsonl or assemble TURN_SEP by hand.
+2. **Verbatim** — `to-archive-md` must not summarize or paraphrase `u`/`a`.
+3. **MCP only** for corpus writes ([`../shared/archive-concepts.md`](../shared/archive-concepts.md)).
+
+---
+
 ## Defaults
 
 - Title: from dialogue topic or first user theme
 - Project: closest topics match; else `inbox`
 - Language: preserve per turn
-- `ts`: archive moment (UTC+8)
+- `ts`: archive moment (UTC+8 `YYYYMMDDHHMM`)
 
 ## References
 
 | Doc | Purpose |
 |-----|---------|
+| [references/execution.md](references/execution.md) | Parent / worker / macros |
 | [references/archive.md](references/archive.md) | MCP paths / HARD-GATE |
-| [digest-workflow](../shared/digest-workflow.md) | digest structure / `[AD-0]`（shared） |
+| [../shared/transcript-clean.md](../shared/transcript-clean.md) | Clean + to-archive-md |
+| [../shared/dialogue-execution.md](../shared/dialogue-execution.md) | Shared parent/worker spine |
+| [../shared/digest-workflow.md](../shared/digest-workflow.md) | Digest `[AD-0]`–`[AD-3]` |

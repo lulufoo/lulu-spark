@@ -35,7 +35,7 @@ SSOT: [references/execution.md](references/execution.md).
 |------|---------|
 | **Who composes** | **Sub-agent worker** — parent orchestrates only (resolve session, clean, dispatch, archive). Do **not** inline Phase A craft unless Paste path or user explicitly asks parent to write. |
 | **Worker model** | **Grok** (`cursor-grok-4.5-high-fast` or current platform Grok slug). Do **not** re-ask every run. |
-| **Feedstock** | Mechanical **clean-raw** from session jsonl **before** Steps 1–6. Prefer `lulu-dialogue-distill` `transcript-clean-control.py from-jsonl` (see execution.md). Compose from clean-raw, **not** raw jsonl. |
+| **Feedstock** | Mechanical **clean-raw** from session jsonl **before** Steps 1–6 via `$SKILL_DIR/scripts/transcript-clean-control.py` ([`../shared/transcript-clean.md`](../shared/transcript-clean.md); [execution.md](references/execution.md)). Compose from clean-raw, **not** raw jsonl. |
 
 Parent happy path: resolve jsonl → clean → dispatch Grok worker → deliver receipt / Phase B.
 
