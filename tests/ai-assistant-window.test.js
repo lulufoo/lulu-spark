@@ -33,6 +33,13 @@ describe('ai-assistant window shell (t5)', () => {
     );
   });
 
+  it('UI pulls get_ai_assistant_binding after listen to heal first-open race', () => {
+    const js = readFileSync(jsPath, 'utf8');
+    expect(js).toMatch(/get_ai_assistant_binding/);
+    expect(aiAssistantCmd).toMatch(/get_ai_assistant_binding/);
+    expect(libRs).toMatch(/get_ai_assistant_binding/);
+  });
+
   it('defines create_or_focus_ai_assistant_window with focus/show', () => {
     expect(libRs).toMatch(/fn create_or_focus_ai_assistant_window\s*\(/);
     const fnBody = libRs.match(

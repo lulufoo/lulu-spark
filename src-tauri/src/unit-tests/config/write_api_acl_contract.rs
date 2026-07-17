@@ -59,7 +59,11 @@ const PLAN_TASK_LIFECYCLE_COMMANDS: &[&str] = &[
 
 const NOTE_WRITE_COMMANDS: &[&str] = &["archive_document"];
 
-const AI_ASSISTANT_WRITE_COMMANDS: &[&str] = &["open_ai_assistant", "agent_chat_turn"];
+const AI_ASSISTANT_WRITE_COMMANDS: &[&str] = &[
+    "open_ai_assistant",
+    "get_ai_assistant_binding",
+    "agent_chat_turn",
+];
 
 #[test]
 fn write_api_toml_and_acl_manifest_allow_lists_match() {

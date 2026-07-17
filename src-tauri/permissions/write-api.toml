@@ -38,6 +38,7 @@ commands.allow = [
   "update_plan_sub",
   "update_plan_master_title",
   "open_ai_assistant",
+  "get_ai_assistant_binding",
   "agent_chat_turn",
   "archive_document",
 ]

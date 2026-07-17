@@ -72,7 +72,8 @@ fn validate_config(config: &LlmConfig) -> Result<(), LlmError> {
 
 fn chat_url(base_url: &str) -> String {
     let base = base_url.trim().trim_end_matches('/');
-    if base.ends_with("/v1") {
+    // OpenAI-style …/v1；智谱 OpenAI 兼容 …/paas/v4（见 https://docs.bigmodel.cn/cn/guide/develop/openai/introduction）
+    if base.ends_with("/v1") || base.ends_with("/v4") {
         format!("{base}/chat/completions")
     } else {
         format!("{base}/v1/chat/completions")

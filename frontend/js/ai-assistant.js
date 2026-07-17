@@ -178,10 +178,28 @@ export function mountAiAssistant(root, opts = {}) {
     });
   }
 
+  /** Heal first-open race: Host may emit before this window's listener is ready. */
+  async function pullBindingFromHost() {
+    const invoke = getTauriInvoke();
+    if (!invoke) return;
+    try {
+      const state = await invoke('get_ai_assistant_binding');
+      if (state && typeof state === 'object' && state.session_id) {
+        applyBinding(state);
+      }
+    } catch {
+      // Non-fatal; event path or later open may still bind.
+    }
+  }
+
   if (autoBind) {
     const fromUrl = bindingFromSearch();
     if (fromUrl) applyBinding(fromUrl);
-    void bindOpenedListener();
+    void (async () => {
+      await bindOpenedListener();
+      // After listen is armed, pull current Host binding (covers missed emit).
+      await pullBindingFromHost();
+    })();
   }
 
   function dispose() {

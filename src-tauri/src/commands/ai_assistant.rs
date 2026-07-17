@@ -12,6 +12,10 @@ pub fn open_ai_assistant_json(master_task_id: &str) -> Result<Value, String> {
     r#loop::open_ai_assistant_core(master_task_id)
 }
 
+pub fn get_ai_assistant_binding_json() -> Value {
+    r#loop::get_ai_assistant_binding_core()
+}
+
 pub fn agent_chat_turn_json(
     session_id: &str,
     message: &str,
@@ -32,6 +36,8 @@ pub async fn open_ai_assistant(
     #[cfg(not(test))]
     {
         crate::create_or_focus_ai_assistant_window(&app).map_err(|e| e.to_string())?;
+        // Existing windows with a listener already attached receive this.
+        // First-open races are healed by get_ai_assistant_binding on mount.
         let _ = app.emit(EVENT_ASSISTANT_OPENED, &result);
     }
     #[cfg(test)]
@@ -40,6 +46,14 @@ pub async fn open_ai_assistant(
     }
 
     Ok(result)
+}
+
+/// Pull current binding after the assistant window mounts (heals emit race on first open).
+#[tauri::command]
+pub async fn get_ai_assistant_binding() -> Result<Value, String> {
+    Ok(tauri::async_runtime::spawn_blocking(get_ai_assistant_binding_json)
+        .await
+        .map_err(|e| e.to_string())?)
 }
 
 #[tauri::command]

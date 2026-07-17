@@ -462,6 +462,7 @@ pub fn run() {
             commands::plan_task::update_plan_sub,
             commands::plan_task::update_plan_master_title,
             commands::ai_assistant::open_ai_assistant,
+            commands::ai_assistant::get_ai_assistant_binding,
             commands::ai_assistant::agent_chat_turn,
             commands::search::reindex_knowledge,
             commands::search::reindex_workbench,

@@ -449,6 +449,18 @@ fn plan_title(master_task_id: &str) -> Option<String> {
         .map(|s| s.to_string())
 }
 
+/// Current open binding for the assistant window (may be empty if never opened).
+pub fn get_ai_assistant_binding_core() -> Value {
+    let rt = runtime().lock().unwrap();
+    json!({
+        "session_id": rt.current_session_id.clone().unwrap_or_default(),
+        "bound_master_task_id": rt.bound_master_task_id.clone().unwrap_or_default(),
+        "bound_title": rt.bound_title.clone().unwrap_or_default(),
+        "window_label": WINDOW_LABEL,
+        "busy": rt.busy,
+    })
+}
+
 pub fn open_ai_assistant_core(master_task_id: &str) -> Result<Value, String> {
     let id = master_task_id.trim();
     if id.is_empty() {
