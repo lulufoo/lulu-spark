@@ -103,7 +103,7 @@ Under `G-mech`, summary must not second-write that SSOT. Declare scope (+ interv
 
 | Mode | Feedstock |
 |------|-----------|
-| Session / jsonl | `clean-raw.json` from `$CLEAN_JSONL` |
+| Session / jsonl | `clean-raw.json` from `$TRANSCRIPT_CLEAN from-jsonl` |
 | Paste | User Markdown (no clean step) |
 
 **Done when:** feedstock path/content available; worker does **not** open raw jsonl for compose.
