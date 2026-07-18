@@ -323,6 +323,10 @@ describe('mountPlanTaskSplit', () => {
     expect(container.querySelector('.plan-task-detail-toolbar [data-action="copy-master-id"]')).toBeNull();
     copyBtn.click();
     expect(writeText).toHaveBeenCalledWith('task_alpha');
+    await vi.waitFor(() => {
+      expect(copyBtn.textContent).toBe('✓ 已复制');
+      expect(copyBtn.classList.contains('plan-task-copy-flash')).toBe(true);
+    });
     dispose();
   });
 

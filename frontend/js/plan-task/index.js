@@ -9,6 +9,9 @@ const MIGRATION_WARNING_MSG = '此待办的数据迁移未完成，部分信息�
 const ATTACHMENTS_EMPTY_MSG = '暂无附件';
 const ATTACHMENT_PICK_CANCEL_MSG = '已取消选择文件';
 const AI_ASSISTANT_TURN_COMPLETED = 'ai-assistant:turn-completed';
+const COPY_MASTER_ID_LABEL = '复制任务 ID';
+const COPY_FEEDBACK_LABEL = '✓ 已复制';
+const COPY_FEEDBACK_MS = 1200;
 
 const STATUS_LABELS = {
   incomplete: '进行中',
@@ -401,7 +404,22 @@ function renderSubEmpty(disabled) {
 
 function renderCopyMasterIdButton(masterTaskId, disabled) {
   const disabledAttr = disabled ? ' disabled' : '';
-  return `<button type="button" class="md-header-btn" data-action="copy-master-id" data-copy-text="${escHtml(masterTaskId)}" title="复制任务 ID"${disabledAttr}>复制任务 ID</button>`;
+  return `<button type="button" class="md-header-btn" data-action="copy-master-id" data-copy-text="${escHtml(masterTaskId)}" title="${COPY_MASTER_ID_LABEL}"${disabledAttr}>${COPY_MASTER_ID_LABEL}</button>`;
+}
+
+function flashCopyFeedback(btn, restoreLabel) {
+  if (!(btn instanceof HTMLElement)) return;
+  const prev = btn._copyFeedbackTimer;
+  if (prev) clearTimeout(prev);
+  btn.textContent = COPY_FEEDBACK_LABEL;
+  btn.classList.remove('plan-task-copy-flash');
+  void btn.offsetWidth;
+  btn.classList.add('plan-task-copy-flash');
+  btn._copyFeedbackTimer = setTimeout(() => {
+    btn.textContent = restoreLabel;
+    btn.classList.remove('plan-task-copy-flash');
+    btn._copyFeedbackTimer = null;
+  }, COPY_FEEDBACK_MS);
 }
 
 function renderPlanMdSection(master, ui) {
@@ -1516,7 +1534,11 @@ export function mountPlanTaskSplit(container, opts = {}) {
       event.stopPropagation();
       const text = actionEl?.dataset.copyText ?? '';
       if (text && navigator.clipboard?.writeText) {
-        void navigator.clipboard.writeText(text);
+        void navigator.clipboard.writeText(text).then(() => {
+          if (action === 'copy-master-id' && actionEl instanceof HTMLElement) {
+            flashCopyFeedback(actionEl, COPY_MASTER_ID_LABEL);
+          }
+        });
       }
       closeSubMenus();
       return;
