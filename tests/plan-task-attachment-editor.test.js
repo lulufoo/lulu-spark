@@ -162,7 +162,8 @@ describe('mountPlanTaskSplit attachment editor modal', () => {
     expect(item).not.toBeNull();
     item.click();
     await vi.waitFor(() => {
-      expect(container.querySelector('.plan-task-attachment-editor')).not.toBeNull();
+      expect(container.querySelector('.plan-task-attachment-preview')).not.toBeNull();
+      expect(container.querySelector('[data-action="edit-attachment"]')).not.toBeNull();
     });
     return api;
   }
@@ -236,9 +237,12 @@ describe('mountPlanTaskSplit attachment editor modal', () => {
       .querySelector('.plan-task-attachment-item[data-file-name="notes.md"]')
       .click();
     await vi.waitFor(() => {
-      expect(container.querySelector('.plan-task-attachment-editor')).not.toBeNull();
+      expect(container.querySelector('.plan-task-attachment-preview')).not.toBeNull();
     });
     const reopened = container.querySelector('.plan-task-attachment-editor');
+    await vi.waitFor(() => {
+      expect(reopened.querySelector('[data-action="edit-attachment"]')).not.toBeNull();
+    });
     reopened.querySelector('[data-action="edit-attachment"]').click();
     await vi.waitFor(() => {
       expect(reopened.querySelector('.plan-task-attachment-edit-area')).not.toBeNull();
@@ -271,7 +275,8 @@ describe('mountPlanTaskSplit attachment editor modal', () => {
       .querySelector('.plan-task-attachment-item[data-file-name="notes.md"]')
       .click();
     await vi.waitFor(() => {
-      expect(container.querySelector('.plan-task-attachment-editor')).not.toBeNull();
+      expect(container.querySelector('.plan-task-attachment-preview')).not.toBeNull();
+      expect(container.querySelector('[data-action="edit-attachment"]')).not.toBeNull();
     });
     const editor = container.querySelector('.plan-task-attachment-editor');
     editor.querySelector('[data-action="edit-attachment"]').click();
