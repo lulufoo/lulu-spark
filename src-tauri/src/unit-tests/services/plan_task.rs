@@ -1893,3 +1893,170 @@ fn add_attachment_unwritable_task_dir_fails_without_half_success() {
         fs::set_permissions(&task_dir, perms).unwrap();
     });
 }
+
+#[test]
+fn list_attachments_returns_manifest_entries_not_directory_scan() {
+    with_plan_task_sandbox(|wb| {
+        let created = create_master_with_subs("List attach", None);
+        let master_id = created["master_task_id"].as_str().unwrap();
+
+        let a = add_attachment(master_id, "a.md", "one");
+        let b = add_attachment(master_id, "b.md", "two");
+        assert_eq!(a["_status"], 201);
+        assert_eq!(b["_status"], 201);
+
+        // Orphan on disk must not appear — list is attachments.json SSOT.
+        fs::create_dir_all(attachments_dir(wb, master_id)).unwrap();
+        fs::write(attachments_dir(wb, master_id).join("orphan.md"), "ghost").unwrap();
+
+        let v = list_attachments(master_id);
+        assert_eq!(v["_status"], 200);
+        let items = v["attachments"].as_array().expect("attachments array");
+        assert_eq!(items.len(), 2);
+        let names: Vec<&str> = items
+            .iter()
+            .map(|e| e["file_name"].as_str().unwrap())
+            .collect();
+        assert_eq!(names, vec!["a.md", "b.md"]);
+        assert!(items.iter().all(|e| e.get("original_file_name").is_some()));
+        assert!(items
+            .iter()
+            .all(|e| is_iso8601(e["added_at"].as_str().unwrap())));
+    });
+}
+
+#[test]
+fn list_attachments_missing_manifest_or_empty_returns_empty_collection() {
+    with_plan_task_sandbox(|wb| {
+        let created = create_master_with_subs("Empty list", None);
+        let master_id = created["master_task_id"].as_str().unwrap();
+
+        assert!(!attachments_json_path(wb, master_id).exists());
+        let missing = list_attachments(master_id);
+        assert_eq!(missing["_status"], 200);
+        assert_eq!(
+            missing["attachments"].as_array().expect("array").len(),
+            0
+        );
+
+        // Explicit empty manifest is also an empty collection (distinguishable success).
+        fs::write(
+            attachments_json_path(wb, master_id),
+            r#"{"attachments":[]}"#,
+        )
+        .unwrap();
+        let empty = list_attachments(master_id);
+        assert_eq!(empty["_status"], 200);
+        assert_eq!(empty["attachments"].as_array().expect("array").len(), 0);
+    });
+}
+
+#[test]
+fn list_attachments_unknown_master_returns_404() {
+    with_plan_task_sandbox(|_| {
+        let v = list_attachments("task_nonexistent_aaaaaaaaaaaaaaaa");
+        assert_eq!(v["_status"], 404);
+        assert_eq!(v["error"], "Task not found");
+    });
+}
+
+#[test]
+fn read_attachment_returns_manifest_file_content() {
+    with_plan_task_sandbox(|_| {
+        let created = create_master_with_subs("Read attach", None);
+        let master_id = created["master_task_id"].as_str().unwrap();
+        let content = "# Body\n\nline";
+
+        let added = add_attachment(master_id, "notes.md", content);
+        assert_eq!(added["_status"], 201);
+
+        let v = read_attachment(master_id, "notes.md");
+        assert_eq!(v["_status"], 200);
+        assert_eq!(v["file_name"], "notes.md");
+        assert_eq!(v["content"], content);
+    });
+}
+
+#[test]
+fn read_attachment_rejects_non_manifest_target() {
+    with_plan_task_sandbox(|wb| {
+        let created = create_master_with_subs("Read reject", None);
+        let master_id = created["master_task_id"].as_str().unwrap();
+        add_attachment(master_id, "listed.md", "ok");
+
+        fs::create_dir_all(attachments_dir(wb, master_id)).unwrap();
+        fs::write(attachments_dir(wb, master_id).join("orphan.md"), "ghost").unwrap();
+
+        let v = read_attachment(master_id, "orphan.md");
+        assert_eq!(v["_status"], 404);
+        assert!(v.get("error").is_some());
+    });
+}
+
+#[test]
+fn save_attachment_writes_content_without_touching_plan_md() {
+    with_plan_task_sandbox(|wb| {
+        let created = create_master_with_subs_and_plan("Save attach", None, "# Plan body");
+        let master_id = created["master_task_id"].as_str().unwrap();
+        let plan_path = wb
+            .join("plan_tasks")
+            .join("tasks")
+            .join(master_id)
+            .join("plan.md");
+        let plan_before = fs::read_to_string(&plan_path).unwrap();
+
+        let added = add_attachment(master_id, "notes.md", "old");
+        assert_eq!(added["_status"], 201);
+
+        let v = save_attachment(master_id, "notes.md", "new content");
+        assert_eq!(v["_status"], 200);
+        assert_eq!(v["ok"], true);
+        assert_eq!(
+            fs::read_to_string(attachments_dir(wb, master_id).join("notes.md")).unwrap(),
+            "new content"
+        );
+        assert_eq!(fs::read_to_string(&plan_path).unwrap(), plan_before);
+        assert_eq!(read_plan_md(master_id)["plan_md"], "# Plan body");
+    });
+}
+
+#[test]
+fn save_attachment_allows_empty_content() {
+    with_plan_task_sandbox(|wb| {
+        let created = create_master_with_subs("Save empty", None);
+        let master_id = created["master_task_id"].as_str().unwrap();
+        add_attachment(master_id, "notes.md", "had text");
+
+        let v = save_attachment(master_id, "notes.md", "");
+        assert_eq!(v["_status"], 200);
+        assert_eq!(v["ok"], true);
+        assert_eq!(
+            fs::read_to_string(attachments_dir(wb, master_id).join("notes.md")).unwrap(),
+            ""
+        );
+    });
+}
+
+#[test]
+fn save_attachment_rejects_non_manifest_target() {
+    with_plan_task_sandbox(|wb| {
+        let created = create_master_with_subs("Save reject", None);
+        let master_id = created["master_task_id"].as_str().unwrap();
+        add_attachment(master_id, "listed.md", "ok");
+
+        fs::create_dir_all(attachments_dir(wb, master_id)).unwrap();
+        fs::write(attachments_dir(wb, master_id).join("orphan.md"), "ghost").unwrap();
+
+        let v = save_attachment(master_id, "orphan.md", "overwrite");
+        assert_eq!(v["_status"], 404);
+        assert!(v.get("error").is_some());
+        assert_eq!(
+            fs::read_to_string(attachments_dir(wb, master_id).join("orphan.md")).unwrap(),
+            "ghost"
+        );
+        assert_eq!(
+            fs::read_to_string(attachments_dir(wb, master_id).join("listed.md")).unwrap(),
+            "ok"
+        );
+    });
+}

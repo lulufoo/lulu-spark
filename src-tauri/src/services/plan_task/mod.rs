@@ -1178,7 +1178,7 @@ fn resolve_unique_attachment_name(
         if !attachment_name_taken(attachments_dir, manifest, &candidate) {
             return candidate;
         }
-        n = n.saturating_add(1);
+        n += 1;
     }
 }
 
@@ -1269,7 +1269,7 @@ pub fn add_attachment(master_task_id: &str, file_name: &str, content: &str) -> V
             added_at: Utc::now().to_rfc3339(),
         };
         let mut updated = previous.clone();
-        updated.attachments.push(entry.clone());
+        updated.attachments.push(entry);
 
         if let Err(e) = write_attachments_file(&manifest_path, &updated) {
             let _ = fs::remove_file(&dest);
@@ -1277,12 +1277,137 @@ pub fn add_attachment(master_task_id: &str, file_name: &str, content: &str) -> V
             return json!({ "error": e, "_status": 500 });
         }
 
+        let stored = updated.attachments.last().expect("just pushed");
         json!({
-            "file_name": entry.file_name,
-            "original_file_name": entry.original_file_name,
-            "added_at": entry.added_at,
+            "file_name": stored.file_name,
+            "original_file_name": stored.original_file_name,
+            "added_at": stored.added_at,
             "_status": 201,
         })
+    })
+}
+
+fn attachment_in_manifest(manifest: &AttachmentsFile, file_name: &str) -> bool {
+    manifest.attachments.iter().any(|e| e.file_name == file_name)
+}
+
+/// List attachments for a plan from `attachments.json` (SSOT; not a directory scan).
+/// Missing manifest → empty collection. Unknown/unreadable plan → error.
+pub fn list_attachments(master_task_id: &str) -> Value {
+    let master_task_id = master_task_id.trim();
+    if master_task_id.is_empty() {
+        return json!({ "error": "Missing id", "_status": 400 });
+    }
+
+    match load_v2_for_read() {
+        Ok(index) => {
+            if !index.tasks.contains_key(master_task_id) {
+                return json!({ "error": "Task not found", "_status": 404 });
+            }
+            let task_dir = match paths::plan_tasks_task_dir(master_task_id) {
+                Ok(p) => p,
+                Err(e) => return json!({ "error": format!("{e:?}"), "_status": 500 }),
+            };
+            let manifest_path = task_dir.join("attachments.json");
+            match load_attachments_file_unlocked(&manifest_path) {
+                Ok(file) => {
+                    let attachments =
+                        serde_json::to_value(&file.attachments).unwrap_or_else(|_| json!([]));
+                    json!({ "attachments": attachments, "_status": 200 })
+                }
+                Err(e) => json!({ "error": e, "_status": 500 }),
+            }
+        }
+        Err(err) => err,
+    }
+}
+
+/// Read on-disk content of a manifest-listed attachment.
+pub fn read_attachment(master_task_id: &str, file_name: &str) -> Value {
+    let master_task_id = master_task_id.trim();
+    if master_task_id.is_empty() {
+        return json!({ "error": "Missing id", "_status": 400 });
+    }
+    let file_name = file_name.trim();
+    if file_name.is_empty() {
+        return json!({ "error": "Invalid file name", "_status": 400 });
+    }
+
+    match load_v2_for_read() {
+        Ok(index) => {
+            if !index.tasks.contains_key(master_task_id) {
+                return json!({ "error": "Task not found", "_status": 404 });
+            }
+            let task_dir = match paths::plan_tasks_task_dir(master_task_id) {
+                Ok(p) => p,
+                Err(e) => return json!({ "error": format!("{e:?}"), "_status": 500 }),
+            };
+            let manifest_path = task_dir.join("attachments.json");
+            let manifest = match load_attachments_file_unlocked(&manifest_path) {
+                Ok(f) => f,
+                Err(e) => return json!({ "error": e, "_status": 500 }),
+            };
+            if !attachment_in_manifest(&manifest, file_name) {
+                return json!({ "error": "Attachment not found", "_status": 404 });
+            }
+            let path = task_dir.join("attachments").join(file_name);
+            match fs::read_to_string(&path) {
+                Ok(content) => json!({
+                    "file_name": file_name,
+                    "content": content,
+                    "_status": 200,
+                }),
+                Err(e) => json!({ "error": e.to_string(), "_status": 500 }),
+            }
+        }
+        Err(err) => err,
+    }
+}
+
+/// Overwrite on-disk content of a manifest-listed attachment. Does not modify `plan.md`.
+pub fn save_attachment(master_task_id: &str, file_name: &str, content: &str) -> Value {
+    let master_task_id = master_task_id.trim();
+    if master_task_id.is_empty() {
+        return json!({ "error": "Missing id", "_status": 400 });
+    }
+    let file_name = file_name.trim();
+    if file_name.is_empty() {
+        return json!({ "error": "Invalid file name", "_status": 400 });
+    }
+
+    with_write_lock(|| {
+        if let Err(e) = ensure_bootstrap() {
+            return bootstrap_error(e);
+        }
+
+        let index = match load_v2_index_unlocked() {
+            Ok(i) => i,
+            Err(LoadOutcome::Corrupt) => return corrupt_storage_error(),
+            Err(LoadOutcome::Missing) | Err(LoadOutcome::Ok) => PlanTasksIndex::default(),
+        };
+
+        if !index.tasks.contains_key(master_task_id) {
+            return json!({ "error": "Task not found", "_status": 404 });
+        }
+
+        let task_dir = match paths::plan_tasks_task_dir(master_task_id) {
+            Ok(p) => p,
+            Err(e) => return json!({ "error": format!("{e:?}"), "_status": 500 }),
+        };
+        let manifest_path = task_dir.join("attachments.json");
+        let manifest = match load_attachments_file_unlocked(&manifest_path) {
+            Ok(f) => f,
+            Err(e) => return json!({ "error": e, "_status": 500 }),
+        };
+        if !attachment_in_manifest(&manifest, file_name) {
+            return json!({ "error": "Attachment not found", "_status": 404 });
+        }
+
+        let path = task_dir.join("attachments").join(file_name);
+        match fs::write(&path, content) {
+            Ok(()) => json!({ "ok": true, "_status": 200 }),
+            Err(e) => json!({ "error": e.to_string(), "_status": 500 }),
+        }
     })
 }
 
