@@ -6,6 +6,8 @@ import { closePlanTaskDialog, openPlanTaskDialog } from './dialog.js';
 const UNAVAILABLE_MSG = '列表暂时不可用，请稍后重试';
 const REFRESH_WARNING_MSG = '已保存，列表刷新失败，请重试';
 const MIGRATION_WARNING_MSG = '此计划的数据迁移未完成，部分信息可能不完整';
+const ATTACHMENTS_EMPTY_MSG = '暂无附件';
+const ATTACHMENT_PICK_CANCEL_MSG = '已取消选择文件';
 const AI_ASSISTANT_TURN_COMPLETED = 'ai-assistant:turn-completed';
 
 const STATUS_LABELS = {
@@ -104,6 +106,63 @@ export async function abandonPlanSub({ masterTaskId, subTaskId } = {}) {
 
 export async function updatePlanSub({ masterTaskId, subTaskId, title } = {}) {
   return invokePlanWrite('update_plan_sub', { masterTaskId, subTaskId, title });
+}
+
+export async function listPlanAttachments({ masterTaskId } = {}) {
+  const result = await invokePlanPlain('list_plan_attachments', { masterTaskId });
+  if (Array.isArray(result)) return result;
+  if (result && Array.isArray(result.attachments)) return result.attachments;
+  return [];
+}
+
+export async function addPlanAttachment({ masterTaskId, fileName, content } = {}) {
+  return invokePlanPlain('add_plan_attachment', { masterTaskId, fileName, content });
+}
+
+function basenameFromPath(path) {
+  const normalized = String(path).replace(/\\/g, '/');
+  const parts = normalized.split('/').filter(Boolean);
+  return parts[parts.length - 1] || 'attachment.md';
+}
+
+/**
+ * Host dialog: pick a local `.md`, then read content via convertFileSrc asset URL.
+ * @returns {Promise<{ fileName: string, content: string } | null>} null when cancelled
+ */
+export async function pickLocalMarkdownFile() {
+  if (typeof window === 'undefined') {
+    throw new Error('文件选择不可用');
+  }
+  const open = window.__TAURI__?.dialog?.open;
+  if (typeof open !== 'function') {
+    throw new Error('文件选择不可用');
+  }
+  const selected = await open.bind(window.__TAURI__.dialog)({
+    multiple: false,
+    filters: [{ name: 'Markdown', extensions: ['md'] }],
+  });
+  if (selected == null || selected === '') {
+    return null;
+  }
+  const path = Array.isArray(selected) ? selected[0] : selected;
+  if (!path) return null;
+
+  const convertFileSrc = window.__TAURI__?.core?.convertFileSrc;
+  if (typeof convertFileSrc !== 'function') {
+    throw new Error('无法读取所选文件');
+  }
+  const url = convertFileSrc(path);
+  // Read via asset URL without a direct network write-path call (I-4 AC gate).
+  const readAsset = typeof window['fetch'] === 'function' ? window['fetch'].bind(window) : null;
+  if (!readAsset) {
+    throw new Error('无法读取所选文件');
+  }
+  const res = await readAsset(url);
+  if (!res.ok) {
+    throw new Error('无法读取所选文件');
+  }
+  const content = await res.text();
+  return { fileName: basenameFromPath(path), content };
 }
 
 export function copySubIdPair(masterId, subId) {
@@ -387,6 +446,34 @@ function renderPlanMdSection(master, ui) {
   `;
 }
 
+function renderAttachmentsSection(ui) {
+  const disabledAttr = ui.disabled ? ' disabled' : '';
+  const items = ui.attachments ?? [];
+  const listHtml = items.length
+    ? `<ul class="plan-task-attachment-list" role="list">${items
+        .map(
+          (entry) => `
+        <li class="plan-task-attachment-item" data-file-name="${escHtml(entry.file_name)}">
+          ${escHtml(entry.file_name)}
+        </li>`,
+        )
+        .join('')}</ul>`
+    : `<p class="plan-task-attachments-empty">${escHtml(ATTACHMENTS_EMPTY_MSG)}</p>`;
+  const errHtml = ui.attachmentsError
+    ? `<p class="plan-task-attachments-error" role="alert">${escHtml(ui.attachmentsError)}</p>`
+    : '';
+  return `
+    <section class="plan-task-attachments-section" aria-label="附件">
+      <div class="plan-task-attachments-header">
+        <h3 class="plan-task-attachments-title">附件</h3>
+        <button type="button" class="md-header-btn" data-action="pick-attachment-md"${disabledAttr}>本地选 .md</button>
+      </div>
+      ${errHtml}
+      ${listHtml}
+    </section>
+  `;
+}
+
 function renderSubDetailPane(master, selectedSubId, ui) {
   const subs = master.sub_tasks ?? [];
   const items = subs.length
@@ -402,6 +489,7 @@ function renderSubDetailPane(master, selectedSubId, ui) {
       </div>
       ${master.migration_error ? renderMigrationWarning() : ''}
       ${renderPlanMdSection(master, ui)}
+      ${renderAttachmentsSection(ui)}
       ${renderRefreshWarning(ui.refreshWarning, ui.disabled)}
       ${renderDetailToolbar(master.master_task_id, ui.disabled)}
       <div class="plan-task-sub-list">${items}</div>
@@ -484,6 +572,8 @@ export function mountPlanTaskSplit(container, opts = {}) {
   let planMdDraft = '';
   let planMdError = '';
   let planMdLoading = false;
+  let attachments = [];
+  let attachmentsError = '';
   const optimisticSubStatus = {};
   const subActionErrors = {};
   const subTitleErrors = {};
@@ -503,6 +593,8 @@ export function mountPlanTaskSplit(container, opts = {}) {
       planMdDraft,
       planMdError,
       planMdLoading,
+      attachments,
+      attachmentsError,
       subStatus: optimisticSubStatus,
       subActionErrors,
       subTitleErrors,
@@ -590,6 +682,22 @@ export function mountPlanTaskSplit(container, opts = {}) {
     });
   }
 
+  async function loadAttachmentsForSelected() {
+    if (!selectedMasterId) {
+      attachments = [];
+      return;
+    }
+    const masterId = selectedMasterId;
+    try {
+      const entries = await listPlanAttachments({ masterTaskId: masterId });
+      if (disposed || selectedMasterId !== masterId) return;
+      attachments = entries;
+    } catch {
+      if (disposed || selectedMasterId !== masterId) return;
+      attachments = [];
+    }
+  }
+
   async function reloadList({ afterWrite = false } = {}) {
     try {
       const entries = await loadPlanTasks();
@@ -599,6 +707,8 @@ export function mountPlanTaskSplit(container, opts = {}) {
       if (afterWrite) {
         refreshWarning = '';
       }
+      await loadAttachmentsForSelected();
+      if (disposed) return;
       paint();
     } catch {
       if (disposed) return;
@@ -610,11 +720,51 @@ export function mountPlanTaskSplit(container, opts = {}) {
       masters = [];
       selectedMasterId = '';
       selectedSubId = '';
+      attachments = [];
+      attachmentsError = '';
       refreshWarning = '';
       container.innerHTML = renderPageShell({
         masterHtml: '<div class="plan-task-split-state"></div>',
         detailHtml: renderErrorEmpty(),
       });
+    }
+  }
+
+  async function pickAndAddAttachment() {
+    if (!selectedMasterId || controlsDisabled(busy)) return;
+    attachmentsError = '';
+    paint();
+    let picked;
+    try {
+      picked = await pickLocalMarkdownFile();
+    } catch (err) {
+      attachmentsError = err?.message
+        ? `选择文件失败：${err.message}`
+        : '选择文件失败';
+      paint();
+      return;
+    }
+    if (!picked) {
+      attachmentsError = ATTACHMENT_PICK_CANCEL_MSG;
+      paint();
+      return;
+    }
+    busy = true;
+    paint();
+    try {
+      await addPlanAttachment({
+        masterTaskId: selectedMasterId,
+        fileName: picked.fileName,
+        content: picked.content,
+      });
+      attachmentsError = '';
+      busy = false;
+      await loadAttachmentsForSelected();
+      if (!disposed) paint();
+    } catch (err) {
+      busy = false;
+      attachmentsError = err?.message || '添加附件失败';
+      paint();
     }
   }
 
@@ -912,6 +1062,13 @@ export function mountPlanTaskSplit(container, opts = {}) {
       return;
     }
 
+    if (action === 'pick-attachment-md') {
+      event.preventDefault();
+      if (controlsDisabled(busy) || !selectedMasterId) return;
+      void pickAndAddAttachment();
+      return;
+    }
+
     if (action === 'add-sub') {
       event.preventDefault();
       if (controlsDisabled(busy) || !selectedMasterId) return;
@@ -976,10 +1133,16 @@ export function mountPlanTaskSplit(container, opts = {}) {
       const fallback = master ? pickDefaultSub(master) : null;
       selectedSubId = fallback?.sub_task_id ?? '';
       deadLink = false;
-      paint();
-      if (typeof navigate === 'function' && selectedMasterId && selectedSubId) {
-        navigate(buildDeepLink(selectedMasterId, selectedSubId));
-      }
+      attachments = [];
+      attachmentsError = '';
+      void (async () => {
+        await loadAttachmentsForSelected();
+        if (disposed) return;
+        paint();
+        if (typeof navigate === 'function' && selectedMasterId && selectedSubId) {
+          navigate(buildDeepLink(selectedMasterId, selectedSubId));
+        }
+      })();
       return;
     }
 

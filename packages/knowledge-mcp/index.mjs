@@ -86,6 +86,17 @@ function toolError(status, text) {
   };
 }
 
+/** Register an MCP tool that forwards its args as JSON via proxyPost. */
+function registerProxyPostTool(server, name, meta, path) {
+  server.registerTool(name, meta, async (args) => {
+    const result = await proxyPost(path, args);
+    if (!result.ok) {
+      return toolError(result.status, result.text);
+    }
+    return { content: [{ type: 'text', text: result.text }] };
+  });
+}
+
 function buildServer() {
   const server = new McpServer(
     { name: 'workbench-knowledge-mcp', version: '0.3.0' },
@@ -373,7 +384,8 @@ function buildServer() {
     },
   );
 
-  server.registerTool(
+  registerProxyPostTool(
+    server,
     'add_plan_attachment',
     {
       description:
@@ -384,20 +396,11 @@ function buildServer() {
         content: z.string().describe('Markdown attachment content'),
       },
     },
-    async ({ master_task_id, file_name, content }) => {
-      const result = await proxyPost('/api/plan-task-add-attachment', {
-        master_task_id,
-        file_name,
-        content,
-      });
-      if (!result.ok) {
-        return toolError(result.status, result.text);
-      }
-      return { content: [{ type: 'text', text: result.text }] };
-    },
+    '/api/plan-task-add-attachment',
   );
 
-  server.registerTool(
+  registerProxyPostTool(
+    server,
     'list_plan_attachments',
     {
       description:
@@ -406,16 +409,11 @@ function buildServer() {
         master_task_id: z.string().trim().min(1).describe('Master task id'),
       },
     },
-    async ({ master_task_id }) => {
-      const result = await proxyPost('/api/plan-task-list-attachments', { master_task_id });
-      if (!result.ok) {
-        return toolError(result.status, result.text);
-      }
-      return { content: [{ type: 'text', text: result.text }] };
-    },
+    '/api/plan-task-list-attachments',
   );
 
-  server.registerTool(
+  registerProxyPostTool(
+    server,
     'get_plan_attachment',
     {
       description:
@@ -425,19 +423,11 @@ function buildServer() {
         file_name: z.string().trim().min(1).describe('Attachment file name'),
       },
     },
-    async ({ master_task_id, file_name }) => {
-      const result = await proxyPost('/api/plan-task-get-attachment', {
-        master_task_id,
-        file_name,
-      });
-      if (!result.ok) {
-        return toolError(result.status, result.text);
-      }
-      return { content: [{ type: 'text', text: result.text }] };
-    },
+    '/api/plan-task-get-attachment',
   );
 
-  server.registerTool(
+  registerProxyPostTool(
+    server,
     'update_plan_attachment',
     {
       description:
@@ -448,17 +438,7 @@ function buildServer() {
         content: z.string().describe('New markdown attachment content'),
       },
     },
-    async ({ master_task_id, file_name, content }) => {
-      const result = await proxyPost('/api/plan-task-update-attachment', {
-        master_task_id,
-        file_name,
-        content,
-      });
-      if (!result.ok) {
-        return toolError(result.status, result.text);
-      }
-      return { content: [{ type: 'text', text: result.text }] };
-    },
+    '/api/plan-task-update-attachment',
   );
 
   return server;
