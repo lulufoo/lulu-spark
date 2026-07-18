@@ -119,6 +119,14 @@ export async function addPlanAttachment({ masterTaskId, fileName, content } = {}
   return invokePlanPlain('add_plan_attachment', { masterTaskId, fileName, content });
 }
 
+export async function readPlanAttachment({ masterTaskId, fileName } = {}) {
+  return invokePlanPlain('read_plan_attachment', { masterTaskId, fileName });
+}
+
+export async function savePlanAttachment({ masterTaskId, fileName, content } = {}) {
+  return invokePlanPlain('save_plan_attachment', { masterTaskId, fileName, content });
+}
+
 function basenameFromPath(path) {
   const normalized = String(path).replace(/\\/g, '/');
   const parts = normalized.split('/').filter(Boolean);
@@ -133,11 +141,11 @@ export async function pickLocalMarkdownFile() {
   if (typeof window === 'undefined') {
     throw new Error('文件选择不可用');
   }
-  const open = window.__TAURI__?.dialog?.open;
-  if (typeof open !== 'function') {
+  const dialog = window.__TAURI__?.dialog;
+  if (typeof dialog?.open !== 'function') {
     throw new Error('文件选择不可用');
   }
-  const selected = await open.bind(window.__TAURI__.dialog)({
+  const selected = await dialog.open({
     multiple: false,
     filters: [{ name: 'Markdown', extensions: ['md'] }],
   });
@@ -148,21 +156,15 @@ export async function pickLocalMarkdownFile() {
   if (!path) return null;
 
   const convertFileSrc = window.__TAURI__?.core?.convertFileSrc;
-  if (typeof convertFileSrc !== 'function') {
-    throw new Error('无法读取所选文件');
-  }
-  const url = convertFileSrc(path);
-  // Read via asset URL without a direct network write-path call (I-4 AC gate).
   const readAsset = typeof window['fetch'] === 'function' ? window['fetch'].bind(window) : null;
-  if (!readAsset) {
+  if (typeof convertFileSrc !== 'function' || !readAsset) {
     throw new Error('无法读取所选文件');
   }
-  const res = await readAsset(url);
+  const res = await readAsset(convertFileSrc(path));
   if (!res.ok) {
     throw new Error('无法读取所选文件');
   }
-  const content = await res.text();
-  return { fileName: basenameFromPath(path), content };
+  return { fileName: basenameFromPath(path), content: await res.text() };
 }
 
 export function copySubIdPair(masterId, subId) {
@@ -453,7 +455,13 @@ function renderAttachmentsSection(ui) {
     ? `<ul class="plan-task-attachment-list" role="list">${items
         .map(
           (entry) => `
-        <li class="plan-task-attachment-item" data-file-name="${escHtml(entry.file_name)}">
+        <li
+          class="plan-task-attachment-item"
+          data-action="open-attachment"
+          data-file-name="${escHtml(entry.file_name)}"
+          role="button"
+          tabindex="0"
+        >
           ${escHtml(entry.file_name)}
         </li>`,
         )
@@ -471,6 +479,58 @@ function renderAttachmentsSection(ui) {
       ${errHtml}
       ${listHtml}
     </section>
+  `;
+}
+
+/**
+ * Viewer-style attachment editor modal: preview by default, edit on demand.
+ * @param {{ fileName: string, content: string, editMode: boolean, error: string, loading: boolean }} editor
+ * @param {boolean} disabled
+ */
+function renderAttachmentEditor(editor, disabled) {
+  const disabledAttr = disabled ? ' disabled' : '';
+  const errHtml = editor.error
+    ? `<p class="plan-task-attachment-error" role="alert">${escHtml(editor.error)}</p>`
+    : '';
+  let bodyHtml;
+  if (editor.loading) {
+    bodyHtml = `<p class="plan-task-attachment-loading">加载中…</p>`;
+  } else if (editor.editMode) {
+    bodyHtml = `
+      ${errHtml}
+      <textarea class="plan-task-attachment-edit-area"${disabledAttr}>${escHtml(editor.content ?? '')}</textarea>
+      <div class="plan-task-attachment-toolbar">
+        <button type="button" class="md-header-btn primary" data-action="save-attachment"${disabledAttr}>保存</button>
+        <button type="button" class="md-header-btn" data-action="cancel-attachment-edit"${disabledAttr}>取消</button>
+      </div>
+    `;
+  } else {
+    const previewHtml = editor.content
+      ? renderCommentMarkdown(editor.content)
+      : '<p class="plan-task-attachment-empty">暂无内容</p>';
+    bodyHtml = `
+      ${errHtml}
+      <div class="plan-task-attachment-preview">${previewHtml}</div>
+    `;
+  }
+  const editBtn =
+    !editor.loading && !editor.editMode
+      ? `<button type="button" class="md-header-btn" data-action="edit-attachment"${disabledAttr}>编辑</button>`
+      : '';
+  return `
+    <div class="plan-task-attachment-editor" role="dialog" aria-modal="true" aria-label="${escHtml(editor.fileName)}">
+      <div class="plan-task-attachment-editor-backdrop" data-action="close-attachment-editor"></div>
+      <div class="plan-task-attachment-editor-panel">
+        <header class="plan-task-attachment-editor-header">
+          <h3 class="plan-task-attachment-editor-title">${escHtml(editor.fileName)}</h3>
+          <div class="plan-task-attachment-editor-actions">
+            ${editBtn}
+            <button type="button" class="md-header-btn" data-action="close-attachment-editor"${disabledAttr}>关闭</button>
+          </div>
+        </header>
+        <div class="plan-task-attachment-editor-body">${bodyHtml}</div>
+      </div>
+    </div>
   `;
 }
 
@@ -574,6 +634,8 @@ export function mountPlanTaskSplit(container, opts = {}) {
   let planMdLoading = false;
   let attachments = [];
   let attachmentsError = '';
+  /** @type {{ fileName: string, content: string, editMode: boolean, error: string, loading: boolean } | null} */
+  let attachmentEditor = null;
   const optimisticSubStatus = {};
   const subActionErrors = {};
   const subTitleErrors = {};
@@ -675,11 +737,126 @@ export function mountPlanTaskSplit(container, opts = {}) {
     }
     const ui = getUi();
     const masterHtml = renderMasterPane(masters, selectedMasterId, ui.disabled);
+    // Keep the same editor element node across paints so in-flight UI refs stay valid.
+    const existingEditor = container.querySelector('.plan-task-attachment-editor');
+    if (existingEditor) existingEditor.remove();
     container.innerHTML = renderPageShell({
       masterHtml,
       detailHtml: renderDetailPane(),
       disabled: ui.disabled,
     });
+    if (!attachmentEditor) return;
+    const nextHtml = renderAttachmentEditor(attachmentEditor, ui.disabled);
+    if (existingEditor) {
+      const tmp = document.createElement('div');
+      tmp.innerHTML = nextHtml;
+      const fresh = tmp.firstElementChild;
+      if (fresh) {
+        existingEditor.innerHTML = fresh.innerHTML;
+        for (const attr of [...fresh.attributes]) {
+          existingEditor.setAttribute(attr.name, attr.value);
+        }
+        container.appendChild(existingEditor);
+        return;
+      }
+    }
+    container.insertAdjacentHTML('beforeend', nextHtml);
+  }
+
+  function closeAttachmentEditor() {
+    attachmentEditor = null;
+  }
+
+  async function openAttachmentEditor(fileName) {
+    if (!selectedMasterId || controlsDisabled(busy) || !fileName) return;
+    const masterTaskId = selectedMasterId;
+    busy = true;
+    paint();
+    try {
+      const result = await readPlanAttachment({ masterTaskId, fileName });
+      if (disposed || selectedMasterId !== masterTaskId) {
+        busy = false;
+        return;
+      }
+      const content =
+        typeof result === 'string' ? result : String(result?.content ?? '');
+      attachmentEditor = {
+        fileName,
+        content,
+        editMode: false,
+        error: '',
+        loading: false,
+      };
+      busy = false;
+      paint();
+    } catch (err) {
+      if (disposed || selectedMasterId !== masterTaskId) {
+        busy = false;
+        return;
+      }
+      attachmentEditor = {
+        fileName,
+        content: '',
+        editMode: false,
+        error: err?.message || '加载附件失败',
+        loading: false,
+      };
+      busy = false;
+      paint();
+    }
+  }
+
+  function enterAttachmentEditMode() {
+    if (!attachmentEditor || attachmentEditor.loading || controlsDisabled(busy)) return;
+    attachmentEditor = { ...attachmentEditor, editMode: true, error: '' };
+    paint();
+  }
+
+  function cancelAttachmentEdit() {
+    if (!attachmentEditor) return;
+    attachmentEditor = { ...attachmentEditor, editMode: false, error: '' };
+    paint();
+  }
+
+  async function saveAttachmentEditor() {
+    if (!attachmentEditor || !selectedMasterId || controlsDisabled(busy)) return;
+    const fileName = attachmentEditor.fileName;
+    const editorEl = container.querySelector('.plan-task-attachment-edit-area');
+    const content =
+      editorEl instanceof HTMLTextAreaElement
+        ? editorEl.value
+        : attachmentEditor.content;
+    attachmentEditor = { ...attachmentEditor, content, error: '' };
+    busy = true;
+    paint();
+    try {
+      await savePlanAttachment({
+        masterTaskId: selectedMasterId,
+        fileName,
+        content,
+      });
+      busy = false;
+      if (disposed) return;
+      attachmentEditor = {
+        fileName,
+        content,
+        editMode: false,
+        error: '',
+        loading: false,
+      };
+      paint();
+    } catch (err) {
+      busy = false;
+      if (disposed) return;
+      attachmentEditor = {
+        fileName,
+        content,
+        editMode: true,
+        error: err?.message || '保存失败',
+        loading: false,
+      };
+      paint();
+    }
   }
 
   async function loadAttachmentsForSelected() {
@@ -1069,6 +1246,43 @@ export function mountPlanTaskSplit(container, opts = {}) {
       return;
     }
 
+    if (action === 'open-attachment') {
+      event.preventDefault();
+      if (controlsDisabled(busy) || !selectedMasterId) return;
+      const fileName = actionEl?.dataset.fileName;
+      if (!fileName) return;
+      void openAttachmentEditor(fileName);
+      return;
+    }
+
+    if (action === 'edit-attachment') {
+      event.preventDefault();
+      if (controlsDisabled(busy)) return;
+      enterAttachmentEditMode();
+      return;
+    }
+
+    if (action === 'save-attachment') {
+      event.preventDefault();
+      if (controlsDisabled(busy)) return;
+      void saveAttachmentEditor();
+      return;
+    }
+
+    if (action === 'cancel-attachment-edit') {
+      event.preventDefault();
+      if (controlsDisabled(busy)) return;
+      cancelAttachmentEdit();
+      return;
+    }
+
+    if (action === 'close-attachment-editor') {
+      event.preventDefault();
+      closeAttachmentEditor();
+      paint();
+      return;
+    }
+
     if (action === 'add-sub') {
       event.preventDefault();
       if (controlsDisabled(busy) || !selectedMasterId) return;
@@ -1126,6 +1340,7 @@ export function mountPlanTaskSplit(container, opts = {}) {
       if (controlsDisabled(busy)) return;
       closeSubMenus();
       resetPlanMdEdit();
+      closeAttachmentEditor();
       clearSubActionState();
       clearSubTitleState();
       selectedMasterId = masterBtn.dataset.masterId;
