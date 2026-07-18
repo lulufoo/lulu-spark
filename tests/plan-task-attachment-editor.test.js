@@ -291,7 +291,7 @@ describe('mountPlanTaskSplit attachment editor modal', () => {
     expect(editor.querySelector('.plan-task-attachment-edit-area').value).toBe(
       'User draft content',
     );
-    expect(editor.textContent).toMatch(/Disk full|保存失败/);
+    expect(editor.textContent).toMatch(/Disk full|Save failed/);
     dispose();
   });
 });

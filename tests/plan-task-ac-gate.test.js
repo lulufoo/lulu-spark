@@ -119,3 +119,63 @@ describe('Plan-task attachment AC gate (tech-doc VF / T15)', () => {
     expect(src).not.toMatch(/\/api\/plan-task-add-attachment/);
   });
 });
+
+const PLAN_TASK_UI_SOURCES = [
+  'frontend/js/plan-task/index.js',
+  'frontend/js/plan-task/dialog.js',
+];
+
+const CJK = /[\u4e00-\u9fff]/;
+
+describe('P2 copy-switch — Plan Tasks UI (tech-doc T3)', () => {
+  it('index.js and dialog.js contain no user-visible Chinese', () => {
+    for (const rel of PLAN_TASK_UI_SOURCES) {
+      const src = read(rel);
+      expect(src, rel).not.toMatch(CJK);
+    }
+  });
+
+  it('status labels use table B English', () => {
+    const index = read('frontend/js/plan-task/index.js');
+    expect(index).toContain("incomplete: 'In progress'");
+    expect(index).toContain("complete: 'Completed'");
+    expect(index).toContain("abandoned: 'Abandoned'");
+  });
+
+  it('empty states and toolbar use table B ∪ B2 English', () => {
+    const index = read('frontend/js/plan-task/index.js');
+    expect(index).toContain('No todos yet');
+    expect(index).toContain('Create your first todo to manage sub-tasks');
+    expect(index).toContain('+ New todo');
+    expect(index).toContain('Select a todo on the left');
+    expect(index).toContain('Linked archives:');
+    expect(index).toContain('aria-label="Todos list"');
+    expect(index).toContain('aria-label="Task details"');
+    expect(index).toContain('Just now');
+    expect(index).toContain('minutes ago');
+    expect(index).toContain('toLocaleDateString(\'en-US\')');
+  });
+
+  it('dialog.js uses table B ∪ B2 English for CRUD copy', () => {
+    const dialog = read('frontend/js/plan-task/dialog.js');
+    expect(dialog).toContain('New todo');
+    expect(dialog).toContain('Create todo');
+    expect(dialog).toContain('Please enter a todo name');
+    expect(dialog).toContain('If you skip sub-tasks, the todo will have none');
+    expect(dialog).toContain('Delete todo?');
+    expect(dialog).toContain('Delete sub-task?');
+    expect(dialog).toContain('Saving…');
+    expect(dialog).toContain('Parent todo:');
+    expect(dialog).toContain('Initial sub-tasks (optional)');
+  });
+
+  it('API routes and invoke commands remain unchanged', () => {
+    const index = read('frontend/js/plan-task/index.js');
+    expect(index).toContain("client.getJson('/api/plan-tasks')");
+    expect(index).toContain('#/plan-tasks');
+    expect(index).toContain('create_plan_task');
+    expect(index).toContain('delete_plan_task');
+    expect(index).toContain('add_plan_sub');
+    expect(index).toContain('delete_plan_sub');
+  });
+});

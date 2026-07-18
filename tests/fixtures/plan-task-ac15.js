@@ -14,7 +14,7 @@ export const PLAN_TASK_BRAND_SITES = [
   },
   {
     path: 'frontend/js/plan-task/index.js',
-    mustMatch: [/aria-label="Todos列表"/],
+    mustMatch: [/aria-label="Todos list"/],
     mustNotMatch: NO_LEGACY_BRAND,
   },
   {

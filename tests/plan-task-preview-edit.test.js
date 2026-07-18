@@ -24,7 +24,7 @@ import {
   updatePlanMd,
 } from '../frontend/js/plan-task/index.js';
 
-const REFRESH_WARNING_MSG = '已保存，列表刷新失败，请重试';
+const REFRESH_WARNING_MSG = 'Saved, but list refresh failed — retry';
 
 const sampleMaster = {
   master_task_id: 'task_alpha',
@@ -62,8 +62,8 @@ function setupTauri() {
 }
 
 describe('formatPlanTaskStatus abandoned label', () => {
-  it('includes abandoned Chinese label', () => {
-    expect(formatPlanTaskStatus('abandoned')).toBe('已废弃');
+  it('includes abandoned English label', () => {
+    expect(formatPlanTaskStatus('abandoned')).toBe('Abandoned');
   });
 });
 
@@ -236,7 +236,7 @@ describe('mountPlanTaskSplit plan_md preview and edit', () => {
       expect(container.querySelector('.plan-task-plan-md-error')).not.toBeNull();
     });
     expect(container.querySelector('.plan-task-plan-md-editor').value).toBe('User draft content');
-    expect(container.textContent).toMatch(/Disk full|保存失败/);
+    expect(container.textContent).toMatch(/Disk full|Save failed/);
     dispose();
   });
 
@@ -371,7 +371,7 @@ describe('mountPlanTaskSplit status select actions', () => {
     });
     await vi.waitFor(() => {
       expect(statusSelect('task_alpha_sub_01').value).toBe('abandoned');
-      expect(statusSelect('task_alpha_sub_01').textContent).toContain('已废弃');
+      expect(statusSelect('task_alpha_sub_01').textContent).toContain('Abandoned');
     });
     dispose();
   });

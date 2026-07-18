@@ -136,22 +136,22 @@ describe('copySubIdPair', () => {
 });
 
 describe('formatPlanTaskStatus', () => {
-  it('maps incomplete, complete, and abandoned to Chinese labels', () => {
-    expect(formatPlanTaskStatus('incomplete')).toBe('进行中');
-    expect(formatPlanTaskStatus('complete')).toBe('已完成');
-    expect(formatPlanTaskStatus('abandoned')).toBe('已废弃');
+  it('maps incomplete, complete, and abandoned to English labels', () => {
+    expect(formatPlanTaskStatus('incomplete')).toBe('In progress');
+    expect(formatPlanTaskStatus('complete')).toBe('Completed');
+    expect(formatPlanTaskStatus('abandoned')).toBe('Abandoned');
   });
 });
 
 describe('renderSubDetail', () => {
-  it('renders all subs with Chinese status labels and copy in menu', () => {
+  it('renders all subs with English status labels and copy in menu', () => {
     const html = renderSubDetail(sampleMasters[0], 'task_alpha_sub_01');
     expect(html).toContain('Alpha Sub A');
     expect(html).toContain('Alpha Sub B');
     expect(html).toContain('Alpha Sub C');
-    expect(html).toContain('进行中');
-    expect(html).toContain('已完成');
-    expect(html).toContain('已废弃');
+    expect(html).toContain('In progress');
+    expect(html).toContain('Completed');
+    expect(html).toContain('Abandoned');
     expect(html).toContain('data-copy-text="task_alpha → task_alpha_sub_01"');
     expect(html).toContain('data-copy-text="task_alpha → task_alpha_sub_02"');
   });
@@ -165,7 +165,7 @@ describe('renderSubDetail', () => {
 
   it('renders linked_archive_ids as comma list with prefix', () => {
     const html = renderSubDetail(sampleMasters[0], 'task_alpha_sub_01');
-    expect(html).toContain('关联归档：');
+    expect(html).toContain('Linked archives:');
     expect(html).toContain('arch_001, arch_002');
   });
 
@@ -324,7 +324,7 @@ describe('mountPlanTaskSplit', () => {
     copyBtn.click();
     expect(writeText).toHaveBeenCalledWith('task_alpha');
     await vi.waitFor(() => {
-      expect(copyBtn.textContent).toBe('✓ 已复制');
+      expect(copyBtn.textContent).toBe('✓ Copied');
       expect(copyBtn.classList.contains('plan-task-copy-flash')).toBe(true);
     });
     dispose();
@@ -337,7 +337,7 @@ describe('mountPlanTaskSplit', () => {
     });
     await vi.waitFor(() => {
       expect(container.querySelector('.plan-task-empty--detail')).not.toBeNull();
-      expect(container.textContent).toContain('还没有子任务');
+      expect(container.textContent).toContain('No sub-tasks yet');
       expect(container.querySelector('[data-action="add-sub"]')).not.toBeNull();
       expect(container.querySelector('.plan-task-split-state--error')).toBeNull();
     });
@@ -352,7 +352,7 @@ describe('mountPlanTaskSplit', () => {
     });
     await vi.waitFor(() => {
       expect(container.querySelector('.plan-task-migration-warning')).not.toBeNull();
-      expect(container.textContent).toMatch(/迁移|数据/);
+      expect(container.textContent).toMatch(/migration|data/i);
       expect(container.querySelector('.plan-task-sub-list .plan-task-sub')).not.toBeNull();
       expect(container.querySelector('[data-action="add-sub"]')).not.toBeNull();
     });

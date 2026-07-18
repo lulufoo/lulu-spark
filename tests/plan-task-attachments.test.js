@@ -203,7 +203,7 @@ describe('mountPlanTaskSplit attachment list + add', () => {
     expect(container.textContent).toContain('notes.md');
     expect(container.textContent).toContain('spec.md');
     expect(container.querySelector('[data-action="pick-attachment-md"]')).not.toBeNull();
-    expect(container.textContent).toContain('本地选 .md');
+    expect(container.textContent).toContain('Choose local .md');
     dispose();
   });
 
@@ -305,7 +305,7 @@ describe('mountPlanTaskSplit attachment list + add', () => {
     await vi.waitFor(() => {
       const err = container.querySelector('.plan-task-attachments-error');
       expect(err).not.toBeNull();
-      expect(err.textContent).toMatch(/dialog unavailable|选择文件失败|选文件/);
+      expect(err.textContent).toMatch(/dialog unavailable|Failed to pick file|pick file/i);
     });
     dispose();
   });

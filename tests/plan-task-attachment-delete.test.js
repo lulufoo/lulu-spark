@@ -171,7 +171,7 @@ describe('mountPlanTaskSplit attachment delete entry', () => {
       '.plan-task-attachment-delete-confirm, [data-attachment-delete-confirm]',
     );
     expect(confirmUi).not.toBeNull();
-    expect(confirmUi.textContent).toMatch(/附件|notes\.md/);
+    expect(confirmUi.textContent).toMatch(/attachment|notes\.md/i);
     expect(confirmUi.textContent).not.toMatch(/删除计划|子任务/);
     expect(document.getElementById('plan-task-dialog')?.classList.contains('open')).not.toBe(
       true,

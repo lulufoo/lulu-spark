@@ -45,7 +45,7 @@ describe('F3 copy sync — dialog.js', () => {
     const body = document.getElementById('plan-task-dialog-body');
     const hint = body?.querySelector('.plan-task-dialog-hint')?.textContent?.trim() ?? '';
     expect(hint).not.toMatch(/默认子任务/);
-    expect(hint).toMatch(/不含.*子任务|无子任务/);
+    expect(hint).toMatch(/skip sub-tasks|no sub-tasks|will have none/i);
   });
 });
 

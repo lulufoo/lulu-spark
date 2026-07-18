@@ -54,7 +54,7 @@ function setSubmitLoading(loading) {
   cancel.disabled = loading;
   if (loading) {
     primary.dataset.originalLabel = primary.textContent ?? '';
-    primary.textContent = '保存中…';
+    primary.textContent = 'Saving…';
   } else if (primary.dataset.originalLabel) {
     primary.textContent = primary.dataset.originalLabel;
     delete primary.dataset.originalLabel;
@@ -80,16 +80,16 @@ function renderSubTitleRows(rows = ['']) {
             type="text"
             class="plan-task-dialog-field"
             data-sub-row-input
-            placeholder="子任务 ${index + 1}"
+            placeholder="Sub-task ${index + 1}"
             value="${escHtml(value)}"
           />
-          <button type="button" class="plan-task-dialog-row-remove" data-action="remove-sub-row" aria-label="移除"${rows.length <= 1 ? ' disabled' : ''}>×</button>
+          <button type="button" class="plan-task-dialog-row-remove" data-action="remove-sub-row" aria-label="Remove"${rows.length <= 1 ? ' disabled' : ''}>×</button>
         </div>`,
         )
         .join('')}
     </div>
-    <button type="button" class="plan-task-dialog-add-row" data-action="add-sub-row">+ 添加子任务行</button>
-    <p class="plan-task-dialog-hint">不填写子任务时，待办将不含任何子任务</p>
+    <button type="button" class="plan-task-dialog-add-row" data-action="add-sub-row">+ Add sub-task row</button>
+    <p class="plan-task-dialog-hint">If you skip sub-tasks, the todo will have none</p>
   `;
 }
 
@@ -107,15 +107,15 @@ function renderDialogBody(type, payload) {
   primary.classList.remove('danger');
 
   if (type === 'create-master') {
-    title.textContent = '新建待办';
-    primary.textContent = '创建待办';
+    title.textContent = 'New todo';
+    primary.textContent = 'Create todo';
     body.innerHTML = `
       <label class="plan-task-dialog-label">
-        <span class="plan-task-dialog-label-text">待办名称 <span class="plan-task-dialog-required">*</span></span>
-        <input type="text" class="plan-task-dialog-field" data-field="title" placeholder="例如：FM-4 UI 优化" />
+        <span class="plan-task-dialog-label-text">Todo name <span class="plan-task-dialog-required">*</span></span>
+        <input type="text" class="plan-task-dialog-field" data-field="title" placeholder="e.g. FM-4 UI polish" />
       </label>
       <div class="plan-task-dialog-section">
-        <span class="plan-task-dialog-label-text">初始子任务（可选）</span>
+        <span class="plan-task-dialog-label-text">Initial sub-tasks (optional)</span>
         ${renderSubTitleRows([''])}
       </div>
     `;
@@ -123,39 +123,39 @@ function renderDialogBody(type, payload) {
   }
 
   if (type === 'add-sub') {
-    title.textContent = '添加子任务';
-    primary.textContent = '添加';
+    title.textContent = 'Add sub-task';
+    primary.textContent = 'Add';
     body.innerHTML = `
-      <p class="plan-task-dialog-readonly">所属待办：${escHtml(String(payload.masterTitle ?? ''))}</p>
+      <p class="plan-task-dialog-readonly">Parent todo:${escHtml(String(payload.masterTitle ?? ''))}</p>
       <label class="plan-task-dialog-label">
-        <span class="plan-task-dialog-label-text">子任务名称 <span class="plan-task-dialog-required">*</span></span>
-        <input type="text" class="plan-task-dialog-field" data-field="title" placeholder="必填" />
+        <span class="plan-task-dialog-label-text">Sub-task name <span class="plan-task-dialog-required">*</span></span>
+        <input type="text" class="plan-task-dialog-field" data-field="title" placeholder="Required" />
       </label>
     `;
     return;
   }
 
   if (type === 'delete-master') {
-    title.textContent = '删除待办？';
-    primary.textContent = '删除待办';
+    title.textContent = 'Delete todo?';
+    primary.textContent = 'Delete todo';
     primary.classList.add('danger');
     const subCount = Number(payload.subCount ?? 0);
     body.innerHTML = `
       <p class="plan-task-dialog-message">
-        将永久删除「${escHtml(String(payload.masterTitle ?? ''))}」及其下 ${subCount} 个子任务。
-        此操作无法撤销。
+        Permanently delete “${escHtml(String(payload.masterTitle ?? ''))}” and its ${subCount} sub-tasks.
+        This cannot be undone.
       </p>
     `;
     return;
   }
 
   if (type === 'delete-sub') {
-    title.textContent = '删除子任务？';
-    primary.textContent = '删除';
+    title.textContent = 'Delete sub-task?';
+    primary.textContent = 'Delete';
     primary.classList.add('danger');
     body.innerHTML = `
       <p class="plan-task-dialog-message">
-        将删除「${escHtml(String(payload.subTitle ?? ''))}」。
+        Delete “${escHtml(String(payload.subTitle ?? ''))}”.
       </p>
     `;
   }
@@ -240,7 +240,7 @@ async function handleSubmit(type) {
   if (type === 'create-master') {
     const title = body.querySelector('[data-field="title"]')?.value?.trim() ?? '';
     if (!title) {
-      setDialogError('请填写待办名称');
+      setDialogError('Please enter a todo name');
       return;
     }
     const subTitles = collectSubTitleRows();
@@ -250,7 +250,7 @@ async function handleSubmit(type) {
       await submitHandler({ title, subTitles: subTitles.length ? subTitles : undefined });
       closePlanTaskDialog();
     } catch (err) {
-      setDialogError(err?.message || '操作失败');
+      setDialogError(err?.message || 'Operation failed');
       setSubmitLoading(false);
     }
     return;
@@ -259,7 +259,7 @@ async function handleSubmit(type) {
   if (type === 'add-sub') {
     const title = body.querySelector('[data-field="title"]')?.value?.trim() ?? '';
     if (!title) {
-      setDialogError('请填写子任务名称');
+      setDialogError('Please enter a sub-task name');
       return;
     }
     setSubmitLoading(true);
@@ -268,7 +268,7 @@ async function handleSubmit(type) {
       await submitHandler({ title });
       closePlanTaskDialog();
     } catch (err) {
-      setDialogError(err?.message || '操作失败');
+      setDialogError(err?.message || 'Operation failed');
       setSubmitLoading(false);
     }
     return;
@@ -280,7 +280,7 @@ async function handleSubmit(type) {
     await submitHandler({});
     closePlanTaskDialog();
   } catch (err) {
-    setDialogError(err?.message || '操作失败');
+    setDialogError(err?.message || 'Operation failed');
     setSubmitLoading(false);
   }
 }
