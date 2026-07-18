@@ -2248,3 +2248,94 @@ fn delete_master_without_attachments_matches_existing_behavior() {
         assert_eq!(get_by_id(master_id)["_status"], 404);
     });
 }
+
+// --- T15 AC regression locks (tech-doc VF AC1/AC3/AC6) ---
+
+#[test]
+fn ac15_stem_conflict_appends_suffix_and_keeps_originals() {
+    with_plan_task_sandbox(|wb| {
+        let created = create_master_with_subs("AC15 suffix", None);
+        let master_id = created["master_task_id"].as_str().unwrap();
+
+        assert_eq!(add_attachment(master_id, "doc.md", "a")["_status"], 201);
+        let second = add_attachment(master_id, "doc.md", "b");
+        assert_eq!(second["_status"], 201);
+        assert_eq!(second["file_name"], "doc-1.md");
+        assert_eq!(second["original_file_name"], "doc.md");
+
+        assert_eq!(
+            fs::read_to_string(attachments_dir(wb, master_id).join("doc.md")).unwrap(),
+            "a"
+        );
+        assert_eq!(
+            fs::read_to_string(attachments_dir(wb, master_id).join("doc-1.md")).unwrap(),
+            "b"
+        );
+        let listed = list_attachments(master_id);
+        assert_eq!(listed["_status"], 200);
+        let names: Vec<&str> = listed["attachments"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|e| e["file_name"].as_str().unwrap())
+            .collect();
+        assert_eq!(names, vec!["doc.md", "doc-1.md"]);
+    });
+}
+
+#[test]
+fn ac15_add_manifest_failure_rolls_back_without_half_success() {
+    with_plan_task_sandbox(|wb| {
+        let created = create_master_with_subs("AC15 rollback", None);
+        let master_id = created["master_task_id"].as_str().unwrap();
+        assert_eq!(add_attachment(master_id, "keep.md", "keep")["_status"], 201);
+        let before = load_attachments_file(wb, master_id);
+
+        test_set_fail_add_attachment_manifest(true);
+        let v = add_attachment(master_id, "ghost.md", "ghost");
+        assert_eq!(v["_status"], 500);
+        assert!(!attachments_dir(wb, master_id).join("ghost.md").exists());
+        assert_eq!(load_attachments_file(wb, master_id), before);
+    });
+}
+
+#[test]
+fn ac15_delete_clears_manifest_entry_and_file() {
+    with_plan_task_sandbox(|wb| {
+        let created = create_master_with_subs("AC15 dual clear", None);
+        let master_id = created["master_task_id"].as_str().unwrap();
+        assert_eq!(add_attachment(master_id, "gone.md", "x")["_status"], 201);
+
+        let v = delete_attachment(master_id, "gone.md");
+        assert_eq!(v["_status"], 200);
+        assert!(!attachments_dir(wb, master_id).join("gone.md").exists());
+        assert!(load_attachments_file(wb, master_id)
+            .attachments
+            .iter()
+            .all(|e| e.file_name != "gone.md"));
+        assert_eq!(
+            list_attachments(master_id)["attachments"]
+                .as_array()
+                .unwrap()
+                .len(),
+            0
+        );
+    });
+}
+
+#[test]
+fn ac15_empty_list_and_non_md_reject() {
+    with_plan_task_sandbox(|wb| {
+        let created = create_master_with_subs("AC15 boundary", None);
+        let master_id = created["master_task_id"].as_str().unwrap();
+
+        let empty = list_attachments(master_id);
+        assert_eq!(empty["_status"], 200);
+        assert_eq!(empty["attachments"].as_array().unwrap().len(), 0);
+
+        let rejected = add_attachment(master_id, "notes.txt", "nope");
+        assert_eq!(rejected["_status"], 400);
+        assert!(!attachments_dir(wb, master_id).exists());
+        assert!(!attachments_json_path(wb, master_id).exists());
+    });
+}

@@ -669,3 +669,35 @@ fn delete_plan_attachment_json_unknown_returns_404_class() {
         assert_eq!(v["_status"], 404);
     });
 }
+
+#[test]
+fn ac15_command_add_rejects_non_md_and_lists_empty() {
+    with_commands_plan_test(|| {
+        let created = create_plan_task_json("AC15 cmd", None, "").expect("create");
+        let master_id = created["master_task_id"].as_str().expect("id");
+
+        let listed = list_plan_attachments_json(master_id).expect("list");
+        assert!(listed.get("_status").is_none());
+        assert_eq!(listed["attachments"].as_array().expect("arr").len(), 0);
+
+        let rejected = add_plan_attachment_json(master_id, "x.txt", "nope").expect("invoke");
+        assert_eq!(rejected["_status"], 400);
+        assert_eq!(rejected["error"], "Only .md attachments are supported");
+    });
+}
+
+#[test]
+fn ac15_command_delete_dual_clear_via_list() {
+    with_commands_plan_test(|| {
+        let created = create_plan_task_json("AC15 del cmd", None, "").expect("create");
+        let master_id = created["master_task_id"].as_str().expect("id").to_string();
+        add_plan_attachment_json(&master_id, "notes.md", "body").expect("add");
+
+        let deleted = delete_plan_attachment_json(&master_id, "notes.md").expect("delete");
+        assert!(deleted.get("_status").is_none());
+        assert_eq!(deleted["ok"], true);
+
+        let listed = list_plan_attachments_json(&master_id).expect("list");
+        assert!(listed["attachments"].as_array().expect("arr").is_empty());
+    });
+}
