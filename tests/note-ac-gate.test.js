@@ -87,7 +87,7 @@ describe('Note AC gate (tech-doc VF / T-13)', () => {
       'frontend/js/components/kb-viewer.js',
     ]) {
       const src = read(rel);
-      expect(src, rel).toMatch(/批注/);
+      expect(src, rel).toMatch(/Comment/);
       expect(src, rel).not.toMatch(/添加笔记|编辑笔记|删除笔记/);
     }
     const indexSrc = read('frontend/index.html');
@@ -98,7 +98,7 @@ describe('Note AC gate (tech-doc VF / T-13)', () => {
   it('AC-7: archive failure keeps create session + draft (behavioral probe present)', () => {
     const viewer = read('frontend/js/components/viewer.js');
     expect(viewer).toMatch(/session\.status = 'creating'/);
-    expect(viewer).toMatch(/alert\(`保存失败：\$\{e\.message\}`\)/);
+    expect(viewer).toMatch(/alert\(`Save failed: \$\{e\.message\}`\)/);
     const behavioral = read('tests/viewer-create-note.test.js');
     expect(behavioral).toMatch(/archive failure: alert, keep create session \+ draft/);
     expect(behavioral).toMatch(/no Annotation API/);

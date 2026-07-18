@@ -1,7 +1,7 @@
 import { createApiClient, resolveReadDriver } from '../apiClient.js';
 import { escHtml } from '../utils.js';
 
-const UNAVAILABLE_MSG = '列表暂时不可用，请稍后重试';
+const UNAVAILABLE_MSG = 'List temporarily unavailable. Please try again later';
 
 function getTauriInvoke() {
   if (typeof window === 'undefined') return null;
@@ -126,9 +126,9 @@ function renderTabs(activeFilter) {
   const allActive = activeFilter === 'all' ? ' read-later-tab--active' : '';
   const unreadActive = activeFilter === 'unread' ? ' read-later-tab--active' : '';
   return `
-    <div class="read-later-tabs" role="tablist" aria-label="待读筛选">
-      <button type="button" class="read-later-tab${allActive}" data-filter="all" role="tab" aria-selected="${activeFilter === 'all'}">所有</button>
-      <button type="button" class="read-later-tab${unreadActive}" data-filter="unread" role="tab" aria-selected="${activeFilter === 'unread'}">未读</button>
+    <div class="read-later-tabs" role="tablist" aria-label="Filter read-later">
+      <button type="button" class="read-later-tab${allActive}" data-filter="all" role="tab" aria-selected="${activeFilter === 'all'}">All</button>
+      <button type="button" class="read-later-tab${unreadActive}" data-filter="unread" role="tab" aria-selected="${activeFilter === 'unread'}">Unread</button>
     </div>
   `;
 }
@@ -145,13 +145,13 @@ function renderLinkEntry(entry) {
         <span class="read-later-link-title">${title}</span>
         ${meta}
       </a>
-      <button type="button" class="read-later-delete" data-id="${escHtml(entry.id)}" aria-label="删除">×</button>
+      <button type="button" class="read-later-delete" data-id="${escHtml(entry.id)}" aria-label="Delete">×</button>
     </li>
   `;
 }
 
 function emptyMessage(filter) {
-  return filter === 'unread' ? '暂无待读' : '暂无条目';
+  return filter === 'unread' ? 'No items to read later' : 'No items';
 }
 
 function renderUnavailableBanner(message = UNAVAILABLE_MSG) {
@@ -218,7 +218,7 @@ export function mountReadLaterList(container, opts = {}) {
   let refreshPromise = null;
   let listHost = container;
 
-  container.innerHTML = '<div class="read-later-loading">加载中…</div>';
+  container.innerHTML = '<div class="read-later-loading">Loading…</div>';
 
   function ensureChrome() {
     if (!showTabs) {
@@ -230,14 +230,14 @@ export function mountReadLaterList(container, opts = {}) {
       updateTabState(container, filter);
       return;
     }
-    container.innerHTML = `${renderTabs(filter)}<div class="read-later-list-host"><div class="read-later-loading">加载中…</div></div>`;
+    container.innerHTML = `${renderTabs(filter)}<div class="read-later-list-host"><div class="read-later-loading">Loading…</div></div>`;
     listHost = container.querySelector('.read-later-list-host');
   }
 
   function renderEntries({ showUnavailable = false, message = UNAVAILABLE_MSG } = {}) {
     ensureChrome();
     if (!lastSuccessfulEntries) {
-      listHost.innerHTML = '<div class="read-later-loading">加载中…</div>';
+      listHost.innerHTML = '<div class="read-later-loading">Loading…</div>';
       return;
     }
     paintList(listHost, lastSuccessfulEntries, { filter, showUnavailable, message });
@@ -251,7 +251,7 @@ export function mountReadLaterList(container, opts = {}) {
     refreshPromise = (async () => {
       const hasSnapshot = lastSuccessfulEntries !== null;
       if (!hasSnapshot) {
-        container.innerHTML = '<div class="read-later-loading">加载中…</div>';
+        container.innerHTML = '<div class="read-later-loading">Loading…</div>';
       }
 
       try {
@@ -313,7 +313,7 @@ export function mountReadLaterList(container, opts = {}) {
           deleteBtn.disabled = false;
           const errEl = document.createElement('div');
           errEl.className = 'read-later-action-error';
-          errEl.textContent = err?.message || '删除失败';
+          errEl.textContent = err?.message || 'Delete failed';
           item.appendChild(errEl);
         });
       return;
@@ -347,7 +347,7 @@ export function mountReadLaterList(container, opts = {}) {
             if (disposed || !item) return;
             const errEl = document.createElement('div');
             errEl.className = 'read-later-action-error';
-            errEl.textContent = err?.message || '标记已读失败';
+            errEl.textContent = err?.message || 'Failed to mark as read';
             item.appendChild(errEl);
           });
       })
@@ -355,7 +355,7 @@ export function mountReadLaterList(container, opts = {}) {
         if (disposed || !item) return;
         const errEl = document.createElement('div');
         errEl.className = 'read-later-action-error';
-        errEl.textContent = err?.message || '打开链接失败';
+        errEl.textContent = err?.message || 'Failed to open link';
         item.appendChild(errEl);
       });
   };

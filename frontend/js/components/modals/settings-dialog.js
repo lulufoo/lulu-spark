@@ -3,7 +3,7 @@ import { setGithubUserUrl } from '../../constants.js';
 import { getKbHidePattern, saveKbHidePattern } from '../../kb-hide-pattern.js';
 
 const GITHUB_USER_HINT_DEFAULT =
-  '个人 GitHub 地址，用于 Viewer 远程链接与沉淀来源；可与 Token 一并保存。';
+  'Your GitHub profile URL for Viewer remote links and promotion sources; may be saved with a Token.';
 
 // ── Nav switching ──────────────────────────────────────────────────────────
 
@@ -61,7 +61,7 @@ function setGithubUserUrlInferredLock(inferredUrl, locked) {
     input.classList.add('settings-input-readonly');
     setGithubUserUrl(inferredUrl);
     hint.textContent =
-      '已从工作台目录 git origin 推断（不可手动修改；请改工作台目录或仓库 remote）';
+      'Inferred from workbench directory git origin (read-only; change the workbench directory or repo remote)';
     hint.style.color = '#1a7f37';
   } else {
     githubUserUrlInferredFromOrigin = '';
@@ -107,7 +107,7 @@ async function syncGithubUserUrlLockFromWorkbenchRoot() {
     clearGithubUserUrlInferredLock();
     setResult(
       'settings-result-github',
-      `无法推断 GitHub 主页：${e.message || String(e)}。若刚更新 App，请完全重启后再试。`,
+      `Could not infer GitHub profile: ${e.message || String(e)}. If you just updated the app, fully restart and try again.`,
       true,
     );
     return;
@@ -118,7 +118,7 @@ async function syncGithubUserUrlLockFromWorkbenchRoot() {
     clearGithubUserUrlInferredLock();
     setResult(
       'settings-result-github',
-      '未检测到 git origin，无法推断 GitHub 主页；请手动填写。',
+      'No git origin detected; could not infer GitHub profile — enter it manually.',
       false,
     );
     return;
@@ -132,7 +132,7 @@ async function syncGithubUserUrlLockFromWorkbenchRoot() {
     clearGithubUserUrlInferredLock();
     setResult(
       'settings-result-github',
-      `已填 ${current} 与 origin 推断 ${inferred} 不一致，请清空或改工作台目录后再推断。`,
+      `Entered ${current} does not match origin inference ${inferred}; clear the field or change the workbench directory, then retry.`,
       true,
     );
   }
@@ -215,24 +215,24 @@ async function loadSettingsSnapshot() {
 
     const hintEl = document.getElementById('settings-token-hint');
     hintEl.textContent = cfg?.has_github_token
-      ? '当前已配置 GitHub Token。输入新 Token 可覆盖。'
-      : '当前未配置 GitHub Token。';
+      ? 'GitHub Token configured. Enter a new token to replace it.'
+      : 'No GitHub Token configured.';
 
     const llm = cfg?.llm ?? {};
     document.getElementById('settings-llm-platform').value = llm.platform ?? '';
     document.getElementById('settings-llm-base-url').value = llm.base_url ?? '';
     document.getElementById('settings-llm-model').value = llm.model ?? '';
     document.getElementById('settings-llm-key-hint').textContent = cfg?.has_llm_key
-      ? '当前已配置 API Key。输入新 Key 可覆盖。'
-      : '当前未配置 API Key。';
+      ? 'API key configured. Enter a new key to replace it.'
+      : 'No API key configured.';
 
     await syncGithubUserUrlLockFromWorkbenchRoot();
     syncKbHidePatternInput();
   } catch {
     document.getElementById('settings-token-hint').textContent =
-      '读取当前配置失败，可直接输入并保存。';
+      'Could not load settings; you can type and save.';
     document.getElementById('settings-llm-key-hint').textContent =
-      '读取当前配置失败，可直接输入并保存。';
+      'Could not load settings; you can type and save.';
     clearGithubUserUrlInferredLock();
     syncKbHidePatternInput();
   }
@@ -269,7 +269,7 @@ document.getElementById('settings-archive-root').addEventListener('input', () =>
   }
 });
 
-// ── Workbench root blur: infer GitHub 主页 ─────────────────────────────────
+// ── Workbench root blur: infer GitHub profile ─────────────────────────────────
 
 document.getElementById('settings-archive-root').addEventListener('blur', async () => {
   const root = document.getElementById('settings-archive-root').value.trim();
@@ -280,7 +280,7 @@ document.getElementById('settings-archive-root').addEventListener('blur', async 
   if (!inference.ok && inference.conflict) {
     setResult(
       'settings-result-directories',
-      `未保存该目录：与 GitHub 页已填主页不一致（已填 ${inference.existing}，origin 推断 ${inference.inferred}）。请先在 GitHub 页修正或清空主页后再改目录。`,
+      `Directory not saved: GitHub profile on the GitHub tab (${inference.existing}) does not match origin inference (${inference.inferred}). Fix or clear the profile on the GitHub tab before changing the directory.`,
       true,
     );
     return;
@@ -288,7 +288,7 @@ document.getElementById('settings-archive-root').addEventListener('blur', async 
   if (inference.locked && inference.inferred) {
     setResult(
       'settings-result-directories',
-      `已根据 git origin 推断 GitHub 主页（已锁定，请在「GitHub」页保存）。`,
+      `GitHub profile inferred from git origin (locked — save on the GitHub tab).`,
       false,
     );
     setResult('settings-result-github', '');
@@ -298,7 +298,7 @@ document.getElementById('settings-archive-root').addEventListener('blur', async 
   if (inference.noRemote) {
     setResult(
       'settings-result-directories',
-      '未检测到 git origin，无法自动推断 GitHub 主页；可在「GitHub」页手动填写。',
+      'No git origin detected; could not auto-infer GitHub profile — enter it manually on the GitHub tab.',
       false,
     );
   }
@@ -314,7 +314,7 @@ document.getElementById('btn-settings-save-directories').addEventListener('click
   const githubUserInput = document.getElementById('settings-github-user-url');
 
   if (!workbenchKnowledgeRoot && !knowledgeCorpusRoot) {
-    setResult('settings-result-directories', '请填写至少一个目录路径。', true);
+    setResult('settings-result-directories', 'Enter at least one directory path.', true);
     return;
   }
 
@@ -328,7 +328,7 @@ document.getElementById('btn-settings-save-directories').addEventListener('click
       if (check?.ok === false) {
         setResult(
           'settings-result-directories',
-          check.error || '工作台目录无效，未保存。',
+          check.error || 'Workbench directory invalid; not saved.',
           true,
         );
         includeWorkbenchRoot = false;
@@ -337,7 +337,7 @@ document.getElementById('btn-settings-save-directories').addEventListener('click
     } catch (e) {
       setResult(
         'settings-result-directories',
-        `工作台目录校验失败：${e.message || String(e)}`,
+        `Workbench directory validation failed: ${e.message || String(e)}`,
         true,
       );
       includeWorkbenchRoot = false;
@@ -350,7 +350,7 @@ document.getElementById('btn-settings-save-directories').addEventListener('click
     if (!inference.ok && inference.conflict) {
       setResult(
         'settings-result-directories',
-        `保存已取消：工作台目录与 GitHub 主页不一致（已填 ${inference.existing}，origin 推断 ${inference.inferred}）。未写入 workbench_knowledge_root。`,
+        `Save cancelled: workbench directory and GitHub profile do not match (entered ${inference.existing}, origin inference ${inference.inferred}). workbench_knowledge_root was not written.`,
         true,
       );
       includeWorkbenchRoot = false;
@@ -359,7 +359,7 @@ document.getElementById('btn-settings-save-directories').addEventListener('click
       }
     } else if (inference.locked && inference.inferred) {
       includeGithubUrl = true;
-      messages.push(`已推断并锁定 GitHub 主页 ${inference.inferred}`);
+      messages.push(`Inferred and locked GitHub profile ${inference.inferred}`);
     }
   }
 
@@ -379,7 +379,7 @@ document.getElementById('btn-settings-save-directories').addEventListener('click
   }
 
   btn.disabled = true;
-  btn.textContent = '保存中…';
+  btn.textContent = 'Saving…';
   try {
     const resp = await api.setConfig(payload);
     if (resp?.error) throw new Error(resp.error);
@@ -387,18 +387,18 @@ document.getElementById('btn-settings-save-directories').addEventListener('click
       setGithubUserUrl(payload.github_user_url);
     }
     const parts = [];
-    if (payload.workbench_knowledge_root) parts.push('工作台知识库目录');
-    if (payload.knowledge_corpus_root) parts.push('沉淀知识库目录');
-    if (payload.github_user_url) parts.push('GitHub 主页');
-    let msg = `已保存：${parts.join('、')}。`;
+    if (payload.workbench_knowledge_root) parts.push('Workbench knowledge directory');
+    if (payload.knowledge_corpus_root) parts.push('Knowledge corpus directory');
+    if (payload.github_user_url) parts.push('GitHub profile');
+    let msg = `Saved: ${parts.join(', ')}.`;
     if (messages.length) msg += ` ${messages.join('；')}`;
     setResult('settings-result-directories', msg);
     await loadSettingsSnapshot();
   } catch (e) {
-    setResult('settings-result-directories', `保存失败：${e.message || String(e)}`, true);
+    setResult('settings-result-directories', `Save failed: ${e.message || String(e)}`, true);
   } finally {
     btn.disabled = false;
-    btn.textContent = '保存';
+    btn.textContent = 'Save';
   }
 });
 
@@ -408,21 +408,21 @@ document.getElementById('btn-settings-save-knowledge').addEventListener('click',
   const btn = document.getElementById('btn-settings-save-knowledge');
   const pattern = document.getElementById('settings-kb-hide-pattern').value;
   btn.disabled = true;
-  btn.textContent = '保存中…';
+  btn.textContent = 'Saving…';
   try {
     const result = saveKbHidePattern(pattern);
     if (!result.ok) {
-      setResult('settings-result-knowledge', `无效正则：${result.error}`, true);
+      setResult('settings-result-knowledge', `Invalid regex: ${result.error}`, true);
       return;
     }
-    setResult('settings-result-knowledge', '已保存隐藏规则。');
+    setResult('settings-result-knowledge', 'Hide rules saved.');
   } finally {
     btn.disabled = false;
-    btn.textContent = '保存';
+    btn.textContent = 'Save';
   }
 });
 
-// ── Save: GitHub 主页 + Token ───────────────────────────────────────────────
+// ── Save: GitHub profile + Token ───────────────────────────────────────────────
 
 document.getElementById('btn-settings-save-github').addEventListener('click', async () => {
   const btn = document.getElementById('btn-settings-save-github');
@@ -441,17 +441,17 @@ document.getElementById('btn-settings-save-github').addEventListener('click', as
     if (locked) {
       setResult(
         'settings-result-github',
-        `GitHub 主页已锁定为 ${githubUserUrlInferredFromOrigin}，无需重复保存；如需更新 Token 请填写后保存。`,
+        `GitHub profile is locked to ${githubUserUrlInferredFromOrigin}; no need to save again. To update the Token, enter it and save.`,
         false,
       );
     } else {
-      setResult('settings-result-github', '请填写 GitHub 主页或 Token。', true);
+      setResult('settings-result-github', 'Enter a GitHub profile URL or Token.', true);
     }
     return;
   }
 
   btn.disabled = true;
-  btn.textContent = '保存中…';
+  btn.textContent = 'Saving…';
   try {
     const resp = await api.setConfig(payload);
     if (resp?.error) throw new Error(resp.error);
@@ -460,23 +460,23 @@ document.getElementById('btn-settings-save-github').addEventListener('click', as
       savedSnapshot.githubUserUrl = githubUserUrl;
     }
     const parts = [];
-    if (payload.github_user_url) parts.push('GitHub 主页');
+    if (payload.github_user_url) parts.push('GitHub profile');
     if (payload.github_token) parts.push('Token');
     if (locked && !payload.github_user_url) {
       setResult(
         'settings-result-github',
-        `已保存${parts.length ? `：${parts.join('、')}` : ''}。GitHub 主页保持推断值 ${githubUserUrlInferredFromOrigin}。`,
+        `Saved${parts.length ? `：${parts.join('、')}` : ''}. GitHub profile remains inferred value ${githubUserUrlInferredFromOrigin}。`,
       );
     } else {
-      setResult('settings-result-github', `已保存：${parts.join('、')}。`);
+      setResult('settings-result-github', `Saved: ${parts.join(', ')}.`);
     }
     document.getElementById('settings-github-token').value = '';
     await loadSettingsSnapshot();
   } catch (e) {
-    setResult('settings-result-github', `保存失败：${e.message || String(e)}`, true);
+    setResult('settings-result-github', `Save failed: ${e.message || String(e)}`, true);
   } finally {
     btn.disabled = false;
-    btn.textContent = '保存';
+    btn.textContent = 'Save';
   }
 });
 
@@ -499,19 +499,19 @@ document.getElementById('btn-settings-save-llm').addEventListener('click', async
   if (apiKey) payload.api_key = apiKey;
 
   btn.disabled = true;
-  btn.textContent = '保存中…';
+  btn.textContent = 'Saving…';
   try {
     const resp = await api.setConfig(payload);
     if (resp?.error) throw new Error(resp.error);
     const parts = ['platform', 'base_url', 'model'];
     if (payload.api_key) parts.push('API Key');
-    setResult('settings-result-llm', `已保存：${parts.join('、')}。`);
+    setResult('settings-result-llm', `Saved: ${parts.join(', ')}.`);
     document.getElementById('settings-llm-api-key').value = '';
     await loadSettingsSnapshot();
   } catch (e) {
-    setResult('settings-result-llm', `保存失败：${e.message || String(e)}`, true);
+    setResult('settings-result-llm', `Save failed: ${e.message || String(e)}`, true);
   } finally {
     btn.disabled = false;
-    btn.textContent = '保存';
+    btn.textContent = 'Save';
   }
 });

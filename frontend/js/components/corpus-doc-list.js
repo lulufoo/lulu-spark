@@ -137,7 +137,7 @@ export function mountCorpusDocList(container, { repo, navigate, initialPath }) {
 
     sidebarEl.innerHTML = rootNodes.length
       ? renderNodes(rootNodes)
-      : '<div class="corpus-doc-empty">仓库为空</div>';
+      : '<div class="corpus-doc-empty">Repository is empty</div>';
   }
 
   async function reloadFromDisk() {
@@ -234,7 +234,7 @@ export function mountCorpusDocList(container, { repo, navigate, initialPath }) {
     if (!repos.length) return;
 
     const { picker, sync } = createFloatingListSelect({
-      ariaLabel: '选择知识库',
+      ariaLabel: 'Select knowledge library',
       pickerClass: 'corpus-repo-picker',
       value: repo,
       options: buildRepoPickerOptions(repos),
@@ -293,7 +293,7 @@ export function mountCorpusDocList(container, { repo, navigate, initialPath }) {
         node.expanded = false;
         const sidebarEl = container.querySelector('.corpus-doc-sidebar-tree');
         if (sidebarEl) {
-          sidebarEl.innerHTML = `<div class="corpus-doc-error">${escHtml(err?.message || '加载失败')}</div>`;
+          sidebarEl.innerHTML = `<div class="corpus-doc-error">${escHtml(err?.message || 'Failed to load')}</div>`;
         }
         throw err;
       }
@@ -362,7 +362,7 @@ export function mountCorpusDocList(container, { repo, navigate, initialPath }) {
     })();
   };
 
-  container.innerHTML = '<div class="corpus-doc-loading">加载中…</div>';
+  container.innerHTML = '<div class="corpus-doc-loading">Loading…</div>';
 
   void (async () => {
     try {
@@ -372,7 +372,7 @@ export function mountCorpusDocList(container, { repo, navigate, initialPath }) {
 
       if (!repo) {
         if (repos.length === 0) {
-          container.innerHTML = '<div class="corpus-doc-error">暂无沉淀知识库</div>';
+          container.innerHTML = '<div class="corpus-doc-error">No knowledge libraries yet</div>';
           return;
         }
         navigate('#/corpus/' + encodeURIComponent(repos[0].full_name));
@@ -393,7 +393,7 @@ export function mountCorpusDocList(container, { repo, navigate, initialPath }) {
       }
     } catch (err) {
       if (disposed) return;
-      container.innerHTML = `<div class="corpus-doc-error">${escHtml(err?.message || '加载失败')}</div>`;
+      container.innerHTML = `<div class="corpus-doc-error">${escHtml(err?.message || 'Failed to load')}</div>`;
     }
   })();
 

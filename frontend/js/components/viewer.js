@@ -40,27 +40,27 @@ export async function openCommitDialog() {
   msgInput.value = '';
   resultEl.textContent = '';
   resultEl.style.color = '';
-  fileList.innerHTML = '<div style="font-size:12px;color:#8c959f;">加载中…</div>';
+  fileList.innerHTML = '<div style="font-size:12px;color:#8c959f;">Loading…</div>';
   okBtn.disabled = false;
   dialog.classList.add('open');
 
   try {
     const data = await api.fetchDiffStatus();
-    if (!data) throw new Error('无法获取状态');
+    if (!data) throw new Error('Could not get status');
     if (data.error) throw new Error(data.error);
 
     if (!data.total && !data.ahead) {
-      fileList.innerHTML = '<div style="font-size:13px;color:#8c959f;padding:4px 0;">没有待提交的变更</div>';
+      fileList.innerHTML = '<div style="font-size:13px;color:#8c959f;padding:4px 0;">No changes to commit</div>';
       okBtn.disabled = true;
       return;
     }
 
     const GROUPS = [
-      { key: 'new',        label: '新增' },
-      { key: 'modified',   label: '修改' },
-      { key: 'deleted',    label: '删除' },
-      { key: 'renamed',    label: '重命名' },
-      { key: 'conflicted', label: '冲突' },
+      { key: 'new',        label: 'New' },
+      { key: 'modified',   label: 'Modified' },
+      { key: 'deleted',    label: 'Deleted' },
+      { key: 'renamed',    label: 'Renamed' },
+      { key: 'conflicted', label: 'Conflict' },
     ];
     let html = '<div style="display:flex;flex-direction:column;gap:10px;">';
     for (const { key, label } of GROUPS) {
@@ -69,7 +69,7 @@ export async function openCommitDialog() {
           <div class="commit-file-group-title">${label}（${data[key].length}）</div>
           ${data[key].map(f => `<div class="commit-file-item ${key}">
             <span>${escHtml(f)}</span>
-            <button class="kb-revert-btn" data-path="${escHtml(f)}" data-type="${key}">撤销</button>
+            <button class="kb-revert-btn" data-path="${escHtml(f)}" data-type="${key}">Revert</button>
           </div>`).join('')}
         </div>`;
       }
@@ -77,7 +77,7 @@ export async function openCommitDialog() {
     html += '</div>';
     fileList.innerHTML = html;
   } catch (e) {
-    fileList.innerHTML = `<div style="font-size:12px;color:#cf222e;">获取状态失败：${escHtml(e.message)}</div>`;
+    fileList.innerHTML = `<div style="font-size:12px;color:#cf222e;">Failed to get status: ${escHtml(e.message)}</div>`;
   }
 }
 
@@ -167,8 +167,8 @@ export async function renderDocBody(text, layer, commonPath) {
   zone.className = 'md-body-delete-zone';
   const delBtn = document.createElement('button');
   delBtn.id = 'btn-delete';
-  delBtn.textContent = '🗑 删除此条目';
-  delBtn.title = '删除此条目的所有关联文件（raw / distilled / trace / digest / diagnose）';
+  delBtn.textContent = '🗑 Delete this entry';
+  delBtn.title = 'Deletes all linked files (raw / distilled / trace / digest / diagnose)';
   delBtn.addEventListener('click', () => openDeleteDialog());
   zone.appendChild(delBtn);
   body.appendChild(zone);
@@ -234,7 +234,7 @@ export async function openDoc(entry, layer = 'raw') {
   updateHeaderUrls(entry, layer, activePath);
   updateLangBar(entry);
   document.getElementById('md-file-size').textContent = '';
-  body.innerHTML = '<div style="color:#8c959f;padding:20px;font-size:13px;">加载中…</div>';
+  body.innerHTML = '<div style="color:#8c959f;padding:20px;font-size:13px;">Loading…</div>';
   modal.style.display = 'flex';
   document.body.style.overflow = 'hidden';
 
@@ -246,7 +246,7 @@ export async function openDoc(entry, layer = 'raw') {
   if (annResult.status === 'fulfilled') state.viewer.annotation = annResult.value || {};
 
   if (mdResult.status === 'rejected') {
-    body.innerHTML = `<div style="color:#7d4e00;padding:20px">无法加载文件：${escHtml(mdResult.reason.message)}</div>`;
+    body.innerHTML = `<div style="color:#7d4e00;padding:20px">Could not load file: ${escHtml(mdResult.reason.message)}</div>`;
     document.getElementById('btn-edit').style.display = 'none';
     return;
   }
@@ -285,7 +285,7 @@ export async function switchLang(lang) {
   updateHeaderUrls(entry, layer, activePath);
   updateLangBar(entry);
 
-  body.innerHTML = '<div style="color:#8c959f;padding:20px;font-size:13px;">加载中…</div>';
+  body.innerHTML = '<div style="color:#8c959f;padding:20px;font-size:13px;">Loading…</div>';
 
   try {
     const text = await api.fetchFileContent(layer, activePath);
@@ -303,7 +303,7 @@ export async function switchLang(lang) {
     const saved = state.viewer.scrollCache[cacheKey];
     if (saved != null) requestAnimationFrame(() => { body.scrollTop = saved; });
   } catch (e) {
-    body.innerHTML = `<div style="color:#7d4e00;padding:20px">无法加载文件：${escHtml(e.message)}</div>`;
+    body.innerHTML = `<div style="color:#7d4e00;padding:20px">Could not load file: ${escHtml(e.message)}</div>`;
   }
 }
 
@@ -357,7 +357,7 @@ export async function saveDoc() {
   const newContent = editArea.value;
   const btnSave = document.getElementById('btn-save');
   btnSave.disabled = true;
-  btnSave.textContent = '保存中…';
+  btnSave.textContent = 'Saving…';
 
   try {
     const activePath = getActivePath(state.viewer.entry, state.viewer.lang, state.viewer.layer);
@@ -383,10 +383,10 @@ export async function saveDoc() {
     updateDiffInDOM();
     showPendingBadge();
   } catch (e) {
-    alert(`保存失败：${e.message}`);
+    alert(`Save failed: ${e.message}`);
   } finally {
     btnSave.disabled = false;
-    btnSave.textContent = '💾 保存';
+    btnSave.textContent = '💾 Save';
   }
 }
 
@@ -414,7 +414,7 @@ export async function commitCurrentFile() {
   const resultEl = document.getElementById('md-commit-result');
   const btn = document.getElementById('btn-commit-file');
   btn.disabled = true;
-  btn.textContent = '提交中…';
+  btn.textContent = 'Committing…';
   resultEl.style.color = '#57606a';
   resultEl.textContent = '';
 
@@ -425,7 +425,7 @@ export async function commitCurrentFile() {
     if (data.error) throw new Error(data.error + (data.stderr ? '\n' + data.stderr : ''));
 
     resultEl.style.color = '#1a7f37';
-    resultEl.textContent = '✓ 已推送！';
+    resultEl.textContent = '✓ Pushed!';
     await loadDiffStatus();
     updateDiffInDOM();
     document.dispatchEvent(new CustomEvent('cta:reload'));
@@ -435,7 +435,7 @@ export async function commitCurrentFile() {
     resultEl.textContent = `✗ ${e.message}`;
   } finally {
     btn.disabled = false;
-    btn.textContent = '↑ 提交';
+    btn.textContent = '↑ Commit';
   }
 }
 
@@ -474,7 +474,7 @@ function applyCreateChrome() {
     createChromePrevDisplay[id] = el.style.display;
     el.style.display = 'none';
   }
-  document.getElementById('md-panel-title').textContent = '新随记';
+  document.getElementById('md-panel-title').textContent = 'New note';
   document.getElementById('md-body').style.display = 'none';
   const editArea = document.getElementById('md-edit-area');
   editArea.style.display = '';
@@ -541,7 +541,7 @@ export async function openCreateNote({ temp_id } = {}) {
     clearCreateChrome();
     modal.style.display = prevDisplay;
     const msg = e instanceof Error ? e.message : String(e);
-    alert(`无法打开新建随记：${msg}`);
+    alert(`Could not open new note: ${msg}`);
   }
 }
 
@@ -569,7 +569,7 @@ async function finalizeCreateSession() {
     document.dispatchEvent(new CustomEvent('cta:reload'));
   } catch (e) {
     session.status = 'creating';
-    alert(`保存失败：${e.message}`);
+    alert(`Save failed: ${e.message}`);
   }
 }
 
@@ -607,13 +607,13 @@ document.getElementById('md-btn-commit-ok').addEventListener('click', async () =
   const resultEl = document.getElementById('md-commit-dialog-result');
   const msg = document.getElementById('md-commit-dialog-msg').value.trim() || 'update: edit via viewer';
   btn.disabled = true;
-  resultEl.textContent = '提交中…';
+  resultEl.textContent = 'Committing…';
   resultEl.style.color = '#8c959f';
   try {
     const data = await api.commitFiles(msg);
     if (data.error) throw new Error(data.error);
     resultEl.style.color = '#1a7f37';
-    resultEl.textContent = '✓ 已推送！';
+    resultEl.textContent = '✓ Pushed!';
     await loadDiffStatus();
     updateDiffInDOM();
     hidePendingBadge();
@@ -629,10 +629,10 @@ document.getElementById('md-btn-revert-all').addEventListener('click', async () 
   const btn = document.getElementById('md-btn-revert-all');
   if (!btn.classList.contains('confirm')) {
     btn.classList.add('confirm');
-    btn.textContent = '确认撤销全部？';
+    btn.textContent = 'Revert all changes?';
     setTimeout(() => {
       btn.classList.remove('confirm');
-      btn.textContent = '撤销全部修改';
+      btn.textContent = 'Revert all changes';
     }, 3000);
     return;
   }
@@ -645,11 +645,11 @@ document.getElementById('md-btn-revert-all').addEventListener('click', async () 
     hidePendingBadge();
     closeCommitDialog();
   } catch (e) {
-    document.getElementById('md-commit-dialog-result').textContent = `撤销失败：${e.message}`;
+    document.getElementById('md-commit-dialog-result').textContent = `Revert failed: ${e.message}`;
     btn.disabled = false;
   } finally {
     btn.classList.remove('confirm');
-    btn.textContent = '撤销全部修改';
+    btn.textContent = 'Revert all changes';
   }
 });
 
@@ -665,7 +665,7 @@ document.getElementById('md-commit-file-list').addEventListener('click', async e
     await openCommitDialog();
   } catch (e_) {
     revertBtn.disabled = false;
-    document.getElementById('md-commit-dialog-result').textContent = `撤销失败：${escHtml(e_.message)}`;
+    document.getElementById('md-commit-dialog-result').textContent = `Revert failed: ${escHtml(e_.message)}`;
   }
 });
 

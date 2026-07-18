@@ -209,7 +209,7 @@ describe('corpus-search module', () => {
 
     const dropdown = document.getElementById('gs-kb-dropdown');
     expect(dropdown.style.display).toBe('block');
-    expect(dropdown.textContent).toContain('Meilisearch 未运行');
+    expect(dropdown.textContent).toContain('Meilisearch is not running');
   });
 
   it('shows global-search-equivalent status for not_indexed', async () => {
@@ -223,7 +223,7 @@ describe('corpus-search module', () => {
     await vi.advanceTimersByTimeAsync(300);
 
     const dropdown = document.getElementById('gs-kb-dropdown');
-    expect(dropdown.textContent).toContain('索引尚未建立');
+    expect(dropdown.textContent).toContain('Index not built yet');
   });
 
   it('shows no-results and search-error statuses', async () => {
@@ -233,13 +233,13 @@ describe('corpus-search module', () => {
     document.getElementById('gs-kb-input').value = 'empty';
     document.getElementById('gs-kb-input').dispatchEvent(new Event('input', { bubbles: true }));
     await vi.advanceTimersByTimeAsync(300);
-    expect(document.getElementById('gs-kb-dropdown').textContent).toContain('暂无相关结果');
+    expect(document.getElementById('gs-kb-dropdown').textContent).toContain('No related results');
 
     apiMocks.searchKnowledge.mockRejectedValue(new Error('network'));
     document.getElementById('gs-kb-input').value = 'err';
     document.getElementById('gs-kb-input').dispatchEvent(new Event('input', { bubbles: true }));
     await vi.advanceTimersByTimeAsync(300);
-    expect(document.getElementById('gs-kb-dropdown').textContent).toContain('搜索出错');
+    expect(document.getElementById('gs-kb-dropdown').textContent).toContain('Search error');
   });
 
   it('Escape closes dropdown and blurs input', async () => {

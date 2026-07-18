@@ -73,7 +73,7 @@ export function renderTagsBar(entry) {
     if (tag.unknown) {
       const span = document.createElement('span');
       span.className = 'md-tag-chip tag-unknown';
-      span.textContent = `🏷 ${tag.value || tag.key || '未知'}`;
+      span.textContent = `🏷 ${tag.value || tag.key || 'unknown'}`;
       wrap.appendChild(span);
       bar.appendChild(wrap);
       continue;
@@ -83,7 +83,7 @@ export function renderTagsBar(entry) {
     chip.type = 'button';
     chip.className = 'md-tag-chip';
     chip.textContent = `🏷 ${tag.value || tag.key}`;
-    chip.title = '点击修改标签文案';
+    chip.title = 'Edit tag text';
     chip.addEventListener('click', (e) => {
       e.stopPropagation();
       showEditTagValue(entry, tag, wrap);
@@ -93,7 +93,7 @@ export function renderTagsBar(entry) {
     delBtn.type = 'button';
     delBtn.className = 'md-tag-chip-del';
     delBtn.textContent = '×';
-    delBtn.title = '移除此标签';
+    delBtn.title = 'Remove this tag';
     delBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       detachTag(entry, tag.key);
@@ -106,7 +106,7 @@ export function renderTagsBar(entry) {
   const addBtn = document.createElement('button');
   addBtn.className = 'md-header-btn';
   addBtn.style.cssText = 'font-size:11px;padding:2px 8px;margin-left:auto;flex-shrink:0;';
-  addBtn.textContent = '＋ 添加标签';
+  addBtn.textContent = '＋ Add tag';
   addBtn.addEventListener('click', () => showAddTagInput(entry, bar));
   bar.appendChild(addBtn);
 }
@@ -132,7 +132,7 @@ async function detachTag(entry, key) {
   try {
     const data = await api.tagDetach(entry.common_path, key);
     if (!data.ok) {
-      alert(data.error || '移除标签失败');
+      alert(data.error || 'Failed to remove tag');
       return;
     }
     await refreshTagDisplayGlobally();
@@ -140,7 +140,7 @@ async function detachTag(entry, key) {
     renderTagsBar(entry);
     updateCardTagsBadge(entry);
   } catch (e) {
-    alert(`移除标签失败：${e.message}`);
+    alert(`Failed to remove tag：${e.message}`);
   }
 }
 
@@ -161,13 +161,13 @@ function showEditTagValue(entry, tag, wrapEl) {
   okBtn.type = 'button';
   okBtn.className = 'md-header-btn primary';
   okBtn.style.cssText = 'font-size:11px;padding:2px 8px;';
-  okBtn.textContent = '保存';
+  okBtn.textContent = 'Save';
 
   const cancelBtn = document.createElement('button');
   cancelBtn.type = 'button';
   cancelBtn.className = 'md-header-btn';
   cancelBtn.style.cssText = 'font-size:11px;padding:2px 8px;';
-  cancelBtn.textContent = '取消';
+  cancelBtn.textContent = 'Cancel';
 
   const err = document.createElement('span');
   err.style.cssText = 'font-size:11px;color:#cf222e;';
@@ -202,11 +202,11 @@ function showEditTagValue(entry, tag, wrapEl) {
 async function submitTagValueUpdate(entry, key, rawValue, errEl, row, okBtn) {
   const trimmed = (rawValue || '').trim();
   if (!trimmed) {
-    errEl.textContent = '标签文案不能为空';
+    errEl.textContent = 'Tag text required';
     return;
   }
   if (trimmed.length > TAG_VALUE_MAX_LEN) {
-    errEl.textContent = `不能超过 ${TAG_VALUE_MAX_LEN} 个字符`;
+    errEl.textContent = `Cannot exceed ${TAG_VALUE_MAX_LEN} characters`;
     return;
   }
   errEl.textContent = '';
@@ -214,13 +214,13 @@ async function submitTagValueUpdate(entry, key, rawValue, errEl, row, okBtn) {
   try {
     const data = await api.tagUpdateValue(key, trimmed);
     if (!data.ok) {
-      errEl.textContent = data.error || '更新失败';
+      errEl.textContent = data.error || 'Update failed';
       return;
     }
     await refreshTagDisplayGlobally();
     if (state.viewer.entry) renderTagsBar(state.viewer.entry);
   } catch (e) {
-    errEl.textContent = e.message || '更新失败';
+    errEl.textContent = e.message || 'Update failed';
   } finally {
     okBtn.disabled = false;
   }
@@ -234,7 +234,7 @@ function showAddTagInput(entry, bar) {
 
   const input = document.createElement('input');
   input.type = 'text';
-  input.placeholder = '输入标签文案…';
+  input.placeholder = 'Tag text…';
   input.style.cssText = 'font-size:12px;padding:4px 8px;border:1px solid #d0d7de;border-radius:4px;min-width:160px;';
   input.maxLength = TAG_VALUE_MAX_LEN;
 
@@ -249,12 +249,12 @@ function showAddTagInput(entry, bar) {
   const okBtn = document.createElement('button');
   okBtn.className = 'md-header-btn primary';
   okBtn.style.cssText = 'font-size:11px;padding:2px 8px;';
-  okBtn.textContent = '添加';
+  okBtn.textContent = 'Add';
 
   const cancelBtn = document.createElement('button');
   cancelBtn.className = 'md-header-btn';
   cancelBtn.style.cssText = 'font-size:11px;padding:2px 8px;';
-  cancelBtn.textContent = '取消';
+  cancelBtn.textContent = 'Cancel';
 
   const preview = document.createElement('span');
   preview.style.cssText = 'font-size:11px;color:#8c959f;width:100%;';
@@ -293,12 +293,12 @@ async function submitAttach(entry, payload, preview, row) {
   const value = payload.value;
   if (value !== undefined) {
     if (!value) {
-      preview.textContent = '标签文案不能为空';
+      preview.textContent = 'Tag text required';
       preview.style.color = '#cf222e';
       return;
     }
     if (value.length > TAG_VALUE_MAX_LEN) {
-      preview.textContent = `不能超过 ${TAG_VALUE_MAX_LEN} 个字符`;
+      preview.textContent = `Cannot exceed ${TAG_VALUE_MAX_LEN} characters`;
       preview.style.color = '#cf222e';
       return;
     }
@@ -306,12 +306,12 @@ async function submitAttach(entry, payload, preview, row) {
   try {
     const data = await api.tagAttach(entry.common_path, payload);
     if (!data.ok) {
-      preview.textContent = `错误：${data.error || '添加失败'}`;
+      preview.textContent = `Error: ${data.error || 'Add failed'}`;
       preview.style.color = '#cf222e';
       return;
     }
     if (data.idempotent) {
-      preview.textContent = '已添加此标签';
+      preview.textContent = 'Tag added';
       preview.style.color = '#656d76';
     }
     row.remove();
@@ -320,7 +320,7 @@ async function submitAttach(entry, payload, preview, row) {
     renderTagsBar(entry);
     updateCardTagsBadge(entry);
   } catch (e) {
-    preview.textContent = `错误：${e.message}`;
+    preview.textContent = `Error: ${e.message}`;
     preview.style.color = '#cf222e';
   }
 }

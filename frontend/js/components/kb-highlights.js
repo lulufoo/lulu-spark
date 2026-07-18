@@ -40,7 +40,7 @@ function resolveKbHighlightBtn() {
     btn.id = BTN_ID;
     btn.className = 'viewer-highlight-btn highlight-add-btn';
     btn.style.cssText = 'display:none;position:fixed;z-index:9999;';
-    btn.textContent = '高亮';
+    btn.textContent = 'Highlight';
     document.body.appendChild(btn);
   }
   return btn;
@@ -81,7 +81,7 @@ export async function deleteKbHighlight(id) {
     reapplyKbHighlights();
     document.dispatchEvent(new CustomEvent('kb:dirty', { detail: { msg: 'chore: update annotations' } }));
   } catch (e) {
-    alert(`取消高亮失败：${e.message}`);
+    alert(`Failed to remove highlight：${e.message}`);
   }
 }
 
@@ -173,7 +173,7 @@ export function initKbHighlightUI(container) {
       wrapNthMatch(kbHighlightBodyEl(), text, occurrence, data.id, id => deleteKbHighlight(id), kbCommentsBarSelector());
       document.dispatchEvent(new CustomEvent('kb:dirty', { detail: { msg: 'chore: update annotations' } }));
     } catch (e) {
-      alert(`高亮失败：${e.message}`);
+      alert(`Highlight failed：${e.message}`);
     }
   };
   btn.addEventListener('click', onBtnClick);

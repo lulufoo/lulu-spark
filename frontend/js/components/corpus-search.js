@@ -71,27 +71,27 @@ async function _search(q) {
   const dropdown = document.getElementById('gs-kb-dropdown')
   if (!dropdown) return
 
-  _show(dropdown, '<div class="gs-status">正在搜索…</div>')
+  _show(dropdown, '<div class="gs-status">Searching…</div>')
 
   try {
     const data = await searchKnowledge(q, 8)
 
     if (data.error === 'unavailable') {
-      _show(dropdown, '<div class="gs-status">Meilisearch 未运行，搜索不可用<br><span style="font-size:10px;opacity:.7;">请先启动外置 Meilisearch（默认 localhost:7700）</span></div>')
+      _show(dropdown, '<div class="gs-status">Meilisearch is not running; search unavailable<br><span style="font-size:10px;opacity:.7;">Start external Meilisearch first (default localhost:7700)</span></div>')
       return
     }
     if (data.error === 'not_indexed') {
-      _show(dropdown, '<div class="gs-status">索引尚未建立，请点击 ↺ 重建索引</div>')
+      _show(dropdown, '<div class="gs-status">Index not built yet. Click ↺ to rebuild.</div>')
       return
     }
     const hits = data.hits || []
     if (hits.length === 0) {
-      _show(dropdown, '<div class="gs-status">暂无相关结果</div>')
+      _show(dropdown, '<div class="gs-status">No related results</div>')
     } else {
       _show(dropdown, _renderKbHits(hits))
     }
   } catch (_) {
-    _show(dropdown, '<div class="gs-status">搜索出错</div>')
+    _show(dropdown, '<div class="gs-status">Search error</div>')
   }
 }
 
@@ -122,7 +122,7 @@ async function _startKbRebuild() {
     const res = await reindexKnowledge()
     if (res.error) { _stopKbRebuild(true, res.error); return }
   } catch (_) {
-    _stopKbRebuild(true, '请求失败')
+    _stopKbRebuild(true, 'Request failed')
     return
   }
 
@@ -135,7 +135,7 @@ async function _pollKbRebuild() {
     if (res.status === 'done') {
       _stopKbRebuild(false, res.log)
     } else if (res.status === 'error') {
-      _stopKbRebuild(true, res.log || '重建失败')
+      _stopKbRebuild(true, res.log || 'Rebuild failed')
     }
   } catch (_) {}
 }
@@ -147,15 +147,15 @@ function _stopKbRebuild(isError, msg) {
   if (btn) {
     btn.disabled = false
     btn.classList.remove('syncing')
-    btn.title = isError ? `重建失败：${msg}` : '重建知识库索引'
+    btn.title = isError ? `Rebuild failed: ${msg}` : 'Rebuild knowledge index'
   }
   _updateRebuildUI()
   const dropdown = document.getElementById('gs-kb-dropdown')
   if (dropdown) {
     const color = isError ? '#cf222e' : '#1a7f37'
     _show(dropdown, `<div class="gs-status" style="color:${color}">${
-      isError ? '❌ 重建失败：' : '✅ 重建完成：'
-    }${_esc(msg || (isError ? '未知错误' : ''))}</div>`)
+      isError ? '❌ Rebuild failed: ' : '✅ Rebuild finished: '
+    }${_esc(msg || (isError ? 'Unknown error' : ''))}</div>`)
   }
 }
 
@@ -186,7 +186,7 @@ function _renderHistory() {
   const items = list.map(q => `
     <div class="gs-hist-item" data-q="${_esc(q)}">
       <span class="gs-hist-label">${_esc(q)}</span>
-      <button class="gs-hist-remove" data-q="${_esc(q)}" title="删除">×</button>
+      <button class="gs-hist-remove" data-q="${_esc(q)}" title="Delete">×</button>
     </div>
   `).join('')
   return `<div class="gs-hist-list">${items}</div>`

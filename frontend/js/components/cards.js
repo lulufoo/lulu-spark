@@ -11,10 +11,10 @@ function tagsBadgesHtml(entry) {
   if (!tags?.length) return '';
   return tags.map(tag => {
     if (tag.unknown) {
-      return `<span class="badge badge-tag tag-unknown" title="未知标签">🏷 ${escHtml(tag.value || tag.key || '')}</span>`;
+      return `<span class="badge badge-tag tag-unknown" title="Unknown tag">🏷 ${escHtml(tag.value || tag.key || '')}</span>`;
     }
     const key = tag.key || '';
-    return `<button type="button" class="badge badge-tag" data-tag-key="${escHtml(key)}" title="按此标签过滤">🏷 ${escHtml(tag.value || key)}</button>`;
+    return `<button type="button" class="badge badge-tag" data-tag-key="${escHtml(key)}" title="Filter by this tag">🏷 ${escHtml(tag.value || key)}</button>`;
   }).join('');
 }
 
@@ -79,10 +79,10 @@ export function getLayerBadgeClass(layer, entry) {
 // ── Source type badge ─────────────────────────────────────────────────────
 
 const SOURCE_TYPE_LABELS = {
-  dialogue: '对话',
-  summary: '总结',
-  'theme-line': '视频',
-  note: '随记',
+  dialogue: 'Dialogue',
+  summary: 'Summary',
+  'theme-line': 'Video',
+  note: 'Note',
 };
 
 export function sourceTypeBadgeHtml(sourceType) {
@@ -121,7 +121,7 @@ export function buildCard(id, entry, title) {
 
   const diffState = getEntryDiffState(entry);
   const dotHtml = diffState
-    ? ` <span class="diff-dot ${diffState}">${diffState === 'conflict' ? '● conflict' : '● 待提交'}</span>`
+    ? ` <span class="diff-dot ${diffState}">${diffState === 'conflict' ? '● conflict' : '● Pending commit'}</span>`
     : '';
 
   const badgesHtml = LAYERS
@@ -130,7 +130,7 @@ export function buildCard(id, entry, title) {
       const cc = entry._comment_counts?.[layer];
       const ccStr = cc ? `<span class="badge-comment-dot">${cc}</span>` : '';
       if (entry[`_unreachable_${layer}`]) {
-        return `<span class="badge badge-unreachable" title="文件不可达">${layer}${ccStr}</span>`;
+        return `<span class="badge badge-unreachable" title="File unreachable">${layer}${ccStr}</span>`;
       }
       return `<button class="badge ${getLayerBadgeClass(layer, entry)}" data-layer="${layer}">${layer}${ccStr}</button>`;
     })
@@ -138,14 +138,14 @@ export function buildCard(id, entry, title) {
 
   const linkCount = entry.links && entry.links.length;
   const linksBadgeHtml = linkCount
-    ? `<span class="badge badge-links" title="${linkCount} 个关联链接">👍 ×${linkCount}</span>`
+    ? `<span class="badge badge-links" title="${linkCount} linked items">👍 ×${linkCount}</span>`
     : '';
   const tagsBadgeHtml = tagsBadgesHtml(entry);
 
   const doneBadgeHtml = entry.done
-    ? `<button class="badge badge-done" data-action="toggle-done" title="标记为未处理">✓ 已处理</button>`
-    : `<button class="badge badge-done" data-action="toggle-done" title="标记为已处理">○ 处理</button>`;
-  const moveBadgeHtml = `<button class="badge badge-move-project" data-action="move-project" title="移动到其他项目"><span class="move-icon">↳</span><span>移项</span></button>`;
+    ? `<button class="badge badge-done" data-action="toggle-done" title="Mark as not done">✓ Done</button>`
+    : `<button class="badge badge-done" data-action="toggle-done" title="Mark as done">○ Mark done</button>`;
+  const moveBadgeHtml = `<button class="badge badge-move-project" data-action="move-project" title="Move to another project"><span class="move-icon">↳</span><span>Move project</span></button>`;
   const sourceBadge = sourceTypeBadgeHtml(entry.source_type);
 
   card.innerHTML = `
@@ -204,8 +204,8 @@ export async function toggleDone(entry, card) {
     card.classList.toggle('done', !!newDone);
     const btn = card.querySelector('[data-action="toggle-done"]');
     if (btn) {
-      btn.textContent = newDone ? '✓ 已处理' : '○ 处理';
-      btn.title = newDone ? '标记为未处理' : '标记为已处理';
+      btn.textContent = newDone ? '✓ Done' : '○ Mark done';
+      btn.title = newDone ? 'Mark as not done' : 'Mark as done';
     }
   } catch (e) {
     console.error('toggleDone failed', e);
@@ -291,20 +291,20 @@ export function updateTitlesInDOM(date) {
           const cc = entry._comment_counts?.[layer];
           const ccStr = cc ? `<span class="badge-comment-dot">${cc}</span>` : '';
           if (entry[`_unreachable_${layer}`]) {
-            return `<span class="badge badge-unreachable" title="文件不可达">${layer}${ccStr}</span>`;
+            return `<span class="badge badge-unreachable" title="File unreachable">${layer}${ccStr}</span>`;
           }
           return `<button class="badge ${getLayerBadgeClass(layer, entry)}" data-layer="${layer}">${layer}${ccStr}</button>`;
         })
         .join('');
       const linkCount = entry.links && entry.links.length;
       const linksBadgeHtml = linkCount
-        ? `<span class="badge badge-links" title="${linkCount} 个关联链接">👍 ×${linkCount}</span>`
+        ? `<span class="badge badge-links" title="${linkCount} linked items">👍 ×${linkCount}</span>`
         : '';
       const tagsBadgeHtml = tagsBadgesHtml(entry);
       const doneBadgeHtml = entry.done
-        ? `<button class="badge badge-done" data-action="toggle-done" title="标记为未处理">✓ 已处理</button>`
-        : `<button class="badge badge-done" data-action="toggle-done" title="标记为已处理">○ 处理</button>`;
-      const moveBadgeHtml = `<button class="badge badge-move-project" data-action="move-project" title="移动到其他项目"><span class="move-icon">↳</span><span>移项</span></button>`;
+        ? `<button class="badge badge-done" data-action="toggle-done" title="Mark as not done">✓ Done</button>`
+        : `<button class="badge badge-done" data-action="toggle-done" title="Mark as done">○ Mark done</button>`;
+      const moveBadgeHtml = `<button class="badge badge-move-project" data-action="move-project" title="Move to another project"><span class="move-icon">↳</span><span>Move project</span></button>`;
       badgesEl.innerHTML = sourceTypeBadgeHtml(entry.source_type) + layerHtml + tagsBadgeHtml + linksBadgeHtml + importanceBadgeHtml(entry.importance) + doneBadgeHtml + moveBadgeHtml;
       attachBadgeListeners(card, entry);
       attachTagBadgeListeners(card);
@@ -329,7 +329,7 @@ export function updateDiffInDOM() {
     if (metaEl) {
       const diffState = getEntryDiffState(entry);
       const dotHtml = diffState
-        ? ` <span class="diff-dot ${diffState}">${diffState === 'conflict' ? '● conflict' : '● 待提交'}</span>`
+        ? ` <span class="diff-dot ${diffState}">${diffState === 'conflict' ? '● conflict' : '● Pending commit'}</span>`
         : '';
       metaEl.innerHTML = timeFromTs(entry.created_at) + dotHtml;
     }
@@ -339,7 +339,7 @@ export function updateDiffInDOM() {
         .filter(layer => entry.layers?.includes(layer))
         .map(layer => {
           if (entry[`_unreachable_${layer}`]) {
-            return `<span class="badge badge-unreachable" title="文件不可达">${layer}</span>`;
+            return `<span class="badge badge-unreachable" title="File unreachable">${layer}</span>`;
           }
           return `<button class="badge ${getLayerBadgeClass(layer, entry)}" data-layer="${layer}">${layer}</button>`;
         })

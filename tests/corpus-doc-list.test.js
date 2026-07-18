@@ -475,7 +475,7 @@ describe('mountCorpusDocList', () => {
     mountCorpusDocList(container, { repo: 'owner/empty', navigate });
     await flushPromises();
 
-    expect(container.textContent).toMatch(/空|暂无/);
+    expect(container.textContent).toContain('Repository is empty');
     expect(container.querySelector('.corpus-doc-empty')).not.toBeNull();
   });
 
@@ -529,7 +529,7 @@ describe('mountCorpusDocList', () => {
 
     const resizer = container.querySelector('.corpus-sidebar-resizer.sidebar-resizer');
     expect(resizer).not.toBeNull();
-    expect(resizer?.getAttribute('aria-label')).toMatch(/知识库目录宽度/);
+    expect(resizer?.getAttribute('aria-label')).toBe('Resize knowledge tree');
   });
 
   it('repo select navigates to chosen repository', async () => {

@@ -138,7 +138,7 @@ describe('mountKbReader', () => {
       path: 'missing.md',
     });
     await flushPromises();
-    expect(container.textContent).toContain('无法加载文件');
+    expect(container.textContent).toContain('Could not load file');
     expect(container.textContent).toContain('network down');
     unmount();
   });

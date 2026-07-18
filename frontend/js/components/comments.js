@@ -67,7 +67,7 @@ function updateFloatNav(comments, layer, entry) {
     const btn = document.createElement('button');
     btn.className = 'comment-float-btn';
     btn.textContent = String(i + 1);
-    btn.title = `编辑批注 ${i + 1}`;
+    btn.title = `Edit comment ${i + 1}`;
     btn.addEventListener('click', () => openCommentDialog(c, layer, entry, i + 1));
     btn.addEventListener('mouseenter', e => _showTip(c.text, e));
     btn.addEventListener('mousemove',  e => _moveTip(e));
@@ -101,7 +101,7 @@ export function renderComments(annotation, layer, entry) {
 
   const hdr = document.createElement('div');
   hdr.className = 'comment-bar-header';
-  hdr.innerHTML = `<span>💬 批注 · ${comments.length} 条</span>`;
+  hdr.innerHTML = `<span>💬 Comment · ${comments.length}</span>`;
   bar.appendChild(hdr);
 
   for (let i = 0; i < comments.length; i++) {
@@ -125,7 +125,7 @@ async function moveCorpusComment(layer, entry, idx, delta) {
     const data = await reorderComments(entry.common_path, layer, check.ids);
     if (data?.ok !== true) throw new Error(data?.error || 'failed');
   } catch (e) {
-    alert(`排序保存失败：${e.message}`);
+    alert(`Reorder failed: ${e.message}`);
   }
 }
 
@@ -157,14 +157,14 @@ function buildCommentItem(c, layer, entry, noteIndex, allComments) {
   const delX = document.createElement('button');
   delX.type = 'button';
   delX.className = 'comment-item-del-x';
-  delX.title = '删除';
+  delX.title = 'Delete';
   delX.textContent = '×';
   delX.addEventListener('click', async () => {
     if (!(await confirmDeleteComment())) return;
     try {
       await removeCorpusComment(c, layer, entry);
       renderComments(state.viewer.annotation, layer, entry);
-    } catch (e) { alert(`删除失败：${e.message}`); }
+    } catch (e) { alert(`Delete failed: ${e.message}`); }
   });
 
   const actionsEl = document.createElement('div');
@@ -173,14 +173,14 @@ function buildCommentItem(c, layer, entry, noteIndex, allComments) {
   const settleBtn = document.createElement('button');
   settleBtn.type = 'button';
   settleBtn.className = 'comment-item-action-btn';
-  settleBtn.textContent = '⬆ 沉淀';
-  settleBtn.title = '沉淀到知识仓库';
+  settleBtn.textContent = '⬆ Promote';
+  settleBtn.title = 'Promote to knowledge repo';
   settleBtn.addEventListener('click', () => openSettleDialog(c, layer, entry));
 
   const editBtn = document.createElement('button');
   editBtn.type = 'button';
   editBtn.className = 'comment-item-action-btn';
-  editBtn.textContent = '编辑';
+  editBtn.textContent = 'Edit';
   editBtn.addEventListener('click', () => openCommentDialog(c, layer, entry, noteIndex));
 
   actionsEl.append(settleBtn, editBtn);
@@ -190,7 +190,7 @@ function buildCommentItem(c, layer, entry, noteIndex, allComments) {
     const upBtn = document.createElement('button');
     upBtn.type = 'button';
     upBtn.className = 'comment-item-action-btn comment-item-order-btn';
-    upBtn.title = '上移';
+    upBtn.title = 'Move up';
     upBtn.textContent = '↑';
     upBtn.addEventListener('click', () => moveCorpusComment(layer, entry, idx, -1));
     actionsEl.append(upBtn);
@@ -200,7 +200,7 @@ function buildCommentItem(c, layer, entry, noteIndex, allComments) {
     const downBtn = document.createElement('button');
     downBtn.type = 'button';
     downBtn.className = 'comment-item-action-btn comment-item-order-btn';
-    downBtn.title = '下移';
+    downBtn.title = 'Move down';
     downBtn.textContent = '↓';
     downBtn.addEventListener('click', () => moveCorpusComment(layer, entry, idx, 1));
     actionsEl.append(downBtn);
@@ -240,13 +240,13 @@ export async function openCommentDialog(editComment, layer, entry, noteIndex) {
   if (editComment) {
     _commentEditCtx = { c: editComment, layer, entry, noteIndex };
     _draftKey = null;
-    titleEl.textContent = '💬 编辑批注';
+    titleEl.textContent = '💬 Edit comment';
     content.innerText = editComment.text;
   } else {
     _commentEditCtx = { noteIndex };
     const commonPath = (entry || state.viewer.entry).common_path;
     _draftKey = commonPath;
-    titleEl.textContent = '💬 添加批注';
+    titleEl.textContent = '💬 Add comment';
     content.innerText = '';
     // Load cached draft
     try {
@@ -282,7 +282,7 @@ export async function saveComment() {
   if (!text) return;
   const saveBtn = document.getElementById('btn-comment-save');
   saveBtn.disabled = true;
-  saveBtn.textContent = '保存中…';
+  saveBtn.textContent = 'Saving…';
   const ts = nowTs();
   try {
     if (_commentEditCtx.c) {
@@ -296,7 +296,7 @@ export async function saveComment() {
         if (idx >= 0) ld.comments[idx].text = text;
         closeCommentDialog();
         renderComments(state.viewer.annotation, layer, entry);
-      } else { alert(`保存失败：${data.error}`); }
+      } else { alert(`Save failed: ${data.error}`); }
     } else {
       if (!state.viewer.entry) return;
       const data = await api.updateComments(state.viewer.entry.common_path, state.viewer.layer, { text }, ts);
@@ -307,10 +307,10 @@ export async function saveComment() {
         _clearDraft();
         closeCommentDialog();
         renderComments(state.viewer.annotation, state.viewer.layer, state.viewer.entry);
-      } else { alert(`添加失败：${data.error}`); }
+      } else { alert(`AddFailed: ${data.error}`); }
     }
-  } catch (e) { alert(`保存失败：${e.message}`); }
-  finally { saveBtn.disabled = false; saveBtn.textContent = '保存'; }
+  } catch (e) { alert(`Save failed: ${e.message}`); }
+  finally { saveBtn.disabled = false; saveBtn.textContent = 'Save'; }
 }
 
 // ── Event listeners ────────────────────────────────────────────────────────

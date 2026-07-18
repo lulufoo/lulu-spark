@@ -38,7 +38,7 @@ function updateCardLinksBadge(entry) {
       badge.className = 'badge badge-links';
       badges.appendChild(badge);
     }
-    badge.title = `${count} 个关联链接`;
+    badge.title = `${count} linked items`;
     badge.textContent = `👍 ×${count}`;
   } else {
     if (badge) badge.remove();
@@ -59,12 +59,12 @@ function confirmDeleteLink(entry, index, bar, wrapEl) {
   const okBtn = document.createElement('button');
   okBtn.className = 'md-header-btn primary';
   okBtn.style.cssText = 'font-size:10px;padding:1px 6px;';
-  okBtn.textContent = '确认删除';
+  okBtn.textContent = 'Confirm delete';
 
   const cancelBtn = document.createElement('button');
   cancelBtn.className = 'md-header-btn';
   cancelBtn.style.cssText = 'font-size:10px;padding:1px 6px;';
-  cancelBtn.textContent = '取消';
+  cancelBtn.textContent = 'Cancel';
 
   cancelBtn.addEventListener('click', () => {
     confirmRow.remove();
@@ -99,18 +99,18 @@ function showAddLinkInput(entry, bar) {
 
   const input = document.createElement('input');
   input.type = 'url';
-  input.placeholder = '粘贴 GitHub 链接…';
+  input.placeholder = 'Paste GitHub link…';
   input.style.cssText = 'flex:1;font-size:12px;padding:3px 8px;border:1px solid #d0d7de;border-radius:4px;';
 
   const confirmBtn = document.createElement('button');
   confirmBtn.className = 'md-header-btn primary';
   confirmBtn.style.cssText = 'font-size:11px;padding:2px 8px;';
-  confirmBtn.textContent = '确认';
+  confirmBtn.textContent = 'Confirm';
 
   const cancelBtn = document.createElement('button');
   cancelBtn.className = 'md-header-btn';
   cancelBtn.style.cssText = 'font-size:11px;padding:2px 8px;';
-  cancelBtn.textContent = '取消';
+  cancelBtn.textContent = 'Cancel';
 
   const preview = document.createElement('span');
   preview.style.cssText = 'font-size:11px;color:#57606a;';
@@ -128,7 +128,7 @@ function showAddLinkInput(entry, bar) {
     const url = input.value.trim();
     if (!url) return;
     fetchTimer = setTimeout(async () => {
-      preview.textContent = '获取标题中…';
+      preview.textContent = 'Fetching title…';
       resolvedTitle = await fetchTitle(url);
       preview.textContent = `→ 🔗 ${resolvedTitle} ↗`;
     }, 500);
@@ -142,7 +142,7 @@ function showAddLinkInput(entry, bar) {
 
     const existingLinks = entry.links || [];
     if (existingLinks.some(l => l.url === url)) {
-      preview.textContent = '链接已存在';
+      preview.textContent = 'Link already exists';
       return;
     }
 
@@ -157,10 +157,10 @@ function showAddLinkInput(entry, bar) {
         updateCardLinksBadge(entry);
         renderLinksBar(entry);
       } else {
-        preview.textContent = `错误：${data.error}`;
+        preview.textContent = `Error: ${data.error}`;
       }
     } catch (e) {
-      preview.textContent = `错误：${e.message}`;
+      preview.textContent = `Error: ${e.message}`;
     }
   });
 }
@@ -175,7 +175,7 @@ export function renderLinksBar(entry) {
   const addBtn = document.createElement('button');
   addBtn.className = 'md-header-btn';
   addBtn.style.cssText = 'font-size:11px;padding:2px 8px;margin-left:auto;flex-shrink:0;';
-  addBtn.textContent = '＋ 添加链接';
+  addBtn.textContent = '＋ Add link';
   addBtn.addEventListener('click', () => showAddLinkInput(entry, bar));
 
   if (!links || links.length === 0) {
@@ -195,13 +195,13 @@ export function renderLinksBar(entry) {
     a.target = '_blank';
     a.rel = 'noopener noreferrer';
     a.style.cssText = 'font-size:12px;color:#0969da;text-decoration:none;';
-    a.textContent = '🔗 加载中…';
+    a.textContent = '🔗 Loading…';
     fetchTitle(link.url).then(t => { a.textContent = `🔗 ${t} ↗`; });
 
     const delBtn = document.createElement('button');
     delBtn.style.cssText = 'font-size:10px;line-height:1;padding:1px 4px;border:1px solid #d0d7de;border-radius:3px;background:#fff;color:#8c959f;cursor:pointer;opacity:0.6;';
     delBtn.textContent = '×';
-    delBtn.title = '删除此链接';
+    delBtn.title = 'Delete this link';
     delBtn.addEventListener('click', () => confirmDeleteLink(entry, i, bar, wrap));
 
     wrap.append(a, delBtn);

@@ -166,13 +166,13 @@ describe('openCommitDialog', () => {
       ...mockDiffData(), modified: ['raw/ai/note.md'], total: 1,
     });
     await openCommitDialog();
-    expect(makeEl('md-commit-file-list').innerHTML).toContain('撤销');
+    expect(makeEl('md-commit-file-list').innerHTML).toContain('Revert');
   });
 
   it('shows error in file list when fetchDiffStatus rejects', async () => {
     api.fetchDiffStatus.mockRejectedValueOnce(new Error('network error'));
     await openCommitDialog();
-    expect(makeEl('md-commit-file-list').innerHTML).toContain('获取状态失败');
+    expect(makeEl('md-commit-file-list').innerHTML).toContain('Failed to get status');
   });
 });
 
@@ -226,7 +226,7 @@ describe('revert-all button', () => {
     vi.clearAllMocks();
     const btn = makeEl('md-btn-revert-all');
     btn.classList.remove('confirm');
-    btn.textContent = '撤销全部修改';
+    btn.textContent = 'Revert all changes';
     btn.disabled = false;
     api.revertFile.mockResolvedValue({ ok: true });
     api.fetchDiffStatus.mockResolvedValue({ total: 0, ahead: 0, modified: [], new: [] });

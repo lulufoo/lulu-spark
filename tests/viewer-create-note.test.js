@@ -240,7 +240,7 @@ describe('openCreateNote', () => {
     expect(state.viewer.createSession).toBeNull();
     expect(makeEl('md-modal').classList.contains('is-create')).toBe(false);
     expect(globalThis.alert).toHaveBeenCalledWith(
-      expect.stringContaining('无法打开新建随记'),
+      expect.stringContaining('Could not open new note'),
     );
   });
 });

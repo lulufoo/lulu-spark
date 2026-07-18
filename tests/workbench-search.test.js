@@ -19,7 +19,7 @@ function seedWorkbenchSearchDom() {
   document.body.innerHTML = `
     <div id="gs-wb-wrap" class="gs-search-wrap">
       <input id="gs-wb-input" class="gs-search-input" type="text" autocomplete="off" />
-      <button id="gs-wb-rebuild-btn" class="gs-rebuild-btn" style="display:none" title="重建 Workbench 索引">↺</button>
+      <button id="gs-wb-rebuild-btn" class="gs-rebuild-btn" style="display:none" title="Rebuild Workbench index">↺</button>
       <div id="gs-wb-dropdown" class="gs-search-dropdown" style="display:none"></div>
     </div>
     <button id="outside-click-target">outside</button>
@@ -184,7 +184,7 @@ describe('workbench-search module', () => {
 
     const dropdown = document.getElementById('gs-wb-dropdown');
     expect(dropdown.style.display).toBe('block');
-    expect(dropdown.textContent).toContain('Meilisearch 未运行');
+    expect(dropdown.textContent).toContain('Meilisearch is not running');
   });
 
   it('shows global-search-equivalent status for not_indexed', async () => {
@@ -198,7 +198,7 @@ describe('workbench-search module', () => {
     await vi.advanceTimersByTimeAsync(300);
 
     const dropdown = document.getElementById('gs-wb-dropdown');
-    expect(dropdown.textContent).toContain('索引尚未建立');
+    expect(dropdown.textContent).toContain('Index not built yet');
   });
 
   it('shows no-results and search-error statuses', async () => {
@@ -208,13 +208,13 @@ describe('workbench-search module', () => {
     document.getElementById('gs-wb-input').value = 'empty';
     document.getElementById('gs-wb-input').dispatchEvent(new Event('input', { bubbles: true }));
     await vi.advanceTimersByTimeAsync(300);
-    expect(document.getElementById('gs-wb-dropdown').textContent).toContain('暂无相关结果');
+    expect(document.getElementById('gs-wb-dropdown').textContent).toContain('No related results');
 
     apiMocks.searchWorkbench.mockRejectedValue(new Error('network'));
     document.getElementById('gs-wb-input').value = 'err';
     document.getElementById('gs-wb-input').dispatchEvent(new Event('input', { bubbles: true }));
     await vi.advanceTimersByTimeAsync(300);
-    expect(document.getElementById('gs-wb-dropdown').textContent).toContain('搜索出错');
+    expect(document.getElementById('gs-wb-dropdown').textContent).toContain('Search error');
   });
 
   it('Escape closes dropdown and blurs input', async () => {

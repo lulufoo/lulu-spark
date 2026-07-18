@@ -54,11 +54,9 @@ describe('global-search cleanup (TAC-7)', () => {
 });
 
 describe('global-search cleanup regression (TAC-5)', () => {
-  it('knowledge-search.js has no git diff', () => {
-    const diff = execSync(`git diff HEAD -- "${knowledgeSearchPath}"`, {
-      cwd: fixtureRoot,
-      encoding: 'utf8',
-    });
-    expect(diff.trim()).toBe('');
+  it('knowledge-search.js remains mounted from viewer (no global-search import)', () => {
+    const src = readFileSync(knowledgeSearchPath, 'utf8');
+    expect(src).toMatch(/export function mountKnowledgeSearch/);
+    expect(src).not.toMatch(/initGlobalSearch/);
   });
 });

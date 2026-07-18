@@ -72,7 +72,7 @@ export function wrapNthMatch(container, text, occurrence, id, onDeleteClick, com
   function makeDelBtn() {
     const b = document.createElement('button');
     b.className = 'highlight-del-btn';
-    b.title = '取消高亮';
+    b.title = 'Remove highlight';
     b.textContent = '×';
     b.addEventListener('click', e => {
       e.preventDefault();

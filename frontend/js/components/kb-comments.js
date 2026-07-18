@@ -85,7 +85,7 @@ function updateKbFloatNav(comments) {
     const btn = document.createElement('button');
     btn.className = 'comment-float-btn';
     btn.textContent = String(i + 1);
-    btn.title = `编辑批注 ${i + 1}`;
+    btn.title = `Edit comment ${i + 1}`;
     btn.addEventListener('click', () => openKbCommentDialog(c, i));
     btn.addEventListener('mouseenter', e => _showKbTip(c.text, e));
     btn.addEventListener('mousemove',  e => _moveKbTip(e));
@@ -145,7 +145,7 @@ async function moveKbComment(index, delta) {
     if (data?.ok !== true) throw new Error(data?.error || 'failed');
     document.dispatchEvent(new CustomEvent('kb:dirty', { detail: { msg: 'chore: reorder annotations' } }));
   } catch (e) {
-    alert(`排序保存失败：${e.message}`);
+    alert(`Reorder save failed: ${e.message}`);
   }
 }
 
@@ -176,7 +176,7 @@ function buildKbCommentItem(comment, index, comments) {
   const delX = document.createElement('button');
   delX.type = 'button';
   delX.className = 'comment-item-del-x';
-  delX.title = '删除';
+  delX.title = 'Delete';
   delX.textContent = '×';
   delX.addEventListener('click', async () => {
     if (!(await confirmDeleteComment())) return;
@@ -185,7 +185,7 @@ function buildKbCommentItem(comment, index, comments) {
       renderKbComments(state.viewer.annotation);
       document.dispatchEvent(new CustomEvent('kb:dirty', { detail: { msg: 'chore: update annotations' } }));
     } catch (e) {
-      alert(`删除失败：${e.message}`);
+      alert(`Delete failed: ${e.message}`);
     }
   });
 
@@ -195,7 +195,7 @@ function buildKbCommentItem(comment, index, comments) {
   const editBtn = document.createElement('button');
   editBtn.type = 'button';
   editBtn.className = 'comment-item-action-btn';
-  editBtn.textContent = '编辑';
+  editBtn.textContent = 'Edit';
   editBtn.addEventListener('click', () => openKbCommentDialog(comment, index));
 
   actionsEl.append(editBtn);
@@ -204,7 +204,7 @@ function buildKbCommentItem(comment, index, comments) {
     const upBtn = document.createElement('button');
     upBtn.type = 'button';
     upBtn.className = 'comment-item-action-btn comment-item-order-btn';
-    upBtn.title = '上移';
+    upBtn.title = 'Move up';
     upBtn.textContent = '↑';
     upBtn.addEventListener('click', () => moveKbComment(index, -1));
     actionsEl.append(upBtn);
@@ -214,7 +214,7 @@ function buildKbCommentItem(comment, index, comments) {
     const downBtn = document.createElement('button');
     downBtn.type = 'button';
     downBtn.className = 'comment-item-action-btn comment-item-order-btn';
-    downBtn.title = '下移';
+    downBtn.title = 'Move down';
     downBtn.textContent = '↓';
     downBtn.addEventListener('click', () => moveKbComment(index, 1));
     actionsEl.append(downBtn);
@@ -250,7 +250,7 @@ export function openKbCommentDialog(editComment = null, noteIndex = null) {
   const content = document.getElementById('kb-comment-dialog-content');
   if (!dialog || !content) return;
 
-  title.textContent = editComment ? '💬 编辑批注' : '💬 添加批注';
+  title.textContent = editComment ? '💬 Edit comment' : '💬 Add comment';
   content.textContent = editComment?.text || '';
   dialog.style.display = 'flex';
   _resetKbDialogTabs();
@@ -303,7 +303,7 @@ export async function saveKbComment() {
     renderKbComments(annotation);
     document.dispatchEvent(new CustomEvent('kb:dirty', { detail: { msg: 'chore: update annotations' } }));
   } catch (e) {
-    alert(`保存失败：${e.message}`);
+    alert(`Save failed: ${e.message}`);
   }
 }
 

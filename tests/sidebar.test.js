@@ -219,7 +219,7 @@ describe('renderSidebar tag filter', () => {
     renderSidebar();
     const sel = findTagSelect();
     expect(sel).toBeTruthy();
-    expect(tagOptionTexts(sel)[0]).toBe('全部 (4)');
+    expect(tagOptionTexts(sel)[0]).toBe('All (4)');
   });
 
   it('按 label 字母序列出标签及 count', () => {
@@ -238,7 +238,7 @@ describe('renderSidebar tag filter', () => {
     applyListFilters();
     renderSidebar();
     const texts = tagOptionTexts(findTagSelect());
-    expect(texts[0]).toBe('全部 (2)');
+    expect(texts[0]).toBe('All (2)');
     expect(texts).toContain('Alpha (2)');
     expect(texts).not.toContain('Beta (2)');
   });
@@ -252,7 +252,7 @@ describe('renderSidebar tag filter', () => {
     applyListFilters();
     renderSidebar();
     const texts = tagOptionTexts(findTagSelect()).filter((t) => !t.includes('─'));
-    expect(texts).toEqual(['全部 (1)']);
+    expect(texts).toEqual(['All (1)']);
   });
 
   it('registry 缺失时回退 key', () => {
@@ -269,7 +269,7 @@ describe('renderSidebar tag filter', () => {
     renderSidebar();
     const countEl = sidebarEl.querySelector('.tag-count');
     expect(countEl).toBeTruthy();
-    expect(countEl.textContent).toBe('2 / 4 篇');
+    expect(countEl.textContent).toBe('2 / 4 items');
     expect(countEl.style.display).not.toBe('none');
   });
 

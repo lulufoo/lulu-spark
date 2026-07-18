@@ -40,13 +40,13 @@ export function mountCorpusPicker(container, { navigate }) {
     if (!listEl) return;
 
     if (repos.length === 0 && categories.length === 0) {
-      listEl.innerHTML = '<div class="corpus-picker-empty">暂无沉淀知识库</div>';
+      listEl.innerHTML = '<div class="corpus-picker-empty">No knowledge libraries yet</div>';
       return;
     }
 
     const filtered = filterReposByCategory(repos, selectedCategoryId || null);
     if (filtered.length === 0) {
-      listEl.innerHTML = '<div class="corpus-picker-empty">无匹配仓库</div>';
+      listEl.innerHTML = '<div class="corpus-picker-empty">No matching repositories</div>';
       return;
     }
 
@@ -61,7 +61,7 @@ export function mountCorpusPicker(container, { navigate }) {
     const filterEl = container.querySelector('.corpus-picker-filter');
     if (!filterEl) return;
 
-    const options = ['<option value="">全部</option>']
+    const options = ['<option value="">All</option>']
       .concat(categories.map((c) => `<option value="${escHtml(c.id)}">${escHtml(c.name)}</option>`))
       .join('');
     filterEl.innerHTML = `<select class="corpus-picker-category-select">${options}</select>`;
@@ -83,7 +83,7 @@ export function mountCorpusPicker(container, { navigate }) {
     container.innerHTML = `
       <div class="corpus-picker">
         <div class="corpus-picker-nav">
-          <button type="button" class="corpus-nav-back" data-nav-target="#/home">← 返回首页</button>
+          <button type="button" class="corpus-nav-back" data-nav-target="#/home">← Back to Home</button>
         </div>
         <div class="corpus-picker-filter"></div>
         <div class="corpus-picker-repo-list"></div>
@@ -96,10 +96,10 @@ export function mountCorpusPicker(container, { navigate }) {
   }
 
   function showError(message) {
-    container.innerHTML = `<div class="corpus-picker-error">${escHtml(message || '加载失败')}</div>`;
+    container.innerHTML = `<div class="corpus-picker-error">${escHtml(message || 'Failed to load')}</div>`;
   }
 
-  container.innerHTML = '<div class="corpus-picker-loading">加载中…</div>';
+  container.innerHTML = '<div class="corpus-picker-loading">Loading…</div>';
 
   void Promise.all([
     api.fetchSedimentKbCategories(),
@@ -113,7 +113,7 @@ export function mountCorpusPicker(container, { navigate }) {
     renderShell();
   }).catch((err) => {
     if (disposed) return;
-    showError(err?.message || '加载失败');
+    showError(err?.message || 'Failed to load');
   });
 
   return () => {

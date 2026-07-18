@@ -61,15 +61,15 @@ function readerShellHtml() {
         <span class="kb-reader-title viewer-panel-title"></span>
         <span class="kb-file-size" style="font-size:10px;color:#8c959f;flex-shrink:0;"></span>
         <a class="kb-github-link" href="#" target="_blank" style="font-size:12px;color:#0969da;text-decoration:none;flex-shrink:0;">GitHub ↗</a>
-        <button type="button" class="md-header-btn kb-btn-open-iterm" style="display:none" title="在 iTerm 中打开仓库目录">⌨️ 终端</button>
+        <button type="button" class="md-header-btn kb-btn-open-iterm" style="display:none" title="Open repo folder in iTerm">⌨️ Terminal</button>
         <button type="button" class="md-header-btn kb-btn-copy-http" data-tip="">&#127760;</button>
         <button type="button" class="md-header-btn kb-btn-copy-path" data-tip="">&#128194;</button>
-        <button type="button" class="md-header-btn kb-btn-edit">✏️ 编辑</button>
-        <button type="button" class="md-header-btn kb-btn-add-comment">💬 批注</button>
-        <button type="button" class="md-header-btn primary kb-btn-save" style="display:none">💾 保存</button>
-        <button type="button" class="md-header-btn kb-btn-cancel-edit" style="display:none">取消</button>
-        <button type="button" class="md-header-btn kb-btn-pending" style="display:none">● 待提交</button>
-        <button type="button" class="md-header-btn kb-btn-reindex" style="display:none">↺ 重建索引</button>
+        <button type="button" class="md-header-btn kb-btn-edit">✏️ Edit</button>
+        <button type="button" class="md-header-btn kb-btn-add-comment">💬 Comment</button>
+        <button type="button" class="md-header-btn primary kb-btn-save" style="display:none">💾 Save</button>
+        <button type="button" class="md-header-btn kb-btn-cancel-edit" style="display:none">Cancel</button>
+        <button type="button" class="md-header-btn kb-btn-pending" style="display:none">● Pending commit</button>
+        <button type="button" class="md-header-btn kb-btn-reindex" style="display:none">↺ Rebuild index</button>
       </div>
       <div id="kb-md-links-bar" class="kb-reader-links-bar" style="display:none;padding:8px 20px;border-bottom:1px solid #d0d7de;"></div>
       <div class="kb-reader-content-row viewer-content-row">
@@ -82,13 +82,13 @@ function readerShellHtml() {
 }
 
 function wireReindexBtn(btn, repo) {
-  btn.textContent = '↺ 重建索引';
-  btn.title = '重建此知识库的搜索索引';
+  btn.textContent = '↺ Rebuild index';
+  btn.title = 'Rebuild search index for this library';
   btn.disabled = false;
   btn.style.display = '';
   btn.onclick = async () => {
     btn.disabled = true;
-    btn.textContent = '重建中…';
+    btn.textContent = 'Rebuilding…';
     try {
       const res = await api.reindexKbRepo(repo);
       if (res.error) throw new Error(res.error);
@@ -97,19 +97,19 @@ function wireReindexBtn(btn, repo) {
           const status = await api.getReindexStatus();
           if (status.status === 'done') {
             clearInterval(poll);
-            btn.textContent = '✓ 已重建';
+            btn.textContent = '✓ Rebuilt';
             btn.disabled = false;
             setTimeout(() => { btn.style.display = 'none'; }, 2000);
           } else if (status.status === 'error') {
             clearInterval(poll);
-            btn.textContent = '重建失败';
+            btn.textContent = 'Rebuild failed';
             btn.disabled = false;
-            btn.title = status.log || '未知错误';
+            btn.title = status.log || 'Unknown error';
           }
         } catch (_) {}
       }, 2000);
     } catch (e) {
-      btn.textContent = '重建失败';
+      btn.textContent = 'Rebuild failed';
       btn.disabled = false;
       btn.title = e.message;
     }
@@ -205,7 +205,7 @@ export async function mountKbReader(container, { repo, path, url }) {
   async function saveDoc() {
     const newContent = ui.editArea.value;
     ui.btnSave.disabled = true;
-    ui.btnSave.textContent = '保存中…';
+    ui.btnSave.textContent = 'Saving…';
     try {
       const originalContent = state.viewer.rawText;
       const data = await api.saveKbFile(state.viewer.kbRepo, state.viewer.kbPath, newContent);
@@ -223,10 +223,10 @@ export async function mountKbReader(container, { repo, path, url }) {
         wireReindexBtn(ui.btnReindex, state.viewer.kbRepo);
       }
     } catch (e) {
-      alert(`保存失败：${e.message}`);
+      alert(`Save failed: ${e.message}`);
     } finally {
       ui.btnSave.disabled = false;
-      ui.btnSave.textContent = '💾 保存';
+      ui.btnSave.textContent = '💾 Save';
     }
   }
 
@@ -283,9 +283,9 @@ export async function mountKbReader(container, { repo, path, url }) {
     ui.itermBtn.disabled = true;
     try {
       const res = await api.openItermAt(repo);
-      if (res.error) alert(`打开终端失败：${res.error}`);
+      if (res.error) alert(`Failed to open terminal: ${res.error}`);
     } catch (e) {
-      alert(`打开终端失败：${e.message}`);
+      alert(`Failed to open terminal: ${e.message}`);
     } finally {
       ui.itermBtn.disabled = false;
     }
@@ -293,7 +293,7 @@ export async function mountKbReader(container, { repo, path, url }) {
 
   document.addEventListener('kb:dirty', onDirty);
 
-  ui.body.innerHTML = '<div style="color:#8c959f;padding:20px;font-size:13px;">加载中…</div>';
+  ui.body.innerHTML = '<div style="color:#8c959f;padding:20px;font-size:13px;">Loading…</div>';
 
   void (async () => {
     try {
@@ -336,7 +336,7 @@ export async function mountKbReader(container, { repo, path, url }) {
       }).catch(() => {});
     } catch (e) {
       if (token !== loadToken) return;
-      ui.body.innerHTML = `<div style="color:#7d4e00;padding:20px">无法加载文件：${escHtml(e.message)}</div>`;
+      ui.body.innerHTML = `<div style="color:#7d4e00;padding:20px">Could not load file: ${escHtml(e.message)}</div>`;
       ui.btnEdit.style.display = 'none';
     }
   })();
@@ -376,9 +376,9 @@ export async function openKbDoc(kbHit) {
     itermBtn.disabled = true;
     try {
       const res = await api.openItermAt(repo);
-      if (res.error) alert(`打开终端失败：${res.error}`);
+      if (res.error) alert(`Failed to open terminal: ${res.error}`);
     } catch (e) {
-      alert(`打开终端失败：${e.message}`);
+      alert(`Failed to open terminal: ${e.message}`);
     } finally {
       itermBtn.disabled = false;
     }
@@ -389,7 +389,7 @@ export async function openKbDoc(kbHit) {
 
   const modal = document.getElementById('kb-md-modal');
   const body = document.getElementById('kb-md-body');
-  body.innerHTML = '<div style="color:#8c959f;padding:20px;font-size:13px;">加载中…</div>';
+  body.innerHTML = '<div style="color:#8c959f;padding:20px;font-size:13px;">Loading…</div>';
   modal.style.display = 'flex';
   document.body.style.overflow = 'hidden';
 
@@ -439,7 +439,7 @@ export async function openKbDoc(kbHit) {
     // Listen for dirty events from comments/highlights
     document.addEventListener('kb:dirty', _onKbDirty);
   } catch (e) {
-    body.innerHTML = `<div style="color:#7d4e00;padding:20px">无法加载文件：${escHtml(e.message)}</div>`;
+    body.innerHTML = `<div style="color:#7d4e00;padding:20px">Could not load file: ${escHtml(e.message)}</div>`;
     document.getElementById('kb-btn-edit').style.display = 'none';
   }
 }
@@ -450,7 +450,7 @@ export async function saveKbDoc() {
   const newContent = editArea.value;
   const btnSave = document.getElementById('kb-btn-save');
   btnSave.disabled = true;
-  btnSave.textContent = '保存中…';
+  btnSave.textContent = 'Saving…';
   try {
     const originalContent = state.viewer.rawText;
     const data = await api.saveKbFile(state.viewer.kbRepo, state.viewer.kbPath, newContent);
@@ -470,10 +470,10 @@ export async function saveKbDoc() {
       showKbReindexBtn(state.viewer.kbRepo);
     }
   } catch (e) {
-    alert(`保存失败：${e.message}`);
+    alert(`Save failed: ${e.message}`);
   } finally {
     btnSave.disabled = false;
-    btnSave.textContent = '💾 保存';
+    btnSave.textContent = '💾 Save';
   }
 }
 
@@ -487,7 +487,7 @@ async function openKbCommitDialog() {
   result.style.color = '';
   document.getElementById('kb-commit-msg').value = _kbPendingMsg || '';
   okBtn.disabled = false;
-  okBtn.textContent = '提交';
+  okBtn.textContent = 'Commit';
   _resetRevertAllBtn();
   dialog.classList.add('open');
 
@@ -500,25 +500,25 @@ async function _refreshKbCommitFileList() {
   const okBtn = document.getElementById('kb-btn-commit-ok');
   const revertAllBtn = document.getElementById('kb-btn-revert-all');
 
-  fileList.innerHTML = '<div style="font-size:12px;color:#8c959f;">加载中…</div>';
+  fileList.innerHTML = '<div style="font-size:12px;color:#8c959f;">Loading…</div>';
 
   try {
     const data = await api.fetchKbStatus(state.viewer.kbRepo);
     if (data.error) throw new Error(data.error);
 
     if (!data.total && !data.ahead) {
-      fileList.innerHTML = '<div style="font-size:13px;color:#8c959f;padding:4px 0;">没有待提交的变更</div>';
+      fileList.innerHTML = '<div style="font-size:13px;color:#8c959f;padding:4px 0;">No changes to commit</div>';
       okBtn.disabled = true;
       if (revertAllBtn) revertAllBtn.disabled = true;
     } else {
       // Types that support per-file revert
       const REVERTABLE = new Set(['new', 'modified', 'deleted']);
       const GROUPS = [
-        { key: 'new',        label: '新增' },
-        { key: 'modified',   label: '修改' },
-        { key: 'renamed',    label: '重命名' },
-        { key: 'deleted',    label: '删除' },
-        { key: 'conflicted', label: '冲突' },
+        { key: 'new',        label: 'New' },
+        { key: 'modified',   label: 'Modified' },
+        { key: 'renamed',    label: 'Renamed' },
+        { key: 'deleted',    label: 'Deleted' },
+        { key: 'conflicted', label: 'Conflict' },
       ];
 
       const wrap = document.createElement('div');
@@ -528,8 +528,8 @@ async function _refreshKbCommitFileList() {
         const g = document.createElement('div');
         g.className = 'commit-file-group';
         g.innerHTML = `
-          <div class="commit-file-group-title" style="color:#0969da;">待推送（${data.ahead} 个本地提交）</div>
-          <div class="commit-file-item" style="background:#ddf4ff;color:#0550ae;display:block;">本地已有 ${data.ahead} 个提交尚未推送到远端</div>`;
+          <div class="commit-file-group-title" style="color:#0969da;">Ready to push (${data.ahead} local commits)</div>
+          <div class="commit-file-item" style="background:#ddf4ff;color:#0550ae;display:block;">${data.ahead} local commit(s) not yet pushed</div>`;
         wrap.appendChild(g);
       }
 
@@ -554,8 +554,8 @@ async function _refreshKbCommitFileList() {
           if (REVERTABLE.has(key)) {
             const btn = document.createElement('button');
             btn.className = 'kb-revert-btn';
-            btn.textContent = '撤销';
-            btn.title = `撤销对 ${f} 的修改`;
+            btn.textContent = 'Revert';
+            btn.title = `Revert changes to ${f}`;
             btn.addEventListener('click', () => _kbRevertFile(f, key, btn));
             row.appendChild(btn);
           }
@@ -566,20 +566,20 @@ async function _refreshKbCommitFileList() {
       }
 
       okBtn.disabled = false;
-      okBtn.textContent = data.total ? '提交' : '推送';
+      okBtn.textContent = data.total ? 'Commit' : 'Push';
       if (revertAllBtn) revertAllBtn.disabled = false;
       fileList.innerHTML = '';
       fileList.appendChild(wrap);
     }
   } catch (e) {
-    fileList.innerHTML = `<div style="font-size:12px;color:#cf222e;">获取状态失败：${e.message}</div>`;
+    fileList.innerHTML = `<div style="font-size:12px;color:#cf222e;">Failed to get status: ${e.message}</div>`;
   }
 }
 
 // ── _kbRevertFile ─────────────────────────────────────────────────────────
 async function _kbRevertFile(path, type, btn) {
   btn.disabled = true;
-  btn.textContent = '撤销中…';
+  btn.textContent = 'Reverting…';
   try {
     const data = await api.revertKbFile(state.viewer.kbRepo, path, type);
     if (data.error) throw new Error(data.error);
@@ -604,8 +604,8 @@ async function _kbRevertFile(path, type, btn) {
     }
   } catch (e) {
     btn.disabled = false;
-    btn.textContent = '撤销';
-    btn.title = `撤销失败：${e.message}`;
+    btn.textContent = 'Revert';
+    btn.title = `Revert failed: ${e.message}`;
     btn.style.color = '#cf222e';
     btn.style.opacity = '1';
   }
@@ -618,7 +618,7 @@ function _resetRevertAllBtn() {
   const btn = document.getElementById('kb-btn-revert-all');
   if (!btn) return;
   clearTimeout(_revertAllConfirmTimer);
-  btn.textContent = '撤销全部修改';
+  btn.textContent = 'Revert all changes';
   btn.classList.remove('confirm');
   btn.disabled = false;
 }
@@ -627,7 +627,7 @@ async function _kbRevertAll(btn) {
   if (!btn.classList.contains('confirm')) {
     // First click — arm with 3 s auto-reset
     btn.classList.add('confirm');
-    btn.textContent = '⚠ 确认撤销所有？';
+    btn.textContent = '⚠ Revert all?';
     clearTimeout(_revertAllConfirmTimer);
     _revertAllConfirmTimer = setTimeout(_resetRevertAllBtn, 3000);
     return;
@@ -635,7 +635,7 @@ async function _kbRevertAll(btn) {
   // Second click — execute
   clearTimeout(_revertAllConfirmTimer);
   btn.disabled = true;
-  btn.textContent = '撤销中…';
+  btn.textContent = 'Reverting…';
   try {
     const data = await api.revertKbFile(state.viewer.kbRepo);
     if (data.error) throw new Error(data.error);
@@ -654,13 +654,13 @@ async function _kbRevertAll(btn) {
   } catch (e) {
     _resetRevertAllBtn();
     const result = document.getElementById('kb-commit-result');
-    if (result) { result.style.color = '#cf222e'; result.textContent = `✗ 撤销失败：${e.message}`; }
+    if (result) { result.style.color = '#cf222e'; result.textContent = `✗ Revert failed: ${e.message}`; }
   }
 }
 
 function closeKbCommitDialog() {
   document.getElementById('kb-commit-dialog').classList.remove('open');
-  document.getElementById('kb-btn-commit-ok').textContent = '提交';
+  document.getElementById('kb-btn-commit-ok').textContent = 'Commit';
   _resetRevertAllBtn();
 }
 
@@ -670,14 +670,14 @@ async function doKbCommit() {
   const result = document.getElementById('kb-commit-result');
   const msg = document.getElementById('kb-commit-msg').value.trim() || 'chore: update via viewer';
   btn.disabled = true;
-  result.textContent = '提交中…';
+  result.textContent = 'Committing…';
   result.style.color = '#8c959f';
 
   try {
     const data = await api.commitKbFile(state.viewer.kbRepo, msg);
     if (data.error) throw new Error(data.error + (data.stderr ? '\n' + data.stderr : ''));
     result.style.color = '#1a7f37';
-    result.textContent = '✓ 提交并推送成功';
+    result.textContent = '✓ Committed and pushed';
     _kbHidePendingBadge();
     showKbReindexBtn(state.viewer.kbRepo);
     setTimeout(closeKbCommitDialog, 1500);
@@ -698,13 +698,13 @@ export function showKbReindexBtn(repo) {
     const closeBtn = document.getElementById('kb-md-close');
     closeBtn.parentNode.insertBefore(btn, closeBtn);
   }
-  btn.textContent = '↺ 重建索引';
-  btn.title = '重建此知识库的搜索索引';
+  btn.textContent = '↺ Rebuild index';
+  btn.title = 'Rebuild search index for this library';
   btn.disabled = false;
   btn.style.display = '';
   btn.onclick = async () => {
     btn.disabled = true;
-    btn.textContent = '重建中…';
+    btn.textContent = 'Rebuilding…';
     try {
       const res = await api.reindexKbRepo(repo);
       if (res.error) throw new Error(res.error);
@@ -713,19 +713,19 @@ export function showKbReindexBtn(repo) {
           const status = await api.getReindexStatus();
           if (status.status === 'done') {
             clearInterval(poll);
-            btn.textContent = '✓ 已重建';
+            btn.textContent = '✓ Rebuilt';
             btn.disabled = false;
             setTimeout(() => { btn.style.display = 'none'; }, 2000);
           } else if (status.status === 'error') {
             clearInterval(poll);
-            btn.textContent = '重建失败';
+            btn.textContent = 'Rebuild failed';
             btn.disabled = false;
-            btn.title = status.log || '未知错误';
+            btn.title = status.log || 'Unknown error';
           }
         } catch (_) {}
       }, 2000);
     } catch (e) {
-      btn.textContent = '重建失败';
+      btn.textContent = 'Rebuild failed';
       btn.disabled = false;
       btn.title = e.message;
     }

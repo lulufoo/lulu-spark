@@ -46,13 +46,13 @@ function _buildQuery(entry) {
 
 function _buildSkeleton() {
   return `
-    <button class="ks-toggle" title="展开知识面板">‹</button>
+    <button class="ks-toggle" title="Expand knowledge panel">‹</button>
     <div class="ks-inner">
-      <div class="ks-panel-title">相关知识<button class="ks-refresh-btn" title="同步知识库">↺</button></div>
+      <div class="ks-panel-title">Related knowledge<button class="ks-refresh-btn" title="Sync knowledge">↺</button></div>
       <div class="ks-search-bar">
-        <input class="ks-input" type="text" placeholder="搜索知识库…" autocomplete="off" />
+        <input class="ks-input" type="text" placeholder="Search knowledge…" autocomplete="off" />
       </div>
-      <div class="ks-sync-bar" style="display:none">⟳ 正在同步知识库…</div>
+      <div class="ks-sync-bar" style="display:none">⟳ Syncing knowledge…</div>
       <div class="ks-results">
         <div class="ks-status-msg"></div>
       </div>
@@ -95,12 +95,12 @@ function _togglePanel() {
 
 async function _search(q) {
   if (!q) {
-    _renderStatusMsg('输入关键词开始搜索')
+    _renderStatusMsg('Enter keywords to search')
     return
   }
 
   _setState('loading')
-  _renderStatusMsg('正在搜索…')
+  _renderStatusMsg('Searching…')
 
   try {
     const data = await searchKnowledge(q, 10)
@@ -115,20 +115,20 @@ async function _search(q) {
     _container.classList.remove('ks-unavailable')
 
     if (data.error === 'not_indexed') {
-      _renderStatusMsg('知识库尚未建立索引<br><span style="font-size:10px;color:#aaa">点击 ↺ 同步知识库</span>')
+      _renderStatusMsg('Knowledge index not built<br><span style="font-size:10px;color:#aaa">Click ↺ to sync knowledge</span>')
       return
     }
 
     const hits = data.hits || []
     if (hits.length === 0) {
       _setState('empty')
-      _renderStatusMsg('暂无相关知识<br><span style="font-size:10px;color:#aaa">换一个关键词试试？</span>')
+      _renderStatusMsg('No related knowledge<br><span style="font-size:10px;color:#aaa">Try another keyword?</span>')
     } else {
       _setState('showing')
       _renderHits(hits)
     }
   } catch (_) {
-    _renderStatusMsg('搜索出错')
+    _renderStatusMsg('Search error')
   }
 }
 
@@ -140,7 +140,7 @@ async function _startSync() {
   if (refreshBtn) refreshBtn.disabled = true
   if (syncBar) {
     syncBar.className = 'ks-sync-bar'
-    syncBar.textContent = '⟳ 正在同步知识库…'
+    syncBar.textContent = '⟳ Syncing knowledge…'
     syncBar.style.display = 'block'
   }
 
@@ -151,7 +151,7 @@ async function _startSync() {
       return
     }
   } catch (_) {
-    _showSyncError('请求失败')
+    _showSyncError('Request failed')
     return
   }
 
@@ -168,7 +168,7 @@ async function _pollSync() {
       const input = _container.querySelector('.ks-input')
       if (input && input.value.trim()) _search(input.value.trim())
     } else if (res.status === 'error') {
-      _stopSync(true, res.log || '同步失败')
+      _stopSync(true, res.log || 'Sync failed')
     }
   } catch (_) {}
 }
@@ -184,7 +184,7 @@ function _stopSync(isError, msg) {
   if (isError) {
     if (syncBar) {
       syncBar.className = 'ks-sync-bar ks-error'
-      syncBar.textContent = `⚠ 同步失败：${msg}`
+      syncBar.textContent = `⚠ Sync failed: ${msg}`
     }
   } else {
     if (syncBar) syncBar.style.display = 'none'

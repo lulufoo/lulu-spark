@@ -68,7 +68,7 @@ async function _checkExistence() {
   try {
     const data = await api.checkFileExists(_settleCtx.repo, filePath);
     if (data.exists) {
-      warn.innerHTML = `<span style="color:#cf222e;font-size:11px;">⚠ 文件已存在：${filePath}</span>`;
+      warn.innerHTML = `<span style="color:#cf222e;font-size:11px;">⚠ File already exists: ${filePath}</span>`;
     } else {
       warn.textContent = '';
     }
@@ -82,12 +82,12 @@ export async function openSettleDialog(comment, layer, entry) {
   try {
     topics = await _getTopics();
   } catch (e) {
-    alert(`无法加载 topics.json：${e.message}`);
+    alert(`Could not load topics.json: ${e.message}`);
     return;
   }
   const repo = _deriveRepo(entry.common_path, topics);
   if (!repo) {
-    alert(`无法找到 ${entry.common_path.split('/')[0]} 对应的 GitHub 仓库`);
+    alert(`Could not find GitHub repository for ${entry.common_path.split('/')[0]}`);
     return;
   }
 
@@ -102,11 +102,11 @@ export async function openSettleDialog(comment, layer, entry) {
 
   const btn = document.getElementById('btn-settle-submit');
   btn.disabled = false;
-  btn.textContent = '推送';
+  btn.textContent = 'Push';
 
   const sel = document.getElementById('settle-theme-select');
   sel.style.display = '';
-  sel.innerHTML = '<option value="">加载目录中…</option>';
+  sel.innerHTML = '<option value="">Loading folders…</option>';
   sel.disabled = true;
 
   document.getElementById('settle-file-warn').textContent = '';
@@ -116,7 +116,7 @@ export async function openSettleDialog(comment, layer, entry) {
   api.fetchRepoDirs(repo).then(data => {
     sel.disabled = false;
     if (data.error) {
-      sel.innerHTML = `<option value="">加载失败: ${data.error}</option>`;
+      sel.innerHTML = `<option value="">Failed to load: ${data.error}</option>`;
       return;
     }
     const dirs = data.dirs || [];
@@ -124,7 +124,7 @@ export async function openSettleDialog(comment, layer, entry) {
     // Root option first
     const rootOpt = document.createElement('option');
     rootOpt.value = '.';
-    rootOpt.textContent = '. （根目录）';
+    rootOpt.textContent = '. (root)';
     sel.appendChild(rootOpt);
     // Pre-select entry's second path segment as hint (doc-theme level)
     const hint = entry.common_path.split('/')[1] || '';
@@ -137,11 +137,11 @@ export async function openSettleDialog(comment, layer, entry) {
     });
     const newOpt = document.createElement('option');
     newOpt.value = '__new__';
-    newOpt.textContent = '＋ 新建目录…';
+    newOpt.textContent = '＋ New folder…';
     sel.appendChild(newOpt);
   }).catch(e => {
     sel.disabled = false;
-    sel.innerHTML = `<option value="">加载失败: ${e.message}</option>`;
+    sel.innerHTML = `<option value="">Failed to load: ${e.message}</option>`;
   });
 }
 
@@ -160,23 +160,23 @@ async function _doSettle() {
   const docTheme = inp.style.display !== 'none' ? inp.value.trim() : sel.value;
 
   if (!docTheme || docTheme === '__new__') {
-    alert('请选择或输入目标目录名');
+    alert('Choose or enter target folder');
     return;
   }
 
   const slug = document.getElementById('settle-slug').value.trim();
-  if (!slug) { alert('请输入文件名'); return; }
+  if (!slug) { alert('Enter filename'); return; }
   if (!/^[a-z0-9][a-z0-9-]*$/.test(slug)) {
-    alert('文件名只能包含小写字母、数字和连字符，且不能以连字符开头');
+    alert('Filename may only contain lowercase letters, numbers, and hyphens, and cannot start with a hyphen');
     return;
   }
 
   const content = document.getElementById('settle-content').value.trim();
-  if (!content) { alert('正文不能为空'); return; }
+  if (!content) { alert('Body cannot be empty'); return; }
 
   const btn = document.getElementById('btn-settle-submit');
   btn.disabled = true;
-  btn.textContent = '推送中…';
+  btn.textContent = 'Pushing…';
   document.getElementById('settle-result').textContent = '';
 
   try {
@@ -185,9 +185,9 @@ async function _doSettle() {
     );
     if (data.error) {
       document.getElementById('settle-result').innerHTML =
-        `<span style="color:#cf222e">失败：${data.error}</span>`;
+        `<span style="color:#cf222e">Failed: ${data.error}</span>`;
       btn.disabled = false;
-      btn.textContent = '推送';
+      btn.textContent = 'Push';
       return;
     }
 
@@ -198,15 +198,15 @@ async function _doSettle() {
 
     const warns = Array.isArray(data.warn) ? data.warn : (data.warn ? [data.warn] : []);
     document.getElementById('settle-result').innerHTML =
-      `<span style="color:#1a7f37">✓ 已推送</span>　<a href="${data.url}" target="_blank" style="font-size:11px;word-break:break-all;">${data.url}</a>` +
+      `<span style="color:#1a7f37">✓ Pushed</span>　<a href="${data.url}" target="_blank" style="font-size:11px;word-break:break-all;">${data.url}</a>` +
       (warns.length ? `<br><span style="color:#9a6700;font-size:11px;">⚠ ${warns.join('；')}</span>` : '');
-    btn.textContent = '已完成';
+    btn.textContent = 'Done';
     setTimeout(closeSettleDialog, 2500);
   } catch (e) {
     document.getElementById('settle-result').innerHTML =
-      `<span style="color:#cf222e">失败：${e.message}</span>`;
+      `<span style="color:#cf222e">Failed: ${e.message}</span>`;
     btn.disabled = false;
-    btn.textContent = '推送';
+    btn.textContent = 'Push';
   }
 }
 

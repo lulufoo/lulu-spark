@@ -27,7 +27,7 @@ async function deleteHighlight(id) {
     }
     reapplyHighlights();
   } catch (e) {
-    alert(`取消高亮失败：${e.message}`);
+    alert(`Failed to remove highlight：${e.message}`);
   }
 }
 
@@ -44,7 +44,7 @@ function reapplyHighlights() {
   applyHighlights(state.viewer.annotation, state.viewer.layer);
 }
 
-// ── Floating "高亮" button ─────────────────────────────────────────────────
+// ── Floating "Highlight" button ─────────────────────────────────────────────────
 
 let _pendingText = null;
 let _pendingOccurrence = 0;
@@ -100,7 +100,7 @@ export function initHighlightUI() {
       (layerData.highlights || (layerData.highlights = [])).push({ id: data.id, text, occurrence, ts: nowTs() });
       wrapNthMatch(document.getElementById('md-body'), text, occurrence, data.id, id => deleteHighlight(id));
     } catch (e) {
-      alert(`高亮失败：${e.message}`);
+      alert(`Highlight failed：${e.message}`);
     }
   });
 }

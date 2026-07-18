@@ -28,7 +28,7 @@ import {
   renderUnavailableState,
 } from '../frontend/js/components/read-later-list.js';
 
-const UNAVAILABLE_MSG = '列表暂时不可用，请稍后重试';
+const UNAVAILABLE_MSG = 'List temporarily unavailable. Please try again later';
 
 const fixtureRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 const mainJs = readFileSync(join(fixtureRoot, 'frontend/js/main.js'), 'utf8');

@@ -60,7 +60,7 @@ export function attachCorpusSidebarResize(aside) {
     resizer.className = 'corpus-sidebar-resizer sidebar-resizer';
     resizer.setAttribute('role', 'separator');
     resizer.setAttribute('aria-orientation', 'vertical');
-    resizer.setAttribute('aria-label', '调整知识库目录宽度');
+    resizer.setAttribute('aria-label', 'Resize knowledge tree');
     resizer.tabIndex = 0;
     aside.appendChild(resizer);
   }

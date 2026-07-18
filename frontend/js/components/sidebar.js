@@ -52,7 +52,7 @@ function _ensureSidebarZones(aside) {
     resizer.className = 'sidebar-resizer';
     resizer.setAttribute('role', 'separator');
     resizer.setAttribute('aria-orientation', 'vertical');
-    resizer.setAttribute('aria-label', '调整侧边栏宽度');
+    resizer.setAttribute('aria-label', 'Resize sidebar');
     resizer.tabIndex = 0;
     aside.appendChild(resizer);
   }
@@ -75,7 +75,7 @@ function _renderTopicFilter(parent) {
   wrap.className = 'topic-filter';
 
   /** @type {import('./floating-list-select.js').FloatingListSelectOption[]} */
-  const options = [{ value: '', label: `全部 (${total})` }];
+  const options = [{ value: '', label: `All (${total})` }];
   for (const t of topics) {
     options.push({ value: t, label: `${t} (${topicCounts[t]})` });
   }
@@ -83,12 +83,12 @@ function _renderTopicFilter(parent) {
     options.push({
       value: 'unknown',
       label: `unknown (${topicCounts['unknown']})`,
-      title: 'common_path 格式异常的条目',
+      title: 'Entries with invalid common_path',
     });
   }
 
   const { picker } = createFloatingListSelect({
-    ariaLabel: '筛选主题',
+    ariaLabel: 'Filter by topic',
     pickerClass: 'topic-select',
     value: state.ui.activeTopic || '',
     options,
@@ -99,7 +99,7 @@ function _renderTopicFilter(parent) {
   const countEl = document.createElement('div');
   countEl.className = 'topic-count';
   if (state.ui.activeTopic) {
-    countEl.textContent = `${topicCounts[state.ui.activeTopic] || 0} / ${total} 篇`;
+    countEl.textContent = `${topicCounts[state.ui.activeTopic] || 0} / ${total} items`;
     countEl.style.display = '';
   } else {
     countEl.style.display = 'none';
@@ -139,7 +139,7 @@ function _renderTagFilter(parent) {
   wrap.className = 'tag-filter';
 
   /** @type {import('./floating-list-select.js').FloatingListSelectOption[]} */
-  const options = [{ value: '', label: `全部 (${total})` }];
+  const options = [{ value: '', label: `All (${total})` }];
   const sortedKeys = Object.keys(tagCounts).sort((a, b) =>
     _tagLabel(a).localeCompare(_tagLabel(b))
   );
@@ -151,7 +151,7 @@ function _renderTagFilter(parent) {
   }
 
   const { picker } = createFloatingListSelect({
-    ariaLabel: '筛选标签',
+    ariaLabel: 'Filter by tag',
     pickerClass: 'tag-select',
     value: activeKey || '',
     options,
@@ -165,7 +165,7 @@ function _renderTagFilter(parent) {
   const countEl = document.createElement('div');
   countEl.className = 'tag-count';
   if (activeKey) {
-    countEl.textContent = `${tagCounts[activeKey] || 0} / ${total} 篇`;
+    countEl.textContent = `${tagCounts[activeKey] || 0} / ${total} items`;
     countEl.style.display = '';
   } else {
     countEl.style.display = 'none';
@@ -252,12 +252,12 @@ export function renderTagFilterChip() {
   chip.innerHTML = '';
   chip.style.display = '';
   const text = document.createElement('span');
-  text.textContent = `标签：${label} `;
+  text.textContent = `Tag: ${label} `;
   const clearBtn = document.createElement('button');
   clearBtn.type = 'button';
   clearBtn.className = 'tag-filter-chip-clear';
   clearBtn.textContent = '×';
-  clearBtn.title = '清除标签过滤';
+  clearBtn.title = 'Clear tag filter';
   clearBtn.addEventListener('click', () => clearTagFilter());
   chip.append(text, clearBtn);
 }
@@ -290,8 +290,8 @@ function _refreshFilteredList() {
     document.getElementById('status').style.display = 'none';
     const heading = document.getElementById('date-heading');
     heading.style.display = '';
-    heading.textContent = '无匹配条目';
-    if (list) list.innerHTML = '<div class="empty-filter-msg">当前筛选条件下没有文档</div>';
+    heading.textContent = 'No matching items';
+    if (list) list.innerHTML = '<div class="empty-filter-msg">No documents match the current filters</div>';
   }
 }
 
@@ -312,7 +312,7 @@ export function selectDate(date) {
   document.getElementById('status').style.display = 'none';
   const heading = document.getElementById('date-heading');
   heading.style.display = '';
-  heading.textContent = d.full + `  ·  ${group.entries.length} 篇`;
+  heading.textContent = d.full + `  ·  ${group.entries.length} items`;
   renderTagFilterChip();
 
   renderDocList(group.entries, date);
@@ -333,8 +333,8 @@ export function selectTopic(key) {
     document.getElementById('status').style.display = 'none';
     const heading = document.getElementById('date-heading');
     heading.style.display = '';
-    heading.textContent = '无匹配条目';
+    heading.textContent = 'No matching items';
     document.getElementById('doc-list').innerHTML =
-      '<div class="empty-filter-msg">当前筛选条件下没有文档</div>';
+      '<div class="empty-filter-msg">No documents match the current filters</div>';
   }
 }
