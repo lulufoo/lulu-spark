@@ -29,7 +29,7 @@ function resetDeleteColumn() {
   deleteResult.style.color = '';
   const deleteOkBtn = document.getElementById('btn-delete-doc-ok');
   deleteOkBtn.disabled = false;
-  deleteOkBtn.textContent = '确认删除';
+  deleteOkBtn.textContent = 'Confirm delete';
 }
 
 function openMoveDocDialog() {
@@ -39,7 +39,7 @@ function openMoveDocDialog() {
   result.textContent = '';
   result.style.color = '';
   document.getElementById('btn-move-doc-ok').disabled = false;
-  document.getElementById('btn-move-doc-ok').textContent = '确认移动';
+  document.getElementById('btn-move-doc-ok').textContent = 'Confirm move';
   resetDeleteColumn();
   switchGhOpsPanel('move');
   document.getElementById('move-doc-dialog').classList.add('open');
@@ -58,26 +58,26 @@ async function doMoveDoc() {
 
   if (!srcUrl || !dstUrl) {
     result.style.color = '#cf222e';
-    result.textContent = '请填写两个 URL';
+    result.textContent = 'Enter both URLs';
     return;
   }
 
   okBtn.disabled = true;
-  okBtn.textContent = '移动中…';
+  okBtn.textContent = 'Moving…';
   result.style.color = '#57606a';
-  result.textContent = '正在执行 gh api…';
+  result.textContent = 'Running gh api…';
 
   try {
     const data = await api.ghMove(srcUrl, dstUrl);
     if (!data.ok || data.error) throw new Error(data.error || 'failed');
     if (data.warn) {
       result.style.color = '#e09b00';
-      const movedInfo = data.moved !== undefined ? `（已移动 ${data.moved} 个文件）` : '';
+      const movedInfo = data.moved !== undefined ? ` (${data.moved} files moved)` : '';
       result.textContent = `⚠ ${data.warn}${movedInfo}`;
     } else {
       result.style.color = '#1a7f37';
-      const movedInfo = data.moved !== undefined ? `（共 ${data.moved} 个文件）` : '';
-      result.textContent = `✓ 已移动到 ${data.dst_path}${movedInfo}`;
+      const movedInfo = data.moved !== undefined ? ` (${data.moved} files total)` : '';
+      result.textContent = `✓ Moved to ${data.dst_path}${movedInfo}`;
       document.dispatchEvent(new CustomEvent('cta:reload'));
       setTimeout(closeMoveDocDialog, 2000);
     }
@@ -86,7 +86,7 @@ async function doMoveDoc() {
     result.textContent = `✗ ${e.message}`;
   } finally {
     okBtn.disabled = false;
-    okBtn.textContent = '确认移动';
+    okBtn.textContent = 'Confirm move';
   }
 }
 
@@ -97,26 +97,26 @@ async function doDeleteDoc() {
 
   if (!url) {
     result.style.color = '#cf222e';
-    result.textContent = '请填写 URL';
+    result.textContent = 'Enter URL';
     return;
   }
 
   okBtn.disabled = true;
-  okBtn.textContent = '删除中…';
+  okBtn.textContent = 'Deleting…';
   result.style.color = '#57606a';
-  result.textContent = '正在执行 gh api…';
+  result.textContent = 'Running gh api…';
 
   try {
     const data = await api.ghDelete(url);
     if (!data.ok || data.error) throw new Error(data.error || 'failed');
     if (data.warn) {
       result.style.color = '#e09b00';
-      const deletedInfo = data.deleted !== undefined ? `（已删除 ${data.deleted} 个文件）` : '';
+      const deletedInfo = data.deleted !== undefined ? ` (${data.deleted} files deleted)` : '';
       result.textContent = `⚠ ${data.warn}${deletedInfo}`;
     } else {
       result.style.color = '#1a7f37';
-      const deletedInfo = data.deleted !== undefined ? `（共 ${data.deleted} 个文件）` : '';
-      result.textContent = `✓ 已删除${deletedInfo}`;
+      const deletedInfo = data.deleted !== undefined ? ` (${data.deleted} files total)` : '';
+      result.textContent = `✓ Deleted${deletedInfo}`;
       document.dispatchEvent(new CustomEvent('cta:reload'));
       setTimeout(closeMoveDocDialog, 2000);
     }
@@ -125,7 +125,7 @@ async function doDeleteDoc() {
     result.textContent = `✗ ${e.message}`;
   } finally {
     okBtn.disabled = false;
-    okBtn.textContent = '确认删除';
+    okBtn.textContent = 'Confirm delete';
   }
 }
 

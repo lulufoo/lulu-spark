@@ -1,5 +1,5 @@
 const QR_OPTS = { width: 256, margin: 2 };
-const OVERFLOW_MSG = '⚠️ 文本过长，无法生成二维码（QR 容量上限约 2 KB UTF-8）';
+const OVERFLOW_MSG = '⚠️ Text too long to generate QR code (capacity ~2 KB UTF-8)';
 
 function isOverflowError(err) {
   const msg = String(err?.message || err || '');

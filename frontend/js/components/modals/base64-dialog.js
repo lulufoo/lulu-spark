@@ -26,7 +26,7 @@ document.getElementById('btn-base64-decode').addEventListener('click', () => {
     document.getElementById('base64-output').value = result;
     document.getElementById('base64-output').style.color = '';
   } catch {
-    document.getElementById('base64-output').value = '⚠️ 解码失败：输入不是有效的 Base64 字符串';
+    document.getElementById('base64-output').value = '⚠️ Decode failed: input is not valid Base64';
     document.getElementById('base64-output').style.color = '#e5534b';
   }
 });
@@ -36,6 +36,6 @@ document.getElementById('btn-base64-copy').addEventListener('click', () => {
   if (!text) return;
   navigator.clipboard.writeText(text);
   const btn = document.getElementById('btn-base64-copy');
-  btn.textContent = '已复制';
-  setTimeout(() => { btn.textContent = '复制结果'; }, 1500);
+  btn.textContent = 'Copied';
+  setTimeout(() => { btn.textContent = 'Copy result'; }, 1500);
 });

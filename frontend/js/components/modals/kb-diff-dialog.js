@@ -1,11 +1,11 @@
 import * as api from '../../api.js';
 
 const GROUPS = [
-  { key: 'new', label: '新增' },
-  { key: 'modified', label: '修改' },
-  { key: 'renamed', label: '重命名' },
-  { key: 'deleted', label: '删除' },
-  { key: 'conflicted', label: '冲突' },
+  { key: 'new', label: 'New' },
+  { key: 'modified', label: 'Modified' },
+  { key: 'renamed', label: 'Renamed' },
+  { key: 'deleted', label: 'Deleted' },
+  { key: 'conflicted', label: 'Conflict' },
 ];
 
 let activeRepo = '';
@@ -45,8 +45,8 @@ function renderGroups(data) {
   let html = '<div style="display:flex;flex-direction:column;gap:10px;">';
   if (data.ahead) {
     html += `<div class="commit-file-group">
-      <div class="commit-file-group-title" style="color:#0969da;">待推送（${data.ahead} 个本地提交）</div>
-      <div class="commit-file-item renamed" style="display:block;">本地已有 ${data.ahead} 个提交尚未推送到远端</div>
+      <div class="commit-file-group-title" style="color:#0969da;">Ready to push (${data.ahead} local commits)</div>
+      <div class="commit-file-item renamed" style="display:block;">${data.ahead} local commit(s) not yet pushed</div>
     </div>`;
   }
   for (const { key, label } of GROUPS) {
@@ -62,8 +62,8 @@ function renderGroups(data) {
 
 async function refreshDialog() {
   const { fileList, okBtn, revertBtn, title } = getElements();
-  title.textContent = `✎ 本地变更 · ${repoShortName(activeRepo)}`;
-  fileList.innerHTML = '<div style="font-size:12px;color:#8c959f;">加载中…</div>';
+  title.textContent = `✎ Local changes · ${repoShortName(activeRepo)}`;
+  fileList.innerHTML = '<div style="font-size:12px;color:#8c959f;">Loading…</div>';
   okBtn.disabled = true;
   revertBtn.disabled = true;
 
@@ -71,14 +71,14 @@ async function refreshDialog() {
     const data = await api.fetchKbStatus(activeRepo);
     if (data?.error) throw new Error(data.error);
     if (!data?.total && !data?.ahead) {
-      fileList.innerHTML = '<div style="font-size:13px;color:#8c959f;padding:4px 0;">没有本地变更</div>';
+      fileList.innerHTML = '<div style="font-size:13px;color:#8c959f;padding:4px 0;">No local changes</div>';
       return;
     }
     renderGroups(data);
     okBtn.disabled = false;
     revertBtn.disabled = false;
   } catch (error) {
-    fileList.innerHTML = `<div style="font-size:12px;color:#cf222e;">获取状态失败：${error.message}</div>`;
+    fileList.innerHTML = `<div style="font-size:12px;color:#cf222e;">Failed to get status: ${error.message}</div>`;
   }
 }
 
@@ -89,7 +89,7 @@ export async function openKbDiffDialog(repo) {
   msg.value = '';
   result.textContent = '';
   result.style.color = '';
-  okBtn.textContent = '提交';
+  okBtn.textContent = 'Commit';
   dialog.classList.add('open');
   await refreshDialog();
 }
@@ -101,25 +101,25 @@ export function closeKbDiffDialog() {
   result.textContent = '';
   result.style.color = '';
   okBtn.disabled = false;
-  okBtn.textContent = '提交';
+  okBtn.textContent = 'Commit';
 }
 
 async function handleCommit() {
   const { msg, result, okBtn, revertBtn } = getElements();
   okBtn.disabled = true;
   revertBtn.disabled = true;
-  result.textContent = '提交中…';
+  result.textContent = 'Committing…';
   result.style.color = '#8c959f';
 
   try {
     const data = await api.commitKbFile(activeRepo, msg.value.trim() || 'chore: update via viewer');
     if (data?.error) throw new Error(data.error);
-    result.textContent = '✓ 提交并推送成功';
+    result.textContent = '✓ Committed and pushed';
     result.style.color = '#1a7f37';
     emitUpdated();
     closeTimer = setTimeout(() => closeKbDiffDialog(), 1500);
   } catch (error) {
-    result.textContent = `失败：${error.message}`;
+    result.textContent = `Failed: ${error.message}`;
     result.style.color = '#cf222e';
     okBtn.disabled = false;
     revertBtn.disabled = false;
@@ -130,19 +130,19 @@ async function handleRevertAll() {
   const { result, okBtn, revertBtn } = getElements();
   okBtn.disabled = true;
   revertBtn.disabled = true;
-  result.textContent = '撤销中…';
+  result.textContent = 'Reverting…';
   result.style.color = '#8c959f';
 
   try {
     const data = await api.revertKbFile(activeRepo);
     if (data?.error) throw new Error(data.error);
-    result.textContent = '✓ 已删除本地改动';
+    result.textContent = '✓ Local changes discarded';
     result.style.color = '#1a7f37';
     emitUpdated();
     await refreshDialog();
     closeTimer = setTimeout(() => closeKbDiffDialog(), 1500);
   } catch (error) {
-    result.textContent = `失败：${error.message}`;
+    result.textContent = `Failed: ${error.message}`;
     result.style.color = '#cf222e';
     okBtn.disabled = false;
     revertBtn.disabled = false;

@@ -9,7 +9,7 @@ export async function openMoveProjectDialog(entry) {
 
   const currentProject = entry.common_path.split('/')[0];
   const result = document.getElementById('move-project-result');
-  result.textContent = '加载项目列表…';
+  result.textContent = 'Loading project list…';
   result.style.color = '#8c959f';
   document.getElementById('move-project-dialog').classList.add('open');
   // store reference for doMoveProject
@@ -21,7 +21,7 @@ export async function openMoveProjectDialog(entry) {
 async function _loadProjects(currentProject) {
   const result = document.getElementById('move-project-result');
   const list = document.getElementById('move-project-list');
-  result.textContent = '加载项目列表…';
+  result.textContent = 'Loading project list…';
   result.style.color = '#8c959f';
 
   // Load topics
@@ -37,7 +37,7 @@ async function _loadProjects(currentProject) {
     projects.sort((a, b) => a.localeCompare(b, 'en', { sensitivity: 'base' }));
   } catch (e) {
     result.style.color = '#cf222e';
-    result.textContent = '加载失败：' + e.message;
+    result.textContent = 'Failed to load: ' + e.message;
     return;
   }
 
@@ -57,12 +57,12 @@ async function _loadProjects(currentProject) {
       btn.addEventListener('click', () => doMoveProject(proj));
       list.appendChild(btn);
     }
-    result.textContent = `当前项目：${currentProject}，选择目标项目`;
+    result.textContent = `Current project: ${currentProject} — choose target`;
     result.style.color = '#57606a';
   } catch (e) {
     console.error('[move-project] render error', e);
     result.style.color = '#cf222e';
-    result.textContent = '渲染失败：' + e.message;
+    result.textContent = 'Render failed: ' + e.message;
   }
 }
 
@@ -81,18 +81,18 @@ async function doMoveProject(newProject) {
 
   const result = document.getElementById('move-project-result');
   result.style.color = '#57606a';
-  result.textContent = '移动中…';
+  result.textContent = 'Moving…';
 
   document.querySelectorAll('.move-project-item').forEach(b => b.disabled = true);
 
   try {
     const id = getEntryId(entry);
-    if (!id) throw new Error('entry id 不存在');
+    if (!id) throw new Error('Entry id not found');
     const data = await api.moveToProject(id, newProject);
     if (!data.ok) throw new Error(data.error || 'failed');
 
     result.style.color = '#1a7f37';
-    result.textContent = `✓ 已移动到 ${newProject}`;
+    result.textContent = `✓ Moved to ${newProject}`;
 
     setTimeout(() => {
       closeMoveProjectDialog();

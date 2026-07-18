@@ -1,8 +1,8 @@
 import * as api from '../../api.js'
 import { showToast } from '../toast.js'
 
-const HEADER_LABEL_IDLE = '↑ 提交变更';
-const HEADER_LABEL_CHECKING = '检查中…';
+const HEADER_LABEL_IDLE = '↑ Commit changes';
+const HEADER_LABEL_CHECKING = 'Checking…';
 const CLOSE_DELAY_MS = 500;
 
 let commitCloseTimer = null;
@@ -23,7 +23,7 @@ export async function openCommitChangesDialog() {
 
   const fileList = document.getElementById('commit-changes-file-list');
   const result = document.getElementById('commit-changes-result');
-  fileList.innerHTML = '<div style="font-size:12px;color:#8c959f;">加载中…</div>';
+  fileList.innerHTML = '<div style="font-size:12px;color:#8c959f;">Loading…</div>';
   result.textContent = '';
   result.style.color = '';
   document.getElementById('commit-changes-msg').value = '';
@@ -32,25 +32,25 @@ export async function openCommitChangesDialog() {
 
   try {
     const data = await api.fetchDiffStatus();
-    if (!data) throw new Error('无法获取状态');
+    if (!data) throw new Error('Could not get status');
     if (data.error) throw new Error(data.error);
 
     if (!data.total && !data.ahead) {
-      fileList.innerHTML = '<div style="font-size:13px;color:#8c959f;padding:4px 0;">没有待提交或待推送的变更</div>';
+      fileList.innerHTML = '<div style="font-size:13px;color:#8c959f;padding:4px 0;">No changes to commit or push</div>';
       document.getElementById('btn-commit-changes-ok').disabled = true;
     } else {
       const GROUPS = [
-        { key: 'new',        label: '新增' },
-        { key: 'modified',   label: '修改' },
-        { key: 'renamed',    label: '重命名' },
-        { key: 'deleted',    label: '删除' },
-        { key: 'conflicted', label: '冲突' },
+        { key: 'new',        label: 'New' },
+        { key: 'modified',   label: 'Modified' },
+        { key: 'renamed',    label: 'Renamed' },
+        { key: 'deleted',    label: 'Deleted' },
+        { key: 'conflicted', label: 'Conflict' },
       ];
       let html = '<div style="display:flex;flex-direction:column;gap:10px;">';
       if (data.ahead) {
         html += `<div class="commit-file-group">
-          <div class="commit-file-group-title" style="color:#0969da;">待推送（${data.ahead} 个本地提交）</div>
-          <div class="commit-file-item" style="background:#ddf4ff;color:#0550ae;">本地已有 ${data.ahead} 个提交尚未推送到远端</div>
+          <div class="commit-file-group-title" style="color:#0969da;">Ready to push (${data.ahead} local commits)</div>
+          <div class="commit-file-item" style="background:#ddf4ff;color:#0550ae;">${data.ahead} local commit(s) not yet pushed</div>
         </div>`;
       }
       for (const { key, label } of GROUPS) {
@@ -62,11 +62,11 @@ export async function openCommitChangesDialog() {
         }
       }
       html += '</div>';
-      document.getElementById('btn-commit-changes-ok').textContent = data.total ? '提交' : '推送';
+      document.getElementById('btn-commit-changes-ok').textContent = data.total ? 'Commit' : 'Push';
       fileList.innerHTML = html;
     }
   } catch (e) {
-    fileList.innerHTML = `<div style="font-size:12px;color:#cf222e;">获取状态失败：${e.message}</div>`;
+    fileList.innerHTML = `<div style="font-size:12px;color:#cf222e;">Failed to get status: ${e.message}</div>`;
   } finally {
     btn.disabled = false;
     btn.textContent = HEADER_LABEL_IDLE;
@@ -76,7 +76,7 @@ export async function openCommitChangesDialog() {
 function closeCommitChangesDialog() {
   clearCommitCloseTimer();
   document.getElementById('commit-changes-dialog').classList.remove('open');
-  document.getElementById('btn-commit-changes-ok').textContent = '提交';
+  document.getElementById('btn-commit-changes-ok').textContent = 'Commit';
   const headerBtn = document.getElementById('btn-push-index');
   headerBtn.disabled = false;
   headerBtn.textContent = HEADER_LABEL_IDLE;
@@ -92,12 +92,12 @@ function doCommitChanges() {
     void api.commitFiles(msg || 'chore: update via viewer')
       .then(data => {
         const successMsg = data?.info === 'nothing to commit'
-          ? '✓ 已推送'
-          : '✓ 提交并推送成功';
+          ? '✓ Pushed'
+          : '✓ Committed and pushed';
         showToast(successMsg, 'success');
       })
       .catch(e => {
-        showToast(`提交失败：${e.message}`, 'error');
+        showToast(`Commit failed: ${e.message}`, 'error');
       });
   }, CLOSE_DELAY_MS);
 }

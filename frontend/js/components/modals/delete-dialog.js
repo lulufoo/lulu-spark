@@ -23,7 +23,7 @@ document.getElementById('btn-copy-confirm-word').addEventListener('click', () =>
   navigator.clipboard.writeText('CONFIRM');
   const btn = document.getElementById('btn-copy-confirm-word');
   btn.textContent = '✓';
-  setTimeout(() => { btn.textContent = '复制'; }, 1200);
+  setTimeout(() => { btn.textContent = 'Copy'; }, 1200);
 });
 
 document.getElementById('delete-confirm-input').addEventListener('input', e => {
@@ -35,7 +35,7 @@ document.getElementById('btn-delete-cancel').addEventListener('click', closeDele
 document.getElementById('btn-delete-confirm-ok').addEventListener('click', async () => {
   const okBtn = document.getElementById('btn-delete-confirm-ok');
   okBtn.disabled = true;
-  okBtn.textContent = '删除中…';
+  okBtn.textContent = 'Deleting…';
   try {
     const entryId = getEntryId(state.viewer.entry);
     const data = await api.deleteEntry(entryId);
@@ -44,8 +44,8 @@ document.getElementById('btn-delete-confirm-ok').addEventListener('click', async
     closeModal();
     document.dispatchEvent(new CustomEvent('cta:reload'));
   } catch (e) {
-    alert(`删除失败：${e.message}`);
+    alert(`Delete failed: ${e.message}`);
     okBtn.disabled = false;
-    okBtn.textContent = '确认删除';
+    okBtn.textContent = 'Confirm delete';
   }
 });

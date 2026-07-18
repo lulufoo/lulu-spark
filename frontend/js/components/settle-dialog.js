@@ -73,7 +73,7 @@ async function _checkExistence() {
       warn.textContent = '';
     }
   } catch (_) {
-    // 静默忽略检测失败
+    // Ignore existence check failures silently
   }
 }
 

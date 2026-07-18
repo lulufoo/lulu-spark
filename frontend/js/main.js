@@ -54,7 +54,7 @@ async function loadIndex({ managedBtn = false } = {}) {
       : (state.index.filteredGroups.length > 0 ? state.index.filteredGroups[0].date : null);
     if (targetDate) selectDate(targetDate);
   } catch (e) {
-    showError(`无法加载 index.json：${e.message}`);
+    showError(`Could not load index.json: ${e.message}`);
   }
 }
 
@@ -87,7 +87,7 @@ function showError(msg) {
   errDiv.className = 'error-msg';
   errDiv.innerHTML = escHtml(msg) + '<br>';
   const retryBtn = document.createElement('button');
-  retryBtn.textContent = '重试';
+  retryBtn.textContent = 'Retry';
   retryBtn.addEventListener('click', loadIndex);
   errDiv.appendChild(retryBtn);
   status.innerHTML = '';
@@ -101,7 +101,7 @@ function showError(msg) {
 async function pullProject() {
   const btn = document.getElementById('btn-pull');
   btn.disabled = true;
-  btn.textContent = '更新中…';
+  btn.textContent = 'Updating…';
   try {
     const data = await api.pullProject();
     if (data.error) throw new Error((data.error || '') + (data.stderr ? '\n' + data.stderr : ''));
@@ -114,10 +114,10 @@ async function pullProject() {
     }
     await loadIndex();
   } catch (e) {
-    alert(`更新失败：${e.message}`);
+    alert(`Update failed: ${e.message}`);
   } finally {
     btn.disabled = false;
-    btn.textContent = '↓ 更新项目';
+    btn.textContent = '↓ Update project';
   }
 }
 
@@ -198,7 +198,7 @@ async function _ensureSedimentKbCategories() {
 function renderSedimentKbListByCategory(repos) {
   const content = document.getElementById('repo-list-content');
   if (!repos || repos.length === 0) {
-    content.innerHTML = '<div id="repo-list-loading">未找到任何仓库</div>';
+    content.innerHTML = '<div id="repo-list-loading">No repositories found</div>';
     return;
   }
 
@@ -210,7 +210,7 @@ function renderSedimentKbListByCategory(repos) {
 
   const groups = {};
   for (const r of repos) {
-    const key = r.category_name || '未分类';
+    const key = r.category_name || 'Uncategorized';
     if (!groups[key]) groups[key] = [];
     groups[key].push(r);
   }
@@ -219,8 +219,8 @@ function renderSedimentKbListByCategory(repos) {
   }
 
   const sortedKeys = Object.keys(groups).sort((a, b) => {
-    if (a === '未分类') return 1;
-    if (b === '未分类') return -1;
+    if (a === 'Uncategorized') return 1;
+    if (b === 'Uncategorized') return -1;
     return a.localeCompare(b, 'en', { sensitivity: 'base' });
   });
 
@@ -236,10 +236,10 @@ function renderSedimentKbListByCategory(repos) {
       const st = statusMap[r.full_name];
       if (st) {
         localBadge = st.local_exists
-          ? `<span class="repo-local-badge repo-local-ok">已克隆</span>`
-          : `<span class="repo-local-badge repo-local-missing">未克隆</span>`;
+          ? `<span class="repo-local-badge repo-local-ok">Cloned</span>`
+          : `<span class="repo-local-badge repo-local-missing">Not cloned</span>`;
         if (_kbCorpusDiffStatus?.get(r.full_name) === true) {
-          diffBtnHtml = `<button class="repo-diff-badge" data-repo="${escHtml(r.full_name)}" title="查看本地变更">✎</button>`;
+          diffBtnHtml = `<button class="repo-diff-badge" data-repo="${escHtml(r.full_name)}" title="View local changes">✎</button>`;
         }
         syncBtnHtml = `<button class="repo-sync-btn" data-repo="${escHtml(r.full_name)}">SYNC</button>`;
       }
@@ -259,7 +259,7 @@ function renderSedimentKbListByCategory(repos) {
           ${diffBtnHtml}
           ${syncBtnHtml}
           <a class="repo-list-item-link" href="${url}" target="_blank" rel="noopener noreferrer">Link ↗</a>
-          <button type="button" class="sediment-kb-delete-btn" data-repo="${escHtml(r.full_name)}" title="从精选列表移除">删除</button>
+          <button type="button" class="sediment-kb-delete-btn" data-repo="${escHtml(r.full_name)}" title="Remove from curated list">Delete</button>
         </div>
       </div>`;
     }).join('');
@@ -284,7 +284,7 @@ function renderSedimentKbListByCategory(repos) {
         _kbCorpusStatus = null;
         await loadSedimentKbList(true);
       } catch (e) {
-        alert(`同步失败：${e.message}`);
+        alert(`Sync failed: ${e.message}`);
         btn.disabled = false;
         btn.textContent = 'SYNC';
       }
@@ -317,7 +317,7 @@ async function onInlineCategoryChange(fullName, categoryId) {
     _sedimentKbList = null;
     await loadSedimentKbList(true);
   } catch (e) {
-    alert(`更新分类失败：${e.message}`);
+    alert(`Failed to update category: ${e.message}`);
     await loadSedimentKbList(true);
   }
 }
@@ -329,7 +329,7 @@ async function onDeleteSedimentKbRepo(fullName) {
     _sedimentKbList = null;
     await loadSedimentKbList(true);
   } catch (e) {
-    alert(`删除失败：${e.message}`);
+    alert(`Delete failed: ${e.message}`);
   }
 }
 
@@ -369,7 +369,7 @@ async function loadSedimentKbList(forceRefresh = false) {
     _sedimentKbList = [];
     _kbCorpusStatus = [];
     if (content) {
-      content.innerHTML = `<div id="repo-list-loading" style="color:#cf222e">加载失败：${escHtml(_sedimentKbError)}</div>`;
+      content.innerHTML = `<div id="repo-list-loading" style="color:#cf222e">Failed to load: ${escHtml(_sedimentKbError)}</div>`;
     }
     return;
   }
@@ -389,10 +389,10 @@ async function loadSedimentKbList(forceRefresh = false) {
 
 async function openSedimentKbListDialog() {
   const title = document.querySelector('#repo-list-title-group h3');
-  if (title) title.textContent = '☰ 沉淀知识库列表';
+  if (title) title.textContent = '☰ Knowledge list';
   document.getElementById('repo-list-dialog').classList.add('open');
   const content = document.getElementById('repo-list-content');
-  content.innerHTML = '<div id="repo-list-loading">加载中…</div>';
+  content.innerHTML = '<div id="repo-list-loading">Loading…</div>';
   await loadSedimentKbList(true);
 }
 
@@ -409,7 +409,7 @@ async function openSedimentKbAddDialog() {
     ).join('');
   } catch (e) {
     document.getElementById('sediment-kb-add-category').innerHTML =
-      '<option value="uncategorized">未分类</option>';
+      '<option value="uncategorized">Uncategorized</option>';
   }
   document.getElementById('sediment-kb-add-dialog').classList.add('open');
   urlInput.focus();
@@ -421,7 +421,7 @@ function _renderSedimentKbManageList(categories) {
     const isProtected = c.id === 'uncategorized';
     const deleteBtn = isProtected
       ? ''
-      : `<button type="button" class="sediment-kb-cat-delete-btn" data-id="${escHtml(c.id)}">删除</button>`;
+      : `<button type="button" class="sediment-kb-cat-delete-btn" data-id="${escHtml(c.id)}">Delete</button>`;
     const nameCell = isProtected
       ? `<span class="sediment-kb-cat-name-readonly">${escHtml(c.name)}</span>`
       : `<input class="sediment-kb-cat-rename-input" data-id="${escHtml(c.id)}" type="text" value="${escHtml(c.name)}" />`;
@@ -517,7 +517,7 @@ document.getElementById('btn-sediment-kb-add-submit').addEventListener('click', 
     const submitBtn = document.getElementById('btn-sediment-kb-add-submit');
     const fullName = urlInput.value.trim();
     if (!fullName) {
-      _setSedimentKbError('sediment-kb-add-error', '请输入仓库地址');
+      _setSedimentKbError('sediment-kb-add-error', 'Enter repository URL');
       return;
     }
     submitBtn.disabled = true;
@@ -1039,11 +1039,11 @@ function _openSkillsDialog(key) {
       : '';
     const items = g.items.map(i => {
       if (typeof i === 'string') {
-        return `<div class="skill-item" data-copy="${_escapeAttr(i)}" title="点击复制">${i}</div>`;
+        return `<div class="skill-item" data-copy="${_escapeAttr(i)}" title="Click to copy">${i}</div>`;
       }
       const tip = i.desc != null && i.desc !== ''
         ? _escapeAttr(i.desc)
-        : '点击复制指令';
+        : 'Click to copy command';
       return `<div class="skill-item skill-item-rich" data-copy="${_escapeAttr(i.cmd)}" title="${tip}">` +
         `<span class="skill-item-name">${i.name}</span>` +
         `<code class="skill-item-cmd">${i.cmd}</code>` +
@@ -1057,7 +1057,7 @@ function _openSkillsDialog(key) {
     el.addEventListener('click', () => {
       navigator.clipboard.writeText(el.dataset.copy).then(() => {
         const orig = el.textContent;
-        el.textContent = '✓ 已复制';
+        el.textContent = '✓ Copied';
         setTimeout(() => { el.textContent = orig; }, 1200);
       });
     });
