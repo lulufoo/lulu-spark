@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -15,44 +15,44 @@
 <header>
   <h1>
     <a id="btn-nav-home-title" href="#/home" class="header-home-link">LuLu Workbench</a>
-    <a id="btn-nav-home" href="#/home" class="header-nav-back" hidden>← 首页</a>
+    <a id="btn-nav-home" href="#/home" class="header-nav-back" hidden>← Home</a>
   </h1>
   <div id="gs-wb-wrap" class="gs-search-wrap" hidden>
-    <input id="gs-wb-input" class="gs-search-input" type="text" placeholder="搜索笔记…" autocomplete="off" spellcheck="false" />
-    <button id="gs-wb-rebuild-btn" class="gs-rebuild-btn" style="display:none" title="重建 Workbench 索引">↺</button>
+    <input id="gs-wb-input" class="gs-search-input" type="text" placeholder="Search notes…" autocomplete="off" spellcheck="false" />
+    <button id="gs-wb-rebuild-btn" class="gs-rebuild-btn" style="display:none" title="Rebuild Workbench index">↺</button>
     <div id="gs-wb-dropdown" class="gs-search-dropdown" style="display:none"></div>
   </div>
   <div id="gs-kb-wrap" class="gs-search-wrap" hidden>
-    <input id="gs-kb-input" class="gs-search-input" type="text" placeholder="搜索知识库…" autocomplete="off" spellcheck="false" />
-    <button id="gs-kb-rebuild-btn" class="gs-rebuild-btn" style="display:none" title="重建知识库索引">↺</button>
+    <input id="gs-kb-input" class="gs-search-input" type="text" placeholder="Search knowledge…" autocomplete="off" spellcheck="false" />
+    <button id="gs-kb-rebuild-btn" class="gs-rebuild-btn" style="display:none" title="Rebuild knowledge index">↺</button>
     <div id="gs-kb-dropdown" class="gs-search-dropdown" style="display:none"></div>
   </div>
   <a href="https://github.com/lulufoo/lulu-workbench" target="_blank">GitHub ↗</a>
   <div id="repo-menu-wrap">
-    <button id="btn-repo-menu">⚙ 沉淀知识库</button>
+    <button id="btn-repo-menu">⚙ Knowledge</button>
     <div id="repo-menu-dropdown">
-      <button id="btn-sediment-kb-add">＋ 添加</button>
-      <button id="btn-sediment-kb-manage">⚙ 管理</button>
-      <button id="btn-sediment-kb-list">☰ 列表</button>
+      <button id="btn-sediment-kb-add">＋ Add</button>
+      <button id="btn-sediment-kb-manage">⚙ Manage</button>
+      <button id="btn-sediment-kb-list">☰ List</button>
     </div>
   </div>
   <div id="sync-menu-wrap">
-    <button id="btn-sync-menu">⇕ 同步</button>
+    <button id="btn-sync-menu">⇕ Sync</button>
     <div id="sync-menu-dropdown">
-      <button id="btn-push-index">↑ 提交变更</button>
-      <button id="btn-pull">↓ 更新项目</button>
-      <button id="btn-local-refresh">⟳ 本地刷新</button>
+      <button id="btn-push-index">↑ Commit changes</button>
+      <button id="btn-pull">↓ Update project</button>
+      <button id="btn-local-refresh">⟳ Refresh local</button>
     </div>
   </div>
   <div id="tools-menu-wrap">
-    <button id="btn-tools-menu">⛓ 工具</button>
+    <button id="btn-tools-menu">⛓ Tools</button>
     <div id="tools-menu-dropdown">
-      <button id="btn-move-doc-header">GitHub 操作</button>
+      <button id="btn-move-doc-header">GitHub operations</button>
       <button id="btn-base64">🔤 Base64</button>
-      <button id="btn-qr">📱 二维码</button>
+      <button id="btn-qr">📱 QR code</button>
     </div>
   </div>
-  <button id="btn-settings" type="button" title="设置">⚙ 设置</button>
+  <button id="btn-settings" type="button" title="Settings">⚙ Settings</button>
   <div id="skills-menu-wrap">
     <button id="btn-skills-menu">✦ SKILL</button>
     <div id="skills-menu-dropdown">
@@ -74,10 +74,10 @@
       <div id="sidebar-channel-zone" class="sidebar-channel-zone"></div>
       <div id="sidebar-date-zone" class="sidebar-date-zone"></div>
     </div>
-    <div id="sidebar-resizer" class="sidebar-resizer" role="separator" aria-orientation="vertical" aria-label="调整侧边栏宽度" tabindex="0"></div>
+    <div id="sidebar-resizer" class="sidebar-resizer" role="separator" aria-orientation="vertical" aria-label="Resize sidebar" tabindex="0"></div>
   </aside>
   <main id="main">
-    <div id="status"><div style="color:#8c959f;font-size:13px;">← 选择日期查看文档</div></div>
+    <div id="status"><div style="color:#8c959f;font-size:13px;">← Select a date to view documents</div></div>
     <div id="date-heading" style="display:none"></div>
     <div id="doc-list" class="doc-list"></div>
     <div id="feed-view" style="display:none;padding:20px;overflow-y:auto;height:100%;box-sizing:border-box;"></div>
@@ -88,17 +88,17 @@
 <div id="base64-dialog">
   <div id="base64-dialog-box">
     <div id="base64-dialog-header">
-      <span>🔤 Base64 转换</span>
-      <button id="btn-base64-close">✕ 关闭</button>
+      <span>🔤 Base64 convert</span>
+      <button id="btn-base64-close">✕ Close</button>
     </div>
-    <textarea id="base64-input" placeholder="输入文本或 Base64 字符串…" spellcheck="false"></textarea>
+    <textarea id="base64-input" placeholder="Enter text or Base64…" spellcheck="false"></textarea>
     <div id="base64-dialog-actions">
-      <button id="btn-base64-encode">编码 →</button>
-      <button id="btn-base64-decode">← 解码</button>
+      <button id="btn-base64-encode">Encode →</button>
+      <button id="btn-base64-decode">← Decode</button>
     </div>
-    <textarea id="base64-output" readonly placeholder="结果…" spellcheck="false"></textarea>
+    <textarea id="base64-output" readonly placeholder="Result…" spellcheck="false"></textarea>
     <div id="base64-dialog-footer">
-      <button id="btn-base64-copy">复制结果</button>
+      <button id="btn-base64-copy">Copy result</button>
     </div>
   </div>
 </div>
@@ -107,10 +107,10 @@
 <div id="qr-dialog">
   <div id="qr-dialog-box">
     <div id="qr-dialog-header">
-      <span>📱 文本转二维码</span>
-      <button id="btn-qr-close">✕ 关闭</button>
+      <span>📱 Text to QR code</span>
+      <button id="btn-qr-close">✕ Close</button>
     </div>
-    <textarea id="qr-input" placeholder="输入 URL 或文本…" spellcheck="false"></textarea>
+    <textarea id="qr-input" placeholder="Enter URL or text…" spellcheck="false"></textarea>
     <div id="qr-preview"></div>
   </div>
 </div>
@@ -119,15 +119,15 @@
 <div id="md-commit-dialog">
   <div id="md-commit-dialog-box">
     <div id="md-commit-dialog-title">
-      <h3>● 提交变更</h3>
-      <button id="md-btn-revert-all">撤销全部修改</button>
+      <h3>● Commit changes</h3>
+      <button id="md-btn-revert-all">Revert all changes</button>
     </div>
     <div id="md-commit-file-list"></div>
     <input id="md-commit-dialog-msg" type="text" placeholder="update: edit via viewer" />
     <div id="md-commit-dialog-actions">
       <span id="md-commit-dialog-result"></span>
-      <button id="md-btn-commit-cancel" class="md-header-btn">取消</button>
-      <button id="md-btn-commit-ok" class="md-header-btn primary">提交</button>
+      <button id="md-btn-commit-cancel" class="md-header-btn">Cancel</button>
+      <button id="md-btn-commit-ok" class="md-header-btn primary">Commit</button>
     </div>
   </div>
 </div>
@@ -136,15 +136,15 @@
 <div id="kb-commit-dialog">
   <div id="kb-commit-dialog-box">
     <div id="kb-commit-dialog-title">
-      <h3>● 提交变更</h3>
-      <button id="kb-btn-revert-all">撤销全部修改</button>
+      <h3>● Commit changes</h3>
+      <button id="kb-btn-revert-all">Revert all changes</button>
     </div>
     <div id="kb-commit-file-list"></div>
     <input id="kb-commit-msg" type="text" placeholder="chore: update via viewer" />
     <div id="kb-commit-dialog-actions">
       <span id="kb-commit-result"></span>
-      <button id="kb-btn-commit-cancel" class="md-header-btn">取消</button>
-      <button id="kb-btn-commit-ok" class="md-header-btn primary">提交</button>
+      <button id="kb-btn-commit-cancel" class="md-header-btn">Cancel</button>
+      <button id="kb-btn-commit-ok" class="md-header-btn primary">Commit</button>
     </div>
   </div>
 </div>
@@ -153,19 +153,19 @@
 <div id="kb-comment-dialog">
   <div id="kb-comment-dialog-box">
     <div id="kb-comment-dialog-header">
-      <h3 id="kb-comment-dialog-title">💬 添加批注</h3>
+      <h3 id="kb-comment-dialog-title">💬 Add comment</h3>
       <div id="kb-comment-dialog-tabs">
-        <button class="comment-tab-btn active" data-tab="edit">编辑</button>
-        <button class="comment-tab-btn" data-tab="preview">预览</button>
+        <button class="comment-tab-btn active" data-tab="edit">Edit</button>
+        <button class="comment-tab-btn" data-tab="preview">Preview</button>
       </div>
     </div>
     <div id="kb-comment-editor-box" class="comment-editor-box" onclick="document.getElementById('kb-comment-dialog-content').focus()">
-      <div id="kb-comment-dialog-content" class="comment-editor-content" contenteditable="true" spellcheck="false" autocorrect="off" autocapitalize="off" data-placeholder="输入批注内容…（Ctrl/Cmd+Enter 保存）"></div>
+      <div id="kb-comment-dialog-content" class="comment-editor-content" contenteditable="true" spellcheck="false" autocorrect="off" autocapitalize="off" data-placeholder="Comment… (Ctrl/Cmd+Enter to save)"></div>
     </div>
     <div id="kb-comment-preview-pane" class="md-body" style="display:none"></div>
     <div id="kb-comment-dialog-actions">
-      <button id="kb-btn-comment-cancel" class="md-header-btn">取消</button>
-      <button id="kb-btn-comment-save" class="md-header-btn primary">保存</button>
+      <button id="kb-btn-comment-cancel" class="md-header-btn">Cancel</button>
+      <button id="kb-btn-comment-save" class="md-header-btn primary">Save</button>
     </div>
   </div>
 </div>
@@ -182,16 +182,16 @@
       </div>
       <span id="md-file-size" class="viewer-chrome-persisted" style="font-size:10px;color:#8c959f;flex-shrink:0;"></span>
       <a id="md-github-link" class="viewer-chrome-persisted" href="#" target="_blank" style="font-size:12px;color:#0969da;text-decoration:none;flex-shrink:0;">GitHub ↗</a>
-      <button class="md-header-btn viewer-chrome-persisted" id="btn-goto-kb" style="display:none" title="跳转知识库">📚 知识库</button>
-      <button class="md-header-btn viewer-chrome-persisted" id="btn-open-iterm" style="display:none" title="在 iTerm 中打开仓库目录">⌨️ 终端</button>
+      <button class="md-header-btn viewer-chrome-persisted" id="btn-goto-kb" style="display:none" title="Go to Knowledge">📚 Knowledge</button>
+      <button class="md-header-btn viewer-chrome-persisted" id="btn-open-iterm" style="display:none" title="Open repo folder in iTerm">⌨️ Terminal</button>
       <button class="md-header-btn viewer-chrome-persisted" id="btn-copy-http" data-tip="">&#127760;</button>
       <button class="md-header-btn viewer-chrome-persisted" id="btn-copy-path" data-tip="">&#128194;</button>
-      <button class="md-header-btn viewer-chrome-persisted" id="btn-edit">✏️ 编辑</button>
-      <button class="md-header-btn viewer-chrome-persisted" id="btn-add-comment">💬 批注</button>
-      <button class="md-header-btn primary viewer-chrome-persisted" id="btn-save" style="display:none">💾 保存</button>
-      <button class="md-header-btn viewer-chrome-persisted" id="btn-cancel-edit" style="display:none">取消</button>
-      <button class="md-header-btn viewer-chrome-persisted" id="btn-panel-commit" style="display:none">● 待提交</button>
-      <button id="md-close" class="md-header-btn viewer-close">✕ 关闭</button>
+      <button class="md-header-btn viewer-chrome-persisted" id="btn-edit">✏️ Edit</button>
+      <button class="md-header-btn viewer-chrome-persisted" id="btn-add-comment">💬 Comment</button>
+      <button class="md-header-btn primary viewer-chrome-persisted" id="btn-save" style="display:none">💾 Save</button>
+      <button class="md-header-btn viewer-chrome-persisted" id="btn-cancel-edit" style="display:none">Cancel</button>
+      <button class="md-header-btn viewer-chrome-persisted" id="btn-panel-commit" style="display:none">● Pending commit</button>
+      <button id="md-close" class="md-header-btn viewer-close">✕ Close</button>
     </div>
     <div id="md-commit-bar" class="viewer-commit-bar viewer-chrome-persisted"></div>
     <div id="md-links-bar" class="viewer-chrome-persisted" style="display:none;padding:8px 20px;border-bottom:1px solid #d0d7de;display:flex;align-items:center;flex-wrap:wrap;gap:4px 0;"></div>
@@ -206,9 +206,9 @@
 </div>
 
 <!-- Floating highlight button -->
-<button id="highlight-add-btn" class="viewer-highlight-btn" style="display:none;position:fixed;z-index:9999;">高亮</button>
+<button id="highlight-add-btn" class="viewer-highlight-btn" style="display:none;position:fixed;z-index:9999;">Highlight</button>
 <!-- KB Floating highlight button -->
-<button id="kb-highlight-add-btn" class="viewer-highlight-btn" style="display:none;position:fixed;z-index:9999;">高亮</button>
+<button id="kb-highlight-add-btn" class="viewer-highlight-btn" style="display:none;position:fixed;z-index:9999;">Highlight</button>
 <!-- Comment preview tooltip -->
 <div id="comment-preview-tip"></div>
 
@@ -216,19 +216,19 @@
 <div id="comment-dialog">
   <div id="comment-dialog-box">
     <div id="comment-dialog-header">
-      <h3 id="comment-dialog-title">💬 添加批注</h3>
+      <h3 id="comment-dialog-title">💬 Add comment</h3>
       <div id="comment-dialog-tabs">
-        <button class="comment-tab-btn active" data-tab="edit">编辑</button>
-        <button class="comment-tab-btn" data-tab="preview">预览</button>
+        <button class="comment-tab-btn active" data-tab="edit">Edit</button>
+        <button class="comment-tab-btn" data-tab="preview">Preview</button>
       </div>
     </div>
     <div id="comment-editor-box" class="comment-editor-box" onclick="document.getElementById('comment-dialog-content').focus()">
-      <div id="comment-dialog-content" class="comment-editor-content" contenteditable="true" spellcheck="false" autocorrect="off" autocapitalize="off" data-placeholder="输入批注内容…（Ctrl/Cmd+Enter 保存）"></div>
+      <div id="comment-dialog-content" class="comment-editor-content" contenteditable="true" spellcheck="false" autocorrect="off" autocapitalize="off" data-placeholder="Comment… (Ctrl/Cmd+Enter to save)"></div>
     </div>
     <div id="comment-preview-pane" class="md-body" style="display:none"></div>
     <div id="comment-dialog-actions">
-      <button id="btn-comment-cancel" class="md-header-btn">取消</button>
-      <button id="btn-comment-save" class="md-header-btn primary">保存</button>
+      <button id="btn-comment-cancel" class="md-header-btn">Cancel</button>
+      <button id="btn-comment-save" class="md-header-btn primary">Save</button>
     </div>
   </div>
 </div>
@@ -236,13 +236,13 @@
 <!-- Commit changes dialog -->
 <div id="commit-changes-dialog">
   <div id="commit-changes-dialog-box">
-    <h3>↑ 提交变更</h3>
+    <h3>↑ Commit changes</h3>
     <div id="commit-changes-file-list"></div>
-    <input id="commit-changes-msg" type="text" placeholder="提交信息（留空：chore: update via viewer）" autocomplete="off" />
+    <input id="commit-changes-msg" type="text" placeholder="Commit message (empty: chore: update via viewer)" autocomplete="off" />
     <div id="commit-changes-dialog-actions">
       <span id="commit-changes-result"></span>
-      <button id="btn-commit-changes-cancel" type="button">取消</button>
-      <button id="btn-commit-changes-ok" type="button">提交</button>
+      <button id="btn-commit-changes-cancel" type="button">Cancel</button>
+      <button id="btn-commit-changes-ok" type="button">Commit</button>
     </div>
   </div>
 </div>
@@ -252,13 +252,13 @@
   <div id="repo-list-dialog-box">
     <div id="repo-list-dialog-header">
       <div id="repo-list-title-group">
-        <h3>☰ 沉淀知识库列表</h3>
-        <button id="btn-repo-list-refresh" title="刷新">⟳</button>
+        <h3>☰ Knowledge list</h3>
+        <button id="btn-repo-list-refresh" title="Refresh">⟳</button>
       </div>
     </div>
     <div id="repo-list-content"></div>
     <div id="repo-list-dialog-actions">
-      <button id="btn-repo-list-close" class="md-header-btn">关闭</button>
+      <button id="btn-repo-list-close" class="md-header-btn">Close</button>
     </div>
   </div>
 </div>
@@ -266,23 +266,23 @@
 <!-- Sediment KB add dialog -->
 <div id="sediment-kb-add-dialog">
   <div id="sediment-kb-add-dialog-box">
-    <h3>＋ 添加仓库</h3>
+    <h3>＋ Add repository</h3>
     <div class="sediment-kb-field">
-      <label for="sediment-kb-add-url">GitHub 仓库地址</label>
-      <input id="sediment-kb-add-url" type="text" placeholder="owner/repo 或 GitHub URL" autocomplete="off" spellcheck="false" />
+      <label for="sediment-kb-add-url">GitHub repository URL</label>
+      <input id="sediment-kb-add-url" type="text" placeholder="owner/repo or GitHub URL" autocomplete="off" spellcheck="false" />
     </div>
     <div class="sediment-kb-field">
-      <label for="sediment-kb-add-category">分类（可选）</label>
+      <label for="sediment-kb-add-category">Category (optional)</label>
       <select id="sediment-kb-add-category"></select>
     </div>
     <div class="sediment-kb-field">
-      <label for="sediment-kb-add-description">描述（可选）</label>
-      <textarea id="sediment-kb-add-description" rows="3" placeholder="仓库描述" autocomplete="off" spellcheck="false"></textarea>
+      <label for="sediment-kb-add-description">Description (optional)</label>
+      <textarea id="sediment-kb-add-description" rows="3" placeholder="Repository description" autocomplete="off" spellcheck="false"></textarea>
     </div>
     <div id="sediment-kb-add-error" class="sediment-kb-error" style="display:none"></div>
     <div id="sediment-kb-add-dialog-actions">
-      <button id="btn-sediment-kb-add-cancel" type="button" class="md-header-btn">取消</button>
-      <button id="btn-sediment-kb-add-submit" type="button" class="md-header-btn primary">添加</button>
+      <button id="btn-sediment-kb-add-cancel" type="button" class="md-header-btn">Cancel</button>
+      <button id="btn-sediment-kb-add-submit" type="button" class="md-header-btn primary">Add</button>
     </div>
   </div>
 </div>
@@ -290,15 +290,15 @@
 <!-- Sediment KB manage dialog -->
 <div id="sediment-kb-manage-dialog">
   <div id="sediment-kb-manage-dialog-box">
-    <h3>⚙ 管理分类</h3>
+    <h3>⚙ Manage categories</h3>
     <div id="sediment-kb-manage-list"></div>
     <div id="sediment-kb-manage-add-row">
-      <input id="sediment-kb-manage-new-name" type="text" placeholder="新分类名称" autocomplete="off" spellcheck="false" />
-      <button id="btn-sediment-kb-manage-add" type="button" class="md-header-btn">添加分类</button>
+      <input id="sediment-kb-manage-new-name" type="text" placeholder="New category name" autocomplete="off" spellcheck="false" />
+      <button id="btn-sediment-kb-manage-add" type="button" class="md-header-btn">Add category</button>
     </div>
     <div id="sediment-kb-manage-error" class="sediment-kb-error" style="display:none"></div>
     <div id="sediment-kb-manage-dialog-actions">
-      <button id="btn-sediment-kb-manage-close" type="button" class="md-header-btn">关闭</button>
+      <button id="btn-sediment-kb-manage-close" type="button" class="md-header-btn">Close</button>
     </div>
   </div>
 </div>
@@ -306,15 +306,15 @@
 <div id="kb-diff-dialog">
   <div id="kb-diff-dialog-box">
     <div id="kb-diff-dialog-title-row">
-      <h3 id="kb-diff-dialog-title">✎ 本地变更</h3>
-      <button id="btn-kb-diff-revert-all" type="button">删除改动</button>
+      <h3 id="kb-diff-dialog-title">✎ Local changes</h3>
+      <button id="btn-kb-diff-revert-all" type="button">Discard changes</button>
     </div>
     <div id="kb-diff-file-list"></div>
-    <input id="kb-diff-msg" type="text" placeholder="提交信息（留空：chore: update via viewer）" autocomplete="off" />
+    <input id="kb-diff-msg" type="text" placeholder="Commit message (empty: chore: update via viewer)" autocomplete="off" />
     <div id="kb-diff-dialog-actions">
       <span id="kb-diff-result"></span>
-      <button id="btn-kb-diff-cancel" type="button">取消</button>
-      <button id="btn-kb-diff-ok" type="button">提交</button>
+      <button id="btn-kb-diff-cancel" type="button">Cancel</button>
+      <button id="btn-kb-diff-ok" type="button">Commit</button>
     </div>
   </div>
 </div>
@@ -323,45 +323,45 @@
 <div id="move-doc-dialog">
   <div id="move-doc-dialog-box">
     <div id="move-doc-dialog-header">
-      <span>GitHub 操作</span>
-      <button id="btn-move-doc-close" type="button" title="关闭">✕</button>
+      <span>GitHub operations</span>
+      <button id="btn-move-doc-close" type="button" title="Close">✕</button>
     </div>
     <div id="move-doc-dialog-body">
       <nav id="gh-ops-nav">
-        <button type="button" class="gh-ops-nav-item active" data-panel="move">移动</button>
-        <button type="button" class="gh-ops-nav-item" data-panel="delete">删除</button>
+        <button type="button" class="gh-ops-nav-item active" data-panel="move">Move</button>
+        <button type="button" class="gh-ops-nav-item" data-panel="delete">Delete</button>
       </nav>
       <div id="gh-ops-panels">
         <div id="gh-ops-panel-move" class="gh-ops-panel active">
-          <div class="gh-ops-panel-title">移动</div>
+          <div class="gh-ops-panel-title">Move</div>
           <div class="gh-ops-field">
-            <label for="move-src-url">源 URL（文件用 blob 链接，目录用 tree 链接）</label>
-            <input id="move-src-url" type="text" placeholder="blob: …/blob/main/dir/file.md   或   tree: …/tree/main/dir" autocomplete="off" spellcheck="false" />
+            <label for="move-src-url">Source URL (blob link for files, tree link for directories)</label>
+            <input id="move-src-url" type="text" placeholder="blob: …/blob/main/dir/file.md   or   tree: …/tree/main/dir" autocomplete="off" spellcheck="false" />
           </div>
           <div class="gh-ops-field">
-            <label for="move-dst-url">目标目录 URL（tree 目录链接，或 blob 文件链接取其所在目录）</label>
-            <input id="move-dst-url" type="text" placeholder="tree: …/tree/main/subdir   或   blob: …/blob/main/subdir/file.md" autocomplete="off" spellcheck="false" />
+            <label for="move-dst-url">Target directory URL (tree directory link, or blob file link for its parent directory)</label>
+            <input id="move-dst-url" type="text" placeholder="tree: …/tree/main/subdir   or   blob: …/blob/main/subdir/file.md" autocomplete="off" spellcheck="false" />
           </div>
           <div id="move-doc-result" class="gh-ops-result"></div>
           <div class="gh-ops-panel-actions">
-            <button id="btn-move-doc-ok" type="button" class="btn-gh-ops-primary">确认移动</button>
+            <button id="btn-move-doc-ok" type="button" class="btn-gh-ops-primary">Confirm move</button>
           </div>
         </div>
         <div id="gh-ops-panel-delete" class="gh-ops-panel">
-          <div class="gh-ops-panel-title">删除</div>
+          <div class="gh-ops-panel-title">Delete</div>
           <div class="gh-ops-field">
-            <label for="delete-url">URL（文件用 blob 链接，目录用 tree 链接）</label>
-            <input id="delete-url" type="text" placeholder="blob: …/blob/main/dir/file.md   或   tree: …/tree/main/dir" autocomplete="off" spellcheck="false" />
+            <label for="delete-url">URL (blob link for files, tree link for directories)</label>
+            <input id="delete-url" type="text" placeholder="blob: …/blob/main/dir/file.md   or   tree: …/tree/main/dir" autocomplete="off" spellcheck="false" />
           </div>
           <div id="delete-doc-result" class="gh-ops-result"></div>
           <div class="gh-ops-panel-actions gh-ops-delete-actions">
-            <button id="btn-delete-doc-ok" type="button" class="btn-gh-ops-danger">确认删除</button>
+            <button id="btn-delete-doc-ok" type="button" class="btn-gh-ops-danger">Confirm delete</button>
           </div>
         </div>
       </div>
     </div>
     <div id="move-doc-dialog-footer">
-      <button type="button" id="btn-move-doc-cancel">关闭</button>
+      <button type="button" id="btn-move-doc-cancel">Close</button>
     </div>
   </div>
 </div>
@@ -369,11 +369,11 @@
 <!-- Comment note delete confirm -->
 <div id="comment-delete-dialog">
   <div id="comment-delete-dialog-box">
-    <h3>删除批注</h3>
-    <p>确定删除此批注？此操作不可撤销。</p>
+    <h3>Delete comment</h3>
+    <p>Delete this comment? This cannot be undone.</p>
     <div id="comment-delete-dialog-actions">
-      <button type="button" id="btn-comment-delete-cancel" class="md-header-btn">取消</button>
-      <button type="button" id="btn-comment-delete-ok" class="md-header-btn comment-delete-ok-btn">删除</button>
+      <button type="button" id="btn-comment-delete-cancel" class="md-header-btn">Cancel</button>
+      <button type="button" id="btn-comment-delete-ok" class="md-header-btn comment-delete-ok-btn">Delete</button>
     </div>
   </div>
 </div>
@@ -381,16 +381,16 @@
 <!-- Delete confirm dialog -->
 <div id="delete-dialog">
   <div id="delete-dialog-box">
-    <h3>⚠️ 删除文档</h3>
-    <p id="delete-dialog-desc">将删除此条目的所有关联文件（raw / distilled / trace / digest）并从 index.json 移除，<strong>不可撤销</strong>。</p>
+    <h3>⚠️ Delete document</h3>
+    <p id="delete-dialog-desc">Deletes all linked files (raw / distilled / trace / digest) and removes from index.json. <strong>Cannot be undone</strong>.</p>
     <div id="delete-dialog-confirm-row">
-      输入 <code>CONFIRM</code> 确认删除
-      <button id="btn-copy-confirm-word" title="复制 CONFIRM">复制</button>
+      Type <code>CONFIRM</code> to delete
+      <button id="btn-copy-confirm-word" title="Copy CONFIRM">Copy</button>
     </div>
-    <input id="delete-confirm-input" type="text" placeholder="在此输入 CONFIRM" autocomplete="off" />
+    <input id="delete-confirm-input" type="text" placeholder="Enter CONFIRM here" autocomplete="off" />
     <div id="delete-dialog-actions">
-      <button id="btn-delete-cancel">取消</button>
-      <button id="btn-delete-confirm-ok" disabled>确认删除</button>
+      <button id="btn-delete-cancel">Cancel</button>
+      <button id="btn-delete-confirm-ok" disabled>Confirm delete</button>
     </div>
   </div>
 </div>
@@ -399,11 +399,11 @@
 <div id="move-project-dialog">
   <div id="move-project-backdrop"></div>
   <div id="move-project-dialog-box">
-    <h3>↷ 切换项目</h3>
+    <h3>↷ Switch project</h3>
     <div id="move-project-result" style="font-size:12px;color:#57606a;margin-bottom:8px;"></div>
     <div id="move-project-list" style="display:flex;flex-direction:column;gap:4px;max-height:300px;overflow-y:auto;"></div>
     <div id="move-project-dialog-actions">
-      <button id="btn-move-project-close">取消</button>
+      <button id="btn-move-project-close">Cancel</button>
     </div>
   </div>
 </div>
@@ -411,31 +411,31 @@
 <!-- Settle dialog -->
 <div id="settle-dialog">
   <div id="settle-dialog-box">
-    <h3>⬆ 沉淀到知识仓库</h3>
+    <h3>⬆ Promote to knowledge repo</h3>
     <div class="settle-field">
-      <label>目标仓库</label>
+      <label>Target repo</label>
       <span id="settle-repo-display"></span>
     </div>
     <div class="settle-field">
-      <label>目标目录（doc-theme）</label>
+      <label>Target folder (doc-theme)</label>
       <select id="settle-theme-select"></select>
-      <input id="settle-theme-input" type="text" placeholder="输入新目录名（kebab-case）" autocomplete="off" style="display:none" />
+      <input id="settle-theme-input" type="text" placeholder="＋ New folder…" autocomplete="off" style="display:none" />
     </div>
     <div class="settle-field">
-      <label>文件名</label>
+      <label>Filename</label>
       <div class="settle-filename-row">
-        <span class="settle-filename-ts" id="settle-filename-ts"></span><span class="settle-filename-dash">-</span><input id="settle-slug" type="text" placeholder="输入名称" autocomplete="off" spellcheck="false" /><span class="settle-filename-ext">.md</span>
+        <span class="settle-filename-ts" id="settle-filename-ts"></span><span class="settle-filename-dash">-</span><input id="settle-slug" type="text" placeholder="Enter name" autocomplete="off" spellcheck="false" /><span class="settle-filename-ext">.md</span>
       </div>
       <div id="settle-file-warn"></div>
     </div>
     <div class="settle-field">
-      <label>正文</label>
+      <label>Body</label>
       <textarea id="settle-content" rows="10"></textarea>
     </div>
     <div id="settle-result"></div>
     <div id="settle-dialog-actions">
-      <button id="btn-settle-cancel" class="md-header-btn">取消</button>
-      <button id="btn-settle-submit" class="md-header-btn primary">推送</button>
+      <button id="btn-settle-cancel" class="md-header-btn">Cancel</button>
+      <button id="btn-settle-submit" class="md-header-btn primary">Push</button>
     </div>
   </div>
 </div>
@@ -444,52 +444,52 @@
 <div id="settings-dialog">
   <div id="settings-dialog-box">
     <div id="settings-dialog-header">
-      <span>设置</span>
-      <button id="btn-settings-close" type="button" title="关闭">✕</button>
+      <span>Settings</span>
+      <button id="btn-settings-close" type="button" title="Close">✕</button>
     </div>
     <div id="settings-dialog-body">
       <nav id="settings-nav">
-        <button type="button" class="settings-nav-item active" data-panel="directories">目录</button>
-        <button type="button" class="settings-nav-item" data-panel="github">GitHub</button>
-        <button type="button" class="settings-nav-item" data-panel="knowledge">知识库</button>
+        <button type="button" class="settings-nav-item active" data-panel="directories">Directories</button>
+        <button type="button" class="settings-nav-item" data-panel="github">GitHub account</button>
+        <button type="button" class="settings-nav-item" data-panel="knowledge">Knowledge</button>
         <button type="button" class="settings-nav-item" data-panel="llm">LLM</button>
       </nav>
       <div id="settings-panels">
         <div id="settings-panel-directories" class="settings-panel active">
-          <div class="settings-panel-title">目录</div>
+          <div class="settings-panel-title">Directories</div>
           <div class="settings-field">
-            <label for="settings-archive-root">工作台知识库目录（workbench_knowledge_root）</label>
+            <label for="settings-archive-root">Workbench knowledge directory (workbench_knowledge_root)</label>
             <input id="settings-archive-root" type="text" spellcheck="false" autocomplete="off" />
-            <span class="settings-field-hint">本地 DDM 归档仓；若已是 git 仓库，保存前会根据 origin 推断 GitHub 主页（见「GitHub」页）。</span>
+            <span class="settings-field-hint">Local DDM archive repo; if already a git repo, GitHub profile is inferred from origin on save (see GitHub tab).</span>
           </div>
           <div class="settings-field">
-            <label for="settings-kb-root">沉淀知识库目录（knowledge_corpus_root）</label>
+            <label for="settings-kb-root">Knowledge corpus directory (knowledge_corpus_root)</label>
             <input id="settings-kb-root" type="text" spellcheck="false" autocomplete="off" />
-            <span class="settings-field-hint">各 topic 沉淀仓库的 clone 根目录</span>
+            <span class="settings-field-hint">Clone root for topic knowledge repos</span>
           </div>
           <div id="settings-result-directories" class="settings-result"></div>
           <div class="settings-panel-actions">
-            <button type="button" id="btn-settings-save-directories" class="btn-settings-save">保存</button>
+            <button type="button" id="btn-settings-save-directories" class="btn-settings-save">Save</button>
           </div>
         </div>
         <div id="settings-panel-knowledge" class="settings-panel">
-          <div class="settings-panel-title">知识库</div>
+          <div class="settings-panel-title">Knowledge</div>
           <div class="settings-field">
-            <label for="settings-kb-hide-pattern">隐藏文件名正则（kb_hide_pattern）</label>
+            <label for="settings-kb-hide-pattern">Hidden filename regex (kb_hide_pattern)</label>
             <input id="settings-kb-hide-pattern" type="text" spellcheck="false" autocomplete="off" placeholder="" />
-            <span class="settings-field-hint">匹配 entry.name 的文件不在目录树中显示；留空表示不过滤。示例：<code>\.xxx$</code></span>
+            <span class="settings-field-hint">Files matching entry.name are hidden in the tree; leave empty for no filter. Example: <code>\.xxx$</code></span>
           </div>
           <div id="settings-result-knowledge" class="settings-result"></div>
           <div class="settings-panel-actions">
-            <button type="button" id="btn-settings-save-knowledge" class="btn-settings-save">保存</button>
+            <button type="button" id="btn-settings-save-knowledge" class="btn-settings-save">Save</button>
           </div>
         </div>
         <div id="settings-panel-github" class="settings-panel">
-          <div class="settings-panel-title">GitHub 账号</div>
+          <div class="settings-panel-title">GitHub account</div>
           <div class="settings-field">
-            <label for="settings-github-user-url">GitHub 主页（github_user_url）</label>
+            <label for="settings-github-user-url">GitHub profile (github_user_url)</label>
             <input id="settings-github-user-url" type="text" spellcheck="false" autocomplete="off" placeholder="https://github.com/lulufoo" />
-            <span id="settings-github-user-hint" class="settings-field-hint">个人 GitHub 地址，用于 Viewer 远程链接与沉淀来源；可与 Token 一并保存。</span>
+            <span id="settings-github-user-hint" class="settings-field-hint">Personal GitHub URL for Viewer remote links and promote source; can be saved with Token.</span>
           </div>
           <div class="settings-field">
             <label for="settings-github-token">Personal Access Token</label>
@@ -498,22 +498,22 @@
           </div>
           <div id="settings-result-github" class="settings-result"></div>
           <div class="settings-panel-actions">
-            <button type="button" id="btn-settings-save-github" class="btn-settings-save">保存</button>
+            <button type="button" id="btn-settings-save-github" class="btn-settings-save">Save</button>
           </div>
         </div>
         <div id="settings-panel-llm" class="settings-panel">
-          <div class="settings-panel-title">LLM / 助手</div>
+          <div class="settings-panel-title">LLM / Assistant</div>
           <div class="settings-field">
-            <label for="settings-llm-platform">平台（platform）</label>
+            <label for="settings-llm-platform">Platform (platform)</label>
             <input id="settings-llm-platform" type="text" spellcheck="false" autocomplete="off" placeholder="openai_compatible / kimi / glm" />
-            <span class="settings-field-hint">影响展示名与默认 base_url；请求方言统一为 OpenAI 兼容。</span>
+            <span class="settings-field-hint">Affects display name and default base_url; requests use OpenAI-compatible dialect.</span>
           </div>
           <div class="settings-field">
-            <label for="settings-llm-base-url">Base URL（base_url）</label>
+            <label for="settings-llm-base-url">Base URL (base_url)</label>
             <input id="settings-llm-base-url" type="text" spellcheck="false" autocomplete="off" placeholder="https://api.openai.com" />
           </div>
           <div class="settings-field">
-            <label for="settings-llm-model">模型（model）</label>
+            <label for="settings-llm-model">Model (model)</label>
             <input id="settings-llm-model" type="text" spellcheck="false" autocomplete="off" placeholder="gpt-4o-mini" />
           </div>
           <div class="settings-field">
@@ -523,13 +523,13 @@
           </div>
           <div id="settings-result-llm" class="settings-result"></div>
           <div class="settings-panel-actions">
-            <button type="button" id="btn-settings-save-llm" class="btn-settings-save">保存</button>
+            <button type="button" id="btn-settings-save-llm" class="btn-settings-save">Save</button>
           </div>
         </div>
       </div>
     </div>
     <div id="settings-dialog-footer">
-      <button type="button" id="btn-settings-cancel">关闭</button>
+      <button type="button" id="btn-settings-cancel">Close</button>
     </div>
   </div>
 </div>
@@ -543,8 +543,8 @@
     <div id="plan-task-dialog-body"></div>
     <p id="plan-task-dialog-error" hidden></p>
     <div id="plan-task-dialog-actions">
-      <button type="button" id="plan-task-dialog-cancel" class="md-header-btn">取消</button>
-      <button type="button" id="plan-task-dialog-primary" class="md-header-btn primary">确定</button>
+      <button type="button" id="plan-task-dialog-cancel" class="md-header-btn">Cancel</button>
+      <button type="button" id="plan-task-dialog-primary" class="md-header-btn primary">OK</button>
     </div>
   </div>
 </div>
@@ -553,8 +553,8 @@
 <div id="read-later-dialog">
   <div id="read-later-dialog-box">
     <div id="read-later-dialog-header">
-      <h3>Read Later 待读</h3>
-      <button type="button" id="btn-read-later-close" class="md-header-btn" aria-label="关闭">×</button>
+      <h3>Read Later</h3>
+      <button type="button" id="btn-read-later-close" class="md-header-btn" aria-label="Close">×</button>
     </div>
     <div id="read-later-dialog-body"></div>
   </div>
@@ -565,7 +565,7 @@
   <div id="skills-dialog-box">
     <div id="skills-dialog-header">
       <h3 id="skills-dialog-title"></h3>
-      <button id="btn-skills-dialog-close" class="md-header-btn">✕ 关闭</button>
+      <button id="btn-skills-dialog-close" class="md-header-btn">✕ Close</button>
     </div>
     <div id="skills-dialog-body"></div>
   </div>

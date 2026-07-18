@@ -10,8 +10,8 @@ const moveDialogJs = readFileSync(
 );
 
 describe('sediment kb UI shell', () => {
-  it('menu renamed to 沉淀知识库 with add/manage/list entries', () => {
-    expect(indexHtml).toContain('id="btn-repo-menu">⚙ 沉淀知识库</button>');
+  it('menu renamed to Knowledge with add/manage/list entries', () => {
+    expect(indexHtml).toContain('id="btn-repo-menu">⚙ Knowledge</button>');
     expect(indexHtml).toContain('id="btn-sediment-kb-add"');
     expect(indexHtml).toContain('id="btn-sediment-kb-manage"');
     expect(indexHtml).toContain('id="btn-sediment-kb-list"');

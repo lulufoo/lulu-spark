@@ -85,12 +85,14 @@ describe('Note AC gate (tech-doc VF / T-13)', () => {
       'frontend/js/components/comments.js',
       'frontend/js/components/kb-comments.js',
       'frontend/js/components/kb-viewer.js',
-      'frontend/index.html',
     ]) {
       const src = read(rel);
       expect(src, rel).toMatch(/批注/);
       expect(src, rel).not.toMatch(/添加笔记|编辑笔记|删除笔记/);
     }
+    const indexSrc = read('frontend/index.html');
+    expect(indexSrc).toMatch(/Comment/);
+    expect(indexSrc).not.toMatch(/添加笔记|编辑笔记|删除笔记/);
   });
 
   it('AC-7: archive failure keeps create session + draft (behavioral probe present)', () => {
