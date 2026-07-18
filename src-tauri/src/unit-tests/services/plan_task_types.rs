@@ -3,8 +3,8 @@ use std::collections::HashMap;
 use serde_json::{json, Value};
 
 use crate::services::plan_task::types::{
-    index_entry_task_dir, IndexEntry, MasterTaskStatus, PlanTasksIndex, SubTask, SubTaskStatus,
-    SubTasksFile,
+    attachments_json_rel_path, index_entry_task_dir, AttachmentEntry, AttachmentsFile, IndexEntry,
+    MasterTaskStatus, PlanTasksIndex, SubTask, SubTaskStatus, SubTasksFile,
 };
 
 #[test]
@@ -175,4 +175,76 @@ fn plan_tasks_index_roundtrip_preserves_tasks_map() {
     assert_eq!(parsed.version, 2);
     assert_eq!(parsed.tasks.len(), 1);
     assert_eq!(parsed.tasks["task_abc"].status, MasterTaskStatus::Complete);
+}
+
+#[test]
+fn attachments_json_rel_path_is_under_task_dir() {
+    let master_id = "task_a1b2c3d4e5f6";
+    let path = attachments_json_rel_path(master_id);
+    assert_eq!(path, format!("tasks/{master_id}/attachments.json"));
+    assert!(!path.starts_with('/'));
+    assert!(!std::path::Path::new(&path).is_absolute());
+}
+
+#[test]
+fn attachment_entry_serializes_stored_original_and_added_at() {
+    let entry = AttachmentEntry {
+        file_name: "notes-1.md".to_string(),
+        original_file_name: "notes.md".to_string(),
+        added_at: "2026-07-18T00:00:00+00:00".to_string(),
+    };
+    let v: Value = serde_json::to_value(&entry).expect("serialize");
+    assert_eq!(v["file_name"], "notes-1.md");
+    assert_eq!(v["original_file_name"], "notes.md");
+    assert_eq!(v["added_at"], "2026-07-18T00:00:00+00:00");
+}
+
+#[test]
+fn attachments_file_roundtrip_preserves_entries() {
+    let file = AttachmentsFile {
+        attachments: vec![AttachmentEntry {
+            file_name: "notes.md".to_string(),
+            original_file_name: "notes.md".to_string(),
+            added_at: "2026-07-18T00:00:00+00:00".to_string(),
+        }],
+    };
+    let text = serde_json::to_string(&file).expect("serialize");
+    let parsed: AttachmentsFile = serde_json::from_str(&text).expect("deserialize");
+    assert_eq!(parsed.attachments.len(), 1);
+    assert_eq!(parsed.attachments[0].file_name, "notes.md");
+    assert_eq!(parsed.attachments[0].original_file_name, "notes.md");
+    assert_eq!(parsed.attachments[0].added_at, "2026-07-18T00:00:00+00:00");
+}
+
+#[test]
+fn attachments_file_empty_roundtrip() {
+    let file = AttachmentsFile {
+        attachments: vec![],
+    };
+    let text = serde_json::to_string(&file).expect("serialize");
+    let parsed: AttachmentsFile = serde_json::from_str(&text).expect("deserialize");
+    assert!(parsed.attachments.is_empty());
+    let v: Value = serde_json::from_str(&text).expect("value");
+    assert!(v.get("attachments").and_then(|a| a.as_array()).is_some());
+    assert!(v["attachments"].as_array().unwrap().is_empty());
+}
+
+#[test]
+fn attachments_file_invalid_json_returns_error() {
+    let result: Result<AttachmentsFile, _> = serde_json::from_str("{not valid json");
+    assert!(result.is_err());
+}
+
+#[test]
+fn index_entry_does_not_include_attachments_field() {
+    let entry = IndexEntry {
+        master_task_id: "task_abc".to_string(),
+        title: "Example".to_string(),
+        status: MasterTaskStatus::Incomplete,
+        created_at: "2026-07-08T00:00:00+00:00".to_string(),
+        task_dir: index_entry_task_dir("task_abc"),
+    };
+    let v: Value = serde_json::to_value(&entry).expect("serialize");
+    assert!(v.get("attachments").is_none());
+    assert!(v.get("attachments.json").is_none());
 }
