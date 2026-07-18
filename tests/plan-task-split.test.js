@@ -302,6 +302,30 @@ describe('mountPlanTaskSplit', () => {
     dispose();
   });
 
+  it('copies master task id from plan-md header next to edit', async () => {
+    getJsonMock.mockResolvedValue(sampleMasters);
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText },
+    });
+    const { dispose } = mountPlanTaskSplit(container, {
+      masterId: 'task_alpha',
+    });
+    await vi.waitFor(() => {
+      expect(container.querySelector('[data-action="copy-master-id"]')).not.toBeNull();
+    });
+    const actions = container.querySelector('.plan-task-plan-md-header-actions');
+    const copyBtn = actions?.querySelector('[data-action="copy-master-id"]');
+    const editBtn = actions?.querySelector('[data-action="edit-plan-md"]');
+    expect(copyBtn?.dataset.copyText).toBe('task_alpha');
+    expect(editBtn).not.toBeNull();
+    expect(container.querySelector('.plan-task-detail-toolbar [data-action="copy-master-id"]')).toBeNull();
+    copyBtn.click();
+    expect(writeText).toHaveBeenCalledWith('task_alpha');
+    dispose();
+  });
+
   it('shows normal empty sub list state with add entry', async () => {
     getJsonMock.mockResolvedValue(sampleMasters);
     const { dispose } = mountPlanTaskSplit(container, {

@@ -2341,6 +2341,12 @@
     gap: 8px;
     margin-bottom: 8px;
   }
+  .plan-task-plan-md-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+  }
   .plan-task-plan-md-title {
     margin: 0;
     font-size: 14px;

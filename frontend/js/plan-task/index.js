@@ -334,11 +334,21 @@ function renderSubEmpty(disabled) {
   `;
 }
 
+function renderCopyMasterIdButton(masterTaskId, disabled) {
+  const disabledAttr = disabled ? ' disabled' : '';
+  return `<button type="button" class="md-header-btn" data-action="copy-master-id" data-copy-text="${escHtml(masterTaskId)}" title="复制任务 ID"${disabledAttr}>复制任务 ID</button>`;
+}
+
 function renderPlanMdSection(master, ui) {
   const disabledAttr = ui.disabled ? ' disabled' : '';
+  const copyBtn = renderCopyMasterIdButton(master.master_task_id, ui.disabled);
   if (ui.planMdLoading) {
     return `
       <section class="plan-task-plan-md-section" aria-label="计划说明">
+        <div class="plan-task-plan-md-header">
+          <h3 class="plan-task-plan-md-title">计划说明</h3>
+          <div class="plan-task-plan-md-header-actions">${copyBtn}</div>
+        </div>
         <p class="plan-task-plan-md-loading">加载说明…</p>
       </section>
     `;
@@ -346,6 +356,10 @@ function renderPlanMdSection(master, ui) {
   if (ui.planMdEditMode) {
     return `
       <section class="plan-task-plan-md-section" aria-label="计划说明">
+        <div class="plan-task-plan-md-header">
+          <h3 class="plan-task-plan-md-title">计划说明</h3>
+          <div class="plan-task-plan-md-header-actions">${copyBtn}</div>
+        </div>
         ${ui.planMdError ? `<p class="plan-task-plan-md-error" role="alert">${escHtml(ui.planMdError)}</p>` : ''}
         <textarea class="plan-task-plan-md-editor"${disabledAttr}>${escHtml(ui.planMdDraft ?? '')}</textarea>
         <div class="plan-task-plan-md-toolbar">
@@ -363,7 +377,10 @@ function renderPlanMdSection(master, ui) {
     <section class="plan-task-plan-md-section" aria-label="计划说明">
       <div class="plan-task-plan-md-header">
         <h3 class="plan-task-plan-md-title">计划说明</h3>
-        <button type="button" class="md-header-btn" data-action="edit-plan-md"${disabledAttr}>编辑</button>
+        <div class="plan-task-plan-md-header-actions">
+          ${copyBtn}
+          <button type="button" class="md-header-btn" data-action="edit-plan-md"${disabledAttr}>编辑</button>
+        </div>
       </div>
       <div class="plan-task-plan-md-preview">${previewHtml}</div>
     </section>
@@ -936,7 +953,7 @@ export function mountPlanTaskSplit(container, opts = {}) {
       return;
     }
 
-    if (action === 'copy-sub-id') {
+    if (action === 'copy-sub-id' || action === 'copy-master-id') {
       event.preventDefault();
       event.stopPropagation();
       const text = actionEl?.dataset.copyText ?? '';
