@@ -127,6 +127,10 @@ export async function savePlanAttachment({ masterTaskId, fileName, content } = {
   return invokePlanPlain('save_plan_attachment', { masterTaskId, fileName, content });
 }
 
+export async function deletePlanAttachment({ masterTaskId, fileName } = {}) {
+  return invokePlanPlain('delete_plan_attachment', { masterTaskId, fileName });
+}
+
 function basenameFromPath(path) {
   const normalized = String(path).replace(/\\/g, '/');
   const parts = normalized.split('/').filter(Boolean);
@@ -451,6 +455,7 @@ function renderPlanMdSection(master, ui) {
 function renderAttachmentsSection(ui) {
   const disabledAttr = ui.disabled ? ' disabled' : '';
   const items = ui.attachments ?? [];
+  const confirmFile = ui.attachmentDeleteConfirm || '';
   const listHtml = items.length
     ? `<ul class="plan-task-attachment-list" role="list">${items
         .map(
@@ -462,13 +467,48 @@ function renderAttachmentsSection(ui) {
           role="button"
           tabindex="0"
         >
-          ${escHtml(entry.file_name)}
+          <span class="plan-task-attachment-name">${escHtml(entry.file_name)}</span>
+          <button
+            type="button"
+            class="md-header-btn plan-task-btn-danger"
+            data-action="delete-attachment"
+            data-file-name="${escHtml(entry.file_name)}"
+            aria-label="删除附件 ${escHtml(entry.file_name)}"
+            ${disabledAttr}
+          >删除</button>
         </li>`,
         )
         .join('')}</ul>`
     : `<p class="plan-task-attachments-empty">${escHtml(ATTACHMENTS_EMPTY_MSG)}</p>`;
   const errHtml = ui.attachmentsError
     ? `<p class="plan-task-attachments-error" role="alert">${escHtml(ui.attachmentsError)}</p>`
+    : '';
+  const confirmHtml = confirmFile
+    ? `
+      <div
+        class="plan-task-attachment-delete-confirm"
+        data-attachment-delete-confirm
+        role="dialog"
+        aria-modal="true"
+        aria-label="删除附件确认"
+      >
+        <p>确认删除附件「${escHtml(confirmFile)}」？删除后列表与文件将一并移除。</p>
+        <div class="plan-task-attachment-delete-confirm-actions">
+          <button
+            type="button"
+            class="md-header-btn plan-task-btn-danger"
+            data-action="confirm-delete-attachment"
+            data-file-name="${escHtml(confirmFile)}"
+            ${disabledAttr}
+          >确认删除</button>
+          <button
+            type="button"
+            class="md-header-btn"
+            data-action="cancel-delete-attachment"
+            ${disabledAttr}
+          >取消</button>
+        </div>
+      </div>`
     : '';
   return `
     <section class="plan-task-attachments-section" aria-label="附件">
@@ -478,6 +518,7 @@ function renderAttachmentsSection(ui) {
       </div>
       ${errHtml}
       ${listHtml}
+      ${confirmHtml}
     </section>
   `;
 }
@@ -634,6 +675,8 @@ export function mountPlanTaskSplit(container, opts = {}) {
   let planMdLoading = false;
   let attachments = [];
   let attachmentsError = '';
+  /** @type {string} pending single-attachment delete confirm file name */
+  let attachmentDeleteConfirm = '';
   /** @type {{ fileName: string, content: string, editMode: boolean, error: string, loading: boolean } | null} */
   let attachmentEditor = null;
   const optimisticSubStatus = {};
@@ -657,6 +700,7 @@ export function mountPlanTaskSplit(container, opts = {}) {
       planMdLoading,
       attachments,
       attachmentsError,
+      attachmentDeleteConfirm,
       subStatus: optimisticSubStatus,
       subActionErrors,
       subTitleErrors,
@@ -731,6 +775,23 @@ export function mountPlanTaskSplit(container, opts = {}) {
     return renderSubDetailPane(master, selectedSubId, getUi());
   }
 
+  function setAttachmentEditor(next) {
+    attachmentEditor = next;
+  }
+
+  /** Refresh an existing editor node in place so callers holding a DOM ref stay valid. */
+  function refreshEditorNode(editorNode, ui) {
+    const tmp = document.createElement('div');
+    tmp.innerHTML = renderAttachmentEditor(attachmentEditor, ui.disabled);
+    const fresh = tmp.firstElementChild;
+    if (!fresh) return false;
+    editorNode.innerHTML = fresh.innerHTML;
+    for (const attr of [...fresh.attributes]) {
+      editorNode.setAttribute(attr.name, attr.value);
+    }
+    return true;
+  }
+
   function paint() {
     if (!masters.length && container.querySelector('.plan-task-split-error')) {
       return;
@@ -746,25 +807,18 @@ export function mountPlanTaskSplit(container, opts = {}) {
       disabled: ui.disabled,
     });
     if (!attachmentEditor) return;
-    const nextHtml = renderAttachmentEditor(attachmentEditor, ui.disabled);
-    if (existingEditor) {
-      const tmp = document.createElement('div');
-      tmp.innerHTML = nextHtml;
-      const fresh = tmp.firstElementChild;
-      if (fresh) {
-        existingEditor.innerHTML = fresh.innerHTML;
-        for (const attr of [...fresh.attributes]) {
-          existingEditor.setAttribute(attr.name, attr.value);
-        }
-        container.appendChild(existingEditor);
-        return;
-      }
+    if (existingEditor && refreshEditorNode(existingEditor, ui)) {
+      container.appendChild(existingEditor);
+      return;
     }
-    container.insertAdjacentHTML('beforeend', nextHtml);
+    container.insertAdjacentHTML(
+      'beforeend',
+      renderAttachmentEditor(attachmentEditor, ui.disabled),
+    );
   }
 
   function closeAttachmentEditor() {
-    attachmentEditor = null;
+    setAttachmentEditor(null);
   }
 
   async function openAttachmentEditor(fileName) {
@@ -774,47 +828,40 @@ export function mountPlanTaskSplit(container, opts = {}) {
     paint();
     try {
       const result = await readPlanAttachment({ masterTaskId, fileName });
-      if (disposed || selectedMasterId !== masterTaskId) {
-        busy = false;
-        return;
-      }
+      if (disposed || selectedMasterId !== masterTaskId) return;
       const content =
         typeof result === 'string' ? result : String(result?.content ?? '');
-      attachmentEditor = {
+      setAttachmentEditor({
         fileName,
         content,
         editMode: false,
         error: '',
         loading: false,
-      };
-      busy = false;
-      paint();
+      });
     } catch (err) {
-      if (disposed || selectedMasterId !== masterTaskId) {
-        busy = false;
-        return;
-      }
-      attachmentEditor = {
+      if (disposed || selectedMasterId !== masterTaskId) return;
+      setAttachmentEditor({
         fileName,
         content: '',
         editMode: false,
         error: err?.message || '加载附件失败',
         loading: false,
-      };
+      });
+    } finally {
       busy = false;
-      paint();
+      if (!disposed) paint();
     }
   }
 
   function enterAttachmentEditMode() {
     if (!attachmentEditor || attachmentEditor.loading || controlsDisabled(busy)) return;
-    attachmentEditor = { ...attachmentEditor, editMode: true, error: '' };
+    setAttachmentEditor({ ...attachmentEditor, editMode: true, error: '' });
     paint();
   }
 
   function cancelAttachmentEdit() {
     if (!attachmentEditor) return;
-    attachmentEditor = { ...attachmentEditor, editMode: false, error: '' };
+    setAttachmentEditor({ ...attachmentEditor, editMode: false, error: '' });
     paint();
   }
 
@@ -826,7 +873,7 @@ export function mountPlanTaskSplit(container, opts = {}) {
       editorEl instanceof HTMLTextAreaElement
         ? editorEl.value
         : attachmentEditor.content;
-    attachmentEditor = { ...attachmentEditor, content, error: '' };
+    setAttachmentEditor({ ...attachmentEditor, content, error: '' });
     busy = true;
     paint();
     try {
@@ -835,27 +882,26 @@ export function mountPlanTaskSplit(container, opts = {}) {
         fileName,
         content,
       });
-      busy = false;
       if (disposed) return;
-      attachmentEditor = {
+      setAttachmentEditor({
         fileName,
         content,
         editMode: false,
         error: '',
         loading: false,
-      };
-      paint();
+      });
     } catch (err) {
-      busy = false;
       if (disposed) return;
-      attachmentEditor = {
+      setAttachmentEditor({
         fileName,
         content,
         editMode: true,
         error: err?.message || '保存失败',
         loading: false,
-      };
-      paint();
+      });
+    } finally {
+      busy = false;
+      if (!disposed) paint();
     }
   }
 
@@ -941,6 +987,41 @@ export function mountPlanTaskSplit(container, opts = {}) {
     } catch (err) {
       busy = false;
       attachmentsError = err?.message || '添加附件失败';
+      paint();
+    }
+  }
+
+  function openAttachmentDeleteConfirm(fileName) {
+    if (!selectedMasterId || controlsDisabled(busy) || !fileName) return;
+    attachmentDeleteConfirm = fileName;
+    attachmentsError = '';
+    paint();
+  }
+
+  function cancelAttachmentDeleteConfirm() {
+    attachmentDeleteConfirm = '';
+    paint();
+  }
+
+  async function confirmAndDeleteAttachment(fileName) {
+    if (!selectedMasterId || controlsDisabled(busy) || !fileName) return;
+    const masterTaskId = selectedMasterId;
+    busy = true;
+    attachmentsError = '';
+    paint();
+    try {
+      await deletePlanAttachment({ masterTaskId, fileName });
+      if (disposed || selectedMasterId !== masterTaskId) return;
+      attachmentDeleteConfirm = '';
+      attachmentsError = '';
+      busy = false;
+      await loadAttachmentsForSelected();
+      if (!disposed) paint();
+    } catch (err) {
+      if (disposed || selectedMasterId !== masterTaskId) return;
+      busy = false;
+      attachmentDeleteConfirm = '';
+      attachmentsError = err?.message || '删除附件失败';
       paint();
     }
   }
@@ -1246,6 +1327,33 @@ export function mountPlanTaskSplit(container, opts = {}) {
       return;
     }
 
+    if (action === 'delete-attachment') {
+      event.preventDefault();
+      event.stopPropagation();
+      if (controlsDisabled(busy) || !selectedMasterId) return;
+      const fileName = actionEl?.dataset.fileName;
+      if (!fileName) return;
+      openAttachmentDeleteConfirm(fileName);
+      return;
+    }
+
+    if (action === 'confirm-delete-attachment') {
+      event.preventDefault();
+      event.stopPropagation();
+      if (controlsDisabled(busy) || !selectedMasterId) return;
+      const fileName = actionEl?.dataset.fileName || attachmentDeleteConfirm;
+      if (!fileName) return;
+      void confirmAndDeleteAttachment(fileName);
+      return;
+    }
+
+    if (action === 'cancel-delete-attachment') {
+      event.preventDefault();
+      event.stopPropagation();
+      cancelAttachmentDeleteConfirm();
+      return;
+    }
+
     if (action === 'open-attachment') {
       event.preventDefault();
       if (controlsDisabled(busy) || !selectedMasterId) return;
@@ -1350,6 +1458,7 @@ export function mountPlanTaskSplit(container, opts = {}) {
       deadLink = false;
       attachments = [];
       attachmentsError = '';
+      attachmentDeleteConfirm = '';
       void (async () => {
         await loadAttachmentsForSelected();
         if (disposed) return;
