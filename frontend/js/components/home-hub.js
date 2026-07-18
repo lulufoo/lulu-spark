@@ -43,7 +43,7 @@ export function mountHomeHub(container, { navigate, openReadLater } = {}) {
         <li>
           <button type="button" class="home-desktop-shortcut" data-home-entry="plan-tasks">
             <span class="home-desktop-shortcut-icon" aria-hidden="true">📋</span>
-            <span class="home-desktop-shortcut-label">计划任务</span>
+            <span class="home-desktop-shortcut-label">Todos</span>
           </button>
         </li>
       </ul>

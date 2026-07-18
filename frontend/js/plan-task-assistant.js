@@ -69,7 +69,7 @@ function bindFocusRefresh(refresh) {
 function renderEmpty() {
   return `
     <div class="plan-task-assistant-empty plan-task-assistant-state">
-      <p class="plan-task-assistant-state-title">暂无计划任务</p>
+      <p class="plan-task-assistant-state-title">暂无Todos</p>
       <p class="plan-task-assistant-state-detail">通过 MCP 创建后，最新任务会出现在这里</p>
     </div>
   `;
@@ -197,12 +197,12 @@ export function mountPlanTaskAssistantWidget(anchor = document.body, opts = {}) 
   widget.innerHTML = `
     <div class="pt-assistant-popover" hidden>
       <header class="pt-assistant-popover-header">
-        <span class="pt-assistant-popover-title">计划任务助手</span>
+        <span class="pt-assistant-popover-title">Todos助手</span>
         <button type="button" class="pt-assistant-close" aria-label="关闭">×</button>
       </header>
       <div class="pt-assistant-popover-body"></div>
     </div>
-    <button type="button" class="pt-assistant-fab" aria-label="打开计划任务助手" aria-expanded="false" title="计划任务助手">
+    <button type="button" class="pt-assistant-fab" aria-label="打开Todos助手" aria-expanded="false" title="Todos助手">
       <svg class="pt-assistant-fab-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
         <path fill="currentColor" d="M4 5.5A1.5 1.5 0 0 1 5.5 4h13A1.5 1.5 0 0 1 20 5.5v13a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 18.5v-13zM7 8h10v1.5H7V8zm0 3.5h10V13H7v-1.5zm0 3.5h6V16H7v-1z"/>
       </svg>

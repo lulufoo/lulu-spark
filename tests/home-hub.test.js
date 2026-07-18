@@ -44,7 +44,7 @@ describe('mountHomeHub', () => {
     expect(workbenchEntry.textContent).toMatch(/workbench|归档/i);
     expect(readLaterEntry.textContent).toMatch(/read later|待读/i);
     expect(corpusEntry.textContent).toMatch(/沉淀|知识库/i);
-    expect(planTasksEntry.textContent).toMatch(/计划任务/);
+    expect(planTasksEntry.textContent).toMatch(/Todos/);
   });
 
   it('navigates to #/workbench when workbench entry is clicked', () => {

@@ -244,7 +244,7 @@ function renderPageHeader(disabled) {
   const disabledAttr = disabled ? ' disabled' : '';
   return `
     <header class="plan-tasks-page-header">
-      <h1 class="plan-tasks-page-title">计划任务</h1>
+      <h1 class="plan-tasks-page-title">Todos</h1>
       <button type="button" class="md-header-btn primary" data-action="create-master"${disabledAttr}>+ 新建计划</button>
     </header>
   `;
@@ -630,7 +630,7 @@ function renderPageShell({ masterHtml, detailHtml, disabled = false }) {
     <div class="plan-tasks-page">
       ${renderPageHeader(disabled)}
       <div class="plan-task-split">
-        <aside class="plan-task-split-master" aria-label="计划任务列表">${masterHtml}</aside>
+        <aside class="plan-task-split-master" aria-label="Todos列表">${masterHtml}</aside>
         <section class="plan-task-split-detail" aria-label="任务详情">${detailHtml}</section>
       </div>
     </div>
@@ -1014,15 +1014,14 @@ export function mountPlanTaskSplit(container, opts = {}) {
       if (disposed || selectedMasterId !== masterTaskId) return;
       attachmentDeleteConfirm = '';
       attachmentsError = '';
-      busy = false;
       await loadAttachmentsForSelected();
-      if (!disposed) paint();
     } catch (err) {
       if (disposed || selectedMasterId !== masterTaskId) return;
-      busy = false;
       attachmentDeleteConfirm = '';
       attachmentsError = err?.message || '删除附件失败';
-      paint();
+    } finally {
+      busy = false;
+      if (!disposed) paint();
     }
   }
 
