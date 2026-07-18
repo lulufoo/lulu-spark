@@ -41,9 +41,9 @@ describe('mountHomeHub', () => {
     expect(readLaterEntry).not.toBeNull();
     expect(corpusEntry).not.toBeNull();
     expect(planTasksEntry).not.toBeNull();
-    expect(workbenchEntry.textContent).toMatch(/workbench|归档/i);
-    expect(readLaterEntry.textContent).toMatch(/read later|待读/i);
-    expect(corpusEntry.textContent).toMatch(/沉淀|知识库/i);
+    expect(workbenchEntry.textContent).toMatch(/Notes/);
+    expect(readLaterEntry.textContent).toMatch(/Read Later/);
+    expect(corpusEntry.textContent).toMatch(/Knowledge/);
     expect(planTasksEntry.textContent).toMatch(/Todos/);
   });
 

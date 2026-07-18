@@ -25,19 +25,19 @@ export function mountHomeHub(container, { navigate, openReadLater } = {}) {
         <li>
           <button type="button" class="home-desktop-shortcut" data-home-entry="workbench">
             <span class="home-desktop-shortcut-icon" aria-hidden="true">📂</span>
-            <span class="home-desktop-shortcut-label">Workbench 笔记</span>
+            <span class="home-desktop-shortcut-label">Notes</span>
           </button>
         </li>
         <li>
           <button type="button" class="home-desktop-shortcut" data-home-entry="read-later">
             <span class="home-desktop-shortcut-icon" aria-hidden="true">📑</span>
-            <span class="home-desktop-shortcut-label">Read Later 待读</span>
+            <span class="home-desktop-shortcut-label">Read Later</span>
           </button>
         </li>
         <li>
           <button type="button" class="home-desktop-shortcut" data-home-entry="corpus">
             <span class="home-desktop-shortcut-icon" aria-hidden="true">📚</span>
-            <span class="home-desktop-shortcut-label">沉淀知识库</span>
+            <span class="home-desktop-shortcut-label">Knowledge</span>
           </button>
         </li>
         <li>
