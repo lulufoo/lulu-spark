@@ -24,7 +24,7 @@ export const PLAN_TASK_BRAND_SITES = [
   },
   {
     path: 'frontend/plan-task-assistant.html',
-    mustMatch: [/<title>Todos助手<\/title>/],
+    mustMatch: [/<title>Todos<\/title>/],
     mustNotMatch: NO_LEGACY_BRAND,
   },
   {
@@ -34,12 +34,12 @@ export const PLAN_TASK_BRAND_SITES = [
   },
   {
     path: 'frontend/js/plan-task-assistant.js',
-    mustMatch: [/<span class="pt-assistant-popover-title">Todos助手<\/span>/],
+    mustMatch: [/<span class="pt-assistant-popover-title">Todos<\/span>/],
     mustNotMatch: NO_LEGACY_BRAND,
   },
   {
     path: 'frontend/js/plan-task-assistant.js',
-    mustMatch: [/aria-label="打开Todos助手"/, /title="Todos助手"/],
+    mustMatch: [/aria-label="打开Todos"/, /title="Todos"/],
     mustNotMatch: NO_LEGACY_BRAND,
   },
 ];

@@ -2105,9 +2105,11 @@
   .plan-task-detail-toolbar {
     display: flex;
     align-items: center;
+    flex-wrap: nowrap;
     gap: 8px;
-    margin-bottom: 16px;
-    padding-bottom: 12px;
+    margin: 0 0 16px;
+    padding: 12px 0;
+    border-top: 1px solid #eaeef2;
     border-bottom: 1px solid #eaeef2;
   }
   .plan-task-btn-danger {
@@ -2483,14 +2485,209 @@
     gap: 8px;
     margin-top: 8px;
   }
-  .plan-task-attachment-item {
-    cursor: pointer;
-    list-style: none;
-    padding: 6px 8px;
-    border-radius: 6px;
+  .plan-task-attachments-section {
+    margin-bottom: 12px;
+    min-width: 0;
+    max-width: 100%;
   }
-  .plan-task-attachment-item:hover {
+  .plan-task-attachments-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-width: 0;
+  }
+  .plan-task-attachments-heading {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+  }
+  .plan-task-attachments-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+  .plan-task-attachments-title {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: #24292f;
+    flex-shrink: 0;
+  }
+  .plan-task-attachments-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 6px;
+    border-radius: 999px;
+    background: #eef2f6;
+    color: #57606a;
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1;
+  }
+  .plan-task-attachments-empty {
+    margin: 0;
+    font-size: 12px;
+    color: #8c959f;
+    white-space: nowrap;
+  }
+  .plan-task-attachments-error {
+    margin: 8px 0 0;
+    padding: 8px 10px;
+    border-radius: 6px;
+    background: #fff1f0;
+    color: #cf222e;
+    font-size: 12px;
+    line-height: 1.4;
+  }
+  .plan-task-attachment-list {
+    margin: 10px 0 0;
+    padding: 0;
+    list-style: none;
+    border: 1px solid #d0d7de;
+    border-radius: 8px;
+    background: #fff;
+    overflow: hidden;
+  }
+  .plan-task-attachment-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    cursor: pointer;
+    border-bottom: 1px solid #eaeef2;
+    transition: background-color 120ms ease;
+  }
+  .plan-task-attachment-item:last-child {
+    border-bottom: none;
+  }
+  .plan-task-attachment-item:hover,
+  .plan-task-attachment-item:focus-visible {
     background: #f6f8fa;
+    outline: none;
+  }
+  .plan-task-attachment-item:focus-visible {
+    box-shadow: inset 0 0 0 2px rgba(9, 105, 218, 0.35);
+  }
+  .plan-task-attachment-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    background: linear-gradient(180deg, #f6f8fa 0%, #eef2f6 100%);
+    border: 1px solid #d0d7de;
+    color: #0969da;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    flex-shrink: 0;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  }
+  .plan-task-attachment-main {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+    flex: 1;
+  }
+  .plan-task-attachment-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: #24292f;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .plan-task-attachment-meta {
+    font-size: 11px;
+    color: #8c959f;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .plan-task-attachment-open-hint {
+    font-size: 11px;
+    color: #0969da;
+    opacity: 0;
+    transition: opacity 120ms ease;
+    flex-shrink: 0;
+  }
+  .plan-task-attachment-item:hover .plan-task-attachment-open-hint,
+  .plan-task-attachment-item:focus-visible .plan-task-attachment-open-hint {
+    opacity: 1;
+  }
+  .plan-task-attachment-delete {
+    appearance: none;
+    margin: 0;
+    padding: 4px 8px;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    background: transparent;
+    color: #8c959f;
+    font-size: 12px;
+    line-height: 1.2;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .plan-task-attachment-delete:hover,
+  .plan-task-attachment-delete:focus-visible {
+    color: #cf222e;
+    background: #fff1f0;
+    border-color: #ffcecb;
+    outline: none;
+  }
+  .plan-task-attachment-delete:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  .plan-task-attachment-delete-confirm {
+    position: fixed;
+    inset: 0;
+    z-index: 1200;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .plan-task-attachment-delete-confirm-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(31, 35, 40, 0.45);
+    cursor: pointer;
+  }
+  .plan-task-attachment-delete-confirm-panel {
+    position: relative;
+    z-index: 1;
+    width: min(400px, 92vw);
+    padding: 18px 18px 14px;
+    border-radius: 12px;
+    background: #fff;
+    box-shadow: 0 12px 40px rgba(31, 35, 40, 0.22);
+    animation: plan-task-attach-rise 140ms ease-out;
+  }
+  .plan-task-attachment-delete-confirm-title {
+    margin: 0 0 8px;
+    font-size: 15px;
+    font-weight: 600;
+    color: #24292f;
+  }
+  .plan-task-attachment-delete-confirm-body {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.5;
+    color: #57606a;
+  }
+  .plan-task-attachment-delete-confirm-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 16px;
   }
   .plan-task-attachment-editor {
     position: fixed;
@@ -2499,42 +2696,83 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    padding: 24px 16px;
   }
   .plan-task-attachment-editor-backdrop {
     position: absolute;
     inset: 0;
-    background: rgba(0, 0, 0, 0.45);
+    background: rgba(31, 35, 40, 0.48);
     cursor: pointer;
   }
   .plan-task-attachment-editor-panel {
     position: relative;
     z-index: 1;
-    width: min(720px, 92vw);
-    max-height: min(80vh, 720px);
+    width: min(880px, 96vw);
+    max-height: min(88vh, 900px);
     background: #fff;
-    border-radius: 8px;
-    box-shadow: 0 8px 40px rgba(0, 0, 0, 0.25);
+    border: 1px solid #d0d7de;
+    border-radius: 12px;
+    box-shadow: 0 16px 48px rgba(31, 35, 40, 0.28);
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    animation: plan-task-attach-rise 160ms ease-out;
+  }
+  /* Short docs: hug content. Long docs / edit: grow into viewport. */
+  .plan-task-attachment-editor-panel--preview,
+  .plan-task-attachment-editor-panel--loading {
+    height: auto;
+    min-height: 220px;
+  }
+  .plan-task-attachment-editor-panel--edit {
+    height: min(88vh, 900px);
+  }
+  @keyframes plan-task-attach-rise {
+    from {
+      opacity: 0;
+      transform: translateY(8px) scale(0.985);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
   }
   .plan-task-attachment-editor-header {
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 10px 16px;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 16px;
     border-bottom: 1px solid #d0d7de;
     background: #f6f8fa;
     flex-shrink: 0;
   }
-  .plan-task-attachment-editor-title {
+  .plan-task-attachment-editor-heading {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
     flex: 1;
+  }
+  .plan-task-attachment-editor-title-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+  .plan-task-attachment-editor-title {
     margin: 0;
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 600;
+    color: #24292f;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+  .plan-task-attachment-editor-mode {
+    font-size: 11px;
+    color: #656d76;
+    letter-spacing: 0.01em;
   }
   .plan-task-attachment-editor-actions {
     display: flex;
@@ -2542,42 +2780,270 @@
     flex-shrink: 0;
   }
   .plan-task-attachment-editor-body {
-    padding: 16px;
     overflow: auto;
-    flex: 1;
+    flex: 1 1 auto;
+    min-height: 0;
   }
+  .plan-task-attachment-editor-body--preview {
+    padding: 24px 28px 32px;
+    background: #fff;
+  }
+  .plan-task-attachment-editor-body--loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 24px;
+    background: #f6f8fa;
+  }
+  .plan-task-attachment-editor-body--edit {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 14px 16px 12px;
+    background: #fbfcfd;
+  }
+  .plan-task-attachment-doc {
+    width: min(100%, 720px);
+    margin: 0 auto;
+    overflow-x: auto;
+  }
+  .plan-task-attachment-editor-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 16px;
+    border-top: 1px solid #d0d7de;
+    background: #f6f8fa;
+    flex-shrink: 0;
+  }
+  .plan-task-attachment-editor-footer-hint {
+    font-size: 12px;
+    color: #8c959f;
+  }
+  /* Document typography — aligned with .viewer-body, restored against global * reset */
   .plan-task-attachment-preview {
-    font-size: 14px;
-    line-height: 1.6;
     color: #24292f;
+    font-size: 14px;
+    line-height: 1.7;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+  .plan-task-attachment-preview > :first-child {
+    margin-top: 0;
+  }
+  .plan-task-attachment-preview > :last-child {
+    margin-bottom: 0;
+  }
+  .plan-task-attachment-preview h1,
+  .plan-task-attachment-preview h2,
+  .plan-task-attachment-preview h3,
+  .plan-task-attachment-preview h4,
+  .plan-task-attachment-preview h5,
+  .plan-task-attachment-preview h6 {
+    margin: 1.15em 0 0.45em;
+    color: #24292f;
+    font-weight: 600;
+    line-height: 1.3;
+  }
+  .plan-task-attachment-preview h1:first-child,
+  .plan-task-attachment-preview h2:first-child,
+  .plan-task-attachment-preview h3:first-child,
+  .plan-task-attachment-preview h4:first-child,
+  .plan-task-attachment-preview h5:first-child,
+  .plan-task-attachment-preview h6:first-child {
+    margin-top: 0;
+  }
+  .plan-task-attachment-preview h1 {
+    font-size: 1.55em;
+    padding-bottom: 0.3em;
+    border-bottom: 1px solid #d0d7de;
+  }
+  .plan-task-attachment-preview h2 {
+    font-size: 1.25em;
+    padding-bottom: 0.22em;
+    border-bottom: 1px solid #eaeef2;
+  }
+  .plan-task-attachment-preview h3 {
+    font-size: 1.1em;
+  }
+  .plan-task-attachment-preview h4,
+  .plan-task-attachment-preview h5,
+  .plan-task-attachment-preview h6 {
+    font-size: 1em;
+  }
+  .plan-task-attachment-preview p {
+    margin: 0.65em 0;
+  }
+  .plan-task-attachment-preview ul,
+  .plan-task-attachment-preview ol {
+    margin: 0.55em 0 0.55em 1.6em;
+    padding-left: 0.35em;
+  }
+  .plan-task-attachment-preview ul {
+    list-style: disc;
+  }
+  .plan-task-attachment-preview ol {
+    list-style: decimal;
+  }
+  .plan-task-attachment-preview li {
+    margin: 0.28em 0;
+    padding-left: 0.1em;
+  }
+  .plan-task-attachment-preview li > ul,
+  .plan-task-attachment-preview li > ol {
+    margin-top: 0.25em;
+    margin-bottom: 0.25em;
+  }
+  .plan-task-attachment-preview blockquote {
+    margin: 0.8em 0;
+    padding: 0.15em 0 0.15em 14px;
+    border-left: 4px solid #d0d7de;
+    color: #57606a;
+  }
+  .plan-task-attachment-preview blockquote > :first-child {
+    margin-top: 0;
+  }
+  .plan-task-attachment-preview blockquote > :last-child {
+    margin-bottom: 0;
+  }
+  .plan-task-attachment-preview hr {
+    margin: 1.4em 0;
+    border: none;
+    border-top: 1px solid #d0d7de;
+  }
+  .plan-task-attachment-preview a {
+    color: #0969da;
+    text-decoration: none;
+  }
+  .plan-task-attachment-preview a:hover {
+    text-decoration: underline;
+  }
+  .plan-task-attachment-preview strong {
+    font-weight: 650;
+    color: #1f2328;
+  }
+  .plan-task-attachment-preview img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 6px;
+  }
+  .plan-task-attachment-preview table {
+    width: 100%;
+    margin: 1em 0;
+    border-collapse: collapse;
+  }
+  .plan-task-attachment-preview th,
+  .plan-task-attachment-preview td {
+    border: 1px solid #d0d7de;
+    padding: 7px 12px;
+    font-size: 13px;
+    line-height: 1.45;
+    vertical-align: top;
+  }
+  .plan-task-attachment-preview th {
+    background: #f6f8fa;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .plan-task-attachment-preview tr:nth-child(even) td {
+    background: #fbfcfd;
+  }
+  .plan-task-attachment-preview code {
+    padding: 0.12em 0.4em;
+    border: 1px solid #d0d7de;
+    border-radius: 4px;
+    background: #f6f8fa;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 0.88em;
+    white-space: break-spaces;
+  }
+  .plan-task-attachment-preview pre {
+    margin: 0.9em 0;
+    padding: 14px 16px;
+    border: 1px solid #d0d7de;
+    border-radius: 8px;
+    background: #f6f8fa;
+    overflow-x: auto;
+    max-width: 100%;
+  }
+  .plan-task-attachment-preview pre code {
+    padding: 0;
+    border: none;
+    background: none;
+    font-size: 0.85em;
+    white-space: pre;
+  }
+  .plan-task-attachment-edit-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #57606a;
   }
   .plan-task-attachment-edit-area {
     width: 100%;
+    flex: 1;
     min-height: 280px;
     box-sizing: border-box;
-    padding: 10px 12px;
+    padding: 12px 14px;
     border: 1px solid #d0d7de;
-    border-radius: 6px;
-    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    border-radius: 8px;
+    background: #fff;
+    color: #24292f;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
     font-size: 13px;
-    line-height: 1.5;
-    resize: vertical;
+    line-height: 1.55;
+    resize: none;
+  }
+  .plan-task-attachment-edit-area:focus {
+    outline: none;
+    border-color: #0969da;
+    box-shadow: 0 0 0 3px rgba(9, 105, 218, 0.15);
   }
   .plan-task-attachment-toolbar {
     display: flex;
     gap: 8px;
-    margin-top: 8px;
+    flex-shrink: 0;
   }
   .plan-task-attachment-error {
-    margin: 0 0 8px;
+    margin: 0 0 12px;
+    padding: 8px 10px;
+    border-radius: 6px;
+    background: #fff1f0;
     font-size: 12px;
     color: #cf222e;
+    line-height: 1.4;
   }
-  .plan-task-attachment-loading,
-  .plan-task-attachment-empty {
+  .plan-task-attachment-editor-body--preview .plan-task-attachment-error {
+    width: min(100%, 720px);
+    margin: 0 auto 12px;
+  }
+  .plan-task-attachment-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    min-height: 120px;
     margin: 0;
     font-size: 13px;
     color: #57606a;
+  }
+  .plan-task-attachment-loading-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #0969da;
+    animation: plan-task-attach-pulse 900ms ease-in-out infinite;
+  }
+  @keyframes plan-task-attach-pulse {
+    0%, 100% { opacity: 0.35; transform: scale(0.9); }
+    50% { opacity: 1; transform: scale(1); }
+  }
+  .plan-task-attachment-empty {
+    margin: 0;
+    padding: 28px 8px;
+    text-align: center;
+    font-size: 13px;
+    color: #8c959f;
   }
   .plan-task-sub-action-error {
     margin: 0 0 8px;

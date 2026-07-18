@@ -333,7 +333,7 @@ describe('mountPlanTaskSplit', () => {
     });
     await vi.waitFor(() => {
       expect(container.querySelector('.plan-task-empty--detail')).not.toBeNull();
-      expect(container.textContent).toContain('暂无子任务');
+      expect(container.textContent).toContain('还没有子任务');
       expect(container.querySelector('[data-action="add-sub"]')).not.toBeNull();
       expect(container.querySelector('.plan-task-split-state--error')).toBeNull();
     });

@@ -50,12 +50,12 @@ export function mountAiAssistant(root, opts = {}) {
 
   root.innerHTML = `
     <header class="ai-assistant-header">
-      <h1 class="ai-assistant-title">计划助手</h1>
-      <p class="ai-assistant-bound" data-role="bound">尚未绑定计划</p>
+      <h1 class="ai-assistant-title">待办助手</h1>
+      <p class="ai-assistant-bound" data-role="bound">尚未绑定待办</p>
     </header>
     <div class="ai-assistant-messages" data-role="messages" aria-live="polite"></div>
     <form class="ai-assistant-composer" data-role="form">
-      <textarea class="ai-assistant-input" data-role="input" rows="2" placeholder="输入要对计划说的话…" disabled></textarea>
+      <textarea class="ai-assistant-input" data-role="input" rows="2" placeholder="输入要对待办说的话…" disabled></textarea>
       <button type="submit" class="ai-assistant-send" data-role="send" disabled>发送</button>
     </form>
   `;
@@ -101,7 +101,7 @@ export function mountAiAssistant(root, opts = {}) {
       ? `绑定：${boundTitle}`
       : sessionId
         ? '已打开会话'
-        : '尚未绑定计划';
+        : '尚未绑定待办';
     setComposerEnabled(Boolean(sessionId) && !busy);
     renderMessages();
   }
@@ -118,7 +118,7 @@ export function mountAiAssistant(root, opts = {}) {
       return;
     }
     if (!sessionId) {
-      pushNotice('尚未绑定计划会话', true);
+      pushNotice('尚未绑定待办会话', true);
       return;
     }
     sending = true;

@@ -5,7 +5,7 @@ import { closePlanTaskDialog, openPlanTaskDialog } from './dialog.js';
 
 const UNAVAILABLE_MSG = '列表暂时不可用，请稍后重试';
 const REFRESH_WARNING_MSG = '已保存，列表刷新失败，请重试';
-const MIGRATION_WARNING_MSG = '此计划的数据迁移未完成，部分信息可能不完整';
+const MIGRATION_WARNING_MSG = '此待办的数据迁移未完成，部分信息可能不完整';
 const ATTACHMENTS_EMPTY_MSG = '暂无附件';
 const ATTACHMENT_PICK_CANCEL_MSG = '已取消选择文件';
 const AI_ASSISTANT_TURN_COMPLETED = 'ai-assistant:turn-completed';
@@ -245,7 +245,7 @@ function renderPageHeader(disabled) {
   return `
     <header class="plan-tasks-page-header">
       <h1 class="plan-tasks-page-title">Todos</h1>
-      <button type="button" class="md-header-btn primary" data-action="create-master"${disabledAttr}>+ 新建计划</button>
+      <button type="button" class="md-header-btn primary" data-action="create-master"${disabledAttr}>+ 新建待办</button>
     </header>
   `;
 }
@@ -275,9 +275,9 @@ function renderMasterEmpty(disabled) {
   const disabledAttr = disabled ? ' disabled' : '';
   return `
     <div class="plan-task-empty plan-task-empty--sidebar">
-      <p class="plan-task-empty-title">还没有计划</p>
-      <p class="plan-task-empty-detail">创建第一个计划，开始管理子任务</p>
-      <button type="button" class="md-header-btn primary" data-action="create-master"${disabledAttr}>新建计划</button>
+      <p class="plan-task-empty-title">还没有待办</p>
+      <p class="plan-task-empty-detail">创建第一个待办，开始管理子任务</p>
+      <button type="button" class="md-header-btn primary" data-action="create-master"${disabledAttr}>新建待办</button>
     </div>
   `;
 }
@@ -384,7 +384,7 @@ function renderDetailToolbar(masterTaskId, disabled) {
     <div class="plan-task-detail-toolbar">
       <button type="button" class="md-header-btn" data-action="open-ai-assistant" data-master-id="${escHtml(masterTaskId)}"${disabledAttr}>AI 助手</button>
       <button type="button" class="md-header-btn" data-action="add-sub" data-master-id="${escHtml(masterTaskId)}"${disabledAttr}>添加子任务</button>
-      <button type="button" class="md-header-btn plan-task-btn-danger" data-action="delete-master"${disabledAttr}>删除计划</button>
+      <button type="button" class="md-header-btn plan-task-btn-danger" data-action="delete-master"${disabledAttr}>删除待办</button>
     </div>
   `;
 }
@@ -393,7 +393,7 @@ function renderSubEmpty(disabled) {
   const disabledAttr = disabled ? ' disabled' : '';
   return `
     <div class="plan-task-empty plan-task-empty--detail">
-      <p class="plan-task-empty-title">暂无子任务</p>
+      <p class="plan-task-empty-title">还没有子任务</p>
       <button type="button" class="md-header-btn primary" data-action="add-sub"${disabledAttr}>添加子任务</button>
     </div>
   `;
@@ -409,9 +409,9 @@ function renderPlanMdSection(master, ui) {
   const copyBtn = renderCopyMasterIdButton(master.master_task_id, ui.disabled);
   if (ui.planMdLoading) {
     return `
-      <section class="plan-task-plan-md-section" aria-label="计划说明">
+      <section class="plan-task-plan-md-section" aria-label="待办说明">
         <div class="plan-task-plan-md-header">
-          <h3 class="plan-task-plan-md-title">计划说明</h3>
+          <h3 class="plan-task-plan-md-title">待办说明</h3>
           <div class="plan-task-plan-md-header-actions">${copyBtn}</div>
         </div>
         <p class="plan-task-plan-md-loading">加载说明…</p>
@@ -420,9 +420,9 @@ function renderPlanMdSection(master, ui) {
   }
   if (ui.planMdEditMode) {
     return `
-      <section class="plan-task-plan-md-section" aria-label="计划说明">
+      <section class="plan-task-plan-md-section" aria-label="待办说明">
         <div class="plan-task-plan-md-header">
-          <h3 class="plan-task-plan-md-title">计划说明</h3>
+          <h3 class="plan-task-plan-md-title">待办说明</h3>
           <div class="plan-task-plan-md-header-actions">${copyBtn}</div>
         </div>
         ${ui.planMdError ? `<p class="plan-task-plan-md-error" role="alert">${escHtml(ui.planMdError)}</p>` : ''}
@@ -439,9 +439,9 @@ function renderPlanMdSection(master, ui) {
     ? renderCommentMarkdown(planMd)
     : '<p class="plan-task-plan-md-empty">暂无说明</p>';
   return `
-    <section class="plan-task-plan-md-section" aria-label="计划说明">
+    <section class="plan-task-plan-md-section" aria-label="待办说明">
       <div class="plan-task-plan-md-header">
-        <h3 class="plan-task-plan-md-title">计划说明</h3>
+        <h3 class="plan-task-plan-md-title">待办说明</h3>
         <div class="plan-task-plan-md-header-actions">
           ${copyBtn}
           <button type="button" class="md-header-btn" data-action="edit-plan-md"${disabledAttr}>编辑</button>
@@ -456,30 +456,45 @@ function renderAttachmentsSection(ui) {
   const disabledAttr = ui.disabled ? ' disabled' : '';
   const items = ui.attachments ?? [];
   const confirmFile = ui.attachmentDeleteConfirm || '';
+  const countHtml = items.length
+    ? `<span class="plan-task-attachments-count" aria-label="${items.length} 个附件">${items.length}</span>`
+    : '';
+  const emptyHtml = items.length
+    ? ''
+    : `<span class="plan-task-attachments-empty">${escHtml(ATTACHMENTS_EMPTY_MSG)}</span>`;
   const listHtml = items.length
     ? `<ul class="plan-task-attachment-list" role="list">${items
-        .map(
-          (entry) => `
+        .map((entry) => {
+          const added = formatRelativeTime(entry.added_at);
+          const meta = added ? `添加于 ${added}` : 'Markdown 附件';
+          return `
         <li
           class="plan-task-attachment-item"
           data-action="open-attachment"
           data-file-name="${escHtml(entry.file_name)}"
           role="button"
           tabindex="0"
+          aria-label="打开附件 ${escHtml(entry.file_name)}"
         >
-          <span class="plan-task-attachment-name">${escHtml(entry.file_name)}</span>
+          <span class="plan-task-attachment-icon" aria-hidden="true">MD</span>
+          <span class="plan-task-attachment-main">
+            <span class="plan-task-attachment-name">${escHtml(entry.file_name)}</span>
+            <span class="plan-task-attachment-meta">${escHtml(meta)}</span>
+          </span>
+          <span class="plan-task-attachment-open-hint" aria-hidden="true">打开</span>
           <button
             type="button"
-            class="md-header-btn plan-task-btn-danger"
+            class="plan-task-attachment-delete"
             data-action="delete-attachment"
             data-file-name="${escHtml(entry.file_name)}"
             aria-label="删除附件 ${escHtml(entry.file_name)}"
+            title="删除"
             ${disabledAttr}
           >删除</button>
-        </li>`,
-        )
+        </li>`;
+        })
         .join('')}</ul>`
-    : `<p class="plan-task-attachments-empty">${escHtml(ATTACHMENTS_EMPTY_MSG)}</p>`;
+    : '';
   const errHtml = ui.attachmentsError
     ? `<p class="plan-task-attachments-error" role="alert">${escHtml(ui.attachmentsError)}</p>`
     : '';
@@ -492,29 +507,39 @@ function renderAttachmentsSection(ui) {
         aria-modal="true"
         aria-label="删除附件确认"
       >
-        <p>确认删除附件「${escHtml(confirmFile)}」？删除后列表与文件将一并移除。</p>
-        <div class="plan-task-attachment-delete-confirm-actions">
-          <button
-            type="button"
-            class="md-header-btn plan-task-btn-danger"
-            data-action="confirm-delete-attachment"
-            data-file-name="${escHtml(confirmFile)}"
-            ${disabledAttr}
-          >确认删除</button>
-          <button
-            type="button"
-            class="md-header-btn"
-            data-action="cancel-delete-attachment"
-            ${disabledAttr}
-          >取消</button>
+        <div class="plan-task-attachment-delete-confirm-backdrop" data-action="cancel-delete-attachment"></div>
+        <div class="plan-task-attachment-delete-confirm-panel">
+          <h4 class="plan-task-attachment-delete-confirm-title">删除附件</h4>
+          <p class="plan-task-attachment-delete-confirm-body">确认删除「${escHtml(confirmFile)}」？删除后列表与文件将一并移除。</p>
+          <div class="plan-task-attachment-delete-confirm-actions">
+            <button
+              type="button"
+              class="md-header-btn"
+              data-action="cancel-delete-attachment"
+              ${disabledAttr}
+            >取消</button>
+            <button
+              type="button"
+              class="md-header-btn plan-task-btn-danger"
+              data-action="confirm-delete-attachment"
+              data-file-name="${escHtml(confirmFile)}"
+              ${disabledAttr}
+            >确认删除</button>
+          </div>
         </div>
       </div>`
     : '';
   return `
     <section class="plan-task-attachments-section" aria-label="附件">
       <div class="plan-task-attachments-header">
-        <h3 class="plan-task-attachments-title">附件</h3>
-        <button type="button" class="md-header-btn" data-action="pick-attachment-md"${disabledAttr}>本地选 .md</button>
+        <div class="plan-task-attachments-heading">
+          <h3 class="plan-task-attachments-title">附件</h3>
+          ${countHtml}
+        </div>
+        <div class="plan-task-attachments-header-actions">
+          <button type="button" class="md-header-btn" data-action="pick-attachment-md"${disabledAttr}>本地选 .md</button>
+          ${emptyHtml}
+        </div>
       </div>
       ${errHtml}
       ${listHtml}
@@ -530,46 +555,76 @@ function renderAttachmentsSection(ui) {
  */
 function renderAttachmentEditor(editor, disabled) {
   const disabledAttr = disabled ? ' disabled' : '';
+  const modeLabel = editor.loading ? '加载中' : editor.editMode ? '编辑' : '预览';
+  const panelMode = editor.loading
+    ? 'loading'
+    : editor.editMode
+      ? 'edit'
+      : 'preview';
   const errHtml = editor.error
     ? `<p class="plan-task-attachment-error" role="alert">${escHtml(editor.error)}</p>`
     : '';
   let bodyHtml;
+  let footerHtml = '';
   if (editor.loading) {
-    bodyHtml = `<p class="plan-task-attachment-loading">加载中…</p>`;
+    bodyHtml = `
+      <div class="plan-task-attachment-loading" role="status">
+        <span class="plan-task-attachment-loading-dot" aria-hidden="true"></span>
+        <span>正在加载附件…</span>
+      </div>`;
   } else if (editor.editMode) {
     bodyHtml = `
       ${errHtml}
-      <textarea class="plan-task-attachment-edit-area"${disabledAttr}>${escHtml(editor.content ?? '')}</textarea>
-      <div class="plan-task-attachment-toolbar">
-        <button type="button" class="md-header-btn primary" data-action="save-attachment"${disabledAttr}>保存</button>
-        <button type="button" class="md-header-btn" data-action="cancel-attachment-edit"${disabledAttr}>取消</button>
-      </div>
+      <label class="plan-task-attachment-edit-label" for="plan-task-attachment-edit-area">Markdown 原文</label>
+      <textarea
+        id="plan-task-attachment-edit-area"
+        class="plan-task-attachment-edit-area"
+        spellcheck="false"
+        ${disabledAttr}
+      >${escHtml(editor.content ?? '')}</textarea>
     `;
+    footerHtml = `
+      <footer class="plan-task-attachment-editor-footer">
+        <span class="plan-task-attachment-editor-footer-hint">保存将覆盖该附件内容</span>
+        <div class="plan-task-attachment-toolbar">
+          <button type="button" class="md-header-btn" data-action="cancel-attachment-edit"${disabledAttr}>取消</button>
+          <button type="button" class="md-header-btn primary" data-action="save-attachment"${disabledAttr}>保存</button>
+        </div>
+      </footer>`;
   } else {
     const previewHtml = editor.content
       ? renderCommentMarkdown(editor.content)
       : '<p class="plan-task-attachment-empty">暂无内容</p>';
     bodyHtml = `
       ${errHtml}
-      <div class="plan-task-attachment-preview">${previewHtml}</div>
+      <article class="plan-task-attachment-doc">
+        <div class="plan-task-attachment-preview">${previewHtml}</div>
+      </article>
     `;
   }
   const editBtn =
     !editor.loading && !editor.editMode
-      ? `<button type="button" class="md-header-btn" data-action="edit-attachment"${disabledAttr}>编辑</button>`
+      ? `<button type="button" class="md-header-btn primary" data-action="edit-attachment"${disabledAttr}>编辑</button>`
       : '';
   return `
     <div class="plan-task-attachment-editor" role="dialog" aria-modal="true" aria-label="${escHtml(editor.fileName)}">
       <div class="plan-task-attachment-editor-backdrop" data-action="close-attachment-editor"></div>
-      <div class="plan-task-attachment-editor-panel">
+      <div class="plan-task-attachment-editor-panel plan-task-attachment-editor-panel--${panelMode}">
         <header class="plan-task-attachment-editor-header">
-          <h3 class="plan-task-attachment-editor-title">${escHtml(editor.fileName)}</h3>
+          <div class="plan-task-attachment-editor-heading">
+            <span class="plan-task-attachment-icon" aria-hidden="true">MD</span>
+            <div class="plan-task-attachment-editor-title-wrap">
+              <h3 class="plan-task-attachment-editor-title">${escHtml(editor.fileName)}</h3>
+              <span class="plan-task-attachment-editor-mode">${escHtml(modeLabel)}</span>
+            </div>
+          </div>
           <div class="plan-task-attachment-editor-actions">
             ${editBtn}
             <button type="button" class="md-header-btn" data-action="close-attachment-editor"${disabledAttr}>关闭</button>
           </div>
         </header>
-        <div class="plan-task-attachment-editor-body">${bodyHtml}</div>
+        <div class="plan-task-attachment-editor-body plan-task-attachment-editor-body--${panelMode}">${bodyHtml}</div>
+        ${footerHtml}
       </div>
     </div>
   `;
@@ -601,8 +656,8 @@ function renderSubDetailPane(master, selectedSubId, ui) {
 function renderDetailEmpty() {
   return `
     <div class="plan-task-split-detail-empty plan-task-empty">
-      <p class="plan-task-empty-title">选择左侧计划</p>
-      <p class="plan-task-empty-detail">或点击右上角新建计划</p>
+      <p class="plan-task-empty-title">选择左侧待办</p>
+      <p class="plan-task-empty-detail">或点击右上角新建待办</p>
     </div>
   `;
 }
@@ -679,6 +734,8 @@ export function mountPlanTaskSplit(container, opts = {}) {
   let attachmentDeleteConfirm = '';
   /** @type {{ fileName: string, content: string, editMode: boolean, error: string, loading: boolean } | null} */
   let attachmentEditor = null;
+  /** Bumped to ignore stale open/load results after close or newer open. */
+  let attachmentLoadToken = 0;
   const optimisticSubStatus = {};
   const subActionErrors = {};
   const subTitleErrors = {};
@@ -818,17 +875,32 @@ export function mountPlanTaskSplit(container, opts = {}) {
   }
 
   function closeAttachmentEditor() {
+    attachmentLoadToken += 1;
     setAttachmentEditor(null);
   }
 
   async function openAttachmentEditor(fileName) {
     if (!selectedMasterId || controlsDisabled(busy) || !fileName) return;
     const masterTaskId = selectedMasterId;
+    const loadToken = ++attachmentLoadToken;
+    setAttachmentEditor({
+      fileName,
+      content: '',
+      editMode: false,
+      error: '',
+      loading: true,
+    });
     busy = true;
     paint();
     try {
       const result = await readPlanAttachment({ masterTaskId, fileName });
-      if (disposed || selectedMasterId !== masterTaskId) return;
+      if (
+        disposed ||
+        selectedMasterId !== masterTaskId ||
+        loadToken !== attachmentLoadToken
+      ) {
+        return;
+      }
       const content =
         typeof result === 'string' ? result : String(result?.content ?? '');
       setAttachmentEditor({
@@ -839,7 +911,13 @@ export function mountPlanTaskSplit(container, opts = {}) {
         loading: false,
       });
     } catch (err) {
-      if (disposed || selectedMasterId !== masterTaskId) return;
+      if (
+        disposed ||
+        selectedMasterId !== masterTaskId ||
+        loadToken !== attachmentLoadToken
+      ) {
+        return;
+      }
       setAttachmentEditor({
         fileName,
         content: '',
@@ -848,8 +926,10 @@ export function mountPlanTaskSplit(container, opts = {}) {
         loading: false,
       });
     } finally {
-      busy = false;
-      if (!disposed) paint();
+      if (loadToken === attachmentLoadToken) {
+        busy = false;
+        if (!disposed) paint();
+      }
     }
   }
 
@@ -1496,7 +1576,45 @@ export function mountPlanTaskSplit(container, opts = {}) {
     subTitleDrafts[input.dataset.subId ?? ''] = input.value;
   };
 
-  const onSubTitleKeydown = (event) => {
+  const onKeydown = (event) => {
+    if (event.key === 'Escape') {
+      if (attachmentDeleteConfirm) {
+        event.preventDefault();
+        cancelAttachmentDeleteConfirm();
+        return;
+      }
+      if (attachmentEditor) {
+        event.preventDefault();
+        if (attachmentEditor.loading) {
+          closeAttachmentEditor();
+          busy = false;
+          paint();
+          return;
+        }
+        if (controlsDisabled(busy)) return;
+        if (attachmentEditor.editMode) {
+          cancelAttachmentEdit();
+          return;
+        }
+        closeAttachmentEditor();
+        paint();
+        return;
+      }
+    }
+
+    const attachItem = event.target.closest('[data-action="open-attachment"]');
+    if (
+      attachItem instanceof HTMLElement &&
+      (event.key === 'Enter' || event.key === ' ')
+    ) {
+      event.preventDefault();
+      if (controlsDisabled(busy) || !selectedMasterId) return;
+      const fileName = attachItem.dataset.fileName;
+      if (!fileName) return;
+      void openAttachmentEditor(fileName);
+      return;
+    }
+
     const input = event.target.closest('[data-action="edit-sub-title"]');
     if (!(input instanceof HTMLInputElement)) return;
     if (event.key === 'Enter') {
@@ -1528,7 +1646,7 @@ export function mountPlanTaskSplit(container, opts = {}) {
 
   container.addEventListener('click', onClick);
   container.addEventListener('input', onInput);
-  container.addEventListener('keydown', onSubTitleKeydown);
+  container.addEventListener('keydown', onKeydown);
   container.addEventListener('focusout', onSubTitleBlur);
   container.addEventListener('change', onChange);
   const onDialogClose = () => {
@@ -1564,7 +1682,7 @@ export function mountPlanTaskSplit(container, opts = {}) {
     }
     container.removeEventListener('click', onClick);
     container.removeEventListener('input', onInput);
-    container.removeEventListener('keydown', onSubTitleKeydown);
+    container.removeEventListener('keydown', onKeydown);
     container.removeEventListener('focusout', onSubTitleBlur);
     container.removeEventListener('change', onChange);
     container.innerHTML = '';

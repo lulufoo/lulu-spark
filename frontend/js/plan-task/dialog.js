@@ -89,7 +89,7 @@ function renderSubTitleRows(rows = ['']) {
         .join('')}
     </div>
     <button type="button" class="plan-task-dialog-add-row" data-action="add-sub-row">+ 添加子任务行</button>
-    <p class="plan-task-dialog-hint">不填写子任务时，计划将不含任何子任务</p>
+    <p class="plan-task-dialog-hint">不填写子任务时，待办将不含任何子任务</p>
   `;
 }
 
@@ -107,11 +107,11 @@ function renderDialogBody(type, payload) {
   primary.classList.remove('danger');
 
   if (type === 'create-master') {
-    title.textContent = '新建计划';
-    primary.textContent = '创建计划';
+    title.textContent = '新建待办';
+    primary.textContent = '创建待办';
     body.innerHTML = `
       <label class="plan-task-dialog-label">
-        <span class="plan-task-dialog-label-text">计划名称 <span class="plan-task-dialog-required">*</span></span>
+        <span class="plan-task-dialog-label-text">待办名称 <span class="plan-task-dialog-required">*</span></span>
         <input type="text" class="plan-task-dialog-field" data-field="title" placeholder="例如：FM-4 UI 优化" />
       </label>
       <div class="plan-task-dialog-section">
@@ -126,7 +126,7 @@ function renderDialogBody(type, payload) {
     title.textContent = '添加子任务';
     primary.textContent = '添加';
     body.innerHTML = `
-      <p class="plan-task-dialog-readonly">所属计划：${escHtml(String(payload.masterTitle ?? ''))}</p>
+      <p class="plan-task-dialog-readonly">所属待办：${escHtml(String(payload.masterTitle ?? ''))}</p>
       <label class="plan-task-dialog-label">
         <span class="plan-task-dialog-label-text">子任务名称 <span class="plan-task-dialog-required">*</span></span>
         <input type="text" class="plan-task-dialog-field" data-field="title" placeholder="必填" />
@@ -136,8 +136,8 @@ function renderDialogBody(type, payload) {
   }
 
   if (type === 'delete-master') {
-    title.textContent = '删除计划？';
-    primary.textContent = '删除计划';
+    title.textContent = '删除待办？';
+    primary.textContent = '删除待办';
     primary.classList.add('danger');
     const subCount = Number(payload.subCount ?? 0);
     body.innerHTML = `
@@ -240,7 +240,7 @@ async function handleSubmit(type) {
   if (type === 'create-master') {
     const title = body.querySelector('[data-field="title"]')?.value?.trim() ?? '';
     if (!title) {
-      setDialogError('请填写计划名称');
+      setDialogError('请填写待办名称');
       return;
     }
     const subTitles = collectSubTitleRows();
