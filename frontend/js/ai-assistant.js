@@ -50,13 +50,13 @@ export function mountAiAssistant(root, opts = {}) {
 
   root.innerHTML = `
     <header class="ai-assistant-header">
-      <h1 class="ai-assistant-title">待办助手</h1>
-      <p class="ai-assistant-bound" data-role="bound">尚未绑定待办</p>
+      <h1 class="ai-assistant-title">Assistant</h1>
+      <p class="ai-assistant-bound" data-role="bound">No todo bound</p>
     </header>
     <div class="ai-assistant-messages" data-role="messages" aria-live="polite"></div>
     <form class="ai-assistant-composer" data-role="form">
-      <textarea class="ai-assistant-input" data-role="input" rows="2" placeholder="输入要对待办说的话…" disabled></textarea>
-      <button type="submit" class="ai-assistant-send" data-role="send" disabled>发送</button>
+      <textarea class="ai-assistant-input" data-role="input" rows="2" placeholder="Message for this todo…" disabled></textarea>
+      <button type="submit" class="ai-assistant-send" data-role="send" disabled>Send</button>
     </form>
   `;
 
@@ -98,10 +98,10 @@ export function mountAiAssistant(root, opts = {}) {
       messages.push({ role: 'notice', text: String(payload.reply_text) });
     }
     boundEl.textContent = boundTitle
-      ? `绑定：${boundTitle}`
+      ? `Bound: ${boundTitle}`
       : sessionId
-        ? '已打开会话'
-        : '尚未绑定待办';
+        ? 'Session open'
+        : 'No todo bound';
     setComposerEnabled(Boolean(sessionId) && !busy);
     renderMessages();
   }
@@ -114,17 +114,17 @@ export function mountAiAssistant(root, opts = {}) {
   async function sendMessage(text) {
     const invoke = getTauriInvoke();
     if (!invoke) {
-      pushNotice('Tauri invoke 不可用', true);
+      pushNotice('Tauri invoke unavailable', true);
       return;
     }
     if (!sessionId) {
-      pushNotice('尚未绑定待办会话', true);
+      pushNotice('No todo session bound', true);
       return;
     }
     sending = true;
     setComposerEnabled(false);
     messages.push({ role: 'user', text });
-    pushNotice('处理中…');
+    pushNotice('Working…');
     renderMessages();
     try {
       const result = await invoke('agent_chat_turn', {
@@ -132,11 +132,11 @@ export function mountAiAssistant(root, opts = {}) {
         message: text,
         masterTaskId: boundMasterTaskId || null,
       });
-      // Drop the local "处理中…" notice (not a Session turn).
-      messages = messages.filter((m) => !(m.role === 'notice' && m.text === '处理中…'));
+      // Drop the local "Working…" notice (not a Session turn).
+      messages = messages.filter((m) => !(m.role === 'notice' && m.text === 'Working…'));
       if (result && typeof result === 'object') {
         if (result.busy) {
-          pushNotice(String(result.reply_text || '处理中，请稍后再试'));
+          pushNotice(String(result.reply_text || 'Busy — try again later'));
         } else {
           const reply = String(result.reply_text || '');
           if (reply) {
@@ -148,14 +148,14 @@ export function mountAiAssistant(root, opts = {}) {
           }
           if (result.bound_title) {
             boundTitle = String(result.bound_title);
-            boundEl.textContent = `绑定：${boundTitle}`;
+            boundEl.textContent = `Bound: ${boundTitle}`;
           }
         }
       }
       renderMessages();
     } catch (err) {
-      messages = messages.filter((m) => !(m.role === 'notice' && m.text === '处理中…'));
-      pushNotice(err?.message ? String(err.message) : '发送失败', true);
+      messages = messages.filter((m) => !(m.role === 'notice' && m.text === 'Working…'));
+      pushNotice(err?.message ? String(err.message) : 'Failed to send', true);
     } finally {
       sending = false;
       setComposerEnabled(Boolean(sessionId));

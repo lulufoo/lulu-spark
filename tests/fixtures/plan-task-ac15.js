@@ -29,7 +29,7 @@ export const PLAN_TASK_BRAND_SITES = [
   },
   {
     path: 'frontend/js/plan-task-assistant.js',
-    mustMatch: [/暂无Todos/],
+    mustMatch: [/No todos yet/],
     mustNotMatch: NO_LEGACY_BRAND,
   },
   {
@@ -39,7 +39,7 @@ export const PLAN_TASK_BRAND_SITES = [
   },
   {
     path: 'frontend/js/plan-task-assistant.js',
-    mustMatch: [/aria-label="打开Todos"/, /title="Todos"/],
+    mustMatch: [/aria-label="Open Todos"/, /title="Todos"/],
     mustNotMatch: NO_LEGACY_BRAND,
   },
 ];

@@ -1,7 +1,7 @@
 import { createApiClient, resolveReadDriver } from './apiClient.js';
 import { escHtml } from './utils.js';
 
-const UNAVAILABLE_MSG = '列表暂时不可用，请稍后重试';
+const UNAVAILABLE_MSG = 'List temporarily unavailable. Please try again later.';
 
 function serviceError(data) {
   if (!data || typeof data !== 'object' || Array.isArray(data)) return null;
@@ -34,7 +34,7 @@ export function formatSubProgressSummary(master) {
   const subs = master.sub_tasks ?? [];
   const complete = subs.filter((sub) => sub.status === 'complete').length;
   const total = subs.length;
-  return `${master.title} · ${complete}/${total} 完成`;
+  return `${master.title} · ${complete}/${total} complete`;
 }
 
 function pickSubForDeepLink(master) {
@@ -69,8 +69,8 @@ function bindFocusRefresh(refresh) {
 function renderEmpty() {
   return `
     <div class="plan-task-assistant-empty plan-task-assistant-state">
-      <p class="plan-task-assistant-state-title">暂无Todos</p>
-      <p class="plan-task-assistant-state-detail">通过 MCP 创建后，最新任务会出现在这里</p>
+      <p class="plan-task-assistant-state-title">No todos yet</p>
+      <p class="plan-task-assistant-state-detail">After creating via MCP, latest tasks appear here</p>
     </div>
   `;
 }
@@ -78,7 +78,7 @@ function renderEmpty() {
 function renderErrorEmpty(message = UNAVAILABLE_MSG) {
   return `
     <div class="plan-task-assistant-empty plan-task-assistant-state plan-task-assistant-state--error">
-      <p class="plan-task-assistant-state-title">暂时无法加载</p>
+      <p class="plan-task-assistant-state-title">Temporarily unavailable</p>
       <p class="plan-task-assistant-state-detail">${escHtml(message)}</p>
     </div>
   `;
@@ -104,7 +104,7 @@ function renderTaskList(masters) {
 
 function renderManageLink(showManage) {
   if (!showManage) return '';
-  return `<button type="button" class="plan-task-assistant-manage-link">查看全部 →</button>`;
+  return `<button type="button" class="plan-task-assistant-manage-link">View all →</button>`;
 }
 
 /**
@@ -135,7 +135,7 @@ export function mountPlanTaskAssistant(root, opts = {}) {
 
     refreshPromise = (async () => {
       if (!top3Masters.length) {
-        root.innerHTML = '<div class="plan-task-assistant-loading">加载中…</div>';
+        root.innerHTML = '<div class="plan-task-assistant-loading">Loading…</div>';
       }
 
       try {
@@ -198,11 +198,11 @@ export function mountPlanTaskAssistantWidget(anchor = document.body, opts = {}) 
     <div class="pt-assistant-popover" hidden>
       <header class="pt-assistant-popover-header">
         <span class="pt-assistant-popover-title">Todos</span>
-        <button type="button" class="pt-assistant-close" aria-label="关闭">×</button>
+        <button type="button" class="pt-assistant-close" aria-label="Close">×</button>
       </header>
       <div class="pt-assistant-popover-body"></div>
     </div>
-    <button type="button" class="pt-assistant-fab" aria-label="打开Todos" aria-expanded="false" title="Todos">
+    <button type="button" class="pt-assistant-fab" aria-label="Open Todos" aria-expanded="false" title="Todos">
       <svg class="pt-assistant-fab-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
         <path fill="currentColor" d="M4 5.5A1.5 1.5 0 0 1 5.5 4h13A1.5 1.5 0 0 1 20 5.5v13a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 18.5v-13zM7 8h10v1.5H7V8zm0 3.5h10V13H7v-1.5zm0 3.5h6V16H7v-1z"/>
       </svg>

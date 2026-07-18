@@ -8,7 +8,7 @@ import { escHtml } from './utils.js';
 
 export { bindFocusRefresh };
 
-const UNAVAILABLE_MSG = '列表暂时不可用，请稍后重试';
+const UNAVAILABLE_MSG = 'List temporarily unavailable. Please try again later.';
 
 export async function loadAssistantEntries() {
   return loadReadLaterEntries();
@@ -28,7 +28,7 @@ function formatSavedAt(savedAt) {
   if (!savedAt) return '';
   const date = new Date(savedAt);
   if (Number.isNaN(date.getTime())) return savedAt;
-  return date.toLocaleString('zh-CN', {
+  return date.toLocaleString('en', {
     month: 'short',
     day: 'numeric',
     hour: '2-digit',
@@ -39,8 +39,8 @@ function formatSavedAt(savedAt) {
 function renderEmpty() {
   return `
     <div class="read-later-assistant-empty read-later-assistant-state">
-      <p class="read-later-assistant-state-title">暂无待读</p>
-      <p class="read-later-assistant-state-detail">用 Chrome 插件保存后，最新条目会出现在这里</p>
+      <p class="read-later-assistant-state-title">No items to read later</p>
+      <p class="read-later-assistant-state-detail">After saving with the Chrome extension, latest items appear here</p>
     </div>
   `;
 }
@@ -52,7 +52,7 @@ function renderUnavailable(message = UNAVAILABLE_MSG) {
 function renderErrorEmpty(message = UNAVAILABLE_MSG) {
   return `
     <div class="read-later-assistant-empty read-later-assistant-state read-later-assistant-state--error">
-      <p class="read-later-assistant-state-title">暂时无法加载</p>
+      <p class="read-later-assistant-state-title">Temporarily unavailable</p>
       <p class="read-later-assistant-state-detail">${escHtml(message)}</p>
     </div>
   `;
@@ -69,7 +69,7 @@ function renderPanel(entries, selectedIndex) {
   const current = entries[selectedIndex];
   const showCycle = entries.length > 1;
   const pickerHtml = showCycle
-    ? `<div class="read-later-assistant-picker" role="tablist" aria-label="最近条目">${entries
+    ? `<div class="read-later-assistant-picker" role="tablist" aria-label="Recent items">${entries
         .map((entry, index) => {
           const activeClass =
             index === selectedIndex ? ' read-later-assistant-picker-item--active' : '';
@@ -85,7 +85,7 @@ function renderPanel(entries, selectedIndex) {
   const url = escHtml(current.url);
   const title = escHtml(current.title || current.url);
   const cycleHtml = showCycle
-    ? '<button type="button" class="read-later-assistant-cycle" aria-label="下一篇">›</button>'
+    ? '<button type="button" class="read-later-assistant-cycle" aria-label="Next">›</button>'
     : '';
   const currentClass = entryReadClass(
     showCycle
@@ -113,7 +113,7 @@ function renderPanel(entries, selectedIndex) {
 
 function renderManageLink(showManage) {
   if (!showManage) return '';
-  return `<button type="button" class="read-later-assistant-manage-link">查看全部待读 →</button>`;
+  return `<button type="button" class="read-later-assistant-manage-link">View all read-later →</button>`;
 }
 
 /**
@@ -150,7 +150,7 @@ export function mountReadLaterAssistant(root, opts = {}) {
     refreshPromise = (async () => {
       const hasSnapshot = lastSuccessfulTop3 !== null;
       if (!hasSnapshot) {
-        root.innerHTML = '<div class="read-later-assistant-loading">加载中…</div>';
+        root.innerHTML = '<div class="read-later-assistant-loading">Loading…</div>';
       }
 
       try {
@@ -256,12 +256,12 @@ export function mountReadLaterAssistantWidget(anchor = document.body, opts = {})
   widget.innerHTML = `
     <div class="rl-assistant-popover" hidden>
       <header class="rl-assistant-popover-header">
-        <span class="rl-assistant-popover-title">待读助手</span>
-        <button type="button" class="rl-assistant-close" aria-label="关闭">×</button>
+        <span class="rl-assistant-popover-title">Read Later</span>
+        <button type="button" class="rl-assistant-close" aria-label="Close">×</button>
       </header>
       <div class="rl-assistant-popover-body"></div>
     </div>
-    <button type="button" class="rl-assistant-fab" aria-label="打开待读助手" aria-expanded="false" title="待读助手">
+    <button type="button" class="rl-assistant-fab" aria-label="Open Read Later assistant" aria-expanded="false" title="Read Later">
       <svg class="rl-assistant-fab-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
         <path fill="currentColor" d="M11.2 2.2a.9.9 0 0 1 .6 0l1.1 4.4 4.4 1.1a.9.9 0 0 1 0 1.7l-4.4 1.1-1.1 4.4a.9.9 0 0 1-1.7 0l-1.1-4.4-4.4-1.1a.9.9 0 0 1 0-1.7l4.4-1.1 1.1-4.4z"/>
         <path fill="currentColor" d="M18.2 13.8a.7.7 0 0 1 .5 0l.8 3.2 3.2.8a.7.7 0 0 1 0 1.3l-3.2.8-.8 3.2a.7.7 0 0 1-1.3 0l-.8-3.2-3.2-.8a.7.7 0 0 1 0-1.3l3.2-.8.8-3.2z"/>

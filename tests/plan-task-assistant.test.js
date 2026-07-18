@@ -178,13 +178,13 @@ describe('selectTop3ByCreatedAt', () => {
 describe('formatSubProgressSummary', () => {
   it('combines title with complete/total sub progress', () => {
     expect(formatSubProgressSummary(sampleMasters[1])).toBe(
-      'Newest Task · 1/2 完成',
+      'Newest Task · 1/2 complete',
     );
   });
 
   it('handles single implicit sub', () => {
     expect(formatSubProgressSummary(sampleMasters[2])).toBe(
-      'Mid Task · 0/1 完成',
+      'Mid Task · 0/1 complete',
     );
   });
 });
@@ -227,7 +227,7 @@ describe('mountPlanTaskAssistant', () => {
     expect(items[1].dataset.masterId).toBe('task_extra4');
     expect(items[2].dataset.masterId).toBe('task_mid');
     expect(items[0].querySelector('.plan-task-assistant-item-summary')?.textContent).toBe(
-      'Newest Task · 1/2 完成',
+      'Newest Task · 1/2 complete',
     );
     dispose();
   });
