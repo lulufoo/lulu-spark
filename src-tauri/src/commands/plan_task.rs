@@ -85,6 +85,40 @@ pub fn update_plan_master_title_json(
     map_invoke_value(plan_task::update_master_title(master_task_id, title))
 }
 
+pub fn add_plan_attachment_json(
+    master_task_id: &str,
+    file_name: &str,
+    content: &str,
+) -> Result<Value, String> {
+    map_invoke_value(plan_task::add_attachment(master_task_id, file_name, content))
+}
+
+pub fn list_plan_attachments_json(master_task_id: &str) -> Result<Value, String> {
+    map_invoke_value(plan_task::list_attachments(master_task_id))
+}
+
+pub fn read_plan_attachment_json(
+    master_task_id: &str,
+    file_name: &str,
+) -> Result<Value, String> {
+    map_invoke_value(plan_task::read_attachment(master_task_id, file_name))
+}
+
+pub fn save_plan_attachment_json(
+    master_task_id: &str,
+    file_name: &str,
+    content: &str,
+) -> Result<Value, String> {
+    map_invoke_value(plan_task::save_attachment(master_task_id, file_name, content))
+}
+
+pub fn delete_plan_attachment_json(
+    master_task_id: &str,
+    file_name: &str,
+) -> Result<Value, String> {
+    map_invoke_value(plan_task::delete_attachment(master_task_id, file_name))
+}
+
 #[tauri::command]
 pub async fn get_plan_tasks(_app: AppHandle) -> Result<Value, String> {
     tauri::async_runtime::spawn_blocking(get_plan_tasks_json)
@@ -234,6 +268,70 @@ pub async fn update_plan_master_title(
 ) -> Result<Value, String> {
     tauri::async_runtime::spawn_blocking(move || {
         update_plan_master_title_json(&master_task_id, &title)
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+pub async fn add_plan_attachment(
+    _app: AppHandle,
+    master_task_id: String,
+    file_name: String,
+    content: String,
+) -> Result<Value, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        add_plan_attachment_json(&master_task_id, &file_name, &content)
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+pub async fn list_plan_attachments(
+    _app: AppHandle,
+    master_task_id: String,
+) -> Result<Value, String> {
+    tauri::async_runtime::spawn_blocking(move || list_plan_attachments_json(&master_task_id))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+pub async fn read_plan_attachment(
+    _app: AppHandle,
+    master_task_id: String,
+    file_name: String,
+) -> Result<Value, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        read_plan_attachment_json(&master_task_id, &file_name)
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+pub async fn save_plan_attachment(
+    _app: AppHandle,
+    master_task_id: String,
+    file_name: String,
+    content: String,
+) -> Result<Value, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        save_plan_attachment_json(&master_task_id, &file_name, &content)
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+pub async fn delete_plan_attachment(
+    _app: AppHandle,
+    master_task_id: String,
+    file_name: String,
+) -> Result<Value, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        delete_plan_attachment_json(&master_task_id, &file_name)
     })
     .await
     .map_err(|e| e.to_string())?

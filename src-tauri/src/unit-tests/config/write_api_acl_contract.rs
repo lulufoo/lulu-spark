@@ -57,6 +57,14 @@ const PLAN_TASK_LIFECYCLE_COMMANDS: &[&str] = &[
     "update_plan_master_title",
 ];
 
+const PLAN_TASK_ATTACHMENT_COMMANDS: &[&str] = &[
+    "add_plan_attachment",
+    "list_plan_attachments",
+    "read_plan_attachment",
+    "save_plan_attachment",
+    "delete_plan_attachment",
+];
+
 const NOTE_WRITE_COMMANDS: &[&str] = &["archive_document"];
 
 const AI_ASSISTANT_WRITE_COMMANDS: &[&str] = &[
@@ -131,6 +139,7 @@ fn plan_task_fm4_and_lifecycle_commands_coexist_in_acl() {
     let all: Vec<_> = PLAN_TASK_WRITE_COMMANDS
         .iter()
         .chain(PLAN_TASK_LIFECYCLE_COMMANDS.iter())
+        .chain(PLAN_TASK_ATTACHMENT_COMMANDS.iter())
         .copied()
         .collect();
     let missing: Vec<_> = all.iter().filter(|cmd| !allow.contains(**cmd)).copied().collect();
@@ -140,8 +149,26 @@ fn plan_task_fm4_and_lifecycle_commands_coexist_in_acl() {
     );
     assert_eq!(
         all.len(),
-        PLAN_TASK_WRITE_COMMANDS.len() + PLAN_TASK_LIFECYCLE_COMMANDS.len(),
-        "expected nine distinct plan task ACL entries"
+        PLAN_TASK_WRITE_COMMANDS.len()
+            + PLAN_TASK_LIFECYCLE_COMMANDS.len()
+            + PLAN_TASK_ATTACHMENT_COMMANDS.len(),
+        "expected fourteen distinct plan task ACL entries"
+    );
+}
+
+#[test]
+fn plan_task_attachment_commands_are_acl_allowed() {
+    let root = manifest_dir();
+    let toml = fs::read_to_string(root.join("permissions/write-api.toml")).expect("toml");
+    let allow = parse_write_api_toml_allow(&toml);
+    let missing: Vec<_> = PLAN_TASK_ATTACHMENT_COMMANDS
+        .iter()
+        .filter(|cmd| !allow.contains(**cmd))
+        .copied()
+        .collect();
+    assert!(
+        missing.is_empty(),
+        "commands missing from write-api.toml ACL: {missing:?}"
     );
 }
 

@@ -3,9 +3,13 @@ use std::fs;
 use serde_json::json;
 
 use crate::commands::plan_task::{
-    abandon_plan_sub_json, add_plan_sub_json, complete_plan_sub_json, create_plan_task_json,
-    delete_plan_sub_json, delete_plan_task_json, get_plan_tasks_json, read_plan_md_json,
-    update_plan_master_title_json, update_plan_md_json,
+    abandon_plan_sub_json, add_plan_attachment, add_plan_attachment_json, add_plan_sub_json,
+    complete_plan_sub_json, create_plan_task_json, delete_plan_attachment,
+    delete_plan_attachment_json, delete_plan_sub_json, delete_plan_task_json,
+    get_plan_tasks_json, list_plan_attachments, list_plan_attachments_json,
+    read_plan_attachment, read_plan_attachment_json, read_plan_md_json,
+    save_plan_attachment, save_plan_attachment_json, update_plan_master_title_json,
+    update_plan_md_json,
 };
 use crate::services::plan_task::{
     create_master_with_subs, list_all, test_reset_all_injection_flags, test_set_fail_batch_plan_md,
@@ -500,6 +504,168 @@ fn update_plan_master_title_json_unknown_returns_404_class() {
         let v = update_plan_master_title_json("task_nonexistent_aaaaaaaaaaaaaaaa", "New")
             .expect("invoke");
         assert_eq!(v["error"], "Task not found");
+        assert_eq!(v["_status"], 404);
+    });
+}
+
+#[test]
+fn plan_attachment_command_symbols_exist_for_handler_registration() {
+    // Smoke: async command symbols exist for generate_handler! registration.
+    let _ = add_plan_attachment;
+    let _ = list_plan_attachments;
+    let _ = read_plan_attachment;
+    let _ = save_plan_attachment;
+    let _ = delete_plan_attachment;
+}
+
+#[test]
+fn add_plan_attachment_json_success_strips_status() {
+    with_commands_plan_test(|| {
+        let created = create_plan_task_json("Attach cmd", None, "").expect("create");
+        let master_id = created["master_task_id"].as_str().expect("id").to_string();
+
+        let added = add_plan_attachment_json(&master_id, "notes.md", "# Notes\n").expect("add");
+        assert!(added.get("_status").is_none());
+        assert_eq!(added["file_name"], "notes.md");
+        assert_eq!(added["original_file_name"], "notes.md");
+        assert!(added.get("added_at").and_then(|v| v.as_str()).is_some());
+    });
+}
+
+#[test]
+fn add_plan_attachment_json_rejects_non_md_with_400_class() {
+    with_commands_plan_test(|| {
+        let created = create_plan_task_json("Attach nonmd", None, "").expect("create");
+        let master_id = created["master_task_id"].as_str().expect("id");
+
+        let v = add_plan_attachment_json(master_id, "notes.txt", "nope").expect("invoke");
+        assert_eq!(v["error"], "Only .md attachments are supported");
+        assert_eq!(v["_status"], 400);
+    });
+}
+
+#[test]
+fn add_plan_attachment_json_unknown_master_returns_404_class() {
+    with_commands_plan_test(|| {
+        let v = add_plan_attachment_json(
+            "task_nonexistent_aaaaaaaaaaaaaaaa",
+            "notes.md",
+            "x",
+        )
+        .expect("invoke");
+        assert_eq!(v["error"], "Task not found");
+        assert_eq!(v["_status"], 404);
+    });
+}
+
+#[test]
+fn list_plan_attachments_json_returns_entries_without_status() {
+    with_commands_plan_test(|| {
+        let created = create_plan_task_json("List attach", None, "").expect("create");
+        let master_id = created["master_task_id"].as_str().expect("id").to_string();
+        add_plan_attachment_json(&master_id, "a.md", "one").expect("add a");
+        add_plan_attachment_json(&master_id, "b.md", "two").expect("add b");
+
+        let listed = list_plan_attachments_json(&master_id).expect("list");
+        assert!(listed.get("_status").is_none());
+        let attachments = listed["attachments"].as_array().expect("attachments");
+        assert_eq!(attachments.len(), 2);
+        assert_eq!(attachments[0]["file_name"], "a.md");
+        assert_eq!(attachments[1]["file_name"], "b.md");
+    });
+}
+
+#[test]
+fn list_plan_attachments_json_unknown_returns_404_class() {
+    with_commands_plan_test(|| {
+        let v = list_plan_attachments_json("task_nonexistent_aaaaaaaaaaaaaaaa").expect("invoke");
+        assert_eq!(v["error"], "Task not found");
+        assert_eq!(v["_status"], 404);
+    });
+}
+
+#[test]
+fn read_plan_attachment_json_round_trip_content() {
+    with_commands_plan_test(|| {
+        let created = create_plan_task_json("Read attach", None, "").expect("create");
+        let master_id = created["master_task_id"].as_str().expect("id").to_string();
+        let content = "# Body\n";
+        add_plan_attachment_json(&master_id, "notes.md", content).expect("add");
+
+        let read = read_plan_attachment_json(&master_id, "notes.md").expect("read");
+        assert!(read.get("_status").is_none());
+        assert_eq!(read["file_name"], "notes.md");
+        assert_eq!(read["content"], content);
+    });
+}
+
+#[test]
+fn read_plan_attachment_json_missing_returns_404_class() {
+    with_commands_plan_test(|| {
+        let created = create_plan_task_json("Read missing", None, "").expect("create");
+        let master_id = created["master_task_id"].as_str().expect("id");
+
+        let v = read_plan_attachment_json(master_id, "missing.md").expect("invoke");
+        assert_eq!(v["error"], "Attachment not found");
+        assert_eq!(v["_status"], 404);
+    });
+}
+
+#[test]
+fn save_plan_attachment_json_overwrites_content_without_status() {
+    with_commands_plan_test(|| {
+        let created = create_plan_task_json("Save attach", None, "").expect("create");
+        let master_id = created["master_task_id"].as_str().expect("id").to_string();
+        add_plan_attachment_json(&master_id, "notes.md", "old").expect("add");
+
+        let saved = save_plan_attachment_json(&master_id, "notes.md", "new body").expect("save");
+        assert!(saved.get("_status").is_none());
+        assert_eq!(saved["ok"], true);
+
+        let read = read_plan_attachment_json(&master_id, "notes.md").expect("read");
+        assert_eq!(read["content"], "new body");
+    });
+}
+
+#[test]
+fn save_plan_attachment_json_unknown_attachment_returns_404_class() {
+    with_commands_plan_test(|| {
+        let created = create_plan_task_json("Save missing", None, "").expect("create");
+        let master_id = created["master_task_id"].as_str().expect("id");
+
+        let v = save_plan_attachment_json(master_id, "nope.md", "x").expect("invoke");
+        assert_eq!(v["error"], "Attachment not found");
+        assert_eq!(v["_status"], 404);
+    });
+}
+
+#[test]
+fn delete_plan_attachment_json_removes_and_strips_status() {
+    with_commands_plan_test(|| {
+        let created = create_plan_task_json("Del attach", None, "").expect("create");
+        let master_id = created["master_task_id"].as_str().expect("id").to_string();
+        add_plan_attachment_json(&master_id, "notes.md", "gone").expect("add");
+
+        let deleted = delete_plan_attachment_json(&master_id, "notes.md").expect("delete");
+        assert!(deleted.get("_status").is_none());
+        assert_eq!(deleted["ok"], true);
+
+        let listed = list_plan_attachments_json(&master_id).expect("list");
+        assert!(listed["attachments"].as_array().expect("arr").is_empty());
+
+        let missing = read_plan_attachment_json(&master_id, "notes.md").expect("read");
+        assert_eq!(missing["_status"], 404);
+    });
+}
+
+#[test]
+fn delete_plan_attachment_json_unknown_returns_404_class() {
+    with_commands_plan_test(|| {
+        let created = create_plan_task_json("Del missing", None, "").expect("create");
+        let master_id = created["master_task_id"].as_str().expect("id");
+
+        let v = delete_plan_attachment_json(master_id, "nope.md").expect("invoke");
+        assert_eq!(v["error"], "Attachment not found");
         assert_eq!(v["_status"], 404);
     });
 }
