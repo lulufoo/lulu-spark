@@ -1,6 +1,6 @@
 use super::*;
 use crate::services::plan_task::types::{
-    IndexEntry, MasterTaskStatus, SubTask, SubTaskStatus, SubTasksFile,
+    AttachmentsFile, IndexEntry, MasterTaskStatus, SubTask, SubTaskStatus, SubTasksFile,
 };
 use std::fs;
 use std::path::Path;
@@ -1669,5 +1669,227 @@ fn update_master_title_unknown_master_returns_404() {
         let v = update_master_title("task_nonexistent_aaaaaaaaaaaaaaaa", "New");
         assert_eq!(v["_status"], 404);
         assert_eq!(v["error"], "Task not found");
+    });
+}
+
+fn attachments_dir(wb: &Path, master_id: &str) -> std::path::PathBuf {
+    wb.join("plan_tasks")
+        .join("tasks")
+        .join(master_id)
+        .join("attachments")
+}
+
+fn attachments_json_path(wb: &Path, master_id: &str) -> std::path::PathBuf {
+    wb.join("plan_tasks")
+        .join("tasks")
+        .join(master_id)
+        .join("attachments.json")
+}
+
+fn load_attachments_file(wb: &Path, master_id: &str) -> AttachmentsFile {
+    let text = fs::read_to_string(attachments_json_path(wb, master_id)).expect("attachments.json");
+    serde_json::from_str(&text).expect("parse attachments.json")
+}
+
+#[test]
+fn add_attachment_md_copies_and_writes_manifest() {
+    with_plan_task_sandbox(|wb| {
+        let created = create_master_with_subs("Attach me", None);
+        let master_id = created["master_task_id"].as_str().unwrap();
+        let content = "# Notes\n\nhello";
+
+        let v = add_attachment(master_id, "notes.md", content);
+        assert_eq!(v["_status"], 201);
+        assert_eq!(v["file_name"], "notes.md");
+        assert_eq!(v["original_file_name"], "notes.md");
+        assert!(is_iso8601(v["added_at"].as_str().unwrap()));
+
+        let on_disk = attachments_dir(wb, master_id).join("notes.md");
+        assert!(on_disk.is_file());
+        assert_eq!(fs::read_to_string(&on_disk).unwrap(), content);
+
+        let manifest = load_attachments_file(wb, master_id);
+        assert_eq!(manifest.attachments.len(), 1);
+        assert_eq!(manifest.attachments[0].file_name, "notes.md");
+        assert_eq!(manifest.attachments[0].original_file_name, "notes.md");
+        assert!(is_iso8601(&manifest.attachments[0].added_at));
+    });
+}
+
+#[test]
+fn add_attachment_stem_conflict_appends_numeric_suffix() {
+    with_plan_task_sandbox(|wb| {
+        let created = create_master_with_subs("Conflict", None);
+        let master_id = created["master_task_id"].as_str().unwrap();
+
+        let first = add_attachment(master_id, "notes.md", "one");
+        assert_eq!(first["_status"], 201);
+        assert_eq!(first["file_name"], "notes.md");
+
+        let second = add_attachment(master_id, "notes.md", "two");
+        assert_eq!(second["_status"], 201);
+        assert_eq!(second["file_name"], "notes-1.md");
+        assert_eq!(second["original_file_name"], "notes.md");
+
+        let third = add_attachment(master_id, "notes.md", "three");
+        assert_eq!(third["_status"], 201);
+        assert_eq!(third["file_name"], "notes-2.md");
+
+        assert_eq!(
+            fs::read_to_string(attachments_dir(wb, master_id).join("notes.md")).unwrap(),
+            "one"
+        );
+        assert_eq!(
+            fs::read_to_string(attachments_dir(wb, master_id).join("notes-1.md")).unwrap(),
+            "two"
+        );
+        assert_eq!(
+            fs::read_to_string(attachments_dir(wb, master_id).join("notes-2.md")).unwrap(),
+            "three"
+        );
+
+        let manifest = load_attachments_file(wb, master_id);
+        let names: Vec<&str> = manifest
+            .attachments
+            .iter()
+            .map(|e| e.file_name.as_str())
+            .collect();
+        assert_eq!(names, vec!["notes.md", "notes-1.md", "notes-2.md"]);
+    });
+}
+
+#[test]
+fn add_attachment_allows_empty_md_content() {
+    with_plan_task_sandbox(|wb| {
+        let created = create_master_with_subs("Empty md", None);
+        let master_id = created["master_task_id"].as_str().unwrap();
+
+        let v = add_attachment(master_id, "empty.md", "");
+        assert_eq!(v["_status"], 201);
+        assert_eq!(v["file_name"], "empty.md");
+        assert_eq!(
+            fs::read_to_string(attachments_dir(wb, master_id).join("empty.md")).unwrap(),
+            ""
+        );
+        let manifest = load_attachments_file(wb, master_id);
+        assert_eq!(manifest.attachments.len(), 1);
+    });
+}
+
+#[test]
+fn add_attachment_accepts_uppercase_md_extension() {
+    with_plan_task_sandbox(|wb| {
+        let created = create_master_with_subs("Upper ext", None);
+        let master_id = created["master_task_id"].as_str().unwrap();
+
+        let v = add_attachment(master_id, "NOTES.MD", "upper");
+        assert_eq!(v["_status"], 201);
+        let stored = v["file_name"].as_str().unwrap();
+        assert!(
+            Path::new(stored)
+                .extension()
+                .and_then(|e| e.to_str())
+                .is_some_and(|e| e.eq_ignore_ascii_case("md")),
+            "stored={stored}"
+        );
+        assert!(attachments_dir(wb, master_id).join(stored).is_file());
+        let manifest = load_attachments_file(wb, master_id);
+        assert_eq!(manifest.attachments.len(), 1);
+        assert_eq!(manifest.attachments[0].file_name, stored);
+        assert_eq!(manifest.attachments[0].original_file_name, "NOTES.MD");
+    });
+}
+
+#[test]
+fn add_attachment_rejects_non_md_without_side_effects() {
+    with_plan_task_sandbox(|wb| {
+        let created = create_master_with_subs("Reject txt", None);
+        let master_id = created["master_task_id"].as_str().unwrap();
+
+        let v = add_attachment(master_id, "notes.txt", "nope");
+        assert_eq!(v["_status"], 400);
+        assert!(v.get("error").is_some());
+
+        assert!(!attachments_dir(wb, master_id).exists());
+        assert!(!attachments_json_path(wb, master_id).exists());
+    });
+}
+
+#[test]
+fn add_attachment_rejects_path_separators_and_empty_name() {
+    with_plan_task_sandbox(|wb| {
+        let created = create_master_with_subs("Bad names", None);
+        let master_id = created["master_task_id"].as_str().unwrap();
+
+        for bad in ["../escape.md", "a/b.md", "a\\b.md", "", "   ", ".md"] {
+            let v = add_attachment(master_id, bad, "x");
+            assert_eq!(v["_status"], 400, "bad={bad:?}");
+            assert!(v.get("error").is_some());
+        }
+
+        assert!(!attachments_dir(wb, master_id).exists());
+        assert!(!attachments_json_path(wb, master_id).exists());
+    });
+}
+
+#[test]
+fn add_attachment_manifest_write_failure_rolls_back_copy() {
+    with_plan_task_sandbox(|wb| {
+        let created = create_master_with_subs("Rollback", None);
+        let master_id = created["master_task_id"].as_str().unwrap();
+
+        let ok = add_attachment(master_id, "keep.md", "keep-me");
+        assert_eq!(ok["_status"], 201);
+        let before = load_attachments_file(wb, master_id);
+
+        test_set_fail_add_attachment_manifest(true);
+        let v = add_attachment(master_id, "new.md", "should-roll-back");
+        assert_eq!(v["_status"], 500);
+        assert!(v.get("error").is_some());
+
+        assert!(!attachments_dir(wb, master_id).join("new.md").exists());
+        let after = load_attachments_file(wb, master_id);
+        assert_eq!(before, after);
+        assert_eq!(
+            fs::read_to_string(attachments_dir(wb, master_id).join("keep.md")).unwrap(),
+            "keep-me"
+        );
+    });
+}
+
+#[test]
+fn add_attachment_unknown_master_returns_404_without_writes() {
+    with_plan_task_sandbox(|wb| {
+        let v = add_attachment("task_nonexistent_aaaaaaaaaaaaaaaa", "notes.md", "x");
+        assert_eq!(v["_status"], 404);
+        assert_eq!(v["error"], "Task not found");
+        assert!(!wb
+            .join("plan_tasks")
+            .join("tasks")
+            .join("task_nonexistent_aaaaaaaaaaaaaaaa")
+            .exists());
+    });
+}
+
+#[test]
+fn add_attachment_unwritable_task_dir_fails_without_half_success() {
+    with_plan_task_sandbox(|wb| {
+        let created = create_master_with_subs("Readonly dir", None);
+        let master_id = created["master_task_id"].as_str().unwrap();
+        let task_dir = wb.join("plan_tasks").join("tasks").join(master_id);
+
+        let mut perms = fs::metadata(&task_dir).unwrap().permissions();
+        perms.set_readonly(true);
+        fs::set_permissions(&task_dir, perms).unwrap();
+
+        let v = add_attachment(master_id, "notes.md", "x");
+        assert_eq!(v["_status"], 500);
+        assert!(v.get("error").is_some());
+        assert!(!attachments_dir(wb, master_id).join("notes.md").exists());
+        assert!(!attachments_json_path(wb, master_id).exists());
+
+        let mut perms = fs::metadata(&task_dir).unwrap().permissions();
+        perms.set_readonly(false);
+        fs::set_permissions(&task_dir, perms).unwrap();
     });
 }

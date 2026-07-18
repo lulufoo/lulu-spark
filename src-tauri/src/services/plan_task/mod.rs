@@ -18,8 +18,8 @@ use crate::repositories::atomic_json;
 use crate::services::id::random_hex12;
 
 use types::{
-    index_entry_task_dir, IndexEntry, MasterTask, MasterTaskStatus, PlanTasksIndex, SubTask,
-    SubTaskStatus, SubTasksFile,
+    index_entry_task_dir, AttachmentEntry, AttachmentsFile, IndexEntry, MasterTask,
+    MasterTaskStatus, PlanTasksIndex, SubTask, SubTaskStatus, SubTasksFile,
 };
 
 static WRITE_LOCK: Mutex<()> = Mutex::new(());
@@ -41,6 +41,9 @@ static TEST_FAIL_BATCH_INDEX: AtomicBool = AtomicBool::new(false);
 
 #[cfg(test)]
 static TEST_FAIL_MIGRATE_IMPLICIT_WRITE: AtomicBool = AtomicBool::new(false);
+
+#[cfg(test)]
+static TEST_FAIL_ADD_ATTACHMENT_MANIFEST: AtomicBool = AtomicBool::new(false);
 
 #[cfg(test)]
 pub fn test_set_fail_complete_sub(fail: bool) {
@@ -73,6 +76,11 @@ pub fn test_set_fail_migrate_implicit_write(fail: bool) {
 }
 
 #[cfg(test)]
+pub fn test_set_fail_add_attachment_manifest(fail: bool) {
+    TEST_FAIL_ADD_ATTACHMENT_MANIFEST.store(fail, Ordering::SeqCst);
+}
+
+#[cfg(test)]
 pub fn test_reset_all_injection_flags() {
     TEST_FAIL_COMPLETE_SUB.store(false, Ordering::SeqCst);
     TEST_FAIL_LINK_ARCHIVE.store(false, Ordering::SeqCst);
@@ -80,6 +88,7 @@ pub fn test_reset_all_injection_flags() {
     TEST_FAIL_BATCH_PLAN_MD.store(false, Ordering::SeqCst);
     TEST_FAIL_BATCH_INDEX.store(false, Ordering::SeqCst);
     TEST_FAIL_MIGRATE_IMPLICIT_WRITE.store(false, Ordering::SeqCst);
+    TEST_FAIL_ADD_ATTACHMENT_MANIFEST.store(false, Ordering::SeqCst);
 }
 
 #[cfg(test)]
@@ -110,6 +119,11 @@ fn test_take_fail_migrate_implicit_write() -> bool {
 #[cfg(test)]
 fn test_take_fail_complete_sub() -> bool {
     TEST_FAIL_COMPLETE_SUB.swap(false, Ordering::SeqCst)
+}
+
+#[cfg(test)]
+fn test_take_fail_add_attachment_manifest() -> bool {
+    TEST_FAIL_ADD_ATTACHMENT_MANIFEST.swap(false, Ordering::SeqCst)
 }
 
 const CORRUPT_STORAGE_ERROR: &str = "Invalid plan_tasks storage";
@@ -1106,6 +1120,169 @@ pub fn link_archive(master_task_id: &str, sub_task_id: &str, archive_id: &str) -
             }),
             Err(e) => json!({ "error": e, "_status": 500 }),
         }
+    })
+}
+
+fn normalize_attachment_file_name(file_name: &str) -> Result<String, &'static str> {
+    let trimmed = file_name.trim();
+    if trimmed.is_empty() {
+        return Err("Invalid file name");
+    }
+    if trimmed.contains('/') || trimmed.contains('\\') {
+        return Err("Invalid file name");
+    }
+    let path = Path::new(trimmed);
+    if path.components().count() != 1 {
+        return Err("Invalid file name");
+    }
+    let Some(name) = path.file_name().and_then(|s| s.to_str()) else {
+        return Err("Invalid file name");
+    };
+    if name != trimmed {
+        return Err("Invalid file name");
+    }
+    let Some(ext) = path.extension().and_then(|e| e.to_str()) else {
+        return Err("Only .md attachments are supported");
+    };
+    if !ext.eq_ignore_ascii_case("md") {
+        return Err("Only .md attachments are supported");
+    }
+    let stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or("");
+    if stem.is_empty() {
+        return Err("Invalid file name");
+    }
+    Ok(name.to_string())
+}
+
+fn attachment_name_taken(dir: &Path, manifest: &AttachmentsFile, name: &str) -> bool {
+    dir.join(name).exists() || manifest.attachments.iter().any(|e| e.file_name == name)
+}
+
+fn resolve_unique_attachment_name(
+    attachments_dir: &Path,
+    manifest: &AttachmentsFile,
+    basename: &str,
+) -> String {
+    if !attachment_name_taken(attachments_dir, manifest, basename) {
+        return basename.to_string();
+    }
+    let path = Path::new(basename);
+    let stem = path
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or(basename);
+    let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("md");
+    let mut n = 1u32;
+    loop {
+        let candidate = format!("{stem}-{n}.{ext}");
+        if !attachment_name_taken(attachments_dir, manifest, &candidate) {
+            return candidate;
+        }
+        n = n.saturating_add(1);
+    }
+}
+
+fn load_attachments_file_unlocked(path: &Path) -> Result<AttachmentsFile, String> {
+    if !path.is_file() {
+        return Ok(AttachmentsFile {
+            attachments: vec![],
+        });
+    }
+    let text = fs::read_to_string(path).map_err(|e| e.to_string())?;
+    serde_json::from_str(&text).map_err(|e| e.to_string())
+}
+
+fn write_attachments_file(path: &Path, file: &AttachmentsFile) -> Result<(), String> {
+    #[cfg(test)]
+    if test_take_fail_add_attachment_manifest() {
+        return Err("injected attachments.json write failure".to_string());
+    }
+    let value = serde_json::to_value(file).map_err(|e| e.to_string())?;
+    atomic_json::write_json(path, &value)
+}
+
+fn restore_attachments_manifest(path: &Path, previous: &AttachmentsFile) -> Result<(), String> {
+    if previous.attachments.is_empty() {
+        if path.is_file() {
+            fs::remove_file(path).map_err(|e| e.to_string())?;
+        }
+        return Ok(());
+    }
+    let value = serde_json::to_value(previous).map_err(|e| e.to_string())?;
+    atomic_json::write_json(path, &value)
+}
+
+/// Copy a `.md` attachment into the plan task directory and append `attachments.json`.
+/// On any post-copy failure, deletes the new file and restores the prior manifest.
+pub fn add_attachment(master_task_id: &str, file_name: &str, content: &str) -> Value {
+    let master_task_id = master_task_id.trim();
+    if master_task_id.is_empty() {
+        return json!({ "error": "Missing id", "_status": 400 });
+    }
+
+    let basename = match normalize_attachment_file_name(file_name) {
+        Ok(name) => name,
+        Err(msg) => return json!({ "error": msg, "_status": 400 }),
+    };
+
+    with_write_lock(|| {
+        if let Err(e) = ensure_bootstrap() {
+            return bootstrap_error(e);
+        }
+
+        let index = match load_v2_index_unlocked() {
+            Ok(i) => i,
+            Err(LoadOutcome::Corrupt) => return corrupt_storage_error(),
+            Err(LoadOutcome::Missing) | Err(LoadOutcome::Ok) => PlanTasksIndex::default(),
+        };
+
+        if !index.tasks.contains_key(master_task_id) {
+            return json!({ "error": "Task not found", "_status": 404 });
+        }
+
+        let task_dir = match paths::plan_tasks_task_dir(master_task_id) {
+            Ok(p) => p,
+            Err(e) => return json!({ "error": format!("{e:?}"), "_status": 500 }),
+        };
+        let attachments_dir = task_dir.join("attachments");
+        let manifest_path = task_dir.join("attachments.json");
+
+        let previous = match load_attachments_file_unlocked(&manifest_path) {
+            Ok(f) => f,
+            Err(e) => return json!({ "error": e, "_status": 500 }),
+        };
+
+        let final_name =
+            resolve_unique_attachment_name(&attachments_dir, &previous, &basename);
+        let dest = attachments_dir.join(&final_name);
+
+        if let Err(e) = fs::create_dir_all(&attachments_dir) {
+            return json!({ "error": e.to_string(), "_status": 500 });
+        }
+        if let Err(e) = fs::write(&dest, content) {
+            return json!({ "error": e.to_string(), "_status": 500 });
+        }
+
+        let entry = AttachmentEntry {
+            file_name: final_name,
+            original_file_name: basename,
+            added_at: Utc::now().to_rfc3339(),
+        };
+        let mut updated = previous.clone();
+        updated.attachments.push(entry.clone());
+
+        if let Err(e) = write_attachments_file(&manifest_path, &updated) {
+            let _ = fs::remove_file(&dest);
+            let _ = restore_attachments_manifest(&manifest_path, &previous);
+            return json!({ "error": e, "_status": 500 });
+        }
+
+        json!({
+            "file_name": entry.file_name,
+            "original_file_name": entry.original_file_name,
+            "added_at": entry.added_at,
+            "_status": 201,
+        })
     })
 }
 
