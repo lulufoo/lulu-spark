@@ -29,15 +29,17 @@ export function formatDate(dateStr) {
   const m = dateStr.slice(4, 6);
   const d = dateStr.slice(6, 8);
   const dt = new Date(`${y}-${m}-${d}`);
-  const days = ['日','一','二','三','四','五','六'];
+  const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   const dow = days[dt.getDay()];
+  const mon = months[parseInt(m, 10) - 1];
   return {
-    day: `${parseInt(d)}日`,
-    label: `${parseInt(m)}月${parseInt(d)}日`,
+    day: String(parseInt(d, 10)),
+    label: `${mon} ${parseInt(d, 10)}`,
     year: y,
     month: `${y}/${m}`,
-    weekday: `周${dow}`,
-    full: `${y}年${parseInt(m)}月${parseInt(d)}日（周${dow}）`
+    weekday: dow,
+    full: `${mon} ${parseInt(d, 10)}, ${y} (${dow})`
   };
 }
 
@@ -84,11 +86,11 @@ export function nowTs() {
 
 export function importanceBadgeHtml(importance) {
   const map = {
-    high:   { cls: 'badge-importance-high',   label: '↑ 高' },
-    medium: { cls: 'badge-importance-medium', label: '→ 中' },
-    low:    { cls: 'badge-importance-low',    label: '↓ 低' },
+    high:   { cls: 'badge-importance-high',   label: '↑ High' },
+    medium: { cls: 'badge-importance-medium', label: '→ Med' },
+    low:    { cls: 'badge-importance-low',    label: '↓ Low' },
   };
   const m = map[importance];
-  if (m) return `<button class="badge badge-importance ${m.cls}" data-action="cycle-importance" title="切换重要性">${m.label}</button>`;
-  return `<button class="badge badge-importance badge-importance-unset" data-action="cycle-importance" title="设置重要性">☆</button>`;
+  if (m) return `<button class="badge badge-importance ${m.cls}" data-action="cycle-importance" title="Toggle importance">${m.label}</button>`;
+  return `<button class="badge badge-importance badge-importance-unset" data-action="cycle-importance" title="Set importance">☆</button>`;
 }

@@ -2,7 +2,7 @@ import { fetchIndex } from './api.js';
 import { normalizeCorpusIndex } from './corpus-index.js';
 import { escHtml, filenameFromPath, slugToTitle } from './utils.js';
 
-const UNAVAILABLE_MSG = '列表暂时不可用，请稍后重试';
+const UNAVAILABLE_MSG = 'List temporarily unavailable — try again later';
 
 /**
  * Filter note entries, sort by created_at desc, take ≤3.
@@ -30,14 +30,14 @@ function noteLabel(entry) {
   if (entry.common_path) {
     return slugToTitle(filenameFromPath(entry.common_path));
   }
-  return '未命名随记';
+  return 'Untitled note';
 }
 
 function renderEmpty() {
   return `
     <div class="note-assistant-empty note-assistant-state">
-      <p class="note-assistant-state-title">暂无随记</p>
-      <p class="note-assistant-state-detail">点击下方新建，最新随记会出现在这里</p>
+      <p class="note-assistant-state-title">No notes yet</p>
+      <p class="note-assistant-state-detail">Create below; latest notes appear here</p>
     </div>
   `;
 }
@@ -45,7 +45,7 @@ function renderEmpty() {
 function renderErrorEmpty(message = UNAVAILABLE_MSG) {
   return `
     <div class="note-assistant-empty note-assistant-state note-assistant-state--error">
-      <p class="note-assistant-state-title">暂时无法加载</p>
+      <p class="note-assistant-state-title">Unable to load</p>
       <p class="note-assistant-state-detail">${escHtml(message)}</p>
     </div>
   `;
@@ -70,7 +70,7 @@ function renderNoteList(notes) {
 
 function renderCreateButton(showCreate) {
   if (!showCreate) return '';
-  return `<button type="button" class="note-assistant-create">新建随记</button>`;
+  return `<button type="button" class="note-assistant-create">New note</button>`;
 }
 
 function bindFocusRefresh(refresh) {
@@ -118,7 +118,7 @@ export function mountNoteAssistant(root, opts = {}) {
 
     refreshPromise = (async () => {
       if (!topNotes.length) {
-        root.innerHTML = '<div class="note-assistant-loading">加载中…</div>';
+        root.innerHTML = '<div class="note-assistant-loading">Loading…</div>';
       }
 
       try {
@@ -185,12 +185,12 @@ export function mountNoteAssistantWidget(anchor = document.body, opts = {}) {
   widget.innerHTML = `
     <div class="note-assistant-popover" hidden>
       <header class="note-assistant-popover-header">
-        <span class="note-assistant-popover-title">笔记助手</span>
-        <button type="button" class="note-assistant-close" aria-label="关闭">×</button>
+        <span class="note-assistant-popover-title">Notes Assistant</span>
+        <button type="button" class="note-assistant-close" aria-label="Close">×</button>
       </header>
       <div class="note-assistant-popover-body"></div>
     </div>
-    <button type="button" class="note-assistant-fab" aria-label="打开笔记助手" aria-expanded="false" title="笔记助手">
+    <button type="button" class="note-assistant-fab" aria-label="Open Notes Assistant" aria-expanded="false" title="Notes Assistant">
       <svg class="note-assistant-fab-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
         <path fill="currentColor" d="M6 3.5A1.5 1.5 0 0 0 4.5 5v14A1.5 1.5 0 0 0 6 20.5h9.5a.75.75 0 0 0 .53-.22l3.25-3.25a.75.75 0 0 0 .22-.53V5A1.5 1.5 0 0 0 18 3.5H6zm8.75 13.25V19H6.5V5.5h11v9.75H15.5a.75.75 0 0 0-.75.75z"/>
       </svg>
