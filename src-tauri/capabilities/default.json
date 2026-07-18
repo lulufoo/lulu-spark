@@ -9,6 +9,7 @@
     "write-api",
     "sync-api",
     "search-api",
-    "opener:default"
+    "opener:default",
+    "dialog:default"
   ]
 }
