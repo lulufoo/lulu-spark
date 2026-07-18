@@ -3,42 +3,44 @@
  * Consumed by plan-task-ac-gate.test.js and plan-task-f3-copy.test.js.
  */
 
+const NO_LEGACY_BRAND = [/计划任务/];
+
 /** @type {{ path: string, mustMatch: RegExp[], mustNotMatch?: RegExp[] }[]} */
 export const PLAN_TASK_BRAND_SITES = [
   {
     path: 'frontend/js/plan-task/index.js',
     mustMatch: [/<h1 class="plan-tasks-page-title">Todos<\/h1>/],
-    mustNotMatch: [/计划任务/],
+    mustNotMatch: NO_LEGACY_BRAND,
   },
   {
     path: 'frontend/js/plan-task/index.js',
     mustMatch: [/aria-label="Todos列表"/],
-    mustNotMatch: [/计划任务/],
+    mustNotMatch: NO_LEGACY_BRAND,
   },
   {
     path: 'frontend/js/components/home-hub.js',
     mustMatch: [/<span class="home-desktop-shortcut-label">Todos<\/span>/],
-    mustNotMatch: [/计划任务/],
+    mustNotMatch: NO_LEGACY_BRAND,
   },
   {
     path: 'frontend/plan-task-assistant.html',
     mustMatch: [/<title>Todos助手<\/title>/],
-    mustNotMatch: [/计划任务/],
+    mustNotMatch: NO_LEGACY_BRAND,
   },
   {
     path: 'frontend/js/plan-task-assistant.js',
     mustMatch: [/暂无Todos/],
-    mustNotMatch: [/计划任务/],
+    mustNotMatch: NO_LEGACY_BRAND,
   },
   {
     path: 'frontend/js/plan-task-assistant.js',
     mustMatch: [/<span class="pt-assistant-popover-title">Todos助手<\/span>/],
-    mustNotMatch: [/计划任务/],
+    mustNotMatch: NO_LEGACY_BRAND,
   },
   {
     path: 'frontend/js/plan-task-assistant.js',
     mustMatch: [/aria-label="打开Todos助手"/, /title="Todos助手"/],
-    mustNotMatch: [/计划任务/],
+    mustNotMatch: NO_LEGACY_BRAND,
   },
 ];
 
