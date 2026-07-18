@@ -46,6 +46,9 @@ static TEST_FAIL_MIGRATE_IMPLICIT_WRITE: AtomicBool = AtomicBool::new(false);
 static TEST_FAIL_ADD_ATTACHMENT_MANIFEST: AtomicBool = AtomicBool::new(false);
 
 #[cfg(test)]
+static TEST_FAIL_DELETE_ATTACHMENT_FILE: AtomicBool = AtomicBool::new(false);
+
+#[cfg(test)]
 pub fn test_set_fail_complete_sub(fail: bool) {
     TEST_FAIL_COMPLETE_SUB.store(fail, Ordering::SeqCst);
 }
@@ -81,6 +84,11 @@ pub fn test_set_fail_add_attachment_manifest(fail: bool) {
 }
 
 #[cfg(test)]
+pub fn test_set_fail_delete_attachment_file(fail: bool) {
+    TEST_FAIL_DELETE_ATTACHMENT_FILE.store(fail, Ordering::SeqCst);
+}
+
+#[cfg(test)]
 pub fn test_reset_all_injection_flags() {
     TEST_FAIL_COMPLETE_SUB.store(false, Ordering::SeqCst);
     TEST_FAIL_LINK_ARCHIVE.store(false, Ordering::SeqCst);
@@ -89,6 +97,7 @@ pub fn test_reset_all_injection_flags() {
     TEST_FAIL_BATCH_INDEX.store(false, Ordering::SeqCst);
     TEST_FAIL_MIGRATE_IMPLICIT_WRITE.store(false, Ordering::SeqCst);
     TEST_FAIL_ADD_ATTACHMENT_MANIFEST.store(false, Ordering::SeqCst);
+    TEST_FAIL_DELETE_ATTACHMENT_FILE.store(false, Ordering::SeqCst);
 }
 
 #[cfg(test)]
@@ -124,6 +133,11 @@ fn test_take_fail_complete_sub() -> bool {
 #[cfg(test)]
 fn test_take_fail_add_attachment_manifest() -> bool {
     TEST_FAIL_ADD_ATTACHMENT_MANIFEST.swap(false, Ordering::SeqCst)
+}
+
+#[cfg(test)]
+fn test_take_fail_delete_attachment_file() -> bool {
+    TEST_FAIL_DELETE_ATTACHMENT_FILE.swap(false, Ordering::SeqCst)
 }
 
 const CORRUPT_STORAGE_ERROR: &str = "Invalid plan_tasks storage";
@@ -1291,6 +1305,17 @@ fn attachment_in_manifest(manifest: &AttachmentsFile, file_name: &str) -> bool {
     manifest.attachments.iter().any(|e| e.file_name == file_name)
 }
 
+/// Task dir + `attachments.json` for an existing plan. Missing manifest → empty list.
+fn load_plan_attachments_manifest(
+    master_task_id: &str,
+) -> Result<(std::path::PathBuf, AttachmentsFile), Value> {
+    let task_dir = paths::plan_tasks_task_dir(master_task_id)
+        .map_err(|e| json!({ "error": format!("{e:?}"), "_status": 500 }))?;
+    let manifest = load_attachments_file_unlocked(&task_dir.join("attachments.json"))
+        .map_err(|e| json!({ "error": e, "_status": 500 }))?;
+    Ok((task_dir, manifest))
+}
+
 /// List attachments for a plan from `attachments.json` (SSOT; not a directory scan).
 /// Missing manifest → empty collection. Unknown/unreadable plan → error.
 pub fn list_attachments(master_task_id: &str) -> Value {
@@ -1304,18 +1329,13 @@ pub fn list_attachments(master_task_id: &str) -> Value {
             if !index.tasks.contains_key(master_task_id) {
                 return json!({ "error": "Task not found", "_status": 404 });
             }
-            let task_dir = match paths::plan_tasks_task_dir(master_task_id) {
-                Ok(p) => p,
-                Err(e) => return json!({ "error": format!("{e:?}"), "_status": 500 }),
-            };
-            let manifest_path = task_dir.join("attachments.json");
-            match load_attachments_file_unlocked(&manifest_path) {
-                Ok(file) => {
+            match load_plan_attachments_manifest(master_task_id) {
+                Ok((_, file)) => {
                     let attachments =
                         serde_json::to_value(&file.attachments).unwrap_or_else(|_| json!([]));
                     json!({ "attachments": attachments, "_status": 200 })
                 }
-                Err(e) => json!({ "error": e, "_status": 500 }),
+                Err(err) => err,
             }
         }
         Err(err) => err,
@@ -1338,14 +1358,9 @@ pub fn read_attachment(master_task_id: &str, file_name: &str) -> Value {
             if !index.tasks.contains_key(master_task_id) {
                 return json!({ "error": "Task not found", "_status": 404 });
             }
-            let task_dir = match paths::plan_tasks_task_dir(master_task_id) {
-                Ok(p) => p,
-                Err(e) => return json!({ "error": format!("{e:?}"), "_status": 500 }),
-            };
-            let manifest_path = task_dir.join("attachments.json");
-            let manifest = match load_attachments_file_unlocked(&manifest_path) {
-                Ok(f) => f,
-                Err(e) => return json!({ "error": e, "_status": 500 }),
+            let (task_dir, manifest) = match load_plan_attachments_manifest(master_task_id) {
+                Ok(ctx) => ctx,
+                Err(err) => return err,
             };
             if !attachment_in_manifest(&manifest, file_name) {
                 return json!({ "error": "Attachment not found", "_status": 404 });
@@ -1390,14 +1405,9 @@ pub fn save_attachment(master_task_id: &str, file_name: &str, content: &str) -> 
             return json!({ "error": "Task not found", "_status": 404 });
         }
 
-        let task_dir = match paths::plan_tasks_task_dir(master_task_id) {
-            Ok(p) => p,
-            Err(e) => return json!({ "error": format!("{e:?}"), "_status": 500 }),
-        };
-        let manifest_path = task_dir.join("attachments.json");
-        let manifest = match load_attachments_file_unlocked(&manifest_path) {
-            Ok(f) => f,
-            Err(e) => return json!({ "error": e, "_status": 500 }),
+        let (task_dir, manifest) = match load_plan_attachments_manifest(master_task_id) {
+            Ok(ctx) => ctx,
+            Err(err) => return err,
         };
         if !attachment_in_manifest(&manifest, file_name) {
             return json!({ "error": "Attachment not found", "_status": 404 });
@@ -1407,6 +1417,70 @@ pub fn save_attachment(master_task_id: &str, file_name: &str, content: &str) -> 
         match fs::write(&path, content) {
             Ok(()) => json!({ "ok": true, "_status": 200 }),
             Err(e) => json!({ "error": e.to_string(), "_status": 500 }),
+        }
+    })
+}
+
+/// Remove a manifest-listed attachment entry and its on-disk file together.
+/// On file-delete failure, restores the prior manifest (no half-success).
+pub fn delete_attachment(master_task_id: &str, file_name: &str) -> Value {
+    let master_task_id = master_task_id.trim();
+    if master_task_id.is_empty() {
+        return json!({ "error": "Missing id", "_status": 400 });
+    }
+    let file_name = file_name.trim();
+    if file_name.is_empty() {
+        return json!({ "error": "Invalid file name", "_status": 400 });
+    }
+
+    with_write_lock(|| {
+        if let Err(e) = ensure_bootstrap() {
+            return bootstrap_error(e);
+        }
+
+        let index = match load_v2_index_unlocked() {
+            Ok(i) => i,
+            Err(LoadOutcome::Corrupt) => return corrupt_storage_error(),
+            Err(LoadOutcome::Missing) | Err(LoadOutcome::Ok) => PlanTasksIndex::default(),
+        };
+
+        if !index.tasks.contains_key(master_task_id) {
+            return json!({ "error": "Task not found", "_status": 404 });
+        }
+
+        let (task_dir, previous) = match load_plan_attachments_manifest(master_task_id) {
+            Ok(ctx) => ctx,
+            Err(err) => return err,
+        };
+        if !attachment_in_manifest(&previous, file_name) {
+            return json!({ "error": "Attachment not found", "_status": 404 });
+        }
+
+        let manifest_path = task_dir.join("attachments.json");
+        let path = task_dir.join("attachments").join(file_name);
+
+        let mut updated = previous.clone();
+        updated.attachments.retain(|e| e.file_name != file_name);
+
+        if let Err(e) = write_attachments_file(&manifest_path, &updated) {
+            return json!({ "error": e, "_status": 500 });
+        }
+
+        #[cfg(test)]
+        if test_take_fail_delete_attachment_file() {
+            let _ = restore_attachments_manifest(&manifest_path, &previous);
+            return json!({ "error": "injected attachment file delete failure", "_status": 500 });
+        }
+
+        match fs::remove_file(&path) {
+            Ok(()) => json!({ "ok": true, "_status": 200 }),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+                json!({ "ok": true, "_status": 200 })
+            }
+            Err(e) => {
+                let _ = restore_attachments_manifest(&manifest_path, &previous);
+                json!({ "error": e.to_string(), "_status": 500 })
+            }
         }
     })
 }

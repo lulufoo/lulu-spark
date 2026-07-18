@@ -2060,3 +2060,139 @@ fn save_attachment_rejects_non_manifest_target() {
         );
     });
 }
+
+#[test]
+fn delete_attachment_removes_manifest_entry_and_file() {
+    with_plan_task_sandbox(|wb| {
+        let created = create_master_with_subs("Delete attach", None);
+        let master_id = created["master_task_id"].as_str().unwrap();
+
+        let added = add_attachment(master_id, "notes.md", "to-delete");
+        assert_eq!(added["_status"], 201);
+        assert!(attachments_dir(wb, master_id).join("notes.md").is_file());
+
+        let v = delete_attachment(master_id, "notes.md");
+        assert_eq!(v["_status"], 200);
+        assert_eq!(v["ok"], true);
+
+        assert!(!attachments_dir(wb, master_id).join("notes.md").exists());
+        let listed = list_attachments(master_id);
+        assert_eq!(listed["_status"], 200);
+        let names: Vec<&str> = listed["attachments"]
+            .as_array()
+            .expect("attachments array")
+            .iter()
+            .map(|e| e["file_name"].as_str().unwrap())
+            .collect();
+        assert!(!names.contains(&"notes.md"));
+        assert!(load_attachments_file(wb, master_id)
+            .attachments
+            .iter()
+            .all(|e| e.file_name != "notes.md"));
+    });
+}
+
+#[test]
+fn delete_attachment_preserves_other_entries() {
+    with_plan_task_sandbox(|wb| {
+        let created = create_master_with_subs("Delete keeps others", None);
+        let master_id = created["master_task_id"].as_str().unwrap();
+
+        assert_eq!(add_attachment(master_id, "keep-a.md", "a")["_status"], 201);
+        assert_eq!(add_attachment(master_id, "drop.md", "drop-me")["_status"], 201);
+        assert_eq!(add_attachment(master_id, "keep-b.md", "b")["_status"], 201);
+        let before = load_attachments_file(wb, master_id);
+
+        let v = delete_attachment(master_id, "drop.md");
+        assert_eq!(v["_status"], 200);
+        assert_eq!(v["ok"], true);
+
+        assert!(!attachments_dir(wb, master_id).join("drop.md").exists());
+        assert_eq!(
+            fs::read_to_string(attachments_dir(wb, master_id).join("keep-a.md")).unwrap(),
+            "a"
+        );
+        assert_eq!(
+            fs::read_to_string(attachments_dir(wb, master_id).join("keep-b.md")).unwrap(),
+            "b"
+        );
+
+        let after = load_attachments_file(wb, master_id);
+        let names: Vec<&str> = after
+            .attachments
+            .iter()
+            .map(|e| e.file_name.as_str())
+            .collect();
+        assert_eq!(names, vec!["keep-a.md", "keep-b.md"]);
+        assert_eq!(after.attachments[0], before.attachments[0]);
+        assert_eq!(after.attachments[1], before.attachments[2]);
+    });
+}
+
+#[test]
+fn delete_attachment_rejects_non_manifest_target_without_side_effects() {
+    with_plan_task_sandbox(|wb| {
+        let created = create_master_with_subs("Delete reject", None);
+        let master_id = created["master_task_id"].as_str().unwrap();
+        assert_eq!(add_attachment(master_id, "listed.md", "ok")["_status"], 201);
+
+        fs::create_dir_all(attachments_dir(wb, master_id)).unwrap();
+        fs::write(attachments_dir(wb, master_id).join("orphan.md"), "ghost").unwrap();
+        let before = load_attachments_file(wb, master_id);
+
+        let v = delete_attachment(master_id, "orphan.md");
+        assert_eq!(v["_status"], 404);
+        assert!(v.get("error").is_some());
+
+        assert_eq!(
+            fs::read_to_string(attachments_dir(wb, master_id).join("orphan.md")).unwrap(),
+            "ghost"
+        );
+        assert_eq!(
+            fs::read_to_string(attachments_dir(wb, master_id).join("listed.md")).unwrap(),
+            "ok"
+        );
+        assert_eq!(load_attachments_file(wb, master_id), before);
+    });
+}
+
+#[test]
+fn delete_attachment_file_delete_failure_restores_manifest() {
+    with_plan_task_sandbox(|wb| {
+        let created = create_master_with_subs("Delete rollback", None);
+        let master_id = created["master_task_id"].as_str().unwrap();
+
+        assert_eq!(add_attachment(master_id, "keep.md", "keep-me")["_status"], 201);
+        assert_eq!(add_attachment(master_id, "drop.md", "drop-me")["_status"], 201);
+        let before = load_attachments_file(wb, master_id);
+
+        test_set_fail_delete_attachment_file(true);
+        let v = delete_attachment(master_id, "drop.md");
+        assert_eq!(v["_status"], 500);
+        assert!(v.get("error").is_some());
+
+        let after = load_attachments_file(wb, master_id);
+        assert_eq!(after, before);
+        assert!(attachments_dir(wb, master_id).join("drop.md").is_file());
+        assert_eq!(
+            fs::read_to_string(attachments_dir(wb, master_id).join("drop.md")).unwrap(),
+            "drop-me"
+        );
+        assert_eq!(
+            fs::read_to_string(attachments_dir(wb, master_id).join("keep.md")).unwrap(),
+            "keep-me"
+        );
+        // No half-success: neither "manifest without file" nor "file without manifest".
+        assert!(after.attachments.iter().any(|e| e.file_name == "drop.md"));
+        assert!(attachments_dir(wb, master_id).join("drop.md").exists());
+    });
+}
+
+#[test]
+fn delete_attachment_unknown_master_returns_404() {
+    with_plan_task_sandbox(|_| {
+        let v = delete_attachment("task_nonexistent_aaaaaaaaaaaaaaaa", "notes.md");
+        assert_eq!(v["_status"], 404);
+        assert_eq!(v["error"], "Task not found");
+    });
+}
