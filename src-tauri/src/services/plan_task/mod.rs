@@ -335,6 +335,7 @@ fn write_index_snapshot(path: &Path, index: &PlanTasksIndex) -> Result<(), Strin
 fn rollback_before_index(master_task_id: &str) -> Result<(), String> {
     let task_dir = paths::plan_tasks_task_dir(master_task_id).map_err(|e| format!("{e:?}"))?;
     if task_dir.exists() {
+        // AC8: whole task_dir cascade — includes attachments/ and attachments.json.
         fs::remove_dir_all(&task_dir).map_err(|e| e.to_string())?;
     }
     Ok(())
@@ -1206,13 +1207,17 @@ fn load_attachments_file_unlocked(path: &Path) -> Result<AttachmentsFile, String
     serde_json::from_str(&text).map_err(|e| e.to_string())
 }
 
+fn persist_attachments_manifest(path: &Path, file: &AttachmentsFile) -> Result<(), String> {
+    let value = serde_json::to_value(file).map_err(|e| e.to_string())?;
+    atomic_json::write_json(path, &value)
+}
+
 fn write_attachments_file(path: &Path, file: &AttachmentsFile) -> Result<(), String> {
     #[cfg(test)]
     if test_take_fail_add_attachment_manifest() {
         return Err("injected attachments.json write failure".to_string());
     }
-    let value = serde_json::to_value(file).map_err(|e| e.to_string())?;
-    atomic_json::write_json(path, &value)
+    persist_attachments_manifest(path, file)
 }
 
 fn restore_attachments_manifest(path: &Path, previous: &AttachmentsFile) -> Result<(), String> {
@@ -1222,8 +1227,19 @@ fn restore_attachments_manifest(path: &Path, previous: &AttachmentsFile) -> Resu
         }
         return Ok(());
     }
-    let value = serde_json::to_value(previous).map_err(|e| e.to_string())?;
-    atomic_json::write_json(path, &value)
+    persist_attachments_manifest(path, previous)
+}
+
+fn remove_attachment_file(path: &Path) -> Result<(), String> {
+    #[cfg(test)]
+    if test_take_fail_delete_attachment_file() {
+        return Err("injected attachment file delete failure".to_string());
+    }
+    match fs::remove_file(path) {
+        Ok(()) => Ok(()),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(e) => Err(e.to_string()),
+    }
 }
 
 /// Copy a `.md` attachment into the plan task directory and append `attachments.json`.
@@ -1462,26 +1478,15 @@ pub fn delete_attachment(master_task_id: &str, file_name: &str) -> Value {
         let mut updated = previous.clone();
         updated.attachments.retain(|e| e.file_name != file_name);
 
-        if let Err(e) = write_attachments_file(&manifest_path, &updated) {
+        // Manifest first, then file — on file failure restore prior manifest (IV-7).
+        if let Err(e) = persist_attachments_manifest(&manifest_path, &updated) {
             return json!({ "error": e, "_status": 500 });
         }
-
-        #[cfg(test)]
-        if test_take_fail_delete_attachment_file() {
+        if let Err(e) = remove_attachment_file(&path) {
             let _ = restore_attachments_manifest(&manifest_path, &previous);
-            return json!({ "error": "injected attachment file delete failure", "_status": 500 });
+            return json!({ "error": e, "_status": 500 });
         }
-
-        match fs::remove_file(&path) {
-            Ok(()) => json!({ "ok": true, "_status": 200 }),
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
-                json!({ "ok": true, "_status": 200 })
-            }
-            Err(e) => {
-                let _ = restore_attachments_manifest(&manifest_path, &previous);
-                json!({ "error": e.to_string(), "_status": 500 })
-            }
-        }
+        json!({ "ok": true, "_status": 200 })
     })
 }
 

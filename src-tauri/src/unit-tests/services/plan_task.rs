@@ -2196,3 +2196,55 @@ fn delete_attachment_unknown_master_returns_404() {
         assert_eq!(v["error"], "Task not found");
     });
 }
+
+#[test]
+fn delete_master_cascades_attachments_dir_and_manifest() {
+    with_plan_task_sandbox(|wb| {
+        let created = create_master_with_subs("Delete with attach", None);
+        let master_id = created["master_task_id"].as_str().unwrap();
+        let add = add_attachment(master_id, "notes.md", "# keep\n");
+        assert_eq!(add["_status"], 201);
+
+        let task_dir = wb.join("plan_tasks").join("tasks").join(master_id);
+        let att_dir = attachments_dir(wb, master_id);
+        let att_json = attachments_json_path(wb, master_id);
+        assert!(task_dir.is_dir());
+        assert!(att_dir.is_dir());
+        assert!(att_json.is_file());
+        assert!(att_dir.join("notes.md").is_file());
+
+        let v = delete_master(master_id);
+        assert_eq!(v["_status"], 200);
+        assert_eq!(v["ok"], true);
+        assert!(!task_dir.exists());
+        assert!(!att_dir.exists());
+        assert!(!att_json.exists());
+        assert_eq!(get_by_id(master_id)["_status"], 404);
+
+        let index: serde_json::Value = serde_json::from_str(
+            &fs::read_to_string(wb.join("plan_tasks").join("index.json")).unwrap(),
+        )
+        .unwrap();
+        assert!(index["tasks"].get(master_id).is_none());
+    });
+}
+
+#[test]
+fn delete_master_without_attachments_matches_existing_behavior() {
+    with_plan_task_sandbox(|wb| {
+        let created = create_master_with_subs("Delete bare", None);
+        let master_id = created["master_task_id"].as_str().unwrap();
+        let task_dir = wb.join("plan_tasks").join("tasks").join(master_id);
+        assert!(task_dir.is_dir());
+        assert!(!attachments_dir(wb, master_id).exists());
+        assert!(!attachments_json_path(wb, master_id).exists());
+
+        let v = delete_master(master_id);
+        assert_eq!(v["_status"], 200);
+        assert_eq!(v["ok"], true);
+        assert!(!task_dir.exists());
+        assert!(!attachments_dir(wb, master_id).exists());
+        assert!(!attachments_json_path(wb, master_id).exists());
+        assert_eq!(get_by_id(master_id)["_status"], 404);
+    });
+}
