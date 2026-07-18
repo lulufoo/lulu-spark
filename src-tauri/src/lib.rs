@@ -22,7 +22,6 @@ const RETRY_INTERVAL: Duration = Duration::from_millis(500);
 pub const DEFAULT_MCP_PORT: u16 = 9876;
 pub const READ_LATER_ASSISTANT_LABEL: &str = "read-later-assistant";
 pub const AI_ASSISTANT_LABEL: &str = "ai-assistant";
-/// Host dialog filter for plan-attachment local pick (UI applies via plugin-dialog).
 pub const PLAN_ATTACHMENT_DIALOG_EXTENSIONS: &[&str] = &["md"];
 
 #[derive(Debug, PartialEq, Eq)]

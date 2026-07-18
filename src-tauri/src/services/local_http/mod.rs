@@ -193,6 +193,22 @@ fn handle_request(repo_root: &PathBuf, port: u16, request: tiny_http::Request) {
                 handle_plan_task_post(request, handle_plan_task_link_archive_payload);
                 return;
             }
+            "/api/plan-task-add-attachment" => {
+                handle_plan_task_post(request, handle_plan_task_add_attachment_payload);
+                return;
+            }
+            "/api/plan-task-list-attachments" => {
+                handle_plan_task_post(request, handle_plan_task_list_attachments_payload);
+                return;
+            }
+            "/api/plan-task-get-attachment" => {
+                handle_plan_task_post(request, handle_plan_task_get_attachment_payload);
+                return;
+            }
+            "/api/plan-task-update-attachment" => {
+                handle_plan_task_post(request, handle_plan_task_update_attachment_payload);
+                return;
+            }
             _ => {}
         }
     }
@@ -470,6 +486,49 @@ fn handle_plan_task_link_archive_payload(payload: &Value) -> Value {
         return json!({ "error": "Missing archive_id", "_status": 400 });
     };
     plan_task::link_archive(master_task_id, sub_task_id, archive_id)
+}
+
+fn handle_plan_task_add_attachment_payload(payload: &Value) -> Value {
+    let Some(master_task_id) = payload.get("master_task_id").and_then(|v| v.as_str()) else {
+        return json!({ "error": "Missing master_task_id", "_status": 400 });
+    };
+    let Some(file_name) = payload.get("file_name").and_then(|v| v.as_str()) else {
+        return json!({ "error": "Missing file_name", "_status": 400 });
+    };
+    let Some(content) = payload.get("content").and_then(|v| v.as_str()) else {
+        return json!({ "error": "Missing content", "_status": 400 });
+    };
+    plan_task::add_attachment(master_task_id, file_name, content)
+}
+
+fn handle_plan_task_list_attachments_payload(payload: &Value) -> Value {
+    let Some(master_task_id) = payload.get("master_task_id").and_then(|v| v.as_str()) else {
+        return json!({ "error": "Missing master_task_id", "_status": 400 });
+    };
+    plan_task::list_attachments(master_task_id)
+}
+
+fn handle_plan_task_get_attachment_payload(payload: &Value) -> Value {
+    let Some(master_task_id) = payload.get("master_task_id").and_then(|v| v.as_str()) else {
+        return json!({ "error": "Missing master_task_id", "_status": 400 });
+    };
+    let Some(file_name) = payload.get("file_name").and_then(|v| v.as_str()) else {
+        return json!({ "error": "Missing file_name", "_status": 400 });
+    };
+    plan_task::read_attachment(master_task_id, file_name)
+}
+
+fn handle_plan_task_update_attachment_payload(payload: &Value) -> Value {
+    let Some(master_task_id) = payload.get("master_task_id").and_then(|v| v.as_str()) else {
+        return json!({ "error": "Missing master_task_id", "_status": 400 });
+    };
+    let Some(file_name) = payload.get("file_name").and_then(|v| v.as_str()) else {
+        return json!({ "error": "Missing file_name", "_status": 400 });
+    };
+    let Some(content) = payload.get("content").and_then(|v| v.as_str()) else {
+        return json!({ "error": "Missing content", "_status": 400 });
+    };
+    plan_task::save_attachment(master_task_id, file_name, content)
 }
 
 fn handle_plan_task_create(mut request: tiny_http::Request) {

@@ -1423,3 +1423,168 @@ fn get_plan_tasks_migration_error_plan_still_in_list() {
         });
     });
 }
+
+fn create_plan_master_id(port: u16, title: &str) -> String {
+    let (status, body) = http_post(port, "/api/plan-task-create", &json!({ "title": title }));
+    assert_eq!(status, 201);
+    body["master_task_id"]
+        .as_str()
+        .expect("master_task_id")
+        .to_string()
+}
+
+#[test]
+fn plan_task_attachment_http_flow() {
+    with_plan_task_http_test(|| {
+        let fixture = setup_repo_for_plan_task();
+        let repo_root = fixture.repo_root.clone();
+        with_server(repo_root, |port| {
+            let master_id = create_plan_master_id(port, "Attach HTTP");
+
+            let (add_status, add_body) = http_post(
+                port,
+                "/api/plan-task-add-attachment",
+                &json!({
+                    "master_task_id": master_id,
+                    "file_name": "notes.md",
+                    "content": "# Notes\n",
+                }),
+            );
+            assert_eq!(add_status, 201);
+            assert_eq!(add_body["file_name"], "notes.md");
+            assert_eq!(add_body["original_file_name"], "notes.md");
+            assert!(add_body.get("added_at").and_then(|v| v.as_str()).is_some());
+            assert!(add_body.get("_status").is_none());
+
+            let (list_status, list_body) = http_post(
+                port,
+                "/api/plan-task-list-attachments",
+                &json!({ "master_task_id": master_id }),
+            );
+            assert_eq!(list_status, 200);
+            let attachments = list_body["attachments"].as_array().expect("attachments");
+            assert_eq!(attachments.len(), 1);
+            assert_eq!(attachments[0]["file_name"], "notes.md");
+            assert!(list_body.get("_status").is_none());
+
+            let (get_status, get_body) = http_post(
+                port,
+                "/api/plan-task-get-attachment",
+                &json!({
+                    "master_task_id": master_id,
+                    "file_name": "notes.md",
+                }),
+            );
+            assert_eq!(get_status, 200);
+            assert_eq!(get_body["file_name"], "notes.md");
+            assert_eq!(get_body["content"], "# Notes\n");
+            assert!(get_body.get("_status").is_none());
+
+            let (update_status, update_body) = http_post(
+                port,
+                "/api/plan-task-update-attachment",
+                &json!({
+                    "master_task_id": master_id,
+                    "file_name": "notes.md",
+                    "content": "updated body",
+                }),
+            );
+            assert_eq!(update_status, 200);
+            assert_eq!(update_body["ok"], true);
+            assert!(update_body.get("_status").is_none());
+
+            let (reread_status, reread_body) = http_post(
+                port,
+                "/api/plan-task-get-attachment",
+                &json!({
+                    "master_task_id": master_id,
+                    "file_name": "notes.md",
+                }),
+            );
+            assert_eq!(reread_status, 200);
+            assert_eq!(reread_body["content"], "updated body");
+        });
+    });
+}
+
+#[test]
+fn plan_task_attachment_http_paths_follow_plan_task_verb_prefix() {
+    with_plan_task_http_test(|| {
+        let fixture = setup_repo_for_plan_task();
+        let repo_root = fixture.repo_root.clone();
+        with_server(repo_root, |port| {
+            let master_id = create_plan_master_id(port, "Path style");
+            for path in [
+                "/api/plan-task-add-attachment",
+                "/api/plan-task-list-attachments",
+                "/api/plan-task-get-attachment",
+                "/api/plan-task-update-attachment",
+            ] {
+                assert!(
+                    path.starts_with("/api/plan-task-"),
+                    "path {path} must use plan-task prefix"
+                );
+            }
+
+            let (status, body) = http_post(
+                port,
+                "/api/plan-task-add-attachment",
+                &json!({
+                    "master_task_id": master_id,
+                    "file_name": "a.md",
+                    "content": "x",
+                }),
+            );
+            assert_eq!(status, 201, "add-attachment must be registered: {body}");
+            assert!(body.get("error").is_none());
+        });
+    });
+}
+
+#[test]
+fn plan_task_attachment_http_has_no_delete_or_ui_paths() {
+    with_plan_task_http_test(|| {
+        let fixture = setup_repo_for_plan_task();
+        let repo_root = fixture.repo_root.clone();
+        with_server(repo_root, |port| {
+            let master_id = create_plan_master_id(port, "No delete HTTP");
+            let (add_status, _) = http_post(
+                port,
+                "/api/plan-task-add-attachment",
+                &json!({
+                    "master_task_id": master_id,
+                    "file_name": "notes.md",
+                    "content": "keep",
+                }),
+            );
+            assert_eq!(add_status, 201);
+
+            for path in [
+                "/api/plan-task-delete-attachment",
+                "/api/plan-task-remove-attachment",
+                "/api/plan-task-ui-add-attachment",
+                "/api/plan-task-open-attachment-dialog",
+            ] {
+                let (status, body) = http_post(
+                    port,
+                    path,
+                    &json!({
+                        "master_task_id": master_id,
+                        "file_name": "notes.md",
+                    }),
+                );
+                // Unregistered POST paths fall through to Method not allowed (not a real handler).
+                assert_eq!(status, 405, "expected no HTTP path {path}");
+                assert_eq!(body["error"], "Method not allowed");
+            }
+
+            let (list_status, list_body) = http_post(
+                port,
+                "/api/plan-task-list-attachments",
+                &json!({ "master_task_id": master_id }),
+            );
+            assert_eq!(list_status, 200);
+            assert_eq!(list_body["attachments"].as_array().unwrap().len(), 1);
+        });
+    });
+}
