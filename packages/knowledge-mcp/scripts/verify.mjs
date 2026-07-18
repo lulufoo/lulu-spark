@@ -75,13 +75,41 @@ const PLAN_TOOL_NAMES = [
   'link_plan_archive',
 ];
 
+/** MCP attachment tools (T9) — must proxyPost to T8 HTTP paths; no delete tool. */
+const ATTACHMENT_TOOL_NAMES = [
+  'add_plan_attachment',
+  'list_plan_attachments',
+  'get_plan_attachment',
+  'update_plan_attachment',
+];
+
+const ATTACHMENT_TOOL_HTTP_PATHS = {
+  add_plan_attachment: '/api/plan-task-add-attachment',
+  list_plan_attachments: '/api/plan-task-list-attachments',
+  get_plan_attachment: '/api/plan-task-get-attachment',
+  update_plan_attachment: '/api/plan-task-update-attachment',
+};
+
+const FORBIDDEN_ATTACHMENT_DELETE_TOOL_NAMES = [
+  'delete_plan_attachment',
+  'remove_plan_attachment',
+];
+
 /** @type {Map<string, object>} */
 const planTaskStore = new Map();
 let planSubSeq = 0;
 
+/** @type {Map<string, Array<{ file_name: string, original_file_name: string, content: string, added_at: string }>>} */
+const planAttachmentStore = new Map();
+
+/** @type {Array<{ path: string, body: object }>} */
+const planAttachmentHttpCalls = [];
+
 function resetPlanTaskStore() {
   planTaskStore.clear();
   planSubSeq = 0;
+  planAttachmentStore.clear();
+  planAttachmentHttpCalls.length = 0;
 }
 
 function nextSubId(masterId) {
@@ -404,6 +432,143 @@ function startMockHttp(port) {
       return;
     }
 
+    if (req.method === 'POST' && url.pathname === '/api/plan-task-add-attachment') {
+      let payload;
+      try {
+        payload = await readJsonBody(req);
+      } catch {
+        respondJson(res, 400, { error: 'Invalid JSON' });
+        return;
+      }
+      planAttachmentHttpCalls.push({ path: url.pathname, body: payload });
+      const masterId = typeof payload.master_task_id === 'string' ? payload.master_task_id.trim() : '';
+      const fileName = typeof payload.file_name === 'string' ? payload.file_name.trim() : '';
+      const content = typeof payload.content === 'string' ? payload.content : null;
+      if (!masterId) {
+        respondJson(res, 400, { error: 'Missing master_task_id' });
+        return;
+      }
+      if (!fileName) {
+        respondJson(res, 400, { error: 'Missing file_name' });
+        return;
+      }
+      if (content === null) {
+        respondJson(res, 400, { error: 'Missing content' });
+        return;
+      }
+      if (!planTaskStore.has(masterId)) {
+        respondJson(res, 404, { error: 'Task not found' });
+        return;
+      }
+      const entry = {
+        file_name: fileName,
+        original_file_name: fileName,
+        content,
+        added_at: '2026-07-18T00:00:00Z',
+      };
+      const list = planAttachmentStore.get(masterId) || [];
+      list.push(entry);
+      planAttachmentStore.set(masterId, list);
+      respondJson(res, 201, {
+        file_name: entry.file_name,
+        original_file_name: entry.original_file_name,
+        added_at: entry.added_at,
+      });
+      return;
+    }
+
+    if (req.method === 'POST' && url.pathname === '/api/plan-task-list-attachments') {
+      let payload;
+      try {
+        payload = await readJsonBody(req);
+      } catch {
+        respondJson(res, 400, { error: 'Invalid JSON' });
+        return;
+      }
+      planAttachmentHttpCalls.push({ path: url.pathname, body: payload });
+      const masterId = typeof payload.master_task_id === 'string' ? payload.master_task_id.trim() : '';
+      if (!masterId) {
+        respondJson(res, 400, { error: 'Missing master_task_id' });
+        return;
+      }
+      if (!planTaskStore.has(masterId)) {
+        respondJson(res, 404, { error: 'Task not found' });
+        return;
+      }
+      const attachments = (planAttachmentStore.get(masterId) || []).map(
+        ({ file_name, original_file_name, added_at }) => ({
+          file_name,
+          original_file_name,
+          added_at,
+        }),
+      );
+      respondJson(res, 200, { attachments });
+      return;
+    }
+
+    if (req.method === 'POST' && url.pathname === '/api/plan-task-get-attachment') {
+      let payload;
+      try {
+        payload = await readJsonBody(req);
+      } catch {
+        respondJson(res, 400, { error: 'Invalid JSON' });
+        return;
+      }
+      planAttachmentHttpCalls.push({ path: url.pathname, body: payload });
+      const masterId = typeof payload.master_task_id === 'string' ? payload.master_task_id.trim() : '';
+      const fileName = typeof payload.file_name === 'string' ? payload.file_name.trim() : '';
+      if (!masterId || !fileName) {
+        respondJson(res, 400, { error: 'Missing master_task_id or file_name' });
+        return;
+      }
+      if (!planTaskStore.has(masterId)) {
+        respondJson(res, 404, { error: 'Task not found' });
+        return;
+      }
+      const entry = (planAttachmentStore.get(masterId) || []).find((a) => a.file_name === fileName);
+      if (!entry) {
+        respondJson(res, 404, { error: 'Attachment not found' });
+        return;
+      }
+      respondJson(res, 200, { file_name: entry.file_name, content: entry.content });
+      return;
+    }
+
+    if (req.method === 'POST' && url.pathname === '/api/plan-task-update-attachment') {
+      let payload;
+      try {
+        payload = await readJsonBody(req);
+      } catch {
+        respondJson(res, 400, { error: 'Invalid JSON' });
+        return;
+      }
+      planAttachmentHttpCalls.push({ path: url.pathname, body: payload });
+      const masterId = typeof payload.master_task_id === 'string' ? payload.master_task_id.trim() : '';
+      const fileName = typeof payload.file_name === 'string' ? payload.file_name.trim() : '';
+      const content = typeof payload.content === 'string' ? payload.content : null;
+      if (!masterId || !fileName) {
+        respondJson(res, 400, { error: 'Missing master_task_id or file_name' });
+        return;
+      }
+      if (content === null) {
+        respondJson(res, 400, { error: 'Missing content' });
+        return;
+      }
+      if (!planTaskStore.has(masterId)) {
+        respondJson(res, 404, { error: 'Task not found' });
+        return;
+      }
+      const list = planAttachmentStore.get(masterId) || [];
+      const entry = list.find((a) => a.file_name === fileName);
+      if (!entry) {
+        respondJson(res, 404, { error: 'Attachment not found' });
+        return;
+      }
+      entry.content = content;
+      respondJson(res, 200, { ok: true });
+      return;
+    }
+
     res.writeHead(404).end(JSON.stringify({ error: 'not found' }));
   });
 
@@ -447,6 +612,16 @@ async function runMcpClient(mcpPort) {
   for (const tool of PLAN_TOOL_NAMES) {
     if (!names.includes(tool)) {
       throw new Error(`missing plan tool ${tool}: ${names.join(', ')}`);
+    }
+  }
+  for (const tool of ATTACHMENT_TOOL_NAMES) {
+    if (!names.includes(tool)) {
+      throw new Error(`missing attachment tool ${tool}: ${names.join(', ')}`);
+    }
+  }
+  for (const tool of FORBIDDEN_ATTACHMENT_DELETE_TOOL_NAMES) {
+    if (names.includes(tool)) {
+      throw new Error(`forbidden attachment delete tool registered: ${tool}`);
     }
   }
 
@@ -650,6 +825,107 @@ async function runMcpClient(mcpPort) {
   const deleteMasterText = deleteMaster.content?.[0]?.text || '';
   if (deleteMaster.isError || !deleteMasterText.includes('"ok":true')) {
     throw new Error(`unexpected delete_plan_task: ${deleteMasterText}`);
+  }
+
+  // T9: attachment tools proxyPost to T8 paths; not nested into get/list task responses.
+  resetPlanTaskStore();
+  planAttachmentHttpCalls.length = 0;
+  const attachCreate = await client.callTool({
+    name: 'create_plan_task',
+    arguments: { title: 'Attach master' },
+  });
+  if (attachCreate.isError) {
+    throw new Error(`unexpected attach create: ${attachCreate.content?.[0]?.text || ''}`);
+  }
+
+  const addAttach = await client.callTool({
+    name: 'add_plan_attachment',
+    arguments: {
+      master_task_id: 'task_mock001',
+      file_name: 'notes.md',
+      content: '# Notes\n',
+    },
+  });
+  const addAttachText = addAttach.content?.[0]?.text || '';
+  if (addAttach.isError || !addAttachText.includes('notes.md')) {
+    throw new Error(`unexpected add_plan_attachment: ${addAttachText}`);
+  }
+
+  const listAttach = await client.callTool({
+    name: 'list_plan_attachments',
+    arguments: { master_task_id: 'task_mock001' },
+  });
+  const listAttachText = listAttach.content?.[0]?.text || '';
+  if (listAttach.isError || !listAttachText.includes('notes.md')) {
+    throw new Error(`unexpected list_plan_attachments: ${listAttachText}`);
+  }
+
+  const getAttach = await client.callTool({
+    name: 'get_plan_attachment',
+    arguments: { master_task_id: 'task_mock001', file_name: 'notes.md' },
+  });
+  const getAttachText = getAttach.content?.[0]?.text || '';
+  if (getAttach.isError || !getAttachText.includes('# Notes')) {
+    throw new Error(`unexpected get_plan_attachment: ${getAttachText}`);
+  }
+
+  const updateAttach = await client.callTool({
+    name: 'update_plan_attachment',
+    arguments: {
+      master_task_id: 'task_mock001',
+      file_name: 'notes.md',
+      content: 'updated body',
+    },
+  });
+  const updateAttachText = updateAttach.content?.[0]?.text || '';
+  if (updateAttach.isError || !updateAttachText.includes('"ok":true')) {
+    throw new Error(`unexpected update_plan_attachment: ${updateAttachText}`);
+  }
+
+  const rereadAttach = await client.callTool({
+    name: 'get_plan_attachment',
+    arguments: { master_task_id: 'task_mock001', file_name: 'notes.md' },
+  });
+  const rereadAttachText = rereadAttach.content?.[0]?.text || '';
+  if (rereadAttach.isError || !rereadAttachText.includes('updated body')) {
+    throw new Error(`unexpected get_plan_attachment after update: ${rereadAttachText}`);
+  }
+
+  const expectedPaths = [
+    ATTACHMENT_TOOL_HTTP_PATHS.add_plan_attachment,
+    ATTACHMENT_TOOL_HTTP_PATHS.list_plan_attachments,
+    ATTACHMENT_TOOL_HTTP_PATHS.get_plan_attachment,
+    ATTACHMENT_TOOL_HTTP_PATHS.update_plan_attachment,
+    ATTACHMENT_TOOL_HTTP_PATHS.get_plan_attachment,
+  ];
+  const actualPaths = planAttachmentHttpCalls.map((c) => c.path);
+  if (JSON.stringify(actualPaths) !== JSON.stringify(expectedPaths)) {
+    throw new Error(
+      `attachment tool HTTP paths mismatch: expected ${JSON.stringify(expectedPaths)}, got ${JSON.stringify(actualPaths)}`,
+    );
+  }
+
+  const getTaskAfterAttach = await client.callTool({
+    name: 'get_plan_task',
+    arguments: { id: 'task_mock001' },
+  });
+  const getTaskAfterAttachText = getTaskAfterAttach.content?.[0]?.text || '';
+  if (getTaskAfterAttach.isError) {
+    throw new Error(`unexpected get_plan_task after attach: ${getTaskAfterAttachText}`);
+  }
+  const getTaskParsed = JSON.parse(getTaskAfterAttachText);
+  if (Object.prototype.hasOwnProperty.call(getTaskParsed, 'attachments')) {
+    throw new Error('get_plan_task must not embed attachments');
+  }
+
+  const listTasksAfterAttach = await client.callTool({ name: 'list_plan_tasks', arguments: {} });
+  const listTasksAfterAttachText = listTasksAfterAttach.content?.[0]?.text || '';
+  if (listTasksAfterAttach.isError) {
+    throw new Error(`unexpected list_plan_tasks after attach: ${listTasksAfterAttachText}`);
+  }
+  const listTasksParsed = JSON.parse(listTasksAfterAttachText);
+  if (!Array.isArray(listTasksParsed) || listTasksParsed.some((t) => Object.prototype.hasOwnProperty.call(t, 'attachments'))) {
+    throw new Error('list_plan_tasks must not embed attachments');
   }
 
   await client.close();

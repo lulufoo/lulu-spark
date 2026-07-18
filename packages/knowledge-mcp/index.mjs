@@ -373,6 +373,94 @@ function buildServer() {
     },
   );
 
+  server.registerTool(
+    'add_plan_attachment',
+    {
+      description:
+        'Add a markdown attachment to a plan master. Proxy POST /api/plan-task-add-attachment',
+      inputSchema: {
+        master_task_id: z.string().trim().min(1).describe('Master task id'),
+        file_name: z.string().trim().min(1).describe('Attachment file name (must end with .md)'),
+        content: z.string().describe('Markdown attachment content'),
+      },
+    },
+    async ({ master_task_id, file_name, content }) => {
+      const result = await proxyPost('/api/plan-task-add-attachment', {
+        master_task_id,
+        file_name,
+        content,
+      });
+      if (!result.ok) {
+        return toolError(result.status, result.text);
+      }
+      return { content: [{ type: 'text', text: result.text }] };
+    },
+  );
+
+  server.registerTool(
+    'list_plan_attachments',
+    {
+      description:
+        'List attachments for a plan master. Proxy POST /api/plan-task-list-attachments',
+      inputSchema: {
+        master_task_id: z.string().trim().min(1).describe('Master task id'),
+      },
+    },
+    async ({ master_task_id }) => {
+      const result = await proxyPost('/api/plan-task-list-attachments', { master_task_id });
+      if (!result.ok) {
+        return toolError(result.status, result.text);
+      }
+      return { content: [{ type: 'text', text: result.text }] };
+    },
+  );
+
+  server.registerTool(
+    'get_plan_attachment',
+    {
+      description:
+        'Read one plan attachment body by file name. Proxy POST /api/plan-task-get-attachment',
+      inputSchema: {
+        master_task_id: z.string().trim().min(1).describe('Master task id'),
+        file_name: z.string().trim().min(1).describe('Attachment file name'),
+      },
+    },
+    async ({ master_task_id, file_name }) => {
+      const result = await proxyPost('/api/plan-task-get-attachment', {
+        master_task_id,
+        file_name,
+      });
+      if (!result.ok) {
+        return toolError(result.status, result.text);
+      }
+      return { content: [{ type: 'text', text: result.text }] };
+    },
+  );
+
+  server.registerTool(
+    'update_plan_attachment',
+    {
+      description:
+        'Overwrite a plan attachment body. Proxy POST /api/plan-task-update-attachment',
+      inputSchema: {
+        master_task_id: z.string().trim().min(1).describe('Master task id'),
+        file_name: z.string().trim().min(1).describe('Attachment file name'),
+        content: z.string().describe('New markdown attachment content'),
+      },
+    },
+    async ({ master_task_id, file_name, content }) => {
+      const result = await proxyPost('/api/plan-task-update-attachment', {
+        master_task_id,
+        file_name,
+        content,
+      });
+      if (!result.ok) {
+        return toolError(result.status, result.text);
+      }
+      return { content: [{ type: 'text', text: result.text }] };
+    },
+  );
+
   return server;
 }
 
