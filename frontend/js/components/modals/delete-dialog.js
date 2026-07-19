@@ -1,6 +1,5 @@
 import { state, getEntryId } from '../../state.js'
 import * as api from '../../api.js'
-import { closeModal } from '../viewer.js'
 
 // ── openDeleteDialog / closeDeleteDialog ───────────────────────────────────
 
@@ -40,8 +39,15 @@ document.getElementById('btn-delete-confirm-ok').addEventListener('click', async
     const entryId = getEntryId(state.viewer.entry);
     const data = await api.deleteEntry(entryId);
     if (data.error) throw new Error(data.error);
+    const date = state.ui.activeDate;
     closeDeleteDialog();
-    closeModal();
+    // replace (not history.back): forward cannot return to deleted note; no invalid-note transit
+    if (date) {
+      window.location.replace(`#/workbench?date=${encodeURIComponent(date)}`);
+    } else {
+      window.location.replace('#/workbench');
+    }
+    // same reload+scroll path as ordinary return-to-list (cta:reload → loadIndex → renderDocList)
     document.dispatchEvent(new CustomEvent('cta:reload'));
   } catch (e) {
     alert(`Delete failed: ${e.message}`);
