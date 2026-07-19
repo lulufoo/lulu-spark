@@ -1,7 +1,7 @@
 // Node environment — document stub + mocked viewer deps (same pattern as viewer-commit-dialog)
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
-const { elements, makeEl, locationStub, navigateToNoteMock } = vi.hoisted(() => {
+const { elements, makeEl, locationStub, navigateToNoteMock, navigateBackToListMock } = vi.hoisted(() => {
   const elements = {};
   const makeEl = (id = '') => {
     if (id && elements[id]) return elements[id];
@@ -47,6 +47,7 @@ const { elements, makeEl, locationStub, navigateToNoteMock } = vi.hoisted(() => 
 
   const locationStub = { hash: '#/workbench?date=20260710', href: 'http://localhost/#/workbench?date=20260710' };
   const navigateToNoteMock = vi.fn().mockReturnValue(true);
+  const navigateBackToListMock = vi.fn();
 
   globalThis.document = {
     getElementById: (id) => (id ? makeEl(id) : null),
@@ -63,7 +64,7 @@ const { elements, makeEl, locationStub, navigateToNoteMock } = vi.hoisted(() => 
   globalThis.alert = vi.fn();
   globalThis.location = locationStub;
 
-  return { elements, makeEl, locationStub, navigateToNoteMock };
+  return { elements, makeEl, locationStub, navigateToNoteMock, navigateBackToListMock };
 });
 
 vi.mock('../frontend/js/api.js', () => ({
@@ -121,6 +122,7 @@ vi.mock('../frontend/js/router/index.js', async () => {
   return {
     ...actual,
     navigateToNote: (...args) => navigateToNoteMock(...args),
+    navigateBackToList: (...args) => navigateBackToListMock(...args),
   };
 });
 
@@ -187,6 +189,7 @@ function resetViewerDom() {
   api.clearNoteDraft.mockResolvedValue({ ok: true });
   api.getNoteDraft.mockResolvedValue({ content: '' });
   navigateToNoteMock.mockReturnValue(true);
+  navigateBackToListMock.mockClear();
   globalThis.alert.mockClear();
   document.dispatchEvent.mockClear();
 }
@@ -273,6 +276,7 @@ describe('create session exit', () => {
     });
     api.clearNoteDraft.mockResolvedValue({ ok: true });
     navigateToNoteMock.mockReturnValue(true);
+    navigateBackToListMock.mockClear();
   });
 
   afterEach(() => {
@@ -294,7 +298,9 @@ describe('create session exit', () => {
       date: '20260710',
       note: 'inbox/notes/202607101431-body.md',
     });
-    expect(makeEl('md-modal').style.display).toBe('none');
+    // Pass via navigate + outlet state — not modal.display alone (chap-vf)
+    expect(makeEl('note-outlet').hidden).toBe(false);
+    expect(navigateBackToListMock).not.toHaveBeenCalled();
     expect(state.viewer.createSession).toBeNull();
   });
 
@@ -306,10 +312,9 @@ describe('create session exit', () => {
     expect(api.archiveDocument).not.toHaveBeenCalled();
     expect(api.clearNoteDraft).toHaveBeenCalledWith('tmp-exit');
     expect(makeEl('note-outlet').hidden).toBe(true);
-    expect(makeEl('md-modal').style.display).toBe('none');
     expect(state.viewer.createSession).toBeNull();
     expect(navigateToNoteMock).not.toHaveBeenCalled();
-    expect(locationStub.hash).toBe('#/workbench?date=20260710');
+    expect(navigateBackToListMock).toHaveBeenCalledWith({ date: '20260710' });
   });
 
   it('archive failure: alert, keep create session + draft, no Annotation API', async () => {
@@ -321,21 +326,27 @@ describe('create session exit', () => {
     expect(globalThis.alert).toHaveBeenCalledWith(expect.stringContaining('409: conflict'));
     expect(api.clearNoteDraft).not.toHaveBeenCalled();
     expect(makeEl('note-outlet').hidden).toBe(false);
-    expect(makeEl('md-modal').style.display).toBe('none');
+    expect(makeEl('note-outlet').dataset.wbMode).toBe('create');
     expect(state.viewer.createSession?.tempId).toBe('tmp-exit');
     expect(state.viewer.createSession?.status).toBe('creating');
     expect(api.archiveDocument).toHaveBeenCalled();
     expect(navigateToNoteMock).not.toHaveBeenCalled();
+    expect(navigateBackToListMock).not.toHaveBeenCalled();
   });
 
-  it('empty exit only closeModal — does not mutate hash/route', async () => {
+  it('empty exit lands list via navigateBackToList (history.back or list location)', async () => {
     makeEl('md-edit-area').value = '';
-    locationStub.hash = '#/workbench?topic=inbox&date=20260710';
+    locationStub.hash = '#/workbench?date=20260710';
 
     await closeModal();
 
-    expect(locationStub.hash).toBe('#/workbench?topic=inbox&date=20260710');
+    expect(api.archiveDocument).not.toHaveBeenCalled();
+    expect(api.clearNoteDraft).toHaveBeenCalledWith('tmp-exit');
+    expect(state.viewer.createSession).toBeNull();
+    expect(makeEl('note-outlet').hidden).toBe(true);
     expect(navigateToNoteMock).not.toHaveBeenCalled();
+    // Ban-hash retired: close/exit must observe navigateBackToList (list location / history.back)
+    expect(navigateBackToListMock).toHaveBeenCalledWith({ date: '20260710' });
   });
 
   it('create flow has no source_type/topic mutation controls', async () => {

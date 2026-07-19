@@ -522,16 +522,13 @@ function locationDate() {
   return route.params?.date || state.ui.activeDate || '';
 }
 
-/** @param {{ navigate?: boolean }} [opts] navigate=false keeps AC-10 empty-create hash stable until T10 retires it */
-function dismissViewerModal({ navigate = true } = {}) {
+function dismissViewerModal() {
   clearCreateChrome();
   hideNoteOutlet();
   document.body.style.overflow = '';
   exitEditMode(false);
   closeCommitDialog();
-  if (navigate) {
-    navigateBackToList({ date: locationDate() });
-  }
+  navigateBackToList({ date: locationDate() });
 }
 
 /**
@@ -593,8 +590,7 @@ async function finalizeCreateSession() {
   if (!trimmed) {
     await api.clearNoteDraft(session.tempId);
     state.viewer.createSession = null;
-    // Empty create exit: hide outlet only — do not mutate hash (legacy AC-10 until T10).
-    dismissViewerModal({ navigate: false });
+    dismissViewerModal();
     return;
   }
 
@@ -623,7 +619,7 @@ export async function closeModal() {
     await finalizeCreateSession();
     return;
   }
-  dismissViewerModal({ navigate: true });
+  dismissViewerModal();
 }
 
 document.getElementById('md-close').addEventListener('click', () => { void closeModal(); });

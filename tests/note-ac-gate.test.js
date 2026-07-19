@@ -1,7 +1,7 @@
 /**
- * Note feature AC gate (tech-doc §VF AC-1～AC-11 / §T-13 / §SK-5).
+ * Note feature AC gate (tech-doc §VF AC-1～AC-11 / T10 / §SK-P3).
  * Static probes lock failure signals; behavioral coverage lives in
- * note-assistant.test.js + viewer-create-note.test.js + archive_write.rs.
+ * note-assistant / viewer-create-note / router / mount / list-return suites + archive_write.rs.
  */
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -119,16 +119,53 @@ describe('Note AC gate (tech-doc VF / T-13)', () => {
     expect(behavioral).toMatch(/create flow has no source_type\/topic mutation controls/);
   });
 
-  it('AC-10: create success navigates note=common_path; empty exit does not mutate hash', () => {
+  it('AC-10: create success navigates note=common_path; empty exit lands list via navigateBackToList', () => {
     const viewer = read('frontend/js/components/viewer.js');
     // create success: navigateToNote with archiveDocument common_path (tech-doc T5 / chap-ar)
     expect(viewer).toMatch(/navigateToNote/);
     expect(viewer).toMatch(/common_path/);
+    expect(viewer).toMatch(/navigateBackToList/);
+    // Empty create exit must leave via navigateBackToList (ban-hash / AC-10 retired — T10 / VF)
+    expect(viewer).not.toMatch(/dismissViewerModal\(\{\s*navigate:\s*false/);
+    expect(viewer).not.toMatch(/do not mutate hash \(legacy AC-10/);
     expect(viewer).not.toMatch(/navigate\(['"]#\/home['"]\)/);
-    expect(viewer).not.toMatch(/location\.hash\s*=/);
     const behavioral = read('tests/viewer-create-note.test.js');
     expect(behavioral).toMatch(/navigate note=common_path/);
-    expect(behavioral).toMatch(/empty exit only closeModal — does not mutate hash\/route/);
+    expect(behavioral).toMatch(
+      /empty exit lands list via navigateBackToList \(history\.back or list location\)/,
+    );
+  });
+
+  it('VF micro-routing probes: layer / scroll / delete-replace / Dialog / safe-empty / create-fail', () => {
+    // Lock peer suites that prove navigate/history/list location — not modal.display alone (chap-vf)
+    const router = read('tests/router.test.js');
+    expect(router).toMatch(/history\.back/);
+    expect(router).toMatch(/navigateBackToList/);
+    expect(router).toMatch(/abolishes exit-must-not-change-hash/);
+
+    const openEntry = read('tests/note-open-entry-navigate.test.js');
+    expect(openEntry).toMatch(/layer/);
+    expect(openEntry).toMatch(/navigate-to-note/);
+    expect(openEntry).not.toMatch(/empty exit only closeModal — does not mutate hash/);
+
+    const listReturn = read('tests/note-list-return-delete.test.js');
+    expect(listReturn).toMatch(/cta_scroll_/);
+    expect(listReturn).toMatch(/location\.replace/);
+    expect(listReturn).toMatch(/#\/workbench\?date=/);
+
+    const dialogAudit = read('tests/dialog-removal-audit.test.js');
+    expect(dialogAudit).toMatch(/navigateBackToList/);
+    expect(dialogAudit).toMatch(/no #md-modal display semantics/);
+
+    const mount = read('tests/main-workbench-route.test.js');
+    expect(mount).toMatch(/safe-empty/);
+    expect(mount).toMatch(/unresolved note/);
+    expect(mount).toMatch(/layer/);
+
+    const create = read('tests/viewer-create-note.test.js');
+    expect(create).toMatch(/archive failure: alert, keep create session \+ draft/);
+    expect(create).toMatch(/no Annotation API/);
+    expect(create).toMatch(/navigateBackToList/);
   });
 
   it('AC-11: create chrome hides shell-field controls (body-only)', () => {
