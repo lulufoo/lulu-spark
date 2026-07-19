@@ -1037,7 +1037,7 @@ document.addEventListener('cta:open-entry', ({ detail }) => {
     ? entry.created_at.slice(0, 8)
     : (state.ui?.activeDate || '')
   if (!date) return
-  if (date) selectDate(date)
+  selectDate(date)
   // Optional layer only when entry synthesizes one; consumer defaults when absent.
   const params = { date, note: entry.common_path }
   if (detail.layer) params.layer = detail.layer

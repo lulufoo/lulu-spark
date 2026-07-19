@@ -616,7 +616,7 @@ export async function closeModal() {
 }
 
 document.getElementById('md-close').addEventListener('click', () => { void closeModal(); });
-document.getElementById('md-backdrop').addEventListener('click', () => { void closeModal(); });
+document.getElementById('md-backdrop')?.addEventListener('click', () => { void closeModal(); });
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') {
     // Don't close modal if comment dialog is open — let it handle ESC itself

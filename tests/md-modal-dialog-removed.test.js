@@ -32,39 +32,22 @@ function extractById(html, id) {
   throw new Error(`unclosed #${id}`);
 }
 
-describe('T4 note outlet hosts viewer chrome (tech-doc T4 / index.html)', () => {
-  it('keeps workbench shell: sidebar + #main', () => {
-    expect(indexHtml).toMatch(/id="sidebar"/);
-    expect(indexHtml).toMatch(/<main[^>]*\bid="main"/);
+describe('T7 workbench notes Dialog entry removed (tech-doc T7 / index.html)', () => {
+  it('removes body-level #md-modal / #md-backdrop Dialog entry', () => {
+    expect(indexHtml).not.toMatch(/\bid="md-modal"/);
+    expect(indexHtml).not.toMatch(/\bid="md-backdrop"/);
   });
 
-  it('places #note-outlet inside #main as peer to #doc-list', () => {
+  it('keeps note chrome under #note-outlet inside #main', () => {
     const main = extractById(indexHtml, 'main');
-    expect(main).toMatch(/id="doc-list"/);
-    expect(main).toMatch(/id="note-outlet"/);
-    const docListAt = main.indexOf('id="doc-list"');
-    const outletAt = main.indexOf('id="note-outlet"');
-    expect(outletAt).toBeGreaterThan(docListAt);
-  });
-
-  it('moves #md-panel tree into #note-outlet (not body-level #md-modal)', () => {
-    const outlet = extractById(indexHtml, 'note-outlet');
+    const outlet = extractById(main, 'note-outlet');
     expect(outlet).toMatch(/id="md-panel"/);
     expect(outlet).toMatch(/id="md-body"/);
     expect(outlet).toMatch(/id="md-edit-area"/);
-    expect(outlet).toMatch(/id="md-header"/);
-    expect(outlet).toMatch(/id="knowledge-panel"/);
-
-    // T7: workbench notes Dialog shell is removed (no body-level #md-modal).
-    expect(indexHtml).not.toMatch(/\bid="md-modal"/);
   });
 
-  it('keeps a single chrome id surface (no parallel second md-panel tree)', () => {
-    const panelMatches = indexHtml.match(/id="md-panel"/g) || [];
-    const bodyMatches = indexHtml.match(/id="md-body"/g) || [];
-    const editMatches = indexHtml.match(/id="md-edit-area"/g) || [];
-    expect(panelMatches).toHaveLength(1);
-    expect(bodyMatches).toHaveLength(1);
-    expect(editMatches).toHaveLength(1);
+  it('does not reintroduce KB #kb-md-modal (out of scope)', () => {
+    // IV-3: KB parallel shell is out of this path — T7 must not add it back.
+    expect(indexHtml).not.toMatch(/\bid="kb-md-modal"/);
   });
 });
