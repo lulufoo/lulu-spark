@@ -172,3 +172,13 @@ export function navigateBackToList({ date, onClearCreate } = {}) {
   noteNavDepth = 0;
   navigate(buildWorkbenchHash({ date: resolvedDate }));
 }
+
+/**
+ * Sidebar date (or any explicit date pick) → list for that date.
+ * Always strips note/layer; does not use history.back (target date may differ from prior list entry).
+ * @param {string} [date]
+ */
+export function navigateToDateList(date) {
+  noteNavDepth = 0;
+  navigate(buildWorkbenchHash({ date: date || '' }));
+}

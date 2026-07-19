@@ -2,6 +2,7 @@ import { state } from '../state.js'
 import { formatDate } from '../utils.js'
 import { renderDocList, loadTitles } from './cards.js'
 import { closeFloatingListSelect, createFloatingListSelect } from './floating-list-select.js'
+import { parseHash, navigateToDateList } from '../router/index.js'
 
 // ── buildGroups ────────────────────────────────────────────────────────────
 
@@ -298,6 +299,20 @@ function _refreshFilteredList() {
 // ── selectDate ────────────────────────────────────────────────────────
 
 export function selectDate(date) {
+  // Location is authoritative for list|note. While a note (or create) is active,
+  // date clicks must re-enter list via hash — not only refresh #doc-list under a
+  // still-visible #note-outlet.
+  const route = parseHash();
+  if (route.name === 'workbench') {
+    const hasNote = Boolean(route.params?.note);
+    const creating = Boolean(state.viewer?.createSession);
+    if (hasNote || creating) {
+      if (creating) state.viewer.createSession = null;
+      navigateToDateList(date);
+      return;
+    }
+  }
+
   state.ui.activeDate = date;
   sessionStorage.setItem('cta_active_date', date);
 

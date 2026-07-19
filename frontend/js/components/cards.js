@@ -219,7 +219,10 @@ export function renderDocList(entries, date) {
   list.innerHTML = '';
 
   for (const { id, entry } of entries) {
-    const card = buildCard(id, entry, state.index.titleCache.get(date)?.get(id));
+    const cached = state.index.titleCache.get(date)?.get(id);
+    // Show slug immediately so names are never blank while H1 fetch runs.
+    const initialTitle = cached ?? slugToTitle(filenameFromPath(entry.common_path));
+    const card = buildCard(id, entry, initialTitle);
     list.appendChild(card);
   }
 
@@ -270,7 +273,9 @@ export async function loadTitles(entries, date) {
 export function updateTitlesInDOM(date) {
   const cache = state.index.titleCache.get(date);
   if (!cache) return;
-  const group = state.index.groupedByDate.find(g => g.date === date);
+  const group =
+    state.index.groupedByDate.find(g => g.date === date) ||
+    state.index.filteredGroups.find(g => g.date === date);
   if (!group) return;
 
   for (const { id, entry } of group.entries) {

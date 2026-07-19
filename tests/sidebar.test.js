@@ -3,6 +3,10 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 // Mock DOM dependencies before importing sidebar
 vi.mock('../frontend/js/utils.js', () => ({ formatDate: () => ({ full: '2025-01-01', label: '01-01', year: '2025', weekday: 'Wed' }) }));
 vi.mock('../frontend/js/components/cards.js', () => ({ renderDocList: vi.fn(), loadTitles: vi.fn() }));
+vi.mock('../frontend/js/router/index.js', () => ({
+  parseHash: vi.fn(() => ({ name: 'workbench', params: {} })),
+  navigateToDateList: vi.fn(),
+}));
 
 // Provide minimal document stub (supports _ensureSidebarZones)
 const makeEl = (tag = 'div') => {
@@ -90,6 +94,7 @@ globalThis.document = {
 globalThis.sessionStorage = { getItem: () => null, setItem: () => {} };
 
 import { state } from '../frontend/js/state.js';
+import { parseHash, navigateToDateList } from '../frontend/js/router/index.js';
 import {
   buildGroups,
   selectTopic,
@@ -97,7 +102,9 @@ import {
   clearTagFilter,
   renderSidebar,
   applyListFilters,
+  selectDate,
 } from '../frontend/js/components/sidebar.js';
+import { renderDocList } from '../frontend/js/components/cards.js';
 
 const makeGroup = (date, topics, tagKeys = []) => ({
   date,
@@ -337,5 +344,52 @@ describe('buildGroups', () => {
     expect(grouped[0].date).toBe('20250101');
     expect(grouped[0].entries).toHaveLength(1);
     expect(grouped[0].entries[0].id).toBe('ok');
+  });
+});
+
+describe('selectDate while note/create active → list via location', () => {
+  beforeEach(() => {
+    vi.mocked(parseHash).mockReset();
+    vi.mocked(navigateToDateList).mockReset();
+    vi.mocked(renderDocList).mockClear();
+    state.viewer = { createSession: null };
+    state.index = {
+      filteredGroups: [makeGroup('20260719', ['inbox']), makeGroup('20260718', ['inbox'])],
+      groupedByDate: [],
+    };
+    state.ui = { activeDate: null, activeTopic: null, activeTagKey: null };
+  });
+
+  it('with note in hash: navigates to date list (does not only refresh doc-list)', () => {
+    vi.mocked(parseHash).mockReturnValue({
+      name: 'workbench',
+      params: { date: '20260719', note: 'inbox/notes/x.md' },
+    });
+    selectDate('20260718');
+    expect(navigateToDateList).toHaveBeenCalledWith('20260718');
+    expect(renderDocList).not.toHaveBeenCalled();
+  });
+
+  it('create in progress: clears createSession and navigates to date list', () => {
+    state.viewer.createSession = { tempId: 'tmp', status: 'creating' };
+    vi.mocked(parseHash).mockReturnValue({
+      name: 'workbench',
+      params: { date: '20260719' },
+    });
+    selectDate('20260719');
+    expect(state.viewer.createSession).toBeNull();
+    expect(navigateToDateList).toHaveBeenCalledWith('20260719');
+    expect(renderDocList).not.toHaveBeenCalled();
+  });
+
+  it('list mode (no note, not creating): updates list without navigateToDateList', () => {
+    vi.mocked(parseHash).mockReturnValue({
+      name: 'workbench',
+      params: { date: '20260719' },
+    });
+    selectDate('20260718');
+    expect(navigateToDateList).not.toHaveBeenCalled();
+    expect(renderDocList).toHaveBeenCalled();
+    expect(state.ui.activeDate).toBe('20260718');
   });
 });

@@ -805,19 +805,15 @@ function mountWorkbench(route) {
   hidePlanTasksView();
 
   if (feedView) feedView.style.display = 'none';
-  // Restore archive elements to their natural display state
+  // Restore archive elements to their natural display state.
+  // date-heading is list-only — note/create branches hide it (avoid a second chrome row).
   const status = document.getElementById('status');
   const dateHeading = document.getElementById('date-heading');
   const docList = document.getElementById('doc-list');
-  // Only restore status if we are not in a state where date-heading/doc-list are showing
   if (state.ui.activeDate) {
     if (status) status.style.display = 'none';
-    if (dateHeading) dateHeading.style.display = '';
-    if (docList) docList.style.display = '';
   } else {
     if (status) status.style.display = '';
-    if (dateHeading) dateHeading.style.display = 'none';
-    if (docList) docList.style.display = '';
   }
 
   const params = route?.params || {};
@@ -843,6 +839,7 @@ function mountWorkbench(route) {
 
   const activateOutlet = (mode, { note, layer: lyr, message = '' } = {}) => {
     const outlet = ensureOutlet();
+    if (dateHeading) dateHeading.style.display = 'none';
     if (docList) docList.style.display = 'none';
     outlet.hidden = false;
     outlet.dataset.wbMode = mode;
@@ -907,6 +904,9 @@ function mountWorkbench(route) {
   const panel = document.getElementById('md-panel');
   if (panel) panel.hidden = false;
   if (docList) docList.style.display = '';
+  if (dateHeading) {
+    dateHeading.style.display = (date || state.ui.activeDate) ? '' : 'none';
+  }
   if (date && typeof selectDate === 'function') selectDate(date);
 }
 

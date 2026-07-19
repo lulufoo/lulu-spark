@@ -137,6 +137,7 @@ import { state } from '../frontend/js/state.js';
 function resetDom() {
   for (const id of [
     'note-outlet', 'md-modal', 'md-body', 'md-edit-area', 'md-panel-title', 'md-close', 'md-backdrop',
+    'date-heading', 'doc-list',
     'md-commit-dialog', 'comment-dialog', 'btn-edit', 'btn-add-comment', 'btn-save',
     'btn-cancel-edit', 'btn-panel-commit', 'md-github-link', 'md-lang-bar', 'md-file-size',
     'md-links-bar', 'md-tags-bar', 'knowledge-panel', 'md-commit-bar', 'md-commit-msg',
@@ -191,13 +192,18 @@ describe('T5 openDoc mounts into note outlet (not md-modal flex)', () => {
       created_at: '20260710120000',
       translations: {},
     };
+    state.index.filteredGroups = [
+      { date: '20260710', entries: new Array(6).fill(null) },
+    ];
 
     await openDoc(entry, 'raw');
 
     expect(makeEl('note-outlet').hidden).toBe(false);
     expect(makeEl('md-modal').style.display).not.toBe('flex');
     expect(makeEl('md-modal').style.display).toBe('none');
-    expect(makeEl('md-panel-title').textContent).toBe('demo');
+    expect(makeEl('md-panel-title').textContent).toBe('Jul 10, 2026 (Fri)  ·  6 items');
+    expect(makeEl('date-heading').style.display).toBe('none');
+    expect(makeEl('doc-list').style.display).toBe('none');
     expect(state.viewer.entry).toEqual(entry);
   });
 

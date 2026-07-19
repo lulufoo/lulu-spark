@@ -6,6 +6,7 @@ import {
   normalizeHash,
   navigateToNote,
   navigateBackToList,
+  navigateToDateList,
 } from '../frontend/js/router/index.js';
 
 describe('parseHash', () => {
@@ -589,6 +590,16 @@ describe('navigateToNote / navigateBackToList (T3)', () => {
     navigateBackToList({ date: '20260719' });
     expect(hashValue).not.toBe(before);
     expect(hashValue).toBe('#/workbench?date=20260719');
+  });
+
+  it('navigateToDateList strips note/layer and lands on chosen date (no history.back)', () => {
+    navigateToNote({ date: '20260719', note: 'inbox/notes/x.md', layer: 'raw' });
+    expect(hashValue).toContain('note=');
+    navigateToDateList('20260718');
+    expect(historyBack).not.toHaveBeenCalled();
+    expect(hashValue).toBe('#/workbench?date=20260718');
+    expect(parseHash(hashValue).params).not.toHaveProperty('note');
+    expect(parseHash(hashValue).params).not.toHaveProperty('layer');
   });
 });
 

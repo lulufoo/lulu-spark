@@ -1,7 +1,7 @@
 import { state, getEntryId, loadDiffStatus } from '../state.js'
 import { getGithubUserUrl, workbenchGithubBlobBase } from '../constants.js'
 import { getActivePath } from '../corpus-path.js'
-import { escHtml, filenameFromPath, slugToTitle, resetEditAreaScroll } from '../utils.js'
+import { escHtml, filenameFromPath, slugToTitle, formatDate, resetEditAreaScroll } from '../utils.js'
 import * as api from '../api.js'
 import { updateTitlesInDOM, updateDiffInDOM } from './cards.js'
 import { renderLinksBar } from './links-bar.js'
@@ -15,6 +15,29 @@ export { openKbDoc }
 import { mountKnowledgeSearch, triggerKnowledgeSearch } from './knowledge-search.js'
 import { navigateToNote, navigateBackToList, parseHash } from '../router/index.js'
 
+/** One-line chrome heading: same format as list `#date-heading` — `Jul 16, 2026 (Thu) · 6 items`. */
+function setNotePanelTitle(entryOrDate) {
+  const titleEl = document.getElementById('md-panel-title');
+  if (!titleEl) return;
+  const dateStr = typeof entryOrDate === 'string'
+    ? entryOrDate
+    : String(entryOrDate?.created_at || state.ui.activeDate || '').slice(0, 8);
+  if (!/^\d{8}$/.test(dateStr)) {
+    titleEl.textContent = '';
+    titleEl.removeAttribute('title');
+    return;
+  }
+  const group =
+    state.index.filteredGroups?.find(g => g.date === dateStr) ||
+    state.index.groupedByDate?.find(g => g.date === dateStr);
+  const count = group?.entries?.length;
+  const datePart = formatDate(dateStr).full;
+  titleEl.textContent = count != null
+    ? `${datePart}  ·  ${count} items`
+    : datePart;
+  titleEl.removeAttribute('title');
+}
+
 /** Reveal note outlet chrome (embedded #note-outlet; no Dialog display semantics). */
 function showNoteOutlet(mode) {
   const outlet = document.getElementById('note-outlet');
@@ -22,6 +45,10 @@ function showNoteOutlet(mode) {
     outlet.hidden = false;
     if (mode) outlet.dataset.wbMode = mode;
   }
+  const dateHeading = document.getElementById('date-heading');
+  if (dateHeading) dateHeading.style.display = 'none';
+  const docList = document.getElementById('doc-list');
+  if (docList) docList.style.display = 'none';
   const msg = document.getElementById('note-outlet-message');
   if (msg && mode !== 'safe-empty') {
     msg.hidden = true;
@@ -255,7 +282,7 @@ export async function openDoc(entry, layer = 'raw') {
   closeCommitDialog();
 
   const body = document.getElementById('md-body');
-  document.getElementById('md-panel-title').textContent = filenameFromPath(entry.common_path).replace(/\.md$/, '');
+  setNotePanelTitle(entry);
   const activePath = getActivePath(entry, state.viewer.lang, layer);
   updateHeaderUrls(entry, layer, activePath);
   updateLangBar(entry);
@@ -499,7 +526,7 @@ function applyCreateChrome() {
     createChromePrevDisplay[id] = el.style.display;
     el.style.display = 'none';
   }
-  document.getElementById('md-panel-title').textContent = 'New note';
+  setNotePanelTitle(state.ui.activeDate || '');
   document.getElementById('md-body').style.display = 'none';
   const editArea = document.getElementById('md-edit-area');
   editArea.style.display = '';
