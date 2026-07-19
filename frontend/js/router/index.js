@@ -115,7 +115,7 @@ let noteNavDepth = 0;
  * @param {{ date?: string, note?: string, layer?: string }} [params]
  * @returns {string}
  */
-export function buildWorkbenchHash({ date, note, layer } = {}) {
+function buildWorkbenchHash({ date, note, layer } = {}) {
   const searchParams = new URLSearchParams();
   if (date) searchParams.set('date', date);
   if (note) searchParams.set('note', note);

@@ -80,6 +80,38 @@
     <div id="status"><div style="color:#8c959f;font-size:13px;">← Select a date to view documents</div></div>
     <div id="date-heading" style="display:none"></div>
     <div id="doc-list" class="doc-list"></div>
+    <div id="note-outlet" hidden>
+      <div id="md-panel" class="viewer-panel">
+        <div id="md-header" class="viewer-header">
+          <span id="md-panel-title" class="viewer-panel-title"></span>
+          <div id="md-lang-bar" class="viewer-chrome-persisted" style="display:none;flex-shrink:0;align-items:center;gap:2px;">
+            <button class="md-header-btn" id="btn-lang-en">EN</button>
+            <button class="md-header-btn" id="btn-lang-zh">ZH</button>
+          </div>
+          <span id="md-file-size" class="viewer-chrome-persisted" style="font-size:10px;color:#8c959f;flex-shrink:0;"></span>
+          <a id="md-github-link" class="viewer-chrome-persisted" href="#" target="_blank" style="font-size:12px;color:#0969da;text-decoration:none;flex-shrink:0;">GitHub ↗</a>
+          <button class="md-header-btn viewer-chrome-persisted" id="btn-goto-kb" style="display:none" title="Go to Knowledge">📚 Knowledge</button>
+          <button class="md-header-btn viewer-chrome-persisted" id="btn-open-iterm" style="display:none" title="Open repo folder in iTerm">⌨️ Terminal</button>
+          <button class="md-header-btn viewer-chrome-persisted" id="btn-copy-http" data-tip="">&#127760;</button>
+          <button class="md-header-btn viewer-chrome-persisted" id="btn-copy-path" data-tip="">&#128194;</button>
+          <button class="md-header-btn viewer-chrome-persisted" id="btn-edit">✏️ Edit</button>
+          <button class="md-header-btn viewer-chrome-persisted" id="btn-add-comment">💬 Comment</button>
+          <button class="md-header-btn primary viewer-chrome-persisted" id="btn-save" style="display:none">💾 Save</button>
+          <button class="md-header-btn viewer-chrome-persisted" id="btn-cancel-edit" style="display:none">Cancel</button>
+          <button class="md-header-btn viewer-chrome-persisted" id="btn-panel-commit" style="display:none">● Pending commit</button>
+          <button id="md-close" class="md-header-btn viewer-close">✕ Close</button>
+        </div>
+        <div id="md-commit-bar" class="viewer-commit-bar viewer-chrome-persisted"></div>
+        <div id="md-links-bar" class="viewer-chrome-persisted" style="display:none;padding:8px 20px;border-bottom:1px solid #d0d7de;display:flex;align-items:center;flex-wrap:wrap;gap:4px 0;"></div>
+        <div id="md-tags-bar" class="viewer-chrome-persisted" style="display:none;padding:8px 20px;border-bottom:1px solid #d0d7de;flex-wrap:wrap;align-items:center;gap:4px 0;"></div>
+        <div id="md-content-row" class="viewer-content-row">
+          <div id="md-body" class="viewer-body"></div>
+          <textarea id="md-edit-area" class="viewer-edit-area" style="display:none" spellcheck="false"></textarea>
+          <div id="knowledge-panel" class="ks-collapsed viewer-chrome-persisted"></div>
+          <div id="comment-float-nav" class="viewer-chrome-persisted"></div>
+        </div>
+      </div>
+    </div>
     <div id="feed-view" style="display:none;padding:20px;overflow-y:auto;height:100%;box-sizing:border-box;"></div>
   </main>
 </div>
@@ -170,39 +202,9 @@
   </div>
 </div>
 
-<!-- MD Viewer (shared view|edit|create chrome; create uses .is-create) -->
+<!-- MD Viewer shell (panel chrome relocated into #main #note-outlet; T7 removes Dialog entry) -->
 <div id="md-modal" class="viewer-modal" style="display:none">
   <div id="md-backdrop" class="viewer-backdrop"></div>
-  <div id="md-panel" class="viewer-panel">
-    <div id="md-header" class="viewer-header">
-      <span id="md-panel-title" class="viewer-panel-title"></span>
-      <div id="md-lang-bar" class="viewer-chrome-persisted" style="display:none;flex-shrink:0;align-items:center;gap:2px;">
-        <button class="md-header-btn" id="btn-lang-en">EN</button>
-        <button class="md-header-btn" id="btn-lang-zh">ZH</button>
-      </div>
-      <span id="md-file-size" class="viewer-chrome-persisted" style="font-size:10px;color:#8c959f;flex-shrink:0;"></span>
-      <a id="md-github-link" class="viewer-chrome-persisted" href="#" target="_blank" style="font-size:12px;color:#0969da;text-decoration:none;flex-shrink:0;">GitHub ↗</a>
-      <button class="md-header-btn viewer-chrome-persisted" id="btn-goto-kb" style="display:none" title="Go to Knowledge">📚 Knowledge</button>
-      <button class="md-header-btn viewer-chrome-persisted" id="btn-open-iterm" style="display:none" title="Open repo folder in iTerm">⌨️ Terminal</button>
-      <button class="md-header-btn viewer-chrome-persisted" id="btn-copy-http" data-tip="">&#127760;</button>
-      <button class="md-header-btn viewer-chrome-persisted" id="btn-copy-path" data-tip="">&#128194;</button>
-      <button class="md-header-btn viewer-chrome-persisted" id="btn-edit">✏️ Edit</button>
-      <button class="md-header-btn viewer-chrome-persisted" id="btn-add-comment">💬 Comment</button>
-      <button class="md-header-btn primary viewer-chrome-persisted" id="btn-save" style="display:none">💾 Save</button>
-      <button class="md-header-btn viewer-chrome-persisted" id="btn-cancel-edit" style="display:none">Cancel</button>
-      <button class="md-header-btn viewer-chrome-persisted" id="btn-panel-commit" style="display:none">● Pending commit</button>
-      <button id="md-close" class="md-header-btn viewer-close">✕ Close</button>
-    </div>
-    <div id="md-commit-bar" class="viewer-commit-bar viewer-chrome-persisted"></div>
-    <div id="md-links-bar" class="viewer-chrome-persisted" style="display:none;padding:8px 20px;border-bottom:1px solid #d0d7de;display:flex;align-items:center;flex-wrap:wrap;gap:4px 0;"></div>
-    <div id="md-tags-bar" class="viewer-chrome-persisted" style="display:none;padding:8px 20px;border-bottom:1px solid #d0d7de;flex-wrap:wrap;align-items:center;gap:4px 0;"></div>
-    <div id="md-content-row" class="viewer-content-row">
-      <div id="md-body" class="viewer-body"></div>
-      <textarea id="md-edit-area" class="viewer-edit-area" style="display:none" spellcheck="false"></textarea>
-      <div id="knowledge-panel" class="ks-collapsed viewer-chrome-persisted"></div>
-      <div id="comment-float-nav" class="viewer-chrome-persisted"></div>
-    </div>
-  </div>
 </div>
 
 <!-- Floating highlight button -->
