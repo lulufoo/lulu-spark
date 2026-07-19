@@ -94,7 +94,7 @@ describe('workbench-search module', () => {
     expect(apiMocks.searchWorkbench).toHaveBeenCalledWith('topic-name', 8);
   });
 
-  it('hit click dispatches cta:open-entry with common_path', async () => {
+  it('hit click dispatches cta:open-entry with common_path and data-layer', async () => {
     apiMocks.searchWorkbench.mockResolvedValue({
       hits: [{
         title: 'Entry',
@@ -123,6 +123,7 @@ describe('workbench-search module', () => {
     expect(handler).toHaveBeenCalledTimes(1);
     expect(handler.mock.calls[0][0].detail).toEqual({
       common_path: '2024/01/entry.md',
+      layer: 'raw',
     });
   });
 

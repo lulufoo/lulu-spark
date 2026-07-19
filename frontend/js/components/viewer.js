@@ -603,8 +603,6 @@ async function finalizeCreateSession() {
   } catch (e) {
     session.status = 'creating';
     showNoteOutlet('create');
-    const modal = document.getElementById('md-modal');
-    if (modal) modal.style.display = 'none';
     alert(`Save failed: ${e.message}`);
   }
 }

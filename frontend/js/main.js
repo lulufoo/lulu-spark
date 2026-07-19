@@ -15,7 +15,7 @@ import './components/modals/move-dialog.js'
 import { openBase64Dialog } from './components/modals/base64-dialog.js'
 import { openQrDialog } from './components/modals/qr-dialog.js'
 import { openSettingsDialog } from './components/modals/settings-dialog.js'
-import { initRouter, navigate } from './router/index.js'
+import { initRouter, navigate, navigateToNote } from './router/index.js'
 import { mountReadLaterAssistantWidget } from './read-later-assistant.js'
 import { mountPlanTaskAssistantWidget } from './plan-task-assistant.js'
 import { mountNoteAssistantWidget } from './note-assistant.js'
@@ -856,6 +856,7 @@ function mountWorkbench(route) {
     if (!entry) entry = allEntries.find((e) => e.translations?.zh === notePath);
     if (entry) {
       activateOutlet('open', { note: entry.common_path, layer });
+      void openDoc(entry, layer);
     } else {
       activateOutlet('safe-empty', {
         note: notePath,
@@ -945,6 +946,9 @@ function openCreateNoteFromFab(opts = {}) {
     (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
       ? crypto.randomUUID()
       : `note-${Date.now()}`);
+  // Create shares micro-route authority with open: location omits note.
+  const date = state.ui?.activeDate || '';
+  navigate(date ? `#/workbench?date=${encodeURIComponent(date)}` : '#/workbench');
   return openCreateNote({ temp_id });
 }
 
@@ -1029,10 +1033,15 @@ document.addEventListener('cta:open-entry', ({ detail }) => {
   // stale Meilisearch index). Resolve it to the main entry via translations.zh.
   if (!entry) entry = allEntries.find(e => e.translations?.zh === detail.common_path)
   if (!entry) return
-  const layer = detail.layer || entry.layers?.[0] || 'raw'
-  const date = entry.created_at ? entry.created_at.slice(0, 8) : null
+  const date = entry.created_at
+    ? entry.created_at.slice(0, 8)
+    : (state.ui?.activeDate || '')
+  if (!date) return
   if (date) selectDate(date)
-  openDoc(entry, layer)
+  // Optional layer only when entry synthesizes one; consumer defaults when absent.
+  const params = { date, note: entry.common_path }
+  if (detail.layer) params.layer = detail.layer
+  navigateToNote(params)
 });
 
 document.addEventListener('cta:open-kb-doc', ({ detail }) => {

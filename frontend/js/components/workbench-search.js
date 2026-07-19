@@ -235,7 +235,10 @@ function _show(dropdown, html) {
     el.addEventListener('click', () => {
       const cp = el.dataset.commonPath
       if (cp) {
-        document.dispatchEvent(new CustomEvent('cta:open-entry', { detail: { common_path: cp } }))
+        const detail = { common_path: cp }
+        const layer = el.dataset.layer
+        if (layer) detail.layer = layer
+        document.dispatchEvent(new CustomEvent('cta:open-entry', { detail }))
       }
       const input = document.getElementById('gs-wb-input')
       _addHistory(_normalizeQuery(input?.value || ''))

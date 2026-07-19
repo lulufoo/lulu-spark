@@ -210,6 +210,7 @@ function compileMountWorkbench(env) {
     'unmountHomeHub',
     'state',
     'selectDate',
+    'openDoc',
   ];
   const brace = fnSource.indexOf('{');
   const body = fnSource.slice(brace + 1, fnSource.lastIndexOf('}'));
@@ -224,6 +225,7 @@ function compileMountWorkbench(env) {
 
 function stubWorkbenchMountEnv(overrides = {}) {
   const selectDate = vi.fn();
+  const openDoc = vi.fn(async () => {});
   const state = {
     ui: { activeDate: null, ...(overrides.state?.ui || {}) },
     index: { data: null, ...(overrides.state?.index || {}) },
@@ -241,6 +243,7 @@ function stubWorkbenchMountEnv(overrides = {}) {
     unmountPlanTaskSplit: null,
     unmountHomeHub: null,
     selectDate,
+    openDoc,
     state,
   };
 }
