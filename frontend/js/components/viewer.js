@@ -13,17 +13,22 @@ import { initMermaid, renderMermaidBlocks } from '../mermaid-render.js'
 import { openKbDoc, saveKbDoc } from './kb-viewer.js'
 export { openKbDoc }
 import { mountKnowledgeSearch, triggerKnowledgeSearch } from './knowledge-search.js'
-import { navigateToNote } from '../router/index.js'
+import { navigateToNote, navigateBackToList, parseHash } from '../router/index.js'
 
-/** Reveal note outlet chrome; never use #md-modal display:flex as public open semantics. */
+/** Reveal note outlet chrome (embedded #note-outlet; no Dialog display semantics). */
 function showNoteOutlet(mode) {
   const outlet = document.getElementById('note-outlet');
   if (outlet) {
     outlet.hidden = false;
     if (mode) outlet.dataset.wbMode = mode;
   }
-  const modal = document.getElementById('md-modal');
-  if (modal) modal.style.display = 'none';
+  const msg = document.getElementById('note-outlet-message');
+  if (msg && mode !== 'safe-empty') {
+    msg.hidden = true;
+    msg.textContent = '';
+  }
+  const panel = document.getElementById('md-panel');
+  if (panel && mode !== 'safe-empty') panel.hidden = false;
 }
 
 function hideNoteOutlet() {
@@ -34,8 +39,6 @@ function hideNoteOutlet() {
     delete outlet.dataset.note;
     delete outlet.dataset.layer;
   }
-  const modal = document.getElementById('md-modal');
-  if (modal) modal.style.display = 'none';
 }
 
 // ── Pending-commit badge ─────────────────────────────────────────────────────
@@ -514,12 +517,21 @@ function clearCreateChrome() {
   }
 }
 
-function dismissViewerModal() {
+function locationDate() {
+  const route = parseHash();
+  return route.params?.date || state.ui.activeDate || '';
+}
+
+/** @param {{ navigate?: boolean }} [opts] navigate=false keeps AC-10 empty-create hash stable until T10 retires it */
+function dismissViewerModal({ navigate = true } = {}) {
   clearCreateChrome();
   hideNoteOutlet();
   document.body.style.overflow = '';
   exitEditMode(false);
   closeCommitDialog();
+  if (navigate) {
+    navigateBackToList({ date: locationDate() });
+  }
 }
 
 /**
@@ -566,8 +578,6 @@ export async function openCreateNote({ temp_id } = {}) {
       outlet.hidden = prevHidden;
       outlet.dataset.wbMode = prevMode;
     }
-    const modal = document.getElementById('md-modal');
-    if (modal) modal.style.display = 'none';
     const msg = e instanceof Error ? e.message : String(e);
     alert(`Could not open new note: ${msg}`);
   }
@@ -583,7 +593,8 @@ async function finalizeCreateSession() {
   if (!trimmed) {
     await api.clearNoteDraft(session.tempId);
     state.viewer.createSession = null;
-    dismissViewerModal();
+    // Empty create exit: hide outlet only — do not mutate hash (legacy AC-10 until T10).
+    dismissViewerModal({ navigate: false });
     return;
   }
 
@@ -595,7 +606,7 @@ async function finalizeCreateSession() {
     await api.clearNoteDraft(session.tempId);
     state.viewer.createSession = null;
     clearCreateChrome();
-    const date = state.ui.activeDate || '';
+    const date = locationDate();
     if (commonPath && date) {
       navigateToNote({ date, note: commonPath });
     }
@@ -612,11 +623,10 @@ export async function closeModal() {
     await finalizeCreateSession();
     return;
   }
-  dismissViewerModal();
+  dismissViewerModal({ navigate: true });
 }
 
 document.getElementById('md-close').addEventListener('click', () => { void closeModal(); });
-document.getElementById('md-backdrop')?.addEventListener('click', () => { void closeModal(); });
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') {
     // Don't close modal if comment dialog is open — let it handle ESC itself

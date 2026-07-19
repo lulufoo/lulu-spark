@@ -3252,42 +3252,56 @@
     color: #fff;
   }
 
-  /* ── MD Viewer Panel ── */
-  .viewer-modal {
-    position: fixed;
-    inset: 0;
-    z-index: 1000;
+  /* ── MD Viewer Panel (embedded in #note-outlet; Dialog overlay retired) ── */
+  #note-outlet {
     display: flex;
-    align-items: center;
-    justify-content: center;
-    background: rgba(0,0,0,.45);
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+  }
+  #note-outlet[hidden] {
+    display: none !important;
+  }
+  .note-outlet-message {
+    padding: 16px 20px;
+    color: #57606a;
+    font-size: 13px;
   }
   /* create chrome: hide persisted entry chrome; keep close + body editor */
+  /* .viewer-modal.is-create kept as alias until T10 retires Dialog AC-gate */
+  #note-outlet.is-create .viewer-chrome-persisted,
   .viewer-modal.is-create .viewer-chrome-persisted {
     display: none !important;
   }
+  #note-outlet.is-create #md-body,
   .viewer-modal.is-create #md-body {
     display: none !important;
   }
+  #note-outlet.is-create #md-edit-area,
   .viewer-modal.is-create #md-edit-area {
     display: block !important;
   }
-  .viewer-backdrop {
-    position: fixed;
-    inset: 0;
-    cursor: pointer;
-  }
-  .viewer-panel {
+  #note-outlet .viewer-panel {
     position: relative;
     z-index: 1;
-    width: min(1180px, 92vw);
-    height: 100vh;
+    width: 100%;
+    height: 100%;
     background: #fff;
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    box-shadow: 0 8px 40px rgba(0,0,0,.25);
-    border-radius: 8px;
+    box-shadow: none;
+    border-radius: 0;
+  }
+  .viewer-panel {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    height: 100%;
+    background: #fff;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
   }
   .viewer-header {
     display: flex;

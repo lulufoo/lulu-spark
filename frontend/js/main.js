@@ -825,7 +825,6 @@ function mountWorkbench(route) {
   const date = params.date || '';
   const layer = params.layer || 'raw';
   const creating = !!state.viewer?.createSession;
-  const modal = document.getElementById('md-modal');
 
   const ensureOutlet = () => {
     let outlet = document.getElementById('note-outlet');
@@ -833,6 +832,11 @@ function mountWorkbench(route) {
     outlet = document.createElement('div');
     outlet.id = 'note-outlet';
     outlet.hidden = true;
+    const msg = document.createElement('div');
+    msg.id = 'note-outlet-message';
+    msg.className = 'note-outlet-message';
+    msg.hidden = true;
+    outlet.appendChild(msg);
     document.getElementById('main')?.appendChild(outlet);
     return outlet;
   };
@@ -840,14 +844,31 @@ function mountWorkbench(route) {
   const activateOutlet = (mode, { note, layer: lyr, message = '' } = {}) => {
     const outlet = ensureOutlet();
     if (docList) docList.style.display = 'none';
-    if (modal) modal.style.display = 'none';
     outlet.hidden = false;
     outlet.dataset.wbMode = mode;
     if (note) outlet.dataset.note = note;
     else delete outlet.dataset.note;
     if (lyr) outlet.dataset.layer = lyr;
     else delete outlet.dataset.layer;
-    outlet.textContent = message;
+
+    // Preserve #md-panel chrome — never wipe via textContent.
+    let msgEl = document.getElementById('note-outlet-message');
+    if (!msgEl) {
+      msgEl = document.createElement('div');
+      msgEl.id = 'note-outlet-message';
+      msgEl.className = 'note-outlet-message';
+      outlet.prepend(msgEl);
+    }
+    const panel = document.getElementById('md-panel');
+    if (message) {
+      msgEl.hidden = false;
+      msgEl.textContent = message;
+      if (panel) panel.hidden = true;
+    } else {
+      msgEl.hidden = true;
+      msgEl.textContent = '';
+      if (panel) panel.hidden = false;
+    }
   };
 
   if (notePath) {
@@ -875,10 +896,17 @@ function mountWorkbench(route) {
   if (outlet) {
     outlet.hidden = true;
     outlet.dataset.wbMode = '';
-    outlet.textContent = '';
+    delete outlet.dataset.note;
+    delete outlet.dataset.layer;
   }
+  const msgEl = document.getElementById('note-outlet-message');
+  if (msgEl) {
+    msgEl.hidden = true;
+    msgEl.textContent = '';
+  }
+  const panel = document.getElementById('md-panel');
+  if (panel) panel.hidden = false;
   if (docList) docList.style.display = '';
-  if (modal) modal.style.display = 'none';
   if (date && typeof selectDate === 'function') selectDate(date);
 }
 
