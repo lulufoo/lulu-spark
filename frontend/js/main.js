@@ -837,37 +837,36 @@ function mountWorkbench(route) {
     return outlet;
   };
 
-  if (notePath) {
-    const allEntries = Object.values(state.index?.data || {});
-    let entry = allEntries.find((e) => e.common_path === notePath);
-    if (!entry) entry = allEntries.find((e) => e.translations?.zh === notePath);
+  const activateOutlet = (mode, { note, layer: lyr, message = '' } = {}) => {
     const outlet = ensureOutlet();
     if (docList) docList.style.display = 'none';
     if (modal) modal.style.display = 'none';
     outlet.hidden = false;
+    outlet.dataset.wbMode = mode;
+    if (note) outlet.dataset.note = note;
+    else delete outlet.dataset.note;
+    if (lyr) outlet.dataset.layer = lyr;
+    else delete outlet.dataset.layer;
+    outlet.textContent = message;
+  };
+
+  if (notePath) {
+    const allEntries = Object.values(state.index?.data || {});
+    let entry = allEntries.find((e) => e.common_path === notePath);
+    if (!entry) entry = allEntries.find((e) => e.translations?.zh === notePath);
     if (entry) {
-      outlet.dataset.wbMode = 'open';
-      outlet.dataset.note = entry.common_path;
-      outlet.dataset.layer = layer;
-      outlet.textContent = '';
+      activateOutlet('open', { note: entry.common_path, layer });
     } else {
-      outlet.dataset.wbMode = 'safe-empty';
-      outlet.dataset.note = notePath;
-      delete outlet.dataset.layer;
-      outlet.textContent = `Note not found: ${notePath}`;
+      activateOutlet('safe-empty', {
+        note: notePath,
+        message: `Note not found: ${notePath}`,
+      });
     }
     return;
   }
 
   if (creating) {
-    const outlet = ensureOutlet();
-    if (docList) docList.style.display = 'none';
-    if (modal) modal.style.display = 'none';
-    outlet.hidden = false;
-    outlet.dataset.wbMode = 'create';
-    delete outlet.dataset.note;
-    delete outlet.dataset.layer;
-    outlet.textContent = '';
+    activateOutlet('create');
     return;
   }
 

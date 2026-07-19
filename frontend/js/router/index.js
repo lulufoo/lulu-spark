@@ -107,3 +107,68 @@ export function initRouter(handlers, options = {}) {
 export function navigate(hash) {
   window.location.hash = hash;
 }
+
+/** Tracks list→note pushes so exit can prefer history.back. */
+let noteNavDepth = 0;
+
+/**
+ * @param {{ date?: string, note?: string, layer?: string }} [params]
+ * @returns {string}
+ */
+export function buildWorkbenchHash({ date, note, layer } = {}) {
+  const searchParams = new URLSearchParams();
+  if (date) searchParams.set('date', date);
+  if (note) searchParams.set('note', note);
+  if (layer) searchParams.set('layer', layer);
+  const qs = searchParams.toString();
+  return qs ? `#/workbench?${qs}` : '#/workbench';
+}
+
+/**
+ * List→note: write date+note(+optional layer) via navigate (browser history).
+ * Failure: leave location unchanged (stay list / safe empty).
+ * @param {{ date?: string, note?: string, layer?: string }} [params]
+ * @returns {boolean}
+ */
+export function navigateToNote({ date, note, layer } = {}) {
+  if (!date || !note) return false;
+  try {
+    navigate(buildWorkbenchHash({ date, note, layer }));
+    noteNavDepth += 1;
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Exit note / create: prefer history.back when a list→note push is available;
+ * otherwise strip note and keep date. May mutate hash (exit-must-not-change-hash abolished).
+ * Create-in-progress: call onClearCreate, land on list without writing a temp note.
+ * @param {{ date?: string, onClearCreate?: () => void }} [options]
+ */
+export function navigateBackToList({ date, onClearCreate } = {}) {
+  if (typeof onClearCreate === 'function') {
+    onClearCreate();
+  }
+
+  const route = parseHash();
+  const resolvedDate = date || route.params?.date || '';
+  const hasNote = Boolean(route.params?.note);
+
+  const canHistoryBack =
+    hasNote &&
+    noteNavDepth > 0 &&
+    typeof window !== 'undefined' &&
+    typeof window.history?.back === 'function' &&
+    (window.history.length ?? 0) > 1;
+
+  if (canHistoryBack) {
+    noteNavDepth -= 1;
+    window.history.back();
+    return;
+  }
+
+  noteNavDepth = 0;
+  navigate(buildWorkbenchHash({ date: resolvedDate }));
+}

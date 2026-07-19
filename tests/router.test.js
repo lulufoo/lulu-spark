@@ -4,6 +4,8 @@ import {
   initRouter,
   navigate,
   normalizeHash,
+  navigateToNote,
+  navigateBackToList,
 } from '../frontend/js/router/index.js';
 
 describe('parseHash', () => {
@@ -461,3 +463,132 @@ describe('read-later route navigation', () => {
     expect(handlers['read-later']).not.toHaveBeenCalled();
   });
 });
+
+describe('navigateToNote / navigateBackToList (T3)', () => {
+  let hashValue;
+  let listeners;
+  let historyBack;
+  let historyStack;
+
+  beforeEach(() => {
+    hashValue = '#/workbench?date=20260719';
+    listeners = {};
+    historyStack = [hashValue];
+    historyBack = vi.fn(() => {
+      if (historyStack.length > 1) {
+        historyStack.pop();
+        hashValue = historyStack[historyStack.length - 1];
+        listeners.popstate?.();
+      }
+    });
+    vi.stubGlobal('window', {
+      addEventListener(type, fn) {
+        listeners[type] = fn;
+      },
+      history: {
+        get length() {
+          return historyStack.length;
+        },
+        back: historyBack,
+      },
+      location: {
+        get hash() {
+          return hashValue;
+        },
+        set hash(value) {
+          hashValue = value;
+          historyStack.push(value);
+          listeners.hashchange?.();
+        },
+        replace(value) {
+          const idx = value.indexOf('#');
+          hashValue = idx >= 0 ? value.slice(idx) : value;
+          historyStack[historyStack.length - 1] = hashValue;
+          listeners.hashchange?.();
+        },
+      },
+    });
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('list→note writes #/workbench?date=&note= (+optional layer) via navigate history', () => {
+    navigateToNote({
+      date: '20260719',
+      note: 'inbox/notes/x.md',
+      layer: 'raw',
+    });
+    expect(hashValue).toBe(
+      '#/workbench?date=20260719&note=inbox%2Fnotes%2Fx.md&layer=raw',
+    );
+    expect(historyStack.length).toBeGreaterThan(1);
+    expect(parseHash(hashValue)).toEqual({
+      name: 'workbench',
+      params: {
+        date: '20260719',
+        note: 'inbox/notes/x.md',
+        layer: 'raw',
+      },
+    });
+  });
+
+  it('list→note without layer omits layer query', () => {
+    navigateToNote({ date: '20260719', note: 'inbox/notes/x.md' });
+    expect(hashValue).toBe('#/workbench?date=20260719&note=inbox%2Fnotes%2Fx.md');
+    expect(parseHash(hashValue).params).not.toHaveProperty('layer');
+  });
+
+  it('back prefers history.back between list↔note', () => {
+    navigateToNote({ date: '20260719', note: 'inbox/notes/x.md' });
+    expect(hashValue).toContain('note=');
+    navigateBackToList({ date: '20260719' });
+    expect(historyBack).toHaveBeenCalledTimes(1);
+    expect(hashValue).toBe('#/workbench?date=20260719');
+    expect(parseHash(hashValue).params).not.toHaveProperty('note');
+  });
+
+  it('without usable history, exit strips note and keeps date', () => {
+    hashValue = '#/workbench?date=20260719&note=inbox%2Fnotes%2Fx.md';
+    historyStack = [hashValue];
+    navigateBackToList({ date: '20260719' });
+    expect(historyBack).not.toHaveBeenCalled();
+    expect(hashValue).toBe('#/workbench?date=20260719');
+    expect(parseHash(hashValue)).toEqual({
+      name: 'workbench',
+      params: { date: '20260719' },
+    });
+  });
+
+  it('create-in-progress back/close clears create local state and lands on list without temp note', () => {
+    hashValue = '#/workbench?date=20260719';
+    historyStack = [hashValue];
+    const clearCreate = vi.fn();
+    navigateBackToList({ date: '20260719', onClearCreate: clearCreate });
+    expect(clearCreate).toHaveBeenCalledTimes(1);
+    expect(hashValue).toBe('#/workbench?date=20260719');
+    expect(parseHash(hashValue).params).not.toHaveProperty('note');
+    expect(historyBack).not.toHaveBeenCalled();
+  });
+
+  it('navigate failure stays on list / safe empty — does not write half-open note location', () => {
+    const before = hashValue;
+    navigateToNote({ date: '20260719' }); // missing note
+    expect(hashValue).toBe(before);
+    expect(parseHash(hashValue).params).not.toHaveProperty('note');
+
+    navigateToNote({ note: 'inbox/notes/x.md' }); // missing date
+    expect(hashValue).toBe(before);
+  });
+
+  it('exit/back is allowed to mutate hash (abolishes exit-must-not-change-hash)', () => {
+    hashValue = '#/workbench?date=20260719&note=inbox%2Fnotes%2Fx.md';
+    historyStack = [hashValue];
+    const before = hashValue;
+    navigateBackToList({ date: '20260719' });
+    expect(hashValue).not.toBe(before);
+    expect(hashValue).toBe('#/workbench?date=20260719');
+  });
+});
+
