@@ -11,6 +11,45 @@ describe('parseHash', () => {
     expect(parseHash('#/workbench')).toEqual({ name: 'workbench', params: {} });
   });
 
+  it('parses #/workbench?date=&note=&layer= query params', () => {
+    expect(
+      parseHash('#/workbench?date=20260719&note=inbox/notes/x.md&layer=raw'),
+    ).toEqual({
+      name: 'workbench',
+      params: {
+        date: '20260719',
+        note: 'inbox/notes/x.md',
+        layer: 'raw',
+      },
+    });
+  });
+
+  it('parses #/workbench with only date query', () => {
+    expect(parseHash('#/workbench?date=20260719')).toEqual({
+      name: 'workbench',
+      params: { date: '20260719' },
+    });
+  });
+
+  it('parses #/workbench with date and note but no layer', () => {
+    const result = parseHash('#/workbench?date=20260719&note=inbox/notes/x.md');
+    expect(result).toEqual({
+      name: 'workbench',
+      params: {
+        date: '20260719',
+        note: 'inbox/notes/x.md',
+      },
+    });
+    expect(result.params).not.toHaveProperty('layer');
+  });
+
+  it('does not fabricate note id when note and layer are absent', () => {
+    const result = parseHash('#/workbench?date=20260719');
+    expect(result.name).toBe('workbench');
+    expect(result.params).not.toHaveProperty('note');
+    expect(result.params).not.toHaveProperty('layer');
+  });
+
   it('parses #/corpus as empty repo corpus-doc', () => {
     expect(parseHash('#/corpus')).toEqual({ name: 'corpus-doc', params: { repo: '' } });
   });
@@ -306,6 +345,22 @@ describe('Phase2 fallback (default #/home)', () => {
     initRouter(handlers);
     expect(hashValue).toBe('#/home');
     expect(handlers.home).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not replace #/workbench?… to #/home', () => {
+    hashValue = '#/workbench?date=20260719&note=inbox/notes/x.md&layer=raw';
+    initRouter(handlers);
+    expect(hashValue).toBe('#/workbench?date=20260719&note=inbox/notes/x.md&layer=raw');
+    expect(handlers.workbench).toHaveBeenCalledTimes(1);
+    expect(handlers.workbench).toHaveBeenCalledWith({
+      name: 'workbench',
+      params: {
+        date: '20260719',
+        note: 'inbox/notes/x.md',
+        layer: 'raw',
+      },
+    });
+    expect(handlers.home).not.toHaveBeenCalled();
   });
 
   it.each(['#', '#/'])('hash %s falls back to #/home via normalizeHash', (hash) => {

@@ -16,7 +16,23 @@ export function parseHash(hash) {
   if (!path) return { name: 'unknown', params: {} };
   if (path === 'home') return { name: 'home', params: {} };
   if (path === 'read-later') return { name: 'read-later', params: {} };
-  if (path === 'workbench') return { name: 'workbench', params: {} };
+  if (path === 'workbench' || path.startsWith('workbench?')) {
+    const queryString = path.includes('?') ? path.slice(path.indexOf('?') + 1) : '';
+    const params = {};
+    if (queryString) {
+      const searchParams = new URLSearchParams(queryString);
+      if (searchParams.has('date')) {
+        params.date = searchParams.get('date') ?? '';
+      }
+      if (searchParams.has('note')) {
+        params.note = searchParams.get('note') ?? '';
+      }
+      if (searchParams.has('layer')) {
+        params.layer = searchParams.get('layer') ?? '';
+      }
+    }
+    return { name: 'workbench', params };
+  }
 
   if (path === 'plan-tasks' || path.startsWith('plan-tasks?')) {
     const queryString = path.includes('?') ? path.slice(path.indexOf('?') + 1) : '';
