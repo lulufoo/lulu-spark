@@ -790,7 +790,7 @@ function mountPlanTasksRoute(route) {
   unmountPlanTaskSplit = mounted.unmount;
 }
 
-function mountWorkbench() {
+function mountWorkbench(route) {
   clearHeaderSyncCorpusContext();
   unmountHomeHub?.();
   unmountHomeHub = null;
@@ -819,6 +819,67 @@ function mountWorkbench() {
     if (dateHeading) dateHeading.style.display = 'none';
     if (docList) docList.style.display = '';
   }
+
+  const params = route?.params || {};
+  const notePath = params.note || '';
+  const date = params.date || '';
+  const layer = params.layer || 'raw';
+  const creating = !!state.viewer?.createSession;
+  const modal = document.getElementById('md-modal');
+
+  const ensureOutlet = () => {
+    let outlet = document.getElementById('note-outlet');
+    if (outlet) return outlet;
+    outlet = document.createElement('div');
+    outlet.id = 'note-outlet';
+    outlet.hidden = true;
+    document.getElementById('main')?.appendChild(outlet);
+    return outlet;
+  };
+
+  if (notePath) {
+    const allEntries = Object.values(state.index?.data || {});
+    let entry = allEntries.find((e) => e.common_path === notePath);
+    if (!entry) entry = allEntries.find((e) => e.translations?.zh === notePath);
+    const outlet = ensureOutlet();
+    if (docList) docList.style.display = 'none';
+    if (modal) modal.style.display = 'none';
+    outlet.hidden = false;
+    if (entry) {
+      outlet.dataset.wbMode = 'open';
+      outlet.dataset.note = entry.common_path;
+      outlet.dataset.layer = layer;
+      outlet.textContent = '';
+    } else {
+      outlet.dataset.wbMode = 'safe-empty';
+      outlet.dataset.note = notePath;
+      delete outlet.dataset.layer;
+      outlet.textContent = `Note not found: ${notePath}`;
+    }
+    return;
+  }
+
+  if (creating) {
+    const outlet = ensureOutlet();
+    if (docList) docList.style.display = 'none';
+    if (modal) modal.style.display = 'none';
+    outlet.hidden = false;
+    outlet.dataset.wbMode = 'create';
+    delete outlet.dataset.note;
+    delete outlet.dataset.layer;
+    outlet.textContent = '';
+    return;
+  }
+
+  const outlet = document.getElementById('note-outlet');
+  if (outlet) {
+    outlet.hidden = true;
+    outlet.dataset.wbMode = '';
+    outlet.textContent = '';
+  }
+  if (docList) docList.style.display = '';
+  if (modal) modal.style.display = 'none';
+  if (date && typeof selectDate === 'function') selectDate(date);
 }
 
 document.getElementById('btn-settings').addEventListener('click', () => {
@@ -860,7 +921,7 @@ initSidebarResize();
 loadIndex();
 
 initRouter({
-  workbench: wrapRouteMount('workbench', () => mountWorkbench()),
+  workbench: wrapRouteMount('workbench', (route) => mountWorkbench(route)),
   home: wrapRouteMount('home', mountHomeRoute),
   'corpus-doc': wrapRouteMount('corpus-doc', mountCorpusDocRoute),
   'read-later': wrapRouteMount('read-later', mountReadLaterRoute),
