@@ -1,5 +1,5 @@
-// Node environment — document stub + mocked viewer deps (same pattern as viewer-commit-dialog)
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+// Node environment — document stub + mocked viewer deps (T5: openDoc/openCreateNote → note outlet)
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 const { elements, makeEl, locationStub, navigateToNoteMock } = vi.hoisted(() => {
   const elements = {};
@@ -67,12 +67,12 @@ const { elements, makeEl, locationStub, navigateToNoteMock } = vi.hoisted(() => 
 });
 
 vi.mock('../frontend/js/api.js', () => ({
-  fetchFileContent: vi.fn().mockResolvedValue('# Test'),
+  fetchFileContent: vi.fn().mockResolvedValue('# Hello note\n\nbody'),
   fetchAnnotation: vi.fn().mockResolvedValue({}),
   fetchDiffStatus: vi.fn().mockResolvedValue({
     new: [], modified: [], deleted: [], renamed: [], conflicted: [], total: 0, ahead: 0,
   }),
-  saveFile: vi.fn(),
+  saveFile: vi.fn().mockResolvedValue({ ok: true }),
   commitFiles: vi.fn().mockResolvedValue({ ok: true }),
   revertFile: vi.fn().mockResolvedValue({ ok: true }),
   archiveDocument: vi.fn().mockResolvedValue({
@@ -124,31 +124,17 @@ vi.mock('../frontend/js/router/index.js', async () => {
   };
 });
 
-import { openCreateNote, closeModal, openDoc } from '../frontend/js/components/viewer.js';
+import {
+  openCreateNote,
+  openDoc,
+  closeModal,
+  enterEditMode,
+  saveDoc,
+} from '../frontend/js/components/viewer.js';
 import * as api from '../frontend/js/api.js';
 import { state } from '../frontend/js/state.js';
 
-const CREATE_CHROME_HIDDEN_IDS = [
-  'btn-edit',
-  'btn-add-comment',
-  'btn-save',
-  'btn-cancel-edit',
-  'btn-panel-commit',
-  'md-github-link',
-  'md-lang-bar',
-  'md-file-size',
-  'md-links-bar',
-  'md-tags-bar',
-  'knowledge-panel',
-  'btn-copy-http',
-  'btn-copy-path',
-  'btn-goto-kb',
-  'btn-open-iterm',
-  'comment-float-nav',
-  'md-commit-bar',
-];
-
-function resetViewerDom() {
+function resetDom() {
   for (const id of [
     'note-outlet', 'md-modal', 'md-body', 'md-edit-area', 'md-panel-title', 'md-close', 'md-backdrop',
     'md-commit-dialog', 'comment-dialog', 'btn-edit', 'btn-add-comment', 'btn-save',
@@ -166,6 +152,7 @@ function resetViewerDom() {
       : '';
     el.value = '';
     el.textContent = '';
+    el.innerHTML = '';
     el.classList._set.clear();
     el.dataset = {};
     if (id === 'note-outlet') el.hidden = true;
@@ -177,6 +164,7 @@ function resetViewerDom() {
   state.viewer.entry = null;
   state.viewer.rawText = '';
   state.viewer.createSession = null;
+  state.index.diffStatus = new Map();
   vi.clearAllMocks();
   api.archiveDocument.mockResolvedValue({
     ok: true,
@@ -186,85 +174,75 @@ function resetViewerDom() {
   api.saveNoteDraft.mockResolvedValue({ ok: true });
   api.clearNoteDraft.mockResolvedValue({ ok: true });
   api.getNoteDraft.mockResolvedValue({ content: '' });
+  api.fetchFileContent.mockResolvedValue('# Hello note\n\nbody');
+  api.saveFile.mockResolvedValue({ ok: true });
   navigateToNoteMock.mockReturnValue(true);
   globalThis.alert.mockClear();
-  document.dispatchEvent.mockClear();
 }
 
-describe('openCreateNote', () => {
+describe('T5 openDoc mounts into note outlet (not md-modal flex)', () => {
   beforeEach(() => {
-    resetViewerDom();
+    resetDom();
   });
 
-  it('enters create session bound to drafts/notes/<temp_id>', async () => {
-    await openCreateNote({ temp_id: 'tmp-abc' });
+  it('openDoc reveals #note-outlet and keeps #md-modal display none', async () => {
+    const entry = {
+      common_path: 'inbox/notes/demo.md',
+      created_at: '20260710120000',
+      translations: {},
+    };
+
+    await openDoc(entry, 'raw');
 
     expect(makeEl('note-outlet').hidden).toBe(false);
+    expect(makeEl('md-modal').style.display).not.toBe('flex');
     expect(makeEl('md-modal').style.display).toBe('none');
+    expect(makeEl('md-panel-title').textContent).toBe('demo');
+    expect(state.viewer.entry).toEqual(entry);
+  });
+
+  it('enterEditMode / saveDoc bind the same chrome tree ids after openDoc', async () => {
+    const entry = {
+      common_path: 'inbox/notes/edit-me.md',
+      created_at: '20260710120000',
+      translations: {},
+    };
+    await openDoc(entry, 'raw');
+
+    enterEditMode();
     expect(makeEl('md-edit-area').style.display).not.toBe('none');
-    expect(api.saveNoteDraft).toHaveBeenCalledWith('tmp-abc', expect.any(String));
-    expect(state.viewer.createSession?.tempId).toBe('tmp-abc');
-    expect(state.viewer.createSession?.status).toBe('creating');
-    expect(state.viewer.entry).toBeNull();
-  });
+    expect(makeEl('btn-save').style.display).not.toBe('none');
+    expect(makeEl('md-body').style.display).toBe('none');
 
-  it('applies create chrome: body-only, no shell-field controls', async () => {
-    await openCreateNote({ temp_id: 'tmp-chrome' });
+    makeEl('md-edit-area').value = '# Edited\n';
+    await saveDoc();
 
-    for (const id of CREATE_CHROME_HIDDEN_IDS) {
-      expect(makeEl(id).style.display, id).toBe('none');
-    }
-    // No source_type / topic / H1 / 创建时间 controls in create chrome
-    expect(document.querySelector('#create-source-type')).toBeNull();
-    expect(document.querySelector('#create-topic')).toBeNull();
-    expect(document.querySelector('#create-h1')).toBeNull();
-    expect(document.querySelector('#create-created-at')).toBeNull();
-    expect(makeEl('note-outlet').classList.contains('is-create')).toBe(true);
-    // Close stays available (not in hide list)
-    expect(makeEl('md-close').style.display).not.toBe('none');
-  });
-
-  it('restores persisted chrome display when create session is cleared', async () => {
-    makeEl('btn-copy-http').style.display = '';
-    makeEl('btn-copy-path').style.display = '';
-    await openCreateNote({ temp_id: 'tmp-restore' });
-    expect(makeEl('btn-copy-http').style.display).toBe('none');
-    await closeModal();
-    expect(makeEl('note-outlet').classList.contains('is-create')).toBe(false);
-    expect(makeEl('btn-copy-http').style.display).toBe('');
-    expect(makeEl('btn-copy-path').style.display).toBe('');
-  });
-
-  it('reuses the same viewer chrome tree (no second editor route)', async () => {
-    await openCreateNote({ temp_id: 'tmp-same' });
+    expect(api.saveFile).toHaveBeenCalled();
     expect(makeEl('note-outlet').hidden).toBe(false);
-    expect(makeEl('md-edit-area').style.display).not.toBe('none');
-    // Same exports as edit path — openDoc still available; no alternate editor module
-    expect(typeof openDoc).toBe('function');
-    expect(typeof openCreateNote).toBe('function');
-  });
-
-  it('does not enter create when openCreateNote fails; keeps prior UI', async () => {
-    makeEl('note-outlet').hidden = true;
-    makeEl('md-modal').style.display = 'none';
-    api.saveNoteDraft.mockRejectedValueOnce(new Error('draft write failed'));
-
-    await openCreateNote({ temp_id: 'tmp-fail' });
-
-    expect(makeEl('note-outlet').hidden).toBe(true);
     expect(makeEl('md-modal').style.display).toBe('none');
-    expect(state.viewer.createSession).toBeNull();
-    expect(makeEl('note-outlet').classList.contains('is-create')).toBe(false);
-    expect(globalThis.alert).toHaveBeenCalledWith(
-      expect.stringContaining('Could not open new note'),
-    );
   });
 });
 
-describe('create session exit', () => {
-  beforeEach(async () => {
-    resetViewerDom();
-    await openCreateNote({ temp_id: 'tmp-exit' });
+describe('T5 openCreateNote / finalizeCreateSession on note outlet', () => {
+  beforeEach(() => {
+    resetDom();
+  });
+
+  it('create session is outlet-local: shows #note-outlet, omits note in location', async () => {
+    await openCreateNote({ temp_id: 'tmp-create' });
+
+    expect(makeEl('note-outlet').hidden).toBe(false);
+    expect(makeEl('note-outlet').dataset.wbMode).toBe('create');
+    expect(makeEl('md-modal').style.display).toBe('none');
+    expect(makeEl('md-modal').style.display).not.toBe('flex');
+    expect(state.viewer.createSession?.status).toBe('creating');
+    expect(locationStub.hash).not.toMatch(/[?&]note=/);
+    expect(locationStub.hash).toBe('#/workbench?date=20260710');
+  });
+
+  it('create success: navigate note=common_path from archiveDocument', async () => {
+    await openCreateNote({ temp_id: 'tmp-ok' });
+    makeEl('md-edit-area').value = 'hello archived note';
     vi.clearAllMocks();
     api.archiveDocument.mockResolvedValue({
       ok: true,
@@ -273,75 +251,35 @@ describe('create session exit', () => {
     });
     api.clearNoteDraft.mockResolvedValue({ ok: true });
     navigateToNoteMock.mockReturnValue(true);
-  });
-
-  afterEach(() => {
-    vi.useRealTimers();
-  });
-
-  it('trim-nonempty exit: Primary create via archiveDocument, then navigate note=common_path', async () => {
-    makeEl('md-edit-area').value = '  hello note\n';
-    locationStub.hash = '#/workbench?date=20260710';
 
     await closeModal();
 
     expect(api.archiveDocument).toHaveBeenCalledWith({
-      body: 'hello note',
+      body: 'hello archived note',
       source_type: 'note',
     });
-    expect(api.clearNoteDraft).toHaveBeenCalledWith('tmp-exit');
     expect(navigateToNoteMock).toHaveBeenCalledWith({
       date: '20260710',
       note: 'inbox/notes/202607101431-body.md',
     });
-    expect(makeEl('md-modal').style.display).toBe('none');
     expect(state.viewer.createSession).toBeNull();
+    expect(makeEl('md-modal').style.display).toBe('none');
   });
 
-  it('empty exit: clear draft + closeModal, no Primary create', async () => {
-    makeEl('md-edit-area').value = '   \n  ';
-
-    await closeModal();
-
-    expect(api.archiveDocument).not.toHaveBeenCalled();
-    expect(api.clearNoteDraft).toHaveBeenCalledWith('tmp-exit');
-    expect(makeEl('note-outlet').hidden).toBe(true);
-    expect(makeEl('md-modal').style.display).toBe('none');
-    expect(state.viewer.createSession).toBeNull();
-    expect(navigateToNoteMock).not.toHaveBeenCalled();
-    expect(locationStub.hash).toBe('#/workbench?date=20260710');
-  });
-
-  it('archive failure: alert, keep create session + draft, no Annotation API', async () => {
-    makeEl('md-edit-area').value = 'retry me';
+  it('create failure: visible error, stay on outlet create state, no Dialog / md-modal fallback', async () => {
+    await openCreateNote({ temp_id: 'tmp-fail' });
+    makeEl('md-edit-area').value = 'will fail';
     api.archiveDocument.mockRejectedValueOnce(new Error('409: conflict'));
 
     await closeModal();
 
     expect(globalThis.alert).toHaveBeenCalledWith(expect.stringContaining('409: conflict'));
-    expect(api.clearNoteDraft).not.toHaveBeenCalled();
+    expect(state.viewer.createSession?.tempId).toBe('tmp-fail');
+    expect(state.viewer.createSession?.status).toBe('creating');
     expect(makeEl('note-outlet').hidden).toBe(false);
     expect(makeEl('md-modal').style.display).toBe('none');
-    expect(state.viewer.createSession?.tempId).toBe('tmp-exit');
-    expect(state.viewer.createSession?.status).toBe('creating');
-    expect(api.archiveDocument).toHaveBeenCalled();
+    expect(makeEl('md-modal').style.display).not.toBe('flex');
     expect(navigateToNoteMock).not.toHaveBeenCalled();
-  });
-
-  it('empty exit only closeModal — does not mutate hash/route', async () => {
-    makeEl('md-edit-area').value = '';
-    locationStub.hash = '#/workbench?topic=inbox&date=20260710';
-
-    await closeModal();
-
-    expect(locationStub.hash).toBe('#/workbench?topic=inbox&date=20260710');
-    expect(navigateToNoteMock).not.toHaveBeenCalled();
-  });
-
-  it('create flow has no source_type/topic mutation controls', async () => {
-    expect(document.querySelector('[name="source_type"]')).toBeNull();
-    expect(document.querySelector('[name="topic"]')).toBeNull();
-    expect(document.querySelector('#create-source-type')).toBeNull();
-    expect(document.querySelector('#create-topic')).toBeNull();
+    expect(locationStub.hash).not.toMatch(/[?&]note=/);
   });
 });

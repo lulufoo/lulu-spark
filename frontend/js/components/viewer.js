@@ -13,6 +13,30 @@ import { initMermaid, renderMermaidBlocks } from '../mermaid-render.js'
 import { openKbDoc, saveKbDoc } from './kb-viewer.js'
 export { openKbDoc }
 import { mountKnowledgeSearch, triggerKnowledgeSearch } from './knowledge-search.js'
+import { navigateToNote } from '../router/index.js'
+
+/** Reveal note outlet chrome; never use #md-modal display:flex as public open semantics. */
+function showNoteOutlet(mode) {
+  const outlet = document.getElementById('note-outlet');
+  if (outlet) {
+    outlet.hidden = false;
+    if (mode) outlet.dataset.wbMode = mode;
+  }
+  const modal = document.getElementById('md-modal');
+  if (modal) modal.style.display = 'none';
+}
+
+function hideNoteOutlet() {
+  const outlet = document.getElementById('note-outlet');
+  if (outlet) {
+    outlet.hidden = true;
+    outlet.dataset.wbMode = '';
+    delete outlet.dataset.note;
+    delete outlet.dataset.layer;
+  }
+  const modal = document.getElementById('md-modal');
+  if (modal) modal.style.display = 'none';
+}
 
 // ── Pending-commit badge ─────────────────────────────────────────────────────
 
@@ -227,7 +251,6 @@ export async function openDoc(entry, layer = 'raw') {
   exitEditMode(false);
   closeCommitDialog();
 
-  const modal = document.getElementById('md-modal');
   const body = document.getElementById('md-body');
   document.getElementById('md-panel-title').textContent = filenameFromPath(entry.common_path).replace(/\.md$/, '');
   const activePath = getActivePath(entry, state.viewer.lang, layer);
@@ -235,8 +258,7 @@ export async function openDoc(entry, layer = 'raw') {
   updateLangBar(entry);
   document.getElementById('md-file-size').textContent = '';
   body.innerHTML = '<div style="color:#8c959f;padding:20px;font-size:13px;">Loading…</div>';
-  modal.style.display = 'flex';
-  document.body.style.overflow = 'hidden';
+  showNoteOutlet('open');
 
   const [mdResult, annResult] = await Promise.allSettled([
     api.fetchFileContent(layer, activePath),
@@ -465,8 +487,8 @@ const CREATE_CHROME_HIDDEN_IDS = [
 let createChromePrevDisplay = null;
 
 function applyCreateChrome() {
-  const modal = document.getElementById('md-modal');
-  modal.classList.add('is-create');
+  const outlet = document.getElementById('note-outlet');
+  if (outlet) outlet.classList.add('is-create');
   createChromePrevDisplay = {};
   for (const id of CREATE_CHROME_HIDDEN_IDS) {
     const el = document.getElementById(id);
@@ -481,8 +503,8 @@ function applyCreateChrome() {
 }
 
 function clearCreateChrome() {
-  const modal = document.getElementById('md-modal');
-  modal.classList.remove('is-create');
+  const outlet = document.getElementById('note-outlet');
+  if (outlet) outlet.classList.remove('is-create');
   if (createChromePrevDisplay) {
     for (const [id, display] of Object.entries(createChromePrevDisplay)) {
       const el = document.getElementById(id);
@@ -494,7 +516,7 @@ function clearCreateChrome() {
 
 function dismissViewerModal() {
   clearCreateChrome();
-  document.getElementById('md-modal').style.display = 'none';
+  hideNoteOutlet();
   document.body.style.overflow = '';
   exitEditMode(false);
   closeCommitDialog();
@@ -507,8 +529,9 @@ function dismissViewerModal() {
  */
 export async function openCreateNote({ temp_id } = {}) {
   if (!temp_id) return;
-  const modal = document.getElementById('md-modal');
-  const prevDisplay = modal.style.display;
+  const outlet = document.getElementById('note-outlet');
+  const prevHidden = outlet ? outlet.hidden : true;
+  const prevMode = outlet?.dataset?.wbMode || '';
   try {
     let content = '';
     try {
@@ -534,12 +557,17 @@ export async function openCreateNote({ temp_id } = {}) {
     editArea.value = content;
     resetEditAreaScroll(editArea, { focus: true });
 
-    modal.style.display = 'flex';
-    document.body.style.overflow = 'hidden';
+    // Create is outlet-local; location must omit note (no temp note id).
+    showNoteOutlet('create');
   } catch (e) {
     state.viewer.createSession = null;
     clearCreateChrome();
-    modal.style.display = prevDisplay;
+    if (outlet) {
+      outlet.hidden = prevHidden;
+      outlet.dataset.wbMode = prevMode;
+    }
+    const modal = document.getElementById('md-modal');
+    if (modal) modal.style.display = 'none';
     const msg = e instanceof Error ? e.message : String(e);
     alert(`Could not open new note: ${msg}`);
   }
@@ -562,13 +590,21 @@ async function finalizeCreateSession() {
   session.status = 'saving';
   try {
     await api.saveNoteDraft(session.tempId, trimmed);
-    await api.archiveDocument({ body: trimmed, source_type: 'note' });
+    const archived = await api.archiveDocument({ body: trimmed, source_type: 'note' });
+    const commonPath = archived?.common_path;
     await api.clearNoteDraft(session.tempId);
     state.viewer.createSession = null;
-    dismissViewerModal();
-    document.dispatchEvent(new CustomEvent('cta:reload'));
+    clearCreateChrome();
+    const date = state.ui.activeDate || '';
+    if (commonPath && date) {
+      navigateToNote({ date, note: commonPath });
+    }
+    showNoteOutlet('open');
   } catch (e) {
     session.status = 'creating';
+    showNoteOutlet('create');
+    const modal = document.getElementById('md-modal');
+    if (modal) modal.style.display = 'none';
     alert(`Save failed: ${e.message}`);
   }
 }

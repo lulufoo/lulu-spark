@@ -119,13 +119,16 @@ describe('Note AC gate (tech-doc VF / T-13)', () => {
     expect(behavioral).toMatch(/create flow has no source_type\/topic mutation controls/);
   });
 
-  it('AC-10: exit only closeModal — no forced navigate/hash mutate', () => {
+  it('AC-10: create success navigates note=common_path; empty exit does not mutate hash', () => {
     const viewer = read('frontend/js/components/viewer.js');
-    // finalizeCreateSession / dismissViewerModal must not navigate home
-    expect(viewer).not.toMatch(/navigate\(['"]#\/(?:home|workbench)['"]\)/);
+    // create success: navigateToNote with archiveDocument common_path (tech-doc T5 / chap-ar)
+    expect(viewer).toMatch(/navigateToNote/);
+    expect(viewer).toMatch(/common_path/);
+    expect(viewer).not.toMatch(/navigate\(['"]#\/home['"]\)/);
     expect(viewer).not.toMatch(/location\.hash\s*=/);
     const behavioral = read('tests/viewer-create-note.test.js');
-    expect(behavioral).toMatch(/exit only closeModal — does not mutate hash\/route/);
+    expect(behavioral).toMatch(/navigate note=common_path/);
+    expect(behavioral).toMatch(/empty exit only closeModal — does not mutate hash\/route/);
   });
 
   it('AC-11: create chrome hides shell-field controls (body-only)', () => {
