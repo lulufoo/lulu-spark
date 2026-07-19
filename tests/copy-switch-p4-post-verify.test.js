@@ -127,7 +127,8 @@ describe('P4 copy-switch post-switch verification (tech-doc T8 / AC-2)', () => {
     const utils = readSource('frontend/js/utils.js');
     expect(utils).toContain("'Sun'");
     expect(utils).toContain('High');
-    expect(utils).toContain('Toggle importance');
+    expect(utils).toContain('Cycle importance');
+    expect(utils).toContain('Medium');
     expect(utils).not.toContain('切换重要性');
     expect(utils).not.toContain('↑ 高');
   });

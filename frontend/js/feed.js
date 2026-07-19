@@ -13,14 +13,14 @@ function escHtml(s) {
 function fmtDate(isoStr) {
   if (!isoStr) return '';
   try {
-    return new Date(isoStr).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    return new Date(isoStr).toLocaleString('en-US', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
   } catch { return isoStr; }
 }
 
 function fmtDateFull(isoStr) {
   if (!isoStr) return '';
   try {
-    return new Date(isoStr).toLocaleString('zh-CN', { year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    return new Date(isoStr).toLocaleString('en-US', { year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
   } catch { return isoStr; }
 }
 
@@ -45,7 +45,7 @@ function saveXHandle(h)     { localStorage.setItem('cta_x_handle', h); }
 function renderXUser(user) {
   const tweets = (user.tweets || []);
   const tweetsHtml = tweets.length === 0
-    ? '<div class="feed-tweet-empty">近期无推文</div>'
+    ? '<div class="feed-tweet-empty">No recent tweets</div>'
     : tweets.map(t => `
       <div class="feed-tweet">
         <div class="feed-tweet-text">${escHtml(t.text)}</div>
@@ -54,7 +54,7 @@ function renderXUser(user) {
           ${t.likes ? `<span class="feed-tweet-stat">♥ ${t.likes}</span>` : ''}
           ${t.retweets ? `<span class="feed-tweet-stat">🔁 ${t.retweets}</span>` : ''}
           ${t.replies ? `<span class="feed-tweet-stat">💬 ${t.replies}</span>` : ''}
-          <a class="feed-tweet-link" href="${escHtml(t.url)}" target="_blank" rel="noopener">原文 ↗</a>
+          <a class="feed-tweet-link" href="${escHtml(t.url)}" target="_blank" rel="noopener">Original ↗</a>
         </div>
       </div>
     `).join('');
@@ -73,7 +73,7 @@ function renderXUser(user) {
 
 function renderPodcasts(podcasts) {
   if (!podcasts || podcasts.length === 0) {
-    return '<div class="feed-empty">暂无播客内容</div>';
+    return '<div class="feed-empty">No podcasts</div>';
   }
   return podcasts.map((p, i) => {
     const id = `feed-podcast-${i}`;
@@ -84,7 +84,7 @@ function renderPodcasts(podcasts) {
         <div class="feed-podcast-transcript">
           <div class="feed-transcript-preview" id="${id}-preview">${escHtml(preview)}${hasMore ? '…' : ''}</div>
           ${hasMore ? `<div class="feed-transcript-full" id="${id}-full" style="display:none">${escHtml(p.transcript)}</div>
-          <button class="feed-transcript-toggle" data-target="${id}">展开全文</button>` : ''}
+          <button class="feed-transcript-toggle" data-target="${id}">Expand</button>` : ''}
         </div>
       `
       : '';
@@ -105,7 +105,7 @@ function renderPodcasts(podcasts) {
 
 function renderBlogs(blogs) {
   if (!blogs || blogs.length === 0) {
-    return '<div class="feed-empty">暂无博客内容（博客源尚在配置中）</div>';
+    return '<div class="feed-empty">No blogs yet (blog sources still being configured)</div>';
   }
   return blogs.map(b => `
     <div class="feed-blog">
@@ -121,7 +121,7 @@ function renderBlogs(blogs) {
 // ── Main render ────────────────────────────────────────────────────────────
 
 export async function renderFeed(container) {
-  container.innerHTML = '<div class="feed-loading">⏳ 加载中…</div>';
+  container.innerHTML = '<div class="feed-loading">⏳ Loading…</div>';
 
   try {
     const [xData, podcastsData, blogsData] = await Promise.all([
@@ -132,7 +132,7 @@ export async function renderFeed(container) {
 
     const generatedAt = xData.generatedAt || podcastsData.generatedAt || blogsData.generatedAt || '';
     const updatedLine = generatedAt
-      ? `<div class="feed-updated">数据更新于 ${fmtDateFull(generatedAt)}</div>`
+      ? `<div class="feed-updated">Updated ${fmtDateFull(generatedAt)}</div>`
       : '';
 
     // ── X section state ────────────────────────────────────────────────────
@@ -151,30 +151,30 @@ export async function renderFeed(container) {
       <section class="feed-section">
         <h2 class="feed-section-title">🎙 Podcasts</h2>
         ${podcastsData.error
-          ? `<div class="feed-error">加载失败：${escHtml(podcastsData.error)}</div>`
+          ? `<div class="feed-error">Failed to load: ${escHtml(podcastsData.error)}</div>`
           : renderPodcasts(podcastsData.podcasts)
         }
       </section>
       <section class="feed-section">
         <h2 class="feed-section-title">📝 Blogs</h2>
         ${blogsData.error
-          ? `<div class="feed-error">加载失败：${escHtml(blogsData.error)}</div>`
+          ? `<div class="feed-error">Failed to load: ${escHtml(blogsData.error)}</div>`
           : renderBlogs(blogsData.blogs)
         }
       </section>
       <section class="feed-section">
         <div class="feed-x-head">
-          <h2 class="feed-section-title">🐦 X · 最新推文</h2>
+          <h2 class="feed-section-title">🐦 X · Latest tweets</h2>
           ${!xData.error && xUsers.length > 0 ? `
           <div class="feed-x-controls">
             <select id="feed-x-select" class="feed-x-select"${xCollapsed ? '' : ' style="display:none"'}>${xOptions}</select>
-            <button id="feed-x-toggle" class="feed-x-toggle">${xCollapsed ? '展开全部' : '收起'}</button>
+            <button id="feed-x-toggle" class="feed-x-toggle">${xCollapsed ? 'Expand all' : 'Collapse'}</button>
           </div>` : ''}
         </div>
         ${xData.error
-          ? `<div class="feed-error">加载失败：${escHtml(xData.error)}</div>`
+          ? `<div class="feed-error">Failed to load: ${escHtml(xData.error)}</div>`
           : xUsers.length === 0
-            ? '<div class="feed-empty">暂无 X 内容</div>'
+            ? '<div class="feed-empty">No X content</div>'
             : `
           <div id="feed-x-collapsed"${xCollapsed ? '' : ' style="display:none"'}>${xSelUser ? renderXUser(xSelUser) : ''}</div>
           <div id="feed-x-expanded"${xCollapsed ? ' style="display:none"' : ''}>${xUsers.map(u => renderXUser(u)).join('')}</div>
@@ -192,7 +192,7 @@ export async function renderFeed(container) {
         const expanded = full.style.display !== 'none';
         preview.style.display = expanded ? '' : 'none';
         full.style.display = expanded ? 'none' : '';
-        btn.textContent = expanded ? '展开全文' : '收起';
+        btn.textContent = expanded ? 'Expand' : 'Collapse';
       });
     });
 
@@ -210,14 +210,14 @@ export async function renderFeed(container) {
           if (xCollapsedEl) xCollapsedEl.style.display = 'none';
           if (xSelectEl)    xSelectEl.style.display    = 'none';
           if (xExpandedEl)  xExpandedEl.style.display  = '';
-          xToggleBtn.textContent = '收起';
+          xToggleBtn.textContent = 'Collapse';
           saveXCollapsed(false);
         } else {
           // expand → collapse
           if (xCollapsedEl) xCollapsedEl.style.display = '';
           if (xSelectEl)    xSelectEl.style.display    = '';
           if (xExpandedEl)  xExpandedEl.style.display  = 'none';
-          xToggleBtn.textContent = '展开全部';
+          xToggleBtn.textContent = 'Expand all';
           saveXCollapsed(true);
         }
       });
@@ -233,6 +233,6 @@ export async function renderFeed(container) {
     }
 
   } catch (e) {
-    container.innerHTML = `<div class="feed-error">加载失败：${escHtml(e.message)}</div>`;
+    container.innerHTML = `<div class="feed-error">Failed to load: ${escHtml(e.message)}</div>`;
   }
 }

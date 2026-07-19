@@ -40,13 +40,13 @@ describe('mountBuildersAssistantWidget open/close + renderFeed mount', () => {
 
     // chrome must survive renderFeed's innerHTML wipe of the body container
     expect(host.querySelector('.builders-modal-header')).not.toBeNull();
-    expect(host.querySelector('[aria-label="关闭"]')).not.toBeNull();
+    expect(host.querySelector('[aria-label="Close"]')).not.toBeNull();
     expect(body.querySelector('.feed-mock')).not.toBeNull();
 
     dispose();
   });
 
-  it('header × (aria-label="关闭") closes: host hidden, DOM retained', () => {
+  it('header × (aria-label="Close") closes: host hidden, DOM retained', () => {
     const { setOpen, host, close, dispose } = mountBuildersAssistantWidget(anchor);
     expect(typeof setOpen).toBe('function');
     expect(typeof close).toBe('function');
@@ -54,7 +54,7 @@ describe('mountBuildersAssistantWidget open/close + renderFeed mount', () => {
     setOpen(true);
     expect(host.hidden).toBe(false);
 
-    const closeBtn = host.querySelector('[aria-label="关闭"]');
+    const closeBtn = host.querySelector('[aria-label="Close"]');
     expect(closeBtn).not.toBeNull();
     closeBtn.click();
 
@@ -71,7 +71,7 @@ describe('mountBuildersAssistantWidget open/close + renderFeed mount', () => {
     const { setOpen, host, body, dispose } = mountBuildersAssistantWidget(anchor);
 
     setOpen(true);
-    host.querySelector('[aria-label="关闭"]').click();
+    host.querySelector('[aria-label="Close"]').click();
     expect(host.hidden).toBe(true);
 
     setOpen(true);
@@ -127,7 +127,7 @@ describe('mountBuildersAssistantWidget open/close + renderFeed mount', () => {
     expect(host.querySelector('.builders-modal-body .feed-error')).not.toBeNull();
     expect(host.querySelector('.builders-modal-header')).not.toBeNull();
 
-    host.querySelector('[aria-label="关闭"]').click();
+    host.querySelector('[aria-label="Close"]').click();
     expect(host.hidden).toBe(true);
     expect(anchor.contains(host)).toBe(true);
 

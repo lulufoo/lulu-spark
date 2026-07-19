@@ -28,9 +28,9 @@ describe('header-sync', () => {
     clearHeaderSyncCorpusContext();
     vi.clearAllMocks();
     document.body.innerHTML = `
-      <button id="btn-push-index">↑ 提交变更</button>
-      <button id="btn-pull">↓ 更新项目</button>
-      <button id="btn-local-refresh">⟳ 本地刷新</button>
+      <button id="btn-push-index">↑ Commit changes</button>
+      <button id="btn-pull">↓ Update project</button>
+      <button id="btn-local-refresh">⟳ Refresh local</button>
     `;
     initHeaderSync({
       pullProject: vi.fn(),

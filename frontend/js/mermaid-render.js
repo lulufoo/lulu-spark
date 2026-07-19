@@ -43,7 +43,7 @@ export async function renderMermaidBlocks(container) {
     } catch (err) {
       const errDiv = document.createElement('div');
       errDiv.className = 'mermaid-error';
-      errDiv.textContent = `Mermaid 渲染失败：${err?.message || String(err)}`;
+      errDiv.textContent = `Mermaid render failed: ${err?.message || String(err)}`;
       wrapper.appendChild(errDiv);
 
       const preFallback = document.createElement('pre');

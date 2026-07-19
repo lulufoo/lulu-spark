@@ -87,10 +87,10 @@ export function nowTs() {
 export function importanceBadgeHtml(importance) {
   const map = {
     high:   { cls: 'badge-importance-high',   label: '↑ High' },
-    medium: { cls: 'badge-importance-medium', label: '→ Med' },
+    medium: { cls: 'badge-importance-medium', label: '→ Medium' },
     low:    { cls: 'badge-importance-low',    label: '↓ Low' },
   };
   const m = map[importance];
-  if (m) return `<button class="badge badge-importance ${m.cls}" data-action="cycle-importance" title="Toggle importance">${m.label}</button>`;
+  if (m) return `<button class="badge badge-importance ${m.cls}" data-action="cycle-importance" title="Cycle importance">${m.label}</button>`;
   return `<button class="badge badge-importance badge-importance-unset" data-action="cycle-importance" title="Set importance">☆</button>`;
 }

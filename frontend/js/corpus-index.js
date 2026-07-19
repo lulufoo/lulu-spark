@@ -5,14 +5,14 @@
  */
 export function normalizeCorpusIndex(data) {
   if (!data || typeof data !== 'object' || Array.isArray(data)) {
-    throw new Error('index.json 格式无效');
+    throw new Error('Invalid index.json format');
   }
   if (typeof data.error === 'string' && data.error) {
     throw new Error(data.error);
   }
   const raw = data.entries ?? data;
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
-    throw new Error('index.json 缺少 entries');
+    throw new Error('index.json missing entries');
   }
   if (typeof raw.error === 'string' && raw.error) {
     throw new Error(raw.error);

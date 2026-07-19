@@ -47,14 +47,14 @@ export function initHeaderSync({ pullProject, loadIndex, openWorkbenchCommit }) 
     if (!btn) return;
     if (corpusRepo) {
       btn.disabled = true;
-      btn.textContent = '更新中…';
+      btn.textContent = 'Updating…';
       void pullCorpusRepo(corpusRepo)
         .catch((err) => {
-          alert(`更新失败：${err?.message || '未知错误'}`);
+          alert(`Update failed: ${err?.message || 'Unknown error'}`);
         })
         .finally(() => {
           btn.disabled = false;
-          btn.textContent = '↓ 更新项目';
+          btn.textContent = '↓ Update project';
         });
       return;
     }
@@ -65,10 +65,10 @@ export function initHeaderSync({ pullProject, loadIndex, openWorkbenchCommit }) 
     const btn = document.getElementById('btn-local-refresh');
     if (!btn) return;
     btn.disabled = true;
-    btn.textContent = '⟳ 刷新中…';
+    btn.textContent = '⟳ Refreshing…';
     const finish = () => {
       btn.disabled = false;
-      btn.textContent = '⟳ 本地刷新';
+      btn.textContent = '⟳ Refresh local';
     };
     if (corpusRepo && onCorpusRefresh) {
       void Promise.resolve(onCorpusRefresh()).finally(finish);

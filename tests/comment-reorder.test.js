@@ -27,7 +27,7 @@ describe('comment-reorder', () => {
   it('validateCommentIdsForReorder rejects missing id', () => {
     const r = validateCommentIdsForReorder([{ id: 'a' }, { text: 'no id' }]);
     expect(r.ok).toBe(false);
-    expect(r.error).toMatch(/缺少 id/);
+    expect(r.error).toMatch(/lack an id/);
   });
 
   it('commentIdsForReorder collects string ids only', () => {

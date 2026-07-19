@@ -39,7 +39,7 @@ export function commentIdsForReorder(comments) {
 export function validateCommentIdsForReorder(comments) {
   const ids = commentIdsForReorder(comments);
   if (ids.length !== comments.length) {
-    return { ok: false, error: '部分笔记缺少 id，无法排序。请编辑保存后再试。' };
+    return { ok: false, error: 'Some notes lack an id; cannot reorder. Edit and save, then retry.' };
   }
   return { ok: true, ids };
 }

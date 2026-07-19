@@ -22,7 +22,7 @@ function normalizeReadError(error) {
   const message = error instanceof Error ? error.message : String(error);
   const isFetchFailure = /Failed to fetch|NetworkError/i.test(message);
   if (isLikelyExternalBrowserOnTauriDev() && isFetchFailure) {
-    return new Error('检测到当前在外部浏览器打开了 Tauri Dev 页面，请回到 Tauri 应用窗口运行。');
+    return new Error('Opened Tauri Dev page in an external browser — return to the app window.');
   }
   return error instanceof Error ? error : new Error(message);
 }
@@ -58,7 +58,7 @@ async function writePost(path, body) {
 /** Tauri write commands return `{ error, _status }` without throwing — normalize here. */
 export function assertWritePayload(payload) {
   if (payload && typeof payload === 'object' && payload.error) {
-    const msg = typeof payload.error === 'string' ? payload.error : '请求失败';
+    const msg = typeof payload.error === 'string' ? payload.error : 'Request failed';
     const err = new Error(msg);
     if (typeof payload._status === 'number') err.status = payload._status;
     throw err;
@@ -69,7 +69,7 @@ export function assertWritePayload(payload) {
 /** Tauri read commands return `{ error, _status }` without throwing — normalize here. */
 export function assertReadPayload(payload) {
   if (payload && typeof payload === 'object' && payload.error) {
-    const msg = typeof payload.error === 'string' ? payload.error : '请求失败';
+    const msg = typeof payload.error === 'string' ? payload.error : 'Request failed';
     const err = new Error(msg);
     if (typeof payload._status === 'number') err.status = payload._status;
     throw err;
@@ -226,7 +226,7 @@ export async function fetchKbDocCount(repo, hidePattern) {
     }
     const data = await res.json();
     if (data && typeof data === 'object' && data.error) {
-      throw new Error(typeof data.error === 'string' ? data.error : '请求失败');
+      throw new Error(typeof data.error === 'string' ? data.error : 'Request failed');
     }
     return data?.count ?? 0;
   } catch (error) {
