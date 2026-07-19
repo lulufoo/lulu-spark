@@ -111,6 +111,10 @@ export async function updatePlanSub({ masterTaskId, subTaskId, title } = {}) {
   return invokePlanWrite('update_plan_sub', { masterTaskId, subTaskId, title });
 }
 
+export async function updatePlanMasterTitle({ masterTaskId, title } = {}) {
+  return invokePlanWrite('update_plan_master_title', { masterTaskId, title });
+}
+
 export async function listPlanAttachments({ masterTaskId } = {}) {
   const result = await invokePlanPlain('list_plan_attachments', { masterTaskId });
   if (Array.isArray(result)) return result;
@@ -363,13 +367,32 @@ function renderSubRow(master, sub, selectedSubId, ui) {
   `;
 }
 
+function renderDetailTitle(master, ui = {}) {
+  const title = ui.masterTitleDraft ?? master.title ?? '';
+  const disabledAttr = ui.disabled ? ' disabled' : '';
+  const error = ui.masterTitleError
+    ? `<p class="plan-task-detail-title-error">${escHtml(ui.masterTitleError)}</p>`
+    : '';
+  return `
+    <input
+      type="text"
+      class="plan-task-detail-title"
+      data-action="edit-master-title"
+      value="${escHtml(title)}"
+      aria-label="Todo title"
+      ${disabledAttr}
+    />
+    ${error}
+  `;
+}
+
 export function renderSubDetail(master, selectedSubId) {
   const subs = master.sub_tasks ?? [];
   const ui = { disabled: false, subStatus: {}, subActionErrors: {} };
   const items = subs.map((sub) => renderSubRow(master, sub, selectedSubId, ui)).join('');
   return `
     <div class="plan-task-detail-body">
-      <h2 class="plan-task-detail-title">${escHtml(master.title)}</h2>
+      ${renderDetailTitle(master, ui)}
       <div class="plan-task-sub-list">${items}</div>
     </div>
   `;
@@ -657,7 +680,7 @@ function renderSubDetailPane(master, selectedSubId, ui) {
     <div class="plan-task-detail-body">
       <div class="plan-task-detail-header">
         <div>
-          <h2 class="plan-task-detail-title">${escHtml(master.title)}</h2>
+          ${renderDetailTitle(master, ui)}
           ${renderDetailMeta(master)}
         </div>
       </div>
@@ -758,6 +781,8 @@ export function mountPlanTaskSplit(container, opts = {}) {
   const subActionErrors = {};
   const subTitleErrors = {};
   const subTitleDrafts = {};
+  let masterTitleDraft = '';
+  let masterTitleError = '';
 
   container.innerHTML = '<div class="plan-task-split-loading">Loading…</div>';
 
@@ -780,6 +805,8 @@ export function mountPlanTaskSplit(container, opts = {}) {
       subActionErrors,
       subTitleErrors,
       subTitleDrafts,
+      masterTitleDraft: masterTitleDraft || undefined,
+      masterTitleError,
     };
   }
 
@@ -1241,6 +1268,36 @@ export function mountPlanTaskSplit(container, opts = {}) {
     }
   }
 
+  async function runMasterTitleSave(title) {
+    const master = findMaster(selectedMasterId);
+    if (!master) return;
+    const trimmed = title.trim();
+    if (!trimmed) {
+      masterTitleError = 'Title cannot be empty';
+      paint();
+      return;
+    }
+    if (trimmed === master.title) {
+      masterTitleDraft = '';
+      masterTitleError = '';
+      return;
+    }
+    masterTitleError = '';
+    masterTitleDraft = trimmed;
+    busy = true;
+    paint();
+    try {
+      await updatePlanMasterTitle({ masterTaskId: selectedMasterId, title: trimmed });
+      masterTitleDraft = '';
+      busy = false;
+      await reloadList({ afterWrite: true });
+    } catch (err) {
+      busy = false;
+      masterTitleError = err?.message || 'Save failed';
+      paint();
+    }
+  }
+
   async function runSubStatusChange(subTaskId, targetStatus, selectEl) {
     const master = findMaster(selectedMasterId);
     const sub = master?.sub_tasks?.find((item) => item.sub_task_id === subTaskId);
@@ -1552,6 +1609,8 @@ export function mountPlanTaskSplit(container, opts = {}) {
       closeAttachmentEditor();
       clearSubActionState();
       clearSubTitleState();
+      masterTitleDraft = '';
+      masterTitleError = '';
       selectedMasterId = masterBtn.dataset.masterId;
       const master = findMaster(selectedMasterId);
       const fallback = master ? pickDefaultSub(master) : null;
@@ -1593,6 +1652,12 @@ export function mountPlanTaskSplit(container, opts = {}) {
   };
 
   const onInput = (event) => {
+    const masterTitleInput = event.target.closest('[data-action="edit-master-title"]');
+    if (masterTitleInput instanceof HTMLInputElement) {
+      if (controlsDisabled(busy) || !selectedMasterId) return;
+      masterTitleDraft = masterTitleInput.value;
+      return;
+    }
     const input = event.target.closest('[data-action="edit-sub-title"]');
     if (!(input instanceof HTMLInputElement) || controlsDisabled(busy) || !selectedMasterId) return;
     subTitleDrafts[input.dataset.subId ?? ''] = input.value;
@@ -1637,15 +1702,23 @@ export function mountPlanTaskSplit(container, opts = {}) {
       return;
     }
 
-    const input = event.target.closest('[data-action="edit-sub-title"]');
-    if (!(input instanceof HTMLInputElement)) return;
+    const titleInput = event.target.closest(
+      '[data-action="edit-master-title"], [data-action="edit-sub-title"]',
+    );
+    if (!(titleInput instanceof HTMLInputElement)) return;
     if (event.key === 'Enter') {
       event.preventDefault();
-      input.blur();
+      titleInput.blur();
     }
   };
 
-  const onSubTitleBlur = (event) => {
+  const onTitleBlur = (event) => {
+    const masterTitleInput = event.target.closest('[data-action="edit-master-title"]');
+    if (masterTitleInput instanceof HTMLInputElement) {
+      if (controlsDisabled(busy) || !selectedMasterId) return;
+      void runMasterTitleSave(masterTitleInput.value);
+      return;
+    }
     const input = event.target.closest('[data-action="edit-sub-title"]');
     if (!(input instanceof HTMLInputElement) || controlsDisabled(busy) || !selectedMasterId) return;
     const subTaskId = input.dataset.subId;
@@ -1669,7 +1742,7 @@ export function mountPlanTaskSplit(container, opts = {}) {
   container.addEventListener('click', onClick);
   container.addEventListener('input', onInput);
   container.addEventListener('keydown', onKeydown);
-  container.addEventListener('focusout', onSubTitleBlur);
+  container.addEventListener('focusout', onTitleBlur);
   container.addEventListener('change', onChange);
   const onDialogClose = () => {
     if (!disposed) paint();
@@ -1705,7 +1778,7 @@ export function mountPlanTaskSplit(container, opts = {}) {
     container.removeEventListener('click', onClick);
     container.removeEventListener('input', onInput);
     container.removeEventListener('keydown', onKeydown);
-    container.removeEventListener('focusout', onSubTitleBlur);
+    container.removeEventListener('focusout', onTitleBlur);
     container.removeEventListener('change', onChange);
     container.innerHTML = '';
   }

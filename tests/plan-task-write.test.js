@@ -22,6 +22,7 @@ import {
   deletePlanTask,
   loadPlanTasks,
   mountPlanTaskSplit,
+  updatePlanMasterTitle,
 } from '../frontend/js/plan-task/index.js';
 
 const sampleMaster = {
@@ -178,6 +179,37 @@ describe('deletePlanSub', () => {
     invokeMock.mockResolvedValue({ error: 'Cannot delete last sub', _status: 400 });
     await expect(
       deletePlanSub({ masterTaskId: 'task_new', subTaskId: 'task_new_sub_01' }),
+    ).rejects.toMatchObject({ status: 400 });
+  });
+});
+
+describe('updatePlanMasterTitle', () => {
+  beforeEach(() => {
+    invokeMock.mockReset();
+    window.__TAURI__ = { core: { invoke: invokeMock } };
+  });
+
+  afterEach(() => {
+    delete window.__TAURI__;
+  });
+
+  it('invokes update_plan_master_title with masterTaskId and title', async () => {
+    invokeMock.mockResolvedValue({ task: { ...sampleMaster, title: 'Renamed' } });
+    const result = await updatePlanMasterTitle({
+      masterTaskId: 'task_new',
+      title: 'Renamed',
+    });
+    expect(invokeMock).toHaveBeenCalledWith('update_plan_master_title', {
+      masterTaskId: 'task_new',
+      title: 'Renamed',
+    });
+    expect(result.task.title).toBe('Renamed');
+  });
+
+  it('throws with status when invoke returns service error payload', async () => {
+    invokeMock.mockResolvedValue({ error: 'Missing title', _status: 400 });
+    await expect(
+      updatePlanMasterTitle({ masterTaskId: 'task_new', title: '' }),
     ).rejects.toMatchObject({ status: 400 });
   });
 });

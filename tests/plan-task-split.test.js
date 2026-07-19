@@ -376,6 +376,45 @@ describe('mountPlanTaskSplit', () => {
     );
     dispose();
   });
+
+  it('renders detail title as editable input and saves on blur', async () => {
+    const invokeMock = vi.fn(async (cmd, args) => {
+      if (cmd === 'update_plan_master_title') {
+        return {
+          task: { ...sampleMasters[0], title: args.title },
+          _status: 200,
+        };
+      }
+      if (cmd === 'list_plan_attachments') return [];
+      return {};
+    });
+    window.__TAURI__ = { core: { invoke: invokeMock } };
+    getJsonMock.mockResolvedValue(sampleMasters);
+    const { dispose } = mountPlanTaskSplit(container, {
+      masterId: 'task_alpha',
+      subId: 'task_alpha_sub_01',
+    });
+    await vi.waitFor(() => {
+      expect(
+        container.querySelector('[data-action="edit-master-title"]'),
+      ).not.toBeNull();
+    });
+    const titleInput = container.querySelector('[data-action="edit-master-title"]');
+    expect(titleInput).toBeInstanceOf(HTMLInputElement);
+    expect(titleInput.value).toBe('Alpha Task');
+    expect(titleInput.tagName).toBe('INPUT');
+    titleInput.value = 'Alpha Renamed';
+    titleInput.dispatchEvent(new Event('input', { bubbles: true }));
+    titleInput.dispatchEvent(new FocusEvent('focusout', { bubbles: true }));
+    await vi.waitFor(() => {
+      expect(invokeMock).toHaveBeenCalledWith('update_plan_master_title', {
+        masterTaskId: 'task_alpha',
+        title: 'Alpha Renamed',
+      });
+    });
+    dispose();
+    delete window.__TAURI__;
+  });
 });
 
 describe('plan-tasks route source wiring', () => {
