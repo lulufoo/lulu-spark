@@ -92,6 +92,20 @@ const PLAN_TOOLS = [
   'link_plan_archive',
 ];
 
+/** Breaking rename: old MCP tool name must not remain registered (T8 / AC5 / R1). */
+const FORBIDDEN_PLAN_TOOLS = ['complete_plan_sub'];
+
+/** Master status wire values — list/get/create readback must admit all three (T8 / AC7). */
+const MASTER_STATUS_WIRE = ['incomplete', 'complete', 'abandoned'];
+
+function assertMasterStatusWire(status, label) {
+  if (typeof status !== 'string' || !MASTER_STATUS_WIRE.includes(status)) {
+    throw new Error(
+      `${label}: status must be one of ${MASTER_STATUS_WIRE.join('|')}, got ${JSON.stringify(status)}`,
+    );
+  }
+}
+
 const transport = new StreamableHTTPClientTransport(
   new URL(`http://127.0.0.1:${mcpPort}/mcp`),
 );
@@ -109,6 +123,11 @@ const names = tools.tools.map((t) => t.name);
 for (const tool of PLAN_TOOLS) {
   if (!names.includes(tool)) {
     throw new Error(`${tool} missing from tools: ${names.join(', ')}`);
+  }
+}
+for (const tool of FORBIDDEN_PLAN_TOOLS) {
+  if (names.includes(tool)) {
+    throw new Error(`forbidden plan tool registered: ${tool}`);
   }
 }
 
@@ -152,6 +171,11 @@ const masterId = created.master_task_id;
 if (!masterId) {
   throw new Error(`unexpected create_plan_task response: ${createText}`);
 }
+const createStatus = created.task?.status ?? created.status;
+if (createStatus !== 'incomplete') {
+  throw new Error(`create_plan_task status must be incomplete, got: ${createText}`);
+}
+assertMasterStatusWire(createStatus, 'create_plan_task');
 
 const addA = await callPlanTool('add_plan_sub', {
   master_task_id: masterId,
@@ -181,6 +205,7 @@ if (!listMaster) {
   throw new Error(`list_plan_tasks missing created master ${masterId}: ${listText}`);
 }
 assertMasterPlanMdFields(listMaster, 'list_plan_tasks');
+assertMasterStatusWire(listMaster.status, 'list_plan_tasks');
 const expectedInitialPlanMd = '## E2E plan\n\nBody';
 const diskBefore = tasksDir ? readPlanMdFromDisk(tasksDir, masterId) : expectedInitialPlanMd;
 assertPlanMdMatchesDisk(listMaster.plan_md, diskBefore, 'list_plan_tasks');
@@ -200,6 +225,7 @@ if (getResult.isError) {
 }
 const getBody = parseJson(getText);
 assertMasterPlanMdFields(getBody, 'get_plan_task');
+assertMasterStatusWire(getBody.status, 'get_plan_task');
 if (getBody.plan_md !== listMaster.plan_md) {
   throw new Error('get_plan_task plan_md must match list_plan_tasks for same id');
 }
@@ -249,7 +275,13 @@ const completeResult = await client.callTool({
 });
 const completeText = toolText(completeResult);
 if (completeResult.isError || !completeText.includes('complete')) {
-  throw new Error(`complete_plan failed: ${completeText}`);
+  throw new Error(`complete_plan with sub_task_id failed: ${completeText}`);
+}
+const afterSubComplete = parseJson(completeText).task;
+if (afterSubComplete.status !== listMaster.status) {
+  throw new Error(
+    `complete_plan with sub_task_id must not rewrite master status, got: ${completeText}`,
+  );
 }
 
 const archiveId = '138700959e5ddb1260c69e9e18169ac4';
@@ -268,6 +300,77 @@ const deleteSubResult = await client.callTool({
 });
 if (deleteSubResult.isError) {
   throw new Error(`delete_plan_sub failed: ${toolText(deleteSubResult)}`);
+}
+
+// T8: complete without sub_task_id → master complete; idempotent when already complete.
+const completeMasterResult = await client.callTool({
+  name: 'complete_plan',
+  arguments: { master_task_id: masterId },
+});
+const completeMasterText = toolText(completeMasterResult);
+if (completeMasterResult.isError) {
+  throw new Error(`complete_plan without sub_task_id failed: ${completeMasterText}`);
+}
+const completeMasterTask = parseJson(completeMasterText).task;
+if (completeMasterTask.status !== 'complete') {
+  throw new Error(
+    `complete_plan without sub_task_id must set master complete: ${completeMasterText}`,
+  );
+}
+assertMasterStatusWire(completeMasterTask.status, 'complete_plan without sub');
+
+const completeIdempotent = await client.callTool({
+  name: 'complete_plan',
+  arguments: { master_task_id: masterId },
+});
+const completeIdempotentText = toolText(completeIdempotent);
+if (completeIdempotent.isError) {
+  throw new Error(`complete_plan on already-complete must be idempotent: ${completeIdempotentText}`);
+}
+if (parseJson(completeIdempotentText).task.status !== 'complete') {
+  throw new Error(`idempotent complete_plan must keep status complete: ${completeIdempotentText}`);
+}
+
+// Optional: abandoned reject via host set-status when Workbench HTTP is reachable.
+const workbenchUrl = (process.env.WORKBENCH_HTTP_URL || '').trim().replace(/\/$/, '');
+if (workbenchUrl) {
+  const abandonRes = await fetch(`${workbenchUrl}/api/plan-task-set-status`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ master_task_id: masterId, status: 'abandoned' }),
+  });
+  const abandonText = await abandonRes.text();
+  if (!abandonRes.ok) {
+    throw new Error(`set-status abandoned failed: HTTP ${abandonRes.status} ${abandonText}`);
+  }
+  const getAbandoned = await callPlanTool('get_plan_task', { id: masterId });
+  if (getAbandoned.status !== 'abandoned') {
+    throw new Error(`get_plan_task must read back abandoned after set-status: ${JSON.stringify(getAbandoned)}`);
+  }
+  assertMasterStatusWire(getAbandoned.status, 'get_plan_task abandoned');
+  const rejectAbandoned = await client.callTool({
+    name: 'complete_plan',
+    arguments: { master_task_id: masterId },
+  });
+  const rejectAbandonedText = toolText(rejectAbandoned);
+  if (!rejectAbandoned.isError || !rejectAbandonedText.includes('master_abandoned')) {
+    throw new Error(
+      `complete_plan on abandoned must reject with master_abandoned, got: ${rejectAbandonedText}`,
+    );
+  }
+  // Restore complete so cleanup delete remains valid against host policy.
+  const restoreRes = await fetch(`${workbenchUrl}/api/plan-task-set-status`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ master_task_id: masterId, status: 'complete' }),
+  });
+  if (!restoreRes.ok) {
+    throw new Error(`set-status restore complete failed: HTTP ${restoreRes.status}`);
+  }
+} else {
+  console.log(
+    'plan-task-mcp-e2e: WORKBENCH_HTTP_URL unset; skipped abandoned reject/readback via set-status',
+  );
 }
 
 const deleteMasterResult = await client.callTool({

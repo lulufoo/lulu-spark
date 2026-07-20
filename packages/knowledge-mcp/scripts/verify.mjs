@@ -75,6 +75,12 @@ const PLAN_TOOL_NAMES = [
   'link_plan_archive',
 ];
 
+/** Breaking rename: old MCP tool name must not remain registered (T8 / AC5 / R1). */
+const FORBIDDEN_PLAN_TOOL_NAMES = ['complete_plan_sub'];
+
+/** Master status wire values — list/get/create readback must admit all three (T8 / AC7). */
+const MASTER_STATUS_WIRE = ['incomplete', 'complete', 'abandoned'];
+
 /** MCP attachment tools (T9) — must proxyPost to T8 HTTP paths; no delete tool. */
 const ATTACHMENT_TOOL_NAMES = [
   'add_plan_attachment',
@@ -94,6 +100,26 @@ const FORBIDDEN_ATTACHMENT_DELETE_TOOL_NAMES = [
   'delete_plan_attachment',
   'remove_plan_attachment',
 ];
+
+function assertMasterStatusWire(status, label) {
+  if (typeof status !== 'string' || !MASTER_STATUS_WIRE.includes(status)) {
+    throw new Error(
+      `${label}: status must be one of ${MASTER_STATUS_WIRE.join('|')}, got ${JSON.stringify(status)}`,
+    );
+  }
+}
+
+function seedMaster(masterId, title, status) {
+  planTaskStore.set(masterId, {
+    master_task_id: masterId,
+    title,
+    status,
+    created_at: '2026-07-07T00:00:00Z',
+    sub_tasks: [],
+    plan_md: '',
+    migration_error: false,
+  });
+}
 
 /** @type {Map<string, object>} */
 const planTaskStore = new Map();
@@ -387,6 +413,11 @@ function startMockHttp(port) {
         respondJson(res, 404, { error: 'Task not found' });
         return;
       }
+      // Mirror host complete_plan: abandoned rejects; already-complete is idempotent (T5/T8).
+      if (task.status === 'abandoned') {
+        respondJson(res, 409, { error: 'master_abandoned' });
+        return;
+      }
       if (!subId) {
         task.status = 'complete';
         respondJson(res, 200, { task });
@@ -620,6 +651,11 @@ async function runMcpClient(mcpPort) {
       throw new Error(`missing plan tool ${tool}: ${names.join(', ')}`);
     }
   }
+  for (const tool of FORBIDDEN_PLAN_TOOL_NAMES) {
+    if (names.includes(tool)) {
+      throw new Error(`forbidden plan tool registered: ${tool}`);
+    }
+  }
   for (const tool of ATTACHMENT_TOOL_NAMES) {
     if (!names.includes(tool)) {
       throw new Error(`missing attachment tool ${tool}: ${names.join(', ')}`);
@@ -700,6 +736,10 @@ async function runMcpClient(mcpPort) {
   if (!Array.isArray(omitTask.sub_tasks) || omitTask.sub_tasks.length !== 0) {
     throw new Error(`expected empty sub_tasks on create, got: ${planOmitText}`);
   }
+  if (omitTask.status !== 'incomplete') {
+    throw new Error(`create_plan_task status must be incomplete, got: ${planOmitText}`);
+  }
+  assertMasterStatusWire(omitTask.status, 'create_plan_task');
 
   planTaskCreateCalls.length = 0;
   resetPlanTaskStore();
@@ -763,6 +803,12 @@ async function runMcpClient(mcpPort) {
   if (listResult.isError || !listText.includes('CRUD master')) {
     throw new Error(`unexpected list_plan_tasks: ${listText}`);
   }
+  const listParsed = JSON.parse(listText);
+  const listMaster = listParsed.find((t) => t.master_task_id === 'task_mock001');
+  if (!listMaster) {
+    throw new Error(`list_plan_tasks missing CRUD master: ${listText}`);
+  }
+  assertMasterStatusWire(listMaster.status, 'list_plan_tasks');
 
   const getResult = await client.callTool({
     name: 'get_plan_task',
@@ -772,6 +818,7 @@ async function runMcpClient(mcpPort) {
   if (getResult.isError || !getText.includes('Sub B')) {
     throw new Error(`unexpected get_plan_task: ${getText}`);
   }
+  assertMasterStatusWire(JSON.parse(getText).status, 'get_plan_task');
 
   const getMissing = await client.callTool({
     name: 'get_plan_task',
@@ -799,7 +846,17 @@ async function runMcpClient(mcpPort) {
   });
   const completeText = completeSub.content?.[0]?.text || '';
   if (completeSub.isError || !completeText.includes('complete')) {
-    throw new Error(`unexpected complete_plan: ${completeText}`);
+    throw new Error(`unexpected complete_plan with sub_task_id: ${completeText}`);
+  }
+  const afterSubComplete = JSON.parse(completeText).task;
+  const completedSub = afterSubComplete.sub_tasks.find((s) => s.sub_task_id === subToComplete);
+  if (!completedSub || completedSub.status !== 'complete') {
+    throw new Error(`complete_plan with sub_task_id must mark sub complete: ${completeText}`);
+  }
+  if (afterSubComplete.status !== 'incomplete') {
+    throw new Error(
+      `complete_plan with sub_task_id must not rewrite master status, got: ${completeText}`,
+    );
   }
 
   const linkArchive = await client.callTool({
@@ -831,6 +888,81 @@ async function runMcpClient(mcpPort) {
   const deleteMasterText = deleteMaster.content?.[0]?.text || '';
   if (deleteMaster.isError || !deleteMasterText.includes('"ok":true')) {
     throw new Error(`unexpected delete_plan_task: ${deleteMasterText}`);
+  }
+
+  // T8: complete without sub_task_id → master complete; idempotent; abandoned reject;
+  // list/get/create status wire includes abandoned.
+  resetPlanTaskStore();
+  const masterCreate = await client.callTool({
+    name: 'create_plan_task',
+    arguments: { title: 'Master complete path' },
+  });
+  const masterCreateText = masterCreate.content?.[0]?.text || '';
+  if (masterCreate.isError) {
+    throw new Error(`unexpected master-complete create: ${masterCreateText}`);
+  }
+  const completeMaster = await client.callTool({
+    name: 'complete_plan',
+    arguments: { master_task_id: 'task_mock001' },
+  });
+  const completeMasterText = completeMaster.content?.[0]?.text || '';
+  if (completeMaster.isError) {
+    throw new Error(`unexpected complete_plan without sub_task_id: ${completeMasterText}`);
+  }
+  const completeMasterTask = JSON.parse(completeMasterText).task;
+  if (completeMasterTask.status !== 'complete') {
+    throw new Error(
+      `complete_plan without sub_task_id must set master complete: ${completeMasterText}`,
+    );
+  }
+  assertMasterStatusWire(completeMasterTask.status, 'complete_plan without sub');
+
+  const completeIdempotent = await client.callTool({
+    name: 'complete_plan',
+    arguments: { master_task_id: 'task_mock001' },
+  });
+  const completeIdempotentText = completeIdempotent.content?.[0]?.text || '';
+  if (completeIdempotent.isError) {
+    throw new Error(`complete_plan on already-complete must be idempotent: ${completeIdempotentText}`);
+  }
+  if (JSON.parse(completeIdempotentText).task.status !== 'complete') {
+    throw new Error(`idempotent complete_plan must keep status complete: ${completeIdempotentText}`);
+  }
+
+  seedMaster('task_abandoned', 'Abandoned master', 'abandoned');
+  const listTri = await client.callTool({ name: 'list_plan_tasks', arguments: {} });
+  const listTriText = listTri.content?.[0]?.text || '';
+  if (listTri.isError) {
+    throw new Error(`unexpected list after abandoned seed: ${listTriText}`);
+  }
+  const abandonedListed = JSON.parse(listTriText).find((t) => t.master_task_id === 'task_abandoned');
+  if (!abandonedListed || abandonedListed.status !== 'abandoned') {
+    throw new Error(`list_plan_tasks must read back abandoned status: ${listTriText}`);
+  }
+  assertMasterStatusWire(abandonedListed.status, 'list_plan_tasks abandoned');
+
+  const getAbandoned = await client.callTool({
+    name: 'get_plan_task',
+    arguments: { id: 'task_abandoned' },
+  });
+  const getAbandonedText = getAbandoned.content?.[0]?.text || '';
+  if (getAbandoned.isError) {
+    throw new Error(`unexpected get abandoned: ${getAbandonedText}`);
+  }
+  if (JSON.parse(getAbandonedText).status !== 'abandoned') {
+    throw new Error(`get_plan_task must read back abandoned status: ${getAbandonedText}`);
+  }
+  assertMasterStatusWire(JSON.parse(getAbandonedText).status, 'get_plan_task abandoned');
+
+  const rejectAbandoned = await client.callTool({
+    name: 'complete_plan',
+    arguments: { master_task_id: 'task_abandoned' },
+  });
+  const rejectAbandonedText = rejectAbandoned.content?.[0]?.text || '';
+  if (!rejectAbandoned.isError || !rejectAbandonedText.includes('master_abandoned')) {
+    throw new Error(
+      `complete_plan on abandoned must reject with master_abandoned, got: ${rejectAbandonedText}`,
+    );
   }
 
   // T9: attachment tools proxyPost to T8 paths; not nested into get/list task responses.
