@@ -18,7 +18,10 @@ fn assert_ac5_master_task_shape(task: &Value) {
     assert!(task.get("master_task_id").and_then(|v| v.as_str()).is_some());
     assert!(task.get("title").and_then(|v| v.as_str()).is_some());
     let status = task.get("status").and_then(|v| v.as_str()).expect("status");
-    assert!(status == "incomplete" || status == "complete");
+    assert!(
+        PLAN_TASK_MASTER_STATUS_WIRE.contains(&status),
+        "locked read exit status must be tri-state wire value, got {status}"
+    );
     assert!(task.get("created_at").and_then(|v| v.as_str()).is_some());
     let subs = task["sub_tasks"].as_array().expect("sub_tasks");
     assert!(!subs.is_empty());
@@ -852,6 +855,78 @@ fn create_plan_master(port: u16, title: &str, sub_titles: &[&str]) -> (String, S
 }
 
 #[test]
+fn plan_task_master_status_wire_includes_abandoned() {
+    assert_eq!(
+        PLAN_TASK_MASTER_STATUS_WIRE,
+        &["incomplete", "complete", "abandoned"]
+    );
+}
+
+#[test]
+fn http_list_get_create_carry_tri_state_status_including_abandoned() {
+    with_plan_task_http_test(|| {
+        let fixture = setup_repo_for_plan_task();
+        let repo_root = fixture.repo_root.clone();
+        with_server(repo_root, |port| {
+            let (create_status, create_body) = http_post(
+                port,
+                "/api/plan-task-create",
+                &json!({ "title": "Create incomplete", "sub_titles": ["Sub"] }),
+            );
+            assert_eq!(create_status, 201);
+            assert_ac5_master_task_shape(&create_body["task"]);
+            assert_eq!(create_body["task"]["status"], "incomplete");
+
+            let wb = crate::config::paths::workbench_knowledge_root().expect("wb");
+            let complete_id = "task_http_status_complete";
+            let abandoned_id = "task_http_status_abandoned";
+            seed_v2_plan_for_http(
+                &wb,
+                complete_id,
+                "Stored complete",
+                "complete",
+                &json!({ "sub_tasks": [] }),
+                true,
+            );
+            seed_v2_plan_for_http(
+                &wb,
+                abandoned_id,
+                "Stored abandoned",
+                "abandoned",
+                &json!({ "sub_tasks": [] }),
+                true,
+            );
+
+            let (list_status, list_body) = http_get_with_response(port, "/api/plan-tasks");
+            assert_eq!(list_status, 200);
+            let list = list_body.as_array().expect("array");
+            let complete = list
+                .iter()
+                .find(|t| t["master_task_id"] == complete_id)
+                .expect("complete in list");
+            let abandoned = list
+                .iter()
+                .find(|t| t["master_task_id"] == abandoned_id)
+                .expect("abandoned in list");
+            assert_eq!(complete["status"], "complete");
+            assert_eq!(abandoned["status"], "abandoned");
+            assert!(PLAN_TASK_MASTER_STATUS_WIRE.contains(&complete["status"].as_str().unwrap()));
+            assert!(PLAN_TASK_MASTER_STATUS_WIRE.contains(&abandoned["status"].as_str().unwrap()));
+
+            let (get_complete_status, get_complete) =
+                http_get(port, &format!("/api/plan-task?id={complete_id}"));
+            assert_eq!(get_complete_status, 200);
+            assert_eq!(get_complete["status"], "complete");
+
+            let (get_abandoned_status, get_abandoned) =
+                http_get(port, &format!("/api/plan-task?id={abandoned_id}"));
+            assert_eq!(get_abandoned_status, 200);
+            assert_eq!(get_abandoned["status"], "abandoned");
+        });
+    });
+}
+
+#[test]
 fn plan_task_crud_http_flow() {
     with_plan_task_http_test(|| {
         let fixture = setup_repo_for_plan_task();
@@ -1099,6 +1174,7 @@ fn seed_v2_plan_for_http(
     wb: &std::path::Path,
     master_id: &str,
     title: &str,
+    status: &str,
     sub_tasks: &Value,
     merge_index: bool,
 ) {
@@ -1117,7 +1193,7 @@ fn seed_v2_plan_for_http(
         index["tasks"][master_id] = json!({
             "master_task_id": master_id,
             "title": title,
-            "status": "incomplete",
+            "status": status,
             "created_at": "2026-07-08T00:00:00+00:00",
             "task_dir": format!("tasks/{master_id}")
         });
@@ -1395,6 +1471,7 @@ fn get_plan_tasks_migration_error_plan_still_in_list() {
                 &wb,
                 master_id,
                 "Migration error plan",
+                "incomplete",
                 &json!({ "sub_tasks": [] }),
                 true,
             );

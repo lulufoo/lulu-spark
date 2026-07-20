@@ -12,18 +12,13 @@ pub enum SubTaskStatus {
     Abandoned,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum MasterTaskStatus {
+    #[default]
     Incomplete,
     Complete,
     Abandoned,
-}
-
-impl Default for MasterTaskStatus {
-    fn default() -> Self {
-        Self::Incomplete
-    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

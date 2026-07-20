@@ -3,6 +3,9 @@ use tauri::AppHandle;
 
 use crate::services::plan_task;
 
+/// Locked master-task `status` wire values for list/get/create command exits.
+pub(crate) const PLAN_TASK_MASTER_STATUS_WIRE: &[&str] = &["incomplete", "complete", "abandoned"];
+
 fn map_invoke_value(mut value: Value) -> Result<Value, String> {
     let status = value
         .get("_status")

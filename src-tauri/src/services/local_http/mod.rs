@@ -19,6 +19,9 @@ use crate::services::workbench_read::{
 
 pub const DEFAULT_HTTP_PORT: u16 = 8765;
 
+/// Locked master-task `status` wire values for `/api/plan-tasks`, `/api/plan-task`, `/api/plan-task-create`.
+pub(crate) const PLAN_TASK_MASTER_STATUS_WIRE: &[&str] = &["incomplete", "complete", "abandoned"];
+
 pub struct LocalHttpHandle {
     server: Arc<Server>,
     join: JoinHandle<()>,

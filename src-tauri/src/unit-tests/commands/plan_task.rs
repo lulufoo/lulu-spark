@@ -12,8 +12,10 @@ use crate::commands::plan_task::{
     update_plan_md_json,
 };
 use crate::services::plan_task::{
-    create_master_with_subs, list_all, test_reset_all_injection_flags, test_set_fail_batch_plan_md,
+    create_master_with_subs, list_all, test_reset_all_injection_flags, test_run_write_task_batch,
+    test_set_fail_batch_plan_md,
 };
+use crate::services::plan_task::types::{IndexEntry, MasterTaskStatus, SubTasksFile};
 use crate::test_support::TestSandbox;
 
 fn master_from_invoke(v: &serde_json::Value) -> &serde_json::Value {
@@ -30,7 +32,10 @@ fn assert_master_task_shape(task: &serde_json::Value) {
     assert!(task.get("master_task_id").and_then(|v| v.as_str()).is_some());
     assert!(task.get("title").and_then(|v| v.as_str()).is_some());
     let status = task.get("status").and_then(|v| v.as_str()).expect("status");
-    assert!(status == "incomplete" || status == "complete" || status == "abandoned");
+    assert!(
+        super::PLAN_TASK_MASTER_STATUS_WIRE.contains(&status),
+        "locked read exit status must be tri-state wire value, got {status}"
+    );
     assert!(task.get("created_at").and_then(|v| v.as_str()).is_some());
     let subs = task["sub_tasks"].as_array().expect("sub_tasks");
     for sub in subs {
@@ -426,6 +431,68 @@ fn create_plan_task_json_defaults_status_incomplete() {
         let task = master_from_invoke(&v);
         assert_eq!(task["status"], "incomplete");
         assert_master_task_shape(task);
+    });
+}
+
+#[test]
+fn plan_task_master_status_wire_includes_abandoned() {
+    assert_eq!(
+        super::PLAN_TASK_MASTER_STATUS_WIRE,
+        &["incomplete", "complete", "abandoned"]
+    );
+}
+
+#[test]
+fn get_plan_tasks_json_reads_back_complete_and_abandoned_status() {
+    with_commands_plan_test(|| {
+        let complete_id = "task_cmd_status_complete";
+        let abandoned_id = "task_cmd_status_abandoned";
+        test_run_write_task_batch(
+            complete_id,
+            &IndexEntry {
+                master_task_id: complete_id.to_string(),
+                title: "Stored complete".to_string(),
+                status: MasterTaskStatus::Complete,
+                created_at: "2026-07-08T00:00:00+00:00".to_string(),
+                task_dir: format!("tasks/{complete_id}"),
+            },
+            &SubTasksFile { sub_tasks: vec![] },
+            "",
+        )
+        .expect("seed complete");
+        test_run_write_task_batch(
+            abandoned_id,
+            &IndexEntry {
+                master_task_id: abandoned_id.to_string(),
+                title: "Stored abandoned".to_string(),
+                status: MasterTaskStatus::Abandoned,
+                created_at: "2026-07-08T00:00:01+00:00".to_string(),
+                task_dir: format!("tasks/{abandoned_id}"),
+            },
+            &SubTasksFile { sub_tasks: vec![] },
+            "",
+        )
+        .expect("seed abandoned");
+
+        let created = create_plan_task_json("Create incomplete", None, "").expect("create");
+        let created_task = master_from_invoke(&created);
+        assert_eq!(created_task["status"], "incomplete");
+        assert_master_task_shape(created_task);
+
+        let listed = get_plan_tasks_json().expect("list");
+        let arr = listed.as_array().expect("array");
+        let complete = arr
+            .iter()
+            .find(|t| t["master_task_id"] == complete_id)
+            .expect("complete");
+        let abandoned = arr
+            .iter()
+            .find(|t| t["master_task_id"] == abandoned_id)
+            .expect("abandoned");
+        assert_master_task_shape(complete);
+        assert_master_task_shape(abandoned);
+        assert_eq!(complete["status"], "complete");
+        assert_eq!(abandoned["status"], "abandoned");
     });
 }
 
