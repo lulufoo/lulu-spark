@@ -55,6 +55,7 @@ const PLAN_TASK_LIFECYCLE_COMMANDS: &[&str] = &[
     "abandon_plan_sub",
     "update_plan_sub",
     "update_plan_master_title",
+    "set_plan_master_status",
 ];
 
 const PLAN_TASK_ATTACHMENT_COMMANDS: &[&str] = &[
@@ -156,7 +157,7 @@ fn plan_task_fm4_and_lifecycle_commands_coexist_in_acl() {
         PLAN_TASK_WRITE_COMMANDS.len()
             + PLAN_TASK_LIFECYCLE_COMMANDS.len()
             + PLAN_TASK_ATTACHMENT_COMMANDS.len(),
-        "expected fourteen distinct plan task ACL entries"
+        "expected fifteen distinct plan task ACL entries"
     );
 }
 

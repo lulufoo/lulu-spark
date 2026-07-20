@@ -91,6 +91,13 @@ pub fn update_plan_master_title_json(
     map_invoke_value(plan_task::update_master_title(master_task_id, title))
 }
 
+pub fn set_plan_master_status_json(
+    master_task_id: &str,
+    status: &str,
+) -> Result<Value, String> {
+    map_invoke_value(plan_task::set_master_status(master_task_id, status))
+}
+
 pub fn add_plan_attachment_json(
     master_task_id: &str,
     file_name: &str,
@@ -274,6 +281,19 @@ pub async fn update_plan_master_title(
 ) -> Result<Value, String> {
     tauri::async_runtime::spawn_blocking(move || {
         update_plan_master_title_json(&master_task_id, &title)
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+pub async fn set_plan_master_status(
+    _app: AppHandle,
+    master_task_id: String,
+    status: String,
+) -> Result<Value, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        set_plan_master_status_json(&master_task_id, &status)
     })
     .await
     .map_err(|e| e.to_string())?

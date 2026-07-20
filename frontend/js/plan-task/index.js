@@ -115,6 +115,10 @@ export async function updatePlanMasterTitle({ masterTaskId, title } = {}) {
   return invokePlanWrite('update_plan_master_title', { masterTaskId, title });
 }
 
+export async function setPlanMasterStatus({ masterTaskId, status } = {}) {
+  return invokePlanWrite('set_plan_master_status', { masterTaskId, status });
+}
+
 export async function listPlanAttachments({ masterTaskId } = {}) {
   const result = await invokePlanPlain('list_plan_attachments', { masterTaskId });
   if (Array.isArray(result)) return result;
@@ -257,17 +261,23 @@ function renderPageHeader(disabled) {
   `;
 }
 
+function masterStatusClass(status) {
+  const wire = status === 'complete' || status === 'abandoned' ? status : 'incomplete';
+  return wire;
+}
+
 function renderMasterList(masters, selectedMasterId, disabled) {
   const disabledAttr = disabled ? ' disabled' : '';
   const items = sortMasters(masters)
     .map((master) => {
       const selected =
         master.master_task_id === selectedMasterId ? ' plan-task-master-item--selected' : '';
+      const statusMod = ` plan-task-master-item--${masterStatusClass(master.status)}`;
       const subCount = master.sub_tasks?.length ?? 0;
       const meta = `${subCount} sub-tasks · ${formatRelativeTime(master.created_at) || 'Unknown time'}`;
       return `
         <li>
-          <button type="button" class="plan-task-master-item${selected}" data-master-id="${escHtml(master.master_task_id)}"${disabledAttr}>
+          <button type="button" class="plan-task-master-item${selected}${statusMod}" data-master-id="${escHtml(master.master_task_id)}"${disabledAttr}>
             <span class="plan-task-master-title">${escHtml(master.title)}</span>
             <span class="plan-task-master-meta">${escHtml(meta)}</span>
           </button>
@@ -367,21 +377,43 @@ function renderSubRow(master, sub, selectedSubId, ui) {
   `;
 }
 
+function renderMasterStatusSelect(master, disabled) {
+  const status = masterStatusClass(master.status);
+  const disabledAttr = disabled ? ' disabled' : '';
+  const options = ['incomplete', 'complete', 'abandoned']
+    .map((value) => {
+      const selected = status === value ? ' selected' : '';
+      return `<option value="${escHtml(value)}"${selected}>${escHtml(formatPlanTaskStatus(value))}</option>`;
+    })
+    .join('');
+  return `
+    <select
+      class="plan-task-master-status-select plan-task-master-status-select--${escHtml(status)}"
+      data-action="change-master-status"
+      aria-label="Todo status"${disabledAttr}
+    >${options}</select>
+  `;
+}
+
 function renderDetailTitle(master, ui = {}) {
   const title = ui.masterTitleDraft ?? master.title ?? '';
+  const status = masterStatusClass(ui.masterStatus ?? master.status);
   const disabledAttr = ui.disabled ? ' disabled' : '';
   const error = ui.masterTitleError
     ? `<p class="plan-task-detail-title-error">${escHtml(ui.masterTitleError)}</p>`
     : '';
   return `
-    <input
-      type="text"
-      class="plan-task-detail-title"
-      data-action="edit-master-title"
-      value="${escHtml(title)}"
-      aria-label="Todo title"
-      ${disabledAttr}
-    />
+    <div class="plan-task-detail-title-row">
+      <input
+        type="text"
+        class="plan-task-detail-title plan-task-detail-title--${escHtml(status)}"
+        data-action="edit-master-title"
+        value="${escHtml(title)}"
+        aria-label="Todo title"
+        ${disabledAttr}
+      />
+      ${renderMasterStatusSelect({ ...master, status }, ui.disabled)}
+    </div>
     ${error}
   `;
 }
@@ -1328,6 +1360,44 @@ export function mountPlanTaskSplit(container, opts = {}) {
     }
   }
 
+  async function runMasterStatusChange(targetStatus, selectEl) {
+    const master = findMaster(selectedMasterId);
+    const priorStatus = masterStatusClass(master?.status);
+    if (!master) {
+      if (selectEl instanceof HTMLSelectElement) {
+        selectEl.value = priorStatus;
+      }
+      return;
+    }
+    if (
+      targetStatus !== 'incomplete' &&
+      targetStatus !== 'complete' &&
+      targetStatus !== 'abandoned'
+    ) {
+      if (selectEl instanceof HTMLSelectElement) {
+        selectEl.value = priorStatus;
+      }
+      return;
+    }
+    if (targetStatus === priorStatus) return;
+    busy = true;
+    paint();
+    try {
+      await setPlanMasterStatus({
+        masterTaskId: selectedMasterId,
+        status: targetStatus,
+      });
+      busy = false;
+      await reloadList({ afterWrite: true });
+    } catch {
+      busy = false;
+      if (selectEl instanceof HTMLSelectElement) {
+        selectEl.value = priorStatus;
+      }
+      paint();
+    }
+  }
+
   async function openPlanAiAssistant() {
     if (!selectedMasterId || controlsDisabled(busy)) return;
     const invoke = getTauriInvoke();
@@ -1727,6 +1797,16 @@ export function mountPlanTaskSplit(container, opts = {}) {
   };
 
   const onChange = (event) => {
+    const masterSelect = event.target.closest('[data-action="change-master-status"]');
+    if (masterSelect instanceof HTMLSelectElement) {
+      if (controlsDisabled(busy) || !selectedMasterId) {
+        const master = findMaster(selectedMasterId);
+        masterSelect.value = masterStatusClass(master?.status);
+        return;
+      }
+      void runMasterStatusChange(masterSelect.value, masterSelect);
+      return;
+    }
     const select = event.target.closest('[data-action="change-sub-status"]');
     if (!(select instanceof HTMLSelectElement)) return;
     if (controlsDisabled(busy) || !selectedMasterId) {

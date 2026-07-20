@@ -264,6 +264,42 @@ fn explicit_abandoned_write_keeps_index_and_authority_aligned() {
 }
 
 #[test]
+fn set_master_status_allows_tri_state_mutual_transitions() {
+    with_plan_task_sandbox(|wb| {
+        let created = create_master_with_subs("Set status", Some(&["A"]));
+        assert_eq!(created["_status"], 201);
+        let master_id = created["master_task_id"].as_str().expect("master_task_id");
+
+        for target in ["complete", "abandoned", "incomplete"] {
+            let v = set_master_status(master_id, target);
+            assert_eq!(v["_status"], 200, "target={target} body={v}");
+            assert_eq!(master_from_value(&v)["status"], target);
+
+            let got = get_by_id(master_id);
+            assert_eq!(got["status"], target);
+
+            let index: serde_json::Value = serde_json::from_str(
+                &fs::read_to_string(wb.join("plan_tasks").join("index.json")).unwrap(),
+            )
+            .unwrap();
+            assert_eq!(index["tasks"][master_id]["status"], target);
+            assert_eq!(index["tasks"][master_id]["status"], got["status"]);
+        }
+    });
+}
+
+#[test]
+fn set_master_status_rejects_unknown_status() {
+    with_plan_task_sandbox(|_| {
+        let created = create_master_with_subs("Bad status", Some(&["A"]));
+        let master_id = created["master_task_id"].as_str().expect("master_task_id");
+        let v = set_master_status(master_id, "done");
+        assert_eq!(v["_status"], 400);
+        assert!(v.get("error").is_some());
+    });
+}
+
+#[test]
 fn create_multiple_subs_increments_sub_suffix() {
     with_plan_task_sandbox(|_| {
         let v = create_master_with_subs("Multi", Some(&["A", "B", "C"]));

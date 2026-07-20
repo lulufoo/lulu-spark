@@ -927,6 +927,74 @@ fn http_list_get_create_carry_tri_state_status_including_abandoned() {
 }
 
 #[test]
+fn post_plan_task_set_status_updates_master_and_reads_back_consistently() {
+    with_plan_task_http_test(|| {
+        let fixture = setup_repo_for_plan_task();
+        let repo_root = fixture.repo_root.clone();
+        with_server(repo_root, |port| {
+            let (master_id, _, _) = create_plan_master(port, "Set status master", &["Sub"]);
+            assert_eq!(
+                http_get(port, &format!("/api/plan-task?id={master_id}")).1["status"],
+                "incomplete"
+            );
+
+            for target in ["complete", "abandoned", "incomplete"] {
+                let (status, body) = http_post(
+                    port,
+                    "/api/plan-task-set-status",
+                    &json!({ "master_task_id": master_id, "status": target }),
+                );
+                assert_eq!(status, 200, "set-status {target}: {body}");
+                assert_eq!(body["task"]["status"], target);
+                assert_eq!(body["task"]["master_task_id"], master_id);
+
+                let (get_status, get_body) =
+                    http_get(port, &format!("/api/plan-task?id={master_id}"));
+                assert_eq!(get_status, 200);
+                assert_eq!(get_body["status"], target);
+
+                let (list_status, list_body) = http_get_with_response(port, "/api/plan-tasks");
+                assert_eq!(list_status, 200);
+                let listed = list_body
+                    .as_array()
+                    .expect("list array")
+                    .iter()
+                    .find(|t| t["master_task_id"] == master_id)
+                    .expect("master in list");
+                assert_eq!(listed["status"], target);
+
+                let wb = crate::config::paths::workbench_knowledge_root().expect("wb");
+                let index: Value = serde_json::from_str(
+                    &fs::read_to_string(wb.join("plan_tasks").join("index.json")).unwrap(),
+                )
+                .unwrap();
+                assert_eq!(index["tasks"][&master_id]["status"], target);
+                assert_eq!(index["tasks"][&master_id]["status"], get_body["status"]);
+                assert_eq!(index["tasks"][&master_id]["status"], listed["status"]);
+            }
+        });
+    });
+}
+
+#[test]
+fn post_plan_task_set_status_rejects_invalid_status() {
+    with_plan_task_http_test(|| {
+        let fixture = setup_repo_for_plan_task();
+        let repo_root = fixture.repo_root.clone();
+        with_server(repo_root, |port| {
+            let (master_id, _, _) = create_plan_master(port, "Invalid status", &["Sub"]);
+            let (status, body) = http_post(
+                port,
+                "/api/plan-task-set-status",
+                &json!({ "master_task_id": master_id, "status": "done" }),
+            );
+            assert_eq!(status, 400);
+            assert!(body.get("error").is_some());
+        });
+    });
+}
+
+#[test]
 fn plan_task_crud_http_flow() {
     with_plan_task_http_test(|| {
         let fixture = setup_repo_for_plan_task();

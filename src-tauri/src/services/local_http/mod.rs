@@ -196,6 +196,10 @@ fn handle_request(repo_root: &PathBuf, port: u16, request: tiny_http::Request) {
                 handle_plan_task_post(request, handle_plan_task_complete_payload);
                 return;
             }
+            "/api/plan-task-set-status" => {
+                handle_plan_task_post(request, handle_plan_task_set_status_payload);
+                return;
+            }
             "/api/plan-task-link-archive" => {
                 handle_plan_task_post(request, handle_plan_task_link_archive_payload);
                 return;
@@ -478,6 +482,16 @@ fn handle_plan_task_complete_payload(payload: &Value) -> Value {
     };
     let sub_task_id = payload.get("sub_task_id").and_then(|v| v.as_str());
     plan_task::complete_plan(master_task_id, sub_task_id)
+}
+
+fn handle_plan_task_set_status_payload(payload: &Value) -> Value {
+    let Some(master_task_id) = payload.get("master_task_id").and_then(|v| v.as_str()) else {
+        return json!({ "error": "Missing master_task_id", "_status": 400 });
+    };
+    let Some(status) = payload.get("status").and_then(|v| v.as_str()) else {
+        return json!({ "error": "Missing status", "_status": 400 });
+    };
+    plan_task::set_master_status(master_task_id, status)
 }
 
 fn handle_plan_task_link_archive_payload(payload: &Value) -> Value {

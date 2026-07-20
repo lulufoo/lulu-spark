@@ -983,27 +983,24 @@ fn complete_master(master_task_id: &str) -> Value {
         };
 
         match master.status {
-            MasterTaskStatus::Complete => {
-                return json!({
-                    "task": master_to_value(&master),
-                    "_status": 200,
-                });
-            }
-            MasterTaskStatus::Abandoned => {
-                return json!({ "error": "master_abandoned", "_status": 409 });
-            }
-            MasterTaskStatus::Incomplete => {}
-        }
-
-        master.status = MasterTaskStatus::Complete;
-        let updated = master.clone();
-
-        match persist_master(&master) {
-            Ok(()) => json!({
-                "task": master_to_value(&updated),
+            MasterTaskStatus::Complete => json!({
+                "task": master_to_value(&master),
                 "_status": 200,
             }),
-            Err(e) => json!({ "error": e, "_status": 500 }),
+            MasterTaskStatus::Abandoned => {
+                json!({ "error": "master_abandoned", "_status": 409 })
+            }
+            MasterTaskStatus::Incomplete => {
+                master.status = MasterTaskStatus::Complete;
+                let updated = master.clone();
+                match persist_master(&master) {
+                    Ok(()) => json!({
+                        "task": master_to_value(&updated),
+                        "_status": 200,
+                    }),
+                    Err(e) => json!({ "error": e, "_status": 500 }),
+                }
+            }
         }
     })
 }
@@ -1068,6 +1065,44 @@ pub fn update_master_title(master_task_id: &str, title: &str) -> Value {
         };
 
         master.title = title.to_string();
+        let updated = master.clone();
+
+        match persist_master(&master) {
+            Ok(()) => json!({
+                "task": master_to_value(&updated),
+                "_status": 200,
+            }),
+            Err(e) => json!({ "error": e, "_status": 500 }),
+        }
+    })
+}
+
+fn parse_master_status_wire(status: &str) -> Option<MasterTaskStatus> {
+    match status.trim() {
+        "incomplete" => Some(MasterTaskStatus::Incomplete),
+        "complete" => Some(MasterTaskStatus::Complete),
+        "abandoned" => Some(MasterTaskStatus::Abandoned),
+        _ => None,
+    }
+}
+
+/// Host/UI-only explicit master status write (tri-state mutual transitions).
+pub fn set_master_status(master_task_id: &str, status: &str) -> Value {
+    let Some(next) = parse_master_status_wire(status) else {
+        return json!({ "error": "Invalid status", "_status": 400 });
+    };
+
+    with_write_lock(|| {
+        if let Err(e) = ensure_bootstrap() {
+            return bootstrap_error(e);
+        }
+
+        let mut master = match load_master_task_unlocked(master_task_id) {
+            Ok(m) => m,
+            Err(err) => return err,
+        };
+
+        master.status = next;
         let updated = master.clone();
 
         match persist_master(&master) {

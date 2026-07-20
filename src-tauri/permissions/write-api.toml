@@ -37,6 +37,7 @@ commands.allow = [
   "abandon_plan_sub",
   "update_plan_sub",
   "update_plan_master_title",
+  "set_plan_master_status",
   "add_plan_attachment",
   "list_plan_attachments",
   "read_plan_attachment",

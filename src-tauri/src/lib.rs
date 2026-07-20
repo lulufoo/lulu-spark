@@ -463,6 +463,7 @@ pub fn run() {
             commands::plan_task::abandon_plan_sub,
             commands::plan_task::update_plan_sub,
             commands::plan_task::update_plan_master_title,
+            commands::plan_task::set_plan_master_status,
             commands::plan_task::add_plan_attachment,
             commands::plan_task::list_plan_attachments,
             commands::plan_task::read_plan_attachment,

@@ -24,6 +24,7 @@ import {
   loadPlanTasks,
   mountPlanTaskSplit,
   renderSubDetail,
+  setPlanMasterStatus,
 } from '../frontend/js/plan-task/index.js';
 
 const fixtureRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -101,6 +102,24 @@ const sampleMasters = [
     ],
     plan_md: '## Notes',
     migration_error: true,
+  },
+  {
+    master_task_id: 'task_complete',
+    title: 'Completed Master',
+    status: 'complete',
+    created_at: '2026-07-03T10:00:00Z',
+    sub_tasks: [],
+    plan_md: '',
+    migration_error: false,
+  },
+  {
+    master_task_id: 'task_abandoned',
+    title: 'Abandoned Master',
+    status: 'abandoned',
+    created_at: '2026-07-02T10:00:00Z',
+    sub_tasks: [],
+    plan_md: '',
+    migration_error: false,
   },
 ];
 
@@ -225,6 +244,19 @@ describe('mountPlanTaskSplit', () => {
     dispose();
   });
 
+  it('lists complete and abandoned masters by default without hiding abandoned', async () => {
+    getJsonMock.mockResolvedValue(sampleMasters);
+    const { dispose } = mountPlanTaskSplit(container);
+    await vi.waitFor(() => {
+      expect(container.querySelector('[data-master-id="task_complete"]')).not.toBeNull();
+      expect(container.querySelector('[data-master-id="task_abandoned"]')).not.toBeNull();
+    });
+    const abandonedItem = container.querySelector('[data-master-id="task_abandoned"]');
+    expect(abandonedItem?.textContent).toContain('Abandoned Master');
+    expect(abandonedItem?.className).toMatch(/plan-task-master-item--abandoned/);
+    dispose();
+  });
+
   it('shows right empty state when no master is selected', async () => {
     getJsonMock.mockResolvedValue(sampleMasters);
     const { dispose } = mountPlanTaskSplit(container);
@@ -288,7 +320,7 @@ describe('mountPlanTaskSplit', () => {
     getJsonMock.mockResolvedValue(sampleMasters);
     const { dispose } = mountPlanTaskSplit(container);
     await vi.waitFor(() => {
-      expect(container.querySelectorAll('.plan-task-master-item')).toHaveLength(3);
+      expect(container.querySelectorAll('.plan-task-master-item')).toHaveLength(5);
     });
     container.querySelector('[data-master-id="task_migrated_err"]').click();
     await vi.waitFor(() => {
@@ -300,6 +332,88 @@ describe('mountPlanTaskSplit', () => {
       ).toBe('Still visible sub');
     });
     dispose();
+  });
+
+  it('renders title-area master status select with English labels and title markers', async () => {
+    getJsonMock.mockResolvedValue(sampleMasters);
+    const { dispose } = mountPlanTaskSplit(container, {
+      masterId: 'task_alpha',
+    });
+    await vi.waitFor(() => {
+      expect(
+        container.querySelector('[data-action="change-master-status"]'),
+      ).not.toBeNull();
+    });
+    const statusSelect = container.querySelector('[data-action="change-master-status"]');
+    expect(statusSelect).toBeInstanceOf(HTMLSelectElement);
+    expect(statusSelect.value).toBe('incomplete');
+    expect(statusSelect.className).toMatch(/plan-task-master-status-select--incomplete/);
+    const optionTexts = [...statusSelect.options].map((opt) => opt.textContent);
+    expect(optionTexts).toEqual(['In progress', 'Completed', 'Abandoned']);
+    const titleInput = container.querySelector('[data-action="edit-master-title"]');
+    expect(titleInput.value).toBe('Alpha Task');
+    expect(titleInput.className).toMatch(/plan-task-detail-title--incomplete/);
+    dispose();
+  });
+
+  it('marks complete title muted and abandoned title with strikethrough class without changing title text', async () => {
+    getJsonMock.mockResolvedValue(sampleMasters);
+    const { dispose: disposeComplete } = mountPlanTaskSplit(container, {
+      masterId: 'task_complete',
+    });
+    await vi.waitFor(() => {
+      expect(container.querySelector('[data-action="edit-master-title"]')).not.toBeNull();
+    });
+    const completeTitle = container.querySelector('[data-action="edit-master-title"]');
+    expect(completeTitle.value).toBe('Completed Master');
+    expect(completeTitle.className).toMatch(/plan-task-detail-title--complete/);
+    disposeComplete();
+
+    const { dispose: disposeAbandoned } = mountPlanTaskSplit(container, {
+      masterId: 'task_abandoned',
+    });
+    await vi.waitFor(() => {
+      expect(container.querySelector('[data-action="edit-master-title"]')).not.toBeNull();
+    });
+    const abandonedTitle = container.querySelector('[data-action="edit-master-title"]');
+    expect(abandonedTitle.value).toBe('Abandoned Master');
+    expect(abandonedTitle.className).toMatch(/plan-task-detail-title--abandoned/);
+    disposeAbandoned();
+  });
+
+  it('invokes set_plan_master_status when title-area status changes', async () => {
+    const invokeMock = vi.fn(async (cmd, args) => {
+      if (cmd === 'set_plan_master_status') {
+        return {
+          task: { ...sampleMasters[0], status: args.status },
+          _status: 200,
+        };
+      }
+      if (cmd === 'list_plan_attachments') return [];
+      return {};
+    });
+    window.__TAURI__ = { core: { invoke: invokeMock } };
+    getJsonMock.mockResolvedValue(sampleMasters);
+    const { dispose } = mountPlanTaskSplit(container, {
+      masterId: 'task_alpha',
+    });
+    await vi.waitFor(() => {
+      expect(
+        container.querySelector('[data-action="change-master-status"]'),
+      ).not.toBeNull();
+    });
+    const statusSelect = container.querySelector('[data-action="change-master-status"]');
+    statusSelect.value = 'abandoned';
+    statusSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    await vi.waitFor(() => {
+      expect(invokeMock).toHaveBeenCalledWith('set_plan_master_status', {
+        masterTaskId: 'task_alpha',
+        status: 'abandoned',
+      });
+    });
+    expect(setPlanMasterStatus).toBeTypeOf('function');
+    dispose();
+    delete window.__TAURI__;
   });
 
   it('copies master task id from plan-md header next to edit', async () => {
@@ -454,6 +568,21 @@ describe('plan-tasks route source wiring', () => {
     expect(appCss).toMatch(/\.plan-task-plan-md-preview/);
     expect(appCss).toMatch(/\.plan-task-sub-status-select--abandoned/);
     expect(appCss).not.toMatch(/\.plan-task-plan-md-preview[\s\S]*background:\s*#000/);
+  });
+
+  it('app.css styles master title/status markers for complete muted and abandoned strike/gray', () => {
+    expect(appCss).toMatch(/\.plan-task-detail-title--complete/);
+    expect(appCss).toMatch(/\.plan-task-detail-title--abandoned/);
+    expect(appCss).toMatch(/\.plan-task-master-item--abandoned/);
+    expect(appCss).toMatch(/\.plan-task-master-status-select--abandoned/);
+  });
+
+  it('does not map set-status as an MCP tool', () => {
+    const mcpIndex = readFileSync(
+      join(fixtureRoot, 'packages/knowledge-mcp/index.mjs'),
+      'utf8',
+    );
+    expect(mcpIndex).not.toMatch(/set_plan_master_status|plan-task-set-status|set_master_status/);
   });
 
   it('app.css keeps plan-md preview inside bordered box under flex layout', () => {
