@@ -3,7 +3,6 @@
     "pbt_section_registry_url": "https://github.com/lulufoo/lulu-workflow-framework/blob/main/lulu-dev-workflow/template/blueprint/product-blueprint-topic-section-registry.json",
     "pbt_section_form_registry_url": "https://github.com/lulufoo/lulu-workflow-framework/blob/main/lulu-dev-workflow/template/blueprint/product-blueprint-topic-section-form-registry.json",
     "pbt_section_kw_criteria_url": "https://github.com/lulufoo/lulu-workflow-framework/blob/main/lulu-dev-workflow/template/blueprint/product-blueprint-topic-section-kw-criteria.md",
-    "pbt_outline_registry_url": "https://github.com/lulufoo/lulu-workflow-framework/blob/main/lulu-dev-workflow/template/blueprint/product-blueprint-topic-outline-registry.json",
     "pbt_topic_role_instance_url": "https://github.com/lulufoo/lulu-workflow-framework/blob/main/lulu-dev-workflow/template/blueprint/product-blueprint-topic-role-instance.json",
     "pbt_topic_domain_instance_url": "https://github.com/lulufoo/lulu-workflow-framework/blob/main/lulu-dev-workflow/template/blueprint/product-blueprint-topic-domain-instance.json"
   },

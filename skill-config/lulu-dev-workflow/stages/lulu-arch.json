@@ -3,7 +3,6 @@
     "tat_section_registry_url": "https://github.com/lulufoo/lulu-workflow-framework/blob/main/lulu-dev-workflow/template/arch/tech-arch-topic-section-registry.json",
     "tat_section_form_registry_url": "https://github.com/lulufoo/lulu-workflow-framework/blob/main/lulu-dev-workflow/template/arch/tech-arch-topic-section-form-registry.json",
     "tat_section_kw_criteria_url": "https://github.com/lulufoo/lulu-workflow-framework/blob/main/lulu-dev-workflow/template/arch/tech-arch-topic-section-kw-criteria.md",
-    "tat_outline_registry_url": "https://github.com/lulufoo/lulu-workflow-framework/blob/main/lulu-dev-workflow/template/arch/tech-arch-topic-outline-registry.json",
     "tat_topic_role_instance_url": "https://github.com/lulufoo/lulu-workflow-framework/blob/main/lulu-dev-workflow/template/arch/tech-arch-topic-role-instance.json",
     "tat_topic_domain_instance_url": "https://github.com/lulufoo/lulu-workflow-framework/blob/main/lulu-dev-workflow/template/arch/tech-arch-topic-domain-instance.json"
   },
