@@ -30,7 +30,7 @@ fn assert_master_task_shape(task: &serde_json::Value) {
     assert!(task.get("master_task_id").and_then(|v| v.as_str()).is_some());
     assert!(task.get("title").and_then(|v| v.as_str()).is_some());
     let status = task.get("status").and_then(|v| v.as_str()).expect("status");
-    assert!(status == "incomplete" || status == "complete");
+    assert!(status == "incomplete" || status == "complete" || status == "abandoned");
     assert!(task.get("created_at").and_then(|v| v.as_str()).is_some());
     let subs = task["sub_tasks"].as_array().expect("sub_tasks");
     for sub in subs {
@@ -369,7 +369,7 @@ fn update_plan_md_json_io_failure_returns_500_class() {
 }
 
 #[test]
-fn complete_plan_sub_json_marks_sub_complete_and_recomputes_master() {
+fn complete_plan_sub_json_marks_sub_complete_without_rewriting_master() {
     with_commands_plan_test(|| {
         let created = create_plan_task_json("Complete cmd", Some(&["A", "B"]), "").expect("create");
         let master_id = created["master_task_id"].as_str().expect("id").to_string();
@@ -384,6 +384,48 @@ fn complete_plan_sub_json_marks_sub_complete_and_recomputes_master() {
         assert_eq!(task["status"], "incomplete");
         assert_eq!(task["sub_tasks"][0]["status"], "complete");
         assert_eq!(task["sub_tasks"][1]["status"], "incomplete");
+    });
+}
+
+#[test]
+fn complete_plan_sub_json_all_subs_done_leaves_master_incomplete() {
+    with_commands_plan_test(|| {
+        let created = create_plan_task_json("All subs done", Some(&["A", "B"]), "").expect("create");
+        let master_id = created["master_task_id"].as_str().expect("id").to_string();
+        let sub_ids: Vec<String> = master_from_invoke(&created)["sub_tasks"]
+            .as_array()
+            .expect("subs")
+            .iter()
+            .map(|s| s["sub_task_id"].as_str().expect("id").to_string())
+            .collect();
+
+        for sub_id in &sub_ids {
+            let completed = complete_plan_sub_json(&master_id, sub_id).expect("complete");
+            assert!(completed.get("_status").is_none());
+        }
+
+        let listed = get_plan_tasks_json().expect("list");
+        let task = listed
+            .as_array()
+            .expect("array")
+            .iter()
+            .find(|t| t["master_task_id"] == master_id)
+            .expect("task");
+        assert_master_task_shape(task);
+        assert_eq!(task["status"], "incomplete");
+        for sub in task["sub_tasks"].as_array().expect("subs") {
+            assert_eq!(sub["status"], "complete");
+        }
+    });
+}
+
+#[test]
+fn create_plan_task_json_defaults_status_incomplete() {
+    with_commands_plan_test(|| {
+        let v = create_plan_task_json("Default status", None, "").expect("create");
+        let task = master_from_invoke(&v);
+        assert_eq!(task["status"], "incomplete");
+        assert_master_task_shape(task);
     });
 }
 

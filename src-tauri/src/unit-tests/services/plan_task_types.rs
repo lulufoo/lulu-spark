@@ -130,6 +130,60 @@ fn sub_task_status_serializes_three_lowercase_variants() {
 }
 
 #[test]
+fn master_task_status_serializes_three_lowercase_variants() {
+    for (status, expected) in [
+        (MasterTaskStatus::Incomplete, "incomplete"),
+        (MasterTaskStatus::Complete, "complete"),
+        (MasterTaskStatus::Abandoned, "abandoned"),
+    ] {
+        let v: Value = serde_json::to_value(&status).expect("serialize");
+        assert_eq!(v, expected);
+        let parsed: MasterTaskStatus = serde_json::from_value(v).expect("deserialize");
+        assert_eq!(parsed, status);
+    }
+}
+
+#[test]
+fn master_task_status_abandoned_roundtrip() {
+    let raw = json!("abandoned");
+    let status: MasterTaskStatus = serde_json::from_value(raw).expect("deserialize");
+    assert_eq!(status, MasterTaskStatus::Abandoned);
+    let v: Value = serde_json::to_value(&status).expect("serialize");
+    assert_eq!(v, "abandoned");
+}
+
+#[test]
+fn master_task_status_deserialize_unknown_rejects() {
+    let result: Result<MasterTaskStatus, _> = serde_json::from_value(json!("not_a_status"));
+    assert!(result.is_err());
+}
+
+#[test]
+fn index_entry_missing_status_defaults_to_incomplete() {
+    let raw = json!({
+        "master_task_id": "task_abc",
+        "title": "Legacy",
+        "created_at": "2026-07-08T00:00:00+00:00",
+        "task_dir": "tasks/task_abc"
+    });
+    let entry: IndexEntry = serde_json::from_value(raw).expect("deserialize");
+    assert_eq!(entry.status, MasterTaskStatus::Incomplete);
+}
+
+#[test]
+fn index_entry_explicit_complete_is_not_defaulted_away() {
+    let raw = json!({
+        "master_task_id": "task_abc",
+        "title": "Done",
+        "status": "complete",
+        "created_at": "2026-07-08T00:00:00+00:00",
+        "task_dir": "tasks/task_abc"
+    });
+    let entry: IndexEntry = serde_json::from_value(raw).expect("deserialize");
+    assert_eq!(entry.status, MasterTaskStatus::Complete);
+}
+
+#[test]
 fn sub_task_status_abandoned_roundtrip() {
     let raw = json!({
         "sub_task_id": "task_abc_sub_01",

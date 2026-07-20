@@ -203,7 +203,7 @@ fn create_with_empty_sub_titles_slice_yields_empty_sub_tasks() {
 }
 
 #[test]
-fn recompute_master_status_empty_sub_tasks_stays_incomplete() {
+fn stored_complete_with_empty_sub_tasks_is_preserved_without_recompute() {
     with_plan_task_sandbox(|_| {
         let master_id = "task_empty_subs";
         let mut entry = sample_index_entry(master_id);
@@ -217,13 +217,13 @@ fn recompute_master_status_empty_sub_tasks_stays_incomplete() {
         .expect("batch write");
 
         let got = get_by_id(master_id);
-        assert_eq!(got["status"], "incomplete");
+        assert_eq!(got["status"], "complete");
         assert_eq!(got["sub_tasks"].as_array().unwrap().len(), 0);
     });
 }
 
 #[test]
-fn recompute_master_status_all_complete_marks_master_complete() {
+fn completing_all_subs_does_not_recompute_master_status() {
     with_plan_task_sandbox(|_| {
         let created = create_master_with_subs("All done", Some(&["A", "B"]));
         let master_id = created["master_task_id"].as_str().unwrap();
@@ -233,7 +233,33 @@ fn recompute_master_status_all_complete_marks_master_complete() {
             assert_eq!(v["_status"], 200);
         }
         let got = get_by_id(master_id);
-        assert_eq!(got["status"], "complete");
+        assert_eq!(got["status"], "incomplete");
+    });
+}
+
+#[test]
+fn explicit_abandoned_write_keeps_index_and_authority_aligned() {
+    with_plan_task_sandbox(|wb| {
+        let master_id = "task_abandoned_explicit";
+        let mut entry = sample_index_entry(master_id);
+        entry.status = MasterTaskStatus::Abandoned;
+        test_run_write_task_batch(
+            master_id,
+            &entry,
+            &SubTasksFile { sub_tasks: vec![] },
+            "",
+        )
+        .expect("batch write");
+
+        let got = get_by_id(master_id);
+        assert_eq!(got["status"], "abandoned");
+
+        let index: serde_json::Value = serde_json::from_str(
+            &fs::read_to_string(wb.join("plan_tasks").join("index.json")).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(index["tasks"][master_id]["status"], "abandoned");
+        assert_eq!(index["tasks"][master_id]["status"], got["status"]);
     });
 }
 
@@ -296,7 +322,7 @@ fn list_all_returns_master_trees() {
 }
 
 #[test]
-fn complete_sub_marks_master_complete_when_all_subs_done() {
+fn complete_sub_does_not_mark_master_complete_when_all_subs_done() {
     with_plan_task_sandbox(|_| {
         let created = create_master_with_subs("Done", Some(&["b"]));
         let master_id = created["master_task_id"].as_str().unwrap().to_string();
@@ -313,7 +339,7 @@ fn complete_sub_marks_master_complete_when_all_subs_done() {
         }
 
         let got = get_by_id(&master_id);
-        assert_eq!(got["status"], "complete");
+        assert_eq!(got["status"], "incomplete");
         for sub in got["sub_tasks"].as_array().unwrap() {
             assert_eq!(sub["status"], "complete");
             assert!(sub
@@ -804,11 +830,17 @@ fn write_task_batch_index_failure_restores_snapshot_and_leaves_orphan() {
 }
 
 #[test]
-fn add_sub_appends_incomplete_sub_and_recomputes_master_incomplete() {
+fn add_sub_appends_incomplete_sub_without_rewriting_master_status() {
     with_plan_task_sandbox(|_| {
-        let created = create_master_with_subs("Add sub", Some(&["A"]));
-        let master_id = created["master_task_id"].as_str().unwrap();
-        complete_sub(master_id, created["sub_task_id"].as_str().unwrap());
+        let master_id = "task_add_keeps_complete";
+        let mut entry = sample_index_entry(master_id);
+        entry.status = MasterTaskStatus::Complete;
+        let mut subs = sample_sub_tasks(master_id);
+        subs.sub_tasks[0].implicit = false;
+        subs.sub_tasks[0].status = SubTaskStatus::Complete;
+        subs.sub_tasks[0].completed_at = Some("2026-07-08T01:00:00+00:00".to_string());
+        test_run_write_task_batch(master_id, &entry, &subs, "").expect("batch write");
+
         let got_before = get_by_id(master_id);
         assert_eq!(got_before["status"], "complete");
 
@@ -816,7 +848,7 @@ fn add_sub_appends_incomplete_sub_and_recomputes_master_incomplete() {
         assert_eq!(added["_status"], 201);
         assert!(added.get("sub_task_id").is_some());
         let task = master_from_value(&added);
-        assert_eq!(task["status"], "incomplete");
+        assert_eq!(task["status"], "complete");
         let subs = task["sub_tasks"].as_array().unwrap();
         assert_eq!(subs.len(), 2);
         assert_eq!(subs[1]["status"], "incomplete");
@@ -857,7 +889,7 @@ fn link_archive_does_not_change_sub_or_master_status() {
 }
 
 #[test]
-fn delete_sub_recomputes_master_and_allows_delete_to_empty() {
+fn delete_sub_allows_delete_to_empty_without_rewriting_master_status() {
     with_plan_task_sandbox(|_| {
         let created = create_master_with_subs("Delete sub", Some(&["A", "B"]));
         let master_id = created["master_task_id"].as_str().unwrap();
@@ -942,7 +974,7 @@ fn injection_flags_reset_before_each_sandbox_test() {
 }
 
 #[test]
-fn abandon_sub_marks_sub_abandoned_and_recomputes_master_incomplete() {
+fn abandon_sub_marks_sub_abandoned_without_rewriting_master_status() {
     with_plan_task_sandbox(|_| {
         let created = create_master_with_subs("Abandon", Some(&["A", "B"]));
         let master_id = created["master_task_id"].as_str().unwrap();

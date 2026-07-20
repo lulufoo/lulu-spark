@@ -453,15 +453,13 @@ fn load_v2_for_read() -> Result<PlanTasksIndex, Value> {
 }
 
 fn assemble_master_task(entry: &IndexEntry, subs: &SubTasksFile) -> MasterTask {
-    let mut master = MasterTask {
+    MasterTask {
         master_task_id: entry.master_task_id.clone(),
         title: entry.title.clone(),
         status: entry.status.clone(),
         created_at: entry.created_at.clone(),
         sub_tasks: subs.sub_tasks.clone(),
-    };
-    recompute_master_status(&mut master);
-    master
+    }
 }
 
 fn load_master_task_unlocked(master_id: &str) -> Result<MasterTask, Value> {
@@ -514,8 +512,6 @@ fn persist_master(master: &MasterTask) -> Result<(), String> {
 }
 
 fn persist_master_with_plan_md(master: &MasterTask, plan_md: &str) -> Result<(), String> {
-    let mut master = master.clone();
-    recompute_master_status(&mut master);
     let entry = IndexEntry {
         master_task_id: master.master_task_id.clone(),
         title: master.title.clone(),
@@ -584,20 +580,6 @@ fn new_master_id() -> String {
 
 fn format_sub_id(master_id: &str, index: usize) -> String {
     format!("{master_id}_sub_{index:02}")
-}
-
-fn recompute_master_status(master: &mut MasterTask) {
-    master.status = if master.sub_tasks.is_empty() {
-        MasterTaskStatus::Incomplete
-    } else if master
-        .sub_tasks
-        .iter()
-        .all(|s| s.status == SubTaskStatus::Complete)
-    {
-        MasterTaskStatus::Complete
-    } else {
-        MasterTaskStatus::Incomplete
-    };
 }
 
 fn is_terminal_sub_status(status: &SubTaskStatus) -> bool {
@@ -896,7 +878,6 @@ pub fn add_sub(master_task_id: &str, title: &str) -> Value {
         };
         let new_sub_id = new_sub.sub_task_id.clone();
         master.sub_tasks.push(new_sub);
-        recompute_master_status(&mut master);
 
         match persist_master(&master) {
             Ok(()) => json!({
@@ -930,7 +911,6 @@ pub fn delete_sub(master_task_id: &str, sub_task_id: &str) -> Value {
         };
 
         master.sub_tasks.remove(pos);
-        recompute_master_status(&mut master);
 
         match persist_master(&master) {
             Ok(()) => json!({
@@ -972,7 +952,6 @@ pub fn complete_sub(master_task_id: &str, sub_task_id: &str) -> Value {
 
         sub.status = SubTaskStatus::Complete;
         sub.completed_at = Some(Utc::now().to_rfc3339());
-        recompute_master_status(&mut master);
         let updated = master.clone();
 
         match persist_master(&master) {
@@ -1081,7 +1060,6 @@ pub fn abandon_sub(master_task_id: &str, sub_task_id: &str) -> Value {
         }
 
         sub.status = SubTaskStatus::Abandoned;
-        recompute_master_status(&mut master);
         let updated = master.clone();
 
         match persist_master(&master) {

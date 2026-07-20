@@ -17,6 +17,13 @@ pub enum SubTaskStatus {
 pub enum MasterTaskStatus {
     Incomplete,
     Complete,
+    Abandoned,
+}
+
+impl Default for MasterTaskStatus {
+    fn default() -> Self {
+        Self::Incomplete
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -36,6 +43,7 @@ pub struct SubTask {
 pub struct MasterTask {
     pub master_task_id: String,
     pub title: String,
+    #[serde(default)]
     pub status: MasterTaskStatus,
     pub created_at: String,
     pub sub_tasks: Vec<SubTask>,
@@ -66,6 +74,7 @@ impl Default for PlanTasksIndex {
 pub struct IndexEntry {
     pub master_task_id: String,
     pub title: String,
+    #[serde(default)]
     pub status: MasterTaskStatus,
     pub created_at: String,
     pub task_dir: String,
