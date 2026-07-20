@@ -409,6 +409,99 @@ fn complete_plan_json_without_sub_marks_master_complete() {
 }
 
 #[test]
+fn complete_plan_json_already_complete_is_idempotent_success() {
+    with_commands_plan_test(|| {
+        let created =
+            create_plan_task_json("Idempotent complete", Some(&["A"]), "").expect("create");
+        let master_id = created["master_task_id"].as_str().expect("id").to_string();
+
+        let first = complete_plan_json(&master_id, None).expect("first complete");
+        assert!(first.get("_status").is_none());
+        assert!(first.get("error").is_none());
+        assert_eq!(master_from_invoke(&first)["status"], "complete");
+
+        let again = complete_plan_json(&master_id, None).expect("second complete");
+        assert!(again.get("_status").is_none());
+        assert!(again.get("error").is_none());
+        let task = master_from_invoke(&again);
+        assert_eq!(task["status"], "complete");
+        assert_master_task_shape(task);
+
+        let listed = get_plan_tasks_json().expect("list");
+        let found = listed
+            .as_array()
+            .expect("array")
+            .iter()
+            .find(|t| t["master_task_id"] == master_id)
+            .expect("listed");
+        assert_eq!(found["status"], "complete");
+    });
+}
+
+#[test]
+fn complete_plan_json_abandoned_master_rejects_with_stable_code() {
+    with_commands_plan_test(|| {
+        let abandoned_id = "task_cmd_complete_abandoned";
+        test_run_write_task_batch(
+            abandoned_id,
+            &IndexEntry {
+                master_task_id: abandoned_id.to_string(),
+                title: "Abandoned master".to_string(),
+                status: MasterTaskStatus::Abandoned,
+                created_at: "2026-07-08T00:00:00+00:00".to_string(),
+                task_dir: format!("tasks/{abandoned_id}"),
+            },
+            &SubTasksFile { sub_tasks: vec![] },
+            "",
+        )
+        .expect("seed abandoned");
+
+        let rejected = complete_plan_json(abandoned_id, None).expect("invoke");
+        assert_eq!(rejected["error"], "master_abandoned");
+        assert_eq!(rejected["_status"], 409);
+        assert!(rejected.get("task").is_none());
+
+        let listed = get_plan_tasks_json().expect("list");
+        let found = listed
+            .as_array()
+            .expect("array")
+            .iter()
+            .find(|t| t["master_task_id"] == abandoned_id)
+            .expect("listed");
+        assert_eq!(found["status"], "abandoned");
+        assert_master_task_shape(found);
+    });
+}
+
+#[test]
+fn complete_plan_json_abandoned_still_allows_non_status_edit() {
+    with_commands_plan_test(|| {
+        let abandoned_id = "task_cmd_abandoned_title_edit";
+        test_run_write_task_batch(
+            abandoned_id,
+            &IndexEntry {
+                master_task_id: abandoned_id.to_string(),
+                title: "Abandoned title".to_string(),
+                status: MasterTaskStatus::Abandoned,
+                created_at: "2026-07-08T00:00:02+00:00".to_string(),
+                task_dir: format!("tasks/{abandoned_id}"),
+            },
+            &SubTasksFile { sub_tasks: vec![] },
+            "",
+        )
+        .expect("seed abandoned");
+
+        let updated =
+            update_plan_master_title_json(abandoned_id, "Still editable").expect("title edit");
+        assert!(updated.get("_status").is_none());
+        let task = master_from_invoke(&updated);
+        assert_eq!(task["title"], "Still editable");
+        assert_eq!(task["status"], "abandoned");
+        assert_master_task_shape(task);
+    });
+}
+
+#[test]
 fn complete_plan_json_all_subs_done_leaves_master_incomplete() {
     with_commands_plan_test(|| {
         let created = create_plan_task_json("All subs done", Some(&["A", "B"]), "").expect("create");

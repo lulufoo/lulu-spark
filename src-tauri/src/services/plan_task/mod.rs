@@ -964,7 +964,6 @@ pub fn complete_sub(master_task_id: &str, sub_task_id: &str) -> Value {
     })
 }
 
-/// Complete a sub task when `sub_task_id` is present; otherwise mark the master complete.
 pub fn complete_plan(master_task_id: &str, sub_task_id: Option<&str>) -> Value {
     match sub_task_id.map(str::trim).filter(|s| !s.is_empty()) {
         Some(sub_id) => complete_sub(master_task_id, sub_id),
@@ -982,6 +981,19 @@ fn complete_master(master_task_id: &str) -> Value {
             Ok(m) => m,
             Err(err) => return err,
         };
+
+        match master.status {
+            MasterTaskStatus::Complete => {
+                return json!({
+                    "task": master_to_value(&master),
+                    "_status": 200,
+                });
+            }
+            MasterTaskStatus::Abandoned => {
+                return json!({ "error": "master_abandoned", "_status": 409 });
+            }
+            MasterTaskStatus::Incomplete => {}
+        }
 
         master.status = MasterTaskStatus::Complete;
         let updated = master.clone();

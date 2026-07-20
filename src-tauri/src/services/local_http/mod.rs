@@ -189,7 +189,6 @@ fn handle_request(repo_root: &PathBuf, port: u16, request: tiny_http::Request) {
                 return;
             }
             "/api/plan-task-complete-sub" => {
-                // Breaking rename: old route intentionally unavailable (no alias).
                 respond_json(request, 404, json!({ "error": "Not found" }));
                 return;
             }
