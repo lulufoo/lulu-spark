@@ -377,18 +377,18 @@ function renderSubRow(master, sub, selectedSubId, ui) {
   `;
 }
 
-function renderMasterStatusSelect(master, disabled) {
-  const status = masterStatusClass(master.status);
+function renderMasterStatusSelect(status, disabled) {
+  const wire = masterStatusClass(status);
   const disabledAttr = disabled ? ' disabled' : '';
   const options = ['incomplete', 'complete', 'abandoned']
     .map((value) => {
-      const selected = status === value ? ' selected' : '';
+      const selected = wire === value ? ' selected' : '';
       return `<option value="${escHtml(value)}"${selected}>${escHtml(formatPlanTaskStatus(value))}</option>`;
     })
     .join('');
   return `
     <select
-      class="plan-task-master-status-select plan-task-master-status-select--${escHtml(status)}"
+      class="plan-task-master-status-select plan-task-master-status-select--${escHtml(wire)}"
       data-action="change-master-status"
       aria-label="Todo status"${disabledAttr}
     >${options}</select>
@@ -397,7 +397,7 @@ function renderMasterStatusSelect(master, disabled) {
 
 function renderDetailTitle(master, ui = {}) {
   const title = ui.masterTitleDraft ?? master.title ?? '';
-  const status = masterStatusClass(ui.masterStatus ?? master.status);
+  const status = masterStatusClass(master.status);
   const disabledAttr = ui.disabled ? ' disabled' : '';
   const error = ui.masterTitleError
     ? `<p class="plan-task-detail-title-error">${escHtml(ui.masterTitleError)}</p>`
@@ -412,7 +412,7 @@ function renderDetailTitle(master, ui = {}) {
         aria-label="Todo title"
         ${disabledAttr}
       />
-      ${renderMasterStatusSelect({ ...master, status }, ui.disabled)}
+      ${renderMasterStatusSelect(status, ui.disabled)}
     </div>
     ${error}
   `;

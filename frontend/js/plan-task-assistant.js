@@ -1,7 +1,12 @@
 import { createApiClient, resolveReadDriver } from './apiClient.js';
+import { formatPlanTaskStatus } from './plan-task/index.js';
 import { escHtml } from './utils.js';
 
 const UNAVAILABLE_MSG = 'List temporarily unavailable. Please try again later.';
+
+function masterStatusClass(status) {
+  return status === 'complete' || status === 'abandoned' ? status : 'incomplete';
+}
 
 function serviceError(data) {
   if (!data || typeof data !== 'object' || Array.isArray(data)) return null;
@@ -90,9 +95,12 @@ function renderTaskList(masters) {
       const subId = pickSubForDeepLink(master);
       const href = buildDeepLink(master.master_task_id, subId);
       const summary = formatSubProgressSummary(master);
+      const status = masterStatusClass(master.status);
+      const statusLabel = formatPlanTaskStatus(status);
       return `
-        <li class="plan-task-assistant-item" data-master-id="${escHtml(master.master_task_id)}">
+        <li class="plan-task-assistant-item plan-task-assistant-item--${escHtml(status)}" data-master-id="${escHtml(master.master_task_id)}">
           <a class="plan-task-assistant-item-link" href="${escHtml(href)}" data-hash="${escHtml(href)}">
+            <span class="plan-task-assistant-item-status">${escHtml(statusLabel)}</span>
             <span class="plan-task-assistant-item-summary">${escHtml(summary)}</span>
           </a>
         </li>

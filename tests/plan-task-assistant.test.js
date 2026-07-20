@@ -25,6 +25,7 @@ import {
   mountPlanTaskAssistantWidget,
   selectTop3ByCreatedAt,
 } from '../frontend/js/plan-task-assistant.js';
+import { formatPlanTaskStatus } from '../frontend/js/plan-task/index.js';
 
 const fixtureRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 const assistantHtml = readFileSync(
@@ -39,6 +40,10 @@ const assistantCapability = JSON.parse(
 );
 const appCss = readFileSync(join(fixtureRoot, 'frontend/app.css'), 'utf8');
 const mainJs = readFileSync(join(fixtureRoot, 'frontend/js/main.js'), 'utf8');
+const assistantJs = readFileSync(
+  join(fixtureRoot, 'frontend/js/plan-task-assistant.js'),
+  'utf8',
+);
 
 const sampleMasters = [
   {
@@ -187,6 +192,28 @@ describe('formatSubProgressSummary', () => {
       'Mid Task · 0/1 complete',
     );
   });
+
+  it('keeps title string unchanged for abandoned masters (no status baked into title)', () => {
+    const abandoned = {
+      master_task_id: 'task_abandoned',
+      title: 'Abandoned Master',
+      status: 'abandoned',
+      created_at: '2026-07-05T10:00:00Z',
+      sub_tasks: [
+        {
+          sub_task_id: 'task_abandoned_sub_01',
+          title: 'Left behind',
+          status: 'incomplete',
+          implicit: false,
+          linked_archive_ids: [],
+        },
+      ],
+    };
+    expect(formatSubProgressSummary(abandoned)).toBe(
+      'Abandoned Master · 0/1 complete',
+    );
+    expect(formatSubProgressSummary(abandoned)).not.toContain('Abandoned ·');
+  });
 });
 
 describe('buildDeepLink', () => {
@@ -299,6 +326,106 @@ describe('mountPlanTaskAssistant', () => {
       '#/plan-tasks?master=task_newest&sub=task_newest_sub_02',
     );
     dispose();
+  });
+
+  it('shows master status marks with the same English labels as the list', async () => {
+    const masters = [
+      {
+        master_task_id: 'task_in_progress',
+        title: 'Active Master',
+        status: 'incomplete',
+        created_at: '2026-07-08T10:00:00Z',
+        sub_tasks: [
+          {
+            sub_task_id: 'task_in_progress_sub_01',
+            title: 'Sub',
+            status: 'incomplete',
+            implicit: false,
+            linked_archive_ids: [],
+          },
+        ],
+      },
+      {
+        master_task_id: 'task_done',
+        title: 'Done Master',
+        status: 'complete',
+        created_at: '2026-07-07T10:00:00Z',
+        sub_tasks: [
+          {
+            sub_task_id: 'task_done_sub_01',
+            title: 'Done',
+            status: 'complete',
+            implicit: false,
+            linked_archive_ids: [],
+          },
+        ],
+      },
+      {
+        master_task_id: 'task_abandoned',
+        title: 'Abandoned Master',
+        status: 'abandoned',
+        created_at: '2026-07-06T10:00:00Z',
+        sub_tasks: [
+          {
+            sub_task_id: 'task_abandoned_sub_01',
+            title: 'Left',
+            status: 'incomplete',
+            implicit: false,
+            linked_archive_ids: [],
+          },
+        ],
+      },
+    ];
+    getJsonMock.mockResolvedValue(masters);
+    const { dispose } = mountPlanTaskAssistant(root);
+    await vi.waitFor(() => {
+      expect(root.querySelectorAll('.plan-task-assistant-item')).toHaveLength(3);
+    });
+
+    const byId = (id) => root.querySelector(`[data-master-id="${id}"]`);
+    const labelOf = (id) =>
+      byId(id)?.querySelector('.plan-task-assistant-item-status')?.textContent;
+
+    expect(labelOf('task_in_progress')).toBe(formatPlanTaskStatus('incomplete'));
+    expect(labelOf('task_done')).toBe(formatPlanTaskStatus('complete'));
+    expect(labelOf('task_abandoned')).toBe(formatPlanTaskStatus('abandoned'));
+    expect(labelOf('task_in_progress')).toBe('In progress');
+    expect(labelOf('task_done')).toBe('Completed');
+    expect(labelOf('task_abandoned')).toBe('Abandoned');
+
+    expect(byId('task_in_progress')?.className).toMatch(
+      /plan-task-assistant-item--incomplete/,
+    );
+    expect(byId('task_done')?.className).toMatch(
+      /plan-task-assistant-item--complete/,
+    );
+    expect(byId('task_abandoned')?.className).toMatch(
+      /plan-task-assistant-item--abandoned/,
+    );
+
+    const abandonedSummary = byId('task_abandoned')?.querySelector(
+      '.plan-task-assistant-item-summary',
+    )?.textContent;
+    expect(abandonedSummary).toContain('Abandoned Master');
+    expect(abandonedSummary).toBe('Abandoned Master · 0/1 complete');
+    dispose();
+  });
+});
+
+describe('assistant status mark source alignment', () => {
+  it('reuses list formatPlanTaskStatus instead of a local label table', () => {
+    expect(assistantJs).toMatch(
+      /import\s*\{\s*formatPlanTaskStatus\s*\}\s*from\s*'\.\/plan-task\/index\.js'/,
+    );
+    expect(assistantJs).not.toMatch(/STATUS_LABELS\s*=/);
+  });
+
+  it('app.css styles assistant complete muted and abandoned strike/gray', () => {
+    expect(appCss).toMatch(/\.plan-task-assistant-item--complete/);
+    expect(appCss).toMatch(/\.plan-task-assistant-item--abandoned/);
+    expect(appCss).toMatch(
+      /\.plan-task-assistant-item--abandoned[\s\S]*?text-decoration:\s*line-through/,
+    );
   });
 });
 
