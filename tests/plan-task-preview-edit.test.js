@@ -17,7 +17,7 @@ vi.mock('../frontend/js/apiClient.js', async (importOriginal) => {
 
 import {
   abandonPlanSub,
-  completePlanSub,
+  completePlan,
   formatPlanTaskStatus,
   mountPlanTaskSplit,
   readPlanMd,
@@ -93,15 +93,26 @@ describe('plan_md invoke wrappers', () => {
     });
   });
 
-  it('completePlanSub invokes complete_plan_sub', async () => {
+  it('completePlan invokes complete_plan with optional subTaskId', async () => {
     invokeMock.mockResolvedValue({ task: sampleMaster });
-    await completePlanSub({
+    await completePlan({
       masterTaskId: 'task_alpha',
       subTaskId: 'task_alpha_sub_01',
     });
-    expect(invokeMock).toHaveBeenCalledWith('complete_plan_sub', {
+    expect(invokeMock).toHaveBeenCalledWith('complete_plan', {
       masterTaskId: 'task_alpha',
       subTaskId: 'task_alpha_sub_01',
+    });
+  });
+
+  it('completePlan without subTaskId invokes complete_plan for master', async () => {
+    invokeMock.mockResolvedValue({
+      task: { ...sampleMaster, status: 'complete' },
+    });
+    await completePlan({ masterTaskId: 'task_alpha' });
+    expect(invokeMock).toHaveBeenCalledWith('complete_plan', {
+      masterTaskId: 'task_alpha',
+      subTaskId: undefined,
     });
   });
 
@@ -120,7 +131,7 @@ describe('plan_md invoke wrappers', () => {
   it('throws with status when invoke returns service error payload', async () => {
     invokeMock.mockResolvedValue({ error: 'Already complete', _status: 409 });
     await expect(
-      completePlanSub({ masterTaskId: 'task_alpha', subTaskId: 'task_alpha_sub_02' }),
+      completePlan({ masterTaskId: 'task_alpha', subTaskId: 'task_alpha_sub_02' }),
     ).rejects.toMatchObject({ status: 409 });
   });
 });
@@ -336,7 +347,7 @@ describe('mountPlanTaskSplit status select actions', () => {
     const { dispose } = await mountAndWait();
     changeSubStatus('task_alpha_sub_01', 'complete');
     await vi.waitFor(() => {
-      expect(invokeMock).toHaveBeenCalledWith('complete_plan_sub', {
+      expect(invokeMock).toHaveBeenCalledWith('complete_plan', {
         masterTaskId: 'task_alpha',
         subTaskId: 'task_alpha_sub_01',
       });

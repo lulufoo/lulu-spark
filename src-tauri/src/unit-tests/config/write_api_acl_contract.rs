@@ -51,7 +51,7 @@ const PLAN_TASK_WRITE_COMMANDS: &[&str] = &[
 const PLAN_TASK_LIFECYCLE_COMMANDS: &[&str] = &[
     "read_plan_md",
     "update_plan_md",
-    "complete_plan_sub",
+    "complete_plan",
     "abandon_plan_sub",
     "update_plan_sub",
     "update_plan_master_title",
@@ -128,6 +128,10 @@ fn plan_task_lifecycle_commands_are_acl_allowed() {
     assert!(
         missing.is_empty(),
         "commands missing from write-api.toml ACL: {missing:?}"
+    );
+    assert!(
+        !allow.contains("complete_plan_sub"),
+        "legacy complete_plan_sub must not remain in write-api ACL"
     );
 }
 

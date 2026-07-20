@@ -459,7 +459,7 @@ pub fn run() {
             commands::plan_task::delete_plan_sub,
             commands::plan_task::read_plan_md,
             commands::plan_task::update_plan_md,
-            commands::plan_task::complete_plan_sub,
+            commands::plan_task::complete_plan,
             commands::plan_task::abandon_plan_sub,
             commands::plan_task::update_plan_sub,
             commands::plan_task::update_plan_master_title,

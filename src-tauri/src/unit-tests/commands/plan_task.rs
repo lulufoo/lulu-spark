@@ -4,7 +4,7 @@ use serde_json::json;
 
 use crate::commands::plan_task::{
     abandon_plan_sub_json, add_plan_attachment, add_plan_attachment_json, add_plan_sub_json,
-    complete_plan_sub_json, create_plan_task_json, delete_plan_attachment,
+    complete_plan, complete_plan_json, create_plan_task_json, delete_plan_attachment,
     delete_plan_attachment_json, delete_plan_sub_json, delete_plan_task_json,
     get_plan_tasks_json, list_plan_attachments, list_plan_attachments_json,
     read_plan_attachment, read_plan_attachment_json, read_plan_md_json,
@@ -374,7 +374,7 @@ fn update_plan_md_json_io_failure_returns_500_class() {
 }
 
 #[test]
-fn complete_plan_sub_json_marks_sub_complete_without_rewriting_master() {
+fn complete_plan_json_marks_sub_complete_without_rewriting_master() {
     with_commands_plan_test(|| {
         let created = create_plan_task_json("Complete cmd", Some(&["A", "B"]), "").expect("create");
         let master_id = created["master_task_id"].as_str().expect("id").to_string();
@@ -383,7 +383,7 @@ fn complete_plan_sub_json_marks_sub_complete_without_rewriting_master() {
             .expect("sub_a")
             .to_string();
 
-        let completed = complete_plan_sub_json(&master_id, &sub_a).expect("complete");
+        let completed = complete_plan_json(&master_id, Some(&sub_a)).expect("complete");
         assert!(completed.get("_status").is_none());
         let task = master_from_invoke(&completed);
         assert_eq!(task["status"], "incomplete");
@@ -393,7 +393,23 @@ fn complete_plan_sub_json_marks_sub_complete_without_rewriting_master() {
 }
 
 #[test]
-fn complete_plan_sub_json_all_subs_done_leaves_master_incomplete() {
+fn complete_plan_json_without_sub_marks_master_complete() {
+    with_commands_plan_test(|| {
+        let created =
+            create_plan_task_json("Complete master", Some(&["A"]), "").expect("create");
+        let master_id = created["master_task_id"].as_str().expect("id").to_string();
+
+        let completed = complete_plan_json(&master_id, None).expect("complete master");
+        assert!(completed.get("_status").is_none());
+        let task = master_from_invoke(&completed);
+        assert_eq!(task["status"], "complete");
+        assert_eq!(task["sub_tasks"][0]["status"], "incomplete");
+        assert_master_task_shape(task);
+    });
+}
+
+#[test]
+fn complete_plan_json_all_subs_done_leaves_master_incomplete() {
     with_commands_plan_test(|| {
         let created = create_plan_task_json("All subs done", Some(&["A", "B"]), "").expect("create");
         let master_id = created["master_task_id"].as_str().expect("id").to_string();
@@ -405,7 +421,7 @@ fn complete_plan_sub_json_all_subs_done_leaves_master_incomplete() {
             .collect();
 
         for sub_id in &sub_ids {
-            let completed = complete_plan_sub_json(&master_id, sub_id).expect("complete");
+            let completed = complete_plan_json(&master_id, Some(sub_id)).expect("complete");
             assert!(completed.get("_status").is_none());
         }
 
@@ -497,19 +513,19 @@ fn get_plan_tasks_json_reads_back_complete_and_abandoned_status() {
 }
 
 #[test]
-fn complete_plan_sub_json_unknown_returns_404_class() {
+fn complete_plan_json_unknown_sub_returns_404_class() {
     with_commands_plan_test(|| {
         let created = create_plan_task_json("Complete 404", Some(&["A"]), "").expect("create");
         let master_id = created["master_task_id"].as_str().expect("id");
 
-        let v = complete_plan_sub_json(master_id, "task_missing_sub_01").expect("invoke");
+        let v = complete_plan_json(master_id, Some("task_missing_sub_01")).expect("invoke");
         assert_eq!(v["error"], "Task not found");
         assert_eq!(v["_status"], 404);
     });
 }
 
 #[test]
-fn complete_plan_sub_json_terminal_returns_409_class() {
+fn complete_plan_json_terminal_sub_returns_409_class() {
     with_commands_plan_test(|| {
         let created = create_plan_task_json("Terminal cmd", Some(&["A"]), "").expect("create");
         let master_id = created["master_task_id"].as_str().expect("id").to_string();
@@ -518,11 +534,17 @@ fn complete_plan_sub_json_terminal_returns_409_class() {
             .expect("sub_a")
             .to_string();
 
-        complete_plan_sub_json(&master_id, &sub_a).expect("first complete");
-        let again = complete_plan_sub_json(&master_id, &sub_a).expect("invoke");
+        complete_plan_json(&master_id, Some(&sub_a)).expect("first complete");
+        let again = complete_plan_json(&master_id, Some(&sub_a)).expect("invoke");
         assert_eq!(again["error"], "Sub task is in terminal status");
         assert_eq!(again["_status"], 409);
     });
+}
+
+#[test]
+fn complete_plan_command_symbol_exists_for_handler_registration() {
+    // Smoke: async command symbol exists for generate_handler! registration.
+    let _ = complete_plan;
 }
 
 #[test]

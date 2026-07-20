@@ -964,6 +964,38 @@ pub fn complete_sub(master_task_id: &str, sub_task_id: &str) -> Value {
     })
 }
 
+/// Complete a sub task when `sub_task_id` is present; otherwise mark the master complete.
+pub fn complete_plan(master_task_id: &str, sub_task_id: Option<&str>) -> Value {
+    match sub_task_id.map(str::trim).filter(|s| !s.is_empty()) {
+        Some(sub_id) => complete_sub(master_task_id, sub_id),
+        None => complete_master(master_task_id),
+    }
+}
+
+fn complete_master(master_task_id: &str) -> Value {
+    with_write_lock(|| {
+        if let Err(e) = ensure_bootstrap() {
+            return bootstrap_error(e);
+        }
+
+        let mut master = match load_master_task_unlocked(master_task_id) {
+            Ok(m) => m,
+            Err(err) => return err,
+        };
+
+        master.status = MasterTaskStatus::Complete;
+        let updated = master.clone();
+
+        match persist_master(&master) {
+            Ok(()) => json!({
+                "task": master_to_value(&updated),
+                "_status": 200,
+            }),
+            Err(e) => json!({ "error": e, "_status": 500 }),
+        }
+    })
+}
+
 pub fn update_sub_title(master_task_id: &str, sub_task_id: &str, title: &str) -> Value {
     let title = title.trim();
     if title.is_empty() {

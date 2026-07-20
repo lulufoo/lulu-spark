@@ -33,7 +33,7 @@ commands.allow = [
   "delete_plan_sub",
   "read_plan_md",
   "update_plan_md",
-  "complete_plan_sub",
+  "complete_plan",
   "abandon_plan_sub",
   "update_plan_sub",
   "update_plan_master_title",

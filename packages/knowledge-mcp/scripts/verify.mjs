@@ -71,7 +71,7 @@ const PLAN_TOOL_NAMES = [
   'delete_plan_task',
   'add_plan_sub',
   'delete_plan_sub',
-  'complete_plan_sub',
+  'complete_plan',
   'link_plan_archive',
 ];
 
@@ -367,7 +367,7 @@ function startMockHttp(port) {
       return;
     }
 
-    if (req.method === 'POST' && url.pathname === '/api/plan-task-complete-sub') {
+    if (req.method === 'POST' && url.pathname === '/api/plan-task-complete') {
       let payload;
       try {
         payload = await readJsonBody(req);
@@ -376,14 +376,20 @@ function startMockHttp(port) {
         return;
       }
       const masterId = typeof payload.master_task_id === 'string' ? payload.master_task_id.trim() : '';
-      const subId = typeof payload.sub_task_id === 'string' ? payload.sub_task_id.trim() : '';
-      if (!masterId || !subId) {
-        respondJson(res, 400, { error: 'Missing master_task_id or sub_task_id' });
+      const subId =
+        typeof payload.sub_task_id === 'string' ? payload.sub_task_id.trim() : '';
+      if (!masterId) {
+        respondJson(res, 400, { error: 'Missing master_task_id' });
         return;
       }
       const task = planTaskStore.get(masterId);
       if (!task) {
         respondJson(res, 404, { error: 'Task not found' });
+        return;
+      }
+      if (!subId) {
+        task.status = 'complete';
+        respondJson(res, 200, { task });
         return;
       }
       const sub = task.sub_tasks.find((s) => s.sub_task_id === subId);
@@ -788,12 +794,12 @@ async function runMcpClient(mcpPort) {
   const subToComplete = parsedAdd.task.sub_tasks.find((s) => s.title === 'Sub A').sub_task_id;
 
   const completeSub = await client.callTool({
-    name: 'complete_plan_sub',
+    name: 'complete_plan',
     arguments: { master_task_id: 'task_mock001', sub_task_id: subToComplete },
   });
   const completeText = completeSub.content?.[0]?.text || '';
   if (completeSub.isError || !completeText.includes('complete')) {
-    throw new Error(`unexpected complete_plan_sub: ${completeText}`);
+    throw new Error(`unexpected complete_plan: ${completeText}`);
   }
 
   const linkArchive = await client.callTool({

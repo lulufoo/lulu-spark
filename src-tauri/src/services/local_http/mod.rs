@@ -189,7 +189,12 @@ fn handle_request(repo_root: &PathBuf, port: u16, request: tiny_http::Request) {
                 return;
             }
             "/api/plan-task-complete-sub" => {
-                handle_plan_task_post(request, handle_plan_task_complete_sub_payload);
+                // Breaking rename: old route intentionally unavailable (no alias).
+                respond_json(request, 404, json!({ "error": "Not found" }));
+                return;
+            }
+            "/api/plan-task-complete" => {
+                handle_plan_task_post(request, handle_plan_task_complete_payload);
                 return;
             }
             "/api/plan-task-link-archive" => {
@@ -468,14 +473,12 @@ fn handle_plan_task_delete_sub_payload(payload: &Value) -> Value {
     plan_task::delete_sub(master_task_id, sub_task_id)
 }
 
-fn handle_plan_task_complete_sub_payload(payload: &Value) -> Value {
+fn handle_plan_task_complete_payload(payload: &Value) -> Value {
     let Some(master_task_id) = payload.get("master_task_id").and_then(|v| v.as_str()) else {
         return json!({ "error": "Missing master_task_id", "_status": 400 });
     };
-    let Some(sub_task_id) = payload.get("sub_task_id").and_then(|v| v.as_str()) else {
-        return json!({ "error": "Missing sub_task_id", "_status": 400 });
-    };
-    plan_task::complete_sub(master_task_id, sub_task_id)
+    let sub_task_id = payload.get("sub_task_id").and_then(|v| v.as_str());
+    plan_task::complete_plan(master_task_id, sub_task_id)
 }
 
 fn handle_plan_task_link_archive_payload(payload: &Value) -> Value {

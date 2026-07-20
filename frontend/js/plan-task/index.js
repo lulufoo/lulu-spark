@@ -99,8 +99,8 @@ export async function updatePlanMd({ masterTaskId, planMd } = {}) {
   await invokePlanPlain('update_plan_md', { masterTaskId, planMd });
 }
 
-export async function completePlanSub({ masterTaskId, subTaskId } = {}) {
-  return invokePlanWrite('complete_plan_sub', { masterTaskId, subTaskId });
+export async function completePlan({ masterTaskId, subTaskId } = {}) {
+  return invokePlanWrite('complete_plan', { masterTaskId, subTaskId });
 }
 
 export async function abandonPlanSub({ masterTaskId, subTaskId } = {}) {
@@ -1317,7 +1317,7 @@ export function mountPlanTaskSplit(container, opts = {}) {
     }
     try {
       if (targetStatus === 'complete') {
-        await runSubStatusAction(subTaskId, 'complete', completePlanSub);
+        await runSubStatusAction(subTaskId, 'complete', completePlan);
       } else {
         await runSubStatusAction(subTaskId, 'abandoned', abandonPlanSub);
       }

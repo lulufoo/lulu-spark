@@ -343,16 +343,24 @@ function buildServer() {
   );
 
   server.registerTool(
-    'complete_plan_sub',
+    'complete_plan',
     {
-      description: 'Mark a sub task complete. Proxy POST /api/plan-task-complete-sub',
+      description:
+        'Complete a plan task. With sub_task_id, marks that sub complete; without it, marks the master complete. Proxy POST /api/plan-task-complete',
       inputSchema: {
         master_task_id: z.string().trim().min(1).describe('Master task id'),
-        sub_task_id: z.string().trim().min(1).describe('Sub task id'),
+        sub_task_id: z
+          .string()
+          .trim()
+          .min(1)
+          .optional()
+          .describe('Optional sub task id; omit to complete the master task'),
       },
     },
     async ({ master_task_id, sub_task_id }) => {
-      const result = await proxyPost('/api/plan-task-complete-sub', { master_task_id, sub_task_id });
+      const body = { master_task_id };
+      if (sub_task_id) body.sub_task_id = sub_task_id;
+      const result = await proxyPost('/api/plan-task-complete', body);
       if (!result.ok) {
         return toolError(result.status, result.text);
       }

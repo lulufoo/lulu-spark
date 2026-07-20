@@ -954,11 +954,12 @@ fn plan_task_crud_http_flow() {
 
             let (complete_status, complete_body) = http_post(
                 port,
-                "/api/plan-task-complete-sub",
+                "/api/plan-task-complete",
                 &json!({ "master_task_id": master_id, "sub_task_id": sub_a }),
             );
             assert_eq!(complete_status, 200);
             assert_eq!(complete_body["task"]["sub_tasks"][0]["status"], "complete");
+            assert_eq!(complete_body["task"]["status"], "incomplete");
             assert!(complete_body["task"]["sub_tasks"][0]
                 .get("completed_at")
                 .and_then(|v| v.as_str())
@@ -1086,7 +1087,7 @@ fn post_plan_task_unknown_master_returns_404() {
                 "/api/plan-task-delete",
                 "/api/plan-task-add-sub",
                 "/api/plan-task-delete-sub",
-                "/api/plan-task-complete-sub",
+                "/api/plan-task-complete",
                 "/api/plan-task-link-archive",
             ] {
                 let payload = match path {
@@ -1094,7 +1095,7 @@ fn post_plan_task_unknown_master_returns_404() {
                     "/api/plan-task-add-sub" => {
                         json!({ "master_task_id": unknown, "title": "Sub" })
                     }
-                    "/api/plan-task-delete-sub" | "/api/plan-task-complete-sub" => {
+                    "/api/plan-task-delete-sub" | "/api/plan-task-complete" => {
                         json!({
                             "master_task_id": unknown,
                             "sub_task_id": "00000000000000000000000000000001",
@@ -1128,11 +1129,11 @@ fn post_plan_task_unknown_sub_returns_404() {
             let unknown_sub = "00000000000000000000000000000099";
             for path in [
                 "/api/plan-task-delete-sub",
-                "/api/plan-task-complete-sub",
+                "/api/plan-task-complete",
                 "/api/plan-task-link-archive",
             ] {
                 let payload = match path {
-                    "/api/plan-task-delete-sub" | "/api/plan-task-complete-sub" => {
+                    "/api/plan-task-delete-sub" | "/api/plan-task-complete" => {
                         json!({ "master_task_id": master_id, "sub_task_id": unknown_sub })
                     }
                     "/api/plan-task-link-archive" => {
@@ -1149,6 +1150,44 @@ fn post_plan_task_unknown_sub_returns_404() {
                 assert_eq!(body["error"], "Task not found");
                 assert!(body.get("_status").is_none());
             }
+        });
+    });
+}
+
+#[test]
+fn post_plan_task_complete_legacy_route_returns_404() {
+    with_plan_task_http_test(|| {
+        let fixture = setup_repo_for_plan_task();
+        let repo_root = fixture.repo_root.clone();
+        with_server(repo_root, |port| {
+            let (master_id, sub_id, _) = create_plan_master(port, "Legacy route", &["Sub A"]);
+            let (status, body) = http_post(
+                port,
+                "/api/plan-task-complete-sub",
+                &json!({ "master_task_id": master_id, "sub_task_id": sub_id }),
+            );
+            assert_eq!(status, 404);
+            assert!(body.get("error").is_some() || body.get("_status").is_none());
+        });
+    });
+}
+
+#[test]
+fn post_plan_task_complete_without_sub_marks_master_complete() {
+    with_plan_task_http_test(|| {
+        let fixture = setup_repo_for_plan_task();
+        let repo_root = fixture.repo_root.clone();
+        with_server(repo_root, |port| {
+            let (master_id, _, _) = create_plan_master(port, "Master only", &["Sub A"]);
+            let (status, body) = http_post(
+                port,
+                "/api/plan-task-complete",
+                &json!({ "master_task_id": master_id }),
+            );
+            assert_eq!(status, 200);
+            assert!(body.get("_status").is_none());
+            assert_eq!(body["task"]["status"], "complete");
+            assert_eq!(body["task"]["sub_tasks"][0]["status"], "incomplete");
         });
     });
 }

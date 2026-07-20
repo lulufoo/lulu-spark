@@ -88,7 +88,7 @@ const PLAN_TOOLS = [
   'delete_plan_task',
   'add_plan_sub',
   'delete_plan_sub',
-  'complete_plan_sub',
+  'complete_plan',
   'link_plan_archive',
 ];
 
@@ -244,12 +244,12 @@ if (addSubResult.isError || !addSubText.includes('Sub C')) {
 }
 
 const completeResult = await client.callTool({
-  name: 'complete_plan_sub',
+  name: 'complete_plan',
   arguments: { master_task_id: masterId, sub_task_id: subA },
 });
 const completeText = toolText(completeResult);
 if (completeResult.isError || !completeText.includes('complete')) {
-  throw new Error(`complete_plan_sub failed: ${completeText}`);
+  throw new Error(`complete_plan failed: ${completeText}`);
 }
 
 const archiveId = '138700959e5ddb1260c69e9e18169ac4';

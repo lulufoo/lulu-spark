@@ -65,8 +65,11 @@ pub fn update_plan_md_json(master_task_id: &str, plan_md: &str) -> Result<Value,
     map_invoke_value(plan_task::update_plan_md(master_task_id, plan_md))
 }
 
-pub fn complete_plan_sub_json(master_task_id: &str, sub_task_id: &str) -> Result<Value, String> {
-    map_invoke_value(plan_task::complete_sub(master_task_id, sub_task_id))
+pub fn complete_plan_json(
+    master_task_id: &str,
+    sub_task_id: Option<&str>,
+) -> Result<Value, String> {
+    map_invoke_value(plan_task::complete_plan(master_task_id, sub_task_id))
 }
 
 pub fn abandon_plan_sub_json(master_task_id: &str, sub_task_id: &str) -> Result<Value, String> {
@@ -224,13 +227,13 @@ pub async fn update_plan_md(
 }
 
 #[tauri::command]
-pub async fn complete_plan_sub(
+pub async fn complete_plan(
     _app: AppHandle,
     master_task_id: String,
-    sub_task_id: String,
+    sub_task_id: Option<String>,
 ) -> Result<Value, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        complete_plan_sub_json(&master_task_id, &sub_task_id)
+        complete_plan_json(&master_task_id, sub_task_id.as_deref())
     })
     .await
     .map_err(|e| e.to_string())?
