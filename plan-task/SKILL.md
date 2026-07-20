@@ -39,7 +39,8 @@ Map the user request, then call **only** the tools that match. Do not run a fixe
 |-------------|----|--------|
 | Store / save document or notes as plan body | `create_plan_task` with `plan_md` (or update body if Host/MCP exposes an update-body tool) | Add sub-tasks without an explicit ask |
 | Create an empty plan (title only) | `create_plan_task` with title; omit `plan_md` | Add sub-tasks without an explicit ask |
-| Add / remove / complete a sub-task | `add_plan_sub` / `delete_plan_sub` / `complete_plan_sub` | Infer subs from document structure |
+| Add / remove a sub-task | `add_plan_sub` / `delete_plan_sub` | Infer subs from document structure |
+| Complete master or sub | `complete_plan` (`master_task_id` required; `sub_task_id` optional — omit → complete master; with sub → complete that sub) | Call removed `complete_plan_sub` |
 | Link archive to a **completed** sub | `link_plan_archive` (after archive exists) | Link without a completed sub + archive id |
 | Inspect | `list_plan_tasks` / `get_plan_task` | — |
 | Delete master | `delete_plan_task` | — |
@@ -63,10 +64,10 @@ Map the user request, then call **only** the tools that match. Do not run a fixe
 | `delete_plan_task` | Delete master |
 | `add_plan_sub` | Add a sub-task (only when the user explicitly instructs) |
 | `delete_plan_sub` | Delete a sub-task |
-| `complete_plan_sub` | Mark a sub-task complete |
+| `complete_plan` | Complete a plan task. `master_task_id` required; `sub_task_id` optional. Omit `sub_task_id` → complete master; with `sub_task_id` → complete that sub. Replaces removed `complete_plan_sub` (do not call the old name). |
 | `link_plan_archive` | Link archive entry id to a completed sub |
 
-Field names, limits, and optionality: live MCP schema only.
+Field names, limits, and optionality: live MCP schema only. After T4/T8: old tool name `complete_plan_sub` is unavailable; `complete_plan` completes master (no sub) or sub (with `sub_task_id`).
 
 ## Done
 
