@@ -595,7 +595,8 @@ describe('mountReadLaterAssistantWidget', () => {
 });
 
 describe('main window assistant integration', () => {
-  it('main.js mounts in-window assistant widget instead of separate route shell', () => {
-    expect(mainJs).toMatch(/mountReadLaterAssistantWidget/);
+  it('main.js orchestrates via home-entry shell (legacy body mount retired)', () => {
+    expect(mainJs).toMatch(/mountHomeEntryShell\s*\(\s*document\.body\b/);
+    expect(mainJs).not.toMatch(/mountReadLaterAssistantWidget\s*\(\s*document\.body\b/);
   });
 });

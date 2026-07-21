@@ -106,10 +106,10 @@ export function mountHomeEntryShell(anchor, { config, registry, host = {}, fsm }
   }
 
   /**
-   * Unmount active content. On unmount throw → force A (close/exception recovery).
-   * @returns {boolean} true if recovery was triggered
+   * Detach active content handle.
+   * @returns {'ok' | 'error'}
    */
-  function clearContent() {
+  function detachActiveContent() {
     const prev = activeContent;
     activeContent = null;
     activeEntryId = null;
@@ -117,31 +117,33 @@ export function mountHomeEntryShell(anchor, { config, registry, host = {}, fsm }
       if (prev && typeof prev.unmount === 'function') {
         prev.unmount();
       }
-      clearSlotDom();
-      return false;
+      return 'ok';
     } catch {
-      clearSlotDom();
+      return 'error';
+    }
+  }
+
+  /**
+   * Unmount active content. On unmount throw → force A (close/exception recovery).
+   * @returns {boolean} true if recovery was triggered
+   */
+  function clearContent() {
+    const result = detachActiveContent();
+    clearSlotDom();
+    if (result === 'error') {
       titleEl.textContent = '';
       failurePresentation = null;
       forceRecoverA('close-failed');
       return true;
     }
+    return false;
   }
 
   /** @param {EntryConfig} entry */
   function presentFailure(entry) {
     if (machine.getState() === 'C') {
       // Leave success C without treating content unmount as close-failure recovery.
-      const prev = activeContent;
-      activeContent = null;
-      activeEntryId = null;
-      try {
-        if (prev && typeof prev.unmount === 'function') {
-          prev.unmount();
-        }
-      } catch {
-        // ignore — we are already entering a non-success failure end-state on B
-      }
+      detachActiveContent();
       clearSlotDom();
       machine.dispatch({ type: 'closeOverlay' });
     }
@@ -163,16 +165,7 @@ export function mountHomeEntryShell(anchor, { config, registry, host = {}, fsm }
     recovering = true;
     try {
       failurePresentation = null;
-      const prev = activeContent;
-      activeContent = null;
-      activeEntryId = null;
-      try {
-        if (prev && typeof prev.unmount === 'function') {
-          prev.unmount();
-        }
-      } catch {
-        // ignore secondary failures during forced recovery
-      }
+      detachActiveContent();
       clearSlotDom();
       titleEl.textContent = '';
       machine.dispatch({ type: 'forceA' });
@@ -266,14 +259,8 @@ export function mountHomeEntryShell(anchor, { config, registry, host = {}, fsm }
     // Drop prior success/failure presentation before attempting a new mount.
     failurePresentation = null;
     if (activeEntryId != null || activeContent) {
-      const prev = activeContent;
-      activeContent = null;
-      activeEntryId = null;
-      try {
-        if (prev && typeof prev.unmount === 'function') {
-          prev.unmount();
-        }
-      } catch {
+      if (detachActiveContent() === 'error') {
+        clearSlotDom();
         forceRecoverA('exception');
         return;
       }
@@ -383,24 +370,9 @@ export function mountHomeEntryShell(anchor, { config, registry, host = {}, fsm }
   function unmount() {
     document.removeEventListener('click', onDocClick, true);
     document.removeEventListener('keydown', onKeyDown, true);
-    recovering = true;
-    try {
-      const prev = activeContent;
-      activeContent = null;
-      activeEntryId = null;
-      failurePresentation = null;
-      try {
-        if (prev && typeof prev.unmount === 'function') {
-          prev.unmount();
-        }
-      } catch {
-        // ignore during teardown
-      }
-      clearSlotDom();
-      root.remove();
-    } finally {
-      recovering = false;
-    }
+    // Host teardown / leave: force A so overlay state does not survive.
+    forceRecoverA('unmount');
+    root.remove();
   }
 
   return {

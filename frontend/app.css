@@ -1268,11 +1268,8 @@
     color: #cf222e;
   }
 
-  /* ── Read Later assistant widget (main window) ── */
+  /* ── Read Later assistant widget (stacking retired → home-entry-shell) ── */
   .rl-assistant-widget {
-    position: fixed;
-    right: 20px;
-    bottom: 20px;
     z-index: 1200;
     pointer-events: none;
   }
@@ -1559,11 +1556,8 @@
     text-decoration: underline;
   }
 
-  /* ── Plan task assistant widget (main window, 56px above Read Later FAB) ── */
+  /* ── Plan task assistant widget (stacking retired → home-entry-shell) ── */
   .pt-assistant-widget {
-    position: fixed;
-    right: 20px;
-    bottom: 76px;
     z-index: 1200;
     pointer-events: none;
   }
@@ -1736,11 +1730,8 @@
     text-decoration: underline;
   }
 
-  /* ── Note assistant widget (main window, one tier above Plan Task FAB) ── */
+  /* ── Note assistant widget (stacking retired → home-entry-shell) ── */
   .note-assistant-widget {
-    position: fixed;
-    right: 20px;
-    bottom: 132px;
     z-index: 1200;
     pointer-events: none;
   }
@@ -1896,11 +1887,8 @@
     border-color: #6639ba;
   }
 
-  /* ── Builders entry FAB (main window, one tier above Note assistant) ── */
+  /* ── Builders entry FAB (stacking retired → home-entry-shell) ── */
   .builders-entry {
-    position: fixed;
-    right: 20px;
-    bottom: 188px;
     z-index: 1200;
     pointer-events: none;
   }

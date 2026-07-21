@@ -199,10 +199,10 @@ describe('T5 retire #btn-feed / showFeedView user entry', () => {
       anchor.remove();
     });
 
-    it('main.js still mounts buildersAssistant via mountBuildersAssistantWidget (t3 path)', () => {
+    it('main.js orchestrates Builders via home-entry shell (legacy body mount retired)', () => {
       const main = readMain();
-      expect(main).toMatch(/mountBuildersAssistantWidget\s*\(/);
-      expect(main).toMatch(/buildersAssistant/);
+      expect(main).toMatch(/mountHomeEntryShell\s*\(\s*document\.body\b/);
+      expect(main).not.toMatch(/mountBuildersAssistantWidget\s*\(\s*document\.body\b/);
     });
 
     it('new Builders FAB still opens the modal (regression)', () => {

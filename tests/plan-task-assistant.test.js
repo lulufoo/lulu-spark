@@ -129,8 +129,9 @@ describe('plan-task-assistant source wiring', () => {
     expect(assistantCapability.permissions).toContain('read-api');
   });
 
-  it('Plan FAB widget is offset 56px above Read Later FAB', () => {
-    expect(appCss).toMatch(/\.pt-assistant-widget[\s\S]*bottom:\s*76px/);
+  it('independent Plan FAB stack offset is retired; shell cluster owns bottom anchor', () => {
+    expect(appCss).not.toMatch(/\.pt-assistant-widget\s*\{[^}]*bottom:\s*76px/);
+    expect(appCss).toMatch(/\.home-entry-shell__cluster\s*\{[^}]*bottom:\s*20px/);
   });
 });
 
@@ -430,15 +431,15 @@ describe('assistant status mark source alignment', () => {
 });
 
 describe('main window wiring', () => {
-  it('main.js mounts plan-task assistant widget alongside read-later', () => {
-    expect(mainJs).toMatch(/import \{ mountPlanTaskAssistantWidget \} from '\.\/plan-task-assistant\.js'/);
-    expect(mainJs).toMatch(/mountPlanTaskAssistantWidget\(document\.body, \{ navigate \}\)/);
-    expect(mainJs).toMatch(/mountReadLaterAssistantWidget\(document\.body/);
+  it('main.js orchestrates via home-entry shell (legacy four-FAB mounts retired)', () => {
+    expect(mainJs).toMatch(/mountHomeEntryShell\s*\(\s*document\.body\b/);
+    expect(mainJs).not.toMatch(/mountPlanTaskAssistantWidget\s*\(\s*document\.body\b/);
+    expect(mainJs).not.toMatch(/mountReadLaterAssistantWidget\s*\(\s*document\.body\b/);
   });
 
-  it('plan FAB sits 56px above read-later FAB in app.css', () => {
-    expect(appCss).toMatch(/\.rl-assistant-widget[\s\S]*?bottom:\s*20px/);
-    expect(appCss).toMatch(/\.pt-assistant-widget[\s\S]*?bottom:\s*76px/);
+  it('independent FAB bottom stack offsets are retired in app.css', () => {
+    expect(appCss).not.toMatch(/\.pt-assistant-widget\s*\{[^}]*bottom:\s*76px/);
+    expect(appCss).toMatch(/\.home-entry-shell__cluster\s*\{[^}]*bottom:\s*20px/);
   });
 });
 

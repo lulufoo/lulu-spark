@@ -16,11 +16,10 @@ import { openBase64Dialog } from './components/modals/base64-dialog.js'
 import { openQrDialog } from './components/modals/qr-dialog.js'
 import { openSettingsDialog } from './components/modals/settings-dialog.js'
 import { initRouter, navigate, navigateToNote } from './router/index.js'
-import { mountReadLaterAssistantWidget } from './read-later-assistant.js'
-import { mountPlanTaskAssistantWidget } from './plan-task-assistant.js'
-import { mountNoteAssistantWidget } from './note-assistant.js'
-import { mountBuildersAssistantWidget } from './builders-assistant.js'
 import { openReadLaterDialog } from './components/modals/read-later-dialog.js'
+import { getBaselineEntries } from './home-entry-shell/entry-config.js'
+import { createContentRegistry } from './home-entry-shell/content-registry.js'
+import { mountHomeEntryShell } from './home-entry-shell/shell.js'
 import { applySearchNavChrome } from './nav-chrome.js'
 import { initWorkbenchSearch } from './components/workbench-search.js'
 import { initCorpusSearch } from './components/corpus-search.js'
@@ -656,6 +655,8 @@ let unmountCorpusDocList = null;
 let corpusDocListRepo = '';
 let unmountHomeHub = null;
 let unmountPlanTaskSplit = null;
+/** @type {ReturnType<typeof mountHomeEntryShell> | null} */
+let homeEntryShell = null;
 
 function updateNavChrome(routeName) {
   const onHome = routeName === 'home';
@@ -668,6 +669,8 @@ function updateNavChrome(routeName) {
 
 function wrapRouteMount(routeName, mountFn) {
   return (route) => {
+    // Leave-host: force shell back to A so overlay never crosses pages.
+    homeEntryShell?.forceRecoverA('leave-route');
     updateNavChrome(routeName);
     if (routeName === 'workbench') initWorkbenchSearch();
     if (routeName === 'corpus-doc') initCorpusSearch();
@@ -956,15 +959,8 @@ initRouter({
   'plan-tasks': wrapRouteMount('plan-tasks', mountPlanTasksRoute),
 }, { fallback: '#/home' });
 
-const readLaterAssistant = mountReadLaterAssistantWidget(document.body, {
-  navigate,
-  openReadLater: openReadLaterDialog,
-});
-const planTaskAssistant = mountPlanTaskAssistantWidget(document.body, { navigate });
-
-let noteAssistant = null;
 function closeNoteAssistantPanel() {
-  noteAssistant?.setOpen(false);
+  homeEntryShell?.forceRecoverA('leave-host');
 }
 
 function openCreateNoteFromFab(opts = {}) {
@@ -980,43 +976,17 @@ function openCreateNoteFromFab(opts = {}) {
   return openCreateNote({ temp_id });
 }
 
-noteAssistant = mountNoteAssistantWidget(document.body, {
-  openCreateNote: openCreateNoteFromFab,
-});
-
-const buildersAssistant = mountBuildersAssistantWidget(document.body);
-
-document.addEventListener(
-  'click',
-  (event) => {
-    const target = event.target;
-    if (!(target instanceof Element)) return;
-    if (target.closest('.builders-entry-fab')) {
-      readLaterAssistant?.setOpen(false);
-      planTaskAssistant?.setOpen(false);
-      noteAssistant?.setOpen(false);
-      return;
-    }
-    if (target.closest('.rl-assistant-fab')) {
-      planTaskAssistant.setOpen(false);
-      noteAssistant?.setOpen(false);
-      buildersAssistant?.setOpen(false);
-      return;
-    }
-    if (target.closest('.pt-assistant-fab')) {
-      readLaterAssistant.setOpen(false);
-      noteAssistant?.setOpen(false);
-      buildersAssistant?.setOpen(false);
-      return;
-    }
-    if (target.closest('.note-assistant-fab')) {
-      readLaterAssistant.setOpen(false);
-      planTaskAssistant.setOpen(false);
-      buildersAssistant?.setOpen(false);
-    }
+// SK-P3: single shell mount replaces four independent assistant FABs.
+// Content adapters register in T6; host callbacks must not be lost here.
+homeEntryShell = mountHomeEntryShell(document.body, {
+  config: getBaselineEntries(),
+  registry: createContentRegistry(),
+  host: {
+    navigate,
+    openReadLater: openReadLaterDialog,
+    openCreateNote: openCreateNoteFromFab,
   },
-  true,
-);
+});
 
 document.getElementById('btn-edit')?.addEventListener(
   'click',
