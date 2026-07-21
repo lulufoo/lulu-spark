@@ -4,9 +4,20 @@
  */
 
 import { createHomeEntryFsm } from './fsm.js';
+import { DEFAULT_PANEL } from './entry-config.js';
 
 /**
- * @typedef {{ id: string, contentKey: string, title: string, overlayTitle: string }} EntryConfig
+ * @typedef {{
+ *   id: string,
+ *   contentKey: string,
+ *   title: string,
+ *   overlayTitle: string,
+ *   fabClass?: string,
+ *   fabIconClass?: string,
+ *   iconPaths?: string,
+ *   panelWidth?: number,
+ *   panelHeight?: number,
+ * }} EntryConfig
  * @typedef {{ register: Function, get: (contentKey: string) => unknown }} ContentRegistry
  * @typedef {{ mount?: (slot: HTMLElement, ctx: { entry: EntryConfig, host: unknown }) => (void | { unmount?: () => void } | Promise<void | { unmount?: () => void }>) }} ContentAdapter
  */
@@ -40,26 +51,39 @@ export function mountHomeEntryShell(anchor, { config, registry, host = {}, fsm }
   hubBtn.setAttribute('aria-label', 'Open entry hub');
   hubBtn.setAttribute('aria-expanded', 'false');
   hubBtn.title = 'Entries';
-  hubBtn.textContent = '☰';
+  hubBtn.innerHTML =
+    '<svg class="home-entry-shell__hub-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">' +
+    '<path fill="currentColor" d="M11 5a1 1 0 1 1 2 0v6h6a1 1 0 1 1 0 2h-6v6a1 1 0 1 1-2 0v-6H5a1 1 0 1 1 0-2h6V5z"/>' +
+    '</svg>';
 
   const entriesWrap = document.createElement('div');
   entriesWrap.className = 'home-entry-shell__entries';
   entriesWrap.dataset.role = 'entries';
-  entriesWrap.hidden = true;
+  entriesWrap.setAttribute('aria-hidden', 'true');
 
   for (const entry of entries) {
     const btn = document.createElement('button');
     btn.type = 'button';
-    btn.className = 'home-entry-shell__entry';
+    const fabClass = entry.fabClass || 'home-entry-shell__entry-fab';
+    btn.className = `home-entry-shell__entry ${fabClass}`;
     btn.dataset.role = 'entry';
     btn.dataset.entryId = entry.id;
+    if (entry.fabClass) btn.dataset.fabClass = entry.fabClass;
     btn.title = entry.title;
     btn.setAttribute('aria-label', `Open ${entry.title}`);
-    btn.textContent = entry.title;
+    if (entry.iconPaths) {
+      const iconClass = entry.fabIconClass || 'home-entry-shell__entry-icon';
+      btn.innerHTML =
+        `<svg class="${iconClass}" viewBox="0 0 24 24" aria-hidden="true" focusable="false">` +
+        entry.iconPaths +
+        '</svg>';
+    } else {
+      btn.textContent = entry.title;
+    }
     entriesWrap.appendChild(btn);
   }
 
-  // DOM order: entries above hub visually via column-reverse stack.
+  // column stack: entries above, hub pinned at bottom.
   cluster.appendChild(entriesWrap);
   cluster.appendChild(hubBtn);
 
@@ -103,6 +127,28 @@ export function mountHomeEntryShell(anchor, { config, registry, host = {}, fsm }
 
   function clearSlotDom() {
     slotEl.replaceChildren();
+  }
+
+  /** @param {EntryConfig | null | undefined} entry */
+  function applyPanelSize(entry) {
+    const width = Number(entry?.panelWidth) > 0 ? Number(entry.panelWidth) : DEFAULT_PANEL.width;
+    const height = Number(entry?.panelHeight) > 0 ? Number(entry.panelHeight) : DEFAULT_PANEL.height;
+    chrome.style.setProperty('--hes-panel-w', `${width}px`);
+    chrome.style.setProperty('--hes-panel-h', `${height}px`);
+  }
+
+  /** @param {string | null} activeId */
+  function syncEntryActive(activeId) {
+    for (const btn of entriesWrap.querySelectorAll('[data-role="entry"]')) {
+      const entryId = btn.getAttribute('data-entry-id');
+      const fabClass = btn.getAttribute('data-fab-class');
+      const isActive = Boolean(activeId && entryId === activeId);
+      btn.classList.toggle('home-entry-shell__entry--active', isActive);
+      if (fabClass) {
+        btn.classList.toggle(`${fabClass}--active`, isActive);
+      }
+      btn.setAttribute('aria-expanded', String(isActive));
+    }
   }
 
   /**
@@ -149,6 +195,7 @@ export function mountHomeEntryShell(anchor, { config, registry, host = {}, fsm }
     }
 
     failurePresentation = { entryId: entry.id };
+    applyPanelSize(entry);
     titleEl.textContent = entry.overlayTitle || entry.title;
     clearSlotDom();
     const err = document.createElement('div');
@@ -179,6 +226,7 @@ export function mountHomeEntryShell(anchor, { config, registry, host = {}, fsm }
   function mountContent(entry) {
     if (clearContent()) return;
     failurePresentation = null;
+    applyPanelSize(entry);
     titleEl.textContent = entry.overlayTitle || entry.title;
     const adapter = /** @type {ContentAdapter | undefined} */ (registry.get(entry.contentKey));
     if (adapter && typeof adapter.mount === 'function') {
@@ -196,7 +244,8 @@ export function mountHomeEntryShell(anchor, { config, registry, host = {}, fsm }
       const snap = machine.snapshot();
       root.dataset.state = snap.mode;
       hubBtn.setAttribute('aria-expanded', String(snap.mode !== 'A'));
-      entriesWrap.hidden = snap.mode === 'A';
+      entriesWrap.setAttribute('aria-hidden', String(snap.mode === 'A'));
+      syncEntryActive(null);
       overlay.hidden = true;
       return;
     }
@@ -206,11 +255,13 @@ export function mountHomeEntryShell(anchor, { config, registry, host = {}, fsm }
     root.dataset.state = mode;
     hubBtn.setAttribute('aria-expanded', String(mode !== 'A'));
     // A: hub only; B/C: entries visible (cluster stays expanded while overlay is open).
-    entriesWrap.hidden = mode === 'A';
+    // Keep entries in DOM for interruptible expand/collapse motion (no [hidden]).
+    entriesWrap.setAttribute('aria-hidden', String(mode === 'A'));
     overlay.hidden = !(mode === 'C' || failurePresentation != null);
 
     if (mode === 'A') {
       failurePresentation = null;
+      syncEntryActive(null);
       if (activeEntryId != null || slotEl.childNodes.length > 0 || titleEl.textContent) {
         if (clearContent()) return;
         titleEl.textContent = '';
@@ -223,14 +274,24 @@ export function mountHomeEntryShell(anchor, { config, registry, host = {}, fsm }
       const entry = entries.find((e) => e.id === snap.entryId);
       if (entry && activeEntryId !== entry.id) {
         mountContent(entry);
+      } else if (entry) {
+        applyPanelSize(entry);
       }
+      syncEntryActive(snap.entryId ?? null);
       return;
     }
 
     // B: keep failure end-state; otherwise clear leftover success content.
-    if (!failurePresentation && activeEntryId != null) {
-      if (clearContent()) return;
-      titleEl.textContent = '';
+    if (failurePresentation) {
+      const failed = entries.find((e) => e.id === failurePresentation.entryId);
+      if (failed) applyPanelSize(failed);
+      syncEntryActive(failurePresentation.entryId);
+    } else {
+      syncEntryActive(null);
+      if (activeEntryId != null) {
+        if (clearContent()) return;
+        titleEl.textContent = '';
+      }
     }
   }
 
@@ -267,6 +328,7 @@ export function mountHomeEntryShell(anchor, { config, registry, host = {}, fsm }
       clearSlotDom();
     }
 
+    applyPanelSize(entry);
     titleEl.textContent = entry.overlayTitle || entry.title;
 
     try {

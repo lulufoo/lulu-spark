@@ -36,7 +36,15 @@ describe('home-entry-shell contract · EntryConfig + ContentRegistry (T1)', () =
       expect(entry.title).toBe(BASELINE_TITLES[key]);
       expect(typeof entry.overlayTitle).toBe('string');
       expect(entry.overlayTitle.length).toBeGreaterThan(0);
+      expect(typeof entry.fabClass).toBe('string');
+      expect(entry.fabClass.length).toBeGreaterThan(0);
+      expect(typeof entry.iconPaths).toBe('string');
+      expect(entry.iconPaths.length).toBeGreaterThan(0);
+      expect(entry.panelWidth).toBeGreaterThan(0);
+      expect(entry.panelHeight).toBeGreaterThan(0);
     }
+    expect(byKey.builders.panelWidth).toBe(480);
+    expect(byKey.builders.panelHeight).toBe(520);
   });
 
   it('ContentRegistry registers and retrieves an adapter per baseline contentKey', () => {

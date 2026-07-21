@@ -76,6 +76,8 @@ function businessEntries(root) {
 function isEffectivelyHidden(el) {
   if (!el) return true;
   if (el.hidden) return true;
+  if (el.getAttribute('aria-hidden') === 'true') return true;
+  if (el.closest('[aria-hidden="true"]')) return true;
   return el.closest('[hidden]') != null;
 }
 
@@ -112,8 +114,16 @@ describe('home-entry-shell shell · entry cluster + OverlayChrome + triggers (T3
     const visible = businessEntries(anchor).filter((btn) => !isEffectivelyHidden(btn));
     expect(visible).toHaveLength(config.length);
     for (const entry of config) {
-      expect(entryBtn(anchor, entry.id)).not.toBeNull();
-      expect(entryBtn(anchor, entry.id).textContent).toContain(entry.title);
+      const btn = entryBtn(anchor, entry.id);
+      expect(btn).not.toBeNull();
+      expect(btn.getAttribute('aria-label')).toContain(entry.title);
+      expect(btn.title).toBe(entry.title);
+      if (entry.fabClass) {
+        expect(btn.classList.contains(entry.fabClass)).toBe(true);
+      }
+      if (entry.iconPaths) {
+        expect(btn.querySelector('svg')).not.toBeNull();
+      }
     }
   });
 
@@ -194,6 +204,8 @@ describe('home-entry-shell shell · entry cluster + OverlayChrome + triggers (T3
     const stack = cluster(anchor);
     expect(stack).not.toBeNull();
     expect(stack.classList.contains('home-entry-shell__cluster')).toBe(true);
+    // Hub is the last child so it stays pinned at the bottom of the column stack.
+    expect(stack.lastElementChild).toBe(hub(anchor));
 
     const css = readFileSync(join(repoRoot, 'frontend/app.css'), 'utf8');
     expect(css).toMatch(/\.home-entry-shell__cluster\s*\{[^}]*position:\s*fixed/s);
@@ -204,6 +216,21 @@ describe('home-entry-shell shell · entry cluster + OverlayChrome + triggers (T3
     );
     // Must not adopt a horizontal/fan layout as the B-state target.
     expect(css).not.toMatch(/\.home-entry-shell__cluster\s*\{[^}]*flex-direction:\s*row/s);
+  });
+
+  it('opens overlay with per-entry fixed panel size (not content-driven)', () => {
+    const { anchor } = fx;
+    hub(anchor).click();
+    entryBtn(anchor, 'builders').click();
+
+    const chrome = anchor.querySelector('[data-role="chrome"]');
+    expect(chrome.style.getPropertyValue('--hes-panel-w')).toBe('480px');
+    expect(chrome.style.getPropertyValue('--hes-panel-h')).toBe('520px');
+
+    closeBtn(anchor).click();
+    entryBtn(anchor, 'read-later').click();
+    expect(chrome.style.getPropertyValue('--hes-panel-w')).toBe('340px');
+    expect(chrome.style.getPropertyValue('--hes-panel-h')).toBe('460px');
   });
 
   it('motion is non-blocking: logic state flips immediately without waiting for animationend', () => {
