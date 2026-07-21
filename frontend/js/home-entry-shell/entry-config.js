@@ -3,39 +3,27 @@
  * Display metadata only — content adapters live in ContentRegistry.
  */
 
-const BASELINE_ENTRIES = [
-  {
-    id: 'read-later',
-    contentKey: 'read-later',
-    title: 'Read Later',
-    overlayTitle: 'Read Later',
-  },
-  {
-    id: 'plan-task',
-    contentKey: 'plan-task',
-    title: 'Todos',
-    overlayTitle: 'Todos',
-  },
-  {
-    id: 'notes',
-    contentKey: 'notes',
-    title: 'Notes Assistant',
-    overlayTitle: 'Notes Assistant',
-  },
-  {
-    id: 'builders',
-    contentKey: 'builders',
-    title: 'Builders',
-    overlayTitle: 'Builders',
-  },
+/** @typedef {{ id: string, contentKey: string, title: string, overlayTitle: string }} EntryConfig */
+
+/** @type {ReadonlyArray<{ key: string, title: string }>} */
+const BASELINE = [
+  { key: 'read-later', title: 'Read Later' },
+  { key: 'plan-task', title: 'Todos' },
+  { key: 'notes', title: 'Notes Assistant' },
+  { key: 'builders', title: 'Builders' },
 ];
 
-/** @returns {ReadonlyArray<{ id: string, contentKey: string, title: string, overlayTitle: string }>} */
+/** @returns {EntryConfig[]} */
 export function getBaselineEntries() {
-  return BASELINE_ENTRIES.map((entry) => ({ ...entry }));
+  return BASELINE.map(({ key, title }) => ({
+    id: key,
+    contentKey: key,
+    title,
+    overlayTitle: title,
+  }));
 }
 
-/** @returns {ReadonlyArray<{ id: string, contentKey: string, title: string, overlayTitle: string }>} */
+/** @returns {EntryConfig[]} */
 export function createEntryConfig() {
   return getBaselineEntries();
 }
