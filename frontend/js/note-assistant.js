@@ -173,83 +173,43 @@ export function mountNoteAssistant(root, opts = {}) {
   return { dispose, refresh: refreshAssistantTopNotes };
 }
 
+/** Brand label retained for copy-lock / a11y (overlay title comes from EntryConfig). */
+export const NOTES_CONTENT_LABEL = 'Notes Assistant';
+
 /**
- * Fixed bottom-right note FAB launcher (stack offset / mutual exclusion: t6).
- * @param {HTMLElement} [anchor]
- * @param {{ openCreateNote?: (opts?: object) => void|Promise<void> }} [opts]
+ * Notes content adapter for the home-entry shell content slot.
+ * Shell owns overlay chrome; this module only paints note content into the slot.
+ * @returns {{ mount: (slotEl: HTMLElement, ctx?: { host?: { openCreateNote?: Function } }) => { unmount: () => void } }}
  */
-export function mountNoteAssistantWidget(anchor = document.body, opts = {}) {
-  const { openCreateNote } = opts;
-  const widget = document.createElement('div');
-  widget.className = 'note-assistant-widget';
-  widget.innerHTML = `
-    <div class="note-assistant-popover" hidden>
-      <header class="note-assistant-popover-header">
-        <span class="note-assistant-popover-title">Notes Assistant</span>
-        <button type="button" class="note-assistant-close" aria-label="Close">×</button>
-      </header>
-      <div class="note-assistant-popover-body"></div>
-    </div>
-    <button type="button" class="note-assistant-fab" aria-label="Open Notes Assistant" aria-expanded="false" title="Notes Assistant">
-      <svg class="note-assistant-fab-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-        <path fill="currentColor" d="M6 3.5A1.5 1.5 0 0 0 4.5 5v14A1.5 1.5 0 0 0 6 20.5h9.5a.75.75 0 0 0 .53-.22l3.25-3.25a.75.75 0 0 0 .22-.53V5A1.5 1.5 0 0 0 18 3.5H6zm8.75 13.25V19H6.5V5.5h11v9.75H15.5a.75.75 0 0 0-.75.75z"/>
-      </svg>
-    </button>
-  `;
-  anchor.appendChild(widget);
-
-  const popover = widget.querySelector('.note-assistant-popover');
-  const body = widget.querySelector('.note-assistant-popover-body');
-  const fab = widget.querySelector('.note-assistant-fab');
-  const closeBtn = widget.querySelector('.note-assistant-close');
-
-  let panel = null;
-  let open = false;
-
-  function setOpen(next) {
-    open = next;
-    popover.hidden = !open;
-    fab.setAttribute('aria-expanded', String(open));
-    fab.classList.toggle('note-assistant-fab--active', open);
-    if (!open) return;
-    if (!panel) {
-      const panelOpenCreate =
-        typeof openCreateNote === 'function'
-          ? (...args) => {
-              setOpen(false);
-              return openCreateNote(...args);
-            }
-          : undefined;
-      panel = mountNoteAssistant(body, {
+export function createNotesContentAdapter() {
+  return {
+    /**
+     * @param {HTMLElement} slotEl
+     * @param {{ host?: { openCreateNote?: (opts?: object) => void|Promise<void> } }} [ctx]
+     */
+    mount(slotEl, ctx = {}) {
+      const host = ctx.host ?? {};
+      slotEl.setAttribute('aria-label', NOTES_CONTENT_LABEL);
+      const panel = mountNoteAssistant(slotEl, {
         autoLoad: true,
-        openCreateNote: panelOpenCreate,
+        openCreateNote:
+          typeof host.openCreateNote === 'function' ? host.openCreateNote.bind(host) : undefined,
       });
-      return;
-    }
-    void panel.refresh();
-  }
-
-  fab.addEventListener('click', (event) => {
-    event.stopPropagation();
-    setOpen(!open);
-  });
-  closeBtn.addEventListener('click', (event) => {
-    event.stopPropagation();
-    setOpen(false);
-  });
-
-  const onDocClick = (event) => {
-    if (!open) return;
-    if (widget.contains(event.target)) return;
-    setOpen(false);
+      return {
+        unmount() {
+          panel.dispose();
+          slotEl.removeAttribute('aria-label');
+        },
+      };
+    },
   };
-  document.addEventListener('click', onDocClick, true);
+}
 
-  function dispose() {
-    document.removeEventListener('click', onDocClick, true);
-    panel?.dispose();
-    widget.remove();
-  }
-
-  return { dispose, setOpen };
+/**
+ * @param {HTMLElement} slotEl
+ * @param {{ openCreateNote?: (opts?: object) => void|Promise<void> }} [host]
+ * @returns {{ unmount: () => void }}
+ */
+export function mountNotesContent(slotEl, host) {
+  return createNotesContentAdapter().mount(slotEl, { host });
 }

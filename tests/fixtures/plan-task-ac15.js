@@ -33,13 +33,14 @@ export const PLAN_TASK_BRAND_SITES = [
     mustNotMatch: NO_LEGACY_BRAND,
   },
   {
+    // T6: popover chrome retired; brand title lives on the content adapter / EntryConfig.
     path: 'frontend/js/plan-task-assistant.js',
-    mustMatch: [/<span class="pt-assistant-popover-title">Todos<\/span>/],
+    mustMatch: [/PLAN_TASK_CONTENT_TITLE\s*=\s*['"]Todos['"]/],
     mustNotMatch: NO_LEGACY_BRAND,
   },
   {
     path: 'frontend/js/plan-task-assistant.js',
-    mustMatch: [/aria-label="Open Todos"/, /title="Todos"/],
+    mustMatch: [/PLAN_TASK_CONTENT_LABEL\s*=\s*['"]Open Todos['"]/, /['"]Todos['"]/],
     mustNotMatch: NO_LEGACY_BRAND,
   },
 ];

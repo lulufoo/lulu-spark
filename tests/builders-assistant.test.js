@@ -1,4 +1,7 @@
 // @vitest-environment jsdom
+/**
+ * T6: Builders is a content adapter — renderFeed into the shell slot; no modal chrome.
+ */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
 const renderFeedMock = vi.fn();
@@ -7,14 +10,15 @@ vi.mock('../frontend/js/feed.js', () => ({
   renderFeed: (...args) => renderFeedMock(...args),
 }));
 
-import { mountBuildersAssistantWidget } from '../frontend/js/builders-assistant.js';
+import { createBuildersContentAdapter } from '../frontend/js/builders-assistant.js';
 
-describe('mountBuildersAssistantWidget open/close + renderFeed mount', () => {
-  let anchor;
+describe('createBuildersContentAdapter · slot mount + renderFeed', () => {
+  /** @type {HTMLElement} */
+  let slot;
 
   beforeEach(() => {
-    anchor = document.createElement('div');
-    document.body.appendChild(anchor);
+    slot = document.createElement('div');
+    document.body.appendChild(slot);
     renderFeedMock.mockReset();
     renderFeedMock.mockImplementation((container) => {
       container.innerHTML = '<div class="feed-mock">feed</div>';
@@ -22,128 +26,51 @@ describe('mountBuildersAssistantWidget open/close + renderFeed mount', () => {
   });
 
   afterEach(() => {
-    document.querySelectorAll('.builders-entry, .builders-modal-host').forEach((el) => el.remove());
-    anchor.remove();
+    slot.remove();
   });
 
-  it('setOpen(true) shows host and calls renderFeed once on builders-modal-body only', () => {
-    const { setOpen, host, body, dispose } = mountBuildersAssistantWidget(anchor);
+  it('mount calls renderFeed once on the content slot (no modal host/body)', () => {
+    const handle = createBuildersContentAdapter().mount(slot, { host: {} });
 
-    expect(host.hidden).toBe(true);
-    setOpen(true);
-
-    expect(host.hidden).toBe(false);
     expect(renderFeedMock).toHaveBeenCalledTimes(1);
-    expect(renderFeedMock).toHaveBeenCalledWith(body);
-    expect(body.classList.contains('builders-modal-body')).toBe(true);
-    expect(renderFeedMock.mock.calls[0][0]).not.toBe(host);
+    expect(renderFeedMock).toHaveBeenCalledWith(slot);
+    expect(slot.querySelector('.feed-mock')).not.toBeNull();
+    expect(slot.querySelector('.builders-modal-host')).toBeNull();
+    expect(slot.querySelector('.builders-modal-header')).toBeNull();
+    expect(document.querySelector('.builders-entry-fab')).toBeNull();
 
-    // chrome must survive renderFeed's innerHTML wipe of the body container
-    expect(host.querySelector('.builders-modal-header')).not.toBeNull();
-    expect(host.querySelector('[aria-label="Close"]')).not.toBeNull();
-    expect(body.querySelector('.feed-mock')).not.toBeNull();
-
-    dispose();
+    handle.unmount();
   });
 
-  it('header × (aria-label="Close") closes: host hidden, DOM retained', () => {
-    const { setOpen, host, close, dispose } = mountBuildersAssistantWidget(anchor);
-    expect(typeof setOpen).toBe('function');
-    expect(typeof close).toBe('function');
-
-    setOpen(true);
-    expect(host.hidden).toBe(false);
-
-    const closeBtn = host.querySelector('[aria-label="Close"]');
-    expect(closeBtn).not.toBeNull();
-    closeBtn.click();
-
-    expect(host.hidden).toBe(true);
-    expect(anchor.contains(host)).toBe(true);
-    expect(host.querySelector('.builders-modal-header')).not.toBeNull();
-    expect(host.querySelector('.builders-modal-body')).not.toBeNull();
-    expect(document.querySelectorAll('.builders-modal-host')).toHaveLength(1);
-
-    dispose();
+  it('unmount clears slot content', () => {
+    const handle = createBuildersContentAdapter().mount(slot, { host: {} });
+    expect(slot.querySelector('.feed-mock')).not.toBeNull();
+    handle.unmount();
+    expect(slot.innerHTML).toBe('');
   });
 
-  it('reopen refreshes via renderFeed again without a second feed host', () => {
-    const { setOpen, host, body, dispose } = mountBuildersAssistantWidget(anchor);
+  it('remount refreshes via renderFeed again on the same slot', () => {
+    const adapter = createBuildersContentAdapter();
+    const first = adapter.mount(slot, { host: {} });
+    first.unmount();
+    const second = adapter.mount(slot, { host: {} });
 
-    setOpen(true);
-    host.querySelector('[aria-label="Close"]').click();
-    expect(host.hidden).toBe(true);
-
-    setOpen(true);
-    expect(host.hidden).toBe(false);
     expect(renderFeedMock).toHaveBeenCalledTimes(2);
-    expect(renderFeedMock).toHaveBeenNthCalledWith(1, body);
-    expect(renderFeedMock).toHaveBeenNthCalledWith(2, body);
-    expect(document.querySelectorAll('.builders-modal-host')).toHaveLength(1);
-    expect(document.querySelectorAll('.builders-modal-body')).toHaveLength(1);
+    expect(renderFeedMock).toHaveBeenNthCalledWith(1, slot);
+    expect(renderFeedMock).toHaveBeenNthCalledWith(2, slot);
+    expect(slot.querySelector('.feed-mock')).not.toBeNull();
 
-    dispose();
+    second.unmount();
   });
 
-  it('close leaves nodes in DOM (hidden), does not remove them', () => {
-    const { setOpen, close, host, entry, dispose } = mountBuildersAssistantWidget(anchor);
-    setOpen(true);
-    close();
-
-    expect(host.hidden).toBe(true);
-    expect(anchor.contains(host)).toBe(true);
-    expect(anchor.contains(entry)).toBe(true);
-    expect(host.isConnected).toBe(true);
-
-    dispose();
-  });
-
-  it('optional: outside click (capture-phase) closes like ×', () => {
-    const { setOpen, host, dispose } = mountBuildersAssistantWidget(anchor);
-    setOpen(true);
-    expect(host.hidden).toBe(false);
-
-    const outside = document.createElement('div');
-    document.body.appendChild(outside);
-    outside.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
-
-    expect(host.hidden).toBe(true);
-    expect(anchor.contains(host)).toBe(true);
-
-    outside.remove();
-    dispose();
-  });
-
-  it('FAB open path shows host; renderFeed empty/error still allows × close', async () => {
+  it('renderFeed empty/error still paints into the slot (chrome is shell-owned)', () => {
     renderFeedMock.mockImplementation((container) => {
       container.innerHTML = '<div class="feed-error">加载失败：network</div>';
     });
 
-    const { host, fab, dispose } = mountBuildersAssistantWidget(anchor);
-    fab.click();
-
-    expect(host.hidden).toBe(false);
-    expect(renderFeedMock).toHaveBeenCalledTimes(1);
-    expect(host.querySelector('.builders-modal-body .feed-error')).not.toBeNull();
-    expect(host.querySelector('.builders-modal-header')).not.toBeNull();
-
-    host.querySelector('[aria-label="Close"]').click();
-    expect(host.hidden).toBe(true);
-    expect(anchor.contains(host)).toBe(true);
-
-    dispose();
-  });
-
-  it('fails the contract if renderFeed were bound to outer host (chrome wipe guard)', () => {
-    const { setOpen, host, body, dispose } = mountBuildersAssistantWidget(anchor);
-    setOpen(true);
-
-    const mountTarget = renderFeedMock.mock.calls[0][0];
-    expect(mountTarget).toBe(body);
-    expect(mountTarget.classList.contains('builders-modal-body')).toBe(true);
-    expect(mountTarget).not.toBe(host);
-    expect(host.querySelector('.builders-modal-header')).not.toBeNull();
-
-    dispose();
+    const handle = createBuildersContentAdapter().mount(slot, { host: {} });
+    expect(slot.querySelector('.feed-error')).not.toBeNull();
+    expect(slot.querySelector('.builders-modal-header')).toBeNull();
+    handle.unmount();
   });
 });

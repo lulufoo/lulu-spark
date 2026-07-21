@@ -14,7 +14,7 @@ vi.mock('../frontend/js/feed.js', () => ({
   renderFeed: (...args) => renderFeedMock(...args),
 }));
 
-import { mountBuildersAssistantWidget } from '../frontend/js/builders-assistant.js';
+import { createBuildersContentAdapter } from '../frontend/js/builders-assistant.js';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -182,12 +182,13 @@ describe('T5 retire #btn-feed / showFeedView user entry', () => {
     );
   });
 
-  describe('no dual entry — new Builders path remains', () => {
-    let anchor;
+  describe('no dual entry — Builders content adapter remains', () => {
+    /** @type {HTMLElement} */
+    let slot;
 
     beforeEach(() => {
-      anchor = document.createElement('div');
-      document.body.appendChild(anchor);
+      slot = document.createElement('div');
+      document.body.appendChild(slot);
       renderFeedMock.mockReset();
       renderFeedMock.mockImplementation((container) => {
         container.innerHTML = '<div class="feed-mock">feed</div>';
@@ -195,30 +196,26 @@ describe('T5 retire #btn-feed / showFeedView user entry', () => {
     });
 
     afterEach(() => {
-      document.querySelectorAll('.builders-entry, .builders-modal-host').forEach((el) => el.remove());
-      anchor.remove();
+      slot.remove();
     });
 
     it('main.js orchestrates Builders via home-entry shell (legacy body mount retired)', () => {
       const main = readMain();
       expect(main).toMatch(/mountHomeEntryShell\s*\(\s*document\.body\b/);
       expect(main).not.toMatch(/mountBuildersAssistantWidget\s*\(\s*document\.body\b/);
+      expect(main).toMatch(/createBuildersContentAdapter/);
     });
 
-    it('new Builders FAB still opens the modal (regression)', () => {
-      const { setOpen, host, dispose } = mountBuildersAssistantWidget(anchor);
-      expect(host.hidden).toBe(true);
-      setOpen(true);
-      expect(host.hidden).toBe(false);
-      expect(renderFeedMock).toHaveBeenCalled();
-      dispose();
+    it('Builders content adapter mounts feed into the slot (regression)', () => {
+      const handle = createBuildersContentAdapter().mount(slot, { host: {} });
+      expect(renderFeedMock).toHaveBeenCalledWith(slot);
+      expect(slot.querySelector('.feed-mock')).not.toBeNull();
+      handle.unmount();
     });
 
     it('user-reachable Builders path is not via #btn-feed click wiring', () => {
       expect(readMain()).not.toMatch(BTN_FEED_CLICK_WIRING);
-      const { fab, dispose } = mountBuildersAssistantWidget(anchor);
-      expect(fab.classList.contains('builders-entry-fab')).toBe(true);
-      dispose();
+      expect(readMain()).toMatch(/createBuildersContentAdapter/);
     });
   });
 });

@@ -21,9 +21,9 @@ vi.mock('../frontend/js/apiClient.js', async (importOriginal) => {
 
 import {
   bindFocusRefresh,
+  createReadLaterContentAdapter,
   loadAssistantEntries,
   mountReadLaterAssistant,
-  mountReadLaterAssistantWidget,
   selectTop3Latest,
 } from '../frontend/js/read-later-assistant.js';
 import { openExternalUrl } from '../frontend/js/components/read-later-list.js';
@@ -551,46 +551,33 @@ describe('bindFocusRefresh (assistant)', () => {
   });
 });
 
-describe('mountReadLaterAssistantWidget', () => {
-  let anchor;
+describe('createReadLaterContentAdapter', () => {
+  /** @type {HTMLElement} */
+  let slot;
 
   beforeEach(() => {
-    anchor = document.createElement('div');
-    document.body.appendChild(anchor);
+    slot = document.createElement('div');
+    document.body.appendChild(slot);
     getJsonMock.mockReset();
   });
 
   afterEach(() => {
-    anchor.remove();
-    document.querySelectorAll('.rl-assistant-widget').forEach((el) => el.remove());
+    slot.remove();
   });
 
-  it('renders fixed launcher hidden panel by default', () => {
-    mountReadLaterAssistantWidget(anchor);
-    expect(document.querySelector('.rl-assistant-fab')).not.toBeNull();
-    expect(document.querySelector('.rl-assistant-popover')?.hidden).toBe(true);
-  });
-
-  it('opens popover beside launcher and loads Top3 on first open', async () => {
+  it('mounts content into the slot without self-owned chrome', async () => {
     getJsonMock.mockResolvedValue(sampleEntries);
-    const { setOpen } = mountReadLaterAssistantWidget(anchor);
-    setOpen(true);
-    const popover = document.querySelector('.rl-assistant-popover');
-    expect(popover?.hidden).toBe(false);
-    await vi.waitFor(() => {
-      expect(document.querySelector('.read-later-assistant-panel')).not.toBeNull();
+    const handle = createReadLaterContentAdapter().mount(slot, {
+      host: { navigate: () => {}, openReadLater: () => {} },
     });
-  });
-
-  it('closes popover via close button', async () => {
-    getJsonMock.mockResolvedValue(sampleEntries);
-    const { setOpen } = mountReadLaterAssistantWidget(anchor);
-    setOpen(true);
     await vi.waitFor(() => {
-      expect(document.querySelector('.read-later-assistant-panel')).not.toBeNull();
+      expect(slot.querySelector('.read-later-assistant-panel')).not.toBeNull();
     });
-    document.querySelector('.rl-assistant-close')?.click();
-    expect(document.querySelector('.rl-assistant-popover')?.hidden).toBe(true);
+    expect(slot.querySelector('.rl-assistant-fab')).toBeNull();
+    expect(slot.querySelector('.rl-assistant-popover')).toBeNull();
+    expect(slot.querySelector('.rl-assistant-close')).toBeNull();
+    handle.unmount();
+    expect(slot.innerHTML).toBe('');
   });
 });
 
@@ -598,5 +585,6 @@ describe('main window assistant integration', () => {
   it('main.js orchestrates via home-entry shell (legacy body mount retired)', () => {
     expect(mainJs).toMatch(/mountHomeEntryShell\s*\(\s*document\.body\b/);
     expect(mainJs).not.toMatch(/mountReadLaterAssistantWidget\s*\(\s*document\.body\b/);
+    expect(mainJs).toMatch(/createReadLaterContentAdapter/);
   });
 });

@@ -19,13 +19,12 @@ vi.mock('../frontend/js/apiClient.js', async (importOriginal) => {
 
 import {
   buildDeepLink,
+  createPlanTaskContentAdapter,
   formatSubProgressSummary,
   loadAssistantPlanTasks,
   mountPlanTaskAssistant,
-  mountPlanTaskAssistantWidget,
   selectTop3ByCreatedAt,
-} from '../frontend/js/plan-task-assistant.js';
-import { formatPlanTaskStatus } from '../frontend/js/plan-task/index.js';
+} from '../frontend/js/plan-task-assistant.js';import { formatPlanTaskStatus } from '../frontend/js/plan-task/index.js';
 
 const fixtureRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 const assistantHtml = readFileSync(
@@ -435,6 +434,7 @@ describe('main window wiring', () => {
     expect(mainJs).toMatch(/mountHomeEntryShell\s*\(\s*document\.body\b/);
     expect(mainJs).not.toMatch(/mountPlanTaskAssistantWidget\s*\(\s*document\.body\b/);
     expect(mainJs).not.toMatch(/mountReadLaterAssistantWidget\s*\(\s*document\.body\b/);
+    expect(mainJs).toMatch(/createPlanTaskContentAdapter/);
   });
 
   it('independent FAB bottom stack offsets are retired in app.css', () => {
@@ -443,32 +443,31 @@ describe('main window wiring', () => {
   });
 });
 
-describe('mountPlanTaskAssistantWidget', () => {
-  let anchor;
+describe('createPlanTaskContentAdapter', () => {
+  /** @type {HTMLElement} */
+  let slot;
 
   beforeEach(() => {
-    anchor = document.createElement('div');
-    document.body.appendChild(anchor);
+    slot = document.createElement('div');
+    document.body.appendChild(slot);
     getJsonMock.mockReset();
   });
 
   afterEach(() => {
-    anchor.remove();
-    document.querySelectorAll('.pt-assistant-widget').forEach((el) => el.remove());
+    slot.remove();
   });
 
-  it('renders fixed launcher with popover hidden by default', () => {
-    mountPlanTaskAssistantWidget(anchor);
-    expect(document.querySelector('.pt-assistant-fab')).not.toBeNull();
-    expect(document.querySelector('.pt-assistant-popover')?.hidden).toBe(true);
-  });
-
-  it('opens popover and loads top3 on first open', async () => {
+  it('mounts task list into the slot without self-owned chrome', async () => {
     getJsonMock.mockResolvedValue(sampleMasters);
-    const { setOpen } = mountPlanTaskAssistantWidget(anchor);
-    setOpen(true);
-    await vi.waitFor(() => {
-      expect(document.querySelectorAll('.plan-task-assistant-item')).toHaveLength(3);
+    const handle = createPlanTaskContentAdapter().mount(slot, {
+      host: { navigate: () => {} },
     });
+    await vi.waitFor(() => {
+      expect(slot.querySelectorAll('.plan-task-assistant-item')).toHaveLength(3);
+    });
+    expect(slot.querySelector('.pt-assistant-fab')).toBeNull();
+    expect(slot.querySelector('.pt-assistant-popover')).toBeNull();
+    handle.unmount();
+    expect(slot.innerHTML).toBe('');
   });
 });

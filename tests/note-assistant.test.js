@@ -12,7 +12,7 @@ import {
   selectTopNotesByCreatedAt,
   loadAssistantNotes,
   mountNoteAssistant,
-  mountNoteAssistantWidget,
+  createNotesContentAdapter,
 } from '../frontend/js/note-assistant.js';
 
 const sampleEntries = [
@@ -216,37 +216,33 @@ describe('mountNoteAssistant', () => {
   });
 });
 
-describe('mountNoteAssistantWidget', () => {
-  let anchor;
+describe('createNotesContentAdapter', () => {
+  /** @type {HTMLElement} */
+  let slot;
 
   beforeEach(() => {
-    anchor = document.createElement('div');
-    document.body.appendChild(anchor);
+    slot = document.createElement('div');
+    document.body.appendChild(slot);
     fetchIndexMock.mockReset();
     openCreateNoteMock.mockReset();
   });
 
   afterEach(() => {
-    anchor.remove();
-    document.querySelectorAll('.note-assistant-widget').forEach((el) => el.remove());
+    slot.remove();
   });
 
-  it('renders fixed launcher with popover hidden by default', () => {
-    mountNoteAssistantWidget(anchor);
-    expect(document.querySelector('.note-assistant-fab')).not.toBeNull();
-    expect(document.querySelector('.note-assistant-popover')?.hidden).toBe(true);
-  });
-
-  it('opens popover and loads top3 on first open; exposes setOpen', async () => {
+  it('mounts note list into the slot without self-owned chrome', async () => {
     fetchIndexMock.mockResolvedValue(indexPayload());
-    const { setOpen, dispose } = mountNoteAssistantWidget(anchor, {
-      openCreateNote: openCreateNoteMock,
+    const handle = createNotesContentAdapter().mount(slot, {
+      host: { openCreateNote: openCreateNoteMock },
     });
-    expect(typeof setOpen).toBe('function');
-    setOpen(true);
     await vi.waitFor(() => {
-      expect(document.querySelectorAll('.note-assistant-item')).toHaveLength(3);
+      expect(slot.querySelectorAll('.note-assistant-item')).toHaveLength(3);
     });
-    dispose();
+    expect(slot.querySelector('.note-assistant-fab')).toBeNull();
+    expect(slot.querySelector('.note-assistant-popover')).toBeNull();
+    expect(typeof handle.unmount).toBe('function');
+    handle.unmount();
+    expect(slot.innerHTML).toBe('');
   });
 });

@@ -244,91 +244,49 @@ export function mountReadLaterAssistant(root, opts = {}) {
   return { dispose, refresh: refreshAssistantTop3 };
 }
 
+/** A11y / brand label for the Read Later content region (shell owns overlay title). */
+export const READ_LATER_CONTENT_LABEL = 'Open Read Later assistant';
+
 /**
- * Fixed bottom-right launcher with a non-draggable popover panel (main window only).
- * @param {HTMLElement} [anchor]
- * @param {{ navigate?: (hash: string) => void, openReadLater?: () => void }} [opts]
+ * Read Later content adapter for the home-entry shell content slot.
+ * Shell owns overlay chrome; this module only paints list content into the slot.
+ * @returns {{ mount: (slotEl: HTMLElement, ctx?: { host?: { navigate?: Function, openReadLater?: Function } }) => { unmount: () => void } }}
  */
-export function mountReadLaterAssistantWidget(anchor = document.body, opts = {}) {
-  const { navigate, openReadLater } = opts;
-  const widget = document.createElement('div');
-  widget.className = 'rl-assistant-widget';
-  widget.innerHTML = `
-    <div class="rl-assistant-popover" hidden>
-      <header class="rl-assistant-popover-header">
-        <span class="rl-assistant-popover-title">Read Later</span>
-        <button type="button" class="rl-assistant-close" aria-label="Close">×</button>
-      </header>
-      <div class="rl-assistant-popover-body"></div>
-    </div>
-    <button type="button" class="rl-assistant-fab" aria-label="Open Read Later assistant" aria-expanded="false" title="Read Later">
-      <svg class="rl-assistant-fab-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-        <path fill="currentColor" d="M11.2 2.2a.9.9 0 0 1 .6 0l1.1 4.4 4.4 1.1a.9.9 0 0 1 0 1.7l-4.4 1.1-1.1 4.4a.9.9 0 0 1-1.7 0l-1.1-4.4-4.4-1.1a.9.9 0 0 1 0-1.7l4.4-1.1 1.1-4.4z"/>
-        <path fill="currentColor" d="M18.2 13.8a.7.7 0 0 1 .5 0l.8 3.2 3.2.8a.7.7 0 0 1 0 1.3l-3.2.8-.8 3.2a.7.7 0 0 1-1.3 0l-.8-3.2-3.2-.8a.7.7 0 0 1 0-1.3l3.2-.8.8-3.2z"/>
-        <path fill="currentColor" d="M6.4 15.6a.5.5 0 0 1 .4 0l.5 2.1 2.1.5a.5.5 0 0 1 0 .9l-2.1.5-.5 2.1a.5.5 0 0 1-.9 0l-.5-2.1-2.1-.5a.5.5 0 0 1 0-.9l2.1-.5.5-2.1z"/>
-      </svg>
-    </button>
-  `;
-  anchor.appendChild(widget);
-
-  const popover = widget.querySelector('.rl-assistant-popover');
-  const body = widget.querySelector('.rl-assistant-popover-body');
-  const fab = widget.querySelector('.rl-assistant-fab');
-  const closeBtn = widget.querySelector('.rl-assistant-close');
-
-  let panel = null;
-  let open = false;
-
-  function setOpen(next) {
-    open = next;
-    popover.hidden = !open;
-    fab.setAttribute('aria-expanded', String(open));
-    fab.classList.toggle('rl-assistant-fab--active', open);
-    if (!open) return;
-    if (!panel) {
-      const panelNavigate =
-        typeof navigate === 'function'
-          ? (hash) => {
-              setOpen(false);
-              navigate(hash);
-            }
-          : undefined;
-      panel = mountReadLaterAssistant(body, {
+export function createReadLaterContentAdapter() {
+  return {
+    /**
+     * @param {HTMLElement} slotEl
+     * @param {{ host?: { navigate?: (hash: string) => void, openReadLater?: () => void } }} [ctx]
+     */
+    mount(slotEl, ctx = {}) {
+      const host = ctx.host ?? {};
+      slotEl.setAttribute('aria-label', READ_LATER_CONTENT_LABEL);
+      const panel = mountReadLaterAssistant(slotEl, {
         autoLoad: true,
-        navigate: panelNavigate,
-        openReadLater,
+        navigate: typeof host.navigate === 'function' ? host.navigate.bind(host) : undefined,
+        openReadLater:
+          typeof host.openReadLater === 'function' ? host.openReadLater.bind(host) : undefined,
       });
-      return;
-    }
-    void panel.refresh();
-  }
-
-  fab.addEventListener('click', (event) => {
-    event.stopPropagation();
-    setOpen(!open);
-  });
-  closeBtn.addEventListener('click', (event) => {
-    event.stopPropagation();
-    setOpen(false);
-  });
-
-  const onDocClick = (event) => {
-    if (!open) return;
-    if (widget.contains(event.target)) return;
-    setOpen(false);
+      return {
+        unmount() {
+          panel.dispose();
+          slotEl.removeAttribute('aria-label');
+        },
+      };
+    },
   };
-  document.addEventListener('click', onDocClick, true);
+}
 
-  function dispose() {
-    document.removeEventListener('click', onDocClick, true);
-    panel?.dispose();
-    widget.remove();
-  }
-
-  return { dispose, setOpen };
+/**
+ * @param {HTMLElement} slotEl
+ * @param {{ navigate?: (hash: string) => void, openReadLater?: () => void }} [host]
+ * @returns {{ unmount: () => void }}
+ */
+export function mountReadLaterContent(slotEl, host) {
+  return createReadLaterContentAdapter().mount(slotEl, { host });
 }
 
 const bootstrapRoot = document.getElementById('read-later-assistant-root');
 if (bootstrapRoot) {
-  mountReadLaterAssistantWidget(document.body);
+  mountReadLaterAssistant(bootstrapRoot);
 }

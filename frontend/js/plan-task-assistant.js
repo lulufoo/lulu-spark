@@ -193,88 +193,50 @@ export function mountPlanTaskAssistant(root, opts = {}) {
   return { dispose, refresh: refreshAssistantTop3 };
 }
 
+/** Brand / a11y labels for the Todos content region (shell owns overlay title). */
+export const PLAN_TASK_CONTENT_LABEL = 'Open Todos';
+export const PLAN_TASK_CONTENT_TITLE = 'Todos';
+
 /**
- * Fixed bottom-right launcher offset above Read Later FAB (main window only).
- * @param {HTMLElement} [anchor]
- * @param {{ navigate?: (hash: string) => void }} [opts]
+ * Todos content adapter for the home-entry shell content slot.
+ * Shell owns overlay chrome; this module only paints task content into the slot.
+ * @returns {{ mount: (slotEl: HTMLElement, ctx?: { host?: { navigate?: Function } }) => { unmount: () => void } }}
  */
-export function mountPlanTaskAssistantWidget(anchor = document.body, opts = {}) {
-  const { navigate } = opts;
-  const widget = document.createElement('div');
-  widget.className = 'pt-assistant-widget';
-  widget.innerHTML = `
-    <div class="pt-assistant-popover" hidden>
-      <header class="pt-assistant-popover-header">
-        <span class="pt-assistant-popover-title">Todos</span>
-        <button type="button" class="pt-assistant-close" aria-label="Close">×</button>
-      </header>
-      <div class="pt-assistant-popover-body"></div>
-    </div>
-    <button type="button" class="pt-assistant-fab" aria-label="Open Todos" aria-expanded="false" title="Todos">
-      <svg class="pt-assistant-fab-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-        <path fill="currentColor" d="M4 5.5A1.5 1.5 0 0 1 5.5 4h13A1.5 1.5 0 0 1 20 5.5v13a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 18.5v-13zM7 8h10v1.5H7V8zm0 3.5h10V13H7v-1.5zm0 3.5h6V16H7v-1z"/>
-      </svg>
-    </button>
-  `;
-  anchor.appendChild(widget);
-
-  const popover = widget.querySelector('.pt-assistant-popover');
-  const body = widget.querySelector('.pt-assistant-popover-body');
-  const fab = widget.querySelector('.pt-assistant-fab');
-  const closeBtn = widget.querySelector('.pt-assistant-close');
-
-  let panel = null;
-  let open = false;
-
-  function setOpen(next) {
-    open = next;
-    popover.hidden = !open;
-    fab.setAttribute('aria-expanded', String(open));
-    fab.classList.toggle('pt-assistant-fab--active', open);
-    if (!open) return;
-    if (!panel) {
-      const panelNavigate =
-        typeof navigate === 'function'
-          ? (hash) => {
-              setOpen(false);
-              navigate(hash);
-            }
-          : undefined;
-      panel = mountPlanTaskAssistant(body, {
+export function createPlanTaskContentAdapter() {
+  return {
+    /**
+     * @param {HTMLElement} slotEl
+     * @param {{ host?: { navigate?: (hash: string) => void } }} [ctx]
+     */
+    mount(slotEl, ctx = {}) {
+      const host = ctx.host ?? {};
+      slotEl.setAttribute('aria-label', PLAN_TASK_CONTENT_LABEL);
+      slotEl.setAttribute('title', PLAN_TASK_CONTENT_TITLE);
+      const panel = mountPlanTaskAssistant(slotEl, {
         autoLoad: true,
-        navigate: panelNavigate,
+        navigate: typeof host.navigate === 'function' ? host.navigate.bind(host) : undefined,
       });
-      return;
-    }
-    void panel.refresh();
-  }
-
-  fab.addEventListener('click', (event) => {
-    event.stopPropagation();
-    setOpen(!open);
-  });
-  closeBtn.addEventListener('click', (event) => {
-    event.stopPropagation();
-    setOpen(false);
-  });
-
-  const onDocClick = (event) => {
-    if (!open) return;
-    if (widget.contains(event.target)) return;
-    setOpen(false);
+      return {
+        unmount() {
+          panel.dispose();
+          slotEl.removeAttribute('aria-label');
+          slotEl.removeAttribute('title');
+        },
+      };
+    },
   };
-  document.addEventListener('click', onDocClick, true);
+}
 
-  function dispose() {
-    document.removeEventListener('click', onDocClick, true);
-    panel?.dispose();
-    widget.remove();
-  }
-
-  return { dispose, setOpen };
+/**
+ * @param {HTMLElement} slotEl
+ * @param {{ navigate?: (hash: string) => void }} [host]
+ * @returns {{ unmount: () => void }}
+ */
+export function mountPlanTaskContent(slotEl, host) {
+  return createPlanTaskContentAdapter().mount(slotEl, { host });
 }
 
 const bootstrapRoot = document.getElementById('plan-task-assistant-root');
 if (bootstrapRoot) {
-  mountPlanTaskAssistantWidget(document.body);
+  mountPlanTaskAssistant(bootstrapRoot);
 }
