@@ -214,7 +214,7 @@ export function createPlanTaskContentAdapter() {
       slotEl.setAttribute('title', PLAN_TASK_CONTENT_TITLE);
       const panel = mountPlanTaskAssistant(slotEl, {
         autoLoad: true,
-        navigate: typeof host.navigate === 'function' ? host.navigate.bind(host) : undefined,
+        navigate: typeof host.navigate === 'function' ? host.navigate : undefined,
       });
       return {
         unmount() {

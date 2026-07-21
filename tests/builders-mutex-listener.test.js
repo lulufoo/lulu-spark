@@ -14,7 +14,7 @@ function readMain() {
   return readFileSync(join(repoRoot, 'frontend/js/main.js'), 'utf8');
 }
 
-describe('Builders ↔ assistants capture-phase mutex retired (main.js T5)', () => {
+describe('Builders ↔ assistants capture-phase mutex retired (main.js T5/T7)', () => {
   it('main.js no longer contains the document-level FAB mutex closest checks', () => {
     const source = readMain();
     expect(source).not.toMatch(/closest\(\s*['"]\.rl-assistant-fab['"]\s*\)/);
@@ -30,5 +30,14 @@ describe('Builders ↔ assistants capture-phase mutex retired (main.js T5)', () 
     expect(source).not.toMatch(
       /mount(?:ReadLater|PlanTask|Note|Builders)AssistantWidget\s*\(\s*document\.body\b/,
     );
+  });
+
+  // T7: mutex ownership moved into the shell FSM — main must not reintroduce capture mutex.
+  it('main.js does not reintroduce a capture-phase mutual-exclusion click listener', () => {
+    const source = readMain();
+    expect(source).not.toMatch(
+      /addEventListener\s*\(\s*['"]click['"]\s*,\s*[^,]+,\s*true\s*\)/,
+    );
+    expect(source).toMatch(/mountHomeEntryShell/);
   });
 });

@@ -267,6 +267,19 @@ describe('home-entry-shell recovery · content failure stays B; force A; snapsho
     expect(contentSlot(anchor).querySelector('.shell-content-marker')).toBeNull();
   });
 
+  // T7: leave-host / unmount recovery forces A (paired with main-wire leave path)
+  it('unmount while in C forces A (leave-host recovery; overlay must not survive)', async () => {
+    fx = mountFixture();
+    const { anchor, shell } = fx;
+
+    await openHubThenEntry(anchor, shell, ENTRY_OK.id);
+    expect(shell.getState().mode).toBe('C');
+
+    shell.unmount();
+    expect(shell.getState()).toEqual({ mode: 'A' });
+    fx = null;
+  });
+
   it('OverlayChrome title is wired from EntryConfig display fields only (not business internals)', async () => {
     const custom = {
       id: 'custom',

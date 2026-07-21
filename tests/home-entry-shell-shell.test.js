@@ -233,4 +233,22 @@ describe('home-entry-shell shell · entry cluster + OverlayChrome + triggers (T3
     expect(shellSrc).not.toMatch(/Read Later|Notes Assistant|Builders|Todos/);
     expect(shellSrc).not.toMatch(/rl-assistant-|pt-assistant-|note-assistant-|builders-modal-/);
   });
+
+  // T7: shell-level business switch must traverse C→B→C (UI path)
+  it('switching entry while in C remounts content under new entryId (C→B→C)', async () => {
+    const { anchor, shell } = fx;
+    hub(anchor).click();
+    entryBtn(anchor, 'read-later').click();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(shell.getState()).toEqual({ mode: 'C', entryId: 'read-later' });
+
+    entryBtn(anchor, 'notes').click();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(shell.getState()).toEqual({ mode: 'C', entryId: 'notes' });
+    expect(contentSlot(anchor).querySelector('.shell-content-marker')?.dataset.entryId).toBe(
+      'notes',
+    );
+  });
 });

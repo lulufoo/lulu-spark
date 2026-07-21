@@ -263,9 +263,8 @@ export function createReadLaterContentAdapter() {
       slotEl.setAttribute('aria-label', READ_LATER_CONTENT_LABEL);
       const panel = mountReadLaterAssistant(slotEl, {
         autoLoad: true,
-        navigate: typeof host.navigate === 'function' ? host.navigate.bind(host) : undefined,
-        openReadLater:
-          typeof host.openReadLater === 'function' ? host.openReadLater.bind(host) : undefined,
+        navigate: typeof host.navigate === 'function' ? host.navigate : undefined,
+        openReadLater: typeof host.openReadLater === 'function' ? host.openReadLater : undefined,
       });
       return {
         unmount() {

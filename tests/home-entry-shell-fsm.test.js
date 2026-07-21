@@ -125,4 +125,19 @@ describe('home-entry-shell fsm · A/B/C legal edges + snapshot (T2)', () => {
     const fromC = createHomeEntryFsm({ mode: 'C', entryId: 'notes' });
     expect(fromC.snapshot()).toEqual({ mode: 'C', entryId: 'notes' });
   });
+
+  // T7 hard counterexamples — FSM surface
+  it('hard counterexample: no direct A→C or C→A transitions exist', () => {
+    const fsm = createHomeEntryFsm();
+    expect(fsm.dispatch({ type: 'openEntry', entryId: 'notes' }).accepted).toBe(false);
+    expect(fsm.getState()).toBe('A');
+
+    fsm.dispatch({ type: 'openHub' });
+    fsm.dispatch({ type: 'openEntry', entryId: 'notes' });
+    expect(fsm.dispatch({ type: 'closeHub' }).accepted).toBe(false);
+    expect(fsm.getState()).toBe('C');
+    // Only forceA may collapse C→A as recovery (not a normal edge).
+    expect(fsm.dispatch({ type: 'forceA' }).accepted).toBe(true);
+    expect(fsm.getState()).toBe('A');
+  });
 });

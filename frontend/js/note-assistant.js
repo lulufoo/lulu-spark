@@ -192,8 +192,7 @@ export function createNotesContentAdapter() {
       slotEl.setAttribute('aria-label', NOTES_CONTENT_LABEL);
       const panel = mountNoteAssistant(slotEl, {
         autoLoad: true,
-        openCreateNote:
-          typeof host.openCreateNote === 'function' ? host.openCreateNote.bind(host) : undefined,
+        openCreateNote: typeof host.openCreateNote === 'function' ? host.openCreateNote : undefined,
       });
       return {
         unmount() {
