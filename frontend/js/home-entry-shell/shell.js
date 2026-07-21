@@ -8,13 +8,18 @@ import { createHomeEntryFsm } from './fsm.js';
 /**
  * @typedef {{ id: string, contentKey: string, title: string, overlayTitle: string }} EntryConfig
  * @typedef {{ register: Function, get: (contentKey: string) => unknown }} ContentRegistry
- * @typedef {{ mount?: (slot: HTMLElement, ctx: { entry: EntryConfig, host: unknown }) => (void | { unmount?: () => void }) }} ContentAdapter
+ * @typedef {{ mount?: (slot: HTMLElement, ctx: { entry: EntryConfig, host: unknown }) => (void | { unmount?: () => void } | Promise<void | { unmount?: () => void }>) }} ContentAdapter
  */
 
 /**
  * @param {HTMLElement} anchor
  * @param {{ config: EntryConfig[], registry: ContentRegistry, host?: unknown, fsm?: ReturnType<typeof createHomeEntryFsm> }} opts
- * @returns {{ unmount: () => void, getState: () => import('./fsm.js').FsmSnapshot | { mode: string, entryId?: string } }}
+ * @returns {{
+ *   unmount: () => void,
+ *   getState: () => ReturnType<ReturnType<typeof createHomeEntryFsm>['snapshot']>,
+ *   openContent: (entryId: string) => Promise<void>,
+ *   forceRecoverA: (reason?: string) => void,
+ * }}
  */
 export function mountHomeEntryShell(anchor, { config, registry, host = {}, fsm } = {}) {
   const machine = fsm ?? createHomeEntryFsm();
@@ -54,6 +59,7 @@ export function mountHomeEntryShell(anchor, { config, registry, host = {}, fsm }
     entriesWrap.appendChild(btn);
   }
 
+  // DOM order: entries above hub visually via column-reverse stack.
   cluster.appendChild(entriesWrap);
   cluster.appendChild(hubBtn);
 
@@ -79,7 +85,6 @@ export function mountHomeEntryShell(anchor, { config, registry, host = {}, fsm }
 
   overlay.appendChild(backdrop);
   overlay.appendChild(chrome);
-
   root.appendChild(cluster);
   root.appendChild(overlay);
   anchor.appendChild(root);
@@ -92,66 +97,219 @@ export function mountHomeEntryShell(anchor, { config, registry, host = {}, fsm }
   let activeContent = null;
   /** @type {string | null} */
   let activeEntryId = null;
+  /** @type {{ entryId: string } | null} */
+  let failurePresentation = null;
+  let recovering = false;
 
-  function clearContent() {
-    if (activeContent && typeof activeContent.unmount === 'function') {
-      activeContent.unmount();
-    }
-    activeContent = null;
-    activeEntryId = null;
+  function clearSlotDom() {
     slotEl.replaceChildren();
   }
 
   /**
-   * @param {EntryConfig} entry
+   * Unmount active content. On unmount throw → force A (close/exception recovery).
+   * @returns {boolean} true if recovery was triggered
    */
-  function mountContent(entry) {
-    clearContent();
+  function clearContent() {
+    const prev = activeContent;
+    activeContent = null;
+    activeEntryId = null;
+    try {
+      if (prev && typeof prev.unmount === 'function') {
+        prev.unmount();
+      }
+      clearSlotDom();
+      return false;
+    } catch {
+      clearSlotDom();
+      titleEl.textContent = '';
+      failurePresentation = null;
+      forceRecoverA('close-failed');
+      return true;
+    }
+  }
+
+  /** @param {EntryConfig} entry */
+  function presentFailure(entry) {
+    if (machine.getState() === 'C') {
+      // Leave success C without treating content unmount as close-failure recovery.
+      const prev = activeContent;
+      activeContent = null;
+      activeEntryId = null;
+      try {
+        if (prev && typeof prev.unmount === 'function') {
+          prev.unmount();
+        }
+      } catch {
+        // ignore — we are already entering a non-success failure end-state on B
+      }
+      clearSlotDom();
+      machine.dispatch({ type: 'closeOverlay' });
+    }
+
+    failurePresentation = { entryId: entry.id };
     titleEl.textContent = entry.overlayTitle || entry.title;
-    /** @type {ContentAdapter | undefined} */
+    clearSlotDom();
+    const err = document.createElement('div');
+    err.className = 'home-entry-shell__content-error';
+    err.dataset.role = 'content-error';
+    err.textContent = 'Failed to load content';
+    slotEl.appendChild(err);
+    syncDom();
+  }
+
+  /** @param {string} [reason] */
+  function forceRecoverA(reason) {
+    if (recovering) return;
+    recovering = true;
+    try {
+      failurePresentation = null;
+      const prev = activeContent;
+      activeContent = null;
+      activeEntryId = null;
+      try {
+        if (prev && typeof prev.unmount === 'function') {
+          prev.unmount();
+        }
+      } catch {
+        // ignore secondary failures during forced recovery
+      }
+      clearSlotDom();
+      titleEl.textContent = '';
+      machine.dispatch({ type: 'forceA' });
+      syncDom();
+    } finally {
+      recovering = false;
+    }
+  }
+
+  /** @param {EntryConfig} entry */
+  function mountContent(entry) {
+    if (clearContent()) return;
+    failurePresentation = null;
+    titleEl.textContent = entry.overlayTitle || entry.title;
     const adapter = /** @type {ContentAdapter | undefined} */ (registry.get(entry.contentKey));
     if (adapter && typeof adapter.mount === 'function') {
       const handle = adapter.mount(slotEl, { entry, host });
-      activeContent = handle && typeof handle === 'object' ? handle : null;
+      activeContent = handle && typeof handle === 'object' && !('then' in /** @type {object} */ (handle))
+        ? /** @type {{ unmount?: () => void }} */ (handle)
+        : null;
       activeEntryId = entry.id;
     }
   }
 
   function syncDom() {
+    if (recovering) {
+      // forceRecoverA owns DOM reset; only refresh chrome visibility from snapshot.
+      const snap = machine.snapshot();
+      root.dataset.state = snap.mode;
+      hubBtn.setAttribute('aria-expanded', String(snap.mode !== 'A'));
+      entriesWrap.hidden = snap.mode === 'A';
+      overlay.hidden = true;
+      return;
+    }
+
     const snap = machine.snapshot();
     const mode = snap.mode;
     root.dataset.state = mode;
     hubBtn.setAttribute('aria-expanded', String(mode !== 'A'));
-
-    // A: hub only; B/C: business entries visible (cluster stays expanded in C).
+    // A: hub only; B/C: entries visible (cluster stays expanded while overlay is open).
     entriesWrap.hidden = mode === 'A';
-    overlay.hidden = mode !== 'C';
+    overlay.hidden = !(mode === 'C' || failurePresentation != null);
+
+    if (mode === 'A') {
+      failurePresentation = null;
+      if (activeEntryId != null || slotEl.childNodes.length > 0 || titleEl.textContent) {
+        if (clearContent()) return;
+        titleEl.textContent = '';
+      }
+      return;
+    }
 
     if (mode === 'C') {
+      failurePresentation = null;
       const entry = entries.find((e) => e.id === snap.entryId);
       if (entry && activeEntryId !== entry.id) {
         mountContent(entry);
       }
-    } else if (activeEntryId != null) {
-      clearContent();
+      return;
+    }
+
+    // B: keep failure end-state; otherwise clear leftover success content.
+    if (!failurePresentation && activeEntryId != null) {
+      if (clearContent()) return;
       titleEl.textContent = '';
     }
   }
 
-  function getState() {
-    return machine.snapshot();
+  /** @param {import('./fsm.js').FsmEvent | { type: string, entryId?: string }} event */
+  function dispatchAndSync(event) {
+    machine.dispatch(/** @type {any} */ (event));
+    syncDom();
+  }
+
+  /**
+   * Load content via registry; success → C; missing key / load failure → stay B with error placeholder.
+   * @param {string} entryId
+   * @returns {Promise<void>}
+   */
+  async function openContent(entryId) {
+    const entry = entries.find((e) => e.id === entryId);
+    if (!entry) return;
+    if (machine.getState() === 'A') return;
+
+    const adapter = /** @type {ContentAdapter | undefined} */ (registry.get(entry.contentKey));
+    if (!adapter || typeof adapter.mount !== 'function') {
+      presentFailure(entry);
+      return;
+    }
+
+    // Drop prior success/failure presentation before attempting a new mount.
+    failurePresentation = null;
+    if (activeEntryId != null || activeContent) {
+      const prev = activeContent;
+      activeContent = null;
+      activeEntryId = null;
+      try {
+        if (prev && typeof prev.unmount === 'function') {
+          prev.unmount();
+        }
+      } catch {
+        forceRecoverA('exception');
+        return;
+      }
+      clearSlotDom();
+    }
+
+    titleEl.textContent = entry.overlayTitle || entry.title;
+
+    try {
+      const mounted = adapter.mount(slotEl, { entry, host });
+      const handle = mounted && typeof mounted === 'object' && typeof /** @type {{ then?: unknown }} */ (mounted).then === 'function'
+        ? await /** @type {Promise<void | { unmount?: () => void }>} */ (mounted)
+        : mounted;
+
+      activeContent = handle && typeof handle === 'object' ? /** @type {{ unmount?: () => void }} */ (handle) : null;
+      activeEntryId = entry.id;
+      failurePresentation = null;
+      machine.dispatch({ type: 'openEntry', entryId });
+      syncDom();
+    } catch {
+      activeContent = null;
+      activeEntryId = null;
+      presentFailure(entry);
+    }
   }
 
   hubBtn.addEventListener('click', (event) => {
     event.stopPropagation();
     const mode = machine.getState();
     if (mode === 'A') {
-      machine.dispatch({ type: 'openHub' });
+      dispatchAndSync({ type: 'openHub' });
     } else if (mode === 'B') {
-      machine.dispatch({ type: 'closeHub' });
+      failurePresentation = null;
+      dispatchAndSync({ type: 'closeHub' });
     }
-    // C: hub click must keep C (FSM rejects closeHub).
-    syncDom();
+    // C: hub click keeps C (FSM rejects closeHub); no dispatch needed.
   });
 
   entriesWrap.addEventListener('click', (event) => {
@@ -161,63 +319,94 @@ export function mountHomeEntryShell(anchor, { config, registry, host = {}, fsm }
     event.stopPropagation();
     const entryId = btn.getAttribute('data-entry-id');
     if (!entryId) return;
-    machine.dispatch({ type: 'openEntry', entryId });
-    syncDom();
+    void openContent(entryId);
   });
 
-  closeEl.addEventListener('click', (event) => {
+  function closeOverlay(event) {
     event.stopPropagation();
-    machine.dispatch({ type: 'closeOverlay' });
-    syncDom();
-  });
+    if (failurePresentation && machine.getState() !== 'C') {
+      failurePresentation = null;
+      clearSlotDom();
+      titleEl.textContent = '';
+      syncDom();
+      return;
+    }
+    if (clearContent()) return;
+    failurePresentation = null;
+    titleEl.textContent = '';
+    dispatchAndSync({ type: 'closeOverlay' });
+  }
 
-  backdrop.addEventListener('click', (event) => {
-    event.stopPropagation();
-    machine.dispatch({ type: 'closeOverlay' });
-    syncDom();
-  });
+  closeEl.addEventListener('click', closeOverlay);
+  backdrop.addEventListener('click', closeOverlay);
 
-  /**
-   * @param {MouseEvent} event
-   */
+  /** @param {MouseEvent} event */
   function onDocClick(event) {
     const mode = machine.getState();
     if (mode !== 'B' && mode !== 'C') return;
     const target = /** @type {Node | null} */ (event.target);
     if (target && cluster.contains(target)) return;
     if (mode === 'C') {
-      // Overlay chrome clicks (except backdrop, handled above) should not collapse via outside.
+      // Chrome clicks stay open; backdrop/outside close via C→B.
       if (target && chrome.contains(target)) return;
-      machine.dispatch({ type: 'closeOverlay' });
+      if (clearContent()) return;
+      failurePresentation = null;
+      titleEl.textContent = '';
+      dispatchAndSync({ type: 'closeOverlay' });
+      return;
+    }
+    failurePresentation = null;
+    dispatchAndSync({ type: 'closeHub' });
+  }
+
+  /** @param {KeyboardEvent} event */
+  function onKeyDown(event) {
+    if (event.key !== 'Escape') return;
+    if (failurePresentation && machine.getState() === 'B') {
+      failurePresentation = null;
+      clearSlotDom();
+      titleEl.textContent = '';
       syncDom();
       return;
     }
-    // B: outside cluster → B→A
-    machine.dispatch({ type: 'closeHub' });
-    syncDom();
-  }
-
-  /**
-   * @param {KeyboardEvent} event
-   */
-  function onKeyDown(event) {
-    if (event.key !== 'Escape') return;
     if (machine.getState() !== 'C') return;
-    machine.dispatch({ type: 'closeOverlay' });
-    syncDom();
+    if (clearContent()) return;
+    failurePresentation = null;
+    titleEl.textContent = '';
+    dispatchAndSync({ type: 'closeOverlay' });
   }
 
   document.addEventListener('click', onDocClick, true);
   document.addEventListener('keydown', onKeyDown, true);
-
   syncDom();
 
   function unmount() {
     document.removeEventListener('click', onDocClick, true);
     document.removeEventListener('keydown', onKeyDown, true);
-    clearContent();
-    root.remove();
+    recovering = true;
+    try {
+      const prev = activeContent;
+      activeContent = null;
+      activeEntryId = null;
+      failurePresentation = null;
+      try {
+        if (prev && typeof prev.unmount === 'function') {
+          prev.unmount();
+        }
+      } catch {
+        // ignore during teardown
+      }
+      clearSlotDom();
+      root.remove();
+    } finally {
+      recovering = false;
+    }
   }
 
-  return { unmount, getState };
+  return {
+    unmount,
+    getState: () => machine.snapshot(),
+    openContent,
+    forceRecoverA,
+  };
 }
