@@ -64,17 +64,6 @@ const PLAN_TASK_CREATE_RESPONSE = {
 /** @type {Array<{ title: string, todo_md?: string }>} */
 const planTaskCreateCalls = [];
 
-const TODO_TOOL_NAMES = [
-  'create_todo_task',
-  'list_todo_tasks',
-  'get_todo_task',
-  'delete_todo_task',
-  'add_todo_sub',
-  'delete_todo_sub',
-  'complete_todo',
-  'link_todo_archive',
-];
-
 /** Breaking rename: old MCP tool name must not remain registered (T8 / AC5 / R1). */
 const FORBIDDEN_PLAN_TOOL_NAMES = [
   'create_plan_task',
@@ -94,14 +83,6 @@ const FORBIDDEN_PLAN_TOOL_NAMES = [
 
 /** Master status wire values — list/get/create readback must admit all three (T8 / AC7). */
 const MASTER_STATUS_WIRE = ['incomplete', 'complete', 'abandoned'];
-
-/** MCP attachment tools (T9) — must proxyPost to T8 HTTP paths; no delete tool. */
-const ATTACHMENT_TOOL_NAMES = [
-  'add_todo_attachment',
-  'list_todo_attachments',
-  'get_todo_attachment',
-  'update_todo_attachment',
-];
 
 /** T10 / AC-等价 — full 12-tool set (complete/link/attachment required; no complete_plan_sub). */
 const EQUIVALENCE_TODO_TOOLS = [
@@ -683,19 +664,9 @@ async function runMcpClient(mcpPort) {
       throw new Error(`missing equivalence todo tool ${tool}: ${names.join(', ')}`);
     }
   }
-  for (const tool of TODO_TOOL_NAMES) {
-    if (!names.includes(tool)) {
-      throw new Error(`missing todo tool ${tool}: ${names.join(', ')}`);
-    }
-  }
   for (const tool of FORBIDDEN_PLAN_TOOL_NAMES) {
     if (names.includes(tool)) {
       throw new Error(`forbidden plan_* tool still registered: ${tool}`);
-    }
-  }
-  for (const tool of ATTACHMENT_TOOL_NAMES) {
-    if (!names.includes(tool)) {
-      throw new Error(`missing attachment tool ${tool}: ${names.join(', ')}`);
     }
   }
   for (const tool of FORBIDDEN_ATTACHMENT_DELETE_TOOL_NAMES) {
