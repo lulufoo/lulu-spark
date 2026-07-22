@@ -41,29 +41,29 @@ const SEDIMENT_KB_WRITE_COMMANDS: &[&str] = &[
     "sediment_kb_remove_category",
 ];
 
-const PLAN_TASK_WRITE_COMMANDS: &[&str] = &[
-    "create_plan_task",
-    "delete_plan_task",
-    "add_plan_sub",
-    "delete_plan_sub",
+const TODO_TASK_WRITE_COMMANDS: &[&str] = &[
+    "create_todo_task",
+    "delete_todo_task",
+    "add_todo_sub",
+    "delete_todo_sub",
 ];
 
-const PLAN_TASK_LIFECYCLE_COMMANDS: &[&str] = &[
-    "read_plan_md",
-    "update_plan_md",
-    "complete_plan",
-    "abandon_plan_sub",
-    "update_plan_sub",
-    "update_plan_master_title",
-    "set_plan_master_status",
+const TODO_TASK_LIFECYCLE_COMMANDS: &[&str] = &[
+    "read_todo_md",
+    "update_todo_md",
+    "complete_todo",
+    "abandon_todo_sub",
+    "update_todo_sub",
+    "update_todo_master_title",
+    "set_todo_master_status",
 ];
 
-const PLAN_TASK_ATTACHMENT_COMMANDS: &[&str] = &[
-    "add_plan_attachment",
-    "list_plan_attachments",
-    "read_plan_attachment",
-    "save_plan_attachment",
-    "delete_plan_attachment",
+const TODO_TASK_ATTACHMENT_COMMANDS: &[&str] = &[
+    "add_todo_attachment",
+    "list_todo_attachments",
+    "read_todo_attachment",
+    "save_todo_attachment",
+    "delete_todo_attachment",
 ];
 
 const NOTE_WRITE_COMMANDS: &[&str] = &["archive_document"];
@@ -101,11 +101,11 @@ fn sediment_kb_write_commands_are_acl_allowed() {
 }
 
 #[test]
-fn plan_task_write_commands_are_acl_allowed() {
+fn todo_task_write_commands_are_acl_allowed() {
     let root = manifest_dir();
     let toml = fs::read_to_string(root.join("permissions/write-api.toml")).expect("toml");
     let allow = parse_write_api_toml_allow(&toml);
-    let missing: Vec<_> = PLAN_TASK_WRITE_COMMANDS
+    let missing: Vec<_> = TODO_TASK_WRITE_COMMANDS
         .iter()
         .filter(|cmd| !allow.contains(**cmd))
         .copied()
@@ -117,11 +117,11 @@ fn plan_task_write_commands_are_acl_allowed() {
 }
 
 #[test]
-fn plan_task_lifecycle_commands_are_acl_allowed() {
+fn todo_task_lifecycle_commands_are_acl_allowed() {
     let root = manifest_dir();
     let toml = fs::read_to_string(root.join("permissions/write-api.toml")).expect("toml");
     let allow = parse_write_api_toml_allow(&toml);
-    let missing: Vec<_> = PLAN_TASK_LIFECYCLE_COMMANDS
+    let missing: Vec<_> = TODO_TASK_LIFECYCLE_COMMANDS
         .iter()
         .filter(|cmd| !allow.contains(**cmd))
         .copied()
@@ -137,14 +137,14 @@ fn plan_task_lifecycle_commands_are_acl_allowed() {
 }
 
 #[test]
-fn plan_task_fm4_and_lifecycle_commands_coexist_in_acl() {
+fn todo_task_fm4_and_lifecycle_commands_coexist_in_acl() {
     let root = manifest_dir();
     let toml = fs::read_to_string(root.join("permissions/write-api.toml")).expect("toml");
     let allow = parse_write_api_toml_allow(&toml);
-    let all: Vec<_> = PLAN_TASK_WRITE_COMMANDS
+    let all: Vec<_> = TODO_TASK_WRITE_COMMANDS
         .iter()
-        .chain(PLAN_TASK_LIFECYCLE_COMMANDS.iter())
-        .chain(PLAN_TASK_ATTACHMENT_COMMANDS.iter())
+        .chain(TODO_TASK_LIFECYCLE_COMMANDS.iter())
+        .chain(TODO_TASK_ATTACHMENT_COMMANDS.iter())
         .copied()
         .collect();
     let missing: Vec<_> = all.iter().filter(|cmd| !allow.contains(**cmd)).copied().collect();
@@ -154,19 +154,19 @@ fn plan_task_fm4_and_lifecycle_commands_coexist_in_acl() {
     );
     assert_eq!(
         all.len(),
-        PLAN_TASK_WRITE_COMMANDS.len()
-            + PLAN_TASK_LIFECYCLE_COMMANDS.len()
-            + PLAN_TASK_ATTACHMENT_COMMANDS.len(),
+        TODO_TASK_WRITE_COMMANDS.len()
+            + TODO_TASK_LIFECYCLE_COMMANDS.len()
+            + TODO_TASK_ATTACHMENT_COMMANDS.len(),
         "expected fifteen distinct plan task ACL entries"
     );
 }
 
 #[test]
-fn plan_task_attachment_commands_are_acl_allowed() {
+fn todo_task_attachment_commands_are_acl_allowed() {
     let root = manifest_dir();
     let toml = fs::read_to_string(root.join("permissions/write-api.toml")).expect("toml");
     let allow = parse_write_api_toml_allow(&toml);
-    let missing: Vec<_> = PLAN_TASK_ATTACHMENT_COMMANDS
+    let missing: Vec<_> = TODO_TASK_ATTACHMENT_COMMANDS
         .iter()
         .filter(|cmd| !allow.contains(**cmd))
         .copied()

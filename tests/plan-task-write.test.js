@@ -56,10 +56,10 @@ describe('createPlanTask', () => {
     delete window.__TAURI__;
   });
 
-  it('invokes create_plan_task with title and subTitles', async () => {
+  it('invokes create_todo_task with title and subTitles', async () => {
     invokeMock.mockResolvedValue(createInvokeResult);
     const result = await createPlanTask({ title: 'New Plan', subTitles: ['Sub A'] });
-    expect(invokeMock).toHaveBeenCalledWith('create_plan_task', {
+    expect(invokeMock).toHaveBeenCalledWith('create_todo_task', {
       title: 'New Plan',
       subTitles: ['Sub A'],
     });
@@ -70,14 +70,14 @@ describe('createPlanTask', () => {
   it('omits subTitles when subTitles is undefined', async () => {
     invokeMock.mockResolvedValue(createInvokeResult);
     await createPlanTask({ title: 'Implicit Plan' });
-    expect(invokeMock).toHaveBeenCalledWith('create_plan_task', { title: 'Implicit Plan' });
+    expect(invokeMock).toHaveBeenCalledWith('create_todo_task', { title: 'Implicit Plan' });
     expect(invokeMock.mock.calls[0][1]).not.toHaveProperty('subTitles');
   });
 
   it('omits subTitles when subTitles is null', async () => {
     invokeMock.mockResolvedValue(createInvokeResult);
     await createPlanTask({ title: 'Implicit Plan', subTitles: null });
-    expect(invokeMock).toHaveBeenCalledWith('create_plan_task', { title: 'Implicit Plan' });
+    expect(invokeMock).toHaveBeenCalledWith('create_todo_task', { title: 'Implicit Plan' });
     expect(invokeMock.mock.calls[0][1]).not.toHaveProperty('subTitles');
   });
 
@@ -108,10 +108,10 @@ describe('deletePlanTask', () => {
     delete window.__TAURI__;
   });
 
-  it('invokes delete_plan_task with masterTaskId', async () => {
+  it('invokes delete_todo_task with masterTaskId', async () => {
     invokeMock.mockResolvedValue({ ok: true });
     await deletePlanTask({ masterTaskId: 'task_new' });
-    expect(invokeMock).toHaveBeenCalledWith('delete_plan_task', {
+    expect(invokeMock).toHaveBeenCalledWith('delete_todo_task', {
       masterTaskId: 'task_new',
     });
   });
@@ -134,10 +134,10 @@ describe('addPlanSub', () => {
     delete window.__TAURI__;
   });
 
-  it('invokes add_plan_sub with masterTaskId and title', async () => {
+  it('invokes add_todo_sub with masterTaskId and title', async () => {
     invokeMock.mockResolvedValue({ task: sampleMaster });
     const result = await addPlanSub({ masterTaskId: 'task_new', title: 'Sub B' });
-    expect(invokeMock).toHaveBeenCalledWith('add_plan_sub', {
+    expect(invokeMock).toHaveBeenCalledWith('add_todo_sub', {
       masterTaskId: 'task_new',
       title: 'Sub B',
     });
@@ -162,13 +162,13 @@ describe('deletePlanSub', () => {
     delete window.__TAURI__;
   });
 
-  it('invokes delete_plan_sub with masterTaskId and subTaskId', async () => {
+  it('invokes delete_todo_sub with masterTaskId and subTaskId', async () => {
     invokeMock.mockResolvedValue({ task: sampleMaster });
     const result = await deletePlanSub({
       masterTaskId: 'task_new',
       subTaskId: 'task_new_sub_01',
     });
-    expect(invokeMock).toHaveBeenCalledWith('delete_plan_sub', {
+    expect(invokeMock).toHaveBeenCalledWith('delete_todo_sub', {
       masterTaskId: 'task_new',
       subTaskId: 'task_new_sub_01',
     });
@@ -193,13 +193,13 @@ describe('updatePlanMasterTitle', () => {
     delete window.__TAURI__;
   });
 
-  it('invokes update_plan_master_title with masterTaskId and title', async () => {
+  it('invokes update_todo_master_title with masterTaskId and title', async () => {
     invokeMock.mockResolvedValue({ task: { ...sampleMaster, title: 'Renamed' } });
     const result = await updatePlanMasterTitle({
       masterTaskId: 'task_new',
       title: 'Renamed',
     });
-    expect(invokeMock).toHaveBeenCalledWith('update_plan_master_title', {
+    expect(invokeMock).toHaveBeenCalledWith('update_todo_master_title', {
       masterTaskId: 'task_new',
       title: 'Renamed',
     });

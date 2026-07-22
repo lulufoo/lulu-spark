@@ -13,10 +13,10 @@ import {
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 const WRITE_COMMANDS = [
-  'create_plan_task',
-  'delete_plan_task',
-  'add_plan_sub',
-  'delete_plan_sub',
+  'create_todo_task',
+  'delete_todo_task',
+  'add_todo_sub',
+  'delete_todo_sub',
 ];
 
 function read(rel) {
@@ -27,7 +27,7 @@ describe('FM-4 AC gate (tech-doc VF / T-5)', () => {
   it('I-1: four write commands registered in lib.rs', () => {
     const lib = read('src-tauri/src/lib.rs');
     for (const cmd of WRITE_COMMANDS) {
-      expect(lib).toMatch(new RegExp(`commands::plan_task::${cmd}`));
+      expect(lib).toMatch(new RegExp(`commands::todo_task::${cmd}`));
     }
   });
 
@@ -47,16 +47,16 @@ describe('FM-4 AC gate (tech-doc VF / T-5)', () => {
 
   it('I-4: plan-task write layer uses direct Tauri invoke (not fetch/local_http)', () => {
     const src = read('frontend/js/plan-task/index.js');
-    expect(src).toMatch(/invokePlanWrite\('create_plan_task'/);
-    expect(src).toMatch(/invokePlanWrite\('delete_plan_task'/);
-    expect(src).toMatch(/invokePlanWrite\('add_plan_sub'/);
-    expect(src).toMatch(/invokePlanWrite\('delete_plan_sub'/);
+    expect(src).toMatch(/invokePlanWrite\('create_todo_task'/);
+    expect(src).toMatch(/invokePlanWrite\('delete_todo_task'/);
+    expect(src).toMatch(/invokePlanWrite\('add_todo_sub'/);
+    expect(src).toMatch(/invokePlanWrite\('delete_todo_sub'/);
     expect(src).not.toMatch(/\bfetch\s*\(/);
     expect(src).not.toMatch(/127\.0\.0\.1/);
   });
 
-  it('GO: get_plan_tasks read path maps to Tauri command via readApiInvokeMap', () => {
-    expect(READ_API_INVOKE_MAP['/api/plan-tasks']).toEqual({ cmd: 'get_plan_tasks' });
+  it('GO: get_todo_tasks read path maps to Tauri command via readApiInvokeMap', () => {
+    expect(READ_API_INVOKE_MAP['/api/plan-tasks']).toEqual({ cmd: 'get_todo_tasks' });
   });
 
   it('NG: plan-task UI has no complete_sub entry', () => {
@@ -68,7 +68,7 @@ describe('FM-4 AC gate (tech-doc VF / T-5)', () => {
 
 describe('Plan-task attachment AC gate (tech-doc VF / T15)', () => {
   it('AC1/AC3/AC6/AC8: Rust service unit tests lock stem suffix, reject non-md, rollback, dual delete, cascade', () => {
-    const rust = read('src-tauri/src/unit-tests/services/plan_task.rs');
+    const rust = read('src-tauri/src/unit-tests/services/todo_task.rs');
     for (const marker of RUST_SERVICE_AC_TESTS) {
       expect(rust, marker).toContain(marker);
     }
@@ -78,7 +78,7 @@ describe('Plan-task attachment AC gate (tech-doc VF / T15)', () => {
     const lib = read('src-tauri/src/lib.rs');
     const acl = read('src-tauri/permissions/write-api.toml');
     for (const cmd of ATTACHMENT_COMMANDS) {
-      expect(lib).toMatch(new RegExp(`commands::plan_task::${cmd}`));
+      expect(lib).toMatch(new RegExp(`commands::todo_task::${cmd}`));
       expect(acl).toContain(`"${cmd}"`);
     }
   });
@@ -105,17 +105,17 @@ describe('Plan-task attachment AC gate (tech-doc VF / T15)', () => {
       expect(mcp).not.toMatch(new RegExp(`['"]${tool}['"]`));
     }
     const deleteUi = read('tests/plan-task-attachment-delete.test.js');
-    expect(deleteUi).toMatch(/delete_plan_attachment/);
+    expect(deleteUi).toMatch(/delete_todo_attachment/);
     expect(deleteUi).toMatch(/MCP schema still has no attachment delete tool/);
   });
 
   it('AC2/AC4/AC5: UI index.js uses verb-first attachment Tauri commands', () => {
     const src = read('frontend/js/plan-task/index.js');
-    expect(src).toMatch(/invokePlanPlain\('add_plan_attachment'/);
-    expect(src).toMatch(/invokePlanPlain\('list_plan_attachments'/);
-    expect(src).toMatch(/invokePlanPlain\('read_plan_attachment'/);
-    expect(src).toMatch(/invokePlanPlain\('save_plan_attachment'/);
-    expect(src).toMatch(/invokePlanPlain\('delete_plan_attachment'/);
+    expect(src).toMatch(/invokePlanPlain\('add_todo_attachment'/);
+    expect(src).toMatch(/invokePlanPlain\('list_todo_attachments'/);
+    expect(src).toMatch(/invokePlanPlain\('read_todo_attachment'/);
+    expect(src).toMatch(/invokePlanPlain\('save_todo_attachment'/);
+    expect(src).toMatch(/invokePlanPlain\('delete_todo_attachment'/);
     expect(src).not.toMatch(/\/api\/plan-task-add-attachment/);
   });
 });
@@ -173,9 +173,9 @@ describe('P2 copy-switch — Plan Tasks UI (tech-doc T3)', () => {
     const index = read('frontend/js/plan-task/index.js');
     expect(index).toContain("client.getJson('/api/plan-tasks')");
     expect(index).toContain('#/plan-tasks');
-    expect(index).toContain('create_plan_task');
-    expect(index).toContain('delete_plan_task');
-    expect(index).toContain('add_plan_sub');
-    expect(index).toContain('delete_plan_sub');
+    expect(index).toContain('create_todo_task');
+    expect(index).toContain('delete_todo_task');
+    expect(index).toContain('add_todo_sub');
+    expect(index).toContain('delete_todo_sub');
   });
 });

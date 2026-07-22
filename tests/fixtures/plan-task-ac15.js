@@ -61,11 +61,11 @@ export const RUST_SERVICE_AC_TESTS = [
 ];
 
 export const ATTACHMENT_COMMANDS = [
-  'add_plan_attachment',
-  'list_plan_attachments',
-  'read_plan_attachment',
-  'save_plan_attachment',
-  'delete_plan_attachment',
+  'add_todo_attachment',
+  'list_todo_attachments',
+  'read_todo_attachment',
+  'save_todo_attachment',
+  'delete_todo_attachment',
 ];
 
 export const MCP_ATTACHMENT_TOOLS = [
@@ -83,19 +83,19 @@ export const MCP_FORBIDDEN_DELETE_TOOLS = [
 /** Integration-test file → regex probes for UI add/list/editor/save paths. */
 export const UI_ATTACHMENT_TEST_PROBES = {
   'tests/plan-task-attachments.test.js': [
-    /listPlanAttachments invokes list_plan_attachments/,
-    /addPlanAttachment invokes add_plan_attachment/,
+    /listPlanAttachments invokes list_todo_attachments/,
+    /addPlanAttachment invokes add_todo_attachment/,
     /shows attachment section listing associated files/,
-    /pick flow invokes add_plan_attachment then refreshes list/,
+    /pick flow invokes add_todo_attachment then refreshes list/,
   ],
   'tests/plan-task-attachment-editor.test.js': [
-    /readPlanAttachment invokes read_plan_attachment/,
-    /savePlanAttachment invokes save_plan_attachment/,
+    /readPlanAttachment invokes read_todo_attachment/,
+    /savePlanAttachment invokes save_todo_attachment/,
     /clicking an attachment opens a modal with preview by default/,
-    /can switch to edit mode and save via save_plan_attachment/,
+    /can switch to edit mode and save via save_todo_attachment/,
   ],
   'tests/plan-task-attachment-delete.test.js': [
-    /invokes delete_plan_attachment with masterTaskId and fileName/,
-    /confirming delete invokes delete_plan_attachment then removes item from list/,
+    /invokes delete_todo_attachment with masterTaskId and fileName/,
+    /confirming delete invokes delete_todo_attachment then removes item from list/,
   ],
 };

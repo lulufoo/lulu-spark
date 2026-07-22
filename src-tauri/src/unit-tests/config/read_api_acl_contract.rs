@@ -57,7 +57,7 @@ const INVOKE_MAP_COMMANDS: &[&str] = &[
     "fetch_link_title",
     "get_tags_registry",
     "get_read_later",
-    "get_plan_tasks",
+    "get_todo_tasks",
 ];
 
 const SEDIMENT_KB_READ_COMMANDS: &[&str] = &[

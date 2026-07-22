@@ -30,5 +30,5 @@ commands.allow = [
   "check_workbench_knowledge_root",
   "get_tags_registry",
   "get_read_later",
-  "get_plan_tasks",
+  "get_todo_tasks",
 ]

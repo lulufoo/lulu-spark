@@ -8,7 +8,7 @@ use crate::services::archive_write::{
     archive_digest, archive_document, archive_note_document, synthesize_note_archive_document,
     NoteCreateOpts,
 };
-use crate::services::plan_task::{
+use crate::services::todo_task::{
     create_master_with_subs, get_by_id, test_set_fail_complete_sub, test_set_fail_link_archive,
 };
 use crate::test_support::TestSandbox;
@@ -258,7 +258,7 @@ fn archive_document_plan_task_fail_dual_store_rollback() {
             }),
         );
 
-        assert_ne!(result.get("ok"), Some(&json!(true)), "expected plan_task failure: {result}");
+        assert_ne!(result.get("ok"), Some(&json!(true)), "expected todo_task failure: {result}");
         assert_eq!(result.get("_status"), Some(&json!(500)));
 
         let raw = wb.join("raw/inbox/test-topic/202606191430-test-slug.md");

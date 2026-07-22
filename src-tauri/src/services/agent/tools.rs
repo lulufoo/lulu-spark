@@ -2,7 +2,7 @@
 
 use serde_json::{json, Value};
 
-use crate::services::plan_task;
+use crate::services::todo_task;
 
 const TOOL_NAMES: [&str; 5] = [
     "get_plan",
@@ -87,7 +87,7 @@ fn binding_master_id(bound: Option<&str>) -> Result<String, Value> {
     if id.is_empty() {
         return Err(err("forbidden", "No bound plan"));
     }
-    let got = plan_task::get_by_id(id);
+    let got = todo_task::get_by_id(id);
     let invalid = got.get("error").is_some()
         || got
             .get("_status")
@@ -148,7 +148,7 @@ pub fn dispatch(name: &str, args: &Value, bound_master_task_id: Option<&str>) ->
 
     match name {
         "get_plan" => {
-            let task = plan_task::get_by_id(&master_id);
+            let task = todo_task::get_by_id(&master_id);
             if let Some(e) = map_plan_status(&task) {
                 return e;
             }
@@ -160,7 +160,7 @@ pub fn dispatch(name: &str, args: &Value, bound_master_task_id: Option<&str>) ->
             }))
         }
         "list_sub_tasks" => {
-            let task = plan_task::get_by_id(&master_id);
+            let task = todo_task::get_by_id(&master_id);
             if let Some(e) = map_plan_status(&task) {
                 return e;
             }
@@ -171,7 +171,7 @@ pub fn dispatch(name: &str, args: &Value, bound_master_task_id: Option<&str>) ->
         }
         "add_sub_task" => {
             let title = args.get("title").and_then(|v| v.as_str()).unwrap_or("");
-            let v = plan_task::add_sub(&master_id, title);
+            let v = todo_task::add_sub(&master_id, title);
             if let Some(e) = map_plan_status(&v) {
                 return e;
             }
@@ -190,7 +190,7 @@ pub fn dispatch(name: &str, args: &Value, bound_master_task_id: Option<&str>) ->
                 .and_then(|v| v.as_str())
                 .unwrap_or("");
             let title = args.get("title").and_then(|v| v.as_str()).unwrap_or("");
-            let v = plan_task::update_sub_title(&master_id, sub_task_id, title);
+            let v = todo_task::update_sub_title(&master_id, sub_task_id, title);
             if let Some(e) = map_plan_status(&v) {
                 return e;
             }
@@ -201,7 +201,7 @@ pub fn dispatch(name: &str, args: &Value, bound_master_task_id: Option<&str>) ->
         }
         "update_master_title" => {
             let title = args.get("title").and_then(|v| v.as_str()).unwrap_or("");
-            let v = plan_task::update_master_title(&master_id, title);
+            let v = todo_task::update_master_title(&master_id, title);
             if let Some(e) = map_plan_status(&v) {
                 return e;
             }

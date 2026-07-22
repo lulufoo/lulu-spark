@@ -77,52 +77,52 @@ describe('plan_md invoke wrappers', () => {
     delete window.__TAURI__;
   });
 
-  it('readPlanMd invokes read_plan_md with masterTaskId', async () => {
+  it('readPlanMd invokes read_todo_md with masterTaskId', async () => {
     invokeMock.mockResolvedValue('# Full text');
     const result = await readPlanMd({ masterTaskId: 'task_alpha' });
-    expect(invokeMock).toHaveBeenCalledWith('read_plan_md', { masterTaskId: 'task_alpha' });
+    expect(invokeMock).toHaveBeenCalledWith('read_todo_md', { masterTaskId: 'task_alpha' });
     expect(result).toBe('# Full text');
   });
 
-  it('updatePlanMd invokes update_plan_md with masterTaskId and planMd', async () => {
+  it('updatePlanMd invokes update_todo_md with masterTaskId and planMd', async () => {
     invokeMock.mockResolvedValue(undefined);
     await updatePlanMd({ masterTaskId: 'task_alpha', planMd: 'Updated' });
-    expect(invokeMock).toHaveBeenCalledWith('update_plan_md', {
+    expect(invokeMock).toHaveBeenCalledWith('update_todo_md', {
       masterTaskId: 'task_alpha',
       planMd: 'Updated',
     });
   });
 
-  it('completePlan invokes complete_plan with optional subTaskId', async () => {
+  it('completePlan invokes complete_todo with optional subTaskId', async () => {
     invokeMock.mockResolvedValue({ task: sampleMaster });
     await completePlan({
       masterTaskId: 'task_alpha',
       subTaskId: 'task_alpha_sub_01',
     });
-    expect(invokeMock).toHaveBeenCalledWith('complete_plan', {
+    expect(invokeMock).toHaveBeenCalledWith('complete_todo', {
       masterTaskId: 'task_alpha',
       subTaskId: 'task_alpha_sub_01',
     });
   });
 
-  it('completePlan without subTaskId invokes complete_plan for master', async () => {
+  it('completePlan without subTaskId invokes complete_todo for master', async () => {
     invokeMock.mockResolvedValue({
       task: { ...sampleMaster, status: 'complete' },
     });
     await completePlan({ masterTaskId: 'task_alpha' });
-    expect(invokeMock).toHaveBeenCalledWith('complete_plan', {
+    expect(invokeMock).toHaveBeenCalledWith('complete_todo', {
       masterTaskId: 'task_alpha',
       subTaskId: undefined,
     });
   });
 
-  it('abandonPlanSub invokes abandon_plan_sub', async () => {
+  it('abandonPlanSub invokes abandon_todo_sub', async () => {
     invokeMock.mockResolvedValue({ task: sampleMaster });
     await abandonPlanSub({
       masterTaskId: 'task_alpha',
       subTaskId: 'task_alpha_sub_01',
     });
-    expect(invokeMock).toHaveBeenCalledWith('abandon_plan_sub', {
+    expect(invokeMock).toHaveBeenCalledWith('abandon_todo_sub', {
       masterTaskId: 'task_alpha',
       subTaskId: 'task_alpha_sub_01',
     });
@@ -182,7 +182,7 @@ describe('mountPlanTaskSplit plan_md preview and edit', () => {
     dispose();
   });
 
-  it('loads full text via read_plan_md when entering edit mode', async () => {
+  it('loads full text via read_todo_md when entering edit mode', async () => {
     getJsonMock.mockResolvedValue([sampleMaster]);
     invokeMock.mockResolvedValue('# Edited from disk\n\nExtra line.');
     const { dispose } = await mountAndWait();
@@ -190,20 +190,20 @@ describe('mountPlanTaskSplit plan_md preview and edit', () => {
     await vi.waitFor(() => {
       expect(container.querySelector('.plan-task-plan-md-editor')).not.toBeNull();
     });
-    expect(invokeMock).toHaveBeenCalledWith('read_plan_md', { masterTaskId: 'task_alpha' });
+    expect(invokeMock).toHaveBeenCalledWith('read_todo_md', { masterTaskId: 'task_alpha' });
     const editor = container.querySelector('.plan-task-plan-md-editor');
     expect(editor.value).toContain('Edited from disk');
     dispose();
   });
 
-  it('saves via update_plan_md and refreshes list on success', async () => {
+  it('saves via update_todo_md and refreshes list on success', async () => {
     getJsonMock.mockResolvedValueOnce([sampleMaster]);
     getJsonMock.mockResolvedValueOnce([
       { ...sampleMaster, plan_md: '# Saved\n\nNew content.' },
     ]);
     invokeMock.mockImplementation(async (cmd) => {
-      if (cmd === 'read_plan_md') return sampleMaster.plan_md;
-      if (cmd === 'update_plan_md') return undefined;
+      if (cmd === 'read_todo_md') return sampleMaster.plan_md;
+      if (cmd === 'update_todo_md') return undefined;
       return {};
     });
     const { dispose } = await mountAndWait();
@@ -215,7 +215,7 @@ describe('mountPlanTaskSplit plan_md preview and edit', () => {
     editor.value = '# Saved\n\nNew content.';
     container.querySelector('[data-action="save-plan-md"]').click();
     await vi.waitFor(() => {
-      expect(invokeMock).toHaveBeenCalledWith('update_plan_md', {
+      expect(invokeMock).toHaveBeenCalledWith('update_todo_md', {
         masterTaskId: 'task_alpha',
         planMd: '# Saved\n\nNew content.',
       });
@@ -229,8 +229,8 @@ describe('mountPlanTaskSplit plan_md preview and edit', () => {
   it('keeps editor content and shows error when save fails', async () => {
     getJsonMock.mockResolvedValue([sampleMaster]);
     invokeMock.mockImplementation(async (cmd) => {
-      if (cmd === 'read_plan_md') return sampleMaster.plan_md;
-      if (cmd === 'update_plan_md') {
+      if (cmd === 'read_todo_md') return sampleMaster.plan_md;
+      if (cmd === 'update_todo_md') {
         return { error: 'Disk full', _status: 500 };
       }
       return {};
@@ -255,8 +255,8 @@ describe('mountPlanTaskSplit plan_md preview and edit', () => {
     getJsonMock.mockResolvedValueOnce([sampleMaster]);
     getJsonMock.mockRejectedValueOnce(new Error('network down'));
     invokeMock.mockImplementation(async (cmd) => {
-      if (cmd === 'read_plan_md') return sampleMaster.plan_md;
-      if (cmd === 'update_plan_md') return undefined;
+      if (cmd === 'read_todo_md') return sampleMaster.plan_md;
+      if (cmd === 'update_todo_md') return undefined;
       return {};
     });
     const { dispose } = await mountAndWait();
@@ -347,7 +347,7 @@ describe('mountPlanTaskSplit status select actions', () => {
     const { dispose } = await mountAndWait();
     changeSubStatus('task_alpha_sub_01', 'complete');
     await vi.waitFor(() => {
-      expect(invokeMock).toHaveBeenCalledWith('complete_plan', {
+      expect(invokeMock).toHaveBeenCalledWith('complete_todo', {
         masterTaskId: 'task_alpha',
         subTaskId: 'task_alpha_sub_01',
       });
@@ -375,7 +375,7 @@ describe('mountPlanTaskSplit status select actions', () => {
     const { dispose } = await mountAndWait();
     changeSubStatus('task_alpha_sub_01', 'abandoned');
     await vi.waitFor(() => {
-      expect(invokeMock).toHaveBeenCalledWith('abandon_plan_sub', {
+      expect(invokeMock).toHaveBeenCalledWith('abandon_todo_sub', {
         masterTaskId: 'task_alpha',
         subTaskId: 'task_alpha_sub_01',
       });

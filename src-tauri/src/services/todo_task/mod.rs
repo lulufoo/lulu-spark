@@ -64,7 +64,7 @@ pub fn test_set_fail_batch_sub_tasks(fail: bool) {
 }
 
 #[cfg(test)]
-pub fn test_set_fail_batch_plan_md(fail: bool) {
+pub fn test_set_fail_batch_todo_md(fail: bool) {
     TEST_FAIL_BATCH_PLAN_MD.store(fail, Ordering::SeqCst);
 }
 
@@ -146,7 +146,7 @@ fn with_write_lock<F, T>(f: F) -> T
 where
     F: FnOnce() -> T,
 {
-    let _guard = WRITE_LOCK.lock().expect("plan_task write lock");
+    let _guard = WRITE_LOCK.lock().expect("todo_task write lock");
     f()
 }
 
@@ -498,7 +498,7 @@ fn find_master_id_for_any_id(index: &PlanTasksIndex, id: &str) -> Result<Option<
     Ok(None)
 }
 
-fn read_plan_md_or_empty(master_id: &str) -> Result<String, String> {
+fn read_todo_md_or_empty(master_id: &str) -> Result<String, String> {
     let path = paths::plan_tasks_plan_md_path(master_id).map_err(|e| format!("{e:?}"))?;
     if !path.is_file() {
         return Ok(String::new());
@@ -507,7 +507,7 @@ fn read_plan_md_or_empty(master_id: &str) -> Result<String, String> {
 }
 
 fn persist_master(master: &MasterTask) -> Result<(), String> {
-    let plan_md = read_plan_md_or_empty(&master.master_task_id)?;
+    let plan_md = read_todo_md_or_empty(&master.master_task_id)?;
     persist_master_with_plan_md(master, &plan_md)
 }
 
@@ -594,7 +594,7 @@ fn master_to_value(master: &MasterTask) -> Value {
 }
 
 fn master_to_response(master: &MasterTask, migration_error: bool) -> Value {
-    let plan_md = read_plan_md_or_empty(&master.master_task_id).unwrap_or_default();
+    let plan_md = read_todo_md_or_empty(&master.master_task_id).unwrap_or_default();
     let mut value = master_to_value(master);
     if let Value::Object(ref mut map) = value {
         map.insert("plan_md".to_string(), json!(plan_md));
@@ -638,7 +638,7 @@ fn load_master_response_unlocked(master_id: &str) -> Result<Value, Value> {
     ))
 }
 
-pub fn read_plan_md(master_task_id: &str) -> Value {
+pub fn read_todo_md(master_task_id: &str) -> Value {
     let master_task_id = master_task_id.trim();
     if master_task_id.is_empty() {
         return json!({ "error": "Missing id", "_status": 400 });
@@ -649,7 +649,7 @@ pub fn read_plan_md(master_task_id: &str) -> Value {
             if !index.tasks.contains_key(master_task_id) {
                 return json!({ "error": "Task not found", "_status": 404 });
             }
-            match read_plan_md_or_empty(master_task_id) {
+            match read_todo_md_or_empty(master_task_id) {
                 Ok(plan_md) => json!({ "plan_md": plan_md, "_status": 200 }),
                 Err(e) => json!({ "error": e, "_status": 500 }),
             }
@@ -658,7 +658,7 @@ pub fn read_plan_md(master_task_id: &str) -> Value {
     }
 }
 
-pub fn update_plan_md(master_task_id: &str, plan_md: &str) -> Value {
+pub fn update_todo_md(master_task_id: &str, plan_md: &str) -> Value {
     let master_task_id = master_task_id.trim();
     if master_task_id.is_empty() {
         return json!({ "error": "Missing id", "_status": 400 });
@@ -692,11 +692,11 @@ pub fn update_plan_md(master_task_id: &str, plan_md: &str) -> Value {
 }
 
 pub fn create_master_with_subs(title: &str, sub_titles: Option<&[&str]>) -> Value {
-    create_master_with_subs_and_plan(title, sub_titles, "")
+    create_master_with_subs_and_todo(title, sub_titles, "")
 }
 
 /// Create a master task. `plan_md` is written atomically with the task batch (empty → empty `plan.md`).
-pub fn create_master_with_subs_and_plan(
+pub fn create_master_with_subs_and_todo(
     title: &str,
     sub_titles: Option<&[&str]>,
     plan_md: &str,
@@ -930,7 +930,7 @@ pub fn complete_sub(master_task_id: &str, sub_task_id: &str) -> Value {
 
         #[cfg(test)]
         if test_take_fail_complete_sub() {
-            return json!({ "error": "injected plan_task failure", "_status": 500 });
+            return json!({ "error": "injected todo_task failure", "_status": 500 });
         }
 
         let mut master = match load_master_task_unlocked(master_task_id) {
@@ -964,7 +964,7 @@ pub fn complete_sub(master_task_id: &str, sub_task_id: &str) -> Value {
     })
 }
 
-pub fn complete_plan(master_task_id: &str, sub_task_id: Option<&str>) -> Value {
+pub fn complete_todo(master_task_id: &str, sub_task_id: Option<&str>) -> Value {
     match sub_task_id.map(str::trim).filter(|s| !s.is_empty()) {
         Some(sub_id) => complete_sub(master_task_id, sub_id),
         None => complete_master(master_task_id),
@@ -1548,5 +1548,5 @@ pub fn delete_attachment(master_task_id: &str, file_name: &str) -> Value {
 }
 
 #[cfg(test)]
-#[path = "../../unit-tests/services/plan_task.rs"]
+#[path = "../../unit-tests/services/todo_task.rs"]
 mod tests;

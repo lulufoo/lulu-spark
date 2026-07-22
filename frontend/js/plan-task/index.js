@@ -65,19 +65,19 @@ export async function createPlanTask({ title, subTitles } = {}) {
   if (subTitles != null) {
     args.subTitles = subTitles;
   }
-  return invokePlanWrite('create_plan_task', args);
+  return invokePlanWrite('create_todo_task', args);
 }
 
 export async function deletePlanTask({ masterTaskId } = {}) {
-  return invokePlanWrite('delete_plan_task', { masterTaskId });
+  return invokePlanWrite('delete_todo_task', { masterTaskId });
 }
 
 export async function addPlanSub({ masterTaskId, title } = {}) {
-  return invokePlanWrite('add_plan_sub', { masterTaskId, title });
+  return invokePlanWrite('add_todo_sub', { masterTaskId, title });
 }
 
 export async function deletePlanSub({ masterTaskId, subTaskId } = {}) {
-  return invokePlanWrite('delete_plan_sub', { masterTaskId, subTaskId });
+  return invokePlanWrite('delete_todo_sub', { masterTaskId, subTaskId });
 }
 
 async function invokePlanPlain(command, args) {
@@ -92,54 +92,54 @@ async function invokePlanPlain(command, args) {
 }
 
 export async function readPlanMd({ masterTaskId } = {}) {
-  return invokePlanPlain('read_plan_md', { masterTaskId });
+  return invokePlanPlain('read_todo_md', { masterTaskId });
 }
 
 export async function updatePlanMd({ masterTaskId, planMd } = {}) {
-  await invokePlanPlain('update_plan_md', { masterTaskId, planMd });
+  await invokePlanPlain('update_todo_md', { masterTaskId, planMd });
 }
 
 export async function completePlan({ masterTaskId, subTaskId } = {}) {
-  return invokePlanWrite('complete_plan', { masterTaskId, subTaskId });
+  return invokePlanWrite('complete_todo', { masterTaskId, subTaskId });
 }
 
 export async function abandonPlanSub({ masterTaskId, subTaskId } = {}) {
-  return invokePlanWrite('abandon_plan_sub', { masterTaskId, subTaskId });
+  return invokePlanWrite('abandon_todo_sub', { masterTaskId, subTaskId });
 }
 
 export async function updatePlanSub({ masterTaskId, subTaskId, title } = {}) {
-  return invokePlanWrite('update_plan_sub', { masterTaskId, subTaskId, title });
+  return invokePlanWrite('update_todo_sub', { masterTaskId, subTaskId, title });
 }
 
 export async function updatePlanMasterTitle({ masterTaskId, title } = {}) {
-  return invokePlanWrite('update_plan_master_title', { masterTaskId, title });
+  return invokePlanWrite('update_todo_master_title', { masterTaskId, title });
 }
 
 export async function setPlanMasterStatus({ masterTaskId, status } = {}) {
-  return invokePlanWrite('set_plan_master_status', { masterTaskId, status });
+  return invokePlanWrite('set_todo_master_status', { masterTaskId, status });
 }
 
 export async function listPlanAttachments({ masterTaskId } = {}) {
-  const result = await invokePlanPlain('list_plan_attachments', { masterTaskId });
+  const result = await invokePlanPlain('list_todo_attachments', { masterTaskId });
   if (Array.isArray(result)) return result;
   if (result && Array.isArray(result.attachments)) return result.attachments;
   return [];
 }
 
 export async function addPlanAttachment({ masterTaskId, fileName, content } = {}) {
-  return invokePlanPlain('add_plan_attachment', { masterTaskId, fileName, content });
+  return invokePlanPlain('add_todo_attachment', { masterTaskId, fileName, content });
 }
 
 export async function readPlanAttachment({ masterTaskId, fileName } = {}) {
-  return invokePlanPlain('read_plan_attachment', { masterTaskId, fileName });
+  return invokePlanPlain('read_todo_attachment', { masterTaskId, fileName });
 }
 
 export async function savePlanAttachment({ masterTaskId, fileName, content } = {}) {
-  return invokePlanPlain('save_plan_attachment', { masterTaskId, fileName, content });
+  return invokePlanPlain('save_todo_attachment', { masterTaskId, fileName, content });
 }
 
 export async function deletePlanAttachment({ masterTaskId, fileName } = {}) {
-  return invokePlanPlain('delete_plan_attachment', { masterTaskId, fileName });
+  return invokePlanPlain('delete_todo_attachment', { masterTaskId, fileName });
 }
 
 function basenameFromPath(path) {

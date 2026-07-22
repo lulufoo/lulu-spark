@@ -19,7 +19,7 @@ fn assert_ac5_master_task_shape(task: &Value) {
     assert!(task.get("title").and_then(|v| v.as_str()).is_some());
     let status = task.get("status").and_then(|v| v.as_str()).expect("status");
     assert!(
-        PLAN_TASK_MASTER_STATUS_WIRE.contains(&status),
+        TODO_TASK_MASTER_STATUS_WIRE.contains(&status),
         "locked read exit status must be tri-state wire value, got {status}"
     );
     assert!(task.get("created_at").and_then(|v| v.as_str()).is_some());
@@ -658,7 +658,7 @@ fn options_non_read_later_path_returns_405() {
 }
 
 #[test]
-fn get_plan_tasks_empty_returns_200_array() {
+fn get_todo_tasks_empty_returns_200_array() {
     with_plan_task_http_test(|| {
         let fixture = setup_repo_for_plan_task();
         let repo_root = fixture.repo_root.clone();
@@ -672,7 +672,7 @@ fn get_plan_tasks_empty_returns_200_array() {
 }
 
 #[test]
-fn get_plan_tasks_returns_created_masters() {
+fn get_todo_tasks_returns_created_masters() {
     with_plan_task_http_test(|| {
         let fixture = setup_repo_for_plan_task();
         let repo_root = fixture.repo_root.clone();
@@ -857,7 +857,7 @@ fn create_plan_master(port: u16, title: &str, sub_titles: &[&str]) -> (String, S
 #[test]
 fn plan_task_master_status_wire_includes_abandoned() {
     assert_eq!(
-        PLAN_TASK_MASTER_STATUS_WIRE,
+        TODO_TASK_MASTER_STATUS_WIRE,
         &["incomplete", "complete", "abandoned"]
     );
 }
@@ -910,8 +910,8 @@ fn http_list_get_create_carry_tri_state_status_including_abandoned() {
                 .expect("abandoned in list");
             assert_eq!(complete["status"], "complete");
             assert_eq!(abandoned["status"], "abandoned");
-            assert!(PLAN_TASK_MASTER_STATUS_WIRE.contains(&complete["status"].as_str().unwrap()));
-            assert!(PLAN_TASK_MASTER_STATUS_WIRE.contains(&abandoned["status"].as_str().unwrap()));
+            assert!(TODO_TASK_MASTER_STATUS_WIRE.contains(&complete["status"].as_str().unwrap()));
+            assert!(TODO_TASK_MASTER_STATUS_WIRE.contains(&abandoned["status"].as_str().unwrap()));
 
             let (get_complete_status, get_complete) =
                 http_get(port, &format!("/api/plan-task?id={complete_id}"));
@@ -1340,7 +1340,7 @@ fn assert_http_master_has_plan_fields(task: &Value) {
 }
 
 #[test]
-fn get_plan_tasks_includes_plan_md_and_migration_error_fields() {
+fn get_todo_tasks_includes_plan_md_and_migration_error_fields() {
     with_plan_task_http_test(|| {
         let fixture = setup_repo_for_plan_task();
         let repo_root = fixture.repo_root.clone();
@@ -1360,7 +1360,7 @@ fn get_plan_tasks_includes_plan_md_and_migration_error_fields() {
             assert_eq!(list[0]["plan_md"], "");
             assert_eq!(list[0]["migration_error"], false);
 
-            let expected = crate::services::plan_task::list_all();
+            let expected = crate::services::todo_task::list_all();
             assert_eq!(body, expected);
         });
     });
@@ -1395,14 +1395,14 @@ fn get_plan_task_by_id_includes_plan_md_and_migration_error_matching_list() {
             assert_eq!(get_body["migration_error"], list[0]["migration_error"]);
             assert!(get_body.get("_status").is_none());
 
-            let expected = crate::services::plan_task::get_by_id(master_id);
+            let expected = crate::services::todo_task::get_by_id(master_id);
             assert_eq!(get_body, expected);
         });
     });
 }
 
 #[test]
-fn get_plan_tasks_plan_md_matches_disk_bytes() {
+fn get_todo_tasks_plan_md_matches_disk_bytes() {
     with_plan_task_http_test(|| {
         let fixture = setup_repo_for_plan_task();
         let repo_root = fixture.repo_root.clone();
@@ -1440,7 +1440,7 @@ fn get_plan_tasks_plan_md_matches_disk_bytes() {
 }
 
 #[test]
-fn get_plan_tasks_empty_plan_md_matches_empty_disk_file() {
+fn get_todo_tasks_empty_plan_md_matches_empty_disk_file() {
     with_plan_task_http_test(|| {
         let fixture = setup_repo_for_plan_task();
         let repo_root = fixture.repo_root.clone();
@@ -1487,13 +1487,13 @@ fn plan_tasks_http_body_helpers_preserve_read_path_fields() {
                 .as_str()
                 .expect("master_task_id");
 
-            let list_value = crate::services::plan_task::list_all();
+            let list_value = crate::services::todo_task::list_all();
             let list_body = plan_tasks_list_response_body(&list_value);
             let list_parsed: Value = serde_json::from_str(&list_body).expect("list json");
             assert_eq!(list_parsed, list_value);
             assert_http_master_has_plan_fields(&list_parsed[0]);
 
-            let get_value = crate::services::plan_task::get_by_id(master_id);
+            let get_value = crate::services::todo_task::get_by_id(master_id);
             let (get_status, get_body) = plan_task_get_response_body(&get_value);
             assert_eq!(get_status, 200);
             let get_parsed: Value = serde_json::from_str(&get_body).expect("get json");
@@ -1567,7 +1567,7 @@ fn post_plan_task_create_title_too_long_returns_400() {
 }
 
 #[test]
-fn get_plan_tasks_migration_error_plan_still_in_list() {
+fn get_todo_tasks_migration_error_plan_still_in_list() {
     with_plan_task_http_test(|| {
         let fixture = setup_repo_for_plan_task();
         let repo_root = fixture.repo_root.clone();

@@ -14,7 +14,7 @@ use crate::services::agent::llm::LlmConfig;
 use crate::services::agent::r#loop::{self, Terminal, TurnOutcome, EVENT_TURN_COMPLETED};
 use crate::services::agent::session::{self, Turn};
 use crate::services::agent::PLAN_ASSISTANT_SYSTEM_PROMPT;
-use crate::services::plan_task;
+use crate::services::todo_task;
 use crate::test_support::TestSandbox;
 
 fn with_sandbox<F: FnOnce()>(f: F) {
@@ -25,7 +25,7 @@ fn with_sandbox<F: FnOnce()>(f: F) {
 }
 
 fn create_bound_plan(title: &str) -> String {
-    let created = plan_task::create_master_with_subs(title, Some(&["子项A"]));
+    let created = todo_task::create_master_with_subs(title, Some(&["子项A"]));
     assert_eq!(created["_status"], 201);
     created["master_task_id"].as_str().unwrap().to_string()
 }
@@ -221,7 +221,7 @@ fn run_loop_tool_write_sets_wrote_true_and_persists() {
         let mut sess = session::create_session(Some(&master), Some("写前标题")).unwrap();
         let out = r#loop::run_loop(&mut sess, "把主标题改成写后标题", &cfg_for(&mock));
         assert_outcome(&out, "none", true);
-        let got = plan_task::get_by_id(&master);
+        let got = todo_task::get_by_id(&master);
         assert_eq!(got["title"], "写后标题");
         assert!(
             sess.turns.iter().any(|t| t.role == "tool"),
@@ -282,7 +282,7 @@ fn parallel_tool_calls_run_serially_and_ok_false_does_not_abort() {
         let t2: Value = serde_json::from_str(tool_turns[1].content.as_deref().unwrap()).unwrap();
         assert_eq!(t1["ok"], false);
         assert_eq!(t2["ok"], true);
-        let listed = plan_task::get_by_id(&master);
+        let listed = todo_task::get_by_id(&master);
         let titles: Vec<_> = listed["sub_tasks"]
             .as_array()
             .unwrap()
@@ -340,7 +340,7 @@ fn unbound_session_maps_to_business_no_plan_without_llm() {
 fn unknown_tool_name_is_error_terminal_and_does_not_write() {
     with_sandbox(|| {
         let master = create_bound_plan("未知工具");
-        let before = plan_task::get_by_id(&master)["title"].clone();
+        let before = todo_task::get_by_id(&master)["title"].clone();
         let mock = spawn_scripted_llm(vec![assistant_tools(
             json!([{
                 "id": "c1",
@@ -355,7 +355,7 @@ fn unknown_tool_name_is_error_terminal_and_does_not_write() {
         let mut sess = session::create_session(Some(&master), Some("未知工具")).unwrap();
         let out = r#loop::run_loop(&mut sess, "删掉计划", &cfg_for(&mock));
         assert_outcome(&out, "error", false);
-        assert_eq!(plan_task::get_by_id(&master)["title"], before);
+        assert_eq!(todo_task::get_by_id(&master)["title"], before);
     });
 }
 
@@ -417,7 +417,7 @@ fn length_and_http_errors_map_to_error_terminal_no_retry() {
 fn run_loop_add_sub_and_update_sub_title_paths_are_observable() {
     with_sandbox(|| {
         let master = create_bound_plan("子路径");
-        let listed = plan_task::get_by_id(&master);
+        let listed = todo_task::get_by_id(&master);
         let sub_id = listed["sub_tasks"][0]["sub_task_id"]
             .as_str()
             .unwrap()
@@ -456,7 +456,7 @@ fn run_loop_add_sub_and_update_sub_title_paths_are_observable() {
 
         let out_add = r#loop::run_loop(&mut sess, "加一个子计划叫新观察子项", &cfg_for(&mock));
         assert_outcome(&out_add, "none", true);
-        let titles_after_add: Vec<_> = plan_task::get_by_id(&master)["sub_tasks"]
+        let titles_after_add: Vec<_> = todo_task::get_by_id(&master)["sub_tasks"]
             .as_array()
             .unwrap()
             .iter()
@@ -466,7 +466,7 @@ fn run_loop_add_sub_and_update_sub_title_paths_are_observable() {
 
         let out_upd = r#loop::run_loop(&mut sess, "把原子项标题改成改后子标题", &cfg_for(&mock));
         assert_outcome(&out_upd, "none", true);
-        let updated = plan_task::get_by_id(&master);
+        let updated = todo_task::get_by_id(&master);
         let old = updated["sub_tasks"]
             .as_array()
             .unwrap()
@@ -538,7 +538,7 @@ fn terminal_no_plan_unsupported_and_error_are_distinguishable() {
 fn malformed_response_is_error_and_does_not_write() {
     with_sandbox(|| {
         let master = create_bound_plan("畸形");
-        let before_subs = plan_task::get_by_id(&master)["sub_tasks"]
+        let before_subs = todo_task::get_by_id(&master)["sub_tasks"]
             .as_array()
             .unwrap()
             .len();
@@ -547,7 +547,7 @@ fn malformed_response_is_error_and_does_not_write() {
         let out = r#loop::run_loop(&mut sess, "加子项", &cfg_for(&mock));
         assert_outcome(&out, "error", false);
         assert_eq!(
-            plan_task::get_by_id(&master)["sub_tasks"]
+            todo_task::get_by_id(&master)["sub_tasks"]
                 .as_array()
                 .unwrap()
                 .len(),
@@ -740,8 +740,8 @@ fn in_flight_writes_use_binding_at_turn_start_despite_busy_open() {
 
         let result = r#loop::agent_chat_turn_core(&sid, "改标题", Some(&a)).unwrap();
         assert_eq!(result.body["wrote"], true);
-        assert_eq!(plan_task::get_by_id(&a)["title"], "落在旧绑定");
-        assert_eq!(plan_task::get_by_id(&b)["title"], "新绑定");
+        assert_eq!(todo_task::get_by_id(&a)["title"], "落在旧绑定");
+        assert_eq!(todo_task::get_by_id(&b)["title"], "新绑定");
     });
 }
 

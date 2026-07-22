@@ -16,7 +16,7 @@ pub mod link_title;
 pub mod entry_write;
 pub mod kb;
 pub mod kb_write;
-pub mod plan_task;
+pub mod todo_task;
 pub mod read_later;
 pub mod reindex;
 pub mod sediment_kb;

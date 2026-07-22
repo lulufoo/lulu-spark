@@ -101,5 +101,5 @@ pub fn attachments_json_rel_path(master_task_id: &str) -> String {
 }
 
 #[cfg(test)]
-#[path = "../../unit-tests/services/plan_task_types.rs"]
+#[path = "../../unit-tests/services/todo_task_types.rs"]
 mod types_tests;

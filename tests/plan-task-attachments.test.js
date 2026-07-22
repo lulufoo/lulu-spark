@@ -76,16 +76,16 @@ describe('listPlanAttachments / addPlanAttachment', () => {
     delete window.__TAURI__;
   });
 
-  it('listPlanAttachments invokes list_plan_attachments with masterTaskId', async () => {
+  it('listPlanAttachments invokes list_todo_attachments with masterTaskId', async () => {
     invokeMock.mockResolvedValue({ attachments: sampleAttachments, _status: 200 });
     const result = await listPlanAttachments({ masterTaskId: 'task_alpha' });
-    expect(invokeMock).toHaveBeenCalledWith('list_plan_attachments', {
+    expect(invokeMock).toHaveBeenCalledWith('list_todo_attachments', {
       masterTaskId: 'task_alpha',
     });
     expect(result).toEqual(sampleAttachments);
   });
 
-  it('addPlanAttachment invokes add_plan_attachment with masterTaskId, fileName, content', async () => {
+  it('addPlanAttachment invokes add_todo_attachment with masterTaskId, fileName, content', async () => {
     invokeMock.mockResolvedValue({
       file_name: 'notes.md',
       original_file_name: 'notes.md',
@@ -97,7 +97,7 @@ describe('listPlanAttachments / addPlanAttachment', () => {
       fileName: 'notes.md',
       content: '# Hello',
     });
-    expect(invokeMock).toHaveBeenCalledWith('add_plan_attachment', {
+    expect(invokeMock).toHaveBeenCalledWith('add_todo_attachment', {
       masterTaskId: 'task_alpha',
       fileName: 'notes.md',
       content: '# Hello',
@@ -191,13 +191,13 @@ describe('mountPlanTaskSplit attachment list + add', () => {
   it('shows attachment section listing associated files', async () => {
     getJsonMock.mockResolvedValue([sampleMaster]);
     invokeMock.mockImplementation(async (cmd) => {
-      if (cmd === 'list_plan_attachments') {
+      if (cmd === 'list_todo_attachments') {
         return { attachments: sampleAttachments, _status: 200 };
       }
       return {};
     });
     const { dispose } = await mountAndWait();
-    expect(invokeMock).toHaveBeenCalledWith('list_plan_attachments', {
+    expect(invokeMock).toHaveBeenCalledWith('list_todo_attachments', {
       masterTaskId: 'task_alpha',
     });
     expect(container.textContent).toContain('notes.md');
@@ -210,7 +210,7 @@ describe('mountPlanTaskSplit attachment list + add', () => {
   it('shows understandable empty state when there are no attachments', async () => {
     getJsonMock.mockResolvedValue([sampleMaster]);
     invokeMock.mockImplementation(async (cmd) => {
-      if (cmd === 'list_plan_attachments') {
+      if (cmd === 'list_todo_attachments') {
         return { attachments: [], _status: 200 };
       }
       return {};
@@ -223,14 +223,14 @@ describe('mountPlanTaskSplit attachment list + add', () => {
     dispose();
   });
 
-  it('pick flow invokes add_plan_attachment then refreshes list with new item', async () => {
+  it('pick flow invokes add_todo_attachment then refreshes list with new item', async () => {
     getJsonMock.mockResolvedValue([sampleMaster]);
     let listed = [];
     invokeMock.mockImplementation(async (cmd, args) => {
-      if (cmd === 'list_plan_attachments') {
+      if (cmd === 'list_todo_attachments') {
         return { attachments: listed, _status: 200 };
       }
-      if (cmd === 'add_plan_attachment') {
+      if (cmd === 'add_todo_attachment') {
         listed = [
           {
             file_name: args.fileName,
@@ -253,7 +253,7 @@ describe('mountPlanTaskSplit attachment list + add', () => {
 
     container.querySelector('[data-action="pick-attachment-md"]').click();
     await vi.waitFor(() => {
-      expect(invokeMock).toHaveBeenCalledWith('add_plan_attachment', {
+      expect(invokeMock).toHaveBeenCalledWith('add_todo_attachment', {
         masterTaskId: 'task_alpha',
         fileName: 'new-notes.md',
         content: '# New notes',
@@ -269,7 +269,7 @@ describe('mountPlanTaskSplit attachment list + add', () => {
   it('shows understandable error when user cancels pick (not silent)', async () => {
     getJsonMock.mockResolvedValue([sampleMaster]);
     invokeMock.mockImplementation(async (cmd) => {
-      if (cmd === 'list_plan_attachments') {
+      if (cmd === 'list_todo_attachments') {
         return { attachments: [], _status: 200 };
       }
       return {};
@@ -284,7 +284,7 @@ describe('mountPlanTaskSplit attachment list + add', () => {
       expect(err.textContent.trim().length).toBeGreaterThan(0);
     });
     expect(invokeMock).not.toHaveBeenCalledWith(
-      'add_plan_attachment',
+      'add_todo_attachment',
       expect.anything(),
     );
     dispose();
@@ -293,7 +293,7 @@ describe('mountPlanTaskSplit attachment list + add', () => {
   it('shows understandable error when Host dialog fails', async () => {
     getJsonMock.mockResolvedValue([sampleMaster]);
     invokeMock.mockImplementation(async (cmd) => {
-      if (cmd === 'list_plan_attachments') {
+      if (cmd === 'list_todo_attachments') {
         return { attachments: [], _status: 200 };
       }
       return {};
@@ -313,7 +313,7 @@ describe('mountPlanTaskSplit attachment list + add', () => {
   it('does not introduce new 计划任务 copy in attachment UI strings', async () => {
     getJsonMock.mockResolvedValue([sampleMaster]);
     invokeMock.mockImplementation(async (cmd) => {
-      if (cmd === 'list_plan_attachments') {
+      if (cmd === 'list_todo_attachments') {
         return { attachments: [], _status: 200 };
       }
       return {};

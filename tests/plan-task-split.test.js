@@ -381,15 +381,15 @@ describe('mountPlanTaskSplit', () => {
     disposeAbandoned();
   });
 
-  it('invokes set_plan_master_status when title-area status changes', async () => {
+  it('invokes set_todo_master_status when title-area status changes', async () => {
     const invokeMock = vi.fn(async (cmd, args) => {
-      if (cmd === 'set_plan_master_status') {
+      if (cmd === 'set_todo_master_status') {
         return {
           task: { ...sampleMasters[0], status: args.status },
           _status: 200,
         };
       }
-      if (cmd === 'list_plan_attachments') return [];
+      if (cmd === 'list_todo_attachments') return [];
       return {};
     });
     window.__TAURI__ = { core: { invoke: invokeMock } };
@@ -406,7 +406,7 @@ describe('mountPlanTaskSplit', () => {
     statusSelect.value = 'abandoned';
     statusSelect.dispatchEvent(new Event('change', { bubbles: true }));
     await vi.waitFor(() => {
-      expect(invokeMock).toHaveBeenCalledWith('set_plan_master_status', {
+      expect(invokeMock).toHaveBeenCalledWith('set_todo_master_status', {
         masterTaskId: 'task_alpha',
         status: 'abandoned',
       });
@@ -493,13 +493,13 @@ describe('mountPlanTaskSplit', () => {
 
   it('renders detail title as editable input and saves on blur', async () => {
     const invokeMock = vi.fn(async (cmd, args) => {
-      if (cmd === 'update_plan_master_title') {
+      if (cmd === 'update_todo_master_title') {
         return {
           task: { ...sampleMasters[0], title: args.title },
           _status: 200,
         };
       }
-      if (cmd === 'list_plan_attachments') return [];
+      if (cmd === 'list_todo_attachments') return [];
       return {};
     });
     window.__TAURI__ = { core: { invoke: invokeMock } };
@@ -521,7 +521,7 @@ describe('mountPlanTaskSplit', () => {
     titleInput.dispatchEvent(new Event('input', { bubbles: true }));
     titleInput.dispatchEvent(new FocusEvent('focusout', { bubbles: true }));
     await vi.waitFor(() => {
-      expect(invokeMock).toHaveBeenCalledWith('update_plan_master_title', {
+      expect(invokeMock).toHaveBeenCalledWith('update_todo_master_title', {
         masterTaskId: 'task_alpha',
         title: 'Alpha Renamed',
       });
@@ -582,7 +582,7 @@ describe('plan-tasks route source wiring', () => {
       join(fixtureRoot, 'packages/knowledge-mcp/index.mjs'),
       'utf8',
     );
-    expect(mcpIndex).not.toMatch(/set_plan_master_status|plan-task-set-status|set_master_status/);
+    expect(mcpIndex).not.toMatch(/set_todo_master_status|plan-task-set-status|set_master_status/);
   });
 
   it('app.css keeps plan-md preview inside bordered box under flex layout', () => {

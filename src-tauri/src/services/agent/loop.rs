@@ -9,7 +9,7 @@ use crate::services::agent::llm::{self, AssistantMessage, LlmConfig, LlmError};
 use crate::services::agent::session::{self, Session, Turn};
 use crate::services::agent::tools;
 use crate::services::agent::PLAN_ASSISTANT_SYSTEM_PROMPT;
-use crate::services::plan_task;
+use crate::services::todo_task;
 
 pub const EVENT_TURN_COMPLETED: &str = "ai-assistant:turn-completed";
 pub const WINDOW_LABEL: &str = "ai-assistant";
@@ -206,7 +206,7 @@ pub fn run_loop(session: &mut Session, user_message: &str, config: &LlmConfig) -
         .filter(|s| !s.is_empty());
     let bound_ok = match bound {
         Some(id) => {
-            let got = plan_task::get_by_id(id);
+            let got = todo_task::get_by_id(id);
             got.get("master_task_id").and_then(|v| v.as_str()).is_some()
                 && !got
                     .get("_status")
@@ -436,7 +436,7 @@ pub fn run_loop(session: &mut Session, user_message: &str, config: &LlmConfig) -
 }
 
 fn plan_title(master_task_id: &str) -> Option<String> {
-    let got = plan_task::get_by_id(master_task_id);
+    let got = todo_task::get_by_id(master_task_id);
     if got
         .get("_status")
         .and_then(|s| s.as_u64())

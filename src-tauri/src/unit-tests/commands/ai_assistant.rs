@@ -8,7 +8,7 @@ use crate::commands::ai_assistant::{
 use crate::config::secrets::{self, KEY_LLM_API_KEY};
 use crate::config::settings;
 use crate::services::agent::r#loop;
-use crate::services::plan_task;
+use crate::services::todo_task;
 use crate::test_support::TestSandbox;
 
 fn with_cmd_sandbox<F: FnOnce()>(f: F) {
@@ -19,7 +19,7 @@ fn with_cmd_sandbox<F: FnOnce()>(f: F) {
 }
 
 fn create_plan(title: &str) -> String {
-    let created = plan_task::create_master_with_subs(title, Some(&["子A"]));
+    let created = todo_task::create_master_with_subs(title, Some(&["子A"]));
     created["master_task_id"].as_str().unwrap().to_string()
 }
 

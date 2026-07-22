@@ -19,7 +19,7 @@ use crate::services::agent::llm::{self, LlmConfig, LlmError};
 use crate::services::agent::session::{self, Session, Turn};
 use crate::services::agent::tools;
 use crate::services::agent::PLAN_ASSISTANT_SYSTEM_PROMPT;
-use crate::services::plan_task;
+use crate::services::todo_task;
 use crate::test_support::TestSandbox;
 
 fn with_agent_sandbox<F: FnOnce(&TestSandbox)>(f: F) {
@@ -43,7 +43,7 @@ fn assert_tool_shell_err(v: &Value, code: &str) {
 }
 
 fn create_bound_plan(title: &str) -> String {
-    let created = plan_task::create_master_with_subs(title, Some(&["子项A"]));
+    let created = todo_task::create_master_with_subs(title, Some(&["子项A"]));
     assert_eq!(created["_status"], 201);
     created["master_task_id"].as_str().unwrap().to_string()
 }
@@ -245,7 +245,7 @@ fn tools_forbidden_without_or_with_invalid_binding() {
 fn tools_unknown_name_never_executes_returns_unsupported() {
     with_agent_sandbox(|_| {
         let master_id = create_bound_plan("绑定");
-        let before = plan_task::get_by_id(&master_id);
+        let before = todo_task::get_by_id(&master_id);
         let before_title = before["title"].clone();
 
         let v = tools::dispatch(
@@ -255,7 +255,7 @@ fn tools_unknown_name_never_executes_returns_unsupported() {
         );
         assert_tool_shell_err(&v, "unsupported");
 
-        let after = plan_task::get_by_id(&master_id);
+        let after = todo_task::get_by_id(&master_id);
         assert_eq!(after["title"], before_title);
     });
 }
@@ -314,7 +314,7 @@ fn tools_update_master_title_success_and_validation_failures() {
         );
         assert_tool_shell_err(&too_long, "bad_request");
 
-        let after = plan_task::get_by_id(&master_id);
+        let after = todo_task::get_by_id(&master_id);
         assert_eq!(after["title"], "合法标题");
     });
 }

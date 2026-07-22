@@ -71,13 +71,13 @@ describe('deletePlanAttachment', () => {
     delete window.__TAURI__;
   });
 
-  it('invokes delete_plan_attachment with masterTaskId and fileName', async () => {
+  it('invokes delete_todo_attachment with masterTaskId and fileName', async () => {
     invokeMock.mockResolvedValue({ ok: true, _status: 200 });
     const result = await deletePlanAttachment({
       masterTaskId: 'task_alpha',
       fileName: 'notes.md',
     });
-    expect(invokeMock).toHaveBeenCalledWith('delete_plan_attachment', {
+    expect(invokeMock).toHaveBeenCalledWith('delete_todo_attachment', {
       masterTaskId: 'task_alpha',
       fileName: 'notes.md',
     });
@@ -128,7 +128,7 @@ describe('mountPlanTaskSplit attachment delete entry', () => {
   it('lists a per-attachment delete entry distinct from open-attachment', async () => {
     getJsonMock.mockResolvedValue([sampleMaster]);
     invokeMock.mockImplementation(async (cmd) => {
-      if (cmd === 'list_plan_attachments') {
+      if (cmd === 'list_todo_attachments') {
         return { attachments: sampleAttachments, _status: 200 };
       }
       return {};
@@ -150,7 +150,7 @@ describe('mountPlanTaskSplit attachment delete entry', () => {
   it('delete confirm is attachment-scoped and not the plan delete dialog types', async () => {
     getJsonMock.mockResolvedValue([sampleMaster]);
     invokeMock.mockImplementation(async (cmd) => {
-      if (cmd === 'list_plan_attachments') {
+      if (cmd === 'list_todo_attachments') {
         return { attachments: sampleAttachments, _status: 200 };
       }
       return {};
@@ -179,14 +179,14 @@ describe('mountPlanTaskSplit attachment delete entry', () => {
     dispose();
   });
 
-  it('confirming delete invokes delete_plan_attachment then removes item from list', async () => {
+  it('confirming delete invokes delete_todo_attachment then removes item from list', async () => {
     getJsonMock.mockResolvedValue([sampleMaster]);
     let listed = [...sampleAttachments];
     invokeMock.mockImplementation(async (cmd, args) => {
-      if (cmd === 'list_plan_attachments') {
+      if (cmd === 'list_todo_attachments') {
         return { attachments: listed, _status: 200 };
       }
-      if (cmd === 'delete_plan_attachment') {
+      if (cmd === 'delete_todo_attachment') {
         listed = listed.filter((entry) => entry.file_name !== args.fileName);
         return { ok: true, _status: 200 };
       }
@@ -217,7 +217,7 @@ describe('mountPlanTaskSplit attachment delete entry', () => {
     confirmBtn.click();
 
     await vi.waitFor(() => {
-      expect(invokeMock).toHaveBeenCalledWith('delete_plan_attachment', {
+      expect(invokeMock).toHaveBeenCalledWith('delete_todo_attachment', {
         masterTaskId: 'task_alpha',
         fileName: 'notes.md',
       });
@@ -232,10 +232,10 @@ describe('mountPlanTaskSplit attachment delete entry', () => {
     dispose();
   });
 
-  it('cancelling attachment delete does not invoke delete_plan_attachment', async () => {
+  it('cancelling attachment delete does not invoke delete_todo_attachment', async () => {
     getJsonMock.mockResolvedValue([sampleMaster]);
     invokeMock.mockImplementation(async (cmd) => {
-      if (cmd === 'list_plan_attachments') {
+      if (cmd === 'list_todo_attachments') {
         return { attachments: sampleAttachments, _status: 200 };
       }
       return {};
@@ -267,7 +267,7 @@ describe('mountPlanTaskSplit attachment delete entry', () => {
       ).toBeNull();
     });
     expect(invokeMock).not.toHaveBeenCalledWith(
-      'delete_plan_attachment',
+      'delete_todo_attachment',
       expect.anything(),
     );
     expect(container.textContent).toContain('notes.md');
@@ -277,10 +277,10 @@ describe('mountPlanTaskSplit attachment delete entry', () => {
   it('failed delete shows error and keeps the item listed (no half-success UI)', async () => {
     getJsonMock.mockResolvedValue([sampleMaster]);
     invokeMock.mockImplementation(async (cmd) => {
-      if (cmd === 'list_plan_attachments') {
+      if (cmd === 'list_todo_attachments') {
         return { attachments: sampleAttachments, _status: 200 };
       }
-      if (cmd === 'delete_plan_attachment') {
+      if (cmd === 'delete_todo_attachment') {
         return { error: 'delete failed', _status: 500 };
       }
       return {};

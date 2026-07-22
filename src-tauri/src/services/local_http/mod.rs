@@ -10,7 +10,7 @@ use serde_json::{json, Value};
 use tiny_http::{Header, Method, Response, Server, StatusCode};
 
 use crate::services::archive_write::{archive_digest, archive_document};
-use crate::services::plan_task;
+use crate::services::todo_task;
 use crate::services::read_later;
 use crate::services::workbench_read::{
     get_corpus_asset, get_corpus_catalog_latest_per_topic, get_corpus_file, get_corpus_files_by_ids,
@@ -20,7 +20,7 @@ use crate::services::workbench_read::{
 pub const DEFAULT_HTTP_PORT: u16 = 8765;
 
 /// Locked master-task `status` wire values for `/api/plan-tasks`, `/api/plan-task`, `/api/plan-task-create`.
-pub(crate) const PLAN_TASK_MASTER_STATUS_WIRE: &[&str] = &["incomplete", "complete", "abandoned"];
+pub(crate) const TODO_TASK_MASTER_STATUS_WIRE: &[&str] = &["incomplete", "complete", "abandoned"];
 
 pub struct LocalHttpHandle {
     server: Arc<Server>,
@@ -105,12 +105,12 @@ pub(crate) fn map_value_to_response(value: Value) -> (u16, String) {
     (status, json)
 }
 
-/// Serialize `plan_task::list_all` for HTTP GET `/api/plan-tasks` (includes `plan_md`, `migration_error`).
+/// Serialize `todo_task::list_all` for HTTP GET `/api/plan-tasks` (includes `plan_md`, `migration_error`).
 pub(crate) fn plan_tasks_list_response_body(value: &Value) -> String {
     serde_json::to_string(value).unwrap_or_else(|_| "[]".to_string())
 }
 
-/// Serialize `plan_task::get_by_id` for HTTP GET `/api/plan-task` (includes `plan_md`, `migration_error`).
+/// Serialize `todo_task::get_by_id` for HTTP GET `/api/plan-task` (includes `plan_md`, `migration_error`).
 pub(crate) fn plan_task_get_response_body(value: &Value) -> (u16, String) {
     map_value_to_response(value.clone())
 }
@@ -237,7 +237,7 @@ fn handle_request(repo_root: &PathBuf, port: u16, request: tiny_http::Request) {
             "/api/plan-task" => {
                 let params = parse_query(&url);
                 let id = params.get("id").map(String::as_str).unwrap_or("");
-                let value = plan_task::get_by_id(id);
+                let value = todo_task::get_by_id(id);
                 let (status, body) = plan_task_get_response_body(&value);
                 respond_raw(request, status, body);
                 return;
@@ -315,7 +315,7 @@ fn handle_read_later_get(request: tiny_http::Request) {
 }
 
 fn handle_plan_tasks_get(request: tiny_http::Request) {
-    let value = plan_task::list_all();
+    let value = todo_task::list_all();
     if value.is_array() {
         let body = plan_tasks_list_response_body(&value);
         respond_with_cors(request, 200, body);
@@ -453,7 +453,7 @@ fn handle_plan_task_delete_payload(payload: &Value) -> Value {
     let Some(master_task_id) = payload.get("master_task_id").and_then(|v| v.as_str()) else {
         return json!({ "error": "Missing master_task_id", "_status": 400 });
     };
-    plan_task::delete_master(master_task_id)
+    todo_task::delete_master(master_task_id)
 }
 
 fn handle_plan_task_add_sub_payload(payload: &Value) -> Value {
@@ -463,7 +463,7 @@ fn handle_plan_task_add_sub_payload(payload: &Value) -> Value {
     let Some(title) = payload.get("title").and_then(|v| v.as_str()) else {
         return json!({ "error": "Missing title", "_status": 400 });
     };
-    plan_task::add_sub(master_task_id, title)
+    todo_task::add_sub(master_task_id, title)
 }
 
 fn handle_plan_task_delete_sub_payload(payload: &Value) -> Value {
@@ -473,7 +473,7 @@ fn handle_plan_task_delete_sub_payload(payload: &Value) -> Value {
     let Some(sub_task_id) = payload.get("sub_task_id").and_then(|v| v.as_str()) else {
         return json!({ "error": "Missing sub_task_id", "_status": 400 });
     };
-    plan_task::delete_sub(master_task_id, sub_task_id)
+    todo_task::delete_sub(master_task_id, sub_task_id)
 }
 
 fn handle_plan_task_complete_payload(payload: &Value) -> Value {
@@ -481,7 +481,7 @@ fn handle_plan_task_complete_payload(payload: &Value) -> Value {
         return json!({ "error": "Missing master_task_id", "_status": 400 });
     };
     let sub_task_id = payload.get("sub_task_id").and_then(|v| v.as_str());
-    plan_task::complete_plan(master_task_id, sub_task_id)
+    todo_task::complete_todo(master_task_id, sub_task_id)
 }
 
 fn handle_plan_task_set_status_payload(payload: &Value) -> Value {
@@ -491,7 +491,7 @@ fn handle_plan_task_set_status_payload(payload: &Value) -> Value {
     let Some(status) = payload.get("status").and_then(|v| v.as_str()) else {
         return json!({ "error": "Missing status", "_status": 400 });
     };
-    plan_task::set_master_status(master_task_id, status)
+    todo_task::set_master_status(master_task_id, status)
 }
 
 fn handle_plan_task_link_archive_payload(payload: &Value) -> Value {
@@ -504,7 +504,7 @@ fn handle_plan_task_link_archive_payload(payload: &Value) -> Value {
     let Some(archive_id) = payload.get("archive_id").and_then(|v| v.as_str()) else {
         return json!({ "error": "Missing archive_id", "_status": 400 });
     };
-    plan_task::link_archive(master_task_id, sub_task_id, archive_id)
+    todo_task::link_archive(master_task_id, sub_task_id, archive_id)
 }
 
 fn handle_plan_task_add_attachment_payload(payload: &Value) -> Value {
@@ -517,14 +517,14 @@ fn handle_plan_task_add_attachment_payload(payload: &Value) -> Value {
     let Some(content) = payload.get("content").and_then(|v| v.as_str()) else {
         return json!({ "error": "Missing content", "_status": 400 });
     };
-    plan_task::add_attachment(master_task_id, file_name, content)
+    todo_task::add_attachment(master_task_id, file_name, content)
 }
 
 fn handle_plan_task_list_attachments_payload(payload: &Value) -> Value {
     let Some(master_task_id) = payload.get("master_task_id").and_then(|v| v.as_str()) else {
         return json!({ "error": "Missing master_task_id", "_status": 400 });
     };
-    plan_task::list_attachments(master_task_id)
+    todo_task::list_attachments(master_task_id)
 }
 
 fn handle_plan_task_get_attachment_payload(payload: &Value) -> Value {
@@ -534,7 +534,7 @@ fn handle_plan_task_get_attachment_payload(payload: &Value) -> Value {
     let Some(file_name) = payload.get("file_name").and_then(|v| v.as_str()) else {
         return json!({ "error": "Missing file_name", "_status": 400 });
     };
-    plan_task::read_attachment(master_task_id, file_name)
+    todo_task::read_attachment(master_task_id, file_name)
 }
 
 fn handle_plan_task_update_attachment_payload(payload: &Value) -> Value {
@@ -547,7 +547,7 @@ fn handle_plan_task_update_attachment_payload(payload: &Value) -> Value {
     let Some(content) = payload.get("content").and_then(|v| v.as_str()) else {
         return json!({ "error": "Missing content", "_status": 400 });
     };
-    plan_task::save_attachment(master_task_id, file_name, content)
+    todo_task::save_attachment(master_task_id, file_name, content)
 }
 
 fn handle_plan_task_create(mut request: tiny_http::Request) {
@@ -605,9 +605,9 @@ fn handle_plan_task_create(mut request: tiny_http::Request) {
     let value = match &sub_titles {
         Some(subs) => {
             let refs: Vec<&str> = subs.iter().map(String::as_str).collect();
-            plan_task::create_master_with_subs_and_plan(title, Some(&refs), plan_md)
+            todo_task::create_master_with_subs_and_todo(title, Some(&refs), plan_md)
         }
-        None => plan_task::create_master_with_subs_and_plan(title, None, plan_md),
+        None => todo_task::create_master_with_subs_and_todo(title, None, plan_md),
     };
     respond_from_value(request, value);
 }

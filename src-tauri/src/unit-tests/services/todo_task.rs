@@ -1,5 +1,5 @@
 use super::*;
-use crate::services::plan_task::types::{
+use crate::services::todo_task::types::{
     AttachmentsFile, IndexEntry, MasterTaskStatus, SubTask, SubTaskStatus, SubTasksFile,
 };
 use std::fs;
@@ -8,10 +8,10 @@ use std::time::SystemTime;
 
 use crate::config::paths;
 use crate::config::settings::{self, default_cache_dir};
-use crate::services::plan_task::test_reset_all_injection_flags;
+use crate::services::todo_task::test_reset_all_injection_flags;
 use crate::test_support::TestSandbox;
 
-fn with_plan_task_sandbox<F: FnOnce(&Path)>(f: F) {
+fn with_todo_task_sandbox<F: FnOnce(&Path)>(f: F) {
     let _sandbox = TestSandbox::new();
     test_reset_all_injection_flags();
     let wb = paths::workbench_knowledge_root().expect("workbench root");
@@ -46,7 +46,7 @@ fn prod_cache_plan_tasks_mtime() -> Option<SystemTime> {
 
 #[test]
 fn plan_tasks_path_is_under_workbench_knowledge_root() {
-    with_plan_task_sandbox(|wb| {
+    with_todo_task_sandbox(|wb| {
         let path = paths::plan_tasks_path().expect("path");
         assert_eq!(path, wb.join("plan_tasks").join("plan_tasks.json"));
         let cache = paths::cache_dir().expect("cache");
@@ -57,7 +57,7 @@ fn plan_tasks_path_is_under_workbench_knowledge_root() {
 
 #[test]
 fn first_write_creates_plan_tasks_directory() {
-    with_plan_task_sandbox(|wb| {
+    with_todo_task_sandbox(|wb| {
         let plan_tasks_dir = wb.join("plan_tasks");
         assert!(!plan_tasks_dir.exists());
         let v = create_master_with_subs("预习：第三章", None);
@@ -70,7 +70,7 @@ fn first_write_creates_plan_tasks_directory() {
 
 #[test]
 fn list_all_empty_store_returns_empty_array() {
-    with_plan_task_sandbox(|_| {
+    with_todo_task_sandbox(|_| {
         let v = list_all();
         assert_eq!(v.as_array().expect("array").len(), 0);
         assert!(v.get("_status").is_none());
@@ -79,7 +79,7 @@ fn list_all_empty_store_returns_empty_array() {
 
 #[test]
 fn create_single_explicit_sub_implicit_false() {
-    with_plan_task_sandbox(|_| {
+    with_todo_task_sandbox(|_| {
         let v = create_master_with_subs("Master", Some(&["Sub A"]));
         assert_eq!(v["_status"], 201);
         let task = master_from_value(&v);
@@ -93,7 +93,7 @@ fn create_single_explicit_sub_implicit_false() {
 
 #[test]
 fn multi_sub_create_and_read_fixture() {
-    with_plan_task_sandbox(|wb| {
+    with_todo_task_sandbox(|wb| {
         let created = create_master_with_subs("Multi master", Some(&["Sub A", "Sub B"]));
         assert_eq!(created["_status"], 201);
         let master_id = created["master_task_id"].as_str().expect("master_task_id");
@@ -141,7 +141,7 @@ fn multi_sub_create_and_read_fixture() {
 fn plan_task_tests_do_not_touch_prod_plan_tasks_or_cache() {
     let before_wb = prod_plan_tasks_mtime();
     let before_cache = prod_cache_plan_tasks_mtime();
-    with_plan_task_sandbox(|_| {
+    with_todo_task_sandbox(|_| {
         create_master_with_subs("Isolation", Some(&["a", "b"]));
         list_all();
     });
@@ -177,7 +177,7 @@ fn plan_task_paths_require_sandbox_isolation() {
 
 #[test]
 fn create_without_sub_titles_yields_empty_sub_tasks() {
-    with_plan_task_sandbox(|_| {
+    with_todo_task_sandbox(|_| {
         let v = create_master_with_subs("预习：第三章", None);
         assert_eq!(v["_status"], 201);
         assert!(v.get("sub_task_id").is_none());
@@ -192,7 +192,7 @@ fn create_without_sub_titles_yields_empty_sub_tasks() {
 
 #[test]
 fn create_with_empty_sub_titles_slice_yields_empty_sub_tasks() {
-    with_plan_task_sandbox(|_| {
+    with_todo_task_sandbox(|_| {
         let empty: &[&str] = &[];
         let v = create_master_with_subs("Empty slice", Some(empty));
         assert_eq!(v["_status"], 201);
@@ -204,7 +204,7 @@ fn create_with_empty_sub_titles_slice_yields_empty_sub_tasks() {
 
 #[test]
 fn stored_complete_with_empty_sub_tasks_is_preserved_without_recompute() {
-    with_plan_task_sandbox(|_| {
+    with_todo_task_sandbox(|_| {
         let master_id = "task_empty_subs";
         let mut entry = sample_index_entry(master_id);
         entry.status = MasterTaskStatus::Complete;
@@ -224,7 +224,7 @@ fn stored_complete_with_empty_sub_tasks_is_preserved_without_recompute() {
 
 #[test]
 fn completing_all_subs_does_not_recompute_master_status() {
-    with_plan_task_sandbox(|_| {
+    with_todo_task_sandbox(|_| {
         let created = create_master_with_subs("All done", Some(&["A", "B"]));
         let master_id = created["master_task_id"].as_str().unwrap();
         for sub in created["task"]["sub_tasks"].as_array().unwrap() {
@@ -239,7 +239,7 @@ fn completing_all_subs_does_not_recompute_master_status() {
 
 #[test]
 fn explicit_abandoned_write_keeps_index_and_authority_aligned() {
-    with_plan_task_sandbox(|wb| {
+    with_todo_task_sandbox(|wb| {
         let master_id = "task_abandoned_explicit";
         let mut entry = sample_index_entry(master_id);
         entry.status = MasterTaskStatus::Abandoned;
@@ -265,7 +265,7 @@ fn explicit_abandoned_write_keeps_index_and_authority_aligned() {
 
 #[test]
 fn set_master_status_allows_tri_state_mutual_transitions() {
-    with_plan_task_sandbox(|wb| {
+    with_todo_task_sandbox(|wb| {
         let created = create_master_with_subs("Set status", Some(&["A"]));
         assert_eq!(created["_status"], 201);
         let master_id = created["master_task_id"].as_str().expect("master_task_id");
@@ -290,7 +290,7 @@ fn set_master_status_allows_tri_state_mutual_transitions() {
 
 #[test]
 fn set_master_status_rejects_unknown_status() {
-    with_plan_task_sandbox(|_| {
+    with_todo_task_sandbox(|_| {
         let created = create_master_with_subs("Bad status", Some(&["A"]));
         let master_id = created["master_task_id"].as_str().expect("master_task_id");
         let v = set_master_status(master_id, "done");
@@ -301,7 +301,7 @@ fn set_master_status_rejects_unknown_status() {
 
 #[test]
 fn create_multiple_subs_increments_sub_suffix() {
-    with_plan_task_sandbox(|_| {
+    with_todo_task_sandbox(|_| {
         let v = create_master_with_subs("Multi", Some(&["A", "B", "C"]));
         assert_eq!(v["_status"], 201);
         let master_id = v["master_task_id"].as_str().expect("master_task_id");
@@ -319,7 +319,7 @@ fn create_multiple_subs_increments_sub_suffix() {
 
 #[test]
 fn get_by_id_returns_master_tree() {
-    with_plan_task_sandbox(|_| {
+    with_todo_task_sandbox(|_| {
         let created = create_master_with_subs("Get me", Some(&["Sub"]));
         let master_id = created["master_task_id"].as_str().unwrap();
         let got = get_by_id(master_id);
@@ -331,7 +331,7 @@ fn get_by_id_returns_master_tree() {
 
 #[test]
 fn get_by_id_resolves_sub_task_id() {
-    with_plan_task_sandbox(|_| {
+    with_todo_task_sandbox(|_| {
         let created = create_master_with_subs("Sub lookup", Some(&["Sub"]));
         let sub_id = created["sub_task_id"].as_str().unwrap();
         let got = get_by_id(sub_id);
@@ -342,7 +342,7 @@ fn get_by_id_resolves_sub_task_id() {
 
 #[test]
 fn list_all_returns_master_trees() {
-    with_plan_task_sandbox(|_| {
+    with_todo_task_sandbox(|_| {
         let empty = list_all();
         assert!(empty.as_array().expect("array").is_empty());
 
@@ -359,7 +359,7 @@ fn list_all_returns_master_trees() {
 
 #[test]
 fn complete_sub_does_not_mark_master_complete_when_all_subs_done() {
-    with_plan_task_sandbox(|_| {
+    with_todo_task_sandbox(|_| {
         let created = create_master_with_subs("Done", Some(&["b"]));
         let master_id = created["master_task_id"].as_str().unwrap().to_string();
         let subs: Vec<String> = created["task"]["sub_tasks"]
@@ -389,7 +389,7 @@ fn complete_sub_does_not_mark_master_complete_when_all_subs_done() {
 
 #[test]
 fn complete_sub_unknown_id_returns_404() {
-    with_plan_task_sandbox(|_| {
+    with_todo_task_sandbox(|_| {
         let v = complete_sub("task_missing", "task_missing_sub_01");
         assert_eq!(v["_status"], 404);
     });
@@ -397,7 +397,7 @@ fn complete_sub_unknown_id_returns_404() {
 
 #[test]
 fn get_by_id_unknown_returns_404() {
-    with_plan_task_sandbox(|_| {
+    with_todo_task_sandbox(|_| {
         let v = get_by_id("task_does_not_exist");
         assert_eq!(v["_status"], 404);
         assert!(v.get("error").is_some());
@@ -406,7 +406,7 @@ fn get_by_id_unknown_returns_404() {
 
 #[test]
 fn link_archive_updates_reverse_index() {
-    with_plan_task_sandbox(|_| {
+    with_todo_task_sandbox(|_| {
         let created = create_master_with_subs("Link", Some(&["Sub"]));
         let master_id = created["master_task_id"].as_str().unwrap();
         let sub_id = created["sub_task_id"].as_str().unwrap();
@@ -435,7 +435,7 @@ fn link_archive_updates_reverse_index() {
 
 #[test]
 fn create_persists_v2_layout_via_write_task_batch() {
-    with_plan_task_sandbox(|wb| {
+    with_todo_task_sandbox(|wb| {
         let created = create_master_with_subs("Persist", None);
         assert_eq!(created["_status"], 201);
 
@@ -455,7 +455,7 @@ fn create_persists_v2_layout_via_write_task_batch() {
 
 #[test]
 fn corrupt_storage_list_returns_explicit_error() {
-    with_plan_task_sandbox(|wb| {
+    with_todo_task_sandbox(|wb| {
         let master_id = "task_corrupt_list";
         let plan_tasks_dir = wb.join("plan_tasks");
         fs::create_dir_all(plan_tasks_dir.join("tasks").join(master_id)).expect("mkdir");
@@ -492,7 +492,7 @@ fn corrupt_storage_list_returns_explicit_error() {
 
 #[test]
 fn corrupt_storage_get_returns_explicit_error() {
-    with_plan_task_sandbox(|wb| {
+    with_todo_task_sandbox(|wb| {
         let master_id = "task_corrupt_get";
         let plan_tasks_dir = wb.join("plan_tasks");
         fs::create_dir_all(plan_tasks_dir.join("tasks").join(master_id)).expect("mkdir");
@@ -544,7 +544,7 @@ fn read_index_version(wb: &Path) -> u32 {
 
 #[test]
 fn bootstrap_deletes_wb_and_cache_v1_on_storage_read_entry() {
-    with_plan_task_sandbox(|wb| {
+    with_todo_task_sandbox(|wb| {
         let wb_v1 = paths::plan_tasks_path().expect("wb v1 path");
         let cache_v1 = paths::cache_plan_tasks_v1_path().expect("cache v1 path");
         seed_v1_file(&wb_v1);
@@ -563,7 +563,7 @@ fn bootstrap_deletes_wb_and_cache_v1_on_storage_read_entry() {
 
 #[test]
 fn bootstrap_deletes_v1_on_storage_write_entry() {
-    with_plan_task_sandbox(|wb| {
+    with_todo_task_sandbox(|wb| {
         let wb_v1 = paths::plan_tasks_path().expect("wb v1 path");
         seed_v1_file(&wb_v1);
         assert!(wb_v1.is_file());
@@ -577,7 +577,7 @@ fn bootstrap_deletes_v1_on_storage_write_entry() {
 
 #[test]
 fn bootstrap_repeat_is_idempotent() {
-    with_plan_task_sandbox(|wb| {
+    with_todo_task_sandbox(|wb| {
         let wb_v1 = paths::plan_tasks_path().expect("wb v1 path");
         let cache_v1 = paths::cache_plan_tasks_v1_path().expect("cache v1 path");
         seed_v1_file(&wb_v1);
@@ -599,7 +599,7 @@ fn bootstrap_repeat_is_idempotent() {
 
 #[test]
 fn bootstrap_creates_plan_tasks_and_tasks_dirs() {
-    with_plan_task_sandbox(|wb| {
+    with_todo_task_sandbox(|wb| {
         list_all();
         assert!(wb.join("plan_tasks").is_dir());
         assert!(wb.join("plan_tasks").join("tasks").is_dir());
@@ -609,7 +609,7 @@ fn bootstrap_creates_plan_tasks_and_tasks_dirs() {
 
 #[test]
 fn bootstrap_deletes_only_wb_v1_when_cache_missing() {
-    with_plan_task_sandbox(|wb| {
+    with_todo_task_sandbox(|wb| {
         let wb_v1 = paths::plan_tasks_path().expect("wb v1 path");
         let cache_v1 = paths::cache_plan_tasks_v1_path().expect("cache v1 path");
         seed_v1_file(&wb_v1);
@@ -625,7 +625,7 @@ fn bootstrap_deletes_only_wb_v1_when_cache_missing() {
 
 #[test]
 fn bootstrap_deletes_only_cache_v1_when_wb_missing() {
-    with_plan_task_sandbox(|wb| {
+    with_todo_task_sandbox(|wb| {
         let wb_v1 = paths::plan_tasks_path().expect("wb v1 path");
         let cache_v1 = paths::cache_plan_tasks_v1_path().expect("cache v1 path");
         seed_v1_file(&cache_v1);
@@ -641,7 +641,7 @@ fn bootstrap_deletes_only_cache_v1_when_wb_missing() {
 
 #[test]
 fn bootstrap_preserves_valid_v2_index_tasks() {
-    with_plan_task_sandbox(|wb| {
+    with_todo_task_sandbox(|wb| {
         let plan_tasks_dir = wb.join("plan_tasks");
         fs::create_dir_all(plan_tasks_dir.join("tasks")).expect("mkdir tasks");
         let index = serde_json::json!({
@@ -694,7 +694,7 @@ fn bootstrap_preserves_valid_v2_index_tasks() {
 
 #[test]
 fn bootstrap_rewrites_wrong_version_index() {
-    with_plan_task_sandbox(|wb| {
+    with_todo_task_sandbox(|wb| {
         let plan_tasks_dir = wb.join("plan_tasks");
         fs::create_dir_all(plan_tasks_dir.join("tasks")).expect("mkdir tasks");
         fs::write(
@@ -718,7 +718,7 @@ fn bootstrap_rewrites_wrong_version_index() {
 
 #[test]
 fn bootstrap_rewrites_corrupt_index() {
-    with_plan_task_sandbox(|wb| {
+    with_todo_task_sandbox(|wb| {
         let plan_tasks_dir = wb.join("plan_tasks");
         fs::create_dir_all(plan_tasks_dir.join("tasks")).expect("mkdir tasks");
         fs::write(plan_tasks_dir.join("index.json"), "{not json").expect("write corrupt index");
@@ -761,7 +761,7 @@ fn sample_sub_tasks(master_id: &str) -> SubTasksFile {
 
 #[test]
 fn write_task_batch_creates_v2_files_and_index_entry() {
-    with_plan_task_sandbox(|wb| {
+    with_todo_task_sandbox(|wb| {
         let master_id = "task_batch001";
         test_run_write_task_batch(
             master_id,
@@ -787,7 +787,7 @@ fn write_task_batch_creates_v2_files_and_index_entry() {
 
 #[test]
 fn write_task_batch_sub_tasks_failure_removes_task_dir() {
-    with_plan_task_sandbox(|wb| {
+    with_todo_task_sandbox(|wb| {
         let master_id = "task_batch002";
         test_set_fail_batch_sub_tasks(true);
         assert!(test_run_write_task_batch(
@@ -810,9 +810,9 @@ fn write_task_batch_sub_tasks_failure_removes_task_dir() {
 
 #[test]
 fn write_task_batch_plan_md_failure_removes_task_dir() {
-    with_plan_task_sandbox(|wb| {
+    with_todo_task_sandbox(|wb| {
         let master_id = "task_batch003";
-        test_set_fail_batch_plan_md(true);
+        test_set_fail_batch_todo_md(true);
         assert!(test_run_write_task_batch(
             master_id,
             &sample_index_entry(master_id),
@@ -828,7 +828,7 @@ fn write_task_batch_plan_md_failure_removes_task_dir() {
 
 #[test]
 fn write_task_batch_index_failure_restores_snapshot_and_leaves_orphan() {
-    with_plan_task_sandbox(|wb| {
+    with_todo_task_sandbox(|wb| {
         let existing_id = "task_existing";
         let existing_entry = sample_index_entry(existing_id);
         test_run_write_task_batch(
@@ -867,7 +867,7 @@ fn write_task_batch_index_failure_restores_snapshot_and_leaves_orphan() {
 
 #[test]
 fn add_sub_appends_incomplete_sub_without_rewriting_master_status() {
-    with_plan_task_sandbox(|_| {
+    with_todo_task_sandbox(|_| {
         let master_id = "task_add_keeps_complete";
         let mut entry = sample_index_entry(master_id);
         entry.status = MasterTaskStatus::Complete;
@@ -894,7 +894,7 @@ fn add_sub_appends_incomplete_sub_without_rewriting_master_status() {
 
 #[test]
 fn complete_sub_partial_multi_sub_keeps_master_incomplete() {
-    with_plan_task_sandbox(|_| {
+    with_todo_task_sandbox(|_| {
         let created = create_master_with_subs("Partial", Some(&["A", "B"]));
         let master_id = created["master_task_id"].as_str().unwrap();
         let sub_a = created["task"]["sub_tasks"][0]["sub_task_id"]
@@ -908,7 +908,7 @@ fn complete_sub_partial_multi_sub_keeps_master_incomplete() {
 
 #[test]
 fn link_archive_does_not_change_sub_or_master_status() {
-    with_plan_task_sandbox(|_| {
+    with_todo_task_sandbox(|_| {
         let created = create_master_with_subs("Link status", Some(&["A", "B"]));
         let master_id = created["master_task_id"].as_str().unwrap();
         let sub_a = created["task"]["sub_tasks"][0]["sub_task_id"]
@@ -926,7 +926,7 @@ fn link_archive_does_not_change_sub_or_master_status() {
 
 #[test]
 fn delete_sub_allows_delete_to_empty_without_rewriting_master_status() {
-    with_plan_task_sandbox(|_| {
+    with_todo_task_sandbox(|_| {
         let created = create_master_with_subs("Delete sub", Some(&["A", "B"]));
         let master_id = created["master_task_id"].as_str().unwrap();
         let sub_a = created["task"]["sub_tasks"][0]["sub_task_id"]
@@ -958,7 +958,7 @@ fn delete_sub_allows_delete_to_empty_without_rewriting_master_status() {
 
 #[test]
 fn complete_sub_transitions_incomplete_to_complete_terminal() {
-    with_plan_task_sandbox(|_| {
+    with_todo_task_sandbox(|_| {
         let created = create_master_with_subs("Complete transition", Some(&["A"]));
         let master_id = created["master_task_id"].as_str().unwrap();
         let sub_id = created["task"]["sub_tasks"][0]["sub_task_id"]
@@ -979,7 +979,7 @@ fn complete_sub_transitions_incomplete_to_complete_terminal() {
 
 #[test]
 fn abandon_sub_transitions_incomplete_to_abandoned_terminal() {
-    with_plan_task_sandbox(|_| {
+    with_todo_task_sandbox(|_| {
         let created = create_master_with_subs("Abandon transition", Some(&["A"]));
         let master_id = created["master_task_id"].as_str().unwrap();
         let sub_id = created["task"]["sub_tasks"][0]["sub_task_id"]
@@ -998,12 +998,12 @@ fn abandon_sub_transitions_incomplete_to_abandoned_terminal() {
 
 #[test]
 fn injection_flags_reset_before_each_sandbox_test() {
-    with_plan_task_sandbox(|_| {
+    with_todo_task_sandbox(|_| {
         test_set_fail_batch_sub_tasks(true);
         let created = create_master_with_subs("Flag reset", None);
         assert_eq!(created["_status"], 500);
     });
-    with_plan_task_sandbox(|_| {
+    with_todo_task_sandbox(|_| {
         let created = create_master_with_subs("After reset", None);
         assert_eq!(created["_status"], 201);
     });
@@ -1011,7 +1011,7 @@ fn injection_flags_reset_before_each_sandbox_test() {
 
 #[test]
 fn abandon_sub_marks_sub_abandoned_without_rewriting_master_status() {
-    with_plan_task_sandbox(|_| {
+    with_todo_task_sandbox(|_| {
         let created = create_master_with_subs("Abandon", Some(&["A", "B"]));
         let master_id = created["master_task_id"].as_str().unwrap();
         let sub_a = created["task"]["sub_tasks"][0]["sub_task_id"]
@@ -1029,7 +1029,7 @@ fn abandon_sub_marks_sub_abandoned_without_rewriting_master_status() {
 
 #[test]
 fn abandon_sub_all_abandoned_keeps_master_incomplete() {
-    with_plan_task_sandbox(|_| {
+    with_todo_task_sandbox(|_| {
         let created = create_master_with_subs("All abandoned", Some(&["A", "B"]));
         let master_id = created["master_task_id"].as_str().unwrap();
         for sub in created["task"]["sub_tasks"].as_array().unwrap() {
@@ -1047,7 +1047,7 @@ fn abandon_sub_all_abandoned_keeps_master_incomplete() {
 
 #[test]
 fn complete_and_abandoned_mix_keeps_master_incomplete() {
-    with_plan_task_sandbox(|_| {
+    with_todo_task_sandbox(|_| {
         let created = create_master_with_subs("Mixed terminal", Some(&["A", "B"]));
         let master_id = created["master_task_id"].as_str().unwrap();
         let sub_a = created["task"]["sub_tasks"][0]["sub_task_id"]
@@ -1069,7 +1069,7 @@ fn complete_and_abandoned_mix_keeps_master_incomplete() {
 
 #[test]
 fn complete_sub_rejects_terminal_sub_returns_409() {
-    with_plan_task_sandbox(|_| {
+    with_todo_task_sandbox(|_| {
         let created = create_master_with_subs("Terminal guard", Some(&["A", "B"]));
         let master_id = created["master_task_id"].as_str().unwrap();
         let sub_a = created["task"]["sub_tasks"][0]["sub_task_id"]
@@ -1091,7 +1091,7 @@ fn complete_sub_rejects_terminal_sub_returns_409() {
 
 #[test]
 fn abandon_sub_rejects_terminal_sub_returns_409() {
-    with_plan_task_sandbox(|_| {
+    with_todo_task_sandbox(|_| {
         let created = create_master_with_subs("Abandon guard", Some(&["A", "B"]));
         let master_id = created["master_task_id"].as_str().unwrap();
         let sub_a = created["task"]["sub_tasks"][0]["sub_task_id"]
@@ -1113,7 +1113,7 @@ fn abandon_sub_rejects_terminal_sub_returns_409() {
 
 #[test]
 fn abandon_sub_unknown_ids_return_404() {
-    with_plan_task_sandbox(|_| {
+    with_todo_task_sandbox(|_| {
         let v = abandon_sub("task_missing", "task_missing_sub_01");
         assert_eq!(v["_status"], 404);
 
@@ -1126,7 +1126,7 @@ fn abandon_sub_unknown_ids_return_404() {
 
 #[test]
 fn delete_master_removes_index_entry_and_task_directory() {
-    with_plan_task_sandbox(|wb| {
+    with_todo_task_sandbox(|wb| {
         let created = create_master_with_subs("Delete me", None);
         let master_id = created["master_task_id"].as_str().unwrap();
         let task_dir = wb.join("plan_tasks").join("tasks").join(master_id);
@@ -1147,7 +1147,7 @@ fn delete_master_removes_index_entry_and_task_directory() {
 
 #[test]
 fn create_batch_failure_leaves_no_partial_commit() {
-    with_plan_task_sandbox(|wb| {
+    with_todo_task_sandbox(|wb| {
         test_set_fail_batch_index(true);
         let v = create_master_with_subs("Fail batch", None);
         assert_eq!(v["_status"], 500);
@@ -1166,7 +1166,7 @@ fn create_batch_failure_leaves_no_partial_commit() {
 
 #[test]
 fn create_response_omits_completed_at_on_new_subs() {
-    with_plan_task_sandbox(|_| {
+    with_todo_task_sandbox(|_| {
         let v = create_master_with_subs("New", Some(&["Sub"]));
         let subs = v["task"]["sub_tasks"].as_array().unwrap();
         assert!(subs[0].get("completed_at").is_none() || subs[0]["completed_at"].is_null());
@@ -1234,7 +1234,7 @@ fn subs_on_disk(wb: &Path, master_id: &str) -> serde_json::Value {
 
 #[test]
 fn migrate_implicit_subs_removes_implicit_on_bootstrap() {
-    with_plan_task_sandbox(|wb| {
+    with_todo_task_sandbox(|wb| {
         seed_v2_plan_with_subs(
             wb,
             "task_implicit",
@@ -1268,7 +1268,7 @@ fn migrate_implicit_subs_removes_implicit_on_bootstrap() {
 
 #[test]
 fn migrate_implicit_subs_preserves_explicit_subs() {
-    with_plan_task_sandbox(|wb| {
+    with_todo_task_sandbox(|wb| {
         seed_v2_plan_with_subs(
             wb,
             "task_mixed",
@@ -1308,7 +1308,7 @@ fn migrate_implicit_subs_preserves_explicit_subs() {
 
 #[test]
 fn migrate_implicit_subs_no_implicit_plans_unchanged() {
-    with_plan_task_sandbox(|wb| {
+    with_todo_task_sandbox(|wb| {
         seed_v2_plan_with_subs(
             wb,
             "task_explicit",
@@ -1338,7 +1338,7 @@ fn migrate_implicit_subs_no_implicit_plans_unchanged() {
 
 #[test]
 fn migrate_implicit_subs_idempotent_second_bootstrap() {
-    with_plan_task_sandbox(|wb| {
+    with_todo_task_sandbox(|wb| {
         seed_v2_plan_with_subs(
             wb,
             "task_idempotent",
@@ -1382,7 +1382,7 @@ fn migrate_implicit_subs_idempotent_second_bootstrap() {
 
 #[test]
 fn migrate_implicit_subs_marks_migration_error_on_corrupt_plan() {
-    with_plan_task_sandbox(|wb| {
+    with_todo_task_sandbox(|wb| {
         seed_v2_plan_with_subs(
             wb,
             "task_corrupt_migrate",
@@ -1409,7 +1409,7 @@ fn migrate_implicit_subs_marks_migration_error_on_corrupt_plan() {
 
 #[test]
 fn migrate_implicit_subs_other_plans_unaffected_on_single_failure() {
-    with_plan_task_sandbox(|wb| {
+    with_todo_task_sandbox(|wb| {
         seed_v2_plan_with_subs(
             wb,
             "task_ok",
@@ -1462,7 +1462,7 @@ fn migrate_implicit_subs_other_plans_unaffected_on_single_failure() {
 
 #[test]
 fn get_by_id_includes_migration_error_on_corrupt_plan() {
-    with_plan_task_sandbox(|wb| {
+    with_todo_task_sandbox(|wb| {
         seed_v2_plan_with_subs(
             wb,
             "task_corrupt_get_migrate",
@@ -1487,18 +1487,18 @@ fn get_by_id_includes_migration_error_on_corrupt_plan() {
 }
 
 #[test]
-fn read_plan_md_missing_master_returns_404() {
-    with_plan_task_sandbox(|_| {
-        let v = read_plan_md("task_does_not_exist");
+fn read_todo_md_missing_master_returns_404() {
+    with_todo_task_sandbox(|_| {
+        let v = read_todo_md("task_does_not_exist");
         assert_eq!(v["_status"], 404);
         assert!(v.get("error").is_some());
     });
 }
 
 #[test]
-fn update_plan_md_missing_master_returns_404() {
-    with_plan_task_sandbox(|_| {
-        let v = update_plan_md("task_does_not_exist", "# Plan");
+fn update_todo_md_missing_master_returns_404() {
+    with_todo_task_sandbox(|_| {
+        let v = update_todo_md("task_does_not_exist", "# Plan");
         assert_eq!(v["_status"], 404);
         assert!(v.get("error").is_some());
     });
@@ -1506,7 +1506,7 @@ fn update_plan_md_missing_master_returns_404() {
 
 #[test]
 fn list_and_get_include_plan_md_and_migration_error() {
-    with_plan_task_sandbox(|_| {
+    with_todo_task_sandbox(|_| {
         let created = create_master_with_subs("Plan md fields", None);
         let master_id = created["master_task_id"].as_str().unwrap();
 
@@ -1523,15 +1523,15 @@ fn list_and_get_include_plan_md_and_migration_error() {
 }
 
 #[test]
-fn update_plan_md_empty_round_trip() {
-    with_plan_task_sandbox(|wb| {
+fn update_todo_md_empty_round_trip() {
+    with_todo_task_sandbox(|wb| {
         let created = create_master_with_subs("Empty plan", None);
         let master_id = created["master_task_id"].as_str().unwrap();
 
-        let updated = update_plan_md(master_id, "");
+        let updated = update_todo_md(master_id, "");
         assert_eq!(updated["_status"], 200);
 
-        let read = read_plan_md(master_id);
+        let read = read_todo_md(master_id);
         assert_eq!(read["_status"], 200);
         assert_eq!(read["plan_md"], "");
 
@@ -1548,16 +1548,16 @@ fn update_plan_md_empty_round_trip() {
 }
 
 #[test]
-fn update_plan_md_multiline_round_trip() {
-    with_plan_task_sandbox(|wb| {
+fn update_todo_md_multiline_round_trip() {
+    with_todo_task_sandbox(|wb| {
         let created = create_master_with_subs("Markdown plan", None);
         let master_id = created["master_task_id"].as_str().unwrap();
         let content = "# Title\n\n## Section\n\n- item one\n- item two\n";
 
-        let updated = update_plan_md(master_id, content);
+        let updated = update_todo_md(master_id, content);
         assert_eq!(updated["_status"], 200);
 
-        let read = read_plan_md(master_id);
+        let read = read_todo_md(master_id);
         assert_eq!(read["_status"], 200);
         assert_eq!(read["plan_md"], content);
 
@@ -1578,15 +1578,15 @@ fn update_plan_md_multiline_round_trip() {
 }
 
 #[test]
-fn update_plan_md_io_failure_returns_500_without_corrupting_index() {
-    with_plan_task_sandbox(|wb| {
+fn update_todo_md_io_failure_returns_500_without_corrupting_index() {
+    with_todo_task_sandbox(|wb| {
         let created = create_master_with_subs("IO fail", Some(&["Sub"]));
         let master_id = created["master_task_id"].as_str().unwrap();
         let index_before = fs::read_to_string(wb.join("plan_tasks").join("index.json")).unwrap();
         let subs_before = subs_on_disk(wb, master_id);
 
-        test_set_fail_batch_plan_md(true);
-        let v = update_plan_md(master_id, "should not persist");
+        test_set_fail_batch_todo_md(true);
+        let v = update_todo_md(master_id, "should not persist");
         assert_eq!(v["_status"], 500);
         assert!(v.get("error").is_some());
 
@@ -1611,7 +1611,7 @@ fn title_unit_count_chinese_and_english() {
 
 #[test]
 fn create_rejects_title_over_twenty_units() {
-    with_plan_task_sandbox(|_| {
+    with_todo_task_sandbox(|_| {
         let long_en = "one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen twenty twentyone";
         let v = create_master_with_subs(long_en, None);
         assert_eq!(v["_status"], 400);
@@ -1632,9 +1632,9 @@ fn create_rejects_title_over_twenty_units() {
 
 #[test]
 fn create_with_plan_md_persists_to_disk_and_list() {
-    with_plan_task_sandbox(|wb| {
+    with_todo_task_sandbox(|wb| {
         let content = "## Notes\n\nHello plan";
-        let created = create_master_with_subs_and_plan("With plan", None, content);
+        let created = create_master_with_subs_and_todo("With plan", None, content);
         assert_eq!(created["_status"], 201);
         let master_id = created["master_task_id"].as_str().unwrap();
 
@@ -1654,7 +1654,7 @@ fn create_with_plan_md_persists_to_disk_and_list() {
 
 #[test]
 fn migrate_implicit_subs_write_failure_marks_migration_error() {
-    with_plan_task_sandbox(|wb| {
+    with_todo_task_sandbox(|wb| {
         seed_v2_plan_with_subs(
             wb,
             "task_write_fail",
@@ -1681,7 +1681,7 @@ fn migrate_implicit_subs_write_failure_marks_migration_error() {
 
 #[test]
 fn update_master_title_success_trims_and_persists() {
-    with_plan_task_sandbox(|_| {
+    with_todo_task_sandbox(|_| {
         let created = create_master_with_subs("Old title", None);
         assert_eq!(created["_status"], 201);
         let master_id = created["master_task_id"].as_str().unwrap();
@@ -1699,7 +1699,7 @@ fn update_master_title_success_trims_and_persists() {
 
 #[test]
 fn update_master_title_blank_after_trim_returns_400() {
-    with_plan_task_sandbox(|_| {
+    with_todo_task_sandbox(|_| {
         let created = create_master_with_subs("Keep me", None);
         let master_id = created["master_task_id"].as_str().unwrap();
 
@@ -1712,7 +1712,7 @@ fn update_master_title_blank_after_trim_returns_400() {
 
 #[test]
 fn update_master_title_rejects_over_twenty_units() {
-    with_plan_task_sandbox(|_| {
+    with_todo_task_sandbox(|_| {
         let created = create_master_with_subs("Short", None);
         let master_id = created["master_task_id"].as_str().unwrap();
         let long_en = "one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen twenty twentyone";
@@ -1733,7 +1733,7 @@ fn update_master_title_rejects_over_twenty_units() {
 
 #[test]
 fn update_master_title_unknown_master_returns_404() {
-    with_plan_task_sandbox(|_| {
+    with_todo_task_sandbox(|_| {
         let v = update_master_title("task_nonexistent_aaaaaaaaaaaaaaaa", "New");
         assert_eq!(v["_status"], 404);
         assert_eq!(v["error"], "Task not found");
@@ -1761,7 +1761,7 @@ fn load_attachments_file(wb: &Path, master_id: &str) -> AttachmentsFile {
 
 #[test]
 fn add_attachment_md_copies_and_writes_manifest() {
-    with_plan_task_sandbox(|wb| {
+    with_todo_task_sandbox(|wb| {
         let created = create_master_with_subs("Attach me", None);
         let master_id = created["master_task_id"].as_str().unwrap();
         let content = "# Notes\n\nhello";
@@ -1786,7 +1786,7 @@ fn add_attachment_md_copies_and_writes_manifest() {
 
 #[test]
 fn add_attachment_stem_conflict_appends_numeric_suffix() {
-    with_plan_task_sandbox(|wb| {
+    with_todo_task_sandbox(|wb| {
         let created = create_master_with_subs("Conflict", None);
         let master_id = created["master_task_id"].as_str().unwrap();
 
@@ -1828,7 +1828,7 @@ fn add_attachment_stem_conflict_appends_numeric_suffix() {
 
 #[test]
 fn add_attachment_allows_empty_md_content() {
-    with_plan_task_sandbox(|wb| {
+    with_todo_task_sandbox(|wb| {
         let created = create_master_with_subs("Empty md", None);
         let master_id = created["master_task_id"].as_str().unwrap();
 
@@ -1846,7 +1846,7 @@ fn add_attachment_allows_empty_md_content() {
 
 #[test]
 fn add_attachment_accepts_uppercase_md_extension() {
-    with_plan_task_sandbox(|wb| {
+    with_todo_task_sandbox(|wb| {
         let created = create_master_with_subs("Upper ext", None);
         let master_id = created["master_task_id"].as_str().unwrap();
 
@@ -1870,7 +1870,7 @@ fn add_attachment_accepts_uppercase_md_extension() {
 
 #[test]
 fn add_attachment_rejects_non_md_without_side_effects() {
-    with_plan_task_sandbox(|wb| {
+    with_todo_task_sandbox(|wb| {
         let created = create_master_with_subs("Reject txt", None);
         let master_id = created["master_task_id"].as_str().unwrap();
 
@@ -1885,7 +1885,7 @@ fn add_attachment_rejects_non_md_without_side_effects() {
 
 #[test]
 fn add_attachment_rejects_path_separators_and_empty_name() {
-    with_plan_task_sandbox(|wb| {
+    with_todo_task_sandbox(|wb| {
         let created = create_master_with_subs("Bad names", None);
         let master_id = created["master_task_id"].as_str().unwrap();
 
@@ -1902,7 +1902,7 @@ fn add_attachment_rejects_path_separators_and_empty_name() {
 
 #[test]
 fn add_attachment_manifest_write_failure_rolls_back_copy() {
-    with_plan_task_sandbox(|wb| {
+    with_todo_task_sandbox(|wb| {
         let created = create_master_with_subs("Rollback", None);
         let master_id = created["master_task_id"].as_str().unwrap();
 
@@ -1927,7 +1927,7 @@ fn add_attachment_manifest_write_failure_rolls_back_copy() {
 
 #[test]
 fn add_attachment_unknown_master_returns_404_without_writes() {
-    with_plan_task_sandbox(|wb| {
+    with_todo_task_sandbox(|wb| {
         let v = add_attachment("task_nonexistent_aaaaaaaaaaaaaaaa", "notes.md", "x");
         assert_eq!(v["_status"], 404);
         assert_eq!(v["error"], "Task not found");
@@ -1941,7 +1941,7 @@ fn add_attachment_unknown_master_returns_404_without_writes() {
 
 #[test]
 fn add_attachment_unwritable_task_dir_fails_without_half_success() {
-    with_plan_task_sandbox(|wb| {
+    with_todo_task_sandbox(|wb| {
         let created = create_master_with_subs("Readonly dir", None);
         let master_id = created["master_task_id"].as_str().unwrap();
         let task_dir = wb.join("plan_tasks").join("tasks").join(master_id);
@@ -1964,7 +1964,7 @@ fn add_attachment_unwritable_task_dir_fails_without_half_success() {
 
 #[test]
 fn list_attachments_returns_manifest_entries_not_directory_scan() {
-    with_plan_task_sandbox(|wb| {
+    with_todo_task_sandbox(|wb| {
         let created = create_master_with_subs("List attach", None);
         let master_id = created["master_task_id"].as_str().unwrap();
 
@@ -1995,7 +1995,7 @@ fn list_attachments_returns_manifest_entries_not_directory_scan() {
 
 #[test]
 fn list_attachments_missing_manifest_or_empty_returns_empty_collection() {
-    with_plan_task_sandbox(|wb| {
+    with_todo_task_sandbox(|wb| {
         let created = create_master_with_subs("Empty list", None);
         let master_id = created["master_task_id"].as_str().unwrap();
 
@@ -2021,7 +2021,7 @@ fn list_attachments_missing_manifest_or_empty_returns_empty_collection() {
 
 #[test]
 fn list_attachments_unknown_master_returns_404() {
-    with_plan_task_sandbox(|_| {
+    with_todo_task_sandbox(|_| {
         let v = list_attachments("task_nonexistent_aaaaaaaaaaaaaaaa");
         assert_eq!(v["_status"], 404);
         assert_eq!(v["error"], "Task not found");
@@ -2030,7 +2030,7 @@ fn list_attachments_unknown_master_returns_404() {
 
 #[test]
 fn read_attachment_returns_manifest_file_content() {
-    with_plan_task_sandbox(|_| {
+    with_todo_task_sandbox(|_| {
         let created = create_master_with_subs("Read attach", None);
         let master_id = created["master_task_id"].as_str().unwrap();
         let content = "# Body\n\nline";
@@ -2047,7 +2047,7 @@ fn read_attachment_returns_manifest_file_content() {
 
 #[test]
 fn read_attachment_rejects_non_manifest_target() {
-    with_plan_task_sandbox(|wb| {
+    with_todo_task_sandbox(|wb| {
         let created = create_master_with_subs("Read reject", None);
         let master_id = created["master_task_id"].as_str().unwrap();
         add_attachment(master_id, "listed.md", "ok");
@@ -2063,8 +2063,8 @@ fn read_attachment_rejects_non_manifest_target() {
 
 #[test]
 fn save_attachment_writes_content_without_touching_plan_md() {
-    with_plan_task_sandbox(|wb| {
-        let created = create_master_with_subs_and_plan("Save attach", None, "# Plan body");
+    with_todo_task_sandbox(|wb| {
+        let created = create_master_with_subs_and_todo("Save attach", None, "# Plan body");
         let master_id = created["master_task_id"].as_str().unwrap();
         let plan_path = wb
             .join("plan_tasks")
@@ -2084,13 +2084,13 @@ fn save_attachment_writes_content_without_touching_plan_md() {
             "new content"
         );
         assert_eq!(fs::read_to_string(&plan_path).unwrap(), plan_before);
-        assert_eq!(read_plan_md(master_id)["plan_md"], "# Plan body");
+        assert_eq!(read_todo_md(master_id)["plan_md"], "# Plan body");
     });
 }
 
 #[test]
 fn save_attachment_allows_empty_content() {
-    with_plan_task_sandbox(|wb| {
+    with_todo_task_sandbox(|wb| {
         let created = create_master_with_subs("Save empty", None);
         let master_id = created["master_task_id"].as_str().unwrap();
         add_attachment(master_id, "notes.md", "had text");
@@ -2107,7 +2107,7 @@ fn save_attachment_allows_empty_content() {
 
 #[test]
 fn save_attachment_rejects_non_manifest_target() {
-    with_plan_task_sandbox(|wb| {
+    with_todo_task_sandbox(|wb| {
         let created = create_master_with_subs("Save reject", None);
         let master_id = created["master_task_id"].as_str().unwrap();
         add_attachment(master_id, "listed.md", "ok");
@@ -2131,7 +2131,7 @@ fn save_attachment_rejects_non_manifest_target() {
 
 #[test]
 fn delete_attachment_removes_manifest_entry_and_file() {
-    with_plan_task_sandbox(|wb| {
+    with_todo_task_sandbox(|wb| {
         let created = create_master_with_subs("Delete attach", None);
         let master_id = created["master_task_id"].as_str().unwrap();
 
@@ -2162,7 +2162,7 @@ fn delete_attachment_removes_manifest_entry_and_file() {
 
 #[test]
 fn delete_attachment_preserves_other_entries() {
-    with_plan_task_sandbox(|wb| {
+    with_todo_task_sandbox(|wb| {
         let created = create_master_with_subs("Delete keeps others", None);
         let master_id = created["master_task_id"].as_str().unwrap();
 
@@ -2199,7 +2199,7 @@ fn delete_attachment_preserves_other_entries() {
 
 #[test]
 fn delete_attachment_rejects_non_manifest_target_without_side_effects() {
-    with_plan_task_sandbox(|wb| {
+    with_todo_task_sandbox(|wb| {
         let created = create_master_with_subs("Delete reject", None);
         let master_id = created["master_task_id"].as_str().unwrap();
         assert_eq!(add_attachment(master_id, "listed.md", "ok")["_status"], 201);
@@ -2226,7 +2226,7 @@ fn delete_attachment_rejects_non_manifest_target_without_side_effects() {
 
 #[test]
 fn delete_attachment_file_delete_failure_restores_manifest() {
-    with_plan_task_sandbox(|wb| {
+    with_todo_task_sandbox(|wb| {
         let created = create_master_with_subs("Delete rollback", None);
         let master_id = created["master_task_id"].as_str().unwrap();
 
@@ -2258,7 +2258,7 @@ fn delete_attachment_file_delete_failure_restores_manifest() {
 
 #[test]
 fn delete_attachment_unknown_master_returns_404() {
-    with_plan_task_sandbox(|_| {
+    with_todo_task_sandbox(|_| {
         let v = delete_attachment("task_nonexistent_aaaaaaaaaaaaaaaa", "notes.md");
         assert_eq!(v["_status"], 404);
         assert_eq!(v["error"], "Task not found");
@@ -2267,7 +2267,7 @@ fn delete_attachment_unknown_master_returns_404() {
 
 #[test]
 fn delete_master_cascades_attachments_dir_and_manifest() {
-    with_plan_task_sandbox(|wb| {
+    with_todo_task_sandbox(|wb| {
         let created = create_master_with_subs("Delete with attach", None);
         let master_id = created["master_task_id"].as_str().unwrap();
         let add = add_attachment(master_id, "notes.md", "# keep\n");
@@ -2299,7 +2299,7 @@ fn delete_master_cascades_attachments_dir_and_manifest() {
 
 #[test]
 fn delete_master_without_attachments_matches_existing_behavior() {
-    with_plan_task_sandbox(|wb| {
+    with_todo_task_sandbox(|wb| {
         let created = create_master_with_subs("Delete bare", None);
         let master_id = created["master_task_id"].as_str().unwrap();
         let task_dir = wb.join("plan_tasks").join("tasks").join(master_id);
@@ -2321,7 +2321,7 @@ fn delete_master_without_attachments_matches_existing_behavior() {
 
 #[test]
 fn ac15_stem_conflict_appends_suffix_and_keeps_originals() {
-    with_plan_task_sandbox(|wb| {
+    with_todo_task_sandbox(|wb| {
         let created = create_master_with_subs("AC15 suffix", None);
         let master_id = created["master_task_id"].as_str().unwrap();
 
@@ -2353,7 +2353,7 @@ fn ac15_stem_conflict_appends_suffix_and_keeps_originals() {
 
 #[test]
 fn ac15_add_manifest_failure_rolls_back_without_half_success() {
-    with_plan_task_sandbox(|wb| {
+    with_todo_task_sandbox(|wb| {
         let created = create_master_with_subs("AC15 rollback", None);
         let master_id = created["master_task_id"].as_str().unwrap();
         assert_eq!(add_attachment(master_id, "keep.md", "keep")["_status"], 201);
@@ -2369,7 +2369,7 @@ fn ac15_add_manifest_failure_rolls_back_without_half_success() {
 
 #[test]
 fn ac15_delete_clears_manifest_entry_and_file() {
-    with_plan_task_sandbox(|wb| {
+    with_todo_task_sandbox(|wb| {
         let created = create_master_with_subs("AC15 dual clear", None);
         let master_id = created["master_task_id"].as_str().unwrap();
         assert_eq!(add_attachment(master_id, "gone.md", "x")["_status"], 201);
@@ -2393,7 +2393,7 @@ fn ac15_delete_clears_manifest_entry_and_file() {
 
 #[test]
 fn ac15_empty_list_and_non_md_reject() {
-    with_plan_task_sandbox(|wb| {
+    with_todo_task_sandbox(|wb| {
         let created = create_master_with_subs("AC15 boundary", None);
         let master_id = created["master_task_id"].as_str().unwrap();
 

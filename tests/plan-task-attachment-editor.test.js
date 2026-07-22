@@ -67,27 +67,27 @@ describe('readPlanAttachment / savePlanAttachment', () => {
     delete window.__TAURI__;
   });
 
-  it('readPlanAttachment invokes read_plan_attachment with masterTaskId and fileName', async () => {
+  it('readPlanAttachment invokes read_todo_attachment with masterTaskId and fileName', async () => {
     invokeMock.mockResolvedValue({ file_name: 'notes.md', content: ATTACHMENT_BODY });
     const result = await readPlanAttachment({
       masterTaskId: 'task_alpha',
       fileName: 'notes.md',
     });
-    expect(invokeMock).toHaveBeenCalledWith('read_plan_attachment', {
+    expect(invokeMock).toHaveBeenCalledWith('read_todo_attachment', {
       masterTaskId: 'task_alpha',
       fileName: 'notes.md',
     });
     expect(result).toEqual({ file_name: 'notes.md', content: ATTACHMENT_BODY });
   });
 
-  it('savePlanAttachment invokes save_plan_attachment with masterTaskId, fileName, content', async () => {
+  it('savePlanAttachment invokes save_todo_attachment with masterTaskId, fileName, content', async () => {
     invokeMock.mockResolvedValue({ ok: true });
     await savePlanAttachment({
       masterTaskId: 'task_alpha',
       fileName: 'notes.md',
       content: '# Saved',
     });
-    expect(invokeMock).toHaveBeenCalledWith('save_plan_attachment', {
+    expect(invokeMock).toHaveBeenCalledWith('save_todo_attachment', {
       masterTaskId: 'task_alpha',
       fileName: 'notes.md',
       content: '# Saved',
@@ -129,13 +129,13 @@ describe('mountPlanTaskSplit attachment editor modal', () => {
   function mockHappyPath() {
     getJsonMock.mockResolvedValue([sampleMaster]);
     invokeMock.mockImplementation(async (cmd) => {
-      if (cmd === 'list_plan_attachments') {
+      if (cmd === 'list_todo_attachments') {
         return { attachments: sampleAttachments, _status: 200 };
       }
-      if (cmd === 'read_plan_attachment') {
+      if (cmd === 'read_todo_attachment') {
         return { file_name: 'notes.md', content: ATTACHMENT_BODY };
       }
-      if (cmd === 'save_plan_attachment') {
+      if (cmd === 'save_todo_attachment') {
         return { ok: true };
       }
       return {};
@@ -170,11 +170,11 @@ describe('mountPlanTaskSplit attachment editor modal', () => {
 
   it('clicking an attachment opens a modal with preview by default (viewer-style)', async () => {
     const { dispose } = await openAttachmentEditor();
-    expect(invokeMock).toHaveBeenCalledWith('read_plan_attachment', {
+    expect(invokeMock).toHaveBeenCalledWith('read_todo_attachment', {
       masterTaskId: 'task_alpha',
       fileName: 'notes.md',
     });
-    expect(invokeMock).not.toHaveBeenCalledWith('read_plan_md', expect.anything());
+    expect(invokeMock).not.toHaveBeenCalledWith('read_todo_md', expect.anything());
 
     const editor = container.querySelector('.plan-task-attachment-editor');
     expect(editor).not.toBeNull();
@@ -186,7 +186,7 @@ describe('mountPlanTaskSplit attachment editor modal', () => {
     dispose();
   });
 
-  it('can switch to edit mode and save via save_plan_attachment', async () => {
+  it('can switch to edit mode and save via save_todo_attachment', async () => {
     const { dispose } = await openAttachmentEditor();
     const editor = container.querySelector('.plan-task-attachment-editor');
     editor.querySelector('[data-action="edit-attachment"]').click();
@@ -200,13 +200,13 @@ describe('mountPlanTaskSplit attachment editor modal', () => {
     editor.querySelector('[data-action="save-attachment"]').click();
 
     await vi.waitFor(() => {
-      expect(invokeMock).toHaveBeenCalledWith('save_plan_attachment', {
+      expect(invokeMock).toHaveBeenCalledWith('save_todo_attachment', {
         masterTaskId: 'task_alpha',
         fileName: 'notes.md',
         content: '# Saved attachment\n\nUpdated.',
       });
     });
-    expect(invokeMock).not.toHaveBeenCalledWith('update_plan_md', expect.anything());
+    expect(invokeMock).not.toHaveBeenCalledWith('update_todo_md', expect.anything());
 
     await vi.waitFor(() => {
       const modal = container.querySelector('.plan-task-attachment-editor');
@@ -230,7 +230,7 @@ describe('mountPlanTaskSplit attachment editor modal', () => {
     await vi.waitFor(() => {
       expect(container.querySelector('.plan-task-attachment-editor')).toBeNull();
     });
-    expect(invokeMock).not.toHaveBeenCalledWith('save_plan_attachment', expect.anything());
+    expect(invokeMock).not.toHaveBeenCalledWith('save_todo_attachment', expect.anything());
 
     // Re-open: draft must not persist
     container
@@ -259,13 +259,13 @@ describe('mountPlanTaskSplit attachment editor modal', () => {
   it('keeps editor content and shows error when save fails', async () => {
     getJsonMock.mockResolvedValue([sampleMaster]);
     invokeMock.mockImplementation(async (cmd) => {
-      if (cmd === 'list_plan_attachments') {
+      if (cmd === 'list_todo_attachments') {
         return { attachments: sampleAttachments, _status: 200 };
       }
-      if (cmd === 'read_plan_attachment') {
+      if (cmd === 'read_todo_attachment') {
         return { file_name: 'notes.md', content: ATTACHMENT_BODY };
       }
-      if (cmd === 'save_plan_attachment') {
+      if (cmd === 'save_todo_attachment') {
         return { error: 'Disk full', _status: 500 };
       }
       return {};
@@ -297,22 +297,22 @@ describe('mountPlanTaskSplit attachment editor modal', () => {
 });
 
 describe('attachment editor surface contracts', () => {
-  it('does not reuse read_plan_md / update_plan_md for attachment editor path', () => {
+  it('does not reuse read_todo_md / update_todo_md for attachment editor path', () => {
     const src = readFileSync(join(repoRoot, 'frontend/js/plan-task/index.js'), 'utf8');
-    expect(src).toMatch(/read_plan_attachment/);
-    expect(src).toMatch(/save_plan_attachment/);
+    expect(src).toMatch(/read_todo_attachment/);
+    expect(src).toMatch(/save_todo_attachment/);
 
     const openIdx = src.indexOf("action === 'open-attachment'");
     expect(openIdx).toBeGreaterThan(-1);
     const openBlock = src.slice(openIdx, openIdx + 800);
-    expect(openBlock).not.toContain('read_plan_md');
-    expect(openBlock).not.toContain('update_plan_md');
+    expect(openBlock).not.toContain('read_todo_md');
+    expect(openBlock).not.toContain('update_todo_md');
 
     const saveIdx = src.indexOf("action === 'save-attachment'");
     expect(saveIdx).toBeGreaterThan(-1);
     const saveBlock = src.slice(saveIdx, saveIdx + 600);
-    expect(saveBlock).not.toContain('update_plan_md');
-    expect(saveBlock).not.toContain('read_plan_md');
+    expect(saveBlock).not.toContain('update_todo_md');
+    expect(saveBlock).not.toContain('read_todo_md');
   });
 
   it('attachment editor is a dedicated modal surface, not comments default-edit or plan_md inline', () => {

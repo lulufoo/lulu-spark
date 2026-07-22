@@ -12,7 +12,7 @@ use crate::services::archive_parse::{
     expected_zh_common_path, is_valid_entry_id, parse_archive_document,
 };
 use crate::services::id::random_entry_id;
-use crate::services::plan_task;
+use crate::services::todo_task;
 use crate::services::workbench_read::get_corpus_index;
 
 /// Options for Host-side note archive shell synthesis.
@@ -335,12 +335,12 @@ fn finalize_task_linked_archive(
     sub_task_id: &str,
     archive_id: &str,
 ) -> Value {
-    let complete = plan_task::complete_sub(master_task_id, sub_task_id);
+    let complete = todo_task::complete_sub(master_task_id, sub_task_id);
     if complete.get("_status").and_then(|v| v.as_u64()) != Some(200) {
         dual_store_rollback(written, index_path, index_snapshot);
         return complete;
     }
-    let linked = plan_task::link_archive(master_task_id, sub_task_id, archive_id);
+    let linked = todo_task::link_archive(master_task_id, sub_task_id, archive_id);
     if linked.get("_status").and_then(|v| v.as_u64()) != Some(200) {
         // link-fail asymmetry (FM-5): complete_sub already persisted; corpus rolls back only.
         dual_store_rollback(written, index_path, index_snapshot);

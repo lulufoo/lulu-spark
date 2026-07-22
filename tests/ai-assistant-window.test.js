@@ -29,7 +29,7 @@ describe('ai-assistant window shell (t5)', () => {
     const js = readFileSync(jsPath, 'utf8');
     expect(js).toMatch(/agent_chat_turn/);
     expect(js).not.toMatch(
-      /add_plan_sub|update_plan_sub|update_plan_master_title|create_plan_task/,
+      /add_todo_sub|update_todo_sub|update_todo_master_title|create_todo_task/,
     );
   });
 

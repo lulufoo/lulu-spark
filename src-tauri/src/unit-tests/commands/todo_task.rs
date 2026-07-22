@@ -2,27 +2,27 @@ use std::fs;
 
 use serde_json::json;
 
-use crate::commands::plan_task::{
-    abandon_plan_sub_json, add_plan_attachment, add_plan_attachment_json, add_plan_sub_json,
-    complete_plan, complete_plan_json, create_plan_task_json, delete_plan_attachment,
-    delete_plan_attachment_json, delete_plan_sub_json, delete_plan_task_json,
-    get_plan_tasks_json, list_plan_attachments, list_plan_attachments_json,
-    read_plan_attachment, read_plan_attachment_json, read_plan_md_json,
-    save_plan_attachment, save_plan_attachment_json, update_plan_master_title_json,
-    update_plan_md_json,
+use crate::commands::todo_task::{
+    abandon_todo_sub_json, add_todo_attachment, add_todo_attachment_json, add_todo_sub_json,
+    complete_todo, complete_todo_json, create_todo_task_json, delete_todo_attachment,
+    delete_todo_attachment_json, delete_todo_sub_json, delete_todo_task_json,
+    get_todo_tasks_json, list_todo_attachments, list_todo_attachments_json,
+    read_todo_attachment, read_todo_attachment_json, read_todo_md_json,
+    save_todo_attachment, save_todo_attachment_json, update_todo_master_title_json,
+    update_todo_md_json,
 };
-use crate::services::plan_task::{
+use crate::services::todo_task::{
     create_master_with_subs, list_all, test_reset_all_injection_flags, test_run_write_task_batch,
-    test_set_fail_batch_plan_md,
+    test_set_fail_batch_todo_md,
 };
-use crate::services::plan_task::types::{IndexEntry, MasterTaskStatus, SubTasksFile};
+use crate::services::todo_task::types::{IndexEntry, MasterTaskStatus, SubTasksFile};
 use crate::test_support::TestSandbox;
 
 fn master_from_invoke(v: &serde_json::Value) -> &serde_json::Value {
     v.get("task").expect("task field")
 }
 
-fn with_commands_plan_test<F: FnOnce()>(f: F) {
+fn with_commands_todo_test<F: FnOnce()>(f: F) {
     let _sandbox = TestSandbox::new();
     test_reset_all_injection_flags();
     f();
@@ -33,7 +33,7 @@ fn assert_master_task_shape(task: &serde_json::Value) {
     assert!(task.get("title").and_then(|v| v.as_str()).is_some());
     let status = task.get("status").and_then(|v| v.as_str()).expect("status");
     assert!(
-        super::PLAN_TASK_MASTER_STATUS_WIRE.contains(&status),
+        super::TODO_TASK_MASTER_STATUS_WIRE.contains(&status),
         "locked read exit status must be tri-state wire value, got {status}"
     );
     assert!(task.get("created_at").and_then(|v| v.as_str()).is_some());
@@ -47,19 +47,19 @@ fn assert_master_task_shape(task: &serde_json::Value) {
 }
 
 #[test]
-fn get_plan_tasks_json_empty_returns_empty_array() {
-    with_commands_plan_test(|| {
-        let listed = get_plan_tasks_json().expect("empty list");
+fn get_todo_tasks_json_empty_returns_empty_array() {
+    with_commands_todo_test(|| {
+        let listed = get_todo_tasks_json().expect("empty list");
         assert_eq!(listed.as_array().expect("array").len(), 0);
     });
 }
 
 #[test]
-fn get_plan_tasks_json_returns_desc_sorted_array() {
-    with_commands_plan_test(|| {
+fn get_todo_tasks_json_returns_desc_sorted_array() {
+    with_commands_todo_test(|| {
         let created = create_master_with_subs("Plan A", None);
         assert!(created.get("master_task_id").is_some());
-        let listed = get_plan_tasks_json().expect("list");
+        let listed = get_todo_tasks_json().expect("list");
         let arr = listed.as_array().expect("array");
         assert!(!arr.is_empty());
         assert_eq!(list_all(), listed);
@@ -67,10 +67,10 @@ fn get_plan_tasks_json_returns_desc_sorted_array() {
 }
 
 #[test]
-fn get_plan_tasks_json_v2_empty_sub_tasks_shape() {
-    with_commands_plan_test(|| {
+fn get_todo_tasks_json_v2_empty_sub_tasks_shape() {
+    with_commands_todo_test(|| {
         create_master_with_subs("Empty UI", None);
-        let listed = get_plan_tasks_json().expect("list");
+        let listed = get_todo_tasks_json().expect("list");
         let task = &listed.as_array().expect("array")[0];
         assert_master_task_shape(task);
         let subs = task["sub_tasks"].as_array().expect("sub_tasks");
@@ -80,10 +80,10 @@ fn get_plan_tasks_json_v2_empty_sub_tasks_shape() {
 }
 
 #[test]
-fn get_plan_tasks_json_v2_multi_sub_shape() {
-    with_commands_plan_test(|| {
+fn get_todo_tasks_json_v2_multi_sub_shape() {
+    with_commands_todo_test(|| {
         create_master_with_subs("Multi UI", Some(&["A", "B"]));
-        let listed = get_plan_tasks_json().expect("list");
+        let listed = get_todo_tasks_json().expect("list");
         let task = &listed.as_array().expect("array")[0];
         assert_master_task_shape(task);
         let subs = task["sub_tasks"].as_array().expect("sub_tasks");
@@ -94,12 +94,12 @@ fn get_plan_tasks_json_v2_multi_sub_shape() {
 }
 
 #[test]
-fn get_plan_tasks_json_sorts_by_created_at_desc() {
-    with_commands_plan_test(|| {
+fn get_todo_tasks_json_sorts_by_created_at_desc() {
+    with_commands_todo_test(|| {
         create_master_with_subs("Older", None);
         std::thread::sleep(std::time::Duration::from_millis(5));
         create_master_with_subs("Newer", None);
-        let listed = get_plan_tasks_json().expect("list");
+        let listed = get_todo_tasks_json().expect("list");
         let arr = listed.as_array().expect("array");
         assert_eq!(arr.len(), 2);
         assert_eq!(arr[0]["title"], "Newer");
@@ -108,8 +108,8 @@ fn get_plan_tasks_json_sorts_by_created_at_desc() {
 }
 
 #[test]
-fn get_plan_tasks_json_corrupt_v2_storage_returns_err() {
-    with_commands_plan_test(|| {
+fn get_todo_tasks_json_corrupt_v2_storage_returns_err() {
+    with_commands_todo_test(|| {
         let wb = crate::config::paths::workbench_knowledge_root().expect("wb");
         let master_id = "task_corrupt_cmd";
         let plan_tasks_dir = wb.join("plan_tasks");
@@ -140,7 +140,7 @@ fn get_plan_tasks_json_corrupt_v2_storage_returns_err() {
         )
         .expect("write corrupt sub_tasks");
 
-        let listed = get_plan_tasks_json().expect("list with migration_error");
+        let listed = get_todo_tasks_json().expect("list with migration_error");
         let arr = listed.as_array().expect("array");
         assert_eq!(arr.len(), 1);
         assert_eq!(arr[0]["master_task_id"], master_id);
@@ -149,9 +149,9 @@ fn get_plan_tasks_json_corrupt_v2_storage_returns_err() {
 }
 
 #[test]
-fn create_plan_task_json_title_only_creates_empty_sub_tasks() {
-    with_commands_plan_test(|| {
-        let v = create_plan_task_json("Empty cmd", None, "").expect("create");
+fn create_todo_task_json_title_only_creates_empty_sub_tasks() {
+    with_commands_todo_test(|| {
+        let v = create_todo_task_json("Empty cmd", None, "").expect("create");
         assert!(v.get("_status").is_none());
         assert!(v.get("master_task_id").and_then(|x| x.as_str()).is_some());
         assert!(v.get("sub_task_id").is_none());
@@ -165,9 +165,9 @@ fn create_plan_task_json_title_only_creates_empty_sub_tasks() {
 }
 
 #[test]
-fn create_plan_task_json_explicit_subs_strips_status() {
-    with_commands_plan_test(|| {
-        let v = create_plan_task_json("Multi cmd", Some(&["A", "B"]), "").expect("create");
+fn create_todo_task_json_explicit_subs_strips_status() {
+    with_commands_todo_test(|| {
+        let v = create_todo_task_json("Multi cmd", Some(&["A", "B"]), "").expect("create");
         assert!(v.get("_status").is_none());
         let task = master_from_invoke(&v);
         assert_master_task_shape(task);
@@ -181,25 +181,25 @@ fn create_plan_task_json_explicit_subs_strips_status() {
 }
 
 #[test]
-fn create_plan_task_json_empty_title_returns_400_class() {
-    with_commands_plan_test(|| {
-        let v = create_plan_task_json("", None, "").expect("invoke");
+fn create_todo_task_json_empty_title_returns_400_class() {
+    with_commands_todo_test(|| {
+        let v = create_todo_task_json("", None, "").expect("invoke");
         assert_eq!(v["error"], "Missing title");
         assert_eq!(v["_status"], 400);
     });
 }
 
 #[test]
-fn delete_plan_task_json_removes_master_from_list() {
-    with_commands_plan_test(|| {
-        let created = create_plan_task_json("Delete me", None, "").expect("create");
+fn delete_todo_task_json_removes_master_from_list() {
+    with_commands_todo_test(|| {
+        let created = create_todo_task_json("Delete me", None, "").expect("create");
         let master_id = created["master_task_id"].as_str().expect("id").to_string();
 
-        let deleted = delete_plan_task_json(&master_id).expect("delete");
+        let deleted = delete_todo_task_json(&master_id).expect("delete");
         assert!(deleted.get("_status").is_none());
         assert_eq!(deleted["ok"], true);
 
-        let listed = get_plan_tasks_json().expect("list");
+        let listed = get_todo_tasks_json().expect("list");
         let found = listed
             .as_array()
             .expect("array")
@@ -210,16 +210,16 @@ fn delete_plan_task_json_removes_master_from_list() {
 }
 
 #[test]
-fn add_plan_sub_json_appends_and_returns_updated_master() {
-    with_commands_plan_test(|| {
-        let created = create_plan_task_json("Add sub", Some(&["A"]), "").expect("create");
+fn add_todo_sub_json_appends_and_returns_updated_master() {
+    with_commands_todo_test(|| {
+        let created = create_todo_task_json("Add sub", Some(&["A"]), "").expect("create");
         let master_id = created["master_task_id"].as_str().expect("id").to_string();
         let before_len = master_from_invoke(&created)["sub_tasks"]
             .as_array()
             .expect("subs")
             .len();
 
-        let added = add_plan_sub_json(&master_id, "B").expect("add");
+        let added = add_todo_sub_json(&master_id, "B").expect("add");
         assert!(added.get("_status").is_none());
         let task = master_from_invoke(&added);
         let subs = task["sub_tasks"].as_array().expect("subs");
@@ -230,16 +230,16 @@ fn add_plan_sub_json_appends_and_returns_updated_master() {
 }
 
 #[test]
-fn delete_plan_sub_json_keeps_remaining_when_not_last() {
-    with_commands_plan_test(|| {
-        let created = create_plan_task_json("Del sub", Some(&["A", "B"]), "").expect("create");
+fn delete_todo_sub_json_keeps_remaining_when_not_last() {
+    with_commands_todo_test(|| {
+        let created = create_todo_task_json("Del sub", Some(&["A", "B"]), "").expect("create");
         let master_id = created["master_task_id"].as_str().expect("id").to_string();
         let sub_a = master_from_invoke(&created)["sub_tasks"][0]["sub_task_id"]
             .as_str()
             .expect("sub_a")
             .to_string();
 
-        let deleted = delete_plan_sub_json(&master_id, &sub_a).expect("delete sub");
+        let deleted = delete_todo_sub_json(&master_id, &sub_a).expect("delete sub");
         assert!(deleted.get("_status").is_none());
         let task = master_from_invoke(&deleted);
         let subs = task["sub_tasks"].as_array().expect("subs");
@@ -249,9 +249,9 @@ fn delete_plan_sub_json_keeps_remaining_when_not_last() {
 }
 
 #[test]
-fn delete_plan_sub_json_last_sub_allows_empty_sub_tasks() {
-    with_commands_plan_test(|| {
-        let created = create_plan_task_json("Last sub", Some(&["Only"]), "")
+fn delete_todo_sub_json_last_sub_allows_empty_sub_tasks() {
+    with_commands_todo_test(|| {
+        let created = create_todo_task_json("Last sub", Some(&["Only"]), "")
             .expect("create");
         let master_id = created["master_task_id"].as_str().expect("id").to_string();
         let last_sub = master_from_invoke(&created)["sub_tasks"][0]["sub_task_id"]
@@ -259,13 +259,13 @@ fn delete_plan_sub_json_last_sub_allows_empty_sub_tasks() {
             .expect("sub")
             .to_string();
 
-        let deleted = delete_plan_sub_json(&master_id, &last_sub).expect("invoke");
+        let deleted = delete_todo_sub_json(&master_id, &last_sub).expect("invoke");
         assert!(deleted.get("_status").is_none());
         let task = master_from_invoke(&deleted);
         assert_eq!(task["status"], "incomplete");
         assert!(task["sub_tasks"].as_array().expect("subs").is_empty());
 
-        let listed = get_plan_tasks_json().expect("list");
+        let listed = get_todo_tasks_json().expect("list");
         let task = listed
             .as_array()
             .expect("array")
@@ -277,9 +277,9 @@ fn delete_plan_sub_json_last_sub_allows_empty_sub_tasks() {
 }
 
 #[test]
-fn delete_plan_task_json_unknown_id_returns_404_class() {
-    with_commands_plan_test(|| {
-        let v = delete_plan_task_json("task_nonexistent_aaaaaaaaaaaaaaaa")
+fn delete_todo_task_json_unknown_id_returns_404_class() {
+    with_commands_todo_test(|| {
+        let v = delete_todo_task_json("task_nonexistent_aaaaaaaaaaaaaaaa")
             .expect("invoke");
         assert_eq!(v["error"], "Task not found");
         assert_eq!(v["_status"], 404);
@@ -287,50 +287,50 @@ fn delete_plan_task_json_unknown_id_returns_404_class() {
 }
 
 #[test]
-fn read_plan_md_json_returns_plan_md_without_status() {
-    with_commands_plan_test(|| {
-        let created = create_plan_task_json("Plan md cmd", None, "").expect("create");
+fn read_todo_md_json_returns_plan_md_without_status() {
+    with_commands_todo_test(|| {
+        let created = create_todo_task_json("Plan md cmd", None, "").expect("create");
         let master_id = created["master_task_id"].as_str().expect("id");
 
-        let read = read_plan_md_json(master_id).expect("read");
+        let read = read_todo_md_json(master_id).expect("read");
         assert!(read.get("_status").is_none());
         assert_eq!(read["plan_md"], "");
     });
 }
 
 #[test]
-fn read_plan_md_json_missing_id_returns_400_class() {
-    with_commands_plan_test(|| {
-        let v = read_plan_md_json("").expect("invoke");
+fn read_todo_md_json_missing_id_returns_400_class() {
+    with_commands_todo_test(|| {
+        let v = read_todo_md_json("").expect("invoke");
         assert_eq!(v["error"], "Missing id");
         assert_eq!(v["_status"], 400);
     });
 }
 
 #[test]
-fn read_plan_md_json_unknown_master_returns_404_class() {
-    with_commands_plan_test(|| {
-        let v = read_plan_md_json("task_nonexistent_aaaaaaaaaaaaaaaa").expect("invoke");
+fn read_todo_md_json_unknown_master_returns_404_class() {
+    with_commands_todo_test(|| {
+        let v = read_todo_md_json("task_nonexistent_aaaaaaaaaaaaaaaa").expect("invoke");
         assert_eq!(v["error"], "Task not found");
         assert_eq!(v["_status"], 404);
     });
 }
 
 #[test]
-fn update_plan_md_json_round_trip_consistent_with_list() {
-    with_commands_plan_test(|| {
-        let created = create_plan_task_json("Update md", None, "").expect("create");
+fn update_todo_md_json_round_trip_consistent_with_list() {
+    with_commands_todo_test(|| {
+        let created = create_todo_task_json("Update md", None, "").expect("create");
         let master_id = created["master_task_id"].as_str().expect("id");
         let content = "# Plan\n\nBody text\n";
 
-        let updated = update_plan_md_json(master_id, content).expect("update");
+        let updated = update_todo_md_json(master_id, content).expect("update");
         assert!(updated.get("_status").is_none());
         assert_eq!(updated["ok"], true);
 
-        let read = read_plan_md_json(master_id).expect("read");
+        let read = read_todo_md_json(master_id).expect("read");
         assert_eq!(read["plan_md"], content);
 
-        let listed = get_plan_tasks_json().expect("list");
+        let listed = get_todo_tasks_json().expect("list");
         let task = listed
             .as_array()
             .expect("array")
@@ -342,18 +342,18 @@ fn update_plan_md_json_round_trip_consistent_with_list() {
 }
 
 #[test]
-fn update_plan_md_json_missing_id_returns_400_class() {
-    with_commands_plan_test(|| {
-        let v = update_plan_md_json("", "# Plan").expect("invoke");
+fn update_todo_md_json_missing_id_returns_400_class() {
+    with_commands_todo_test(|| {
+        let v = update_todo_md_json("", "# Plan").expect("invoke");
         assert_eq!(v["error"], "Missing id");
         assert_eq!(v["_status"], 400);
     });
 }
 
 #[test]
-fn update_plan_md_json_unknown_master_returns_404_class() {
-    with_commands_plan_test(|| {
-        let v = update_plan_md_json("task_nonexistent_aaaaaaaaaaaaaaaa", "# Plan")
+fn update_todo_md_json_unknown_master_returns_404_class() {
+    with_commands_todo_test(|| {
+        let v = update_todo_md_json("task_nonexistent_aaaaaaaaaaaaaaaa", "# Plan")
             .expect("invoke");
         assert_eq!(v["error"], "Task not found");
         assert_eq!(v["_status"], 404);
@@ -361,29 +361,29 @@ fn update_plan_md_json_unknown_master_returns_404_class() {
 }
 
 #[test]
-fn update_plan_md_json_io_failure_returns_500_class() {
-    with_commands_plan_test(|| {
-        let created = create_plan_task_json("IO fail cmd", Some(&["Sub"]), "").expect("create");
+fn update_todo_md_json_io_failure_returns_500_class() {
+    with_commands_todo_test(|| {
+        let created = create_todo_task_json("IO fail cmd", Some(&["Sub"]), "").expect("create");
         let master_id = created["master_task_id"].as_str().expect("id");
 
-        test_set_fail_batch_plan_md(true);
-        let v = update_plan_md_json(master_id, "should not persist").expect("invoke");
+        test_set_fail_batch_todo_md(true);
+        let v = update_todo_md_json(master_id, "should not persist").expect("invoke");
         assert_eq!(v["_status"], 500);
         assert!(v.get("error").is_some());
     });
 }
 
 #[test]
-fn complete_plan_json_marks_sub_complete_without_rewriting_master() {
-    with_commands_plan_test(|| {
-        let created = create_plan_task_json("Complete cmd", Some(&["A", "B"]), "").expect("create");
+fn complete_todo_json_marks_sub_complete_without_rewriting_master() {
+    with_commands_todo_test(|| {
+        let created = create_todo_task_json("Complete cmd", Some(&["A", "B"]), "").expect("create");
         let master_id = created["master_task_id"].as_str().expect("id").to_string();
         let sub_a = master_from_invoke(&created)["sub_tasks"][0]["sub_task_id"]
             .as_str()
             .expect("sub_a")
             .to_string();
 
-        let completed = complete_plan_json(&master_id, Some(&sub_a)).expect("complete");
+        let completed = complete_todo_json(&master_id, Some(&sub_a)).expect("complete");
         assert!(completed.get("_status").is_none());
         let task = master_from_invoke(&completed);
         assert_eq!(task["status"], "incomplete");
@@ -393,13 +393,13 @@ fn complete_plan_json_marks_sub_complete_without_rewriting_master() {
 }
 
 #[test]
-fn complete_plan_json_without_sub_marks_master_complete() {
-    with_commands_plan_test(|| {
+fn complete_todo_json_without_sub_marks_master_complete() {
+    with_commands_todo_test(|| {
         let created =
-            create_plan_task_json("Complete master", Some(&["A"]), "").expect("create");
+            create_todo_task_json("Complete master", Some(&["A"]), "").expect("create");
         let master_id = created["master_task_id"].as_str().expect("id").to_string();
 
-        let completed = complete_plan_json(&master_id, None).expect("complete master");
+        let completed = complete_todo_json(&master_id, None).expect("complete master");
         assert!(completed.get("_status").is_none());
         let task = master_from_invoke(&completed);
         assert_eq!(task["status"], "complete");
@@ -409,25 +409,25 @@ fn complete_plan_json_without_sub_marks_master_complete() {
 }
 
 #[test]
-fn complete_plan_json_already_complete_is_idempotent_success() {
-    with_commands_plan_test(|| {
+fn complete_todo_json_already_complete_is_idempotent_success() {
+    with_commands_todo_test(|| {
         let created =
-            create_plan_task_json("Idempotent complete", Some(&["A"]), "").expect("create");
+            create_todo_task_json("Idempotent complete", Some(&["A"]), "").expect("create");
         let master_id = created["master_task_id"].as_str().expect("id").to_string();
 
-        let first = complete_plan_json(&master_id, None).expect("first complete");
+        let first = complete_todo_json(&master_id, None).expect("first complete");
         assert!(first.get("_status").is_none());
         assert!(first.get("error").is_none());
         assert_eq!(master_from_invoke(&first)["status"], "complete");
 
-        let again = complete_plan_json(&master_id, None).expect("second complete");
+        let again = complete_todo_json(&master_id, None).expect("second complete");
         assert!(again.get("_status").is_none());
         assert!(again.get("error").is_none());
         let task = master_from_invoke(&again);
         assert_eq!(task["status"], "complete");
         assert_master_task_shape(task);
 
-        let listed = get_plan_tasks_json().expect("list");
+        let listed = get_todo_tasks_json().expect("list");
         let found = listed
             .as_array()
             .expect("array")
@@ -439,8 +439,8 @@ fn complete_plan_json_already_complete_is_idempotent_success() {
 }
 
 #[test]
-fn complete_plan_json_abandoned_master_rejects_with_stable_code() {
-    with_commands_plan_test(|| {
+fn complete_todo_json_abandoned_master_rejects_with_stable_code() {
+    with_commands_todo_test(|| {
         let abandoned_id = "task_cmd_complete_abandoned";
         test_run_write_task_batch(
             abandoned_id,
@@ -456,12 +456,12 @@ fn complete_plan_json_abandoned_master_rejects_with_stable_code() {
         )
         .expect("seed abandoned");
 
-        let rejected = complete_plan_json(abandoned_id, None).expect("invoke");
+        let rejected = complete_todo_json(abandoned_id, None).expect("invoke");
         assert_eq!(rejected["error"], "master_abandoned");
         assert_eq!(rejected["_status"], 409);
         assert!(rejected.get("task").is_none());
 
-        let listed = get_plan_tasks_json().expect("list");
+        let listed = get_todo_tasks_json().expect("list");
         let found = listed
             .as_array()
             .expect("array")
@@ -474,8 +474,8 @@ fn complete_plan_json_abandoned_master_rejects_with_stable_code() {
 }
 
 #[test]
-fn complete_plan_json_abandoned_still_allows_non_status_edit() {
-    with_commands_plan_test(|| {
+fn complete_todo_json_abandoned_still_allows_non_status_edit() {
+    with_commands_todo_test(|| {
         let abandoned_id = "task_cmd_abandoned_title_edit";
         test_run_write_task_batch(
             abandoned_id,
@@ -492,7 +492,7 @@ fn complete_plan_json_abandoned_still_allows_non_status_edit() {
         .expect("seed abandoned");
 
         let updated =
-            update_plan_master_title_json(abandoned_id, "Still editable").expect("title edit");
+            update_todo_master_title_json(abandoned_id, "Still editable").expect("title edit");
         assert!(updated.get("_status").is_none());
         let task = master_from_invoke(&updated);
         assert_eq!(task["title"], "Still editable");
@@ -502,9 +502,9 @@ fn complete_plan_json_abandoned_still_allows_non_status_edit() {
 }
 
 #[test]
-fn complete_plan_json_all_subs_done_leaves_master_incomplete() {
-    with_commands_plan_test(|| {
-        let created = create_plan_task_json("All subs done", Some(&["A", "B"]), "").expect("create");
+fn complete_todo_json_all_subs_done_leaves_master_incomplete() {
+    with_commands_todo_test(|| {
+        let created = create_todo_task_json("All subs done", Some(&["A", "B"]), "").expect("create");
         let master_id = created["master_task_id"].as_str().expect("id").to_string();
         let sub_ids: Vec<String> = master_from_invoke(&created)["sub_tasks"]
             .as_array()
@@ -514,11 +514,11 @@ fn complete_plan_json_all_subs_done_leaves_master_incomplete() {
             .collect();
 
         for sub_id in &sub_ids {
-            let completed = complete_plan_json(&master_id, Some(sub_id)).expect("complete");
+            let completed = complete_todo_json(&master_id, Some(sub_id)).expect("complete");
             assert!(completed.get("_status").is_none());
         }
 
-        let listed = get_plan_tasks_json().expect("list");
+        let listed = get_todo_tasks_json().expect("list");
         let task = listed
             .as_array()
             .expect("array")
@@ -534,9 +534,9 @@ fn complete_plan_json_all_subs_done_leaves_master_incomplete() {
 }
 
 #[test]
-fn create_plan_task_json_defaults_status_incomplete() {
-    with_commands_plan_test(|| {
-        let v = create_plan_task_json("Default status", None, "").expect("create");
+fn create_todo_task_json_defaults_status_incomplete() {
+    with_commands_todo_test(|| {
+        let v = create_todo_task_json("Default status", None, "").expect("create");
         let task = master_from_invoke(&v);
         assert_eq!(task["status"], "incomplete");
         assert_master_task_shape(task);
@@ -544,16 +544,16 @@ fn create_plan_task_json_defaults_status_incomplete() {
 }
 
 #[test]
-fn plan_task_master_status_wire_includes_abandoned() {
+fn todo_task_master_status_wire_includes_abandoned() {
     assert_eq!(
-        super::PLAN_TASK_MASTER_STATUS_WIRE,
+        super::TODO_TASK_MASTER_STATUS_WIRE,
         &["incomplete", "complete", "abandoned"]
     );
 }
 
 #[test]
-fn get_plan_tasks_json_reads_back_complete_and_abandoned_status() {
-    with_commands_plan_test(|| {
+fn get_todo_tasks_json_reads_back_complete_and_abandoned_status() {
+    with_commands_todo_test(|| {
         let complete_id = "task_cmd_status_complete";
         let abandoned_id = "task_cmd_status_abandoned";
         test_run_write_task_batch(
@@ -583,12 +583,12 @@ fn get_plan_tasks_json_reads_back_complete_and_abandoned_status() {
         )
         .expect("seed abandoned");
 
-        let created = create_plan_task_json("Create incomplete", None, "").expect("create");
+        let created = create_todo_task_json("Create incomplete", None, "").expect("create");
         let created_task = master_from_invoke(&created);
         assert_eq!(created_task["status"], "incomplete");
         assert_master_task_shape(created_task);
 
-        let listed = get_plan_tasks_json().expect("list");
+        let listed = get_todo_tasks_json().expect("list");
         let arr = listed.as_array().expect("array");
         let complete = arr
             .iter()
@@ -606,63 +606,63 @@ fn get_plan_tasks_json_reads_back_complete_and_abandoned_status() {
 }
 
 #[test]
-fn complete_plan_json_unknown_sub_returns_404_class() {
-    with_commands_plan_test(|| {
-        let created = create_plan_task_json("Complete 404", Some(&["A"]), "").expect("create");
+fn complete_todo_json_unknown_sub_returns_404_class() {
+    with_commands_todo_test(|| {
+        let created = create_todo_task_json("Complete 404", Some(&["A"]), "").expect("create");
         let master_id = created["master_task_id"].as_str().expect("id");
 
-        let v = complete_plan_json(master_id, Some("task_missing_sub_01")).expect("invoke");
+        let v = complete_todo_json(master_id, Some("task_missing_sub_01")).expect("invoke");
         assert_eq!(v["error"], "Task not found");
         assert_eq!(v["_status"], 404);
     });
 }
 
 #[test]
-fn complete_plan_json_terminal_sub_returns_409_class() {
-    with_commands_plan_test(|| {
-        let created = create_plan_task_json("Terminal cmd", Some(&["A"]), "").expect("create");
+fn complete_todo_json_terminal_sub_returns_409_class() {
+    with_commands_todo_test(|| {
+        let created = create_todo_task_json("Terminal cmd", Some(&["A"]), "").expect("create");
         let master_id = created["master_task_id"].as_str().expect("id").to_string();
         let sub_a = master_from_invoke(&created)["sub_tasks"][0]["sub_task_id"]
             .as_str()
             .expect("sub_a")
             .to_string();
 
-        complete_plan_json(&master_id, Some(&sub_a)).expect("first complete");
-        let again = complete_plan_json(&master_id, Some(&sub_a)).expect("invoke");
+        complete_todo_json(&master_id, Some(&sub_a)).expect("first complete");
+        let again = complete_todo_json(&master_id, Some(&sub_a)).expect("invoke");
         assert_eq!(again["error"], "Sub task is in terminal status");
         assert_eq!(again["_status"], 409);
     });
 }
 
 #[test]
-fn complete_plan_command_symbol_exists_for_handler_registration() {
+fn complete_todo_command_symbol_exists_for_handler_registration() {
     // Smoke: async command symbol exists for generate_handler! registration.
-    let _ = complete_plan;
+    let _ = complete_todo;
 }
 
 #[test]
-fn abandon_plan_sub_json_unknown_returns_404_class() {
-    with_commands_plan_test(|| {
-        let created = create_plan_task_json("Abandon 404", Some(&["A"]), "").expect("create");
+fn abandon_todo_sub_json_unknown_returns_404_class() {
+    with_commands_todo_test(|| {
+        let created = create_todo_task_json("Abandon 404", Some(&["A"]), "").expect("create");
         let master_id = created["master_task_id"].as_str().expect("id");
 
-        let v = abandon_plan_sub_json(master_id, "task_missing_sub_01").expect("invoke");
+        let v = abandon_todo_sub_json(master_id, "task_missing_sub_01").expect("invoke");
         assert_eq!(v["error"], "Task not found");
         assert_eq!(v["_status"], 404);
     });
 }
 
 #[test]
-fn abandon_plan_sub_json_marks_sub_abandoned() {
-    with_commands_plan_test(|| {
-        let created = create_plan_task_json("Abandon cmd", Some(&["A"]), "").expect("create");
+fn abandon_todo_sub_json_marks_sub_abandoned() {
+    with_commands_todo_test(|| {
+        let created = create_todo_task_json("Abandon cmd", Some(&["A"]), "").expect("create");
         let master_id = created["master_task_id"].as_str().expect("id").to_string();
         let sub_a = master_from_invoke(&created)["sub_tasks"][0]["sub_task_id"]
             .as_str()
             .expect("sub_a")
             .to_string();
 
-        let abandoned = abandon_plan_sub_json(&master_id, &sub_a).expect("abandon");
+        let abandoned = abandon_todo_sub_json(&master_id, &sub_a).expect("abandon");
         assert!(abandoned.get("_status").is_none());
         let task = master_from_invoke(&abandoned);
         assert_eq!(task["status"], "incomplete");
@@ -671,35 +671,35 @@ fn abandon_plan_sub_json_marks_sub_abandoned() {
 }
 
 #[test]
-fn abandon_plan_sub_json_terminal_returns_409_class() {
-    with_commands_plan_test(|| {
-        let created = create_plan_task_json("Abandon terminal", Some(&["A"]), "").expect("create");
+fn abandon_todo_sub_json_terminal_returns_409_class() {
+    with_commands_todo_test(|| {
+        let created = create_todo_task_json("Abandon terminal", Some(&["A"]), "").expect("create");
         let master_id = created["master_task_id"].as_str().expect("id").to_string();
         let sub_a = master_from_invoke(&created)["sub_tasks"][0]["sub_task_id"]
             .as_str()
             .expect("sub_a")
             .to_string();
 
-        abandon_plan_sub_json(&master_id, &sub_a).expect("first abandon");
-        let again = abandon_plan_sub_json(&master_id, &sub_a).expect("invoke");
+        abandon_todo_sub_json(&master_id, &sub_a).expect("first abandon");
+        let again = abandon_todo_sub_json(&master_id, &sub_a).expect("invoke");
         assert_eq!(again["error"], "Sub task is in terminal status");
         assert_eq!(again["_status"], 409);
     });
 }
 
 #[test]
-fn update_plan_master_title_json_success_strips_status() {
-    with_commands_plan_test(|| {
-        let created = create_plan_task_json("Old cmd title", None, "").expect("create");
+fn update_todo_master_title_json_success_strips_status() {
+    with_commands_todo_test(|| {
+        let created = create_todo_task_json("Old cmd title", None, "").expect("create");
         let master_id = created["master_task_id"].as_str().expect("id").to_string();
 
-        let updated = update_plan_master_title_json(&master_id, "  Renamed  ").expect("update");
+        let updated = update_todo_master_title_json(&master_id, "  Renamed  ").expect("update");
         assert!(updated.get("_status").is_none());
         let task = master_from_invoke(&updated);
         assert_master_task_shape(task);
         assert_eq!(task["title"], "Renamed");
 
-        let listed = get_plan_tasks_json().expect("list");
+        let listed = get_todo_tasks_json().expect("list");
         let found = listed
             .as_array()
             .expect("array")
@@ -711,21 +711,21 @@ fn update_plan_master_title_json_success_strips_status() {
 }
 
 #[test]
-fn update_plan_master_title_json_blank_returns_400_class() {
-    with_commands_plan_test(|| {
-        let created = create_plan_task_json("Keep cmd", None, "").expect("create");
+fn update_todo_master_title_json_blank_returns_400_class() {
+    with_commands_todo_test(|| {
+        let created = create_todo_task_json("Keep cmd", None, "").expect("create");
         let master_id = created["master_task_id"].as_str().expect("id");
 
-        let v = update_plan_master_title_json(master_id, "  ").expect("invoke");
+        let v = update_todo_master_title_json(master_id, "  ").expect("invoke");
         assert_eq!(v["error"], "Missing title");
         assert_eq!(v["_status"], 400);
     });
 }
 
 #[test]
-fn update_plan_master_title_json_unknown_returns_404_class() {
-    with_commands_plan_test(|| {
-        let v = update_plan_master_title_json("task_nonexistent_aaaaaaaaaaaaaaaa", "New")
+fn update_todo_master_title_json_unknown_returns_404_class() {
+    with_commands_todo_test(|| {
+        let v = update_todo_master_title_json("task_nonexistent_aaaaaaaaaaaaaaaa", "New")
             .expect("invoke");
         assert_eq!(v["error"], "Task not found");
         assert_eq!(v["_status"], 404);
@@ -733,22 +733,22 @@ fn update_plan_master_title_json_unknown_returns_404_class() {
 }
 
 #[test]
-fn plan_attachment_command_symbols_exist_for_handler_registration() {
+fn todo_attachment_command_symbols_exist_for_handler_registration() {
     // Smoke: async command symbols exist for generate_handler! registration.
-    let _ = add_plan_attachment;
-    let _ = list_plan_attachments;
-    let _ = read_plan_attachment;
-    let _ = save_plan_attachment;
-    let _ = delete_plan_attachment;
+    let _ = add_todo_attachment;
+    let _ = list_todo_attachments;
+    let _ = read_todo_attachment;
+    let _ = save_todo_attachment;
+    let _ = delete_todo_attachment;
 }
 
 #[test]
-fn add_plan_attachment_json_success_strips_status() {
-    with_commands_plan_test(|| {
-        let created = create_plan_task_json("Attach cmd", None, "").expect("create");
+fn add_todo_attachment_json_success_strips_status() {
+    with_commands_todo_test(|| {
+        let created = create_todo_task_json("Attach cmd", None, "").expect("create");
         let master_id = created["master_task_id"].as_str().expect("id").to_string();
 
-        let added = add_plan_attachment_json(&master_id, "notes.md", "# Notes\n").expect("add");
+        let added = add_todo_attachment_json(&master_id, "notes.md", "# Notes\n").expect("add");
         assert!(added.get("_status").is_none());
         assert_eq!(added["file_name"], "notes.md");
         assert_eq!(added["original_file_name"], "notes.md");
@@ -757,21 +757,21 @@ fn add_plan_attachment_json_success_strips_status() {
 }
 
 #[test]
-fn add_plan_attachment_json_rejects_non_md_with_400_class() {
-    with_commands_plan_test(|| {
-        let created = create_plan_task_json("Attach nonmd", None, "").expect("create");
+fn add_todo_attachment_json_rejects_non_md_with_400_class() {
+    with_commands_todo_test(|| {
+        let created = create_todo_task_json("Attach nonmd", None, "").expect("create");
         let master_id = created["master_task_id"].as_str().expect("id");
 
-        let v = add_plan_attachment_json(master_id, "notes.txt", "nope").expect("invoke");
+        let v = add_todo_attachment_json(master_id, "notes.txt", "nope").expect("invoke");
         assert_eq!(v["error"], "Only .md attachments are supported");
         assert_eq!(v["_status"], 400);
     });
 }
 
 #[test]
-fn add_plan_attachment_json_unknown_master_returns_404_class() {
-    with_commands_plan_test(|| {
-        let v = add_plan_attachment_json(
+fn add_todo_attachment_json_unknown_master_returns_404_class() {
+    with_commands_todo_test(|| {
+        let v = add_todo_attachment_json(
             "task_nonexistent_aaaaaaaaaaaaaaaa",
             "notes.md",
             "x",
@@ -783,14 +783,14 @@ fn add_plan_attachment_json_unknown_master_returns_404_class() {
 }
 
 #[test]
-fn list_plan_attachments_json_returns_entries_without_status() {
-    with_commands_plan_test(|| {
-        let created = create_plan_task_json("List attach", None, "").expect("create");
+fn list_todo_attachments_json_returns_entries_without_status() {
+    with_commands_todo_test(|| {
+        let created = create_todo_task_json("List attach", None, "").expect("create");
         let master_id = created["master_task_id"].as_str().expect("id").to_string();
-        add_plan_attachment_json(&master_id, "a.md", "one").expect("add a");
-        add_plan_attachment_json(&master_id, "b.md", "two").expect("add b");
+        add_todo_attachment_json(&master_id, "a.md", "one").expect("add a");
+        add_todo_attachment_json(&master_id, "b.md", "two").expect("add b");
 
-        let listed = list_plan_attachments_json(&master_id).expect("list");
+        let listed = list_todo_attachments_json(&master_id).expect("list");
         assert!(listed.get("_status").is_none());
         let attachments = listed["attachments"].as_array().expect("attachments");
         assert_eq!(attachments.len(), 2);
@@ -800,23 +800,23 @@ fn list_plan_attachments_json_returns_entries_without_status() {
 }
 
 #[test]
-fn list_plan_attachments_json_unknown_returns_404_class() {
-    with_commands_plan_test(|| {
-        let v = list_plan_attachments_json("task_nonexistent_aaaaaaaaaaaaaaaa").expect("invoke");
+fn list_todo_attachments_json_unknown_returns_404_class() {
+    with_commands_todo_test(|| {
+        let v = list_todo_attachments_json("task_nonexistent_aaaaaaaaaaaaaaaa").expect("invoke");
         assert_eq!(v["error"], "Task not found");
         assert_eq!(v["_status"], 404);
     });
 }
 
 #[test]
-fn read_plan_attachment_json_round_trip_content() {
-    with_commands_plan_test(|| {
-        let created = create_plan_task_json("Read attach", None, "").expect("create");
+fn read_todo_attachment_json_round_trip_content() {
+    with_commands_todo_test(|| {
+        let created = create_todo_task_json("Read attach", None, "").expect("create");
         let master_id = created["master_task_id"].as_str().expect("id").to_string();
         let content = "# Body\n";
-        add_plan_attachment_json(&master_id, "notes.md", content).expect("add");
+        add_todo_attachment_json(&master_id, "notes.md", content).expect("add");
 
-        let read = read_plan_attachment_json(&master_id, "notes.md").expect("read");
+        let read = read_todo_attachment_json(&master_id, "notes.md").expect("read");
         assert!(read.get("_status").is_none());
         assert_eq!(read["file_name"], "notes.md");
         assert_eq!(read["content"], content);
@@ -824,71 +824,71 @@ fn read_plan_attachment_json_round_trip_content() {
 }
 
 #[test]
-fn read_plan_attachment_json_missing_returns_404_class() {
-    with_commands_plan_test(|| {
-        let created = create_plan_task_json("Read missing", None, "").expect("create");
+fn read_todo_attachment_json_missing_returns_404_class() {
+    with_commands_todo_test(|| {
+        let created = create_todo_task_json("Read missing", None, "").expect("create");
         let master_id = created["master_task_id"].as_str().expect("id");
 
-        let v = read_plan_attachment_json(master_id, "missing.md").expect("invoke");
+        let v = read_todo_attachment_json(master_id, "missing.md").expect("invoke");
         assert_eq!(v["error"], "Attachment not found");
         assert_eq!(v["_status"], 404);
     });
 }
 
 #[test]
-fn save_plan_attachment_json_overwrites_content_without_status() {
-    with_commands_plan_test(|| {
-        let created = create_plan_task_json("Save attach", None, "").expect("create");
+fn save_todo_attachment_json_overwrites_content_without_status() {
+    with_commands_todo_test(|| {
+        let created = create_todo_task_json("Save attach", None, "").expect("create");
         let master_id = created["master_task_id"].as_str().expect("id").to_string();
-        add_plan_attachment_json(&master_id, "notes.md", "old").expect("add");
+        add_todo_attachment_json(&master_id, "notes.md", "old").expect("add");
 
-        let saved = save_plan_attachment_json(&master_id, "notes.md", "new body").expect("save");
+        let saved = save_todo_attachment_json(&master_id, "notes.md", "new body").expect("save");
         assert!(saved.get("_status").is_none());
         assert_eq!(saved["ok"], true);
 
-        let read = read_plan_attachment_json(&master_id, "notes.md").expect("read");
+        let read = read_todo_attachment_json(&master_id, "notes.md").expect("read");
         assert_eq!(read["content"], "new body");
     });
 }
 
 #[test]
-fn save_plan_attachment_json_unknown_attachment_returns_404_class() {
-    with_commands_plan_test(|| {
-        let created = create_plan_task_json("Save missing", None, "").expect("create");
+fn save_todo_attachment_json_unknown_attachment_returns_404_class() {
+    with_commands_todo_test(|| {
+        let created = create_todo_task_json("Save missing", None, "").expect("create");
         let master_id = created["master_task_id"].as_str().expect("id");
 
-        let v = save_plan_attachment_json(master_id, "nope.md", "x").expect("invoke");
+        let v = save_todo_attachment_json(master_id, "nope.md", "x").expect("invoke");
         assert_eq!(v["error"], "Attachment not found");
         assert_eq!(v["_status"], 404);
     });
 }
 
 #[test]
-fn delete_plan_attachment_json_removes_and_strips_status() {
-    with_commands_plan_test(|| {
-        let created = create_plan_task_json("Del attach", None, "").expect("create");
+fn delete_todo_attachment_json_removes_and_strips_status() {
+    with_commands_todo_test(|| {
+        let created = create_todo_task_json("Del attach", None, "").expect("create");
         let master_id = created["master_task_id"].as_str().expect("id").to_string();
-        add_plan_attachment_json(&master_id, "notes.md", "gone").expect("add");
+        add_todo_attachment_json(&master_id, "notes.md", "gone").expect("add");
 
-        let deleted = delete_plan_attachment_json(&master_id, "notes.md").expect("delete");
+        let deleted = delete_todo_attachment_json(&master_id, "notes.md").expect("delete");
         assert!(deleted.get("_status").is_none());
         assert_eq!(deleted["ok"], true);
 
-        let listed = list_plan_attachments_json(&master_id).expect("list");
+        let listed = list_todo_attachments_json(&master_id).expect("list");
         assert!(listed["attachments"].as_array().expect("arr").is_empty());
 
-        let missing = read_plan_attachment_json(&master_id, "notes.md").expect("read");
+        let missing = read_todo_attachment_json(&master_id, "notes.md").expect("read");
         assert_eq!(missing["_status"], 404);
     });
 }
 
 #[test]
-fn delete_plan_attachment_json_unknown_returns_404_class() {
-    with_commands_plan_test(|| {
-        let created = create_plan_task_json("Del missing", None, "").expect("create");
+fn delete_todo_attachment_json_unknown_returns_404_class() {
+    with_commands_todo_test(|| {
+        let created = create_todo_task_json("Del missing", None, "").expect("create");
         let master_id = created["master_task_id"].as_str().expect("id");
 
-        let v = delete_plan_attachment_json(master_id, "nope.md").expect("invoke");
+        let v = delete_todo_attachment_json(master_id, "nope.md").expect("invoke");
         assert_eq!(v["error"], "Attachment not found");
         assert_eq!(v["_status"], 404);
     });
@@ -896,15 +896,15 @@ fn delete_plan_attachment_json_unknown_returns_404_class() {
 
 #[test]
 fn ac15_command_add_rejects_non_md_and_lists_empty() {
-    with_commands_plan_test(|| {
-        let created = create_plan_task_json("AC15 cmd", None, "").expect("create");
+    with_commands_todo_test(|| {
+        let created = create_todo_task_json("AC15 cmd", None, "").expect("create");
         let master_id = created["master_task_id"].as_str().expect("id");
 
-        let listed = list_plan_attachments_json(master_id).expect("list");
+        let listed = list_todo_attachments_json(master_id).expect("list");
         assert!(listed.get("_status").is_none());
         assert_eq!(listed["attachments"].as_array().expect("arr").len(), 0);
 
-        let rejected = add_plan_attachment_json(master_id, "x.txt", "nope").expect("invoke");
+        let rejected = add_todo_attachment_json(master_id, "x.txt", "nope").expect("invoke");
         assert_eq!(rejected["_status"], 400);
         assert_eq!(rejected["error"], "Only .md attachments are supported");
     });
@@ -912,16 +912,16 @@ fn ac15_command_add_rejects_non_md_and_lists_empty() {
 
 #[test]
 fn ac15_command_delete_dual_clear_via_list() {
-    with_commands_plan_test(|| {
-        let created = create_plan_task_json("AC15 del cmd", None, "").expect("create");
+    with_commands_todo_test(|| {
+        let created = create_todo_task_json("AC15 del cmd", None, "").expect("create");
         let master_id = created["master_task_id"].as_str().expect("id").to_string();
-        add_plan_attachment_json(&master_id, "notes.md", "body").expect("add");
+        add_todo_attachment_json(&master_id, "notes.md", "body").expect("add");
 
-        let deleted = delete_plan_attachment_json(&master_id, "notes.md").expect("delete");
+        let deleted = delete_todo_attachment_json(&master_id, "notes.md").expect("delete");
         assert!(deleted.get("_status").is_none());
         assert_eq!(deleted["ok"], true);
 
-        let listed = list_plan_attachments_json(&master_id).expect("list");
+        let listed = list_todo_attachments_json(&master_id).expect("list");
         assert!(listed["attachments"].as_array().expect("arr").is_empty());
     });
 }
