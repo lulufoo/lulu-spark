@@ -1740,6 +1740,105 @@ fn update_master_title_unknown_master_returns_404() {
     });
 }
 
+#[test]
+fn update_master_fields_title_only_preserves_body() {
+    with_todo_task_sandbox(|_| {
+        let created = create_master_with_subs_and_todo("Old title", None, "# Body");
+        assert_eq!(created["_status"], 201);
+        let master_id = created["master_task_id"].as_str().unwrap();
+
+        let updated = update_master_fields(master_id, Some("  New title  "), None);
+        assert_eq!(updated["_status"], 200);
+        let task = master_from_value(&updated);
+        assert_eq!(task["title"], "New title");
+        assert_eq!(task["todo_md"], "# Body");
+
+        let got = get_by_id(master_id);
+        assert_eq!(got["title"], "New title");
+        assert_eq!(got["todo_md"], "# Body");
+    });
+}
+
+#[test]
+fn update_master_fields_body_only_preserves_title() {
+    with_todo_task_sandbox(|_| {
+        let created = create_master_with_subs_and_todo("Keep title", None, "old");
+        let master_id = created["master_task_id"].as_str().unwrap();
+
+        let updated = update_master_fields(master_id, None, Some("## New body\n"));
+        assert_eq!(updated["_status"], 200);
+        let task = master_from_value(&updated);
+        assert_eq!(task["title"], "Keep title");
+        assert_eq!(task["todo_md"], "## New body\n");
+
+        let got = get_by_id(master_id);
+        assert_eq!(got["title"], "Keep title");
+        assert_eq!(got["todo_md"], "## New body\n");
+    });
+}
+
+#[test]
+fn update_master_fields_both_title_and_body() {
+    with_todo_task_sandbox(|_| {
+        let created = create_master_with_subs_and_todo("A", None, "old");
+        let master_id = created["master_task_id"].as_str().unwrap();
+
+        let updated = update_master_fields(master_id, Some("B"), Some("new"));
+        assert_eq!(updated["_status"], 200);
+        let task = master_from_value(&updated);
+        assert_eq!(task["title"], "B");
+        assert_eq!(task["todo_md"], "new");
+    });
+}
+
+#[test]
+fn update_master_fields_empty_body_clears_todo_md() {
+    with_todo_task_sandbox(|_| {
+        let created = create_master_with_subs_and_todo("T", None, "has body");
+        let master_id = created["master_task_id"].as_str().unwrap();
+
+        let updated = update_master_fields(master_id, None, Some(""));
+        assert_eq!(updated["_status"], 200);
+        assert_eq!(master_from_value(&updated)["todo_md"], "");
+        assert_eq!(get_by_id(master_id)["todo_md"], "");
+    });
+}
+
+#[test]
+fn update_master_fields_neither_field_returns_400() {
+    with_todo_task_sandbox(|_| {
+        let created = create_master_with_subs("Keep", None);
+        let master_id = created["master_task_id"].as_str().unwrap();
+
+        let v = update_master_fields(master_id, None, None);
+        assert_eq!(v["_status"], 400);
+        assert_eq!(v["error"], "Missing title or todo_md");
+        assert_eq!(get_by_id(master_id)["title"], "Keep");
+    });
+}
+
+#[test]
+fn update_master_fields_blank_title_returns_400() {
+    with_todo_task_sandbox(|_| {
+        let created = create_master_with_subs("Keep me", None);
+        let master_id = created["master_task_id"].as_str().unwrap();
+
+        let v = update_master_fields(master_id, Some("   \t  "), None);
+        assert_eq!(v["_status"], 400);
+        assert_eq!(v["error"], "Missing title");
+        assert_eq!(get_by_id(master_id)["title"], "Keep me");
+    });
+}
+
+#[test]
+fn update_master_fields_unknown_master_returns_404() {
+    with_todo_task_sandbox(|_| {
+        let v = update_master_fields("task_nonexistent_aaaaaaaaaaaaaaaa", Some("New"), None);
+        assert_eq!(v["_status"], 404);
+        assert_eq!(v["error"], "Task not found");
+    });
+}
+
 fn attachments_dir(wb: &Path, master_id: &str) -> std::path::PathBuf {
     wb.join("todo_tasks")
         .join("tasks")

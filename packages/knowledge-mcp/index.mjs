@@ -257,6 +257,47 @@ function buildServer() {
   );
 
   server.registerTool(
+    'update_todo_task',
+    {
+      description:
+        'Update a todo master title and/or body (todo_md). Provide master_task_id and at least one of title or todo_md. Omit a field to leave it unchanged; todo_md "" clears the body. Proxy POST /api/todo-task-update',
+      inputSchema: {
+        master_task_id: z.string().trim().min(1).describe('Master task id'),
+        title: z
+          .string()
+          .trim()
+          .min(1)
+          .refine((t) => titleUnitCount(t) <= 20, {
+            message: 'Title too long (max 20 Chinese characters or English words)',
+          })
+          .optional()
+          .describe('New master title; omit → unchanged'),
+        todo_md: z
+          .string()
+          .optional()
+          .describe('Todo body markdown; omit → unchanged; empty string → clear'),
+      },
+    },
+    async ({ master_task_id, title, todo_md }) => {
+      if (title == null && todo_md == null) {
+        return toolError(400, JSON.stringify({ error: 'Missing title or todo_md' }));
+      }
+      const body = { master_task_id };
+      if (title != null) {
+        body.title = title;
+      }
+      if (todo_md != null) {
+        body.todo_md = todo_md;
+      }
+      const result = await proxyPost('/api/todo-task-update', body);
+      if (!result.ok) {
+        return toolError(result.status, result.text);
+      }
+      return { content: [{ type: 'text', text: result.text }] };
+    },
+  );
+
+  server.registerTool(
     'list_todo_tasks',
     {
       description: 'List all todo task masters. Proxy GET /api/todo-tasks',

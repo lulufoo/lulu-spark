@@ -1777,6 +1777,75 @@ fn todo_task_attachment_http_flow() {
 }
 
 #[test]
+fn todo_task_update_http_title_and_body() {
+    with_todo_task_http_test(|| {
+        let fixture = setup_repo_for_todo_task();
+        let repo_root = fixture.repo_root.clone();
+        with_server(repo_root, |port| {
+            let (create_status, create_body) = http_post(
+                port,
+                "/api/todo-task-create",
+                &json!({ "title": "HTTP Update", "todo_md": "old body" }),
+            );
+            assert_eq!(create_status, 201);
+            let master_id = create_body["master_task_id"].as_str().unwrap();
+
+            let (title_status, title_body) = http_post(
+                port,
+                "/api/todo-task-update",
+                &json!({
+                    "master_task_id": master_id,
+                    "title": "Renamed HTTP",
+                }),
+            );
+            assert_eq!(title_status, 200);
+            assert_eq!(title_body["task"]["title"], "Renamed HTTP");
+            assert_eq!(title_body["task"]["todo_md"], "old body");
+            assert!(title_body.get("_status").is_none());
+
+            let (body_status, body_body) = http_post(
+                port,
+                "/api/todo-task-update",
+                &json!({
+                    "master_task_id": master_id,
+                    "todo_md": "new body",
+                }),
+            );
+            assert_eq!(body_status, 200);
+            assert_eq!(body_body["task"]["title"], "Renamed HTTP");
+            assert_eq!(body_body["task"]["todo_md"], "new body");
+
+            let (both_status, both_body) = http_post(
+                port,
+                "/api/todo-task-update",
+                &json!({
+                    "master_task_id": master_id,
+                    "title": "Both",
+                    "todo_md": "both body",
+                }),
+            );
+            assert_eq!(both_status, 200);
+            assert_eq!(both_body["task"]["title"], "Both");
+            assert_eq!(both_body["task"]["todo_md"], "both body");
+
+            let (missing_status, missing_body) = http_post(
+                port,
+                "/api/todo-task-update",
+                &json!({ "master_task_id": master_id }),
+            );
+            assert_eq!(missing_status, 400);
+            assert_eq!(missing_body["error"], "Missing title or todo_md");
+
+            let (get_status, get_body) =
+                http_get(port, &format!("/api/todo-task?id={master_id}"));
+            assert_eq!(get_status, 200);
+            assert_eq!(get_body["title"], "Both");
+            assert_eq!(get_body["todo_md"], "both body");
+        });
+    });
+}
+
+#[test]
 fn todo_task_attachment_http_paths_follow_todo_task_verb_prefix() {
     with_todo_task_http_test(|| {
         let fixture = setup_repo_for_todo_task();

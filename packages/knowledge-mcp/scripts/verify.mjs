@@ -84,9 +84,10 @@ const FORBIDDEN_PLAN_TOOL_NAMES = [
 /** Master status wire values — list/get/create readback must admit all three (T8 / AC7). */
 const MASTER_STATUS_WIRE = ['incomplete', 'complete', 'abandoned'];
 
-/** T10 / AC-等价 — full 12-tool set (complete/link/attachment required; no complete_plan_sub). */
+/** T10 / AC-等价 — full todo tool set (complete/link/attachment/update required; no complete_plan_sub). */
 const EQUIVALENCE_TODO_TOOLS = [
   'create_todo_task',
+  'update_todo_task',
   'list_todo_tasks',
   'get_todo_task',
   'delete_todo_task',
@@ -318,6 +319,55 @@ function startMockHttp(port) {
         master_task_id: masterId,
         task,
       });
+      return;
+    }
+
+    if (req.method === 'POST' && url.pathname === '/api/todo-task-update') {
+      let payload;
+      try {
+        payload = await readJsonBody(req);
+      } catch {
+        respondJson(res, 400, { error: 'Invalid JSON' });
+        return;
+      }
+      const masterId =
+        typeof payload.master_task_id === 'string' ? payload.master_task_id.trim() : '';
+      if (!masterId) {
+        respondJson(res, 400, { error: 'Missing master_task_id' });
+        return;
+      }
+      const hasTitle = Object.prototype.hasOwnProperty.call(payload, 'title');
+      const hasTodoMd = Object.prototype.hasOwnProperty.call(payload, 'todo_md');
+      if (!hasTitle && !hasTodoMd) {
+        respondJson(res, 400, { error: 'Missing title or todo_md' });
+        return;
+      }
+      if (hasTitle && typeof payload.title !== 'string') {
+        respondJson(res, 400, { error: 'Invalid title' });
+        return;
+      }
+      if (hasTodoMd && typeof payload.todo_md !== 'string') {
+        respondJson(res, 400, { error: 'Invalid todo_md' });
+        return;
+      }
+      const existing = planTaskStore.get(masterId);
+      if (!existing) {
+        respondJson(res, 404, { error: 'Task not found' });
+        return;
+      }
+      if (hasTitle) {
+        const title = payload.title.trim();
+        if (!title) {
+          respondJson(res, 400, { error: 'Missing title' });
+          return;
+        }
+        existing.title = title;
+      }
+      if (hasTodoMd) {
+        existing.todo_md = payload.todo_md;
+      }
+      planTaskStore.set(masterId, existing);
+      respondJson(res, 200, { task: { ...existing } });
       return;
     }
 
@@ -809,7 +859,7 @@ async function runMcpClient(mcpPort) {
   const listResult = await client.callTool({ name: 'list_todo_tasks', arguments: {} });
   const listText = listResult.content?.[0]?.text || '';
   if (listResult.isError || !listText.includes('CRUD master')) {
-    throw new Error(`unexpected list_todo_tasks: ${listText}`);
+    throw new Error(`unexpected list_todo_tasks before update: ${listText}`);
   }
   const listParsed = JSON.parse(listText);
   const listMaster = listParsed.find((t) => t.master_task_id === 'task_mock001');
@@ -827,6 +877,40 @@ async function runMcpClient(mcpPort) {
     throw new Error(`unexpected get_todo_task: ${getText}`);
   }
   assertMasterStatusWire(JSON.parse(getText).status, 'get_todo_task');
+
+  const updateTitleOnly = await client.callTool({
+    name: 'update_todo_task',
+    arguments: { master_task_id: 'task_mock001', title: 'CRUD renamed' },
+  });
+  const updateTitleText = updateTitleOnly.content?.[0]?.text || '';
+  if (updateTitleOnly.isError || !updateTitleText.includes('CRUD renamed')) {
+    throw new Error(`unexpected update_todo_task title: ${updateTitleText}`);
+  }
+  const updateTitleTask = JSON.parse(updateTitleText).task;
+  if (updateTitleTask.todo_md !== '# Plan') {
+    throw new Error(`update_todo_task title-only must preserve todo_md: ${updateTitleText}`);
+  }
+
+  const updateBodyOnly = await client.callTool({
+    name: 'update_todo_task',
+    arguments: { master_task_id: 'task_mock001', todo_md: '# Updated plan' },
+  });
+  const updateBodyText = updateBodyOnly.content?.[0]?.text || '';
+  if (updateBodyOnly.isError || !updateBodyText.includes('# Updated plan')) {
+    throw new Error(`unexpected update_todo_task body: ${updateBodyText}`);
+  }
+  const updateBodyTask = JSON.parse(updateBodyText).task;
+  if (updateBodyTask.title !== 'CRUD renamed') {
+    throw new Error(`update_todo_task body-only must preserve title: ${updateBodyText}`);
+  }
+
+  const updateNeither = await client.callTool({
+    name: 'update_todo_task',
+    arguments: { master_task_id: 'task_mock001' },
+  });
+  if (!updateNeither.isError) {
+    throw new Error('expected update_todo_task error when neither title nor todo_md provided');
+  }
 
   const getMissing = await client.callTool({
     name: 'get_todo_task',

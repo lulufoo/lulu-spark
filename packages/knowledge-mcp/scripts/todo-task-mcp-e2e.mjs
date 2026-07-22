@@ -81,9 +81,10 @@ if (!mcpPort) {
 
 const tasksDir = process.env.E2E_PLAN_TASKS_TASKS_DIR?.trim() || '';
 
-/** T10 / AC-等价 — full 12-tool set (complete/link/attachment required; no complete_plan_sub). */
+/** T10 / AC-等价 — full todo tool set (complete/link/attachment/update required; no complete_plan_sub). */
 const EQUIVALENCE_TODO_TOOLS = [
   'create_todo_task',
+  'update_todo_task',
   'list_todo_tasks',
   'get_todo_task',
   'delete_todo_task',
@@ -251,6 +252,44 @@ if (getBody.todo_md !== listMaster.todo_md) {
   throw new Error('get_todo_task todo_md must match list_todo_tasks for same id');
 }
 assertPlanMdMatchesDisk(getBody.todo_md, diskBefore, 'get_todo_task');
+
+const updateTitle = await callTodoTool('update_todo_task', {
+  master_task_id: masterId,
+  title: 'MCP E2E Renamed',
+});
+if (updateTitle.task?.title !== 'MCP E2E Renamed') {
+  throw new Error(`update_todo_task title-only failed: ${JSON.stringify(updateTitle)}`);
+}
+if (updateTitle.task?.todo_md !== getBody.todo_md) {
+  throw new Error('update_todo_task title-only must preserve todo_md');
+}
+
+const updateBody = await callTodoTool('update_todo_task', {
+  master_task_id: masterId,
+  todo_md: '## E2E plan\n\nUpdated body',
+});
+if (updateBody.task?.title !== 'MCP E2E Renamed') {
+  throw new Error('update_todo_task body-only must preserve title');
+}
+if (updateBody.task?.todo_md !== '## E2E plan\n\nUpdated body') {
+  throw new Error(`update_todo_task body-only failed: ${JSON.stringify(updateBody)}`);
+}
+assertMasterPlanMdFields(updateBody.task, 'update_todo_task');
+if (tasksDir) {
+  assertPlanMdMatchesDisk(
+    updateBody.task.todo_md,
+    readPlanMdFromDisk(tasksDir, masterId),
+    'update_todo_task after body write',
+  );
+}
+
+const updateNeither = await client.callTool({
+  name: 'update_todo_task',
+  arguments: { master_task_id: masterId },
+});
+if (!updateNeither.isError) {
+  throw new Error('expected update_todo_task error when neither title nor todo_md provided');
+}
 
 if (tasksDir) {
   const fixtureContent = '# MCP E2E plan.md\n\nRound-trip fixture paragraph.\n';

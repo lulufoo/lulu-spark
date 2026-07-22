@@ -19,6 +19,7 @@
   },
   "mcp_tools": [
     "create_todo_task",
+    "update_todo_task",
     "list_todo_tasks",
     "get_todo_task",
     "delete_todo_task",

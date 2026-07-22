@@ -242,6 +242,10 @@ fn handle_request(repo_root: &PathBuf, port: u16, request: tiny_http::Request) {
                 handle_todo_task_post(request, handle_todo_task_update_attachment_payload);
                 return;
             }
+            "/api/todo-task-update" => {
+                handle_todo_task_post(request, handle_todo_task_update_payload);
+                return;
+            }
             _ => {}
         }
     }
@@ -570,6 +574,28 @@ fn handle_todo_task_update_attachment_payload(payload: &Value) -> Value {
         return json!({ "error": "Missing content", "_status": 400 });
     };
     todo_task::save_attachment(master_task_id, file_name, content)
+}
+
+fn handle_todo_task_update_payload(payload: &Value) -> Value {
+    let Some(master_task_id) = payload.get("master_task_id").and_then(|v| v.as_str()) else {
+        return json!({ "error": "Missing master_task_id", "_status": 400 });
+    };
+
+    let title = match payload.get("title") {
+        None => None,
+        Some(Value::String(s)) => Some(s.as_str()),
+        Some(_) => return json!({ "error": "Invalid title", "_status": 400 }),
+    };
+    let todo_md = match payload.get("todo_md") {
+        None => None,
+        Some(Value::String(s)) => Some(s.as_str()),
+        Some(_) => return json!({ "error": "Invalid todo_md", "_status": 400 }),
+    };
+    if title.is_none() && todo_md.is_none() {
+        return json!({ "error": "Missing title or todo_md", "_status": 400 });
+    }
+
+    todo_task::update_master_fields(master_task_id, title, todo_md)
 }
 
 fn handle_todo_task_create(mut request: tiny_http::Request) {

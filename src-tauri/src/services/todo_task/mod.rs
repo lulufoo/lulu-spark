@@ -1101,6 +1101,81 @@ pub fn update_master_title(master_task_id: &str, title: &str) -> Value {
     })
 }
 
+/// Update master `title` and/or body (`todo_md`) in one write.
+///
+/// - `title` / `todo_md`: `None` → leave unchanged; `Some` → apply.
+/// - At least one of `title` / `todo_md` must be `Some`.
+/// - `todo_md: Some("")` clears the body file.
+/// - Success returns `{ "task": <get-shaped master with todo_md>, "_status": 200 }`.
+pub fn update_master_fields(
+    master_task_id: &str,
+    title: Option<&str>,
+    todo_md: Option<&str>,
+) -> Value {
+    let master_task_id = master_task_id.trim();
+    if master_task_id.is_empty() {
+        return json!({ "error": "Missing id", "_status": 400 });
+    }
+    if title.is_none() && todo_md.is_none() {
+        return json!({ "error": "Missing title or todo_md", "_status": 400 });
+    }
+
+    let normalized_title = match title {
+        None => None,
+        Some(t) => {
+            let t = t.trim();
+            if t.is_empty() {
+                return json!({ "error": "Missing title", "_status": 400 });
+            }
+            if title_unit_count(t) > TITLE_UNIT_LIMIT {
+                return json!({
+                    "error": "Title too long (max 20 Chinese characters or English words)",
+                    "_status": 400
+                });
+            }
+            Some(t.to_string())
+        }
+    };
+
+    with_write_lock(|| {
+        if let Err(e) = ensure_bootstrap() {
+            return bootstrap_error(e);
+        }
+
+        let mut master = match load_master_task_unlocked(master_task_id) {
+            Ok(m) => m,
+            Err(err) => return err,
+        };
+
+        if let Some(ref t) = normalized_title {
+            master.title = t.clone();
+        }
+
+        let existing_md;
+        let plan_md_ref = match todo_md {
+            Some(md) => md,
+            None => {
+                existing_md = match read_todo_md_or_empty(master_task_id) {
+                    Ok(s) => s,
+                    Err(e) => return json!({ "error": e, "_status": 500 }),
+                };
+                existing_md.as_str()
+            }
+        };
+
+        match persist_master_with_plan_md(&master, plan_md_ref) {
+            Ok(()) => match load_master_response_unlocked(master_task_id) {
+                Ok(response) => json!({
+                    "task": response,
+                    "_status": 200,
+                }),
+                Err(err) => err,
+            },
+            Err(e) => json!({ "error": e, "_status": 500 }),
+        }
+    })
+}
+
 fn parse_master_status_wire(status: &str) -> Option<MasterTaskStatus> {
     match status.trim() {
         "incomplete" => Some(MasterTaskStatus::Incomplete),
