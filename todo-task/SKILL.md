@@ -54,7 +54,7 @@ Map the user request, then call **only** the tools that match. Do not run a fixe
 2. **Create leaves empty subs by default** — New masters start with empty `sub_tasks`. If the same turn also contains an explicit sub-task request, add them with `add_todo_sub` after create (per live schema).
 3. **Verify after write** — After create/update, `get_todo_task` (or list) and confirm `todo_md` / title / subs match the request.
 4. **HTTP errors** — 4xx/5xx surface as MCP tool errors (`isError: true`); do not treat error payloads as success.
-5. **No `/plan-task` / `plan_*` dependency** — Agent must use `todo-task` and `todo_*` tools only; old plan names are unavailable.
+5. **No plan slash / `plan_*` dependency** — Agent must use `todo-task` and `todo_*` tools only; old plan names (including the former plan slash) are unavailable.
 
 ## MCP Todo Tools
 
