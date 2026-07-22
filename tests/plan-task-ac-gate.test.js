@@ -232,3 +232,13 @@ describe('T9 — frontend/assistant Host API follow (tech-doc T9)', () => {
     expect(index).not.toMatch(/'(create|delete|add|read|update|complete)_plan/);
   });
 });
+
+describe('T10 — end-to-end acceptance pointer (tech-doc SK-5)', () => {
+  it('delegates contract/migration/equivalence gates to todo-task-ac-gate.test.js', () => {
+    const pkg = JSON.parse(read('package.json'));
+    expect(readFileSync(join(repoRoot, 'tests/todo-task-ac-gate.test.js'), 'utf8')).toMatch(
+      /EQUIVALENCE_TODO_TOOLS/,
+    );
+    expect(pkg.scripts.test).toContain('tests/todo-task-ac-gate.test.js');
+  });
+});

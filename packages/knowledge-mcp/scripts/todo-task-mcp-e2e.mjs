@@ -81,7 +81,8 @@ if (!mcpPort) {
 
 const tasksDir = process.env.E2E_PLAN_TASKS_TASKS_DIR?.trim() || '';
 
-const TODO_TOOLS = [
+/** T10 / AC-等价 — full 12-tool set (complete/link/attachment required; no complete_plan_sub). */
+const EQUIVALENCE_TODO_TOOLS = [
   'create_todo_task',
   'list_todo_tasks',
   'get_todo_task',
@@ -90,7 +91,13 @@ const TODO_TOOLS = [
   'delete_todo_sub',
   'complete_todo',
   'link_todo_archive',
+  'add_todo_attachment',
+  'list_todo_attachments',
+  'get_todo_attachment',
+  'update_todo_attachment',
 ];
+
+const TODO_TOOLS = EQUIVALENCE_TODO_TOOLS;
 
 /** Breaking rename: old MCP tool name must not remain registered (T8 / AC5 / R1). */
 const FORBIDDEN_PLAN_TOOLS = [
@@ -306,6 +313,60 @@ const linkResult = await client.callTool({
 const linkText = toolText(linkResult);
 if (linkResult.isError || !linkText.includes(archiveId)) {
   throw new Error(`link_todo_archive failed: ${linkText}`);
+}
+
+// T10 / AC-等价: attachment quartet must be exercisable (not only create/list/get).
+const addAttachResult = await client.callTool({
+  name: 'add_todo_attachment',
+  arguments: {
+    master_task_id: masterId,
+    file_name: 'e2e-notes.md',
+    content: '# E2E attachment\n',
+  },
+});
+const addAttachText = toolText(addAttachResult);
+if (addAttachResult.isError || !addAttachText.includes('e2e-notes.md')) {
+  throw new Error(`add_todo_attachment failed: ${addAttachText}`);
+}
+
+const listAttachResult = await client.callTool({
+  name: 'list_todo_attachments',
+  arguments: { master_task_id: masterId },
+});
+const listAttachText = toolText(listAttachResult);
+if (listAttachResult.isError || !listAttachText.includes('e2e-notes.md')) {
+  throw new Error(`list_todo_attachments failed: ${listAttachText}`);
+}
+
+const getAttachResult = await client.callTool({
+  name: 'get_todo_attachment',
+  arguments: { master_task_id: masterId, file_name: 'e2e-notes.md' },
+});
+const getAttachText = toolText(getAttachResult);
+if (getAttachResult.isError || !getAttachText.includes('# E2E attachment')) {
+  throw new Error(`get_todo_attachment failed: ${getAttachText}`);
+}
+
+const updateAttachResult = await client.callTool({
+  name: 'update_todo_attachment',
+  arguments: {
+    master_task_id: masterId,
+    file_name: 'e2e-notes.md',
+    content: 'updated e2e attachment',
+  },
+});
+const updateAttachText = toolText(updateAttachResult);
+if (updateAttachResult.isError || !updateAttachText.includes('"ok":true')) {
+  throw new Error(`update_todo_attachment failed: ${updateAttachText}`);
+}
+
+const rereadAttachResult = await client.callTool({
+  name: 'get_todo_attachment',
+  arguments: { master_task_id: masterId, file_name: 'e2e-notes.md' },
+});
+const rereadAttachText = toolText(rereadAttachResult);
+if (rereadAttachResult.isError || !rereadAttachText.includes('updated e2e attachment')) {
+  throw new Error(`get_todo_attachment after update failed: ${rereadAttachText}`);
 }
 
 const deleteSubResult = await client.callTool({

@@ -103,6 +103,22 @@ const ATTACHMENT_TOOL_NAMES = [
   'update_todo_attachment',
 ];
 
+/** T10 / AC-等价 — full 12-tool set (complete/link/attachment required; no complete_plan_sub). */
+const EQUIVALENCE_TODO_TOOLS = [
+  'create_todo_task',
+  'list_todo_tasks',
+  'get_todo_task',
+  'delete_todo_task',
+  'add_todo_sub',
+  'delete_todo_sub',
+  'complete_todo',
+  'link_todo_archive',
+  'add_todo_attachment',
+  'list_todo_attachments',
+  'get_todo_attachment',
+  'update_todo_attachment',
+];
+
 const ATTACHMENT_TOOL_HTTP_PATHS = {
   add_todo_attachment: '/api/todo-task-add-attachment',
   list_todo_attachments: '/api/todo-task-list-attachments',
@@ -661,6 +677,11 @@ async function runMcpClient(mcpPort) {
   }
   if (!names.includes('create_todo_task')) {
     throw new Error(`missing create_todo_task tool: ${names.join(', ')}`);
+  }
+  for (const tool of EQUIVALENCE_TODO_TOOLS) {
+    if (!names.includes(tool)) {
+      throw new Error(`missing equivalence todo tool ${tool}: ${names.join(', ')}`);
+    }
   }
   for (const tool of TODO_TOOL_NAMES) {
     if (!names.includes(tool)) {
