@@ -64,7 +64,19 @@ const PLAN_TASK_CREATE_RESPONSE = {
 /** @type {Array<{ title: string, todo_md?: string }>} */
 const planTaskCreateCalls = [];
 
-const PLAN_TOOL_NAMES = [
+const TODO_TOOL_NAMES = [
+  'create_todo_task',
+  'list_todo_tasks',
+  'get_todo_task',
+  'delete_todo_task',
+  'add_todo_sub',
+  'delete_todo_sub',
+  'complete_todo',
+  'link_todo_archive',
+];
+
+/** Breaking rename: old MCP tool name must not remain registered (T8 / AC5 / R1). */
+const FORBIDDEN_PLAN_TOOL_NAMES = [
   'create_plan_task',
   'list_plan_tasks',
   'get_plan_task',
@@ -72,33 +84,37 @@ const PLAN_TOOL_NAMES = [
   'add_plan_sub',
   'delete_plan_sub',
   'complete_plan',
+  'complete_plan_sub',
   'link_plan_archive',
-];
-
-/** Breaking rename: old MCP tool name must not remain registered (T8 / AC5 / R1). */
-const FORBIDDEN_PLAN_TOOL_NAMES = ['complete_plan_sub'];
-
-/** Master status wire values — list/get/create readback must admit all three (T8 / AC7). */
-const MASTER_STATUS_WIRE = ['incomplete', 'complete', 'abandoned'];
-
-/** MCP attachment tools (T9) — must proxyPost to T8 HTTP paths; no delete tool. */
-const ATTACHMENT_TOOL_NAMES = [
   'add_plan_attachment',
   'list_plan_attachments',
   'get_plan_attachment',
   'update_plan_attachment',
 ];
 
+/** Master status wire values — list/get/create readback must admit all three (T8 / AC7). */
+const MASTER_STATUS_WIRE = ['incomplete', 'complete', 'abandoned'];
+
+/** MCP attachment tools (T9) — must proxyPost to T8 HTTP paths; no delete tool. */
+const ATTACHMENT_TOOL_NAMES = [
+  'add_todo_attachment',
+  'list_todo_attachments',
+  'get_todo_attachment',
+  'update_todo_attachment',
+];
+
 const ATTACHMENT_TOOL_HTTP_PATHS = {
-  add_plan_attachment: '/api/todo-task-add-attachment',
-  list_plan_attachments: '/api/todo-task-list-attachments',
-  get_plan_attachment: '/api/todo-task-get-attachment',
-  update_plan_attachment: '/api/todo-task-update-attachment',
+  add_todo_attachment: '/api/todo-task-add-attachment',
+  list_todo_attachments: '/api/todo-task-list-attachments',
+  get_todo_attachment: '/api/todo-task-get-attachment',
+  update_todo_attachment: '/api/todo-task-update-attachment',
 };
 
 const FORBIDDEN_ATTACHMENT_DELETE_TOOL_NAMES = [
   'delete_plan_attachment',
   'remove_plan_attachment',
+  'delete_todo_attachment',
+  'remove_todo_attachment',
 ];
 
 function assertMasterStatusWire(status, label) {
@@ -413,7 +429,7 @@ function startMockHttp(port) {
         respondJson(res, 404, { error: 'Task not found' });
         return;
       }
-      // Mirror host complete_plan: abandoned rejects; already-complete is idempotent (T5/T8).
+      // Mirror host complete_todo: abandoned rejects; already-complete is idempotent (T5/T8).
       if (task.status === 'abandoned') {
         respondJson(res, 409, { error: 'master_abandoned' });
         return;
@@ -643,17 +659,17 @@ async function runMcpClient(mcpPort) {
   if (!names.includes('archive_document') || !names.includes('archive_digest')) {
     throw new Error(`missing archive tools: ${names.join(', ')}`);
   }
-  if (!names.includes('create_plan_task')) {
-    throw new Error(`missing create_plan_task tool: ${names.join(', ')}`);
+  if (!names.includes('create_todo_task')) {
+    throw new Error(`missing create_todo_task tool: ${names.join(', ')}`);
   }
-  for (const tool of PLAN_TOOL_NAMES) {
+  for (const tool of TODO_TOOL_NAMES) {
     if (!names.includes(tool)) {
-      throw new Error(`missing plan tool ${tool}: ${names.join(', ')}`);
+      throw new Error(`missing todo tool ${tool}: ${names.join(', ')}`);
     }
   }
   for (const tool of FORBIDDEN_PLAN_TOOL_NAMES) {
     if (names.includes(tool)) {
-      throw new Error(`forbidden plan tool registered: ${tool}`);
+      throw new Error(`forbidden plan_* tool still registered: ${tool}`);
     }
   }
   for (const tool of ATTACHMENT_TOOL_NAMES) {
@@ -719,12 +735,12 @@ async function runMcpClient(mcpPort) {
   resetPlanTaskStore();
 
   const planOmitResult = await client.callTool({
-    name: 'create_plan_task',
+    name: 'create_todo_task',
     arguments: { title: 'Omit body' },
   });
   const planOmitText = planOmitResult.content?.[0]?.text || '';
   if (planOmitResult.isError || !planOmitText.includes('task_mock001')) {
-    throw new Error(`unexpected create_plan_task omit: ${planOmitText}`);
+    throw new Error(`unexpected create_todo_task omit: ${planOmitText}`);
   }
   if (
     planTaskCreateCalls.length !== 1 ||
@@ -737,19 +753,19 @@ async function runMcpClient(mcpPort) {
     throw new Error(`expected empty sub_tasks on create, got: ${planOmitText}`);
   }
   if (omitTask.status !== 'incomplete') {
-    throw new Error(`create_plan_task status must be incomplete, got: ${planOmitText}`);
+    throw new Error(`create_todo_task status must be incomplete, got: ${planOmitText}`);
   }
-  assertMasterStatusWire(omitTask.status, 'create_plan_task');
+  assertMasterStatusWire(omitTask.status, 'create_todo_task');
 
   planTaskCreateCalls.length = 0;
   resetPlanTaskStore();
   const planBodyResult = await client.callTool({
-    name: 'create_plan_task',
-    arguments: { title: 'With body', plan_md: '## Notes\n\nHello' },
+    name: 'create_todo_task',
+    arguments: { title: 'With body', todo_md: '## Notes\n\nHello' },
   });
   const planBodyText = planBodyResult.content?.[0]?.text || '';
   if (planBodyResult.isError || !planBodyText.includes('task_mock001')) {
-    throw new Error(`unexpected create_plan_task with plan_md: ${planBodyText}`);
+    throw new Error(`unexpected create_todo_task with todo_md: ${planBodyText}`);
   }
   if (
     planTaskCreateCalls.length !== 1 ||
@@ -763,20 +779,20 @@ async function runMcpClient(mcpPort) {
   }
 
   const planTitleLong = await client.callTool({
-    name: 'create_plan_task',
+    name: 'create_todo_task',
     arguments: {
       title:
         'one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen twenty twentyone',
     },
   });
   if (!planTitleLong.isError) {
-    throw new Error('expected create_plan_task validation error for title over 20 words');
+    throw new Error('expected create_todo_task validation error for title over 20 words');
   }
 
   resetPlanTaskStore();
   const crudCreate = await client.callTool({
-    name: 'create_plan_task',
-    arguments: { title: 'CRUD master', plan_md: '# Plan' },
+    name: 'create_todo_task',
+    arguments: { title: 'CRUD master', todo_md: '# Plan' },
   });
   const crudCreateText = crudCreate.content?.[0]?.text || '';
   if (crudCreate.isError || !crudCreateText.includes('task_mock001')) {
@@ -784,83 +800,83 @@ async function runMcpClient(mcpPort) {
   }
 
   const addSubA = await client.callTool({
-    name: 'add_plan_sub',
+    name: 'add_todo_sub',
     arguments: { master_task_id: 'task_mock001', title: 'Sub A' },
   });
   if (addSubA.isError) {
-    throw new Error(`unexpected add_plan_sub A: ${addSubA.content?.[0]?.text || ''}`);
+    throw new Error(`unexpected add_todo_sub A: ${addSubA.content?.[0]?.text || ''}`);
   }
   const addSubB = await client.callTool({
-    name: 'add_plan_sub',
+    name: 'add_todo_sub',
     arguments: { master_task_id: 'task_mock001', title: 'Sub B' },
   });
   if (addSubB.isError) {
-    throw new Error(`unexpected add_plan_sub B: ${addSubB.content?.[0]?.text || ''}`);
+    throw new Error(`unexpected add_todo_sub B: ${addSubB.content?.[0]?.text || ''}`);
   }
 
-  const listResult = await client.callTool({ name: 'list_plan_tasks', arguments: {} });
+  const listResult = await client.callTool({ name: 'list_todo_tasks', arguments: {} });
   const listText = listResult.content?.[0]?.text || '';
   if (listResult.isError || !listText.includes('CRUD master')) {
-    throw new Error(`unexpected list_plan_tasks: ${listText}`);
+    throw new Error(`unexpected list_todo_tasks: ${listText}`);
   }
   const listParsed = JSON.parse(listText);
   const listMaster = listParsed.find((t) => t.master_task_id === 'task_mock001');
   if (!listMaster) {
-    throw new Error(`list_plan_tasks missing CRUD master: ${listText}`);
+    throw new Error(`list_todo_tasks missing CRUD master: ${listText}`);
   }
-  assertMasterStatusWire(listMaster.status, 'list_plan_tasks');
+  assertMasterStatusWire(listMaster.status, 'list_todo_tasks');
 
   const getResult = await client.callTool({
-    name: 'get_plan_task',
+    name: 'get_todo_task',
     arguments: { id: 'task_mock001' },
   });
   const getText = getResult.content?.[0]?.text || '';
   if (getResult.isError || !getText.includes('Sub B')) {
-    throw new Error(`unexpected get_plan_task: ${getText}`);
+    throw new Error(`unexpected get_todo_task: ${getText}`);
   }
-  assertMasterStatusWire(JSON.parse(getText).status, 'get_plan_task');
+  assertMasterStatusWire(JSON.parse(getText).status, 'get_todo_task');
 
   const getMissing = await client.callTool({
-    name: 'get_plan_task',
+    name: 'get_todo_task',
     arguments: { id: 'missing-master-id' },
   });
   if (!getMissing.isError) {
-    throw new Error('expected get_plan_task error for unknown id');
+    throw new Error('expected get_todo_task error for unknown id');
   }
 
   const addSub = await client.callTool({
-    name: 'add_plan_sub',
+    name: 'add_todo_sub',
     arguments: { master_task_id: 'task_mock001', title: 'Sub C' },
   });
   const addSubText = addSub.content?.[0]?.text || '';
   if (addSub.isError || !addSubText.includes('Sub C')) {
-    throw new Error(`unexpected add_plan_sub: ${addSubText}`);
+    throw new Error(`unexpected add_todo_sub: ${addSubText}`);
   }
 
   const parsedAdd = JSON.parse(addSubText);
   const subToComplete = parsedAdd.task.sub_tasks.find((s) => s.title === 'Sub A').sub_task_id;
 
   const completeSub = await client.callTool({
-    name: 'complete_plan',
+    name: 'complete_todo',
     arguments: { master_task_id: 'task_mock001', sub_task_id: subToComplete },
   });
   const completeText = completeSub.content?.[0]?.text || '';
   if (completeSub.isError || !completeText.includes('complete')) {
-    throw new Error(`unexpected complete_plan with sub_task_id: ${completeText}`);
+    throw new Error(`unexpected complete_todo with sub_task_id: ${completeText}`);
   }
   const afterSubComplete = JSON.parse(completeText).task;
   const completedSub = afterSubComplete.sub_tasks.find((s) => s.sub_task_id === subToComplete);
   if (!completedSub || completedSub.status !== 'complete') {
-    throw new Error(`complete_plan with sub_task_id must mark sub complete: ${completeText}`);
+    throw new Error(`complete_todo with sub_task_id must mark sub complete: ${completeText}`);
   }
   if (afterSubComplete.status !== 'incomplete') {
     throw new Error(
-      `complete_plan with sub_task_id must not rewrite master status, got: ${completeText}`,
+      `complete_todo with sub_task_id must not rewrite master status, got: ${completeText}`,
     );
   }
 
   const linkArchive = await client.callTool({
-    name: 'link_plan_archive',
+    name: 'link_todo_archive',
     arguments: {
       master_task_id: 'task_mock001',
       sub_task_id: subToComplete,
@@ -869,32 +885,32 @@ async function runMcpClient(mcpPort) {
   });
   const linkText = linkArchive.content?.[0]?.text || '';
   if (linkArchive.isError || !linkText.includes(DEMO_ID)) {
-    throw new Error(`unexpected link_plan_archive: ${linkText}`);
+    throw new Error(`unexpected link_todo_archive: ${linkText}`);
   }
 
   const subToDelete = parsedAdd.task.sub_tasks.find((s) => s.title === 'Sub B').sub_task_id;
   const deleteSub = await client.callTool({
-    name: 'delete_plan_sub',
+    name: 'delete_todo_sub',
     arguments: { master_task_id: 'task_mock001', sub_task_id: subToDelete },
   });
   if (deleteSub.isError) {
-    throw new Error(`unexpected delete_plan_sub: ${deleteSub.content?.[0]?.text || ''}`);
+    throw new Error(`unexpected delete_todo_sub: ${deleteSub.content?.[0]?.text || ''}`);
   }
 
   const deleteMaster = await client.callTool({
-    name: 'delete_plan_task',
+    name: 'delete_todo_task',
     arguments: { master_task_id: 'task_mock001' },
   });
   const deleteMasterText = deleteMaster.content?.[0]?.text || '';
   if (deleteMaster.isError || !deleteMasterText.includes('"ok":true')) {
-    throw new Error(`unexpected delete_plan_task: ${deleteMasterText}`);
+    throw new Error(`unexpected delete_todo_task: ${deleteMasterText}`);
   }
 
   // T8: complete without sub_task_id → master complete; idempotent; abandoned reject;
   // list/get/create status wire includes abandoned.
   resetPlanTaskStore();
   const masterCreate = await client.callTool({
-    name: 'create_plan_task',
+    name: 'create_todo_task',
     arguments: { title: 'Master complete path' },
   });
   const masterCreateText = masterCreate.content?.[0]?.text || '';
@@ -902,47 +918,47 @@ async function runMcpClient(mcpPort) {
     throw new Error(`unexpected master-complete create: ${masterCreateText}`);
   }
   const completeMaster = await client.callTool({
-    name: 'complete_plan',
+    name: 'complete_todo',
     arguments: { master_task_id: 'task_mock001' },
   });
   const completeMasterText = completeMaster.content?.[0]?.text || '';
   if (completeMaster.isError) {
-    throw new Error(`unexpected complete_plan without sub_task_id: ${completeMasterText}`);
+    throw new Error(`unexpected complete_todo without sub_task_id: ${completeMasterText}`);
   }
   const completeMasterTask = JSON.parse(completeMasterText).task;
   if (completeMasterTask.status !== 'complete') {
     throw new Error(
-      `complete_plan without sub_task_id must set master complete: ${completeMasterText}`,
+      `complete_todo without sub_task_id must set master complete: ${completeMasterText}`,
     );
   }
-  assertMasterStatusWire(completeMasterTask.status, 'complete_plan without sub');
+  assertMasterStatusWire(completeMasterTask.status, 'complete_todo without sub');
 
   const completeIdempotent = await client.callTool({
-    name: 'complete_plan',
+    name: 'complete_todo',
     arguments: { master_task_id: 'task_mock001' },
   });
   const completeIdempotentText = completeIdempotent.content?.[0]?.text || '';
   if (completeIdempotent.isError) {
-    throw new Error(`complete_plan on already-complete must be idempotent: ${completeIdempotentText}`);
+    throw new Error(`complete_todo on already-complete must be idempotent: ${completeIdempotentText}`);
   }
   if (JSON.parse(completeIdempotentText).task.status !== 'complete') {
-    throw new Error(`idempotent complete_plan must keep status complete: ${completeIdempotentText}`);
+    throw new Error(`idempotent complete_todo must keep status complete: ${completeIdempotentText}`);
   }
 
   seedMaster('task_abandoned', 'Abandoned master', 'abandoned');
-  const listTri = await client.callTool({ name: 'list_plan_tasks', arguments: {} });
+  const listTri = await client.callTool({ name: 'list_todo_tasks', arguments: {} });
   const listTriText = listTri.content?.[0]?.text || '';
   if (listTri.isError) {
     throw new Error(`unexpected list after abandoned seed: ${listTriText}`);
   }
   const abandonedListed = JSON.parse(listTriText).find((t) => t.master_task_id === 'task_abandoned');
   if (!abandonedListed || abandonedListed.status !== 'abandoned') {
-    throw new Error(`list_plan_tasks must read back abandoned status: ${listTriText}`);
+    throw new Error(`list_todo_tasks must read back abandoned status: ${listTriText}`);
   }
-  assertMasterStatusWire(abandonedListed.status, 'list_plan_tasks abandoned');
+  assertMasterStatusWire(abandonedListed.status, 'list_todo_tasks abandoned');
 
   const getAbandoned = await client.callTool({
-    name: 'get_plan_task',
+    name: 'get_todo_task',
     arguments: { id: 'task_abandoned' },
   });
   const getAbandonedText = getAbandoned.content?.[0]?.text || '';
@@ -950,18 +966,18 @@ async function runMcpClient(mcpPort) {
     throw new Error(`unexpected get abandoned: ${getAbandonedText}`);
   }
   if (JSON.parse(getAbandonedText).status !== 'abandoned') {
-    throw new Error(`get_plan_task must read back abandoned status: ${getAbandonedText}`);
+    throw new Error(`get_todo_task must read back abandoned status: ${getAbandonedText}`);
   }
-  assertMasterStatusWire(JSON.parse(getAbandonedText).status, 'get_plan_task abandoned');
+  assertMasterStatusWire(JSON.parse(getAbandonedText).status, 'get_todo_task abandoned');
 
   const rejectAbandoned = await client.callTool({
-    name: 'complete_plan',
+    name: 'complete_todo',
     arguments: { master_task_id: 'task_abandoned' },
   });
   const rejectAbandonedText = rejectAbandoned.content?.[0]?.text || '';
   if (!rejectAbandoned.isError || !rejectAbandonedText.includes('master_abandoned')) {
     throw new Error(
-      `complete_plan on abandoned must reject with master_abandoned, got: ${rejectAbandonedText}`,
+      `complete_todo on abandoned must reject with master_abandoned, got: ${rejectAbandonedText}`,
     );
   }
 
@@ -969,7 +985,7 @@ async function runMcpClient(mcpPort) {
   resetPlanTaskStore();
   planAttachmentHttpCalls.length = 0;
   const attachCreate = await client.callTool({
-    name: 'create_plan_task',
+    name: 'create_todo_task',
     arguments: { title: 'Attach master' },
   });
   if (attachCreate.isError) {
@@ -977,7 +993,7 @@ async function runMcpClient(mcpPort) {
   }
 
   const addAttach = await client.callTool({
-    name: 'add_plan_attachment',
+    name: 'add_todo_attachment',
     arguments: {
       master_task_id: 'task_mock001',
       file_name: 'notes.md',
@@ -986,29 +1002,29 @@ async function runMcpClient(mcpPort) {
   });
   const addAttachText = addAttach.content?.[0]?.text || '';
   if (addAttach.isError || !addAttachText.includes('notes.md')) {
-    throw new Error(`unexpected add_plan_attachment: ${addAttachText}`);
+    throw new Error(`unexpected add_todo_attachment: ${addAttachText}`);
   }
 
   const listAttach = await client.callTool({
-    name: 'list_plan_attachments',
+    name: 'list_todo_attachments',
     arguments: { master_task_id: 'task_mock001' },
   });
   const listAttachText = listAttach.content?.[0]?.text || '';
   if (listAttach.isError || !listAttachText.includes('notes.md')) {
-    throw new Error(`unexpected list_plan_attachments: ${listAttachText}`);
+    throw new Error(`unexpected list_todo_attachments: ${listAttachText}`);
   }
 
   const getAttach = await client.callTool({
-    name: 'get_plan_attachment',
+    name: 'get_todo_attachment',
     arguments: { master_task_id: 'task_mock001', file_name: 'notes.md' },
   });
   const getAttachText = getAttach.content?.[0]?.text || '';
   if (getAttach.isError || !getAttachText.includes('# Notes')) {
-    throw new Error(`unexpected get_plan_attachment: ${getAttachText}`);
+    throw new Error(`unexpected get_todo_attachment: ${getAttachText}`);
   }
 
   const updateAttach = await client.callTool({
-    name: 'update_plan_attachment',
+    name: 'update_todo_attachment',
     arguments: {
       master_task_id: 'task_mock001',
       file_name: 'notes.md',
@@ -1017,24 +1033,24 @@ async function runMcpClient(mcpPort) {
   });
   const updateAttachText = updateAttach.content?.[0]?.text || '';
   if (updateAttach.isError || !updateAttachText.includes('"ok":true')) {
-    throw new Error(`unexpected update_plan_attachment: ${updateAttachText}`);
+    throw new Error(`unexpected update_todo_attachment: ${updateAttachText}`);
   }
 
   const rereadAttach = await client.callTool({
-    name: 'get_plan_attachment',
+    name: 'get_todo_attachment',
     arguments: { master_task_id: 'task_mock001', file_name: 'notes.md' },
   });
   const rereadAttachText = rereadAttach.content?.[0]?.text || '';
   if (rereadAttach.isError || !rereadAttachText.includes('updated body')) {
-    throw new Error(`unexpected get_plan_attachment after update: ${rereadAttachText}`);
+    throw new Error(`unexpected get_todo_attachment after update: ${rereadAttachText}`);
   }
 
   const expectedPaths = [
-    ATTACHMENT_TOOL_HTTP_PATHS.add_plan_attachment,
-    ATTACHMENT_TOOL_HTTP_PATHS.list_plan_attachments,
-    ATTACHMENT_TOOL_HTTP_PATHS.get_plan_attachment,
-    ATTACHMENT_TOOL_HTTP_PATHS.update_plan_attachment,
-    ATTACHMENT_TOOL_HTTP_PATHS.get_plan_attachment,
+    ATTACHMENT_TOOL_HTTP_PATHS.add_todo_attachment,
+    ATTACHMENT_TOOL_HTTP_PATHS.list_todo_attachments,
+    ATTACHMENT_TOOL_HTTP_PATHS.get_todo_attachment,
+    ATTACHMENT_TOOL_HTTP_PATHS.update_todo_attachment,
+    ATTACHMENT_TOOL_HTTP_PATHS.get_todo_attachment,
   ];
   const actualPaths = planAttachmentHttpCalls.map((c) => c.path);
   if (JSON.stringify(actualPaths) !== JSON.stringify(expectedPaths)) {
@@ -1044,26 +1060,26 @@ async function runMcpClient(mcpPort) {
   }
 
   const getTaskAfterAttach = await client.callTool({
-    name: 'get_plan_task',
+    name: 'get_todo_task',
     arguments: { id: 'task_mock001' },
   });
   const getTaskAfterAttachText = getTaskAfterAttach.content?.[0]?.text || '';
   if (getTaskAfterAttach.isError) {
-    throw new Error(`unexpected get_plan_task after attach: ${getTaskAfterAttachText}`);
+    throw new Error(`unexpected get_todo_task after attach: ${getTaskAfterAttachText}`);
   }
   const getTaskParsed = JSON.parse(getTaskAfterAttachText);
   if (Object.prototype.hasOwnProperty.call(getTaskParsed, 'attachments')) {
-    throw new Error('get_plan_task must not embed attachments');
+    throw new Error('get_todo_task must not embed attachments');
   }
 
-  const listTasksAfterAttach = await client.callTool({ name: 'list_plan_tasks', arguments: {} });
+  const listTasksAfterAttach = await client.callTool({ name: 'list_todo_tasks', arguments: {} });
   const listTasksAfterAttachText = listTasksAfterAttach.content?.[0]?.text || '';
   if (listTasksAfterAttach.isError) {
-    throw new Error(`unexpected list_plan_tasks after attach: ${listTasksAfterAttachText}`);
+    throw new Error(`unexpected list_todo_tasks after attach: ${listTasksAfterAttachText}`);
   }
   const listTasksParsed = JSON.parse(listTasksAfterAttachText);
   if (!Array.isArray(listTasksParsed) || listTasksParsed.some((t) => Object.prototype.hasOwnProperty.call(t, 'attachments'))) {
-    throw new Error('list_plan_tasks must not embed attachments');
+    throw new Error('list_todo_tasks must not embed attachments');
   }
 
   await client.close();

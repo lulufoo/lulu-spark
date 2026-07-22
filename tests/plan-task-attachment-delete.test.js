@@ -334,12 +334,14 @@ describe('attachment delete does not loosen MCP / dialog contracts', () => {
 
   it('MCP schema still has no attachment delete tool', () => {
     const mcpSrc = readFileSync(join(repoRoot, 'packages/knowledge-mcp/index.mjs'), 'utf8');
-    expect(mcpSrc).toMatch(/add_plan_attachment/);
-    expect(mcpSrc).toMatch(/list_plan_attachments/);
-    expect(mcpSrc).toMatch(/get_plan_attachment/);
-    expect(mcpSrc).toMatch(/update_plan_attachment/);
+    expect(mcpSrc).toMatch(/add_todo_attachment/);
+    expect(mcpSrc).toMatch(/list_todo_attachments/);
+    expect(mcpSrc).toMatch(/get_todo_attachment/);
+    expect(mcpSrc).toMatch(/update_todo_attachment/);
     expect(mcpSrc).not.toMatch(/['"]delete_plan_attachment['"]/);
     expect(mcpSrc).not.toMatch(/['"]remove_plan_attachment['"]/);
+    expect(mcpSrc).not.toMatch(/['"]delete_todo_attachment['"]/);
+    expect(mcpSrc).not.toMatch(/['"]remove_todo_attachment['"]/);
 
     const verifySrc = readFileSync(
       join(repoRoot, 'packages/knowledge-mcp/scripts/verify.mjs'),
@@ -347,5 +349,6 @@ describe('attachment delete does not loosen MCP / dialog contracts', () => {
     );
     expect(verifySrc).toMatch(/FORBIDDEN_ATTACHMENT_DELETE_TOOL_NAMES/);
     expect(verifySrc).toMatch(/delete_plan_attachment/);
+    expect(verifySrc).toMatch(/delete_todo_attachment/);
   });
 });

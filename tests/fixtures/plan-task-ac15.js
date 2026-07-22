@@ -69,15 +69,17 @@ export const ATTACHMENT_COMMANDS = [
 ];
 
 export const MCP_ATTACHMENT_TOOLS = [
-  'add_plan_attachment',
-  'list_plan_attachments',
-  'get_plan_attachment',
-  'update_plan_attachment',
+  'add_todo_attachment',
+  'list_todo_attachments',
+  'get_todo_attachment',
+  'update_todo_attachment',
 ];
 
 export const MCP_FORBIDDEN_DELETE_TOOLS = [
   'delete_plan_attachment',
   'remove_plan_attachment',
+  'delete_todo_attachment',
+  'remove_todo_attachment',
 ];
 
 /** Integration-test file → regex probes for UI add/list/editor/save paths. */

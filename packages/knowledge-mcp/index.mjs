@@ -86,17 +86,6 @@ function toolError(status, text) {
   };
 }
 
-/** Register an MCP tool that forwards its args as JSON via proxyPost. */
-function registerProxyPostTool(server, name, meta, path) {
-  server.registerTool(name, meta, async (args) => {
-    const result = await proxyPost(path, args);
-    if (!result.ok) {
-      return toolError(result.status, result.text);
-    }
-    return { content: [{ type: 'text', text: result.text }] };
-  });
-}
-
 function buildServer() {
   const server = new McpServer(
     { name: 'workbench-knowledge-mcp', version: '0.3.0' },
@@ -224,10 +213,10 @@ function buildServer() {
   );
 
   server.registerTool(
-    'create_plan_task',
+    'create_todo_task',
     {
       description:
-        'Create a plan task master with title and optional plan body (tool field plan_md → Host todo_md). Title max 20 Chinese characters or English words. Creates empty sub_tasks; use add_plan_sub for subs. Proxy POST /api/todo-task-create',
+        'Create a todo task master with title and optional todo body (todo_md). Title max 20 Chinese characters or English words. Creates empty sub_tasks; use add_todo_sub for subs. Proxy POST /api/todo-task-create',
       inputSchema: {
         title: z
           .string()
@@ -237,16 +226,16 @@ function buildServer() {
             message: 'Title too long (max 20 Chinese characters or English words)',
           })
           .describe('Master task title (max 20 Chinese characters or English words)'),
-        plan_md: z
+        todo_md: z
           .string()
           .optional()
-          .describe('Plan body markdown; omit or empty → empty plan.md'),
+          .describe('Todo body markdown; omit or empty → empty todo.md'),
       },
     },
-    async ({ title, plan_md }) => {
+    async ({ title, todo_md }) => {
       const body = { title };
-      if (plan_md != null) {
-        body.todo_md = plan_md;
+      if (todo_md != null) {
+        body.todo_md = todo_md;
       }
       const result = await proxyPost('/api/todo-task-create', body);
       if (!result.ok) {
@@ -257,9 +246,9 @@ function buildServer() {
   );
 
   server.registerTool(
-    'list_plan_tasks',
+    'list_todo_tasks',
     {
-      description: 'List all plan task masters. Proxy GET /api/todo-tasks',
+      description: 'List all todo task masters. Proxy GET /api/todo-tasks',
       inputSchema: {},
     },
     async () => {
@@ -272,9 +261,9 @@ function buildServer() {
   );
 
   server.registerTool(
-    'get_plan_task',
+    'get_todo_task',
     {
-      description: 'Get a plan task master by id. Proxy GET /api/todo-task?id=',
+      description: 'Get a todo task master by id. Proxy GET /api/todo-task?id=',
       inputSchema: {
         id: z.string().trim().min(1).describe('Master task id'),
       },
@@ -290,9 +279,9 @@ function buildServer() {
   );
 
   server.registerTool(
-    'delete_plan_task',
+    'delete_todo_task',
     {
-      description: 'Delete a plan task master and its directory. Proxy POST /api/todo-task-delete',
+      description: 'Delete a todo task master and its directory. Proxy POST /api/todo-task-delete',
       inputSchema: {
         master_task_id: z.string().trim().min(1).describe('Master task id'),
       },
@@ -307,9 +296,9 @@ function buildServer() {
   );
 
   server.registerTool(
-    'add_plan_sub',
+    'add_todo_sub',
     {
-      description: 'Add a sub task to a plan master. Proxy POST /api/todo-task-add-sub',
+      description: 'Add a sub task to a todo master. Proxy POST /api/todo-task-add-sub',
       inputSchema: {
         master_task_id: z.string().trim().min(1).describe('Master task id'),
         title: z.string().trim().min(1).describe('Sub task title'),
@@ -325,7 +314,7 @@ function buildServer() {
   );
 
   server.registerTool(
-    'delete_plan_sub',
+    'delete_todo_sub',
     {
       description: 'Delete a sub task (not the last one). Proxy POST /api/todo-task-delete-sub',
       inputSchema: {
@@ -343,10 +332,10 @@ function buildServer() {
   );
 
   server.registerTool(
-    'complete_plan',
+    'complete_todo',
     {
       description:
-        'Complete a plan task. With sub_task_id, marks that sub complete; without it, marks the master complete. Proxy POST /api/todo-task-complete',
+        'Complete a todo task. With sub_task_id, marks that sub complete; without it, marks the master complete. Proxy POST /api/todo-task-complete',
       inputSchema: {
         master_task_id: z.string().trim().min(1).describe('Master task id'),
         sub_task_id: z
@@ -369,7 +358,7 @@ function buildServer() {
   );
 
   server.registerTool(
-    'link_plan_archive',
+    'link_todo_archive',
     {
       description:
         'Link an archive entry id to a completed sub task. Proxy POST /api/todo-task-link-archive',
@@ -392,61 +381,81 @@ function buildServer() {
     },
   );
 
-  registerProxyPostTool(
-    server,
-    'add_plan_attachment',
+  server.registerTool(
+    'add_todo_attachment',
     {
       description:
-        'Add a markdown attachment to a plan master. Proxy POST /api/todo-task-add-attachment',
+        'Add a markdown attachment to a todo master. Proxy POST /api/todo-task-add-attachment',
       inputSchema: {
         master_task_id: z.string().trim().min(1).describe('Master task id'),
         file_name: z.string().trim().min(1).describe('Attachment file name (must end with .md)'),
         content: z.string().describe('Markdown attachment content'),
       },
     },
-    '/api/todo-task-add-attachment',
+    async (args) => {
+      const result = await proxyPost('/api/todo-task-add-attachment', args);
+      if (!result.ok) {
+        return toolError(result.status, result.text);
+      }
+      return { content: [{ type: 'text', text: result.text }] };
+    },
   );
 
-  registerProxyPostTool(
-    server,
-    'list_plan_attachments',
+  server.registerTool(
+    'list_todo_attachments',
     {
       description:
-        'List attachments for a plan master. Proxy POST /api/todo-task-list-attachments',
+        'List attachments for a todo master. Proxy POST /api/todo-task-list-attachments',
       inputSchema: {
         master_task_id: z.string().trim().min(1).describe('Master task id'),
       },
     },
-    '/api/todo-task-list-attachments',
+    async (args) => {
+      const result = await proxyPost('/api/todo-task-list-attachments', args);
+      if (!result.ok) {
+        return toolError(result.status, result.text);
+      }
+      return { content: [{ type: 'text', text: result.text }] };
+    },
   );
 
-  registerProxyPostTool(
-    server,
-    'get_plan_attachment',
+  server.registerTool(
+    'get_todo_attachment',
     {
       description:
-        'Read one plan attachment body by file name. Proxy POST /api/todo-task-get-attachment',
+        'Read one todo attachment body by file name. Proxy POST /api/todo-task-get-attachment',
       inputSchema: {
         master_task_id: z.string().trim().min(1).describe('Master task id'),
         file_name: z.string().trim().min(1).describe('Attachment file name'),
       },
     },
-    '/api/todo-task-get-attachment',
+    async (args) => {
+      const result = await proxyPost('/api/todo-task-get-attachment', args);
+      if (!result.ok) {
+        return toolError(result.status, result.text);
+      }
+      return { content: [{ type: 'text', text: result.text }] };
+    },
   );
 
-  registerProxyPostTool(
-    server,
-    'update_plan_attachment',
+  server.registerTool(
+    'update_todo_attachment',
     {
       description:
-        'Overwrite a plan attachment body. Proxy POST /api/todo-task-update-attachment',
+        'Overwrite a todo attachment body. Proxy POST /api/todo-task-update-attachment',
       inputSchema: {
         master_task_id: z.string().trim().min(1).describe('Master task id'),
         file_name: z.string().trim().min(1).describe('Attachment file name'),
         content: z.string().describe('New markdown attachment content'),
       },
     },
-    '/api/todo-task-update-attachment',
+    async (args) => {
+      const result = await proxyPost('/api/todo-task-update-attachment', args);
+      if (!result.ok) {
+        return toolError(result.status, result.text);
+      }
+      return { content: [{ type: 'text', text: result.text }] };
+    },
   );
 
   return server;

@@ -154,10 +154,10 @@ fn default_mcp_port_is_9876() {
 }
 
 #[test]
-fn create_plan_task_mcp_tool_e2e_with_local_http() {
+fn create_todo_task_mcp_tool_e2e_with_local_http() {
     let repo_root = repo_root_with_sidecar();
     let script = repo_root.join("packages/knowledge-mcp/index.mjs");
-    let e2e = repo_root.join("packages/knowledge-mcp/scripts/plan-task-mcp-e2e.mjs");
+    let e2e = repo_root.join("packages/knowledge-mcp/scripts/todo-task-mcp-e2e.mjs");
     if !script.is_file() || !e2e.is_file() {
         eprintln!("skip: knowledge-mcp scripts missing");
         return;
@@ -166,8 +166,8 @@ fn create_plan_task_mcp_tool_e2e_with_local_http() {
     let _sandbox = TestSandbox::new();
     let wb = _sandbox.workbench_knowledge_root();
     std::fs::create_dir_all(&wb).expect("mkdir corpus");
-    let plan_tasks_tasks_dir = wb.join("todo_tasks").join("tasks");
-    std::fs::create_dir_all(&plan_tasks_tasks_dir).expect("mkdir plan_tasks/tasks");
+    let todo_tasks_tasks_dir = wb.join("todo_tasks").join("tasks");
+    std::fs::create_dir_all(&todo_tasks_tasks_dir).expect("mkdir todo_tasks/tasks");
     // Host todo HTTP requires durable migration gate (t5) before serving todo_* routes.
     std::fs::write(
         wb.join("todo_tasks").join(".migration_gate_passed"),
@@ -191,11 +191,11 @@ fn create_plan_task_mcp_tool_e2e_with_local_http() {
         .env("MCP_PORT", mcp_port.to_string())
         .env(
             "E2E_PLAN_TASKS_TASKS_DIR",
-            plan_tasks_tasks_dir.to_string_lossy().as_ref(),
+            todo_tasks_tasks_dir.to_string_lossy().as_ref(),
         )
         .status()
-        .expect("run plan-task-mcp-e2e");
-    assert!(status.success(), "plan-task-mcp-e2e should pass");
+        .expect("run todo-task-mcp-e2e");
+    assert!(status.success(), "todo-task-mcp-e2e should pass");
 
     let process = KnowledgeMcpProcess::new(child);
     process.kill();

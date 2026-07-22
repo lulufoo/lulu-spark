@@ -10,11 +10,11 @@ const fixtureRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 const dialogSource = readFileSync(join(fixtureRoot, 'frontend/js/plan-task/dialog.js'), 'utf8');
 const mcpSource = readFileSync(join(fixtureRoot, 'packages/knowledge-mcp/index.mjs'), 'utf8');
 
-function extractCreatePlanTaskBlock(source) {
-  const marker = "server.registerTool(\n    'create_plan_task'";
+function extractCreateTodoTaskBlock(source) {
+  const marker = "server.registerTool(\n    'create_todo_task'";
   const start = source.indexOf(marker);
   if (start === -1) return '';
-  const end = source.indexOf("server.registerTool(\n    'list_plan_tasks'", start);
+  const end = source.indexOf("server.registerTool(\n    'list_todo_tasks'", start);
   return end === -1 ? source.slice(start) : source.slice(start, end);
 }
 
@@ -49,8 +49,8 @@ describe('F3 copy sync — dialog.js', () => {
   });
 });
 
-describe('F3 copy sync — create_plan_task MCP description', () => {
-  const createBlock = extractCreatePlanTaskBlock(mcpSource);
+describe('F3 copy sync — create_todo_task MCP description', () => {
+  const createBlock = extractCreateTodoTaskBlock(mcpSource);
 
   it('does not describe omit/empty as implicit default sub', () => {
     expect(createBlock).not.toMatch(/implicit sub/i);
