@@ -179,3 +179,56 @@ describe('P2 copy-switch — Plan Tasks UI (tech-doc T3)', () => {
     expect(index).toContain('delete_todo_sub');
   });
 });
+
+const T9_FRONTEND_TARGETS = [
+  'frontend/js/plan-task/index.js',
+  'frontend/js/plan-task/dialog.js',
+  'frontend/js/plan-task-assistant.js',
+];
+
+describe('T9 — frontend/assistant Host API follow (tech-doc T9)', () => {
+  it('index and assistant call GET /api/todo-tasks (not /api/plan-tasks)', () => {
+    const index = read('frontend/js/plan-task/index.js');
+    const assistant = read('frontend/js/plan-task-assistant.js');
+    expect(index).toContain("client.getJson('/api/todo-tasks')");
+    expect(assistant).toContain("client.getJson('/api/todo-tasks')");
+    expect(index).not.toContain("client.getJson('/api/plan-tasks')");
+    expect(assistant).not.toContain("client.getJson('/api/plan-tasks')");
+  });
+
+  it('target sources retain no /api/plan-* HTTP paths (hard cut, no aliases)', () => {
+    for (const rel of T9_FRONTEND_TARGETS) {
+      const src = read(rel);
+      expect(src, rel).not.toMatch(/\/api\/plan-/);
+    }
+  });
+
+  it('index consumes todo_md wire field (not plan_md)', () => {
+    const index = read('frontend/js/plan-task/index.js');
+    expect(index).toMatch(/master\.todo_md/);
+    expect(index).not.toMatch(/master\.plan_md/);
+  });
+
+  it('readApiInvokeMap maps /api/todo-tasks only (no /api/plan-tasks dual alias)', () => {
+    expect(READ_API_INVOKE_MAP['/api/todo-tasks']).toEqual({ cmd: 'get_todo_tasks' });
+    expect(READ_API_INVOKE_MAP['/api/plan-tasks']).toBeUndefined();
+  });
+
+  it('plan-task invoke surface uses Host todo_* command names', () => {
+    const index = read('frontend/js/plan-task/index.js');
+    for (const cmd of [
+      'create_todo_task',
+      'delete_todo_task',
+      'add_todo_sub',
+      'delete_todo_sub',
+      'read_todo_md',
+      'update_todo_md',
+      'complete_todo',
+      'add_todo_attachment',
+      'list_todo_attachments',
+    ]) {
+      expect(index, cmd).toContain(cmd);
+    }
+    expect(index).not.toMatch(/'(create|delete|add|read|update|complete)_plan/);
+  });
+});

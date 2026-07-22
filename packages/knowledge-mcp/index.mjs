@@ -86,6 +86,17 @@ function toolError(status, text) {
   };
 }
 
+/** Thin proxy handler: forward tool args as JSON body via proxyPost. */
+function proxyPostHandler(path) {
+  return async (args) => {
+    const result = await proxyPost(path, args);
+    if (!result.ok) {
+      return toolError(result.status, result.text);
+    }
+    return { content: [{ type: 'text', text: result.text }] };
+  };
+}
+
 function buildServer() {
   const server = new McpServer(
     { name: 'workbench-knowledge-mcp', version: '0.3.0' },
@@ -392,13 +403,7 @@ function buildServer() {
         content: z.string().describe('Markdown attachment content'),
       },
     },
-    async (args) => {
-      const result = await proxyPost('/api/todo-task-add-attachment', args);
-      if (!result.ok) {
-        return toolError(result.status, result.text);
-      }
-      return { content: [{ type: 'text', text: result.text }] };
-    },
+    proxyPostHandler('/api/todo-task-add-attachment'),
   );
 
   server.registerTool(
@@ -410,13 +415,7 @@ function buildServer() {
         master_task_id: z.string().trim().min(1).describe('Master task id'),
       },
     },
-    async (args) => {
-      const result = await proxyPost('/api/todo-task-list-attachments', args);
-      if (!result.ok) {
-        return toolError(result.status, result.text);
-      }
-      return { content: [{ type: 'text', text: result.text }] };
-    },
+    proxyPostHandler('/api/todo-task-list-attachments'),
   );
 
   server.registerTool(
@@ -429,13 +428,7 @@ function buildServer() {
         file_name: z.string().trim().min(1).describe('Attachment file name'),
       },
     },
-    async (args) => {
-      const result = await proxyPost('/api/todo-task-get-attachment', args);
-      if (!result.ok) {
-        return toolError(result.status, result.text);
-      }
-      return { content: [{ type: 'text', text: result.text }] };
-    },
+    proxyPostHandler('/api/todo-task-get-attachment'),
   );
 
   server.registerTool(
@@ -449,13 +442,7 @@ function buildServer() {
         content: z.string().describe('New markdown attachment content'),
       },
     },
-    async (args) => {
-      const result = await proxyPost('/api/todo-task-update-attachment', args);
-      if (!result.ok) {
-        return toolError(result.status, result.text);
-      }
-      return { content: [{ type: 'text', text: result.text }] };
-    },
+    proxyPostHandler('/api/todo-task-update-attachment'),
   );
 
   return server;
