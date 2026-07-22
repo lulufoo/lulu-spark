@@ -1,0 +1,267 @@
+#!/usr/bin/env python3
+"""One-shot idempotent migration: plan_tasks → todo_tasks (+ plan.md → todo.md).
+
+Single controlled entry for Host-authoritative disk layout. Scans and rewrites
+path strings in ``index.json`` and the tasks subtree. On full success writes
+``todo_tasks/.migration_gate_passed``; partial failure never leaves a passing
+gate marker.
+
+Not invoked at application startup — run manually after Host upgrade, before
+enabling the todo API (Host gate check is a separate task).
+"""
+from __future__ import annotations
+
+import json
+import os
+import sys
+from pathlib import Path
+
+try:
+    import tomllib
+except ImportError:  # pragma: no cover - Python < 3.11
+    import tomli as tomllib  # type: ignore[no-redef]
+
+OLD_ROOT = "plan_tasks"
+NEW_ROOT = "todo_tasks"
+OLD_BODY = "plan.md"
+NEW_BODY = "todo.md"
+OLD_V1_JSON = "plan_tasks.json"
+NEW_V1_JSON = "todo_tasks.json"
+GATE_NAME = ".migration_gate_passed"
+
+PATH_REWRITES: tuple[tuple[str, str], ...] = (
+    (f"{OLD_ROOT}/", f"{NEW_ROOT}/"),
+    (OLD_BODY, NEW_BODY),
+)
+
+
+def log_event(**fields: object) -> None:
+    print(json.dumps(fields, ensure_ascii=False), file=sys.stderr, flush=True)
+
+
+def config_dir() -> Path:
+    if env := os.environ.get("LULU_WB_CONFIG_DIR"):
+        return Path(env)
+    return Path.home() / ".config" / "lulu-workbench"
+
+
+def default_workbench_knowledge_root() -> Path:
+    return Path.home() / "Code"
+
+
+def load_workbench_root() -> Path:
+    path = config_dir() / "config.toml"
+    if path.is_file():
+        data = tomllib.loads(path.read_text(encoding="utf-8"))
+    else:
+        data = {}
+    if "workbench_knowledge_root" in data:
+        return Path(data["workbench_knowledge_root"])
+    return default_workbench_knowledge_root()
+
+
+def gate_path(todo_root: Path) -> Path:
+    return todo_root / GATE_NAME
+
+
+def clear_gate(todo_root: Path) -> None:
+    path = gate_path(todo_root)
+    if path.is_file():
+        path.unlink()
+        log_event(event="gate", status="cleared", path=str(path))
+
+
+def write_gate(todo_root: Path) -> None:
+    todo_root.mkdir(parents=True, exist_ok=True)
+    path = gate_path(todo_root)
+    path.write_text("ok\n", encoding="utf-8")
+    log_event(event="gate", status="written", path=str(path))
+
+
+def rewrite_path_strings(text: str) -> str:
+    out = text
+    for old, new in PATH_REWRITES:
+        out = out.replace(old, new)
+    return out
+
+
+def rewrite_json_file(path: Path) -> bool:
+    """Return True if file content changed."""
+    original = path.read_text(encoding="utf-8")
+    updated = rewrite_path_strings(original)
+    if updated == original:
+        return False
+    path.write_text(updated, encoding="utf-8")
+    return True
+
+
+def migrate_root(wb_root: Path) -> tuple[Path, list[dict[str, object]]]:
+    """Rename plan_tasks→todo_tasks. Returns (todo_root, errors)."""
+    old = wb_root / OLD_ROOT
+    new = wb_root / NEW_ROOT
+    errors: list[dict[str, object]] = []
+
+    if old.is_dir() and new.is_dir():
+        errors.append(
+            {
+                "event": "rename_root",
+                "status": "error",
+                "reason": f"both {OLD_ROOT}/ and {NEW_ROOT}/ exist",
+            }
+        )
+        log_event(**errors[-1])
+        return new, errors
+
+    if old.is_dir() and not new.exists():
+        old.rename(new)
+        log_event(
+            event="rename_root",
+            status="ok",
+            from_path=str(old),
+            to_path=str(new),
+        )
+        return new, errors
+
+    if new.is_dir():
+        log_event(event="rename_root", status="skipped", reason="already_migrated")
+        return new, errors
+
+    new.mkdir(parents=True, exist_ok=True)
+    (new / "tasks").mkdir(parents=True, exist_ok=True)
+    log_event(event="rename_root", status="ok", reason="created_empty_todo_tasks")
+    return new, errors
+
+
+def migrate_v1_json(todo_root: Path) -> None:
+    old = todo_root / OLD_V1_JSON
+    new = todo_root / NEW_V1_JSON
+    if old.is_file() and not new.exists():
+        old.rename(new)
+        log_event(
+            event="rename_v1_json",
+            status="ok",
+            from_path=str(old),
+            to_path=str(new),
+        )
+    elif old.is_file() and new.is_file():
+        log_event(
+            event="rename_v1_json",
+            status="skipped",
+            reason="target_exists",
+            path=str(new),
+        )
+
+
+def migrate_task_body(task_dir: Path, task_id: str) -> dict[str, object] | None:
+    """Rename plan.md→todo.md. Returns error event dict or None."""
+    old = task_dir / OLD_BODY
+    new = task_dir / NEW_BODY
+    if old.is_file() and new.is_file():
+        err = {
+            "event": "rename_body",
+            "status": "error",
+            "task_id": task_id,
+            "reason": f"both {OLD_BODY} and {NEW_BODY} exist",
+        }
+        log_event(**err)
+        return err
+    if old.is_file() and not new.exists():
+        old.rename(new)
+        log_event(
+            event="rename_body",
+            status="ok",
+            task_id=task_id,
+            from_path=str(old),
+            to_path=str(new),
+        )
+        return None
+    if new.is_file():
+        log_event(
+            event="rename_body",
+            status="skipped",
+            task_id=task_id,
+            reason="already_migrated",
+        )
+        return None
+    log_event(
+        event="rename_body",
+        status="skipped",
+        task_id=task_id,
+        reason="no_body_file",
+    )
+    return None
+
+
+def migrate_bodies(todo_root: Path) -> list[dict[str, object]]:
+    errors: list[dict[str, object]] = []
+    tasks_dir = todo_root / "tasks"
+    if not tasks_dir.is_dir():
+        return errors
+    for entry in sorted(tasks_dir.iterdir()):
+        if not entry.is_dir():
+            continue
+        task_id = entry.name
+        err = migrate_task_body(entry, task_id)
+        if err is not None:
+            errors.append(err)
+    return errors
+
+
+def rewrite_storage_paths(todo_root: Path) -> None:
+    index = todo_root / "index.json"
+    if index.is_file():
+        changed = rewrite_json_file(index)
+        log_event(
+            event="rewrite_paths",
+            status="ok" if changed else "skipped",
+            path=str(index),
+            reason=None if changed else "already_migrated",
+        )
+    tasks_dir = todo_root / "tasks"
+    if not tasks_dir.is_dir():
+        return
+    for path in sorted(tasks_dir.rglob("*.json")):
+        if not path.is_file():
+            continue
+        changed = rewrite_json_file(path)
+        task_id = path.relative_to(tasks_dir).parts[0] if path.relative_to(tasks_dir).parts else ""
+        log_event(
+            event="rewrite_paths",
+            status="ok" if changed else "skipped",
+            task_id=task_id or None,
+            path=str(path),
+            reason=None if changed else "already_migrated",
+        )
+
+
+def main() -> int:
+    wb_root = load_workbench_root()
+    log_event(event="start", workbench_knowledge_root=str(wb_root))
+
+    todo_root, root_errors = migrate_root(wb_root)
+    if root_errors:
+        clear_gate(todo_root)
+        log_event(event="done", status="error", exit_code=1)
+        return 1
+
+    migrate_v1_json(todo_root)
+    body_errors = migrate_bodies(todo_root)
+    rewrite_storage_paths(todo_root)
+
+    if body_errors:
+        clear_gate(todo_root)
+        log_event(
+            event="done",
+            status="error",
+            exit_code=1,
+            error_count=len(body_errors),
+        )
+        return 1
+
+    write_gate(todo_root)
+    log_event(event="done", status="ok", exit_code=0)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

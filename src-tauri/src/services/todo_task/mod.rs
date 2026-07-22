@@ -1,5 +1,4 @@
-//! Todo tasks persisted at `{workbench_knowledge_root}/plan_tasks/` (v2: index + per-task files).
-//! Disk root rename to `todo_tasks/` is owned by a later task.
+//! Todo tasks persisted at `{workbench_knowledge_root}/todo_tasks/` (v2: index + per-task files).
 
 pub mod types;
 
@@ -347,7 +346,7 @@ fn rollback_index_failure(snapshot: &PlanTasksIndex) -> Result<(), String> {
     write_index_snapshot(&index_path, snapshot)
 }
 
-/// I-2 atomic batch: sub_tasks.json → plan.md → index entry. Caller must hold `WRITE_LOCK`.
+/// I-2 atomic batch: sub_tasks.json → todo.md → index entry. Caller must hold `WRITE_LOCK`.
 fn write_task_batch(
     master_task_id: &str,
     index_entry: &IndexEntry,
@@ -696,7 +695,7 @@ pub fn create_master_with_subs(title: &str, sub_titles: Option<&[&str]>) -> Valu
     create_master_with_subs_and_todo(title, sub_titles, "")
 }
 
-/// Create a master task. `plan_md` is written atomically with the task batch (empty → empty `plan.md`).
+/// Create a master task. `plan_md` is written atomically with the task batch (empty → empty `todo.md`).
 pub fn create_master_with_subs_and_todo(
     title: &str,
     sub_titles: Option<&[&str]>,
@@ -1453,7 +1452,7 @@ pub fn read_attachment(master_task_id: &str, file_name: &str) -> Value {
     }
 }
 
-/// Overwrite on-disk content of a manifest-listed attachment. Does not modify `plan.md`.
+/// Overwrite on-disk content of a manifest-listed attachment. Does not modify `todo.md`.
 pub fn save_attachment(master_task_id: &str, file_name: &str, content: &str) -> Value {
     let master_task_id = master_task_id.trim();
     if master_task_id.is_empty() {
