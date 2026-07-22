@@ -64,7 +64,11 @@ fn plan_tasks_path_under_workbench_knowledge_root() {
     let sandbox = TestSandbox::new();
     let wb = sandbox.workbench_knowledge_root();
     let path = plan_tasks_path().expect("plan_tasks");
-    assert_eq!(path, wb.join("plan_tasks").join("plan_tasks.json"));
+    assert_eq!(path, wb.join("todo_tasks").join("todo_tasks.json"));
+    assert!(
+        !path.to_string_lossy().contains("plan_tasks"),
+        "storage path must not retain plan_tasks segment: {path:?}"
+    );
 }
 
 #[test]
@@ -89,8 +93,12 @@ fn plan_tasks_v2_dir_and_index_under_workbench_knowledge_root() {
     let wb = _sandbox.workbench_knowledge_root();
     let dir = plan_tasks_dir().expect("plan_tasks_dir");
     let index = plan_tasks_index_path().expect("plan_tasks_index_path");
-    assert_eq!(dir, wb.join("plan_tasks"));
-    assert_eq!(index, wb.join("plan_tasks").join("index.json"));
+    assert_eq!(dir, wb.join("todo_tasks"));
+    assert_eq!(index, wb.join("todo_tasks").join("index.json"));
+    assert!(
+        !dir.to_string_lossy().contains("plan_tasks"),
+        "dir must not retain plan_tasks segment: {dir:?}"
+    );
 }
 
 #[test]
@@ -101,10 +109,14 @@ fn plan_tasks_v2_task_paths_resolve_under_tasks_directory() {
     let task_dir = plan_tasks_task_dir(master_id).expect("plan_tasks_task_dir");
     let sub_tasks = plan_tasks_sub_tasks_path(master_id).expect("plan_tasks_sub_tasks_path");
     let plan_md = plan_tasks_plan_md_path(master_id).expect("plan_tasks_plan_md_path");
-    let expected_task_dir = wb.join("plan_tasks").join("tasks").join(master_id);
+    let expected_task_dir = wb.join("todo_tasks").join("tasks").join(master_id);
     assert_eq!(task_dir, expected_task_dir);
     assert_eq!(sub_tasks, expected_task_dir.join("sub_tasks.json"));
-    assert_eq!(plan_md, expected_task_dir.join("plan.md"));
+    assert_eq!(plan_md, expected_task_dir.join("todo.md"));
+    assert!(
+        !plan_md.to_string_lossy().ends_with("plan.md"),
+        "body file must be todo.md, not plan.md: {plan_md:?}"
+    );
 }
 
 #[test]
@@ -112,8 +124,12 @@ fn cache_plan_tasks_v1_path_is_legacy_cache_file() {
     let _sandbox = TestSandbox::new();
     let cache = cache_dir().expect("cache");
     let path = cache_plan_tasks_v1_path().expect("cache_plan_tasks_v1_path");
-    assert_eq!(path, cache.join("plan_tasks.json"));
+    assert_eq!(path, cache.join("todo_tasks.json"));
     assert_ne!(path, plan_tasks_path().expect("plan_tasks_path"));
+    assert!(
+        !path.to_string_lossy().contains("plan_tasks"),
+        "cache path must not retain plan_tasks segment: {path:?}"
+    );
 }
 
 #[test]

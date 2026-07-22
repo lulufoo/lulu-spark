@@ -112,7 +112,7 @@ fn get_todo_tasks_json_corrupt_v2_storage_returns_err() {
     with_commands_todo_test(|| {
         let wb = crate::config::paths::workbench_knowledge_root().expect("wb");
         let master_id = "task_corrupt_cmd";
-        let plan_tasks_dir = wb.join("plan_tasks");
+        let plan_tasks_dir = wb.join("todo_tasks");
         fs::create_dir_all(plan_tasks_dir.join("tasks").join(master_id)).expect("mkdir");
         let index = json!({
             "version": 2,

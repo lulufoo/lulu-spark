@@ -50,12 +50,12 @@ pub fn read_later_path() -> Result<PathBuf, PathsError> {
 
 pub fn plan_tasks_path() -> Result<PathBuf, PathsError> {
     Ok(workbench_knowledge_root()?
-        .join("plan_tasks")
-        .join("plan_tasks.json"))
+        .join("todo_tasks")
+        .join("todo_tasks.json"))
 }
 
 pub fn plan_tasks_dir() -> Result<PathBuf, PathsError> {
-    Ok(workbench_knowledge_root()?.join("plan_tasks"))
+    Ok(workbench_knowledge_root()?.join("todo_tasks"))
 }
 
 pub fn plan_tasks_index_path() -> Result<PathBuf, PathsError> {
@@ -79,11 +79,11 @@ pub fn plan_tasks_sub_tasks_path(master_task_id: &str) -> Result<PathBuf, PathsE
 }
 
 pub fn plan_tasks_plan_md_path(master_task_id: &str) -> Result<PathBuf, PathsError> {
-    Ok(plan_tasks_task_dir(master_task_id)?.join("plan.md"))
+    Ok(plan_tasks_task_dir(master_task_id)?.join("todo.md"))
 }
 
 pub fn cache_plan_tasks_v1_path() -> Result<PathBuf, PathsError> {
-    Ok(cache_dir()?.join("plan_tasks.json"))
+    Ok(cache_dir()?.join("todo_tasks.json"))
 }
 
 pub fn sediment_kb_categories_path() -> Result<PathBuf, PathsError> {

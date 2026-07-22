@@ -40,7 +40,7 @@ fn setup_corpus_with_plan_tasks() -> (TestSandbox, PathBuf) {
 
 fn read_v2_index(wb: &Path) -> serde_json::Value {
     serde_json::from_str(
-        &fs::read_to_string(wb.join("plan_tasks").join("index.json")).expect("index.json"),
+        &fs::read_to_string(wb.join("todo_tasks").join("index.json")).expect("index.json"),
     )
     .expect("parse index.json")
 }
@@ -230,7 +230,7 @@ fn archive_document_with_task_ref_completes_sub_in_sandbox() {
         let index = read_v2_index(&wb);
         assert_eq!(index["version"], 2);
         assert!(index["tasks"].get(master_id).is_some());
-        let task_dir = wb.join("plan_tasks").join("tasks").join(master_id);
+        let task_dir = wb.join("todo_tasks").join("tasks").join(master_id);
         assert!(task_dir.join("sub_tasks.json").is_file());
     });
 }

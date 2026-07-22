@@ -166,7 +166,7 @@ fn create_plan_task_mcp_tool_e2e_with_local_http() {
     let _sandbox = TestSandbox::new();
     let wb = _sandbox.workbench_knowledge_root();
     std::fs::create_dir_all(&wb).expect("mkdir corpus");
-    let plan_tasks_tasks_dir = wb.join("plan_tasks").join("tasks");
+    let plan_tasks_tasks_dir = wb.join("todo_tasks").join("tasks");
     std::fs::create_dir_all(&plan_tasks_tasks_dir).expect("mkdir plan_tasks/tasks");
     let config_root = _sandbox.config_dir().to_path_buf();
 

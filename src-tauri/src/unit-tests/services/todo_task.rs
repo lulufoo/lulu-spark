@@ -29,8 +29,8 @@ fn master_from_value(v: &serde_json::Value) -> &serde_json::Value {
 fn prod_plan_tasks_mtime() -> Option<SystemTime> {
     settings::AppSettings::default()
         .workbench_knowledge_root
-        .join("plan_tasks")
-        .join("plan_tasks.json")
+        .join("todo_tasks")
+        .join("todo_tasks.json")
         .metadata()
         .ok()
         .and_then(|m| m.modified().ok())
@@ -38,7 +38,7 @@ fn prod_plan_tasks_mtime() -> Option<SystemTime> {
 
 fn prod_cache_plan_tasks_mtime() -> Option<SystemTime> {
     default_cache_dir()
-        .join("plan_tasks.json")
+        .join("todo_tasks.json")
         .metadata()
         .ok()
         .and_then(|m| m.modified().ok())
@@ -48,9 +48,9 @@ fn prod_cache_plan_tasks_mtime() -> Option<SystemTime> {
 fn plan_tasks_path_is_under_workbench_knowledge_root() {
     with_todo_task_sandbox(|wb| {
         let path = paths::plan_tasks_path().expect("path");
-        assert_eq!(path, wb.join("plan_tasks").join("plan_tasks.json"));
+        assert_eq!(path, wb.join("todo_tasks").join("todo_tasks.json"));
         let cache = paths::cache_dir().expect("cache");
-        assert_ne!(path, cache.join("plan_tasks.json"));
+        assert_ne!(path, cache.join("todo_tasks.json"));
         assert!(!path.starts_with(&cache));
     });
 }
@@ -58,7 +58,7 @@ fn plan_tasks_path_is_under_workbench_knowledge_root() {
 #[test]
 fn first_write_creates_plan_tasks_directory() {
     with_todo_task_sandbox(|wb| {
-        let plan_tasks_dir = wb.join("plan_tasks");
+        let plan_tasks_dir = wb.join("todo_tasks");
         assert!(!plan_tasks_dir.exists());
         let v = create_master_with_subs("预习：第三章", None);
         assert_eq!(v["_status"], 201);
@@ -130,7 +130,7 @@ fn multi_sub_create_and_read_fixture() {
             "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
         );
 
-        let path = wb.join("plan_tasks").join("index.json");
+        let path = wb.join("todo_tasks").join("index.json");
         assert!(path.is_file());
         let cache = paths::cache_dir().expect("cache");
         assert!(!path.starts_with(&cache));
@@ -153,9 +153,9 @@ fn plan_task_tests_do_not_touch_prod_plan_tasks_or_cache() {
 fn plan_task_fixture_rejects_prod_plan_tasks_path() {
     let sandbox = TestSandbox::new();
     let prod_wb = sandbox.prod_workbench_knowledge_root();
-    let prod_plan_tasks = prod_wb.join("plan_tasks").join("plan_tasks.json");
+    let prod_plan_tasks = prod_wb.join("todo_tasks").join("todo_tasks.json");
     assert!(sandbox.assert_not_prod_path(&prod_plan_tasks).is_err());
-    let prod_cache_plan = sandbox.prod_cache_dir().join("plan_tasks.json");
+    let prod_cache_plan = sandbox.prod_cache_dir().join("todo_tasks.json");
     assert!(sandbox.assert_not_prod_path(&prod_cache_plan).is_err());
 }
 
@@ -169,10 +169,10 @@ fn plan_task_paths_require_sandbox_isolation() {
         plan_path,
         sandbox
             .prod_workbench_knowledge_root()
-            .join("plan_tasks")
-            .join("plan_tasks.json")
+            .join("todo_tasks")
+            .join("todo_tasks.json")
     );
-    assert_ne!(plan_path, sandbox.prod_cache_dir().join("plan_tasks.json"));
+    assert_ne!(plan_path, sandbox.prod_cache_dir().join("todo_tasks.json"));
 }
 
 #[test]
@@ -255,7 +255,7 @@ fn explicit_abandoned_write_keeps_index_and_authority_aligned() {
         assert_eq!(got["status"], "abandoned");
 
         let index: serde_json::Value = serde_json::from_str(
-            &fs::read_to_string(wb.join("plan_tasks").join("index.json")).unwrap(),
+            &fs::read_to_string(wb.join("todo_tasks").join("index.json")).unwrap(),
         )
         .unwrap();
         assert_eq!(index["tasks"][master_id]["status"], "abandoned");
@@ -279,7 +279,7 @@ fn set_master_status_allows_tri_state_mutual_transitions() {
             assert_eq!(got["status"], target);
 
             let index: serde_json::Value = serde_json::from_str(
-                &fs::read_to_string(wb.join("plan_tasks").join("index.json")).unwrap(),
+                &fs::read_to_string(wb.join("todo_tasks").join("index.json")).unwrap(),
             )
             .unwrap();
             assert_eq!(index["tasks"][master_id]["status"], target);
@@ -440,12 +440,12 @@ fn create_persists_v2_layout_via_write_task_batch() {
         assert_eq!(created["_status"], 201);
 
         let master_id = created["master_task_id"].as_str().unwrap();
-        let task_dir = wb.join("plan_tasks").join("tasks").join(master_id);
+        let task_dir = wb.join("todo_tasks").join("tasks").join(master_id);
         assert!(task_dir.join("sub_tasks.json").is_file());
-        assert!(task_dir.join("plan.md").is_file());
+        assert!(task_dir.join("todo.md").is_file());
 
         let index: serde_json::Value = serde_json::from_str(
-            &fs::read_to_string(wb.join("plan_tasks").join("index.json")).unwrap(),
+            &fs::read_to_string(wb.join("todo_tasks").join("index.json")).unwrap(),
         )
         .unwrap();
         assert_eq!(index["version"], 2);
@@ -457,7 +457,7 @@ fn create_persists_v2_layout_via_write_task_batch() {
 fn corrupt_storage_list_returns_explicit_error() {
     with_todo_task_sandbox(|wb| {
         let master_id = "task_corrupt_list";
-        let plan_tasks_dir = wb.join("plan_tasks");
+        let plan_tasks_dir = wb.join("todo_tasks");
         fs::create_dir_all(plan_tasks_dir.join("tasks").join(master_id)).expect("mkdir");
         let index = serde_json::json!({
             "version": 2,
@@ -494,7 +494,7 @@ fn corrupt_storage_list_returns_explicit_error() {
 fn corrupt_storage_get_returns_explicit_error() {
     with_todo_task_sandbox(|wb| {
         let master_id = "task_corrupt_get";
-        let plan_tasks_dir = wb.join("plan_tasks");
+        let plan_tasks_dir = wb.join("todo_tasks");
         fs::create_dir_all(plan_tasks_dir.join("tasks").join(master_id)).expect("mkdir");
         let index = serde_json::json!({
             "version": 2,
@@ -536,7 +536,7 @@ fn seed_v1_file(path: &Path) {
 }
 
 fn read_index_version(wb: &Path) -> u32 {
-    let index_path = wb.join("plan_tasks").join("index.json");
+    let index_path = wb.join("todo_tasks").join("index.json");
     let text = fs::read_to_string(&index_path).expect("read index.json");
     let parsed: serde_json::Value = serde_json::from_str(&text).expect("parse index.json");
     parsed["version"].as_u64().expect("index version") as u32
@@ -584,7 +584,7 @@ fn bootstrap_repeat_is_idempotent() {
         seed_v1_file(&cache_v1);
 
         list_all();
-        let index_path = wb.join("plan_tasks").join("index.json");
+        let index_path = wb.join("todo_tasks").join("index.json");
         let after_first = fs::read_to_string(&index_path).expect("read index after first");
 
         list_all();
@@ -601,9 +601,9 @@ fn bootstrap_repeat_is_idempotent() {
 fn bootstrap_creates_plan_tasks_and_tasks_dirs() {
     with_todo_task_sandbox(|wb| {
         list_all();
-        assert!(wb.join("plan_tasks").is_dir());
-        assert!(wb.join("plan_tasks").join("tasks").is_dir());
-        assert!(wb.join("plan_tasks").join("index.json").is_file());
+        assert!(wb.join("todo_tasks").is_dir());
+        assert!(wb.join("todo_tasks").join("tasks").is_dir());
+        assert!(wb.join("todo_tasks").join("index.json").is_file());
     });
 }
 
@@ -642,7 +642,7 @@ fn bootstrap_deletes_only_cache_v1_when_wb_missing() {
 #[test]
 fn bootstrap_preserves_valid_v2_index_tasks() {
     with_todo_task_sandbox(|wb| {
-        let plan_tasks_dir = wb.join("plan_tasks");
+        let plan_tasks_dir = wb.join("todo_tasks");
         fs::create_dir_all(plan_tasks_dir.join("tasks")).expect("mkdir tasks");
         let index = serde_json::json!({
             "version": 2,
@@ -677,7 +677,7 @@ fn bootstrap_preserves_valid_v2_index_tasks() {
         )
         .expect("write sub_tasks");
         fs::write(
-            plan_tasks_dir.join("tasks").join("task_keepme").join("plan.md"),
+            plan_tasks_dir.join("tasks").join("task_keepme").join("todo.md"),
             "",
         )
         .expect("write plan.md");
@@ -695,7 +695,7 @@ fn bootstrap_preserves_valid_v2_index_tasks() {
 #[test]
 fn bootstrap_rewrites_wrong_version_index() {
     with_todo_task_sandbox(|wb| {
-        let plan_tasks_dir = wb.join("plan_tasks");
+        let plan_tasks_dir = wb.join("todo_tasks");
         fs::create_dir_all(plan_tasks_dir.join("tasks")).expect("mkdir tasks");
         fs::write(
             plan_tasks_dir.join("index.json"),
@@ -719,7 +719,7 @@ fn bootstrap_rewrites_wrong_version_index() {
 #[test]
 fn bootstrap_rewrites_corrupt_index() {
     with_todo_task_sandbox(|wb| {
-        let plan_tasks_dir = wb.join("plan_tasks");
+        let plan_tasks_dir = wb.join("todo_tasks");
         fs::create_dir_all(plan_tasks_dir.join("tasks")).expect("mkdir tasks");
         fs::write(plan_tasks_dir.join("index.json"), "{not json").expect("write corrupt index");
 
@@ -771,13 +771,13 @@ fn write_task_batch_creates_v2_files_and_index_entry() {
         )
         .expect("batch write");
 
-        let task_dir = wb.join("plan_tasks").join("tasks").join(master_id);
+        let task_dir = wb.join("todo_tasks").join("tasks").join(master_id);
         assert!(task_dir.join("sub_tasks.json").is_file());
-        assert!(task_dir.join("plan.md").is_file());
-        assert_eq!(fs::read_to_string(task_dir.join("plan.md")).unwrap(), "");
+        assert!(task_dir.join("todo.md").is_file());
+        assert_eq!(fs::read_to_string(task_dir.join("todo.md")).unwrap(), "");
 
         let index: serde_json::Value = serde_json::from_str(
-            &fs::read_to_string(wb.join("plan_tasks").join("index.json")).unwrap(),
+            &fs::read_to_string(wb.join("todo_tasks").join("index.json")).unwrap(),
         )
         .unwrap();
         assert_eq!(index["version"], 2);
@@ -798,10 +798,10 @@ fn write_task_batch_sub_tasks_failure_removes_task_dir() {
         )
         .is_err());
 
-        let task_dir = wb.join("plan_tasks").join("tasks").join(master_id);
+        let task_dir = wb.join("todo_tasks").join("tasks").join(master_id);
         assert!(!task_dir.exists());
         let index: serde_json::Value = serde_json::from_str(
-            &fs::read_to_string(wb.join("plan_tasks").join("index.json")).unwrap(),
+            &fs::read_to_string(wb.join("todo_tasks").join("index.json")).unwrap(),
         )
         .unwrap();
         assert!(index["tasks"].get(master_id).is_none());
@@ -821,7 +821,7 @@ fn write_task_batch_todo_md_failure_removes_task_dir() {
         )
         .is_err());
 
-        let task_dir = wb.join("plan_tasks").join("tasks").join(master_id);
+        let task_dir = wb.join("todo_tasks").join("tasks").join(master_id);
         assert!(!task_dir.exists());
     });
 }
@@ -839,7 +839,7 @@ fn write_task_batch_index_failure_restores_snapshot_and_leaves_orphan() {
         )
         .expect("seed existing");
 
-        let index_path = wb.join("plan_tasks").join("index.json");
+        let index_path = wb.join("todo_tasks").join("index.json");
         let snapshot_before = fs::read_to_string(&index_path).unwrap();
 
         let master_id = "task_batch004";
@@ -855,9 +855,9 @@ fn write_task_batch_index_failure_restores_snapshot_and_leaves_orphan() {
         let snapshot_after = fs::read_to_string(&index_path).unwrap();
         assert_eq!(snapshot_before, snapshot_after);
 
-        let orphan_dir = wb.join("plan_tasks").join("tasks").join(master_id);
+        let orphan_dir = wb.join("todo_tasks").join("tasks").join(master_id);
         assert!(orphan_dir.join("sub_tasks.json").is_file());
-        assert!(orphan_dir.join("plan.md").is_file());
+        assert!(orphan_dir.join("todo.md").is_file());
 
         let index: serde_json::Value = serde_json::from_str(&snapshot_after).unwrap();
         assert!(index["tasks"].get(master_id).is_none());
@@ -1129,7 +1129,7 @@ fn delete_master_removes_index_entry_and_task_directory() {
     with_todo_task_sandbox(|wb| {
         let created = create_master_with_subs("Delete me", None);
         let master_id = created["master_task_id"].as_str().unwrap();
-        let task_dir = wb.join("plan_tasks").join("tasks").join(master_id);
+        let task_dir = wb.join("todo_tasks").join("tasks").join(master_id);
         assert!(task_dir.is_dir());
 
         let v = delete_master(master_id);
@@ -1137,7 +1137,7 @@ fn delete_master_removes_index_entry_and_task_directory() {
         assert_eq!(v["ok"], true);
         assert!(!task_dir.exists());
         let index: serde_json::Value = serde_json::from_str(
-            &fs::read_to_string(wb.join("plan_tasks").join("index.json")).unwrap(),
+            &fs::read_to_string(wb.join("todo_tasks").join("index.json")).unwrap(),
         )
         .unwrap();
         assert!(index["tasks"].get(master_id).is_none());
@@ -1153,7 +1153,7 @@ fn create_batch_failure_leaves_no_partial_commit() {
         assert_eq!(v["_status"], 500);
 
         let index: serde_json::Value = serde_json::from_str(
-            &fs::read_to_string(wb.join("plan_tasks").join("index.json")).unwrap(),
+            &fs::read_to_string(wb.join("todo_tasks").join("index.json")).unwrap(),
         )
         .unwrap();
         assert_eq!(index["tasks"].as_object().map(|m| m.len()).unwrap_or(0), 0);
@@ -1180,7 +1180,7 @@ fn seed_v2_plan_with_subs(
     sub_tasks: &serde_json::Value,
     merge_index: bool,
 ) {
-    let plan_tasks_dir = wb.join("plan_tasks");
+    let plan_tasks_dir = wb.join("todo_tasks");
     fs::create_dir_all(plan_tasks_dir.join("tasks").join(master_id)).expect("mkdir task");
     if merge_index {
         let index_path = plan_tasks_dir.join("index.json");
@@ -1217,7 +1217,7 @@ fn seed_v2_plan_with_subs(
         plan_tasks_dir
             .join("tasks")
             .join(master_id)
-            .join("plan.md"),
+            .join("todo.md"),
         "",
     )
     .expect("write plan.md");
@@ -1225,7 +1225,7 @@ fn seed_v2_plan_with_subs(
 
 fn subs_on_disk(wb: &Path, master_id: &str) -> serde_json::Value {
     let path = wb
-        .join("plan_tasks")
+        .join("todo_tasks")
         .join("tasks")
         .join(master_id)
         .join("sub_tasks.json");
@@ -1357,7 +1357,7 @@ fn migrate_implicit_subs_idempotent_second_bootstrap() {
 
         list_all();
         let after_first = fs::read_to_string(
-            wb.join("plan_tasks")
+            wb.join("todo_tasks")
                 .join("tasks")
                 .join("task_idempotent")
                 .join("sub_tasks.json"),
@@ -1366,7 +1366,7 @@ fn migrate_implicit_subs_idempotent_second_bootstrap() {
 
         list_all();
         let after_second = fs::read_to_string(
-            wb.join("plan_tasks")
+            wb.join("todo_tasks")
                 .join("tasks")
                 .join("task_idempotent")
                 .join("sub_tasks.json"),
@@ -1391,7 +1391,7 @@ fn migrate_implicit_subs_marks_migration_error_on_corrupt_plan() {
             true,
         );
         fs::write(
-            wb.join("plan_tasks")
+            wb.join("todo_tasks")
                 .join("tasks")
                 .join("task_corrupt_migrate")
                 .join("sub_tasks.json"),
@@ -1433,7 +1433,7 @@ fn migrate_implicit_subs_other_plans_unaffected_on_single_failure() {
             true,
         );
         fs::write(
-            wb.join("plan_tasks")
+            wb.join("todo_tasks")
                 .join("tasks")
                 .join("task_bad")
                 .join("sub_tasks.json"),
@@ -1471,7 +1471,7 @@ fn get_by_id_includes_migration_error_on_corrupt_plan() {
             true,
         );
         fs::write(
-            wb.join("plan_tasks")
+            wb.join("todo_tasks")
                 .join("tasks")
                 .join("task_corrupt_get_migrate")
                 .join("sub_tasks.json"),
@@ -1536,10 +1536,10 @@ fn update_todo_md_empty_round_trip() {
         assert_eq!(read["todo_md"], "");
 
         let plan_path = wb
-            .join("plan_tasks")
+            .join("todo_tasks")
             .join("tasks")
             .join(master_id)
-            .join("plan.md");
+            .join("todo.md");
         assert_eq!(fs::read_to_string(plan_path).unwrap(), "");
 
         let got = get_by_id(master_id);
@@ -1562,10 +1562,10 @@ fn update_todo_md_multiline_round_trip() {
         assert_eq!(read["todo_md"], content);
 
         let plan_path = wb
-            .join("plan_tasks")
+            .join("todo_tasks")
             .join("tasks")
             .join(master_id)
-            .join("plan.md");
+            .join("todo.md");
         assert_eq!(fs::read_to_string(plan_path).unwrap(), content);
 
         let got = get_by_id(master_id);
@@ -1582,7 +1582,7 @@ fn update_todo_md_io_failure_returns_500_without_corrupting_index() {
     with_todo_task_sandbox(|wb| {
         let created = create_master_with_subs("IO fail", Some(&["Sub"]));
         let master_id = created["master_task_id"].as_str().unwrap();
-        let index_before = fs::read_to_string(wb.join("plan_tasks").join("index.json")).unwrap();
+        let index_before = fs::read_to_string(wb.join("todo_tasks").join("index.json")).unwrap();
         let subs_before = subs_on_disk(wb, master_id);
 
         test_set_fail_batch_todo_md(true);
@@ -1590,7 +1590,7 @@ fn update_todo_md_io_failure_returns_500_without_corrupting_index() {
         assert_eq!(v["_status"], 500);
         assert!(v.get("error").is_some());
 
-        let index_after = fs::read_to_string(wb.join("plan_tasks").join("index.json")).unwrap();
+        let index_after = fs::read_to_string(wb.join("todo_tasks").join("index.json")).unwrap();
         let subs_after = subs_on_disk(wb, master_id);
         assert_eq!(index_before, index_after);
         assert_eq!(subs_before, subs_after);
@@ -1639,10 +1639,10 @@ fn create_with_todo_md_persists_to_disk_and_list() {
         let master_id = created["master_task_id"].as_str().unwrap();
 
         let plan_path = wb
-            .join("plan_tasks")
+            .join("todo_tasks")
             .join("tasks")
             .join(master_id)
-            .join("plan.md");
+            .join("todo.md");
         assert_eq!(fs::read_to_string(&plan_path).unwrap(), content);
 
         let got = get_by_id(master_id);
@@ -1741,14 +1741,14 @@ fn update_master_title_unknown_master_returns_404() {
 }
 
 fn attachments_dir(wb: &Path, master_id: &str) -> std::path::PathBuf {
-    wb.join("plan_tasks")
+    wb.join("todo_tasks")
         .join("tasks")
         .join(master_id)
         .join("attachments")
 }
 
 fn attachments_json_path(wb: &Path, master_id: &str) -> std::path::PathBuf {
-    wb.join("plan_tasks")
+    wb.join("todo_tasks")
         .join("tasks")
         .join(master_id)
         .join("attachments.json")
@@ -1932,7 +1932,7 @@ fn add_attachment_unknown_master_returns_404_without_writes() {
         assert_eq!(v["_status"], 404);
         assert_eq!(v["error"], "Task not found");
         assert!(!wb
-            .join("plan_tasks")
+            .join("todo_tasks")
             .join("tasks")
             .join("task_nonexistent_aaaaaaaaaaaaaaaa")
             .exists());
@@ -1944,7 +1944,7 @@ fn add_attachment_unwritable_task_dir_fails_without_half_success() {
     with_todo_task_sandbox(|wb| {
         let created = create_master_with_subs("Readonly dir", None);
         let master_id = created["master_task_id"].as_str().unwrap();
-        let task_dir = wb.join("plan_tasks").join("tasks").join(master_id);
+        let task_dir = wb.join("todo_tasks").join("tasks").join(master_id);
 
         let mut perms = fs::metadata(&task_dir).unwrap().permissions();
         perms.set_readonly(true);
@@ -2067,10 +2067,10 @@ fn save_attachment_writes_content_without_touching_todo_md() {
         let created = create_master_with_subs_and_todo("Save attach", None, "# Plan body");
         let master_id = created["master_task_id"].as_str().unwrap();
         let plan_path = wb
-            .join("plan_tasks")
+            .join("todo_tasks")
             .join("tasks")
             .join(master_id)
-            .join("plan.md");
+            .join("todo.md");
         let plan_before = fs::read_to_string(&plan_path).unwrap();
 
         let added = add_attachment(master_id, "notes.md", "old");
@@ -2273,7 +2273,7 @@ fn delete_master_cascades_attachments_dir_and_manifest() {
         let add = add_attachment(master_id, "notes.md", "# keep\n");
         assert_eq!(add["_status"], 201);
 
-        let task_dir = wb.join("plan_tasks").join("tasks").join(master_id);
+        let task_dir = wb.join("todo_tasks").join("tasks").join(master_id);
         let att_dir = attachments_dir(wb, master_id);
         let att_json = attachments_json_path(wb, master_id);
         assert!(task_dir.is_dir());
@@ -2290,7 +2290,7 @@ fn delete_master_cascades_attachments_dir_and_manifest() {
         assert_eq!(get_by_id(master_id)["_status"], 404);
 
         let index: serde_json::Value = serde_json::from_str(
-            &fs::read_to_string(wb.join("plan_tasks").join("index.json")).unwrap(),
+            &fs::read_to_string(wb.join("todo_tasks").join("index.json")).unwrap(),
         )
         .unwrap();
         assert!(index["tasks"].get(master_id).is_none());
@@ -2302,7 +2302,7 @@ fn delete_master_without_attachments_matches_existing_behavior() {
     with_todo_task_sandbox(|wb| {
         let created = create_master_with_subs("Delete bare", None);
         let master_id = created["master_task_id"].as_str().unwrap();
-        let task_dir = wb.join("plan_tasks").join("tasks").join(master_id);
+        let task_dir = wb.join("todo_tasks").join("tasks").join(master_id);
         assert!(task_dir.is_dir());
         assert!(!attachments_dir(wb, master_id).exists());
         assert!(!attachments_json_path(wb, master_id).exists());

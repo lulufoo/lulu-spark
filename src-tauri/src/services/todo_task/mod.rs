@@ -595,10 +595,10 @@ fn master_to_value(master: &MasterTask) -> Value {
 }
 
 fn master_to_response(master: &MasterTask, migration_error: bool) -> Value {
-    let plan_md = read_todo_md_or_empty(&master.master_task_id).unwrap_or_default();
+    let todo_md = read_todo_md_or_empty(&master.master_task_id).unwrap_or_default();
     let mut value = master_to_value(master);
     if let Value::Object(ref mut map) = value {
-        map.insert("todo_md".to_string(), json!(plan_md));
+        map.insert("todo_md".to_string(), json!(todo_md));
         map.insert("migration_error".to_string(), json!(migration_error));
     }
     value
@@ -651,7 +651,7 @@ pub fn read_todo_md(master_task_id: &str) -> Value {
                 return json!({ "error": "Task not found", "_status": 404 });
             }
             match read_todo_md_or_empty(master_task_id) {
-                Ok(plan_md) => json!({ "todo_md": plan_md, "_status": 200 }),
+                Ok(todo_md) => json!({ "todo_md": todo_md, "_status": 200 }),
                 Err(e) => json!({ "error": e, "_status": 500 }),
             }
         }

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * E2E: plan MCP tools against live sidecar + Workbench HTTP.
- * Env: MCP_PORT (required); E2E_PLAN_TASKS_TASKS_DIR (optional, for plan.md disk round-trip)
+ * Env: MCP_PORT (required); E2E_PLAN_TASKS_TASKS_DIR (optional, for todo.md disk round-trip)
  */
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
@@ -31,27 +31,27 @@ export function assertMasterPlanMdFields(master, label) {
 export function assertPlanMdMatchesDisk(planMd, diskContent, label) {
   if (planMd !== diskContent) {
     throw new Error(
-      `${label}: todo_md does not match disk plan.md (len ${planMd.length} vs ${diskContent.length})`,
+      `${label}: todo_md does not match disk todo.md (len ${planMd.length} vs ${diskContent.length})`,
     );
   }
 }
 
 export function readPlanMdFromDisk(tasksDir, masterId) {
-  const planPath = path.join(tasksDir, masterId, 'plan.md');
+  const planPath = path.join(tasksDir, masterId, 'todo.md');
   try {
     return fs.readFileSync(planPath, 'utf8');
   } catch (err) {
     if (err && typeof err === 'object' && 'code' in err && err.code === 'ENOENT') {
       return '';
     }
-    throw new Error(`failed to read plan.md for ${masterId}: ${err}`);
+    throw new Error(`failed to read todo.md for ${masterId}: ${err}`);
   }
 }
 
 export function writePlanMdToDisk(tasksDir, masterId, content) {
   const taskDir = path.join(tasksDir, masterId);
   fs.mkdirSync(taskDir, { recursive: true });
-  fs.writeFileSync(path.join(taskDir, 'plan.md'), content, 'utf8');
+  fs.writeFileSync(path.join(taskDir, 'todo.md'), content, 'utf8');
 }
 
 function runSelfTest() {

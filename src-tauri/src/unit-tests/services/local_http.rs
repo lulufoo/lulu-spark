@@ -821,7 +821,7 @@ fn post_todo_task_create_response_ac5_field_matrix() {
             let wb = crate::config::paths::workbench_knowledge_root().expect("wb");
             let master_id = body["master_task_id"].as_str().unwrap();
             assert!(
-                wb.join("plan_tasks")
+                wb.join("todo_tasks")
                     .join("tasks")
                     .join(master_id)
                     .join("sub_tasks.json")
@@ -965,7 +965,7 @@ fn post_todo_task_set_status_updates_master_and_reads_back_consistently() {
 
                 let wb = crate::config::paths::workbench_knowledge_root().expect("wb");
                 let index: Value = serde_json::from_str(
-                    &fs::read_to_string(wb.join("plan_tasks").join("index.json")).unwrap(),
+                    &fs::read_to_string(wb.join("todo_tasks").join("index.json")).unwrap(),
                 )
                 .unwrap();
                 assert_eq!(index["tasks"][&master_id]["status"], target);
@@ -1350,7 +1350,7 @@ fn seed_v2_todo_for_http(
     sub_tasks: &Value,
     merge_index: bool,
 ) {
-    let plan_tasks_dir = wb.join("plan_tasks");
+    let plan_tasks_dir = wb.join("todo_tasks");
     fs::create_dir_all(plan_tasks_dir.join("tasks").join(master_id)).expect("mkdir task");
     if merge_index {
         let index_path = plan_tasks_dir.join("index.json");
@@ -1387,7 +1387,7 @@ fn seed_v2_todo_for_http(
         plan_tasks_dir
             .join("tasks")
             .join(master_id)
-            .join("plan.md"),
+            .join("todo.md"),
         "",
     )
     .expect("write plan.md");
@@ -1484,10 +1484,10 @@ fn get_todo_tasks_todo_md_matches_disk_bytes() {
 
             let wb = crate::config::paths::workbench_knowledge_root().expect("wb");
             let plan_path = wb
-                .join("plan_tasks")
+                .join("todo_tasks")
                 .join("tasks")
                 .join(master_id)
-                .join("plan.md");
+                .join("todo.md");
             let content = "# Title\n\n## Section\n\n- item one\n";
             fs::write(&plan_path, content).expect("write plan.md");
 
@@ -1522,10 +1522,10 @@ fn get_todo_tasks_empty_todo_md_matches_empty_disk_file() {
 
             let wb = crate::config::paths::workbench_knowledge_root().expect("wb");
             let plan_path = wb
-                .join("plan_tasks")
+                .join("todo_tasks")
                 .join("tasks")
                 .join(master_id)
-                .join("plan.md");
+                .join("todo.md");
             assert_eq!(fs::read_to_string(&plan_path).unwrap(), "");
 
             let (list_status, list_body) = http_get_with_response(port, "/api/todo-tasks");
@@ -1587,10 +1587,10 @@ fn post_todo_task_create_with_todo_md_persists_and_lists() {
 
             let wb = crate::config::paths::workbench_knowledge_root().expect("wb");
             let plan_path = wb
-                .join("plan_tasks")
+                .join("todo_tasks")
                 .join("tasks")
                 .join(master_id)
-                .join("plan.md");
+                .join("todo.md");
             assert_eq!(fs::read_to_string(&plan_path).unwrap(), content);
 
             let (list_status, list_body) = http_get_with_response(port, "/api/todo-tasks");
@@ -1648,7 +1648,7 @@ fn get_todo_tasks_migration_error_plan_still_in_list() {
                 true,
             );
             fs::write(
-                wb.join("plan_tasks")
+                wb.join("todo_tasks")
                     .join("tasks")
                     .join(master_id)
                     .join("sub_tasks.json"),
