@@ -119,6 +119,21 @@ fn is_read_later_path(path: &str) -> bool {
     path == "/api/read-later" || path.starts_with("/api/read-later/")
 }
 
+fn is_todo_api_path(path: &str) -> bool {
+    path == "/api/todo-tasks"
+        || path == "/api/todo-task"
+        || path.starts_with("/api/todo-task-")
+}
+
+fn respond_todo_api_gated(request: tiny_http::Request, path: &str, err: Value) {
+    // GET /api/todo-tasks uses the CORS response path (same as the happy-path list handler).
+    if path == "/api/todo-tasks" {
+        respond_read_later_from_value(request, err);
+    } else {
+        respond_from_value(request, err);
+    }
+}
+
 fn handle_request(repo_root: &PathBuf, port: u16, request: tiny_http::Request) {
     let url = request.url().to_string();
     let path = url.split('?').next().unwrap_or("").to_string();
@@ -130,6 +145,17 @@ fn handle_request(repo_root: &PathBuf, port: u16, request: tiny_http::Request) {
         }
         respond_json(request, 405, json!({ "error": "Method not allowed" }));
         return;
+    }
+
+    // Durable migration gate: todo_* HTTP stays closed until todo_tasks/.migration_gate_passed exists.
+    // Re-checked per request from disk — never a process-local script exit code; no auto-migrate here.
+    if (request.method() == &Method::Get || request.method() == &Method::Post)
+        && is_todo_api_path(&path)
+    {
+        if let Err(err) = todo_task::ensure_todo_api_ungated() {
+            respond_todo_api_gated(request, &path, err);
+            return;
+        }
     }
 
     if request.method() == &Method::Patch {

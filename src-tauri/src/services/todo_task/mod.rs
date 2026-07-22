@@ -691,6 +691,30 @@ pub fn update_todo_md(master_task_id: &str, plan_md: &str) -> Value {
     })
 }
 
+/// Durable migration gate marker written by the standalone migrate script on full success.
+pub const MIGRATION_GATE_FILE: &str = ".migration_gate_passed";
+
+/// True when `todo_tasks/.migration_gate_passed` exists on disk.
+/// Re-reads the filesystem each call (cold restart / no process-local script exit code).
+pub fn migration_gate_passed() -> bool {
+    match paths::plan_tasks_dir() {
+        Ok(dir) => dir.join(MIGRATION_GATE_FILE).is_file(),
+        Err(_) => false,
+    }
+}
+
+/// Open todo HTTP only when the durable migration gate marker is present.
+pub fn ensure_todo_api_ungated() -> Result<(), Value> {
+    if migration_gate_passed() {
+        Ok(())
+    } else {
+        Err(json!({
+            "error": "Todo API gated: missing todo_tasks/.migration_gate_passed",
+            "_status": 503
+        }))
+    }
+}
+
 pub fn create_master_with_subs(title: &str, sub_titles: Option<&[&str]>) -> Value {
     create_master_with_subs_and_todo(title, sub_titles, "")
 }

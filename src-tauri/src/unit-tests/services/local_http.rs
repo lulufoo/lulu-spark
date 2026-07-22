@@ -89,7 +89,27 @@ fn setup_repo_for_read_later() -> RepoFixture {
     }
 }
 
+const MIGRATION_GATE_FILE: &str = ".migration_gate_passed";
+
+fn plant_migration_gate(wb: &std::path::Path) {
+    let todo_root = wb.join("todo_tasks");
+    fs::create_dir_all(&todo_root).expect("mkdir todo_tasks for gate");
+    fs::write(todo_root.join(MIGRATION_GATE_FILE), b"ok\n").expect("write migration gate");
+}
+
 fn setup_repo_for_todo_task() -> RepoFixture {
+    let sandbox = TestSandbox::new();
+    let wb = sandbox.workbench_knowledge_root();
+    fs::create_dir_all(&wb).expect("mkdir corpus");
+    // Happy-path todo HTTP tests assume migration already succeeded (t5 wrote the marker).
+    plant_migration_gate(&wb);
+    RepoFixture {
+        repo_root: sandbox.config_dir().to_path_buf(),
+        _sandbox: sandbox,
+    }
+}
+
+fn setup_repo_for_todo_task_without_gate() -> RepoFixture {
     let sandbox = TestSandbox::new();
     let wb = sandbox.workbench_knowledge_root();
     fs::create_dir_all(&wb).expect("mkdir corpus");
@@ -1834,6 +1854,150 @@ fn todo_task_attachment_http_has_no_delete_or_ui_paths() {
             );
             assert_eq!(list_status, 200);
             assert_eq!(list_body["attachments"].as_array().unwrap().len(), 1);
+        });
+    });
+}
+
+#[test]
+fn todo_api_gate_missing_marker_keeps_todo_http_gated_while_status_ok() {
+    with_todo_task_http_test(|| {
+        let fixture = setup_repo_for_todo_task_without_gate();
+        let wb = crate::config::paths::workbench_knowledge_root().expect("wb");
+        let repo_root = fixture.repo_root.clone();
+        with_server(repo_root, |port| {
+            let (status_ok, status_body) = http_get(port, "/api/status");
+            assert_eq!(status_ok, 200, "App may start without migration gate");
+            assert_eq!(status_body["ok"], true);
+
+            let (list_status, list_body) = http_get(port, "/api/todo-tasks");
+            assert_eq!(
+                list_status, 503,
+                "missing .migration_gate_passed must gate GET /api/todo-tasks"
+            );
+            assert!(
+                list_body.get("error").and_then(|v| v.as_str()).is_some(),
+                "gated response must use Host error envelope"
+            );
+
+            let (create_status, create_body) = http_post(
+                port,
+                "/api/todo-task-create",
+                &json!({ "title": "must stay gated" }),
+            );
+            assert_eq!(
+                create_status, 503,
+                "missing marker must gate POST /api/todo-task-create (falsifier: open write)"
+            );
+            assert!(create_body.get("error").is_some());
+        });
+        assert!(
+            !wb.join("todo_tasks").join(MIGRATION_GATE_FILE).is_file(),
+            "startup/request must not silently write the durable gate marker"
+        );
+    });
+}
+
+#[test]
+fn todo_api_gate_missing_marker_does_not_auto_migrate_on_startup() {
+    with_todo_task_http_test(|| {
+        let sandbox = TestSandbox::new();
+        let wb = sandbox.workbench_knowledge_root();
+        let plan_root = wb.join("plan_tasks");
+        fs::create_dir_all(plan_root.join("tasks")).expect("mkdir plan_tasks/tasks");
+        fs::write(
+            plan_root.join("index.json"),
+            br#"{"version":2,"tasks":{}}"#,
+        )
+        .expect("write plan index");
+        let repo_root = sandbox.config_dir().to_path_buf();
+        with_server(repo_root, |port| {
+            let (st, _) = http_get(port, "/api/status");
+            assert_eq!(st, 200);
+            let (list_status, _) = http_get(port, "/api/todo-tasks");
+            assert_eq!(list_status, 503);
+        });
+        assert!(
+            plan_root.is_dir(),
+            "Host must not silently migrate plan_tasks/ on startup"
+        );
+        assert!(
+            !wb.join("todo_tasks").join(MIGRATION_GATE_FILE).is_file(),
+            "no silent gate write"
+        );
+        assert!(
+            !wb.join("todo_tasks").join("index.json").is_file(),
+            "no silent plan_tasks→todo_tasks migration on startup"
+        );
+    });
+}
+
+#[test]
+fn todo_api_gate_passed_marker_opens_todo_http() {
+    with_todo_task_http_test(|| {
+        let fixture = setup_repo_for_todo_task();
+        let repo_root = fixture.repo_root.clone();
+        with_server(repo_root, |port| {
+            let (status, body) = http_get_with_response(port, "/api/todo-tasks");
+            assert_eq!(status, 200);
+            assert!(body.is_array());
+            let (create_status, create_body) = http_post(
+                port,
+                "/api/todo-task-create",
+                &json!({ "title": "ungated master" }),
+            );
+            assert_eq!(create_status, 201);
+            assert!(create_body.get("master_task_id").is_some());
+        });
+    });
+}
+
+#[test]
+fn todo_api_gate_cold_restart_rereads_durable_marker_not_process_exit_code() {
+    with_todo_task_http_test(|| {
+        let sandbox = TestSandbox::new();
+        let wb = sandbox.workbench_knowledge_root();
+        fs::create_dir_all(&wb).expect("mkdir wb");
+        let repo_root = sandbox.config_dir().to_path_buf();
+
+        // Cold start A: no durable marker → gated (must not depend on in-process script exit).
+        with_server(repo_root.clone(), |port| {
+            let (status, body) = http_get(port, "/api/todo-tasks");
+            assert_eq!(status, 503);
+            assert!(body.get("error").is_some());
+        });
+
+        // External operator success path (t5): durable marker appears on disk.
+        plant_migration_gate(&wb);
+
+        // Cold start B: new server must re-read the marker from disk.
+        with_server(repo_root, |port| {
+            let (status, body) = http_get_with_response(port, "/api/todo-tasks");
+            assert_eq!(
+                status, 200,
+                "cold restart must open todo API after durable marker appears"
+            );
+            assert!(body.is_array());
+        });
+    });
+}
+
+#[test]
+fn todo_api_gate_rereads_marker_while_server_running() {
+    with_todo_task_http_test(|| {
+        let sandbox = TestSandbox::new();
+        let wb = sandbox.workbench_knowledge_root();
+        fs::create_dir_all(&wb).expect("mkdir wb");
+        let repo_root = sandbox.config_dir().to_path_buf();
+        with_server(repo_root, |port| {
+            let (before, _) = http_get(port, "/api/todo-tasks");
+            assert_eq!(before, 503);
+            plant_migration_gate(&wb);
+            let (after, body) = http_get_with_response(port, "/api/todo-tasks");
+            assert_eq!(
+                after, 200,
+                "gate check must re-read durable marker per request, not cache a process-local flag"
+            );
+            assert!(body.is_array());
         });
     });
 }
