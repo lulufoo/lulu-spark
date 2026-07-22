@@ -2,7 +2,7 @@
 name: lulu-workbench-skills
 description: >-
   lulu-workbench 归档技能包安装。克隆到平台 skills 目录（Cursor / Copilot / Claude / Codex）；归档经 Workbench App MCP 落盘。
-  Use when: 安装 workbench skills、dialogue-summary dialogue-archive theme-line theme-fetch theme-archive plan-task
+  Use when: 安装 workbench skills、dialogue-summary dialogue-archive theme-line theme-fetch theme-archive todo-task
 ---
 
 # lulu-workbench-skills — 安装
@@ -31,7 +31,7 @@ git clone https://github.com/lulufoo/lulu-workbench-skills.git $SKILL_DIR
 git -C $SKILL_DIR pull --rebase
 ```
 
-克隆完成后平台自动发现子 skill（`dialogue-summary`、`dialogue-archive`、`theme-line`、`theme-fetch`、`theme-archive`、`plan-task`），均无需额外操作。digest 为 `shared/digest-workflow` shared 契约，不单独发现。
+克隆完成后平台自动发现子 skill（`dialogue-summary`、`dialogue-archive`、`theme-line`、`theme-fetch`、`theme-archive`、`todo-task`），均无需额外操作。digest 为 `shared/digest-workflow` shared 契约，不单独发现。
 
 对话 jsonl 清洗与 archive 渲染脚本在包内 [`scripts/transcript-clean-control.py`](scripts/transcript-clean-control.py)（契约 [`shared/transcript-clean.md`](shared/transcript-clean.md)）；`dialogue-summary` / `dialogue-archive` 共用，parent/worker 编排见 [`shared/dialogue-execution.md`](shared/dialogue-execution.md)。
 
@@ -48,7 +48,7 @@ git -C $SKILL_DIR pull --rebase
 | `theme-line` | [theme-line/](theme-line/) | 多平台视频/访谈稿（YouTube、InfoQ、plain）→ TranscriptBundle → 主题优先时间线大纲，保存至 `raw/` 并自动 digest |
 | `theme-fetch` | [theme-fetch/](theme-fetch/) | 多平台网页文章（WeChat、plain HTML…）→ ArticleBundle → 格式化 Markdown；Phase 3 经 MCP 落盘 + digest |
 | `theme-archive` | [theme-archive/](theme-archive/) | 已定稿文档落盘 `raw/` + 适用时自动 digest（shared 契约）；承接原 theme-summary 落盘职责 |
-| `plan-task` | [plan-task/](plan-task/) | Plan 任务树 CRUD（8 个 MCP plan tools；经 local_http proxy） |
+| `todo-task` | [todo-task/](todo-task/) | Todo 任务树 CRUD（MCP `todo_*` tools；经 local_http proxy） |
 
 ## 验收
 
