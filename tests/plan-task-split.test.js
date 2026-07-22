@@ -83,7 +83,7 @@ const sampleMasters = [
     status: 'incomplete',
     created_at: '2026-07-05T10:00:00Z',
     sub_tasks: [],
-    plan_md: '',
+    todo_md: '',
     migration_error: false,
   },
   {
@@ -100,7 +100,7 @@ const sampleMasters = [
         linked_archive_ids: [],
       },
     ],
-    plan_md: '## Notes',
+    todo_md: '## Notes',
     migration_error: true,
   },
   {
@@ -109,7 +109,7 @@ const sampleMasters = [
     status: 'complete',
     created_at: '2026-07-03T10:00:00Z',
     sub_tasks: [],
-    plan_md: '',
+    todo_md: '',
     migration_error: false,
   },
   {
@@ -118,7 +118,7 @@ const sampleMasters = [
     status: 'abandoned',
     created_at: '2026-07-02T10:00:00Z',
     sub_tasks: [],
-    plan_md: '',
+    todo_md: '',
     migration_error: false,
   },
 ];
@@ -199,10 +199,10 @@ describe('loadPlanTasks', () => {
     getJsonMock.mockReset();
   });
 
-  it('GET /api/plan-tasks via apiClient and returns master array', async () => {
+  it('GET /api/todo-tasks via apiClient and returns master array', async () => {
     getJsonMock.mockResolvedValue(sampleMasters);
     const entries = await loadPlanTasks();
-    expect(getJsonMock).toHaveBeenCalledWith('/api/plan-tasks');
+    expect(getJsonMock).toHaveBeenCalledWith('/api/todo-tasks');
     expect(entries).toEqual(sampleMasters);
   });
 

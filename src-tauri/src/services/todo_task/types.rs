@@ -1,4 +1,4 @@
-//! Plan task master/sub types aligned with `plan_tasks.schema.json`.
+//! Todo task master/sub types aligned with `plan_tasks.schema.json`.
 
 use std::collections::HashMap;
 

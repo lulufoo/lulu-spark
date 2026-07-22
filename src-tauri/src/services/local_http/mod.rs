@@ -1,4 +1,4 @@
-//! Localhost HTTP API for MCP sidecar proxy (`GET/POST /api/corpus-*`, `/api/archive-*`, `/api/read-later*`, `/api/plan-tasks`, `/api/status`).
+//! Localhost HTTP API for MCP sidecar proxy (`GET/POST /api/corpus-*`, `/api/archive-*`, `/api/read-later*`, `/api/todo-tasks`, `/api/status`).
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -19,7 +19,7 @@ use crate::services::workbench_read::{
 
 pub const DEFAULT_HTTP_PORT: u16 = 8765;
 
-/// Locked master-task `status` wire values for `/api/plan-tasks`, `/api/plan-task`, `/api/plan-task-create`.
+/// Locked master-task `status` wire values for `/api/todo-tasks`, `/api/todo-task`, `/api/todo-task-create`.
 pub(crate) const TODO_TASK_MASTER_STATUS_WIRE: &[&str] = &["incomplete", "complete", "abandoned"];
 
 pub struct LocalHttpHandle {
@@ -105,13 +105,13 @@ pub(crate) fn map_value_to_response(value: Value) -> (u16, String) {
     (status, json)
 }
 
-/// Serialize `todo_task::list_all` for HTTP GET `/api/plan-tasks` (includes `plan_md`, `migration_error`).
-pub(crate) fn plan_tasks_list_response_body(value: &Value) -> String {
+/// Serialize `todo_task::list_all` for HTTP GET `/api/todo-tasks` (includes `todo_md`, `migration_error`).
+pub(crate) fn todo_tasks_list_response_body(value: &Value) -> String {
     serde_json::to_string(value).unwrap_or_else(|_| "[]".to_string())
 }
 
-/// Serialize `todo_task::get_by_id` for HTTP GET `/api/plan-task` (includes `plan_md`, `migration_error`).
-pub(crate) fn plan_task_get_response_body(value: &Value) -> (u16, String) {
+/// Serialize `todo_task::get_by_id` for HTTP GET `/api/todo-task` (includes `todo_md`, `migration_error`).
+pub(crate) fn todo_task_get_response_body(value: &Value) -> (u16, String) {
     map_value_to_response(value.clone())
 }
 
@@ -172,52 +172,48 @@ fn handle_request(repo_root: &PathBuf, port: u16, request: tiny_http::Request) {
                 handle_archive_post(repo_root, request, archive_digest);
                 return;
             }
-            "/api/plan-task-create" => {
-                handle_plan_task_create(request);
+            "/api/todo-task-create" => {
+                handle_todo_task_create(request);
                 return;
             }
-            "/api/plan-task-delete" => {
-                handle_plan_task_post(request, handle_plan_task_delete_payload);
+            "/api/todo-task-delete" => {
+                handle_todo_task_post(request, handle_todo_task_delete_payload);
                 return;
             }
-            "/api/plan-task-add-sub" => {
-                handle_plan_task_post(request, handle_plan_task_add_sub_payload);
+            "/api/todo-task-add-sub" => {
+                handle_todo_task_post(request, handle_todo_task_add_sub_payload);
                 return;
             }
-            "/api/plan-task-delete-sub" => {
-                handle_plan_task_post(request, handle_plan_task_delete_sub_payload);
+            "/api/todo-task-delete-sub" => {
+                handle_todo_task_post(request, handle_todo_task_delete_sub_payload);
                 return;
             }
-            "/api/plan-task-complete-sub" => {
-                respond_json(request, 404, json!({ "error": "Not found" }));
+            "/api/todo-task-complete" => {
+                handle_todo_task_post(request, handle_todo_task_complete_payload);
                 return;
             }
-            "/api/plan-task-complete" => {
-                handle_plan_task_post(request, handle_plan_task_complete_payload);
+            "/api/todo-task-set-status" => {
+                handle_todo_task_post(request, handle_todo_task_set_status_payload);
                 return;
             }
-            "/api/plan-task-set-status" => {
-                handle_plan_task_post(request, handle_plan_task_set_status_payload);
+            "/api/todo-task-link-archive" => {
+                handle_todo_task_post(request, handle_todo_task_link_archive_payload);
                 return;
             }
-            "/api/plan-task-link-archive" => {
-                handle_plan_task_post(request, handle_plan_task_link_archive_payload);
+            "/api/todo-task-add-attachment" => {
+                handle_todo_task_post(request, handle_todo_task_add_attachment_payload);
                 return;
             }
-            "/api/plan-task-add-attachment" => {
-                handle_plan_task_post(request, handle_plan_task_add_attachment_payload);
+            "/api/todo-task-list-attachments" => {
+                handle_todo_task_post(request, handle_todo_task_list_attachments_payload);
                 return;
             }
-            "/api/plan-task-list-attachments" => {
-                handle_plan_task_post(request, handle_plan_task_list_attachments_payload);
+            "/api/todo-task-get-attachment" => {
+                handle_todo_task_post(request, handle_todo_task_get_attachment_payload);
                 return;
             }
-            "/api/plan-task-get-attachment" => {
-                handle_plan_task_post(request, handle_plan_task_get_attachment_payload);
-                return;
-            }
-            "/api/plan-task-update-attachment" => {
-                handle_plan_task_post(request, handle_plan_task_update_attachment_payload);
+            "/api/todo-task-update-attachment" => {
+                handle_todo_task_post(request, handle_todo_task_update_attachment_payload);
                 return;
             }
             _ => {}
@@ -230,15 +226,15 @@ fn handle_request(repo_root: &PathBuf, port: u16, request: tiny_http::Request) {
                 handle_read_later_get(request);
                 return;
             }
-            "/api/plan-tasks" => {
-                handle_plan_tasks_get(request);
+            "/api/todo-tasks" => {
+                handle_todo_tasks_get(request);
                 return;
             }
-            "/api/plan-task" => {
+            "/api/todo-task" => {
                 let params = parse_query(&url);
                 let id = params.get("id").map(String::as_str).unwrap_or("");
                 let value = todo_task::get_by_id(id);
-                let (status, body) = plan_task_get_response_body(&value);
+                let (status, body) = todo_task_get_response_body(&value);
                 respond_raw(request, status, body);
                 return;
             }
@@ -314,10 +310,10 @@ fn handle_read_later_get(request: tiny_http::Request) {
     respond_with_cors(request, 200, body);
 }
 
-fn handle_plan_tasks_get(request: tiny_http::Request) {
+fn handle_todo_tasks_get(request: tiny_http::Request) {
     let value = todo_task::list_all();
     if value.is_array() {
-        let body = plan_tasks_list_response_body(&value);
+        let body = todo_tasks_list_response_body(&value);
         respond_with_cors(request, 200, body);
         return;
     }
@@ -435,7 +431,7 @@ fn read_json_body(request: &mut tiny_http::Request) -> Result<Value, Value> {
     serde_json::from_str(&body).map_err(|e| json!({ "error": format!("Invalid JSON: {e}") }))
 }
 
-fn handle_plan_task_post(
+fn handle_todo_task_post(
     mut request: tiny_http::Request,
     handler: fn(&Value) -> Value,
 ) {
@@ -449,14 +445,14 @@ fn handle_plan_task_post(
     respond_from_value(request, handler(&payload));
 }
 
-fn handle_plan_task_delete_payload(payload: &Value) -> Value {
+fn handle_todo_task_delete_payload(payload: &Value) -> Value {
     let Some(master_task_id) = payload.get("master_task_id").and_then(|v| v.as_str()) else {
         return json!({ "error": "Missing master_task_id", "_status": 400 });
     };
     todo_task::delete_master(master_task_id)
 }
 
-fn handle_plan_task_add_sub_payload(payload: &Value) -> Value {
+fn handle_todo_task_add_sub_payload(payload: &Value) -> Value {
     let Some(master_task_id) = payload.get("master_task_id").and_then(|v| v.as_str()) else {
         return json!({ "error": "Missing master_task_id", "_status": 400 });
     };
@@ -466,7 +462,7 @@ fn handle_plan_task_add_sub_payload(payload: &Value) -> Value {
     todo_task::add_sub(master_task_id, title)
 }
 
-fn handle_plan_task_delete_sub_payload(payload: &Value) -> Value {
+fn handle_todo_task_delete_sub_payload(payload: &Value) -> Value {
     let Some(master_task_id) = payload.get("master_task_id").and_then(|v| v.as_str()) else {
         return json!({ "error": "Missing master_task_id", "_status": 400 });
     };
@@ -476,7 +472,7 @@ fn handle_plan_task_delete_sub_payload(payload: &Value) -> Value {
     todo_task::delete_sub(master_task_id, sub_task_id)
 }
 
-fn handle_plan_task_complete_payload(payload: &Value) -> Value {
+fn handle_todo_task_complete_payload(payload: &Value) -> Value {
     let Some(master_task_id) = payload.get("master_task_id").and_then(|v| v.as_str()) else {
         return json!({ "error": "Missing master_task_id", "_status": 400 });
     };
@@ -484,7 +480,7 @@ fn handle_plan_task_complete_payload(payload: &Value) -> Value {
     todo_task::complete_todo(master_task_id, sub_task_id)
 }
 
-fn handle_plan_task_set_status_payload(payload: &Value) -> Value {
+fn handle_todo_task_set_status_payload(payload: &Value) -> Value {
     let Some(master_task_id) = payload.get("master_task_id").and_then(|v| v.as_str()) else {
         return json!({ "error": "Missing master_task_id", "_status": 400 });
     };
@@ -494,7 +490,7 @@ fn handle_plan_task_set_status_payload(payload: &Value) -> Value {
     todo_task::set_master_status(master_task_id, status)
 }
 
-fn handle_plan_task_link_archive_payload(payload: &Value) -> Value {
+fn handle_todo_task_link_archive_payload(payload: &Value) -> Value {
     let Some(master_task_id) = payload.get("master_task_id").and_then(|v| v.as_str()) else {
         return json!({ "error": "Missing master_task_id", "_status": 400 });
     };
@@ -507,7 +503,7 @@ fn handle_plan_task_link_archive_payload(payload: &Value) -> Value {
     todo_task::link_archive(master_task_id, sub_task_id, archive_id)
 }
 
-fn handle_plan_task_add_attachment_payload(payload: &Value) -> Value {
+fn handle_todo_task_add_attachment_payload(payload: &Value) -> Value {
     let Some(master_task_id) = payload.get("master_task_id").and_then(|v| v.as_str()) else {
         return json!({ "error": "Missing master_task_id", "_status": 400 });
     };
@@ -520,14 +516,14 @@ fn handle_plan_task_add_attachment_payload(payload: &Value) -> Value {
     todo_task::add_attachment(master_task_id, file_name, content)
 }
 
-fn handle_plan_task_list_attachments_payload(payload: &Value) -> Value {
+fn handle_todo_task_list_attachments_payload(payload: &Value) -> Value {
     let Some(master_task_id) = payload.get("master_task_id").and_then(|v| v.as_str()) else {
         return json!({ "error": "Missing master_task_id", "_status": 400 });
     };
     todo_task::list_attachments(master_task_id)
 }
 
-fn handle_plan_task_get_attachment_payload(payload: &Value) -> Value {
+fn handle_todo_task_get_attachment_payload(payload: &Value) -> Value {
     let Some(master_task_id) = payload.get("master_task_id").and_then(|v| v.as_str()) else {
         return json!({ "error": "Missing master_task_id", "_status": 400 });
     };
@@ -537,7 +533,7 @@ fn handle_plan_task_get_attachment_payload(payload: &Value) -> Value {
     todo_task::read_attachment(master_task_id, file_name)
 }
 
-fn handle_plan_task_update_attachment_payload(payload: &Value) -> Value {
+fn handle_todo_task_update_attachment_payload(payload: &Value) -> Value {
     let Some(master_task_id) = payload.get("master_task_id").and_then(|v| v.as_str()) else {
         return json!({ "error": "Missing master_task_id", "_status": 400 });
     };
@@ -550,7 +546,7 @@ fn handle_plan_task_update_attachment_payload(payload: &Value) -> Value {
     todo_task::save_attachment(master_task_id, file_name, content)
 }
 
-fn handle_plan_task_create(mut request: tiny_http::Request) {
+fn handle_todo_task_create(mut request: tiny_http::Request) {
     let mut body = String::new();
     if request.as_reader().read_to_string(&mut body).is_err() {
         respond_json(request, 400, json!({ "error": "Failed to read body" }));
@@ -568,11 +564,11 @@ fn handle_plan_task_create(mut request: tiny_http::Request) {
         return;
     };
 
-    let plan_md = match payload.get("plan_md") {
+    let todo_md = match payload.get("todo_md") {
         None | Some(Value::Null) => "",
         Some(Value::String(s)) => s.as_str(),
         Some(_) => {
-            respond_json(request, 400, json!({ "error": "Invalid plan_md" }));
+            respond_json(request, 400, json!({ "error": "Invalid todo_md" }));
             return;
         }
     };
@@ -605,9 +601,9 @@ fn handle_plan_task_create(mut request: tiny_http::Request) {
     let value = match &sub_titles {
         Some(subs) => {
             let refs: Vec<&str> = subs.iter().map(String::as_str).collect();
-            todo_task::create_master_with_subs_and_todo(title, Some(&refs), plan_md)
+            todo_task::create_master_with_subs_and_todo(title, Some(&refs), todo_md)
         }
-        None => todo_task::create_master_with_subs_and_todo(title, None, plan_md),
+        None => todo_task::create_master_with_subs_and_todo(title, None, todo_md),
     };
     respond_from_value(request, value);
 }

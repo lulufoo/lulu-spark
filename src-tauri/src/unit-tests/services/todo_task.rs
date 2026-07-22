@@ -809,7 +809,7 @@ fn write_task_batch_sub_tasks_failure_removes_task_dir() {
 }
 
 #[test]
-fn write_task_batch_plan_md_failure_removes_task_dir() {
+fn write_task_batch_todo_md_failure_removes_task_dir() {
     with_todo_task_sandbox(|wb| {
         let master_id = "task_batch003";
         test_set_fail_batch_todo_md(true);
@@ -1505,7 +1505,7 @@ fn update_todo_md_missing_master_returns_404() {
 }
 
 #[test]
-fn list_and_get_include_plan_md_and_migration_error() {
+fn list_and_get_include_todo_md_and_migration_error() {
     with_todo_task_sandbox(|_| {
         let created = create_master_with_subs("Plan md fields", None);
         let master_id = created["master_task_id"].as_str().unwrap();
@@ -1513,11 +1513,11 @@ fn list_and_get_include_plan_md_and_migration_error() {
         let list = list_all();
         let listed = list.as_array().unwrap();
         assert_eq!(listed.len(), 1);
-        assert_eq!(listed[0]["plan_md"], "");
+        assert_eq!(listed[0]["todo_md"], "");
         assert_eq!(listed[0]["migration_error"], false);
 
         let got = get_by_id(master_id);
-        assert_eq!(got["plan_md"], "");
+        assert_eq!(got["todo_md"], "");
         assert_eq!(got["migration_error"], false);
     });
 }
@@ -1533,7 +1533,7 @@ fn update_todo_md_empty_round_trip() {
 
         let read = read_todo_md(master_id);
         assert_eq!(read["_status"], 200);
-        assert_eq!(read["plan_md"], "");
+        assert_eq!(read["todo_md"], "");
 
         let plan_path = wb
             .join("plan_tasks")
@@ -1543,7 +1543,7 @@ fn update_todo_md_empty_round_trip() {
         assert_eq!(fs::read_to_string(plan_path).unwrap(), "");
 
         let got = get_by_id(master_id);
-        assert_eq!(got["plan_md"], "");
+        assert_eq!(got["todo_md"], "");
     });
 }
 
@@ -1559,7 +1559,7 @@ fn update_todo_md_multiline_round_trip() {
 
         let read = read_todo_md(master_id);
         assert_eq!(read["_status"], 200);
-        assert_eq!(read["plan_md"], content);
+        assert_eq!(read["todo_md"], content);
 
         let plan_path = wb
             .join("plan_tasks")
@@ -1569,11 +1569,11 @@ fn update_todo_md_multiline_round_trip() {
         assert_eq!(fs::read_to_string(plan_path).unwrap(), content);
 
         let got = get_by_id(master_id);
-        assert_eq!(got["plan_md"], content);
+        assert_eq!(got["todo_md"], content);
 
         let list = list_all();
         let listed = list.as_array().unwrap();
-        assert_eq!(listed[0]["plan_md"], content);
+        assert_eq!(listed[0]["todo_md"], content);
     });
 }
 
@@ -1631,7 +1631,7 @@ fn create_rejects_title_over_twenty_units() {
 }
 
 #[test]
-fn create_with_plan_md_persists_to_disk_and_list() {
+fn create_with_todo_md_persists_to_disk_and_list() {
     with_todo_task_sandbox(|wb| {
         let content = "## Notes\n\nHello plan";
         let created = create_master_with_subs_and_todo("With plan", None, content);
@@ -1646,9 +1646,9 @@ fn create_with_plan_md_persists_to_disk_and_list() {
         assert_eq!(fs::read_to_string(&plan_path).unwrap(), content);
 
         let got = get_by_id(master_id);
-        assert_eq!(got["plan_md"], content);
+        assert_eq!(got["todo_md"], content);
         let list = list_all();
-        assert_eq!(list.as_array().unwrap()[0]["plan_md"], content);
+        assert_eq!(list.as_array().unwrap()[0]["todo_md"], content);
     });
 }
 
@@ -2062,7 +2062,7 @@ fn read_attachment_rejects_non_manifest_target() {
 }
 
 #[test]
-fn save_attachment_writes_content_without_touching_plan_md() {
+fn save_attachment_writes_content_without_touching_todo_md() {
     with_todo_task_sandbox(|wb| {
         let created = create_master_with_subs_and_todo("Save attach", None, "# Plan body");
         let master_id = created["master_task_id"].as_str().unwrap();
@@ -2084,7 +2084,7 @@ fn save_attachment_writes_content_without_touching_plan_md() {
             "new content"
         );
         assert_eq!(fs::read_to_string(&plan_path).unwrap(), plan_before);
-        assert_eq!(read_todo_md(master_id)["plan_md"], "# Plan body");
+        assert_eq!(read_todo_md(master_id)["todo_md"], "# Plan body");
     });
 }
 

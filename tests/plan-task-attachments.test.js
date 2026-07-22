@@ -34,7 +34,7 @@ const sampleMaster = {
   title: 'Alpha Task',
   status: 'incomplete',
   created_at: '2026-07-01T10:00:00Z',
-  plan_md: '# Plan',
+  todo_md: '# Plan',
   sub_tasks: [
     {
       sub_task_id: 'task_alpha_sub_01',

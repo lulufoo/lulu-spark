@@ -8,17 +8,17 @@ import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/
 import fs from 'node:fs';
 import path from 'node:path';
 
-/** @typedef {{ master_task_id: string, plan_md?: unknown, migration_error?: unknown }} PlanMaster */
+/** @typedef {{ master_task_id: string, todo_md?: unknown, migration_error?: unknown }} PlanMaster */
 
 export function assertMasterPlanMdFields(master, label) {
   if (master == null || typeof master !== 'object') {
     throw new Error(`${label}: expected object, got ${typeof master}`);
   }
-  if (!Object.prototype.hasOwnProperty.call(master, 'plan_md')) {
-    throw new Error(`${label}: missing top-level plan_md field`);
+  if (!Object.prototype.hasOwnProperty.call(master, 'todo_md')) {
+    throw new Error(`${label}: missing top-level todo_md field`);
   }
-  if (typeof master.plan_md !== 'string') {
-    throw new Error(`${label}: plan_md must be a string, got ${typeof master.plan_md}`);
+  if (typeof master.todo_md !== 'string') {
+    throw new Error(`${label}: todo_md must be a string, got ${typeof master.todo_md}`);
   }
   if (!Object.prototype.hasOwnProperty.call(master, 'migration_error')) {
     throw new Error(`${label}: missing top-level migration_error field`);
@@ -31,7 +31,7 @@ export function assertMasterPlanMdFields(master, label) {
 export function assertPlanMdMatchesDisk(planMd, diskContent, label) {
   if (planMd !== diskContent) {
     throw new Error(
-      `${label}: plan_md does not match disk plan.md (len ${planMd.length} vs ${diskContent.length})`,
+      `${label}: todo_md does not match disk plan.md (len ${planMd.length} vs ${diskContent.length})`,
     );
   }
 }
@@ -55,12 +55,12 @@ export function writePlanMdToDisk(tasksDir, masterId, content) {
 }
 
 function runSelfTest() {
-  assertMasterPlanMdFields({ master_task_id: 'x', plan_md: '', migration_error: false }, 'ok');
+  assertMasterPlanMdFields({ master_task_id: 'x', todo_md: '', migration_error: false }, 'ok');
   try {
     assertMasterPlanMdFields({ master_task_id: 'x' }, 'bad');
-    throw new Error('expected missing plan_md to throw');
+    throw new Error('expected missing todo_md to throw');
   } catch (err) {
-    if (!String(err).includes('missing top-level plan_md')) {
+    if (!String(err).includes('missing top-level todo_md')) {
       throw err;
     }
   }
@@ -208,10 +208,10 @@ assertMasterPlanMdFields(listMaster, 'list_plan_tasks');
 assertMasterStatusWire(listMaster.status, 'list_plan_tasks');
 const expectedInitialPlanMd = '## E2E plan\n\nBody';
 const diskBefore = tasksDir ? readPlanMdFromDisk(tasksDir, masterId) : expectedInitialPlanMd;
-assertPlanMdMatchesDisk(listMaster.plan_md, diskBefore, 'list_plan_tasks');
-if (listMaster.plan_md !== expectedInitialPlanMd) {
+assertPlanMdMatchesDisk(listMaster.todo_md, diskBefore, 'list_plan_tasks');
+if (listMaster.todo_md !== expectedInitialPlanMd) {
   throw new Error(
-    `list_plan_tasks plan_md should match create plan_md, got: ${JSON.stringify(listMaster.plan_md)}`,
+    `list_plan_tasks plan_md should match create todo_md, got: ${JSON.stringify(listMaster.todo_md)}`,
   );
 }
 
@@ -226,10 +226,10 @@ if (getResult.isError) {
 const getBody = parseJson(getText);
 assertMasterPlanMdFields(getBody, 'get_plan_task');
 assertMasterStatusWire(getBody.status, 'get_plan_task');
-if (getBody.plan_md !== listMaster.plan_md) {
-  throw new Error('get_plan_task plan_md must match list_plan_tasks for same id');
+if (getBody.todo_md !== listMaster.todo_md) {
+  throw new Error('get_plan_task todo_md must match list_plan_tasks for same id');
 }
-assertPlanMdMatchesDisk(getBody.plan_md, diskBefore, 'get_plan_task');
+assertPlanMdMatchesDisk(getBody.todo_md, diskBefore, 'get_plan_task');
 
 if (tasksDir) {
   const fixtureContent = '# MCP E2E plan.md\n\nRound-trip fixture paragraph.\n';
@@ -239,9 +239,9 @@ if (tasksDir) {
     masterId,
     'list_plan_tasks after disk write',
   );
-  assertPlanMdMatchesDisk(listRow.plan_md, fixtureContent, 'list_plan_tasks after disk write');
+  assertPlanMdMatchesDisk(listRow.todo_md, fixtureContent, 'list_plan_tasks after disk write');
   const getAfterWrite = await callPlanTool('get_plan_task', { id: masterId });
-  assertPlanMdMatchesDisk(getAfterWrite.plan_md, fixtureContent, 'get_plan_task after disk write');
+  assertPlanMdMatchesDisk(getAfterWrite.todo_md, fixtureContent, 'get_plan_task after disk write');
 
   writePlanMdToDisk(tasksDir, masterId, '');
   const listEmptyRow = findMaster(
@@ -249,7 +249,7 @@ if (tasksDir) {
     masterId,
     'list_plan_tasks empty plan.md',
   );
-  assertPlanMdMatchesDisk(listEmptyRow.plan_md, '', 'list_plan_tasks empty plan.md');
+  assertPlanMdMatchesDisk(listEmptyRow.todo_md, '', 'list_plan_tasks empty plan.md');
 }
 
 const unknownGet = await client.callTool({
@@ -334,7 +334,7 @@ if (parseJson(completeIdempotentText).task.status !== 'complete') {
 // Optional: abandoned reject via host set-status when Workbench HTTP is reachable.
 const workbenchUrl = (process.env.WORKBENCH_HTTP_URL || '').trim().replace(/\/$/, '');
 if (workbenchUrl) {
-  const abandonRes = await fetch(`${workbenchUrl}/api/plan-task-set-status`, {
+  const abandonRes = await fetch(`${workbenchUrl}/api/todo-task-set-status`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ master_task_id: masterId, status: 'abandoned' }),
@@ -359,7 +359,7 @@ if (workbenchUrl) {
     );
   }
   // Restore complete so cleanup delete remains valid against host policy.
-  const restoreRes = await fetch(`${workbenchUrl}/api/plan-task-set-status`, {
+  const restoreRes = await fetch(`${workbenchUrl}/api/todo-task-set-status`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ master_task_id: masterId, status: 'complete' }),

@@ -287,14 +287,14 @@ fn delete_todo_task_json_unknown_id_returns_404_class() {
 }
 
 #[test]
-fn read_todo_md_json_returns_plan_md_without_status() {
+fn read_todo_md_json_returns_todo_md_without_status() {
     with_commands_todo_test(|| {
         let created = create_todo_task_json("Plan md cmd", None, "").expect("create");
         let master_id = created["master_task_id"].as_str().expect("id");
 
         let read = read_todo_md_json(master_id).expect("read");
         assert!(read.get("_status").is_none());
-        assert_eq!(read["plan_md"], "");
+        assert_eq!(read["todo_md"], "");
     });
 }
 
@@ -328,7 +328,7 @@ fn update_todo_md_json_round_trip_consistent_with_list() {
         assert_eq!(updated["ok"], true);
 
         let read = read_todo_md_json(master_id).expect("read");
-        assert_eq!(read["plan_md"], content);
+        assert_eq!(read["todo_md"], content);
 
         let listed = get_todo_tasks_json().expect("list");
         let task = listed
@@ -337,7 +337,7 @@ fn update_todo_md_json_round_trip_consistent_with_list() {
             .iter()
             .find(|t| t["master_task_id"] == master_id)
             .expect("listed");
-        assert_eq!(task["plan_md"], content);
+        assert_eq!(task["todo_md"], content);
     });
 }
 

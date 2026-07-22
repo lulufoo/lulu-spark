@@ -61,7 +61,7 @@ const PLAN_TASK_CREATE_RESPONSE = {
   },
 };
 
-/** @type {Array<{ title: string, plan_md?: string }>} */
+/** @type {Array<{ title: string, todo_md?: string }>} */
 const planTaskCreateCalls = [];
 
 const PLAN_TOOL_NAMES = [
@@ -90,10 +90,10 @@ const ATTACHMENT_TOOL_NAMES = [
 ];
 
 const ATTACHMENT_TOOL_HTTP_PATHS = {
-  add_plan_attachment: '/api/plan-task-add-attachment',
-  list_plan_attachments: '/api/plan-task-list-attachments',
-  get_plan_attachment: '/api/plan-task-get-attachment',
-  update_plan_attachment: '/api/plan-task-update-attachment',
+  add_plan_attachment: '/api/todo-task-add-attachment',
+  list_plan_attachments: '/api/todo-task-list-attachments',
+  get_plan_attachment: '/api/todo-task-get-attachment',
+  update_plan_attachment: '/api/todo-task-update-attachment',
 };
 
 const FORBIDDEN_ATTACHMENT_DELETE_TOOL_NAMES = [
@@ -116,7 +116,7 @@ function seedMaster(masterId, title, status) {
     status,
     created_at: '2026-07-07T00:00:00Z',
     sub_tasks: [],
-    plan_md: '',
+    todo_md: '',
     migration_error: false,
   });
 }
@@ -248,12 +248,12 @@ function startMockHttp(port) {
       return;
     }
 
-    if (req.method === 'GET' && url.pathname === '/api/plan-tasks') {
+    if (req.method === 'GET' && url.pathname === '/api/todo-tasks') {
       respondJson(res, 200, planTaskSnapshot());
       return;
     }
 
-    if (req.method === 'GET' && url.pathname === '/api/plan-task') {
+    if (req.method === 'GET' && url.pathname === '/api/todo-task') {
       const id = (url.searchParams.get('id') || '').trim();
       if (!id) {
         respondJson(res, 400, { error: 'Missing id' });
@@ -268,7 +268,7 @@ function startMockHttp(port) {
       return;
     }
 
-    if (req.method === 'POST' && url.pathname === '/api/plan-task-create') {
+    if (req.method === 'POST' && url.pathname === '/api/todo-task-create') {
       let payload;
       try {
         payload = await readJsonBody(req);
@@ -281,14 +281,14 @@ function startMockHttp(port) {
         respondJson(res, 400, { error: 'Missing title' });
         return;
       }
-      if (typeof payload.plan_md !== 'undefined' && typeof payload.plan_md !== 'string') {
-        respondJson(res, 400, { error: 'Invalid plan_md' });
+      if (typeof payload.todo_md !== 'undefined' && typeof payload.todo_md !== 'string') {
+        respondJson(res, 400, { error: 'Invalid todo_md' });
         return;
       }
-      const planMd = typeof payload.plan_md === 'string' ? payload.plan_md : '';
+      const planMd = typeof payload.todo_md === 'string' ? payload.todo_md : '';
       planTaskCreateCalls.push({
         title,
-        ...(planMd !== '' ? { plan_md: planMd } : {}),
+        ...(planMd !== '' ? { todo_md: planMd } : {}),
       });
       const masterId = 'task_mock001';
       const task = {
@@ -297,7 +297,7 @@ function startMockHttp(port) {
         status: 'incomplete',
         created_at: '2026-07-07T00:00:00Z',
         sub_tasks: [],
-        plan_md: planMd,
+        todo_md: planMd,
         migration_error: false,
       };
       planTaskStore.set(masterId, task);
@@ -308,7 +308,7 @@ function startMockHttp(port) {
       return;
     }
 
-    if (req.method === 'POST' && url.pathname === '/api/plan-task-delete') {
+    if (req.method === 'POST' && url.pathname === '/api/todo-task-delete') {
       let payload;
       try {
         payload = await readJsonBody(req);
@@ -330,7 +330,7 @@ function startMockHttp(port) {
       return;
     }
 
-    if (req.method === 'POST' && url.pathname === '/api/plan-task-add-sub') {
+    if (req.method === 'POST' && url.pathname === '/api/todo-task-add-sub') {
       let payload;
       try {
         payload = await readJsonBody(req);
@@ -365,7 +365,7 @@ function startMockHttp(port) {
       return;
     }
 
-    if (req.method === 'POST' && url.pathname === '/api/plan-task-delete-sub') {
+    if (req.method === 'POST' && url.pathname === '/api/todo-task-delete-sub') {
       let payload;
       try {
         payload = await readJsonBody(req);
@@ -393,7 +393,7 @@ function startMockHttp(port) {
       return;
     }
 
-    if (req.method === 'POST' && url.pathname === '/api/plan-task-complete') {
+    if (req.method === 'POST' && url.pathname === '/api/todo-task-complete') {
       let payload;
       try {
         payload = await readJsonBody(req);
@@ -433,7 +433,7 @@ function startMockHttp(port) {
       return;
     }
 
-    if (req.method === 'POST' && url.pathname === '/api/plan-task-link-archive') {
+    if (req.method === 'POST' && url.pathname === '/api/todo-task-link-archive') {
       let payload;
       try {
         payload = await readJsonBody(req);
@@ -469,7 +469,7 @@ function startMockHttp(port) {
       return;
     }
 
-    if (req.method === 'POST' && url.pathname === '/api/plan-task-add-attachment') {
+    if (req.method === 'POST' && url.pathname === '/api/todo-task-add-attachment') {
       let payload;
       try {
         payload = await readJsonBody(req);
@@ -514,7 +514,7 @@ function startMockHttp(port) {
       return;
     }
 
-    if (req.method === 'POST' && url.pathname === '/api/plan-task-list-attachments') {
+    if (req.method === 'POST' && url.pathname === '/api/todo-task-list-attachments') {
       let payload;
       try {
         payload = await readJsonBody(req);
@@ -543,7 +543,7 @@ function startMockHttp(port) {
       return;
     }
 
-    if (req.method === 'POST' && url.pathname === '/api/plan-task-get-attachment') {
+    if (req.method === 'POST' && url.pathname === '/api/todo-task-get-attachment') {
       let payload;
       try {
         payload = await readJsonBody(req);
@@ -571,7 +571,7 @@ function startMockHttp(port) {
       return;
     }
 
-    if (req.method === 'POST' && url.pathname === '/api/plan-task-update-attachment') {
+    if (req.method === 'POST' && url.pathname === '/api/todo-task-update-attachment') {
       let payload;
       try {
         payload = await readJsonBody(req);
@@ -754,12 +754,12 @@ async function runMcpClient(mcpPort) {
   if (
     planTaskCreateCalls.length !== 1 ||
     JSON.stringify(planTaskCreateCalls[0]) !==
-      JSON.stringify({ title: 'With body', plan_md: '## Notes\n\nHello' })
+      JSON.stringify({ title: 'With body', todo_md: '## Notes\n\nHello' })
   ) {
     throw new Error(`unexpected plan-task-create body payload: ${JSON.stringify(planTaskCreateCalls)}`);
   }
   if (!planBodyText.includes('## Notes')) {
-    throw new Error(`create response missing plan_md echo: ${planBodyText}`);
+    throw new Error(`create response missing todo_md echo: ${planBodyText}`);
   }
 
   const planTitleLong = await client.callTool({

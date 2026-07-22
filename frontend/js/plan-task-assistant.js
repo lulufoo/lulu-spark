@@ -19,7 +19,7 @@ function serviceError(data) {
 export async function loadAssistantPlanTasks() {
   const mode = resolveReadDriver();
   const client = createApiClient(resolveReadDriver(mode));
-  const data = await client.getJson('/api/plan-tasks');
+  const data = await client.getJson('/api/todo-tasks');
   const err = serviceError(data);
   if (err) throw err;
   return Array.isArray(data) ? data : [];

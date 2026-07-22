@@ -67,7 +67,7 @@ export const READ_API_INVOKE_MAP = {
   },
   '/api/status': { cmd: 'get_status' },
   '/api/read-later': { cmd: 'get_read_later' },
-  '/api/plan-tasks': { cmd: 'get_todo_tasks' },
+  '/api/todo-tasks': { cmd: 'get_todo_tasks' },
   '/api/kb/read': {
     cmd: 'kb_read',
     args: (url) => ({

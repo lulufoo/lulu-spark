@@ -31,7 +31,7 @@ const sampleMaster = {
   title: 'Alpha Task',
   status: 'incomplete',
   created_at: '2026-07-01T10:00:00Z',
-  plan_md: '# Plan',
+  todo_md: '# Plan',
   sub_tasks: [
     {
       sub_task_id: 'task_alpha_sub_01',
@@ -315,7 +315,7 @@ describe('attachment editor surface contracts', () => {
     expect(saveBlock).not.toContain('read_todo_md');
   });
 
-  it('attachment editor is a dedicated modal surface, not comments default-edit or plan_md inline', () => {
+  it('attachment editor is a dedicated modal surface, not comments default-edit or todo_md inline', () => {
     const src = readFileSync(join(repoRoot, 'frontend/js/plan-task/index.js'), 'utf8');
     expect(src).toMatch(/plan-task-attachment-editor/);
     expect(src).toMatch(/plan-task-attachment-preview/);

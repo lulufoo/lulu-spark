@@ -201,7 +201,7 @@ pub async fn read_todo_md(_app: AppHandle, master_task_id: String) -> Result<Str
                 return Err(msg.to_string());
             }
         }
-        Ok(v.get("plan_md")
+        Ok(v.get("todo_md")
             .and_then(|p| p.as_str())
             .unwrap_or("")
             .to_string())

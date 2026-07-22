@@ -227,7 +227,7 @@ function buildServer() {
     'create_plan_task',
     {
       description:
-        'Create a plan task master with title and optional plan body (plan_md). Title max 20 Chinese characters or English words. Creates empty sub_tasks; use add_plan_sub for subs. Proxy POST /api/plan-task-create',
+        'Create a plan task master with title and optional plan body (tool field plan_md → Host todo_md). Title max 20 Chinese characters or English words. Creates empty sub_tasks; use add_plan_sub for subs. Proxy POST /api/todo-task-create',
       inputSchema: {
         title: z
           .string()
@@ -246,9 +246,9 @@ function buildServer() {
     async ({ title, plan_md }) => {
       const body = { title };
       if (plan_md != null) {
-        body.plan_md = plan_md;
+        body.todo_md = plan_md;
       }
-      const result = await proxyPost('/api/plan-task-create', body);
+      const result = await proxyPost('/api/todo-task-create', body);
       if (!result.ok) {
         return toolError(result.status, result.text);
       }
@@ -259,11 +259,11 @@ function buildServer() {
   server.registerTool(
     'list_plan_tasks',
     {
-      description: 'List all plan task masters. Proxy GET /api/plan-tasks',
+      description: 'List all plan task masters. Proxy GET /api/todo-tasks',
       inputSchema: {},
     },
     async () => {
-      const result = await proxyGet('/api/plan-tasks');
+      const result = await proxyGet('/api/todo-tasks');
       if (!result.ok) {
         return toolError(result.status, result.text);
       }
@@ -274,14 +274,14 @@ function buildServer() {
   server.registerTool(
     'get_plan_task',
     {
-      description: 'Get a plan task master by id. Proxy GET /api/plan-task?id=',
+      description: 'Get a plan task master by id. Proxy GET /api/todo-task?id=',
       inputSchema: {
         id: z.string().trim().min(1).describe('Master task id'),
       },
     },
     async ({ id }) => {
       const q = new URLSearchParams({ id });
-      const result = await proxyGet(`/api/plan-task?${q}`);
+      const result = await proxyGet(`/api/todo-task?${q}`);
       if (!result.ok) {
         return toolError(result.status, result.text);
       }
@@ -292,13 +292,13 @@ function buildServer() {
   server.registerTool(
     'delete_plan_task',
     {
-      description: 'Delete a plan task master and its directory. Proxy POST /api/plan-task-delete',
+      description: 'Delete a plan task master and its directory. Proxy POST /api/todo-task-delete',
       inputSchema: {
         master_task_id: z.string().trim().min(1).describe('Master task id'),
       },
     },
     async ({ master_task_id }) => {
-      const result = await proxyPost('/api/plan-task-delete', { master_task_id });
+      const result = await proxyPost('/api/todo-task-delete', { master_task_id });
       if (!result.ok) {
         return toolError(result.status, result.text);
       }
@@ -309,14 +309,14 @@ function buildServer() {
   server.registerTool(
     'add_plan_sub',
     {
-      description: 'Add a sub task to a plan master. Proxy POST /api/plan-task-add-sub',
+      description: 'Add a sub task to a plan master. Proxy POST /api/todo-task-add-sub',
       inputSchema: {
         master_task_id: z.string().trim().min(1).describe('Master task id'),
         title: z.string().trim().min(1).describe('Sub task title'),
       },
     },
     async ({ master_task_id, title }) => {
-      const result = await proxyPost('/api/plan-task-add-sub', { master_task_id, title });
+      const result = await proxyPost('/api/todo-task-add-sub', { master_task_id, title });
       if (!result.ok) {
         return toolError(result.status, result.text);
       }
@@ -327,14 +327,14 @@ function buildServer() {
   server.registerTool(
     'delete_plan_sub',
     {
-      description: 'Delete a sub task (not the last one). Proxy POST /api/plan-task-delete-sub',
+      description: 'Delete a sub task (not the last one). Proxy POST /api/todo-task-delete-sub',
       inputSchema: {
         master_task_id: z.string().trim().min(1).describe('Master task id'),
         sub_task_id: z.string().trim().min(1).describe('Sub task id'),
       },
     },
     async ({ master_task_id, sub_task_id }) => {
-      const result = await proxyPost('/api/plan-task-delete-sub', { master_task_id, sub_task_id });
+      const result = await proxyPost('/api/todo-task-delete-sub', { master_task_id, sub_task_id });
       if (!result.ok) {
         return toolError(result.status, result.text);
       }
@@ -346,7 +346,7 @@ function buildServer() {
     'complete_plan',
     {
       description:
-        'Complete a plan task. With sub_task_id, marks that sub complete; without it, marks the master complete. Proxy POST /api/plan-task-complete',
+        'Complete a plan task. With sub_task_id, marks that sub complete; without it, marks the master complete. Proxy POST /api/todo-task-complete',
       inputSchema: {
         master_task_id: z.string().trim().min(1).describe('Master task id'),
         sub_task_id: z
@@ -360,7 +360,7 @@ function buildServer() {
     async ({ master_task_id, sub_task_id }) => {
       const body = { master_task_id };
       if (sub_task_id) body.sub_task_id = sub_task_id;
-      const result = await proxyPost('/api/plan-task-complete', body);
+      const result = await proxyPost('/api/todo-task-complete', body);
       if (!result.ok) {
         return toolError(result.status, result.text);
       }
@@ -372,7 +372,7 @@ function buildServer() {
     'link_plan_archive',
     {
       description:
-        'Link an archive entry id to a completed sub task. Proxy POST /api/plan-task-link-archive',
+        'Link an archive entry id to a completed sub task. Proxy POST /api/todo-task-link-archive',
       inputSchema: {
         master_task_id: z.string().trim().min(1).describe('Master task id'),
         sub_task_id: z.string().trim().min(1).describe('Sub task id'),
@@ -380,7 +380,7 @@ function buildServer() {
       },
     },
     async ({ master_task_id, sub_task_id, archive_id }) => {
-      const result = await proxyPost('/api/plan-task-link-archive', {
+      const result = await proxyPost('/api/todo-task-link-archive', {
         master_task_id,
         sub_task_id,
         archive_id,
@@ -397,14 +397,14 @@ function buildServer() {
     'add_plan_attachment',
     {
       description:
-        'Add a markdown attachment to a plan master. Proxy POST /api/plan-task-add-attachment',
+        'Add a markdown attachment to a plan master. Proxy POST /api/todo-task-add-attachment',
       inputSchema: {
         master_task_id: z.string().trim().min(1).describe('Master task id'),
         file_name: z.string().trim().min(1).describe('Attachment file name (must end with .md)'),
         content: z.string().describe('Markdown attachment content'),
       },
     },
-    '/api/plan-task-add-attachment',
+    '/api/todo-task-add-attachment',
   );
 
   registerProxyPostTool(
@@ -412,12 +412,12 @@ function buildServer() {
     'list_plan_attachments',
     {
       description:
-        'List attachments for a plan master. Proxy POST /api/plan-task-list-attachments',
+        'List attachments for a plan master. Proxy POST /api/todo-task-list-attachments',
       inputSchema: {
         master_task_id: z.string().trim().min(1).describe('Master task id'),
       },
     },
-    '/api/plan-task-list-attachments',
+    '/api/todo-task-list-attachments',
   );
 
   registerProxyPostTool(
@@ -425,13 +425,13 @@ function buildServer() {
     'get_plan_attachment',
     {
       description:
-        'Read one plan attachment body by file name. Proxy POST /api/plan-task-get-attachment',
+        'Read one plan attachment body by file name. Proxy POST /api/todo-task-get-attachment',
       inputSchema: {
         master_task_id: z.string().trim().min(1).describe('Master task id'),
         file_name: z.string().trim().min(1).describe('Attachment file name'),
       },
     },
-    '/api/plan-task-get-attachment',
+    '/api/todo-task-get-attachment',
   );
 
   registerProxyPostTool(
@@ -439,14 +439,14 @@ function buildServer() {
     'update_plan_attachment',
     {
       description:
-        'Overwrite a plan attachment body. Proxy POST /api/plan-task-update-attachment',
+        'Overwrite a plan attachment body. Proxy POST /api/todo-task-update-attachment',
       inputSchema: {
         master_task_id: z.string().trim().min(1).describe('Master task id'),
         file_name: z.string().trim().min(1).describe('Attachment file name'),
         content: z.string().describe('New markdown attachment content'),
       },
     },
-    '/api/plan-task-update-attachment',
+    '/api/todo-task-update-attachment',
   );
 
   return server;

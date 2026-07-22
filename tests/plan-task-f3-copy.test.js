@@ -57,8 +57,8 @@ describe('F3 copy sync — create_plan_task MCP description', () => {
     expect(createBlock).not.toMatch(/one implicit sub/i);
   });
 
-  it('describes title and plan_md without sub_titles', () => {
-    expect(createBlock).toMatch(/plan_md/);
+  it('describes title and todo_md without sub_titles', () => {
+    expect(createBlock).toMatch(/todo_md/);
     expect(createBlock).toMatch(/max 20/i);
     expect(createBlock).not.toMatch(/sub_titles/);
     expect(createBlock).toMatch(/empty sub_tasks/i);

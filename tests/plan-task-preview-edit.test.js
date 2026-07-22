@@ -31,7 +31,7 @@ const sampleMaster = {
   title: 'Alpha Task',
   status: 'incomplete',
   created_at: '2026-07-01T10:00:00Z',
-  plan_md: '# Plan Title\n\nFirst paragraph.\n\nSecond paragraph.',
+  todo_md: '# Plan Title\n\nFirst paragraph.\n\nSecond paragraph.',
   sub_tasks: [
     {
       sub_task_id: 'task_alpha_sub_01',
@@ -67,7 +67,7 @@ describe('formatPlanTaskStatus abandoned label', () => {
   });
 });
 
-describe('plan_md invoke wrappers', () => {
+describe('todo_md invoke wrappers', () => {
   beforeEach(() => {
     invokeMock.mockReset();
     setupTauri();
@@ -136,7 +136,7 @@ describe('plan_md invoke wrappers', () => {
   });
 });
 
-describe('mountPlanTaskSplit plan_md preview and edit', () => {
+describe('mountPlanTaskSplit todo_md preview and edit', () => {
   let container;
 
   beforeEach(() => {
@@ -171,12 +171,12 @@ describe('mountPlanTaskSplit plan_md preview and edit', () => {
     return api;
   }
 
-  it('renders plan_md from HTTP as multi-paragraph markdown preview', async () => {
+  it('renders todo_md from HTTP as multi-paragraph markdown preview', async () => {
     getJsonMock.mockResolvedValue([sampleMaster]);
     const { dispose } = await mountAndWait();
     const preview = container.querySelector('.plan-task-plan-md-preview');
     expect(preview).not.toBeNull();
-    expect(global.marked.parse).toHaveBeenCalledWith(sampleMaster.plan_md);
+    expect(global.marked.parse).toHaveBeenCalledWith(sampleMaster.todo_md);
     expect(preview.innerHTML).toContain('First paragraph.');
     expect(preview.innerHTML).toContain('Second paragraph.');
     dispose();
@@ -199,10 +199,10 @@ describe('mountPlanTaskSplit plan_md preview and edit', () => {
   it('saves via update_todo_md and refreshes list on success', async () => {
     getJsonMock.mockResolvedValueOnce([sampleMaster]);
     getJsonMock.mockResolvedValueOnce([
-      { ...sampleMaster, plan_md: '# Saved\n\nNew content.' },
+      { ...sampleMaster, todo_md: '# Saved\n\nNew content.' },
     ]);
     invokeMock.mockImplementation(async (cmd) => {
-      if (cmd === 'read_todo_md') return sampleMaster.plan_md;
+      if (cmd === 'read_todo_md') return sampleMaster.todo_md;
       if (cmd === 'update_todo_md') return undefined;
       return {};
     });
@@ -229,7 +229,7 @@ describe('mountPlanTaskSplit plan_md preview and edit', () => {
   it('keeps editor content and shows error when save fails', async () => {
     getJsonMock.mockResolvedValue([sampleMaster]);
     invokeMock.mockImplementation(async (cmd) => {
-      if (cmd === 'read_todo_md') return sampleMaster.plan_md;
+      if (cmd === 'read_todo_md') return sampleMaster.todo_md;
       if (cmd === 'update_todo_md') {
         return { error: 'Disk full', _status: 500 };
       }
@@ -255,7 +255,7 @@ describe('mountPlanTaskSplit plan_md preview and edit', () => {
     getJsonMock.mockResolvedValueOnce([sampleMaster]);
     getJsonMock.mockRejectedValueOnce(new Error('network down'));
     invokeMock.mockImplementation(async (cmd) => {
-      if (cmd === 'read_todo_md') return sampleMaster.plan_md;
+      if (cmd === 'read_todo_md') return sampleMaster.todo_md;
       if (cmd === 'update_todo_md') return undefined;
       return {};
     });

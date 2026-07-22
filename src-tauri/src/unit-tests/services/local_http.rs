@@ -10,7 +10,7 @@ use serde_json::{json, Value};
 use super::*;
 use crate::test_support::TestSandbox;
 
-fn with_plan_task_http_test<F: FnOnce()>(f: F) {
+fn with_todo_task_http_test<F: FnOnce()>(f: F) {
     f();
 }
 
@@ -89,7 +89,7 @@ fn setup_repo_for_read_later() -> RepoFixture {
     }
 }
 
-fn setup_repo_for_plan_task() -> RepoFixture {
+fn setup_repo_for_todo_task() -> RepoFixture {
     let sandbox = TestSandbox::new();
     let wb = sandbox.workbench_knowledge_root();
     fs::create_dir_all(&wb).expect("mkdir corpus");
@@ -659,11 +659,11 @@ fn options_non_read_later_path_returns_405() {
 
 #[test]
 fn get_todo_tasks_empty_returns_200_array() {
-    with_plan_task_http_test(|| {
-        let fixture = setup_repo_for_plan_task();
+    with_todo_task_http_test(|| {
+        let fixture = setup_repo_for_todo_task();
         let repo_root = fixture.repo_root.clone();
         with_server(repo_root, |port| {
-            let (status, body) = http_get_with_response(port, "/api/plan-tasks");
+            let (status, body) = http_get_with_response(port, "/api/todo-tasks");
             assert_eq!(status, 200);
             assert!(body.is_array());
             assert_eq!(body.as_array().expect("array").len(), 0);
@@ -673,13 +673,13 @@ fn get_todo_tasks_empty_returns_200_array() {
 
 #[test]
 fn get_todo_tasks_returns_created_masters() {
-    with_plan_task_http_test(|| {
-        let fixture = setup_repo_for_plan_task();
+    with_todo_task_http_test(|| {
+        let fixture = setup_repo_for_todo_task();
         let repo_root = fixture.repo_root.clone();
         with_server(repo_root, |port| {
             let (create_status, create_body) = http_post(
                 port,
-                "/api/plan-task-create",
+                "/api/todo-task-create",
                 &json!({ "title": "Listed master", "sub_titles": ["Sub A", "Sub B"] }),
             );
             assert_eq!(create_status, 201);
@@ -687,7 +687,7 @@ fn get_todo_tasks_returns_created_masters() {
                 .as_str()
                 .expect("master_task_id");
 
-            let (status, body) = http_get_with_response(port, "/api/plan-tasks");
+            let (status, body) = http_get_with_response(port, "/api/todo-tasks");
             assert_eq!(status, 200);
             let list = body.as_array().expect("array");
             assert_eq!(list.len(), 1);
@@ -700,14 +700,14 @@ fn get_todo_tasks_returns_created_masters() {
 }
 
 #[test]
-fn post_plan_task_create_omit_sub_titles_creates_empty_sub_tasks() {
-    with_plan_task_http_test(|| {
-        let fixture = setup_repo_for_plan_task();
+fn post_todo_task_create_omit_sub_titles_creates_empty_sub_tasks() {
+    with_todo_task_http_test(|| {
+        let fixture = setup_repo_for_todo_task();
         let repo_root = fixture.repo_root.clone();
         with_server(repo_root, |port| {
             let (status, body) = http_post(
                 port,
-                "/api/plan-task-create",
+                "/api/todo-task-create",
                 &json!({ "title": "Master only" }),
             );
             assert_eq!(status, 201);
@@ -722,14 +722,14 @@ fn post_plan_task_create_omit_sub_titles_creates_empty_sub_tasks() {
 }
 
 #[test]
-fn post_plan_task_create_empty_sub_titles_matches_omit() {
-    with_plan_task_http_test(|| {
-        let fixture = setup_repo_for_plan_task();
+fn post_todo_task_create_empty_sub_titles_matches_omit() {
+    with_todo_task_http_test(|| {
+        let fixture = setup_repo_for_todo_task();
         let repo_root = fixture.repo_root.clone();
         with_server(repo_root, |port| {
             let (status, body) = http_post(
                 port,
-                "/api/plan-task-create",
+                "/api/todo-task-create",
                 &json!({ "title": "Empty array", "sub_titles": [] }),
             );
             assert_eq!(status, 201);
@@ -741,14 +741,14 @@ fn post_plan_task_create_empty_sub_titles_matches_omit() {
 }
 
 #[test]
-fn post_plan_task_create_single_explicit_sub() {
-    with_plan_task_http_test(|| {
-        let fixture = setup_repo_for_plan_task();
+fn post_todo_task_create_single_explicit_sub() {
+    with_todo_task_http_test(|| {
+        let fixture = setup_repo_for_todo_task();
         let repo_root = fixture.repo_root.clone();
         with_server(repo_root, |port| {
             let (status, body) = http_post(
                 port,
-                "/api/plan-task-create",
+                "/api/todo-task-create",
                 &json!({ "title": "Master", "sub_titles": ["Sub A"] }),
             );
             assert_eq!(status, 201);
@@ -761,14 +761,14 @@ fn post_plan_task_create_single_explicit_sub() {
 }
 
 #[test]
-fn post_plan_task_create_multiple_explicit_subs() {
-    with_plan_task_http_test(|| {
-        let fixture = setup_repo_for_plan_task();
+fn post_todo_task_create_multiple_explicit_subs() {
+    with_todo_task_http_test(|| {
+        let fixture = setup_repo_for_todo_task();
         let repo_root = fixture.repo_root.clone();
         with_server(repo_root, |port| {
             let (status, body) = http_post(
                 port,
-                "/api/plan-task-create",
+                "/api/todo-task-create",
                 &json!({ "title": "Master", "sub_titles": ["Sub A", "Sub B"] }),
             );
             assert_eq!(status, 201);
@@ -783,14 +783,14 @@ fn post_plan_task_create_multiple_explicit_subs() {
 }
 
 #[test]
-fn post_plan_task_create_blank_title_returns_400() {
-    with_plan_task_http_test(|| {
-        let fixture = setup_repo_for_plan_task();
+fn post_todo_task_create_blank_title_returns_400() {
+    with_todo_task_http_test(|| {
+        let fixture = setup_repo_for_todo_task();
         let repo_root = fixture.repo_root.clone();
         with_server(repo_root, |port| {
             let (status, body) = http_post(
                 port,
-                "/api/plan-task-create",
+                "/api/todo-task-create",
                 &json!({ "title": "   " }),
             );
             assert_eq!(status, 400);
@@ -800,14 +800,14 @@ fn post_plan_task_create_blank_title_returns_400() {
 }
 
 #[test]
-fn post_plan_task_create_response_ac5_field_matrix() {
-    with_plan_task_http_test(|| {
-        let fixture = setup_repo_for_plan_task();
+fn post_todo_task_create_response_ac5_field_matrix() {
+    with_todo_task_http_test(|| {
+        let fixture = setup_repo_for_todo_task();
         let repo_root = fixture.repo_root.clone();
         with_server(repo_root, |port| {
             let (status, body) = http_post(
                 port,
-                "/api/plan-task-create",
+                "/api/todo-task-create",
                 &json!({ "title": "AC5 master", "sub_titles": ["Sub A"] }),
             );
             assert_eq!(status, 201);
@@ -832,13 +832,13 @@ fn post_plan_task_create_response_ac5_field_matrix() {
     });
 }
 
-fn create_plan_master(port: u16, title: &str, sub_titles: &[&str]) -> (String, String, Value) {
+fn create_todo_master(port: u16, title: &str, sub_titles: &[&str]) -> (String, String, Value) {
     let payload = if sub_titles.is_empty() {
         json!({ "title": title })
     } else {
         json!({ "title": title, "sub_titles": sub_titles })
     };
-    let (status, body) = http_post(port, "/api/plan-task-create", &payload);
+    let (status, body) = http_post(port, "/api/todo-task-create", &payload);
     assert_eq!(status, 201);
     let master_id = body["master_task_id"].as_str().expect("master_task_id").to_string();
     let sub_id = body["sub_task_id"]
@@ -855,7 +855,7 @@ fn create_plan_master(port: u16, title: &str, sub_titles: &[&str]) -> (String, S
 }
 
 #[test]
-fn plan_task_master_status_wire_includes_abandoned() {
+fn todo_task_master_status_wire_includes_abandoned() {
     assert_eq!(
         TODO_TASK_MASTER_STATUS_WIRE,
         &["incomplete", "complete", "abandoned"]
@@ -864,13 +864,13 @@ fn plan_task_master_status_wire_includes_abandoned() {
 
 #[test]
 fn http_list_get_create_carry_tri_state_status_including_abandoned() {
-    with_plan_task_http_test(|| {
-        let fixture = setup_repo_for_plan_task();
+    with_todo_task_http_test(|| {
+        let fixture = setup_repo_for_todo_task();
         let repo_root = fixture.repo_root.clone();
         with_server(repo_root, |port| {
             let (create_status, create_body) = http_post(
                 port,
-                "/api/plan-task-create",
+                "/api/todo-task-create",
                 &json!({ "title": "Create incomplete", "sub_titles": ["Sub"] }),
             );
             assert_eq!(create_status, 201);
@@ -880,7 +880,7 @@ fn http_list_get_create_carry_tri_state_status_including_abandoned() {
             let wb = crate::config::paths::workbench_knowledge_root().expect("wb");
             let complete_id = "task_http_status_complete";
             let abandoned_id = "task_http_status_abandoned";
-            seed_v2_plan_for_http(
+            seed_v2_todo_for_http(
                 &wb,
                 complete_id,
                 "Stored complete",
@@ -888,7 +888,7 @@ fn http_list_get_create_carry_tri_state_status_including_abandoned() {
                 &json!({ "sub_tasks": [] }),
                 true,
             );
-            seed_v2_plan_for_http(
+            seed_v2_todo_for_http(
                 &wb,
                 abandoned_id,
                 "Stored abandoned",
@@ -897,7 +897,7 @@ fn http_list_get_create_carry_tri_state_status_including_abandoned() {
                 true,
             );
 
-            let (list_status, list_body) = http_get_with_response(port, "/api/plan-tasks");
+            let (list_status, list_body) = http_get_with_response(port, "/api/todo-tasks");
             assert_eq!(list_status, 200);
             let list = list_body.as_array().expect("array");
             let complete = list
@@ -914,12 +914,12 @@ fn http_list_get_create_carry_tri_state_status_including_abandoned() {
             assert!(TODO_TASK_MASTER_STATUS_WIRE.contains(&abandoned["status"].as_str().unwrap()));
 
             let (get_complete_status, get_complete) =
-                http_get(port, &format!("/api/plan-task?id={complete_id}"));
+                http_get(port, &format!("/api/todo-task?id={complete_id}"));
             assert_eq!(get_complete_status, 200);
             assert_eq!(get_complete["status"], "complete");
 
             let (get_abandoned_status, get_abandoned) =
-                http_get(port, &format!("/api/plan-task?id={abandoned_id}"));
+                http_get(port, &format!("/api/todo-task?id={abandoned_id}"));
             assert_eq!(get_abandoned_status, 200);
             assert_eq!(get_abandoned["status"], "abandoned");
         });
@@ -927,21 +927,21 @@ fn http_list_get_create_carry_tri_state_status_including_abandoned() {
 }
 
 #[test]
-fn post_plan_task_set_status_updates_master_and_reads_back_consistently() {
-    with_plan_task_http_test(|| {
-        let fixture = setup_repo_for_plan_task();
+fn post_todo_task_set_status_updates_master_and_reads_back_consistently() {
+    with_todo_task_http_test(|| {
+        let fixture = setup_repo_for_todo_task();
         let repo_root = fixture.repo_root.clone();
         with_server(repo_root, |port| {
-            let (master_id, _, _) = create_plan_master(port, "Set status master", &["Sub"]);
+            let (master_id, _, _) = create_todo_master(port, "Set status master", &["Sub"]);
             assert_eq!(
-                http_get(port, &format!("/api/plan-task?id={master_id}")).1["status"],
+                http_get(port, &format!("/api/todo-task?id={master_id}")).1["status"],
                 "incomplete"
             );
 
             for target in ["complete", "abandoned", "incomplete"] {
                 let (status, body) = http_post(
                     port,
-                    "/api/plan-task-set-status",
+                    "/api/todo-task-set-status",
                     &json!({ "master_task_id": master_id, "status": target }),
                 );
                 assert_eq!(status, 200, "set-status {target}: {body}");
@@ -949,11 +949,11 @@ fn post_plan_task_set_status_updates_master_and_reads_back_consistently() {
                 assert_eq!(body["task"]["master_task_id"], master_id);
 
                 let (get_status, get_body) =
-                    http_get(port, &format!("/api/plan-task?id={master_id}"));
+                    http_get(port, &format!("/api/todo-task?id={master_id}"));
                 assert_eq!(get_status, 200);
                 assert_eq!(get_body["status"], target);
 
-                let (list_status, list_body) = http_get_with_response(port, "/api/plan-tasks");
+                let (list_status, list_body) = http_get_with_response(port, "/api/todo-tasks");
                 assert_eq!(list_status, 200);
                 let listed = list_body
                     .as_array()
@@ -977,15 +977,15 @@ fn post_plan_task_set_status_updates_master_and_reads_back_consistently() {
 }
 
 #[test]
-fn post_plan_task_set_status_rejects_invalid_status() {
-    with_plan_task_http_test(|| {
-        let fixture = setup_repo_for_plan_task();
+fn post_todo_task_set_status_rejects_invalid_status() {
+    with_todo_task_http_test(|| {
+        let fixture = setup_repo_for_todo_task();
         let repo_root = fixture.repo_root.clone();
         with_server(repo_root, |port| {
-            let (master_id, _, _) = create_plan_master(port, "Invalid status", &["Sub"]);
+            let (master_id, _, _) = create_todo_master(port, "Invalid status", &["Sub"]);
             let (status, body) = http_post(
                 port,
-                "/api/plan-task-set-status",
+                "/api/todo-task-set-status",
                 &json!({ "master_task_id": master_id, "status": "done" }),
             );
             assert_eq!(status, 400);
@@ -995,17 +995,17 @@ fn post_plan_task_set_status_rejects_invalid_status() {
 }
 
 #[test]
-fn plan_task_crud_http_flow() {
-    with_plan_task_http_test(|| {
-        let fixture = setup_repo_for_plan_task();
+fn todo_task_crud_http_flow() {
+    with_todo_task_http_test(|| {
+        let fixture = setup_repo_for_todo_task();
         let repo_root = fixture.repo_root.clone();
         with_server(repo_root, |port| {
             let (master_id, sub_a, create_body) =
-                create_plan_master(port, "CRUD master", &["Sub A", "Sub B"]);
+                create_todo_master(port, "CRUD master", &["Sub A", "Sub B"]);
             assert_eq!(create_body["task"]["sub_tasks"].as_array().unwrap().len(), 2);
 
             let (get_status, get_body) =
-                http_get(port, &format!("/api/plan-task?id={master_id}"));
+                http_get(port, &format!("/api/todo-task?id={master_id}"));
             assert_eq!(get_status, 200);
             assert_eq!(get_body["master_task_id"], master_id);
             assert_eq!(get_body["title"], "CRUD master");
@@ -1013,7 +1013,7 @@ fn plan_task_crud_http_flow() {
 
             let (add_status, add_body) = http_post(
                 port,
-                "/api/plan-task-add-sub",
+                "/api/todo-task-add-sub",
                 &json!({ "master_task_id": master_id, "title": "Sub C" }),
             );
             assert_eq!(add_status, 201);
@@ -1022,7 +1022,7 @@ fn plan_task_crud_http_flow() {
 
             let (complete_status, complete_body) = http_post(
                 port,
-                "/api/plan-task-complete",
+                "/api/todo-task-complete",
                 &json!({ "master_task_id": master_id, "sub_task_id": sub_a }),
             );
             assert_eq!(complete_status, 200);
@@ -1035,7 +1035,7 @@ fn plan_task_crud_http_flow() {
 
             let (link_status, link_body) = http_post(
                 port,
-                "/api/plan-task-link-archive",
+                "/api/todo-task-link-archive",
                 &json!({
                     "master_task_id": master_id,
                     "sub_task_id": sub_a,
@@ -1051,7 +1051,7 @@ fn plan_task_crud_http_flow() {
 
             let (del_sub_status, del_sub_body) = http_post(
                 port,
-                "/api/plan-task-delete-sub",
+                "/api/todo-task-delete-sub",
                 &json!({ "master_task_id": master_id, "sub_task_id": sub_c }),
             );
             assert_eq!(del_sub_status, 200);
@@ -1059,14 +1059,14 @@ fn plan_task_crud_http_flow() {
 
             let (delete_status, delete_body) = http_post(
                 port,
-                "/api/plan-task-delete",
+                "/api/todo-task-delete",
                 &json!({ "master_task_id": master_id }),
             );
             assert_eq!(delete_status, 200);
             assert_eq!(delete_body["ok"], true);
             assert!(delete_body.get("_status").is_none());
 
-            let (list_status, list_body) = http_get_with_response(port, "/api/plan-tasks");
+            let (list_status, list_body) = http_get_with_response(port, "/api/todo-tasks");
             assert_eq!(list_status, 200);
             assert_eq!(list_body.as_array().unwrap().len(), 0);
         });
@@ -1074,12 +1074,12 @@ fn plan_task_crud_http_flow() {
 }
 
 #[test]
-fn get_plan_task_missing_id_returns_400() {
-    with_plan_task_http_test(|| {
-        let fixture = setup_repo_for_plan_task();
+fn get_todo_task_missing_id_returns_400() {
+    with_todo_task_http_test(|| {
+        let fixture = setup_repo_for_todo_task();
         let repo_root = fixture.repo_root.clone();
         with_server(repo_root, |port| {
-            let (status, body) = http_get(port, "/api/plan-task");
+            let (status, body) = http_get(port, "/api/todo-task");
             assert_eq!(status, 400);
             assert!(body.get("error").is_some());
             assert!(body.get("_status").is_none());
@@ -1088,13 +1088,13 @@ fn get_plan_task_missing_id_returns_400() {
 }
 
 #[test]
-fn get_plan_task_unknown_id_returns_404() {
-    with_plan_task_http_test(|| {
-        let fixture = setup_repo_for_plan_task();
+fn get_todo_task_unknown_id_returns_404() {
+    with_todo_task_http_test(|| {
+        let fixture = setup_repo_for_todo_task();
         let repo_root = fixture.repo_root.clone();
         with_server(repo_root, |port| {
             let (status, body) =
-                http_get(port, "/api/plan-task?id=00000000000000000000000000000000");
+                http_get(port, "/api/todo-task?id=00000000000000000000000000000000");
             assert_eq!(status, 404);
             assert_eq!(body["error"], "Task not found");
             assert!(body.get("_status").is_none());
@@ -1103,19 +1103,19 @@ fn get_plan_task_unknown_id_returns_404() {
 }
 
 #[test]
-fn post_plan_task_add_sub_missing_or_blank_title_returns_400() {
-    with_plan_task_http_test(|| {
-        let fixture = setup_repo_for_plan_task();
+fn post_todo_task_add_sub_missing_or_blank_title_returns_400() {
+    with_todo_task_http_test(|| {
+        let fixture = setup_repo_for_todo_task();
         let repo_root = fixture.repo_root.clone();
         with_server(repo_root, |port| {
-            let (master_id, _, _) = create_plan_master(port, "Master", &["Sub A"]);
+            let (master_id, _, _) = create_todo_master(port, "Master", &["Sub A"]);
 
             for payload in [
                 json!({ "master_task_id": master_id }),
                 json!({ "master_task_id": master_id, "title": "" }),
                 json!({ "master_task_id": master_id, "title": "   " }),
             ] {
-                let (status, body) = http_post(port, "/api/plan-task-add-sub", &payload);
+                let (status, body) = http_post(port, "/api/todo-task-add-sub", &payload);
                 assert_eq!(status, 400);
                 assert!(body.get("error").is_some());
                 assert!(body.get("_status").is_none());
@@ -1125,15 +1125,15 @@ fn post_plan_task_add_sub_missing_or_blank_title_returns_400() {
 }
 
 #[test]
-fn post_plan_task_delete_sub_last_sub_allows_empty() {
-    with_plan_task_http_test(|| {
-        let fixture = setup_repo_for_plan_task();
+fn post_todo_task_delete_sub_last_sub_allows_empty() {
+    with_todo_task_http_test(|| {
+        let fixture = setup_repo_for_todo_task();
         let repo_root = fixture.repo_root.clone();
         with_server(repo_root, |port| {
-            let (master_id, sub_id, _) = create_plan_master(port, "Single sub", &["Single sub"]);
+            let (master_id, sub_id, _) = create_todo_master(port, "Single sub", &["Single sub"]);
             let (status, body) = http_post(
                 port,
-                "/api/plan-task-delete-sub",
+                "/api/todo-task-delete-sub",
                 &json!({ "master_task_id": master_id, "sub_task_id": sub_id }),
             );
             assert_eq!(status, 200);
@@ -1145,31 +1145,31 @@ fn post_plan_task_delete_sub_last_sub_allows_empty() {
 }
 
 #[test]
-fn post_plan_task_unknown_master_returns_404() {
-    with_plan_task_http_test(|| {
-        let fixture = setup_repo_for_plan_task();
+fn post_todo_task_unknown_master_returns_404() {
+    with_todo_task_http_test(|| {
+        let fixture = setup_repo_for_todo_task();
         let repo_root = fixture.repo_root.clone();
         with_server(repo_root, |port| {
             let unknown = "00000000000000000000000000000000";
             for path in [
-                "/api/plan-task-delete",
-                "/api/plan-task-add-sub",
-                "/api/plan-task-delete-sub",
-                "/api/plan-task-complete",
-                "/api/plan-task-link-archive",
+                "/api/todo-task-delete",
+                "/api/todo-task-add-sub",
+                "/api/todo-task-delete-sub",
+                "/api/todo-task-complete",
+                "/api/todo-task-link-archive",
             ] {
                 let payload = match path {
-                    "/api/plan-task-delete" => json!({ "master_task_id": unknown }),
-                    "/api/plan-task-add-sub" => {
+                    "/api/todo-task-delete" => json!({ "master_task_id": unknown }),
+                    "/api/todo-task-add-sub" => {
                         json!({ "master_task_id": unknown, "title": "Sub" })
                     }
-                    "/api/plan-task-delete-sub" | "/api/plan-task-complete" => {
+                    "/api/todo-task-delete-sub" | "/api/todo-task-complete" => {
                         json!({
                             "master_task_id": unknown,
                             "sub_task_id": "00000000000000000000000000000001",
                         })
                     }
-                    "/api/plan-task-link-archive" => {
+                    "/api/todo-task-link-archive" => {
                         json!({
                             "master_task_id": unknown,
                             "sub_task_id": "00000000000000000000000000000001",
@@ -1188,23 +1188,23 @@ fn post_plan_task_unknown_master_returns_404() {
 }
 
 #[test]
-fn post_plan_task_unknown_sub_returns_404() {
-    with_plan_task_http_test(|| {
-        let fixture = setup_repo_for_plan_task();
+fn post_todo_task_unknown_sub_returns_404() {
+    with_todo_task_http_test(|| {
+        let fixture = setup_repo_for_todo_task();
         let repo_root = fixture.repo_root.clone();
         with_server(repo_root, |port| {
-            let (master_id, _, _) = create_plan_master(port, "Master", &["Sub A", "Sub B"]);
+            let (master_id, _, _) = create_todo_master(port, "Master", &["Sub A", "Sub B"]);
             let unknown_sub = "00000000000000000000000000000099";
             for path in [
-                "/api/plan-task-delete-sub",
-                "/api/plan-task-complete",
-                "/api/plan-task-link-archive",
+                "/api/todo-task-delete-sub",
+                "/api/todo-task-complete",
+                "/api/todo-task-link-archive",
             ] {
                 let payload = match path {
-                    "/api/plan-task-delete-sub" | "/api/plan-task-complete" => {
+                    "/api/todo-task-delete-sub" | "/api/todo-task-complete" => {
                         json!({ "master_task_id": master_id, "sub_task_id": unknown_sub })
                     }
-                    "/api/plan-task-link-archive" => {
+                    "/api/todo-task-link-archive" => {
                         json!({
                             "master_task_id": master_id,
                             "sub_task_id": unknown_sub,
@@ -1223,33 +1223,98 @@ fn post_plan_task_unknown_sub_returns_404() {
 }
 
 #[test]
-fn post_plan_task_complete_legacy_route_returns_404() {
-    with_plan_task_http_test(|| {
-        let fixture = setup_repo_for_plan_task();
+fn old_plan_http_paths_unavailable_and_complete_sub_unmapped() {
+    with_todo_task_http_test(|| {
+        let fixture = setup_repo_for_todo_task();
         let repo_root = fixture.repo_root.clone();
         with_server(repo_root, |port| {
-            let (master_id, sub_id, _) = create_plan_master(port, "Legacy route", &["Sub A"]);
+            let (master_id, sub_id, _) = create_todo_master(port, "Hard cut", &["Sub A"]);
+
+            // Old GET collection/single paths must not be registered (404).
+            for path in ["/api/plan-tasks", &format!("/api/plan-task?id={master_id}")] {
+                let (status, body) = http_get(port, path);
+                assert_eq!(status, 404, "old GET path must be unavailable: {path}");
+                assert!(body.get("error").is_some());
+                assert!(body.get("_status").is_none());
+            }
+
+            // Old POST action family must not be registered or silently forwarded.
+            for path in [
+                "/api/plan-task-create",
+                "/api/plan-task-delete",
+                "/api/plan-task-add-sub",
+                "/api/plan-task-delete-sub",
+                "/api/plan-task-complete",
+                "/api/plan-task-set-status",
+                "/api/plan-task-link-archive",
+                "/api/plan-task-add-attachment",
+                "/api/plan-task-list-attachments",
+                "/api/plan-task-get-attachment",
+                "/api/plan-task-update-attachment",
+                "/api/plan-task-complete-sub",
+            ] {
+                let payload = match path {
+                    "/api/plan-task-create" => json!({ "title": "Should fail" }),
+                    "/api/plan-task-delete" | "/api/plan-task-list-attachments" => {
+                        json!({ "master_task_id": master_id })
+                    }
+                    "/api/plan-task-add-sub" => {
+                        json!({ "master_task_id": master_id, "title": "Sub" })
+                    }
+                    "/api/plan-task-set-status" => {
+                        json!({ "master_task_id": master_id, "status": "complete" })
+                    }
+                    "/api/plan-task-add-attachment"
+                    | "/api/plan-task-get-attachment"
+                    | "/api/plan-task-update-attachment" => {
+                        json!({
+                            "master_task_id": master_id,
+                            "file_name": "notes.md",
+                            "content": "x",
+                        })
+                    }
+                    _ => json!({
+                        "master_task_id": master_id,
+                        "sub_task_id": sub_id,
+                        "archive_id": "11111111111111111111111111111111",
+                    }),
+                };
+                let (status, body) = http_post(port, path, &payload);
+                assert!(
+                    status == 404 || status == 405,
+                    "old POST path must be unavailable (404/405), got {status} for {path}: {body}"
+                );
+                assert!(body.get("error").is_some());
+                // Must not silently succeed as a todo handler.
+                assert_ne!(status, 200);
+                assert_ne!(status, 201);
+            }
+
+            // complete-sub is deleted and must not be remapped under todo-*.
             let (status, body) = http_post(
                 port,
-                "/api/plan-task-complete-sub",
+                "/api/todo-task-complete-sub",
                 &json!({ "master_task_id": master_id, "sub_task_id": sub_id }),
             );
-            assert_eq!(status, 404);
-            assert!(body.get("error").is_some() || body.get("_status").is_none());
+            assert!(
+                status == 404 || status == 405,
+                "todo-task-complete-sub must stay unmapped, got {status}: {body}"
+            );
+            assert!(body.get("error").is_some());
         });
     });
 }
 
 #[test]
-fn post_plan_task_complete_without_sub_marks_master_complete() {
-    with_plan_task_http_test(|| {
-        let fixture = setup_repo_for_plan_task();
+fn post_todo_task_complete_without_sub_marks_master_complete() {
+    with_todo_task_http_test(|| {
+        let fixture = setup_repo_for_todo_task();
         let repo_root = fixture.repo_root.clone();
         with_server(repo_root, |port| {
-            let (master_id, _, _) = create_plan_master(port, "Master only", &["Sub A"]);
+            let (master_id, _, _) = create_todo_master(port, "Master only", &["Sub A"]);
             let (status, body) = http_post(
                 port,
-                "/api/plan-task-complete",
+                "/api/todo-task-complete",
                 &json!({ "master_task_id": master_id }),
             );
             assert_eq!(status, 200);
@@ -1261,14 +1326,14 @@ fn post_plan_task_complete_without_sub_marks_master_complete() {
 }
 
 #[test]
-fn post_plan_task_create_blank_sub_title_element_returns_400() {
-    with_plan_task_http_test(|| {
-        let fixture = setup_repo_for_plan_task();
+fn post_todo_task_create_blank_sub_title_element_returns_400() {
+    with_todo_task_http_test(|| {
+        let fixture = setup_repo_for_todo_task();
         let repo_root = fixture.repo_root.clone();
         with_server(repo_root, |port| {
             let (status, body) = http_post(
                 port,
-                "/api/plan-task-create",
+                "/api/todo-task-create",
                 &json!({ "title": "Master", "sub_titles": ["ok", "  "] }),
             );
             assert_eq!(status, 400);
@@ -1277,7 +1342,7 @@ fn post_plan_task_create_blank_sub_title_element_returns_400() {
     });
 }
 
-fn seed_v2_plan_for_http(
+fn seed_v2_todo_for_http(
     wb: &std::path::Path,
     master_id: &str,
     title: &str,
@@ -1328,10 +1393,10 @@ fn seed_v2_plan_for_http(
     .expect("write plan.md");
 }
 
-fn assert_http_master_has_plan_fields(task: &Value) {
+fn assert_http_master_has_todo_fields(task: &Value) {
     assert!(
-        task.get("plan_md").is_some(),
-        "plan_md must be a top-level field"
+        task.get("todo_md").is_some(),
+        "todo_md must be a top-level field"
     );
     assert!(
         task.get("migration_error").and_then(|v| v.as_bool()).is_some(),
@@ -1340,24 +1405,24 @@ fn assert_http_master_has_plan_fields(task: &Value) {
 }
 
 #[test]
-fn get_todo_tasks_includes_plan_md_and_migration_error_fields() {
-    with_plan_task_http_test(|| {
-        let fixture = setup_repo_for_plan_task();
+fn get_todo_tasks_includes_todo_md_and_migration_error_fields() {
+    with_todo_task_http_test(|| {
+        let fixture = setup_repo_for_todo_task();
         let repo_root = fixture.repo_root.clone();
         with_server(repo_root, |port| {
             let (create_status, _) = http_post(
                 port,
-                "/api/plan-task-create",
+                "/api/todo-task-create",
                 &json!({ "title": "HTTP plan fields" }),
             );
             assert_eq!(create_status, 201);
 
-            let (status, body) = http_get_with_response(port, "/api/plan-tasks");
+            let (status, body) = http_get_with_response(port, "/api/todo-tasks");
             assert_eq!(status, 200);
             let list = body.as_array().expect("array");
             assert_eq!(list.len(), 1);
-            assert_http_master_has_plan_fields(&list[0]);
-            assert_eq!(list[0]["plan_md"], "");
+            assert_http_master_has_todo_fields(&list[0]);
+            assert_eq!(list[0]["todo_md"], "");
             assert_eq!(list[0]["migration_error"], false);
 
             let expected = crate::services::todo_task::list_all();
@@ -1367,14 +1432,14 @@ fn get_todo_tasks_includes_plan_md_and_migration_error_fields() {
 }
 
 #[test]
-fn get_plan_task_by_id_includes_plan_md_and_migration_error_matching_list() {
-    with_plan_task_http_test(|| {
-        let fixture = setup_repo_for_plan_task();
+fn get_todo_task_by_id_includes_todo_md_and_migration_error_matching_list() {
+    with_todo_task_http_test(|| {
+        let fixture = setup_repo_for_todo_task();
         let repo_root = fixture.repo_root.clone();
         with_server(repo_root, |port| {
             let (create_status, create_body) = http_post(
                 port,
-                "/api/plan-task-create",
+                "/api/todo-task-create",
                 &json!({ "title": "HTTP get by id fields" }),
             );
             assert_eq!(create_status, 201);
@@ -1382,16 +1447,16 @@ fn get_plan_task_by_id_includes_plan_md_and_migration_error_matching_list() {
                 .as_str()
                 .expect("master_task_id");
 
-            let (list_status, list_body) = http_get_with_response(port, "/api/plan-tasks");
+            let (list_status, list_body) = http_get_with_response(port, "/api/todo-tasks");
             assert_eq!(list_status, 200);
             let list = list_body.as_array().expect("array");
             assert_eq!(list.len(), 1);
 
             let (get_status, get_body) =
-                http_get(port, &format!("/api/plan-task?id={master_id}"));
+                http_get(port, &format!("/api/todo-task?id={master_id}"));
             assert_eq!(get_status, 200);
-            assert_http_master_has_plan_fields(&get_body);
-            assert_eq!(get_body["plan_md"], list[0]["plan_md"]);
+            assert_http_master_has_todo_fields(&get_body);
+            assert_eq!(get_body["todo_md"], list[0]["todo_md"]);
             assert_eq!(get_body["migration_error"], list[0]["migration_error"]);
             assert!(get_body.get("_status").is_none());
 
@@ -1402,14 +1467,14 @@ fn get_plan_task_by_id_includes_plan_md_and_migration_error_matching_list() {
 }
 
 #[test]
-fn get_todo_tasks_plan_md_matches_disk_bytes() {
-    with_plan_task_http_test(|| {
-        let fixture = setup_repo_for_plan_task();
+fn get_todo_tasks_todo_md_matches_disk_bytes() {
+    with_todo_task_http_test(|| {
+        let fixture = setup_repo_for_todo_task();
         let repo_root = fixture.repo_root.clone();
         with_server(repo_root, |port| {
             let (create_status, create_body) = http_post(
                 port,
-                "/api/plan-task-create",
+                "/api/todo-task-create",
                 &json!({ "title": "Disk plan md" }),
             );
             assert_eq!(create_status, 201);
@@ -1426,28 +1491,28 @@ fn get_todo_tasks_plan_md_matches_disk_bytes() {
             let content = "# Title\n\n## Section\n\n- item one\n";
             fs::write(&plan_path, content).expect("write plan.md");
 
-            let (list_status, list_body) = http_get_with_response(port, "/api/plan-tasks");
+            let (list_status, list_body) = http_get_with_response(port, "/api/todo-tasks");
             assert_eq!(list_status, 200);
-            assert_eq!(list_body[0]["plan_md"], content);
+            assert_eq!(list_body[0]["todo_md"], content);
             assert_eq!(fs::read_to_string(&plan_path).unwrap(), content);
 
             let (get_status, get_body) =
-                http_get(port, &format!("/api/plan-task?id={master_id}"));
+                http_get(port, &format!("/api/todo-task?id={master_id}"));
             assert_eq!(get_status, 200);
-            assert_eq!(get_body["plan_md"], content);
+            assert_eq!(get_body["todo_md"], content);
         });
     });
 }
 
 #[test]
-fn get_todo_tasks_empty_plan_md_matches_empty_disk_file() {
-    with_plan_task_http_test(|| {
-        let fixture = setup_repo_for_plan_task();
+fn get_todo_tasks_empty_todo_md_matches_empty_disk_file() {
+    with_todo_task_http_test(|| {
+        let fixture = setup_repo_for_todo_task();
         let repo_root = fixture.repo_root.clone();
         with_server(repo_root, |port| {
             let (create_status, create_body) = http_post(
                 port,
-                "/api/plan-task-create",
+                "/api/todo-task-create",
                 &json!({ "title": "Empty plan md" }),
             );
             assert_eq!(create_status, 201);
@@ -1463,23 +1528,23 @@ fn get_todo_tasks_empty_plan_md_matches_empty_disk_file() {
                 .join("plan.md");
             assert_eq!(fs::read_to_string(&plan_path).unwrap(), "");
 
-            let (list_status, list_body) = http_get_with_response(port, "/api/plan-tasks");
+            let (list_status, list_body) = http_get_with_response(port, "/api/todo-tasks");
             assert_eq!(list_status, 200);
-            assert_eq!(list_body[0]["plan_md"], "");
+            assert_eq!(list_body[0]["todo_md"], "");
             assert_eq!(list_body[0]["migration_error"], false);
         });
     });
 }
 
 #[test]
-fn plan_tasks_http_body_helpers_preserve_read_path_fields() {
-    with_plan_task_http_test(|| {
-        let fixture = setup_repo_for_plan_task();
+fn todo_tasks_http_body_helpers_preserve_read_path_fields() {
+    with_todo_task_http_test(|| {
+        let fixture = setup_repo_for_todo_task();
         let repo_root = fixture.repo_root.clone();
         with_server(repo_root, |port| {
             let (create_status, create_body) = http_post(
                 port,
-                "/api/plan-task-create",
+                "/api/todo-task-create",
                 &json!({ "title": "Body helper fields" }),
             );
             assert_eq!(create_status, 201);
@@ -1488,32 +1553,32 @@ fn plan_tasks_http_body_helpers_preserve_read_path_fields() {
                 .expect("master_task_id");
 
             let list_value = crate::services::todo_task::list_all();
-            let list_body = plan_tasks_list_response_body(&list_value);
+            let list_body = todo_tasks_list_response_body(&list_value);
             let list_parsed: Value = serde_json::from_str(&list_body).expect("list json");
             assert_eq!(list_parsed, list_value);
-            assert_http_master_has_plan_fields(&list_parsed[0]);
+            assert_http_master_has_todo_fields(&list_parsed[0]);
 
             let get_value = crate::services::todo_task::get_by_id(master_id);
-            let (get_status, get_body) = plan_task_get_response_body(&get_value);
+            let (get_status, get_body) = todo_task_get_response_body(&get_value);
             assert_eq!(get_status, 200);
             let get_parsed: Value = serde_json::from_str(&get_body).expect("get json");
             assert_eq!(get_parsed, get_value);
-            assert_http_master_has_plan_fields(&get_parsed);
+            assert_http_master_has_todo_fields(&get_parsed);
         });
     });
 }
 
 #[test]
-fn post_plan_task_create_with_plan_md_persists_and_lists() {
-    with_plan_task_http_test(|| {
-        let fixture = setup_repo_for_plan_task();
+fn post_todo_task_create_with_todo_md_persists_and_lists() {
+    with_todo_task_http_test(|| {
+        let fixture = setup_repo_for_todo_task();
         let repo_root = fixture.repo_root.clone();
         with_server(repo_root, |port| {
             let content = "## HTTP create\n\nBody";
             let (create_status, create_body) = http_post(
                 port,
-                "/api/plan-task-create",
-                &json!({ "title": "Create with md", "plan_md": content }),
+                "/api/todo-task-create",
+                &json!({ "title": "Create with md", "todo_md": content }),
             );
             assert_eq!(create_status, 201);
             let master_id = create_body["master_task_id"]
@@ -1528,27 +1593,27 @@ fn post_plan_task_create_with_plan_md_persists_and_lists() {
                 .join("plan.md");
             assert_eq!(fs::read_to_string(&plan_path).unwrap(), content);
 
-            let (list_status, list_body) = http_get_with_response(port, "/api/plan-tasks");
+            let (list_status, list_body) = http_get_with_response(port, "/api/todo-tasks");
             assert_eq!(list_status, 200);
-            assert_eq!(list_body[0]["plan_md"], content);
+            assert_eq!(list_body[0]["todo_md"], content);
 
             let (get_status, get_body) =
-                http_get(port, &format!("/api/plan-task?id={master_id}"));
+                http_get(port, &format!("/api/todo-task?id={master_id}"));
             assert_eq!(get_status, 200);
-            assert_eq!(get_body["plan_md"], content);
+            assert_eq!(get_body["todo_md"], content);
         });
     });
 }
 
 #[test]
-fn post_plan_task_create_title_too_long_returns_400() {
-    with_plan_task_http_test(|| {
-        let fixture = setup_repo_for_plan_task();
+fn post_todo_task_create_title_too_long_returns_400() {
+    with_todo_task_http_test(|| {
+        let fixture = setup_repo_for_todo_task();
         let repo_root = fixture.repo_root.clone();
         with_server(repo_root, |port| {
             let (status, body) = http_post(
                 port,
-                "/api/plan-task-create",
+                "/api/todo-task-create",
                 &json!({
                     "title": "one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen twenty twentyone"
                 }),
@@ -1568,13 +1633,13 @@ fn post_plan_task_create_title_too_long_returns_400() {
 
 #[test]
 fn get_todo_tasks_migration_error_plan_still_in_list() {
-    with_plan_task_http_test(|| {
-        let fixture = setup_repo_for_plan_task();
+    with_todo_task_http_test(|| {
+        let fixture = setup_repo_for_todo_task();
         let repo_root = fixture.repo_root.clone();
         with_server(repo_root, |port| {
             let wb = crate::config::paths::workbench_knowledge_root().expect("wb");
             let master_id = "task_http_migrate_err";
-            seed_v2_plan_for_http(
+            seed_v2_todo_for_http(
                 &wb,
                 master_id,
                 "Migration error plan",
@@ -1591,25 +1656,25 @@ fn get_todo_tasks_migration_error_plan_still_in_list() {
             )
             .expect("write corrupt sub_tasks");
 
-            let (status, body) = http_get_with_response(port, "/api/plan-tasks");
+            let (status, body) = http_get_with_response(port, "/api/todo-tasks");
             assert_eq!(status, 200);
             let list = body.as_array().expect("array");
             assert_eq!(list.len(), 1);
             assert_eq!(list[0]["master_task_id"], master_id);
             assert_eq!(list[0]["migration_error"], true);
-            assert_http_master_has_plan_fields(&list[0]);
+            assert_http_master_has_todo_fields(&list[0]);
 
             let (get_status, get_body) =
-                http_get(port, &format!("/api/plan-task?id={master_id}"));
+                http_get(port, &format!("/api/todo-task?id={master_id}"));
             assert_eq!(get_status, 200);
             assert_eq!(get_body["migration_error"], true);
-            assert_eq!(get_body["plan_md"], "");
+            assert_eq!(get_body["todo_md"], "");
         });
     });
 }
 
-fn create_plan_master_id(port: u16, title: &str) -> String {
-    let (status, body) = http_post(port, "/api/plan-task-create", &json!({ "title": title }));
+fn create_todo_master_id(port: u16, title: &str) -> String {
+    let (status, body) = http_post(port, "/api/todo-task-create", &json!({ "title": title }));
     assert_eq!(status, 201);
     body["master_task_id"]
         .as_str()
@@ -1618,16 +1683,16 @@ fn create_plan_master_id(port: u16, title: &str) -> String {
 }
 
 #[test]
-fn plan_task_attachment_http_flow() {
-    with_plan_task_http_test(|| {
-        let fixture = setup_repo_for_plan_task();
+fn todo_task_attachment_http_flow() {
+    with_todo_task_http_test(|| {
+        let fixture = setup_repo_for_todo_task();
         let repo_root = fixture.repo_root.clone();
         with_server(repo_root, |port| {
-            let master_id = create_plan_master_id(port, "Attach HTTP");
+            let master_id = create_todo_master_id(port, "Attach HTTP");
 
             let (add_status, add_body) = http_post(
                 port,
-                "/api/plan-task-add-attachment",
+                "/api/todo-task-add-attachment",
                 &json!({
                     "master_task_id": master_id,
                     "file_name": "notes.md",
@@ -1642,7 +1707,7 @@ fn plan_task_attachment_http_flow() {
 
             let (list_status, list_body) = http_post(
                 port,
-                "/api/plan-task-list-attachments",
+                "/api/todo-task-list-attachments",
                 &json!({ "master_task_id": master_id }),
             );
             assert_eq!(list_status, 200);
@@ -1653,7 +1718,7 @@ fn plan_task_attachment_http_flow() {
 
             let (get_status, get_body) = http_post(
                 port,
-                "/api/plan-task-get-attachment",
+                "/api/todo-task-get-attachment",
                 &json!({
                     "master_task_id": master_id,
                     "file_name": "notes.md",
@@ -1666,7 +1731,7 @@ fn plan_task_attachment_http_flow() {
 
             let (update_status, update_body) = http_post(
                 port,
-                "/api/plan-task-update-attachment",
+                "/api/todo-task-update-attachment",
                 &json!({
                     "master_task_id": master_id,
                     "file_name": "notes.md",
@@ -1679,7 +1744,7 @@ fn plan_task_attachment_http_flow() {
 
             let (reread_status, reread_body) = http_post(
                 port,
-                "/api/plan-task-get-attachment",
+                "/api/todo-task-get-attachment",
                 &json!({
                     "master_task_id": master_id,
                     "file_name": "notes.md",
@@ -1692,27 +1757,27 @@ fn plan_task_attachment_http_flow() {
 }
 
 #[test]
-fn plan_task_attachment_http_paths_follow_plan_task_verb_prefix() {
-    with_plan_task_http_test(|| {
-        let fixture = setup_repo_for_plan_task();
+fn todo_task_attachment_http_paths_follow_todo_task_verb_prefix() {
+    with_todo_task_http_test(|| {
+        let fixture = setup_repo_for_todo_task();
         let repo_root = fixture.repo_root.clone();
         with_server(repo_root, |port| {
-            let master_id = create_plan_master_id(port, "Path style");
+            let master_id = create_todo_master_id(port, "Path style");
             for path in [
-                "/api/plan-task-add-attachment",
-                "/api/plan-task-list-attachments",
-                "/api/plan-task-get-attachment",
-                "/api/plan-task-update-attachment",
+                "/api/todo-task-add-attachment",
+                "/api/todo-task-list-attachments",
+                "/api/todo-task-get-attachment",
+                "/api/todo-task-update-attachment",
             ] {
                 assert!(
-                    path.starts_with("/api/plan-task-"),
-                    "path {path} must use plan-task prefix"
+                    path.starts_with("/api/todo-task-"),
+                    "path {path} must use todo-task prefix"
                 );
             }
 
             let (status, body) = http_post(
                 port,
-                "/api/plan-task-add-attachment",
+                "/api/todo-task-add-attachment",
                 &json!({
                     "master_task_id": master_id,
                     "file_name": "a.md",
@@ -1726,15 +1791,15 @@ fn plan_task_attachment_http_paths_follow_plan_task_verb_prefix() {
 }
 
 #[test]
-fn plan_task_attachment_http_has_no_delete_or_ui_paths() {
-    with_plan_task_http_test(|| {
-        let fixture = setup_repo_for_plan_task();
+fn todo_task_attachment_http_has_no_delete_or_ui_paths() {
+    with_todo_task_http_test(|| {
+        let fixture = setup_repo_for_todo_task();
         let repo_root = fixture.repo_root.clone();
         with_server(repo_root, |port| {
-            let master_id = create_plan_master_id(port, "No delete HTTP");
+            let master_id = create_todo_master_id(port, "No delete HTTP");
             let (add_status, _) = http_post(
                 port,
-                "/api/plan-task-add-attachment",
+                "/api/todo-task-add-attachment",
                 &json!({
                     "master_task_id": master_id,
                     "file_name": "notes.md",
@@ -1744,10 +1809,10 @@ fn plan_task_attachment_http_has_no_delete_or_ui_paths() {
             assert_eq!(add_status, 201);
 
             for path in [
-                "/api/plan-task-delete-attachment",
-                "/api/plan-task-remove-attachment",
-                "/api/plan-task-ui-add-attachment",
-                "/api/plan-task-open-attachment-dialog",
+                "/api/todo-task-delete-attachment",
+                "/api/todo-task-remove-attachment",
+                "/api/todo-task-ui-add-attachment",
+                "/api/todo-task-open-attachment-dialog",
             ] {
                 let (status, body) = http_post(
                     port,
@@ -1764,7 +1829,7 @@ fn plan_task_attachment_http_has_no_delete_or_ui_paths() {
 
             let (list_status, list_body) = http_post(
                 port,
-                "/api/plan-task-list-attachments",
+                "/api/todo-task-list-attachments",
                 &json!({ "master_task_id": master_id }),
             );
             assert_eq!(list_status, 200);

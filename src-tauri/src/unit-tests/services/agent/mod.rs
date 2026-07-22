@@ -166,7 +166,7 @@ fn tools_definitions_are_exactly_five_whitelist_names() {
 }
 
 #[test]
-fn tools_five_suite_happy_path_and_data_omits_plan_md() {
+fn tools_five_suite_happy_path_and_data_omits_todo_md() {
     with_agent_sandbox(|_| {
         let master_id = create_bound_plan("主计划");
 
@@ -175,12 +175,12 @@ fn tools_five_suite_happy_path_and_data_omits_plan_md() {
         let data = &get["data"];
         assert_eq!(data["master_task_id"], master_id);
         assert_eq!(data["title"], "主计划");
-        assert!(data.get("plan_md").is_none(), "success data must omit plan_md");
+        assert!(data.get("todo_md").is_none(), "success data must omit todo_md");
         assert!(data["sub_tasks"].as_array().unwrap().len() >= 1);
 
         let listed = tools::dispatch("list_sub_tasks", &json!({}), Some(&master_id));
         assert_tool_shell_ok(&listed);
-        assert!(listed["data"].get("plan_md").is_none());
+        assert!(listed["data"].get("todo_md").is_none());
         let sub_id = listed["data"]["sub_tasks"][0]["sub_task_id"]
             .as_str()
             .unwrap()
@@ -189,7 +189,7 @@ fn tools_five_suite_happy_path_and_data_omits_plan_md() {
         let added = tools::dispatch("add_sub_task", &json!({ "title": "新子项" }), Some(&master_id));
         assert_tool_shell_ok(&added);
         assert_eq!(added["data"]["title"], "新子项");
-        assert!(added["data"].get("plan_md").is_none());
+        assert!(added["data"].get("todo_md").is_none());
 
         let upd_sub = tools::dispatch(
             "update_sub_title",

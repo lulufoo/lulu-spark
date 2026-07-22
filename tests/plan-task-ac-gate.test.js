@@ -56,7 +56,7 @@ describe('FM-4 AC gate (tech-doc VF / T-5)', () => {
   });
 
   it('GO: get_todo_tasks read path maps to Tauri command via readApiInvokeMap', () => {
-    expect(READ_API_INVOKE_MAP['/api/plan-tasks']).toEqual({ cmd: 'get_todo_tasks' });
+    expect(READ_API_INVOKE_MAP['/api/todo-tasks']).toEqual({ cmd: 'get_todo_tasks' });
   });
 
   it('NG: plan-task UI has no complete_sub entry', () => {
@@ -171,7 +171,7 @@ describe('P2 copy-switch — Plan Tasks UI (tech-doc T3)', () => {
 
   it('API routes and invoke commands remain unchanged', () => {
     const index = read('frontend/js/plan-task/index.js');
-    expect(index).toContain("client.getJson('/api/plan-tasks')");
+    expect(index).toContain("client.getJson('/api/todo-tasks')");
     expect(index).toContain('#/plan-tasks');
     expect(index).toContain('create_todo_task');
     expect(index).toContain('delete_todo_task');

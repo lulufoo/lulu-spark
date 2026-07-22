@@ -231,10 +231,10 @@ describe('plan-task read path regression', () => {
     container.remove();
   });
 
-  it('loadPlanTasks still GETs /api/plan-tasks via apiClient', async () => {
+  it('loadPlanTasks still GETs /api/todo-tasks via apiClient', async () => {
     getJsonMock.mockResolvedValue([sampleMaster]);
     const entries = await loadPlanTasks();
-    expect(getJsonMock).toHaveBeenCalledWith('/api/plan-tasks');
+    expect(getJsonMock).toHaveBeenCalledWith('/api/todo-tasks');
     expect(entries).toEqual([sampleMaster]);
   });
 

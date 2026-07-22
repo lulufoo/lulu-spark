@@ -43,7 +43,7 @@ function serviceError(data) {
 export async function loadPlanTasks() {
   const mode = resolveReadDriver();
   const client = createApiClient(resolveReadDriver(mode));
-  const data = await client.getJson('/api/plan-tasks');
+  const data = await client.getJson('/api/todo-tasks');
   const err = serviceError(data);
   if (err) throw err;
   return Array.isArray(data) ? data : [];
@@ -507,7 +507,7 @@ function renderPlanMdSection(master, ui) {
       </section>
     `;
   }
-  const planMd = master.plan_md ?? '';
+  const planMd = master.todo_md ?? '';
   const previewHtml = planMd
     ? renderCommentMarkdown(planMd)
     : '<p class="plan-task-plan-md-empty">No description</p>';

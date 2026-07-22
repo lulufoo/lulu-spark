@@ -139,10 +139,10 @@ describe('loadAssistantPlanTasks', () => {
     getJsonMock.mockReset();
   });
 
-  it('GET /api/plan-tasks via apiClient and returns master array', async () => {
+  it('GET /api/todo-tasks via apiClient and returns master array', async () => {
     getJsonMock.mockResolvedValue(sampleMasters);
     const entries = await loadAssistantPlanTasks();
-    expect(getJsonMock).toHaveBeenCalledWith('/api/plan-tasks');
+    expect(getJsonMock).toHaveBeenCalledWith('/api/todo-tasks');
     expect(entries).toEqual(sampleMasters);
   });
 
