@@ -1,0 +1,42 @@
+{
+  "version": 1,
+  "feature_id": "feature-20260721160725-475641f1",
+  "task_id": "t1",
+  "status": "locked",
+  "recorded_at": "2026-07-22T00:35:00.000Z",
+  "hard_cut": {
+    "dual_names": false,
+    "aliases": false,
+    "complete_plan_sub_restored": false
+  },
+  "slash": "todo-task",
+  "host_module": "todo_task",
+  "wire_field": "todo_md",
+  "http_prefix": "/api/todo-",
+  "disk": {
+    "root_dir": "todo_tasks/",
+    "body_file": "todo.md"
+  },
+  "mcp_tools": [
+    "create_todo_task",
+    "list_todo_tasks",
+    "get_todo_task",
+    "delete_todo_task",
+    "add_todo_sub",
+    "delete_todo_sub",
+    "complete_todo",
+    "link_todo_archive",
+    "add_todo_attachment",
+    "list_todo_attachments",
+    "get_todo_attachment",
+    "update_todo_attachment"
+  ],
+  "excluded_tools": [
+    "complete_plan_sub"
+  ],
+  "source": {
+    "tech_doc_section": "公开契约映射",
+    "tech_doc_ref": "lulu-plan/revision1/tech-doc.md#公开契约映射"
+  },
+  "notes": "Locks tech-doc §公开契约映射 as the sole public plan→todo contract table for SK-1+ code tasks. Naming rule: plan→todo hard-cut; kebab plan-task→todo-task; snake plan_task→todo_task."
+}
