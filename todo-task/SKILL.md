@@ -40,7 +40,7 @@ Map the user request, then call **only** the tools that match. Do not run a fixe
 | Store / save document or notes as todo body | `create_todo_task` with `todo_md` (or update body if Host/MCP exposes an update-body tool) | Add sub-tasks without an explicit ask |
 | Create an empty todo (title only) | `create_todo_task` with title; omit `todo_md` | Add sub-tasks without an explicit ask |
 | Add / remove a sub-task | `add_todo_sub` / `delete_todo_sub` | Infer subs from document structure |
-| Complete master or sub | `complete_todo` (`master_task_id` required; `sub_task_id` optional — omit → complete master; with sub → complete that sub) | Call removed `complete_plan_sub` or any `plan_*` tool |
+| Complete master or sub | `complete_todo` (`master_task_id` required; `sub_task_id` optional — omit → complete master; with sub → complete that sub) | Call tools not listed in this SKILL |
 | Link archive to a **completed** sub | `link_todo_archive` (after archive exists) | Link without a completed sub + archive id |
 | Attachments | `add_todo_attachment` / `list_todo_attachments` / `get_todo_attachment` / `update_todo_attachment` | — |
 | Inspect | `list_todo_tasks` / `get_todo_task` | — |
@@ -48,13 +48,25 @@ Map the user request, then call **only** the tools that match. Do not run a fixe
 
 **Body vs tree:** todo body is `todo_md`. Sub-tasks are a separate tree. Saving content into a todo means writing **body**; add sub-tasks only on explicit user instruction.
 
+## Todo Norms
+
+Before writing todo fields, load and follow the matching reference.
+Do not invent norms not listed here.
+
+| Field / concern | Reference | When |
+|-----------------|-----------|------|
+| `title` | `references/title-naming.md` | Before choosing or proposing a create title |
+
+- User-explicit values override the corresponding norm; say so briefly when skipping.
+- Field limits still come from live MCP schema (Parameter SSOT).
+
 ## Hard Constraints
 
 1. **Sub-tasks require an explicit user instruction** — `add_todo_sub` (and any create-time sub-title list) is **allowed only when** the user clearly asks to add, split, or manage sub-tasks. Silence, “save to todo”, or document structure alone is **not** such an instruction — do not infer subs.
 2. **Create leaves empty subs by default** — New masters start with empty `sub_tasks`. If the same turn also contains an explicit sub-task request, add them with `add_todo_sub` after create (per live schema).
 3. **Verify after write** — After create/update, `get_todo_task` (or list) and confirm `todo_md` / title / subs match the request.
 4. **HTTP errors** — 4xx/5xx surface as MCP tool errors (`isError: true`); do not treat error payloads as success.
-5. **No plan slash / `plan_*` dependency** — Agent must use `todo-task` and `todo_*` tools only; old plan names (including the former plan slash) are unavailable.
+5. **Listed tools only** — Agent must use `todo-task` and the `todo_*` tools listed in this SKILL only.
 
 ## MCP Todo Tools
 
@@ -66,14 +78,14 @@ Map the user request, then call **only** the tools that match. Do not run a fixe
 | `delete_todo_task` | Delete master |
 | `add_todo_sub` | Add a sub-task (only when the user explicitly instructs) |
 | `delete_todo_sub` | Delete a sub-task |
-| `complete_todo` | Complete a todo task. `master_task_id` required; `sub_task_id` optional. Omit `sub_task_id` → complete master; with `sub_task_id` → complete that sub. Replaces removed `complete_plan_sub` (do not call the old name). |
+| `complete_todo` | Complete a todo task. `master_task_id` required; `sub_task_id` optional. Omit `sub_task_id` → complete master; with `sub_task_id` → complete that sub. |
 | `link_todo_archive` | Link archive entry id to a completed sub |
 | `add_todo_attachment` | Add an attachment |
 | `list_todo_attachments` | List attachments |
 | `get_todo_attachment` | Get one attachment |
 | `update_todo_attachment` | Update an attachment |
 
-Field names, limits, and optionality: live MCP schema only. Old tool names (`create_plan_task`, `complete_plan`, `complete_plan_sub`, …) are unavailable; do not call them.
+Field names, limits, and optionality: live MCP schema only.
 
 ## Done
 
@@ -85,4 +97,5 @@ Observable completion for a write request:
 ## References
 
 - Workbench tech plan: MCP todo tools (FM-3 HTTP + FM-6 SKILL)
+- Title norms: [title-naming](references/title-naming.md)
 - Archive then link: [theme-archive](../theme-archive/SKILL.md) → `link_todo_archive`
