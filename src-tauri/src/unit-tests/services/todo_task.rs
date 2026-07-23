@@ -2886,3 +2886,261 @@ fn bad_comments_json_errors_on_list_and_writes_without_overwrite() {
         assert_eq!(fs::read_to_string(&path).unwrap(), bad);
     });
 }
+
+
+// --- T5 AC regression locks (tech-doc T5 / AC1,AC4,AC5,AC9 / 不变量#2,#4,#5,#6) ---
+
+#[test]
+fn t5_add_list_orders_by_created_at_update_preserves_order_hard_delete_removes() {
+    with_todo_task_sandbox(|wb| {
+        let created = create_master_with_subs("T5 CRUD order hard-delete", None);
+        let master_id = created["master_task_id"].as_str().unwrap();
+
+        // Seed out-of-order created_at so list must sort ascending (AC2).
+        let path = comments_json_abs_path(wb, master_id);
+        let file = CommentsFile {
+            comments: vec![
+                CommentEntry {
+                    id: "cmt_later000001".to_string(),
+                    body: "second".to_string(),
+                    created_at: "2026-07-23T02:00:00+00:00".to_string(),
+                },
+                CommentEntry {
+                    id: "cmt_earlier0001".to_string(),
+                    body: "first".to_string(),
+                    created_at: "2026-07-23T01:00:00+00:00".to_string(),
+                },
+            ],
+        };
+        save_comments_file_unlocked(&path, &file).expect("seed");
+
+        let listed = list_comments(master_id);
+        assert_eq!(listed["_status"], 200);
+        let items = listed["comments"].as_array().expect("comments");
+        assert_eq!(items.len(), 2);
+        assert_eq!(items[0]["id"], "cmt_earlier0001");
+        assert_eq!(items[1]["id"], "cmt_later000001");
+
+        // update preserves id/created_at/order (AC3).
+        let updated = update_comment(master_id, "cmt_earlier0001", "first-edited");
+        assert_eq!(updated["_status"], 200);
+        assert_eq!(updated["id"], "cmt_earlier0001");
+        assert_eq!(updated["created_at"], "2026-07-23T01:00:00+00:00");
+        let after_update = list_comments(master_id);
+        let after_items = after_update["comments"].as_array().unwrap();
+        assert_eq!(after_items[0]["id"], "cmt_earlier0001");
+        assert_eq!(after_items[0]["body"], "first-edited");
+        assert_eq!(after_items[1]["id"], "cmt_later000001");
+
+        // Hard-delete by id — intentional Spec↔Design deviation (P4 / 不变量#5):
+        // ordinary single-entry hard delete; no soft-delete / version-audit path (AC4).
+        let deleted = delete_comment(master_id, "cmt_later000001");
+        assert_eq!(deleted["_status"], 200);
+        assert_eq!(deleted["ok"], true);
+        assert!(deleted.get("soft_deleted").is_none());
+        assert!(deleted.get("deleted_at").is_none());
+        assert!(deleted.get("audit").is_none());
+
+        let after_delete = list_comments(master_id);
+        let remain = after_delete["comments"].as_array().unwrap();
+        assert_eq!(remain.len(), 1);
+        assert_eq!(remain[0]["id"], "cmt_earlier0001");
+        assert!(remain.iter().all(|c| c["id"] != "cmt_later000001"));
+
+        // Disk must not keep a soft-delete tombstone for the removed id.
+        let on_disk: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(&path).unwrap()).unwrap();
+        let disk_ids: Vec<&str> = on_disk["comments"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|c| c["id"].as_str().unwrap())
+            .collect();
+        assert!(!disk_ids.contains(&"cmt_later000001"));
+        for entry in on_disk["comments"].as_array().unwrap() {
+            let obj = entry.as_object().unwrap();
+            assert!(!obj.contains_key("deleted"));
+            assert!(!obj.contains_key("deleted_at"));
+            assert!(!obj.contains_key("is_deleted"));
+            assert!(!obj.contains_key("version"));
+            assert!(!obj.contains_key("updated_at"));
+            assert_eq!(obj.len(), 3, "comment fields only id/body/created_at");
+        }
+    });
+}
+
+#[test]
+fn t5_delete_master_cascades_comments_json_with_task_dir() {
+    with_todo_task_sandbox(|wb| {
+        let created = create_master_with_subs("T5 master cascade comments", None);
+        let master_id = created["master_task_id"].as_str().unwrap();
+        assert_eq!(add_comment(master_id, "cascade-me")["_status"], 201);
+
+        let task_dir = wb.join("todo_tasks").join("tasks").join(master_id);
+        let comments_path = comments_json_abs_path(wb, master_id);
+        assert!(task_dir.is_dir());
+        assert!(comments_path.is_file());
+
+        let v = delete_master(master_id);
+        assert_eq!(v["_status"], 200);
+        assert!(!task_dir.exists());
+        assert!(!comments_path.exists(), "comments.json must vanish with task dir (AC5)");
+    });
+}
+
+#[test]
+fn t5_repeated_nonempty_add_is_not_rejected_for_count() {
+    with_todo_task_sandbox(|_| {
+        let created = create_master_with_subs("T5 no count cap", None);
+        let master_id = created["master_task_id"].as_str().unwrap();
+
+        // AC9 / 不变量#6: add must not refuse based on existing count.
+        for i in 0..20 {
+            let v = add_comment(master_id, &format!("t5-note-{i}"));
+            assert_eq!(
+                v["_status"], 201,
+                "add #{i} must succeed; no count-cap rejection"
+            );
+        }
+        let listed = list_comments(master_id);
+        assert_eq!(listed["_status"], 200);
+        assert_eq!(listed["comments"].as_array().unwrap().len(), 20);
+    });
+}
+
+#[test]
+fn t5_list_missing_file_and_empty_envelope_are_empty_not_error() {
+    with_todo_task_sandbox(|wb| {
+        let created = create_master_with_subs("T5 empty list semantics", None);
+        let master_id = created["master_task_id"].as_str().unwrap();
+        let path = comments_json_abs_path(wb, master_id);
+
+        assert!(!path.exists());
+        let missing = list_comments(master_id);
+        assert_eq!(missing["_status"], 200);
+        assert_eq!(missing["comments"].as_array().unwrap().len(), 0);
+
+        fs::write(&path, r#"{"comments":[]}"#).unwrap();
+        let empty = list_comments(master_id);
+        assert_eq!(empty["_status"], 200);
+        assert_eq!(empty["comments"].as_array().unwrap().len(), 0);
+    });
+}
+
+#[test]
+fn t5_empty_or_whitespace_body_rejected_on_add_and_update() {
+    with_todo_task_sandbox(|wb| {
+        let created = create_master_with_subs("T5 empty body", None);
+        let master_id = created["master_task_id"].as_str().unwrap();
+
+        for bad in ["", "   ", "\t\n", " \t "] {
+            let add = add_comment(master_id, bad);
+            assert_eq!(add["_status"], 400, "empty/whitespace add must 400");
+            assert!(add.get("error").is_some());
+        }
+        assert!(!comments_json_abs_path(wb, master_id).exists());
+
+        let ok = add_comment(master_id, "seed-body");
+        assert_eq!(ok["_status"], 201);
+        let id = ok["id"].as_str().unwrap();
+        for bad in ["", "   ", "\t\n"] {
+            let upd = update_comment(master_id, id, bad);
+            assert_eq!(upd["_status"], 400, "empty/whitespace update must 400");
+            assert!(upd.get("error").is_some());
+        }
+        assert_eq!(list_comments(master_id)["comments"][0]["body"], "seed-body");
+    });
+}
+
+#[test]
+fn t5_bad_json_and_invalid_envelope_are_explicit_errors_not_empty_list() {
+    with_todo_task_sandbox(|wb| {
+        let created = create_master_with_subs("T5 bad json envelope", None);
+        let master_id = created["master_task_id"].as_str().unwrap();
+        let path = comments_json_abs_path(wb, master_id);
+
+        let cases = [
+            "{not valid json",
+            r#"[{"id":"cmt_x","body":"a","created_at":"2026-07-23T00:00:00+00:00"}]"#,
+            r#"{"comments":"not-an-array"}"#,
+            "", // empty file = corrupt, not empty-list success (AC1)
+        ];
+        for bad in cases {
+            fs::write(&path, bad).unwrap();
+            let listed = list_comments(master_id);
+            assert_ne!(
+                listed["_status"], 200,
+                "corrupt comments.json must not succeed; payload={bad:?}"
+            );
+            assert!(listed.get("error").is_some());
+            // Must not equal empty-list success semantics (缺文件/合法空 envelope).
+            let disguised_empty = listed["_status"] == 200
+                && listed
+                    .get("comments")
+                    .and_then(|c| c.as_array())
+                    .map(|a| a.is_empty())
+                    .unwrap_or(false);
+            assert!(
+                !disguised_empty,
+                "bad JSON/envelope must not look like empty list"
+            );
+            assert_eq!(fs::read_to_string(&path).unwrap(), bad);
+        }
+    });
+}
+
+#[test]
+fn t5_soft_delete_or_audit_fields_are_explicit_errors_not_accepted_schema() {
+    // Spec「删除特判」偏差为有意：普通单条硬删除；无 soft-delete / 版本审计路径（不变量#5 / T5）。
+    // Soft-delete-shaped or audit fields must be rejected as invalid envelope — not silently loaded.
+    with_todo_task_sandbox(|wb| {
+        let created = create_master_with_subs("T5 reject soft-delete fields", None);
+        let master_id = created["master_task_id"].as_str().unwrap();
+        let path = comments_json_abs_path(wb, master_id);
+
+        fs::write(
+            &path,
+            r#"{
+              "comments": [{
+                "id": "cmt_soft0000001",
+                "body": "should not load",
+                "created_at": "2026-07-23T00:00:00+00:00",
+                "deleted": true,
+                "deleted_at": "2026-07-23T01:00:00+00:00"
+              }]
+            }"#,
+        )
+        .unwrap();
+
+        let listed = list_comments(master_id);
+        assert_ne!(
+            listed["_status"], 200,
+            "soft-delete fields must be explicit error, not accepted schema"
+        );
+        assert!(listed.get("error").is_some());
+        let disguised_empty = listed["_status"] == 200
+            && listed
+                .get("comments")
+                .and_then(|c| c.as_array())
+                .map(|a| a.is_empty())
+                .unwrap_or(false);
+        assert!(!disguised_empty);
+
+        // version-audit shaped field likewise rejected
+        fs::write(
+            &path,
+            r#"{
+              "comments": [{
+                "id": "cmt_audit000001",
+                "body": "should not load",
+                "created_at": "2026-07-23T00:00:00+00:00",
+                "version": 1
+              }]
+            }"#,
+        )
+        .unwrap();
+        let listed_audit = list_comments(master_id);
+        assert_ne!(listed_audit["_status"], 200);
+        assert!(listed_audit.get("error").is_some());
+    });
+}

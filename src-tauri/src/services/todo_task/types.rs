@@ -93,6 +93,7 @@ pub struct AttachmentsFile {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct CommentEntry {
     pub id: String,
     pub body: String,
@@ -100,6 +101,7 @@ pub struct CommentEntry {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct CommentsFile {
     pub comments: Vec<CommentEntry>,
 }
