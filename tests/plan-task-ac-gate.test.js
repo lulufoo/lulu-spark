@@ -154,6 +154,9 @@ describe('P2 copy-switch — Plan Tasks UI (tech-doc T3)', () => {
     expect(index).toContain('Just now');
     expect(index).toContain('minutes ago');
     expect(index).toContain('toLocaleDateString(\'en-US\')');
+    expect(index).toContain('Active only');
+    expect(index).toContain('No active todos');
+    expect(index).toContain('Turn off Active only to see completed and abandoned todos.');
   });
 
   it('dialog.js uses table B ∪ B2 English for CRUD copy', () => {

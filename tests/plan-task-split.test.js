@@ -244,16 +244,20 @@ describe('mountPlanTaskSplit', () => {
     dispose();
   });
 
-  it('lists complete and abandoned masters by default without hiding abandoned', async () => {
+  it('hides complete and abandoned masters by default (Active only on)', async () => {
     getJsonMock.mockResolvedValue(sampleMasters);
     const { dispose } = mountPlanTaskSplit(container);
     await vi.waitFor(() => {
-      expect(container.querySelector('[data-master-id="task_complete"]')).not.toBeNull();
-      expect(container.querySelector('[data-master-id="task_abandoned"]')).not.toBeNull();
+      expect(container.querySelector('[data-master-id="task_alpha"]')).not.toBeNull();
     });
-    const abandonedItem = container.querySelector('[data-master-id="task_abandoned"]');
-    expect(abandonedItem?.textContent).toContain('Abandoned Master');
-    expect(abandonedItem?.className).toMatch(/plan-task-master-item--abandoned/);
+    expect(container.querySelector('[data-master-id="task_complete"]')).toBeNull();
+    expect(container.querySelector('[data-master-id="task_abandoned"]')).toBeNull();
+    expect(container.querySelectorAll('.plan-task-master-item')).toHaveLength(3);
+    expect(container.querySelector('[data-action="toggle-active-only"]')).not.toBeNull();
+    expect(container.textContent).toContain('Active only');
+    expect(container.textContent).toContain('+ New todo');
+    const toggle = container.querySelector('[data-action="toggle-active-only"]');
+    expect(toggle?.getAttribute('aria-checked')).toBe('true');
     dispose();
   });
 
@@ -320,7 +324,7 @@ describe('mountPlanTaskSplit', () => {
     getJsonMock.mockResolvedValue(sampleMasters);
     const { dispose } = mountPlanTaskSplit(container);
     await vi.waitFor(() => {
-      expect(container.querySelectorAll('.plan-task-master-item')).toHaveLength(5);
+      expect(container.querySelectorAll('.plan-task-master-item')).toHaveLength(3);
     });
     container.querySelector('[data-master-id="task_migrated_err"]').click();
     await vi.waitFor(() => {
@@ -443,9 +447,18 @@ describe('mountPlanTaskSplit', () => {
 
   it('marks complete title muted and abandoned title with strikethrough class without changing title text', async () => {
     getJsonMock.mockResolvedValue(sampleMasters);
-    const { dispose: disposeComplete } = mountPlanTaskSplit(container, {
-      masterId: 'task_complete',
+    const { dispose: disposeComplete } = mountPlanTaskSplit(container);
+    await vi.waitFor(() => {
+      expect(container.querySelector('[data-action="toggle-active-only"]')).not.toBeNull();
     });
+    container.querySelector('[data-action="toggle-active-only"]').click();
+    await vi.waitFor(() => {
+      expect(
+        container.querySelector('[data-action="toggle-active-only"]')?.getAttribute('aria-checked'),
+      ).toBe('false');
+      expect(container.querySelector('[data-master-id="task_complete"]')).not.toBeNull();
+    });
+    container.querySelector('[data-master-id="task_complete"]').click();
     await vi.waitFor(() => {
       expect(container.querySelector('[data-action="edit-master-title"]')).not.toBeNull();
     });
@@ -454,9 +467,19 @@ describe('mountPlanTaskSplit', () => {
     expect(completeTitle.className).toMatch(/plan-task-detail-title--complete/);
     disposeComplete();
 
-    const { dispose: disposeAbandoned } = mountPlanTaskSplit(container, {
-      masterId: 'task_abandoned',
+    getJsonMock.mockResolvedValue(sampleMasters);
+    const { dispose: disposeAbandoned } = mountPlanTaskSplit(container);
+    await vi.waitFor(() => {
+      expect(container.querySelector('[data-action="toggle-active-only"]')).not.toBeNull();
     });
+    container.querySelector('[data-action="toggle-active-only"]').click();
+    await vi.waitFor(() => {
+      expect(
+        container.querySelector('[data-action="toggle-active-only"]')?.getAttribute('aria-checked'),
+      ).toBe('false');
+      expect(container.querySelector('[data-master-id="task_abandoned"]')).not.toBeNull();
+    });
+    container.querySelector('[data-master-id="task_abandoned"]').click();
     await vi.waitFor(() => {
       expect(container.querySelector('[data-action="edit-master-title"]')).not.toBeNull();
     });
