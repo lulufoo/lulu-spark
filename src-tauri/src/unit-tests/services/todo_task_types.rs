@@ -3,8 +3,9 @@ use std::collections::HashMap;
 use serde_json::{json, Value};
 
 use crate::services::todo_task::types::{
-    attachments_json_rel_path, index_entry_task_dir, AttachmentEntry, AttachmentsFile, IndexEntry,
-    MasterTaskStatus, PlanTasksIndex, SubTask, SubTaskStatus, SubTasksFile,
+    attachments_json_rel_path, comments_json_rel_path, index_entry_task_dir, AttachmentEntry,
+    AttachmentsFile, CommentEntry, CommentsFile, IndexEntry, MasterTaskStatus, PlanTasksIndex,
+    SubTask, SubTaskStatus, SubTasksFile,
 };
 
 #[test]
@@ -301,4 +302,98 @@ fn index_entry_does_not_include_attachments_field() {
     let v: Value = serde_json::to_value(&entry).expect("serialize");
     assert!(v.get("attachments").is_none());
     assert!(v.get("attachments.json").is_none());
+}
+
+#[test]
+fn comments_json_rel_path_is_under_task_dir() {
+    let master_id = "task_a1b2c3d4e5f6";
+    let path = comments_json_rel_path(master_id);
+    assert_eq!(path, format!("tasks/{master_id}/comments.json"));
+    assert!(!path.starts_with('/'));
+    assert!(!std::path::Path::new(&path).is_absolute());
+}
+
+#[test]
+fn comment_entry_serializes_id_body_created_at_only() {
+    let entry = CommentEntry {
+        id: "cmt_abcdef012345".to_string(),
+        body: "decision note".to_string(),
+        created_at: "2026-07-23T00:00:00+00:00".to_string(),
+    };
+    let v: Value = serde_json::to_value(&entry).expect("serialize");
+    assert_eq!(v["id"], "cmt_abcdef012345");
+    assert_eq!(v["body"], "decision note");
+    assert_eq!(v["created_at"], "2026-07-23T00:00:00+00:00");
+    assert!(v.get("updated_at").is_none());
+    let keys: Vec<&str> = v.as_object().unwrap().keys().map(|k| k.as_str()).collect();
+    assert_eq!(keys.len(), 3);
+}
+
+#[test]
+fn comments_file_roundtrip_preserves_entries() {
+    let file = CommentsFile {
+        comments: vec![CommentEntry {
+            id: "cmt_abcdef012345".to_string(),
+            body: "note".to_string(),
+            created_at: "2026-07-23T00:00:00+00:00".to_string(),
+        }],
+    };
+    let text = serde_json::to_string(&file).expect("serialize");
+    let parsed: CommentsFile = serde_json::from_str(&text).expect("deserialize");
+    assert_eq!(parsed.comments.len(), 1);
+    assert_eq!(parsed.comments[0].id, "cmt_abcdef012345");
+    assert_eq!(parsed.comments[0].body, "note");
+    assert_eq!(parsed.comments[0].created_at, "2026-07-23T00:00:00+00:00");
+}
+
+#[test]
+fn comments_file_empty_roundtrip_keeps_empty_array_semantics() {
+    let file = CommentsFile {
+        comments: vec![],
+    };
+    let text = serde_json::to_string(&file).expect("serialize");
+    let parsed: CommentsFile = serde_json::from_str(&text).expect("deserialize");
+    assert!(parsed.comments.is_empty());
+    let v: Value = serde_json::from_str(&text).expect("value");
+    assert!(v.get("comments").and_then(|a| a.as_array()).is_some());
+    assert!(v["comments"].as_array().unwrap().is_empty());
+}
+
+#[test]
+fn comments_file_rejects_bare_array_and_invalid_json() {
+    let bare: Result<CommentsFile, _> = serde_json::from_str(
+        r#"[{"id":"cmt_x","body":"a","created_at":"2026-07-23T00:00:00+00:00"}]"#,
+    );
+    assert!(bare.is_err());
+    let bad: Result<CommentsFile, _> = serde_json::from_str("{not valid json");
+    assert!(bad.is_err());
+}
+
+#[test]
+fn comments_file_has_no_count_cap_in_envelope() {
+    let comments: Vec<CommentEntry> = (0..64)
+        .map(|i| CommentEntry {
+            id: format!("cmt_{i:012x}"),
+            body: format!("body-{i}"),
+            created_at: "2026-07-23T00:00:00+00:00".to_string(),
+        })
+        .collect();
+    let file = CommentsFile { comments };
+    let text = serde_json::to_string(&file).expect("serialize");
+    let parsed: CommentsFile = serde_json::from_str(&text).expect("deserialize");
+    assert_eq!(parsed.comments.len(), 64);
+}
+
+#[test]
+fn index_entry_does_not_include_comments_field() {
+    let entry = IndexEntry {
+        master_task_id: "task_abc".to_string(),
+        title: "Example".to_string(),
+        status: MasterTaskStatus::Incomplete,
+        created_at: "2026-07-08T00:00:00+00:00".to_string(),
+        task_dir: index_entry_task_dir("task_abc"),
+    };
+    let v: Value = serde_json::to_value(&entry).expect("serialize");
+    assert!(v.get("comments").is_none());
+    assert!(v.get("comments.json").is_none());
 }

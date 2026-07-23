@@ -11,9 +11,10 @@ import { describe, expect, it } from 'vitest';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 
-/** tech-doc AC-等价 — full 12-tool set (complete/link/attachment required). */
+/** tech-doc AC-等价 — full 13-tool set (update/complete/link/attachment required). */
 const EQUIVALENCE_TODO_TOOLS = [
   'create_todo_task',
+  'update_todo_task',
   'list_todo_tasks',
   'get_todo_task',
   'delete_todo_task',
@@ -68,7 +69,7 @@ describe('T10 — AC-Host/MCP (hard cut, no plan_* )', () => {
     expect(src).not.toMatch(/registerTool\(\s*['"]complete_plan_sub['"]/);
   });
 
-  it('verify.mjs forbids plan_* tool registration and lists the 12-tool equivalence set', () => {
+  it('verify.mjs forbids plan_* tool registration and lists the 13-tool equivalence set', () => {
     const src = read('packages/knowledge-mcp/scripts/verify.mjs');
     expect(src).toMatch(/EQUIVALENCE_TODO_TOOLS|T10_EQUIVALENCE_TODO_TOOLS/);
     const names =
@@ -84,15 +85,15 @@ describe('T10 — AC-Host/MCP (hard cut, no plan_* )', () => {
   });
 });
 
-describe('T10 — AC-等价 (full 12-tool set in e2e + verify)', () => {
-  it('todo-task-mcp-e2e lists and exercises all 12 equivalence tools incl. complete/link/attachment', () => {
+describe('T10 — AC-等价 (full 13-tool set in e2e + verify)', () => {
+  it('todo-task-mcp-e2e lists and exercises all 13 equivalence tools incl. complete/link/attachment', () => {
     const src = read('packages/knowledge-mcp/scripts/todo-task-mcp-e2e.mjs');
     expect(src).toMatch(/EQUIVALENCE_TODO_TOOLS|T10_EQUIVALENCE_TODO_TOOLS/);
     const names =
       extractQuotedToolList(src, 'EQUIVALENCE_TODO_TOOLS') ||
       extractQuotedToolList(src, 'T10_EQUIVALENCE_TODO_TOOLS') ||
       extractQuotedToolList(src, 'TODO_TOOLS');
-    expect(names, 'e2e must declare the 12-tool equivalence set').toBeTruthy();
+    expect(names, 'e2e must declare the 13-tool equivalence set').toBeTruthy();
     expect([...names].sort()).toEqual([...EQUIVALENCE_TODO_TOOLS].sort());
 
     for (const tool of [

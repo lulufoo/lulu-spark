@@ -18,7 +18,7 @@ use crate::repositories::atomic_json;
 use crate::services::id::random_hex12;
 
 use types::{
-    index_entry_task_dir, AttachmentEntry, AttachmentsFile, IndexEntry, MasterTask,
+    index_entry_task_dir, AttachmentEntry, AttachmentsFile, CommentsFile, IndexEntry, MasterTask,
     MasterTaskStatus, PlanTasksIndex, SubTask, SubTaskStatus, SubTasksFile,
 };
 
@@ -1396,6 +1396,39 @@ fn remove_attachment_file(path: &Path) -> Result<(), String> {
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
         Err(e) => Err(e.to_string()),
     }
+}
+
+fn mint_comment_id() -> String {
+    format!("cmt_{}", random_hex12())
+}
+
+fn now_comment_created_at() -> String {
+    Utc::now().to_rfc3339()
+}
+
+fn validate_comment_body(body: &str) -> Result<(), String> {
+    if body.trim().is_empty() {
+        return Err("Comment body must not be empty".to_string());
+    }
+    Ok(())
+}
+
+fn load_comments_file_unlocked(path: &Path) -> Result<CommentsFile, String> {
+    if !path.is_file() {
+        return Ok(CommentsFile {
+            comments: vec![],
+        });
+    }
+    let text = fs::read_to_string(path).map_err(|e| e.to_string())?;
+    serde_json::from_str(&text).map_err(|e| e.to_string())
+}
+
+fn save_comments_file_unlocked(path: &Path, file: &CommentsFile) -> Result<(), String> {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    let value = serde_json::to_value(file).map_err(|e| e.to_string())?;
+    atomic_json::write_json(path, &value)
 }
 
 /// Copy a `.md` attachment into the plan task directory and append `attachments.json`.

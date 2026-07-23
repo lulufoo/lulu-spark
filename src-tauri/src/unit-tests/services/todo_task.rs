@@ -1,6 +1,7 @@
 use super::*;
 use crate::services::todo_task::types::{
-    AttachmentsFile, IndexEntry, MasterTaskStatus, SubTask, SubTaskStatus, SubTasksFile,
+    AttachmentsFile, CommentEntry, CommentsFile, IndexEntry, MasterTaskStatus, SubTask,
+    SubTaskStatus, SubTasksFile,
 };
 use std::fs;
 use std::path::Path;
@@ -2504,5 +2505,132 @@ fn ac15_empty_list_and_non_md_reject() {
         assert_eq!(rejected["_status"], 400);
         assert!(!attachments_dir(wb, master_id).exists());
         assert!(!attachments_json_path(wb, master_id).exists());
+    });
+}
+
+fn comments_json_abs_path(wb: &Path, master_id: &str) -> std::path::PathBuf {
+    wb.join("todo_tasks")
+        .join("tasks")
+        .join(master_id)
+        .join("comments.json")
+}
+
+#[test]
+fn load_comments_missing_file_returns_empty_list() {
+    with_todo_task_sandbox(|wb| {
+        let created = create_master_with_subs("Comments missing file", None);
+        let master_id = created["master_task_id"].as_str().unwrap();
+        let path = comments_json_abs_path(wb, master_id);
+        assert!(!path.exists());
+
+        let loaded = load_comments_file_unlocked(&path).expect("missing file is empty");
+        assert!(loaded.comments.is_empty());
+    });
+}
+
+#[test]
+fn load_comments_empty_envelope_returns_empty_list() {
+    with_todo_task_sandbox(|wb| {
+        let created = create_master_with_subs("Comments empty envelope", None);
+        let master_id = created["master_task_id"].as_str().unwrap();
+        let path = comments_json_abs_path(wb, master_id);
+        fs::write(&path, r#"{ "comments": [] }"#).expect("write empty envelope");
+
+        let loaded = load_comments_file_unlocked(&path).expect("empty envelope ok");
+        assert!(loaded.comments.is_empty());
+    });
+}
+
+#[test]
+fn comments_file_round_trip_via_load_and_save() {
+    with_todo_task_sandbox(|wb| {
+        let created = create_master_with_subs("Comments round-trip", None);
+        let master_id = created["master_task_id"].as_str().unwrap();
+        let path = comments_json_abs_path(wb, master_id);
+
+        let file = CommentsFile {
+            comments: vec![CommentEntry {
+                id: "cmt_abcdef012345".to_string(),
+                body: "process note".to_string(),
+                created_at: "2026-07-23T01:02:03+00:00".to_string(),
+            }],
+        };
+        save_comments_file_unlocked(&path, &file).expect("save");
+        assert!(path.is_file());
+
+        let loaded = load_comments_file_unlocked(&path).expect("load");
+        assert_eq!(loaded.comments.len(), 1);
+        assert_eq!(loaded.comments[0].id, "cmt_abcdef012345");
+        assert_eq!(loaded.comments[0].body, "process note");
+        assert_eq!(loaded.comments[0].created_at, "2026-07-23T01:02:03+00:00");
+    });
+}
+
+#[test]
+fn mint_comment_id_and_created_at_follow_contract() {
+    let id = mint_comment_id();
+    assert!(id.starts_with("cmt_"), "id={id}");
+    let hex = &id["cmt_".len()..];
+    assert!(!hex.is_empty());
+    assert!(
+        hex.chars().all(|c| c.is_ascii_hexdigit()),
+        "hex part must be hex: {hex}"
+    );
+
+    let created_at = now_comment_created_at();
+    assert!(is_iso8601(&created_at), "created_at={created_at}");
+}
+
+#[test]
+fn load_comments_bad_json_or_bare_array_is_explicit_error() {
+    with_todo_task_sandbox(|wb| {
+        let created = create_master_with_subs("Comments bad json", None);
+        let master_id = created["master_task_id"].as_str().unwrap();
+        let path = comments_json_abs_path(wb, master_id);
+
+        fs::write(&path, "{not valid json").expect("write bad");
+        let bad = load_comments_file_unlocked(&path);
+        assert!(bad.is_err(), "bad JSON must error, not empty list");
+
+        fs::write(
+            &path,
+            r#"[{"id":"cmt_x","body":"a","created_at":"2026-07-23T00:00:00+00:00"}]"#,
+        )
+        .expect("write bare array");
+        let bare = load_comments_file_unlocked(&path);
+        assert!(bare.is_err(), "bare array must error, not empty list");
+
+        fs::write(&path, r#"{ "comments": "not-an-array" }"#).expect("write invalid envelope");
+        let invalid = load_comments_file_unlocked(&path);
+        assert!(invalid.is_err(), "invalid envelope must error");
+    });
+}
+
+#[test]
+fn validate_comment_body_rejects_empty_and_whitespace() {
+    assert!(validate_comment_body("ok note").is_ok());
+    assert!(validate_comment_body("").is_err());
+    assert!(validate_comment_body("   ").is_err());
+    assert!(validate_comment_body("\t\n").is_err());
+}
+
+#[test]
+fn save_comments_file_does_not_enforce_count_cap() {
+    with_todo_task_sandbox(|wb| {
+        let created = create_master_with_subs("Comments no count cap", None);
+        let master_id = created["master_task_id"].as_str().unwrap();
+        let path = comments_json_abs_path(wb, master_id);
+
+        let comments: Vec<CommentEntry> = (0..80)
+            .map(|i| CommentEntry {
+                id: format!("cmt_{i:012x}"),
+                body: format!("body-{i}"),
+                created_at: "2026-07-23T00:00:00+00:00".to_string(),
+            })
+            .collect();
+        let file = CommentsFile { comments };
+        save_comments_file_unlocked(&path, &file).expect("no count-cap on save");
+        let loaded = load_comments_file_unlocked(&path).expect("load");
+        assert_eq!(loaded.comments.len(), 80);
     });
 }

@@ -8,6 +8,7 @@ const LOCK_PATH = 'docs/features/plan-task-todos-contract/vocab-lock-confirmatio
 
 const EXPECTED_TOOLS = [
   'create_todo_task',
+  'update_todo_task',
   'list_todo_tasks',
   'get_todo_task',
   'delete_todo_task',

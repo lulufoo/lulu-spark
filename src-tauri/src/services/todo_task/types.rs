@@ -92,12 +92,28 @@ pub struct AttachmentsFile {
     pub attachments: Vec<AttachmentEntry>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CommentEntry {
+    pub id: String,
+    pub body: String,
+    pub created_at: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CommentsFile {
+    pub comments: Vec<CommentEntry>,
+}
+
 pub fn index_entry_task_dir(master_task_id: &str) -> String {
     format!("tasks/{master_task_id}")
 }
 
 pub fn attachments_json_rel_path(master_task_id: &str) -> String {
     format!("tasks/{master_task_id}/attachments.json")
+}
+
+pub fn comments_json_rel_path(master_task_id: &str) -> String {
+    format!("tasks/{master_task_id}/comments.json")
 }
 
 #[cfg(test)]
