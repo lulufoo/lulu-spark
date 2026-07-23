@@ -2596,6 +2596,195 @@
     min-width: 0;
     max-width: 100%;
   }
+  .plan-task-comments-section {
+    margin-bottom: 12px;
+    min-width: 0;
+    max-width: 100%;
+  }
+  .plan-task-comments-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-width: 0;
+  }
+  .plan-task-comments-heading {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+  }
+  .plan-task-comments-title {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: #24292f;
+    flex-shrink: 0;
+  }
+  .plan-task-comments-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 6px;
+    border-radius: 999px;
+    background: #eef2f6;
+    color: #57606a;
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1;
+  }
+  .plan-task-comments-empty {
+    margin: 0;
+    font-size: 12px;
+    color: #8c959f;
+    white-space: nowrap;
+  }
+  .plan-task-comments-error {
+    margin: 8px 0 0;
+    padding: 8px 10px;
+    border-radius: 6px;
+    background: #fff1f0;
+    color: #cf222e;
+    font-size: 12px;
+    line-height: 1.4;
+  }
+  .plan-task-comment-list {
+    margin: 10px 0 0;
+    padding: 0;
+    list-style: none;
+    border: 1px solid #d0d7de;
+    border-radius: 8px;
+    background: #fff;
+    overflow: hidden;
+  }
+  .plan-task-comment-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px 12px;
+    border-bottom: 1px solid #eaeef2;
+  }
+  .plan-task-comment-item:last-child {
+    border-bottom: none;
+  }
+  .plan-task-comment-item--editing {
+    flex-direction: column;
+  }
+  .plan-task-comment-main {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+    flex: 1;
+  }
+  .plan-task-comment-body {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.45;
+    color: #24292f;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .plan-task-comment-meta {
+    font-size: 11px;
+    color: #8c959f;
+  }
+  .plan-task-comment-item-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+  }
+  .plan-task-comment-delete {
+    border: none;
+    background: transparent;
+    color: #cf222e;
+    font-size: 12px;
+    cursor: pointer;
+    padding: 4px 6px;
+  }
+  .plan-task-comment-delete:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  .plan-task-comment-input,
+  .plan-task-comment-edit-area {
+    width: 100%;
+    box-sizing: border-box;
+    margin: 0;
+    padding: 8px 10px;
+    border: 1px solid #d0d7de;
+    border-radius: 6px;
+    font: inherit;
+    font-size: 13px;
+    line-height: 1.45;
+    resize: vertical;
+    min-height: 64px;
+  }
+  .plan-task-comments-composer {
+    margin-top: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .plan-task-comments-composer-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+  .plan-task-comments-composer-actions {
+    display: flex;
+    justify-content: flex-end;
+  }
+  .plan-task-comment-delete-confirm {
+    position: fixed;
+    inset: 0;
+    z-index: 1200;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .plan-task-comment-delete-confirm-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(31, 35, 40, 0.45);
+    cursor: pointer;
+  }
+  .plan-task-comment-delete-confirm-panel {
+    position: relative;
+    z-index: 1;
+    width: min(400px, 92vw);
+    padding: 18px 18px 14px;
+    border-radius: 12px;
+    background: #fff;
+    box-shadow: 0 12px 40px rgba(31, 35, 40, 0.22);
+  }
+  .plan-task-comment-delete-confirm-title {
+    margin: 0 0 8px;
+    font-size: 15px;
+    font-weight: 600;
+    color: #24292f;
+  }
+  .plan-task-comment-delete-confirm-body {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.5;
+    color: #57606a;
+  }
+  .plan-task-comment-delete-confirm-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 16px;
+  }
   .plan-task-attachments-header {
     display: flex;
     align-items: center;

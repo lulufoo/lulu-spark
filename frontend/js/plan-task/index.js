@@ -8,6 +8,7 @@ const REFRESH_WARNING_MSG = 'Saved, but list refresh failed — retry';
 const MIGRATION_WARNING_MSG = 'Todo migration incomplete; some data may be missing';
 const ATTACHMENTS_EMPTY_MSG = 'No attachments';
 const ATTACHMENT_PICK_CANCEL_MSG = 'File selection cancelled';
+const COMMENTS_EMPTY_MSG = 'No process notes';
 const AI_ASSISTANT_TURN_COMPLETED = 'ai-assistant:turn-completed';
 const COPY_MASTER_ID_LABEL = 'Copy task ID';
 const COPY_FEEDBACK_LABEL = '✓ Copied';
@@ -140,6 +141,25 @@ export async function savePlanAttachment({ masterTaskId, fileName, content } = {
 
 export async function deletePlanAttachment({ masterTaskId, fileName } = {}) {
   return invokePlanPlain('delete_todo_attachment', { masterTaskId, fileName });
+}
+
+export async function listPlanComments({ masterTaskId } = {}) {
+  const result = await invokePlanPlain('list_todo_comments', { masterTaskId });
+  if (Array.isArray(result)) return result;
+  if (result && Array.isArray(result.comments)) return result.comments;
+  return [];
+}
+
+export async function addPlanComment({ masterTaskId, body } = {}) {
+  return invokePlanPlain('add_todo_comment', { masterTaskId, body });
+}
+
+export async function updatePlanComment({ masterTaskId, commentId, body } = {}) {
+  return invokePlanPlain('update_todo_comment', { masterTaskId, commentId, body });
+}
+
+export async function deletePlanComment({ masterTaskId, commentId } = {}) {
+  return invokePlanPlain('delete_todo_comment', { masterTaskId, commentId });
 }
 
 function basenameFromPath(path) {
@@ -621,6 +641,137 @@ function renderAttachmentsSection(ui) {
   `;
 }
 
+function renderCommentsSection(ui) {
+  const disabledAttr = ui.disabled ? ' disabled' : '';
+  const items = ui.comments ?? [];
+  const editId = ui.commentEditId || '';
+  const confirmId = ui.commentDeleteConfirm || '';
+  const countHtml = items.length
+    ? `<span class="plan-task-comments-count" aria-label="${items.length} process notes">${items.length}</span>`
+    : '';
+  const emptyHtml =
+    !items.length && !ui.commentsError
+      ? `<span class="plan-task-comments-empty">${escHtml(COMMENTS_EMPTY_MSG)}</span>`
+      : '';
+  const listHtml = items.length
+    ? `<ul class="plan-task-comment-list" role="list">${items
+        .map((entry) => {
+          const added = formatRelativeTime(entry.created_at);
+          const meta = added ? `Added ${added}` : 'Process note';
+          if (editId === entry.id) {
+            return `
+        <li class="plan-task-comment-item plan-task-comment-item--editing" data-comment-id="${escHtml(entry.id)}">
+          <textarea
+            class="plan-task-comment-edit-area"
+            data-comment-edit-input
+            spellcheck="true"
+            ${disabledAttr}
+          >${escHtml(entry.body ?? '')}</textarea>
+          <div class="plan-task-comment-item-actions">
+            <button type="button" class="md-header-btn" data-action="cancel-comment-edit"${disabledAttr}>Cancel</button>
+            <button
+              type="button"
+              class="md-header-btn primary"
+              data-action="save-comment"
+              data-comment-id="${escHtml(entry.id)}"
+              ${disabledAttr}
+            >Save</button>
+          </div>
+        </li>`;
+          }
+          return `
+        <li class="plan-task-comment-item" data-comment-id="${escHtml(entry.id)}">
+          <div class="plan-task-comment-main">
+            <p class="plan-task-comment-body">${escHtml(entry.body ?? '')}</p>
+            <span class="plan-task-comment-meta">${escHtml(meta)}</span>
+          </div>
+          <div class="plan-task-comment-item-actions">
+            <button
+              type="button"
+              class="md-header-btn"
+              data-action="edit-comment"
+              data-comment-id="${escHtml(entry.id)}"
+              ${disabledAttr}
+            >Edit</button>
+            <button
+              type="button"
+              class="plan-task-comment-delete"
+              data-action="delete-comment"
+              data-comment-id="${escHtml(entry.id)}"
+              aria-label="Delete process note"
+              title="Delete"
+              ${disabledAttr}
+            >Delete</button>
+          </div>
+        </li>`;
+        })
+        .join('')}</ul>`
+    : '';
+  const errHtml = ui.commentsError
+    ? `<p class="plan-task-comments-error" role="alert">${escHtml(ui.commentsError)}</p>`
+    : '';
+  const confirmHtml = confirmId
+    ? `
+      <div
+        class="plan-task-comment-delete-confirm"
+        data-comment-delete-confirm
+        role="dialog"
+        aria-modal="true"
+        aria-label="Delete process note confirmation"
+      >
+        <div class="plan-task-comment-delete-confirm-backdrop" data-action="cancel-delete-comment"></div>
+        <div class="plan-task-comment-delete-confirm-panel">
+          <h4 class="plan-task-comment-delete-confirm-title">Delete process note</h4>
+          <p class="plan-task-comment-delete-confirm-body">Delete this process note? This cannot be undone.</p>
+          <div class="plan-task-comment-delete-confirm-actions">
+            <button
+              type="button"
+              class="md-header-btn"
+              data-action="cancel-delete-comment"
+              ${disabledAttr}
+            >Cancel</button>
+            <button
+              type="button"
+              class="md-header-btn plan-task-btn-danger"
+              data-action="confirm-delete-comment"
+              data-comment-id="${escHtml(confirmId)}"
+              ${disabledAttr}
+            >Confirm delete</button>
+          </div>
+        </div>
+      </div>`
+    : '';
+  return `
+    <section class="plan-task-comments-section" aria-label="Process notes">
+      <div class="plan-task-comments-header">
+        <div class="plan-task-comments-heading">
+          <h3 class="plan-task-comments-title">Process notes</h3>
+          ${countHtml}
+        </div>
+        ${emptyHtml}
+      </div>
+      ${errHtml}
+      ${listHtml}
+      <div class="plan-task-comments-composer">
+        <label class="plan-task-comments-composer-label" for="plan-task-comment-input">New process note</label>
+        <textarea
+          id="plan-task-comment-input"
+          class="plan-task-comment-input"
+          data-comment-input
+          rows="3"
+          placeholder="Add a process note…"
+          spellcheck="true"
+          ${disabledAttr}
+        ></textarea>
+        <div class="plan-task-comments-composer-actions">
+          <button type="button" class="md-header-btn primary" data-action="add-comment"${disabledAttr}>Add note</button>
+        </div>
+      </div>
+      ${confirmHtml}
+    </section>
+  `;
+}
+
 /**
  * Viewer-style attachment editor modal: preview by default, edit on demand.
  * @param {{ fileName: string, content: string, editMode: boolean, error: string, loading: boolean }} editor
@@ -719,6 +870,7 @@ function renderSubDetailPane(master, selectedSubId, ui) {
       ${master.migration_error ? renderMigrationWarning() : ''}
       ${renderPlanMdSection(master, ui)}
       ${renderAttachmentsSection(ui)}
+      ${renderCommentsSection(ui)}
       ${renderRefreshWarning(ui.refreshWarning, ui.disabled)}
       ${renderDetailToolbar(master.master_task_id, ui.disabled)}
       <div class="plan-task-sub-list">${items}</div>
@@ -809,6 +961,12 @@ export function mountPlanTaskSplit(container, opts = {}) {
   let attachmentEditor = null;
   /** Bumped to ignore stale open/load results after close or newer open. */
   let attachmentLoadToken = 0;
+  let comments = [];
+  let commentsError = '';
+  /** @type {string} comment id currently being edited */
+  let commentEditId = '';
+  /** @type {string} pending single-comment delete confirm id */
+  let commentDeleteConfirm = '';
   const optimisticSubStatus = {};
   const subActionErrors = {};
   const subTitleErrors = {};
@@ -833,6 +991,10 @@ export function mountPlanTaskSplit(container, opts = {}) {
       attachments,
       attachmentsError,
       attachmentDeleteConfirm,
+      comments,
+      commentsError,
+      commentEditId,
+      commentDeleteConfirm,
       subStatus: optimisticSubStatus,
       subActionErrors,
       subTitleErrors,
@@ -1078,6 +1240,25 @@ export function mountPlanTaskSplit(container, opts = {}) {
     }
   }
 
+  async function loadCommentsForSelected() {
+    if (!selectedMasterId) {
+      comments = [];
+      commentsError = '';
+      return;
+    }
+    const masterId = selectedMasterId;
+    try {
+      const entries = await listPlanComments({ masterTaskId: masterId });
+      if (disposed || selectedMasterId !== masterId) return;
+      comments = entries;
+      commentsError = '';
+    } catch (err) {
+      if (disposed || selectedMasterId !== masterId) return;
+      comments = [];
+      commentsError = err?.message || 'Failed to load process notes';
+    }
+  }
+
   async function reloadList({ afterWrite = false } = {}) {
     try {
       const entries = await loadPlanTasks();
@@ -1088,6 +1269,7 @@ export function mountPlanTaskSplit(container, opts = {}) {
         refreshWarning = '';
       }
       await loadAttachmentsForSelected();
+      await loadCommentsForSelected();
       if (disposed) return;
       paint();
     } catch {
@@ -1102,6 +1284,10 @@ export function mountPlanTaskSplit(container, opts = {}) {
       selectedSubId = '';
       attachments = [];
       attachmentsError = '';
+      comments = [];
+      commentsError = '';
+      commentEditId = '';
+      commentDeleteConfirm = '';
       refreshWarning = '';
       container.innerHTML = renderPageShell({
         masterHtml: '<div class="plan-task-split-state"></div>',
@@ -1176,6 +1362,100 @@ export function mountPlanTaskSplit(container, opts = {}) {
       if (disposed || selectedMasterId !== masterTaskId) return;
       attachmentDeleteConfirm = '';
       attachmentsError = err?.message || 'Failed to delete attachment';
+    } finally {
+      busy = false;
+      if (!disposed) paint();
+    }
+  }
+
+  async function addCommentFromComposer() {
+    if (!selectedMasterId || controlsDisabled(busy)) return;
+    const input = container.querySelector('[data-comment-input]');
+    const body = input instanceof HTMLTextAreaElement ? input.value : '';
+    const masterTaskId = selectedMasterId;
+    busy = true;
+    commentsError = '';
+    paint();
+    try {
+      await addPlanComment({ masterTaskId, body });
+      if (disposed || selectedMasterId !== masterTaskId) return;
+      commentsError = '';
+      commentEditId = '';
+      await loadCommentsForSelected();
+    } catch (err) {
+      if (disposed || selectedMasterId !== masterTaskId) return;
+      commentsError = err?.message || 'Failed to add process note';
+    } finally {
+      busy = false;
+      if (!disposed) paint();
+    }
+  }
+
+  function beginCommentEdit(commentId) {
+    if (!selectedMasterId || controlsDisabled(busy) || !commentId) return;
+    commentEditId = commentId;
+    commentDeleteConfirm = '';
+    commentsError = '';
+    paint();
+  }
+
+  function cancelCommentEdit() {
+    commentEditId = '';
+    paint();
+  }
+
+  async function saveCommentEdit(commentId) {
+    if (!selectedMasterId || controlsDisabled(busy) || !commentId) return;
+    const editInput = container.querySelector('[data-comment-edit-input]');
+    const body = editInput instanceof HTMLTextAreaElement ? editInput.value : '';
+    const masterTaskId = selectedMasterId;
+    busy = true;
+    commentsError = '';
+    paint();
+    try {
+      await updatePlanComment({ masterTaskId, commentId, body });
+      if (disposed || selectedMasterId !== masterTaskId) return;
+      commentEditId = '';
+      commentsError = '';
+      await loadCommentsForSelected();
+    } catch (err) {
+      if (disposed || selectedMasterId !== masterTaskId) return;
+      commentsError = err?.message || 'Failed to update process note';
+    } finally {
+      busy = false;
+      if (!disposed) paint();
+    }
+  }
+
+  function openCommentDeleteConfirm(commentId) {
+    if (!selectedMasterId || controlsDisabled(busy) || !commentId) return;
+    commentDeleteConfirm = commentId;
+    commentEditId = '';
+    commentsError = '';
+    paint();
+  }
+
+  function cancelCommentDeleteConfirm() {
+    commentDeleteConfirm = '';
+    paint();
+  }
+
+  async function confirmAndDeleteComment(commentId) {
+    if (!selectedMasterId || controlsDisabled(busy) || !commentId) return;
+    const masterTaskId = selectedMasterId;
+    busy = true;
+    commentsError = '';
+    paint();
+    try {
+      await deletePlanComment({ masterTaskId, commentId });
+      if (disposed || selectedMasterId !== masterTaskId) return;
+      commentDeleteConfirm = '';
+      commentsError = '';
+      await loadCommentsForSelected();
+    } catch (err) {
+      if (disposed || selectedMasterId !== masterTaskId) return;
+      commentDeleteConfirm = '';
+      commentsError = err?.message || 'Failed to delete process note';
     } finally {
       busy = false;
       if (!disposed) paint();
@@ -1578,6 +1858,64 @@ export function mountPlanTaskSplit(container, opts = {}) {
       return;
     }
 
+    if (action === 'add-comment') {
+      event.preventDefault();
+      if (controlsDisabled(busy) || !selectedMasterId) return;
+      void addCommentFromComposer();
+      return;
+    }
+
+    if (action === 'edit-comment') {
+      event.preventDefault();
+      if (controlsDisabled(busy) || !selectedMasterId) return;
+      const commentId = actionEl?.dataset.commentId;
+      if (!commentId) return;
+      beginCommentEdit(commentId);
+      return;
+    }
+
+    if (action === 'save-comment') {
+      event.preventDefault();
+      if (controlsDisabled(busy) || !selectedMasterId) return;
+      const commentId = actionEl?.dataset.commentId || commentEditId;
+      if (!commentId) return;
+      void saveCommentEdit(commentId);
+      return;
+    }
+
+    if (action === 'cancel-comment-edit') {
+      event.preventDefault();
+      if (controlsDisabled(busy)) return;
+      cancelCommentEdit();
+      return;
+    }
+
+    if (action === 'delete-comment') {
+      event.preventDefault();
+      if (controlsDisabled(busy) || !selectedMasterId) return;
+      const commentId = actionEl?.dataset.commentId;
+      if (!commentId) return;
+      openCommentDeleteConfirm(commentId);
+      return;
+    }
+
+    if (action === 'confirm-delete-comment') {
+      event.preventDefault();
+      event.stopPropagation();
+      if (controlsDisabled(busy) || !selectedMasterId) return;
+      const commentId = actionEl?.dataset.commentId || commentDeleteConfirm;
+      if (!commentId) return;
+      void confirmAndDeleteComment(commentId);
+      return;
+    }
+
+    if (action === 'cancel-delete-comment') {
+      event.preventDefault();
+      event.stopPropagation();
+      cancelCommentDeleteConfirm();
+      return;
+    }
+
     if (action === 'open-attachment') {
       event.preventDefault();
       if (controlsDisabled(busy) || !selectedMasterId) return;
@@ -1689,8 +2027,13 @@ export function mountPlanTaskSplit(container, opts = {}) {
       attachments = [];
       attachmentsError = '';
       attachmentDeleteConfirm = '';
+      comments = [];
+      commentsError = '';
+      commentEditId = '';
+      commentDeleteConfirm = '';
       void (async () => {
         await loadAttachmentsForSelected();
+        await loadCommentsForSelected();
         if (disposed) return;
         paint();
         if (typeof navigate === 'function' && selectedMasterId && selectedSubId) {
@@ -1735,6 +2078,17 @@ export function mountPlanTaskSplit(container, opts = {}) {
 
   const onKeydown = (event) => {
     if (event.key === 'Escape') {
+      if (commentDeleteConfirm) {
+        event.preventDefault();
+        cancelCommentDeleteConfirm();
+        return;
+      }
+      if (commentEditId) {
+        event.preventDefault();
+        if (controlsDisabled(busy)) return;
+        cancelCommentEdit();
+        return;
+      }
       if (attachmentDeleteConfirm) {
         event.preventDefault();
         cancelAttachmentDeleteConfirm();
