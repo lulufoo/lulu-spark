@@ -261,6 +261,100 @@ describe('mountPlanTaskSplit', () => {
     dispose();
   });
 
+  it('shows complete and abandoned masters when Active only is turned off', async () => {
+    getJsonMock.mockResolvedValue(sampleMasters);
+    const { dispose } = mountPlanTaskSplit(container);
+    await vi.waitFor(() => {
+      expect(container.querySelector('[data-action="toggle-active-only"]')).not.toBeNull();
+    });
+    container.querySelector('[data-action="toggle-active-only"]').click();
+    await vi.waitFor(() => {
+      expect(
+        container.querySelector('[data-action="toggle-active-only"]')?.getAttribute('aria-checked'),
+      ).toBe('false');
+      expect(container.querySelector('[data-master-id="task_complete"]')).not.toBeNull();
+      expect(container.querySelector('[data-master-id="task_abandoned"]')).not.toBeNull();
+      expect(container.querySelectorAll('.plan-task-master-item')).toHaveLength(5);
+    });
+    dispose();
+  });
+
+  it('shows No active todos when every master is complete or abandoned', async () => {
+    getJsonMock.mockResolvedValue([
+      { ...sampleMasters.find((m) => m.master_task_id === 'task_complete') },
+      { ...sampleMasters.find((m) => m.master_task_id === 'task_abandoned') },
+    ]);
+    const { dispose } = mountPlanTaskSplit(container);
+    await vi.waitFor(() => {
+      expect(container.textContent).toContain('No active todos');
+      expect(container.textContent).toContain(
+        'Turn off Active only to see completed and abandoned todos.',
+      );
+      expect(container.textContent).not.toContain('No todos yet');
+      expect(
+        container.querySelector('.plan-task-empty--sidebar [data-action="create-master"]'),
+      ).toBeNull();
+    });
+    dispose();
+  });
+
+  it('clears selection for completed deep-link while Active only is on', async () => {
+    getJsonMock.mockResolvedValue(sampleMasters);
+    const { dispose } = mountPlanTaskSplit(container, {
+      masterId: 'task_complete',
+    });
+    await vi.waitFor(() => {
+      expect(container.querySelector('[data-master-id="task_complete"]')).toBeNull();
+      expect(container.querySelector('.plan-task-split-detail-empty')).not.toBeNull();
+      expect(container.querySelector('.plan-task-split-dead-link')).toBeNull();
+      expect(container.querySelector('[data-action="edit-master-title"]')).toBeNull();
+    });
+    dispose();
+  });
+
+  it('removes completed master from Active only list and clears detail', async () => {
+    const incompleteAlpha = sampleMasters.find((m) => m.master_task_id === 'task_alpha');
+    const completedAlpha = { ...incompleteAlpha, status: 'complete' };
+    const afterComplete = sampleMasters.map((m) =>
+      m.master_task_id === 'task_alpha' ? completedAlpha : m,
+    );
+    getJsonMock
+      .mockResolvedValueOnce(sampleMasters)
+      .mockResolvedValue(afterComplete);
+
+    const invokeMock = vi.fn(async (cmd, args) => {
+      if (cmd === 'set_todo_master_status') {
+        return { task: { ...incompleteAlpha, status: args.status }, _status: 200 };
+      }
+      if (cmd === 'list_todo_attachments') return [];
+      if (cmd === 'list_todo_comments') return [];
+      return {};
+    });
+    window.__TAURI__ = { core: { invoke: invokeMock } };
+
+    const { dispose } = mountPlanTaskSplit(container, {
+      masterId: 'task_alpha',
+    });
+    await vi.waitFor(() => {
+      expect(container.querySelector('[data-action="change-master-status"]')).not.toBeNull();
+    });
+    const statusSelect = container.querySelector('[data-action="change-master-status"]');
+    statusSelect.value = 'complete';
+    statusSelect.dispatchEvent(new Event('change', { bubbles: true }));
+
+    await vi.waitFor(() => {
+      expect(invokeMock).toHaveBeenCalledWith('set_todo_master_status', {
+        masterTaskId: 'task_alpha',
+        status: 'complete',
+      });
+      expect(container.querySelector('[data-master-id="task_alpha"]')).toBeNull();
+      expect(container.querySelector('.plan-task-split-detail-empty')).not.toBeNull();
+    });
+
+    dispose();
+    delete window.__TAURI__;
+  });
+
   it('shows right empty state when no master is selected', async () => {
     getJsonMock.mockResolvedValue(sampleMasters);
     const { dispose } = mountPlanTaskSplit(container);
