@@ -242,6 +242,22 @@ fn handle_request(repo_root: &PathBuf, port: u16, request: tiny_http::Request) {
                 handle_todo_task_post(request, handle_todo_task_update_attachment_payload);
                 return;
             }
+            "/api/todo-task-list-comments" => {
+                handle_todo_task_post(request, handle_todo_task_list_comments_payload);
+                return;
+            }
+            "/api/todo-task-add-comment" => {
+                handle_todo_task_post(request, handle_todo_task_add_comment_payload);
+                return;
+            }
+            "/api/todo-task-update-comment" => {
+                handle_todo_task_post(request, handle_todo_task_update_comment_payload);
+                return;
+            }
+            "/api/todo-task-delete-comment" => {
+                handle_todo_task_post(request, handle_todo_task_delete_comment_payload);
+                return;
+            }
             "/api/todo-task-update" => {
                 handle_todo_task_post(request, handle_todo_task_update_payload);
                 return;
@@ -574,6 +590,46 @@ fn handle_todo_task_update_attachment_payload(payload: &Value) -> Value {
         return json!({ "error": "Missing content", "_status": 400 });
     };
     todo_task::save_attachment(master_task_id, file_name, content)
+}
+
+fn handle_todo_task_list_comments_payload(payload: &Value) -> Value {
+    let Some(master_task_id) = payload.get("master_task_id").and_then(|v| v.as_str()) else {
+        return json!({ "error": "Missing master_task_id", "_status": 400 });
+    };
+    todo_task::list_comments(master_task_id)
+}
+
+fn handle_todo_task_add_comment_payload(payload: &Value) -> Value {
+    let Some(master_task_id) = payload.get("master_task_id").and_then(|v| v.as_str()) else {
+        return json!({ "error": "Missing master_task_id", "_status": 400 });
+    };
+    let Some(body) = payload.get("body").and_then(|v| v.as_str()) else {
+        return json!({ "error": "Missing body", "_status": 400 });
+    };
+    todo_task::add_comment(master_task_id, body)
+}
+
+fn handle_todo_task_update_comment_payload(payload: &Value) -> Value {
+    let Some(master_task_id) = payload.get("master_task_id").and_then(|v| v.as_str()) else {
+        return json!({ "error": "Missing master_task_id", "_status": 400 });
+    };
+    let Some(comment_id) = payload.get("comment_id").and_then(|v| v.as_str()) else {
+        return json!({ "error": "Missing comment_id", "_status": 400 });
+    };
+    let Some(body) = payload.get("body").and_then(|v| v.as_str()) else {
+        return json!({ "error": "Missing body", "_status": 400 });
+    };
+    todo_task::update_comment(master_task_id, comment_id, body)
+}
+
+fn handle_todo_task_delete_comment_payload(payload: &Value) -> Value {
+    let Some(master_task_id) = payload.get("master_task_id").and_then(|v| v.as_str()) else {
+        return json!({ "error": "Missing master_task_id", "_status": 400 });
+    };
+    let Some(comment_id) = payload.get("comment_id").and_then(|v| v.as_str()) else {
+        return json!({ "error": "Missing comment_id", "_status": 400 });
+    };
+    todo_task::delete_comment(master_task_id, comment_id)
 }
 
 fn handle_todo_task_update_payload(payload: &Value) -> Value {

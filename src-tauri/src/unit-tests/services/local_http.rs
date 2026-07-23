@@ -2070,3 +2070,280 @@ fn todo_api_gate_rereads_marker_while_server_running() {
         });
     });
 }
+
+#[test]
+fn todo_task_comment_http_four_routes_registered() {
+    with_todo_task_http_test(|| {
+        let fixture = setup_repo_for_todo_task();
+        let repo_root = fixture.repo_root.clone();
+        with_server(repo_root, |port| {
+            let master_id = create_todo_master_id(port, "Comment routes");
+            for path in [
+                "/api/todo-task-list-comments",
+                "/api/todo-task-add-comment",
+                "/api/todo-task-update-comment",
+                "/api/todo-task-delete-comment",
+            ] {
+                assert!(
+                    path.starts_with("/api/todo-task-"),
+                    "path {path} must use todo-task prefix"
+                );
+            }
+
+            let (list_status, list_body) = http_post(
+                port,
+                "/api/todo-task-list-comments",
+                &json!({ "master_task_id": master_id }),
+            );
+            assert_eq!(list_status, 200, "list-comments must be registered: {list_body}");
+            assert!(list_body.get("comments").and_then(|v| v.as_array()).is_some());
+            assert!(list_body.get("error").is_none());
+
+            let (add_status, add_body) = http_post(
+                port,
+                "/api/todo-task-add-comment",
+                &json!({ "master_task_id": master_id, "body": "route probe" }),
+            );
+            assert_eq!(add_status, 201, "add-comment must be registered: {add_body}");
+            assert!(add_body.get("error").is_none());
+            let comment_id = add_body["id"].as_str().expect("comment id");
+
+            let (update_status, update_body) = http_post(
+                port,
+                "/api/todo-task-update-comment",
+                &json!({
+                    "master_task_id": master_id,
+                    "comment_id": comment_id,
+                    "body": "updated probe",
+                }),
+            );
+            assert_eq!(
+                update_status, 200,
+                "update-comment must be registered: {update_body}"
+            );
+            assert!(update_body.get("error").is_none());
+
+            let (delete_status, delete_body) = http_post(
+                port,
+                "/api/todo-task-delete-comment",
+                &json!({
+                    "master_task_id": master_id,
+                    "comment_id": comment_id,
+                }),
+            );
+            assert_eq!(
+                delete_status, 200,
+                "delete-comment must be registered: {delete_body}"
+            );
+            assert_eq!(delete_body["ok"], true);
+        });
+    });
+}
+
+#[test]
+fn todo_task_comment_http_flow_list_envelope() {
+    with_todo_task_http_test(|| {
+        let fixture = setup_repo_for_todo_task();
+        let repo_root = fixture.repo_root.clone();
+        with_server(repo_root, |port| {
+            let master_id = create_todo_master_id(port, "Comment HTTP");
+
+            let (empty_status, empty_body) = http_post(
+                port,
+                "/api/todo-task-list-comments",
+                &json!({ "master_task_id": master_id }),
+            );
+            assert_eq!(empty_status, 200);
+            let empty = empty_body["comments"].as_array().expect("comments envelope");
+            assert!(empty.is_empty());
+            assert!(empty_body.get("_status").is_none());
+
+            let (add_status, add_body) = http_post(
+                port,
+                "/api/todo-task-add-comment",
+                &json!({
+                    "master_task_id": master_id,
+                    "body": "first note",
+                }),
+            );
+            assert_eq!(add_status, 201);
+            assert_eq!(add_body["body"], "first note");
+            assert!(add_body.get("id").and_then(|v| v.as_str()).is_some());
+            assert!(add_body.get("created_at").and_then(|v| v.as_str()).is_some());
+            assert!(add_body.get("_status").is_none());
+            let comment_id = add_body["id"].as_str().expect("id").to_string();
+
+            let (list_status, list_body) = http_post(
+                port,
+                "/api/todo-task-list-comments",
+                &json!({ "master_task_id": master_id }),
+            );
+            assert_eq!(list_status, 200);
+            let comments = list_body["comments"].as_array().expect("comments");
+            assert_eq!(comments.len(), 1);
+            assert_eq!(comments[0]["id"], comment_id);
+            assert_eq!(comments[0]["body"], "first note");
+            // File-root-shaped envelope: object with comments array, not a bare array.
+            assert!(list_body.is_object());
+            assert!(!list_body.is_array());
+
+            let (update_status, update_body) = http_post(
+                port,
+                "/api/todo-task-update-comment",
+                &json!({
+                    "master_task_id": master_id,
+                    "comment_id": comment_id,
+                    "body": "edited note",
+                }),
+            );
+            assert_eq!(update_status, 200);
+            assert_eq!(update_body["id"], comment_id);
+            assert_eq!(update_body["body"], "edited note");
+
+            let (reread_status, reread_body) = http_post(
+                port,
+                "/api/todo-task-list-comments",
+                &json!({ "master_task_id": master_id }),
+            );
+            assert_eq!(reread_status, 200);
+            assert_eq!(reread_body["comments"][0]["body"], "edited note");
+
+            let (delete_status, delete_body) = http_post(
+                port,
+                "/api/todo-task-delete-comment",
+                &json!({
+                    "master_task_id": master_id,
+                    "comment_id": comment_id,
+                }),
+            );
+            assert_eq!(delete_status, 200);
+            assert_eq!(delete_body["ok"], true);
+
+            let (after_status, after_body) = http_post(
+                port,
+                "/api/todo-task-list-comments",
+                &json!({ "master_task_id": master_id }),
+            );
+            assert_eq!(after_status, 200);
+            assert_eq!(after_body["comments"].as_array().unwrap().len(), 0);
+        });
+    });
+}
+
+#[test]
+fn todo_task_comment_http_has_no_get_by_id() {
+    with_todo_task_http_test(|| {
+        let fixture = setup_repo_for_todo_task();
+        let repo_root = fixture.repo_root.clone();
+        with_server(repo_root, |port| {
+            let master_id = create_todo_master_id(port, "No get-by-id");
+            let comment_id = "cmt_probe00000001";
+            let get_query_path = format!("/api/todo-task-comment?id={comment_id}");
+
+            for path in [
+                "/api/todo-task-get-comment",
+                "/api/todo-task-read-comment",
+                get_query_path.as_str(),
+            ] {
+                let (status, body) = if path.contains('?') {
+                    http_get(port, path)
+                } else {
+                    http_post(
+                        port,
+                        path,
+                        &json!({
+                            "master_task_id": master_id,
+                            "comment_id": comment_id,
+                        }),
+                    )
+                };
+                assert!(
+                    status == 404 || status == 405,
+                    "get-by-id HTTP must not be registered, got {status} for {path}: {body}"
+                );
+                assert!(body.get("error").is_some());
+                assert_ne!(status, 200);
+                assert_ne!(status, 201);
+            }
+        });
+    });
+}
+
+#[test]
+fn todo_task_comment_unregistered_paths_are_not_success_handlers() {
+    with_todo_task_http_test(|| {
+        let fixture = setup_repo_for_todo_task();
+        let repo_root = fixture.repo_root.clone();
+        with_server(repo_root, |port| {
+            let master_id = create_todo_master_id(port, "Unregistered comment paths");
+            for path in [
+                "/api/todo-task-comments",
+                "/api/todo-task-list-comment",
+                "/api/todo-task-add-comments",
+                "/api/plan-task-list-comments",
+                "/api/todo-task-ui-add-comment",
+            ] {
+                let (status, body) = http_post(
+                    port,
+                    path,
+                    &json!({
+                        "master_task_id": master_id,
+                        "body": "should not match",
+                        "comment_id": "cmt_x",
+                    }),
+                );
+                assert!(
+                    status == 404 || status == 405,
+                    "unregistered path must not succeed, got {status} for {path}: {body}"
+                );
+                assert!(body.get("error").is_some());
+                assert_ne!(status, 200);
+                assert_ne!(status, 201);
+            }
+        });
+    });
+}
+
+#[test]
+fn todo_task_comment_http_surfaces_service_errors() {
+    with_todo_task_http_test(|| {
+        let fixture = setup_repo_for_todo_task();
+        let repo_root = fixture.repo_root.clone();
+        with_server(repo_root, |port| {
+            let master_id = create_todo_master_id(port, "Bad comments file");
+
+            let wb = crate::config::paths::workbench_knowledge_root().expect("wb");
+            let comments_path = wb
+                .join("todo_tasks")
+                .join("tasks")
+                .join(&master_id)
+                .join("comments.json");
+            fs::write(&comments_path, "{not valid json").expect("write corrupt comments");
+
+            let (status, body) = http_post(
+                port,
+                "/api/todo-task-list-comments",
+                &json!({ "master_task_id": master_id }),
+            );
+            assert!(
+                status >= 400,
+                "corrupt comments.json must not look like success, got {status}: {body}"
+            );
+            assert!(
+                body.get("error").is_some(),
+                "service error must be visible on HTTP face"
+            );
+            // Must not masquerade as a successful empty list.
+            assert_ne!(status, 200);
+            assert_ne!(status, 201);
+
+            let (unknown_status, unknown_body) = http_post(
+                port,
+                "/api/todo-task-list-comments",
+                &json!({ "master_task_id": "00000000000000000000000000000000" }),
+            );
+            assert_eq!(unknown_status, 404);
+            assert_eq!(unknown_body["error"], "Task not found");
+        });
+    });
+}
