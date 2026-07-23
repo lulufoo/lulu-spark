@@ -18,8 +18,8 @@ use crate::repositories::atomic_json;
 use crate::services::id::random_hex12;
 
 use types::{
-    index_entry_task_dir, AttachmentEntry, AttachmentsFile, CommentsFile, IndexEntry, MasterTask,
-    MasterTaskStatus, PlanTasksIndex, SubTask, SubTaskStatus, SubTasksFile,
+    index_entry_task_dir, AttachmentEntry, AttachmentsFile, CommentEntry, CommentsFile, IndexEntry,
+    MasterTask, MasterTaskStatus, PlanTasksIndex, SubTask, SubTaskStatus, SubTasksFile,
 };
 
 static WRITE_LOCK: Mutex<()> = Mutex::new(());
@@ -1429,6 +1429,203 @@ fn save_comments_file_unlocked(path: &Path, file: &CommentsFile) -> Result<(), S
     }
     let value = serde_json::to_value(file).map_err(|e| e.to_string())?;
     atomic_json::write_json(path, &value)
+}
+
+/// Task dir + `comments.json` for an existing plan. Missing file → empty list.
+fn load_plan_comments(
+    master_task_id: &str,
+) -> Result<(std::path::PathBuf, CommentsFile), Value> {
+    let task_dir = paths::plan_tasks_task_dir(master_task_id)
+        .map_err(|e| json!({ "error": format!("{e:?}"), "_status": 500 }))?;
+    let file = load_comments_file_unlocked(&task_dir.join("comments.json"))
+        .map_err(|e| json!({ "error": e, "_status": 500 }))?;
+    Ok((task_dir, file))
+}
+
+fn comments_sorted_by_created_at(mut file: CommentsFile) -> CommentsFile {
+    file.comments
+        .sort_by(|a, b| a.created_at.cmp(&b.created_at));
+    file
+}
+
+/// List comments for a plan from `comments.json`. Missing file → empty collection.
+/// Entries are returned ordered by `created_at` ascending.
+pub fn list_comments(master_task_id: &str) -> Value {
+    let master_task_id = master_task_id.trim();
+    if master_task_id.is_empty() {
+        return json!({ "error": "Missing id", "_status": 400 });
+    }
+
+    match load_v2_for_read() {
+        Ok(index) => {
+            if !index.tasks.contains_key(master_task_id) {
+                return json!({ "error": "Task not found", "_status": 404 });
+            }
+            match load_plan_comments(master_task_id) {
+                Ok((_, file)) => {
+                    let file = comments_sorted_by_created_at(file);
+                    let comments =
+                        serde_json::to_value(&file.comments).unwrap_or_else(|_| json!([]));
+                    json!({ "comments": comments, "_status": 200 })
+                }
+                Err(err) => err,
+            }
+        }
+        Err(err) => err,
+    }
+}
+
+/// Append a comment with minted `id` / `created_at`. Rejects empty/whitespace body.
+/// Must not refuse based on existing comment count.
+pub fn add_comment(master_task_id: &str, body: &str) -> Value {
+    let master_task_id = master_task_id.trim();
+    if master_task_id.is_empty() {
+        return json!({ "error": "Missing id", "_status": 400 });
+    }
+    if let Err(e) = validate_comment_body(body) {
+        return json!({ "error": e, "_status": 400 });
+    }
+
+    with_write_lock(|| {
+        if let Err(e) = ensure_bootstrap() {
+            return bootstrap_error(e);
+        }
+
+        let index = match load_v2_index_unlocked() {
+            Ok(i) => i,
+            Err(LoadOutcome::Corrupt) => return corrupt_storage_error(),
+            Err(LoadOutcome::Missing) | Err(LoadOutcome::Ok) => PlanTasksIndex::default(),
+        };
+
+        if !index.tasks.contains_key(master_task_id) {
+            return json!({ "error": "Task not found", "_status": 404 });
+        }
+
+        let (task_dir, previous) = match load_plan_comments(master_task_id) {
+            Ok(ctx) => ctx,
+            Err(err) => return err,
+        };
+        let path = task_dir.join("comments.json");
+
+        let entry = CommentEntry {
+            id: mint_comment_id(),
+            body: body.to_string(),
+            created_at: now_comment_created_at(),
+        };
+        let mut updated = previous;
+        updated.comments.push(entry.clone());
+
+        if let Err(e) = save_comments_file_unlocked(&path, &updated) {
+            return json!({ "error": e, "_status": 500 });
+        }
+
+        json!({
+            "id": entry.id,
+            "body": entry.body,
+            "created_at": entry.created_at,
+            "_status": 201,
+        })
+    })
+}
+
+/// Update only `body` for an existing comment id. Preserves `id` and `created_at`.
+pub fn update_comment(master_task_id: &str, comment_id: &str, body: &str) -> Value {
+    let master_task_id = master_task_id.trim();
+    if master_task_id.is_empty() {
+        return json!({ "error": "Missing id", "_status": 400 });
+    }
+    let comment_id = comment_id.trim();
+    if comment_id.is_empty() {
+        return json!({ "error": "Missing comment id", "_status": 400 });
+    }
+    if let Err(e) = validate_comment_body(body) {
+        return json!({ "error": e, "_status": 400 });
+    }
+
+    with_write_lock(|| {
+        if let Err(e) = ensure_bootstrap() {
+            return bootstrap_error(e);
+        }
+
+        let index = match load_v2_index_unlocked() {
+            Ok(i) => i,
+            Err(LoadOutcome::Corrupt) => return corrupt_storage_error(),
+            Err(LoadOutcome::Missing) | Err(LoadOutcome::Ok) => PlanTasksIndex::default(),
+        };
+
+        if !index.tasks.contains_key(master_task_id) {
+            return json!({ "error": "Task not found", "_status": 404 });
+        }
+
+        let (task_dir, mut file) = match load_plan_comments(master_task_id) {
+            Ok(ctx) => ctx,
+            Err(err) => return err,
+        };
+        let path = task_dir.join("comments.json");
+
+        let Some(entry) = file.comments.iter_mut().find(|c| c.id == comment_id) else {
+            return json!({ "error": "Comment not found", "_status": 404 });
+        };
+        entry.body = body.to_string();
+        let updated_entry = entry.clone();
+
+        if let Err(e) = save_comments_file_unlocked(&path, &file) {
+            return json!({ "error": e, "_status": 500 });
+        }
+
+        json!({
+            "id": updated_entry.id,
+            "body": updated_entry.body,
+            "created_at": updated_entry.created_at,
+            "_status": 200,
+        })
+    })
+}
+
+/// Hard-delete a single comment by id.
+pub fn delete_comment(master_task_id: &str, comment_id: &str) -> Value {
+    let master_task_id = master_task_id.trim();
+    if master_task_id.is_empty() {
+        return json!({ "error": "Missing id", "_status": 400 });
+    }
+    let comment_id = comment_id.trim();
+    if comment_id.is_empty() {
+        return json!({ "error": "Missing comment id", "_status": 400 });
+    }
+
+    with_write_lock(|| {
+        if let Err(e) = ensure_bootstrap() {
+            return bootstrap_error(e);
+        }
+
+        let index = match load_v2_index_unlocked() {
+            Ok(i) => i,
+            Err(LoadOutcome::Corrupt) => return corrupt_storage_error(),
+            Err(LoadOutcome::Missing) | Err(LoadOutcome::Ok) => PlanTasksIndex::default(),
+        };
+
+        if !index.tasks.contains_key(master_task_id) {
+            return json!({ "error": "Task not found", "_status": 404 });
+        }
+
+        let (task_dir, mut file) = match load_plan_comments(master_task_id) {
+            Ok(ctx) => ctx,
+            Err(err) => return err,
+        };
+        let path = task_dir.join("comments.json");
+
+        let before = file.comments.len();
+        file.comments.retain(|c| c.id != comment_id);
+        if file.comments.len() == before {
+            return json!({ "error": "Comment not found", "_status": 404 });
+        }
+
+        if let Err(e) = save_comments_file_unlocked(&path, &file) {
+            return json!({ "error": e, "_status": 500 });
+        }
+
+        json!({ "ok": true, "_status": 200 })
+    })
 }
 
 /// Copy a `.md` attachment into the plan task directory and append `attachments.json`.

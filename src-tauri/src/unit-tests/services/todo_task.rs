@@ -2634,3 +2634,255 @@ fn save_comments_file_does_not_enforce_count_cap() {
         assert_eq!(loaded.comments.len(), 80);
     });
 }
+
+#[test]
+fn list_comments_missing_file_returns_empty_list() {
+    with_todo_task_sandbox(|wb| {
+        let created = create_master_with_subs("List comments missing", None);
+        let master_id = created["master_task_id"].as_str().unwrap();
+        assert!(!comments_json_abs_path(wb, master_id).exists());
+
+        let v = list_comments(master_id);
+        assert_eq!(v["_status"], 200);
+        assert_eq!(v["comments"].as_array().expect("comments array").len(), 0);
+    });
+}
+
+#[test]
+fn list_comments_orders_by_created_at_ascending() {
+    with_todo_task_sandbox(|wb| {
+        let created = create_master_with_subs("List comments order", None);
+        let master_id = created["master_task_id"].as_str().unwrap();
+        let path = comments_json_abs_path(wb, master_id);
+        let file = CommentsFile {
+            comments: vec![
+                CommentEntry {
+                    id: "cmt_later000001".to_string(),
+                    body: "second".to_string(),
+                    created_at: "2026-07-23T02:00:00+00:00".to_string(),
+                },
+                CommentEntry {
+                    id: "cmt_earlier0001".to_string(),
+                    body: "first".to_string(),
+                    created_at: "2026-07-23T01:00:00+00:00".to_string(),
+                },
+            ],
+        };
+        save_comments_file_unlocked(&path, &file).expect("seed");
+
+        let v = list_comments(master_id);
+        assert_eq!(v["_status"], 200);
+        let items = v["comments"].as_array().expect("comments array");
+        assert_eq!(items.len(), 2);
+        assert_eq!(items[0]["id"], "cmt_earlier0001");
+        assert_eq!(items[0]["body"], "first");
+        assert_eq!(items[1]["id"], "cmt_later000001");
+        assert_eq!(items[1]["body"], "second");
+    });
+}
+
+#[test]
+fn add_comment_writes_new_id_and_created_at_then_list_shows_it() {
+    with_todo_task_sandbox(|_| {
+        let created = create_master_with_subs("Add comment", None);
+        let master_id = created["master_task_id"].as_str().unwrap();
+
+        let added = add_comment(master_id, "process note");
+        assert_eq!(added["_status"], 201);
+        let id = added["id"].as_str().expect("id");
+        assert!(id.starts_with("cmt_"), "id={id}");
+        let created_at = added["created_at"].as_str().expect("created_at");
+        assert!(is_iso8601(created_at), "created_at={created_at}");
+        assert_eq!(added["body"], "process note");
+
+        let listed = list_comments(master_id);
+        assert_eq!(listed["_status"], 200);
+        let items = listed["comments"].as_array().expect("comments");
+        assert_eq!(items.len(), 1);
+        assert_eq!(items[0]["id"], id);
+        assert_eq!(items[0]["body"], "process note");
+        assert_eq!(items[0]["created_at"], created_at);
+    });
+}
+
+#[test]
+fn update_comment_changes_only_body_preserving_id_created_at_and_order() {
+    with_todo_task_sandbox(|wb| {
+        let created = create_master_with_subs("Update comment", None);
+        let master_id = created["master_task_id"].as_str().unwrap();
+        let path = comments_json_abs_path(wb, master_id);
+        let file = CommentsFile {
+            comments: vec![
+                CommentEntry {
+                    id: "cmt_a00000000001".to_string(),
+                    body: "old-a".to_string(),
+                    created_at: "2026-07-23T01:00:00+00:00".to_string(),
+                },
+                CommentEntry {
+                    id: "cmt_b00000000002".to_string(),
+                    body: "old-b".to_string(),
+                    created_at: "2026-07-23T02:00:00+00:00".to_string(),
+                },
+            ],
+        };
+        save_comments_file_unlocked(&path, &file).expect("seed");
+
+        let updated = update_comment(master_id, "cmt_a00000000001", "new-a");
+        assert_eq!(updated["_status"], 200);
+        assert_eq!(updated["id"], "cmt_a00000000001");
+        assert_eq!(updated["body"], "new-a");
+        assert_eq!(updated["created_at"], "2026-07-23T01:00:00+00:00");
+
+        let listed = list_comments(master_id);
+        assert_eq!(listed["_status"], 200);
+        let items = listed["comments"].as_array().expect("comments");
+        assert_eq!(items.len(), 2);
+        assert_eq!(items[0]["id"], "cmt_a00000000001");
+        assert_eq!(items[0]["body"], "new-a");
+        assert_eq!(items[0]["created_at"], "2026-07-23T01:00:00+00:00");
+        assert_eq!(items[1]["id"], "cmt_b00000000002");
+        assert_eq!(items[1]["body"], "old-b");
+    });
+}
+
+#[test]
+fn delete_comment_hard_removes_id_from_list() {
+    with_todo_task_sandbox(|_| {
+        let created = create_master_with_subs("Delete comment", None);
+        let master_id = created["master_task_id"].as_str().unwrap();
+        let a = add_comment(master_id, "keep");
+        let b = add_comment(master_id, "drop");
+        assert_eq!(a["_status"], 201);
+        assert_eq!(b["_status"], 201);
+        let drop_id = b["id"].as_str().unwrap().to_string();
+
+        let deleted = delete_comment(master_id, &drop_id);
+        assert_eq!(deleted["_status"], 200);
+        assert_eq!(deleted["ok"], true);
+
+        let listed = list_comments(master_id);
+        assert_eq!(listed["_status"], 200);
+        let items = listed["comments"].as_array().expect("comments");
+        assert_eq!(items.len(), 1);
+        assert_eq!(items[0]["id"], a["id"]);
+        assert!(items.iter().all(|c| c["id"] != drop_id));
+    });
+}
+
+#[test]
+fn add_comment_repeatedly_is_not_rejected_for_count() {
+    with_todo_task_sandbox(|_| {
+        let created = create_master_with_subs("Add comment no cap", None);
+        let master_id = created["master_task_id"].as_str().unwrap();
+
+        for i in 0..12 {
+            let v = add_comment(master_id, &format!("note-{i}"));
+            assert_eq!(v["_status"], 201, "add #{i} must not be rejected for count");
+        }
+
+        let listed = list_comments(master_id);
+        assert_eq!(listed["_status"], 200);
+        assert_eq!(listed["comments"].as_array().expect("comments").len(), 12);
+    });
+}
+
+#[test]
+fn delete_master_cascades_comments_json_via_remove_dir_all() {
+    with_todo_task_sandbox(|wb| {
+        let created = create_master_with_subs("Delete master comments cascade", None);
+        let master_id = created["master_task_id"].as_str().unwrap();
+        let added = add_comment(master_id, "will cascade away");
+        assert_eq!(added["_status"], 201);
+
+        let task_dir = wb.join("todo_tasks").join("tasks").join(master_id);
+        let comments_path = comments_json_abs_path(wb, master_id);
+        assert!(task_dir.is_dir());
+        assert!(comments_path.is_file());
+
+        let v = delete_master(master_id);
+        assert_eq!(v["_status"], 200);
+        assert_eq!(v["ok"], true);
+        assert!(!task_dir.exists());
+        assert!(!comments_path.exists());
+    });
+}
+
+#[test]
+fn add_and_update_comment_reject_empty_or_whitespace_body() {
+    with_todo_task_sandbox(|wb| {
+        let created = create_master_with_subs("Empty body reject", None);
+        let master_id = created["master_task_id"].as_str().unwrap();
+
+        for bad in ["", "   ", "\t\n"] {
+            let add = add_comment(master_id, bad);
+            assert_ne!(add["_status"], 201, "empty body add must fail");
+            assert!(add.get("error").is_some(), "add must be explicit error");
+        }
+        assert!(!comments_json_abs_path(wb, master_id).exists());
+
+        let ok = add_comment(master_id, "seed");
+        assert_eq!(ok["_status"], 201);
+        let id = ok["id"].as_str().unwrap();
+
+        for bad in ["", "   ", "\t\n"] {
+            let upd = update_comment(master_id, id, bad);
+            assert_ne!(upd["_status"], 200, "empty body update must fail");
+            assert!(upd.get("error").is_some(), "update must be explicit error");
+        }
+
+        let listed = list_comments(master_id);
+        assert_eq!(listed["comments"][0]["body"], "seed");
+    });
+}
+
+#[test]
+fn update_and_delete_comment_unknown_id_is_explicit_error() {
+    with_todo_task_sandbox(|_| {
+        let created = create_master_with_subs("Unknown comment id", None);
+        let master_id = created["master_task_id"].as_str().unwrap();
+        let ok = add_comment(master_id, "exists");
+        assert_eq!(ok["_status"], 201);
+
+        let upd = update_comment(master_id, "cmt_doesnotexist", "x");
+        assert_ne!(upd["_status"], 200);
+        assert!(upd.get("error").is_some());
+
+        let del = delete_comment(master_id, "cmt_doesnotexist");
+        assert_ne!(del["_status"], 200);
+        assert!(del.get("error").is_some());
+
+        let listed = list_comments(master_id);
+        assert_eq!(listed["comments"].as_array().unwrap().len(), 1);
+    });
+}
+
+#[test]
+fn bad_comments_json_errors_on_list_and_writes_without_overwrite() {
+    with_todo_task_sandbox(|wb| {
+        let created = create_master_with_subs("Bad comments json", None);
+        let master_id = created["master_task_id"].as_str().unwrap();
+        let path = comments_json_abs_path(wb, master_id);
+        let bad = "{not valid json";
+        fs::write(&path, bad).expect("seed bad");
+
+        let listed = list_comments(master_id);
+        assert_ne!(listed["_status"], 200);
+        assert!(listed.get("error").is_some());
+        assert_eq!(fs::read_to_string(&path).unwrap(), bad);
+
+        let add = add_comment(master_id, "should fail");
+        assert_ne!(add["_status"], 201);
+        assert!(add.get("error").is_some());
+        assert_eq!(fs::read_to_string(&path).unwrap(), bad);
+
+        let upd = update_comment(master_id, "cmt_x", "nope");
+        assert_ne!(upd["_status"], 200);
+        assert!(upd.get("error").is_some());
+        assert_eq!(fs::read_to_string(&path).unwrap(), bad);
+
+        let del = delete_comment(master_id, "cmt_x");
+        assert_ne!(del["_status"], 200);
+        assert!(del.get("error").is_some());
+        assert_eq!(fs::read_to_string(&path).unwrap(), bad);
+    });
+}
