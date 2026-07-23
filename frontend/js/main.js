@@ -786,9 +786,15 @@ function mountPlanTasksRoute(route) {
   if (!planTasksView) return;
   planTasksView.style.display = '';
 
-  unmountPlanTaskSplit?.();
   const masterId = route?.params?.master ?? '';
   const subId = route?.params?.sub ?? '';
+  // Same page: update selection in-place. Remount would reset pane scroll positions.
+  if (typeof unmountPlanTaskSplit?.applyRoute === 'function') {
+    unmountPlanTaskSplit.applyRoute({ masterId, subId });
+    return;
+  }
+
+  unmountPlanTaskSplit?.();
   const mounted = mountPlanTaskSplit(planTasksView, {
     masterId,
     subId,

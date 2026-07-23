@@ -334,6 +334,91 @@ describe('mountPlanTaskSplit', () => {
     dispose();
   });
 
+  it('preserves master list scroll when selecting another master', async () => {
+    getJsonMock.mockResolvedValue(sampleMasters);
+    const { dispose } = mountPlanTaskSplit(container, {
+      masterId: 'task_alpha',
+      subId: 'task_alpha_sub_01',
+    });
+    await vi.waitFor(() => {
+      expect(
+        container.querySelector('.plan-task-master-item--selected')?.dataset.masterId,
+      ).toBe('task_alpha');
+    });
+    const masterPane = container.querySelector('.plan-task-split-master');
+    masterPane.scrollTop = 140;
+    container.querySelector('[data-master-id="task_migrated_err"]').click();
+    await vi.waitFor(() => {
+      expect(
+        container.querySelector('.plan-task-master-item--selected')?.dataset.masterId,
+      ).toBe('task_migrated_err');
+    });
+    expect(container.querySelector('.plan-task-split-master')?.scrollTop).toBe(140);
+    dispose();
+  });
+
+  it('does not reset detail scroll when re-clicking the selected master', async () => {
+    getJsonMock.mockResolvedValue(sampleMasters);
+    const { dispose } = mountPlanTaskSplit(container, {
+      masterId: 'task_alpha',
+      subId: 'task_alpha_sub_01',
+    });
+    await vi.waitFor(() => {
+      expect(container.querySelector('.plan-task-split-detail')).not.toBeNull();
+    });
+    const detailPane = container.querySelector('.plan-task-split-detail');
+    detailPane.scrollTop = 220;
+    container.querySelector('[data-master-id="task_alpha"]').click();
+    await Promise.resolve();
+    expect(container.querySelector('.plan-task-split-detail')?.scrollTop).toBe(220);
+    expect(
+      container.querySelector('.plan-task-master-item--selected')?.dataset.masterId,
+    ).toBe('task_alpha');
+    dispose();
+  });
+
+  it('preserves detail scroll across same-master paint', async () => {
+    getJsonMock.mockResolvedValue(sampleMasters);
+    const { dispose } = mountPlanTaskSplit(container, {
+      masterId: 'task_alpha',
+      subId: 'task_alpha_sub_01',
+    });
+    await vi.waitFor(() => {
+      expect(container.querySelector('.plan-task-split-detail')).not.toBeNull();
+    });
+    const detailPane = container.querySelector('.plan-task-split-detail');
+    detailPane.scrollTop = 180;
+    document.dispatchEvent(new CustomEvent('plan-task-dialog-close'));
+    expect(container.querySelector('.plan-task-split-detail')?.scrollTop).toBe(180);
+    dispose();
+  });
+
+  it('applyRoute updates selection in-place and keeps master scroll', async () => {
+    getJsonMock.mockResolvedValue(sampleMasters);
+    const api = mountPlanTaskSplit(container, {
+      masterId: 'task_alpha',
+      subId: 'task_alpha_sub_01',
+    });
+    await vi.waitFor(() => {
+      expect(
+        container.querySelector('.plan-task-master-item--selected')?.dataset.masterId,
+      ).toBe('task_alpha');
+    });
+    const masterPane = container.querySelector('.plan-task-split-master');
+    masterPane.scrollTop = 99;
+    api.applyRoute({
+      masterId: 'task_migrated_err',
+      subId: 'task_migrated_err_sub_01',
+    });
+    await vi.waitFor(() => {
+      expect(
+        container.querySelector('.plan-task-master-item--selected')?.dataset.masterId,
+      ).toBe('task_migrated_err');
+    });
+    expect(container.querySelector('.plan-task-split-master')?.scrollTop).toBe(99);
+    api.dispose();
+  });
+
   it('renders title-area master status select with English labels and title markers', async () => {
     getJsonMock.mockResolvedValue(sampleMasters);
     const { dispose } = mountPlanTaskSplit(container, {
@@ -558,10 +643,26 @@ describe('plan-tasks route source wiring', () => {
     expect(body).toMatch(/sub/);
   });
 
+  it('mountPlanTasksRoute applies deep-link in-place when already mounted', () => {
+    const body = extractFunctionBody(mainJs, 'mountPlanTasksRoute');
+    expect(body).toMatch(/applyRoute/);
+    expect(body).toMatch(/unmountPlanTaskSplit\?\.applyRoute/);
+  });
+
   it('app.css defines full-screen split layout classes', () => {
     expect(appCss).toMatch(/\.plan-task-split/);
     expect(appCss).toMatch(/\.plan-task-split-master/);
     expect(appCss).toMatch(/\.plan-task-split-detail/);
+  });
+
+  it('app.css blocks scroll chaining from split panes to the document', () => {
+    expect(appCss).toMatch(
+      /\.plan-task-split-master\s*\{[^}]*overscroll-behavior:\s*none/s,
+    );
+    expect(appCss).toMatch(
+      /\.plan-task-split-detail\s*\{[^}]*overscroll-behavior:\s*none/s,
+    );
+    expect(appCss).toMatch(/body\s*\{[^}]*overflow:\s*hidden/s);
   });
 
   it('app.css styles plan-md preview and three sub status variants', () => {

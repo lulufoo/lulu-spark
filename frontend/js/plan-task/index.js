@@ -973,6 +973,8 @@ export function mountPlanTaskSplit(container, opts = {}) {
   const subTitleDrafts = {};
   let masterTitleDraft = '';
   let masterTitleError = '';
+  /** Last master id painted into the detail pane — used to keep detail scroll across same-master paints. */
+  let paintedMasterId = '';
 
   container.innerHTML = '<div class="plan-task-split-loading">Loading…</div>';
 
@@ -1092,6 +1094,12 @@ export function mountPlanTaskSplit(container, opts = {}) {
     if (!masters.length && container.querySelector('.plan-task-split-error')) {
       return;
     }
+    const masterPane = container.querySelector('.plan-task-split-master');
+    const detailPane = container.querySelector('.plan-task-split-detail');
+    const masterScroll = masterPane?.scrollTop ?? 0;
+    const detailScroll = detailPane?.scrollTop ?? 0;
+    const keepDetailScroll =
+      Boolean(selectedMasterId) && selectedMasterId === paintedMasterId;
     const ui = getUi();
     const masterHtml = renderMasterPane(masters, selectedMasterId, ui.disabled);
     // Keep the same editor element node across paints so in-flight UI refs stay valid.
@@ -1102,6 +1110,11 @@ export function mountPlanTaskSplit(container, opts = {}) {
       detailHtml: renderDetailPane(),
       disabled: ui.disabled,
     });
+    paintedMasterId = selectedMasterId;
+    const nextMaster = container.querySelector('.plan-task-split-master');
+    const nextDetail = container.querySelector('.plan-task-split-detail');
+    if (nextMaster) nextMaster.scrollTop = masterScroll;
+    if (nextDetail && keepDetailScroll) nextDetail.scrollTop = detailScroll;
     if (!attachmentEditor) return;
     if (existingEditor && refreshEditorNode(existingEditor, ui)) {
       container.appendChild(existingEditor);
@@ -1111,6 +1124,43 @@ export function mountPlanTaskSplit(container, opts = {}) {
       'beforeend',
       renderAttachmentEditor(attachmentEditor, ui.disabled),
     );
+  }
+
+  /**
+   * In-place deep-link update (hash change while already on plan-tasks).
+   * No-ops when selection already matches so click→navigate does not double-load.
+   * @param {{ masterId?: string, subId?: string }} [route]
+   */
+  function applyRoute(route = {}) {
+    if (disposed) return;
+    const masterId = route.masterId ?? '';
+    const subId = route.subId ?? '';
+    if (masterId === selectedMasterId && subId === selectedSubId) return;
+    closeSubMenus();
+    resetPlanMdEdit();
+    closeAttachmentEditor();
+    clearSubActionState();
+    clearSubTitleState();
+    masterTitleDraft = '';
+    masterTitleError = '';
+    selectedMasterId = masterId;
+    selectedSubId = subId;
+    validateInitialSubLink = Boolean(subId);
+    deadLink = false;
+    attachments = [];
+    attachmentsError = '';
+    attachmentDeleteConfirm = '';
+    comments = [];
+    commentsError = '';
+    commentEditId = '';
+    commentDeleteConfirm = '';
+    resolveSelection();
+    void (async () => {
+      await loadAttachmentsForSelected();
+      await loadCommentsForSelected();
+      if (disposed) return;
+      paint();
+    })();
   }
 
   function closeAttachmentEditor() {
@@ -2012,6 +2062,11 @@ export function mountPlanTaskSplit(container, opts = {}) {
     const masterBtn = event.target.closest('.plan-task-master-item');
     if (masterBtn?.dataset.masterId) {
       if (controlsDisabled(busy)) return;
+      // Same master: keep list/detail scroll and current sub selection.
+      if (masterBtn.dataset.masterId === selectedMasterId) {
+        closeSubMenus();
+        return;
+      }
       closeSubMenus();
       resetPlanMdEdit();
       closeAttachmentEditor();
@@ -2217,5 +2272,8 @@ export function mountPlanTaskSplit(container, opts = {}) {
     container.innerHTML = '';
   }
 
-  return { dispose, unmount: dispose, refresh };
+  // Match corpus-doc-list: unmount is callable and carries in-place route helpers.
+  dispose.applyRoute = applyRoute;
+  dispose.refresh = refresh;
+  return { dispose, unmount: dispose, refresh, applyRoute };
 }
