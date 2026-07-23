@@ -382,7 +382,7 @@ function renderSubStatusSelect(sub, disabled) {
     .join('');
   return `
     <select
-      class="plan-task-sub-status-select plan-task-sub-status-select--${escHtml(sub.status)}"
+      class="plan-task-status-select plan-task-sub-status-select plan-task-sub-status-select--${escHtml(sub.status)}"
       data-action="change-sub-status"
       data-sub-id="${escHtml(sub.sub_task_id)}"
       aria-label="Sub-task status"${disabledAttr}
@@ -449,7 +449,7 @@ function renderMasterStatusSelect(status, disabled) {
     .join('');
   return `
     <select
-      class="plan-task-master-status-select plan-task-master-status-select--${escHtml(wire)}"
+      class="plan-task-status-select plan-task-master-status-select plan-task-master-status-select--${escHtml(wire)}"
       data-action="change-master-status"
       aria-label="Todo status"${disabledAttr}
     >${options}</select>

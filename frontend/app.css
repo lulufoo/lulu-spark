@@ -2213,37 +2213,104 @@
     font-size: 12px;
     color: #cf222e;
   }
-  .plan-task-master-status-select {
-    flex: 0 0 auto;
-    margin-top: 4px;
+  /* Shared status badge <select> (master + sub) */
+  .plan-task-status-select {
+    --plan-task-status-dot: #0969da;
+    --plan-task-status-fg: #24292f;
+    --plan-task-status-bg: #fff;
+    --plan-task-status-border: #d0d7de;
+    --plan-task-status-bg-hover: #f6f8fa;
+    --plan-task-status-border-hover: #afb8c1;
+    --plan-task-status-ring: rgba(9, 105, 218, 0.16);
+    box-sizing: border-box;
+    max-width: 100%;
+    height: 28px;
+    margin: 0;
+    padding: 0 24px 0 18px;
+    border: 1px solid var(--plan-task-status-border);
+    border-radius: 999px;
     font-size: 12px;
     font-weight: 500;
-    padding: 4px 8px;
-    border-radius: 6px;
-    border: 1px solid #d0d7de;
-    background: #fff;
-    color: #24292f;
-    line-height: 1.4;
+    line-height: 1;
+    letter-spacing: 0;
+    color: var(--plan-task-status-fg);
+    background-color: var(--plan-task-status-bg);
+    background-image:
+      radial-gradient(circle at center, var(--plan-task-status-dot) 0 2.25px, transparent 2.75px),
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12' fill='none'%3E%3Cpath d='M3 4.5L6 7.5L9 4.5' stroke='%2357606a' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: 9px 50%, right 7px 50%;
+    background-size: 5px 5px, 12px 12px;
+    appearance: none;
+    -webkit-appearance: none;
     cursor: pointer;
+    transition: border-color 0.12s ease, background-color 0.12s ease, box-shadow 0.12s ease, color 0.12s ease;
   }
-  .plan-task-master-status-select--incomplete {
-    color: #0969da;
-    border-color: #54aeff;
-    background: #f6fbff;
+  .plan-task-status-select:hover:not(:disabled) {
+    background-color: var(--plan-task-status-bg-hover);
+    border-color: var(--plan-task-status-border-hover);
   }
-  .plan-task-master-status-select--complete {
-    color: #1a7f37;
-    border-color: #4ac26b;
-    background: #f6ffed;
+  .plan-task-status-select:focus {
+    outline: none;
   }
-  .plan-task-master-status-select--abandoned {
-    color: #57606a;
-    border-color: #afb8c1;
-    background: #f6f8fa;
+  .plan-task-status-select:focus-visible {
+    border-color: var(--plan-task-status-border-hover);
+    box-shadow: 0 0 0 3px var(--plan-task-status-ring);
   }
-  .plan-task-master-status-select:disabled {
+  .plan-task-status-select:disabled {
     cursor: default;
     opacity: 1;
+    /* Read-only badge: keep status mark, drop fake dropdown affordance */
+    padding-right: 10px;
+    background-image: radial-gradient(circle at center, var(--plan-task-status-dot) 0 2.25px, transparent 2.75px);
+    background-position: 9px 50%;
+    background-size: 5px 5px;
+  }
+  .plan-task-master-status-select {
+    flex: 0 0 auto;
+    align-self: center;
+  }
+  .plan-task-sub-status-select {
+    height: 24px;
+    font-size: 11px;
+    padding: 0 22px 0 16px;
+    background-position: 8px 50%, right 6px 50%;
+    background-size: 4.5px 4.5px, 11px 11px;
+  }
+  .plan-task-sub-status-select:disabled {
+    padding-right: 8px;
+    background-position: 8px 50%;
+    background-size: 4.5px 4.5px;
+  }
+  .plan-task-master-status-select--incomplete,
+  .plan-task-sub-status-select--incomplete {
+    --plan-task-status-dot: #0969da;
+    --plan-task-status-fg: #0550ae;
+    --plan-task-status-bg: #f6fbff;
+    --plan-task-status-border: #a7d4ff;
+    --plan-task-status-bg-hover: #ddf4ff;
+    --plan-task-status-border-hover: #54aeff;
+    --plan-task-status-ring: rgba(9, 105, 218, 0.18);
+  }
+  .plan-task-master-status-select--complete,
+  .plan-task-sub-status-select--complete {
+    --plan-task-status-dot: #1a7f37;
+    --plan-task-status-fg: #116329;
+    --plan-task-status-bg: #f6ffed;
+    --plan-task-status-border: #9bd99b;
+    --plan-task-status-bg-hover: #dafbe1;
+    --plan-task-status-border-hover: #4ac26b;
+    --plan-task-status-ring: rgba(26, 127, 55, 0.18);
+  }
+  .plan-task-master-status-select--abandoned,
+  .plan-task-sub-status-select--abandoned {
+    --plan-task-status-dot: #6e7781;
+    --plan-task-status-fg: #656d76;
+    --plan-task-status-bg: #f6f8fa;
+    --plan-task-status-border: #d0d7de;
+    --plan-task-status-bg-hover: #eaeef2;
+    --plan-task-status-border-hover: #afb8c1;
+    --plan-task-status-ring: rgba(110, 119, 129, 0.2);
   }
   .plan-task-detail-meta {
     margin: 0;
@@ -2331,36 +2398,6 @@
     margin: 0 0 8px;
     font-size: 12px;
     color: #cf222e;
-  }
-  .plan-task-sub-status-select {
-    font-size: 12px;
-    font-weight: 500;
-    padding: 4px 8px;
-    border-radius: 6px;
-    border: 1px solid #d0d7de;
-    background: #fff;
-    color: #24292f;
-    line-height: 1.4;
-    cursor: pointer;
-  }
-  .plan-task-sub-status-select--incomplete {
-    color: #0969da;
-    border-color: #54aeff;
-    background: #f6fbff;
-  }
-  .plan-task-sub-status-select--complete {
-    color: #1a7f37;
-    border-color: #4ac26b;
-    background: #f6ffed;
-  }
-  .plan-task-sub-status-select--abandoned {
-    color: #57606a;
-    border-color: #afb8c1;
-    background: #f6f8fa;
-  }
-  .plan-task-sub-status-select:disabled {
-    cursor: default;
-    opacity: 1;
   }
   .plan-task-sub-header-actions {
     display: flex;
