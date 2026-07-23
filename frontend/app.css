@@ -2013,6 +2013,55 @@
     background: #f6f8fa;
     flex-shrink: 0;
   }
+  .plan-tasks-page-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-shrink: 0;
+  }
+  .plan-task-active-only {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+    cursor: pointer;
+    user-select: none;
+    color: #24292f;
+    font-size: 13px;
+  }
+  .plan-task-active-only-switch {
+    position: relative;
+    width: 36px;
+    height: 20px;
+    padding: 0;
+    border: 1px solid #d0d7de;
+    border-radius: 999px;
+    background: #eaeef2;
+    cursor: pointer;
+  }
+  .plan-task-active-only-switch::after {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+    transition: left 0.12s ease;
+  }
+  .plan-task-active-only-switch[aria-checked='true'] {
+    background: #1f883d;
+    border-color: #1f883d;
+  }
+  .plan-task-active-only-switch[aria-checked='true']::after {
+    left: 18px;
+  }
+  .plan-task-active-only-switch:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
   .plan-tasks-page-title {
     margin: 0;
     font-size: 18px;

@@ -271,12 +271,40 @@ function renderRefreshWarning(refreshWarning, disabled) {
   `;
 }
 
-function renderPageHeader(disabled) {
+const ACTIVE_ONLY_LABEL = 'Active only';
+const ACTIVE_ONLY_EMPTY_TITLE = 'No active todos';
+const ACTIVE_ONLY_EMPTY_DETAIL =
+  'Turn off Active only to see completed and abandoned todos.';
+
+function isIncompleteMaster(master) {
+  return masterStatusClass(master?.status) === 'incomplete';
+}
+
+function filterMastersForView(masters, activeOnly) {
+  if (!activeOnly) return masters;
+  return masters.filter(isIncompleteMaster);
+}
+
+function renderPageHeader(disabled, activeOnly = true) {
   const disabledAttr = disabled ? ' disabled' : '';
+  const checked = activeOnly ? 'true' : 'false';
   return `
     <header class="plan-tasks-page-header">
       <h1 class="plan-tasks-page-title">Todos</h1>
-      <button type="button" class="md-header-btn primary" data-action="create-master"${disabledAttr}>+ New todo</button>
+      <div class="plan-tasks-page-header-actions">
+        <label class="plan-task-active-only">
+          <span class="plan-task-active-only-label">${ACTIVE_ONLY_LABEL}</span>
+          <button
+            type="button"
+            class="plan-task-active-only-switch"
+            role="switch"
+            data-action="toggle-active-only"
+            aria-checked="${checked}"
+            aria-label="${ACTIVE_ONLY_LABEL}"${disabledAttr}
+          ></button>
+        </label>
+        <button type="button" class="md-header-btn primary" data-action="create-master"${disabledAttr}>+ New todo</button>
+      </div>
     </header>
   `;
 }
@@ -319,11 +347,24 @@ function renderMasterEmpty(disabled) {
   `;
 }
 
-function renderMasterPane(masters, selectedMasterId, disabled) {
+function renderActiveOnlyEmpty() {
+  return `
+    <div class="plan-task-empty plan-task-empty--sidebar">
+      <p class="plan-task-empty-title">${ACTIVE_ONLY_EMPTY_TITLE}</p>
+      <p class="plan-task-empty-detail">${ACTIVE_ONLY_EMPTY_DETAIL}</p>
+    </div>
+  `;
+}
+
+function renderMasterPane(masters, selectedMasterId, disabled, activeOnly = true) {
+  const visible = filterMastersForView(masters, activeOnly);
   if (!masters.length) {
     return renderMasterEmpty(disabled);
   }
-  return renderMasterList(masters, selectedMasterId, disabled);
+  if (!visible.length) {
+    return renderActiveOnlyEmpty();
+  }
+  return renderMasterList(visible, selectedMasterId, disabled);
 }
 
 function renderLinkedArchives(linkedArchiveIds) {
@@ -905,10 +946,10 @@ function renderErrorEmpty(message = UNAVAILABLE_MSG) {
   `;
 }
 
-function renderPageShell({ masterHtml, detailHtml, disabled = false }) {
+function renderPageShell({ masterHtml, detailHtml, disabled = false, activeOnly = true }) {
   return `
     <div class="plan-tasks-page">
-      ${renderPageHeader(disabled)}
+      ${renderPageHeader(disabled, activeOnly)}
       <div class="plan-task-split">
         <aside class="plan-task-split-master" aria-label="Todos list">${masterHtml}</aside>
         <section class="plan-task-split-detail" aria-label="Task details">${detailHtml}</section>
@@ -975,6 +1016,7 @@ export function mountPlanTaskSplit(container, opts = {}) {
   let masterTitleError = '';
   /** Last master id painted into the detail pane — used to keep detail scroll across same-master paints. */
   let paintedMasterId = '';
+  let activeOnly = true;
 
   container.innerHTML = '<div class="plan-task-split-loading">Loading…</div>';
 
@@ -1037,32 +1079,51 @@ export function mountPlanTaskSplit(container, opts = {}) {
     });
   }
 
+  function enforceActiveOnlySelection() {
+    if (!selectedMasterId || !activeOnly) return;
+    const master = findMaster(selectedMasterId);
+    if (!master) return;
+    if (!isIncompleteMaster(master)) {
+      selectedMasterId = '';
+      selectedSubId = '';
+      deadLink = false;
+      masterTitleDraft = '';
+      masterTitleError = '';
+      attachments = [];
+      attachmentsError = '';
+      comments = [];
+      commentsError = '';
+    }
+  }
+
   function resolveSelection() {
     deadLink = false;
     if (!selectedMasterId) {
       selectedSubId = '';
-      return;
-    }
-    const master = findMaster(selectedMasterId);
-    if (!master) {
-      deadLink = true;
-      selectedSubId = '';
-      return;
-    }
-    const subs = master.sub_tasks ?? [];
-    if (validateInitialSubLink && initialSubId && selectedSubId === initialSubId) {
-      validateInitialSubLink = false;
-      const sub = subs.find((item) => item.sub_task_id === selectedSubId);
-      if (!sub) {
+    } else {
+      const master = findMaster(selectedMasterId);
+      if (!master) {
         deadLink = true;
         selectedSubId = '';
+      } else {
+        const subs = master.sub_tasks ?? [];
+        if (validateInitialSubLink && initialSubId && selectedSubId === initialSubId) {
+          validateInitialSubLink = false;
+          const sub = subs.find((item) => item.sub_task_id === selectedSubId);
+          if (!sub) {
+            deadLink = true;
+            selectedSubId = '';
+          }
+        } else if (
+          !selectedSubId ||
+          !subs.some((item) => item.sub_task_id === selectedSubId)
+        ) {
+          const fallback = pickDefaultSub(master);
+          selectedSubId = fallback?.sub_task_id ?? '';
+        }
       }
-      return;
     }
-    if (!selectedSubId || !subs.some((item) => item.sub_task_id === selectedSubId)) {
-      const fallback = pickDefaultSub(master);
-      selectedSubId = fallback?.sub_task_id ?? '';
-    }
+    enforceActiveOnlySelection();
   }
 
   function renderDetailPane() {
@@ -1101,7 +1162,7 @@ export function mountPlanTaskSplit(container, opts = {}) {
     const keepDetailScroll =
       Boolean(selectedMasterId) && selectedMasterId === paintedMasterId;
     const ui = getUi();
-    const masterHtml = renderMasterPane(masters, selectedMasterId, ui.disabled);
+    const masterHtml = renderMasterPane(masters, selectedMasterId, ui.disabled, activeOnly);
     // Keep the same editor element node across paints so in-flight UI refs stay valid.
     const existingEditor = container.querySelector('.plan-task-attachment-editor');
     if (existingEditor) existingEditor.remove();
@@ -1109,6 +1170,7 @@ export function mountPlanTaskSplit(container, opts = {}) {
       masterHtml,
       detailHtml: renderDetailPane(),
       disabled: ui.disabled,
+      activeOnly,
     });
     paintedMasterId = selectedMasterId;
     const nextMaster = container.querySelector('.plan-task-split-master');
@@ -1857,6 +1919,15 @@ export function mountPlanTaskSplit(container, opts = {}) {
       event.preventDefault();
       if (controlsDisabled(busy)) return;
       cancelPlanMdEdit();
+      return;
+    }
+
+    if (action === 'toggle-active-only') {
+      event.preventDefault();
+      if (controlsDisabled(busy)) return;
+      activeOnly = !activeOnly;
+      enforceActiveOnlySelection();
+      paint();
       return;
     }
 
