@@ -66,6 +66,13 @@ const TODO_TASK_ATTACHMENT_COMMANDS: &[&str] = &[
     "delete_todo_attachment",
 ];
 
+const TODO_TASK_COMMENT_COMMANDS: &[&str] = &[
+    "list_todo_comments",
+    "add_todo_comment",
+    "update_todo_comment",
+    "delete_todo_comment",
+];
+
 const NOTE_WRITE_COMMANDS: &[&str] = &["archive_document"];
 
 const AI_ASSISTANT_WRITE_COMMANDS: &[&str] = &[
@@ -145,6 +152,7 @@ fn todo_task_fm4_and_lifecycle_commands_coexist_in_acl() {
         .iter()
         .chain(TODO_TASK_LIFECYCLE_COMMANDS.iter())
         .chain(TODO_TASK_ATTACHMENT_COMMANDS.iter())
+        .chain(TODO_TASK_COMMENT_COMMANDS.iter())
         .copied()
         .collect();
     let missing: Vec<_> = all.iter().filter(|cmd| !allow.contains(**cmd)).copied().collect();
@@ -156,8 +164,9 @@ fn todo_task_fm4_and_lifecycle_commands_coexist_in_acl() {
         all.len(),
         TODO_TASK_WRITE_COMMANDS.len()
             + TODO_TASK_LIFECYCLE_COMMANDS.len()
-            + TODO_TASK_ATTACHMENT_COMMANDS.len(),
-        "expected fifteen distinct plan task ACL entries"
+            + TODO_TASK_ATTACHMENT_COMMANDS.len()
+            + TODO_TASK_COMMENT_COMMANDS.len(),
+        "expected nineteen distinct plan task ACL entries"
     );
 }
 
@@ -167,6 +176,22 @@ fn todo_task_attachment_commands_are_acl_allowed() {
     let toml = fs::read_to_string(root.join("permissions/write-api.toml")).expect("toml");
     let allow = parse_write_api_toml_allow(&toml);
     let missing: Vec<_> = TODO_TASK_ATTACHMENT_COMMANDS
+        .iter()
+        .filter(|cmd| !allow.contains(**cmd))
+        .copied()
+        .collect();
+    assert!(
+        missing.is_empty(),
+        "commands missing from write-api.toml ACL: {missing:?}"
+    );
+}
+
+#[test]
+fn todo_task_comment_commands_are_acl_allowed() {
+    let root = manifest_dir();
+    let toml = fs::read_to_string(root.join("permissions/write-api.toml")).expect("toml");
+    let allow = parse_write_api_toml_allow(&toml);
+    let missing: Vec<_> = TODO_TASK_COMMENT_COMMANDS
         .iter()
         .filter(|cmd| !allow.contains(**cmd))
         .copied()

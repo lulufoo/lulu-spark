@@ -3,13 +3,14 @@ use std::fs;
 use serde_json::json;
 
 use crate::commands::todo_task::{
-    abandon_todo_sub_json, add_todo_attachment, add_todo_attachment_json, add_todo_sub_json,
-    complete_todo, complete_todo_json, create_todo_task_json, delete_todo_attachment,
-    delete_todo_attachment_json, delete_todo_sub_json, delete_todo_task_json,
-    get_todo_tasks_json, list_todo_attachments, list_todo_attachments_json,
-    read_todo_attachment, read_todo_attachment_json, read_todo_md_json,
-    save_todo_attachment, save_todo_attachment_json, update_todo_master_title_json,
-    update_todo_md_json,
+    abandon_todo_sub_json, add_todo_attachment, add_todo_attachment_json, add_todo_comment,
+    add_todo_comment_json, add_todo_sub_json, complete_todo, complete_todo_json,
+    create_todo_task_json, delete_todo_attachment, delete_todo_attachment_json,
+    delete_todo_comment, delete_todo_comment_json, delete_todo_sub_json, delete_todo_task_json,
+    get_todo_tasks_json, list_todo_attachments, list_todo_attachments_json, list_todo_comments,
+    list_todo_comments_json, read_todo_attachment, read_todo_attachment_json, read_todo_md_json,
+    save_todo_attachment, save_todo_attachment_json, update_todo_comment, update_todo_comment_json,
+    update_todo_master_title_json, update_todo_md_json,
 };
 use crate::services::todo_task::{
     create_master_with_subs, list_all, test_reset_all_injection_flags, test_run_write_task_batch,
@@ -923,5 +924,141 @@ fn ac15_command_delete_dual_clear_via_list() {
 
         let listed = list_todo_attachments_json(&master_id).expect("list");
         assert!(listed["attachments"].as_array().expect("arr").is_empty());
+    });
+}
+
+#[test]
+fn todo_comment_command_symbols_exist_for_handler_registration() {
+    // Smoke: async command symbols exist for generate_handler! registration.
+    let _ = list_todo_comments;
+    let _ = add_todo_comment;
+    let _ = update_todo_comment;
+    let _ = delete_todo_comment;
+}
+
+#[test]
+fn add_todo_comment_json_success_strips_status() {
+    with_commands_todo_test(|| {
+        let created = create_todo_task_json("Comment cmd", None, "").expect("create");
+        let master_id = created["master_task_id"].as_str().expect("id").to_string();
+
+        let added = add_todo_comment_json(&master_id, "process note").expect("add");
+        assert!(added.get("_status").is_none());
+        let id = added["id"].as_str().expect("id");
+        assert!(id.starts_with("cmt_"), "id={id}");
+        assert_eq!(added["body"], "process note");
+        assert!(added.get("created_at").and_then(|v| v.as_str()).is_some());
+    });
+}
+
+#[test]
+fn add_todo_comment_json_rejects_empty_body_with_400_class() {
+    with_commands_todo_test(|| {
+        let created = create_todo_task_json("Comment empty", None, "").expect("create");
+        let master_id = created["master_task_id"].as_str().expect("id");
+
+        let v = add_todo_comment_json(master_id, "   ").expect("invoke");
+        assert_eq!(v["error"], "Comment body must not be empty");
+        assert_eq!(v["_status"], 400);
+    });
+}
+
+#[test]
+fn add_todo_comment_json_unknown_master_returns_404_class() {
+    with_commands_todo_test(|| {
+        let v = add_todo_comment_json("task_nonexistent_aaaaaaaaaaaaaaaa", "x").expect("invoke");
+        assert_eq!(v["error"], "Task not found");
+        assert_eq!(v["_status"], 404);
+    });
+}
+
+#[test]
+fn list_todo_comments_json_returns_entries_without_status() {
+    with_commands_todo_test(|| {
+        let created = create_todo_task_json("List comments", None, "").expect("create");
+        let master_id = created["master_task_id"].as_str().expect("id").to_string();
+        add_todo_comment_json(&master_id, "first").expect("add a");
+        add_todo_comment_json(&master_id, "second").expect("add b");
+
+        let listed = list_todo_comments_json(&master_id).expect("list");
+        assert!(listed.get("_status").is_none());
+        let comments = listed["comments"].as_array().expect("comments");
+        assert_eq!(comments.len(), 2);
+        assert_eq!(comments[0]["body"], "first");
+        assert_eq!(comments[1]["body"], "second");
+    });
+}
+
+#[test]
+fn list_todo_comments_json_unknown_returns_404_class() {
+    with_commands_todo_test(|| {
+        let v = list_todo_comments_json("task_nonexistent_aaaaaaaaaaaaaaaa").expect("invoke");
+        assert_eq!(v["error"], "Task not found");
+        assert_eq!(v["_status"], 404);
+    });
+}
+
+#[test]
+fn update_todo_comment_json_changes_body_without_status() {
+    with_commands_todo_test(|| {
+        let created = create_todo_task_json("Update comment cmd", None, "").expect("create");
+        let master_id = created["master_task_id"].as_str().expect("id").to_string();
+        let added = add_todo_comment_json(&master_id, "old").expect("add");
+        let comment_id = added["id"].as_str().expect("id").to_string();
+        let created_at = added["created_at"].as_str().expect("created_at").to_string();
+
+        let updated =
+            update_todo_comment_json(&master_id, &comment_id, "new body").expect("update");
+        assert!(updated.get("_status").is_none());
+        assert_eq!(updated["id"], comment_id);
+        assert_eq!(updated["body"], "new body");
+        assert_eq!(updated["created_at"], created_at);
+
+        let listed = list_todo_comments_json(&master_id).expect("list");
+        let comments = listed["comments"].as_array().expect("comments");
+        assert_eq!(comments.len(), 1);
+        assert_eq!(comments[0]["body"], "new body");
+        assert_eq!(comments[0]["created_at"], created_at);
+    });
+}
+
+#[test]
+fn update_todo_comment_json_unknown_id_returns_404_class() {
+    with_commands_todo_test(|| {
+        let created = create_todo_task_json("Update missing", None, "").expect("create");
+        let master_id = created["master_task_id"].as_str().expect("id");
+
+        let v = update_todo_comment_json(master_id, "cmt_missing00000001", "x").expect("invoke");
+        assert_eq!(v["error"], "Comment not found");
+        assert_eq!(v["_status"], 404);
+    });
+}
+
+#[test]
+fn delete_todo_comment_json_removes_and_strips_status() {
+    with_commands_todo_test(|| {
+        let created = create_todo_task_json("Del comment cmd", None, "").expect("create");
+        let master_id = created["master_task_id"].as_str().expect("id").to_string();
+        let added = add_todo_comment_json(&master_id, "gone").expect("add");
+        let comment_id = added["id"].as_str().expect("id").to_string();
+
+        let deleted = delete_todo_comment_json(&master_id, &comment_id).expect("delete");
+        assert!(deleted.get("_status").is_none());
+        assert_eq!(deleted["ok"], true);
+
+        let listed = list_todo_comments_json(&master_id).expect("list");
+        assert!(listed["comments"].as_array().expect("arr").is_empty());
+    });
+}
+
+#[test]
+fn delete_todo_comment_json_unknown_returns_404_class() {
+    with_commands_todo_test(|| {
+        let created = create_todo_task_json("Del missing comment", None, "").expect("create");
+        let master_id = created["master_task_id"].as_str().expect("id");
+
+        let v = delete_todo_comment_json(master_id, "cmt_missing00000001").expect("invoke");
+        assert_eq!(v["error"], "Comment not found");
+        assert_eq!(v["_status"], 404);
     });
 }

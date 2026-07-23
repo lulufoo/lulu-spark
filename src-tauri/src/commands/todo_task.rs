@@ -132,6 +132,29 @@ pub fn delete_todo_attachment_json(
     map_invoke_value(todo_task::delete_attachment(master_task_id, file_name))
 }
 
+pub fn list_todo_comments_json(master_task_id: &str) -> Result<Value, String> {
+    map_invoke_value(todo_task::list_comments(master_task_id))
+}
+
+pub fn add_todo_comment_json(master_task_id: &str, body: &str) -> Result<Value, String> {
+    map_invoke_value(todo_task::add_comment(master_task_id, body))
+}
+
+pub fn update_todo_comment_json(
+    master_task_id: &str,
+    comment_id: &str,
+    body: &str,
+) -> Result<Value, String> {
+    map_invoke_value(todo_task::update_comment(master_task_id, comment_id, body))
+}
+
+pub fn delete_todo_comment_json(
+    master_task_id: &str,
+    comment_id: &str,
+) -> Result<Value, String> {
+    map_invoke_value(todo_task::delete_comment(master_task_id, comment_id))
+}
+
 #[tauri::command]
 pub async fn get_todo_tasks(_app: AppHandle) -> Result<Value, String> {
     tauri::async_runtime::spawn_blocking(get_todo_tasks_json)
@@ -358,6 +381,54 @@ pub async fn delete_todo_attachment(
 ) -> Result<Value, String> {
     tauri::async_runtime::spawn_blocking(move || {
         delete_todo_attachment_json(&master_task_id, &file_name)
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+pub async fn list_todo_comments(
+    _app: AppHandle,
+    master_task_id: String,
+) -> Result<Value, String> {
+    tauri::async_runtime::spawn_blocking(move || list_todo_comments_json(&master_task_id))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+pub async fn add_todo_comment(
+    _app: AppHandle,
+    master_task_id: String,
+    body: String,
+) -> Result<Value, String> {
+    tauri::async_runtime::spawn_blocking(move || add_todo_comment_json(&master_task_id, &body))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+pub async fn update_todo_comment(
+    _app: AppHandle,
+    master_task_id: String,
+    comment_id: String,
+    body: String,
+) -> Result<Value, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        update_todo_comment_json(&master_task_id, &comment_id, &body)
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+pub async fn delete_todo_comment(
+    _app: AppHandle,
+    master_task_id: String,
+    comment_id: String,
+) -> Result<Value, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        delete_todo_comment_json(&master_task_id, &comment_id)
     })
     .await
     .map_err(|e| e.to_string())?

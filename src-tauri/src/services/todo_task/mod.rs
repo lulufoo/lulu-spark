@@ -335,7 +335,7 @@ fn write_index_snapshot(path: &Path, index: &PlanTasksIndex) -> Result<(), Strin
 fn rollback_before_index(master_task_id: &str) -> Result<(), String> {
     let task_dir = paths::plan_tasks_task_dir(master_task_id).map_err(|e| format!("{e:?}"))?;
     if task_dir.exists() {
-        // AC8: whole task_dir cascade — includes attachments/ and attachments.json.
+        // Whole task_dir cascade — includes attachments/, attachments.json, comments.json.
         fs::remove_dir_all(&task_dir).map_err(|e| e.to_string())?;
     }
     Ok(())
@@ -1563,20 +1563,20 @@ pub fn update_comment(master_task_id: &str, comment_id: &str, body: &str) -> Val
         };
         let path = task_dir.join("comments.json");
 
-        let Some(entry) = file.comments.iter_mut().find(|c| c.id == comment_id) else {
+        let Some(pos) = file.comments.iter().position(|c| c.id == comment_id) else {
             return json!({ "error": "Comment not found", "_status": 404 });
         };
-        entry.body = body.to_string();
-        let updated_entry = entry.clone();
+        file.comments[pos].body = body.to_string();
 
         if let Err(e) = save_comments_file_unlocked(&path, &file) {
             return json!({ "error": e, "_status": 500 });
         }
 
+        let updated = &file.comments[pos];
         json!({
-            "id": updated_entry.id,
-            "body": updated_entry.body,
-            "created_at": updated_entry.created_at,
+            "id": updated.id,
+            "body": updated.body,
+            "created_at": updated.created_at,
             "_status": 200,
         })
     })
