@@ -189,6 +189,7 @@ def render_archive_markdown(
     ts: str,
     source_label: str,
     ts_display: str | None,
+    omit_digest_nav: bool = False,
 ) -> str:
     """Render clean-raw turns into dialogue-archive Core Output Shape (verbatim u/a)."""
     if not _TS_RE.match(ts):
@@ -201,7 +202,12 @@ def render_archive_markdown(
         "",
         f"> 创建时间：{disp}",
         f"> 来源：{source_label}",
-        f"> 导航：[digest](../../../digest/{common})",
+    ]
+    if omit_digest_nav:
+        parts.append("> 落点：local-md")
+    else:
+        parts.append(f"> 导航：[digest](../../../digest/{common})")
+    parts += [
         "",
         "---",
         "",
@@ -239,6 +245,7 @@ def cmd_to_archive_md(
     source_label: str,
     ts_display: str | None,
     omit_empty_ai: bool,
+    omit_digest_nav: bool = False,
 ) -> int:
     doc = json.loads(clean_raw.read_text(encoding="utf-8"))
     turns = list(doc.get("turns") or [])
@@ -273,6 +280,7 @@ def cmd_to_archive_md(
         ts=ts,
         source_label=source_label,
         ts_display=ts_display,
+        omit_digest_nav=omit_digest_nav,
     )
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(md, encoding="utf-8")
@@ -330,6 +338,11 @@ def main() -> int:
         action="store_true",
         help="Skip turns whose assistant body is empty (e.g. in-progress last turn)",
     )
+    p3.add_argument(
+        "--omit-digest-nav",
+        action="store_true",
+        help="Omit digest navigation line (sink=local-md)",
+    )
 
     args = ap.parse_args()
     if args.cmd == "from-jsonl":
@@ -362,6 +375,7 @@ def main() -> int:
             source_label=args.source_label,
             ts_display=args.ts_display,
             omit_empty_ai=bool(args.omit_empty_ai),
+            omit_digest_nav=bool(args.omit_digest_nav),
         )
     return 2
 

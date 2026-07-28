@@ -19,7 +19,7 @@ $TRANSCRIPT_CLEAN = python3 "$SKILL_DIR/scripts/transcript-clean-control.py"
 |------------|---------|
 | `from-jsonl` | Cursor agent-transcript jsonl → clean-raw.json |
 | `from-raw-md` | Messy TURN_SEP / User·AI markdown → clean-raw.json |
-| `to-archive-md` | clean-raw.json → dialogue-archive Core Output Shape markdown (`--omit-empty-ai` skips empty assistant turns) |
+| `to-archive-md` | clean-raw.json → dialogue-archive Core Output Shape markdown (`--omit-empty-ai` skips empty assistant turns; `--omit-digest-nav` for sink=local-md) |
 
 Contracts: script `--help` / module docstring.
 

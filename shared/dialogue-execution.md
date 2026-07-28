@@ -52,16 +52,16 @@ User need **not** say “用 sub-agent / 用 Grok” each run.
 | Skill | Worker Phase A | Parent Phase B |
 |-------|----------------|----------------|
 | `dialogue-summary` | Steps 1–6 (spine / Gate / summary body) per that SKILL | `archive_document` `source_type: summary` + digest |
-| `dialogue-archive` | Infer title / project / doc-theme / slug / ts; run `$TRANSCRIPT_CLEAN to-archive-md`; **do not rewrite** `u`/`a` | `archive_document` `source_type: dialogue` + digest when ≥2 Turn blocks |
+| `dialogue-archive` | Infer title / project / doc-theme / slug / ts; run `$TRANSCRIPT_CLEAN to-archive-md`; **do not rewrite** `u`/`a` | Resolve `sink`: `workbench` → `archive_document` + digest when ≥2 Turn blocks; `local-md` → `.cache` md only, no MCP |
 
 ---
 
 ## Parent happy path
 
 1. Resolve jsonl from session id / current chat / user path.
-2. Confirm Workbench MCP available (archive Phase B).
+2. For archive skills: resolve `sink` (`workbench` default; `local-md` when user intent refuses Workbench persist). Confirm Workbench MCP only when Phase B needs MCP.
 3. `$TRANSCRIPT_CLEAN from-jsonl` → clean-raw path.
 4. Dispatch Grok worker with skill-specific prompt (see each skill `references/execution.md`).
-5. On receipt: deliver body / archive markdown path; Phase B MCP if archiving.
+5. On receipt: deliver body / archive markdown path; Phase B per `sink` (MCP for `workbench`; local `.cache` only for `local-md`).
 
-**Done when:** body delivered (and archived if requested).
+**Done when:** body delivered (and sunk per `sink`).
