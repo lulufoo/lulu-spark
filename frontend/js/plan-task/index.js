@@ -24,6 +24,11 @@ const ATTACHMENTS_EMPTY_MSG = 'No attachments';
 const ATTACHMENT_PICK_CANCEL_MSG = 'File selection cancelled';
 const COMMENTS_EMPTY_MSG = 'No process notes';
 const AI_ASSISTANT_TURN_COMPLETED = 'ai-assistant:turn-completed';
+/**
+ * t4 / N1: `open_ai_assistant(masterTaskId)` is not Todos executable success main path.
+ * Page entry Present uses `present_ai_assistant`; Binding is via Binding Contract Set.
+ */
+export const TODOS_OPEN_AND_BIND_MAIN_PATH_DISABLED = true;
 const COPY_MASTER_ID_LABEL = 'Copy task ID';
 const COPY_FEEDBACK_LABEL = '✓ Copied';
 const COPY_FEEDBACK_MS = 1200;

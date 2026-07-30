@@ -193,6 +193,12 @@ export function mountPlanTaskAssistant(root, opts = {}) {
   return { dispose, refresh: refreshAssistantTop3 };
 }
 
+/**
+ * t4 Boundary Out: FAB Top3 stays non-chat list widget — not Present/Set/execute.
+ * De-embed does not upgrade this surface into a chat entry.
+ */
+export const PLAN_TASK_ASSISTANT_FAB_CHAT_DISABLED = true;
+
 /** Brand / a11y labels for the Todos content region (shell owns overlay title). */
 export const PLAN_TASK_CONTENT_LABEL = 'Open Todos';
 export const PLAN_TASK_CONTENT_TITLE = 'Todos';
