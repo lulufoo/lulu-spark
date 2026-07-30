@@ -1,11 +1,18 @@
 /**
  * Plan-page AI assistant window shell.
  * Talks only via Host `agent_chat_turn` — never plan_task write commands.
+ *
+ * Host dual surface:
+ * - Binding Contract: Set/Reset/query/execute (+ callbacks)
+ * - Present: shell open/focus (maps to create_or_focus); Present does not imply Set.
+ * 关壳 ≠ Reset — dispose notifies shell_close only; never Binding Contract Reset.
  */
 
 import { escHtml } from './utils.js';
 
 const OPENED_EVENT = 'ai-assistant:opened';
+/** Present surface name — not a Binding Contract op; Present≠bound. */
+const PRESENT_SURFACE = 'Present';
 
 function getTauriInvoke() {
   if (typeof window === 'undefined') return null;
@@ -206,13 +213,25 @@ export function mountAiAssistant(root, opts = {}) {
     if (typeof unlistenOpened === 'function') {
       void unlistenOpened();
     }
+    // 关壳 ≠ Reset: notify Present shell close only; never invoke Binding Contract Reset.
+    const invoke = getTauriInvoke();
+    if (invoke) {
+      void invoke('shell_close_ai_assistant').catch(() => {});
+    }
     root.innerHTML = '';
   }
 
   return {
     dispose,
     applyBinding,
-    getState: () => ({ sessionId, boundMasterTaskId, boundTitle, messages }),
+    getState: () => ({
+      sessionId,
+      boundMasterTaskId,
+      boundTitle,
+      messages,
+      // Shell UX session binding ≠ Binding Contract bound (Present does not imply Set).
+      presentSurface: PRESENT_SURFACE,
+    }),
   };
 }
 

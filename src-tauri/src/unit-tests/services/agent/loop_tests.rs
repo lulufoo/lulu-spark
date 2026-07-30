@@ -1537,3 +1537,161 @@ fn callback_payload_is_event_plus_category_only() {
         }
     });
 }
+
+// --- Present shell surface: Present≠Set≠bound; not Binding Contract ops (t4) ---
+
+#[test]
+fn binding_contract_ops_exclude_present_and_open() {
+    with_sandbox(|| {
+        let ops = r#loop::binding_contract_ops();
+        let normalized: Vec<String> = ops
+            .iter()
+            .map(|s| s.to_ascii_lowercase())
+            .collect();
+        for required in ["set", "reset", "query", "execute"] {
+            assert!(
+                normalized.iter().any(|op| op == required),
+                "Binding Contract ops must include {required}; got {ops:?}"
+            );
+        }
+        assert!(
+            normalized.iter().any(|op| op.contains("callback")),
+            "Binding Contract ops must include callbacks surface; got {ops:?}"
+        );
+        for forbidden in ["present", "open"] {
+            assert!(
+                normalized
+                    .iter()
+                    .all(|op| op != forbidden && !op.contains(forbidden)),
+                "Present/Open must not appear in Binding Contract ops: {ops:?}"
+            );
+        }
+    });
+}
+
+#[test]
+fn present_ai_assistant_maps_to_shell_focus_without_set() {
+    with_sandbox(|| {
+        assert_query_unbound(&r#loop::query_binding());
+        let outcome = r#loop::present_ai_assistant_core().expect("Present must succeed");
+        assert_eq!(
+            outcome.window_label, r#loop::WINDOW_LABEL,
+            "Present maps to existing ai-assistant shell focus surface"
+        );
+        assert_eq!(
+            outcome.surface, "Present",
+            "semantic surface name is Present (not a Binding Contract op)"
+        );
+        assert_query_unbound(&r#loop::query_binding());
+        let err = r#loop::execute_binding().expect_err("Present alone must not enable execute");
+        assert_eq!(err.as_code(), "rejected_unbound");
+    });
+}
+
+#[test]
+fn present_preserves_binding_state_unbound_and_bound() {
+    with_sandbox(|| {
+        // unbound → Present → still unbound
+        assert_query_unbound(&r#loop::query_binding());
+        r#loop::present_ai_assistant_core().expect("Present unbound");
+        assert_query_unbound(&r#loop::query_binding());
+
+        // bound → Present → still bound (same generation)
+        r#loop::set_binding(valid_binding()).expect("Set");
+        let before = r#loop::query_binding();
+        assert_query_bound(&before);
+        r#loop::clear_lifecycle_events_for_tests();
+        r#loop::present_ai_assistant_core().expect("Present while bound");
+        let after = r#loop::query_binding();
+        assert_eq!(
+            after, before,
+            "Present must not change query state while bound"
+        );
+        let events = r#loop::drain_lifecycle_events();
+        assert!(
+            events.is_empty(),
+            "Present must not emit Binding lifecycle events: {events:?}"
+        );
+    });
+}
+
+#[test]
+fn present_path_does_not_write_contract_business_binding_primary_key() {
+    with_sandbox(|| {
+        let master = create_bound_plan("Present无契约业务主键");
+        // Present core must not smear a business primary key into Binding Contract state.
+        let _ = r#loop::present_ai_assistant_core().expect("Present");
+        assert_query_unbound(&r#loop::query_binding());
+        assert_query_is_business_agnostic(&r#loop::query_binding());
+
+        // Legacy open may still carry a master id for shell UX, but must not imply Set/bound.
+        let _ = r#loop::open_ai_assistant_core(&master);
+        assert_eq!(
+            r#loop::binding_state(),
+            "unbound",
+            "open/Present path must not imply Binding Contract bound"
+        );
+        let q = r#loop::query_binding();
+        assert_query_is_business_agnostic(&q);
+        let encoded = serde_json::to_value(&q).unwrap();
+        assert!(
+            !encoded
+                .as_object()
+                .unwrap()
+                .keys()
+                .any(|k| k.contains("master_task")),
+            "contract query must not expose business binding primary key: {encoded}"
+        );
+    });
+}
+
+#[test]
+fn shell_close_is_not_reset_and_does_not_emit_on_unbound() {
+    with_sandbox(|| {
+        r#loop::set_binding(valid_binding()).expect("Set");
+        let before = r#loop::query_binding();
+        assert_query_bound(&before);
+        r#loop::clear_lifecycle_events_for_tests();
+
+        r#loop::shell_close_core().expect("shell close (关壳) must be callable");
+        let after = r#loop::query_binding();
+        assert_eq!(
+            after, before,
+            "关壳 ≠ Reset: binding state must stay bound until explicit Reset"
+        );
+        let events = r#loop::drain_lifecycle_events();
+        assert!(
+            events.iter().all(|e| e.event != "onUnbound"),
+            "关壳 must not emit onUnbound; Reset must be explicit: {events:?}"
+        );
+
+        // Explicit Reset still works after shell close.
+        r#loop::reset_binding().expect("explicit Reset");
+        assert_query_unbound(&r#loop::query_binding());
+    });
+}
+
+#[test]
+fn present_command_json_does_not_set_binding() {
+    with_sandbox(|| {
+        use crate::commands::ai_assistant::{
+            execute_binding_json, present_ai_assistant_json, query_binding_json, set_binding_json,
+        };
+        let presented = present_ai_assistant_json().expect("Present command");
+        assert_eq!(presented["surface"], "Present");
+        assert_eq!(presented["window_label"], r#loop::WINDOW_LABEL);
+        let q = query_binding_json();
+        assert_eq!(q["state"], "unbound");
+        let exec = execute_binding_json();
+        assert_eq!(exec["ok"], false);
+        assert_eq!(exec["code"], "rejected_unbound");
+
+        // Present after Set still leaves bound and does not replace.
+        let set = set_binding_json(serde_json::to_value(valid_binding()).unwrap());
+        assert_eq!(set["ok"], true);
+        let gen_before = query_binding_json()["generation"].clone();
+        let _ = present_ai_assistant_json().expect("Present while bound");
+        assert_eq!(query_binding_json()["state"], "bound");
+        assert_eq!(query_binding_json()["generation"], gen_before);
+    });
+}

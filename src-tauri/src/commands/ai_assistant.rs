@@ -1,4 +1,5 @@
-//! Host commands: open_ai_assistant / agent_chat_turn.
+//! Host commands: open_ai_assistant / Present / agent_chat_turn.
+//! Dual surface: Binding Contract ops (Set/Reset/query/execute + callbacks) vs shell Present.
 
 use serde_json::{json, Value};
 use tauri::{AppHandle, Emitter};
@@ -9,7 +10,26 @@ pub const AI_ASSISTANT_WINDOW_LABEL: &str = WINDOW_LABEL;
 pub const EVENT_ASSISTANT_OPENED: &str = "ai-assistant:opened";
 
 pub fn open_ai_assistant_json(master_task_id: &str) -> Result<Value, String> {
+    // Physical open path may still carry shell UX payload; Present semantics must not imply Set.
     r#loop::open_ai_assistant_core(master_task_id)
+}
+
+/// Host Present (shell open/focus). Not a Binding Contract op; does not Set or change binding state.
+pub fn present_ai_assistant_json() -> Result<Value, String> {
+    let outcome = r#loop::present_ai_assistant_core()?;
+    Ok(json!({
+        "surface": outcome.surface,
+        "window_label": outcome.window_label,
+    }))
+}
+
+/// Shell close notification. 关壳 ≠ Reset — does not unbound / does not emit onUnbound.
+pub fn shell_close_json() -> Value {
+    let _ = r#loop::shell_close_core();
+    json!({
+        "ok": true,
+        "state": r#loop::binding_state(),
+    })
 }
 
 pub fn get_ai_assistant_binding_json() -> Value {
@@ -75,6 +95,8 @@ pub async fn open_ai_assistant(
     app: AppHandle,
     master_task_id: String,
 ) -> Result<Value, String> {
+    // Invokable Present path today may still go through open_ai_assistant for shell UX,
+    // but Present semantics must not imply Binding Contract Set.
     let result = tauri::async_runtime::spawn_blocking(move || open_ai_assistant_json(&master_task_id))
         .await
         .map_err(|e| e.to_string())??;
@@ -92,6 +114,34 @@ pub async fn open_ai_assistant(
     }
 
     Ok(result)
+}
+
+/// Present: open or focus the assistant shell. Maps to `create_or_focus_ai_assistant_window`.
+/// Not a Binding Contract op — does not Set and does not change binding state.
+#[tauri::command]
+pub async fn present_ai_assistant(app: AppHandle) -> Result<Value, String> {
+    let result = tauri::async_runtime::spawn_blocking(present_ai_assistant_json)
+        .await
+        .map_err(|e| e.to_string())??;
+
+    #[cfg(not(test))]
+    {
+        crate::create_or_focus_ai_assistant_window(&app).map_err(|e| e.to_string())?;
+    }
+    #[cfg(test)]
+    {
+        let _ = &app;
+    }
+
+    Ok(result)
+}
+
+/// Notify Host that the assistant shell closed. 关壳 ≠ Reset.
+#[tauri::command]
+pub async fn shell_close_ai_assistant() -> Result<Value, String> {
+    Ok(tauri::async_runtime::spawn_blocking(shell_close_json)
+        .await
+        .map_err(|e| e.to_string())?)
 }
 
 /// Pull current binding after the assistant window mounts (heals emit race on first open).

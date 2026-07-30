@@ -60,6 +60,28 @@ describe('ai-assistant window shell (t5)', () => {
     expect(aiAssistantCmd).toMatch(/create_or_focus_ai_assistant_window/);
   });
 
+  it('Present maps to create_or_focus and is not a Binding Contract op', () => {
+    expect(aiAssistantCmd).toMatch(/present_ai_assistant/);
+    expect(aiAssistantCmd).toMatch(/Present/);
+    expect(aiAssistantCmd).toMatch(/create_or_focus_ai_assistant_window/);
+    // Binding Contract ops remain Set/Reset/query/execute (+ callbacks) — not Present/Open.
+    expect(aiAssistantCmd).toMatch(/set_binding_json/);
+    expect(aiAssistantCmd).toMatch(/reset_binding_json/);
+    expect(aiAssistantCmd).toMatch(/query_binding_json/);
+    expect(aiAssistantCmd).toMatch(/execute_binding_json/);
+    expect(libRs).toMatch(/present_ai_assistant/);
+  });
+
+  it('shell dispose/close does not invoke Binding Contract Reset', () => {
+    const js = readFileSync(jsPath, 'utf8');
+    expect(js).not.toMatch(/reset_binding/);
+    // Present≠bound: shell may observe Host Present, but must not treat open as Set.
+    expect(js).toMatch(/Present/);
+    expect(js).toMatch(
+      /query_binding|binding_state|unbound|Present≠|Present !=|Present !==|not imply Set|does not imply Set/i,
+    );
+  });
+
   it('registers ai-assistant capability with write-api for agent_chat_turn', () => {
     expect(existsSync(capabilityPath), 'capabilities/ai-assistant.json').toBe(
       true,

@@ -312,6 +312,35 @@ pub fn is_binding_generation_current(generation: u64) -> bool {
     runtime().lock().unwrap().current_generation == Some(generation)
 }
 
+/// Binding Contract ops only (L03-SC / L08-AR). Present/Open are shell surface, not ops.
+pub const BINDING_CONTRACT_OPS: &[&str] = &["set", "reset", "query", "execute", "callbacks"];
+
+/// Stated Binding Contract ops list (excludes Present / Open).
+pub fn binding_contract_ops() -> &'static [&'static str] {
+    BINDING_CONTRACT_OPS
+}
+
+/// Outcome of Host Present (shell open/focus). Not a Binding Contract result.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PresentOutcome {
+    pub surface: &'static str,
+    pub window_label: &'static str,
+}
+
+/// Present: open/focus assistant shell. Does not Set; does not change binding state.
+/// Maps to existing `create_or_focus_ai_assistant_window` semantics (window label).
+pub fn present_ai_assistant_core() -> Result<PresentOutcome, String> {
+    Ok(PresentOutcome {
+        surface: "Present",
+        window_label: WINDOW_LABEL,
+    })
+}
+
+/// Shell close (关壳). Not Reset — leaves Binding Contract state unchanged; no onUnbound.
+pub fn shell_close_core() -> Result<(), String> {
+    Ok(())
+}
+
 pub fn clarify_count(session: &Session) -> u32 {
     runtime()
         .lock()

@@ -48,6 +48,8 @@ commands.allow = [
   "update_todo_comment",
   "delete_todo_comment",
   "open_ai_assistant",
+  "present_ai_assistant",
+  "shell_close_ai_assistant",
   "get_ai_assistant_binding",
   "agent_chat_turn",
   "archive_document",
