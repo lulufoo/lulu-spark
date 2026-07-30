@@ -31,6 +31,37 @@ pub fn set_binding_json(binding: Value) -> Value {
     }
 }
 
+/// Binding Contract Reset → unbound (idempotent).
+pub fn reset_binding_json() -> Value {
+    let _ = r#loop::reset_binding();
+    json!({
+        "ok": true,
+        "state": r#loop::binding_state(),
+    })
+}
+
+/// Binding Contract read-only query (business-agnostic summary).
+pub fn query_binding_json() -> Value {
+    serde_json::to_value(r#loop::query_binding()).unwrap_or_else(|_| json!({ "state": "unbound" }))
+}
+
+/// Binding Contract execute gate: requires bound; applies current Binding tools/prompt.
+pub fn execute_binding_json() -> Value {
+    match r#loop::execute_binding() {
+        Ok(out) => json!({
+            "ok": true,
+            "applied_tools": out.applied_tools,
+            "applied_prompt": out.applied_prompt,
+            "state": r#loop::binding_state(),
+        }),
+        Err(e) => json!({
+            "ok": false,
+            "code": e.as_code(),
+            "state": r#loop::binding_state(),
+        }),
+    }
+}
+
 pub fn agent_chat_turn_json(
     session_id: &str,
     message: &str,

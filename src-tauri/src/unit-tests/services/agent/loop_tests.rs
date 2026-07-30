@@ -1232,3 +1232,308 @@ fn host_serializes_set_reset_at_most_one_current_binding() {
         }
     });
 }
+
+// --- execute gate + mid-execute Reset (strategy A) + lifecycle callbacks (t3) ---
+
+fn event_names(events: &[r#loop::LifecycleEvent]) -> Vec<&str> {
+    events.iter().map(|e| e.event).collect()
+}
+
+fn assert_payload_contract_only(ev: &r#loop::LifecycleEvent) {
+    let encoded = serde_json::to_value(ev).expect("encode LifecycleEvent");
+    let obj = encoded
+        .as_object()
+        .expect("LifecycleEvent encodes as object");
+    assert!(obj.contains_key("event"), "event name required: {encoded}");
+    // category may be absent for onBound/onUnbound
+    for forbidden in [
+        "tools",
+        "prompt",
+        "callbacks",
+        "master_task_id",
+        "bound_master_task_id",
+        "binding",
+        "generation",
+        "applied_tools",
+        "applied_prompt",
+    ] {
+        assert!(
+            !obj.contains_key(forbidden),
+            "callback payload must not carry {forbidden}: {encoded}"
+        );
+    }
+    let blob = encoded.to_string();
+    assert!(
+        !blob.contains("opaque-system-prompt")
+            && !blob.contains("opaque-tool-a")
+            && !blob.contains("secret-prompt")
+            && !blob.contains("task_business"),
+        "callback payload must not leak tools/prompt body or business ids: {blob}"
+    );
+}
+
+#[test]
+fn execute_when_bound_uses_current_binding_tools_and_prompt() {
+    with_sandbox(|| {
+        r#loop::set_binding(binding_with_prompt("prompt-exec-v1")).expect("Set");
+        let out = r#loop::execute_binding().expect("bound execute must succeed");
+        assert_eq!(out.applied_prompt, json!("prompt-exec-v1"));
+        assert_eq!(out.applied_tools, applicable_tools());
+        assert_eq!(r#loop::binding_state(), "bound");
+    });
+}
+
+#[test]
+fn set_success_emits_on_bound_synchronously() {
+    with_sandbox(|| {
+        r#loop::clear_lifecycle_events_for_tests();
+        r#loop::set_binding(valid_binding()).expect("Set");
+        let events = r#loop::drain_lifecycle_events();
+        assert_eq!(event_names(&events), vec!["onBound"]);
+        assert_payload_contract_only(&events[0]);
+        assert!(events[0].category.is_none());
+    });
+}
+
+#[test]
+fn reset_to_unbound_emits_on_unbound() {
+    with_sandbox(|| {
+        r#loop::set_binding(valid_binding()).expect("Set");
+        r#loop::clear_lifecycle_events_for_tests();
+        r#loop::reset_binding().expect("Reset");
+        let events = r#loop::drain_lifecycle_events();
+        assert_eq!(event_names(&events), vec!["onUnbound"]);
+        assert_payload_contract_only(&events[0]);
+        assert_eq!(r#loop::binding_state(), "unbound");
+    });
+}
+
+#[test]
+fn replace_set_emits_on_unbound_then_on_bound_and_execute_uses_new() {
+    with_sandbox(|| {
+        r#loop::set_binding(binding_with_prompt("prompt-old")).expect("first Set");
+        let old_gen = r#loop::query_binding().generation.expect("old gen");
+        r#loop::clear_lifecycle_events_for_tests();
+
+        r#loop::set_binding(binding_with_prompt("prompt-new")).expect("replace Set");
+        let events = r#loop::drain_lifecycle_events();
+        assert_eq!(
+            event_names(&events),
+            vec!["onUnbound", "onBound"],
+            "D1 replace sequence must be onUnbound → onBound"
+        );
+        for ev in &events {
+            assert_payload_contract_only(ev);
+        }
+        assert!(!r#loop::is_binding_generation_current(old_gen));
+
+        let out = r#loop::execute_binding().expect("execute after replace");
+        assert_eq!(out.applied_prompt, json!("prompt-new"));
+        assert_ne!(out.applied_prompt, json!("prompt-old"));
+    });
+}
+
+#[test]
+fn lifecycle_callbacks_delivered_synchronously_in_call_path_order() {
+    with_sandbox(|| {
+        let order = Arc::new(Mutex::new(Vec::new()));
+        let order_c = order.clone();
+        r#loop::set_lifecycle_listener_for_tests(Some(Box::new(move |ev| {
+            order_c.lock().unwrap().push(ev.event.to_string());
+        })));
+
+        r#loop::set_binding(binding_with_prompt("a")).expect("Set");
+        // Listener saw onBound before set_binding returned (sync).
+        assert_eq!(order.lock().unwrap().clone(), vec!["onBound".to_string()]);
+
+        r#loop::set_binding(binding_with_prompt("b")).expect("replace");
+        assert_eq!(
+            order.lock().unwrap().clone(),
+            vec![
+                "onBound".to_string(),
+                "onUnbound".to_string(),
+                "onBound".to_string()
+            ]
+        );
+    });
+}
+
+#[test]
+fn mid_execute_reset_strategy_a_unbounds_cancels_and_emits() {
+    with_sandbox(|| {
+        r#loop::set_binding(binding_with_prompt("in-flight")).expect("Set");
+        let gen = r#loop::query_binding().generation.expect("gen");
+        r#loop::clear_lifecycle_events_for_tests();
+
+        let err = r#loop::execute_binding_during(|| {
+            r#loop::reset_binding().expect("Reset during execute");
+            assert_eq!(
+                r#loop::binding_state(),
+                "unbound",
+                "strategy A: immediately unbound"
+            );
+            assert!(!r#loop::is_binding_generation_current(gen));
+        })
+        .expect_err("in-flight execute must cancel/fail");
+        assert_eq!(err.as_code(), "reset_cancelled");
+        assert_eq!(r#loop::binding_state(), "unbound");
+
+        let events = r#loop::drain_lifecycle_events();
+        assert!(
+            events.iter().any(|e| e.event == "onUnbound"),
+            "must observe onUnbound: {events:?}"
+        );
+        let err_ev = events
+            .iter()
+            .find(|e| e.event == "onError")
+            .expect("must observe onError(reset_cancelled)");
+        assert_eq!(err_ev.category, Some("reset_cancelled"));
+        assert_payload_contract_only(err_ev);
+
+        // Order: unbound first, then cancel error on the execute path.
+        let names = event_names(&events);
+        let i_unbound = names.iter().position(|n| *n == "onUnbound").unwrap();
+        let i_err = names.iter().position(|n| *n == "onError").unwrap();
+        assert!(
+            i_unbound < i_err,
+            "onUnbound before onError(reset_cancelled): {names:?}"
+        );
+    });
+}
+
+#[test]
+fn reset_already_unbound_does_not_repeat_on_unbound() {
+    with_sandbox(|| {
+        assert_eq!(r#loop::binding_state(), "unbound");
+        r#loop::clear_lifecycle_events_for_tests();
+        r#loop::reset_binding().expect("idempotent Reset");
+        r#loop::reset_binding().expect("second idempotent Reset");
+        let events = r#loop::drain_lifecycle_events();
+        assert!(
+            events.iter().all(|e| e.event != "onUnbound"),
+            "idempotent Reset must not emit onUnbound: {events:?}"
+        );
+    });
+}
+
+#[test]
+fn no_listener_still_advances_state_machine() {
+    with_sandbox(|| {
+        r#loop::set_lifecycle_listener_for_tests(None);
+        r#loop::set_binding(valid_binding()).expect("Set without listener");
+        assert_eq!(r#loop::binding_state(), "bound");
+        r#loop::reset_binding().expect("Reset without listener");
+        assert_eq!(r#loop::binding_state(), "unbound");
+        // Events are still recorded (emission ≠ requiring a listener).
+        let events = r#loop::drain_lifecycle_events();
+        assert!(
+            events.iter().any(|e| e.event == "onBound"),
+            "events still emitted without listener: {events:?}"
+        );
+        assert!(
+            events.iter().any(|e| e.event == "onUnbound"),
+            "events still emitted without listener: {events:?}"
+        );
+    });
+}
+
+#[test]
+fn execute_when_unbound_hard_fails_with_rejected_unbound() {
+    with_sandbox(|| {
+        assert_eq!(r#loop::binding_state(), "unbound");
+        r#loop::clear_lifecycle_events_for_tests();
+        let err = r#loop::execute_binding().expect_err("unbound execute must hard-fail");
+        assert_eq!(err.as_code(), "rejected_unbound");
+        let events = r#loop::drain_lifecycle_events();
+        let err_ev = events
+            .iter()
+            .find(|e| e.event == "onError")
+            .expect("onError(rejected_unbound)");
+        assert_eq!(err_ev.category, Some("rejected_unbound"));
+        assert_payload_contract_only(err_ev);
+        assert_eq!(r#loop::binding_state(), "unbound");
+    });
+}
+
+#[test]
+fn execute_after_reset_rejects_and_old_config_not_reused() {
+    with_sandbox(|| {
+        r#loop::set_binding(binding_with_prompt("old-only")).expect("Set");
+        let before = r#loop::execute_binding().expect("execute while bound");
+        assert_eq!(before.applied_prompt, json!("old-only"));
+
+        r#loop::reset_binding().expect("Reset");
+        r#loop::clear_lifecycle_events_for_tests();
+        let err = r#loop::execute_binding().expect_err("execute after Reset must reject");
+        assert_eq!(err.as_code(), "rejected_unbound");
+        let events = r#loop::drain_lifecycle_events();
+        assert!(
+            events
+                .iter()
+                .any(|e| e.event == "onError" && e.category == Some("rejected_unbound")),
+            "{events:?}"
+        );
+        // No successful apply of old prompt after Reset.
+        assert!(
+            events
+                .iter()
+                .all(|e| e.event != "onBound"),
+            "must not re-bind via execute: {events:?}"
+        );
+    });
+}
+
+#[test]
+fn present_without_set_leaves_unbound_and_execute_rejects() {
+    with_sandbox(|| {
+        let master = create_bound_plan("仅Present");
+        let _ = r#loop::open_ai_assistant_core(&master).expect("Present/open shell");
+        assert_eq!(
+            r#loop::binding_state(),
+            "unbound",
+            "Present/open must not imply Binding Contract bound"
+        );
+        let err = r#loop::execute_binding().expect_err("execute without Set");
+        assert_eq!(err.as_code(), "rejected_unbound");
+    });
+}
+
+#[test]
+fn listener_panic_does_not_rollback_state_and_emits_callback_failed() {
+    with_sandbox(|| {
+        r#loop::set_lifecycle_listener_for_tests(Some(Box::new(|_| {
+            panic!("listener boom");
+        })));
+        r#loop::clear_lifecycle_events_for_tests();
+        r#loop::set_binding(valid_binding()).expect("Set must succeed despite listener panic");
+        assert_eq!(
+            r#loop::binding_state(),
+            "bound",
+            "listener failure must not roll back state machine"
+        );
+        let events = r#loop::drain_lifecycle_events();
+        assert!(
+            events.iter().any(|e| e.event == "onBound"),
+            "onBound still emitted: {events:?}"
+        );
+        let err_ev = events
+            .iter()
+            .find(|e| e.event == "onError" && e.category == Some("callback_failed"))
+            .expect("onError(callback_failed)");
+        assert_payload_contract_only(err_ev);
+    });
+}
+
+#[test]
+fn callback_payload_is_event_plus_category_only() {
+    with_sandbox(|| {
+        r#loop::clear_lifecycle_events_for_tests();
+        r#loop::set_binding(binding_with_prompt("secret-prompt-body")).expect("Set");
+        let _ = r#loop::execute_binding().expect("bound ok");
+        r#loop::reset_binding().expect("Reset");
+        let _ = r#loop::execute_binding().expect_err("rejected");
+        for ev in r#loop::drain_lifecycle_events() {
+            assert_payload_contract_only(&ev);
+        }
+    });
+}

@@ -1,8 +1,10 @@
 //! Agent Loop + Host open/chat-turn core (single-flight, terminals, history caps).
 
 use std::collections::HashMap;
+use std::panic::AssertUnwindSafe;
 use std::sync::{Mutex, OnceLock};
 
+use serde::Serialize;
 use serde_json::{json, Value};
 
 use crate::services::agent::llm::{self, AssistantMessage, LlmConfig, LlmError};
@@ -61,6 +63,47 @@ pub struct ChatTurnResult {
     pub emit_turn_completed: Option<Value>,
 }
 
+/// Binding Contract lifecycle callback payload (E1): event name + optional result category only.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct LifecycleEvent {
+    pub event: &'static str,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub category: Option<&'static str>,
+}
+
+/// Outcome of a gated Binding Contract execute (tools/prompt from current Binding only).
+#[derive(Debug, Clone)]
+pub struct ExecuteOutcome {
+    pub applied_tools: Value,
+    pub applied_prompt: Value,
+}
+
+/// Stable execute / gate failure categories (L11-AR).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ExecError {
+    code: &'static str,
+}
+
+impl ExecError {
+    pub fn as_code(&self) -> &'static str {
+        self.code
+    }
+
+    fn rejected_unbound() -> Self {
+        Self {
+            code: "rejected_unbound",
+        }
+    }
+
+    fn reset_cancelled() -> Self {
+        Self {
+            code: "reset_cancelled",
+        }
+    }
+}
+
+type LifecycleListener = Box<dyn Fn(&LifecycleEvent) + Send + 'static>;
+
 #[derive(Default)]
 struct Runtime {
     busy: bool,
@@ -73,6 +116,10 @@ struct Runtime {
     current_generation: Option<u64>,
     /// Monotonic counter for Set/replace generations.
     generation_seq: u64,
+    /// True while a Binding Contract execute is in flight.
+    executing: bool,
+    /// Set by Reset (strategy A) while `executing` — cancels the in-flight execute.
+    execute_cancelled: bool,
     clarify_counts: HashMap<String, u32>,
 }
 
@@ -81,23 +128,82 @@ fn runtime() -> &'static Mutex<Runtime> {
     RUNTIME.get_or_init(|| Mutex::new(Runtime::default()))
 }
 
+fn lifecycle_log() -> &'static Mutex<Vec<LifecycleEvent>> {
+    static LOG: OnceLock<Mutex<Vec<LifecycleEvent>>> = OnceLock::new();
+    LOG.get_or_init(|| Mutex::new(Vec::new()))
+}
+
+fn lifecycle_listener() -> &'static Mutex<Option<LifecycleListener>> {
+    static LISTENER: OnceLock<Mutex<Option<LifecycleListener>>> = OnceLock::new();
+    LISTENER.get_or_init(|| Mutex::new(None))
+}
+
 pub fn reset_runtime_for_tests() {
     let mut rt = runtime().lock().unwrap();
     *rt = Runtime::default();
+    drop(rt);
+    lifecycle_log().lock().unwrap().clear();
+    *lifecycle_listener().lock().unwrap() = None;
 }
 
 pub fn set_busy_for_tests(busy: bool) {
     runtime().lock().unwrap().busy = busy;
 }
 
+pub fn clear_lifecycle_events_for_tests() {
+    lifecycle_log().lock().unwrap().clear();
+}
+
+pub fn drain_lifecycle_events() -> Vec<LifecycleEvent> {
+    std::mem::take(&mut *lifecycle_log().lock().unwrap())
+}
+
+pub fn set_lifecycle_listener_for_tests(listener: Option<LifecycleListener>) {
+    *lifecycle_listener().lock().unwrap() = listener;
+}
+
+fn emit_lifecycle(event: &'static str, category: Option<&'static str>) {
+    emit_lifecycle_inner(event, category, true);
+}
+
+fn emit_lifecycle_inner(event: &'static str, category: Option<&'static str>, invoke_listener: bool) {
+    let ev = LifecycleEvent { event, category };
+    lifecycle_log().lock().unwrap().push(ev.clone());
+    if !invoke_listener {
+        return;
+    }
+    let listener = {
+        let mut slot = lifecycle_listener().lock().unwrap();
+        slot.take()
+    };
+    let Some(listener) = listener else {
+        return;
+    };
+    let result = std::panic::catch_unwind(AssertUnwindSafe(|| listener(&ev)));
+    *lifecycle_listener().lock().unwrap() = Some(listener);
+    if result.is_err() {
+        // Record callback_failed without re-entering the panicking listener.
+        emit_lifecycle_inner("onError", Some("callback_failed"), false);
+    }
+}
+
 /// Set Binding after B1 validation. Failure returns `set_invalid` and leaves state unchanged.
 /// Legal Set on bound atomically replaces and invalidates the previous generation.
+/// Emits onBound; replace also emits onUnbound → onBound (D1).
 pub fn set_binding(binding: session::Binding) -> Result<(), SetError> {
     session::validate_binding(&binding)?;
-    let mut rt = runtime().lock().unwrap();
-    rt.generation_seq = rt.generation_seq.saturating_add(1);
-    rt.current_generation = Some(rt.generation_seq);
-    rt.current_binding = Some(binding);
+    let was_bound = {
+        let mut rt = runtime().lock().unwrap();
+        let was = rt.current_binding.is_some();
+        rt.generation_seq = rt.generation_seq.saturating_add(1);
+        rt.current_generation = Some(rt.generation_seq);
+        rt.current_binding = Some(binding);
+        was
+    };
+    if was_bound {
+        emit_lifecycle("onUnbound", None);
+    }
+    emit_lifecycle("onBound", None);
     Ok(())
 }
 
@@ -107,11 +213,62 @@ pub fn try_set_binding_json(v: &Value) -> Result<(), SetError> {
 }
 
 /// Reset: discard current Binding → unbound. Idempotent when already unbound.
+/// Bound→unbound emits onUnbound; mid-execute Reset (strategy A) cancels in-flight execute.
 pub fn reset_binding() -> Result<(), ()> {
-    let mut rt = runtime().lock().unwrap();
-    rt.current_binding = None;
-    rt.current_generation = None;
+    let was_bound = {
+        let mut rt = runtime().lock().unwrap();
+        let was = rt.current_binding.is_some();
+        rt.current_binding = None;
+        rt.current_generation = None;
+        if rt.executing {
+            rt.execute_cancelled = true;
+        }
+        was
+    };
+    if was_bound {
+        emit_lifecycle("onUnbound", None);
+    }
     Ok(())
+}
+
+/// Binding Contract execute: only when bound; applies current Binding tools/prompt as sole config.
+pub fn execute_binding() -> Result<ExecuteOutcome, ExecError> {
+    execute_binding_during(|| {})
+}
+
+/// Like `execute_binding`, but invokes `mid` while the execute is marked in-flight
+/// (for Strategy A mid-execute Reset observation).
+pub fn execute_binding_during<F: FnOnce()>(mid: F) -> Result<ExecuteOutcome, ExecError> {
+    let snapshot = {
+        let mut rt = runtime().lock().unwrap();
+        let Some(binding) = rt.current_binding.clone() else {
+            drop(rt);
+            emit_lifecycle("onError", Some("rejected_unbound"));
+            return Err(ExecError::rejected_unbound());
+        };
+        rt.executing = true;
+        rt.execute_cancelled = false;
+        binding
+    };
+
+    mid();
+
+    let cancelled = {
+        let mut rt = runtime().lock().unwrap();
+        let cancelled = rt.execute_cancelled;
+        rt.executing = false;
+        cancelled
+    };
+
+    if cancelled {
+        emit_lifecycle("onError", Some("reset_cancelled"));
+        return Err(ExecError::reset_cancelled());
+    }
+
+    Ok(ExecuteOutcome {
+        applied_tools: snapshot.tools,
+        applied_prompt: snapshot.prompt,
+    })
 }
 
 /// Read-only query: state∈{unbound,bound}; bound includes generation only (no tools/prompt/business IDs).
@@ -122,19 +279,22 @@ pub fn query_binding() -> BindingStateSummary {
 /// Atomic snapshot of query summary + current Binding slot count (0 or 1).
 pub fn query_binding_snapshot() -> (BindingStateSummary, usize) {
     let rt = runtime().lock().unwrap();
-    let slots = if rt.current_binding.is_some() { 1 } else { 0 };
-    let summary = if rt.current_binding.is_some() {
-        BindingStateSummary {
-            state: "bound",
-            generation: rt.current_generation,
-        }
-    } else {
-        BindingStateSummary {
-            state: "unbound",
-            generation: None,
-        }
-    };
-    (summary, slots)
+    match rt.current_binding.as_ref() {
+        Some(_) => (
+            BindingStateSummary {
+                state: "bound",
+                generation: rt.current_generation,
+            },
+            1,
+        ),
+        None => (
+            BindingStateSummary {
+                state: "unbound",
+                generation: None,
+            },
+            0,
+        ),
+    }
 }
 
 /// Current binding gate: `unbound` | `bound` (generic Binding present).
