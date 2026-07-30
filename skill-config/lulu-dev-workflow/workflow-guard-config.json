@@ -1,11 +1,10 @@
 {
-  "version": 1,
-  "rwGuard": {
-    "enable": true,
+  "version": 2,
+  "internalPathGuard": {
+    "enable": false,
     "defaults": {
       "readDirs": [
-        ".",
-        "{platform-skills}"
+        "."
       ],
       "writeDirs": [
         ".cache/{platform}/lulu-dev-workflow"
@@ -14,14 +13,27 @@
     "stages": {
       "lulu-code": {
         "readDirs": [
-          ".",
-          "{platform-skills}"
+          "."
         ],
         "writeDirs": [
           ".cache/worktrees",
-          ".cache/{platform}/lulu-dev-workflow"        
+          ".cache/{platform}/lulu-dev-workflow"
         ]
       }
     }
+  },
+  "externalPathGuard": {
+    "enabled": true,
+    "writeAllowExternalPaths": [
+      "~/.cursor",
+      "~/.copilot/",
+      "~/.claude/"
+    ],
+    "readAllowExternalPaths": [
+      "~/.cursor/",
+      "~/.copilot/",
+      "~/.claude/"
+    ],
+    "sessionAllow": true
   }
 }
