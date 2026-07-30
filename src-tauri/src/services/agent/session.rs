@@ -32,6 +32,79 @@ pub struct Binding {
     pub callbacks: Value,
 }
 
+/// Read-only Binding Contract query summary (L11-AR).
+/// Business-agnostic: state + optional generation; never tools/prompt body or business IDs.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct BindingStateSummary {
+    pub state: &'static str,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub generation: Option<u64>,
+}
+
+/// Stable Binding Contract Set failure category (L11-AR).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SetError {
+    code: &'static str,
+}
+
+impl SetError {
+    pub fn set_invalid() -> Self {
+        Self {
+            code: "set_invalid",
+        }
+    }
+
+    pub fn as_code(&self) -> &'static str {
+        self.code
+    }
+}
+
+fn tools_applicable(tools: &Value) -> bool {
+    match tools {
+        Value::Array(items) => !items.is_empty(),
+        Value::Object(map) => !map.is_empty(),
+        Value::String(s) => !s.trim().is_empty(),
+        _ => false,
+    }
+}
+
+fn prompt_applicable(prompt: &Value) -> bool {
+    match prompt {
+        Value::String(s) => !s.trim().is_empty(),
+        Value::Object(map) => !map.is_empty(),
+        _ => false,
+    }
+}
+
+fn callbacks_slot_ok(callbacks: &Value) -> bool {
+    callbacks.is_object()
+}
+
+/// B1 Set validation: three slots required; tools/prompt must be applicable.
+pub fn validate_binding(binding: &Binding) -> Result<(), SetError> {
+    if !tools_applicable(&binding.tools)
+        || !prompt_applicable(&binding.prompt)
+        || !callbacks_slot_ok(&binding.callbacks)
+    {
+        return Err(SetError::set_invalid());
+    }
+    Ok(())
+}
+
+/// Parse Binding from JSON requiring tools/prompt/callbacks keys; never fill from other fields.
+pub fn binding_from_json(v: &Value) -> Result<Binding, SetError> {
+    let obj = v.as_object().ok_or_else(SetError::set_invalid)?;
+    if !obj.contains_key("tools") || !obj.contains_key("prompt") || !obj.contains_key("callbacks")
+    {
+        return Err(SetError::set_invalid());
+    }
+    Ok(Binding {
+        tools: obj["tools"].clone(),
+        prompt: obj["prompt"].clone(),
+        callbacks: obj["callbacks"].clone(),
+    })
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Session {
     pub session_id: String,

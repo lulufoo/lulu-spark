@@ -921,3 +921,314 @@ fn set_binding_does_not_assemble_or_default_fill_from_business_fields() {
         assert_eq!(r#loop::binding_state(), "unbound");
     });
 }
+
+// --- Binding Contract state machine: Set / Reset / query + serialization (t2) ---
+
+fn binding_with_prompt(prompt: &str) -> r#loop::Binding {
+    r#loop::Binding {
+        tools: applicable_tools(),
+        prompt: json!(prompt),
+        callbacks: empty_callbacks_registry(),
+    }
+}
+
+fn assert_query_unbound(summary: &r#loop::BindingStateSummary) {
+    assert_eq!(summary.state, "unbound");
+    assert!(
+        summary.generation.is_none(),
+        "unbound query must not retain a live binding generation: {summary:?}"
+    );
+}
+
+fn assert_query_bound(summary: &r#loop::BindingStateSummary) {
+    assert_eq!(summary.state, "bound");
+    assert!(
+        summary.generation.is_some(),
+        "bound query must expose a generation for discard/replace proofs: {summary:?}"
+    );
+}
+
+fn assert_query_is_business_agnostic(summary: &r#loop::BindingStateSummary) {
+    let encoded = serde_json::to_value(summary).expect("encode BindingStateSummary");
+    let obj = encoded
+        .as_object()
+        .expect("BindingStateSummary encodes as object");
+    assert!(
+        !obj.contains_key("tools"),
+        "query must not return tools slot: {encoded}"
+    );
+    assert!(
+        !obj.contains_key("prompt"),
+        "query must not return prompt slot: {encoded}"
+    );
+    assert!(
+        !obj.contains_key("callbacks"),
+        "query must not return callbacks slot: {encoded}"
+    );
+    assert!(
+        !obj.contains_key("master_task_id"),
+        "query must not return business id master_task_id: {encoded}"
+    );
+    assert!(
+        !obj.contains_key("bound_master_task_id"),
+        "query must not return business id bound_master_task_id: {encoded}"
+    );
+    let blob = encoded.to_string();
+    assert!(
+        !blob.contains("opaque-system-prompt")
+            && !blob.contains("opaque-tool-a")
+            && !blob.contains("secret-prompt-body")
+            && !blob.contains("task_business"),
+        "query summary must not leak tools/prompt body or business ids: {blob}"
+    );
+}
+
+#[test]
+fn set_then_query_returns_bound_business_agnostic_summary() {
+    with_sandbox(|| {
+        assert_query_unbound(&r#loop::query_binding());
+        r#loop::set_binding(binding_with_prompt("secret-prompt-body")).expect("Set");
+        let q = r#loop::query_binding();
+        assert_query_bound(&q);
+        assert_query_is_business_agnostic(&q);
+        assert_eq!(r#loop::binding_state(), "bound");
+        assert_eq!(
+            r#loop::current_binding_slot_count(),
+            1,
+            "after Set there must be exactly one current Binding"
+        );
+    });
+}
+
+#[test]
+fn reset_bound_to_unbound_discards_current_binding() {
+    with_sandbox(|| {
+        r#loop::set_binding(valid_binding()).expect("Set");
+        let before = r#loop::query_binding();
+        assert_query_bound(&before);
+        let gen = before.generation.expect("bound gen");
+
+        r#loop::reset_binding().expect("Reset");
+        let after = r#loop::query_binding();
+        assert_query_unbound(&after);
+        assert_eq!(r#loop::binding_state(), "unbound");
+        assert_eq!(
+            r#loop::current_binding_slot_count(),
+            0,
+            "Reset must discard the current Binding reference"
+        );
+        assert!(
+            !r#loop::is_binding_generation_current(gen),
+            "old Binding generation must be discarded after Reset"
+        );
+    });
+}
+
+#[test]
+fn set_on_bound_atomically_replaces_and_invalidates_old_binding() {
+    with_sandbox(|| {
+        r#loop::set_binding(binding_with_prompt("prompt-v1")).expect("first Set");
+        let first = r#loop::query_binding();
+        assert_query_bound(&first);
+        let old_gen = first.generation.expect("old gen");
+
+        r#loop::set_binding(binding_with_prompt("prompt-v2")).expect("replace Set");
+        let second = r#loop::query_binding();
+        assert_query_bound(&second);
+        assert_query_is_business_agnostic(&second);
+        let new_gen = second.generation.expect("new gen");
+        assert_ne!(old_gen, new_gen, "replace Set must mint a new binding generation");
+        assert!(
+            !r#loop::is_binding_generation_current(old_gen),
+            "old Binding must be immediately invalid after replace Set"
+        );
+        assert!(r#loop::is_binding_generation_current(new_gen));
+        assert_eq!(
+            r#loop::current_binding_slot_count(),
+            1,
+            "replace must leave exactly one current Binding"
+        );
+        assert_eq!(r#loop::binding_state(), "bound");
+    });
+}
+
+#[test]
+fn reset_already_unbound_is_idempotent_success() {
+    with_sandbox(|| {
+        assert_query_unbound(&r#loop::query_binding());
+        r#loop::reset_binding().expect("Reset unbound must succeed");
+        assert_query_unbound(&r#loop::query_binding());
+        assert_eq!(r#loop::binding_state(), "unbound");
+        assert_eq!(r#loop::current_binding_slot_count(), 0);
+
+        r#loop::reset_binding().expect("second Reset unbound must succeed");
+        assert_query_unbound(&r#loop::query_binding());
+    });
+}
+
+#[test]
+fn host_runtime_reset_starts_unbound_before_successful_set() {
+    with_sandbox(|| {
+        // with_sandbox already calls reset_runtime_for_tests (Host runtime reset).
+        let q = r#loop::query_binding();
+        assert_query_unbound(&q);
+        assert_eq!(r#loop::binding_state(), "unbound");
+        assert_eq!(r#loop::current_binding_slot_count(), 0);
+
+        r#loop::reset_runtime_for_tests();
+        assert_query_unbound(&r#loop::query_binding());
+        assert_eq!(r#loop::binding_state(), "unbound");
+    });
+}
+
+#[test]
+fn query_does_not_change_binding_state() {
+    with_sandbox(|| {
+        assert_query_unbound(&r#loop::query_binding());
+        let _ = r#loop::query_binding();
+        assert_query_unbound(&r#loop::query_binding());
+        assert_eq!(r#loop::current_binding_slot_count(), 0);
+
+        r#loop::set_binding(valid_binding()).expect("Set");
+        let before = r#loop::query_binding();
+        assert_query_bound(&before);
+        let gen = before.generation;
+        let slot = r#loop::current_binding_slot_count();
+
+        let mid = r#loop::query_binding();
+        assert_eq!(mid.state, before.state);
+        assert_eq!(mid.generation, gen);
+        assert_eq!(r#loop::current_binding_slot_count(), slot);
+        assert_eq!(r#loop::binding_state(), "bound");
+    });
+}
+
+#[test]
+fn illegal_set_does_not_transition_to_bound() {
+    with_sandbox(|| {
+        assert_eq!(r#loop::binding_state(), "unbound");
+        let err = r#loop::set_binding(r#loop::Binding {
+            tools: json!([]),
+            prompt: applicable_prompt(),
+            callbacks: empty_callbacks_registry(),
+        })
+        .expect_err("illegal Set must fail");
+        assert_eq!(err.as_code(), "set_invalid");
+        assert_query_unbound(&r#loop::query_binding());
+        assert_eq!(r#loop::current_binding_slot_count(), 0);
+
+        r#loop::set_binding(valid_binding()).expect("seed bound");
+        let before = r#loop::query_binding();
+        assert_query_bound(&before);
+        let gen = before.generation;
+
+        let err = r#loop::try_set_binding_json(&json!({
+            "tools": [{ "name": "t" }],
+            "prompt": "p"
+            // callbacks missing
+        }))
+        .expect_err("illegal Set must fail");
+        assert_eq!(err.as_code(), "set_invalid");
+        let after = r#loop::query_binding();
+        assert_query_bound(&after);
+        assert_eq!(after.generation, gen, "illegal Set must not rewrite current Binding");
+        assert_eq!(r#loop::current_binding_slot_count(), 1);
+    });
+}
+
+#[test]
+fn host_serializes_set_reset_at_most_one_current_binding() {
+    with_sandbox(|| {
+        let barrier = Arc::new(std::sync::Barrier::new(8));
+        let max_slots = Arc::new(Mutex::new(0usize));
+        let errors = Arc::new(Mutex::new(Vec::new()));
+
+        let mut handles = Vec::new();
+        for i in 0..8 {
+            let barrier = barrier.clone();
+            let max_slots = max_slots.clone();
+            let errors = errors.clone();
+            handles.push(thread::spawn(move || {
+                barrier.wait();
+                for round in 0..40 {
+                    let binding = binding_with_prompt(&format!("prompt-{i}-{round}"));
+                    if let Err(e) = r#loop::set_binding(binding) {
+                        errors
+                            .lock()
+                            .unwrap()
+                            .push(format!("set failed: {}", e.as_code()));
+                    }
+                    let (q_after_set, slots) = r#loop::query_binding_snapshot();
+                    {
+                        let mut m = max_slots.lock().unwrap();
+                        if slots > *m {
+                            *m = slots;
+                        }
+                    }
+                    if slots > 1 {
+                        errors
+                            .lock()
+                            .unwrap()
+                            .push(format!("observed {slots} current bindings"));
+                    }
+                    if q_after_set.state == "bound" && slots != 1 {
+                        errors.lock().unwrap().push(format!(
+                            "query bound but slot_count={slots}"
+                        ));
+                    }
+                    if q_after_set.state == "unbound" && slots != 0 {
+                        errors.lock().unwrap().push(format!(
+                            "query unbound but slot_count={slots}"
+                        ));
+                    }
+                    if round % 2 == 0 {
+                        if let Err(_) = r#loop::reset_binding() {
+                            errors.lock().unwrap().push("reset failed".into());
+                        }
+                    }
+                    let (q, slots_after) = r#loop::query_binding_snapshot();
+                    match q.state {
+                        "unbound" => {
+                            if slots_after != 0 {
+                                errors.lock().unwrap().push(format!(
+                                    "query unbound but slot_count={slots_after}"
+                                ));
+                            }
+                        }
+                        "bound" => {
+                            if slots_after != 1 {
+                                errors.lock().unwrap().push(format!(
+                                    "query bound but slot_count={slots_after}"
+                                ));
+                            }
+                        }
+                        other => errors
+                            .lock()
+                            .unwrap()
+                            .push(format!("unexpected state {other}")),
+                    }
+                }
+            }));
+        }
+
+        for h in handles {
+            h.join().expect("thread join");
+        }
+        let errs = errors.lock().unwrap().clone();
+        assert!(
+            errs.is_empty(),
+            "serialization / dual-binding violations: {errs:?}"
+        );
+        assert!(
+            *max_slots.lock().unwrap() <= 1,
+            "must never observe more than one current Binding"
+        );
+        // Final state is well-formed: 0 or 1 slot matching query.
+        let (final_q, final_slots) = r#loop::query_binding_snapshot();
+        match final_q.state {
+            "unbound" => assert_eq!(final_slots, 0),
+            "bound" => assert_eq!(final_slots, 1),
+            other => panic!("unexpected final state {other}"),
+        }
+    });
+}

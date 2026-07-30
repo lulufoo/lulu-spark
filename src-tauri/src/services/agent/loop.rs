@@ -11,25 +11,9 @@ use crate::services::agent::tools;
 use crate::services::agent::PLAN_ASSISTANT_SYSTEM_PROMPT;
 use crate::services::todo_task;
 
-pub use crate::services::agent::session::Binding;
-
-/// Stable Binding Contract Set failure category (L11-AR).
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct SetError {
-    code: &'static str,
-}
-
-impl SetError {
-    pub fn set_invalid() -> Self {
-        Self {
-            code: "set_invalid",
-        }
-    }
-
-    pub fn as_code(&self) -> &'static str {
-        self.code
-    }
-}
+pub use crate::services::agent::session::{
+    validate_binding, Binding, BindingStateSummary, SetError,
+};
 
 pub const EVENT_TURN_COMPLETED: &str = "ai-assistant:turn-completed";
 pub const WINDOW_LABEL: &str = "ai-assistant";
@@ -85,6 +69,10 @@ struct Runtime {
     bound_title: Option<String>,
     /// Current generic Binding (tools+prompt+callbacks); None ⇒ unbound.
     current_binding: Option<session::Binding>,
+    /// Live generation while bound; None when unbound.
+    current_generation: Option<u64>,
+    /// Monotonic counter for Set/replace generations.
+    generation_seq: u64,
     clarify_counts: HashMap<String, u32>,
 }
 
@@ -102,71 +90,66 @@ pub fn set_busy_for_tests(busy: bool) {
     runtime().lock().unwrap().busy = busy;
 }
 
-/// Business-agnostic applicability: tools must have executable content.
-fn tools_applicable(tools: &Value) -> bool {
-    match tools {
-        Value::Array(items) => !items.is_empty(),
-        Value::Object(map) => !map.is_empty(),
-        Value::String(s) => !s.trim().is_empty(),
-        _ => false,
-    }
-}
-
-/// Business-agnostic applicability: prompt must have executable content.
-fn prompt_applicable(prompt: &Value) -> bool {
-    match prompt {
-        Value::String(s) => !s.trim().is_empty(),
-        Value::Object(map) => !map.is_empty(),
-        _ => false,
-    }
-}
-
-/// callbacks slot must exist as a registry object (empty registry allowed).
-fn callbacks_slot_ok(callbacks: &Value) -> bool {
-    callbacks.is_object()
-}
-
-/// B1 Set validation: three slots required; tools/prompt must be applicable.
-pub fn validate_binding(binding: &session::Binding) -> Result<(), SetError> {
-    if !tools_applicable(&binding.tools)
-        || !prompt_applicable(&binding.prompt)
-        || !callbacks_slot_ok(&binding.callbacks)
-    {
-        return Err(SetError::set_invalid());
-    }
-    Ok(())
-}
-
 /// Set Binding after B1 validation. Failure returns `set_invalid` and leaves state unchanged.
+/// Legal Set on bound atomically replaces and invalidates the previous generation.
 pub fn set_binding(binding: session::Binding) -> Result<(), SetError> {
-    validate_binding(&binding)?;
+    session::validate_binding(&binding)?;
     let mut rt = runtime().lock().unwrap();
+    rt.generation_seq = rt.generation_seq.saturating_add(1);
+    rt.current_generation = Some(rt.generation_seq);
     rt.current_binding = Some(binding);
     Ok(())
 }
 
 /// JSON Set entry: require tools/prompt/callbacks keys present; never fill from business fields.
 pub fn try_set_binding_json(v: &Value) -> Result<(), SetError> {
-    let obj = v.as_object().ok_or_else(SetError::set_invalid)?;
-    if !obj.contains_key("tools") || !obj.contains_key("prompt") || !obj.contains_key("callbacks")
-    {
-        return Err(SetError::set_invalid());
-    }
-    let binding = session::Binding {
-        tools: obj["tools"].clone(),
-        prompt: obj["prompt"].clone(),
-        callbacks: obj["callbacks"].clone(),
+    set_binding(session::binding_from_json(v)?)
+}
+
+/// Reset: discard current Binding → unbound. Idempotent when already unbound.
+pub fn reset_binding() -> Result<(), ()> {
+    let mut rt = runtime().lock().unwrap();
+    rt.current_binding = None;
+    rt.current_generation = None;
+    Ok(())
+}
+
+/// Read-only query: state∈{unbound,bound}; bound includes generation only (no tools/prompt/business IDs).
+pub fn query_binding() -> BindingStateSummary {
+    query_binding_snapshot().0
+}
+
+/// Atomic snapshot of query summary + current Binding slot count (0 or 1).
+pub fn query_binding_snapshot() -> (BindingStateSummary, usize) {
+    let rt = runtime().lock().unwrap();
+    let slots = if rt.current_binding.is_some() { 1 } else { 0 };
+    let summary = if rt.current_binding.is_some() {
+        BindingStateSummary {
+            state: "bound",
+            generation: rt.current_generation,
+        }
+    } else {
+        BindingStateSummary {
+            state: "unbound",
+            generation: None,
+        }
     };
-    set_binding(binding)
+    (summary, slots)
 }
 
 /// Current binding gate: `unbound` | `bound` (generic Binding present).
 pub fn binding_state() -> &'static str {
-    if runtime().lock().unwrap().current_binding.is_some() {
-        "bound"
-    } else {
-        "unbound"
-    }
+    query_binding().state
+}
+
+/// How many current Binding slots are held (0 or 1). Used to prove single-binding serialization.
+pub fn current_binding_slot_count() -> usize {
+    query_binding_snapshot().1
+}
+
+/// Whether `generation` is still the live current Binding (false after Reset or replace).
+pub fn is_binding_generation_current(generation: u64) -> bool {
+    runtime().lock().unwrap().current_generation == Some(generation)
 }
 
 pub fn clarify_count(session: &Session) -> u32 {
