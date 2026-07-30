@@ -52,16 +52,18 @@ describe('P2 copy-switch — Assistant pages (tech-doc T5)', () => {
   it('ai-assistant uses table B2 Assistant branding and copy', () => {
     expect(aiAssistantHtml).toMatch(/<title>Assistant<\/title>/);
     expect(aiAssistantJs).toContain('Assistant');
-    expect(aiAssistantJs).toContain('No todo bound');
-    expect(aiAssistantJs).toContain('Message for this todo…');
+    expect(aiAssistantJs).toContain('Unbound');
+    expect(aiAssistantJs).toContain('Bound');
+    expect(aiAssistantJs).toContain('Message…');
     expect(aiAssistantJs).toContain('>Send<');
     expect(aiAssistantJs).toContain('Bound:');
-    expect(aiAssistantJs).toContain('Session open');
-    expect(aiAssistantJs).toContain('No todo session bound');
+    expect(aiAssistantJs).toContain('query_binding');
     expect(aiAssistantJs).toContain('Tauri invoke unavailable');
     expect(aiAssistantJs).toContain('Working…');
     expect(aiAssistantJs).toContain('Busy — try again later');
     expect(aiAssistantJs).toContain('Failed to send');
+    expect(aiAssistantJs).not.toContain('No todo bound');
+    expect(aiAssistantJs).not.toContain('No todo session bound');
     expect(aiAssistantJs).not.toContain('待办助手');
     expect(aiAssistantJs).not.toContain('尚未绑定');
     expect(aiAssistantJs).not.toContain('发送');

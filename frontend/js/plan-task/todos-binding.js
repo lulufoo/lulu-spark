@@ -112,6 +112,13 @@ export async function buildTodosBinding(masterContext, callbacks = {}) {
   }
 
   if (result && result.ok === true) {
+    // Provision chat session for shell turns without Present (Present≠Set).
+    // Does not call open_ai_assistant — that path opens/focuses the window.
+    try {
+      await invoke('ensure_ai_assistant_session', { masterTaskId });
+    } catch {
+      // Binding Contract Set already succeeded; session heal may retry on send.
+    }
     emitCallback(callbacks.onBound, {});
     return {
       ok: true,

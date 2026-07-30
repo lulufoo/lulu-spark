@@ -110,6 +110,14 @@ describe('buildTodosBinding / resetTodosBinding', () => {
       if (cmd === 'query_binding') {
         return { state: 'unbound' };
       }
+      if (cmd === 'ensure_ai_assistant_session') {
+        return {
+          session_id: 'sess_ensured',
+          bound_master_task_id: args?.masterTaskId,
+          bound_title: 'ensured',
+          busy: false,
+        };
+      }
       return {};
     });
     window.__TAURI__ = { core: { invoke: invokeMock } };
@@ -176,6 +184,10 @@ describe('buildTodosBinding / resetTodosBinding', () => {
     expect(setArgs.binding).not.toHaveProperty('bound_master_task_id');
     expect(setArgs.binding).not.toHaveProperty('masterTaskId');
 
+    expect(invokeMock).toHaveBeenCalledWith(
+      'ensure_ai_assistant_session',
+      expect.objectContaining({ masterTaskId: 'task_alpha' }),
+    );
     expect(events.map((e) => e.event)).toEqual(['onBound']);
   });
 

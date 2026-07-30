@@ -3,9 +3,10 @@
 use serde_json::json;
 
 use crate::commands::ai_assistant::{
-    agent_chat_turn_json, execute_binding_json, get_ai_assistant_binding_json, open_ai_assistant_json,
-    present_ai_assistant_json, query_binding_json, reset_binding_json, set_binding_json,
-    AI_ASSISTANT_WINDOW_LABEL,
+    agent_chat_turn_json, ensure_ai_assistant_session_json, execute_binding_json,
+    get_ai_assistant_binding_json, open_ai_assistant_json, present_ai_assistant_json,
+    query_binding_json, reset_binding_json, set_binding_json, AI_ASSISTANT_WINDOW_LABEL,
+    EVENT_BINDING_CHANGED,
 };
 use crate::config::secrets::{self, KEY_LLM_API_KEY};
 use crate::config::settings;
@@ -33,6 +34,22 @@ fn open_ai_assistant_json_returns_window_label_constant() {
         assert_eq!(v["window_label"], AI_ASSISTANT_WINDOW_LABEL);
         assert_eq!(AI_ASSISTANT_WINDOW_LABEL, "ai-assistant");
         assert_eq!(v["bound_master_task_id"], id);
+    });
+}
+
+#[test]
+fn ensure_ai_assistant_session_provisions_session_without_present_set() {
+    with_cmd_sandbox(|| {
+        let id = create_plan("ensure会话");
+        assert_eq!(query_binding_json()["state"], "unbound");
+        let v = ensure_ai_assistant_session_json(&id).expect("ensure");
+        assert!(!v["session_id"].as_str().unwrap_or("").is_empty());
+        assert_eq!(v["bound_master_task_id"], id);
+        // ensure must not Set Binding Contract (Present≠Set; ensure≠Set).
+        assert_eq!(query_binding_json()["state"], "unbound");
+        assert_eq!(EVENT_BINDING_CHANGED, "ai-assistant:binding-changed");
+        let pulled = get_ai_assistant_binding_json();
+        assert_eq!(pulled["session_id"], v["session_id"]);
     });
 }
 

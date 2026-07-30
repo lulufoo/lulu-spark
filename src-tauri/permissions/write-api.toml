@@ -49,6 +49,7 @@ commands.allow = [
   "delete_todo_comment",
   "open_ai_assistant",
   "present_ai_assistant",
+  "ensure_ai_assistant_session",
   "shell_close_ai_assistant",
   "get_ai_assistant_binding",
   "set_binding",

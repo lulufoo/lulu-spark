@@ -77,6 +77,8 @@ const NOTE_WRITE_COMMANDS: &[&str] = &["archive_document"];
 
 const AI_ASSISTANT_WRITE_COMMANDS: &[&str] = &[
     "open_ai_assistant",
+    "present_ai_assistant",
+    "ensure_ai_assistant_session",
     "get_ai_assistant_binding",
     "agent_chat_turn",
 ];

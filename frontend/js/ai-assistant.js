@@ -5,12 +5,15 @@
  * Host dual surface:
  * - Binding Contract: Set/Reset/query/execute (+ callbacks)
  * - Present: shell open/focus (maps to create_or_focus); Present does not imply Set.
+ * Composer eligibility follows Binding Contract `query_binding` (state==bound),
+ * not legacy todo-session / bound_master_task_id.
  * 关壳 ≠ Reset — dispose notifies shell_close only; never Binding Contract Reset.
  */
 
 import { escHtml } from './utils.js';
 
 const OPENED_EVENT = 'ai-assistant:opened';
+const BINDING_CHANGED_EVENT = 'ai-assistant:binding-changed';
 /** Present surface name — not a Binding Contract op; Present≠bound. */
 const PRESENT_SURFACE = 'Present';
 
@@ -50,19 +53,23 @@ export function mountAiAssistant(root, opts = {}) {
   let sessionId = '';
   let boundMasterTaskId = '';
   let boundTitle = '';
+  /** Host Binding Contract state — composer gate. Present≠bound. */
+  let hostBound = false;
+  let hostBusy = false;
   let sending = false;
   /** @type {{ role: 'user'|'assistant'|'notice', text: string, error?: boolean }[]} */
   let messages = [];
   let unlistenOpened = null;
+  let unlistenBindingChanged = null;
 
   root.innerHTML = `
     <header class="ai-assistant-header">
       <h1 class="ai-assistant-title">Assistant</h1>
-      <p class="ai-assistant-bound" data-role="bound">No todo bound</p>
+      <p class="ai-assistant-bound" data-role="bound">Unbound</p>
     </header>
     <div class="ai-assistant-messages" data-role="messages" aria-live="polite"></div>
     <form class="ai-assistant-composer" data-role="form">
-      <textarea class="ai-assistant-input" data-role="input" rows="2" placeholder="Message for this todo…" disabled></textarea>
+      <textarea class="ai-assistant-input" data-role="input" rows="2" placeholder="Message…" disabled></textarea>
       <button type="submit" class="ai-assistant-send" data-role="send" disabled>Send</button>
     </form>
   `;
@@ -89,28 +96,60 @@ export function mountAiAssistant(root, opts = {}) {
     messagesEl.scrollTop = messagesEl.scrollHeight;
   }
 
+  function composerShouldEnable() {
+    // Binding Contract gate: Present alone does not imply Set / does not enable chat.
+    return hostBound && !hostBusy && !sending;
+  }
+
   function setComposerEnabled(enabled) {
     input.disabled = !enabled;
     sendBtn.disabled = !enabled || sending;
   }
 
-  function applyBinding(payload) {
+  function refreshComposerAndStatus() {
+    boundEl.textContent = hostBound
+      ? boundTitle
+        ? `Bound: ${boundTitle}`
+        : 'Bound'
+      : 'Unbound';
+    setComposerEnabled(composerShouldEnable());
+  }
+
+  /**
+   * Apply legacy shell UX payload (session / soft title). Does not set Binding Contract gate.
+   * @param {object} payload
+   */
+  function applySessionPayload(payload) {
     if (!payload || typeof payload !== 'object') return;
-    sessionId = String(payload.session_id || '');
-    boundMasterTaskId = String(payload.bound_master_task_id || '');
-    boundTitle = String(payload.bound_title || '');
-    const busy = Boolean(payload.busy);
-    messages = [];
-    if (busy && payload.reply_text) {
-      messages.push({ role: 'notice', text: String(payload.reply_text) });
+    if (payload.session_id != null) {
+      sessionId = String(payload.session_id || '');
     }
-    boundEl.textContent = boundTitle
-      ? `Bound: ${boundTitle}`
-      : sessionId
-        ? 'Session open'
-        : 'No todo bound';
-    setComposerEnabled(Boolean(sessionId) && !busy);
-    renderMessages();
+    if (payload.bound_master_task_id != null) {
+      boundMasterTaskId = String(payload.bound_master_task_id || '');
+    }
+    if (payload.bound_title != null) {
+      boundTitle = String(payload.bound_title || '');
+    }
+    if (typeof payload.busy === 'boolean') {
+      hostBusy = payload.busy;
+    }
+    if (payload.busy && payload.reply_text) {
+      messages = [];
+      messages.push({ role: 'notice', text: String(payload.reply_text) });
+      renderMessages();
+    }
+    refreshComposerAndStatus();
+  }
+
+  /** @param {'bound'|'unbound'|string} state */
+  function applyHostContractState(state) {
+    hostBound = state === 'bound';
+    refreshComposerAndStatus();
+  }
+
+  /** @deprecated Use applySessionPayload + applyHostContractState; kept for tests/callers. */
+  function applyBinding(payload) {
+    applySessionPayload(payload);
   }
 
   function pushNotice(text, error = false) {
@@ -124,8 +163,23 @@ export function mountAiAssistant(root, opts = {}) {
       pushNotice('Tauri invoke unavailable', true);
       return;
     }
+    if (!hostBound) {
+      pushNotice('Unbound — chat requires a Binding Contract Set', true);
+      return;
+    }
     if (!sessionId) {
-      pushNotice('No todo session bound', true);
+      // Bound but chat session not provisioned yet — pull once (Todos Set ensures session).
+      try {
+        const state = await invoke('get_ai_assistant_binding');
+        if (state && typeof state === 'object' && state.session_id) {
+          applySessionPayload(state);
+        }
+      } catch {
+        // fall through
+      }
+    }
+    if (!sessionId) {
+      pushNotice('Chat session unavailable', true);
       return;
     }
     sending = true;
@@ -155,17 +209,17 @@ export function mountAiAssistant(root, opts = {}) {
           }
           if (result.bound_title) {
             boundTitle = String(result.bound_title);
-            boundEl.textContent = `Bound: ${boundTitle}`;
           }
         }
       }
       renderMessages();
+      refreshComposerAndStatus();
     } catch (err) {
       messages = messages.filter((m) => !(m.role === 'notice' && m.text === 'Working…'));
       pushNotice(err?.message ? String(err.message) : 'Failed to send', true);
     } finally {
       sending = false;
-      setComposerEnabled(Boolean(sessionId));
+      setComposerEnabled(composerShouldEnable());
     }
   }
 
@@ -181,18 +235,43 @@ export function mountAiAssistant(root, opts = {}) {
     const listen = getTauriListen();
     if (!listen) return;
     unlistenOpened = await listen(OPENED_EVENT, (event) => {
-      applyBinding(event?.payload);
+      applySessionPayload(event?.payload);
     });
   }
 
+  async function bindBindingChangedListener() {
+    const listen = getTauriListen();
+    if (!listen) return;
+    unlistenBindingChanged = await listen(BINDING_CHANGED_EVENT, (event) => {
+      const state = event?.payload?.state;
+      if (typeof state === 'string') {
+        applyHostContractState(state);
+      }
+    });
+  }
+
+  /** Sync Binding Contract gate from Host query (Present≠bound). */
+  async function pullHostContractState() {
+    const invoke = getTauriInvoke();
+    if (!invoke) return;
+    try {
+      const summary = await invoke('query_binding');
+      if (summary && typeof summary === 'object') {
+        applyHostContractState(String(summary.state || 'unbound'));
+      }
+    } catch {
+      // Non-fatal; remain unbound until a later sync.
+    }
+  }
+
   /** Heal first-open race: Host may emit before this window's listener is ready. */
-  async function pullBindingFromHost() {
+  async function pullSessionFromHost() {
     const invoke = getTauriInvoke();
     if (!invoke) return;
     try {
       const state = await invoke('get_ai_assistant_binding');
       if (state && typeof state === 'object' && state.session_id) {
-        applyBinding(state);
+        applySessionPayload(state);
       }
     } catch {
       // Non-fatal; event path or later open may still bind.
@@ -201,17 +280,22 @@ export function mountAiAssistant(root, opts = {}) {
 
   if (autoBind) {
     const fromUrl = bindingFromSearch();
-    if (fromUrl) applyBinding(fromUrl);
+    if (fromUrl) applySessionPayload(fromUrl);
     void (async () => {
       await bindOpenedListener();
-      // After listen is armed, pull current Host binding (covers missed emit).
-      await pullBindingFromHost();
+      await bindBindingChangedListener();
+      // After listen is armed, pull Host Binding Contract + optional chat session.
+      await pullHostContractState();
+      await pullSessionFromHost();
     })();
   }
 
   function dispose() {
     if (typeof unlistenOpened === 'function') {
       void unlistenOpened();
+    }
+    if (typeof unlistenBindingChanged === 'function') {
+      void unlistenBindingChanged();
     }
     // 关壳 ≠ Reset: notify Present shell close only; never invoke Binding Contract Reset.
     const invoke = getTauriInvoke();
@@ -224,10 +308,12 @@ export function mountAiAssistant(root, opts = {}) {
   return {
     dispose,
     applyBinding,
+    applyHostContractState,
     getState: () => ({
       sessionId,
       boundMasterTaskId,
       boundTitle,
+      hostBound,
       messages,
       // Shell UX session binding ≠ Binding Contract bound (Present does not imply Set).
       presentSurface: PRESENT_SURFACE,

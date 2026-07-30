@@ -40,6 +40,29 @@ describe('ai-assistant window shell (t5)', () => {
     expect(libRs).toMatch(/get_ai_assistant_binding/);
   });
 
+  it('composer eligibility follows Binding Contract query_binding, not todo session', () => {
+    const js = readFileSync(jsPath, 'utf8');
+    expect(js).toMatch(/query_binding/);
+    expect(js).toMatch(/ai-assistant:binding-changed/);
+    expect(js).toMatch(/hostBound/);
+    expect(js).toMatch(/Unbound/);
+    expect(js).not.toMatch(/No todo bound/);
+    expect(js).not.toMatch(/setComposerEnabled\(Boolean\(sessionId\)/);
+  });
+
+  it('Todos Set provisions chat session without Present (ensure_ai_assistant_session)', () => {
+    const todosBinding = readFileSync(
+      join(repoRoot, 'frontend/js/plan-task/todos-binding.js'),
+      'utf8',
+    );
+    expect(todosBinding).toMatch(/ensure_ai_assistant_session/);
+    expect(todosBinding).not.toMatch(
+      /invoke\(\s*['"]open_ai_assistant['"]/,
+    );
+    expect(aiAssistantCmd).toMatch(/ensure_ai_assistant_session/);
+    expect(libRs).toMatch(/ensure_ai_assistant_session/);
+  });
+
   it('defines create_or_focus_ai_assistant_window with focus/show', () => {
     expect(libRs).toMatch(/fn create_or_focus_ai_assistant_window\s*\(/);
     const fnBody = libRs.match(

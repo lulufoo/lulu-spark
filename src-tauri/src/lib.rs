@@ -477,6 +477,7 @@ pub fn run() {
             commands::todo_task::delete_todo_comment,
             commands::ai_assistant::open_ai_assistant,
             commands::ai_assistant::present_ai_assistant,
+            commands::ai_assistant::ensure_ai_assistant_session,
             commands::ai_assistant::shell_close_ai_assistant,
             commands::ai_assistant::get_ai_assistant_binding,
             commands::ai_assistant::set_binding,

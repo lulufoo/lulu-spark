@@ -8,9 +8,17 @@ use crate::services::agent::r#loop::{self, ChatTurnResult, EVENT_TURN_COMPLETED,
 
 pub const AI_ASSISTANT_WINDOW_LABEL: &str = WINDOW_LABEL;
 pub const EVENT_ASSISTANT_OPENED: &str = "ai-assistant:opened";
+/// Emitted when Binding Contract Set/Reset changes `query_binding` state (shell composer gate).
+pub const EVENT_BINDING_CHANGED: &str = "ai-assistant:binding-changed";
 
 pub fn open_ai_assistant_json(master_task_id: &str) -> Result<Value, String> {
     // Physical open path may still carry shell UX payload; Present semantics must not imply Set.
+    r#loop::open_ai_assistant_core(master_task_id)
+}
+
+/// Provision chat session for a master without Present/open window.
+/// Used by Todos after Binding Contract Set so shell can `agent_chat_turn` while Present≠Set.
+pub fn ensure_ai_assistant_session_json(master_task_id: &str) -> Result<Value, String> {
     r#loop::open_ai_assistant_core(master_task_id)
 }
 
@@ -84,18 +92,22 @@ pub fn execute_binding_json() -> Value {
 
 /// Invokable Binding Contract Set. Host does not assemble tools/prompt.
 #[tauri::command]
-pub async fn set_binding(binding: Value) -> Result<Value, String> {
-    Ok(tauri::async_runtime::spawn_blocking(move || set_binding_json(binding))
+pub async fn set_binding(app: AppHandle, binding: Value) -> Result<Value, String> {
+    let result = tauri::async_runtime::spawn_blocking(move || set_binding_json(binding))
         .await
-        .map_err(|e| e.to_string())?)
+        .map_err(|e| e.to_string())?;
+    let _ = app.emit(EVENT_BINDING_CHANGED, &result);
+    Ok(result)
 }
 
 /// Invokable Binding Contract Reset → unbound.
 #[tauri::command]
-pub async fn reset_binding() -> Result<Value, String> {
-    Ok(tauri::async_runtime::spawn_blocking(reset_binding_json)
+pub async fn reset_binding(app: AppHandle) -> Result<Value, String> {
+    let result = tauri::async_runtime::spawn_blocking(reset_binding_json)
         .await
-        .map_err(|e| e.to_string())?)
+        .map_err(|e| e.to_string())?;
+    let _ = app.emit(EVENT_BINDING_CHANGED, &result);
+    Ok(result)
 }
 
 /// Invokable Binding Contract query (business-agnostic).
@@ -160,6 +172,31 @@ pub async fn present_ai_assistant(app: AppHandle) -> Result<Value, String> {
     #[cfg(not(test))]
     {
         crate::create_or_focus_ai_assistant_window(&app).map_err(|e| e.to_string())?;
+    }
+    #[cfg(test)]
+    {
+        let _ = &app;
+    }
+
+    Ok(result)
+}
+
+/// Ensure a chat session exists for `master_task_id` without Present / window focus.
+/// Does not Set Binding Contract. Used after consumer Set so shell composer can turn.
+#[tauri::command]
+pub async fn ensure_ai_assistant_session(
+    app: AppHandle,
+    master_task_id: String,
+) -> Result<Value, String> {
+    let result =
+        tauri::async_runtime::spawn_blocking(move || ensure_ai_assistant_session_json(&master_task_id))
+            .await
+            .map_err(|e| e.to_string())??;
+
+    #[cfg(not(test))]
+    {
+        // Notify an already-open shell; do not create/focus the window (Present≠ensure).
+        let _ = app.emit(EVENT_ASSISTANT_OPENED, &result);
     }
     #[cfg(test)]
     {
