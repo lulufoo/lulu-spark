@@ -23,6 +23,15 @@ pub struct Turn {
     pub name: Option<String>,
 }
 
+/// Generic Binding Contract config surface (A1 opaque handles): tools + prompt + callbacks.
+/// Not keyed by business IDs.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct Binding {
+    pub tools: Value,
+    pub prompt: Value,
+    pub callbacks: Value,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Session {
     pub session_id: String,

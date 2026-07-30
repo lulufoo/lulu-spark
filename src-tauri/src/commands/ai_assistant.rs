@@ -1,6 +1,6 @@
 //! Host commands: open_ai_assistant / agent_chat_turn.
 
-use serde_json::Value;
+use serde_json::{json, Value};
 use tauri::{AppHandle, Emitter};
 
 use crate::services::agent::r#loop::{self, ChatTurnResult, EVENT_TURN_COMPLETED, WINDOW_LABEL};
@@ -14,6 +14,21 @@ pub fn open_ai_assistant_json(master_task_id: &str) -> Result<Value, String> {
 
 pub fn get_ai_assistant_binding_json() -> Value {
     r#loop::get_ai_assistant_binding_core()
+}
+
+/// Binding Contract Set entry (tools + prompt + callbacks). Does not fill tools/prompt.
+pub fn set_binding_json(binding: Value) -> Value {
+    match r#loop::try_set_binding_json(&binding) {
+        Ok(()) => json!({
+            "ok": true,
+            "state": r#loop::binding_state(),
+        }),
+        Err(e) => json!({
+            "ok": false,
+            "code": e.as_code(),
+            "state": r#loop::binding_state(),
+        }),
+    }
 }
 
 pub fn agent_chat_turn_json(

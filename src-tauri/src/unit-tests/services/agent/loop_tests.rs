@@ -763,3 +763,161 @@ fn close_window_does_not_abort_emit_still_available() {
 fn event_name_is_literally_ai_assistant_turn_completed() {
     assert_eq!(EVENT_TURN_COMPLETED, "ai-assistant:turn-completed");
 }
+
+// --- Binding Contract B1: tools + prompt + callbacks Set validation (t1) ---
+
+fn applicable_tools() -> Value {
+    json!([{ "name": "tool_a", "handle": "opaque-tool-a" }])
+}
+
+fn applicable_prompt() -> Value {
+    json!("opaque-system-prompt")
+}
+
+fn empty_callbacks_registry() -> Value {
+    json!({})
+}
+
+fn valid_binding() -> r#loop::Binding {
+    r#loop::Binding {
+        tools: applicable_tools(),
+        prompt: applicable_prompt(),
+        callbacks: empty_callbacks_registry(),
+    }
+}
+
+#[test]
+fn set_binding_accepts_valid_tools_prompt_and_callbacks() {
+    with_sandbox(|| {
+        assert_eq!(r#loop::binding_state(), "unbound");
+        let result = r#loop::set_binding(valid_binding());
+        assert!(
+            result.is_ok(),
+            "valid Binding must pass Set validation, got {result:?}"
+        );
+        assert_ne!(
+            result.err().map(|e| e.as_code()),
+            Some("set_invalid")
+        );
+        assert_eq!(
+            r#loop::binding_state(),
+            "bound",
+            "valid Set must enter subsequent bound path"
+        );
+    });
+}
+
+#[test]
+fn binding_config_surface_is_generic_tools_prompt_callbacks() {
+    with_sandbox(|| {
+        let binding = valid_binding();
+        let encoded = serde_json::to_value(&binding).expect("encode Binding");
+        let obj = encoded.as_object().expect("Binding encodes as object");
+        assert!(obj.contains_key("tools"), "tools slot required");
+        assert!(obj.contains_key("prompt"), "prompt slot required");
+        assert!(obj.contains_key("callbacks"), "callbacks slot required");
+        assert!(
+            !obj.contains_key("master_task_id"),
+            "business field master_task_id must not be part of Binding contract surface"
+        );
+        assert!(
+            !obj.contains_key("bound_master_task_id"),
+            "business field bound_master_task_id must not be part of Binding contract surface"
+        );
+        r#loop::set_binding(binding).expect("generic Binding must Set successfully");
+        assert_eq!(r#loop::binding_state(), "bound");
+    });
+}
+
+#[test]
+fn set_binding_allows_empty_callbacks_registry_when_slot_present() {
+    with_sandbox(|| {
+        let binding = r#loop::Binding {
+            tools: applicable_tools(),
+            prompt: applicable_prompt(),
+            callbacks: json!({}),
+        };
+        assert!(r#loop::set_binding(binding).is_ok());
+        assert_eq!(r#loop::binding_state(), "bound");
+    });
+}
+
+#[test]
+fn set_binding_rejects_inapplicable_tools_or_prompt_as_set_invalid() {
+    with_sandbox(|| {
+        let empty_tools = r#loop::Binding {
+            tools: json!([]),
+            prompt: applicable_prompt(),
+            callbacks: empty_callbacks_registry(),
+        };
+        let err = r#loop::set_binding(empty_tools).expect_err("empty tools must fail");
+        assert_eq!(err.as_code(), "set_invalid");
+        assert_eq!(r#loop::binding_state(), "unbound");
+
+        let empty_prompt = r#loop::Binding {
+            tools: applicable_tools(),
+            prompt: json!(""),
+            callbacks: empty_callbacks_registry(),
+        };
+        let err = r#loop::set_binding(empty_prompt).expect_err("empty prompt must fail");
+        assert_eq!(err.as_code(), "set_invalid");
+        assert_eq!(r#loop::binding_state(), "unbound");
+    });
+}
+
+#[test]
+fn set_binding_rejects_missing_slot_keeps_prior_state() {
+    with_sandbox(|| {
+        // Missing any of tools / prompt / callbacks → set_invalid, stay unbound.
+        for payload in [
+            json!({ "prompt": "p", "callbacks": {} }),
+            json!({ "tools": [{ "name": "t" }], "callbacks": {} }),
+            json!({ "tools": [{ "name": "t" }], "prompt": "p" }),
+        ] {
+            let err = r#loop::try_set_binding_json(&payload)
+                .expect_err("missing slot must fail Set");
+            assert_eq!(err.as_code(), "set_invalid");
+            assert_eq!(r#loop::binding_state(), "unbound");
+        }
+
+        // After a successful Set, illegal Set must not rewrite bound state.
+        r#loop::set_binding(valid_binding()).expect("seed bound");
+        assert_eq!(r#loop::binding_state(), "bound");
+        let err = r#loop::try_set_binding_json(&json!({
+            "tools": [{ "name": "t" }],
+            "prompt": "p"
+            // callbacks slot absent
+        }))
+        .expect_err("missing callbacks must fail");
+        assert_eq!(err.as_code(), "set_invalid");
+        assert_eq!(
+            r#loop::binding_state(),
+            "bound",
+            "illegal Set must keep prior bound state"
+        );
+    });
+}
+
+#[test]
+fn set_binding_does_not_assemble_or_default_fill_from_business_fields() {
+    with_sandbox(|| {
+        // Business-only payload without tools/prompt must not be auto-completed into success.
+        let err = r#loop::try_set_binding_json(&json!({
+            "master_task_id": "task_business_only",
+            "callbacks": {}
+        }))
+        .expect_err("Host must not fill tools/prompt from business fields");
+        assert_eq!(err.as_code(), "set_invalid");
+        assert_eq!(r#loop::binding_state(), "unbound");
+
+        let err = r#loop::try_set_binding_json(&json!({
+            "bound_master_task_id": "task_x",
+            "tools": [],
+            "prompt": "",
+            "callbacks": {}
+        }))
+        .expect_err("empty tools/prompt must not succeed via business-field side path");
+        assert_eq!(err.as_code(), "set_invalid");
+        assert_eq!(r#loop::binding_state(), "unbound");
+    });
+}
