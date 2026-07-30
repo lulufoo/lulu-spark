@@ -3,7 +3,7 @@
 use serde_json::json;
 
 use crate::commands::ai_assistant::{
-    agent_chat_turn_json, execute_binding_json, open_ai_assistant_json,
+    agent_chat_turn_json, execute_binding_json, get_ai_assistant_binding_json, open_ai_assistant_json,
     present_ai_assistant_json, query_binding_json, reset_binding_json, set_binding_json,
     AI_ASSISTANT_WINDOW_LABEL,
 };
@@ -75,6 +75,24 @@ fn present_ai_assistant_json_is_shell_only_not_bound() {
         // Present must not write business binding primary key into contract query.
         assert!(query_binding_json().get("bound_master_task_id").is_none());
         assert!(query_binding_json().get("master_task_id").is_none());
+    });
+}
+
+/// t3 / L06-T: Present must not write legacy bound_master_task_id (open_ai_assistant_core side effect).
+#[test]
+fn present_ai_assistant_does_not_write_bound_master_task_id() {
+    with_cmd_sandbox(|| {
+        let _ = present_ai_assistant_json().expect("Present");
+        let binding = get_ai_assistant_binding_json();
+        assert_eq!(
+            binding["bound_master_task_id"].as_str().unwrap_or(""),
+            "",
+            "Present must not write bound_master_task_id"
+        );
+        assert_eq!(query_binding_json()["state"], "unbound");
+        let exec = execute_binding_json();
+        assert_eq!(exec["ok"], false);
+        assert_eq!(exec["code"], "rejected_unbound");
     });
 }
 

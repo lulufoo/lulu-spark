@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 /**
- * T6: plan-page thin shell — open_ai_assistant entry + turn-completed refresh.
+ * T6 / L2 t3: plan-page thin shell — Present entry + turn-completed refresh.
  * Does not cover FAB plan-task-assistant.js.
+ * Present = present_ai_assistant only; not open_ai_assistant(masterTaskId).
  */
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -51,14 +52,18 @@ const sampleMasters = [
   },
 ];
 
-describe('plan-task AI assistant entry source wiring (t6)', () => {
-  it('plan-task/index.js invokes open_ai_assistant and listens turn-completed', () => {
-    expect(planTaskIndex).toMatch(/open_ai_assistant/);
+describe('plan-task AI assistant entry source wiring (t6 / t3)', () => {
+  it('plan-task/index.js invokes present_ai_assistant and listens turn-completed', () => {
+    expect(planTaskIndex).toMatch(/present_ai_assistant/);
     expect(planTaskIndex).toMatch(/ai-assistant:turn-completed/);
+    expect(planTaskIndex).not.toMatch(
+      /invoke\(\s*['"]open_ai_assistant['"]\s*,\s*\{\s*masterTaskId/,
+    );
   });
 
-  it('does not move open_ai_assistant into plan-task-assistant FAB', () => {
+  it('does not move Present / open_ai_assistant into plan-task-assistant FAB', () => {
     expect(planTaskAssistant).not.toMatch(/open_ai_assistant/);
+    expect(planTaskAssistant).not.toMatch(/present_ai_assistant/);
     expect(planTaskAssistant).not.toMatch(/ai-assistant:turn-completed/);
   });
 });
@@ -76,11 +81,17 @@ describe('mountPlanTaskSplit AI assistant entry', () => {
     getJsonMock.mockReset();
     getJsonMock.mockResolvedValue(sampleMasters);
 
-    invokeMock = vi.fn().mockResolvedValue({
-      session_id: 'sess_1',
-      bound_master_task_id: 'task_alpha',
-      window_label: 'ai-assistant',
-      busy: false,
+    invokeMock = vi.fn().mockImplementation(async (cmd) => {
+      if (cmd === 'present_ai_assistant') {
+        return { surface: 'Present', window_label: 'ai-assistant' };
+      }
+      if (cmd === 'set_binding') {
+        return { ok: true, state: 'bound' };
+      }
+      if (cmd === 'reset_binding') {
+        return { ok: true, state: 'unbound' };
+      }
+      return {};
     });
     unlistenMock = vi.fn();
     turnCompletedHandler = null;
@@ -118,7 +129,7 @@ describe('mountPlanTaskSplit AI assistant entry', () => {
     dispose();
   });
 
-  it('invokes open_ai_assistant with selected masterTaskId', async () => {
+  it('invokes present_ai_assistant without masterTaskId bind args', async () => {
     const { dispose } = mountPlanTaskSplit(container, {
       masterId: 'task_alpha',
     });
@@ -128,12 +139,15 @@ describe('mountPlanTaskSplit AI assistant entry', () => {
       ).not.toBeNull();
     });
 
+    invokeMock.mockClear();
     container.querySelector('[data-action="open-ai-assistant"]').click();
     await vi.waitFor(() => {
-      expect(invokeMock).toHaveBeenCalledWith('open_ai_assistant', {
-        masterTaskId: 'task_alpha',
-      });
+      expect(invokeMock).toHaveBeenCalledWith('present_ai_assistant');
     });
+    expect(invokeMock).not.toHaveBeenCalledWith(
+      'open_ai_assistant',
+      expect.anything(),
+    );
     dispose();
   });
 

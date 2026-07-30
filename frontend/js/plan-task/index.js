@@ -1829,12 +1829,13 @@ export function mountPlanTaskSplit(container, opts = {}) {
     }
   }
 
-  async function openPlanAiAssistant() {
+  /** Present-only: open/focus assistant shell. Does not Set or write bound_master_task_id. */
+  async function presentTodosAssistant() {
     if (!selectedMasterId || controlsDisabled(busy)) return;
     const invoke = getTauriInvoke();
     if (!invoke) return;
     try {
-      await invoke('open_ai_assistant', { masterTaskId: selectedMasterId });
+      await invoke('present_ai_assistant');
     } catch {
       // Open/focus failure is non-fatal; Host returns explicit errors when busy.
     }
@@ -1981,7 +1982,7 @@ export function mountPlanTaskSplit(container, opts = {}) {
     if (action === 'open-ai-assistant') {
       event.preventDefault();
       if (controlsDisabled(busy) || !selectedMasterId) return;
-      void openPlanAiAssistant();
+      void presentTodosAssistant();
       return;
     }
 

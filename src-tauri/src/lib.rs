@@ -381,6 +381,7 @@ fn create_read_later_assistant_window(app: &tauri::App) -> Result<(), Box<dyn st
 
 /// Present shell mapping: create the plan-page AI assistant window, or focus/show it if it already exists.
 /// Host Present surface (not a Binding Contract op) maps here via `present_ai_assistant`.
+/// Todos page Assistant entry must Present through this path — not via `open_ai_assistant` bind.
 #[cfg(not(test))]
 pub fn create_or_focus_ai_assistant_window(
     app: &tauri::AppHandle,

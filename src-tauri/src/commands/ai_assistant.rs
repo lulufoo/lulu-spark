@@ -127,8 +127,8 @@ pub async fn open_ai_assistant(
     app: AppHandle,
     master_task_id: String,
 ) -> Result<Value, String> {
-    // Invokable Present path today may still go through open_ai_assistant for shell UX,
-    // but Present semantics must not imply Binding Contract Set.
+    // Legacy open+bind path (writes bound_master_task_id via open_ai_assistant_core).
+    // Todos page Present must use present_ai_assistant instead (L2 t3 / L06-T).
     let result = tauri::async_runtime::spawn_blocking(move || open_ai_assistant_json(&master_task_id))
         .await
         .map_err(|e| e.to_string())??;
@@ -149,7 +149,8 @@ pub async fn open_ai_assistant(
 }
 
 /// Present: open or focus the assistant shell. Maps to `create_or_focus_ai_assistant_window`.
-/// Not a Binding Contract op — does not Set and does not change binding state.
+/// Not a Binding Contract op — does not Set, does not write bound_master_task_id, does not change binding state.
+/// Todos page Assistant button must call this (not `open_ai_assistant`).
 #[tauri::command]
 pub async fn present_ai_assistant(app: AppHandle) -> Result<Value, String> {
     let result = tauri::async_runtime::spawn_blocking(present_ai_assistant_json)
