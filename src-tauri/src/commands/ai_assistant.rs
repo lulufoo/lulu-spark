@@ -82,6 +82,38 @@ pub fn execute_binding_json() -> Value {
     }
 }
 
+/// Invokable Binding Contract Set. Host does not assemble tools/prompt.
+#[tauri::command]
+pub async fn set_binding(binding: Value) -> Result<Value, String> {
+    Ok(tauri::async_runtime::spawn_blocking(move || set_binding_json(binding))
+        .await
+        .map_err(|e| e.to_string())?)
+}
+
+/// Invokable Binding Contract Reset → unbound.
+#[tauri::command]
+pub async fn reset_binding() -> Result<Value, String> {
+    Ok(tauri::async_runtime::spawn_blocking(reset_binding_json)
+        .await
+        .map_err(|e| e.to_string())?)
+}
+
+/// Invokable Binding Contract query (business-agnostic).
+#[tauri::command]
+pub async fn query_binding() -> Result<Value, String> {
+    Ok(tauri::async_runtime::spawn_blocking(query_binding_json)
+        .await
+        .map_err(|e| e.to_string())?)
+}
+
+/// Invokable Binding Contract execute gate.
+#[tauri::command]
+pub async fn execute_binding() -> Result<Value, String> {
+    Ok(tauri::async_runtime::spawn_blocking(execute_binding_json)
+        .await
+        .map_err(|e| e.to_string())?)
+}
+
 pub fn agent_chat_turn_json(
     session_id: &str,
     message: &str,

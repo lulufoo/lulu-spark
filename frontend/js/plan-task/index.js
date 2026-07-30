@@ -2,6 +2,13 @@ import { createApiClient, resolveReadDriver } from '../apiClient.js';
 import { renderCommentMarkdown } from '../comment-markdown.js';
 import { escHtml } from '../utils.js';
 import { closePlanTaskDialog, openPlanTaskDialog } from './dialog.js';
+export {
+  buildTodosBinding,
+  resetTodosBinding,
+  assembleTodosBindingBody,
+  TODOS_T_LIFT_TOOL_NAMES,
+  TODOS_PLAN_ASSISTANT_PROMPT,
+} from './todos-binding.js';
 
 const UNAVAILABLE_MSG = 'List temporarily unavailable. Please try again later.';
 const REFRESH_WARNING_MSG = 'Saved, but list refresh failed — retry';

@@ -51,6 +51,10 @@ commands.allow = [
   "present_ai_assistant",
   "shell_close_ai_assistant",
   "get_ai_assistant_binding",
+  "set_binding",
+  "reset_binding",
+  "query_binding",
+  "execute_binding",
   "agent_chat_turn",
   "archive_document",
 ]
