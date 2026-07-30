@@ -9,6 +9,13 @@ export {
   TODOS_T_LIFT_TOOL_NAMES,
   TODOS_PLAN_ASSISTANT_PROMPT,
 } from './todos-binding.js';
+export {
+  createTodosPageLifecycle,
+  onTodosPageEnter,
+  onMasterSelectionChange,
+  onTodosPageLeave,
+} from './todos-lifecycle.js';
+import { createTodosPageLifecycle } from './todos-lifecycle.js';
 
 const UNAVAILABLE_MSG = 'List temporarily unavailable. Please try again later.';
 const REFRESH_WARNING_MSG = 'Saved, but list refresh failed — retry';
@@ -1024,8 +1031,23 @@ export function mountPlanTaskSplit(container, opts = {}) {
   /** Last master id painted into the detail pane — used to keep detail scroll across same-master paints. */
   let paintedMasterId = '';
   let activeOnly = true;
+  /** Page lifecycle Binding: enter/select Set, leave Reset; shell close ≠ Reset. */
+  const todosLifecycle = createTodosPageLifecycle();
+  let lifecycleEntered = false;
 
   container.innerHTML = '<div class="plan-task-split-loading">Loading…</div>';
+
+  function syncTodosBindingForSelection(masterId) {
+    if (disposed) return;
+    const id = typeof masterId === 'string' ? masterId.trim() : '';
+    if (!lifecycleEntered) {
+      lifecycleEntered = true;
+      void todosLifecycle.onTodosPageEnter(id);
+      return;
+    }
+    if (!id) return;
+    void todosLifecycle.onMasterSelectionChange(id);
+  }
 
   function findMaster(id) {
     return masters.find((master) => master.master_task_id === id) ?? null;
@@ -1205,6 +1227,7 @@ export function mountPlanTaskSplit(container, opts = {}) {
     const masterId = route.masterId ?? '';
     const subId = route.subId ?? '';
     if (masterId === selectedMasterId && subId === selectedSubId) return;
+    const masterChanged = masterId !== selectedMasterId;
     closeSubMenus();
     resetPlanMdEdit();
     closeAttachmentEditor();
@@ -1224,6 +1247,9 @@ export function mountPlanTaskSplit(container, opts = {}) {
     commentEditId = '';
     commentDeleteConfirm = '';
     resolveSelection();
+    if (masterChanged) {
+      syncTodosBindingForSelection(selectedMasterId);
+    }
     void (async () => {
       await loadAttachmentsForSelected();
       await loadCommentsForSelected();
@@ -1391,6 +1417,9 @@ export function mountPlanTaskSplit(container, opts = {}) {
       await loadCommentsForSelected();
       if (disposed) return;
       paint();
+      if (!lifecycleEntered) {
+        syncTodosBindingForSelection(selectedMasterId);
+      }
     } catch {
       if (disposed) return;
       if (afterWrite) {
@@ -1412,6 +1441,9 @@ export function mountPlanTaskSplit(container, opts = {}) {
         masterHtml: '<div class="plan-task-split-state"></div>',
         detailHtml: renderErrorEmpty(),
       });
+      if (!lifecycleEntered) {
+        syncTodosBindingForSelection('');
+      }
     }
   }
 
@@ -1827,6 +1859,7 @@ export function mountPlanTaskSplit(container, opts = {}) {
             selectedMasterId = createdId;
             selectedSubId = '';
             deadLink = false;
+            syncTodosBindingForSelection(selectedMasterId);
           }
         });
       },
@@ -2164,6 +2197,7 @@ export function mountPlanTaskSplit(container, opts = {}) {
       commentsError = '';
       commentEditId = '';
       commentDeleteConfirm = '';
+      syncTodosBindingForSelection(selectedMasterId);
       void (async () => {
         await loadAttachmentsForSelected();
         await loadCommentsForSelected();
@@ -2335,6 +2369,7 @@ export function mountPlanTaskSplit(container, opts = {}) {
 
   function dispose() {
     disposed = true;
+    void todosLifecycle.onTodosPageLeave();
     document.removeEventListener('plan-task-dialog-close', onDialogClose);
     closePlanTaskDialog();
     disposeFocusRefresh();
