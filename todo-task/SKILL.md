@@ -56,6 +56,7 @@ Do not invent norms not listed here.
 | Field / concern | Reference | When |
 |-----------------|-----------|------|
 | `title` | `references/title-naming.md` | Before choosing or proposing a create title |
+| `todo_md` body | `references/body-writing.md` | Before drafting problem-analysis body content |
 
 - User-explicit values override the corresponding norm; say so briefly when skipping.
 - Field limits still come from live MCP schema (Parameter SSOT).
@@ -98,4 +99,5 @@ Observable completion for a write request:
 
 - Workbench tech plan: MCP todo tools (FM-3 HTTP + FM-6 SKILL)
 - Title norms: [title-naming](references/title-naming.md)
+- Body norms: [body-writing](references/body-writing.md)
 - Archive then link: [theme-archive](../theme-archive/SKILL.md) → `link_todo_archive`
