@@ -29,6 +29,20 @@ const AI_ASSISTANT_TURN_COMPLETED = 'ai-assistant:turn-completed';
  * Page entry Present uses `present_ai_assistant`; Binding is via Binding Contract Set.
  */
 export const TODOS_OPEN_AND_BIND_MAIN_PATH_DISABLED = true;
+/**
+ * SK-4 / T-acceptance: Todos-side parity acceptance ids (P1–P6 + N1/N2 only).
+ * Does not include complete/abandon/batch/cross-plan/global entry.
+ */
+export const TODOS_PARITY_ACCEPTANCE = Object.freeze([
+  'P1',
+  'P2',
+  'P3',
+  'P4',
+  'P5',
+  'P6',
+  'N1',
+  'N2',
+]);
 const COPY_MASTER_ID_LABEL = 'Copy task ID';
 const COPY_FEEDBACK_LABEL = '✓ Copied';
 const COPY_FEEDBACK_MS = 1200;

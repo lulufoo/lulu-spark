@@ -40,3 +40,18 @@
 - [ ] J1-(4) 执行中 Reset → 立即 unbound，该轮取消/失败并 onUnbound / onError(reset_cancelled)。✅ Verified（`j1_4_mid_execute_reset_unbounds_cancels_with_on_error`）
 - [ ] J1-(5) Binding=tools+prompt+callbacks、无业务专用字段、Present/壳打开≠bound。✅ Verified（`j1_5_contract_states_tools_prompt_callbacks_present_not_bound`）
 - [ ] execute 门闩：bound 成功 + unbound 被拒 + onError(rejected_unbound)。✅ Verified（`j1_execute_gate_bound_success_and_unbound_reject`）
+
+## Todos 主路径 parity（P1–P6 / N1/N2）
+
+来源：tech-doc L02-GO / L11-AR / L13-VF（cycle `feature-20260724105005-345eefe1` SK-4 / T-验收）。验收以 Todos 侧可观察为准；能力面不超过 T-lift；不把完成/放弃/批量/跨计划纳入 parity。
+
+- [ ] P1：进页 Set→onBound 后 Present 可对话。✅ Verified（`createTodosPageLifecycle` enter→onBound + Present；`tests/ai-assistant-p4-smoke.test.js` / `tests/plan-task-lifecycle.test.js` / `tests/plan-task-present-entry.test.js`）
+- [ ] P2：只读查计划/子项基于真实数据。✅ Verified（T-lift `get_plan` / `list_sub_tasks` + prompt 只读规约；`TODOS_T_LIFT_TOOL_NAMES`；Loop `run_loop_*` / Host Tools；`tests/plan-task-binding.test.js`）
+- [ ] P3：加子项成功且列表/详情出现。✅ Verified（`add_sub_task` + turn-completed 写回刷新；Loop `run_loop_add_sub_and_update_sub_title_paths_are_observable`；`tests/plan-task-deembed-writeback.test.js`）
+- [ ] P4：改主/子标题 Todos 侧可见。✅ Verified（`update_master_title` / `update_sub_title` + wrote 刷新；Loop `run_loop_tool_write_sets_wrote_true_and_persists`）
+- [ ] P5：不支持操作明确拒绝且数据不变。✅ Verified（prompt「目前不支持」；Loop `unsupported_tool_calls_*` / `terminal_no_plan_unsupported_and_error_are_distinguishable`；Binding 不含 complete/abandon/batch）
+- [ ] P6：离页 Reset→onUnbound 后 execute 被拒。✅ Verified（`onTodosPageLeave` → `reset_binding` → `rejected_unbound`；`tests/plan-task-lifecycle.test.js` / smoke P6）
+- [ ] N1：调用 open_ai_assistant(masterTaskId)（或等价）不得再作成功主路径且无 bound 副作用。✅ Verified（`TODOS_OPEN_AND_BIND_MAIN_PATH_DISABLED`；Present-only 入口；`tests/plan-task-deembed-writeback.test.js`）
+- [ ] N2：未 Set 仅 Present 时不可发送/执行成功。✅ Verified（Present≠bound；execute `rejected_unbound`；`j1_present_not_bound_execute_rejects_without_set` / smoke N2）
+- [ ] 关壳≠Reset：页内关壳不要求 onUnbound；再 Present 且仍 bound 可聊。✅ Verified（`notifyShellClose` 不 Reset；`tests/plan-task-lifecycle.test.js`）
+- [ ] Set 失败可恢复：换选再 Set（或重试）成功后可执行。✅ Verified（enter Set 失败 → onError → 换选成功 onBound + execute；`tests/plan-task-lifecycle.test.js`）
