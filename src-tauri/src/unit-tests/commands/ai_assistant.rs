@@ -3,8 +3,9 @@
 use serde_json::json;
 
 use crate::commands::ai_assistant::{
-    agent_chat_turn_json, open_ai_assistant_json, present_ai_assistant_json,
-    query_binding_json, AI_ASSISTANT_WINDOW_LABEL,
+    agent_chat_turn_json, execute_binding_json, open_ai_assistant_json,
+    present_ai_assistant_json, query_binding_json, reset_binding_json, set_binding_json,
+    AI_ASSISTANT_WINDOW_LABEL,
 };
 use crate::config::secrets::{self, KEY_LLM_API_KEY};
 use crate::config::settings;
@@ -88,5 +89,69 @@ fn open_ai_assistant_present_path_does_not_imply_set() {
             "open_ai_assistant must not imply Binding Contract Set/bound"
         );
         assert_eq!(query_binding_json()["state"], "unbound");
+    });
+}
+
+/// J1 command-surface fixture: generic Binding (empty callbacks) drives Set→execute→Reset→reject.
+/// No business-page / 角位 click driver.
+#[test]
+fn j1_command_fixture_set_execute_reset_reject_via_json() {
+    with_cmd_sandbox(|| {
+        let binding = json!({
+            "tools": [{ "name": "fixture_tool", "handle": "opaque-fixture-tool" }],
+            "prompt": "j1-cmd-prompt",
+            "callbacks": {}
+        });
+        let set = set_binding_json(binding);
+        assert_eq!(set["ok"], true);
+        assert_eq!(set["state"], "bound");
+
+        let exec = execute_binding_json();
+        assert_eq!(exec["ok"], true);
+        assert_eq!(exec["applied_prompt"], "j1-cmd-prompt");
+
+        let reset = reset_binding_json();
+        assert_eq!(reset["ok"], true);
+        assert_eq!(reset["state"], "unbound");
+
+        let rejected = execute_binding_json();
+        assert_eq!(rejected["ok"], false);
+        assert_eq!(rejected["code"], "rejected_unbound");
+        assert_eq!(query_binding_json()["state"], "unbound");
+    });
+}
+
+#[test]
+fn j1_command_illegal_set_emits_set_invalid_keeps_unbound() {
+    with_cmd_sandbox(|| {
+        r#loop::clear_lifecycle_events_for_tests();
+        let bad = set_binding_json(json!({
+            "tools": [],
+            "prompt": "p",
+            "callbacks": {}
+        }));
+        assert_eq!(bad["ok"], false);
+        assert_eq!(bad["code"], "set_invalid");
+        assert_eq!(bad["state"], "unbound");
+        let events = r#loop::drain_lifecycle_events();
+        assert!(events.iter().all(|e| e.event != "onBound"), "{events:?}");
+        assert!(
+            events
+                .iter()
+                .any(|e| e.event == "onError" && e.category == Some("set_invalid")),
+            "J1-(2) command path must observe onError(set_invalid): {events:?}"
+        );
+    });
+}
+
+#[test]
+fn j1_present_not_bound_execute_rejects_without_set() {
+    with_cmd_sandbox(|| {
+        let presented = present_ai_assistant_json().expect("Present");
+        assert_eq!(presented["surface"], "Present");
+        assert_eq!(query_binding_json()["state"], "unbound");
+        let exec = execute_binding_json();
+        assert_eq!(exec["ok"], false);
+        assert_eq!(exec["code"], "rejected_unbound");
     });
 }

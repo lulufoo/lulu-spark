@@ -1,6 +1,7 @@
 /**
  * T7 / P4 layered coverage gate: Host Tools + Loop automated markers,
  * UI/config/main-path + dual-platform smoke checklist, plan-task-write regression wiring.
+ * SK-4: J1 / execute 门闩内核验收夹具 markers (H1 无业务 UI 驱动).
  */
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -20,6 +21,9 @@ const REQUIRED_CHECKLIST_MARKERS = [
   '## 配置保存',
   '## 主路径冒烟',
   '## 双平台配置冒烟',
+  '## J1 / execute 门闩内核验收',
+  'H1 无 UI',
+  '通用 Binding 夹具',
   'KIMI',
   'GLM',
 ];
@@ -48,6 +52,20 @@ const LOOP_MARKERS = [
   'length_and_http_errors_map_to_error_terminal_no_retry',
   'history_truncation_keeps_system_and_dual_hard_caps',
   'terminal_no_plan_unsupported_and_error_are_distinguishable',
+  // J1 / execute 门闩内核验收夹具（SK-4 / H1，无业务 UI 驱动）
+  'j1_1_legal_set_on_bound_execute_reset_rejects',
+  'j1_2_illegal_set_keeps_state_no_on_bound_emits_set_invalid',
+  'j1_3_replace_set_on_unbound_then_on_bound_execute_uses_new',
+  'j1_4_mid_execute_reset_unbounds_cancels_with_on_error',
+  'j1_5_contract_states_tools_prompt_callbacks_present_not_bound',
+  'j1_execute_gate_bound_success_and_unbound_reject',
+  'j1_h1_kernel_api_fixture_driver_not_business_ui',
+];
+
+const J1_COMMAND_MARKERS = [
+  'j1_command_fixture_set_execute_reset_reject_via_json',
+  'j1_command_illegal_set_emits_set_invalid_keeps_unbound',
+  'j1_present_not_bound_execute_rejects_without_set',
 ];
 
 describe('AI assistant P4 layered smoke gate (t7)', () => {
@@ -87,6 +105,18 @@ describe('AI assistant P4 layered smoke gate (t7)', () => {
     );
     for (const marker of LOOP_MARKERS) {
       expect(loopTests, `missing Loop test ${marker}`).toContain(
+        `fn ${marker}`,
+      );
+    }
+  });
+
+  it('J1 command-surface fixtures cover Set→execute→Reset and Present≠bound', () => {
+    const cmdTests = readFileSync(
+      join(repoRoot, 'src-tauri/src/unit-tests/commands/ai_assistant.rs'),
+      'utf8',
+    );
+    for (const marker of J1_COMMAND_MARKERS) {
+      expect(cmdTests, `missing J1 command test ${marker}`).toContain(
         `fn ${marker}`,
       );
     }

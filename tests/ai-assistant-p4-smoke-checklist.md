@@ -29,3 +29,14 @@
 - [ ] **GLM**（示例：platform=`glm`，智谱兼容 base_url + model + KEY）
 
 通过信号：各平台至少一次上游成功或可观察的业务终态；缺 KEY 时引导设置而非沉默失败。✅ Verified（配置面：`llm-settings`；失败分型：`llm_error_taxonomy_*` / Loop `length_and_http_errors_*`；不自动重试）
+
+## J1 / execute 门闩内核验收
+
+验收驱动物：内核 API + 通用 Binding 夹具（callbacks 可空表）；**H1 无 UI**（不依赖业务页/角位入口/窗口点选完成契约主验收）。✅ Verified（夹具名：`j1_generic_binding_fixture` / `j1_h1_kernel_api_fixture_driver_not_business_ui`；命令面：`j1_command_*`）
+
+- [ ] J1-(1) Set 合法 → onBound → execute 成功 → Reset → onUnbound → 再 execute 被拒 + onError。✅ Verified（`j1_1_legal_set_on_bound_execute_reset_rejects`）
+- [ ] J1-(2) 非法 Set → 不变态、无 onBound、可 onError(set_invalid)。✅ Verified（`j1_2_illegal_set_keeps_state_no_on_bound_emits_set_invalid`）
+- [ ] J1-(3) bound 上再 Set → onUnbound→onBound，execute 只用新绑定。✅ Verified（`j1_3_replace_set_on_unbound_then_on_bound_execute_uses_new`）
+- [ ] J1-(4) 执行中 Reset → 立即 unbound，该轮取消/失败并 onUnbound / onError(reset_cancelled)。✅ Verified（`j1_4_mid_execute_reset_unbounds_cancels_with_on_error`）
+- [ ] J1-(5) Binding=tools+prompt+callbacks、无业务专用字段、Present/壳打开≠bound。✅ Verified（`j1_5_contract_states_tools_prompt_callbacks_present_not_bound`）
+- [ ] execute 门闩：bound 成功 + unbound 被拒 + onError(rejected_unbound)。✅ Verified（`j1_execute_gate_bound_success_and_unbound_reject`）

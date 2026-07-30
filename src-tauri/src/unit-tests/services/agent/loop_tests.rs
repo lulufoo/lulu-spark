@@ -1695,3 +1695,219 @@ fn present_command_json_does_not_set_binding() {
         assert_eq!(query_binding_json()["generation"], gen_before);
     });
 }
+
+// --- J1 / execute 门闩内核验收夹具（SK-4 / H1：无业务 UI 驱动）---
+// 通用 Binding 夹具（tools+prompt+callbacks；callbacks 可空表）驱动全部 J1 场景。
+
+fn j1_generic_binding_fixture(prompt: &str) -> r#loop::Binding {
+    // Explicit generic fixture — no business page / 角位 / window-click driver.
+    r#loop::Binding {
+        tools: json!([{ "name": "fixture_tool", "handle": "opaque-fixture-tool" }]),
+        prompt: json!(prompt),
+        callbacks: json!({}), // empty registry allowed when slot present
+    }
+}
+
+#[test]
+fn j1_1_legal_set_on_bound_execute_reset_rejects() {
+    with_sandbox(|| {
+        r#loop::clear_lifecycle_events_for_tests();
+        r#loop::set_binding(j1_generic_binding_fixture("j1-1-prompt")).expect("Set legal");
+        let events_set = r#loop::drain_lifecycle_events();
+        assert_eq!(event_names(&events_set), vec!["onBound"]);
+        assert_payload_contract_only(&events_set[0]);
+
+        let out = r#loop::execute_binding().expect("execute while bound");
+        assert_eq!(out.applied_prompt, json!("j1-1-prompt"));
+        assert_eq!(
+            out.applied_tools,
+            json!([{ "name": "fixture_tool", "handle": "opaque-fixture-tool" }])
+        );
+
+        r#loop::clear_lifecycle_events_for_tests();
+        r#loop::reset_binding().expect("Reset");
+        let events_reset = r#loop::drain_lifecycle_events();
+        assert_eq!(event_names(&events_reset), vec!["onUnbound"]);
+        assert_eq!(r#loop::binding_state(), "unbound");
+
+        r#loop::clear_lifecycle_events_for_tests();
+        let err = r#loop::execute_binding().expect_err("execute after Reset must reject");
+        assert_eq!(err.as_code(), "rejected_unbound");
+        let events_rej = r#loop::drain_lifecycle_events();
+        let err_ev = events_rej
+            .iter()
+            .find(|e| e.event == "onError")
+            .expect("onError(rejected_unbound)");
+        assert_eq!(err_ev.category, Some("rejected_unbound"));
+        assert_payload_contract_only(err_ev);
+    });
+}
+
+#[test]
+fn j1_2_illegal_set_keeps_state_no_on_bound_emits_set_invalid() {
+    with_sandbox(|| {
+        assert_eq!(r#loop::binding_state(), "unbound");
+        r#loop::clear_lifecycle_events_for_tests();
+
+        // Missing content / empty tools — B1 illegal Set.
+        let err = r#loop::try_set_binding_json(&json!({
+            "tools": [],
+            "prompt": "p",
+            "callbacks": {}
+        }))
+        .expect_err("illegal Set must fail");
+        assert_eq!(err.as_code(), "set_invalid");
+        assert_eq!(r#loop::binding_state(), "unbound");
+
+        let events = r#loop::drain_lifecycle_events();
+        assert!(
+            events.iter().all(|e| e.event != "onBound"),
+            "illegal Set must not emit onBound: {events:?}"
+        );
+        let err_ev = events
+            .iter()
+            .find(|e| e.event == "onError")
+            .expect("J1-(2): onError(set_invalid) must be observable");
+        assert_eq!(err_ev.category, Some("set_invalid"));
+        assert_payload_contract_only(err_ev);
+
+        // After bound, illegal Set must keep prior state and still emit set_invalid.
+        r#loop::set_binding(j1_generic_binding_fixture("keep")).expect("seed");
+        let gen = r#loop::query_binding().generation;
+        r#loop::clear_lifecycle_events_for_tests();
+        let err = r#loop::try_set_binding_json(&json!({
+            "tools": [{ "name": "t" }],
+            "prompt": "p"
+            // callbacks missing
+        }))
+        .expect_err("missing slot");
+        assert_eq!(err.as_code(), "set_invalid");
+        assert_eq!(r#loop::binding_state(), "bound");
+        assert_eq!(r#loop::query_binding().generation, gen);
+        let events2 = r#loop::drain_lifecycle_events();
+        assert!(events2.iter().all(|e| e.event != "onBound"));
+        assert!(
+            events2
+                .iter()
+                .any(|e| e.event == "onError" && e.category == Some("set_invalid")),
+            "{events2:?}"
+        );
+    });
+}
+
+#[test]
+fn j1_3_replace_set_on_unbound_then_on_bound_execute_uses_new() {
+    with_sandbox(|| {
+        r#loop::set_binding(j1_generic_binding_fixture("old-j1-3")).expect("first");
+        let old_gen = r#loop::query_binding().generation.expect("old");
+        r#loop::clear_lifecycle_events_for_tests();
+
+        r#loop::set_binding(j1_generic_binding_fixture("new-j1-3")).expect("replace");
+        let events = r#loop::drain_lifecycle_events();
+        assert_eq!(event_names(&events), vec!["onUnbound", "onBound"]);
+        assert!(!r#loop::is_binding_generation_current(old_gen));
+
+        let out = r#loop::execute_binding().expect("execute uses new");
+        assert_eq!(out.applied_prompt, json!("new-j1-3"));
+        assert_ne!(out.applied_prompt, json!("old-j1-3"));
+    });
+}
+
+#[test]
+fn j1_4_mid_execute_reset_unbounds_cancels_with_on_error() {
+    with_sandbox(|| {
+        r#loop::set_binding(j1_generic_binding_fixture("in-flight-j1-4")).expect("Set");
+        let gen = r#loop::query_binding().generation.expect("gen");
+        r#loop::clear_lifecycle_events_for_tests();
+
+        let err = r#loop::execute_binding_during(|| {
+            r#loop::reset_binding().expect("Reset mid-execute");
+            assert_eq!(r#loop::binding_state(), "unbound");
+            assert!(!r#loop::is_binding_generation_current(gen));
+        })
+        .expect_err("must cancel");
+        assert_eq!(err.as_code(), "reset_cancelled");
+
+        let events = r#loop::drain_lifecycle_events();
+        assert!(events.iter().any(|e| e.event == "onUnbound"), "{events:?}");
+        let err_ev = events
+            .iter()
+            .find(|e| e.event == "onError")
+            .expect("onError(reset_cancelled)");
+        assert_eq!(err_ev.category, Some("reset_cancelled"));
+    });
+}
+
+#[test]
+fn j1_5_contract_states_tools_prompt_callbacks_present_not_bound() {
+    with_sandbox(|| {
+        let binding = j1_generic_binding_fixture("j1-5");
+        let encoded = serde_json::to_value(&binding).unwrap();
+        let obj = encoded.as_object().unwrap();
+        assert!(obj.contains_key("tools"));
+        assert!(obj.contains_key("prompt"));
+        assert!(obj.contains_key("callbacks"));
+        assert!(!obj.contains_key("master_task_id"));
+        assert!(!obj.contains_key("bound_master_task_id"));
+        assert!(!obj.contains_key("todo_id"));
+
+        // Present / 壳打开 ≠ bound
+        let _ = r#loop::present_ai_assistant_core().expect("Present");
+        assert_eq!(r#loop::binding_state(), "unbound");
+        let err = r#loop::execute_binding().expect_err("Present alone ≠ bound");
+        assert_eq!(err.as_code(), "rejected_unbound");
+
+        let ops = r#loop::binding_contract_ops();
+        let lower: Vec<_> = ops.iter().map(|s| s.to_ascii_lowercase()).collect();
+        assert!(lower.iter().any(|o| o == "set"));
+        assert!(lower.iter().any(|o| o == "reset"));
+        assert!(lower.iter().any(|o| o == "query"));
+        assert!(lower.iter().any(|o| o == "execute"));
+        assert!(lower.iter().any(|o| o.contains("callback")));
+        assert!(lower.iter().all(|o| o != "present" && !o.contains("present")));
+        assert!(lower.iter().all(|o| o != "open" && !o.contains("open")));
+    });
+}
+
+#[test]
+fn j1_execute_gate_bound_success_and_unbound_reject() {
+    with_sandbox(|| {
+        // unbound → reject + onError(rejected_unbound)
+        assert_eq!(r#loop::binding_state(), "unbound");
+        r#loop::clear_lifecycle_events_for_tests();
+        let err = r#loop::execute_binding().expect_err("unbound hard-fail");
+        assert_eq!(err.as_code(), "rejected_unbound");
+        assert!(
+            r#loop::drain_lifecycle_events()
+                .iter()
+                .any(|e| e.event == "onError" && e.category == Some("rejected_unbound"))
+        );
+
+        // bound → success with current Binding as sole config
+        r#loop::set_binding(j1_generic_binding_fixture("gate-ok")).expect("Set");
+        let out = r#loop::execute_binding().expect("bound success");
+        assert_eq!(out.applied_prompt, json!("gate-ok"));
+        assert_eq!(r#loop::binding_state(), "bound");
+    });
+}
+
+#[test]
+fn j1_h1_kernel_api_fixture_driver_not_business_ui() {
+    with_sandbox(|| {
+        // H1: acceptance driven by kernel API + generic Binding fixture only.
+        // Prove Present observation does not substitute for contract Set.
+        let _ = r#loop::present_ai_assistant_core().expect("Present observable");
+        assert_eq!(r#loop::binding_state(), "unbound");
+
+        r#loop::set_binding(j1_generic_binding_fixture("h1-kernel")).expect("kernel Set");
+        assert_eq!(r#loop::binding_state(), "bound");
+        let _ = r#loop::execute_binding().expect("kernel execute");
+        r#loop::reset_binding().expect("kernel Reset");
+        assert_eq!(r#loop::binding_state(), "unbound");
+
+        // No business-page entry point invoked; fixture callbacks remain empty registry.
+        let encoded = serde_json::to_value(j1_generic_binding_fixture("h1-kernel")).unwrap();
+        assert_eq!(encoded["callbacks"], json!({}));
+        assert!(encoded.get("master_task_id").is_none());
+    });
+}

@@ -190,8 +190,12 @@ fn emit_lifecycle_inner(event: &'static str, category: Option<&'static str>, inv
 /// Set Binding after B1 validation. Failure returns `set_invalid` and leaves state unchanged.
 /// Legal Set on bound atomically replaces and invalidates the previous generation.
 /// Emits onBound; replace also emits onUnbound → onBound (D1).
+/// Illegal Set emits onError(set_invalid) and does not emit onBound.
 pub fn set_binding(binding: session::Binding) -> Result<(), SetError> {
-    session::validate_binding(&binding)?;
+    if let Err(e) = session::validate_binding(&binding) {
+        emit_lifecycle("onError", Some("set_invalid"));
+        return Err(e);
+    }
     let was_bound = {
         let mut rt = runtime().lock().unwrap();
         let was = rt.current_binding.is_some();
@@ -209,7 +213,13 @@ pub fn set_binding(binding: session::Binding) -> Result<(), SetError> {
 
 /// JSON Set entry: require tools/prompt/callbacks keys present; never fill from business fields.
 pub fn try_set_binding_json(v: &Value) -> Result<(), SetError> {
-    set_binding(session::binding_from_json(v)?)
+    match session::binding_from_json(v) {
+        Ok(binding) => set_binding(binding),
+        Err(e) => {
+            emit_lifecycle("onError", Some("set_invalid"));
+            Err(e)
+        }
+    }
 }
 
 /// Reset: discard current Binding → unbound. Idempotent when already unbound.
