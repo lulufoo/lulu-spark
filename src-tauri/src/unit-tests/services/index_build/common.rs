@@ -28,3 +28,11 @@ fn knowledge_doc_id_matches_build_knowledge_document() {
     let expected = sanitize_doc_id("repo__docs__a.md");
     assert_eq!(doc["id"], expected);
 }
+
+#[test]
+fn should_skip_md_translation_suffixes() {
+    assert!(should_skip_md("202606191700-waymo-interview-zh.md"));
+    assert!(should_skip_md("202606191700-waymo-interview-fr.md"));
+    assert!(!should_skip_md("202606191700-waymo-interview.md"));
+    assert!(!should_skip_md("README.md"));
+}
