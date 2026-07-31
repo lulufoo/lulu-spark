@@ -144,7 +144,7 @@ const THEME_LINE_ZH: &str = r#"# 中文标题
 "#;
 
 #[test]
-fn archive_document_theme_line_with_zh_extra() {
+fn archive_document_theme_line_with_zh_translation() {
     let (_sandbox, repo_root) = setup_corpus();
     let zh_path = "learning-ai-agent/waymo-interview/202606191700-waymo-interview-zh.md";
     let v = archive_document(
@@ -152,29 +152,53 @@ fn archive_document_theme_line_with_zh_extra() {
         &json!({
             "document": THEME_LINE_DOC,
             "source_type": "theme-line",
-            "extra_documents": [{
-                "rel": format!("raw/{zh_path}"),
-                "content": THEME_LINE_ZH
-            }],
-            "index_extra": { "translations": { "zh": zh_path } }
+            "translations": [{ "lang": "zh", "content": THEME_LINE_ZH }]
         }),
     );
     assert_eq!(v.get("ok"), Some(&json!(true)), "failed: {v}");
     let corpus = crate::config::meili_env::workbench_knowledge_root_path(&repo_root);
-    assert!(corpus
-        .join("raw/learning-ai-agent/waymo-interview/202606191700-waymo-interview-zh.md")
-        .is_file());
+    assert!(corpus.join(format!("raw/{zh_path}")).is_file());
+    assert_eq!(
+        v["extra_paths"],
+        json!([format!("raw/{zh_path}")])
+    );
     let id = v["id"].as_str().unwrap();
+    let index: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(corpus.join("index.json")).unwrap()).unwrap();
+    assert_eq!(index["entries"][id]["translations"]["zh"], json!(zh_path));
+}
+
+#[test]
+fn archive_document_multi_lang_translations() {
+    let (_sandbox, repo_root) = setup_corpus();
+    let v = archive_document(
+        &repo_root,
+        &json!({
+            "document": THEME_LINE_DOC,
+            "source_type": "theme-line",
+            "translations": [
+                { "lang": "zh", "content": THEME_LINE_ZH },
+                { "lang": "fr", "content": "# Titre\n\n> 创建时间：2026年6月19日 17:00\n\n---\n\nbonjour\n" }
+            ]
+        }),
+    );
+    assert_eq!(v.get("ok"), Some(&json!(true)), "failed: {v}");
+    let id = v["id"].as_str().unwrap();
+    let corpus = crate::config::meili_env::workbench_knowledge_root_path(&repo_root);
     let index: serde_json::Value =
         serde_json::from_str(&fs::read_to_string(corpus.join("index.json")).unwrap()).unwrap();
     assert_eq!(
         index["entries"][id]["translations"]["zh"],
-        json!(zh_path)
+        json!("learning-ai-agent/waymo-interview/202606191700-waymo-interview-zh.md")
+    );
+    assert_eq!(
+        index["entries"][id]["translations"]["fr"],
+        json!("learning-ai-agent/waymo-interview/202606191700-waymo-interview-fr.md")
     );
 }
 
 #[test]
-fn archive_document_rejects_mismatched_zh_path() {
+fn archive_document_rejects_legacy_extra_documents() {
     let (_sandbox, repo_root) = setup_corpus();
     let v = archive_document(
         &repo_root,
@@ -184,11 +208,50 @@ fn archive_document_rejects_mismatched_zh_path() {
             "extra_documents": [{
                 "rel": "raw/learning-ai-agent/waymo-interview/202606191700-waymo-interview-zh.md",
                 "content": THEME_LINE_ZH
-            }],
-            "index_extra": { "translations": { "zh": "wrong/path.md" } }
+            }]
         }),
     );
     assert_eq!(v.get("_status"), Some(&json!(400)));
+    let err = v["error"].as_str().unwrap_or("");
+    assert!(err.contains("translations"), "error should mention translations: {v}");
+}
+
+#[test]
+fn archive_document_rejects_legacy_index_extra() {
+    let (_sandbox, repo_root) = setup_corpus();
+    let v = archive_document(
+        &repo_root,
+        &json!({
+            "document": THEME_LINE_DOC,
+            "index_extra": { "translations": { "zh": "x" } }
+        }),
+    );
+    assert_eq!(v.get("_status"), Some(&json!(400)));
+}
+
+#[test]
+fn archive_document_rejects_bad_or_duplicate_lang() {
+    let (_sandbox, repo_root) = setup_corpus();
+    let bad = archive_document(
+        &repo_root,
+        &json!({
+            "document": THEME_LINE_DOC,
+            "translations": [{ "lang": "ZH", "content": THEME_LINE_ZH }]
+        }),
+    );
+    assert_eq!(bad.get("_status"), Some(&json!(400)));
+
+    let dup = archive_document(
+        &repo_root,
+        &json!({
+            "document": THEME_LINE_DOC,
+            "translations": [
+                { "lang": "zh", "content": THEME_LINE_ZH },
+                { "lang": "zh", "content": THEME_LINE_ZH }
+            ]
+        }),
+    );
+    assert_eq!(dup.get("_status"), Some(&json!(400)));
 }
 
 #[test]
