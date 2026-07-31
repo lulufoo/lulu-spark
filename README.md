@@ -13,4 +13,5 @@
 | 原文归档 | `dialogue-archive` | [dialogue-archive/](dialogue-archive/) — clean-raw + `to-archive-md`；默认 MCP，`local-md` 仅落 `.cache`（与 summary 共用 `scripts/transcript-clean-*`） |
 | 主题时间线稿 | `theme-line` | [theme-line/](theme-line/) |
 | 网页文章采集 | `theme-fetch` | [theme-fetch/](theme-fetch/) |
+| 视频转写流水线 | `theme-transcribe` | [theme-transcribe/](theme-transcribe/) — 带时间戳 STT → 子话题 → 流畅性 →（英）末段中译 → handoff `theme-archive`；独立于 `theme-line` |
 | 文档归档 | `theme-archive` | [theme-archive/](theme-archive/) — raw 落盘；适用时**自动** digest（shared 契约，非公开 skill） |
