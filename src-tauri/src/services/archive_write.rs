@@ -9,7 +9,7 @@ use serde_json::{json, Map, Value};
 use crate::config::meili_env::workbench_knowledge_root_path;
 use crate::repositories::atomic_json;
 use crate::services::archive_parse::{
-    expected_zh_common_path, is_valid_entry_id, parse_archive_document,
+    expected_lang_common_path, is_valid_entry_id, parse_archive_document,
 };
 use crate::services::id::random_entry_id;
 use crate::services::todo_task;
@@ -23,9 +23,10 @@ pub struct NoteCreateOpts {
     pub ts: Option<String>,
 }
 
-struct ExtraDocument {
-    rel: String,
+struct TranslationDoc {
+    lang: String,
     common_path: String,
+    rel: String,
     content: String,
 }
 
@@ -200,25 +201,32 @@ fn save_entries(index_path: &Path, entries: &Map<String, Value>) -> Result<(), V
     atomic_json::write_json(index_path, &data).map_err(|e| json!({ "error": e, "_status": 500 }))
 }
 
-fn parse_extra_documents(
+fn reject_legacy_translation_fields(payload: &Value) -> Option<Value> {
+    if payload.get("extra_documents").is_some() || payload.get("index_extra").is_some() {
+        return Some(json!({
+            "error": "extra_documents/index_extra removed; use translations: [{lang, content}]",
+            "_status": 400
+        }));
+    }
+    None
+}
+
+fn is_valid_lang(lang: &str) -> bool {
+    lang.len() == 2 && lang.chars().all(|c| c.is_ascii_lowercase())
+}
+
+fn parse_translations(
     payload: &Value,
     primary_common_path: &str,
-) -> Result<Vec<ExtraDocument>, Value> {
-    let Some(arr) = payload.get("extra_documents").and_then(|v| v.as_array()) else {
+) -> Result<Vec<TranslationDoc>, Value> {
+    let Some(arr) = payload.get("translations").and_then(|v| v.as_array()) else {
         return Ok(Vec::new());
     };
-    if arr.is_empty() {
-        return Ok(Vec::new());
-    }
-    let expected_zh = expected_zh_common_path(primary_common_path).ok_or_else(|| {
-        json!({ "error": "invalid primary common_path for -zh.md", "_status": 400 })
-    })?;
-    let expected_rel = format!("raw/{expected_zh}");
-
     let mut out = Vec::new();
+    let mut seen = std::collections::BTreeSet::new();
     for item in arr {
-        let rel = item
-            .get("rel")
+        let lang = item
+            .get("lang")
             .and_then(|v| v.as_str())
             .unwrap_or("")
             .trim()
@@ -228,67 +236,27 @@ fn parse_extra_documents(
             .and_then(|v| v.as_str())
             .unwrap_or("")
             .to_string();
-        if rel.is_empty() || content.trim().is_empty() {
-            return Err(json!({ "error": "Invalid extra_documents entry", "_status": 400 }));
+        if !is_valid_lang(&lang) {
+            return Err(json!({ "error": format!("invalid translations.lang: {lang}"), "_status": 400 }));
         }
-        if !rel.starts_with("raw/") {
-            return Err(json!({ "error": "extra_documents rel must start with raw/", "_status": 400 }));
+        if content.trim().is_empty() {
+            return Err(json!({ "error": "translations.content must be non-empty", "_status": 400 }));
         }
-        if rel != expected_rel {
-            return Err(json!({
-                "error": format!("extra_documents rel must be {expected_rel}"),
-                "_status": 400
-            }));
+        if !seen.insert(lang.clone()) {
+            return Err(json!({ "error": format!("duplicate translations.lang: {lang}"), "_status": 400 }));
         }
-        let common_path = rel.strip_prefix("raw/").unwrap_or("").to_string();
-        if common_path.contains("..") {
-            return Err(json!({ "error": "Invalid extra path", "_status": 400 }));
-        }
-        out.push(ExtraDocument {
-            rel,
+        let common_path = expected_lang_common_path(primary_common_path, &lang).ok_or_else(|| {
+            json!({ "error": "invalid primary common_path for translation", "_status": 400 })
+        })?;
+        let rel = format!("raw/{common_path}");
+        out.push(TranslationDoc {
+            lang,
             common_path,
+            rel,
             content,
         });
     }
     Ok(out)
-}
-
-fn parse_translations_zh(payload: &Value) -> Result<Option<String>, Value> {
-    let Some(extra) = payload.get("index_extra") else {
-        return Ok(None);
-    };
-    let Some(obj) = extra.as_object() else {
-        return Err(json!({ "error": "index_extra must be an object", "_status": 400 }));
-    };
-    for key in obj.keys() {
-        if key != "translations" {
-            return Err(json!({
-                "error": format!("unsupported index_extra field: {key}"),
-                "_status": 400
-            }));
-        }
-    }
-    let Some(translations) = obj.get("translations") else {
-        return Ok(None);
-    };
-    let Some(tobj) = translations.as_object() else {
-        return Err(json!({ "error": "index_extra.translations must be an object", "_status": 400 }));
-    };
-    for key in tobj.keys() {
-        if key != "zh" {
-            return Err(json!({
-                "error": format!("unsupported translations field: {key}"),
-                "_status": 400
-            }));
-        }
-    }
-    let zh = tobj
-        .get("zh")
-        .and_then(|v| v.as_str())
-        .map(str::trim)
-        .filter(|s| !s.is_empty())
-        .map(str::to_string);
-    Ok(zh)
 }
 
 fn rollback_written(paths: &[PathBuf]) {
@@ -376,11 +344,10 @@ pub fn archive_document(repo_root: &Path, payload: &Value) -> Value {
         }
     };
 
-    let extra_docs = match parse_extra_documents(payload, &parsed.common_path) {
-        Ok(v) => v,
-        Err(v) => return v,
-    };
-    let translations_zh = match parse_translations_zh(payload) {
+    if let Some(err) = reject_legacy_translation_fields(payload) {
+        return err;
+    }
+    let translations = match parse_translations(payload, &parsed.common_path) {
         Ok(v) => v,
         Err(v) => return v,
     };
@@ -388,43 +355,6 @@ pub fn archive_document(repo_root: &Path, payload: &Value) -> Value {
         Ok(v) => v,
         Err(v) => return v,
     };
-
-    let expected_zh = expected_zh_common_path(&parsed.common_path);
-    match (&extra_docs[..], &translations_zh) {
-        ([], None) => {}
-        ([], Some(_)) => {
-            return json!({
-                "error": "index_extra.translations.zh requires extra_documents",
-                "_status": 400
-            });
-        }
-        (_, None) => {
-            return json!({
-                "error": "extra_documents requires index_extra.translations.zh",
-                "_status": 400
-            });
-        }
-        (docs, Some(zh)) => {
-            if docs.len() != 1 {
-                return json!({
-                    "error": "only one -zh.md extra_document is supported",
-                    "_status": 400
-                });
-            }
-            if Some(zh.as_str()) != expected_zh.as_deref() {
-                return json!({
-                    "error": "index_extra.translations.zh must match primary -zh path",
-                    "_status": 400
-                });
-            }
-            if docs[0].common_path != *zh {
-                return json!({
-                    "error": "extra_documents path mismatch with translations.zh",
-                    "_status": 400
-                });
-            }
-        }
-    }
 
     let corpus = workbench_knowledge_root_path(repo_root);
     let raw_path = match corpus_layer_path(&corpus, "raw", &parsed.common_path) {
@@ -439,14 +369,14 @@ pub fn archive_document(repo_root: &Path, payload: &Value) -> Value {
     }
 
     let mut extra_paths: Vec<PathBuf> = Vec::new();
-    for extra in &extra_docs {
-        let path = match corpus_layer_path(&corpus, "raw", &extra.common_path) {
+    for t in &translations {
+        let path = match corpus_layer_path(&corpus, "raw", &t.common_path) {
             Ok(p) => p,
             Err(v) => return v,
         };
         if path.is_file() {
             return json!({
-                "error": format!("File already exists: {}", extra.rel),
+                "error": format!("File already exists: {}", t.rel),
                 "_status": 409
             });
         }
@@ -460,8 +390,8 @@ pub fn archive_document(repo_root: &Path, payload: &Value) -> Value {
     }
     written.push(raw_path.clone());
 
-    for (extra, path) in extra_docs.iter().zip(extra_paths.iter()) {
-        if let Err(e) = write_markdown_atomic(path, &extra.content) {
+    for (t, path) in translations.iter().zip(extra_paths.iter()) {
+        if let Err(e) = write_markdown_atomic(path, &t.content) {
             rollback_written(&written);
             return json!({ "error": e, "_status": 500 });
         }
@@ -483,11 +413,12 @@ pub fn archive_document(repo_root: &Path, payload: &Value) -> Value {
     entry.insert("created_at".to_string(), json!(parsed.created_at));
     entry.insert("layers".to_string(), json!(["raw"]));
     entry.insert("source_type".to_string(), json!(source_type));
-    if let Some(zh) = translations_zh {
-        entry.insert(
-            "translations".to_string(),
-            json!({ "zh": zh }),
-        );
+    if !translations.is_empty() {
+        let mut map = Map::new();
+        for t in &translations {
+            map.insert(t.lang.clone(), json!(t.common_path));
+        }
+        entry.insert("translations".to_string(), Value::Object(map));
     }
     if let Some((master_task_id, sub_task_id)) = &task_ref {
         entry.insert(
@@ -519,7 +450,7 @@ pub fn archive_document(repo_root: &Path, payload: &Value) -> Value {
         }
     }
 
-    let extra_rel_paths: Vec<String> = extra_docs.iter().map(|e| e.rel.clone()).collect();
+    let extra_rel_paths: Vec<String> = translations.iter().map(|t| t.rel.clone()).collect();
     let mut response = json!({
         "ok": true,
         "id": id,

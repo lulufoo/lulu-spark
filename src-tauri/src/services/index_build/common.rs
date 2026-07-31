@@ -29,9 +29,12 @@ pub fn should_skip_md(name: &str) -> bool {
     if SKIP_FILES.contains(&name) {
         return true;
     }
-    // Skip zh translation files: they are language variants stored under
-    // `translations.zh` in index.json, not standalone entries.
-    name.strip_suffix(".md").is_some_and(|stem| stem.ends_with("-zh"))
+    // Translation variants: …-{lang}.md where lang is ISO 639-1 (two lowercase letters).
+    // Indexed via entry.translations, not as standalone Meilisearch docs.
+    name.strip_suffix(".md").is_some_and(|stem| {
+        stem.rsplit_once('-')
+            .is_some_and(|(_, lang)| lang.len() == 2 && lang.chars().all(|c| c.is_ascii_lowercase()))
+    })
 }
 
 /// Workbench title: first `# ` line, else filename stem without date prefix (L108–115).

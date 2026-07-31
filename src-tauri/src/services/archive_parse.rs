@@ -95,12 +95,16 @@ fn normalize_common_path_from_digest_target(target: &str) -> Option<String> {
     Some(common)
 }
 
-pub fn expected_zh_common_path(primary_common_path: &str) -> Option<String> {
+pub fn expected_lang_common_path(primary_common_path: &str, lang: &str) -> Option<String> {
     if !primary_common_path.ends_with(".md") {
         return None;
     }
     let stem = &primary_common_path[..primary_common_path.len() - 3];
-    Some(format!("{stem}-zh.md"))
+    Some(format!("{stem}-{lang}.md"))
+}
+
+pub fn expected_zh_common_path(primary_common_path: &str) -> Option<String> {
+    expected_lang_common_path(primary_common_path, "zh")
 }
 
 fn is_valid_common_path(common_path: &str) -> bool {

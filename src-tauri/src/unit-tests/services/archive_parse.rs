@@ -58,3 +58,20 @@ fn expected_zh_common_path_appends_suffix() {
         Some("inbox/t/202606191430-foo-zh.md")
     );
 }
+
+#[test]
+fn expected_lang_common_path_appends_suffix() {
+    assert_eq!(
+        expected_lang_common_path("inbox/t/202606191430-foo.md", "zh").as_deref(),
+        Some("inbox/t/202606191430-foo-zh.md")
+    );
+    assert_eq!(
+        expected_lang_common_path("inbox/t/202606191430-foo.md", "fr").as_deref(),
+        Some("inbox/t/202606191430-foo-fr.md")
+    );
+}
+
+#[test]
+fn expected_lang_common_path_rejects_bad_primary() {
+    assert_eq!(expected_lang_common_path("inbox/t/foo", "zh"), None);
+}
