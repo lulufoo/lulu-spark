@@ -45,19 +45,14 @@ Workbench App **must be running** (`workbench-knowledge` MCP). On failure → st
 {
   "document": "<Step 3 primary full markdown>",
   "source_type": "article",
-  "extra_documents": [
-    {
-      "rel": "raw/<topic-path>/<ts>-<slug>-zh.md",
-      "content": "<Step 3 -zh.md full markdown>"
-    }
-  ],
-  "index_extra": {
-    "translations": { "zh": "<topic-path>/<ts>-<slug>-zh.md" }
-  }
+  "translations": [
+    { "lang": "zh", "content": "<Step 3 -zh.md full markdown>" }
+  ]
 }
 ```
 
-- Omit `extra_documents` and `index_extra` when language is not `en`.
+- Omit `translations` when language is not `en`.
+- Do **not** send paths, `extra_documents`, or `index_extra` — host derives `-{lang}.md` and index map.
 - Record returned `id`, `common_path`, `raw_path`, `extra_paths`.
 
 ---

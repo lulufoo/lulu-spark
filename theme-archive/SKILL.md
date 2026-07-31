@@ -113,19 +113,14 @@ Standalone 若 header 缺导航行，按 [archive-concepts.md](../shared/archive
 {
   "document": "<primary 全文 Markdown>",
   "source_type": "<summary|article|theme-line|dialogue|...>",
-  "extra_documents": [
-    {
-      "rel": "raw/<topic-path>/<ts>-<slug>-zh.md",
-      "content": "<附加 raw 全文>"
-    }
-  ],
-  "index_extra": {
-    "translations": { "zh": "<topic-path>/<ts>-<slug>-zh.md" }
-  }
+  "translations": [
+    { "lang": "zh", "content": "<附加 raw 全文>" }
+  ]
 }
 ```
 
-- 无附加文件时省略 `extra_documents` / `index_extra`。
+- 无翻译文件时省略 `translations`。
+- **不要**发送路径、`extra_documents` 或 `index_extra` — host 自动推导 `-{lang}.md` 与 index map。
 - `source_type` 默认：Standalone 未指定 → `summary`；Embedded 必须显式传入。
 - 记录返回的 `id`、`common_path`、`raw_path`、`extra_paths`。
 
