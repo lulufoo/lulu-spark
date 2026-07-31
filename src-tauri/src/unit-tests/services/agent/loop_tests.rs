@@ -30,6 +30,27 @@ fn create_bound_plan(title: &str) -> String {
     created["master_task_id"].as_str().unwrap().to_string()
 }
 
+
+fn plan_tools_binding(master: &str) -> r#loop::Binding {
+    let tools = json!([
+        { "name": "get_plan", "ctx": { "master_task_id": master } },
+        { "name": "list_sub_tasks", "ctx": { "master_task_id": master } },
+        { "name": "add_sub_task", "ctx": { "master_task_id": master } },
+        { "name": "update_sub_title", "ctx": { "master_task_id": master } },
+        { "name": "update_master_title", "ctx": { "master_task_id": master } },
+    ]);
+    r#loop::Binding {
+        tools,
+        prompt: json!(PLAN_ASSISTANT_SYSTEM_PROMPT),
+        callbacks: json!({}),
+    }
+}
+
+fn arm_plan_binding(master: &str) {
+    r#loop::set_binding(plan_tools_binding(master)).expect("Set plan Binding");
+}
+
+
 struct MockLlm {
     port: u16,
     hits: Arc<Mutex<Vec<Value>>>,
@@ -171,7 +192,7 @@ fn history_truncation_keeps_system_and_dual_hard_caps() {
                 name: None,
             });
         }
-        let messages = r#loop::build_llm_messages_from_turns(&turns);
+        let messages = r#loop::build_llm_messages_from_turns(&turns, PLAN_ASSISTANT_SYSTEM_PROMPT);
         assert_eq!(messages[0]["role"], "system");
         assert_eq!(
             messages[0]["content"].as_str().unwrap(),
@@ -192,6 +213,7 @@ fn run_loop_final_reply_none_terminal_and_wrote_false() {
         let mock = spawn_scripted_llm(vec![assistant_text("你好，我是计划助手")]);
         let master = create_bound_plan("主计划");
         let mut sess = session::create_session(Some(&master), Some("主计划")).unwrap();
+        arm_plan_binding(&master);
         let out = r#loop::run_loop(&mut sess, "你好", &cfg_for(&mock));
         assert_outcome(&out, "none", false);
         assert!(out.reply_text.contains("计划助手"));
@@ -219,6 +241,7 @@ fn run_loop_tool_write_sets_wrote_true_and_persists() {
             assistant_text("已把主标题改为「写后标题」"),
         ]);
         let mut sess = session::create_session(Some(&master), Some("写前标题")).unwrap();
+        arm_plan_binding(&master);
         let out = r#loop::run_loop(&mut sess, "把主标题改成写后标题", &cfg_for(&mock));
         assert_outcome(&out, "none", true);
         let got = todo_task::get_by_id(&master);
@@ -238,6 +261,7 @@ fn run_loop_clarify_under_limit_returns_none_not_wrote() {
             "请问您要改的是主标题，还是某个子计划的标题？",
         )]);
         let mut sess = session::create_session(Some(&master), Some("歧义计划")).unwrap();
+        arm_plan_binding(&master);
         let out = r#loop::run_loop(&mut sess, "改标题", &cfg_for(&mock));
         assert_outcome(&out, "none", false);
         assert!(out.reply_text.contains('？') || out.reply_text.contains('?'));
@@ -274,6 +298,7 @@ fn parallel_tool_calls_run_serially_and_ok_false_does_not_abort() {
             assistant_text("第一个失败了，但已新增子计划"),
         ]);
         let mut sess = session::create_session(Some(&master), Some("批处理")).unwrap();
+        arm_plan_binding(&master);
         let out = r#loop::run_loop(&mut sess, "改不存在的子项并加一个", &cfg_for(&mock));
         assert_outcome(&out, "none", true);
         let tool_turns: Vec<_> = sess.turns.iter().filter(|t| t.role == "tool").collect();
@@ -313,6 +338,7 @@ fn same_message_tool_calls_plus_content_content_is_not_final_reply() {
             assistant_text("已新增同条子项"),
         ]);
         let mut sess = session::create_session(Some(&master), Some("同条")).unwrap();
+        arm_plan_binding(&master);
         let out = r#loop::run_loop(&mut sess, "加子项", &cfg_for(&mock));
         assert_outcome(&out, "none", true);
         assert_eq!(out.reply_text, "已新增同条子项");
@@ -328,7 +354,7 @@ fn unbound_session_maps_to_business_no_plan_without_llm() {
         let out = r#loop::run_loop(&mut sess, "加个子计划", &cfg_for(&mock));
         assert_outcome(&out, "business", false);
         assert!(
-            out.reply_text.contains("无计划") || out.reply_text.contains("没有"),
+            out.reply_text.contains("Unbound") || out.reply_text.contains("Binding Contract"),
             "{}",
             out.reply_text
         );
@@ -353,6 +379,7 @@ fn unknown_tool_name_is_error_terminal_and_does_not_write() {
             None,
         )]);
         let mut sess = session::create_session(Some(&master), Some("未知工具")).unwrap();
+        arm_plan_binding(&master);
         let out = r#loop::run_loop(&mut sess, "删掉计划", &cfg_for(&mock));
         assert_outcome(&out, "error", false);
         assert_eq!(todo_task::get_by_id(&master)["title"], before);
@@ -373,6 +400,7 @@ fn unsupported_tool_calls_upstream_is_error_terminal_no_prompt_json() {
             }),
         )]);
         let mut sess = session::create_session(Some(&master), Some("上游")).unwrap();
+        arm_plan_binding(&master);
         let out = r#loop::run_loop(&mut sess, "加子项", &cfg_for(&mock));
         assert_outcome(&out, "error", false);
         let hits = mock.hits.lock().unwrap();
@@ -406,6 +434,7 @@ fn length_and_http_errors_map_to_error_terminal_no_retry() {
             r#loop::reset_runtime_for_tests();
             let mock = spawn_scripted_llm(vec![resp]);
             let mut sess = session::create_session(Some(&master), Some("错误分型")).unwrap();
+        arm_plan_binding(&master);
             let out = r#loop::run_loop(&mut sess, "ping", &cfg_for(&mock));
             assert_outcome(&out, "error", false);
             assert_eq!(mock.hits.lock().unwrap().len(), 1, "no retry");
@@ -453,6 +482,7 @@ fn run_loop_add_sub_and_update_sub_title_paths_are_observable() {
             assistant_text("已改子标题"),
         ]);
         let mut sess = session::create_session(Some(&master), Some("子路径")).unwrap();
+        arm_plan_binding(&master);
 
         let out_add = r#loop::run_loop(&mut sess, "加一个子计划叫新观察子项", &cfg_for(&mock));
         assert_outcome(&out_add, "none", true);
@@ -485,7 +515,8 @@ fn terminal_no_plan_unsupported_and_error_are_distinguishable() {
         let no_plan = r#loop::run_loop(&mut unbound, "加子计划", &cfg_for(&mock_unused));
         assert_outcome(&no_plan, "business", false);
         assert!(
-            no_plan.reply_text.contains("无计划") || no_plan.reply_text.contains("没有"),
+            no_plan.reply_text.contains("Unbound")
+                || no_plan.reply_text.contains("Binding Contract"),
             "{}",
             no_plan.reply_text
         );
@@ -495,6 +526,7 @@ fn terminal_no_plan_unsupported_and_error_are_distinguishable() {
             "目前不支持删除计划，我只能查看、加子计划或改标题。",
         )]);
         let mut sess = session::create_session(Some(&master), Some("分型")).unwrap();
+        arm_plan_binding(&master);
         let unsupported = r#loop::run_loop(&mut sess, "删掉这个计划", &cfg_for(&mock_unsup));
         assert_outcome(&unsupported, "business", false);
         assert!(
@@ -514,6 +546,7 @@ fn terminal_no_plan_unsupported_and_error_are_distinguishable() {
             }),
         )]);
         let mut sess2 = session::create_session(Some(&master), Some("分型")).unwrap();
+        arm_plan_binding(&master);
         let tech_err = r#loop::run_loop(&mut sess2, "继续", &cfg_for(&mock_err));
         assert_outcome(&tech_err, "error", false);
         assert!(
@@ -544,6 +577,7 @@ fn malformed_response_is_error_and_does_not_write() {
             .len();
         let mock = spawn_scripted_llm(vec![(200, json!({}))]);
         let mut sess = session::create_session(Some(&master), Some("畸形")).unwrap();
+        arm_plan_binding(&master);
         let out = r#loop::run_loop(&mut sess, "加子项", &cfg_for(&mock));
         assert_outcome(&out, "error", false);
         assert_eq!(
@@ -572,6 +606,7 @@ fn missing_tool_call_id_is_error_no_write() {
             None,
         )]);
         let mut sess = session::create_session(Some(&master), Some("缺id")).unwrap();
+        arm_plan_binding(&master);
         let out = r#loop::run_loop(&mut sess, "加", &cfg_for(&mock));
         assert_outcome(&out, "error", false);
     });
@@ -597,6 +632,7 @@ fn tool_rounds_hard_cap_eight_errors() {
         }
         let mock = spawn_scripted_llm(responses);
         let mut sess = session::create_session(Some(&master), Some("工具上限")).unwrap();
+        arm_plan_binding(&master);
         let out = r#loop::run_loop(&mut sess, "一直读", &cfg_for(&mock));
         assert_outcome(&out, "error", false);
         let tool_rounds = sess.turns.iter().filter(|t| t.role == "tool").count();
@@ -609,6 +645,7 @@ fn clarify_rounds_hard_cap_five_errors() {
     with_sandbox(|| {
         let master = create_bound_plan("澄清上限");
         let mut sess = session::create_session(Some(&master), Some("澄清上限")).unwrap();
+        arm_plan_binding(&master);
         for i in 0..5 {
             let mock = spawn_scripted_llm(vec![assistant_text(&format!(
                 "还需要补充信息吗？（第{}次）？",
@@ -629,8 +666,8 @@ fn open_ai_assistant_idle_creates_session_and_returns_binding() {
         let master = create_bound_plan("打开助手");
         let v = r#loop::open_ai_assistant_core(&master).expect("open");
         assert!(v["session_id"].as_str().unwrap().starts_with("sess_"));
-        assert_eq!(v["bound_master_task_id"], master);
-        assert_eq!(v["bound_title"], "打开助手");
+        assert!(v.get("bound_master_task_id").is_none());
+        assert!(v["session_id"].as_str().unwrap_or("").starts_with("sess_"));
         assert_eq!(v["window_label"], "ai-assistant");
         assert_ne!(v["busy"], true);
     });
@@ -641,14 +678,16 @@ fn open_ai_assistant_busy_rejects_rebind() {
     with_sandbox(|| {
         let a = create_bound_plan("计划A");
         let b = create_bound_plan("计划B");
+        arm_plan_binding(&a);
         let first = r#loop::open_ai_assistant_core(&a).unwrap();
         let sid = first["session_id"].as_str().unwrap().to_string();
         r#loop::set_busy_for_tests(true);
+        arm_plan_binding(&b);
         let second = r#loop::open_ai_assistant_core(&b).unwrap();
         assert_eq!(second["busy"], true);
         assert_eq!(second["session_id"], sid);
-        assert_eq!(second["bound_master_task_id"], a);
-        assert_eq!(second["bound_title"], "计划A");
+        assert!(second.get("bound_master_task_id").is_none());
+        assert!(second.get("bound_title").is_none());
     });
 }
 
@@ -658,20 +697,21 @@ fn agent_chat_turn_happy_path_emits_turn_completed() {
         let master = create_bound_plan("对话");
         let mock = spawn_scripted_llm(vec![assistant_text("收到")]);
         install_llm_cfg(&mock);
+        arm_plan_binding(&master);
         let open = r#loop::open_ai_assistant_core(&master).unwrap();
         let sid = open["session_id"].as_str().unwrap();
         let result = r#loop::agent_chat_turn_core(sid, "你好", Some(&master)).unwrap();
         assert_eq!(result.body["terminal"], "none");
         assert_eq!(result.body["wrote"], false);
         assert_eq!(result.body["busy"], false);
-        assert_eq!(result.body["bound_master_task_id"], master);
+        assert!(result.body.get("bound_master_task_id").is_none());
         assert!(result.body["reply_text"].as_str().unwrap().contains("收到"));
         let ev = result.emit_turn_completed.expect("must emit");
         assert_eq!(ev["event"], EVENT_TURN_COMPLETED);
         assert_eq!(ev["payload"]["session_id"], sid);
         assert_eq!(ev["payload"]["wrote"], false);
         assert_eq!(ev["payload"]["terminal"], "none");
-        assert_eq!(ev["payload"]["bound_master_task_id"], master);
+        assert!(ev["payload"].get("bound_master_task_id").is_none());
     });
 }
 
@@ -679,6 +719,7 @@ fn agent_chat_turn_happy_path_emits_turn_completed() {
 fn agent_chat_turn_busy_rejects_without_emit_or_user_turn() {
     with_sandbox(|| {
         let master = create_bound_plan("忙");
+        arm_plan_binding(&master);
         let open = r#loop::open_ai_assistant_core(&master).unwrap();
         let sid = open["session_id"].as_str().unwrap().to_string();
         let before = session::load_session(&sid).unwrap();
@@ -693,19 +734,22 @@ fn agent_chat_turn_busy_rejects_without_emit_or_user_turn() {
 }
 
 #[test]
-fn agent_chat_turn_master_mismatch_is_business_no_llm() {
+fn agent_chat_turn_ignores_master_arg_uses_binding_ctx() {
     with_sandbox(|| {
         let a = create_bound_plan("绑定A");
         let b = create_bound_plan("其它B");
-        let mock = spawn_scripted_llm(vec![assistant_text("nope")]);
+        let mock = spawn_scripted_llm(vec![assistant_text("ok")]);
         install_llm_cfg(&mock);
+        arm_plan_binding(&a);
         let open = r#loop::open_ai_assistant_core(&a).unwrap();
         let sid = open["session_id"].as_str().unwrap();
+        // Client master arg is ignored; Binding.tools ctx drives execution.
         let result = r#loop::agent_chat_turn_core(sid, "你好", Some(&b)).unwrap();
-        assert_eq!(result.body["terminal"], "business");
+        assert_eq!(result.body["terminal"], "none");
         assert_eq!(result.body["wrote"], false);
         assert!(result.emit_turn_completed.is_some());
-        assert_eq!(mock.hits.lock().unwrap().len(), 0);
+        assert_eq!(mock.hits.lock().unwrap().len(), 1);
+        assert!(result.body.get("bound_master_task_id").is_none());
     });
 }
 
@@ -729,13 +773,15 @@ fn in_flight_writes_use_binding_at_turn_start_despite_busy_open() {
             assistant_text("已改旧绑定标题"),
         ]);
         install_llm_cfg(&mock);
+        arm_plan_binding(&a);
         let open = r#loop::open_ai_assistant_core(&a).unwrap();
         let sid = open["session_id"].as_str().unwrap().to_string();
 
         r#loop::set_busy_for_tests(true);
+        // Busy open must not swap Binding; keep tools ctx on `a`.
         let rejected = r#loop::open_ai_assistant_core(&b).unwrap();
         assert_eq!(rejected["busy"], true);
-        assert_eq!(rejected["bound_master_task_id"], a);
+        assert!(rejected.get("bound_master_task_id").is_none());
         r#loop::set_busy_for_tests(false);
 
         let result = r#loop::agent_chat_turn_core(&sid, "改标题", Some(&a)).unwrap();
@@ -751,6 +797,7 @@ fn close_window_does_not_abort_emit_still_available() {
         let master = create_bound_plan("关窗");
         let mock = spawn_scripted_llm(vec![assistant_text("跑完了")]);
         install_llm_cfg(&mock);
+        arm_plan_binding(&master);
         let open = r#loop::open_ai_assistant_core(&master).unwrap();
         let sid = open["session_id"].as_str().unwrap();
         let result = r#loop::agent_chat_turn_core(sid, "继续", Some(&master)).unwrap();

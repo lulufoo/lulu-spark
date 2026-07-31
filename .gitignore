@@ -16,4 +16,4 @@ node_modules
 # Rust / Tauri build output
 src-tauri/target/
 
-.github
+.github.worktrees/

@@ -18,7 +18,7 @@ describe('ai-assistant composer Binding Contract gate', () => {
     invokeMock = vi.fn(async (cmd) => {
       if (cmd === 'query_binding') return { state: 'unbound' };
       if (cmd === 'get_ai_assistant_binding') {
-        return { session_id: '', bound_master_task_id: '', bound_title: '', busy: false };
+        return { session_id: '', busy: false };
       }
       if (cmd === 'shell_close_ai_assistant') return { ok: true, state: 'unbound' };
       return {};

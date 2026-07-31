@@ -56,7 +56,7 @@ describe('P2 copy-switch — Assistant pages (tech-doc T5)', () => {
     expect(aiAssistantJs).toContain('Bound');
     expect(aiAssistantJs).toContain('Message…');
     expect(aiAssistantJs).toContain('>Send<');
-    expect(aiAssistantJs).toContain('Bound:');
+    expect(aiAssistantJs).not.toContain('Bound:');
     expect(aiAssistantJs).toContain('query_binding');
     expect(aiAssistantJs).toContain('Tauri invoke unavailable');
     expect(aiAssistantJs).toContain('Working…');

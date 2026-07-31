@@ -113,8 +113,6 @@ describe('buildTodosBinding / resetTodosBinding', () => {
       if (cmd === 'ensure_ai_assistant_session') {
         return {
           session_id: 'sess_ensured',
-          bound_master_task_id: args?.masterTaskId,
-          bound_title: 'ensured',
           busy: false,
         };
       }
@@ -184,11 +182,12 @@ describe('buildTodosBinding / resetTodosBinding', () => {
     expect(setArgs.binding).not.toHaveProperty('bound_master_task_id');
     expect(setArgs.binding).not.toHaveProperty('masterTaskId');
 
-    expect(invokeMock).toHaveBeenCalledWith(
-      'ensure_ai_assistant_session',
-      expect.objectContaining({ masterTaskId: 'task_alpha' }),
-    );
+    expect(invokeMock).toHaveBeenCalledWith('ensure_ai_assistant_session');
     expect(events.map((e) => e.event)).toEqual(['onBound']);
+
+    for (const tool of result.binding.tools) {
+      expect(tool.ctx?.master_task_id).toBe('task_alpha');
+    }
   });
 
   it('does not Set on empty context (null / missing masterTaskId)', async () => {

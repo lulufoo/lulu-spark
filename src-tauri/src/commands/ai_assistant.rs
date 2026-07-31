@@ -16,10 +16,10 @@ pub fn open_ai_assistant_json(master_task_id: &str) -> Result<Value, String> {
     r#loop::open_ai_assistant_core(master_task_id)
 }
 
-/// Provision chat session for a master without Present/open window.
-/// Used by Todos after Binding Contract Set so shell can `agent_chat_turn` while Present≠Set.
-pub fn ensure_ai_assistant_session_json(master_task_id: &str) -> Result<Value, String> {
-    r#loop::open_ai_assistant_core(master_task_id)
+/// Provision chat session for turn history only (no master / title).
+/// Used after Binding Contract Set so shell can `agent_chat_turn` while Present≠Set.
+pub fn ensure_ai_assistant_session_json() -> Result<Value, String> {
+    r#loop::ensure_chat_session_core()
 }
 
 /// Host Present (shell open/focus). Not a Binding Contract op; does not Set or change binding state.
@@ -181,17 +181,13 @@ pub async fn present_ai_assistant(app: AppHandle) -> Result<Value, String> {
     Ok(result)
 }
 
-/// Ensure a chat session exists for `master_task_id` without Present / window focus.
-/// Does not Set Binding Contract. Used after consumer Set so shell composer can turn.
+/// Ensure a chat session exists without Present / window focus / master write.
+/// Does not Set Binding Contract. Used after consumer Set so shell can turn.
 #[tauri::command]
-pub async fn ensure_ai_assistant_session(
-    app: AppHandle,
-    master_task_id: String,
-) -> Result<Value, String> {
-    let result =
-        tauri::async_runtime::spawn_blocking(move || ensure_ai_assistant_session_json(&master_task_id))
-            .await
-            .map_err(|e| e.to_string())??;
+pub async fn ensure_ai_assistant_session(app: AppHandle) -> Result<Value, String> {
+    let result = tauri::async_runtime::spawn_blocking(ensure_ai_assistant_session_json)
+        .await
+        .map_err(|e| e.to_string())??;
 
     #[cfg(not(test))]
     {

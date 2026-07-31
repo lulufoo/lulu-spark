@@ -10,7 +10,6 @@ use serde_json::{json, Value};
 use crate::services::agent::llm::{self, AssistantMessage, LlmConfig, LlmError};
 use crate::services::agent::session::{self, Session, Turn};
 use crate::services::agent::tools;
-use crate::services::agent::PLAN_ASSISTANT_SYSTEM_PROMPT;
 use crate::services::todo_task;
 
 pub use crate::services::agent::session::{
@@ -410,15 +409,29 @@ pub fn truncate_turns(turns: &[Turn]) -> Vec<Turn> {
     kept
 }
 
-pub fn build_llm_messages_from_turns(turns: &[Turn]) -> Vec<Value> {
+pub fn build_llm_messages_from_turns(turns: &[Turn], system_prompt: &str) -> Vec<Value> {
     let mut messages = vec![json!({
         "role": "system",
-        "content": PLAN_ASSISTANT_SYSTEM_PROMPT,
+        "content": system_prompt,
     })];
     for turn in truncate_turns(turns) {
         messages.push(turn_to_message(&turn));
     }
     messages
+}
+
+fn prompt_text_from_binding(prompt: &Value) -> String {
+    match prompt {
+        Value::String(s) => s.clone(),
+        other => other
+            .as_str()
+            .map(str::to_string)
+            .unwrap_or_else(|| other.to_string()),
+    }
+}
+
+fn current_binding_snapshot() -> Option<session::Binding> {
+    runtime().lock().unwrap().current_binding.clone()
 }
 
 fn map_llm_error(err: &LlmError) -> TurnOutcome {
@@ -469,24 +482,8 @@ fn persist(session: &Session) {
 }
 
 pub fn run_loop(session: &mut Session, user_message: &str, config: &LlmConfig) -> TurnOutcome {
-    // Unbound → business, no LLM.
-    let bound = session
-        .bound_master_task_id
-        .as_deref()
-        .map(str::trim)
-        .filter(|s| !s.is_empty());
-    let bound_ok = match bound {
-        Some(id) => {
-            let got = todo_task::get_by_id(id);
-            got.get("master_task_id").and_then(|v| v.as_str()).is_some()
-                && !got
-                    .get("_status")
-                    .and_then(|s| s.as_u64())
-                    .is_some_and(|s| s >= 400)
-        }
-        None => false,
-    };
-    if !bound_ok {
+    // Executable turns require Binding Contract bound — not session.bound_master_task_id.
+    let Some(binding) = current_binding_snapshot() else {
         session.turns.push(Turn {
             role: "user".into(),
             content: Some(user_message.to_string()),
@@ -494,7 +491,8 @@ pub fn run_loop(session: &mut Session, user_message: &str, config: &LlmConfig) -
             tool_calls: None,
             name: None,
         });
-        let reply = "当前没有可操作的计划（无计划），请从计划页打开助手并绑定计划。".to_string();
+        let reply =
+            "Unbound — no active Binding Contract; chat cannot run.".to_string();
         session.turns.push(Turn {
             role: "assistant".into(),
             content: Some(reply.clone()),
@@ -506,6 +504,31 @@ pub fn run_loop(session: &mut Session, user_message: &str, config: &LlmConfig) -
         return TurnOutcome {
             reply_text: reply,
             terminal: Terminal::Business,
+            wrote: false,
+        };
+    };
+
+    let system_prompt = prompt_text_from_binding(&binding.prompt);
+    if system_prompt.trim().is_empty() {
+        session.turns.push(Turn {
+            role: "user".into(),
+            content: Some(user_message.to_string()),
+            tool_call_id: None,
+            tool_calls: None,
+            name: None,
+        });
+        let reply = "Binding prompt is empty; cannot run chat.".to_string();
+        session.turns.push(Turn {
+            role: "assistant".into(),
+            content: Some(reply.clone()),
+            tool_call_id: None,
+            tool_calls: None,
+            name: None,
+        });
+        persist(session);
+        return TurnOutcome {
+            reply_text: reply,
+            terminal: Terminal::Error,
             wrote: false,
         };
     }
@@ -521,10 +544,11 @@ pub fn run_loop(session: &mut Session, user_message: &str, config: &LlmConfig) -
 
     let mut wrote = false;
     let mut tool_rounds: u32 = 0;
-    let tools_defs = tools::openai_tool_definitions();
+    let tools_defs = tools::openai_tool_definitions_for_binding(&binding.tools);
+    let declared_tools = tools::tool_names_from_binding(&binding.tools);
 
     loop {
-        let messages = build_llm_messages_from_turns(&session.turns);
+        let messages = build_llm_messages_from_turns(&session.turns, &system_prompt);
         let msg = match llm::chat_completions(&messages, &tools_defs, config) {
             Ok(m) => m,
             Err(e) => {
@@ -542,9 +566,10 @@ pub fn run_loop(session: &mut Session, user_message: &str, config: &LlmConfig) -
         };
 
         if !msg.tool_calls.is_empty() {
-            // Unknown / malformed tool names → error, no write.
             for tc in &msg.tool_calls {
-                if tc.id.trim().is_empty() || !WHITELIST.contains(&tc.name.as_str()) {
+                let allowed = WHITELIST.contains(&tc.name.as_str())
+                    && declared_tools.iter().any(|n| n == &tc.name);
+                if tc.id.trim().is_empty() || !allowed {
                     let reply = "模型响应异常或请求了不支持的工具，未执行任何写入。".to_string();
                     session.turns.push(Turn {
                         role: "assistant".into(),
@@ -580,7 +605,6 @@ pub fn run_loop(session: &mut Session, user_message: &str, config: &LlmConfig) -
             }
             tool_rounds += 1;
 
-            // Same-message content is NOT final; store assistant tool_calls turn (content kept in history but ignored as UI final).
             session.turns.push(Turn {
                 role: "assistant".into(),
                 content: msg.content.clone(),
@@ -591,11 +615,9 @@ pub fn run_loop(session: &mut Session, user_message: &str, config: &LlmConfig) -
 
             for tc in &msg.tool_calls {
                 let args: Value = serde_json::from_str(&tc.arguments).unwrap_or(json!({}));
-                let result = tools::dispatch(
-                    &tc.name,
-                    &args,
-                    session.bound_master_task_id.as_deref(),
-                );
+                let master_from_ctx =
+                    tools::master_id_from_binding_tools(&binding.tools, &tc.name);
+                let result = tools::dispatch(&tc.name, &args, master_from_ctx.as_deref());
                 if WRITE_TOOLS.contains(&tc.name.as_str()) && result["ok"] == true {
                     wrote = true;
                 }
@@ -611,7 +633,6 @@ pub fn run_loop(session: &mut Session, user_message: &str, config: &LlmConfig) -
             continue;
         }
 
-        // Content-only: clarify or final.
         let content = msg
             .content
             .clone()
@@ -673,7 +694,6 @@ pub fn run_loop(session: &mut Session, user_message: &str, config: &LlmConfig) -
             };
         }
 
-        // Business cue from model text
         if content.contains("目前不支持") {
             session.turns.push(Turn {
                 role: "assistant".into(),
@@ -720,47 +740,71 @@ fn plan_title(master_task_id: &str) -> Option<String> {
         .map(|s| s.to_string())
 }
 
-/// Current open binding for the assistant window (may be empty if never opened).
+/// Current chat session for the assistant window (may be empty if never opened).
+/// Does not expose business master id / title (stripped from Host surface).
 pub fn get_ai_assistant_binding_core() -> Value {
     let rt = runtime().lock().unwrap();
     json!({
         "session_id": rt.current_session_id.clone().unwrap_or_default(),
-        "bound_master_task_id": rt.bound_master_task_id.clone().unwrap_or_default(),
-        "bound_title": rt.bound_title.clone().unwrap_or_default(),
         "window_label": WINDOW_LABEL,
         "busy": rt.busy,
     })
 }
 
+/// Ensure a chat session exists for turn history only (no master / title).
+pub fn ensure_chat_session_core() -> Result<Value, String> {
+    {
+        let rt = runtime().lock().unwrap();
+        if let Some(ref sid) = rt.current_session_id {
+            if session::load_session(sid).is_ok() {
+                return Ok(json!({
+                    "session_id": sid,
+                    "window_label": WINDOW_LABEL,
+                    "busy": rt.busy,
+                }));
+            }
+        }
+    }
+    let sess = session::create_session(None, None)?;
+    let mut rt = runtime().lock().unwrap();
+    rt.current_session_id = Some(sess.session_id.clone());
+    rt.bound_master_task_id = None;
+    rt.bound_title = None;
+    Ok(json!({
+        "session_id": sess.session_id,
+        "window_label": WINDOW_LABEL,
+        "busy": false,
+    }))
+}
+
+/// Legacy open path: create/focus session without writing business master into Host runtime.
+/// Prefer Present + Binding Contract Set; this no longer binds a plan id.
 pub fn open_ai_assistant_core(master_task_id: &str) -> Result<Value, String> {
     let id = master_task_id.trim();
     if id.is_empty() {
         return Err("Missing master_task_id".into());
     }
-    let title = plan_title(id).ok_or_else(|| "Plan not found".to_string())?;
+    // Validate plan exists for legacy callers, but do not store id on Host/session.
+    let _title = plan_title(id).ok_or_else(|| "Plan not found".to_string())?;
 
     let mut rt = runtime().lock().unwrap();
     if rt.busy {
         return Ok(json!({
             "session_id": rt.current_session_id,
-            "bound_master_task_id": rt.bound_master_task_id,
-            "bound_title": rt.bound_title,
             "window_label": WINDOW_LABEL,
             "busy": true,
-            "reply_text": "处理中，暂不可切换绑定计划。",
+            "reply_text": "Busy — try again later",
         }));
     }
 
-    let sess = session::create_session(Some(id), Some(&title))?;
+    let sess = session::create_session(None, None)?;
     rt.current_session_id = Some(sess.session_id.clone());
-    rt.bound_master_task_id = Some(id.to_string());
-    rt.bound_title = Some(title.clone());
+    rt.bound_master_task_id = None;
+    rt.bound_title = None;
     rt.clarify_counts.insert(sess.session_id.clone(), 0);
 
     Ok(json!({
         "session_id": sess.session_id,
-        "bound_master_task_id": id,
-        "bound_title": title,
         "window_label": WINDOW_LABEL,
         "busy": false,
     }))
@@ -768,8 +812,6 @@ pub fn open_ai_assistant_core(master_task_id: &str) -> Result<Value, String> {
 
 fn emit_payload(
     session_id: &str,
-    bound_master_task_id: Option<&str>,
-    bound_title: Option<&str>,
     wrote: bool,
     terminal: &str,
 ) -> Value {
@@ -777,8 +819,6 @@ fn emit_payload(
         "event": EVENT_TURN_COMPLETED,
         "payload": {
             "session_id": session_id,
-            "bound_master_task_id": bound_master_task_id,
-            "bound_title": bound_title,
             "wrote": wrote,
             "terminal": terminal,
         }
@@ -788,18 +828,16 @@ fn emit_payload(
 pub fn agent_chat_turn_core(
     session_id: &str,
     message: &str,
-    master_task_id: Option<&str>,
+    _master_task_id: Option<&str>,
 ) -> Result<ChatTurnResult, String> {
     {
         let rt = runtime().lock().unwrap();
         if rt.busy {
             return Ok(ChatTurnResult {
                 body: json!({
-                    "reply_text": "处理中，请稍候。",
+                    "reply_text": "Busy — try again later",
                     "terminal": "none",
                     "wrote": false,
-                    "bound_master_task_id": rt.bound_master_task_id,
-                    "bound_title": rt.bound_title,
                     "busy": true,
                     "session_id": session_id,
                 }),
@@ -809,64 +847,59 @@ pub fn agent_chat_turn_core(
     }
 
     let mut session = session::load_session(session_id)?;
-    let bound_id = session.bound_master_task_id.clone();
-    let bound_title = session.bound_title.clone();
-
-    if let Some(req) = master_task_id.map(str::trim).filter(|s| !s.is_empty()) {
-        if bound_id.as_deref() != Some(req) {
-            let reply = "请求的计划与当前窗口绑定不一致。".to_string();
-            let body = json!({
-                "reply_text": reply,
-                "terminal": "business",
-                "wrote": false,
-                "bound_master_task_id": bound_id,
-                "bound_title": bound_title,
-                "busy": false,
-                "session_id": session_id,
-            });
-            let emit = emit_payload(
-                session_id,
-                bound_id.as_deref(),
-                bound_title.as_deref(),
-                false,
-                "business",
-            );
-            return Ok(ChatTurnResult {
-                body,
-                emit_turn_completed: Some(emit),
-            });
-        }
-    }
 
     {
         let mut rt = runtime().lock().unwrap();
         rt.busy = true;
         rt.current_session_id = Some(session_id.to_string());
-        rt.bound_master_task_id = bound_id.clone();
-        rt.bound_title = bound_title.clone();
     }
 
-    let outcome = match llm::load_llm_config() {
-        Ok(cfg) => run_loop(&mut session, message, &cfg),
-        Err(e) => {
-            let out = map_llm_error(&e);
-            // Still record user message path via run_loop? load failed before — append briefly.
-            session.turns.push(Turn {
-                role: "user".into(),
-                content: Some(message.to_string()),
-                tool_call_id: None,
-                tool_calls: None,
-                name: None,
-            });
-            session.turns.push(Turn {
-                role: "assistant".into(),
-                content: Some(out.reply_text.clone()),
-                tool_call_id: None,
-                tool_calls: None,
-                name: None,
-            });
-            persist(&session);
-            out
+    // Gate Binding Contract before LLM config — unbound must not depend on secrets/settings.
+    let outcome = if current_binding_snapshot().is_none() {
+        let reply =
+            "Unbound — no active Binding Contract; chat cannot run.".to_string();
+        session.turns.push(Turn {
+            role: "user".into(),
+            content: Some(message.to_string()),
+            tool_call_id: None,
+            tool_calls: None,
+            name: None,
+        });
+        session.turns.push(Turn {
+            role: "assistant".into(),
+            content: Some(reply.clone()),
+            tool_call_id: None,
+            tool_calls: None,
+            name: None,
+        });
+        persist(&session);
+        TurnOutcome {
+            reply_text: reply,
+            terminal: Terminal::Business,
+            wrote: false,
+        }
+    } else {
+        match llm::load_llm_config() {
+            Ok(cfg) => run_loop(&mut session, message, &cfg),
+            Err(e) => {
+                let out = map_llm_error(&e);
+                session.turns.push(Turn {
+                    role: "user".into(),
+                    content: Some(message.to_string()),
+                    tool_call_id: None,
+                    tool_calls: None,
+                    name: None,
+                });
+                session.turns.push(Turn {
+                    role: "assistant".into(),
+                    content: Some(out.reply_text.clone()),
+                    tool_call_id: None,
+                    tool_calls: None,
+                    name: None,
+                });
+                persist(&session);
+                out
+            }
         }
     };
 
@@ -875,47 +908,15 @@ pub fn agent_chat_turn_core(
         rt.busy = false;
     }
 
-    // Refresh title if wrote
-    let bound_title = session.bound_title.clone().or_else(|| {
-        session
-            .bound_master_task_id
-            .as_deref()
-            .and_then(plan_title)
-    });
-    if let Some(ref t) = bound_title {
-        if session.bound_title.as_deref() != Some(t.as_str()) {
-            session.bound_title = Some(t.clone());
-            persist(&session);
-        }
-    }
-    if outcome.wrote {
-        if let Some(id) = session.bound_master_task_id.as_deref() {
-            if let Some(t) = plan_title(id) {
-                session.bound_title = Some(t.clone());
-                persist(&session);
-                let mut rt = runtime().lock().unwrap();
-                rt.bound_title = Some(t);
-            }
-        }
-    }
-
     let terminal = outcome.terminal.as_str();
     let body = json!({
         "reply_text": outcome.reply_text,
         "terminal": terminal,
         "wrote": outcome.wrote,
-        "bound_master_task_id": session.bound_master_task_id,
-        "bound_title": session.bound_title,
         "busy": false,
         "session_id": session_id,
     });
-    let emit = emit_payload(
-        session_id,
-        session.bound_master_task_id.as_deref(),
-        session.bound_title.as_deref(),
-        outcome.wrote,
-        terminal,
-    );
+    let emit = emit_payload(session_id, outcome.wrote, terminal);
     Ok(ChatTurnResult {
         body,
         emit_turn_completed: Some(emit),

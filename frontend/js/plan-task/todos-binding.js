@@ -66,11 +66,19 @@ function masterIdFromContext(masterContext) {
 }
 
 /** Assemble Binding body only (no Host call). callbacks registry may be empty `{}`. */
-export function assembleTodosBindingBody() {
+export function assembleTodosBindingBody(masterTaskId) {
+  const id =
+    typeof masterTaskId === 'string' && masterTaskId.trim()
+      ? masterTaskId.trim()
+      : '';
   return {
-    tools: TODOS_T_LIFT_TOOL_NAMES.map((name) => ({ name })),
+    tools: TODOS_T_LIFT_TOOL_NAMES.map((name) =>
+      id
+        ? { name, ctx: { master_task_id: id } }
+        : { name },
+    ),
     prompt: TODOS_PLAN_ASSISTANT_PROMPT,
-    // B1: callbacks slot required; empty registry allowed. No business fields.
+    // B1: callbacks slot required; empty registry allowed. No Binding-top-level business fields.
     callbacks: {},
   };
 }
@@ -94,7 +102,7 @@ export async function buildTodosBinding(masterContext, callbacks = {}) {
     return { ok: false, skipped: 'empty_context', state: 'unbound' };
   }
 
-  const binding = assembleTodosBindingBody();
+  const binding = assembleTodosBindingBody(masterTaskId);
   const invoke = getTauriInvoke();
   if (!invoke) {
     const payload = { category: 'set_invalid' };
@@ -112,10 +120,9 @@ export async function buildTodosBinding(masterContext, callbacks = {}) {
   }
 
   if (result && result.ok === true) {
-    // Provision chat session for shell turns without Present (Present≠Set).
-    // Does not call open_ai_assistant — that path opens/focuses the window.
+    // Chat session for turn history only — no master write (Present≠Set; Host≠todo id).
     try {
-      await invoke('ensure_ai_assistant_session', { masterTaskId });
+      await invoke('ensure_ai_assistant_session');
     } catch {
       // Binding Contract Set already succeeded; session heal may retry on send.
     }

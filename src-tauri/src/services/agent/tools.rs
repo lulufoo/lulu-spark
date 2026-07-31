@@ -100,6 +100,61 @@ fn binding_master_id(bound: Option<&str>) -> Result<String, Value> {
     Ok(id.to_string())
 }
 
+/// Read opaque tool-handle `ctx.master_task_id` for `tool_name` from Binding.tools.
+/// Host does not treat this as a Binding Contract primary key — consumer-owned handle data.
+pub fn master_id_from_binding_tools(tools: &Value, tool_name: &str) -> Option<String> {
+    let arr = tools.as_array()?;
+    for item in arr {
+        let name = item
+            .get("name")
+            .and_then(|v| v.as_str())
+            .or_else(|| item.as_str())?;
+        if name != tool_name {
+            continue;
+        }
+        let id = item
+            .get("ctx")
+            .and_then(|c| c.get("master_task_id"))
+            .and_then(|v| v.as_str())
+            .map(str::trim)
+            .filter(|s| !s.is_empty())?;
+        return Some(id.to_string());
+    }
+    None
+}
+
+/// Tool names declared in Binding.tools (string or `{name}` objects).
+pub fn tool_names_from_binding(tools: &Value) -> Vec<String> {
+    match tools {
+        Value::Array(arr) => arr
+            .iter()
+            .filter_map(|item| {
+                item.get("name")
+                    .and_then(|v| v.as_str())
+                    .or_else(|| item.as_str())
+                    .map(|s| s.to_string())
+            })
+            .collect(),
+        Value::Object(map) => map.keys().cloned().collect(),
+        Value::String(s) if !s.trim().is_empty() => vec![s.clone()],
+        _ => Vec::new(),
+    }
+}
+
+/// OpenAI tool defs intersected with Binding-declared names (still Host whitelist).
+pub fn openai_tool_definitions_for_binding(tools: &Value) -> Vec<Value> {
+    let declared = tool_names_from_binding(tools);
+    openai_tool_definitions()
+        .into_iter()
+        .filter(|def| {
+            def.get("function")
+                .and_then(|f| f.get("name"))
+                .and_then(|n| n.as_str())
+                .is_some_and(|n| declared.iter().any(|d| d == n))
+        })
+        .collect()
+}
+
 fn map_plan_status(v: &Value) -> Option<Value> {
     let status = v.get("_status").and_then(|s| s.as_u64())?;
     if status < 400 {

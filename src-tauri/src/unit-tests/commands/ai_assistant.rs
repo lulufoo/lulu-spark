@@ -33,34 +33,36 @@ fn open_ai_assistant_json_returns_window_label_constant() {
         let v = open_ai_assistant_json(&id).expect("open");
         assert_eq!(v["window_label"], AI_ASSISTANT_WINDOW_LABEL);
         assert_eq!(AI_ASSISTANT_WINDOW_LABEL, "ai-assistant");
-        assert_eq!(v["bound_master_task_id"], id);
+        assert!(v.get("bound_master_task_id").is_none());
+        assert!(!v["session_id"].as_str().unwrap_or("").is_empty());
     });
 }
 
 #[test]
 fn ensure_ai_assistant_session_provisions_session_without_present_set() {
     with_cmd_sandbox(|| {
-        let id = create_plan("ensure会话");
+        let _id = create_plan("ensure会话");
         assert_eq!(query_binding_json()["state"], "unbound");
-        let v = ensure_ai_assistant_session_json(&id).expect("ensure");
+        let v = ensure_ai_assistant_session_json().expect("ensure");
         assert!(!v["session_id"].as_str().unwrap_or("").is_empty());
-        assert_eq!(v["bound_master_task_id"], id);
+        assert!(v.get("bound_master_task_id").is_none());
         // ensure must not Set Binding Contract (Present≠Set; ensure≠Set).
         assert_eq!(query_binding_json()["state"], "unbound");
         assert_eq!(EVENT_BINDING_CHANGED, "ai-assistant:binding-changed");
         let pulled = get_ai_assistant_binding_json();
         assert_eq!(pulled["session_id"], v["session_id"]);
+        assert!(pulled.get("bound_master_task_id").is_none());
     });
 }
 
 #[test]
-fn agent_chat_turn_json_mismatch_is_business() {
+fn agent_chat_turn_json_without_binding_is_business() {
     with_cmd_sandbox(|| {
         let a = create_plan("绑A");
-        let b = create_plan("绑B");
         let open = open_ai_assistant_json(&a).unwrap();
         let sid = open["session_id"].as_str().unwrap();
-        let result = agent_chat_turn_json(sid, "hi", Some(&b)).unwrap();
+        // No Binding Contract Set → unbound business terminal (master arg ignored).
+        let result = agent_chat_turn_json(sid, "hi", Some(&a)).unwrap();
         assert_eq!(result.body["terminal"], "business");
         assert!(result.emit_turn_completed.is_some());
     });
