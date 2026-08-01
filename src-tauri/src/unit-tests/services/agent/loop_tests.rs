@@ -682,10 +682,27 @@ fn open_ai_assistant_busy_rejects_rebind() {
         let first = r#loop::open_ai_assistant_core(&a).unwrap();
         let sid = first["session_id"].as_str().unwrap().to_string();
         r#loop::set_busy_for_tests(true);
+        // Replace Set while busy still cuts the live session (clear-first).
         arm_plan_binding(&b);
+        assert_eq!(
+            live_session_id(),
+            None,
+            "replace Set clears live session even while busy"
+        );
         let second = r#loop::open_ai_assistant_core(&b).unwrap();
         assert_eq!(second["busy"], true);
-        assert_eq!(second["session_id"], sid);
+        // Busy open must not mint a new session; cut leaves no live id to echo.
+        assert!(
+            second["session_id"].is_null()
+                || second["session_id"].as_str().unwrap_or("").is_empty(),
+            "busy open after session cut must not invent a live session; got {}",
+            second["session_id"]
+        );
+        assert_ne!(
+            second["session_id"].as_str().unwrap_or(""),
+            sid,
+            "cut old session must not remain the busy-open live id"
+        );
         assert!(second.get("bound_master_task_id").is_none());
         assert!(second.get("bound_title").is_none());
     });
@@ -2178,5 +2195,303 @@ fn t1_run_loop_aborts_tool_dispatch_when_generation_invalidated() {
             title_before,
             "old Tools must not write after generation invalidation"
         );
+    });
+}
+
+// --- T2: session cut — clear-first (current_session_id → None) ---
+
+fn live_session_id() -> Option<String> {
+    let sid = r#loop::get_ai_assistant_binding_core()["session_id"]
+        .as_str()
+        .unwrap_or("")
+        .to_string();
+    if sid.is_empty() {
+        None
+    } else {
+        Some(sid)
+    }
+}
+
+#[test]
+fn t2_reset_clears_current_session_id_to_none() {
+    with_sandbox(|| {
+        let master = create_bound_plan("t2-reset-clear");
+        arm_plan_binding(&master);
+        let open = r#loop::open_ai_assistant_core(&master).unwrap();
+        let old_sid = open["session_id"].as_str().unwrap().to_string();
+        assert_eq!(live_session_id().as_deref(), Some(old_sid.as_str()));
+
+        r#loop::reset_binding().expect("Reset");
+        assert_eq!(
+            live_session_id(),
+            None,
+            "Reset must clear current_session_id to None (clear-first)"
+        );
+        assert_eq!(r#loop::binding_state(), "unbound");
+    });
+}
+
+#[test]
+fn t2_reset_old_session_not_reused_by_ensure_for_executable() {
+    with_sandbox(|| {
+        let master = create_bound_plan("t2-reset-ensure");
+        arm_plan_binding(&master);
+        let open = r#loop::open_ai_assistant_core(&master).unwrap();
+        let old_sid = open["session_id"].as_str().unwrap().to_string();
+        // Seed turns on the old session so reuse would be observable.
+        let mut old = session::load_session(&old_sid).unwrap();
+        old.turns.push(Turn {
+            role: "user".into(),
+            content: Some("old-turn".into()),
+            tool_call_id: None,
+            tool_calls: None,
+            name: None,
+        });
+        session::save_session(&old).unwrap();
+
+        r#loop::reset_binding().expect("Reset");
+        assert_eq!(live_session_id(), None);
+
+        // Re-bind then ensure: must mint a new session, not reuse the cut id.
+        arm_plan_binding(&master);
+        let ensured = r#loop::ensure_chat_session_core().expect("ensure after cut");
+        let new_sid = ensured["session_id"].as_str().unwrap().to_string();
+        assert_ne!(
+            new_sid, old_sid,
+            "ensure must not reuse a cut session id for executable chat"
+        );
+        assert_eq!(live_session_id().as_deref(), Some(new_sid.as_str()));
+        let fresh = session::load_session(&new_sid).unwrap();
+        assert!(
+            fresh.turns.is_empty(),
+            "new executable session must not carry old turns"
+        );
+    });
+}
+
+#[test]
+fn t2_replace_set_clears_session_with_generation_advance() {
+    with_sandbox(|| {
+        let master_a = create_bound_plan("t2-replace-a");
+        let master_b = create_bound_plan("t2-replace-b");
+        arm_plan_binding(&master_a);
+        let open = r#loop::open_ai_assistant_core(&master_a).unwrap();
+        let old_sid = open["session_id"].as_str().unwrap().to_string();
+        let old_gen = r#loop::query_binding().generation.expect("old gen");
+        assert_eq!(live_session_id().as_deref(), Some(old_sid.as_str()));
+
+        arm_plan_binding(&master_b); // successful replace Set
+        let new_gen = r#loop::query_binding().generation.expect("new gen");
+        assert_ne!(old_gen, new_gen, "replace Set must advance generation");
+        assert!(
+            !r#loop::is_binding_generation_current(old_gen),
+            "old generation must be invalid"
+        );
+        assert_eq!(
+            live_session_id(),
+            None,
+            "replace Set must clear current_session_id (same semantics as Reset); \
+             must not leave a new-generation + old-session window"
+        );
+    });
+}
+
+#[test]
+fn t2_first_set_clears_pre_set_session_then_ensure_mints_new() {
+    with_sandbox(|| {
+        // unbound → ensure mints a session that must not auto-promote after Set.
+        let pre = r#loop::ensure_chat_session_core().expect("ensure while unbound");
+        let pre_sid = pre["session_id"].as_str().unwrap().to_string();
+        assert_eq!(live_session_id().as_deref(), Some(pre_sid.as_str()));
+        assert_eq!(r#loop::binding_state(), "unbound");
+
+        let master = create_bound_plan("t2-first-set");
+        arm_plan_binding(&master); // unbound→bound first successful Set
+        assert_eq!(
+            live_session_id(),
+            None,
+            "first successful Set must clear any pre-Set current_session_id"
+        );
+        assert_ne!(
+            r#loop::query_binding().generation,
+            None,
+            "first Set must establish a live generation"
+        );
+
+        let ensured = r#loop::ensure_chat_session_core().expect("ensure after first Set");
+        let new_sid = ensured["session_id"].as_str().unwrap().to_string();
+        assert_ne!(
+            new_sid, pre_sid,
+            "unbound-era ensure session must not become the new binding executable context"
+        );
+    });
+}
+
+#[test]
+fn t2_re_set_executable_chat_lands_on_new_session_without_old_turns() {
+    with_sandbox(|| {
+        let master_a = create_bound_plan("t2-re-set-a");
+        let master_b = create_bound_plan("t2-re-set-b");
+        let mock = spawn_scripted_llm(vec![
+            assistant_text("旧绑定回复"),
+            assistant_text("新绑定回复"),
+        ]);
+        install_llm_cfg(&mock);
+
+        arm_plan_binding(&master_a);
+        let open = r#loop::open_ai_assistant_core(&master_a).unwrap();
+        let old_sid = open["session_id"].as_str().unwrap().to_string();
+        let first = r#loop::agent_chat_turn_core(&old_sid, "你好", Some(&master_a)).unwrap();
+        assert_eq!(first.body["terminal"], "none");
+        let old_turns_len = session::load_session(&old_sid).unwrap().turns.len();
+        assert!(old_turns_len >= 2, "old session should have turns");
+
+        arm_plan_binding(&master_b); // replace Set → session cut
+        assert_eq!(live_session_id(), None);
+
+        let ensured = r#loop::ensure_chat_session_core().expect("ensure new");
+        let new_sid = ensured["session_id"].as_str().unwrap().to_string();
+        assert_ne!(new_sid, old_sid);
+        let result = r#loop::agent_chat_turn_core(&new_sid, "继续", Some(&master_b)).unwrap();
+        assert_eq!(result.body["terminal"], "none");
+        assert!(
+            result.body["reply_text"]
+                .as_str()
+                .unwrap()
+                .contains("新绑定回复")
+        );
+        let new_sess = session::load_session(&new_sid).unwrap();
+        let blob = serde_json::to_string(&new_sess.turns).unwrap();
+        assert!(
+            !blob.contains("旧绑定回复") && !blob.contains("你好"),
+            "new binding executable session must not carry old turns: {blob}"
+        );
+        // Old session file may still exist with its turns (cut ≠ delete).
+        let old_still = session::load_session(&old_sid).unwrap();
+        assert_eq!(old_still.turns.len(), old_turns_len);
+    });
+}
+
+#[test]
+fn t2_unbound_ensure_session_not_auto_promoted_on_set() {
+    with_sandbox(|| {
+        let pre = r#loop::ensure_chat_session_core().expect("unbound ensure");
+        let pre_sid = pre["session_id"].as_str().unwrap().to_string();
+        let mut seeded = session::load_session(&pre_sid).unwrap();
+        seeded.turns.push(Turn {
+            role: "user".into(),
+            content: Some("unbound-era".into()),
+            tool_call_id: None,
+            tool_calls: None,
+            name: None,
+        });
+        session::save_session(&seeded).unwrap();
+
+        r#loop::set_binding(valid_binding()).expect("Set");
+        assert_eq!(live_session_id(), None);
+
+        let after = r#loop::ensure_chat_session_core().expect("ensure under new binding");
+        let after_sid = after["session_id"].as_str().unwrap().to_string();
+        assert_ne!(after_sid, pre_sid);
+        let after_sess = session::load_session(&after_sid).unwrap();
+        assert!(
+            after_sess
+                .turns
+                .iter()
+                .all(|t| t.content.as_deref() != Some("unbound-era")),
+            "unbound-ensure session must not auto-promote into new binding context"
+        );
+    });
+}
+
+#[test]
+fn t2_chat_session_identity_must_match_live_current() {
+    with_sandbox(|| {
+        let master = create_bound_plan("t2-identity");
+        let mock = spawn_scripted_llm(vec![assistant_text("should-not-run")]);
+        install_llm_cfg(&mock);
+        arm_plan_binding(&master);
+        let open = r#loop::open_ai_assistant_core(&master).unwrap();
+        let live = open["session_id"].as_str().unwrap().to_string();
+        assert_eq!(live_session_id().as_deref(), Some(live.as_str()));
+
+        // Stale / foreign session id must be rejected; must not re-pin runtime.
+        let foreign = session::create_session(None, None).unwrap().session_id;
+        let rejected = r#loop::agent_chat_turn_core(&foreign, "ping", Some(&master));
+        match rejected {
+            Ok(result) => {
+                assert_ne!(
+                    result.body["terminal"],
+                    "none",
+                    "mismatched session id must not continue as a successful executable turn"
+                );
+            }
+            Err(_) => {} // hard reject is also acceptable
+        }
+        assert_eq!(
+            live_session_id().as_deref(),
+            Some(live.as_str()),
+            "reject must not re-pin runtime current_session_id to the foreign id"
+        );
+        assert_eq!(mock.hits.lock().unwrap().len(), 0);
+    });
+}
+
+#[test]
+fn t2_cut_does_not_wipe_turns_as_primary_means() {
+    with_sandbox(|| {
+        let master = create_bound_plan("t2-no-wipe");
+        arm_plan_binding(&master);
+        let open = r#loop::open_ai_assistant_core(&master).unwrap();
+        let old_sid = open["session_id"].as_str().unwrap().to_string();
+        let mut sess = session::load_session(&old_sid).unwrap();
+        sess.turns.push(Turn {
+            role: "user".into(),
+            content: Some("preserve-me".into()),
+            tool_call_id: None,
+            tool_calls: None,
+            name: None,
+        });
+        session::save_session(&sess).unwrap();
+        let turns_before = sess.turns.len();
+
+        r#loop::reset_binding().expect("Reset");
+        assert_eq!(live_session_id(), None);
+
+        // Primary cut means clearing the live id — not wiping turns on the same id.
+        let still = session::load_session(&old_sid).expect("disk json may remain");
+        assert_eq!(
+            still.turns.len(),
+            turns_before,
+            "cut must not use same-id turn wipe as the primary means"
+        );
+        assert!(
+            still
+                .turns
+                .iter()
+                .any(|t| t.content.as_deref() == Some("preserve-me"))
+        );
+
+        // Old id must not drive executable chat after cut.
+        let mock = spawn_scripted_llm(vec![assistant_text("should-not-run")]);
+        install_llm_cfg(&mock);
+        // Still unbound after Reset — re-bind so generation gate isn't the only rejector.
+        arm_plan_binding(&master);
+        assert_eq!(
+            live_session_id(),
+            None,
+            "re-Set after Reset must also leave no live session (first/replace Set clears)"
+        );
+        let rejected = r#loop::agent_chat_turn_core(&old_sid, "drive-old", Some(&master));
+        match rejected {
+            Ok(result) => assert_ne!(result.body["terminal"], "none"),
+            Err(_) => {}
+        }
+        assert_eq!(
+            live_session_id(),
+            None,
+            "calling with cut id must not re-pin runtime to the cut session"
+        );
+        assert_eq!(mock.hits.lock().unwrap().len(), 0);
     });
 }

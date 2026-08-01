@@ -194,6 +194,8 @@ fn emit_lifecycle_inner(event: &'static str, category: Option<&'static str>, inv
 
 /// Set Binding after B1 validation. Failure returns `set_invalid` and leaves state unchanged.
 /// Legal Set on bound atomically replaces and invalidates the previous generation.
+/// Any successful Set (first or replace) clears `current_session_id` in the same critical
+/// section as generation advance (session cut, clear-first).
 /// Emits onBound; replace also emits onUnbound → onBound (D1).
 /// Illegal Set emits onError(set_invalid) and does not emit onBound.
 pub fn set_binding(binding: session::Binding) -> Result<(), SetError> {
@@ -207,6 +209,8 @@ pub fn set_binding(binding: session::Binding) -> Result<(), SetError> {
         rt.generation_seq = rt.generation_seq.saturating_add(1);
         rt.current_generation = Some(rt.generation_seq);
         rt.current_binding = Some(binding);
+        // Session cut: clear live id with generation update (no new-gen + old-session window).
+        rt.current_session_id = None;
         was
     };
     if was_bound {
@@ -228,6 +232,7 @@ pub fn try_set_binding_json(v: &Value) -> Result<(), SetError> {
 }
 
 /// Reset: discard current Binding → unbound. Idempotent when already unbound.
+/// Clears `current_session_id` (session cut, clear-first); does not wipe disk turns.
 /// Bound→unbound emits onUnbound; mid-execute Reset (strategy A) cancels in-flight execute.
 pub fn reset_binding() -> Result<(), ()> {
     let was_bound = {
@@ -235,6 +240,7 @@ pub fn reset_binding() -> Result<(), ()> {
         let was = rt.current_binding.is_some();
         rt.current_binding = None;
         rt.current_generation = None;
+        rt.current_session_id = None;
         if rt.executing {
             rt.execute_cancelled = true;
         }
@@ -263,8 +269,7 @@ pub fn execute_binding_during<F: FnOnce()>(mid: F) -> Result<ExecuteOutcome, Exe
         };
         let Some(generation) = rt.current_generation else {
             drop(rt);
-            emit_lifecycle("onError", Some("rejected_stale_generation"));
-            return Err(ExecError::rejected_stale_generation());
+            return Err(exec_err_stale_generation());
         };
         rt.executing = true;
         rt.execute_cancelled = false;
@@ -285,8 +290,7 @@ pub fn execute_binding_during<F: FnOnce()>(mid: F) -> Result<ExecuteOutcome, Exe
         return Err(ExecError::reset_cancelled());
     }
     if !is_binding_generation_current(generation) {
-        emit_lifecycle("onError", Some("rejected_stale_generation"));
-        return Err(ExecError::rejected_stale_generation());
+        return Err(exec_err_stale_generation());
     }
 
     Ok(ExecuteOutcome {
@@ -334,6 +338,20 @@ pub fn current_binding_slot_count() -> usize {
 /// Whether `generation` is still the live current Binding (false after Reset or replace).
 pub fn is_binding_generation_current(generation: u64) -> bool {
     runtime().lock().unwrap().current_generation == Some(generation)
+}
+
+fn exec_err_stale_generation() -> ExecError {
+    emit_lifecycle("onError", Some("rejected_stale_generation"));
+    ExecError::rejected_stale_generation()
+}
+
+/// Atomic snapshot of current Binding + live generation (None if unbound or gen missing).
+fn current_binding_generation_snapshot() -> Option<(session::Binding, u64)> {
+    let rt = runtime().lock().unwrap();
+    match (rt.current_binding.clone(), rt.current_generation) {
+        (Some(binding), Some(generation)) => Some((binding, generation)),
+        _ => None,
+    }
 }
 
 /// Binding Contract ops only (L03-SC / L08-AR). Present/Open are shell surface, not ops.
@@ -515,7 +533,7 @@ fn stale_generation_turn_outcome(session: &mut Session, wrote: bool) -> TurnOutc
 
 pub fn run_loop(session: &mut Session, user_message: &str, config: &LlmConfig) -> TurnOutcome {
     // Executable turns require Binding Contract bound — not session.bound_master_task_id.
-    let Some(binding) = current_binding_snapshot() else {
+    let Some((binding, generation)) = current_binding_generation_snapshot() else {
         session.turns.push(Turn {
             role: "user".into(),
             content: Some(user_message.to_string()),
@@ -523,30 +541,24 @@ pub fn run_loop(session: &mut Session, user_message: &str, config: &LlmConfig) -
             tool_calls: None,
             name: None,
         });
-        let reply =
-            "Unbound — no active Binding Contract; chat cannot run.".to_string();
-        session.turns.push(Turn {
-            role: "assistant".into(),
-            content: Some(reply.clone()),
-            tool_call_id: None,
-            tool_calls: None,
-            name: None,
-        });
-        persist(session);
-        return TurnOutcome {
-            reply_text: reply,
-            terminal: Terminal::Business,
-            wrote: false,
-        };
-    };
-    let Some(generation) = runtime().lock().unwrap().current_generation else {
-        session.turns.push(Turn {
-            role: "user".into(),
-            content: Some(user_message.to_string()),
-            tool_call_id: None,
-            tool_calls: None,
-            name: None,
-        });
+        // Distinguish never/fully unbound from a corrupted bound-without-generation slot.
+        if current_binding_snapshot().is_none() {
+            let reply =
+                "Unbound — no active Binding Contract; chat cannot run.".to_string();
+            session.turns.push(Turn {
+                role: "assistant".into(),
+                content: Some(reply.clone()),
+                tool_call_id: None,
+                tool_calls: None,
+                name: None,
+            });
+            persist(session);
+            return TurnOutcome {
+                reply_text: reply,
+                terminal: Terminal::Business,
+                wrote: false,
+            };
+        }
         return stale_generation_turn_outcome(session, false);
     };
 
@@ -894,6 +906,21 @@ pub fn agent_chat_turn_core(
                 emit_turn_completed: None,
             });
         }
+        // Executable chat identity is Host live current_session_id.
+        // Mismatch / cut id must reject without re-pinning runtime to the caller arg.
+        let live = rt.current_session_id.as_deref();
+        if live != Some(session_id) {
+            return Ok(ChatTurnResult {
+                body: json!({
+                    "reply_text": "Session identity mismatch — cut or stale session cannot continue.",
+                    "terminal": "business",
+                    "wrote": false,
+                    "busy": false,
+                    "session_id": session_id,
+                }),
+                emit_turn_completed: None,
+            });
+        }
     }
 
     let mut session = session::load_session(session_id)?;
@@ -901,7 +928,7 @@ pub fn agent_chat_turn_core(
     {
         let mut rt = runtime().lock().unwrap();
         rt.busy = true;
-        rt.current_session_id = Some(session_id.to_string());
+        // Do not re-pin current_session_id from the caller arg — live already matches.
     }
 
     // Gate Binding Contract before LLM config — unbound must not depend on secrets/settings.
