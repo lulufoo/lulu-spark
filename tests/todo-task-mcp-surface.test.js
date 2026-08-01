@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 
-/** tech-doc 公开契约映射 — 13 todo_* MCP tools; no complete_plan_sub. */
+/** tech-doc 公开契约映射 — todo_* MCP tools (+ update_todo_sub); no complete_plan_sub. */
 const EXPECTED_TODO_TOOLS = [
   'create_todo_task',
   'update_todo_task',
@@ -13,6 +13,7 @@ const EXPECTED_TODO_TOOLS = [
   'get_todo_task',
   'delete_todo_task',
   'add_todo_sub',
+  'update_todo_sub',
   'delete_todo_sub',
   'complete_todo',
   'link_todo_archive',
@@ -43,7 +44,7 @@ function registeredToolNames(src) {
 }
 
 describe('MCP tool surface hard-cut to todo_* (tech-doc T7 / SK-2)', () => {
-  it('index.mjs registers exactly the 13 todo_* tools; old plan_* names absent', () => {
+  it('index.mjs registers exactly the todo_* tools incl. update_todo_sub; old plan_* names absent', () => {
     const indexPath = join(repoRoot, 'packages/knowledge-mcp/index.mjs');
     expect(existsSync(indexPath), 'missing packages/knowledge-mcp/index.mjs').toBe(true);
     const src = readFileSync(indexPath, 'utf8');

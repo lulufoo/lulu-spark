@@ -523,9 +523,7 @@ fn handle_todo_task_update_sub_payload(payload: &Value) -> Value {
     let Some(title) = payload.get("title").and_then(|v| v.as_str()) else {
         return json!({ "error": "Missing title", "_status": 400 });
     };
-    let content = payload
-        .get("content")
-        .map(|v| v.as_str().unwrap_or(""));
+    let content = payload.get("content").map(|v| v.as_str().unwrap_or(""));
     todo_task::update_sub_title(master_task_id, sub_task_id, title, content)
 }
 

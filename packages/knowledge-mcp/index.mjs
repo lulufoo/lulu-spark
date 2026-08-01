@@ -340,14 +340,73 @@ function buildServer() {
   server.registerTool(
     'add_todo_sub',
     {
-      description: 'Add a sub task to a todo master. Proxy POST /api/todo-task-add-sub',
+      description:
+        'Add a sub task to a todo master with optional content. Title-only (master_task_id + title) remains valid. Proxy POST /api/todo-task-add-sub',
       inputSchema: {
         master_task_id: z.string().trim().min(1).describe('Master task id'),
         title: z.string().trim().min(1).describe('Sub task title'),
+        content: z.string().optional().describe('Optional sub task content; omit → no content field'),
       },
     },
-    async ({ master_task_id, title }) => {
-      const result = await proxyPost('/api/todo-task-add-sub', { master_task_id, title });
+    async ({ master_task_id, title, content }) => {
+      const body = { master_task_id, title };
+      if (content != null) {
+        body.content = content;
+      }
+      const result = await proxyPost('/api/todo-task-add-sub', body);
+      if (!result.ok) {
+        return toolError(result.status, result.text);
+      }
+      return { content: [{ type: 'text', text: result.text }] };
+    },
+  );
+
+  server.registerTool(
+    'update_todo_sub',
+    {
+      description:
+        'Update a sub task title and/or content. Provide master_task_id, sub_task_id, and at least one of title or content. Omit content to leave unchanged; content "" clears. When title is omitted, current title is resolved before proxy (HTTP requires non-empty title). Proxy POST /api/todo-task-update-sub',
+      inputSchema: {
+        master_task_id: z.string().trim().min(1).describe('Master task id'),
+        sub_task_id: z.string().trim().min(1).describe('Sub task id'),
+        title: z.string().trim().min(1).optional().describe('New sub title; omit → keep current (resolved before HTTP)'),
+        content: z.string().optional().describe('Sub content; omit → unchanged; empty string → clear'),
+      },
+    },
+    async ({ master_task_id, sub_task_id, title, content }) => {
+      if (title == null && content == null) {
+        return toolError(400, JSON.stringify({ error: 'Missing title or content' }));
+      }
+      let resolvedTitle = title;
+      if (title == null) {
+        const q = new URLSearchParams({ id: master_task_id });
+        const got = await proxyGet(`/api/todo-task?${q}`);
+        if (!got.ok) {
+          return toolError(got.status, got.text);
+        }
+        let master;
+        try {
+          master = JSON.parse(got.text);
+        } catch {
+          return toolError(500, JSON.stringify({ error: 'Invalid todo-task response' }));
+        }
+        const subs = Array.isArray(master?.sub_tasks) ? master.sub_tasks : [];
+        const sub = subs.find((s) => s && s.sub_task_id === sub_task_id);
+        const current = typeof sub?.title === 'string' ? sub.title.trim() : '';
+        if (!current) {
+          return toolError(
+            404,
+            JSON.stringify({ error: 'Sub task not found or title unavailable' }),
+          );
+        }
+        resolvedTitle = current;
+      }
+      const body = { master_task_id, sub_task_id };
+      body.title = resolvedTitle;
+      if (content != null) {
+        body.content = content;
+      }
+      const result = await proxyPost('/api/todo-task-update-sub', body);
       if (!result.ok) {
         return toolError(result.status, result.text);
       }
