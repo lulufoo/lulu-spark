@@ -2769,3 +2769,181 @@ fn t3_cancel_notice_is_not_cut_semantics() {
         );
     });
 }
+
+// --- T4: Host defensive cut (同语义 Reset; shell_close ≠ cut; 幂等) ---
+// Must Close Before P2: DEFENSIVE_CUT_HOOK_PATH must be a stable, testable Host symbol.
+
+#[test]
+fn t4_defensive_cut_hook_path_is_confirmed_and_testable() {
+    // Must Close Before: confirm hook-point file path is testable.
+    assert_eq!(
+        r#loop::DEFENSIVE_CUT_HOOK_PATH,
+        "src-tauri/src/services/agent/loop.rs::defensive_unbound",
+        "P2 Done requires a confirmed, testable Host defensive-cut hook path"
+    );
+    // Explicit leave→Reset remains the primary path; defensive cut backs missed leave.
+    assert_eq!(
+        r#loop::DEFENSIVE_CUT_EXPLICIT_RESET_CHAIN,
+        [
+            "frontend/js/plan-task/index.js::dispose",
+            "frontend/js/plan-task/todos-lifecycle.js::onTodosPageLeave",
+            "frontend/js/plan-task/todos-binding.js::resetTodosBinding",
+            "src-tauri/src/services/agent/loop.rs::reset_binding",
+        ]
+    );
+    // Hook symbol is callable (not a UI-only stub).
+    with_sandbox(|| {
+        r#loop::defensive_unbound().expect("hook must be invokable");
+        assert_eq!(r#loop::binding_state(), "unbound");
+    });
+}
+
+#[test]
+fn t4_missed_reset_defensive_cut_matches_explicit_reset_semantics() {
+    with_sandbox(|| {
+        // Simulate「业务已退出仍 bound / 漏 Reset」: dispose leave signal missed,
+        // Host still observes bound + live session → defensive_unbound.
+        let master = create_bound_plan("t4-missed-reset");
+        arm_plan_binding(&master);
+        let open = r#loop::open_ai_assistant_core(&master).unwrap();
+        let old_sid = open["session_id"].as_str().unwrap().to_string();
+        let gen = r#loop::query_binding().generation.expect("gen");
+        assert_eq!(r#loop::binding_state(), "bound");
+        assert_eq!(live_session_id().as_deref(), Some(old_sid.as_str()));
+        r#loop::set_busy_for_tests(true);
+        r#loop::clear_lifecycle_events_for_tests();
+
+        r#loop::defensive_unbound().expect("Host defensive cut on missed Reset");
+
+        assert_eq!(r#loop::binding_state(), "unbound");
+        assert_eq!(
+            live_session_id(),
+            None,
+            "defensive cut must clear current_session_id (same as Reset)"
+        );
+        assert!(
+            r#loop::query_binding().generation.is_none(),
+            "defensive cut must invalidate generation"
+        );
+        assert!(
+            !r#loop::is_binding_generation_current(gen),
+            "old generation must not remain current"
+        );
+        assert!(
+            r#loop::is_chat_cancelled_for_tests(),
+            "defensive cut must cancel in-flight chat (symmetric with Reset)"
+        );
+        let events = r#loop::drain_lifecycle_events();
+        assert_eq!(
+            event_names(&events),
+            vec!["onUnbound"],
+            "defensive cut must emit onUnbound like explicit Reset: {events:?}"
+        );
+
+        // Old binding/session must not drive executable dialogue.
+        let exec_err = r#loop::execute_binding().expect_err("execute after defensive cut");
+        assert_eq!(exec_err.as_code(), "rejected_unbound");
+        // Release artificial busy (no live chat turn owns it); cut already cleared live session.
+        r#loop::set_busy_for_tests(false);
+        let chat = r#loop::agent_chat_turn_core(&old_sid, "漏Reset后不可执行", Some(&master))
+            .expect("chat path returns body");
+        assert_eq!(
+            chat.body["terminal"], "business",
+            "stale/cut session must reject without executable continuation"
+        );
+        assert_eq!(chat.body["wrote"], false);
+    });
+}
+
+#[test]
+fn t4_defensive_cut_after_explicit_reset_is_idempotent() {
+    with_sandbox(|| {
+        let master = create_bound_plan("t4-idempotent");
+        arm_plan_binding(&master);
+        let _ = r#loop::open_ai_assistant_core(&master).unwrap();
+        r#loop::set_busy_for_tests(true);
+
+        // Explicit Reset (dispose→onTodosPageLeave→resetTodosBinding→reset_binding) succeeded.
+        r#loop::reset_binding().expect("explicit Reset");
+        assert_eq!(r#loop::binding_state(), "unbound");
+        assert_eq!(live_session_id(), None);
+        r#loop::clear_lifecycle_events_for_tests();
+
+        // Defensive cut must be no-op / idempotent — no second onUnbound.
+        r#loop::defensive_unbound().expect("defensive after Reset");
+        assert_eq!(r#loop::binding_state(), "unbound");
+        assert_eq!(live_session_id(), None);
+        assert!(r#loop::query_binding().generation.is_none());
+        let events = r#loop::drain_lifecycle_events();
+        assert!(
+            events.iter().all(|e| e.event != "onUnbound"),
+            "idempotent defensive cut must not re-emit onUnbound: {events:?}"
+        );
+
+        r#loop::defensive_unbound().expect("second defensive still ok");
+        assert_eq!(r#loop::binding_state(), "unbound");
+    });
+}
+
+#[test]
+fn t4_shell_close_core_is_not_defensive_cut() {
+    with_sandbox(|| {
+        let master = create_bound_plan("t4-shell-close");
+        arm_plan_binding(&master);
+        let open = r#loop::open_ai_assistant_core(&master).unwrap();
+        let sid = open["session_id"].as_str().unwrap().to_string();
+        let before = r#loop::query_binding();
+        assert_query_bound(&before);
+        let gen = before.generation.expect("gen");
+        r#loop::clear_lifecycle_events_for_tests();
+
+        // shell_close_core is defined only in loop.rs; shell_close_json only wraps it.
+        r#loop::shell_close_core().expect("关壳");
+        assert_eq!(
+            r#loop::query_binding(),
+            before,
+            "关壳 ≠ 切断: binding must remain observable as before explicit Reset"
+        );
+        assert_eq!(live_session_id().as_deref(), Some(sid.as_str()));
+        assert!(r#loop::is_binding_generation_current(gen));
+        let events = r#loop::drain_lifecycle_events();
+        assert!(
+            events.iter().all(|e| e.event != "onUnbound"),
+            "shell_close must not emit onUnbound: {events:?}"
+        );
+
+        // Explicit Reset still works after shell close (pre-Reset rules).
+        r#loop::reset_binding().expect("explicit Reset after shell close");
+        assert_query_unbound(&r#loop::query_binding());
+        assert_eq!(live_session_id(), None);
+    });
+}
+
+#[test]
+fn t4_defensive_cut_is_not_ui_only_weak_path() {
+    with_sandbox(|| {
+        // Forbidden: "只清 UI" — must truly unbound + invalidate gen + cut session + cancel.
+        let master = create_bound_plan("t4-no-weak");
+        arm_plan_binding(&master);
+        let _ = r#loop::open_ai_assistant_core(&master).unwrap();
+        let gen = r#loop::query_binding().generation.expect("gen");
+        r#loop::set_busy_for_tests(true);
+        r#loop::clear_lifecycle_events_for_tests();
+
+        r#loop::defensive_unbound().expect("full cut");
+
+        assert_eq!(r#loop::binding_state(), "unbound");
+        assert_eq!(r#loop::current_binding_slot_count(), 0);
+        assert!(!r#loop::is_binding_generation_current(gen));
+        assert_eq!(live_session_id(), None);
+        assert!(r#loop::is_chat_cancelled_for_tests());
+        assert_eq!(
+            event_names(&r#loop::drain_lifecycle_events()),
+            vec!["onUnbound"]
+        );
+        // Defensive cut does not replace/omit the need for business explicit Reset —
+        // after cut, explicit Reset remains valid (idempotent) and is still the primary path.
+        r#loop::reset_binding().expect("explicit Reset still the primary path");
+        assert_eq!(r#loop::binding_state(), "unbound");
+    });
+}

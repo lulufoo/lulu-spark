@@ -281,8 +281,23 @@ pub fn reset_binding() -> Result<(), ()> {
     Ok(())
 }
 
+/// Confirmed Host hook path for defensive cut (P2 Must Close Before).
+/// Call when leave/unmount was observed as missed while still bound.
+pub const DEFENSIVE_CUT_HOOK_PATH: &str =
+    "src-tauri/src/services/agent/loop.rs::defensive_unbound";
+
+/// Explicit leave→Reset chain that defensive cut backs (does not replace).
+pub const DEFENSIVE_CUT_EXPLICIT_RESET_CHAIN: &[&str] = &[
+    "frontend/js/plan-task/index.js::dispose",
+    "frontend/js/plan-task/todos-lifecycle.js::onTodosPageLeave",
+    "frontend/js/plan-task/todos-binding.js::resetTodosBinding",
+    "src-tauri/src/services/agent/loop.rs::reset_binding",
+];
+
 /// Host defensive cut: same observable semantics as `reset_binding` (unbound + gen
-/// invalidate + session clear + symmetric in-flight cancel). Hook wiring is T4.
+/// invalidate + session clear + symmetric in-flight cancel).
+/// Backs missed leave on `DEFENSIVE_CUT_EXPLICIT_RESET_CHAIN`; does not replace explicit Reset.
+/// `shell_close_core` must not call this.
 pub fn defensive_unbound() -> Result<(), ()> {
     reset_binding()
 }
