@@ -107,8 +107,12 @@ export async function deletePlanTask({ masterTaskId } = {}) {
   return invokePlanWrite('delete_todo_task', { masterTaskId });
 }
 
-export async function addPlanSub({ masterTaskId, title } = {}) {
-  return invokePlanWrite('add_todo_sub', { masterTaskId, title });
+export async function addPlanSub({ masterTaskId, title, content } = {}) {
+  const args = { masterTaskId, title };
+  if (content != null) {
+    args.content = content;
+  }
+  return invokePlanWrite('add_todo_sub', args);
 }
 
 export async function deletePlanSub({ masterTaskId, subTaskId } = {}) {
@@ -142,8 +146,12 @@ export async function abandonPlanSub({ masterTaskId, subTaskId } = {}) {
   return invokePlanWrite('abandon_todo_sub', { masterTaskId, subTaskId });
 }
 
-export async function updatePlanSub({ masterTaskId, subTaskId, title } = {}) {
-  return invokePlanWrite('update_todo_sub', { masterTaskId, subTaskId, title });
+export async function updatePlanSub({ masterTaskId, subTaskId, title, content } = {}) {
+  const args = { masterTaskId, subTaskId, title };
+  if (content != null) {
+    args.content = content;
+  }
+  return invokePlanWrite('update_todo_sub', args);
 }
 
 export async function updatePlanMasterTitle({ masterTaskId, title } = {}) {
@@ -434,7 +442,7 @@ function renderSubActionError(error) {
   return `<p class="plan-task-sub-action-error" role="alert">${escHtml(error)}</p>`;
 }
 
-function renderSubRow(master, sub, selectedSubId, ui) {
+export function renderSubRow(master, sub, selectedSubId, ui) {
   const effectiveStatus = ui.subStatus?.[sub.sub_task_id] ?? sub.status;
   const subForRender = { ...sub, status: effectiveStatus };
   const selected = sub.sub_task_id === selectedSubId ? ' plan-task-sub--selected' : '';
@@ -442,6 +450,18 @@ function renderSubRow(master, sub, selectedSubId, ui) {
   const disabledAttr = ui.disabled ? ' disabled' : '';
   const copyText = copySubIdPair(master.master_task_id, sub.sub_task_id);
   const subError = ui.subActionErrors?.[sub.sub_task_id] ?? '';
+  const expanded = Boolean(ui.expandedSubContent?.[sub.sub_task_id]);
+  const contentValue =
+    ui.subContentDrafts?.[sub.sub_task_id] ?? (typeof sub.content === 'string' ? sub.content : '');
+  const contentEditor = expanded
+    ? `<textarea
+          class="plan-task-sub-content-editor"
+          data-action="edit-sub-content"
+          data-sub-id="${escHtml(sub.sub_task_id)}"
+          aria-label="Sub-task content"
+          ${ui.disabled ? 'disabled' : ''}
+        >${escHtml(contentValue)}</textarea>`
+    : '';
   return `
     <article data-sub-id="${escHtml(sub.sub_task_id)}" class="plan-task-sub${selected}">
       <header class="plan-task-sub-header">
@@ -455,6 +475,15 @@ function renderSubRow(master, sub, selectedSubId, ui) {
           ${ui.disabled ? 'disabled' : ''}
         />
         <div class="plan-task-sub-header-actions">
+          <button
+            type="button"
+            class="md-header-btn plan-task-sub-content-toggle"
+            data-action="toggle-sub-content"
+            data-sub-id="${escHtml(sub.sub_task_id)}"
+            aria-expanded="${expanded ? 'true' : 'false'}"
+            aria-label="Edit content"
+            ${disabledAttr}
+          >Content</button>
           ${renderSubStatusSelect(subForRender, ui.disabled)}
           <div class="plan-task-sub-menu">
             <button type="button" class="plan-task-sub-menu-btn" data-action="toggle-sub-menu" aria-label="More actions"${disabledAttr}>⋯</button>
@@ -467,6 +496,7 @@ function renderSubRow(master, sub, selectedSubId, ui) {
       </header>
       ${renderSubTitleError(ui.subTitleErrors?.[sub.sub_task_id] ?? '')}
       ${renderSubActionError(subError)}
+      ${contentEditor}
       ${renderLinkedArchives(sub.linked_archive_ids)}
     </article>
   `;
@@ -929,7 +959,7 @@ function renderAttachmentEditor(editor, disabled) {
   `;
 }
 
-function renderSubDetailPane(master, selectedSubId, ui) {
+export function renderSubDetailPane(master, selectedSubId, ui) {
   const subs = master.sub_tasks ?? [];
   const items = subs.length
     ? subs.map((sub) => renderSubRow(master, sub, selectedSubId, ui)).join('')
@@ -945,10 +975,10 @@ function renderSubDetailPane(master, selectedSubId, ui) {
       ${master.migration_error ? renderMigrationWarning() : ''}
       ${renderPlanMdSection(master, ui)}
       ${renderAttachmentsSection(ui)}
-      ${renderCommentsSection(ui)}
       ${renderRefreshWarning(ui.refreshWarning, ui.disabled)}
       ${renderDetailToolbar(master.master_task_id, ui.disabled)}
       <div class="plan-task-sub-list">${items}</div>
+      ${renderCommentsSection(ui)}
     </div>
   `;
 }
@@ -1046,6 +1076,9 @@ export function mountPlanTaskSplit(container, opts = {}) {
   const subActionErrors = {};
   const subTitleErrors = {};
   const subTitleDrafts = {};
+  /** Session-only expand flags for sub content editors (not persisted). */
+  const expandedSubContent = {};
+  const subContentDrafts = {};
   let masterTitleDraft = '';
   let masterTitleError = '';
   /** Last master id painted into the detail pane — used to keep detail scroll across same-master paints. */
@@ -1097,6 +1130,8 @@ export function mountPlanTaskSplit(container, opts = {}) {
       subActionErrors,
       subTitleErrors,
       subTitleDrafts,
+      expandedSubContent,
+      subContentDrafts,
       masterTitleDraft: masterTitleDraft || undefined,
       masterTitleError,
     };
@@ -1756,6 +1791,37 @@ export function mountPlanTaskSplit(container, opts = {}) {
     }
   }
 
+  async function runSubContentSave(subTaskId, content) {
+    const master = findMaster(selectedMasterId);
+    const sub = master?.sub_tasks?.find((item) => item.sub_task_id === subTaskId);
+    if (!master || !sub) return;
+    const next = typeof content === 'string' ? content : '';
+    const prev = typeof sub.content === 'string' ? sub.content : '';
+    if (next === prev) {
+      delete subContentDrafts[subTaskId];
+      return;
+    }
+    subContentDrafts[subTaskId] = next;
+    delete subActionErrors[subTaskId];
+    busy = true;
+    paint();
+    try {
+      await updatePlanSub({
+        masterTaskId: selectedMasterId,
+        subTaskId,
+        title: sub.title || sub.sub_task_id,
+        content: next,
+      });
+      delete subContentDrafts[subTaskId];
+      busy = false;
+      await reloadList({ afterWrite: true });
+    } catch (err) {
+      busy = false;
+      subActionErrors[subTaskId] = err?.message || 'Save failed';
+      paint();
+    }
+  }
+
   async function runMasterTitleSave(title) {
     const master = findMaster(selectedMasterId);
     if (!master) return;
@@ -2170,6 +2236,21 @@ export function mountPlanTaskSplit(container, opts = {}) {
       return;
     }
 
+    if (action === 'toggle-sub-content') {
+      event.preventDefault();
+      event.stopPropagation();
+      if (controlsDisabled(busy)) return;
+      const subTaskId = actionEl?.dataset.subId;
+      if (!subTaskId) return;
+      if (expandedSubContent[subTaskId]) {
+        delete expandedSubContent[subTaskId];
+      } else {
+        expandedSubContent[subTaskId] = true;
+      }
+      paint();
+      return;
+    }
+
     if (action === 'toggle-sub-menu') {
       event.preventDefault();
       event.stopPropagation();
@@ -2242,6 +2323,8 @@ export function mountPlanTaskSplit(container, opts = {}) {
       if (event.target.closest('.plan-task-sub-menu')) return;
       if (event.target.closest('.plan-task-sub-title-input')) return;
       if (event.target.closest('.plan-task-sub-status-select')) return;
+      if (event.target.closest('.plan-task-sub-content-editor')) return;
+      if (event.target.closest('[data-action="toggle-sub-content"]')) return;
       closeSubMenus();
       selectedSubId = subEl.dataset.subId;
       deadLink = false;
@@ -2262,6 +2345,12 @@ export function mountPlanTaskSplit(container, opts = {}) {
     if (masterTitleInput instanceof HTMLInputElement) {
       if (controlsDisabled(busy) || !selectedMasterId) return;
       masterTitleDraft = masterTitleInput.value;
+      return;
+    }
+    const contentInput = event.target.closest('[data-action="edit-sub-content"]');
+    if (contentInput instanceof HTMLTextAreaElement) {
+      if (controlsDisabled(busy) || !selectedMasterId) return;
+      subContentDrafts[contentInput.dataset.subId ?? ''] = contentInput.value;
       return;
     }
     const input = event.target.closest('[data-action="edit-sub-title"]');
@@ -2334,6 +2423,14 @@ export function mountPlanTaskSplit(container, opts = {}) {
     if (masterTitleInput instanceof HTMLInputElement) {
       if (controlsDisabled(busy) || !selectedMasterId) return;
       void runMasterTitleSave(masterTitleInput.value);
+      return;
+    }
+    const contentInput = event.target.closest('[data-action="edit-sub-content"]');
+    if (contentInput instanceof HTMLTextAreaElement) {
+      if (controlsDisabled(busy) || !selectedMasterId) return;
+      const subTaskId = contentInput.dataset.subId;
+      if (!subTaskId) return;
+      void runSubContentSave(subTaskId, contentInput.value);
       return;
     }
     const input = event.target.closest('[data-action="edit-sub-title"]');

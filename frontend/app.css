@@ -2399,6 +2399,33 @@
     font-size: 12px;
     color: #cf222e;
   }
+  .plan-task-sub-content-toggle {
+    flex: 0 0 auto;
+  }
+  .plan-task-sub-content-editor {
+    display: block;
+    width: 100%;
+    min-height: 72px;
+    margin-top: 8px;
+    padding: 8px 10px;
+    border: 1px solid #d0d7de;
+    border-radius: 6px;
+    background: #fff;
+    color: #24292f;
+    font-size: 13px;
+    line-height: 1.45;
+    resize: vertical;
+    box-sizing: border-box;
+  }
+  .plan-task-sub-content-editor:focus {
+    outline: none;
+    border-color: #0969da;
+    box-shadow: 0 0 0 2px rgba(9, 105, 218, 0.15);
+  }
+  .plan-task-sub-content-editor:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
   .plan-task-sub-header-actions {
     display: flex;
     align-items: center;
