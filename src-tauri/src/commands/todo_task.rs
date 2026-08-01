@@ -49,8 +49,12 @@ pub fn delete_todo_task_json(master_task_id: &str) -> Result<Value, String> {
     map_invoke_value(todo_task::delete_master(master_task_id))
 }
 
-pub fn add_todo_sub_json(master_task_id: &str, title: &str) -> Result<Value, String> {
-    map_invoke_value(todo_task::add_sub(master_task_id, title, None))
+pub fn add_todo_sub_json(
+    master_task_id: &str,
+    title: &str,
+    content: Option<&str>,
+) -> Result<Value, String> {
+    map_invoke_value(todo_task::add_sub(master_task_id, title, content))
 }
 
 pub fn delete_todo_sub_json(master_task_id: &str, sub_task_id: &str) -> Result<Value, String> {
@@ -80,8 +84,14 @@ pub fn update_todo_sub_json(
     master_task_id: &str,
     sub_task_id: &str,
     title: &str,
+    content: Option<&str>,
 ) -> Result<Value, String> {
-    map_invoke_value(todo_task::update_sub_title(master_task_id, sub_task_id, title))
+    map_invoke_value(todo_task::update_sub_title(
+        master_task_id,
+        sub_task_id,
+        title,
+        content,
+    ))
 }
 
 pub fn update_todo_master_title_json(
@@ -192,10 +202,13 @@ pub async fn add_todo_sub(
     _app: AppHandle,
     master_task_id: String,
     title: String,
+    content: Option<String>,
 ) -> Result<Value, String> {
-    tauri::async_runtime::spawn_blocking(move || add_todo_sub_json(&master_task_id, &title))
-        .await
-        .map_err(|e| e.to_string())?
+    tauri::async_runtime::spawn_blocking(move || {
+        add_todo_sub_json(&master_task_id, &title, content.as_deref())
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]
@@ -288,9 +301,10 @@ pub async fn update_todo_sub(
     master_task_id: String,
     sub_task_id: String,
     title: String,
+    content: Option<String>,
 ) -> Result<Value, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        update_todo_sub_json(&master_task_id, &sub_task_id, &title)
+        update_todo_sub_json(&master_task_id, &sub_task_id, &title, content.as_deref())
     })
     .await
     .map_err(|e| e.to_string())?

@@ -245,7 +245,7 @@ pub fn dispatch(name: &str, args: &Value, bound_master_task_id: Option<&str>) ->
                 .and_then(|v| v.as_str())
                 .unwrap_or("");
             let title = args.get("title").and_then(|v| v.as_str()).unwrap_or("");
-            let v = todo_task::update_sub_title(&master_id, sub_task_id, title);
+            let v = todo_task::update_sub_title(&master_id, sub_task_id, title, None);
             if let Some(e) = map_plan_status(&v) {
                 return e;
             }

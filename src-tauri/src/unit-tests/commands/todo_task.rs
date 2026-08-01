@@ -4,13 +4,13 @@ use serde_json::json;
 
 use crate::commands::todo_task::{
     abandon_todo_sub_json, add_todo_attachment, add_todo_attachment_json, add_todo_comment,
-    add_todo_comment_json, add_todo_sub_json, complete_todo, complete_todo_json,
+    add_todo_comment_json, add_todo_sub, add_todo_sub_json, complete_todo, complete_todo_json,
     create_todo_task_json, delete_todo_attachment, delete_todo_attachment_json,
     delete_todo_comment, delete_todo_comment_json, delete_todo_sub_json, delete_todo_task_json,
     get_todo_tasks_json, list_todo_attachments, list_todo_attachments_json, list_todo_comments,
     list_todo_comments_json, read_todo_attachment, read_todo_attachment_json, read_todo_md_json,
     save_todo_attachment, save_todo_attachment_json, update_todo_comment, update_todo_comment_json,
-    update_todo_master_title_json, update_todo_md_json,
+    update_todo_master_title_json, update_todo_md_json, update_todo_sub, update_todo_sub_json,
 };
 use crate::services::todo_task::{
     create_master_with_subs, list_all, test_reset_all_injection_flags, test_run_write_task_batch,
@@ -220,14 +220,125 @@ fn add_todo_sub_json_appends_and_returns_updated_master() {
             .expect("subs")
             .len();
 
-        let added = add_todo_sub_json(&master_id, "B").expect("add");
+        let added = add_todo_sub_json(&master_id, "B", None).expect("add");
         assert!(added.get("_status").is_none());
         let task = master_from_invoke(&added);
         let subs = task["sub_tasks"].as_array().expect("subs");
         assert_eq!(subs.len(), before_len + 1);
         assert_eq!(subs[before_len]["title"], "B");
         assert_eq!(subs[before_len]["implicit"], false);
+        assert!(
+            subs[before_len].get("content").is_none() || subs[before_len]["content"].is_null()
+        );
     });
+}
+
+#[test]
+fn add_todo_sub_json_with_optional_content_persists() {
+    with_commands_todo_test(|| {
+        let created = create_todo_task_json("Add sub content", None, "").expect("create");
+        let master_id = created["master_task_id"].as_str().expect("id").to_string();
+
+        let added =
+            add_todo_sub_json(&master_id, "With body", Some("host content")).expect("add");
+        assert!(added.get("_status").is_none());
+        let task = master_from_invoke(&added);
+        let subs = task["sub_tasks"].as_array().expect("subs");
+        assert_eq!(subs.len(), 1);
+        assert_eq!(subs[0]["title"], "With body");
+        assert_eq!(subs[0]["content"], "host content");
+
+        let listed = get_todo_tasks_json().expect("list");
+        let found = listed
+            .as_array()
+            .expect("array")
+            .iter()
+            .find(|t| t["master_task_id"] == master_id)
+            .expect("listed");
+        assert_eq!(found["sub_tasks"][0]["content"], "host content");
+    });
+}
+
+#[test]
+fn update_todo_sub_json_title_only_leaves_content_unchanged() {
+    with_commands_todo_test(|| {
+        let created = create_todo_task_json("Rename keep content", None, "").expect("create");
+        let master_id = created["master_task_id"].as_str().expect("id").to_string();
+        let added =
+            add_todo_sub_json(&master_id, "Old title", Some("keep me")).expect("add");
+        let sub_id = master_from_invoke(&added)["sub_tasks"][0]["sub_task_id"]
+            .as_str()
+            .expect("sub")
+            .to_string();
+
+        let updated =
+            update_todo_sub_json(&master_id, &sub_id, "New title", None).expect("update");
+        assert!(updated.get("_status").is_none());
+        let task = master_from_invoke(&updated);
+        assert_eq!(task["sub_tasks"][0]["title"], "New title");
+        assert_eq!(task["sub_tasks"][0]["content"], "keep me");
+    });
+}
+
+#[test]
+fn update_todo_sub_json_sets_and_clears_optional_content() {
+    with_commands_todo_test(|| {
+        let created = create_todo_task_json("Update content", None, "").expect("create");
+        let master_id = created["master_task_id"].as_str().expect("id").to_string();
+        let added = add_todo_sub_json(&master_id, "Sub", Some("v1")).expect("add");
+        let sub_id = master_from_invoke(&added)["sub_tasks"][0]["sub_task_id"]
+            .as_str()
+            .expect("sub")
+            .to_string();
+
+        let set = update_todo_sub_json(&master_id, &sub_id, "Sub", Some("v2")).expect("set");
+        assert!(set.get("_status").is_none());
+        assert_eq!(master_from_invoke(&set)["sub_tasks"][0]["content"], "v2");
+
+        let cleared =
+            update_todo_sub_json(&master_id, &sub_id, "Sub", Some("")).expect("clear");
+        assert!(cleared.get("_status").is_none());
+        let sub = &master_from_invoke(&cleared)["sub_tasks"][0];
+        assert!(sub.get("content").is_none() || sub["content"].is_null() || sub["content"] == "");
+    });
+}
+
+#[test]
+fn update_todo_sub_json_empty_title_returns_400_class() {
+    with_commands_todo_test(|| {
+        let created = create_todo_task_json("Update blank title", Some(&["A"]), "").expect("create");
+        let master_id = created["master_task_id"].as_str().expect("id").to_string();
+        let sub_id = master_from_invoke(&created)["sub_tasks"][0]["sub_task_id"]
+            .as_str()
+            .expect("sub")
+            .to_string();
+
+        for title in ["", "   "] {
+            let v = update_todo_sub_json(&master_id, &sub_id, title, Some("ignored"))
+                .expect("invoke");
+            assert_eq!(v["error"], "Missing title");
+            assert_eq!(v["_status"], 400);
+        }
+    });
+}
+
+#[test]
+fn update_todo_sub_json_unknown_sub_returns_404_class() {
+    with_commands_todo_test(|| {
+        let created = create_todo_task_json("Update 404", Some(&["A"]), "").expect("create");
+        let master_id = created["master_task_id"].as_str().expect("id");
+
+        let v = update_todo_sub_json(master_id, "task_missing_sub_01", "New", None).expect("invoke");
+        assert_eq!(v["error"], "Task not found");
+        assert_eq!(v["_status"], 404);
+    });
+}
+
+#[test]
+fn todo_sub_command_symbols_accept_optional_content() {
+    // Smoke: async command symbols exist with optional content parameter surface.
+    let _ = add_todo_sub;
+    let _ = update_todo_sub;
 }
 
 #[test]

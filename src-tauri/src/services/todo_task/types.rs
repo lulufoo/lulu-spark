@@ -22,11 +22,7 @@ pub enum MasterTaskStatus {
 }
 
 fn is_absent_or_empty_content(value: &Option<String>) -> bool {
-    match value {
-        None => true,
-        Some(s) if s.is_empty() => true,
-        _ => false,
-    }
+    value.as_ref().map_or(true, |s| s.is_empty())
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

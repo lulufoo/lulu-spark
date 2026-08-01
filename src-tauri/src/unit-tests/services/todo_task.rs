@@ -968,6 +968,84 @@ fn load_legacy_sub_tasks_missing_content_reads_as_absent() {
 }
 
 #[test]
+fn update_sub_title_sets_optional_content() {
+    with_todo_task_sandbox(|_| {
+        let created = create_master_with_subs("Update content", None);
+        let master_id = created["master_task_id"].as_str().unwrap();
+        let added = add_sub(master_id, "Sub", Some("v1"));
+        let sub_id = added["sub_task_id"].as_str().unwrap();
+
+        let updated = update_sub_title(master_id, sub_id, "Sub", Some("v2"));
+        assert_eq!(updated["_status"], 200);
+        assert_eq!(updated["task"]["sub_tasks"][0]["content"], "v2");
+    });
+}
+
+#[test]
+fn update_sub_title_empty_content_clears() {
+    with_todo_task_sandbox(|wb| {
+        let created = create_master_with_subs("Clear content", None);
+        let master_id = created["master_task_id"].as_str().unwrap();
+        let added = add_sub(master_id, "Sub", Some("wipe me"));
+        let sub_id = added["sub_task_id"].as_str().unwrap();
+
+        let cleared = update_sub_title(master_id, sub_id, "Sub", Some(""));
+        assert_eq!(cleared["_status"], 200);
+        let sub = &cleared["task"]["sub_tasks"][0];
+        assert!(sub.get("content").is_none() || sub["content"].is_null() || sub["content"] == "");
+
+        let on_disk = subs_on_disk(wb, master_id);
+        assert!(
+            on_disk["sub_tasks"][0].get("content").is_none()
+                || on_disk["sub_tasks"][0]["content"] == "",
+            "cleared content must not remain as non-empty on disk"
+        );
+    });
+}
+
+#[test]
+fn update_sub_title_omitted_content_leaves_existing() {
+    with_todo_task_sandbox(|_| {
+        let created = create_master_with_subs("Omit content", None);
+        let master_id = created["master_task_id"].as_str().unwrap();
+        let added = add_sub(master_id, "Old", Some("keep"));
+        let sub_id = added["sub_task_id"].as_str().unwrap();
+
+        let renamed = update_sub_title(master_id, sub_id, "New", None);
+        assert_eq!(renamed["_status"], 200);
+        assert_eq!(renamed["task"]["sub_tasks"][0]["title"], "New");
+        assert_eq!(renamed["task"]["sub_tasks"][0]["content"], "keep");
+    });
+}
+
+#[test]
+fn update_sub_title_blank_title_returns_400_even_with_content() {
+    with_todo_task_sandbox(|_| {
+        let created = create_master_with_subs("Blank title", Some(&["A"]));
+        let master_id = created["master_task_id"].as_str().unwrap();
+        let sub_id = created["task"]["sub_tasks"][0]["sub_task_id"]
+            .as_str()
+            .unwrap();
+
+        let v = update_sub_title(master_id, sub_id, "  ", Some("nope"));
+        assert_eq!(v["_status"], 400);
+        assert_eq!(v["error"], "Missing title");
+    });
+}
+
+#[test]
+fn update_sub_title_unknown_sub_returns_404() {
+    with_todo_task_sandbox(|_| {
+        let created = create_master_with_subs("Unknown sub", Some(&["A"]));
+        let master_id = created["master_task_id"].as_str().unwrap();
+
+        let v = update_sub_title(master_id, "task_missing_sub_01", "New", None);
+        assert_eq!(v["_status"], 404);
+        assert_eq!(v["error"], "Task not found");
+    });
+}
+
+#[test]
 fn complete_sub_partial_multi_sub_keeps_master_incomplete() {
     with_todo_task_sandbox(|_| {
         let created = create_master_with_subs("Partial", Some(&["A", "B"]));

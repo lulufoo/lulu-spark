@@ -881,13 +881,9 @@ pub fn add_sub(master_task_id: &str, title: &str, content: Option<&str>) -> Valu
     if title.is_empty() {
         return json!({ "error": "Missing title", "_status": 400 });
     }
-    let content = content.and_then(|s| {
-        if s.is_empty() {
-            None
-        } else {
-            Some(s.to_string())
-        }
-    });
+    let content = content
+        .filter(|s| !s.is_empty())
+        .map(|s| s.to_string());
 
     with_write_lock(|| {
         if let Err(e) = ensure_bootstrap() {
@@ -1038,7 +1034,12 @@ fn complete_master(master_task_id: &str) -> Value {
     })
 }
 
-pub fn update_sub_title(master_task_id: &str, sub_task_id: &str, title: &str) -> Value {
+pub fn update_sub_title(
+    master_task_id: &str,
+    sub_task_id: &str,
+    title: &str,
+    content: Option<&str>,
+) -> Value {
     let title = title.trim();
     if title.is_empty() {
         return json!({ "error": "Missing title", "_status": 400 });
@@ -1063,6 +1064,13 @@ pub fn update_sub_title(master_task_id: &str, sub_task_id: &str, title: &str) ->
         };
 
         sub.title = Some(title.to_string());
+        if let Some(c) = content {
+            sub.content = if c.is_empty() {
+                None
+            } else {
+                Some(c.to_string())
+            };
+        }
         let updated = master.clone();
 
         match persist_master(&master) {

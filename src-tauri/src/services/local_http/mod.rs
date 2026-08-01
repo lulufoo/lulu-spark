@@ -210,6 +210,10 @@ fn handle_request(repo_root: &PathBuf, port: u16, request: tiny_http::Request) {
                 handle_todo_task_post(request, handle_todo_task_add_sub_payload);
                 return;
             }
+            "/api/todo-task-update-sub" => {
+                handle_todo_task_post(request, handle_todo_task_update_sub_payload);
+                return;
+            }
             "/api/todo-task-delete-sub" => {
                 handle_todo_task_post(request, handle_todo_task_delete_sub_payload);
                 return;
@@ -505,7 +509,24 @@ fn handle_todo_task_add_sub_payload(payload: &Value) -> Value {
     let Some(title) = payload.get("title").and_then(|v| v.as_str()) else {
         return json!({ "error": "Missing title", "_status": 400 });
     };
-    todo_task::add_sub(master_task_id, title, None)
+    let content = payload.get("content").and_then(|v| v.as_str());
+    todo_task::add_sub(master_task_id, title, content)
+}
+
+fn handle_todo_task_update_sub_payload(payload: &Value) -> Value {
+    let Some(master_task_id) = payload.get("master_task_id").and_then(|v| v.as_str()) else {
+        return json!({ "error": "Missing master_task_id", "_status": 400 });
+    };
+    let Some(sub_task_id) = payload.get("sub_task_id").and_then(|v| v.as_str()) else {
+        return json!({ "error": "Missing sub_task_id", "_status": 400 });
+    };
+    let Some(title) = payload.get("title").and_then(|v| v.as_str()) else {
+        return json!({ "error": "Missing title", "_status": 400 });
+    };
+    let content = payload
+        .get("content")
+        .map(|v| v.as_str().unwrap_or(""));
+    todo_task::update_sub_title(master_task_id, sub_task_id, title, content)
 }
 
 fn handle_todo_task_delete_sub_payload(payload: &Value) -> Value {

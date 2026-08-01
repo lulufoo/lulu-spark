@@ -2347,3 +2347,195 @@ fn todo_task_comment_http_surfaces_service_errors() {
         });
     });
 }
+
+#[test]
+fn post_todo_task_add_sub_title_only_without_content_field_returns_201() {
+    with_todo_task_http_test(|| {
+        let fixture = setup_repo_for_todo_task();
+        let repo_root = fixture.repo_root.clone();
+        with_server(repo_root, |port| {
+            let master_id = create_todo_master_id(port, "Title only add");
+            let (status, body) = http_post(
+                port,
+                "/api/todo-task-add-sub",
+                &json!({ "master_task_id": master_id, "title": "Just title" }),
+            );
+            assert_eq!(status, 201);
+            assert!(body.get("_status").is_none());
+            let subs = body["task"]["sub_tasks"].as_array().expect("subs");
+            assert_eq!(subs.len(), 1);
+            assert_eq!(subs[0]["title"], "Just title");
+            assert!(subs[0].get("content").is_none() || subs[0]["content"].is_null());
+        });
+    });
+}
+
+#[test]
+fn post_todo_task_add_sub_with_optional_content_persists_via_get() {
+    with_todo_task_http_test(|| {
+        let fixture = setup_repo_for_todo_task();
+        let repo_root = fixture.repo_root.clone();
+        with_server(repo_root, |port| {
+            let master_id = create_todo_master_id(port, "Add with content");
+            let (add_status, add_body) = http_post(
+                port,
+                "/api/todo-task-add-sub",
+                &json!({
+                    "master_task_id": master_id,
+                    "title": "With body",
+                    "content": "http content",
+                }),
+            );
+            assert_eq!(add_status, 201);
+            assert_eq!(add_body["task"]["sub_tasks"][0]["content"], "http content");
+
+            let (get_status, get_body) =
+                http_get(port, &format!("/api/todo-task?id={master_id}"));
+            assert_eq!(get_status, 200);
+            assert_eq!(get_body["sub_tasks"][0]["content"], "http content");
+
+            let (list_status, list_body) = http_get_with_response(port, "/api/todo-tasks");
+            assert_eq!(list_status, 200);
+            let listed = list_body
+                .as_array()
+                .expect("array")
+                .iter()
+                .find(|t| t["master_task_id"] == master_id)
+                .expect("listed");
+            assert_eq!(listed["sub_tasks"][0]["content"], "http content");
+        });
+    });
+}
+
+#[test]
+fn post_todo_task_update_sub_writes_clears_and_omits_content() {
+    with_todo_task_http_test(|| {
+        let fixture = setup_repo_for_todo_task();
+        let repo_root = fixture.repo_root.clone();
+        with_server(repo_root, |port| {
+            let master_id = create_todo_master_id(port, "Update sub content");
+            let (add_status, add_body) = http_post(
+                port,
+                "/api/todo-task-add-sub",
+                &json!({
+                    "master_task_id": master_id,
+                    "title": "Sub",
+                    "content": "v1",
+                }),
+            );
+            assert_eq!(add_status, 201);
+            let sub_id = add_body["sub_task_id"].as_str().expect("sub_task_id").to_string();
+
+            let (set_status, set_body) = http_post(
+                port,
+                "/api/todo-task-update-sub",
+                &json!({
+                    "master_task_id": master_id,
+                    "sub_task_id": sub_id,
+                    "title": "Sub",
+                    "content": "v2",
+                }),
+            );
+            assert_eq!(set_status, 200);
+            assert_eq!(set_body["task"]["sub_tasks"][0]["content"], "v2");
+
+            let (omit_status, omit_body) = http_post(
+                port,
+                "/api/todo-task-update-sub",
+                &json!({
+                    "master_task_id": master_id,
+                    "sub_task_id": sub_id,
+                    "title": "Renamed",
+                }),
+            );
+            assert_eq!(omit_status, 200);
+            assert_eq!(omit_body["task"]["sub_tasks"][0]["title"], "Renamed");
+            assert_eq!(omit_body["task"]["sub_tasks"][0]["content"], "v2");
+
+            let (clear_status, clear_body) = http_post(
+                port,
+                "/api/todo-task-update-sub",
+                &json!({
+                    "master_task_id": master_id,
+                    "sub_task_id": sub_id,
+                    "title": "Renamed",
+                    "content": "",
+                }),
+            );
+            assert_eq!(clear_status, 200);
+            let sub = &clear_body["task"]["sub_tasks"][0];
+            assert!(sub.get("content").is_none() || sub["content"].is_null() || sub["content"] == "");
+        });
+    });
+}
+
+#[test]
+fn post_todo_task_update_sub_missing_or_blank_title_returns_400() {
+    with_todo_task_http_test(|| {
+        let fixture = setup_repo_for_todo_task();
+        let repo_root = fixture.repo_root.clone();
+        with_server(repo_root, |port| {
+            let (master_id, sub_id, _) = create_todo_master(port, "Update blank", &["A"]);
+            for payload in [
+                json!({ "master_task_id": master_id, "sub_task_id": sub_id }),
+                json!({
+                    "master_task_id": master_id,
+                    "sub_task_id": sub_id,
+                    "title": "",
+                    "content": "ignored",
+                }),
+                json!({
+                    "master_task_id": master_id,
+                    "sub_task_id": sub_id,
+                    "title": "   ",
+                    "content": "ignored",
+                }),
+            ] {
+                let (status, body) = http_post(port, "/api/todo-task-update-sub", &payload);
+                assert_eq!(status, 400, "payload={payload}");
+                assert!(body.get("error").is_some());
+                assert!(body.get("_status").is_none());
+            }
+        });
+    });
+}
+
+#[test]
+fn post_todo_task_update_sub_unknown_sub_returns_404() {
+    with_todo_task_http_test(|| {
+        let fixture = setup_repo_for_todo_task();
+        let repo_root = fixture.repo_root.clone();
+        with_server(repo_root, |port| {
+            let (master_id, _, _) = create_todo_master(port, "Update unknown sub", &["A"]);
+            let (status, body) = http_post(
+                port,
+                "/api/todo-task-update-sub",
+                &json!({
+                    "master_task_id": master_id,
+                    "sub_task_id": "00000000000000000000000000000099",
+                    "title": "New",
+                }),
+            );
+            assert_eq!(status, 404);
+            assert_eq!(body["error"], "Task not found");
+            assert!(body.get("_status").is_none());
+        });
+    });
+}
+
+#[test]
+fn post_todo_task_add_sub_missing_master_still_400_with_content_present() {
+    with_todo_task_http_test(|| {
+        let fixture = setup_repo_for_todo_task();
+        let repo_root = fixture.repo_root.clone();
+        with_server(repo_root, |port| {
+            let (status, body) = http_post(
+                port,
+                "/api/todo-task-add-sub",
+                &json!({ "title": "Sub", "content": "x" }),
+            );
+            assert_eq!(status, 400);
+            assert!(body.get("error").is_some());
+        });
+    });
+}
