@@ -123,8 +123,10 @@ struct Runtime {
     generation_seq: u64,
     /// True while a Binding Contract execute is in flight.
     executing: bool,
-    /// Set by Reset (strategy A) while `executing` — cancels the in-flight execute.
+    /// Set by cut paths while `executing` — cancels the in-flight execute.
     execute_cancelled: bool,
+    /// Set by cut paths while `busy` — cancels the in-flight chat / run_loop.
+    chat_cancelled: bool,
     clarify_counts: HashMap<String, u32>,
 }
 
@@ -153,6 +155,18 @@ pub fn reset_runtime_for_tests() {
 
 pub fn set_busy_for_tests(busy: bool) {
     runtime().lock().unwrap().busy = busy;
+}
+
+pub fn is_execute_cancelled_for_tests() -> bool {
+    runtime().lock().unwrap().execute_cancelled
+}
+
+pub fn is_chat_cancelled_for_tests() -> bool {
+    runtime().lock().unwrap().chat_cancelled
+}
+
+pub fn set_chat_cancelled_for_tests(cancelled: bool) {
+    runtime().lock().unwrap().chat_cancelled = cancelled;
 }
 
 pub fn clear_lifecycle_events_for_tests() {
@@ -192,10 +206,22 @@ fn emit_lifecycle_inner(event: &'static str, category: Option<&'static str>, inv
     }
 }
 
+/// Symmetric in-flight cancel for cut paths: interrupt execute and/or chat when live.
+fn request_in_flight_cancel(rt: &mut Runtime) {
+    if rt.executing {
+        rt.execute_cancelled = true;
+    }
+    if rt.busy {
+        rt.chat_cancelled = true;
+    }
+}
+
 /// Set Binding after B1 validation. Failure returns `set_invalid` and leaves state unchanged.
 /// Legal Set on bound atomically replaces and invalidates the previous generation.
 /// Any successful Set (first or replace) clears `current_session_id` in the same critical
 /// section as generation advance (session cut, clear-first).
+/// Cancels in-flight chat (busy) symmetrically; in-flight execute is interrupted via
+/// generation invalidation (distinguishable stale reject preserved).
 /// Emits onBound; replace also emits onUnbound → onBound (D1).
 /// Illegal Set emits onError(set_invalid) and does not emit onBound.
 pub fn set_binding(binding: session::Binding) -> Result<(), SetError> {
@@ -206,6 +232,11 @@ pub fn set_binding(binding: session::Binding) -> Result<(), SetError> {
     let was_bound = {
         let mut rt = runtime().lock().unwrap();
         let was = rt.current_binding.is_some();
+        // Chat cancel on cut; do not set execute_cancelled here so replace mid-execute
+        // still returns rejected_stale_generation (generation advance is the execute interrupt).
+        if rt.busy {
+            rt.chat_cancelled = true;
+        }
         rt.generation_seq = rt.generation_seq.saturating_add(1);
         rt.current_generation = Some(rt.generation_seq);
         rt.current_binding = Some(binding);
@@ -233,23 +264,27 @@ pub fn try_set_binding_json(v: &Value) -> Result<(), SetError> {
 
 /// Reset: discard current Binding → unbound. Idempotent when already unbound.
 /// Clears `current_session_id` (session cut, clear-first); does not wipe disk turns.
-/// Bound→unbound emits onUnbound; mid-execute Reset (strategy A) cancels in-flight execute.
+/// Bound→unbound emits onUnbound; symmetrically cancels in-flight execute and chat.
 pub fn reset_binding() -> Result<(), ()> {
     let was_bound = {
         let mut rt = runtime().lock().unwrap();
         let was = rt.current_binding.is_some();
+        request_in_flight_cancel(&mut rt);
         rt.current_binding = None;
         rt.current_generation = None;
         rt.current_session_id = None;
-        if rt.executing {
-            rt.execute_cancelled = true;
-        }
         was
     };
     if was_bound {
         emit_lifecycle("onUnbound", None);
     }
     Ok(())
+}
+
+/// Host defensive cut: same observable semantics as `reset_binding` (unbound + gen
+/// invalidate + session clear + symmetric in-flight cancel). Hook wiring is T4.
+pub fn defensive_unbound() -> Result<(), ()> {
+    reset_binding()
 }
 
 /// Binding Contract execute: only when bound; applies current Binding tools/prompt as sole config.
@@ -514,24 +549,27 @@ fn persist(session: &Session) {
     let _ = session::save_session(session);
 }
 
-fn stale_generation_turn_outcome(session: &mut Session, wrote: bool) -> TurnOutcome {
-    let reply = "Binding generation invalidated — turn cancelled.".to_string();
-    session.turns.push(Turn {
-        role: "assistant".into(),
-        content: Some(reply.clone()),
-        tool_call_id: None,
-        tool_calls: None,
-        name: None,
-    });
-    persist(session);
+/// Executable reject after cut/cancel: return notice in the response only.
+/// Do not append/persist business turns on the (possibly cut) session.
+fn cancelled_turn_outcome(session: &mut Session, turns_checkpoint: usize) -> TurnOutcome {
+    if session.turns.len() != turns_checkpoint {
+        session.turns.truncate(turns_checkpoint);
+        persist(session);
+    }
     TurnOutcome {
-        reply_text: reply,
+        reply_text: "In-flight turn cancelled — binding cut.".to_string(),
         terminal: Terminal::Error,
-        wrote,
+        wrote: false,
     }
 }
 
+fn chat_turn_interrupted(generation: u64) -> bool {
+    let rt = runtime().lock().unwrap();
+    rt.chat_cancelled || rt.current_generation != Some(generation)
+}
+
 pub fn run_loop(session: &mut Session, user_message: &str, config: &LlmConfig) -> TurnOutcome {
+    let turns_checkpoint = session.turns.len();
     // Executable turns require Binding Contract bound — not session.bound_master_task_id.
     let Some((binding, generation)) = current_binding_generation_snapshot() else {
         session.turns.push(Turn {
@@ -559,7 +597,7 @@ pub fn run_loop(session: &mut Session, user_message: &str, config: &LlmConfig) -
                 wrote: false,
             };
         }
-        return stale_generation_turn_outcome(session, false);
+        return cancelled_turn_outcome(session, turns_checkpoint);
     };
 
     let system_prompt = prompt_text_from_binding(&binding.prompt);
@@ -602,13 +640,16 @@ pub fn run_loop(session: &mut Session, user_message: &str, config: &LlmConfig) -
     let declared_tools = tools::tool_names_from_binding(&binding.tools);
 
     loop {
-        if !is_binding_generation_current(generation) {
-            return stale_generation_turn_outcome(session, wrote);
+        if chat_turn_interrupted(generation) {
+            return cancelled_turn_outcome(session, turns_checkpoint);
         }
         let messages = build_llm_messages_from_turns(&session.turns, &system_prompt);
         let msg = match llm::chat_completions(&messages, &tools_defs, config) {
             Ok(m) => m,
             Err(e) => {
+                if chat_turn_interrupted(generation) {
+                    return cancelled_turn_outcome(session, turns_checkpoint);
+                }
                 let out = map_llm_error(&e);
                 session.turns.push(Turn {
                     role: "assistant".into(),
@@ -622,11 +663,15 @@ pub fn run_loop(session: &mut Session, user_message: &str, config: &LlmConfig) -
             }
         };
 
+        // Round-trip gate: cancel / generation may have been raised during LLM.
+        if chat_turn_interrupted(generation) {
+            return cancelled_turn_outcome(session, turns_checkpoint);
+        }
+
         if !msg.tool_calls.is_empty() {
-            // Gate again immediately before tool dispatch (generation may have
-            // been invalidated during the LLM round-trip).
-            if !is_binding_generation_current(generation) {
-                return stale_generation_turn_outcome(session, wrote);
+            // Gate again immediately before tool dispatch.
+            if chat_turn_interrupted(generation) {
+                return cancelled_turn_outcome(session, turns_checkpoint);
             }
             for tc in &msg.tool_calls {
                 let allowed = WHITELIST.contains(&tc.name.as_str())
@@ -925,10 +970,11 @@ pub fn agent_chat_turn_core(
 
     let mut session = session::load_session(session_id)?;
 
+    // Live id already matched above — set busy only; never re-pin from caller arg.
     {
         let mut rt = runtime().lock().unwrap();
         rt.busy = true;
-        // Do not re-pin current_session_id from the caller arg — live already matches.
+        rt.chat_cancelled = false;
     }
 
     // Gate Binding Contract before LLM config — unbound must not depend on secrets/settings.

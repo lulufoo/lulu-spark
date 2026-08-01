@@ -2495,3 +2495,277 @@ fn t2_cut_does_not_wipe_turns_as_primary_means() {
         assert_eq!(mock.hits.lock().unwrap().len(), 0);
     });
 }
+
+// --- T3: symmetric in-flight cancel for execute + chat ---
+
+fn session_turn_contents(sid: &str) -> Vec<Option<String>> {
+    session::load_session(sid)
+        .unwrap()
+        .turns
+        .iter()
+        .map(|t| t.content.clone())
+        .collect()
+}
+
+#[test]
+fn t3_reset_while_busy_and_executing_cancels_both_inflight_paths() {
+    with_sandbox(|| {
+        r#loop::set_binding(valid_binding()).expect("Set");
+        r#loop::set_busy_for_tests(true);
+        let err = r#loop::execute_binding_during(|| {
+            assert_eq!(
+                r#loop::get_ai_assistant_binding_core()["busy"],
+                true,
+                "chat in-flight must be observable as busy"
+            );
+            r#loop::reset_binding().expect("Reset");
+            assert!(
+                r#loop::is_execute_cancelled_for_tests(),
+                "Reset must set execute cancel while executing"
+            );
+            assert!(
+                r#loop::is_chat_cancelled_for_tests(),
+                "Reset must set chat cancel while busy — not execute-only"
+            );
+        })
+        .expect_err("in-flight execute must cancel");
+        assert_eq!(err.as_code(), "reset_cancelled");
+        assert_eq!(r#loop::binding_state(), "unbound");
+        assert_eq!(live_session_id(), None);
+    });
+}
+
+#[test]
+fn t3_replace_set_while_busy_cancels_chat_and_interrupts_execute() {
+    with_sandbox(|| {
+        r#loop::set_binding(valid_binding()).expect("Set");
+        r#loop::set_busy_for_tests(true);
+        let old_gen = r#loop::query_binding().generation.expect("old gen");
+        let err = r#loop::execute_binding_during(|| {
+            r#loop::set_binding(binding_with_prompt("replaced-mid-flight")).expect("replace Set");
+            assert!(
+                !r#loop::is_binding_generation_current(old_gen),
+                "replace Set must invalidate the in-flight execute generation"
+            );
+            assert!(
+                r#loop::is_chat_cancelled_for_tests(),
+                "replace Set must cancel in-flight chat while busy — not execute-only"
+            );
+            assert_eq!(live_session_id(), None);
+        })
+        .expect_err("in-flight execute must be interrupted by replace Set");
+        // Generation-stale remains the distinguishable replace reject (T1); interrupt is required.
+        assert_eq!(err.as_code(), "rejected_stale_generation");
+    });
+}
+
+#[test]
+fn t3_mid_chat_reset_cancels_without_appending_business_turns() {
+    with_sandbox(|| {
+        let master = create_bound_plan("t3-chat-reset");
+        let title_before = todo_task::get_by_id(&master)["title"]
+            .as_str()
+            .unwrap()
+            .to_string();
+        let mock = spawn_llm_with_mid_then_response(
+            || {
+                assert_eq!(
+                    r#loop::get_ai_assistant_binding_core()["busy"],
+                    true,
+                    "in-flight chat must set busy before LLM returns"
+                );
+                r#loop::reset_binding().expect("Reset during chat");
+                assert!(
+                    r#loop::is_chat_cancelled_for_tests(),
+                    "Reset must raise chat cancel flag"
+                );
+                assert_eq!(live_session_id(), None, "cut clears session immediately");
+            },
+            assistant_tools(
+                json!([{
+                    "id": "t3c1",
+                    "type": "function",
+                    "function": {
+                        "name": "update_master_title",
+                        "arguments": "{\"title\":\"cancelled-must-not-write\"}"
+                    }
+                }]),
+                None,
+            ),
+        );
+        install_llm_cfg(&mock);
+        arm_plan_binding(&master);
+        let open = r#loop::open_ai_assistant_core(&master).unwrap();
+        let sid = open["session_id"].as_str().unwrap().to_string();
+        let turns_before = session_turn_contents(&sid);
+
+        let result = r#loop::agent_chat_turn_core(&sid, "改标题", Some(&master)).unwrap();
+        assert_eq!(result.body["wrote"], false);
+        assert_eq!(
+            result.body["terminal"], "error",
+            "cancelled in-flight chat must stop as error, not fly the round to success"
+        );
+        assert_eq!(
+            todo_task::get_by_id(&master)["title"],
+            title_before,
+            "cancelled chat must not dispatch tools"
+        );
+        assert_eq!(
+            session_turn_contents(&sid),
+            turns_before,
+            "Host cancel reject must not append/persist business turns on the old session"
+        );
+        assert_eq!(r#loop::binding_state(), "unbound");
+        assert_eq!(live_session_id(), None);
+    });
+}
+
+#[test]
+fn t3_mid_chat_replace_set_cancels_without_appending_business_turns() {
+    with_sandbox(|| {
+        let master_a = create_bound_plan("t3-chat-replace-a");
+        let master_b = create_bound_plan("t3-chat-replace-b");
+        let title_before = todo_task::get_by_id(&master_a)["title"]
+            .as_str()
+            .unwrap()
+            .to_string();
+        let mock = spawn_llm_with_mid_then_response(
+            move || {
+                arm_plan_binding(&master_b);
+                assert!(
+                    r#loop::is_chat_cancelled_for_tests(),
+                    "replace Set must raise chat cancel while busy"
+                );
+                assert_eq!(live_session_id(), None);
+            },
+            assistant_tools(
+                json!([{
+                    "id": "t3c2",
+                    "type": "function",
+                    "function": {
+                        "name": "update_master_title",
+                        "arguments": "{\"title\":\"replace-cancel-must-not-write\"}"
+                    }
+                }]),
+                None,
+            ),
+        );
+        install_llm_cfg(&mock);
+        arm_plan_binding(&master_a);
+        let open = r#loop::open_ai_assistant_core(&master_a).unwrap();
+        let sid = open["session_id"].as_str().unwrap().to_string();
+        let turns_before = session_turn_contents(&sid);
+
+        let result = r#loop::agent_chat_turn_core(&sid, "改标题", Some(&master_a)).unwrap();
+        assert_eq!(result.body["wrote"], false);
+        assert_eq!(result.body["terminal"], "error");
+        assert_eq!(todo_task::get_by_id(&master_a)["title"], title_before);
+        assert_eq!(
+            session_turn_contents(&sid),
+            turns_before,
+            "replace-Set cancel must not append business turns to the cut session"
+        );
+        assert_eq!(live_session_id(), None);
+    });
+}
+
+#[test]
+fn t3_run_loop_checks_cancel_flag_before_tool_dispatch() {
+    with_sandbox(|| {
+        let master = create_bound_plan("t3-flag-gate");
+        let title_before = todo_task::get_by_id(&master)["title"]
+            .as_str()
+            .unwrap()
+            .to_string();
+        let mock = spawn_llm_with_mid_then_response(
+            || {
+                // Raise chat cancel without Reset — proves run_loop checks the
+                // cancel flag itself (not only generation invalidation).
+                r#loop::set_chat_cancelled_for_tests(true);
+            },
+            assistant_tools(
+                json!([{
+                    "id": "t3c3",
+                    "type": "function",
+                    "function": {
+                        "name": "update_master_title",
+                        "arguments": "{\"title\":\"flag-cancel-must-not-write\"}"
+                    }
+                }]),
+                None,
+            ),
+        );
+        install_llm_cfg(&mock);
+        arm_plan_binding(&master);
+        let gen = r#loop::query_binding().generation.expect("gen");
+        let open = r#loop::open_ai_assistant_core(&master).unwrap();
+        let sid = open["session_id"].as_str().unwrap().to_string();
+        let turns_before = session_turn_contents(&sid);
+
+        let result = r#loop::agent_chat_turn_core(&sid, "改标题", Some(&master)).unwrap();
+        assert!(
+            r#loop::is_binding_generation_current(gen),
+            "this case keeps generation current; stop must be from cancel flag"
+        );
+        assert_eq!(result.body["wrote"], false);
+        assert_eq!(result.body["terminal"], "error");
+        assert_eq!(todo_task::get_by_id(&master)["title"], title_before);
+        assert_eq!(
+            session_turn_contents(&sid),
+            turns_before,
+            "cancel-flag reject must not append business turns"
+        );
+    });
+}
+
+#[test]
+fn t3_defensive_unbound_cancels_inflight_chat_symmetrically() {
+    with_sandbox(|| {
+        let master = create_bound_plan("t3-defensive");
+        let mock = spawn_llm_with_mid_then_response(
+            || {
+                r#loop::defensive_unbound().expect("defensive cut");
+                assert!(
+                    r#loop::is_chat_cancelled_for_tests(),
+                    "defensive cut must cancel in-flight chat"
+                );
+                assert_eq!(r#loop::binding_state(), "unbound");
+                assert_eq!(live_session_id(), None);
+            },
+            assistant_text("should-not-land"),
+        );
+        install_llm_cfg(&mock);
+        arm_plan_binding(&master);
+        let open = r#loop::open_ai_assistant_core(&master).unwrap();
+        let sid = open["session_id"].as_str().unwrap().to_string();
+        let turns_before = session_turn_contents(&sid);
+
+        let result = r#loop::agent_chat_turn_core(&sid, "你好", Some(&master)).unwrap();
+        assert_eq!(result.body["terminal"], "error");
+        assert_eq!(result.body["wrote"], false);
+        assert_eq!(
+            session_turn_contents(&sid),
+            turns_before,
+            "defensive cancel reject must not append business turns"
+        );
+        assert_eq!(mock.hits.lock().unwrap().len(), 1);
+    });
+}
+
+#[test]
+fn t3_cancel_notice_is_not_cut_semantics() {
+    with_sandbox(|| {
+        // Cut semantics = cancel flags + generation invalidate + session clear.
+        // Returning a notice/error body is allowed; writing notice turns is not the cut.
+        r#loop::set_binding(valid_binding()).expect("Set");
+        r#loop::set_busy_for_tests(true);
+        r#loop::reset_binding().expect("Reset");
+        assert!(r#loop::is_chat_cancelled_for_tests());
+        assert_eq!(r#loop::binding_state(), "unbound");
+        assert_eq!(live_session_id(), None);
+        assert!(
+            r#loop::query_binding().generation.is_none(),
+            "cut must invalidate generation; notice turns are not a substitute"
+        );
+    });
+}
