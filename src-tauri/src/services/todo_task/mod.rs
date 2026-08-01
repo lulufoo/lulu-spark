@@ -768,6 +768,7 @@ pub fn create_master_with_subs_and_todo(
                 .map(|(i, t)| SubTask {
                     sub_task_id: format_sub_id(&master_id, i + 1),
                     title: Some(t.clone()),
+                    content: None,
                     status: SubTaskStatus::Incomplete,
                     implicit: false,
                     linked_archive_ids: vec![],
@@ -875,11 +876,18 @@ pub fn delete_master(master_task_id: &str) -> Value {
     })
 }
 
-pub fn add_sub(master_task_id: &str, title: &str) -> Value {
+pub fn add_sub(master_task_id: &str, title: &str, content: Option<&str>) -> Value {
     let title = title.trim();
     if title.is_empty() {
         return json!({ "error": "Missing title", "_status": 400 });
     }
+    let content = content.and_then(|s| {
+        if s.is_empty() {
+            None
+        } else {
+            Some(s.to_string())
+        }
+    });
 
     with_write_lock(|| {
         if let Err(e) = ensure_bootstrap() {
@@ -895,6 +903,7 @@ pub fn add_sub(master_task_id: &str, title: &str) -> Value {
         let new_sub = SubTask {
             sub_task_id: format_sub_id(master_task_id, next_index),
             title: Some(title.to_string()),
+            content,
             status: SubTaskStatus::Incomplete,
             implicit: false,
             linked_archive_ids: vec![],

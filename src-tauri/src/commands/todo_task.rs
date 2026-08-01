@@ -50,7 +50,7 @@ pub fn delete_todo_task_json(master_task_id: &str) -> Result<Value, String> {
 }
 
 pub fn add_todo_sub_json(master_task_id: &str, title: &str) -> Result<Value, String> {
-    map_invoke_value(todo_task::add_sub(master_task_id, title))
+    map_invoke_value(todo_task::add_sub(master_task_id, title, None))
 }
 
 pub fn delete_todo_sub_json(master_task_id: &str, sub_task_id: &str) -> Result<Value, String> {

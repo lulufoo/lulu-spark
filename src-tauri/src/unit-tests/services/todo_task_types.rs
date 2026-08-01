@@ -47,6 +47,7 @@ fn sub_tasks_file_wraps_sub_tasks_array() {
         sub_tasks: vec![SubTask {
             sub_task_id: "task_abc_sub_01".to_string(),
             title: Some("Sub".to_string()),
+            content: None,
             status: SubTaskStatus::Incomplete,
             implicit: false,
             linked_archive_ids: vec![],
@@ -62,6 +63,7 @@ fn sub_task_title_none_omitted_from_json() {
     let sub = SubTask {
         sub_task_id: "task_abc_sub_01".to_string(),
         title: None,
+        content: None,
         status: SubTaskStatus::Incomplete,
         implicit: true,
         linked_archive_ids: vec![],
@@ -76,6 +78,7 @@ fn sub_task_completed_at_omitted_when_incomplete() {
     let sub = SubTask {
         sub_task_id: "task_abc_sub_01".to_string(),
         title: Some("Sub".to_string()),
+        content: None,
         status: SubTaskStatus::Incomplete,
         implicit: false,
         linked_archive_ids: vec![],
@@ -90,6 +93,7 @@ fn sub_task_complete_includes_completed_at() {
     let sub = SubTask {
         sub_task_id: "task_abc_sub_01".to_string(),
         title: Some("Sub".to_string()),
+        content: None,
         status: SubTaskStatus::Complete,
         implicit: false,
         linked_archive_ids: vec![],
@@ -120,6 +124,7 @@ fn sub_task_status_serializes_three_lowercase_variants() {
         let sub = SubTask {
             sub_task_id: "task_abc_sub_01".to_string(),
             title: Some("Sub".to_string()),
+            content: None,
             status,
             implicit: false,
             linked_archive_ids: vec![],
@@ -396,4 +401,75 @@ fn index_entry_does_not_include_comments_field() {
     let v: Value = serde_json::to_value(&entry).expect("serialize");
     assert!(v.get("comments").is_none());
     assert!(v.get("comments.json").is_none());
+}
+
+#[test]
+fn sub_task_missing_content_deserializes_as_none() {
+    let raw = json!({
+        "sub_task_id": "task_abc_sub_01",
+        "title": "Legacy",
+        "status": "incomplete",
+        "implicit": false,
+        "linked_archive_ids": []
+    });
+    let sub: SubTask = serde_json::from_value(raw).expect("deserialize legacy without content");
+    assert_eq!(sub.content, None);
+}
+
+#[test]
+fn sub_task_content_roundtrip_preserves_value() {
+    let sub = SubTask {
+        sub_task_id: "task_abc_sub_01".to_string(),
+        title: Some("Sub".to_string()),
+        content: Some("optional body".to_string()),
+        status: SubTaskStatus::Incomplete,
+        implicit: false,
+        linked_archive_ids: vec![],
+        completed_at: None,
+    };
+    let text = serde_json::to_string(&sub).expect("serialize");
+    let parsed: SubTask = serde_json::from_str(&text).expect("deserialize");
+    assert_eq!(parsed.content.as_deref(), Some("optional body"));
+}
+
+#[test]
+fn sub_task_content_none_omitted_from_json() {
+    let sub = SubTask {
+        sub_task_id: "task_abc_sub_01".to_string(),
+        title: Some("Sub".to_string()),
+        content: None,
+        status: SubTaskStatus::Incomplete,
+        implicit: false,
+        linked_archive_ids: vec![],
+        completed_at: None,
+    };
+    let v: Value = serde_json::to_value(&sub).expect("serialize");
+    assert!(v.get("content").is_none());
+}
+
+#[test]
+fn sub_task_content_empty_string_omitted_from_json() {
+    let sub = SubTask {
+        sub_task_id: "task_abc_sub_01".to_string(),
+        title: Some("Sub".to_string()),
+        content: Some(String::new()),
+        status: SubTaskStatus::Incomplete,
+        implicit: false,
+        linked_archive_ids: vec![],
+        completed_at: None,
+    };
+    let v: Value = serde_json::to_value(&sub).expect("serialize");
+    assert!(v.get("content").is_none());
+}
+
+#[test]
+fn sub_tasks_file_invalid_json_and_non_object_entry_still_fail() {
+    let invalid: Result<SubTasksFile, _> = serde_json::from_str("{not valid json");
+    assert!(invalid.is_err());
+
+    let non_object_entry = json!({
+        "sub_tasks": ["not-an-object"]
+    });
+    let bad_entry: Result<SubTasksFile, _> = serde_json::from_value(non_object_entry);
+    assert!(bad_entry.is_err());
 }

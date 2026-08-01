@@ -505,7 +505,7 @@ fn handle_todo_task_add_sub_payload(payload: &Value) -> Value {
     let Some(title) = payload.get("title").and_then(|v| v.as_str()) else {
         return json!({ "error": "Missing title", "_status": 400 });
     };
-    todo_task::add_sub(master_task_id, title)
+    todo_task::add_sub(master_task_id, title, None)
 }
 
 fn handle_todo_task_delete_sub_payload(payload: &Value) -> Value {

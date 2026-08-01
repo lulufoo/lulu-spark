@@ -752,6 +752,7 @@ fn sample_sub_tasks(master_id: &str) -> SubTasksFile {
         sub_tasks: vec![SubTask {
             sub_task_id: format!("{master_id}_sub_01"),
             title: Some("Batch task".to_string()),
+            content: None,
             status: SubTaskStatus::Incomplete,
             implicit: true,
             linked_archive_ids: vec![],
@@ -881,7 +882,7 @@ fn add_sub_appends_incomplete_sub_without_rewriting_master_status() {
         let got_before = get_by_id(master_id);
         assert_eq!(got_before["status"], "complete");
 
-        let added = add_sub(master_id, "B");
+        let added = add_sub(master_id, "B", None);
         assert_eq!(added["_status"], 201);
         assert!(added.get("sub_task_id").is_some());
         let task = master_from_value(&added);
@@ -890,6 +891,79 @@ fn add_sub_appends_incomplete_sub_without_rewriting_master_status() {
         assert_eq!(subs.len(), 2);
         assert_eq!(subs[1]["status"], "incomplete");
         assert_eq!(subs[1]["implicit"], false);
+    });
+}
+
+#[test]
+fn add_sub_with_content_persists_and_load_roundtrips() {
+    with_todo_task_sandbox(|wb| {
+        let created = create_master_with_subs("Content master", None);
+        assert_eq!(created["_status"], 201);
+        let master_id = created["master_task_id"].as_str().unwrap();
+
+        let added = add_sub(master_id, "With body", Some("persist me"));
+        assert_eq!(added["_status"], 201);
+        let task = master_from_value(&added);
+        let subs = task["sub_tasks"].as_array().unwrap();
+        assert_eq!(subs.len(), 1);
+        assert_eq!(subs[0]["title"], "With body");
+        assert_eq!(subs[0]["content"], "persist me");
+
+        let got = get_by_id(master_id);
+        assert_eq!(got["sub_tasks"][0]["content"], "persist me");
+
+        let on_disk = subs_on_disk(wb, master_id);
+        assert_eq!(on_disk["sub_tasks"][0]["content"], "persist me");
+    });
+}
+
+#[test]
+fn add_sub_without_content_matches_title_only_behavior() {
+    with_todo_task_sandbox(|wb| {
+        let created = create_master_with_subs("Title only master", None);
+        let master_id = created["master_task_id"].as_str().unwrap();
+
+        let added = add_sub(master_id, "Just title", None);
+        assert_eq!(added["_status"], 201);
+        let task = master_from_value(&added);
+        let sub = &task["sub_tasks"][0];
+        assert_eq!(sub["title"], "Just title");
+        assert!(sub.get("content").is_none() || sub["content"].is_null());
+
+        let on_disk = subs_on_disk(wb, master_id);
+        assert!(
+            on_disk["sub_tasks"][0].get("content").is_none(),
+            "absent content must not be forced onto disk"
+        );
+    });
+}
+
+#[test]
+fn load_legacy_sub_tasks_missing_content_reads_as_absent() {
+    with_todo_task_sandbox(|wb| {
+        let master_id = "task_legacy_content";
+        seed_v2_plan_with_subs(
+            wb,
+            master_id,
+            "Legacy",
+            &serde_json::json!({
+                "sub_tasks": [{
+                    "sub_task_id": "task_legacy_content_sub_01",
+                    "title": "Old sub",
+                    "status": "incomplete",
+                    "implicit": false,
+                    "linked_archive_ids": []
+                }]
+            }),
+            true,
+        );
+
+        let got = get_by_id(master_id);
+        assert!(got.get("_status").is_none() || got["_status"] == 200);
+        assert_eq!(got["master_task_id"], master_id);
+        let sub = &got["sub_tasks"][0];
+        assert_eq!(sub["title"], "Old sub");
+        assert!(sub.get("content").is_none() || sub["content"].is_null());
     });
 }
 

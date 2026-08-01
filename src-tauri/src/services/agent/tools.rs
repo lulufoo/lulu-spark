@@ -226,7 +226,7 @@ pub fn dispatch(name: &str, args: &Value, bound_master_task_id: Option<&str>) ->
         }
         "add_sub_task" => {
             let title = args.get("title").and_then(|v| v.as_str()).unwrap_or("");
-            let v = todo_task::add_sub(&master_id, title);
+            let v = todo_task::add_sub(&master_id, title, None);
             if let Some(e) = map_plan_status(&v) {
                 return e;
             }

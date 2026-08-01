@@ -21,11 +21,21 @@ pub enum MasterTaskStatus {
     Abandoned,
 }
 
+fn is_absent_or_empty_content(value: &Option<String>) -> bool {
+    match value {
+        None => true,
+        Some(s) if s.is_empty() => true,
+        _ => false,
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SubTask {
     pub sub_task_id: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub title: Option<String>,
+    #[serde(default, skip_serializing_if = "is_absent_or_empty_content")]
+    pub content: Option<String>,
     pub status: SubTaskStatus,
     pub implicit: bool,
     #[serde(default)]
