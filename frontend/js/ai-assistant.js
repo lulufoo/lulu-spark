@@ -130,8 +130,7 @@ export function mountAiAssistant(root, opts = {}) {
   /** @param {'bound'|'unbound'|string} state */
   function applyHostContractState(state) {
     hostBound = state === 'bound';
-    // On Unbound or a fresh Bound state, discard cached sessionId.
-    // Composer follows query_binding; stale session must not drive execute after cut/rebind.
+    // Discard cached sessionId whenever Host binding state changes (composer follows query_binding).
     sessionId = '';
     refreshComposerAndStatus();
   }

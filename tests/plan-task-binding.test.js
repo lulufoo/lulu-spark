@@ -274,3 +274,42 @@ describe('buildTodosBinding / resetTodosBinding', () => {
     expect(setArgs.binding.prompt).toBeTruthy();
   });
 });
+
+
+describe('t6 Binding Contract — no business ids on leave Reset', () => {
+  it('resetTodosBinding / assemble body keep business ids off Binding Contract top-level', async () => {
+    const invokeMock = vi.fn(async (cmd, args) => {
+      if (cmd === 'set_binding') {
+        const binding = args?.binding ?? {};
+        expect(binding).not.toHaveProperty('master_task_id');
+        expect(binding).not.toHaveProperty('bound_master_task_id');
+        expect(binding).not.toHaveProperty('masterTaskId');
+        return { ok: true, state: 'bound' };
+      }
+      if (cmd === 'reset_binding') {
+        return { ok: true, state: 'unbound' };
+      }
+      if (cmd === 'ensure_ai_assistant_session') {
+        return { session_id: 'sess_t6', busy: false };
+      }
+      return {};
+    });
+    window.__TAURI__ = { core: { invoke: invokeMock } };
+
+    const set = await buildTodosBinding({ masterTaskId: 'task_t6_contract' });
+    expect(set.ok).toBe(true);
+    expect(set.binding).not.toHaveProperty('master_task_id');
+    expect(set.binding).not.toHaveProperty('bound_master_task_id');
+    expect(set.binding).not.toHaveProperty('masterTaskId');
+
+    const reset = await resetTodosBinding();
+    expect(reset.ok).toBe(true);
+    expect(invokeMock).toHaveBeenCalledWith('reset_binding');
+    // Reset payload must not invent business-id contract fields
+    const resetCall = invokeMock.mock.calls.find((c) => c[0] === 'reset_binding');
+    expect(resetCall?.[1] ?? {}).not.toHaveProperty('master_task_id');
+    expect(resetCall?.[1] ?? {}).not.toHaveProperty('bound_master_task_id');
+
+    delete window.__TAURI__;
+  });
+});

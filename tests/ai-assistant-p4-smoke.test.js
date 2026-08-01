@@ -463,3 +463,46 @@ describe('Todos SK-4 parity acceptance (P1–P6 / N1/N2)', () => {
     });
   });
 });
+
+
+describe('t6 layered acceptance L0/L1/L2 gate', () => {
+  it('loop_tests lands L0/L1/L2 + leave-primary markers', () => {
+    const loopTests = readFileSync(
+      join(repoRoot, 'src-tauri/src/unit-tests/services/agent/loop_tests.rs'),
+      'utf8',
+    );
+    for (const marker of [
+      't6_layered_acceptance_markers_are_landed',
+      't6_l0_unbound_reject_reset_idempotent_and_mid_reset_cancel',
+      't6_l1_session_generation_and_re_set_cuts',
+      't6_l1_stale_generation_rejects_continue',
+      't6_l2_missed_reset_defensive_cut_then_not_executable',
+      't6_shell_close_is_not_cut_acceptance',
+      't6_explicit_reset_not_omitted_because_defensive_exists',
+    ]) {
+      expect(loopTests, `missing ${marker}`).toContain(`fn ${marker}`);
+    }
+    const loopRs = readFileSync(
+      join(repoRoot, 'src-tauri/src/services/agent/loop.rs'),
+      'utf8',
+    );
+    expect(loopRs).toMatch(/LAYERED_ACCEPTANCE_L0/);
+    expect(loopRs).toMatch(/LAYERED_ACCEPTANCE_L1/);
+    expect(loopRs).toMatch(/LAYERED_ACCEPTANCE_L2/);
+    expect(loopRs).toMatch(/TODOS_EXPLICIT_LEAVE_RESET_PRIMARY/);
+  });
+
+  it('Todos leave chain export remains primary (not replaced by defensive cut)', () => {
+    const indexJs = readFileSync(
+      join(repoRoot, 'frontend/js/plan-task/index.js'),
+      'utf8',
+    );
+    const lifeJs = readFileSync(
+      join(repoRoot, 'frontend/js/plan-task/todos-lifecycle.js'),
+      'utf8',
+    );
+    expect(indexJs + '\n' + lifeJs).toMatch(/TODOS_EXPLICIT_LEAVE_RESET_CHAIN/);
+    expect(indexJs).toMatch(/onTodosPageLeave/);
+    expect(lifeJs).toMatch(/resetTodosBinding/);
+  });
+});

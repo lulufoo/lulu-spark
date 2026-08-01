@@ -59,22 +59,23 @@ pub fn set_binding_json(binding: Value) -> Value {
     }
 }
 
-/// Binding Contract Reset → unbound (idempotent).
-pub fn reset_binding_json() -> Value {
-    let _ = r#loop::reset_binding();
+fn unbound_ok_json() -> Value {
     json!({
         "ok": true,
         "state": r#loop::binding_state(),
     })
 }
 
+/// Binding Contract Reset → unbound (idempotent).
+pub fn reset_binding_json() -> Value {
+    let _ = r#loop::reset_binding();
+    unbound_ok_json()
+}
+
 /// Host defensive cut → unbound (same semantics as Reset). Emits shell sync via core + command emit.
 pub fn defensive_unbound_json() -> Value {
     let _ = r#loop::defensive_unbound();
-    json!({
-        "ok": true,
-        "state": r#loop::binding_state(),
-    })
+    unbound_ok_json()
 }
 
 /// Binding Contract read-only query (business-agnostic summary).

@@ -207,7 +207,12 @@ pub fn drain_shell_sync_events() -> Vec<ShellSyncEvent> {
 }
 
 /// Record shell binding-changed sync for Bound / Unbound transitions on cut/Set paths.
-fn emit_shell_binding_changed(state: &'static str) {
+fn emit_shell_binding_changed() {
+    let state = if binding_state() == "bound" {
+        "bound"
+    } else {
+        "unbound"
+    };
     shell_sync_log().lock().unwrap().push(ShellSyncEvent {
         event: EVENT_SHELL_BINDING_CHANGED,
         state,
@@ -282,7 +287,7 @@ pub fn set_binding(binding: session::Binding) -> Result<(), SetError> {
     }
     emit_lifecycle("onBound", None);
     // Shell sync: Bound / new Bound — shell must discard cached sessionId and follow query_binding.
-    emit_shell_binding_changed("bound");
+    emit_shell_binding_changed();
     Ok(())
 }
 
@@ -313,7 +318,7 @@ pub fn reset_binding() -> Result<(), ()> {
     if was_bound {
         emit_lifecycle("onUnbound", None);
         // Shell sync: Bound→Unbound (defensive_unbound shares this path — no core-only bypass).
-        emit_shell_binding_changed("unbound");
+        emit_shell_binding_changed();
     }
     Ok(())
 }
@@ -330,6 +335,28 @@ pub const DEFENSIVE_CUT_EXPLICIT_RESET_CHAIN: &[&str] = &[
     "frontend/js/plan-task/todos-binding.js::resetTodosBinding",
     "src-tauri/src/services/agent/loop.rs::reset_binding",
 ];
+
+/// T6 layered acceptance L0 markers (regression): unbound reject / Reset idempotent / mid-Reset cancel.
+pub const LAYERED_ACCEPTANCE_L0: &[&str] = &[
+    "unbound_reject_execute",
+    "reset_idempotent",
+    "mid_reset_cancel",
+];
+
+/// T6 layered acceptance L1 markers (must-add): session/generation/re-Set cuts.
+pub const LAYERED_ACCEPTANCE_L1: &[&str] = &[
+    "old_session_not_executable_after_reset_or_replace_set",
+    "stale_generation_reject_continue",
+    "re_set_without_old_turns",
+    "any_successful_set_clears_pre_set_session",
+];
+
+/// T6 layered acceptance L2 markers (must-add): missed dispose/Reset → defensive cut.
+pub const LAYERED_ACCEPTANCE_L2: &[&str] =
+    &["missed_dispose_or_reset_defensive_cut_not_executable"];
+
+/// Todos normal leave still uses explicit Reset as primary (defensive cut does not replace).
+pub const TODOS_EXPLICIT_LEAVE_RESET_PRIMARY: &[&str] = DEFENSIVE_CUT_EXPLICIT_RESET_CHAIN;
 
 /// Host defensive cut: same observable semantics as `reset_binding` (unbound + gen
 /// invalidate + session clear + symmetric in-flight cancel).

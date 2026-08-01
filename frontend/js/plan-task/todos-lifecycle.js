@@ -5,6 +5,14 @@
 
 import { buildTodosBinding, resetTodosBinding } from './todos-binding.js';
 
+/** Explicit leave→Reset chain (primary). Defensive cut backs missed leave; does not replace. */
+export const TODOS_EXPLICIT_LEAVE_RESET_CHAIN = Object.freeze([
+  'frontend/js/plan-task/index.js::dispose',
+  'frontend/js/plan-task/todos-lifecycle.js::onTodosPageLeave',
+  'frontend/js/plan-task/todos-binding.js::resetTodosBinding',
+  'src-tauri/src/services/agent/loop.rs::reset_binding',
+]);
+
 function normalizeMasterId(masterTaskId) {
   if (typeof masterTaskId !== 'string') return '';
   return masterTaskId.trim();

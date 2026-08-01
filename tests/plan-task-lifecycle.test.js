@@ -27,6 +27,7 @@ import {
   onTodosPageEnter,
   onMasterSelectionChange,
   onTodosPageLeave,
+  TODOS_EXPLICIT_LEAVE_RESET_CHAIN,
 } from '../frontend/js/plan-task/index.js';
 
 const fixtureRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -456,5 +457,103 @@ describe('mountPlanTaskSplit wires page lifecycle', () => {
         expect.objectContaining({ binding: expect.any(Object) }),
       );
     });
+  });
+});
+
+
+describe('t6 Todos leave still explicit Reset + layered leave wiring', () => {
+  it('exports explicit leave→Reset chain (dispose→onTodosPageLeave→resetTodosBinding→reset_binding)', () => {
+    expect(TODOS_EXPLICIT_LEAVE_RESET_CHAIN).toEqual([
+      'frontend/js/plan-task/index.js::dispose',
+      'frontend/js/plan-task/todos-lifecycle.js::onTodosPageLeave',
+      'frontend/js/plan-task/todos-binding.js::resetTodosBinding',
+      'src-tauri/src/services/agent/loop.rs::reset_binding',
+    ]);
+    expect(planTaskIndexJs).toMatch(/TODOS_EXPLICIT_LEAVE_RESET_CHAIN/);
+    // dispose must call onTodosPageLeave (explicit Reset); defensive cut must not omit it
+    expect(planTaskIndexJs).toMatch(
+      /function dispose\(\)\s*\{[\s\S]*?onTodosPageLeave/,
+    );
+    // unbound UI refresh wired on lifecycle (Todos small-change ceiling)
+    expect(planTaskIndexJs).toMatch(
+      /createTodosPageLifecycle\(\s*\{[\s\S]*onUnbound/,
+    );
+  });
+
+  it('dispose / unmount reliably Reset; second dispose is idempotent (no duplicate Reset)', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    getJsonMock.mockReset();
+    getJsonMock.mockResolvedValue(sampleMasters);
+    let hostBound = false;
+    const invokeMock = vi.fn(async (cmd, args) => {
+      if (cmd === 'set_binding') {
+        const binding = args?.binding;
+        if (!binding?.tools || !binding?.prompt || binding.callbacks == null) {
+          return { ok: false, code: 'set_invalid', state: hostBound ? 'bound' : 'unbound' };
+        }
+        hostBound = true;
+        return { ok: true, state: 'bound' };
+      }
+      if (cmd === 'reset_binding') {
+        hostBound = false;
+        return { ok: true, state: 'unbound' };
+      }
+      if (cmd === 'execute_binding') {
+        return hostBound
+          ? { ok: true, state: 'bound' }
+          : { ok: false, code: 'rejected_unbound', state: 'unbound' };
+      }
+      if (cmd === 'present_ai_assistant' || cmd === 'open_ai_assistant') {
+        return { ok: true, window_label: 'ai-assistant' };
+      }
+      if (cmd === 'ensure_ai_assistant_session') {
+        return { session_id: 'sess_1', busy: false };
+      }
+      return {};
+    });
+    window.__TAURI__ = {
+      core: { invoke: invokeMock },
+      event: { listen: vi.fn(async () => vi.fn()) },
+    };
+
+    const api = mountPlanTaskSplit(container, { masterId: 'task_alpha' });
+    await vi.waitFor(() => {
+      expect(invokeMock).toHaveBeenCalledWith(
+        'set_binding',
+        expect.objectContaining({ binding: expect.any(Object) }),
+      );
+    });
+
+    invokeMock.mockClear();
+    api.dispose();
+    await vi.waitFor(() => {
+      expect(invokeMock).toHaveBeenCalledWith('reset_binding');
+    });
+    const resetCalls = invokeMock.mock.calls.filter((c) => c[0] === 'reset_binding');
+    expect(resetCalls).toHaveLength(1);
+
+    // Idempotent second dispose / unmount: must not re-issue Reset
+    invokeMock.mockClear();
+    api.dispose();
+    api.unmount();
+    await new Promise((r) => setTimeout(r, 30));
+    expect(invokeMock).not.toHaveBeenCalledWith('reset_binding');
+
+    const exec = await window.__TAURI__.core.invoke('execute_binding');
+    expect(exec.ok).toBe(false);
+    expect(exec.code).toBe('rejected_unbound');
+
+    container.remove();
+    delete window.__TAURI__;
+  });
+
+  it('shell_close is not cut acceptance on Todos leave path', () => {
+    expect(planTaskIndexJs).not.toMatch(
+      /shell_close[\s\S]{0,160}resetTodosBinding|resetTodosBinding[\s\S]{0,160}shell_close/i,
+    );
+    expect(planTaskIndexJs).not.toMatch(
+      /shell_close[\s\S]{0,160}onTodosPageLeave|onTodosPageLeave[\s\S]{0,160}shell_close/i,
+    );
   });
 });

@@ -3116,3 +3116,196 @@ fn t5_not_live_session_reject_code_survives_after_cut() {
         assert_eq!(rejected.body["wrote"], false);
     });
 }
+
+
+// --- T6: Todos leave still explicit Reset + layered acceptance L0/L1/L2 ---
+// shell_close is NOT cut acceptance. Business ids must not enter Binding Contract.
+
+#[test]
+fn t6_layered_acceptance_markers_are_landed() {
+    assert_eq!(
+        r#loop::LAYERED_ACCEPTANCE_L0,
+        [
+            "unbound_reject_execute",
+            "reset_idempotent",
+            "mid_reset_cancel",
+        ]
+    );
+    assert_eq!(
+        r#loop::LAYERED_ACCEPTANCE_L1,
+        [
+            "old_session_not_executable_after_reset_or_replace_set",
+            "stale_generation_reject_continue",
+            "re_set_without_old_turns",
+            "any_successful_set_clears_pre_set_session",
+        ]
+    );
+    assert_eq!(
+        r#loop::LAYERED_ACCEPTANCE_L2,
+        ["missed_dispose_or_reset_defensive_cut_not_executable"]
+    );
+    // Explicit leave→Reset remains primary; defensive cut does not replace it.
+    assert_eq!(
+        r#loop::TODOS_EXPLICIT_LEAVE_RESET_PRIMARY,
+        r#loop::DEFENSIVE_CUT_EXPLICIT_RESET_CHAIN
+    );
+}
+
+#[test]
+fn t6_l0_unbound_reject_reset_idempotent_and_mid_reset_cancel() {
+    with_sandbox(|| {
+        // unbound reject
+        let unbound_err = r#loop::execute_binding().expect_err("unbound must reject");
+        assert_eq!(unbound_err.as_code(), "rejected_unbound");
+
+        // Reset idempotent
+        let master = create_bound_plan("t6-l0-idempotent");
+        arm_plan_binding(&master);
+        r#loop::reset_binding().expect("Reset");
+        r#loop::reset_binding().expect("idempotent Reset");
+        assert_eq!(r#loop::binding_state(), "unbound");
+        let after = r#loop::execute_binding().expect_err("still unbound");
+        assert_eq!(after.as_code(), "rejected_unbound");
+
+        // mid-Reset cancel
+        arm_plan_binding(&master);
+        let cancel_err = r#loop::execute_binding_during(|| {
+            r#loop::reset_binding().expect("Reset mid-execute");
+        })
+        .expect_err("mid-Reset must cancel execute");
+        assert_eq!(cancel_err.as_code(), "reset_cancelled");
+        assert_eq!(r#loop::binding_state(), "unbound");
+    });
+}
+
+#[test]
+fn t6_l1_session_generation_and_re_set_cuts() {
+    with_sandbox(|| {
+        let master = create_bound_plan("t6-l1-session");
+        arm_plan_binding(&master);
+        let open = r#loop::open_ai_assistant_core(&master).unwrap();
+        let old_sid = open["session_id"].as_str().unwrap().to_string();
+        let old_gen = r#loop::query_binding().generation.expect("gen");
+
+        // Reset → old session not executable
+        r#loop::reset_binding().expect("Reset");
+        let rejected = r#loop::agent_chat_turn_core(&old_sid, "stale", Some(&master))
+            .expect("reject body");
+        assert_eq!(rejected.body["code"], "rejected_not_live_session");
+        assert!(
+            !r#loop::is_binding_generation_current(old_gen),
+            "generation must be invalid after Reset"
+        );
+
+        // Any successful Set clears pre-set session
+        let pre = r#loop::ensure_chat_session_core().expect("pre-set session");
+        let pre_sid = pre["session_id"].as_str().unwrap().to_string();
+        let master2 = create_bound_plan("t6-l1-reset2");
+        arm_plan_binding(&master2);
+        assert_eq!(
+            live_session_id(),
+            None,
+            "successful Set must clear pre-set current_session_id"
+        );
+        assert_ne!(
+            live_session_id().as_deref(),
+            Some(pre_sid.as_str()),
+            "pre-set session must not remain live after Set"
+        );
+
+        let open2 = r#loop::open_ai_assistant_core(&master2).unwrap();
+        let sid_a = open2["session_id"].as_str().unwrap().to_string();
+        // replace Set → re-Set without old session driving executable chat
+        let master3 = create_bound_plan("t6-l1-replace");
+        arm_plan_binding(&master3);
+        assert_eq!(live_session_id(), None);
+        let open3 = r#loop::open_ai_assistant_core(&master3).unwrap();
+        let sid_b = open3["session_id"].as_str().unwrap().to_string();
+        assert_ne!(sid_a, sid_b, "re-Set must mint a new session");
+        let old_chat = r#loop::agent_chat_turn_core(&sid_a, "old-ctx", Some(&master3))
+            .expect("reject old");
+        assert_eq!(old_chat.body["code"], "rejected_not_live_session");
+    });
+}
+
+#[test]
+fn t6_l1_stale_generation_rejects_continue() {
+    with_sandbox(|| {
+        let master = create_bound_plan("t6-l1-gen");
+        arm_plan_binding(&master);
+        let err = r#loop::execute_binding_during(|| {
+            let other = create_bound_plan("t6-l1-gen-b");
+            arm_plan_binding(&other);
+        })
+        .expect_err("stale generation must reject continue");
+        assert_eq!(err.as_code(), "rejected_stale_generation");
+    });
+}
+
+#[test]
+fn t6_l2_missed_reset_defensive_cut_then_not_executable() {
+    with_sandbox(|| {
+        let master = create_bound_plan("t6-l2-missed");
+        arm_plan_binding(&master);
+        let open = r#loop::open_ai_assistant_core(&master).unwrap();
+        let old_sid = open["session_id"].as_str().unwrap().to_string();
+        // Missed dispose/Reset: Host defensive cut backs the leave signal.
+        r#loop::defensive_unbound().expect("defensive cut");
+        assert_eq!(r#loop::binding_state(), "unbound");
+        let exec = r#loop::execute_binding().expect_err("not executable after L2 cut");
+        assert_eq!(exec.as_code(), "rejected_unbound");
+        let chat = r#loop::agent_chat_turn_core(&old_sid, "after-miss", Some(&master))
+            .expect("reject");
+        assert_eq!(chat.body["code"], "rejected_not_live_session");
+    });
+}
+
+#[test]
+fn t6_shell_close_is_not_cut_acceptance() {
+    with_sandbox(|| {
+        let master = create_bound_plan("t6-shell-close");
+        arm_plan_binding(&master);
+        let gen = r#loop::query_binding().generation.expect("gen");
+        r#loop::shell_close_core().expect("shell close");
+        // 关壳 ≠ 切断：仍 bound / generation current / executable
+        assert_eq!(r#loop::binding_state(), "bound");
+        assert!(r#loop::is_binding_generation_current(gen));
+        r#loop::execute_binding().expect("shell_close must not cut execute");
+        // Explicit Reset remains the primary leave path
+        r#loop::reset_binding().expect("explicit Reset");
+        assert_eq!(r#loop::binding_state(), "unbound");
+    });
+}
+
+#[test]
+fn t6_explicit_reset_not_omitted_because_defensive_exists() {
+    with_sandbox(|| {
+        // Defensive cut exists, but normal leave still uses explicit Reset semantics.
+        assert_eq!(
+            r#loop::TODOS_EXPLICIT_LEAVE_RESET_PRIMARY.last().copied(),
+            Some("src-tauri/src/services/agent/loop.rs::reset_binding")
+        );
+        let master = create_bound_plan("t6-explicit-primary");
+        arm_plan_binding(&master);
+        r#loop::clear_lifecycle_events_for_tests();
+        r#loop::reset_binding().expect("explicit Reset primary path");
+        let events = r#loop::drain_lifecycle_events();
+        assert!(
+            events.iter().any(|e| e.event == "onUnbound"),
+            "explicit Reset must emit onUnbound: {events:?}"
+        );
+        // Defensive after explicit is idempotent — does not replace leave duty.
+        r#loop::defensive_unbound().expect("idempotent defensive");
+        assert_eq!(r#loop::binding_state(), "unbound");
+    });
+}
+
+#[test]
+fn t6_binding_contract_rejects_top_level_business_ids() {
+    with_sandbox(|| {
+        // Business ids must not appear on Binding Contract query surface.
+        r#loop::set_binding(valid_binding()).expect("Set without business top-level");
+        let q = r#loop::query_binding();
+        assert_query_is_business_agnostic(&q);
+    });
+}

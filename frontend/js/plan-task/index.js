@@ -14,6 +14,7 @@ export {
   onTodosPageEnter,
   onMasterSelectionChange,
   onTodosPageLeave,
+  TODOS_EXPLICIT_LEAVE_RESET_CHAIN,
 } from './todos-lifecycle.js';
 import { createTodosPageLifecycle } from './todos-lifecycle.js';
 
@@ -1051,7 +1052,12 @@ export function mountPlanTaskSplit(container, opts = {}) {
   let paintedMasterId = '';
   let activeOnly = true;
   /** Page lifecycle Binding: enter/select Set, leave Reset; shell close ≠ Reset. */
-  const todosLifecycle = createTodosPageLifecycle();
+  const todosLifecycle = createTodosPageLifecycle({
+    onUnbound: () => {
+      // Unbound-state UI refresh (Todos small-change ceiling). No-op after dispose.
+      if (!disposed) paint();
+    },
+  });
   let lifecycleEntered = false;
 
   container.innerHTML = '<div class="plan-task-split-loading">Loading…</div>';
@@ -2388,21 +2394,27 @@ export function mountPlanTaskSplit(container, opts = {}) {
   void refresh();
 
   function dispose() {
+    // Idempotent: leave→Reset runs once; second dispose/unmount must not re-issue Reset.
+    if (disposed) return;
     disposed = true;
-    void todosLifecycle.onTodosPageLeave();
-    document.removeEventListener('plan-task-dialog-close', onDialogClose);
-    closePlanTaskDialog();
-    disposeFocusRefresh();
-    if (typeof unlistenTurnCompleted === 'function') {
-      void unlistenTurnCompleted();
-      unlistenTurnCompleted = null;
+    // Explicit leave→Reset is primary and must not be skipped by later cleanup failures.
+    try {
+      void todosLifecycle.onTodosPageLeave();
+    } finally {
+      document.removeEventListener('plan-task-dialog-close', onDialogClose);
+      closePlanTaskDialog();
+      disposeFocusRefresh();
+      if (typeof unlistenTurnCompleted === 'function') {
+        void unlistenTurnCompleted();
+        unlistenTurnCompleted = null;
+      }
+      container.removeEventListener('click', onClick);
+      container.removeEventListener('input', onInput);
+      container.removeEventListener('keydown', onKeydown);
+      container.removeEventListener('focusout', onTitleBlur);
+      container.removeEventListener('change', onChange);
+      container.innerHTML = '';
     }
-    container.removeEventListener('click', onClick);
-    container.removeEventListener('input', onInput);
-    container.removeEventListener('keydown', onKeydown);
-    container.removeEventListener('focusout', onTitleBlur);
-    container.removeEventListener('change', onChange);
-    container.innerHTML = '';
   }
 
   // Match corpus-doc-list: unmount is callable and carries in-place route helpers.
