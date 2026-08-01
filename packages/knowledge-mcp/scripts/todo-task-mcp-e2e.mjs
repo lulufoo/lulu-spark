@@ -329,6 +329,59 @@ if (addSubResult.isError || !addSubText.includes('Sub C')) {
   throw new Error(`add_todo_sub failed: ${addSubText}`);
 }
 
+// t5 / AC2 — create-with-content round-trip
+const addWithContentResult = await client.callTool({
+  name: 'add_todo_sub',
+  arguments: {
+    master_task_id: masterId,
+    title: 'Sub with content',
+    content: 'e2e content body',
+  },
+});
+const addWithContentText = toolText(addWithContentResult);
+if (addWithContentResult.isError || !addWithContentText.includes('e2e content body')) {
+  throw new Error(`add_todo_sub with content failed: ${addWithContentText}`);
+}
+const contentSubId = parseJson(addWithContentText).task.sub_tasks.find(
+  (s) => s.title === 'Sub with content',
+)?.sub_task_id;
+if (!contentSubId) {
+  throw new Error(`add_todo_sub with content missing sub id: ${addWithContentText}`);
+}
+
+// t5 / AC3 — update_todo_sub modify / clear (content: '')
+const updateSubSet = await client.callTool({
+  name: 'update_todo_sub',
+  arguments: {
+    master_task_id: masterId,
+    sub_task_id: contentSubId,
+    content: 'e2e content v2',
+  },
+});
+const updateSubSetText = toolText(updateSubSet);
+if (updateSubSet.isError || !updateSubSetText.includes('e2e content v2')) {
+  throw new Error(`update_todo_sub set content failed: ${updateSubSetText}`);
+}
+
+const updateSubClear = await client.callTool({
+  name: 'update_todo_sub',
+  arguments: {
+    master_task_id: masterId,
+    sub_task_id: contentSubId,
+    content: '',
+  },
+});
+const updateSubClearText = toolText(updateSubClear);
+if (updateSubClear.isError) {
+  throw new Error(`update_todo_sub clear content failed: ${updateSubClearText}`);
+}
+const clearedSub = parseJson(updateSubClearText).task.sub_tasks.find(
+  (s) => s.sub_task_id === contentSubId,
+);
+if (!clearedSub || (clearedSub.content != null && clearedSub.content !== '')) {
+  throw new Error(`update_todo_sub content: '' must clear: ${updateSubClearText}`);
+}
+
 const completeResult = await client.callTool({
   name: 'complete_todo',
   arguments: { master_task_id: masterId, sub_task_id: subA },

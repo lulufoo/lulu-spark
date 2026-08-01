@@ -204,6 +204,20 @@ describe('mountPlanTaskSplit process notes section', () => {
     dispose();
   });
 
+  it('places Process notes after the sub-list as the bottom detail block', async () => {
+    getJsonMock.mockResolvedValue([sampleMaster]);
+    mockList(sampleComments);
+    const { dispose } = await mountAndWait();
+    const html = container.innerHTML;
+    const subListIdx = html.indexOf('plan-task-sub-list');
+    const commentsIdx = html.indexOf('plan-task-comments-section');
+    expect(subListIdx).toBeGreaterThan(-1);
+    expect(commentsIdx).toBeGreaterThan(-1);
+    expect(commentsIdx).toBeGreaterThan(subListIdx);
+    expect(html.slice(subListIdx)).toMatch(/Process notes/i);
+    dispose();
+  });
+
   it('lists comments in created_at order when populated', async () => {
     getJsonMock.mockResolvedValue([sampleMaster]);
     mockList(sampleComments);

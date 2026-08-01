@@ -101,6 +101,9 @@ const EQUIVALENCE_TODO_TOOLS = [
   'update_todo_attachment',
 ];
 
+/** t5 / AC3 — additive sub-content surface (not part of T10 13-tool EQUIVALENCE). */
+const SUB_CONTENT_TODO_TOOLS = ['update_todo_sub'];
+
 const ATTACHMENT_TOOL_HTTP_PATHS = {
   add_todo_attachment: '/api/todo-task-add-attachment',
   list_todo_attachments: '/api/todo-task-list-attachments',
@@ -423,8 +426,57 @@ function startMockHttp(port) {
         implicit: false,
         linked_archive_ids: [],
       };
+      if (typeof payload.content === 'string') {
+        sub.content = payload.content;
+      }
       task.sub_tasks.push(sub);
       respondJson(res, 201, { sub_task_id: sub.sub_task_id, task });
+      return;
+    }
+
+    if (req.method === 'POST' && url.pathname === '/api/todo-task-update-sub') {
+      let payload;
+      try {
+        payload = await readJsonBody(req);
+      } catch {
+        respondJson(res, 400, { error: 'Invalid JSON' });
+        return;
+      }
+      const masterId = typeof payload.master_task_id === 'string' ? payload.master_task_id.trim() : '';
+      const subId = typeof payload.sub_task_id === 'string' ? payload.sub_task_id.trim() : '';
+      const title = typeof payload.title === 'string' ? payload.title.trim() : '';
+      if (!masterId) {
+        respondJson(res, 400, { error: 'Missing master_task_id' });
+        return;
+      }
+      if (!subId) {
+        respondJson(res, 400, { error: 'Missing sub_task_id' });
+        return;
+      }
+      if (!title) {
+        respondJson(res, 400, { error: 'Missing title' });
+        return;
+      }
+      const task = planTaskStore.get(masterId);
+      if (!task) {
+        respondJson(res, 404, { error: 'Task not found' });
+        return;
+      }
+      const sub = task.sub_tasks.find((s) => s.sub_task_id === subId);
+      if (!sub) {
+        respondJson(res, 404, { error: 'Sub task not found' });
+        return;
+      }
+      sub.title = title;
+      if (Object.prototype.hasOwnProperty.call(payload, 'content')) {
+        const content = typeof payload.content === 'string' ? payload.content : '';
+        if (content === '') {
+          delete sub.content;
+        } else {
+          sub.content = content;
+        }
+      }
+      respondJson(res, 200, { task });
       return;
     }
 
@@ -714,6 +766,11 @@ async function runMcpClient(mcpPort) {
       throw new Error(`missing equivalence todo tool ${tool}: ${names.join(', ')}`);
     }
   }
+  for (const tool of SUB_CONTENT_TODO_TOOLS) {
+    if (!names.includes(tool)) {
+      throw new Error(`missing sub-content todo tool ${tool}: ${names.join(', ')}`);
+    }
+  }
   for (const tool of FORBIDDEN_PLAN_TOOL_NAMES) {
     if (names.includes(tool)) {
       throw new Error(`forbidden plan_* tool still registered: ${tool}`);
@@ -927,6 +984,80 @@ async function runMcpClient(mcpPort) {
   const addSubText = addSub.content?.[0]?.text || '';
   if (addSub.isError || !addSubText.includes('Sub C')) {
     throw new Error(`unexpected add_todo_sub: ${addSubText}`);
+  }
+
+  // t5 / AC2 — create-with-content round-trip via get
+  const addWithContent = await client.callTool({
+    name: 'add_todo_sub',
+    arguments: {
+      master_task_id: 'task_mock001',
+      title: 'Sub with content',
+      content: 'verify content body',
+    },
+  });
+  const addWithContentText = addWithContent.content?.[0]?.text || '';
+  if (addWithContent.isError || !addWithContentText.includes('verify content body')) {
+    throw new Error(`unexpected add_todo_sub with content: ${addWithContentText}`);
+  }
+  const contentSubId = JSON.parse(addWithContentText).task.sub_tasks.find(
+    (s) => s.title === 'Sub with content',
+  )?.sub_task_id;
+  if (!contentSubId) {
+    throw new Error(`add_todo_sub with content missing sub id: ${addWithContentText}`);
+  }
+
+  // t5 / AC3 — update_todo_sub modify / omit / clear (content: '')
+  const updateSubSet = await client.callTool({
+    name: 'update_todo_sub',
+    arguments: {
+      master_task_id: 'task_mock001',
+      sub_task_id: contentSubId,
+      content: 'verify content v2',
+    },
+  });
+  const updateSubSetText = updateSubSet.content?.[0]?.text || '';
+  if (updateSubSet.isError || !updateSubSetText.includes('verify content v2')) {
+    throw new Error(`unexpected update_todo_sub set content: ${updateSubSetText}`);
+  }
+
+  const updateSubOmit = await client.callTool({
+    name: 'update_todo_sub',
+    arguments: {
+      master_task_id: 'task_mock001',
+      sub_task_id: contentSubId,
+      title: 'Sub with content renamed',
+    },
+  });
+  const updateSubOmitText = updateSubOmit.content?.[0]?.text || '';
+  if (updateSubOmit.isError) {
+    throw new Error(`unexpected update_todo_sub omit content: ${updateSubOmitText}`);
+  }
+  const updateSubOmitTask = JSON.parse(updateSubOmitText).task;
+  const omitSub = updateSubOmitTask.sub_tasks.find((s) => s.sub_task_id === contentSubId);
+  if (!omitSub || omitSub.content !== 'verify content v2') {
+    throw new Error(`update_todo_sub omit content must leave content unchanged: ${updateSubOmitText}`);
+  }
+  if (omitSub.title !== 'Sub with content renamed') {
+    throw new Error(`update_todo_sub title rename failed: ${updateSubOmitText}`);
+  }
+
+  const updateSubClear = await client.callTool({
+    name: 'update_todo_sub',
+    arguments: {
+      master_task_id: 'task_mock001',
+      sub_task_id: contentSubId,
+      content: '',
+    },
+  });
+  const updateSubClearText = updateSubClear.content?.[0]?.text || '';
+  if (updateSubClear.isError) {
+    throw new Error(`unexpected update_todo_sub clear content: ${updateSubClearText}`);
+  }
+  const clearSub = JSON.parse(updateSubClearText).task.sub_tasks.find(
+    (s) => s.sub_task_id === contentSubId,
+  );
+  if (!clearSub || (clearSub.content != null && clearSub.content !== '')) {
+    throw new Error(`update_todo_sub content: '' must clear content: ${updateSubClearText}`);
   }
 
   const parsedAdd = JSON.parse(addSubText);

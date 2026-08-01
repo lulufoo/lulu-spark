@@ -2418,7 +2418,7 @@ export function mountPlanTaskSplit(container, opts = {}) {
     }
   };
 
-  const onTitleBlur = (event) => {
+  const onFieldBlur = (event) => {
     const masterTitleInput = event.target.closest('[data-action="edit-master-title"]');
     if (masterTitleInput instanceof HTMLInputElement) {
       if (controlsDisabled(busy) || !selectedMasterId) return;
@@ -2466,7 +2466,7 @@ export function mountPlanTaskSplit(container, opts = {}) {
   container.addEventListener('click', onClick);
   container.addEventListener('input', onInput);
   container.addEventListener('keydown', onKeydown);
-  container.addEventListener('focusout', onTitleBlur);
+  container.addEventListener('focusout', onFieldBlur);
   container.addEventListener('change', onChange);
   const onDialogClose = () => {
     if (!disposed) paint();
@@ -2508,7 +2508,7 @@ export function mountPlanTaskSplit(container, opts = {}) {
       container.removeEventListener('click', onClick);
       container.removeEventListener('input', onInput);
       container.removeEventListener('keydown', onKeydown);
-      container.removeEventListener('focusout', onTitleBlur);
+      container.removeEventListener('focusout', onFieldBlur);
       container.removeEventListener('change', onChange);
       container.innerHTML = '';
     }
