@@ -99,6 +99,12 @@ impl ExecError {
             code: "reset_cancelled",
         }
     }
+
+    fn rejected_stale_generation() -> Self {
+        Self {
+            code: "rejected_stale_generation",
+        }
+    }
 }
 
 type LifecycleListener = Box<dyn Fn(&LifecycleEvent) + Send + 'static>;
@@ -248,16 +254,21 @@ pub fn execute_binding() -> Result<ExecuteOutcome, ExecError> {
 /// Like `execute_binding`, but invokes `mid` while the execute is marked in-flight
 /// (for Strategy A mid-execute Reset observation).
 pub fn execute_binding_during<F: FnOnce()>(mid: F) -> Result<ExecuteOutcome, ExecError> {
-    let snapshot = {
+    let (snapshot, generation) = {
         let mut rt = runtime().lock().unwrap();
         let Some(binding) = rt.current_binding.clone() else {
             drop(rt);
             emit_lifecycle("onError", Some("rejected_unbound"));
             return Err(ExecError::rejected_unbound());
         };
+        let Some(generation) = rt.current_generation else {
+            drop(rt);
+            emit_lifecycle("onError", Some("rejected_stale_generation"));
+            return Err(ExecError::rejected_stale_generation());
+        };
         rt.executing = true;
         rt.execute_cancelled = false;
-        binding
+        (binding, generation)
     };
 
     mid();
@@ -272,6 +283,10 @@ pub fn execute_binding_during<F: FnOnce()>(mid: F) -> Result<ExecuteOutcome, Exe
     if cancelled {
         emit_lifecycle("onError", Some("reset_cancelled"));
         return Err(ExecError::reset_cancelled());
+    }
+    if !is_binding_generation_current(generation) {
+        emit_lifecycle("onError", Some("rejected_stale_generation"));
+        return Err(ExecError::rejected_stale_generation());
     }
 
     Ok(ExecuteOutcome {
@@ -481,6 +496,23 @@ fn persist(session: &Session) {
     let _ = session::save_session(session);
 }
 
+fn stale_generation_turn_outcome(session: &mut Session, wrote: bool) -> TurnOutcome {
+    let reply = "Binding generation invalidated — turn cancelled.".to_string();
+    session.turns.push(Turn {
+        role: "assistant".into(),
+        content: Some(reply.clone()),
+        tool_call_id: None,
+        tool_calls: None,
+        name: None,
+    });
+    persist(session);
+    TurnOutcome {
+        reply_text: reply,
+        terminal: Terminal::Error,
+        wrote,
+    }
+}
+
 pub fn run_loop(session: &mut Session, user_message: &str, config: &LlmConfig) -> TurnOutcome {
     // Executable turns require Binding Contract bound — not session.bound_master_task_id.
     let Some(binding) = current_binding_snapshot() else {
@@ -506,6 +538,16 @@ pub fn run_loop(session: &mut Session, user_message: &str, config: &LlmConfig) -
             terminal: Terminal::Business,
             wrote: false,
         };
+    };
+    let Some(generation) = runtime().lock().unwrap().current_generation else {
+        session.turns.push(Turn {
+            role: "user".into(),
+            content: Some(user_message.to_string()),
+            tool_call_id: None,
+            tool_calls: None,
+            name: None,
+        });
+        return stale_generation_turn_outcome(session, false);
     };
 
     let system_prompt = prompt_text_from_binding(&binding.prompt);
@@ -548,6 +590,9 @@ pub fn run_loop(session: &mut Session, user_message: &str, config: &LlmConfig) -
     let declared_tools = tools::tool_names_from_binding(&binding.tools);
 
     loop {
+        if !is_binding_generation_current(generation) {
+            return stale_generation_turn_outcome(session, wrote);
+        }
         let messages = build_llm_messages_from_turns(&session.turns, &system_prompt);
         let msg = match llm::chat_completions(&messages, &tools_defs, config) {
             Ok(m) => m,
@@ -566,6 +611,11 @@ pub fn run_loop(session: &mut Session, user_message: &str, config: &LlmConfig) -
         };
 
         if !msg.tool_calls.is_empty() {
+            // Gate again immediately before tool dispatch (generation may have
+            // been invalidated during the LLM round-trip).
+            if !is_binding_generation_current(generation) {
+                return stale_generation_turn_outcome(session, wrote);
+            }
             for tc in &msg.tool_calls {
                 let allowed = WHITELIST.contains(&tc.name.as_str())
                     && declared_tools.iter().any(|n| n == &tc.name);

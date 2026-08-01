@@ -1958,3 +1958,225 @@ fn j1_h1_kernel_api_fixture_driver_not_business_ui() {
         assert!(encoded.get("master_task_id").is_none());
     });
 }
+
+// --- T1: production path binding-generation gate ---
+
+/// Mock LLM that runs `mid` (e.g. Reset / replace Set) before returning a scripted response.
+fn spawn_llm_with_mid_then_response<F>(mid: F, response: (u16, Value)) -> MockLlm
+where
+    F: FnOnce() + Send + 'static,
+{
+    let listener = TcpListener::bind("127.0.0.1:0").expect("bind");
+    let port = listener.local_addr().unwrap().port();
+    let hits = Arc::new(Mutex::new(Vec::new()));
+    let hits_t = hits.clone();
+    let mid = Arc::new(Mutex::new(Some(mid)));
+    let join = thread::spawn(move || {
+        let Ok((mut stream, _)) = listener.accept() else {
+            return;
+        };
+        let mut buf = [0u8; 65536];
+        let n = stream.read(&mut buf).unwrap_or(0);
+        let raw = String::from_utf8_lossy(&buf[..n]);
+        let body_str = raw.split("\r\n\r\n").nth(1).unwrap_or("");
+        let body: Value = serde_json::from_str(body_str.trim_end_matches('\0').trim())
+            .unwrap_or(json!({}));
+        hits_t.lock().unwrap().push(body);
+        if let Some(f) = mid.lock().unwrap().take() {
+            f();
+        }
+        let (status, resp) = response;
+        let body = resp.to_string();
+        let resp = format!(
+            "HTTP/1.1 {status} OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+            body.len()
+        );
+        let _ = stream.write_all(resp.as_bytes());
+    });
+    thread::sleep(Duration::from_millis(20));
+    MockLlm {
+        port,
+        hits,
+        _join: join,
+    }
+}
+
+#[test]
+fn t1_execute_when_bound_and_generation_current_succeeds() {
+    with_sandbox(|| {
+        r#loop::set_binding(binding_with_prompt("gen-ok")).expect("Set");
+        let gen = r#loop::query_binding().generation.expect("gen");
+        assert!(
+            r#loop::is_binding_generation_current(gen),
+            "execute path requires a live generation"
+        );
+        let out = r#loop::execute_binding().expect("bound+current gen must succeed");
+        assert_eq!(out.applied_prompt, json!("gen-ok"));
+        assert!(r#loop::is_binding_generation_current(gen));
+    });
+}
+
+#[test]
+fn t1_replace_set_advances_generation_then_execute_under_new() {
+    with_sandbox(|| {
+        r#loop::set_binding(binding_with_prompt("old-gen")).expect("first");
+        let old_gen = r#loop::query_binding().generation.expect("old");
+        r#loop::set_binding(binding_with_prompt("new-gen")).expect("replace");
+        let new_gen = r#loop::query_binding().generation.expect("new");
+        assert_ne!(old_gen, new_gen);
+        assert!(!r#loop::is_binding_generation_current(old_gen));
+        assert!(r#loop::is_binding_generation_current(new_gen));
+        let out = r#loop::execute_binding().expect("execute under new generation");
+        assert_eq!(out.applied_prompt, json!("new-gen"));
+        assert_ne!(out.applied_prompt, json!("old-gen"));
+    });
+}
+
+#[test]
+fn t1_mid_execute_replace_set_rejects_stale_generation() {
+    with_sandbox(|| {
+        r#loop::set_binding(binding_with_prompt("in-flight-old")).expect("Set");
+        let old_gen = r#loop::query_binding().generation.expect("old gen");
+        r#loop::clear_lifecycle_events_for_tests();
+
+        let err = r#loop::execute_binding_during(|| {
+            r#loop::set_binding(binding_with_prompt("in-flight-new")).expect("replace mid-execute");
+            assert!(
+                !r#loop::is_binding_generation_current(old_gen),
+                "replace must invalidate the snapshotted generation"
+            );
+        })
+        .expect_err("in-flight execute must reject stale generation");
+        assert_eq!(
+            err.as_code(),
+            "rejected_stale_generation",
+            "Host must return a distinguishable generation-stale reject reason"
+        );
+        assert_eq!(r#loop::binding_state(), "bound");
+        let new_gen = r#loop::query_binding().generation.expect("new gen");
+        assert!(r#loop::is_binding_generation_current(new_gen));
+        assert_ne!(old_gen, new_gen);
+
+        let events = r#loop::drain_lifecycle_events();
+        assert!(
+            events.iter().any(|e| {
+                e.event == "onError" && e.category == Some("rejected_stale_generation")
+            }),
+            "onError(rejected_stale_generation) must be observable: {events:?}"
+        );
+        // Old Tools/Prompt must not win; a fresh execute under the new generation applies new prompt.
+        let out = r#loop::execute_binding().expect("fresh execute under new gen");
+        assert_eq!(out.applied_prompt, json!("in-flight-new"));
+    });
+}
+
+#[test]
+fn t1_query_and_present_do_not_authorize_execute() {
+    with_sandbox(|| {
+        assert_eq!(r#loop::binding_state(), "unbound");
+        let _ = r#loop::query_binding();
+        let _ = r#loop::present_ai_assistant_core().expect("Present");
+        assert_eq!(r#loop::binding_state(), "unbound");
+        let err = r#loop::execute_binding().expect_err("query/Present alone must not authorize");
+        assert_eq!(err.as_code(), "rejected_unbound");
+    });
+}
+
+#[test]
+fn t1_agent_chat_turn_allows_when_generation_current() {
+    with_sandbox(|| {
+        let master = create_bound_plan("t1-gen-ok");
+        let mock = spawn_scripted_llm(vec![assistant_text("世代有效")]);
+        install_llm_cfg(&mock);
+        arm_plan_binding(&master);
+        let gen = r#loop::query_binding().generation.expect("gen");
+        assert!(r#loop::is_binding_generation_current(gen));
+        let open = r#loop::open_ai_assistant_core(&master).unwrap();
+        let sid = open["session_id"].as_str().unwrap();
+        let result = r#loop::agent_chat_turn_core(sid, "你好", Some(&master)).unwrap();
+        assert_eq!(result.body["terminal"], "none");
+        assert!(result.body["reply_text"].as_str().unwrap().contains("世代有效"));
+        assert_eq!(mock.hits.lock().unwrap().len(), 1);
+    });
+}
+
+#[test]
+fn t1_agent_chat_turn_after_reset_does_not_invoke_llm() {
+    with_sandbox(|| {
+        let master = create_bound_plan("t1-gen-reset");
+        let mock = spawn_scripted_llm(vec![assistant_text("should-not-run")]);
+        install_llm_cfg(&mock);
+        arm_plan_binding(&master);
+        let gen = r#loop::query_binding().generation.expect("gen");
+        let open = r#loop::open_ai_assistant_core(&master).unwrap();
+        let sid = open["session_id"].as_str().unwrap().to_string();
+        r#loop::reset_binding().expect("Reset");
+        assert!(!r#loop::is_binding_generation_current(gen));
+
+        let result = r#loop::agent_chat_turn_core(&sid, "继续", Some(&master)).unwrap();
+        assert_ne!(
+            result.body["terminal"],
+            "none",
+            "after Reset, chat must not continue as a successful executable turn"
+        );
+        assert_eq!(
+            mock.hits.lock().unwrap().len(),
+            0,
+            "generation invalidation must not call LLM / old Tools+Prompt path"
+        );
+    });
+}
+
+#[test]
+fn t1_run_loop_aborts_tool_dispatch_when_generation_invalidated() {
+    with_sandbox(|| {
+        let master = create_bound_plan("t1-gen-tools");
+        let title_before = todo_task::get_by_id(&master)["title"]
+            .as_str()
+            .unwrap()
+            .to_string();
+        let gen_holder = Arc::new(Mutex::new(None::<u64>));
+        let gen_holder_c = gen_holder.clone();
+        let mock = spawn_llm_with_mid_then_response(
+            move || {
+                let gen = gen_holder_c.lock().unwrap().expect("gen snapshotted");
+                r#loop::reset_binding().expect("Reset during LLM / before tool dispatch");
+                assert!(!r#loop::is_binding_generation_current(gen));
+            },
+            assistant_tools(
+                json!([{
+                    "id": "t1c1",
+                    "type": "function",
+                    "function": {
+                        "name": "update_master_title",
+                        "arguments": "{\"title\":\"不得写入旧世代\"}"
+                    }
+                }]),
+                None,
+            ),
+        );
+        install_llm_cfg(&mock);
+        arm_plan_binding(&master);
+        let gen = r#loop::query_binding().generation.expect("gen");
+        *gen_holder.lock().unwrap() = Some(gen);
+        let open = r#loop::open_ai_assistant_core(&master).unwrap();
+        let sid = open["session_id"].as_str().unwrap();
+
+        let result = r#loop::agent_chat_turn_core(sid, "改标题", Some(&master)).unwrap();
+        assert_eq!(
+            result.body["wrote"],
+            false,
+            "tool dispatch must not proceed on stale generation"
+        );
+        assert_eq!(
+            result.body["terminal"],
+            "error",
+            "stale-generation abort must be an error terminal, not a successful turn"
+        );
+        assert_eq!(
+            todo_task::get_by_id(&master)["title"],
+            title_before,
+            "old Tools must not write after generation invalidation"
+        );
+    });
+}
