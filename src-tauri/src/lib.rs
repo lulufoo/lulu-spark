@@ -482,6 +482,7 @@ pub fn run() {
             commands::ai_assistant::get_ai_assistant_binding,
             commands::ai_assistant::set_binding,
             commands::ai_assistant::reset_binding,
+            commands::ai_assistant::defensive_unbound,
             commands::ai_assistant::query_binding,
             commands::ai_assistant::execute_binding,
             commands::ai_assistant::agent_chat_turn,

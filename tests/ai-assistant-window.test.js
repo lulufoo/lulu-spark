@@ -123,6 +123,27 @@ describe('ai-assistant window shell (t5)', () => {
     );
   });
 
+  it('T5 shell discards cached sessionId on binding-changed Unbound/new Bound', () => {
+    const js = readFileSync(jsPath, 'utf8');
+    // Unbound / new Bound must clear cached sessionId; composer stays gated by query_binding/hostBound.
+    expect(js).toMatch(/sessionId\s*=\s*['"]['"]/);
+    expect(js).toMatch(/applyHostContractState/);
+    expect(js).toMatch(/ai-assistant:binding-changed/);
+    expect(js).toMatch(/query_binding/);
+    // Must not keep driving execute from a stale cached session after cut/rebind.
+    expect(js).toMatch(/hostBound/);
+  });
+
+  it('T5 defensive cut command path emits binding-changed like Set/Reset', () => {
+    expect(aiAssistantCmd).toMatch(/defensive_unbound/);
+    expect(aiAssistantCmd).toMatch(/EVENT_BINDING_CHANGED/);
+    // Defensive path must not be core-only: command wrapper emits the shell event.
+    expect(aiAssistantCmd).toMatch(
+      /defensive_unbound[\s\S]{0,400}?emit\(\s*EVENT_BINDING_CHANGED/,
+    );
+    expect(libRs).toMatch(/defensive_unbound/);
+  });
+
   it('registers ai-assistant capability with write-api for agent_chat_turn', () => {
     expect(existsSync(capabilityPath), 'capabilities/ai-assistant.json').toBe(
       true,

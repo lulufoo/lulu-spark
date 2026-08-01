@@ -3,10 +3,10 @@
 use serde_json::json;
 
 use crate::commands::ai_assistant::{
-    agent_chat_turn_json, ensure_ai_assistant_session_json, execute_binding_json,
-    get_ai_assistant_binding_json, open_ai_assistant_json, present_ai_assistant_json,
-    query_binding_json, reset_binding_json, set_binding_json, AI_ASSISTANT_WINDOW_LABEL,
-    EVENT_BINDING_CHANGED,
+    agent_chat_turn_json, defensive_unbound_json, ensure_ai_assistant_session_json,
+    execute_binding_json, get_ai_assistant_binding_json, open_ai_assistant_json,
+    present_ai_assistant_json, query_binding_json, reset_binding_json, set_binding_json,
+    AI_ASSISTANT_WINDOW_LABEL, EVENT_BINDING_CHANGED,
 };
 use crate::config::secrets::{self, KEY_LLM_API_KEY};
 use crate::config::settings;
@@ -190,5 +190,67 @@ fn j1_present_not_bound_execute_rejects_without_set() {
         let exec = execute_binding_json();
         assert_eq!(exec["ok"], false);
         assert_eq!(exec["code"], "rejected_unbound");
+    });
+}
+
+/// T5: defensive cut Host entry must emit binding-changed (not core-only bypass).
+#[test]
+fn t5_defensive_unbound_json_returns_unbound_and_shares_binding_changed_event() {
+    with_cmd_sandbox(|| {
+        let binding = json!({
+            "tools": [{ "name": "fixture_tool", "handle": "opaque-fixture-tool" }],
+            "prompt": "t5-defensive",
+            "callbacks": {}
+        });
+        assert_eq!(set_binding_json(binding)["ok"], true);
+        assert_eq!(query_binding_json()["state"], "bound");
+
+        let cut = defensive_unbound_json();
+        assert_eq!(cut["ok"], true);
+        assert_eq!(cut["state"], "unbound");
+        assert_eq!(query_binding_json()["state"], "unbound");
+        // Same event name the Set/Reset command paths emit to the shell.
+        assert_eq!(EVENT_BINDING_CHANGED, "ai-assistant:binding-changed");
+        let syncs = r#loop::drain_shell_sync_events();
+        assert!(
+            syncs.iter().any(|e| {
+                e.event == EVENT_BINDING_CHANGED && e.state == "unbound"
+            }),
+            "defensive_unbound_json must record shell binding-changed: {syncs:?}"
+        );
+    });
+}
+
+#[test]
+fn t5_execute_json_exposes_distinguishable_reject_codes() {
+    with_cmd_sandbox(|| {
+        let unbound = execute_binding_json();
+        assert_eq!(unbound["ok"], false);
+        assert_eq!(unbound["code"], "rejected_unbound");
+
+        let binding = json!({
+            "tools": [{ "name": "fixture_tool", "handle": "opaque-fixture-tool" }],
+            "prompt": "t5-codes",
+            "callbacks": {}
+        });
+        assert_eq!(set_binding_json(binding.clone())["ok"], true);
+        // Mid-execute Reset → reset_cancelled (Host signal).
+        r#loop::clear_lifecycle_events_for_tests();
+        let cancel = r#loop::execute_binding_during(|| {
+            let _ = reset_binding_json();
+        })
+        .expect_err("cancel");
+        assert_eq!(cancel.as_code(), "reset_cancelled");
+
+        assert_eq!(set_binding_json(binding)["ok"], true);
+        let stale = r#loop::execute_binding_during(|| {
+            let _ = set_binding_json(json!({
+                "tools": [{ "name": "fixture_tool", "handle": "opaque-fixture-tool" }],
+                "prompt": "replaced",
+                "callbacks": {}
+            }));
+        })
+        .expect_err("stale");
+        assert_eq!(stale.as_code(), "rejected_stale_generation");
     });
 }

@@ -8,7 +8,7 @@ use crate::services::agent::r#loop::{self, ChatTurnResult, EVENT_TURN_COMPLETED,
 
 pub const AI_ASSISTANT_WINDOW_LABEL: &str = WINDOW_LABEL;
 pub const EVENT_ASSISTANT_OPENED: &str = "ai-assistant:opened";
-/// Emitted when Binding Contract Set/Reset changes `query_binding` state (shell composer gate).
+/// Emitted when Binding Contract Set/Reset/defensive cut changes `query_binding` state (shell composer gate).
 pub const EVENT_BINDING_CHANGED: &str = "ai-assistant:binding-changed";
 
 pub fn open_ai_assistant_json(master_task_id: &str) -> Result<Value, String> {
@@ -68,6 +68,15 @@ pub fn reset_binding_json() -> Value {
     })
 }
 
+/// Host defensive cut → unbound (same semantics as Reset). Emits shell sync via core + command emit.
+pub fn defensive_unbound_json() -> Value {
+    let _ = r#loop::defensive_unbound();
+    json!({
+        "ok": true,
+        "state": r#loop::binding_state(),
+    })
+}
+
 /// Binding Contract read-only query (business-agnostic summary).
 pub fn query_binding_json() -> Value {
     serde_json::to_value(r#loop::query_binding()).unwrap_or_else(|_| json!({ "state": "unbound" }))
@@ -104,6 +113,16 @@ pub async fn set_binding(app: AppHandle, binding: Value) -> Result<Value, String
 #[tauri::command]
 pub async fn reset_binding(app: AppHandle) -> Result<Value, String> {
     let result = tauri::async_runtime::spawn_blocking(reset_binding_json)
+        .await
+        .map_err(|e| e.to_string())?;
+    let _ = app.emit(EVENT_BINDING_CHANGED, &result);
+    Ok(result)
+}
+
+/// Invokable Host defensive cut → unbound (shell sync emit; must not be core-only).
+#[tauri::command]
+pub async fn defensive_unbound(app: AppHandle) -> Result<Value, String> {
+    let result = tauri::async_runtime::spawn_blocking(defensive_unbound_json)
         .await
         .map_err(|e| e.to_string())?;
     let _ = app.emit(EVENT_BINDING_CHANGED, &result);

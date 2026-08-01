@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 /**
  * Shell composer gate: Binding Contract query_binding (Present≠bound).
+ * T5: discard cached sessionId on Unbound / new Bound; composer follows query_binding.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -88,6 +89,42 @@ describe('ai-assistant composer Binding Contract gate', () => {
     expect(root.querySelector('[data-role="bound"]').textContent).toBe('Unbound');
     expect(root.querySelector('[data-role="input"]').disabled).toBe(true);
     expect(api.getState().hostBound).toBe(false);
+    api.dispose();
+  });
+
+  it('binding-changed unbound discards cached sessionId', async () => {
+    const api = mountAiAssistant(root);
+    await vi.waitFor(() => {
+      expect(listenHandlers['ai-assistant:binding-changed']).toBeTruthy();
+    });
+    api.applyBinding({ session_id: 'sess_cached_old', busy: false });
+    expect(api.getState().sessionId).toBe('sess_cached_old');
+    listenHandlers['ai-assistant:binding-changed']({
+      payload: { state: 'bound' },
+    });
+    listenHandlers['ai-assistant:binding-changed']({
+      payload: { state: 'unbound' },
+    });
+    expect(api.getState().hostBound).toBe(false);
+    expect(api.getState().sessionId).toBe('');
+    expect(root.querySelector('[data-role="input"]').disabled).toBe(true);
+    api.dispose();
+  });
+
+  it('binding-changed new Bound discards cached sessionId; composer follows query_binding', async () => {
+    const api = mountAiAssistant(root);
+    await vi.waitFor(() => {
+      expect(listenHandlers['ai-assistant:binding-changed']).toBeTruthy();
+    });
+    api.applyBinding({ session_id: 'sess_stale_before_rebind', busy: false });
+    expect(api.getState().sessionId).toBe('sess_stale_before_rebind');
+    listenHandlers['ai-assistant:binding-changed']({
+      payload: { state: 'bound' },
+    });
+    expect(api.getState().hostBound).toBe(true);
+    expect(api.getState().sessionId).toBe('');
+    expect(root.querySelector('[data-role="bound"]').textContent).toBe('Bound');
+    expect(root.querySelector('[data-role="input"]').disabled).toBe(false);
     api.dispose();
   });
 });

@@ -2947,3 +2947,172 @@ fn t4_defensive_cut_is_not_ui_only_weak_path() {
         assert_eq!(r#loop::binding_state(), "unbound");
     });
 }
+
+// --- T5: shell sync (binding-changed) + distinguishable Host reject reasons ---
+
+#[test]
+fn t5_reset_cut_records_shell_binding_changed() {
+    with_sandbox(|| {
+        r#loop::set_binding(valid_binding()).expect("Set");
+        r#loop::clear_shell_sync_events_for_tests();
+        r#loop::reset_binding().expect("Reset");
+        let syncs = r#loop::drain_shell_sync_events();
+        assert!(
+            syncs.iter().any(|e| {
+                e.event == "ai-assistant:binding-changed" && e.state == "unbound"
+            }),
+            "Reset cut must record shell binding-changed → unbound: {syncs:?}"
+        );
+    });
+}
+
+#[test]
+fn t5_defensive_unbound_records_shell_binding_changed() {
+    with_sandbox(|| {
+        r#loop::set_binding(valid_binding()).expect("Set");
+        r#loop::clear_shell_sync_events_for_tests();
+        r#loop::defensive_unbound().expect("defensive cut");
+        let syncs = r#loop::drain_shell_sync_events();
+        assert!(
+            syncs.iter().any(|e| {
+                e.event == "ai-assistant:binding-changed" && e.state == "unbound"
+            }),
+            "defensive cut must record shell binding-changed (must not bypass shell sync): {syncs:?}"
+        );
+    });
+}
+
+#[test]
+fn t5_successful_set_records_shell_binding_changed_bound() {
+    with_sandbox(|| {
+        r#loop::clear_shell_sync_events_for_tests();
+        r#loop::set_binding(valid_binding()).expect("Set");
+        let syncs = r#loop::drain_shell_sync_events();
+        assert!(
+            syncs.iter().any(|e| {
+                e.event == "ai-assistant:binding-changed" && e.state == "bound"
+            }),
+            "successful Set must record shell binding-changed → bound: {syncs:?}"
+        );
+    });
+}
+
+#[test]
+fn t5_replace_set_records_shell_binding_changed_for_new_bound() {
+    with_sandbox(|| {
+        r#loop::set_binding(binding_with_prompt("v1")).expect("first Set");
+        r#loop::clear_shell_sync_events_for_tests();
+        r#loop::set_binding(binding_with_prompt("v2")).expect("replace Set");
+        let syncs = r#loop::drain_shell_sync_events();
+        assert!(
+            syncs.iter().any(|e| {
+                e.event == "ai-assistant:binding-changed" && e.state == "bound"
+            }),
+            "replace Set (new Bound) must record shell binding-changed: {syncs:?}"
+        );
+    });
+}
+
+#[test]
+fn t5_shell_close_does_not_record_shell_binding_changed() {
+    with_sandbox(|| {
+        r#loop::set_binding(valid_binding()).expect("Set");
+        r#loop::clear_shell_sync_events_for_tests();
+        r#loop::shell_close_core().expect("关壳");
+        let syncs = r#loop::drain_shell_sync_events();
+        assert!(
+            syncs
+                .iter()
+                .all(|e| e.event != "ai-assistant:binding-changed"),
+            "关壳 ≠ 切断: must not emit shell binding-changed: {syncs:?}"
+        );
+    });
+}
+
+#[test]
+fn t5_idempotent_unbound_cut_does_not_repeat_shell_binding_changed() {
+    with_sandbox(|| {
+        r#loop::set_binding(valid_binding()).expect("Set");
+        r#loop::reset_binding().expect("Reset");
+        r#loop::clear_shell_sync_events_for_tests();
+        r#loop::defensive_unbound().expect("idempotent defensive");
+        let syncs = r#loop::drain_shell_sync_events();
+        assert!(
+            syncs
+                .iter()
+                .all(|e| e.event != "ai-assistant:binding-changed"),
+            "idempotent already-unbound cut must not re-emit shell binding-changed: {syncs:?}"
+        );
+    });
+}
+
+#[test]
+fn t5_host_reject_reasons_are_distinguishable() {
+    with_sandbox(|| {
+        // 1) unbound
+        let unbound_err = r#loop::execute_binding().expect_err("unbound");
+        assert_eq!(unbound_err.as_code(), "rejected_unbound");
+
+        // 2) in-flight cancel (reset_cancelled)
+        r#loop::set_binding(valid_binding()).expect("Set");
+        let cancel_err = r#loop::execute_binding_during(|| {
+            r#loop::reset_binding().expect("Reset mid-execute");
+        })
+        .expect_err("cancelled");
+        assert_eq!(cancel_err.as_code(), "reset_cancelled");
+
+        // 3) stale generation
+        r#loop::set_binding(valid_binding()).expect("Set again");
+        let stale_err = r#loop::execute_binding_during(|| {
+            r#loop::set_binding(binding_with_prompt("replaced")).expect("replace");
+        })
+        .expect_err("stale");
+        assert_eq!(stale_err.as_code(), "rejected_stale_generation");
+
+        // 4) non-live session — distinguishable code on return body / signal
+        let master = create_bound_plan("t5-reject-codes");
+        arm_plan_binding(&master);
+        let open = r#loop::open_ai_assistant_core(&master).unwrap();
+        let live = open["session_id"].as_str().unwrap().to_string();
+        let foreign = session::create_session(None, None).unwrap().session_id;
+        assert_ne!(foreign, live);
+        let rejected = r#loop::agent_chat_turn_core(&foreign, "ping", Some(&master))
+            .expect("chat returns body with reject signal");
+        let not_live_code = rejected.body["code"]
+            .as_str()
+            .expect("non-live reject must expose distinguishable code");
+        assert_eq!(not_live_code, "rejected_not_live_session");
+
+        // All four Host reject signals must be pairwise distinct.
+        let codes = [
+            unbound_err.as_code(),
+            cancel_err.as_code(),
+            stale_err.as_code(),
+            not_live_code,
+        ];
+        for i in 0..codes.len() {
+            for j in (i + 1)..codes.len() {
+                assert_ne!(
+                    codes[i], codes[j],
+                    "Host reject reasons must be distinguishable: {codes:?}"
+                );
+            }
+        }
+    });
+}
+
+#[test]
+fn t5_not_live_session_reject_code_survives_after_cut() {
+    with_sandbox(|| {
+        let master = create_bound_plan("t5-cut-session-code");
+        arm_plan_binding(&master);
+        let open = r#loop::open_ai_assistant_core(&master).unwrap();
+        let old_sid = open["session_id"].as_str().unwrap().to_string();
+        r#loop::reset_binding().expect("cut");
+        let rejected = r#loop::agent_chat_turn_core(&old_sid, "after-cut", Some(&master))
+            .expect("reject body");
+        assert_eq!(rejected.body["code"], "rejected_not_live_session");
+        assert_ne!(rejected.body["terminal"], "none");
+        assert_eq!(rejected.body["wrote"], false);
+    });
+}

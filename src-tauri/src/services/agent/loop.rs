@@ -70,6 +70,17 @@ pub struct LifecycleEvent {
     pub category: Option<&'static str>,
 }
 
+/// Shell sync notice equivalent to `ai-assistant:binding-changed` (Bound/Unbound).
+/// Recorded on Host cut/Set paths so core-only calls cannot bypass shell sync observability.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct ShellSyncEvent {
+    pub event: &'static str,
+    pub state: &'static str,
+}
+
+/// Same event name the shell listens for (`commands::ai_assistant::EVENT_BINDING_CHANGED`).
+pub const EVENT_SHELL_BINDING_CHANGED: &str = "ai-assistant:binding-changed";
+
 /// Outcome of a gated Binding Contract execute (tools/prompt from current Binding only).
 #[derive(Debug, Clone)]
 pub struct ExecuteOutcome {
@@ -145,12 +156,18 @@ fn lifecycle_listener() -> &'static Mutex<Option<LifecycleListener>> {
     LISTENER.get_or_init(|| Mutex::new(None))
 }
 
+fn shell_sync_log() -> &'static Mutex<Vec<ShellSyncEvent>> {
+    static LOG: OnceLock<Mutex<Vec<ShellSyncEvent>>> = OnceLock::new();
+    LOG.get_or_init(|| Mutex::new(Vec::new()))
+}
+
 pub fn reset_runtime_for_tests() {
     let mut rt = runtime().lock().unwrap();
     *rt = Runtime::default();
     drop(rt);
     lifecycle_log().lock().unwrap().clear();
     *lifecycle_listener().lock().unwrap() = None;
+    shell_sync_log().lock().unwrap().clear();
 }
 
 pub fn set_busy_for_tests(busy: bool) {
@@ -179,6 +196,22 @@ pub fn drain_lifecycle_events() -> Vec<LifecycleEvent> {
 
 pub fn set_lifecycle_listener_for_tests(listener: Option<LifecycleListener>) {
     *lifecycle_listener().lock().unwrap() = listener;
+}
+
+pub fn clear_shell_sync_events_for_tests() {
+    shell_sync_log().lock().unwrap().clear();
+}
+
+pub fn drain_shell_sync_events() -> Vec<ShellSyncEvent> {
+    std::mem::take(&mut *shell_sync_log().lock().unwrap())
+}
+
+/// Record shell binding-changed sync for Bound / Unbound transitions on cut/Set paths.
+fn emit_shell_binding_changed(state: &'static str) {
+    shell_sync_log().lock().unwrap().push(ShellSyncEvent {
+        event: EVENT_SHELL_BINDING_CHANGED,
+        state,
+    });
 }
 
 fn emit_lifecycle(event: &'static str, category: Option<&'static str>) {
@@ -248,6 +281,8 @@ pub fn set_binding(binding: session::Binding) -> Result<(), SetError> {
         emit_lifecycle("onUnbound", None);
     }
     emit_lifecycle("onBound", None);
+    // Shell sync: Bound / new Bound — shell must discard cached sessionId and follow query_binding.
+    emit_shell_binding_changed("bound");
     Ok(())
 }
 
@@ -277,6 +312,8 @@ pub fn reset_binding() -> Result<(), ()> {
     };
     if was_bound {
         emit_lifecycle("onUnbound", None);
+        // Shell sync: Bound→Unbound (defensive_unbound shares this path — no core-only bypass).
+        emit_shell_binding_changed("unbound");
     }
     Ok(())
 }
@@ -977,6 +1014,7 @@ pub fn agent_chat_turn_core(
                     "wrote": false,
                     "busy": false,
                     "session_id": session_id,
+                    "code": "rejected_not_live_session",
                 }),
                 emit_turn_completed: None,
             });
