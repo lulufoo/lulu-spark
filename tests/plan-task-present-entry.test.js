@@ -89,6 +89,18 @@ describe('Todos page Assistant entry removed — source contracts (t6)', () => {
     expect(libRs).toMatch(/present_ai_assistant/);
   });
 
+  // T7 / L22-VF Todos: page has no Assistant; Set/Reset remain the Binding main path.
+  it('T7 VF: no in-page Assistant chrome; Present stays Host-owned shell path', () => {
+    expect(planTaskIndex).not.toMatch(/presentTodosAssistant/);
+    expect(planTaskIndex).not.toMatch(/data-action=["']open-ai-assistant["']/);
+    expect(planTaskIndex).toMatch(/onTodosPageEnter|onTodosPageLeave/);
+    // Migrated: page must not invoke create_or_focus / open_ai_assistant as a live path.
+    expect(planTaskIndex).not.toMatch(/create_or_focus_ai_assistant_window/);
+    expect(planTaskIndex).not.toMatch(
+      /invoke\(\s*['"]open_ai_assistant['"]/,
+    );
+  });
+
   it('does not upgrade FAB Top3 (plan-task-assistant.js) to chat Present or Set', () => {
     expect(planTaskAssistant).not.toMatch(/present_ai_assistant/);
     expect(planTaskAssistant).not.toMatch(/open_ai_assistant/);

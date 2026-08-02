@@ -1,7 +1,7 @@
 /**
  * Home-entry shell A/B/C state machine.
- * Legal edges: A↔B, B↔C; AI bypass A→C_AI / C_AI→A (entry id ai-assistant).
- * Switch business via C→B→C.
+ * Legal edges: A↔B, B↔C; AI bypass A→C_AI / C_AI→A / C_AI openHub→C→A→B
+ * (entry id ai-assistant). Switch business via C→B→C.
  */
 
 /** Locked AI bypass entry id (Present / corner click). */
@@ -52,6 +52,18 @@ export function createHomeEntryFsm(initial) {
     }
 
     if (event.type === 'openHub') {
+      // C_AI + hub conflict: composite C→A→B (business C stays rejected).
+      if (mode === 'C' && entryId === AI_ASSISTANT_ENTRY_ID) {
+        mode = 'B';
+        entryId = null;
+        return {
+          accepted: true,
+          transitions: [
+            { from: 'C', to: 'A' },
+            { from: 'A', to: 'B' },
+          ],
+        };
+      }
       if (mode !== 'A') {
         return { accepted: false, transitions: [] };
       }

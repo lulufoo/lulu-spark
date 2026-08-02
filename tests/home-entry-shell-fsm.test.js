@@ -73,7 +73,9 @@ describe('home-entry-shell fsm · A/B/C legal edges + snapshot (T2)', () => {
     expect(fsm.snapshot()).toEqual({ mode: 'C', entryId: 'notes' });
   });
 
-  it('rejects illegal A→C (openEntry from A)', () => {
+  // Migrated from blanket “reject A→C”: business openEntry from A stays illegal;
+  // AI bypass A→C_AI is covered in the AI describe below (T7 / L21-T).
+  it('rejects illegal business A→C (openEntry from A)', () => {
     const result = fsm.dispatch({ type: 'openEntry', entryId: 'builders' });
     expect(result.accepted).toBe(false);
     expect(result.transitions).toEqual([]);
@@ -81,11 +83,11 @@ describe('home-entry-shell fsm · A/B/C legal edges + snapshot (T2)', () => {
     expect(fsm.snapshot()).toEqual({ mode: 'A' });
   });
 
-  it('rejects illegal C→A via closeOverlay chain; must C→B then B→A', () => {
+  it('business C closeOverlay → B then B→A (no business C→A shortcut)', () => {
     fsm.dispatch({ type: 'openHub' });
     fsm.dispatch({ type: 'openEntry', entryId: 'builders' });
 
-    // closeOverlay only reaches B, never A
+    // Business closeOverlay only reaches B, never A
     const close = fsm.dispatch({ type: 'closeOverlay' });
     expect(close.accepted).toBe(true);
     expect(close.transitions).toEqual([{ from: 'C', to: 'B' }]);
@@ -202,5 +204,32 @@ describe('home-entry-shell fsm · AI bypass A→C_AI / C_AI→A (T1)', () => {
     expect(again.accepted).toBe(false);
     expect(again.transitions).toEqual([]);
     expect(fsm.snapshot()).toEqual({ mode: 'C', entryId: AI });
+  });
+
+  // T7 / L08-AR / L22-VF: AI C + hub walks composite C→A→B (B/C hide AI is shell UI).
+  it('C_AI openHub walks C→A→B composite', () => {
+    fsm.dispatch({ type: 'openEntry', entryId: AI });
+    expect(fsm.snapshot()).toEqual({ mode: 'C', entryId: AI });
+
+    const hub = fsm.dispatch({ type: 'openHub' });
+    expect(hub.accepted).toBe(true);
+    expect(hub.transitions).toEqual([
+      { from: 'C', to: 'A' },
+      { from: 'A', to: 'B' },
+    ]);
+    expect(fsm.getState()).toBe('B');
+    expect(fsm.snapshot()).toEqual({ mode: 'B' });
+  });
+
+  it('business C openHub stays rejected (no C→A→B for hub business)', () => {
+    fsm.dispatch({ type: 'openHub' });
+    fsm.dispatch({ type: 'openEntry', entryId: 'notes' });
+    expect(fsm.snapshot()).toEqual({ mode: 'C', entryId: 'notes' });
+
+    const hub = fsm.dispatch({ type: 'openHub' });
+    expect(hub.accepted).toBe(false);
+    expect(hub.transitions).toEqual([]);
+    expect(fsm.getState()).toBe('C');
+    expect(fsm.snapshot()).toEqual({ mode: 'C', entryId: 'notes' });
   });
 });

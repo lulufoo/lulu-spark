@@ -223,3 +223,62 @@ describe('ai-assistant window shell (t5)', () => {
     }
   });
 });
+
+/**
+ * T7 / L21-T / L22-VF — Present shell-in / no window / ensure / race / hydrate
+ * (migrated from Present→create_or_focus window contract).
+ */
+describe('ai-assistant Present shell VF (t7)', () => {
+  const mainJs = readFileSync(join(repoRoot, 'frontend/js/main.js'), 'utf8');
+  const loopRs = readFileSync(
+    join(repoRoot, 'src-tauri/src/services/agent/loop.rs'),
+    'utf8',
+  );
+
+  it('Present opens shell C_AI only: main listens surface Present → presentNormalize', () => {
+    expect(mainJs).toMatch(/ai-assistant:opened/);
+    expect(mainJs).toMatch(/presentNormalize\s*\(/);
+    expect(mainJs).toMatch(/surface\s*===\s*['"]Present['"]|surface\s*===\s*"Present"/);
+    // Migrated: must not call create_or_focus / WebviewWindow from Present path.
+    expect(mainJs).not.toMatch(/create_or_focus_ai_assistant_window/);
+    expect(mainJs).not.toMatch(/WebviewWindow/);
+  });
+
+  it('ensure does not open shell: only Present surface drives presentNormalize', () => {
+    // L09-AR / L22-VF ensure: session payloads sync only — no openEntry.
+    expect(mainJs).toMatch(/pendingPresentOpen|pullPendingPresentOpen/);
+    expect(mainJs).toMatch(/ensure|session_id/);
+    // Branch: surface Present opens; otherwise (ensure) must not call presentNormalize in that arm.
+    const handler = mainJs.match(
+      /function\s+onAiAssistantOpened[\s\S]*?^}/m,
+    )?.[0] || mainJs.match(
+      /ai-assistant:opened[\s\S]{0,1200}?surface[\s\S]{0,800}/,
+    )?.[0];
+    expect(handler, 'opened handler with surface branch').toBeTruthy();
+    expect(handler).toMatch(/Present/);
+    expect(handler).toMatch(/presentNormalize/);
+  });
+
+  it('Present race heal: pending_present Host flag + mount pull', () => {
+    // L22-VF 竞态补开: Present before listen → pull pending after mount.
+    expect(loopRs).toMatch(/pending_present/);
+    expect(mainJs).toMatch(/pullPendingPresentOpen|pendingPresentOpen/);
+    expect(mainJs).toMatch(/pending_present/);
+    expect(aiAssistantCmd).toMatch(/get_ai_assistant_binding|pending_present/);
+  });
+
+  it('hydrate turns on binding read; close shell ≠ Reset (VF 水合 / 否证)', () => {
+    const js = readFileSync(jsPath, 'utf8');
+    expect(js).toMatch(/hydrateTurns/);
+    expect(loopRs).toMatch(/get_ai_assistant_binding_core[\s\S]*turns/);
+    // 否证: 关弹层误 Reset — dispose/shell_close must not invoke reset_binding.
+    expect(js).toMatch(/shell_close_ai_assistant/);
+    expect(js).not.toMatch(/invoke\(\s*['"]reset_binding['"]/);
+  });
+
+  it('idempotent Present: presentNormalize kept; no second window create path', () => {
+    expect(mainJs).toMatch(/presentNormalize/);
+    expect(aiAssistantCmd).not.toMatch(/create_or_focus_ai_assistant_window/);
+    expect(libRs).not.toMatch(/fn create_or_focus_ai_assistant_window\s*\(/);
+  });
+});

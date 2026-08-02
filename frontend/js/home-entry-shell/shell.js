@@ -430,12 +430,11 @@ export function mountHomeEntryShell(anchor, { config, registry, host = {}, fsm, 
       dispatchAndSync({ type: 'closeHub' });
     } else if (mode === 'C') {
       const snap = machine.snapshot();
-      // C_AI + conflict: C→A→B. Business C keeps C.
+      // C_AI + conflict: FSM openHub walks C→A→B. Business C keeps C.
       if (snap.mode === 'C' && snap.entryId === AI_ASSISTANT_ENTRY_ID) {
         if (clearContent()) return;
         failurePresentation = null;
         titleEl.textContent = '';
-        machine.dispatch({ type: 'closeOverlay' });
         machine.dispatch({ type: 'openHub' });
         syncDom();
       }

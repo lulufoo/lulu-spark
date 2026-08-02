@@ -374,4 +374,40 @@ describe('home-entry-shell adapters · AI bypass ContentAdapter (T2)', () => {
 
     shell.unmount();
   });
+
+  // T7 / L22-VF: B/C hide AI entry (adapter registry still mounted; visibility is shell).
+  it('B/C hide AI entry while baseline adapters remain registered', async () => {
+    const registry = createContentRegistry();
+    registerAll(registry);
+    registry.register('ai-assistant', createAiAssistantContentAdapter());
+
+    const config = getBaselineEntries();
+    const aiEntry = getAiAssistantEntry();
+    const anchor = document.createElement('div');
+    document.body.appendChild(anchor);
+    const shell = mountHomeEntryShell(anchor, {
+      config,
+      aiEntry,
+      registry,
+      host: {},
+    });
+
+    const aiBtn = anchor.querySelector(
+      '[data-role="ai-entry"], [data-entry-id="ai-assistant"]',
+    );
+    expect(aiBtn).not.toBeNull();
+    expect(aiBtn.hidden).toBe(false);
+
+    anchor.querySelector('[data-role="hub"]').click();
+    expect(shell.getState().mode).toBe('B');
+    expect(aiBtn.hidden).toBe(true);
+
+    await shell.openContent('notes');
+    expect(shell.getState()).toEqual({ mode: 'C', entryId: 'notes' });
+    expect(aiBtn.hidden).toBe(true);
+    // VF 否证: B/C 仍显 AI → fail above. Adapter registration remains for remount.
+    expect(registry.get('ai-assistant')).toBeTruthy();
+
+    shell.unmount();
+  });
 });
