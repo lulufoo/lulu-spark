@@ -19,6 +19,7 @@ const defaultCapabilityPath = join(
   repoRoot,
   'src-tauri/capabilities/default.json',
 );
+const appCssPath = join(repoRoot, 'frontend/app.css');
 
 describe('ai-assistant window shell (t5)', () => {
   it('retires independent-window HTML; keeps shell AI content module', () => {
@@ -29,6 +30,14 @@ describe('ai-assistant window shell (t5)', () => {
     expect(existsSync(jsPath), 'frontend/js/ai-assistant.js').toBe(true);
     const js = readFileSync(jsPath, 'utf8');
     expect(js).toMatch(/mountAiAssistant|createAiAssistantContentAdapter/);
+  });
+
+  it('migrates retired chat layout styles into the main application stylesheet', () => {
+    const appCss = readFileSync(appCssPath, 'utf8');
+    expect(appCss).toMatch(/\.ai-assistant-panel/);
+    expect(appCss).toMatch(/\.ai-assistant-messages/);
+    expect(appCss).toMatch(/\.ai-assistant-bubble--user/);
+    expect(appCss).toMatch(/\.ai-assistant-composer/);
   });
 
   it('UI invokes agent_chat_turn and does not call plan write APIs', () => {

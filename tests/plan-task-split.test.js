@@ -355,11 +355,14 @@ describe('mountPlanTaskSplit', () => {
     delete window.__TAURI__;
   });
 
-  it('shows right empty state when no master is selected', async () => {
+  it('selects the first active master when opened without a deep-link', async () => {
     getJsonMock.mockResolvedValue(sampleMasters);
     const { dispose } = mountPlanTaskSplit(container);
     await vi.waitFor(() => {
-      expect(container.querySelector('.plan-task-split-detail-empty')).not.toBeNull();
+      expect(
+        container.querySelector('.plan-task-master-item--selected')?.dataset.masterId,
+      ).toBe('task_empty');
+      expect(container.querySelector('.plan-task-split-detail-empty')).toBeNull();
     });
     dispose();
   });
@@ -554,7 +557,9 @@ describe('mountPlanTaskSplit', () => {
     });
     container.querySelector('[data-master-id="task_complete"]').click();
     await vi.waitFor(() => {
-      expect(container.querySelector('[data-action="edit-master-title"]')).not.toBeNull();
+      expect(container.querySelector('[data-action="edit-master-title"]')?.value).toBe(
+        'Completed Master',
+      );
     });
     const completeTitle = container.querySelector('[data-action="edit-master-title"]');
     expect(completeTitle.value).toBe('Completed Master');
@@ -575,7 +580,9 @@ describe('mountPlanTaskSplit', () => {
     });
     container.querySelector('[data-master-id="task_abandoned"]').click();
     await vi.waitFor(() => {
-      expect(container.querySelector('[data-action="edit-master-title"]')).not.toBeNull();
+      expect(container.querySelector('[data-action="edit-master-title"]')?.value).toBe(
+        'Abandoned Master',
+      );
     });
     const abandonedTitle = container.querySelector('[data-action="edit-master-title"]');
     expect(abandonedTitle.value).toBe('Abandoned Master');

@@ -6393,6 +6393,12 @@
   transform: translateY(0) scale(1);
 }
 
+.home-entry-shell[data-state="C"][data-entry-id="ai-assistant"] .home-entry-shell__entries .home-entry-shell__entry {
+  opacity: 0;
+  transform: translateY(10px) scale(0.86);
+  pointer-events: none;
+}
+
 .home-entry-shell[data-state="A"] .home-entry-shell__ai-entry {
   opacity: 1;
   transform: none;
@@ -6524,4 +6530,91 @@
   min-height: 0;
   overflow: auto;
   padding: 12px;
+}
+
+/* AI chat content migrated from retired ai-assistant.html. */
+.home-entry-shell__slot.ai-assistant-panel {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 0;
+  background: #f6f5f2;
+  color: #1f1c18;
+  font-family: "SF Pro Text", "PingFang SC", "Hiragino Sans GB", sans-serif;
+}
+
+.ai-assistant-panel .ai-assistant-messages {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ai-assistant-panel .ai-assistant-bubble {
+  max-width: 92%;
+  padding: 8px 10px;
+  border-radius: 10px;
+  font-size: 13px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.ai-assistant-panel .ai-assistant-bubble--user {
+  align-self: flex-end;
+  background: #e8f0ea;
+}
+
+.ai-assistant-panel .ai-assistant-bubble--assistant {
+  align-self: flex-start;
+  background: #f0eeea;
+}
+
+.ai-assistant-panel .ai-assistant-bubble--notice {
+  align-self: center;
+  background: #fff6e5;
+  color: #6b655c;
+  font-size: 12px;
+}
+
+.ai-assistant-panel .ai-assistant-bubble--error {
+  color: #8a2f2f;
+}
+
+.ai-assistant-panel .ai-assistant-composer {
+  display: flex;
+  gap: 8px;
+  padding: 10px 12px;
+  border-top: 1px solid #ddd8cf;
+  background: #fff;
+}
+
+.ai-assistant-panel .ai-assistant-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 40px;
+  max-height: 120px;
+  resize: vertical;
+  border: 1px solid #ddd8cf;
+  border-radius: 8px;
+  padding: 8px 10px;
+  font: inherit;
+}
+
+.ai-assistant-panel .ai-assistant-send {
+  border: none;
+  border-radius: 8px;
+  padding: 0 14px;
+  background: #2f6f4e;
+  color: #fff;
+  font: inherit;
+  cursor: pointer;
+}
+
+.ai-assistant-panel .ai-assistant-send:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }

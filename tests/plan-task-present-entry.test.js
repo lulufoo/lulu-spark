@@ -206,6 +206,27 @@ describe('mountPlanTaskSplit — no page Assistant; Set/Reset retained (t6)', ()
     dispose();
   });
 
+  it('default Todos entry selects the first displayed active todo and Sets Binding', async () => {
+    const { dispose } = mountPlanTaskSplit(container);
+    await vi.waitFor(() => {
+      expect(invokeMock).toHaveBeenCalledWith(
+        'set_binding',
+        expect.objectContaining({ binding: expect.any(Object) }),
+      );
+    });
+
+    const selected = container.querySelector('.plan-task-master-item--selected');
+    expect(selected?.dataset.masterId).toBe('task_alpha');
+    const setCall = invokeMock.mock.calls.find(([command]) => command === 'set_binding');
+    expect(setCall?.[1]?.binding.tools).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ ctx: { master_task_id: 'task_alpha' } }),
+      ]),
+    );
+    expect(hostBound).toBe(true);
+    dispose();
+  });
+
   it('enter still Sets Binding; leave/dispose still Resets', async () => {
     const { dispose } = mountPlanTaskSplit(container, {
       masterId: 'task_alpha',

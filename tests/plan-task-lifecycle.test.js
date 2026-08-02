@@ -437,26 +437,26 @@ describe('mountPlanTaskSplit wires page lifecycle', () => {
     });
   });
 
-  it('mount without selection does not Set until master is chosen', async () => {
-    mountPlanTaskSplit(container, { masterId: '' });
-    await vi.waitFor(() => {
-      expect(container.querySelector('.plan-task-master-item')).toBeTruthy();
-    });
-    expect(invokeMock).not.toHaveBeenCalledWith(
-      'set_binding',
-      expect.anything(),
-    );
-
-    const alphaBtn = container.querySelector(
-      '.plan-task-master-item[data-master-id="task_alpha"]',
-    );
-    alphaBtn.click();
+  it('mount without selection chooses first displayed master and Sets', async () => {
+    const api = mountPlanTaskSplit(container, { masterId: '' });
     await vi.waitFor(() => {
       expect(invokeMock).toHaveBeenCalledWith(
         'set_binding',
         expect.objectContaining({ binding: expect.any(Object) }),
       );
     });
+
+    const selected = container.querySelector(
+      '.plan-task-master-item--selected',
+    );
+    expect(selected?.dataset.masterId).toBe('task_beta');
+    const setCall = invokeMock.mock.calls.find(([command]) => command === 'set_binding');
+    expect(setCall?.[1]?.binding.tools).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ ctx: { master_task_id: 'task_beta' } }),
+      ]),
+    );
+    api.dispose();
   });
 });
 

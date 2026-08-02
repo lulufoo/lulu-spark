@@ -286,8 +286,9 @@ export function mountHomeEntryShell(anchor, { config, registry, host = {}, fsm, 
       // forceRecoverA owns DOM reset; only refresh chrome visibility from snapshot.
       const snap = machine.snapshot();
       root.dataset.state = snap.mode;
+      root.dataset.entryId = snap.mode === 'C' ? snap.entryId : '';
       hubBtn.setAttribute('aria-expanded', String(snap.mode !== 'A'));
-      entriesWrap.setAttribute('aria-hidden', String(snap.mode === 'A'));
+      entriesWrap.setAttribute('aria-hidden', String(snap.mode !== 'B'));
       syncAiVisibility(snap.mode);
       syncEntryActive(null);
       overlay.hidden = true;
@@ -297,10 +298,13 @@ export function mountHomeEntryShell(anchor, { config, registry, host = {}, fsm, 
     const snap = machine.snapshot();
     const mode = snap.mode;
     root.dataset.state = mode;
+    root.dataset.entryId = mode === 'C' ? snap.entryId ?? '' : '';
     hubBtn.setAttribute('aria-expanded', String(mode !== 'A'));
-    // A: hub + AI bypass; B/C: hub-expand entries visible, AI hidden.
+    // A: hub + AI bypass; B: hub-expand entries; C_AI hides both entry sets.
     // Keep entries in DOM for interruptible expand/collapse motion (no [hidden]).
-    entriesWrap.setAttribute('aria-hidden', String(mode === 'A'));
+    const hideHubEntries =
+      mode === 'A' || (mode === 'C' && snap.entryId === AI_ASSISTANT_ENTRY_ID);
+    entriesWrap.setAttribute('aria-hidden', String(hideHubEntries));
     syncAiVisibility(mode);
     overlay.hidden = !(mode === 'C' || failurePresentation != null);
 

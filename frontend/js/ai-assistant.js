@@ -58,11 +58,8 @@ export function mountAiAssistant(root, opts = {}) {
   let unlistenOpened = null;
   let unlistenBindingChanged = null;
 
+  root.classList.add('ai-assistant-panel');
   root.innerHTML = `
-    <header class="ai-assistant-header">
-      <h1 class="ai-assistant-title">Assistant</h1>
-      <p class="ai-assistant-bound" data-role="bound">Unbound</p>
-    </header>
     <div class="ai-assistant-messages" data-role="messages" aria-live="polite"></div>
     <form class="ai-assistant-composer" data-role="form">
       <textarea class="ai-assistant-input" data-role="input" rows="2" placeholder="Message…" disabled></textarea>
@@ -70,7 +67,6 @@ export function mountAiAssistant(root, opts = {}) {
     </form>
   `;
 
-  const boundEl = root.querySelector('[data-role="bound"]');
   const messagesEl = root.querySelector('[data-role="messages"]');
   const form = root.querySelector('[data-role="form"]');
   const input = root.querySelector('[data-role="input"]');
@@ -126,7 +122,6 @@ export function mountAiAssistant(root, opts = {}) {
   }
 
   function refreshComposerAndStatus() {
-    boundEl.textContent = hostBound ? 'Bound' : 'Unbound';
     setComposerEnabled(composerShouldEnable());
   }
 
@@ -325,6 +320,7 @@ export function mountAiAssistant(root, opts = {}) {
       void invoke('shell_close_ai_assistant').catch(() => {});
     }
     root.innerHTML = '';
+    root.classList.remove('ai-assistant-panel');
   }
 
   return {

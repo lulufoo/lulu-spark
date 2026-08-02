@@ -1214,6 +1214,16 @@ export function mountPlanTaskSplit(container, opts = {}) {
     enforceActiveOnlySelection();
   }
 
+  function selectDefaultMasterOnEnter() {
+    // A deep link is an explicit navigation request: never replace it with
+    // the default active todo when filtering makes its target unavailable.
+    if (initialMasterId || selectedMasterId) return;
+    const firstVisibleMaster = sortMasters(filterMastersForView(masters, activeOnly))[0];
+    if (!firstVisibleMaster) return;
+    selectedMasterId = firstVisibleMaster.master_task_id;
+    selectedSubId = pickDefaultSub(firstVisibleMaster)?.sub_task_id ?? '';
+  }
+
   function renderDetailPane() {
     if (deadLink) return renderDeadLink();
     if (!selectedMasterId) return renderDetailEmpty();
@@ -1469,6 +1479,9 @@ export function mountPlanTaskSplit(container, opts = {}) {
       if (disposed) return;
       masters = entries;
       resolveSelection();
+      if (!lifecycleEntered) {
+        selectDefaultMasterOnEnter();
+      }
       if (afterWrite) {
         refreshWarning = '';
       }

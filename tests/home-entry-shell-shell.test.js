@@ -362,6 +362,7 @@ describe('home-entry-shell shell · AI bypass / Present normalize / hub conflict
     expect(contentSlot(anchor).querySelector('.shell-content-marker')?.dataset.entryId).toBe(
       'ai-assistant',
     );
+    expect(businessEntries(anchor).every(isEffectivelyHidden)).toBe(true);
   });
 
   it('C_AI: close / backdrop / Escape / outside all return A (not Binding Reset path / not B)', async () => {

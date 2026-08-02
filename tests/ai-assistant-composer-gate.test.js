@@ -41,15 +41,15 @@ describe('ai-assistant composer Binding Contract gate', () => {
     vi.restoreAllMocks();
   });
 
-  it('Present alone keeps Unbound and composer disabled', async () => {
+  it('Present alone omits the binding status bar and keeps composer disabled', async () => {
     const api = mountAiAssistant(root);
     await vi.waitFor(() => {
       expect(invokeMock).toHaveBeenCalledWith('query_binding');
     });
     const input = root.querySelector('[data-role="input"]');
     const send = root.querySelector('[data-role="send"]');
-    const status = root.querySelector('[data-role="bound"]');
-    expect(status.textContent).toBe('Unbound');
+    expect(root.classList.contains('ai-assistant-panel')).toBe(true);
+    expect(root.querySelector('[data-role="bound"]')).toBeNull();
     expect(input.disabled).toBe(true);
     expect(send.disabled).toBe(true);
     expect(api.getState().hostBound).toBe(false);
@@ -66,8 +66,7 @@ describe('ai-assistant composer Binding Contract gate', () => {
     });
     const input = root.querySelector('[data-role="input"]');
     const send = root.querySelector('[data-role="send"]');
-    const status = root.querySelector('[data-role="bound"]');
-    expect(status.textContent).toBe('Bound');
+    expect(root.querySelector('[data-role="bound"]')).toBeNull();
     expect(input.disabled).toBe(false);
     expect(send.disabled).toBe(false);
     expect(api.getState().hostBound).toBe(true);
@@ -86,7 +85,7 @@ describe('ai-assistant composer Binding Contract gate', () => {
     listenHandlers['ai-assistant:binding-changed']({
       payload: { state: 'unbound' },
     });
-    expect(root.querySelector('[data-role="bound"]').textContent).toBe('Unbound');
+    expect(root.querySelector('[data-role="bound"]')).toBeNull();
     expect(root.querySelector('[data-role="input"]').disabled).toBe(true);
     expect(api.getState().hostBound).toBe(false);
     api.dispose();
@@ -123,7 +122,7 @@ describe('ai-assistant composer Binding Contract gate', () => {
     });
     expect(api.getState().hostBound).toBe(true);
     expect(api.getState().sessionId).toBe('');
-    expect(root.querySelector('[data-role="bound"]').textContent).toBe('Bound');
+    expect(root.querySelector('[data-role="bound"]')).toBeNull();
     expect(root.querySelector('[data-role="input"]').disabled).toBe(false);
     api.dispose();
   });
