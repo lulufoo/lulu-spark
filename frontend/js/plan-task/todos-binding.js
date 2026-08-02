@@ -23,7 +23,7 @@ function masterIdFromContext(masterContext) {
 }
 
 /** Assemble Binding body only (no Host call). Key-only public Set contract. */
-export function assembleTodosBindingBody(_masterContext) {
+export function assembleTodosBindingBody() {
   return { key: TODOS_BUSINESS_KEY };
 }
 
@@ -46,11 +46,10 @@ export async function buildTodosBinding(masterContext, callbacks = {}) {
     return { ok: false, skipped: 'empty_context', state: 'unbound' };
   }
 
-  const binding = assembleTodosBindingBody(masterContext);
+  const binding = assembleTodosBindingBody();
   const invoke = getTauriInvoke();
   if (!invoke) {
-    const payload = { category: 'set_invalid' };
-    emitCallback(callbacks.onError, payload);
+    emitCallback(callbacks.onError, { category: 'set_invalid' });
     return { ok: false, code: 'set_invalid', state: 'unbound', binding };
   }
 
@@ -58,8 +57,7 @@ export async function buildTodosBinding(masterContext, callbacks = {}) {
   try {
     result = await invoke('set_binding', { binding });
   } catch {
-    const payload = { category: 'set_invalid' };
-    emitCallback(callbacks.onError, payload);
+    emitCallback(callbacks.onError, { category: 'set_invalid' });
     return { ok: false, code: 'set_invalid', state: 'unbound', binding };
   }
 

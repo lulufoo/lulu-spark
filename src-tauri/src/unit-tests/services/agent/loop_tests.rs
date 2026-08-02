@@ -3512,3 +3512,184 @@ fn t2_binding_from_json_accepts_key_only_rejects_legacy() {
     });
 }
 
+// --- t4: session capability context read-only consumption face ---
+//
+// Locks the engine-facing read API for future Host Loop + Cursor Local adapters.
+// No engine-branch injection code in this slice (L3).
+//
+// A1 confirmed (not narrowed): the same decision-level McpServerConfig shape
+// returned by this read face is the shared consumption form for both engines;
+// field-level transport schema (stdio/http/…) remains deferred.
+//
+// A2 confirmed (not narrowed): Host mcp_server_registry is the sole lookup
+// source; this face only exposes config already loaded by key-only Set from
+// that authoritative table — it does not re-resolve or accept legacy payloads.
+
+#[test]
+fn t4_read_face_exposes_decision_level_shape_matching_registry_value() {
+    with_sandbox(|| {
+        use crate::services::mcp_server_registry::{self, SEEDED_BUSINESS_KEY};
+        r#loop::try_set_binding_json(&key_only_payload(SEEDED_BUSINESS_KEY)).expect("Set");
+
+        let view = r#loop::session_capability_mcp_config()
+            .expect("bound session must expose loaded MCP config via read face");
+        let expected = mcp_server_registry::lookup(SEEDED_BUSINESS_KEY).expect("registry");
+
+        // Decision-level shape parity with t1 value (capability_description only).
+        assert_eq!(view, expected);
+        assert!(
+            !view.capability_description.trim().is_empty(),
+            "read face must expose non-empty decision-level capability description"
+        );
+        // Shared form for both future engines (A1): same type/shape, no engine param.
+        assert_eq!(
+            view.capability_description,
+            expected.capability_description,
+            "Host Loop and Cursor Local must consume the same decision-level fields"
+        );
+    });
+}
+
+#[test]
+fn t4_read_face_returns_none_when_unbound_or_after_reset() {
+    with_sandbox(|| {
+        use crate::services::mcp_server_registry::SEEDED_BUSINESS_KEY;
+        assert!(
+            r#loop::session_capability_mcp_config().is_none(),
+            "unbound consumption face must be empty/None"
+        );
+
+        r#loop::try_set_binding_json(&key_only_payload(SEEDED_BUSINESS_KEY)).expect("Set");
+        assert!(r#loop::session_capability_mcp_config().is_some());
+
+        r#loop::reset_binding().expect("Reset");
+        assert!(
+            r#loop::session_capability_mcp_config().is_none(),
+            "Reset must unload; read face must report removed"
+        );
+    });
+}
+
+#[test]
+fn t4_read_face_is_readonly_consumer_mutate_does_not_rewrite_session() {
+    with_sandbox(|| {
+        use crate::services::mcp_server_registry::SEEDED_BUSINESS_KEY;
+        r#loop::try_set_binding_json(&key_only_payload(SEEDED_BUSINESS_KEY)).expect("Set");
+        let original = r#loop::session_capability_mcp_config().expect("loaded");
+
+        // Consumer holds a detached view; mutating it must not rewrite session state.
+        let mut local = r#loop::session_capability_mcp_config().expect("clone view");
+        local.capability_description = "mutated-by-consumer".into();
+        assert_ne!(local.capability_description, original.capability_description);
+
+        let reread = r#loop::session_capability_mcp_config().expect("still loaded");
+        assert_eq!(
+            reread, original,
+            "read face must not provide a business/external write path into session config"
+        );
+    });
+}
+
+#[test]
+fn t4_only_set_reset_lifecycle_may_change_loaded_config() {
+    with_sandbox(|| {
+        use crate::services::mcp_server_registry::{self, McpServerConfig, SEEDED_BUSINESS_KEY};
+        assert!(r#loop::session_capability_mcp_config().is_none());
+
+        // Lifecycle Set loads.
+        r#loop::try_set_binding_json(&key_only_payload(SEEDED_BUSINESS_KEY)).expect("Set");
+        let first = r#loop::session_capability_mcp_config().expect("after Set");
+
+        // Registry mutation alone must not rewrite the already-loaded session view
+        // (A2: table is lookup source at Set time; read face does not re-inject).
+        mcp_server_registry::register(
+            SEEDED_BUSINESS_KEY,
+            McpServerConfig {
+                capability_description: "registry-mutated-after-set".into(),
+            },
+        )
+        .expect("register overwrite");
+        let still = r#loop::session_capability_mcp_config().expect("unchanged without Set");
+        assert_eq!(
+            still, first,
+            "read face must not re-lookup/re-inject; only Set/Reset lifecycle may change"
+        );
+
+        // Lifecycle replace Set updates.
+        mcp_server_registry::register(
+            "alt_for_t4",
+            McpServerConfig {
+                capability_description: "alt capability for t4".into(),
+            },
+        )
+        .expect("alt");
+        r#loop::try_set_binding_json(&key_only_payload("alt_for_t4")).expect("replace Set");
+        let second = r#loop::session_capability_mcp_config().expect("after replace");
+        assert_ne!(second, first);
+        assert_eq!(second.capability_description, "alt capability for t4");
+
+        // Lifecycle Reset clears.
+        r#loop::reset_binding().expect("Reset");
+        assert!(r#loop::session_capability_mcp_config().is_none());
+    });
+}
+
+#[test]
+fn t4_read_face_cannot_reinject_legacy_tools_prompt_callbacks() {
+    with_sandbox(|| {
+        use crate::services::mcp_server_registry::SEEDED_BUSINESS_KEY;
+        r#loop::try_set_binding_json(&key_only_payload(SEEDED_BUSINESS_KEY)).expect("Set");
+        let via_read = r#loop::session_capability_mcp_config().expect("read face");
+
+        // Consumption face returns decision-level MCP config only — not a Binding
+        // write path. Legacy tools/prompt/callbacks cannot be pushed back through it.
+        assert!(
+            !via_read.capability_description.contains("\"tools\""),
+            "read face must not surface legacy tools payload shape"
+        );
+        // Public Set still rejects legacy payload; session view unchanged.
+        let err = r#loop::try_set_binding_json(&json!({
+            "tools": [{ "name": "tool_a", "handle": "opaque" }],
+            "prompt": via_read.capability_description,
+            "callbacks": {}
+        }))
+        .expect_err("legacy reinject via Set must fail");
+        assert_eq!(err.as_code(), "set_invalid");
+        assert_eq!(
+            r#loop::session_capability_mcp_config().as_ref(),
+            Some(&via_read),
+            "failed legacy reinject must leave read-face config unchanged"
+        );
+    });
+}
+
+#[test]
+fn t4_a1_a2_handoff_assumptions_confirmed_not_narrowed() {
+    with_sandbox(|| {
+        use crate::services::mcp_server_registry::{self, SEEDED_BUSINESS_KEY};
+        // A1: one decision-level shape, dual-engine readable (no engine-specific fields).
+        r#loop::try_set_binding_json(&key_only_payload(SEEDED_BUSINESS_KEY)).expect("Set");
+        let face = r#loop::session_capability_mcp_config().expect("face");
+        let table = mcp_server_registry::lookup(SEEDED_BUSINESS_KEY).expect("table");
+        assert_eq!(
+            face, table,
+            "A1 confirmed: read face exposes the same decision-level form both engines will read"
+        );
+
+        // A2: Host authoritative table is the sole lookup source at Set; Binding
+        // callers only need the stable business key (already exercised by Set path).
+        assert_eq!(
+            face.capability_description, table.capability_description,
+            "A2 confirmed: loaded view originates from Host registry lookup, not caller payload"
+        );
+        assert!(
+            r#loop::SESSION_CAPABILITY_READ_FACE_A1_DUAL_ENGINE_SAME_SHAPE,
+            "A1 must be explicitly confirmed in delivery (not silently narrowed)"
+        );
+        assert!(
+            r#loop::SESSION_CAPABILITY_READ_FACE_A2_HOST_REGISTRY_SOLE_LOOKUP,
+            "A2 must be explicitly confirmed in delivery (not silently narrowed)"
+        );
+    });
+}
+

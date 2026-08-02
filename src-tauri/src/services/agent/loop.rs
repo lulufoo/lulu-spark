@@ -337,9 +337,27 @@ pub fn try_set_binding_json(v: &Value) -> Result<(), SetError> {
     set_binding_with_mcp(binding, Some(config))
 }
 
-/// Observability: MCP Server config currently loaded into session capability context.
-pub fn loaded_mcp_server() -> Option<McpServerConfig> {
+/// Must Close Before T4 — A1 confirmed (not narrowed): the same decision-level
+/// `McpServerConfig` shape is the shared read form for future Host Loop and
+/// Cursor Local adapters. Field-level transport schema remains deferred.
+pub const SESSION_CAPABILITY_READ_FACE_A1_DUAL_ENGINE_SAME_SHAPE: bool = true;
+
+/// Must Close Before T4 — A2 confirmed (not narrowed): Host `mcp_server_registry`
+/// is the sole lookup source; this face only exposes config already loaded by
+/// key-only Set from that table.
+pub const SESSION_CAPABILITY_READ_FACE_A2_HOST_REGISTRY_SOLE_LOOKUP: bool = true;
+
+/// Read-only session capability consumption face for future engine adapters
+/// (Host Agent Loop + Cursor Local). Returns a detached clone of the MCP Server
+/// config loaded by key-only Binding Set. No engine-branch injection; no write
+/// path — only Set/Reset lifecycle may change the loaded value.
+pub fn session_capability_mcp_config() -> Option<McpServerConfig> {
     runtime().lock().unwrap().loaded_mcp_server.clone()
+}
+
+/// Observability alias for the session capability read face.
+pub fn loaded_mcp_server() -> Option<McpServerConfig> {
+    session_capability_mcp_config()
 }
 
 /// Reset: discard current Binding → unbound. Idempotent when already unbound.
