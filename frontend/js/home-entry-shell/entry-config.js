@@ -66,6 +66,25 @@ const BASELINE = [
 /** Default panel size when an entry omits width/height. */
 export const DEFAULT_PANEL = Object.freeze({ width: 340, height: 460 });
 
+/**
+ * AI bypass entry — pinned beside hub, not part of hub-expand baseline.
+ * @returns {EntryConfig}
+ */
+export function getAiAssistantEntry() {
+  return {
+    id: 'ai-assistant',
+    contentKey: 'ai-assistant',
+    title: 'Assistant',
+    overlayTitle: 'Assistant',
+    fabClass: 'ai-assistant-fab',
+    fabIconClass: 'ai-assistant-fab-icon',
+    iconPaths:
+      '<path fill="currentColor" d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm1 5v4h4v2h-4v4h-2v-4H7v-2h4V7h2z"/>',
+    panelWidth: 340,
+    panelHeight: 460,
+  };
+}
+
 /** @returns {EntryConfig[]} */
 export function getBaselineEntries() {
   return BASELINE.map(({ key, title, fabClass, fabIconClass, iconPaths, panelWidth, panelHeight }) => ({

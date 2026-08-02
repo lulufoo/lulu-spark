@@ -17,13 +17,14 @@ import { openQrDialog } from './components/modals/qr-dialog.js'
 import { openSettingsDialog } from './components/modals/settings-dialog.js'
 import { initRouter, navigate, navigateToNote } from './router/index.js'
 import { openReadLaterDialog } from './components/modals/read-later-dialog.js'
-import { getBaselineEntries } from './home-entry-shell/entry-config.js'
+import { getAiAssistantEntry, getBaselineEntries } from './home-entry-shell/entry-config.js'
 import { createContentRegistry } from './home-entry-shell/content-registry.js'
 import { mountHomeEntryShell } from './home-entry-shell/shell.js'
 import { createReadLaterContentAdapter } from './read-later-assistant.js'
 import { createPlanTaskContentAdapter } from './plan-task-assistant.js'
 import { createNotesContentAdapter } from './note-assistant.js'
 import { createBuildersContentAdapter } from './builders-assistant.js'
+import { createAiAssistantContentAdapter } from './ai-assistant.js'
 import { applySearchNavChrome } from './nav-chrome.js'
 import { initWorkbenchSearch } from './components/workbench-search.js'
 import { initCorpusSearch } from './components/corpus-search.js'
@@ -986,15 +987,17 @@ function openCreateNoteFromFab(opts = {}) {
   return openCreateNote({ temp_id });
 }
 
-// SK-P3: single shell mount + four content adapters in the shared content slot.
+// SK-P3: single shell mount + content adapters in the shared content slot.
 const homeEntryRegistry = createContentRegistry();
 homeEntryRegistry.register('read-later', createReadLaterContentAdapter());
 homeEntryRegistry.register('plan-task', createPlanTaskContentAdapter());
 homeEntryRegistry.register('notes', createNotesContentAdapter());
 homeEntryRegistry.register('builders', createBuildersContentAdapter());
+homeEntryRegistry.register('ai-assistant', createAiAssistantContentAdapter());
 
 homeEntryShell = mountHomeEntryShell(document.body, {
   config: getBaselineEntries(),
+  aiEntry: getAiAssistantEntry(),
   registry: homeEntryRegistry,
   host: {
     navigate,

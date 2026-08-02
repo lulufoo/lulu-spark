@@ -311,6 +311,29 @@ export function mountAiAssistant(root, opts = {}) {
   };
 }
 
+/**
+ * AI Assistant content adapter for the home-entry shell content slot.
+ * Shell owns overlay chrome; this module reuses mountAiAssistant for chat UI.
+ * Must not Reset Binding or switch live session.
+ * @returns {{ mount: (slotEl: HTMLElement, ctx?: { host?: unknown }) => { unmount: () => void } }}
+ */
+export function createAiAssistantContentAdapter() {
+  return {
+    /**
+     * @param {HTMLElement} slotEl
+     * @param {{ host?: unknown }} [_ctx]
+     */
+    mount(slotEl, _ctx = {}) {
+      const panel = mountAiAssistant(slotEl, { autoBind: true });
+      return {
+        unmount() {
+          panel.dispose();
+        },
+      };
+    },
+  };
+}
+
 const bootstrapRoot = document.getElementById('ai-assistant-root');
 if (bootstrapRoot) {
   mountAiAssistant(bootstrapRoot);
