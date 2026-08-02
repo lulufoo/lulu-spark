@@ -15,6 +15,9 @@
  * @property {Record<string, string>} fields
  */
 
+const EDITABLE_FIELDS = Object.freeze(['model']);
+const READONLY_FIELDS = Object.freeze(['platform', 'base_url']);
+
 /** @type {EngineCategory[]} */
 export const ENGINE_CATEGORIES = Object.freeze([
   Object.freeze({ id: 'cursor', label: 'Cursor Agent' }),
@@ -26,8 +29,8 @@ const PRESETS = Object.freeze({
   cursor: Object.freeze({
     categoryId: 'cursor',
     displayName: 'Cursor Agent',
-    editableFields: Object.freeze(['model']),
-    readonlyFields: Object.freeze(['platform', 'base_url']),
+    editableFields: EDITABLE_FIELDS,
+    readonlyFields: READONLY_FIELDS,
     fields: Object.freeze({
       platform: 'cursor_agent',
       base_url: '(managed by Cursor Agent)',
@@ -37,8 +40,8 @@ const PRESETS = Object.freeze({
   host: Object.freeze({
     categoryId: 'host',
     displayName: 'Host / GLM',
-    editableFields: Object.freeze(['model']),
-    readonlyFields: Object.freeze(['platform', 'base_url']),
+    editableFields: EDITABLE_FIELDS,
+    readonlyFields: READONLY_FIELDS,
     fields: Object.freeze({
       platform: 'glm',
       base_url: 'https://open.bigmodel.cn',

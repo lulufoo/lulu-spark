@@ -105,6 +105,7 @@ describe('settings Assistant/Engine panel IA (index.html)', () => {
   it('pins Model as the writable field id and omits MCP/SDK/cwd controls', () => {
     const panel = extractLlmPanelMarkup();
     expect(panel).toMatch(/id="settings-llm-model"/);
+    expect(panel).toMatch(/id="settings-llm-engine"/);
     expect(panel).not.toMatch(/id="settings-llm-cwd"/);
     expect(panel).not.toMatch(/id="settings-llm-mcp/i);
     expect(panel).not.toMatch(/cursor[_-]?sdk/i);
@@ -114,6 +115,19 @@ describe('settings Assistant/Engine panel IA (index.html)', () => {
   it('retains credential and save controls for follow-on UI tasks', () => {
     expect(indexHtml).toMatch(/id="settings-llm-api-key"/);
     expect(indexHtml).toMatch(/id="btn-settings-save-llm"/);
+  });
+
+  it('marks preset-carried platform/base_url as readonly or disabled in markup', () => {
+    const panel = extractLlmPanelMarkup();
+    expect(panel).toMatch(
+      /id="settings-llm-platform"[^>]*(?:readonly|disabled)/i,
+    );
+    expect(panel).toMatch(
+      /id="settings-llm-base-url"[^>]*(?:readonly|disabled)/i,
+    );
+    expect(panel).not.toMatch(
+      /id="settings-llm-model"[^>]*(?:readonly|disabled)/i,
+    );
   });
 });
 
@@ -186,7 +200,7 @@ describe('engine presets catalog (engine-presets.js)', () => {
   });
 });
 
-describe('settings LLM panel save/load', () => {
+describe('settings Assistant/Engine panel save/load', () => {
   beforeEach(async () => {
     vi.resetModules();
     vi.clearAllMocks();
@@ -197,55 +211,188 @@ describe('settings LLM panel save/load', () => {
       knowledge_corpus_root: '',
       github_user_url: '',
       has_github_token: false,
+      assistant_engine: 'host',
       has_llm_key: true,
-      llm: {
-        platform: 'kimi',
-        base_url: 'https://api.moonshot.cn',
-        model: 'moonshot-v1-8k',
-      },
-    });
-    api.setConfig.mockResolvedValue({
-      has_llm_key: true,
+      has_host_key: true,
+      has_cursor_key: false,
       llm: {
         platform: 'glm',
         base_url: 'https://open.bigmodel.cn',
+        model: 'glm-4',
+      },
+    });
+    api.setConfig.mockResolvedValue({
+      assistant_engine: 'host',
+      has_host_key: true,
+      has_cursor_key: false,
+      llm: {
         model: 'glm-4',
       },
     });
     await import('../frontend/js/components/modals/settings-dialog.js');
   });
 
-  it('loads llm fields from get_config on open', async () => {
+  it('loads category, readonly preset fields, model, and credential hint on open', async () => {
     const { openSettingsDialog } = await import(
       '../frontend/js/components/modals/settings-dialog.js'
     );
     await openSettingsDialog();
-    expect(document.getElementById('settings-llm-platform').value).toBe('kimi');
-    expect(document.getElementById('settings-llm-base-url').value).toBe(
-      'https://api.moonshot.cn',
+    expect(document.getElementById('settings-llm-engine').value).toBe('host');
+    const hostPreset = getEnginePreset('host');
+    expect(document.getElementById('settings-llm-platform').value).toBe(
+      hostPreset.fields.platform,
     );
-    expect(document.getElementById('settings-llm-model').value).toBe('moonshot-v1-8k');
+    expect(document.getElementById('settings-llm-base-url').value).toBe(
+      hostPreset.fields.base_url,
+    );
+    expect(document.getElementById('settings-llm-model').value).toBe('glm-4');
     expect(document.getElementById('settings-llm-api-key').value).toBe('');
+    expect(document.getElementById('settings-llm-key-hint').textContent).toMatch(
+      /configured|API key/i,
+    );
   });
 
-  it('saves llm fields via setConfig without echoing prior key into payload when blank', async () => {
+  it('keeps preset fields readonly/disabled so users cannot rewrite them', async () => {
     const { openSettingsDialog } = await import(
       '../frontend/js/components/modals/settings-dialog.js'
     );
     await openSettingsDialog();
-    document.getElementById('settings-llm-platform').value = 'glm';
-    document.getElementById('settings-llm-base-url').value = 'https://open.bigmodel.cn';
-    document.getElementById('settings-llm-model').value = 'glm-4';
-    document.getElementById('settings-llm-api-key').value = 'sk-new';
+    const platform = document.getElementById('settings-llm-platform');
+    const baseUrl = document.getElementById('settings-llm-base-url');
+    const model = document.getElementById('settings-llm-model');
+    expect(platform.readOnly || platform.disabled).toBe(true);
+    expect(baseUrl.readOnly || baseUrl.disabled).toBe(true);
+    expect(model.readOnly || model.disabled).toBe(false);
+  });
+
+  it('switches credential hint and readonly preset when category changes', async () => {
+    const { openSettingsDialog } = await import(
+      '../frontend/js/components/modals/settings-dialog.js'
+    );
+    await openSettingsDialog();
+    const engineSelect = document.getElementById('settings-llm-engine');
+    engineSelect.value = 'cursor';
+    engineSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    const cursorPreset = getEnginePreset('cursor');
+    expect(document.getElementById('settings-llm-platform').value).toBe(
+      cursorPreset.fields.platform,
+    );
+    expect(document.getElementById('settings-llm-base-url').value).toBe(
+      cursorPreset.fields.base_url,
+    );
+    expect(document.getElementById('settings-llm-api-key').value).toBe('');
+    expect(document.getElementById('settings-llm-key-hint').textContent).toMatch(
+      /No .*key configured|not configured/i,
+    );
+    const credentialInputs = document.querySelectorAll(
+      '#settings-panel-llm input[type="password"]',
+    );
+    expect(credentialInputs).toHaveLength(1);
+  });
+
+  it('saves assistant_engine, model, and per-category credential without writable preset overrides', async () => {
+    const { openSettingsDialog } = await import(
+      '../frontend/js/components/modals/settings-dialog.js'
+    );
+    await openSettingsDialog();
+    document.getElementById('settings-llm-engine').value = 'host';
+    document.getElementById('settings-llm-model').value = 'glm-4-air';
+    document.getElementById('settings-llm-api-key').value = 'sk-host-new';
     document.getElementById('btn-settings-save-llm').click();
     await vi.waitFor(() => expect(api.setConfig).toHaveBeenCalled());
-    expect(api.setConfig).toHaveBeenCalledWith({
-      llm: {
-        platform: 'glm',
-        base_url: 'https://open.bigmodel.cn',
-        model: 'glm-4',
-      },
-      api_key: 'sk-new',
+    const payload = api.setConfig.mock.calls[0][0];
+    expect(payload.assistant_engine).toBe('host');
+    expect(payload.llm).toEqual({ model: 'glm-4-air' });
+    expect(payload.api_key_host).toBe('sk-host-new');
+    expect(payload.api_key_cursor).toBeUndefined();
+    expect(payload.api_key).toBeUndefined();
+    expect(payload.llm.platform).toBeUndefined();
+    expect(payload.llm.base_url).toBeUndefined();
+  });
+
+  it('saves cursor credential under api_key_cursor when category is cursor', async () => {
+    const { openSettingsDialog } = await import(
+      '../frontend/js/components/modals/settings-dialog.js'
+    );
+    await openSettingsDialog();
+    const engineSelect = document.getElementById('settings-llm-engine');
+    engineSelect.value = 'cursor';
+    engineSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    document.getElementById('settings-llm-model').value = 'composer-1';
+    document.getElementById('settings-llm-api-key').value = 'sk-cursor-new';
+    document.getElementById('btn-settings-save-llm').click();
+    await vi.waitFor(() => expect(api.setConfig).toHaveBeenCalled());
+    const payload = api.setConfig.mock.calls[0][0];
+    expect(payload.assistant_engine).toBe('cursor');
+    expect(payload.llm).toEqual({ model: 'composer-1' });
+    expect(payload.api_key_cursor).toBe('sk-cursor-new');
+    expect(payload.api_key_host).toBeUndefined();
+  });
+
+  it('omits credential keys from payload when credential input is blank', async () => {
+    const { openSettingsDialog } = await import(
+      '../frontend/js/components/modals/settings-dialog.js'
+    );
+    await openSettingsDialog();
+    document.getElementById('settings-llm-model').value = 'glm-4';
+    document.getElementById('settings-llm-api-key').value = '';
+    document.getElementById('btn-settings-save-llm').click();
+    await vi.waitFor(() => expect(api.setConfig).toHaveBeenCalled());
+    const payload = api.setConfig.mock.calls[0][0];
+    expect(payload.assistant_engine).toBe('host');
+    expect(payload.llm).toEqual({ model: 'glm-4' });
+    expect(payload.api_key_host).toBeUndefined();
+    expect(payload.api_key_cursor).toBeUndefined();
+    expect(payload.api_key).toBeUndefined();
+  });
+
+  it('shows English error when setConfig fails and does not pretend success', async () => {
+    api.setConfig.mockRejectedValueOnce(new Error('persist denied'));
+    const { openSettingsDialog } = await import(
+      '../frontend/js/components/modals/settings-dialog.js'
+    );
+    await openSettingsDialog();
+    document.getElementById('settings-llm-model').value = 'glm-4';
+    document.getElementById('btn-settings-save-llm').click();
+    await vi.waitFor(() => {
+      const result = document.getElementById('settings-result-llm').textContent;
+      expect(result).toMatch(/fail|error|denied/i);
+      expect(result).not.toMatch(/^Saved/i);
     });
+    expect(document.getElementById('settings-result-llm').textContent).toMatch(
+      /^[A-Za-z0-9 :.,'_\-()/]+$/,
+    );
+  });
+
+  it('defaults to host and does not throw on empty/missing engine config', async () => {
+    api.fetchConfig.mockResolvedValueOnce({
+      workbench_knowledge_root: '',
+      knowledge_corpus_root: '',
+      github_user_url: '',
+      has_github_token: false,
+    });
+    const { openSettingsDialog } = await import(
+      '../frontend/js/components/modals/settings-dialog.js'
+    );
+    await expect(openSettingsDialog()).resolves.toBeUndefined();
+    expect(document.getElementById('settings-llm-engine').value).toBe('host');
+    const hostPreset = getEnginePreset('host');
+    expect(document.getElementById('settings-llm-platform').value).toBe(
+      hostPreset.fields.platform,
+    );
+    expect(document.getElementById('settings-llm-model').value).toBe('');
+  });
+
+  it('does not render MCP or Cursor SDK/cwd editable controls in the engine panel', async () => {
+    const { openSettingsDialog } = await import(
+      '../frontend/js/components/modals/settings-dialog.js'
+    );
+    await openSettingsDialog();
+    const panel = document.getElementById('settings-panel-llm');
+    expect(panel.querySelector('#settings-llm-cwd')).toBeNull();
+    expect(panel.querySelector('[id*="mcp"]')).toBeNull();
+    expect(panel.querySelector('[id*="sdk"]')).toBeNull();
+    expect(panel.textContent).not.toMatch(/mcpServers/i);
+    expect(panel.textContent).not.toMatch(/Cursor SDK/i);
   });
 });

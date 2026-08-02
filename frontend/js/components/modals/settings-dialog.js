@@ -1,9 +1,18 @@
 import * as api from '../../api.js';
 import { setGithubUserUrl } from '../../constants.js';
 import { getKbHidePattern, saveKbHidePattern } from '../../kb-hide-pattern.js';
+import { getEnginePreset, listEngineCategories } from './engine-presets.js';
 
 const GITHUB_USER_HINT_DEFAULT =
   'Your GitHub profile URL for Viewer remote links and promotion sources; may be saved with a Token.';
+
+const DEFAULT_ENGINE_CATEGORY = 'host';
+
+/** @type {{ has_host_key: boolean, has_cursor_key: boolean }} */
+const engineKeyHints = {
+  has_host_key: false,
+  has_cursor_key: false,
+};
 
 // ── Nav switching ──────────────────────────────────────────────────────────
 
@@ -81,6 +90,130 @@ function syncKbHidePatternInput() {
   const kbHideInput = document.getElementById('settings-kb-hide-pattern');
   if (kbHideInput) {
     kbHideInput.value = getKbHidePattern();
+  }
+}
+
+function normalizeEngineCategory(raw) {
+  const id = String(raw || '').trim();
+  if (id === 'cursor' || id === 'host') return id;
+  return DEFAULT_ENGINE_CATEGORY;
+}
+
+function ensureEngineCategoryOptions() {
+  const select = document.getElementById('settings-llm-engine');
+  if (!select) return;
+  const categories = listEngineCategories();
+  const existing = new Set(
+    Array.from(select.options).map((opt) => opt.value),
+  );
+  for (const cat of categories) {
+    if (existing.has(cat.id)) continue;
+    const opt = document.createElement('option');
+    opt.value = cat.id;
+    opt.textContent = cat.label;
+    select.appendChild(opt);
+  }
+}
+
+function credentialHintForCategory(categoryId) {
+  const hasKey =
+    categoryId === 'cursor'
+      ? engineKeyHints.has_cursor_key
+      : engineKeyHints.has_host_key;
+  return hasKey
+    ? 'API key configured. Enter a new key to replace it.'
+    : 'No API key configured.';
+}
+
+/**
+ * Fill Assistant/Engine panel from config (category, readonly preset, model, credential hint).
+ * @param {Record<string, unknown>} cfg
+ */
+function loadAssistantEnginePanel(cfg) {
+  ensureEngineCategoryOptions();
+  const categoryId = normalizeEngineCategory(cfg?.assistant_engine);
+  const preset = getEnginePreset(categoryId) || getEnginePreset(DEFAULT_ENGINE_CATEGORY);
+  const llm = cfg?.llm ?? {};
+
+  // Legacy `has_llm_key` maps to host credential (t3 migration).
+  engineKeyHints.has_host_key = Boolean(cfg?.has_host_key ?? cfg?.has_llm_key);
+  engineKeyHints.has_cursor_key = Boolean(cfg?.has_cursor_key);
+
+  const engineSelect = document.getElementById('settings-llm-engine');
+  const platformInput = document.getElementById('settings-llm-platform');
+  const baseUrlInput = document.getElementById('settings-llm-base-url');
+  const modelInput = document.getElementById('settings-llm-model');
+  const keyHint = document.getElementById('settings-llm-key-hint');
+  const apiKeyInput = document.getElementById('settings-llm-api-key');
+
+  if (engineSelect) engineSelect.value = categoryId;
+  if (platformInput) {
+    platformInput.value = preset?.fields?.platform ?? '';
+    platformInput.readOnly = true;
+    platformInput.classList.add('settings-input-readonly');
+  }
+  if (baseUrlInput) {
+    baseUrlInput.value = preset?.fields?.base_url ?? '';
+    baseUrlInput.readOnly = true;
+    baseUrlInput.classList.add('settings-input-readonly');
+  }
+  if (modelInput) {
+    modelInput.value = typeof llm.model === 'string' ? llm.model : '';
+    modelInput.readOnly = false;
+    modelInput.disabled = false;
+  }
+  if (apiKeyInput) apiKeyInput.value = '';
+  if (keyHint) keyHint.textContent = credentialHintForCategory(categoryId);
+}
+
+function applyEngineCategorySelection(categoryId, { clearCredential = true } = {}) {
+  const id = normalizeEngineCategory(categoryId);
+  const preset = getEnginePreset(id) || getEnginePreset(DEFAULT_ENGINE_CATEGORY);
+  const engineSelect = document.getElementById('settings-llm-engine');
+  const platformInput = document.getElementById('settings-llm-platform');
+  const baseUrlInput = document.getElementById('settings-llm-base-url');
+  const keyHint = document.getElementById('settings-llm-key-hint');
+  const apiKeyInput = document.getElementById('settings-llm-api-key');
+
+  if (engineSelect) engineSelect.value = id;
+  if (platformInput) platformInput.value = preset?.fields?.platform ?? '';
+  if (baseUrlInput) baseUrlInput.value = preset?.fields?.base_url ?? '';
+  if (clearCredential && apiKeyInput) apiKeyInput.value = '';
+  if (keyHint) keyHint.textContent = credentialHintForCategory(id);
+}
+
+async function saveAssistantEnginePanel() {
+  const btn = document.getElementById('btn-settings-save-llm');
+  const categoryId = normalizeEngineCategory(
+    document.getElementById('settings-llm-engine')?.value,
+  );
+  const model = document.getElementById('settings-llm-model')?.value.trim() ?? '';
+  const apiKey = document.getElementById('settings-llm-api-key')?.value.trim() ?? '';
+
+  const payload = {
+    assistant_engine: categoryId,
+    llm: { model },
+  };
+  if (apiKey) {
+    if (categoryId === 'cursor') payload.api_key_cursor = apiKey;
+    else payload.api_key_host = apiKey;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Saving…';
+  try {
+    const resp = await api.setConfig(payload);
+    if (resp?.error) throw new Error(resp.error);
+    const parts = ['Engine', 'Model'];
+    if (apiKey) parts.push('Credential');
+    setResult('settings-result-llm', `Saved: ${parts.join(', ')}.`);
+    document.getElementById('settings-llm-api-key').value = '';
+    await loadSettingsSnapshot();
+  } catch (e) {
+    setResult('settings-result-llm', `Save failed: ${e.message || String(e)}`, true);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Save';
   }
 }
 
@@ -218,13 +351,7 @@ async function loadSettingsSnapshot() {
       ? 'GitHub Token configured. Enter a new token to replace it.'
       : 'No GitHub Token configured.';
 
-    const llm = cfg?.llm ?? {};
-    document.getElementById('settings-llm-platform').value = llm.platform ?? '';
-    document.getElementById('settings-llm-base-url').value = llm.base_url ?? '';
-    document.getElementById('settings-llm-model').value = llm.model ?? '';
-    document.getElementById('settings-llm-key-hint').textContent = cfg?.has_llm_key
-      ? 'API key configured. Enter a new key to replace it.'
-      : 'No API key configured.';
+    loadAssistantEnginePanel(cfg ?? {});
 
     await syncGithubUserUrlLockFromWorkbenchRoot();
     syncKbHidePatternInput();
@@ -233,6 +360,7 @@ async function loadSettingsSnapshot() {
       'Could not load settings; you can type and save.';
     document.getElementById('settings-llm-key-hint').textContent =
       'Could not load settings; you can type and save.';
+    loadAssistantEnginePanel({});
     clearGithubUserUrlInferredLock();
     syncKbHidePatternInput();
   }
@@ -480,38 +608,12 @@ document.getElementById('btn-settings-save-github').addEventListener('click', as
   }
 });
 
-// ── Save: LLM platform / base_url / model / api_key ─────────────────────────
+// ── Save: Assistant / Engine (category + credential + model) ────────────────
 
-document.getElementById('btn-settings-save-llm').addEventListener('click', async () => {
-  const btn = document.getElementById('btn-settings-save-llm');
-  const platform = document.getElementById('settings-llm-platform').value.trim();
-  const baseUrl = document.getElementById('settings-llm-base-url').value.trim();
-  const model = document.getElementById('settings-llm-model').value.trim();
-  const apiKey = document.getElementById('settings-llm-api-key').value.trim();
+document.getElementById('settings-llm-engine')?.addEventListener('change', (e) => {
+  applyEngineCategorySelection(e.target.value, { clearCredential: true });
+});
 
-  const payload = {
-    llm: {
-      platform,
-      base_url: baseUrl,
-      model,
-    },
-  };
-  if (apiKey) payload.api_key = apiKey;
-
-  btn.disabled = true;
-  btn.textContent = 'Saving…';
-  try {
-    const resp = await api.setConfig(payload);
-    if (resp?.error) throw new Error(resp.error);
-    const parts = ['platform', 'base_url', 'model'];
-    if (payload.api_key) parts.push('API Key');
-    setResult('settings-result-llm', `Saved: ${parts.join(', ')}.`);
-    document.getElementById('settings-llm-api-key').value = '';
-    await loadSettingsSnapshot();
-  } catch (e) {
-    setResult('settings-result-llm', `Save failed: ${e.message || String(e)}`, true);
-  } finally {
-    btn.disabled = false;
-    btn.textContent = 'Save';
-  }
+document.getElementById('btn-settings-save-llm').addEventListener('click', () => {
+  void saveAssistantEnginePanel();
 });
