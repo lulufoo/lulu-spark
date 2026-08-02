@@ -1,5 +1,6 @@
 //! Host MVP Agent: Session / Tools / LLM / Loop.
 
+pub mod engine_router;
 pub mod llm;
 pub mod r#loop;
 pub mod session;

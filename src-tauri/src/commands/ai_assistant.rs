@@ -5,6 +5,7 @@ use serde_json::{json, Value};
 use tauri::{AppHandle, Emitter};
 
 use crate::services::agent::r#loop::{self, ChatTurnResult, EVENT_TURN_COMPLETED, WINDOW_LABEL};
+pub use crate::services::agent::session::value_exposes_engine_selection;
 
 pub const AI_ASSISTANT_WINDOW_LABEL: &str = WINDOW_LABEL;
 pub const EVENT_ASSISTANT_OPENED: &str = "ai-assistant:opened";
@@ -15,28 +16,6 @@ pub const EVENT_BINDING_CHANGED: &str = "ai-assistant:binding-changed";
 /// never accept Host/Cursor/engine selection parameters; callers cannot branch
 /// on engine type via signature or return/event payload fields.
 pub const SESSION_FACADE_ENGINE_OPAQUE: bool = true;
-
-const ENGINE_SELECTION_KEYS: &[&str] = &[
-    "engine",
-    "engine_type",
-    "engineType",
-    "assistant_engine",
-];
-
-/// True when a JSON value (recursively) carries engine-selection fields that
-/// would let a caller branch on Host vs Cursor.
-pub fn value_exposes_engine_selection(v: &Value) -> bool {
-    match v {
-        Value::Object(map) => {
-            if ENGINE_SELECTION_KEYS.iter().any(|k| map.contains_key(*k)) {
-                return true;
-            }
-            map.values().any(value_exposes_engine_selection)
-        }
-        Value::Array(items) => items.iter().any(value_exposes_engine_selection),
-        _ => false,
-    }
-}
 
 pub fn open_ai_assistant_json(master_task_id: &str) -> Result<Value, String> {
     // Physical open path may still carry shell UX payload; Present semantics must not imply Set.

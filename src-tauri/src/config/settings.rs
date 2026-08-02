@@ -63,6 +63,10 @@ pub struct AppSettings {
     pub meili_url: String,
     #[serde(default = "default_github_user_url")]
     pub github_user_url: String,
+    /// Assistant engine selection: `host` | `cursor`. Default `host`.
+    /// Illegal values are rejected at route resolve time (not silently remapped).
+    #[serde(default = "default_assistant_engine")]
+    pub assistant_engine: String,
     #[serde(default)]
     pub llm: LlmSettings,
 }
@@ -91,6 +95,10 @@ fn default_meili_url() -> String {
 
 fn default_github_user_url() -> String {
     DEFAULT_GITHUB_USER_URL.to_string()
+}
+
+fn default_assistant_engine() -> String {
+    "host".to_string()
 }
 
 /// Personal GitHub home (`https://github.com/{owner}`) + workbench clone dir name → blob base for file links.
@@ -157,6 +165,7 @@ impl Default for AppSettings {
             cache_dir: default_cache_dir(),
             meili_url: default_meili_url(),
             github_user_url: default_github_user_url(),
+            assistant_engine: default_assistant_engine(),
             llm: LlmSettings::default(),
         }
     }
@@ -409,6 +418,7 @@ pub fn to_config_json(
         "github_user_url": settings.github_user_url,
         "meili_url": settings.meili_url,
         "cache_dir": settings.cache_dir.to_string_lossy(),
+        "assistant_engine": settings.assistant_engine,
         "has_github_token": has_github_token,
         "has_meili_key": has_meili_key,
         "has_llm_key": has_llm_key,
@@ -439,6 +449,9 @@ pub fn apply_config_payload(settings: &mut AppSettings, payload: &serde_json::Va
     }
     if let Some(v) = payload.get("meili_url").and_then(|x| x.as_str()) {
         settings.meili_url = v.to_string();
+    }
+    if let Some(v) = payload.get("assistant_engine").and_then(|x| x.as_str()) {
+        settings.assistant_engine = v.to_string();
     }
     if let Some(llm) = payload.get("llm").and_then(|x| x.as_object()) {
         if let Some(v) = llm.get("platform").and_then(|x| x.as_str()) {

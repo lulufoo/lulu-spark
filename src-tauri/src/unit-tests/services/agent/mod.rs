@@ -3,6 +3,9 @@
 #[path = "loop_tests.rs"]
 mod loop_tests;
 
+#[path = "engine_router_tests.rs"]
+mod engine_router_tests;
+
 use std::fs;
 use std::io::{Read, Write};
 use std::net::TcpListener;
