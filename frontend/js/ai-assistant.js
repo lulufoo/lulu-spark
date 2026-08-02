@@ -61,8 +61,8 @@ export function mountAiAssistant(root, opts = {}) {
   root.classList.add('ai-assistant-panel');
   root.innerHTML = `
     <div class="ai-assistant-unbound" data-role="unbound-content" role="status">
-      <p class="ai-assistant-unbound-message">No todo is currently bound.</p>
-      <p class="ai-assistant-unbound-detail">Select an active todo in Todos to start a chat.</p>
+      <p class="ai-assistant-unbound-message">Unbound</p>
+      <p class="ai-assistant-unbound-detail">No business context is currently bound.</p>
     </div>
     <div class="ai-assistant-bound-content" data-role="bound-content" hidden>
       <div class="ai-assistant-messages" data-role="messages" aria-live="polite"></div>

@@ -6561,6 +6561,12 @@
   text-align: center;
 }
 
+/* display:flex above must not override HTML [hidden]. */
+.ai-assistant-panel .ai-assistant-unbound[hidden],
+.ai-assistant-panel .ai-assistant-bound-content[hidden] {
+  display: none !important;
+}
+
 .ai-assistant-panel .ai-assistant-unbound-message,
 .ai-assistant-panel .ai-assistant-unbound-detail {
   margin: 0;

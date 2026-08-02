@@ -3,16 +3,29 @@
  * Shell composer gate: Binding Contract query_binding (Present≠bound).
  * T5: discard cached sessionId on Unbound / new Bound; composer follows query_binding.
  */
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { mountAiAssistant } from '../frontend/js/ai-assistant.js';
+
+const appCss = readFileSync(
+  join(dirname(fileURLToPath(import.meta.url)), '../frontend/app.css'),
+  'utf8',
+);
 
 describe('ai-assistant composer Binding Contract gate', () => {
   let root;
   let invokeMock;
   let listenHandlers;
+  /** @type {HTMLStyleElement | null} */
+  let styleEl = null;
 
   beforeEach(() => {
+    styleEl = document.createElement('style');
+    styleEl.textContent = appCss;
+    document.head.appendChild(styleEl);
     root = document.createElement('div');
     document.body.appendChild(root);
     listenHandlers = {};
@@ -37,8 +50,16 @@ describe('ai-assistant composer Binding Contract gate', () => {
 
   afterEach(() => {
     root?.remove();
+    styleEl?.remove();
+    styleEl = null;
     delete window.__TAURI__;
     vi.restoreAllMocks();
+  });
+
+  it('keeps [hidden] authoritative over flex display for Bound/Unbound panels', () => {
+    expect(appCss).toMatch(
+      /\.ai-assistant-panel\s+\.ai-assistant-(?:unbound|bound-content)\[hidden\]/,
+    );
   });
 
   it('Present alone omits the binding status bar and keeps composer disabled', async () => {
@@ -51,10 +72,16 @@ describe('ai-assistant composer Binding Contract gate', () => {
     expect(root.classList.contains('ai-assistant-panel')).toBe(true);
     expect(root.querySelector('[data-role="bound"]')).toBeNull();
     expect(root.querySelector('[data-role="unbound-content"]')?.hidden).toBe(false);
+    expect(root.querySelector('[data-role="unbound-content"]')?.textContent).toContain('Unbound');
     expect(root.querySelector('[data-role="unbound-content"]')?.textContent).toContain(
-      'No todo is currently bound.',
+      'No business context is currently bound.',
     );
+    expect(root.querySelector('[data-role="unbound-content"]')?.textContent).not.toMatch(/todo/i);
     expect(root.querySelector('[data-role="bound-content"]')?.hidden).toBe(true);
+    // display:flex must not override [hidden], or Unbound stays visible while Bound.
+    expect(getComputedStyle(root.querySelector('[data-role="bound-content"]')).display).toBe(
+      'none',
+    );
     expect(input.disabled).toBe(true);
     expect(send.disabled).toBe(true);
     expect(api.getState().hostBound).toBe(false);
@@ -74,6 +101,12 @@ describe('ai-assistant composer Binding Contract gate', () => {
     expect(root.querySelector('[data-role="bound"]')).toBeNull();
     expect(root.querySelector('[data-role="unbound-content"]')?.hidden).toBe(true);
     expect(root.querySelector('[data-role="bound-content"]')?.hidden).toBe(false);
+    expect(getComputedStyle(root.querySelector('[data-role="unbound-content"]')).display).toBe(
+      'none',
+    );
+    expect(getComputedStyle(root.querySelector('[data-role="bound-content"]')).display).not.toBe(
+      'none',
+    );
     expect(input.disabled).toBe(false);
     expect(send.disabled).toBe(false);
     expect(api.getState().hostBound).toBe(true);
