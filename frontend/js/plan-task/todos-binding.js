@@ -66,11 +66,9 @@ function masterIdFromContext(masterContext) {
 }
 
 /** Assemble Binding body only (no Host call). callbacks registry may be empty `{}`. */
-export function assembleTodosBindingBody(masterTaskId) {
-  // masterTaskId retained for call-site compatibility; Host Agent P2 submits empty tools.
-  void masterTaskId;
+export function assembleTodosBindingBody(_masterTaskId) {
   return {
-    // Interface layer: business session tools empty (capability dispatch removed in t3).
+    // Host Agent P2: business session submits empty tools (interface layer).
     tools: [],
     prompt: TODOS_PLAN_ASSISTANT_PROMPT,
     // B1: callbacks slot required; empty registry allowed. No Binding-top-level business fields.

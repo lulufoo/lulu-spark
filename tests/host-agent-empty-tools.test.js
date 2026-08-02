@@ -4,7 +4,7 @@
  *
  * Layer map (T5):
  * - Interface layer: loop tools field / Binding.tools slot (may be empty array).
- * - Capability layer: tools.rs dispatch (still present; deleted in t3 — not this task).
+ * - Capability layer: tools.rs dispatch removed (t3); business via MCP/HTTP only.
  * - MCP/HTTP: knowledge-mcp + local_http (t1).
  */
 import { readFileSync } from 'node:fs';
@@ -89,12 +89,12 @@ describe('t2 Host Agent empty tools — todos-binding assemble contract', () => 
 });
 
 describe('t2 Host Agent empty tools — source / interface layer locks', () => {
-  it('openai_tool_definitions_for_binding API retained (interface); dispatch still present (capability, t3)', () => {
+  it('openai_tool_definitions_for_binding API retained (interface); dispatch removed (capability, t3)', () => {
     expect(toolsRs).toMatch(
       /pub fn openai_tool_definitions_for_binding\s*\(\s*tools:\s*&Value\s*\)/,
     );
     expect(toolsRs).toMatch(/pub fn openai_tool_definitions\s*\(/);
-    expect(toolsRs).toMatch(/pub fn dispatch\s*\(/);
+    expect(toolsRs).not.toMatch(/pub fn dispatch\s*\(/);
   });
 
   it('loop keeps tools field path and skips tool_calls-driven todos when tools empty', () => {

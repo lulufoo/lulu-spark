@@ -223,7 +223,8 @@ fn run_loop_final_reply_none_terminal_and_wrote_false() {
 }
 
 #[test]
-fn run_loop_tool_write_sets_wrote_true_and_persists() {
+fn run_loop_tool_calls_do_not_execute_in_process_business_tools() {
+    // t3: even with non-empty Binding.tools + model tool_calls, no in-process dispatch.
     with_sandbox(|| {
         let master = create_bound_plan("写前标题");
         let mock = spawn_scripted_llm(vec![
@@ -242,14 +243,20 @@ fn run_loop_tool_write_sets_wrote_true_and_persists() {
         ]);
         let mut sess = session::create_session(Some(&master), Some("写前标题")).unwrap();
         arm_plan_binding(&master);
+        let before = todo_task::get_by_id(&master)["title"].clone();
         let out = r#loop::run_loop(&mut sess, "把主标题改成写后标题", &cfg_for(&mock));
-        assert_outcome(&out, "none", true);
-        let got = todo_task::get_by_id(&master);
-        assert_eq!(got["title"], "写后标题");
-        assert!(
-            sess.turns.iter().any(|t| t.role == "tool"),
-            "expected tool turn in session"
+        assert_eq!(out.wrote, false, "must not mark wrote via in-process tools");
+        assert_eq!(
+            todo_task::get_by_id(&master)["title"],
+            before,
+            "todo_task must not be mutated in-process"
         );
+        assert!(
+            !sess.turns.iter().any(|t| t.role == "tool"),
+            "must not append tool-role turns from in-process dispatch"
+        );
+        // No dual-track success: empty content + tool_calls without dispatch → error terminal.
+        assert_eq!(out.terminal, Terminal::Error);
     });
 }
 
@@ -270,9 +277,14 @@ fn run_loop_clarify_under_limit_returns_none_not_wrote() {
 }
 
 #[test]
-fn parallel_tool_calls_run_serially_and_ok_false_does_not_abort() {
+fn parallel_tool_calls_do_not_execute_in_process_or_fake_ok() {
+    // t3: no in-process WHITELIST dispatch; must not pretend tool ok/success writes.
     with_sandbox(|| {
         let master = create_bound_plan("批处理");
+        let before_subs = todo_task::get_by_id(&master)["sub_tasks"]
+            .as_array()
+            .unwrap()
+            .len();
         let mock = spawn_scripted_llm(vec![
             assistant_tools(
                 json!([
@@ -300,29 +312,29 @@ fn parallel_tool_calls_run_serially_and_ok_false_does_not_abort() {
         let mut sess = session::create_session(Some(&master), Some("批处理")).unwrap();
         arm_plan_binding(&master);
         let out = r#loop::run_loop(&mut sess, "改不存在的子项并加一个", &cfg_for(&mock));
-        assert_outcome(&out, "none", true);
-        let tool_turns: Vec<_> = sess.turns.iter().filter(|t| t.role == "tool").collect();
-        assert_eq!(tool_turns.len(), 2);
-        let t1: Value = serde_json::from_str(tool_turns[0].content.as_deref().unwrap()).unwrap();
-        let t2: Value = serde_json::from_str(tool_turns[1].content.as_deref().unwrap()).unwrap();
-        assert_eq!(t1["ok"], false);
-        assert_eq!(t2["ok"], true);
-        let listed = todo_task::get_by_id(&master);
-        let titles: Vec<_> = listed["sub_tasks"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .map(|s| s["title"].as_str().unwrap().to_string())
-            .collect();
-        assert!(titles.iter().any(|t| t == "批后子项"));
-        assert_eq!(mock.hits.lock().unwrap().len(), 2, "batch then callback LLM");
+        assert_eq!(out.wrote, false);
+        assert!(!sess.turns.iter().any(|t| t.role == "tool"));
+        assert_eq!(
+            todo_task::get_by_id(&master)["sub_tasks"]
+                .as_array()
+                .unwrap()
+                .len(),
+            before_subs,
+            "must not add_sub via in-process dispatch"
+        );
+        assert_eq!(out.terminal, Terminal::Error);
     });
 }
 
 #[test]
-fn same_message_tool_calls_plus_content_content_is_not_final_reply() {
+fn same_message_tool_calls_plus_content_does_not_dispatch_or_write() {
+    // t3: without capability dispatch, tool_calls are not executed; wrote stays false.
     with_sandbox(|| {
         let master = create_bound_plan("同条");
+        let before_subs = todo_task::get_by_id(&master)["sub_tasks"]
+            .as_array()
+            .unwrap()
+            .len();
         let mock = spawn_scripted_llm(vec![
             assistant_tools(
                 json!([{
@@ -340,9 +352,15 @@ fn same_message_tool_calls_plus_content_content_is_not_final_reply() {
         let mut sess = session::create_session(Some(&master), Some("同条")).unwrap();
         arm_plan_binding(&master);
         let out = r#loop::run_loop(&mut sess, "加子项", &cfg_for(&mock));
-        assert_outcome(&out, "none", true);
-        assert_eq!(out.reply_text, "已新增同条子项");
-        assert!(!out.reply_text.contains("不是终态"));
+        assert_eq!(out.wrote, false);
+        assert!(!sess.turns.iter().any(|t| t.role == "tool"));
+        assert_eq!(
+            todo_task::get_by_id(&master)["sub_tasks"]
+                .as_array()
+                .unwrap()
+                .len(),
+            before_subs
+        );
     });
 }
 
@@ -443,7 +461,8 @@ fn length_and_http_errors_map_to_error_terminal_no_retry() {
 }
 
 #[test]
-fn run_loop_add_sub_and_update_sub_title_paths_are_observable() {
+fn run_loop_add_sub_and_update_sub_title_paths_are_not_in_process() {
+    // t3: Host loop no longer executes todos via WHITELIST→dispatch.
     with_sandbox(|| {
         let master = create_bound_plan("子路径");
         let listed = todo_task::get_by_id(&master);
@@ -451,6 +470,8 @@ fn run_loop_add_sub_and_update_sub_title_paths_are_observable() {
             .as_str()
             .unwrap()
             .to_string();
+        let title_before = listed["sub_tasks"][0]["title"].clone();
+        let subs_before = listed["sub_tasks"].as_array().unwrap().len();
 
         let upd_args = format!(
             "{{\"sub_task_id\":\"{sub_id}\",\"title\":\"改后子标题\"}}"
@@ -485,17 +506,18 @@ fn run_loop_add_sub_and_update_sub_title_paths_are_observable() {
         arm_plan_binding(&master);
 
         let out_add = r#loop::run_loop(&mut sess, "加一个子计划叫新观察子项", &cfg_for(&mock));
-        assert_outcome(&out_add, "none", true);
-        let titles_after_add: Vec<_> = todo_task::get_by_id(&master)["sub_tasks"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .map(|s| s["title"].as_str().unwrap().to_string())
-            .collect();
-        assert!(titles_after_add.iter().any(|t| t == "新观察子项"));
+        assert_eq!(out_add.wrote, false);
+        assert!(!sess.turns.iter().any(|t| t.role == "tool"));
+        assert_eq!(
+            todo_task::get_by_id(&master)["sub_tasks"]
+                .as_array()
+                .unwrap()
+                .len(),
+            subs_before
+        );
 
         let out_upd = r#loop::run_loop(&mut sess, "把原子项标题改成改后子标题", &cfg_for(&mock));
-        assert_outcome(&out_upd, "none", true);
+        assert_eq!(out_upd.wrote, false);
         let updated = todo_task::get_by_id(&master);
         let old = updated["sub_tasks"]
             .as_array()
@@ -503,7 +525,7 @@ fn run_loop_add_sub_and_update_sub_title_paths_are_observable() {
             .iter()
             .find(|s| s["sub_task_id"] == sub_id)
             .unwrap();
-        assert_eq!(old["title"], "改后子标题");
+        assert_eq!(old["title"], title_before);
     });
 }
 
@@ -771,10 +793,12 @@ fn agent_chat_turn_ignores_master_arg_uses_binding_ctx() {
 }
 
 #[test]
-fn in_flight_writes_use_binding_at_turn_start_despite_busy_open() {
+fn in_flight_tool_calls_do_not_write_despite_busy_open() {
+    // t3: busy-open race still cannot use in-process dispatch to mutate todos.
     with_sandbox(|| {
         let a = create_bound_plan("旧绑定");
         let b = create_bound_plan("新绑定");
+        let title_a = todo_task::get_by_id(&a)["title"].clone();
         let mock = spawn_scripted_llm(vec![
             assistant_tools(
                 json!([{
@@ -802,8 +826,8 @@ fn in_flight_writes_use_binding_at_turn_start_despite_busy_open() {
         r#loop::set_busy_for_tests(false);
 
         let result = r#loop::agent_chat_turn_core(&sid, "改标题", Some(&a)).unwrap();
-        assert_eq!(result.body["wrote"], true);
-        assert_eq!(todo_task::get_by_id(&a)["title"], "落在旧绑定");
+        assert_eq!(result.body["wrote"], false);
+        assert_eq!(todo_task::get_by_id(&a)["title"], title_a);
         assert_eq!(todo_task::get_by_id(&b)["title"], "新绑定");
     });
 }
@@ -3317,7 +3341,60 @@ fn t6_binding_contract_rejects_top_level_business_ids() {
     });
 }
 
-// ── t2 / P2 Host Agent empty tools (interface layer; capability dispatch remains until t3) ──
+// ── t3 / P3 remove in-process business dispatch / WHITELIST tool-round ─────────
+
+#[test]
+fn t3_loop_rs_has_no_business_whitelist_dispatch_path() {
+    let src = include_str!("../../../services/agent/loop.rs");
+    assert!(
+        !src.contains("tools::dispatch"),
+        "loop.rs must not call tools::dispatch"
+    );
+    assert!(
+        !src.contains("const WHITELIST"),
+        "loop.rs must not keep business WHITELIST for in-process tool-round"
+    );
+    assert!(
+        !src.contains("const WRITE_TOOLS"),
+        "loop.rs must not keep WRITE_TOOLS tied to in-process dispatch"
+    );
+}
+
+#[test]
+fn t3_nonempty_tools_binding_tool_calls_never_mutate_todo_task() {
+    // Capability gone: non-empty Binding.tools + tool_calls must not dual-track via Host dispatch.
+    with_sandbox(|| {
+        let master = create_bound_plan("t3非空tools");
+        let before = todo_task::get_by_id(&master)["title"].clone();
+        let mock = spawn_scripted_llm(vec![
+            assistant_tools(
+                json!([{
+                    "id": "t3_dispatch_gone",
+                    "type": "function",
+                    "function": {
+                        "name": "update_master_title",
+                        "arguments": "{\"title\":\"不得进程内写入\"}"
+                    }
+                }]),
+                None,
+            ),
+            assistant_text("不应走到工具回调后的成功话术"),
+        ]);
+        let mut sess = session::create_session(Some(&master), Some("t3非空tools")).unwrap();
+        arm_plan_binding(&master);
+        let out = r#loop::run_loop(&mut sess, "改标题", &cfg_for(&mock));
+        assert_eq!(out.wrote, false);
+        assert_eq!(todo_task::get_by_id(&master)["title"], before);
+        assert!(
+            !sess.turns.iter().any(|t| t.role == "tool"),
+            "no tool-role turns from removed dispatch path"
+        );
+        // Must not silently pretend success after ignoring tool_calls with empty content.
+        assert_eq!(out.terminal, Terminal::Error);
+    });
+}
+
+// ── t2 / P2 Host Agent empty tools (interface layer retained; t3 removes capability) ──
 
 fn empty_tools_binding() -> r#loop::Binding {
     r#loop::Binding {

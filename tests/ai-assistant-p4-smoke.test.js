@@ -75,16 +75,16 @@ const LAYERED_VITEST = [
 ];
 
 const HOST_TOOLS_MARKERS = [
-  'tools_update_master_title_success_and_validation_failures',
-  'tools_five_suite_happy_path_and_data_omits_todo_md',
+  't3_todo_task_persistence_still_available_for_mcp_http',
+  't3_tools_rs_has_no_pub_dispatch_capability',
 ];
 
 const LOOP_MARKERS = [
   'run_loop_clarify_under_limit_returns_none_not_wrote',
-  'run_loop_tool_write_sets_wrote_true_and_persists',
-  'run_loop_add_sub_and_update_sub_title_paths_are_observable',
-  'parallel_tool_calls_run_serially_and_ok_false_does_not_abort',
-  'same_message_tool_calls_plus_content_content_is_not_final_reply',
+  'run_loop_tool_calls_do_not_execute_in_process_business_tools',
+  'run_loop_add_sub_and_update_sub_title_paths_are_not_in_process',
+  'parallel_tool_calls_do_not_execute_in_process_or_fake_ok',
+  'same_message_tool_calls_plus_content_does_not_dispatch_or_write',
   'open_ai_assistant_busy_rejects_rebind',
   'unsupported_tool_calls_upstream_is_error_terminal_no_prompt_json',
   'length_and_http_errors_map_to_error_terminal_no_retry',
