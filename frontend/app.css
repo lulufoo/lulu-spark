@@ -6380,31 +6380,68 @@
   pointer-events: none;
 }
 
-.home-entry-shell[data-state="A"] .home-entry-shell__entry {
+/* Hub-expand entries only — AI bypass (`.__ai-entry`) stays visible in A. */
+.home-entry-shell[data-state="A"] .home-entry-shell__entries .home-entry-shell__entry {
   opacity: 0;
   transform: translateY(10px) scale(0.86);
   pointer-events: none;
 }
 
-.home-entry-shell[data-state="B"] .home-entry-shell__entry,
-.home-entry-shell[data-state="C"] .home-entry-shell__entry {
+.home-entry-shell[data-state="B"] .home-entry-shell__entries .home-entry-shell__entry,
+.home-entry-shell[data-state="C"] .home-entry-shell__entries .home-entry-shell__entry {
   opacity: 1;
   transform: translateY(0) scale(1);
 }
 
-.home-entry-shell[data-state="A"] .home-entry-shell__entry:nth-child(1) { transition-delay: 0ms; }
-.home-entry-shell[data-state="A"] .home-entry-shell__entry:nth-child(2) { transition-delay: 20ms; }
-.home-entry-shell[data-state="A"] .home-entry-shell__entry:nth-child(3) { transition-delay: 40ms; }
-.home-entry-shell[data-state="A"] .home-entry-shell__entry:nth-child(4) { transition-delay: 60ms; }
+.home-entry-shell[data-state="A"] .home-entry-shell__ai-entry {
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+}
 
-.home-entry-shell[data-state="B"] .home-entry-shell__entry:nth-child(1),
-.home-entry-shell[data-state="C"] .home-entry-shell__entry:nth-child(1) { transition-delay: 0ms; }
-.home-entry-shell[data-state="B"] .home-entry-shell__entry:nth-child(2),
-.home-entry-shell[data-state="C"] .home-entry-shell__entry:nth-child(2) { transition-delay: 35ms; }
-.home-entry-shell[data-state="B"] .home-entry-shell__entry:nth-child(3),
-.home-entry-shell[data-state="C"] .home-entry-shell__entry:nth-child(3) { transition-delay: 70ms; }
-.home-entry-shell[data-state="B"] .home-entry-shell__entry:nth-child(4),
-.home-entry-shell[data-state="C"] .home-entry-shell__entry:nth-child(4) { transition-delay: 105ms; }
+.home-entry-shell[data-state="A"] .home-entry-shell__entries .home-entry-shell__entry:nth-child(1) { transition-delay: 0ms; }
+.home-entry-shell[data-state="A"] .home-entry-shell__entries .home-entry-shell__entry:nth-child(2) { transition-delay: 20ms; }
+.home-entry-shell[data-state="A"] .home-entry-shell__entries .home-entry-shell__entry:nth-child(3) { transition-delay: 40ms; }
+.home-entry-shell[data-state="A"] .home-entry-shell__entries .home-entry-shell__entry:nth-child(4) { transition-delay: 60ms; }
+
+.home-entry-shell[data-state="B"] .home-entry-shell__entries .home-entry-shell__entry:nth-child(1),
+.home-entry-shell[data-state="C"] .home-entry-shell__entries .home-entry-shell__entry:nth-child(1) { transition-delay: 0ms; }
+.home-entry-shell[data-state="B"] .home-entry-shell__entries .home-entry-shell__entry:nth-child(2),
+.home-entry-shell[data-state="C"] .home-entry-shell__entries .home-entry-shell__entry:nth-child(2) { transition-delay: 35ms; }
+.home-entry-shell[data-state="B"] .home-entry-shell__entries .home-entry-shell__entry:nth-child(3),
+.home-entry-shell[data-state="C"] .home-entry-shell__entries .home-entry-shell__entry:nth-child(3) { transition-delay: 70ms; }
+.home-entry-shell[data-state="B"] .home-entry-shell__entries .home-entry-shell__entry:nth-child(4),
+.home-entry-shell[data-state="C"] .home-entry-shell__entries .home-entry-shell__entry:nth-child(4) { transition-delay: 105ms; }
+
+/* AI pinned FAB (above hub in A; JS hides in B/C). */
+.ai-assistant-fab {
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: #1a7f8c;
+  color: #fff;
+  box-shadow: 0 3px 12px rgba(26, 127, 140, 0.32);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: transform 0.2s ease, background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.ai-assistant-fab:hover {
+  background: #136670;
+  box-shadow: 0 4px 16px rgba(26, 127, 140, 0.4);
+}
+
+.ai-assistant-fab-icon {
+  width: 18px;
+  height: 18px;
+  display: block;
+  flex-shrink: 0;
+}
 
 .home-entry-shell__overlay {
   position: fixed;
