@@ -3,7 +3,7 @@
  * Dispatches DOM events into the A/B/C FSM; no business UI inside the shell.
  */
 
-import { createHomeEntryFsm } from './fsm.js';
+import { AI_ASSISTANT_ENTRY_ID, createHomeEntryFsm } from './fsm.js';
 import { DEFAULT_PANEL } from './entry-config.js';
 
 /**
@@ -24,17 +24,21 @@ import { DEFAULT_PANEL } from './entry-config.js';
 
 /**
  * @param {HTMLElement} anchor
- * @param {{ config: EntryConfig[], registry: ContentRegistry, host?: unknown, fsm?: ReturnType<typeof createHomeEntryFsm> }} opts
+ * @param {{ config: EntryConfig[], registry: ContentRegistry, host?: unknown, fsm?: ReturnType<typeof createHomeEntryFsm>, aiEntry?: EntryConfig | null }} opts
  * @returns {{
  *   unmount: () => void,
  *   getState: () => ReturnType<ReturnType<typeof createHomeEntryFsm>['snapshot']>,
  *   openContent: (entryId: string) => Promise<void>,
+ *   presentNormalize: () => Promise<void>,
  *   forceRecoverA: (reason?: string) => void,
  * }}
  */
-export function mountHomeEntryShell(anchor, { config, registry, host = {}, fsm } = {}) {
+export function mountHomeEntryShell(anchor, { config, registry, host = {}, fsm, aiEntry = null } = {}) {
   const machine = fsm ?? createHomeEntryFsm();
   const entries = Array.isArray(config) ? config : [];
+  /** @type {EntryConfig | null} */
+  const bypassEntry =
+    aiEntry && aiEntry.id === AI_ASSISTANT_ENTRY_ID ? aiEntry : null;
 
   const root = document.createElement('div');
   root.className = 'home-entry-shell';
@@ -83,8 +87,32 @@ export function mountHomeEntryShell(anchor, { config, registry, host = {}, fsm }
     entriesWrap.appendChild(btn);
   }
 
-  // column stack: entries above, hub pinned at bottom.
+  /** @type {HTMLButtonElement | null} */
+  let aiBtn = null;
+  if (bypassEntry) {
+    aiBtn = document.createElement('button');
+    aiBtn.type = 'button';
+    const fabClass = bypassEntry.fabClass || 'home-entry-shell__entry-fab';
+    aiBtn.className = `home-entry-shell__entry home-entry-shell__ai-entry ${fabClass}`;
+    aiBtn.dataset.role = 'ai-entry';
+    aiBtn.dataset.entryId = bypassEntry.id;
+    if (bypassEntry.fabClass) aiBtn.dataset.fabClass = bypassEntry.fabClass;
+    aiBtn.title = bypassEntry.title;
+    aiBtn.setAttribute('aria-label', `Open ${bypassEntry.title}`);
+    if (bypassEntry.iconPaths) {
+      const iconClass = bypassEntry.fabIconClass || 'home-entry-shell__entry-icon';
+      aiBtn.innerHTML =
+        `<svg class="${iconClass}" viewBox="0 0 24 24" aria-hidden="true" focusable="false">` +
+        bypassEntry.iconPaths +
+        '</svg>';
+    } else {
+      aiBtn.textContent = bypassEntry.title;
+    }
+  }
+
+  // column stack: hub-expand entries, AI bypass above hub, hub pinned at bottom.
   cluster.appendChild(entriesWrap);
+  if (aiBtn) cluster.appendChild(aiBtn);
   cluster.appendChild(hubBtn);
 
   const overlay = document.createElement('div');
@@ -238,6 +266,21 @@ export function mountHomeEntryShell(anchor, { config, registry, host = {}, fsm }
     }
   }
 
+  /** @param {string} entryId */
+  function findEntry(entryId) {
+    if (bypassEntry && bypassEntry.id === entryId) return bypassEntry;
+    return entries.find((e) => e.id === entryId);
+  }
+
+  /** @param {string} mode */
+  function syncAiVisibility(mode) {
+    if (!aiBtn) return;
+    // AI bypass visible only in A; hidden in B/C.
+    const show = mode === 'A';
+    aiBtn.hidden = !show;
+    aiBtn.setAttribute('aria-hidden', String(!show));
+  }
+
   function syncDom() {
     if (recovering) {
       // forceRecoverA owns DOM reset; only refresh chrome visibility from snapshot.
@@ -245,6 +288,7 @@ export function mountHomeEntryShell(anchor, { config, registry, host = {}, fsm }
       root.dataset.state = snap.mode;
       hubBtn.setAttribute('aria-expanded', String(snap.mode !== 'A'));
       entriesWrap.setAttribute('aria-hidden', String(snap.mode === 'A'));
+      syncAiVisibility(snap.mode);
       syncEntryActive(null);
       overlay.hidden = true;
       return;
@@ -254,9 +298,10 @@ export function mountHomeEntryShell(anchor, { config, registry, host = {}, fsm }
     const mode = snap.mode;
     root.dataset.state = mode;
     hubBtn.setAttribute('aria-expanded', String(mode !== 'A'));
-    // A: hub only; B/C: entries visible (cluster stays expanded while overlay is open).
+    // A: hub + AI bypass; B/C: hub-expand entries visible, AI hidden.
     // Keep entries in DOM for interruptible expand/collapse motion (no [hidden]).
     entriesWrap.setAttribute('aria-hidden', String(mode === 'A'));
+    syncAiVisibility(mode);
     overlay.hidden = !(mode === 'C' || failurePresentation != null);
 
     if (mode === 'A') {
@@ -271,7 +316,7 @@ export function mountHomeEntryShell(anchor, { config, registry, host = {}, fsm }
 
     if (mode === 'C') {
       failurePresentation = null;
-      const entry = entries.find((e) => e.id === snap.entryId);
+      const entry = findEntry(snap.entryId);
       if (entry && activeEntryId !== entry.id) {
         mountContent(entry);
       } else if (entry) {
@@ -283,7 +328,7 @@ export function mountHomeEntryShell(anchor, { config, registry, host = {}, fsm }
 
     // B: keep failure end-state; otherwise clear leftover success content.
     if (failurePresentation) {
-      const failed = entries.find((e) => e.id === failurePresentation.entryId);
+      const failed = findEntry(failurePresentation.entryId);
       if (failed) applyPanelSize(failed);
       syncEntryActive(failurePresentation.entryId);
     } else {
@@ -303,13 +348,15 @@ export function mountHomeEntryShell(anchor, { config, registry, host = {}, fsm }
 
   /**
    * Load content via registry; success → C; missing key / load failure → stay B with error placeholder.
+   * AI bypass may open from A; hub business entries remain B-only.
    * @param {string} entryId
    * @returns {Promise<void>}
    */
   async function openContent(entryId) {
-    const entry = entries.find((e) => e.id === entryId);
+    const entry = findEntry(entryId);
     if (!entry) return;
-    if (machine.getState() === 'A') return;
+    const mode = machine.getState();
+    if (mode === 'A' && entryId !== AI_ASSISTANT_ENTRY_ID) return;
 
     const adapter = /** @type {ContentAdapter | undefined} */ (registry.get(entry.contentKey));
     if (!adapter || typeof adapter.mount !== 'function') {
@@ -349,6 +396,30 @@ export function mountHomeEntryShell(anchor, { config, registry, host = {}, fsm }
     }
   }
 
+  /**
+   * Present 态归一：B/业务 C → A → openEntry(ai-assistant); already C_AI → keep.
+   * @returns {Promise<void>}
+   */
+  async function presentNormalize() {
+    const snap = machine.snapshot();
+    if (snap.mode === 'C' && snap.entryId === AI_ASSISTANT_ENTRY_ID) {
+      return;
+    }
+    if (snap.mode === 'C') {
+      if (clearContent()) return;
+      failurePresentation = null;
+      titleEl.textContent = '';
+      machine.dispatch({ type: 'closeOverlay' });
+      syncDom();
+    }
+    if (machine.getState() === 'B') {
+      failurePresentation = null;
+      machine.dispatch({ type: 'closeHub' });
+      syncDom();
+    }
+    await openContent(AI_ASSISTANT_ENTRY_ID);
+  }
+
   hubBtn.addEventListener('click', (event) => {
     event.stopPropagation();
     const mode = machine.getState();
@@ -357,9 +428,26 @@ export function mountHomeEntryShell(anchor, { config, registry, host = {}, fsm }
     } else if (mode === 'B') {
       failurePresentation = null;
       dispatchAndSync({ type: 'closeHub' });
+    } else if (mode === 'C') {
+      const snap = machine.snapshot();
+      // C_AI + conflict: C→A→B. Business C keeps C.
+      if (snap.mode === 'C' && snap.entryId === AI_ASSISTANT_ENTRY_ID) {
+        if (clearContent()) return;
+        failurePresentation = null;
+        titleEl.textContent = '';
+        machine.dispatch({ type: 'closeOverlay' });
+        machine.dispatch({ type: 'openHub' });
+        syncDom();
+      }
     }
-    // C: hub click keeps C (FSM rejects closeHub); no dispatch needed.
   });
+
+  if (aiBtn) {
+    aiBtn.addEventListener('click', (event) => {
+      event.stopPropagation();
+      void openContent(AI_ASSISTANT_ENTRY_ID);
+    });
+  }
 
   entriesWrap.addEventListener('click', (event) => {
     const target = /** @type {HTMLElement | null} */ (event.target);
@@ -441,6 +529,7 @@ export function mountHomeEntryShell(anchor, { config, registry, host = {}, fsm }
     unmount,
     getState: () => machine.snapshot(),
     openContent,
+    presentNormalize,
     forceRecoverA,
   };
 }

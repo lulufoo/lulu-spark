@@ -279,3 +279,189 @@ describe('home-entry-shell shell · entry cluster + OverlayChrome + triggers (T3
     );
   });
 });
+
+const AI_ENTRY = {
+  id: 'ai-assistant',
+  contentKey: 'ai-assistant',
+  title: 'AI Assistant',
+  overlayTitle: 'AI Assistant',
+  fabClass: 'ai-assistant-fab',
+  fabIconClass: 'ai-assistant-fab-icon',
+  iconPaths: '<path fill="currentColor" d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z"/>',
+  panelWidth: 340,
+  panelHeight: 460,
+};
+
+/**
+ * Mount shell with AI bypass entry (not part of hub-expand baseline).
+ * @param {object} [opts]
+ */
+function mountAiBypassFixture(opts = {}) {
+  const config = [...getBaselineEntries()];
+  const registry = createContentRegistry();
+  for (const entry of [...config, AI_ENTRY]) {
+    registry.register(entry.contentKey, {
+      mount(slot, ctx) {
+        const marker = document.createElement('div');
+        marker.className = 'shell-content-marker';
+        marker.dataset.entryId = ctx.entry.id;
+        marker.textContent = `content:${ctx.entry.id}`;
+        slot.appendChild(marker);
+        return {
+          unmount() {
+            marker.remove();
+          },
+        };
+      },
+    });
+  }
+  const anchor = document.createElement('div');
+  document.body.appendChild(anchor);
+  const shell = mountHomeEntryShell(anchor, {
+    config,
+    aiEntry: AI_ENTRY,
+    registry,
+    host: {},
+    ...opts,
+  });
+  return { anchor, shell, config, registry };
+}
+
+function aiBtn(root) {
+  return root.querySelector('[data-role="ai-entry"], [data-entry-id="ai-assistant"]');
+}
+
+describe('home-entry-shell shell · AI bypass / Present normalize / hub conflict (T1)', () => {
+  /** @type {{ anchor: HTMLElement, shell: ReturnType<typeof mountHomeEntryShell> } | null} */
+  let fx = null;
+
+  beforeEach(() => {
+    document.body.innerHTML = '';
+    fx = mountAiBypassFixture();
+  });
+
+  afterEach(() => {
+    fx?.shell.unmount();
+    fx = null;
+    document.body.innerHTML = '';
+  });
+
+  it('A: corner AI click opens C_AI overlay with ai-assistant content key', async () => {
+    const { anchor, shell } = fx;
+    expect(shell.getState()).toEqual({ mode: 'A' });
+    const btn = aiBtn(anchor);
+    expect(btn).not.toBeNull();
+    expect(isEffectivelyHidden(btn)).toBe(false);
+
+    btn.click();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(shell.getState()).toEqual({ mode: 'C', entryId: 'ai-assistant' });
+    expect(overlay(anchor).hidden).toBe(false);
+    expect(contentSlot(anchor).querySelector('.shell-content-marker')?.dataset.entryId).toBe(
+      'ai-assistant',
+    );
+  });
+
+  it('C_AI: close / backdrop / Escape / outside all return A (not Binding Reset path / not B)', async () => {
+    const { anchor, shell } = fx;
+
+    aiBtn(anchor).click();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(shell.getState().mode).toBe('C');
+
+    closeBtn(anchor).click();
+    expect(shell.getState()).toEqual({ mode: 'A' });
+
+    aiBtn(anchor).click();
+    await Promise.resolve();
+    await Promise.resolve();
+    backdrop(anchor).click();
+    expect(shell.getState()).toEqual({ mode: 'A' });
+
+    aiBtn(anchor).click();
+    await Promise.resolve();
+    await Promise.resolve();
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    expect(shell.getState()).toEqual({ mode: 'A' });
+
+    aiBtn(anchor).click();
+    await Promise.resolve();
+    await Promise.resolve();
+    document.body.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    expect(shell.getState()).toEqual({ mode: 'A' });
+  });
+
+  it('C_AI hub +: walks C→A→B; AI entry hidden in B and business C', async () => {
+    const { anchor, shell } = fx;
+
+    aiBtn(anchor).click();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(shell.getState()).toEqual({ mode: 'C', entryId: 'ai-assistant' });
+
+    hub(anchor).click();
+    expect(shell.getState()).toEqual({ mode: 'B' });
+    expect(isEffectivelyHidden(aiBtn(anchor))).toBe(true);
+
+    entryBtn(anchor, 'notes').click();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(shell.getState()).toEqual({ mode: 'C', entryId: 'notes' });
+    expect(isEffectivelyHidden(aiBtn(anchor))).toBe(true);
+  });
+
+  it('presentNormalize reaches C_AI from A / B / business C; idempotent on C_AI', async () => {
+    const { anchor, shell } = fx;
+    expect(typeof shell.presentNormalize).toBe('function');
+
+    await shell.presentNormalize();
+    expect(shell.getState()).toEqual({ mode: 'C', entryId: 'ai-assistant' });
+
+    // Idempotent while already C_AI
+    await shell.presentNormalize();
+    expect(shell.getState()).toEqual({ mode: 'C', entryId: 'ai-assistant' });
+
+    // From B via hub conflict then presentNormalize
+    hub(anchor).click();
+    expect(shell.getState()).toEqual({ mode: 'B' });
+    await shell.presentNormalize();
+    expect(shell.getState()).toEqual({ mode: 'C', entryId: 'ai-assistant' });
+
+    // From business C
+    closeBtn(anchor).click();
+    expect(shell.getState()).toEqual({ mode: 'A' });
+    hub(anchor).click();
+    entryBtn(anchor, 'read-later').click();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(shell.getState()).toEqual({ mode: 'C', entryId: 'read-later' });
+    await shell.presentNormalize();
+    expect(shell.getState()).toEqual({ mode: 'C', entryId: 'ai-assistant' });
+  });
+
+  it('business closeOverlay still → B; A-state business openEntry still illegal', async () => {
+    const { anchor, shell } = fx;
+
+    await shell.openContent('notes');
+    expect(shell.getState()).toEqual({ mode: 'A' });
+
+    hub(anchor).click();
+    entryBtn(anchor, 'notes').click();
+    await Promise.resolve();
+    await Promise.resolve();
+    closeBtn(anchor).click();
+    expect(shell.getState()).toEqual({ mode: 'B' });
+  });
+
+  it('shell source does not introduce OS blur as a transfer trigger', () => {
+    const shellSrc = readFileSync(
+      join(repoRoot, 'frontend/js/home-entry-shell/shell.js'),
+      'utf8',
+    );
+    expect(shellSrc).not.toMatch(/\bblur\b/i);
+    expect(shellSrc).not.toMatch(/visibilitychange|window\.blur|onblur/);
+  });
+});

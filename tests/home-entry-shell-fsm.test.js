@@ -126,8 +126,8 @@ describe('home-entry-shell fsm · A/B/C legal edges + snapshot (T2)', () => {
     expect(fromC.snapshot()).toEqual({ mode: 'C', entryId: 'notes' });
   });
 
-  // T7 hard counterexamples — FSM surface
-  it('hard counterexample: no direct A→C or C→A transitions exist', () => {
+  // T7 hard counterexamples — FSM surface (business A↔C still illegal; AI bypass is the exception)
+  it('hard counterexample: business A→C still illegal; business C has no closeHub→A', () => {
     const fsm = createHomeEntryFsm();
     expect(fsm.dispatch({ type: 'openEntry', entryId: 'notes' }).accepted).toBe(false);
     expect(fsm.getState()).toBe('A');
@@ -136,8 +136,71 @@ describe('home-entry-shell fsm · A/B/C legal edges + snapshot (T2)', () => {
     fsm.dispatch({ type: 'openEntry', entryId: 'notes' });
     expect(fsm.dispatch({ type: 'closeHub' }).accepted).toBe(false);
     expect(fsm.getState()).toBe('C');
-    // Only forceA may collapse C→A as recovery (not a normal edge).
-    expect(fsm.dispatch({ type: 'forceA' }).accepted).toBe(true);
+    // Business closeOverlay lands on B, never A.
+    expect(fsm.dispatch({ type: 'closeOverlay' }).transitions).toEqual([{ from: 'C', to: 'B' }]);
+    expect(fsm.getState()).toBe('B');
+  });
+});
+
+/**
+ * SK-1 / T1 — AI bypass FSM specialization (A→C_AI / C_AI→A).
+ * AI entry id is locked to `ai-assistant`.
+ */
+describe('home-entry-shell fsm · AI bypass A→C_AI / C_AI→A (T1)', () => {
+  const AI = 'ai-assistant';
+
+  /** @type {ReturnType<typeof createHomeEntryFsm>} */
+  let fsm;
+
+  beforeEach(() => {
+    fsm = createHomeEntryFsm();
+  });
+
+  it('A→C_AI: openEntry(ai-assistant) from A is accepted', () => {
+    const result = fsm.dispatch({ type: 'openEntry', entryId: AI });
+    expect(result.accepted).toBe(true);
+    expect(result.transitions).toEqual([{ from: 'A', to: 'C' }]);
+    expect(fsm.getState()).toBe('C');
+    expect(fsm.snapshot()).toEqual({ mode: 'C', entryId: AI });
+  });
+
+  it('C_AI→A: closeOverlay from AI C returns A (not B)', () => {
+    fsm.dispatch({ type: 'openEntry', entryId: AI });
+    const close = fsm.dispatch({ type: 'closeOverlay' });
+    expect(close.accepted).toBe(true);
+    expect(close.transitions).toEqual([{ from: 'C', to: 'A' }]);
     expect(fsm.getState()).toBe('A');
+    expect(fsm.snapshot()).toEqual({ mode: 'A' });
+  });
+
+  it('hub business openEntry remains A-illegal; business closeOverlay still → B', () => {
+    expect(fsm.dispatch({ type: 'openEntry', entryId: 'builders' }).accepted).toBe(false);
+    expect(fsm.getState()).toBe('A');
+
+    fsm.dispatch({ type: 'openHub' });
+    fsm.dispatch({ type: 'openEntry', entryId: 'builders' });
+    const close = fsm.dispatch({ type: 'closeOverlay' });
+    expect(close.accepted).toBe(true);
+    expect(close.transitions).toEqual([{ from: 'C', to: 'B' }]);
+    expect(fsm.getState()).toBe('B');
+  });
+
+  it('rejects silent A→B→C for AI: no composite open that fabricates hub path from A', () => {
+    // From A, only the AI specialization edge is legal — not a fabricated hub expand.
+    const biz = fsm.dispatch({ type: 'openEntry', entryId: 'notes' });
+    expect(biz.accepted).toBe(false);
+    expect(fsm.getState()).toBe('A');
+    // openHub alone is A→B; AI does not require or invent A→B→C.
+    const hub = fsm.dispatch({ type: 'openHub' });
+    expect(hub.accepted).toBe(true);
+    expect(hub.transitions).toEqual([{ from: 'A', to: 'B' }]);
+  });
+
+  it('idempotent: openEntry(ai-assistant) while already C_AI is rejected (no C→C)', () => {
+    fsm.dispatch({ type: 'openEntry', entryId: AI });
+    const again = fsm.dispatch({ type: 'openEntry', entryId: AI });
+    expect(again.accepted).toBe(false);
+    expect(again.transitions).toEqual([]);
+    expect(fsm.snapshot()).toEqual({ mode: 'C', entryId: AI });
   });
 });
