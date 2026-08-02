@@ -50,6 +50,11 @@ describe('ai-assistant composer Binding Contract gate', () => {
     const send = root.querySelector('[data-role="send"]');
     expect(root.classList.contains('ai-assistant-panel')).toBe(true);
     expect(root.querySelector('[data-role="bound"]')).toBeNull();
+    expect(root.querySelector('[data-role="unbound-content"]')?.hidden).toBe(false);
+    expect(root.querySelector('[data-role="unbound-content"]')?.textContent).toContain(
+      'No todo is currently bound.',
+    );
+    expect(root.querySelector('[data-role="bound-content"]')?.hidden).toBe(true);
     expect(input.disabled).toBe(true);
     expect(send.disabled).toBe(true);
     expect(api.getState().hostBound).toBe(false);
@@ -67,6 +72,8 @@ describe('ai-assistant composer Binding Contract gate', () => {
     const input = root.querySelector('[data-role="input"]');
     const send = root.querySelector('[data-role="send"]');
     expect(root.querySelector('[data-role="bound"]')).toBeNull();
+    expect(root.querySelector('[data-role="unbound-content"]')?.hidden).toBe(true);
+    expect(root.querySelector('[data-role="bound-content"]')?.hidden).toBe(false);
     expect(input.disabled).toBe(false);
     expect(send.disabled).toBe(false);
     expect(api.getState().hostBound).toBe(true);
@@ -86,6 +93,8 @@ describe('ai-assistant composer Binding Contract gate', () => {
       payload: { state: 'unbound' },
     });
     expect(root.querySelector('[data-role="bound"]')).toBeNull();
+    expect(root.querySelector('[data-role="unbound-content"]')?.hidden).toBe(false);
+    expect(root.querySelector('[data-role="bound-content"]')?.hidden).toBe(true);
     expect(root.querySelector('[data-role="input"]').disabled).toBe(true);
     expect(api.getState().hostBound).toBe(false);
     api.dispose();

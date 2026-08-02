@@ -6543,6 +6543,40 @@
   font-family: "SF Pro Text", "PingFang SC", "Hiragino Sans GB", sans-serif;
 }
 
+.ai-assistant-panel .ai-assistant-bound-content {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.ai-assistant-panel .ai-assistant-unbound {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 24px;
+  text-align: center;
+}
+
+.ai-assistant-panel .ai-assistant-unbound-message,
+.ai-assistant-panel .ai-assistant-unbound-detail {
+  margin: 0;
+}
+
+.ai-assistant-panel .ai-assistant-unbound-message {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.ai-assistant-panel .ai-assistant-unbound-detail {
+  color: #6b655c;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
 .ai-assistant-panel .ai-assistant-messages {
   flex: 1 1 auto;
   min-height: 0;

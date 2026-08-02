@@ -60,13 +60,21 @@ export function mountAiAssistant(root, opts = {}) {
 
   root.classList.add('ai-assistant-panel');
   root.innerHTML = `
-    <div class="ai-assistant-messages" data-role="messages" aria-live="polite"></div>
-    <form class="ai-assistant-composer" data-role="form">
-      <textarea class="ai-assistant-input" data-role="input" rows="2" placeholder="Message…" disabled></textarea>
-      <button type="submit" class="ai-assistant-send" data-role="send" disabled>Send</button>
-    </form>
+    <div class="ai-assistant-unbound" data-role="unbound-content" role="status">
+      <p class="ai-assistant-unbound-message">No todo is currently bound.</p>
+      <p class="ai-assistant-unbound-detail">Select an active todo in Todos to start a chat.</p>
+    </div>
+    <div class="ai-assistant-bound-content" data-role="bound-content" hidden>
+      <div class="ai-assistant-messages" data-role="messages" aria-live="polite"></div>
+      <form class="ai-assistant-composer" data-role="form">
+        <textarea class="ai-assistant-input" data-role="input" rows="2" placeholder="Message…" disabled></textarea>
+        <button type="submit" class="ai-assistant-send" data-role="send" disabled>Send</button>
+      </form>
+    </div>
   `;
 
+  const unboundContent = root.querySelector('[data-role="unbound-content"]');
+  const boundContent = root.querySelector('[data-role="bound-content"]');
   const messagesEl = root.querySelector('[data-role="messages"]');
   const form = root.querySelector('[data-role="form"]');
   const input = root.querySelector('[data-role="input"]');
@@ -122,6 +130,8 @@ export function mountAiAssistant(root, opts = {}) {
   }
 
   function refreshComposerAndStatus() {
+    unboundContent.hidden = hostBound;
+    boundContent.hidden = !hostBound;
     setComposerEnabled(composerShouldEnable());
   }
 
