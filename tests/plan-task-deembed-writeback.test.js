@@ -62,7 +62,6 @@ describe('t4 de-embed + writeback — source contracts', () => {
       /invoke\(\s*['"]open_ai_assistant['"]\s*,\s*\{\s*masterTaskId/,
     );
     expect(planTaskIndex).not.toMatch(/['"]open_ai_assistant['"]/);
-    expect(planTaskIndex).toMatch(/present_ai_assistant/);
   });
 
   it('C-min: keeps turn-completed → onAiAssistantTurnCompleted → reloadList (mandatory)', () => {
@@ -80,9 +79,9 @@ describe('t4 de-embed + writeback — source contracts', () => {
     expect(planTaskAssistant).not.toMatch(/ai-assistant:turn-completed/);
   });
 
-  it('keeps Present shell entry; no open-and-bind bypass posing as de-embed', () => {
-    expect(planTaskIndex).toMatch(/presentTodosAssistant/);
-    expect(planTaskIndex).toMatch(/present_ai_assistant/);
+  it('T6: page Present entry removed; no open-and-bind bypass posing as de-embed', () => {
+    expect(planTaskIndex).not.toMatch(/presentTodosAssistant/);
+    expect(planTaskIndex).not.toMatch(/data-action=["']open-ai-assistant["']/);
     // L12-I#3: must not keep openPlanAiAssistant open+bind bypass.
     expect(planTaskIndex).not.toMatch(
       /function\s+openPlanAiAssistant[\s\S]{0,400}open_ai_assistant/,
@@ -154,23 +153,23 @@ describe('mountPlanTaskSplit t4 runtime — N1 + writeback', () => {
     vi.restoreAllMocks();
   });
 
-  it('N1: Assistant click Present only — no open_ai_assistant, no legacy bound write', async () => {
+  it('N1/T6: no page Assistant Present trigger — no open_ai_assistant, no legacy bound write', async () => {
     const { dispose } = mountPlanTaskSplit(container, {
       masterId: 'task_alpha',
     });
     await vi.waitFor(() => {
-      expect(
-        container.querySelector('[data-action="open-ai-assistant"]'),
-      ).not.toBeNull();
+      expect(container.querySelector('.plan-task-detail-toolbar')).not.toBeNull();
     });
+
+    expect(
+      container.querySelector('[data-action="open-ai-assistant"]'),
+    ).toBeNull();
 
     invokeMock.mockClear();
     legacyBoundMasterId = null;
-    container.querySelector('[data-action="open-ai-assistant"]').click();
-    await vi.waitFor(() => {
-      expect(invokeMock).toHaveBeenCalledWith('present_ai_assistant');
-    });
-
+    // Host Present (corner/shell) must not write legacy open-and-bind fields.
+    await window.__TAURI__.core.invoke('present_ai_assistant');
+    expect(invokeMock).toHaveBeenCalledWith('present_ai_assistant');
     expect(invokeMock).not.toHaveBeenCalledWith(
       'open_ai_assistant',
       expect.anything(),

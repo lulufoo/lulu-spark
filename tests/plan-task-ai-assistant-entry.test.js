@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 /**
- * T6 / L2 t3: plan-page thin shell — Present entry + turn-completed refresh.
- * Does not cover FAB plan-task-assistant.js.
- * Present = present_ai_assistant only; not open_ai_assistant(masterTaskId).
+ * T6: Todos page has no in-page Assistant Present entry.
+ * Keeps turn-completed writeback refresh; Binding Set is via page lifecycle.
+ * Present = Host/corner present_ai_assistant only; not page open-ai-assistant.
  */
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -52,10 +52,11 @@ const sampleMasters = [
   },
 ];
 
-describe('plan-task AI assistant entry source wiring (t6 / t3)', () => {
-  it('plan-task/index.js invokes present_ai_assistant and listens turn-completed', () => {
-    expect(planTaskIndex).toMatch(/present_ai_assistant/);
+describe('plan-task AI assistant entry source wiring (t6)', () => {
+  it('plan-task/index.js has no page Present trigger; keeps turn-completed listen', () => {
     expect(planTaskIndex).toMatch(/ai-assistant:turn-completed/);
+    expect(planTaskIndex).not.toMatch(/presentTodosAssistant/);
+    expect(planTaskIndex).not.toMatch(/data-action=["']open-ai-assistant["']/);
     expect(planTaskIndex).not.toMatch(
       /invoke\(\s*['"]open_ai_assistant['"]\s*,\s*\{\s*masterTaskId/,
     );
@@ -113,7 +114,7 @@ describe('mountPlanTaskSplit AI assistant entry', () => {
     delete window.__TAURI__;
   });
 
-  it('shows open-ai-assistant entry only when a master is selected', async () => {
+  it('never shows open-ai-assistant entry (selected or not)', async () => {
     const { dispose } = mountPlanTaskSplit(container);
     await vi.waitFor(() => {
       expect(container.querySelector('.plan-task-master-item')).not.toBeNull();
@@ -122,32 +123,9 @@ describe('mountPlanTaskSplit AI assistant entry', () => {
 
     container.querySelector('[data-master-id="task_alpha"]').click();
     await vi.waitFor(() => {
-      expect(
-        container.querySelector('[data-action="open-ai-assistant"]'),
-      ).not.toBeNull();
+      expect(container.querySelector('.plan-task-detail-toolbar')).not.toBeNull();
     });
-    dispose();
-  });
-
-  it('invokes present_ai_assistant without masterTaskId bind args', async () => {
-    const { dispose } = mountPlanTaskSplit(container, {
-      masterId: 'task_alpha',
-    });
-    await vi.waitFor(() => {
-      expect(
-        container.querySelector('[data-action="open-ai-assistant"]'),
-      ).not.toBeNull();
-    });
-
-    invokeMock.mockClear();
-    container.querySelector('[data-action="open-ai-assistant"]').click();
-    await vi.waitFor(() => {
-      expect(invokeMock).toHaveBeenCalledWith('present_ai_assistant');
-    });
-    expect(invokeMock).not.toHaveBeenCalledWith(
-      'open_ai_assistant',
-      expect.anything(),
-    );
+    expect(container.querySelector('[data-action="open-ai-assistant"]')).toBeNull();
     dispose();
   });
 

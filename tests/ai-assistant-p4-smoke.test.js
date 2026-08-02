@@ -371,23 +371,22 @@ describe('Todos SK-4 parity acceptance (P1–P6 / N1/N2)', () => {
       expect(events.filter((e) => e.event === 'onBound')).toHaveLength(0);
     });
 
-    it('N1: Todos Present entry does not call open_ai_assistant(masterTaskId)', async () => {
+    it('N1/T6: Todos has no page Present entry; Host Present skips open_ai_assistant', async () => {
       const container = document.createElement('div');
       document.body.appendChild(container);
       const { dispose } = mountPlanTaskSplit(container, {
         masterId: 'task_alpha',
       });
       await vi.waitFor(() => {
-        expect(
-          container.querySelector('[data-action="open-ai-assistant"]'),
-        ).not.toBeNull();
+        expect(container.querySelector('.plan-task-detail-toolbar')).not.toBeNull();
       });
+      expect(
+        container.querySelector('[data-action="open-ai-assistant"]'),
+      ).toBeNull();
 
       invokeMock.mockClear();
-      container.querySelector('[data-action="open-ai-assistant"]').click();
-      await vi.waitFor(() => {
-        expect(invokeMock).toHaveBeenCalledWith('present_ai_assistant');
-      });
+      await window.__TAURI__.core.invoke('present_ai_assistant');
+      expect(invokeMock).toHaveBeenCalledWith('present_ai_assistant');
       expect(invokeMock).not.toHaveBeenCalledWith(
         'open_ai_assistant',
         expect.anything(),

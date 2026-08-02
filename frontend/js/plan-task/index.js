@@ -27,7 +27,7 @@ const COMMENTS_EMPTY_MSG = 'No process notes';
 const AI_ASSISTANT_TURN_COMPLETED = 'ai-assistant:turn-completed';
 /**
  * t4 / N1: `open_ai_assistant(masterTaskId)` is not Todos executable success main path.
- * Page entry Present uses `present_ai_assistant`; Binding is via Binding Contract Set.
+ * t6: no in-page Assistant Present entry; Binding is via Binding Contract Set/Reset.
  */
 export const TODOS_OPEN_AND_BIND_MAIN_PATH_DISABLED = true;
 /**
@@ -565,7 +565,6 @@ function renderDetailToolbar(masterTaskId, disabled) {
   const disabledAttr = disabled ? ' disabled' : '';
   return `
     <div class="plan-task-detail-toolbar">
-      <button type="button" class="md-header-btn" data-action="open-ai-assistant" data-master-id="${escHtml(masterTaskId)}"${disabledAttr}>Assistant</button>
       <button type="button" class="md-header-btn" data-action="add-sub" data-master-id="${escHtml(masterTaskId)}"${disabledAttr}>Add sub-task</button>
       <button type="button" class="md-header-btn plan-task-btn-danger" data-action="delete-master"${disabledAttr}>Delete todo</button>
     </div>
@@ -1920,18 +1919,6 @@ export function mountPlanTaskSplit(container, opts = {}) {
     }
   }
 
-  /** Present-only: open/focus assistant shell. Does not Set or write bound_master_task_id. */
-  async function presentTodosAssistant() {
-    if (!selectedMasterId || controlsDisabled(busy)) return;
-    const invoke = getTauriInvoke();
-    if (!invoke) return;
-    try {
-      await invoke('present_ai_assistant');
-    } catch {
-      // Open/focus failure is non-fatal; Host returns explicit errors when busy.
-    }
-  }
-
   function onAiAssistantTurnCompleted(event) {
     if (disposed) return;
     const payload = event?.payload;
@@ -2067,13 +2054,6 @@ export function mountPlanTaskSplit(container, opts = {}) {
       event.preventDefault();
       if (controlsDisabled(busy)) return;
       openCreateDialog(actionEl instanceof HTMLElement ? actionEl : null);
-      return;
-    }
-
-    if (action === 'open-ai-assistant') {
-      event.preventDefault();
-      if (controlsDisabled(busy) || !selectedMasterId) return;
-      void presentTodosAssistant();
       return;
     }
 

@@ -186,7 +186,8 @@ pub fn load_turns_value(session_id: &str) -> Value {
         return Value::Array(Vec::new());
     }
     match load_session(id) {
-        Ok(session) => serde_json::to_value(&session.turns).unwrap_or_else(|_| Value::Array(Vec::new())),
+        Ok(session) => serde_json::to_value(&session.turns)
+            .unwrap_or_else(|_| Value::Array(Vec::new())),
         Err(_) => Value::Array(Vec::new()),
     }
 }

@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 /**
- * L2 t3: 页内 Present 入口——仅开窗/聚焦，停止打开并绑定.
- * Sources: tech-doc L06-T / L08-AR / L11-AR / L12-I / N1 / N2
+ * T6 / L18-T / L22-VF Todos: remove in-page Assistant entry; keep Set/Reset.
+ * Present remains Host/corner (t3); page must not expose open-ai-assistant.
+ * Sources: tech-doc T6 / L18-T / L13-I / L22-VF Todos
  */
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -56,21 +57,28 @@ const sampleMasters = [
   },
 ];
 
-describe('Todos Present entry — source contracts (t3)', () => {
-  it('openPlanAiAssistant / presentTodosAssistant invokes Host Present, not open_ai_assistant bind path', () => {
-    // Button handler must Present via present_ai_assistant (→ create_or_focus),
-    // not invoke('open_ai_assistant', { masterTaskId }).
-    expect(planTaskIndex).toMatch(
-      /presentTodosAssistant|openPlanAiAssistant/,
+describe('Todos page Assistant entry removed — source contracts (t6)', () => {
+  it('removes presentTodosAssistant / open-ai-assistant page trigger paths', () => {
+    expect(planTaskIndex).not.toMatch(/presentTodosAssistant/);
+    expect(planTaskIndex).not.toMatch(/openPlanAiAssistant/);
+    expect(planTaskIndex).not.toMatch(/data-action=["']open-ai-assistant["']/);
+    expect(planTaskIndex).not.toMatch(
+      /action\s*===\s*['"]open-ai-assistant['"]/,
     );
-    expect(planTaskIndex).toMatch(/present_ai_assistant/);
     expect(planTaskIndex).not.toMatch(
       /invoke\(\s*['"]open_ai_assistant['"]\s*,\s*\{\s*masterTaskId/,
     );
   });
 
-  it('Host Present is registered and does not create_or_focus independent window', () => {
-    // T3: Present opens shell C_AI via emit payload; window_label ≠ window must exist.
+  it('keeps enter/leave Set/Reset wiring (Binding main path untouched)', () => {
+    expect(planTaskIndex).toMatch(/onTodosPageEnter|createTodosPageLifecycle/);
+    expect(planTaskIndex).toMatch(/onTodosPageLeave/);
+    expect(planTaskIndex).toMatch(
+      /function dispose\(\)\s*\{[\s\S]*?onTodosPageLeave/,
+    );
+  });
+
+  it('Host Present remains available for corner/shell (t3); not page-owned', () => {
     expect(aiAssistantCmd).toMatch(/fn present_ai_assistant\b/);
     expect(aiAssistantCmd).toMatch(/entry_id/);
     const presentFn = aiAssistantCmd.match(
@@ -89,7 +97,7 @@ describe('Todos Present entry — source contracts (t3)', () => {
   });
 });
 
-describe('mountPlanTaskSplit Present entry (t3)', () => {
+describe('mountPlanTaskSplit — no page Assistant; Set/Reset retained (t6)', () => {
   let container;
   let invokeMock;
   let hostBound;
@@ -172,53 +180,41 @@ describe('mountPlanTaskSplit Present entry (t3)', () => {
     vi.restoreAllMocks();
   });
 
-  it('Assistant button Present only: present_ai_assistant; no open_ai_assistant; no Set/bound write', async () => {
+  it('renders no open-ai-assistant button when a master is selected', async () => {
     const { dispose } = mountPlanTaskSplit(container, {
       masterId: 'task_alpha',
     });
     await vi.waitFor(() => {
-      expect(
-        container.querySelector('[data-action="open-ai-assistant"]'),
-      ).not.toBeNull();
+      expect(container.querySelector('.plan-task-detail-toolbar')).not.toBeNull();
     });
-
-    // Clear enter-path Set calls so Present click assertions are isolated.
-    const setsBeforeClick = invokeMock.mock.calls.filter(
-      ([cmd]) => cmd === 'set_binding',
-    ).length;
-    expect(setsBeforeClick).toBeGreaterThan(0);
-    invokeMock.mockClear();
-
-    container.querySelector('[data-action="open-ai-assistant"]').click();
-    await vi.waitFor(() => {
-      expect(invokeMock).toHaveBeenCalledWith('present_ai_assistant');
-    });
-
-    expect(invokeMock).not.toHaveBeenCalledWith(
-      'open_ai_assistant',
-      expect.anything(),
-    );
-    expect(invokeMock).not.toHaveBeenCalledWith(
-      'set_binding',
-      expect.anything(),
-    );
-    // Present must not pass / write business bind key.
-    const presentCalls = invokeMock.mock.calls.filter(
-      ([cmd]) => cmd === 'present_ai_assistant',
-    );
-    expect(presentCalls.length).toBeGreaterThan(0);
-    for (const call of presentCalls) {
-      const args = call[1];
-      if (args && typeof args === 'object') {
-        expect(args).not.toHaveProperty('masterTaskId');
-        expect(args).not.toHaveProperty('bound_master_task_id');
-        expect(args).not.toHaveProperty('master_task_id');
-      }
-    }
+    expect(
+      container.querySelector('[data-action="open-ai-assistant"]'),
+    ).toBeNull();
+    expect(container.textContent).not.toMatch(/\bAssistant\b/);
     dispose();
   });
 
-  it('Present keeps Binding state unchanged (query before/after)', async () => {
+  it('enter still Sets Binding; leave/dispose still Resets', async () => {
+    const { dispose } = mountPlanTaskSplit(container, {
+      masterId: 'task_alpha',
+    });
+    await vi.waitFor(() => {
+      expect(invokeMock).toHaveBeenCalledWith(
+        'set_binding',
+        expect.objectContaining({ binding: expect.any(Object) }),
+      );
+    });
+    expect(hostBound).toBe(true);
+
+    invokeMock.mockClear();
+    dispose();
+    await vi.waitFor(() => {
+      expect(invokeMock).toHaveBeenCalledWith('reset_binding');
+    });
+    expect(hostBound).toBe(false);
+  });
+
+  it('Present≠Set: Host Present does not write Binding; page has no Present trigger', async () => {
     const { dispose } = mountPlanTaskSplit(container, {
       masterId: 'task_alpha',
     });
@@ -233,11 +229,13 @@ describe('mountPlanTaskSplit Present entry (t3)', () => {
     expect(before.state).toBe('bound');
     const tokenBefore = hostBindingToken;
 
+    expect(
+      container.querySelector('[data-action="open-ai-assistant"]'),
+    ).toBeNull();
+
     invokeMock.mockClear();
-    container.querySelector('[data-action="open-ai-assistant"]').click();
-    await vi.waitFor(() => {
-      expect(invokeMock).toHaveBeenCalledWith('present_ai_assistant');
-    });
+    const present = await window.__TAURI__.core.invoke('present_ai_assistant');
+    expect(present.surface).toBe('Present');
 
     const after = await window.__TAURI__.core.invoke('query_binding');
     expect(after.state).toBe('bound');
@@ -248,10 +246,14 @@ describe('mountPlanTaskSplit Present entry (t3)', () => {
       'set_binding',
       expect.anything(),
     );
+    expect(invokeMock).not.toHaveBeenCalledWith(
+      'open_ai_assistant',
+      expect.anything(),
+    );
     dispose();
   });
 
-  it('N2: without successful Set, Present opens shell but execute is rejected', async () => {
+  it('N2: without successful Set, Host Present does not make execute succeed', async () => {
     invokeMock.mockImplementation(async (cmd) => {
       if (cmd === 'set_binding') {
         return { ok: false, code: 'set_invalid', state: 'unbound' };
@@ -275,16 +277,13 @@ describe('mountPlanTaskSplit Present entry (t3)', () => {
       masterId: 'task_alpha',
     });
     await vi.waitFor(() => {
-      expect(
-        container.querySelector('[data-action="open-ai-assistant"]'),
-      ).not.toBeNull();
+      expect(container.querySelector('.plan-task-detail-toolbar')).not.toBeNull();
     });
+    expect(
+      container.querySelector('[data-action="open-ai-assistant"]'),
+    ).toBeNull();
 
-    container.querySelector('[data-action="open-ai-assistant"]').click();
-    await vi.waitFor(() => {
-      expect(invokeMock).toHaveBeenCalledWith('present_ai_assistant');
-    });
-
+    await window.__TAURI__.core.invoke('present_ai_assistant');
     const q = await window.__TAURI__.core.invoke('query_binding');
     expect(q.state).toBe('unbound');
     const exec = await window.__TAURI__.core.invoke('execute_binding');
