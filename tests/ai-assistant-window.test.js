@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
@@ -15,14 +15,20 @@ const capabilityPath = join(
   repoRoot,
   'src-tauri/capabilities/ai-assistant.json',
 );
+const defaultCapabilityPath = join(
+  repoRoot,
+  'src-tauri/capabilities/default.json',
+);
 
 describe('ai-assistant window shell (t5)', () => {
-  it('ships ai-assistant.html and ai-assistant.js', () => {
-    expect(existsSync(htmlPath), 'frontend/ai-assistant.html').toBe(true);
+  it('retires independent-window HTML; keeps shell AI content module', () => {
+    // T4 / L16-T: retire frontend/ai-assistant.html window carrier; chat UI stays in ai-assistant.js for shell content.
+    expect(existsSync(htmlPath), 'frontend/ai-assistant.html retired').toBe(
+      false,
+    );
     expect(existsSync(jsPath), 'frontend/js/ai-assistant.js').toBe(true);
-    const html = readFileSync(htmlPath, 'utf8');
-    expect(html).toMatch(/ai-assistant\.js/);
-    expect(html).toMatch(/ai-assistant-root/);
+    const js = readFileSync(jsPath, 'utf8');
+    expect(js).toMatch(/mountAiAssistant|createAiAssistantContentAdapter/);
   });
 
   it('UI invokes agent_chat_turn and does not call plan write APIs', () => {
@@ -63,24 +69,18 @@ describe('ai-assistant window shell (t5)', () => {
     expect(libRs).toMatch(/ensure_ai_assistant_session/);
   });
 
-  it('defines create_or_focus_ai_assistant_window with focus/show', () => {
-    expect(libRs).toMatch(/fn create_or_focus_ai_assistant_window\s*\(/);
-    const fnBody = libRs.match(
-      /fn create_or_focus_ai_assistant_window[\s\S]*?^}/m,
-    )?.[0];
-    expect(fnBody, 'create_or_focus_ai_assistant_window body').toBeTruthy();
-    expect(fnBody).toMatch(/WebviewWindowBuilder::new/);
-    expect(fnBody).toMatch(/ai-assistant/);
-    expect(fnBody).toMatch(/ai-assistant\.html/);
-    expect(fnBody).toMatch(/always_on_top\s*\(\s*true\s*\)/);
-    expect(fnBody).toMatch(/\.show\s*\(/);
-    expect(fnBody).toMatch(/set_focus\s*\(/);
-    // Must not copy read-later "exists → skip" half-finished behavior alone.
-    expect(fnBody).not.toMatch(/is_some\(\)\s*\{\s*return Ok\(\(\)\);\s*\}/);
+  it('retires create_or_focus and ai-assistant.html entry path from lib.rs', () => {
+    // T4 / L16-T: independent WebviewUrl::App("ai-assistant.html") entry + create/focus helpers gone.
+    expect(libRs).not.toMatch(/fn create_or_focus_ai_assistant_window\s*\(/);
+    expect(libRs).not.toMatch(/fn ai_assistant_entry_path\s*\(/);
+    expect(libRs).not.toMatch(/fn ai_assistant_spec\s*\(/);
+    expect(libRs).not.toMatch(/struct AiAssistantWindowSpec/);
+    expect(libRs).not.toMatch(/WebviewUrl::App\(\s*"ai-assistant\.html"/);
+    expect(libRs).not.toMatch(/"ai-assistant\.html"/);
   });
 
-  it('open_ai_assistant wires create-or-focus', () => {
-    expect(aiAssistantCmd).toMatch(/create_or_focus_ai_assistant_window/);
+  it('open_ai_assistant no longer wires create-or-focus window', () => {
+    expect(aiAssistantCmd).not.toMatch(/create_or_focus_ai_assistant_window/);
   });
 
   it('Present emits shell payload with entry_id and does not create_or_focus window', () => {
@@ -174,14 +174,33 @@ describe('ai-assistant window shell (t5)', () => {
     expect(libRs).toMatch(/defensive_unbound/);
   });
 
-  it('registers ai-assistant capability with write-api for agent_chat_turn', () => {
-    expect(existsSync(capabilityPath), 'capabilities/ai-assistant.json').toBe(
+  it('grants shell AI permissions on main; retires ai-assistant window capability island', () => {
+    // T4 / L06-SC / L16-T: main hosts shell AI content; no orphan capability for retired window.
+    expect(
+      existsSync(capabilityPath),
+      'capabilities/ai-assistant.json retired',
+    ).toBe(false);
+    expect(existsSync(defaultCapabilityPath), 'capabilities/default.json').toBe(
       true,
     );
-    const capability = JSON.parse(readFileSync(capabilityPath, 'utf8'));
-    expect(capability.identifier).toBe('ai-assistant');
-    expect(capability.windows).toContain('ai-assistant');
+    const capability = JSON.parse(readFileSync(defaultCapabilityPath, 'utf8'));
+    expect(capability.identifier).toBe('default');
+    expect(capability.windows).toContain('main');
     expect(capability.permissions).toContain('core:default');
     expect(capability.permissions).toContain('write-api');
+    const capFiles = readdirSync(join(repoRoot, 'src-tauri/capabilities')).filter(
+      (name) => name.endsWith('.json'),
+    );
+    for (const name of capFiles) {
+      const cap = JSON.parse(
+        readFileSync(join(repoRoot, 'src-tauri/capabilities', name), 'utf8'),
+      );
+      const windows = Array.isArray(cap.windows) ? cap.windows : [];
+      if (windows.includes('ai-assistant') && !windows.includes('main')) {
+        expect.fail(
+          `${name} is a permission island for retired ai-assistant window`,
+        );
+      }
+    }
   });
 });

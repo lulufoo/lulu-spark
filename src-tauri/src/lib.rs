@@ -31,13 +31,6 @@ pub struct ReadLaterAssistantWindowSpec {
     pub always_on_top: bool,
 }
 
-#[derive(Debug, PartialEq, Eq)]
-pub struct AiAssistantWindowSpec {
-    pub label: &'static str,
-    pub entry: &'static str,
-    pub always_on_top: bool,
-}
-
 pub fn read_later_assistant_entry_path() -> &'static str {
     "read-later-assistant.html"
 }
@@ -46,18 +39,6 @@ pub fn read_later_assistant_spec() -> ReadLaterAssistantWindowSpec {
     ReadLaterAssistantWindowSpec {
         label: READ_LATER_ASSISTANT_LABEL,
         entry: read_later_assistant_entry_path(),
-        always_on_top: true,
-    }
-}
-
-pub fn ai_assistant_entry_path() -> &'static str {
-    "ai-assistant.html"
-}
-
-pub fn ai_assistant_spec() -> AiAssistantWindowSpec {
-    AiAssistantWindowSpec {
-        label: AI_ASSISTANT_LABEL,
-        entry: ai_assistant_entry_path(),
         always_on_top: true,
     }
 }
@@ -373,28 +354,6 @@ fn create_read_later_assistant_window(app: &tauri::App) -> Result<(), Box<dyn st
         app,
         "read-later-assistant",
         WebviewUrl::App("read-later-assistant.html".into()),
-    )
-    .always_on_top(true)
-    .build()?;
-    Ok(())
-}
-
-/// Present shell mapping: create the plan-page AI assistant window, or focus/show it if it already exists.
-/// Host Present surface (not a Binding Contract op) maps here via `present_ai_assistant`.
-/// Todos page Assistant entry must Present through this path — not via `open_ai_assistant` bind.
-#[cfg(not(test))]
-pub fn create_or_focus_ai_assistant_window(
-    app: &tauri::AppHandle,
-) -> Result<(), Box<dyn std::error::Error>> {
-    if let Some(window) = app.get_webview_window("ai-assistant") {
-        window.show()?;
-        window.set_focus()?;
-        return Ok(());
-    }
-    WebviewWindowBuilder::new(
-        app,
-        "ai-assistant",
-        WebviewUrl::App("ai-assistant.html".into()),
     )
     .always_on_top(true)
     .build()?;

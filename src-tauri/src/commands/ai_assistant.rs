@@ -168,8 +168,7 @@ pub async fn open_ai_assistant(
 
     #[cfg(not(test))]
     {
-        crate::create_or_focus_ai_assistant_window(&app).map_err(|e| e.to_string())?;
-        // Existing windows with a listener already attached receive this.
+        // Independent window retired (T4); emit for main-shell listeners only.
         // First-open races are healed by get_ai_assistant_binding on mount.
         let _ = app.emit(EVENT_ASSISTANT_OPENED, &result);
     }

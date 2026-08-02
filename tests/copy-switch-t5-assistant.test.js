@@ -1,14 +1,12 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 
-const aiAssistantHtml = readFileSync(
-  join(repoRoot, 'frontend/ai-assistant.html'),
-  'utf8',
-);
+// T4: independent ai-assistant.html retired; shell content lives in ai-assistant.js.
+const aiAssistantHtmlPath = join(repoRoot, 'frontend/ai-assistant.html');
 const readLaterAssistantHtml = readFileSync(
   join(repoRoot, 'frontend/read-later-assistant.html'),
   'utf8',
@@ -31,7 +29,6 @@ const planTaskAssistantJs = readFileSync(
 );
 
 const assistantSources = [
-  aiAssistantHtml,
   readLaterAssistantHtml,
   planTaskAssistantHtml,
   aiAssistantJs,
@@ -41,16 +38,16 @@ const assistantSources = [
 
 describe('P2 copy-switch — Assistant pages (tech-doc T5)', () => {
   it('assistant HTML shells use lang=en', () => {
-    expect(aiAssistantHtml).toMatch(/<html[^>]*\blang="en"/);
+    expect(existsSync(aiAssistantHtmlPath)).toBe(false);
     expect(readLaterAssistantHtml).toMatch(/<html[^>]*\blang="en"/);
     expect(planTaskAssistantHtml).toMatch(/<html[^>]*\blang="en"/);
-    for (const html of [aiAssistantHtml, readLaterAssistantHtml, planTaskAssistantHtml]) {
+    for (const html of [readLaterAssistantHtml, planTaskAssistantHtml]) {
       expect(html).not.toMatch(/lang="zh-CN"/);
     }
   });
 
   it('ai-assistant uses table B2 Assistant branding and copy', () => {
-    expect(aiAssistantHtml).toMatch(/<title>Assistant<\/title>/);
+    // Branding lives in shell content module after independent HTML retirement (T4).
     expect(aiAssistantJs).toContain('Assistant');
     expect(aiAssistantJs).toContain('Unbound');
     expect(aiAssistantJs).toContain('Bound');
