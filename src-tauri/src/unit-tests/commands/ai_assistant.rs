@@ -46,6 +46,12 @@ fn ensure_ai_assistant_session_provisions_session_without_present_set() {
         let v = ensure_ai_assistant_session_json().expect("ensure");
         assert!(!v["session_id"].as_str().unwrap_or("").is_empty());
         assert!(v.get("bound_master_task_id").is_none());
+        // T3 / L09-AR: ensure payload must not carry surface Present (consumers must not openEntry).
+        assert!(
+            v.get("surface").is_none() || v["surface"] != "Present",
+            "ensure must not emit surface Present: {v}"
+        );
+        assert!(v.get("entry_id").is_none(), "ensure must not carry Present entry_id: {v}");
         // ensure must not Set Binding Contract (Present≠Set; ensure≠Set).
         assert_eq!(query_binding_json()["state"], "unbound");
         assert_eq!(EVENT_BINDING_CHANGED, "ai-assistant:binding-changed");
@@ -90,6 +96,8 @@ fn present_ai_assistant_json_is_shell_only_not_bound() {
         let v = present_ai_assistant_json().expect("Present");
         assert_eq!(v["surface"], "Present");
         assert_eq!(v["window_label"], AI_ASSISTANT_WINDOW_LABEL);
+        // T3 / L09-AR: Present payload extends entry_id for shell openEntry.
+        assert_eq!(v["entry_id"], "ai-assistant");
         assert_eq!(query_binding_json()["state"], "unbound");
         // Present must not write business binding primary key into contract query.
         assert!(query_binding_json().get("bound_master_task_id").is_none());

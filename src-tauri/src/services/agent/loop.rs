@@ -138,6 +138,8 @@ struct Runtime {
     execute_cancelled: bool,
     /// Set by cut paths while `busy` — cancels the in-flight chat / run_loop.
     chat_cancelled: bool,
+    /// Present fired before main-window listener was ready (L11-AR race heal).
+    pending_present: bool,
     clarify_counts: HashMap<String, u32>,
 }
 
@@ -476,19 +478,26 @@ pub fn binding_contract_ops() -> &'static [&'static str] {
     BINDING_CONTRACT_OPS
 }
 
-/// Outcome of Host Present (shell open/focus). Not a Binding Contract result.
+/// Outcome of Host Present (shell open). Not a Binding Contract result.
+/// `window_label` is a Host surface id — it does not imply a WebviewWindow exists.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PresentOutcome {
     pub surface: &'static str,
     pub window_label: &'static str,
+    pub entry_id: &'static str,
 }
 
-/// Present: open/focus assistant shell. Does not Set; does not change binding state.
-/// Maps to existing `create_or_focus_ai_assistant_window` semantics (window label).
+/// Present: signal shell to open AI C. Does not Set; does not change binding state.
+/// Does not create/focus an independent WebviewWindow (shell host owns presentation).
 pub fn present_ai_assistant_core() -> Result<PresentOutcome, String> {
+    {
+        let mut rt = runtime().lock().unwrap();
+        rt.pending_present = true;
+    }
     Ok(PresentOutcome {
         surface: "Present",
         window_label: WINDOW_LABEL,
+        entry_id: "ai-assistant",
     })
 }
 
@@ -928,12 +937,15 @@ fn plan_title(master_task_id: &str) -> Option<String> {
 
 /// Current chat session for the assistant window (may be empty if never opened).
 /// Does not expose business master id / title (stripped from Host surface).
+/// `pending_present` is taken (cleared) on pull so mount can heal Present-before-listen races.
 pub fn get_ai_assistant_binding_core() -> Value {
-    let rt = runtime().lock().unwrap();
+    let mut rt = runtime().lock().unwrap();
+    let pending_present = std::mem::take(&mut rt.pending_present);
     json!({
         "session_id": rt.current_session_id.clone().unwrap_or_default(),
         "window_label": WINDOW_LABEL,
         "busy": rt.busy,
+        "pending_present": pending_present,
     })
 }
 

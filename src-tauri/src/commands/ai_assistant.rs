@@ -22,12 +22,13 @@ pub fn ensure_ai_assistant_session_json() -> Result<Value, String> {
     r#loop::ensure_chat_session_core()
 }
 
-/// Host Present (shell open/focus). Not a Binding Contract op; does not Set or change binding state.
+/// Host Present (shell open signal). Not a Binding Contract op; does not Set or change binding state.
 pub fn present_ai_assistant_json() -> Result<Value, String> {
     let outcome = r#loop::present_ai_assistant_core()?;
     Ok(json!({
         "surface": outcome.surface,
         "window_label": outcome.window_label,
+        "entry_id": outcome.entry_id,
     }))
 }
 
@@ -180,7 +181,7 @@ pub async fn open_ai_assistant(
     Ok(result)
 }
 
-/// Present: open or focus the assistant shell. Maps to `create_or_focus_ai_assistant_window`.
+/// Present: emit shell open signal for AI C (`entry_id`). Does not create/focus a WebviewWindow.
 /// Not a Binding Contract op — does not Set, does not write bound_master_task_id, does not change binding state.
 /// Todos page Assistant button must call this (not `open_ai_assistant`).
 #[tauri::command]
@@ -191,7 +192,8 @@ pub async fn present_ai_assistant(app: AppHandle) -> Result<Value, String> {
 
     #[cfg(not(test))]
     {
-        crate::create_or_focus_ai_assistant_window(&app).map_err(|e| e.to_string())?;
+        // Shell presentation is main-window listen → presentNormalize; no independent window.
+        let _ = app.emit(EVENT_ASSISTANT_OPENED, &result);
     }
     #[cfg(test)]
     {

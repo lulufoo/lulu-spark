@@ -130,6 +130,19 @@ describe('home-entry-shell main wiring (T5)', () => {
       /forceRecoverA\s*\(\s*['"](?:leave|route|leave-route|leave-host|unmount)['"]|forceRecoverA\s*\(\s*\)/,
     );
   });
+
+  it('main.js listens ai-assistant:opened; Present surface → presentNormalize; ensure does not open', () => {
+    // T3 / L09-AR / L11-AR: main-window bridge opens shell C_AI only for surface Present.
+    const source = readMain();
+    expect(source).toMatch(/ai-assistant:opened/);
+    expect(source).toMatch(/presentNormalize\s*\(/);
+    expect(source).toMatch(/surface/);
+    expect(source).toMatch(/['"]Present['"]/);
+    // Race: stash pending Present before listener ready, pull once after mount.
+    expect(source).toMatch(/pending/i);
+    // Must not sync shell state via OS focus.
+    expect(source).not.toMatch(/setFocus|set_focus/);
+  });
 });
 
 describe('home-entry-shell unmount force A (T5)', () => {

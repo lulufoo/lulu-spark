@@ -83,16 +83,46 @@ describe('ai-assistant window shell (t5)', () => {
     expect(aiAssistantCmd).toMatch(/create_or_focus_ai_assistant_window/);
   });
 
-  it('Present maps to create_or_focus and is not a Binding Contract op', () => {
+  it('Present emits shell payload with entry_id and does not create_or_focus window', () => {
+    // T3 / L09-AR / L16-T: Present = shell C_AI signal; tear down independent window create/focus.
     expect(aiAssistantCmd).toMatch(/present_ai_assistant/);
     expect(aiAssistantCmd).toMatch(/Present/);
-    expect(aiAssistantCmd).toMatch(/create_or_focus_ai_assistant_window/);
+    expect(aiAssistantCmd).toMatch(/entry_id/);
+    expect(aiAssistantCmd).toMatch(/emit\(\s*EVENT_ASSISTANT_OPENED/);
+    const presentFn = aiAssistantCmd.match(
+      /pub async fn present_ai_assistant[\s\S]*?^}/m,
+    )?.[0];
+    expect(presentFn, 'present_ai_assistant body').toBeTruthy();
+    expect(presentFn).not.toMatch(/create_or_focus_ai_assistant_window/);
+    expect(presentFn).not.toMatch(/set_focus/);
     // Binding Contract ops remain Set/Reset/query/execute (+ callbacks) — not Present/Open.
     expect(aiAssistantCmd).toMatch(/set_binding_json/);
     expect(aiAssistantCmd).toMatch(/reset_binding_json/);
     expect(aiAssistantCmd).toMatch(/query_binding_json/);
     expect(aiAssistantCmd).toMatch(/execute_binding_json/);
     expect(libRs).toMatch(/present_ai_assistant/);
+  });
+
+  it('ensure opened payload stays session-only (no surface Present)', () => {
+    // T3 / L09-AR: ensure vs Present share event name; surface discriminates openEntry.
+    const ensureFn = aiAssistantCmd.match(
+      /pub async fn ensure_ai_assistant_session[\s\S]*?^}/m,
+    )?.[0];
+    expect(ensureFn, 'ensure_ai_assistant_session body').toBeTruthy();
+    expect(ensureFn).toMatch(/emit\(\s*EVENT_ASSISTANT_OPENED/);
+    expect(ensureFn).not.toMatch(/create_or_focus_ai_assistant_window/);
+    const loopRs = readFileSync(
+      join(repoRoot, 'src-tauri/src/services/agent/loop.rs'),
+      'utf8',
+    );
+    const ensureCore = loopRs.match(
+      /pub fn ensure_chat_session_core[\s\S]*?^}/m,
+    )?.[0];
+    expect(ensureCore, 'ensure_chat_session_core body').toBeTruthy();
+    expect(ensureCore).toMatch(/session_id/);
+    expect(ensureCore).toMatch(/busy/);
+    expect(ensureCore).not.toMatch(/"surface"\s*:\s*"Present"|surface:\s*"Present"/);
+    expect(ensureCore).not.toMatch(/entry_id/);
   });
 
   it('shell dispose/close does not invoke Binding Contract Reset', () => {

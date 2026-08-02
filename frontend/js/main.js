@@ -1006,6 +1006,74 @@ homeEntryShell = mountHomeEntryShell(document.body, {
   },
 });
 
+/** Present-before-listen race buffer (L11-AR). Cleared on pull / successful open. */
+let pendingPresentOpen = false;
+
+/**
+ * ai-assistant:opened consumer (main window).
+ * surface===Present → shell C_AI; ensure/session payloads sync only (no openEntry).
+ * @param {unknown} payload
+ */
+function handleAiAssistantOpenedPayload(payload) {
+  if (!payload || typeof payload !== 'object') return;
+  if (/** @type {{ surface?: unknown }} */ (payload).surface === 'Present') {
+    if (!homeEntryShell) {
+      pendingPresentOpen = true;
+      return;
+    }
+    pendingPresentOpen = false;
+    void homeEntryShell.presentNormalize();
+  }
+  // ensure / other opened payloads: no shell open (Present≠ensure).
+}
+
+/** Pull frontend pending + Host pending_present once after mount/listen. */
+async function pullPendingPresentOpen() {
+  if (pendingPresentOpen && homeEntryShell) {
+    pendingPresentOpen = false;
+    await homeEntryShell.presentNormalize();
+  }
+  const invoke =
+    typeof window !== 'undefined' &&
+    (window.__TAURI__?.core?.invoke || window.__TAURI_INTERNALS__?.invoke);
+  if (typeof invoke !== 'function' || !homeEntryShell) return;
+  try {
+    const state = await invoke('get_ai_assistant_binding');
+    if (state && typeof state === 'object' && state.pending_present) {
+      await homeEntryShell.presentNormalize();
+    }
+  } catch {
+    // Non-fatal; listener path may still open.
+  }
+}
+
+function registerAiAssistantOpenedListener() {
+  const onOpened = (event) => {
+    handleAiAssistantOpenedPayload(event?.payload);
+  };
+  const tryAttach = () => {
+    const listen = typeof window !== 'undefined' && window.__TAURI__?.event?.listen;
+    if (typeof listen !== 'function') return false;
+    void listen('ai-assistant:opened', onOpened).then(() => {
+      void pullPendingPresentOpen();
+    });
+    return true;
+  };
+  if (tryAttach()) {
+    void pullPendingPresentOpen();
+    return;
+  }
+  let attempts = 0;
+  const timer = setInterval(() => {
+    if (tryAttach() || ++attempts >= 40) {
+      clearInterval(timer);
+      void pullPendingPresentOpen();
+    }
+  }, 50);
+}
+
+registerAiAssistantOpenedListener();
+
 document.getElementById('btn-edit')?.addEventListener(
   'click',
   () => {

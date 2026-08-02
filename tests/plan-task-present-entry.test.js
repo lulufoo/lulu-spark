@@ -69,11 +69,16 @@ describe('Todos Present entry — source contracts (t3)', () => {
     );
   });
 
-  it('Host Present maps to create_or_focus_ai_assistant_window and is registered', () => {
+  it('Host Present is registered and does not create_or_focus independent window', () => {
+    // T3: Present opens shell C_AI via emit payload; window_label ≠ window must exist.
     expect(aiAssistantCmd).toMatch(/fn present_ai_assistant\b/);
-    expect(aiAssistantCmd).toMatch(/create_or_focus_ai_assistant_window/);
+    expect(aiAssistantCmd).toMatch(/entry_id/);
+    const presentFn = aiAssistantCmd.match(
+      /pub async fn present_ai_assistant[\s\S]*?^}/m,
+    )?.[0];
+    expect(presentFn, 'present_ai_assistant body').toBeTruthy();
+    expect(presentFn).not.toMatch(/create_or_focus_ai_assistant_window/);
     expect(libRs).toMatch(/present_ai_assistant/);
-    expect(libRs).toMatch(/fn create_or_focus_ai_assistant_window\s*\(/);
   });
 
   it('does not upgrade FAB Top3 (plan-task-assistant.js) to chat Present or Set', () => {

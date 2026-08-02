@@ -1646,6 +1646,10 @@ fn present_ai_assistant_maps_to_shell_focus_without_set() {
             outcome.surface, "Present",
             "semantic surface name is Present (not a Binding Contract op)"
         );
+        assert_eq!(
+            outcome.entry_id, "ai-assistant",
+            "T3 PresentOutcome must carry entry_id for shell openEntry"
+        );
         assert_query_unbound(&r#loop::query_binding());
         let err = r#loop::execute_binding().expect_err("Present alone must not enable execute");
         assert_eq!(err.as_code(), "rejected_unbound");
@@ -1744,6 +1748,7 @@ fn present_command_json_does_not_set_binding() {
         let presented = present_ai_assistant_json().expect("Present command");
         assert_eq!(presented["surface"], "Present");
         assert_eq!(presented["window_label"], r#loop::WINDOW_LABEL);
+        assert_eq!(presented["entry_id"], "ai-assistant");
         let q = query_binding_json();
         assert_eq!(q["state"], "unbound");
         let exec = execute_binding_json();
