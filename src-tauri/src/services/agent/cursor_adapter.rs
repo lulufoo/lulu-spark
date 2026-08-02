@@ -4,6 +4,14 @@
 //! Cursor failures stay on the SDK path (L09-I #7 — no fallback to
 //! process-local business tool dispatch).
 //!
+//! ## A1 (L3 Must Close Before P4 / F-46–F-47) — cwd + mcpServers combo
+//!
+//! Confirmed: Agent SDK Local `Agent.create` receives per-session
+//! independent [`local.cwd`](AgentCreateParams::local_cwd) together with
+//! inline [`mcpServers`](AgentCreateParams::mcp_servers). Lifecycle for cwd
+//! is owned by [`crate::services::agent::session_cwd`]; use
+//! [`run_turn_for_session`] to allocate then inject.
+//!
 //! ## A2 (L3 Must Close Before F-46) — SDK embed strategy
 //!
 //! Real Cursor Agent SDK crate is not available in this workspace. Embedding is
@@ -12,8 +20,6 @@
 //! - Tests use a capturing double that records `Agent.create` params
 //!   (`mcpServers` + `local.cwd`).
 //! - Host engine path is not forced to link any Cursor SDK (module isolation).
-//!
-//! `local.cwd` is accepted as [`PathBuf`] here; per-session cwd lifecycle is t5.
 
 use std::collections::BTreeMap;
 use std::path::PathBuf;
@@ -22,7 +28,12 @@ use serde::Serialize;
 
 use crate::services::agent::engine_router::TurnInput;
 use crate::services::agent::r#loop;
+use crate::services::agent::session_cwd;
 use crate::services::mcp_server_registry::McpServerConfig;
+
+/// A1 confirmed: per-session `local.cwd` combined with injected `mcpServers`
+/// on the same Agent.create params (see `run_turn_for_session`).
+pub const CURSOR_LOCAL_A1_CWD_MCPSERVERS_COMBO: bool = true;
 
 /// A2 narrowed (not silently assumed): SDK embed via replaceable port.
 /// Documented in module docs + code_log delivery note.
@@ -55,6 +66,8 @@ pub struct AgentCreateParams {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CursorAdapterError {
     MissingMcpConfig,
+    /// Per-session cwd allocation failed — turn must not start; no shared cwd.
+    Cwd(String),
     Sdk(String),
 }
 
@@ -64,6 +77,7 @@ impl std::fmt::Display for CursorAdapterError {
             CursorAdapterError::MissingMcpConfig => {
                 write!(f, "session capability MCP config is not loaded")
             }
+            CursorAdapterError::Cwd(msg) => write!(f, "session cwd error: {msg}"),
             CursorAdapterError::Sdk(msg) => write!(f, "cursor sdk error: {msg}"),
         }
     }
@@ -117,4 +131,18 @@ pub fn run_turn<S: CursorAgentSdk>(
     };
     create_agent(sdk, &mcp, cwd)?;
     sdk.run_turn(&input.message)
+}
+
+/// Allocate per-session cwd, then run a Cursor turn with A1 combo
+/// (`local.cwd` + `mcpServers`). Create failure → explicit error; does not
+/// start the SDK turn and never falls back to shared cwd or process-local
+/// business tool dispatch.
+pub fn run_turn_for_session<S: CursorAgentSdk>(
+    sdk: &mut S,
+    input: &TurnInput,
+) -> Result<String, CursorAdapterError> {
+    let cwd = session_cwd::create_session_cwd(&input.session_id).map_err(|e| {
+        CursorAdapterError::Cwd(e.to_string())
+    })?;
+    run_turn(sdk, input, cwd)
 }
