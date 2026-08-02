@@ -435,8 +435,7 @@ export function mountHomeEntryShell(anchor, { config, registry, host = {}, fsm, 
         if (clearContent()) return;
         failurePresentation = null;
         titleEl.textContent = '';
-        machine.dispatch({ type: 'openHub' });
-        syncDom();
+        dispatchAndSync({ type: 'openHub' });
       }
     }
   });
