@@ -10,6 +10,10 @@ use serde_json::{json, Value};
 use crate::config::paths;
 use crate::services::id::random_hex12;
 
+/// P1 / T1: session lifecycle entry (`create_session` / persist) does not expose
+/// an engine-selection API — no Host/Cursor parameter on create or session record.
+pub const SESSION_LIFECYCLE_ENGINE_OPAQUE: bool = true;
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Turn {
     pub role: String,

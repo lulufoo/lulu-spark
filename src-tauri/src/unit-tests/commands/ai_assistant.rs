@@ -386,3 +386,113 @@ fn sk3_t5_shell_close_preserves_live_turns_for_reopen_hydrate() {
         assert_eq!(pulled["turns"][0]["content"], "keep across close");
     });
 }
+
+// --- t1: engine-opaque session facade (P1 / AC1) ---
+//
+// Locks open/ensure/agent_chat_turn (+ session lifecycle entry) so callers cannot
+// pass or branch on Host/Cursor/engine selection. API-level shield — not docs.
+
+#[test]
+fn t1_facade_signatures_are_engine_opaque_type_locked() {
+    use crate::commands::ai_assistant::{
+        agent_chat_turn_json, ensure_ai_assistant_session_json, open_ai_assistant_json,
+        SESSION_FACADE_ENGINE_OPAQUE,
+    };
+    use crate::services::agent::r#loop::ChatTurnResult;
+    use crate::services::agent::session::{self, SESSION_LIFECYCLE_ENGINE_OPAQUE};
+    use serde_json::Value;
+
+    assert!(
+        SESSION_FACADE_ENGINE_OPAQUE,
+        "facade must declare API-level engine opacity (not a comment-only convention)"
+    );
+    assert!(
+        SESSION_LIFECYCLE_ENGINE_OPAQUE,
+        "session lifecycle entry must declare API-level engine opacity"
+    );
+
+    // Type ascriptions fail to compile if an optional engine backdoor param is added.
+    let _: fn(&str) -> Result<Value, String> = open_ai_assistant_json;
+    let _: fn() -> Result<Value, String> = ensure_ai_assistant_session_json;
+    let _: fn(&str, &str, Option<&str>) -> Result<ChatTurnResult, String> = agent_chat_turn_json;
+    let _: fn(Option<&str>, Option<&str>) -> Result<session::Session, String> =
+        session::create_session;
+}
+
+#[test]
+fn t1_facade_happy_path_without_engine_params_and_payloads_leak_none() {
+    with_cmd_sandbox(|| {
+        use crate::commands::ai_assistant::value_exposes_engine_selection;
+
+        let id = create_plan("t1门面无引擎");
+        let open = open_ai_assistant_json(&id).expect("open without engine param");
+        assert!(!open["session_id"].as_str().unwrap_or("").is_empty());
+        assert!(
+            !value_exposes_engine_selection(&open),
+            "open payload must not expose engine fields for caller branching: {open}"
+        );
+
+        let ensured = ensure_ai_assistant_session_json().expect("ensure without engine param");
+        assert!(!ensured["session_id"].as_str().unwrap_or("").is_empty());
+        assert!(
+            !value_exposes_engine_selection(&ensured),
+            "ensure payload must not expose engine fields: {ensured}"
+        );
+
+        let sid = ensured["session_id"].as_str().unwrap();
+        let turn = agent_chat_turn_json(sid, "hi t1", Some(&id)).expect("chat without engine");
+        assert!(
+            !value_exposes_engine_selection(&turn.body),
+            "chat body must not expose engine fields: {}",
+            turn.body
+        );
+        if let Some(ev) = &turn.emit_turn_completed {
+            assert!(
+                !value_exposes_engine_selection(ev),
+                "turn-completed event must not expose engine fields: {ev}"
+            );
+        }
+
+        // Binding call surface still reaches the same facade (engine invisible).
+        assert_eq!(query_binding_json()["state"], "unbound");
+        let pulled = get_ai_assistant_binding_json();
+        assert!(
+            !value_exposes_engine_selection(&pulled),
+            "binding pull must not expose engine fields: {pulled}"
+        );
+    });
+}
+
+#[test]
+fn t1_session_lifecycle_entry_has_no_engine_selection_api() {
+    with_cmd_sandbox(|| {
+        use crate::commands::ai_assistant::value_exposes_engine_selection;
+        use crate::services::agent::session::{self, SESSION_LIFECYCLE_ENGINE_OPAQUE};
+
+        assert!(SESSION_LIFECYCLE_ENGINE_OPAQUE);
+        // Lifecycle create accepts only optional master/title — no engine.
+        let sess = session::create_session(Some("master_x"), Some("title_x")).expect("create");
+        let serialized = serde_json::to_value(&sess).expect("serialize session");
+        assert!(
+            !value_exposes_engine_selection(&serialized),
+            "session record must not carry engine selection fields: {serialized}"
+        );
+        assert!(serialized.get("engine").is_none());
+        assert!(serialized.get("engine_type").is_none());
+        assert!(serialized.get("engineType").is_none());
+        assert!(serialized.get("assistant_engine").is_none());
+
+        // Helper itself recognizes forbidden keys (API shield, not convention).
+        assert!(value_exposes_engine_selection(&json!({ "engine": "host" })));
+        assert!(value_exposes_engine_selection(&json!({ "engine_type": "cursor" })));
+        assert!(value_exposes_engine_selection(&json!({ "engineType": "host" })));
+        assert!(value_exposes_engine_selection(&json!({ "assistant_engine": "cursor" })));
+        assert!(value_exposes_engine_selection(
+            &json!({ "payload": { "engine": "host" } })
+        ));
+        assert!(!value_exposes_engine_selection(&json!({
+            "session_id": "sess_x",
+            "window_label": "ai-assistant"
+        })));
+    });
+}
