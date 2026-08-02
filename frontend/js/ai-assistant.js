@@ -92,6 +92,29 @@ export function mountAiAssistant(root, opts = {}) {
     messagesEl.scrollTop = messagesEl.scrollHeight;
   }
 
+  /**
+   * Hydrate chat bubbles from Host binding.turns (mount / re-show).
+   * Does not Reset Binding or switch live session.
+   * @param {unknown} turns
+   */
+  function hydrateTurns(turns) {
+    if (!Array.isArray(turns)) return;
+    messages = turns
+      .filter(
+        (t) =>
+          t &&
+          typeof t === 'object' &&
+          (t.role === 'user' || t.role === 'assistant') &&
+          t.content != null &&
+          String(t.content).length > 0,
+      )
+      .map((t) => ({
+        role: t.role,
+        text: String(t.content),
+      }));
+    renderMessages();
+  }
+
   function composerShouldEnable() {
     // Binding Contract gate: Present alone does not imply Set / does not enable chat.
     return hostBound && !hostBusy && !sending;
@@ -123,6 +146,8 @@ export function mountAiAssistant(root, opts = {}) {
       messages = [];
       messages.push({ role: 'notice', text: String(payload.reply_text) });
       renderMessages();
+    } else if (Array.isArray(payload.turns)) {
+      hydrateTurns(payload.turns);
     }
     refreshComposerAndStatus();
   }
@@ -132,6 +157,11 @@ export function mountAiAssistant(root, opts = {}) {
     hostBound = state === 'bound';
     // Discard cached sessionId whenever Host binding state changes (composer follows query_binding).
     sessionId = '';
+    // Reset/Unbound: clear in-memory bubbles (Host turns will be empty on next pull).
+    if (!hostBound) {
+      messages = [];
+      renderMessages();
+    }
     refreshComposerAndStatus();
   }
 

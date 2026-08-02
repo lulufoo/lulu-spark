@@ -46,6 +46,25 @@ describe('ai-assistant window shell (t5)', () => {
     expect(libRs).toMatch(/get_ai_assistant_binding/);
   });
 
+  it('SK-3 T5: binding exposes turns; UI hydrates without Reset/切 live', () => {
+    const js = readFileSync(jsPath, 'utf8');
+    const loopRs = readFileSync(
+      join(repoRoot, 'src-tauri/src/services/agent/loop.rs'),
+      'utf8',
+    );
+    const sessionRs = readFileSync(
+      join(repoRoot, 'src-tauri/src/services/agent/session.rs'),
+      'utf8',
+    );
+    // Host binding read path includes turns; disk via load_session.
+    expect(loopRs).toMatch(/get_ai_assistant_binding_core[\s\S]*turns/);
+    expect(sessionRs).toMatch(/load_session/);
+    // Shell hydrate on mount/re-show; must not Reset or switch live from content.
+    expect(js).toMatch(/hydrateTurns/);
+    expect(js).toMatch(/shell_close_ai_assistant/);
+    expect(js).not.toMatch(/invoke\(\s*['"]reset_binding['"]/);
+  });
+
   it('composer eligibility follows Binding Contract query_binding, not todo session', () => {
     const js = readFileSync(jsPath, 'utf8');
     expect(js).toMatch(/query_binding/);

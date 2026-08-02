@@ -179,6 +179,18 @@ pub fn load_session(session_id: &str) -> Result<Session, String> {
     serde_json::from_str(&text).map_err(|e| e.to_string())
 }
 
+/// Read-only turns for binding hydrate. Empty when no live session / load fails.
+pub fn load_turns_value(session_id: &str) -> Value {
+    let id = session_id.trim();
+    if id.is_empty() {
+        return Value::Array(Vec::new());
+    }
+    match load_session(id) {
+        Ok(session) => serde_json::to_value(&session.turns).unwrap_or_else(|_| Value::Array(Vec::new())),
+        Err(_) => Value::Array(Vec::new()),
+    }
+}
+
 pub fn append_turn(session_id: &str, turn: Turn) -> Result<Session, String> {
     let mut session = load_session(session_id)?;
     session.turns.push(turn);

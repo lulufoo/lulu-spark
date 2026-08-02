@@ -938,14 +938,25 @@ fn plan_title(master_task_id: &str) -> Option<String> {
 /// Current chat session for the assistant window (may be empty if never opened).
 /// Does not expose business master id / title (stripped from Host surface).
 /// `pending_present` is taken (cleared) on pull so mount can heal Present-before-listen races.
+/// Extends with live-session `turns` (read-only hydrate via `session::load_session`);
+/// empty when no live / after Reset.
 pub fn get_ai_assistant_binding_core() -> Value {
-    let mut rt = runtime().lock().unwrap();
-    let pending_present = std::mem::take(&mut rt.pending_present);
+    let (session_id, busy, pending_present) = {
+        let mut rt = runtime().lock().unwrap();
+        let pending_present = std::mem::take(&mut rt.pending_present);
+        (
+            rt.current_session_id.clone().unwrap_or_default(),
+            rt.busy,
+            pending_present,
+        )
+    };
+    let turns = session::load_turns_value(&session_id);
     json!({
-        "session_id": rt.current_session_id.clone().unwrap_or_default(),
+        "session_id": session_id,
         "window_label": WINDOW_LABEL,
-        "busy": rt.busy,
+        "busy": busy,
         "pending_present": pending_present,
+        "turns": turns,
     })
 }
 

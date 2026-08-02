@@ -6,11 +6,12 @@ use crate::commands::ai_assistant::{
     agent_chat_turn_json, defensive_unbound_json, ensure_ai_assistant_session_json,
     execute_binding_json, get_ai_assistant_binding_json, open_ai_assistant_json,
     present_ai_assistant_json, query_binding_json, reset_binding_json, set_binding_json,
-    AI_ASSISTANT_WINDOW_LABEL, EVENT_BINDING_CHANGED,
+    shell_close_json, AI_ASSISTANT_WINDOW_LABEL, EVENT_BINDING_CHANGED,
 };
 use crate::config::secrets::{self, KEY_LLM_API_KEY};
 use crate::config::settings;
 use crate::services::agent::r#loop;
+use crate::services::agent::session::{self, Turn};
 use crate::services::todo_task;
 use crate::test_support::TestSandbox;
 
@@ -260,5 +261,139 @@ fn t5_execute_json_exposes_distinguishable_reject_codes() {
         })
         .expect_err("stale");
         assert_eq!(stale.as_code(), "rejected_stale_generation");
+    });
+}
+
+/// SK-3 / T5: binding pull exposes live-session turns (read-only hydrate).
+#[test]
+fn sk3_t5_binding_returns_live_session_turns() {
+    with_cmd_sandbox(|| {
+        let ensured = ensure_ai_assistant_session_json().expect("ensure");
+        let sid = ensured["session_id"].as_str().unwrap().to_string();
+        session::append_turn(
+            &sid,
+            Turn {
+                role: "user".into(),
+                content: Some("hello hydrate".into()),
+                tool_call_id: None,
+                tool_calls: None,
+                name: None,
+            },
+        )
+        .expect("append user");
+        session::append_turn(
+            &sid,
+            Turn {
+                role: "assistant".into(),
+                content: Some("world hydrate".into()),
+                tool_call_id: None,
+                tool_calls: None,
+                name: None,
+            },
+        )
+        .expect("append assistant");
+
+        let pulled = get_ai_assistant_binding_json();
+        assert_eq!(pulled["session_id"], sid);
+        let turns = pulled["turns"].as_array().expect("turns array");
+        assert_eq!(turns.len(), 2);
+        assert_eq!(turns[0]["role"], "user");
+        assert_eq!(turns[0]["content"], "hello hydrate");
+        assert_eq!(turns[1]["role"], "assistant");
+        assert_eq!(turns[1]["content"], "world hydrate");
+        // Disk read must reuse session::load_session (same content as file).
+        let disk = session::load_session(&sid).expect("disk");
+        assert_eq!(disk.turns.len(), 2);
+        assert_eq!(disk.turns[0].content.as_deref(), Some("hello hydrate"));
+    });
+}
+
+#[test]
+fn sk3_t5_binding_turns_empty_without_live_or_after_reset() {
+    with_cmd_sandbox(|| {
+        let empty = get_ai_assistant_binding_json();
+        assert_eq!(empty["session_id"], "");
+        assert_eq!(empty["turns"].as_array().expect("turns").len(), 0);
+
+        let ensured = ensure_ai_assistant_session_json().expect("ensure");
+        let sid = ensured["session_id"].as_str().unwrap().to_string();
+        session::append_turn(
+            &sid,
+            Turn {
+                role: "user".into(),
+                content: Some("will cut".into()),
+                tool_call_id: None,
+                tool_calls: None,
+                name: None,
+            },
+        )
+        .expect("append");
+        assert_eq!(
+            get_ai_assistant_binding_json()["turns"]
+                .as_array()
+                .expect("turns")
+                .len(),
+            1
+        );
+
+        // Set then Reset cuts live; turns must be empty (not executable old session).
+        let binding = json!({
+            "tools": [{ "name": "fixture_tool", "handle": "opaque-fixture-tool" }],
+            "prompt": "sk3-t5-reset",
+            "callbacks": {}
+        });
+        assert_eq!(set_binding_json(binding)["ok"], true);
+        // Successful Set itself clears live session id.
+        let after_set = get_ai_assistant_binding_json();
+        assert_eq!(after_set["session_id"], "");
+        assert_eq!(after_set["turns"].as_array().expect("turns").len(), 0);
+
+        let ensured2 = ensure_ai_assistant_session_json().expect("ensure2");
+        let sid2 = ensured2["session_id"].as_str().unwrap().to_string();
+        session::append_turn(
+            &sid2,
+            Turn {
+                role: "user".into(),
+                content: Some("live2".into()),
+                tool_call_id: None,
+                tool_calls: None,
+                name: None,
+            },
+        )
+        .expect("append2");
+        assert_eq!(reset_binding_json()["ok"], true);
+        let after_reset = get_ai_assistant_binding_json();
+        assert_eq!(after_reset["session_id"], "");
+        assert_eq!(after_reset["turns"].as_array().expect("turns").len(), 0);
+        // Old session id is not live → chat reject (不可执行旧会话).
+        let rejected = agent_chat_turn_json(&sid2, "hi", None).unwrap();
+        assert_eq!(rejected.body["code"], "rejected_not_live_session");
+    });
+}
+
+#[test]
+fn sk3_t5_shell_close_preserves_live_turns_for_reopen_hydrate() {
+    with_cmd_sandbox(|| {
+        let ensured = ensure_ai_assistant_session_json().expect("ensure");
+        let sid = ensured["session_id"].as_str().unwrap().to_string();
+        session::append_turn(
+            &sid,
+            Turn {
+                role: "user".into(),
+                content: Some("keep across close".into()),
+                tool_call_id: None,
+                tool_calls: None,
+                name: None,
+            },
+        )
+        .expect("append");
+
+        let closed = shell_close_json();
+        assert_eq!(closed["ok"], true);
+        // 关壳 ≠ Reset: live session + turns remain for remount hydrate.
+        assert_eq!(query_binding_json()["state"], "unbound");
+        let pulled = get_ai_assistant_binding_json();
+        assert_eq!(pulled["session_id"], sid);
+        assert_eq!(pulled["turns"][0]["content"], "keep across close");
     });
 }
