@@ -756,7 +756,8 @@ pub fn run_loop(session: &mut Session, user_message: &str, config: &LlmConfig) -
             return cancelled_turn_outcome(session, turns_checkpoint);
         }
 
-        if !msg.tool_calls.is_empty() {
+        // Interface layer: when tools defs empty, skip tool_calls-driven todos path (P2 / t2).
+        if !msg.tool_calls.is_empty() && !tools_defs.is_empty() {
             // Gate again immediately before tool dispatch.
             if chat_turn_interrupted(generation) {
                 return cancelled_turn_outcome(session, turns_checkpoint);

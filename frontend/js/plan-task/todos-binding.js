@@ -67,16 +67,11 @@ function masterIdFromContext(masterContext) {
 
 /** Assemble Binding body only (no Host call). callbacks registry may be empty `{}`. */
 export function assembleTodosBindingBody(masterTaskId) {
-  const id =
-    typeof masterTaskId === 'string' && masterTaskId.trim()
-      ? masterTaskId.trim()
-      : '';
+  // masterTaskId retained for call-site compatibility; Host Agent P2 submits empty tools.
+  void masterTaskId;
   return {
-    tools: TODOS_T_LIFT_TOOL_NAMES.map((name) =>
-      id
-        ? { name, ctx: { master_task_id: id } }
-        : { name },
-    ),
+    // Interface layer: business session tools empty (capability dispatch removed in t3).
+    tools: [],
     prompt: TODOS_PLAN_ASSISTANT_PROMPT,
     // B1: callbacks slot required; empty registry allowed. No Binding-top-level business fields.
     callbacks: {},

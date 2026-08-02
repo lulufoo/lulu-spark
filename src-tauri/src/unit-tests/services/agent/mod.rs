@@ -166,6 +166,19 @@ fn tools_definitions_are_exactly_five_whitelist_names() {
 }
 
 #[test]
+fn t2_openai_tool_definitions_for_binding_empty_when_binding_tools_empty() {
+    // Interface layer: empty Binding.tools → no OpenAI tool defs to the model.
+    let defs = tools::openai_tool_definitions_for_binding(&json!([]));
+    assert!(defs.is_empty(), "expected empty defs, got {defs:?}");
+    // Non-empty binding names still intersect whitelist (API shape retained; t3 removes dispatch).
+    let with_names = tools::openai_tool_definitions_for_binding(&json!([
+        { "name": "get_plan" },
+        { "name": "list_sub_tasks" }
+    ]));
+    assert_eq!(with_names.len(), 2);
+}
+
+#[test]
 fn tools_five_suite_happy_path_and_data_omits_todo_md() {
     with_agent_sandbox(|_| {
         let master_id = create_bound_plan("主计划");

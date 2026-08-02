@@ -171,9 +171,10 @@ fn j1_command_fixture_set_execute_reset_reject_via_json() {
 fn j1_command_illegal_set_emits_set_invalid_keeps_unbound() {
     with_cmd_sandbox(|| {
         r#loop::clear_lifecycle_events_for_tests();
+        // Empty prompt remains illegal; empty tools array alone is legal (P2 / t2).
         let bad = set_binding_json(json!({
             "tools": [],
-            "prompt": "p",
+            "prompt": "",
             "callbacks": {}
         }));
         assert_eq!(bad["ok"], false);

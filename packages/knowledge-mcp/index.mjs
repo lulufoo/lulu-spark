@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 /**
  * Thin MCP sidecar — proxies Workbench HTTP only (no corpus fs reads).
+ * Business isolation via MCP_MOUNT env or ?mount= (default|todo|corpus).
  */
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
@@ -29,6 +30,20 @@ export function resolveMountKey(raw) {
   if (!key) return 'default';
   if (KNOWN_MOUNTS.has(key)) return /** @type {'default'|'todo'|'corpus'} */ (key);
   return 'default';
+}
+
+/** Prefer ?mount= query; else MCP_MOUNT env; unknown → default via resolveMountKey. */
+function mountKeyFromRequest(req) {
+  const fromQuery = req?.query?.mount;
+  if (fromQuery != null && String(fromQuery).trim() !== '') {
+    return fromQuery;
+  }
+  return process.env.MCP_MOUNT;
+}
+
+function unreachableProxyResult(err) {
+  const message = err instanceof Error ? err.message : String(err);
+  return { ok: false, status: 503, text: `Workbench HTTP unreachable: ${message}` };
 }
 
 /** Count title units: each CJK ideograph = 1; each whitespace-delimited word token = 1. */
@@ -81,8 +96,7 @@ async function proxyGet(pathAndQuery) {
     }
     return { ok: true, text };
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    return { ok: false, status: 503, text: `Workbench HTTP unreachable: ${message}` };
+    return unreachableProxyResult(err);
   }
 }
 
@@ -100,8 +114,7 @@ async function proxyPost(path, body) {
     }
     return { ok: true, text };
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    return { ok: false, status: 503, text: `Workbench HTTP unreachable: ${message}` };
+    return unreachableProxyResult(err);
   }
 }
 
@@ -596,12 +609,7 @@ app.all('/mcp', async (req, res) => {
     return;
   }
 
-  const mountFromQuery = req.query?.mount;
-  const mountKey =
-    mountFromQuery != null && String(mountFromQuery).trim() !== ''
-      ? mountFromQuery
-      : process.env.MCP_MOUNT;
-  const server = buildServer(mountKey);
+  const server = buildServer(mountKeyFromRequest(req));
   try {
     const transport = new StreamableHTTPServerTransport({
       sessionIdGenerator: undefined,

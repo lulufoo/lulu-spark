@@ -61,7 +61,8 @@ impl SetError {
 
 fn tools_applicable(tools: &Value) -> bool {
     match tools {
-        Value::Array(items) => !items.is_empty(),
+        // Empty array is legal: Host Agent business session may submit tools:[].
+        Value::Array(_) => true,
         Value::Object(map) => !map.is_empty(),
         Value::String(s) => !s.trim().is_empty(),
         _ => false,

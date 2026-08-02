@@ -9,6 +9,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
 import {
+  assembleTodosBindingBody,
   buildTodosBinding,
   resetTodosBinding,
   TODOS_T_LIFT_TOOL_NAMES,
@@ -41,10 +42,12 @@ const T_LIFT = [
 ];
 
 describe('Todos Binding 接入 — source contracts', () => {
-  it('T-lift five tools stay aligned with tools.rs and TODOS_T_LIFT_TOOL_NAMES', () => {
+  it('business Binding submits tools:[]; capability TOOL_NAMES may remain until t3', () => {
+    // Interface / consumer: assemble empty tools (P2 / t2).
+    expect(assembleTodosBindingBody('task_x').tools).toEqual([]);
+    // Capability layer residual names in tools.rs (dispatch deleted in t3).
     for (const name of T_LIFT) {
       expect(toolsRs).toContain(`"${name}"`);
-      expect(TODOS_T_LIFT_TOOL_NAMES).toContain(name);
     }
     expect(TODOS_T_LIFT_TOOL_NAMES).toHaveLength(5);
   });
@@ -81,12 +84,10 @@ describe('buildTodosBinding / resetTodosBinding', () => {
         ) {
           return { ok: false, code: 'set_invalid', state: 'unbound' };
         }
-        const toolsOk =
-          (Array.isArray(binding.tools) && binding.tools.length > 0) ||
-          (typeof binding.tools === 'object' &&
-            !Array.isArray(binding.tools) &&
-            Object.keys(binding.tools).length > 0) ||
-          (typeof binding.tools === 'string' && binding.tools.trim() !== '');
+        // tools slot required; empty array is legal (Host Agent P2 empty tools).
+        const toolsOk = Array.isArray(binding.tools) ||
+          (typeof binding.tools === 'object' && binding.tools !== null) ||
+          (typeof binding.tools === 'string');
         const promptOk =
           (typeof binding.prompt === 'string' && binding.prompt.trim() !== '') ||
           (binding.prompt &&
@@ -134,7 +135,7 @@ describe('buildTodosBinding / resetTodosBinding', () => {
     };
   }
 
-  it('assembles T-lift tools + prompt, Sets successfully, observes onBound (empty callbacks registry OK)', async () => {
+  it('assembles empty tools + prompt, Sets successfully, observes onBound (empty callbacks registry OK)', async () => {
     const cbs = trackCallbacks();
     const result = await buildTodosBinding(
       { masterTaskId: 'task_alpha' },
@@ -144,33 +145,22 @@ describe('buildTodosBinding / resetTodosBinding', () => {
     expect(result.ok).toBe(true);
     expect(result.state).toBe('bound');
     expect(result.binding).toBeTruthy();
-    expect(result.binding.tools).toBeTruthy();
+    expect(result.binding.tools).toEqual([]);
     expect(result.binding.prompt).toBeTruthy();
     expect(result.binding.callbacks).toEqual({});
     expect(typeof result.binding.callbacks).toBe('object');
-
-    const toolNames = Array.isArray(result.binding.tools)
-      ? result.binding.tools.map((t) =>
-          typeof t === 'string' ? t : t?.name ?? t?.function?.name,
-        )
-      : Object.keys(result.binding.tools);
-    for (const name of T_LIFT) {
-      expect(toolNames).toContain(name);
-    }
-    expect(toolNames).toHaveLength(5);
 
     const promptText =
       typeof result.binding.prompt === 'string'
         ? result.binding.prompt
         : JSON.stringify(result.binding.prompt);
     expect(promptText).toMatch(/只服务|计划/);
-    expect(promptText).toMatch(/get_plan|list_sub_tasks|只读/);
 
     expect(invokeMock).toHaveBeenCalledWith(
       'set_binding',
       expect.objectContaining({
         binding: expect.objectContaining({
-          tools: expect.anything(),
+          tools: [],
           prompt: expect.anything(),
           callbacks: {},
         }),
@@ -184,10 +174,6 @@ describe('buildTodosBinding / resetTodosBinding', () => {
 
     expect(invokeMock).toHaveBeenCalledWith('ensure_ai_assistant_session');
     expect(events.map((e) => e.event)).toEqual(['onBound']);
-
-    for (const tool of result.binding.tools) {
-      expect(tool.ctx?.master_task_id).toBe('task_alpha');
-    }
   });
 
   it('does not Set on empty context (null / missing masterTaskId)', async () => {
@@ -270,7 +256,7 @@ describe('buildTodosBinding / resetTodosBinding', () => {
 
     const setArgs = invokeMock.mock.calls.find((c) => c[0] === 'set_binding')?.[1];
     expect(setArgs.binding.callbacks).toEqual({});
-    expect(setArgs.binding.tools).toBeTruthy();
+    expect(setArgs.binding.tools).toEqual([]);
     expect(setArgs.binding.prompt).toBeTruthy();
   });
 });

@@ -907,16 +907,17 @@ fn set_binding_allows_empty_callbacks_registry_when_slot_present() {
 }
 
 #[test]
-fn set_binding_rejects_inapplicable_tools_or_prompt_as_set_invalid() {
+fn set_binding_allows_empty_tools_array_but_rejects_empty_prompt() {
     with_sandbox(|| {
+        // P2 / t2: empty tools array is legal (Host Agent business session tools empty).
         let empty_tools = r#loop::Binding {
             tools: json!([]),
             prompt: applicable_prompt(),
             callbacks: empty_callbacks_registry(),
         };
-        let err = r#loop::set_binding(empty_tools).expect_err("empty tools must fail");
-        assert_eq!(err.as_code(), "set_invalid");
-        assert_eq!(r#loop::binding_state(), "unbound");
+        r#loop::set_binding(empty_tools).expect("empty tools array must Set");
+        assert_eq!(r#loop::binding_state(), "bound");
+        r#loop::reset_binding().expect("reset");
 
         let empty_prompt = r#loop::Binding {
             tools: applicable_tools(),
@@ -1171,11 +1172,12 @@ fn query_does_not_change_binding_state() {
 fn illegal_set_does_not_transition_to_bound() {
     with_sandbox(|| {
         assert_eq!(r#loop::binding_state(), "unbound");
-        let err = r#loop::set_binding(r#loop::Binding {
-            tools: json!([]),
-            prompt: applicable_prompt(),
-            callbacks: empty_callbacks_registry(),
-        })
+        // Null tools (slot missing applicability) remains illegal; empty array is legal elsewhere.
+        let err = r#loop::try_set_binding_json(&json!({
+            "tools": null,
+            "prompt": "p",
+            "callbacks": {}
+        }))
         .expect_err("illegal Set must fail");
         assert_eq!(err.as_code(), "set_invalid");
         assert_query_unbound(&r#loop::query_binding());
@@ -1818,10 +1820,10 @@ fn j1_2_illegal_set_keeps_state_no_on_bound_emits_set_invalid() {
         assert_eq!(r#loop::binding_state(), "unbound");
         r#loop::clear_lifecycle_events_for_tests();
 
-        // Missing content / empty tools — B1 illegal Set.
+        // Missing prompt content — B1 illegal Set (empty tools array is legal in P2).
         let err = r#loop::try_set_binding_json(&json!({
             "tools": [],
-            "prompt": "p",
+            "prompt": "",
             "callbacks": {}
         }))
         .expect_err("illegal Set must fail");
@@ -3312,5 +3314,79 @@ fn t6_binding_contract_rejects_top_level_business_ids() {
         r#loop::set_binding(valid_binding()).expect("Set without business top-level");
         let q = r#loop::query_binding();
         assert_query_is_business_agnostic(&q);
+    });
+}
+
+// ── t2 / P2 Host Agent empty tools (interface layer; capability dispatch remains until t3) ──
+
+fn empty_tools_binding() -> r#loop::Binding {
+    r#loop::Binding {
+        tools: json!([]),
+        prompt: json!(PLAN_ASSISTANT_SYSTEM_PROMPT),
+        callbacks: json!({}),
+    }
+}
+
+#[test]
+fn t2_empty_tools_binding_llm_round_omits_tools_and_skips_dispatch() {
+    with_sandbox(|| {
+        let master = create_bound_plan("空tools会话");
+        let mock = spawn_scripted_llm(vec![
+            assistant_tools(
+                json!([{
+                    "id": "call_should_skip",
+                    "type": "function",
+                    "function": {
+                        "name": "update_master_title",
+                        "arguments": "{\"title\":\"不应写入\"}"
+                    }
+                }]),
+                Some("无工具回合回复"),
+            ),
+        ]);
+        let mut sess = session::create_session(Some(&master), Some("空tools会话")).unwrap();
+        r#loop::set_binding(empty_tools_binding()).expect("empty tools Set");
+        let before = todo_task::get_by_id(&master)["title"].clone();
+        let out = r#loop::run_loop(&mut sess, "改标题", &cfg_for(&mock));
+        // Empty tools: complete LLM round without tool_calls-driven todos path.
+        assert_ne!(out.terminal, Terminal::Error);
+        assert_eq!(out.wrote, false);
+        assert!(
+            !sess.turns.iter().any(|t| t.role == "tool"),
+            "must not dispatch tools when Binding.tools empty"
+        );
+        assert_eq!(todo_task::get_by_id(&master)["title"], before);
+        let hits = mock.hits.lock().unwrap();
+        assert!(!hits.is_empty(), "LLM must be called");
+        let tools_field = &hits[0]["tools"];
+        assert!(
+            tools_field.is_null()
+                || tools_field.as_array().map(|a| a.is_empty()).unwrap_or(false),
+            "chat completions tools must be empty/absent, got {tools_field}"
+        );
+        assert!(
+            out.reply_text.contains("无工具") || !out.reply_text.is_empty(),
+            "reply={}",
+            out.reply_text
+        );
+    });
+}
+
+#[test]
+fn t2_empty_tools_binding_text_only_round_succeeds() {
+    with_sandbox(|| {
+        let master = create_bound_plan("空tools纯文本");
+        let mock = spawn_scripted_llm(vec![assistant_text("纯文本回复，无工具")]);
+        let mut sess = session::create_session(Some(&master), Some("空tools纯文本")).unwrap();
+        r#loop::set_binding(empty_tools_binding()).expect("empty tools Set");
+        let out = r#loop::run_loop(&mut sess, "你好", &cfg_for(&mock));
+        assert_outcome(&out, "none", false);
+        assert!(out.reply_text.contains("纯文本"));
+        let hits = mock.hits.lock().unwrap();
+        assert_eq!(hits.len(), 1);
+        assert!(
+            hits[0].get("tools").map(|t| t.is_null() || t.as_array().map(|a| a.is_empty()).unwrap_or(false)).unwrap_or(true),
+            "tools empty/absent"
+        );
     });
 }

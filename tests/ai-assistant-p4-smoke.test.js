@@ -188,7 +188,8 @@ describe('Todos SK-4 parity acceptance (P1–P6 / N1/N2)', () => {
     );
   });
 
-  it('T-lift capability surface stays at five tools; no complete/abandon/batch in Binding', () => {
+  it('business Binding tools empty; prompt still refuses unsupported ops (P2 empty tools)', () => {
+    // Historical T-lift name list may remain as constant; Binding no longer submits them.
     expect([...TODOS_T_LIFT_TOOL_NAMES]).toEqual([
       'get_plan',
       'list_sub_tasks',
@@ -197,16 +198,15 @@ describe('Todos SK-4 parity acceptance (P1–P6 / N1/N2)', () => {
       'update_master_title',
     ]);
     const body = assembleTodosBindingBody();
-    const toolNames = body.tools.map((t) => t.name);
-    expect(toolNames).toEqual([...TODOS_T_LIFT_TOOL_NAMES]);
-    const serialized = JSON.stringify(body);
+    expect(body.tools).toEqual([]);
+    const serialized = JSON.stringify(body.tools);
     for (const banned of OUT_OF_PARITY_TOOLS) {
       expect(serialized).not.toContain(banned);
     }
+    for (const name of TODOS_T_LIFT_TOOL_NAMES) {
+      expect(serialized).not.toContain(name);
+    }
     expect(body.prompt).toMatch(/目前不支持|不支持/);
-    expect(body.prompt).toMatch(/get_plan|list_sub_tasks/);
-    expect(body.prompt).toMatch(/add_sub_task/);
-    expect(body.prompt).toMatch(/update_master_title|update_sub_title/);
   });
 
   it('N1 flag: open-and-bind main path disabled on Todos consumer', () => {
@@ -325,21 +325,14 @@ describe('Todos SK-4 parity acceptance (P1–P6 / N1/N2)', () => {
       expect(exec.ok).toBe(true);
     });
 
-    it('P2–P5: Binding tools+prompt cover read/add/rename and reject unsupported ops in prompt', () => {
+    it('P2–P5: Binding tools empty; prompt still covers parity language and refuses unsupported ops', () => {
       const body = assembleTodosBindingBody();
-      // P2 read tools
-      expect(body.tools.map((t) => t.name)).toEqual(
-        expect.arrayContaining(['get_plan', 'list_sub_tasks']),
-      );
-      // P3 add sub
-      expect(body.tools.map((t) => t.name)).toContain('add_sub_task');
-      // P4 title updates
-      expect(body.tools.map((t) => t.name)).toEqual(
-        expect.arrayContaining(['update_master_title', 'update_sub_title']),
-      );
-      // P5 unsupported refused in prompt contract
+      // Host Agent P2: business session tools empty (no T-lift handles in Binding).
+      expect(body.tools).toEqual([]);
+      // Prompt contract retains parity wording (ops described; tools not submitted).
       expect(body.prompt).toMatch(/目前不支持/);
       expect(body.prompt).toMatch(/删除、完成\/放弃|完成\/放弃/);
+      expect(body.prompt).toMatch(/get_plan|list_sub_tasks|只读/);
     });
 
     it('P6: leave Reset→onUnbound then execute rejected', async () => {
