@@ -72,10 +72,11 @@ pub fn resolve_engine(settings: &AppSettings) -> Result<EngineKind, EngineRouteE
     }
 }
 
-/// Dispatch a chat turn to the Host or Cursor adapter entry (stubs OK for t2).
+/// Dispatch a chat turn to the Host or Cursor adapter entry.
 ///
-/// Closures are injectable so tests can observe which path ran; t3/t4 replace
-/// bodies with real adapters. Engine kind is not written into facade API params.
+/// Closures are injectable so callers/tests supply adapter bodies — Cursor path
+/// should invoke `cursor_adapter::run_turn` (mcpServers + local.cwd). Engine kind
+/// is not written into facade API params.
 pub fn route_chat_turn<H, C>(
     engine: EngineKind,
     _input: &TurnInput,

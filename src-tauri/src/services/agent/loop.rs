@@ -1,4 +1,5 @@
 //! Agent Loop + Host open/chat-turn core (single-flight, terminals, history caps).
+//! Host business path: LLM tools empty; no process-local tools::dispatch; zero Cursor.
 
 use std::collections::HashMap;
 use std::panic::AssertUnwindSafe;
@@ -757,8 +758,7 @@ pub fn run_loop(session: &mut Session, user_message: &str, config: &LlmConfig) -
 
     // Host P3: business path tools always empty; may read L2 MCP face (no tool_calls).
     // Do not call process-local tools::dispatch (L09-I #7 / T3 Failure).
-    let _capability = session_capability_mcp_config();
-    let wrote = false;
+    let _ = session_capability_mcp_config();
 
     if chat_turn_interrupted(generation) {
         return cancelled_turn_outcome(session, turns_checkpoint);
@@ -806,10 +806,7 @@ pub fn run_loop(session: &mut Session, user_message: &str, config: &LlmConfig) -
         };
     }
 
-    let content = msg
-        .content
-        .clone()
-        .unwrap_or_else(|| "".to_string());
+    let content = msg.content.clone().unwrap_or_default();
     if content.trim().is_empty() {
         let reply = "模型响应为空，未执行任何写入。".to_string();
         session.turns.push(Turn {
@@ -823,7 +820,7 @@ pub fn run_loop(session: &mut Session, user_message: &str, config: &LlmConfig) -
         return TurnOutcome {
             reply_text: reply,
             terminal: Terminal::Error,
-            wrote,
+            wrote: false,
         };
     }
 
@@ -847,7 +844,7 @@ pub fn run_loop(session: &mut Session, user_message: &str, config: &LlmConfig) -
             return TurnOutcome {
                 reply_text: reply,
                 terminal: Terminal::Error,
-                wrote,
+                wrote: false,
             };
         }
         *count += 1;
@@ -863,7 +860,7 @@ pub fn run_loop(session: &mut Session, user_message: &str, config: &LlmConfig) -
         return TurnOutcome {
             reply_text: content,
             terminal: Terminal::None,
-            wrote,
+            wrote: false,
         };
     }
 
@@ -879,7 +876,7 @@ pub fn run_loop(session: &mut Session, user_message: &str, config: &LlmConfig) -
         return TurnOutcome {
             reply_text: content,
             terminal: Terminal::Business,
-            wrote,
+            wrote: false,
         };
     }
 
@@ -894,7 +891,7 @@ pub fn run_loop(session: &mut Session, user_message: &str, config: &LlmConfig) -
     TurnOutcome {
         reply_text: content,
         terminal: Terminal::None,
-        wrote,
+        wrote: false,
     }
 }
 

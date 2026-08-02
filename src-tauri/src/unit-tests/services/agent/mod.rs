@@ -6,6 +6,9 @@ mod loop_tests;
 #[path = "engine_router_tests.rs"]
 mod engine_router_tests;
 
+#[path = "cursor_adapter_tests.rs"]
+mod cursor_adapter_tests;
+
 use std::fs;
 use std::io::{Read, Write};
 use std::net::TcpListener;
