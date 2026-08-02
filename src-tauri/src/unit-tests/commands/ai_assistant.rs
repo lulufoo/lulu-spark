@@ -19,6 +19,8 @@ fn with_cmd_sandbox<F: FnOnce()>(f: F) {
     let _sandbox = TestSandbox::new();
     secrets::test_secrets_clear();
     r#loop::reset_runtime_for_tests();
+    crate::services::mcp_server_registry::clear_for_tests();
+    crate::services::mcp_server_registry::seed_defaults();
     f();
 }
 
@@ -143,18 +145,17 @@ fn open_ai_assistant_present_path_does_not_imply_set() {
 #[test]
 fn j1_command_fixture_set_execute_reset_reject_via_json() {
     with_cmd_sandbox(|| {
-        let binding = json!({
-            "tools": [{ "name": "fixture_tool", "handle": "opaque-fixture-tool" }],
-            "prompt": "j1-cmd-prompt",
-            "callbacks": {}
-        });
+        use crate::services::mcp_server_registry::SEEDED_BUSINESS_KEY;
+        let binding = json!({ "key": SEEDED_BUSINESS_KEY });
         let set = set_binding_json(binding);
         assert_eq!(set["ok"], true);
         assert_eq!(set["state"], "bound");
+        assert!(r#loop::loaded_mcp_server().is_some());
 
         let exec = execute_binding_json();
         assert_eq!(exec["ok"], true);
-        assert_eq!(exec["applied_prompt"], "j1-cmd-prompt");
+        // Host-filled prompt from loaded MCP capability description (not client legacy payload).
+        assert!(exec["applied_prompt"].as_str().unwrap_or("").len() > 0);
 
         let reset = reset_binding_json();
         assert_eq!(reset["ok"], true);
@@ -171,6 +172,7 @@ fn j1_command_fixture_set_execute_reset_reject_via_json() {
 fn j1_command_illegal_set_emits_set_invalid_keeps_unbound() {
     with_cmd_sandbox(|| {
         r#loop::clear_lifecycle_events_for_tests();
+        // Legacy tools/prompt/callbacks payload must fail at public boundary.
         let bad = set_binding_json(json!({
             "tools": [],
             "prompt": "p",
@@ -206,11 +208,8 @@ fn j1_present_not_bound_execute_rejects_without_set() {
 #[test]
 fn t5_defensive_unbound_json_returns_unbound_and_shares_binding_changed_event() {
     with_cmd_sandbox(|| {
-        let binding = json!({
-            "tools": [{ "name": "fixture_tool", "handle": "opaque-fixture-tool" }],
-            "prompt": "t5-defensive",
-            "callbacks": {}
-        });
+        use crate::services::mcp_server_registry::SEEDED_BUSINESS_KEY;
+        let binding = json!({ "key": SEEDED_BUSINESS_KEY });
         assert_eq!(set_binding_json(binding)["ok"], true);
         assert_eq!(query_binding_json()["state"], "bound");
 
@@ -237,11 +236,8 @@ fn t5_execute_json_exposes_distinguishable_reject_codes() {
         assert_eq!(unbound["ok"], false);
         assert_eq!(unbound["code"], "rejected_unbound");
 
-        let binding = json!({
-            "tools": [{ "name": "fixture_tool", "handle": "opaque-fixture-tool" }],
-            "prompt": "t5-codes",
-            "callbacks": {}
-        });
+        use crate::services::mcp_server_registry::SEEDED_BUSINESS_KEY;
+        let binding = json!({ "key": SEEDED_BUSINESS_KEY });
         assert_eq!(set_binding_json(binding.clone())["ok"], true);
         // Mid-execute Reset → reset_cancelled (Host signal).
         r#loop::clear_lifecycle_events_for_tests();
@@ -253,11 +249,7 @@ fn t5_execute_json_exposes_distinguishable_reject_codes() {
 
         assert_eq!(set_binding_json(binding)["ok"], true);
         let stale = r#loop::execute_binding_during(|| {
-            let _ = set_binding_json(json!({
-                "tools": [{ "name": "fixture_tool", "handle": "opaque-fixture-tool" }],
-                "prompt": "replaced",
-                "callbacks": {}
-            }));
+            let _ = set_binding_json(json!({ "key": SEEDED_BUSINESS_KEY }));
         })
         .expect_err("stale");
         assert_eq!(stale.as_code(), "rejected_stale_generation");
@@ -337,11 +329,8 @@ fn sk3_t5_binding_turns_empty_without_live_or_after_reset() {
         );
 
         // Set then Reset cuts live; turns must be empty (not executable old session).
-        let binding = json!({
-            "tools": [{ "name": "fixture_tool", "handle": "opaque-fixture-tool" }],
-            "prompt": "sk3-t5-reset",
-            "callbacks": {}
-        });
+        use crate::services::mcp_server_registry::SEEDED_BUSINESS_KEY;
+        let binding = json!({ "key": SEEDED_BUSINESS_KEY });
         assert_eq!(set_binding_json(binding)["ok"], true);
         // Successful Set itself clears live session id.
         let after_set = get_ai_assistant_binding_json();

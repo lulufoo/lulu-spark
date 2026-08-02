@@ -45,7 +45,8 @@ pub fn get_ai_assistant_binding_json() -> Value {
     r#loop::get_ai_assistant_binding_core()
 }
 
-/// Binding Contract Set entry (tools + prompt + callbacks). Does not fill tools/prompt.
+/// Binding Contract Set entry (key-only). Looks up Host MCP registry; rejects legacy
+/// tools/prompt/callbacks payload and engine selection parameters.
 pub fn set_binding_json(binding: Value) -> Value {
     match r#loop::try_set_binding_json(&binding) {
         Ok(()) => json!({
@@ -101,7 +102,7 @@ pub fn execute_binding_json() -> Value {
     }
 }
 
-/// Invokable Binding Contract Set. Host does not assemble tools/prompt.
+/// Invokable Binding Contract Set (key-only; no engine selection parameter).
 #[tauri::command]
 pub async fn set_binding(app: AppHandle, binding: Value) -> Result<Value, String> {
     let result = tauri::async_runtime::spawn_blocking(move || set_binding_json(binding))
@@ -111,7 +112,7 @@ pub async fn set_binding(app: AppHandle, binding: Value) -> Result<Value, String
     Ok(result)
 }
 
-/// Invokable Binding Contract Reset → unbound.
+/// Invokable Binding Contract Reset → unbound (no engine selection parameter).
 #[tauri::command]
 pub async fn reset_binding(app: AppHandle) -> Result<Value, String> {
     let result = tauri::async_runtime::spawn_blocking(reset_binding_json)

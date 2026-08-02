@@ -23,8 +23,11 @@ pub struct Turn {
     pub name: Option<String>,
 }
 
-/// Generic Binding Contract config surface (A1 opaque handles): tools + prompt + callbacks.
-/// Not keyed by business IDs.
+/// Binding Contract surface.
+///
+/// Public Set input is key-only (`binding_from_json`). Host may still hold
+/// tools/prompt/callbacks as an internal execute/chat surface (typed `set_binding`
+/// / tests) until L3 empties tools; those slots are rejected at the public JSON boundary.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Binding {
     pub tools: Value,
@@ -54,6 +57,12 @@ impl SetError {
         }
     }
 
+    pub fn unknown_key() -> Self {
+        Self {
+            code: "unknown_key",
+        }
+    }
+
     pub fn as_code(&self) -> &'static str {
         self.code
     }
@@ -80,7 +89,24 @@ fn callbacks_slot_ok(callbacks: &Value) -> bool {
     callbacks.is_object()
 }
 
-/// B1 Set validation: three slots required; tools/prompt must be applicable.
+const KEY_BINDING_TOOL_NAME: &str = "__binding_key__";
+
+/// Business key carried by a key-only Binding (public Set contract).
+pub fn binding_business_key(binding: &Binding) -> Option<String> {
+    let arr = binding.tools.as_array()?;
+    let first = arr.first()?;
+    if first.get("name").and_then(|n| n.as_str()) != Some(KEY_BINDING_TOOL_NAME) {
+        return None;
+    }
+    let key = first.get("handle").and_then(|h| h.as_str())?.trim();
+    if key.is_empty() {
+        None
+    } else {
+        Some(key.to_string())
+    }
+}
+
+/// Set validation: tools/prompt must be applicable; callbacks slot present.
 pub fn validate_binding(binding: &Binding) -> Result<(), SetError> {
     if !tools_applicable(&binding.tools)
         || !prompt_applicable(&binding.prompt)
@@ -91,17 +117,32 @@ pub fn validate_binding(binding: &Binding) -> Result<(), SetError> {
     Ok(())
 }
 
-/// Parse Binding from JSON requiring tools/prompt/callbacks keys; never fill from other fields.
+/// Parse key-only Binding input. Rejects legacy `tools`/`prompt`/`callbacks` payload
+/// and engine selection parameters. Side-effect free (no registry I/O).
 pub fn binding_from_json(v: &Value) -> Result<Binding, SetError> {
     let obj = v.as_object().ok_or_else(SetError::set_invalid)?;
-    if !obj.contains_key("tools") || !obj.contains_key("prompt") || !obj.contains_key("callbacks")
+    // Legacy payload must not bypass key→MCP lookup at the public boundary.
+    if obj.contains_key("tools") || obj.contains_key("prompt") || obj.contains_key("callbacks") {
+        return Err(SetError::set_invalid());
+    }
+    if obj.contains_key("engine")
+        || obj.contains_key("engine_type")
+        || obj.contains_key("engineType")
     {
         return Err(SetError::set_invalid());
     }
+    let key = match obj.get("key") {
+        Some(Value::String(s)) => s.clone(),
+        _ => return Err(SetError::set_invalid()),
+    };
+    if key.trim().is_empty() {
+        return Err(SetError::set_invalid());
+    }
+    // Host-internal placeholders only — not client-supplied MCP/tools payload.
     Ok(Binding {
-        tools: obj["tools"].clone(),
-        prompt: obj["prompt"].clone(),
-        callbacks: obj["callbacks"].clone(),
+        tools: serde_json::json!([{ "name": KEY_BINDING_TOOL_NAME, "handle": key }]),
+        prompt: serde_json::json!("pending"),
+        callbacks: serde_json::json!({}),
     })
 }
 

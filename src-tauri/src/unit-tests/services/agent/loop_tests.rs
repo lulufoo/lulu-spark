@@ -21,6 +21,8 @@ fn with_sandbox<F: FnOnce()>(f: F) {
     let _sandbox = TestSandbox::new();
     secrets::test_secrets_clear();
     r#loop::reset_runtime_for_tests();
+    crate::services::mcp_server_registry::clear_for_tests();
+    crate::services::mcp_server_registry::seed_defaults();
     f();
 }
 
@@ -1756,7 +1758,8 @@ fn present_command_json_does_not_set_binding() {
         assert_eq!(exec["code"], "rejected_unbound");
 
         // Present after Set still leaves bound and does not replace.
-        let set = set_binding_json(serde_json::to_value(valid_binding()).unwrap());
+        use crate::services::mcp_server_registry::SEEDED_BUSINESS_KEY;
+        let set = set_binding_json(json!({ "key": SEEDED_BUSINESS_KEY }));
         assert_eq!(set["ok"], true);
         let gen_before = query_binding_json()["generation"].clone();
         let _ = present_ai_assistant_json().expect("Present while bound");
@@ -3314,3 +3317,198 @@ fn t6_binding_contract_rejects_top_level_business_ids() {
         assert_query_is_business_agnostic(&q);
     });
 }
+
+// --- t2: key-only Binding Set/Reset + MCP session capability context ---
+
+fn key_only_payload(key: &str) -> Value {
+    json!({ "key": key })
+}
+
+#[test]
+fn t2_key_only_set_loads_mcp_server_into_session_capability_context() {
+    with_sandbox(|| {
+        use crate::services::mcp_server_registry::{self, SEEDED_BUSINESS_KEY};
+        assert_eq!(r#loop::binding_state(), "unbound");
+        assert!(r#loop::loaded_mcp_server().is_none());
+
+        r#loop::try_set_binding_json(&key_only_payload(SEEDED_BUSINESS_KEY))
+            .expect("legal key Set must succeed");
+        assert_eq!(r#loop::binding_state(), "bound");
+
+        let loaded = r#loop::loaded_mcp_server().expect("Set must load MCP Server config");
+        let expected = mcp_server_registry::lookup(SEEDED_BUSINESS_KEY).expect("registry");
+        assert_eq!(loaded, expected);
+        assert!(
+            !loaded.capability_description.trim().is_empty(),
+            "loaded config must be decision-level non-empty"
+        );
+    });
+}
+
+#[test]
+fn t2_reset_binding_unloads_mcp_server_config() {
+    with_sandbox(|| {
+        use crate::services::mcp_server_registry::SEEDED_BUSINESS_KEY;
+        r#loop::try_set_binding_json(&key_only_payload(SEEDED_BUSINESS_KEY)).expect("Set");
+        assert!(r#loop::loaded_mcp_server().is_some());
+
+        r#loop::reset_binding().expect("Reset");
+        assert_eq!(r#loop::binding_state(), "unbound");
+        assert!(
+            r#loop::loaded_mcp_server().is_none(),
+            "Reset must unload MCP Server config from session capability context"
+        );
+    });
+}
+
+#[test]
+fn t2_set_reset_public_json_reject_engine_selection_params() {
+    with_sandbox(|| {
+        use crate::services::mcp_server_registry::SEEDED_BUSINESS_KEY;
+        // Public Set must not accept engine selection parameters.
+        for payload in [
+            json!({ "key": SEEDED_BUSINESS_KEY, "engine": "host" }),
+            json!({ "key": SEEDED_BUSINESS_KEY, "engine_type": "cursor" }),
+            json!({ "key": SEEDED_BUSINESS_KEY, "engineType": "host" }),
+        ] {
+            let err = r#loop::try_set_binding_json(&payload)
+                .expect_err("engine selection params must fail at public boundary");
+            assert_eq!(err.as_code(), "set_invalid");
+            assert_eq!(r#loop::binding_state(), "unbound");
+            assert!(r#loop::loaded_mcp_server().is_none());
+        }
+        // reset_binding takes no engine params (signature-level); idempotent ok.
+        r#loop::reset_binding().expect("Reset");
+    });
+}
+
+#[test]
+fn t2_replace_set_with_new_key_replaces_loaded_mcp_config() {
+    with_sandbox(|| {
+        use crate::services::mcp_server_registry::{self, McpServerConfig, SEEDED_BUSINESS_KEY};
+        r#loop::try_set_binding_json(&key_only_payload(SEEDED_BUSINESS_KEY)).expect("first Set");
+        let first = r#loop::loaded_mcp_server().expect("first loaded");
+
+        mcp_server_registry::register(
+            "alt_business_key",
+            McpServerConfig {
+                capability_description: "alternate mcp capability".into(),
+            },
+        )
+        .expect("register alt");
+        r#loop::try_set_binding_json(&key_only_payload("alt_business_key")).expect("replace Set");
+
+        let second = r#loop::loaded_mcp_server().expect("replaced loaded");
+        assert_ne!(first, second, "replace must not keep old MCP config alongside new");
+        assert_eq!(second.capability_description, "alternate mcp capability");
+        assert_eq!(r#loop::binding_state(), "bound");
+        assert_eq!(r#loop::current_binding_slot_count(), 1);
+    });
+}
+
+#[test]
+fn t2_reset_when_unbound_is_idempotent_mcp_slot_stays_empty() {
+    with_sandbox(|| {
+        assert!(r#loop::loaded_mcp_server().is_none());
+        r#loop::reset_binding().expect("Reset unbound");
+        assert_eq!(r#loop::binding_state(), "unbound");
+        assert!(r#loop::loaded_mcp_server().is_none());
+        r#loop::reset_binding().expect("second Reset unbound");
+        assert!(r#loop::loaded_mcp_server().is_none());
+    });
+}
+
+#[test]
+fn t2_unknown_key_fails_explicitly_without_destroying_prior_mcp_context() {
+    with_sandbox(|| {
+        use crate::services::mcp_server_registry::SEEDED_BUSINESS_KEY;
+        r#loop::try_set_binding_json(&key_only_payload(SEEDED_BUSINESS_KEY)).expect("seed bound");
+        let prior = r#loop::loaded_mcp_server().expect("prior MCP");
+        let gen = r#loop::query_binding().generation;
+
+        let err = r#loop::try_set_binding_json(&key_only_payload("unknown_business_key_xyz"))
+            .expect_err("unknown key must fail");
+        assert_eq!(err.as_code(), "unknown_key");
+        assert_eq!(r#loop::binding_state(), "bound");
+        assert_eq!(
+            r#loop::loaded_mcp_server().as_ref(),
+            Some(&prior),
+            "failed Set must not destroy prior session capability context"
+        );
+        assert_eq!(r#loop::query_binding().generation, gen);
+    });
+}
+
+#[test]
+fn t2_legacy_tools_prompt_callbacks_payload_rejected_at_public_boundary() {
+    with_sandbox(|| {
+        use crate::services::mcp_server_registry::SEEDED_BUSINESS_KEY;
+        // Unbound: legacy payload cannot bypass key→MCP lookup.
+        let err = r#loop::try_set_binding_json(&json!({
+            "tools": [{ "name": "tool_a", "handle": "opaque-tool-a" }],
+            "prompt": "opaque-system-prompt",
+            "callbacks": {}
+        }))
+        .expect_err("legacy payload must fail");
+        assert_eq!(err.as_code(), "set_invalid");
+        assert_eq!(r#loop::binding_state(), "unbound");
+        assert!(r#loop::loaded_mcp_server().is_none());
+
+        // Bound via key: legacy payload still rejected; MCP context preserved.
+        r#loop::try_set_binding_json(&key_only_payload(SEEDED_BUSINESS_KEY)).expect("key Set");
+        let prior = r#loop::loaded_mcp_server().expect("loaded");
+        let err = r#loop::try_set_binding_json(&json!({
+            "tools": [{ "name": "tool_a" }],
+            "prompt": "p",
+            "callbacks": {}
+        }))
+        .expect_err("legacy payload must fail when bound");
+        assert_eq!(err.as_code(), "set_invalid");
+        assert_eq!(r#loop::binding_state(), "bound");
+        assert_eq!(r#loop::loaded_mcp_server().as_ref(), Some(&prior));
+    });
+}
+
+#[test]
+fn t2_missing_or_invalid_key_input_fails_explicitly() {
+    with_sandbox(|| {
+        for payload in [
+            json!({}),
+            json!({ "key": "" }),
+            json!({ "key": "   " }),
+            json!({ "key": null }),
+            json!({ "master_task_id": "task_x" }),
+            json!("todo_task"),
+        ] {
+            let err = r#loop::try_set_binding_json(&payload)
+                .expect_err("missing/invalid key must fail");
+            assert_eq!(err.as_code(), "set_invalid", "payload={payload}");
+            assert_eq!(r#loop::binding_state(), "unbound");
+            assert!(r#loop::loaded_mcp_server().is_none());
+        }
+    });
+}
+
+#[test]
+fn t2_binding_from_json_accepts_key_only_rejects_legacy() {
+    with_sandbox(|| {
+        use crate::services::agent::session;
+        use crate::services::mcp_server_registry::SEEDED_BUSINESS_KEY;
+        let b = session::binding_from_json(&key_only_payload(SEEDED_BUSINESS_KEY))
+            .expect("key-only parse");
+        assert_eq!(
+            session::binding_business_key(&b).as_deref(),
+            Some(SEEDED_BUSINESS_KEY),
+            "parsed Binding must carry the business key"
+        );
+
+        let err = session::binding_from_json(&json!({
+            "tools": [{ "name": "t" }],
+            "prompt": "p",
+            "callbacks": {}
+        }))
+        .expect_err("legacy payload");
+        assert_eq!(err.as_code(), "set_invalid");
+    });
+}
+

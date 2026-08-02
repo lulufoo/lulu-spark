@@ -10,6 +10,7 @@ use serde_json::{json, Value};
 use crate::services::agent::llm::{self, AssistantMessage, LlmConfig, LlmError};
 use crate::services::agent::session::{self, Session, Turn};
 use crate::services::agent::tools;
+use crate::services::mcp_server_registry::{self, McpServerConfig, McpServerLookupError};
 use crate::services::todo_task;
 
 pub use crate::services::agent::session::{
@@ -126,8 +127,10 @@ struct Runtime {
     current_session_id: Option<String>,
     bound_master_task_id: Option<String>,
     bound_title: Option<String>,
-    /// Current generic Binding (tools+prompt+callbacks); None ⇒ unbound.
+    /// Current Binding; None ⇒ unbound.
     current_binding: Option<session::Binding>,
+    /// Session capability context: MCP Server config loaded by key-only Set.
+    loaded_mcp_server: Option<McpServerConfig>,
     /// Live generation while bound; None when unbound.
     current_generation: Option<u64>,
     /// Monotonic counter for Set/replace generations.
@@ -256,7 +259,7 @@ fn request_in_flight_cancel(rt: &mut Runtime) {
     }
 }
 
-/// Set Binding after B1 validation. Failure returns `set_invalid` and leaves state unchanged.
+/// Set Binding after validation. Failure returns `set_invalid` and leaves state unchanged.
 /// Legal Set on bound atomically replaces and invalidates the previous generation.
 /// Any successful Set (first or replace) clears `current_session_id` in the same critical
 /// section as generation advance (session cut, clear-first).
@@ -264,7 +267,17 @@ fn request_in_flight_cancel(rt: &mut Runtime) {
 /// generation invalidation (distinguishable stale reject preserved).
 /// Emits onBound; replace also emits onUnbound → onBound (D1).
 /// Illegal Set emits onError(set_invalid) and does not emit onBound.
+///
+/// Typed/internal Set (no business key) clears any previously loaded MCP config.
+/// Key-only public Set goes through `try_set_binding_json` which loads MCP first.
 pub fn set_binding(binding: session::Binding) -> Result<(), SetError> {
+    set_binding_with_mcp(binding, None)
+}
+
+fn set_binding_with_mcp(
+    binding: session::Binding,
+    loaded_mcp: Option<McpServerConfig>,
+) -> Result<(), SetError> {
     if let Err(e) = session::validate_binding(&binding) {
         emit_lifecycle("onError", Some("set_invalid"));
         return Err(e);
@@ -280,6 +293,7 @@ pub fn set_binding(binding: session::Binding) -> Result<(), SetError> {
         rt.generation_seq = rt.generation_seq.saturating_add(1);
         rt.current_generation = Some(rt.generation_seq);
         rt.current_binding = Some(binding);
+        rt.loaded_mcp_server = loaded_mcp;
         // Session cut: clear live id with generation update (no new-gen + old-session window).
         rt.current_session_id = None;
         was
@@ -293,19 +307,50 @@ pub fn set_binding(binding: session::Binding) -> Result<(), SetError> {
     Ok(())
 }
 
-/// JSON Set entry: require tools/prompt/callbacks keys present; never fill from business fields.
+/// JSON Set entry: key-only public contract. Looks up Host MCP registry and loads
+/// session capability context. Rejects legacy tools/prompt/callbacks payload.
 pub fn try_set_binding_json(v: &Value) -> Result<(), SetError> {
-    match session::binding_from_json(v) {
-        Ok(binding) => set_binding(binding),
+    let parsed = match session::binding_from_json(v) {
+        Ok(binding) => binding,
         Err(e) => {
-            emit_lifecycle("onError", Some("set_invalid"));
-            Err(e)
+            emit_lifecycle("onError", Some(e.as_code()));
+            return Err(e);
         }
-    }
+    };
+    let key = match session::binding_business_key(&parsed) {
+        Some(k) => k,
+        None => {
+            emit_lifecycle("onError", Some("set_invalid"));
+            return Err(SetError::set_invalid());
+        }
+    };
+    let config = match mcp_server_registry::lookup(&key) {
+        Ok(cfg) => cfg,
+        Err(McpServerLookupError::NotFound) => {
+            emit_lifecycle("onError", Some("unknown_key"));
+            return Err(SetError::unknown_key());
+        }
+        Err(McpServerLookupError::InvalidKey) => {
+            emit_lifecycle("onError", Some("set_invalid"));
+            return Err(SetError::set_invalid());
+        }
+    };
+    let binding = session::Binding {
+        tools: parsed.tools,
+        prompt: json!(config.capability_description.clone()),
+        callbacks: parsed.callbacks,
+    };
+    set_binding_with_mcp(binding, Some(config))
+}
+
+/// Observability: MCP Server config currently loaded into session capability context.
+pub fn loaded_mcp_server() -> Option<McpServerConfig> {
+    runtime().lock().unwrap().loaded_mcp_server.clone()
 }
 
 /// Reset: discard current Binding → unbound. Idempotent when already unbound.
 /// Clears `current_session_id` (session cut, clear-first); does not wipe disk turns.
+/// Unloads session capability MCP config with the Binding.
 /// Bound→unbound emits onUnbound; symmetrically cancels in-flight execute and chat.
 pub fn reset_binding() -> Result<(), ()> {
     let was_bound = {
@@ -313,6 +358,7 @@ pub fn reset_binding() -> Result<(), ()> {
         let was = rt.current_binding.is_some();
         request_in_flight_cancel(&mut rt);
         rt.current_binding = None;
+        rt.loaded_mcp_server = None;
         rt.current_generation = None;
         rt.current_session_id = None;
         was
