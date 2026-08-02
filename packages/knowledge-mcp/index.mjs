@@ -15,6 +15,22 @@ if (!WORKBENCH_HTTP_URL) {
 
 const MCP_PORT = Number(process.env.MCP_PORT || 9876);
 
+/** Known business-isolation mounts; unknown keys fall back to default. */
+const KNOWN_MOUNTS = new Set(['default', 'todo', 'corpus']);
+
+/**
+ * Resolve business isolation mount key.
+ * @param {unknown} raw — env MCP_MOUNT or ?mount= query value
+ * @returns {'default'|'todo'|'corpus'}
+ */
+export function resolveMountKey(raw) {
+  if (raw == null) return 'default';
+  const key = String(raw).trim().toLowerCase();
+  if (!key) return 'default';
+  if (KNOWN_MOUNTS.has(key)) return /** @type {'default'|'todo'|'corpus'} */ (key);
+  return 'default';
+}
+
 /** Count title units: each CJK ideograph = 1; each whitespace-delimited word token = 1. */
 export function titleUnitCount(title) {
   let units = 0;
@@ -57,26 +73,36 @@ export function titleUnitCount(title) {
 
 async function proxyGet(pathAndQuery) {
   const url = `${WORKBENCH_HTTP_URL}${pathAndQuery}`;
-  const res = await fetch(url);
-  const text = await res.text();
-  if (!res.ok) {
-    return { ok: false, status: res.status, text };
+  try {
+    const res = await fetch(url);
+    const text = await res.text();
+    if (!res.ok) {
+      return { ok: false, status: res.status, text };
+    }
+    return { ok: true, text };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return { ok: false, status: 503, text: `Workbench HTTP unreachable: ${message}` };
   }
-  return { ok: true, text };
 }
 
 async function proxyPost(path, body) {
   const url = `${WORKBENCH_HTTP_URL}${path}`;
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-  const text = await res.text();
-  if (!res.ok) {
-    return { ok: false, status: res.status, text };
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const text = await res.text();
+    if (!res.ok) {
+      return { ok: false, status: res.status, text };
+    }
+    return { ok: true, text };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return { ok: false, status: 503, text: `Workbench HTTP unreachable: ${message}` };
   }
-  return { ok: true, text };
 }
 
 function toolError(status, text) {
@@ -97,12 +123,24 @@ function proxyPostHandler(path) {
   };
 }
 
-function buildServer() {
+/**
+ * Build MCP server for a business-isolation mount.
+ * - default: corpus/archive + full todo tool set
+ * - todo: todo tools only
+ * - corpus: corpus/archive tools only
+ * @param {unknown} [mountKey]
+ */
+export function buildServer(mountKey) {
+  const mount = resolveMountKey(mountKey);
+  const includeCorpus = mount === 'default' || mount === 'corpus';
+  const includeTodo = mount === 'default' || mount === 'todo';
+
   const server = new McpServer(
     { name: 'workbench-knowledge-mcp', version: '0.3.0' },
     { capabilities: {} },
   );
 
+  if (includeCorpus) {
   server.registerTool(
     'get_corpus_catalog',
     {
@@ -212,7 +250,9 @@ function buildServer() {
       return { content: [{ type: 'text', text: result.text }] };
     },
   );
+  }
 
+  if (includeTodo) {
   server.registerTool(
     'create_todo_task',
     {
@@ -534,6 +574,7 @@ function buildServer() {
     },
     proxyPostHandler('/api/todo-task-update-attachment'),
   );
+  }
 
   return server;
 }
@@ -555,7 +596,12 @@ app.all('/mcp', async (req, res) => {
     return;
   }
 
-  const server = buildServer();
+  const mountFromQuery = req.query?.mount;
+  const mountKey =
+    mountFromQuery != null && String(mountFromQuery).trim() !== ''
+      ? mountFromQuery
+      : process.env.MCP_MOUNT;
+  const server = buildServer(mountKey);
   try {
     const transport = new StreamableHTTPServerTransport({
       sessionIdGenerator: undefined,
