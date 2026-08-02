@@ -67,8 +67,16 @@ export function mountAiAssistant(root, opts = {}) {
     <div class="ai-assistant-bound-content" data-role="bound-content" hidden>
       <div class="ai-assistant-messages" data-role="messages" aria-live="polite"></div>
       <form class="ai-assistant-composer" data-role="form">
-        <textarea class="ai-assistant-input" data-role="input" rows="2" placeholder="Message…" disabled></textarea>
-        <button type="submit" class="ai-assistant-send" data-role="send" disabled>Send</button>
+        <div class="ai-assistant-composer-shell">
+          <textarea class="ai-assistant-input" data-role="input" rows="2" placeholder="Message…" disabled></textarea>
+          <div class="ai-assistant-composer-actions">
+            <button type="submit" class="ai-assistant-send" data-role="send" aria-label="Send" disabled>
+              <svg class="ai-assistant-send-icon" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+                <path fill="currentColor" d="M8 13.8a.75.75 0 0 1-.75-.75V4.86L5.03 7.08a.75.75 0 1 1-1.06-1.06l3.5-3.5a.75.75 0 0 1 1.06 0l3.5 3.5a.75.75 0 1 1-1.06 1.06L8.75 4.86v8.19a.75.75 0 0 1-.75.75z"/>
+              </svg>
+            </button>
+          </div>
+        </div>
       </form>
     </div>
   `;

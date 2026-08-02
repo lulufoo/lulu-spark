@@ -80,7 +80,7 @@ export function getAiAssistantEntry() {
     fabIconClass: 'ai-assistant-fab-icon',
     iconPaths:
       '<path fill="currentColor" d="M4 4.75A1.75 1.75 0 0 1 5.75 3h12.5A1.75 1.75 0 0 1 20 4.75v9.5A1.75 1.75 0 0 1 18.25 16H9.06l-3.28 2.46A.75.75 0 0 1 4.5 17.9V16h-.75A1.75 1.75 0 0 1 2 14.25v-9.5C2 3.78 2.78 3 3.75 3H4v1.75zM6 7.25v1.5h8v-1.5H6zm0 3.5v1.5h5.5v-1.5H6z"/>',
-    panelWidth: 340,
+    panelWidth: 453,
     panelHeight: 460,
   };
 }
