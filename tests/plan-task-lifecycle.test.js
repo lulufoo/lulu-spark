@@ -104,14 +104,16 @@ describe('createTodosPageLifecycle', () => {
         const binding = args?.binding;
         if (
           !binding ||
-          binding.tools == null ||
-          binding.prompt == null ||
-          binding.callbacks == null
+          typeof binding.key !== 'string' ||
+          !binding.key.trim() ||
+          binding.tools != null ||
+          binding.prompt != null ||
+          binding.callbacks != null
         ) {
           return { ok: false, code: 'set_invalid', state: hostBound ? 'bound' : 'unbound' };
         }
         hostBound = true;
-        hostBindingToken = binding.__testToken ?? binding.prompt?.slice?.(0, 8) ?? 'set';
+        hostBindingToken = binding.__testToken ?? binding.key;
         return { ok: true, state: 'bound' };
       }
       if (cmd === 'reset_binding') {
@@ -364,7 +366,14 @@ describe('mountPlanTaskSplit wires page lifecycle', () => {
     invokeMock = vi.fn(async (cmd, args) => {
       if (cmd === 'set_binding') {
         const binding = args?.binding;
-        if (!binding?.tools || !binding?.prompt || binding.callbacks == null) {
+        if (
+          !binding ||
+          typeof binding.key !== 'string' ||
+          !binding.key.trim() ||
+          binding.tools != null ||
+          binding.prompt != null ||
+          binding.callbacks != null
+        ) {
           return { ok: false, code: 'set_invalid', state: hostBound ? 'bound' : 'unbound' };
         }
         hostBound = true;
@@ -386,6 +395,9 @@ describe('mountPlanTaskSplit wires page lifecycle', () => {
           window_label: 'ai-assistant',
           busy: false,
         };
+      }
+      if (cmd === 'ensure_ai_assistant_session') {
+        return { session_id: 'sess_1', busy: false };
       }
       return {};
     });
@@ -451,11 +463,7 @@ describe('mountPlanTaskSplit wires page lifecycle', () => {
     );
     expect(selected?.dataset.masterId).toBe('task_beta');
     const setCall = invokeMock.mock.calls.find(([command]) => command === 'set_binding');
-    expect(setCall?.[1]?.binding.tools).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ ctx: { master_task_id: 'task_beta' } }),
-      ]),
-    );
+    expect(setCall?.[1]?.binding).toEqual({ key: 'todo_task' });
     api.dispose();
   });
 });
@@ -489,7 +497,14 @@ describe('t6 Todos leave still explicit Reset + layered leave wiring', () => {
     const invokeMock = vi.fn(async (cmd, args) => {
       if (cmd === 'set_binding') {
         const binding = args?.binding;
-        if (!binding?.tools || !binding?.prompt || binding.callbacks == null) {
+        if (
+          !binding ||
+          typeof binding.key !== 'string' ||
+          !binding.key.trim() ||
+          binding.tools != null ||
+          binding.prompt != null ||
+          binding.callbacks != null
+        ) {
           return { ok: false, code: 'set_invalid', state: hostBound ? 'bound' : 'unbound' };
         }
         hostBound = true;

@@ -5,7 +5,7 @@ use std::path::PathBuf;
 
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
+use serde_json::{json, Value};
 
 use crate::config::paths;
 use crate::services::id::random_hex12;
@@ -140,9 +140,9 @@ pub fn binding_from_json(v: &Value) -> Result<Binding, SetError> {
     }
     // Host-internal placeholders only — not client-supplied MCP/tools payload.
     Ok(Binding {
-        tools: serde_json::json!([{ "name": KEY_BINDING_TOOL_NAME, "handle": key }]),
-        prompt: serde_json::json!("pending"),
-        callbacks: serde_json::json!({}),
+        tools: json!([{ "name": KEY_BINDING_TOOL_NAME, "handle": key }]),
+        prompt: json!("pending"),
+        callbacks: json!({}),
     })
 }
 

@@ -310,20 +310,14 @@ fn set_binding_with_mcp(
 /// JSON Set entry: key-only public contract. Looks up Host MCP registry and loads
 /// session capability context. Rejects legacy tools/prompt/callbacks payload.
 pub fn try_set_binding_json(v: &Value) -> Result<(), SetError> {
-    let parsed = match session::binding_from_json(v) {
-        Ok(binding) => binding,
-        Err(e) => {
-            emit_lifecycle("onError", Some(e.as_code()));
-            return Err(e);
-        }
-    };
-    let key = match session::binding_business_key(&parsed) {
-        Some(k) => k,
-        None => {
-            emit_lifecycle("onError", Some("set_invalid"));
-            return Err(SetError::set_invalid());
-        }
-    };
+    let parsed = session::binding_from_json(v).map_err(|e| {
+        emit_lifecycle("onError", Some(e.as_code()));
+        e
+    })?;
+    let key = session::binding_business_key(&parsed).ok_or_else(|| {
+        emit_lifecycle("onError", Some("set_invalid"));
+        SetError::set_invalid()
+    })?;
     let config = match mcp_server_registry::lookup(&key) {
         Ok(cfg) => cfg,
         Err(McpServerLookupError::NotFound) => {
