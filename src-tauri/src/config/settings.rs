@@ -101,6 +101,68 @@ fn default_assistant_engine() -> String {
     "host".to_string()
 }
 
+/// Result of mapping legacy LLM settings into the Engine storage slice.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct EngineSettingsSlice {
+    pub assistant_engine: String,
+    pub model: String,
+    pub platform: String,
+    pub base_url: String,
+    pub host_api_key: Option<String>,
+}
+
+fn normalize_engine_value(raw: &str) -> Option<&'static str> {
+    match raw.trim().to_ascii_lowercase().as_str() {
+        "host" => Some("host"),
+        "cursor" => Some("cursor"),
+        _ => None,
+    }
+}
+
+/// Map legacy `LlmSettings` (+ optional api key) into Engine classification + Model + metadata.
+///
+/// - No / blank / illegal `existing_engine` → lock classification to `host`
+/// - Legal `host`|`cursor` → respect it; still carry Credential/Model from legacy
+/// - `platform` / `base_url` become readonly preset metadata on the slice
+pub fn migrate_llm_to_engine(
+    legacy: &LlmSettings,
+    api_key: Option<&str>,
+    existing_engine: Option<&str>,
+) -> EngineSettingsSlice {
+    let assistant_engine = match existing_engine {
+        Some(v) => normalize_engine_value(v)
+            .unwrap_or("host")
+            .to_string(),
+        None => "host".to_string(),
+    };
+    let host_api_key = api_key
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(|s| s.to_string());
+    EngineSettingsSlice {
+        assistant_engine,
+        model: legacy.model.clone(),
+        platform: legacy.platform.clone(),
+        base_url: legacy.base_url.clone(),
+        host_api_key,
+    }
+}
+
+fn apply_engine_migration_on_load(settings: &mut AppSettings) {
+    let existing = {
+        let trimmed = settings.assistant_engine.trim();
+        if trimmed.is_empty() {
+            None
+        } else {
+            Some(settings.assistant_engine.as_str())
+        }
+    };
+    let slice = migrate_llm_to_engine(&settings.llm, None, existing);
+    settings.assistant_engine = slice.assistant_engine;
+    // Model / platform / base_url already on settings.llm; keep as loaded.
+    let _ = crate::config::secrets::migrate_legacy_llm_api_key_to_host();
+}
+
 /// Personal GitHub home (`https://github.com/{owner}`) + workbench clone dir name → blob base for file links.
 pub fn workbench_github_blob_base(github_user_url: &str, workbench_knowledge_root: &Path) -> String {
     let trimmed = github_user_url.trim().trim_end_matches('/');
@@ -388,6 +450,7 @@ pub fn load() -> Result<AppSettings, SettingsError> {
     if should_normalize_for_path(&path) {
         normalize_prod_paths(&mut settings);
     }
+    apply_engine_migration_on_load(&mut settings);
     Ok(settings)
 }
 
@@ -406,11 +469,13 @@ pub fn save(settings: &AppSettings) -> Result<(), SettingsError> {
 }
 
 /// JSON shape for `get_config` / `set_config` (frontend field names).
+/// Never echoes plaintext api keys — only `has_*_key` hints.
 pub fn to_config_json(
     settings: &AppSettings,
     has_github_token: bool,
     has_meili_key: bool,
-    has_llm_key: bool,
+    has_host_key: bool,
+    has_cursor_key: bool,
 ) -> serde_json::Value {
     serde_json::json!({
         "workbench_knowledge_root": settings.workbench_knowledge_root.to_string_lossy(),
@@ -421,7 +486,9 @@ pub fn to_config_json(
         "assistant_engine": settings.assistant_engine,
         "has_github_token": has_github_token,
         "has_meili_key": has_meili_key,
-        "has_llm_key": has_llm_key,
+        "has_llm_key": has_host_key,
+        "has_host_key": has_host_key,
+        "has_cursor_key": has_cursor_key,
         "llm": {
             "platform": settings.llm.platform,
             "base_url": settings.llm.base_url,
@@ -431,7 +498,19 @@ pub fn to_config_json(
 }
 
 /// Apply `set_config` payload keys onto settings (toml fields only).
-pub fn apply_config_payload(settings: &mut AppSettings, payload: &serde_json::Value) {
+/// Illegal `assistant_engine` values are rejected (aligned with `resolve_engine`: host|cursor).
+pub fn apply_config_payload(
+    settings: &mut AppSettings,
+    payload: &serde_json::Value,
+) -> Result<(), SettingsError> {
+    if let Some(v) = payload.get("assistant_engine").and_then(|x| x.as_str()) {
+        let Some(normalized) = normalize_engine_value(v) else {
+            return Err(SettingsError::ConfigGuard(format!(
+                "invalid assistant_engine value: {v}"
+            )));
+        };
+        settings.assistant_engine = normalized.to_string();
+    }
     if let Some(v) = payload
         .get("workbench_knowledge_root")
         .and_then(|x| x.as_str())
@@ -450,9 +529,6 @@ pub fn apply_config_payload(settings: &mut AppSettings, payload: &serde_json::Va
     if let Some(v) = payload.get("meili_url").and_then(|x| x.as_str()) {
         settings.meili_url = v.to_string();
     }
-    if let Some(v) = payload.get("assistant_engine").and_then(|x| x.as_str()) {
-        settings.assistant_engine = v.to_string();
-    }
     if let Some(llm) = payload.get("llm").and_then(|x| x.as_object()) {
         if let Some(v) = llm.get("platform").and_then(|x| x.as_str()) {
             settings.llm.platform = v.to_string();
@@ -465,6 +541,7 @@ pub fn apply_config_payload(settings: &mut AppSettings, payload: &serde_json::Va
         }
     }
     // `cache_dir` is not user-settable via API; use `default_cache_dir()` / manual toml edit.
+    Ok(())
 }
 
 #[cfg(test)]

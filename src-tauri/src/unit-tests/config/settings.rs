@@ -107,13 +107,17 @@ fn save_roundtrip_updates_file() {
 #[test]
 fn to_config_json_includes_flags_without_token() {
     let s = AppSettings::default();
-    let v = to_config_json(&s, true, false, false);
+    let v = to_config_json(&s, true, false, false, false);
     assert_eq!(v["has_github_token"], true);
     assert_eq!(v["has_meili_key"], false);
     assert_eq!(v["has_llm_key"], false);
+    assert_eq!(v["has_host_key"], false);
+    assert_eq!(v["has_cursor_key"], false);
     assert!(v.get("github_token").is_none());
     assert!(v.get("meili_master_key").is_none());
     assert!(v.get("api_key").is_none());
+    assert!(v.get("api_key_host").is_none());
+    assert!(v.get("api_key_cursor").is_none());
 }
 
 #[test]
@@ -122,21 +126,26 @@ fn to_config_json_includes_llm_fields_without_plaintext_key() {
     s.llm.platform = "kimi".into();
     s.llm.base_url = "https://api.moonshot.cn".into();
     s.llm.model = "moonshot-v1-8k".into();
-    let v = to_config_json(&s, false, false, true);
+    let v = to_config_json(&s, false, false, true, false);
     assert_eq!(v["llm"]["platform"], "kimi");
     assert_eq!(v["llm"]["base_url"], "https://api.moonshot.cn");
     assert_eq!(v["llm"]["model"], "moonshot-v1-8k");
     assert_eq!(v["has_llm_key"], true);
+    assert_eq!(v["has_host_key"], true);
+    assert_eq!(v["has_cursor_key"], false);
     assert!(v.get("api_key").is_none());
+    assert!(v.get("api_key_host").is_none());
+    assert!(v.get("api_key_cursor").is_none());
     assert!(v["llm"].get("api_key").is_none());
 }
 
 #[test]
-fn apply_config_payload_updates_llm_non_sensitive_fields() {
+fn apply_config_payload_updates_engine_model_and_legacy_llm_metadata() {
     let mut s = AppSettings::default();
     apply_config_payload(
         &mut s,
         &serde_json::json!({
+            "assistant_engine": "host",
             "llm": {
                 "platform": "glm",
                 "base_url": "https://open.bigmodel.cn",
@@ -144,7 +153,10 @@ fn apply_config_payload_updates_llm_non_sensitive_fields() {
             },
             "api_key": "should-not-land-in-settings"
         }),
-    );
+    )
+    .expect("apply");
+    // Legacy llm.* keys still map into stored metadata/model (A1); secrets stay out of toml.
+    assert_eq!(s.assistant_engine, "host");
     assert_eq!(s.llm.platform, "glm");
     assert_eq!(s.llm.base_url, "https://open.bigmodel.cn");
     assert_eq!(s.llm.model, "glm-4");
@@ -168,7 +180,8 @@ fn apply_config_payload_ignores_illegal_llm_types_without_clobber() {
                 "model": {"x": 1}
             }
         }),
-    );
+    )
+    .expect("apply");
     assert_eq!(s.llm.platform, "openai_compatible");
     assert_eq!(s.llm.base_url, "https://example.com");
     assert_eq!(s.llm.model, "gpt-4o");
@@ -217,8 +230,118 @@ fn apply_config_payload_ignores_cache_dir() {
     apply_config_payload(
         &mut s,
         &serde_json::json!({ "cache_dir": "/var/folders/x/T/.tmp7vvARz/cache" }),
-    );
+    )
+    .expect("apply");
     assert_eq!(s.cache_dir, before);
+}
+
+#[test]
+fn migrate_llm_to_engine_locks_host_when_no_existing_engine() {
+    let legacy = LlmSettings {
+        platform: "kimi".into(),
+        base_url: "https://api.moonshot.cn".into(),
+        model: "moonshot-v1-8k".into(),
+    };
+    let slice = migrate_llm_to_engine(&legacy, Some("sk-legacy"), None);
+    assert_eq!(slice.assistant_engine, "host");
+    assert_eq!(slice.model, "moonshot-v1-8k");
+    assert_eq!(slice.platform, "kimi");
+    assert_eq!(slice.base_url, "https://api.moonshot.cn");
+    assert_eq!(slice.host_api_key.as_deref(), Some("sk-legacy"));
+}
+
+#[test]
+fn migrate_llm_to_engine_respects_existing_cursor_engine() {
+    let legacy = LlmSettings {
+        platform: "glm".into(),
+        base_url: "https://open.bigmodel.cn".into(),
+        model: "glm-4".into(),
+    };
+    let slice = migrate_llm_to_engine(&legacy, Some("sk-host"), Some("cursor"));
+    assert_eq!(slice.assistant_engine, "cursor");
+    assert_eq!(slice.model, "glm-4");
+    assert_eq!(slice.host_api_key.as_deref(), Some("sk-host"));
+}
+
+#[test]
+fn migrate_llm_to_engine_treats_blank_existing_as_host() {
+    let legacy = LlmSettings {
+        platform: "x".into(),
+        base_url: "https://x".into(),
+        model: "m".into(),
+    };
+    let slice = migrate_llm_to_engine(&legacy, None, Some("   "));
+    assert_eq!(slice.assistant_engine, "host");
+    assert!(slice.host_api_key.is_none());
+}
+
+#[test]
+fn apply_config_payload_rejects_illegal_assistant_engine() {
+    let mut s = AppSettings::default();
+    s.assistant_engine = "host".into();
+    let err = apply_config_payload(
+        &mut s,
+        &serde_json::json!({ "assistant_engine": "claude" }),
+    )
+    .expect_err("illegal engine");
+    assert!(
+        err.to_string().contains("assistant_engine") || err.to_string().contains("claude"),
+        "err={err}"
+    );
+    assert_eq!(s.assistant_engine, "host");
+}
+
+#[test]
+fn apply_config_payload_accepts_host_and_cursor_engines() {
+    let mut s = AppSettings::default();
+    apply_config_payload(&mut s, &serde_json::json!({ "assistant_engine": "cursor" }))
+        .expect("cursor");
+    assert_eq!(s.assistant_engine, "cursor");
+    apply_config_payload(&mut s, &serde_json::json!({ "assistant_engine": "host" }))
+        .expect("host");
+    assert_eq!(s.assistant_engine, "host");
+}
+
+#[test]
+fn load_migrates_legacy_llm_only_config_to_host_engine() {
+    let dir = tempfile::tempdir().expect("tmp");
+    let _guard = IsolatedConfigGuard::set(dir.path());
+    fs::write(
+        dir.path().join(PROD_CONFIG_FILE_NAME),
+        r#"
+[llm]
+platform = "kimi"
+base_url = "https://api.moonshot.cn"
+model = "moonshot-v1-8k"
+"#,
+    )
+    .expect("write");
+    let s = load().expect("load");
+    assert_eq!(s.assistant_engine, "host");
+    assert_eq!(s.llm.model, "moonshot-v1-8k");
+    assert_eq!(s.llm.platform, "kimi");
+    assert_eq!(s.llm.base_url, "https://api.moonshot.cn");
+}
+
+#[test]
+fn load_respects_existing_cursor_assistant_engine_while_keeping_llm_model() {
+    let dir = tempfile::tempdir().expect("tmp");
+    let _guard = IsolatedConfigGuard::set(dir.path());
+    fs::write(
+        dir.path().join(PROD_CONFIG_FILE_NAME),
+        r#"
+assistant_engine = "cursor"
+
+[llm]
+platform = "glm"
+base_url = "https://open.bigmodel.cn"
+model = "composer-1"
+"#,
+    )
+    .expect("write");
+    let s = load().expect("load");
+    assert_eq!(s.assistant_engine, "cursor");
+    assert_eq!(s.llm.model, "composer-1");
 }
 
 struct TestModeGuard(Option<String>);

@@ -67,14 +67,15 @@ fn resolve_engine_rejects_illegal_value_with_explicit_error() {
 fn settings_read_path_exposes_assistant_engine() {
     let mut s = AppSettings::default();
     s.assistant_engine = "cursor".into();
-    let v = settings::to_config_json(&s, false, false, false);
+    let v = settings::to_config_json(&s, false, false, false, false);
     assert_eq!(v["assistant_engine"], "cursor");
 
     let mut s2 = AppSettings::default();
     settings::apply_config_payload(
         &mut s2,
         &serde_json::json!({ "assistant_engine": "cursor" }),
-    );
+    )
+    .expect("apply");
     assert_eq!(s2.assistant_engine, "cursor");
     assert_eq!(
         engine_router::resolve_engine(&s2).expect("after apply"),

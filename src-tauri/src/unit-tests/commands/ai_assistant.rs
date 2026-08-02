@@ -88,7 +88,8 @@ fn commands_module_exports_match_acl_names() {
     settings::apply_config_payload(
         &mut s,
         &json!({ "llm": { "base_url": "http://127.0.0.1:9", "model": "m", "platform": "kimi" } }),
-    );
+    )
+    .expect("apply");
     let _ = settings::save(&s);
     let _ = secrets::set_secret(KEY_LLM_API_KEY, "k");
 }

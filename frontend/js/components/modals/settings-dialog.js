@@ -125,28 +125,14 @@ function credentialHintForCategory(categoryId) {
     : 'No API key configured.';
 }
 
-/**
- * Fill Assistant/Engine panel from config (category, readonly preset, model, credential hint).
- * @param {Record<string, unknown>} cfg
- */
-function loadAssistantEnginePanel(cfg) {
-  ensureEngineCategoryOptions();
-  const categoryId = normalizeEngineCategory(cfg?.assistant_engine);
-  const preset = getEnginePreset(categoryId) || getEnginePreset(DEFAULT_ENGINE_CATEGORY);
-  const llm = cfg?.llm ?? {};
+function resolveEnginePreset(categoryId) {
+  return getEnginePreset(categoryId) || getEnginePreset(DEFAULT_ENGINE_CATEGORY);
+}
 
-  // Legacy `has_llm_key` maps to host credential (t3 migration).
-  engineKeyHints.has_host_key = Boolean(cfg?.has_host_key ?? cfg?.has_llm_key);
-  engineKeyHints.has_cursor_key = Boolean(cfg?.has_cursor_key);
-
-  const engineSelect = document.getElementById('settings-llm-engine');
+function fillReadonlyPresetFields(categoryId) {
+  const preset = resolveEnginePreset(categoryId);
   const platformInput = document.getElementById('settings-llm-platform');
   const baseUrlInput = document.getElementById('settings-llm-base-url');
-  const modelInput = document.getElementById('settings-llm-model');
-  const keyHint = document.getElementById('settings-llm-key-hint');
-  const apiKeyInput = document.getElementById('settings-llm-api-key');
-
-  if (engineSelect) engineSelect.value = categoryId;
   if (platformInput) {
     platformInput.value = preset?.fields?.platform ?? '';
     platformInput.readOnly = true;
@@ -157,6 +143,28 @@ function loadAssistantEnginePanel(cfg) {
     baseUrlInput.readOnly = true;
     baseUrlInput.classList.add('settings-input-readonly');
   }
+}
+
+/**
+ * Fill Assistant/Engine panel from config (category, readonly preset, model, credential hint).
+ * @param {Record<string, unknown>} cfg
+ */
+function loadAssistantEnginePanel(cfg) {
+  ensureEngineCategoryOptions();
+  const categoryId = normalizeEngineCategory(cfg?.assistant_engine);
+  const llm = cfg?.llm ?? {};
+
+  // Legacy `has_llm_key` maps to host credential (t3 migration).
+  engineKeyHints.has_host_key = Boolean(cfg?.has_host_key ?? cfg?.has_llm_key);
+  engineKeyHints.has_cursor_key = Boolean(cfg?.has_cursor_key);
+
+  const engineSelect = document.getElementById('settings-llm-engine');
+  const modelInput = document.getElementById('settings-llm-model');
+  const keyHint = document.getElementById('settings-llm-key-hint');
+  const apiKeyInput = document.getElementById('settings-llm-api-key');
+
+  if (engineSelect) engineSelect.value = categoryId;
+  fillReadonlyPresetFields(categoryId);
   if (modelInput) {
     modelInput.value = typeof llm.model === 'string' ? llm.model : '';
     modelInput.readOnly = false;
@@ -168,16 +176,12 @@ function loadAssistantEnginePanel(cfg) {
 
 function applyEngineCategorySelection(categoryId, { clearCredential = true } = {}) {
   const id = normalizeEngineCategory(categoryId);
-  const preset = getEnginePreset(id) || getEnginePreset(DEFAULT_ENGINE_CATEGORY);
   const engineSelect = document.getElementById('settings-llm-engine');
-  const platformInput = document.getElementById('settings-llm-platform');
-  const baseUrlInput = document.getElementById('settings-llm-base-url');
   const keyHint = document.getElementById('settings-llm-key-hint');
   const apiKeyInput = document.getElementById('settings-llm-api-key');
 
   if (engineSelect) engineSelect.value = id;
-  if (platformInput) platformInput.value = preset?.fields?.platform ?? '';
-  if (baseUrlInput) baseUrlInput.value = preset?.fields?.base_url ?? '';
+  fillReadonlyPresetFields(id);
   if (clearCredential && apiKeyInput) apiKeyInput.value = '';
   if (keyHint) keyHint.textContent = credentialHintForCategory(id);
 }

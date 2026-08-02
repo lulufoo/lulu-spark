@@ -605,7 +605,8 @@ fn llm_load_config_reads_settings_and_secret() {
                     "platform": "kimi"
                 }
             }),
-        );
+        )
+        .expect("apply");
         settings::save(&s).expect("save llm settings");
         secrets::set_secret(KEY_LLM_API_KEY, "sk-from-secret").expect("set");
 
