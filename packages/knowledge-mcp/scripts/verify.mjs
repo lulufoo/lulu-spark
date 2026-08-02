@@ -426,7 +426,7 @@ function startMockHttp(port) {
         implicit: false,
         linked_archive_ids: [],
       };
-      if (typeof payload.content === 'string') {
+      if (typeof payload.content === 'string' && payload.content !== '') {
         sub.content = payload.content;
       }
       task.sub_tasks.push(sub);
