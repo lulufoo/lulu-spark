@@ -7,9 +7,8 @@ use std::sync::{Mutex, OnceLock};
 use serde::Serialize;
 use serde_json::{json, Value};
 
-use crate::services::agent::llm::{self, AssistantMessage, LlmConfig, LlmError};
+use crate::services::agent::llm::{self, LlmConfig, LlmError};
 use crate::services::agent::session::{self, Session, Turn};
-use crate::services::agent::tools;
 use crate::services::mcp_server_registry::{self, McpServerConfig, McpServerLookupError};
 use crate::services::todo_task;
 
@@ -19,19 +18,9 @@ pub use crate::services::agent::session::{
 
 pub const EVENT_TURN_COMPLETED: &str = "ai-assistant:turn-completed";
 pub const WINDOW_LABEL: &str = "ai-assistant";
-pub const MAX_TOOL_ROUNDS: u32 = 8;
 pub const MAX_CLARIFY_ROUNDS: u32 = 5;
 pub const MAX_HISTORY_MESSAGES: usize = 20;
 pub const MAX_USER_TURNS: usize = 8;
-
-const WRITE_TOOLS: &[&str] = &["add_sub_task", "update_sub_title", "update_master_title"];
-const WHITELIST: &[&str] = &[
-    "get_plan",
-    "list_sub_tasks",
-    "add_sub_task",
-    "update_sub_title",
-    "update_master_title",
-];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Terminal {
@@ -346,6 +335,10 @@ pub const SESSION_CAPABILITY_READ_FACE_A1_DUAL_ENGINE_SAME_SHAPE: bool = true;
 /// is the sole lookup source; this face only exposes config already loaded by
 /// key-only Set from that table.
 pub const SESSION_CAPABILITY_READ_FACE_A2_HOST_REGISTRY_SOLE_LOOKUP: bool = true;
+
+/// Must Close Before F-45 / AC2 — A3 confirmed (not narrowed): Host adapter with
+/// empty tools and no Cursor still completes facade open/ensure/chat turns.
+pub const HOST_EMPTY_TOOLS_A3_FACADE_USABLE: bool = true;
 
 /// Read-only session capability consumption face for future engine adapters
 /// (Host Agent Loop + Cursor Local). Returns a detached clone of the MCP Server
@@ -673,24 +666,6 @@ fn map_llm_error(err: &LlmError) -> TurnOutcome {
     }
 }
 
-fn tool_calls_json(msg: &AssistantMessage) -> Value {
-    let arr: Vec<Value> = msg
-        .tool_calls
-        .iter()
-        .map(|tc| {
-            json!({
-                "id": tc.id,
-                "type": "function",
-                "function": {
-                    "name": tc.name,
-                    "arguments": tc.arguments,
-                }
-            })
-        })
-        .collect();
-    Value::Array(arr)
-}
-
 fn persist(session: &Session) {
     let _ = session::save_session(session);
 }
@@ -780,118 +755,87 @@ pub fn run_loop(session: &mut Session, user_message: &str, config: &LlmConfig) -
     });
     persist(session);
 
-    let mut wrote = false;
-    let mut tool_rounds: u32 = 0;
-    let tools_defs = tools::openai_tool_definitions_for_binding(&binding.tools);
-    let declared_tools = tools::tool_names_from_binding(&binding.tools);
+    // Host P3: business path tools always empty; may read L2 MCP face (no tool_calls).
+    // Do not call process-local tools::dispatch (L09-I #7 / T3 Failure).
+    let _capability = session_capability_mcp_config();
+    let wrote = false;
 
-    loop {
-        if chat_turn_interrupted(generation) {
-            return cancelled_turn_outcome(session, turns_checkpoint);
-        }
-        let messages = build_llm_messages_from_turns(&session.turns, &system_prompt);
-        let msg = match llm::chat_completions(&messages, &tools_defs, config) {
-            Ok(m) => m,
-            Err(e) => {
-                if chat_turn_interrupted(generation) {
-                    return cancelled_turn_outcome(session, turns_checkpoint);
-                }
-                let out = map_llm_error(&e);
-                session.turns.push(Turn {
-                    role: "assistant".into(),
-                    content: Some(out.reply_text.clone()),
-                    tool_call_id: None,
-                    tool_calls: None,
-                    name: None,
-                });
-                persist(session);
-                return out;
-            }
-        };
-
-        // Round-trip gate: cancel / generation may have been raised during LLM.
-        if chat_turn_interrupted(generation) {
-            return cancelled_turn_outcome(session, turns_checkpoint);
-        }
-
-        if !msg.tool_calls.is_empty() {
-            // Gate again immediately before tool dispatch.
+    if chat_turn_interrupted(generation) {
+        return cancelled_turn_outcome(session, turns_checkpoint);
+    }
+    let messages = build_llm_messages_from_turns(&session.turns, &system_prompt);
+    let msg = match llm::chat_completions(&messages, &[], config) {
+        Ok(m) => m,
+        Err(e) => {
             if chat_turn_interrupted(generation) {
                 return cancelled_turn_outcome(session, turns_checkpoint);
             }
-            for tc in &msg.tool_calls {
-                let allowed = WHITELIST.contains(&tc.name.as_str())
-                    && declared_tools.iter().any(|n| n == &tc.name);
-                if tc.id.trim().is_empty() || !allowed {
-                    let reply = "模型响应异常或请求了不支持的工具，未执行任何写入。".to_string();
-                    session.turns.push(Turn {
-                        role: "assistant".into(),
-                        content: Some(reply.clone()),
-                        tool_call_id: None,
-                        tool_calls: Some(tool_calls_json(&msg)),
-                        name: None,
-                    });
-                    persist(session);
-                    return TurnOutcome {
-                        reply_text: reply,
-                        terminal: Terminal::Error,
-                        wrote: false,
-                    };
-                }
-            }
-
-            if tool_rounds >= MAX_TOOL_ROUNDS {
-                let reply = "工具调用次数已达上限，已停止本回合。".to_string();
-                session.turns.push(Turn {
-                    role: "assistant".into(),
-                    content: Some(reply.clone()),
-                    tool_call_id: None,
-                    tool_calls: None,
-                    name: None,
-                });
-                persist(session);
-                return TurnOutcome {
-                    reply_text: reply,
-                    terminal: Terminal::Error,
-                    wrote,
-                };
-            }
-            tool_rounds += 1;
-
+            let out = map_llm_error(&e);
             session.turns.push(Turn {
                 role: "assistant".into(),
-                content: msg.content.clone(),
+                content: Some(out.reply_text.clone()),
                 tool_call_id: None,
-                tool_calls: Some(tool_calls_json(&msg)),
+                tool_calls: None,
                 name: None,
             });
-
-            for tc in &msg.tool_calls {
-                let args: Value = serde_json::from_str(&tc.arguments).unwrap_or(json!({}));
-                let master_from_ctx =
-                    tools::master_id_from_binding_tools(&binding.tools, &tc.name);
-                let result = tools::dispatch(&tc.name, &args, master_from_ctx.as_deref());
-                if WRITE_TOOLS.contains(&tc.name.as_str()) && result["ok"] == true {
-                    wrote = true;
-                }
-                session.turns.push(Turn {
-                    role: "tool".into(),
-                    content: Some(result.to_string()),
-                    tool_call_id: Some(tc.id.clone()),
-                    tool_calls: None,
-                    name: Some(tc.name.clone()),
-                });
-            }
             persist(session);
-            continue;
+            return out;
         }
+    };
 
-        let content = msg
-            .content
-            .clone()
-            .unwrap_or_else(|| "".to_string());
-        if content.trim().is_empty() {
-            let reply = "模型响应为空，未执行任何写入。".to_string();
+    // Round-trip gate: cancel / generation may have been raised during LLM.
+    if chat_turn_interrupted(generation) {
+        return cancelled_turn_outcome(session, turns_checkpoint);
+    }
+
+    if !msg.tool_calls.is_empty() {
+        // Unexpected tool_calls with empty request tools — never dispatch in-process.
+        let reply = "模型响应异常或请求了不支持的工具，未执行任何写入。".to_string();
+        session.turns.push(Turn {
+            role: "assistant".into(),
+            content: Some(reply.clone()),
+            tool_call_id: None,
+            tool_calls: None,
+            name: None,
+        });
+        persist(session);
+        return TurnOutcome {
+            reply_text: reply,
+            terminal: Terminal::Error,
+            wrote: false,
+        };
+    }
+
+    let content = msg
+        .content
+        .clone()
+        .unwrap_or_else(|| "".to_string());
+    if content.trim().is_empty() {
+        let reply = "模型响应为空，未执行任何写入。".to_string();
+        session.turns.push(Turn {
+            role: "assistant".into(),
+            content: Some(reply.clone()),
+            tool_call_id: None,
+            tool_calls: None,
+            name: None,
+        });
+        persist(session);
+        return TurnOutcome {
+            reply_text: reply,
+            terminal: Terminal::Error,
+            wrote,
+        };
+    }
+
+    if is_clarify_text(&content) {
+        let mut rt = runtime().lock().unwrap();
+        let count = rt
+            .clarify_counts
+            .entry(session.session_id.clone())
+            .or_insert(0);
+        if *count >= MAX_CLARIFY_ROUNDS {
+            drop(rt);
+            let reply = "澄清次数已达上限，请换种方式说明需求或稍后重试。".to_string();
             session.turns.push(Turn {
                 role: "assistant".into(),
                 content: Some(reply.clone()),
@@ -906,63 +850,8 @@ pub fn run_loop(session: &mut Session, user_message: &str, config: &LlmConfig) -
                 wrote,
             };
         }
-
-        if is_clarify_text(&content) {
-            let mut rt = runtime().lock().unwrap();
-            let count = rt
-                .clarify_counts
-                .entry(session.session_id.clone())
-                .or_insert(0);
-            if *count >= MAX_CLARIFY_ROUNDS {
-                drop(rt);
-                let reply = "澄清次数已达上限，请换种方式说明需求或稍后重试。".to_string();
-                session.turns.push(Turn {
-                    role: "assistant".into(),
-                    content: Some(reply.clone()),
-                    tool_call_id: None,
-                    tool_calls: None,
-                    name: None,
-                });
-                persist(session);
-                return TurnOutcome {
-                    reply_text: reply,
-                    terminal: Terminal::Error,
-                    wrote,
-                };
-            }
-            *count += 1;
-            drop(rt);
-            session.turns.push(Turn {
-                role: "assistant".into(),
-                content: Some(content.clone()),
-                tool_call_id: None,
-                tool_calls: None,
-                name: None,
-            });
-            persist(session);
-            return TurnOutcome {
-                reply_text: content,
-                terminal: Terminal::None,
-                wrote,
-            };
-        }
-
-        if content.contains("目前不支持") {
-            session.turns.push(Turn {
-                role: "assistant".into(),
-                content: Some(content.clone()),
-                tool_call_id: None,
-                tool_calls: None,
-                name: None,
-            });
-            persist(session);
-            return TurnOutcome {
-                reply_text: content,
-                terminal: Terminal::Business,
-                wrote,
-            };
-        }
-
+        *count += 1;
+        drop(rt);
         session.turns.push(Turn {
             role: "assistant".into(),
             content: Some(content.clone()),
@@ -976,6 +865,36 @@ pub fn run_loop(session: &mut Session, user_message: &str, config: &LlmConfig) -
             terminal: Terminal::None,
             wrote,
         };
+    }
+
+    if content.contains("目前不支持") {
+        session.turns.push(Turn {
+            role: "assistant".into(),
+            content: Some(content.clone()),
+            tool_call_id: None,
+            tool_calls: None,
+            name: None,
+        });
+        persist(session);
+        return TurnOutcome {
+            reply_text: content,
+            terminal: Terminal::Business,
+            wrote,
+        };
+    }
+
+    session.turns.push(Turn {
+        role: "assistant".into(),
+        content: Some(content.clone()),
+        tool_call_id: None,
+        tool_calls: None,
+        name: None,
+    });
+    persist(session);
+    TurnOutcome {
+        reply_text: content,
+        terminal: Terminal::None,
+        wrote,
     }
 }
 

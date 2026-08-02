@@ -1,4 +1,4 @@
-//! Loop + Host open/chat-turn contract tests (t4).
+//! Loop + Host open/chat-turn contract tests (t4 / t3 Host empty-tools).
 
 use std::io::{Read, Write};
 use std::net::TcpListener;
@@ -159,6 +159,24 @@ fn assistant_tools(calls: Value, content: Option<&str>) -> (u16, Value) {
     )
 }
 
+/// Host business path: request must not carry a non-empty tools list.
+fn assert_host_llm_tools_empty(body: &Value) {
+    match body.get("tools") {
+        None => {}
+        Some(Value::Array(arr)) => {
+            assert!(
+                arr.is_empty(),
+                "Host path must send tools=[] (empty), got {arr:?}"
+            );
+        }
+        Some(other) => panic!("Host path tools must be absent or [], got {other}"),
+    }
+    if let Some(tc) = body.get("tool_choice") {
+        // tool_choice without tools is not Host empty-tools semantics.
+        panic!("Host empty-tools path must not send tool_choice, got {tc}");
+    }
+}
+
 fn assert_outcome(o: &TurnOutcome, terminal: &str, wrote: bool) {
     assert_eq!(o.terminal.as_str(), terminal, "terminal mismatch: {o:?}");
     assert_eq!(o.wrote, wrote, "wrote mismatch: {o:?}");
@@ -221,37 +239,40 @@ fn run_loop_final_reply_none_terminal_and_wrote_false() {
         assert!(out.reply_text.contains("计划助手"));
         assert_eq!(sess.turns[0].role, "user");
         assert_eq!(sess.turns[1].role, "assistant");
+        assert_host_llm_tools_empty(&mock.hits.lock().unwrap()[0]);
     });
 }
 
 #[test]
-fn run_loop_tool_write_sets_wrote_true_and_persists() {
+fn run_loop_host_empty_tools_rejects_tool_calls_without_dispatch() {
+    // Narrowed from process-local tool write path (P3 / T3): Host business chat
+    // sends tools=[] and must not tools::dispatch even if the model returns tool_calls.
     with_sandbox(|| {
         let master = create_bound_plan("写前标题");
-        let mock = spawn_scripted_llm(vec![
-            assistant_tools(
-                json!([{
-                    "id": "call_1",
-                    "type": "function",
-                    "function": {
-                        "name": "update_master_title",
-                        "arguments": "{\"title\":\"写后标题\"}"
-                    }
-                }]),
-                None,
-            ),
-            assistant_text("已把主标题改为「写后标题」"),
-        ]);
+        let title_before = todo_task::get_by_id(&master)["title"].clone();
+        let mock = spawn_scripted_llm(vec![assistant_tools(
+            json!([{
+                "id": "call_1",
+                "type": "function",
+                "function": {
+                    "name": "update_master_title",
+                    "arguments": "{\"title\":\"写后标题\"}"
+                }
+            }]),
+            None,
+        )]);
         let mut sess = session::create_session(Some(&master), Some("写前标题")).unwrap();
         arm_plan_binding(&master);
         let out = r#loop::run_loop(&mut sess, "把主标题改成写后标题", &cfg_for(&mock));
-        assert_outcome(&out, "none", true);
-        let got = todo_task::get_by_id(&master);
-        assert_eq!(got["title"], "写后标题");
+        assert_outcome(&out, "error", false);
+        assert_eq!(todo_task::get_by_id(&master)["title"], title_before);
         assert!(
-            sess.turns.iter().any(|t| t.role == "tool"),
-            "expected tool turn in session"
+            sess.turns.iter().all(|t| t.role != "tool"),
+            "Host empty-tools path must not append tool turns"
         );
+        let hits = mock.hits.lock().unwrap();
+        assert_eq!(hits.len(), 1);
+        assert_host_llm_tools_empty(&hits[0]);
     });
 }
 
@@ -272,79 +293,86 @@ fn run_loop_clarify_under_limit_returns_none_not_wrote() {
 }
 
 #[test]
-fn parallel_tool_calls_run_serially_and_ok_false_does_not_abort() {
+fn parallel_tool_calls_are_rejected_without_process_dispatch() {
+    // Narrowed (P3): Host does not serially dispatch parallel tool_calls.
     with_sandbox(|| {
         let master = create_bound_plan("批处理");
-        let mock = spawn_scripted_llm(vec![
-            assistant_tools(
-                json!([
-                    {
-                        "id": "c1",
-                        "type": "function",
-                        "function": {
-                            "name": "update_sub_title",
-                            "arguments": "{\"sub_task_id\":\"nope\",\"title\":\"x\"}"
-                        }
-                    },
-                    {
-                        "id": "c2",
-                        "type": "function",
-                        "function": {
-                            "name": "add_sub_task",
-                            "arguments": "{\"title\":\"批后子项\"}"
-                        }
+        let before_subs = todo_task::get_by_id(&master)["sub_tasks"]
+            .as_array()
+            .unwrap()
+            .len();
+        let mock = spawn_scripted_llm(vec![assistant_tools(
+            json!([
+                {
+                    "id": "c1",
+                    "type": "function",
+                    "function": {
+                        "name": "update_sub_title",
+                        "arguments": "{\"sub_task_id\":\"nope\",\"title\":\"x\"}"
                     }
-                ]),
-                None,
-            ),
-            assistant_text("第一个失败了，但已新增子计划"),
-        ]);
+                },
+                {
+                    "id": "c2",
+                    "type": "function",
+                    "function": {
+                        "name": "add_sub_task",
+                        "arguments": "{\"title\":\"批后子项\"}"
+                    }
+                }
+            ]),
+            None,
+        )]);
         let mut sess = session::create_session(Some(&master), Some("批处理")).unwrap();
         arm_plan_binding(&master);
         let out = r#loop::run_loop(&mut sess, "改不存在的子项并加一个", &cfg_for(&mock));
-        assert_outcome(&out, "none", true);
-        let tool_turns: Vec<_> = sess.turns.iter().filter(|t| t.role == "tool").collect();
-        assert_eq!(tool_turns.len(), 2);
-        let t1: Value = serde_json::from_str(tool_turns[0].content.as_deref().unwrap()).unwrap();
-        let t2: Value = serde_json::from_str(tool_turns[1].content.as_deref().unwrap()).unwrap();
-        assert_eq!(t1["ok"], false);
-        assert_eq!(t2["ok"], true);
-        let listed = todo_task::get_by_id(&master);
-        let titles: Vec<_> = listed["sub_tasks"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .map(|s| s["title"].as_str().unwrap().to_string())
-            .collect();
-        assert!(titles.iter().any(|t| t == "批后子项"));
-        assert_eq!(mock.hits.lock().unwrap().len(), 2, "batch then callback LLM");
+        assert_outcome(&out, "error", false);
+        assert_eq!(
+            todo_task::get_by_id(&master)["sub_tasks"]
+                .as_array()
+                .unwrap()
+                .len(),
+            before_subs,
+            "must not add sub via process-local dispatch"
+        );
+        assert!(sess.turns.iter().all(|t| t.role != "tool"));
+        assert_eq!(mock.hits.lock().unwrap().len(), 1);
+        assert_host_llm_tools_empty(&mock.hits.lock().unwrap()[0]);
     });
 }
 
 #[test]
-fn same_message_tool_calls_plus_content_content_is_not_final_reply() {
+fn same_message_tool_calls_plus_content_does_not_dispatch_or_finalize() {
+    // Narrowed (P3): tool_calls + content must not drive process-local writes.
     with_sandbox(|| {
         let master = create_bound_plan("同条");
-        let mock = spawn_scripted_llm(vec![
-            assistant_tools(
-                json!([{
-                    "id": "c1",
-                    "type": "function",
-                    "function": {
-                        "name": "add_sub_task",
-                        "arguments": "{\"title\":\"同条子项\"}"
-                    }
-                }]),
-                Some("这段 content 不是终态"),
-            ),
-            assistant_text("已新增同条子项"),
-        ]);
+        let before_subs = todo_task::get_by_id(&master)["sub_tasks"]
+            .as_array()
+            .unwrap()
+            .len();
+        let mock = spawn_scripted_llm(vec![assistant_tools(
+            json!([{
+                "id": "c1",
+                "type": "function",
+                "function": {
+                    "name": "add_sub_task",
+                    "arguments": "{\"title\":\"同条子项\"}"
+                }
+            }]),
+            Some("这段 content 不是终态"),
+        )]);
         let mut sess = session::create_session(Some(&master), Some("同条")).unwrap();
         arm_plan_binding(&master);
         let out = r#loop::run_loop(&mut sess, "加子项", &cfg_for(&mock));
-        assert_outcome(&out, "none", true);
-        assert_eq!(out.reply_text, "已新增同条子项");
-        assert!(!out.reply_text.contains("不是终态"));
+        assert_outcome(&out, "error", false);
+        assert_ne!(out.reply_text, "已新增同条子项");
+        assert_eq!(
+            todo_task::get_by_id(&master)["sub_tasks"]
+                .as_array()
+                .unwrap()
+                .len(),
+            before_subs
+        );
+        assert_host_llm_tools_empty(&mock.hits.lock().unwrap()[0]);
     });
 }
 
@@ -385,6 +413,8 @@ fn unknown_tool_name_is_error_terminal_and_does_not_write() {
         let out = r#loop::run_loop(&mut sess, "删掉计划", &cfg_for(&mock));
         assert_outcome(&out, "error", false);
         assert_eq!(todo_task::get_by_id(&master)["title"], before);
+        assert!(sess.turns.iter().all(|t| t.role != "tool"));
+        assert_host_llm_tools_empty(&mock.hits.lock().unwrap()[0]);
     });
 }
 
@@ -445,67 +475,40 @@ fn length_and_http_errors_map_to_error_terminal_no_retry() {
 }
 
 #[test]
-fn run_loop_add_sub_and_update_sub_title_paths_are_observable() {
+fn run_loop_host_text_paths_remain_observable_without_tool_writes() {
+    // Narrowed (P3): Host facade chat remains usable via text replies; no tool writes.
     with_sandbox(|| {
         let master = create_bound_plan("子路径");
-        let listed = todo_task::get_by_id(&master);
-        let sub_id = listed["sub_tasks"][0]["sub_task_id"]
-            .as_str()
-            .unwrap()
-            .to_string();
-
-        let upd_args = format!(
-            "{{\"sub_task_id\":\"{sub_id}\",\"title\":\"改后子标题\"}}"
-        );
+        let before = todo_task::get_by_id(&master);
+        let before_sub_title = before["sub_tasks"][0]["title"].clone();
+        let before_len = before["sub_tasks"].as_array().unwrap().len();
         let mock = spawn_scripted_llm(vec![
-            assistant_tools(
-                json!([{
-                    "id": "c_add",
-                    "type": "function",
-                    "function": {
-                        "name": "add_sub_task",
-                        "arguments": "{\"title\":\"新观察子项\"}"
-                    }
-                }]),
-                None,
-            ),
-            assistant_text("已新增子计划"),
-            assistant_tools(
-                json!([{
-                    "id": "c_upd",
-                    "type": "function",
-                    "function": {
-                        "name": "update_sub_title",
-                        "arguments": upd_args
-                    }
-                }]),
-                None,
-            ),
-            assistant_text("已改子标题"),
+            assistant_text("已记录新增子计划的请求（Host 本阶段不经 tool_calls 写入）"),
+            assistant_text("已记录改子标题的请求（Host 本阶段不经 tool_calls 写入）"),
         ]);
         let mut sess = session::create_session(Some(&master), Some("子路径")).unwrap();
         arm_plan_binding(&master);
 
         let out_add = r#loop::run_loop(&mut sess, "加一个子计划叫新观察子项", &cfg_for(&mock));
-        assert_outcome(&out_add, "none", true);
-        let titles_after_add: Vec<_> = todo_task::get_by_id(&master)["sub_tasks"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .map(|s| s["title"].as_str().unwrap().to_string())
-            .collect();
-        assert!(titles_after_add.iter().any(|t| t == "新观察子项"));
+        assert_outcome(&out_add, "none", false);
+        assert_eq!(
+            todo_task::get_by_id(&master)["sub_tasks"]
+                .as_array()
+                .unwrap()
+                .len(),
+            before_len
+        );
 
         let out_upd = r#loop::run_loop(&mut sess, "把原子项标题改成改后子标题", &cfg_for(&mock));
-        assert_outcome(&out_upd, "none", true);
-        let updated = todo_task::get_by_id(&master);
-        let old = updated["sub_tasks"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .find(|s| s["sub_task_id"] == sub_id)
-            .unwrap();
-        assert_eq!(old["title"], "改后子标题");
+        assert_outcome(&out_upd, "none", false);
+        assert_eq!(
+            todo_task::get_by_id(&master)["sub_tasks"][0]["title"],
+            before_sub_title
+        );
+        let hits = mock.hits.lock().unwrap();
+        assert_eq!(hits.len(), 2);
+        assert_host_llm_tools_empty(&hits[0]);
+        assert_host_llm_tools_empty(&hits[1]);
     });
 }
 
@@ -616,29 +619,28 @@ fn missing_tool_call_id_is_error_no_write() {
 
 #[test]
 fn tool_rounds_hard_cap_eight_errors() {
+    // Narrowed (P3): first unexpected tool_calls stops the turn; no multi-round dispatch.
     with_sandbox(|| {
         let master = create_bound_plan("工具上限");
-        let mut responses = Vec::new();
-        for i in 0..9 {
-            responses.push(assistant_tools(
-                json!([{
-                    "id": format!("c{i}"),
-                    "type": "function",
-                    "function": {
-                        "name": "get_plan",
-                        "arguments": "{}"
-                    }
-                }]),
-                None,
-            ));
-        }
-        let mock = spawn_scripted_llm(responses);
+        let mock = spawn_scripted_llm(vec![assistant_tools(
+            json!([{
+                "id": "c0",
+                "type": "function",
+                "function": {
+                    "name": "get_plan",
+                    "arguments": "{}"
+                }
+            }]),
+            None,
+        )]);
         let mut sess = session::create_session(Some(&master), Some("工具上限")).unwrap();
         arm_plan_binding(&master);
         let out = r#loop::run_loop(&mut sess, "一直读", &cfg_for(&mock));
         assert_outcome(&out, "error", false);
         let tool_rounds = sess.turns.iter().filter(|t| t.role == "tool").count();
-        assert!(tool_rounds <= 8, "tool_rounds={tool_rounds}");
+        assert_eq!(tool_rounds, 0, "Host empty-tools must not enter tool rounds");
+        assert_eq!(mock.hits.lock().unwrap().len(), 1);
+        assert_host_llm_tools_empty(&mock.hits.lock().unwrap()[0]);
     });
 }
 
@@ -773,40 +775,31 @@ fn agent_chat_turn_ignores_master_arg_uses_binding_ctx() {
 }
 
 #[test]
-fn in_flight_writes_use_binding_at_turn_start_despite_busy_open() {
+fn in_flight_chat_keeps_binding_despite_busy_open_without_tool_writes() {
+    // Narrowed (P3): busy open still rejected; Host chat is text-only (wrote=false).
     with_sandbox(|| {
         let a = create_bound_plan("旧绑定");
         let b = create_bound_plan("新绑定");
-        let mock = spawn_scripted_llm(vec![
-            assistant_tools(
-                json!([{
-                    "id": "c1",
-                    "type": "function",
-                    "function": {
-                        "name": "update_master_title",
-                        "arguments": "{\"title\":\"落在旧绑定\"}"
-                    }
-                }]),
-                None,
-            ),
-            assistant_text("已改旧绑定标题"),
-        ]);
+        let title_a = todo_task::get_by_id(&a)["title"].clone();
+        let mock = spawn_scripted_llm(vec![assistant_text("已理解改标题请求（无进程内写入）")]);
         install_llm_cfg(&mock);
         arm_plan_binding(&a);
         let open = r#loop::open_ai_assistant_core(&a).unwrap();
         let sid = open["session_id"].as_str().unwrap().to_string();
 
         r#loop::set_busy_for_tests(true);
-        // Busy open must not swap Binding; keep tools ctx on `a`.
+        // Busy open must not swap Binding.
         let rejected = r#loop::open_ai_assistant_core(&b).unwrap();
         assert_eq!(rejected["busy"], true);
         assert!(rejected.get("bound_master_task_id").is_none());
         r#loop::set_busy_for_tests(false);
 
         let result = r#loop::agent_chat_turn_core(&sid, "改标题", Some(&a)).unwrap();
-        assert_eq!(result.body["wrote"], true);
-        assert_eq!(todo_task::get_by_id(&a)["title"], "落在旧绑定");
+        assert_eq!(result.body["wrote"], false);
+        assert_eq!(result.body["terminal"], "none");
+        assert_eq!(todo_task::get_by_id(&a)["title"], title_a);
         assert_eq!(todo_task::get_by_id(&b)["title"], "新绑定");
+        assert_host_llm_tools_empty(&mock.hits.lock().unwrap()[0]);
     });
 }
 
@@ -3690,6 +3683,150 @@ fn t4_a1_a2_handoff_assumptions_confirmed_not_narrowed() {
             r#loop::SESSION_CAPABILITY_READ_FACE_A2_HOST_REGISTRY_SOLE_LOOKUP,
             "A2 must be explicitly confirmed in delivery (not silently narrowed)"
         );
+    });
+}
+
+// --- T3 / P3: Host Loop empty tools + zero Cursor ---
+
+#[test]
+fn t3_host_business_chat_sends_empty_tools_to_llm() {
+    with_sandbox(|| {
+        let master = create_bound_plan("t3-empty-tools");
+        let mock = spawn_scripted_llm(vec![assistant_text("门面会话可用")]);
+        install_llm_cfg(&mock);
+        arm_plan_binding(&master);
+        let open = r#loop::open_ai_assistant_core(&master).unwrap();
+        let sid = open["session_id"].as_str().unwrap();
+        let result = r#loop::agent_chat_turn_core(sid, "你好", Some(&master)).unwrap();
+        assert_eq!(result.body["terminal"], "none");
+        assert_eq!(result.body["wrote"], false);
+        let hits = mock.hits.lock().unwrap();
+        assert_eq!(hits.len(), 1);
+        assert_host_llm_tools_empty(&hits[0]);
+    });
+}
+
+#[test]
+fn t3_host_facade_open_ensure_chat_works_without_cursor() {
+    with_sandbox(|| {
+        let master = create_bound_plan("t3-no-cursor");
+        let mock = spawn_scripted_llm(vec![assistant_text("无 Cursor 亦可完成门面会话")]);
+        install_llm_cfg(&mock);
+        arm_plan_binding(&master);
+
+        let open = r#loop::open_ai_assistant_core(&master).unwrap();
+        let sid = open["session_id"].as_str().unwrap().to_string();
+        assert!(!sid.is_empty());
+
+        let ensure = r#loop::ensure_chat_session_core().unwrap();
+        assert_eq!(ensure["session_id"], sid);
+
+        let result = r#loop::agent_chat_turn_core(&sid, "继续", Some(&master)).unwrap();
+        assert_eq!(result.body["terminal"], "none");
+        assert_eq!(result.body["wrote"], false);
+        assert!(result.emit_turn_completed.is_some());
+        assert!(
+            result.body["reply_text"]
+                .as_str()
+                .unwrap_or("")
+                .contains("门面会话")
+        );
+        assert_host_llm_tools_empty(&mock.hits.lock().unwrap()[0]);
+    });
+}
+
+#[test]
+fn t3_host_path_modules_do_not_import_cursor_adapter() {
+    // Module boundary: Host loop/llm must not import Cursor SDK / cursor_adapter.
+    let loop_src = include_str!("../../../services/agent/loop.rs");
+    let llm_src = include_str!("../../../services/agent/llm.rs");
+    for (label, src) in [("loop.rs", loop_src), ("llm.rs", llm_src)] {
+        let lower = src.to_ascii_lowercase();
+        assert!(
+            !lower.contains("cursor_adapter"),
+            "{label} must not import/link cursor_adapter"
+        );
+        assert!(
+            !lower.contains("cursor_sdk"),
+            "{label} must not import/link Cursor SDK"
+        );
+        assert!(
+            !src.contains("cursor_agent") && !src.contains("CursorAgent"),
+            "{label} must not reference Cursor Agent SDK symbols"
+        );
+    }
+}
+
+#[test]
+fn t3_host_reads_session_capability_mcp_config_readonly_without_tool_dispatch() {
+    with_sandbox(|| {
+        use crate::services::mcp_server_registry::SEEDED_BUSINESS_KEY;
+        let mock = spawn_scripted_llm(vec![assistant_text("读只读面后文本回复")]);
+        install_llm_cfg(&mock);
+        r#loop::try_set_binding_json(&key_only_payload(SEEDED_BUSINESS_KEY)).expect("Set");
+        let before = r#loop::session_capability_mcp_config().expect("loaded");
+
+        // Host adapter may consume the L2 read face; must not mutate it via chat.
+        let open = r#loop::ensure_chat_session_core().unwrap();
+        let sid = open["session_id"].as_str().unwrap();
+        let result = r#loop::agent_chat_turn_core(sid, "ping", None).unwrap();
+        assert_eq!(result.body["terminal"], "none");
+        assert_eq!(result.body["wrote"], false);
+
+        let after = r#loop::session_capability_mcp_config().expect("still loaded");
+        assert_eq!(after, before, "chat must not rewrite session capability MCP config");
+        assert_host_llm_tools_empty(&mock.hits.lock().unwrap()[0]);
+    });
+}
+
+#[test]
+fn t3_host_unexpected_tool_calls_never_call_process_dispatch() {
+    with_sandbox(|| {
+        let master = create_bound_plan("t3-no-dispatch");
+        let title_before = todo_task::get_by_id(&master)["title"].clone();
+        let mock = spawn_scripted_llm(vec![assistant_tools(
+            json!([{
+                "id": "t3nd1",
+                "type": "function",
+                "function": {
+                    "name": "update_master_title",
+                    "arguments": "{\"title\":\"must-not-write\"}"
+                }
+            }]),
+            None,
+        )]);
+        install_llm_cfg(&mock);
+        arm_plan_binding(&master);
+        let open = r#loop::open_ai_assistant_core(&master).unwrap();
+        let sid = open["session_id"].as_str().unwrap();
+        let result = r#loop::agent_chat_turn_core(sid, "改标题", Some(&master)).unwrap();
+        assert_eq!(result.body["wrote"], false);
+        assert_eq!(result.body["terminal"], "error");
+        assert_eq!(todo_task::get_by_id(&master)["title"], title_before);
+        let sess = session::load_session(sid).unwrap();
+        assert!(sess.turns.iter().all(|t| t.role != "tool"));
+        assert_host_llm_tools_empty(&mock.hits.lock().unwrap()[0]);
+    });
+}
+
+#[test]
+fn t3_a3_host_empty_tools_facade_usable_confirmed() {
+    // Must Close Before F-45 / AC2: A3 confirmed (not silently narrowed).
+    assert!(
+        r#loop::HOST_EMPTY_TOOLS_A3_FACADE_USABLE,
+        "A3 must be explicitly confirmed: Host empty tools still usable for facade session"
+    );
+    with_sandbox(|| {
+        let master = create_bound_plan("t3-a3");
+        let mock = spawn_scripted_llm(vec![assistant_text("A3: empty tools facade ok")]);
+        install_llm_cfg(&mock);
+        arm_plan_binding(&master);
+        let open = r#loop::open_ai_assistant_core(&master).unwrap();
+        let sid = open["session_id"].as_str().unwrap();
+        let result = r#loop::agent_chat_turn_core(sid, "hi", Some(&master)).unwrap();
+        assert_eq!(result.body["terminal"], "none");
+        assert_eq!(result.body["wrote"], false);
+        assert_host_llm_tools_empty(&mock.hits.lock().unwrap()[0]);
     });
 }
 

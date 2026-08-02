@@ -101,10 +101,11 @@ pub fn chat_completions_with_timeout(
         "model": config.model,
         "messages": messages,
         "stream": false,
-        "tool_choice": "auto",
     });
+    // Empty tools = omit tools + tool_choice (Host business path / tools=[] semantics).
     if !tools.is_empty() {
         body["tools"] = Value::Array(tools.to_vec());
+        body["tool_choice"] = json!("auto");
     }
 
     let client = Client::builder()

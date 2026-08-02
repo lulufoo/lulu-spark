@@ -81,15 +81,18 @@ const HOST_TOOLS_MARKERS = [
 
 const LOOP_MARKERS = [
   'run_loop_clarify_under_limit_returns_none_not_wrote',
-  'run_loop_tool_write_sets_wrote_true_and_persists',
-  'run_loop_add_sub_and_update_sub_title_paths_are_observable',
-  'parallel_tool_calls_run_serially_and_ok_false_does_not_abort',
-  'same_message_tool_calls_plus_content_content_is_not_final_reply',
+  // P3 / T3 Host empty-tools: process-local tool write path narrowed away.
+  'run_loop_host_empty_tools_rejects_tool_calls_without_dispatch',
+  'run_loop_host_text_paths_remain_observable_without_tool_writes',
+  'parallel_tool_calls_are_rejected_without_process_dispatch',
+  'same_message_tool_calls_plus_content_does_not_dispatch_or_finalize',
   'open_ai_assistant_busy_rejects_rebind',
   'unsupported_tool_calls_upstream_is_error_terminal_no_prompt_json',
   'length_and_http_errors_map_to_error_terminal_no_retry',
   'history_truncation_keeps_system_and_dual_hard_caps',
   'terminal_no_plan_unsupported_and_error_are_distinguishable',
+  't3_host_business_chat_sends_empty_tools_to_llm',
+  't3_a3_host_empty_tools_facade_usable_confirmed',
   // J1 / execute 门闩内核验收夹具（SK-4 / H1，无业务 UI 驱动）
   'j1_1_legal_set_on_bound_execute_reset_rejects',
   'j1_2_illegal_set_keeps_state_no_on_bound_emits_set_invalid',
