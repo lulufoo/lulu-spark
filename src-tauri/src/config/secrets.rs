@@ -221,14 +221,19 @@ pub fn apply_token_payload(payload: &serde_json::Value) -> Result<(), SecretErro
         }
     }
     // Per-category keys: empty does not clear (UI omits blank credentials).
-    if let Some(v) = payload.get("api_key_host").and_then(|x| x.as_str()) {
+    set_secret_if_nonempty(payload, "api_key_host", KEY_LLM_API_KEY)?;
+    set_secret_if_nonempty(payload, "api_key_cursor", KEY_LLM_API_KEY_CURSOR)?;
+    Ok(())
+}
+
+fn set_secret_if_nonempty(
+    payload: &serde_json::Value,
+    field: &str,
+    key: &str,
+) -> Result<(), SecretError> {
+    if let Some(v) = payload.get(field).and_then(|x| x.as_str()) {
         if !v.is_empty() {
-            set_secret(KEY_LLM_API_KEY, v)?;
-        }
-    }
-    if let Some(v) = payload.get("api_key_cursor").and_then(|x| x.as_str()) {
-        if !v.is_empty() {
-            set_secret(KEY_LLM_API_KEY_CURSOR, v)?;
+            set_secret(key, v)?;
         }
     }
     Ok(())

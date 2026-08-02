@@ -129,12 +129,10 @@ pub fn migrate_llm_to_engine(
     api_key: Option<&str>,
     existing_engine: Option<&str>,
 ) -> EngineSettingsSlice {
-    let assistant_engine = match existing_engine {
-        Some(v) => normalize_engine_value(v)
-            .unwrap_or("host")
-            .to_string(),
-        None => "host".to_string(),
-    };
+    let assistant_engine = existing_engine
+        .and_then(normalize_engine_value)
+        .unwrap_or("host")
+        .to_string();
     let host_api_key = api_key
         .map(str::trim)
         .filter(|s| !s.is_empty())
@@ -149,14 +147,8 @@ pub fn migrate_llm_to_engine(
 }
 
 fn apply_engine_migration_on_load(settings: &mut AppSettings) {
-    let existing = {
-        let trimmed = settings.assistant_engine.trim();
-        if trimmed.is_empty() {
-            None
-        } else {
-            Some(settings.assistant_engine.as_str())
-        }
-    };
+    let existing = settings.assistant_engine.trim();
+    let existing = (!existing.is_empty()).then_some(existing);
     let slice = migrate_llm_to_engine(&settings.llm, None, existing);
     settings.assistant_engine = slice.assistant_engine;
     // Model / platform / base_url already on settings.llm; keep as loaded.

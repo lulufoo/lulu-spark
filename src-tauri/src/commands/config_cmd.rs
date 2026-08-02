@@ -1,8 +1,9 @@
 //! Config read/write commands.
 //!
-//! `assistant_engine` (`host` | `cursor`) is persisted via settings and exposed
-//! on the existing `to_config_json` / `apply_config_payload` read path for
-//! engine routing (UI controls for this field are out of this slice).
+//! Persists `assistant_engine` (`host` | `cursor`), `llm.model`, and per-category
+//! credentials (`api_key_host` / `api_key_cursor`). `get_config` / `to_config_json`
+//! expose `has_host_key` / `has_cursor_key` hints only — never plaintext keys.
+//! Illegal `assistant_engine` values are rejected at `apply_config_payload`.
 
 use serde_json::Value;
 use tauri::AppHandle;
