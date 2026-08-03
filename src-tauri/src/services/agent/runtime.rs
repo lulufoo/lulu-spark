@@ -20,7 +20,44 @@ use crate::services::agent::r#loop::{self, ChatTurnResult, Terminal, TurnOutcome
 use crate::services::agent::session::{self, Turn};
 use crate::services::local_http::DEFAULT_HTTP_PORT;
 use crate::services::mcp_endpoint_readiness::{self, ReadyMcpTransports};
+use crate::services::mcp_server_registry::SEEDED_BUSINESS_KEY;
 use crate::DEFAULT_MCP_PORT;
+
+fn cursor_code_str(code: CursorErrorCode) -> &'static str {
+    match code {
+        CursorErrorCode::Credential => "credential",
+        CursorErrorCode::SdkConfig => "sdk_config",
+        CursorErrorCode::McpUnavailable => "mcp_unavailable",
+        CursorErrorCode::Cwd => "cwd",
+        CursorErrorCode::Runner => "runner",
+        CursorErrorCode::SdkRun => "sdk_run",
+        CursorErrorCode::Cancelled => "cancelled",
+        CursorErrorCode::Busy => "busy",
+    }
+}
+
+fn cursor_code_from_str(code: &str) -> CursorErrorCode {
+    match code {
+        "credential" => CursorErrorCode::Credential,
+        "sdk_config" => CursorErrorCode::SdkConfig,
+        "mcp_unavailable" => CursorErrorCode::McpUnavailable,
+        "cwd" => CursorErrorCode::Cwd,
+        "runner" => CursorErrorCode::Runner,
+        "sdk_run" => CursorErrorCode::SdkRun,
+        "cancelled" => CursorErrorCode::Cancelled,
+        "busy" => CursorErrorCode::Busy,
+        _ => CursorErrorCode::Runner,
+    }
+}
+
+fn cursor_err_routed(err: CursorError) -> RoutedTurn {
+    RoutedTurn {
+        reply_text: err.message.clone(),
+        terminal: Terminal::Error,
+        wrote: false,
+        cursor_error: Some(err),
+    }
+}
 
 static TEST_CURSOR_RT: OnceLock<Mutex<Option<Arc<CursorSessionRuntime>>>> = OnceLock::new();
 static TEST_READY_MCP: OnceLock<Mutex<Option<ReadyMcpTransports>>> = OnceLock::new();
@@ -139,23 +176,13 @@ fn pack_outcome(session_id: &str, outcome: TurnOutcome) -> ChatTurnResult {
 }
 
 fn pack_cursor_error(session_id: &str, err: &CursorError) -> ChatTurnResult {
-    let reply = err.message.clone();
     let body = json!({
-        "reply_text": reply,
+        "reply_text": err.message,
         "terminal": Terminal::Error.as_str(),
         "wrote": false,
         "busy": false,
         "session_id": session_id,
-        "code": format!("cursor_{}", match err.code {
-            CursorErrorCode::Credential => "credential",
-            CursorErrorCode::SdkConfig => "sdk_config",
-            CursorErrorCode::McpUnavailable => "mcp_unavailable",
-            CursorErrorCode::Cwd => "cwd",
-            CursorErrorCode::Runner => "runner",
-            CursorErrorCode::SdkRun => "sdk_run",
-            CursorErrorCode::Cancelled => "cancelled",
-            CursorErrorCode::Busy => "busy",
-        }),
+        "code": format!("cursor_{}", cursor_code_str(err.code)),
     });
     let emit = r#loop::turn_completed_emit(session_id, false, Terminal::Error.as_str());
     ChatTurnResult {
@@ -178,16 +205,7 @@ fn encode_routed(r: &RoutedTurn) -> String {
         "reply_text": r.reply_text,
         "terminal": r.terminal.as_str(),
         "wrote": r.wrote,
-        "cursor_error_code": r.cursor_error.as_ref().map(|e| match e.code {
-            CursorErrorCode::Credential => "credential",
-            CursorErrorCode::SdkConfig => "sdk_config",
-            CursorErrorCode::McpUnavailable => "mcp_unavailable",
-            CursorErrorCode::Cwd => "cwd",
-            CursorErrorCode::Runner => "runner",
-            CursorErrorCode::SdkRun => "sdk_run",
-            CursorErrorCode::Cancelled => "cancelled",
-            CursorErrorCode::Busy => "busy",
-        }),
+        "cursor_error_code": r.cursor_error.as_ref().map(|e| cursor_code_str(e.code)),
         "cursor_error_message": r.cursor_error.as_ref().map(|e| e.message.clone()),
     })
     .to_string()
@@ -210,20 +228,7 @@ fn decode_routed(s: &str) -> Result<RoutedTurn, String> {
         v.get("cursor_error_code").and_then(|x| x.as_str()),
         v.get("cursor_error_message").and_then(|x| x.as_str()),
     ) {
-        (Some(code), Some(msg)) => {
-            let code = match code {
-                "credential" => CursorErrorCode::Credential,
-                "sdk_config" => CursorErrorCode::SdkConfig,
-                "mcp_unavailable" => CursorErrorCode::McpUnavailable,
-                "cwd" => CursorErrorCode::Cwd,
-                "runner" => CursorErrorCode::Runner,
-                "sdk_run" => CursorErrorCode::SdkRun,
-                "cancelled" => CursorErrorCode::Cancelled,
-                "busy" => CursorErrorCode::Busy,
-                _ => CursorErrorCode::Runner,
-            };
-            Some(CursorError::new(code, msg.to_string()))
-        }
+        (Some(code), Some(msg)) => Some(CursorError::new(cursor_code_from_str(code), msg)),
         _ => None,
     };
     Ok(RoutedTurn {
@@ -254,18 +259,13 @@ fn host_adapter_turn(session_id: &str, message: &str) -> Result<String, String> 
 
 fn cursor_adapter_turn(session_id: &str, message: &str) -> Result<String, String> {
     // Same-session MCP config face (L2) — required before readiness/adapter.
-    let Some(_mcp) = r#loop::session_capability_mcp_config() else {
+    if r#loop::session_capability_mcp_config().is_none() {
         let err = CursorError::new(
             CursorErrorCode::McpUnavailable,
             cursor_adapter::frontend_message_for(CursorErrorCode::McpUnavailable),
         );
-        return Ok(encode_routed(&RoutedTurn {
-            reply_text: err.message.clone(),
-            terminal: Terminal::Error,
-            wrote: false,
-            cursor_error: Some(err),
-        }));
-    };
+        return Ok(encode_routed(&cursor_err_routed(err)));
+    }
 
     let settings = settings::load().map_err(|e| e.to_string())?;
     let cfg = engine_router::read_engine_runtime_config(&settings).map_err(|e| e.to_string())?;
@@ -274,42 +274,23 @@ fn cursor_adapter_turn(session_id: &str, message: &str) -> Result<String, String
             CursorErrorCode::Credential,
             cursor_adapter::frontend_message_for(CursorErrorCode::Credential),
         );
-        return Ok(encode_routed(&RoutedTurn {
-            reply_text: err.message.clone(),
-            terminal: Terminal::Error,
-            wrote: false,
-            cursor_error: Some(err),
-        }));
+        return Ok(encode_routed(&cursor_err_routed(err)));
     };
 
     let binding = r#loop::current_binding_clone();
     let key = binding
         .as_ref()
         .and_then(session::binding_business_key)
-        .unwrap_or_else(|| "todo_task".to_string());
+        .unwrap_or_else(|| SEEDED_BUSINESS_KEY.to_string());
 
     let ready_mcp = match ready_mcp_for_binding_key(&key) {
         Ok(r) => r,
-        Err(err) => {
-            return Ok(encode_routed(&RoutedTurn {
-                reply_text: err.message.clone(),
-                terminal: Terminal::Error,
-                wrote: false,
-                cursor_error: Some(err),
-            }));
-        }
+        Err(err) => return Ok(encode_routed(&cursor_err_routed(err))),
     };
 
     let rt = match cursor_runtime() {
         Ok(r) => r,
-        Err(err) => {
-            return Ok(encode_routed(&RoutedTurn {
-                reply_text: err.message.clone(),
-                terminal: Terminal::Error,
-                wrote: false,
-                cursor_error: Some(err),
-            }));
-        }
+        Err(err) => return Ok(encode_routed(&cursor_err_routed(err))),
     };
 
     let req = TurnRequest {
@@ -341,12 +322,7 @@ fn cursor_adapter_turn(session_id: &str, message: &str) -> Result<String, String
                 let mut session = session::load_session(session_id)?;
                 append_user_assistant(&mut session, message, &err.message);
             }
-            Ok(encode_routed(&RoutedTurn {
-                reply_text: err.message.clone(),
-                terminal: Terminal::Error,
-                wrote: false,
-                cursor_error: Some(err),
-            }))
+            Ok(encode_routed(&cursor_err_routed(err)))
         }
     }
 }
@@ -407,7 +383,6 @@ pub fn chat_turn(
             let decoded = decode_routed(&route.body)?;
             if let Some(err) = decoded.cursor_error {
                 // Typed Cursor surface — never Host generic upstream collapse.
-                let _ = route.adapter; // Cursor path may still Ok-encode errors
                 if matches!(route.adapter, AdapterKind::Cursor) {
                     return Ok(pack_cursor_error(session_id, &err));
                 }
