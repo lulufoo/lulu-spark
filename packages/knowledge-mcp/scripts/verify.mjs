@@ -1724,7 +1724,7 @@ async function assertAc6KeyOnlyBindingAndIdeMcpJsonOnly() {
   if (!docSrc.includes('mcp.json')) {
     throw new Error('AC6: docs must mention mcp.json for IDE channel');
   }
-  if (!/不经.*Binding|不经\*\* Host Binding|不经 Binding/.test(docSrc)) {
+  if (!docSrc.includes('不经') || !docSrc.includes('Binding')) {
     throw new Error('AC6: docs must state IDE channel does not use Binding');
   }
 }

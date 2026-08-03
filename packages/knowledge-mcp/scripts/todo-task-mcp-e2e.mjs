@@ -55,6 +55,8 @@ export function writePlanMdToDisk(tasksDir, masterId, content) {
   fs.writeFileSync(path.join(taskDir, 'todo.md'), content, 'utf8');
 }
 
+const E2E_REPO_ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
+
 const CORPUS_TOOLS_E2E = [
   'get_corpus_catalog',
   'get_corpus_files',
@@ -67,9 +69,8 @@ const CORPUS_TOOLS_E2E = [
  * Live AC2/AC3/AC4/A1 probes run after MCP connect when sidecar is up.
  */
 export function assertDualChannelE2eContract() {
-  const repoRoot = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
-  const docPath = path.join(repoRoot, 'docs', 'knowledge-mcp.md');
-  const bindingPath = path.join(repoRoot, 'frontend', 'js', 'plan-task', 'todos-binding.js');
+  const docPath = path.join(E2E_REPO_ROOT, 'docs', 'knowledge-mcp.md');
+  const bindingPath = path.join(E2E_REPO_ROOT, 'frontend', 'js', 'plan-task', 'todos-binding.js');
   if (!fs.existsSync(docPath)) {
     throw new Error('dual-channel e2e: missing docs/knowledge-mcp.md');
   }
@@ -95,16 +96,23 @@ export function assertDualChannelE2eContract() {
   }
 }
 
+async function listToolNamesOnSlot(mcpPort, sceneSlot, clientName) {
+  const transport = new StreamableHTTPClientTransport(
+    new URL(`http://127.0.0.1:${mcpPort}/mcp/${encodeURIComponent(sceneSlot)}`),
+  );
+  const client = new Client({ name: clientName, version: '0.3.0' });
+  await client.connect(transport);
+  try {
+    const tools = await client.listTools();
+    return tools.tools.map((t) => t.name);
+  } finally {
+    await client.close();
+  }
+}
+
 /** Live A1/AC2/AC3/AC4 observation: path URL tools/list on both slots; unknown hard-fail. */
 async function runDualChannelLiveProbes(mcpPort) {
-  // AC2 / A1 — todo_task tools/list
-  const todoTransport = new StreamableHTTPClientTransport(
-    new URL(`http://127.0.0.1:${mcpPort}/mcp/todo_task`),
-  );
-  const todoClient = new Client({ name: 'todo-task-mcp-e2e-dual-todo', version: '0.3.0' });
-  await todoClient.connect(todoTransport);
-  const todoTools = await todoClient.listTools();
-  const todoNames = todoTools.tools.map((t) => t.name);
+  const todoNames = await listToolNamesOnSlot(mcpPort, 'todo_task', 'todo-task-mcp-e2e-dual-todo');
   for (const tool of EQUIVALENCE_TODO_TOOLS) {
     if (!todoNames.includes(tool)) {
       throw new Error(`dual-channel AC2: todo_task missing ${tool}`);
@@ -115,16 +123,8 @@ async function runDualChannelLiveProbes(mcpPort) {
       throw new Error(`dual-channel AC2: todo_task must not expose ${tool}`);
     }
   }
-  await todoClient.close();
 
-  // AC3 / A1 — cursor_ide tools/list
-  const ideTransport = new StreamableHTTPClientTransport(
-    new URL(`http://127.0.0.1:${mcpPort}/mcp/cursor_ide`),
-  );
-  const ideClient = new Client({ name: 'todo-task-mcp-e2e-dual-ide', version: '0.3.0' });
-  await ideClient.connect(ideTransport);
-  const ideTools = await ideClient.listTools();
-  const ideNames = ideTools.tools.map((t) => t.name);
+  const ideNames = await listToolNamesOnSlot(mcpPort, 'cursor_ide', 'todo-task-mcp-e2e-dual-ide');
   for (const tool of CORPUS_TOOLS_E2E) {
     if (!ideNames.includes(tool)) {
       throw new Error(`dual-channel AC3: cursor_ide missing ${tool}`);
@@ -135,24 +135,13 @@ async function runDualChannelLiveProbes(mcpPort) {
       throw new Error(`dual-channel AC3: cursor_ide must not expose ${tool}`);
     }
   }
-  await ideClient.close();
 
-  // AC4 — unknown slot hard-fail
-  const unknownTransport = new StreamableHTTPClientTransport(
-    new URL(`http://127.0.0.1:${mcpPort}/mcp/__unknown__`),
-  );
-  const unknownClient = new Client({ name: 'todo-task-mcp-e2e-dual-unknown', version: '0.3.0' });
-  let unknownOk = false;
+  // AC4 — unknown slot hard-fail (connect/listTools must not succeed)
   try {
-    await unknownClient.connect(unknownTransport);
-    const listed = await unknownClient.listTools();
-    unknownOk = true;
-    await unknownClient.close();
-    throw new Error(
-      `dual-channel AC4: unknown slot must hard-fail; got ${(listed.tools || []).map((t) => t.name).join(', ')}`,
-    );
+    const names = await listToolNamesOnSlot(mcpPort, '__unknown__', 'todo-task-mcp-e2e-dual-unknown');
+    throw new Error(`dual-channel AC4: unknown slot must hard-fail; got ${names.join(', ')}`);
   } catch (err) {
-    if (unknownOk) throw err;
+    if (String(err).includes('dual-channel AC4:')) throw err;
     // connect/listTools failure is the expected hard-reject
   }
 }
