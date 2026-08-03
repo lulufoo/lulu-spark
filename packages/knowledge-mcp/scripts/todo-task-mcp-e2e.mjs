@@ -7,6 +7,7 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 /** @typedef {{ master_task_id: string, todo_md?: unknown, migration_error?: unknown }} PlanMaster */
 
@@ -54,6 +55,108 @@ export function writePlanMdToDisk(tasksDir, masterId, content) {
   fs.writeFileSync(path.join(taskDir, 'todo.md'), content, 'utf8');
 }
 
+const CORPUS_TOOLS_E2E = [
+  'get_corpus_catalog',
+  'get_corpus_files',
+  'archive_document',
+  'archive_digest',
+];
+
+/**
+ * t4 / T8 — Dual-channel e2e contract (static AC6 + URL shape).
+ * Live AC2/AC3/AC4/A1 probes run after MCP connect when sidecar is up.
+ */
+export function assertDualChannelE2eContract() {
+  const repoRoot = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
+  const docPath = path.join(repoRoot, 'docs', 'knowledge-mcp.md');
+  const bindingPath = path.join(repoRoot, 'frontend', 'js', 'plan-task', 'todos-binding.js');
+  if (!fs.existsSync(docPath)) {
+    throw new Error('dual-channel e2e: missing docs/knowledge-mcp.md');
+  }
+  if (!fs.existsSync(bindingPath)) {
+    throw new Error('dual-channel e2e: missing todos-binding.js');
+  }
+  const doc = fs.readFileSync(docPath, 'utf8');
+  const binding = fs.readFileSync(bindingPath, 'utf8');
+  if (!doc.includes('http://127.0.0.1:<mcp_port>/mcp/cursor_ide')) {
+    throw new Error('dual-channel e2e: IDE URL convention missing from docs');
+  }
+  if (!doc.includes('http://127.0.0.1:<mcp_port>/mcp/todo_task')) {
+    throw new Error('dual-channel e2e: App Binding URL convention missing from docs');
+  }
+  if (!doc.includes('mcp.json')) {
+    throw new Error('dual-channel e2e: docs must mention mcp.json');
+  }
+  if (!binding.includes("TODOS_BUSINESS_KEY = 'todo_task'")) {
+    throw new Error('dual-channel e2e: Binding key must be todo_task');
+  }
+  if (!binding.includes('return { key: TODOS_BUSINESS_KEY }')) {
+    throw new Error('dual-channel e2e: Binding must remain key-only');
+  }
+}
+
+/** Live A1/AC2/AC3/AC4 observation: path URL tools/list on both slots; unknown hard-fail. */
+async function runDualChannelLiveProbes(mcpPort) {
+  // AC2 / A1 — todo_task tools/list
+  const todoTransport = new StreamableHTTPClientTransport(
+    new URL(`http://127.0.0.1:${mcpPort}/mcp/todo_task`),
+  );
+  const todoClient = new Client({ name: 'todo-task-mcp-e2e-dual-todo', version: '0.3.0' });
+  await todoClient.connect(todoTransport);
+  const todoTools = await todoClient.listTools();
+  const todoNames = todoTools.tools.map((t) => t.name);
+  for (const tool of EQUIVALENCE_TODO_TOOLS) {
+    if (!todoNames.includes(tool)) {
+      throw new Error(`dual-channel AC2: todo_task missing ${tool}`);
+    }
+  }
+  for (const tool of CORPUS_TOOLS_E2E) {
+    if (todoNames.includes(tool)) {
+      throw new Error(`dual-channel AC2: todo_task must not expose ${tool}`);
+    }
+  }
+  await todoClient.close();
+
+  // AC3 / A1 — cursor_ide tools/list
+  const ideTransport = new StreamableHTTPClientTransport(
+    new URL(`http://127.0.0.1:${mcpPort}/mcp/cursor_ide`),
+  );
+  const ideClient = new Client({ name: 'todo-task-mcp-e2e-dual-ide', version: '0.3.0' });
+  await ideClient.connect(ideTransport);
+  const ideTools = await ideClient.listTools();
+  const ideNames = ideTools.tools.map((t) => t.name);
+  for (const tool of CORPUS_TOOLS_E2E) {
+    if (!ideNames.includes(tool)) {
+      throw new Error(`dual-channel AC3: cursor_ide missing ${tool}`);
+    }
+  }
+  for (const tool of EQUIVALENCE_TODO_TOOLS) {
+    if (ideNames.includes(tool)) {
+      throw new Error(`dual-channel AC3: cursor_ide must not expose ${tool}`);
+    }
+  }
+  await ideClient.close();
+
+  // AC4 — unknown slot hard-fail
+  const unknownTransport = new StreamableHTTPClientTransport(
+    new URL(`http://127.0.0.1:${mcpPort}/mcp/__unknown__`),
+  );
+  const unknownClient = new Client({ name: 'todo-task-mcp-e2e-dual-unknown', version: '0.3.0' });
+  let unknownOk = false;
+  try {
+    await unknownClient.connect(unknownTransport);
+    const listed = await unknownClient.listTools();
+    unknownOk = true;
+    await unknownClient.close();
+    throw new Error(
+      `dual-channel AC4: unknown slot must hard-fail; got ${(listed.tools || []).map((t) => t.name).join(', ')}`,
+    );
+  } catch (err) {
+    if (unknownOk) throw err;
+    // connect/listTools failure is the expected hard-reject
+  }
+}
+
 function runSelfTest() {
   assertMasterPlanMdFields({ master_task_id: 'x', todo_md: '', migration_error: false }, 'ok');
   try {
@@ -65,6 +168,7 @@ function runSelfTest() {
     }
   }
   assertPlanMdMatchesDisk('hello', 'hello', 'match');
+  assertDualChannelE2eContract();
   console.log('todo-task-mcp-e2e self-test PASSED');
 }
 
@@ -152,6 +256,11 @@ for (const tool of FORBIDDEN_PLAN_TOOLS) {
     throw new Error(`forbidden plan_* tool still registered: ${tool}`);
   }
 }
+
+// t4 / T8 — dual-channel live probes (AC2/AC3/AC4 + A1 tools/list observation)
+assertDualChannelE2eContract();
+await runDualChannelLiveProbes(mcpPort);
+console.log('todo-task-mcp-e2e dual-channel probes: OK');
 
 function toolText(result) {
   return result.content?.[0]?.text || '';

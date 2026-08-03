@@ -1578,6 +1578,167 @@ async function testMissingWorkbenchUrl() {
   }
 }
 
+const REPO_ROOT = path.join(PKG_ROOT, '..', '..');
+
+/**
+ * AC1 — Host registry/readiness inject URL for Binding key todo_task is
+ * http://127.0.0.1:<mcp_port>/mcp/todo_task (key≡scene_slot; no bare /mcp overwrite).
+ */
+async function assertAc1AppBindingInjectUrl() {
+  const registrySrc = fs.readFileSync(
+    path.join(REPO_ROOT, 'src-tauri/src/services/mcp_server_registry.rs'),
+    'utf8',
+  );
+  const readinessSrc = fs.readFileSync(
+    path.join(REPO_ROOT, 'src-tauri/src/services/mcp_endpoint_readiness.rs'),
+    'utf8',
+  );
+  const readinessTests = fs.readFileSync(
+    path.join(REPO_ROOT, 'src-tauri/src/unit-tests/services/mcp_endpoint_readiness_tests.rs'),
+    'utf8',
+  );
+
+  if (!registrySrc.includes('SEEDED_BUSINESS_KEY: &str = "todo_task"')) {
+    throw new Error('AC1: registry seed key must be todo_task');
+  }
+  if (!registrySrc.includes('/mcp/{}') || !registrySrc.includes('SEEDED_BUSINESS_KEY')) {
+    throw new Error('AC1: registry seed URL must use /mcp/<SEEDED_BUSINESS_KEY>');
+  }
+  // Seeded URL shape: http://127.0.0.1:{port}/mcp/{key}
+  if (!/format!\(\s*"http:\/\/127\.0\.0\.1:\{\}\/mcp\/\{\}"/.test(registrySrc)) {
+    throw new Error(
+      'AC1: registry seeded transport must format http://127.0.0.1:{}/mcp/{}',
+    );
+  }
+  if (!readinessSrc.includes('format!("http://127.0.0.1:{mcp_port}/mcp/{key}")')) {
+    throw new Error(
+      'AC1: readiness must inject http://127.0.0.1:{mcp_port}/mcp/{key} (not bare /mcp)',
+    );
+  }
+  if (readinessSrc.includes('format!("http://127.0.0.1:{mcp_port}/mcp")')) {
+    throw new Error('AC1: readiness must not overwrite with bare /mcp');
+  }
+  if (!readinessTests.includes('/mcp/{SEEDED_BUSINESS_KEY}')) {
+    throw new Error('AC1: readiness tests must observe inject URL .../mcp/todo_task');
+  }
+  if (!readinessTests.includes('ready_transports_inject_mcp_key_path_not_bare_mcp')) {
+    throw new Error('AC1: missing readiness test ready_transports_inject_mcp_key_path_not_bare_mcp');
+  }
+}
+
+/**
+ * AC2–AC5 + dual-slot boundary — one sidecar session:
+ * tools/list isolation/stability, unknown hard-reject, HTTP success (A1 close).
+ */
+async function assertAc2ThroughAc5Runtime(workbenchUrl) {
+  const mcpPort = await ephemeralPort();
+  const sidecar = spawnSidecar(mcpPort, workbenchUrl);
+  const ready = await waitFor(`http://127.0.0.1:${mcpPort}/health`);
+  if (!ready) {
+    sidecar.kill('SIGTERM');
+    throw new Error('dual-channel acceptance: sidecar health timeout');
+  }
+  try {
+    // AC2 / A1 — todo_task tools/list
+    const todoA = await connectAndListToolNames(mcpPort, 'todo_task');
+    assertIncludesAll(todoA, TODO_SURFACE, 'AC2 /mcp/todo_task');
+    assertNoneOf(todoA, CORPUS_TOOLS, 'AC2 /mcp/todo_task');
+    const todoB = await connectAndListToolNames(mcpPort, 'todo_task');
+    if (JSON.stringify(todoA) !== JSON.stringify(todoB)) {
+      throw new Error(`dual-slot stability: todo_task jitter ${todoA} vs ${todoB}`);
+    }
+
+    // AC3 / A1 — cursor_ide tools/list
+    const ideA = await connectAndListToolNames(mcpPort, 'cursor_ide');
+    assertIncludesAll(ideA, CORPUS_TOOLS, 'AC3 /mcp/cursor_ide');
+    assertNoneOf(ideA, TODO_SURFACE, 'AC3 /mcp/cursor_ide');
+    const ideB = await connectAndListToolNames(mcpPort, 'cursor_ide');
+    if (JSON.stringify(ideA) !== JSON.stringify(ideB)) {
+      throw new Error(`dual-slot stability: cursor_ide jitter ${ideA} vs ${ideB}`);
+    }
+    if (JSON.stringify(todoA) === JSON.stringify(ideA)) {
+      throw new Error('dual-slot: todo_task and cursor_ide tools/list must be distinguishable');
+    }
+
+    // AC4 — unknown hard-fail
+    const unknown = await tryConnectAndListToolNames(mcpPort, '/mcp/__unknown__');
+    if (unknown.ok) {
+      throw new Error(
+        `AC4: unknown scene_slot must hard-fail; got tools: ${(unknown.names || []).join(', ')}`,
+      );
+    }
+
+    // AC5 — registered slot → Workbench HTTP success
+    const transport = new StreamableHTTPClientTransport(
+      new URL(`http://127.0.0.1:${mcpPort}/mcp/todo_task`),
+    );
+    const client = new Client({ name: 'knowledge-mcp-ac5', version: '0.1.0' });
+    await client.connect(transport);
+    const result = await client.callTool({ name: 'list_todo_tasks', arguments: {} });
+    if (result.isError) {
+      throw new Error(
+        `AC5: list_todo_tasks via Workbench HTTP must succeed: ${result.content?.[0]?.text || ''}`,
+      );
+    }
+    await client.close();
+  } finally {
+    sidecar.kill('SIGTERM');
+    await sleep(200);
+  }
+}
+
+/**
+ * AC6 — App Binding remains key-only; IDE channel is mcp.json manual only
+ * (docs + Binding consumer + Host registry key seed).
+ */
+async function assertAc6KeyOnlyBindingAndIdeMcpJsonOnly() {
+  const bindingSrc = fs.readFileSync(
+    path.join(REPO_ROOT, 'frontend/js/plan-task/todos-binding.js'),
+    'utf8',
+  );
+  const docSrc = fs.readFileSync(path.join(REPO_ROOT, 'docs/knowledge-mcp.md'), 'utf8');
+  const ideUrlLiteral = 'http://127.0.0.1:<mcp_port>/mcp/cursor_ide';
+  const appUrlLiteral = 'http://127.0.0.1:<mcp_port>/mcp/todo_task';
+
+  if (!bindingSrc.includes("TODOS_BUSINESS_KEY = 'todo_task'")) {
+    throw new Error('AC6: Binding consumer must seed key todo_task');
+  }
+  if (!bindingSrc.includes('return { key: TODOS_BUSINESS_KEY }')) {
+    throw new Error('AC6: assembleTodosBindingBody must be key-only');
+  }
+  const assembleIdx = bindingSrc.indexOf('function assembleTodosBindingBody');
+  if (assembleIdx < 0) {
+    throw new Error('AC6: missing assembleTodosBindingBody');
+  }
+  const assembleSlice = bindingSrc.slice(assembleIdx, assembleIdx + 280);
+  if (/\btools\s*:/.test(assembleSlice) || /\bprompt\s*:/.test(assembleSlice)) {
+    throw new Error('AC6: Binding assemble must not carry tools/prompt (key-only)');
+  }
+
+  if (!docSrc.includes(ideUrlLiteral)) {
+    throw new Error(`AC6: docs must document IDE URL ${ideUrlLiteral}`);
+  }
+  if (!docSrc.includes(appUrlLiteral)) {
+    throw new Error(`AC6: docs must document App Binding URL ${appUrlLiteral}`);
+  }
+  if (!docSrc.includes('mcp.json')) {
+    throw new Error('AC6: docs must mention mcp.json for IDE channel');
+  }
+  if (!/不经.*Binding|不经\*\* Host Binding|不经 Binding/.test(docSrc)) {
+    throw new Error('AC6: docs must state IDE channel does not use Binding');
+  }
+}
+
+/**
+ * t4 / T8 — Dual-channel + unknown-slot E2E acceptance (AC1–AC6, A1).
+ * A1 close observation = tools/list success on both registered path slots (AC2+AC3).
+ */
+async function testDualChannelAcceptanceAc1ToAc6(workbenchUrl) {
+  await assertAc1AppBindingInjectUrl();
+  await assertAc2ThroughAc5Runtime(workbenchUrl);
+  await assertAc6KeyOnlyBindingAndIdeMcpJsonOnly();
+}
+
 async function main() {
   const httpPort = await ephemeralPort();
   const mcpPort = await ephemeralPort();
@@ -1601,6 +1762,10 @@ async function main() {
 
   await testSceneSlotPathRouting(workbenchUrl);
   console.log('scene_slot path routing: OK');
+
+  // Keep mock HTTP up for dual-channel acceptance HTTP success path (AC5).
+  await testDualChannelAcceptanceAc1ToAc6(workbenchUrl);
+  console.log('dual-channel AC1–AC6 acceptance: OK');
 
   mockServer.close();
   await sleep(200);
