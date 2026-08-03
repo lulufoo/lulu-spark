@@ -20,7 +20,7 @@
    GitHub Token、Meili Master Key 在设置页写入 Keychain。
 3. **外置 Meilisearch** — 见 [docs/meilisearch-dev.md](docs/meilisearch-dev.md)（App 不启动 Meili）
 4. **启动 App** — 在 workbench 根目录执行 `cargo tauri dev`（或安装 release 后从启动台打开）。**无需** Python 或 `server.py`。
-5. **Cursor 读 digest（可选）** — 先启动 App，再在 Cursor 配置 MCP `url`：`http://127.0.0.1:9876/mcp`。详见 [docs/knowledge-mcp.md](docs/knowledge-mcp.md)（App spawn sidecar；TPM SKILL 改 MCP 为后续 follow-up）。
+5. **Cursor 读 digest（可选）** — 先启动 App，再在外部 Cursor IDE 的 `mcp.json` 配置 MCP `url`：`http://127.0.0.1:<mcp_port>/mcp/cursor_ide`（默认端口 `9876`）。详见 [docs/knowledge-mcp.md](docs/knowledge-mcp.md)（App spawn sidecar；不经 Binding）。
 
 **⇕ 同步**（↑ 提交变更 / ↓ 更新项目）针对语料仓库；程序仓库变更在 `lulu-workbench` 目录内 `git` 提交。
 
@@ -32,7 +32,7 @@ cd src-tauri && cargo test --lib -- --test-threads=1
 cargo tauri dev      # 官方运行时（同时启 localhost HTTP :8765 + MCP sidecar :9876）
 ```
 
-**MCP / digest 读 API：** [docs/knowledge-mcp.md](docs/knowledge-mcp.md) — Cursor 连接、AC-6 降级说明、VF 手动验收清单。
+**MCP / digest 读 API：** [docs/knowledge-mcp.md](docs/knowledge-mcp.md) — 外部 IDE `mcp.json`（`cursor_ide`）、App Binding 通道区分、联调说明。
 
 ## SSOT 迁移与 TEST_MODE
 
