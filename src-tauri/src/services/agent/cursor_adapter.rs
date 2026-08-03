@@ -255,11 +255,7 @@ pub trait CursorRunnerClient: Send {
     fn cancel(&mut self) -> Result<(), CursorError>;
     fn close(&mut self) -> Result<(), CursorError>;
     fn force_kill(&mut self);
-    /// Terminate without needing `&mut self` (safe during hanging `cancel`).
-    fn request_force_terminate(&self) {
-        // default: no-op; concrete clients override
-    }
-    /// Hook usable without locking the client mutex (cancel-timeout path).
+    /// Hook usable without locking the client mutex (cancel-timeout / hang path).
     fn terminate_hook(&self) -> Arc<dyn Fn() + Send + Sync> {
         let _ = self;
         Arc::new(|| {})
@@ -463,13 +459,7 @@ impl CursorRunnerClient for FakeCursorRunnerClient {
     }
 
     fn force_kill(&mut self) {
-        self.request_force_terminate();
-    }
-
-    fn request_force_terminate(&self) {
-        self.shared.force_killed.store(true, Ordering::SeqCst);
-        self.shared.in_flight.store(false, Ordering::SeqCst);
-        self.shared.cancel_requested.store(true, Ordering::SeqCst);
+        (self.terminate_hook())();
     }
 
     fn terminate_hook(&self) -> Arc<dyn Fn() + Send + Sync> {
@@ -649,23 +639,13 @@ impl CursorRunnerClient for ProcessCursorRunnerClient {
     }
 
     fn force_kill(&mut self) {
-        self.request_force_terminate();
+        (self.terminate_hook())();
         if let Some(mut child) = self.child.take() {
             let _ = child.kill();
             let _ = child.wait();
         }
         self.stdin = None;
         self.stdout = None;
-    }
-
-    fn request_force_terminate(&self) {
-        if let Some(pid) = *self.pid.lock().unwrap_or_else(|e| e.into_inner()) {
-            let _ = Command::new("kill")
-                .arg("-9")
-                .arg(pid.to_string())
-                .status();
-            *self.pid.lock().unwrap_or_else(|e| e.into_inner()) = None;
-        }
     }
 
     fn terminate_hook(&self) -> Arc<dyn Fn() + Send + Sync> {

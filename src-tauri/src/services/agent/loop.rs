@@ -645,7 +645,7 @@ fn current_binding_snapshot() -> Option<session::Binding> {
     runtime().lock().unwrap().current_binding.clone()
 }
 
-fn map_llm_error(err: &LlmError) -> TurnOutcome {
+pub fn map_llm_error(err: &LlmError) -> TurnOutcome {
     let reply_text = match err {
         LlmError::MissingConfig => {
             "LLM 配置不完整，请到应用「设置」中填写 api_key、base_url 与 model。".into()
@@ -670,8 +670,58 @@ fn map_llm_error(err: &LlmError) -> TurnOutcome {
     }
 }
 
-fn persist(session: &Session) {
+pub fn persist(session: &Session) {
     let _ = session::save_session(session);
+}
+
+/// Busy / live-session gate + mark busy. `Err` carries the early `ChatTurnResult`.
+pub fn try_begin_chat_turn(session_id: &str) -> Result<(), ChatTurnResult> {
+    let mut rt = runtime().lock().unwrap();
+    if rt.busy {
+        return Err(ChatTurnResult {
+            body: json!({
+                "reply_text": "Busy — try again later",
+                "terminal": "none",
+                "wrote": false,
+                "busy": true,
+                "session_id": session_id,
+            }),
+            emit_turn_completed: None,
+        });
+    }
+    let live = rt.current_session_id.as_deref();
+    if live != Some(session_id) {
+        return Err(ChatTurnResult {
+            body: json!({
+                "reply_text": "Session identity mismatch — cut or stale session cannot continue.",
+                "terminal": "business",
+                "wrote": false,
+                "busy": false,
+                "session_id": session_id,
+                "code": "rejected_not_live_session",
+            }),
+            emit_turn_completed: None,
+        });
+    }
+    rt.busy = true;
+    rt.chat_cancelled = false;
+    Ok(())
+}
+
+pub fn end_chat_turn_busy() {
+    runtime().lock().unwrap().busy = false;
+}
+
+pub fn has_active_binding() -> bool {
+    runtime().lock().unwrap().current_binding.is_some()
+}
+
+pub fn current_binding_clone() -> Option<session::Binding> {
+    runtime().lock().unwrap().current_binding.clone()
+}
+
+pub fn turn_completed_emit(session_id: &str, wrote: bool, terminal: &str) -> Value {
+    emit_payload(session_id, wrote, terminal)
 }
 
 /// Executable reject after cut/cancel: return notice in the response only.
@@ -1011,117 +1061,12 @@ fn emit_payload(
     })
 }
 
+/// Compatibility entry — production formal chat goes through `runtime::chat_turn`.
+/// Delegates so Host loop tests keep a stable symbol while orchestration is engine-aware.
 pub fn agent_chat_turn_core(
     session_id: &str,
     message: &str,
-    _master_task_id: Option<&str>,
+    master_task_id: Option<&str>,
 ) -> Result<ChatTurnResult, String> {
-    {
-        let rt = runtime().lock().unwrap();
-        if rt.busy {
-            return Ok(ChatTurnResult {
-                body: json!({
-                    "reply_text": "Busy — try again later",
-                    "terminal": "none",
-                    "wrote": false,
-                    "busy": true,
-                    "session_id": session_id,
-                }),
-                emit_turn_completed: None,
-            });
-        }
-        // Executable chat identity is Host live current_session_id.
-        // Mismatch / cut id must reject without re-pinning runtime to the caller arg.
-        let live = rt.current_session_id.as_deref();
-        if live != Some(session_id) {
-            return Ok(ChatTurnResult {
-                body: json!({
-                    "reply_text": "Session identity mismatch — cut or stale session cannot continue.",
-                    "terminal": "business",
-                    "wrote": false,
-                    "busy": false,
-                    "session_id": session_id,
-                    "code": "rejected_not_live_session",
-                }),
-                emit_turn_completed: None,
-            });
-        }
-    }
-
-    let mut session = session::load_session(session_id)?;
-
-    // Live id already matched above — set busy only; never re-pin from caller arg.
-    {
-        let mut rt = runtime().lock().unwrap();
-        rt.busy = true;
-        rt.chat_cancelled = false;
-    }
-
-    // Gate Binding Contract before LLM config — unbound must not depend on secrets/settings.
-    let outcome = if current_binding_snapshot().is_none() {
-        let reply =
-            "Unbound — no active Binding Contract; chat cannot run.".to_string();
-        session.turns.push(Turn {
-            role: "user".into(),
-            content: Some(message.to_string()),
-            tool_call_id: None,
-            tool_calls: None,
-            name: None,
-        });
-        session.turns.push(Turn {
-            role: "assistant".into(),
-            content: Some(reply.clone()),
-            tool_call_id: None,
-            tool_calls: None,
-            name: None,
-        });
-        persist(&session);
-        TurnOutcome {
-            reply_text: reply,
-            terminal: Terminal::Business,
-            wrote: false,
-        }
-    } else {
-        match llm::load_llm_config() {
-            Ok(cfg) => run_loop(&mut session, message, &cfg),
-            Err(e) => {
-                let out = map_llm_error(&e);
-                session.turns.push(Turn {
-                    role: "user".into(),
-                    content: Some(message.to_string()),
-                    tool_call_id: None,
-                    tool_calls: None,
-                    name: None,
-                });
-                session.turns.push(Turn {
-                    role: "assistant".into(),
-                    content: Some(out.reply_text.clone()),
-                    tool_call_id: None,
-                    tool_calls: None,
-                    name: None,
-                });
-                persist(&session);
-                out
-            }
-        }
-    };
-
-    {
-        let mut rt = runtime().lock().unwrap();
-        rt.busy = false;
-    }
-
-    let terminal = outcome.terminal.as_str();
-    let body = json!({
-        "reply_text": outcome.reply_text,
-        "terminal": terminal,
-        "wrote": outcome.wrote,
-        "busy": false,
-        "session_id": session_id,
-    });
-    let emit = emit_payload(session_id, outcome.wrote, terminal);
-    Ok(ChatTurnResult {
-        body,
-        emit_turn_completed: Some(emit),
-    })
+    crate::services::agent::runtime::chat_turn(session_id, message, master_task_id)
 }

@@ -12,6 +12,9 @@ mod cursor_adapter_tests;
 #[path = "session_cwd_tests.rs"]
 mod session_cwd_tests;
 
+#[path = "runtime_tests.rs"]
+mod runtime_tests;
+
 use std::fs;
 use std::io::{Read, Write};
 use std::net::TcpListener;

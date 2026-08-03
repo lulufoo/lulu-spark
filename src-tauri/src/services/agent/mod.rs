@@ -1,9 +1,11 @@
-//! Host MVP Agent: Session / Tools / LLM / Loop / Cursor Local adapter.
+//! Host MVP Agent: Session / Tools / LLM / Loop / Cursor Local adapter
+//! (`cursor_adapter` speaks JSONL to `packages/cursor-agent-runner`).
 
 pub mod cursor_adapter;
 pub mod engine_router;
 pub mod llm;
 pub mod r#loop;
+pub mod runtime;
 pub mod session;
 pub mod session_cwd;
 pub mod tools;

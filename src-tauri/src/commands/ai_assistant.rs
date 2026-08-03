@@ -5,6 +5,7 @@ use serde_json::{json, Value};
 use tauri::{AppHandle, Emitter};
 
 use crate::services::agent::r#loop::{self, ChatTurnResult, EVENT_TURN_COMPLETED, WINDOW_LABEL};
+use crate::services::agent::runtime;
 pub use crate::services::agent::session::value_exposes_engine_selection;
 
 pub const AI_ASSISTANT_WINDOW_LABEL: &str = WINDOW_LABEL;
@@ -159,7 +160,8 @@ pub fn agent_chat_turn_json(
     message: &str,
     master_task_id: Option<&str>,
 ) -> Result<ChatTurnResult, String> {
-    r#loop::agent_chat_turn_core(session_id, message, master_task_id)
+    // Engine-aware orchestration (Host∥Cursor); public signature stays engine-opaque.
+    runtime::chat_turn(session_id, message, master_task_id)
 }
 
 #[tauri::command]
