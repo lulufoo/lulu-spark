@@ -5586,7 +5586,8 @@
   font-weight: 600;
 }
 .settings-field input[type="text"],
-.settings-field input[type="password"] {
+.settings-field input[type="password"],
+.settings-field select {
   width: 100%;
   padding: 7px 10px;
   border: 1px solid #d0d7de;
@@ -5594,6 +5595,7 @@
   font-size: 13px;
   outline: none;
   box-sizing: border-box;
+  background: #fff;
 }
 #settings-archive-root,
 #settings-kb-root,
@@ -5601,7 +5603,9 @@
   font-family: ui-monospace, SFMono-Regular, monospace;
 }
 #settings-github-user-url.settings-input-readonly,
-#settings-github-user-url:disabled {
+#settings-github-user-url:disabled,
+#settings-llm-platform.settings-input-readonly,
+#settings-llm-base-url.settings-input-readonly {
   background: #f6f8fa;
   color: #57606a;
   cursor: not-allowed;

@@ -1,17 +1,29 @@
-//! Settings → adapter routing (P2 / T2).
+//! Settings → adapter routing (P2 / T2) + runtime config read (P4 / T4).
 //!
 //! Engine selection is read from `AppSettings.assistant_engine` only.
 //! Public session facade APIs must not accept engine parameters.
+//! `read_engine_runtime_config` aggregates category + model + credential for
+//! adapters; it is read-only and does not expose SDK/cwd/MCP as settings fields.
 
 use serde::Serialize;
 
+use crate::config::secrets::{self, KEY_LLM_API_KEY, KEY_LLM_API_KEY_CURSOR};
 use crate::config::settings::AppSettings;
 
 /// Selected assistant engine (Host Loop vs Cursor Local).
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
 pub enum EngineKind {
     Host,
     Cursor,
+}
+
+/// Read-only snapshot for router/adapter consumption (no cwd / SDK / MCP fields).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct EngineRuntimeConfig {
+    pub engine: EngineKind,
+    pub model: String,
+    pub credential: Option<String>,
 }
 
 /// Which adapter stub/path was entered (internal observability; not a facade field).
@@ -70,6 +82,38 @@ pub fn resolve_engine(settings: &AppSettings) -> Result<EngineKind, EngineRouteE
         "cursor" => Ok(EngineKind::Cursor),
         _ => Err(EngineRouteError::InvalidEngine(raw.to_string())),
     }
+}
+
+/// Aggregate current engine category + model + associated credential (secrets).
+///
+/// Read-only: does not write settings/secrets and does not surface SDK/cwd/MCP.
+/// Illegal category → same `Err` as `resolve_engine`. Missing credential → `None`.
+pub fn read_engine_runtime_config(
+    settings: &AppSettings,
+) -> Result<EngineRuntimeConfig, EngineRouteError> {
+    let engine = resolve_engine(settings)?;
+    let model = settings.llm.model.clone();
+    let secret_key = match engine {
+        EngineKind::Host => KEY_LLM_API_KEY,
+        EngineKind::Cursor => KEY_LLM_API_KEY_CURSOR,
+    };
+    let credential = secrets::get_secret(secret_key)
+        .ok()
+        .flatten()
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty());
+    Ok(EngineRuntimeConfig {
+        engine,
+        model,
+        credential,
+    })
+}
+
+/// Alias for adapter/route call sites that prefer settings-oriented naming.
+pub fn engine_settings_for_route(
+    settings: &AppSettings,
+) -> Result<EngineRuntimeConfig, EngineRouteError> {
+    read_engine_runtime_config(settings)
 }
 
 /// Dispatch a chat turn to the Host or Cursor adapter entry.

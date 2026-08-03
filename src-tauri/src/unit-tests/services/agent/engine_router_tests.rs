@@ -1,10 +1,12 @@
 //! T2: settings → adapter routing (engine selection + dispatch).
+//! T4: read-only EngineRuntimeConfig aggregator (category + model + credential).
 
 use std::sync::atomic::{AtomicUsize, Ordering};
 
+use crate::config::secrets::{self, KEY_LLM_API_KEY, KEY_LLM_API_KEY_CURSOR};
 use crate::config::settings::{self, AppSettings};
 use crate::services::agent::engine_router::{
-    self, AdapterKind, EngineKind, EngineRouteError, TurnInput,
+    self, AdapterKind, EngineKind, EngineRouteError, EngineRuntimeConfig, TurnInput,
 };
 use crate::services::agent::session::{self, value_exposes_engine_selection};
 
@@ -67,14 +69,15 @@ fn resolve_engine_rejects_illegal_value_with_explicit_error() {
 fn settings_read_path_exposes_assistant_engine() {
     let mut s = AppSettings::default();
     s.assistant_engine = "cursor".into();
-    let v = settings::to_config_json(&s, false, false, false);
+    let v = settings::to_config_json(&s, false, false, false, false);
     assert_eq!(v["assistant_engine"], "cursor");
 
     let mut s2 = AppSettings::default();
     settings::apply_config_payload(
         &mut s2,
         &serde_json::json!({ "assistant_engine": "cursor" }),
-    );
+    )
+    .expect("apply");
     assert_eq!(s2.assistant_engine, "cursor");
     assert_eq!(
         engine_router::resolve_engine(&s2).expect("after apply"),
@@ -166,4 +169,174 @@ fn facade_must_not_accept_engine_selection_to_bypass_settings() {
     // resolve_engine signature is settings-driven (compile-time contract via call below).
     let s = settings_with_engine("host");
     let _ = engine_router::resolve_engine(&s);
+}
+
+// ── T4: EngineRuntimeConfig read API ─────────────────────────────────────────
+
+fn settings_with_engine_and_model(engine: &str, model: &str) -> AppSettings {
+    let mut s = AppSettings::default();
+    s.assistant_engine = engine.to_string();
+    s.llm.model = model.to_string();
+    s
+}
+
+#[test]
+fn read_engine_runtime_config_returns_host_category_model_and_credential() {
+    secrets::test_secrets_clear();
+    secrets::set_secret(KEY_LLM_API_KEY, "sk-host-runtime").expect("set host");
+    secrets::set_secret(KEY_LLM_API_KEY_CURSOR, "sk-cursor-other").expect("set cursor");
+
+    let s = settings_with_engine_and_model("host", "glm-4");
+    let cfg = engine_router::read_engine_runtime_config(&s).expect("host runtime");
+    assert_eq!(cfg.engine, EngineKind::Host);
+    assert_eq!(cfg.model, "glm-4");
+    assert_eq!(cfg.credential.as_deref(), Some("sk-host-runtime"));
+    // Must use the host slot — not the cursor key.
+    assert_ne!(cfg.credential.as_deref(), Some("sk-cursor-other"));
+}
+
+#[test]
+fn read_engine_runtime_config_returns_cursor_category_model_and_credential() {
+    secrets::test_secrets_clear();
+    secrets::set_secret(KEY_LLM_API_KEY, "sk-host-other").expect("set host");
+    secrets::set_secret(KEY_LLM_API_KEY_CURSOR, "sk-cursor-runtime").expect("set cursor");
+
+    let s = settings_with_engine_and_model("cursor", "composer-1");
+    let cfg = engine_router::read_engine_runtime_config(&s).expect("cursor runtime");
+    assert_eq!(cfg.engine, EngineKind::Cursor);
+    assert_eq!(cfg.model, "composer-1");
+    assert_eq!(cfg.credential.as_deref(), Some("sk-cursor-runtime"));
+    assert_ne!(cfg.credential.as_deref(), Some("sk-host-other"));
+}
+
+#[test]
+fn read_engine_runtime_config_reflects_settings_and_secret_changes() {
+    secrets::test_secrets_clear();
+    let mut s = settings_with_engine_and_model("host", "m1");
+    secrets::set_secret(KEY_LLM_API_KEY, "sk-v1").expect("set");
+
+    let first = engine_router::read_engine_runtime_config(&s).expect("first");
+    assert_eq!(
+        first,
+        EngineRuntimeConfig {
+            engine: EngineKind::Host,
+            model: "m1".into(),
+            credential: Some("sk-v1".into()),
+        }
+    );
+
+    s.assistant_engine = "cursor".into();
+    s.llm.model = "m2".into();
+    secrets::set_secret(KEY_LLM_API_KEY_CURSOR, "sk-v2").expect("set cursor");
+
+    let second = engine_router::read_engine_runtime_config(&s).expect("second");
+    assert_eq!(second.engine, EngineKind::Cursor);
+    assert_eq!(second.model, "m2");
+    assert_eq!(second.credential.as_deref(), Some("sk-v2"));
+}
+
+#[test]
+fn read_engine_runtime_config_aligns_with_resolve_engine_host_and_cursor() {
+    secrets::test_secrets_clear();
+    for (raw, kind) in [("host", EngineKind::Host), ("cursor", EngineKind::Cursor)] {
+        let s = settings_with_engine(raw);
+        assert_eq!(
+            engine_router::resolve_engine(&s).expect("resolve"),
+            kind
+        );
+        assert_eq!(
+            engine_router::read_engine_runtime_config(&s)
+                .expect("runtime")
+                .engine,
+            kind
+        );
+    }
+}
+
+#[test]
+fn read_engine_runtime_config_empty_category_and_model_defaults_without_panic() {
+    secrets::test_secrets_clear();
+    let s = settings_with_engine_and_model("", "");
+    let cfg = engine_router::read_engine_runtime_config(&s).expect("defaults");
+    assert_eq!(cfg.engine, EngineKind::Host);
+    assert_eq!(cfg.model, "");
+    assert!(cfg.credential.is_none());
+
+    let s2 = settings_with_engine_and_model("   ", "");
+    let cfg2 = engine_router::read_engine_runtime_config(&s2).expect("ws defaults");
+    assert_eq!(cfg2.engine, EngineKind::Host);
+}
+
+#[test]
+fn read_engine_runtime_config_missing_credential_is_none_not_fabricated() {
+    secrets::test_secrets_clear();
+    let s = settings_with_engine_and_model("host", "any-model");
+    let cfg = engine_router::read_engine_runtime_config(&s).expect("no key");
+    assert_eq!(cfg.engine, EngineKind::Host);
+    assert_eq!(cfg.model, "any-model");
+    assert_eq!(cfg.credential, None);
+
+    let s2 = settings_with_engine_and_model("cursor", "any-model");
+    let cfg2 = engine_router::read_engine_runtime_config(&s2).expect("no cursor key");
+    assert_eq!(cfg2.engine, EngineKind::Cursor);
+    assert_eq!(cfg2.credential, None);
+}
+
+#[test]
+fn read_engine_runtime_config_rejects_illegal_category_like_resolve_engine() {
+    secrets::test_secrets_clear();
+    let s = settings_with_engine("bogus");
+    let resolve_err = engine_router::resolve_engine(&s).expect_err("resolve");
+    let runtime_err = engine_router::read_engine_runtime_config(&s).expect_err("runtime");
+    match (&resolve_err, &runtime_err) {
+        (EngineRouteError::InvalidEngine(a), EngineRouteError::InvalidEngine(b)) => {
+            assert_eq!(a, b);
+            assert_eq!(a, "bogus");
+        }
+        other => panic!("expected matching InvalidEngine errors, got {other:?}"),
+    }
+}
+
+#[test]
+fn engine_runtime_config_is_read_only_snapshot_without_sdk_cwd_or_mcp() {
+    secrets::test_secrets_clear();
+    secrets::set_secret(KEY_LLM_API_KEY, "sk").expect("set");
+    let s = settings_with_engine_and_model("host", "m");
+    let cfg = engine_router::read_engine_runtime_config(&s).expect("cfg");
+
+    // Snapshot fields: engine + model + credential only (no cwd / SDK / MCP).
+    let EngineRuntimeConfig {
+        engine,
+        model,
+        credential,
+    } = cfg;
+    assert_eq!(engine, EngineKind::Host);
+    assert_eq!(model, "m");
+    assert_eq!(credential.as_deref(), Some("sk"));
+
+    let json = serde_json::to_value(&EngineRuntimeConfig {
+        engine: EngineKind::Host,
+        model: "m".into(),
+        credential: Some("sk".into()),
+    })
+    .expect("serialize");
+    for forbidden in [
+        "cwd",
+        "local_cwd",
+        "sdk",
+        "mcp",
+        "mcpServers",
+        "mcp_servers",
+    ] {
+        assert!(
+            json.get(forbidden).is_none(),
+            "runtime config must not expose {forbidden}: {json}"
+        );
+    }
+    // Read API does not write settings / secrets.
+    assert_eq!(s.assistant_engine, "host");
+    assert_eq!(
+        secrets::get_secret(KEY_LLM_API_KEY).expect("get"),
+        Some("sk".into())
+    );
 }

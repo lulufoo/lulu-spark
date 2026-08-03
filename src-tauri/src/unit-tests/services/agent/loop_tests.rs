@@ -126,7 +126,8 @@ fn install_llm_cfg(mock: &MockLlm) {
                 "platform": "openai_compatible"
             }
         }),
-    );
+    )
+    .expect("apply");
     settings::save(&s).expect("save");
     secrets::set_secret(KEY_LLM_API_KEY, "sk-test").expect("key");
 }
