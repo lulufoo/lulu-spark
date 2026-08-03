@@ -1,3 +1,9 @@
+//! Config read/write commands.
+//!
+//! `assistant_engine` (`host` | `cursor`) is persisted via settings and exposed
+//! on the existing `to_config_json` / `apply_config_payload` read path for
+//! engine routing (UI controls for this field are out of this slice).
+
 use serde_json::Value;
 use tauri::AppHandle;
 

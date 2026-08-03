@@ -1,8 +1,11 @@
-//! Host MVP Agent: Session / Tools / LLM / Loop.
+//! Host MVP Agent: Session / Tools / LLM / Loop / Cursor Local adapter.
 
+pub mod cursor_adapter;
+pub mod engine_router;
 pub mod llm;
 pub mod r#loop;
 pub mod session;
+pub mod session_cwd;
 pub mod tools;
 
 /// Plan-assistant system prompt (code constant; not toml / corpus).

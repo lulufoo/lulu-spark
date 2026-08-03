@@ -10,6 +10,32 @@ use serde_json::{json, Value};
 use crate::config::paths;
 use crate::services::id::random_hex12;
 
+/// P1 / T1: session lifecycle entry (`create_session` / persist) does not expose
+/// an engine-selection API — no Host/Cursor parameter on create or session record.
+pub const SESSION_LIFECYCLE_ENGINE_OPAQUE: bool = true;
+
+const ENGINE_SELECTION_KEYS: &[&str] = &[
+    "engine",
+    "engine_type",
+    "engineType",
+    "assistant_engine",
+];
+
+/// True when a JSON value (recursively) carries engine-selection fields that
+/// would let a caller branch on Host vs Cursor.
+pub fn value_exposes_engine_selection(v: &Value) -> bool {
+    match v {
+        Value::Object(map) => {
+            if ENGINE_SELECTION_KEYS.iter().any(|k| map.contains_key(*k)) {
+                return true;
+            }
+            map.values().any(value_exposes_engine_selection)
+        }
+        Value::Array(items) => items.iter().any(value_exposes_engine_selection),
+        _ => false,
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Turn {
     pub role: String,
@@ -126,10 +152,7 @@ pub fn binding_from_json(v: &Value) -> Result<Binding, SetError> {
     if obj.contains_key("tools") || obj.contains_key("prompt") || obj.contains_key("callbacks") {
         return Err(SetError::set_invalid());
     }
-    if obj.contains_key("engine")
-        || obj.contains_key("engine_type")
-        || obj.contains_key("engineType")
-    {
+    if value_exposes_engine_selection(v) {
         return Err(SetError::set_invalid());
     }
     let key = match obj.get("key") {
