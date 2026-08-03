@@ -27,6 +27,8 @@ const SCENE_SLOT_API = Object.freeze({
   cursor_ide: Object.freeze({ includeCorpus: true, includeTodo: false }),
 });
 
+const REGISTERED_SCENE_SLOTS = Object.freeze(Object.keys(SCENE_SLOT_API));
+
 /**
  * Resolve registered scene_slot from path param. Unknown → null (caller hard-rejects).
  * @param {unknown} raw
@@ -35,9 +37,8 @@ const SCENE_SLOT_API = Object.freeze({
 export function resolveSceneSlot(raw) {
   if (raw == null) return null;
   const key = String(raw).trim();
-  if (!key) return null;
-  if (Object.prototype.hasOwnProperty.call(SCENE_SLOT_API, key)) return key;
-  return null;
+  if (!key || !Object.prototype.hasOwnProperty.call(SCENE_SLOT_API, key)) return null;
+  return key;
 }
 
 function unreachableProxyResult(err) {
@@ -596,7 +597,7 @@ const app = createMcpExpressApp({ host: '127.0.0.1' });
 app.all('/mcp', (_req, res) => {
   res.status(404).json({
     error: 'scene_slot_required',
-    message: 'Use /mcp/<scene_slot> (registered: todo_task, cursor_ide)',
+    message: `Use /mcp/<scene_slot> (registered: ${REGISTERED_SCENE_SLOTS.join(', ')})`,
   });
 });
 
@@ -652,7 +653,7 @@ app.get('/health', (_req, res) => {
   res.json({
     ok: true,
     mcp: `http://127.0.0.1:${MCP_PORT}/mcp/<scene_slot>`,
-    scene_slots: Object.keys(SCENE_SLOT_API),
+    scene_slots: REGISTERED_SCENE_SLOTS,
   });
 });
 
@@ -660,7 +661,7 @@ app.listen(MCP_PORT, '127.0.0.1', () => {
   console.error(
     `[knowledge-mcp] MCP Streamable HTTP on http://127.0.0.1:${MCP_PORT}/mcp/<scene_slot>`,
   );
-  console.error(`[knowledge-mcp] registered slots: ${Object.keys(SCENE_SLOT_API).join(', ')}`);
+  console.error(`[knowledge-mcp] registered slots: ${REGISTERED_SCENE_SLOTS.join(', ')}`);
   console.error(`[knowledge-mcp] proxy → ${WORKBENCH_HTTP_URL}`);
 });
 

@@ -143,8 +143,9 @@ pub fn ready_transports_for_business_key(
 ) -> Result<ReadyMcpTransports, ReadyTransportError> {
     let config = mcp_server_registry::lookup(key).map_err(ReadyTransportError::Lookup)?;
     let mut transport = config.http_transport().clone();
-    // Bind the transport URL to the probed MCP port (candidate → ready only after probe).
-    transport.url = format!("http://127.0.0.1:{mcp_port}/mcp");
+    // Bind port to the probed MCP endpoint; keep /mcp/<key> path (key≡scene_slot).
+    // Never overwrite with bare /mcp — that would strip the scene_slot isolation face.
+    transport.url = format!("http://127.0.0.1:{mcp_port}/mcp/{key}");
     let candidates = McpEndpointCandidates {
         workbench_http_base: format!("http://127.0.0.1:{http_port}"),
         knowledge_mcp_base: format!("http://127.0.0.1:{mcp_port}"),
