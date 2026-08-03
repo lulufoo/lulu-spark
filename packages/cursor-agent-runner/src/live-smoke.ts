@@ -121,11 +121,7 @@ export async function runLiveSmokeCursorSdk(
   }
 
   // Re-check sandbox helper on this host (fail closed).
-  const probeOk =
-    typeof input.sandboxAvailable === "boolean"
-      ? input.sandboxAvailable && defaultProbeSandboxHelper()
-      : defaultProbeSandboxHelper();
-  if (!probeOk) {
+  if (!input.sandboxAvailable || !defaultProbeSandboxHelper()) {
     return {
       status: "skip",
       cursorAcSatisfied: false,

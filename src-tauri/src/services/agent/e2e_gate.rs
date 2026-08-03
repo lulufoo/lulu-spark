@@ -56,18 +56,12 @@ struct GateState {
 
 fn state() -> &'static Mutex<GateState> {
     static STATE: OnceLock<Mutex<GateState>> = OnceLock::new();
-    STATE.get_or_init(|| Mutex::new(GateState {
-        live: LiveSmokeVerdict::Unknown,
-        ..GateState::default()
-    }))
+    STATE.get_or_init(|| Mutex::new(GateState::default()))
 }
 
 pub fn reset_for_tests() {
     let mut g = state().lock().unwrap_or_else(|e| e.into_inner());
-    *g = GateState {
-        live: LiveSmokeVerdict::Unknown,
-        ..GateState::default()
-    };
+    *g = GateState::default();
 }
 
 pub fn record_contract_pass(pass: bool) {
