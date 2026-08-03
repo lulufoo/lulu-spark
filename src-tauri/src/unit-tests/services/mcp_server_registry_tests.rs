@@ -1,10 +1,24 @@
+use std::collections::BTreeMap;
+
 use super::*;
+
+fn sample_transport(label: &str) -> HttpMcpTransport {
+    HttpMcpTransport {
+        name: "workbench".into(),
+        url: format!("http://127.0.0.1:9876/mcp/{label}"),
+        headers: BTreeMap::from([(
+            "Accept".into(),
+            "application/json, text/event-stream".into(),
+        )]),
+    }
+}
 
 fn sample_config(label: &str) -> McpServerConfig {
     McpServerConfig {
-        // Decision-level connection/capability description only.
-        // Field-level transport schema (stdio/http/…) is intentionally deferred.
+        // Decision-level connection/capability description.
         capability_description: format!("mcp capability for {label}"),
+        // Structured HTTP transport for SDK consumption (not readiness).
+        http_transport: sample_transport(label),
     }
 }
 
@@ -68,13 +82,46 @@ fn whitespace_only_key_returns_explicit_invalid_key() {
 }
 
 #[test]
-fn config_exposes_only_decision_level_capability_description() {
+fn config_exposes_capability_description_and_http_transport() {
     clear_for_tests();
     let cfg = sample_config("shape");
-    // Decision-level shape: a non-empty capability/connection description.
-    // Transport fields (command/args/url/stdio/http) are not part of this contract.
     assert!(!cfg.capability_description.is_empty());
+    let transport = cfg.http_transport();
+    assert_eq!(transport.name, "workbench");
+    assert!(transport.url.starts_with("http://"));
+    assert!(
+        transport.headers.contains_key("Accept"),
+        "HTTP transport must carry required Accept header"
+    );
     register("shape_key", cfg.clone()).expect("register");
     let got = lookup("shape_key").expect("lookup");
     assert_eq!(got.capability_description, cfg.capability_description);
+    assert_eq!(got.http_transport(), cfg.http_transport());
+}
+
+#[test]
+fn seeded_config_exposes_structured_http_transport() {
+    clear_for_tests();
+    seed_defaults();
+    let got = lookup(SEEDED_BUSINESS_KEY).expect("seeded");
+    let t = got.http_transport();
+    assert!(!t.name.trim().is_empty(), "transport name required");
+    assert!(
+        t.url.contains("/mcp"),
+        "seeded transport URL must point at MCP path: {}",
+        t.url
+    );
+    // Candidate URL presence is not readiness — that is mcp_endpoint_readiness's job.
+}
+
+#[test]
+fn http_transport_is_not_a_user_setting_surface() {
+    // Transport lives on Host registry config, not settings.
+    let settings_src = include_str!("../../config/settings.rs");
+    assert!(
+        !settings_src.contains("HttpMcpTransport")
+            && !settings_src.contains("mcp_http_transport")
+            && !settings_src.contains("mcpServers"),
+        "MCP HTTP transport must not be a user settings field"
+    );
 }

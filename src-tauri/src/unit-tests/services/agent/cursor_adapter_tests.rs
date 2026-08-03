@@ -85,6 +85,11 @@ fn t4_cursor_adapter_module_is_isolated_from_host_loop() {
 fn t4_mcp_config_maps_to_mcp_servers_inline_shape() {
     let config = McpServerConfig {
         capability_description: "internal knowledge-mcp todo_task capability surface".into(),
+        http_transport: crate::services::mcp_server_registry::HttpMcpTransport {
+            name: "workbench".into(),
+            url: "http://127.0.0.1:9876/mcp".into(),
+            headers: Default::default(),
+        },
     };
     let servers = cursor_adapter::map_mcp_config_to_mcp_servers(&config);
     let v = serde_json::to_value(&servers).expect("serialize mcpServers");

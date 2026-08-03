@@ -24,5 +24,6 @@ pub mod settle;
 pub mod tag_write;
 pub mod tags_registry;
 pub mod mcp_server_registry;
+pub mod mcp_endpoint_readiness;
 pub mod local_http;
 pub mod workbench_read;

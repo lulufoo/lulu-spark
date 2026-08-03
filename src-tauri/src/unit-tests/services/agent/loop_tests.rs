@@ -3393,6 +3393,11 @@ fn t2_replace_set_with_new_key_replaces_loaded_mcp_config() {
             "alt_business_key",
             McpServerConfig {
                 capability_description: "alternate mcp capability".into(),
+                http_transport: mcp_server_registry::HttpMcpTransport {
+                    name: "workbench".into(),
+                    url: "http://127.0.0.1:9876/mcp".into(),
+                    headers: Default::default(),
+                },
             },
         )
         .expect("register alt");
@@ -3606,6 +3611,11 @@ fn t4_only_set_reset_lifecycle_may_change_loaded_config() {
             SEEDED_BUSINESS_KEY,
             McpServerConfig {
                 capability_description: "registry-mutated-after-set".into(),
+                http_transport: mcp_server_registry::HttpMcpTransport {
+                    name: "workbench".into(),
+                    url: "http://127.0.0.1:9876/mcp".into(),
+                    headers: Default::default(),
+                },
             },
         )
         .expect("register overwrite");
@@ -3620,6 +3630,11 @@ fn t4_only_set_reset_lifecycle_may_change_loaded_config() {
             "alt_for_t4",
             McpServerConfig {
                 capability_description: "alt capability for t4".into(),
+                http_transport: mcp_server_registry::HttpMcpTransport {
+                    name: "workbench".into(),
+                    url: "http://127.0.0.1:9876/mcp".into(),
+                    headers: Default::default(),
+                },
             },
         )
         .expect("alt");

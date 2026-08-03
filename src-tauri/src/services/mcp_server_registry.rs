@@ -1,20 +1,40 @@
 //! Host-authoritative business key → MCP Server config registry.
 //!
-//! Value is a decision-level connection/capability description consumable by
-//! both engines. Field-level transport schema (stdio/http/…) is deferred
-//! (tech-doc T5); this Host table is the hard-to-revert commitment.
+//! Value is a decision-level connection/capability description plus a structured
+//! HTTP transport definition consumable by Cursor Agent SDK Local (`mcpServers`).
+//! Endpoint *readiness* is owned by [`crate::services::mcp_endpoint_readiness`] —
+//! a candidate localhost URL here is never treated as ready by itself.
 
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::sync::{Mutex, OnceLock};
 
 /// Seeded business key for Binding assembly (todo_task surface).
 pub const SEEDED_BUSINESS_KEY: &str = "todo_task";
 
-/// Decision-level MCP Server connection/capability description.
-/// Field-level schema (stdio/http, command, url, …) is intentionally not locked.
+/// Default inline mcpServers entry name for the Workbench knowledge-MCP surface.
+pub const DEFAULT_HTTP_MCP_SERVER_NAME: &str = "workbench";
+
+/// Structured HTTP MCP transport for SDK consumption (name / URL / headers).
+/// Presence of this value is not readiness — probe via `mcp_endpoint_readiness`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct HttpMcpTransport {
+    pub name: String,
+    pub url: String,
+    pub headers: BTreeMap<String, String>,
+}
+
+/// Decision-level MCP Server connection/capability description + HTTP transport.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct McpServerConfig {
     pub capability_description: String,
+    pub http_transport: HttpMcpTransport,
+}
+
+impl McpServerConfig {
+    /// Expose the SDK-consumable HTTP MCP transport definition.
+    pub fn http_transport(&self) -> &HttpMcpTransport {
+        &self.http_transport
+    }
 }
 
 /// Explicit lookup/register failure — never silently return empty config.
@@ -25,9 +45,28 @@ pub enum McpServerLookupError {
 }
 
 /// Decision-level description for the L1 internal MCP `todo_task` surface.
-/// Field-level transport / mount schema remains deferred (L2 tech-doc).
 const SEEDED_TODO_CAPABILITY_DESCRIPTION: &str =
     "internal knowledge-mcp todo_task capability surface";
+
+fn seeded_http_transport() -> HttpMcpTransport {
+    let mut headers = BTreeMap::new();
+    headers.insert(
+        "Accept".to_string(),
+        "application/json, text/event-stream".to_string(),
+    );
+    HttpMcpTransport {
+        name: DEFAULT_HTTP_MCP_SERVER_NAME.to_string(),
+        url: format!("http://127.0.0.1:{}/mcp", crate::DEFAULT_MCP_PORT),
+        headers,
+    }
+}
+
+fn seeded_config() -> McpServerConfig {
+    McpServerConfig {
+        capability_description: SEEDED_TODO_CAPABILITY_DESCRIPTION.to_string(),
+        http_transport: seeded_http_transport(),
+    }
+}
 
 fn table() -> &'static Mutex<HashMap<String, McpServerConfig>> {
     static TABLE: OnceLock<Mutex<HashMap<String, McpServerConfig>>> = OnceLock::new();
@@ -35,12 +74,7 @@ fn table() -> &'static Mutex<HashMap<String, McpServerConfig>> {
     // not only when tests call `seed_defaults`.
     TABLE.get_or_init(|| {
         let mut map = HashMap::new();
-        map.insert(
-            SEEDED_BUSINESS_KEY.to_string(),
-            McpServerConfig {
-                capability_description: SEEDED_TODO_CAPABILITY_DESCRIPTION.to_string(),
-            },
-        );
+        map.insert(SEEDED_BUSINESS_KEY.to_string(), seeded_config());
         Mutex::new(map)
     })
 }
@@ -53,12 +87,21 @@ fn validate_key(key: &str) -> Result<(), McpServerLookupError> {
     }
 }
 
-/// Register a business key → MCP Server config mapping (Host-internal).
-pub fn register(key: &str, config: McpServerConfig) -> Result<(), McpServerLookupError> {
-    validate_key(key)?;
+fn validate_config(config: &McpServerConfig) -> Result<(), McpServerLookupError> {
     if config.capability_description.trim().is_empty() {
         return Err(McpServerLookupError::InvalidKey);
     }
+    if config.http_transport.name.trim().is_empty() || config.http_transport.url.trim().is_empty()
+    {
+        return Err(McpServerLookupError::InvalidKey);
+    }
+    Ok(())
+}
+
+/// Register a business key → MCP Server config mapping (Host-internal).
+pub fn register(key: &str, config: McpServerConfig) -> Result<(), McpServerLookupError> {
+    validate_key(key)?;
+    validate_config(&config)?;
     let mut guard = table().lock().expect("mcp_server_registry lock");
     guard.insert(key.to_string(), config);
     Ok(())
@@ -76,12 +119,7 @@ pub fn lookup(key: &str) -> Result<McpServerConfig, McpServerLookupError> {
 
 /// Seed (or re-seed after test clear) the L1-backed business key for Binding assembly.
 pub fn seed_defaults() {
-    let _ = register(
-        SEEDED_BUSINESS_KEY,
-        McpServerConfig {
-            capability_description: SEEDED_TODO_CAPABILITY_DESCRIPTION.to_string(),
-        },
-    );
+    let _ = register(SEEDED_BUSINESS_KEY, seeded_config());
 }
 
 /// Test helper: reset Host-internal registry state.

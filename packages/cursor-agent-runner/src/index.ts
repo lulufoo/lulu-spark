@@ -1,5 +1,7 @@
 import { existsSync, statSync } from "node:fs";
+import { resolve as resolvePath } from "node:path";
 import { createInterface } from "node:readline";
+import { fileURLToPath } from "node:url";
 import { Agent, AuthenticationError, ConfigurationError } from "@cursor/sdk";
 import type { McpServerConfig, SDKAgent, Run } from "@cursor/sdk";
 import {
@@ -8,7 +10,6 @@ import {
   serializeErrorResponse,
   serializeOkResponse,
   type RunnerError,
-  type RunnerErrorType,
   type RunnerRequest,
 } from "./protocol.ts";
 import { ensureNodeAndSandbox } from "./sandbox.ts";
@@ -235,8 +236,6 @@ export async function handleLine(line: string): Promise<string> {
     return serializeOkResponse(id, result);
   } catch (err) {
     const error = errorFromCaught(err);
-    // Preserve protocol-level type when parseRequest failed before id was known.
-    const type: RunnerErrorType = error.type;
     if (id === "unknown") {
       try {
         const maybe = JSON.parse(trimmed) as { id?: unknown };
@@ -245,7 +244,7 @@ export async function handleLine(line: string): Promise<string> {
         // keep unknown
       }
     }
-    return serializeErrorResponse(id, { type, message: error.message });
+    return serializeErrorResponse(id, error);
   }
 }
 
@@ -260,10 +259,8 @@ async function main(): Promise<void> {
 }
 
 const isMain =
-  process.argv[1] &&
-  (process.argv[1].endsWith("/index.js") ||
-    process.argv[1].endsWith("/index.ts") ||
-    process.argv[1].endsWith("cursor-agent-runner/dist/index.js"));
+  typeof process.argv[1] === "string" &&
+  resolvePath(process.argv[1]) === fileURLToPath(import.meta.url);
 
 if (isMain) {
   main().catch((err) => {
@@ -271,9 +268,7 @@ if (isMain) {
       type: "runner",
       message: err instanceof Error ? err.message : "runner crashed",
     });
-    process.stdout.write(
-      `${serializeErrorResponse("unknown", error)}\n`,
-    );
+    process.stdout.write(`${serializeErrorResponse("unknown", error)}\n`);
     process.exitCode = 1;
   });
 }
