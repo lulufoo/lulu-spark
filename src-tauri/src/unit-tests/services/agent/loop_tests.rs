@@ -120,14 +120,18 @@ fn install_llm_cfg(mock: &MockLlm) {
     settings::apply_config_payload(
         &mut s,
         &json!({
+            "assistant_engine": "host",
             "llm": {
-                "base_url": format!("http://127.0.0.1:{}", mock.port),
-                "model": "test-model",
-                "platform": "openai_compatible"
+                "model": "test-model"
             }
         }),
     )
     .expect("apply");
+    // Preset platform/base_url are not client-writable via apply_config_payload;
+    // persist mock URL on the settings struct for Host load_llm_config (same pattern as
+    // unit-tests/services/agent/mod.rs::llm_load_config_reads_settings_and_secret).
+    s.llm.platform = "openai_compatible".into();
+    s.llm.base_url = format!("http://127.0.0.1:{}", mock.port);
     settings::save(&s).expect("save");
     secrets::set_secret(KEY_LLM_API_KEY, "sk-test").expect("key");
 }

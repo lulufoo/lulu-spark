@@ -24,6 +24,11 @@ pub const READ_LATER_ASSISTANT_LABEL: &str = "read-later-assistant";
 pub const AI_ASSISTANT_LABEL: &str = "ai-assistant";
 pub const PLAN_ATTACHMENT_DIALOG_EXTENSIONS: &[&str] = &["md"];
 
+/// Launch path for the Cursor Agent SDK Node sidecar (system Node, like knowledge-mcp).
+pub fn cursor_agent_runner_launch_path(repo_root: &Path) -> std::path::PathBuf {
+    repo_root.join("packages/cursor-agent-runner/dist/index.js")
+}
+
 #[derive(Debug, PartialEq, Eq)]
 pub struct ReadLaterAssistantWindowSpec {
     pub label: &'static str,
@@ -556,6 +561,10 @@ mod spawn_decision_tests;
 #[cfg(test)]
 #[path = "unit-tests/lib/knowledge_mcp_tests.rs"]
 mod knowledge_mcp_tests;
+
+#[cfg(test)]
+#[path = "unit-tests/lib/cursor_agent_runner_tests.rs"]
+mod cursor_agent_runner_tests;
 
 #[cfg(test)]
 #[path = "unit-tests/lib/read_later_assistant_window_tests.rs"]

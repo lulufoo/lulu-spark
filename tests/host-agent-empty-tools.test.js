@@ -99,15 +99,22 @@ describe('t2 Host Agent empty tools — source / interface layer locks', () => {
   });
 
   it('loop keeps tools field path and skips tool_calls-driven todos when tools empty', () => {
+    // Host business path always passes empty tools to the LLM client (no Binding.tools defs).
     expect(loopRs).toMatch(
-      /openai_tool_definitions_for_binding\s*\(\s*&binding\.tools\s*\)/,
+      /chat_completions\s*\(\s*&messages\s*,\s*&\s*\[\s*\]\s*,\s*config\s*\)/,
     );
-    expect(loopRs).toMatch(
-      /tools_defs\.is_empty\(\)|!tools_defs\.is_empty\(\)/,
-    );
+    expect(loopRs).toMatch(/Unexpected tool_calls with empty request tools/);
     // Public key-only Set must clear Binding.tools (L1 empty-tools + L2 key-only).
     expect(loopRs).toMatch(/tools:\s*json!\(\[\]\)/);
-    expect(loopRs).not.toMatch(/tools::dispatch/);
+    // No executable dispatch call sites (module docs/comments may still mention the name).
+    const dispatchCallLines = loopRs
+      .split('\n')
+      .filter((line) => {
+        const trimmed = line.trim();
+        if (trimmed.startsWith('//') || trimmed.startsWith('//!')) return false;
+        return /tools::dispatch\s*\(/.test(line);
+      });
+    expect(dispatchCallLines).toEqual([]);
   });
 
   it('npm test includes this empty-tools suite', () => {
