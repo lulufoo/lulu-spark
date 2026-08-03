@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 /**
- * L2 t1: Todos Binding 接入 — 自备 T-lift Tools/Prompt，经 Binding Contract Set/Reset/回调。
- * Sources: tech-doc L05-T / L09-AR / L08-AR / L10-AR / L12-I / L13-VF
+ * L2 t3: Todos Binding 调用面只提交业务 key（key-only Set）。
+ * Sources: tech-doc L11-T T3 / L09-I #4 / L13-VF AC5
  */
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -12,18 +12,10 @@ import {
   assembleTodosBindingBody,
   buildTodosBinding,
   resetTodosBinding,
-  TODOS_T_LIFT_TOOL_NAMES,
+  TODOS_BUSINESS_KEY,
 } from '../frontend/js/plan-task/todos-binding.js';
 
 const fixtureRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
-const toolsRs = readFileSync(
-  join(fixtureRoot, 'src-tauri/src/services/agent/tools.rs'),
-  'utf8',
-);
-const agentModRs = readFileSync(
-  join(fixtureRoot, 'src-tauri/src/services/agent/mod.rs'),
-  'utf8',
-);
 const todosBindingJs = readFileSync(
   join(fixtureRoot, 'frontend/js/plan-task/todos-binding.js'),
   'utf8',
@@ -33,37 +25,76 @@ const planTaskIndexJs = readFileSync(
   'utf8',
 );
 
-const T_LIFT = [
-  'get_plan',
-  'list_sub_tasks',
-  'add_sub_task',
-  'update_sub_title',
-  'update_master_title',
-];
+/** Host mock aligned with t2 public key-only Binding boundary. */
+function acceptKeyOnlySet(binding) {
+  if (!binding || typeof binding !== 'object') {
+    return { ok: false, code: 'set_invalid', state: 'unbound' };
+  }
+  if (
+    binding.tools != null ||
+    binding.prompt != null ||
+    binding.callbacks != null
+  ) {
+    return { ok: false, code: 'set_invalid', state: 'unbound' };
+  }
+  if (
+    binding.engine != null ||
+    binding.engine_type != null ||
+    binding.engineType != null
+  ) {
+    return { ok: false, code: 'set_invalid', state: 'unbound' };
+  }
+  if (typeof binding.key !== 'string' || !binding.key.trim()) {
+    return { ok: false, code: 'set_invalid', state: 'unbound' };
+  }
+  return { ok: true, state: 'bound' };
+}
 
-describe('Todos Binding 接入 — source contracts', () => {
-  it('business Binding submits tools:[]; capability TOOL_NAMES may remain until t3', () => {
-    // Interface / consumer: assemble empty tools (P2 / t2).
-    expect(assembleTodosBindingBody('task_x').tools).toEqual([]);
-    // Capability layer residual names in tools.rs (dispatch deleted in t3).
-    for (const name of T_LIFT) {
-      expect(toolsRs).toContain(`"${name}"`);
-    }
-    expect(TODOS_T_LIFT_TOOL_NAMES).toHaveLength(5);
-  });
-
-  it('Todos prompt maps PLAN_ASSISTANT_SYSTEM_PROMPT conventions (mod.rs)', () => {
-    expect(agentModRs).toMatch(/PLAN_ASSISTANT_SYSTEM_PROMPT/);
-    expect(todosBindingJs).toMatch(/只服务|只读工具|目前不支持|API Key/);
-    expect(planTaskIndexJs).toMatch(/todos-binding|buildTodosBinding|resetTodosBinding/);
-  });
-
-  it('Host is not asked to assemble tools/prompt for Todos (consumer owns Binding body)', () => {
-    expect(todosBindingJs).not.toMatch(
-      /invoke\(\s*['"](?:assemble|fill|default).*tools|Host.*拼装|requestHostAssemble/i,
+describe('Todos Binding 调用面 — source contracts (key-only)', () => {
+  it('exports seeded business key todo_task for Set', () => {
+    expect(TODOS_BUSINESS_KEY).toBe('todo_task');
+    expect(todosBindingJs).toMatch(/todo_task/);
+    expect(planTaskIndexJs).toMatch(
+      /todos-binding|buildTodosBinding|resetTodosBinding/,
     );
+  });
+
+  it('production assemble/Set path has no tools/prompt/callbacks payload assembly', () => {
     expect(todosBindingJs).toMatch(/set_binding/);
     expect(todosBindingJs).toMatch(/reset_binding/);
+    // assembleTodosBindingBody must not build legacy MCP payload fields
+    const assembleIdx = todosBindingJs.indexOf('function assembleTodosBindingBody');
+    expect(assembleIdx).toBeGreaterThanOrEqual(0);
+    const assembleSlice = todosBindingJs.slice(
+      assembleIdx,
+      assembleIdx + 400,
+    );
+    expect(assembleSlice).not.toMatch(/\btools\s*:/);
+    expect(assembleSlice).not.toMatch(/\bprompt\s*:/);
+    expect(assembleSlice).not.toMatch(/\bcallbacks\s*:/);
+    expect(assembleSlice).toMatch(/\bkey\b/);
+  });
+
+  it('call surface has no engine selection parameters', () => {
+    expect(todosBindingJs).not.toMatch(/\bengineType\b|\bengine_type\b/);
+    expect(todosBindingJs).not.toMatch(
+      /invoke\(\s*['"]set_binding['"][\s\S]*engine/,
+    );
+  });
+});
+
+describe('assembleTodosBindingBody', () => {
+  it('returns key-only payload with business key', () => {
+    const body = assembleTodosBindingBody({ masterTaskId: 'task_alpha' });
+    expect(body).toEqual({ key: 'todo_task' });
+    expect(body).not.toHaveProperty('tools');
+    expect(body).not.toHaveProperty('prompt');
+    expect(body).not.toHaveProperty('callbacks');
+    expect(body).not.toHaveProperty('engine');
+    expect(body).not.toHaveProperty('engine_type');
+    expect(body).not.toHaveProperty('engineType');
+    expect(body).not.toHaveProperty('master_task_id');
+    expect(body).not.toHaveProperty('masterTaskId');
   });
 });
 
@@ -75,32 +106,7 @@ describe('buildTodosBinding / resetTodosBinding', () => {
     events = [];
     invokeMock = vi.fn(async (cmd, args) => {
       if (cmd === 'set_binding') {
-        const binding = args?.binding;
-        if (
-          !binding ||
-          binding.tools == null ||
-          binding.prompt == null ||
-          binding.callbacks == null
-        ) {
-          return { ok: false, code: 'set_invalid', state: 'unbound' };
-        }
-        // tools slot required; empty array is legal (Host Agent P2 empty tools).
-        const toolsOk = Array.isArray(binding.tools) ||
-          (typeof binding.tools === 'object' && binding.tools !== null) ||
-          (typeof binding.tools === 'string');
-        const promptOk =
-          (typeof binding.prompt === 'string' && binding.prompt.trim() !== '') ||
-          (binding.prompt &&
-            typeof binding.prompt === 'object' &&
-            Object.keys(binding.prompt).length > 0);
-        const callbacksOk =
-          binding.callbacks &&
-          typeof binding.callbacks === 'object' &&
-          !Array.isArray(binding.callbacks);
-        if (!toolsOk || !promptOk || !callbacksOk) {
-          return { ok: false, code: 'set_invalid', state: 'unbound' };
-        }
-        return { ok: true, state: 'bound' };
+        return acceptKeyOnlySet(args?.binding);
       }
       if (cmd === 'reset_binding') {
         return { ok: true, state: 'unbound' };
@@ -135,7 +141,7 @@ describe('buildTodosBinding / resetTodosBinding', () => {
     };
   }
 
-  it('assembles empty tools + prompt, Sets successfully, observes onBound (empty callbacks registry OK)', async () => {
+  it('Sets with key-only payload, observes onBound; no MCP tools/prompt/callbacks', async () => {
     const cbs = trackCallbacks();
     const result = await buildTodosBinding(
       { masterTaskId: 'task_alpha' },
@@ -144,33 +150,26 @@ describe('buildTodosBinding / resetTodosBinding', () => {
 
     expect(result.ok).toBe(true);
     expect(result.state).toBe('bound');
-    expect(result.binding).toBeTruthy();
-    expect(result.binding.tools).toEqual([]);
-    expect(result.binding.prompt).toBeTruthy();
-    expect(result.binding.callbacks).toEqual({});
-    expect(typeof result.binding.callbacks).toBe('object');
-
-    const promptText =
-      typeof result.binding.prompt === 'string'
-        ? result.binding.prompt
-        : JSON.stringify(result.binding.prompt);
-    expect(promptText).toMatch(/只服务|计划/);
+    expect(result.binding).toEqual({ key: 'todo_task' });
+    expect(result.binding).not.toHaveProperty('tools');
+    expect(result.binding).not.toHaveProperty('prompt');
+    expect(result.binding).not.toHaveProperty('callbacks');
 
     expect(invokeMock).toHaveBeenCalledWith(
       'set_binding',
       expect.objectContaining({
-        binding: expect.objectContaining({
-          tools: [],
-          prompt: expect.anything(),
-          callbacks: {},
-        }),
+        binding: { key: 'todo_task' },
       }),
     );
 
     const setArgs = invokeMock.mock.calls.find((c) => c[0] === 'set_binding')?.[1];
+    expect(Object.keys(setArgs.binding).sort()).toEqual(['key']);
     expect(setArgs.binding).not.toHaveProperty('master_task_id');
     expect(setArgs.binding).not.toHaveProperty('bound_master_task_id');
     expect(setArgs.binding).not.toHaveProperty('masterTaskId');
+    expect(setArgs.binding).not.toHaveProperty('engine');
+    expect(setArgs.binding).not.toHaveProperty('engine_type');
+    expect(setArgs.binding).not.toHaveProperty('engineType');
 
     expect(invokeMock).toHaveBeenCalledWith('ensure_ai_assistant_session');
     expect(events.map((e) => e.event)).toEqual(['onBound']);
@@ -195,7 +194,7 @@ describe('buildTodosBinding / resetTodosBinding', () => {
     expect(events.filter((e) => e.event === 'onBound')).toHaveLength(0);
   });
 
-  it('Reset observes onUnbound and old Binding cannot execute', async () => {
+  it('Reset observes onUnbound; reset_binding carries no config/engine args', async () => {
     const cbs = trackCallbacks();
     await buildTodosBinding({ masterTaskId: 'task_alpha' }, cbs);
     events.length = 0;
@@ -213,6 +212,16 @@ describe('buildTodosBinding / resetTodosBinding', () => {
     expect(resetResult.ok).toBe(true);
     expect(resetResult.state).toBe('unbound');
     expect(events.map((e) => e.event)).toEqual(['onUnbound']);
+
+    const resetCall = invokeMock.mock.calls.find((c) => c[0] === 'reset_binding');
+    expect(resetCall).toBeTruthy();
+    // invoke('reset_binding') with no config/engine payload
+    expect(resetCall.length).toBe(1);
+    expect(resetCall?.[1] ?? {}).not.toHaveProperty('key');
+    expect(resetCall?.[1] ?? {}).not.toHaveProperty('tools');
+    expect(resetCall?.[1] ?? {}).not.toHaveProperty('prompt');
+    expect(resetCall?.[1] ?? {}).not.toHaveProperty('callbacks');
+    expect(resetCall?.[1] ?? {}).not.toHaveProperty('engine');
 
     const invoke = window.__TAURI__.core.invoke;
     const exec = await invoke('execute_binding');
@@ -239,7 +248,28 @@ describe('buildTodosBinding / resetTodosBinding', () => {
     expect(events[0].payload).not.toHaveProperty('masterTaskId');
   });
 
-  it('callback payloads have no business fields; callbacks must not ask Host to assemble tools/prompt', async () => {
+  it('legacy tools/prompt/callbacks shape is not a successful business Set path', async () => {
+    const cbs = trackCallbacks();
+    const result = await buildTodosBinding({ masterTaskId: 'task_beta' }, cbs);
+    expect(result.ok).toBe(true);
+
+    const setArgs = invokeMock.mock.calls.find((c) => c[0] === 'set_binding')?.[1];
+    expect(setArgs.binding).toEqual({ key: 'todo_task' });
+
+    // Host boundary rejects legacy shape (t2); consumer must not submit it
+    const legacyRejected = acceptKeyOnlySet({
+      tools: [{ name: 'get_plan' }],
+      prompt: 'legacy',
+      callbacks: {},
+    });
+    expect(legacyRejected).toEqual({
+      ok: false,
+      code: 'set_invalid',
+      state: 'unbound',
+    });
+  });
+
+  it('callback payloads have no business/config/engine fields', async () => {
     const cbs = trackCallbacks();
     await buildTodosBinding({ masterTaskId: 'task_beta' }, cbs);
     await resetTodosBinding(cbs);
@@ -251,51 +281,8 @@ describe('buildTodosBinding / resetTodosBinding', () => {
       expect(p).not.toHaveProperty('masterTaskId');
       expect(p).not.toHaveProperty('tools');
       expect(p).not.toHaveProperty('prompt');
+      expect(p).not.toHaveProperty('engine');
       expect(JSON.stringify(p)).not.toMatch(/assemble|fill.*prompt|拼装/i);
     }
-
-    const setArgs = invokeMock.mock.calls.find((c) => c[0] === 'set_binding')?.[1];
-    expect(setArgs.binding.callbacks).toEqual({});
-    expect(setArgs.binding.tools).toEqual([]);
-    expect(setArgs.binding.prompt).toBeTruthy();
-  });
-});
-
-
-describe('t6 Binding Contract — no business ids on leave Reset', () => {
-  it('resetTodosBinding / assemble body keep business ids off Binding Contract top-level', async () => {
-    const invokeMock = vi.fn(async (cmd, args) => {
-      if (cmd === 'set_binding') {
-        const binding = args?.binding ?? {};
-        expect(binding).not.toHaveProperty('master_task_id');
-        expect(binding).not.toHaveProperty('bound_master_task_id');
-        expect(binding).not.toHaveProperty('masterTaskId');
-        return { ok: true, state: 'bound' };
-      }
-      if (cmd === 'reset_binding') {
-        return { ok: true, state: 'unbound' };
-      }
-      if (cmd === 'ensure_ai_assistant_session') {
-        return { session_id: 'sess_t6', busy: false };
-      }
-      return {};
-    });
-    window.__TAURI__ = { core: { invoke: invokeMock } };
-
-    const set = await buildTodosBinding({ masterTaskId: 'task_t6_contract' });
-    expect(set.ok).toBe(true);
-    expect(set.binding).not.toHaveProperty('master_task_id');
-    expect(set.binding).not.toHaveProperty('bound_master_task_id');
-    expect(set.binding).not.toHaveProperty('masterTaskId');
-
-    const reset = await resetTodosBinding();
-    expect(reset.ok).toBe(true);
-    expect(invokeMock).toHaveBeenCalledWith('reset_binding');
-    // Reset payload must not invent business-id contract fields
-    const resetCall = invokeMock.mock.calls.find((c) => c[0] === 'reset_binding');
-    expect(resetCall?.[1] ?? {}).not.toHaveProperty('master_task_id');
-    expect(resetCall?.[1] ?? {}).not.toHaveProperty('bound_master_task_id');
-
-    delete window.__TAURI__;
   });
 });

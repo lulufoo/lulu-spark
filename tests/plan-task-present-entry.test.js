@@ -130,9 +130,11 @@ describe('mountPlanTaskSplit — no page Assistant; Set/Reset retained (t6)', ()
         const binding = args?.binding;
         if (
           !binding ||
-          binding.tools == null ||
-          binding.prompt == null ||
-          binding.callbacks == null
+          typeof binding.key !== 'string' ||
+          !binding.key.trim() ||
+          binding.tools != null ||
+          binding.prompt != null ||
+          binding.callbacks != null
         ) {
           return {
             ok: false,
@@ -218,7 +220,7 @@ describe('mountPlanTaskSplit — no page Assistant; Set/Reset retained (t6)', ()
     const selected = container.querySelector('.plan-task-master-item--selected');
     expect(selected?.dataset.masterId).toBe('task_alpha');
     const setCall = invokeMock.mock.calls.find(([command]) => command === 'set_binding');
-    expect(setCall?.[1]?.binding.tools).toEqual([]);
+    expect(setCall?.[1]?.binding).toEqual({ key: 'todo_task' });
     expect(hostBound).toBe(true);
     dispose();
   });

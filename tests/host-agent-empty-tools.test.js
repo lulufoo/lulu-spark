@@ -1,11 +1,13 @@
 // @vitest-environment jsdom
 /**
  * t2 / P2 — Host Agent Loop business session tools empty (tech-doc T3/T6, AC2).
+ * L1+L2: Binding call surface is key-only; Host Loop tools interface stays empty
+ * (no in-process dispatch; MCP is the business capability plane).
  *
  * Layer map (T5):
- * - Interface layer: loop tools field / Binding.tools slot (may be empty array).
+ * - Interface layer: loop tools field / Binding.tools slot (empty for business path).
  * - Capability layer: tools.rs dispatch removed (t3); business via MCP/HTTP only.
- * - MCP/HTTP: knowledge-mcp + local_http (t1).
+ * - Binding call surface: key-only Set (L2); Host registry loads MCP config.
  */
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -15,7 +17,7 @@ import { describe, it, expect, vi } from 'vitest';
 import {
   assembleTodosBindingBody,
   buildTodosBinding,
-  TODOS_T_LIFT_TOOL_NAMES,
+  TODOS_BUSINESS_KEY,
 } from '../frontend/js/plan-task/todos-binding.js';
 
 const fixtureRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -31,28 +33,27 @@ const packageJson = JSON.parse(
   readFileSync(join(fixtureRoot, 'package.json'), 'utf8'),
 );
 
-describe('t2 Host Agent empty tools — todos-binding assemble contract', () => {
-  it('assembleTodosBindingBody submits tools: [] (no T-lift business handles)', () => {
-    const body = assembleTodosBindingBody('task_empty_tools');
-    expect(Array.isArray(body.tools)).toBe(true);
-    expect(body.tools).toEqual([]);
-    expect(body.prompt).toBeTruthy();
-    expect(body.callbacks).toEqual({});
-    for (const name of TODOS_T_LIFT_TOOL_NAMES) {
-      expect(JSON.stringify(body.tools)).not.toContain(name);
-    }
+describe('t2 Host Agent empty tools — todos-binding key-only call surface', () => {
+  it('assembleTodosBindingBody submits key-only (no tools/prompt/callbacks payload)', () => {
+    const body = assembleTodosBindingBody();
+    expect(body).toEqual({ key: TODOS_BUSINESS_KEY });
+    expect(body).not.toHaveProperty('tools');
+    expect(body).not.toHaveProperty('prompt');
+    expect(body).not.toHaveProperty('callbacks');
   });
 
-  it('buildTodosBinding Sets with empty tools array and observes onBound', async () => {
+  it('buildTodosBinding Sets with key-only payload and observes onBound', async () => {
     const events = [];
     const invokeMock = vi.fn(async (cmd, args) => {
       if (cmd === 'set_binding') {
         const binding = args?.binding;
         if (
           !binding ||
-          !Array.isArray(binding.tools) ||
-          binding.prompt == null ||
-          binding.callbacks == null
+          typeof binding.key !== 'string' ||
+          !binding.key.trim() ||
+          binding.tools != null ||
+          binding.prompt != null ||
+          binding.callbacks != null
         ) {
           return { ok: false, code: 'set_invalid', state: 'unbound' };
         }
@@ -74,11 +75,11 @@ describe('t2 Host Agent empty tools — todos-binding assemble contract', () => 
     );
 
     expect(result.ok).toBe(true);
-    expect(result.binding.tools).toEqual([]);
+    expect(result.binding).toEqual({ key: TODOS_BUSINESS_KEY });
     expect(invokeMock).toHaveBeenCalledWith(
       'set_binding',
       expect.objectContaining({
-        binding: expect.objectContaining({ tools: [] }),
+        binding: { key: TODOS_BUSINESS_KEY },
       }),
     );
     expect(events.map((e) => e.event)).toEqual(['onBound']);
@@ -104,6 +105,9 @@ describe('t2 Host Agent empty tools — source / interface layer locks', () => {
     expect(loopRs).toMatch(
       /tools_defs\.is_empty\(\)|!tools_defs\.is_empty\(\)/,
     );
+    // Public key-only Set must clear Binding.tools (L1 empty-tools + L2 key-only).
+    expect(loopRs).toMatch(/tools:\s*json!\(\[\]\)/);
+    expect(loopRs).not.toMatch(/tools::dispatch/);
   });
 
   it('npm test includes this empty-tools suite', () => {

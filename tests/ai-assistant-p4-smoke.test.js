@@ -25,7 +25,7 @@ vi.mock('../frontend/js/apiClient.js', async (importOriginal) => {
 import {
   createTodosPageLifecycle,
   assembleTodosBindingBody,
-  TODOS_T_LIFT_TOOL_NAMES,
+  TODOS_BUSINESS_KEY,
   TODOS_OPEN_AND_BIND_MAIN_PATH_DISABLED,
   TODOS_PARITY_ACCEPTANCE,
   mountPlanTaskSplit,
@@ -188,25 +188,17 @@ describe('Todos SK-4 parity acceptance (P1–P6 / N1/N2)', () => {
     );
   });
 
-  it('business Binding tools empty; prompt still refuses unsupported ops (P2 empty tools)', () => {
-    // Historical T-lift name list may remain as constant; Binding no longer submits them.
-    expect([...TODOS_T_LIFT_TOOL_NAMES]).toEqual([
-      'get_plan',
-      'list_sub_tasks',
-      'add_sub_task',
-      'update_sub_title',
-      'update_master_title',
-    ]);
+  it('Binding call surface submits key-only todo_task; no tools/prompt/callbacks payload', () => {
+    expect(TODOS_BUSINESS_KEY).toBe('todo_task');
     const body = assembleTodosBindingBody();
-    expect(body.tools).toEqual([]);
-    const serialized = JSON.stringify(body.tools);
+    expect(body).toEqual({ key: 'todo_task' });
+    expect(body).not.toHaveProperty('tools');
+    expect(body).not.toHaveProperty('prompt');
+    expect(body).not.toHaveProperty('callbacks');
+    const serialized = JSON.stringify(body);
     for (const banned of OUT_OF_PARITY_TOOLS) {
       expect(serialized).not.toContain(banned);
     }
-    for (const name of TODOS_T_LIFT_TOOL_NAMES) {
-      expect(serialized).not.toContain(name);
-    }
-    expect(body.prompt).toMatch(/目前不支持|不支持/);
   });
 
   it('N1 flag: open-and-bind main path disabled on Todos consumer', () => {
@@ -246,9 +238,11 @@ describe('Todos SK-4 parity acceptance (P1–P6 / N1/N2)', () => {
           const binding = args?.binding;
           if (
             !binding ||
-            binding.tools == null ||
-            binding.prompt == null ||
-            binding.callbacks == null
+            typeof binding.key !== 'string' ||
+            !binding.key.trim() ||
+            binding.tools != null ||
+            binding.prompt != null ||
+            binding.callbacks != null
           ) {
             return {
               ok: false,
@@ -257,8 +251,7 @@ describe('Todos SK-4 parity acceptance (P1–P6 / N1/N2)', () => {
             };
           }
           hostBound = true;
-          hostBindingToken =
-            binding.__testToken ?? binding.prompt?.slice?.(0, 8) ?? 'set';
+          hostBindingToken = binding.__testToken ?? binding.key;
           return { ok: true, state: 'bound' };
         }
         if (cmd === 'reset_binding') {
@@ -325,14 +318,13 @@ describe('Todos SK-4 parity acceptance (P1–P6 / N1/N2)', () => {
       expect(exec.ok).toBe(true);
     });
 
-    it('P2–P5: Binding tools empty; prompt still covers parity language and refuses unsupported ops', () => {
+    it('P2–P5: Binding Set is key-only; capability surface is Host MCP key, not client tools/prompt', () => {
       const body = assembleTodosBindingBody();
-      // Host Agent P2: business session tools empty (no T-lift handles in Binding).
-      expect(body.tools).toEqual([]);
-      // Prompt contract retains parity wording (ops described; tools not submitted).
-      expect(body.prompt).toMatch(/目前不支持/);
-      expect(body.prompt).toMatch(/删除、完成\/放弃|完成\/放弃/);
-      expect(body.prompt).toMatch(/get_plan|list_sub_tasks|只读/);
+      expect(body).toEqual({ key: TODOS_BUSINESS_KEY });
+      expect(body).not.toHaveProperty('tools');
+      expect(body).not.toHaveProperty('prompt');
+      expect(body).not.toHaveProperty('callbacks');
+      expect(body).not.toHaveProperty('engine');
     });
 
     it('P6: leave Reset→onUnbound then execute rejected', async () => {
