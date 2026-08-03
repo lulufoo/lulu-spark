@@ -490,6 +490,8 @@ pub fn run() {
                     http_port,
                 );
             }
+            // L2 Host key→MCP registry: seed L1 internal MCP business surface before Binding Set.
+            services::mcp_server_registry::seed_defaults();
             app.manage(KnowledgeMcpProcess::new(knowledge_child));
             app.manage(local_http);
 

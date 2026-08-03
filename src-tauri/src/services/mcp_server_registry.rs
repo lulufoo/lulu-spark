@@ -24,9 +24,25 @@ pub enum McpServerLookupError {
     InvalidKey,
 }
 
+/// Decision-level description for the L1 internal MCP `todo_task` surface.
+/// Field-level transport / mount schema remains deferred (L2 tech-doc).
+const SEEDED_TODO_CAPABILITY_DESCRIPTION: &str =
+    "internal knowledge-mcp todo_task capability surface";
+
 fn table() -> &'static Mutex<HashMap<String, McpServerConfig>> {
     static TABLE: OnceLock<Mutex<HashMap<String, McpServerConfig>>> = OnceLock::new();
-    TABLE.get_or_init(|| Mutex::new(HashMap::new()))
+    // Host-authoritative defaults must exist on first access (production Set path),
+    // not only when tests call `seed_defaults`.
+    TABLE.get_or_init(|| {
+        let mut map = HashMap::new();
+        map.insert(
+            SEEDED_BUSINESS_KEY.to_string(),
+            McpServerConfig {
+                capability_description: SEEDED_TODO_CAPABILITY_DESCRIPTION.to_string(),
+            },
+        );
+        Mutex::new(map)
+    })
 }
 
 fn validate_key(key: &str) -> Result<(), McpServerLookupError> {
@@ -58,13 +74,12 @@ pub fn lookup(key: &str) -> Result<McpServerConfig, McpServerLookupError> {
         .ok_or(McpServerLookupError::NotFound)
 }
 
-/// Seed at least one measurable business key for later Binding assembly.
+/// Seed (or re-seed after test clear) the L1-backed business key for Binding assembly.
 pub fn seed_defaults() {
     let _ = register(
         SEEDED_BUSINESS_KEY,
         McpServerConfig {
-            capability_description: "internal knowledge-mcp todo_task capability surface"
-                .to_string(),
+            capability_description: SEEDED_TODO_CAPABILITY_DESCRIPTION.to_string(),
         },
     );
 }
