@@ -429,9 +429,19 @@ fn t5_lifecycle_close_awaits_dispose_then_deletes_cwd_shell_close_does_not() {
 #[test]
 fn t5_security_sandbox_fail_closed_and_no_tools_dispatch_on_cursor_path() {
     let sandbox_src = include_str!("../../../../../packages/cursor-agent-runner/src/sandbox.ts");
+    let runner_src = include_str!("../../../../../packages/cursor-agent-runner/src/index.ts");
     assert!(
         sandbox_src.contains("ensureNodeAndSandbox"),
-        "sandbox fail-closed gate must exist"
+        "Node/sandbox gate helper must exist"
+    );
+    // Workbench A: Local headless + SDK sandbox blocks MCP interactive approval.
+    assert!(
+        runner_src.contains("sandboxOptions: { enabled: false }"),
+        "production runner must keep SDK sandbox disabled for Workbench MCP"
+    );
+    assert!(
+        runner_src.contains("sdkSandboxEnabled: false"),
+        "production create path must skip sandbox helper fail-closed"
     );
     let adapter_src = include_str!("../../../services/agent/cursor_adapter.rs");
     let runtime_src = include_str!("../../../services/agent/runtime.rs");

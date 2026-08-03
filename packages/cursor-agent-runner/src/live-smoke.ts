@@ -2,15 +2,17 @@
  * Opt-in live smoke for official @cursor/sdk Local (T5).
  *
  * Docs: https://cursor.com/docs/sdk/typescript
- * Gate: CURSOR_API_KEY + Node≥22.13 + sandbox + MCP ready → run;
+ * Gate: CURSOR_API_KEY + Node≥22.13 + MCP ready → run;
  * otherwise skip (never fake-green). Mock evidence never satisfies Cursor AC.
+ *
+ * SDK sandbox is disabled (same as production runner) so Workbench MCP tools
+ * are not blocked by headless interactive-approval.
  */
 import { mkdtempSync, rmSync, writeFileSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Agent } from "@cursor/sdk";
 import {
-  defaultProbeSandboxHelper,
   ensureNodeAndSandbox,
   isNodeVersionAtLeast,
 } from "./sandbox.ts";
@@ -18,7 +20,8 @@ import {
 export type LiveSmokeGateInput = {
   apiKey: string;
   nodeVersion: string;
-  sandboxAvailable: boolean;
+  /** @deprecated Ignored — production path keeps SDK sandbox off for MCP. */
+  sandboxAvailable?: boolean;
   mcpReady: boolean;
 };
 
@@ -62,13 +65,6 @@ export function evaluateLiveSmokeGate(
       shouldRun: false,
       verdict: "skip",
       reason: "Node version below 22.13",
-    };
-  }
-  if (!input.sandboxAvailable) {
-    return {
-      shouldRun: false,
-      verdict: "skip",
-      reason: "sandbox unavailable (fail closed)",
     };
   }
   if (!input.mcpReady) {
@@ -120,20 +116,9 @@ export async function runLiveSmokeCursorSdk(
     };
   }
 
-  // Re-check sandbox helper on this host (fail closed).
-  if (!input.sandboxAvailable || !defaultProbeSandboxHelper()) {
-    return {
-      status: "skip",
-      cursorAcSatisfied: false,
-      externalAcceptancePending: true,
-      notes: pendingNotes("sandbox helper unavailable on host"),
-    };
-  }
-
   const cwd = mkdtempSync(join(tmpdir(), "cursor-live-smoke-"));
   let agent: Awaited<ReturnType<typeof Agent.create>> | null = null;
   try {
-    // Ensure cwd is non-git.
     if (existsSync(join(cwd, ".git"))) {
       throw new Error("live smoke cwd unexpectedly contains .git");
     }
@@ -142,7 +127,7 @@ export async function runLiveSmokeCursorSdk(
       nodeVersion: input.nodeVersion,
       cwd,
       workbenchMcpHost: "127.0.0.1",
-      probeSandboxHelper: () => true,
+      sdkSandboxEnabled: false,
     });
     if (!gateLocal.ok) {
       return {
@@ -163,7 +148,6 @@ export async function runLiveSmokeCursorSdk(
       },
     };
 
-    // Marker so we can assert cwd was used; no side-effectful repo writes.
     writeFileSync(join(cwd, ".live-smoke-marker"), "ok", "utf8");
 
     agent = await Agent.create({
@@ -172,12 +156,11 @@ export async function runLiveSmokeCursorSdk(
       local: {
         cwd,
         settingSources: [],
-        sandboxOptions: { enabled: true },
+        sandboxOptions: { enabled: false },
       },
       mcpServers,
     });
 
-    // No-side-effect prompt; wait for terminal. MCP visibility = create accepted mcpServers.
     const run = await agent.send(
       "Reply with exactly: pong. Do not modify any files.",
     );

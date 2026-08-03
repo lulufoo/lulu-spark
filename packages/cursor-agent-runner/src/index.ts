@@ -106,9 +106,12 @@ async function handleCreate(req: Extract<RunnerRequest, { method: "create" }>) {
     throw new ProtocolError("cwd", "local.cwd is missing or not a directory");
   }
 
+  // Workbench: sdkSandboxEnabled=false — Local headless + sandbox blocks MCP
+  // tools that need interactive approval (Cursor forum #161629).
   const gate = ensureNodeAndSandbox({
     cwd,
     workbenchMcpHost: workbenchHostFromMcpServers(req.params.mcpServers),
+    sdkSandboxEnabled: false,
   });
   if (!gate.ok) {
     throw new ProtocolError(gate.error.type, gate.error.message);
@@ -126,7 +129,8 @@ async function handleCreate(req: Extract<RunnerRequest, { method: "create" }>) {
       local: {
         cwd,
         settingSources: [],
-        sandboxOptions: { enabled: true },
+        // Default Local SDK behavior; required for Workbench MCP in headless.
+        sandboxOptions: { enabled: false },
       },
       mcpServers,
     })) as AgentHandle;

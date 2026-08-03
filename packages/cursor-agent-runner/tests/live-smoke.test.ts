@@ -1,7 +1,7 @@
 /**
  * T5 opt-in live smoke for official @cursor/sdk Local.
  *
- * Env-gated: requires CURSOR_API_KEY + Node≥22.13 + sandbox + MCP ready.
+ * Env-gated: requires CURSOR_API_KEY + Node≥22.13 + MCP ready.
  * CI without key MUST skip (not fake-green). Mock success must never mark
  * Cursor AC satisfied — that is recorded as 外部验收待完成 when skipped.
  */
@@ -18,7 +18,6 @@ describe("opt-in live_smoke_cursor_sdk", () => {
     const gate = evaluateLiveSmokeGate({
       apiKey: "",
       nodeVersion: process.versions.node,
-      sandboxAvailable: true,
       mcpReady: true,
     });
     assert.equal(gate.shouldRun, false);
@@ -28,9 +27,7 @@ describe("opt-in live_smoke_cursor_sdk", () => {
     const result: LiveSmokeResult = await runLiveSmokeCursorSdk({
       apiKey: "",
       nodeVersion: process.versions.node,
-      sandboxAvailable: true,
       mcpReady: true,
-      // Force skip path — must not call Agent.create
       forceSkip: true,
     });
     assert.equal(result.status, "skip");
@@ -43,7 +40,6 @@ describe("opt-in live_smoke_cursor_sdk", () => {
     const result = await runLiveSmokeCursorSdk({
       apiKey: "",
       nodeVersion: "22.13.0",
-      sandboxAvailable: true,
       mcpReady: true,
       mockEvidenceOnly: true,
     });
@@ -52,28 +48,18 @@ describe("opt-in live_smoke_cursor_sdk", () => {
     assert.notEqual(result.status, "pass");
   });
 
-  it("requires Node≥22.13, sandbox, and MCP ready before opt-in run", () => {
+  it("requires Node≥22.13 and MCP ready before opt-in run", () => {
     const noNode = evaluateLiveSmokeGate({
       apiKey: "sk-test",
       nodeVersion: "22.12.0",
-      sandboxAvailable: true,
       mcpReady: true,
     });
     assert.equal(noNode.shouldRun, false);
     assert.equal(noNode.verdict, "skip");
 
-    const noSandbox = evaluateLiveSmokeGate({
-      apiKey: "sk-test",
-      nodeVersion: "22.13.0",
-      sandboxAvailable: false,
-      mcpReady: true,
-    });
-    assert.equal(noSandbox.shouldRun, false);
-
     const noMcp = evaluateLiveSmokeGate({
       apiKey: "sk-test",
       nodeVersion: "22.13.0",
-      sandboxAvailable: true,
       mcpReady: false,
     });
     assert.equal(noMcp.shouldRun, false);
@@ -81,7 +67,6 @@ describe("opt-in live_smoke_cursor_sdk", () => {
     const ready = evaluateLiveSmokeGate({
       apiKey: "sk-live",
       nodeVersion: "22.13.0",
-      sandboxAvailable: true,
       mcpReady: true,
     });
     assert.equal(ready.shouldRun, true);
@@ -89,17 +74,16 @@ describe("opt-in live_smoke_cursor_sdk", () => {
   });
 
   it("when env is ready, live smoke creates agent in non-git cwd and checks MCP visibility", async () => {
-    // Real network path only when CURSOR_API_KEY is present in process.env.
-    // Without it this test still exercises the gate and records pending acceptance.
     const envKey = (process.env.CURSOR_API_KEY ?? "").trim();
+    // Ignore short / probe stubs left in the shell (e.g. sk-test).
+    const looksReal = envKey.length >= 40 && !/^sk-test/i.test(envKey);
     const result = await runLiveSmokeCursorSdk({
-      apiKey: envKey,
+      apiKey: looksReal ? envKey : "",
       nodeVersion: process.versions.node,
-      sandboxAvailable: true,
-      mcpReady: Boolean(envKey), // without key, MCP live check is not claimed
+      mcpReady: looksReal,
     });
 
-    if (!envKey) {
+    if (!looksReal) {
       assert.equal(result.status, "skip");
       assert.equal(result.cursorAcSatisfied, false);
       assert.equal(result.externalAcceptancePending, true);
@@ -114,3 +98,4 @@ describe("opt-in live_smoke_cursor_sdk", () => {
     assert.ok(result.agentCreated);
   });
 });
+

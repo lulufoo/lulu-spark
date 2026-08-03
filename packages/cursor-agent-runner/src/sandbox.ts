@@ -12,6 +12,16 @@ export type EnsureNodeAndSandboxInput = {
   nodeVersion?: string;
   cwd: string;
   workbenchMcpHost: string;
+  /**
+   * When true, require platform sandbox helper + write `.cursor/sandbox.json`
+   * and expect Agent.create `sandboxOptions.enabled: true`.
+   *
+   * Workbench production path uses `false`: Cursor Local headless + sandbox
+   * blocks MCP tools that need interactive approval
+   * ("Local SDK runs cannot request interactive approval for this MCP tool call").
+   * See https://forum.cursor.com/t/mcp-issues-with-cursor-sdk/161629
+   */
+  sdkSandboxEnabled?: boolean;
   probeSandboxHelper?: () => boolean;
 };
 
@@ -62,7 +72,6 @@ export function defaultProbeSandboxHelper(): boolean {
       accessSync("/usr/bin/bwrap", constants.X_OK);
       return true;
     } catch {
-      // Landlock path may still work inside Cursor's helper; without helper, fail closed.
       return false;
     }
   }
@@ -91,6 +100,10 @@ export function writeSessionSandboxAllowlist(
   writeFileSync(join(dir, "sandbox.json"), `${JSON.stringify(body, null, 2)}\n`);
 }
 
+/**
+ * Node version gate always applies.
+ * Sandbox helper + allowlist apply only when `sdkSandboxEnabled: true`.
+ */
 export function ensureNodeAndSandbox(
   input: EnsureNodeAndSandboxInput,
 ): EnsureNodeAndSandboxResult {
@@ -104,6 +117,11 @@ export function ensureNodeAndSandbox(
         message: `Node.js >= 22.13 required for @cursor/sdk Local; found ${nodeVersion}`,
       },
     };
+  }
+
+  const sdkSandboxEnabled = input.sdkSandboxEnabled === true;
+  if (!sdkSandboxEnabled) {
+    return { ok: true, cwd: input.cwd };
   }
 
   const probe = input.probeSandboxHelper ?? defaultProbeSandboxHelper;
