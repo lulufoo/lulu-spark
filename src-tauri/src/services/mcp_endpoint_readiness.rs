@@ -117,8 +117,8 @@ fn probe_knowledge_mcp(base: &str) -> Result<(), McpEndpointReadinessError> {
 
 fn is_connect_failure(msg: &str) -> bool {
     let lower = msg.to_ascii_lowercase();
-    lower.contains("error trying to connect")
-        || lower.contains("connection refused")
+    lower.contains("connection refused")
+        || lower.contains("error trying to connect")
         || lower.contains("timed out")
         || lower.contains("timeout")
 }

@@ -1,14 +1,22 @@
-//! T4: Cursor Local adapter — Agent SDK Local shape + mcpServers injection.
+//! T4 + T3: Cursor Local adapter — SDK shape, production process client, lifecycle.
 
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
 use serde_json::json;
 
-use crate::services::agent::cursor_adapter::{self, AgentCreateParams, CursorAdapterError};
+use crate::services::agent::cursor_adapter::{
+    self, AgentCreateParams, CursorAdapterError, CursorErrorCode, CursorSessionRuntime,
+    FakeCursorRunnerClient, TurnRequest,
+};
 use crate::services::agent::engine_router::{self, AdapterKind, EngineKind, TurnInput};
 use crate::services::agent::r#loop;
-use crate::services::mcp_server_registry::{self, McpServerConfig, SEEDED_BUSINESS_KEY};
+use crate::services::agent::session_cwd;
+use crate::services::mcp_endpoint_readiness::{self, ReadyMcpTransports};
+use crate::services::mcp_server_registry::{
+    self, HttpMcpTransport, McpServerConfig, SEEDED_BUSINESS_KEY,
+};
 use crate::services::todo_task;
 use crate::test_support::TestSandbox;
 
@@ -260,4 +268,386 @@ fn t4_run_turn_sdk_failure_does_not_fallback_to_process_tools() {
         assert_eq!(sdk.creates.len(), 1, "create may succeed before run fails");
         assert_eq!(todo_task::get_by_id(&master)["title"], title_before);
     });
+}
+
+// ── T3: production process client + lifecycle ────────────────────────────────
+
+fn ready_mcp_sample() -> ReadyMcpTransports {
+    let mut headers = std::collections::BTreeMap::new();
+    headers.insert(
+        "Accept".into(),
+        "application/json, text/event-stream".into(),
+    );
+    ReadyMcpTransports {
+        transports: vec![HttpMcpTransport {
+            name: "workbench".into(),
+            url: "http://127.0.0.1:9876/mcp".into(),
+            headers,
+        }],
+    }
+}
+
+fn t3_turn_request(session_id: &str, prompt: &str) -> TurnRequest {
+    TurnRequest {
+        session_id: session_id.into(),
+        prompt: prompt.into(),
+        model: "composer-2.5".into(),
+        api_key: "sk-test-cursor-key".into(),
+        ready_mcp: ready_mcp_sample(),
+    }
+}
+
+#[test]
+fn t3_production_adapter_uses_real_process_client_type() {
+    // Production surface must expose ProcessCursorRunnerClient (not only trait/test double).
+    let _ = std::any::type_name::<cursor_adapter::ProcessCursorRunnerClient>();
+    let src = include_str!("../../../services/agent/cursor_adapter.rs");
+    assert!(
+        src.contains("struct ProcessCursorRunnerClient"),
+        "production process client must exist"
+    );
+    assert!(
+        src.contains("CURSOR_API_KEY"),
+        "API key must be injected via child env CURSOR_API_KEY"
+    );
+    assert!(
+        !src.contains("tools::dispatch")
+            && !src.contains("crate::services::agent::tools"),
+        "cursor_adapter must not call tools::dispatch"
+    );
+    assert!(
+        !src.contains("resume"),
+        "must not use SDK resume path that drops inline MCP"
+    );
+}
+
+#[test]
+fn t3_typed_runner_errors_map_to_frontend_safe_cursor_codes() {
+    let host_generic = cursor_adapter::HOST_GENERIC_UPSTREAM_UNAVAILABLE;
+    assert_eq!(host_generic, "上游服务暂时不可用，请稍后重试。");
+
+    let cases = [
+        ("credential", CursorErrorCode::Credential),
+        ("sdk_config", CursorErrorCode::SdkConfig),
+        ("mcp_unavailable", CursorErrorCode::McpUnavailable),
+        ("cwd", CursorErrorCode::Cwd),
+        ("runner", CursorErrorCode::Runner),
+        ("sdk_run", CursorErrorCode::SdkRun),
+        ("cancelled", CursorErrorCode::Cancelled),
+    ];
+    for (runner_type, expected) in cases {
+        let err = cursor_adapter::map_runner_error(runner_type, "detail");
+        assert_eq!(err.code, expected, "type {runner_type}");
+        assert_ne!(
+            err.message, host_generic,
+            "{runner_type} must not collapse to Host generic upstream message"
+        );
+        assert!(
+            !err.message.contains("sk-") && !err.message.contains("CURSOR_API_KEY"),
+            "frontend message must not leak secrets: {}",
+            err.message
+        );
+    }
+}
+
+#[test]
+fn t3_fake_client_reuses_same_agent_across_turns_without_resume() {
+    with_sandbox(|| {
+        session_cwd::reset_for_tests();
+        let fake = FakeCursorRunnerClient::new();
+        let log = fake.log.clone();
+        let runtime = CursorSessionRuntime::with_client_factory(move |key| {
+            let mut c = FakeCursorRunnerClient::from_shared(log.clone());
+            c.on_spawned_with_api_key(key);
+            Ok(Box::new(c))
+        });
+
+        let r1 = runtime
+            .run_turn(&t3_turn_request("sess_reuse", "first"))
+            .expect("turn1");
+        assert!(r1.should_persist);
+        assert_eq!(r1.text, "fake-ok");
+
+        let r2 = runtime
+            .run_turn(&t3_turn_request("sess_reuse", "second"))
+            .expect("turn2");
+        assert!(r2.should_persist);
+
+        let methods: Vec<String> = fake
+            .log
+            .lock()
+            .unwrap()
+            .iter()
+            .map(|e| e.method.clone())
+            .collect();
+        assert_eq!(
+            methods,
+            vec!["create".to_string(), "turn".to_string(), "turn".to_string()],
+            "create once then reuse agent via turn; no resume: {methods:?}"
+        );
+        let cwd = session_cwd::session_cwd_for("sess_reuse").expect("cwd reused");
+        assert!(cwd.is_dir());
+        session_cwd::reset_for_tests();
+    });
+}
+
+#[test]
+fn t3_one_session_one_in_flight_turn() {
+    with_sandbox(|| {
+        session_cwd::reset_for_tests();
+        let fake = FakeCursorRunnerClient::new();
+        fake.set_turn_block(Duration::from_millis(200));
+        let log = fake.log.clone();
+        let runtime = Arc::new(CursorSessionRuntime::with_client_factory(move |key| {
+            let mut c = FakeCursorRunnerClient::from_shared(log.clone());
+            c.on_spawned_with_api_key(key);
+            Ok(Box::new(c))
+        }));
+
+        let rt_a = runtime.clone();
+        let handle = std::thread::spawn(move || rt_a.run_turn(&t3_turn_request("sess_busy", "slow")));
+        std::thread::sleep(Duration::from_millis(30));
+        let err = runtime
+            .run_turn(&t3_turn_request("sess_busy", "second"))
+            .expect_err("second in-flight turn must fail");
+        assert_eq!(err.code, CursorErrorCode::Busy);
+        let _ = handle.join().expect("join");
+        session_cwd::reset_for_tests();
+    });
+}
+
+#[test]
+fn t3_cancel_for_binding_cut_waits_terminal_and_does_not_persist() {
+    with_sandbox(|| {
+        session_cwd::reset_for_tests();
+        let fake = FakeCursorRunnerClient::new();
+        fake.set_turn_block(Duration::from_millis(300));
+        let log = fake.log.clone();
+        let runtime = Arc::new(CursorSessionRuntime::with_client_factory(move |key| {
+            let mut c = FakeCursorRunnerClient::from_shared(log.clone());
+            c.on_spawned_with_api_key(key);
+            Ok(Box::new(c))
+        }));
+
+        let rt_a = runtime.clone();
+        let turn_handle =
+            std::thread::spawn(move || rt_a.run_turn(&t3_turn_request("sess_cut", "in-flight")));
+        std::thread::sleep(Duration::from_millis(30));
+
+        // Reset / replacement Set / defensive unbound all use cancel-first.
+        runtime
+            .cancel_for_binding_cut("sess_cut")
+            .expect("cancel");
+
+        let turn_result = turn_handle.join().expect("join");
+        match turn_result {
+            Ok(r) => assert!(
+                !r.should_persist,
+                "cancelled/expired results must not persist to Assistant session"
+            ),
+            Err(e) => {
+                assert_eq!(e.code, CursorErrorCode::Cancelled);
+                assert!(!cursor_adapter::should_persist_cursor_result(&Err(e)));
+            }
+        }
+        let methods: Vec<_> = fake
+            .log
+            .lock()
+            .unwrap()
+            .iter()
+            .map(|e| e.method.clone())
+            .collect();
+        assert!(
+            methods.iter().any(|m| m == "cancel"),
+            "binding cut must send cancel: {methods:?}"
+        );
+        session_cwd::reset_for_tests();
+    });
+}
+
+#[test]
+fn t3_cancel_timeout_force_kills_child() {
+    with_sandbox(|| {
+        session_cwd::reset_for_tests();
+        let fake = FakeCursorRunnerClient::new();
+        fake.set_cancel_hang(true);
+        let log = fake.log.clone();
+        let runtime = CursorSessionRuntime::with_client_factory(move |key| {
+            let mut c = FakeCursorRunnerClient::from_shared(log.clone());
+            c.on_spawned_with_api_key(key);
+            Ok(Box::new(c))
+        });
+        runtime.set_cancel_timeout(Duration::from_millis(50));
+
+        runtime
+            .run_turn(&t3_turn_request("sess_kill", "x"))
+            .expect("create+turn");
+        // Simulate in-flight then cancel with hanging cancel().
+        fake.mark_in_flight(true);
+        runtime
+            .cancel_for_binding_cut("sess_kill")
+            .expect("cancel path completes via force kill");
+        assert!(
+            fake.force_killed.load(std::sync::atomic::Ordering::SeqCst),
+            "timeout must force-kill child"
+        );
+        session_cwd::reset_for_tests();
+    });
+}
+
+#[test]
+fn t3_close_awaits_dispose_then_cleans_cwd_shell_close_does_not() {
+    with_sandbox(|| {
+        session_cwd::reset_for_tests();
+        let fake = FakeCursorRunnerClient::new();
+        let log = fake.log.clone();
+        let runtime = CursorSessionRuntime::with_client_factory(move |key| {
+            let mut c = FakeCursorRunnerClient::from_shared(log.clone());
+            c.on_spawned_with_api_key(key);
+            Ok(Box::new(c))
+        });
+
+        runtime
+            .run_turn(&t3_turn_request("sess_close", "hi"))
+            .expect("turn");
+        let cwd = session_cwd::session_cwd_for("sess_close").expect("cwd");
+        assert!(cwd.is_dir());
+
+        // Shell close: session continues — must NOT clean cwd/agent.
+        runtime.on_shell_close("sess_close");
+        assert!(
+            cwd.is_dir(),
+            "shell close must retain cwd (existing semantics)"
+        );
+        assert!(
+            runtime.has_session("sess_close"),
+            "shell close must retain agent session"
+        );
+        let methods_after_shell: Vec<_> = fake
+            .log
+            .lock()
+            .unwrap()
+            .iter()
+            .map(|e| e.method.clone())
+            .collect();
+        assert!(
+            !methods_after_shell.iter().any(|m| m == "close"),
+            "shell close must not send close/dispose"
+        );
+
+        // Explicit close: Node must await agent dispose before responding; then Rust cleans cwd.
+        runtime.close_session("sess_close").expect("close");
+        let methods: Vec<_> = fake
+            .log
+            .lock()
+            .unwrap()
+            .iter()
+            .map(|e| e.method.clone())
+            .collect();
+        assert!(
+            methods.iter().any(|m| m == "close"),
+            "close must call runner close (Node awaits Symbol.asyncDispose): {methods:?}"
+        );
+        assert!(
+            fake.dispose_awaited.load(std::sync::atomic::Ordering::SeqCst),
+            "close must await dispose on Node side before ok"
+        );
+        assert!(
+            !cwd.exists(),
+            "Rust cleans cwd only after successful close"
+        );
+        assert!(!runtime.has_session("sess_close"));
+        session_cwd::reset_for_tests();
+    });
+}
+
+#[test]
+fn t3_close_paths_cover_reset_replacement_defensive_and_app_exit() {
+    with_sandbox(|| {
+        session_cwd::reset_for_tests();
+        let fake = FakeCursorRunnerClient::new();
+        let log = fake.log.clone();
+        let runtime = CursorSessionRuntime::with_client_factory(move |key| {
+            let mut c = FakeCursorRunnerClient::from_shared(log.clone());
+            c.on_spawned_with_api_key(key);
+            Ok(Box::new(c))
+        });
+
+        for sid in ["sess_reset", "sess_replace", "sess_defensive", "sess_exit"] {
+            runtime
+                .run_turn(&t3_turn_request(sid, "hi"))
+                .expect("turn");
+        }
+
+        // Reset / replacement Set / defensive cut: cancel then close+cleanup.
+        for sid in ["sess_reset", "sess_replace", "sess_defensive"] {
+            runtime.cancel_for_binding_cut(sid).expect("cancel");
+            runtime.close_session(sid).expect("close");
+            assert!(session_cwd::session_cwd_for(sid).is_none());
+        }
+
+        // App exit closes remaining sessions.
+        runtime.close_all_for_app_exit().expect("app exit");
+        assert!(!runtime.has_session("sess_exit"));
+        assert!(session_cwd::session_cwd_for("sess_exit").is_none());
+        session_cwd::reset_for_tests();
+    });
+}
+
+#[test]
+fn t3_create_uses_ready_mcp_servers_shape_and_keeps_key_out_of_jsonl() {
+    with_sandbox(|| {
+        session_cwd::reset_for_tests();
+        let fake = FakeCursorRunnerClient::new();
+        let log = fake.log.clone();
+        let runtime = CursorSessionRuntime::with_client_factory(move |key| {
+            let mut c = FakeCursorRunnerClient::from_shared(log.clone());
+            c.on_spawned_with_api_key(key);
+            Ok(Box::new(c))
+        });
+
+        runtime
+            .run_turn(&t3_turn_request("sess_mcp", "hi"))
+            .expect("turn");
+
+        let entries = fake.log.lock().unwrap().clone();
+        let create = entries
+            .iter()
+            .find(|e| e.method == "create")
+            .expect("create logged");
+        let params = create.params.as_ref().expect("create params");
+        assert!(
+            params.get("apiKey").is_none() && params.get("api_key").is_none(),
+            "API key must not appear in JSONL params: {params}"
+        );
+        let mcp = params.get("mcpServers").expect("mcpServers");
+        let expected = mcp_endpoint_readiness::map_to_sdk_mcp_servers(&ready_mcp_sample());
+        let expected_v = serde_json::to_value(&expected).unwrap();
+        assert_eq!(mcp, &expected_v);
+        // Factory receives key for env injection only.
+        assert_eq!(
+            fake.last_spawn_api_key.lock().unwrap().as_deref(),
+            Some("sk-test-cursor-key")
+        );
+        session_cwd::reset_for_tests();
+    });
+}
+
+#[test]
+fn t3_cancelled_result_helper_blocks_assistant_persist() {
+    let cancelled = Err(cursor_adapter::CursorError {
+        code: CursorErrorCode::Cancelled,
+        message: "x".into(),
+    });
+    assert!(!cursor_adapter::should_persist_cursor_result(&cancelled));
+    let ok = Ok(cursor_adapter::TurnOutcome {
+        text: "hi".into(),
+        should_persist: true,
+    });
+    assert!(cursor_adapter::should_persist_cursor_result(&ok));
+    let ok_but_flagged = Ok(cursor_adapter::TurnOutcome {
+        text: "stale".into(),
+        should_persist: false,
+    });
+    assert!(!cursor_adapter::should_persist_cursor_result(&ok_but_flagged));
 }

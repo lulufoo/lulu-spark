@@ -88,10 +88,10 @@ fn validate_key(key: &str) -> Result<(), McpServerLookupError> {
 }
 
 fn validate_config(config: &McpServerConfig) -> Result<(), McpServerLookupError> {
-    if config.capability_description.trim().is_empty() {
-        return Err(McpServerLookupError::InvalidKey);
-    }
-    if config.http_transport.name.trim().is_empty() || config.http_transport.url.trim().is_empty()
+    let t = &config.http_transport;
+    if config.capability_description.trim().is_empty()
+        || t.name.trim().is_empty()
+        || t.url.trim().is_empty()
     {
         return Err(McpServerLookupError::InvalidKey);
     }
