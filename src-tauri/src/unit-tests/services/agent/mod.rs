@@ -475,17 +475,11 @@ fn llm_unsupported_tool_calls_errors_without_prompt_json_fallback() {
 fn llm_load_config_reads_settings_and_secret() {
     with_agent_sandbox(|_| {
         let mut s = settings::load().expect("load");
-        settings::apply_config_payload(
-            &mut s,
-            &json!({
-                "llm": {
-                    "base_url": "https://api.example.com",
-                    "model": "demo-model",
-                    "platform": "kimi"
-                }
-            }),
-        )
-        .expect("apply");
+        // Preset platform/base_url are not client-writable via apply_config_payload;
+        // persist them on the settings struct to exercise Host load_llm_config.
+        s.llm.platform = "kimi".into();
+        s.llm.base_url = "https://api.example.com".into();
+        s.llm.model = "demo-model".into();
         settings::save(&s).expect("save llm settings");
         secrets::set_secret(KEY_LLM_API_KEY, "sk-from-secret").expect("set");
 

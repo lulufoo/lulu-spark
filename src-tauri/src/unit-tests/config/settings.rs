@@ -140,22 +140,22 @@ fn to_config_json_includes_llm_fields_without_plaintext_key() {
 }
 
 #[test]
-fn apply_config_payload_updates_engine_model_and_legacy_llm_metadata() {
+fn apply_config_payload_updates_engine_model_and_stamps_readonly_preset() {
     let mut s = AppSettings::default();
     apply_config_payload(
         &mut s,
         &serde_json::json!({
             "assistant_engine": "host",
             "llm": {
-                "platform": "glm",
-                "base_url": "https://open.bigmodel.cn",
+                "platform": "kimi",
+                "base_url": "https://api.moonshot.cn",
                 "model": "glm-4"
             },
             "api_key": "should-not-land-in-settings"
         }),
     )
     .expect("apply");
-    // Legacy llm.* keys still map into stored metadata/model (A1); secrets stay out of toml.
+    // Client platform/base_url ignored; builtin host preset stamped; model kept.
     assert_eq!(s.assistant_engine, "host");
     assert_eq!(s.llm.platform, "glm");
     assert_eq!(s.llm.base_url, "https://open.bigmodel.cn");
@@ -182,6 +182,7 @@ fn apply_config_payload_ignores_illegal_llm_types_without_clobber() {
         }),
     )
     .expect("apply");
+    // No assistant_engine → no stamp; invalid types ignored; prior metadata kept.
     assert_eq!(s.llm.platform, "openai_compatible");
     assert_eq!(s.llm.base_url, "https://example.com");
     assert_eq!(s.llm.model, "gpt-4o");
@@ -297,9 +298,34 @@ fn apply_config_payload_accepts_host_and_cursor_engines() {
     apply_config_payload(&mut s, &serde_json::json!({ "assistant_engine": "cursor" }))
         .expect("cursor");
     assert_eq!(s.assistant_engine, "cursor");
+    assert_eq!(s.llm.platform, "cursor_agent");
+    assert_eq!(s.llm.base_url, "(managed by Cursor Agent)");
     apply_config_payload(&mut s, &serde_json::json!({ "assistant_engine": "host" }))
         .expect("host");
     assert_eq!(s.assistant_engine, "host");
+    assert_eq!(s.llm.platform, "glm");
+    assert_eq!(s.llm.base_url, "https://open.bigmodel.cn");
+}
+
+#[test]
+fn load_stamps_builtin_preset_when_legacy_platform_base_url_blank() {
+    let dir = tempfile::tempdir().expect("tmp");
+    let _guard = IsolatedConfigGuard::set(dir.path());
+    fs::write(
+        dir.path().join(PROD_CONFIG_FILE_NAME),
+        r#"
+assistant_engine = "host"
+
+[llm]
+model = "glm-4"
+"#,
+    )
+    .expect("write");
+    let s = load().expect("load");
+    assert_eq!(s.assistant_engine, "host");
+    assert_eq!(s.llm.model, "glm-4");
+    assert_eq!(s.llm.platform, "glm");
+    assert_eq!(s.llm.base_url, "https://open.bigmodel.cn");
 }
 
 #[test]

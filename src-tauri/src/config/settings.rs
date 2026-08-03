@@ -119,6 +119,25 @@ fn normalize_engine_value(raw: &str) -> Option<&'static str> {
     }
 }
 
+/// Built-in readonly preset metadata (aligned with frontend `engine-presets.js`).
+/// Model remains independently editable; platform/base_url are never client-writable.
+fn builtin_preset_fields(engine: &str) -> Option<(&'static str, &'static str)> {
+    match normalize_engine_value(engine).unwrap_or("host") {
+        "cursor" => Some(("cursor_agent", "(managed by Cursor Agent)")),
+        "host" => Some(("glm", "https://open.bigmodel.cn")),
+        _ => None,
+    }
+}
+
+/// Stamp readonly preset fields from the current Engine category.
+/// Ensures Host `load_llm_config` receives a usable base_url matching the UI preset.
+pub fn stamp_readonly_preset_fields(settings: &mut AppSettings) {
+    if let Some((platform, base_url)) = builtin_preset_fields(&settings.assistant_engine) {
+        settings.llm.platform = platform.to_string();
+        settings.llm.base_url = base_url.to_string();
+    }
+}
+
 /// Map legacy `LlmSettings` (+ optional api key) into Engine classification + Model + metadata.
 ///
 /// - No / blank / illegal `existing_engine` → lock classification to `host`
@@ -151,7 +170,11 @@ fn apply_engine_migration_on_load(settings: &mut AppSettings) {
     let existing = (!existing.is_empty()).then_some(existing);
     let slice = migrate_llm_to_engine(&settings.llm, None, existing);
     settings.assistant_engine = slice.assistant_engine;
-    // Model / platform / base_url already on settings.llm; keep as loaded.
+    // Preserve non-empty legacy platform/base_url (A1). Stamp builtin preset only when
+    // both are blank so Host has a usable base_url after Engine IA without a re-save.
+    if settings.llm.platform.trim().is_empty() && settings.llm.base_url.trim().is_empty() {
+        stamp_readonly_preset_fields(settings);
+    }
     let _ = crate::config::secrets::migrate_legacy_llm_api_key_to_host();
 }
 
@@ -491,10 +514,13 @@ pub fn to_config_json(
 
 /// Apply `set_config` payload keys onto settings (toml fields only).
 /// Illegal `assistant_engine` values are rejected (aligned with `resolve_engine`: host|cursor).
+/// `llm.platform` / `llm.base_url` from the client are ignored (preset readonly); when
+/// `assistant_engine` is present they are stamped from the builtin category preset.
 pub fn apply_config_payload(
     settings: &mut AppSettings,
     payload: &serde_json::Value,
 ) -> Result<(), SettingsError> {
+    let mut engine_touched = false;
     if let Some(v) = payload.get("assistant_engine").and_then(|x| x.as_str()) {
         let Some(normalized) = normalize_engine_value(v) else {
             return Err(SettingsError::ConfigGuard(format!(
@@ -502,6 +528,7 @@ pub fn apply_config_payload(
             )));
         };
         settings.assistant_engine = normalized.to_string();
+        engine_touched = true;
     }
     if let Some(v) = payload
         .get("workbench_knowledge_root")
@@ -522,15 +549,13 @@ pub fn apply_config_payload(
         settings.meili_url = v.to_string();
     }
     if let Some(llm) = payload.get("llm").and_then(|x| x.as_object()) {
-        if let Some(v) = llm.get("platform").and_then(|x| x.as_str()) {
-            settings.llm.platform = v.to_string();
-        }
-        if let Some(v) = llm.get("base_url").and_then(|x| x.as_str()) {
-            settings.llm.base_url = v.to_string();
-        }
+        // Preset fields are readonly — ignore client platform/base_url.
         if let Some(v) = llm.get("model").and_then(|x| x.as_str()) {
             settings.llm.model = v.to_string();
         }
+    }
+    if engine_touched {
+        stamp_readonly_preset_fields(settings);
     }
     // `cache_dir` is not user-settable via API; use `default_cache_dir()` / manual toml edit.
     Ok(())
