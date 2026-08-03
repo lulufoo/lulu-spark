@@ -75,16 +75,16 @@ const LAYERED_VITEST = [
 ];
 
 const HOST_TOOLS_MARKERS = [
-  'tools_update_master_title_success_and_validation_failures',
-  'tools_five_suite_happy_path_and_data_omits_todo_md',
+  't3_todo_task_persistence_still_available_for_mcp_http',
+  't3_tools_rs_has_no_pub_dispatch_capability',
 ];
 
 const LOOP_MARKERS = [
   'run_loop_clarify_under_limit_returns_none_not_wrote',
-  'run_loop_tool_write_sets_wrote_true_and_persists',
-  'run_loop_add_sub_and_update_sub_title_paths_are_observable',
-  'parallel_tool_calls_run_serially_and_ok_false_does_not_abort',
-  'same_message_tool_calls_plus_content_content_is_not_final_reply',
+  'run_loop_tool_calls_do_not_execute_in_process_business_tools',
+  'run_loop_add_sub_and_update_sub_title_paths_are_not_in_process',
+  'parallel_tool_calls_do_not_execute_in_process_or_fake_ok',
+  'same_message_tool_calls_plus_content_does_not_dispatch_or_write',
   'open_ai_assistant_busy_rejects_rebind',
   'unsupported_tool_calls_upstream_is_error_terminal_no_prompt_json',
   'length_and_http_errors_map_to_error_terminal_no_retry',
@@ -188,7 +188,8 @@ describe('Todos SK-4 parity acceptance (P1–P6 / N1/N2)', () => {
     );
   });
 
-  it('T-lift capability surface stays at five tools; no complete/abandon/batch in Binding', () => {
+  it('business Binding tools empty; prompt still refuses unsupported ops (P2 empty tools)', () => {
+    // Historical T-lift name list may remain as constant; Binding no longer submits them.
     expect([...TODOS_T_LIFT_TOOL_NAMES]).toEqual([
       'get_plan',
       'list_sub_tasks',
@@ -197,16 +198,15 @@ describe('Todos SK-4 parity acceptance (P1–P6 / N1/N2)', () => {
       'update_master_title',
     ]);
     const body = assembleTodosBindingBody();
-    const toolNames = body.tools.map((t) => t.name);
-    expect(toolNames).toEqual([...TODOS_T_LIFT_TOOL_NAMES]);
-    const serialized = JSON.stringify(body);
+    expect(body.tools).toEqual([]);
+    const serialized = JSON.stringify(body.tools);
     for (const banned of OUT_OF_PARITY_TOOLS) {
       expect(serialized).not.toContain(banned);
     }
+    for (const name of TODOS_T_LIFT_TOOL_NAMES) {
+      expect(serialized).not.toContain(name);
+    }
     expect(body.prompt).toMatch(/目前不支持|不支持/);
-    expect(body.prompt).toMatch(/get_plan|list_sub_tasks/);
-    expect(body.prompt).toMatch(/add_sub_task/);
-    expect(body.prompt).toMatch(/update_master_title|update_sub_title/);
   });
 
   it('N1 flag: open-and-bind main path disabled on Todos consumer', () => {
@@ -325,21 +325,14 @@ describe('Todos SK-4 parity acceptance (P1–P6 / N1/N2)', () => {
       expect(exec.ok).toBe(true);
     });
 
-    it('P2–P5: Binding tools+prompt cover read/add/rename and reject unsupported ops in prompt', () => {
+    it('P2–P5: Binding tools empty; prompt still covers parity language and refuses unsupported ops', () => {
       const body = assembleTodosBindingBody();
-      // P2 read tools
-      expect(body.tools.map((t) => t.name)).toEqual(
-        expect.arrayContaining(['get_plan', 'list_sub_tasks']),
-      );
-      // P3 add sub
-      expect(body.tools.map((t) => t.name)).toContain('add_sub_task');
-      // P4 title updates
-      expect(body.tools.map((t) => t.name)).toEqual(
-        expect.arrayContaining(['update_master_title', 'update_sub_title']),
-      );
-      // P5 unsupported refused in prompt contract
+      // Host Agent P2: business session tools empty (no T-lift handles in Binding).
+      expect(body.tools).toEqual([]);
+      // Prompt contract retains parity wording (ops described; tools not submitted).
       expect(body.prompt).toMatch(/目前不支持/);
       expect(body.prompt).toMatch(/删除、完成\/放弃|完成\/放弃/);
+      expect(body.prompt).toMatch(/get_plan|list_sub_tasks|只读/);
     });
 
     it('P6: leave Reset→onUnbound then execute rejected', async () => {

@@ -451,11 +451,7 @@ describe('mountPlanTaskSplit wires page lifecycle', () => {
     );
     expect(selected?.dataset.masterId).toBe('task_beta');
     const setCall = invokeMock.mock.calls.find(([command]) => command === 'set_binding');
-    expect(setCall?.[1]?.binding.tools).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ ctx: { master_task_id: 'task_beta' } }),
-      ]),
-    );
+    expect(setCall?.[1]?.binding.tools).toEqual([]);
     api.dispose();
   });
 });

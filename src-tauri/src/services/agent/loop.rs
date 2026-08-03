@@ -7,7 +7,7 @@ use std::sync::{Mutex, OnceLock};
 use serde::Serialize;
 use serde_json::{json, Value};
 
-use crate::services::agent::llm::{self, AssistantMessage, LlmConfig, LlmError};
+use crate::services::agent::llm::{self, LlmConfig, LlmError};
 use crate::services::agent::session::{self, Session, Turn};
 use crate::services::agent::tools;
 use crate::services::todo_task;
@@ -18,19 +18,9 @@ pub use crate::services::agent::session::{
 
 pub const EVENT_TURN_COMPLETED: &str = "ai-assistant:turn-completed";
 pub const WINDOW_LABEL: &str = "ai-assistant";
-pub const MAX_TOOL_ROUNDS: u32 = 8;
 pub const MAX_CLARIFY_ROUNDS: u32 = 5;
 pub const MAX_HISTORY_MESSAGES: usize = 20;
 pub const MAX_USER_TURNS: usize = 8;
-
-const WRITE_TOOLS: &[&str] = &["add_sub_task", "update_sub_title", "update_master_title"];
-const WHITELIST: &[&str] = &[
-    "get_plan",
-    "list_sub_tasks",
-    "add_sub_task",
-    "update_sub_title",
-    "update_master_title",
-];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Terminal {
@@ -615,23 +605,6 @@ fn map_llm_error(err: &LlmError) -> TurnOutcome {
     }
 }
 
-fn tool_calls_json(msg: &AssistantMessage) -> Value {
-    let arr: Vec<Value> = msg
-        .tool_calls
-        .iter()
-        .map(|tc| {
-            json!({
-                "id": tc.id,
-                "type": "function",
-                "function": {
-                    "name": tc.name,
-                    "arguments": tc.arguments,
-                }
-            })
-        })
-        .collect();
-    Value::Array(arr)
-}
 
 fn persist(session: &Session) {
     let _ = session::save_session(session);
@@ -722,10 +695,10 @@ pub fn run_loop(session: &mut Session, user_message: &str, config: &LlmConfig) -
     });
     persist(session);
 
-    let mut wrote = false;
-    let mut tool_rounds: u32 = 0;
+    let wrote = false;
+    // Interface layer: Binding.tools → OpenAI tools field (may be empty for business path).
+    // Capability layer removed (t3): no in-process business tool-round.
     let tools_defs = tools::openai_tool_definitions_for_binding(&binding.tools);
-    let declared_tools = tools::tool_names_from_binding(&binding.tools);
 
     loop {
         if chat_turn_interrupted(generation) {
@@ -756,76 +729,13 @@ pub fn run_loop(session: &mut Session, user_message: &str, config: &LlmConfig) -
             return cancelled_turn_outcome(session, turns_checkpoint);
         }
 
-        if !msg.tool_calls.is_empty() {
-            // Gate again immediately before tool dispatch.
-            if chat_turn_interrupted(generation) {
-                return cancelled_turn_outcome(session, turns_checkpoint);
-            }
-            for tc in &msg.tool_calls {
-                let allowed = WHITELIST.contains(&tc.name.as_str())
-                    && declared_tools.iter().any(|n| n == &tc.name);
-                if tc.id.trim().is_empty() || !allowed {
-                    let reply = "模型响应异常或请求了不支持的工具，未执行任何写入。".to_string();
-                    session.turns.push(Turn {
-                        role: "assistant".into(),
-                        content: Some(reply.clone()),
-                        tool_call_id: None,
-                        tool_calls: Some(tool_calls_json(&msg)),
-                        name: None,
-                    });
-                    persist(session);
-                    return TurnOutcome {
-                        reply_text: reply,
-                        terminal: Terminal::Error,
-                        wrote: false,
-                    };
-                }
-            }
-
-            if tool_rounds >= MAX_TOOL_ROUNDS {
-                let reply = "工具调用次数已达上限，已停止本回合。".to_string();
-                session.turns.push(Turn {
-                    role: "assistant".into(),
-                    content: Some(reply.clone()),
-                    tool_call_id: None,
-                    tool_calls: None,
-                    name: None,
-                });
-                persist(session);
-                return TurnOutcome {
-                    reply_text: reply,
-                    terminal: Terminal::Error,
-                    wrote,
-                };
-            }
-            tool_rounds += 1;
-
-            session.turns.push(Turn {
-                role: "assistant".into(),
-                content: msg.content.clone(),
-                tool_call_id: None,
-                tool_calls: Some(tool_calls_json(&msg)),
-                name: None,
-            });
-
-            for tc in &msg.tool_calls {
-                let args: Value = serde_json::from_str(&tc.arguments).unwrap_or(json!({}));
-                let master_from_ctx =
-                    tools::master_id_from_binding_tools(&binding.tools, &tc.name);
-                let result = tools::dispatch(&tc.name, &args, master_from_ctx.as_deref());
-                if WRITE_TOOLS.contains(&tc.name.as_str()) && result["ok"] == true {
-                    wrote = true;
-                }
-                session.turns.push(Turn {
-                    role: "tool".into(),
-                    content: Some(result.to_string()),
-                    tool_call_id: Some(tc.id.clone()),
-                    tool_calls: None,
-                    name: Some(tc.name.clone()),
-                });
-            }
-            persist(session);
-            continue;
+        // Interface/capability boundary (t2/t3):
+        // - tools_defs.is_empty(): business path sends empty tools (t2).
+        // - non-empty tools_defs: still no in-process execution (t3).
+        if !msg.tool_calls.is_empty() && !tools_defs.is_empty() {
+            // Fall through to content handling — never execute business tools in-process.
+        } else if !msg.tool_calls.is_empty() && tools_defs.is_empty() {
+            // Empty tools: ignore model tool_calls; continue with content if any.
         }
 
         let content = msg
