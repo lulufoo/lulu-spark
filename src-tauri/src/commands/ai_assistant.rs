@@ -5,11 +5,17 @@ use serde_json::{json, Value};
 use tauri::{AppHandle, Emitter};
 
 use crate::services::agent::r#loop::{self, ChatTurnResult, EVENT_TURN_COMPLETED, WINDOW_LABEL};
+pub use crate::services::agent::session::value_exposes_engine_selection;
 
 pub const AI_ASSISTANT_WINDOW_LABEL: &str = WINDOW_LABEL;
 pub const EVENT_ASSISTANT_OPENED: &str = "ai-assistant:opened";
 /// Emitted when Binding Contract Set/Reset/defensive cut changes `query_binding` state (shell composer gate).
 pub const EVENT_BINDING_CHANGED: &str = "ai-assistant:binding-changed";
+
+/// P1 / T1: engine-opaque session facade — public open/ensure/chat entry points
+/// never accept Host/Cursor/engine selection parameters; callers cannot branch
+/// on engine type via signature or return/event payload fields.
+pub const SESSION_FACADE_ENGINE_OPAQUE: bool = true;
 
 pub fn open_ai_assistant_json(master_task_id: &str) -> Result<Value, String> {
     // Physical open path may still carry shell UX payload; Present semantics must not imply Set.
@@ -45,7 +51,8 @@ pub fn get_ai_assistant_binding_json() -> Value {
     r#loop::get_ai_assistant_binding_core()
 }
 
-/// Binding Contract Set entry (tools + prompt + callbacks). Does not fill tools/prompt.
+/// Binding Contract Set entry (key-only). Looks up Host MCP registry; rejects legacy
+/// tools/prompt/callbacks payload and engine selection parameters.
 pub fn set_binding_json(binding: Value) -> Value {
     match r#loop::try_set_binding_json(&binding) {
         Ok(()) => json!({
@@ -101,7 +108,7 @@ pub fn execute_binding_json() -> Value {
     }
 }
 
-/// Invokable Binding Contract Set. Host does not assemble tools/prompt.
+/// Invokable Binding Contract Set (key-only; no engine selection parameter).
 #[tauri::command]
 pub async fn set_binding(app: AppHandle, binding: Value) -> Result<Value, String> {
     let result = tauri::async_runtime::spawn_blocking(move || set_binding_json(binding))
@@ -111,7 +118,7 @@ pub async fn set_binding(app: AppHandle, binding: Value) -> Result<Value, String
     Ok(result)
 }
 
-/// Invokable Binding Contract Reset → unbound.
+/// Invokable Binding Contract Reset → unbound (no engine selection parameter).
 #[tauri::command]
 pub async fn reset_binding(app: AppHandle) -> Result<Value, String> {
     let result = tauri::async_runtime::spawn_blocking(reset_binding_json)

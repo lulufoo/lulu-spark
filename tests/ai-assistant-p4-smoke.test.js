@@ -25,7 +25,7 @@ vi.mock('../frontend/js/apiClient.js', async (importOriginal) => {
 import {
   createTodosPageLifecycle,
   assembleTodosBindingBody,
-  TODOS_T_LIFT_TOOL_NAMES,
+  TODOS_BUSINESS_KEY,
   TODOS_OPEN_AND_BIND_MAIN_PATH_DISABLED,
   TODOS_PARITY_ACCEPTANCE,
   mountPlanTaskSplit,
@@ -75,21 +75,27 @@ const LAYERED_VITEST = [
 ];
 
 const HOST_TOOLS_MARKERS = [
-  'tools_update_master_title_success_and_validation_failures',
-  'tools_five_suite_happy_path_and_data_omits_todo_md',
+  't3_todo_task_persistence_still_available_for_mcp_http',
+  't3_tools_rs_has_no_pub_dispatch_capability',
 ];
 
 const LOOP_MARKERS = [
   'run_loop_clarify_under_limit_returns_none_not_wrote',
-  'run_loop_tool_write_sets_wrote_true_and_persists',
-  'run_loop_add_sub_and_update_sub_title_paths_are_observable',
-  'parallel_tool_calls_run_serially_and_ok_false_does_not_abort',
-  'same_message_tool_calls_plus_content_content_is_not_final_reply',
+  // P3 / T3 Host empty-tools: process-local tool write path narrowed away.
+  'run_loop_host_empty_tools_rejects_tool_calls_without_dispatch',
+  'run_loop_host_text_paths_remain_observable_without_tool_writes',
+  'parallel_tool_calls_are_rejected_without_process_dispatch',
+  'same_message_tool_calls_plus_content_does_not_dispatch_or_finalize',
   'open_ai_assistant_busy_rejects_rebind',
   'unsupported_tool_calls_upstream_is_error_terminal_no_prompt_json',
   'length_and_http_errors_map_to_error_terminal_no_retry',
   'history_truncation_keeps_system_and_dual_hard_caps',
   'terminal_no_plan_unsupported_and_error_are_distinguishable',
+  't3_host_business_chat_sends_empty_tools_to_llm',
+  't3_a3_host_empty_tools_facade_usable_confirmed',
+  // L1+L2 integration markers retained on Host empty-tools path
+  't2_key_only_set_llm_round_omits_tools_and_loads_mcp',
+  't3_loop_rs_has_no_business_whitelist_dispatch_path',
   // J1 / execute 门闩内核验收夹具（SK-4 / H1，无业务 UI 驱动）
   'j1_1_legal_set_on_bound_execute_reset_rejects',
   'j1_2_illegal_set_keeps_state_no_on_bound_emits_set_invalid',
@@ -188,25 +194,17 @@ describe('Todos SK-4 parity acceptance (P1–P6 / N1/N2)', () => {
     );
   });
 
-  it('T-lift capability surface stays at five tools; no complete/abandon/batch in Binding', () => {
-    expect([...TODOS_T_LIFT_TOOL_NAMES]).toEqual([
-      'get_plan',
-      'list_sub_tasks',
-      'add_sub_task',
-      'update_sub_title',
-      'update_master_title',
-    ]);
+  it('Binding call surface submits key-only todo_task; no tools/prompt/callbacks payload', () => {
+    expect(TODOS_BUSINESS_KEY).toBe('todo_task');
     const body = assembleTodosBindingBody();
-    const toolNames = body.tools.map((t) => t.name);
-    expect(toolNames).toEqual([...TODOS_T_LIFT_TOOL_NAMES]);
+    expect(body).toEqual({ key: 'todo_task' });
+    expect(body).not.toHaveProperty('tools');
+    expect(body).not.toHaveProperty('prompt');
+    expect(body).not.toHaveProperty('callbacks');
     const serialized = JSON.stringify(body);
     for (const banned of OUT_OF_PARITY_TOOLS) {
       expect(serialized).not.toContain(banned);
     }
-    expect(body.prompt).toMatch(/目前不支持|不支持/);
-    expect(body.prompt).toMatch(/get_plan|list_sub_tasks/);
-    expect(body.prompt).toMatch(/add_sub_task/);
-    expect(body.prompt).toMatch(/update_master_title|update_sub_title/);
   });
 
   it('N1 flag: open-and-bind main path disabled on Todos consumer', () => {
@@ -246,9 +244,11 @@ describe('Todos SK-4 parity acceptance (P1–P6 / N1/N2)', () => {
           const binding = args?.binding;
           if (
             !binding ||
-            binding.tools == null ||
-            binding.prompt == null ||
-            binding.callbacks == null
+            typeof binding.key !== 'string' ||
+            !binding.key.trim() ||
+            binding.tools != null ||
+            binding.prompt != null ||
+            binding.callbacks != null
           ) {
             return {
               ok: false,
@@ -257,8 +257,7 @@ describe('Todos SK-4 parity acceptance (P1–P6 / N1/N2)', () => {
             };
           }
           hostBound = true;
-          hostBindingToken =
-            binding.__testToken ?? binding.prompt?.slice?.(0, 8) ?? 'set';
+          hostBindingToken = binding.__testToken ?? binding.key;
           return { ok: true, state: 'bound' };
         }
         if (cmd === 'reset_binding') {
@@ -325,21 +324,13 @@ describe('Todos SK-4 parity acceptance (P1–P6 / N1/N2)', () => {
       expect(exec.ok).toBe(true);
     });
 
-    it('P2–P5: Binding tools+prompt cover read/add/rename and reject unsupported ops in prompt', () => {
+    it('P2–P5: Binding Set is key-only; capability surface is Host MCP key, not client tools/prompt', () => {
       const body = assembleTodosBindingBody();
-      // P2 read tools
-      expect(body.tools.map((t) => t.name)).toEqual(
-        expect.arrayContaining(['get_plan', 'list_sub_tasks']),
-      );
-      // P3 add sub
-      expect(body.tools.map((t) => t.name)).toContain('add_sub_task');
-      // P4 title updates
-      expect(body.tools.map((t) => t.name)).toEqual(
-        expect.arrayContaining(['update_master_title', 'update_sub_title']),
-      );
-      // P5 unsupported refused in prompt contract
-      expect(body.prompt).toMatch(/目前不支持/);
-      expect(body.prompt).toMatch(/删除、完成\/放弃|完成\/放弃/);
+      expect(body).toEqual({ key: TODOS_BUSINESS_KEY });
+      expect(body).not.toHaveProperty('tools');
+      expect(body).not.toHaveProperty('prompt');
+      expect(body).not.toHaveProperty('callbacks');
+      expect(body).not.toHaveProperty('engine');
     });
 
     it('P6: leave Reset→onUnbound then execute rejected', async () => {

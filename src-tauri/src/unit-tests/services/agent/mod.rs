@@ -3,6 +3,15 @@
 #[path = "loop_tests.rs"]
 mod loop_tests;
 
+#[path = "engine_router_tests.rs"]
+mod engine_router_tests;
+
+#[path = "cursor_adapter_tests.rs"]
+mod cursor_adapter_tests;
+
+#[path = "session_cwd_tests.rs"]
+mod session_cwd_tests;
+
 use std::fs;
 use std::io::{Read, Write};
 use std::net::TcpListener;
@@ -26,20 +35,6 @@ fn with_agent_sandbox<F: FnOnce(&TestSandbox)>(f: F) {
     let sandbox = TestSandbox::new();
     secrets::test_secrets_clear();
     f(&sandbox);
-}
-
-fn assert_tool_shell_ok(v: &Value) {
-    assert_eq!(v["ok"], true, "expected ok shell, got {v}");
-    assert!(v.get("data").is_some(), "missing data: {v}");
-    assert!(v.get("error").is_none(), "unexpected error: {v}");
-    assert!(v.get("code").is_none(), "unexpected code: {v}");
-}
-
-fn assert_tool_shell_err(v: &Value, code: &str) {
-    assert_eq!(v["ok"], false, "expected err shell, got {v}");
-    assert!(v.get("error").and_then(|e| e.as_str()).is_some(), "missing error: {v}");
-    assert_eq!(v["code"], code, "code mismatch: {v}");
-    assert!(v.get("data").is_none(), "unexpected data: {v}");
 }
 
 fn create_bound_plan(title: &str) -> String {
@@ -144,10 +139,11 @@ fn agent_error_log_writes_under_cache_agent_without_secrets() {
     });
 }
 
-// ── Tools ────────────────────────────────────────────────────────────────────
+// ── Tools (interface layer kept; capability dispatch removed in t3) ───────────
 
 #[test]
 fn tools_definitions_are_exactly_five_whitelist_names() {
+    // Interface layer: OpenAI tool definition shape retained (t2/t3 boundary).
     let defs = tools::openai_tool_definitions();
     let names: Vec<&str> = defs
         .iter()
@@ -166,156 +162,48 @@ fn tools_definitions_are_exactly_five_whitelist_names() {
 }
 
 #[test]
-fn tools_five_suite_happy_path_and_data_omits_todo_md() {
-    with_agent_sandbox(|_| {
-        let master_id = create_bound_plan("主计划");
-
-        let get = tools::dispatch("get_plan", &json!({}), Some(&master_id));
-        assert_tool_shell_ok(&get);
-        let data = &get["data"];
-        assert_eq!(data["master_task_id"], master_id);
-        assert_eq!(data["title"], "主计划");
-        assert!(data.get("todo_md").is_none(), "success data must omit todo_md");
-        assert!(data["sub_tasks"].as_array().unwrap().len() >= 1);
-
-        let listed = tools::dispatch("list_sub_tasks", &json!({}), Some(&master_id));
-        assert_tool_shell_ok(&listed);
-        assert!(listed["data"].get("todo_md").is_none());
-        let sub_id = listed["data"]["sub_tasks"][0]["sub_task_id"]
-            .as_str()
-            .unwrap()
-            .to_string();
-
-        let added = tools::dispatch("add_sub_task", &json!({ "title": "新子项" }), Some(&master_id));
-        assert_tool_shell_ok(&added);
-        assert_eq!(added["data"]["title"], "新子项");
-        assert!(added["data"].get("todo_md").is_none());
-
-        let upd_sub = tools::dispatch(
-            "update_sub_title",
-            &json!({ "sub_task_id": sub_id, "title": "改后子标题" }),
-            Some(&master_id),
-        );
-        assert_tool_shell_ok(&upd_sub);
-        assert_eq!(upd_sub["data"]["title"], "改后子标题");
-
-        let upd_master = tools::dispatch(
-            "update_master_title",
-            &json!({ "title": "改后主标题" }),
-            Some(&master_id),
-        );
-        assert_tool_shell_ok(&upd_master);
-        assert_eq!(upd_master["data"]["title"], "改后主标题");
-        assert_eq!(upd_master["data"]["master_task_id"], master_id);
-    });
+fn t2_openai_tool_definitions_for_binding_empty_when_binding_tools_empty() {
+    // Interface layer: empty Binding.tools → no OpenAI tool defs to the model.
+    let defs = tools::openai_tool_definitions_for_binding(&json!([]));
+    assert!(defs.is_empty(), "expected empty defs, got {defs:?}");
+    // Non-empty binding names still intersect whitelist (API shape retained).
+    let with_names = tools::openai_tool_definitions_for_binding(&json!([
+        { "name": "get_plan" },
+        { "name": "list_sub_tasks" }
+    ]));
+    assert_eq!(with_names.len(), 2);
 }
 
 #[test]
-fn tools_forbidden_without_or_with_invalid_binding() {
-    with_agent_sandbox(|_| {
-        let _ = create_bound_plan("有计划但不绑定");
-        for name in [
-            "get_plan",
-            "list_sub_tasks",
-            "add_sub_task",
-            "update_sub_title",
-            "update_master_title",
-        ] {
-            let none = tools::dispatch(name, &json!({ "title": "x", "sub_task_id": "s" }), None);
-            assert_tool_shell_err(&none, "forbidden");
-
-            let empty = tools::dispatch(
-                name,
-                &json!({ "title": "x", "sub_task_id": "s" }),
-                Some(""),
-            );
-            assert_tool_shell_err(&empty, "forbidden");
-
-            let missing = tools::dispatch(
-                name,
-                &json!({ "title": "x", "sub_task_id": "s" }),
-                Some("task_does_not_exist_zzzz"),
-            );
-            assert_tool_shell_err(&missing, "forbidden");
-        }
-    });
+fn t3_tools_rs_has_no_pub_dispatch_capability() {
+    // Capability layer: in-process business dispatch must be gone (not a silent no-op).
+    let src = include_str!("../../../services/agent/tools.rs");
+    assert!(
+        !src.contains("pub fn dispatch"),
+        "tools.rs must not export pub fn dispatch (in-process business tools removed)"
+    );
+    assert!(
+        !src.contains("todo_task::add_sub")
+            && !src.contains("todo_task::update_sub_title")
+            && !src.contains("todo_task::update_master_title")
+            && !src.contains("todo_task::get_by_id"),
+        "tools.rs must not call todo_task handlers (capability lives on MCP/HTTP)"
+    );
 }
 
 #[test]
-fn tools_unknown_name_never_executes_returns_unsupported() {
+fn t3_todo_task_persistence_still_available_for_mcp_http() {
+    // Backend keep: todo_task persistence remains for local_http / MCP (not via tools::dispatch).
     with_agent_sandbox(|_| {
-        let master_id = create_bound_plan("绑定");
-        let before = todo_task::get_by_id(&master_id);
-        let before_title = before["title"].clone();
-
-        let v = tools::dispatch(
-            "delete_master",
-            &json!({ "title": "should-not-run" }),
-            Some(&master_id),
+        let master_id = create_bound_plan("持久化保留");
+        let got = todo_task::get_by_id(&master_id);
+        assert_eq!(got["title"], "持久化保留");
+        let added = todo_task::add_sub(&master_id, "经服务新增", None);
+        assert!(
+            added.get("error").is_none(),
+            "todo_task service must remain callable: {added}"
         );
-        assert_tool_shell_err(&v, "unsupported");
-
-        let after = todo_task::get_by_id(&master_id);
-        assert_eq!(after["title"], before_title);
-    });
-}
-
-#[test]
-fn tools_error_codes_are_from_allowed_set() {
-    with_agent_sandbox(|_| {
-        let master_id = create_bound_plan("码表");
-        let samples = vec![
-            tools::dispatch("get_plan", &json!({}), None),
-            tools::dispatch("add_sub_task", &json!({}), Some(&master_id)),
-            tools::dispatch(
-                "update_sub_title",
-                &json!({ "sub_task_id": "nope", "title": "t" }),
-                Some(&master_id),
-            ),
-            tools::dispatch("no_such_tool", &json!({}), Some(&master_id)),
-        ];
-        let allowed = ["not_found", "bad_request", "forbidden", "unsupported", "internal"];
-        for v in samples {
-            if v["ok"] == false {
-                let code = v["code"].as_str().unwrap_or("");
-                assert!(allowed.contains(&code), "unexpected code {code} in {v}");
-            }
-        }
-    });
-}
-
-#[test]
-fn tools_update_master_title_success_and_validation_failures() {
-    with_agent_sandbox(|_| {
-        let master_id = create_bound_plan("主标题校验");
-
-        let ok_v = tools::dispatch(
-            "update_master_title",
-            &json!({ "title": "  合法标题  " }),
-            Some(&master_id),
-        );
-        assert_tool_shell_ok(&ok_v);
-        assert_eq!(ok_v["data"]["title"], "合法标题");
-        assert_eq!(ok_v["data"]["master_task_id"], master_id);
-
-        let blank = tools::dispatch(
-            "update_master_title",
-            &json!({ "title": "   \t  " }),
-            Some(&master_id),
-        );
-        assert_tool_shell_err(&blank, "bad_request");
-
-        // title_unit_count: English tokens (words), not characters — 21 words > TITLE_UNIT_LIMIT=20
-        let over = "one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen twenty twentyone";
-        let too_long = tools::dispatch(
-            "update_master_title",
-            &json!({ "title": over }),
-            Some(&master_id),
-        );
-        assert_tool_shell_err(&too_long, "bad_request");
-
-        let after = todo_task::get_by_id(&master_id);
-        assert_eq!(after["title"], "合法标题");
+        let _ = std::any::type_name::<crate::services::local_http::LocalHttpState>();
     });
 }
 
@@ -587,16 +475,11 @@ fn llm_unsupported_tool_calls_errors_without_prompt_json_fallback() {
 fn llm_load_config_reads_settings_and_secret() {
     with_agent_sandbox(|_| {
         let mut s = settings::load().expect("load");
-        settings::apply_config_payload(
-            &mut s,
-            &json!({
-                "llm": {
-                    "base_url": "https://api.example.com",
-                    "model": "demo-model",
-                    "platform": "kimi"
-                }
-            }),
-        );
+        // Preset platform/base_url are not client-writable via apply_config_payload;
+        // persist them on the settings struct to exercise Host load_llm_config.
+        s.llm.platform = "kimi".into();
+        s.llm.base_url = "https://api.example.com".into();
+        s.llm.model = "demo-model".into();
         settings::save(&s).expect("save llm settings");
         secrets::set_secret(KEY_LLM_API_KEY, "sk-from-secret").expect("set");
 

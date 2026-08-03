@@ -744,6 +744,176 @@ function spawnSidecar(mcpPort, workbenchUrl, extraEnv = {}) {
   return child;
 }
 
+/** @param {number} mcpPort @param {string} [mountQuery] */
+async function connectAndListToolNames(mcpPort, mountQuery) {
+  const qs = mountQuery ? `?mount=${encodeURIComponent(mountQuery)}` : '';
+  const mcpUrl = `http://127.0.0.1:${mcpPort}/mcp${qs}`;
+  const transport = new StreamableHTTPClientTransport(new URL(mcpUrl));
+  const client = new Client({ name: 'knowledge-mcp-verify-mount', version: '0.1.0' });
+  await client.connect(transport);
+  const tools = await client.listTools();
+  const names = tools.tools.map((t) => t.name).sort();
+  await client.close();
+  return names;
+}
+
+function assertIncludesAll(names, required, label) {
+  for (const tool of required) {
+    if (!names.includes(tool)) {
+      throw new Error(`${label}: missing ${tool}; got ${names.join(', ')}`);
+    }
+  }
+}
+
+function assertNoneOf(names, forbidden, label) {
+  for (const tool of forbidden) {
+    if (names.includes(tool)) {
+      throw new Error(`${label}: unexpected ${tool}; got ${names.join(', ')}`);
+    }
+  }
+}
+
+/**
+ * t1 / AC4 — business isolation mounts: env MCP_MOUNT or ?mount= filter tool sets.
+ * Mounts: default (full), todo (todo tools only), corpus (corpus/archive only).
+ * Unknown mount key falls back to default (full todo tool set).
+ */
+async function testMountIsolation(workbenchUrl) {
+  const CORPUS_TOOLS = [
+    'get_corpus_catalog',
+    'get_corpus_files',
+    'archive_document',
+    'archive_digest',
+  ];
+  const TODO_SURFACE = [...EQUIVALENCE_TODO_TOOLS, ...SUB_CONTENT_TODO_TOOLS];
+
+  // --- default mount (no key): full todo + corpus surface ---
+  {
+    const mcpPort = await ephemeralPort();
+    const sidecar = spawnSidecar(mcpPort, workbenchUrl);
+    const ready = await waitFor(`http://127.0.0.1:${mcpPort}/health`);
+    if (!ready) {
+      sidecar.kill('SIGTERM');
+      throw new Error('mount default: sidecar health timeout');
+    }
+    const names = await connectAndListToolNames(mcpPort);
+    assertIncludesAll(names, TODO_SURFACE, 'default mount');
+    assertIncludesAll(names, CORPUS_TOOLS, 'default mount');
+    const namesAgain = await connectAndListToolNames(mcpPort);
+    if (JSON.stringify(names) !== JSON.stringify(namesAgain)) {
+      throw new Error(
+        `default mount tools/list not stable: ${names.join(',')} vs ${namesAgain.join(',')}`,
+      );
+    }
+    sidecar.kill('SIGTERM');
+    await sleep(200);
+  }
+
+  // --- MCP_MOUNT=todo vs MCP_MOUNT=corpus: distinguishable sets ---
+  {
+    const todoPort = await ephemeralPort();
+    const corpusPort = await ephemeralPort();
+    const todoSidecar = spawnSidecar(todoPort, workbenchUrl, { MCP_MOUNT: 'todo' });
+    const corpusSidecar = spawnSidecar(corpusPort, workbenchUrl, { MCP_MOUNT: 'corpus' });
+    const todoReady = await waitFor(`http://127.0.0.1:${todoPort}/health`);
+    const corpusReady = await waitFor(`http://127.0.0.1:${corpusPort}/health`);
+    if (!todoReady || !corpusReady) {
+      todoSidecar.kill('SIGTERM');
+      corpusSidecar.kill('SIGTERM');
+      throw new Error('mount todo/corpus: sidecar health timeout');
+    }
+    const todoNames = await connectAndListToolNames(todoPort);
+    const corpusNames = await connectAndListToolNames(corpusPort);
+    assertIncludesAll(todoNames, TODO_SURFACE, 'MCP_MOUNT=todo');
+    assertNoneOf(todoNames, CORPUS_TOOLS, 'MCP_MOUNT=todo');
+    assertIncludesAll(corpusNames, CORPUS_TOOLS, 'MCP_MOUNT=corpus');
+    assertNoneOf(corpusNames, TODO_SURFACE, 'MCP_MOUNT=corpus');
+    if (JSON.stringify(todoNames) === JSON.stringify(corpusNames)) {
+      throw new Error('todo and corpus mounts must expose distinguishable tools/list');
+    }
+    const todoNamesAgain = await connectAndListToolNames(todoPort);
+    if (JSON.stringify(todoNames) !== JSON.stringify(todoNamesAgain)) {
+      throw new Error('MCP_MOUNT=todo tools/list not stable across repeated list');
+    }
+    todoSidecar.kill('SIGTERM');
+    corpusSidecar.kill('SIGTERM');
+    await sleep(200);
+  }
+
+  // --- query ?mount= overrides / selects mount on shared sidecar ---
+  {
+    const mcpPort = await ephemeralPort();
+    const sidecar = spawnSidecar(mcpPort, workbenchUrl);
+    const ready = await waitFor(`http://127.0.0.1:${mcpPort}/health`);
+    if (!ready) {
+      sidecar.kill('SIGTERM');
+      throw new Error('mount query: sidecar health timeout');
+    }
+    const todoNames = await connectAndListToolNames(mcpPort, 'todo');
+    const corpusNames = await connectAndListToolNames(mcpPort, 'corpus');
+    assertIncludesAll(todoNames, TODO_SURFACE, '?mount=todo');
+    assertNoneOf(todoNames, CORPUS_TOOLS, '?mount=todo');
+    assertIncludesAll(corpusNames, CORPUS_TOOLS, '?mount=corpus');
+    assertNoneOf(corpusNames, TODO_SURFACE, '?mount=corpus');
+    sidecar.kill('SIGTERM');
+    await sleep(200);
+  }
+
+  // --- unknown mount key → default (full todo tool set) ---
+  {
+    const mcpPort = await ephemeralPort();
+    const sidecar = spawnSidecar(mcpPort, workbenchUrl, { MCP_MOUNT: 'not-a-real-mount' });
+    const ready = await waitFor(`http://127.0.0.1:${mcpPort}/health`);
+    if (!ready) {
+      sidecar.kill('SIGTERM');
+      throw new Error('mount unknown: sidecar health timeout');
+    }
+    const names = await connectAndListToolNames(mcpPort);
+    assertIncludesAll(names, TODO_SURFACE, 'unknown MCP_MOUNT fallback');
+    assertIncludesAll(names, CORPUS_TOOLS, 'unknown MCP_MOUNT fallback');
+    const namesViaQuery = await connectAndListToolNames(mcpPort, 'also-unknown');
+    assertIncludesAll(namesViaQuery, TODO_SURFACE, 'unknown ?mount= fallback');
+    sidecar.kill('SIGTERM');
+    await sleep(200);
+  }
+}
+
+/**
+ * t1 — when Workbench HTTP is unreachable, tools/call returns isError (sidecar stays up).
+ */
+async function testUnreachableWorkbenchHttp() {
+  const mcpPort = await ephemeralPort();
+  const deadHttpPort = await ephemeralPort();
+  const workbenchUrl = `http://127.0.0.1:${deadHttpPort}`;
+  const sidecar = spawnSidecar(mcpPort, workbenchUrl);
+  const ready = await waitFor(`http://127.0.0.1:${mcpPort}/health`);
+  if (!ready) {
+    sidecar.kill('SIGTERM');
+    throw new Error('unreachable-http: sidecar health timeout');
+  }
+
+  const transport = new StreamableHTTPClientTransport(
+    new URL(`http://127.0.0.1:${mcpPort}/mcp`),
+  );
+  const client = new Client({ name: 'knowledge-mcp-verify-down', version: '0.1.0' });
+  await client.connect(transport);
+  const result = await client.callTool({ name: 'list_todo_tasks', arguments: {} });
+  if (!result.isError) {
+    await client.close();
+    sidecar.kill('SIGTERM');
+    throw new Error('expected list_todo_tasks isError when Workbench HTTP unreachable');
+  }
+  const health = await fetch(`http://127.0.0.1:${mcpPort}/health`);
+  if (!health.ok) {
+    await client.close();
+    sidecar.kill('SIGTERM');
+    throw new Error('sidecar crashed after tools/call with unreachable HTTP');
+  }
+  await client.close();
+  sidecar.kill('SIGTERM');
+  await sleep(200);
+}
+
 async function runMcpClient(mcpPort) {
   const mcpUrl = `http://127.0.0.1:${mcpPort}/mcp`;
   const transport = new StreamableHTTPClientTransport(new URL(mcpUrl));
@@ -1335,8 +1505,16 @@ async function main() {
   console.log('MCP proxy tools: OK');
 
   sidecar.kill('SIGTERM');
+  await sleep(200);
+
+  await testMountIsolation(workbenchUrl);
+  console.log('business isolation mounts: OK');
+
   mockServer.close();
-  await sleep(300);
+  await sleep(200);
+
+  await testUnreachableWorkbenchHttp();
+  console.log('unreachable Workbench HTTP tools/call isError: OK');
 
   await testMissingWorkbenchUrl();
   console.log('missing WORKBENCH_HTTP_URL exits: OK');

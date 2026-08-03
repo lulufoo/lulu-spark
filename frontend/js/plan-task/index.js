@@ -6,8 +6,7 @@ export {
   buildTodosBinding,
   resetTodosBinding,
   assembleTodosBindingBody,
-  TODOS_T_LIFT_TOOL_NAMES,
-  TODOS_PLAN_ASSISTANT_PROMPT,
+  TODOS_BUSINESS_KEY,
 } from './todos-binding.js';
 export {
   createTodosPageLifecycle,

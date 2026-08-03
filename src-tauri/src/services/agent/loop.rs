@@ -1,4 +1,5 @@
 //! Agent Loop + Host open/chat-turn core (single-flight, terminals, history caps).
+//! Host business path: LLM tools empty; no process-local tools::dispatch; zero Cursor.
 
 use std::collections::HashMap;
 use std::panic::AssertUnwindSafe;
@@ -7,9 +8,9 @@ use std::sync::{Mutex, OnceLock};
 use serde::Serialize;
 use serde_json::{json, Value};
 
-use crate::services::agent::llm::{self, AssistantMessage, LlmConfig, LlmError};
+use crate::services::agent::llm::{self, LlmConfig, LlmError};
 use crate::services::agent::session::{self, Session, Turn};
-use crate::services::agent::tools;
+use crate::services::mcp_server_registry::{self, McpServerConfig, McpServerLookupError};
 use crate::services::todo_task;
 
 pub use crate::services::agent::session::{
@@ -18,19 +19,9 @@ pub use crate::services::agent::session::{
 
 pub const EVENT_TURN_COMPLETED: &str = "ai-assistant:turn-completed";
 pub const WINDOW_LABEL: &str = "ai-assistant";
-pub const MAX_TOOL_ROUNDS: u32 = 8;
 pub const MAX_CLARIFY_ROUNDS: u32 = 5;
 pub const MAX_HISTORY_MESSAGES: usize = 20;
 pub const MAX_USER_TURNS: usize = 8;
-
-const WRITE_TOOLS: &[&str] = &["add_sub_task", "update_sub_title", "update_master_title"];
-const WHITELIST: &[&str] = &[
-    "get_plan",
-    "list_sub_tasks",
-    "add_sub_task",
-    "update_sub_title",
-    "update_master_title",
-];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Terminal {
@@ -126,8 +117,10 @@ struct Runtime {
     current_session_id: Option<String>,
     bound_master_task_id: Option<String>,
     bound_title: Option<String>,
-    /// Current generic Binding (tools+prompt+callbacks); None ⇒ unbound.
+    /// Current Binding; None ⇒ unbound.
     current_binding: Option<session::Binding>,
+    /// Session capability context: MCP Server config loaded by key-only Set.
+    loaded_mcp_server: Option<McpServerConfig>,
     /// Live generation while bound; None when unbound.
     current_generation: Option<u64>,
     /// Monotonic counter for Set/replace generations.
@@ -256,7 +249,7 @@ fn request_in_flight_cancel(rt: &mut Runtime) {
     }
 }
 
-/// Set Binding after B1 validation. Failure returns `set_invalid` and leaves state unchanged.
+/// Set Binding after validation. Failure returns `set_invalid` and leaves state unchanged.
 /// Legal Set on bound atomically replaces and invalidates the previous generation.
 /// Any successful Set (first or replace) clears `current_session_id` in the same critical
 /// section as generation advance (session cut, clear-first).
@@ -264,7 +257,17 @@ fn request_in_flight_cancel(rt: &mut Runtime) {
 /// generation invalidation (distinguishable stale reject preserved).
 /// Emits onBound; replace also emits onUnbound → onBound (D1).
 /// Illegal Set emits onError(set_invalid) and does not emit onBound.
+///
+/// Typed/internal Set (no business key) clears any previously loaded MCP config.
+/// Key-only public Set goes through `try_set_binding_json` which loads MCP first.
 pub fn set_binding(binding: session::Binding) -> Result<(), SetError> {
+    set_binding_with_mcp(binding, None)
+}
+
+fn set_binding_with_mcp(
+    binding: session::Binding,
+    loaded_mcp: Option<McpServerConfig>,
+) -> Result<(), SetError> {
     if let Err(e) = session::validate_binding(&binding) {
         emit_lifecycle("onError", Some("set_invalid"));
         return Err(e);
@@ -280,6 +283,7 @@ pub fn set_binding(binding: session::Binding) -> Result<(), SetError> {
         rt.generation_seq = rt.generation_seq.saturating_add(1);
         rt.current_generation = Some(rt.generation_seq);
         rt.current_binding = Some(binding);
+        rt.loaded_mcp_server = loaded_mcp;
         // Session cut: clear live id with generation update (no new-gen + old-session window).
         rt.current_session_id = None;
         was
@@ -293,19 +297,69 @@ pub fn set_binding(binding: session::Binding) -> Result<(), SetError> {
     Ok(())
 }
 
-/// JSON Set entry: require tools/prompt/callbacks keys present; never fill from business fields.
+/// JSON Set entry: key-only public contract. Looks up Host MCP registry and loads
+/// session capability context. Rejects legacy tools/prompt/callbacks payload.
 pub fn try_set_binding_json(v: &Value) -> Result<(), SetError> {
-    match session::binding_from_json(v) {
-        Ok(binding) => set_binding(binding),
-        Err(e) => {
-            emit_lifecycle("onError", Some("set_invalid"));
-            Err(e)
+    let parsed = session::binding_from_json(v).map_err(|e| {
+        emit_lifecycle("onError", Some(e.as_code()));
+        e
+    })?;
+    let key = session::binding_business_key(&parsed).ok_or_else(|| {
+        emit_lifecycle("onError", Some("set_invalid"));
+        SetError::set_invalid()
+    })?;
+    let config = match mcp_server_registry::lookup(&key) {
+        Ok(cfg) => cfg,
+        Err(McpServerLookupError::NotFound) => {
+            emit_lifecycle("onError", Some("unknown_key"));
+            return Err(SetError::unknown_key());
         }
-    }
+        Err(McpServerLookupError::InvalidKey) => {
+            emit_lifecycle("onError", Some("set_invalid"));
+            return Err(SetError::set_invalid());
+        }
+    };
+    // L1+L2: public key-only Set must not feed business tool handles to the
+    // Agent Loop. The business key is already resolved into loaded_mcp_server;
+    // Binding.tools stays an empty interface slot (no in-process dispatch).
+    let binding = session::Binding {
+        tools: json!([]),
+        prompt: json!(config.capability_description.clone()),
+        callbacks: parsed.callbacks,
+    };
+    set_binding_with_mcp(binding, Some(config))
+}
+
+/// Must Close Before T4 — A1 confirmed (not narrowed): the same decision-level
+/// `McpServerConfig` shape is the shared read form for future Host Loop and
+/// Cursor Local adapters. Field-level transport schema remains deferred.
+pub const SESSION_CAPABILITY_READ_FACE_A1_DUAL_ENGINE_SAME_SHAPE: bool = true;
+
+/// Must Close Before T4 — A2 confirmed (not narrowed): Host `mcp_server_registry`
+/// is the sole lookup source; this face only exposes config already loaded by
+/// key-only Set from that table.
+pub const SESSION_CAPABILITY_READ_FACE_A2_HOST_REGISTRY_SOLE_LOOKUP: bool = true;
+
+/// Must Close Before F-45 / AC2 — A3 confirmed (not narrowed): Host adapter with
+/// empty tools and no Cursor still completes facade open/ensure/chat turns.
+pub const HOST_EMPTY_TOOLS_A3_FACADE_USABLE: bool = true;
+
+/// Read-only session capability consumption face for future engine adapters
+/// (Host Agent Loop + Cursor Local). Returns a detached clone of the MCP Server
+/// config loaded by key-only Binding Set. No engine-branch injection; no write
+/// path — only Set/Reset lifecycle may change the loaded value.
+pub fn session_capability_mcp_config() -> Option<McpServerConfig> {
+    runtime().lock().unwrap().loaded_mcp_server.clone()
+}
+
+/// Observability alias for the session capability read face.
+pub fn loaded_mcp_server() -> Option<McpServerConfig> {
+    session_capability_mcp_config()
 }
 
 /// Reset: discard current Binding → unbound. Idempotent when already unbound.
 /// Clears `current_session_id` (session cut, clear-first); does not wipe disk turns.
+/// Unloads session capability MCP config with the Binding.
 /// Bound→unbound emits onUnbound; symmetrically cancels in-flight execute and chat.
 pub fn reset_binding() -> Result<(), ()> {
     let was_bound = {
@@ -313,6 +367,7 @@ pub fn reset_binding() -> Result<(), ()> {
         let was = rt.current_binding.is_some();
         request_in_flight_cancel(&mut rt);
         rt.current_binding = None;
+        rt.loaded_mcp_server = None;
         rt.current_generation = None;
         rt.current_session_id = None;
         was
@@ -615,24 +670,6 @@ fn map_llm_error(err: &LlmError) -> TurnOutcome {
     }
 }
 
-fn tool_calls_json(msg: &AssistantMessage) -> Value {
-    let arr: Vec<Value> = msg
-        .tool_calls
-        .iter()
-        .map(|tc| {
-            json!({
-                "id": tc.id,
-                "type": "function",
-                "function": {
-                    "name": tc.name,
-                    "arguments": tc.arguments,
-                }
-            })
-        })
-        .collect();
-    Value::Array(arr)
-}
-
 fn persist(session: &Session) {
     let _ = session::save_session(session);
 }
@@ -722,118 +759,83 @@ pub fn run_loop(session: &mut Session, user_message: &str, config: &LlmConfig) -
     });
     persist(session);
 
-    let mut wrote = false;
-    let mut tool_rounds: u32 = 0;
-    let tools_defs = tools::openai_tool_definitions_for_binding(&binding.tools);
-    let declared_tools = tools::tool_names_from_binding(&binding.tools);
+    // Host P3: business path tools always empty; may read L2 MCP face (no tool_calls).
+    // Do not call process-local tools::dispatch (L09-I #7 / T3 Failure).
+    let _ = session_capability_mcp_config();
 
-    loop {
-        if chat_turn_interrupted(generation) {
-            return cancelled_turn_outcome(session, turns_checkpoint);
-        }
-        let messages = build_llm_messages_from_turns(&session.turns, &system_prompt);
-        let msg = match llm::chat_completions(&messages, &tools_defs, config) {
-            Ok(m) => m,
-            Err(e) => {
-                if chat_turn_interrupted(generation) {
-                    return cancelled_turn_outcome(session, turns_checkpoint);
-                }
-                let out = map_llm_error(&e);
-                session.turns.push(Turn {
-                    role: "assistant".into(),
-                    content: Some(out.reply_text.clone()),
-                    tool_call_id: None,
-                    tool_calls: None,
-                    name: None,
-                });
-                persist(session);
-                return out;
-            }
-        };
-
-        // Round-trip gate: cancel / generation may have been raised during LLM.
-        if chat_turn_interrupted(generation) {
-            return cancelled_turn_outcome(session, turns_checkpoint);
-        }
-
-        if !msg.tool_calls.is_empty() {
-            // Gate again immediately before tool dispatch.
+    if chat_turn_interrupted(generation) {
+        return cancelled_turn_outcome(session, turns_checkpoint);
+    }
+    let messages = build_llm_messages_from_turns(&session.turns, &system_prompt);
+    let msg = match llm::chat_completions(&messages, &[], config) {
+        Ok(m) => m,
+        Err(e) => {
             if chat_turn_interrupted(generation) {
                 return cancelled_turn_outcome(session, turns_checkpoint);
             }
-            for tc in &msg.tool_calls {
-                let allowed = WHITELIST.contains(&tc.name.as_str())
-                    && declared_tools.iter().any(|n| n == &tc.name);
-                if tc.id.trim().is_empty() || !allowed {
-                    let reply = "模型响应异常或请求了不支持的工具，未执行任何写入。".to_string();
-                    session.turns.push(Turn {
-                        role: "assistant".into(),
-                        content: Some(reply.clone()),
-                        tool_call_id: None,
-                        tool_calls: Some(tool_calls_json(&msg)),
-                        name: None,
-                    });
-                    persist(session);
-                    return TurnOutcome {
-                        reply_text: reply,
-                        terminal: Terminal::Error,
-                        wrote: false,
-                    };
-                }
-            }
-
-            if tool_rounds >= MAX_TOOL_ROUNDS {
-                let reply = "工具调用次数已达上限，已停止本回合。".to_string();
-                session.turns.push(Turn {
-                    role: "assistant".into(),
-                    content: Some(reply.clone()),
-                    tool_call_id: None,
-                    tool_calls: None,
-                    name: None,
-                });
-                persist(session);
-                return TurnOutcome {
-                    reply_text: reply,
-                    terminal: Terminal::Error,
-                    wrote,
-                };
-            }
-            tool_rounds += 1;
-
+            let out = map_llm_error(&e);
             session.turns.push(Turn {
                 role: "assistant".into(),
-                content: msg.content.clone(),
+                content: Some(out.reply_text.clone()),
                 tool_call_id: None,
-                tool_calls: Some(tool_calls_json(&msg)),
+                tool_calls: None,
                 name: None,
             });
-
-            for tc in &msg.tool_calls {
-                let args: Value = serde_json::from_str(&tc.arguments).unwrap_or(json!({}));
-                let master_from_ctx =
-                    tools::master_id_from_binding_tools(&binding.tools, &tc.name);
-                let result = tools::dispatch(&tc.name, &args, master_from_ctx.as_deref());
-                if WRITE_TOOLS.contains(&tc.name.as_str()) && result["ok"] == true {
-                    wrote = true;
-                }
-                session.turns.push(Turn {
-                    role: "tool".into(),
-                    content: Some(result.to_string()),
-                    tool_call_id: Some(tc.id.clone()),
-                    tool_calls: None,
-                    name: Some(tc.name.clone()),
-                });
-            }
             persist(session);
-            continue;
+            return out;
         }
+    };
 
-        let content = msg
-            .content
-            .clone()
-            .unwrap_or_else(|| "".to_string());
-        if content.trim().is_empty() {
-            let reply = "模型响应为空，未执行任何写入。".to_string();
+    // Round-trip gate: cancel / generation may have been raised during LLM.
+    if chat_turn_interrupted(generation) {
+        return cancelled_turn_outcome(session, turns_checkpoint);
+    }
+
+    if !msg.tool_calls.is_empty() {
+        // Unexpected tool_calls with empty request tools — never dispatch in-process.
+        let reply = "模型响应异常或请求了不支持的工具，未执行任何写入。".to_string();
+        session.turns.push(Turn {
+            role: "assistant".into(),
+            content: Some(reply.clone()),
+            tool_call_id: None,
+            tool_calls: None,
+            name: None,
+        });
+        persist(session);
+        return TurnOutcome {
+            reply_text: reply,
+            terminal: Terminal::Error,
+            wrote: false,
+        };
+    }
+
+    let content = msg.content.clone().unwrap_or_default();
+    if content.trim().is_empty() {
+        let reply = "模型响应为空，未执行任何写入。".to_string();
+        session.turns.push(Turn {
+            role: "assistant".into(),
+            content: Some(reply.clone()),
+            tool_call_id: None,
+            tool_calls: None,
+            name: None,
+        });
+        persist(session);
+        return TurnOutcome {
+            reply_text: reply,
+            terminal: Terminal::Error,
+            wrote: false,
+        };
+    }
+
+    if is_clarify_text(&content) {
+        let mut rt = runtime().lock().unwrap();
+        let count = rt
+            .clarify_counts
+            .entry(session.session_id.clone())
+            .or_insert(0);
+        if *count >= MAX_CLARIFY_ROUNDS {
+            drop(rt);
+            let reply = "澄清次数已达上限，请换种方式说明需求或稍后重试。".to_string();
             session.turns.push(Turn {
                 role: "assistant".into(),
                 content: Some(reply.clone()),
@@ -845,66 +847,11 @@ pub fn run_loop(session: &mut Session, user_message: &str, config: &LlmConfig) -
             return TurnOutcome {
                 reply_text: reply,
                 terminal: Terminal::Error,
-                wrote,
+                wrote: false,
             };
         }
-
-        if is_clarify_text(&content) {
-            let mut rt = runtime().lock().unwrap();
-            let count = rt
-                .clarify_counts
-                .entry(session.session_id.clone())
-                .or_insert(0);
-            if *count >= MAX_CLARIFY_ROUNDS {
-                drop(rt);
-                let reply = "澄清次数已达上限，请换种方式说明需求或稍后重试。".to_string();
-                session.turns.push(Turn {
-                    role: "assistant".into(),
-                    content: Some(reply.clone()),
-                    tool_call_id: None,
-                    tool_calls: None,
-                    name: None,
-                });
-                persist(session);
-                return TurnOutcome {
-                    reply_text: reply,
-                    terminal: Terminal::Error,
-                    wrote,
-                };
-            }
-            *count += 1;
-            drop(rt);
-            session.turns.push(Turn {
-                role: "assistant".into(),
-                content: Some(content.clone()),
-                tool_call_id: None,
-                tool_calls: None,
-                name: None,
-            });
-            persist(session);
-            return TurnOutcome {
-                reply_text: content,
-                terminal: Terminal::None,
-                wrote,
-            };
-        }
-
-        if content.contains("目前不支持") {
-            session.turns.push(Turn {
-                role: "assistant".into(),
-                content: Some(content.clone()),
-                tool_call_id: None,
-                tool_calls: None,
-                name: None,
-            });
-            persist(session);
-            return TurnOutcome {
-                reply_text: content,
-                terminal: Terminal::Business,
-                wrote,
-            };
-        }
-
+        *count += 1;
+        drop(rt);
         session.turns.push(Turn {
             role: "assistant".into(),
             content: Some(content.clone()),
@@ -916,8 +863,38 @@ pub fn run_loop(session: &mut Session, user_message: &str, config: &LlmConfig) -
         return TurnOutcome {
             reply_text: content,
             terminal: Terminal::None,
-            wrote,
+            wrote: false,
         };
+    }
+
+    if content.contains("目前不支持") {
+        session.turns.push(Turn {
+            role: "assistant".into(),
+            content: Some(content.clone()),
+            tool_call_id: None,
+            tool_calls: None,
+            name: None,
+        });
+        persist(session);
+        return TurnOutcome {
+            reply_text: content,
+            terminal: Terminal::Business,
+            wrote: false,
+        };
+    }
+
+    session.turns.push(Turn {
+        role: "assistant".into(),
+        content: Some(content.clone()),
+        tool_call_id: None,
+        tool_calls: None,
+        name: None,
+    });
+    persist(session);
+    TurnOutcome {
+        reply_text: content,
+        terminal: Terminal::None,
+        wrote: false,
     }
 }
 

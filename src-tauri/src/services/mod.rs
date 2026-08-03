@@ -23,5 +23,6 @@ pub mod sediment_kb;
 pub mod settle;
 pub mod tag_write;
 pub mod tags_registry;
+pub mod mcp_server_registry;
 pub mod local_http;
 pub mod workbench_read;

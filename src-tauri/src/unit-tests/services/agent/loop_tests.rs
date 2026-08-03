@@ -1,4 +1,4 @@
-//! Loop + Host open/chat-turn contract tests (t4).
+//! Loop + Host open/chat-turn contract tests (t4 / t3 Host empty-tools).
 
 use std::io::{Read, Write};
 use std::net::TcpListener;
@@ -21,6 +21,8 @@ fn with_sandbox<F: FnOnce()>(f: F) {
     let _sandbox = TestSandbox::new();
     secrets::test_secrets_clear();
     r#loop::reset_runtime_for_tests();
+    crate::services::mcp_server_registry::clear_for_tests();
+    crate::services::mcp_server_registry::seed_defaults();
     f();
 }
 
@@ -124,7 +126,8 @@ fn install_llm_cfg(mock: &MockLlm) {
                 "platform": "openai_compatible"
             }
         }),
-    );
+    )
+    .expect("apply");
     settings::save(&s).expect("save");
     secrets::set_secret(KEY_LLM_API_KEY, "sk-test").expect("key");
 }
@@ -155,6 +158,24 @@ fn assistant_tools(calls: Value, content: Option<&str>) -> (u16, Value) {
             }]
         }),
     )
+}
+
+/// Host business path: request must not carry a non-empty tools list.
+fn assert_host_llm_tools_empty(body: &Value) {
+    match body.get("tools") {
+        None => {}
+        Some(Value::Array(arr)) => {
+            assert!(
+                arr.is_empty(),
+                "Host path must send tools=[] (empty), got {arr:?}"
+            );
+        }
+        Some(other) => panic!("Host path tools must be absent or [], got {other}"),
+    }
+    if let Some(tc) = body.get("tool_choice") {
+        // tool_choice without tools is not Host empty-tools semantics.
+        panic!("Host empty-tools path must not send tool_choice, got {tc}");
+    }
 }
 
 fn assert_outcome(o: &TurnOutcome, terminal: &str, wrote: bool) {
@@ -219,37 +240,40 @@ fn run_loop_final_reply_none_terminal_and_wrote_false() {
         assert!(out.reply_text.contains("计划助手"));
         assert_eq!(sess.turns[0].role, "user");
         assert_eq!(sess.turns[1].role, "assistant");
+        assert_host_llm_tools_empty(&mock.hits.lock().unwrap()[0]);
     });
 }
 
 #[test]
-fn run_loop_tool_write_sets_wrote_true_and_persists() {
+fn run_loop_host_empty_tools_rejects_tool_calls_without_dispatch() {
+    // Narrowed from process-local tool write path (P3 / T3): Host business chat
+    // sends tools=[] and must not tools::dispatch even if the model returns tool_calls.
     with_sandbox(|| {
         let master = create_bound_plan("写前标题");
-        let mock = spawn_scripted_llm(vec![
-            assistant_tools(
-                json!([{
-                    "id": "call_1",
-                    "type": "function",
-                    "function": {
-                        "name": "update_master_title",
-                        "arguments": "{\"title\":\"写后标题\"}"
-                    }
-                }]),
-                None,
-            ),
-            assistant_text("已把主标题改为「写后标题」"),
-        ]);
+        let title_before = todo_task::get_by_id(&master)["title"].clone();
+        let mock = spawn_scripted_llm(vec![assistant_tools(
+            json!([{
+                "id": "call_1",
+                "type": "function",
+                "function": {
+                    "name": "update_master_title",
+                    "arguments": "{\"title\":\"写后标题\"}"
+                }
+            }]),
+            None,
+        )]);
         let mut sess = session::create_session(Some(&master), Some("写前标题")).unwrap();
         arm_plan_binding(&master);
         let out = r#loop::run_loop(&mut sess, "把主标题改成写后标题", &cfg_for(&mock));
-        assert_outcome(&out, "none", true);
-        let got = todo_task::get_by_id(&master);
-        assert_eq!(got["title"], "写后标题");
+        assert_outcome(&out, "error", false);
+        assert_eq!(todo_task::get_by_id(&master)["title"], title_before);
         assert!(
-            sess.turns.iter().any(|t| t.role == "tool"),
-            "expected tool turn in session"
+            sess.turns.iter().all(|t| t.role != "tool"),
+            "Host empty-tools path must not append tool turns"
         );
+        let hits = mock.hits.lock().unwrap();
+        assert_eq!(hits.len(), 1);
+        assert_host_llm_tools_empty(&hits[0]);
     });
 }
 
@@ -270,79 +294,86 @@ fn run_loop_clarify_under_limit_returns_none_not_wrote() {
 }
 
 #[test]
-fn parallel_tool_calls_run_serially_and_ok_false_does_not_abort() {
+fn parallel_tool_calls_are_rejected_without_process_dispatch() {
+    // Narrowed (P3): Host does not serially dispatch parallel tool_calls.
     with_sandbox(|| {
         let master = create_bound_plan("批处理");
-        let mock = spawn_scripted_llm(vec![
-            assistant_tools(
-                json!([
-                    {
-                        "id": "c1",
-                        "type": "function",
-                        "function": {
-                            "name": "update_sub_title",
-                            "arguments": "{\"sub_task_id\":\"nope\",\"title\":\"x\"}"
-                        }
-                    },
-                    {
-                        "id": "c2",
-                        "type": "function",
-                        "function": {
-                            "name": "add_sub_task",
-                            "arguments": "{\"title\":\"批后子项\"}"
-                        }
+        let before_subs = todo_task::get_by_id(&master)["sub_tasks"]
+            .as_array()
+            .unwrap()
+            .len();
+        let mock = spawn_scripted_llm(vec![assistant_tools(
+            json!([
+                {
+                    "id": "c1",
+                    "type": "function",
+                    "function": {
+                        "name": "update_sub_title",
+                        "arguments": "{\"sub_task_id\":\"nope\",\"title\":\"x\"}"
                     }
-                ]),
-                None,
-            ),
-            assistant_text("第一个失败了，但已新增子计划"),
-        ]);
+                },
+                {
+                    "id": "c2",
+                    "type": "function",
+                    "function": {
+                        "name": "add_sub_task",
+                        "arguments": "{\"title\":\"批后子项\"}"
+                    }
+                }
+            ]),
+            None,
+        )]);
         let mut sess = session::create_session(Some(&master), Some("批处理")).unwrap();
         arm_plan_binding(&master);
         let out = r#loop::run_loop(&mut sess, "改不存在的子项并加一个", &cfg_for(&mock));
-        assert_outcome(&out, "none", true);
-        let tool_turns: Vec<_> = sess.turns.iter().filter(|t| t.role == "tool").collect();
-        assert_eq!(tool_turns.len(), 2);
-        let t1: Value = serde_json::from_str(tool_turns[0].content.as_deref().unwrap()).unwrap();
-        let t2: Value = serde_json::from_str(tool_turns[1].content.as_deref().unwrap()).unwrap();
-        assert_eq!(t1["ok"], false);
-        assert_eq!(t2["ok"], true);
-        let listed = todo_task::get_by_id(&master);
-        let titles: Vec<_> = listed["sub_tasks"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .map(|s| s["title"].as_str().unwrap().to_string())
-            .collect();
-        assert!(titles.iter().any(|t| t == "批后子项"));
-        assert_eq!(mock.hits.lock().unwrap().len(), 2, "batch then callback LLM");
+        assert_outcome(&out, "error", false);
+        assert_eq!(
+            todo_task::get_by_id(&master)["sub_tasks"]
+                .as_array()
+                .unwrap()
+                .len(),
+            before_subs,
+            "must not add sub via process-local dispatch"
+        );
+        assert!(sess.turns.iter().all(|t| t.role != "tool"));
+        assert_eq!(mock.hits.lock().unwrap().len(), 1);
+        assert_host_llm_tools_empty(&mock.hits.lock().unwrap()[0]);
     });
 }
 
 #[test]
-fn same_message_tool_calls_plus_content_content_is_not_final_reply() {
+fn same_message_tool_calls_plus_content_does_not_dispatch_or_finalize() {
+    // Narrowed (P3): tool_calls + content must not drive process-local writes.
     with_sandbox(|| {
         let master = create_bound_plan("同条");
-        let mock = spawn_scripted_llm(vec![
-            assistant_tools(
-                json!([{
-                    "id": "c1",
-                    "type": "function",
-                    "function": {
-                        "name": "add_sub_task",
-                        "arguments": "{\"title\":\"同条子项\"}"
-                    }
-                }]),
-                Some("这段 content 不是终态"),
-            ),
-            assistant_text("已新增同条子项"),
-        ]);
+        let before_subs = todo_task::get_by_id(&master)["sub_tasks"]
+            .as_array()
+            .unwrap()
+            .len();
+        let mock = spawn_scripted_llm(vec![assistant_tools(
+            json!([{
+                "id": "c1",
+                "type": "function",
+                "function": {
+                    "name": "add_sub_task",
+                    "arguments": "{\"title\":\"同条子项\"}"
+                }
+            }]),
+            Some("这段 content 不是终态"),
+        )]);
         let mut sess = session::create_session(Some(&master), Some("同条")).unwrap();
         arm_plan_binding(&master);
         let out = r#loop::run_loop(&mut sess, "加子项", &cfg_for(&mock));
-        assert_outcome(&out, "none", true);
-        assert_eq!(out.reply_text, "已新增同条子项");
-        assert!(!out.reply_text.contains("不是终态"));
+        assert_outcome(&out, "error", false);
+        assert_ne!(out.reply_text, "已新增同条子项");
+        assert_eq!(
+            todo_task::get_by_id(&master)["sub_tasks"]
+                .as_array()
+                .unwrap()
+                .len(),
+            before_subs
+        );
+        assert_host_llm_tools_empty(&mock.hits.lock().unwrap()[0]);
     });
 }
 
@@ -383,6 +414,8 @@ fn unknown_tool_name_is_error_terminal_and_does_not_write() {
         let out = r#loop::run_loop(&mut sess, "删掉计划", &cfg_for(&mock));
         assert_outcome(&out, "error", false);
         assert_eq!(todo_task::get_by_id(&master)["title"], before);
+        assert!(sess.turns.iter().all(|t| t.role != "tool"));
+        assert_host_llm_tools_empty(&mock.hits.lock().unwrap()[0]);
     });
 }
 
@@ -443,67 +476,40 @@ fn length_and_http_errors_map_to_error_terminal_no_retry() {
 }
 
 #[test]
-fn run_loop_add_sub_and_update_sub_title_paths_are_observable() {
+fn run_loop_host_text_paths_remain_observable_without_tool_writes() {
+    // Narrowed (P3): Host facade chat remains usable via text replies; no tool writes.
     with_sandbox(|| {
         let master = create_bound_plan("子路径");
-        let listed = todo_task::get_by_id(&master);
-        let sub_id = listed["sub_tasks"][0]["sub_task_id"]
-            .as_str()
-            .unwrap()
-            .to_string();
-
-        let upd_args = format!(
-            "{{\"sub_task_id\":\"{sub_id}\",\"title\":\"改后子标题\"}}"
-        );
+        let before = todo_task::get_by_id(&master);
+        let before_sub_title = before["sub_tasks"][0]["title"].clone();
+        let before_len = before["sub_tasks"].as_array().unwrap().len();
         let mock = spawn_scripted_llm(vec![
-            assistant_tools(
-                json!([{
-                    "id": "c_add",
-                    "type": "function",
-                    "function": {
-                        "name": "add_sub_task",
-                        "arguments": "{\"title\":\"新观察子项\"}"
-                    }
-                }]),
-                None,
-            ),
-            assistant_text("已新增子计划"),
-            assistant_tools(
-                json!([{
-                    "id": "c_upd",
-                    "type": "function",
-                    "function": {
-                        "name": "update_sub_title",
-                        "arguments": upd_args
-                    }
-                }]),
-                None,
-            ),
-            assistant_text("已改子标题"),
+            assistant_text("已记录新增子计划的请求（Host 本阶段不经 tool_calls 写入）"),
+            assistant_text("已记录改子标题的请求（Host 本阶段不经 tool_calls 写入）"),
         ]);
         let mut sess = session::create_session(Some(&master), Some("子路径")).unwrap();
         arm_plan_binding(&master);
 
         let out_add = r#loop::run_loop(&mut sess, "加一个子计划叫新观察子项", &cfg_for(&mock));
-        assert_outcome(&out_add, "none", true);
-        let titles_after_add: Vec<_> = todo_task::get_by_id(&master)["sub_tasks"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .map(|s| s["title"].as_str().unwrap().to_string())
-            .collect();
-        assert!(titles_after_add.iter().any(|t| t == "新观察子项"));
+        assert_outcome(&out_add, "none", false);
+        assert_eq!(
+            todo_task::get_by_id(&master)["sub_tasks"]
+                .as_array()
+                .unwrap()
+                .len(),
+            before_len
+        );
 
         let out_upd = r#loop::run_loop(&mut sess, "把原子项标题改成改后子标题", &cfg_for(&mock));
-        assert_outcome(&out_upd, "none", true);
-        let updated = todo_task::get_by_id(&master);
-        let old = updated["sub_tasks"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .find(|s| s["sub_task_id"] == sub_id)
-            .unwrap();
-        assert_eq!(old["title"], "改后子标题");
+        assert_outcome(&out_upd, "none", false);
+        assert_eq!(
+            todo_task::get_by_id(&master)["sub_tasks"][0]["title"],
+            before_sub_title
+        );
+        let hits = mock.hits.lock().unwrap();
+        assert_eq!(hits.len(), 2);
+        assert_host_llm_tools_empty(&hits[0]);
+        assert_host_llm_tools_empty(&hits[1]);
     });
 }
 
@@ -614,29 +620,28 @@ fn missing_tool_call_id_is_error_no_write() {
 
 #[test]
 fn tool_rounds_hard_cap_eight_errors() {
+    // Narrowed (P3): first unexpected tool_calls stops the turn; no multi-round dispatch.
     with_sandbox(|| {
         let master = create_bound_plan("工具上限");
-        let mut responses = Vec::new();
-        for i in 0..9 {
-            responses.push(assistant_tools(
-                json!([{
-                    "id": format!("c{i}"),
-                    "type": "function",
-                    "function": {
-                        "name": "get_plan",
-                        "arguments": "{}"
-                    }
-                }]),
-                None,
-            ));
-        }
-        let mock = spawn_scripted_llm(responses);
+        let mock = spawn_scripted_llm(vec![assistant_tools(
+            json!([{
+                "id": "c0",
+                "type": "function",
+                "function": {
+                    "name": "get_plan",
+                    "arguments": "{}"
+                }
+            }]),
+            None,
+        )]);
         let mut sess = session::create_session(Some(&master), Some("工具上限")).unwrap();
         arm_plan_binding(&master);
         let out = r#loop::run_loop(&mut sess, "一直读", &cfg_for(&mock));
         assert_outcome(&out, "error", false);
         let tool_rounds = sess.turns.iter().filter(|t| t.role == "tool").count();
-        assert!(tool_rounds <= 8, "tool_rounds={tool_rounds}");
+        assert_eq!(tool_rounds, 0, "Host empty-tools must not enter tool rounds");
+        assert_eq!(mock.hits.lock().unwrap().len(), 1);
+        assert_host_llm_tools_empty(&mock.hits.lock().unwrap()[0]);
     });
 }
 
@@ -771,40 +776,31 @@ fn agent_chat_turn_ignores_master_arg_uses_binding_ctx() {
 }
 
 #[test]
-fn in_flight_writes_use_binding_at_turn_start_despite_busy_open() {
+fn in_flight_chat_keeps_binding_despite_busy_open_without_tool_writes() {
+    // Narrowed (P3): busy open still rejected; Host chat is text-only (wrote=false).
     with_sandbox(|| {
         let a = create_bound_plan("旧绑定");
         let b = create_bound_plan("新绑定");
-        let mock = spawn_scripted_llm(vec![
-            assistant_tools(
-                json!([{
-                    "id": "c1",
-                    "type": "function",
-                    "function": {
-                        "name": "update_master_title",
-                        "arguments": "{\"title\":\"落在旧绑定\"}"
-                    }
-                }]),
-                None,
-            ),
-            assistant_text("已改旧绑定标题"),
-        ]);
+        let title_a = todo_task::get_by_id(&a)["title"].clone();
+        let mock = spawn_scripted_llm(vec![assistant_text("已理解改标题请求（无进程内写入）")]);
         install_llm_cfg(&mock);
         arm_plan_binding(&a);
         let open = r#loop::open_ai_assistant_core(&a).unwrap();
         let sid = open["session_id"].as_str().unwrap().to_string();
 
         r#loop::set_busy_for_tests(true);
-        // Busy open must not swap Binding; keep tools ctx on `a`.
+        // Busy open must not swap Binding.
         let rejected = r#loop::open_ai_assistant_core(&b).unwrap();
         assert_eq!(rejected["busy"], true);
         assert!(rejected.get("bound_master_task_id").is_none());
         r#loop::set_busy_for_tests(false);
 
         let result = r#loop::agent_chat_turn_core(&sid, "改标题", Some(&a)).unwrap();
-        assert_eq!(result.body["wrote"], true);
-        assert_eq!(todo_task::get_by_id(&a)["title"], "落在旧绑定");
+        assert_eq!(result.body["wrote"], false);
+        assert_eq!(result.body["terminal"], "none");
+        assert_eq!(todo_task::get_by_id(&a)["title"], title_a);
         assert_eq!(todo_task::get_by_id(&b)["title"], "新绑定");
+        assert_host_llm_tools_empty(&mock.hits.lock().unwrap()[0]);
     });
 }
 
@@ -907,16 +903,17 @@ fn set_binding_allows_empty_callbacks_registry_when_slot_present() {
 }
 
 #[test]
-fn set_binding_rejects_inapplicable_tools_or_prompt_as_set_invalid() {
+fn set_binding_allows_empty_tools_array_but_rejects_empty_prompt() {
     with_sandbox(|| {
+        // L1+L2: empty tools array is legal (Host Agent business session tools empty).
         let empty_tools = r#loop::Binding {
             tools: json!([]),
             prompt: applicable_prompt(),
             callbacks: empty_callbacks_registry(),
         };
-        let err = r#loop::set_binding(empty_tools).expect_err("empty tools must fail");
-        assert_eq!(err.as_code(), "set_invalid");
-        assert_eq!(r#loop::binding_state(), "unbound");
+        r#loop::set_binding(empty_tools).expect("empty tools array must Set");
+        assert_eq!(r#loop::binding_state(), "bound");
+        r#loop::reset_binding().expect("reset");
 
         let empty_prompt = r#loop::Binding {
             tools: applicable_tools(),
@@ -1171,11 +1168,12 @@ fn query_does_not_change_binding_state() {
 fn illegal_set_does_not_transition_to_bound() {
     with_sandbox(|| {
         assert_eq!(r#loop::binding_state(), "unbound");
-        let err = r#loop::set_binding(r#loop::Binding {
-            tools: json!([]),
-            prompt: applicable_prompt(),
-            callbacks: empty_callbacks_registry(),
-        })
+        // Legacy/null tools payload remains illegal; empty array is legal elsewhere (L1+L2).
+        let err = r#loop::try_set_binding_json(&json!({
+            "tools": null,
+            "prompt": "p",
+            "callbacks": {}
+        }))
         .expect_err("illegal Set must fail");
         assert_eq!(err.as_code(), "set_invalid");
         assert_query_unbound(&r#loop::query_binding());
@@ -1756,7 +1754,8 @@ fn present_command_json_does_not_set_binding() {
         assert_eq!(exec["code"], "rejected_unbound");
 
         // Present after Set still leaves bound and does not replace.
-        let set = set_binding_json(serde_json::to_value(valid_binding()).unwrap());
+        use crate::services::mcp_server_registry::SEEDED_BUSINESS_KEY;
+        let set = set_binding_json(json!({ "key": SEEDED_BUSINESS_KEY }));
         assert_eq!(set["ok"], true);
         let gen_before = query_binding_json()["generation"].clone();
         let _ = present_ai_assistant_json().expect("Present while bound");
@@ -3314,3 +3313,620 @@ fn t6_binding_contract_rejects_top_level_business_ids() {
         assert_query_is_business_agnostic(&q);
     });
 }
+
+// --- t2: key-only Binding Set/Reset + MCP session capability context ---
+
+fn key_only_payload(key: &str) -> Value {
+    json!({ "key": key })
+}
+
+#[test]
+fn t2_key_only_set_loads_mcp_server_into_session_capability_context() {
+    with_sandbox(|| {
+        use crate::services::mcp_server_registry::{self, SEEDED_BUSINESS_KEY};
+        assert_eq!(r#loop::binding_state(), "unbound");
+        assert!(r#loop::loaded_mcp_server().is_none());
+
+        r#loop::try_set_binding_json(&key_only_payload(SEEDED_BUSINESS_KEY))
+            .expect("legal key Set must succeed");
+        assert_eq!(r#loop::binding_state(), "bound");
+
+        let loaded = r#loop::loaded_mcp_server().expect("Set must load MCP Server config");
+        let expected = mcp_server_registry::lookup(SEEDED_BUSINESS_KEY).expect("registry");
+        assert_eq!(loaded, expected);
+        assert!(
+            !loaded.capability_description.trim().is_empty(),
+            "loaded config must be decision-level non-empty"
+        );
+    });
+}
+
+#[test]
+fn t2_reset_binding_unloads_mcp_server_config() {
+    with_sandbox(|| {
+        use crate::services::mcp_server_registry::SEEDED_BUSINESS_KEY;
+        r#loop::try_set_binding_json(&key_only_payload(SEEDED_BUSINESS_KEY)).expect("Set");
+        assert!(r#loop::loaded_mcp_server().is_some());
+
+        r#loop::reset_binding().expect("Reset");
+        assert_eq!(r#loop::binding_state(), "unbound");
+        assert!(
+            r#loop::loaded_mcp_server().is_none(),
+            "Reset must unload MCP Server config from session capability context"
+        );
+    });
+}
+
+#[test]
+fn t2_set_reset_public_json_reject_engine_selection_params() {
+    with_sandbox(|| {
+        use crate::services::mcp_server_registry::SEEDED_BUSINESS_KEY;
+        // Public Set must not accept engine selection parameters.
+        for payload in [
+            json!({ "key": SEEDED_BUSINESS_KEY, "engine": "host" }),
+            json!({ "key": SEEDED_BUSINESS_KEY, "engine_type": "cursor" }),
+            json!({ "key": SEEDED_BUSINESS_KEY, "engineType": "host" }),
+        ] {
+            let err = r#loop::try_set_binding_json(&payload)
+                .expect_err("engine selection params must fail at public boundary");
+            assert_eq!(err.as_code(), "set_invalid");
+            assert_eq!(r#loop::binding_state(), "unbound");
+            assert!(r#loop::loaded_mcp_server().is_none());
+        }
+        // reset_binding takes no engine params (signature-level); idempotent ok.
+        r#loop::reset_binding().expect("Reset");
+    });
+}
+
+#[test]
+fn t2_replace_set_with_new_key_replaces_loaded_mcp_config() {
+    with_sandbox(|| {
+        use crate::services::mcp_server_registry::{self, McpServerConfig, SEEDED_BUSINESS_KEY};
+        r#loop::try_set_binding_json(&key_only_payload(SEEDED_BUSINESS_KEY)).expect("first Set");
+        let first = r#loop::loaded_mcp_server().expect("first loaded");
+
+        mcp_server_registry::register(
+            "alt_business_key",
+            McpServerConfig {
+                capability_description: "alternate mcp capability".into(),
+            },
+        )
+        .expect("register alt");
+        r#loop::try_set_binding_json(&key_only_payload("alt_business_key")).expect("replace Set");
+
+        let second = r#loop::loaded_mcp_server().expect("replaced loaded");
+        assert_ne!(first, second, "replace must not keep old MCP config alongside new");
+        assert_eq!(second.capability_description, "alternate mcp capability");
+        assert_eq!(r#loop::binding_state(), "bound");
+        assert_eq!(r#loop::current_binding_slot_count(), 1);
+    });
+}
+
+#[test]
+fn t2_reset_when_unbound_is_idempotent_mcp_slot_stays_empty() {
+    with_sandbox(|| {
+        assert!(r#loop::loaded_mcp_server().is_none());
+        r#loop::reset_binding().expect("Reset unbound");
+        assert_eq!(r#loop::binding_state(), "unbound");
+        assert!(r#loop::loaded_mcp_server().is_none());
+        r#loop::reset_binding().expect("second Reset unbound");
+        assert!(r#loop::loaded_mcp_server().is_none());
+    });
+}
+
+#[test]
+fn t2_unknown_key_fails_explicitly_without_destroying_prior_mcp_context() {
+    with_sandbox(|| {
+        use crate::services::mcp_server_registry::SEEDED_BUSINESS_KEY;
+        r#loop::try_set_binding_json(&key_only_payload(SEEDED_BUSINESS_KEY)).expect("seed bound");
+        let prior = r#loop::loaded_mcp_server().expect("prior MCP");
+        let gen = r#loop::query_binding().generation;
+
+        let err = r#loop::try_set_binding_json(&key_only_payload("unknown_business_key_xyz"))
+            .expect_err("unknown key must fail");
+        assert_eq!(err.as_code(), "unknown_key");
+        assert_eq!(r#loop::binding_state(), "bound");
+        assert_eq!(
+            r#loop::loaded_mcp_server().as_ref(),
+            Some(&prior),
+            "failed Set must not destroy prior session capability context"
+        );
+        assert_eq!(r#loop::query_binding().generation, gen);
+    });
+}
+
+#[test]
+fn t2_legacy_tools_prompt_callbacks_payload_rejected_at_public_boundary() {
+    with_sandbox(|| {
+        use crate::services::mcp_server_registry::SEEDED_BUSINESS_KEY;
+        // Unbound: legacy payload cannot bypass key→MCP lookup.
+        let err = r#loop::try_set_binding_json(&json!({
+            "tools": [{ "name": "tool_a", "handle": "opaque-tool-a" }],
+            "prompt": "opaque-system-prompt",
+            "callbacks": {}
+        }))
+        .expect_err("legacy payload must fail");
+        assert_eq!(err.as_code(), "set_invalid");
+        assert_eq!(r#loop::binding_state(), "unbound");
+        assert!(r#loop::loaded_mcp_server().is_none());
+
+        // Bound via key: legacy payload still rejected; MCP context preserved.
+        r#loop::try_set_binding_json(&key_only_payload(SEEDED_BUSINESS_KEY)).expect("key Set");
+        let prior = r#loop::loaded_mcp_server().expect("loaded");
+        let err = r#loop::try_set_binding_json(&json!({
+            "tools": [{ "name": "tool_a" }],
+            "prompt": "p",
+            "callbacks": {}
+        }))
+        .expect_err("legacy payload must fail when bound");
+        assert_eq!(err.as_code(), "set_invalid");
+        assert_eq!(r#loop::binding_state(), "bound");
+        assert_eq!(r#loop::loaded_mcp_server().as_ref(), Some(&prior));
+    });
+}
+
+#[test]
+fn t2_missing_or_invalid_key_input_fails_explicitly() {
+    with_sandbox(|| {
+        for payload in [
+            json!({}),
+            json!({ "key": "" }),
+            json!({ "key": "   " }),
+            json!({ "key": null }),
+            json!({ "master_task_id": "task_x" }),
+            json!("todo_task"),
+        ] {
+            let err = r#loop::try_set_binding_json(&payload)
+                .expect_err("missing/invalid key must fail");
+            assert_eq!(err.as_code(), "set_invalid", "payload={payload}");
+            assert_eq!(r#loop::binding_state(), "unbound");
+            assert!(r#loop::loaded_mcp_server().is_none());
+        }
+    });
+}
+
+#[test]
+fn t2_binding_from_json_accepts_key_only_rejects_legacy() {
+    with_sandbox(|| {
+        use crate::services::agent::session;
+        use crate::services::mcp_server_registry::SEEDED_BUSINESS_KEY;
+        let b = session::binding_from_json(&key_only_payload(SEEDED_BUSINESS_KEY))
+            .expect("key-only parse");
+        assert_eq!(
+            session::binding_business_key(&b).as_deref(),
+            Some(SEEDED_BUSINESS_KEY),
+            "parsed Binding must carry the business key"
+        );
+
+        let err = session::binding_from_json(&json!({
+            "tools": [{ "name": "t" }],
+            "prompt": "p",
+            "callbacks": {}
+        }))
+        .expect_err("legacy payload");
+        assert_eq!(err.as_code(), "set_invalid");
+    });
+}
+
+// --- t4: session capability context read-only consumption face ---
+//
+// Locks the engine-facing read API for future Host Loop + Cursor Local adapters.
+// No engine-branch injection code in this slice (L3).
+//
+// A1 confirmed (not narrowed): the same decision-level McpServerConfig shape
+// returned by this read face is the shared consumption form for both engines;
+// field-level transport schema (stdio/http/…) remains deferred.
+//
+// A2 confirmed (not narrowed): Host mcp_server_registry is the sole lookup
+// source; this face only exposes config already loaded by key-only Set from
+// that authoritative table — it does not re-resolve or accept legacy payloads.
+
+#[test]
+fn t4_read_face_exposes_decision_level_shape_matching_registry_value() {
+    with_sandbox(|| {
+        use crate::services::mcp_server_registry::{self, SEEDED_BUSINESS_KEY};
+        r#loop::try_set_binding_json(&key_only_payload(SEEDED_BUSINESS_KEY)).expect("Set");
+
+        let view = r#loop::session_capability_mcp_config()
+            .expect("bound session must expose loaded MCP config via read face");
+        let expected = mcp_server_registry::lookup(SEEDED_BUSINESS_KEY).expect("registry");
+
+        // Decision-level shape parity with t1 value (capability_description only).
+        assert_eq!(view, expected);
+        assert!(
+            !view.capability_description.trim().is_empty(),
+            "read face must expose non-empty decision-level capability description"
+        );
+        // Shared form for both future engines (A1): same type/shape, no engine param.
+        assert_eq!(
+            view.capability_description,
+            expected.capability_description,
+            "Host Loop and Cursor Local must consume the same decision-level fields"
+        );
+    });
+}
+
+#[test]
+fn t4_read_face_returns_none_when_unbound_or_after_reset() {
+    with_sandbox(|| {
+        use crate::services::mcp_server_registry::SEEDED_BUSINESS_KEY;
+        assert!(
+            r#loop::session_capability_mcp_config().is_none(),
+            "unbound consumption face must be empty/None"
+        );
+
+        r#loop::try_set_binding_json(&key_only_payload(SEEDED_BUSINESS_KEY)).expect("Set");
+        assert!(r#loop::session_capability_mcp_config().is_some());
+
+        r#loop::reset_binding().expect("Reset");
+        assert!(
+            r#loop::session_capability_mcp_config().is_none(),
+            "Reset must unload; read face must report removed"
+        );
+    });
+}
+
+#[test]
+fn t4_read_face_is_readonly_consumer_mutate_does_not_rewrite_session() {
+    with_sandbox(|| {
+        use crate::services::mcp_server_registry::SEEDED_BUSINESS_KEY;
+        r#loop::try_set_binding_json(&key_only_payload(SEEDED_BUSINESS_KEY)).expect("Set");
+        let original = r#loop::session_capability_mcp_config().expect("loaded");
+
+        // Consumer holds a detached view; mutating it must not rewrite session state.
+        let mut local = r#loop::session_capability_mcp_config().expect("clone view");
+        local.capability_description = "mutated-by-consumer".into();
+        assert_ne!(local.capability_description, original.capability_description);
+
+        let reread = r#loop::session_capability_mcp_config().expect("still loaded");
+        assert_eq!(
+            reread, original,
+            "read face must not provide a business/external write path into session config"
+        );
+    });
+}
+
+#[test]
+fn t4_only_set_reset_lifecycle_may_change_loaded_config() {
+    with_sandbox(|| {
+        use crate::services::mcp_server_registry::{self, McpServerConfig, SEEDED_BUSINESS_KEY};
+        assert!(r#loop::session_capability_mcp_config().is_none());
+
+        // Lifecycle Set loads.
+        r#loop::try_set_binding_json(&key_only_payload(SEEDED_BUSINESS_KEY)).expect("Set");
+        let first = r#loop::session_capability_mcp_config().expect("after Set");
+
+        // Registry mutation alone must not rewrite the already-loaded session view
+        // (A2: table is lookup source at Set time; read face does not re-inject).
+        mcp_server_registry::register(
+            SEEDED_BUSINESS_KEY,
+            McpServerConfig {
+                capability_description: "registry-mutated-after-set".into(),
+            },
+        )
+        .expect("register overwrite");
+        let still = r#loop::session_capability_mcp_config().expect("unchanged without Set");
+        assert_eq!(
+            still, first,
+            "read face must not re-lookup/re-inject; only Set/Reset lifecycle may change"
+        );
+
+        // Lifecycle replace Set updates.
+        mcp_server_registry::register(
+            "alt_for_t4",
+            McpServerConfig {
+                capability_description: "alt capability for t4".into(),
+            },
+        )
+        .expect("alt");
+        r#loop::try_set_binding_json(&key_only_payload("alt_for_t4")).expect("replace Set");
+        let second = r#loop::session_capability_mcp_config().expect("after replace");
+        assert_ne!(second, first);
+        assert_eq!(second.capability_description, "alt capability for t4");
+
+        // Lifecycle Reset clears.
+        r#loop::reset_binding().expect("Reset");
+        assert!(r#loop::session_capability_mcp_config().is_none());
+    });
+}
+
+#[test]
+fn t4_read_face_cannot_reinject_legacy_tools_prompt_callbacks() {
+    with_sandbox(|| {
+        use crate::services::mcp_server_registry::SEEDED_BUSINESS_KEY;
+        r#loop::try_set_binding_json(&key_only_payload(SEEDED_BUSINESS_KEY)).expect("Set");
+        let via_read = r#loop::session_capability_mcp_config().expect("read face");
+
+        // Consumption face returns decision-level MCP config only — not a Binding
+        // write path. Legacy tools/prompt/callbacks cannot be pushed back through it.
+        assert!(
+            !via_read.capability_description.contains("\"tools\""),
+            "read face must not surface legacy tools payload shape"
+        );
+        // Public Set still rejects legacy payload; session view unchanged.
+        let err = r#loop::try_set_binding_json(&json!({
+            "tools": [{ "name": "tool_a", "handle": "opaque" }],
+            "prompt": via_read.capability_description,
+            "callbacks": {}
+        }))
+        .expect_err("legacy reinject via Set must fail");
+        assert_eq!(err.as_code(), "set_invalid");
+        assert_eq!(
+            r#loop::session_capability_mcp_config().as_ref(),
+            Some(&via_read),
+            "failed legacy reinject must leave read-face config unchanged"
+        );
+    });
+}
+
+#[test]
+fn t4_a1_a2_handoff_assumptions_confirmed_not_narrowed() {
+    with_sandbox(|| {
+        use crate::services::mcp_server_registry::{self, SEEDED_BUSINESS_KEY};
+        // A1: one decision-level shape, dual-engine readable (no engine-specific fields).
+        r#loop::try_set_binding_json(&key_only_payload(SEEDED_BUSINESS_KEY)).expect("Set");
+        let face = r#loop::session_capability_mcp_config().expect("face");
+        let table = mcp_server_registry::lookup(SEEDED_BUSINESS_KEY).expect("table");
+        assert_eq!(
+            face, table,
+            "A1 confirmed: read face exposes the same decision-level form both engines will read"
+        );
+
+        // A2: Host authoritative table is the sole lookup source at Set; Binding
+        // callers only need the stable business key (already exercised by Set path).
+        assert_eq!(
+            face.capability_description, table.capability_description,
+            "A2 confirmed: loaded view originates from Host registry lookup, not caller payload"
+        );
+        assert!(
+            r#loop::SESSION_CAPABILITY_READ_FACE_A1_DUAL_ENGINE_SAME_SHAPE,
+            "A1 must be explicitly confirmed in delivery (not silently narrowed)"
+        );
+        assert!(
+            r#loop::SESSION_CAPABILITY_READ_FACE_A2_HOST_REGISTRY_SOLE_LOOKUP,
+            "A2 must be explicitly confirmed in delivery (not silently narrowed)"
+        );
+    });
+}
+
+// --- T3 / P3: Host Loop empty tools + zero Cursor ---
+
+#[test]
+fn t3_host_business_chat_sends_empty_tools_to_llm() {
+    with_sandbox(|| {
+        let master = create_bound_plan("t3-empty-tools");
+        let mock = spawn_scripted_llm(vec![assistant_text("门面会话可用")]);
+        install_llm_cfg(&mock);
+        arm_plan_binding(&master);
+        let open = r#loop::open_ai_assistant_core(&master).unwrap();
+        let sid = open["session_id"].as_str().unwrap();
+        let result = r#loop::agent_chat_turn_core(sid, "你好", Some(&master)).unwrap();
+        assert_eq!(result.body["terminal"], "none");
+        assert_eq!(result.body["wrote"], false);
+        let hits = mock.hits.lock().unwrap();
+        assert_eq!(hits.len(), 1);
+        assert_host_llm_tools_empty(&hits[0]);
+    });
+}
+
+#[test]
+fn t3_host_facade_open_ensure_chat_works_without_cursor() {
+    with_sandbox(|| {
+        let master = create_bound_plan("t3-no-cursor");
+        let mock = spawn_scripted_llm(vec![assistant_text("无 Cursor 亦可完成门面会话")]);
+        install_llm_cfg(&mock);
+        arm_plan_binding(&master);
+
+        let open = r#loop::open_ai_assistant_core(&master).unwrap();
+        let sid = open["session_id"].as_str().unwrap().to_string();
+        assert!(!sid.is_empty());
+
+        let ensure = r#loop::ensure_chat_session_core().unwrap();
+        assert_eq!(ensure["session_id"], sid);
+
+        let result = r#loop::agent_chat_turn_core(&sid, "继续", Some(&master)).unwrap();
+        assert_eq!(result.body["terminal"], "none");
+        assert_eq!(result.body["wrote"], false);
+        assert!(result.emit_turn_completed.is_some());
+        assert!(
+            result.body["reply_text"]
+                .as_str()
+                .unwrap_or("")
+                .contains("门面会话")
+        );
+        assert_host_llm_tools_empty(&mock.hits.lock().unwrap()[0]);
+    });
+}
+
+#[test]
+fn t3_host_path_modules_do_not_import_cursor_adapter() {
+    // Module boundary: Host loop/llm must not import Cursor SDK / cursor_adapter.
+    let loop_src = include_str!("../../../services/agent/loop.rs");
+    let llm_src = include_str!("../../../services/agent/llm.rs");
+    for (label, src) in [("loop.rs", loop_src), ("llm.rs", llm_src)] {
+        let lower = src.to_ascii_lowercase();
+        assert!(
+            !lower.contains("cursor_adapter"),
+            "{label} must not import/link cursor_adapter"
+        );
+        assert!(
+            !lower.contains("cursor_sdk"),
+            "{label} must not import/link Cursor SDK"
+        );
+        assert!(
+            !src.contains("cursor_agent") && !src.contains("CursorAgent"),
+            "{label} must not reference Cursor Agent SDK symbols"
+        );
+    }
+}
+
+#[test]
+fn t3_host_reads_session_capability_mcp_config_readonly_without_tool_dispatch() {
+    with_sandbox(|| {
+        use crate::services::mcp_server_registry::SEEDED_BUSINESS_KEY;
+        let mock = spawn_scripted_llm(vec![assistant_text("读只读面后文本回复")]);
+        install_llm_cfg(&mock);
+        r#loop::try_set_binding_json(&key_only_payload(SEEDED_BUSINESS_KEY)).expect("Set");
+        let before = r#loop::session_capability_mcp_config().expect("loaded");
+
+        // Host adapter may consume the L2 read face; must not mutate it via chat.
+        let open = r#loop::ensure_chat_session_core().unwrap();
+        let sid = open["session_id"].as_str().unwrap();
+        let result = r#loop::agent_chat_turn_core(sid, "ping", None).unwrap();
+        assert_eq!(result.body["terminal"], "none");
+        assert_eq!(result.body["wrote"], false);
+
+        let after = r#loop::session_capability_mcp_config().expect("still loaded");
+        assert_eq!(after, before, "chat must not rewrite session capability MCP config");
+        assert_host_llm_tools_empty(&mock.hits.lock().unwrap()[0]);
+    });
+}
+
+#[test]
+fn t3_host_unexpected_tool_calls_never_call_process_dispatch() {
+    with_sandbox(|| {
+        let master = create_bound_plan("t3-no-dispatch");
+        let title_before = todo_task::get_by_id(&master)["title"].clone();
+        let mock = spawn_scripted_llm(vec![assistant_tools(
+            json!([{
+                "id": "t3nd1",
+                "type": "function",
+                "function": {
+                    "name": "update_master_title",
+                    "arguments": "{\"title\":\"must-not-write\"}"
+                }
+            }]),
+            None,
+        )]);
+        install_llm_cfg(&mock);
+        arm_plan_binding(&master);
+        let open = r#loop::open_ai_assistant_core(&master).unwrap();
+        let sid = open["session_id"].as_str().unwrap();
+        let result = r#loop::agent_chat_turn_core(sid, "改标题", Some(&master)).unwrap();
+        assert_eq!(result.body["wrote"], false);
+        assert_eq!(result.body["terminal"], "error");
+        assert_eq!(todo_task::get_by_id(&master)["title"], title_before);
+        let sess = session::load_session(sid).unwrap();
+        assert!(sess.turns.iter().all(|t| t.role != "tool"));
+        assert_host_llm_tools_empty(&mock.hits.lock().unwrap()[0]);
+    });
+}
+
+#[test]
+fn t3_a3_host_empty_tools_facade_usable_confirmed() {
+    // Must Close Before F-45 / AC2: A3 confirmed (not silently narrowed).
+    assert!(
+        r#loop::HOST_EMPTY_TOOLS_A3_FACADE_USABLE,
+        "A3 must be explicitly confirmed: Host empty tools still usable for facade session"
+    );
+    with_sandbox(|| {
+        let master = create_bound_plan("t3-a3");
+        let mock = spawn_scripted_llm(vec![assistant_text("A3: empty tools facade ok")]);
+        install_llm_cfg(&mock);
+        arm_plan_binding(&master);
+        let open = r#loop::open_ai_assistant_core(&master).unwrap();
+        let sid = open["session_id"].as_str().unwrap();
+        let result = r#loop::agent_chat_turn_core(sid, "hi", Some(&master)).unwrap();
+        assert_eq!(result.body["terminal"], "none");
+        assert_eq!(result.body["wrote"], false);
+        assert_host_llm_tools_empty(&mock.hits.lock().unwrap()[0]);
+    });
+}
+
+// ── L1+L2 integration retained on L3 Host empty-tools path ──
+
+#[test]
+fn t3_loop_rs_has_no_business_whitelist_dispatch_path() {
+    let src = include_str!("../../../services/agent/loop.rs");
+    // Comments may mention the ban; forbid call/import forms only.
+    assert!(
+        !src.contains("tools::dispatch(") && !src.contains("use crate::services::agent::tools"),
+        "loop.rs must not call/import tools::dispatch"
+    );
+    assert!(
+        !src.contains("const WHITELIST"),
+        "loop.rs must not keep business WHITELIST for in-process tool-round"
+    );
+    assert!(
+        !src.contains("const WRITE_TOOLS"),
+        "loop.rs must not keep WRITE_TOOLS tied to in-process dispatch"
+    );
+}
+
+#[test]
+fn t3_nonempty_tools_binding_tool_calls_never_mutate_todo_task() {
+    // Even with non-empty Binding.tools, Host L3 path never dispatches in-process.
+    with_sandbox(|| {
+        let master = create_bound_plan("t3非空tools");
+        let before = todo_task::get_by_id(&master)["title"].clone();
+        let mock = spawn_scripted_llm(vec![assistant_tools(
+            json!([{
+                "id": "t3_dispatch_gone",
+                "type": "function",
+                "function": {
+                    "name": "update_master_title",
+                    "arguments": "{\"title\":\"不得进程内写入\"}"
+                }
+            }]),
+            None,
+        )]);
+        let mut sess = session::create_session(Some(&master), Some("t3非空tools")).unwrap();
+        arm_plan_binding(&master);
+        let out = r#loop::run_loop(&mut sess, "改标题", &cfg_for(&mock));
+        assert_eq!(out.wrote, false);
+        assert_eq!(todo_task::get_by_id(&master)["title"], before);
+        assert!(
+            !sess.turns.iter().any(|t| t.role == "tool"),
+            "no tool-role turns from removed dispatch path"
+        );
+        assert_eq!(out.terminal, Terminal::Error);
+        assert_host_llm_tools_empty(&mock.hits.lock().unwrap()[0]);
+    });
+}
+
+fn empty_tools_binding() -> r#loop::Binding {
+    r#loop::Binding {
+        tools: json!([]),
+        prompt: json!(PLAN_ASSISTANT_SYSTEM_PROMPT),
+        callbacks: json!({}),
+    }
+}
+
+#[test]
+fn t2_empty_tools_binding_text_only_round_succeeds() {
+    with_sandbox(|| {
+        let master = create_bound_plan("空tools纯文本");
+        let mock = spawn_scripted_llm(vec![assistant_text("纯文本回复，无工具")]);
+        let mut sess = session::create_session(Some(&master), Some("空tools纯文本")).unwrap();
+        r#loop::set_binding(empty_tools_binding()).expect("empty tools Set");
+        let out = r#loop::run_loop(&mut sess, "你好", &cfg_for(&mock));
+        assert_outcome(&out, "none", false);
+        assert!(out.reply_text.contains("纯文本"));
+        assert_host_llm_tools_empty(&mock.hits.lock().unwrap()[0]);
+    });
+}
+
+#[test]
+fn t2_key_only_set_llm_round_omits_tools_and_loads_mcp() {
+    with_sandbox(|| {
+        use crate::services::mcp_server_registry::SEEDED_BUSINESS_KEY;
+        let master = create_bound_plan("key-only空tools");
+        let mock = spawn_scripted_llm(vec![assistant_text("key-only无工具回复")]);
+        let mut sess = session::create_session(Some(&master), Some("key-only空tools")).unwrap();
+        r#loop::try_set_binding_json(&key_only_payload(SEEDED_BUSINESS_KEY))
+            .expect("key-only Set");
+        assert!(r#loop::loaded_mcp_server().is_some());
+        assert!(r#loop::session_capability_mcp_config().is_some());
+        let before = todo_task::get_by_id(&master)["title"].clone();
+        let out = r#loop::run_loop(&mut sess, "你好", &cfg_for(&mock));
+        assert_outcome(&out, "none", false);
+        assert_eq!(out.wrote, false);
+        assert!(
+            !sess.turns.iter().any(|t| t.role == "tool"),
+            "key-only business path must not dispatch in-process tools"
+        );
+        assert_eq!(todo_task::get_by_id(&master)["title"], before);
+        assert_host_llm_tools_empty(&mock.hits.lock().unwrap()[0]);
+    });
+}
+

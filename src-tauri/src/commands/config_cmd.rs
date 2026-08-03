@@ -1,3 +1,10 @@
+//! Config read/write commands.
+//!
+//! Persists `assistant_engine` (`host` | `cursor`), `llm.model`, and per-category
+//! credentials (`api_key_host` / `api_key_cursor`). `get_config` / `to_config_json`
+//! expose `has_host_key` / `has_cursor_key` hints only — never plaintext keys.
+//! Illegal `assistant_engine` values are rejected at `apply_config_payload`.
+
 use serde_json::Value;
 use tauri::AppHandle;
 
@@ -10,7 +17,7 @@ pub fn set_config(_app: AppHandle, payload: Value) -> Result<Value, String> {
         return Ok(secrets::secret_error_json(&e));
     }
     let mut settings = settings::load().map_err(|e| format!("{e}"))?;
-    settings::apply_config_payload(&mut settings, &payload);
+    settings::apply_config_payload(&mut settings, &payload).map_err(|e| format!("{e}"))?;
     if !settings::uses_dev_config() {
         settings::normalize_cache_dir(&mut settings);
         settings::normalize_prod_paths(&mut settings);
@@ -20,7 +27,8 @@ pub fn set_config(_app: AppHandle, payload: Value) -> Result<Value, String> {
         &settings,
         secrets::has_github_token(),
         secrets::has_meili_key(),
-        secrets::has_llm_key(),
+        secrets::has_host_key(),
+        secrets::has_cursor_key(),
     ))
 }
 
