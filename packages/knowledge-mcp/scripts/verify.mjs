@@ -3,6 +3,7 @@
  * knowledge-mcp verification: mock Workbench HTTP + sidecar MCP client (TDD / CI).
  */
 import { spawn } from 'node:child_process';
+import fs from 'node:fs';
 import http from 'node:http';
 import { createServer } from 'node:net';
 import { fileURLToPath } from 'node:url';
@@ -744,17 +745,36 @@ function spawnSidecar(mcpPort, workbenchUrl, extraEnv = {}) {
   return child;
 }
 
-/** @param {number} mcpPort @param {string} [mountQuery] */
-async function connectAndListToolNames(mcpPort, mountQuery) {
-  const qs = mountQuery ? `?mount=${encodeURIComponent(mountQuery)}` : '';
-  const mcpUrl = `http://127.0.0.1:${mcpPort}/mcp${qs}`;
+/**
+ * Connect to path scene_slot MCP URL and list tool names.
+ * @param {number} mcpPort
+ * @param {string} sceneSlot — path segment after /mcp/ (e.g. todo_task)
+ */
+async function connectAndListToolNames(mcpPort, sceneSlot) {
+  const mcpUrl = `http://127.0.0.1:${mcpPort}/mcp/${encodeURIComponent(sceneSlot)}`;
   const transport = new StreamableHTTPClientTransport(new URL(mcpUrl));
-  const client = new Client({ name: 'knowledge-mcp-verify-mount', version: '0.1.0' });
+  const client = new Client({ name: 'knowledge-mcp-verify-slot', version: '0.1.0' });
   await client.connect(transport);
   const tools = await client.listTools();
   const names = tools.tools.map((t) => t.name).sort();
   await client.close();
   return names;
+}
+
+/** Attempt connect+listTools; returns { ok, names?, error? }. Never throws. */
+async function tryConnectAndListToolNames(mcpPort, pathSuffix) {
+  const mcpUrl = `http://127.0.0.1:${mcpPort}${pathSuffix}`;
+  try {
+    const transport = new StreamableHTTPClientTransport(new URL(mcpUrl));
+    const client = new Client({ name: 'knowledge-mcp-verify-probe', version: '0.1.0' });
+    await client.connect(transport);
+    const tools = await client.listTools();
+    const names = tools.tools.map((t) => t.name).sort();
+    await client.close();
+    return { ok: true, names };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : String(err) };
+  }
 }
 
 function assertIncludesAll(names, required, label) {
@@ -773,108 +793,159 @@ function assertNoneOf(names, forbidden, label) {
   }
 }
 
-/**
- * t1 / AC4 — business isolation mounts: env MCP_MOUNT or ?mount= filter tool sets.
- * Mounts: default (full), todo (todo tools only), corpus (corpus/archive only).
- * Unknown mount key falls back to default (full todo tool set).
- */
-async function testMountIsolation(workbenchUrl) {
-  const CORPUS_TOOLS = [
-    'get_corpus_catalog',
-    'get_corpus_files',
-    'archive_document',
-    'archive_digest',
-  ];
-  const TODO_SURFACE = [...EQUIVALENCE_TODO_TOOLS, ...SUB_CONTENT_TODO_TOOLS];
+const CORPUS_TOOLS = [
+  'get_corpus_catalog',
+  'get_corpus_files',
+  'archive_document',
+  'archive_digest',
+];
+const TODO_SURFACE = [...EQUIVALENCE_TODO_TOOLS, ...SUB_CONTENT_TODO_TOOLS];
 
-  // --- default mount (no key): full todo + corpus surface ---
-  {
-    const mcpPort = await ephemeralPort();
-    const sidecar = spawnSidecar(mcpPort, workbenchUrl);
-    const ready = await waitFor(`http://127.0.0.1:${mcpPort}/health`);
-    if (!ready) {
-      sidecar.kill('SIGTERM');
-      throw new Error('mount default: sidecar health timeout');
-    }
-    const names = await connectAndListToolNames(mcpPort);
-    assertIncludesAll(names, TODO_SURFACE, 'default mount');
-    assertIncludesAll(names, CORPUS_TOOLS, 'default mount');
-    const namesAgain = await connectAndListToolNames(mcpPort);
-    if (JSON.stringify(names) !== JSON.stringify(namesAgain)) {
+/**
+ * t1 / AC2–AC4 — path scene_slot routing:
+ * /mcp/todo_task and /mcp/cursor_ide expose distinguishable API sets;
+ * unknown path hard-fails (no full-tool fallback); old mount silent fallback gone.
+ */
+async function testSceneSlotPathRouting(workbenchUrl) {
+  const mcpPort = await ephemeralPort();
+  const sidecar = spawnSidecar(mcpPort, workbenchUrl);
+  const ready = await waitFor(`http://127.0.0.1:${mcpPort}/health`);
+  if (!ready) {
+    sidecar.kill('SIGTERM');
+    throw new Error('scene_slot path: sidecar health timeout');
+  }
+
+  try {
+    // --- /mcp/todo_task: todo-only surface (aligns with Binding key todo_task) ---
+    const todoNames = await connectAndListToolNames(mcpPort, 'todo_task');
+    assertIncludesAll(todoNames, TODO_SURFACE, '/mcp/todo_task');
+    assertNoneOf(todoNames, CORPUS_TOOLS, '/mcp/todo_task');
+
+    // Stability: repeated tools/list must not jitter (AC2/AC3 isolation observability)
+    const todoNamesAgain = await connectAndListToolNames(mcpPort, 'todo_task');
+    if (JSON.stringify(todoNames) !== JSON.stringify(todoNamesAgain)) {
       throw new Error(
-        `default mount tools/list not stable: ${names.join(',')} vs ${namesAgain.join(',')}`,
+        `/mcp/todo_task tools/list not stable: ${todoNames.join(',')} vs ${todoNamesAgain.join(',')}`,
       );
     }
+
+    // --- /mcp/cursor_ide: distinguishable from todo_task (corpus/archive seed) ---
+    const ideNames = await connectAndListToolNames(mcpPort, 'cursor_ide');
+    assertIncludesAll(ideNames, CORPUS_TOOLS, '/mcp/cursor_ide');
+    assertNoneOf(ideNames, TODO_SURFACE, '/mcp/cursor_ide');
+    if (JSON.stringify(todoNames) === JSON.stringify(ideNames)) {
+      throw new Error('todo_task and cursor_ide slots must expose distinguishable tools/list');
+    }
+    const ideNamesAgain = await connectAndListToolNames(mcpPort, 'cursor_ide');
+    if (JSON.stringify(ideNames) !== JSON.stringify(ideNamesAgain)) {
+      throw new Error(
+        `/mcp/cursor_ide tools/list not stable: ${ideNames.join(',')} vs ${ideNamesAgain.join(',')}`,
+      );
+    }
+
+    // --- registered slot HTTP success path (todo_task → list_todo_tasks) ---
+    {
+      const transport = new StreamableHTTPClientTransport(
+        new URL(`http://127.0.0.1:${mcpPort}/mcp/todo_task`),
+      );
+      const client = new Client({ name: 'knowledge-mcp-verify-slot-http', version: '0.1.0' });
+      await client.connect(transport);
+      const result = await client.callTool({ name: 'list_todo_tasks', arguments: {} });
+      if (result.isError) {
+        throw new Error(
+          `todo_task list_todo_tasks must succeed via Workbench HTTP: ${result.content?.[0]?.text || ''}`,
+        );
+      }
+      await client.close();
+    }
+
+    // --- unknown path slot: hard fail; must NOT return full tool set ---
+    const unknown = await tryConnectAndListToolNames(mcpPort, '/mcp/__unknown__');
+    if (unknown.ok) {
+      const fullSurface = [...TODO_SURFACE, ...CORPUS_TOOLS];
+      const hasFull =
+        fullSurface.every((t) => unknown.names.includes(t)) ||
+        (TODO_SURFACE.every((t) => unknown.names.includes(t)) &&
+          CORPUS_TOOLS.every((t) => unknown.names.includes(t)));
+      if (hasFull || unknown.names.length > 0) {
+        // Any successful tools/list on unknown slot is a hard-reject violation if it
+        // exposes tools; empty list is also wrong — connection itself must fail.
+        throw new Error(
+          `unknown scene_slot /mcp/__unknown__ must hard-fail connect/tools/list; got tools: ${unknown.names.join(', ')}`,
+        );
+      }
+      throw new Error('unknown scene_slot /mcp/__unknown__ must hard-fail connect/tools/list');
+    }
+
+    // --- old bare /mcp and ?mount= / MCP_MOUNT silent full-tool fallback unreachable ---
+    const bare = await tryConnectAndListToolNames(mcpPort, '/mcp');
+    if (bare.ok) {
+      const exposesFull =
+        TODO_SURFACE.every((t) => bare.names.includes(t)) &&
+        CORPUS_TOOLS.every((t) => bare.names.includes(t));
+      if (exposesFull) {
+        throw new Error('bare /mcp must not expose full tool set (old default mount fallback)');
+      }
+      // Bare /mcp without scene_slot is not a registered path slot — must hard-fail.
+      throw new Error(
+        `bare /mcp must hard-fail (path scene_slot is sole isolation surface); got tools: ${bare.names.join(', ')}`,
+      );
+    }
+
+    const mountQuery = await tryConnectAndListToolNames(mcpPort, '/mcp?mount=todo');
+    if (mountQuery.ok) {
+      throw new Error(
+        `?mount= query must not select tools (old mount path); got: ${mountQuery.names.join(', ')}`,
+      );
+    }
+
+    // Static: silent-fallback mount helpers must be removed from index.mjs
+    const indexSrc = fs.readFileSync(path.join(PKG_ROOT, 'index.mjs'), 'utf8');
+    for (const forbidden of [
+      'KNOWN_MOUNTS',
+      'resolveMountKey',
+      'mountKeyFromRequest',
+      'MCP_MOUNT',
+    ]) {
+      if (indexSrc.includes(forbidden)) {
+        throw new Error(
+          `index.mjs must remove old mount silent-fallback surface; still contains ${forbidden}`,
+        );
+      }
+    }
+  } finally {
     sidecar.kill('SIGTERM');
     await sleep(200);
   }
 
-  // --- MCP_MOUNT=todo vs MCP_MOUNT=corpus: distinguishable sets ---
+  // MCP_MOUNT env must not resurrect full-tool silent fallback on any reachable path
   {
-    const todoPort = await ephemeralPort();
-    const corpusPort = await ephemeralPort();
-    const todoSidecar = spawnSidecar(todoPort, workbenchUrl, { MCP_MOUNT: 'todo' });
-    const corpusSidecar = spawnSidecar(corpusPort, workbenchUrl, { MCP_MOUNT: 'corpus' });
-    const todoReady = await waitFor(`http://127.0.0.1:${todoPort}/health`);
-    const corpusReady = await waitFor(`http://127.0.0.1:${corpusPort}/health`);
-    if (!todoReady || !corpusReady) {
-      todoSidecar.kill('SIGTERM');
-      corpusSidecar.kill('SIGTERM');
-      throw new Error('mount todo/corpus: sidecar health timeout');
+    const envPort = await ephemeralPort();
+    const envSidecar = spawnSidecar(envPort, workbenchUrl, { MCP_MOUNT: 'not-a-real-mount' });
+    const envReady = await waitFor(`http://127.0.0.1:${envPort}/health`);
+    if (!envReady) {
+      envSidecar.kill('SIGTERM');
+      throw new Error('MCP_MOUNT env probe: sidecar health timeout');
     }
-    const todoNames = await connectAndListToolNames(todoPort);
-    const corpusNames = await connectAndListToolNames(corpusPort);
-    assertIncludesAll(todoNames, TODO_SURFACE, 'MCP_MOUNT=todo');
-    assertNoneOf(todoNames, CORPUS_TOOLS, 'MCP_MOUNT=todo');
-    assertIncludesAll(corpusNames, CORPUS_TOOLS, 'MCP_MOUNT=corpus');
-    assertNoneOf(corpusNames, TODO_SURFACE, 'MCP_MOUNT=corpus');
-    if (JSON.stringify(todoNames) === JSON.stringify(corpusNames)) {
-      throw new Error('todo and corpus mounts must expose distinguishable tools/list');
+    try {
+      const viaBare = await tryConnectAndListToolNames(envPort, '/mcp');
+      if (viaBare.ok) {
+        const exposesFull =
+          TODO_SURFACE.every((t) => viaBare.names.includes(t)) &&
+          CORPUS_TOOLS.every((t) => viaBare.names.includes(t));
+        if (exposesFull) {
+          throw new Error('MCP_MOUNT unknown must not silently fall back to full tools on /mcp');
+        }
+        throw new Error('MCP_MOUNT must not open bare /mcp tool surface');
+      }
+      // Registered path slots must still work and ignore MCP_MOUNT
+      const todoNames = await connectAndListToolNames(envPort, 'todo_task');
+      assertIncludesAll(todoNames, TODO_SURFACE, 'todo_task ignores MCP_MOUNT');
+      assertNoneOf(todoNames, CORPUS_TOOLS, 'todo_task ignores MCP_MOUNT');
+    } finally {
+      envSidecar.kill('SIGTERM');
+      await sleep(200);
     }
-    const todoNamesAgain = await connectAndListToolNames(todoPort);
-    if (JSON.stringify(todoNames) !== JSON.stringify(todoNamesAgain)) {
-      throw new Error('MCP_MOUNT=todo tools/list not stable across repeated list');
-    }
-    todoSidecar.kill('SIGTERM');
-    corpusSidecar.kill('SIGTERM');
-    await sleep(200);
-  }
-
-  // --- query ?mount= overrides / selects mount on shared sidecar ---
-  {
-    const mcpPort = await ephemeralPort();
-    const sidecar = spawnSidecar(mcpPort, workbenchUrl);
-    const ready = await waitFor(`http://127.0.0.1:${mcpPort}/health`);
-    if (!ready) {
-      sidecar.kill('SIGTERM');
-      throw new Error('mount query: sidecar health timeout');
-    }
-    const todoNames = await connectAndListToolNames(mcpPort, 'todo');
-    const corpusNames = await connectAndListToolNames(mcpPort, 'corpus');
-    assertIncludesAll(todoNames, TODO_SURFACE, '?mount=todo');
-    assertNoneOf(todoNames, CORPUS_TOOLS, '?mount=todo');
-    assertIncludesAll(corpusNames, CORPUS_TOOLS, '?mount=corpus');
-    assertNoneOf(corpusNames, TODO_SURFACE, '?mount=corpus');
-    sidecar.kill('SIGTERM');
-    await sleep(200);
-  }
-
-  // --- unknown mount key → default (full todo tool set) ---
-  {
-    const mcpPort = await ephemeralPort();
-    const sidecar = spawnSidecar(mcpPort, workbenchUrl, { MCP_MOUNT: 'not-a-real-mount' });
-    const ready = await waitFor(`http://127.0.0.1:${mcpPort}/health`);
-    if (!ready) {
-      sidecar.kill('SIGTERM');
-      throw new Error('mount unknown: sidecar health timeout');
-    }
-    const names = await connectAndListToolNames(mcpPort);
-    assertIncludesAll(names, TODO_SURFACE, 'unknown MCP_MOUNT fallback');
-    assertIncludesAll(names, CORPUS_TOOLS, 'unknown MCP_MOUNT fallback');
-    const namesViaQuery = await connectAndListToolNames(mcpPort, 'also-unknown');
-    assertIncludesAll(namesViaQuery, TODO_SURFACE, 'unknown ?mount= fallback');
-    sidecar.kill('SIGTERM');
-    await sleep(200);
   }
 }
 
@@ -893,7 +964,7 @@ async function testUnreachableWorkbenchHttp() {
   }
 
   const transport = new StreamableHTTPClientTransport(
-    new URL(`http://127.0.0.1:${mcpPort}/mcp`),
+    new URL(`http://127.0.0.1:${mcpPort}/mcp/todo_task`),
   );
   const client = new Client({ name: 'knowledge-mcp-verify-down', version: '0.1.0' });
   await client.connect(transport);
@@ -915,19 +986,83 @@ async function testUnreachableWorkbenchHttp() {
 }
 
 async function runMcpClient(mcpPort) {
-  const mcpUrl = `http://127.0.0.1:${mcpPort}/mcp`;
+  // cursor_ide slot: corpus/archive tools only
+  const ideUrl = `http://127.0.0.1:${mcpPort}/mcp/cursor_ide`;
+  const ideTransport = new StreamableHTTPClientTransport(new URL(ideUrl));
+  const ideClient = new Client({ name: 'knowledge-mcp-verify-ide', version: '0.1.0' });
+  await ideClient.connect(ideTransport);
+
+  const ideTools = await ideClient.listTools();
+  const ideNames = ideTools.tools.map((t) => t.name);
+  if (!ideNames.includes('get_corpus_catalog') || !ideNames.includes('get_corpus_files')) {
+    throw new Error(`cursor_ide missing corpus tools: ${ideNames.join(', ')}`);
+  }
+  if (!ideNames.includes('archive_document') || !ideNames.includes('archive_digest')) {
+    throw new Error(`cursor_ide missing archive tools: ${ideNames.join(', ')}`);
+  }
+  for (const tool of TODO_SURFACE) {
+    if (ideNames.includes(tool)) {
+      throw new Error(`cursor_ide must not expose todo tool ${tool}`);
+    }
+  }
+
+  const catalogResult = await ideClient.callTool({
+    name: 'get_corpus_catalog',
+    arguments: { mode: 'latest_per_topic' },
+  });
+  const catalogText = catalogResult.content?.[0]?.text || '';
+  if (!catalogText.includes('demo-topic') || catalogText.includes('common_path')) {
+    throw new Error(`unexpected catalog: ${catalogText}`);
+  }
+
+  const filesResult = await ideClient.callTool({
+    name: 'get_corpus_files',
+    arguments: { ids: [DEMO_ID] },
+  });
+  const filesText = filesResult.content?.[0]?.text || '';
+  if (!filesText.includes('knowledge-mcp mock digest')) {
+    throw new Error(`unexpected files: ${filesText}`);
+  }
+
+  const missingResult = await ideClient.callTool({
+    name: 'get_corpus_files',
+    arguments: { ids: ['missing-id'] },
+  });
+  const missingText = missingResult.content?.[0]?.text || '';
+  if (!missingText.includes('"ok":false')) {
+    throw new Error(`expected per-item error, got: ${missingText}`);
+  }
+
+  const archiveDocResult = await ideClient.callTool({
+    name: 'archive_document',
+    arguments: {
+      document:
+        '# T\n\n> 创建时间：x\n> 导航：[digest](../../../digest/demo-topic/note.md)\n\n---\n\nbody',
+    },
+  });
+  const archiveDocText = archiveDocResult.content?.[0]?.text || '';
+  if (!archiveDocText.includes(DEMO_ID)) {
+    throw new Error(`unexpected archive_document: ${archiveDocText}`);
+  }
+
+  const archiveDigestResult = await ideClient.callTool({
+    name: 'archive_digest',
+    arguments: { id: DEMO_ID, digest: '# T — 摘要\n\n## 概述\n\nmock' },
+  });
+  const archiveDigestText = archiveDigestResult.content?.[0]?.text || '';
+  if (!archiveDigestText.includes('digest/demo-topic/note.md')) {
+    throw new Error(`unexpected archive_digest: ${archiveDigestText}`);
+  }
+  await ideClient.close();
+
+  // todo_task slot: todo tools only
+  const mcpUrl = `http://127.0.0.1:${mcpPort}/mcp/todo_task`;
   const transport = new StreamableHTTPClientTransport(new URL(mcpUrl));
   const client = new Client({ name: 'knowledge-mcp-verify', version: '0.1.0' });
   await client.connect(transport);
 
   const tools = await client.listTools();
   const names = tools.tools.map((t) => t.name);
-  if (!names.includes('get_corpus_catalog') || !names.includes('get_corpus_files')) {
-    throw new Error(`missing tools: ${names.join(', ')}`);
-  }
-  if (!names.includes('archive_document') || !names.includes('archive_digest')) {
-    throw new Error(`missing archive tools: ${names.join(', ')}`);
-  }
   if (!names.includes('create_todo_task')) {
     throw new Error(`missing create_todo_task tool: ${names.join(', ')}`);
   }
@@ -941,6 +1076,11 @@ async function runMcpClient(mcpPort) {
       throw new Error(`missing sub-content todo tool ${tool}: ${names.join(', ')}`);
     }
   }
+  for (const tool of CORPUS_TOOLS) {
+    if (names.includes(tool)) {
+      throw new Error(`todo_task must not expose corpus tool ${tool}`);
+    }
+  }
   for (const tool of FORBIDDEN_PLAN_TOOL_NAMES) {
     if (names.includes(tool)) {
       throw new Error(`forbidden plan_* tool still registered: ${tool}`);
@@ -950,54 +1090,6 @@ async function runMcpClient(mcpPort) {
     if (names.includes(tool)) {
       throw new Error(`forbidden attachment delete tool registered: ${tool}`);
     }
-  }
-
-  const catalogResult = await client.callTool({
-    name: 'get_corpus_catalog',
-    arguments: { mode: 'latest_per_topic' },
-  });
-  const catalogText = catalogResult.content?.[0]?.text || '';
-  if (!catalogText.includes('demo-topic') || catalogText.includes('common_path')) {
-    throw new Error(`unexpected catalog: ${catalogText}`);
-  }
-
-  const filesResult = await client.callTool({
-    name: 'get_corpus_files',
-    arguments: { ids: [DEMO_ID] },
-  });
-  const filesText = filesResult.content?.[0]?.text || '';
-  if (!filesText.includes('knowledge-mcp mock digest')) {
-    throw new Error(`unexpected files: ${filesText}`);
-  }
-
-  const missingResult = await client.callTool({
-    name: 'get_corpus_files',
-    arguments: { ids: ['missing-id'] },
-  });
-  const missingText = missingResult.content?.[0]?.text || '';
-  if (!missingText.includes('"ok":false')) {
-    throw new Error(`expected per-item error, got: ${missingText}`);
-  }
-
-  const archiveDocResult = await client.callTool({
-    name: 'archive_document',
-    arguments: {
-      document:
-        '# T\n\n> 创建时间：x\n> 导航：[digest](../../../digest/demo-topic/note.md)\n\n---\n\nbody',
-    },
-  });
-  const archiveDocText = archiveDocResult.content?.[0]?.text || '';
-  if (!archiveDocText.includes(DEMO_ID)) {
-    throw new Error(`unexpected archive_document: ${archiveDocText}`);
-  }
-
-  const archiveDigestResult = await client.callTool({
-    name: 'archive_digest',
-    arguments: { id: DEMO_ID, digest: '# T — 摘要\n\n## 概述\n\nmock' },
-  });
-  const archiveDigestText = archiveDigestResult.content?.[0]?.text || '';
-  if (!archiveDigestText.includes('digest/demo-topic/note.md')) {
-    throw new Error(`unexpected archive_digest: ${archiveDigestText}`);
   }
 
   planTaskCreateCalls.length = 0;
@@ -1507,8 +1599,8 @@ async function main() {
   sidecar.kill('SIGTERM');
   await sleep(200);
 
-  await testMountIsolation(workbenchUrl);
-  console.log('business isolation mounts: OK');
+  await testSceneSlotPathRouting(workbenchUrl);
+  console.log('scene_slot path routing: OK');
 
   mockServer.close();
   await sleep(200);

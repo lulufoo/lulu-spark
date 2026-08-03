@@ -129,7 +129,7 @@ function assertMasterStatusWire(status, label) {
 }
 
 const transport = new StreamableHTTPClientTransport(
-  new URL(`http://127.0.0.1:${mcpPort}/mcp`),
+  new URL(`http://127.0.0.1:${mcpPort}/mcp/todo_task`),
 );
 const client = new Client({ name: 'todo-task-mcp-e2e', version: '0.3.0' });
 

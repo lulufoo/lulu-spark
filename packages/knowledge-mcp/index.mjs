@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Thin MCP sidecar — proxies Workbench HTTP only (no corpus fs reads).
- * Business isolation via MCP_MOUNT env or ?mount= (default|todo|corpus).
+ * Isolation via path scene_slot: /mcp/<scene_slot>; unknown slots hard-fail.
  */
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
@@ -16,29 +16,28 @@ if (!WORKBENCH_HTTP_URL) {
 
 const MCP_PORT = Number(process.env.MCP_PORT || 9876);
 
-/** Known business-isolation mounts; unknown keys fall back to default. */
-const KNOWN_MOUNTS = new Set(['default', 'todo', 'corpus']);
+/**
+ * Registered scene_slot → API surface seeds (permission SSOT).
+ * - todo_task: App Binding key; todo tools only
+ * - cursor_ide: external IDE channel; corpus/archive tools only
+ * @type {Readonly<Record<string, { includeCorpus: boolean, includeTodo: boolean }>>}
+ */
+const SCENE_SLOT_API = Object.freeze({
+  todo_task: Object.freeze({ includeCorpus: false, includeTodo: true }),
+  cursor_ide: Object.freeze({ includeCorpus: true, includeTodo: false }),
+});
 
 /**
- * Resolve business isolation mount key.
- * @param {unknown} raw — env MCP_MOUNT or ?mount= query value
- * @returns {'default'|'todo'|'corpus'}
+ * Resolve registered scene_slot from path param. Unknown → null (caller hard-rejects).
+ * @param {unknown} raw
+ * @returns {string|null}
  */
-export function resolveMountKey(raw) {
-  if (raw == null) return 'default';
-  const key = String(raw).trim().toLowerCase();
-  if (!key) return 'default';
-  if (KNOWN_MOUNTS.has(key)) return /** @type {'default'|'todo'|'corpus'} */ (key);
-  return 'default';
-}
-
-/** Prefer ?mount= query; else MCP_MOUNT env; unknown → default via resolveMountKey. */
-function mountKeyFromRequest(req) {
-  const fromQuery = req?.query?.mount;
-  if (fromQuery != null && String(fromQuery).trim() !== '') {
-    return fromQuery;
-  }
-  return process.env.MCP_MOUNT;
+export function resolveSceneSlot(raw) {
+  if (raw == null) return null;
+  const key = String(raw).trim();
+  if (!key) return null;
+  if (Object.prototype.hasOwnProperty.call(SCENE_SLOT_API, key)) return key;
+  return null;
 }
 
 function unreachableProxyResult(err) {
@@ -137,16 +136,15 @@ function proxyPostHandler(path) {
 }
 
 /**
- * Build MCP server for a business-isolation mount.
- * - default: corpus/archive + full todo tool set
- * - todo: todo tools only
- * - corpus: corpus/archive tools only
- * @param {unknown} [mountKey]
+ * Build MCP server for a registered scene_slot API surface.
+ * @param {string} sceneSlot — must be a key of SCENE_SLOT_API
  */
-export function buildServer(mountKey) {
-  const mount = resolveMountKey(mountKey);
-  const includeCorpus = mount === 'default' || mount === 'corpus';
-  const includeTodo = mount === 'default' || mount === 'todo';
+export function buildServer(sceneSlot) {
+  const api = SCENE_SLOT_API[sceneSlot];
+  if (!api) {
+    throw new Error(`unregistered scene_slot: ${sceneSlot}`);
+  }
+  const { includeCorpus, includeTodo } = api;
 
   const server = new McpServer(
     { name: 'workbench-knowledge-mcp', version: '0.3.0' },
@@ -594,22 +592,40 @@ export function buildServer(mountKey) {
 
 const app = createMcpExpressApp({ host: '127.0.0.1' });
 
-// Some MCP clients probe /mcp with GET/DELETE during discovery/session checks.
-// Route all methods through the transport so unsupported verbs return protocol
-// errors instead of a misleading 404 from Express routing.
-app.all('/mcp', async (req, res) => {
+// Bare /mcp (no scene_slot) is not a registered isolation surface — hard reject.
+app.all('/mcp', (_req, res) => {
+  res.status(404).json({
+    error: 'scene_slot_required',
+    message: 'Use /mcp/<scene_slot> (registered: todo_task, cursor_ide)',
+  });
+});
+
+// Path scene_slot routing: /mcp/<scene_slot> → slot API config → tools/list.
+// Unknown/unregistered slots hard-fail (never fall back to full tool set).
+app.all('/mcp/:sceneSlot', async (req, res) => {
+  const sceneSlot = resolveSceneSlot(req.params.sceneSlot);
+  if (sceneSlot == null) {
+    res.status(404).json({
+      error: 'unknown_scene_slot',
+      scene_slot: String(req.params.sceneSlot ?? ''),
+      message: 'Unregistered scene_slot; connection rejected',
+    });
+    return;
+  }
+
   const accept = String(req.headers.accept || '');
   if (req.method === 'GET' && !accept.includes('text/event-stream')) {
     res.json({
       ok: true,
       transport: 'streamable-http',
-      endpoint: `http://127.0.0.1:${MCP_PORT}/mcp`,
-      hint: 'Use POST /mcp for JSON-RPC and GET /mcp with Accept: text/event-stream for streams.',
+      scene_slot: sceneSlot,
+      endpoint: `http://127.0.0.1:${MCP_PORT}/mcp/${sceneSlot}`,
+      hint: `Use POST /mcp/${sceneSlot} for JSON-RPC and GET with Accept: text/event-stream for streams.`,
     });
     return;
   }
 
-  const server = buildServer(mountKeyFromRequest(req));
+  const server = buildServer(sceneSlot);
   try {
     const transport = new StreamableHTTPServerTransport({
       sessionIdGenerator: undefined,
@@ -633,11 +649,18 @@ app.all('/mcp', async (req, res) => {
 });
 
 app.get('/health', (_req, res) => {
-  res.json({ ok: true, mcp: `http://127.0.0.1:${MCP_PORT}/mcp` });
+  res.json({
+    ok: true,
+    mcp: `http://127.0.0.1:${MCP_PORT}/mcp/<scene_slot>`,
+    scene_slots: Object.keys(SCENE_SLOT_API),
+  });
 });
 
 app.listen(MCP_PORT, '127.0.0.1', () => {
-  console.error(`[knowledge-mcp] MCP Streamable HTTP on http://127.0.0.1:${MCP_PORT}/mcp`);
+  console.error(
+    `[knowledge-mcp] MCP Streamable HTTP on http://127.0.0.1:${MCP_PORT}/mcp/<scene_slot>`,
+  );
+  console.error(`[knowledge-mcp] registered slots: ${Object.keys(SCENE_SLOT_API).join(', ')}`);
   console.error(`[knowledge-mcp] proxy → ${WORKBENCH_HTTP_URL}`);
 });
 
