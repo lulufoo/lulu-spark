@@ -477,31 +477,239 @@ pub fn load_categories() -> Result<CategoriesFile, String> {
 
 /// Ensure built-in default category exists; create registry file when missing.
 pub fn ensure_default_category() -> Result<CategoriesFile, String> {
+    with_write_lock(|| ensure_default_category_unlocked())
+}
+
+fn ensure_default_category_unlocked() -> Result<CategoriesFile, String> {
+    let path = paths::plan_tasks_categories_path().map_err(|e| format!("{e:?}"))?;
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    if !path.is_file() {
+        let cats = default_categories_file();
+        let value = serde_json::to_value(&cats).map_err(|e| e.to_string())?;
+        atomic_json::write_json(&path, &value)?;
+        return Ok(cats);
+    }
+    let mut cats = load_categories()?;
+    if !cats.categories.iter().any(|c| c.id == DEFAULT_CATEGORY_ID) {
+        cats.categories.insert(
+            0,
+            Category {
+                id: DEFAULT_CATEGORY_ID.to_string(),
+                name: DEFAULT_CATEGORY_NAME.to_string(),
+                is_default: true,
+            },
+        );
+        let value = serde_json::to_value(&cats).map_err(|e| e.to_string())?;
+        atomic_json::write_json(&path, &value)?;
+    }
+    Ok(cats)
+}
+
+fn save_categories_unlocked(cats: &CategoriesFile) -> Result<(), String> {
+    let path = paths::plan_tasks_categories_path().map_err(|e| format!("{e:?}"))?;
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    let value = serde_json::to_value(cats).map_err(|e| e.to_string())?;
+    atomic_json::write_json(&path, &value)
+}
+
+fn category_id_known(cats: &CategoriesFile, id: &str) -> bool {
+    cats.categories.iter().any(|c| c.id == id)
+}
+
+fn count_members_with_category(index: &PlanTasksIndex, category_id: &str) -> usize {
+    index
+        .tasks
+        .values()
+        .filter(|e| e.category_id == category_id)
+        .count()
+}
+
+fn resolve_create_category_id(
+    category_id: Option<&str>,
+    cats: &CategoriesFile,
+) -> Result<String, Value> {
+    match category_id.map(str::trim).filter(|s| !s.is_empty()) {
+        None => Ok(DEFAULT_CATEGORY_ID.to_string()),
+        Some(id) if category_id_known(cats, id) => Ok(id.to_string()),
+        Some(_) => Err(json!({ "error": "Invalid category_id", "_status": 400 })),
+    }
+}
+
+/// List todo category registry (injects built-in default when file missing).
+pub fn list_todo_categories() -> Value {
+    match load_categories() {
+        Ok(cats) => {
+            let categories = serde_json::to_value(&cats.categories).unwrap_or_else(|_| json!([]));
+            json!({ "categories": categories, "_status": 200 })
+        }
+        Err(e) => json!({ "error": e, "_status": 500 }),
+    }
+}
+
+/// Create a non-default todo category; returns minted id.
+pub fn create_todo_category(name: &str) -> Value {
+    let name = name.trim();
+    if name.is_empty() {
+        return json!({ "error": "Missing name", "_status": 400 });
+    }
     with_write_lock(|| {
-        let path = paths::plan_tasks_categories_path().map_err(|e| format!("{e:?}"))?;
-        if let Some(parent) = path.parent() {
-            fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+        if let Err(e) = ensure_bootstrap() {
+            return bootstrap_error(e);
         }
-        if !path.is_file() {
-            let cats = default_categories_file();
-            let value = serde_json::to_value(&cats).map_err(|e| e.to_string())?;
-            atomic_json::write_json(&path, &value)?;
-            return Ok(cats);
+        let mut cats = match ensure_default_category_unlocked() {
+            Ok(c) => c,
+            Err(e) => return json!({ "error": e, "_status": 500 }),
+        };
+        let id = format!("cat{}", random_hex12());
+        let category = Category {
+            id: id.clone(),
+            name: name.to_string(),
+            is_default: false,
+        };
+        cats.categories.push(category.clone());
+        if let Err(e) = save_categories_unlocked(&cats) {
+            return json!({ "error": e, "_status": 500 });
         }
-        let mut cats = load_categories()?;
-        if !cats.categories.iter().any(|c| c.id == DEFAULT_CATEGORY_ID) {
-            cats.categories.insert(
-                0,
-                Category {
-                    id: DEFAULT_CATEGORY_ID.to_string(),
-                    name: DEFAULT_CATEGORY_NAME.to_string(),
-                    is_default: true,
-                },
-            );
-            let value = serde_json::to_value(&cats).map_err(|e| e.to_string())?;
-            atomic_json::write_json(&path, &value)?;
+        json!({
+            "category_id": id,
+            "category": category,
+            "_status": 201,
+        })
+    })
+}
+
+/// Delete a category. Default and non-empty categories are rejected (no reassignment).
+pub fn delete_todo_category(category_id: &str) -> Value {
+    let category_id = category_id.trim();
+    if category_id.is_empty() {
+        return json!({ "error": "Missing category_id", "_status": 400 });
+    }
+    with_write_lock(|| {
+        if let Err(e) = ensure_bootstrap() {
+            return bootstrap_error(e);
         }
-        Ok(cats)
+        let mut cats = match ensure_default_category_unlocked() {
+            Ok(c) => c,
+            Err(e) => return json!({ "error": e, "_status": 500 }),
+        };
+        let Some(entry) = cats.categories.iter().find(|c| c.id == category_id) else {
+            return json!({ "error": "Category not found", "_status": 404 });
+        };
+        if entry.is_default || category_id == DEFAULT_CATEGORY_ID {
+            return json!({ "error": "Cannot delete default category", "_status": 400 });
+        }
+
+        let index = match load_v2_index_unlocked() {
+            Ok(i) => i,
+            Err(LoadOutcome::Corrupt) => return corrupt_storage_error(),
+            Err(LoadOutcome::Missing) | Err(LoadOutcome::Ok) => PlanTasksIndex::default(),
+        };
+        if count_members_with_category(&index, category_id) > 0 {
+            return json!({ "error": "Category not empty", "_status": 400 });
+        }
+
+        cats.categories.retain(|c| c.id != category_id);
+        if let Err(e) = save_categories_unlocked(&cats) {
+            return json!({ "error": e, "_status": 500 });
+        }
+        json!({ "ok": true, "_status": 200 })
+    })
+}
+
+/// Set a single todo's `category_id`. Unknown ids are rejected (no fallback).
+pub fn set_master_category(master_task_id: &str, category_id: &str) -> Value {
+    let master_task_id = master_task_id.trim();
+    let category_id = category_id.trim();
+    if master_task_id.is_empty() {
+        return json!({ "error": "Missing id", "_status": 400 });
+    }
+    if category_id.is_empty() {
+        return json!({ "error": "Missing category_id", "_status": 400 });
+    }
+
+    with_write_lock(|| {
+        if let Err(e) = ensure_bootstrap() {
+            return bootstrap_error(e);
+        }
+        let cats = match ensure_default_category_unlocked() {
+            Ok(c) => c,
+            Err(e) => return json!({ "error": e, "_status": 500 }),
+        };
+        if !category_id_known(&cats, category_id) {
+            return json!({ "error": "Invalid category_id", "_status": 400 });
+        }
+
+        let mut master = match load_master_task_unlocked(master_task_id) {
+            Ok(m) => m,
+            Err(err) => return err,
+        };
+        master.category_id = category_id.to_string();
+        match persist_master(&master) {
+            Ok(()) => match load_master_response_unlocked(master_task_id) {
+                Ok(response) => json!({ "task": response, "_status": 200 }),
+                Err(err) => err,
+            },
+            Err(e) => json!({ "error": e, "_status": 500 }),
+        }
+    })
+}
+
+/// One-shot migration: stamp missing/empty `category_id` on disk to default「待分类」.
+pub fn migrate_todos_default_category() -> Value {
+    with_write_lock(|| {
+        if let Err(e) = ensure_bootstrap() {
+            return bootstrap_error(e);
+        }
+        if let Err(e) = ensure_default_category_unlocked() {
+            return json!({ "error": e, "_status": 500 });
+        }
+        let index_path = match paths::plan_tasks_index_path() {
+            Ok(p) => p,
+            Err(e) => return json!({ "error": format!("{e:?}"), "_status": 500 }),
+        };
+        if !index_path.is_file() {
+            return json!({ "updated": 0, "_status": 200 });
+        }
+        let text = match fs::read_to_string(&index_path) {
+            Ok(t) => t,
+            Err(e) => return json!({ "error": e.to_string(), "_status": 500 }),
+        };
+        let mut root: Value = match serde_json::from_str(&text) {
+            Ok(v) => v,
+            Err(e) => return json!({ "error": e.to_string(), "_status": 500 }),
+        };
+        let Some(tasks) = root.get_mut("tasks").and_then(|t| t.as_object_mut()) else {
+            return json!({ "updated": 0, "_status": 200 });
+        };
+        let mut updated = 0u64;
+        for (_id, entry) in tasks.iter_mut() {
+            let needs = match entry.get("category_id") {
+                None => true,
+                Some(Value::Null) => true,
+                Some(Value::String(s)) if s.trim().is_empty() => true,
+                Some(Value::String(_)) => false,
+                Some(_) => true,
+            };
+            if needs {
+                if let Some(obj) = entry.as_object_mut() {
+                    obj.insert(
+                        "category_id".to_string(),
+                        json!(DEFAULT_CATEGORY_ID),
+                    );
+                    updated += 1;
+                }
+            }
+        }
+        if updated > 0 {
+            if let Err(e) = atomic_json::write_json(&index_path, &root) {
+                return json!({ "error": e, "_status": 500 });
+            }
+        }
+        json!({ "updated": updated, "_status": 200 })
     })
 }
 
@@ -796,6 +1004,17 @@ pub fn create_master_with_subs_and_todo(
     sub_titles: Option<&[&str]>,
     plan_md: &str,
 ) -> Value {
+    create_master_with_category(title, sub_titles, plan_md, None)
+}
+
+/// Create a master task with optional `category_id`.
+/// Omit/empty → default「待分类」; unknown id → reject (no fallback).
+pub fn create_master_with_category(
+    title: &str,
+    sub_titles: Option<&[&str]>,
+    plan_md: &str,
+    category_id: Option<&str>,
+) -> Value {
     let title = title.trim();
     if title.is_empty() {
         return json!({ "error": "Missing title", "_status": 400 });
@@ -815,6 +1034,15 @@ pub fn create_master_with_subs_and_todo(
         if let Err(LoadOutcome::Corrupt) = load_v2_index_unlocked() {
             return corrupt_storage_error();
         }
+
+        let cats = match ensure_default_category_unlocked() {
+            Ok(c) => c,
+            Err(e) => return json!({ "error": e, "_status": 500 }),
+        };
+        let resolved_category_id = match resolve_create_category_id(category_id, &cats) {
+            Ok(id) => id,
+            Err(err) => return err,
+        };
 
         let master_id = new_master_id();
         let created_at = Utc::now().to_rfc3339();
@@ -854,7 +1082,7 @@ pub fn create_master_with_subs_and_todo(
             status: MasterTaskStatus::Incomplete,
             created_at,
             sub_tasks,
-            category_id: DEFAULT_CATEGORY_ID.to_string(),
+            category_id: resolved_category_id,
         };
 
         match persist_master_with_plan_md(&master, plan_md) {

@@ -5,12 +5,14 @@ use serde_json::json;
 use crate::commands::todo_task::{
     abandon_todo_sub_json, add_todo_attachment, add_todo_attachment_json, add_todo_comment,
     add_todo_comment_json, add_todo_sub, add_todo_sub_json, complete_todo, complete_todo_json,
-    create_todo_task_json, delete_todo_attachment, delete_todo_attachment_json,
-    delete_todo_comment, delete_todo_comment_json, delete_todo_sub_json, delete_todo_task_json,
-    get_todo_tasks_json, list_todo_attachments, list_todo_attachments_json, list_todo_comments,
-    list_todo_comments_json, read_todo_attachment, read_todo_attachment_json, read_todo_md_json,
-    save_todo_attachment, save_todo_attachment_json, update_todo_comment, update_todo_comment_json,
-    update_todo_master_title_json, update_todo_md_json, update_todo_sub, update_todo_sub_json,
+    create_todo_category_json, create_todo_task_json, delete_todo_attachment,
+    delete_todo_attachment_json, delete_todo_category_json, delete_todo_comment,
+    delete_todo_comment_json, delete_todo_sub_json, delete_todo_task_json, get_todo_tasks_json,
+    list_todo_attachments, list_todo_attachments_json, list_todo_categories_json,
+    list_todo_comments, list_todo_comments_json, read_todo_attachment, read_todo_attachment_json,
+    read_todo_md_json, save_todo_attachment, save_todo_attachment_json, set_todo_category_json,
+    update_todo_comment, update_todo_comment_json, update_todo_master_title_json,
+    update_todo_md_json, update_todo_sub, update_todo_sub_json,
 };
 use crate::services::todo_task::{
     create_master_with_subs, list_all, test_reset_all_injection_flags, test_run_write_task_batch,
@@ -1176,4 +1178,100 @@ fn delete_todo_comment_json_unknown_returns_404_class() {
         assert_eq!(v["error"], "Comment not found");
         assert_eq!(v["_status"], 404);
     });
+}
+
+// --- t2: Host category Tauri command surface ---
+
+#[test]
+fn list_create_delete_todo_category_json_roundtrip() {
+    with_commands_todo_test(|| {
+        let listed = list_todo_categories_json().expect("list");
+        assert!(listed.get("_status").is_none());
+        let cats = listed["categories"].as_array().expect("categories");
+        assert!(cats.iter().any(|c| c["id"] == DEFAULT_CATEGORY_ID));
+
+        let created = create_todo_category_json("UI Cat").expect("create");
+        assert!(created.get("_status").is_none());
+        let cat_id = created["category_id"].as_str().expect("id").to_string();
+        assert_eq!(created["category"]["name"], "UI Cat");
+
+        let listed2 = list_todo_categories_json().expect("list2");
+        assert!(listed2["categories"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|c| c["id"] == cat_id));
+
+        let deleted = delete_todo_category_json(&cat_id).expect("delete");
+        assert!(deleted.get("_status").is_none());
+        assert_eq!(deleted["ok"], true);
+
+        let listed3 = list_todo_categories_json().expect("list3");
+        assert!(!listed3["categories"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|c| c["id"] == cat_id));
+    });
+}
+
+#[test]
+fn delete_todo_category_json_default_fails() {
+    with_commands_todo_test(|| {
+        let v = delete_todo_category_json(DEFAULT_CATEGORY_ID).expect("invoke");
+        assert!(v.get("error").is_some());
+        assert!(v["_status"].as_u64().unwrap_or(0) >= 400);
+    });
+}
+
+#[test]
+fn delete_todo_category_json_non_empty_fails() {
+    with_commands_todo_test(|| {
+        let created_cat = create_todo_category_json("Busy").expect("cat");
+        let cat_id = created_cat["category_id"].as_str().expect("id").to_string();
+        let created = create_todo_task_json("Member", None, "").expect("todo");
+        let master_id = created["master_task_id"].as_str().expect("id");
+        let set = set_todo_category_json(master_id, &cat_id).expect("set");
+        assert!(set.get("_status").is_none() || set["_status"] == 200);
+        assert_eq!(set["task"]["category_id"], cat_id);
+
+        let v = delete_todo_category_json(&cat_id).expect("delete");
+        assert!(v.get("error").is_some());
+        assert!(v["_status"].as_u64().unwrap_or(0) >= 400);
+    });
+}
+
+#[test]
+fn set_todo_category_json_unknown_rejects() {
+    with_commands_todo_test(|| {
+        let created = create_todo_task_json("Set bad", None, "").expect("todo");
+        let master_id = created["master_task_id"].as_str().expect("id");
+        let v = set_todo_category_json(master_id, "cat_missing_zzz").expect("invoke");
+        assert!(v.get("error").is_some());
+        assert!(v["_status"].as_u64().unwrap_or(0) >= 400);
+    });
+}
+
+#[test]
+fn todo_category_commands_live_in_todo_task_not_write_rs() {
+    let todo_cmds = include_str!("../../commands/todo_task.rs");
+    assert!(
+        todo_cmds.contains("list_todo_categories")
+            && todo_cmds.contains("create_todo_category")
+            && todo_cmds.contains("delete_todo_category"),
+        "Host category commands must live in commands/todo_task.rs"
+    );
+    let write_rs = include_str!("../../commands/write.rs");
+    assert!(
+        !write_rs.contains("list_todo_categories")
+            && !write_rs.contains("create_todo_category")
+            && !write_rs.contains("delete_todo_category"),
+        "todo category commands must not land in commands/write.rs"
+    );
+    assert!(
+        !todo_cmds.contains("sediment_kb_list_todo")
+            && !todo_cmds.contains("sediment_kb_create_todo")
+            && !todo_cmds.contains("sediment_kb_delete_todo"),
+        "must not use sediment_kb_* namespace for todo categories"
+    );
 }

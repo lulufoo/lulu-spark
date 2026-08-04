@@ -165,6 +165,25 @@ pub fn delete_todo_comment_json(
     map_invoke_value(todo_task::delete_comment(master_task_id, comment_id))
 }
 
+pub fn list_todo_categories_json() -> Result<Value, String> {
+    map_invoke_value(todo_task::list_todo_categories())
+}
+
+pub fn create_todo_category_json(name: &str) -> Result<Value, String> {
+    map_invoke_value(todo_task::create_todo_category(name))
+}
+
+pub fn delete_todo_category_json(category_id: &str) -> Result<Value, String> {
+    map_invoke_value(todo_task::delete_todo_category(category_id))
+}
+
+pub fn set_todo_category_json(
+    master_task_id: &str,
+    category_id: &str,
+) -> Result<Value, String> {
+    map_invoke_value(todo_task::set_master_category(master_task_id, category_id))
+}
+
 #[tauri::command]
 pub async fn get_todo_tasks(_app: AppHandle) -> Result<Value, String> {
     tauri::async_runtime::spawn_blocking(get_todo_tasks_json)
@@ -443,6 +462,43 @@ pub async fn delete_todo_comment(
 ) -> Result<Value, String> {
     tauri::async_runtime::spawn_blocking(move || {
         delete_todo_comment_json(&master_task_id, &comment_id)
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+pub async fn list_todo_categories(_app: AppHandle) -> Result<Value, String> {
+    tauri::async_runtime::spawn_blocking(list_todo_categories_json)
+        .await
+        .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+pub async fn create_todo_category(_app: AppHandle, name: String) -> Result<Value, String> {
+    tauri::async_runtime::spawn_blocking(move || create_todo_category_json(&name))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+pub async fn delete_todo_category(
+    _app: AppHandle,
+    category_id: String,
+) -> Result<Value, String> {
+    tauri::async_runtime::spawn_blocking(move || delete_todo_category_json(&category_id))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+pub async fn set_todo_category(
+    _app: AppHandle,
+    master_task_id: String,
+    category_id: String,
+) -> Result<Value, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        set_todo_category_json(&master_task_id, &category_id)
     })
     .await
     .map_err(|e| e.to_string())?
