@@ -368,31 +368,30 @@ fn handle_read_later_get(request: tiny_http::Request) {
 
 fn handle_todo_tasks_get(request: tiny_http::Request, url: &str) {
     let value = todo_task::list_all();
-    if value.is_array() {
-        let params = parse_query(url);
-        let filtered = match params
-            .get("category_id")
-            .map(String::as_str)
-            .map(str::trim)
-            .filter(|s| !s.is_empty())
-        {
-            None => value,
-            Some(category_id) => {
-                let arr = value
-                    .as_array()
-                    .expect("list_all array")
-                    .iter()
-                    .filter(|t| t.get("category_id").and_then(|v| v.as_str()) == Some(category_id))
-                    .cloned()
-                    .collect::<Vec<_>>();
-                Value::Array(arr)
-            }
-        };
-        let body = todo_tasks_list_response_body(&filtered);
-        respond_with_cors(request, 200, body);
+    if !value.is_array() {
+        respond_read_later_from_value(request, value);
         return;
     }
-    respond_read_later_from_value(request, value);
+    let params = parse_query(url);
+    let filtered = match params
+        .get("category_id")
+        .map(String::as_str)
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+    {
+        None => value,
+        Some(category_id) => Value::Array(
+            value
+                .as_array()
+                .into_iter()
+                .flatten()
+                .filter(|t| t.get("category_id").and_then(|v| v.as_str()) == Some(category_id))
+                .cloned()
+                .collect(),
+        ),
+    };
+    let body = todo_tasks_list_response_body(&filtered);
+    respond_with_cors(request, 200, body);
 }
 
 fn handle_read_later_post(mut request: tiny_http::Request) {
@@ -701,18 +700,19 @@ fn handle_todo_task_update_payload(payload: &Value) -> Value {
         return json!({ "error": "Missing title or todo_md", "_status": 400 });
     }
 
-    if title.is_some() || todo_md.is_some() {
-        let updated = todo_task::update_master_fields(master_task_id, title, todo_md);
-        if updated.get("_status").and_then(|v| v.as_u64()).unwrap_or(200) >= 400 {
-            return updated;
-        }
-        if let Some(cid) = category_id {
-            return todo_task::set_master_category(master_task_id, cid);
-        }
-        return updated;
+    // category_id alone → set category; otherwise update title/body first, then optional category.
+    if title.is_none() && todo_md.is_none() {
+        return todo_task::set_master_category(master_task_id, category_id.unwrap_or(""));
     }
 
-    todo_task::set_master_category(master_task_id, category_id.unwrap_or(""))
+    let updated = todo_task::update_master_fields(master_task_id, title, todo_md);
+    if updated.get("_status").and_then(|v| v.as_u64()).unwrap_or(200) >= 400 {
+        return updated;
+    }
+    match category_id {
+        Some(cid) => todo_task::set_master_category(master_task_id, cid),
+        None => updated,
+    }
 }
 
 fn handle_todo_task_create(mut request: tiny_http::Request) {
