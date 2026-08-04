@@ -2018,6 +2018,49 @@
     align-items: center;
     gap: 12px;
     flex-shrink: 0;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+  .plan-task-category-controls {
+    display: inline-flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    max-width: 100%;
+  }
+  .plan-task-category-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0;
+    font-size: 13px;
+    color: #24292f;
+  }
+  .plan-task-category-label-text {
+    white-space: nowrap;
+  }
+  .plan-task-category-filter,
+  .plan-task-category-select {
+    min-width: 9rem;
+    max-width: 14rem;
+    height: 28px;
+    padding: 0 8px;
+    border: 1px solid #d0d7de;
+    border-radius: 6px;
+    background: #fff;
+    color: #24292f;
+    font-size: 13px;
+  }
+  .plan-task-category-filter:disabled,
+  .plan-task-category-select:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+  .plan-task-category-error {
+    margin: 0;
+    width: 100%;
+    font-size: 12px;
+    color: #cf222e;
   }
   .plan-task-active-only {
     display: inline-flex;

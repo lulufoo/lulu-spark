@@ -269,7 +269,7 @@ export function buildServer(sceneSlot) {
     'create_todo_task',
     {
       description:
-        'Create a todo task master with title and optional todo body (todo_md). Title max 20 Chinese characters or English words. Creates empty sub_tasks; use add_todo_sub for subs. Proxy POST /api/todo-task-create',
+        'Create a todo task master with title and optional todo body (todo_md). Optional category_id; omit → 待分类. Title max 20 Chinese characters or English words. Creates empty sub_tasks; use add_todo_sub for subs. Proxy POST /api/todo-task-create',
       inputSchema: {
         title: z
           .string()
@@ -283,12 +283,16 @@ export function buildServer(sceneSlot) {
           .string()
           .optional()
           .describe('Todo body markdown; omit or empty → empty todo.md'),
+        category_id: z.string().trim().min(1).optional().describe('Category id; omit → 待分类; unknown id → error'),
       },
     },
-    async ({ title, todo_md }) => {
+    async ({ title, todo_md, category_id }) => {
       const body = { title };
       if (todo_md != null) {
         body.todo_md = todo_md;
+      }
+      if (category_id != null) {
+        body.category_id = category_id;
       }
       const result = await proxyPost('/api/todo-task-create', body);
       if (!result.ok) {
@@ -302,7 +306,7 @@ export function buildServer(sceneSlot) {
     'update_todo_task',
     {
       description:
-        'Update a todo master title and/or body (todo_md). Provide master_task_id and at least one of title or todo_md. Omit a field to leave it unchanged; todo_md "" clears the body. Proxy POST /api/todo-task-update',
+        'Update a todo master title, body (todo_md), and/or category_id. Provide master_task_id and at least one of title, todo_md, or category_id. Omit a field to leave it unchanged; todo_md "" clears the body. Proxy POST /api/todo-task-update',
       inputSchema: {
         master_task_id: z.string().trim().min(1).describe('Master task id'),
         title: z
@@ -318,11 +322,15 @@ export function buildServer(sceneSlot) {
           .string()
           .optional()
           .describe('Todo body markdown; omit → unchanged; empty string → clear'),
+        category_id: z.string().trim().min(1).optional().describe('Set todo category; unknown id → error'),
       },
     },
-    async ({ master_task_id, title, todo_md }) => {
-      if (title == null && todo_md == null) {
-        return toolError(400, JSON.stringify({ error: 'Missing title or todo_md' }));
+    async ({ master_task_id, title, todo_md, category_id }) => {
+      if (title == null && todo_md == null && category_id == null) {
+        return toolError(
+          400,
+          JSON.stringify({ error: 'Missing title, todo_md, or category_id' }),
+        );
       }
       const body = { master_task_id };
       if (title != null) {
@@ -330,6 +338,9 @@ export function buildServer(sceneSlot) {
       }
       if (todo_md != null) {
         body.todo_md = todo_md;
+      }
+      if (category_id != null) {
+        body.category_id = category_id;
       }
       const result = await proxyPost('/api/todo-task-update', body);
       if (!result.ok) {
@@ -342,11 +353,35 @@ export function buildServer(sceneSlot) {
   server.registerTool(
     'list_todo_tasks',
     {
-      description: 'List all todo task masters. Proxy GET /api/todo-tasks',
+      description:
+        'List todo task masters. Optional category_id filters; omit → all. Proxy GET /api/todo-tasks',
+      inputSchema: {
+        category_id: z.string().trim().min(1).optional().describe('Filter by category id; omit → list all'),
+      },
+    },
+    async ({ category_id } = {}) => {
+      let path = '/api/todo-tasks';
+      if (category_id != null) {
+        const q = new URLSearchParams({ category_id });
+        path = `/api/todo-tasks?${q}`;
+      }
+      const result = await proxyGet(path);
+      if (!result.ok) {
+        return toolError(result.status, result.text);
+      }
+      return { content: [{ type: 'text', text: result.text }] };
+    },
+  );
+
+  server.registerTool(
+    'list_todo_categories',
+    {
+      description:
+        'List all todo categories including built-in 待分类. Proxy GET /api/todo-task-list-categories',
       inputSchema: {},
     },
     async () => {
-      const result = await proxyGet('/api/todo-tasks');
+      const result = await proxyGet('/api/todo-task-list-categories');
       if (!result.ok) {
         return toolError(result.status, result.text);
       }

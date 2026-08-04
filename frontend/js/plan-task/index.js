@@ -161,6 +161,29 @@ export async function setPlanMasterStatus({ masterTaskId, status } = {}) {
   return invokePlanWrite('set_todo_master_status', { masterTaskId, status });
 }
 
+/** Host category registry — built-in default id matches unspecified create fallback. */
+export const DEFAULT_PLAN_CATEGORY_ID = 'uncategorized';
+
+export async function listPlanCategories() {
+  const result = await invokePlanPlain('list_todo_categories', {});
+  if (Array.isArray(result)) return result;
+  if (result && Array.isArray(result.categories)) return result.categories;
+  return [];
+}
+
+export async function createPlanCategory({ name } = {}) {
+  return invokePlanWrite('create_todo_category', { name });
+}
+
+export async function deletePlanCategory({ categoryId } = {}) {
+  return invokePlanWrite('delete_todo_category', { categoryId });
+}
+
+/** Reassign todo category (Host set_todo_category → category_id update). */
+export async function setPlanCategory({ masterTaskId, categoryId } = {}) {
+  return invokePlanWrite('set_todo_category', { masterTaskId, categoryId });
+}
+
 export async function listPlanAttachments({ masterTaskId } = {}) {
   const result = await invokePlanPlain('list_todo_attachments', { masterTaskId });
   if (Array.isArray(result)) return result;
@@ -316,23 +339,81 @@ const ACTIVE_ONLY_LABEL = 'Active only';
 const ACTIVE_ONLY_EMPTY_TITLE = 'No active todos';
 const ACTIVE_ONLY_EMPTY_DETAIL =
   'Turn off Active only to see completed and abandoned todos.';
+const ALL_CATEGORIES_LABEL = 'All categories';
+const CATEGORY_FILTER_EMPTY_TITLE = 'No todos in this category';
+const CATEGORY_FILTER_EMPTY_DETAIL = 'Choose another category or create a todo in this one.';
 
 function isIncompleteMaster(master) {
   return masterStatusClass(master?.status) === 'incomplete';
 }
 
-function filterMastersForView(masters, activeOnly) {
-  if (!activeOnly) return masters;
-  return masters.filter(isIncompleteMaster);
+function masterCategoryId(master) {
+  const id = typeof master?.category_id === 'string' ? master.category_id.trim() : '';
+  return id || DEFAULT_PLAN_CATEGORY_ID;
 }
 
-function renderPageHeader(disabled, activeOnly = true) {
+function filterMastersForView(masters, activeOnly, categoryId = '') {
+  let list = masters;
+  if (activeOnly) list = list.filter(isIncompleteMaster);
+  if (categoryId) {
+    list = list.filter((master) => masterCategoryId(master) === categoryId);
+  }
+  return list;
+}
+
+function isDefaultCategory(category, categoryId) {
+  if (!categoryId) return false;
+  if (categoryId === DEFAULT_PLAN_CATEGORY_ID) return true;
+  return Boolean(category?.is_default);
+}
+
+function renderCategoryControls(categories, selectedCategoryId, categoryError, disabled) {
+  const disabledAttr = disabled ? ' disabled' : '';
+  const options = [
+    `<option value="">${escHtml(ALL_CATEGORIES_LABEL)}</option>`,
+    ...(categories ?? []).map((category) => {
+      const selected = category.id === selectedCategoryId ? ' selected' : '';
+      return `<option value="${escHtml(category.id)}"${selected}>${escHtml(category.name)}</option>`;
+    }),
+  ].join('');
+  const selected = (categories ?? []).find((category) => category.id === selectedCategoryId);
+  const deleteDisabled =
+    disabled || !selectedCategoryId || isDefaultCategory(selected, selectedCategoryId);
+  const deleteDisabledAttr = deleteDisabled ? ' disabled' : '';
+  const errHtml = categoryError
+    ? `<p class="plan-task-category-error" role="alert">${escHtml(categoryError)}</p>`
+    : '';
+  return `
+    <div class="plan-task-category-controls">
+      <label class="plan-task-category-label">
+        <span class="plan-task-category-label-text">Category</span>
+        <select
+          class="plan-task-category-filter"
+          data-action="filter-category"
+          aria-label="Filter by category"${disabledAttr}
+        >${options}</select>
+      </label>
+      <button type="button" class="md-header-btn" data-action="create-category"${disabledAttr}>+ Category</button>
+      <button type="button" class="md-header-btn plan-task-btn-danger" data-action="delete-category"${deleteDisabledAttr}>Delete category</button>
+      ${errHtml}
+    </div>
+  `;
+}
+
+function renderPageHeader(
+  disabled,
+  activeOnly = true,
+  categories = [],
+  selectedCategoryId = '',
+  categoryError = '',
+) {
   const disabledAttr = disabled ? ' disabled' : '';
   const checked = activeOnly ? 'true' : 'false';
   return `
     <header class="plan-tasks-page-header">
       <h1 class="plan-tasks-page-title">Todos</h1>
       <div class="plan-tasks-page-header-actions">
+        ${renderCategoryControls(categories, selectedCategoryId, categoryError, disabled)}
         <label class="plan-task-active-only">
           <span class="plan-task-active-only-label">${ACTIVE_ONLY_LABEL}</span>
           <button
@@ -397,12 +478,30 @@ function renderActiveOnlyEmpty() {
   `;
 }
 
-function renderMasterPane(masters, selectedMasterId, disabled, activeOnly = true) {
-  const visible = filterMastersForView(masters, activeOnly);
+function renderCategoryFilterEmpty() {
+  return `
+    <div class="plan-task-empty plan-task-empty--sidebar">
+      <p class="plan-task-empty-title">${CATEGORY_FILTER_EMPTY_TITLE}</p>
+      <p class="plan-task-empty-detail">${CATEGORY_FILTER_EMPTY_DETAIL}</p>
+    </div>
+  `;
+}
+
+function renderMasterPane(
+  masters,
+  selectedMasterId,
+  disabled,
+  activeOnly = true,
+  categoryId = '',
+) {
+  const visible = filterMastersForView(masters, activeOnly, categoryId);
   if (!masters.length) {
     return renderMasterEmpty(disabled);
   }
   if (!visible.length) {
+    if (categoryId && filterMastersForView(masters, activeOnly, '').length) {
+      return renderCategoryFilterEmpty();
+    }
     return renderActiveOnlyEmpty();
   }
   return renderMasterList(visible, selectedMasterId, disabled);
@@ -519,6 +618,27 @@ function renderMasterStatusSelect(status, disabled) {
   `;
 }
 
+function renderMasterCategorySelect(master, categories, disabled) {
+  const current = masterCategoryId(master);
+  const disabledAttr = disabled ? ' disabled' : '';
+  const list = categories?.length
+    ? categories
+    : [{ id: DEFAULT_PLAN_CATEGORY_ID, name: 'Uncategorized', is_default: true }];
+  const options = list
+    .map((category) => {
+      const selected = category.id === current ? ' selected' : '';
+      return `<option value="${escHtml(category.id)}"${selected}>${escHtml(category.name)}</option>`;
+    })
+    .join('');
+  return `
+    <select
+      class="plan-task-category-select"
+      data-action="change-master-category"
+      aria-label="Todo category"${disabledAttr}
+    >${options}</select>
+  `;
+}
+
 function renderDetailTitle(master, ui = {}) {
   const title = ui.masterTitleDraft ?? master.title ?? '';
   const status = masterStatusClass(master.status);
@@ -536,6 +656,7 @@ function renderDetailTitle(master, ui = {}) {
         aria-label="Todo title"
         ${disabledAttr}
       />
+      ${renderMasterCategorySelect(master, ui.categories, ui.disabled)}
       ${renderMasterStatusSelect(status, ui.disabled)}
     </div>
     ${error}
@@ -1008,10 +1129,18 @@ function renderErrorEmpty(message = UNAVAILABLE_MSG) {
   `;
 }
 
-function renderPageShell({ masterHtml, detailHtml, disabled = false, activeOnly = true }) {
+function renderPageShell({
+  masterHtml,
+  detailHtml,
+  disabled = false,
+  activeOnly = true,
+  categories = [],
+  filterCategoryId = '',
+  categoryError = '',
+}) {
   return `
     <div class="plan-tasks-page">
-      ${renderPageHeader(disabled, activeOnly)}
+      ${renderPageHeader(disabled, activeOnly, categories, filterCategoryId, categoryError)}
       <div class="plan-task-split">
         <aside class="plan-task-split-master" aria-label="Todos list">${masterHtml}</aside>
         <section class="plan-task-split-detail" aria-label="Task details">${detailHtml}</section>
@@ -1082,6 +1211,11 @@ export function mountPlanTaskSplit(container, opts = {}) {
   /** Last master id painted into the detail pane — used to keep detail scroll across same-master paints. */
   let paintedMasterId = '';
   let activeOnly = true;
+  /** @type {Array<{ id: string, name: string, is_default?: boolean }>} */
+  let categories = [];
+  /** Empty string = All categories. */
+  let filterCategoryId = '';
+  let categoryError = '';
   /** Page lifecycle Binding: enter/select Set, leave Reset; shell close ≠ Reset. */
   const todosLifecycle = createTodosPageLifecycle({
     onUnbound: () => {
@@ -1132,6 +1266,9 @@ export function mountPlanTaskSplit(container, opts = {}) {
       subContentDrafts,
       masterTitleDraft: masterTitleDraft || undefined,
       masterTitleError,
+      categories,
+      categoryError,
+      filterCategoryId,
     };
   }
 
@@ -1166,20 +1303,28 @@ export function mountPlanTaskSplit(container, opts = {}) {
     });
   }
 
+  function clearSelectionSideState() {
+    selectedMasterId = '';
+    selectedSubId = '';
+    deadLink = false;
+    masterTitleDraft = '';
+    masterTitleError = '';
+    attachments = [];
+    attachmentsError = '';
+    comments = [];
+    commentsError = '';
+  }
+
   function enforceActiveOnlySelection() {
-    if (!selectedMasterId || !activeOnly) return;
+    if (!selectedMasterId) return;
     const master = findMaster(selectedMasterId);
     if (!master) return;
-    if (!isIncompleteMaster(master)) {
-      selectedMasterId = '';
-      selectedSubId = '';
-      deadLink = false;
-      masterTitleDraft = '';
-      masterTitleError = '';
-      attachments = [];
-      attachmentsError = '';
-      comments = [];
-      commentsError = '';
+    if (activeOnly && !isIncompleteMaster(master)) {
+      clearSelectionSideState();
+      return;
+    }
+    if (filterCategoryId && masterCategoryId(master) !== filterCategoryId) {
+      clearSelectionSideState();
     }
   }
 
@@ -1217,7 +1362,9 @@ export function mountPlanTaskSplit(container, opts = {}) {
     // A deep link is an explicit navigation request: never replace it with
     // the default active todo when filtering makes its target unavailable.
     if (initialMasterId || selectedMasterId) return;
-    const firstVisibleMaster = sortMasters(filterMastersForView(masters, activeOnly))[0];
+    const firstVisibleMaster = sortMasters(
+      filterMastersForView(masters, activeOnly, filterCategoryId),
+    )[0];
     if (!firstVisibleMaster) return;
     selectedMasterId = firstVisibleMaster.master_task_id;
     selectedSubId = pickDefaultSub(firstVisibleMaster)?.sub_task_id ?? '';
@@ -1259,7 +1406,13 @@ export function mountPlanTaskSplit(container, opts = {}) {
     const keepDetailScroll =
       Boolean(selectedMasterId) && selectedMasterId === paintedMasterId;
     const ui = getUi();
-    const masterHtml = renderMasterPane(masters, selectedMasterId, ui.disabled, activeOnly);
+    const masterHtml = renderMasterPane(
+      masters,
+      selectedMasterId,
+      ui.disabled,
+      activeOnly,
+      filterCategoryId,
+    );
     // Keep the same editor element node across paints so in-flight UI refs stay valid.
     const existingEditor = container.querySelector('.plan-task-attachment-editor');
     if (existingEditor) existingEditor.remove();
@@ -1268,6 +1421,9 @@ export function mountPlanTaskSplit(container, opts = {}) {
       detailHtml: renderDetailPane(),
       disabled: ui.disabled,
       activeOnly,
+      categories,
+      filterCategoryId,
+      categoryError,
     });
     paintedMasterId = selectedMasterId;
     const nextMaster = container.querySelector('.plan-task-split-master');
@@ -1437,6 +1593,14 @@ export function mountPlanTaskSplit(container, opts = {}) {
     }
   }
 
+  async function loadCategories() {
+    try {
+      categories = await listPlanCategories();
+    } catch {
+      categories = [];
+    }
+  }
+
   async function loadAttachmentsForSelected() {
     if (!selectedMasterId) {
       attachments = [];
@@ -1474,7 +1638,7 @@ export function mountPlanTaskSplit(container, opts = {}) {
 
   async function reloadList({ afterWrite = false } = {}) {
     try {
-      const entries = await loadPlanTasks();
+      const [entries] = await Promise.all([loadPlanTasks(), loadCategories()]);
       if (disposed) return;
       masters = entries;
       resolveSelection();
@@ -1511,10 +1675,81 @@ export function mountPlanTaskSplit(container, opts = {}) {
       container.innerHTML = renderPageShell({
         masterHtml: '<div class="plan-task-split-state"></div>',
         detailHtml: renderErrorEmpty(),
+        categories,
+        filterCategoryId,
+        categoryError,
       });
       if (!lifecycleEntered) {
         syncTodosBindingForSelection('');
       }
+    }
+  }
+
+  async function createCategoryFromPrompt() {
+    if (controlsDisabled(busy)) return;
+    const name = typeof window.prompt === 'function' ? window.prompt('New category name') : null;
+    if (name == null) return;
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    categoryError = '';
+    busy = true;
+    paint();
+    try {
+      await createPlanCategory({ name: trimmed });
+      await loadCategories();
+    } catch (err) {
+      categoryError = err?.message || 'Failed to create category';
+    } finally {
+      busy = false;
+      if (!disposed) paint();
+    }
+  }
+
+  async function deleteFilteredCategory() {
+    if (controlsDisabled(busy) || !filterCategoryId) return;
+    const selected = categories.find((category) => category.id === filterCategoryId);
+    if (isDefaultCategory(selected, filterCategoryId)) return;
+    categoryError = '';
+    busy = true;
+    paint();
+    try {
+      await deletePlanCategory({ categoryId: filterCategoryId });
+      filterCategoryId = '';
+      await loadCategories();
+      busy = false;
+      await reloadList({ afterWrite: true });
+    } catch (err) {
+      busy = false;
+      categoryError = err?.message || 'Failed to delete category';
+      if (!disposed) paint();
+    }
+  }
+
+  async function runMasterCategoryChange(targetCategoryId, selectEl) {
+    const master = findMaster(selectedMasterId);
+    const prior = master ? masterCategoryId(master) : DEFAULT_PLAN_CATEGORY_ID;
+    if (!master || !selectedMasterId) {
+      if (selectEl instanceof HTMLSelectElement) selectEl.value = prior;
+      return;
+    }
+    if (!targetCategoryId || targetCategoryId === prior) return;
+    categoryError = '';
+    busy = true;
+    paint();
+    try {
+      await setPlanCategory({
+        masterTaskId: selectedMasterId,
+        categoryId: targetCategoryId,
+      });
+      busy = false;
+      await reloadList({ afterWrite: true });
+    } catch (err) {
+      busy = false;
+      categoryError = err?.message || 'Failed to update category';
+      if (selectEl instanceof HTMLSelectElement) {
+        selectEl.value = prior;
+      }
+      if (!disposed) paint();
     }
   }
 
@@ -2062,6 +2297,20 @@ export function mountPlanTaskSplit(container, opts = {}) {
       return;
     }
 
+    if (action === 'create-category') {
+      event.preventDefault();
+      if (controlsDisabled(busy)) return;
+      void createCategoryFromPrompt();
+      return;
+    }
+
+    if (action === 'delete-category') {
+      event.preventDefault();
+      if (controlsDisabled(busy)) return;
+      void deleteFilteredCategory();
+      return;
+    }
+
     if (action === 'create-master') {
       event.preventDefault();
       if (controlsDisabled(busy)) return;
@@ -2433,6 +2682,32 @@ export function mountPlanTaskSplit(container, opts = {}) {
   };
 
   const onChange = (event) => {
+    const categoryFilter = event.target.closest('[data-action="filter-category"]');
+    if (categoryFilter instanceof HTMLSelectElement) {
+      if (controlsDisabled(busy)) {
+        categoryFilter.value = filterCategoryId;
+        return;
+      }
+      filterCategoryId = categoryFilter.value || '';
+      categoryError = '';
+      enforceActiveOnlySelection();
+      paint();
+      return;
+    }
+    const masterCategorySelect = event.target.closest(
+      '[data-action="change-master-category"]',
+    );
+    if (masterCategorySelect instanceof HTMLSelectElement) {
+      if (controlsDisabled(busy) || !selectedMasterId) {
+        const master = findMaster(selectedMasterId);
+        masterCategorySelect.value = master
+          ? masterCategoryId(master)
+          : DEFAULT_PLAN_CATEGORY_ID;
+        return;
+      }
+      void runMasterCategoryChange(masterCategorySelect.value, masterCategorySelect);
+      return;
+    }
     const masterSelect = event.target.closest('[data-action="change-master-status"]');
     if (masterSelect instanceof HTMLSelectElement) {
       if (controlsDisabled(busy) || !selectedMasterId) {

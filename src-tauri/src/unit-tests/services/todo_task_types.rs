@@ -4,8 +4,9 @@ use serde_json::{json, Value};
 
 use crate::services::todo_task::types::{
     attachments_json_rel_path, comments_json_rel_path, index_entry_task_dir, AttachmentEntry,
-    AttachmentsFile, CommentEntry, CommentsFile, IndexEntry, MasterTaskStatus, PlanTasksIndex,
-    SubTask, SubTaskStatus, SubTasksFile,
+    AttachmentsFile, CategoriesFile, Category, CommentEntry, CommentsFile, IndexEntry,
+    MasterTask, MasterTaskStatus, PlanTasksIndex, SubTask, SubTaskStatus, SubTasksFile,
+    DEFAULT_CATEGORY_ID, DEFAULT_CATEGORY_NAME,
 };
 
 #[test]
@@ -32,6 +33,7 @@ fn index_entry_serializes_tech_doc_fields() {
         status: MasterTaskStatus::Incomplete,
         created_at: "2026-07-08T00:00:00+00:00".to_string(),
         task_dir: index_entry_task_dir("task_abc"),
+        category_id: DEFAULT_CATEGORY_ID.to_string(),
     };
     let v: Value = serde_json::to_value(&entry).expect("serialize");
     assert_eq!(v["master_task_id"], "task_abc");
@@ -224,6 +226,7 @@ fn plan_tasks_index_roundtrip_preserves_tasks_map() {
             status: MasterTaskStatus::Complete,
             created_at: "2026-07-08T00:00:00+00:00".to_string(),
             task_dir: index_entry_task_dir("task_abc"),
+            category_id: DEFAULT_CATEGORY_ID.to_string(),
         },
     );
     let index = PlanTasksIndex {
@@ -303,6 +306,7 @@ fn index_entry_does_not_include_attachments_field() {
         status: MasterTaskStatus::Incomplete,
         created_at: "2026-07-08T00:00:00+00:00".to_string(),
         task_dir: index_entry_task_dir("task_abc"),
+        category_id: DEFAULT_CATEGORY_ID.to_string(),
     };
     let v: Value = serde_json::to_value(&entry).expect("serialize");
     assert!(v.get("attachments").is_none());
@@ -397,6 +401,7 @@ fn index_entry_does_not_include_comments_field() {
         status: MasterTaskStatus::Incomplete,
         created_at: "2026-07-08T00:00:00+00:00".to_string(),
         task_dir: index_entry_task_dir("task_abc"),
+        category_id: DEFAULT_CATEGORY_ID.to_string(),
     };
     let v: Value = serde_json::to_value(&entry).expect("serialize");
     assert!(v.get("comments").is_none());
@@ -472,4 +477,118 @@ fn sub_tasks_file_invalid_json_and_non_object_entry_still_fail() {
     });
     let bad_entry: Result<SubTasksFile, _> = serde_json::from_value(non_object_entry);
     assert!(bad_entry.is_err());
+}
+
+#[test]
+fn default_category_constants_are_pending_bucket() {
+    assert_eq!(DEFAULT_CATEGORY_ID, "uncategorized");
+    assert_eq!(DEFAULT_CATEGORY_NAME, "待分类");
+}
+
+#[test]
+fn category_entity_persists_id_name_is_default() {
+    let cat = Category {
+        id: DEFAULT_CATEGORY_ID.to_string(),
+        name: DEFAULT_CATEGORY_NAME.to_string(),
+        is_default: true,
+    };
+    let v: Value = serde_json::to_value(&cat).expect("serialize");
+    assert_eq!(v["id"], DEFAULT_CATEGORY_ID);
+    assert_eq!(v["name"], DEFAULT_CATEGORY_NAME);
+    assert_eq!(v["is_default"], true);
+    let parsed: Category = serde_json::from_value(v).expect("deserialize");
+    assert_eq!(parsed.id, DEFAULT_CATEGORY_ID);
+    assert_eq!(parsed.name, DEFAULT_CATEGORY_NAME);
+    assert!(parsed.is_default);
+}
+
+#[test]
+fn categories_file_roundtrip_and_ignores_unknown_fields() {
+    let file = CategoriesFile {
+        version: 1,
+        categories: vec![Category {
+            id: DEFAULT_CATEGORY_ID.to_string(),
+            name: DEFAULT_CATEGORY_NAME.to_string(),
+            is_default: true,
+        }],
+    };
+    let text = serde_json::to_string(&file).expect("serialize");
+    let parsed: CategoriesFile = serde_json::from_str(&text).expect("deserialize");
+    assert_eq!(parsed.version, 1);
+    assert_eq!(parsed.categories.len(), 1);
+    assert!(parsed.categories[0].is_default);
+
+    let with_unknown = json!({
+        "version": 1,
+        "categories": [{
+            "id": "c1",
+            "name": "Work",
+            "is_default": false,
+            "future_field": "x"
+        }],
+        "extra_top": true
+    });
+    let tolerant: CategoriesFile = serde_json::from_value(with_unknown).expect("ignore unknown");
+    assert_eq!(tolerant.categories[0].id, "c1");
+    assert!(!tolerant.categories[0].is_default);
+}
+
+#[test]
+fn index_entry_category_id_roundtrip_and_missing_defaults() {
+    let entry = IndexEntry {
+        master_task_id: "task_abc".to_string(),
+        title: "Example".to_string(),
+        status: MasterTaskStatus::Incomplete,
+        created_at: "2026-07-08T00:00:00+00:00".to_string(),
+        task_dir: index_entry_task_dir("task_abc"),
+        category_id: "cat_work".to_string(),
+    };
+    let v: Value = serde_json::to_value(&entry).expect("serialize");
+    assert_eq!(v["category_id"], "cat_work");
+
+    let legacy = json!({
+        "master_task_id": "task_abc",
+        "title": "Legacy",
+        "created_at": "2026-07-08T00:00:00+00:00",
+        "task_dir": "tasks/task_abc"
+    });
+    let parsed: IndexEntry = serde_json::from_value(legacy).expect("deserialize");
+    assert_eq!(parsed.category_id, DEFAULT_CATEGORY_ID);
+}
+
+#[test]
+fn index_entry_ignores_unknown_fields_for_forward_compat() {
+    let raw = json!({
+        "master_task_id": "task_abc",
+        "title": "Legacy",
+        "created_at": "2026-07-08T00:00:00+00:00",
+        "task_dir": "tasks/task_abc",
+        "category_id": "cat_work",
+        "future_index_field": 1
+    });
+    let entry: IndexEntry = serde_json::from_value(raw).expect("ignore unknown");
+    assert_eq!(entry.category_id, "cat_work");
+}
+
+#[test]
+fn master_task_category_id_roundtrip_and_missing_defaults() {
+    let master = MasterTask {
+        master_task_id: "task_abc".to_string(),
+        title: "Example".to_string(),
+        status: MasterTaskStatus::Incomplete,
+        created_at: "2026-07-08T00:00:00+00:00".to_string(),
+        sub_tasks: vec![],
+        category_id: "cat_work".to_string(),
+    };
+    let v: Value = serde_json::to_value(&master).expect("serialize");
+    assert_eq!(v["category_id"], "cat_work");
+
+    let legacy = json!({
+        "master_task_id": "task_abc",
+        "title": "Legacy",
+        "created_at": "2026-07-08T00:00:00+00:00",
+        "sub_tasks": []
+    });
+    let parsed: MasterTask = serde_json::from_value(legacy).expect("deserialize");
+    assert_eq!(parsed.category_id, DEFAULT_CATEGORY_ID);
 }

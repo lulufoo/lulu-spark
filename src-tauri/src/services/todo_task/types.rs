@@ -4,6 +4,16 @@ use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 
+/// Built-in default category id (same entity as unspecified create fallback).
+pub const DEFAULT_CATEGORY_ID: &str = "uncategorized";
+
+/// Built-in default category display name.
+pub const DEFAULT_CATEGORY_NAME: &str = "待分类";
+
+fn default_category_id() -> String {
+    DEFAULT_CATEGORY_ID.to_string()
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum SubTaskStatus {
@@ -23,6 +33,20 @@ pub enum MasterTaskStatus {
 
 fn is_absent_or_empty_content(value: &Option<String>) -> bool {
     value.as_ref().map_or(true, |s| s.is_empty())
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Category {
+    pub id: String,
+    pub name: String,
+    #[serde(default)]
+    pub is_default: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CategoriesFile {
+    pub version: u32,
+    pub categories: Vec<Category>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -48,6 +72,8 @@ pub struct MasterTask {
     pub status: MasterTaskStatus,
     pub created_at: String,
     pub sub_tasks: Vec<SubTask>,
+    #[serde(default = "default_category_id")]
+    pub category_id: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -79,6 +105,8 @@ pub struct IndexEntry {
     pub status: MasterTaskStatus,
     pub created_at: String,
     pub task_dir: String,
+    #[serde(default = "default_category_id")]
+    pub category_id: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

@@ -62,6 +62,10 @@ pub fn plan_tasks_index_path() -> Result<PathBuf, PathsError> {
     Ok(plan_tasks_dir()?.join("index.json"))
 }
 
+pub fn plan_tasks_categories_path() -> Result<PathBuf, PathsError> {
+    Ok(plan_tasks_dir()?.join("categories.json"))
+}
+
 fn validate_master_task_id(master_task_id: &str) -> Result<&str, PathsError> {
     if master_task_id.trim().is_empty() {
         return Err(PathsError::InvalidMasterTaskId);
