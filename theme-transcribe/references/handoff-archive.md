@@ -22,9 +22,11 @@ Header requirements: `#` title · `> 创建时间：` · `> 导航：` digest li
 
 Prefer the contract in the current `theme-archive` SKILL:
 
+Write primary markdown to a `.cache` path, then:
+
 ```json
 {
-  "document": "<primary markdown>",
+  "source_path": "<absolute path to primary .md>",
   "source_type": "summary",
   "translations": [
     { "lang": "zh", "content": "<zh markdown with header>" }

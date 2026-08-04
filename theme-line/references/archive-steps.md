@@ -70,9 +70,11 @@ Path: `raw/<topic-path>/<ts>-<slug>-zh.md`
 Workbench App **must be running** (`workbench-knowledge` MCP). On failure → stop; **do not** write `archive_root` directly.
 </HARD-GATE>
 
+Write Step 3 markdown to `{workspace}/.cache/theme-line/<ts>-<slug>.md`, then:
+
 ```json
 {
-  "document": "<Step 3 full markdown>",
+  "source_path": "<absolute path to that .md>",
   "source_type": "theme-line",
   "translations": [
     { "lang": "zh", "content": "<Step 4 full markdown>" }

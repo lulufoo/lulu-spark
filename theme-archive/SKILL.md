@@ -107,11 +107,11 @@ Standalone 若 header 缺导航行，按 [archive-concepts.md](../shared/archive
 
 ### [AR-2] archive_document (MCP)
 
-调用 MCP `archive_document`：
+将 primary 全文写入 allow-list 路径（建议 `{workspace}/.cache/theme-archive/<ts>-<slug>.md`），再调用 MCP `archive_document`：
 
 ```json
 {
-  "document": "<primary 全文 Markdown>",
+  "source_path": "<absolute path to primary .md>",
   "source_type": "<summary|article|theme-line|dialogue|...>",
   "translations": [
     { "lang": "zh", "content": "<附加 raw 全文>" }
@@ -119,8 +119,9 @@ Standalone 若 header 缺导航行，按 [archive-concepts.md](../shared/archive
 }
 ```
 
-- 无翻译文件时省略 `translations`。
-- **不要**发送路径、`extra_documents` 或 `index_extra` — host 自动推导 `-{lang}.md` 与 index map。
+- **Forbid:** `"document": "…"`（正文只经 `source_path` 由 Host 读盘）。
+- 无翻译文件时省略 `translations`（translation `content` 仍可为字符串；path 化后续）。
+- **不要**发送 `extra_documents` 或 `index_extra` — host 自动推导 `-{lang}.md` 与 index map。
 - `source_type` 默认：Standalone 未指定 → `summary`；Embedded 必须显式传入。
 - 记录返回的 `id`、`common_path`、`raw_path`、`extra_paths`。
 

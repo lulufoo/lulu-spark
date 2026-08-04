@@ -45,9 +45,13 @@ prefix      = "../../../"
 
 ## archive_document
 
+Write full markdown to `{workspace}/.cache/dialogue-summary/<ts>-<slug>.md`, then:
+
 ```json
 {
-  "document": "<full markdown>",
+  "source_path": "<absolute path to that .md>",
   "source_type": "summary"
 }
 ```
+
+**Forbid:** `"document": "…"`.

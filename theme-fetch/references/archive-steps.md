@@ -41,9 +41,11 @@ Primary： [output-templates.md](output-templates.md) header + Phase 2 body。
 Workbench App **must be running** (`workbench-knowledge` MCP). On failure → stop; **do not** write corpus files directly.
 </HARD-GATE>
 
+Write Step 3 markdown to `{workspace}/.cache/theme-fetch/<ts>-<slug>.md`, then:
+
 ```json
 {
-  "document": "<Step 3 primary full markdown>",
+  "source_path": "<absolute path to that .md>",
   "source_type": "article",
   "translations": [
     { "lang": "zh", "content": "<Step 3 -zh.md full markdown>" }
