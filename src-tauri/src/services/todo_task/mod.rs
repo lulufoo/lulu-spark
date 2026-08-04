@@ -18,8 +18,9 @@ use crate::repositories::atomic_json;
 use crate::services::id::random_hex12;
 
 use types::{
-    index_entry_task_dir, AttachmentEntry, AttachmentsFile, CommentEntry, CommentsFile, IndexEntry,
-    MasterTask, MasterTaskStatus, PlanTasksIndex, SubTask, SubTaskStatus, SubTasksFile,
+    index_entry_task_dir, AttachmentEntry, AttachmentsFile, CategoriesFile, Category, CommentEntry,
+    CommentsFile, IndexEntry, MasterTask, MasterTaskStatus, PlanTasksIndex, SubTask, SubTaskStatus,
+    SubTasksFile, DEFAULT_CATEGORY_ID, DEFAULT_CATEGORY_NAME,
 };
 
 static WRITE_LOCK: Mutex<()> = Mutex::new(());
@@ -452,13 +453,78 @@ fn load_v2_for_read() -> Result<PlanTasksIndex, Value> {
     }
 }
 
+fn default_categories_file() -> CategoriesFile {
+    CategoriesFile {
+        version: 1,
+        categories: vec![Category {
+            id: DEFAULT_CATEGORY_ID.to_string(),
+            name: DEFAULT_CATEGORY_NAME.to_string(),
+            is_default: true,
+        }],
+    }
+}
+
+/// Load todo category registry via `paths::plan_tasks_categories_path`.
+/// Missing file → in-memory built-in default「待分类」(does not require write).
+pub fn load_categories() -> Result<CategoriesFile, String> {
+    let path = paths::plan_tasks_categories_path().map_err(|e| format!("{e:?}"))?;
+    if !path.is_file() {
+        return Ok(default_categories_file());
+    }
+    let text = fs::read_to_string(&path).map_err(|e| e.to_string())?;
+    serde_json::from_str(&text).map_err(|e| e.to_string())
+}
+
+/// Ensure built-in default category exists; create registry file when missing.
+pub fn ensure_default_category() -> Result<CategoriesFile, String> {
+    with_write_lock(|| {
+        let path = paths::plan_tasks_categories_path().map_err(|e| format!("{e:?}"))?;
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+        }
+        if !path.is_file() {
+            let cats = default_categories_file();
+            let value = serde_json::to_value(&cats).map_err(|e| e.to_string())?;
+            atomic_json::write_json(&path, &value)?;
+            return Ok(cats);
+        }
+        let mut cats = load_categories()?;
+        if !cats.categories.iter().any(|c| c.id == DEFAULT_CATEGORY_ID) {
+            cats.categories.insert(
+                0,
+                Category {
+                    id: DEFAULT_CATEGORY_ID.to_string(),
+                    name: DEFAULT_CATEGORY_NAME.to_string(),
+                    is_default: true,
+                },
+            );
+            let value = serde_json::to_value(&cats).map_err(|e| e.to_string())?;
+            atomic_json::write_json(&path, &value)?;
+        }
+        Ok(cats)
+    })
+}
+
+fn effective_category_id(stored: &str, categories: &CategoriesFile) -> String {
+    if stored.is_empty() {
+        return DEFAULT_CATEGORY_ID.to_string();
+    }
+    if categories.categories.iter().any(|c| c.id == stored) {
+        return stored.to_string();
+    }
+    DEFAULT_CATEGORY_ID.to_string()
+}
+
 fn assemble_master_task(entry: &IndexEntry, subs: &SubTasksFile) -> MasterTask {
+    let categories = load_categories().unwrap_or_else(|_| default_categories_file());
+    let category_id = effective_category_id(&entry.category_id, &categories);
     MasterTask {
         master_task_id: entry.master_task_id.clone(),
         title: entry.title.clone(),
         status: entry.status.clone(),
         created_at: entry.created_at.clone(),
         sub_tasks: subs.sub_tasks.clone(),
+        category_id,
     }
 }
 
@@ -518,6 +584,11 @@ fn persist_master_with_plan_md(master: &MasterTask, plan_md: &str) -> Result<(),
         status: master.status.clone(),
         created_at: master.created_at.clone(),
         task_dir: index_entry_task_dir(&master.master_task_id),
+        category_id: if master.category_id.is_empty() {
+            DEFAULT_CATEGORY_ID.to_string()
+        } else {
+            master.category_id.clone()
+        },
     };
     let subs = SubTasksFile {
         sub_tasks: master.sub_tasks.clone(),
@@ -783,6 +854,7 @@ pub fn create_master_with_subs_and_todo(
             status: MasterTaskStatus::Incomplete,
             created_at,
             sub_tasks,
+            category_id: DEFAULT_CATEGORY_ID.to_string(),
         };
 
         match persist_master_with_plan_md(&master, plan_md) {

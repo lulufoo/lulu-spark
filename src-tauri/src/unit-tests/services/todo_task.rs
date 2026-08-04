@@ -1,7 +1,7 @@
 use super::*;
 use crate::services::todo_task::types::{
     AttachmentsFile, CommentEntry, CommentsFile, IndexEntry, MasterTaskStatus, SubTask,
-    SubTaskStatus, SubTasksFile,
+    SubTaskStatus, SubTasksFile, DEFAULT_CATEGORY_ID, DEFAULT_CATEGORY_NAME,
 };
 use std::fs;
 use std::path::Path;
@@ -744,6 +744,7 @@ fn sample_index_entry(master_id: &str) -> IndexEntry {
         status: MasterTaskStatus::Incomplete,
         created_at: "2026-07-08T00:00:00+00:00".to_string(),
         task_dir: format!("tasks/{master_id}"),
+        category_id: DEFAULT_CATEGORY_ID.to_string(),
     }
 }
 
@@ -3294,5 +3295,146 @@ fn t5_soft_delete_or_audit_fields_are_explicit_errors_not_accepted_schema() {
         let listed_audit = list_comments(master_id);
         assert_ne!(listed_audit["_status"], 200);
         assert!(listed_audit.get("error").is_some());
+    });
+}
+
+#[test]
+fn plan_tasks_categories_path_is_ssot_under_todo_tasks() {
+    with_todo_task_sandbox(|wb| {
+        let path = paths::plan_tasks_categories_path().expect("path");
+        assert_eq!(path, wb.join("todo_tasks").join("categories.json"));
+        let sediment = paths::sediment_kb_categories_path().expect("sediment");
+        assert_ne!(path, sediment);
+    });
+}
+
+#[test]
+fn load_categories_injects_default_when_registry_missing() {
+    with_todo_task_sandbox(|wb| {
+        let cats_path = wb.join("todo_tasks").join("categories.json");
+        assert!(!cats_path.exists());
+        let cats = load_categories().expect("load");
+        assert!(
+            cats.categories.iter().any(|c| {
+                c.id == DEFAULT_CATEGORY_ID
+                    && c.name == DEFAULT_CATEGORY_NAME
+                    && c.is_default
+            }),
+            "missing registry must inject built-in 待分类"
+        );
+    });
+}
+
+#[test]
+fn ensure_default_category_persists_registry_via_paths() {
+    with_todo_task_sandbox(|wb| {
+        let cats = ensure_default_category().expect("ensure");
+        assert!(cats
+            .categories
+            .iter()
+            .any(|c| c.id == DEFAULT_CATEGORY_ID && c.is_default));
+        let path = paths::plan_tasks_categories_path().expect("path");
+        assert_eq!(path, wb.join("todo_tasks").join("categories.json"));
+        assert!(path.is_file(), "ensure may create default registry file");
+        let text = fs::read_to_string(&path).expect("read");
+        assert!(text.contains(DEFAULT_CATEGORY_ID));
+        assert!(text.contains(DEFAULT_CATEGORY_NAME));
+    });
+}
+
+#[test]
+fn missing_categories_registry_does_not_block_todo_list() {
+    with_todo_task_sandbox(|wb| {
+        let created = create_master_with_subs("No cats yet", None);
+        assert_eq!(created["_status"], 201);
+        let cats_path = wb.join("todo_tasks").join("categories.json");
+        if cats_path.is_file() {
+            fs::remove_file(&cats_path).expect("remove cats");
+        }
+        let listed = list_all();
+        let arr = listed.as_array().expect("array");
+        assert_eq!(arr.len(), 1);
+        assert_eq!(arr[0]["title"], "No cats yet");
+    });
+}
+
+#[test]
+fn todo_missing_category_id_reads_as_default_without_rewriting_disk() {
+    with_todo_task_sandbox(|wb| {
+        let created = create_master_with_subs("Legacy todo", None);
+        assert_eq!(created["_status"], 201);
+        let master_id = created["master_task_id"].as_str().expect("id");
+        let index_path = wb.join("todo_tasks").join("index.json");
+        let mut index: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(&index_path).unwrap()).unwrap();
+        index["tasks"][master_id]
+            .as_object_mut()
+            .unwrap()
+            .remove("category_id");
+        fs::write(&index_path, serde_json::to_string_pretty(&index).unwrap()).unwrap();
+
+        let before = fs::read_to_string(&index_path).unwrap();
+        assert!(!before.contains("\"category_id\""));
+
+        let got = get_by_id(master_id);
+        assert_eq!(got["category_id"], DEFAULT_CATEGORY_ID);
+
+        let after = fs::read_to_string(&index_path).unwrap();
+        assert_eq!(before, after, "compat read must not rewrite disk");
+    });
+}
+
+#[test]
+fn todo_orphan_category_id_reads_as_default_without_rewriting_disk() {
+    with_todo_task_sandbox(|wb| {
+        ensure_default_category().expect("ensure");
+        let created = create_master_with_subs("Orphan cat", None);
+        assert_eq!(created["_status"], 201);
+        let master_id = created["master_task_id"].as_str().expect("id");
+        let index_path = wb.join("todo_tasks").join("index.json");
+        let mut index: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(&index_path).unwrap()).unwrap();
+        index["tasks"][master_id]["category_id"] = serde_json::json!("cat_missing_zzz");
+        fs::write(&index_path, serde_json::to_string_pretty(&index).unwrap()).unwrap();
+
+        let before = fs::read_to_string(&index_path).unwrap();
+        assert!(before.contains("cat_missing_zzz"));
+
+        let got = get_by_id(master_id);
+        assert_eq!(got["category_id"], DEFAULT_CATEGORY_ID);
+
+        let after = fs::read_to_string(&index_path).unwrap();
+        assert_eq!(before, after, "orphan compat read must not rewrite disk");
+        assert!(after.contains("cat_missing_zzz"));
+    });
+}
+
+#[test]
+fn todo_valid_category_id_roundtrips_on_read() {
+    with_todo_task_sandbox(|wb| {
+        ensure_default_category().expect("ensure");
+        let cats_path = paths::plan_tasks_categories_path().expect("path");
+        let mut cats = load_categories().expect("load");
+        cats.categories
+            .push(crate::services::todo_task::types::Category {
+                id: "cat_work".to_string(),
+                name: "Work".to_string(),
+                is_default: false,
+            });
+        fs::write(&cats_path, serde_json::to_string_pretty(&cats).unwrap()).unwrap();
+
+        let created = create_master_with_subs("Work todo", None);
+        assert_eq!(created["_status"], 201);
+        let master_id = created["master_task_id"].as_str().expect("id");
+        let index_path = wb.join("todo_tasks").join("index.json");
+        let mut index: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(&index_path).unwrap()).unwrap();
+        index["tasks"][master_id]["category_id"] = serde_json::json!("cat_work");
+        fs::write(&index_path, serde_json::to_string_pretty(&index).unwrap()).unwrap();
+
+        let got = get_by_id(master_id);
+        assert_eq!(got["category_id"], "cat_work");
+        let listed = list_all();
+        assert_eq!(listed.as_array().unwrap()[0]["category_id"], "cat_work");
     });
 }

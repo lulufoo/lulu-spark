@@ -16,7 +16,7 @@ use crate::services::todo_task::{
     create_master_with_subs, list_all, test_reset_all_injection_flags, test_run_write_task_batch,
     test_set_fail_batch_todo_md,
 };
-use crate::services::todo_task::types::{IndexEntry, MasterTaskStatus, SubTasksFile};
+use crate::services::todo_task::types::{IndexEntry, MasterTaskStatus, SubTasksFile, DEFAULT_CATEGORY_ID};
 use crate::test_support::TestSandbox;
 
 fn master_from_invoke(v: &serde_json::Value) -> &serde_json::Value {
@@ -562,6 +562,7 @@ fn complete_todo_json_abandoned_master_rejects_with_stable_code() {
                 status: MasterTaskStatus::Abandoned,
                 created_at: "2026-07-08T00:00:00+00:00".to_string(),
                 task_dir: format!("tasks/{abandoned_id}"),
+                category_id: DEFAULT_CATEGORY_ID.to_string(),
             },
             &SubTasksFile { sub_tasks: vec![] },
             "",
@@ -597,6 +598,7 @@ fn complete_todo_json_abandoned_still_allows_non_status_edit() {
                 status: MasterTaskStatus::Abandoned,
                 created_at: "2026-07-08T00:00:02+00:00".to_string(),
                 task_dir: format!("tasks/{abandoned_id}"),
+                category_id: DEFAULT_CATEGORY_ID.to_string(),
             },
             &SubTasksFile { sub_tasks: vec![] },
             "",
@@ -676,6 +678,7 @@ fn get_todo_tasks_json_reads_back_complete_and_abandoned_status() {
                 status: MasterTaskStatus::Complete,
                 created_at: "2026-07-08T00:00:00+00:00".to_string(),
                 task_dir: format!("tasks/{complete_id}"),
+                category_id: DEFAULT_CATEGORY_ID.to_string(),
             },
             &SubTasksFile { sub_tasks: vec![] },
             "",
@@ -689,6 +692,7 @@ fn get_todo_tasks_json_reads_back_complete_and_abandoned_status() {
                 status: MasterTaskStatus::Abandoned,
                 created_at: "2026-07-08T00:00:01+00:00".to_string(),
                 task_dir: format!("tasks/{abandoned_id}"),
+                category_id: DEFAULT_CATEGORY_ID.to_string(),
             },
             &SubTasksFile { sub_tasks: vec![] },
             "",

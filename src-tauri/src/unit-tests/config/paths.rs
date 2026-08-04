@@ -177,3 +177,18 @@ fn plan_tasks_v2_path_helpers_err_when_settings_unavailable() {
         }
     });
 }
+
+#[test]
+fn plan_tasks_categories_path_under_plan_tasks_dir_not_sediment() {
+    let sandbox = TestSandbox::new();
+    let wb = sandbox.workbench_knowledge_root();
+    let dir = plan_tasks_dir().expect("plan_tasks_dir");
+    let cats = plan_tasks_categories_path().expect("plan_tasks_categories_path");
+    assert_eq!(cats, dir.join("categories.json"));
+    assert_eq!(cats, wb.join("todo_tasks").join("categories.json"));
+    let sediment_cats = sediment_kb_categories_path().expect("sediment cats");
+    assert_ne!(
+        cats, sediment_cats,
+        "todo categories registry must not reuse sediment_kb path"
+    );
+}
