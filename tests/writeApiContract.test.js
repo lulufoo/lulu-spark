@@ -161,8 +161,8 @@ describe('writeApiContract', () => {
 
   it('archive-document invoke args pass HTTP body as payload (snake HTTP ↔ camel invoke)', () => {
     const body = {
-      document: '# Title\n\nbody',
-      source_type: 'note',
+      source_path: '/tmp/title.md',
+      source_type: 'summary',
     };
     expect(resolveWriteInvoke('/api/archive-document', body)).toEqual({
       cmd: 'archive_document',

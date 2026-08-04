@@ -255,8 +255,26 @@ function startMockHttp(port) {
     }
 
     if (req.method === 'POST' && url.pathname === '/api/archive-document') {
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify(ARCHIVE_DOC_RESPONSE));
+      let payload;
+      try {
+        payload = await readJsonBody(req);
+      } catch {
+        respondJson(res, 400, { error: 'Invalid JSON' });
+        return;
+      }
+      if (Object.prototype.hasOwnProperty.call(payload, 'document')) {
+        respondJson(res, 400, {
+          error: 'document is not supported; use source_path',
+        });
+        return;
+      }
+      const sourcePath =
+        typeof payload.source_path === 'string' ? payload.source_path.trim() : '';
+      if (!sourcePath) {
+        respondJson(res, 400, { error: 'Missing source_path' });
+        return;
+      }
+      respondJson(res, 200, ARCHIVE_DOC_RESPONSE);
       return;
     }
 
@@ -1042,8 +1060,8 @@ async function runMcpClient(mcpPort) {
   const archiveDocResult = await ideClient.callTool({
     name: 'archive_document',
     arguments: {
-      document:
-        '# T\n\n> 创建时间：x\n> 导航：[digest](../../../digest/demo-topic/note.md)\n\n---\n\nbody',
+      source_path: '/tmp/verify-archive-source.md',
+      source_type: 'summary',
     },
   });
   const archiveDocText = archiveDocResult.content?.[0]?.text || '';

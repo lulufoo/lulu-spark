@@ -199,9 +199,12 @@ export function buildServer(sceneSlot) {
     'archive_document',
     {
       description:
-        'Archive a formatted document to raw/ and index.json. Returns entry id. Proxy POST /api/archive-document',
+        'Archive a formatted markdown file to raw/ and index.json by absolute source_path. Host reads the file; do not pass document body. Proxy POST /api/archive-document',
       inputSchema: {
-        document: z.string().min(1).describe('Full Markdown document with header and body'),
+        source_path: z
+          .string()
+          .min(1)
+          .describe('Absolute path to a .md file under Host allow-list roots'),
         source_type: z
           .string()
           .optional()
@@ -220,8 +223,8 @@ export function buildServer(sceneSlot) {
           .describe('Optional translation bodies; paths derived by host'),
       },
     },
-    async ({ document, source_type, translations }) => {
-      const body = { document };
+    async ({ source_path, source_type, translations }) => {
+      const body = { source_path };
       if (source_type != null) {
         body.source_type = source_type;
       }

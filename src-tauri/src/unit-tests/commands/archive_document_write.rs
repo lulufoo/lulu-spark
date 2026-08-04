@@ -1,4 +1,5 @@
 use std::fs;
+use std::path::PathBuf;
 
 use serde_json::json;
 
@@ -25,11 +26,20 @@ fn setup_corpus() -> TestSandbox {
     sandbox
 }
 
+fn stage_source(sandbox: &TestSandbox, content: &str) -> PathBuf {
+    let dir = sandbox.cache_dir().join("archive_source_stage");
+    fs::create_dir_all(&dir).expect("stage dir");
+    let p = dir.join("source.md");
+    fs::write(&p, content).expect("write");
+    p.canonicalize().expect("canon")
+}
+
 #[test]
 fn archive_document_json_success_returns_entry_handle() {
-    let _sandbox = setup_corpus();
+    let sandbox = setup_corpus();
+    let path = stage_source(&sandbox, SAMPLE_DOC);
     let v = archive_document_json(json!({
-        "document": SAMPLE_DOC,
+        "source_path": path.to_str().unwrap(),
         "source_type": "summary",
     }))
     .expect("command Result");
@@ -43,7 +53,7 @@ fn archive_document_json_success_returns_entry_handle() {
 #[test]
 fn archive_document_json_propagates_status_errors() {
     let _sandbox = setup_corpus();
-    let v = archive_document_json(json!({ "document": "", "source_type": "note" }))
+    let v = archive_document_json(json!({ "source_type": "note" }))
         .expect("business errors return Ok(Value)");
     assert!(v.get("error").is_some(), "expected error payload: {v}");
     let status = v.get("_status").and_then(|s| s.as_u64()).unwrap_or(0);
@@ -51,9 +61,32 @@ fn archive_document_json_propagates_status_errors() {
 }
 
 #[test]
+fn archive_document_json_rejects_document_field() {
+    let sandbox = setup_corpus();
+    let path = stage_source(&sandbox, SAMPLE_DOC);
+    let v = archive_document_json(json!({
+        "document": SAMPLE_DOC,
+        "source_path": path.to_str().unwrap(),
+    }))
+    .expect("Ok(Value)");
+    assert_eq!(v.get("_status"), Some(&json!(400)));
+    assert!(
+        v["error"]
+            .as_str()
+            .unwrap_or("")
+            .contains("source_path"),
+        "{v}"
+    );
+}
+
+#[test]
 fn archive_document_json_conflict_returns_409() {
-    let _sandbox = setup_corpus();
-    let payload = json!({ "document": SAMPLE_DOC });
+    let sandbox = setup_corpus();
+    let path = stage_source(&sandbox, SAMPLE_DOC);
+    let payload = json!({
+        "source_path": path.to_str().unwrap(),
+        "source_type": "summary",
+    });
     let first = archive_document_json(payload.clone()).expect("first");
     assert_eq!(first.get("ok"), Some(&json!(true)));
     let second = archive_document_json(payload).expect("second");

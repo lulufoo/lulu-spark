@@ -436,12 +436,20 @@ Summary body here.
 #[test]
 fn post_archive_document_and_digest() {
     let fixture = setup_repo_for_archive();
+    let stage_dir = fixture._sandbox.cache_dir().join("archive_source_stage");
+    fs::create_dir_all(&stage_dir).expect("stage dir");
+    let source = stage_dir.join("source.md");
+    fs::write(&source, SAMPLE_DOC).expect("write source");
+    let source_path = source.canonicalize().expect("canon");
     let repo_root = fixture.repo_root.clone();
     with_server(repo_root, |port| {
         let (status, body) = http_post(
             port,
             "/api/archive-document",
-            &json!({ "document": SAMPLE_DOC }),
+            &json!({
+                "source_path": source_path.to_str().unwrap(),
+                "source_type": "summary",
+            }),
         );
         assert_eq!(status, 200);
         assert_eq!(body["ok"], true);
@@ -453,6 +461,27 @@ fn post_archive_document_and_digest() {
         );
         assert_eq!(d_status, 200);
         assert_eq!(d_body["ok"], true);
+    });
+}
+
+#[test]
+fn post_archive_document_rejects_document_field() {
+    let fixture = setup_repo_for_archive();
+    let repo_root = fixture.repo_root.clone();
+    with_server(repo_root, |port| {
+        let (status, body) = http_post(
+            port,
+            "/api/archive-document",
+            &json!({ "document": SAMPLE_DOC }),
+        );
+        assert_eq!(status, 400);
+        assert!(
+            body["error"]
+                .as_str()
+                .unwrap_or("")
+                .contains("source_path"),
+            "{body}"
+        );
     });
 }
 

@@ -6,6 +6,7 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -506,12 +507,14 @@ if (linkResult.isError || !linkText.includes(archiveId)) {
 }
 
 // T10 / AC-等价: attachment quartet must be exercisable (not only create/list/get).
+const attachStageDir = fs.mkdtempSync(path.join(os.tmpdir(), 'todo-attach-e2e-'));
+const addAttachSource = path.join(attachStageDir, 'e2e-notes.md');
+fs.writeFileSync(addAttachSource, '# E2E attachment\n', 'utf8');
 const addAttachResult = await client.callTool({
   name: 'add_todo_attachment',
   arguments: {
     master_task_id: masterId,
-    file_name: 'e2e-notes.md',
-    content: '# E2E attachment\n',
+    source_path: addAttachSource,
   },
 });
 const addAttachText = toolText(addAttachResult);
@@ -537,12 +540,14 @@ if (getAttachResult.isError || !getAttachText.includes('# E2E attachment')) {
   throw new Error(`get_todo_attachment failed: ${getAttachText}`);
 }
 
+const updateAttachSource = path.join(attachStageDir, 'e2e-notes-updated.md');
+fs.writeFileSync(updateAttachSource, 'updated e2e attachment', 'utf8');
 const updateAttachResult = await client.callTool({
   name: 'update_todo_attachment',
   arguments: {
     master_task_id: masterId,
     file_name: 'e2e-notes.md',
-    content: 'updated e2e attachment',
+    source_path: updateAttachSource,
   },
 });
 const updateAttachText = toolText(updateAttachResult);

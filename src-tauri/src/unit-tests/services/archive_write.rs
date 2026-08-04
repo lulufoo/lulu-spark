@@ -49,12 +49,29 @@ fn with_archive_plan_task_test<F: FnOnce()>(f: F) {
     f();
 }
 
+fn stage_source(sandbox: &TestSandbox, name: &str, content: &str) -> PathBuf {
+    let dir = sandbox.cache_dir().join("archive_source_stage");
+    fs::create_dir_all(&dir).expect("stage dir");
+    let p = dir.join(name);
+    fs::write(&p, content).expect("write stage");
+    p.canonicalize().expect("canon")
+}
+
+fn path_payload(sandbox: &TestSandbox, content: &str, mut base: serde_json::Value) -> serde_json::Value {
+    let path = stage_source(sandbox, "source.md", content);
+    let obj = base.as_object_mut().expect("object");
+    obj.insert("source_path".to_string(), json!(path.to_str().unwrap()));
+    obj.remove("document");
+    base
+}
+
+
 #[test]
 fn archive_document_writes_raw_and_index() {
-    let (_sandbox, repo_root) = setup_corpus();
+    let (sandbox, repo_root) = setup_corpus();
     let v = archive_document(
         &repo_root,
-        &json!({ "document": SAMPLE_DOC, "source_type": "summary" }),
+        &path_payload(&sandbox, SAMPLE_DOC, json!({ "source_type": "summary" })),
     );
     assert_eq!(v.get("ok"), Some(&json!(true)), "archive_document failed: {v}");
     let id = v["id"].as_str().expect("id");
@@ -72,8 +89,8 @@ fn archive_document_writes_raw_and_index() {
 
 #[test]
 fn archive_document_conflict_returns_409() {
-    let (_sandbox, repo_root) = setup_corpus();
-    let payload = json!({ "document": SAMPLE_DOC });
+    let (sandbox, repo_root) = setup_corpus();
+    let payload = path_payload(&sandbox, SAMPLE_DOC, json!({}));
     assert_eq!(archive_document(&repo_root, &payload).get("ok"), Some(&json!(true)));
     let v = archive_document(&repo_root, &payload);
     assert_eq!(v.get("_status"), Some(&json!(409)));
@@ -81,8 +98,8 @@ fn archive_document_conflict_returns_409() {
 
 #[test]
 fn archive_digest_writes_digest_and_updates_layers() {
-    let (_sandbox, repo_root) = setup_corpus();
-    let created = archive_document(&repo_root, &json!({ "document": SAMPLE_DOC }));
+    let (sandbox, repo_root) = setup_corpus();
+    let created = archive_document(&repo_root, &path_payload(&sandbox, SAMPLE_DOC, json!({})));
     let id = created["id"].as_str().unwrap();
     let digest_body = "# Test — 摘要\n\n> 创建时间：2026年6月19日 14:30\n\n## 概述\n\noverview";
     let v = archive_digest(
@@ -103,8 +120,8 @@ fn archive_digest_writes_digest_and_updates_layers() {
 
 #[test]
 fn archive_digest_force_overwrites_existing() {
-    let (_sandbox, repo_root) = setup_corpus();
-    let created = archive_document(&repo_root, &json!({ "document": SAMPLE_DOC }));
+    let (sandbox, repo_root) = setup_corpus();
+    let created = archive_document(&repo_root, &path_payload(&sandbox, SAMPLE_DOC, json!({})));
     let id = created["id"].as_str().unwrap();
     let digest_body = "# Test — 摘要\n\n## 概述\n\nv1";
     archive_digest(&repo_root, &json!({ "id": id, "digest": digest_body }));
@@ -145,15 +162,14 @@ const THEME_LINE_ZH: &str = r#"# 中文标题
 
 #[test]
 fn archive_document_theme_line_with_zh_translation() {
-    let (_sandbox, repo_root) = setup_corpus();
+    let (sandbox, repo_root) = setup_corpus();
     let zh_path = "learning-ai-agent/waymo-interview/202606191700-waymo-interview-zh.md";
     let v = archive_document(
         &repo_root,
-        &json!({
-            "document": THEME_LINE_DOC,
+        &path_payload(&sandbox, THEME_LINE_DOC, json!({
             "source_type": "theme-line",
             "translations": [{ "lang": "zh", "content": THEME_LINE_ZH }]
-        }),
+        })),
     );
     assert_eq!(v.get("ok"), Some(&json!(true)), "failed: {v}");
     let corpus = crate::config::meili_env::workbench_knowledge_root_path(&repo_root);
@@ -170,17 +186,16 @@ fn archive_document_theme_line_with_zh_translation() {
 
 #[test]
 fn archive_document_multi_lang_translations() {
-    let (_sandbox, repo_root) = setup_corpus();
+    let (sandbox, repo_root) = setup_corpus();
     let v = archive_document(
         &repo_root,
-        &json!({
-            "document": THEME_LINE_DOC,
+        &path_payload(&sandbox, THEME_LINE_DOC, json!({
             "source_type": "theme-line",
             "translations": [
                 { "lang": "zh", "content": THEME_LINE_ZH },
                 { "lang": "fr", "content": "# Titre\n\n> 创建时间：2026年6月19日 17:00\n\n---\n\nbonjour\n" }
             ]
-        }),
+        })),
     );
     assert_eq!(v.get("ok"), Some(&json!(true)), "failed: {v}");
     let id = v["id"].as_str().unwrap();
@@ -199,17 +214,16 @@ fn archive_document_multi_lang_translations() {
 
 #[test]
 fn archive_document_rejects_legacy_extra_documents() {
-    let (_sandbox, repo_root) = setup_corpus();
+    let (sandbox, repo_root) = setup_corpus();
     let v = archive_document(
         &repo_root,
-        &json!({
-            "document": THEME_LINE_DOC,
+        &path_payload(&sandbox, THEME_LINE_DOC, json!({
             "source_type": "theme-line",
             "extra_documents": [{
                 "rel": "raw/learning-ai-agent/waymo-interview/202606191700-waymo-interview-zh.md",
                 "content": THEME_LINE_ZH
             }]
-        }),
+        })),
     );
     assert_eq!(v.get("_status"), Some(&json!(400)));
     let err = v["error"].as_str().unwrap_or("");
@@ -218,38 +232,35 @@ fn archive_document_rejects_legacy_extra_documents() {
 
 #[test]
 fn archive_document_rejects_legacy_index_extra() {
-    let (_sandbox, repo_root) = setup_corpus();
+    let (sandbox, repo_root) = setup_corpus();
     let v = archive_document(
         &repo_root,
-        &json!({
-            "document": THEME_LINE_DOC,
+        &path_payload(&sandbox, THEME_LINE_DOC, json!({
             "index_extra": { "translations": { "zh": "x" } }
-        }),
+        })),
     );
     assert_eq!(v.get("_status"), Some(&json!(400)));
 }
 
 #[test]
 fn archive_document_rejects_bad_or_duplicate_lang() {
-    let (_sandbox, repo_root) = setup_corpus();
+    let (sandbox, repo_root) = setup_corpus();
     let bad = archive_document(
         &repo_root,
-        &json!({
-            "document": THEME_LINE_DOC,
+        &path_payload(&sandbox, THEME_LINE_DOC, json!({
             "translations": [{ "lang": "ZH", "content": THEME_LINE_ZH }]
-        }),
+        })),
     );
     assert_eq!(bad.get("_status"), Some(&json!(400)));
 
     let dup = archive_document(
         &repo_root,
-        &json!({
-            "document": THEME_LINE_DOC,
+        &path_payload(&sandbox, THEME_LINE_DOC, json!({
             "translations": [
                 { "lang": "zh", "content": THEME_LINE_ZH },
                 { "lang": "zh", "content": THEME_LINE_ZH }
             ]
-        }),
+        })),
     );
     assert_eq!(dup.get("_status"), Some(&json!(400)));
 }
@@ -257,7 +268,7 @@ fn archive_document_rejects_bad_or_duplicate_lang() {
 #[test]
 fn archive_document_with_task_ref_completes_sub_in_sandbox() {
     with_archive_plan_task_test(|| {
-        let (_sandbox, repo_root) = setup_corpus();
+        let (sandbox, repo_root) = setup_corpus();
         let wb = crate::config::meili_env::workbench_knowledge_root_path(&repo_root);
         let created = create_master_with_subs("Archive link", Some(&["Sub"]));
         assert_eq!(created["_status"], 201);
@@ -266,12 +277,15 @@ fn archive_document_with_task_ref_completes_sub_in_sandbox() {
 
         let v = archive_document(
             &repo_root,
-            &json!({
-                "document": SAMPLE_DOC,
-                "source_type": "summary",
-                "master_task_id": master_id,
-                "sub_task_id": sub_id,
-            }),
+            &path_payload(
+                &sandbox,
+                SAMPLE_DOC,
+                json!({
+                    "source_type": "summary",
+                    "master_task_id": master_id,
+                    "sub_task_id": sub_id,
+                }),
+            ),
         );
         assert_eq!(v.get("ok"), Some(&json!(true)), "archive failed: {v}");
         let archive_id = v["id"].as_str().expect("id");
@@ -301,7 +315,7 @@ fn archive_document_with_task_ref_completes_sub_in_sandbox() {
 #[test]
 fn archive_document_plan_task_fail_dual_store_rollback() {
     with_archive_plan_task_test(|| {
-        let (_sandbox, repo_root) = setup_corpus();
+        let (sandbox, repo_root) = setup_corpus();
         let wb = crate::config::meili_env::workbench_knowledge_root_path(&repo_root);
         let created = create_master_with_subs("A2 rollback", Some(&["Sub"]));
         let master_id = created["master_task_id"].as_str().unwrap();
@@ -313,12 +327,15 @@ fn archive_document_plan_task_fail_dual_store_rollback() {
         test_set_fail_complete_sub(true);
         let result = archive_document(
             &repo_root,
-            &json!({
-                "document": SAMPLE_DOC,
-                "source_type": "summary",
-                "master_task_id": master_id,
-                "sub_task_id": sub_id,
-            }),
+            &path_payload(
+                &sandbox,
+                SAMPLE_DOC,
+                json!({
+                    "source_type": "summary",
+                    "master_task_id": master_id,
+                    "sub_task_id": sub_id,
+                }),
+            ),
         );
 
         assert_ne!(result.get("ok"), Some(&json!(true)), "expected todo_task failure: {result}");
@@ -350,7 +367,7 @@ fn archive_document_plan_task_fail_dual_store_rollback() {
 #[test]
 fn archive_document_index_snapshot_restore_on_plan_task_fail() {
     with_archive_plan_task_test(|| {
-        let (_sandbox, repo_root) = setup_corpus();
+        let (sandbox, repo_root) = setup_corpus();
         let wb = crate::config::meili_env::workbench_knowledge_root_path(&repo_root);
         let created = create_master_with_subs("Index snapshot", Some(&["Sub"]));
         let master_id = created["master_task_id"].as_str().unwrap();
@@ -371,12 +388,15 @@ fn archive_document_index_snapshot_restore_on_plan_task_fail() {
         test_set_fail_complete_sub(true);
         let result = archive_document(
             &repo_root,
-            &json!({
-                "document": SAMPLE_DOC,
-                "source_type": "summary",
-                "master_task_id": master_id,
-                "sub_task_id": sub_id,
-            }),
+            &path_payload(
+                &sandbox,
+                SAMPLE_DOC,
+                json!({
+                    "source_type": "summary",
+                    "master_task_id": master_id,
+                    "sub_task_id": sub_id,
+                }),
+            ),
         );
         assert_ne!(result.get("ok"), Some(&json!(true)));
 
@@ -393,7 +413,7 @@ fn archive_document_index_snapshot_restore_on_plan_task_fail() {
 #[test]
 fn archive_document_link_fail_corpus_rollback_plan_stays_complete() {
     with_archive_plan_task_test(|| {
-        let (_sandbox, repo_root) = setup_corpus();
+        let (sandbox, repo_root) = setup_corpus();
         let wb = crate::config::meili_env::workbench_knowledge_root_path(&repo_root);
         let created = create_master_with_subs("Link fail", Some(&["Sub"]));
         let master_id = created["master_task_id"].as_str().unwrap();
@@ -405,12 +425,15 @@ fn archive_document_link_fail_corpus_rollback_plan_stays_complete() {
         test_set_fail_link_archive(true);
         let result = archive_document(
             &repo_root,
-            &json!({
-                "document": SAMPLE_DOC,
-                "source_type": "summary",
-                "master_task_id": master_id,
-                "sub_task_id": sub_id,
-            }),
+            &path_payload(
+                &sandbox,
+                SAMPLE_DOC,
+                json!({
+                    "source_type": "summary",
+                    "master_task_id": master_id,
+                    "sub_task_id": sub_id,
+                }),
+            ),
         );
 
         assert_ne!(result.get("ok"), Some(&json!(true)), "expected link failure: {result}");
@@ -585,4 +608,43 @@ fn archive_note_document_rejects_empty_body_without_writing() {
             .map(|mut d| d.next().is_none())
             .unwrap_or(true)
     });
+}
+
+#[test]
+fn archive_document_rejects_document_field() {
+    let (_sandbox, repo_root) = setup_corpus();
+    let v = archive_document(
+        &repo_root,
+        &json!({
+            "document": SAMPLE_DOC,
+            "source_type": "summary",
+        }),
+    );
+    assert_eq!(v.get("_status"), Some(&json!(400)));
+    assert!(
+        v["error"]
+            .as_str()
+            .unwrap_or("")
+            .contains("source_path"),
+        "{v}"
+    );
+}
+
+#[test]
+fn archive_document_rejects_disallowed_source_path() {
+    let (_sandbox, repo_root) = setup_corpus();
+    // Absolute path outside allow-roots (and typically missing).
+    let outside = PathBuf::from("/var/empty/lulu-workbench-archive-forbid.md");
+    let v = archive_document(
+        &repo_root,
+        &json!({
+            "source_path": outside.to_str().unwrap(),
+            "source_type": "summary",
+        }),
+    );
+    let status = v.get("_status").and_then(|s| s.as_u64()).unwrap_or(0);
+    assert!(
+        status == 403 || status == 404,
+        "expected 403/404, got {v}"
+    );
 }

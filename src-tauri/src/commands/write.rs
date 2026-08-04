@@ -370,39 +370,39 @@ pub fn tag_update_value(
 
 /// Thin Tauri/HTTP-parity wrapper around `archive_write::archive_document`.
 /// Business errors stay in the Value (`error` + `_status`); do not convert to Err.
-/// App note-create may pass `{ body, source_type: "note" }` (no `document`) → Host synthesis.
+/// App note-create may pass `{ body, source_type: "note" }` (no `source_path`) → Host synthesis.
+/// MCP/HTTP archive body uses `source_path` only — `document` is rejected.
 pub fn archive_document_json(payload: Value) -> Result<Value, String> {
     let root = repo_root()?;
-    let document = payload
-        .get("document")
-        .and_then(|v| v.as_str())
-        .unwrap_or("")
-        .trim();
-    if document.is_empty() {
-        if let Some(body) = payload.get("body").and_then(|v| v.as_str()) {
-            let source_type = payload
-                .get("source_type")
-                .and_then(|v| v.as_str())
-                .unwrap_or("");
-            if source_type == "note" {
-                return match archive_write::archive_note_document(
-                    &root,
-                    body,
-                    &archive_write::NoteCreateOpts::default(),
-                ) {
-                    Ok(v) => Ok(v),
-                    Err(msg) => {
-                        let (status, error) = match msg.split_once(':') {
-                            Some((s, e)) => (
-                                s.trim().parse::<u64>().unwrap_or(500),
-                                e.trim().to_string(),
-                            ),
-                            None => (500u64, msg),
-                        };
-                        Ok(serde_json::json!({ "error": error, "_status": status }))
-                    }
-                };
-            }
+    if payload.get("document").is_some() {
+        return Ok(serde_json::json!({
+            "error": "document is not supported; use source_path",
+            "_status": 400
+        }));
+    }
+    if let Some(body) = payload.get("body").and_then(|v| v.as_str()) {
+        let source_type = payload
+            .get("source_type")
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
+        if source_type == "note" {
+            return match archive_write::archive_note_document(
+                &root,
+                body,
+                &archive_write::NoteCreateOpts::default(),
+            ) {
+                Ok(v) => Ok(v),
+                Err(msg) => {
+                    let (status, error) = match msg.split_once(':') {
+                        Some((s, e)) => (
+                            s.trim().parse::<u64>().unwrap_or(500),
+                            e.trim().to_string(),
+                        ),
+                        None => (500u64, msg),
+                    };
+                    Ok(serde_json::json!({ "error": error, "_status": status }))
+                }
+            };
         }
     }
     Ok(archive_write::archive_document(&root, &payload))

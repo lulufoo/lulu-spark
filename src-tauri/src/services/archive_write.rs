@@ -12,6 +12,7 @@ use crate::services::archive_parse::{
     expected_lang_common_path, is_valid_entry_id, parse_archive_document,
 };
 use crate::services::id::random_entry_id;
+use crate::services::source_path_allow::{self, MAX_ARCHIVE_SOURCE_BYTES};
 use crate::services::todo_task;
 use crate::services::workbench_read::get_corpus_index;
 
@@ -111,18 +112,15 @@ pub fn synthesize_note_archive_document(
     ))
 }
 
-/// Synthesize note archive shell then append-only write via `archive_document`.
+/// Synthesize note archive shell then append-only write via private markdown API.
 pub fn archive_note_document(
     repo_root: &Path,
     body: &str,
     opts: &NoteCreateOpts,
 ) -> Result<Value, String> {
     let document = synthesize_note_archive_document(body, opts)?;
-    let payload = json!({
-        "document": document,
-        "source_type": "note",
-    });
-    let result = archive_document(repo_root, &payload);
+    let payload = json!({ "source_type": "note" });
+    let result = archive_document_from_markdown(repo_root, &document, &payload);
     if result.get("ok") == Some(&json!(true)) {
         Ok(result)
     } else {
@@ -135,6 +133,23 @@ pub fn archive_note_document(
             .and_then(|v| v.as_str())
             .unwrap_or("archive failed");
         Err(format!("{status}: {error}"))
+    }
+}
+
+fn resolve_archive_source_markdown(source_path: &str) -> Result<String, Value> {
+    let canonical =
+        source_path_allow::resolve_allowed_source_path(source_path, MAX_ARCHIVE_SOURCE_BYTES)?;
+    let is_md = canonical
+        .extension()
+        .and_then(|e| e.to_str())
+        .map(|e| e.eq_ignore_ascii_case("md"))
+        .unwrap_or(false);
+    if !is_md {
+        return Err(json!({ "error": "source_path must be a .md file", "_status": 400 }));
+    }
+    match fs::read_to_string(&canonical) {
+        Ok(s) => Ok(s),
+        Err(e) => Err(json!({ "error": e.to_string(), "_status": 500 })),
     }
 }
 
@@ -317,16 +332,29 @@ fn finalize_task_linked_archive(
     json!({ "ok": true })
 }
 
+/// Public archive API (HTTP / MCP): body from allow-listed `source_path` only.
 pub fn archive_document(repo_root: &Path, payload: &Value) -> Value {
-    let document = payload
-        .get("document")
-        .and_then(|v| v.as_str())
-        .unwrap_or("")
-        .to_string();
-    if document.trim().is_empty() {
-        return json!({ "error": "Missing document", "_status": 400 });
+    if payload.get("document").is_some() {
+        return json!({
+            "error": "document is not supported; use source_path",
+            "_status": 400
+        });
     }
+    let Some(source_path) = payload.get("source_path").and_then(|v| v.as_str()) else {
+        return json!({ "error": "Missing source_path", "_status": 400 });
+    };
+    let document = match resolve_archive_source_markdown(source_path) {
+        Ok(s) => s,
+        Err(v) => return v,
+    };
+    if document.trim().is_empty() {
+        return json!({ "error": "Source file is empty", "_status": 400 });
+    }
+    archive_document_from_markdown(repo_root, &document, payload)
+}
 
+/// Internal write path used by note synthesis and tests that already hold markdown.
+fn archive_document_from_markdown(repo_root: &Path, document: &str, payload: &Value) -> Value {
     let source_type = payload
         .get("source_type")
         .and_then(|v| v.as_str())
@@ -337,7 +365,7 @@ pub fn archive_document(repo_root: &Path, payload: &Value) -> Value {
         return json!({ "error": "Invalid source_type", "_status": 400 });
     }
 
-    let parsed = match parse_archive_document(&document) {
+    let parsed = match parse_archive_document(document) {
         Ok(p) => p,
         Err(e) => {
             return json!({ "error": e.message(), "_status": 400 });

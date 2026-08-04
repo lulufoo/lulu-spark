@@ -105,8 +105,8 @@ describe('writeApiInvokeMap', () => {
 
   it('resolveWriteInvoke maps archive-document to archive_document (snake↔camel style)', () => {
     const body = {
-      document: '# Note\n\nbody',
-      source_type: 'note',
+      source_path: '/tmp/note.md',
+      source_type: 'summary',
     };
     expect(resolveWriteInvoke('/api/archive-document', body)).toEqual({
       cmd: 'archive_document',
@@ -116,8 +116,8 @@ describe('writeApiInvokeMap', () => {
 
   it('archive-document invoke does not route to Annotation write commands', () => {
     const resolved = resolveWriteInvoke('/api/archive-document', {
-      document: '# Note\n\nbody',
-      source_type: 'note',
+      source_path: '/tmp/note.md',
+      source_type: 'summary',
     });
     expect(resolved).not.toBeNull();
     expect(ANNOTATION_WRITE_CMDS.has(resolved.cmd)).toBe(false);
