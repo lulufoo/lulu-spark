@@ -5,7 +5,7 @@ pub mod repositories;
 pub mod services;
 
 use std::net::{SocketAddr, TcpStream, ToSocketAddrs};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use std::thread;
 use std::time::{Duration, Instant};
@@ -141,20 +141,87 @@ impl MeiliProcess {
     }
 }
 
-/// Holds the spawned knowledge-mcp sidecar so we can kill it on app exit.
-pub struct KnowledgeMcpProcess(Mutex<Option<std::process::Child>>);
+/// Config retained so a dead sidecar on `mcp_port` can be respawned without App restart.
+#[derive(Clone, Debug)]
+pub struct KnowledgeMcpSpawnCfg {
+    pub repo_root: PathBuf,
+    pub http_port: u16,
+    pub mcp_port: u16,
+}
+
+/// Holds the spawned knowledge-mcp sidecar so we can kill it on app exit
+/// and respawn if the listen port drops while HTTP is still ready.
+pub struct KnowledgeMcpProcess {
+    child: Mutex<Option<std::process::Child>>,
+    spawn_cfg: Mutex<Option<KnowledgeMcpSpawnCfg>>,
+}
 
 impl KnowledgeMcpProcess {
     pub fn new(child: Option<std::process::Child>) -> Self {
-        Self(Mutex::new(child))
+        Self {
+            child: Mutex::new(child),
+            spawn_cfg: Mutex::new(None),
+        }
+    }
+
+    pub fn set_spawn_cfg(&self, cfg: KnowledgeMcpSpawnCfg) {
+        if let Ok(mut guard) = self.spawn_cfg.lock() {
+            *guard = Some(cfg);
+        }
     }
 
     pub fn kill(&self) {
-        if let Ok(mut guard) = self.0.lock() {
+        if let Ok(mut guard) = self.child.lock() {
             if let Some(mut child) = guard.take() {
                 let _ = child.kill();
                 let _ = child.wait();
             }
+        }
+    }
+
+    /// If `mcp_port` is not listening and HTTP is ready, clear a dead child and spawn again.
+    /// No-op when the port is already up (this process or an external listener).
+    pub fn ensure_running(&self, http_ready: bool) {
+        let cfg = match self.spawn_cfg.lock() {
+            Ok(g) => g.clone(),
+            Err(_) => return,
+        };
+        let Some(cfg) = cfg else {
+            return;
+        };
+        if wait_for_port(cfg.mcp_port, Duration::from_millis(0)) {
+            return;
+        }
+        if !http_ready {
+            return;
+        }
+        if let Ok(mut guard) = self.child.lock() {
+            if let Some(mut child) = guard.take() {
+                match child.try_wait() {
+                    Ok(Some(_)) => {}
+                    Ok(None) => {
+                        let _ = child.kill();
+                        let _ = child.wait();
+                    }
+                    Err(_) => {
+                        let _ = child.kill();
+                        let _ = child.wait();
+                    }
+                }
+            }
+            if wait_for_port(cfg.mcp_port, Duration::from_millis(0)) {
+                return;
+            }
+            eprintln!(
+                "[knowledge-mcp] port {} down — respawning sidecar",
+                cfg.mcp_port
+            );
+            *guard = try_spawn_knowledge_mcp_with_port(
+                true,
+                &cfg.repo_root,
+                cfg.http_port,
+                cfg.mcp_port,
+            );
         }
     }
 }
@@ -491,6 +558,7 @@ pub fn run() {
 
             let local_http = services::local_http::LocalHttpState::new();
             let mut knowledge_child = None;
+            let mut knowledge_cfg = None;
             if let Ok(repo_root) = crate::config::paths::repo_root() {
                 let http_port = services::local_http::DEFAULT_HTTP_PORT;
                 local_http.try_start(repo_root.clone(), http_port);
@@ -499,10 +567,19 @@ pub fn run() {
                     &repo_root,
                     http_port,
                 );
+                knowledge_cfg = Some(KnowledgeMcpSpawnCfg {
+                    repo_root,
+                    http_port,
+                    mcp_port: DEFAULT_MCP_PORT,
+                });
             }
             // L2 Host key→MCP registry: seed L1 internal MCP business surface before Binding Set.
             services::mcp_server_registry::seed_defaults();
-            app.manage(KnowledgeMcpProcess::new(knowledge_child));
+            let knowledge = KnowledgeMcpProcess::new(knowledge_child);
+            if let Some(cfg) = knowledge_cfg {
+                knowledge.set_spawn_cfg(cfg);
+            }
+            app.manage(knowledge);
             app.manage(local_http);
 
             create_main_window(app)?;
@@ -522,6 +599,20 @@ pub fn run() {
                     use tauri::Emitter;
                     let _ = app_handle.emit("tags:reconciled", ());
                 }
+            });
+
+            // Watchdog: if MCP listen port drops while HTTP is ready, respawn sidecar.
+            let watchdog = app.handle().clone();
+            std::thread::spawn(move || loop {
+                thread::sleep(Duration::from_secs(3));
+                let Some(knowledge) = watchdog.try_state::<KnowledgeMcpProcess>() else {
+                    continue;
+                };
+                let http_ready = watchdog
+                    .try_state::<services::local_http::LocalHttpState>()
+                    .map(|s| s.is_ready())
+                    .unwrap_or(false);
+                knowledge.ensure_running(http_ready);
             });
 
             Ok(())

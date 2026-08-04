@@ -108,6 +108,42 @@ fn knowledge_mcp_process_kill_leaves_no_child() {
 }
 
 #[test]
+fn knowledge_mcp_ensure_running_respawns_when_port_down() {
+    let repo_root = repo_root_with_sidecar();
+    let script = repo_root.join("packages/knowledge-mcp/index.mjs");
+    if !script.is_file() {
+        return;
+    }
+
+    let (http_port, http_handle) = setup_http(repo_root.clone());
+    let mcp_port = ephemeral_port();
+    let child = try_spawn_knowledge_mcp_with_port(true, &repo_root, http_port, mcp_port);
+    assert!(child.is_some());
+    assert!(wait_for_port(mcp_port, Duration::from_secs(5)));
+
+    let process = KnowledgeMcpProcess::new(child);
+    process.set_spawn_cfg(KnowledgeMcpSpawnCfg {
+        repo_root: repo_root.clone(),
+        http_port,
+        mcp_port,
+    });
+    process.kill();
+    assert!(
+        !wait_for_port(mcp_port, Duration::from_millis(400)),
+        "port should close after kill"
+    );
+
+    process.ensure_running(true);
+    assert!(
+        wait_for_port(mcp_port, Duration::from_secs(5)),
+        "ensure_running should respawn sidecar"
+    );
+
+    process.kill();
+    local_http::stop(http_handle);
+}
+
+#[test]
 fn try_spawn_knowledge_mcp_skips_when_mcp_port_in_use() {
     let repo_root = repo_root_with_sidecar();
     let script = repo_root.join("packages/knowledge-mcp/index.mjs");

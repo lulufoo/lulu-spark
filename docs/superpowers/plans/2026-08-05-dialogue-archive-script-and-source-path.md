@@ -276,38 +276,38 @@ Explicit forbid：模型拼装完整 `document` 字符串传 MCP。
 
 **Files:** `scripts/dialogue_archive_normalize.py`；`tests/fixtures/dialogue-archive/sample.jsonl`；测试 runner
 
-- [ ] 夹具含 user/assistant/`turn_ended`/多 assistant  
-- [ ] 实现 CLI 与清洗/轮次合并  
-- [ ] 黄金断言或 snapshot  
-- [ ] `--dry-run` / 非法范围 exit code  
+- [x] 夹具含 user/assistant/`turn_ended`/多 assistant  
+- [x] 实现 CLI 与清洗/轮次合并  
+- [x] 黄金断言或 snapshot  
+- [x] `--dry-run` / 非法范围 exit code  
 
 ### Task 2：Host `archive_document` 改 `source_path`
 
 **Files:** `archive_write.rs`、路径校验、`local_http`、Rust 单测
 
-- [ ] 公面删 `document`；读 `source_path`  
-- [ ] 白名单 + 大小限制  
-- [ ] 内部 string 写入可保留私有函数供 note synthesize  
-- [ ] 单测：path 成功、document 拒绝、白名单外 403  
+- [x] 公面删 `document`；读 `source_path`  
+- [x] 白名单 + 大小限制  
+- [x] 内部 string 写入可保留私有函数供 note synthesize  
+- [x] 单测：path 成功、document 拒绝、白名单外 403  
 
 ### Task 3：MCP + verify
 
 **Files:** `knowledge-mcp/index.mjs`、`verify.mjs`
 
-- [ ] schema 硬切  
-- [ ] mock Host 收 `source_path`；verify 全绿  
+- [x] schema 硬切  
+- [x] mock Host 收 `source_path`；verify 全绿  
 
 ### Task 4：SKILL
 
 **Files:** dialogue-archive `SKILL.md`、`references/archive.md`
 
-- [ ] 新工作流；内容约束；禁止正文 document  
-- [ ] 示例命令行  
+- [x] 新工作流；内容约束；禁止正文 document  
+- [x] 示例命令行  
 
 ### Task 5：联调烟测
 
-- [ ] 对本会话或样本 jsonl：脚本 → `archive_document(source_path)` → 带约束的 `archive_digest`  
-- [ ] 确认 MCP 入参无巨文  
+- [x] 对本会话或样本 jsonl：脚本 → `archive_document(source_path)` → 带约束的 `archive_digest`  
+- [x] 确认 MCP 入参无巨文  
 
 ---
 

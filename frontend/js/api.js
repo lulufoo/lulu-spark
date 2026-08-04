@@ -502,7 +502,9 @@ export async function removeSedimentKbCategory(id) {
   return writePost('/api/sediment-kb/categories/remove', { id });
 }
 
-/** Archive a formatted document to raw/ + index (HTTP/MCP `archive_document` parity). */
+/** Archive via HTTP/MCP `archive_document` parity.
+ * Note create: `{ body, source_type: 'note' }` (Host synthesize).
+ * Path archive: `{ source_path, source_type }` — no `document` body. */
 export async function archiveDocument(payload) {
   return writePost('/api/archive-document', payload || {});
 }
