@@ -317,7 +317,7 @@ describe('attachment delete does not loosen MCP / dialog contracts', () => {
       'utf8',
     );
     expect(dialogSrc).toMatch(
-      /@typedef \{'create-master' \| 'add-sub' \| 'delete-master' \| 'delete-sub'\} PlanTaskDialogType/,
+      /@typedef \{'create-master' \| 'create-category' \| 'add-sub' \| 'delete-master' \| 'delete-sub'\} PlanTaskDialogType/,
     );
     expect(dialogSrc).not.toMatch(/delete-attachment|attachment-delete/);
   });

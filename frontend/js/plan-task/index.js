@@ -43,7 +43,8 @@ export const TODOS_PARITY_ACCEPTANCE = Object.freeze([
   'N1',
   'N2',
 ]);
-const COPY_MASTER_ID_LABEL = 'Copy task ID';
+const COPY_MASTER_LABEL = 'Copy';
+const COPY_MASTER_TITLE = 'Copy title and ID';
 const COPY_FEEDBACK_LABEL = '✓ Copied';
 const COPY_FEEDBACK_MS = 1200;
 
@@ -270,6 +271,19 @@ export function copySubIdPair(masterId, subId) {
   return `${masterId} → ${subId}`;
 }
 
+/** Clipboard payload for a todo: title + ID, English labels, one field per line. */
+export function formatMasterCopyText(title, masterTaskId) {
+  const t = String(title ?? '').trim() || '(untitled)';
+  const id = String(masterTaskId ?? '').trim();
+  return `Title: ${t}\nID: ${id}`;
+}
+
+function escCopyDataAttr(text) {
+  return escHtml(String(text ?? ''))
+    .replace(/"/g, '&quot;')
+    .replace(/\n/g, '&#10;');
+}
+
 export function formatPlanTaskStatus(status) {
   return STATUS_LABELS[status] ?? status;
 }
@@ -340,6 +354,8 @@ const ACTIVE_ONLY_EMPTY_TITLE = 'No active todos';
 const ACTIVE_ONLY_EMPTY_DETAIL =
   'Turn off Active only to see completed and abandoned todos.';
 const ALL_CATEGORIES_LABEL = 'All categories';
+const CATEGORY_ACTION_CREATE = '__create_category__';
+const CATEGORY_ACTION_DELETE = '__delete_category__';
 const CATEGORY_FILTER_EMPTY_TITLE = 'No todos in this category';
 const CATEGORY_FILTER_EMPTY_DETAIL = 'Choose another category or create a todo in this one.';
 
@@ -367,37 +383,80 @@ function isDefaultCategory(category, categoryId) {
   return Boolean(category?.is_default);
 }
 
+/** English chrome for the built-in default bucket (Host may store a localized name). */
+function categoryDisplayName(category) {
+  if (!category) return '';
+  if (category.id === DEFAULT_PLAN_CATEGORY_ID || category.is_default) {
+    return 'Uncategorized';
+  }
+  return typeof category.name === 'string' ? category.name : '';
+}
+
 function renderCategoryControls(categories, selectedCategoryId, categoryError, disabled) {
   const disabledAttr = disabled ? ' disabled' : '';
-  const options = [
-    `<option value="">${escHtml(ALL_CATEGORIES_LABEL)}</option>`,
-    ...(categories ?? []).map((category) => {
-      const selected = category.id === selectedCategoryId ? ' selected' : '';
-      return `<option value="${escHtml(category.id)}"${selected}>${escHtml(category.name)}</option>`;
-    }),
-  ].join('');
   const selected = (categories ?? []).find((category) => category.id === selectedCategoryId);
   const deleteDisabled =
     disabled || !selectedCategoryId || isDefaultCategory(selected, selectedCategoryId);
   const deleteDisabledAttr = deleteDisabled ? ' disabled' : '';
+  const options = [
+    `<option value="">${escHtml(ALL_CATEGORIES_LABEL)}</option>`,
+    ...(categories ?? []).map((category) => {
+      const selectedAttr = category.id === selectedCategoryId ? ' selected' : '';
+      return `<option value="${escHtml(category.id)}"${selectedAttr}>${escHtml(categoryDisplayName(category))}</option>`;
+    }),
+    `<option value="${CATEGORY_ACTION_CREATE}"${disabled ? ' disabled' : ''}>+ Add category</option>`,
+    `<option value="${CATEGORY_ACTION_DELETE}"${deleteDisabledAttr}>Delete category</option>`,
+  ].join('');
   const errHtml = categoryError
     ? `<p class="plan-task-category-error" role="alert">${escHtml(categoryError)}</p>`
     : '';
   return `
     <div class="plan-task-category-controls">
-      <label class="plan-task-category-label">
-        <span class="plan-task-category-label-text">Category</span>
-        <select
-          class="plan-task-category-filter"
-          data-action="filter-category"
-          aria-label="Filter by category"${disabledAttr}
-        >${options}</select>
-      </label>
-      <button type="button" class="md-header-btn" data-action="create-category"${disabledAttr}>+ Category</button>
-      <button type="button" class="md-header-btn plan-task-btn-danger" data-action="delete-category"${deleteDisabledAttr}>Delete category</button>
+      <select
+        class="plan-task-category-filter"
+        data-action="filter-category"
+        aria-label="Filter by category"${disabledAttr}
+      >${options}</select>
       ${errHtml}
     </div>
   `;
+}
+
+function measureOptionLabelWidth(text, font) {
+  const label = String(text ?? '');
+  if (typeof document !== 'undefined') {
+    const probe = document.createElement('span');
+    probe.style.cssText = [
+      'position:absolute',
+      'visibility:hidden',
+      'pointer-events:none',
+      'white-space:nowrap',
+      `font:${font || '13px sans-serif'}`,
+      'padding:0',
+      'border:0',
+    ].join(';');
+    probe.textContent = label;
+    document.body.appendChild(probe);
+    const width = probe.offsetWidth;
+    probe.remove();
+    if (width > 0) return width;
+  }
+  // jsdom / no-layout fallback (~13px UI font)
+  return label.length * 8;
+}
+
+/** Size the category filter to the widest option so labels are not truncated. */
+export function syncCategoryFilterWidth(root) {
+  const select = root?.querySelector?.('.plan-task-category-filter');
+  if (!(select instanceof HTMLSelectElement)) return;
+  const font = getComputedStyle(select).font || '13px sans-serif';
+  let maxPx = 0;
+  for (const opt of select.options) {
+    maxPx = Math.max(maxPx, measureOptionLabelWidth(opt.textContent, font));
+  }
+  // Horizontal padding (12+26) + custom chevron affordance.
+  const chromePx = 42;
+  select.style.width = `${Math.ceil(maxPx + chromePx)}px`;
 }
 
 function renderPageHeader(
@@ -627,7 +686,7 @@ function renderMasterCategorySelect(master, categories, disabled) {
   const options = list
     .map((category) => {
       const selected = category.id === current ? ' selected' : '';
-      return `<option value="${escHtml(category.id)}"${selected}>${escHtml(category.name)}</option>`;
+      return `<option value="${escHtml(category.id)}"${selected}>${escHtml(categoryDisplayName(category))}</option>`;
     })
     .join('');
   return `
@@ -701,9 +760,10 @@ function renderSubEmpty(disabled) {
   `;
 }
 
-function renderCopyMasterIdButton(masterTaskId, disabled) {
+function renderCopyMasterIdButton(master, disabled) {
   const disabledAttr = disabled ? ' disabled' : '';
-  return `<button type="button" class="md-header-btn" data-action="copy-master-id" data-copy-text="${escHtml(masterTaskId)}" title="${COPY_MASTER_ID_LABEL}"${disabledAttr}>${COPY_MASTER_ID_LABEL}</button>`;
+  const copyText = formatMasterCopyText(master?.title, master?.master_task_id);
+  return `<button type="button" class="md-header-btn" data-action="copy-master-id" data-copy-text="${escCopyDataAttr(copyText)}" title="${COPY_MASTER_TITLE}"${disabledAttr}>${COPY_MASTER_LABEL}</button>`;
 }
 
 function flashCopyFeedback(btn, restoreLabel) {
@@ -723,7 +783,7 @@ function flashCopyFeedback(btn, restoreLabel) {
 
 function renderPlanMdSection(master, ui) {
   const disabledAttr = ui.disabled ? ' disabled' : '';
-  const copyBtn = renderCopyMasterIdButton(master.master_task_id, ui.disabled);
+  const copyBtn = renderCopyMasterIdButton(master, ui.disabled);
   if (ui.planMdLoading) {
     return `
       <section class="plan-task-plan-md-section" aria-label="Todo description">
@@ -1430,6 +1490,7 @@ export function mountPlanTaskSplit(container, opts = {}) {
     const nextDetail = container.querySelector('.plan-task-split-detail');
     if (nextMaster) nextMaster.scrollTop = masterScroll;
     if (nextDetail && keepDetailScroll) nextDetail.scrollTop = detailScroll;
+    syncCategoryFilterWidth(container);
     if (!attachmentEditor) return;
     if (existingEditor && refreshEditorNode(existingEditor, ui)) {
       container.appendChild(existingEditor);
@@ -1685,24 +1746,22 @@ export function mountPlanTaskSplit(container, opts = {}) {
     }
   }
 
-  async function createCategoryFromPrompt() {
+  function openCreateCategoryDialog(triggerEl) {
     if (controlsDisabled(busy)) return;
-    const name = typeof window.prompt === 'function' ? window.prompt('New category name') : null;
-    if (name == null) return;
-    const trimmed = name.trim();
-    if (!trimmed) return;
     categoryError = '';
-    busy = true;
-    paint();
-    try {
-      await createPlanCategory({ name: trimmed });
-      await loadCategories();
-    } catch (err) {
-      categoryError = err?.message || 'Failed to create category';
-    } finally {
-      busy = false;
-      if (!disposed) paint();
-    }
+    openPlanTaskDialog({
+      type: 'create-category',
+      triggerEl: triggerEl instanceof HTMLElement ? triggerEl : null,
+      onSubmit: async ({ name }) => {
+        const trimmed = typeof name === 'string' ? name.trim() : '';
+        if (!trimmed) {
+          throw new Error('Please enter a category name');
+        }
+        await createPlanCategory({ name: trimmed });
+        await loadCategories();
+        if (!disposed) paint();
+      },
+    });
   }
 
   async function deleteFilteredCategory() {
@@ -2297,20 +2356,6 @@ export function mountPlanTaskSplit(container, opts = {}) {
       return;
     }
 
-    if (action === 'create-category') {
-      event.preventDefault();
-      if (controlsDisabled(busy)) return;
-      void createCategoryFromPrompt();
-      return;
-    }
-
-    if (action === 'delete-category') {
-      event.preventDefault();
-      if (controlsDisabled(busy)) return;
-      void deleteFilteredCategory();
-      return;
-    }
-
     if (action === 'create-master') {
       event.preventDefault();
       if (controlsDisabled(busy)) return;
@@ -2510,7 +2555,7 @@ export function mountPlanTaskSplit(container, opts = {}) {
       if (text && navigator.clipboard?.writeText) {
         void navigator.clipboard.writeText(text).then(() => {
           if (action === 'copy-master-id' && actionEl instanceof HTMLElement) {
-            flashCopyFeedback(actionEl, COPY_MASTER_ID_LABEL);
+            flashCopyFeedback(actionEl, COPY_MASTER_LABEL);
           }
         });
       }
@@ -2688,7 +2733,18 @@ export function mountPlanTaskSplit(container, opts = {}) {
         categoryFilter.value = filterCategoryId;
         return;
       }
-      filterCategoryId = categoryFilter.value || '';
+      const nextValue = categoryFilter.value || '';
+      if (nextValue === CATEGORY_ACTION_CREATE) {
+        categoryFilter.value = filterCategoryId;
+        openCreateCategoryDialog(categoryFilter);
+        return;
+      }
+      if (nextValue === CATEGORY_ACTION_DELETE) {
+        categoryFilter.value = filterCategoryId;
+        void deleteFilteredCategory();
+        return;
+      }
+      filterCategoryId = nextValue;
       categoryError = '';
       enforceActiveOnlySelection();
       paint();

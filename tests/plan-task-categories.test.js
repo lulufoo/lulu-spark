@@ -193,6 +193,24 @@ describe('mountPlanTaskSplit category dropdown', () => {
   beforeEach(() => {
     container = document.createElement('div');
     document.body.appendChild(container);
+    const dialogHost = document.createElement('div');
+    dialogHost.id = 'plan-task-dialog-host';
+    dialogHost.innerHTML = `
+      <div id="plan-task-dialog">
+        <div id="plan-task-dialog-box">
+          <div id="plan-task-dialog-header">
+            <h3 id="plan-task-dialog-title"></h3>
+          </div>
+          <div id="plan-task-dialog-body"></div>
+          <p id="plan-task-dialog-error" hidden></p>
+          <div id="plan-task-dialog-actions">
+            <button type="button" id="plan-task-dialog-cancel" class="md-header-btn">Cancel</button>
+            <button type="button" id="plan-task-dialog-primary" class="md-header-btn primary">OK</button>
+          </div>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(dialogHost);
     getJsonMock.mockReset();
     getJsonMock.mockResolvedValue(sampleMasters);
     invokeMock = vi.fn().mockImplementation(async (cmd, args) => {
@@ -235,20 +253,32 @@ describe('mountPlanTaskSplit category dropdown', () => {
 
   afterEach(() => {
     container.remove();
+    document.getElementById('plan-task-dialog-host')?.remove();
     delete window.__TAURI__;
     vi.restoreAllMocks();
   });
 
-  it('shows filter dropdown with default 待分类 and create/delete controls', async () => {
+  it('shows create/delete as options inside the category filter select', async () => {
     const { dispose } = mountPlanTaskSplit(container);
     await waitFor(() => container.querySelector('.plan-task-category-filter') != null);
     const filter = container.querySelector('.plan-task-category-filter');
     expect(filter).not.toBeNull();
-    expect(filter.textContent).toContain('待分类');
+    expect(filter.textContent).toContain('Uncategorized');
+    expect(filter.textContent).not.toContain('待分类');
     expect(filter.textContent).toContain('Work');
     expect(filter.textContent).toMatch(/All categories/i);
-    expect(container.querySelector('[data-action="create-category"]')).not.toBeNull();
-    expect(container.querySelector('[data-action="delete-category"]')).not.toBeNull();
+    expect(filter.textContent).toContain('+ Add category');
+    expect(filter.textContent).not.toContain('…');
+    expect(filter.textContent).toContain('Delete category');
+    expect(filter.style.width).toMatch(/^\d+px$/);
+    expect(Number.parseFloat(filter.style.width)).toBeGreaterThan(120);
+    expect(
+      [...filter.querySelectorAll('option')].some((o) => o.value === '__create_category__'),
+    ).toBe(true);
+    expect(
+      [...filter.querySelectorAll('option')].some((o) => o.value === '__delete_category__'),
+    ).toBe(true);
+    expect(container.querySelector('.plan-task-category-menu')).toBeNull();
     expect(invokeMock).toHaveBeenCalledWith('list_todo_categories', {});
     dispose();
   });
@@ -267,11 +297,20 @@ describe('mountPlanTaskSplit category dropdown', () => {
     dispose();
   });
 
-  it('creates a category via create_todo_category and refreshes the filter', async () => {
-    const promptSpy = vi.spyOn(window, 'prompt').mockReturnValue('Ideas');
+  it('creates a category via create_todo_category dialog and refreshes the filter', async () => {
     const { dispose } = mountPlanTaskSplit(container);
-    await waitFor(() => container.querySelector('[data-action="create-category"]') != null);
-    container.querySelector('[data-action="create-category"]').click();
+    await waitFor(() => container.querySelector('.plan-task-category-filter') != null);
+    const filter = container.querySelector('.plan-task-category-filter');
+    filter.value = '__create_category__';
+    filter.dispatchEvent(new Event('change', { bubbles: true }));
+    await waitFor(() =>
+      document.getElementById('plan-task-dialog')?.classList.contains('open'),
+    );
+    expect(document.getElementById('plan-task-dialog-title')?.textContent).toBe('New category');
+    const nameInput = document.querySelector('#plan-task-dialog-body [data-field="name"]');
+    expect(nameInput).not.toBeNull();
+    nameInput.value = 'Ideas';
+    document.getElementById('plan-task-dialog-primary').click();
     await waitFor(() =>
       invokeMock.mock.calls.some((c) => c[0] === 'create_todo_category'),
     );
@@ -279,7 +318,6 @@ describe('mountPlanTaskSplit category dropdown', () => {
     await waitFor(() =>
       invokeMock.mock.calls.filter((c) => c[0] === 'list_todo_categories').length >= 2,
     );
-    promptSpy.mockRestore();
     dispose();
   });
 
@@ -291,18 +329,24 @@ describe('mountPlanTaskSplit category dropdown', () => {
     filter.value = 'uncategorized';
     filter.dispatchEvent(new Event('change', { bubbles: true }));
     await waitFor(() => container.querySelector('.plan-task-category-filter')?.value === 'uncategorized');
-    const deleteBtn = container.querySelector('[data-action="delete-category"]');
-    expect(deleteBtn.disabled).toBe(true);
+    const deleteOpt = [...container.querySelectorAll('.plan-task-category-filter option')].find(
+      (o) => o.value === '__delete_category__',
+    );
+    expect(deleteOpt?.disabled).toBe(true);
 
     // Re-query after paint — prior select node is detached.
     filter = container.querySelector('.plan-task-category-filter');
     filter.value = 'cat_work';
     filter.dispatchEvent(new Event('change', { bubbles: true }));
     await waitFor(() => {
-      const btn = container.querySelector('[data-action="delete-category"]');
-      return btn && !btn.disabled;
+      const opt = [...container.querySelectorAll('.plan-task-category-filter option')].find(
+        (o) => o.value === '__delete_category__',
+      );
+      return opt && !opt.disabled;
     });
-    container.querySelector('[data-action="delete-category"]').click();
+    filter = container.querySelector('.plan-task-category-filter');
+    filter.value = '__delete_category__';
+    filter.dispatchEvent(new Event('change', { bubbles: true }));
     await waitFor(() =>
       Boolean(container.querySelector('.plan-task-category-error')?.textContent?.length),
     );

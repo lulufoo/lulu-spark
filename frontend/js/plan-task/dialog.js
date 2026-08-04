@@ -1,8 +1,7 @@
 import { escHtml } from '../utils.js';
 
-/** @typedef {'create-master' | 'add-sub' | 'delete-master' | 'delete-sub'} PlanTaskDialogType */
+/** @typedef {'create-master' | 'create-category' | 'add-sub' | 'delete-master' | 'delete-sub'} PlanTaskDialogType */
 
-let wired = false;
 /** @type {HTMLElement | null} */
 let lastTrigger = null;
 /** @type {((values: Record<string, unknown>) => Promise<void>) | null} */
@@ -118,6 +117,30 @@ function renderDialogBody(type, payload) {
         <span class="plan-task-dialog-label-text">Initial sub-tasks (optional)</span>
         ${renderSubTitleRows([''])}
       </div>
+    `;
+    return;
+  }
+
+  if (type === 'create-category') {
+    title.textContent = 'New category';
+    primary.textContent = 'Create category';
+    body.innerHTML = `
+      <p class="plan-task-dialog-lead">
+        Organize todos under a shared category. The name is available in the Todos filter and MCP tools.
+      </p>
+      <label class="plan-task-dialog-label">
+        <span class="plan-task-dialog-label-text">Category name <span class="plan-task-dialog-required">*</span></span>
+        <input
+          type="text"
+          class="plan-task-dialog-field"
+          data-field="name"
+          maxlength="64"
+          autocomplete="off"
+          spellcheck="false"
+          placeholder="e.g. Product launch"
+        />
+      </label>
+      <p class="plan-task-dialog-hint">Use a short, unique name. You can delete empty categories later.</p>
     `;
     return;
   }
@@ -256,6 +279,24 @@ async function handleSubmit(type) {
     return;
   }
 
+  if (type === 'create-category') {
+    const name = body.querySelector('[data-field="name"]')?.value?.trim() ?? '';
+    if (!name) {
+      setDialogError('Please enter a category name');
+      return;
+    }
+    setSubmitLoading(true);
+    setDialogError('');
+    try {
+      await submitHandler({ name });
+      closePlanTaskDialog();
+    } catch (err) {
+      setDialogError(err?.message || 'Failed to create category');
+      setSubmitLoading(false);
+    }
+    return;
+  }
+
   if (type === 'add-sub') {
     const title = body.querySelector('[data-field="title"]')?.value?.trim() ?? '';
     if (!title) {
@@ -286,10 +327,8 @@ async function handleSubmit(type) {
 }
 
 function wirePlanTaskDialog() {
-  if (wired) return;
   const dialog = getDialogEl();
-  if (!dialog) return;
-  wired = true;
+  if (!dialog || dialog.dataset.wired === '1') return;
   dialog.dataset.wired = '1';
 
   dialog.addEventListener('click', (event) => {

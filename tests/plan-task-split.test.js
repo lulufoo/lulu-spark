@@ -20,6 +20,7 @@ vi.mock('../frontend/js/apiClient.js', async (importOriginal) => {
 import { parseHash } from '../frontend/js/router/index.js';
 import {
   copySubIdPair,
+  formatMasterCopyText,
   formatPlanTaskStatus,
   loadPlanTasks,
   mountPlanTaskSplit,
@@ -150,6 +151,20 @@ describe('copySubIdPair', () => {
   it('formats per-sub copy string as master → sub', () => {
     expect(copySubIdPair('task_alpha', 'task_alpha_sub_01')).toBe(
       'task_alpha → task_alpha_sub_01',
+    );
+  });
+});
+
+describe('formatMasterCopyText', () => {
+  it('formats title and ID on separate labeled lines', () => {
+    expect(formatMasterCopyText('Alpha Task', 'task_alpha')).toBe(
+      'Title: Alpha Task\nID: task_alpha',
+    );
+  });
+
+  it('falls back to (untitled) when title is blank', () => {
+    expect(formatMasterCopyText('  ', 'task_alpha')).toBe(
+      'Title: (untitled)\nID: task_alpha',
     );
   });
 });
@@ -625,7 +640,7 @@ describe('mountPlanTaskSplit', () => {
     delete window.__TAURI__;
   });
 
-  it('copies master task id from plan-md header next to edit', async () => {
+  it('copies formatted title and ID from plan-md header next to edit', async () => {
     getJsonMock.mockResolvedValue(sampleMasters);
     const writeText = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(navigator, 'clipboard', {
@@ -641,11 +656,12 @@ describe('mountPlanTaskSplit', () => {
     const actions = container.querySelector('.plan-task-plan-md-header-actions');
     const copyBtn = actions?.querySelector('[data-action="copy-master-id"]');
     const editBtn = actions?.querySelector('[data-action="edit-plan-md"]');
-    expect(copyBtn?.dataset.copyText).toBe('task_alpha');
+    expect(copyBtn?.textContent).toBe('Copy');
+    expect(copyBtn?.dataset.copyText).toBe('Title: Alpha Task\nID: task_alpha');
     expect(editBtn).not.toBeNull();
     expect(container.querySelector('.plan-task-detail-toolbar [data-action="copy-master-id"]')).toBeNull();
     copyBtn.click();
-    expect(writeText).toHaveBeenCalledWith('task_alpha');
+    expect(writeText).toHaveBeenCalledWith('Title: Alpha Task\nID: task_alpha');
     await vi.waitFor(() => {
       expect(copyBtn.textContent).toBe('✓ Copied');
       expect(copyBtn.classList.contains('plan-task-copy-flash')).toBe(true);

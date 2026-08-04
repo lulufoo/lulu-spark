@@ -47,6 +47,18 @@ describe('F3 copy sync — dialog.js', () => {
     expect(hint).not.toMatch(/默认子任务/);
     expect(hint).toMatch(/skip sub-tasks|no sub-tasks|will have none/i);
   });
+
+  it('create-category dialog uses English copy and name field', () => {
+    openPlanTaskDialog({ type: 'create-category', onSubmit: async () => {} });
+    expect(document.getElementById('plan-task-dialog-title')?.textContent).toBe('New category');
+    expect(document.getElementById('plan-task-dialog-primary')?.textContent).toBe(
+      'Create category',
+    );
+    const body = document.getElementById('plan-task-dialog-body');
+    expect(body?.textContent).toMatch(/Organize todos under a shared category/i);
+    expect(body?.querySelector('[data-field="name"]')).not.toBeNull();
+    expect(body?.textContent).not.toMatch(/[\u4e00-\u9fff]/);
+  });
 });
 
 describe('F3 copy sync — create_todo_task MCP description', () => {

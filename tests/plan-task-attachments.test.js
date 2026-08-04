@@ -332,7 +332,7 @@ describe('attachment add surface does not reuse dialog.js CRUD types', () => {
       'utf8',
     );
     expect(dialogSrc).toMatch(
-      /@typedef \{'create-master' \| 'add-sub' \| 'delete-master' \| 'delete-sub'\} PlanTaskDialogType/,
+      /@typedef \{'create-master' \| 'create-category' \| 'add-sub' \| 'delete-master' \| 'delete-sub'\} PlanTaskDialogType/,
     );
     expect(dialogSrc).not.toMatch(/add-attachment|pick-attachment|attachment/);
   });
