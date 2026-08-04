@@ -2,8 +2,9 @@
 
 Parent / worker orchestration for `dialogue-summary` and `dialogue-archive`.
 
-Feedstock clean: [`transcript-clean.md`](transcript-clean.md).  
-Archive MCP paths: [`archive-concepts.md`](archive-concepts.md).
+Archive MCP paths: [`archive-concepts.md`](archive-concepts.md).  
+Digest writing: [`digest-workflow.md`](digest-workflow.md).  
+Legacy clean feedstock (summary): [`transcript-clean.md`](transcript-clean.md).
 
 ---
 
@@ -11,14 +12,47 @@ Archive MCP paths: [`archive-concepts.md`](archive-concepts.md).
 
 | Actor | May do | Must not |
 |-------|--------|----------|
-| **Parent** | Resolve session → jsonl; run `$TRANSCRIPT_CLEAN`; dispatch worker; Phase B MCP archive | Hand-parse jsonl; inline worker craft (except Paste path / user asks parent to write) |
-| **Worker (sub-agent)** | Load skill; read **clean-raw only**; skill-specific Phase A; return receipt | Modify skill files; re-read raw jsonl; invent turns; MCP archive unless parent handed Phase B |
+| **Parent** | Resolve session → jsonl; locate range; run normalize/clean scripts; Phase B MCP archive | Hand-parse jsonl into TURN_SEP body; pass full `document` to MCP |
+| **Worker (sub-agent)** | Skill-specific Phase A; return receipt | Modify skill files; invent turns; MCP archive unless parent handed Phase B |
 
 ---
 
-## Mechanical clean (required)
+## `archive_document` contract (both skills)
 
-Session / jsonl path **must** run clean before worker:
+Hard-cut path-only:
+
+```json
+{
+  "source_path": "<absolute path to .md under allow-list>",
+  "source_type": "summary|dialogue|…"
+}
+```
+
+**Forbid:** `"document": "…"`. Write markdown under `{workspace}/.cache/…` first, then pass `source_path`.
+
+---
+
+## Skill branches
+
+### `dialogue-archive` (verbatim raw)
+
+1. Resolve transcript `.jsonl` and **1-based node range** (`start_node` / `end_node`; AI locates text anchors — script does not fuzzy-search).
+2. Run workspace script (not hand-assemble body):
+
+```bash
+python3 "$WORKSPACE/scripts/dialogue_archive_normalize.py" \
+  --transcript "<abs.jsonl>" \
+  --start-node <N> --end-node <M> \
+  --out "<abs.md>" --title "<title>" \
+  [--project inbox] [--doc-theme dialogue] [--slug <slug>]
+```
+
+3. Resolve `sink`: `workbench` (default) → MCP `archive_document(source_path)` + digest under **内容约束**; `local-md` → keep `.cache` only, no MCP.
+4. Legacy `$TRANSCRIPT_CLEAN` / `to-archive-md` is **not** the path for Workbench `archive_document` after the path-only contract.
+
+### `dialogue-summary` (process summary)
+
+1. Session / jsonl path may still use mechanical clean feedstock:
 
 ```bash
 $TRANSCRIPT_CLEAN from-jsonl \
@@ -30,7 +64,9 @@ $TRANSCRIPT_CLEAN from-jsonl \
 
 Refuse worker dispatch if clean fails (`chrome_tags_remaining` or `user_turns==0`).
 
-Paste path: no jsonl → skip clean; feedstock = pasted Markdown.
+2. Worker writes summary markdown to `.cache/…`, then Parent Phase B: `archive_document` with **`source_path`** + `source_type: summary` (+ digest per digest-workflow).
+
+Paste path (either skill): no jsonl → skip normalize/clean; feedstock = pasted Markdown on disk → still path-based sink.
 
 ---
 
@@ -47,21 +83,12 @@ User need **not** say “用 sub-agent / 用 Grok” each run.
 
 ---
 
-## Skill branches
+## Parent happy path (summary)
 
-| Skill | Worker Phase A | Parent Phase B |
-|-------|----------------|----------------|
-| `dialogue-summary` | Steps 1–6 (spine / Gate / summary body) per that SKILL | `archive_document` `source_type: summary` + digest |
-| `dialogue-archive` | Infer title / project / doc-theme / slug / ts; run `$TRANSCRIPT_CLEAN to-archive-md`; **do not rewrite** `u`/`a` | Resolve `sink`: `workbench` → `archive_document` + digest when ≥2 Turn blocks; `local-md` → `.cache` md only, no MCP |
-
----
-
-## Parent happy path
-
-1. Resolve jsonl from session id / current chat / user path.
-2. For archive skills: resolve `sink` (`workbench` default; `local-md` when user intent refuses Workbench persist). Confirm Workbench MCP only when Phase B needs MCP.
-3. `$TRANSCRIPT_CLEAN from-jsonl` → clean-raw path.
-4. Dispatch Grok worker with skill-specific prompt (see each skill `references/execution.md`).
-5. On receipt: deliver body / archive markdown path; Phase B per `sink` (MCP for `workbench`; local `.cache` only for `local-md`).
+1. Resolve jsonl / session.
+2. Resolve `sink` when applicable (`workbench` default).
+3. Run skill-specific normalize/clean → absolute `.md` path.
+4. Phase B: MCP `source_path` for `workbench`; local `.cache` only for `local-md`.
+5. Digest when `[AD-0]` applies — with **内容约束** for dialogue producers (see digest-workflow).
 
 **Done when:** body delivered (and sunk per `sink`).

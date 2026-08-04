@@ -77,12 +77,26 @@ digest 是可选产出。以下任意一项满足即生成：
 
 ---
 
+### [AD-1b] 内容约束（dialogue-* 必填；其它 producer 建议）
+
+写 digest 前须有非空 **内容约束** `content_constraint`（写作合同，非 MCP 字段）。允许：Turn/节点范围叙述、一句话焦点、或二者组合。
+
+Digest 头 **必须**含：
+
+```markdown
+> 内容约束：<content_constraint 原文>
+```
+
+**禁止：** 为写摘要再次拉取整份 raw 进模型；约束外扩写。  
+`dialogue-archive`：约束可窄于脚本节点范围；两者都应在当轮说明里写清。
+
 ### [AD-2] 写法规则
 
 ```text
-· 全部内容来源：仅 RAW
+· 全部内容来源：仅 RAW（或 dialogue-*：对话上下文 + 内容约束，不重拉整份 raw）
 · 概述：单段话，建议 80–300 字
 · 禁止 DDM / archive 内部术语（[U/U]、Phase、layer 等）
+· dialogue-*：遵守 [AD-1b] 内容约束
 ```
 
 **theme-line：** 仅对主 raw（`<ts>-<slug>.md`）生成 digest，不对 `-zh.md` 翻译件单独生成。

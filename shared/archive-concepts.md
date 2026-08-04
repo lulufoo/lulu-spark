@@ -13,10 +13,16 @@ Workbench App **必须运行**（MCP `workbench-knowledge` 可用，`http://127.
 
 | 操作 | MCP tool |
 |------|----------|
-| 写 raw + index | `archive_document` |
-| 写 digest + layers | `archive_digest` |
+| 写 raw + index | `archive_document`（**仅** `source_path`；禁止 `document` 正文） |
+| 写 digest + layers | `archive_digest`（`id` + `digest`；写作须含内容约束，见 digest-workflow） |
 | 读 digest 目录 | `get_corpus_catalog` / `get_corpus_files` |
 </HARD-GATE>
+
+`archive_document` 合同：先将 Markdown 落到 allow-list 绝对路径（建议 `{workspace}/.cache/…`），再传：
+
+```json
+{ "source_path": "<abs.md>", "source_type": "<summary|dialogue|article|…>" }
+```
 
 各 skill 首步确认：`> ✅ Workbench MCP 可用`
 
