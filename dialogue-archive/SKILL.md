@@ -1,36 +1,40 @@
 ---
 name: dialogue-archive
 description: >-
-  Normalize the current dialogue into turn-separated markdown. Default sink is
-  Workbench MCP (raw/ + digest). Intent not to persist to Workbench → sink=local-md
-  (write markdown under workspace .cache only). Verbatim — no compression.
-  Use when: dialogue-archive、对话原文归档、dtd_raw_dialogue、逐轮归档、同步对话到 raw（原文）.
-  Legacy alias: former workbench dialogue-summary (verbatim). Not for process
-  retrospective — use dialogue-summary. If both this and an old workbench
-  “dialogue-summary” exist, use this name for 原文归档.
+  Normalize dialogue via node-range Python script on Cursor JSONL, then sink to
+  Workbench MCP (source_path + constrained digest) or local-md under .cache.
+  Verbatim — no compression. Use when: dialogue-archive、对话原文归档、
+  dtd_raw_dialogue、逐轮归档、同步对话到 raw（原文）. Legacy alias: former
+  workbench dialogue-summary (verbatim). Not for process retrospective — use
+  dialogue-summary.
 ---
 
 # dialogue-archive
 
-> **Read this file in full before executing.** Two phases:
-> 1. **Phase A — Normalize** (mechanical clean + sub-agent metadata / render)
-> 2. **Phase B — Sink** (`workbench` or `local-md`)
+> **Read this file in full before executing.** Phases:
+> 1. **Locate** — transcript + `start_node` / `end_node` (AI; short params)
+> 2. **Normalize** — script writes raw markdown (never hand-assemble body)
+> 3. **Sink** — `workbench` (`source_path` MCP) or `local-md` (`.cache` only)
 
-**Not** process summary (`dialogue-summary`). Body stays **verbatim** after chrome strip — no compression.
+**Not** process summary (`dialogue-summary`). Body stays **verbatim** after mechanical strip — no compression.
 
-Orchestration SSOT: [`../shared/dialogue-execution.md`](../shared/dialogue-execution.md).  
-Clean / render SSOT: [`../shared/transcript-clean.md`](../shared/transcript-clean.md).  
-Skill-local steps: [`references/execution.md`](references/execution.md).
+Skill-local steps: [`references/execution.md`](references/execution.md).  
+Shared digest shape: [`../shared/digest-workflow.md`](../shared/digest-workflow.md) (plus **内容约束** below).
 
 ---
 
 ## Script Macros
 
-`$SKILL_DIR` = `lulu-workbench-skills` install root (Cursor: `~/.cursor/skills/lulu-workbench-skills`).
+`$SKILL_DIR` = `lulu-workbench-skills` install root (Cursor: `~/.cursor/skills/lulu-workbench-skills`).  
+`$WORKSPACE` = active repo root (must contain `scripts/dialogue_archive_normalize.py`).
 
 | Macro | Command |
 |-------|---------|
-| `$TRANSCRIPT_CLEAN` | `python3 "$SKILL_DIR/scripts/transcript-clean-control.py"` |
+| `$NORMALIZE` | `python3 "$WORKSPACE/scripts/dialogue_archive_normalize.py"` |
+
+**Hard:** Prefer `$NORMALIZE` for raw. Do **not** hand-parse jsonl into TURN_SEP. If `$NORMALIZE` is missing, stop — do not fall back to assembling `document` for MCP.
+
+Legacy `$TRANSCRIPT_CLEAN` (`transcript-clean-control.py`) is **not** the path for Workbench `archive_document` after this contract; do not use it to build MCP payloads.
 
 ---
 
@@ -38,27 +42,29 @@ Skill-local steps: [`references/execution.md`](references/execution.md).
 
 | Source | Description |
 |--------|-------------|
-| A. Current session | Resolve jsonl → `$TRANSCRIPT_CLEAN from-jsonl` → clean-raw |
-| B. User paste | Finished TURN_SEP markdown; skip clean + worker |
+| A. Current / named session | Cursor agent transcript `.jsonl` (one JSON per non-empty line) |
+| B. User paste | Finished TURN_SEP markdown on disk → skip normalize; still path-based sink |
+
+Text anchors (“从「xxx」开始”) → **you** resolve to 1-based node indices (prefer **user** on multi-hit). Script does **not** fuzzy-search.
 
 ---
 
 ## Sink
 
-Resolve **before** Phase A MCP checks.
+Resolve **before** MCP checks.
 
 | `sink` | When | Phase B |
 |--------|------|---------|
-| `workbench` | Default | MCP `archive_document` + digest when applicable |
-| `local-md` | User intent is not to save / upload / persist into Workbench | Write archive markdown under workspace `.cache`; no MCP; no digest |
+| `workbench` | Default | MCP `archive_document(source_path)` + digest under content constraint |
+| `local-md` | User intent refuses Workbench persist | Keep normalized md under workspace `.cache`; no MCP; no digest |
 
-Understand intent — do **not** maintain a phrase list. If unclear whether Workbench persist is refused, default `workbench`.
+Understand intent — do **not** maintain a phrase list. Unclear → default `workbench`.
 
 ---
 
 ## Core Output Shape
 
-`sink=workbench`:
+`sink=workbench` (script output):
 
 ```markdown
 # <Title>
@@ -82,35 +88,69 @@ Understand intent — do **not** maintain a phrase list. If unclear whether Work
 ...
 ```
 
-`sink=local-md`: same body; **omit** the digest navigation line; optionally add `> 落点：local-md`.
-
 `COMMON_PATH` = `<project>/<doc-theme>/<ts>-<slug>.md`.  
-Render **only** via `$TRANSCRIPT_CLEAN to-archive-md` (verbatim `u`/`a`).  
-`local-md`: pass `--omit-digest-nav`; `--out` → `{workspace}/.cache/dialogue-archive/<ts>-<slug>.md`.
+`sink=local-md`: same body is fine; omit digest nav if the script supports it, or leave as-is under `.cache` only.
 
 ---
 
 ## Workflow
 
-### Phase A — Normalize
+### Locate + Normalize
 
-1. Resolve `sink` (see Sink).
-2. If `sink=workbench`: confirm Workbench MCP ([references/archive.md](references/archive.md)). If `sink=local-md`: **skip** MCP prerequisite.
-3. Resolve session jsonl; run `$TRANSCRIPT_CLEAN from-jsonl` → `{workspace}/.cache/dialogue-archive-<sid>-clean-raw.json`. Fail closed on chrome residue / zero turns.
-4. Dispatch **Grok** worker per [`references/execution.md`](references/execution.md) (default; do not re-ask). Worker infers title / project / doc-theme / slug / ts; runs `to-archive-md --omit-empty-ai` (and `--omit-digest-nav` when `sink=local-md`); does **not** rewrite turn text; does **not** MCP-archive.
-5. Parent takes archive markdown path from worker receipt.
+1. Resolve `sink`.
+2. If `sink=workbench`: confirm MCP ([references/archive.md](references/archive.md)). If `local-md`: skip MCP check.
+3. Resolve transcript path; resolve `start_node` / `end_node` (closed, 1-based non-empty lines). Default full file when user did not narrow. **Forbid** loading entire jsonl into context — use `rg` / small windows.
+4. Choose `title` / `project` / `doc-theme` / `slug` / `--out` → `{workspace}/.cache/dialogue-archive/<ts>-<slug>.md`.
+5. Run:
 
-Paste path: skip steps 3–4 when user pasted a complete document. For pasted docs under `local-md`, strip digest nav (or ensure header matches local-md shape) before Done.
+```bash
+$NORMALIZE \
+  --transcript "<abs.jsonl>" \
+  --start-node <N> \
+  --end-node <M> \
+  --out "<abs.md>" \
+  --title "<title>" \
+  [--project …] [--doc-theme …] [--slug …]
+```
 
-### Phase B — Sink
+Exit ≠ 0 → stop. Paste path: skip steps 3–5 when user already has TURN_SEP md on disk.
+
+### Sink
 
 **`sink=workbench`**
 
-1. `archive_document` with `source_type: "dialogue"`.
-2. When digest applies (≥2 Turn blocks): overview per [`../shared/digest-workflow.md`](../shared/digest-workflow.md); `archive_digest`.
+1. `archive_document` — **path only**:
 
 ```json
-{ "document": "<full markdown>", "source_type": "dialogue" }
+{
+  "source_path": "<absolute path to normalized .md>",
+  "source_type": "dialogue"
+}
+```
+
+**Forbid:** `"document": "…"`.
+
+2. When digest applies (≥2 Turn blocks or shared `[AD-0]`): require non-empty **content_constraint**, put in digest header, then `archive_digest` per [`../shared/digest-workflow.md`](../shared/digest-workflow.md).
+
+Content constraint forms:
+
+- `源节点 71-200` / Turn-range narrative
+- One-line focus: `只写 A2 库选型门禁`
+- Combined
+
+Digest header **must** include:
+
+```markdown
+> 内容约束：<content_constraint 原文>
+```
+
+**Forbid:** re-fetch full raw solely for digest; expand past the constraint. Raw coverage = script nodes; digest constraint may be narrower.
+
+```json
+{
+  "id": "<archive_document id>",
+  "digest": "<full digest markdown>"
+}
 ```
 
 Done:
@@ -119,11 +159,12 @@ Done:
 > ✅ dialogue-archive complete（sink=workbench）
 > 📄 raw：raw/<COMMON_PATH>
 > 📋 digest：digest/<COMMON_PATH>（或已跳过）
+> 🧭 nodes：<start>-<end>；约束：<content_constraint 摘要>
 ```
 
 **`sink=local-md`**
 
-1. Ensure archive markdown is at `{workspace}/.cache/dialogue-archive/<ts>-<slug>.md`.
+1. Ensure file at `{workspace}/.cache/dialogue-archive/<ts>-<slug>.md`.
 2. Do **not** call `archive_document` / `archive_digest`.
 
 Done:
@@ -137,9 +178,11 @@ Done:
 
 ## Hard constraints
 
-1. **No hand extract** — Agent MUST NOT parse jsonl or assemble TURN_SEP by hand.
-2. **Verbatim** — `to-archive-md` must not summarize or paraphrase `u`/`a`.
-3. **MCP only** for corpus writes when `sink=workbench` ([`../shared/archive-concepts.md`](../shared/archive-concepts.md)). `local-md` writes workspace `.cache` only — never hand-write corpus `raw/` / `digest/` / `index.json`.
+1. **Script-only raw** for session transcripts — no hand-built TURN_SEP for MCP.
+2. **Path-only `archive_document`** — `source_path` only.
+3. **Node indices are AI’s job** — script does not search anchors.
+4. **Digest needs content_constraint** when writing digest.
+5. **MCP only** for corpus writes when `sink=workbench`.
 
 ---
 
@@ -155,8 +198,6 @@ Done:
 
 | Doc | Purpose |
 |-----|---------|
-| [references/execution.md](references/execution.md) | Parent / worker / macros |
-| [references/archive.md](references/archive.md) | MCP paths / HARD-GATE |
-| [../shared/transcript-clean.md](../shared/transcript-clean.md) | Clean + to-archive-md |
-| [../shared/dialogue-execution.md](../shared/dialogue-execution.md) | Shared parent/worker spine |
+| [references/execution.md](references/execution.md) | Parent steps / macros |
+| [references/archive.md](references/archive.md) | MCP paths / HARD-GATE / source_path |
 | [../shared/digest-workflow.md](../shared/digest-workflow.md) | Digest `[AD-0]`–`[AD-3]` |

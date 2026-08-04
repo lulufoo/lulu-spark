@@ -31,13 +31,13 @@ prefix      = "../../../"
 |-----|---------|
 | raw | `raw/<COMMON_PATH>` |
 | digest | `digest/<COMMON_PATH>` |
-| local-md | `{workspace}/.cache/dialogue-archive/<ts>-<slug>.md` |
+| normalize / local-md | `{workspace}/.cache/dialogue-archive/<ts>-<slug>.md` |
 
 - `project`: closest topics match; else `inbox`
 - `doc-theme` / `slug`: kebab-case
 - `ts`: `YYYYMMDDHHMM` (UTC+8 archive time)
 
-## Raw header (verbatim producer)
+## Raw header (verbatim producer — script)
 
 `sink=workbench`:
 
@@ -54,13 +54,27 @@ prefix      = "../../../"
 …turn body…
 ```
 
-`sink=local-md`: omit the digest navigation line (`to-archive-md --omit-digest-nav`).
-
 ## archive_document
+
+Hard-cut: body comes from Host reading a file. **Do not** send `document`.
 
 ```json
 {
-  "document": "<full markdown>",
+  "source_path": "<absolute path to normalized .md>",
   "source_type": "dialogue"
 }
 ```
+
+If the tool/API still rejects `source_path` or requires `document`, stop and report Host/MCP not yet upgraded — do **not** paste the full markdown into the tool call.
+
+## archive_digest
+
+MCP fields unchanged: `id` + `digest` (+ optional `force`).
+
+Writing contract: non-empty **内容约束** must appear in the digest header:
+
+```markdown
+> 内容约束：<content_constraint>
+```
+
+Do not re-load full raw solely to draft the digest.

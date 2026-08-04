@@ -42,7 +42,7 @@ Map the user request, then call **only** the tools that match. Do not run a fixe
 | Add / remove a sub-task | `add_todo_sub` / `delete_todo_sub` | Infer subs from document structure |
 | Complete master or sub | `complete_todo` (`master_task_id` required; `sub_task_id` optional — omit → complete master; with sub → complete that sub) | Call tools not listed in this SKILL |
 | Link archive to a **completed** sub | `link_todo_archive` (after archive exists) | Link without a completed sub + archive id |
-| Attachments | `add_todo_attachment` / `list_todo_attachments` / `get_todo_attachment` / `update_todo_attachment` | — |
+| Attachments | `add_todo_attachment` / `list_todo_attachments` / `get_todo_attachment` / `update_todo_attachment` — **path only** (`source_path`); never pass file body as `content` | — |
 | Inspect | `list_todo_tasks` / `get_todo_task` | — |
 | Delete master | `delete_todo_task` | — |
 
@@ -81,10 +81,10 @@ Do not invent norms not listed here.
 | `delete_todo_sub` | Delete a sub-task |
 | `complete_todo` | Complete a todo task. `master_task_id` required; `sub_task_id` optional. Omit `sub_task_id` → complete master; with `sub_task_id` → complete that sub. |
 | `link_todo_archive` | Link archive entry id to a completed sub |
-| `add_todo_attachment` | Add an attachment |
+| `add_todo_attachment` | Add attachment by absolute `source_path` (Host copies; no `content`) |
 | `list_todo_attachments` | List attachments |
-| `get_todo_attachment` | Get one attachment |
-| `update_todo_attachment` | Update an attachment |
+| `get_todo_attachment` | Get one attachment body |
+| `update_todo_attachment` | Overwrite existing attachment via `file_name` + `source_path` |
 
 Field names, limits, and optionality: live MCP schema only.
 
