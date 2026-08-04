@@ -595,28 +595,29 @@ function startMockHttp(port) {
       }
       planAttachmentHttpCalls.push({ path: url.pathname, body: payload });
       const masterId = typeof payload.master_task_id === 'string' ? payload.master_task_id.trim() : '';
-      const fileName = typeof payload.file_name === 'string' ? payload.file_name.trim() : '';
-      const content = typeof payload.content === 'string' ? payload.content : null;
+      const sourcePath =
+        typeof payload.source_path === 'string' ? payload.source_path.trim() : '';
+      if (Object.prototype.hasOwnProperty.call(payload, 'content')) {
+        respondJson(res, 400, { error: 'content is not supported; use source_path' });
+        return;
+      }
       if (!masterId) {
         respondJson(res, 400, { error: 'Missing master_task_id' });
         return;
       }
-      if (!fileName) {
-        respondJson(res, 400, { error: 'Missing file_name' });
-        return;
-      }
-      if (content === null) {
-        respondJson(res, 400, { error: 'Missing content' });
+      if (!sourcePath) {
+        respondJson(res, 400, { error: 'Missing source_path' });
         return;
       }
       if (!planTaskStore.has(masterId)) {
         respondJson(res, 404, { error: 'Task not found' });
         return;
       }
+      const base = sourcePath.split(/[/\\]/).filter(Boolean).pop() || 'attachment.md';
       const entry = {
-        file_name: fileName,
-        original_file_name: fileName,
-        content,
+        file_name: base,
+        original_file_name: base,
+        content: `staged-from:${sourcePath}`,
         added_at: '2026-07-18T00:00:00Z',
       };
       const list = planAttachmentStore.get(masterId) || [];
@@ -698,13 +699,18 @@ function startMockHttp(port) {
       planAttachmentHttpCalls.push({ path: url.pathname, body: payload });
       const masterId = typeof payload.master_task_id === 'string' ? payload.master_task_id.trim() : '';
       const fileName = typeof payload.file_name === 'string' ? payload.file_name.trim() : '';
-      const content = typeof payload.content === 'string' ? payload.content : null;
+      const sourcePath =
+        typeof payload.source_path === 'string' ? payload.source_path.trim() : '';
+      if (Object.prototype.hasOwnProperty.call(payload, 'content')) {
+        respondJson(res, 400, { error: 'content is not supported; use source_path' });
+        return;
+      }
       if (!masterId || !fileName) {
         respondJson(res, 400, { error: 'Missing master_task_id or file_name' });
         return;
       }
-      if (content === null) {
-        respondJson(res, 400, { error: 'Missing content' });
+      if (!sourcePath) {
+        respondJson(res, 400, { error: 'Missing source_path' });
         return;
       }
       if (!planTaskStore.has(masterId)) {
@@ -717,7 +723,7 @@ function startMockHttp(port) {
         respondJson(res, 404, { error: 'Attachment not found' });
         return;
       }
-      entry.content = content;
+      entry.content = `staged-from:${sourcePath}`;
       respondJson(res, 200, { ok: true });
       return;
     }
@@ -1465,12 +1471,11 @@ async function runMcpClient(mcpPort) {
     name: 'add_todo_attachment',
     arguments: {
       master_task_id: 'task_mock001',
-      file_name: 'notes.md',
-      content: '# Notes\n',
+      source_path: '/tmp/verify-notes.md',
     },
   });
   const addAttachText = addAttach.content?.[0]?.text || '';
-  if (addAttach.isError || !addAttachText.includes('notes.md')) {
+  if (addAttach.isError || !addAttachText.includes('verify-notes.md')) {
     throw new Error(`unexpected add_todo_attachment: ${addAttachText}`);
   }
 
@@ -1479,16 +1484,16 @@ async function runMcpClient(mcpPort) {
     arguments: { master_task_id: 'task_mock001' },
   });
   const listAttachText = listAttach.content?.[0]?.text || '';
-  if (listAttach.isError || !listAttachText.includes('notes.md')) {
+  if (listAttach.isError || !listAttachText.includes('verify-notes.md')) {
     throw new Error(`unexpected list_todo_attachments: ${listAttachText}`);
   }
 
   const getAttach = await client.callTool({
     name: 'get_todo_attachment',
-    arguments: { master_task_id: 'task_mock001', file_name: 'notes.md' },
+    arguments: { master_task_id: 'task_mock001', file_name: 'verify-notes.md' },
   });
   const getAttachText = getAttach.content?.[0]?.text || '';
-  if (getAttach.isError || !getAttachText.includes('# Notes')) {
+  if (getAttach.isError || !getAttachText.includes('staged-from:/tmp/verify-notes.md')) {
     throw new Error(`unexpected get_todo_attachment: ${getAttachText}`);
   }
 
@@ -1496,8 +1501,8 @@ async function runMcpClient(mcpPort) {
     name: 'update_todo_attachment',
     arguments: {
       master_task_id: 'task_mock001',
-      file_name: 'notes.md',
-      content: 'updated body',
+      file_name: 'verify-notes.md',
+      source_path: '/tmp/verify-notes-updated.md',
     },
   });
   const updateAttachText = updateAttach.content?.[0]?.text || '';
@@ -1507,10 +1512,13 @@ async function runMcpClient(mcpPort) {
 
   const rereadAttach = await client.callTool({
     name: 'get_todo_attachment',
-    arguments: { master_task_id: 'task_mock001', file_name: 'notes.md' },
+    arguments: { master_task_id: 'task_mock001', file_name: 'verify-notes.md' },
   });
   const rereadAttachText = rereadAttach.content?.[0]?.text || '';
-  if (rereadAttach.isError || !rereadAttachText.includes('updated body')) {
+  if (
+    rereadAttach.isError ||
+    !rereadAttachText.includes('staged-from:/tmp/verify-notes-updated.md')
+  ) {
     throw new Error(`unexpected get_todo_attachment after update: ${rereadAttachText}`);
   }
 

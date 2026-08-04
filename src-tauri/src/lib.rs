@@ -430,6 +430,7 @@ pub fn run() {
             commands::todo_task::update_todo_sub,
             commands::todo_task::update_todo_master_title,
             commands::todo_task::set_todo_master_status,
+            commands::todo_task::stage_todo_attachment_source,
             commands::todo_task::add_todo_attachment,
             commands::todo_task::list_todo_attachments,
             commands::todo_task::read_todo_attachment,

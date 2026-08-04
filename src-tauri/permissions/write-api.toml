@@ -38,6 +38,7 @@ commands.allow = [
   "update_todo_sub",
   "update_todo_master_title",
   "set_todo_master_status",
+  "stage_todo_attachment_source",
   "add_todo_attachment",
   "list_todo_attachments",
   "read_todo_attachment",

@@ -11,8 +11,8 @@ use crate::commands::todo_task::{
     list_todo_attachments, list_todo_attachments_json, list_todo_categories_json,
     list_todo_comments, list_todo_comments_json, read_todo_attachment, read_todo_attachment_json,
     read_todo_md_json, save_todo_attachment, save_todo_attachment_json, set_todo_category_json,
-    update_todo_comment, update_todo_comment_json, update_todo_master_title_json,
-    update_todo_md_json, update_todo_sub, update_todo_sub_json,
+    stage_todo_attachment_source, update_todo_comment, update_todo_comment_json,
+    update_todo_master_title_json, update_todo_md_json, update_todo_sub, update_todo_sub_json,
 };
 use crate::services::todo_task::{
     create_master_with_subs, list_all, test_reset_all_injection_flags, test_run_write_task_batch,
@@ -850,9 +850,41 @@ fn update_todo_master_title_json_unknown_returns_404_class() {
     });
 }
 
+
+fn write_cmd_attach_source(name: &str, content: impl AsRef<[u8]>) -> std::path::PathBuf {
+    use std::sync::atomic::{AtomicU64, Ordering};
+    static N: AtomicU64 = AtomicU64::new(0);
+    let n = N.fetch_add(1, Ordering::SeqCst);
+    let dir = std::env::temp_dir().join(format!(
+        "todo_attach_cmd_{}_{}",
+        std::process::id(),
+        n
+    ));
+    std::fs::create_dir_all(&dir).unwrap();
+    let path = dir.join(name);
+    std::fs::write(&path, content).unwrap();
+    path.canonicalize().unwrap_or(path)
+}
+
+fn add_attach_cmd(master_id: &str, name: &str, content: impl AsRef<[u8]>) -> serde_json::Value {
+    let path = write_cmd_attach_source(name, content);
+    add_todo_attachment_json(master_id, path.to_str().unwrap()).expect("add")
+}
+
+fn save_attach_cmd(
+    master_id: &str,
+    file_name: &str,
+    source_name: &str,
+    content: impl AsRef<[u8]>,
+) -> serde_json::Value {
+    let path = write_cmd_attach_source(source_name, content);
+    save_todo_attachment_json(master_id, file_name, path.to_str().unwrap()).expect("save")
+}
+
 #[test]
 fn todo_attachment_command_symbols_exist_for_handler_registration() {
     // Smoke: async command symbols exist for generate_handler! registration.
+    let _ = stage_todo_attachment_source;
     let _ = add_todo_attachment;
     let _ = list_todo_attachments;
     let _ = read_todo_attachment;
@@ -866,7 +898,7 @@ fn add_todo_attachment_json_success_strips_status() {
         let created = create_todo_task_json("Attach cmd", None, "").expect("create");
         let master_id = created["master_task_id"].as_str().expect("id").to_string();
 
-        let added = add_todo_attachment_json(&master_id, "notes.md", "# Notes\n").expect("add");
+        let added = add_attach_cmd(&master_id, "notes.md", "# Notes\n");
         assert!(added.get("_status").is_none());
         assert_eq!(added["file_name"], "notes.md");
         assert_eq!(added["original_file_name"], "notes.md");
@@ -880,7 +912,7 @@ fn add_todo_attachment_json_rejects_non_md_with_400_class() {
         let created = create_todo_task_json("Attach nonmd", None, "").expect("create");
         let master_id = created["master_task_id"].as_str().expect("id");
 
-        let v = add_todo_attachment_json(master_id, "notes.txt", "nope").expect("invoke");
+        let v = add_attach_cmd(master_id, "notes.txt", "nope");
         assert_eq!(v["error"], "Only .md attachments are supported");
         assert_eq!(v["_status"], 400);
     });
@@ -889,12 +921,7 @@ fn add_todo_attachment_json_rejects_non_md_with_400_class() {
 #[test]
 fn add_todo_attachment_json_unknown_master_returns_404_class() {
     with_commands_todo_test(|| {
-        let v = add_todo_attachment_json(
-            "task_nonexistent_aaaaaaaaaaaaaaaa",
-            "notes.md",
-            "x",
-        )
-        .expect("invoke");
+        let v = add_attach_cmd("task_nonexistent_aaaaaaaaaaaaaaaa", "notes.md", "x");
         assert_eq!(v["error"], "Task not found");
         assert_eq!(v["_status"], 404);
     });
@@ -905,8 +932,8 @@ fn list_todo_attachments_json_returns_entries_without_status() {
     with_commands_todo_test(|| {
         let created = create_todo_task_json("List attach", None, "").expect("create");
         let master_id = created["master_task_id"].as_str().expect("id").to_string();
-        add_todo_attachment_json(&master_id, "a.md", "one").expect("add a");
-        add_todo_attachment_json(&master_id, "b.md", "two").expect("add b");
+        add_attach_cmd(&master_id, "a.md", "one");
+        add_attach_cmd(&master_id, "b.md", "two");
 
         let listed = list_todo_attachments_json(&master_id).expect("list");
         assert!(listed.get("_status").is_none());
@@ -932,7 +959,7 @@ fn read_todo_attachment_json_round_trip_content() {
         let created = create_todo_task_json("Read attach", None, "").expect("create");
         let master_id = created["master_task_id"].as_str().expect("id").to_string();
         let content = "# Body\n";
-        add_todo_attachment_json(&master_id, "notes.md", content).expect("add");
+        add_attach_cmd(&master_id, "notes.md", content);
 
         let read = read_todo_attachment_json(&master_id, "notes.md").expect("read");
         assert!(read.get("_status").is_none());
@@ -958,9 +985,9 @@ fn save_todo_attachment_json_overwrites_content_without_status() {
     with_commands_todo_test(|| {
         let created = create_todo_task_json("Save attach", None, "").expect("create");
         let master_id = created["master_task_id"].as_str().expect("id").to_string();
-        add_todo_attachment_json(&master_id, "notes.md", "old").expect("add");
+        add_attach_cmd(&master_id, "notes.md", "old");
 
-        let saved = save_todo_attachment_json(&master_id, "notes.md", "new body").expect("save");
+        let saved = save_attach_cmd(&master_id, "notes.md", "notes.md", "new body");
         assert!(saved.get("_status").is_none());
         assert_eq!(saved["ok"], true);
 
@@ -975,7 +1002,8 @@ fn save_todo_attachment_json_unknown_attachment_returns_404_class() {
         let created = create_todo_task_json("Save missing", None, "").expect("create");
         let master_id = created["master_task_id"].as_str().expect("id");
 
-        let v = save_todo_attachment_json(master_id, "nope.md", "x").expect("invoke");
+        let path = write_cmd_attach_source("nope.md", "x");
+        let v = save_todo_attachment_json(master_id, "nope.md", path.to_str().unwrap()).expect("invoke");
         assert_eq!(v["error"], "Attachment not found");
         assert_eq!(v["_status"], 404);
     });
@@ -986,7 +1014,7 @@ fn delete_todo_attachment_json_removes_and_strips_status() {
     with_commands_todo_test(|| {
         let created = create_todo_task_json("Del attach", None, "").expect("create");
         let master_id = created["master_task_id"].as_str().expect("id").to_string();
-        add_todo_attachment_json(&master_id, "notes.md", "gone").expect("add");
+        add_attach_cmd(&master_id, "notes.md", "gone");
 
         let deleted = delete_todo_attachment_json(&master_id, "notes.md").expect("delete");
         assert!(deleted.get("_status").is_none());
@@ -1022,7 +1050,7 @@ fn ac15_command_add_rejects_non_md_and_lists_empty() {
         assert!(listed.get("_status").is_none());
         assert_eq!(listed["attachments"].as_array().expect("arr").len(), 0);
 
-        let rejected = add_todo_attachment_json(master_id, "x.txt", "nope").expect("invoke");
+        let rejected = add_attach_cmd(master_id, "x.txt", "nope");
         assert_eq!(rejected["_status"], 400);
         assert_eq!(rejected["error"], "Only .md attachments are supported");
     });
@@ -1033,7 +1061,7 @@ fn ac15_command_delete_dual_clear_via_list() {
     with_commands_todo_test(|| {
         let created = create_todo_task_json("AC15 del cmd", None, "").expect("create");
         let master_id = created["master_task_id"].as_str().expect("id").to_string();
-        add_todo_attachment_json(&master_id, "notes.md", "body").expect("add");
+        add_attach_cmd(&master_id, "notes.md", "body");
 
         let deleted = delete_todo_attachment_json(&master_id, "notes.md").expect("delete");
         assert!(deleted.get("_status").is_none());

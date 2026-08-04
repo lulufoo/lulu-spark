@@ -593,16 +593,19 @@ fn handle_todo_task_link_archive_payload(payload: &Value) -> Value {
 }
 
 fn handle_todo_task_add_attachment_payload(payload: &Value) -> Value {
+    if payload.get("content").is_some() {
+        return json!({
+            "error": "content is not supported; use source_path",
+            "_status": 400
+        });
+    }
     let Some(master_task_id) = payload.get("master_task_id").and_then(|v| v.as_str()) else {
         return json!({ "error": "Missing master_task_id", "_status": 400 });
     };
-    let Some(file_name) = payload.get("file_name").and_then(|v| v.as_str()) else {
-        return json!({ "error": "Missing file_name", "_status": 400 });
+    let Some(source_path) = payload.get("source_path").and_then(|v| v.as_str()) else {
+        return json!({ "error": "Missing source_path", "_status": 400 });
     };
-    let Some(content) = payload.get("content").and_then(|v| v.as_str()) else {
-        return json!({ "error": "Missing content", "_status": 400 });
-    };
-    todo_task::add_attachment(master_task_id, file_name, content)
+    todo_task::add_attachment(master_task_id, source_path)
 }
 
 fn handle_todo_task_list_attachments_payload(payload: &Value) -> Value {
@@ -623,16 +626,22 @@ fn handle_todo_task_get_attachment_payload(payload: &Value) -> Value {
 }
 
 fn handle_todo_task_update_attachment_payload(payload: &Value) -> Value {
+    if payload.get("content").is_some() {
+        return json!({
+            "error": "content is not supported; use source_path",
+            "_status": 400
+        });
+    }
     let Some(master_task_id) = payload.get("master_task_id").and_then(|v| v.as_str()) else {
         return json!({ "error": "Missing master_task_id", "_status": 400 });
     };
     let Some(file_name) = payload.get("file_name").and_then(|v| v.as_str()) else {
         return json!({ "error": "Missing file_name", "_status": 400 });
     };
-    let Some(content) = payload.get("content").and_then(|v| v.as_str()) else {
-        return json!({ "error": "Missing content", "_status": 400 });
+    let Some(source_path) = payload.get("source_path").and_then(|v| v.as_str()) else {
+        return json!({ "error": "Missing source_path", "_status": 400 });
     };
-    todo_task::save_attachment(master_task_id, file_name, content)
+    todo_task::save_attachment(master_task_id, file_name, source_path)
 }
 
 fn handle_todo_task_list_comments_payload(payload: &Value) -> Value {

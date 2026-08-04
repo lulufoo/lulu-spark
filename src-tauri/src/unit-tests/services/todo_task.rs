@@ -2012,6 +2012,38 @@ fn load_attachments_file(wb: &Path, master_id: &str) -> AttachmentsFile {
     serde_json::from_str(&text).expect("parse attachments.json")
 }
 
+
+fn write_attach_source(name: &str, content: impl AsRef<[u8]>) -> std::path::PathBuf {
+    use std::sync::atomic::{AtomicU64, Ordering};
+    static N: AtomicU64 = AtomicU64::new(0);
+    let n = N.fetch_add(1, Ordering::SeqCst);
+    let dir = std::env::temp_dir().join(format!(
+        "todo_attach_src_{}_{}",
+        std::process::id(),
+        n
+    ));
+    fs::create_dir_all(&dir).unwrap();
+    let path = dir.join(name);
+    fs::write(&path, content).unwrap();
+    path.canonicalize().unwrap_or(path)
+}
+
+fn add_from(master_id: &str, name: &str, content: impl AsRef<[u8]>) -> serde_json::Value {
+    let path = write_attach_source(name, content);
+    add_attachment(master_id, path.to_str().unwrap())
+}
+
+fn save_from(
+    master_id: &str,
+    file_name: &str,
+    source_name: &str,
+    content: impl AsRef<[u8]>,
+) -> serde_json::Value {
+    let path = write_attach_source(source_name, content);
+    save_attachment(master_id, file_name, path.to_str().unwrap())
+}
+
+
 #[test]
 fn add_attachment_md_copies_and_writes_manifest() {
     with_todo_task_sandbox(|wb| {
@@ -2019,7 +2051,7 @@ fn add_attachment_md_copies_and_writes_manifest() {
         let master_id = created["master_task_id"].as_str().unwrap();
         let content = "# Notes\n\nhello";
 
-        let v = add_attachment(master_id, "notes.md", content);
+        let v = add_from(master_id, "notes.md", content);
         assert_eq!(v["_status"], 201);
         assert_eq!(v["file_name"], "notes.md");
         assert_eq!(v["original_file_name"], "notes.md");
@@ -2043,16 +2075,16 @@ fn add_attachment_stem_conflict_appends_numeric_suffix() {
         let created = create_master_with_subs("Conflict", None);
         let master_id = created["master_task_id"].as_str().unwrap();
 
-        let first = add_attachment(master_id, "notes.md", "one");
+        let first = add_from(master_id, "notes.md", "one");
         assert_eq!(first["_status"], 201);
         assert_eq!(first["file_name"], "notes.md");
 
-        let second = add_attachment(master_id, "notes.md", "two");
+        let second = add_from(master_id, "notes.md", "two");
         assert_eq!(second["_status"], 201);
         assert_eq!(second["file_name"], "notes-1.md");
         assert_eq!(second["original_file_name"], "notes.md");
 
-        let third = add_attachment(master_id, "notes.md", "three");
+        let third = add_from(master_id, "notes.md", "three");
         assert_eq!(third["_status"], 201);
         assert_eq!(third["file_name"], "notes-2.md");
 
@@ -2085,7 +2117,7 @@ fn add_attachment_allows_empty_md_content() {
         let created = create_master_with_subs("Empty md", None);
         let master_id = created["master_task_id"].as_str().unwrap();
 
-        let v = add_attachment(master_id, "empty.md", "");
+        let v = add_from(master_id, "empty.md", "");
         assert_eq!(v["_status"], 201);
         assert_eq!(v["file_name"], "empty.md");
         assert_eq!(
@@ -2103,7 +2135,7 @@ fn add_attachment_accepts_uppercase_md_extension() {
         let created = create_master_with_subs("Upper ext", None);
         let master_id = created["master_task_id"].as_str().unwrap();
 
-        let v = add_attachment(master_id, "NOTES.MD", "upper");
+        let v = add_from(master_id, "NOTES.MD", "upper");
         assert_eq!(v["_status"], 201);
         let stored = v["file_name"].as_str().unwrap();
         assert!(
@@ -2127,7 +2159,7 @@ fn add_attachment_rejects_non_md_without_side_effects() {
         let created = create_master_with_subs("Reject txt", None);
         let master_id = created["master_task_id"].as_str().unwrap();
 
-        let v = add_attachment(master_id, "notes.txt", "nope");
+        let v = add_from(master_id, "notes.txt", "nope");
         assert_eq!(v["_status"], 400);
         assert!(v.get("error").is_some());
 
@@ -2137,16 +2169,18 @@ fn add_attachment_rejects_non_md_without_side_effects() {
 }
 
 #[test]
-fn add_attachment_rejects_path_separators_and_empty_name() {
+fn add_attachment_rejects_relative_and_disallowed_source_path() {
     with_todo_task_sandbox(|wb| {
         let created = create_master_with_subs("Bad names", None);
         let master_id = created["master_task_id"].as_str().unwrap();
 
-        for bad in ["../escape.md", "a/b.md", "a\\b.md", "", "   ", ".md"] {
-            let v = add_attachment(master_id, bad, "x");
-            assert_eq!(v["_status"], 400, "bad={bad:?}");
-            assert!(v.get("error").is_some());
-        }
+        let relative = add_attachment(master_id, "notes.md");
+        assert_eq!(relative["_status"], 400);
+        assert_eq!(relative["error"], "Invalid source_path");
+
+        let missing = add_attachment(master_id, "/tmp/todo_attach_missing_no_such_file.md");
+        assert_eq!(missing["_status"], 404);
+        assert_eq!(missing["error"], "Source file not found");
 
         assert!(!attachments_dir(wb, master_id).exists());
         assert!(!attachments_json_path(wb, master_id).exists());
@@ -2154,17 +2188,18 @@ fn add_attachment_rejects_path_separators_and_empty_name() {
 }
 
 #[test]
+
 fn add_attachment_manifest_write_failure_rolls_back_copy() {
     with_todo_task_sandbox(|wb| {
         let created = create_master_with_subs("Rollback", None);
         let master_id = created["master_task_id"].as_str().unwrap();
 
-        let ok = add_attachment(master_id, "keep.md", "keep-me");
+        let ok = add_from(master_id, "keep.md", "keep-me");
         assert_eq!(ok["_status"], 201);
         let before = load_attachments_file(wb, master_id);
 
         test_set_fail_add_attachment_manifest(true);
-        let v = add_attachment(master_id, "new.md", "should-roll-back");
+        let v = add_from(master_id, "new.md", "should-roll-back");
         assert_eq!(v["_status"], 500);
         assert!(v.get("error").is_some());
 
@@ -2181,7 +2216,7 @@ fn add_attachment_manifest_write_failure_rolls_back_copy() {
 #[test]
 fn add_attachment_unknown_master_returns_404_without_writes() {
     with_todo_task_sandbox(|wb| {
-        let v = add_attachment("task_nonexistent_aaaaaaaaaaaaaaaa", "notes.md", "x");
+        let v = add_from("task_nonexistent_aaaaaaaaaaaaaaaa", "notes.md", "x");
         assert_eq!(v["_status"], 404);
         assert_eq!(v["error"], "Task not found");
         assert!(!wb
@@ -2203,7 +2238,7 @@ fn add_attachment_unwritable_task_dir_fails_without_half_success() {
         perms.set_readonly(true);
         fs::set_permissions(&task_dir, perms).unwrap();
 
-        let v = add_attachment(master_id, "notes.md", "x");
+        let v = add_from(master_id, "notes.md", "x");
         assert_eq!(v["_status"], 500);
         assert!(v.get("error").is_some());
         assert!(!attachments_dir(wb, master_id).join("notes.md").exists());
@@ -2221,8 +2256,8 @@ fn list_attachments_returns_manifest_entries_not_directory_scan() {
         let created = create_master_with_subs("List attach", None);
         let master_id = created["master_task_id"].as_str().unwrap();
 
-        let a = add_attachment(master_id, "a.md", "one");
-        let b = add_attachment(master_id, "b.md", "two");
+        let a = add_from(master_id, "a.md", "one");
+        let b = add_from(master_id, "b.md", "two");
         assert_eq!(a["_status"], 201);
         assert_eq!(b["_status"], 201);
 
@@ -2288,7 +2323,7 @@ fn read_attachment_returns_manifest_file_content() {
         let master_id = created["master_task_id"].as_str().unwrap();
         let content = "# Body\n\nline";
 
-        let added = add_attachment(master_id, "notes.md", content);
+        let added = add_from(master_id, "notes.md", content);
         assert_eq!(added["_status"], 201);
 
         let v = read_attachment(master_id, "notes.md");
@@ -2303,7 +2338,7 @@ fn read_attachment_rejects_non_manifest_target() {
     with_todo_task_sandbox(|wb| {
         let created = create_master_with_subs("Read reject", None);
         let master_id = created["master_task_id"].as_str().unwrap();
-        add_attachment(master_id, "listed.md", "ok");
+        add_from(master_id, "listed.md", "ok");
 
         fs::create_dir_all(attachments_dir(wb, master_id)).unwrap();
         fs::write(attachments_dir(wb, master_id).join("orphan.md"), "ghost").unwrap();
@@ -2326,10 +2361,10 @@ fn save_attachment_writes_content_without_touching_todo_md() {
             .join("todo.md");
         let plan_before = fs::read_to_string(&plan_path).unwrap();
 
-        let added = add_attachment(master_id, "notes.md", "old");
+        let added = add_from(master_id, "notes.md", "old");
         assert_eq!(added["_status"], 201);
 
-        let v = save_attachment(master_id, "notes.md", "new content");
+        let v = save_from(master_id, "notes.md", "notes.md", "new content");
         assert_eq!(v["_status"], 200);
         assert_eq!(v["ok"], true);
         assert_eq!(
@@ -2346,9 +2381,9 @@ fn save_attachment_allows_empty_content() {
     with_todo_task_sandbox(|wb| {
         let created = create_master_with_subs("Save empty", None);
         let master_id = created["master_task_id"].as_str().unwrap();
-        add_attachment(master_id, "notes.md", "had text");
+        add_from(master_id, "notes.md", "had text");
 
-        let v = save_attachment(master_id, "notes.md", "");
+        let v = save_from(master_id, "notes.md", "notes.md", "");
         assert_eq!(v["_status"], 200);
         assert_eq!(v["ok"], true);
         assert_eq!(
@@ -2363,12 +2398,12 @@ fn save_attachment_rejects_non_manifest_target() {
     with_todo_task_sandbox(|wb| {
         let created = create_master_with_subs("Save reject", None);
         let master_id = created["master_task_id"].as_str().unwrap();
-        add_attachment(master_id, "listed.md", "ok");
+        add_from(master_id, "listed.md", "ok");
 
         fs::create_dir_all(attachments_dir(wb, master_id)).unwrap();
         fs::write(attachments_dir(wb, master_id).join("orphan.md"), "ghost").unwrap();
 
-        let v = save_attachment(master_id, "orphan.md", "overwrite");
+        let v = save_from(master_id, "orphan.md", "orphan.md", "overwrite");
         assert_eq!(v["_status"], 404);
         assert!(v.get("error").is_some());
         assert_eq!(
@@ -2388,7 +2423,7 @@ fn delete_attachment_removes_manifest_entry_and_file() {
         let created = create_master_with_subs("Delete attach", None);
         let master_id = created["master_task_id"].as_str().unwrap();
 
-        let added = add_attachment(master_id, "notes.md", "to-delete");
+        let added = add_from(master_id, "notes.md", "to-delete");
         assert_eq!(added["_status"], 201);
         assert!(attachments_dir(wb, master_id).join("notes.md").is_file());
 
@@ -2419,9 +2454,9 @@ fn delete_attachment_preserves_other_entries() {
         let created = create_master_with_subs("Delete keeps others", None);
         let master_id = created["master_task_id"].as_str().unwrap();
 
-        assert_eq!(add_attachment(master_id, "keep-a.md", "a")["_status"], 201);
-        assert_eq!(add_attachment(master_id, "drop.md", "drop-me")["_status"], 201);
-        assert_eq!(add_attachment(master_id, "keep-b.md", "b")["_status"], 201);
+        assert_eq!(add_from(master_id, "keep-a.md", "a")["_status"], 201);
+        assert_eq!(add_from(master_id, "drop.md", "drop-me")["_status"], 201);
+        assert_eq!(add_from(master_id, "keep-b.md", "b")["_status"], 201);
         let before = load_attachments_file(wb, master_id);
 
         let v = delete_attachment(master_id, "drop.md");
@@ -2455,7 +2490,7 @@ fn delete_attachment_rejects_non_manifest_target_without_side_effects() {
     with_todo_task_sandbox(|wb| {
         let created = create_master_with_subs("Delete reject", None);
         let master_id = created["master_task_id"].as_str().unwrap();
-        assert_eq!(add_attachment(master_id, "listed.md", "ok")["_status"], 201);
+        assert_eq!(add_from(master_id, "listed.md", "ok")["_status"], 201);
 
         fs::create_dir_all(attachments_dir(wb, master_id)).unwrap();
         fs::write(attachments_dir(wb, master_id).join("orphan.md"), "ghost").unwrap();
@@ -2483,8 +2518,8 @@ fn delete_attachment_file_delete_failure_restores_manifest() {
         let created = create_master_with_subs("Delete rollback", None);
         let master_id = created["master_task_id"].as_str().unwrap();
 
-        assert_eq!(add_attachment(master_id, "keep.md", "keep-me")["_status"], 201);
-        assert_eq!(add_attachment(master_id, "drop.md", "drop-me")["_status"], 201);
+        assert_eq!(add_from(master_id, "keep.md", "keep-me")["_status"], 201);
+        assert_eq!(add_from(master_id, "drop.md", "drop-me")["_status"], 201);
         let before = load_attachments_file(wb, master_id);
 
         test_set_fail_delete_attachment_file(true);
@@ -2523,7 +2558,7 @@ fn delete_master_cascades_attachments_dir_and_manifest() {
     with_todo_task_sandbox(|wb| {
         let created = create_master_with_subs("Delete with attach", None);
         let master_id = created["master_task_id"].as_str().unwrap();
-        let add = add_attachment(master_id, "notes.md", "# keep\n");
+        let add = add_from(master_id, "notes.md", "# keep\n");
         assert_eq!(add["_status"], 201);
 
         let task_dir = wb.join("todo_tasks").join("tasks").join(master_id);
@@ -2578,8 +2613,8 @@ fn ac15_stem_conflict_appends_suffix_and_keeps_originals() {
         let created = create_master_with_subs("AC15 suffix", None);
         let master_id = created["master_task_id"].as_str().unwrap();
 
-        assert_eq!(add_attachment(master_id, "doc.md", "a")["_status"], 201);
-        let second = add_attachment(master_id, "doc.md", "b");
+        assert_eq!(add_from(master_id, "doc.md", "a")["_status"], 201);
+        let second = add_from(master_id, "doc.md", "b");
         assert_eq!(second["_status"], 201);
         assert_eq!(second["file_name"], "doc-1.md");
         assert_eq!(second["original_file_name"], "doc.md");
@@ -2609,11 +2644,11 @@ fn ac15_add_manifest_failure_rolls_back_without_half_success() {
     with_todo_task_sandbox(|wb| {
         let created = create_master_with_subs("AC15 rollback", None);
         let master_id = created["master_task_id"].as_str().unwrap();
-        assert_eq!(add_attachment(master_id, "keep.md", "keep")["_status"], 201);
+        assert_eq!(add_from(master_id, "keep.md", "keep")["_status"], 201);
         let before = load_attachments_file(wb, master_id);
 
         test_set_fail_add_attachment_manifest(true);
-        let v = add_attachment(master_id, "ghost.md", "ghost");
+        let v = add_from(master_id, "ghost.md", "ghost");
         assert_eq!(v["_status"], 500);
         assert!(!attachments_dir(wb, master_id).join("ghost.md").exists());
         assert_eq!(load_attachments_file(wb, master_id), before);
@@ -2625,7 +2660,7 @@ fn ac15_delete_clears_manifest_entry_and_file() {
     with_todo_task_sandbox(|wb| {
         let created = create_master_with_subs("AC15 dual clear", None);
         let master_id = created["master_task_id"].as_str().unwrap();
-        assert_eq!(add_attachment(master_id, "gone.md", "x")["_status"], 201);
+        assert_eq!(add_from(master_id, "gone.md", "x")["_status"], 201);
 
         let v = delete_attachment(master_id, "gone.md");
         assert_eq!(v["_status"], 200);
@@ -2654,7 +2689,7 @@ fn ac15_empty_list_and_non_md_reject() {
         assert_eq!(empty["_status"], 200);
         assert_eq!(empty["attachments"].as_array().unwrap().len(), 0);
 
-        let rejected = add_attachment(master_id, "notes.txt", "nope");
+        let rejected = add_from(master_id, "notes.txt", "nope");
         assert_eq!(rejected["_status"], 400);
         assert!(!attachments_dir(wb, master_id).exists());
         assert!(!attachments_json_path(wb, master_id).exists());

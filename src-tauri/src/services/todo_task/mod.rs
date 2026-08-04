@@ -4,7 +4,7 @@ pub mod types;
 
 use std::collections::HashMap;
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 
 #[cfg(test)]
@@ -1606,6 +1606,120 @@ pub fn link_archive(master_task_id: &str, sub_task_id: &str, archive_id: &str) -
     })
 }
 
+/// Max bytes for a source `.md` copied into todo attachments (2 MiB).
+const MAX_ATTACHMENT_SOURCE_BYTES: u64 = 2 * 1024 * 1024;
+
+fn attachment_allow_roots() -> Vec<PathBuf> {
+    let mut roots = Vec::new();
+    let mut push_root = |p: PathBuf| {
+        if !p.exists() {
+            let _ = fs::create_dir_all(&p);
+        }
+        if let Ok(canonical) = p.canonicalize() {
+            if !roots.iter().any(|r| r == &canonical) {
+                roots.push(canonical);
+            }
+        }
+    };
+    if let Ok(p) = paths::knowledge_corpus_root() {
+        push_root(p);
+    }
+    if let Ok(p) = paths::workbench_knowledge_root() {
+        push_root(p);
+    }
+    if let Ok(p) = paths::cache_dir() {
+        push_root(p);
+    }
+    if let Ok(repo) = paths::repo_root() {
+        push_root(repo.join(".cache"));
+    }
+    push_root(std::env::temp_dir());
+    roots
+}
+
+fn path_is_under_root(path: &Path, root: &Path) -> bool {
+    path.starts_with(root)
+}
+
+/// Resolve an absolute source path under the attachment allow-list.
+/// Returns `(canonical_path, normalized_basename)`.
+fn resolve_allowed_source_file(source_path: &str) -> Result<(PathBuf, String), Value> {
+    let trimmed = source_path.trim();
+    if trimmed.is_empty() {
+        return Err(json!({ "error": "Missing source_path", "_status": 400 }));
+    }
+    let raw = PathBuf::from(trimmed);
+    if !raw.is_absolute() {
+        return Err(json!({ "error": "Invalid source_path", "_status": 400 }));
+    }
+    if !raw.exists() {
+        return Err(json!({ "error": "Source file not found", "_status": 404 }));
+    }
+    let canonical = match raw.canonicalize() {
+        Ok(p) => p,
+        Err(_) => {
+            return Err(json!({ "error": "Invalid source_path", "_status": 400 }));
+        }
+    };
+    if !canonical.is_file() {
+        return Err(json!({ "error": "Source is not a regular file", "_status": 400 }));
+    }
+    let roots = attachment_allow_roots();
+    if !roots
+        .iter()
+        .any(|root| path_is_under_root(&canonical, root))
+    {
+        return Err(json!({ "error": "source_path not allowed", "_status": 403 }));
+    }
+    let meta = match fs::metadata(&canonical) {
+        Ok(m) => m,
+        Err(e) => return Err(json!({ "error": e.to_string(), "_status": 500 })),
+    };
+    if meta.len() > MAX_ATTACHMENT_SOURCE_BYTES {
+        return Err(json!({ "error": "Attachment too large", "_status": 413 }));
+    }
+    let basename = canonical
+        .file_name()
+        .and_then(|s| s.to_str())
+        .unwrap_or("");
+    let normalized = match normalize_attachment_file_name(basename) {
+        Ok(name) => name,
+        Err(msg) => return Err(json!({ "error": msg, "_status": 400 })),
+    };
+    Ok((canonical, normalized))
+}
+
+/// UI helper: write markdown into `cache_dir/todo_attachment_stage/<id>/<name>` and
+/// return absolute `source_path` (not exposed via MCP / Sidecar).
+pub fn stage_attachment_source(preferred_name: &str, content: &str) -> Value {
+    let basename = match normalize_attachment_file_name(preferred_name) {
+        Ok(name) => name,
+        Err(msg) => return json!({ "error": msg, "_status": 400 }),
+    };
+    if (content.len() as u64) > MAX_ATTACHMENT_SOURCE_BYTES {
+        return json!({ "error": "Attachment too large", "_status": 413 });
+    }
+    let cache = match paths::cache_dir() {
+        Ok(p) => p,
+        Err(e) => return json!({ "error": format!("{e:?}"), "_status": 500 }),
+    };
+    let stage_dir = cache
+        .join("todo_attachment_stage")
+        .join(format!("s_{}", random_hex12()));
+    if let Err(e) = fs::create_dir_all(&stage_dir) {
+        return json!({ "error": e.to_string(), "_status": 500 });
+    }
+    let dest = stage_dir.join(&basename);
+    if let Err(e) = fs::write(&dest, content) {
+        return json!({ "error": e.to_string(), "_status": 500 });
+    }
+    let abs = dest.canonicalize().unwrap_or(dest);
+    json!({
+        "source_path": abs.to_string_lossy(),
+        "_status": 201,
+    })
+}
+
 fn normalize_attachment_file_name(file_name: &str) -> Result<String, &'static str> {
     let trimmed = file_name.trim();
     if trimmed.is_empty() {
@@ -1942,15 +2056,15 @@ pub fn delete_comment(master_task_id: &str, comment_id: &str) -> Value {
 
 /// Copy a `.md` attachment into the plan task directory and append `attachments.json`.
 /// On any post-copy failure, deletes the new file and restores the prior manifest.
-pub fn add_attachment(master_task_id: &str, file_name: &str, content: &str) -> Value {
+pub fn add_attachment(master_task_id: &str, source_path: &str) -> Value {
     let master_task_id = master_task_id.trim();
     if master_task_id.is_empty() {
         return json!({ "error": "Missing id", "_status": 400 });
     }
 
-    let basename = match normalize_attachment_file_name(file_name) {
-        Ok(name) => name,
-        Err(msg) => return json!({ "error": msg, "_status": 400 }),
+    let (canonical_source, basename) = match resolve_allowed_source_file(source_path) {
+        Ok(v) => v,
+        Err(err) => return err,
     };
 
     with_write_lock(|| {
@@ -1987,7 +2101,7 @@ pub fn add_attachment(master_task_id: &str, file_name: &str, content: &str) -> V
         if let Err(e) = fs::create_dir_all(&attachments_dir) {
             return json!({ "error": e.to_string(), "_status": 500 });
         }
-        if let Err(e) = fs::write(&dest, content) {
+        if let Err(e) = fs::copy(&canonical_source, &dest) {
             return json!({ "error": e.to_string(), "_status": 500 });
         }
 
@@ -2094,7 +2208,7 @@ pub fn read_attachment(master_task_id: &str, file_name: &str) -> Value {
 }
 
 /// Overwrite on-disk content of a manifest-listed attachment. Does not modify `todo.md`.
-pub fn save_attachment(master_task_id: &str, file_name: &str, content: &str) -> Value {
+pub fn save_attachment(master_task_id: &str, file_name: &str, source_path: &str) -> Value {
     let master_task_id = master_task_id.trim();
     if master_task_id.is_empty() {
         return json!({ "error": "Missing id", "_status": 400 });
@@ -2103,6 +2217,11 @@ pub fn save_attachment(master_task_id: &str, file_name: &str, content: &str) -> 
     if file_name.is_empty() {
         return json!({ "error": "Invalid file name", "_status": 400 });
     }
+
+    let (canonical_source, _) = match resolve_allowed_source_file(source_path) {
+        Ok(v) => v,
+        Err(err) => return err,
+    };
 
     with_write_lock(|| {
         if let Err(e) = ensure_bootstrap() {
@@ -2128,8 +2247,8 @@ pub fn save_attachment(master_task_id: &str, file_name: &str, content: &str) -> 
         }
 
         let path = task_dir.join("attachments").join(file_name);
-        match fs::write(&path, content) {
-            Ok(()) => json!({ "ok": true, "_status": 200 }),
+        match fs::copy(&canonical_source, &path) {
+            Ok(_) => json!({ "ok": true, "_status": 200 }),
             Err(e) => json!({ "error": e.to_string(), "_status": 500 }),
         }
     })

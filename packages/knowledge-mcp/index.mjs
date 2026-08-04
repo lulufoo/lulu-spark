@@ -573,11 +573,14 @@ export function buildServer(sceneSlot) {
     'add_todo_attachment',
     {
       description:
-        'Add a markdown attachment to a todo master. Proxy POST /api/todo-task-add-attachment',
+        'Add a markdown attachment by copying a local source_path (.md). Proxy POST /api/todo-task-add-attachment. Host copies the file; do not pass file content.',
       inputSchema: {
         master_task_id: z.string().trim().min(1).describe('Master task id'),
-        file_name: z.string().trim().min(1).describe('Attachment file name (must end with .md)'),
-        content: z.string().describe('Markdown attachment content'),
+        source_path: z
+          .string()
+          .trim()
+          .min(1)
+          .describe('Absolute path to an existing .md file under Host allow-list roots'),
       },
     },
     proxyPostHandler('/api/todo-task-add-attachment'),
@@ -612,11 +615,19 @@ export function buildServer(sceneSlot) {
     'update_todo_attachment',
     {
       description:
-        'Overwrite a todo attachment body. Proxy POST /api/todo-task-update-attachment',
+        'Overwrite an existing todo attachment by copying source_path. Proxy POST /api/todo-task-update-attachment. Host copies the file; do not pass file content.',
       inputSchema: {
         master_task_id: z.string().trim().min(1).describe('Master task id'),
-        file_name: z.string().trim().min(1).describe('Attachment file name'),
-        content: z.string().describe('New markdown attachment content'),
+        file_name: z
+          .string()
+          .trim()
+          .min(1)
+          .describe('Existing attachment basename in the todo manifest'),
+        source_path: z
+          .string()
+          .trim()
+          .min(1)
+          .describe('Absolute path to an existing .md file under Host allow-list roots'),
       },
     },
     proxyPostHandler('/api/todo-task-update-attachment'),

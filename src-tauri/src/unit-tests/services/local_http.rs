@@ -1702,6 +1702,22 @@ fn create_todo_master_id(port: u16, title: &str) -> String {
         .to_string()
 }
 
+
+fn write_http_attach_source(name: &str, content: impl AsRef<[u8]>) -> std::path::PathBuf {
+    use std::sync::atomic::{AtomicU64, Ordering};
+    static N: AtomicU64 = AtomicU64::new(0);
+    let n = N.fetch_add(1, Ordering::SeqCst);
+    let dir = std::env::temp_dir().join(format!(
+        "todo_attach_http_{}_{}",
+        std::process::id(),
+        n
+    ));
+    std::fs::create_dir_all(&dir).unwrap();
+    let path = dir.join(name);
+    std::fs::write(&path, content).unwrap();
+    path.canonicalize().unwrap_or(path)
+}
+
 #[test]
 fn todo_task_attachment_http_flow() {
     with_todo_task_http_test(|| {
@@ -1710,15 +1726,13 @@ fn todo_task_attachment_http_flow() {
         with_server(repo_root, |port| {
             let master_id = create_todo_master_id(port, "Attach HTTP");
 
-            let (add_status, add_body) = http_post(
-                port,
-                "/api/todo-task-add-attachment",
-                &json!({
-                    "master_task_id": master_id,
-                    "file_name": "notes.md",
-                    "content": "# Notes\n",
-                }),
-            );
+            let add_src = write_http_attach_source("notes.md", "# Notes\n");
+            let add_payload = json!({
+                "master_task_id": master_id,
+                "source_path": add_src.to_str().unwrap(),
+            });
+            let (add_status, add_body) =
+                http_post(port, "/api/todo-task-add-attachment", &add_payload);
             assert_eq!(add_status, 201);
             assert_eq!(add_body["file_name"], "notes.md");
             assert_eq!(add_body["original_file_name"], "notes.md");
@@ -1749,15 +1763,14 @@ fn todo_task_attachment_http_flow() {
             assert_eq!(get_body["content"], "# Notes\n");
             assert!(get_body.get("_status").is_none());
 
-            let (update_status, update_body) = http_post(
-                port,
-                "/api/todo-task-update-attachment",
-                &json!({
-                    "master_task_id": master_id,
-                    "file_name": "notes.md",
-                    "content": "updated body",
-                }),
-            );
+            let update_src = write_http_attach_source("notes.md", "updated body");
+            let update_payload = json!({
+                "master_task_id": master_id,
+                "file_name": "notes.md",
+                "source_path": update_src.to_str().unwrap(),
+            });
+            let (update_status, update_body) =
+                http_post(port, "/api/todo-task-update-attachment", &update_payload);
             assert_eq!(update_status, 200);
             assert_eq!(update_body["ok"], true);
             assert!(update_body.get("_status").is_none());
@@ -1864,15 +1877,12 @@ fn todo_task_attachment_http_paths_follow_todo_task_verb_prefix() {
                 );
             }
 
-            let (status, body) = http_post(
-                port,
-                "/api/todo-task-add-attachment",
-                &json!({
-                    "master_task_id": master_id,
-                    "file_name": "a.md",
-                    "content": "x",
-                }),
-            );
+            let add_src = write_http_attach_source("a.md", "x");
+            let add_payload = json!({
+                "master_task_id": master_id,
+                "source_path": add_src.to_str().unwrap(),
+            });
+            let (status, body) = http_post(port, "/api/todo-task-add-attachment", &add_payload);
             assert_eq!(status, 201, "add-attachment must be registered: {body}");
             assert!(body.get("error").is_none());
         });
@@ -1886,15 +1896,12 @@ fn todo_task_attachment_http_has_no_delete_or_ui_paths() {
         let repo_root = fixture.repo_root.clone();
         with_server(repo_root, |port| {
             let master_id = create_todo_master_id(port, "No delete HTTP");
-            let (add_status, _) = http_post(
-                port,
-                "/api/todo-task-add-attachment",
-                &json!({
-                    "master_task_id": master_id,
-                    "file_name": "notes.md",
-                    "content": "keep",
-                }),
-            );
+            let add_src = write_http_attach_source("notes.md", "keep");
+            let add_payload = json!({
+                "master_task_id": master_id,
+                "source_path": add_src.to_str().unwrap(),
+            });
+            let (add_status, _) = http_post(port, "/api/todo-task-add-attachment", &add_payload);
             assert_eq!(add_status, 201);
 
             for path in [

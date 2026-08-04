@@ -59,6 +59,7 @@ const TODO_TASK_LIFECYCLE_COMMANDS: &[&str] = &[
 ];
 
 const TODO_TASK_ATTACHMENT_COMMANDS: &[&str] = &[
+    "stage_todo_attachment_source",
     "add_todo_attachment",
     "list_todo_attachments",
     "read_todo_attachment",

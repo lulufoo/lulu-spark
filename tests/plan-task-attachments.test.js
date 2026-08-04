@@ -85,7 +85,7 @@ describe('listPlanAttachments / addPlanAttachment', () => {
     expect(result).toEqual(sampleAttachments);
   });
 
-  it('addPlanAttachment invokes add_todo_attachment with masterTaskId, fileName, content', async () => {
+  it('addPlanAttachment invokes add_todo_attachment with masterTaskId, sourcePath', async () => {
     invokeMock.mockResolvedValue({
       file_name: 'notes.md',
       original_file_name: 'notes.md',
@@ -94,13 +94,11 @@ describe('listPlanAttachments / addPlanAttachment', () => {
     });
     const result = await addPlanAttachment({
       masterTaskId: 'task_alpha',
-      fileName: 'notes.md',
-      content: '# Hello',
+      sourcePath: '/tmp/notes.md',
     });
     expect(invokeMock).toHaveBeenCalledWith('add_todo_attachment', {
       masterTaskId: 'task_alpha',
-      fileName: 'notes.md',
-      content: '# Hello',
+      sourcePath: '/tmp/notes.md',
     });
     expect(result.file_name).toBe('notes.md');
   });
@@ -108,7 +106,7 @@ describe('listPlanAttachments / addPlanAttachment', () => {
   it('throws with status when add returns service error payload', async () => {
     invokeMock.mockResolvedValue({ error: 'Only .md attachments are supported', _status: 400 });
     await expect(
-      addPlanAttachment({ masterTaskId: 'task_alpha', fileName: 'a.txt', content: 'x' }),
+      addPlanAttachment({ masterTaskId: 'task_alpha', sourcePath: '/tmp/a.txt' }),
     ).rejects.toMatchObject({ status: 400 });
   });
 });
@@ -223,18 +221,25 @@ describe('mountPlanTaskSplit attachment list + add', () => {
     dispose();
   });
 
-  it('pick flow invokes add_todo_attachment then refreshes list with new item', async () => {
+  it('pick flow stages then invokes add_todo_attachment with sourcePath', async () => {
     getJsonMock.mockResolvedValue([sampleMaster]);
     let listed = [];
     invokeMock.mockImplementation(async (cmd, args) => {
       if (cmd === 'list_todo_attachments') {
         return { attachments: listed, _status: 200 };
       }
+      if (cmd === 'stage_todo_attachment_source') {
+        return {
+          source_path: `/tmp/staged/${args.preferredName}`,
+          _status: 201,
+        };
+      }
       if (cmd === 'add_todo_attachment') {
+        const base = String(args.sourcePath).split('/').pop();
         listed = [
           {
-            file_name: args.fileName,
-            original_file_name: args.fileName,
+            file_name: base,
+            original_file_name: base,
             added_at: '2026-07-18T12:00:00Z',
           },
         ];
@@ -253,10 +258,13 @@ describe('mountPlanTaskSplit attachment list + add', () => {
 
     container.querySelector('[data-action="pick-attachment-md"]').click();
     await vi.waitFor(() => {
+      expect(invokeMock).toHaveBeenCalledWith('stage_todo_attachment_source', {
+        preferredName: 'new-notes.md',
+        content: '# New notes',
+      });
       expect(invokeMock).toHaveBeenCalledWith('add_todo_attachment', {
         masterTaskId: 'task_alpha',
-        fileName: 'new-notes.md',
-        content: '# New notes',
+        sourcePath: '/tmp/staged/new-notes.md',
       });
     });
     await vi.waitFor(() => {

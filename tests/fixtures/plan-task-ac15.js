@@ -88,11 +88,11 @@ export const UI_ATTACHMENT_TEST_PROBES = {
     /listPlanAttachments invokes list_todo_attachments/,
     /addPlanAttachment invokes add_todo_attachment/,
     /shows attachment section listing associated files/,
-    /pick flow invokes add_todo_attachment then refreshes list/,
+    /pick flow stages then invokes add_todo_attachment/,
   ],
   'tests/plan-task-attachment-editor.test.js': [
     /readPlanAttachment invokes read_todo_attachment/,
-    /savePlanAttachment invokes save_todo_attachment/,
+    /savePlanAttachment invokes save_todo_attachment with masterTaskId, fileName, sourcePath/,
     /clicking an attachment opens a modal with preview by default/,
     /can switch to edit mode and save via save_todo_attachment/,
   ],

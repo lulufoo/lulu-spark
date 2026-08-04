@@ -80,17 +80,17 @@ describe('readPlanAttachment / savePlanAttachment', () => {
     expect(result).toEqual({ file_name: 'notes.md', content: ATTACHMENT_BODY });
   });
 
-  it('savePlanAttachment invokes save_todo_attachment with masterTaskId, fileName, content', async () => {
+  it('savePlanAttachment invokes save_todo_attachment with masterTaskId, fileName, sourcePath', async () => {
     invokeMock.mockResolvedValue({ ok: true });
     await savePlanAttachment({
       masterTaskId: 'task_alpha',
       fileName: 'notes.md',
-      content: '# Saved',
+      sourcePath: '/tmp/notes.md',
     });
     expect(invokeMock).toHaveBeenCalledWith('save_todo_attachment', {
       masterTaskId: 'task_alpha',
       fileName: 'notes.md',
-      content: '# Saved',
+      sourcePath: '/tmp/notes.md',
     });
   });
 
@@ -128,12 +128,15 @@ describe('mountPlanTaskSplit attachment editor modal', () => {
 
   function mockHappyPath() {
     getJsonMock.mockResolvedValue([sampleMaster]);
-    invokeMock.mockImplementation(async (cmd) => {
+    invokeMock.mockImplementation(async (cmd, args) => {
       if (cmd === 'list_todo_attachments') {
         return { attachments: sampleAttachments, _status: 200 };
       }
       if (cmd === 'read_todo_attachment') {
         return { file_name: 'notes.md', content: ATTACHMENT_BODY };
+      }
+      if (cmd === 'stage_todo_attachment_source') {
+        return { source_path: `/tmp/staged/${args?.preferredName || 'notes.md'}` };
       }
       if (cmd === 'save_todo_attachment') {
         return { ok: true };
@@ -200,10 +203,14 @@ describe('mountPlanTaskSplit attachment editor modal', () => {
     editor.querySelector('[data-action="save-attachment"]').click();
 
     await vi.waitFor(() => {
+      expect(invokeMock).toHaveBeenCalledWith('stage_todo_attachment_source', {
+        preferredName: 'notes.md',
+        content: '# Saved attachment\n\nUpdated.',
+      });
       expect(invokeMock).toHaveBeenCalledWith('save_todo_attachment', {
         masterTaskId: 'task_alpha',
         fileName: 'notes.md',
-        content: '# Saved attachment\n\nUpdated.',
+        sourcePath: '/tmp/staged/notes.md',
       });
     });
     expect(invokeMock).not.toHaveBeenCalledWith('update_todo_md', expect.anything());
@@ -258,12 +265,15 @@ describe('mountPlanTaskSplit attachment editor modal', () => {
 
   it('keeps editor content and shows error when save fails', async () => {
     getJsonMock.mockResolvedValue([sampleMaster]);
-    invokeMock.mockImplementation(async (cmd) => {
+    invokeMock.mockImplementation(async (cmd, args) => {
       if (cmd === 'list_todo_attachments') {
         return { attachments: sampleAttachments, _status: 200 };
       }
       if (cmd === 'read_todo_attachment') {
         return { file_name: 'notes.md', content: ATTACHMENT_BODY };
+      }
+      if (cmd === 'stage_todo_attachment_source') {
+        return { source_path: `/tmp/staged/${args?.preferredName || 'notes.md'}` };
       }
       if (cmd === 'save_todo_attachment') {
         return { error: 'Disk full', _status: 500 };

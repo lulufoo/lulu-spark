@@ -192,16 +192,21 @@ export async function listPlanAttachments({ masterTaskId } = {}) {
   return [];
 }
 
-export async function addPlanAttachment({ masterTaskId, fileName, content } = {}) {
-  return invokePlanPlain('add_todo_attachment', { masterTaskId, fileName, content });
+/** Stage markdown into Host cache; returns `{ source_path }` for add/save. */
+export async function stagePlanAttachmentSource({ preferredName, content } = {}) {
+  return invokePlanPlain('stage_todo_attachment_source', { preferredName, content });
+}
+
+export async function addPlanAttachment({ masterTaskId, sourcePath } = {}) {
+  return invokePlanPlain('add_todo_attachment', { masterTaskId, sourcePath });
 }
 
 export async function readPlanAttachment({ masterTaskId, fileName } = {}) {
   return invokePlanPlain('read_todo_attachment', { masterTaskId, fileName });
 }
 
-export async function savePlanAttachment({ masterTaskId, fileName, content } = {}) {
-  return invokePlanPlain('save_todo_attachment', { masterTaskId, fileName, content });
+export async function savePlanAttachment({ masterTaskId, fileName, sourcePath } = {}) {
+  return invokePlanPlain('save_todo_attachment', { masterTaskId, fileName, sourcePath });
 }
 
 export async function deletePlanAttachment({ masterTaskId, fileName } = {}) {
@@ -1626,10 +1631,18 @@ export function mountPlanTaskSplit(container, opts = {}) {
     busy = true;
     paint();
     try {
+      const staged = await stagePlanAttachmentSource({
+        preferredName: fileName,
+        content,
+      });
+      const sourcePath = staged?.source_path || staged?.sourcePath;
+      if (!sourcePath) {
+        throw new Error('Failed to stage attachment');
+      }
       await savePlanAttachment({
         masterTaskId: selectedMasterId,
         fileName,
-        content,
+        sourcePath,
       });
       if (disposed) return;
       setAttachmentEditor({
@@ -1834,10 +1847,17 @@ export function mountPlanTaskSplit(container, opts = {}) {
     busy = true;
     paint();
     try {
+      const staged = await stagePlanAttachmentSource({
+        preferredName: picked.fileName,
+        content: picked.content,
+      });
+      const sourcePath = staged?.source_path || staged?.sourcePath;
+      if (!sourcePath) {
+        throw new Error('Failed to stage attachment');
+      }
       await addPlanAttachment({
         masterTaskId: selectedMasterId,
-        fileName: picked.fileName,
-        content: picked.content,
+        sourcePath,
       });
       attachmentsError = '';
       busy = false;

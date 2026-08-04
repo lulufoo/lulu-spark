@@ -110,10 +110,16 @@ pub fn set_todo_master_status_json(
 
 pub fn add_todo_attachment_json(
     master_task_id: &str,
-    file_name: &str,
+    source_path: &str,
+) -> Result<Value, String> {
+    map_invoke_value(todo_task::add_attachment(master_task_id, source_path))
+}
+
+pub fn stage_todo_attachment_source_json(
+    preferred_name: &str,
     content: &str,
 ) -> Result<Value, String> {
-    map_invoke_value(todo_task::add_attachment(master_task_id, file_name, content))
+    map_invoke_value(todo_task::stage_attachment_source(preferred_name, content))
 }
 
 pub fn list_todo_attachments_json(master_task_id: &str) -> Result<Value, String> {
@@ -130,9 +136,13 @@ pub fn read_todo_attachment_json(
 pub fn save_todo_attachment_json(
     master_task_id: &str,
     file_name: &str,
-    content: &str,
+    source_path: &str,
 ) -> Result<Value, String> {
-    map_invoke_value(todo_task::save_attachment(master_task_id, file_name, content))
+    map_invoke_value(todo_task::save_attachment(
+        master_task_id,
+        file_name,
+        source_path,
+    ))
 }
 
 pub fn delete_todo_attachment_json(
@@ -356,14 +366,26 @@ pub async fn set_todo_master_status(
 }
 
 #[tauri::command]
-pub async fn add_todo_attachment(
+pub async fn stage_todo_attachment_source(
     _app: AppHandle,
-    master_task_id: String,
-    file_name: String,
+    preferred_name: String,
     content: String,
 ) -> Result<Value, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        add_todo_attachment_json(&master_task_id, &file_name, &content)
+        stage_todo_attachment_source_json(&preferred_name, &content)
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+pub async fn add_todo_attachment(
+    _app: AppHandle,
+    master_task_id: String,
+    source_path: String,
+) -> Result<Value, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        add_todo_attachment_json(&master_task_id, &source_path)
     })
     .await
     .map_err(|e| e.to_string())?
@@ -397,10 +419,10 @@ pub async fn save_todo_attachment(
     _app: AppHandle,
     master_task_id: String,
     file_name: String,
-    content: String,
+    source_path: String,
 ) -> Result<Value, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        save_todo_attachment_json(&master_task_id, &file_name, &content)
+        save_todo_attachment_json(&master_task_id, &file_name, &source_path)
     })
     .await
     .map_err(|e| e.to_string())?
