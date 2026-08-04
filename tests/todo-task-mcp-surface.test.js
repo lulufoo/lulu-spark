@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 
-/** tech-doc 公开契约映射 — todo_* MCP tools (+ update_todo_sub); no complete_plan_sub. */
+/** tech-doc 公开契约映射 — todo_* MCP tools (+ update_todo_sub / list_todo_categories); no complete_plan_sub. */
 const EXPECTED_TODO_TOOLS = [
   'create_todo_task',
   'update_todo_task',
@@ -21,6 +21,7 @@ const EXPECTED_TODO_TOOLS = [
   'list_todo_attachments',
   'get_todo_attachment',
   'update_todo_attachment',
+  'list_todo_categories',
 ];
 
 const FORBIDDEN_PLAN_TOOLS = [
@@ -39,8 +40,23 @@ const FORBIDDEN_PLAN_TOOLS = [
   'update_plan_attachment',
 ];
 
+/** L09#4 — MCP must not expose category directory create/delete. */
+const FORBIDDEN_CATEGORY_CRUD_TOOLS = [
+  'create_todo_category',
+  'delete_todo_category',
+  'add_todo_category',
+  'remove_todo_category',
+];
+
 function registeredToolNames(src) {
   return [...src.matchAll(/registerTool\(\s*['"]([^'"]+)['"]/g)].map((m) => m[1]);
+}
+
+function toolBlock(src, toolName) {
+  const start = src.indexOf(`registerTool(\n    '${toolName}'`);
+  expect(start, `${toolName} registration missing`).toBeGreaterThanOrEqual(0);
+  const next = src.indexOf('registerTool(', start + 1);
+  return src.slice(start, next === -1 ? undefined : next);
 }
 
 describe('MCP tool surface hard-cut to todo_* (tech-doc T7 / SK-2)', () => {
@@ -90,5 +106,66 @@ describe('MCP tool surface hard-cut to todo_* (tech-doc T7 / SK-2)', () => {
   it('npm test includes todo-task MCP surface test', () => {
     const pkg = JSON.parse(readFileSync(join(repoRoot, 'package.json'), 'utf8'));
     expect(pkg.scripts.test).toContain('tests/todo-task-mcp-surface.test.js');
+  });
+});
+
+describe('MCP category surface (tech-doc T-3 / AC1–AC4 / L09#4)', () => {
+  it('registers list_todo_categories as thin proxy GET to Sidecar list-categories', () => {
+    const src = readFileSync(join(repoRoot, 'packages/knowledge-mcp/index.mjs'), 'utf8');
+    const block = toolBlock(src, 'list_todo_categories');
+    expect(block).toMatch(/proxyGet\s*\(\s*[`'"]\/api\/todo-task-list-categories/);
+    // Protocol Adapter must not call Host category APIs directly
+    expect(block).not.toMatch(/invoke|tauri|list_todo_categories\s*\(/i);
+  });
+
+  it('forbids MCP category directory create/delete tools (L09#4)', () => {
+    const src = readFileSync(join(repoRoot, 'packages/knowledge-mcp/index.mjs'), 'utf8');
+    const names = registeredToolNames(src);
+    for (const tool of FORBIDDEN_CATEGORY_CRUD_TOOLS) {
+      expect(names, `forbidden category CRUD tool ${tool}`).not.toContain(tool);
+    }
+  });
+
+  it('create_todo_task schema exposes optional category_id and forwards when present', () => {
+    const src = readFileSync(join(repoRoot, 'packages/knowledge-mcp/index.mjs'), 'utf8');
+    const block = toolBlock(src, 'create_todo_task');
+    expect(block).toMatch(/category_id\s*:\s*z\.string\(\)[\s\S]*?\.optional\(\)/);
+    expect(block).toMatch(/if\s*\(\s*category_id\s*!=\s*null\s*\)/);
+    expect(block).toMatch(/body\.category_id\s*=\s*category_id/);
+    expect(block).toContain("proxyPost('/api/todo-task-create'");
+  });
+
+  it('list_todo_tasks accepts optional category_id filter via Sidecar query', () => {
+    const src = readFileSync(join(repoRoot, 'packages/knowledge-mcp/index.mjs'), 'utf8');
+    const block = toolBlock(src, 'list_todo_tasks');
+    expect(block).toMatch(/category_id\s*:\s*z\.string\(\)[\s\S]*?\.optional\(\)/);
+    // Omit → unfiltered GET /api/todo-tasks; with id → query param
+    expect(block).toMatch(/\/api\/todo-tasks/);
+    expect(block).toMatch(/category_id/);
+    expect(block).toMatch(/URLSearchParams|category_id=/);
+  });
+
+  it('update_todo_task optional category_id can set category alone (no dedicated set tool)', () => {
+    const src = readFileSync(join(repoRoot, 'packages/knowledge-mcp/index.mjs'), 'utf8');
+    const names = registeredToolNames(src);
+    expect(names).not.toContain('set_todo_category');
+    expect(names).not.toContain('set_todo_task_category');
+
+    const block = toolBlock(src, 'update_todo_task');
+    expect(block).toMatch(/category_id\s*:\s*z\.string\(\)[\s\S]*?\.optional\(\)/);
+    expect(block).toMatch(/body\.category_id\s*=\s*category_id/);
+    // Allow update with only category_id (title/todo_md may both be omitted)
+    expect(block).toMatch(/category_id\s*==\s*null/);
+    expect(block).toContain("proxyPost('/api/todo-task-update'");
+  });
+
+  it('Sidecar local_http exposes list-categories route and category_id on create/list/update', () => {
+    const httpSrc = readFileSync(
+      join(repoRoot, 'src-tauri/src/services/local_http/mod.rs'),
+      'utf8',
+    );
+    expect(httpSrc).toMatch(/\/api\/todo-task-list-categories/);
+    // create/update handlers must read category_id from JSON body
+    expect(httpSrc).toMatch(/category_id/);
   });
 });

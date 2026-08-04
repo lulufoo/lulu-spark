@@ -2539,3 +2539,188 @@ fn post_todo_task_add_sub_missing_master_still_400_with_content_present() {
         });
     });
 }
+
+// --- t3: Sidecar HTTP category surface (list categories, create/list/update category_id) ---
+
+#[test]
+fn get_todo_task_list_categories_includes_default_uncategorized() {
+    with_todo_task_http_test(|| {
+        let fixture = setup_repo_for_todo_task();
+        let repo_root = fixture.repo_root.clone();
+        with_server(repo_root, |port| {
+            let (status, body) = http_get(port, "/api/todo-task-list-categories");
+            assert_eq!(status, 200);
+            let cats = body["categories"].as_array().expect("categories array");
+            assert!(
+                cats.iter().any(|c| {
+                    c["id"] == crate::services::todo_task::types::DEFAULT_CATEGORY_ID
+                        && c["name"] == crate::services::todo_task::types::DEFAULT_CATEGORY_NAME
+                        && c["is_default"] == true
+                }),
+                "must include built-in 待分类, got {cats:?}"
+            );
+        });
+    });
+}
+
+#[test]
+fn post_todo_task_create_omits_category_id_falls_to_default() {
+    with_todo_task_http_test(|| {
+        let fixture = setup_repo_for_todo_task();
+        let repo_root = fixture.repo_root.clone();
+        with_server(repo_root, |port| {
+            let (status, body) = http_post(
+                port,
+                "/api/todo-task-create",
+                &json!({ "title": "No cat", "sub_titles": ["S"] }),
+            );
+            assert_eq!(status, 201);
+            assert_eq!(
+                body["task"]["category_id"],
+                crate::services::todo_task::types::DEFAULT_CATEGORY_ID
+            );
+        });
+    });
+}
+
+#[test]
+fn post_todo_task_create_with_valid_category_id_assigns_it() {
+    with_todo_task_http_test(|| {
+        let fixture = setup_repo_for_todo_task();
+        let repo_root = fixture.repo_root.clone();
+        with_server(repo_root, |port| {
+            let created_cat = crate::services::todo_task::create_todo_category("Work");
+            assert_eq!(created_cat["_status"], 201);
+            let cat_id = created_cat["category_id"].as_str().expect("cat id").to_string();
+
+            let (status, body) = http_post(
+                port,
+                "/api/todo-task-create",
+                &json!({
+                    "title": "In work",
+                    "sub_titles": ["S"],
+                    "category_id": cat_id,
+                }),
+            );
+            assert_eq!(status, 201);
+            assert_eq!(body["task"]["category_id"], cat_id);
+        });
+    });
+}
+
+#[test]
+fn post_todo_task_create_unknown_category_id_rejects() {
+    with_todo_task_http_test(|| {
+        let fixture = setup_repo_for_todo_task();
+        let repo_root = fixture.repo_root.clone();
+        with_server(repo_root, |port| {
+            let (status, body) = http_post(
+                port,
+                "/api/todo-task-create",
+                &json!({
+                    "title": "Bad cat",
+                    "sub_titles": ["S"],
+                    "category_id": "cat_missing_zzz",
+                }),
+            );
+            assert_eq!(status, 400);
+            assert!(body.get("error").is_some());
+            assert!(body.get("_status").is_none());
+        });
+    });
+}
+
+#[test]
+fn get_todo_tasks_optional_category_id_filters_and_omission_lists_all() {
+    with_todo_task_http_test(|| {
+        let fixture = setup_repo_for_todo_task();
+        let repo_root = fixture.repo_root.clone();
+        with_server(repo_root, |port| {
+            let created_cat = crate::services::todo_task::create_todo_category("Filter");
+            let cat_id = created_cat["category_id"].as_str().expect("id").to_string();
+
+            let (s1, b1) = http_post(
+                port,
+                "/api/todo-task-create",
+                &json!({ "title": "In filter", "sub_titles": ["S"], "category_id": cat_id }),
+            );
+            assert_eq!(s1, 201);
+            let in_id = b1["master_task_id"].as_str().unwrap().to_string();
+
+            let (s2, b2) = http_post(
+                port,
+                "/api/todo-task-create",
+                &json!({ "title": "Default one", "sub_titles": ["S"] }),
+            );
+            assert_eq!(s2, 201);
+            let def_id = b2["master_task_id"].as_str().unwrap().to_string();
+
+            let (all_status, all_body) = http_get_with_response(port, "/api/todo-tasks");
+            assert_eq!(all_status, 200);
+            let all = all_body.as_array().expect("array");
+            assert!(all.iter().any(|t| t["master_task_id"] == in_id));
+            assert!(all.iter().any(|t| t["master_task_id"] == def_id));
+
+            let (f_status, f_body) =
+                http_get_with_response(port, &format!("/api/todo-tasks?category_id={cat_id}"));
+            assert_eq!(f_status, 200);
+            let filtered = f_body.as_array().expect("filtered array");
+            assert_eq!(filtered.len(), 1);
+            assert_eq!(filtered[0]["master_task_id"], in_id);
+        });
+    });
+}
+
+#[test]
+fn post_todo_task_update_category_id_alone_sets_category() {
+    with_todo_task_http_test(|| {
+        let fixture = setup_repo_for_todo_task();
+        let repo_root = fixture.repo_root.clone();
+        with_server(repo_root, |port| {
+            let created_cat = crate::services::todo_task::create_todo_category("Later");
+            let cat_id = created_cat["category_id"].as_str().expect("id").to_string();
+            let (master_id, _, _) = create_todo_master(port, "Move me", &["S"]);
+
+            let (status, body) = http_post(
+                port,
+                "/api/todo-task-update",
+                &json!({
+                    "master_task_id": master_id,
+                    "category_id": cat_id,
+                }),
+            );
+            assert_eq!(status, 200);
+            assert_eq!(body["task"]["category_id"], cat_id);
+
+            let (_, got) = http_get(port, &format!("/api/todo-task?id={master_id}"));
+            assert_eq!(got["category_id"], cat_id);
+        });
+    });
+}
+
+#[test]
+fn post_todo_task_update_unknown_category_id_rejects() {
+    with_todo_task_http_test(|| {
+        let fixture = setup_repo_for_todo_task();
+        let repo_root = fixture.repo_root.clone();
+        with_server(repo_root, |port| {
+            let (master_id, _, _) = create_todo_master(port, "Keep default", &["S"]);
+            let (status, body) = http_post(
+                port,
+                "/api/todo-task-update",
+                &json!({
+                    "master_task_id": master_id,
+                    "category_id": "cat_does_not_exist",
+                }),
+            );
+            assert_eq!(status, 400);
+            assert!(body.get("error").is_some());
+
+            let (_, got) = http_get(port, &format!("/api/todo-task?id={master_id}"));
+            assert_eq!(
+                got["category_id"],
+                crate::services::todo_task::types::DEFAULT_CATEGORY_ID
+            );
+        });
+    });
+}

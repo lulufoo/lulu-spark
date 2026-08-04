@@ -277,7 +277,13 @@ fn handle_request(repo_root: &PathBuf, port: u16, request: tiny_http::Request) {
                 return;
             }
             "/api/todo-tasks" => {
-                handle_todo_tasks_get(request);
+                handle_todo_tasks_get(request, &url);
+                return;
+            }
+            "/api/todo-task-list-categories" => {
+                let value = todo_task::list_todo_categories();
+                let (status, body) = map_value_to_response(value);
+                respond_raw(request, status, body);
                 return;
             }
             "/api/todo-task" => {
@@ -360,10 +366,29 @@ fn handle_read_later_get(request: tiny_http::Request) {
     respond_with_cors(request, 200, body);
 }
 
-fn handle_todo_tasks_get(request: tiny_http::Request) {
+fn handle_todo_tasks_get(request: tiny_http::Request, url: &str) {
     let value = todo_task::list_all();
     if value.is_array() {
-        let body = todo_tasks_list_response_body(&value);
+        let params = parse_query(url);
+        let filtered = match params
+            .get("category_id")
+            .map(String::as_str)
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+        {
+            None => value,
+            Some(category_id) => {
+                let arr = value
+                    .as_array()
+                    .expect("list_all array")
+                    .iter()
+                    .filter(|t| t.get("category_id").and_then(|v| v.as_str()) == Some(category_id))
+                    .cloned()
+                    .collect::<Vec<_>>();
+                Value::Array(arr)
+            }
+        };
+        let body = todo_tasks_list_response_body(&filtered);
         respond_with_cors(request, 200, body);
         return;
     }
@@ -666,11 +691,28 @@ fn handle_todo_task_update_payload(payload: &Value) -> Value {
         Some(Value::String(s)) => Some(s.as_str()),
         Some(_) => return json!({ "error": "Invalid todo_md", "_status": 400 }),
     };
-    if title.is_none() && todo_md.is_none() {
+    let category_id = match payload.get("category_id") {
+        None => None,
+        Some(Value::String(s)) => Some(s.as_str()),
+        Some(_) => return json!({ "error": "Invalid category_id", "_status": 400 }),
+    };
+    if title.is_none() && todo_md.is_none() && category_id.is_none() {
+        // Keep legacy wording when no updatable field is present (pre-category clients).
         return json!({ "error": "Missing title or todo_md", "_status": 400 });
     }
 
-    todo_task::update_master_fields(master_task_id, title, todo_md)
+    if title.is_some() || todo_md.is_some() {
+        let updated = todo_task::update_master_fields(master_task_id, title, todo_md);
+        if updated.get("_status").and_then(|v| v.as_u64()).unwrap_or(200) >= 400 {
+            return updated;
+        }
+        if let Some(cid) = category_id {
+            return todo_task::set_master_category(master_task_id, cid);
+        }
+        return updated;
+    }
+
+    todo_task::set_master_category(master_task_id, category_id.unwrap_or(""))
 }
 
 fn handle_todo_task_create(mut request: tiny_http::Request) {
@@ -696,6 +738,15 @@ fn handle_todo_task_create(mut request: tiny_http::Request) {
         Some(Value::String(s)) => s.as_str(),
         Some(_) => {
             respond_json(request, 400, json!({ "error": "Invalid todo_md" }));
+            return;
+        }
+    };
+
+    let category_id = match payload.get("category_id") {
+        None | Some(Value::Null) => None,
+        Some(Value::String(s)) => Some(s.as_str()),
+        Some(_) => {
+            respond_json(request, 400, json!({ "error": "Invalid category_id" }));
             return;
         }
     };
@@ -728,9 +779,9 @@ fn handle_todo_task_create(mut request: tiny_http::Request) {
     let value = match &sub_titles {
         Some(subs) => {
             let refs: Vec<&str> = subs.iter().map(String::as_str).collect();
-            todo_task::create_master_with_subs_and_todo(title, Some(&refs), todo_md)
+            todo_task::create_master_with_category(title, Some(&refs), todo_md, category_id)
         }
-        None => todo_task::create_master_with_subs_and_todo(title, None, todo_md),
+        None => todo_task::create_master_with_category(title, None, todo_md, category_id),
     };
     respond_from_value(request, value);
 }

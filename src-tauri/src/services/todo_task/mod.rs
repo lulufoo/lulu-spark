@@ -482,13 +482,9 @@ pub fn ensure_default_category() -> Result<CategoriesFile, String> {
 
 fn ensure_default_category_unlocked() -> Result<CategoriesFile, String> {
     let path = paths::plan_tasks_categories_path().map_err(|e| format!("{e:?}"))?;
-    if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent).map_err(|e| e.to_string())?;
-    }
     if !path.is_file() {
         let cats = default_categories_file();
-        let value = serde_json::to_value(&cats).map_err(|e| e.to_string())?;
-        atomic_json::write_json(&path, &value)?;
+        save_categories_unlocked(&cats)?;
         return Ok(cats);
     }
     let mut cats = load_categories()?;
@@ -501,8 +497,7 @@ fn ensure_default_category_unlocked() -> Result<CategoriesFile, String> {
                 is_default: true,
             },
         );
-        let value = serde_json::to_value(&cats).map_err(|e| e.to_string())?;
-        atomic_json::write_json(&path, &value)?;
+        save_categories_unlocked(&cats)?;
     }
     Ok(cats)
 }
