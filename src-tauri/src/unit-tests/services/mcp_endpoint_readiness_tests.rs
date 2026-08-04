@@ -249,6 +249,74 @@ fn readiness_module_does_not_import_cursor_sdk_or_adapter() {
 }
 
 #[test]
+fn ready_transports_inject_mcp_key_path_not_bare_mcp() {
+    mcp_server_registry::clear_for_tests();
+    mcp_server_registry::seed_defaults();
+
+    let (http_port, mcp_port, http_stop, mcp_stop) = healthy_pair();
+    let ready =
+        ready_transports_for_business_key(SEEDED_BUSINESS_KEY, http_port, mcp_port).expect("ready");
+    assert_eq!(ready.transports.len(), 1);
+    let url = &ready.transports[0].url;
+    let expected = format!("http://127.0.0.1:{mcp_port}/mcp/{SEEDED_BUSINESS_KEY}");
+    assert_eq!(
+        url, &expected,
+        "Binding key=todo_task must inject /mcp/todo_task, not bare /mcp"
+    );
+    // Regression: bare /mcp overwrite must fail.
+    assert_ne!(
+        url,
+        &format!("http://127.0.0.1:{mcp_port}/mcp"),
+        "readiness must not overwrite with bare /mcp"
+    );
+    let last = url.rsplit('/').next().expect("url path segment");
+    assert_eq!(
+        last, SEEDED_BUSINESS_KEY,
+        "injected URL path last segment must equal Binding key (key≡scene_slot)"
+    );
+
+    http_stop.store(true, Ordering::SeqCst);
+    mcp_stop.store(true, Ordering::SeqCst);
+    mcp_server_registry::clear_for_tests();
+}
+
+#[test]
+fn readiness_preserves_registry_mcp_key_path_when_rebinding_port() {
+    mcp_server_registry::clear_for_tests();
+    let key = "todo_task";
+    let mut headers = std::collections::BTreeMap::new();
+    headers.insert(
+        "Accept".into(),
+        "application/json, text/event-stream".into(),
+    );
+    mcp_server_registry::register(
+        key,
+        mcp_server_registry::McpServerConfig {
+            capability_description: "path slot fixture".into(),
+            http_transport: HttpMcpTransport {
+                name: "workbench".into(),
+                // Registry already carries /mcp/<key>; readiness must keep the path.
+                url: format!("http://127.0.0.1:1/mcp/{key}"),
+                headers,
+            },
+        },
+    )
+    .expect("register");
+
+    let (http_port, mcp_port, http_stop, mcp_stop) = healthy_pair();
+    let ready = ready_transports_for_business_key(key, http_port, mcp_port).expect("ready");
+    assert_eq!(
+        ready.transports[0].url,
+        format!("http://127.0.0.1:{mcp_port}/mcp/{key}"),
+        "must rebind port but keep /mcp/<key>; must not strip to bare /mcp"
+    );
+
+    http_stop.store(true, Ordering::SeqCst);
+    mcp_stop.store(true, Ordering::SeqCst);
+    mcp_server_registry::clear_for_tests();
+}
+
+#[test]
 fn host_loop_still_does_not_import_cursor_sdk() {
     // Preserve Host read-only consumption boundary: loop may read McpServerConfig,
     // but must not import Cursor SDK.

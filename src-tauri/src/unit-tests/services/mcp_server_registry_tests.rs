@@ -115,6 +115,38 @@ fn seeded_config_exposes_structured_http_transport() {
 }
 
 #[test]
+fn seeded_lookup_url_uses_mcp_key_path_slot_not_bare_mcp() {
+    clear_for_tests();
+    seed_defaults();
+    let got = lookup(SEEDED_BUSINESS_KEY).expect("seeded");
+    let expected = format!(
+        "http://127.0.0.1:{}/mcp/{}",
+        crate::DEFAULT_MCP_PORT,
+        SEEDED_BUSINESS_KEY
+    );
+    assert_eq!(
+        got.http_transport().url, expected,
+        "registry seed/lookup must use /mcp/<key>, not bare /mcp"
+    );
+    // Regression: bare /mcp must fail this assertion (key≡scene_slot).
+    assert!(
+        !got.http_transport().url.ends_with("/mcp"),
+        "must not seed bare /mcp: {}",
+        got.http_transport().url
+    );
+    let last = got
+        .http_transport()
+        .url
+        .rsplit('/')
+        .next()
+        .expect("url path segment");
+    assert_eq!(
+        last, SEEDED_BUSINESS_KEY,
+        "URL path last segment must equal Binding key"
+    );
+}
+
+#[test]
 fn http_transport_is_not_a_user_setting_surface() {
     // Transport lives on Host registry config, not settings.
     let settings_src = include_str!("../../config/settings.rs");
