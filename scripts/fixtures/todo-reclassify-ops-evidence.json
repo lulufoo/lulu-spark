@@ -1,0 +1,24 @@
+{
+  "default_category": {
+    "id": "uncategorized",
+    "name": "待分类"
+  },
+  "harness": "cargo test --lib t5_independent_reclassify_ops_demo (Host set_master_category; MCP update_todo_task category_id proxy)",
+  "invalid_category_rejected": true,
+  "live_mcp_note": "IDE MCP schema at ops time lacked category_id; verified via worktree Host unit harness",
+  "no_mcp_category_crud": true,
+  "recorded_at": "2026-08-04T06:03:23.754690+00:00",
+  "reversible": true,
+  "samples": [
+    {
+      "from_category_id": "uncategorized",
+      "master_task_id": "task_07a6f314e4e6",
+      "status": "moved",
+      "title": "T5 reclass sample",
+      "to_category_id": "catf90b3c3fabaf",
+      "to_category_name": "T5 Ops Target",
+      "via": "set_master_category"
+    }
+  ],
+  "task_id": "t5"
+}

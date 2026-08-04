@@ -3684,3 +3684,81 @@ fn create_default_and_migration_share_same_default_category_id() {
         assert_eq!(create_id, DEFAULT_CATEGORY_ID);
     });
 }
+
+/// T5 / SK-4 ops harness: default「待分类」→ temp category via set_master_category
+/// (same Host path as MCP `update_todo_task` category_id). Optional evidence dump:
+/// `T5_OPS_EVIDENCE_OUT=/abs/path.json`.
+#[test]
+fn t5_independent_reclassify_ops_demo() {
+    with_todo_task_sandbox(|_| {
+        ensure_default_category().expect("ensure");
+        let created = create_master_with_category("T5 reclass sample", None, "", None);
+        assert_eq!(created["_status"], 201);
+        let master_id = created["master_task_id"].as_str().expect("id").to_string();
+        assert_eq!(
+            created["task"]["category_id"],
+            DEFAULT_CATEGORY_ID,
+            "sample starts in 待分类"
+        );
+
+        let cat = create_todo_category("T5 Ops Target");
+        assert_eq!(cat["_status"], 201);
+        let target_id = cat["category_id"].as_str().expect("id").to_string();
+        let target_name = cat["category"]["name"].as_str().expect("name").to_string();
+
+        let moved = set_master_category(&master_id, &target_id);
+        assert_eq!(moved["_status"], 200);
+        assert_eq!(moved["task"]["category_id"], target_id);
+        assert_eq!(get_by_id(&master_id)["category_id"], target_id);
+
+        let rejected = set_master_category(&master_id, "cat_invalid_t5_ops");
+        assert!(rejected["_status"].as_u64().unwrap_or(0) >= 400);
+        assert_eq!(
+            get_by_id(&master_id)["category_id"],
+            target_id,
+            "invalid category_id must not rewrite disk"
+        );
+
+        let restored = set_master_category(&master_id, DEFAULT_CATEGORY_ID);
+        assert_eq!(restored["_status"], 200);
+        assert_eq!(get_by_id(&master_id)["category_id"], DEFAULT_CATEGORY_ID);
+
+        let moved_again = set_master_category(&master_id, &target_id);
+        assert_eq!(moved_again["_status"], 200);
+        assert_eq!(get_by_id(&master_id)["category_id"], target_id);
+
+        if let Ok(out) = std::env::var("T5_OPS_EVIDENCE_OUT") {
+            let evidence = serde_json::json!({
+                "task_id": "t5",
+                "recorded_at": chrono::Utc::now().to_rfc3339(),
+                "harness": "cargo test --lib t5_independent_reclassify_ops_demo (Host set_master_category; MCP update_todo_task category_id proxy)",
+                "live_mcp_note": "IDE MCP schema at ops time lacked category_id; verified via worktree Host unit harness",
+                "default_category": {
+                    "id": DEFAULT_CATEGORY_ID,
+                    "name": DEFAULT_CATEGORY_NAME,
+                },
+                "samples": [{
+                    "master_task_id": master_id,
+                    "title": "T5 reclass sample",
+                    "from_category_id": DEFAULT_CATEGORY_ID,
+                    "to_category_id": target_id,
+                    "to_category_name": target_name,
+                    "via": "set_master_category",
+                    "status": "moved",
+                }],
+                "reversible": true,
+                "invalid_category_rejected": true,
+                "no_mcp_category_crud": true,
+            });
+            let path = Path::new(&out);
+            if let Some(parent) = path.parent() {
+                fs::create_dir_all(parent).expect("evidence parent");
+            }
+            fs::write(
+                path,
+                serde_json::to_string_pretty(&evidence).expect("serialize evidence"),
+            )
+            .expect("write evidence");
+        }
+    });
+}
