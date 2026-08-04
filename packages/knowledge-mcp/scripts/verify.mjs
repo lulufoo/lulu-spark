@@ -829,10 +829,10 @@ async function testSceneSlotPathRouting(workbenchUrl) {
       );
     }
 
-    // --- /mcp/cursor_ide: distinguishable from todo_task (corpus/archive seed) ---
+    // --- /mcp/cursor_ide: corpus/archive + todo (superset of todo_task) ---
     const ideNames = await connectAndListToolNames(mcpPort, 'cursor_ide');
     assertIncludesAll(ideNames, CORPUS_TOOLS, '/mcp/cursor_ide');
-    assertNoneOf(ideNames, TODO_SURFACE, '/mcp/cursor_ide');
+    assertIncludesAll(ideNames, TODO_SURFACE, '/mcp/cursor_ide');
     if (JSON.stringify(todoNames) === JSON.stringify(ideNames)) {
       throw new Error('todo_task and cursor_ide slots must expose distinguishable tools/list');
     }
@@ -986,7 +986,7 @@ async function testUnreachableWorkbenchHttp() {
 }
 
 async function runMcpClient(mcpPort) {
-  // cursor_ide slot: corpus/archive tools only
+  // cursor_ide slot: corpus/archive + todo tools
   const ideUrl = `http://127.0.0.1:${mcpPort}/mcp/cursor_ide`;
   const ideTransport = new StreamableHTTPClientTransport(new URL(ideUrl));
   const ideClient = new Client({ name: 'knowledge-mcp-verify-ide', version: '0.1.0' });
@@ -1001,8 +1001,8 @@ async function runMcpClient(mcpPort) {
     throw new Error(`cursor_ide missing archive tools: ${ideNames.join(', ')}`);
   }
   for (const tool of TODO_SURFACE) {
-    if (ideNames.includes(tool)) {
-      throw new Error(`cursor_ide must not expose todo tool ${tool}`);
+    if (!ideNames.includes(tool)) {
+      throw new Error(`cursor_ide missing todo tool ${tool}`);
     }
   }
 
@@ -1648,10 +1648,10 @@ async function assertAc2ThroughAc5Runtime(workbenchUrl) {
       throw new Error(`dual-slot stability: todo_task jitter ${todoA} vs ${todoB}`);
     }
 
-    // AC3 / A1 — cursor_ide tools/list
+    // AC3 / A1 — cursor_ide tools/list (corpus + todo)
     const ideA = await connectAndListToolNames(mcpPort, 'cursor_ide');
     assertIncludesAll(ideA, CORPUS_TOOLS, 'AC3 /mcp/cursor_ide');
-    assertNoneOf(ideA, TODO_SURFACE, 'AC3 /mcp/cursor_ide');
+    assertIncludesAll(ideA, TODO_SURFACE, 'AC3 /mcp/cursor_ide');
     const ideB = await connectAndListToolNames(mcpPort, 'cursor_ide');
     if (JSON.stringify(ideA) !== JSON.stringify(ideB)) {
       throw new Error(`dual-slot stability: cursor_ide jitter ${ideA} vs ${ideB}`);

@@ -131,8 +131,8 @@ async function runDualChannelLiveProbes(mcpPort) {
     }
   }
   for (const tool of EQUIVALENCE_TODO_TOOLS) {
-    if (ideNames.includes(tool)) {
-      throw new Error(`dual-channel AC3: cursor_ide must not expose ${tool}`);
+    if (!ideNames.includes(tool)) {
+      throw new Error(`dual-channel AC3: cursor_ide missing ${tool}`);
     }
   }
 

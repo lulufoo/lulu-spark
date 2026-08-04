@@ -19,12 +19,12 @@ const MCP_PORT = Number(process.env.MCP_PORT || 9876);
 /**
  * Registered scene_slot → API surface seeds (permission SSOT).
  * - todo_task: App Binding key; todo tools only
- * - cursor_ide: external IDE channel; corpus/archive tools only
+ * - cursor_ide: external IDE channel; corpus/archive + todo tools
  * @type {Readonly<Record<string, { includeCorpus: boolean, includeTodo: boolean }>>}
  */
 const SCENE_SLOT_API = Object.freeze({
   todo_task: Object.freeze({ includeCorpus: false, includeTodo: true }),
-  cursor_ide: Object.freeze({ includeCorpus: true, includeTodo: false }),
+  cursor_ide: Object.freeze({ includeCorpus: true, includeTodo: true }),
 });
 
 const REGISTERED_SCENE_SLOTS = Object.freeze(Object.keys(SCENE_SLOT_API));
