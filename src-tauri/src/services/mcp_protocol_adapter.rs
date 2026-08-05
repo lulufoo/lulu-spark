@@ -19,7 +19,7 @@ use axum::Router;
 use rmcp::{
     ServerHandler,
     model::{
-        CallToolRequestParams, CallToolResult, ContentBlock, ListToolsResult,
+        CallToolRequestParams, CallToolResponse, CallToolResult, ContentBlock, ListToolsResult,
         PaginatedRequestParams, ServerCapabilities, ServerInfo, Tool,
     },
     service::RequestContext,
@@ -136,12 +136,7 @@ pub async fn proxy_tool_call(
         }
         HttpMethod::Post => {
             let url = format!("{base}{}", route.api_path);
-            client
-                .post(url)
-                .header("Content-Type", "application/json")
-                .json(&args)
-                .send()
-                .await
+            client.post(url).json(&args).send().await
         }
     };
 
@@ -482,15 +477,11 @@ impl ServerHandler for SlotHandler {
         &self,
         request: CallToolRequestParams,
         _context: RequestContext<RoleServer>,
-    ) -> impl std::future::Future<Output = Result<rmcp::model::CallToolResponse, McpError>> + Send + '_
-    {
+    ) -> impl std::future::Future<Output = Result<CallToolResponse, McpError>> + Send + '_ {
         let slot = self.scene_slot.clone();
         let base = self.sidecar_base_url.clone();
         async move {
-            let args = match request.arguments {
-                Some(map) => Value::Object(map),
-                None => Value::Object(serde_json::Map::new()),
-            };
+            let args = Value::Object(request.arguments.unwrap_or_default());
             match proxy_tool_call(&base, &slot, request.name.as_ref(), args).await {
                 Ok(mapped) => Ok(mapped_to_call_tool_result(mapped).into()),
                 Err(msg) => Err(McpError::invalid_params(msg, None)),
@@ -580,7 +571,9 @@ pub fn start_embedded_mcp_runtime(
             let listener = match tokio::net::TcpListener::bind(bind_addr).await {
                 Ok(l) => l,
                 Err(err) => {
-                    let _ = tx.send(Err(err.to_string()));
+                    let _ = tx.send(Err(format!(
+                        "cannot bind {bind_addr}: {err}"
+                    )));
                     return;
                 }
             };

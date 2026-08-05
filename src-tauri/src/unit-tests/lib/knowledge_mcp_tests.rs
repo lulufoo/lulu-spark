@@ -189,6 +189,38 @@ fn default_mcp_port_is_9876() {
     assert_eq!(DEFAULT_MCP_PORT, 9876);
 }
 
+/// T5: Host cannot bind `127.0.0.1:9876` → fail-closed; MUST NOT fall back to Node spawn.
+#[test]
+fn host_setup_must_not_fall_back_to_node_spawn_on_embed_bind_failure() {
+    let lib_rs = std::fs::read_to_string(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src").join("lib.rs"),
+    )
+    .expect("read src-tauri/src/lib.rs");
+
+    assert!(
+        !lib_rs.contains("falling back to Node spawn"),
+        "T5: on embedded MCP bind failure Host must fail-closed — Node knowledge-mcp spawn fallback is forbidden"
+    );
+    assert!(
+        !lib_rs.contains("until T5 fail-closed"),
+        "T5: temporary Err→try_spawn_knowledge_mcp fallback comment/path must be removed"
+    );
+
+    // Err arm after start_embedded_mcp_runtime must not call try_spawn_knowledge_mcp.
+    let start_idx = lib_rs
+        .find("start_embedded_mcp_runtime")
+        .expect("Host setup must call start_embedded_mcp_runtime");
+    let setup_slice = &lib_rs[start_idx..];
+    let end_idx = setup_slice
+        .find("seed_defaults")
+        .unwrap_or(setup_slice.len().min(2500));
+    let host_mcp_boot = &setup_slice[..end_idx];
+    assert!(
+        !host_mcp_boot.contains("try_spawn_knowledge_mcp"),
+        "T5: Host MCP bind-failure path must not call try_spawn_knowledge_mcp / packages/knowledge-mcp/index.mjs"
+    );
+}
+
 #[test]
 fn create_todo_task_mcp_tool_e2e_with_local_http() {
     let repo_root = repo_root_with_sidecar();

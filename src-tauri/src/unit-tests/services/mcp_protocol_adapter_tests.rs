@@ -301,17 +301,46 @@ fn stopping_mcp_leaves_sidecar_tiny_http_serving() {
     local_http::stop(http_handle);
 }
 
-/// Exception: MCP bind failure returns Err (fail-closed); must not pretend dual-listen succeeded.
+/// Normal: free port → MCP runtime binds and starts (Host :9876 contract shape).
+#[test]
+fn start_embedded_mcp_runtime_binds_when_port_free() {
+    let port = ephemeral_port();
+    let bind_addr: SocketAddr = format!("127.0.0.1:{port}").parse().expect("bind addr");
+
+    let handle =
+        start_embedded_mcp_runtime(McpRuntimeConfig { bind_addr }).expect("bind free port");
+    assert_eq!(handle.local_addr().ip().to_string(), "127.0.0.1");
+    assert_eq!(handle.local_addr().port(), port);
+
+    let (status, body) = http_get(&format!("http://127.0.0.1:{port}/health"));
+    assert_eq!(status, 200, "health after bind, body={body}");
+
+    stop_embedded_mcp_runtime(handle).expect("stop");
+}
+
+/// Exception: MCP bind failure returns Err (fail-closed) with a clear BindFailed error.
 #[test]
 fn start_embedded_mcp_runtime_fails_closed_when_port_busy() {
     let port = ephemeral_port();
     let bind_addr: SocketAddr = format!("127.0.0.1:{port}").parse().expect("bind addr");
     let _holder = TcpListener::bind(bind_addr).expect("occupy port");
 
-    let result = start_embedded_mcp_runtime(McpRuntimeConfig { bind_addr });
+    let err = match start_embedded_mcp_runtime(McpRuntimeConfig { bind_addr }) {
+        Ok(_) => panic!("busy port must fail closed (no silent dual-listen success)"),
+        Err(e) => e,
+    };
     assert!(
-        result.is_err(),
-        "busy port must fail closed (no silent dual-listen success)"
+        matches!(err, McpStartError::BindFailed(_)),
+        "bind conflict must be BindFailed, got {err:?}"
+    );
+    let msg = err.to_string();
+    assert!(
+        msg.contains("MCP bind failed"),
+        "error must be clear/prefixed, got {msg:?}"
+    );
+    assert!(
+        msg.len() > "MCP bind failed: ".len(),
+        "error must include underlying bind reason, got {msg:?}"
     );
 }
 

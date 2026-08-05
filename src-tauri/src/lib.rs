@@ -585,8 +585,8 @@ pub fn run() {
             if let Ok(repo_root) = crate::config::paths::repo_root() {
                 let http_port = services::local_http::DEFAULT_HTTP_PORT;
                 local_http.try_start(repo_root.clone(), http_port);
-                // Prefer embedded MCP runtime (dual-listen with Sidecar). On bind failure,
-                // fall back to Node spawn until T5 fail-closed / T7 hard-cut remove the path.
+                // Embedded MCP only (dual-listen with Sidecar). Bind failure is fail-closed:
+                // never fall back to spawning Node knowledge-mcp / packages/knowledge-mcp/index.mjs.
                 let mcp_bind = SocketAddr::from(([127, 0, 0, 1], DEFAULT_MCP_PORT));
                 match services::mcp_protocol_adapter::start_embedded_mcp_runtime(
                     services::mcp_protocol_adapter::McpRuntimeConfig {
@@ -597,17 +597,7 @@ pub fn run() {
                         embedded_mcp_handle = Some(handle);
                     }
                     Err(err) => {
-                        eprintln!("[mcp-runtime] embedded start failed: {err}; falling back to Node spawn");
-                        knowledge_child = try_spawn_knowledge_mcp(
-                            local_http.is_ready(),
-                            &repo_root,
-                            http_port,
-                        );
-                        knowledge_cfg = Some(KnowledgeMcpSpawnCfg {
-                            repo_root,
-                            http_port,
-                            mcp_port: DEFAULT_MCP_PORT,
-                        });
+                        eprintln!("[mcp-runtime] embedded start failed (fail-closed): {err}");
                     }
                 }
             }
