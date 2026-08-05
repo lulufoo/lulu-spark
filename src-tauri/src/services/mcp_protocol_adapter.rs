@@ -615,7 +615,9 @@ fn fetch_json_ok(
     Ok(json)
 }
 
-fn observe_dual_listen(mcp_port: u16, sidecar_port: u16) -> Result<bool, CloseGateError> {
+/// Observe same-process Sidecar HTTP + Host MCP dual listen (health contracts).
+/// Used by V5 close-gate and T9 Host dual-listen unit coverage.
+pub fn observe_dual_listen(mcp_port: u16, sidecar_port: u16) -> Result<bool, CloseGateError> {
     let client = reqwest::blocking::Client::builder()
         .timeout(std::time::Duration::from_secs(2))
         .build()

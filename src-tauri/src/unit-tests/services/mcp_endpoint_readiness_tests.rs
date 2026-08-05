@@ -531,3 +531,55 @@ fn t8_registry_and_binding_consumers_keep_default_mcp_slot_url_shape() {
 
     mcp_server_registry::clear_for_tests();
 }
+
+/// T9 / Boundary: Sidecar HTTP + Host MCP readiness fixtures stay JSON stubs —
+/// independent of Node knowledge-mcp / embedded MCP process model (T10 spirit).
+#[test]
+fn t9_sidecar_http_fixture_independent_of_mcp_process_model() {
+    let readiness_src = include_str!("../../services/mcp_endpoint_readiness.rs");
+    // Split literals so this gate does not match its own source text.
+    let forbidden = [
+        format!("{}{}", "packages/knowledge-mcp/", "index.mjs"),
+        format!("{}{}", "try_spawn_", "knowledge_mcp"),
+        format!("{}{}", "Knowledge", "McpProcess"),
+        format!("{}{}", "start_embedded_", "mcp_runtime"),
+        format!("{}{}", "todo-task-mcp-", "e2e"),
+    ];
+    for needle in &forbidden {
+        assert!(
+            !readiness_src.contains(needle),
+            "readiness module must not depend on MCP process model / Node spawn (`{needle}`)"
+        );
+    }
+
+    // Behavioral: stub-only healthy_pair proves readiness without MCP process spawn.
+    let (http_port, mcp_port, http_stop, mcp_stop) = healthy_pair();
+    let ready = probe_mcp_endpoint_readiness(&McpEndpointCandidates {
+        workbench_http_base: format!("http://127.0.0.1:{http_port}"),
+        host_mcp_base: format!("http://127.0.0.1:{mcp_port}"),
+        transport: sample_transport(&format!("http://127.0.0.1:{mcp_port}/mcp")),
+    })
+    .expect("T9: stub HTTP fixtures alone must satisfy readiness");
+    assert_eq!(ready.transports.len(), 1);
+    http_stop.store(true, Ordering::SeqCst);
+    mcp_stop.store(true, Ordering::SeqCst);
+}
+
+/// T9 / Exception: readiness suite must not treat Node knowledge-mcp spawn as a pass condition.
+#[test]
+fn t9_readiness_tests_block_node_spawn_pass_condition() {
+    let src = include_str!("mcp_endpoint_readiness_tests.rs");
+    let forbidden = [
+        format!("{}{}", "Command::new(", "\"node\")"),
+        format!("{}{}", "todo-task-mcp-", "e2e"),
+        format!("{}{}", "packages/knowledge-mcp/", "index.mjs"),
+        format!("{}{}", "try_spawn_", "knowledge_mcp"),
+        format!("{}{}", "KnowledgeMcpProcess::", "new("),
+    ];
+    for needle in &forbidden {
+        assert!(
+            !src.contains(needle),
+            "T9: readiness tests must not require Node spawn pass condition `{needle}`"
+        );
+    }
+}
