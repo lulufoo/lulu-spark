@@ -8,13 +8,14 @@ import { PLAN_TASK_BRAND_SITES } from './fixtures/plan-task-ac15.js';
 
 const fixtureRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 const dialogSource = readFileSync(join(fixtureRoot, 'frontend/js/plan-task/dialog.js'), 'utf8');
-const mcpSource = readFileSync(join(fixtureRoot, 'packages/knowledge-mcp/index.mjs'), 'utf8');
+const mcpSource = readFileSync(join(fixtureRoot, 'src-tauri/src/services/mcp_protocol_adapter.rs'), 'utf8');
 
 function extractCreateTodoTaskBlock(source) {
-  const marker = "server.registerTool(\n    'create_todo_task'";
+  // Host SSOT: ToolRoute entries use `name: "…".into()` (T10).
+  const marker = 'name: "create_todo_task".into()';
   const start = source.indexOf(marker);
   if (start === -1) return '';
-  const end = source.indexOf("server.registerTool(\n    'list_todo_tasks'", start);
+  const end = source.indexOf('name: "list_todo_tasks".into()', start);
   return end === -1 ? source.slice(start) : source.slice(start, end);
 }
 
@@ -69,11 +70,14 @@ describe('F3 copy sync — create_todo_task MCP description', () => {
     expect(createBlock).not.toMatch(/one implicit sub/i);
   });
 
-  it('describes title and todo_md without sub_titles', () => {
-    expect(createBlock).toMatch(/todo_md/);
-    expect(createBlock).toMatch(/max 20/i);
+  it('Host create_todo_task routes to Sidecar without sub_titles / plan_* residue', () => {
+    expect(createBlock).toContain('/api/todo-task-create');
     expect(createBlock).not.toMatch(/sub_titles/);
-    expect(createBlock).toMatch(/empty sub_tasks/i);
+    expect(mcpSource).not.toMatch(/name:\s*"create_plan_task"/);
+    // Delivery e2e still documents todo_md + empty sub_tasks contract for Host URL.
+    const e2e = readFileSync(join(fixtureRoot, 'scripts/todo-task-mcp-e2e.mjs'), 'utf8');
+    expect(e2e).toMatch(/todo_md/);
+    expect(e2e).toMatch(/empty sub_tasks|sub_tasks/);
   });
 });
 

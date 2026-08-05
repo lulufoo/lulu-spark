@@ -1,12 +1,21 @@
 use std::collections::BTreeSet;
 use std::io::{Read, Write};
 use std::net::{SocketAddr, TcpListener, TcpStream};
+use std::fs;
 use std::path::PathBuf;
 use std::thread;
 use std::time::Duration;
 
 use super::*;
 use crate::services::local_http;
+use crate::test_support::TestSandbox;
+use rmcp::{
+    ServiceExt,
+    model::{
+        CallToolRequestParams, ClientCapabilities, ClientInfo, Implementation,
+    },
+    transport::StreamableHttpClientTransport,
+};
 
 fn ephemeral_port() -> u16 {
     TcpListener::bind("127.0.0.1:0")
@@ -848,3 +857,185 @@ fn close_gate_smoke_rejects_unregistered_slot() {
     stop_embedded_mcp_runtime(mcp_handle).expect("stop MCP");
     local_http::stop(http_handle);
 }
+
+
+/// T10 / V4: Node `packages/knowledge-mcp/index.mjs` must not remain a runtime SSOT.
+#[test]
+fn p3_t10_knowledge_mcp_package_not_runtime_ssot() {
+    let index = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../packages/knowledge-mcp/index.mjs");
+    assert!(
+        !index.exists(),
+        "T10/V4: packages/knowledge-mcp/index.mjs must be archived/removed (not runtime SSOT); found {}",
+        index.display()
+    );
+    let pkg_json =
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../packages/knowledge-mcp/package.json");
+    assert!(
+        !pkg_json.exists(),
+        "T10/V4: packages/knowledge-mcp must not remain as an installable runtime package"
+    );
+}
+
+/// T10 / V2+V3: dual-slot tools/list + representative tools/call + unknown-slot hard-fail
+/// against Host MCP URL `http://127.0.0.1:9876` (Sidecar fixture stays process-independent).
+#[test]
+fn p3_t10_host_dual_slot_list_call_and_unknown_hard_fail_smoke() {
+    // Sidecar HTTP fixture: independent local_http on :8765 with migration gate planted.
+    let sandbox = TestSandbox::new();
+    let wb = sandbox.workbench_knowledge_root();
+    let todo_root = wb.join("todo_tasks");
+    fs::create_dir_all(&todo_root).expect("mkdir todo_tasks");
+    fs::write(todo_root.join(".migration_gate_passed"), b"ok\n").expect("plant migration gate");
+    fs::write(wb.join("index.json"), br#"{"entries":{}}"#).expect("plant empty corpus index");
+
+    let http_handle =
+        local_http::start(sandbox.config_dir().to_path_buf(), CLOSE_GATE_SIDECAR_PORT)
+            .expect("start Sidecar :8765 independent of MCP");
+    thread::sleep(Duration::from_millis(50));
+    let mcp_handle = start_embedded_mcp_runtime(McpRuntimeConfig {
+        bind_addr: format!("127.0.0.1:{CLOSE_GATE_MCP_PORT}")
+            .parse()
+            .expect("mcp addr"),
+    })
+    .expect("start Host MCP :9876");
+
+    let (sidecar_status, _) = http_get(&format!(
+        "http://127.0.0.1:{CLOSE_GATE_SIDECAR_PORT}/api/status"
+    ));
+    assert_eq!(
+        sidecar_status, 200,
+        "T10: Sidecar HTTP fixture must be independently observable on :8765"
+    );
+
+    let (mcp_health_status, mcp_health_body) =
+        http_get(&format!("http://127.0.0.1:{CLOSE_GATE_MCP_PORT}/health"));
+    assert_eq!(
+        mcp_health_status, 200,
+        "T10: Host MCP /health must succeed on :9876, body={mcp_health_body}"
+    );
+
+    let rt = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .expect("tokio");
+
+    let todo_names = rt
+        .block_on(super::run_initialize_and_list_tools(
+            CLOSE_GATE_MCP_PORT,
+            "todo_task",
+        ))
+        .expect("todo_task tools/list on Host :9876");
+    for tool in ["list_todo_tasks", "create_todo_task"] {
+        assert!(
+            todo_names.iter().any(|n| n == tool),
+            "T10/V2: todo_task missing {tool}; got {todo_names:?}"
+        );
+    }
+    for tool in CORPUS_TOOLS {
+        assert!(
+            !todo_names.iter().any(|n| n == *tool),
+            "T10/V2: todo_task must not expose corpus tool {tool}"
+        );
+    }
+
+    let ide_names = rt
+        .block_on(super::run_initialize_and_list_tools(
+            CLOSE_GATE_MCP_PORT,
+            "cursor_ide",
+        ))
+        .expect("cursor_ide tools/list on Host :9876");
+    for tool in CORPUS_TOOLS {
+        assert!(
+            ide_names.iter().any(|n| n == *tool),
+            "T10/V2: cursor_ide missing {tool}; got {ide_names:?}"
+        );
+    }
+    assert_ne!(
+        todo_names, ide_names,
+        "T10/V2: todo_task and cursor_ide tools/list must be distinguishable"
+    );
+
+    async fn list_and_call(
+        port: u16,
+        slot: &str,
+        tool: &str,
+        args: serde_json::Value,
+    ) -> Result<(Vec<String>, bool, String), String> {
+        let url = format!("http://127.0.0.1:{port}/mcp/{slot}");
+        let transport = StreamableHttpClientTransport::from_uri(url);
+        let client_info = ClientInfo::new(
+            ClientCapabilities::default(),
+            Implementation::new("t10-host-smoke", "0.1.0"),
+        );
+        let client = client_info
+            .serve(transport)
+            .await
+            .map_err(|e| format!("initialize {slot}: {e:#}"))?;
+        let tools = client
+            .list_tools(Default::default())
+            .await
+            .map_err(|e| format!("list_tools {slot}: {e:#}"))?;
+        let names: Vec<String> = tools.tools.iter().map(|t| t.name.to_string()).collect();
+        let mut params = CallToolRequestParams::new(tool.to_string());
+        if let Some(obj) = args.as_object() {
+            params.arguments = Some(obj.clone());
+        }
+        let result = client
+            .call_tool(params)
+            .await
+            .map_err(|e| format!("call_tool {slot}/{tool}: {e:#}"))?;
+        let is_error = result.is_error.unwrap_or(false);
+        let text = result
+            .content
+            .first()
+            .and_then(|c| c.as_text().map(|t| t.text.clone()))
+            .unwrap_or_default();
+        let _ = client.cancel().await;
+        Ok((names, is_error, text))
+    }
+
+    let (_, todo_err, todo_text) = rt
+        .block_on(list_and_call(
+            CLOSE_GATE_MCP_PORT,
+            "todo_task",
+            "list_todo_tasks",
+            serde_json::json!({}),
+        ))
+        .expect("todo_task list_todo_tasks");
+    assert!(
+        !todo_err,
+        "T10/V2: todo_task representative tools/call must succeed via Host→Sidecar; got {todo_text}"
+    );
+
+    let (_, ide_err, ide_text) = rt
+        .block_on(list_and_call(
+            CLOSE_GATE_MCP_PORT,
+            "cursor_ide",
+            "get_corpus_catalog",
+            serde_json::json!({"mode": "latest_per_topic"}),
+        ))
+        .expect("cursor_ide get_corpus_catalog");
+    assert!(
+        !ide_err,
+        "T10/V2: cursor_ide representative tools/call must succeed via Host→Sidecar; got {ide_text}"
+    );
+
+    let init = r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"t10-unknown","version":"0.0.1"}}}"#;
+    let (status, body, session) = http_post_json(
+        &format!("http://127.0.0.1:{CLOSE_GATE_MCP_PORT}/mcp/__unknown__"),
+        init,
+    );
+    assert_eq!(
+        status, 404,
+        "T10/V3: unknown slot must HTTP hard-reject on Host :9876, body={body}"
+    );
+    assert!(
+        session.is_none(),
+        "T10/V3: unknown slot must not establish MCP session"
+    );
+
+    stop_embedded_mcp_runtime(mcp_handle).expect("stop MCP");
+    local_http::stop(http_handle);
+    drop(sandbox);
+}
+

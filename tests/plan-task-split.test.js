@@ -820,7 +820,7 @@ describe('plan-tasks route source wiring', () => {
 
   it('does not map set-status as an MCP tool', () => {
     const mcpIndex = readFileSync(
-      join(fixtureRoot, 'packages/knowledge-mcp/index.mjs'),
+      join(fixtureRoot, 'src-tauri/src/services/mcp_protocol_adapter.rs'),
       'utf8',
     );
     expect(mcpIndex).not.toMatch(/set_todo_master_status|plan-task-set-status|set_master_status/);
