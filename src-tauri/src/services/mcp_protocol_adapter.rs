@@ -4,6 +4,7 @@
 //! `/mcp/<scene_slot>` for registered slots only. Unknown slots are rejected
 //! at the HTTP/routing layer without creating an MCP session.
 //! Sidecar `tiny_http` on `:8765` remains separate.
+//! Adapter proxies tools only via HTTP loopback to `127.0.0.1:8765/api/*`.
 //! MCP runs on an independent OS thread with its own tokio runtime.
 
 use std::net::SocketAddr;
@@ -17,14 +18,149 @@ use axum::routing::{any, get};
 use axum::Router;
 use rmcp::{
     ServerHandler,
-    model::{ListToolsResult, PaginatedRequestParams, ServerCapabilities, ServerInfo, Tool},
+    model::{
+        CallToolRequestParams, CallToolResult, ContentBlock, ListToolsResult,
+        PaginatedRequestParams, ServerCapabilities, ServerInfo, Tool,
+    },
     service::RequestContext,
     transport::streamable_http_server::{
         session::local::LocalSessionManager, StreamableHttpServerConfig, StreamableHttpService,
     },
     ErrorData as McpError, RoleServer,
 };
+use serde_json::Value;
 use tokio_util::sync::CancellationToken;
+
+/// Default Sidecar loopback base (Host tiny_http `:8765`).
+pub const DEFAULT_SIDECAR_BASE_URL: &str = "http://127.0.0.1:8765";
+
+/// Observable MCP tool success (Node: `{ content: [{ type: "text", text }] }`).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct McpToolResult {
+    pub content_text: String,
+}
+
+/// Observable MCP tool error (Node: `{ content: [{ type: "text", text: "HTTP …" }], isError: true }`).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct McpToolError {
+    pub content_text: String,
+}
+
+/// Map Sidecar HTTP status+body to Node-equivalent MCP tool result/error.
+pub fn map_sidecar_response_to_mcp(
+    http_status: u16,
+    body: &[u8],
+) -> Result<McpToolResult, McpToolError> {
+    let text = String::from_utf8_lossy(body).into_owned();
+    if (200..300).contains(&http_status) {
+        Ok(McpToolResult {
+            content_text: text,
+        })
+    } else {
+        Err(McpToolError {
+            content_text: format!("HTTP {http_status}: {text}"),
+        })
+    }
+}
+
+/// Convert mapped success/error into `rmcp` [`CallToolResult`].
+pub fn mapped_to_call_tool_result(
+    mapped: Result<McpToolResult, McpToolError>,
+) -> CallToolResult {
+    match mapped {
+        Ok(ok) => CallToolResult::success(vec![ContentBlock::text(ok.content_text)]),
+        Err(err) => CallToolResult::error(vec![ContentBlock::text(err.content_text)]),
+    }
+}
+
+fn json_query_value(value: &Value) -> Option<String> {
+    match value {
+        Value::Null => None,
+        Value::String(s) => Some(s.clone()),
+        Value::Number(n) => Some(n.to_string()),
+        Value::Bool(b) => Some(b.to_string()),
+        other => Some(other.to_string()),
+    }
+}
+
+fn build_get_path(api_path: &str, args: &Value) -> String {
+    let Value::Object(map) = args else {
+        return api_path.to_string();
+    };
+    let mut pairs: Vec<(String, String)> = Vec::new();
+    for (key, value) in map {
+        if let Some(v) = json_query_value(value) {
+            pairs.push((key.clone(), v));
+        }
+    }
+    if pairs.is_empty() {
+        return api_path.to_string();
+    }
+    let query = pairs
+        .into_iter()
+        .map(|(k, v)| format!("{}={}", urlencoding::encode(&k), urlencoding::encode(&v)))
+        .collect::<Vec<_>>()
+        .join("&");
+    format!("{api_path}?{query}")
+}
+
+/// Proxy one allowlisted tool call to Sidecar HTTP loopback and map the response.
+///
+/// Outer `Err` = protocol/routing failure (unknown slot/tool).
+/// Inner `Result` = Node-equivalent tool success vs tool error.
+pub async fn proxy_tool_call(
+    sidecar_base_url: &str,
+    slot: &str,
+    tool: &str,
+    args: Value,
+) -> Result<Result<McpToolResult, McpToolError>, String> {
+    let table = build_slot_tool_table(slot)
+        .ok_or_else(|| format!("unregistered scene_slot: {slot}"))?;
+    let route = table
+        .tools
+        .iter()
+        .find(|r| r.name == tool)
+        .ok_or_else(|| format!("tool '{tool}' is not allowlisted for slot '{slot}'"))?;
+
+    let base = sidecar_base_url.trim_end_matches('/');
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .map_err(|e| format!("http client: {e}"))?;
+
+    let response = match route.method {
+        HttpMethod::Get => {
+            let path = build_get_path(&route.api_path, &args);
+            let url = format!("{base}{path}");
+            client.get(url).send().await
+        }
+        HttpMethod::Post => {
+            let url = format!("{base}{}", route.api_path);
+            client
+                .post(url)
+                .header("Content-Type", "application/json")
+                .json(&args)
+                .send()
+                .await
+        }
+    };
+
+    let response = match response {
+        Ok(res) => res,
+        Err(err) => {
+            return Ok(Err(McpToolError {
+                content_text: format!("HTTP 503: Workbench HTTP unreachable: {err}"),
+            }));
+        }
+    };
+
+    let status = response.status().as_u16();
+    let body = response
+        .bytes()
+        .await
+        .map_err(|e| format!("read sidecar body: {e}"))?;
+    Ok(map_sidecar_response_to_mcp(status, &body))
+}
 
 /// Sidecar HTTP method for a tool→`/api/*` route.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -311,10 +447,17 @@ impl std::fmt::Display for McpStopError {
 
 impl std::error::Error for McpStopError {}
 
-/// Per-slot MCP handler; tool→Sidecar proxy wiring lands in later tasks.
+/// Per-slot MCP handler; proxies allowlisted tools to Sidecar HTTP loopback.
 #[derive(Clone)]
 struct SlotHandler {
     scene_slot: String,
+    sidecar_base_url: String,
+}
+
+fn empty_object_schema() -> Arc<serde_json::Map<String, serde_json::Value>> {
+    let mut schema = serde_json::Map::new();
+    schema.insert("type".into(), serde_json::Value::String("object".into()));
+    Arc::new(schema)
 }
 
 impl ServerHandler for SlotHandler {
@@ -327,15 +470,32 @@ impl ServerHandler for SlotHandler {
         _request: Option<PaginatedRequestParams>,
         _context: RequestContext<RoleServer>,
     ) -> impl std::future::Future<Output = Result<ListToolsResult, McpError>> + Send + '_ {
+        // Names come from the Host routing table; full input schemas land in later tasks.
         let tools: Vec<Tool> = tools_list_for_slot(&self.scene_slot)
             .into_iter()
-            .map(|d| {
-                let mut schema = serde_json::Map::new();
-                schema.insert("type".into(), serde_json::Value::String("object".into()));
-                Tool::new(d.name, "", Arc::new(schema))
-            })
+            .map(|d| Tool::new(d.name, "", empty_object_schema()))
             .collect();
         std::future::ready(Ok(ListToolsResult::with_all_items(tools)))
+    }
+
+    fn call_tool(
+        &self,
+        request: CallToolRequestParams,
+        _context: RequestContext<RoleServer>,
+    ) -> impl std::future::Future<Output = Result<rmcp::model::CallToolResponse, McpError>> + Send + '_
+    {
+        let slot = self.scene_slot.clone();
+        let base = self.sidecar_base_url.clone();
+        async move {
+            let args = match request.arguments {
+                Some(map) => Value::Object(map),
+                None => Value::Object(serde_json::Map::new()),
+            };
+            match proxy_tool_call(&base, &slot, request.name.as_ref(), args).await {
+                Ok(mapped) => Ok(mapped_to_call_tool_result(mapped).into()),
+                Err(msg) => Err(McpError::invalid_params(msg, None)),
+            }
+        }
     }
 }
 
@@ -364,6 +524,7 @@ fn mount_slot_service(
     router: Router,
     scene_slot: &'static str,
     cancel: CancellationToken,
+    sidecar_base_url: String,
 ) -> Router {
     let slot = scene_slot.to_string();
     let service: StreamableHttpService<SlotHandler, LocalSessionManager> =
@@ -371,6 +532,7 @@ fn mount_slot_service(
             move || {
                 Ok(SlotHandler {
                     scene_slot: slot.clone(),
+                    sidecar_base_url: sidecar_base_url.clone(),
                 })
             },
             Arc::new(LocalSessionManager::default()),
@@ -379,16 +541,17 @@ fn mount_slot_service(
     router.nest_service(&format!("/mcp/{scene_slot}"), service)
 }
 
-fn build_router(port: u16, cancel: CancellationToken) -> Router {
+fn build_router(port: u16, cancel: CancellationToken, sidecar_base_url: String) -> Router {
     let mut router = Router::new()
         .route("/health", get(move || async move { health_json(port) }))
         .route("/mcp", any(bare_mcp_reject));
 
+    // Registered slots first so StreamableHttpService owns those paths exclusively.
     for slot in REGISTERED_SCENE_SLOTS {
-        router = mount_slot_service(router, slot, cancel.clone());
+        router = mount_slot_service(router, slot, cancel.clone(), sidecar_base_url.clone());
     }
 
-    // Catch-all for unregistered `/mcp/<scene_slot>` — never enters StreamableHttpService.
+    // Unregistered `/mcp/<scene_slot>`: HTTP 404 JSON only — no LocalSessionManager / MCP session.
     router.route("/mcp/{scene_slot}", any(unknown_scene_slot_reject))
 }
 
@@ -433,7 +596,11 @@ pub fn start_embedded_mcp_runtime(
             }
 
             let port = local_addr.port();
-            let router = build_router(port, cancel_child.clone());
+            let router = build_router(
+                port,
+                cancel_child.clone(),
+                DEFAULT_SIDECAR_BASE_URL.to_string(),
+            );
             let _ = axum::serve(listener, router)
                 .with_graceful_shutdown(async move {
                     cancel_child.cancelled().await;

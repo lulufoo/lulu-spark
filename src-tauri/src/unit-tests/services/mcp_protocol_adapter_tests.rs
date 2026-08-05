@@ -492,3 +492,205 @@ fn registered_scene_slots_accept_initialize_http() {
 
     stop_embedded_mcp_runtime(handle).expect("stop");
 }
+
+/// Observable text from Mapped MCP tool result/error (Node content[0].text).
+fn mcp_text_ok(r: &McpToolResult) -> &str {
+    &r.content_text
+}
+
+fn mcp_text_err(e: &McpToolError) -> &str {
+    &e.content_text
+}
+
+/// Normal: Sidecar 2xx maps to MCP tool result text (Node: content text = body).
+#[test]
+fn map_sidecar_success_response_matches_node_adapter_shape() {
+    let mapped = map_sidecar_response_to_mcp(200, br#"{"ok":true,"items":[]}"#)
+        .expect("2xx must be success");
+    assert_eq!(mcp_text_ok(&mapped), r#"{"ok":true,"items":[]}"#);
+    let call = mapped_to_call_tool_result(Ok(mapped));
+    assert_eq!(call.is_error, Some(false));
+    assert_eq!(
+        call.content[0].as_text().map(|t| t.text.as_str()),
+        Some(r#"{"ok":true,"items":[]}"#)
+    );
+}
+
+/// Exception: Sidecar non-2xx maps to Node-equivalent tool error `HTTP {status}: {text}`.
+#[test]
+fn map_sidecar_error_response_matches_node_adapter_shape() {
+    let err = map_sidecar_response_to_mcp(404, b"{\"error\":\"missing\"}")
+        .expect_err("non-2xx must be tool error");
+    assert_eq!(
+        mcp_text_err(&err),
+        "HTTP 404: {\"error\":\"missing\"}"
+    );
+    let call = mapped_to_call_tool_result(Err(err));
+    assert_eq!(call.is_error, Some(true));
+    assert_eq!(
+        call.content[0].as_text().map(|t| t.text.as_str()),
+        Some("HTTP 404: {\"error\":\"missing\"}")
+    );
+}
+
+/// Exception: Sidecar unreachable maps like Node toolError(503, "Workbench HTTP unreachable: …").
+#[test]
+fn proxy_tool_call_unreachable_sidecar_maps_like_node() {
+    // Nothing listens on this port.
+    let base = "http://127.0.0.1:1";
+    let rt = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .expect("runtime");
+    let mapped = rt
+        .block_on(proxy_tool_call(
+            base,
+            "todo_task",
+            "list_todo_categories",
+            serde_json::json!({}),
+        ))
+        .expect("unreachable is a mapped tool error, not protocol failure");
+    let err = mapped.expect_err("must be tool-level error");
+    let text = mcp_text_err(&err);
+    assert!(
+        text.starts_with("HTTP 503: Workbench HTTP unreachable:"),
+        "Node-equivalent unreachable prefix, got {text}"
+    );
+}
+
+/// Start a tiny recording Sidecar on loopback; returns (base_url, join, seen Arc).
+fn start_recording_sidecar(
+    expected_status: u16,
+    response_body: &'static str,
+) -> (
+    String,
+    std::sync::Arc<std::sync::Mutex<Vec<(String, String)>>>,
+    thread::JoinHandle<()>,
+) {
+    use std::sync::{Arc, Mutex};
+    use tiny_http::{Header, Response, Server, StatusCode};
+
+    let port = ephemeral_port();
+    let server = Server::http(format!("127.0.0.1:{port}")).expect("bind recording sidecar");
+    let base = format!("http://127.0.0.1:{port}");
+    let seen: Arc<Mutex<Vec<(String, String)>>> = Arc::new(Mutex::new(Vec::new()));
+    let seen_thread = Arc::clone(&seen);
+    let join = thread::spawn(move || {
+        // One request is enough for representative smoke; timeout avoids join hang.
+        let Ok(Some(mut request)) = server.recv_timeout(Duration::from_secs(5)) else {
+            return;
+        };
+        let method = request.method().as_str().to_string();
+        let url = request.url().to_string();
+        seen_thread.lock().expect("lock").push((method, url));
+        let status = StatusCode::from(expected_status);
+        let mut response = Response::from_string(response_body).with_status_code(status);
+        response.add_header(
+            Header::from_bytes(&b"Content-Type"[..], &b"application/json"[..]).unwrap(),
+        );
+        let _ = request.respond(response);
+    });
+    // Brief settle for accept loop.
+    thread::sleep(Duration::from_millis(20));
+    (base, seen, join)
+}
+
+/// Normal: each registered slot gets ≥1 representative tools/call via HTTP loopback to /api/*.
+#[test]
+fn representative_tools_call_per_registered_slot_hits_sidecar_api() {
+    let cases = [
+        (
+            "todo_task",
+            "list_todo_categories",
+            serde_json::json!({}),
+            "GET",
+            "/api/todo-task-list-categories",
+        ),
+        (
+            "cursor_ide",
+            "get_corpus_catalog",
+            serde_json::json!({"mode": "latest_per_topic"}),
+            "GET",
+            "/api/corpus-catalog?mode=latest_per_topic",
+        ),
+    ];
+
+    let rt = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .expect("runtime");
+
+    for (slot, tool, args, want_method, want_path) in cases {
+        let body = r#"{"ok":true,"proxy":"sidecar"}"#;
+        let (base, seen, join) = start_recording_sidecar(200, body);
+        let mapped = rt
+            .block_on(proxy_tool_call(&base, slot, tool, args))
+            .expect("proxy must return mapped result")
+            .expect("Sidecar 200 → MCP success");
+        assert_eq!(mcp_text_ok(&mapped), body);
+
+        let hits = seen.lock().expect("lock").clone();
+        assert!(
+            hits.iter().any(|(m, u)| m == want_method && u == want_path),
+            "slot={slot} tool={tool} expected {want_method} {want_path}, seen={hits:?}"
+        );
+        // Ensure path is under /api/* (Sidecar surface).
+        assert!(
+            hits.iter().any(|(_, u)| u.starts_with("/api/")),
+            "must hit Sidecar /api/*, seen={hits:?}"
+        );
+        let _ = join.join();
+    }
+}
+
+/// Exception: Sidecar error body via proxy_tool_call stays Node-equivalent.
+#[test]
+fn proxy_tool_call_maps_sidecar_http_error_like_node() {
+    let (base, _seen, join) = start_recording_sidecar(500, "boom");
+    let rt = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .expect("runtime");
+    let err = rt
+        .block_on(proxy_tool_call(
+            &base,
+            "todo_task",
+            "list_todo_categories",
+            serde_json::json!({}),
+        ))
+        .expect("mapped")
+        .expect_err("500 → tool error");
+    assert_eq!(mcp_text_err(&err), "HTTP 500: boom");
+    let _ = join.join();
+}
+
+/// Exception: Adapter source must not reach FS or domain modules directly (loopback only).
+#[test]
+fn adapter_source_forbids_fs_and_domain_direct_access() {
+    let src = include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/src/services/mcp_protocol_adapter.rs"
+    ));
+    for needle in [
+        "std::fs",
+        "tokio::fs",
+        "crate::services::todo_task",
+        "crate::services::workbench_read",
+        "crate::services::archive_write",
+        "crate::services::kb",
+        "crate::repositories",
+    ] {
+        assert!(
+            !src.contains(needle),
+            "Adapter must not {needle}; domain/Corpus only via Sidecar HTTP"
+        );
+    }
+    assert!(
+        src.contains("127.0.0.1") && src.contains("8765"),
+        "Adapter must default Sidecar loopback to 127.0.0.1:8765"
+    );
+    assert!(
+        src.contains("/api/") || src.contains("api_path"),
+        "Adapter outbound targets must be Sidecar /api/* routes"
+    );
+}
