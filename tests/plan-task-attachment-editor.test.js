@@ -350,7 +350,7 @@ describe('attachment editor surface contracts', () => {
       'utf8',
     );
     expect(dialogSrc).toMatch(
-      /@typedef \{'create-master' \| 'add-sub' \| 'delete-master' \| 'delete-sub'\} PlanTaskDialogType/,
+      /@typedef \{'create-master' \| 'create-category' \| 'add-sub' \| 'delete-master' \| 'delete-sub'\} PlanTaskDialogType/,
     );
     expect(dialogSrc).not.toMatch(/attachment-editor|open-attachment|edit-attachment/);
   });
