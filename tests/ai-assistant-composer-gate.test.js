@@ -263,4 +263,55 @@ describe('ai-assistant composer Binding Contract gate', () => {
     expect(root.querySelectorAll('.ai-assistant-bubble').length).toBe(0);
     api.dispose();
   });
+
+  it('Enter submits the composer; Shift+Enter keeps the newline', async () => {
+    invokeMock = vi.fn(async (cmd) => {
+      if (cmd === 'query_binding') return { state: 'bound' };
+      if (cmd === 'get_ai_assistant_binding') {
+        return { session_id: 'sess_enter_send', busy: false };
+      }
+      if (cmd === 'ensure_ai_assistant_session') {
+        return { session_id: 'sess_enter_send', busy: false };
+      }
+      if (cmd === 'agent_chat_turn') {
+        return { reply_text: 'ack', busy: false, terminal: 'ok' };
+      }
+      if (cmd === 'shell_close_ai_assistant') return { ok: true, state: 'unbound' };
+      return {};
+    });
+    window.__TAURI__.core.invoke = invokeMock;
+
+    const api = mountAiAssistant(root);
+    await vi.waitFor(() => {
+      expect(listenHandlers['ai-assistant:binding-changed']).toBeTruthy();
+    });
+    listenHandlers['ai-assistant:binding-changed']({
+      payload: { state: 'bound' },
+    });
+
+    const input = root.querySelector('[data-role="input"]');
+    expect(input.placeholder).toContain('Enter to send');
+    expect(input.disabled).toBe(false);
+
+    input.value = 'line one';
+    input.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Enter', shiftKey: true, bubbles: true }),
+    );
+    expect(input.value).toBe('line one');
+    expect(invokeMock).not.toHaveBeenCalledWith(
+      'agent_chat_turn',
+      expect.anything(),
+    );
+
+    input.value = 'hello via enter';
+    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    await vi.waitFor(() => {
+      expect(invokeMock).toHaveBeenCalledWith('agent_chat_turn', {
+        sessionId: 'sess_enter_send',
+        message: 'hello via enter',
+      });
+    });
+    expect(input.value).toBe('');
+    api.dispose();
+  });
 });

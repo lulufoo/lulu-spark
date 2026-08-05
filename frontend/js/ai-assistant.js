@@ -68,7 +68,7 @@ export function mountAiAssistant(root, opts = {}) {
       <div class="ai-assistant-messages" data-role="messages" aria-live="polite"></div>
       <form class="ai-assistant-composer" data-role="form">
         <div class="ai-assistant-composer-shell">
-          <textarea class="ai-assistant-input" data-role="input" rows="2" placeholder="Message…" disabled></textarea>
+          <textarea class="ai-assistant-input" data-role="input" rows="2" placeholder="Message… (Enter to send)" disabled></textarea>
           <div class="ai-assistant-composer-actions">
             <button type="submit" class="ai-assistant-send" data-role="send" aria-label="Send" disabled>
               <svg class="ai-assistant-send-icon" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
@@ -266,6 +266,18 @@ export function mountAiAssistant(root, opts = {}) {
     if (!text || sending) return;
     input.value = '';
     void sendMessage(text);
+  });
+
+  // Enter sends; Shift+Enter inserts a newline (textarea default).
+  input.addEventListener('keydown', (event) => {
+    if (event.key !== 'Enter' || event.shiftKey || event.isComposing) return;
+    event.preventDefault();
+    if (input.disabled || sendBtn.disabled || sending) return;
+    if (typeof form.requestSubmit === 'function') {
+      form.requestSubmit();
+    } else {
+      form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+    }
   });
 
   async function bindOpenedListener() {
