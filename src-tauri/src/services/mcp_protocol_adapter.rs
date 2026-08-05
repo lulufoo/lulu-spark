@@ -590,49 +590,47 @@ fn build_router(port: u16, cancel: CancellationToken, sidecar_base_url: String) 
     router.route("/mcp/{scene_slot}", any(unknown_scene_slot_reject))
 }
 
+fn fetch_json_ok(
+    client: &reqwest::blocking::Client,
+    url: &str,
+    label: &str,
+) -> Result<Value, CloseGateError> {
+    let response = client.get(url).send().map_err(|e| {
+        CloseGateError::DualListenNotObservable(format!("{label}: {e}"))
+    })?;
+    if !response.status().is_success() {
+        return Err(CloseGateError::DualListenNotObservable(format!(
+            "{label} status {}",
+            response.status()
+        )));
+    }
+    let json: Value = response.json().map_err(|e| {
+        CloseGateError::DualListenNotObservable(format!("{label} JSON: {e}"))
+    })?;
+    if json.get("ok") != Some(&Value::Bool(true)) {
+        return Err(CloseGateError::DualListenNotObservable(format!(
+            "{label} not ok: {json}"
+        )));
+    }
+    Ok(json)
+}
+
 fn observe_dual_listen(mcp_port: u16, sidecar_port: u16) -> Result<bool, CloseGateError> {
     let client = reqwest::blocking::Client::builder()
         .timeout(std::time::Duration::from_secs(2))
         .build()
         .map_err(|e| CloseGateError::DualListenNotObservable(format!("http client: {e}")))?;
 
-    let sidecar_url = format!("http://127.0.0.1:{sidecar_port}/api/status");
-    let sidecar = client.get(&sidecar_url).send().map_err(|e| {
-        CloseGateError::DualListenNotObservable(format!("sidecar :{sidecar_port}: {e}"))
-    })?;
-    if !sidecar.status().is_success() {
-        return Err(CloseGateError::DualListenNotObservable(format!(
-            "sidecar :{sidecar_port} status {}",
-            sidecar.status()
-        )));
-    }
-    let sidecar_json: Value = sidecar.json().map_err(|e| {
-        CloseGateError::DualListenNotObservable(format!("sidecar JSON: {e}"))
-    })?;
-    if sidecar_json.get("ok") != Some(&Value::Bool(true)) {
-        return Err(CloseGateError::DualListenNotObservable(format!(
-            "sidecar /api/status not ok: {sidecar_json}"
-        )));
-    }
-
-    let health_url = format!("http://127.0.0.1:{mcp_port}/health");
-    let health = client.get(&health_url).send().map_err(|e| {
-        CloseGateError::DualListenNotObservable(format!("mcp :{mcp_port}: {e}"))
-    })?;
-    if !health.status().is_success() {
-        return Err(CloseGateError::DualListenNotObservable(format!(
-            "mcp :{mcp_port} /health status {}",
-            health.status()
-        )));
-    }
-    let health_json: Value = health
-        .json()
-        .map_err(|e| CloseGateError::DualListenNotObservable(format!("mcp health JSON: {e}")))?;
-    if health_json.get("ok") != Some(&Value::Bool(true)) {
-        return Err(CloseGateError::DualListenNotObservable(format!(
-            "mcp /health not ok: {health_json}"
-        )));
-    }
+    let _sidecar = fetch_json_ok(
+        &client,
+        &format!("http://127.0.0.1:{sidecar_port}/api/status"),
+        &format!("sidecar :{sidecar_port}"),
+    )?;
+    let health_json = fetch_json_ok(
+        &client,
+        &format!("http://127.0.0.1:{mcp_port}/health"),
+        &format!("mcp :{mcp_port} /health"),
+    )?;
     let mcp_field = health_json
         .get("mcp")
         .and_then(|v| v.as_str())
@@ -686,7 +684,7 @@ pub fn close_gate_smoke_initialize_list(slot: &str) -> Result<CloseGateReport, C
     let sidecar_port = local_http::DEFAULT_HTTP_PORT;
     let dual_listen_observed = observe_dual_listen(mcp_port, sidecar_port)?;
 
-    let rt = tokio::runtime::Builder::new_multi_thread()
+    let rt = tokio::runtime::Builder::new_current_thread()
         .enable_all()
         .build()
         .map_err(|e| CloseGateError::Runtime(format!("tokio runtime: {e}")))?;

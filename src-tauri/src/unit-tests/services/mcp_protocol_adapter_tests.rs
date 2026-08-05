@@ -815,20 +815,20 @@ fn health_success_is_not_session_level_close_gate_proof() {
     local_http::stop(http_handle);
 }
 
-/// Exception: close-gate failure blocks P2 — spawn paths must still exist (T6 must not remove them).
+/// Exception / T7: after V5 close gate, P2 hard-cut must remove Node spawn lifecycle paths.
 #[test]
-fn close_gate_must_not_remove_node_spawn_paths() {
+fn p2_hard_cut_must_remove_node_spawn_lifecycle_paths() {
     let lib_src = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/src/lib.rs"));
     for needle in [
-        "try_spawn_knowledge_mcp",
-        "try_spawn_knowledge_mcp_with_port",
-        "try_spawn_knowledge_mcp_with_port_and_node",
-        "KnowledgeMcpProcess",
+        "fn try_spawn_knowledge_mcp(",
+        "fn try_spawn_knowledge_mcp_with_port(",
+        "fn try_spawn_knowledge_mcp_with_port_and_node(",
+        "struct KnowledgeMcpProcess",
         "packages/knowledge-mcp/index.mjs",
     ] {
         assert!(
-            lib_src.contains(needle),
-            "T6 close gate must not remove Node spawn path `{needle}` (P2/T7 owns hard-cut)"
+            !lib_src.contains(needle),
+            "T7 P2 hard-cut: Node spawn path `{needle}` must be removed from Host lib.rs (V1)"
         );
     }
 }
