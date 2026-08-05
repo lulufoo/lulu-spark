@@ -43,7 +43,7 @@ describe('AC-全量回归 gate (tech-doc T-08 / VF)', () => {
     expect(testScript).toMatch(/--test-threads=1/);
   });
 
-  it('npm test runs knowledge-mcp verify.mjs', () => {
-    expect(testScript).toContain('packages/knowledge-mcp/scripts/verify.mjs');
+  it('npm test runs Host MCP verify-host-mcp.mjs', () => {
+    expect(testScript).toContain('scripts/verify-host-mcp.mjs');
   });
 });

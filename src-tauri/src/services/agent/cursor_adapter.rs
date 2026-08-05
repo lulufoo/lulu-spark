@@ -728,6 +728,8 @@ impl CursorSessionRuntime {
             }
         };
 
+        // Inject Host MCP Binding transports as SDK mcpServers (URL shape
+        // http://127.0.0.1:9876/mcp/<slot>; readiness already probed via /health).
         let mcp_servers =
             serde_json::to_value(mcp_endpoint_readiness::map_to_sdk_mcp_servers(&req.ready_mcp))
                 .map_err(|_| {

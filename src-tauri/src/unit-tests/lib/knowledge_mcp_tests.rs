@@ -1,15 +1,33 @@
-use std::net::TcpListener;
-use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::net::{SocketAddr, TcpListener};
+use std::path::PathBuf;
 use std::thread;
 use std::time::Duration;
 
 use super::*;
 use crate::services::local_http;
-use crate::test_support::TestSandbox;
+use crate::services::mcp_protocol_adapter::{
+    observe_dual_listen, start_embedded_mcp_runtime, stop_embedded_mcp_runtime, McpRuntimeConfig,
+    McpStartError,
+};
 
-fn repo_root_with_sidecar() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("..")
+fn lib_rs_source() -> String {
+    std::fs::read_to_string(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("src")
+            .join("lib.rs"),
+    )
+    .expect("read src-tauri/src/lib.rs")
+}
+
+fn this_test_source() -> String {
+    std::fs::read_to_string(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("src")
+            .join("unit-tests")
+            .join("lib")
+            .join("knowledge_mcp_tests.rs"),
+    )
+    .expect("read knowledge_mcp_tests.rs")
 }
 
 fn ephemeral_port() -> u16 {
@@ -20,220 +38,216 @@ fn ephemeral_port() -> u16 {
         .port()
 }
 
-fn setup_http(repo_root: PathBuf) -> (u16, local_http::LocalHttpHandle) {
-    let port = ephemeral_port();
-    let handle = local_http::start(repo_root, port).expect("start http");
-    thread::sleep(Duration::from_millis(50));
-    (port, handle)
-}
-
-#[test]
-fn try_spawn_knowledge_mcp_skips_when_http_not_ready() {
-    let repo_root = repo_root_with_sidecar();
-    let child = try_spawn_knowledge_mcp(false, &repo_root, 8765);
-    assert!(child.is_none());
-}
-
-#[test]
-fn try_spawn_knowledge_mcp_returns_none_when_sidecar_script_missing() {
-    let dir = tempfile::tempdir().expect("tmpdir");
-    let repo_root = dir.path().to_path_buf();
-    let child = try_spawn_knowledge_mcp(true, &repo_root, 8765);
-    assert!(child.is_none());
-}
-
-#[test]
-fn try_spawn_knowledge_mcp_spawns_and_listens_when_http_ready() {
-    let repo_root = repo_root_with_sidecar();
-    let script = repo_root.join("packages/knowledge-mcp/index.mjs");
-    if !script.is_file() {
-        eprintln!("skip: sidecar script missing at {}", script.display());
-        return;
-    }
-
-    let (http_port, http_handle) = setup_http(repo_root.clone());
-    let mcp_port = ephemeral_port();
-
-    let child = try_spawn_knowledge_mcp_with_port(true, &repo_root, http_port, mcp_port);
-    assert!(child.is_some(), "expected sidecar spawn");
-
-    assert!(
-        wait_for_port(mcp_port, Duration::from_secs(5)),
-        "MCP port should become ready"
-    );
-
-    let process = KnowledgeMcpProcess::new(child);
-    process.kill();
-    local_http::stop(http_handle);
-    assert!(
-        !wait_for_port(mcp_port, Duration::from_millis(300)),
-        "MCP port should close after kill"
-    );
-}
-
-#[test]
-fn knowledge_mcp_process_kill_leaves_no_child() {
-    let repo_root = repo_root_with_sidecar();
-    let script = repo_root.join("packages/knowledge-mcp/index.mjs");
-    if !script.is_file() {
-        return;
-    }
-
-    let (http_port, http_handle) = setup_http(repo_root.clone());
-    let mcp_port = ephemeral_port();
-    let child = try_spawn_knowledge_mcp_with_port(true, &repo_root, http_port, mcp_port);
-    assert!(child.is_some());
-    assert!(wait_for_port(mcp_port, Duration::from_secs(5)));
-
-    let pid = child.as_ref().map(|c| c.id()).expect("pid");
-    let process = KnowledgeMcpProcess::new(child);
-    process.kill();
-    local_http::stop(http_handle);
-
-    thread::sleep(Duration::from_millis(200));
-    assert!(
-        !wait_for_port(mcp_port, Duration::from_millis(300)),
-        "port should be closed"
-    );
-    assert!(
-        std::process::Command::new("kill")
-            .args(["-0", &pid.to_string()])
-            .stdout(std::process::Stdio::null())
-            .stderr(std::process::Stdio::null())
-            .status()
-            .map(|s| !s.success())
-            .unwrap_or(true),
-        "child process should be terminated"
-    );
-}
-
-#[test]
-fn knowledge_mcp_ensure_running_respawns_when_port_down() {
-    let repo_root = repo_root_with_sidecar();
-    let script = repo_root.join("packages/knowledge-mcp/index.mjs");
-    if !script.is_file() {
-        return;
-    }
-
-    let (http_port, http_handle) = setup_http(repo_root.clone());
-    let mcp_port = ephemeral_port();
-    let child = try_spawn_knowledge_mcp_with_port(true, &repo_root, http_port, mcp_port);
-    assert!(child.is_some());
-    assert!(wait_for_port(mcp_port, Duration::from_secs(5)));
-
-    let process = KnowledgeMcpProcess::new(child);
-    process.set_spawn_cfg(KnowledgeMcpSpawnCfg {
-        repo_root: repo_root.clone(),
-        http_port,
-        mcp_port,
-    });
-    process.kill();
-    assert!(
-        !wait_for_port(mcp_port, Duration::from_millis(400)),
-        "port should close after kill"
-    );
-
-    process.ensure_running(true);
-    assert!(
-        wait_for_port(mcp_port, Duration::from_secs(5)),
-        "ensure_running should respawn sidecar"
-    );
-
-    process.kill();
-    local_http::stop(http_handle);
-}
-
-#[test]
-fn try_spawn_knowledge_mcp_skips_when_mcp_port_in_use() {
-    let repo_root = repo_root_with_sidecar();
-    let script = repo_root.join("packages/knowledge-mcp/index.mjs");
-    if !script.is_file() {
-        return;
-    }
-
-    let mcp_port = ephemeral_port();
-    let _guard = TcpListener::bind(format!("127.0.0.1:{mcp_port}")).expect("occupy mcp port");
-    let (http_port, http_handle) = setup_http(repo_root.clone());
-
-    let child = try_spawn_knowledge_mcp_with_port(true, &repo_root, http_port, mcp_port);
-    assert!(child.is_none(), "spawn should fail when MCP port is occupied");
-
-    local_http::stop(http_handle);
-}
-
-#[test]
-fn try_spawn_knowledge_mcp_degrades_when_node_missing() {
-    let repo_root = repo_root_with_sidecar();
-    let script = repo_root.join("packages/knowledge-mcp/index.mjs");
-    if !script.is_file() {
-        return;
-    }
-
-    let (http_port, http_handle) = setup_http(repo_root.clone());
-    let mcp_port = ephemeral_port();
-
-    let child = try_spawn_knowledge_mcp_with_port_and_node(
-        true,
-        &repo_root,
-        http_port,
-        mcp_port,
-        Path::new("/nonexistent-node-binary"),
-    );
-    assert!(child.is_none(), "spawn should degrade when node is unavailable");
-
-    local_http::stop(http_handle);
-}
-
 #[test]
 fn default_mcp_port_is_9876() {
     assert_eq!(DEFAULT_MCP_PORT, 9876);
 }
 
+/// T5: Host cannot bind `127.0.0.1:9876` → fail-closed; MUST NOT fall back to Node spawn.
 #[test]
-fn create_todo_task_mcp_tool_e2e_with_local_http() {
-    let repo_root = repo_root_with_sidecar();
-    let script = repo_root.join("packages/knowledge-mcp/index.mjs");
-    let e2e = repo_root.join("packages/knowledge-mcp/scripts/todo-task-mcp-e2e.mjs");
-    if !script.is_file() || !e2e.is_file() {
-        eprintln!("skip: knowledge-mcp scripts missing");
-        return;
-    }
+fn host_setup_must_not_fall_back_to_node_spawn_on_embed_bind_failure() {
+    let lib_rs = lib_rs_source();
 
-    let _sandbox = TestSandbox::new();
-    let wb = _sandbox.workbench_knowledge_root();
-    std::fs::create_dir_all(&wb).expect("mkdir corpus");
-    let todo_tasks_tasks_dir = wb.join("todo_tasks").join("tasks");
-    std::fs::create_dir_all(&todo_tasks_tasks_dir).expect("mkdir todo_tasks/tasks");
-    // Host todo HTTP requires durable migration gate (t5) before serving todo_* routes.
-    std::fs::write(
-        wb.join("todo_tasks").join(".migration_gate_passed"),
-        b"ok\n",
-    )
-    .expect("write migration gate");
-    let config_root = _sandbox.config_dir().to_path_buf();
-
-    let (http_port, http_handle) = setup_http(config_root);
-    let mcp_port = ephemeral_port();
-
-    let child = try_spawn_knowledge_mcp_with_port(true, &repo_root, http_port, mcp_port);
-    assert!(child.is_some(), "expected sidecar spawn");
     assert!(
-        wait_for_port(mcp_port, Duration::from_secs(5)),
-        "MCP port should become ready"
+        !lib_rs.contains("falling back to Node spawn"),
+        "T5: on embedded MCP bind failure Host must fail-closed — Node knowledge-mcp spawn fallback is forbidden"
+    );
+    assert!(
+        !lib_rs.contains("until T5 fail-closed"),
+        "T5: temporary Err→try_spawn_knowledge_mcp fallback comment/path must be removed"
     );
 
-    let status = Command::new("node")
-        .arg(&e2e)
-        .env("MCP_PORT", mcp_port.to_string())
-        .env(
-            "E2E_PLAN_TASKS_TASKS_DIR",
-            todo_tasks_tasks_dir.to_string_lossy().as_ref(),
-        )
-        .status()
-        .expect("run todo-task-mcp-e2e");
-    assert!(status.success(), "todo-task-mcp-e2e should pass");
+    let start_idx = lib_rs
+        .find("start_embedded_mcp_runtime")
+        .expect("Host setup must call start_embedded_mcp_runtime");
+    let setup_slice = &lib_rs[start_idx..];
+    let end_idx = setup_slice
+        .find("seed_defaults")
+        .unwrap_or(setup_slice.len().min(2500));
+    let host_mcp_boot = &setup_slice[..end_idx];
+    assert!(
+        !host_mcp_boot.contains("try_spawn_knowledge_mcp"),
+        "T5: Host MCP bind-failure path must not call try_spawn_knowledge_mcp / packages/knowledge-mcp/index.mjs"
+    );
+}
 
-    let process = KnowledgeMcpProcess::new(child);
-    process.kill();
+/// T7 / V1: spawn symbol definitions must leave the Host executable path.
+#[test]
+fn t7_hard_cut_removes_try_spawn_and_knowledge_mcp_process_symbols() {
+    let lib_rs = lib_rs_source();
+    for needle in [
+        "fn try_spawn_knowledge_mcp(",
+        "fn try_spawn_knowledge_mcp_with_port(",
+        "fn try_spawn_knowledge_mcp_with_port_and_node(",
+        "struct KnowledgeMcpProcess",
+        "struct KnowledgeMcpSpawnCfg",
+        "impl KnowledgeMcpProcess",
+    ] {
+        assert!(
+            !lib_rs.contains(needle),
+            "T7 hard-cut: `{needle}` must not remain in src-tauri/src/lib.rs"
+        );
+    }
+}
+
+/// T7 / V1: Host must have no code path that spawns packages/knowledge-mcp/index.mjs.
+#[test]
+fn t7_host_must_not_spawn_knowledge_mcp_index_mjs() {
+    let lib_rs = lib_rs_source();
+    assert!(
+        !lib_rs.contains("packages/knowledge-mcp/index.mjs"),
+        "T7/V1: Host lib.rs must not reference packages/knowledge-mcp/index.mjs (spawn path)"
+    );
+}
+
+/// T7: setup uses embedded MCP runtime start; exit uses stop (not KnowledgeMcpProcess kill).
+#[test]
+fn t7_setup_and_teardown_use_embedded_mcp_runtime_only() {
+    let lib_rs = lib_rs_source();
+    assert!(
+        lib_rs.contains("start_embedded_mcp_runtime"),
+        "T7: setup must start embedded MCP runtime"
+    );
+    assert!(
+        lib_rs.contains("struct EmbeddedMcpRuntime"),
+        "T7: Host must hold EmbeddedMcpRuntime for lifecycle"
+    );
+    assert!(
+        lib_rs.contains("embedded.stop()")
+            || lib_rs.contains("stop_embedded_mcp_runtime"),
+        "T7: exit/teardown must stop/join embedded MCP runtime"
+    );
+    assert!(
+        !lib_rs.contains("KnowledgeMcpProcess::new"),
+        "T7: setup must not construct KnowledgeMcpProcess"
+    );
+    assert!(
+        !lib_rs.contains("app.manage(knowledge)"),
+        "T7: setup must not manage KnowledgeMcpProcess state"
+    );
+    assert!(
+        !lib_rs.contains("knowledge.kill()"),
+        "T7: exit must not kill KnowledgeMcpProcess child"
+    );
+}
+
+/// T7: respawn watchdog path must be deleted.
+#[test]
+fn t7_respawn_watchdog_path_deleted() {
+    let lib_rs = lib_rs_source();
+    assert!(
+        !lib_rs.contains("respawning sidecar"),
+        "T7: respawn watchdog log/path must be removed"
+    );
+    assert!(
+        !lib_rs.contains("fn ensure_running"),
+        "T7: KnowledgeMcpProcess::ensure_running must be removed"
+    );
+    assert!(
+        !lib_rs.contains("Watchdog: if MCP listen port drops"),
+        "T7: MCP respawn watchdog thread must be removed"
+    );
+    assert!(
+        !lib_rs.contains("try_state::<KnowledgeMcpProcess>"),
+        "T7: no Host path may hold/watch KnowledgeMcpProcess"
+    );
+}
+
+/// Exception / V1: residual Node spawn lifecycle blocks P2 acceptance.
+#[test]
+fn t7_residual_spawn_lifecycle_blocks_p2() {
+    let lib_rs = lib_rs_source();
+    let residual = [
+        lib_rs.contains("fn try_spawn_knowledge_mcp"),
+        lib_rs.contains("struct KnowledgeMcpProcess"),
+        lib_rs.contains("packages/knowledge-mcp/index.mjs"),
+        lib_rs.contains("respawning sidecar"),
+    ];
+    assert!(
+        residual.iter().all(|hit| !*hit),
+        "T7/V1 failure: residual Node MCP spawn lifecycle still present in Host lib.rs"
+    );
+}
+
+/// T9 / Normal: same-process Host dual listen is observable (Sidecar `:8765` + MCP `:9876` contract).
+/// Ephemeral ports isolate the harness; default constants lock the production shape.
+#[test]
+fn embedded_mcp_dual_listen_observable() {
+    assert_eq!(DEFAULT_MCP_PORT, 9876);
+    assert_eq!(local_http::DEFAULT_HTTP_PORT, 8765);
+
+    let repo_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("..");
+    let sidecar_port = ephemeral_port();
+    let http_handle = local_http::start(repo_root, sidecar_port).expect("start Sidecar tiny_http");
+    thread::sleep(Duration::from_millis(50));
+
+    let mcp_port = ephemeral_port();
+    let mcp_handle = start_embedded_mcp_runtime(McpRuntimeConfig {
+        bind_addr: SocketAddr::from(([127, 0, 0, 1], mcp_port)),
+    })
+    .expect("start embedded MCP");
+
+    let observed = observe_dual_listen(mcp_port, sidecar_port)
+        .expect("T9: same-process Sidecar + MCP dual listen must be observable");
+    assert!(
+        observed,
+        "T9: observe_dual_listen must report dual listen observed"
+    );
+
+    stop_embedded_mcp_runtime(mcp_handle).expect("stop MCP");
     local_http::stop(http_handle);
+}
+
+/// T9 / Exception: occupied MCP port → bind fail-closed; no Node knowledge-mcp spawn fallback.
+#[test]
+fn embedded_mcp_bind_fail_closed() {
+    let port = ephemeral_port();
+    let bind_addr = SocketAddr::from(([127, 0, 0, 1], port));
+    let _holder = TcpListener::bind(bind_addr).expect("occupy MCP port");
+
+    let err = match start_embedded_mcp_runtime(McpRuntimeConfig { bind_addr }) {
+        Ok(_) => panic!("T9: busy MCP port must fail closed (no silent success)"),
+        Err(e) => e,
+    };
+    assert!(
+        matches!(err, McpStartError::BindFailed(_)),
+        "T9: bind conflict must be BindFailed, got {err:?}"
+    );
+    let msg = err.to_string();
+    assert!(
+        msg.contains("MCP bind failed"),
+        "T9: fail-closed error must be clear/prefixed, got {msg:?}"
+    );
+
+    // Source gate: Host boot path must not resurrect Node spawn on bind failure.
+    let lib_rs = lib_rs_source();
+    assert!(
+        !lib_rs.contains("packages/knowledge-mcp/index.mjs"),
+        "T9: bind fail-closed must not fall back to Node knowledge-mcp"
+    );
+    assert!(
+        !lib_rs.contains("falling back to Node spawn"),
+        "T9: Node spawn fallback string must stay absent"
+    );
+}
+
+/// T9 / Exception: this suite must not revive Node knowledge-mcp spawn as a pass condition.
+#[test]
+fn t9_suite_must_not_require_node_knowledge_mcp_spawn() {
+    let src = this_test_source();
+    // Split literals so this gate does not match its own source text.
+    // Call-site / script patterns only (not the T7 negative string needles).
+    let forbidden = [
+        format!("{}{}", "todo-task-mcp-", "e2e"),
+        format!("{}{}", "Command::new(", "\"node\")"),
+        format!("{}{}", "KnowledgeMcpProcess::", "new(child)"),
+        format!("{}{}", "process.", "ensure_running("),
+        format!("{}{}", "create_todo_task_mcp_tool_", "e2e_with_local_http"),
+    ];
+    for needle in &forbidden {
+        assert!(
+            !src.contains(needle),
+            "T9/V1: knowledge_mcp_tests.rs must not require Node spawn pass condition `{needle}`"
+        );
+    }
 }

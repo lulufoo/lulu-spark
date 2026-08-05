@@ -1,8 +1,9 @@
 //! Engine-aware chat turn orchestration (busy / gate / persist / ChatTurnResult).
 //!
 //! Sibling to Host `loop` and Cursor `cursor_adapter`. Formal chat enters here;
-//! settings select Host (`run_loop`) or Cursor (adapter + t2 readiness). Cursor
-//! failures never fall back to Host LLM or process-local business tool handlers.
+//! settings select Host (`run_loop`) or Cursor (adapter + Host MCP readiness via
+//! `GET /health` on `DEFAULT_MCP_PORT`). Cursor failures never fall back to Host
+//! LLM or process-local business tool handlers.
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, OnceLock};
@@ -120,6 +121,8 @@ fn cursor_runtime() -> Result<Arc<CursorSessionRuntime>, CursorError> {
     Ok(rt)
 }
 
+/// Probe Host MCP readiness (`GET http://127.0.0.1:{DEFAULT_MCP_PORT}/health`)
+/// and return Binding transports (`/mcp/<slot>`). Health contract only.
 fn ready_mcp_for_binding_key(key: &str) -> Result<ReadyMcpTransports, CursorError> {
     if let Some(ready) = test_ready_slot()
         .lock()

@@ -84,7 +84,7 @@ describe('Plan-task attachment AC gate (tech-doc VF / T15)', () => {
   });
 
   it('AC2: MCP schema exposes add/list/get/update attachment tools', () => {
-    const mcp = read('packages/knowledge-mcp/index.mjs');
+    const mcp = read('src-tauri/src/services/mcp_protocol_adapter.rs');
     for (const tool of MCP_ATTACHMENT_TOOLS) {
       expect(mcp).toMatch(new RegExp(`['"]${tool}['"]`));
     }
@@ -100,7 +100,7 @@ describe('Plan-task attachment AC gate (tech-doc VF / T15)', () => {
   });
 
   it('AC6: MCP has no attachment delete tool; UI delete path is tested', () => {
-    const mcp = read('packages/knowledge-mcp/index.mjs');
+    const mcp = read('src-tauri/src/services/mcp_protocol_adapter.rs');
     for (const tool of MCP_FORBIDDEN_DELETE_TOOLS) {
       expect(mcp).not.toMatch(new RegExp(`['"]${tool}['"]`));
     }

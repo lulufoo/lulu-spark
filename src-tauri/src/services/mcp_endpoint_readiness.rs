@@ -1,9 +1,10 @@
 //! Host-managed MCP endpoint discovery / readiness.
 //!
 //! Transport is provided to Cursor runners only after Workbench local HTTP and
-//! the knowledge-MCP sidecar pass health probes. A static localhost URL alone
-//! is never treated as ready. Unknown business keys reject explicitly — never
-//! silently degrade to “no MCP but claimed injected”.
+//! the Host MCP listener pass health probes (`GET /health` → `ok` + non-empty
+//! `mcp`). Session-level MCP handshake is out of scope here (V5/T6). A static
+//! localhost URL alone is never treated as ready. Unknown business keys reject
+//! explicitly — never silently degrade to “no MCP but claimed injected”.
 
 use std::collections::BTreeMap;
 use std::time::Duration;
@@ -17,7 +18,7 @@ use crate::services::mcp_server_registry::{self, HttpMcpTransport, McpServerLook
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct McpEndpointCandidates {
     pub workbench_http_base: String,
-    pub knowledge_mcp_base: String,
+    pub host_mcp_base: String,
     pub transport: HttpMcpTransport,
 }
 
@@ -31,7 +32,7 @@ pub struct ReadyMcpTransports {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum McpEndpointReadinessError {
     WorkbenchHttpNotReady,
-    KnowledgeMcpNotReady,
+    HostMcpNotReady,
     NotWorkbenchService,
     Recoverable(String),
 }
@@ -92,25 +93,25 @@ fn probe_workbench_http(base: &str) -> Result<(), McpEndpointReadinessError> {
     Ok(())
 }
 
-fn probe_knowledge_mcp(base: &str) -> Result<(), McpEndpointReadinessError> {
+fn probe_host_mcp(base: &str) -> Result<(), McpEndpointReadinessError> {
     let url = format!("{}/health", trim_trailing_slash(base));
     let (status, body) = match get_json(&url) {
         Ok(v) => v,
         Err(msg) => {
             return Err(if is_connect_failure(&msg) {
-                McpEndpointReadinessError::KnowledgeMcpNotReady
+                McpEndpointReadinessError::HostMcpNotReady
             } else {
                 McpEndpointReadinessError::Recoverable(msg)
             });
         }
     };
     if status != 200 {
-        return Err(McpEndpointReadinessError::KnowledgeMcpNotReady);
+        return Err(McpEndpointReadinessError::HostMcpNotReady);
     }
     let ok = body.get("ok").and_then(|v| v.as_bool()).unwrap_or(false);
     let mcp = body.get("mcp").and_then(|v| v.as_str()).unwrap_or("");
     if !ok || mcp.trim().is_empty() {
-        return Err(McpEndpointReadinessError::KnowledgeMcpNotReady);
+        return Err(McpEndpointReadinessError::HostMcpNotReady);
     }
     Ok(())
 }
@@ -128,7 +129,7 @@ pub fn probe_mcp_endpoint_readiness(
     candidates: &McpEndpointCandidates,
 ) -> Result<ReadyMcpTransports, McpEndpointReadinessError> {
     probe_workbench_http(&candidates.workbench_http_base)?;
-    probe_knowledge_mcp(&candidates.knowledge_mcp_base)?;
+    probe_host_mcp(&candidates.host_mcp_base)?;
     Ok(ReadyMcpTransports {
         transports: vec![candidates.transport.clone()],
     })
@@ -148,7 +149,7 @@ pub fn ready_transports_for_business_key(
     transport.url = format!("http://127.0.0.1:{mcp_port}/mcp/{key}");
     let candidates = McpEndpointCandidates {
         workbench_http_base: format!("http://127.0.0.1:{http_port}"),
-        knowledge_mcp_base: format!("http://127.0.0.1:{mcp_port}"),
+        host_mcp_base: format!("http://127.0.0.1:{mcp_port}"),
         transport,
     };
     probe_mcp_endpoint_readiness(&candidates).map_err(ReadyTransportError::Readiness)

@@ -11,7 +11,7 @@ use std::sync::{Mutex, OnceLock};
 /// Seeded business key for Binding assembly (todo_task surface).
 pub const SEEDED_BUSINESS_KEY: &str = "todo_task";
 
-/// Default inline mcpServers entry name for the Workbench knowledge-MCP surface.
+/// Default inline mcpServers entry name for the Workbench Host MCP surface.
 pub const DEFAULT_HTTP_MCP_SERVER_NAME: &str = "workbench";
 
 /// Structured HTTP MCP transport for SDK consumption (name / URL / headers).
@@ -46,7 +46,7 @@ pub enum McpServerLookupError {
 
 /// Decision-level description for the L1 internal MCP `todo_task` surface.
 const SEEDED_TODO_CAPABILITY_DESCRIPTION: &str =
-    "internal knowledge-mcp todo_task capability surface";
+    "internal host-mcp todo_task capability surface";
 
 fn seeded_http_transport() -> HttpMcpTransport {
     let mut headers = BTreeMap::new();

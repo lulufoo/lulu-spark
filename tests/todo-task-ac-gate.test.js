@@ -2,7 +2,7 @@
  * T10 end-to-end acceptance gate (tech-doc SK-5 / AC-Host·MCP / AC-SKILL /
  * AC-等价 / AC-迁移 / AC-可观测 / AC-测试残留).
  *
- * Hard cut: no plan_* tools/aliases. Any falsifying signal fails this suite.
+ * Hard cut: no plan_* tools/aliases. Host MCP is runtime SSOT (T10 archive).
  */
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -10,6 +10,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
+const HOST_ADAPTER = 'src-tauri/src/services/mcp_protocol_adapter.rs';
 
 /** tech-doc AC-等价 — full 13-tool set (update/complete/link/attachment required). */
 const EQUIVALENCE_TODO_TOOLS = [
@@ -55,39 +56,36 @@ function extractQuotedToolList(src, constName) {
   return [...m[1].matchAll(/['"]([^'"]+)['"]/g)].map((x) => x[1]);
 }
 
+function hostToolNames(src) {
+  return [...src.matchAll(/name:\s*"([^"]+)"\.into\(\)/g)].map((m) => m[1]);
+}
+
 describe('T10 — AC-Host/MCP (hard cut, no plan_* )', () => {
-  it('MCP index registers only todo_* task tools; complete_plan_sub absent', () => {
-    const src = read('packages/knowledge-mcp/index.mjs');
+  it('Host adapter registers only todo_* task tools; complete_plan_sub absent', () => {
+    const src = read(HOST_ADAPTER);
+    const names = hostToolNames(src);
     for (const tool of EQUIVALENCE_TODO_TOOLS) {
-      expect(src, `missing ${tool}`).toMatch(new RegExp(`['"]${tool}['"]`));
+      expect(names, `missing ${tool}`).toContain(tool);
     }
     for (const tool of FORBIDDEN_PLAN_TOOLS) {
-      expect(src, `forbidden ${tool}`).not.toMatch(
-        new RegExp(`registerTool\\(\\s*['"]${tool}['"]`),
-      );
+      expect(names, `forbidden ${tool}`).not.toContain(tool);
     }
-    expect(src).not.toMatch(/registerTool\(\s*['"]complete_plan_sub['"]/);
+    expect(names).not.toContain('complete_plan_sub');
   });
 
-  it('verify.mjs forbids plan_* tool registration and lists the 13-tool equivalence set', () => {
-    const src = read('packages/knowledge-mcp/scripts/verify.mjs');
-    expect(src).toMatch(/EQUIVALENCE_TODO_TOOLS|T10_EQUIVALENCE_TODO_TOOLS/);
-    const names =
-      extractQuotedToolList(src, 'EQUIVALENCE_TODO_TOOLS') ||
-      extractQuotedToolList(src, 'T10_EQUIVALENCE_TODO_TOOLS');
-    expect(names, 'verify.mjs must declare EQUIVALENCE_TODO_TOOLS').toBeTruthy();
-    expect([...names].sort()).toEqual([...EQUIVALENCE_TODO_TOOLS].sort());
-    for (const tool of FORBIDDEN_PLAN_TOOLS) {
-      expect(src, `verify must forbid ${tool}`).toContain(`'${tool}'`);
-    }
-    expect(src).toContain('forbidden plan_* tool still registered');
-    expect(src).toContain('complete_plan_sub');
+  it('verify-host-mcp targets Host URL and does not spawn Node index.mjs', () => {
+    const src = read('scripts/verify-host-mcp.mjs');
+    expect(src).toContain('http://127.0.0.1:9876');
+    expect(src).toMatch(/todo_task/);
+    expect(src).toMatch(/cursor_ide/);
+    expect(src).not.toMatch(/['"]packages\/knowledge-mcp\/index\.mjs['"]/);
+    expect(src).not.toMatch(/spawnSidecar\s*\(/);
   });
 });
 
-describe('T10 — AC-等价 (full 13-tool set in e2e + verify)', () => {
+describe('T10 — AC-等价 (full 13-tool set in e2e)', () => {
   it('todo-task-mcp-e2e lists and exercises all 13 equivalence tools incl. complete/link/attachment', () => {
-    const src = read('packages/knowledge-mcp/scripts/todo-task-mcp-e2e.mjs');
+    const src = read('scripts/todo-task-mcp-e2e.mjs');
     expect(src).toMatch(/EQUIVALENCE_TODO_TOOLS|T10_EQUIVALENCE_TODO_TOOLS/);
     const names =
       extractQuotedToolList(src, 'EQUIVALENCE_TODO_TOOLS') ||
@@ -110,8 +108,8 @@ describe('T10 — AC-等价 (full 13-tool set in e2e + verify)', () => {
     }
   });
 
-  it('verify.mjs exercises complete_todo, link_todo_archive, and attachment quartet', () => {
-    const src = read('packages/knowledge-mcp/scripts/verify.mjs');
+  it('Host adapter routes equivalence tools to Sidecar /api/* paths', () => {
+    const src = read(HOST_ADAPTER);
     for (const tool of [
       'complete_todo',
       'link_todo_archive',
@@ -120,9 +118,7 @@ describe('T10 — AC-等价 (full 13-tool set in e2e + verify)', () => {
       'get_todo_attachment',
       'update_todo_attachment',
     ]) {
-      expect(src, `verify must callTool ${tool}`).toMatch(
-        new RegExp(`callTool\\(\\{\\s*name:\\s*['"]${tool}['"]`),
-      );
+      expect(src, `Host missing route for ${tool}`).toContain(`name: "${tool}".into()`);
     }
   });
 });
@@ -190,23 +186,20 @@ describe('T10 — AC-可观测 (migrate success/failure distinguishable)', () =>
 });
 
 describe('T10 — AC-测试残留 (old contract names purged from delivery tests)', () => {
-  it('delivery e2e entry is todo-task-mcp-e2e; plan-task-mcp-e2e removed', () => {
-    expect(existsSync(join(repoRoot, 'packages/knowledge-mcp/scripts/todo-task-mcp-e2e.mjs'))).toBe(
-      true,
-    );
-    expect(existsSync(join(repoRoot, 'packages/knowledge-mcp/scripts/plan-task-mcp-e2e.mjs'))).toBe(
-      false,
-    );
+  it('delivery e2e entry is scripts/todo-task-mcp-e2e; plan-task-mcp-e2e removed', () => {
+    expect(existsSync(join(repoRoot, 'scripts/todo-task-mcp-e2e.mjs'))).toBe(true);
+    expect(existsSync(join(repoRoot, 'scripts/plan-task-mcp-e2e.mjs'))).toBe(false);
+    expect(existsSync(join(repoRoot, 'packages/knowledge-mcp/index.mjs'))).toBe(false);
   });
 
-  it('e2e and verify do not register or alias plan_* tool names', () => {
-    const e2e = read('packages/knowledge-mcp/scripts/todo-task-mcp-e2e.mjs');
-    const verify = read('packages/knowledge-mcp/scripts/verify.mjs');
-    for (const src of [e2e, verify]) {
-      expect(src).toMatch(/FORBIDDEN_PLAN_/);
-      expect(src).not.toMatch(/registerTool\(\s*['"]create_plan_task['"]/);
-      expect(src).not.toMatch(/name:\s*['"]create_plan_task['"]/);
-      expect(src).not.toMatch(/name:\s*['"]complete_plan_sub['"]/);
+  it('e2e forbids plan_* tool names; Host adapter does not register them', () => {
+    const e2e = read('scripts/todo-task-mcp-e2e.mjs');
+    expect(e2e).toMatch(/FORBIDDEN_PLAN_/);
+    expect(e2e).not.toMatch(/name:\s*['"]create_plan_task['"]/);
+    expect(e2e).not.toMatch(/name:\s*['"]complete_plan_sub['"]/);
+    const host = read(HOST_ADAPTER);
+    for (const tool of FORBIDDEN_PLAN_TOOLS) {
+      expect(host).not.toContain(`name: "${tool}".into()`);
     }
   });
 

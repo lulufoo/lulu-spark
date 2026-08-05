@@ -1,10 +1,6 @@
 /**
  * t5 — contract / UI / MCP suites aligned to tech-doc AC1–AC5
- * (optional SubTask content + Process notes order).
- *
- * Source-lock gate: host/HTTP/MCP/UI layers must expose the AC behaviors.
- * Does not rewrite T10's 13-tool EQUIVALENCE set; requires update_todo_sub
- * as an additive sub-content surface in verify/e2e.
+ * Retargeted to Host MCP SSOT after T10 archive of packages/knowledge-mcp.
  */
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -12,16 +8,10 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
+const HOST_ADAPTER = 'src-tauri/src/services/mcp_protocol_adapter.rs';
 
 function read(rel) {
   return readFileSync(join(repoRoot, rel), 'utf8');
-}
-
-function extractQuotedToolList(src, constName) {
-  const re = new RegExp(`const ${constName}\\s*=\\s*\\[([\\s\\S]*?)\\];`);
-  const m = src.match(re);
-  if (!m) return null;
-  return [...m[1].matchAll(/['"]([^'"]+)['"]/g)].map((x) => x[1]);
 }
 
 describe('t5 AC1 — title-only add (host / HTTP / MCP)', () => {
@@ -37,19 +27,12 @@ describe('t5 AC1 — title-only add (host / HTTP / MCP)', () => {
     expect(src).toContain('/api/todo-task-add-sub');
   });
 
-  it('MCP schema + verify/e2e keep title-only add_todo_sub success path', () => {
-    const index = read('packages/knowledge-mcp/index.mjs');
-    expect(index).toMatch(/registerTool\(\s*'add_todo_sub'/);
-    expect(index).toMatch(/if\s*\(\s*content\s*!=\s*null\s*\)/);
+  it('Host adapter routes add_todo_sub; e2e keeps title-only success path', () => {
+    const adapter = read(HOST_ADAPTER);
+    expect(adapter).toContain('name: "add_todo_sub".into()');
+    expect(adapter).toContain('/api/todo-task-add-sub');
 
-    const verify = read('packages/knowledge-mcp/scripts/verify.mjs');
-    expect(verify).toMatch(/name:\s*'add_todo_sub'/);
-    // title-only call must not require content in mock path
-    expect(verify).toMatch(
-      /todo-task-add-sub[\s\S]*?respondJson\(\s*res,\s*201/,
-    );
-
-    const e2e = read('packages/knowledge-mcp/scripts/todo-task-mcp-e2e.mjs');
+    const e2e = read('scripts/todo-task-mcp-e2e.mjs');
     expect(e2e).toMatch(
       /add_todo_sub[\s\S]*?master_task_id[\s\S]*?title:\s*'Sub /,
     );
@@ -72,15 +55,8 @@ describe('t5 AC2 — create-with-content round-trip; legacy missing field empty'
     expect(src).toContain('post_todo_task_add_sub_with_optional_content_persists_via_get');
   });
 
-  it('verify mock persists optional content on add-sub; e2e/verify exercise create-with-content', () => {
-    const verify = read('packages/knowledge-mcp/scripts/verify.mjs');
-    // mock must accept optional content (not drop it)
-    expect(verify).toMatch(
-      /todo-task-add-sub[\s\S]*?payload\.content[\s\S]*?sub_tasks\.push/,
-    );
-    expect(verify).toMatch(/name:\s*'add_todo_sub'[\s\S]*?content:\s*'/);
-
-    const e2e = read('packages/knowledge-mcp/scripts/todo-task-mcp-e2e.mjs');
+  it('e2e exercises create-with-content via add_todo_sub', () => {
+    const e2e = read('scripts/todo-task-mcp-e2e.mjs');
     expect(e2e).toMatch(/add_todo_sub[\s\S]*?content:\s*'/);
   });
 });
@@ -95,35 +71,25 @@ describe('t5 AC3 — update modify/clear/omit content; no delete-content API', (
     expect(http).toContain('post_todo_task_update_sub_writes_clears_and_omits_content');
   });
 
-  it('verify mock exposes update-sub; verify/e2e exercise update_todo_sub content paths', () => {
-    const verify = read('packages/knowledge-mcp/scripts/verify.mjs');
-    expect(verify).toContain('/api/todo-task-update-sub');
-    const subContentTools =
-      extractQuotedToolList(verify, 'SUB_CONTENT_TODO_TOOLS') ||
-      extractQuotedToolList(verify, 'SUB_CONTENT_MCP_TOOLS');
-    expect(
-      subContentTools,
-      'verify.mjs must declare SUB_CONTENT_TODO_TOOLS incl. update_todo_sub',
-    ).toBeTruthy();
-    expect(subContentTools).toContain('update_todo_sub');
-    expect(verify).toMatch(/name:\s*'update_todo_sub'/);
-    expect(verify).toMatch(/content:\s*''/);
+  it('Host adapter + e2e expose update_todo_sub content paths', () => {
+    const adapter = read(HOST_ADAPTER);
+    expect(adapter).toContain('name: "update_todo_sub".into()');
+    expect(adapter).toContain('/api/todo-task-update-sub');
 
-    const e2e = read('packages/knowledge-mcp/scripts/todo-task-mcp-e2e.mjs');
+    const e2e = read('scripts/todo-task-mcp-e2e.mjs');
     expect(e2e).toMatch(/name:\s*'update_todo_sub'|callTodoTool\(\s*'update_todo_sub'/);
     expect(e2e).toMatch(/content:\s*''/);
   });
 
-  it('no delete-content API on HTTP or MCP surfaces', () => {
+  it('no delete-content API on HTTP or Host MCP surfaces', () => {
     const http = read('src-tauri/src/services/local_http/mod.rs');
     expect(http).not.toMatch(/todo-task-delete-.*content|delete-sub-content|delete_content/);
     expect(http).toContain('/api/todo-task-update-sub');
 
-    const index = read('packages/knowledge-mcp/index.mjs');
-    expect(index).not.toMatch(
-      /registerTool\(\s*'delete_todo_sub_content'|registerTool\(\s*'delete_sub_content'/,
-    );
-    expect(index).toMatch(/registerTool\(\s*'update_todo_sub'/);
+    const adapter = read(HOST_ADAPTER);
+    expect(adapter).not.toContain('name: "delete_todo_sub_content".into()');
+    expect(adapter).not.toContain('name: "delete_sub_content".into()');
+    expect(adapter).toContain('name: "update_todo_sub".into()');
   });
 });
 
@@ -170,17 +136,12 @@ describe('t5 wire-up / failure semantics', () => {
     expect(http).toContain('post_todo_task_add_sub_missing_or_blank_title_returns_400');
     expect(http).toContain('post_todo_task_update_sub_missing_or_blank_title_returns_400');
     const mcp = read('tests/todo-task-mcp-sub-content.test.js');
-    expect(mcp).toContain(
-      'rejects when both title and content are omitted (no destructive empty-title POST)',
-    );
+    expect(mcp).toContain('Sidecar HTTP handlers cover optional content semantics');
   });
 
-  it('delivery scripts exist', () => {
-    expect(existsSync(join(repoRoot, 'packages/knowledge-mcp/scripts/verify.mjs'))).toBe(
-      true,
-    );
-    expect(
-      existsSync(join(repoRoot, 'packages/knowledge-mcp/scripts/todo-task-mcp-e2e.mjs')),
-    ).toBe(true);
+  it('delivery scripts exist (Host verify + e2e; Node package archived)', () => {
+    expect(existsSync(join(repoRoot, 'scripts/verify-host-mcp.mjs'))).toBe(true);
+    expect(existsSync(join(repoRoot, 'scripts/todo-task-mcp-e2e.mjs'))).toBe(true);
+    expect(existsSync(join(repoRoot, 'packages/knowledge-mcp/index.mjs'))).toBe(false);
   });
 });

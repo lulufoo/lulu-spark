@@ -333,7 +333,7 @@ describe('attachment delete does not loosen MCP / dialog contracts', () => {
   });
 
   it('MCP schema still has no attachment delete tool', () => {
-    const mcpSrc = readFileSync(join(repoRoot, 'packages/knowledge-mcp/index.mjs'), 'utf8');
+    const mcpSrc = readFileSync(join(repoRoot, 'src-tauri/src/services/mcp_protocol_adapter.rs'), 'utf8');
     expect(mcpSrc).toMatch(/add_todo_attachment/);
     expect(mcpSrc).toMatch(/list_todo_attachments/);
     expect(mcpSrc).toMatch(/get_todo_attachment/);
@@ -343,12 +343,9 @@ describe('attachment delete does not loosen MCP / dialog contracts', () => {
     expect(mcpSrc).not.toMatch(/['"]delete_todo_attachment['"]/);
     expect(mcpSrc).not.toMatch(/['"]remove_todo_attachment['"]/);
 
-    const verifySrc = readFileSync(
-      join(repoRoot, 'packages/knowledge-mcp/scripts/verify.mjs'),
-      'utf8',
-    );
-    expect(verifySrc).toMatch(/FORBIDDEN_ATTACHMENT_DELETE_TOOL_NAMES/);
-    expect(verifySrc).toMatch(/delete_plan_attachment/);
-    expect(verifySrc).toMatch(/delete_todo_attachment/);
+    const e2eSrc = readFileSync(join(repoRoot, 'scripts/todo-task-mcp-e2e.mjs'), 'utf8');
+    expect(e2eSrc).toMatch(/FORBIDDEN_PLAN_TOOLS|FORBIDDEN_PLAN_/);
+    expect(e2eSrc).not.toMatch(/name:\s*['"]delete_todo_attachment['"]/);
+    expect(e2eSrc).not.toMatch(/name:\s*['"]delete_plan_attachment['"]/);
   });
 });
