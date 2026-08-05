@@ -591,7 +591,6 @@ pub fn run() {
                 match services::mcp_protocol_adapter::start_embedded_mcp_runtime(
                     services::mcp_protocol_adapter::McpRuntimeConfig {
                         bind_addr: mcp_bind,
-                        nest_path: "/mcp/mvp".into(),
                     },
                 ) {
                     Ok(handle) => {
