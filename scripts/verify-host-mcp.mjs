@@ -160,8 +160,13 @@ async function main() {
   const hostUp = await probeHostIfUp();
   if (hostUp) {
     console.log(`live Host probe on ${HOST_MCP_BASE} (todo_task/cursor_ide + unknown): OK`);
+  } else if (process.env.VERIFY_HOST_MCP_SKIP_CARGO === '1') {
+    // npm test already ran Host cargo suite (incl. T10 dual-slot smoke) before this script.
+    console.log(
+      `Host dual-slot list/call + unknown hard-fail: deferred to preceding cargo (Host ${HOST_MCP_BASE})`,
+    );
   } else {
-    // CI / npm test: Host not already listening — prove dual-slot via Host cargo smoke.
+    // Standalone verify: prove dual-slot via Host cargo smoke on :9876.
     runHostDualSlotCargoSmoke();
     console.log(
       `Host dual-slot list/call + unknown hard-fail smoke (cargo → ${HOST_MCP_BASE}): OK`,
