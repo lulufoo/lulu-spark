@@ -2,11 +2,14 @@
 //!
 //! Binds a localhost listener and nests `StreamableHttpService` under
 //! `/mcp/<scene_slot>`. Sidecar `tiny_http` on `:8765` remains separate.
+//! MCP runs on an independent OS thread with its own tokio runtime.
 
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::thread::{self, JoinHandle};
 
+use axum::http::{header, StatusCode};
+use axum::routing::get;
 use axum::Router;
 use rmcp::{
     ServerHandler,
@@ -18,20 +21,31 @@ use rmcp::{
 };
 use tokio_util::sync::CancellationToken;
 
-/// Live MCP listen handle. Dropping cancels the runtime and joins the OS thread.
-pub struct McpListenHandle {
+/// Configuration for the embedded Host MCP runtime.
+#[derive(Debug, Clone)]
+pub struct McpRuntimeConfig {
+    pub bind_addr: SocketAddr,
+    pub nest_path: String,
+}
+
+/// Live MCP runtime handle. Prefer [`stop_embedded_mcp_runtime`] on Host teardown;
+/// dropping also cancels and joins the OS thread.
+pub struct McpRuntimeHandle {
     local_addr: SocketAddr,
     cancel: CancellationToken,
     join: Option<JoinHandle<()>>,
 }
 
-impl McpListenHandle {
+/// Backward-compatible alias from the T1 listen scaffold.
+pub type McpListenHandle = McpRuntimeHandle;
+
+impl McpRuntimeHandle {
     pub fn local_addr(&self) -> SocketAddr {
         self.local_addr
     }
 }
 
-impl Drop for McpListenHandle {
+impl Drop for McpRuntimeHandle {
     fn drop(&mut self) {
         self.cancel.cancel();
         if let Some(join) = self.join.take() {
@@ -58,6 +72,22 @@ impl std::fmt::Display for McpStartError {
 
 impl std::error::Error for McpStartError {}
 
+/// Failure stopping the embedded MCP runtime.
+#[derive(Debug)]
+pub enum McpStopError {
+    JoinFailed(String),
+}
+
+impl std::fmt::Display for McpStopError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::JoinFailed(msg) => write!(f, "MCP stop/join failed: {msg}"),
+        }
+    }
+}
+
+impl std::error::Error for McpStopError {}
+
 /// Minimal scaffold handler — tools surface filled in by later tasks.
 #[derive(Clone)]
 struct ScaffoldHandler;
@@ -68,18 +98,31 @@ impl ServerHandler for ScaffoldHandler {
     }
 }
 
-/// Bind `bind_addr` and nest Streamable HTTP MCP under `nest_path` (e.g. `/mcp/mvp`).
-pub fn start_mcp_listener(
-    bind_addr: SocketAddr,
-    nest_path: &str,
-) -> Result<McpListenHandle, McpStartError> {
+/// Readiness probe contract matching Node `GET /health` (`ok` + non-empty `mcp`).
+async fn health_handler(port: u16) -> (StatusCode, [(header::HeaderName, &'static str); 1], String) {
+    let body = serde_json::json!({
+        "ok": true,
+        "mcp": format!("http://127.0.0.1:{port}/mcp/<scene_slot>"),
+    });
+    (
+        StatusCode::OK,
+        [(header::CONTENT_TYPE, "application/json")],
+        body.to_string(),
+    )
+}
+
+/// Start MCP on an independent OS thread with its own tokio runtime.
+pub fn start_embedded_mcp_runtime(
+    config: McpRuntimeConfig,
+) -> Result<McpRuntimeHandle, McpStartError> {
+    let nest_path = config.nest_path;
     if nest_path.is_empty() || !nest_path.starts_with('/') {
         return Err(McpStartError::Runtime(format!(
             "nest_path must be an absolute path, got {nest_path:?}"
         )));
     }
 
-    let nest_path = nest_path.to_string();
+    let bind_addr = config.bind_addr;
     let cancel = CancellationToken::new();
     let cancel_child = cancel.child_token();
     let (tx, rx) = std::sync::mpsc::channel::<Result<SocketAddr, String>>();
@@ -123,7 +166,13 @@ pub fn start_mcp_listener(
                         .with_cancellation_token(cancel_child.clone()),
                 );
 
-            let router = Router::new().nest_service(&nest_path, service);
+            let port = local_addr.port();
+            let router = Router::new()
+                .route(
+                    "/health",
+                    get(move || async move { health_handler(port).await }),
+                )
+                .nest_service(&nest_path, service);
             let _ = axum::serve(listener, router)
                 .with_graceful_shutdown(async move {
                     cancel_child.cancelled().await;
@@ -133,7 +182,7 @@ pub fn start_mcp_listener(
     });
 
     match rx.recv() {
-        Ok(Ok(local_addr)) => Ok(McpListenHandle {
+        Ok(Ok(local_addr)) => Ok(McpRuntimeHandle {
             local_addr,
             cancel,
             join: Some(join),
@@ -149,6 +198,29 @@ pub fn start_mcp_listener(
             ))
         }
     }
+}
+
+/// Host teardown: cancel the runtime and join the OS thread.
+pub fn stop_embedded_mcp_runtime(
+    mut handle: McpRuntimeHandle,
+) -> Result<(), McpStopError> {
+    handle.cancel.cancel();
+    if let Some(join) = handle.join.take() {
+        join.join()
+            .map_err(|_| McpStopError::JoinFailed("MCP runtime thread panicked".into()))?;
+    }
+    Ok(())
+}
+
+/// Bind `bind_addr` and nest Streamable HTTP MCP under `nest_path` (e.g. `/mcp/mvp`).
+pub fn start_mcp_listener(
+    bind_addr: SocketAddr,
+    nest_path: &str,
+) -> Result<McpRuntimeHandle, McpStartError> {
+    start_embedded_mcp_runtime(McpRuntimeConfig {
+        bind_addr,
+        nest_path: nest_path.to_string(),
+    })
 }
 
 #[cfg(test)]

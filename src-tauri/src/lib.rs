@@ -141,6 +141,28 @@ impl MeiliProcess {
     }
 }
 
+/// Holds the embedded Host MCP runtime (independent OS thread + tokio).
+/// Replaces `KnowledgeMcpProcess` child lifecycle for start/stop/join.
+pub struct EmbeddedMcpRuntime {
+    handle: Mutex<Option<services::mcp_protocol_adapter::McpRuntimeHandle>>,
+}
+
+impl EmbeddedMcpRuntime {
+    pub fn new(handle: Option<services::mcp_protocol_adapter::McpRuntimeHandle>) -> Self {
+        Self {
+            handle: Mutex::new(handle),
+        }
+    }
+
+    pub fn stop(&self) {
+        if let Ok(mut guard) = self.handle.lock() {
+            if let Some(handle) = guard.take() {
+                let _ = services::mcp_protocol_adapter::stop_embedded_mcp_runtime(handle);
+            }
+        }
+    }
+}
+
 /// Config retained so a dead sidecar on `mcp_port` can be respawned without App restart.
 #[derive(Clone, Debug)]
 pub struct KnowledgeMcpSpawnCfg {
@@ -559,19 +581,36 @@ pub fn run() {
             let local_http = services::local_http::LocalHttpState::new();
             let mut knowledge_child = None;
             let mut knowledge_cfg = None;
+            let mut embedded_mcp_handle = None;
             if let Ok(repo_root) = crate::config::paths::repo_root() {
                 let http_port = services::local_http::DEFAULT_HTTP_PORT;
                 local_http.try_start(repo_root.clone(), http_port);
-                knowledge_child = try_spawn_knowledge_mcp(
-                    local_http.is_ready(),
-                    &repo_root,
-                    http_port,
-                );
-                knowledge_cfg = Some(KnowledgeMcpSpawnCfg {
-                    repo_root,
-                    http_port,
-                    mcp_port: DEFAULT_MCP_PORT,
-                });
+                // Prefer embedded MCP runtime (dual-listen with Sidecar). On bind failure,
+                // fall back to Node spawn until T5 fail-closed / T7 hard-cut remove the path.
+                let mcp_bind = SocketAddr::from(([127, 0, 0, 1], DEFAULT_MCP_PORT));
+                match services::mcp_protocol_adapter::start_embedded_mcp_runtime(
+                    services::mcp_protocol_adapter::McpRuntimeConfig {
+                        bind_addr: mcp_bind,
+                        nest_path: "/mcp/mvp".into(),
+                    },
+                ) {
+                    Ok(handle) => {
+                        embedded_mcp_handle = Some(handle);
+                    }
+                    Err(err) => {
+                        eprintln!("[mcp-runtime] embedded start failed: {err}; falling back to Node spawn");
+                        knowledge_child = try_spawn_knowledge_mcp(
+                            local_http.is_ready(),
+                            &repo_root,
+                            http_port,
+                        );
+                        knowledge_cfg = Some(KnowledgeMcpSpawnCfg {
+                            repo_root,
+                            http_port,
+                            mcp_port: DEFAULT_MCP_PORT,
+                        });
+                    }
+                }
             }
             // L2 Host key→MCP registry: seed L1 internal MCP business surface before Binding Set.
             services::mcp_server_registry::seed_defaults();
@@ -579,6 +618,7 @@ pub fn run() {
             if let Some(cfg) = knowledge_cfg {
                 knowledge.set_spawn_cfg(cfg);
             }
+            app.manage(EmbeddedMcpRuntime::new(embedded_mcp_handle));
             app.manage(knowledge);
             app.manage(local_http);
 
@@ -623,6 +663,9 @@ pub fn run() {
             if let tauri::RunEvent::Exit = event {
                 if let Some(meili) = app_handle.try_state::<MeiliProcess>() {
                     meili.kill();
+                }
+                if let Some(embedded) = app_handle.try_state::<EmbeddedMcpRuntime>() {
+                    embedded.stop();
                 }
                 if let Some(knowledge) = app_handle.try_state::<KnowledgeMcpProcess>() {
                     knowledge.kill();
