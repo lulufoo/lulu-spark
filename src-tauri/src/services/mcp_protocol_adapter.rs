@@ -17,22 +17,66 @@ use axum::response::IntoResponse;
 use axum::routing::{any, get};
 use axum::Router;
 use rmcp::{
-    ServerHandler,
+    ServerHandler, ServiceExt,
     model::{
-        CallToolRequestParams, CallToolResponse, CallToolResult, ContentBlock, ListToolsResult,
-        PaginatedRequestParams, ServerCapabilities, ServerInfo, Tool,
+        CallToolRequestParams, CallToolResponse, CallToolResult, ClientCapabilities, ClientInfo,
+        ContentBlock, Implementation, ListToolsResult, PaginatedRequestParams, ServerCapabilities,
+        ServerInfo, Tool,
     },
     service::RequestContext,
-    transport::streamable_http_server::{
-        session::local::LocalSessionManager, StreamableHttpServerConfig, StreamableHttpService,
+    transport::{
+        StreamableHttpClientTransport,
+        streamable_http_server::{
+            session::local::LocalSessionManager, StreamableHttpServerConfig, StreamableHttpService,
+        },
     },
     ErrorData as McpError, RoleServer,
 };
 use serde_json::Value;
 use tokio_util::sync::CancellationToken;
 
+use super::local_http;
+
 /// Default Sidecar loopback base (Host tiny_http `:8765`).
 pub const DEFAULT_SIDECAR_BASE_URL: &str = "http://127.0.0.1:8765";
+
+/// V5/Topic2 close-gate evidence: dual listen + session initialize/tools/list.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CloseGateReport {
+    pub mcp_port: u16,
+    pub sidecar_port: u16,
+    pub scene_slot: String,
+    pub dual_listen_observed: bool,
+    pub initialize_ok: bool,
+    pub tools_list_ok: bool,
+    pub tool_names: Vec<String>,
+}
+
+/// Failure of the P1 close gate (blocks Node spawn hard-cut).
+#[derive(Debug)]
+pub enum CloseGateError {
+    UnregisteredSlot(String),
+    DualListenNotObservable(String),
+    InitializeFailed(String),
+    ToolsListFailed(String),
+    Runtime(String),
+}
+
+impl std::fmt::Display for CloseGateError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::UnregisteredSlot(slot) => write!(f, "unregistered scene_slot: {slot}"),
+            Self::DualListenNotObservable(msg) => {
+                write!(f, "dual listen not observable: {msg}")
+            }
+            Self::InitializeFailed(msg) => write!(f, "initialize failed: {msg}"),
+            Self::ToolsListFailed(msg) => write!(f, "tools/list failed: {msg}"),
+            Self::Runtime(msg) => write!(f, "close-gate runtime: {msg}"),
+        }
+    }
+}
+
+impl std::error::Error for CloseGateError {}
 
 /// Observable MCP tool success (Node: `{ content: [{ type: "text", text }] }`).
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -544,6 +588,119 @@ fn build_router(port: u16, cancel: CancellationToken, sidecar_base_url: String) 
 
     // Unregistered `/mcp/<scene_slot>`: HTTP 404 JSON only — no LocalSessionManager / MCP session.
     router.route("/mcp/{scene_slot}", any(unknown_scene_slot_reject))
+}
+
+fn observe_dual_listen(mcp_port: u16, sidecar_port: u16) -> Result<bool, CloseGateError> {
+    let client = reqwest::blocking::Client::builder()
+        .timeout(std::time::Duration::from_secs(2))
+        .build()
+        .map_err(|e| CloseGateError::DualListenNotObservable(format!("http client: {e}")))?;
+
+    let sidecar_url = format!("http://127.0.0.1:{sidecar_port}/api/status");
+    let sidecar = client.get(&sidecar_url).send().map_err(|e| {
+        CloseGateError::DualListenNotObservable(format!("sidecar :{sidecar_port}: {e}"))
+    })?;
+    if !sidecar.status().is_success() {
+        return Err(CloseGateError::DualListenNotObservable(format!(
+            "sidecar :{sidecar_port} status {}",
+            sidecar.status()
+        )));
+    }
+    let sidecar_json: Value = sidecar.json().map_err(|e| {
+        CloseGateError::DualListenNotObservable(format!("sidecar JSON: {e}"))
+    })?;
+    if sidecar_json.get("ok") != Some(&Value::Bool(true)) {
+        return Err(CloseGateError::DualListenNotObservable(format!(
+            "sidecar /api/status not ok: {sidecar_json}"
+        )));
+    }
+
+    let health_url = format!("http://127.0.0.1:{mcp_port}/health");
+    let health = client.get(&health_url).send().map_err(|e| {
+        CloseGateError::DualListenNotObservable(format!("mcp :{mcp_port}: {e}"))
+    })?;
+    if !health.status().is_success() {
+        return Err(CloseGateError::DualListenNotObservable(format!(
+            "mcp :{mcp_port} /health status {}",
+            health.status()
+        )));
+    }
+    let health_json: Value = health
+        .json()
+        .map_err(|e| CloseGateError::DualListenNotObservable(format!("mcp health JSON: {e}")))?;
+    if health_json.get("ok") != Some(&Value::Bool(true)) {
+        return Err(CloseGateError::DualListenNotObservable(format!(
+            "mcp /health not ok: {health_json}"
+        )));
+    }
+    let mcp_field = health_json
+        .get("mcp")
+        .and_then(|v| v.as_str())
+        .unwrap_or("");
+    if mcp_field.trim().is_empty() {
+        return Err(CloseGateError::DualListenNotObservable(format!(
+            "mcp /health mcp field empty: {health_json}"
+        )));
+    }
+
+    Ok(true)
+}
+
+async fn run_initialize_and_list_tools(
+    mcp_port: u16,
+    slot: &str,
+) -> Result<Vec<String>, CloseGateError> {
+    let url = format!("http://127.0.0.1:{mcp_port}/mcp/{slot}");
+    let transport = StreamableHttpClientTransport::from_uri(url);
+    let client_info = ClientInfo::new(
+        ClientCapabilities::default(),
+        Implementation::new("host-close-gate", "0.1.0"),
+    );
+    let client = client_info
+        .serve(transport)
+        .await
+        .map_err(|e| CloseGateError::InitializeFailed(format!("{e:#}")))?;
+
+    let tools = client
+        .list_tools(Default::default())
+        .await
+        .map_err(|e| CloseGateError::ToolsListFailed(format!("{e:#}")))?;
+    let names: Vec<String> = tools
+        .tools
+        .iter()
+        .map(|t| t.name.to_string())
+        .collect();
+    let _ = client.cancel().await;
+    Ok(names)
+}
+
+/// P1/V5 close gate: observe `:9876`+`:8765` and complete initialize + tools/list on a registered slot.
+///
+/// Must pass before removing Node spawn paths (P2/T7).
+pub fn close_gate_smoke_initialize_list(slot: &str) -> Result<CloseGateReport, CloseGateError> {
+    if scene_slot_api(slot).is_none() {
+        return Err(CloseGateError::UnregisteredSlot(slot.to_string()));
+    }
+
+    let mcp_port = crate::DEFAULT_MCP_PORT;
+    let sidecar_port = local_http::DEFAULT_HTTP_PORT;
+    let dual_listen_observed = observe_dual_listen(mcp_port, sidecar_port)?;
+
+    let rt = tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()
+        .map_err(|e| CloseGateError::Runtime(format!("tokio runtime: {e}")))?;
+    let tool_names = rt.block_on(run_initialize_and_list_tools(mcp_port, slot))?;
+
+    Ok(CloseGateReport {
+        mcp_port,
+        sidecar_port,
+        scene_slot: slot.to_string(),
+        dual_listen_observed,
+        initialize_ok: true,
+        tools_list_ok: true,
+        tool_names,
+    })
 }
 
 /// Start MCP on an independent OS thread with its own tokio runtime.

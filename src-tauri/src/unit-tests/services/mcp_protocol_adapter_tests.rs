@@ -723,3 +723,128 @@ fn adapter_source_forbids_fs_and_domain_direct_access() {
         "Adapter outbound targets must be Sidecar /api/* routes"
     );
 }
+
+/// Production close-gate ports (V5 / Topic2): MCP `:9876` + Sidecar `:8765`.
+const CLOSE_GATE_MCP_PORT: u16 = 9876;
+const CLOSE_GATE_SIDECAR_PORT: u16 = 8765;
+
+fn start_close_gate_dual_listen() -> (local_http::LocalHttpHandle, McpRuntimeHandle) {
+    let repo_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("..");
+    let http_handle =
+        local_http::start(repo_root, CLOSE_GATE_SIDECAR_PORT).expect("start Sidecar :8765");
+    thread::sleep(Duration::from_millis(50));
+    let mcp_handle = start_embedded_mcp_runtime(McpRuntimeConfig {
+        bind_addr: format!("127.0.0.1:{CLOSE_GATE_MCP_PORT}")
+            .parse()
+            .expect("mcp addr"),
+    })
+    .expect("start MCP :9876");
+    (http_handle, mcp_handle)
+}
+
+/// Normal / V5: same-process dual listen (:9876 + :8765) + registered-slot initialize + tools/list.
+#[test]
+fn close_gate_smoke_initialize_list_passes_v5_dual_listen_and_session() {
+    let (http_handle, mcp_handle) = start_close_gate_dual_listen();
+
+    let report = close_gate_smoke_initialize_list("todo_task")
+        .expect("P1 close gate must pass before Node spawn hard-cut");
+
+    assert!(
+        report.dual_listen_observed,
+        "same-process :9876 + :8765 must be observable, report={report:?}"
+    );
+    assert_eq!(report.mcp_port, CLOSE_GATE_MCP_PORT);
+    assert_eq!(report.sidecar_port, CLOSE_GATE_SIDECAR_PORT);
+    assert!(
+        report.initialize_ok,
+        "Streamable HTTP initialize must succeed on registered slot"
+    );
+    assert!(
+        report.tools_list_ok,
+        "tools/list must succeed on registered slot after initialize"
+    );
+    assert!(
+        !report.tool_names.is_empty(),
+        "tools/list must return at least one tool name"
+    );
+    assert!(
+        report
+            .tool_names
+            .iter()
+            .any(|n| n == "list_todo_categories"),
+        "todo_task tools/list must include list_todo_categories, got {:?}",
+        report.tool_names
+    );
+
+    stop_embedded_mcp_runtime(mcp_handle).expect("stop MCP");
+    local_http::stop(http_handle);
+}
+
+/// Boundary: readiness `/health` success ≠ session-level initialize/tools/list (T2/T8 vs T6).
+#[test]
+fn health_success_is_not_session_level_close_gate_proof() {
+    let (http_handle, mcp_handle) = start_close_gate_dual_listen();
+
+    let (status, health_body) =
+        http_get(&format!("http://127.0.0.1:{CLOSE_GATE_MCP_PORT}/health"));
+    assert_eq!(status, 200, "health body={health_body}");
+    let health_json: serde_json::Value =
+        serde_json::from_str(&health_body).expect("health JSON");
+    assert_eq!(
+        health_json.get("ok"),
+        Some(&serde_json::Value::Bool(true))
+    );
+    // /health contract has no tools surface — session proof is a separate close-gate step.
+    assert!(
+        health_json.get("tools").is_none(),
+        "health must not carry tools/list payload: {health_json}"
+    );
+    assert!(
+        !health_body.contains("list_todo_categories"),
+        "health body must not embed tools/list names"
+    );
+
+    let report = close_gate_smoke_initialize_list("todo_task").expect("session close gate");
+    assert!(
+        report.tools_list_ok && !report.tool_names.is_empty(),
+        "session initialize+tools/list is the close-gate proof, not /health alone"
+    );
+
+    stop_embedded_mcp_runtime(mcp_handle).expect("stop MCP");
+    local_http::stop(http_handle);
+}
+
+/// Exception: close-gate failure blocks P2 — spawn paths must still exist (T6 must not remove them).
+#[test]
+fn close_gate_must_not_remove_node_spawn_paths() {
+    let lib_src = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/src/lib.rs"));
+    for needle in [
+        "try_spawn_knowledge_mcp",
+        "try_spawn_knowledge_mcp_with_port",
+        "try_spawn_knowledge_mcp_with_port_and_node",
+        "KnowledgeMcpProcess",
+        "packages/knowledge-mcp/index.mjs",
+    ] {
+        assert!(
+            lib_src.contains(needle),
+            "T6 close gate must not remove Node spawn path `{needle}` (P2/T7 owns hard-cut)"
+        );
+    }
+}
+
+/// Exception: unregistered slot cannot satisfy the close gate.
+#[test]
+fn close_gate_smoke_rejects_unregistered_slot() {
+    let (http_handle, mcp_handle) = start_close_gate_dual_listen();
+
+    let err = close_gate_smoke_initialize_list("__unknown__")
+        .expect_err("unregistered slot must fail close gate");
+    match err {
+        CloseGateError::UnregisteredSlot(slot) => assert_eq!(slot, "__unknown__"),
+        other => panic!("expected UnregisteredSlot, got {other:?}"),
+    }
+
+    stop_embedded_mcp_runtime(mcp_handle).expect("stop MCP");
+    local_http::stop(http_handle);
+}
