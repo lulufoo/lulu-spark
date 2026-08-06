@@ -483,9 +483,16 @@ fn llm_load_config_reads_settings_and_secret() {
         let mut s = settings::load().expect("load");
         // Preset platform/base_url are not client-writable via apply_config_payload;
         // persist them on the settings struct to exercise Host load_llm_config.
-        s.llm.platform = "kimi".into();
-        s.llm.base_url = "https://api.example.com".into();
-        s.llm.model = "demo-model".into();
+        settings::upsert_llm_entry(
+            &mut s.llm,
+            "host",
+            &settings::LlmSettings {
+                platform: "kimi".into(),
+                base_url: "https://api.example.com".into(),
+                model: "demo-model".into(),
+            },
+        )
+        .expect("upsert host llm");
         settings::save(&s).expect("save llm settings");
         secrets::set_secret(KEY_LLM_API_KEY, "sk-from-secret").expect("set");
 
@@ -493,5 +500,105 @@ fn llm_load_config_reads_settings_and_secret() {
         assert_eq!(cfg.api_key, "sk-from-secret");
         assert_eq!(cfg.base_url, "https://api.example.com");
         assert_eq!(cfg.model, "demo-model");
+    });
+}
+
+// ── T4: load_llm_config reads current typed entry (model/base_url) ───────────
+
+#[test]
+fn llm_load_config_uses_active_host_entry_not_cursor_residue() {
+    with_agent_sandbox(|_| {
+        let mut s = settings::load().expect("load");
+        s.assistant_engine = "host".into();
+        settings::upsert_llm_entry(
+            &mut s.llm,
+            "host",
+            &settings::LlmSettings {
+                platform: "glm".into(),
+                base_url: "https://host-only.example/v4".into(),
+                model: "host-active-model".into(),
+            },
+        )
+        .expect("upsert host");
+        settings::upsert_llm_entry(
+            &mut s.llm,
+            "cursor",
+            &settings::LlmSettings {
+                platform: "cursor_agent".into(),
+                base_url: "https://cursor-residue.example".into(),
+                model: "cursor-residue-model".into(),
+            },
+        )
+        .expect("upsert cursor");
+        settings::save(&s).expect("save");
+        secrets::set_secret(KEY_LLM_API_KEY, "sk-host-slot").expect("set host key");
+        secrets::set_secret(secrets::KEY_LLM_API_KEY_CURSOR, "sk-cursor-slot").expect("set cursor");
+
+        let cfg = llm::load_llm_config().expect("cfg");
+        assert_eq!(cfg.model, "host-active-model");
+        assert_eq!(cfg.base_url, "https://host-only.example/v4");
+        assert_ne!(cfg.model, "cursor-residue-model");
+        assert_ne!(cfg.base_url, "https://cursor-residue.example");
+        // API key stays on secrets host slot — not pulled from the other type.
+        assert_eq!(cfg.api_key, "sk-host-slot");
+        assert_ne!(cfg.api_key, "sk-cursor-slot");
+    });
+}
+
+#[test]
+fn llm_load_config_missing_or_empty_active_entry_is_missing_config_no_cross_type() {
+    with_agent_sandbox(|_| {
+        let mut s = settings::load().expect("load");
+        s.assistant_engine = "host".into();
+        // Cursor entry alone must not satisfy Host load.
+        settings::upsert_llm_entry(
+            &mut s.llm,
+            "cursor",
+            &settings::LlmSettings {
+                base_url: "https://cursor-only.example".into(),
+                model: "cursor-only-model".into(),
+                ..Default::default()
+            },
+        )
+        .expect("upsert cursor");
+        settings::save(&s).expect("save");
+        secrets::set_secret(KEY_LLM_API_KEY, "sk-present").expect("set");
+
+        let err = llm::load_llm_config().expect_err("must not fall back to cursor entry");
+        assert!(matches!(err, LlmError::MissingConfig), "{err:?}");
+    });
+}
+
+#[test]
+fn llm_load_config_blank_assistant_engine_reads_host_entry() {
+    with_agent_sandbox(|_| {
+        let mut s = settings::load().expect("load");
+        s.assistant_engine = "".into();
+        settings::upsert_llm_entry(
+            &mut s.llm,
+            "host",
+            &settings::LlmSettings {
+                base_url: "https://blank-defaults-host.example/v4".into(),
+                model: "blank-host-model".into(),
+                ..Default::default()
+            },
+        )
+        .expect("upsert host");
+        settings::upsert_llm_entry(
+            &mut s.llm,
+            "cursor",
+            &settings::LlmSettings {
+                base_url: "https://should-not-use.example".into(),
+                model: "should-not-use".into(),
+                ..Default::default()
+            },
+        )
+        .expect("upsert cursor");
+        settings::save(&s).expect("save");
+        secrets::set_secret(KEY_LLM_API_KEY, "sk-blank-host").expect("set");
+
+        let cfg = llm::load_llm_config().expect("blank engine defaults to host entry");
+        assert_eq!(cfg.model, "blank-host-model");
+        assert_eq!(cfg.base_url, "https://blank-defaults-host.example/v4");
     });
 }

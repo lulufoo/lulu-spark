@@ -318,11 +318,24 @@ describe('settings Assistant/Engine panel save/load', () => {
     const engineSelect = document.getElementById('settings-llm-engine');
     engineSelect.value = 'cursor';
     engineSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    await vi.waitFor(() => {
+      expect(document.getElementById('settings-llm-engine').value).toBe('cursor');
+    });
     document.getElementById('settings-llm-model').value = 'composer-1';
     document.getElementById('settings-llm-api-key').value = 'sk-cursor-new';
     document.getElementById('btn-settings-save-llm').click();
-    await vi.waitFor(() => expect(api.setConfig).toHaveBeenCalled());
-    const payload = api.setConfig.mock.calls[0][0];
+    await vi.waitFor(() => {
+      const saveCall = api.setConfig.mock.calls.find(
+        ([payload]) =>
+          payload?.assistant_engine === 'cursor' &&
+          payload?.llm?.model === 'composer-1' &&
+          payload?.api_key_cursor === 'sk-cursor-new',
+      );
+      expect(saveCall).toBeTruthy();
+    });
+    const payload = api.setConfig.mock.calls.find(
+      ([p]) => p?.llm?.model === 'composer-1' && p?.api_key_cursor,
+    )[0];
     expect(payload.assistant_engine).toBe('cursor');
     expect(payload.llm).toEqual({ model: 'composer-1' });
     expect(payload.api_key_cursor).toBe('sk-cursor-new');
@@ -396,3 +409,429 @@ describe('settings Assistant/Engine panel save/load', () => {
     expect(panel.textContent).not.toMatch(/Cursor SDK/i);
   });
 });
+
+describe('settings Assistant/Engine category model rebind (t3)', () => {
+  /** @type {{ assistant_engine: string, models: Record<string, string>, has_host_key: boolean, has_cursor_key: boolean }} */
+  let backend;
+
+  async function switchEngine(categoryId) {
+    const engineSelect = document.getElementById('settings-llm-engine');
+    engineSelect.value = categoryId;
+    engineSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    await vi.waitFor(() => {
+      expect(engineSelect.value).toBe(categoryId);
+    });
+  }
+
+  beforeEach(async () => {
+    vi.resetModules();
+    vi.clearAllMocks();
+    installLocalStorageMock();
+    mountSettingsDom();
+    backend = {
+      assistant_engine: 'host',
+      models: { host: 'host-model-a', cursor: 'cursor-model-b' },
+      has_host_key: true,
+      has_cursor_key: true,
+    };
+    api.fetchConfig.mockImplementation(async () => {
+      const eng = backend.assistant_engine;
+      const preset = getEnginePreset(eng) || getEnginePreset('host');
+      return {
+        workbench_knowledge_root: '',
+        knowledge_corpus_root: '',
+        github_user_url: '',
+        has_github_token: false,
+        assistant_engine: eng,
+        has_llm_key: backend.has_host_key,
+        has_host_key: backend.has_host_key,
+        has_cursor_key: backend.has_cursor_key,
+        llm: {
+          platform: preset.fields.platform,
+          base_url: preset.fields.base_url,
+          model: backend.models[eng] ?? '',
+        },
+      };
+    });
+    api.setConfig.mockImplementation(async (payload = {}) => {
+      if (typeof payload.assistant_engine === 'string') {
+        backend.assistant_engine = payload.assistant_engine;
+      }
+      if (payload.llm && typeof payload.llm.model === 'string') {
+        backend.models[backend.assistant_engine] = payload.llm.model;
+      }
+      return api.fetchConfig();
+    });
+    await import('../frontend/js/components/modals/settings-dialog.js');
+  });
+
+  it('shows each category own model when switching Engine (no cross-talk)', async () => {
+    const { openSettingsDialog } = await import(
+      '../frontend/js/components/modals/settings-dialog.js'
+    );
+    await openSettingsDialog();
+    expect(document.getElementById('settings-llm-model').value).toBe(
+      'host-model-a',
+    );
+
+    await switchEngine('cursor');
+    await vi.waitFor(() => {
+      expect(document.getElementById('settings-llm-model').value).toBe(
+        'cursor-model-b',
+      );
+    });
+
+    await switchEngine('host');
+    await vi.waitFor(() => {
+      expect(document.getElementById('settings-llm-model').value).toBe(
+        'host-model-a',
+      );
+    });
+  });
+
+  it('keeps in-progress per-category model edits across switches', async () => {
+    const { openSettingsDialog } = await import(
+      '../frontend/js/components/modals/settings-dialog.js'
+    );
+    await openSettingsDialog();
+    document.getElementById('settings-llm-model').value = 'host-draft';
+    await switchEngine('cursor');
+    await vi.waitFor(() => {
+      expect(document.getElementById('settings-llm-model').value).toBe(
+        'cursor-model-b',
+      );
+    });
+    document.getElementById('settings-llm-model').value = 'cursor-draft';
+    await switchEngine('host');
+    await vi.waitFor(() => {
+      expect(document.getElementById('settings-llm-model').value).toBe(
+        'host-draft',
+      );
+    });
+    await switchEngine('cursor');
+    await vi.waitFor(() => {
+      expect(document.getElementById('settings-llm-model').value).toBe(
+        'cursor-draft',
+      );
+    });
+  });
+
+  it('never-saved category shows empty model without polluting the other', async () => {
+    backend.models = { host: 'host-only', cursor: '' };
+    const { openSettingsDialog } = await import(
+      '../frontend/js/components/modals/settings-dialog.js'
+    );
+    await openSettingsDialog();
+    expect(document.getElementById('settings-llm-model').value).toBe(
+      'host-only',
+    );
+    await switchEngine('cursor');
+    await vi.waitFor(() => {
+      expect(document.getElementById('settings-llm-model').value).toBe('');
+    });
+    await switchEngine('host');
+    await vi.waitFor(() => {
+      expect(document.getElementById('settings-llm-model').value).toBe(
+        'host-only',
+      );
+    });
+  });
+
+  it('save after switch writes only the active category flat model', async () => {
+    const { openSettingsDialog } = await import(
+      '../frontend/js/components/modals/settings-dialog.js'
+    );
+    await openSettingsDialog();
+    await switchEngine('cursor');
+    await vi.waitFor(() => {
+      expect(document.getElementById('settings-llm-model').value).toBe(
+        'cursor-model-b',
+      );
+    });
+    document.getElementById('settings-llm-model').value = 'cursor-new';
+    document.getElementById('btn-settings-save-llm').click();
+    await vi.waitFor(() => {
+      const saveCall = api.setConfig.mock.calls.find(
+        ([payload]) =>
+          payload?.assistant_engine === 'cursor' &&
+          payload?.llm?.model === 'cursor-new',
+      );
+      expect(saveCall).toBeTruthy();
+    });
+    const payload = api.setConfig.mock.calls.find(
+      ([p]) => p?.llm?.model === 'cursor-new',
+    )[0];
+    expect(payload.llm).toEqual({ model: 'cursor-new' });
+    expect(payload.llm.platform).toBeUndefined();
+    expect(payload.llm.base_url).toBeUndefined();
+    expect(backend.models.host).toBe('host-model-a');
+    expect(backend.models.cursor).toBe('cursor-new');
+  });
+
+  it('after save and reopen, switching still shows isolated models', async () => {
+    const { openSettingsDialog } = await import(
+      '../frontend/js/components/modals/settings-dialog.js'
+    );
+    await openSettingsDialog();
+    document.getElementById('settings-llm-model').value = 'host-saved';
+    document.getElementById('btn-settings-save-llm').click();
+    await vi.waitFor(() => {
+      expect(backend.models.host).toBe('host-saved');
+    });
+
+    await switchEngine('cursor');
+    await vi.waitFor(() => {
+      expect(document.getElementById('settings-llm-model').value).toBe(
+        'cursor-model-b',
+      );
+    });
+    document.getElementById('settings-llm-model').value = 'cursor-saved';
+    document.getElementById('btn-settings-save-llm').click();
+    await vi.waitFor(() => {
+      expect(backend.models.cursor).toBe('cursor-saved');
+    });
+
+    // Re-open panel from flat facade (current engine = cursor).
+    await openSettingsDialog();
+    expect(document.getElementById('settings-llm-engine').value).toBe('cursor');
+    expect(document.getElementById('settings-llm-model').value).toBe(
+      'cursor-saved',
+    );
+    await switchEngine('host');
+    await vi.waitFor(() => {
+      expect(document.getElementById('settings-llm-model').value).toBe(
+        'host-saved',
+      );
+    });
+    await switchEngine('cursor');
+    await vi.waitFor(() => {
+      expect(document.getElementById('settings-llm-model').value).toBe(
+        'cursor-saved',
+      );
+    });
+  });
+
+  it('switch overlays readonly preset fields and keeps model editable', async () => {
+    const { openSettingsDialog } = await import(
+      '../frontend/js/components/modals/settings-dialog.js'
+    );
+    await openSettingsDialog();
+    await switchEngine('cursor');
+    const cursorPreset = getEnginePreset('cursor');
+    await vi.waitFor(() => {
+      expect(document.getElementById('settings-llm-platform').value).toBe(
+        cursorPreset.fields.platform,
+      );
+      expect(document.getElementById('settings-llm-base-url').value).toBe(
+        cursorPreset.fields.base_url,
+      );
+    });
+    const platform = document.getElementById('settings-llm-platform');
+    const baseUrl = document.getElementById('settings-llm-base-url');
+    const model = document.getElementById('settings-llm-model');
+    expect(platform.readOnly || platform.disabled).toBe(true);
+    expect(baseUrl.readOnly || baseUrl.disabled).toBe(true);
+    expect(model.readOnly || model.disabled).toBe(false);
+  });
+
+  it('does not alter secrets slot UI contract while rebinding model', async () => {
+    const { openSettingsDialog } = await import(
+      '../frontend/js/components/modals/settings-dialog.js'
+    );
+    await openSettingsDialog();
+    await switchEngine('cursor');
+    await vi.waitFor(() => {
+      expect(document.getElementById('settings-llm-engine').value).toBe(
+        'cursor',
+      );
+    });
+    const credentialInputs = document.querySelectorAll(
+      '#settings-panel-llm input[type="password"]',
+    );
+    expect(credentialInputs).toHaveLength(1);
+    document.getElementById('settings-llm-model').value = 'cursor-key-model';
+    document.getElementById('settings-llm-api-key').value = 'sk-cursor-slot';
+    document.getElementById('btn-settings-save-llm').click();
+    await vi.waitFor(() => {
+      const saveCall = api.setConfig.mock.calls.find(
+        ([payload]) => payload?.api_key_cursor === 'sk-cursor-slot',
+      );
+      expect(saveCall).toBeTruthy();
+    });
+    const payload = api.setConfig.mock.calls.find(
+      ([p]) => p?.api_key_cursor === 'sk-cursor-slot',
+    )[0];
+    expect(payload.api_key_host).toBeUndefined();
+    expect(payload.api_key).toBeUndefined();
+  });
+});
+
+
+describe('settings Assistant/Engine t5 contract lock (list + facade + no dual-read)', () => {
+  // Follow-on: legacy single-slot → typed list migration script is out of scope for this
+  // change (tech-doc L04 / L10 / L11 Must Close Before: none). Do not treat missing
+  // migration as a failure of these UI contract locks; do not dual-read in UI either.
+
+  /** @type {{ assistant_engine: string, models: Record<string, string>, has_host_key: boolean, has_cursor_key: boolean }} */
+  let backend;
+
+  async function switchEngine(categoryId) {
+    const engineSelect = document.getElementById('settings-llm-engine');
+    engineSelect.value = categoryId;
+    engineSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    await vi.waitFor(() => {
+      expect(engineSelect.value).toBe(categoryId);
+    });
+  }
+
+  beforeEach(async () => {
+    vi.resetModules();
+    vi.clearAllMocks();
+    installLocalStorageMock();
+    mountSettingsDom();
+    backend = {
+      assistant_engine: 'host',
+      models: { host: 't5-host-model', cursor: 't5-cursor-model' },
+      has_host_key: true,
+      has_cursor_key: true,
+    };
+    api.fetchConfig.mockImplementation(async () => {
+      const eng = backend.assistant_engine;
+      const preset = getEnginePreset(eng) || getEnginePreset('host');
+      return {
+        workbench_knowledge_root: '',
+        knowledge_corpus_root: '',
+        github_user_url: '',
+        has_github_token: false,
+        assistant_engine: eng,
+        has_llm_key: backend.has_host_key,
+        has_host_key: backend.has_host_key,
+        has_cursor_key: backend.has_cursor_key,
+        llm: {
+          platform: preset.fields.platform,
+          base_url: preset.fields.base_url,
+          model: backend.models[eng] ?? '',
+        },
+      };
+    });
+    api.setConfig.mockImplementation(async (payload = {}) => {
+      if (typeof payload.assistant_engine === 'string') {
+        backend.assistant_engine = payload.assistant_engine;
+      }
+      if (payload.llm && typeof payload.llm.model === 'string') {
+        backend.models[backend.assistant_engine] = payload.llm.model;
+      }
+      return api.fetchConfig();
+    });
+    await import('../frontend/js/components/modals/settings-dialog.js');
+  });
+
+  it('locks host/cursor model isolation across Engine switch (no cross-talk)', async () => {
+    const { openSettingsDialog } = await import(
+      '../frontend/js/components/modals/settings-dialog.js'
+    );
+    await openSettingsDialog();
+    expect(document.getElementById('settings-llm-model').value).toBe('t5-host-model');
+    await switchEngine('cursor');
+    await vi.waitFor(() => {
+      expect(document.getElementById('settings-llm-model').value).toBe('t5-cursor-model');
+    });
+    await switchEngine('host');
+    await vi.waitFor(() => {
+      expect(document.getElementById('settings-llm-model').value).toBe('t5-host-model');
+    });
+  });
+
+  it('locks save to active category only while preserving the other model', async () => {
+    const { openSettingsDialog } = await import(
+      '../frontend/js/components/modals/settings-dialog.js'
+    );
+    await openSettingsDialog();
+    await switchEngine('cursor');
+    document.getElementById('settings-llm-model').value = 't5-cursor-saved';
+    document.getElementById('btn-settings-save-llm').click();
+    await vi.waitFor(() => {
+      expect(backend.models.cursor).toBe('t5-cursor-saved');
+    });
+    expect(backend.models.host).toBe('t5-host-model');
+    const payload = api.setConfig.mock.calls.find(
+      ([p]) => p?.llm?.model === 't5-cursor-saved',
+    )[0];
+    expect(payload.assistant_engine).toBe('cursor');
+    expect(payload.llm).toEqual({ model: 't5-cursor-saved' });
+    expect(payload.llm).not.toHaveProperty('type');
+  });
+
+  it('treats never-saved category as empty without dual-reading the other model', async () => {
+    backend.models = { host: 't5-host-only', cursor: '' };
+    const { openSettingsDialog } = await import(
+      '../frontend/js/components/modals/settings-dialog.js'
+    );
+    await openSettingsDialog();
+    expect(document.getElementById('settings-llm-model').value).toBe('t5-host-only');
+    await switchEngine('cursor');
+    await vi.waitFor(() => {
+      expect(document.getElementById('settings-llm-model').value).toBe('');
+    });
+    expect(document.getElementById('settings-llm-model').value).not.toBe(
+      't5-host-only',
+    );
+  });
+
+  it('keeps secrets slot payload contract (per-category keys, no shared api_key)', async () => {
+    const { openSettingsDialog } = await import(
+      '../frontend/js/components/modals/settings-dialog.js'
+    );
+    await openSettingsDialog();
+    document.getElementById('settings-llm-api-key').value = 'sk-host-t5';
+    document.getElementById('btn-settings-save-llm').click();
+    await vi.waitFor(() => {
+      const found = api.setConfig.mock.calls.find(
+        ([p]) => p?.api_key_host === 'sk-host-t5',
+      );
+      expect(found).toBeTruthy();
+    });
+    let payload = api.setConfig.mock.calls.find(
+      ([p]) => p?.api_key_host === 'sk-host-t5',
+    )[0];
+    expect(payload.api_key).toBeUndefined();
+    expect(payload.api_key_cursor).toBeUndefined();
+    await vi.waitFor(() => {
+      expect(document.getElementById('btn-settings-save-llm').disabled).toBe(
+        false,
+      );
+    });
+
+    await switchEngine('cursor');
+    // Wait for async category hydrate (setConfig + fetchConfig) before saving.
+    await vi.waitFor(() => {
+      expect(document.getElementById('settings-llm-model').value).toBe(
+        't5-cursor-model',
+      );
+    });
+    document.getElementById('settings-llm-api-key').value = 'sk-cursor-t5';
+    document.getElementById('btn-settings-save-llm').click();
+    await vi.waitFor(() => {
+      const found = api.setConfig.mock.calls.find(
+        ([p]) => p?.api_key_cursor === 'sk-cursor-t5',
+      );
+      expect(found).toBeTruthy();
+    });
+    payload = api.setConfig.mock.calls.find(
+      ([p]) => p?.api_key_cursor === 'sk-cursor-t5',
+    )[0];
+    expect(payload.api_key_host).toBeUndefined();
+    expect(payload.api_key).toBeUndefined();
+  });
+
+  it('documents migration script as follow-on in this suite (does not block UI locks)', () => {
+    const suiteSource = readFileSync(
+      join(dirname(fileURLToPath(import.meta.url)), 'llm-settings.test.js'),
+      'utf8',
+    );
+    expect(suiteSource).toMatch(/follow-on/i);
+    expect(suiteSource).toMatch(/migration script/i);
+    expect(suiteSource).toMatch(/Must Close Before:\s*none/i);
+  });
+});
+

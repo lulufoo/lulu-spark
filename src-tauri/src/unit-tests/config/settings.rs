@@ -123,9 +123,16 @@ fn to_config_json_includes_flags_without_token() {
 #[test]
 fn to_config_json_includes_llm_fields_without_plaintext_key() {
     let mut s = AppSettings::default();
-    s.llm.platform = "kimi".into();
-    s.llm.base_url = "https://api.moonshot.cn".into();
-    s.llm.model = "moonshot-v1-8k".into();
+    upsert_llm_entry(
+        &mut s.llm,
+        "host",
+        &LlmSettings {
+            platform: "kimi".into(),
+            base_url: "https://api.moonshot.cn".into(),
+            model: "moonshot-v1-8k".into(),
+        },
+    )
+    .expect("upsert host");
     let v = to_config_json(&s, false, false, true, false);
     assert_eq!(v["llm"]["platform"], "kimi");
     assert_eq!(v["llm"]["base_url"], "https://api.moonshot.cn");
@@ -157,9 +164,10 @@ fn apply_config_payload_updates_engine_model_and_stamps_readonly_preset() {
     .expect("apply");
     // Client platform/base_url ignored; builtin host preset stamped; model kept.
     assert_eq!(s.assistant_engine, "host");
-    assert_eq!(s.llm.platform, "glm");
-    assert_eq!(s.llm.base_url, "https://open.bigmodel.cn/api/paas/v4");
-    assert_eq!(s.llm.model, "glm-4");
+    let host = llm_entry_by_type(&s.llm, "host").expect("host entry");
+    assert_eq!(host.platform, "glm");
+    assert_eq!(host.base_url, "https://open.bigmodel.cn/api/paas/v4");
+    assert_eq!(host.model, "glm-4");
     let text = toml::to_string(&s).expect("serialize");
     assert!(!text.contains("should-not-land-in-settings"));
     assert!(!text.contains("api_key"));
@@ -168,9 +176,16 @@ fn apply_config_payload_updates_engine_model_and_stamps_readonly_preset() {
 #[test]
 fn apply_config_payload_ignores_illegal_llm_types_without_clobber() {
     let mut s = AppSettings::default();
-    s.llm.platform = "openai_compatible".into();
-    s.llm.base_url = "https://example.com".into();
-    s.llm.model = "gpt-4o".into();
+    upsert_llm_entry(
+        &mut s.llm,
+        "host",
+        &LlmSettings {
+            platform: "openai_compatible".into(),
+            base_url: "https://example.com".into(),
+            model: "gpt-4o".into(),
+        },
+    )
+    .expect("seed host");
     apply_config_payload(
         &mut s,
         &serde_json::json!({
@@ -183,9 +198,10 @@ fn apply_config_payload_ignores_illegal_llm_types_without_clobber() {
     )
     .expect("apply");
     // No assistant_engine → no stamp; invalid types ignored; prior metadata kept.
-    assert_eq!(s.llm.platform, "openai_compatible");
-    assert_eq!(s.llm.base_url, "https://example.com");
-    assert_eq!(s.llm.model, "gpt-4o");
+    let host = llm_entry_by_type(&s.llm, "host").expect("host entry");
+    assert_eq!(host.platform, "openai_compatible");
+    assert_eq!(host.base_url, "https://example.com");
+    assert_eq!(host.model, "gpt-4o");
 }
 
 #[test]
@@ -193,17 +209,26 @@ fn llm_fields_roundtrip_in_config_toml_without_api_key() {
     let dir = tempfile::tempdir().expect("tmp");
     let _guard = IsolatedConfigGuard::set(dir.path());
     let mut s = AppSettings::default();
-    s.llm.platform = "openai_compatible".into();
-    s.llm.base_url = "https://api.openai.com".into();
-    s.llm.model = "gpt-4o-mini".into();
+    upsert_llm_entry(
+        &mut s.llm,
+        "host",
+        &LlmSettings {
+            platform: "openai_compatible".into(),
+            base_url: "https://api.openai.com".into(),
+            model: "gpt-4o-mini".into(),
+        },
+    )
+    .expect("upsert host");
     save(&s).expect("save");
     let text = fs::read_to_string(config_file_path()).expect("read");
-    assert!(text.contains("[llm]") || text.contains("platform"));
+    assert!(text.contains("[[llm]]") || text.contains("[llm]"));
+    assert!(text.contains("type") || text.contains("host"));
     assert!(!text.contains("api_key"));
     let s2 = load().expect("reload");
-    assert_eq!(s2.llm.platform, "openai_compatible");
-    assert_eq!(s2.llm.base_url, "https://api.openai.com");
-    assert_eq!(s2.llm.model, "gpt-4o-mini");
+    let host = llm_entry_by_type(&s2.llm, "host").expect("host entry");
+    assert_eq!(host.platform, "openai_compatible");
+    assert_eq!(host.base_url, "https://api.openai.com");
+    assert_eq!(host.model, "gpt-4o-mini");
 }
 
 #[test]
@@ -298,17 +323,19 @@ fn apply_config_payload_accepts_host_and_cursor_engines() {
     apply_config_payload(&mut s, &serde_json::json!({ "assistant_engine": "cursor" }))
         .expect("cursor");
     assert_eq!(s.assistant_engine, "cursor");
-    assert_eq!(s.llm.platform, "cursor_agent");
-    assert_eq!(s.llm.base_url, "(managed by Cursor Agent)");
+    let cursor = llm_entry_by_type(&s.llm, "cursor").expect("cursor entry");
+    assert_eq!(cursor.platform, "cursor_agent");
+    assert_eq!(cursor.base_url, "(managed by Cursor Agent)");
     apply_config_payload(&mut s, &serde_json::json!({ "assistant_engine": "host" }))
         .expect("host");
     assert_eq!(s.assistant_engine, "host");
-    assert_eq!(s.llm.platform, "glm");
-    assert_eq!(s.llm.base_url, "https://open.bigmodel.cn/api/paas/v4");
+    let host = llm_entry_by_type(&s.llm, "host").expect("host entry");
+    assert_eq!(host.platform, "glm");
+    assert_eq!(host.base_url, "https://open.bigmodel.cn/api/paas/v4");
 }
 
 #[test]
-fn load_stamps_builtin_preset_when_legacy_platform_base_url_blank() {
+fn load_stamps_builtin_preset_when_entry_platform_base_url_blank() {
     let dir = tempfile::tempdir().expect("tmp");
     let _guard = IsolatedConfigGuard::set(dir.path());
     fs::write(
@@ -316,26 +343,31 @@ fn load_stamps_builtin_preset_when_legacy_platform_base_url_blank() {
         r#"
 assistant_engine = "host"
 
-[llm]
+[[llm]]
+type = "host"
 model = "glm-4"
 "#,
     )
     .expect("write");
     let s = load().expect("load");
     assert_eq!(s.assistant_engine, "host");
-    assert_eq!(s.llm.model, "glm-4");
-    assert_eq!(s.llm.platform, "glm");
-    assert_eq!(s.llm.base_url, "https://open.bigmodel.cn/api/paas/v4");
+    let host = llm_entry_by_type(&s.llm, "host").expect("host entry");
+    assert_eq!(host.model, "glm-4");
+    assert_eq!(host.platform, "glm");
+    assert_eq!(host.base_url, "https://open.bigmodel.cn/api/paas/v4");
 }
 
 #[test]
-fn load_migrates_legacy_llm_only_config_to_host_engine() {
+fn load_typed_llm_list_host_entry_without_requiring_cursor() {
     let dir = tempfile::tempdir().expect("tmp");
     let _guard = IsolatedConfigGuard::set(dir.path());
     fs::write(
         dir.path().join(PROD_CONFIG_FILE_NAME),
         r#"
-[llm]
+assistant_engine = "host"
+
+[[llm]]
+type = "host"
 platform = "kimi"
 base_url = "https://api.moonshot.cn"
 model = "moonshot-v1-8k"
@@ -344,9 +376,11 @@ model = "moonshot-v1-8k"
     .expect("write");
     let s = load().expect("load");
     assert_eq!(s.assistant_engine, "host");
-    assert_eq!(s.llm.model, "moonshot-v1-8k");
-    assert_eq!(s.llm.platform, "kimi");
-    assert_eq!(s.llm.base_url, "https://api.moonshot.cn");
+    let host = llm_entry_by_type(&s.llm, "host").expect("host entry");
+    assert_eq!(host.model, "moonshot-v1-8k");
+    assert_eq!(host.platform, "kimi");
+    assert_eq!(host.base_url, "https://api.moonshot.cn");
+    assert!(llm_entry_by_type(&s.llm, "cursor").is_none());
 }
 
 #[test]
@@ -358,7 +392,8 @@ fn load_respects_existing_cursor_assistant_engine_while_keeping_llm_model() {
         r#"
 assistant_engine = "cursor"
 
-[llm]
+[[llm]]
+type = "cursor"
 platform = "glm"
 base_url = "https://open.bigmodel.cn/api/paas/v4"
 model = "composer-1"
@@ -367,7 +402,8 @@ model = "composer-1"
     .expect("write");
     let s = load().expect("load");
     assert_eq!(s.assistant_engine, "cursor");
-    assert_eq!(s.llm.model, "composer-1");
+    let cursor = llm_entry_by_type(&s.llm, "cursor").expect("cursor entry");
+    assert_eq!(cursor.model, "composer-1");
 }
 
 struct TestModeGuard(Option<String>);
@@ -450,4 +486,514 @@ fn save_rejects_writing_prod_config_in_test_mode() {
             assert!(!prod.is_file());
         }
     });
+}
+
+#[test]
+fn llm_entry_by_type_returns_none_for_empty_list_or_missing_type() {
+    let empty: Vec<LlmSettingsEntry> = vec![];
+    assert!(llm_entry_by_type(&empty, "host").is_none());
+    assert!(llm_entry_by_type(&empty, "cursor").is_none());
+
+    let mut only_host = vec![];
+    upsert_llm_entry(
+        &mut only_host,
+        "host",
+        &LlmSettings {
+            platform: "glm".into(),
+            base_url: "https://host.example".into(),
+            model: "host-model".into(),
+        },
+    )
+    .expect("upsert host");
+    assert!(llm_entry_by_type(&only_host, "cursor").is_none());
+    let host = llm_entry_by_type(&only_host, "host").expect("host");
+    assert_eq!(host.engine_type, "host");
+    assert_eq!(host.model, "host-model");
+    assert_eq!(host.platform, "glm");
+    assert_eq!(host.base_url, "https://host.example");
+}
+
+#[test]
+fn upsert_llm_entry_updates_existing_and_creates_missing_type() {
+    let mut entries = vec![];
+    upsert_llm_entry(
+        &mut entries,
+        "host",
+        &LlmSettings {
+            platform: "glm".into(),
+            base_url: "https://host.example".into(),
+            model: "m1".into(),
+        },
+    )
+    .expect("create host");
+    assert_eq!(entries.len(), 1);
+
+    upsert_llm_entry(
+        &mut entries,
+        "host",
+        &LlmSettings {
+            platform: "glm".into(),
+            base_url: "https://host.example".into(),
+            model: "m2".into(),
+        },
+    )
+    .expect("update host");
+    assert_eq!(entries.len(), 1);
+    assert_eq!(llm_entry_by_type(&entries, "host").unwrap().model, "m2");
+
+    upsert_llm_entry(
+        &mut entries,
+        "cursor",
+        &LlmSettings {
+            platform: "cursor_agent".into(),
+            base_url: "(managed by Cursor Agent)".into(),
+            model: "composer-1".into(),
+        },
+    )
+    .expect("create cursor");
+    assert_eq!(entries.len(), 2);
+    assert_eq!(
+        llm_entry_by_type(&entries, "cursor").unwrap().model,
+        "composer-1"
+    );
+    assert_eq!(llm_entry_by_type(&entries, "host").unwrap().model, "m2");
+}
+
+#[test]
+fn upsert_llm_entry_rejects_illegal_engine_type_without_writing() {
+    let mut entries = vec![];
+    let err = upsert_llm_entry(
+        &mut entries,
+        "claude",
+        &LlmSettings {
+            model: "should-not-land".into(),
+            ..Default::default()
+        },
+    )
+    .expect_err("illegal type");
+    assert!(
+        err.to_string().contains("type") || err.to_string().contains("claude"),
+        "err={err}"
+    );
+    assert!(entries.is_empty());
+}
+
+#[test]
+fn app_settings_llm_is_typed_list_not_single_slot() {
+    let mut s = AppSettings::default();
+    assert!(s.llm.is_empty());
+    upsert_llm_entry(
+        &mut s.llm,
+        "cursor",
+        &LlmSettings {
+            model: "composer-1".into(),
+            ..Default::default()
+        },
+    )
+    .expect("cursor");
+    upsert_llm_entry(
+        &mut s.llm,
+        "host",
+        &LlmSettings {
+            model: "glm-4".into(),
+            ..Default::default()
+        },
+    )
+    .expect("host");
+    assert_eq!(s.llm.len(), 2);
+    assert_eq!(llm_entry_by_type(&s.llm, "host").unwrap().model, "glm-4");
+    assert_eq!(
+        llm_entry_by_type(&s.llm, "cursor").unwrap().model,
+        "composer-1"
+    );
+}
+
+// --- T2: flat facade ↔ typed list (save isolation / readonly preset) ---
+
+#[test]
+fn to_config_json_exposes_flat_current_llm_not_list() {
+    let mut s = AppSettings::default();
+    s.assistant_engine = "cursor".into();
+    upsert_llm_entry(
+        &mut s.llm,
+        "host",
+        &LlmSettings {
+            platform: "glm".into(),
+            base_url: "https://open.bigmodel.cn/api/paas/v4".into(),
+            model: "host-model".into(),
+        },
+    )
+    .expect("host");
+    upsert_llm_entry(
+        &mut s.llm,
+        "cursor",
+        &LlmSettings {
+            platform: "cursor_agent".into(),
+            base_url: "(managed by Cursor Agent)".into(),
+            model: "cursor-model".into(),
+        },
+    )
+    .expect("cursor");
+    let v = to_config_json(&s, false, false, false, false);
+    assert_eq!(v["assistant_engine"], "cursor");
+    assert!(v["llm"].is_object(), "facade llm must be flat object, not list");
+    assert!(v["llm"].as_array().is_none());
+    assert_eq!(v["llm"]["model"], "cursor-model");
+    assert_eq!(v["llm"]["platform"], "cursor_agent");
+    assert_eq!(v["llm"]["base_url"], "(managed by Cursor Agent)");
+}
+
+#[test]
+fn apply_config_payload_first_save_creates_current_type_with_preset_stamp() {
+    let mut s = AppSettings::default();
+    assert!(s.llm.is_empty());
+    apply_config_payload(
+        &mut s,
+        &serde_json::json!({
+            "llm": {
+                "platform": "kimi",
+                "base_url": "https://api.moonshot.cn",
+                "model": "first-host-model"
+            }
+        }),
+    )
+    .expect("apply");
+    assert_eq!(s.llm.len(), 1);
+    let host = llm_entry_by_type(&s.llm, "host").expect("host created");
+    assert_eq!(host.model, "first-host-model");
+    // Client preset fields ignored; builtin host preset stamped onto the new entry.
+    assert_eq!(host.platform, "glm");
+    assert_eq!(host.base_url, "https://open.bigmodel.cn/api/paas/v4");
+    assert!(llm_entry_by_type(&s.llm, "cursor").is_none());
+}
+
+#[test]
+fn apply_config_payload_save_current_type_preserves_other_type() {
+    let mut s = AppSettings::default();
+    s.assistant_engine = "host".into();
+    upsert_llm_entry(
+        &mut s.llm,
+        "host",
+        &LlmSettings {
+            platform: "glm".into(),
+            base_url: "https://open.bigmodel.cn/api/paas/v4".into(),
+            model: "host-before".into(),
+        },
+    )
+    .expect("host");
+    upsert_llm_entry(
+        &mut s.llm,
+        "cursor",
+        &LlmSettings {
+            platform: "cursor_agent".into(),
+            base_url: "(managed by Cursor Agent)".into(),
+            model: "cursor-keep".into(),
+        },
+    )
+    .expect("cursor");
+    apply_config_payload(
+        &mut s,
+        &serde_json::json!({
+            "llm": {
+                "platform": "should-not-apply",
+                "base_url": "https://evil.example",
+                "model": "host-after"
+            }
+        }),
+    )
+    .expect("apply");
+    let host = llm_entry_by_type(&s.llm, "host").expect("host");
+    assert_eq!(host.model, "host-after");
+    assert_eq!(host.platform, "glm");
+    assert_eq!(host.base_url, "https://open.bigmodel.cn/api/paas/v4");
+    let cursor = llm_entry_by_type(&s.llm, "cursor").expect("cursor preserved");
+    assert_eq!(cursor.model, "cursor-keep");
+    assert_eq!(cursor.platform, "cursor_agent");
+    assert_eq!(cursor.base_url, "(managed by Cursor Agent)");
+}
+
+#[test]
+fn load_apply_to_json_roundtrip_does_not_erase_inactive_type() {
+    let dir = tempfile::tempdir().expect("tmp");
+    let _guard = IsolatedConfigGuard::set(dir.path());
+    fs::write(
+        dir.path().join(PROD_CONFIG_FILE_NAME),
+        r#"
+assistant_engine = "host"
+
+[[llm]]
+type = "host"
+platform = "glm"
+base_url = "https://open.bigmodel.cn/api/paas/v4"
+model = "host-a"
+
+[[llm]]
+type = "cursor"
+platform = "cursor_agent"
+base_url = "(managed by Cursor Agent)"
+model = "cursor-b"
+"#,
+    )
+    .expect("write");
+    let mut s = load().expect("load");
+    apply_config_payload(
+        &mut s,
+        &serde_json::json!({ "llm": { "model": "host-c" } }),
+    )
+    .expect("apply");
+    let flat = to_config_json(&s, false, false, false, false);
+    assert_eq!(flat["assistant_engine"], "host");
+    assert_eq!(flat["llm"]["model"], "host-c");
+    assert!(flat["llm"].is_object());
+    save(&s).expect("save");
+    let s2 = load().expect("reload");
+    assert_eq!(
+        llm_entry_by_type(&s2.llm, "host").expect("host").model,
+        "host-c"
+    );
+    let cursor = llm_entry_by_type(&s2.llm, "cursor").expect("cursor intact");
+    assert_eq!(cursor.model, "cursor-b");
+    assert_eq!(cursor.platform, "cursor_agent");
+    assert_eq!(cursor.base_url, "(managed by Cursor Agent)");
+}
+
+
+// --- T5: lock list + flat facade + save isolation + no dual-read ---
+// Migration script (legacy single-slot → typed list) is a follow-on task (L04 / L10 / L11);
+// these tests must not require that script, and must reject in-app dual-read substitutes.
+
+const T5_FOLLOW_ON_MIGRATION_MARKER: &str =
+    "T5_FOLLOW_ON_MIGRATION: legacy single-slot→list is an out-of-band local script; main code must not dual-read.";
+
+#[test]
+fn t5_host_and_cursor_models_stay_isolated_across_facade_switch() {
+    let mut s = AppSettings::default();
+    s.assistant_engine = "host".into();
+    upsert_llm_entry(
+        &mut s.llm,
+        "host",
+        &LlmSettings {
+            platform: "glm".into(),
+            base_url: "https://open.bigmodel.cn/api/paas/v4".into(),
+            model: "host-locked-model".into(),
+        },
+    )
+    .expect("host");
+    upsert_llm_entry(
+        &mut s.llm,
+        "cursor",
+        &LlmSettings {
+            platform: "cursor_agent".into(),
+            base_url: "(managed by Cursor Agent)".into(),
+            model: "cursor-locked-model".into(),
+        },
+    )
+    .expect("cursor");
+
+    let host_flat = to_config_json(&s, false, false, false, false);
+    assert_eq!(host_flat["assistant_engine"], "host");
+    assert!(host_flat["llm"].is_object());
+    assert!(host_flat["llm"].as_array().is_none());
+    assert_eq!(host_flat["llm"]["model"], "host-locked-model");
+    assert_ne!(host_flat["llm"]["model"], "cursor-locked-model");
+
+    s.assistant_engine = "cursor".into();
+    let cursor_flat = to_config_json(&s, false, false, false, false);
+    assert_eq!(cursor_flat["assistant_engine"], "cursor");
+    assert!(cursor_flat["llm"].is_object());
+    assert_eq!(cursor_flat["llm"]["model"], "cursor-locked-model");
+    assert_ne!(cursor_flat["llm"]["model"], "host-locked-model");
+
+    // Switching facade pointer must not mutate stored list entries.
+    assert_eq!(
+        llm_entry_by_type(&s.llm, "host").expect("host").model,
+        "host-locked-model"
+    );
+    assert_eq!(
+        llm_entry_by_type(&s.llm, "cursor").expect("cursor").model,
+        "cursor-locked-model"
+    );
+}
+
+#[test]
+fn t5_to_config_json_returns_current_engine_plus_flat_current_entry() {
+    let mut s = AppSettings::default();
+    s.assistant_engine = "cursor".into();
+    upsert_llm_entry(
+        &mut s.llm,
+        "host",
+        &LlmSettings {
+            model: "should-not-surface".into(),
+            ..Default::default()
+        },
+    )
+    .expect("host");
+    upsert_llm_entry(
+        &mut s.llm,
+        "cursor",
+        &LlmSettings {
+            platform: "cursor_agent".into(),
+            base_url: "(managed by Cursor Agent)".into(),
+            model: "facade-current".into(),
+        },
+    )
+    .expect("cursor");
+    let v = to_config_json(&s, false, false, true, false);
+    assert_eq!(v["assistant_engine"], "cursor");
+    assert!(v["llm"].is_object());
+    assert_eq!(v["llm"]["model"], "facade-current");
+    assert_eq!(v["llm"]["platform"], "cursor_agent");
+    assert_eq!(v["llm"]["base_url"], "(managed by Cursor Agent)");
+    assert!(v.get("api_key").is_none());
+    assert!(v["llm"].get("api_key").is_none());
+    assert!(v["llm"].get("type").is_none(), "flat facade must not expose list type field");
+}
+
+#[test]
+fn t5_save_updates_only_current_type_creating_missing_without_clearing_other() {
+    let mut s = AppSettings::default();
+    s.assistant_engine = "host".into();
+    upsert_llm_entry(
+        &mut s.llm,
+        "cursor",
+        &LlmSettings {
+            platform: "cursor_agent".into(),
+            base_url: "(managed by Cursor Agent)".into(),
+            model: "cursor-preexisting".into(),
+        },
+    )
+    .expect("seed cursor only");
+    assert!(llm_entry_by_type(&s.llm, "host").is_none());
+
+    apply_config_payload(
+        &mut s,
+        &serde_json::json!({
+            "assistant_engine": "host",
+            "llm": { "model": "host-created" }
+        }),
+    )
+    .expect("create host");
+    assert_eq!(
+        llm_entry_by_type(&s.llm, "host").expect("host created").model,
+        "host-created"
+    );
+    assert_eq!(
+        llm_entry_by_type(&s.llm, "cursor")
+            .expect("cursor preserved")
+            .model,
+        "cursor-preexisting"
+    );
+
+    apply_config_payload(
+        &mut s,
+        &serde_json::json!({
+            "assistant_engine": "cursor",
+            "llm": { "model": "cursor-updated" }
+        }),
+    )
+    .expect("update cursor");
+    assert_eq!(
+        llm_entry_by_type(&s.llm, "cursor").expect("cursor").model,
+        "cursor-updated"
+    );
+    assert_eq!(
+        llm_entry_by_type(&s.llm, "host").expect("host intact").model,
+        "host-created"
+    );
+}
+
+#[test]
+fn t5_missing_active_entry_facade_is_empty_not_other_type() {
+    let mut s = AppSettings::default();
+    s.assistant_engine = "host".into();
+    upsert_llm_entry(
+        &mut s.llm,
+        "cursor",
+        &LlmSettings {
+            model: "only-cursor".into(),
+            platform: "cursor_agent".into(),
+            base_url: "(managed by Cursor Agent)".into(),
+        },
+    )
+    .expect("cursor");
+    let v = to_config_json(&s, false, false, false, false);
+    assert_eq!(v["assistant_engine"], "host");
+    assert!(v["llm"].is_object());
+    assert_eq!(v["llm"]["model"], "");
+    assert_ne!(v["llm"]["model"], "only-cursor");
+}
+
+#[test]
+fn t5_legacy_single_slot_llm_table_fails_closed_without_dual_read() {
+    let dir = tempfile::tempdir().expect("tmp");
+    let _guard = IsolatedConfigGuard::set(dir.path());
+    fs::write(
+        dir.path().join(PROD_CONFIG_FILE_NAME),
+        r#"
+assistant_engine = "host"
+
+[llm]
+platform = "kimi"
+base_url = "https://api.moonshot.cn"
+model = "moonshot-v1-8k"
+"#,
+    )
+    .expect("write");
+    let err = load().expect_err("legacy single-slot [llm] must not dual-read into typed list");
+    let msg = err.to_string();
+    assert!(
+        msg.contains("parse") || msg.contains("sequence") || msg.contains("map"),
+        "expected parse/fail-closed error, got {msg}"
+    );
+}
+
+#[test]
+fn t5_production_sources_have_no_single_slot_llm_field_reads() {
+    let settings_src = include_str!("../../config/settings.rs");
+    let llm_src = include_str!("../../services/agent/llm.rs");
+    let router_src = include_str!("../../services/agent/engine_router.rs");
+    for (label, src) in [
+        ("settings.rs", settings_src),
+        ("llm.rs", llm_src),
+        ("engine_router.rs", router_src),
+    ] {
+        // Forbid AppSettings single-slot field access (pre-list shape).
+        assert!(
+            !src.contains("settings.llm.model"),
+            "{label}: forbidden settings.llm.model single-slot read"
+        );
+        assert!(
+            !src.contains("settings.llm.platform"),
+            "{label}: forbidden settings.llm.platform single-slot read"
+        );
+        assert!(
+            !src.contains("settings.llm.base_url"),
+            "{label}: forbidden settings.llm.base_url single-slot read"
+        );
+    }
+    // Runtime must resolve via typed list helper (current entry), not a dual-read shim.
+    assert!(
+        llm_src.contains("llm_entry_by_type"),
+        "llm.rs must read model/base_url via llm_entry_by_type"
+    );
+    assert!(
+        router_src.contains("llm_entry_by_type"),
+        "engine_router.rs must read model via llm_entry_by_type"
+    );
+    assert!(
+        !settings_src.lines().any(|l| {
+            let t = l.trim();
+            t.contains("deserialize_with") && t.contains("llm") && !t.starts_with("//")
+        }),
+        "settings.rs must not custom-deserialize llm for dual-read compatibility"
+    );
+}
+
+#[test]
+fn t5_follow_on_migration_marker_present_in_settings_source() {
+    let settings_src = include_str!("../../config/settings.rs");
+    assert!(
+        settings_src.contains(T5_FOLLOW_ON_MIGRATION_MARKER),
+        "settings.rs must document that single-slot→list migration is follow-on (not dual-read). missing marker: {T5_FOLLOW_ON_MIGRATION_MARKER}"
+    );
 }

@@ -14,6 +14,16 @@ const engineKeyHints = {
   has_cursor_key: false,
 };
 
+/** Per-category model drafts (`undefined` = not loaded for this panel session). */
+/** @type {{ host: string|undefined, cursor: string|undefined }} */
+const engineModelByCategory = {
+  host: undefined,
+  cursor: undefined,
+};
+
+/** @type {'host' | 'cursor'} */
+let activeEngineCategory = DEFAULT_ENGINE_CATEGORY;
+
 // ── Nav switching ──────────────────────────────────────────────────────────
 
 function switchPanel(panelId) {
@@ -163,10 +173,17 @@ function loadAssistantEnginePanel(cfg) {
   const keyHint = document.getElementById('settings-llm-key-hint');
   const apiKeyInput = document.getElementById('settings-llm-api-key');
 
+  activeEngineCategory = categoryId;
+  // Flat facade only returns the current type — forget other drafts so switch re-hydrates.
+  engineModelByCategory.host = undefined;
+  engineModelByCategory.cursor = undefined;
+  engineModelByCategory[categoryId] =
+    typeof llm.model === 'string' ? llm.model : '';
+
   if (engineSelect) engineSelect.value = categoryId;
   fillReadonlyPresetFields(categoryId);
   if (modelInput) {
-    modelInput.value = typeof llm.model === 'string' ? llm.model : '';
+    modelInput.value = engineModelByCategory[categoryId] ?? '';
     modelInput.readOnly = false;
     modelInput.disabled = false;
   }
@@ -174,16 +191,56 @@ function loadAssistantEnginePanel(cfg) {
   if (keyHint) keyHint.textContent = credentialHintForCategory(categoryId);
 }
 
-function applyEngineCategorySelection(categoryId, { clearCredential = true } = {}) {
+/**
+ * Rebind panel to the selected Engine type's model + readonly preset fields.
+ * Stashes the previous type's in-progress model; hydrates unknown types via flat facade.
+ * @param {string} categoryId
+ * @param {{ clearCredential?: boolean }} [opts]
+ */
+async function applyEngineCategorySelection(
+  categoryId,
+  { clearCredential = true } = {},
+) {
   const id = normalizeEngineCategory(categoryId);
+  const prev = activeEngineCategory;
   const engineSelect = document.getElementById('settings-llm-engine');
+  const modelInput = document.getElementById('settings-llm-model');
   const keyHint = document.getElementById('settings-llm-key-hint');
   const apiKeyInput = document.getElementById('settings-llm-api-key');
+
+  if (modelInput) {
+    engineModelByCategory[prev] = modelInput.value;
+  }
+  activeEngineCategory = id;
 
   if (engineSelect) engineSelect.value = id;
   fillReadonlyPresetFields(id);
   if (clearCredential && apiKeyInput) apiKeyInput.value = '';
   if (keyHint) keyHint.textContent = credentialHintForCategory(id);
+
+  if (engineModelByCategory[id] === undefined) {
+    try {
+      await api.setConfig({ assistant_engine: id });
+      const cfg = await api.fetchConfig();
+      if (activeEngineCategory !== id) return;
+      engineModelByCategory[id] =
+        typeof cfg?.llm?.model === 'string' ? cfg.llm.model : '';
+      engineKeyHints.has_host_key = Boolean(
+        cfg?.has_host_key ?? cfg?.has_llm_key,
+      );
+      engineKeyHints.has_cursor_key = Boolean(cfg?.has_cursor_key);
+      if (keyHint) keyHint.textContent = credentialHintForCategory(id);
+    } catch {
+      if (activeEngineCategory !== id) return;
+      engineModelByCategory[id] = '';
+    }
+  }
+
+  if (modelInput && activeEngineCategory === id) {
+    modelInput.value = engineModelByCategory[id] ?? '';
+    modelInput.readOnly = false;
+    modelInput.disabled = false;
+  }
 }
 
 async function saveAssistantEnginePanel() {
@@ -615,7 +672,7 @@ document.getElementById('btn-settings-save-github').addEventListener('click', as
 // ── Save: Assistant / Engine (category + credential + model) ────────────────
 
 document.getElementById('settings-llm-engine')?.addEventListener('change', (e) => {
-  applyEngineCategorySelection(e.target.value, { clearCredential: true });
+  void applyEngineCategorySelection(e.target.value, { clearCredential: true });
 });
 
 document.getElementById('btn-settings-save-llm').addEventListener('click', () => {

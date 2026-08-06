@@ -112,8 +112,19 @@ fn install_host_llm(mock: &MockLlm) {
         }),
     )
     .expect("apply");
-    s.llm.platform = "openai_compatible".into();
-    s.llm.base_url = format!("http://127.0.0.1:{}", mock.port);
+    let model = settings::llm_entry_by_type(&s.llm, "host")
+        .map(|e| e.model.clone())
+        .unwrap_or_else(|| "test-model".into());
+    settings::upsert_llm_entry(
+        &mut s.llm,
+        "host",
+        &settings::LlmSettings {
+            platform: "openai_compatible".into(),
+            base_url: format!("http://127.0.0.1:{}", mock.port),
+            model,
+        },
+    )
+    .expect("upsert host llm");
     settings::save(&s).expect("save");
     secrets::set_secret(KEY_LLM_API_KEY, "sk-test-host").expect("host key");
 }

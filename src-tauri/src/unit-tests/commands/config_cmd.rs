@@ -200,3 +200,138 @@ fn set_config_rejects_illegal_assistant_engine_without_persisting() {
         assert_eq!(reloaded.assistant_engine, "host");
     });
 }
+
+
+// --- T5: command-level lock for flat facade + save isolation + secrets slots ---
+// Legacy single-slot→list migration script is follow-on (not required here).
+
+#[test]
+fn t5_set_config_save_isolation_and_flat_facade_per_engine() {
+    with_config(|| {
+        let host_payload = serde_json::json!({
+            "assistant_engine": "host",
+            "llm": { "model": "host-cmd-model" },
+            "api_key_host": "sk-host-t5"
+        });
+        secrets::apply_token_payload(&host_payload).expect("secrets host");
+        let mut s = settings::load().expect("load");
+        settings::apply_config_payload(&mut s, &host_payload).expect("apply host");
+        settings::save(&s).expect("save host");
+
+        let cursor_payload = serde_json::json!({
+            "assistant_engine": "cursor",
+            "llm": { "model": "cursor-cmd-model" },
+            "api_key_cursor": "sk-cursor-t5"
+        });
+        secrets::apply_token_payload(&cursor_payload).expect("secrets cursor");
+        settings::apply_config_payload(&mut s, &cursor_payload).expect("apply cursor");
+        settings::save(&s).expect("save cursor");
+
+        // List isolation.
+        assert_eq!(
+            settings::llm_entry_by_type(&s.llm, "host")
+                .expect("host")
+                .model,
+            "host-cmd-model"
+        );
+        assert_eq!(
+            settings::llm_entry_by_type(&s.llm, "cursor")
+                .expect("cursor")
+                .model,
+            "cursor-cmd-model"
+        );
+
+        // Flat facade follows current assistant_engine.
+        let cursor_view = settings::to_config_json(
+            &s,
+            secrets::has_github_token(),
+            secrets::has_meili_key(),
+            secrets::has_host_key(),
+            secrets::has_cursor_key(),
+        );
+        assert_eq!(cursor_view["assistant_engine"], "cursor");
+        assert!(cursor_view["llm"].is_object());
+        assert_eq!(cursor_view["llm"]["model"], "cursor-cmd-model");
+        assert_ne!(cursor_view["llm"]["model"], "host-cmd-model");
+
+        s.assistant_engine = "host".into();
+        let host_view = settings::to_config_json(
+            &s,
+            secrets::has_github_token(),
+            secrets::has_meili_key(),
+            secrets::has_host_key(),
+            secrets::has_cursor_key(),
+        );
+        assert_eq!(host_view["assistant_engine"], "host");
+        assert_eq!(host_view["llm"]["model"], "host-cmd-model");
+
+        // Secrets slots unchanged / independent (L04 / L06 #4).
+        assert_eq!(
+            secrets::get_secret(KEY_LLM_API_KEY).expect("get"),
+            Some("sk-host-t5".into())
+        );
+        assert_eq!(
+            secrets::get_secret(KEY_LLM_API_KEY_CURSOR).expect("get"),
+            Some("sk-cursor-t5".into())
+        );
+        assert_eq!(host_view["has_host_key"], true);
+        assert_eq!(host_view["has_cursor_key"], true);
+        assert!(host_view.get("api_key_host").is_none());
+        assert!(host_view.get("api_key_cursor").is_none());
+        assert!(host_view.get("api_key").is_none());
+    });
+}
+
+#[test]
+fn t5_set_config_model_only_save_does_not_clear_other_type_or_secrets() {
+    with_config(|| {
+        let seed = serde_json::json!({
+            "assistant_engine": "host",
+            "llm": { "model": "host-seed" },
+            "api_key_host": "sk-host-keep",
+            "api_key_cursor": "sk-cursor-keep"
+        });
+        secrets::apply_token_payload(&seed).expect("secrets");
+        let mut s = settings::load().expect("load");
+        settings::apply_config_payload(&mut s, &seed).expect("apply host");
+        settings::save(&s).expect("save");
+
+        let cursor_seed = serde_json::json!({
+            "assistant_engine": "cursor",
+            "llm": { "model": "cursor-seed" }
+        });
+        secrets::apply_token_payload(&cursor_seed).expect("secrets omit keys");
+        settings::apply_config_payload(&mut s, &cursor_seed).expect("apply cursor");
+        settings::save(&s).expect("save");
+
+        // Model-only host save must not erase cursor entry or either secret slot.
+        let host_only = serde_json::json!({
+            "assistant_engine": "host",
+            "llm": { "model": "host-only-update" }
+        });
+        secrets::apply_token_payload(&host_only).expect("secrets none");
+        settings::apply_config_payload(&mut s, &host_only).expect("apply");
+        settings::save(&s).expect("save");
+
+        assert_eq!(
+            settings::llm_entry_by_type(&s.llm, "host")
+                .expect("host")
+                .model,
+            "host-only-update"
+        );
+        assert_eq!(
+            settings::llm_entry_by_type(&s.llm, "cursor")
+                .expect("cursor")
+                .model,
+            "cursor-seed"
+        );
+        assert_eq!(
+            secrets::get_secret(KEY_LLM_API_KEY).expect("get"),
+            Some("sk-host-keep".into())
+        );
+        assert_eq!(
+            secrets::get_secret(KEY_LLM_API_KEY_CURSOR).expect("get"),
+            Some("sk-cursor-keep".into())
+        );
+    });
+}
