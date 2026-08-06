@@ -602,13 +602,15 @@ pub fn to_config_json(
 
 /// Apply `set_config` payload keys onto settings (toml fields only).
 /// Illegal `assistant_engine` values are rejected (aligned with `resolve_engine`: host|cursor).
+/// Flat `llm` maps to the current `assistant_engine` list entry (create if missing).
 /// `llm.platform` / `llm.base_url` from the client are ignored (preset readonly); when
-/// `assistant_engine` is present they are stamped from the builtin category preset.
+/// `assistant_engine` or `llm.model` is applied they are stamped from the builtin category preset.
 pub fn apply_config_payload(
     settings: &mut AppSettings,
     payload: &serde_json::Value,
 ) -> Result<(), SettingsError> {
     let mut engine_touched = false;
+    let mut llm_model_touched = false;
     if let Some(v) = payload.get("assistant_engine").and_then(|x| x.as_str()) {
         let Some(normalized) = normalize_engine_value(v) else {
             return Err(SettingsError::ConfigGuard(format!(
@@ -650,9 +652,10 @@ pub fn apply_config_payload(
                 .unwrap_or_default();
             fields.model = v.to_string();
             upsert_llm_entry(&mut settings.llm, engine, &fields)?;
+            llm_model_touched = true;
         }
     }
-    if engine_touched {
+    if engine_touched || llm_model_touched {
         stamp_readonly_preset_fields(settings);
     }
     // `cache_dir` is not user-settable via API; use `default_cache_dir()` / manual toml edit.

@@ -607,3 +607,152 @@ fn app_settings_llm_is_typed_list_not_single_slot() {
         "composer-1"
     );
 }
+
+// --- T2: flat facade ↔ typed list (save isolation / readonly preset) ---
+
+#[test]
+fn to_config_json_exposes_flat_current_llm_not_list() {
+    let mut s = AppSettings::default();
+    s.assistant_engine = "cursor".into();
+    upsert_llm_entry(
+        &mut s.llm,
+        "host",
+        &LlmSettings {
+            platform: "glm".into(),
+            base_url: "https://open.bigmodel.cn/api/paas/v4".into(),
+            model: "host-model".into(),
+        },
+    )
+    .expect("host");
+    upsert_llm_entry(
+        &mut s.llm,
+        "cursor",
+        &LlmSettings {
+            platform: "cursor_agent".into(),
+            base_url: "(managed by Cursor Agent)".into(),
+            model: "cursor-model".into(),
+        },
+    )
+    .expect("cursor");
+    let v = to_config_json(&s, false, false, false, false);
+    assert_eq!(v["assistant_engine"], "cursor");
+    assert!(v["llm"].is_object(), "facade llm must be flat object, not list");
+    assert!(v["llm"].as_array().is_none());
+    assert_eq!(v["llm"]["model"], "cursor-model");
+    assert_eq!(v["llm"]["platform"], "cursor_agent");
+    assert_eq!(v["llm"]["base_url"], "(managed by Cursor Agent)");
+}
+
+#[test]
+fn apply_config_payload_first_save_creates_current_type_with_preset_stamp() {
+    let mut s = AppSettings::default();
+    assert!(s.llm.is_empty());
+    apply_config_payload(
+        &mut s,
+        &serde_json::json!({
+            "llm": {
+                "platform": "kimi",
+                "base_url": "https://api.moonshot.cn",
+                "model": "first-host-model"
+            }
+        }),
+    )
+    .expect("apply");
+    assert_eq!(s.llm.len(), 1);
+    let host = llm_entry_by_type(&s.llm, "host").expect("host created");
+    assert_eq!(host.model, "first-host-model");
+    // Client preset fields ignored; builtin host preset stamped onto the new entry.
+    assert_eq!(host.platform, "glm");
+    assert_eq!(host.base_url, "https://open.bigmodel.cn/api/paas/v4");
+    assert!(llm_entry_by_type(&s.llm, "cursor").is_none());
+}
+
+#[test]
+fn apply_config_payload_save_current_type_preserves_other_type() {
+    let mut s = AppSettings::default();
+    s.assistant_engine = "host".into();
+    upsert_llm_entry(
+        &mut s.llm,
+        "host",
+        &LlmSettings {
+            platform: "glm".into(),
+            base_url: "https://open.bigmodel.cn/api/paas/v4".into(),
+            model: "host-before".into(),
+        },
+    )
+    .expect("host");
+    upsert_llm_entry(
+        &mut s.llm,
+        "cursor",
+        &LlmSettings {
+            platform: "cursor_agent".into(),
+            base_url: "(managed by Cursor Agent)".into(),
+            model: "cursor-keep".into(),
+        },
+    )
+    .expect("cursor");
+    apply_config_payload(
+        &mut s,
+        &serde_json::json!({
+            "llm": {
+                "platform": "should-not-apply",
+                "base_url": "https://evil.example",
+                "model": "host-after"
+            }
+        }),
+    )
+    .expect("apply");
+    let host = llm_entry_by_type(&s.llm, "host").expect("host");
+    assert_eq!(host.model, "host-after");
+    assert_eq!(host.platform, "glm");
+    assert_eq!(host.base_url, "https://open.bigmodel.cn/api/paas/v4");
+    let cursor = llm_entry_by_type(&s.llm, "cursor").expect("cursor preserved");
+    assert_eq!(cursor.model, "cursor-keep");
+    assert_eq!(cursor.platform, "cursor_agent");
+    assert_eq!(cursor.base_url, "(managed by Cursor Agent)");
+}
+
+#[test]
+fn load_apply_to_json_roundtrip_does_not_erase_inactive_type() {
+    let dir = tempfile::tempdir().expect("tmp");
+    let _guard = IsolatedConfigGuard::set(dir.path());
+    fs::write(
+        dir.path().join(PROD_CONFIG_FILE_NAME),
+        r#"
+assistant_engine = "host"
+
+[[llm]]
+type = "host"
+platform = "glm"
+base_url = "https://open.bigmodel.cn/api/paas/v4"
+model = "host-a"
+
+[[llm]]
+type = "cursor"
+platform = "cursor_agent"
+base_url = "(managed by Cursor Agent)"
+model = "cursor-b"
+"#,
+    )
+    .expect("write");
+    let mut s = load().expect("load");
+    apply_config_payload(
+        &mut s,
+        &serde_json::json!({ "llm": { "model": "host-c" } }),
+    )
+    .expect("apply");
+    let flat = to_config_json(&s, false, false, false, false);
+    assert_eq!(flat["assistant_engine"], "host");
+    assert_eq!(flat["llm"]["model"], "host-c");
+    assert!(flat["llm"].is_object());
+    save(&s).expect("save");
+    let s2 = load().expect("reload");
+    assert_eq!(
+        llm_entry_by_type(&s2.llm, "host").expect("host").model,
+        "host-c"
+    );
+    let cursor = llm_entry_by_type(&s2.llm, "cursor").expect("cursor intact");
+    assert_eq!(cursor.model, "cursor-b");
+    assert_eq!(cursor.platform, "cursor_agent");
+    assert_eq!(cursor.base_url, "(managed by Cursor Agent)");
+}
