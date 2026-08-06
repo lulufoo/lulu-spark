@@ -68,7 +68,7 @@ fn set_config_saves_engine_model_and_legacy_api_key_without_echoing() {
         assert_eq!(v["assistant_engine"], "host");
         // Client platform/base_url ignored; host builtin preset stamped for Host consumption.
         assert_eq!(v["llm"]["platform"], "glm");
-        assert_eq!(v["llm"]["base_url"], "https://open.bigmodel.cn");
+        assert_eq!(v["llm"]["base_url"], "https://open.bigmodel.cn/api/paas/v4");
         assert_eq!(v["llm"]["model"], "moonshot-v1-8k");
         assert_eq!(v["has_llm_key"], true);
         assert_eq!(v["has_host_key"], true);
@@ -108,7 +108,7 @@ fn set_config_llm_without_api_key_keeps_has_llm_key_false() {
         );
         assert_eq!(v["llm"]["model"], "glm-4");
         assert_eq!(v["llm"]["platform"], "glm");
-        assert_eq!(v["llm"]["base_url"], "https://open.bigmodel.cn");
+        assert_eq!(v["llm"]["base_url"], "https://open.bigmodel.cn/api/paas/v4");
         assert_eq!(v["has_llm_key"], false);
         assert_eq!(v["has_host_key"], false);
         assert!(v.get("api_key").is_none());

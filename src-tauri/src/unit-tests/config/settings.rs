@@ -158,7 +158,7 @@ fn apply_config_payload_updates_engine_model_and_stamps_readonly_preset() {
     // Client platform/base_url ignored; builtin host preset stamped; model kept.
     assert_eq!(s.assistant_engine, "host");
     assert_eq!(s.llm.platform, "glm");
-    assert_eq!(s.llm.base_url, "https://open.bigmodel.cn");
+    assert_eq!(s.llm.base_url, "https://open.bigmodel.cn/api/paas/v4");
     assert_eq!(s.llm.model, "glm-4");
     let text = toml::to_string(&s).expect("serialize");
     assert!(!text.contains("should-not-land-in-settings"));
@@ -255,7 +255,7 @@ fn migrate_llm_to_engine_locks_host_when_no_existing_engine() {
 fn migrate_llm_to_engine_respects_existing_cursor_engine() {
     let legacy = LlmSettings {
         platform: "glm".into(),
-        base_url: "https://open.bigmodel.cn".into(),
+        base_url: "https://open.bigmodel.cn/api/paas/v4".into(),
         model: "glm-4".into(),
     };
     let slice = migrate_llm_to_engine(&legacy, Some("sk-host"), Some("cursor"));
@@ -304,7 +304,7 @@ fn apply_config_payload_accepts_host_and_cursor_engines() {
         .expect("host");
     assert_eq!(s.assistant_engine, "host");
     assert_eq!(s.llm.platform, "glm");
-    assert_eq!(s.llm.base_url, "https://open.bigmodel.cn");
+    assert_eq!(s.llm.base_url, "https://open.bigmodel.cn/api/paas/v4");
 }
 
 #[test]
@@ -325,7 +325,7 @@ model = "glm-4"
     assert_eq!(s.assistant_engine, "host");
     assert_eq!(s.llm.model, "glm-4");
     assert_eq!(s.llm.platform, "glm");
-    assert_eq!(s.llm.base_url, "https://open.bigmodel.cn");
+    assert_eq!(s.llm.base_url, "https://open.bigmodel.cn/api/paas/v4");
 }
 
 #[test]
@@ -360,7 +360,7 @@ assistant_engine = "cursor"
 
 [llm]
 platform = "glm"
-base_url = "https://open.bigmodel.cn"
+base_url = "https://open.bigmodel.cn/api/paas/v4"
 model = "composer-1"
 "#,
     )

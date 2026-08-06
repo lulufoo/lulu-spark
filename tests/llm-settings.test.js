@@ -217,7 +217,7 @@ describe('settings Assistant/Engine panel save/load', () => {
       has_cursor_key: false,
       llm: {
         platform: 'glm',
-        base_url: 'https://open.bigmodel.cn',
+        base_url: 'https://open.bigmodel.cn/api/paas/v4',
         model: 'glm-4',
       },
     });

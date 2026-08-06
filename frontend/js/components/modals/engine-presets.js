@@ -44,7 +44,7 @@ const PRESETS = Object.freeze({
     readonlyFields: READONLY_FIELDS,
     fields: Object.freeze({
       platform: 'glm',
-      base_url: 'https://open.bigmodel.cn',
+      base_url: 'https://open.bigmodel.cn/api/paas/v4',
       model: '',
     }),
   }),

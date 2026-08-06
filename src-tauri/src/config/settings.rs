@@ -124,7 +124,8 @@ fn normalize_engine_value(raw: &str) -> Option<&'static str> {
 fn builtin_preset_fields(engine: &str) -> Option<(&'static str, &'static str)> {
     match normalize_engine_value(engine).unwrap_or("host") {
         "cursor" => Some(("cursor_agent", "(managed by Cursor Agent)")),
-        "host" => Some(("glm", "https://open.bigmodel.cn")),
+        // OpenAI-compatible path (docs.bigmodel.cn); chat_url appends /chat/completions when base ends in /v4.
+        "host" => Some(("glm", "https://open.bigmodel.cn/api/paas/v4")),
         _ => None,
     }
 }
