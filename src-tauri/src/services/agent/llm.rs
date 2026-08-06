@@ -51,10 +51,11 @@ pub fn load_llm_config() -> Result<LlmConfig, LlmError> {
     let api_key = secrets::get_secret(KEY_LLM_API_KEY)
         .map_err(|_| LlmError::MissingConfig)?
         .unwrap_or_default();
+    let entry = settings::llm_entry_by_type(&settings.llm, &settings.assistant_engine);
     let cfg = LlmConfig {
         api_key,
-        base_url: settings.llm.base_url,
-        model: settings.llm.model,
+        base_url: entry.map(|e| e.base_url.clone()).unwrap_or_default(),
+        model: entry.map(|e| e.model.clone()).unwrap_or_default(),
     };
     validate_config(&cfg)?;
     Ok(cfg)

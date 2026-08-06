@@ -176,7 +176,23 @@ fn facade_must_not_accept_engine_selection_to_bypass_settings() {
 fn settings_with_engine_and_model(engine: &str, model: &str) -> AppSettings {
     let mut s = AppSettings::default();
     s.assistant_engine = engine.to_string();
-    s.llm.model = model.to_string();
+    // Only seed a list entry for legal engine types. Blank/illegal categories keep
+    // an empty list so runtime defaults (empty model) remain exercisable.
+    let seed_type = match engine.trim().to_ascii_lowercase().as_str() {
+        "host" | "cursor" => Some(engine.trim()),
+        _ => None,
+    };
+    if let Some(t) = seed_type {
+        crate::config::settings::upsert_llm_entry(
+            &mut s.llm,
+            t,
+            &crate::config::settings::LlmSettings {
+                model: model.to_string(),
+                ..Default::default()
+            },
+        )
+        .expect("upsert llm entry");
+    }
     s
 }
 
@@ -226,7 +242,15 @@ fn read_engine_runtime_config_reflects_settings_and_secret_changes() {
     );
 
     s.assistant_engine = "cursor".into();
-    s.llm.model = "m2".into();
+    crate::config::settings::upsert_llm_entry(
+        &mut s.llm,
+        "cursor",
+        &crate::config::settings::LlmSettings {
+            model: "m2".into(),
+            ..Default::default()
+        },
+    )
+    .expect("upsert cursor model");
     secrets::set_secret(KEY_LLM_API_KEY_CURSOR, "sk-v2").expect("set cursor");
 
     let second = engine_router::read_engine_runtime_config(&s).expect("second");

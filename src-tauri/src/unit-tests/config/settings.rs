@@ -123,9 +123,16 @@ fn to_config_json_includes_flags_without_token() {
 #[test]
 fn to_config_json_includes_llm_fields_without_plaintext_key() {
     let mut s = AppSettings::default();
-    s.llm.platform = "kimi".into();
-    s.llm.base_url = "https://api.moonshot.cn".into();
-    s.llm.model = "moonshot-v1-8k".into();
+    upsert_llm_entry(
+        &mut s.llm,
+        "host",
+        &LlmSettings {
+            platform: "kimi".into(),
+            base_url: "https://api.moonshot.cn".into(),
+            model: "moonshot-v1-8k".into(),
+        },
+    )
+    .expect("upsert host");
     let v = to_config_json(&s, false, false, true, false);
     assert_eq!(v["llm"]["platform"], "kimi");
     assert_eq!(v["llm"]["base_url"], "https://api.moonshot.cn");
@@ -157,9 +164,10 @@ fn apply_config_payload_updates_engine_model_and_stamps_readonly_preset() {
     .expect("apply");
     // Client platform/base_url ignored; builtin host preset stamped; model kept.
     assert_eq!(s.assistant_engine, "host");
-    assert_eq!(s.llm.platform, "glm");
-    assert_eq!(s.llm.base_url, "https://open.bigmodel.cn/api/paas/v4");
-    assert_eq!(s.llm.model, "glm-4");
+    let host = llm_entry_by_type(&s.llm, "host").expect("host entry");
+    assert_eq!(host.platform, "glm");
+    assert_eq!(host.base_url, "https://open.bigmodel.cn/api/paas/v4");
+    assert_eq!(host.model, "glm-4");
     let text = toml::to_string(&s).expect("serialize");
     assert!(!text.contains("should-not-land-in-settings"));
     assert!(!text.contains("api_key"));
@@ -168,9 +176,16 @@ fn apply_config_payload_updates_engine_model_and_stamps_readonly_preset() {
 #[test]
 fn apply_config_payload_ignores_illegal_llm_types_without_clobber() {
     let mut s = AppSettings::default();
-    s.llm.platform = "openai_compatible".into();
-    s.llm.base_url = "https://example.com".into();
-    s.llm.model = "gpt-4o".into();
+    upsert_llm_entry(
+        &mut s.llm,
+        "host",
+        &LlmSettings {
+            platform: "openai_compatible".into(),
+            base_url: "https://example.com".into(),
+            model: "gpt-4o".into(),
+        },
+    )
+    .expect("seed host");
     apply_config_payload(
         &mut s,
         &serde_json::json!({
@@ -183,9 +198,10 @@ fn apply_config_payload_ignores_illegal_llm_types_without_clobber() {
     )
     .expect("apply");
     // No assistant_engine → no stamp; invalid types ignored; prior metadata kept.
-    assert_eq!(s.llm.platform, "openai_compatible");
-    assert_eq!(s.llm.base_url, "https://example.com");
-    assert_eq!(s.llm.model, "gpt-4o");
+    let host = llm_entry_by_type(&s.llm, "host").expect("host entry");
+    assert_eq!(host.platform, "openai_compatible");
+    assert_eq!(host.base_url, "https://example.com");
+    assert_eq!(host.model, "gpt-4o");
 }
 
 #[test]
@@ -193,17 +209,26 @@ fn llm_fields_roundtrip_in_config_toml_without_api_key() {
     let dir = tempfile::tempdir().expect("tmp");
     let _guard = IsolatedConfigGuard::set(dir.path());
     let mut s = AppSettings::default();
-    s.llm.platform = "openai_compatible".into();
-    s.llm.base_url = "https://api.openai.com".into();
-    s.llm.model = "gpt-4o-mini".into();
+    upsert_llm_entry(
+        &mut s.llm,
+        "host",
+        &LlmSettings {
+            platform: "openai_compatible".into(),
+            base_url: "https://api.openai.com".into(),
+            model: "gpt-4o-mini".into(),
+        },
+    )
+    .expect("upsert host");
     save(&s).expect("save");
     let text = fs::read_to_string(config_file_path()).expect("read");
-    assert!(text.contains("[llm]") || text.contains("platform"));
+    assert!(text.contains("[[llm]]") || text.contains("[llm]"));
+    assert!(text.contains("type") || text.contains("host"));
     assert!(!text.contains("api_key"));
     let s2 = load().expect("reload");
-    assert_eq!(s2.llm.platform, "openai_compatible");
-    assert_eq!(s2.llm.base_url, "https://api.openai.com");
-    assert_eq!(s2.llm.model, "gpt-4o-mini");
+    let host = llm_entry_by_type(&s2.llm, "host").expect("host entry");
+    assert_eq!(host.platform, "openai_compatible");
+    assert_eq!(host.base_url, "https://api.openai.com");
+    assert_eq!(host.model, "gpt-4o-mini");
 }
 
 #[test]
@@ -298,17 +323,19 @@ fn apply_config_payload_accepts_host_and_cursor_engines() {
     apply_config_payload(&mut s, &serde_json::json!({ "assistant_engine": "cursor" }))
         .expect("cursor");
     assert_eq!(s.assistant_engine, "cursor");
-    assert_eq!(s.llm.platform, "cursor_agent");
-    assert_eq!(s.llm.base_url, "(managed by Cursor Agent)");
+    let cursor = llm_entry_by_type(&s.llm, "cursor").expect("cursor entry");
+    assert_eq!(cursor.platform, "cursor_agent");
+    assert_eq!(cursor.base_url, "(managed by Cursor Agent)");
     apply_config_payload(&mut s, &serde_json::json!({ "assistant_engine": "host" }))
         .expect("host");
     assert_eq!(s.assistant_engine, "host");
-    assert_eq!(s.llm.platform, "glm");
-    assert_eq!(s.llm.base_url, "https://open.bigmodel.cn/api/paas/v4");
+    let host = llm_entry_by_type(&s.llm, "host").expect("host entry");
+    assert_eq!(host.platform, "glm");
+    assert_eq!(host.base_url, "https://open.bigmodel.cn/api/paas/v4");
 }
 
 #[test]
-fn load_stamps_builtin_preset_when_legacy_platform_base_url_blank() {
+fn load_stamps_builtin_preset_when_entry_platform_base_url_blank() {
     let dir = tempfile::tempdir().expect("tmp");
     let _guard = IsolatedConfigGuard::set(dir.path());
     fs::write(
@@ -316,26 +343,31 @@ fn load_stamps_builtin_preset_when_legacy_platform_base_url_blank() {
         r#"
 assistant_engine = "host"
 
-[llm]
+[[llm]]
+type = "host"
 model = "glm-4"
 "#,
     )
     .expect("write");
     let s = load().expect("load");
     assert_eq!(s.assistant_engine, "host");
-    assert_eq!(s.llm.model, "glm-4");
-    assert_eq!(s.llm.platform, "glm");
-    assert_eq!(s.llm.base_url, "https://open.bigmodel.cn/api/paas/v4");
+    let host = llm_entry_by_type(&s.llm, "host").expect("host entry");
+    assert_eq!(host.model, "glm-4");
+    assert_eq!(host.platform, "glm");
+    assert_eq!(host.base_url, "https://open.bigmodel.cn/api/paas/v4");
 }
 
 #[test]
-fn load_migrates_legacy_llm_only_config_to_host_engine() {
+fn load_typed_llm_list_host_entry_without_requiring_cursor() {
     let dir = tempfile::tempdir().expect("tmp");
     let _guard = IsolatedConfigGuard::set(dir.path());
     fs::write(
         dir.path().join(PROD_CONFIG_FILE_NAME),
         r#"
-[llm]
+assistant_engine = "host"
+
+[[llm]]
+type = "host"
 platform = "kimi"
 base_url = "https://api.moonshot.cn"
 model = "moonshot-v1-8k"
@@ -344,9 +376,11 @@ model = "moonshot-v1-8k"
     .expect("write");
     let s = load().expect("load");
     assert_eq!(s.assistant_engine, "host");
-    assert_eq!(s.llm.model, "moonshot-v1-8k");
-    assert_eq!(s.llm.platform, "kimi");
-    assert_eq!(s.llm.base_url, "https://api.moonshot.cn");
+    let host = llm_entry_by_type(&s.llm, "host").expect("host entry");
+    assert_eq!(host.model, "moonshot-v1-8k");
+    assert_eq!(host.platform, "kimi");
+    assert_eq!(host.base_url, "https://api.moonshot.cn");
+    assert!(llm_entry_by_type(&s.llm, "cursor").is_none());
 }
 
 #[test]
@@ -358,7 +392,8 @@ fn load_respects_existing_cursor_assistant_engine_while_keeping_llm_model() {
         r#"
 assistant_engine = "cursor"
 
-[llm]
+[[llm]]
+type = "cursor"
 platform = "glm"
 base_url = "https://open.bigmodel.cn/api/paas/v4"
 model = "composer-1"
@@ -367,7 +402,8 @@ model = "composer-1"
     .expect("write");
     let s = load().expect("load");
     assert_eq!(s.assistant_engine, "cursor");
-    assert_eq!(s.llm.model, "composer-1");
+    let cursor = llm_entry_by_type(&s.llm, "cursor").expect("cursor entry");
+    assert_eq!(cursor.model, "composer-1");
 }
 
 struct TestModeGuard(Option<String>);
@@ -450,4 +486,124 @@ fn save_rejects_writing_prod_config_in_test_mode() {
             assert!(!prod.is_file());
         }
     });
+}
+
+#[test]
+fn llm_entry_by_type_returns_none_for_empty_list_or_missing_type() {
+    let empty: Vec<LlmSettingsEntry> = vec![];
+    assert!(llm_entry_by_type(&empty, "host").is_none());
+    assert!(llm_entry_by_type(&empty, "cursor").is_none());
+
+    let mut only_host = vec![];
+    upsert_llm_entry(
+        &mut only_host,
+        "host",
+        &LlmSettings {
+            platform: "glm".into(),
+            base_url: "https://host.example".into(),
+            model: "host-model".into(),
+        },
+    )
+    .expect("upsert host");
+    assert!(llm_entry_by_type(&only_host, "cursor").is_none());
+    let host = llm_entry_by_type(&only_host, "host").expect("host");
+    assert_eq!(host.engine_type, "host");
+    assert_eq!(host.model, "host-model");
+    assert_eq!(host.platform, "glm");
+    assert_eq!(host.base_url, "https://host.example");
+}
+
+#[test]
+fn upsert_llm_entry_updates_existing_and_creates_missing_type() {
+    let mut entries = vec![];
+    upsert_llm_entry(
+        &mut entries,
+        "host",
+        &LlmSettings {
+            platform: "glm".into(),
+            base_url: "https://host.example".into(),
+            model: "m1".into(),
+        },
+    )
+    .expect("create host");
+    assert_eq!(entries.len(), 1);
+
+    upsert_llm_entry(
+        &mut entries,
+        "host",
+        &LlmSettings {
+            platform: "glm".into(),
+            base_url: "https://host.example".into(),
+            model: "m2".into(),
+        },
+    )
+    .expect("update host");
+    assert_eq!(entries.len(), 1);
+    assert_eq!(llm_entry_by_type(&entries, "host").unwrap().model, "m2");
+
+    upsert_llm_entry(
+        &mut entries,
+        "cursor",
+        &LlmSettings {
+            platform: "cursor_agent".into(),
+            base_url: "(managed by Cursor Agent)".into(),
+            model: "composer-1".into(),
+        },
+    )
+    .expect("create cursor");
+    assert_eq!(entries.len(), 2);
+    assert_eq!(
+        llm_entry_by_type(&entries, "cursor").unwrap().model,
+        "composer-1"
+    );
+    assert_eq!(llm_entry_by_type(&entries, "host").unwrap().model, "m2");
+}
+
+#[test]
+fn upsert_llm_entry_rejects_illegal_engine_type_without_writing() {
+    let mut entries = vec![];
+    let err = upsert_llm_entry(
+        &mut entries,
+        "claude",
+        &LlmSettings {
+            model: "should-not-land".into(),
+            ..Default::default()
+        },
+    )
+    .expect_err("illegal type");
+    assert!(
+        err.to_string().contains("type") || err.to_string().contains("claude"),
+        "err={err}"
+    );
+    assert!(entries.is_empty());
+}
+
+#[test]
+fn app_settings_llm_is_typed_list_not_single_slot() {
+    let mut s = AppSettings::default();
+    assert!(s.llm.is_empty());
+    upsert_llm_entry(
+        &mut s.llm,
+        "cursor",
+        &LlmSettings {
+            model: "composer-1".into(),
+            ..Default::default()
+        },
+    )
+    .expect("cursor");
+    upsert_llm_entry(
+        &mut s.llm,
+        "host",
+        &LlmSettings {
+            model: "glm-4".into(),
+            ..Default::default()
+        },
+    )
+    .expect("host");
+    assert_eq!(s.llm.len(), 2);
+    assert_eq!(llm_entry_by_type(&s.llm, "host").unwrap().model, "glm-4");
+    assert_eq!(
+        llm_entry_by_type(&s.llm, "cursor").unwrap().model,
+        "composer-1"
+    );
 }

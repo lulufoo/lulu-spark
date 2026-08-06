@@ -8,7 +8,7 @@
 use serde::Serialize;
 
 use crate::config::secrets::{self, KEY_LLM_API_KEY, KEY_LLM_API_KEY_CURSOR};
-use crate::config::settings::AppSettings;
+use crate::config::settings::{self, AppSettings};
 
 /// Selected assistant engine (Host Loop vs Cursor Local).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -92,7 +92,9 @@ pub fn read_engine_runtime_config(
     settings: &AppSettings,
 ) -> Result<EngineRuntimeConfig, EngineRouteError> {
     let engine = resolve_engine(settings)?;
-    let model = settings.llm.model.clone();
+    let model = settings::llm_entry_by_type(&settings.llm, &settings.assistant_engine)
+        .map(|e| e.model.clone())
+        .unwrap_or_default();
     let secret_key = match engine {
         EngineKind::Host => KEY_LLM_API_KEY,
         EngineKind::Cursor => KEY_LLM_API_KEY_CURSOR,

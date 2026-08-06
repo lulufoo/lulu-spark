@@ -51,6 +51,19 @@ pub struct LlmSettings {
     pub model: String,
 }
 
+/// One typed LLM settings entry in `AppSettings.llm` (`host` | `cursor`).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct LlmSettingsEntry {
+    #[serde(rename = "type")]
+    pub engine_type: String,
+    #[serde(default)]
+    pub platform: String,
+    #[serde(default)]
+    pub base_url: String,
+    #[serde(default)]
+    pub model: String,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AppSettings {
     #[serde(default = "default_workbench_knowledge_root")]
@@ -67,8 +80,9 @@ pub struct AppSettings {
     /// Illegal values are rejected at route resolve time (not silently remapped).
     #[serde(default = "default_assistant_engine")]
     pub assistant_engine: String,
+    /// Per-engine LLM settings list (`[[llm]]` in toml). Entries may be absent.
     #[serde(default)]
-    pub llm: LlmSettings,
+    pub llm: Vec<LlmSettingsEntry>,
 }
 
 fn home_dir() -> PathBuf {
@@ -119,6 +133,48 @@ fn normalize_engine_value(raw: &str) -> Option<&'static str> {
     }
 }
 
+/// Resolve the list entry for a legal engine type (`host` | `cursor`).
+/// Missing type or empty list → `None` (no panic). Illegal type → `None`.
+pub fn llm_entry_by_type<'a>(
+    entries: &'a [LlmSettingsEntry],
+    engine_type: &str,
+) -> Option<&'a LlmSettingsEntry> {
+    let normalized = normalize_engine_value(engine_type)?;
+    entries
+        .iter()
+        .find(|e| normalize_engine_value(&e.engine_type) == Some(normalized))
+}
+
+/// Update or insert a typed LLM entry. Illegal/unknown type is rejected (not written).
+pub fn upsert_llm_entry(
+    entries: &mut Vec<LlmSettingsEntry>,
+    engine_type: &str,
+    fields: &LlmSettings,
+) -> Result<(), SettingsError> {
+    let Some(normalized) = normalize_engine_value(engine_type) else {
+        return Err(SettingsError::ConfigGuard(format!(
+            "invalid llm entry type: {engine_type}"
+        )));
+    };
+    if let Some(existing) = entries
+        .iter_mut()
+        .find(|e| normalize_engine_value(&e.engine_type) == Some(normalized))
+    {
+        existing.engine_type = normalized.to_string();
+        existing.platform = fields.platform.clone();
+        existing.base_url = fields.base_url.clone();
+        existing.model = fields.model.clone();
+    } else {
+        entries.push(LlmSettingsEntry {
+            engine_type: normalized.to_string(),
+            platform: fields.platform.clone(),
+            base_url: fields.base_url.clone(),
+            model: fields.model.clone(),
+        });
+    }
+    Ok(())
+}
+
 /// Built-in readonly preset metadata (aligned with frontend `engine-presets.js`).
 /// Model remains independently editable; platform/base_url are never client-writable.
 fn builtin_preset_fields(engine: &str) -> Option<(&'static str, &'static str)> {
@@ -133,9 +189,22 @@ fn builtin_preset_fields(engine: &str) -> Option<(&'static str, &'static str)> {
 /// Stamp readonly preset fields from the current Engine category.
 /// Ensures Host `load_llm_config` receives a usable base_url matching the UI preset.
 pub fn stamp_readonly_preset_fields(settings: &mut AppSettings) {
-    if let Some((platform, base_url)) = builtin_preset_fields(&settings.assistant_engine) {
-        settings.llm.platform = platform.to_string();
-        settings.llm.base_url = base_url.to_string();
+    let Some(engine) = normalize_engine_value(&settings.assistant_engine) else {
+        return;
+    };
+    if let Some((platform, base_url)) = builtin_preset_fields(engine) {
+        let model = llm_entry_by_type(&settings.llm, engine)
+            .map(|e| e.model.clone())
+            .unwrap_or_default();
+        let _ = upsert_llm_entry(
+            &mut settings.llm,
+            engine,
+            &LlmSettings {
+                platform: platform.to_string(),
+                base_url: base_url.to_string(),
+                model,
+            },
+        );
     }
 }
 
@@ -169,11 +238,23 @@ pub fn migrate_llm_to_engine(
 fn apply_engine_migration_on_load(settings: &mut AppSettings) {
     let existing = settings.assistant_engine.trim();
     let existing = (!existing.is_empty()).then_some(existing);
-    let slice = migrate_llm_to_engine(&settings.llm, None, existing);
+    let lookup = existing.unwrap_or("host");
+    let current_fields = llm_entry_by_type(&settings.llm, lookup)
+        .map(|e| LlmSettings {
+            platform: e.platform.clone(),
+            base_url: e.base_url.clone(),
+            model: e.model.clone(),
+        })
+        .unwrap_or_default();
+    let slice = migrate_llm_to_engine(&current_fields, None, existing);
     settings.assistant_engine = slice.assistant_engine;
-    // Preserve non-empty legacy platform/base_url (A1). Stamp builtin preset only when
-    // both are blank so Host has a usable base_url after Engine IA without a re-save.
-    if settings.llm.platform.trim().is_empty() && settings.llm.base_url.trim().is_empty() {
+    // Preserve non-empty platform/base_url on the current entry. Stamp builtin preset
+    // only when the entry is missing or both fields are blank.
+    let needs_stamp = match llm_entry_by_type(&settings.llm, &settings.assistant_engine) {
+        Some(e) => e.platform.trim().is_empty() && e.base_url.trim().is_empty(),
+        None => true,
+    };
+    if needs_stamp {
         stamp_readonly_preset_fields(settings);
     }
     let _ = crate::config::secrets::migrate_legacy_llm_api_key_to_host();
@@ -244,7 +325,7 @@ impl Default for AppSettings {
             meili_url: default_meili_url(),
             github_user_url: default_github_user_url(),
             assistant_engine: default_assistant_engine(),
-            llm: LlmSettings::default(),
+            llm: Vec::new(),
         }
     }
 }
@@ -506,9 +587,15 @@ pub fn to_config_json(
         "has_host_key": has_host_key,
         "has_cursor_key": has_cursor_key,
         "llm": {
-            "platform": settings.llm.platform,
-            "base_url": settings.llm.base_url,
-            "model": settings.llm.model,
+            "platform": llm_entry_by_type(&settings.llm, &settings.assistant_engine)
+                .map(|e| e.platform.as_str())
+                .unwrap_or(""),
+            "base_url": llm_entry_by_type(&settings.llm, &settings.assistant_engine)
+                .map(|e| e.base_url.as_str())
+                .unwrap_or(""),
+            "model": llm_entry_by_type(&settings.llm, &settings.assistant_engine)
+                .map(|e| e.model.as_str())
+                .unwrap_or(""),
         },
     })
 }
@@ -552,7 +639,17 @@ pub fn apply_config_payload(
     if let Some(llm) = payload.get("llm").and_then(|x| x.as_object()) {
         // Preset fields are readonly — ignore client platform/base_url.
         if let Some(v) = llm.get("model").and_then(|x| x.as_str()) {
-            settings.llm.model = v.to_string();
+            let engine =
+                normalize_engine_value(&settings.assistant_engine).unwrap_or("host");
+            let mut fields = llm_entry_by_type(&settings.llm, engine)
+                .map(|e| LlmSettings {
+                    platform: e.platform.clone(),
+                    base_url: e.base_url.clone(),
+                    model: e.model.clone(),
+                })
+                .unwrap_or_default();
+            fields.model = v.to_string();
+            upsert_llm_entry(&mut settings.llm, engine, &fields)?;
         }
     }
     if engine_touched {
