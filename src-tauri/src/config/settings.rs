@@ -64,6 +64,16 @@ pub struct LlmSettingsEntry {
     pub model: String,
 }
 
+impl LlmSettingsEntry {
+    fn fields(&self) -> LlmSettings {
+        LlmSettings {
+            platform: self.platform.clone(),
+            base_url: self.base_url.clone(),
+            model: self.model.clone(),
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AppSettings {
     #[serde(default = "default_workbench_knowledge_root")]
@@ -193,18 +203,12 @@ pub fn stamp_readonly_preset_fields(settings: &mut AppSettings) {
         return;
     };
     if let Some((platform, base_url)) = builtin_preset_fields(engine) {
-        let model = llm_entry_by_type(&settings.llm, engine)
-            .map(|e| e.model.clone())
+        let mut fields = llm_entry_by_type(&settings.llm, engine)
+            .map(LlmSettingsEntry::fields)
             .unwrap_or_default();
-        let _ = upsert_llm_entry(
-            &mut settings.llm,
-            engine,
-            &LlmSettings {
-                platform: platform.to_string(),
-                base_url: base_url.to_string(),
-                model,
-            },
-        );
+        fields.platform = platform.to_string();
+        fields.base_url = base_url.to_string();
+        let _ = upsert_llm_entry(&mut settings.llm, engine, &fields);
     }
 }
 
@@ -240,11 +244,7 @@ fn apply_engine_migration_on_load(settings: &mut AppSettings) {
     let existing = (!existing.is_empty()).then_some(existing);
     let lookup = existing.unwrap_or("host");
     let current_fields = llm_entry_by_type(&settings.llm, lookup)
-        .map(|e| LlmSettings {
-            platform: e.platform.clone(),
-            base_url: e.base_url.clone(),
-            model: e.model.clone(),
-        })
+        .map(LlmSettingsEntry::fields)
         .unwrap_or_default();
     let slice = migrate_llm_to_engine(&current_fields, None, existing);
     settings.assistant_engine = slice.assistant_engine;
@@ -574,6 +574,9 @@ pub fn to_config_json(
     has_host_key: bool,
     has_cursor_key: bool,
 ) -> serde_json::Value {
+    let current = llm_entry_by_type(&settings.llm, &settings.assistant_engine)
+        .map(LlmSettingsEntry::fields)
+        .unwrap_or_default();
     serde_json::json!({
         "workbench_knowledge_root": settings.workbench_knowledge_root.to_string_lossy(),
         "knowledge_corpus_root": settings.knowledge_corpus_root.to_string_lossy(),
@@ -587,15 +590,9 @@ pub fn to_config_json(
         "has_host_key": has_host_key,
         "has_cursor_key": has_cursor_key,
         "llm": {
-            "platform": llm_entry_by_type(&settings.llm, &settings.assistant_engine)
-                .map(|e| e.platform.as_str())
-                .unwrap_or(""),
-            "base_url": llm_entry_by_type(&settings.llm, &settings.assistant_engine)
-                .map(|e| e.base_url.as_str())
-                .unwrap_or(""),
-            "model": llm_entry_by_type(&settings.llm, &settings.assistant_engine)
-                .map(|e| e.model.as_str())
-                .unwrap_or(""),
+            "platform": current.platform,
+            "base_url": current.base_url,
+            "model": current.model,
         },
     })
 }
@@ -644,11 +641,7 @@ pub fn apply_config_payload(
             let engine =
                 normalize_engine_value(&settings.assistant_engine).unwrap_or("host");
             let mut fields = llm_entry_by_type(&settings.llm, engine)
-                .map(|e| LlmSettings {
-                    platform: e.platform.clone(),
-                    base_url: e.base_url.clone(),
-                    model: e.model.clone(),
-                })
+                .map(LlmSettingsEntry::fields)
                 .unwrap_or_default();
             fields.model = v.to_string();
             upsert_llm_entry(&mut settings.llm, engine, &fields)?;
