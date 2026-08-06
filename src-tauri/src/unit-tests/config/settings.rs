@@ -756,3 +756,244 @@ model = "cursor-b"
     assert_eq!(cursor.platform, "cursor_agent");
     assert_eq!(cursor.base_url, "(managed by Cursor Agent)");
 }
+
+
+// --- T5: lock list + flat facade + save isolation + no dual-read ---
+// Migration script (legacy single-slot → typed list) is a follow-on task (L04 / L10 / L11);
+// these tests must not require that script, and must reject in-app dual-read substitutes.
+
+const T5_FOLLOW_ON_MIGRATION_MARKER: &str =
+    "T5_FOLLOW_ON_MIGRATION: legacy single-slot→list is an out-of-band local script; main code must not dual-read.";
+
+#[test]
+fn t5_host_and_cursor_models_stay_isolated_across_facade_switch() {
+    let mut s = AppSettings::default();
+    s.assistant_engine = "host".into();
+    upsert_llm_entry(
+        &mut s.llm,
+        "host",
+        &LlmSettings {
+            platform: "glm".into(),
+            base_url: "https://open.bigmodel.cn/api/paas/v4".into(),
+            model: "host-locked-model".into(),
+        },
+    )
+    .expect("host");
+    upsert_llm_entry(
+        &mut s.llm,
+        "cursor",
+        &LlmSettings {
+            platform: "cursor_agent".into(),
+            base_url: "(managed by Cursor Agent)".into(),
+            model: "cursor-locked-model".into(),
+        },
+    )
+    .expect("cursor");
+
+    let host_flat = to_config_json(&s, false, false, false, false);
+    assert_eq!(host_flat["assistant_engine"], "host");
+    assert!(host_flat["llm"].is_object());
+    assert!(host_flat["llm"].as_array().is_none());
+    assert_eq!(host_flat["llm"]["model"], "host-locked-model");
+    assert_ne!(host_flat["llm"]["model"], "cursor-locked-model");
+
+    s.assistant_engine = "cursor".into();
+    let cursor_flat = to_config_json(&s, false, false, false, false);
+    assert_eq!(cursor_flat["assistant_engine"], "cursor");
+    assert!(cursor_flat["llm"].is_object());
+    assert_eq!(cursor_flat["llm"]["model"], "cursor-locked-model");
+    assert_ne!(cursor_flat["llm"]["model"], "host-locked-model");
+
+    // Switching facade pointer must not mutate stored list entries.
+    assert_eq!(
+        llm_entry_by_type(&s.llm, "host").expect("host").model,
+        "host-locked-model"
+    );
+    assert_eq!(
+        llm_entry_by_type(&s.llm, "cursor").expect("cursor").model,
+        "cursor-locked-model"
+    );
+}
+
+#[test]
+fn t5_to_config_json_returns_current_engine_plus_flat_current_entry() {
+    let mut s = AppSettings::default();
+    s.assistant_engine = "cursor".into();
+    upsert_llm_entry(
+        &mut s.llm,
+        "host",
+        &LlmSettings {
+            model: "should-not-surface".into(),
+            ..Default::default()
+        },
+    )
+    .expect("host");
+    upsert_llm_entry(
+        &mut s.llm,
+        "cursor",
+        &LlmSettings {
+            platform: "cursor_agent".into(),
+            base_url: "(managed by Cursor Agent)".into(),
+            model: "facade-current".into(),
+        },
+    )
+    .expect("cursor");
+    let v = to_config_json(&s, false, false, true, false);
+    assert_eq!(v["assistant_engine"], "cursor");
+    assert!(v["llm"].is_object());
+    assert_eq!(v["llm"]["model"], "facade-current");
+    assert_eq!(v["llm"]["platform"], "cursor_agent");
+    assert_eq!(v["llm"]["base_url"], "(managed by Cursor Agent)");
+    assert!(v.get("api_key").is_none());
+    assert!(v["llm"].get("api_key").is_none());
+    assert!(v["llm"].get("type").is_none(), "flat facade must not expose list type field");
+}
+
+#[test]
+fn t5_save_updates_only_current_type_creating_missing_without_clearing_other() {
+    let mut s = AppSettings::default();
+    s.assistant_engine = "host".into();
+    upsert_llm_entry(
+        &mut s.llm,
+        "cursor",
+        &LlmSettings {
+            platform: "cursor_agent".into(),
+            base_url: "(managed by Cursor Agent)".into(),
+            model: "cursor-preexisting".into(),
+        },
+    )
+    .expect("seed cursor only");
+    assert!(llm_entry_by_type(&s.llm, "host").is_none());
+
+    apply_config_payload(
+        &mut s,
+        &serde_json::json!({
+            "assistant_engine": "host",
+            "llm": { "model": "host-created" }
+        }),
+    )
+    .expect("create host");
+    assert_eq!(
+        llm_entry_by_type(&s.llm, "host").expect("host created").model,
+        "host-created"
+    );
+    assert_eq!(
+        llm_entry_by_type(&s.llm, "cursor")
+            .expect("cursor preserved")
+            .model,
+        "cursor-preexisting"
+    );
+
+    apply_config_payload(
+        &mut s,
+        &serde_json::json!({
+            "assistant_engine": "cursor",
+            "llm": { "model": "cursor-updated" }
+        }),
+    )
+    .expect("update cursor");
+    assert_eq!(
+        llm_entry_by_type(&s.llm, "cursor").expect("cursor").model,
+        "cursor-updated"
+    );
+    assert_eq!(
+        llm_entry_by_type(&s.llm, "host").expect("host intact").model,
+        "host-created"
+    );
+}
+
+#[test]
+fn t5_missing_active_entry_facade_is_empty_not_other_type() {
+    let mut s = AppSettings::default();
+    s.assistant_engine = "host".into();
+    upsert_llm_entry(
+        &mut s.llm,
+        "cursor",
+        &LlmSettings {
+            model: "only-cursor".into(),
+            platform: "cursor_agent".into(),
+            base_url: "(managed by Cursor Agent)".into(),
+        },
+    )
+    .expect("cursor");
+    let v = to_config_json(&s, false, false, false, false);
+    assert_eq!(v["assistant_engine"], "host");
+    assert!(v["llm"].is_object());
+    assert_eq!(v["llm"]["model"], "");
+    assert_ne!(v["llm"]["model"], "only-cursor");
+}
+
+#[test]
+fn t5_legacy_single_slot_llm_table_fails_closed_without_dual_read() {
+    let dir = tempfile::tempdir().expect("tmp");
+    let _guard = IsolatedConfigGuard::set(dir.path());
+    fs::write(
+        dir.path().join(PROD_CONFIG_FILE_NAME),
+        r#"
+assistant_engine = "host"
+
+[llm]
+platform = "kimi"
+base_url = "https://api.moonshot.cn"
+model = "moonshot-v1-8k"
+"#,
+    )
+    .expect("write");
+    let err = load().expect_err("legacy single-slot [llm] must not dual-read into typed list");
+    let msg = err.to_string();
+    assert!(
+        msg.contains("parse") || msg.contains("sequence") || msg.contains("map"),
+        "expected parse/fail-closed error, got {msg}"
+    );
+}
+
+#[test]
+fn t5_production_sources_have_no_single_slot_llm_field_reads() {
+    let settings_src = include_str!("../../config/settings.rs");
+    let llm_src = include_str!("../../services/agent/llm.rs");
+    let router_src = include_str!("../../services/agent/engine_router.rs");
+    for (label, src) in [
+        ("settings.rs", settings_src),
+        ("llm.rs", llm_src),
+        ("engine_router.rs", router_src),
+    ] {
+        // Forbid AppSettings single-slot field access (pre-list shape).
+        assert!(
+            !src.contains("settings.llm.model"),
+            "{label}: forbidden settings.llm.model single-slot read"
+        );
+        assert!(
+            !src.contains("settings.llm.platform"),
+            "{label}: forbidden settings.llm.platform single-slot read"
+        );
+        assert!(
+            !src.contains("settings.llm.base_url"),
+            "{label}: forbidden settings.llm.base_url single-slot read"
+        );
+    }
+    // Runtime must resolve via typed list helper (current entry), not a dual-read shim.
+    assert!(
+        llm_src.contains("llm_entry_by_type"),
+        "llm.rs must read model/base_url via llm_entry_by_type"
+    );
+    assert!(
+        router_src.contains("llm_entry_by_type"),
+        "engine_router.rs must read model via llm_entry_by_type"
+    );
+    assert!(
+        !settings_src.lines().any(|l| {
+            let t = l.trim();
+            t.contains("deserialize_with") && t.contains("llm") && !t.starts_with("//")
+        }),
+        "settings.rs must not custom-deserialize llm for dual-read compatibility"
+    );
+}
+
+#[test]
+fn t5_follow_on_migration_marker_present_in_settings_source() {
+    let settings_src = include_str!("../../config/settings.rs");
+    assert!(
+        settings_src.contains(T5_FOLLOW_ON_MIGRATION_MARKER),
+        "settings.rs must document that single-slot→list migration is follow-on (not dual-read). missing marker: {T5_FOLLOW_ON_MIGRATION_MARKER}"
+    );
+}

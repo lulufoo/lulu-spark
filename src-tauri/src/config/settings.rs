@@ -91,6 +91,7 @@ pub struct AppSettings {
     #[serde(default = "default_assistant_engine")]
     pub assistant_engine: String,
     /// Per-engine LLM settings list (`[[llm]]` in toml). Entries may be absent.
+    /// T5_FOLLOW_ON_MIGRATION: legacy single-slot→list is an out-of-band local script; main code must not dual-read.
     #[serde(default)]
     pub llm: Vec<LlmSettingsEntry>,
 }
