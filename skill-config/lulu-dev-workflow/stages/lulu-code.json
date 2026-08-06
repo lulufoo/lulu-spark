@@ -8,7 +8,7 @@
     "commit_message_template": "feat({scope}): {task_id} {summary}"
   },
   "subagent": {
-    "cursor": "Grok 4.5",
+    "cursor": "Auto",
     "copilot": "GPT-5.4"
   }
 }

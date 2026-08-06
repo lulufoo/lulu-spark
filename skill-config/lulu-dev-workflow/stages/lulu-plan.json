@@ -1,13 +1,9 @@
 {
   "compose": {
-    "tpt_section_registry_url": "https://github.com/lulufoo/lulu-workflow-framework/blob/main/lulu-dev-workflow/template/plan/42-tech-plan-section-registry.json",
-    "tpt_section_form_registry_url": "https://github.com/lulufoo/lulu-workflow-framework/blob/main/lulu-dev-workflow/template/plan/49-tech-plan-section-form-registry.json",
-    "tpt_section_kw_criteria_url": "https://github.com/lulufoo/lulu-workflow-framework/blob/main/lulu-dev-workflow/template/plan/43-tech-plan-section-kw-criteria.md",
-    "tpt_feature_role_instance_url": "https://github.com/lulufoo/lulu-workflow-framework/blob/main/lulu-dev-workflow/template/plan/46-tech-plan-feature-role-instance.json",
-    "tpt_feature_domain_instance_url": "https://github.com/lulufoo/lulu-workflow-framework/blob/main/lulu-dev-workflow/template/plan/47-tech-plan-feature-domain-instance.json"
-  },
-  "eval": {
-    "tpt_intent_eval_framework_url": "https://github.com/lulufoo/lulu-workflow-framework/blob/main/lulu-dev-workflow/template/plan/41-tech-plan-intent-evaluation-framework.md",
-    "tpt_tech_conformance_url": "https://github.com/lulufoo/lulu-workflow-framework/blob/main/lulu-dev-workflow/template/plan/48-tech-plan-tech-conformance-eval-framework.md"
+    "tpt_section_registry_url": "lulu-dev-workflow/lulu-plan/templates/section-registry.json",
+    "tpt_section_form_registry_url": "lulu-dev-workflow/lulu-plan/templates/section-form-registry.json",
+    "tpt_section_kw_criteria_url": "lulu-dev-workflow/lulu-plan/templates/section-kw-criteria.md",
+    "tpt_feature_role_instance_url": "lulu-dev-workflow/lulu-plan/templates/role-instance.json",
+    "tpt_feature_domain_instance_url": "lulu-dev-workflow/lulu-plan/templates/domain-instance.json"
   }
 }
