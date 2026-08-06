@@ -364,3 +364,113 @@ fn engine_runtime_config_is_read_only_snapshot_without_sdk_cwd_or_mcp() {
         Some("sk".into())
     );
 }
+
+// ── T4: runtime reads current typed list entry (isolation / no cross-type) ───
+
+fn settings_with_dual_llm_entries(active: &str) -> AppSettings {
+    let mut s = AppSettings::default();
+    s.assistant_engine = active.to_string();
+    settings::upsert_llm_entry(
+        &mut s.llm,
+        "host",
+        &settings::LlmSettings {
+            platform: "glm".into(),
+            base_url: "https://host.example/v4".into(),
+            model: "host-model-x".into(),
+        },
+    )
+    .expect("upsert host");
+    settings::upsert_llm_entry(
+        &mut s.llm,
+        "cursor",
+        &settings::LlmSettings {
+            platform: "cursor_agent".into(),
+            base_url: "(managed by Cursor Agent)".into(),
+            model: "cursor-model-y".into(),
+        },
+    )
+    .expect("upsert cursor");
+    s
+}
+
+#[test]
+fn read_engine_runtime_config_uses_active_type_entry_not_other_type() {
+    secrets::test_secrets_clear();
+    let host = settings_with_dual_llm_entries("host");
+    let host_cfg = engine_router::read_engine_runtime_config(&host).expect("host");
+    assert_eq!(host_cfg.engine, EngineKind::Host);
+    assert_eq!(host_cfg.model, "host-model-x");
+    assert_ne!(host_cfg.model, "cursor-model-y");
+
+    let cursor = settings_with_dual_llm_entries("cursor");
+    let cursor_cfg = engine_router::read_engine_runtime_config(&cursor).expect("cursor");
+    assert_eq!(cursor_cfg.engine, EngineKind::Cursor);
+    assert_eq!(cursor_cfg.model, "cursor-model-y");
+    assert_ne!(cursor_cfg.model, "host-model-x");
+}
+
+#[test]
+fn engine_settings_for_route_matches_read_engine_runtime_config() {
+    secrets::test_secrets_clear();
+    secrets::set_secret(KEY_LLM_API_KEY, "sk-alias").expect("set");
+    let s = settings_with_dual_llm_entries("host");
+    let via_read = engine_router::read_engine_runtime_config(&s).expect("read");
+    let via_alias = engine_router::engine_settings_for_route(&s).expect("alias");
+    assert_eq!(via_alias, via_read);
+}
+
+#[test]
+fn read_engine_runtime_config_missing_active_entry_does_not_fallback_to_other_type() {
+    secrets::test_secrets_clear();
+    let mut s = AppSettings::default();
+    s.assistant_engine = "host".into();
+    // Only cursor entry present — host must not inherit cursor model.
+    settings::upsert_llm_entry(
+        &mut s.llm,
+        "cursor",
+        &settings::LlmSettings {
+            model: "only-cursor".into(),
+            ..Default::default()
+        },
+    )
+    .expect("upsert cursor");
+    let cfg = engine_router::read_engine_runtime_config(&s).expect("host runtime");
+    assert_eq!(cfg.engine, EngineKind::Host);
+    assert_eq!(cfg.model, "");
+    assert_ne!(cfg.model, "only-cursor");
+}
+
+#[test]
+fn read_engine_runtime_config_empty_assistant_engine_reads_host_entry_model() {
+    // resolve_engine treats blank as Host — model must follow the active Host entry.
+    secrets::test_secrets_clear();
+    let mut s = AppSettings::default();
+    s.assistant_engine = "".into();
+    settings::upsert_llm_entry(
+        &mut s.llm,
+        "host",
+        &settings::LlmSettings {
+            model: "host-when-blank".into(),
+            ..Default::default()
+        },
+    )
+    .expect("upsert host");
+    settings::upsert_llm_entry(
+        &mut s.llm,
+        "cursor",
+        &settings::LlmSettings {
+            model: "cursor-must-not-win".into(),
+            ..Default::default()
+        },
+    )
+    .expect("upsert cursor");
+
+    assert_eq!(
+        engine_router::resolve_engine(&s).expect("resolve"),
+        EngineKind::Host
+    );
+    let cfg = engine_router::read_engine_runtime_config(&s).expect("runtime");
+    assert_eq!(cfg.engine, EngineKind::Host);
+    assert_eq!(cfg.model, "host-when-blank");
+    assert_ne!(cfg.model, "cursor-must-not-win");
+}

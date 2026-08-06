@@ -92,7 +92,13 @@ pub fn read_engine_runtime_config(
     settings: &AppSettings,
 ) -> Result<EngineRuntimeConfig, EngineRouteError> {
     let engine = resolve_engine(settings)?;
-    let model = settings::llm_entry_by_type(&settings.llm, &settings.assistant_engine)
+    // Look up by resolved kind so blank/whitespace assistant_engine (→ Host)
+    // still reads the active Host list entry, not an empty miss.
+    let type_key = match engine {
+        EngineKind::Host => "host",
+        EngineKind::Cursor => "cursor",
+    };
+    let model = settings::llm_entry_by_type(&settings.llm, type_key)
         .map(|e| e.model.clone())
         .unwrap_or_default();
     let secret_key = match engine {

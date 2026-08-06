@@ -51,7 +51,11 @@ pub fn load_llm_config() -> Result<LlmConfig, LlmError> {
     let api_key = secrets::get_secret(KEY_LLM_API_KEY)
         .map_err(|_| LlmError::MissingConfig)?
         .unwrap_or_default();
-    let entry = settings::llm_entry_by_type(&settings.llm, &settings.assistant_engine);
+    // Blank/whitespace assistant_engine defaults to Host (same as resolve_engine).
+    // Illegal values still miss the list entry → MissingConfig (no cross-type fallback).
+    let raw = settings.assistant_engine.trim();
+    let type_key = if raw.is_empty() { "host" } else { raw };
+    let entry = settings::llm_entry_by_type(&settings.llm, type_key);
     let cfg = LlmConfig {
         api_key,
         base_url: entry.map(|e| e.base_url.clone()).unwrap_or_default(),
