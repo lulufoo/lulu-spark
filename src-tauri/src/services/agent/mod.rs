@@ -5,6 +5,7 @@ pub mod cursor_adapter;
 pub mod e2e_gate;
 pub mod engine_router;
 pub mod llm;
+pub mod process_manager;
 pub mod r#loop;
 pub mod runtime;
 pub mod session;
