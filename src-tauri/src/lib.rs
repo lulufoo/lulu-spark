@@ -442,6 +442,9 @@ pub fn run() {
             create_main_window(app)?;
             app.manage(services::reindex::ReindexState::new());
 
+            // Phase-Warm: Cursor+key → manager.warm(); skip/fail never blocks App startup.
+            services::agent::host_startup::schedule_cursor_runner_warm();
+
             let app_handle = app.handle().clone();
             std::thread::spawn(move || {
                 let Ok(repo_root) = crate::config::paths::repo_root() else {

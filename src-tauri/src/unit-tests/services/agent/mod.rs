@@ -21,6 +21,9 @@ mod e2e_gate_tests;
 #[path = "process_manager_tests.rs"]
 mod process_manager_tests;
 
+#[path = "host_startup_tests.rs"]
+mod host_startup_tests;
+
 use std::fs;
 use std::io::{Read, Write};
 use std::net::TcpListener;
