@@ -95,15 +95,15 @@ fn t7_process_cursor_runner_client_spawn_is_crate_private() {
     let fn_spawn = impl_src
         .find("fn spawn(")
         .expect("spawn method on ProcessCursorRunnerClient");
-    let region_start = fn_spawn.saturating_sub(40);
+    let region_start = fn_spawn.saturating_sub(80);
     let region = &impl_src[region_start..fn_spawn + 24];
     assert!(
-        region.contains("pub(crate) fn spawn"),
-        "ProcessCursorRunnerClient::spawn must be pub(crate) after cutover; near spawn: {region:?}"
+        region.contains("pub(super) fn spawn"),
+        "ProcessCursorRunnerClient::spawn must be pub(super) (agent-module only); near spawn: {region:?}"
     );
     assert!(
-        !region.contains("pub fn spawn"),
-        "ProcessCursorRunnerClient::spawn must not remain a public API after cutover"
+        !region.contains("pub fn spawn") && !region.contains("pub(crate) fn spawn"),
+        "ProcessCursorRunnerClient::spawn must not be pub/pub(crate) after T9 encapsulation"
     );
 }
 

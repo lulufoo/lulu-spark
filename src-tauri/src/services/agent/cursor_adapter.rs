@@ -810,8 +810,9 @@ pub struct ProcessCursorRunnerClient {
 
 impl ProcessCursorRunnerClient {
     /// Spawn Node runner with `CURSOR_API_KEY` in child env only.
-    /// Crate-private: only [`CursorAgentProcessManager`] may construct this client.
-    pub(crate) fn spawn(repo_root: &Path, api_key: &str) -> Result<Self, CursorError> {
+    /// `pub(super)`: visible inside `services::agent` only (not the wider crate).
+    /// Sole production caller: [`super::process_manager::CursorAgentProcessManager`].
+    pub(super) fn spawn(repo_root: &Path, api_key: &str) -> Result<Self, CursorError> {
         let script = cursor_agent_runner_launch_path(repo_root);
         if !script.is_file() {
             return Err(CursorError::new(
