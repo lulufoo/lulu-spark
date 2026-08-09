@@ -410,16 +410,6 @@ fn read_engine_runtime_config_uses_active_type_entry_not_other_type() {
 }
 
 #[test]
-fn engine_settings_for_route_matches_read_engine_runtime_config() {
-    secrets::test_secrets_clear();
-    secrets::set_secret(KEY_LLM_API_KEY, "sk-alias").expect("set");
-    let s = settings_with_dual_llm_entries("host");
-    let via_read = engine_router::read_engine_runtime_config(&s).expect("read");
-    let via_alias = engine_router::engine_settings_for_route(&s).expect("alias");
-    assert_eq!(via_alias, via_read);
-}
-
-#[test]
 fn read_engine_runtime_config_missing_active_entry_does_not_fallback_to_other_type() {
     secrets::test_secrets_clear();
     let mut s = AppSettings::default();
@@ -473,4 +463,19 @@ fn read_engine_runtime_config_empty_assistant_engine_reads_host_entry_model() {
     assert_eq!(cfg.engine, EngineKind::Host);
     assert_eq!(cfg.model, "host-when-blank");
     assert_ne!(cfg.model, "cursor-must-not-win");
+}
+
+// ── T3 / DeleteBEntries: B3b engine_settings_for_route alias ─────────────────
+
+#[test]
+fn t3_engine_settings_for_route_alias_is_deleted() {
+    let src = include_str!("../../../services/agent/engine_router.rs");
+    assert!(
+        !src.contains("fn engine_settings_for_route"),
+        "B3b engine_settings_for_route must be deleted"
+    );
+    assert!(
+        src.contains("fn read_engine_runtime_config"),
+        "production read_engine_runtime_config must remain"
+    );
 }

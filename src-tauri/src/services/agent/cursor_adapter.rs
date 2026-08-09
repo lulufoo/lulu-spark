@@ -958,11 +958,6 @@ fn map_ensure_error(err: EnsureError) -> CursorError {
     }
 }
 
-/// Public mapping for `ClientAccess::request` / generation-stale failures.
-pub fn map_client_request_error(err: RequestError) -> CursorError {
-    map_request_error(err)
-}
-
 fn map_request_error(err: RequestError) -> CursorError {
     match err {
         RequestError::Stale => CursorError::new(

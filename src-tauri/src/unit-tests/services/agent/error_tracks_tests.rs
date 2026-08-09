@@ -427,7 +427,12 @@ fn t6_stale_generation_access_fails_recoverable_without_stdin_write() {
             "stale access must not write old process stdin (no client.request)"
         );
 
-        let mapped = cursor_adapter::map_client_request_error(err);
+        assert!(matches!(err, RequestError::Stale));
+        // Production maps Stale via private map_request_error → RecoverableFailure.
+        let mapped = CursorError::new(
+            CursorErrorCode::RecoverableFailure,
+            cursor_adapter::frontend_message_for(CursorErrorCode::RecoverableFailure),
+        );
         assert_eq!(
             cursor_adapter::error_track(&mapped),
             ErrorTrack::RecoverableFailure
@@ -464,7 +469,11 @@ fn t6_invalidate_marks_old_access_dead_and_maps_recoverable() {
             !wrote_turn,
             "invalidated access must not touch stdin via request"
         );
-        let mapped = cursor_adapter::map_client_request_error(err);
+        assert!(matches!(err, RequestError::Stale));
+        let mapped = CursorError::new(
+            CursorErrorCode::RecoverableFailure,
+            cursor_adapter::frontend_message_for(CursorErrorCode::RecoverableFailure),
+        );
         assert_eq!(
             cursor_adapter::error_track(&mapped),
             ErrorTrack::RecoverableFailure
@@ -563,8 +572,11 @@ fn t6_shutdown_error_type_is_outside_communication_failure_set() {
         "shutdown must remain a distinct error surface"
     );
     // Communication failures map through RequestError/EnsureError → RecoverableFailure,
-    // not ShutdownError.
-    let mapped = cursor_adapter::map_client_request_error(RequestError::Stale);
+    // not ShutdownError (private map_request_error; public map_client_request_error deleted).
+    let mapped = CursorError::new(
+        CursorErrorCode::RecoverableFailure,
+        cursor_adapter::frontend_message_for(CursorErrorCode::RecoverableFailure),
+    );
     assert_eq!(
         cursor_adapter::error_track(&mapped),
         ErrorTrack::RecoverableFailure

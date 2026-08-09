@@ -11,7 +11,7 @@ use crate::services::agent::cursor_adapter::{
 use crate::services::agent::engine_router::{self, EngineRuntimeConfig};
 use crate::services::agent::process_manager::{
     self, ClientAccess, CursorAgentProcessManager, EnsureError, ProcessLifecycleState,
-    ShutdownError, WarmError,
+    RequestError, ShutdownError, WarmError,
 };
 use crate::test_support::TestSandbox;
 
@@ -76,7 +76,11 @@ fn counting_factory(
 }
 
 fn access_is_usable(access: &ClientAccess) -> bool {
-    access.with_client(|_c| ()).is_ok()
+    // Live vs stale is observed via ClientAccess::request (with_client deleted in t3).
+    !matches!(
+        access.request("probe-rid", "noop", None),
+        Err(RequestError::Stale)
+    )
 }
 
 // ── Module / singleton / access surface ──────────────────────────────────────
@@ -458,4 +462,54 @@ fn t1_lifecycle_states_cover_formal_set() {
     assert_eq!(states.len(), 6);
     let _ = WarmError::Spawn;
     let _ = ShutdownError::Internal;
+}
+
+// ── T3 / DeleteBEntries: A2 + B3c test-only process_manager entries ───────────
+
+#[test]
+fn t3_process_manager_test_only_entries_are_deleted() {
+    let src = include_str!("../../../services/agent/process_manager.rs");
+    assert!(
+        !src.contains("fn mark_invalid_for_tests"),
+        "A2 mark_invalid_for_tests must be deleted"
+    );
+    let access = {
+        let start = src
+            .find("impl ClientAccess")
+            .expect("ClientAccess impl missing");
+        let bytes = src.as_bytes();
+        let mut i = start;
+        while i < bytes.len() && bytes[i] != b'{' {
+            i += 1;
+        }
+        assert!(i < bytes.len(), "no brace after impl ClientAccess");
+        let begin = i;
+        let mut depth = 0usize;
+        while i < bytes.len() {
+            match bytes[i] {
+                b'{' => depth += 1,
+                b'}' => {
+                    depth -= 1;
+                    if depth == 0 {
+                        break;
+                    }
+                }
+                _ => {}
+            }
+            i += 1;
+        }
+        &src[begin..=i]
+    };
+    assert!(
+        !access.contains("fn with_client<") && !access.contains("fn with_client("),
+        "B3c ClientAccess::with_client must be deleted"
+    );
+    assert!(
+        access.contains("fn request(") && access.contains("fn generation("),
+        "ClientAccess::request / generation must remain"
+    );
+    assert!(
+        src.contains("fn ensure_client(&self)"),
+        "ensure_client must remain available"
+    );
 }

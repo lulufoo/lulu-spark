@@ -117,13 +117,6 @@ pub fn read_engine_runtime_config(
     })
 }
 
-/// Alias for adapter/route call sites that prefer settings-oriented naming.
-pub fn engine_settings_for_route(
-    settings: &AppSettings,
-) -> Result<EngineRuntimeConfig, EngineRouteError> {
-    read_engine_runtime_config(settings)
-}
-
 /// Dispatch a chat turn to the Host or Cursor adapter entry.
 ///
 /// Closures are injectable so callers/tests supply adapter bodies — Cursor path

@@ -618,3 +618,23 @@ fn t2_cursor_llm_engine_run_turn_still_exists_and_facade_not_csr() {
         "ClientAccess::request / JSONL create|turn must remain after facade delete"
     );
 }
+
+// ── T3 / DeleteBEntries: B3a map_client_request_error ────────────────────────
+
+#[test]
+fn t3_map_client_request_error_deleted_keeps_private_map_request_error() {
+    let src = include_str!("../../../services/agent/cursor_adapter.rs");
+    assert!(
+        !src.contains("fn map_client_request_error"),
+        "B3a map_client_request_error must be deleted"
+    );
+    assert!(
+        src.contains("fn map_request_error"),
+        "production private map_request_error must remain"
+    );
+    // Do not confuse with CSR test factory.
+    assert!(
+        src.contains("fn with_client_factory"),
+        "CursorSessionRuntime::with_client_factory is out of t3 delete set"
+    );
+}

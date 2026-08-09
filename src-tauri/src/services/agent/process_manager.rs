@@ -92,23 +92,6 @@ impl ClientAccess {
         self.generation
     }
 
-    pub fn with_client<F, R>(&self, f: F) -> Result<R, EnsureError>
-    where
-        F: FnOnce(&mut dyn CursorRunnerClient) -> R,
-    {
-        if self.current_gen.load(Ordering::SeqCst) != self.generation {
-            return Err(EnsureError::Stale);
-        }
-        let mut guard = self
-            .client
-            .lock()
-            .unwrap_or_else(|e| e.into_inner());
-        if self.current_gen.load(Ordering::SeqCst) != self.generation {
-            return Err(EnsureError::Stale);
-        }
-        Ok(f(guard.as_mut()))
-    }
-
     /// Submit JSONL request with caller-provided `request_id` (not generated here).
     /// Signature has no `session_id` — client must not serialize on session.
     /// Prefer concurrent JSONL handle (pending-map demux) so the client mutex is
@@ -307,10 +290,6 @@ impl CursorAgentProcessManager {
             | ProcessLifecycleState::Absent
             | ProcessLifecycleState::Stopping => {}
         }
-    }
-
-    pub fn mark_invalid_for_tests(&self) {
-        self.invalidate();
     }
 
     fn reset_instance_for_tests(&self) {
