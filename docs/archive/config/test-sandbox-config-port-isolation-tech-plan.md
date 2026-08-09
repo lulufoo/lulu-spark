@@ -239,5 +239,5 @@
 
 - 路径：`docs/archive/config/test-sandbox-config-port-isolation-tech-plan.md`  
 - 本文件：技术方案（设计决策已锁 + 迁移要点）；§8 已决议。  
-- **实施状态（2026-08-09）：** Host `settings` / `TestSandbox` 配置根、端口字段、启动 bind、沙箱守卫、密钥面、`TestSandbox` 夹具、`scripts/copy-sandbox-secrets`、README 已落地；`cargo test --lib` 全绿。浏览器 `fetch` 基址自适应仍按 §7 推迟。  
+- **实施状态（2026-08-09）：** ✅ Verified（[TestSandbox 环境竞态修复 Implementation Plan](../../superpowers/plans/2026-08-09-test-sandbox-environment-race-remediation.md)）：测试环境竞态修复与回归验证已完成；此前“`cargo test --lib` 全绿”未限定单进程内线程并发模型，不再作为验收结论。✅ Verified（命令输出）：`cargo test --lib -- --test-threads=1` 与 `cargo nextest run --lib` 均为 `1113 passed; 0 failed`。固定正式端口 `8765` / `9876` 的 MCP close-gate 用例在 `mcp-formal-ports` test group 内顺序运行，其他用例仍可多进程并行。✅ Verified（本方案 §7）：浏览器 `fetch` 基址自适应仍按原范围推迟。
 - 说明：`scripts/migrate-local-state` 等 Python 一次性脚本仍可用自有的 `LULU_WB_CONFIG_DIR` 指向配置目录（与 Host Rust 无关）。

@@ -12,6 +12,6 @@
 
 5. **Run tests**: From `src-tauri/`, run `cargo nextest run --lib` (install with `cargo install cargo-nextest --locked`). Config: `.config/nextest.toml`.
 
-6. **Fixtures and isolation**: Do not add `ENV_LOCK` / test mutexes — nextest runs each case in its own process. Prefer `crate::test_support::{with_test_config_dir, with_corpus}` over copy-pasted helpers. `settings` tests may use `EnvGuard` (RAII cleanup, no mutex).
+6. **Fixtures and isolation**: ✅ Verified (`src-tauri/src/test_support.rs`): Do not mutate process environment variables directly or add ad-hoc environment locks, test mutexes, `EnvGuard`, or equivalent bypasses. Environment-dependent tests must use `crate::test_support::TestConfigEnv`; nextest provides process-level parallelism, while `TestConfigEnv` serializes environment lifecycles within one process. ✅ Verified (`src-tauri/.config/nextest.toml`): the fixed formal-port close-gate tests run in `mcp-formal-ports` with `max-threads = 1`; they still require `8765` and `9876` to be free. Prefer shared fixtures such as `TestSandbox`, `with_test_config_dir`, and `with_corpus` over copy-pasted helpers.
 
 7. **Before commit**: `cargo nextest run --lib` must pass. `grep -rn '^[[:space:]]*mod tests[[:space:]]*{' src-tauri/src/` must print nothing.
