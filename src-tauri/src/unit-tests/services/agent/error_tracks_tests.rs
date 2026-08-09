@@ -92,6 +92,7 @@ fn counting_factory(
 struct TrackFake {
     log: Arc<Mutex<Vec<FakeLogEntry>>>,
     turn_calls: Arc<AtomicUsize>,
+    force_kills: Arc<AtomicUsize>,
     next_turn_err: Arc<Mutex<Option<CursorErrorCode>>>,
 }
 
@@ -100,6 +101,7 @@ impl TrackFake {
         Self {
             log: Arc::new(Mutex::new(Vec::new())),
             turn_calls: Arc::new(AtomicUsize::new(0)),
+            force_kills: Arc::new(AtomicUsize::new(0)),
             next_turn_err: Arc::new(Mutex::new(None)),
         }
     }
@@ -109,11 +111,13 @@ impl TrackFake {
     ) -> impl FnMut(&str) -> Result<Box<dyn CursorRunnerClient>, CursorError> + Send {
         let log = self.log.clone();
         let turn_calls = self.turn_calls.clone();
+        let force_kills = self.force_kills.clone();
         let next_turn_err = self.next_turn_err.clone();
         move |_key: &str| {
             Ok(Box::new(TrackFakeClient {
                 log: log.clone(),
                 turn_calls: turn_calls.clone(),
+                force_kills: force_kills.clone(),
                 next_turn_err: next_turn_err.clone(),
             }) as Box<dyn CursorRunnerClient>)
         }
@@ -123,6 +127,7 @@ impl TrackFake {
 struct TrackFakeClient {
     log: Arc<Mutex<Vec<FakeLogEntry>>>,
     turn_calls: Arc<AtomicUsize>,
+    force_kills: Arc<AtomicUsize>,
     next_turn_err: Arc<Mutex<Option<CursorErrorCode>>>,
 }
 
@@ -160,7 +165,9 @@ impl CursorRunnerClient for TrackFakeClient {
         Ok(())
     }
 
-    fn force_kill(&mut self) {}
+    fn force_kill(&mut self) {
+        self.force_kills.fetch_add(1, Ordering::SeqCst);
+    }
 
     fn request(
         &mut self,
@@ -337,6 +344,40 @@ fn t6_jsonl_or_process_failure_surfaces_recoverable_without_auto_replay() {
             1,
             "must never auto-replay failed request"
         );
+        assert_eq!(
+            fake.force_kills.load(Ordering::SeqCst),
+            1,
+            "Runner/JSONL failure must invalidate managed process (reclaim/force_kill)"
+        );
+    });
+}
+
+#[test]
+fn t6_cancelled_does_not_invalidate_managed_process() {
+    with_sandbox(|| {
+        secrets::set_secret(KEY_LLM_API_KEY_CURSOR, "sk-engine-test").expect("key");
+        let fake = TrackFake::new();
+        *fake
+            .next_turn_err
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()) = Some(CursorErrorCode::Cancelled);
+        let mgr = CursorAgentProcessManager::with_deps_for_tests(
+            {
+                let s = settings_cursor();
+                move || Ok(cfg_from(&s))
+            },
+            fake.clone_factory(),
+        );
+        let engine = CursorLlmEngine::with_manager(mgr);
+
+        let _ = engine
+            .run_turn(&turn_req("sess_fg2", "interrupted"))
+            .expect_err("cancelled");
+        assert_eq!(
+            fake.force_kills.load(Ordering::SeqCst),
+            0,
+            "Cancelled must not invalidate the managed runner"
+        );
     });
 }
 
@@ -400,7 +441,7 @@ fn t6_invalidate_marks_old_access_dead_and_maps_recoverable() {
         mgr.warm().expect("warm");
         let access = mgr.ensure_client().expect("ensure");
 
-        mgr.mark_invalid_for_tests();
+        mgr.invalidate();
         let err = access
             .request("after-inv", "turn", Some(json!({ "prompt": "x" })))
             .expect_err("invalidated access must fail");

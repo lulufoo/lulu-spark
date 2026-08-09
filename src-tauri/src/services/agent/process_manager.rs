@@ -272,13 +272,27 @@ impl CursorAgentProcessManager {
             .unwrap_or(0)
     }
 
-    pub fn mark_invalid_for_tests(&self) {
+    /// Production invalidate: process/JSONL failure path.
+    /// `Ready|Replacing|Starting` → briefly `Invalid` → clear entry (bump generation) → `Absent`.
+    /// Next [`Self::ensure_client`] lazy-rebuilds; the failed request is not replayed.
+    pub fn invalidate(&self) {
         let mut inner = self.inner.lock().unwrap_or_else(|e| e.into_inner());
-        if inner.state == ProcessLifecycleState::Ready {
-            inner.state = ProcessLifecycleState::Invalid;
-            self.clear_entry_locked(&mut inner);
-            inner.state = ProcessLifecycleState::Absent;
+        match inner.state {
+            ProcessLifecycleState::Ready
+            | ProcessLifecycleState::Replacing
+            | ProcessLifecycleState::Starting => {
+                inner.state = ProcessLifecycleState::Invalid;
+                self.clear_entry_locked(&mut inner);
+                inner.state = ProcessLifecycleState::Absent;
+            }
+            ProcessLifecycleState::Invalid
+            | ProcessLifecycleState::Absent
+            | ProcessLifecycleState::Stopping => {}
         }
+    }
+
+    pub fn mark_invalid_for_tests(&self) {
+        self.invalidate();
     }
 
     fn reset_instance_for_tests(&self) {

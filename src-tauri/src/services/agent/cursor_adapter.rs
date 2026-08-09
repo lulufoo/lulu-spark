@@ -35,7 +35,7 @@ use serde_json::{json, Value};
 use crate::cursor_agent_runner_launch_path;
 use crate::services::agent::engine_router::TurnInput;
 use crate::services::agent::process_manager::{
-    CursorAgentProcessManager, EnsureError, RequestError,
+    ClientAccess, CursorAgentProcessManager, EnsureError, RequestError,
 };
 use crate::services::agent::r#loop;
 use crate::services::agent::session_cwd;
@@ -818,6 +818,29 @@ impl CursorLlmEngine {
         format!("eng-{n}")
     }
 
+    /// JSONL request via managed access; invalidate process on Runner/SdkRun (not Cancelled/Stale).
+    fn request_managed(
+        &self,
+        access: &ClientAccess,
+        request_id: &str,
+        method: &str,
+        params: Option<Value>,
+    ) -> Result<Value, CursorError> {
+        match access.request(request_id, method, params) {
+            Ok(v) => Ok(v),
+            Err(err) => {
+                let mapped = map_request_error(err);
+                if matches!(
+                    mapped.code,
+                    CursorErrorCode::Runner | CursorErrorCode::SdkRun
+                ) {
+                    self.manager().invalidate();
+                }
+                Err(mapped)
+            }
+        }
+    }
+
     /// ILlmEngine-shaped turn entry: ensure managed client, then JSONL request(s).
     pub fn run_turn(&self, req: &TurnRequest) -> Result<TurnOutcome, CursorError> {
         let cwd = match session_cwd::create_session_cwd(&req.session_id) {
@@ -862,9 +885,8 @@ impl CursorLlmEngine {
                 "cwd": cwd.to_string_lossy(),
                 "mcpServers": mcp_servers,
             });
-            let create_result = access
-                .request(&rid, "create", Some(params))
-                .map_err(map_request_error)?;
+            let create_result =
+                self.request_managed(&access, &rid, "create", Some(params))?;
             // Bind foreground only after successful replace/create.
             {
                 let mut fg = self
@@ -888,9 +910,12 @@ impl CursorLlmEngine {
         }
 
         let rid = self.next_request_id();
-        let result = access
-            .request(&rid, "turn", Some(json!({ "prompt": req.prompt })))
-            .map_err(map_request_error)?;
+        let result = self.request_managed(
+            &access,
+            &rid,
+            "turn",
+            Some(json!({ "prompt": req.prompt })),
+        )?;
         let text = result
             .get("text")
             .and_then(|x| x.as_str())

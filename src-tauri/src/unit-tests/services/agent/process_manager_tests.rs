@@ -378,13 +378,41 @@ fn t1_ready_invalid_marks_old_client_dead_then_absent() {
         let access = mgr.ensure_client().expect("ensure");
         assert!(access_is_usable(&access));
 
-        mgr.mark_invalid_for_tests();
+        mgr.invalidate();
         assert_eq!(
             mgr.lifecycle_state_for_tests(),
             ProcessLifecycleState::Absent
         );
         assert_eq!(mgr.managed_runner_count_for_tests(), 0);
         assert!(!access_is_usable(&access));
+    });
+}
+
+#[test]
+fn t1_invalidate_then_ensure_client_lazy_rebuilds() {
+    with_sandbox(|| {
+        secrets::set_secret(KEY_LLM_API_KEY_CURSOR, "sk-inv-rebuild").expect("key");
+        let fake = FakeCursorRunnerClient::new();
+        let spawns = Arc::new(AtomicUsize::new(0));
+        let mgr = manager_with_factory(
+            settings_cursor(),
+            counting_factory(spawns.clone(), fake.log.clone()),
+        );
+        mgr.warm().expect("warm");
+        let gen1 = mgr.generation_for_tests();
+        assert_eq!(spawns.load(Ordering::SeqCst), 1);
+
+        mgr.invalidate();
+        assert_eq!(mgr.managed_runner_count_for_tests(), 0);
+
+        let access = mgr.ensure_client().expect("lazy rebuild");
+        assert!(access_is_usable(&access));
+        assert_eq!(spawns.load(Ordering::SeqCst), 2);
+        assert_ne!(mgr.generation_for_tests(), gen1);
+        assert_eq!(
+            mgr.lifecycle_state_for_tests(),
+            ProcessLifecycleState::Ready
+        );
     });
 }
 
