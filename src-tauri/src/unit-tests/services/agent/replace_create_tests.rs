@@ -10,7 +10,8 @@ use serde_json::{json, Value};
 use crate::config::secrets::{self, KEY_LLM_API_KEY_CURSOR};
 use crate::config::settings::{self, AppSettings, LlmSettings};
 use crate::services::agent::cursor_adapter::{
-    CursorError, CursorErrorCode, CursorLlmEngine, CursorRunnerClient, FakeLogEntry, TurnRequest,
+    self, CursorError, CursorErrorCode, CursorLlmEngine, CursorRunnerClient, ErrorTrack,
+    FakeLogEntry, TurnRequest,
 };
 use crate::services::agent::engine_router::{self, EngineRuntimeConfig};
 use crate::services::agent::process_manager::{self, CursorAgentProcessManager};
@@ -186,6 +187,9 @@ impl CursorRunnerClient for ReplaceCreateFakeClient {
                             "cancelled" => CursorErrorCode::Cancelled,
                             "cwd" => CursorErrorCode::Cwd,
                             "credential" => CursorErrorCode::Credential,
+                            "coalesced" | "recoverable_failure" => {
+                                CursorErrorCode::RecoverableFailure
+                            }
                             _ => CursorErrorCode::Runner,
                         },
                         msg,
@@ -379,4 +383,92 @@ fn t5_shell_close_without_binding_replace_is_noop_for_agent() {
         !window.contains("cleanup_session_cwd") && !window.contains("\"close\""),
         "shell-close without binding replace must not dispose/cleanup: {window}"
     );
+}
+
+#[test]
+fn t3_coalesced_error_maps_recoverable_not_cancelled() {
+    let err = cursor_adapter::map_runner_error("coalesced", "superseded");
+    assert_eq!(err.code, CursorErrorCode::RecoverableFailure);
+    assert_ne!(err.code, CursorErrorCode::Cancelled);
+    assert_eq!(
+        cursor_adapter::error_track(&err),
+        ErrorTrack::RecoverableFailure
+    );
+    assert!(!cursor_adapter::should_persist_cursor_result(&Err(err)));
+}
+
+#[test]
+fn t3_coalesced_create_result_does_not_bind_or_turn() {
+    with_sandbox(|| {
+        secrets::set_secret(KEY_LLM_API_KEY_CURSOR, "sk-engine-test").expect("key");
+        let fake = ReplaceCreateFake::new();
+        *fake
+            .next_create_ok
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()) = Some(json!({ "coalesced": true }));
+        let mgr = CursorAgentProcessManager::with_deps_for_tests(
+            {
+                let s = settings_cursor();
+                move || Ok(cfg_from(&s))
+            },
+            fake.clone_factory(),
+        );
+        let engine = CursorLlmEngine::with_manager(mgr);
+
+        let err = engine
+            .run_turn(&turn_req("sess_coalesced", "should-not-turn"))
+            .expect_err("coalesced create must fail closed");
+        assert_eq!(err.code, CursorErrorCode::RecoverableFailure);
+        assert_ne!(err.code, CursorErrorCode::Cancelled);
+
+        let log = fake.log.lock().unwrap_or_else(|e| e.into_inner());
+        assert!(
+            log.iter().any(|e| e.method == "create"),
+            "create was attempted"
+        );
+        assert!(
+            !log.iter().any(|e| e.method == "turn"),
+            "Host must not turn after coalesced create: {log:?}"
+        );
+
+        // Drop coalesced flag; a later successful create may bind.
+        drop(log);
+        engine
+            .run_turn(&turn_req("sess_coalesced", "now-ok"))
+            .expect("subsequent non-coalesced create+turn");
+        let log = fake.log.lock().unwrap_or_else(|e| e.into_inner());
+        assert_eq!(
+            log.iter().filter(|e| e.method == "turn").count(),
+            1,
+            "only the successful path may turn"
+        );
+    });
+}
+
+#[test]
+fn t3_coalesced_protocol_error_does_not_bind_or_turn() {
+    with_sandbox(|| {
+        secrets::set_secret(KEY_LLM_API_KEY_CURSOR, "sk-engine-test").expect("key");
+        let fake = ReplaceCreateFake::new();
+        *fake
+            .next_create_err
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()) =
+            Some(("coalesced".into(), "superseded".into()));
+        let mgr = CursorAgentProcessManager::with_deps_for_tests(
+            {
+                let s = settings_cursor();
+                move || Ok(cfg_from(&s))
+            },
+            fake.clone_factory(),
+        );
+        let engine = CursorLlmEngine::with_manager(mgr);
+
+        let err = engine
+            .run_turn(&turn_req("sess_coal_err", "x"))
+            .expect_err("coalesced protocol error");
+        assert_eq!(err.code, CursorErrorCode::RecoverableFailure);
+        let log = fake.log.lock().unwrap_or_else(|e| e.into_inner());
+        assert!(!log.iter().any(|e| e.method == "turn"));
+    });
 }

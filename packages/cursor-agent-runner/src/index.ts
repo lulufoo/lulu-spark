@@ -221,7 +221,12 @@ function enqueueCreate(
     if (createRunning) {
       if (pendingCreate) {
         // Coalesce-to-latest: skipped middle create never executed → not Cancelled.
-        pendingCreate.resolve({ coalesced: true });
+        pendingCreate.reject(
+          new ProtocolError(
+            "coalesced",
+            "create superseded by newer foreground; never executed",
+          ),
+        );
       }
       pendingCreate = { req, resolve, reject };
       return;

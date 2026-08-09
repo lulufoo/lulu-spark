@@ -241,7 +241,10 @@ pub fn map_runner_error(runner_type: &str, _detail: &str) -> CursorError {
         "sdk_run" => CursorErrorCode::SdkRun,
         "cancelled" => CursorErrorCode::Cancelled,
         "busy" => CursorErrorCode::Busy,
-        "recoverable_failure" | "recoverable" => CursorErrorCode::RecoverableFailure,
+        // Coalesced create never executed — recoverable, not Cancelled, not process death.
+        "coalesced" | "recoverable_failure" | "recoverable" => {
+            CursorErrorCode::RecoverableFailure
+        }
         _ => CursorErrorCode::Runner,
     };
     CursorError::new(code, frontend_message_for(code))
@@ -907,6 +910,17 @@ impl CursorLlmEngine {
             });
             let create_result =
                 self.request_managed(&access, &rid, "create", Some(params))?;
+            // Defense: coalesced must never look like a successful create (bind/turn).
+            if create_result
+                .get("coalesced")
+                .and_then(|v| v.as_bool())
+                == Some(true)
+            {
+                return Err(CursorError::new(
+                    CursorErrorCode::RecoverableFailure,
+                    frontend_message_for(CursorErrorCode::RecoverableFailure),
+                ));
+            }
             // Bind foreground only after successful replace/create (session + process gen).
             {
                 let mut fg = self.foreground.lock().unwrap_or_else(|e| e.into_inner());

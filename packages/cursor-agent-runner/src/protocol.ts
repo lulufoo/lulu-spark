@@ -6,6 +6,8 @@ export const ERROR_TYPES = [
   "runner",
   "sdk_run",
   "cancelled",
+  /** Superseded create that never executed (coalesce-to-latest); not Cancelled. */
+  "coalesced",
 ] as const;
 
 export type RunnerErrorType = (typeof ERROR_TYPES)[number];

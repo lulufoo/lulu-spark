@@ -89,6 +89,7 @@ describe("JSONL protocol schema", () => {
       "runner",
       "sdk_run",
       "cancelled",
+      "coalesced",
     ];
     for (const t of required) {
       assert.ok(ERROR_TYPES.includes(t), `missing error type ${t}`);

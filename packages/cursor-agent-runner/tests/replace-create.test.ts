@@ -186,9 +186,9 @@ describe("replace-style create (T-ReplaceCreate)", () => {
     const resC = JSON.parse(c);
 
     assert.equal(resA.ok, true);
-    // B was coalesced away — never executed as an Agent; not Cancelled.
-    assert.equal(resB.ok, true);
-    assert.equal(resB.result?.coalesced, true);
+    // B was coalesced away — never executed as an Agent; not Cancelled / not success.
+    assert.equal(resB.ok, false);
+    assert.equal(resB.error?.type, "coalesced");
     assert.notEqual(resB.error?.type, "cancelled");
     assert.equal(resC.ok, true);
     assert.equal(resC.result?.agentId, "agent-sess_c");
