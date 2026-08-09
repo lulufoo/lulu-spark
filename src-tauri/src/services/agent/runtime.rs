@@ -126,11 +126,10 @@ fn ready_mcp_for_binding_key(key: &str) -> Result<ReadyMcpTransports, CursorErro
     {
         return Ok(ready);
     }
-    mcp_endpoint_readiness::ready_transports_for_business_key(
-        key,
-        DEFAULT_HTTP_PORT,
-        DEFAULT_MCP_PORT,
-    )
+    let (http_port, mcp_port) = crate::config::settings::load()
+        .map(|s| (s.effective_http_port(), s.effective_mcp_port()))
+        .unwrap_or((DEFAULT_HTTP_PORT, DEFAULT_MCP_PORT));
+    mcp_endpoint_readiness::ready_transports_for_business_key(key, http_port, mcp_port)
     .map_err(|_| {
         CursorError::new(
             CursorErrorCode::McpUnavailable,

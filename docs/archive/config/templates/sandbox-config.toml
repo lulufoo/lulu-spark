@@ -1,0 +1,11 @@
+# Shared sandbox template (~/.config/lulu-workbench-sandbox/config.toml).
+# Instance dirs (…-sandbox-<id>/) fork this file; fill instance-only fields before start.
+
+# Shared / optional presets:
+# meili_url = "http://127.0.0.1:17700"
+
+# Instance-required (leave empty in template; fill after fork):
+# workbench_knowledge_root = ""
+# knowledge_corpus_root = ""
+# cache_dir = ""
+# http_port / mcp_port default to 18765 / 19876 when omitted under TestSandbox=true

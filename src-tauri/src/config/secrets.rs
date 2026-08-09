@@ -7,7 +7,13 @@ use std::collections::HashMap;
 #[cfg(test)]
 use std::sync::{LazyLock, Mutex};
 
-const SERVICE: &str = "lulu-workbench";
+fn keyring_service() -> &'static str {
+    if crate::config::settings::is_test_sandbox() {
+        "lulu-workbench-sandbox"
+    } else {
+        "lulu-workbench"
+    }
+}
 
 pub const KEY_GITHUB_TOKEN: &str = "github_token";
 pub const KEY_MEILI_MASTER: &str = "meili_master_key";
@@ -53,11 +59,12 @@ fn test_store() -> Result<std::sync::MutexGuard<'static, HashMap<String, String>
 
 #[cfg(all(not(test), debug_assertions))]
 fn dev_secrets_path() -> std::path::PathBuf {
-    let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".to_string());
-    std::path::PathBuf::from(home)
-        .join(".config")
-        .join("lulu-workbench")
-        .join("dev-secrets.toml")
+    use crate::config::settings;
+    if settings::is_test_sandbox() {
+        settings::shared_sandbox_config_dir().join("dev-secrets.toml")
+    } else {
+        settings::prod_config_dir().join("dev-secrets.toml")
+    }
 }
 
 #[cfg(all(not(test), debug_assertions))]
@@ -97,7 +104,8 @@ pub fn get_secret(key: &str) -> Result<Option<String>, SecretError> {
     }
     #[cfg(all(not(test), not(debug_assertions)))]
     {
-        let entry = keyring::Entry::new(SERVICE, key).map_err(|e| SecretError::Keyring(e.to_string()))?;
+        let entry = keyring::Entry::new(keyring_service(), key)
+            .map_err(|e| SecretError::Keyring(e.to_string()))?;
         match entry.get_password() {
             Ok(v) => Ok(Some(v)),
             Err(keyring::Error::NoEntry) => Ok(None),
@@ -121,7 +129,8 @@ pub fn set_secret(key: &str, value: &str) -> Result<(), SecretError> {
     }
     #[cfg(all(not(test), not(debug_assertions)))]
     {
-        let entry = keyring::Entry::new(SERVICE, key).map_err(|e| SecretError::Keyring(e.to_string()))?;
+        let entry = keyring::Entry::new(keyring_service(), key)
+            .map_err(|e| SecretError::Keyring(e.to_string()))?;
         entry
             .set_password(value)
             .map_err(|e| SecretError::Keyring(e.to_string()))
@@ -143,7 +152,8 @@ pub fn delete_secret(key: &str) -> Result<(), SecretError> {
     }
     #[cfg(all(not(test), not(debug_assertions)))]
     {
-        let entry = keyring::Entry::new(SERVICE, key).map_err(|e| SecretError::Keyring(e.to_string()))?;
+        let entry = keyring::Entry::new(keyring_service(), key)
+            .map_err(|e| SecretError::Keyring(e.to_string()))?;
         match entry.delete_credential() {
             Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
             Err(e) => Err(SecretError::Keyring(e.to_string())),

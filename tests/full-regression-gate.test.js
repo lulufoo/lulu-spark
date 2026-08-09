@@ -37,8 +37,10 @@ describe('AC-全量回归 gate (tech-doc T-08 / VF)', () => {
     }
   });
 
-  it('npm test runs full cargo test --lib with TEST_MODE=1 single-threaded', () => {
-    expect(testScript).toMatch(/TEST_MODE=1/);
+  it('npm test runs full cargo test --lib single-threaded', () => {
+    expect(testScript).toMatch(/cargo test --lib/);
+    expect(testScript).toMatch(/--test-threads=1/);
+    expect(testScript).not.toMatch(/TEST_MODE=1/);
     expect(testScript).toMatch(/cargo test --lib/);
     expect(testScript).toMatch(/--test-threads=1/);
   });

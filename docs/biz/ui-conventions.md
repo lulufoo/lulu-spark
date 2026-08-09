@@ -21,4 +21,4 @@ Decision dialogue may use Chinese concept names (e.g. 执行中 / 完成 / 废�
 ### Evidence
 
 - ✅ Verified: plan-task status labels are English (`frontend/js/plan-task/index.js` → `STATUS_LABELS`: `In progress` / `Completed` / `Abandoned`).
-- ✅ Verified: the repo has a one-shot “UI English copy switch” verification asset requiring English status labels, buttons, empty states, etc. (`docs/features/ui-english-copy-switch/p4-smoke-checklist.md`).
+- ✅ Verified: the repo has a one-shot “UI English copy switch” verification asset requiring English status labels, buttons, empty states, etc. (`docs/archive/ui/ui-english-copy-switch/p4-smoke-checklist.md`).

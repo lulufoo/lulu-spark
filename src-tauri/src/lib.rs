@@ -19,7 +19,7 @@ use tauri_plugin_opener::OpenerExt;
 
 const CONNECT_TIMEOUT: Duration = Duration::from_millis(100);
 const RETRY_INTERVAL: Duration = Duration::from_millis(500);
-pub const DEFAULT_MCP_PORT: u16 = 9876;
+pub const DEFAULT_MCP_PORT: u16 = config::settings::DEFAULT_PROD_MCP_PORT;
 pub const READ_LATER_ASSISTANT_LABEL: &str = "read-later-assistant";
 pub const AI_ASSISTANT_LABEL: &str = "ai-assistant";
 pub const PLAN_ATTACHMENT_DIALOG_EXTENSIONS: &[&str] = &["md"];
@@ -415,12 +415,23 @@ pub fn run() {
 
             let local_http = services::local_http::LocalHttpState::new();
             let mut embedded_mcp_handle = None;
+            let boot_settings = match config::settings::load() {
+                Ok(s) => s,
+                Err(err) => {
+                    eprintln!("[settings] load failed: {err}");
+                    if config::settings::is_test_sandbox() {
+                        return Err(format!("sandbox settings: {err}").into());
+                    }
+                    config::settings::AppSettings::default()
+                }
+            };
+            let http_port = boot_settings.effective_http_port();
+            let mcp_port = boot_settings.effective_mcp_port();
             if let Ok(repo_root) = crate::config::paths::repo_root() {
-                let http_port = services::local_http::DEFAULT_HTTP_PORT;
                 local_http.try_start(repo_root.clone(), http_port);
                 // Embedded MCP only (dual-listen with Sidecar). Bind failure is fail-closed:
                 // never fall back to spawning a Node MCP sidecar.
-                let mcp_bind = SocketAddr::from(([127, 0, 0, 1], DEFAULT_MCP_PORT));
+                let mcp_bind = SocketAddr::from(([127, 0, 0, 1], mcp_port));
                 match services::mcp_protocol_adapter::start_embedded_mcp_runtime(
                     services::mcp_protocol_adapter::McpRuntimeConfig {
                         bind_addr: mcp_bind,

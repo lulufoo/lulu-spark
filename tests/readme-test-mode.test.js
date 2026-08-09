@@ -1,55 +1,33 @@
+import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { describe, expect, it } from 'vitest';
 
-const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
-const readmePath = join(repoRoot, 'README.md');
+const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 
-function readme() {
-  return readFileSync(readmePath, 'utf8');
-}
-
-describe('README TEST_MODE and migration docs', () => {
-  it('documents TEST_MODE=1 three runtime states', () => {
-    const text = readme();
-    expect(text).toMatch(/TEST_MODE=1/);
-    expect(text).toMatch(/TestSandbox|automated test sandbox/i);
-    expect(text).toMatch(/cache-first|manual cache-first/i);
-    expect(text).toMatch(/prod|正式运行|未设.*TEST_MODE/i);
+describe('README TestSandbox docs', () => {
+  it('documents TestSandbox config roots and default ports', () => {
+    const text = readFileSync(join(root, 'README.md'), 'utf8');
+    expect(text).toMatch(/TestSandbox/);
+    expect(text).toMatch(/lulu-workbench-sandbox/);
+    expect(text).toMatch(/18765/);
+    expect(text).toMatch(/19876/);
+    expect(text).toMatch(/8765/);
+    expect(text).toMatch(/9876/);
+    expect(text).not.toMatch(/TEST_MODE=1/);
+    expect(text).not.toMatch(/cache-first/);
   });
 
-  it('documents deploy → migrate-local-state → corpus git commit order', () => {
-    const text = readme();
-    expect(text).toMatch(/deploy/i);
-    expect(text).toMatch(/scripts\/migrate-local-state/);
-    expect(text).toMatch(/git commit/i);
-    const deployIdx = text.search(/deploy/i);
-    const migrateIdx = text.indexOf('scripts/migrate-local-state');
-    const commitIdx = text.search(/git commit/i);
-    expect(deployIdx).toBeGreaterThanOrEqual(0);
-    expect(migrateIdx).toBeGreaterThan(deployIdx);
-    expect(commitIdx).toBeGreaterThan(migrateIdx);
+  it('does not document TestSandbox inside config.toml examples as an in-file flag', () => {
+    const text = readFileSync(join(root, 'README.md'), 'utf8');
+    const configExample = text.match(/```toml[\s\S]*?```/g);
+    expect(configExample?.[0] ?? '').not.toMatch(/TestSandbox/);
   });
 
-  it('documents AC-5 manual cache-first verification steps', () => {
-    const text = readme();
-    expect(text).toMatch(/AC-5|cache-first.*验证|人工.*cache/i);
-    expect(text).toMatch(/不一致|intentionally different|故意不一致/i);
-    expect(text).toMatch(/读.*cache|read.*cache/i);
-    expect(text).toMatch(/写.*语料仓|write.*workbench_knowledge_root|写入.*语料仓/i);
-    expect(text).toMatch(/unset TEST_MODE/);
-  });
-
-  it('documents unset TEST_MODE restores prod corpus-only read semantics', () => {
-    const text = readme();
-    expect(text).toMatch(/unset TEST_MODE/);
-    expect(text).toMatch(/只读.*语料仓|prod.*只读|corpus.*read-only/i);
-  });
-
-  it('does not document TEST_MODE in config.toml (NG constraint)', () => {
-    const text = readme();
-    const configExample = text.match(/```toml[\s\S]*?```/);
-    expect(configExample?.[0] ?? '').not.toMatch(/TEST_MODE/);
+  it('points to the tech plan under docs/archive/config', () => {
+    const text = readFileSync(join(root, 'README.md'), 'utf8');
+    expect(text).toMatch(
+      /docs\/archive\/config\/test-sandbox-config-port-isolation-tech-plan\.md/,
+    );
   });
 });

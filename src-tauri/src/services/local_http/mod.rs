@@ -17,7 +17,7 @@ use crate::services::workbench_read::{
     get_corpus_index,
 };
 
-pub const DEFAULT_HTTP_PORT: u16 = 8765;
+pub const DEFAULT_HTTP_PORT: u16 = crate::config::settings::DEFAULT_PROD_HTTP_PORT;
 
 /// Locked master-task `status` wire values for `/api/todo-tasks`, `/api/todo-task`, `/api/todo-task-create`.
 pub(crate) const TODO_TASK_MASTER_STATUS_WIRE: &[&str] = &["incomplete", "complete", "abandoned"];

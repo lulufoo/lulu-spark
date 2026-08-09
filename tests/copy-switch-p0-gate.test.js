@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
-const GATE_PATH = 'docs/features/ui-english-copy-switch/p0-gate-confirmation.json';
+const GATE_PATH = 'docs/archive/ui/ui-english-copy-switch/p0-gate-confirmation.json';
 
 function loadGate() {
   const abs = join(repoRoot, GATE_PATH);

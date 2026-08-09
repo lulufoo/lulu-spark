@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
-const FEATURE_DIR = 'docs/features/ui-english-copy-switch';
+const FEATURE_DIR = 'docs/archive/ui/ui-english-copy-switch';
 const P0_GATE_PATH = join(FEATURE_DIR, 'p0-gate-confirmation.json');
 const P3_CHECKLIST_PATH = join(FEATURE_DIR, 'p3-release-gate-checklist.json');
 

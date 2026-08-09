@@ -58,7 +58,9 @@ fn seeded_http_transport() -> HttpMcpTransport {
         name: DEFAULT_HTTP_MCP_SERVER_NAME.to_string(),
         url: format!(
             "http://127.0.0.1:{}/mcp/{}",
-            crate::DEFAULT_MCP_PORT,
+            crate::config::settings::load()
+                .map(|s| s.effective_mcp_port())
+                .unwrap_or(crate::DEFAULT_MCP_PORT),
             SEEDED_BUSINESS_KEY
         ),
         headers,

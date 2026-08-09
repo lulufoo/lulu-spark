@@ -4,8 +4,8 @@
   "task_id": "t8",
   "phase": "P4",
   "recorded_at": "2026-07-19T04:50:00.000Z",
-  "p3_gate_ref": "docs/features/ui-english-copy-switch/p3-release-gate-checklist.json",
-  "smoke_checklist_ref": "docs/features/ui-english-copy-switch/p4-smoke-checklist.md",
+  "p3_gate_ref": "docs/archive/ui/ui-english-copy-switch/p3-release-gate-checklist.json",
+  "smoke_checklist_ref": "docs/archive/ui/ui-english-copy-switch/p4-smoke-checklist.md",
   "pre_switch_gate": {
     "release_unlock": {
       "status": "ready",

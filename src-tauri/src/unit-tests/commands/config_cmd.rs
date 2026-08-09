@@ -80,7 +80,8 @@ fn set_config_saves_engine_model_and_legacy_api_key_without_echoing() {
             secrets::get_secret(KEY_LLM_API_KEY).expect("get"),
             Some("sk-llm-plain".to_string())
         );
-        let toml_text = std::fs::read_to_string(settings::config_file_path()).expect("toml");
+        let toml_text =
+            std::fs::read_to_string(settings::config_file_path().expect("cfg")).expect("toml");
         assert!(!toml_text.contains("sk-llm-plain"));
         assert!(!toml_text.contains("api_key"));
     });

@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
-const LOCK_PATH = 'docs/features/plan-task-todos-contract/vocab-lock-confirmation.json';
+const LOCK_PATH = 'docs/archive/todo-task/plan-task-todos-contract/vocab-lock-confirmation.json';
 
 const EXPECTED_TOOLS = [
   'create_todo_task',

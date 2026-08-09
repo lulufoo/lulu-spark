@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
-const DRILL_DOC = 'docs/features/plan-task-todos-contract/recovery-drill-checklist.md';
+const DRILL_DOC = 'docs/archive/todo-task/plan-task-todos-contract/recovery-drill-checklist.md';
 
 function read(rel) {
   return readFileSync(join(repoRoot, rel), 'utf8');

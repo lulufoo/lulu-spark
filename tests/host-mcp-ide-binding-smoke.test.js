@@ -10,7 +10,7 @@ import { describe, expect, it } from 'vitest';
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 const CHECKLIST_PATH = join(
   repoRoot,
-  'docs/features/host-mcp-native-adapter/ide-binding-acceptance-smoke.md',
+  'docs/archive/mcp/host-mcp-native-adapter/ide-binding-acceptance-smoke.md',
 );
 const HOST_MCP_SLOT_URL = 'http://127.0.0.1:9876/mcp/';
 
@@ -27,7 +27,7 @@ describe('T11 IDE/Binding Host MCP acceptance smoke record', () => {
   it('docs checklist exists with Host URL dual-slot + BLOCKED IDE gate (F-28)', () => {
     expect(
       existsSync(CHECKLIST_PATH),
-      'missing docs/features/host-mcp-native-adapter/ide-binding-acceptance-smoke.md',
+      'missing docs/archive/mcp/host-mcp-native-adapter/ide-binding-acceptance-smoke.md',
     ).toBe(true);
     const doc = readFileSync(CHECKLIST_PATH, 'utf8');
     for (const marker of REQUIRED_MARKERS) {

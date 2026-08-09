@@ -41,7 +41,6 @@ const result = spawnSync(
     cwd: join(repoRoot, 'src-tauri'),
     env: {
       ...process.env,
-      TEST_MODE: '1',
       T5_OPS_EVIDENCE_OUT: evidenceOut,
     },
     encoding: 'utf8',

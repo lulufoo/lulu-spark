@@ -134,7 +134,7 @@ function runHostDualSlotCargoSmoke() {
     ],
     {
       cwd: path.join(REPO_ROOT, 'src-tauri'),
-      env: { ...process.env, TEST_MODE: '1' },
+      env: { ...process.env },
       encoding: 'utf8',
     },
   );

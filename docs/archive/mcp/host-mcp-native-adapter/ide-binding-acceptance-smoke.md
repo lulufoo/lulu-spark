@@ -35,8 +35,8 @@
 ✅ Verified（命令输出）：
 
 ```text
-TEST_MODE=1 cargo test --lib p3_t10_host_dual_slot_list_call_and_unknown_hard_fail_smoke -- --test-threads=1
-→ ok（1 passed）
+cargo test --lib p3_t10_host_dual_slot_list_call_and_unknown_hard_fail_smoke -- --test-threads=1
+→ ok（1 passed；夹具经 `TestSandbox` 注入，无需 `TEST_MODE`）
 ```
 
 说明：该测在 Host MCP 监听上覆盖 `todo_task` / `cursor_ide` 的 list/call 与未知槽硬拒绝；**不替代** Cursor IDE 或 App Binding 消费侧确认。

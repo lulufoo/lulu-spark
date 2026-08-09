@@ -1,44 +1,55 @@
-//! User settings in `~/.config/lulu-workbench/config.toml` (prod) or `dev.config.toml` (TEST_MODE / tests).
+//! User settings in `config.toml` under the active config root
+//! (`~/.config/lulu-workbench/` or sandbox dirs selected by `TestSandbox` env).
 
 use std::fs;
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
-pub const DEV_CONFIG_FILE_NAME: &str = "dev.config.toml";
 pub const PROD_CONFIG_FILE_NAME: &str = "config.toml";
 
 pub const DEFAULT_GITHUB_USER_URL: &str = "";
 
-/// Runtime branch for prod vs automated test sandbox vs manual cache-first debug.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum TestModeKind {
-    Prod,
-    TestSandbox,
-    ManualCacheFirst,
+pub const DEFAULT_PROD_HTTP_PORT: u16 = 8765;
+pub const DEFAULT_PROD_MCP_PORT: u16 = 9876;
+pub const DEFAULT_SANDBOX_HTTP_PORT: u16 = 18765;
+pub const DEFAULT_SANDBOX_MCP_PORT: u16 = 19876;
+
+const ENV_TEST_SANDBOX: &str = "TestSandbox";
+const ENV_TEST_SANDBOX_ID: &str = "TestSandboxId";
+
+/// True when env `TestSandbox` is `true` or `1`.
+pub fn is_test_sandbox() -> bool {
+    matches!(
+        std::env::var(ENV_TEST_SANDBOX).ok().as_deref(),
+        Some("true") | Some("1")
+    )
 }
 
-/// True when process env `TEST_MODE` equals `"1"`.
-pub fn is_test_mode() -> bool {
-    std::env::var("TEST_MODE").ok().as_deref() == Some("1")
+/// Optional instance id; `None` if unset/empty. Does not validate charset.
+pub fn test_sandbox_id_raw() -> Option<String> {
+    std::env::var(ENV_TEST_SANDBOX_ID)
+        .ok()
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
 }
 
-/// Three-state branch: prod / automated test sandbox / manual cache-first debug.
-///
-/// Both automated tests and manual debugging use `TEST_MODE=1`; `cfg(test)` distinguishes
-/// the automated sandbox from manual cache-first overlay at runtime.
-pub fn test_mode_kind() -> TestModeKind {
-    if !is_test_mode() {
-        return TestModeKind::Prod;
+/// Validate `TestSandboxId`: `[A-Za-z0-9_-]{1,64}`.
+pub fn validate_test_sandbox_id(id: &str) -> Result<(), SettingsError> {
+    if id.is_empty() || id.len() > 64 {
+        return Err(SettingsError::ConfigGuard(format!(
+            "invalid TestSandboxId length: {id:?} (need 1..=64)"
+        )));
     }
-    #[cfg(test)]
+    if !id
+        .chars()
+        .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')
     {
-        return TestModeKind::TestSandbox;
+        return Err(SettingsError::ConfigGuard(format!(
+            "invalid TestSandboxId charset: {id:?} (allowed [A-Za-z0-9_-])"
+        )));
     }
-    #[cfg(not(test))]
-    {
-        return TestModeKind::ManualCacheFirst;
-    }
+    Ok(())
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -94,6 +105,30 @@ pub struct AppSettings {
     /// T5_FOLLOW_ON_MIGRATION: legacy single-slot→list is an out-of-band local script; main code must not dual-read.
     #[serde(default)]
     pub llm: Vec<LlmSettingsEntry>,
+    /// Sidecar HTTP listen port. `None` → plane default (prod 8765 / sandbox 18765).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub http_port: Option<u16>,
+    /// Host MCP listen port. `None` → plane default (prod 9876 / sandbox 19876).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mcp_port: Option<u16>,
+}
+
+impl AppSettings {
+    pub fn effective_http_port(&self) -> u16 {
+        self.http_port.unwrap_or(if is_test_sandbox() {
+            DEFAULT_SANDBOX_HTTP_PORT
+        } else {
+            DEFAULT_PROD_HTTP_PORT
+        })
+    }
+
+    pub fn effective_mcp_port(&self) -> u16 {
+        self.mcp_port.unwrap_or(if is_test_sandbox() {
+            DEFAULT_SANDBOX_MCP_PORT
+        } else {
+            DEFAULT_PROD_MCP_PORT
+        })
+    }
 }
 
 fn home_dir() -> PathBuf {
@@ -327,6 +362,8 @@ impl Default for AppSettings {
             github_user_url: default_github_user_url(),
             assistant_engine: default_assistant_engine(),
             llm: Vec::new(),
+            http_port: None,
+            mcp_port: None,
         }
     }
 }
@@ -368,57 +405,43 @@ impl From<toml::ser::Error> for SettingsError {
     }
 }
 
-/// Isolated config dir for script/subprocess tests (`LULU_WB_CONFIG_DIR`), not dev.config.toml.
-#[cfg(test)]
-fn isolated_config_dir() -> Option<PathBuf> {
-    std::env::var("LULU_WB_CONFIG_DIR")
-        .ok()
-        .map(PathBuf::from)
-}
-
-/// Config directory: `$LULU_WB_CONFIG_DIR` (isolated tests) → `~/.config/lulu-workbench`.
-pub fn settings_config_dir() -> PathBuf {
-    #[cfg(test)]
-    if let Some(dir) = isolated_config_dir() {
-        return dir;
-    }
+/// Fixed prod config directory (never follows `TestSandbox`).
+pub fn prod_config_dir() -> PathBuf {
     home_dir().join(".config").join("lulu-workbench")
 }
 
-/// True when loading/saving `dev.config.toml` instead of prod `config.toml`.
-pub fn uses_dev_config() -> bool {
-    #[cfg(test)]
-    if isolated_config_dir().is_some() {
-        return false;
+/// Shared sandbox config directory (secrets + template `config.toml`).
+pub fn shared_sandbox_config_dir() -> PathBuf {
+    home_dir().join(".config").join("lulu-workbench-sandbox")
+}
+
+/// Active config directory from `TestSandbox` / `TestSandboxId`.
+///
+/// Invalid `TestSandboxId` returns `Err` — callers must fail closed.
+pub fn settings_config_dir() -> Result<PathBuf, SettingsError> {
+    if !is_test_sandbox() {
+        return Ok(prod_config_dir());
     }
-    if is_test_mode() {
-        return true;
+    match test_sandbox_id_raw() {
+        None => Ok(shared_sandbox_config_dir()),
+        Some(id) => {
+            validate_test_sandbox_id(&id)?;
+            Ok(home_dir()
+                .join(".config")
+                .join(format!("lulu-workbench-sandbox-{id}")))
+        }
     }
-    #[cfg(test)]
-    {
-        return true;
-    }
-    #[cfg(not(test))]
-    false
 }
 
 pub fn prod_config_file_path() -> PathBuf {
-    settings_config_dir().join(PROD_CONFIG_FILE_NAME)
+    prod_config_dir().join(PROD_CONFIG_FILE_NAME)
 }
 
-pub fn dev_config_file_path() -> PathBuf {
-    settings_config_dir().join(DEV_CONFIG_FILE_NAME)
+pub fn config_file_path() -> Result<PathBuf, SettingsError> {
+    Ok(settings_config_dir()?.join(PROD_CONFIG_FILE_NAME))
 }
 
-pub fn config_file_path() -> PathBuf {
-    if uses_dev_config() {
-        dev_config_file_path()
-    } else {
-        prod_config_file_path()
-    }
-}
-
-/// Read prod `config.toml` only (for TestSandbox prod-path guards).
+/// Read prod `config.toml` only (for sandbox prod-path guards).
 pub fn load_prod_settings() -> AppSettings {
     let path = prod_config_file_path();
     if !path.is_file() {
@@ -430,8 +453,78 @@ pub fn load_prod_settings() -> AppSettings {
     let Ok(mut settings) = toml::from_str::<AppSettings>(&text) else {
         return AppSettings::default();
     };
-    normalize_prod_paths(&mut settings);
+    // Temp HOME fixtures (unit tests) keep explicit roots; do not heal to ~/Code.
+    if !path.ancestors().any(is_unstable_path) {
+        normalize_prod_paths(&mut settings);
+    }
     settings
+}
+
+fn path_equals_or_under(path: &Path, root: &Path) -> bool {
+    if path == root {
+        return true;
+    }
+    path.starts_with(root)
+}
+
+/// Fail-closed sandbox guard: roots / meili / ports must not collide with prod.
+pub fn validate_sandbox_against_prod(
+    sandbox: &AppSettings,
+    prod: &AppSettings,
+) -> Result<(), SettingsError> {
+    if !is_test_sandbox() {
+        return Ok(());
+    }
+    for (label, path, prod_root) in [
+        (
+            "workbench_knowledge_root",
+            sandbox.workbench_knowledge_root.as_path(),
+            prod.workbench_knowledge_root.as_path(),
+        ),
+        (
+            "knowledge_corpus_root",
+            sandbox.knowledge_corpus_root.as_path(),
+            prod.knowledge_corpus_root.as_path(),
+        ),
+        (
+            "cache_dir",
+            sandbox.cache_dir.as_path(),
+            prod.cache_dir.as_path(),
+        ),
+    ] {
+        if path.as_os_str().is_empty() {
+            return Err(SettingsError::ConfigGuard(format!(
+                "sandbox required field empty: {label}"
+            )));
+        }
+        if path_equals_or_under(path, prod_root) {
+            return Err(SettingsError::ConfigGuard(format!(
+                "sandbox {label} collides with prod root {}",
+                prod_root.display()
+            )));
+        }
+    }
+    if sandbox.meili_url.trim().is_empty() {
+        return Err(SettingsError::ConfigGuard(
+            "sandbox required field empty: meili_url".into(),
+        ));
+    }
+    if sandbox.meili_url == prod.meili_url {
+        return Err(SettingsError::ConfigGuard(
+            "sandbox meili_url collides with prod".into(),
+        ));
+    }
+    let sh = sandbox.effective_http_port();
+    let sm = sandbox.effective_mcp_port();
+    // Prod ports must not use sandbox plane defaults (env may be TestSandbox=true here).
+    let ph = prod.http_port.unwrap_or(DEFAULT_PROD_HTTP_PORT);
+    let pm = prod.mcp_port.unwrap_or(DEFAULT_PROD_MCP_PORT);
+    if sh == ph || sm == pm || sh == pm || sm == ph {
+        return Err(SettingsError::ConfigGuard(format!(
+            "sandbox ports collide with prod (sandbox http={sh} mcp={sm}, prod http={ph} mcp={pm})"
+        )));
+    }
+    Ok(())
 }
 
 /// True when path points at OS/tempfile ephemeral storage (must not persist in prod config).
@@ -464,11 +557,14 @@ fn config_is_prod_file(path: &Path) -> bool {
 }
 
 fn should_normalize_for_path(path: &Path) -> bool {
-    #[cfg(test)]
-    if isolated_config_dir().is_some() {
+    // Sandbox / temp HOME fixtures must keep written roots (do not "heal" to ~/Code).
+    if is_test_sandbox() {
         return false;
     }
-    config_is_prod_file(path)
+    if path.ancestors().any(is_unstable_path) {
+        return false;
+    }
+    path == prod_config_file_path() && config_is_prod_file(path)
 }
 
 pub(crate) fn normalize_prod_paths(settings: &mut AppSettings) {
@@ -490,24 +586,6 @@ pub(crate) fn normalize_cache_dir(settings: &mut AppSettings) {
     }
 }
 
-fn guard_save_path(path: &Path) -> Result<(), SettingsError> {
-    let file = path
-        .file_name()
-        .and_then(|n| n.to_str())
-        .unwrap_or_default();
-    if uses_dev_config() && file == PROD_CONFIG_FILE_NAME {
-        return Err(SettingsError::ConfigGuard(
-            "tests/TEST_MODE must not write config.toml; use dev.config.toml".into(),
-        ));
-    }
-    if !uses_dev_config() && file == DEV_CONFIG_FILE_NAME {
-        return Err(SettingsError::ConfigGuard(
-            "prod runtime must not write dev.config.toml".into(),
-        ));
-    }
-    Ok(())
-}
-
 #[cfg(test)]
 pub fn write_test_config_with_cache(
     _dir: &Path,
@@ -522,14 +600,24 @@ pub fn write_test_config_with_cache(
         .map(|p| p.to_path_buf())
         .unwrap_or_else(|| _dir.join("cache"));
     fs::create_dir_all(&cache).expect("mkdir cache");
-    let path = config_file_path();
+    let path = config_file_path().expect("sandbox config path");
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent).expect("mkdir config dir");
     }
+    let http = if is_test_sandbox() {
+        DEFAULT_SANDBOX_HTTP_PORT
+    } else {
+        DEFAULT_PROD_HTTP_PORT
+    };
+    let mcp = if is_test_sandbox() {
+        DEFAULT_SANDBOX_MCP_PORT
+    } else {
+        DEFAULT_PROD_MCP_PORT
+    };
     fs::write(
         &path,
         format!(
-            "workbench_knowledge_root = \"{}\"\nknowledge_corpus_root = \"{}\"\ncache_dir = \"{}\"\n",
+            "workbench_knowledge_root = \"{}\"\nknowledge_corpus_root = \"{}\"\ncache_dir = \"{}\"\nmeili_url = \"http://127.0.0.1:17700\"\nhttp_port = {http}\nmcp_port = {mcp}\n",
             workbench_knowledge_root.display(),
             corpus,
             cache.display()
@@ -539,7 +627,13 @@ pub fn write_test_config_with_cache(
 }
 
 pub fn load() -> Result<AppSettings, SettingsError> {
-    let path = config_file_path();
+    let path = config_file_path()?;
+    if is_test_sandbox() && !path.is_file() {
+        return Err(SettingsError::ConfigGuard(format!(
+            "sandbox config missing (initiator must fork): {}",
+            path.display()
+        )));
+    }
     if !path.is_file() {
         return Ok(AppSettings::default());
     }
@@ -549,17 +643,22 @@ pub fn load() -> Result<AppSettings, SettingsError> {
         normalize_prod_paths(&mut settings);
     }
     apply_engine_migration_on_load(&mut settings);
+    if is_test_sandbox() {
+        validate_sandbox_against_prod(&settings, &load_prod_settings())?;
+    }
     Ok(settings)
 }
 
 pub fn save(settings: &AppSettings) -> Result<(), SettingsError> {
-    let path = config_file_path();
-    guard_save_path(&path)?;
+    let path = config_file_path()?;
     let mut to_save = settings.clone();
     if should_normalize_for_path(&path) {
         normalize_prod_paths(&mut to_save);
     }
-    let dir = settings_config_dir();
+    if is_test_sandbox() {
+        validate_sandbox_against_prod(&to_save, &load_prod_settings())?;
+    }
+    let dir = settings_config_dir()?;
     fs::create_dir_all(&dir)?;
     let text = toml::to_string_pretty(&to_save)?;
     fs::write(path, text)?;
@@ -585,6 +684,9 @@ pub fn to_config_json(
         "meili_url": settings.meili_url,
         "cache_dir": settings.cache_dir.to_string_lossy(),
         "assistant_engine": settings.assistant_engine,
+        "http_port": settings.effective_http_port(),
+        "mcp_port": settings.effective_mcp_port(),
+        "test_sandbox": is_test_sandbox(),
         "has_github_token": has_github_token,
         "has_meili_key": has_meili_key,
         "has_llm_key": has_host_key,

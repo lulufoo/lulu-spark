@@ -4,7 +4,7 @@
   "task_id": "t7",
   "phase": "P3",
   "recorded_at": "2026-07-18T16:45:00.000Z",
-  "p0_gate_ref": "docs/features/ui-english-copy-switch/p0-gate-confirmation.json",
+  "p0_gate_ref": "docs/archive/ui/ui-english-copy-switch/p0-gate-confirmation.json",
   "implementation_tasks": {
     "status": "completed",
     "task_ids": ["t1", "t2", "t3", "t4", "t5", "t6"],

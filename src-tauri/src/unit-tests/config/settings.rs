@@ -3,26 +3,53 @@ use std::fs;
 use std::path::Path;
 
 struct IsolatedConfigGuard {
-    prev: Option<String>,
+    home: Option<String>,
+    test_sandbox: Option<String>,
+    test_sandbox_id: Option<String>,
 }
 
 impl IsolatedConfigGuard {
+    /// Fake `HOME` + prod plane (no TestSandbox) so config is `$HOME/.config/lulu-workbench/config.toml`.
     fn set(dir: &Path) -> Self {
-        let prev = std::env::var("LULU_WB_CONFIG_DIR").ok();
-        unsafe { std::env::set_var("LULU_WB_CONFIG_DIR", dir) };
+        let prev = Self {
+            home: std::env::var("HOME").ok(),
+            test_sandbox: std::env::var("TestSandbox").ok(),
+            test_sandbox_id: std::env::var("TestSandboxId").ok(),
+        };
+        unsafe {
+            std::env::set_var("HOME", dir);
+            std::env::remove_var("TestSandbox");
+            std::env::remove_var("TestSandboxId");
+        }
+        let cfg_dir = dir.join(".config").join("lulu-workbench");
+        fs::create_dir_all(&cfg_dir).expect("mkdir config");
         crate::config::secrets::test_secrets_clear();
-        Self { prev }
+        prev
     }
 }
 
 impl Drop for IsolatedConfigGuard {
     fn drop(&mut self) {
-        match self.prev.take() {
-            Some(v) => unsafe { std::env::set_var("LULU_WB_CONFIG_DIR", v) },
-            None => unsafe { std::env::remove_var("LULU_WB_CONFIG_DIR") },
+        unsafe {
+            match self.home.take() {
+                Some(v) => std::env::set_var("HOME", v),
+                None => std::env::remove_var("HOME"),
+            }
+            match self.test_sandbox.take() {
+                Some(v) => std::env::set_var("TestSandbox", v),
+                None => std::env::remove_var("TestSandbox"),
+            }
+            match self.test_sandbox_id.take() {
+                Some(v) => std::env::set_var("TestSandboxId", v),
+                None => std::env::remove_var("TestSandboxId"),
+            }
         }
         crate::config::secrets::test_secrets_clear();
     }
+}
+
+fn isolated_config_toml(dir: &Path) -> std::path::PathBuf {
+    dir.join(".config").join("lulu-workbench").join(PROD_CONFIG_FILE_NAME)
 }
 
 #[test]
@@ -33,7 +60,7 @@ fn load_reads_config_toml_fields() {
     let kc = dir.path().join("my-knowledge-corpus");
     let cache = dir.path().join("my-cache");
     fs::write(
-        dir.path().join(PROD_CONFIG_FILE_NAME),
+        isolated_config_toml(dir.path()),
         format!(
             r#"
 workbench_knowledge_root = "{}"
@@ -220,7 +247,7 @@ fn llm_fields_roundtrip_in_config_toml_without_api_key() {
     )
     .expect("upsert host");
     save(&s).expect("save");
-    let text = fs::read_to_string(config_file_path()).expect("read");
+    let text = fs::read_to_string(config_file_path().expect("cfg path")).expect("read");
     assert!(text.contains("[[llm]]") || text.contains("[llm]"));
     assert!(text.contains("type") || text.contains("host"));
     assert!(!text.contains("api_key"));
@@ -339,7 +366,7 @@ fn load_stamps_builtin_preset_when_entry_platform_base_url_blank() {
     let dir = tempfile::tempdir().expect("tmp");
     let _guard = IsolatedConfigGuard::set(dir.path());
     fs::write(
-        dir.path().join(PROD_CONFIG_FILE_NAME),
+        isolated_config_toml(dir.path()),
         r#"
 assistant_engine = "host"
 
@@ -362,7 +389,7 @@ fn load_typed_llm_list_host_entry_without_requiring_cursor() {
     let dir = tempfile::tempdir().expect("tmp");
     let _guard = IsolatedConfigGuard::set(dir.path());
     fs::write(
-        dir.path().join(PROD_CONFIG_FILE_NAME),
+        isolated_config_toml(dir.path()),
         r#"
 assistant_engine = "host"
 
@@ -388,7 +415,7 @@ fn load_respects_existing_cursor_assistant_engine_while_keeping_llm_model() {
     let dir = tempfile::tempdir().expect("tmp");
     let _guard = IsolatedConfigGuard::set(dir.path());
     fs::write(
-        dir.path().join(PROD_CONFIG_FILE_NAME),
+        isolated_config_toml(dir.path()),
         r#"
 assistant_engine = "cursor"
 
@@ -406,85 +433,138 @@ model = "composer-1"
     assert_eq!(cursor.model, "composer-1");
 }
 
-struct TestModeGuard(Option<String>);
+struct TestSandboxEnvGuard {
+    home: Option<String>,
+    test_sandbox: Option<String>,
+    test_sandbox_id: Option<String>,
+}
 
-impl TestModeGuard {
-    fn set(value: Option<&str>) -> Self {
-        let prev = std::env::var("TEST_MODE").ok();
-        match value {
-            Some(v) => unsafe { std::env::set_var("TEST_MODE", v) },
-            None => unsafe { std::env::remove_var("TEST_MODE") },
+impl TestSandboxEnvGuard {
+    fn set_sandbox(home: &Path, id: &str) -> Self {
+        let prev = Self {
+            home: std::env::var("HOME").ok(),
+            test_sandbox: std::env::var("TestSandbox").ok(),
+            test_sandbox_id: std::env::var("TestSandboxId").ok(),
+        };
+        unsafe {
+            std::env::set_var("HOME", home);
+            std::env::set_var("TestSandbox", "true");
+            std::env::set_var("TestSandboxId", id);
         }
-        TestModeGuard(prev)
+        prev
+    }
+
+    fn clear_sandbox() -> Self {
+        let prev = Self {
+            home: std::env::var("HOME").ok(),
+            test_sandbox: std::env::var("TestSandbox").ok(),
+            test_sandbox_id: std::env::var("TestSandboxId").ok(),
+        };
+        unsafe {
+            std::env::remove_var("TestSandbox");
+            std::env::remove_var("TestSandboxId");
+        }
+        prev
     }
 }
 
-impl Drop for TestModeGuard {
+impl Drop for TestSandboxEnvGuard {
     fn drop(&mut self) {
-        match &self.0 {
-            Some(v) => unsafe { std::env::set_var("TEST_MODE", v) },
-            None => unsafe { std::env::remove_var("TEST_MODE") },
+        unsafe {
+            match self.home.take() {
+                Some(v) => std::env::set_var("HOME", v),
+                None => {}
+            }
+            match self.test_sandbox.take() {
+                Some(v) => std::env::set_var("TestSandbox", v),
+                None => std::env::remove_var("TestSandbox"),
+            }
+            match self.test_sandbox_id.take() {
+                Some(v) => std::env::set_var("TestSandboxId", v),
+                None => std::env::remove_var("TestSandboxId"),
+            }
         }
     }
 }
 
 #[test]
-fn is_test_mode_false_when_unset() {
-    let _g = TestModeGuard::set(None);
-    assert!(!is_test_mode());
-    assert_eq!(test_mode_kind(), TestModeKind::Prod);
+fn is_test_sandbox_false_when_unset() {
+    let _g = TestSandboxEnvGuard::clear_sandbox();
+    assert!(!is_test_sandbox());
 }
 
 #[test]
-fn is_test_mode_true_when_one() {
-    let _g = TestModeGuard::set(Some("1"));
-    assert!(is_test_mode());
-    assert_eq!(test_mode_kind(), TestModeKind::TestSandbox);
+fn is_test_sandbox_true_when_true_or_one() {
+    let dir = tempfile::tempdir().expect("tmp");
+    let _g = TestSandboxEnvGuard::set_sandbox(dir.path(), "id1");
+    assert!(is_test_sandbox());
 }
 
 #[test]
-fn is_test_mode_false_for_non_one_values() {
-    for v in ["0", "", "true", "2"] {
-        let _g = TestModeGuard::set(Some(v));
-        assert!(!is_test_mode(), "TEST_MODE={v}");
-        assert_eq!(test_mode_kind(), TestModeKind::Prod, "TEST_MODE={v}");
-    }
+fn validate_test_sandbox_id_rejects_illegal() {
+    assert!(validate_test_sandbox_id("ok_ID-1").is_ok());
+    assert!(validate_test_sandbox_id("bad/id").is_err());
+    assert!(validate_test_sandbox_id("").is_err());
 }
 
+/// Scene: AI/test process sets `TestSandbox=true` + `TestSandboxId` → instance config plane.
 #[test]
-fn test_mode_save_writes_dev_config_not_prod() {
+fn scene_test_sandbox_instance_dir_ports_and_hard_guard() {
     crate::test_support::with_config_test_serial(|| {
-        let _tm = TestModeGuard::set(Some("1"));
-        let dir = tempfile::tempdir().expect("tmp");
-        let wb = dir.path().join("wb");
-        fs::create_dir_all(&wb).expect("mkdir wb");
-        let mut s = AppSettings::default();
-        s.workbench_knowledge_root = wb;
-        save(&s).expect("save");
-        let dev_path = dev_config_file_path();
-        assert!(dev_path.is_file());
-        let text = fs::read_to_string(&dev_path).expect("read dev config");
-        assert!(text.contains("workbench_knowledge_root"));
-        assert!(!text.contains("test_mode"));
-        assert!(!text.contains("TEST_MODE"));
-    });
-}
+        let sandbox = crate::test_support::TestSandbox::new();
+        let id = std::env::var("TestSandboxId").expect("TestSandboxId");
+        let expected_dir = sandbox
+            .config_dir()
+            .join(".config")
+            .join(format!("lulu-workbench-sandbox-{id}"));
+        let cfg_path = config_file_path().expect("config path");
+        assert_eq!(cfg_path, expected_dir.join(PROD_CONFIG_FILE_NAME));
+        assert!(cfg_path.is_file(), "initiator-forked config.toml must exist");
 
-#[test]
-fn save_rejects_writing_prod_config_in_test_mode() {
-    crate::test_support::with_config_test_serial(|| {
-        let _tm = TestModeGuard::set(Some("1"));
-        let prod = prod_config_file_path();
-        let before = prod.is_file().then(|| fs::read_to_string(&prod).ok()).flatten();
-        let mut s = AppSettings::default();
-        s.workbench_knowledge_root = PathBuf::from("/tmp/should-not-persist");
-        let err = save(&s);
-        assert!(err.is_ok());
-        if let Some(prev) = before {
-            assert_eq!(fs::read_to_string(&prod).ok(), Some(prev));
-        } else {
-            assert!(!prod.is_file());
-        }
+        let cfg = load().expect("load sandbox");
+        assert_eq!(cfg.effective_http_port(), DEFAULT_SANDBOX_HTTP_PORT);
+        assert_eq!(cfg.effective_mcp_port(), DEFAULT_SANDBOX_MCP_PORT);
+        assert_eq!(cfg.effective_http_port(), 18765);
+        assert_eq!(cfg.effective_mcp_port(), 19876);
+
+        let prod = load_prod_settings();
+        assert_eq!(prod.http_port.unwrap_or(DEFAULT_PROD_HTTP_PORT), 8765);
+        assert_eq!(prod.mcp_port.unwrap_or(DEFAULT_PROD_MCP_PORT), 9876);
+        assert_ne!(cfg.cache_dir, prod.cache_dir);
+        assert_ne!(cfg.workbench_knowledge_root, prod.workbench_knowledge_root);
+        assert_ne!(cfg.meili_url, prod.meili_url);
+
+        eprintln!(
+            "TestSandbox scene ok: id={id} cfg={} http={} mcp={}",
+            cfg_path.display(),
+            cfg.effective_http_port(),
+            cfg.effective_mcp_port()
+        );
+
+        // Hard guard: colliding with prod HTTP port must fail-closed.
+        fs::write(
+            &cfg_path,
+            format!(
+                "workbench_knowledge_root = \"{}\"\nknowledge_corpus_root = \"{}\"\ncache_dir = \"{}\"\nmeili_url = \"http://127.0.0.1:17700\"\nhttp_port = 8765\nmcp_port = 19876\n",
+                cfg.workbench_knowledge_root.display(),
+                cfg.knowledge_corpus_root.display(),
+                cfg.cache_dir.display()
+            ),
+        )
+        .expect("overwrite colliding ports");
+        let err = load().expect_err("port collision must fail");
+        assert!(
+            err.to_string().contains("ports collide") || err.to_string().contains("ConfigGuard"),
+            "err={err}"
+        );
+
+        // Missing instance config → fail (Host does not auto-fork).
+        fs::remove_file(&cfg_path).expect("remove sandbox config");
+        let missing = load().expect_err("missing sandbox config must fail");
+        assert!(
+            missing.to_string().contains("sandbox config missing"),
+            "err={missing}"
+        );
     });
 }
 
@@ -717,7 +797,7 @@ fn load_apply_to_json_roundtrip_does_not_erase_inactive_type() {
     let dir = tempfile::tempdir().expect("tmp");
     let _guard = IsolatedConfigGuard::set(dir.path());
     fs::write(
-        dir.path().join(PROD_CONFIG_FILE_NAME),
+        isolated_config_toml(dir.path()),
         r#"
 assistant_engine = "host"
 
@@ -928,7 +1008,7 @@ fn t5_legacy_single_slot_llm_table_fails_closed_without_dual_read() {
     let dir = tempfile::tempdir().expect("tmp");
     let _guard = IsolatedConfigGuard::set(dir.path());
     fs::write(
-        dir.path().join(PROD_CONFIG_FILE_NAME),
+        isolated_config_toml(dir.path()),
         r#"
 assistant_engine = "host"
 

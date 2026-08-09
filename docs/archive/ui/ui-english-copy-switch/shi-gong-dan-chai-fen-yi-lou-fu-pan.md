@@ -96,4 +96,4 @@
 |------|------|
 | 施工单索引 | `.cache/.../lulu-tasks/r1/task-list.md` |
 | tech-doc | `.cache/.../lulu-plan/revision1/tech-doc.md` |
-| P4 验证记录 | `docs/features/ui-english-copy-switch/p4-post-switch-verification.json` |
+| P4 验证记录 | `docs/archive/ui/ui-english-copy-switch/p4-post-switch-verification.json` |
