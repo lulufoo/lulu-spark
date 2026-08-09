@@ -477,6 +477,9 @@ pub fn run() {
                 {
                     local_http.stop();
                 }
+                // Phase-Shutdown: reclaim resident cursor-agent-runner (Stopping→Absent).
+                // Failure is logged inside coordinator; never blocks App exit.
+                services::agent::host_startup::on_app_exit_shutdown();
             }
         });
 }

@@ -24,6 +24,9 @@ mod process_manager_tests;
 #[path = "host_startup_tests.rs"]
 mod host_startup_tests;
 
+#[path = "host_shutdown_tests.rs"]
+mod host_shutdown_tests;
+
 #[path = "cursor_llm_engine_tests.rs"]
 mod cursor_llm_engine_tests;
 

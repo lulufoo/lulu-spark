@@ -1,13 +1,18 @@
-//! Host startup coordinator — Phase-Warm wiring for `CursorAgentProcessManager`.
+//! Host lifecycle coordinator for `CursorAgentProcessManager`.
 //!
-//! Access contract: only this coordinator may call `warm()`. Non-blocking schedule
+//! Phase-Warm: only this coordinator may call `warm()`. Non-blocking schedule
 //! keeps App setup from waiting on runner spawn; warm failure never aborts Host.
+//!
+//! Phase-Shutdown: only App exit may call `shutdown()` via this coordinator.
+//! Shutdown failure is logged and never blocks process exit.
 
 use std::sync::Mutex;
 
 use crate::config::settings;
 use crate::services::agent::engine_router::{self, EngineKind, EngineRuntimeConfig};
-use crate::services::agent::process_manager::{CursorAgentProcessManager, WarmError};
+use crate::services::agent::process_manager::{
+    CursorAgentProcessManager, ShutdownError, WarmError,
+};
 
 /// Observable outcome of a Host warm coordination attempt.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -99,4 +104,64 @@ pub fn schedule_cursor_runner_warm() {
     std::thread::spawn(|| {
         let _ = coordinate_warm(CursorAgentProcessManager::global());
     });
+}
+
+// ── Phase-Shutdown (App exit only) ───────────────────────────────────────────
+
+/// Observable outcome of an App-exit shutdown coordination attempt.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ShutdownCoordOutcome {
+    /// `shutdown()` completed; client + runner reclaimed (Stopping→Absent).
+    Shutdown,
+    /// `shutdown()` failed; App exit must still continue (best-effort reclaim).
+    Failed,
+}
+
+static LAST_SHUTDOWN_OUTCOME: Mutex<Option<ShutdownCoordOutcome>> = Mutex::new(None);
+
+fn record_shutdown(outcome: ShutdownCoordOutcome) -> ShutdownCoordOutcome {
+    if let Ok(mut guard) = LAST_SHUTDOWN_OUTCOME.lock() {
+        *guard = Some(outcome);
+    }
+    outcome
+}
+
+/// Last shutdown coordination outcome (tests / probes).
+pub fn last_shutdown_outcome_for_tests() -> Option<ShutdownCoordOutcome> {
+    LAST_SHUTDOWN_OUTCOME
+        .lock()
+        .ok()
+        .and_then(|g| *g)
+}
+
+/// Testable gate: invoke `shutdown`, map soft failure without blocking exit.
+pub fn coordinate_shutdown_for<F>(shutdown: F) -> ShutdownCoordOutcome
+where
+    F: FnOnce() -> Result<(), ShutdownError>,
+{
+    match shutdown() {
+        Ok(()) => record_shutdown(ShutdownCoordOutcome::Shutdown),
+        Err(_) => record_shutdown(ShutdownCoordOutcome::Failed),
+    }
+}
+
+/// Production entry: reclaim managed client + resident runner on App exit.
+pub fn coordinate_shutdown(mgr: &CursorAgentProcessManager) -> ShutdownCoordOutcome {
+    let outcome = coordinate_shutdown_for(|| mgr.shutdown());
+    match outcome {
+        ShutdownCoordOutcome::Shutdown => {
+            eprintln!("[cursor-agent-process] shutdown: Shutdown");
+        }
+        ShutdownCoordOutcome::Failed => {
+            eprintln!(
+                "[cursor-agent-process] shutdown: Failed (App exit continues; best-effort reclaim)"
+            );
+        }
+    }
+    outcome
+}
+
+/// App exit hook: call from `RunEvent::Exit` only. Never panics; never blocks exit.
+pub fn on_app_exit_shutdown() {
+    let _ = coordinate_shutdown(CursorAgentProcessManager::global());
 }
