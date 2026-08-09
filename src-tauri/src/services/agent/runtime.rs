@@ -111,6 +111,7 @@ fn cursor_run_turn(req: &TurnRequest) -> Result<CursorTurnOutcome, CursorError> 
         .unwrap_or_else(|e| e.into_inner())
         .clone()
     {
+        // request-only CSR: typed create/turn/cancel removed; CSR.run_turn uses request.
         return rt.run_turn(req);
     }
     CursorLlmEngine::global().run_turn(req)

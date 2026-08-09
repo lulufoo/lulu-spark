@@ -638,3 +638,53 @@ fn t3_map_client_request_error_deleted_keeps_private_map_request_error() {
         "CursorSessionRuntime::with_client_factory is out of t3 delete set"
     );
 }
+
+// ── T4 / AlignTests: remaining doubles assert request-only surface ───────────
+
+#[test]
+fn t4_align_unit_test_doubles_drop_typed_create_turn_cancel() {
+    for (label, src) in [
+        (
+            "error_tracks_tests.rs",
+            include_str!("error_tracks_tests.rs"),
+        ),
+        (
+            "replace_create_tests.rs",
+            include_str!("replace_create_tests.rs"),
+        ),
+        (
+            "process_manager_tests.rs",
+            include_str!("process_manager_tests.rs"),
+        ),
+    ] {
+        for deleted in ["fn create(", "fn turn(", "fn cancel("] {
+            assert!(
+                !src.contains(deleted),
+                "{label} double must not keep typed {deleted}"
+            );
+        }
+        assert!(
+            src.contains("fn request("),
+            "{label} double must implement request"
+        );
+    }
+}
+
+#[test]
+fn t4_align_csr_still_request_only_after_facade_and_b_deletes() {
+    let src = include_str!("../../../services/agent/cursor_adapter.rs");
+    let csr = extract_brace_block(src, "impl CursorSessionRuntime");
+    assert!(
+        csr.contains("request(")
+            && csr.contains("\"create\"")
+            && csr.contains("\"turn\"")
+            && csr.contains("\"cancel\""),
+        "CSR must keep create/turn/cancel via request after AlignTests"
+    );
+    assert!(
+        !csr.contains("guard.turn(")
+            && !csr.contains("guard.create(")
+            && !csr.contains("guard.cancel("),
+        "CSR must not regress to typed create/turn/cancel"
+    );
+}

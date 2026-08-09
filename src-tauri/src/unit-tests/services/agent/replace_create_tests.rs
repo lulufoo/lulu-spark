@@ -1,7 +1,6 @@
 //! T5 / T-ReplaceCreate: Host cleanup_session_cwd after replaced_session_id;
 //! dispose-fail must not clean cwd; cwd cleanup must not touch Session cache.
 
-use std::path::Path;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 
@@ -121,7 +120,7 @@ struct ReplaceCreateFakeClient {
 
 impl CursorRunnerClient for ReplaceCreateFakeClient {
     fn close(&mut self) -> Result<(), CursorError> {
-        let _ = self.request("legacy", "close", None)?;
+        let _ = self.request("close", "close", None)?;
         Ok(())
     }
 

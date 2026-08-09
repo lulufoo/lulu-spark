@@ -172,7 +172,7 @@ fn install_fake_cursor_runtime() -> Arc<Mutex<Vec<cursor_adapter::FakeLogEntry>>
     let fake = FakeCursorRunnerClient::new();
     let log = fake.log.clone();
     let runtime_rt = CursorSessionRuntime::with_client_factory(move |_key| {
-        let mut c = FakeCursorRunnerClient::from_shared(log.clone());
+        let c = FakeCursorRunnerClient::from_shared(log.clone());
         Ok(Box::new(c) as Box<dyn cursor_adapter::CursorRunnerClient>)
     });
     runtime::set_cursor_runtime_for_tests(Some(Arc::new(runtime_rt)));
@@ -304,16 +304,17 @@ fn t4_cursor_settings_must_not_call_host_llm_load_path() {
             result.body["reply_text"].as_str(),
             Some("HOST-MUST-NOT-RUN")
         );
-        let methods: Vec<String> = log
-            .lock()
-            .unwrap()
-            .iter()
-            .map(|e| e.method.clone())
-            .collect();
-        assert!(
-            methods.iter().any(|m| m == "create") && methods.iter().any(|m| m == "turn"),
-            "Cursor adapter must run create+turn, got {methods:?}"
-        );
+        let entries = log.lock().unwrap().clone();
+        for method in ["create", "turn"] {
+            let hit = entries
+                .iter()
+                .find(|e| e.method == method)
+                .unwrap_or_else(|| panic!("Cursor adapter must run {method}, got {entries:?}"));
+            assert!(
+                hit.request_id.is_some(),
+                "runtime CSR hook {method} must go through request (request_id), got {hit:?}"
+            );
+        }
         let after_mcp = r#loop::session_capability_mcp_config().expect("still");
         assert_eq!(after_mcp, before_mcp, "same-session MCP read face");
         assert!(!value_exposes_engine_selection(&result.body));
@@ -473,4 +474,69 @@ fn t4_runtime_source_uses_engine_router_and_not_tools_dispatch_on_cursor_fail() 
         src.contains("load_llm_config"),
         "Host path may load_llm_config inside Host closure only"
     );
+}
+
+// ── T4 / AlignTests: runtime CSR hook stays request-only ─────────────────────
+
+#[test]
+fn t4_align_runtime_csr_hook_is_request_only() {
+    let src = include_str!("../../../services/agent/runtime.rs");
+    assert!(
+        src.contains("set_cursor_runtime_for_tests") && src.contains("CursorSessionRuntime"),
+        "CSR test hook type must remain (REWRITE, not delete)"
+    );
+    assert!(
+        src.contains("request-only CSR"),
+        "runtime test hook must mark request-only CSR alignment (typed create/turn/cancel gone)"
+    );
+    assert!(
+        src.contains("rt.run_turn(req)") || src.contains(".run_turn(req)"),
+        "test hook must still delegate to CSR.run_turn"
+    );
+    for deleted in [
+        "CursorAgentSdk",
+        "map_client_request_error",
+        "engine_settings_for_route",
+        "mark_invalid_for_tests",
+    ] {
+        assert!(
+            !src.contains(deleted),
+            "runtime.rs must not reference deleted A/B symbol {deleted}"
+        );
+    }
+}
+
+#[test]
+fn t4_align_runtime_hook_chat_turn_create_turn_carry_request_ids() {
+    with_sandbox(|| {
+        let master = create_bound_plan("align-request-ids");
+        install_cursor_engine();
+        let log = install_fake_cursor_runtime();
+        r#loop::try_set_binding_json(&json!({ "key": SEEDED_BUSINESS_KEY })).expect("Set");
+        let open = r#loop::open_ai_assistant_core(&master).unwrap();
+        let sid = open["session_id"].as_str().unwrap().to_string();
+
+        let result = runtime::chat_turn(&sid, "align please", Some(&master)).expect("cursor");
+        assert!(
+            result
+                .body["reply_text"]
+                .as_str()
+                .unwrap_or("")
+                .contains("fake-ok"),
+            "reply={}",
+            result.body["reply_text"]
+        );
+
+        let entries = log.lock().unwrap().clone();
+        for method in ["create", "turn"] {
+            let hit = entries
+                .iter()
+                .find(|e| e.method == method)
+                .unwrap_or_else(|| panic!("expected {method} via CSR hook: {entries:?}"));
+            assert!(
+                hit.request_id.is_some(),
+                "{method} must be request-only (request_id set), got {hit:?}"
+            );
+        }
+    });
 }

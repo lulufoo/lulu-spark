@@ -133,7 +133,7 @@ struct TrackFakeClient {
 
 impl CursorRunnerClient for TrackFakeClient {
     fn close(&mut self) -> Result<(), CursorError> {
-        let _ = self.request("legacy", "close", None)?;
+        let _ = self.request("close", "close", None)?;
         Ok(())
     }
 
