@@ -23,8 +23,9 @@
 use std::collections::{BTreeMap, HashMap};
 use std::io::{BufRead, BufReader, Write};
 use std::path::{Path, PathBuf};
-use std::process::{Child, Command, Stdio};
+use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::mpsc::{self, SyncSender};
 use std::sync::{Arc, Mutex, OnceLock};
 use std::thread;
 use std::time::{Duration, Instant};
@@ -278,6 +279,16 @@ pub struct TurnRequest {
 
 // ── Runner client port ───────────────────────────────────────────────────────
 
+/// Concurrent JSONL submit: wait for response without holding the client mutex.
+pub trait ConcurrentJsonl: Send + Sync {
+    fn submit(
+        &self,
+        request_id: &str,
+        method: &str,
+        params: Option<Value>,
+    ) -> Result<Value, CursorError>;
+}
+
 pub trait CursorRunnerClient: Send {
     fn create(
         &mut self,
@@ -292,6 +303,11 @@ pub trait CursorRunnerClient: Send {
     /// JSONL request with caller-provided `request_id` (pending map / wire id).
     /// Client must not invent a different id.
     fn request(&mut self, request_id: &str, method: &str, params: Option<Value>) -> Result<Value, CursorError>;
+    /// When present, [`ClientAccess::request`] submits via this handle and does not
+    /// hold the client mutex across the response wait (multi-request demux).
+    fn concurrent_jsonl(&self) -> Option<Arc<dyn ConcurrentJsonl>> {
+        None
+    }
     /// Hook usable without locking the client mutex (cancel-timeout / hang path).
     fn terminate_hook(&self) -> Arc<dyn Fn() + Send + Sync> {
         let _ = self;
@@ -531,59 +547,269 @@ impl CursorRunnerClient for FakeCursorRunnerClient {
         method: &str,
         params: Option<Value>,
     ) -> Result<Value, CursorError> {
-        match method {
-            "create" => {
-                self.push_log_with_id(Some(request_id.into()), "create", params);
-                Ok(json!({}))
-            }
-            "turn" => {
-                self.shared.in_flight.store(true, Ordering::SeqCst);
-                self.push_log_with_id(Some(request_id.into()), "turn", params.clone());
-                if let Some(d) = *self
-                    .shared
-                    .turn_block
-                    .lock()
-                    .unwrap_or_else(|e| e.into_inner())
-                {
-                    let start = Instant::now();
-                    while start.elapsed() < d {
-                        if self.shared.cancel_requested.load(Ordering::SeqCst) {
-                            self.shared.in_flight.store(false, Ordering::SeqCst);
-                            return Err(map_runner_error("cancelled", "run cancelled"));
-                        }
-                        thread::sleep(Duration::from_millis(10));
-                    }
-                }
-                if self.shared.cancel_requested.load(Ordering::SeqCst) {
-                    self.shared.in_flight.store(false, Ordering::SeqCst);
-                    return Err(map_runner_error("cancelled", "run cancelled"));
-                }
-                self.shared.in_flight.store(false, Ordering::SeqCst);
-                Ok(json!({ "text": "fake-ok" }))
-            }
-            "cancel" => {
-                self.push_log_with_id(Some(request_id.into()), "cancel", None);
-                self.shared.cancel_requested.store(true, Ordering::SeqCst);
-                self.shared.in_flight.store(false, Ordering::SeqCst);
-                Ok(json!({}))
-            }
-            "close" => {
-                self.shared.dispose_awaited.store(true, Ordering::SeqCst);
-                self.push_log_with_id(Some(request_id.into()), "close", None);
-                Ok(json!({}))
-            }
-            _ => Err(map_runner_error("runner", "unknown method")),
-        }
+        fake_shared_request(&self.shared, request_id, method, params)
+    }
+
+    fn concurrent_jsonl(&self) -> Option<Arc<dyn ConcurrentJsonl>> {
+        Some(Arc::new(FakeConcurrent(self.shared.clone())) as Arc<dyn ConcurrentJsonl>)
     }
 }
 
-// ── Production process client ────────────────────────────────────────────────
+struct FakeConcurrent(Arc<FakeShared>);
+
+impl ConcurrentJsonl for FakeConcurrent {
+    fn submit(
+        &self,
+        request_id: &str,
+        method: &str,
+        params: Option<Value>,
+    ) -> Result<Value, CursorError> {
+        fake_shared_request(&self.0, request_id, method, params)
+    }
+}
+
+fn fake_shared_request(
+    shared: &FakeShared,
+    request_id: &str,
+    method: &str,
+    params: Option<Value>,
+) -> Result<Value, CursorError> {
+    shared.log.lock().unwrap_or_else(|e| e.into_inner()).push(FakeLogEntry {
+        request_id: Some(request_id.into()),
+        method: method.into(),
+        params: params.clone(),
+    });
+    match method {
+        "create" => Ok(json!({})),
+        "turn" => {
+            shared.in_flight.store(true, Ordering::SeqCst);
+            if let Some(d) = *shared.turn_block.lock().unwrap_or_else(|e| e.into_inner()) {
+                let start = Instant::now();
+                while start.elapsed() < d {
+                    if shared.cancel_requested.load(Ordering::SeqCst) {
+                        shared.in_flight.store(false, Ordering::SeqCst);
+                        return Err(map_runner_error("cancelled", "run cancelled"));
+                    }
+                    thread::sleep(Duration::from_millis(10));
+                }
+            }
+            if shared.cancel_requested.load(Ordering::SeqCst) {
+                shared.in_flight.store(false, Ordering::SeqCst);
+                return Err(map_runner_error("cancelled", "run cancelled"));
+            }
+            shared.in_flight.store(false, Ordering::SeqCst);
+            Ok(json!({ "text": "fake-ok" }))
+        }
+        "cancel" => {
+            shared.cancel_requested.store(true, Ordering::SeqCst);
+            shared.in_flight.store(false, Ordering::SeqCst);
+            Ok(json!({}))
+        }
+        "close" => {
+            shared.dispose_awaited.store(true, Ordering::SeqCst);
+            Ok(json!({}))
+        }
+        _ => Err(map_runner_error("runner", "unknown method")),
+    }
+}
+
+// ── Production process client (pending-map demux) ────────────────────────────
+
+/// Shared JSONL transport: short stdin write lock + `request_id` pending map +
+/// dedicated stdout reader thread.
+struct JsonlBridge {
+    stdin: Mutex<Option<ChildStdin>>,
+    pending: Mutex<HashMap<String, SyncSender<Result<Value, CursorError>>>>,
+    dead: AtomicBool,
+}
+
+impl JsonlBridge {
+    fn new(stdin: ChildStdin) -> Arc<Self> {
+        Arc::new(Self {
+            stdin: Mutex::new(Some(stdin)),
+            pending: Mutex::new(HashMap::new()),
+            dead: AtomicBool::new(false),
+        })
+    }
+
+    fn start_reader(self: &Arc<Self>, stdout: ChildStdout) {
+        let bridge = Arc::clone(self);
+        thread::spawn(move || {
+            let mut reader = BufReader::new(stdout);
+            loop {
+                let mut response_line = String::new();
+                match reader.read_line(&mut response_line) {
+                    Ok(0) => {
+                        bridge.fail_all();
+                        break;
+                    }
+                    Ok(_) => {
+                        if let Err(()) = bridge.dispatch_line(response_line.trim()) {
+                            bridge.fail_all();
+                            break;
+                        }
+                    }
+                    Err(_) => {
+                        bridge.fail_all();
+                        break;
+                    }
+                }
+            }
+        });
+    }
+
+    fn fail_all(&self) {
+        self.dead.store(true, Ordering::SeqCst);
+        if let Ok(mut stdin) = self.stdin.lock() {
+            *stdin = None;
+        }
+        let drained: Vec<_> = self
+            .pending
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .drain()
+            .map(|(_, tx)| tx)
+            .collect();
+        let err = CursorError::new(
+            CursorErrorCode::Runner,
+            frontend_message_for(CursorErrorCode::Runner),
+        );
+        for tx in drained {
+            let _ = tx.send(Err(err.clone()));
+        }
+    }
+
+    fn dispatch_line(&self, trimmed: &str) -> Result<(), ()> {
+        if trimmed.is_empty() {
+            return Err(());
+        }
+        let v: Value = serde_json::from_str(trimmed).map_err(|_| ())?;
+        let id = v
+            .get("id")
+            .and_then(|x| x.as_str())
+            .ok_or(())?
+            .to_string();
+        let tx = self
+            .pending
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .remove(&id);
+        let Some(tx) = tx else {
+            // Unknown id — ignore (do not tear down the bridge).
+            return Ok(());
+        };
+        let ok = v.get("ok").and_then(|x| x.as_bool()).unwrap_or(false);
+        let result = if ok {
+            Ok(v.get("result").cloned().unwrap_or(json!({})))
+        } else {
+            let err_type = v
+                .pointer("/error/type")
+                .and_then(|x| x.as_str())
+                .unwrap_or("runner");
+            let detail = v
+                .pointer("/error/message")
+                .and_then(|x| x.as_str())
+                .unwrap_or("");
+            Err(map_runner_error(err_type, detail))
+        };
+        let _ = tx.send(result);
+        Ok(())
+    }
+
+    fn exchange_with_id(
+        &self,
+        request_id: &str,
+        method: &str,
+        params: Option<Value>,
+    ) -> Result<Value, CursorError> {
+        if self.dead.load(Ordering::SeqCst) {
+            return Err(CursorError::new(
+                CursorErrorCode::Runner,
+                frontend_message_for(CursorErrorCode::Runner),
+            ));
+        }
+        let (tx, rx) = mpsc::sync_channel(1);
+        {
+            let mut pending = self.pending.lock().unwrap_or_else(|e| e.into_inner());
+            if self.dead.load(Ordering::SeqCst) {
+                return Err(CursorError::new(
+                    CursorErrorCode::Runner,
+                    frontend_message_for(CursorErrorCode::Runner),
+                ));
+            }
+            if pending.contains_key(request_id) {
+                return Err(CursorError::new(
+                    CursorErrorCode::Runner,
+                    frontend_message_for(CursorErrorCode::Runner),
+                ));
+            }
+            pending.insert(request_id.to_string(), tx);
+        }
+
+        let mut req = json!({ "id": request_id, "method": method });
+        if let Some(p) = params {
+            req["params"] = p;
+        }
+        let line = serde_json::to_string(&req).map_err(|_| {
+            self.abort_pending(request_id);
+            CursorError::new(
+                CursorErrorCode::Runner,
+                frontend_message_for(CursorErrorCode::Runner),
+            )
+        })?;
+
+        {
+            let mut stdin_g = self.stdin.lock().unwrap_or_else(|e| e.into_inner());
+            let stdin = stdin_g.as_mut().ok_or_else(|| {
+                self.abort_pending(request_id);
+                CursorError::new(
+                    CursorErrorCode::Runner,
+                    frontend_message_for(CursorErrorCode::Runner),
+                )
+            })?;
+            if writeln!(stdin, "{line}").is_err() || stdin.flush().is_err() {
+                self.abort_pending(request_id);
+                self.fail_all();
+                return Err(CursorError::new(
+                    CursorErrorCode::Runner,
+                    frontend_message_for(CursorErrorCode::Runner),
+                ));
+            }
+        }
+
+        match rx.recv() {
+            Ok(r) => r,
+            Err(_) => Err(CursorError::new(
+                CursorErrorCode::Runner,
+                frontend_message_for(CursorErrorCode::Runner),
+            )),
+        }
+    }
+
+    fn abort_pending(&self, request_id: &str) {
+        let _ = self
+            .pending
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .remove(request_id);
+    }
+}
+
+impl ConcurrentJsonl for JsonlBridge {
+    fn submit(
+        &self,
+        request_id: &str,
+        method: &str,
+        params: Option<Value>,
+    ) -> Result<Value, CursorError> {
+        self.exchange_with_id(request_id, method, params)
+    }
+}
 
 pub struct ProcessCursorRunnerClient {
     child: Option<Child>,
     pid: Arc<Mutex<Option<u32>>>,
-    stdin: Option<std::process::ChildStdin>,
-    stdout: Option<BufReader<std::process::ChildStdout>>,
+    bridge: Arc<JsonlBridge>,
     next_id: u64,
 }
 
@@ -613,13 +839,24 @@ impl ProcessCursorRunnerClient {
                 )
             })?;
         let pid = Arc::new(Mutex::new(Some(child.id())));
-        let stdin = child.stdin.take();
-        let stdout = child.stdout.take().map(BufReader::new);
+        let stdin = child.stdin.take().ok_or_else(|| {
+            CursorError::new(
+                CursorErrorCode::Runner,
+                frontend_message_for(CursorErrorCode::Runner),
+            )
+        })?;
+        let stdout = child.stdout.take().ok_or_else(|| {
+            CursorError::new(
+                CursorErrorCode::Runner,
+                frontend_message_for(CursorErrorCode::Runner),
+            )
+        })?;
+        let bridge = JsonlBridge::new(stdin);
+        bridge.start_reader(stdout);
         Ok(Self {
             child: Some(child),
             pid,
-            stdin,
-            stdout,
+            bridge,
             next_id: 1,
         })
     }
@@ -627,84 +864,7 @@ impl ProcessCursorRunnerClient {
     fn exchange(&mut self, method: &str, params: Option<Value>) -> Result<Value, CursorError> {
         let id = format!("r{}", self.next_id);
         self.next_id += 1;
-        self.exchange_with_id(&id, method, params)
-    }
-
-    fn exchange_with_id(
-        &mut self,
-        request_id: &str,
-        method: &str,
-        params: Option<Value>,
-    ) -> Result<Value, CursorError> {
-        let mut req = json!({ "id": request_id, "method": method });
-        if let Some(p) = params {
-            req["params"] = p;
-        }
-        let line = serde_json::to_string(&req).map_err(|_| {
-            CursorError::new(
-                CursorErrorCode::Runner,
-                frontend_message_for(CursorErrorCode::Runner),
-            )
-        })?;
-        let stdin = self.stdin.as_mut().ok_or_else(|| {
-            CursorError::new(
-                CursorErrorCode::Runner,
-                frontend_message_for(CursorErrorCode::Runner),
-            )
-        })?;
-        writeln!(stdin, "{line}").map_err(|_| {
-            CursorError::new(
-                CursorErrorCode::Runner,
-                frontend_message_for(CursorErrorCode::Runner),
-            )
-        })?;
-        stdin.flush().map_err(|_| {
-            CursorError::new(
-                CursorErrorCode::Runner,
-                frontend_message_for(CursorErrorCode::Runner),
-            )
-        })?;
-
-        let stdout = self.stdout.as_mut().ok_or_else(|| {
-            CursorError::new(
-                CursorErrorCode::Runner,
-                frontend_message_for(CursorErrorCode::Runner),
-            )
-        })?;
-        let mut response_line = String::new();
-        stdout.read_line(&mut response_line).map_err(|_| {
-            CursorError::new(
-                CursorErrorCode::Runner,
-                frontend_message_for(CursorErrorCode::Runner),
-            )
-        })?;
-        let trimmed = response_line.trim();
-        if trimmed.is_empty() {
-            return Err(CursorError::new(
-                CursorErrorCode::Runner,
-                frontend_message_for(CursorErrorCode::Runner),
-            ));
-        }
-        let v: Value = serde_json::from_str(trimmed).map_err(|_| {
-            CursorError::new(
-                CursorErrorCode::Runner,
-                frontend_message_for(CursorErrorCode::Runner),
-            )
-        })?;
-        let ok = v.get("ok").and_then(|x| x.as_bool()).unwrap_or(false);
-        if ok {
-            Ok(v.get("result").cloned().unwrap_or(json!({})))
-        } else {
-            let err_type = v
-                .pointer("/error/type")
-                .and_then(|x| x.as_str())
-                .unwrap_or("runner");
-            let detail = v
-                .pointer("/error/message")
-                .and_then(|x| x.as_str())
-                .unwrap_or("");
-            Err(map_runner_error(err_type, detail))
-        }
+        self.bridge.exchange_with_id(&id, method, params)
     }
 }
 
@@ -740,28 +900,28 @@ impl CursorRunnerClient for ProcessCursorRunnerClient {
     }
 
     fn close(&mut self) -> Result<(), CursorError> {
-        let _ = self.exchange("close", None)?;
+        let _ = self.exchange("close", None);
+        self.bridge.fail_all();
         if let Some(mut child) = self.child.take() {
             let _ = child.wait();
         }
-        self.stdin = None;
-        self.stdout = None;
         Ok(())
     }
 
     fn force_kill(&mut self) {
+        self.bridge.fail_all();
         (self.terminate_hook())();
         if let Some(mut child) = self.child.take() {
             let _ = child.kill();
             let _ = child.wait();
         }
-        self.stdin = None;
-        self.stdout = None;
     }
 
     fn terminate_hook(&self) -> Arc<dyn Fn() + Send + Sync> {
         let pid = self.pid.clone();
+        let bridge = self.bridge.clone();
         Arc::new(move || {
+            bridge.fail_all();
             if let Some(p) = *pid.lock().unwrap_or_else(|e| e.into_inner()) {
                 let _ = Command::new("kill").arg("-9").arg(p.to_string()).status();
                 *pid.lock().unwrap_or_else(|e| e.into_inner()) = None;
@@ -775,7 +935,11 @@ impl CursorRunnerClient for ProcessCursorRunnerClient {
         method: &str,
         params: Option<Value>,
     ) -> Result<Value, CursorError> {
-        self.exchange_with_id(request_id, method, params)
+        self.bridge.exchange_with_id(request_id, method, params)
+    }
+
+    fn concurrent_jsonl(&self) -> Option<Arc<dyn ConcurrentJsonl>> {
+        Some(self.bridge.clone() as Arc<dyn ConcurrentJsonl>)
     }
 }
 

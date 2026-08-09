@@ -109,6 +109,8 @@ impl ClientAccess {
 
     /// Submit JSONL request with caller-provided `request_id` (not generated here).
     /// Signature has no `session_id` — client must not serialize on session.
+    /// Prefer concurrent JSONL handle (pending-map demux) so the client mutex is
+    /// not held across the response wait.
     pub fn request(
         &self,
         request_id: &str,
@@ -118,10 +120,22 @@ impl ClientAccess {
         if self.current_gen.load(Ordering::SeqCst) != self.generation {
             return Err(RequestError::Stale);
         }
-        let mut guard = self
-            .client
-            .lock()
-            .unwrap_or_else(|e| e.into_inner());
+        let concurrent = {
+            let guard = self.client.lock().unwrap_or_else(|e| e.into_inner());
+            if self.current_gen.load(Ordering::SeqCst) != self.generation {
+                return Err(RequestError::Stale);
+            }
+            guard.concurrent_jsonl()
+        };
+        if let Some(handle) = concurrent {
+            if self.current_gen.load(Ordering::SeqCst) != self.generation {
+                return Err(RequestError::Stale);
+            }
+            return handle
+                .submit(request_id, method, params)
+                .map_err(RequestError::Runner);
+        }
+        let mut guard = self.client.lock().unwrap_or_else(|e| e.into_inner());
         if self.current_gen.load(Ordering::SeqCst) != self.generation {
             return Err(RequestError::Stale);
         }

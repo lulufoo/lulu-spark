@@ -375,13 +375,35 @@ export function agentCardinalityForTests(): number {
   return agent ? 1 : 0;
 }
 
+/** Serialize stdout writes while allowing overlapping handleLine (coalesce / demux). */
+let stdoutWriteChain: Promise<void> = Promise.resolve();
+
+function writeResponseLine(response: string): Promise<void> {
+  const run = stdoutWriteChain.then(() => {
+    process.stdout.write(`${response}\n`);
+  });
+  stdoutWriteChain = run.catch(() => {
+    // keep chain alive after write errors
+  });
+  return run;
+}
+
 async function main(): Promise<void> {
   const rl = createInterface({ input: process.stdin, crlfDelay: Infinity });
   for await (const line of rl) {
-    const response = await handleLine(line);
-    if (response) {
-      process.stdout.write(`${response}\n`);
-    }
+    // Do not await handleLine before reading the next stdin line — Host may
+    // concurrently submit JSONL (pending-map demux); create coalesce needs overlap.
+    void handleLine(line)
+      .then((response) => {
+        if (response) return writeResponseLine(response);
+      })
+      .catch((err) => {
+        const error = redactError({
+          type: "runner",
+          message: err instanceof Error ? err.message : "runner crashed",
+        });
+        return writeResponseLine(serializeErrorResponse("unknown", error));
+      });
   }
 }
 

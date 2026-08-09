@@ -2,6 +2,8 @@
 
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
+use std::thread;
+use std::time::{Duration, Instant};
 
 use crate::config::secrets::{self, KEY_LLM_API_KEY_CURSOR};
 use crate::config::settings::{self, AppSettings, LlmSettings};
@@ -145,6 +147,80 @@ fn t3_client_access_exposes_request_with_caller_request_id() {
         adapter.contains("fn request") && adapter.contains("request_id"),
         "ProcessCursorRunnerClient / CursorRunnerClient must accept caller request_id"
     );
+}
+
+#[test]
+fn t4_process_client_has_pending_map_demux_bridge() {
+    let adapter = include_str!("../../../services/agent/cursor_adapter.rs");
+    assert!(
+        adapter.contains("struct JsonlBridge")
+            && adapter.contains("pending")
+            && adapter.contains("concurrent_jsonl"),
+        "ProcessCursorRunnerClient must demux via JsonlBridge pending map"
+    );
+    let pm = include_str!("../../../services/agent/process_manager.rs");
+    assert!(
+        pm.contains("concurrent_jsonl") && pm.contains("submit"),
+        "ClientAccess must submit via concurrent JSONL handle without holding wait lock"
+    );
+}
+
+#[test]
+fn t4_client_access_allows_overlapping_requests_via_concurrent_jsonl() {
+    with_sandbox(|| {
+        secrets::set_secret(KEY_LLM_API_KEY_CURSOR, "sk-engine-test").expect("key");
+        let fake = FakeCursorRunnerClient::new();
+        fake.set_turn_block(Duration::from_millis(200));
+        let log = fake.log.clone();
+        let mgr = manager_with_factory(
+            settings_cursor(),
+            counting_factory(Arc::new(AtomicUsize::new(0)), log.clone()),
+        );
+        mgr.warm().expect("warm");
+        let access = mgr.ensure_client().expect("ensure");
+
+        let access_a = access;
+        // Re-ensure same generation for second handle (same Ready entry).
+        let access_b = mgr.ensure_client().expect("ensure b");
+
+        let start = Instant::now();
+        let t1 = thread::spawn(move || {
+            access_a
+                .request("rid-slow", "turn", Some(serde_json::json!({ "prompt": "slow" })))
+                .expect("slow turn")
+        });
+        thread::sleep(Duration::from_millis(20));
+        let t2 = thread::spawn(move || {
+            access_b
+                .request(
+                    "rid-fast",
+                    "create",
+                    Some(serde_json::json!({
+                        "session_id": "s",
+                        "model": "m",
+                        "cwd": "/tmp",
+                    })),
+                )
+                .expect("overlapping create")
+        });
+        let _ = t2.join().expect("create thread");
+        let _ = t1.join().expect("turn thread");
+        let elapsed = start.elapsed();
+        assert!(
+            elapsed < Duration::from_millis(500),
+            "overlapping requests must not fully serialize on client mutex; took {elapsed:?}"
+        );
+        let methods: Vec<_> = log
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .iter()
+            .map(|e| e.method.clone())
+            .collect();
+        assert!(
+            methods.iter().any(|m| m == "turn") && methods.iter().any(|m| m == "create"),
+            "both methods recorded: {methods:?}"
+        );
+    });
 }
 
 #[test]
