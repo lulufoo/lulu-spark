@@ -12,9 +12,11 @@ use serde_json::{json, Value};
 
 use crate::config::settings;
 use crate::services::agent::cursor_adapter::{
-    self, CursorError, CursorErrorCode, CursorLlmEngine, CursorSessionRuntime,
-    TurnOutcome as CursorTurnOutcome, TurnRequest,
+    self, CursorError, CursorErrorCode, CursorLlmEngine, TurnOutcome as CursorTurnOutcome,
+    TurnRequest,
 };
+#[cfg(test)]
+use crate::services::agent::cursor_adapter::CursorSessionRuntime;
 use crate::services::agent::engine_router::{self, AdapterKind, EngineRouteError, TurnInput};
 use crate::services::agent::llm;
 use crate::services::agent::r#loop::{self, ChatTurnResult, Terminal, TurnOutcome};
@@ -62,10 +64,13 @@ fn cursor_err_routed(err: CursorError) -> RoutedTurn {
     }
 }
 
+#[cfg(test)]
 static TEST_CURSOR_RT: OnceLock<Mutex<Option<Arc<CursorSessionRuntime>>>> = OnceLock::new();
 static TEST_READY_MCP: OnceLock<Mutex<Option<ReadyMcpTransports>>> = OnceLock::new();
+#[cfg(test)]
 static TEST_CURSOR_INSTALLED: AtomicBool = AtomicBool::new(false);
 
+#[cfg(test)]
 fn test_cursor_slot() -> &'static Mutex<Option<Arc<CursorSessionRuntime>>> {
     TEST_CURSOR_RT.get_or_init(|| Mutex::new(None))
 }
@@ -75,11 +80,15 @@ fn test_ready_slot() -> &'static Mutex<Option<ReadyMcpTransports>> {
 }
 
 pub fn reset_for_tests() {
-    *test_cursor_slot().lock().unwrap_or_else(|e| e.into_inner()) = None;
+    #[cfg(test)]
+    {
+        *test_cursor_slot().lock().unwrap_or_else(|e| e.into_inner()) = None;
+        TEST_CURSOR_INSTALLED.store(false, Ordering::SeqCst);
+    }
     *test_ready_slot().lock().unwrap_or_else(|e| e.into_inner()) = None;
-    TEST_CURSOR_INSTALLED.store(false, Ordering::SeqCst);
 }
 
+#[cfg(test)]
 pub fn set_cursor_runtime_for_tests(rt: Option<Arc<CursorSessionRuntime>>) {
     TEST_CURSOR_INSTALLED.store(rt.is_some(), Ordering::SeqCst);
     *test_cursor_slot().lock().unwrap_or_else(|e| e.into_inner()) = rt;
@@ -89,13 +98,14 @@ pub fn set_ready_mcp_for_tests(ready: Option<ReadyMcpTransports>) {
     *test_ready_slot().lock().unwrap_or_else(|e| e.into_inner()) = ready;
 }
 
+#[cfg(test)]
 pub fn cursor_runtime_installed_for_tests() -> bool {
     TEST_CURSOR_INSTALLED.load(Ordering::SeqCst)
 }
 
-/// Production Cursor path: CursorLlmEngine (ensure_client → request). Test doubles
-/// may still inject [`CursorSessionRuntime`] via `set_cursor_runtime_for_tests`.
+/// Production Cursor path: CursorLlmEngine (ensure_client → request).
 fn cursor_run_turn(req: &TurnRequest) -> Result<CursorTurnOutcome, CursorError> {
+    #[cfg(test)]
     if let Some(rt) = test_cursor_slot()
         .lock()
         .unwrap_or_else(|e| e.into_inner())

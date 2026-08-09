@@ -17,8 +17,8 @@
 //!
 //! ## Tests
 //!
-//! Inject [`FakeCursorRunnerClient`] via manager factory / [`CursorSessionRuntime::with_client_factory`].
-//! Legacy [`CursorAgentSdk`] capturing doubles remain for older shape tests.
+//! Inject [`FakeCursorRunnerClient`] via manager factory. Legacy
+//! [`CursorSessionRuntime`] remains `cfg(test)`-only for older adapter/e2e doubles.
 
 use std::collections::{BTreeMap, HashMap};
 use std::io::{BufRead, BufReader, Write};
@@ -54,8 +54,6 @@ pub const HOST_GENERIC_UPSTREAM_UNAVAILABLE: &str = "上游服务暂时不可用
 
 /// Default inline mcpServers entry name for the session capability config.
 pub const DEFAULT_MCP_SERVER_NAME: &str = "workbench";
-
-const DEFAULT_CANCEL_TIMEOUT: Duration = Duration::from_secs(5);
 
 // ── Legacy shape (t4/t5 capturing doubles) ───────────────────────────────────
 
@@ -315,9 +313,6 @@ pub trait CursorRunnerClient: Send {
     }
     fn on_spawned_with_api_key(&mut self, _api_key: &str) {}
 }
-
-type ClientFactory =
-    Box<dyn FnMut(&str) -> Result<Box<dyn CursorRunnerClient>, CursorError> + Send>;
 
 // ── Fake client (unit tests) ─────────────────────────────────────────────────
 
@@ -1165,8 +1160,16 @@ fn map_request_error(err: RequestError) -> CursorError {
     }
 }
 
-// ── Session runtime ──────────────────────────────────────────────────────────
+// ── Session runtime (test doubles only; production uses CursorLlmEngine) ─────
 
+#[cfg(test)]
+const DEFAULT_CANCEL_TIMEOUT: Duration = Duration::from_secs(5);
+
+#[cfg(test)]
+type ClientFactory =
+    Box<dyn FnMut(&str) -> Result<Box<dyn CursorRunnerClient>, CursorError> + Send>;
+
+#[cfg(test)]
 struct SessionState {
     client: Arc<Mutex<Box<dyn CursorRunnerClient>>>,
     terminate: Arc<dyn Fn() + Send + Sync>,
@@ -1174,6 +1177,9 @@ struct SessionState {
     in_flight: bool,
 }
 
+/// Legacy per-session runtime — compiled only for tests. Production path is
+/// [`CursorLlmEngine`] + [`CursorAgentProcessManager`].
+#[cfg(test)]
 pub struct CursorSessionRuntime {
     sessions: Mutex<HashMap<String, SessionState>>,
     factory: Mutex<ClientFactory>,
@@ -1181,6 +1187,7 @@ pub struct CursorSessionRuntime {
     cancel_gen: AtomicU64,
 }
 
+#[cfg(test)]
 impl CursorSessionRuntime {
     pub fn with_client_factory<F>(factory: F) -> Self
     where
@@ -1276,7 +1283,17 @@ impl CursorSessionRuntime {
             {
                 let mut guard = client.lock().unwrap_or_else(|e| e.into_inner());
                 if need_create {
-                    guard.create(&req.model, &cwd, &mcp_servers)?;
+                    // Carry opaque session_id (replace-create / cwd cleanup contract).
+                    guard.request(
+                        "sess-create",
+                        "create",
+                        Some(json!({
+                            "session_id": req.session_id,
+                            "model": req.model,
+                            "cwd": cwd.to_string_lossy(),
+                            "mcpServers": mcp_servers,
+                        })),
+                    )?;
                 }
             }
             if need_create {

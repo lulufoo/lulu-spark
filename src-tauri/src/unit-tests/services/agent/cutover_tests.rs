@@ -137,6 +137,16 @@ fn t7_runtime_drops_prod_per_session_cursor_session_runtime_owner_path() {
         !runtime.contains("CursorSessionRuntime::production"),
         "runtime must not construct CursorSessionRuntime::production (per-session owner path)"
     );
+    let adapter = include_str!("../../../services/agent/cursor_adapter.rs");
+    assert!(
+        adapter.contains("#[cfg(test)]\npub struct CursorSessionRuntime")
+            || adapter
+                .lines()
+                .collect::<Vec<_>>()
+                .windows(2)
+                .any(|w| w[0].contains("#[cfg(test)]") && w[1].contains("pub struct CursorSessionRuntime")),
+        "CursorSessionRuntime must be cfg(test)-only after isolation"
+    );
     assert!(
         !runtime.contains("PROD_CURSOR_RT") && !runtime.contains("fn cursor_runtime("),
         "runtime must drop dead prod CursorSessionRuntime slot / cursor_runtime() factory (t7 cutover)"
