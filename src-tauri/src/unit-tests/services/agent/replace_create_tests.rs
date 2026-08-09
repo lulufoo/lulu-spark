@@ -369,6 +369,49 @@ fn t5_cwd_cleanup_failure_retains_dir_as_recoverable_error() {
 }
 
 #[test]
+fn t7_host_cwd_cleanup_failure_is_recoverable_not_persisted() {
+    with_sandbox(|| {
+        secrets::set_secret(KEY_LLM_API_KEY_CURSOR, "sk-engine-test").expect("key");
+        let _old = session_cwd::create_session_cwd("sess_old_clean").expect("old cwd");
+        session_cwd::force_cleanup_fail_for_tests(true);
+
+        let fake = ReplaceCreateFake::new();
+        *fake
+            .next_create_ok
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()) = Some(json!({
+            "agentId": "a",
+            "replaced_session_id": "sess_old_clean",
+        }));
+        let mgr = CursorAgentProcessManager::with_deps_for_tests(
+            {
+                let s = settings_cursor();
+                move || Ok(cfg_from(&s))
+            },
+            fake.clone_factory(),
+        );
+        let engine = CursorLlmEngine::with_manager(mgr);
+
+        let err = engine
+            .run_turn(&turn_req("sess_new_clean", "hi"))
+            .expect_err("cleanup failure must surface");
+        assert_eq!(err.code, CursorErrorCode::RecoverableFailure);
+        assert_eq!(
+            cursor_adapter::error_track(&err),
+            ErrorTrack::RecoverableFailure
+        );
+        assert!(!cursor_adapter::should_persist_cursor_result(&Err(err)));
+
+        let log = fake.log.lock().unwrap_or_else(|e| e.into_inner());
+        assert!(
+            !log.iter().any(|e| e.method == "turn"),
+            "must not turn after cwd cleanup recoverable failure"
+        );
+        session_cwd::force_cleanup_fail_for_tests(false);
+    });
+}
+
+#[test]
 fn t5_shell_close_without_binding_replace_is_noop_for_agent() {
     let adapter = include_str!("../../../services/agent/cursor_adapter.rs");
     assert!(

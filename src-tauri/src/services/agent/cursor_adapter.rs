@@ -1094,9 +1094,11 @@ impl CursorLlmEngine {
                 .and_then(|x| x.as_str())
             {
                 if let Err(e) = session_cwd::cleanup_session_cwd(replaced) {
+                    // Cleanup after successful replace is recoverable — never Session-turn persist.
+                    let _ = e;
                     return Err(CursorError::new(
-                        CursorErrorCode::Cwd,
-                        format!("session cwd cleanup recoverable failure: {e}"),
+                        CursorErrorCode::RecoverableFailure,
+                        frontend_message_for(CursorErrorCode::RecoverableFailure),
                     ));
                 }
             }
