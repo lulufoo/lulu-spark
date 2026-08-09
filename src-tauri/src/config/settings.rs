@@ -4,6 +4,13 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
+#[cfg(test)]
+use std::ffi::OsString;
+#[cfg(test)]
+use std::io::Write;
+#[cfg(test)]
+use std::sync::OnceLock;
+
 use serde::{Deserialize, Serialize};
 
 pub const PROD_CONFIG_FILE_NAME: &str = "config.toml";
@@ -17,6 +24,27 @@ pub const DEFAULT_SANDBOX_MCP_PORT: u16 = 19876;
 
 const ENV_TEST_SANDBOX: &str = "TestSandbox";
 const ENV_TEST_SANDBOX_ID: &str = "TestSandboxId";
+
+#[cfg(test)]
+static TEST_MACHINE_CONFIG_PATH: OnceLock<PathBuf> = OnceLock::new();
+
+/// Record the machine config path before a test fixture changes `HOME`.
+#[cfg(test)]
+pub(crate) fn register_test_machine_config_path(path: PathBuf) {
+    if let Some(registered) = TEST_MACHINE_CONFIG_PATH.get() {
+        assert_eq!(
+            registered, &path,
+            "test machine config path changed during one test process"
+        );
+        return;
+    }
+    if let Err(registered) = TEST_MACHINE_CONFIG_PATH.set(path.clone()) {
+        assert_eq!(
+            registered, path,
+            "test machine config path changed during one test process"
+        );
+    }
+}
 
 /// True when env `TestSandbox` is `true` or `1`.
 pub fn is_test_sandbox() -> bool {
@@ -587,43 +615,162 @@ pub(crate) fn normalize_cache_dir(settings: &mut AppSettings) {
 }
 
 #[cfg(test)]
+enum GuardPathComponent {
+    Normal(OsString),
+    Parent,
+}
+
+#[cfg(test)]
+fn canonical_path_or_existing_parent(path: &Path) -> Result<PathBuf, SettingsError> {
+    match fs::canonicalize(path) {
+        Ok(resolved) => return Ok(resolved),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+        Err(error) => {
+            return Err(SettingsError::ConfigGuard(format!(
+                "cannot resolve config path {}: {error}",
+                path.display()
+            )));
+        }
+    }
+
+    let absolute = if path.is_absolute() {
+        path.to_path_buf()
+    } else {
+        std::env::current_dir()
+            .map_err(SettingsError::Io)?
+            .join(path)
+    };
+    let mut probe = absolute.as_path();
+    let mut suffix = Vec::new();
+    loop {
+        match fs::canonicalize(probe) {
+            Ok(mut resolved) => {
+                for component in suffix.iter().rev() {
+                    match component {
+                        GuardPathComponent::Normal(name) => resolved.push(name),
+                        GuardPathComponent::Parent => {
+                            if !resolved.pop() {
+                                return Err(SettingsError::ConfigGuard(format!(
+                                    "config path escapes filesystem root: {}",
+                                    path.display()
+                                )));
+                            }
+                        }
+                    }
+                }
+                return Ok(resolved);
+            }
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+            Err(error) => {
+                return Err(SettingsError::ConfigGuard(format!(
+                    "cannot resolve config path {}: {error}",
+                    path.display()
+                )));
+            }
+        }
+        let component = probe.components().next_back().ok_or_else(|| {
+            SettingsError::ConfigGuard(format!("cannot resolve config path {}", path.display()))
+        })?;
+        match component {
+            std::path::Component::Normal(name) => {
+                suffix.push(GuardPathComponent::Normal(name.to_os_string()));
+            }
+            std::path::Component::ParentDir => suffix.push(GuardPathComponent::Parent),
+            std::path::Component::CurDir => {}
+            std::path::Component::RootDir | std::path::Component::Prefix(_) => {
+                return Err(SettingsError::ConfigGuard(format!(
+                    "cannot resolve config path {}",
+                    path.display()
+                )));
+            }
+        }
+        probe = probe.parent().ok_or_else(|| {
+            SettingsError::ConfigGuard(format!("cannot resolve config path {}", path.display()))
+        })?;
+    }
+}
+
+/// Reject an alias that resolves to a protected formal config path.
+#[cfg(test)]
+pub(crate) fn reject_write_to_protected_config(
+    path: &Path,
+    protected_config_path: &Path,
+) -> Result<(), SettingsError> {
+    let resolved_path = canonical_path_or_existing_parent(path)?;
+    let resolved_protected = canonical_path_or_existing_parent(protected_config_path)?;
+    if resolved_path == resolved_protected {
+        return Err(SettingsError::ConfigGuard(format!(
+            "test config write targets protected machine config: {}",
+            path.display()
+        )));
+    }
+    Ok(())
+}
+
+/// Reject test writes until the machine formal config path is registered.
+#[cfg(test)]
+pub(crate) fn reject_test_write_to_machine_config(path: &Path) -> Result<(), SettingsError> {
+    let protected = TEST_MACHINE_CONFIG_PATH.get().ok_or_else(|| {
+        SettingsError::ConfigGuard(
+            "machine formal config path was not registered before test write".into(),
+        )
+    })?;
+    reject_write_to_protected_config(path, protected)
+}
+
+/// Atomically replace an already-verified test config target.
+#[cfg(test)]
+pub(crate) fn atomic_write_test_config(
+    verified_target_path: &Path,
+    content: &str,
+) -> Result<(), SettingsError> {
+    let parent = verified_target_path.parent().ok_or_else(|| {
+        SettingsError::ConfigGuard(format!(
+            "test config path has no parent: {}",
+            verified_target_path.display()
+        ))
+    })?;
+    fs::create_dir_all(parent)?;
+    let mut temporary = tempfile::NamedTempFile::new_in(parent)?;
+    temporary.write_all(content.as_bytes())?;
+    temporary.flush()?;
+    temporary
+        .persist(verified_target_path)
+        .map_err(|error| SettingsError::Io(error.error))?;
+    Ok(())
+}
+
+#[cfg(test)]
 pub fn write_test_config_with_cache(
-    _dir: &Path,
+    config_path: &Path,
     workbench_knowledge_root: &Path,
     knowledge_corpus_root: Option<&Path>,
     cache_dir: Option<&Path>,
-) {
+    meili_url: &str,
+    http_port: u16,
+    mcp_port: u16,
+) -> Result<(), SettingsError> {
     let corpus = knowledge_corpus_root
         .map(|p| p.display().to_string())
-        .unwrap_or_else(|| home_dir().join("Code").display().to_string());
+        .unwrap_or_else(|| workbench_knowledge_root.display().to_string());
     let cache = cache_dir
         .map(|p| p.to_path_buf())
-        .unwrap_or_else(|| _dir.join("cache"));
-    fs::create_dir_all(&cache).expect("mkdir cache");
-    let path = config_file_path().expect("sandbox config path");
-    if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent).expect("mkdir config dir");
-    }
-    let http = if is_test_sandbox() {
-        DEFAULT_SANDBOX_HTTP_PORT
-    } else {
-        DEFAULT_PROD_HTTP_PORT
-    };
-    let mcp = if is_test_sandbox() {
-        DEFAULT_SANDBOX_MCP_PORT
-    } else {
-        DEFAULT_PROD_MCP_PORT
-    };
-    fs::write(
-        &path,
-        format!(
-            "workbench_knowledge_root = \"{}\"\nknowledge_corpus_root = \"{}\"\ncache_dir = \"{}\"\nmeili_url = \"http://127.0.0.1:17700\"\nhttp_port = {http}\nmcp_port = {mcp}\n",
-            workbench_knowledge_root.display(),
-            corpus,
-            cache.display()
-        ),
-    )
-    .expect("write test config");
+        .or_else(|| config_path.parent().map(|parent| parent.join("cache")))
+        .ok_or_else(|| {
+            SettingsError::ConfigGuard(format!(
+                "test config path has no parent: {}",
+                config_path.display()
+            ))
+        })?;
+    reject_test_write_to_machine_config(config_path)?;
+    fs::create_dir_all(&cache)?;
+    let text = format!(
+        "workbench_knowledge_root = \"{}\"\nknowledge_corpus_root = \"{}\"\ncache_dir = \"{}\"\nmeili_url = \"{meili_url}\"\nhttp_port = {http_port}\nmcp_port = {mcp_port}\n",
+        workbench_knowledge_root.display(),
+        corpus,
+        cache.display()
+    );
+    atomic_write_test_config(config_path, &text)
 }
 
 pub fn load() -> Result<AppSettings, SettingsError> {
@@ -658,11 +805,21 @@ pub fn save(settings: &AppSettings) -> Result<(), SettingsError> {
     if is_test_sandbox() {
         validate_sandbox_against_prod(&to_save, &load_prod_settings())?;
     }
-    let dir = settings_config_dir()?;
-    fs::create_dir_all(&dir)?;
     let text = toml::to_string_pretty(&to_save)?;
-    fs::write(path, text)?;
-    Ok(())
+
+    #[cfg(test)]
+    {
+        reject_test_write_to_machine_config(&path)?;
+        atomic_write_test_config(&path, &text)
+    }
+
+    #[cfg(not(test))]
+    {
+        let dir = settings_config_dir()?;
+        fs::create_dir_all(&dir)?;
+        fs::write(path, text)?;
+        Ok(())
+    }
 }
 
 /// JSON shape for `get_config` / `set_config` (frontend field names).

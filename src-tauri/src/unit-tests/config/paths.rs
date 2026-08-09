@@ -1,6 +1,6 @@
 use super::*;
 use crate::config::settings;
-use crate::test_support::TestSandbox;
+use crate::test_support::{TestConfigEnv, TestSandbox};
 
 #[test]
 fn cache_dir_uses_settings_not_repo_dot_cache() {
@@ -142,56 +142,26 @@ fn plan_tasks_v2_task_path_helpers_reject_empty_master_task_id() {
 
 #[test]
 fn plan_tasks_v2_path_helpers_err_when_settings_unavailable() {
-    crate::test_support::with_config_test_serial(|| {
-        let dir = tempfile::tempdir().expect("tmp");
-        let prev_home = std::env::var("HOME").ok();
-        let prev_sb = std::env::var("TestSandbox").ok();
-        let prev_id = std::env::var("TestSandboxId").ok();
-        unsafe {
-            std::env::set_var("HOME", dir.path());
-            std::env::set_var("TestSandbox", "true");
-            std::env::set_var("TestSandboxId", "badcfg");
-        }
-        let cfg_dir = dir
-            .path()
-            .join(".config")
-            .join("lulu-workbench-sandbox-badcfg");
-        std::fs::create_dir_all(&cfg_dir).expect("mkdir");
-        std::fs::write(
-            cfg_dir.join(settings::PROD_CONFIG_FILE_NAME),
-            "not valid toml {{{",
-        )
-        .expect("write corrupt config");
+    let dir = tempfile::tempdir().expect("tmp");
+    let env = TestConfigEnv::sandbox(dir.path(), "badcfg");
+    let config_path = env.config_file_path();
+    let cfg_dir = config_path.parent().expect("config parent").to_path_buf();
+    std::fs::create_dir_all(&cfg_dir).expect("mkdir");
+    std::fs::write(config_path, "not valid toml {{{").expect("write corrupt config");
 
-        assert!(matches!(plan_tasks_dir(), Err(PathsError::Settings(_))));
-        assert!(matches!(
-            plan_tasks_index_path(),
-            Err(PathsError::Settings(_))
-        ));
-        assert!(matches!(
-            cache_plan_tasks_v1_path(),
-            Err(PathsError::Settings(_))
-        ));
-        assert!(matches!(
-            plan_tasks_task_dir("task_abc"),
-            Err(PathsError::Settings(_))
-        ));
-
-        unsafe {
-            match prev_home {
-                Some(v) => std::env::set_var("HOME", v),
-                None => std::env::remove_var("HOME"),
-            }
-            match prev_sb {
-                Some(v) => std::env::set_var("TestSandbox", v),
-                None => std::env::remove_var("TestSandbox"),
-            }
-            match prev_id {
-                Some(v) => std::env::set_var("TestSandboxId", v),
-                None => std::env::remove_var("TestSandboxId"),
-            }
-        }
-    });
+    assert!(matches!(plan_tasks_dir(), Err(PathsError::Settings(_))));
+    assert!(matches!(
+        plan_tasks_index_path(),
+        Err(PathsError::Settings(_))
+    ));
+    assert!(matches!(
+        cache_plan_tasks_v1_path(),
+        Err(PathsError::Settings(_))
+    ));
+    assert!(matches!(
+        plan_tasks_task_dir("task_abc"),
+        Err(PathsError::Settings(_))
+    ));
 }
 
 #[test]

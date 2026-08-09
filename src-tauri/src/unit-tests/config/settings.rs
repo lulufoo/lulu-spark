@@ -1,66 +1,23 @@
 use super::*;
+use crate::test_support::TestConfigEnv;
 use std::fs;
 use std::path::Path;
 
-struct IsolatedConfigGuard {
-    home: Option<String>,
-    test_sandbox: Option<String>,
-    test_sandbox_id: Option<String>,
-}
-
-impl IsolatedConfigGuard {
-    /// Fake `HOME` + prod plane (no TestSandbox) so config is `$HOME/.config/lulu-workbench/config.toml`.
-    fn set(dir: &Path) -> Self {
-        let prev = Self {
-            home: std::env::var("HOME").ok(),
-            test_sandbox: std::env::var("TestSandbox").ok(),
-            test_sandbox_id: std::env::var("TestSandboxId").ok(),
-        };
-        unsafe {
-            std::env::set_var("HOME", dir);
-            std::env::remove_var("TestSandbox");
-            std::env::remove_var("TestSandboxId");
-        }
-        let cfg_dir = dir.join(".config").join("lulu-workbench");
-        fs::create_dir_all(&cfg_dir).expect("mkdir config");
-        crate::config::secrets::test_secrets_clear();
-        prev
-    }
-}
-
-impl Drop for IsolatedConfigGuard {
-    fn drop(&mut self) {
-        unsafe {
-            match self.home.take() {
-                Some(v) => std::env::set_var("HOME", v),
-                None => std::env::remove_var("HOME"),
-            }
-            match self.test_sandbox.take() {
-                Some(v) => std::env::set_var("TestSandbox", v),
-                None => std::env::remove_var("TestSandbox"),
-            }
-            match self.test_sandbox_id.take() {
-                Some(v) => std::env::set_var("TestSandboxId", v),
-                None => std::env::remove_var("TestSandboxId"),
-            }
-        }
-        crate::config::secrets::test_secrets_clear();
-    }
-}
-
-fn isolated_config_toml(dir: &Path) -> std::path::PathBuf {
-    dir.join(".config").join("lulu-workbench").join(PROD_CONFIG_FILE_NAME)
+fn prepare_isolated_config_toml(env: &TestConfigEnv) -> std::path::PathBuf {
+    let config_path = env.config_file_path();
+    fs::create_dir_all(config_path.parent().expect("config parent")).expect("mkdir config");
+    config_path
 }
 
 #[test]
 fn load_reads_config_toml_fields() {
     let dir = tempfile::tempdir().expect("tmp");
-    let _guard = IsolatedConfigGuard::set(dir.path());
+    let env = TestConfigEnv::prod(dir.path());
     let wb = dir.path().join("my-workbench-knowledge");
     let kc = dir.path().join("my-knowledge-corpus");
     let cache = dir.path().join("my-cache");
     fs::write(
-        isolated_config_toml(dir.path()),
+        prepare_isolated_config_toml(&env),
         format!(
             r#"
 workbench_knowledge_root = "{}"
@@ -114,7 +71,7 @@ fn workbench_github_blob_base_from_user_url_and_root() {
 #[test]
 fn load_defaults_when_no_config_file() {
     let dir = tempfile::tempdir().expect("tmp");
-    let _guard = IsolatedConfigGuard::set(dir.path());
+    let _env = TestConfigEnv::prod(dir.path());
     let s = load().expect("load");
     assert_eq!(s.cache_dir, default_cache_dir());
     assert_eq!(s.meili_url, "http://localhost:7700");
@@ -123,7 +80,7 @@ fn load_defaults_when_no_config_file() {
 #[test]
 fn save_roundtrip_updates_file() {
     let dir = tempfile::tempdir().expect("tmp");
-    let _guard = IsolatedConfigGuard::set(dir.path());
+    let _env = TestConfigEnv::prod(dir.path());
     let mut s = AppSettings::default();
     s.workbench_knowledge_root = dir.path().join("workbench-x");
     save(&s).expect("save");
@@ -234,7 +191,7 @@ fn apply_config_payload_ignores_illegal_llm_types_without_clobber() {
 #[test]
 fn llm_fields_roundtrip_in_config_toml_without_api_key() {
     let dir = tempfile::tempdir().expect("tmp");
-    let _guard = IsolatedConfigGuard::set(dir.path());
+    let _env = TestConfigEnv::prod(dir.path());
     let mut s = AppSettings::default();
     upsert_llm_entry(
         &mut s.llm,
@@ -364,9 +321,9 @@ fn apply_config_payload_accepts_host_and_cursor_engines() {
 #[test]
 fn load_stamps_builtin_preset_when_entry_platform_base_url_blank() {
     let dir = tempfile::tempdir().expect("tmp");
-    let _guard = IsolatedConfigGuard::set(dir.path());
+    let env = TestConfigEnv::prod(dir.path());
     fs::write(
-        isolated_config_toml(dir.path()),
+        prepare_isolated_config_toml(&env),
         r#"
 assistant_engine = "host"
 
@@ -387,9 +344,9 @@ model = "glm-4"
 #[test]
 fn load_typed_llm_list_host_entry_without_requiring_cursor() {
     let dir = tempfile::tempdir().expect("tmp");
-    let _guard = IsolatedConfigGuard::set(dir.path());
+    let env = TestConfigEnv::prod(dir.path());
     fs::write(
-        isolated_config_toml(dir.path()),
+        prepare_isolated_config_toml(&env),
         r#"
 assistant_engine = "host"
 
@@ -413,9 +370,9 @@ model = "moonshot-v1-8k"
 #[test]
 fn load_respects_existing_cursor_assistant_engine_while_keeping_llm_model() {
     let dir = tempfile::tempdir().expect("tmp");
-    let _guard = IsolatedConfigGuard::set(dir.path());
+    let env = TestConfigEnv::prod(dir.path());
     fs::write(
-        isolated_config_toml(dir.path()),
+        prepare_isolated_config_toml(&env),
         r#"
 assistant_engine = "cursor"
 
@@ -433,70 +390,17 @@ model = "composer-1"
     assert_eq!(cursor.model, "composer-1");
 }
 
-struct TestSandboxEnvGuard {
-    home: Option<String>,
-    test_sandbox: Option<String>,
-    test_sandbox_id: Option<String>,
-}
-
-impl TestSandboxEnvGuard {
-    fn set_sandbox(home: &Path, id: &str) -> Self {
-        let prev = Self {
-            home: std::env::var("HOME").ok(),
-            test_sandbox: std::env::var("TestSandbox").ok(),
-            test_sandbox_id: std::env::var("TestSandboxId").ok(),
-        };
-        unsafe {
-            std::env::set_var("HOME", home);
-            std::env::set_var("TestSandbox", "true");
-            std::env::set_var("TestSandboxId", id);
-        }
-        prev
-    }
-
-    fn clear_sandbox() -> Self {
-        let prev = Self {
-            home: std::env::var("HOME").ok(),
-            test_sandbox: std::env::var("TestSandbox").ok(),
-            test_sandbox_id: std::env::var("TestSandboxId").ok(),
-        };
-        unsafe {
-            std::env::remove_var("TestSandbox");
-            std::env::remove_var("TestSandboxId");
-        }
-        prev
-    }
-}
-
-impl Drop for TestSandboxEnvGuard {
-    fn drop(&mut self) {
-        unsafe {
-            match self.home.take() {
-                Some(v) => std::env::set_var("HOME", v),
-                None => {}
-            }
-            match self.test_sandbox.take() {
-                Some(v) => std::env::set_var("TestSandbox", v),
-                None => std::env::remove_var("TestSandbox"),
-            }
-            match self.test_sandbox_id.take() {
-                Some(v) => std::env::set_var("TestSandboxId", v),
-                None => std::env::remove_var("TestSandboxId"),
-            }
-        }
-    }
-}
-
 #[test]
 fn is_test_sandbox_false_when_unset() {
-    let _g = TestSandboxEnvGuard::clear_sandbox();
+    let dir = tempfile::tempdir().expect("tmp");
+    let _env = TestConfigEnv::prod(dir.path());
     assert!(!is_test_sandbox());
 }
 
 #[test]
 fn is_test_sandbox_true_when_true_or_one() {
     let dir = tempfile::tempdir().expect("tmp");
-    let _g = TestSandboxEnvGuard::set_sandbox(dir.path(), "id1");
+    let _env = TestConfigEnv::sandbox(dir.path(), "id1");
     assert!(is_test_sandbox());
 }
 
@@ -795,9 +699,9 @@ fn apply_config_payload_save_current_type_preserves_other_type() {
 #[test]
 fn load_apply_to_json_roundtrip_does_not_erase_inactive_type() {
     let dir = tempfile::tempdir().expect("tmp");
-    let _guard = IsolatedConfigGuard::set(dir.path());
+    let env = TestConfigEnv::prod(dir.path());
     fs::write(
-        isolated_config_toml(dir.path()),
+        prepare_isolated_config_toml(&env),
         r#"
 assistant_engine = "host"
 
@@ -1006,9 +910,9 @@ fn t5_missing_active_entry_facade_is_empty_not_other_type() {
 #[test]
 fn t5_legacy_single_slot_llm_table_fails_closed_without_dual_read() {
     let dir = tempfile::tempdir().expect("tmp");
-    let _guard = IsolatedConfigGuard::set(dir.path());
+    let env = TestConfigEnv::prod(dir.path());
     fs::write(
-        isolated_config_toml(dir.path()),
+        prepare_isolated_config_toml(&env),
         r#"
 assistant_engine = "host"
 

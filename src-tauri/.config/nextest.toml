@@ -1,2 +1,9 @@
 [profile.default]
 fail-fast = false
+
+[test-groups]
+mcp-formal-ports = { max-threads = 1 }
+
+[[profile.default.overrides]]
+filter = 'test(close_gate_smoke_) | test(health_success_is_not_session_level_close_gate_proof) | test(p3_t10_host_dual_slot_list_call_and_unknown_hard_fail_smoke)'
+test-group = "mcp-formal-ports"
