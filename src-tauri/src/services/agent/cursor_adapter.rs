@@ -406,6 +406,13 @@ impl FakeCursorRunnerClient {
             .unwrap_or_else(|e| e.into_inner()) = Some(api_key.to_string());
     }
 
+    /// After manager reclaim/`force_kill`, shared cancel flags stick; clear on respawn.
+    pub fn reset_lifecycle_flags_for_tests(&self) {
+        self.shared.force_killed.store(false, Ordering::SeqCst);
+        self.shared.cancel_requested.store(false, Ordering::SeqCst);
+        self.shared.in_flight.store(false, Ordering::SeqCst);
+    }
+
     fn push_log(&self, method: &str, params: Option<Value>) {
         self.push_log_with_id(None, method, params);
     }
@@ -777,12 +784,19 @@ impl Drop for ProcessCursorRunnerClient {
 
 // ── CursorLlmEngine (Phase-Ensure) ───────────────────────────────────────────
 
+/// Foreground SDK Agent binding: session id + process generation that created it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct ForegroundBind {
+    session_id: String,
+    generation: u64,
+}
+
 /// Cursor engine communication path: `ensure_client` → `request(request_id, …)`.
 /// Does not own/spawn `ProcessCursorRunnerClient` (manager does).
 pub struct CursorLlmEngine {
-    manager: Option<CursorAgentProcessManager>,
+    manager: Option<Arc<CursorAgentProcessManager>>,
     next_request_id: AtomicU64,
-    foreground_session: Mutex<Option<String>>,
+    foreground: Mutex<Option<ForegroundBind>>,
 }
 
 impl CursorLlmEngine {
@@ -790,15 +804,19 @@ impl CursorLlmEngine {
         Self {
             manager: None,
             next_request_id: AtomicU64::new(1),
-            foreground_session: Mutex::new(None),
+            foreground: Mutex::new(None),
         }
     }
 
     pub fn with_manager(manager: CursorAgentProcessManager) -> Self {
+        Self::with_shared_manager(Arc::new(manager))
+    }
+
+    pub fn with_shared_manager(manager: Arc<CursorAgentProcessManager>) -> Self {
         Self {
             manager: Some(manager),
             next_request_id: AtomicU64::new(1),
-            foreground_session: Mutex::new(None),
+            foreground: Mutex::new(None),
         }
     }
 
@@ -809,7 +827,7 @@ impl CursorLlmEngine {
 
     fn manager(&self) -> &CursorAgentProcessManager {
         self.manager
-            .as_ref()
+            .as_deref()
             .unwrap_or_else(|| CursorAgentProcessManager::global())
     }
 
@@ -867,12 +885,14 @@ impl CursorLlmEngine {
             .map_err(map_ensure_error)?;
 
         let need_create = {
-            let fg = self
-                .foreground_session
-                .lock()
-                .unwrap_or_else(|e| e.into_inner());
-            match fg.as_deref() {
-                Some(id) if id == req.session_id => false,
+            let fg = self.foreground.lock().unwrap_or_else(|e| e.into_inner());
+            match fg.as_ref() {
+                Some(bind)
+                    if bind.session_id == req.session_id
+                        && bind.generation == access.generation() =>
+                {
+                    false
+                }
                 _ => true,
             }
         };
@@ -887,13 +907,13 @@ impl CursorLlmEngine {
             });
             let create_result =
                 self.request_managed(&access, &rid, "create", Some(params))?;
-            // Bind foreground only after successful replace/create.
+            // Bind foreground only after successful replace/create (session + process gen).
             {
-                let mut fg = self
-                    .foreground_session
-                    .lock()
-                    .unwrap_or_else(|e| e.into_inner());
-                *fg = Some(req.session_id.clone());
+                let mut fg = self.foreground.lock().unwrap_or_else(|e| e.into_inner());
+                *fg = Some(ForegroundBind {
+                    session_id: req.session_id.clone(),
+                    generation: access.generation(),
+                });
             }
             // Host cleans old session cwd only after runner confirms dispose via replaced_session_id.
             if let Some(replaced) = create_result

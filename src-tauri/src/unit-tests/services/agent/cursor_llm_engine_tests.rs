@@ -275,6 +275,65 @@ fn t3_same_session_multi_turn_reuses_managed_runner_no_respawn() {
 }
 
 #[test]
+fn t3_process_generation_change_forces_create_for_same_session() {
+    with_sandbox(|| {
+        secrets::set_secret(KEY_LLM_API_KEY_CURSOR, "sk-gen-v1").expect("key");
+        let fake = FakeCursorRunnerClient::new();
+        let log = fake.log.clone();
+        let spawns = Arc::new(AtomicUsize::new(0));
+        let spawns_c = spawns.clone();
+        let log_c = log.clone();
+        let mgr = Arc::new(CursorAgentProcessManager::with_deps_for_tests(
+            {
+                let s = settings_cursor();
+                move || Ok(cfg_from(&s))
+            },
+            move |key: &str| {
+                spawns_c.fetch_add(1, Ordering::SeqCst);
+                let mut c = FakeCursorRunnerClient::from_shared(log_c.clone());
+                // Reclaim/force_kill leaves cancel_requested on shared fake; clear on respawn.
+                c.reset_lifecycle_flags_for_tests();
+                c.on_spawned_with_api_key(key);
+                Ok(Box::new(c) as Box<dyn CursorRunnerClient>)
+            },
+        ));
+        let engine = CursorLlmEngine::with_shared_manager(mgr.clone());
+
+        engine
+            .run_turn(&turn_req("sess_gen", "before"))
+            .expect("before");
+        assert_eq!(
+            methods(&log).iter().filter(|x| *x == "create").count(),
+            1
+        );
+
+        // API key fingerprint replace bumps process generation.
+        secrets::set_secret(KEY_LLM_API_KEY_CURSOR, "sk-gen-v2").expect("key2");
+        engine
+            .run_turn(&turn_req("sess_gen", "after-key"))
+            .expect("after key replace");
+        assert_eq!(spawns.load(Ordering::SeqCst), 2);
+        assert_eq!(
+            methods(&log).iter().filter(|x| *x == "create").count(),
+            2,
+            "same session_id must re-create after process generation change"
+        );
+
+        // invalidate → Absent → next ensure rebuilds generation again.
+        mgr.invalidate();
+        engine
+            .run_turn(&turn_req("sess_gen", "after-invalidate"))
+            .expect("after invalidate");
+        assert_eq!(spawns.load(Ordering::SeqCst), 3);
+        assert_eq!(
+            methods(&log).iter().filter(|x| *x == "create").count(),
+            3,
+            "same session_id must re-create after invalidate/rebuild"
+        );
+    });
+}
+
+#[test]
 fn t3_foreground_switch_submits_create_only_no_host_dispose_create() {
     with_sandbox(|| {
         secrets::set_secret(KEY_LLM_API_KEY_CURSOR, "sk-engine-test").expect("key");

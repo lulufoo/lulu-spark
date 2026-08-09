@@ -85,6 +85,11 @@ impl std::fmt::Debug for ClientAccess {
 }
 
 impl ClientAccess {
+    /// Process generation this access was issued for (foreground bind / stale checks).
+    pub fn generation(&self) -> u64 {
+        self.generation
+    }
+
     pub fn with_client<F, R>(&self, f: F) -> Result<R, EnsureError>
     where
         F: FnOnce(&mut dyn CursorRunnerClient) -> R,
