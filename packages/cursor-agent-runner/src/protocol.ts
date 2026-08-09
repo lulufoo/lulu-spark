@@ -26,6 +26,8 @@ export class ProtocolError extends Error {
 }
 
 export type CreateParams = {
+  /** Opaque Host session id (replace-create / cwd cleanup). */
+  session_id: string;
   model: string;
   cwd: string;
   mcpServers?: Record<string, unknown>;
@@ -75,8 +77,15 @@ export function parseRequest(line: string): RunnerRequest {
 
   switch (method) {
     case "create": {
+      const sessionId = params.session_id;
       const model = params.model;
       const cwd = params.cwd;
+      if (typeof sessionId !== "string" || sessionId.trim().length === 0) {
+        throw new ProtocolError(
+          "runner",
+          "create.params.session_id must be a non-empty string",
+        );
+      }
       if (typeof model !== "string") {
         throw new ProtocolError("sdk_config", "create.params.model must be a string");
       }
@@ -96,7 +105,7 @@ export function parseRequest(line: string): RunnerRequest {
       return {
         id,
         method: "create",
-        params: { model, cwd, mcpServers },
+        params: { session_id: sessionId, model, cwd, mcpServers },
       };
     }
     case "turn": {

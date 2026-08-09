@@ -69,6 +69,7 @@ describe("JSONL runner process (create/turn/cancel/close)", () => {
           id: "c1",
           method: "create",
           params: {
+            session_id: "sess_c1",
             model: "composer-2.5",
             cwd,
             mcpServers: {},
@@ -92,6 +93,7 @@ describe("JSONL runner process (create/turn/cancel/close)", () => {
           id: "c2",
           method: "create",
           params: {
+            session_id: "sess_c2",
             model: "composer-2.5",
             cwd: join(tmpdir(), `car-missing-cwd-${Date.now()}`),
             mcpServers: {},
@@ -112,7 +114,7 @@ describe("JSONL runner process (create/turn/cancel/close)", () => {
         JSON.stringify({
           id: "c3",
           method: "create",
-          params: { model: "", cwd, mcpServers: {} },
+          params: { session_id: "sess_c3", model: "", cwd, mcpServers: {} },
         }),
       ],
       { CURSOR_API_KEY: "test-key-not-for-live" },
@@ -130,6 +132,7 @@ describe("JSONL runner process (create/turn/cancel/close)", () => {
           id: "c4",
           method: "create",
           params: {
+            session_id: "sess_c4",
             model: "composer-2.5",
             cwd,
             mcpServers: {

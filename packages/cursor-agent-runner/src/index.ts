@@ -19,8 +19,29 @@ type AgentHandle = SDKAgent & {
   [Symbol.asyncDispose]?: () => Promise<void>;
 };
 
+export type AgentFactoryParams = {
+  apiKey: string;
+  model: string;
+  cwd: string;
+  mcpServers: Record<string, McpServerConfig>;
+  sessionId: string;
+};
+
+export type AgentFactory = (params: AgentFactoryParams) => Promise<AgentHandle>;
+
 let agent: AgentHandle | null = null;
+let agentSessionId: string | null = null;
 let activeRun: Run | null = null;
+let agentFactoryOverride: AgentFactory | null = null;
+
+type PendingCreate = {
+  req: Extract<RunnerRequest, { method: "create" }>;
+  resolve: (value: Record<string, unknown>) => void;
+  reject: (err: unknown) => void;
+};
+
+let createRunning = false;
+let pendingCreate: PendingCreate | null = null;
 
 function readApiKeyFromEnv(): string | null {
   const key = process.env.CURSOR_API_KEY;
@@ -44,7 +65,7 @@ function workbenchHostFromMcpServers(
         const u = new URL((value as { url: string }).url);
         if (u.hostname) return u.hostname;
       } catch {
-        // ignore malformed placeholder URLs in t1
+        // ignore malformed placeholder URLs
       }
     }
   }
@@ -75,7 +96,6 @@ function mapSdkError(err: unknown): RunnerError {
 }
 
 function redactError(error: RunnerError): RunnerError {
-  // Never echo secrets or env names in JSONL.
   const message = error.message
     .replace(/CURSOR_API_KEY/gi, "[redacted]")
     .replace(/api[_-]?key/gi, "[redacted]")
@@ -83,11 +103,58 @@ function redactError(error: RunnerError): RunnerError {
   return { type: error.type, message };
 }
 
-async function handleCreate(req: Extract<RunnerRequest, { method: "create" }>) {
-  if (agent) {
-    throw new ProtocolError("runner", "agent already created; close first");
-  }
+async function defaultAgentFactory(
+  params: AgentFactoryParams,
+): Promise<AgentHandle> {
+  return (await Agent.create({
+    apiKey: params.apiKey,
+    model: { id: params.model },
+    local: {
+      cwd: params.cwd,
+      settingSources: [],
+      sandboxOptions: { enabled: false },
+    },
+    mcpServers: params.mcpServers,
+  })) as AgentHandle;
+}
 
+function activeFactory(): AgentFactory {
+  return agentFactoryOverride ?? defaultAgentFactory;
+}
+
+async function disposeCurrentAgent(): Promise<string | undefined> {
+  if (!agent) return undefined;
+  if (activeRun) {
+    try {
+      await activeRun.cancel();
+    } catch {
+      // best-effort cancel before dispose
+    }
+    activeRun = null;
+  }
+  const replaced = agentSessionId ?? undefined;
+  const dispose = agent[Symbol.asyncDispose];
+  try {
+    if (typeof dispose === "function") {
+      await dispose.call(agent);
+    }
+  } catch (err) {
+    // Consistent failure: no usable current instance; allow retry create.
+    agent = null;
+    agentSessionId = null;
+    throw new ProtocolError(
+      "runner",
+      err instanceof Error ? err.message : "agent dispose failed",
+    );
+  }
+  agent = null;
+  agentSessionId = null;
+  return replaced;
+}
+
+async function runReplaceCreate(
+  req: Extract<RunnerRequest, { method: "create" }>,
+): Promise<Record<string, unknown>> {
   const apiKey = readApiKeyFromEnv();
   if (!apiKey) {
     throw new ProtocolError(
@@ -106,8 +173,6 @@ async function handleCreate(req: Extract<RunnerRequest, { method: "create" }>) {
     throw new ProtocolError("cwd", "local.cwd is missing or not a directory");
   }
 
-  // Workbench: sdkSandboxEnabled=false — Local headless + sandbox blocks MCP
-  // tools that need interactive approval (Cursor forum #161629).
   const gate = ensureNodeAndSandbox({
     cwd,
     workbenchMcpHost: workbenchHostFromMcpServers(req.params.mcpServers),
@@ -121,26 +186,62 @@ async function handleCreate(req: Extract<RunnerRequest, { method: "create" }>) {
     string,
     McpServerConfig
   >;
+  const sessionId = req.params.session_id;
+
+  const replaced = await disposeCurrentAgent();
 
   try {
-    const created = (await Agent.create({
+    const created = await activeFactory()({
       apiKey,
-      model: { id: model },
-      local: {
-        cwd,
-        settingSources: [],
-        // Default Local SDK behavior; required for Workbench MCP in headless.
-        sandboxOptions: { enabled: false },
-      },
+      model,
+      cwd,
       mcpServers,
-    })) as AgentHandle;
+      sessionId,
+    });
     agent = created;
-    return {
+    agentSessionId = sessionId;
+    const result: Record<string, unknown> = {
       agentId: created.agentId ?? null,
     };
+    if (replaced) {
+      result.replaced_session_id = replaced;
+    }
+    return result;
   } catch (err) {
+    agent = null;
+    agentSessionId = null;
     throw Object.assign(new Error("create failed"), { cause: err });
   }
+}
+
+function enqueueCreate(
+  req: Extract<RunnerRequest, { method: "create" }>,
+): Promise<Record<string, unknown>> {
+  return new Promise((resolve, reject) => {
+    if (createRunning) {
+      if (pendingCreate) {
+        // Coalesce-to-latest: skipped middle create never executed → not Cancelled.
+        pendingCreate.resolve({ coalesced: true });
+      }
+      pendingCreate = { req, resolve, reject };
+      return;
+    }
+    createRunning = true;
+    runReplaceCreate(req)
+      .then(resolve, reject)
+      .finally(() => {
+        createRunning = false;
+        if (pendingCreate) {
+          const next = pendingCreate;
+          pendingCreate = null;
+          enqueueCreate(next.req).then(next.resolve, next.reject);
+        }
+      });
+  });
+}
+
+async function handleCreate(req: Extract<RunnerRequest, { method: "create" }>) {
+  return enqueueCreate(req);
 }
 
 async function handleTurn(req: Extract<RunnerRequest, { method: "turn" }>) {
@@ -201,6 +302,7 @@ async function handleClose() {
       await dispose.call(agent);
     }
     agent = null;
+    agentSessionId = null;
   }
   return { closed: true };
 }
@@ -250,6 +352,22 @@ export async function handleLine(line: string): Promise<string> {
     }
     return serializeErrorResponse(id, error);
   }
+}
+
+export function setAgentFactoryForTests(factory: AgentFactory | null): void {
+  agentFactoryOverride = factory;
+}
+
+export function resetRunnerStateForTests(): void {
+  agent = null;
+  agentSessionId = null;
+  activeRun = null;
+  createRunning = false;
+  pendingCreate = null;
+}
+
+export function agentCardinalityForTests(): number {
+  return agent ? 1 : 0;
 }
 
 async function main(): Promise<void> {

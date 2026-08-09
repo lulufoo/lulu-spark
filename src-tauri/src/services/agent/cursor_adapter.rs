@@ -818,29 +818,47 @@ impl CursorLlmEngine {
             .map_err(map_ensure_error)?;
 
         let need_create = {
-            let mut fg = self
+            let fg = self
                 .foreground_session
                 .lock()
                 .unwrap_or_else(|e| e.into_inner());
             match fg.as_deref() {
                 Some(id) if id == req.session_id => false,
-                _ => {
-                    *fg = Some(req.session_id.clone());
-                    true
-                }
+                _ => true,
             }
         };
 
         if need_create {
             let rid = self.next_request_id();
             let params = json!({
+                "session_id": req.session_id,
                 "model": req.model,
                 "cwd": cwd.to_string_lossy(),
                 "mcpServers": mcp_servers,
             });
-            access
+            let create_result = access
                 .request(&rid, "create", Some(params))
                 .map_err(map_request_error)?;
+            // Bind foreground only after successful replace/create.
+            {
+                let mut fg = self
+                    .foreground_session
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner());
+                *fg = Some(req.session_id.clone());
+            }
+            // Host cleans old session cwd only after runner confirms dispose via replaced_session_id.
+            if let Some(replaced) = create_result
+                .get("replaced_session_id")
+                .and_then(|x| x.as_str())
+            {
+                if let Err(e) = session_cwd::cleanup_session_cwd(replaced) {
+                    return Err(CursorError::new(
+                        CursorErrorCode::Cwd,
+                        format!("session cwd cleanup recoverable failure: {e}"),
+                    ));
+                }
+            }
         }
 
         let rid = self.next_request_id();

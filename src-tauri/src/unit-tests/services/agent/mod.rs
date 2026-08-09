@@ -27,6 +27,9 @@ mod host_startup_tests;
 #[path = "cursor_llm_engine_tests.rs"]
 mod cursor_llm_engine_tests;
 
+#[path = "replace_create_tests.rs"]
+mod replace_create_tests;
+
 #[path = "ai_assistant_session_tests.rs"]
 mod ai_assistant_session_tests;
 

@@ -15,6 +15,7 @@ describe("JSONL protocol schema", () => {
         id: "r1",
         method: "create",
         params: {
+          session_id: "sess_opaque",
           model: "composer-2.5",
           cwd: "/tmp/session",
           mcpServers: {},
@@ -24,6 +25,7 @@ describe("JSONL protocol schema", () => {
     assert.equal(create.id, "r1");
     assert.equal(create.method, "create");
     if (create.method !== "create") throw new Error("expected create");
+    assert.equal(create.params.session_id, "sess_opaque");
     assert.equal(create.params.model, "composer-2.5");
     assert.equal(create.params.cwd, "/tmp/session");
     assert.deepEqual(create.params.mcpServers, {});
@@ -40,12 +42,27 @@ describe("JSONL protocol schema", () => {
     assert.equal(close.method, "close");
   });
 
+  it("requires opaque session_id on create (replace-create contract)", () => {
+    assert.throws(
+      () =>
+        parseRequest(
+          JSON.stringify({
+            id: "no-sid",
+            method: "create",
+            params: { model: "composer-2.5", cwd: "/tmp/x", mcpServers: {} },
+          }),
+        ),
+      (e: unknown) => (e as { type?: string })?.type === "runner",
+    );
+  });
+
   it("accepts mcpServers on create without deep validation (t2 owns readiness)", () => {
     const req = parseRequest(
       JSON.stringify({
         id: "m1",
         method: "create",
         params: {
+          session_id: "sess_m1",
           model: "composer-2.5",
           cwd: "/tmp/x",
           mcpServers: {
@@ -56,6 +73,7 @@ describe("JSONL protocol schema", () => {
     );
     assert.equal(req.method, "create");
     if (req.method !== "create") throw new Error("expected create");
+    assert.equal(req.params.session_id, "sess_m1");
     assert.equal(
       (req.params.mcpServers as Record<string, { url: string }>).workbench.url,
       "http://127.0.0.1:9876/mcp",
