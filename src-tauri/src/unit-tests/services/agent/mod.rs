@@ -30,6 +30,9 @@ mod cursor_llm_engine_tests;
 #[path = "replace_create_tests.rs"]
 mod replace_create_tests;
 
+#[path = "error_tracks_tests.rs"]
+mod error_tracks_tests;
+
 #[path = "ai_assistant_session_tests.rs"]
 mod ai_assistant_session_tests;
 

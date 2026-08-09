@@ -35,6 +35,7 @@ fn cursor_code_str(code: CursorErrorCode) -> &'static str {
         CursorErrorCode::SdkRun => "sdk_run",
         CursorErrorCode::Cancelled => "cancelled",
         CursorErrorCode::Busy => "busy",
+        CursorErrorCode::RecoverableFailure => "recoverable_failure",
     }
 }
 
@@ -48,6 +49,7 @@ fn cursor_code_from_str(code: &str) -> CursorErrorCode {
         "sdk_run" => CursorErrorCode::SdkRun,
         "cancelled" => CursorErrorCode::Cancelled,
         "busy" => CursorErrorCode::Busy,
+        "recoverable_failure" => CursorErrorCode::RecoverableFailure,
         _ => CursorErrorCode::Runner,
     }
 }

@@ -157,12 +157,33 @@ pub enum CursorErrorCode {
     SdkRun,
     Cancelled,
     Busy,
+    /// Process / JSONL / generation-stale communication failure (not foreground Cancelled).
+    RecoverableFailure,
+}
+
+/// Caller-facing error track: Cancelled (foreground interrupt) vs RecoverableFailure
+/// (process/JSONL/replace invalidate). Both must not persist as Session turns.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ErrorTrack {
+    Cancelled,
+    RecoverableFailure,
+    Other,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CursorError {
     pub code: CursorErrorCode,
     pub message: String,
+}
+
+pub fn error_track(err: &CursorError) -> ErrorTrack {
+    match err.code {
+        CursorErrorCode::Cancelled => ErrorTrack::Cancelled,
+        CursorErrorCode::RecoverableFailure
+        | CursorErrorCode::Runner
+        | CursorErrorCode::SdkRun => ErrorTrack::RecoverableFailure,
+        _ => ErrorTrack::Other,
+    }
 }
 
 impl std::fmt::Display for CursorError {
@@ -191,6 +212,7 @@ impl CursorError {
             CursorErrorCode::SdkRun => "sdk_run",
             CursorErrorCode::Cancelled => "cancelled",
             CursorErrorCode::Busy => "busy",
+            CursorErrorCode::RecoverableFailure => "recoverable_failure",
         }
     }
 }
@@ -205,6 +227,7 @@ pub fn frontend_message_for(code: CursorErrorCode) -> &'static str {
         CursorErrorCode::SdkRun => "Cursor Agent 执行失败。",
         CursorErrorCode::Cancelled => "Cursor 回合已取消。",
         CursorErrorCode::Busy => "当前会话已有进行中的 Cursor 回合。",
+        CursorErrorCode::RecoverableFailure => "Cursor 通信失败，请重试。",
     }
 }
 
@@ -218,6 +241,7 @@ pub fn map_runner_error(runner_type: &str, _detail: &str) -> CursorError {
         "sdk_run" => CursorErrorCode::SdkRun,
         "cancelled" => CursorErrorCode::Cancelled,
         "busy" => CursorErrorCode::Busy,
+        "recoverable_failure" | "recoverable" => CursorErrorCode::RecoverableFailure,
         _ => CursorErrorCode::Runner,
     };
     CursorError::new(code, frontend_message_for(code))
@@ -233,9 +257,9 @@ pub fn should_persist_cursor_result(result: &Result<TurnOutcome, CursorError>) -
     match result {
         Ok(o) => o.should_persist,
         Err(e) => !matches!(
-            e.code,
-            CursorErrorCode::Cancelled | CursorErrorCode::Busy
-        ),
+            error_track(e),
+            ErrorTrack::Cancelled | ErrorTrack::RecoverableFailure
+        ) && e.code != CursorErrorCode::Busy,
     }
 }
 
@@ -887,19 +911,31 @@ fn map_ensure_error(err: EnsureError) -> CursorError {
             CursorErrorCode::SdkConfig,
             frontend_message_for(CursorErrorCode::SdkConfig),
         ),
-        EnsureError::Spawn | EnsureError::Stale => CursorError::new(
+        // Spawn stays Runner (engine ensure surface); Stale → RecoverableFailure track.
+        EnsureError::Spawn => CursorError::new(
             CursorErrorCode::Runner,
             frontend_message_for(CursorErrorCode::Runner),
         ),
+        EnsureError::Stale => CursorError::new(
+            CursorErrorCode::RecoverableFailure,
+            frontend_message_for(CursorErrorCode::RecoverableFailure),
+        ),
     }
+}
+
+/// Public mapping for `ClientAccess::request` / generation-stale failures.
+pub fn map_client_request_error(err: RequestError) -> CursorError {
+    map_request_error(err)
 }
 
 fn map_request_error(err: RequestError) -> CursorError {
     match err {
         RequestError::Stale => CursorError::new(
-            CursorErrorCode::Runner,
-            frontend_message_for(CursorErrorCode::Runner),
+            CursorErrorCode::RecoverableFailure,
+            frontend_message_for(CursorErrorCode::RecoverableFailure),
         ),
+        // Preserve Cancelled (foreground interrupt); leave other runner codes intact
+        // so `error_track` can classify Runner/SdkRun as RecoverableFailure.
         RequestError::Runner(e) => e,
     }
 }
