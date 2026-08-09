@@ -1,16 +1,6 @@
 use super::*;
 use crate::test_support::TestSandbox;
 use std::fs;
-use std::sync::{Mutex, OnceLock};
-
-static ENTRY_ADMIN_TEST_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
-
-fn entry_admin_test_guard() -> std::sync::MutexGuard<'static, ()> {
-    ENTRY_ADMIN_TEST_LOCK
-        .get_or_init(|| Mutex::new(()))
-        .lock()
-        .expect("entry_admin test lock")
-}
 
 fn with_corpus_fixture<F: FnOnce(&std::path::Path, &std::path::Path)>(
     setup: impl FnOnce(&std::path::Path, &std::path::Path),
@@ -25,7 +15,6 @@ fn with_corpus_fixture<F: FnOnce(&std::path::Path, &std::path::Path)>(
 
 #[test]
 fn delete_entry_removes_file_and_index() {
-    let _guard = entry_admin_test_guard();
     with_corpus_fixture(
         |_, corpus| {
             fs::create_dir_all(corpus.join("raw/proj")).expect("mkdir");
@@ -55,7 +44,6 @@ fn delete_entry_removes_file_and_index() {
 fn move_entry_project_moves_zh_translation() {
     use crate::services::sediment_kb::{add_repo, ensure_uncategorized, set_test_repo_validator};
 
-    let _guard = entry_admin_test_guard();
     with_corpus_fixture(
         |_, corpus| {
             set_test_repo_validator(Some(|name| Ok(name.to_string())));

@@ -465,11 +465,6 @@ impl TestSandbox {
     }
 }
 
-pub fn with_sandbox<F: FnOnce(&Path)>(f: F) {
-    let sandbox = TestSandbox::new();
-    f(sandbox.config_dir());
-}
-
 pub fn with_sandbox_corpus<F: FnOnce(&Path, &Path)>(prepare_ai_subdir: bool, f: F) {
     let sandbox = TestSandbox::new();
     let wb = sandbox.workbench_knowledge_root();
@@ -479,33 +474,4 @@ pub fn with_sandbox_corpus<F: FnOnce(&Path, &Path)>(prepare_ai_subdir: bool, f: 
         std::fs::create_dir_all(wb.join("annotations")).expect("mkdir");
     }
     f(sandbox.config_dir(), wb.as_path());
-}
-
-/// Same isolation as `TestSandbox` (kept for call-site compatibility).
-pub fn with_test_config_dir<F: FnOnce(&std::path::Path)>(f: F) {
-    let sandbox = TestSandbox::new();
-    f(sandbox.config_dir());
-}
-
-/// Corpus helper: `f(temp_home, corpus_path)` under `TestSandbox` env.
-pub fn with_corpus<F: FnOnce(tempfile::TempDir, PathBuf)>(prepare_ai_subdir: bool, f: F) {
-    let dir = tempfile::tempdir().expect("tmp");
-    let id = unique_sandbox_id("c");
-    let config_env = TestConfigEnv::sandbox(dir.path(), &id);
-    let config_path = config_env.config_file_path();
-    let ports = config_env.ports();
-    write_fake_prod_config(dir.path());
-    let corpus = dir.path().join("corpus");
-    if prepare_ai_subdir {
-        std::fs::create_dir_all(corpus.join("annotations/ai")).expect("mkdir");
-    } else {
-        std::fs::create_dir_all(corpus.join("annotations")).expect("mkdir");
-    }
-    let wb = dir.path().join("workbench-knowledge");
-    let cache = dir.path().join("cache");
-    std::fs::create_dir_all(&wb).expect("mkdir wb");
-    std::fs::create_dir_all(&cache).expect("mkdir cache");
-    write_sandbox_config(&config_path, &wb, &corpus, &cache, ports);
-    let corpus_path = corpus;
-    f(dir, corpus_path);
 }

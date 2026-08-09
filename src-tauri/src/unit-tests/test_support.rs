@@ -2,7 +2,6 @@
 
 use std::fs;
 use std::hash::{DefaultHasher, Hash, Hasher};
-use std::path::PathBuf;
 use std::sync::{Arc, Barrier, mpsc};
 use std::time::Duration;
 use std::time::SystemTime;
@@ -13,8 +12,7 @@ use crate::config::settings::{
 };
 use crate::test_support::{
     CONFIG_TEST_SERIAL, TestConfigEnv, TestSandbox, install_env_restore_probe,
-    install_test_config_env_construction_probe, with_corpus, with_sandbox_corpus,
-    with_test_config_dir,
+    install_test_config_env_construction_probe, with_sandbox_corpus,
 };
 
 fn prod_cache_dir_mtime() -> Option<SystemTime> {
@@ -301,22 +299,6 @@ fn nested_test_config_env_restores_outer_then_machine_context() {
 }
 
 #[test]
-fn with_corpus_restores_environment_when_callback_panics() {
-    let original_home = std::env::var("HOME").ok();
-    let original_sandbox = std::env::var("TestSandbox").ok();
-    let original_sandbox_id = std::env::var("TestSandboxId").ok();
-
-    let result = std::panic::catch_unwind(|| {
-        with_corpus(false, |_dir, _corpus| panic!("callback panic"));
-    });
-
-    assert!(result.is_err());
-    assert_eq!(std::env::var("HOME").ok(), original_home);
-    assert_eq!(std::env::var("TestSandbox").ok(), original_sandbox);
-    assert_eq!(std::env::var("TestSandboxId").ok(), original_sandbox_id);
-}
-
-#[test]
 fn test_sandbox_new_creates_isolated_three_roots() {
     let sandbox = TestSandbox::new();
     let cfg = settings::load().expect("load");
@@ -423,16 +405,6 @@ fn atomic_config_write_replaces_hard_link_without_mutating_protected_file() {
 }
 
 #[test]
-fn with_corpus_sets_sandbox_cache_dir_not_prod() {
-    with_corpus(false, |_dir, _corpus| {
-        let cfg = settings::load().expect("load");
-        assert!(cfg.cache_dir.starts_with(_dir.path()));
-        assert_ne!(cfg.cache_dir, default_cache_dir());
-        assert_ne!(cfg.workbench_knowledge_root, default_cache_dir());
-    });
-}
-
-#[test]
 fn nested_test_sandbox_serializes_distinct_roots() {
     crate::test_support::with_config_test_serial(|| {
         let outer = TestSandbox::new();
@@ -474,33 +446,6 @@ fn lib_tests_do_not_touch_prod_config_mtime() {
     }
     let after = prod_config_mtime();
     assert_eq!(before, after);
-}
-
-#[test]
-fn with_test_config_dir_uses_isolated_config_toml() {
-    let mut inner_path = None::<PathBuf>;
-    with_test_config_dir(|p| {
-        inner_path = Some(p.to_path_buf());
-        let cfg = settings::config_file_path().expect("cfg");
-        assert!(cfg.starts_with(p));
-        assert!(cfg.ends_with("config.toml"));
-    });
-    assert!(inner_path.is_some());
-}
-
-#[test]
-fn with_corpus_false_creates_annotations_only() {
-    with_corpus(false, |_dir, corpus| {
-        assert!(corpus.join("annotations").is_dir());
-        assert!(!corpus.join("annotations/ai").exists());
-    });
-}
-
-#[test]
-fn with_corpus_true_creates_ai_subdir() {
-    with_corpus(true, |_dir, corpus| {
-        assert!(corpus.join("annotations/ai").is_dir());
-    });
 }
 
 #[test]

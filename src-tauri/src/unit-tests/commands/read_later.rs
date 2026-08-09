@@ -1,4 +1,3 @@
-use std::sync::Mutex;
 use std::thread;
 use std::time::Duration;
 
@@ -7,12 +6,7 @@ use crate::commands::read_later::{
 };
 use crate::test_support::TestSandbox;
 
-static READ_LATER_CMD_TEST_LOCK: Mutex<()> = Mutex::new(());
-
 fn with_read_later_sandbox<F: FnOnce()>(f: F) {
-    let _guard = READ_LATER_CMD_TEST_LOCK
-        .lock()
-        .expect("read_later command test lock");
     let _sandbox = TestSandbox::new();
     f();
 }

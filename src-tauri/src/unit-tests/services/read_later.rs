@@ -1,17 +1,13 @@
 use super::*;
 use std::fs;
 use std::path::Path;
-use std::sync::Mutex;
 use std::thread;
 use std::time::Duration;
 
 use crate::config::paths;
 use crate::test_support::TestSandbox;
 
-static READ_LATER_TEST_LOCK: Mutex<()> = Mutex::new(());
-
 fn with_read_later_sandbox<F: FnOnce(&Path)>(f: F) {
-    let _guard = READ_LATER_TEST_LOCK.lock().expect("read_later test lock");
     let _sandbox = TestSandbox::new();
     let wb = paths::workbench_knowledge_root().expect("workbench root");
     f(&wb);

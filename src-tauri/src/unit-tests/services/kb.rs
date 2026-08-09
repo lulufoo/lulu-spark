@@ -1,5 +1,4 @@
 use super::*;
-use crate::config::settings;
 use crate::test_support::TestSandbox;
 use std::fs;
 
@@ -9,40 +8,15 @@ fn with_kb_repo<F: FnOnce(&std::path::Path, &std::path::Path)>(
 ) {
     let sandbox = TestSandbox::new();
     let cfg_dir = sandbox.config_dir();
-    let config_path = sandbox.config_file_path();
-    let (http_port, mcp_port) = sandbox.ports();
-    let kb = cfg_dir.join("kb");
+    let kb = sandbox.knowledge_corpus_root();
     setup(cfg_dir, &kb);
-    settings::write_test_config_with_cache(
-        &config_path,
-        cfg_dir,
-        Some(&kb),
-        Some(&cfg_dir.join("cache")),
-        "http://127.0.0.1:17700",
-        http_port,
-        mcp_port,
-    )
-    .expect("write kb config");
     f(cfg_dir, &kb);
 }
 
 fn with_kb_and_sediment_cache<F: FnOnce(&std::path::Path, &std::path::Path)>(f: F) {
     let sandbox = TestSandbox::new();
     let cfg_dir = sandbox.config_dir();
-    let config_path = sandbox.config_file_path();
-    let (http_port, mcp_port) = sandbox.ports();
-    let cache = cfg_dir.join("cache");
-    let kb = cfg_dir.join("kb");
-    settings::write_test_config_with_cache(
-        &config_path,
-        cfg_dir,
-        Some(&kb),
-        Some(&cache),
-        "http://127.0.0.1:17700",
-        http_port,
-        mcp_port,
-    )
-    .expect("write kb config");
+    let kb = sandbox.knowledge_corpus_root();
     f(cfg_dir, &kb);
 }
 

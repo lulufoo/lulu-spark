@@ -1,5 +1,4 @@
 use super::*;
-use crate::config::settings;
 use crate::test_support::TestSandbox;
 use std::fs;
 use std::path::Path;
@@ -8,9 +7,6 @@ fn with_repo_list<F: FnOnce(&Path)>(repos_json: &str, f: F) {
     let sandbox = TestSandbox::new();
     let cache = sandbox.cache_dir();
     fs::write(cache.join("repo-list.json"), repos_json).expect("repo-list");
-    let mut cfg = settings::load().expect("load");
-    cfg.cache_dir = cache;
-    settings::save(&cfg).expect("save");
     f(sandbox.config_dir());
 }
 
