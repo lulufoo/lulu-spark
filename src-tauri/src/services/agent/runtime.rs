@@ -13,7 +13,8 @@ use serde_json::{json, Value};
 use crate::config::paths;
 use crate::config::settings;
 use crate::services::agent::cursor_adapter::{
-    self, CursorError, CursorErrorCode, CursorSessionRuntime, TurnRequest,
+    self, CursorError, CursorErrorCode, CursorLlmEngine, CursorSessionRuntime,
+    TurnOutcome as CursorTurnOutcome, TurnRequest,
 };
 use crate::services::agent::engine_router::{self, AdapterKind, EngineRouteError, TurnInput};
 use crate::services::agent::llm;
@@ -96,6 +97,7 @@ pub fn cursor_runtime_installed_for_tests() -> bool {
     TEST_CURSOR_INSTALLED.load(Ordering::SeqCst)
 }
 
+#[allow(dead_code)] // retained until t7 cutover removes per-session factory path
 fn cursor_runtime() -> Result<Arc<CursorSessionRuntime>, CursorError> {
     if let Some(rt) = test_cursor_slot()
         .lock()
@@ -116,9 +118,23 @@ fn cursor_runtime() -> Result<Arc<CursorSessionRuntime>, CursorError> {
             cursor_adapter::frontend_message_for(CursorErrorCode::Runner),
         )
     })?;
+    // Retained for tests / pre-cutover callers; production chat uses CursorLlmEngine.
     let rt = Arc::new(CursorSessionRuntime::production(root));
     *guard = Some(rt.clone());
     Ok(rt)
+}
+
+/// Production Cursor path: CursorLlmEngine (ensure_client → request). Test doubles
+/// may still inject [`CursorSessionRuntime`] via `set_cursor_runtime_for_tests`.
+fn cursor_run_turn(req: &TurnRequest) -> Result<CursorTurnOutcome, CursorError> {
+    if let Some(rt) = test_cursor_slot()
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .clone()
+    {
+        return rt.run_turn(req);
+    }
+    CursorLlmEngine::global().run_turn(req)
 }
 
 /// Probe Host MCP readiness (`GET http://127.0.0.1:{DEFAULT_MCP_PORT}/health`)
@@ -291,11 +307,6 @@ fn cursor_adapter_turn(session_id: &str, message: &str) -> Result<String, String
         Err(err) => return Ok(encode_routed(&cursor_err_routed(err))),
     };
 
-    let rt = match cursor_runtime() {
-        Ok(r) => r,
-        Err(err) => return Ok(encode_routed(&cursor_err_routed(err))),
-    };
-
     let req = TurnRequest {
         session_id: session_id.to_string(),
         prompt: message.to_string(),
@@ -304,7 +315,7 @@ fn cursor_adapter_turn(session_id: &str, message: &str) -> Result<String, String
         ready_mcp,
     };
 
-    let result = rt.run_turn(&req);
+    let result = cursor_run_turn(&req);
     let should_persist = cursor_adapter::should_persist_cursor_result(&result);
 
     match result {

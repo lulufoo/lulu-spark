@@ -10,6 +10,8 @@ use std::sync::{Arc, Mutex, OnceLock};
 
 use crate::config::paths;
 use crate::config::settings;
+use serde_json::Value;
+
 use crate::services::agent::cursor_adapter::{
     CursorError, CursorRunnerClient, ProcessCursorRunnerClient,
 };
@@ -47,6 +49,12 @@ pub enum EnsureError {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ShutdownError {
     Internal,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum RequestError {
+    Stale,
+    Runner(CursorError),
 }
 
 struct ProcessEntry {
@@ -92,6 +100,29 @@ impl ClientAccess {
             return Err(EnsureError::Stale);
         }
         Ok(f(guard.as_mut()))
+    }
+
+    /// Submit JSONL request with caller-provided `request_id` (not generated here).
+    /// Signature has no `session_id` — client must not serialize on session.
+    pub fn request(
+        &self,
+        request_id: &str,
+        method: &str,
+        params: Option<Value>,
+    ) -> Result<Value, RequestError> {
+        if self.current_gen.load(Ordering::SeqCst) != self.generation {
+            return Err(RequestError::Stale);
+        }
+        let mut guard = self
+            .client
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        if self.current_gen.load(Ordering::SeqCst) != self.generation {
+            return Err(RequestError::Stale);
+        }
+        guard
+            .request(request_id, method, params)
+            .map_err(RequestError::Runner)
     }
 }
 

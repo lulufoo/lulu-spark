@@ -31,6 +31,9 @@ use serde_json::{json, Value};
 
 use crate::cursor_agent_runner_launch_path;
 use crate::services::agent::engine_router::TurnInput;
+use crate::services::agent::process_manager::{
+    CursorAgentProcessManager, EnsureError, RequestError,
+};
 use crate::services::agent::r#loop;
 use crate::services::agent::session_cwd;
 use crate::services::mcp_endpoint_readiness::{self, ReadyMcpTransports};
@@ -255,6 +258,9 @@ pub trait CursorRunnerClient: Send {
     fn cancel(&mut self) -> Result<(), CursorError>;
     fn close(&mut self) -> Result<(), CursorError>;
     fn force_kill(&mut self);
+    /// JSONL request with caller-provided `request_id` (pending map / wire id).
+    /// Client must not invent a different id.
+    fn request(&mut self, request_id: &str, method: &str, params: Option<Value>) -> Result<Value, CursorError>;
     /// Hook usable without locking the client mutex (cancel-timeout / hang path).
     fn terminate_hook(&self) -> Arc<dyn Fn() + Send + Sync> {
         let _ = self;
@@ -270,6 +276,7 @@ type ClientFactory =
 
 #[derive(Debug, Clone)]
 pub struct FakeLogEntry {
+    pub request_id: Option<String>,
     pub method: String,
     pub params: Option<Value>,
 }
@@ -372,11 +379,16 @@ impl FakeCursorRunnerClient {
     }
 
     fn push_log(&self, method: &str, params: Option<Value>) {
+        self.push_log_with_id(None, method, params);
+    }
+
+    fn push_log_with_id(&self, request_id: Option<String>, method: &str, params: Option<Value>) {
         self.shared
             .log
             .lock()
             .unwrap_or_else(|e| e.into_inner())
             .push(FakeLogEntry {
+                request_id,
                 method: method.into(),
                 params,
             });
@@ -474,6 +486,57 @@ impl CursorRunnerClient for FakeCursorRunnerClient {
     fn on_spawned_with_api_key(&mut self, api_key: &str) {
         Self::on_spawned_with_api_key(self, api_key);
     }
+
+    fn request(
+        &mut self,
+        request_id: &str,
+        method: &str,
+        params: Option<Value>,
+    ) -> Result<Value, CursorError> {
+        match method {
+            "create" => {
+                self.push_log_with_id(Some(request_id.into()), "create", params);
+                Ok(json!({}))
+            }
+            "turn" => {
+                self.shared.in_flight.store(true, Ordering::SeqCst);
+                self.push_log_with_id(Some(request_id.into()), "turn", params.clone());
+                if let Some(d) = *self
+                    .shared
+                    .turn_block
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner())
+                {
+                    let start = Instant::now();
+                    while start.elapsed() < d {
+                        if self.shared.cancel_requested.load(Ordering::SeqCst) {
+                            self.shared.in_flight.store(false, Ordering::SeqCst);
+                            return Err(map_runner_error("cancelled", "run cancelled"));
+                        }
+                        thread::sleep(Duration::from_millis(10));
+                    }
+                }
+                if self.shared.cancel_requested.load(Ordering::SeqCst) {
+                    self.shared.in_flight.store(false, Ordering::SeqCst);
+                    return Err(map_runner_error("cancelled", "run cancelled"));
+                }
+                self.shared.in_flight.store(false, Ordering::SeqCst);
+                Ok(json!({ "text": "fake-ok" }))
+            }
+            "cancel" => {
+                self.push_log_with_id(Some(request_id.into()), "cancel", None);
+                self.shared.cancel_requested.store(true, Ordering::SeqCst);
+                self.shared.in_flight.store(false, Ordering::SeqCst);
+                Ok(json!({}))
+            }
+            "close" => {
+                self.shared.dispose_awaited.store(true, Ordering::SeqCst);
+                self.push_log_with_id(Some(request_id.into()), "close", None);
+                Ok(json!({}))
+            }
+            _ => Err(map_runner_error("runner", "unknown method")),
+        }
+    }
 }
 
 // ── Production process client ────────────────────────────────────────────────
@@ -525,7 +588,16 @@ impl ProcessCursorRunnerClient {
     fn exchange(&mut self, method: &str, params: Option<Value>) -> Result<Value, CursorError> {
         let id = format!("r{}", self.next_id);
         self.next_id += 1;
-        let mut req = json!({ "id": id, "method": method });
+        self.exchange_with_id(&id, method, params)
+    }
+
+    fn exchange_with_id(
+        &mut self,
+        request_id: &str,
+        method: &str,
+        params: Option<Value>,
+    ) -> Result<Value, CursorError> {
+        let mut req = json!({ "id": request_id, "method": method });
         if let Some(p) = params {
             req["params"] = p;
         }
@@ -657,11 +729,157 @@ impl CursorRunnerClient for ProcessCursorRunnerClient {
             }
         })
     }
+
+    fn request(
+        &mut self,
+        request_id: &str,
+        method: &str,
+        params: Option<Value>,
+    ) -> Result<Value, CursorError> {
+        self.exchange_with_id(request_id, method, params)
+    }
 }
 
 impl Drop for ProcessCursorRunnerClient {
     fn drop(&mut self) {
         self.force_kill();
+    }
+}
+
+// ── CursorLlmEngine (Phase-Ensure) ───────────────────────────────────────────
+
+/// Cursor engine communication path: `ensure_client` → `request(request_id, …)`.
+/// Does not own/spawn `ProcessCursorRunnerClient` (manager does).
+pub struct CursorLlmEngine {
+    manager: Option<CursorAgentProcessManager>,
+    next_request_id: AtomicU64,
+    foreground_session: Mutex<Option<String>>,
+}
+
+impl CursorLlmEngine {
+    pub fn production() -> Self {
+        Self {
+            manager: None,
+            next_request_id: AtomicU64::new(1),
+            foreground_session: Mutex::new(None),
+        }
+    }
+
+    pub fn with_manager(manager: CursorAgentProcessManager) -> Self {
+        Self {
+            manager: Some(manager),
+            next_request_id: AtomicU64::new(1),
+            foreground_session: Mutex::new(None),
+        }
+    }
+
+    pub fn global() -> &'static CursorLlmEngine {
+        static GLOBAL: OnceLock<CursorLlmEngine> = OnceLock::new();
+        GLOBAL.get_or_init(Self::production)
+    }
+
+    fn manager(&self) -> &CursorAgentProcessManager {
+        self.manager
+            .as_ref()
+            .unwrap_or_else(|| CursorAgentProcessManager::global())
+    }
+
+    fn next_request_id(&self) -> String {
+        let n = self.next_request_id.fetch_add(1, Ordering::SeqCst);
+        format!("eng-{n}")
+    }
+
+    /// ILlmEngine-shaped turn entry: ensure managed client, then JSONL request(s).
+    pub fn run_turn(&self, req: &TurnRequest) -> Result<TurnOutcome, CursorError> {
+        let cwd = match session_cwd::create_session_cwd(&req.session_id) {
+            Ok(p) => p,
+            Err(_) => {
+                return Err(CursorError::new(
+                    CursorErrorCode::Cwd,
+                    frontend_message_for(CursorErrorCode::Cwd),
+                ));
+            }
+        };
+        let mcp_servers =
+            serde_json::to_value(mcp_endpoint_readiness::map_to_sdk_mcp_servers(&req.ready_mcp))
+                .map_err(|_| {
+                    CursorError::new(
+                        CursorErrorCode::Runner,
+                        frontend_message_for(CursorErrorCode::Runner),
+                    )
+                })?;
+
+        let access = self
+            .manager()
+            .ensure_client()
+            .map_err(map_ensure_error)?;
+
+        let need_create = {
+            let mut fg = self
+                .foreground_session
+                .lock()
+                .unwrap_or_else(|e| e.into_inner());
+            match fg.as_deref() {
+                Some(id) if id == req.session_id => false,
+                _ => {
+                    *fg = Some(req.session_id.clone());
+                    true
+                }
+            }
+        };
+
+        if need_create {
+            let rid = self.next_request_id();
+            let params = json!({
+                "model": req.model,
+                "cwd": cwd.to_string_lossy(),
+                "mcpServers": mcp_servers,
+            });
+            access
+                .request(&rid, "create", Some(params))
+                .map_err(map_request_error)?;
+        }
+
+        let rid = self.next_request_id();
+        let result = access
+            .request(&rid, "turn", Some(json!({ "prompt": req.prompt })))
+            .map_err(map_request_error)?;
+        let text = result
+            .get("text")
+            .and_then(|x| x.as_str())
+            .unwrap_or("")
+            .to_string();
+        Ok(TurnOutcome {
+            text,
+            should_persist: true,
+        })
+    }
+}
+
+fn map_ensure_error(err: EnsureError) -> CursorError {
+    match err {
+        EnsureError::Unavailable => CursorError::new(
+            CursorErrorCode::Credential,
+            frontend_message_for(CursorErrorCode::Credential),
+        ),
+        EnsureError::Config(_) => CursorError::new(
+            CursorErrorCode::SdkConfig,
+            frontend_message_for(CursorErrorCode::SdkConfig),
+        ),
+        EnsureError::Spawn | EnsureError::Stale => CursorError::new(
+            CursorErrorCode::Runner,
+            frontend_message_for(CursorErrorCode::Runner),
+        ),
+    }
+}
+
+fn map_request_error(err: RequestError) -> CursorError {
+    match err {
+        RequestError::Stale => CursorError::new(
+            CursorErrorCode::Runner,
+            frontend_message_for(CursorErrorCode::Runner),
+        ),
+        RequestError::Runner(e) => e,
     }
 }
 
