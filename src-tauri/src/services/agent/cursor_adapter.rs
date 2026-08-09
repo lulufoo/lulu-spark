@@ -15,6 +15,9 @@
 //! Only [`CursorAgentProcessManager`](crate::services::agent::process_manager::CursorAgentProcessManager)
 //! may construct / hold [`ProcessCursorRunnerClient`] (Phase-Cutover).
 //!
+//! T-VerifyAgent: KEEP surface locked to `request` / `concurrent_jsonl` / `close` /
+//! `force_kill` / `terminate_hook` / `on_spawned_with_api_key` (no typed create/turn/cancel).
+//!
 //! ## Tests
 //!
 //! Inject [`FakeCursorRunnerClient`] via manager factory. Legacy

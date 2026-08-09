@@ -42,6 +42,9 @@ mod ai_assistant_session_tests;
 #[path = "cutover_tests.rs"]
 mod cutover_tests;
 
+#[path = "verify_agent_tests.rs"]
+mod verify_agent_tests;
+
 use std::fs;
 use std::io::{Read, Write};
 use std::net::TcpListener;
