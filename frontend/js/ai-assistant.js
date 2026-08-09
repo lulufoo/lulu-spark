@@ -16,6 +16,35 @@ const OPENED_EVENT = 'ai-assistant:opened';
 const BINDING_CHANGED_EVENT = 'ai-assistant:binding-changed';
 /** Present surface name — not a Binding Contract op; Present≠bound. */
 const PRESENT_SURFACE = 'Present';
+const DIAGNOSTIC_SCHEMA_VERSION = 1;
+
+function createTurnTraceId() {
+  const id = globalThis.crypto?.randomUUID?.();
+  if (typeof id === 'string') return `ui_${id}`;
+  return `ui_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 12)}`;
+}
+
+function logAssistantDiagnostic(traceId, event, elapsedMs, fields = {}) {
+  const payload = {
+    schema_version: DIAGNOSTIC_SCHEMA_VERSION,
+    timestamp: new Date().toISOString(),
+    component: 'assistant.ui',
+    event,
+    trace_id: traceId,
+    elapsed_ms: Math.max(0, Math.round(elapsedMs)),
+    fields,
+  };
+  console.info(`[assistant-diagnostic] ${JSON.stringify(payload)}`);
+}
+
+function persistAssistantTiming(invoke, traceId, phase, elapsedMs, inputToResponseMs) {
+  void invoke('record_ai_assistant_timing', {
+    traceId,
+    phase,
+    elapsedMs: Math.max(0, Math.round(elapsedMs)),
+    inputToResponseMs,
+  }).catch(() => {});
+}
 
 function getTauriInvoke() {
   if (typeof window === 'undefined') return null;
@@ -53,6 +82,7 @@ export function mountAiAssistant(root, opts = {}) {
   let hostBound = false;
   let hostBusy = false;
   let sending = false;
+  let inputSubmittedAt = null;
   /** @type {{ role: 'user'|'assistant'|'notice', text: string, error?: boolean }[]} */
   let messages = [];
   let unlistenOpened = null;
@@ -210,7 +240,7 @@ export function mountAiAssistant(root, opts = {}) {
     return Boolean(sessionId);
   }
 
-  async function sendMessage(text) {
+  async function sendMessage(text, inputStartedAt = performance.now()) {
     const invoke = getTauriInvoke();
     if (!invoke) {
       pushNotice('Tauri invoke unavailable', true);
@@ -229,11 +259,28 @@ export function mountAiAssistant(root, opts = {}) {
     messages.push({ role: 'user', text });
     pushNotice('Working…');
     renderMessages();
+    const traceId = createTurnTraceId();
+    const invokeStartedAt = performance.now();
+    logAssistantDiagnostic(traceId, 'turn.invoke.started', invokeStartedAt - inputStartedAt);
     try {
       const result = await invoke('agent_chat_turn', {
         sessionId,
         message: text,
+        traceId,
       });
+      const invokeCompletedAt = performance.now();
+      const inputToResponseMs = Math.max(0, Math.round(invokeCompletedAt - inputStartedAt));
+      logAssistantDiagnostic(traceId, 'turn.invoke.completed', invokeCompletedAt - invokeStartedAt, {
+        outcome: 'ok',
+        input_to_response_ms: inputToResponseMs,
+      });
+      persistAssistantTiming(
+        invoke,
+        traceId,
+        'response_received',
+        invokeCompletedAt - invokeStartedAt,
+        inputToResponseMs,
+      );
       messages = messages.filter((m) => !(m.role === 'notice' && m.text === 'Working…'));
       if (result && typeof result === 'object') {
         if (result.busy) {
@@ -249,9 +296,16 @@ export function mountAiAssistant(root, opts = {}) {
           }
         }
       }
+      const renderStartedAt = performance.now();
       renderMessages();
+      const renderElapsedMs = performance.now() - renderStartedAt;
+      logAssistantDiagnostic(traceId, 'turn.render.completed', renderElapsedMs);
+      persistAssistantTiming(invoke, traceId, 'render_completed', renderElapsedMs);
       refreshComposerAndStatus();
     } catch (err) {
+      logAssistantDiagnostic(traceId, 'turn.invoke.completed', performance.now() - invokeStartedAt, {
+        outcome: 'error',
+      });
       messages = messages.filter((m) => !(m.role === 'notice' && m.text === 'Working…'));
       pushNotice(err?.message ? String(err.message) : 'Failed to send', true);
     } finally {
@@ -264,8 +318,10 @@ export function mountAiAssistant(root, opts = {}) {
     event.preventDefault();
     const text = String(input.value || '').trim();
     if (!text || sending) return;
+    const inputStartedAt = inputSubmittedAt ?? performance.now();
+    inputSubmittedAt = null;
     input.value = '';
-    void sendMessage(text);
+    void sendMessage(text, inputStartedAt);
   });
 
   // Enter sends; Shift+Enter inserts a newline (textarea default).
@@ -273,6 +329,7 @@ export function mountAiAssistant(root, opts = {}) {
     if (event.key !== 'Enter' || event.shiftKey || event.isComposing) return;
     event.preventDefault();
     if (input.disabled || sendBtn.disabled || sending) return;
+    inputSubmittedAt = performance.now();
     if (typeof form.requestSubmit === 'function') {
       form.requestSubmit();
     } else {

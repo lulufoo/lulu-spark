@@ -1,9 +1,12 @@
 //! Host commands: open_ai_assistant / Present / agent_chat_turn.
 //! Dual surface: Binding Contract ops (Set/Reset/query/execute + callbacks) vs shell Present.
 
+use std::time::Instant;
+
 use serde_json::{json, Value};
 use tauri::{AppHandle, Emitter};
 
+use crate::services::agent::diagnostics::{self, DiagnosticEvent, TraceId};
 use crate::services::agent::r#loop::{self, ChatTurnResult, EVENT_TURN_COMPLETED, WINDOW_LABEL};
 use crate::services::agent::runtime;
 pub use crate::services::agent::session::value_exposes_engine_selection;
@@ -164,6 +167,44 @@ pub fn agent_chat_turn_json(
     runtime::chat_turn(session_id, message, master_task_id)
 }
 
+fn agent_chat_turn_with_trace(
+    session_id: &str,
+    message: &str,
+    master_task_id: Option<&str>,
+    trace_id: &TraceId,
+) -> Result<ChatTurnResult, String> {
+    runtime::chat_turn_with_trace(session_id, message, master_task_id, trace_id)
+}
+
+/// Persist browser-observed timing after the response is already visible.
+///
+/// This accepts only the two fixed UI phases and numeric durations. It never
+/// accepts message content or arbitrary browser-provided log fields.
+#[tauri::command]
+pub fn record_ai_assistant_timing(
+    trace_id: String,
+    phase: String,
+    elapsed_ms: u64,
+    input_to_response_ms: Option<u64>,
+) -> Result<(), String> {
+    let trace_id = TraceId::parse(&trace_id).ok_or_else(|| "invalid trace id".to_string())?;
+    let event = match phase.as_str() {
+        "response_received" => "turn.response_received",
+        "render_completed" => "turn.render_completed",
+        _ => return Err("invalid assistant timing phase".into()),
+    };
+    let mut diagnostic = DiagnosticEvent::timing(
+        "assistant.ui",
+        event,
+        &trace_id,
+        std::time::Duration::from_millis(elapsed_ms),
+    );
+    if let Some(input_to_response_ms) = input_to_response_ms {
+        diagnostic = diagnostic.with_u64_field("input_to_response_ms", input_to_response_ms);
+    }
+    diagnostics::log(diagnostic)
+}
+
 #[tauri::command]
 pub async fn open_ai_assistant(
     app: AppHandle,
@@ -254,16 +295,76 @@ pub async fn agent_chat_turn(
     session_id: String,
     message: String,
     master_task_id: Option<String>,
+    trace_id: Option<String>,
 ) -> Result<Value, String> {
+    let trace_id = TraceId::from_optional(trace_id);
+    let command_started = Instant::now();
+    let worker_trace_id = trace_id.clone();
     let result = tauri::async_runtime::spawn_blocking(move || {
-        agent_chat_turn_json(
+        let worker_started = Instant::now();
+        let _ = diagnostics::log(DiagnosticEvent::point(
+            "assistant.command",
+            "blocking_worker.started",
+            &worker_trace_id,
+        ));
+        let result = agent_chat_turn_with_trace(
             &session_id,
             &message,
             master_task_id.as_deref(),
-        )
+            &worker_trace_id,
+        );
+        let outcome = if result.is_ok() { "ok" } else { "error" };
+        let _ = diagnostics::log(
+            DiagnosticEvent::timing(
+                "assistant.command",
+                "blocking_worker.completed",
+                &worker_trace_id,
+                worker_started.elapsed(),
+            )
+            .with_static_field("outcome", outcome),
+        );
+        result
     })
-    .await
-    .map_err(|e| e.to_string())??;
+    .await;
+
+    let result = match result {
+        Ok(Ok(result)) => {
+            let _ = diagnostics::log(
+                DiagnosticEvent::timing(
+                    "assistant.command",
+                    "agent_chat_turn.completed",
+                    &trace_id,
+                    command_started.elapsed(),
+                )
+                .with_static_field("outcome", "ok"),
+            );
+            result
+        }
+        Ok(Err(err)) => {
+            let _ = diagnostics::log(
+                DiagnosticEvent::timing(
+                    "assistant.command",
+                    "agent_chat_turn.completed",
+                    &trace_id,
+                    command_started.elapsed(),
+                )
+                .with_static_field("outcome", "error"),
+            );
+            return Err(err);
+        }
+        Err(err) => {
+            let _ = diagnostics::log(
+                DiagnosticEvent::timing(
+                    "assistant.command",
+                    "agent_chat_turn.completed",
+                    &trace_id,
+                    command_started.elapsed(),
+                )
+                .with_static_field("outcome", "task_error"),
+            );
+            return Err(err.to_string());
+        }
+    };
 
     if let Some(ev) = &result.emit_turn_completed {
         if let Some(payload) = ev.get("payload") {

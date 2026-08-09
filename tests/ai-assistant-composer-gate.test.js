@@ -306,10 +306,14 @@ describe('ai-assistant composer Binding Contract gate', () => {
     input.value = 'hello via enter';
     input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
     await vi.waitFor(() => {
-      expect(invokeMock).toHaveBeenCalledWith('agent_chat_turn', {
-        sessionId: 'sess_enter_send',
-        message: 'hello via enter',
-      });
+      expect(invokeMock).toHaveBeenCalledWith(
+        'agent_chat_turn',
+        expect.objectContaining({
+          sessionId: 'sess_enter_send',
+          message: 'hello via enter',
+          traceId: expect.stringMatching(/^ui_[A-Za-z0-9_-]{8,}$/),
+        }),
+      );
     });
     expect(input.value).toBe('');
     api.dispose();

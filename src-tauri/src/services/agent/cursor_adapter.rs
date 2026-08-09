@@ -36,6 +36,7 @@ use std::time::{Duration, Instant};
 use serde_json::{json, Value};
 
 use crate::cursor_agent_runner_launch_path;
+use crate::services::agent::diagnostics::{self, DiagnosticEvent, TraceId};
 use crate::services::agent::process_manager::{
     ClientAccess, CursorAgentProcessManager, EnsureError, RequestError,
 };
@@ -839,28 +840,76 @@ impl CursorLlmEngine {
 
     /// ILlmEngine-shaped turn entry: ensure managed client, then JSONL request(s).
     pub fn run_turn(&self, req: &TurnRequest) -> Result<TurnOutcome, CursorError> {
+        self.run_turn_inner(req, None)
+    }
+
+    pub(crate) fn run_turn_with_trace(
+        &self,
+        req: &TurnRequest,
+        trace_id: &TraceId,
+    ) -> Result<TurnOutcome, CursorError> {
+        self.run_turn_inner(req, Some(trace_id))
+    }
+
+    fn run_turn_inner(
+        &self,
+        req: &TurnRequest,
+        trace_id: Option<&TraceId>,
+    ) -> Result<TurnOutcome, CursorError> {
+        let run_started = Instant::now();
+        let cwd_started = Instant::now();
         let cwd = match session_cwd::create_session_cwd(&req.session_id) {
-            Ok(p) => p,
+            Ok(path) => {
+                log_cursor_timing(trace_id, "cursor.session_cwd.completed", cwd_started, "ok");
+                path
+            }
             Err(_) => {
+                log_cursor_timing(
+                    trace_id,
+                    "cursor.session_cwd.completed",
+                    cwd_started,
+                    "error",
+                );
                 return Err(CursorError::new(
                     CursorErrorCode::Cwd,
                     frontend_message_for(CursorErrorCode::Cwd),
                 ));
             }
         };
-        let mcp_servers =
-            serde_json::to_value(mcp_endpoint_readiness::map_to_sdk_mcp_servers(&req.ready_mcp))
-                .map_err(|_| {
-                    CursorError::new(
-                        CursorErrorCode::Runner,
-                        frontend_message_for(CursorErrorCode::Runner),
-                    )
-                })?;
 
-        let access = self
-            .manager()
-            .ensure_client()
-            .map_err(map_ensure_error)?;
+        let mcp_servers = match serde_json::to_value(
+            mcp_endpoint_readiness::map_to_sdk_mcp_servers(&req.ready_mcp),
+        ) {
+            Ok(value) => value,
+            Err(_) => {
+                return Err(CursorError::new(
+                    CursorErrorCode::Runner,
+                    frontend_message_for(CursorErrorCode::Runner),
+                ));
+            }
+        };
+
+        let ensure_started = Instant::now();
+        let access = match self.manager().ensure_client() {
+            Ok(access) => {
+                log_cursor_timing(
+                    trace_id,
+                    "cursor.client_ensure.completed",
+                    ensure_started,
+                    "ok",
+                );
+                access
+            }
+            Err(err) => {
+                log_cursor_timing(
+                    trace_id,
+                    "cursor.client_ensure.completed",
+                    ensure_started,
+                    "error",
+                );
+                return Err(map_ensure_error(err));
+            }
+        };
 
         let need_create = {
             let fg = self.foreground.lock().unwrap_or_else(|e| e.into_inner());
@@ -883,8 +932,27 @@ impl CursorLlmEngine {
                 "cwd": cwd.to_string_lossy(),
                 "mcpServers": mcp_servers,
             });
-            let create_result =
-                self.request_managed(&access, &rid, "create", Some(params))?;
+            let create_started = Instant::now();
+            let create_result = match self.request_managed(&access, &rid, "create", Some(params)) {
+                Ok(result) => {
+                    log_cursor_timing(
+                        trace_id,
+                        "cursor.create.completed",
+                        create_started,
+                        "ok",
+                    );
+                    result
+                }
+                Err(err) => {
+                    log_cursor_timing(
+                        trace_id,
+                        "cursor.create.completed",
+                        create_started,
+                        "error",
+                    );
+                    return Err(err);
+                }
+            };
             // Defense: coalesced must never look like a successful create (bind/turn).
             if create_result
                 .get("coalesced")
@@ -921,22 +989,48 @@ impl CursorLlmEngine {
         }
 
         let rid = self.next_request_id();
-        let result = self.request_managed(
+        let turn_started = Instant::now();
+        let result = match self.request_managed(
             &access,
             &rid,
             "turn",
             Some(json!({ "prompt": req.prompt })),
-        )?;
+        ) {
+            Ok(result) => {
+                log_cursor_timing(trace_id, "cursor.turn.completed", turn_started, "ok");
+                result
+            }
+            Err(err) => {
+                log_cursor_timing(trace_id, "cursor.turn.completed", turn_started, "error");
+                return Err(err);
+            }
+        };
         let text = result
             .get("text")
             .and_then(|x| x.as_str())
             .unwrap_or("")
             .to_string();
+        log_cursor_timing(trace_id, "cursor.run_turn.completed", run_started, "ok");
         Ok(TurnOutcome {
             text,
             should_persist: true,
         })
     }
+}
+
+fn log_cursor_timing(
+    trace_id: Option<&TraceId>,
+    event: &'static str,
+    started: Instant,
+    outcome: &'static str,
+) {
+    let Some(trace_id) = trace_id else {
+        return;
+    };
+    let _ = diagnostics::log(
+        DiagnosticEvent::timing("assistant.cursor", event, trace_id, started.elapsed())
+            .with_static_field("outcome", outcome),
+    );
 }
 
 fn map_ensure_error(err: EnsureError) -> CursorError {

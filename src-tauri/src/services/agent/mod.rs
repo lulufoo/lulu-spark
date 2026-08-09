@@ -2,6 +2,7 @@
 //! (`cursor_adapter` speaks JSONL to `packages/cursor-agent-runner`).
 
 pub mod cursor_adapter;
+pub mod diagnostics;
 pub mod e2e_gate;
 pub mod engine_router;
 pub mod host_startup;

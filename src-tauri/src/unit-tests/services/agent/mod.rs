@@ -57,6 +57,7 @@ use serde_json::{json, Value};
 
 use crate::config::secrets::{self, KEY_LLM_API_KEY};
 use crate::config::settings;
+use crate::services::agent::diagnostics::{self, DiagnosticEvent, TraceId};
 use crate::services::agent::llm::{self, LlmConfig, LlmError};
 use crate::services::agent::session::{self, Session, Turn};
 use crate::services::agent::tools;
@@ -170,6 +171,84 @@ fn agent_error_log_writes_under_cache_agent_without_secrets() {
         }
         assert!(found, "expected at least one log file under {log_dir:?}");
     });
+}
+
+#[test]
+fn assistant_diagnostic_log_is_versioned_jsonl_with_safe_metadata_only() {
+    with_agent_sandbox(|sandbox| {
+        let trace_id = TraceId::parse("trace_12345678").expect("valid trace id");
+        let event = DiagnosticEvent::timing(
+            "assistant.runtime",
+            "turn.completed",
+            &trace_id,
+            Duration::from_millis(42),
+        )
+        .with_static_field("engine", "cursor")
+        .with_bool_field("persisted", true);
+
+        diagnostics::log(event).expect("write diagnostic event");
+
+        let path = diagnostics::diagnostic_log_path().expect("diagnostic log path");
+        assert_under_cache_not_corpus(&path, sandbox);
+        let log = fs::read_to_string(&path).expect("read diagnostic log");
+        let line = log
+            .lines()
+            .last()
+            .expect("diagnostic line");
+        let value: Value = serde_json::from_str(line).expect("valid JSONL event");
+
+        assert_eq!(value["schema_version"], 1);
+        assert_eq!(value["component"], "assistant.runtime");
+        assert_eq!(value["event"], "turn.completed");
+        assert_eq!(value["trace_id"], "trace_12345678");
+        assert_eq!(value["elapsed_ms"], 42);
+        assert_eq!(value["fields"]["engine"], "cursor");
+        assert_eq!(value["fields"]["persisted"], true);
+        assert!(
+            value.get("message").is_none()
+                && value.get("prompt").is_none()
+                && value.get("content").is_none(),
+            "diagnostic event must not expose message content"
+        );
+    });
+}
+
+#[test]
+fn assistant_diagnostics_are_correlated_without_message_content() {
+    let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .expect("repo root");
+    let command = fs::read_to_string(repo_root.join("src-tauri/src/commands/ai_assistant.rs"))
+        .expect("read assistant command");
+    let runtime = fs::read_to_string(repo_root.join("src-tauri/src/services/agent/runtime.rs"))
+        .expect("read assistant runtime");
+    let cursor_adapter =
+        fs::read_to_string(repo_root.join("src-tauri/src/services/agent/cursor_adapter.rs"))
+            .expect("read cursor adapter");
+    let frontend =
+        fs::read_to_string(repo_root.join("frontend/js/ai-assistant.js")).expect("read assistant UI");
+    let diagnostics =
+        fs::read_to_string(repo_root.join("src-tauri/src/services/agent/diagnostics.rs"))
+            .expect("read diagnostics");
+
+    assert!(
+        command.contains("trace_id: Option<String>")
+            && command.contains("agent_chat_turn_with_trace"),
+        "Tauri command must carry a caller correlation id into the runtime"
+    );
+    assert!(
+        runtime.contains("cursor.mcp_readiness.completed")
+            && cursor_adapter.contains("cursor.turn.completed"),
+        "Cursor timing must expose readiness and SDK turn boundaries"
+    );
+    assert!(
+        frontend.contains("traceId") && frontend.contains("assistant-diagnostic"),
+        "UI timing must correlate its invoke and render events with Host events"
+    );
+    assert!(
+        !diagnostics.contains("with_dynamic_field"),
+        "diagnostics must not provide an API for arbitrary dynamic strings"
+    );
 }
 
 // ── Tools (interface layer kept; capability dispatch removed in t3) ───────────

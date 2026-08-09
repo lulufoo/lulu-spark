@@ -7,8 +7,10 @@
 //! Shutdown failure is logged and never blocks process exit.
 
 use std::sync::Mutex;
+use std::time::Instant;
 
 use crate::config::settings;
+use crate::services::agent::diagnostics::{self, DiagnosticEvent, TraceId};
 use crate::services::agent::engine_router::{self, EngineKind, EngineRuntimeConfig};
 use crate::services::agent::process_manager::{
     CursorAgentProcessManager, ShutdownError, WarmError,
@@ -66,19 +68,52 @@ where
     }
 }
 
+fn warm_outcome_name(outcome: WarmCoordOutcome) -> &'static str {
+    match outcome {
+        WarmCoordOutcome::Warmed => "warmed",
+        WarmCoordOutcome::SkippedNoApiKey => "skipped_no_api_key",
+        WarmCoordOutcome::SkippedNonCursor => "skipped_non_cursor",
+        WarmCoordOutcome::Failed => "failed",
+    }
+}
+
+fn log_warm_outcome(trace_id: &TraceId, outcome: WarmCoordOutcome, started: Instant) {
+    let _ = diagnostics::log(
+        DiagnosticEvent::timing(
+            "assistant.startup",
+            "cursor_warm.completed",
+            trace_id,
+            started.elapsed(),
+        )
+        .with_static_field("outcome", warm_outcome_name(outcome)),
+    );
+}
+
 /// Production entry: read current engine/credential, then coordinate against manager.
 pub fn coordinate_warm(mgr: &CursorAgentProcessManager) -> WarmCoordOutcome {
+    coordinate_warm_with_trace(mgr, TraceId::new())
+}
+
+fn coordinate_warm_with_trace(
+    mgr: &CursorAgentProcessManager,
+    trace_id: TraceId,
+) -> WarmCoordOutcome {
+    let started = Instant::now();
     let cfg = match settings::load() {
         Ok(s) => match engine_router::read_engine_runtime_config(&s) {
             Ok(c) => c,
             Err(e) => {
                 eprintln!("[cursor-agent-process] warm skip: config error: {e}");
-                return record(WarmCoordOutcome::Failed);
+                let outcome = record(WarmCoordOutcome::Failed);
+                log_warm_outcome(&trace_id, outcome, started);
+                return outcome;
             }
         },
         Err(e) => {
             eprintln!("[cursor-agent-process] warm skip: settings load error: {e}");
-            return record(WarmCoordOutcome::Failed);
+            let outcome = record(WarmCoordOutcome::Failed);
+            log_warm_outcome(&trace_id, outcome, started);
+            return outcome;
         }
     };
     let outcome = coordinate_warm_for(&cfg, || mgr.warm());
@@ -96,13 +131,20 @@ pub fn coordinate_warm(mgr: &CursorAgentProcessManager) -> WarmCoordOutcome {
             eprintln!("[cursor-agent-process] warm: Failed (App continues)");
         }
     }
+    log_warm_outcome(&trace_id, outcome, started);
     outcome
 }
 
 /// Fire-and-forget warm on a background thread so Host setup is not blocked.
 pub fn schedule_cursor_runner_warm() {
-    std::thread::spawn(|| {
-        let _ = coordinate_warm(CursorAgentProcessManager::global());
+    let trace_id = TraceId::new();
+    let _ = diagnostics::log(DiagnosticEvent::point(
+        "assistant.startup",
+        "cursor_warm.scheduled",
+        &trace_id,
+    ));
+    std::thread::spawn(move || {
+        let _ = coordinate_warm_with_trace(CursorAgentProcessManager::global(), trace_id);
     });
 }
 

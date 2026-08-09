@@ -7,6 +7,7 @@
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, OnceLock};
+use std::time::Instant;
 
 use serde_json::{json, Value};
 
@@ -15,6 +16,7 @@ use crate::services::agent::cursor_adapter::{
     self, CursorError, CursorErrorCode, CursorLlmEngine, TurnOutcome as CursorTurnOutcome,
     TurnRequest,
 };
+use crate::services::agent::diagnostics::{self, DiagnosticEvent, TraceId};
 #[cfg(test)]
 use crate::services::agent::cursor_adapter::CursorSessionRuntime;
 use crate::services::agent::engine_router::{self, AdapterKind, EngineRouteError, TurnInput};
@@ -104,7 +106,10 @@ pub fn cursor_runtime_installed_for_tests() -> bool {
 }
 
 /// Production Cursor path: CursorLlmEngine (ensure_client → request).
-fn cursor_run_turn(req: &TurnRequest) -> Result<CursorTurnOutcome, CursorError> {
+fn cursor_run_turn(
+    req: &TurnRequest,
+    trace_id: &TraceId,
+) -> Result<CursorTurnOutcome, CursorError> {
     #[cfg(test)]
     if let Some(rt) = test_cursor_slot()
         .lock()
@@ -114,7 +119,7 @@ fn cursor_run_turn(req: &TurnRequest) -> Result<CursorTurnOutcome, CursorError> 
         // request-only CSR: typed create/turn/cancel removed; CSR.run_turn uses request.
         return rt.run_turn(req);
     }
-    CursorLlmEngine::global().run_turn(req)
+    CursorLlmEngine::global().run_turn_with_trace(req, trace_id)
 }
 
 /// Probe Host MCP readiness (`GET http://127.0.0.1:{DEFAULT_MCP_PORT}/health`)
@@ -237,7 +242,12 @@ fn decode_routed(s: &str) -> Result<RoutedTurn, String> {
     })
 }
 
-fn host_adapter_turn(session_id: &str, message: &str) -> Result<String, String> {
+fn host_adapter_turn(
+    session_id: &str,
+    message: &str,
+    trace_id: &TraceId,
+) -> Result<String, String> {
+    let started = Instant::now();
     let mut session = session::load_session(session_id)?;
     let outcome = match llm::load_llm_config() {
         Ok(cfg) => r#loop::run_loop(&mut session, message, &cfg),
@@ -247,6 +257,7 @@ fn host_adapter_turn(session_id: &str, message: &str) -> Result<String, String> 
             out
         }
     };
+    log_timing(trace_id, "assistant.host", "turn.completed", started, "ok");
     Ok(encode_routed(&RoutedTurn {
         reply_text: outcome.reply_text,
         terminal: outcome.terminal,
@@ -255,7 +266,12 @@ fn host_adapter_turn(session_id: &str, message: &str) -> Result<String, String> 
     }))
 }
 
-fn cursor_adapter_turn(session_id: &str, message: &str) -> Result<String, String> {
+fn cursor_adapter_turn(
+    session_id: &str,
+    message: &str,
+    trace_id: &TraceId,
+) -> Result<String, String> {
+    let started = Instant::now();
     // L2-A: consume AIAssistantSession execution-context snapshot (sole live owner).
     let live_ctx = session::live_context_owner().execution_context_snapshot();
     // Same-session MCP config face (L2) — required before readiness/adapter.
@@ -283,9 +299,28 @@ fn cursor_adapter_turn(session_id: &str, message: &str) -> Result<String, String
         .and_then(session::binding_business_key)
         .unwrap_or_else(|| SEEDED_BUSINESS_KEY.to_string());
 
+    let readiness_started = Instant::now();
     let ready_mcp = match ready_mcp_for_binding_key(&key) {
-        Ok(r) => r,
-        Err(err) => return Ok(encode_routed(&cursor_err_routed(err))),
+        Ok(ready) => {
+            log_timing(
+                trace_id,
+                "assistant.cursor",
+                "cursor.mcp_readiness.completed",
+                readiness_started,
+                "ok",
+            );
+            ready
+        }
+        Err(err) => {
+            log_timing(
+                trace_id,
+                "assistant.cursor",
+                "cursor.mcp_readiness.completed",
+                readiness_started,
+                "error",
+            );
+            return Ok(encode_routed(&cursor_err_routed(err)));
+        }
     };
 
     let req = TurnRequest {
@@ -296,15 +331,30 @@ fn cursor_adapter_turn(session_id: &str, message: &str) -> Result<String, String
         ready_mcp,
     };
 
-    let result = cursor_run_turn(&req);
+    let result = cursor_run_turn(&req, trace_id);
     let should_persist = cursor_adapter::should_persist_cursor_result(&result);
 
     match result {
         Ok(out) => {
             if should_persist {
+                let persist_started = Instant::now();
                 let mut session = session::load_session(session_id)?;
                 append_user_assistant(&mut session, message, &out.text);
+                log_timing(
+                    trace_id,
+                    "assistant.cursor",
+                    "cursor.session_persist.completed",
+                    persist_started,
+                    "ok",
+                );
             }
+            log_timing(
+                trace_id,
+                "assistant.cursor",
+                "cursor.adapter.completed",
+                started,
+                "ok",
+            );
             Ok(encode_routed(&RoutedTurn {
                 reply_text: out.text,
                 terminal: Terminal::None,
@@ -314,11 +364,46 @@ fn cursor_adapter_turn(session_id: &str, message: &str) -> Result<String, String
         }
         Err(err) => {
             if should_persist {
+                let persist_started = Instant::now();
                 let mut session = session::load_session(session_id)?;
                 append_user_assistant(&mut session, message, &err.message);
+                log_timing(
+                    trace_id,
+                    "assistant.cursor",
+                    "cursor.session_persist.completed",
+                    persist_started,
+                    "ok",
+                );
             }
+            log_timing(
+                trace_id,
+                "assistant.cursor",
+                "cursor.adapter.completed",
+                started,
+                "error",
+            );
             Ok(encode_routed(&cursor_err_routed(err)))
         }
+    }
+}
+
+fn log_timing(
+    trace_id: &TraceId,
+    component: &'static str,
+    event: &'static str,
+    started: Instant,
+    outcome: &'static str,
+) {
+    let _ = diagnostics::log(
+        DiagnosticEvent::timing(component, event, trace_id, started.elapsed())
+            .with_static_field("outcome", outcome),
+    );
+}
+
+fn adapter_name(adapter: AdapterKind) -> &'static str {
+    match adapter {
+        AdapterKind::Host => "host",
+        AdapterKind::Cursor => "cursor",
     }
 }
 
@@ -328,17 +413,69 @@ pub fn chat_turn(
     message: &str,
     _master_task_id: Option<&str>,
 ) -> Result<ChatTurnResult, String> {
+    let trace_id = TraceId::new();
+    chat_turn_with_trace(session_id, message, _master_task_id, &trace_id)
+}
+
+pub(crate) fn chat_turn_with_trace(
+    session_id: &str,
+    message: &str,
+    _master_task_id: Option<&str>,
+    trace_id: &TraceId,
+) -> Result<ChatTurnResult, String> {
+    let turn_started = Instant::now();
+    let _ = diagnostics::log(DiagnosticEvent::point(
+        "assistant.runtime",
+        "turn.started",
+        trace_id,
+    ));
     if let Err(early) = r#loop::try_begin_chat_turn(session_id) {
+        log_timing(
+            trace_id,
+            "assistant.runtime",
+            "turn.completed",
+            turn_started,
+            "busy",
+        );
         return Ok(early);
     }
 
-    let mut session = session::load_session(session_id)?;
+    let session_load_started = Instant::now();
+    let mut session = match session::load_session(session_id) {
+        Ok(session) => {
+            log_timing(
+                trace_id,
+                "assistant.runtime",
+                "session_load.completed",
+                session_load_started,
+                "ok",
+            );
+            session
+        }
+        Err(err) => {
+            log_timing(
+                trace_id,
+                "assistant.runtime",
+                "session_load.completed",
+                session_load_started,
+                "error",
+            );
+            return Err(err);
+        }
+    };
 
     // Gate Binding before any engine/config — unbound must not depend on secrets.
     if !r#loop::has_active_binding() {
         let reply = "Unbound — no active Binding Contract; chat cannot run.".to_string();
         append_user_assistant(&mut session, message, &reply);
         r#loop::end_chat_turn_busy();
+        log_timing(
+            trace_id,
+            "assistant.runtime",
+            "turn.completed",
+            turn_started,
+            "unbound",
+        );
         return Ok(pack_outcome(
             session_id,
             TurnOutcome {
@@ -353,6 +490,13 @@ pub fn chat_turn(
         Ok(s) => s,
         Err(e) => {
             r#loop::end_chat_turn_busy();
+            log_timing(
+                trace_id,
+                "assistant.runtime",
+                "turn.completed",
+                turn_started,
+                "settings_error",
+            );
             return Err(e.to_string());
         }
     };
@@ -364,44 +508,106 @@ pub fn chat_turn(
 
     let sid = session_id.to_string();
     let msg = message.to_string();
+    let dispatch_started = Instant::now();
     let routed = engine_router::dispatch_from_settings(
         &settings,
         &input,
-        || host_adapter_turn(&sid, &msg),
-        || cursor_adapter_turn(&sid, &msg),
+        || host_adapter_turn(&sid, &msg, trace_id),
+        || cursor_adapter_turn(&sid, &msg, trace_id),
     );
 
     r#loop::end_chat_turn_busy();
 
     match routed {
         Ok(route) => {
+            let adapter = adapter_name(route.adapter);
+            log_timing(
+                trace_id,
+                "assistant.runtime",
+                "engine_dispatch.completed",
+                dispatch_started,
+                "ok",
+            );
             let decoded = decode_routed(&route.body)?;
             if let Some(err) = decoded.cursor_error {
                 // Typed Cursor surface — never Host generic upstream collapse.
                 if matches!(route.adapter, AdapterKind::Cursor) {
+                    log_timing(
+                        trace_id,
+                        "assistant.runtime",
+                        "turn.completed",
+                        turn_started,
+                        "error",
+                    );
                     return Ok(pack_cursor_error(session_id, &err));
                 }
             }
-            Ok(pack_outcome(
+            let result = pack_outcome(
                 session_id,
                 TurnOutcome {
                     reply_text: decoded.reply_text,
                     terminal: decoded.terminal,
                     wrote: decoded.wrote,
                 },
+            );
+            let outcome = if result.body["terminal"] == "error" {
+                "error"
+            } else {
+                "ok"
+            };
+            let _ = diagnostics::log(
+                DiagnosticEvent::timing(
+                    "assistant.runtime",
+                    "turn.completed",
+                    trace_id,
+                    turn_started.elapsed(),
+                )
+                .with_static_field("outcome", outcome)
+                .with_static_field("adapter", adapter),
+            );
+            Ok(result)
+        }
+        Err(EngineRouteError::InvalidEngine(v)) => {
+            log_timing(
+                trace_id,
+                "assistant.runtime",
+                "engine_dispatch.completed",
+                dispatch_started,
+                "invalid_engine",
+            );
+            log_timing(
+                trace_id,
+                "assistant.runtime",
+                "turn.completed",
+                turn_started,
+                "error",
+            );
+            Ok(pack_outcome(
+                session_id,
+                TurnOutcome {
+                    reply_text: format!("invalid assistant_engine value: {v}"),
+                    terminal: Terminal::Error,
+                    wrote: false,
+                },
             ))
         }
-        Err(EngineRouteError::InvalidEngine(v)) => Ok(pack_outcome(
-            session_id,
-            TurnOutcome {
-                reply_text: format!("invalid assistant_engine value: {v}"),
-                terminal: Terminal::Error,
-                wrote: false,
-            },
-        )),
         Err(EngineRouteError::Adapter(msg)) => {
+            log_timing(
+                trace_id,
+                "assistant.runtime",
+                "engine_dispatch.completed",
+                dispatch_started,
+                "adapter_error",
+            );
             // Adapter string errors on Cursor must not become Host upstream text.
             let err = CursorError::new(CursorErrorCode::Runner, msg);
+            log_timing(
+                trace_id,
+                "assistant.runtime",
+                "turn.completed",
+                turn_started,
+                "error",
+            );
             if engine_router::resolve_engine(&settings).ok()
                 == Some(engine_router::EngineKind::Cursor)
             {
