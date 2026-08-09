@@ -42,7 +42,7 @@ Map the user request, then call **only** the tools that match. Do not run a fixe
 | Add / remove a sub-task | `add_todo_sub` / `delete_todo_sub` | Infer subs from document structure |
 | Complete master or sub | `complete_todo` (`master_task_id` required; `sub_task_id` optional — omit → complete master; with sub → complete that sub) | Call tools not listed in this SKILL |
 | Link archive to a **completed** sub | `link_todo_archive` (after archive exists) | Link without a completed sub + archive id |
-| Attachments | `add_todo_attachment` / `list_todo_attachments` / `get_todo_attachment` / `update_todo_attachment` — **path only** (`source_path`); never pass file body as `content` | — |
+| Attachments (explicit request only) | Read `references/attachment-writing.md`, then use `add_todo_attachment` / `list_todo_attachments` / `get_todo_attachment` / `update_todo_attachment` — **path only** (`source_path`); never pass file body as `content` | Do not infer attachments |
 | Inspect | `list_todo_tasks` / `get_todo_task` | — |
 | Delete master | `delete_todo_task` | — |
 
@@ -57,6 +57,7 @@ Do not invent norms not listed here.
 |-----------------|-----------|------|
 | `title` | `references/title-naming.md` | Before choosing or proposing a create title |
 | `todo_md` body | `references/body-writing.md` | Before drafting problem-analysis body content |
+| `attachments` | `references/attachment-writing.md` | Before adding or updating an attachment |
 
 - User-explicit values override the corresponding norm; say so briefly when skipping.
 - Field limits still come from live MCP schema (Parameter SSOT).
@@ -68,6 +69,7 @@ Do not invent norms not listed here.
 3. **Verify after write** — After create/update, `get_todo_task` (or list) and confirm `todo_md` / title / subs match the request.
 4. **HTTP errors** — 4xx/5xx surface as MCP tool errors (`isError: true`); do not treat error payloads as success.
 5. **Listed tools only** — Agent must use `todo-task` and the `todo_*` tools listed in this SKILL only.
+6. **Attachments require an explicit user instruction** — Do not infer or add analysis, dialogue, or evidence attachments. Follow `references/attachment-writing.md` when the user explicitly requests one.
 
 ## MCP Todo Tools
 
@@ -94,10 +96,12 @@ Observable completion for a write request:
 
 - Tool call succeeded; and
 - `get_todo_task` / `list_todo_tasks` shows the expected title, `todo_md`, and sub-task set (subs added only when the user explicitly instructed).
+- If an attachment was requested, `list_todo_attachments` shows the expected file.
 
 ## References
 
 - Workbench tech plan: MCP todo tools (FM-3 HTTP + FM-6 SKILL)
 - Title norms: [title-naming](references/title-naming.md)
 - Body norms: [body-writing](references/body-writing.md)
+- Attachment norms: [attachment-writing](references/attachment-writing.md)
 - Archive then link: [theme-archive](../theme-archive/SKILL.md) → `link_todo_archive`
