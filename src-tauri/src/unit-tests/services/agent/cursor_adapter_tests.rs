@@ -651,3 +651,150 @@ fn t3_cancelled_result_helper_blocks_assistant_persist() {
     });
     assert!(!cursor_adapter::should_persist_cursor_result(&ok_but_flagged));
 }
+
+// ── T1 / PortNarrow: CursorRunnerClient typed surface → request only ─────────
+
+fn extract_brace_block<'a>(src: &'a str, marker: &str) -> &'a str {
+    let start = src
+        .find(marker)
+        .unwrap_or_else(|| panic!("missing marker: {marker}"));
+    let bytes = src.as_bytes();
+    let mut i = start + marker.len();
+    while i < bytes.len() && bytes[i] != b'{' {
+        i += 1;
+    }
+    assert!(i < bytes.len(), "no opening brace after {marker}");
+    let begin = i;
+    let mut depth = 0usize;
+    while i < bytes.len() {
+        match bytes[i] {
+            b'{' => depth += 1,
+            b'}' => {
+                depth -= 1;
+                if depth == 0 {
+                    return &src[begin..=i];
+                }
+            }
+            _ => {}
+        }
+        i += 1;
+    }
+    panic!("unclosed brace after {marker}");
+}
+
+#[test]
+fn t1_cursor_runner_client_drops_typed_create_turn_cancel_keeps_six() {
+    let src = include_str!("../../../services/agent/cursor_adapter.rs");
+    let trait_body = extract_brace_block(src, "pub trait CursorRunnerClient");
+    for deleted in ["fn create(", "fn turn(", "fn cancel("] {
+        assert!(
+            !trait_body.contains(deleted),
+            "CursorRunnerClient must not declare typed {deleted}: {trait_body}"
+        );
+    }
+    for kept in [
+        "fn request(",
+        "fn concurrent_jsonl(",
+        "fn close(",
+        "fn force_kill(",
+        "fn terminate_hook(",
+        "fn on_spawned_with_api_key(",
+    ] {
+        assert!(
+            trait_body.contains(kept),
+            "CursorRunnerClient must keep {kept}"
+        );
+    }
+
+    for marker in [
+        "impl CursorRunnerClient for FakeCursorRunnerClient",
+        "impl CursorRunnerClient for ProcessCursorRunnerClient",
+    ] {
+        let body = extract_brace_block(src, marker);
+        for deleted in ["fn create(", "fn turn(", "fn cancel("] {
+            assert!(
+                !body.contains(deleted),
+                "{marker} must not implement typed {deleted}"
+            );
+        }
+        for kept in ["fn request(", "fn close(", "fn force_kill(", "fn terminate_hook("] {
+            assert!(body.contains(kept), "{marker} must keep {kept}");
+        }
+    }
+}
+
+#[test]
+fn t1_csr_create_turn_cancel_go_through_request_not_typed_api() {
+    let src = include_str!("../../../services/agent/cursor_adapter.rs");
+    let csr = extract_brace_block(src, "impl CursorSessionRuntime");
+    assert!(
+        !csr.contains("guard.turn(") && !csr.contains(".turn(&"),
+        "CSR must not call typed turn()"
+    );
+    assert!(
+        !csr.contains("guard.cancel(") && !csr.contains(".cancel()"),
+        "CSR must not call typed cancel()"
+    );
+    assert!(
+        csr.contains("request(") && csr.contains("\"create\"") && csr.contains("\"turn\""),
+        "CSR create/turn must go through request"
+    );
+    assert!(
+        csr.contains("\"cancel\""),
+        "CSR cancel path must request(\"cancel\", …)"
+    );
+
+    with_sandbox(|| {
+        session_cwd::reset_for_tests();
+        let fake = FakeCursorRunnerClient::new();
+        let log = fake.log.clone();
+        let runtime = CursorSessionRuntime::with_client_factory(move |key| {
+            let mut c = FakeCursorRunnerClient::from_shared(log.clone());
+            c.on_spawned_with_api_key(key);
+            Ok(Box::new(c))
+        });
+
+        runtime
+            .run_turn(&t3_turn_request("sess_port_narrow", "hi"))
+            .expect("turn");
+        runtime
+            .cancel_for_binding_cut("sess_port_narrow")
+            .expect("cancel");
+
+        let entries = fake.log.lock().unwrap().clone();
+        for method in ["create", "turn", "cancel"] {
+            let hit = entries
+                .iter()
+                .find(|e| e.method == method)
+                .unwrap_or_else(|| panic!("expected {method} log entry: {entries:?}"));
+            assert!(
+                hit.request_id.is_some(),
+                "{method} must go through request (have request_id), got {hit:?}"
+            );
+        }
+        session_cwd::reset_for_tests();
+    });
+}
+
+#[test]
+fn t1_production_engine_still_submits_create_turn_via_client_access_request() {
+    let src = include_str!("../../../services/agent/cursor_adapter.rs");
+    let engine = extract_brace_block(src, "impl CursorLlmEngine");
+    assert!(
+        engine.contains("request_managed(")
+            && engine.contains("\"create\"")
+            && engine.contains("\"turn\""),
+        "CursorLlmEngine must still submit JSONL create/turn via ClientAccess::request"
+    );
+    assert!(
+        !engine.contains(".create(")
+            && !engine.contains(".turn(")
+            && !engine.contains(".cancel("),
+        "production engine must not call typed CursorRunnerClient create/turn/cancel"
+    );
+    // Lifecycle KEEP surface remains on the trait (not deleted as unused).
+    let trait_body = extract_brace_block(src, "pub trait CursorRunnerClient");
+    assert!(trait_body.contains("fn close("));
+    assert!(trait_body.contains("fn force_kill("));
+    assert!(trait_body.contains("fn terminate_hook("));
+}

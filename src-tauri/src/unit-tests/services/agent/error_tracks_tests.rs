@@ -132,34 +132,6 @@ struct TrackFakeClient {
 }
 
 impl CursorRunnerClient for TrackFakeClient {
-    fn create(
-        &mut self,
-        model: &str,
-        cwd: &std::path::Path,
-        mcp_servers: &Value,
-    ) -> Result<(), CursorError> {
-        let _ = self.request(
-            "legacy",
-            "create",
-            Some(json!({
-                "model": model,
-                "cwd": cwd.to_string_lossy(),
-                "mcpServers": mcp_servers,
-            })),
-        )?;
-        Ok(())
-    }
-
-    fn turn(&mut self, prompt: &str) -> Result<String, CursorError> {
-        let v = self.request("legacy", "turn", Some(json!({ "prompt": prompt })))?;
-        Ok(v.get("text").and_then(|x| x.as_str()).unwrap_or("").into())
-    }
-
-    fn cancel(&mut self) -> Result<(), CursorError> {
-        let _ = self.request("legacy", "cancel", None)?;
-        Ok(())
-    }
-
     fn close(&mut self) -> Result<(), CursorError> {
         let _ = self.request("legacy", "close", None)?;
         Ok(())

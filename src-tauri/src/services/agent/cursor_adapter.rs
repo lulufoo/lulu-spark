@@ -288,14 +288,6 @@ pub trait ConcurrentJsonl: Send + Sync {
 }
 
 pub trait CursorRunnerClient: Send {
-    fn create(
-        &mut self,
-        model: &str,
-        cwd: &Path,
-        mcp_servers: &Value,
-    ) -> Result<(), CursorError>;
-    fn turn(&mut self, prompt: &str) -> Result<String, CursorError>;
-    fn cancel(&mut self) -> Result<(), CursorError>;
     fn close(&mut self) -> Result<(), CursorError>;
     fn force_kill(&mut self);
     /// JSONL request with caller-provided `request_id` (pending map / wire id).
@@ -451,67 +443,6 @@ impl Default for FakeCursorRunnerClient {
 }
 
 impl CursorRunnerClient for FakeCursorRunnerClient {
-    fn create(
-        &mut self,
-        model: &str,
-        cwd: &Path,
-        mcp_servers: &Value,
-    ) -> Result<(), CursorError> {
-        self.push_log(
-            "create",
-            Some(json!({
-                "model": model,
-                "cwd": cwd.to_string_lossy(),
-                "mcpServers": mcp_servers,
-            })),
-        );
-        Ok(())
-    }
-
-    fn turn(&mut self, prompt: &str) -> Result<String, CursorError> {
-        self.shared.in_flight.store(true, Ordering::SeqCst);
-        self.push_log("turn", Some(json!({ "prompt": prompt })));
-        if let Some(d) = *self
-            .shared
-            .turn_block
-            .lock()
-            .unwrap_or_else(|e| e.into_inner())
-        {
-            let start = Instant::now();
-            while start.elapsed() < d {
-                if self.shared.cancel_requested.load(Ordering::SeqCst) {
-                    self.shared.in_flight.store(false, Ordering::SeqCst);
-                    return Err(map_runner_error("cancelled", "run cancelled"));
-                }
-                thread::sleep(Duration::from_millis(10));
-            }
-        }
-        if self.shared.cancel_requested.load(Ordering::SeqCst) {
-            self.shared.in_flight.store(false, Ordering::SeqCst);
-            return Err(map_runner_error("cancelled", "run cancelled"));
-        }
-        self.shared.in_flight.store(false, Ordering::SeqCst);
-        Ok("fake-ok".into())
-    }
-
-    fn cancel(&mut self) -> Result<(), CursorError> {
-        self.push_log("cancel", None);
-        self.shared.cancel_requested.store(true, Ordering::SeqCst);
-        if self.shared.cancel_hang.load(Ordering::SeqCst) {
-            // Hang until force_kill flips the flag / clears hang.
-            let start = Instant::now();
-            while start.elapsed() < Duration::from_secs(30) {
-                if self.shared.force_killed.load(Ordering::SeqCst) {
-                    self.shared.in_flight.store(false, Ordering::SeqCst);
-                    return Ok(());
-                }
-                thread::sleep(Duration::from_millis(10));
-            }
-        }
-        self.shared.in_flight.store(false, Ordering::SeqCst);
-        Ok(())
-    }
-
     fn close(&mut self) -> Result<(), CursorError> {
         // Node side awaits agent[Symbol.asyncDispose] before responding.
         self.shared.dispose_awaited.store(true, Ordering::SeqCst);
@@ -597,6 +528,17 @@ fn fake_shared_request(
         }
         "cancel" => {
             shared.cancel_requested.store(true, Ordering::SeqCst);
+            if shared.cancel_hang.load(Ordering::SeqCst) {
+                // Hang until force_kill flips the flag / clears hang.
+                let start = Instant::now();
+                while start.elapsed() < Duration::from_secs(30) {
+                    if shared.force_killed.load(Ordering::SeqCst) {
+                        shared.in_flight.store(false, Ordering::SeqCst);
+                        return Ok(json!({}));
+                    }
+                    thread::sleep(Duration::from_millis(10));
+                }
+            }
             shared.in_flight.store(false, Ordering::SeqCst);
             Ok(json!({}))
         }
@@ -865,36 +807,6 @@ impl ProcessCursorRunnerClient {
 }
 
 impl CursorRunnerClient for ProcessCursorRunnerClient {
-    fn create(
-        &mut self,
-        model: &str,
-        cwd: &Path,
-        mcp_servers: &Value,
-    ) -> Result<(), CursorError> {
-        let params = json!({
-            "model": model,
-            "cwd": cwd.to_string_lossy(),
-            "mcpServers": mcp_servers,
-        });
-        self.exchange("create", Some(params))?;
-        Ok(())
-    }
-
-    fn turn(&mut self, prompt: &str) -> Result<String, CursorError> {
-        let result = self.exchange("turn", Some(json!({ "prompt": prompt })))?;
-        let text = result
-            .get("text")
-            .and_then(|x| x.as_str())
-            .unwrap_or("")
-            .to_string();
-        Ok(text)
-    }
-
-    fn cancel(&mut self) -> Result<(), CursorError> {
-        self.exchange("cancel", None)?;
-        Ok(())
-    }
-
     fn close(&mut self) -> Result<(), CursorError> {
         let _ = self.exchange("close", None);
         self.bridge.fail_all();
@@ -1282,7 +1194,7 @@ impl CursorSessionRuntime {
                 .unwrap_or(true)
         };
 
-        let result = (|| {
+        let result: Result<String, CursorError> = (|| {
             {
                 let mut guard = client.lock().unwrap_or_else(|e| e.into_inner());
                 if need_create {
@@ -1306,7 +1218,16 @@ impl CursorSessionRuntime {
                 }
             }
             let mut guard = client.lock().unwrap_or_else(|e| e.into_inner());
-            guard.turn(&req.prompt)
+            let turn_result = guard.request(
+                "sess-turn",
+                "turn",
+                Some(json!({ "prompt": req.prompt })),
+            )?;
+            Ok(turn_result
+                .get("text")
+                .and_then(|x| x.as_str())
+                .unwrap_or("")
+                .to_string())
         })();
 
         {
@@ -1369,7 +1290,7 @@ impl CursorSessionRuntime {
             let mut guard = client_for_cancel
                 .lock()
                 .unwrap_or_else(|e| e.into_inner());
-            let _ = guard.cancel();
+            let _ = guard.request("sess-cancel", "cancel", None);
             done_flag.store(true, Ordering::SeqCst);
         });
 
