@@ -353,6 +353,43 @@ fn t6_jsonl_or_process_failure_surfaces_recoverable_without_auto_replay() {
 }
 
 #[test]
+fn t8_kill_then_ensure_rebuilds_without_reusing_dead_client() {
+    with_sandbox(|| {
+        secrets::set_secret(KEY_LLM_API_KEY_CURSOR, "sk-rebuild").expect("key");
+        let fake = FakeCursorRunnerClient::new();
+        let log = fake.log.clone();
+        let spawns = Arc::new(AtomicUsize::new(0));
+        let spawns_c = spawns.clone();
+        let mgr = CursorAgentProcessManager::with_deps_for_tests(
+            || Ok(cfg_from(&settings_cursor())),
+            move |key: &str| {
+                spawns_c.fetch_add(1, Ordering::SeqCst);
+                let mut c = FakeCursorRunnerClient::from_shared(log.clone());
+                c.reset_lifecycle_flags_for_tests();
+                c.on_spawned_with_api_key(key);
+                Ok(Box::new(c) as Box<dyn CursorRunnerClient>)
+            },
+        );
+        mgr.warm().expect("warm");
+        let dead = mgr.ensure_client().expect("ensure");
+        assert_eq!(spawns.load(Ordering::SeqCst), 1);
+        let gen1 = mgr.generation_for_tests();
+
+        mgr.invalidate();
+        assert!(!matches!(
+            dead.request("x", "turn", Some(json!({ "prompt": "nope" }))),
+            Ok(_)
+        ));
+
+        let live = mgr.ensure_client().expect("rebuild");
+        assert_eq!(spawns.load(Ordering::SeqCst), 2);
+        assert_ne!(mgr.generation_for_tests(), gen1);
+        live.request("y", "turn", Some(json!({ "prompt": "ok" })))
+            .expect("new client usable");
+    });
+}
+
+#[test]
 fn t6_cancelled_does_not_invalidate_managed_process() {
     with_sandbox(|| {
         secrets::set_secret(KEY_LLM_API_KEY_CURSOR, "sk-engine-test").expect("key");

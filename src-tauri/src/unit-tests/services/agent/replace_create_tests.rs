@@ -429,6 +429,36 @@ fn t5_shell_close_without_binding_replace_is_noop_for_agent() {
 }
 
 #[test]
+fn t8_coalesced_host_skips_bind_and_turn() {
+    // Behavior package: Host must not bind/turn on coalesced create (error or flag).
+    with_sandbox(|| {
+        secrets::set_secret(KEY_LLM_API_KEY_CURSOR, "sk-engine-test").expect("key");
+        let fake = ReplaceCreateFake::new();
+        *fake
+            .next_create_ok
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()) = Some(json!({ "coalesced": true }));
+        let mgr = CursorAgentProcessManager::with_deps_for_tests(
+            {
+                let s = settings_cursor();
+                move || Ok(cfg_from(&s))
+            },
+            fake.clone_factory(),
+        );
+        let engine = CursorLlmEngine::with_manager(mgr);
+        let err = engine
+            .run_turn(&turn_req("sess_t8_coal", "x"))
+            .expect_err("coalesced");
+        assert_eq!(
+            cursor_adapter::error_track(&err),
+            ErrorTrack::RecoverableFailure
+        );
+        let log = fake.log.lock().unwrap_or_else(|e| e.into_inner());
+        assert!(!log.iter().any(|e| e.method == "turn"));
+    });
+}
+
+#[test]
 fn t3_coalesced_error_maps_recoverable_not_cancelled() {
     let err = cursor_adapter::map_runner_error("coalesced", "superseded");
     assert_eq!(err.code, CursorErrorCode::RecoverableFailure);
