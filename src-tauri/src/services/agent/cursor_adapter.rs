@@ -20,9 +20,9 @@
 //! Inject [`FakeCursorRunnerClient`] via manager factory. Legacy
 //! [`CursorSessionRuntime`] remains `cfg(test)`-only for older adapter/e2e doubles.
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::HashMap;
 use std::io::{BufRead, BufReader, Write};
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::mpsc::{self, SyncSender};
@@ -30,18 +30,14 @@ use std::sync::{Arc, Mutex, OnceLock};
 use std::thread;
 use std::time::{Duration, Instant};
 
-use serde::Serialize;
 use serde_json::{json, Value};
 
 use crate::cursor_agent_runner_launch_path;
-use crate::services::agent::engine_router::TurnInput;
 use crate::services::agent::process_manager::{
     ClientAccess, CursorAgentProcessManager, EnsureError, RequestError,
 };
-use crate::services::agent::r#loop;
 use crate::services::agent::session_cwd;
 use crate::services::mcp_endpoint_readiness::{self, ReadyMcpTransports};
-use crate::services::mcp_server_registry::McpServerConfig;
 
 /// A1 confirmed: per-session `local.cwd` combined with injected `mcpServers`.
 pub const CURSOR_LOCAL_A1_CWD_MCPSERVERS_COMBO: bool = true;
@@ -51,98 +47,6 @@ pub const CURSOR_SDK_A2_REPLACEABLE_PORT: bool = true;
 
 /// Host LLM generic upstream message — Cursor errors must never collapse to this.
 pub const HOST_GENERIC_UPSTREAM_UNAVAILABLE: &str = "上游服务暂时不可用，请稍后重试。";
-
-/// Default inline mcpServers entry name for the session capability config.
-pub const DEFAULT_MCP_SERVER_NAME: &str = "workbench";
-
-// ── Legacy shape (t4/t5 capturing doubles) ───────────────────────────────────
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub struct McpServerInlineEntry {
-    pub capability_description: String,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub struct McpServersInline {
-    #[serde(flatten)]
-    pub servers: BTreeMap<String, McpServerInlineEntry>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct AgentCreateParams {
-    pub mcp_servers: McpServersInline,
-    pub local_cwd: PathBuf,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum CursorAdapterError {
-    MissingMcpConfig,
-    Cwd(String),
-    Sdk(String),
-}
-
-impl std::fmt::Display for CursorAdapterError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            CursorAdapterError::MissingMcpConfig => {
-                write!(f, "session capability MCP config is not loaded")
-            }
-            CursorAdapterError::Cwd(msg) => write!(f, "session cwd error: {msg}"),
-            CursorAdapterError::Sdk(msg) => write!(f, "cursor sdk error: {msg}"),
-        }
-    }
-}
-
-impl std::error::Error for CursorAdapterError {}
-
-pub trait CursorAgentSdk {
-    fn create(&mut self, params: AgentCreateParams) -> Result<(), CursorAdapterError>;
-    fn run_turn(&mut self, message: &str) -> Result<String, CursorAdapterError>;
-}
-
-pub fn map_mcp_config_to_mcp_servers(config: &McpServerConfig) -> McpServersInline {
-    let mut servers = BTreeMap::new();
-    servers.insert(
-        DEFAULT_MCP_SERVER_NAME.to_string(),
-        McpServerInlineEntry {
-            capability_description: config.capability_description.clone(),
-        },
-    );
-    McpServersInline { servers }
-}
-
-pub fn create_agent<S: CursorAgentSdk>(
-    sdk: &mut S,
-    mcp_config: &McpServerConfig,
-    cwd: PathBuf,
-) -> Result<(), CursorAdapterError> {
-    let params = AgentCreateParams {
-        mcp_servers: map_mcp_config_to_mcp_servers(mcp_config),
-        local_cwd: cwd,
-    };
-    sdk.create(params)
-}
-
-pub fn run_turn<S: CursorAgentSdk>(
-    sdk: &mut S,
-    input: &TurnInput,
-    cwd: PathBuf,
-) -> Result<String, CursorAdapterError> {
-    let Some(mcp) = r#loop::session_capability_mcp_config() else {
-        return Err(CursorAdapterError::MissingMcpConfig);
-    };
-    create_agent(sdk, &mcp, cwd)?;
-    sdk.run_turn(&input.message)
-}
-
-pub fn run_turn_for_session<S: CursorAgentSdk>(
-    sdk: &mut S,
-    input: &TurnInput,
-) -> Result<String, CursorAdapterError> {
-    let cwd = session_cwd::create_session_cwd(&input.session_id)
-        .map_err(|e| CursorAdapterError::Cwd(e.to_string()))?;
-    run_turn(sdk, input, cwd)
-}
 
 // ── Production typed errors ──────────────────────────────────────────────────
 
@@ -420,16 +324,12 @@ impl FakeCursorRunnerClient {
     }
 
     fn push_log(&self, method: &str, params: Option<Value>) {
-        self.push_log_with_id(None, method, params);
-    }
-
-    fn push_log_with_id(&self, request_id: Option<String>, method: &str, params: Option<Value>) {
         self.shared
             .log
             .lock()
             .unwrap_or_else(|e| e.into_inner())
             .push(FakeLogEntry {
-                request_id,
+                request_id: None,
                 method: method.into(),
                 params,
             });

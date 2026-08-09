@@ -1,16 +1,12 @@
-//! T5: per-session independent cwd lifecycle + Cursor adapter wiring.
+//! T5: per-session independent cwd lifecycle.
 
 use std::fs;
 use std::path::Path;
 
-use serde_json::json;
-
-use crate::services::agent::cursor_adapter::{self, AgentCreateParams, CursorAdapterError};
-use crate::services::agent::engine_router::TurnInput;
+use crate::services::agent::cursor_adapter;
 use crate::services::agent::r#loop;
 use crate::services::agent::session_cwd::{self, CleanupStrategy, CwdError};
-use crate::services::mcp_server_registry::{self, SEEDED_BUSINESS_KEY};
-use crate::services::todo_task;
+use crate::services::mcp_server_registry;
 use crate::test_support::TestSandbox;
 
 fn with_sandbox<F: FnOnce()>(f: F) {
@@ -23,29 +19,6 @@ fn with_sandbox<F: FnOnce()>(f: F) {
     session_cwd::reset_for_tests();
     r#loop::reset_runtime_for_tests();
     mcp_server_registry::clear_for_tests();
-}
-
-fn key_only_payload(key: &str) -> serde_json::Value {
-    json!({ "key": key })
-}
-
-/// Capturing double for Cursor Agent SDK Local port.
-#[derive(Default)]
-struct CapturingSdk {
-    creates: Vec<AgentCreateParams>,
-    run_count: usize,
-}
-
-impl cursor_adapter::CursorAgentSdk for CapturingSdk {
-    fn create(&mut self, params: AgentCreateParams) -> Result<(), CursorAdapterError> {
-        self.creates.push(params);
-        Ok(())
-    }
-
-    fn run_turn(&mut self, _message: &str) -> Result<String, CursorAdapterError> {
-        self.run_count += 1;
-        Ok("cursor-sdk-ok".into())
-    }
 }
 
 fn assert_dir_exists(path: &Path) {
@@ -186,72 +159,6 @@ fn t5_invalid_session_id_rejects_without_creating_shared_cwd() {
 }
 
 #[test]
-fn t5_run_turn_for_session_wires_created_cwd_into_local_cwd() {
-    with_sandbox(|| {
-        r#loop::try_set_binding_json(&key_only_payload(SEEDED_BUSINESS_KEY)).expect("Set");
-        let mut sdk = CapturingSdk::default();
-        let input = TurnInput {
-            session_id: "sess_wire".into(),
-            message: "hello".into(),
-        };
-
-        let body = cursor_adapter::run_turn_for_session(&mut sdk, &input).expect("run");
-        assert_eq!(body, "cursor-sdk-ok");
-        assert_eq!(sdk.creates.len(), 1);
-        assert_eq!(sdk.run_count, 1);
-
-        let cwd = session_cwd::session_cwd_for("sess_wire").expect("cwd allocated");
-        assert_eq!(sdk.creates[0].local_cwd, cwd);
-        assert_dir_exists(&cwd);
-        // A1 combo: same Agent.create carries mcpServers + local.cwd.
-        let mcp = r#loop::session_capability_mcp_config().expect("mcp");
-        assert_eq!(
-            sdk.creates[0].mcp_servers,
-            cursor_adapter::map_mcp_config_to_mcp_servers(&mcp)
-        );
-    });
-}
-
-#[test]
-fn t5_create_cwd_failure_does_not_start_cursor_turn_or_tools_dispatch() {
-    with_sandbox(|| {
-        r#loop::try_set_binding_json(&key_only_payload(SEEDED_BUSINESS_KEY)).expect("Set");
-        let created = todo_task::create_master_with_subs("t5-no-dispatch", Some(&["sub"]));
-        assert_eq!(created["_status"], 201);
-        let master = created["master_task_id"].as_str().unwrap().to_string();
-        let title_before = todo_task::get_by_id(&master)["title"].clone();
-
-        session_cwd::force_create_fail_for_tests(true);
-        let mut sdk = CapturingSdk::default();
-        let input = TurnInput {
-            session_id: "sess_no_start".into(),
-            message: "must not run".into(),
-        };
-        let err = cursor_adapter::run_turn_for_session(&mut sdk, &input)
-            .expect_err("cwd create failure must fail the turn");
-        assert!(
-            matches!(err, CursorAdapterError::Cwd(_)),
-            "expected Cwd error, got {err:?}"
-        );
-        assert!(
-            sdk.creates.is_empty() && sdk.run_count == 0,
-            "must not Agent.create / run_turn when cwd allocation fails"
-        );
-        // Failure must not fall back to process-local tools::dispatch.
-        assert_eq!(todo_task::get_by_id(&master)["title"], title_before);
-
-        // Source guard: session_cwd + failure path must not import tools dispatch.
-        let cwd_src = include_str!("../../../services/agent/session_cwd.rs");
-        assert!(
-            !cwd_src.contains("tools::dispatch")
-                && !cwd_src.contains("crate::services::agent::tools"),
-            "session_cwd must not call tools::dispatch"
-        );
-        session_cwd::force_create_fail_for_tests(false);
-    });
-}
-
-#[test]
 fn t5_session_cwd_module_isolated_from_host_loop_imports() {
     let loop_src = include_str!("../../../services/agent/loop.rs");
     let llm_src = include_str!("../../../services/agent/llm.rs");
@@ -261,4 +168,10 @@ fn t5_session_cwd_module_isolated_from_host_loop_imports() {
             "{label} must not import session_cwd (Cursor-path lifecycle)"
         );
     }
+    let cwd_src = include_str!("../../../services/agent/session_cwd.rs");
+    assert!(
+        !cwd_src.contains("tools::dispatch")
+            && !cwd_src.contains("crate::services::agent::tools"),
+        "session_cwd must not call tools::dispatch"
+    );
 }

@@ -127,8 +127,8 @@ pub fn engine_settings_for_route(
 /// Dispatch a chat turn to the Host or Cursor adapter entry.
 ///
 /// Closures are injectable so callers/tests supply adapter bodies — Cursor path
-/// should invoke `cursor_adapter::run_turn` (mcpServers + local.cwd). Engine kind
-/// is not written into facade API params.
+/// should go through `CursorLlmEngine` / `ClientAccess::request` (mcpServers +
+/// local.cwd). Engine kind is not written into JSONL API params.
 pub fn route_chat_turn<H, C>(
     engine: EngineKind,
     _input: &TurnInput,

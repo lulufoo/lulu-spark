@@ -8,9 +8,10 @@
 //!
 //! Confirmed (not silently narrowed): Cursor Agent Local is used with the
 //! combination of per-session independent `local.cwd` **and** injected
-//! `mcpServers` on the same `Agent.create` params (see `cursor_adapter`).
-//! This module owns cwd lifecycle; `cursor_adapter::run_turn_for_session`
-//! wires the allocated path into `local.cwd` alongside mcpServers.
+//! `mcpServers` on the same create params (see `cursor_adapter` / production
+//! `CursorLlmEngine` JSONL `create`).
+//! This module owns cwd lifecycle; production wiring injects the allocated path
+//! into `local.cwd` alongside mcpServers.
 //!
 //! Failure paths here must not fall back to process-local business tool dispatch
 //! (L09-I #7).
@@ -23,7 +24,7 @@ use std::sync::{Mutex, OnceLock};
 use crate::services::agent::session;
 
 /// A1 confirmed: per-session `local.cwd` + injected `mcpServers` combo is the
-/// Cursor Local delivery strategy (wired via `cursor_adapter::run_turn_for_session`).
+/// Cursor Local delivery strategy (wired via production Cursor create path).
 pub const CURSOR_LOCAL_A1_CWD_MCPSERVERS_COMBO: bool = true;
 
 /// Default cleanup strategy for session end.
