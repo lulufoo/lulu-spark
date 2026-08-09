@@ -4,6 +4,8 @@
 //! [`CursorAgentProcessManager::ensure_client`], [`CursorAgentProcessManager::shutdown`].
 //! `ProcessEntry` generation is internal (replacement / stale-access marking only).
 
+use std::collections::hash_map::DefaultHasher;
+use std::hash::{Hash, Hasher};
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, OnceLock};
@@ -227,15 +229,12 @@ impl CursorAgentProcessManager {
         };
         let mut inner = self.inner.lock().unwrap_or_else(|e| e.into_inner());
 
+        let fp = fingerprint_api_key(&api_key);
         if let Some(entry) = inner.entry.as_ref() {
-            if inner.state == ProcessLifecycleState::Ready
-                && entry.api_key_fingerprint == api_key
-            {
+            if inner.state == ProcessLifecycleState::Ready && entry.api_key_fingerprint == fp {
                 return Ok(self.access_for(entry));
             }
-            if inner.state == ProcessLifecycleState::Ready
-                && entry.api_key_fingerprint != api_key
-            {
+            if inner.state == ProcessLifecycleState::Ready && entry.api_key_fingerprint != fp {
                 inner.state = ProcessLifecycleState::Replacing;
                 self.clear_entry_locked(&mut inner);
             }
@@ -350,7 +349,7 @@ impl CursorAgentProcessManager {
                 let client = Arc::new(Mutex::new(client));
                 inner.entry = Some(ProcessEntry {
                     generation,
-                    api_key_fingerprint: api_key.to_string(),
+                    api_key_fingerprint: fingerprint_api_key(api_key),
                     client,
                 });
                 self.current_gen.store(generation, Ordering::SeqCst);
@@ -387,6 +386,19 @@ fn cursor_credential(cfg: &EngineRuntimeConfig) -> Option<String> {
         .as_ref()
         .map(|s| s.trim().to_string())
         .filter(|s| !s.is_empty())
+}
+
+/// Non-reversible fingerprint for ProcessEntry (never store raw API key).
+fn fingerprint_api_key(api_key: &str) -> String {
+    let mut hasher = DefaultHasher::new();
+    "cursor-agent-api-key-fp-v1".hash(&mut hasher);
+    api_key.hash(&mut hasher);
+    format!("{:016x}", hasher.finish())
+}
+
+#[cfg(test)]
+pub fn fingerprint_api_key_for_tests(api_key: &str) -> String {
+    fingerprint_api_key(api_key)
 }
 
 fn reclaim_client(client: Arc<Mutex<Box<dyn CursorRunnerClient>>>) {

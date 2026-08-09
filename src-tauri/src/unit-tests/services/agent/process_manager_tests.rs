@@ -323,6 +323,35 @@ fn t1_api_key_fingerprint_change_replaces_via_replacing_state() {
     });
 }
 
+#[test]
+fn t5_api_key_fingerprint_is_hashed_not_plaintext() {
+    let src = include_str!("../../../services/agent/process_manager.rs");
+    assert!(
+        src.contains("fn fingerprint_api_key"),
+        "ProcessEntry must store hashed fingerprint"
+    );
+    assert!(
+        !src.contains("api_key_fingerprint: api_key.to_string()"),
+        "must not store raw API key as fingerprint"
+    );
+    let fp = process_manager::fingerprint_api_key_for_tests("sk-secret-value");
+    assert_ne!(fp, "sk-secret-value");
+    assert!(
+        !fp.contains("sk-secret"),
+        "fingerprint must not embed raw key: {fp}"
+    );
+    assert_eq!(
+        fp,
+        process_manager::fingerprint_api_key_for_tests("sk-secret-value"),
+        "fingerprint must be stable"
+    );
+    assert_ne!(
+        fp,
+        process_manager::fingerprint_api_key_for_tests("sk-other"),
+        "different keys must differ"
+    );
+}
+
 // ── abnormal: start failure / invalid → absent ───────────────────────────────
 
 #[test]
