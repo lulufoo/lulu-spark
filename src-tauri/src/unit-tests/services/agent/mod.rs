@@ -36,6 +36,9 @@ mod error_tracks_tests;
 #[path = "ai_assistant_session_tests.rs"]
 mod ai_assistant_session_tests;
 
+#[path = "cutover_tests.rs"]
+mod cutover_tests;
+
 use std::fs;
 use std::io::{Read, Write};
 use std::net::TcpListener;

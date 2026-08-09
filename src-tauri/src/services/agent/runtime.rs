@@ -10,7 +10,6 @@ use std::sync::{Arc, Mutex, OnceLock};
 
 use serde_json::{json, Value};
 
-use crate::config::paths;
 use crate::config::settings;
 use crate::services::agent::cursor_adapter::{
     self, CursorError, CursorErrorCode, CursorLlmEngine, CursorSessionRuntime,
@@ -66,7 +65,6 @@ fn cursor_err_routed(err: CursorError) -> RoutedTurn {
 static TEST_CURSOR_RT: OnceLock<Mutex<Option<Arc<CursorSessionRuntime>>>> = OnceLock::new();
 static TEST_READY_MCP: OnceLock<Mutex<Option<ReadyMcpTransports>>> = OnceLock::new();
 static TEST_CURSOR_INSTALLED: AtomicBool = AtomicBool::new(false);
-static PROD_CURSOR_RT: OnceLock<Mutex<Option<Arc<CursorSessionRuntime>>>> = OnceLock::new();
 
 fn test_cursor_slot() -> &'static Mutex<Option<Arc<CursorSessionRuntime>>> {
     TEST_CURSOR_RT.get_or_init(|| Mutex::new(None))
@@ -74,10 +72,6 @@ fn test_cursor_slot() -> &'static Mutex<Option<Arc<CursorSessionRuntime>>> {
 
 fn test_ready_slot() -> &'static Mutex<Option<ReadyMcpTransports>> {
     TEST_READY_MCP.get_or_init(|| Mutex::new(None))
-}
-
-fn prod_cursor_slot() -> &'static Mutex<Option<Arc<CursorSessionRuntime>>> {
-    PROD_CURSOR_RT.get_or_init(|| Mutex::new(None))
 }
 
 pub fn reset_for_tests() {
@@ -97,33 +91,6 @@ pub fn set_ready_mcp_for_tests(ready: Option<ReadyMcpTransports>) {
 
 pub fn cursor_runtime_installed_for_tests() -> bool {
     TEST_CURSOR_INSTALLED.load(Ordering::SeqCst)
-}
-
-#[allow(dead_code)] // retained until t7 cutover removes per-session factory path
-fn cursor_runtime() -> Result<Arc<CursorSessionRuntime>, CursorError> {
-    if let Some(rt) = test_cursor_slot()
-        .lock()
-        .unwrap_or_else(|e| e.into_inner())
-        .clone()
-    {
-        return Ok(rt);
-    }
-    let mut guard = prod_cursor_slot()
-        .lock()
-        .unwrap_or_else(|e| e.into_inner());
-    if let Some(rt) = guard.clone() {
-        return Ok(rt);
-    }
-    let root = paths::repo_root().map_err(|_| {
-        CursorError::new(
-            CursorErrorCode::Runner,
-            cursor_adapter::frontend_message_for(CursorErrorCode::Runner),
-        )
-    })?;
-    // Retained for tests / pre-cutover callers; production chat uses CursorLlmEngine.
-    let rt = Arc::new(CursorSessionRuntime::production(root));
-    *guard = Some(rt.clone());
-    Ok(rt)
 }
 
 /// Production Cursor path: CursorLlmEngine (ensure_client → request). Test doubles

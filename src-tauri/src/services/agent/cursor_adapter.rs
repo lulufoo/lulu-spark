@@ -12,8 +12,8 @@
 //! [`ClientAccess::request`](crate::services::agent::process_manager::ClientAccess::request).
 //! The managed [`ProcessCursorRunnerClient`] speaks `create` / `turn` / `cancel` /
 //! `close`; API key is injected only via child env `CURSOR_API_KEY` (never JSONL).
-//!
-//! [`CursorSessionRuntime`] (per-session factory spawn) remains until cutover (t7).
+//! Only [`CursorAgentProcessManager`](crate::services::agent::process_manager::CursorAgentProcessManager)
+//! may construct / hold [`ProcessCursorRunnerClient`] (Phase-Cutover).
 //!
 //! ## Tests
 //!
@@ -256,10 +256,11 @@ pub struct TurnOutcome {
 pub fn should_persist_cursor_result(result: &Result<TurnOutcome, CursorError>) -> bool {
     match result {
         Ok(o) => o.should_persist,
-        Err(e) => !matches!(
-            error_track(e),
-            ErrorTrack::Cancelled | ErrorTrack::RecoverableFailure
-        ) && e.code != CursorErrorCode::Busy,
+        Err(e) => match error_track(e) {
+            // Cancelled / RecoverableFailure never become Session turns.
+            ErrorTrack::Cancelled | ErrorTrack::RecoverableFailure => false,
+            ErrorTrack::Other => e.code != CursorErrorCode::Busy,
+        },
     }
 }
 
@@ -578,7 +579,8 @@ pub struct ProcessCursorRunnerClient {
 
 impl ProcessCursorRunnerClient {
     /// Spawn Node runner with `CURSOR_API_KEY` in child env only.
-    pub fn spawn(repo_root: &Path, api_key: &str) -> Result<Self, CursorError> {
+    /// Crate-private: only [`CursorAgentProcessManager`] may construct this client.
+    pub(crate) fn spawn(repo_root: &Path, api_key: &str) -> Result<Self, CursorError> {
         let script = cursor_agent_runner_launch_path(repo_root);
         if !script.is_file() {
             return Err(CursorError::new(
@@ -967,15 +969,6 @@ impl CursorSessionRuntime {
             cancel_timeout: Mutex::new(DEFAULT_CANCEL_TIMEOUT),
             cancel_gen: AtomicU64::new(0),
         }
-    }
-
-    /// Production factory: spawn [`ProcessCursorRunnerClient`] with env key.
-    pub fn production(repo_root: PathBuf) -> Self {
-        Self::with_client_factory(move |api_key| {
-            let mut client = ProcessCursorRunnerClient::spawn(&repo_root, api_key)?;
-            client.on_spawned_with_api_key(api_key);
-            Ok(Box::new(client))
-        })
     }
 
     pub fn set_cancel_timeout(&self, d: Duration) {
