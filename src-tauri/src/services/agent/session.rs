@@ -1,7 +1,11 @@
 //! Session persistence under `{cache_dir}/agent/sessions/`.
+//!
+//! `AIAssistantSession` is the sole live context owner (binding / MCP / live session
+//! id / cancel). Disk `Session` cache remains the only turns persistence backend.
 
 use std::fs;
 use std::path::PathBuf;
+use std::sync::{Mutex, OnceLock};
 
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
@@ -9,6 +13,7 @@ use serde_json::{json, Value};
 
 use crate::config::paths;
 use crate::services::id::random_hex12;
+use crate::services::mcp_server_registry::McpServerConfig;
 
 /// P1 / T1: session lifecycle entry (`create_session` / persist) does not expose
 /// an engine-selection API — no Host/Cursor parameter on create or session record.
@@ -168,6 +173,103 @@ pub fn binding_from_json(v: &Value) -> Result<Binding, SetError> {
         prompt: json!("pending"),
         callbacks: json!({}),
     })
+}
+
+/// Detached execution-context snapshot for engine adapters (L2-A).
+/// Consumed read-only; engines must not own or persist business session state.
+#[derive(Debug, Clone, PartialEq)]
+pub struct LiveExecContext {
+    pub session_id: Option<String>,
+    pub binding: Option<Binding>,
+    pub loaded_mcp_server: Option<McpServerConfig>,
+    pub generation: Option<u64>,
+}
+
+/// Business-held logical dialogue instance and sole live context owner.
+///
+/// Allocates / holds live `session_id`, business binding, MCP capability, generation,
+/// and cancel flags. Persists turns only through the existing Session cache — never
+/// a parallel turn store. Engine/model config is not session state.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct AIAssistantSession {
+    pub(crate) current_session_id: Option<String>,
+    pub(crate) bound_master_task_id: Option<String>,
+    pub(crate) bound_title: Option<String>,
+    pub(crate) current_binding: Option<Binding>,
+    pub(crate) loaded_mcp_server: Option<McpServerConfig>,
+    pub(crate) current_generation: Option<u64>,
+    pub(crate) generation_seq: u64,
+    pub(crate) execute_cancelled: bool,
+    pub(crate) chat_cancelled: bool,
+}
+
+impl AIAssistantSession {
+    /// Contract marker: live owner must not duplicate Session turns storage.
+    pub const HOLDS_PARALLEL_TURN_STORAGE: bool = false;
+
+    pub fn current_session_id(&self) -> Option<String> {
+        self.current_session_id.clone()
+    }
+
+    pub fn current_binding(&self) -> Option<Binding> {
+        self.current_binding.clone()
+    }
+
+    pub fn loaded_mcp_server(&self) -> Option<McpServerConfig> {
+        self.loaded_mcp_server.clone()
+    }
+
+    pub fn current_generation(&self) -> Option<u64> {
+        self.current_generation
+    }
+
+    pub fn chat_cancelled(&self) -> bool {
+        self.chat_cancelled
+    }
+
+    pub fn execute_cancelled(&self) -> bool {
+        self.execute_cancelled
+    }
+
+    pub fn execution_context_snapshot(&self) -> LiveExecContext {
+        LiveExecContext {
+            session_id: self.current_session_id.clone(),
+            binding: self.current_binding.clone(),
+            loaded_mcp_server: self.loaded_mcp_server.clone(),
+            generation: self.current_generation,
+        }
+    }
+}
+
+fn live_slot() -> &'static Mutex<AIAssistantSession> {
+    static LIVE: OnceLock<Mutex<AIAssistantSession>> = OnceLock::new();
+    LIVE.get_or_init(|| Mutex::new(AIAssistantSession::default()))
+}
+
+/// Clone of the sole live context owner (binding / MCP / session_id / cancel).
+pub fn live_context_owner() -> AIAssistantSession {
+    live_slot()
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .clone()
+}
+
+pub(crate) fn with_live_mut<F, R>(f: F) -> R
+where
+    F: FnOnce(&mut AIAssistantSession) -> R,
+{
+    let mut guard = live_slot().lock().unwrap_or_else(|e| e.into_inner());
+    f(&mut guard)
+}
+
+pub fn reset_live_for_tests() {
+    *live_slot().lock().unwrap_or_else(|e| e.into_inner()) = AIAssistantSession::default();
+}
+
+/// ProcessCursorRunnerClient / Node runner failure must never switch business session.
+/// Test hook: invoke after a simulated client failure; live owner stays unchanged.
+pub fn note_runner_client_failure_for_tests() {
+    // Intentionally no-op on live context — failure is engine/process scoped only.
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]

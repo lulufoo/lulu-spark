@@ -27,6 +27,9 @@ mod host_startup_tests;
 #[path = "cursor_llm_engine_tests.rs"]
 mod cursor_llm_engine_tests;
 
+#[path = "ai_assistant_session_tests.rs"]
+mod ai_assistant_session_tests;
+
 use std::fs;
 use std::io::{Read, Write};
 use std::net::TcpListener;

@@ -277,8 +277,10 @@ fn host_adapter_turn(session_id: &str, message: &str) -> Result<String, String> 
 }
 
 fn cursor_adapter_turn(session_id: &str, message: &str) -> Result<String, String> {
+    // L2-A: consume AIAssistantSession execution-context snapshot (sole live owner).
+    let live_ctx = session::live_context_owner().execution_context_snapshot();
     // Same-session MCP config face (L2) — required before readiness/adapter.
-    if r#loop::session_capability_mcp_config().is_none() {
+    if live_ctx.loaded_mcp_server.is_none() {
         let err = CursorError::new(
             CursorErrorCode::McpUnavailable,
             cursor_adapter::frontend_message_for(CursorErrorCode::McpUnavailable),
@@ -296,8 +298,8 @@ fn cursor_adapter_turn(session_id: &str, message: &str) -> Result<String, String
         return Ok(encode_routed(&cursor_err_routed(err)));
     };
 
-    let binding = r#loop::current_binding_clone();
-    let key = binding
+    let key = live_ctx
+        .binding
         .as_ref()
         .and_then(session::binding_business_key)
         .unwrap_or_else(|| SEEDED_BUSINESS_KEY.to_string());

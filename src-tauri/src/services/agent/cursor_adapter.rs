@@ -6,15 +6,18 @@
 //!
 //! ## Production path
 //!
-//! [`ProcessCursorRunnerClient`] spawns `packages/cursor-agent-runner` and speaks
-//! JSONL `create` / `turn` / `cancel` / `close`. API key is injected only via
-//! child env `CURSOR_API_KEY` (never JSONL). [`CursorSessionRuntime`] owns
-//! per-session lifecycle: reuse one SDK agent across turns (keep inline MCP), one
-//! in-flight turn, cancel-then-dispose, cwd cleanup after successful close.
+//! [`CursorLlmEngine`] obtains temporary access via
+//! [`CursorAgentProcessManager::ensure_client`](crate::services::agent::process_manager::CursorAgentProcessManager::ensure_client)
+//! and submits JSONL with caller-provided `request_id` through
+//! [`ClientAccess::request`](crate::services::agent::process_manager::ClientAccess::request).
+//! The managed [`ProcessCursorRunnerClient`] speaks `create` / `turn` / `cancel` /
+//! `close`; API key is injected only via child env `CURSOR_API_KEY` (never JSONL).
+//!
+//! [`CursorSessionRuntime`] (per-session factory spawn) remains until cutover (t7).
 //!
 //! ## Tests
 //!
-//! Inject [`FakeCursorRunnerClient`] via [`CursorSessionRuntime::with_client_factory`].
+//! Inject [`FakeCursorRunnerClient`] via manager factory / [`CursorSessionRuntime::with_client_factory`].
 //! Legacy [`CursorAgentSdk`] capturing doubles remain for older shape tests.
 
 use std::collections::{BTreeMap, HashMap};

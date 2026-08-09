@@ -111,26 +111,14 @@ impl ExecError {
 
 type LifecycleListener = Box<dyn Fn(&LifecycleEvent) + Send + 'static>;
 
+/// Orchestration-only Host runtime (single-flight / present / clarify).
+/// Binding, MCP capability, live session id, generation, and cancel flags are
+/// owned exclusively by [`session::AIAssistantSession`] (L2-A / T-SessionMigrate).
 #[derive(Default)]
 struct Runtime {
     busy: bool,
-    current_session_id: Option<String>,
-    bound_master_task_id: Option<String>,
-    bound_title: Option<String>,
-    /// Current Binding; None ⇒ unbound.
-    current_binding: Option<session::Binding>,
-    /// Session capability context: MCP Server config loaded by key-only Set.
-    loaded_mcp_server: Option<McpServerConfig>,
-    /// Live generation while bound; None when unbound.
-    current_generation: Option<u64>,
-    /// Monotonic counter for Set/replace generations.
-    generation_seq: u64,
     /// True while a Binding Contract execute is in flight.
     executing: bool,
-    /// Set by cut paths while `executing` — cancels the in-flight execute.
-    execute_cancelled: bool,
-    /// Set by cut paths while `busy` — cancels the in-flight chat / run_loop.
-    chat_cancelled: bool,
     /// Present fired before main-window listener was ready (L11-AR race heal).
     pending_present: bool,
     clarify_counts: HashMap<String, u32>,
@@ -160,6 +148,7 @@ pub fn reset_runtime_for_tests() {
     let mut rt = runtime().lock().unwrap();
     *rt = Runtime::default();
     drop(rt);
+    session::reset_live_for_tests();
     lifecycle_log().lock().unwrap().clear();
     *lifecycle_listener().lock().unwrap() = None;
     shell_sync_log().lock().unwrap().clear();
@@ -170,15 +159,15 @@ pub fn set_busy_for_tests(busy: bool) {
 }
 
 pub fn is_execute_cancelled_for_tests() -> bool {
-    runtime().lock().unwrap().execute_cancelled
+    session::live_context_owner().execute_cancelled()
 }
 
 pub fn is_chat_cancelled_for_tests() -> bool {
-    runtime().lock().unwrap().chat_cancelled
+    session::live_context_owner().chat_cancelled()
 }
 
 pub fn set_chat_cancelled_for_tests(cancelled: bool) {
-    runtime().lock().unwrap().chat_cancelled = cancelled;
+    session::with_live_mut(|live| live.chat_cancelled = cancelled);
 }
 
 pub fn clear_lifecycle_events_for_tests() {
@@ -240,12 +229,13 @@ fn emit_lifecycle_inner(event: &'static str, category: Option<&'static str>, inv
 }
 
 /// Symmetric in-flight cancel for cut paths: interrupt execute and/or chat when live.
-fn request_in_flight_cancel(rt: &mut Runtime) {
+/// Orchestration flags stay on `Runtime`; cancel authority is on `AIAssistantSession`.
+fn request_in_flight_cancel(rt: &Runtime, live: &mut session::AIAssistantSession) {
     if rt.executing {
-        rt.execute_cancelled = true;
+        live.execute_cancelled = true;
     }
     if rt.busy {
-        rt.chat_cancelled = true;
+        live.chat_cancelled = true;
     }
 }
 
@@ -273,20 +263,23 @@ fn set_binding_with_mcp(
         return Err(e);
     }
     let was_bound = {
-        let mut rt = runtime().lock().unwrap();
-        let was = rt.current_binding.is_some();
-        // Chat cancel on cut; do not set execute_cancelled here so replace mid-execute
-        // still returns rejected_stale_generation (generation advance is the execute interrupt).
-        if rt.busy {
-            rt.chat_cancelled = true;
-        }
-        rt.generation_seq = rt.generation_seq.saturating_add(1);
-        rt.current_generation = Some(rt.generation_seq);
-        rt.current_binding = Some(binding);
-        rt.loaded_mcp_server = loaded_mcp;
-        // Session cut: clear live id with generation update (no new-gen + old-session window).
-        rt.current_session_id = None;
-        was
+        // Lock order: Runtime (orchestration) → AIAssistantSession (live context).
+        let rt = runtime().lock().unwrap();
+        session::with_live_mut(|live| {
+            let was = live.current_binding.is_some();
+            // Chat cancel on cut; do not set execute_cancelled here so replace mid-execute
+            // still returns rejected_stale_generation (generation advance is the execute interrupt).
+            if rt.busy {
+                live.chat_cancelled = true;
+            }
+            live.generation_seq = live.generation_seq.saturating_add(1);
+            live.current_generation = Some(live.generation_seq);
+            live.current_binding = Some(binding);
+            live.loaded_mcp_server = loaded_mcp;
+            // Session cut: clear live id with generation update (no new-gen + old-session window).
+            live.current_session_id = None;
+            was
+        })
     };
     if was_bound {
         emit_lifecycle("onUnbound", None);
@@ -349,7 +342,7 @@ pub const HOST_EMPTY_TOOLS_A3_FACADE_USABLE: bool = true;
 /// config loaded by key-only Binding Set. No engine-branch injection; no write
 /// path — only Set/Reset lifecycle may change the loaded value.
 pub fn session_capability_mcp_config() -> Option<McpServerConfig> {
-    runtime().lock().unwrap().loaded_mcp_server.clone()
+    session::live_context_owner().loaded_mcp_server()
 }
 
 /// Observability alias for the session capability read face.
@@ -363,14 +356,16 @@ pub fn loaded_mcp_server() -> Option<McpServerConfig> {
 /// Bound→unbound emits onUnbound; symmetrically cancels in-flight execute and chat.
 pub fn reset_binding() -> Result<(), ()> {
     let was_bound = {
-        let mut rt = runtime().lock().unwrap();
-        let was = rt.current_binding.is_some();
-        request_in_flight_cancel(&mut rt);
-        rt.current_binding = None;
-        rt.loaded_mcp_server = None;
-        rt.current_generation = None;
-        rt.current_session_id = None;
-        was
+        let rt = runtime().lock().unwrap();
+        session::with_live_mut(|live| {
+            let was = live.current_binding.is_some();
+            request_in_flight_cancel(&rt, live);
+            live.current_binding = None;
+            live.loaded_mcp_server = None;
+            live.current_generation = None;
+            live.current_session_id = None;
+            was
+        })
     };
     if was_bound {
         emit_lifecycle("onUnbound", None);
@@ -433,25 +428,38 @@ pub fn execute_binding() -> Result<ExecuteOutcome, ExecError> {
 pub fn execute_binding_during<F: FnOnce()>(mid: F) -> Result<ExecuteOutcome, ExecError> {
     let (snapshot, generation) = {
         let mut rt = runtime().lock().unwrap();
-        let Some(binding) = rt.current_binding.clone() else {
-            drop(rt);
-            emit_lifecycle("onError", Some("rejected_unbound"));
-            return Err(ExecError::rejected_unbound());
-        };
-        let Some(generation) = rt.current_generation else {
-            drop(rt);
-            return Err(exec_err_stale_generation());
-        };
-        rt.executing = true;
-        rt.execute_cancelled = false;
-        (binding, generation)
+        let prepared = session::with_live_mut(|live| {
+            let Some(binding) = live.current_binding.clone() else {
+                return Err("unbound");
+            };
+            let Some(generation) = live.current_generation else {
+                return Err("stale");
+            };
+            live.execute_cancelled = false;
+            Ok((binding, generation))
+        });
+        match prepared {
+            Ok(pair) => {
+                rt.executing = true;
+                pair
+            }
+            Err("unbound") => {
+                drop(rt);
+                emit_lifecycle("onError", Some("rejected_unbound"));
+                return Err(ExecError::rejected_unbound());
+            }
+            Err(_) => {
+                drop(rt);
+                return Err(exec_err_stale_generation());
+            }
+        }
     };
 
     mid();
 
     let cancelled = {
         let mut rt = runtime().lock().unwrap();
-        let cancelled = rt.execute_cancelled;
+        let cancelled = session::with_live_mut(|live| live.execute_cancelled);
         rt.executing = false;
         cancelled
     };
@@ -477,12 +485,11 @@ pub fn query_binding() -> BindingStateSummary {
 
 /// Atomic snapshot of query summary + current Binding slot count (0 or 1).
 pub fn query_binding_snapshot() -> (BindingStateSummary, usize) {
-    let rt = runtime().lock().unwrap();
-    match rt.current_binding.as_ref() {
+    session::with_live_mut(|live| match live.current_binding.as_ref() {
         Some(_) => (
             BindingStateSummary {
                 state: "bound",
-                generation: rt.current_generation,
+                generation: live.current_generation,
             },
             1,
         ),
@@ -493,7 +500,7 @@ pub fn query_binding_snapshot() -> (BindingStateSummary, usize) {
             },
             0,
         ),
-    }
+    })
 }
 
 /// Current binding gate: `unbound` | `bound` (generic Binding present).
@@ -508,7 +515,7 @@ pub fn current_binding_slot_count() -> usize {
 
 /// Whether `generation` is still the live current Binding (false after Reset or replace).
 pub fn is_binding_generation_current(generation: u64) -> bool {
-    runtime().lock().unwrap().current_generation == Some(generation)
+    session::live_context_owner().current_generation() == Some(generation)
 }
 
 fn exec_err_stale_generation() -> ExecError {
@@ -518,11 +525,10 @@ fn exec_err_stale_generation() -> ExecError {
 
 /// Atomic snapshot of current Binding + live generation (None if unbound or gen missing).
 fn current_binding_generation_snapshot() -> Option<(session::Binding, u64)> {
-    let rt = runtime().lock().unwrap();
-    match (rt.current_binding.clone(), rt.current_generation) {
+    session::with_live_mut(|live| match (live.current_binding.clone(), live.current_generation) {
         (Some(binding), Some(generation)) => Some((binding, generation)),
         _ => None,
-    }
+    })
 }
 
 /// Binding Contract ops only (L03-SC / L08-AR). Present/Open are shell surface, not ops.
@@ -642,7 +648,7 @@ fn prompt_text_from_binding(prompt: &Value) -> String {
 }
 
 fn current_binding_snapshot() -> Option<session::Binding> {
-    runtime().lock().unwrap().current_binding.clone()
+    session::live_context_owner().current_binding()
 }
 
 pub fn map_llm_error(err: &LlmError) -> TurnOutcome {
@@ -689,8 +695,8 @@ pub fn try_begin_chat_turn(session_id: &str) -> Result<(), ChatTurnResult> {
             emit_turn_completed: None,
         });
     }
-    let live = rt.current_session_id.as_deref();
-    if live != Some(session_id) {
+    let live_id = session::with_live_mut(|live| live.current_session_id.clone());
+    if live_id.as_deref() != Some(session_id) {
         return Err(ChatTurnResult {
             body: json!({
                 "reply_text": "Session identity mismatch — cut or stale session cannot continue.",
@@ -704,7 +710,7 @@ pub fn try_begin_chat_turn(session_id: &str) -> Result<(), ChatTurnResult> {
         });
     }
     rt.busy = true;
-    rt.chat_cancelled = false;
+    session::with_live_mut(|live| live.chat_cancelled = false);
     Ok(())
 }
 
@@ -713,11 +719,11 @@ pub fn end_chat_turn_busy() {
 }
 
 pub fn has_active_binding() -> bool {
-    runtime().lock().unwrap().current_binding.is_some()
+    session::live_context_owner().current_binding().is_some()
 }
 
 pub fn current_binding_clone() -> Option<session::Binding> {
-    runtime().lock().unwrap().current_binding.clone()
+    session::live_context_owner().current_binding()
 }
 
 pub fn turn_completed_emit(session_id: &str, wrote: bool, terminal: &str) -> Value {
@@ -739,8 +745,8 @@ fn cancelled_turn_outcome(session: &mut Session, turns_checkpoint: usize) -> Tur
 }
 
 fn chat_turn_interrupted(generation: u64) -> bool {
-    let rt = runtime().lock().unwrap();
-    rt.chat_cancelled || rt.current_generation != Some(generation)
+    let live = session::live_context_owner();
+    live.chat_cancelled() || live.current_generation() != Some(generation)
 }
 
 pub fn run_loop(session: &mut Session, user_message: &str, config: &LlmConfig) -> TurnOutcome {
@@ -971,11 +977,10 @@ pub fn get_ai_assistant_binding_core() -> Value {
     let (session_id, busy, pending_present) = {
         let mut rt = runtime().lock().unwrap();
         let pending_present = std::mem::take(&mut rt.pending_present);
-        (
-            rt.current_session_id.clone().unwrap_or_default(),
-            rt.busy,
-            pending_present,
-        )
+        let session_id = session::with_live_mut(|live| {
+            live.current_session_id.clone().unwrap_or_default()
+        });
+        (session_id, rt.busy, pending_present)
     };
     let turns = session::load_turns_value(&session_id);
     json!({
@@ -991,7 +996,8 @@ pub fn get_ai_assistant_binding_core() -> Value {
 pub fn ensure_chat_session_core() -> Result<Value, String> {
     {
         let rt = runtime().lock().unwrap();
-        if let Some(ref sid) = rt.current_session_id {
+        let existing = session::with_live_mut(|live| live.current_session_id.clone());
+        if let Some(ref sid) = existing {
             if session::load_session(sid).is_ok() {
                 return Ok(json!({
                     "session_id": sid,
@@ -1002,10 +1008,12 @@ pub fn ensure_chat_session_core() -> Result<Value, String> {
         }
     }
     let sess = session::create_session(None, None)?;
-    let mut rt = runtime().lock().unwrap();
-    rt.current_session_id = Some(sess.session_id.clone());
-    rt.bound_master_task_id = None;
-    rt.bound_title = None;
+    let _rt = runtime().lock().unwrap();
+    session::with_live_mut(|live| {
+        live.current_session_id = Some(sess.session_id.clone());
+        live.bound_master_task_id = None;
+        live.bound_title = None;
+    });
     Ok(json!({
         "session_id": sess.session_id,
         "window_label": WINDOW_LABEL,
@@ -1025,8 +1033,9 @@ pub fn open_ai_assistant_core(master_task_id: &str) -> Result<Value, String> {
 
     let mut rt = runtime().lock().unwrap();
     if rt.busy {
+        let sid = session::with_live_mut(|live| live.current_session_id.clone());
         return Ok(json!({
-            "session_id": rt.current_session_id,
+            "session_id": sid,
             "window_label": WINDOW_LABEL,
             "busy": true,
             "reply_text": "Busy — try again later",
@@ -1034,9 +1043,11 @@ pub fn open_ai_assistant_core(master_task_id: &str) -> Result<Value, String> {
     }
 
     let sess = session::create_session(None, None)?;
-    rt.current_session_id = Some(sess.session_id.clone());
-    rt.bound_master_task_id = None;
-    rt.bound_title = None;
+    session::with_live_mut(|live| {
+        live.current_session_id = Some(sess.session_id.clone());
+        live.bound_master_task_id = None;
+        live.bound_title = None;
+    });
     rt.clarify_counts.insert(sess.session_id.clone(), 0);
 
     Ok(json!({
