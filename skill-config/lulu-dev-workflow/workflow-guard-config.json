@@ -1,5 +1,8 @@
 {
   "version": 2,
+  "logs": {
+    "enabled": true
+  },
   "internalPathGuard": {
     "enable": false,
     "defaults": {
