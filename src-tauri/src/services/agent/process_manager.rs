@@ -12,7 +12,7 @@ use std::sync::{Arc, Mutex, OnceLock};
 
 use crate::config::paths;
 use crate::config::settings;
-use serde_json::Value;
+use serde_json::{json, Value};
 
 use crate::services::agent::cursor_adapter::{
     CursorError, CursorRunnerClient, ProcessCursorRunnerClient,
@@ -51,6 +51,16 @@ pub enum EnsureError {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ShutdownError {
     Internal,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum HostCloseError {
+    InvalidBusinessId,
+    Unavailable,
+    Spawn,
+    Stale,
+    Config(String),
+    Runner(CursorError),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -137,6 +147,7 @@ pub struct CursorAgentProcessManager {
     spawn: Mutex<SpawnFn>,
     current_gen: Arc<AtomicU64>,
     next_generation: AtomicU64,
+    next_request_id: AtomicU64,
 }
 
 static GLOBAL: OnceLock<CursorAgentProcessManager> = OnceLock::new();
@@ -183,6 +194,7 @@ impl CursorAgentProcessManager {
             spawn: Mutex::new(Box::new(factory)),
             current_gen: Arc::new(AtomicU64::new(0)),
             next_generation: AtomicU64::new(1),
+            next_request_id: AtomicU64::new(1),
         }
     }
 
@@ -238,6 +250,36 @@ impl CursorAgentProcessManager {
         self.clear_entry_locked(&mut inner);
         inner.state = ProcessLifecycleState::Absent;
         Ok(())
+    }
+
+    /// Host-only operational/reset path: dispose one Runner Agent slot by its
+    /// stable business identity while keeping the shared Runner process alive.
+    pub fn close_agent_slot_by_business_id(
+        &self,
+        business_id: &str,
+    ) -> Result<(), HostCloseError> {
+        let business_id = business_id.trim();
+        if business_id.is_empty() {
+            return Err(HostCloseError::InvalidBusinessId);
+        }
+
+        let access = self.ensure_client().map_err(HostCloseError::from)?;
+        let request_id = format!(
+            "host-close-{}",
+            self.next_request_id.fetch_add(1, Ordering::SeqCst)
+        );
+        match access.request(
+            &request_id,
+            "close",
+            Some(json!({ "business_id": business_id })),
+        ) {
+            Ok(_) => Ok(()),
+            Err(RequestError::Stale) => Err(HostCloseError::Stale),
+            Err(RequestError::Runner(error)) => {
+                self.invalidate();
+                Err(HostCloseError::Runner(error))
+            }
+        }
     }
 
     pub fn reset_global_for_tests() {
@@ -297,6 +339,7 @@ impl CursorAgentProcessManager {
         self.clear_entry_locked(&mut inner);
         inner.state = ProcessLifecycleState::Absent;
         self.next_generation.store(1, Ordering::SeqCst);
+        self.next_request_id.store(1, Ordering::SeqCst);
     }
 
     fn read_config(&self) -> Result<EngineRuntimeConfig, String> {
@@ -384,4 +427,15 @@ fn reclaim_client(client: Arc<Mutex<Box<dyn CursorRunnerClient>>>) {
     let mut guard = client.lock().unwrap_or_else(|e| e.into_inner());
     let _ = guard.close();
     guard.force_kill();
+}
+
+impl From<EnsureError> for HostCloseError {
+    fn from(error: EnsureError) -> Self {
+        match error {
+            EnsureError::Unavailable => Self::Unavailable,
+            EnsureError::Spawn => Self::Spawn,
+            EnsureError::Stale => Self::Stale,
+            EnsureError::Config(message) => Self::Config(message),
+        }
+    }
 }

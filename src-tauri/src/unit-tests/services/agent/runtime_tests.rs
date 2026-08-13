@@ -11,7 +11,7 @@ use serde_json::{json, Value};
 use crate::config::secrets::{self, KEY_LLM_API_KEY, KEY_LLM_API_KEY_CURSOR};
 use crate::config::settings;
 use crate::services::agent::cursor_adapter::{
-    self, CursorErrorCode, CursorSessionRuntime, FakeCursorRunnerClient,
+    self, CursorErrorCode, CursorSessionRuntime, FakeCursorRunnerClient, TurnRequest,
     HOST_GENERIC_UPSTREAM_UNAVAILABLE,
 };
 use crate::services::agent::engine_router::{self, AdapterKind};
@@ -538,5 +538,40 @@ fn t4_align_runtime_hook_chat_turn_create_turn_carry_request_ids() {
                 "{method} must be request-only (request_id set), got {hit:?}"
             );
         }
+    });
+}
+
+#[test]
+fn t4_ui_session_close_keeps_agent_slot_alive_without_dispose() {
+    with_sandbox(|| {
+        let fake = FakeCursorRunnerClient::new();
+        let log = fake.log.clone();
+        let factory_log = log.clone();
+        let runtime_rt = Arc::new(CursorSessionRuntime::with_client_factory(move |_key| {
+            let client = FakeCursorRunnerClient::from_shared(factory_log.clone());
+            Ok(Box::new(client) as Box<dyn cursor_adapter::CursorRunnerClient>)
+        }));
+
+        runtime_rt
+            .run_turn(&TurnRequest {
+                session_id: "ui-close-session".into(),
+                prompt: "warm".into(),
+                api_key: "sk-test".into(),
+                profile: super::test_business_profile("composer-2.5"),
+            })
+            .expect("create agent slot");
+        runtime::set_cursor_runtime_for_tests(Some(runtime_rt.clone()));
+
+        runtime::on_ui_session_close("ui-close-session");
+
+        assert!(
+            runtime_rt.has_session("ui-close-session"),
+            "UI session close must leave the Agent slot alive"
+        );
+        let entries = log.lock().unwrap_or_else(|e| e.into_inner());
+        assert!(
+            !entries.iter().any(|entry| entry.method == "close"),
+            "UI session close must not send Runner close/dispose: {entries:?}"
+        );
     });
 }

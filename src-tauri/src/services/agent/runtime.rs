@@ -92,6 +92,9 @@ pub fn reset_for_tests() {
     }
 }
 
+/// UI session lifecycle is presentation-only; it must not dispose an Agent.
+pub fn on_ui_session_close(_session_id: &str) {}
+
 #[cfg(test)]
 pub fn set_cursor_runtime_for_tests(rt: Option<Arc<CursorSessionRuntime>>) {
     TEST_CURSOR_INSTALLED.store(rt.is_some(), Ordering::SeqCst);

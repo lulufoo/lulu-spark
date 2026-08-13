@@ -513,3 +513,52 @@ fn t3_process_manager_test_only_entries_are_deleted() {
         "ensure_client must remain available"
     );
 }
+
+#[test]
+fn t4_host_close_agent_slot_uses_business_id_without_disposing_runner() {
+    with_sandbox(|| {
+        secrets::set_secret(KEY_LLM_API_KEY_CURSOR, "sk-close-slot").expect("key");
+        let fake = FakeCursorRunnerClient::new();
+        let log = fake.log.clone();
+        let mgr = manager_with_factory(
+            settings_cursor(),
+            counting_factory(Arc::new(AtomicUsize::new(0)), log.clone()),
+        );
+
+        mgr.warm().expect("warm");
+        let access = mgr.ensure_client().expect("ensure");
+        mgr.close_agent_slot_by_business_id("todo_task")
+            .expect("close business slot");
+
+        {
+            let entries = log.lock().unwrap_or_else(|e| e.into_inner());
+            let close = entries
+                .iter()
+                .find(|entry| entry.method == "close" && entry.params.is_some())
+                .expect("host slot close request");
+            let params = close.params.as_ref().expect("close params");
+            assert_eq!(
+                params.get("business_id").and_then(|value| value.as_str()),
+                Some("todo_task"),
+                "host close must route by business_id: {params}"
+            );
+            assert!(
+                params.get("session_id").is_none(),
+                "session_id must not select the slot: {params}"
+            );
+        }
+        assert_eq!(
+            mgr.lifecycle_state_for_tests(),
+            ProcessLifecycleState::Ready,
+            "closing one Agent slot must keep the runner alive"
+        );
+        assert!(
+            access_is_usable(&access),
+            "slot close must not stale the managed runner access"
+        );
+        assert!(
+            !fake.force_killed.load(Ordering::SeqCst),
+            "slot close must not kill the runner process"
+        );
+    });
+}
