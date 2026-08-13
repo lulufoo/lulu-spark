@@ -47,6 +47,8 @@ export type LiveSmokeResult = {
   usedNonGitCwd?: boolean;
   mcpServerVisible?: boolean;
   agentCreated?: boolean;
+  agentCount?: number;
+  multiAgentVerified?: boolean;
 };
 
 export function evaluateLiveSmokeGate(
@@ -118,6 +120,7 @@ export async function runLiveSmokeCursorSdk(
 
   const cwd = mkdtempSync(join(tmpdir(), "cursor-live-smoke-"));
   let agent: Awaited<ReturnType<typeof Agent.create>> | null = null;
+  let secondAgent: Awaited<ReturnType<typeof Agent.create>> | null = null;
   try {
     if (existsSync(join(cwd, ".git"))) {
       throw new Error("live smoke cwd unexpectedly contains .git");
@@ -160,11 +163,24 @@ export async function runLiveSmokeCursorSdk(
       },
       mcpServers,
     });
+    secondAgent = await Agent.create({
+      apiKey: input.apiKey.trim(),
+      model: { id: input.model ?? "composer-2.5" },
+      local: {
+        cwd,
+        settingSources: [],
+        sandboxOptions: { enabled: false },
+      },
+      mcpServers,
+    });
 
     const run = await agent.send(
       "Reply with exactly: pong. Do not modify any files.",
     );
-    await run.wait();
+    const secondRun = await secondAgent.send(
+      "Reply with exactly: pong. Do not modify any files.",
+    );
+    await Promise.all([run.wait(), secondRun.wait()]);
 
     return {
       status: "pass",
@@ -174,6 +190,8 @@ export async function runLiveSmokeCursorSdk(
       usedNonGitCwd: true,
       mcpServerVisible: true,
       agentCreated: true,
+      agentCount: 2,
+      multiAgentVerified: true,
     };
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
@@ -184,17 +202,21 @@ export async function runLiveSmokeCursorSdk(
       notes: `live-smoke fail: ${msg}; 外部验收待完成`,
       usedNonGitCwd: true,
       agentCreated: Boolean(agent),
+      agentCount: Number(Boolean(agent)) + Number(Boolean(secondAgent)),
+      multiAgentVerified: false,
     };
   } finally {
-    try {
-      const dispose = (agent as { [Symbol.asyncDispose]?: () => Promise<void> } | null)?.[
-        Symbol.asyncDispose
-      ];
-      if (typeof dispose === "function" && agent) {
-        await dispose.call(agent);
+    for (const current of [secondAgent, agent]) {
+      try {
+        const dispose = (
+          current as { [Symbol.asyncDispose]?: () => Promise<void> } | null
+        )?.[Symbol.asyncDispose];
+        if (typeof dispose === "function" && current) {
+          await dispose.call(current);
+        }
+      } catch {
+        // best-effort dispose
       }
-    } catch {
-      // best-effort dispose
     }
     try {
       rmSync(cwd, { recursive: true, force: true });

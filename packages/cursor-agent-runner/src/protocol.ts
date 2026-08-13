@@ -30,20 +30,31 @@ export class ProtocolError extends Error {
 export type CreateParams = {
   /** Opaque Host session id (replace-create / cwd cleanup). */
   session_id: string;
+  /** Stable business slot key. */
+  business_id?: string;
   model: string;
   cwd: string;
   mcpServers?: Record<string, unknown>;
 };
 
 export type TurnParams = {
+  business_id?: string;
   prompt: string;
 };
 
 export type RunnerRequest =
   | { id: string; method: "create"; params: CreateParams }
   | { id: string; method: "turn"; params: TurnParams }
-  | { id: string; method: "cancel"; params?: Record<string, never> }
-  | { id: string; method: "close"; params?: Record<string, never> };
+  | {
+      id: string;
+      method: "cancel";
+      params?: { business_id?: string };
+    }
+  | {
+      id: string;
+      method: "close";
+      params?: { business_id?: string };
+    };
 
 function asRecord(value: unknown): Record<string, unknown> | null {
   if (value !== null && typeof value === "object" && !Array.isArray(value)) {
@@ -80,12 +91,22 @@ export function parseRequest(line: string): RunnerRequest {
   switch (method) {
     case "create": {
       const sessionId = params.session_id;
+      const businessId = params.business_id;
       const model = params.model;
       const cwd = params.cwd;
       if (typeof sessionId !== "string" || sessionId.trim().length === 0) {
         throw new ProtocolError(
           "runner",
           "create.params.session_id must be a non-empty string",
+        );
+      }
+      if (
+        businessId !== undefined &&
+        (typeof businessId !== "string" || businessId.trim().length === 0)
+      ) {
+        throw new ProtocolError(
+          "runner",
+          "create.params.business_id must be a non-empty string",
         );
       }
       if (typeof model !== "string") {
@@ -107,20 +128,79 @@ export function parseRequest(line: string): RunnerRequest {
       return {
         id,
         method: "create",
-        params: { session_id: sessionId, model, cwd, mcpServers },
+        params: {
+          business_id: typeof businessId === "string" ? businessId.trim() : undefined,
+          session_id: sessionId,
+          model,
+          cwd,
+          mcpServers,
+        },
       };
     }
     case "turn": {
+      const businessId = params.business_id;
       const prompt = params.prompt;
+      if (
+        businessId !== undefined &&
+        (typeof businessId !== "string" || businessId.trim().length === 0)
+      ) {
+        throw new ProtocolError(
+          "runner",
+          "turn.params.business_id must be a non-empty string",
+        );
+      }
       if (typeof prompt !== "string") {
         throw new ProtocolError("runner", "turn.params.prompt must be a string");
       }
-      return { id, method: "turn", params: { prompt } };
+      return {
+        id,
+        method: "turn",
+        params: {
+          business_id: typeof businessId === "string" ? businessId.trim() : undefined,
+          prompt,
+        },
+      };
     }
-    case "cancel":
-      return { id, method: "cancel" };
-    case "close":
-      return { id, method: "close" };
+    case "cancel": {
+      const businessId = params.business_id;
+      if (
+        businessId !== undefined &&
+        (typeof businessId !== "string" || businessId.trim().length === 0)
+      ) {
+        throw new ProtocolError(
+          "runner",
+          "cancel.params.business_id must be a non-empty string",
+        );
+      }
+      return {
+        id,
+        method: "cancel",
+        params:
+          typeof businessId === "string"
+            ? { business_id: businessId.trim() }
+            : undefined,
+      };
+    }
+    case "close": {
+      const businessId = params.business_id;
+      if (
+        businessId !== undefined &&
+        (typeof businessId !== "string" || businessId.trim().length === 0)
+      ) {
+        throw new ProtocolError(
+          "runner",
+          "close.params.business_id must be a non-empty string",
+        );
+      }
+      return {
+        id,
+        method: "close",
+        params:
+          typeof businessId === "string"
+            ? { business_id: businessId.trim() }
+            : undefined,
+      };
+    }
     default:
       throw new ProtocolError("runner", `unknown method: ${method}`);
   }

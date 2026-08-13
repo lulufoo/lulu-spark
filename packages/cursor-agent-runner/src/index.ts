@@ -1,6 +1,7 @@
 import { existsSync, statSync } from "node:fs";
 import { resolve as resolvePath } from "node:path";
 import { createInterface } from "node:readline";
+import { isDeepStrictEqual } from "node:util";
 import { fileURLToPath } from "node:url";
 import { Agent, AuthenticationError, ConfigurationError } from "@cursor/sdk";
 import type { McpServerConfig, SDKAgent, Run } from "@cursor/sdk";
@@ -21,6 +22,7 @@ type AgentHandle = SDKAgent & {
 
 export type AgentFactoryParams = {
   apiKey: string;
+  businessId?: string;
   model: string;
   cwd: string;
   mcpServers: Record<string, McpServerConfig>;
@@ -42,6 +44,32 @@ type PendingCreate = {
 
 let createRunning = false;
 let pendingCreate: PendingCreate | null = null;
+
+type AgentProfile = {
+  model: string;
+  cwd: string;
+  mcpServers: Record<string, McpServerConfig>;
+};
+
+type AgentSlot = {
+  businessId: string;
+  profile: AgentProfile;
+  agent: AgentHandle | null;
+  createPromise: Promise<Record<string, unknown>> | null;
+  turnTail: Promise<void>;
+  activeSend: Promise<Run> | null;
+  activeRun: Run | null;
+  cancelRequested: boolean;
+};
+
+export type RunnerDiagnostic = {
+  event: string;
+  business_id: string;
+  session_id?: string;
+};
+
+const slots = new Map<string, AgentSlot>();
+const diagnostics: RunnerDiagnostic[] = [];
 
 function readApiKeyFromEnv(): string | null {
   const key = process.env.CURSOR_API_KEY;
@@ -120,6 +148,342 @@ async function defaultAgentFactory(
 
 function activeFactory(): AgentFactory {
   return agentFactoryOverride ?? defaultAgentFactory;
+}
+
+function emitDiagnostic(
+  event: string,
+  businessId: string,
+  sessionId?: string,
+): void {
+  const diagnostic: RunnerDiagnostic = {
+    event,
+    business_id: businessId,
+    ...(sessionId ? { session_id: sessionId } : {}),
+  };
+  diagnostics.push(diagnostic);
+  try {
+    process.stderr.write(`${JSON.stringify(diagnostic)}\n`);
+  } catch {
+    // Diagnostics must not change runner behavior when stderr is unavailable.
+  }
+}
+
+function profileFromCreate(
+  req: Extract<RunnerRequest, { method: "create" }>,
+): AgentProfile {
+  return {
+    model: req.params.model.trim(),
+    cwd: req.params.cwd,
+    mcpServers: (req.params.mcpServers ?? {}) as Record<
+      string,
+      McpServerConfig
+    >,
+  };
+}
+
+function newSlot(
+  businessId: string,
+  profile: AgentProfile,
+): AgentSlot {
+  const slot: AgentSlot = {
+    businessId,
+    profile,
+    agent: null,
+    createPromise: null,
+    turnTail: Promise.resolve(),
+    activeSend: null,
+    activeRun: null,
+    cancelRequested: false,
+  };
+  slots.set(businessId, slot);
+  return slot;
+}
+
+function validateCreate(
+  req: Extract<RunnerRequest, { method: "create" }>,
+): {
+  apiKey: string;
+  profile: AgentProfile;
+} {
+  const apiKey = readApiKeyFromEnv();
+  if (!apiKey) {
+    throw new ProtocolError(
+      "credential",
+      "missing API key in process environment",
+    );
+  }
+
+  const profile = profileFromCreate(req);
+  if (!profile.model) {
+    throw new ProtocolError("sdk_config", "model must be non-empty");
+  }
+
+  if (!existsSync(profile.cwd) || !statSync(profile.cwd).isDirectory()) {
+    throw new ProtocolError("cwd", "local.cwd is missing or not a directory");
+  }
+
+  const gate = ensureNodeAndSandbox({
+    cwd: profile.cwd,
+    workbenchMcpHost: workbenchHostFromMcpServers(profile.mcpServers),
+    sdkSandboxEnabled: false,
+  });
+  if (!gate.ok) {
+    throw new ProtocolError(gate.error.type, gate.error.message);
+  }
+
+  return { apiKey, profile };
+}
+
+async function runSlotCreate(
+  slot: AgentSlot,
+  req: Extract<RunnerRequest, { method: "create" }>,
+): Promise<Record<string, unknown>> {
+  const businessId = slot.businessId;
+  const sessionId = req.params.session_id;
+  try {
+    const { apiKey, profile } = validateCreate(req);
+    const created = await activeFactory()({
+      apiKey,
+      businessId,
+      model: profile.model,
+      cwd: profile.cwd,
+      mcpServers: profile.mcpServers,
+      sessionId,
+    });
+    slot.profile = profile;
+    slot.agent = created;
+    slot.createPromise = null;
+    emitDiagnostic("prewarm_create_ok", businessId, sessionId);
+    return { agentId: created.agentId ?? null };
+  } catch (err) {
+    if (slots.get(businessId) === slot) {
+      slots.delete(businessId);
+    }
+    emitDiagnostic("prewarm_create_fail", businessId, sessionId);
+    emitDiagnostic("create_fail", businessId, sessionId);
+    if (err instanceof ProtocolError) throw err;
+    throw Object.assign(new Error("create failed"), { cause: err });
+  }
+}
+
+async function handleSlotCreate(
+  req: Extract<RunnerRequest, { method: "create" }>,
+): Promise<Record<string, unknown>> {
+  const businessId = req.params.business_id;
+  if (!businessId) {
+    throw new ProtocolError("runner", "business_id is required");
+  }
+
+  const requestedProfile = profileFromCreate(req);
+  const existing = slots.get(businessId);
+  if (existing?.agent) {
+    if (!isDeepStrictEqual(existing.profile, requestedProfile)) {
+      throw new ProtocolError(
+        "runner",
+        `ready slot profile mismatch for business_id=${businessId}`,
+      );
+    }
+    emitDiagnostic("create_hit", businessId, req.params.session_id);
+    return { agentId: existing.agent.agentId ?? null };
+  }
+
+  if (existing?.createPromise) {
+    emitDiagnostic("prewarm_in_progress", businessId, req.params.session_id);
+    return existing.createPromise;
+  }
+
+  const slot = existing ?? newSlot(businessId, requestedProfile);
+  const creation = runSlotCreate(slot, req);
+  slot.createPromise = creation;
+  return creation;
+}
+
+async function runSlotTurn(
+  slot: AgentSlot,
+  req: Extract<RunnerRequest, { method: "turn" }>,
+): Promise<Record<string, unknown>> {
+  const agent = slot.agent;
+  if (!agent) {
+    throw new ProtocolError(
+      "runner",
+      `business_id=${slot.businessId} has no ready agent`,
+    );
+  }
+
+  try {
+    const sendPromise = agent.send(req.params.prompt);
+    slot.activeSend = sendPromise;
+    let run: Run;
+    try {
+      run = await sendPromise;
+    } finally {
+      slot.activeSend = null;
+    }
+    slot.activeRun = run;
+    if (slot.cancelRequested) {
+      slot.cancelRequested = false;
+      await run.cancel();
+    }
+    const result = await run.wait();
+    slot.activeRun = null;
+    const status = (result as { status?: string } | undefined)?.status;
+    if (status === "cancelled") {
+      throw new ProtocolError("cancelled", "run cancelled");
+    }
+    const text =
+      typeof (result as { result?: string } | undefined)?.result === "string"
+        ? (result as { result: string }).result
+        : "";
+    return { text, status: status ?? "finished" };
+  } catch (err) {
+    slot.activeSend = null;
+    slot.cancelRequested = false;
+    slot.activeRun = null;
+    if (!(err instanceof ProtocolError && err.type === "cancelled")) {
+      emitDiagnostic("turn_fail", slot.businessId);
+    }
+    if (err instanceof ProtocolError) throw err;
+    throw Object.assign(new Error("turn failed"), { cause: err });
+  }
+}
+
+function enqueueSlotTurn(
+  slot: AgentSlot,
+  req: Extract<RunnerRequest, { method: "turn" }>,
+): Promise<Record<string, unknown>> {
+  const previous = slot.turnTail;
+  let release!: () => void;
+  slot.turnTail = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  return previous.then(async () => {
+    try {
+      return await runSlotTurn(slot, req);
+    } finally {
+      release();
+    }
+  });
+}
+
+async function handleSlotTurn(
+  req: Extract<RunnerRequest, { method: "turn" }>,
+): Promise<Record<string, unknown>> {
+  const businessId = req.params.business_id;
+  if (!businessId) {
+    throw new ProtocolError("runner", "business_id is required");
+  }
+  const slot = slots.get(businessId);
+  if (!slot) {
+    throw new ProtocolError(
+      "runner",
+      `business_id=${businessId} has an empty agent slot`,
+    );
+  }
+  if (slot.createPromise) {
+    emitDiagnostic("prewarm_in_progress", businessId);
+    try {
+      await slot.createPromise;
+    } catch (err) {
+      emitDiagnostic("turn_fail", businessId);
+      throw err;
+    }
+  }
+  return enqueueSlotTurn(slot, req);
+}
+
+async function handleSlotCancel(
+  req: Extract<RunnerRequest, { method: "cancel" }>,
+): Promise<Record<string, unknown>> {
+  const businessId = req.params?.business_id;
+  if (!businessId) {
+    throw new ProtocolError("runner", "business_id is required");
+  }
+  const slot = slots.get(businessId);
+  const run = slot?.activeRun;
+  emitDiagnostic("cancel", businessId);
+  if (!run) {
+    if (slot?.activeSend) {
+      slot.cancelRequested = true;
+      return { cancelled: true };
+    }
+    return { cancelled: false };
+  }
+  try {
+    await run.cancel();
+  } catch (err) {
+    throw Object.assign(new Error("cancel failed"), { cause: err });
+  } finally {
+    if (slot) slot.activeRun = null;
+  }
+  return { cancelled: true };
+}
+
+async function disposeSlot(slot: AgentSlot): Promise<void> {
+  if (slot.activeSend) {
+    slot.cancelRequested = true;
+    try {
+      await slot.activeSend;
+    } catch {
+      // Best-effort wait for a send that is about to be cancelled.
+    }
+  }
+  if (slot.activeRun) {
+    try {
+      await slot.activeRun.cancel();
+    } catch {
+      // Best-effort cancel before dispose.
+    }
+    slot.activeRun = null;
+  }
+  const agent = slot.agent;
+  slot.agent = null;
+  if (!agent) return;
+  const dispose = agent[Symbol.asyncDispose];
+  if (typeof dispose === "function") {
+    await dispose.call(agent);
+  }
+}
+
+async function handleSlotClose(
+  req: Extract<RunnerRequest, { method: "close" }>,
+): Promise<Record<string, unknown>> {
+  const businessId = req.params?.business_id;
+  if (!businessId) {
+    throw new ProtocolError("runner", "business_id is required");
+  }
+  const slot = slots.get(businessId);
+  if (!slot) return { closed: true };
+  if (slot.createPromise) {
+    try {
+      await slot.createPromise;
+    } catch {
+      return { closed: true };
+    }
+  }
+  slots.delete(businessId);
+  await disposeSlot(slot);
+  return { closed: true };
+}
+
+async function shutdownSlots(): Promise<void> {
+  const current = [...slots.values()];
+  slots.clear();
+  await Promise.all(
+    current.map(async (slot) => {
+      if (slot.createPromise) {
+        try {
+          await slot.createPromise;
+        } catch {
+          return;
+        }
+      }
+      try {
+        await disposeSlot(slot);
+      } catch {
+        // Shutdown is best-effort for every independent slot.
+      }
+    }),
+  );
 }
 
 async function disposeCurrentAgent(): Promise<string | undefined> {
@@ -245,11 +609,15 @@ function enqueueCreate(
   });
 }
 
-async function handleCreate(req: Extract<RunnerRequest, { method: "create" }>) {
+async function handleLegacyCreate(
+  req: Extract<RunnerRequest, { method: "create" }>,
+) {
   return enqueueCreate(req);
 }
 
-async function handleTurn(req: Extract<RunnerRequest, { method: "turn" }>) {
+async function handleLegacyTurn(
+  req: Extract<RunnerRequest, { method: "turn" }>,
+) {
   if (!agent) {
     throw new ProtocolError("runner", "no agent; call create first");
   }
@@ -278,7 +646,7 @@ async function handleTurn(req: Extract<RunnerRequest, { method: "turn" }>) {
   }
 }
 
-async function handleCancel() {
+async function handleLegacyCancel() {
   if (!activeRun) {
     return { cancelled: false };
   }
@@ -292,7 +660,7 @@ async function handleCancel() {
   return { cancelled: true };
 }
 
-async function handleClose() {
+async function handleLegacyClose() {
   if (activeRun) {
     try {
       await activeRun.cancel();
@@ -315,13 +683,21 @@ async function handleClose() {
 async function dispatch(req: RunnerRequest): Promise<Record<string, unknown>> {
   switch (req.method) {
     case "create":
-      return handleCreate(req);
+      return req.params.business_id
+        ? handleSlotCreate(req)
+        : handleLegacyCreate(req);
     case "turn":
-      return handleTurn(req);
+      return req.params.business_id
+        ? handleSlotTurn(req)
+        : handleLegacyTurn(req);
     case "cancel":
-      return handleCancel();
+      return req.params?.business_id
+        ? handleSlotCancel(req)
+        : handleLegacyCancel();
     case "close":
-      return handleClose();
+      return req.params?.business_id
+        ? handleSlotClose(req)
+        : handleLegacyClose();
   }
 }
 
@@ -369,10 +745,22 @@ export function resetRunnerStateForTests(): void {
   activeRun = null;
   createRunning = false;
   pendingCreate = null;
+  slots.clear();
+  diagnostics.length = 0;
 }
 
 export function agentCardinalityForTests(): number {
-  return agent ? 1 : 0;
+  const slotAgents = [...slots.values()].filter((slot) => slot.agent).length;
+  return slotAgents + (agent ? 1 : 0);
+}
+
+export function diagnosticsForTests(): RunnerDiagnostic[] {
+  return diagnostics.map((event) => ({ ...event }));
+}
+
+export async function shutdownRunnerForTests(): Promise<void> {
+  await shutdownSlots();
+  await handleLegacyClose();
 }
 
 /** Serialize stdout writes while allowing overlapping handleLine (coalesce / demux). */
@@ -405,6 +793,7 @@ async function main(): Promise<void> {
         return writeResponseLine(serializeErrorResponse("unknown", error));
       });
   }
+  await shutdownRunnerForTests();
 }
 
 const isMain =
