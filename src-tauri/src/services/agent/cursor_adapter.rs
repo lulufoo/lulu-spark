@@ -26,7 +26,7 @@
 use std::collections::HashMap;
 use std::io::{BufRead, BufReader, Write};
 use std::path::Path;
-use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
+use std::process::{Child, ChildStderr, ChildStdin, ChildStdout, Command, Stdio};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::mpsc::{self, SyncSender};
 use std::sync::{Arc, Mutex, OnceLock};
@@ -512,6 +512,179 @@ fn fake_shared_request(
     }
 }
 
+fn log_runner_process_event(
+    event: &'static str,
+    pid: Option<u32>,
+    outcome: Option<&'static str>,
+) {
+    let trace_id = TraceId::new();
+    let mut diagnostic = DiagnosticEvent::point("assistant.cursor.runner", event, &trace_id);
+    if let Some(pid) = pid {
+        diagnostic = diagnostic.with_u64_field("pid", pid.into());
+    }
+    if let Some(outcome) = outcome {
+        diagnostic = diagnostic.with_static_field("outcome", outcome);
+    }
+    let _ = diagnostics::log(diagnostic);
+}
+
+fn runner_stderr_event_name(event: Option<&str>) -> &'static str {
+    match event {
+        Some("prewarm_create_ok") => "cursor.runner.prewarm_create_ok",
+        Some("prewarm_create_fail") => "cursor.runner.prewarm_create_fail",
+        Some("prewarm_in_progress") => "cursor.runner.prewarm_in_progress",
+        Some("create_hit") => "cursor.runner.create_hit",
+        Some("create_fail") => "cursor.runner.create_fail",
+        Some("turn_ok") => "cursor.runner.turn_ok",
+        Some("turn_empty") => "cursor.runner.turn_empty",
+        Some("turn_sdk_error") => "cursor.runner.turn_sdk_error",
+        Some("turn_fail") => "cursor.runner.turn_fail",
+        Some("cancel") => "cursor.runner.cancel",
+        Some("runner_fatal") => "cursor.runner.fatal",
+        _ => "cursor.runner.stderr",
+    }
+}
+
+fn runner_sdk_status_name(status: Option<&str>) -> Option<&'static str> {
+    match status {
+        Some("finished") => Some("finished"),
+        Some("error") => Some("error"),
+        Some("cancelled") => Some("cancelled"),
+        Some("running") => Some("running"),
+        Some("unknown") => Some("unknown"),
+        _ => None,
+    }
+}
+
+fn runner_error_type_name(error_type: Option<&str>) -> Option<&'static str> {
+    match error_type {
+        Some("credential") => Some("credential"),
+        Some("sdk_config") => Some("sdk_config"),
+        Some("mcp_unavailable") => Some("mcp_unavailable"),
+        Some("cwd") => Some("cwd"),
+        Some("runner") => Some("runner"),
+        Some("sdk_run") => Some("sdk_run"),
+        Some("cancelled") => Some("cancelled"),
+        Some("coalesced") => Some("coalesced"),
+        _ => None,
+    }
+}
+
+fn apply_sdk_error_fields(mut diagnostic: DiagnosticEvent, source: &Value) -> DiagnosticEvent {
+    for name in [
+        "sdk_error_name",
+        "sdk_error_code",
+        "sdk_error_message",
+        "sdk_error_keys",
+        "sdk_error_json",
+        "sdk_cause_name",
+        "sdk_cause_code",
+        "sdk_cause_message",
+        "sdk_wait_keys",
+        "sdk_wait_json",
+        "sdk_model",
+        "stderr_preview",
+    ] {
+        if let Some(value) = source.get(name).and_then(Value::as_str) {
+            diagnostic = diagnostic.with_bounded_text_field(name, value);
+        }
+    }
+    if let Some(status) = source.get("sdk_http_status").and_then(json_u64) {
+        diagnostic = diagnostic.with_u64_field("sdk_http_status", status);
+    }
+    if let Some(duration) = source.get("sdk_duration_ms").and_then(json_u64) {
+        diagnostic = diagnostic.with_u64_field("sdk_duration_ms", duration);
+    }
+    if let Some(retryable) = source.get("sdk_retryable").and_then(Value::as_bool) {
+        diagnostic = diagnostic.with_bool_field("sdk_retryable", retryable);
+    }
+    diagnostic
+}
+
+fn json_u64(value: &Value) -> Option<u64> {
+    value
+        .as_u64()
+        .or_else(|| value.as_i64().and_then(|n| u64::try_from(n).ok()))
+        .or_else(|| value.as_f64().and_then(|n| (n >= 0.0).then_some(n as u64)))
+}
+
+fn log_runner_stderr_line(pid: u32, line: &str) {
+    let parsed = serde_json::from_str::<Value>(line.trim()).ok();
+    let event = parsed
+        .as_ref()
+        .and_then(|value| value.get("event"))
+        .and_then(Value::as_str);
+    let mapped_event = runner_stderr_event_name(event);
+    let error_type = parsed
+        .as_ref()
+        .and_then(|value| value.get("error_type"))
+        .and_then(Value::as_str);
+    let sdk_status = parsed
+        .as_ref()
+        .and_then(|value| value.get("sdk_status"))
+        .and_then(Value::as_str);
+    let has_result = parsed
+        .as_ref()
+        .and_then(|value| value.get("has_result"))
+        .and_then(Value::as_bool);
+    let has_error = parsed
+        .as_ref()
+        .and_then(|value| value.get("has_error"))
+        .and_then(Value::as_bool);
+    let text_len = parsed
+        .as_ref()
+        .and_then(|value| value.get("text_len"))
+        .and_then(Value::as_u64);
+    let mut diagnostic = DiagnosticEvent::point(
+        "assistant.cursor.runner",
+        mapped_event,
+        &TraceId::new(),
+    )
+    .with_u64_field("pid", pid.into());
+    if let Some(error_type) = runner_error_type_name(error_type) {
+        diagnostic = diagnostic.with_static_field("error_type", error_type);
+    }
+    if let Some(sdk_status) = runner_sdk_status_name(sdk_status) {
+        diagnostic = diagnostic.with_static_field("sdk_status", sdk_status);
+    }
+    if let Some(has_result) = has_result {
+        diagnostic = diagnostic.with_bool_field("has_result", has_result);
+    }
+    if let Some(has_error) = has_error {
+        diagnostic = diagnostic.with_bool_field("has_error", has_error);
+    }
+    if let Some(text_len) = text_len {
+        diagnostic = diagnostic.with_u64_field("text_len", text_len);
+    }
+    if let Some(parsed) = parsed.as_ref() {
+        diagnostic = apply_sdk_error_fields(diagnostic, parsed);
+    }
+    if mapped_event == "cursor.runner.stderr" {
+        diagnostic = diagnostic.with_bounded_text_field("stderr_preview", line);
+    }
+    let _ = diagnostics::log(diagnostic);
+}
+
+fn start_runner_stderr_reader(stderr: ChildStderr, pid: u32) {
+    thread::spawn(move || {
+        let reader = BufReader::new(stderr);
+        for line in reader.lines() {
+            match line {
+                Ok(line) => log_runner_stderr_line(pid, &line),
+                Err(_) => {
+                    log_runner_process_event(
+                        "cursor.runner.stderr.read_error",
+                        Some(pid),
+                        Some("error"),
+                    );
+                    break;
+                }
+            }
+        }
+        log_runner_process_event("cursor.runner.stderr.eof", Some(pid), None);
+    });
+}
+
 // ── Production process client (pending-map demux) ────────────────────────────
 
 /// Shared JSONL transport: short stdin write lock + `request_id` pending map +
@@ -520,14 +693,16 @@ struct JsonlBridge {
     stdin: Mutex<Option<ChildStdin>>,
     pending: Mutex<HashMap<String, SyncSender<Result<Value, CursorError>>>>,
     dead: AtomicBool,
+    pid: u32,
 }
 
 impl JsonlBridge {
-    fn new(stdin: ChildStdin) -> Arc<Self> {
+    fn new(stdin: ChildStdin, pid: u32) -> Arc<Self> {
         Arc::new(Self {
             stdin: Mutex::new(Some(stdin)),
             pending: Mutex::new(HashMap::new()),
             dead: AtomicBool::new(false),
+            pid,
         })
     }
 
@@ -539,16 +714,31 @@ impl JsonlBridge {
                 let mut response_line = String::new();
                 match reader.read_line(&mut response_line) {
                     Ok(0) => {
+                        log_runner_process_event(
+                            "cursor.runner.stdout_eof",
+                            Some(bridge.pid),
+                            None,
+                        );
                         bridge.fail_all();
                         break;
                     }
                     Ok(_) => {
                         if let Err(()) = bridge.dispatch_line(response_line.trim()) {
+                            log_runner_process_event(
+                                "cursor.runner.protocol_error",
+                                Some(bridge.pid),
+                                Some("error"),
+                            );
                             bridge.fail_all();
                             break;
                         }
                     }
                     Err(_) => {
+                        log_runner_process_event(
+                            "cursor.runner.stdout.read_error",
+                            Some(bridge.pid),
+                            Some("error"),
+                        );
                         bridge.fail_all();
                         break;
                     }
@@ -730,7 +920,7 @@ impl ProcessCursorRunnerClient {
             .env("CURSOR_API_KEY", api_key)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
-            .stderr(Stdio::null())
+            .stderr(Stdio::piped())
             .spawn()
             .map_err(|_| {
                 CursorError::new(
@@ -738,8 +928,16 @@ impl ProcessCursorRunnerClient {
                     frontend_message_for(CursorErrorCode::Runner),
                 )
             })?;
-        let pid = Arc::new(Mutex::new(Some(child.id())));
+        let child_pid = child.id();
+        log_runner_process_event("cursor.runner.spawned", Some(child_pid), None);
+        let pid = Arc::new(Mutex::new(Some(child_pid)));
         let stdin = child.stdin.take().ok_or_else(|| {
+            CursorError::new(
+                CursorErrorCode::Runner,
+                frontend_message_for(CursorErrorCode::Runner),
+            )
+        })?;
+        let stderr = child.stderr.take().ok_or_else(|| {
             CursorError::new(
                 CursorErrorCode::Runner,
                 frontend_message_for(CursorErrorCode::Runner),
@@ -751,7 +949,8 @@ impl ProcessCursorRunnerClient {
                 frontend_message_for(CursorErrorCode::Runner),
             )
         })?;
-        let bridge = JsonlBridge::new(stdin);
+        start_runner_stderr_reader(stderr, child_pid);
+        let bridge = JsonlBridge::new(stdin, child_pid);
         bridge.start_reader(stdout);
         Ok(Self {
             child: Some(child),
@@ -766,25 +965,40 @@ impl ProcessCursorRunnerClient {
         self.next_id += 1;
         self.bridge.exchange_with_id(&id, method, params)
     }
+
+    fn pid_for_log(&self) -> Option<u32> {
+        *self.pid.lock().unwrap_or_else(|e| e.into_inner())
+    }
 }
 
 impl CursorRunnerClient for ProcessCursorRunnerClient {
     fn close(&mut self) -> Result<(), CursorError> {
-        let _ = self.exchange("close", None);
+        let pid = self.pid_for_log();
+        log_runner_process_event("cursor.runner.close.started", pid, None);
+        let close_result = self.exchange("close", None);
+        log_runner_process_event(
+            "cursor.runner.close.request",
+            pid,
+            Some(if close_result.is_ok() { "ok" } else { "error" }),
+        );
         self.bridge.fail_all();
         if let Some(mut child) = self.child.take() {
             let _ = child.wait();
         }
+        log_runner_process_event("cursor.runner.close.completed", pid, None);
         Ok(())
     }
 
     fn force_kill(&mut self) {
+        let pid = self.pid_for_log();
+        log_runner_process_event("cursor.runner.force_kill.started", pid, None);
         self.bridge.fail_all();
         (self.terminate_hook())();
         if let Some(mut child) = self.child.take() {
             let _ = child.kill();
             let _ = child.wait();
         }
+        log_runner_process_event("cursor.runner.force_kill.completed", pid, None);
     }
 
     fn terminate_hook(&self) -> Arc<dyn Fn() + Send + Sync> {
@@ -793,7 +1007,19 @@ impl CursorRunnerClient for ProcessCursorRunnerClient {
         Arc::new(move || {
             bridge.fail_all();
             if let Some(p) = *pid.lock().unwrap_or_else(|e| e.into_inner()) {
-                let _ = Command::new("kill").arg("-9").arg(p.to_string()).status();
+                let kill_outcome = match Command::new("kill")
+                    .arg("-9")
+                    .arg(p.to_string())
+                    .status()
+                {
+                    Ok(status) if status.success() => "ok",
+                    _ => "error",
+                };
+                log_runner_process_event(
+                    "cursor.runner.kill.command_completed",
+                    Some(p),
+                    Some(kill_outcome),
+                );
                 *pid.lock().unwrap_or_else(|e| e.into_inner()) = None;
             }
         })
@@ -900,13 +1126,15 @@ impl CursorLlmEngine {
                 Ok(access)
             }
             Err(err) => {
-                log_cursor_timing(
+                let mapped = map_ensure_error(err);
+                log_cursor_error_timing(
                     trace_id,
                     "cursor.client_ensure.completed",
                     ensure_started,
                     "error",
+                    &mapped,
                 );
-                Err(map_ensure_error(err))
+                Err(mapped)
             }
         }
     }
@@ -958,11 +1186,12 @@ impl CursorLlmEngine {
                 result
             }
             Err(err) => {
-                log_cursor_timing(
+                log_cursor_error_timing(
                     trace_id,
                     "cursor.create.completed",
                     create_started,
                     "error",
+                    &err,
                 );
                 return Err(err);
             }
@@ -1013,12 +1242,15 @@ impl CursorLlmEngine {
                 "prompt": req.prompt,
             })),
         ) {
-            Ok(result) => {
-                log_cursor_timing(trace_id, "cursor.turn.completed", turn_started, "ok");
-                result
-            }
+            Ok(result) => result,
             Err(err) => {
-                log_cursor_timing(trace_id, "cursor.turn.completed", turn_started, "error");
+                log_cursor_error_timing(
+                    trace_id,
+                    "cursor.turn.completed",
+                    turn_started,
+                    "error",
+                    &err,
+                );
                 return Err(err);
             }
         };
@@ -1027,7 +1259,27 @@ impl CursorLlmEngine {
             .and_then(|value| value.as_str())
             .unwrap_or("")
             .to_string();
-        log_cursor_timing(trace_id, "cursor.run_turn.completed", run_started, "ok");
+        let sdk_status = runner_sdk_status_name(result.get("status").and_then(Value::as_str));
+        log_cursor_turn_timing(
+            trace_id,
+            "cursor.turn.completed",
+            turn_started,
+            "ok",
+            text.len() as u64,
+            !text.is_empty(),
+            sdk_status,
+            Some(&result),
+        );
+        log_cursor_turn_timing(
+            trace_id,
+            "cursor.run_turn.completed",
+            run_started,
+            "ok",
+            text.len() as u64,
+            !text.is_empty(),
+            sdk_status,
+            Some(&result),
+        );
         Ok(TurnOutcome {
             text,
             should_persist: true,
@@ -1075,6 +1327,50 @@ fn log_cursor_timing(
     let _ = diagnostics::log(
         DiagnosticEvent::timing("assistant.cursor", event, trace_id, started.elapsed())
             .with_static_field("outcome", outcome),
+    );
+}
+
+fn log_cursor_turn_timing(
+    trace_id: Option<&TraceId>,
+    event: &'static str,
+    started: Instant,
+    outcome: &'static str,
+    text_len: u64,
+    has_text: bool,
+    sdk_status: Option<&'static str>,
+    extras: Option<&Value>,
+) {
+    let Some(trace_id) = trace_id else {
+        return;
+    };
+    let mut diagnostic =
+        DiagnosticEvent::timing("assistant.cursor", event, trace_id, started.elapsed())
+            .with_static_field("outcome", outcome)
+            .with_u64_field("text_len", text_len)
+            .with_bool_field("has_text", has_text);
+    if let Some(sdk_status) = sdk_status {
+        diagnostic = diagnostic.with_static_field("sdk_status", sdk_status);
+    }
+    if let Some(extras) = extras {
+        diagnostic = apply_sdk_error_fields(diagnostic, extras);
+    }
+    let _ = diagnostics::log(diagnostic);
+}
+
+fn log_cursor_error_timing(
+    trace_id: Option<&TraceId>,
+    event: &'static str,
+    started: Instant,
+    outcome: &'static str,
+    error: &CursorError,
+) {
+    let Some(trace_id) = trace_id else {
+        return;
+    };
+    let _ = diagnostics::log(
+        DiagnosticEvent::timing("assistant.cursor", event, trace_id, started.elapsed())
+            .with_static_field("outcome", outcome)
+            .with_static_field("error_code", error.code_str()),
     );
 }
 

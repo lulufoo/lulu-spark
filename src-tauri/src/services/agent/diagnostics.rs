@@ -1,9 +1,9 @@
 //! Versioned, privacy-safe diagnostic events for Assistant execution timing.
 //!
 //! Events are emitted as one JSON object per line to stderr and to
-//! `{cache_dir}/agent/assistant-diagnostic.jsonl`. The API only accepts
-//! static field names and non-content values so call sites cannot accidentally
-//! place prompts, replies, credentials, or request payloads in diagnostics.
+//! `{cache_dir}/agent/assistant-diagnostic.jsonl`. Field names are static.
+//! Prompt/reply bodies are still forbidden. Bounded, newline-stripped error
+//! classification text is allowed so SDK failures can be distinguished.
 
 use std::collections::BTreeMap;
 use std::fs;
@@ -21,6 +21,22 @@ use crate::services::id::random_hex12;
 
 pub const SCHEMA_VERSION: u8 = 1;
 pub const DIAGNOSTIC_LOG_FILE: &str = "assistant-diagnostic.jsonl";
+pub const BOUNDED_TEXT_MAX: usize = 1024;
+
+const BOUNDED_TEXT_FIELDS: &[&str] = &[
+    "sdk_error_name",
+    "sdk_error_code",
+    "sdk_error_message",
+    "sdk_error_keys",
+    "sdk_error_json",
+    "sdk_cause_name",
+    "sdk_cause_code",
+    "sdk_cause_message",
+    "sdk_wait_keys",
+    "sdk_wait_json",
+    "sdk_model",
+    "stderr_preview",
+];
 
 static WRITE_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
 
@@ -61,8 +77,9 @@ impl TraceId {
 
 /// A single structured diagnostic event.
 ///
-/// `fields` can only be populated through safe metadata helpers. In
-/// particular, dynamic strings are intentionally unsupported.
+/// `fields` can only be populated through safe metadata helpers. Arbitrary
+/// dynamic strings remain unsupported; bounded error-classification text is
+/// allowed only for the SDK diagnostic field names below.
 #[derive(Debug, Serialize)]
 pub struct DiagnosticEvent {
     pub schema_version: u8,
@@ -119,6 +136,58 @@ impl DiagnosticEvent {
         self.fields.insert(name, json!(value));
         self
     }
+
+    /// Bounded error-classification text. Unknown field names are dropped so
+    /// call sites cannot log prompts or replies through this helper.
+    pub fn with_bounded_text_field(mut self, name: &'static str, value: &str) -> Self {
+        if !BOUNDED_TEXT_FIELDS.contains(&name) {
+            return self;
+        }
+        let sanitized = sanitize_bounded_text(value);
+        if !sanitized.is_empty() {
+            self.fields.insert(name, json!(sanitized));
+        }
+        self
+    }
+}
+
+pub fn sanitize_bounded_text(value: &str) -> String {
+    let collapsed: String = value
+        .chars()
+        .map(|c| {
+            if c == '\n' || c == '\r' || c == '\t' || c.is_control() {
+                ' '
+            } else {
+                c
+            }
+        })
+        .collect();
+    let redacted = redact_sk_tokens(&session::redact_secrets(&collapsed)).replace(
+        "CURSOR_API_KEY",
+        "[REDACTED]",
+    );
+    let trimmed = redacted.trim();
+    if trimmed.chars().count() <= BOUNDED_TEXT_MAX {
+        trimmed.to_string()
+    } else {
+        trimmed.chars().take(BOUNDED_TEXT_MAX).collect()
+    }
+}
+
+fn redact_sk_tokens(text: &str) -> String {
+    let mut out = String::with_capacity(text.len());
+    let mut rest = text;
+    while let Some(idx) = rest.find("sk-") {
+        out.push_str(&rest[..idx]);
+        out.push_str("sk-[REDACTED]");
+        rest = &rest[idx + 3..];
+        let skip = rest
+            .find(|c: char| !(c.is_ascii_alphanumeric() || c == '_' || c == '-'))
+            .unwrap_or(rest.len());
+        rest = &rest[skip..];
+    }
+    out.push_str(rest);
+    out
 }
 
 pub fn diagnostic_log_path() -> Result<PathBuf, String> {

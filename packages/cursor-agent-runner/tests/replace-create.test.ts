@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, it } from "node:test";
 import {
   agentCardinalityForTests,
+  diagnosticsForTests,
   handleLine,
   resetRunnerStateForTests,
   setAgentFactoryForTests,
@@ -217,6 +218,194 @@ describe("business-scoped create lifecycle (T-ReplaceCreate)", () => {
     assert.equal(retried.result.agentId, "agent-todos");
     assert.equal(created.length, 2);
     assert.equal(agentCardinalityForTests(), 1);
+  });
+
+  it("emits a typed create failure diagnostic with SDK error text", async () => {
+    setAgentFactoryForTests(async () => {
+      throw new Error("create rejected: model not available");
+    });
+    const cwd = tempCwd();
+
+    const result = JSON.parse(
+      await handleLine(createLine("failed-create", "todos", cwd)),
+    );
+    assert.equal(result.ok, false);
+
+    const failure = diagnosticsForTests().find(
+      (event) => event.event === "prewarm_create_fail",
+    );
+    assert.equal(failure?.error_type, "sdk_run");
+    assert.equal(failure?.sdk_error_message, "create rejected: model not available");
+    assert.match(String(failure?.sdk_error_json), /model not available/);
+  });
+
+  it("emits turn_empty when wait() finishes without result text", async () => {
+    setAgentFactoryForTests(async () => ({
+      agentId: "empty-agent",
+      async send() {
+        return {
+          wait: async () => ({ status: "finished" }),
+          cancel: async () => {},
+        };
+      },
+      async [Symbol.asyncDispose]() {},
+    }));
+    const cwd = tempCwd();
+    assert.equal(
+      JSON.parse(await handleLine(createLine("c-empty", "todos", cwd))).ok,
+      true,
+    );
+
+    const turned = JSON.parse(
+      await handleLine(
+        JSON.stringify({
+          id: "t-empty",
+          method: "turn",
+          params: { business_id: "todos", prompt: "SECRET-PROMPT-TEXT" },
+        }),
+      ),
+    );
+    assert.equal(turned.ok, true);
+    assert.equal(turned.result.text, "");
+
+    const empty = diagnosticsForTests().find(
+      (event) => event.event === "turn_empty",
+    );
+    assert.equal(empty?.sdk_status, "finished");
+    assert.equal(empty?.has_result, false);
+    assert.equal(empty?.text_len, 0);
+    assert.equal(empty?.has_error, false);
+    assert.match(String(empty?.sdk_wait_keys), /status/);
+    assert.doesNotMatch(
+      JSON.stringify(diagnosticsForTests()),
+      /SECRET-PROMPT-TEXT/,
+    );
+  });
+
+  it("emits turn_sdk_error with SDK code and message when wait() status is error", async () => {
+    setAgentFactoryForTests(async () => ({
+      agentId: "error-agent",
+      async send() {
+        return {
+          wait: async () => ({
+            status: "error",
+            durationMs: 14600,
+            model: { id: "composer-2" },
+            error: {
+              message: "quota exceeded for composer-2",
+              code: "rate_limit",
+            },
+            result: "SECRET-REPLY-BODY",
+          }),
+          cancel: async () => {},
+        };
+      },
+      async [Symbol.asyncDispose]() {},
+    }));
+    const cwd = tempCwd();
+    assert.equal(
+      JSON.parse(await handleLine(createLine("c-err", "todos", cwd))).ok,
+      true,
+    );
+
+    const turned = JSON.parse(
+      await handleLine(
+        JSON.stringify({
+          id: "t-err",
+          method: "turn",
+          params: { business_id: "todos", prompt: "hello" },
+        }),
+      ),
+    );
+    assert.equal(turned.ok, true);
+    assert.equal(turned.result.status, "error");
+    assert.equal(turned.result.sdk_error_code, "rate_limit");
+    assert.equal(
+      turned.result.sdk_error_message,
+      "quota exceeded for composer-2",
+    );
+
+    const failure = diagnosticsForTests().find(
+      (event) => event.event === "turn_sdk_error",
+    );
+    assert.equal(failure?.error_type, "sdk_run");
+    assert.equal(failure?.sdk_status, "error");
+    assert.equal(failure?.has_result, true);
+    assert.equal(failure?.has_error, true);
+    assert.equal(failure?.sdk_error_code, "rate_limit");
+    assert.equal(failure?.sdk_error_message, "quota exceeded for composer-2");
+    assert.equal(failure?.sdk_model, "composer-2");
+    assert.equal(failure?.sdk_duration_ms, 14600);
+    assert.match(String(failure?.sdk_wait_keys), /error/);
+    assert.match(String(failure?.sdk_error_keys), /code/);
+    assert.match(String(failure?.sdk_wait_json), /rate_limit/);
+    assert.doesNotMatch(
+      JSON.stringify(diagnosticsForTests()),
+      /SECRET-REPLY-BODY/,
+    );
+  });
+
+  it("redacts API key material in SDK error diagnostics", async () => {
+    setAgentFactoryForTests(async () => ({
+      agentId: "secret-agent",
+      async send() {
+        return {
+          wait: async () => ({
+            status: "error",
+            error: {
+              message: "auth failed CURSOR_API_KEY=sk-secretvalue Bearer abc.def",
+              code: "unauthenticated",
+            },
+          }),
+          cancel: async () => {},
+        };
+      },
+      async [Symbol.asyncDispose]() {},
+    }));
+    const cwd = tempCwd();
+    assert.equal(
+      JSON.parse(await handleLine(createLine("c-secret", "todos", cwd))).ok,
+      true,
+    );
+    await handleLine(
+      JSON.stringify({
+        id: "t-secret",
+        method: "turn",
+        params: { business_id: "todos", prompt: "hello" },
+      }),
+    );
+    const blob = JSON.stringify(diagnosticsForTests());
+    assert.match(blob, /unauthenticated/);
+    assert.doesNotMatch(blob, /sk-secretvalue/);
+    assert.doesNotMatch(blob, /CURSOR_API_KEY=sk-/);
+    assert.doesNotMatch(blob, /Bearer abc\.def/);
+  });
+
+  it("emits turn_ok with text_len and without reply body", async () => {
+    setAgentFactoryForTests(makeFactory());
+    const cwd = tempCwd();
+    assert.equal(
+      JSON.parse(await handleLine(createLine("c-ok", "todos", cwd))).ok,
+      true,
+    );
+
+    const turned = JSON.parse(
+      await handleLine(
+        JSON.stringify({
+          id: "t-ok",
+          method: "turn",
+          params: { business_id: "todos", prompt: "hello" },
+        }),
+      ),
+    );
+    assert.equal(turned.ok, true);
+    assert.equal(turned.result.text, "todos:hello");
+
+    const ok = diagnosticsForTests().find((event) => event.event === "turn_ok");
+    assert.equal(ok?.sdk_status, "finished");
+    assert.equal(ok?.has_result, true);
+    assert.equal(ok?.text_len, "todos:hello".length);
+    assert.doesNotMatch(JSON.stringify(diagnosticsForTests()), /todos:hello/);
   });
 
   it("shares concurrent same-business creates instead of creating multiple agents", async () => {

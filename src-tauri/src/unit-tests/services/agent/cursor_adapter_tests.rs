@@ -81,6 +81,35 @@ fn t3_production_adapter_uses_real_process_client_type() {
 }
 
 #[test]
+fn t3_production_runner_captures_stderr_and_logs_lifecycle_boundaries() {
+    let src = include_str!("../../../services/agent/cursor_adapter.rs");
+    assert!(
+        src.contains(".stderr(Stdio::piped())"),
+        "production Runner stderr must be captured for durable diagnostics"
+    );
+    for marker in [
+        "cursor.runner.spawned",
+        "cursor.runner.stderr",
+        "cursor.runner.stdout_eof",
+        "cursor.runner.close.started",
+        "cursor.runner.force_kill.started",
+        "cursor.runner.turn_empty",
+        "text_len",
+        "sdk_status",
+        "sdk_error_message",
+        "sdk_error_code",
+        "sdk_wait_json",
+        "stderr_preview",
+        "with_bounded_text_field",
+    ] {
+        assert!(
+            src.contains(marker),
+            "production Runner diagnostics must include {marker}"
+        );
+    }
+}
+
+#[test]
 fn t3_typed_runner_errors_map_to_frontend_safe_cursor_codes() {
     let host_generic = cursor_adapter::HOST_GENERIC_UPSTREAM_UNAVAILABLE;
     assert_eq!(host_generic, "上游服务暂时不可用，请稍后重试。");

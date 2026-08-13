@@ -62,10 +62,68 @@ type AgentSlot = {
   cancelRequested: boolean;
 };
 
+export type SdkRunStatus =
+  | "finished"
+  | "error"
+  | "cancelled"
+  | "running"
+  | "unknown";
+
+const DIAGNOSTIC_TEXT_MAX = 512;
+const DIAGNOSTIC_JSON_MAX = 1024;
+const OMITTED_SNAPSHOT_KEYS = new Set([
+  "result",
+  "prompt",
+  "content",
+  "text",
+  "images",
+  "conversation",
+]);
+
 export type RunnerDiagnostic = {
   event: string;
   business_id: string;
   session_id?: string;
+  error_type?: RunnerError["type"];
+  sdk_status?: SdkRunStatus;
+  has_result?: boolean;
+  text_len?: number;
+  has_error?: boolean;
+  sdk_error_name?: string;
+  sdk_error_code?: string;
+  sdk_error_message?: string;
+  sdk_error_keys?: string;
+  sdk_error_json?: string;
+  sdk_cause_name?: string;
+  sdk_cause_code?: string;
+  sdk_cause_message?: string;
+  sdk_wait_keys?: string;
+  sdk_wait_json?: string;
+  sdk_model?: string;
+  sdk_http_status?: number;
+  sdk_duration_ms?: number;
+  sdk_retryable?: boolean;
+};
+
+type RunnerDiagnosticExtras = {
+  sdkStatus?: SdkRunStatus;
+  hasResult?: boolean;
+  textLen?: number;
+  hasError?: boolean;
+  sdkErrorName?: string;
+  sdkErrorCode?: string;
+  sdkErrorMessage?: string;
+  sdkErrorKeys?: string;
+  sdkErrorJson?: string;
+  sdkCauseName?: string;
+  sdkCauseCode?: string;
+  sdkCauseMessage?: string;
+  sdkWaitKeys?: string;
+  sdkWaitJson?: string;
+  sdkModel?: string;
+  sdkHttpStatus?: number;
+  sdkRetryable?: boolean;
+  sdkDurationMs?: number;
 };
 
 const slots = new Map<string, AgentSlot>();
@@ -150,15 +208,223 @@ function activeFactory(): AgentFactory {
   return agentFactoryOverride ?? defaultAgentFactory;
 }
 
+function sdkStatusName(status: unknown): SdkRunStatus {
+  switch (status) {
+    case "finished":
+    case "error":
+    case "cancelled":
+    case "running":
+      return status;
+    default:
+      return "unknown";
+  }
+}
+
+function turnResultEvent(status: SdkRunStatus, textLen: number): string {
+  if (status === "error") return "turn_sdk_error";
+  if (textLen === 0) return "turn_empty";
+  return "turn_ok";
+}
+
+function redactSecrets(text: string): string {
+  return text
+    .replace(/CURSOR_API_KEY/gi, "[REDACTED]")
+    .replace(/Bearer\s+\S+/gi, "Bearer [REDACTED]")
+    .replace(/sk-[a-zA-Z0-9_-]+/g, "sk-[REDACTED]")
+    .replace(/api[_-]?key[=:]\s*["']?[^"' \t]+/gi, "api_key=[REDACTED]");
+}
+
+function boundedText(value: unknown, max = DIAGNOSTIC_TEXT_MAX): string | undefined {
+  if (value == null) return undefined;
+  const raw =
+    typeof value === "string"
+      ? value
+      : typeof value === "number" || typeof value === "boolean"
+        ? String(value)
+        : undefined;
+  if (raw === undefined) return undefined;
+  const collapsed = redactSecrets(raw)
+    .replace(/[\r\n\t]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!collapsed) return undefined;
+  return collapsed.length > max ? collapsed.slice(0, max) : collapsed;
+}
+
+function errorSnapshot(error: Error): Record<string, unknown> {
+  const obj = error as Error & Record<string, unknown>;
+  return {
+    name: error.name,
+    message: error.message,
+    ...(obj.code !== undefined ? { code: obj.code } : {}),
+    ...(obj.status !== undefined ? { status: obj.status } : {}),
+    ...(obj.statusCode !== undefined ? { statusCode: obj.statusCode } : {}),
+    ...(typeof obj.isRetryable === "boolean"
+      ? { isRetryable: obj.isRetryable }
+      : {}),
+    ...(obj.cause !== undefined ? { cause: obj.cause } : {}),
+  };
+}
+
+function boundedJson(value: unknown, max = DIAGNOSTIC_JSON_MAX): string | undefined {
+  try {
+    const json = JSON.stringify(value, (key, nested) => {
+      if (OMITTED_SNAPSHOT_KEYS.has(key)) return "[omitted]";
+      const current = nested instanceof Error ? errorSnapshot(nested) : nested;
+      if (typeof current === "string" && current.length > 300) {
+        return redactSecrets(current).slice(0, 300);
+      }
+      if (typeof current === "string") return redactSecrets(current);
+      return current;
+    });
+    return boundedText(json, max);
+  } catch {
+    return boundedText(value, max);
+  }
+}
+
+function objectKeys(value: unknown): string | undefined {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
+  const keys = Object.keys(value as Record<string, unknown>).sort();
+  return keys.length > 0 ? keys.join(",") : undefined;
+}
+
+function readFiniteNumber(value: unknown): number | undefined {
+  return typeof value === "number" && Number.isFinite(value)
+    ? Math.round(value)
+    : undefined;
+}
+
+function summarizeUnknownError(error: unknown): RunnerDiagnosticExtras {
+  if (error == null) return {};
+  if (typeof error !== "object") {
+    return { sdkErrorMessage: boundedText(error) };
+  }
+  const obj = error as Record<string, unknown>;
+  const ctorName =
+    typeof obj.name === "string" && obj.name.trim()
+      ? obj.name
+      : error instanceof Error
+        ? error.constructor.name
+        : undefined;
+  return {
+    sdkErrorName: boundedText(ctorName, 64),
+    sdkErrorCode: boundedText(obj.code ?? obj.type ?? obj.error_code, 64),
+    sdkErrorMessage: boundedText(obj.message ?? obj.reason, DIAGNOSTIC_TEXT_MAX),
+    sdkErrorKeys: objectKeys(error),
+    sdkErrorJson: boundedJson(error),
+    sdkHttpStatus: readFiniteNumber(obj.status ?? obj.statusCode),
+    sdkRetryable:
+      typeof obj.isRetryable === "boolean" ? obj.isRetryable : undefined,
+  };
+}
+
+function summarizeCaught(err: unknown): RunnerDiagnosticExtras {
+  const direct = summarizeUnknownError(err);
+  if (!err || typeof err !== "object" || !("cause" in err)) return direct;
+  const cause = summarizeUnknownError((err as { cause: unknown }).cause);
+  return {
+    ...direct,
+    sdkCauseName: cause.sdkErrorName,
+    sdkCauseCode: cause.sdkErrorCode,
+    sdkCauseMessage: cause.sdkErrorMessage,
+  };
+}
+
+function summarizeWaitResult(result: unknown): RunnerDiagnosticExtras {
+  if (!result || typeof result !== "object") {
+    return { sdkWaitJson: boundedJson({ wait_typeof: typeof result }) };
+  }
+  const obj = result as Record<string, unknown>;
+  const errorExtras = summarizeUnknownError(obj.error);
+  const model =
+    obj.model && typeof obj.model === "object" && !Array.isArray(obj.model)
+      ? boundedText((obj.model as { id?: unknown }).id, 64)
+      : boundedText(obj.model, 64);
+  return {
+    sdkWaitKeys: objectKeys(result),
+    sdkWaitJson: boundedJson(result),
+    sdkModel: model,
+    sdkDurationMs: readFiniteNumber(obj.durationMs),
+    sdkErrorName: errorExtras.sdkErrorName,
+    sdkErrorCode: errorExtras.sdkErrorCode,
+    sdkErrorMessage: errorExtras.sdkErrorMessage,
+    sdkErrorKeys: errorExtras.sdkErrorKeys,
+    sdkErrorJson: errorExtras.sdkErrorJson,
+    sdkHttpStatus: errorExtras.sdkHttpStatus,
+    sdkRetryable: errorExtras.sdkRetryable,
+  };
+}
+
+function extrasToJsonl(extras: RunnerDiagnosticExtras): Record<string, unknown> {
+  return {
+    ...(extras.sdkErrorName ? { sdk_error_name: extras.sdkErrorName } : {}),
+    ...(extras.sdkErrorCode ? { sdk_error_code: extras.sdkErrorCode } : {}),
+    ...(extras.sdkErrorMessage
+      ? { sdk_error_message: extras.sdkErrorMessage }
+      : {}),
+    ...(extras.sdkErrorKeys ? { sdk_error_keys: extras.sdkErrorKeys } : {}),
+    ...(extras.sdkErrorJson ? { sdk_error_json: extras.sdkErrorJson } : {}),
+    ...(extras.sdkCauseName ? { sdk_cause_name: extras.sdkCauseName } : {}),
+    ...(extras.sdkCauseCode ? { sdk_cause_code: extras.sdkCauseCode } : {}),
+    ...(extras.sdkCauseMessage
+      ? { sdk_cause_message: extras.sdkCauseMessage }
+      : {}),
+    ...(extras.sdkWaitKeys ? { sdk_wait_keys: extras.sdkWaitKeys } : {}),
+    ...(extras.sdkWaitJson ? { sdk_wait_json: extras.sdkWaitJson } : {}),
+    ...(extras.sdkModel ? { sdk_model: extras.sdkModel } : {}),
+    ...(extras.sdkHttpStatus !== undefined
+      ? { sdk_http_status: extras.sdkHttpStatus }
+      : {}),
+    ...(extras.sdkDurationMs !== undefined
+      ? { sdk_duration_ms: extras.sdkDurationMs }
+      : {}),
+    ...(extras.sdkRetryable !== undefined
+      ? { sdk_retryable: extras.sdkRetryable }
+      : {}),
+  };
+}
+
 function emitDiagnostic(
   event: string,
   businessId: string,
   sessionId?: string,
+  errorType?: RunnerError["type"],
+  extras?: RunnerDiagnosticExtras,
 ): void {
   const diagnostic: RunnerDiagnostic = {
     event,
     business_id: businessId,
     ...(sessionId ? { session_id: sessionId } : {}),
+    ...(errorType ? { error_type: errorType } : {}),
+    ...(extras?.sdkStatus ? { sdk_status: extras.sdkStatus } : {}),
+    ...(extras?.hasResult !== undefined ? { has_result: extras.hasResult } : {}),
+    ...(extras?.textLen !== undefined ? { text_len: extras.textLen } : {}),
+    ...(extras?.hasError !== undefined ? { has_error: extras.hasError } : {}),
+    ...(extras?.sdkErrorName ? { sdk_error_name: extras.sdkErrorName } : {}),
+    ...(extras?.sdkErrorCode ? { sdk_error_code: extras.sdkErrorCode } : {}),
+    ...(extras?.sdkErrorMessage
+      ? { sdk_error_message: extras.sdkErrorMessage }
+      : {}),
+    ...(extras?.sdkErrorKeys ? { sdk_error_keys: extras.sdkErrorKeys } : {}),
+    ...(extras?.sdkErrorJson ? { sdk_error_json: extras.sdkErrorJson } : {}),
+    ...(extras?.sdkCauseName ? { sdk_cause_name: extras.sdkCauseName } : {}),
+    ...(extras?.sdkCauseCode ? { sdk_cause_code: extras.sdkCauseCode } : {}),
+    ...(extras?.sdkCauseMessage
+      ? { sdk_cause_message: extras.sdkCauseMessage }
+      : {}),
+    ...(extras?.sdkWaitKeys ? { sdk_wait_keys: extras.sdkWaitKeys } : {}),
+    ...(extras?.sdkWaitJson ? { sdk_wait_json: extras.sdkWaitJson } : {}),
+    ...(extras?.sdkModel ? { sdk_model: extras.sdkModel } : {}),
+    ...(extras?.sdkHttpStatus !== undefined
+      ? { sdk_http_status: extras.sdkHttpStatus }
+      : {}),
+    ...(extras?.sdkDurationMs !== undefined
+      ? { sdk_duration_ms: extras.sdkDurationMs }
+      : {}),
+    ...(extras?.sdkRetryable !== undefined
+      ? { sdk_retryable: extras.sdkRetryable }
+      : {}),
   };
   diagnostics.push(diagnostic);
   try {
@@ -259,8 +525,10 @@ async function runSlotCreate(
     if (slots.get(businessId) === slot) {
       slots.delete(businessId);
     }
-    emitDiagnostic("prewarm_create_fail", businessId, sessionId);
-    emitDiagnostic("create_fail", businessId, sessionId);
+    const error = errorFromCaught(err);
+    const extras = summarizeCaught(err);
+    emitDiagnostic("prewarm_create_fail", businessId, sessionId, error.type, extras);
+    emitDiagnostic("create_fail", businessId, sessionId, error.type, extras);
     if (err instanceof ProtocolError) throw err;
     throw Object.assign(new Error("create failed"), { cause: err });
   }
@@ -323,21 +591,45 @@ async function runSlotTurn(
     }
     const result = await run.wait();
     slot.activeRun = null;
-    const status = (result as { status?: string } | undefined)?.status;
+    const status = sdkStatusName(
+      (result as { status?: string } | undefined)?.status,
+    );
     if (status === "cancelled") {
       throw new ProtocolError("cancelled", "run cancelled");
     }
-    const text =
-      typeof (result as { result?: string } | undefined)?.result === "string"
-        ? (result as { result: string }).result
-        : "";
-    return { text, status: status ?? "finished" };
+    const rawResult = (result as { result?: unknown } | undefined)?.result;
+    const hasResult = typeof rawResult === "string";
+    const text = hasResult ? (rawResult as string) : "";
+    const hasError =
+      (result as { error?: unknown } | undefined)?.error != null;
+    const textLen = new TextEncoder().encode(text).length;
+    const waitExtras = summarizeWaitResult(result);
+    emitDiagnostic(
+      turnResultEvent(status, textLen),
+      slot.businessId,
+      undefined,
+      status === "error" ? "sdk_run" : undefined,
+      {
+        ...waitExtras,
+        sdkStatus: status,
+        hasResult,
+        textLen,
+        hasError,
+      },
+    );
+    return { text, status, ...extrasToJsonl(waitExtras) };
   } catch (err) {
     slot.activeSend = null;
     slot.cancelRequested = false;
     slot.activeRun = null;
     if (!(err instanceof ProtocolError && err.type === "cancelled")) {
-      emitDiagnostic("turn_fail", slot.businessId);
+      emitDiagnostic(
+        "turn_fail",
+        slot.businessId,
+        undefined,
+        errorFromCaught(err).type,
+        summarizeCaught(err),
+      );
     }
     if (err instanceof ProtocolError) throw err;
     throw Object.assign(new Error("turn failed"), { cause: err });
@@ -378,7 +670,13 @@ async function handleSlotTurn(
     try {
       await slot.createPromise;
     } catch (err) {
-      emitDiagnostic("turn_fail", businessId);
+      emitDiagnostic(
+        "turn_fail",
+        businessId,
+        undefined,
+        errorFromCaught(err).type,
+        summarizeCaught(err),
+      );
       throw err;
     }
   }
@@ -782,10 +1080,14 @@ const isMain =
 
 if (isMain) {
   main().catch((err) => {
-    const error = redactError({
-      type: "runner",
-      message: err instanceof Error ? err.message : "runner crashed",
-    });
+    const error = errorFromCaught(err);
+    process.stderr.write(
+      `${JSON.stringify({
+        event: "runner_fatal",
+        error_type: error.type,
+        ...extrasToJsonl(summarizeCaught(err)),
+      })}\n`,
+    );
     process.stdout.write(`${serializeErrorResponse("unknown", error)}\n`);
     process.exitCode = 1;
   });

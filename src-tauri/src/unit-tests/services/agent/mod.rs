@@ -278,6 +278,33 @@ fn assistant_diagnostics_are_correlated_without_message_content() {
         !diagnostics.contains("with_dynamic_field"),
         "diagnostics must not provide an API for arbitrary dynamic strings"
     );
+    assert!(
+        diagnostics.contains("with_bounded_text_field")
+            && diagnostics.contains("sdk_error_message"),
+        "diagnostics must allow bounded SDK error classification text"
+    );
+}
+
+#[test]
+fn assistant_diagnostics_bounded_error_text_redacts_secrets_and_newlines() {
+    let cleaned = diagnostics::sanitize_bounded_text(
+        "quota exceeded\nbody sk-abc123 Authorization: Bearer sk-SECRET",
+    );
+    assert!(!cleaned.contains('\n'));
+    assert!(cleaned.contains("quota exceeded"));
+    assert!(!cleaned.contains("sk-SECRET"));
+    assert!(!cleaned.contains("sk-abc123"));
+    assert!(cleaned.contains("sk-[REDACTED]"));
+
+    let trace_id = TraceId::parse("trace_12345678").expect("valid trace id");
+    let event = DiagnosticEvent::point("assistant.cursor", "cursor.turn.completed", &trace_id)
+        .with_bounded_text_field("prompt", "should-not-appear")
+        .with_bounded_text_field("sdk_error_message", "rate_limit: quota exceeded");
+    assert!(event.fields.get("prompt").is_none());
+    assert_eq!(
+        event.fields.get("sdk_error_message").and_then(|v| v.as_str()),
+        Some("rate_limit: quota exceeded")
+    );
 }
 
 // ── Tools (interface layer kept; capability dispatch removed in t3) ───────────

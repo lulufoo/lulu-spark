@@ -411,7 +411,10 @@ describe("businessId Agent slot map", () => {
     assert.equal(failed.ok, false);
     assert.ok(
       diagnostics().some(
-        (event) => event.event === "turn_fail" && event.business_id === "todos",
+        (event) =>
+          event.event === "turn_fail" &&
+          event.business_id === "todos" &&
+          event.sdk_error_message === "turn failed for todos",
       ),
     );
   });
