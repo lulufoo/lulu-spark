@@ -780,6 +780,12 @@ impl JsonlBridge {
         }
     }
 
+    fn close_stdin(&self) {
+        if let Ok(mut stdin) = self.stdin.lock() {
+            *stdin = None;
+        }
+    }
+
     fn dispatch_line(&self, trimmed: &str) -> Result<(), ()> {
         if trimmed.is_empty() {
             return Err(());
@@ -911,7 +917,6 @@ pub struct ProcessCursorRunnerClient {
     child: Option<Child>,
     pid: Arc<Mutex<Option<u32>>>,
     bridge: Arc<JsonlBridge>,
-    next_id: u64,
 }
 
 impl ProcessCursorRunnerClient {
@@ -968,14 +973,7 @@ impl ProcessCursorRunnerClient {
             child: Some(child),
             pid,
             bridge,
-            next_id: 1,
         })
-    }
-
-    fn exchange(&mut self, method: &str, params: Option<Value>) -> Result<Value, CursorError> {
-        let id = format!("r{}", self.next_id);
-        self.next_id += 1;
-        self.bridge.exchange_with_id(&id, method, params)
     }
 
     fn pid_for_log(&self) -> Option<u32> {
@@ -987,16 +985,15 @@ impl CursorRunnerClient for ProcessCursorRunnerClient {
     fn close(&mut self) -> Result<(), CursorError> {
         let pid = self.pid_for_log();
         log_runner_process_event("cursor.runner.close.started", pid, None);
-        let close_result = self.exchange("close", None);
-        log_runner_process_event(
-            "cursor.runner.close.request",
-            pid,
-            Some(if close_result.is_ok() { "ok" } else { "error" }),
-        );
-        self.bridge.fail_all();
+        // `close` is a business-scoped Runner method. Process shutdown has no
+        // business_id, so signal EOF by dropping stdin and let the Runner
+        // dispose every slot through its shutdown path.
+        self.bridge.close_stdin();
+        log_runner_process_event("cursor.runner.close.request", pid, Some("ok"));
         if let Some(mut child) = self.child.take() {
             let _ = child.wait();
         }
+        self.bridge.fail_all();
         log_runner_process_event("cursor.runner.close.completed", pid, None);
         Ok(())
     }

@@ -91,6 +91,14 @@ fn t3_production_runner_captures_stderr_and_logs_lifecycle_boundaries() {
         src.contains(".stderr(Stdio::piped())"),
         "production Runner stderr must be captured for durable diagnostics"
     );
+    assert!(
+        !src.contains("self.exchange(\"close\", None)"),
+        "process shutdown must signal Runner EOF, not send protocol close without business_id"
+    );
+    assert!(
+        src.contains("close_stdin"),
+        "process shutdown must close the JSONL transport through stdin EOF"
+    );
     for marker in [
         "cursor.runner.spawned",
         "cursor.runner.stderr",
