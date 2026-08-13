@@ -45,6 +45,9 @@ mod cutover_tests;
 #[path = "verify_agent_tests.rs"]
 mod verify_agent_tests;
 
+#[path = "profile_tests.rs"]
+mod profile_tests;
+
 use std::fs;
 use std::io::{Read, Write};
 use std::net::TcpListener;
