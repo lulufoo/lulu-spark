@@ -175,23 +175,36 @@ describe('buildTodosBinding / resetTodosBinding', () => {
     expect(events.map((e) => e.event)).toEqual(['onBound']);
   });
 
-  it('does not Set on empty context (null / missing masterTaskId)', async () => {
+  it('Sets key-only binding without live instance context', async () => {
     const cbs = trackCallbacks();
     const r1 = await buildTodosBinding(null, cbs);
     const r2 = await buildTodosBinding({}, cbs);
     const r3 = await buildTodosBinding({ masterTaskId: '' }, cbs);
     const r4 = await buildTodosBinding({ masterTaskId: '   ' }, cbs);
 
-    expect(r1.ok).toBe(false);
-    expect(r1.skipped).toBe('empty_context');
-    expect(r2.skipped).toBe('empty_context');
-    expect(r3.skipped).toBe('empty_context');
-    expect(r4.skipped).toBe('empty_context');
-    expect(invokeMock).not.toHaveBeenCalledWith(
-      'set_binding',
-      expect.anything(),
+    expect([r1, r2, r3, r4].map((result) => result.ok)).toEqual([
+      true,
+      true,
+      true,
+      true,
+    ]);
+    for (const result of [r1, r2, r3, r4]) {
+      expect(result.binding).toEqual({ key: 'todo_task' });
+    }
+
+    const setCalls = invokeMock.mock.calls.filter(
+      ([command]) => command === 'set_binding',
     );
-    expect(events.filter((e) => e.event === 'onBound')).toHaveLength(0);
+    expect(setCalls).toHaveLength(4);
+    for (const [, args] of setCalls) {
+      expect(args).toEqual({ binding: { key: 'todo_task' } });
+    }
+    expect(events.map((e) => e.event)).toEqual([
+      'onBound',
+      'onBound',
+      'onBound',
+      'onBound',
+    ]);
   });
 
   it('Reset observes onUnbound; reset_binding carries no config/engine args', async () => {

@@ -170,20 +170,24 @@ describe('createTodosPageLifecycle', () => {
     );
   });
 
-  it('enter without available selected master → no Set; first selection later → Set → onBound', async () => {
+  it('enter without a live instance → key-only Set; first selection later replaces it', async () => {
     const life = createTodosPageLifecycle(trackCallbacks());
 
-    const deferred = await life.onTodosPageEnter('');
-    expect(deferred.ok).toBe(false);
-    expect(deferred.skipped).toBe('empty_context');
-    expect(invokeMock).not.toHaveBeenCalledWith('set_binding', expect.anything());
-    expect(events.filter((e) => e.event === 'onBound')).toHaveLength(0);
+    const initial = await life.onTodosPageEnter();
+    expect(initial.ok).toBe(true);
+    expect(initial.binding).toEqual({ key: 'todo_task' });
+    expect(life.isBound()).toBe(true);
+    expect(life.getBoundMasterId()).toBe(null);
+    expect(invokeMock).toHaveBeenCalledWith('set_binding', {
+      binding: { key: 'todo_task' },
+    });
+    expect(events.map((e) => e.event)).toEqual(['onBound']);
 
     const first = await life.onMasterSelectionChange('task_alpha');
     expect(first.ok).toBe(true);
     expect(life.isBound()).toBe(true);
     expect(life.getBoundMasterId()).toBe('task_alpha');
-    expect(events.map((e) => e.event)).toEqual(['onBound']);
+    expect(events.map((e) => e.event)).toEqual(['onBound', 'onBound']);
   });
 
   it('in-page master change → replace Set (bound→bound); execute uses new binding only', async () => {

@@ -14,14 +14,6 @@ function getTauriInvoke() {
   return typeof invoke === 'function' ? invoke : null;
 }
 
-function masterIdFromContext(masterContext) {
-  if (!masterContext || typeof masterContext !== 'object') return null;
-  const raw = masterContext.masterTaskId;
-  if (typeof raw !== 'string') return null;
-  const id = raw.trim();
-  return id ? id : null;
-}
-
 /** Assemble Binding body only (no Host call). Key-only public Set contract. */
 export function assembleTodosBindingBody() {
   return { key: TODOS_BUSINESS_KEY };
@@ -35,17 +27,12 @@ function emitCallback(fn, payload) {
 
 /**
  * Build key-only Binding and Set via Host Binding Contract.
- * Does not Set on empty context. Observes onBound / onError (C-min).
+ * Sets the key-only Binding even without instance context. Observes onBound / onError (C-min).
  *
- * @param {{ masterTaskId: string } | null} masterContext
+ * @param {{ masterTaskId?: string } | null} [_masterContext] Optional instance context; never part of Binding.
  * @param {{ onBound?: Function, onUnbound?: Function, onError?: Function }} [callbacks]
  */
-export async function buildTodosBinding(masterContext, callbacks = {}) {
-  const masterTaskId = masterIdFromContext(masterContext);
-  if (!masterTaskId) {
-    return { ok: false, skipped: 'empty_context', state: 'unbound' };
-  }
-
+export async function buildTodosBinding(_masterContext, callbacks = {}) {
   const binding = assembleTodosBindingBody();
   const invoke = getTauriInvoke();
   if (!invoke) {

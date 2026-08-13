@@ -132,6 +132,12 @@ describe('plan-task-assistant source wiring', () => {
     expect(appCss).not.toMatch(/\.pt-assistant-widget\s*\{[^}]*bottom:\s*76px/);
     expect(appCss).toMatch(/\.home-entry-shell__cluster\s*\{[^}]*bottom:\s*20px/);
   });
+
+  it('keeps key-only Binding ownership out of the assistant list widget', () => {
+    expect(assistantJs).not.toMatch(/\bset_binding\b|\breset_binding\b/);
+    expect(assistantJs).not.toMatch(/\btools\s*:|\bprompt\s*:|\bcallbacks\s*:/);
+    expect(assistantJs).not.toMatch(/\bengine(?:Type|_type)?\b/);
+  });
 });
 
 describe('loadAssistantPlanTasks', () => {

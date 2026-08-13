@@ -27,10 +27,11 @@ export function createTodosPageLifecycle(callbacks = {}) {
 
   async function applySet(masterTaskId) {
     const wasBound = bound;
-    const result = await buildTodosBinding({ masterTaskId }, callbacks);
+    const context = masterTaskId ? { masterTaskId } : null;
+    const result = await buildTodosBinding(context, callbacks);
     if (result.ok) {
       bound = true;
-      boundMasterId = masterTaskId;
+      boundMasterId = masterTaskId || null;
       return { ...result, boundMasterId };
     }
     // Replace Set failure: keep old Binding (still bound); do not Reset.
@@ -50,14 +51,11 @@ export function createTodosPageLifecycle(callbacks = {}) {
   }
 
   /**
-   * Enter Todos page. Sets when a selected master is available; otherwise defers.
+   * Enter Todos page. Sets the key-only Binding even without an instance.
    * @param {string} [selectedMasterId]
    */
   async function onTodosPageEnter(selectedMasterId = '') {
     const id = normalizeMasterId(selectedMasterId);
-    if (!id) {
-      return { ok: false, skipped: 'empty_context', state: 'unbound' };
-    }
     return applySet(id);
   }
 
