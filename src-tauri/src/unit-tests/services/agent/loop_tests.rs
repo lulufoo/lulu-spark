@@ -3297,6 +3297,96 @@ fn t6_shell_close_is_not_cut_acceptance() {
 }
 
 #[test]
+fn t8_binding_request_helpers_route_create_turn_cancel_by_bound_business_id() {
+    with_sandbox(|| {
+        r#loop::try_set_binding_json(&json!({ "key": "todo_task" })).expect("Set");
+        let session_id = r#loop::ensure_chat_session_core()
+            .expect("ensure")
+            .get("session_id")
+            .and_then(Value::as_str)
+            .expect("session id")
+            .to_string();
+        let calls = Arc::new(Mutex::new(Vec::<String>::new()));
+
+        let create_calls = calls.clone();
+        let turn_calls = calls.clone();
+        let result = r#loop::ensure_create_then_turn(
+            "hello",
+            move |business_id, sid| {
+                create_calls
+                    .lock()
+                    .unwrap()
+                    .push(format!("create:{business_id}:{sid}"));
+                Ok(())
+            },
+            move |business_id, sid, prompt| {
+                turn_calls
+                    .lock()
+                    .unwrap()
+                    .push(format!("turn:{business_id}:{sid}:{prompt}"));
+                Ok(r#loop::ChatTurnResult {
+                    body: json!({ "ok": true }),
+                    emit_turn_completed: None,
+                })
+            },
+        )
+        .expect("ensure-create then turn");
+
+        assert_eq!(result.body["ok"], true);
+        assert_eq!(
+            *calls.lock().unwrap(),
+            vec![
+                format!("create:todo_task:{session_id}"),
+                format!("turn:todo_task:{session_id}:hello"),
+            ]
+        );
+
+        let cancel_calls = calls.clone();
+        r#loop::cancel_from_binding(move |business_id| {
+            cancel_calls
+                .lock()
+                .unwrap()
+                .push(format!("cancel:{business_id}"));
+            Ok(())
+        })
+        .expect("cancel from Binding");
+        assert_eq!(calls.lock().unwrap().last().map(String::as_str), Some("cancel:todo_task"));
+    });
+}
+
+#[test]
+fn t8_binding_request_helpers_reject_unbound_without_session_fallback() {
+    with_sandbox(|| {
+        let create_called = Arc::new(Mutex::new(false));
+        let cancel_called = Arc::new(Mutex::new(false));
+
+        let create_called_for_cb = create_called.clone();
+        let error = r#loop::ensure_create_then_turn(
+            "must reject",
+            move |_, _| {
+                *create_called_for_cb.lock().unwrap() = true;
+                Ok(())
+            },
+            |_, _, _| {
+                panic!("turn must not run when Binding is unbound");
+            },
+        )
+        .expect_err("unbound ensure-create must reject");
+        assert_eq!(error, "rejected_unbound");
+        assert!(!*create_called.lock().unwrap());
+
+        let cancel_called_for_cb = cancel_called.clone();
+        let error = r#loop::cancel_from_binding(move |_| {
+            *cancel_called_for_cb.lock().unwrap() = true;
+            Ok(())
+        })
+        .expect_err("unbound cancel must reject");
+        assert_eq!(error, "rejected_unbound");
+        assert!(!*cancel_called.lock().unwrap());
+    });
+}
+
+#[test]
 fn t6_explicit_reset_not_omitted_because_defensive_exists() {
     with_sandbox(|| {
         // Defensive cut exists, but normal leave still uses explicit Reset semantics.

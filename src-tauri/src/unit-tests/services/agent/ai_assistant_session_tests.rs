@@ -315,3 +315,25 @@ fn t4_cancel_state_owned_by_ai_assistant_session_not_runtime() {
         assert!(!body.contains("execute_cancelled"));
     });
 }
+
+#[test]
+fn t8_binding_business_id_is_derived_from_key_only_binding_not_session_id() {
+    with_sandbox(|| {
+        r#loop::try_set_binding_json(&json!({ "key": SEEDED_BUSINESS_KEY }))
+            .expect("key-only Set");
+        let binding = session::live_context_owner()
+            .current_binding()
+            .expect("current Binding");
+
+        assert_eq!(
+            session::binding_business_id(&binding).as_deref(),
+            Some(SEEDED_BUSINESS_KEY)
+        );
+        assert!(
+            session::binding_business_id(&binding)
+                .as_deref()
+                .is_some_and(|business_id| business_id != "session_id"),
+            "business routing must never fall back to session_id"
+        );
+    });
+}

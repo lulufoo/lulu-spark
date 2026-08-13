@@ -318,4 +318,60 @@ describe('ai-assistant composer Binding Contract gate', () => {
     expect(input.value).toBe('');
     api.dispose();
   });
+
+  it('ensures the current session before every turn, including a cached session', async () => {
+    let ensureCount = 0;
+    let turnCount = 0;
+    invokeMock = vi.fn(async (cmd) => {
+      if (cmd === 'query_binding') return { state: 'bound' };
+      if (cmd === 'get_ai_assistant_binding') {
+        return { session_id: 'sess_cached', busy: false };
+      }
+      if (cmd === 'ensure_ai_assistant_session') {
+        ensureCount += 1;
+        return { session_id: 'sess_cached', busy: false };
+      }
+      if (cmd === 'agent_chat_turn') {
+        turnCount += 1;
+        return { reply_text: `ack-${turnCount}`, busy: false, terminal: 'none' };
+      }
+      if (cmd === 'shell_close_ai_assistant') return { ok: true, state: 'bound' };
+      return {};
+    });
+    window.__TAURI__.core.invoke = invokeMock;
+
+    const api = mountAiAssistant(root);
+    await vi.waitFor(() => {
+      expect(listenHandlers['ai-assistant:binding-changed']).toBeTruthy();
+      expect(api.getState().hostBound).toBe(true);
+      expect(api.getState().sessionId).toBe('sess_cached');
+    });
+
+    const input = root.querySelector('[data-role="input"]');
+    for (const text of ['first turn', 'second turn']) {
+      input.value = text;
+      input.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+      await vi.waitFor(() => {
+        expect(turnCount).toBe(text === 'first turn' ? 1 : 2);
+      });
+    }
+
+    expect(ensureCount).toBe(2);
+    const commands = invokeMock.mock.calls.map(([command]) => command);
+    const ensureCalls = commands.reduce(
+      (indices, command, index) =>
+        command === 'ensure_ai_assistant_session' ? [...indices, index] : indices,
+      [],
+    );
+    const turnCalls = commands.reduce(
+      (indices, command, index) =>
+        command === 'agent_chat_turn' ? [...indices, index] : indices,
+      [],
+    );
+    expect(ensureCalls).toHaveLength(2);
+    expect(turnCalls).toHaveLength(2);
+    expect(ensureCalls[0]).toBeLessThan(turnCalls[0]);
+    expect(ensureCalls[1]).toBeLessThan(turnCalls[1]);
+    api.dispose();
+  });
 });

@@ -138,6 +138,22 @@ pub fn binding_business_key(binding: &Binding) -> Option<String> {
     }
 }
 
+/// Business routing identity derived from the current key-only Binding.
+///
+/// Public key-only parsing keeps the key in a Host-owned live slot rather than
+/// exposing it as executable tools. The live chat `session_id` remains
+/// history/cancellation metadata and is deliberately not an alternative source
+/// for Agent selection.
+pub fn binding_business_id(binding: &Binding) -> Option<String> {
+    if let Some(key) = binding_business_key(binding) {
+        return Some(key);
+    }
+    let live = live_context_owner();
+    (live.current_binding.as_ref() == Some(binding))
+        .then_some(live.current_business_id)
+        .flatten()
+}
+
 /// Set validation: tools/prompt must be applicable; callbacks slot present.
 pub fn validate_binding(binding: &Binding) -> Result<(), SetError> {
     if !tools_applicable(&binding.tools)
@@ -180,6 +196,7 @@ pub fn binding_from_json(v: &Value) -> Result<Binding, SetError> {
 #[derive(Debug, Clone, PartialEq)]
 pub struct LiveExecContext {
     pub session_id: Option<String>,
+    pub business_id: Option<String>,
     pub binding: Option<Binding>,
     pub loaded_mcp_server: Option<McpServerConfig>,
     pub generation: Option<u64>,
@@ -196,6 +213,7 @@ pub struct AIAssistantSession {
     pub(crate) bound_master_task_id: Option<String>,
     pub(crate) bound_title: Option<String>,
     pub(crate) current_binding: Option<Binding>,
+    pub(crate) current_business_id: Option<String>,
     pub(crate) loaded_mcp_server: Option<McpServerConfig>,
     pub(crate) current_generation: Option<u64>,
     pub(crate) generation_seq: u64,
@@ -213,6 +231,10 @@ impl AIAssistantSession {
 
     pub fn current_binding(&self) -> Option<Binding> {
         self.current_binding.clone()
+    }
+
+    pub fn current_business_id(&self) -> Option<String> {
+        self.current_business_id.clone()
     }
 
     pub fn loaded_mcp_server(&self) -> Option<McpServerConfig> {
@@ -234,6 +256,7 @@ impl AIAssistantSession {
     pub fn execution_context_snapshot(&self) -> LiveExecContext {
         LiveExecContext {
             session_id: self.current_session_id.clone(),
+            business_id: self.current_business_id.clone(),
             binding: self.current_binding.clone(),
             loaded_mcp_server: self.loaded_mcp_server.clone(),
             generation: self.current_generation,

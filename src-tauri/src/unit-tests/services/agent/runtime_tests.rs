@@ -575,3 +575,27 @@ fn t4_ui_session_close_keeps_agent_slot_alive_without_dispose() {
         );
     });
 }
+
+#[test]
+fn t8_runtime_wires_binding_ensure_create_then_turn_without_session_routing() {
+    let runtime_src = include_str!("../../../services/agent/runtime.rs");
+    let loop_src = include_str!("../../../services/agent/loop.rs");
+    assert!(
+        runtime_src.contains("ensure_create_then_turn"),
+        "runtime must use the Binding-owned ensure-create→turn orchestration"
+    );
+    assert!(
+        runtime_src.contains("cancel_from_binding"),
+        "runtime cancellation must resolve business_id from the current Binding"
+    );
+    assert!(
+        loop_src.contains("ensure_create_then_turn")
+            && loop_src.contains("cancel_from_binding"),
+        "loop must expose the shared Binding request path"
+    );
+    assert!(
+        !runtime_src.contains("session_id).unwrap_or_else")
+            && !runtime_src.contains("session_id.to_string(), business"),
+        "runtime must not derive business routing from session_id"
+    );
+}

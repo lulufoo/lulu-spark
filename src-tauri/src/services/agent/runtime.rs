@@ -12,8 +12,8 @@ use serde_json::{json, Value};
 
 use crate::config::settings;
 use crate::services::agent::cursor_adapter::{
-    self, CursorError, CursorErrorCode, CursorLlmEngine, TurnOutcome as CursorTurnOutcome,
-    TurnRequest,
+    self, CreateRequest, CursorError, CursorErrorCode, CursorLlmEngine,
+    TurnOutcome as CursorTurnOutcome, TurnRequest,
 };
 use crate::services::agent::diagnostics::{self, DiagnosticEvent, TraceId};
 use crate::services::agent::profile::{self, BusinessProfileSnapshot};
@@ -23,7 +23,6 @@ use crate::services::agent::engine_router::{self, AdapterKind, EngineRouteError,
 use crate::services::agent::llm;
 use crate::services::agent::r#loop::{self, ChatTurnResult, Terminal, TurnOutcome};
 use crate::services::agent::session::{self, Turn};
-use crate::services::mcp_server_registry::SEEDED_BUSINESS_KEY;
 
 fn cursor_code_str(code: CursorErrorCode) -> &'static str {
     match code {
@@ -95,6 +94,15 @@ pub fn reset_for_tests() {
 /// UI session lifecycle is presentation-only; it must not dispose an Agent.
 pub fn on_ui_session_close(_session_id: &str) {}
 
+/// Cancel the current business turn without disposing its Agent slot.
+pub fn cancel_from_binding() -> Result<(), String> {
+    r#loop::cancel_from_binding(|business_id| {
+        CursorLlmEngine::global()
+            .cancel(business_id)
+            .map_err(|error| error.message)
+    })
+}
+
 #[cfg(test)]
 pub fn set_cursor_runtime_for_tests(rt: Option<Arc<CursorSessionRuntime>>) {
     TEST_CURSOR_INSTALLED.store(rt.is_some(), Ordering::SeqCst);
@@ -126,6 +134,23 @@ fn cursor_run_turn(
         return rt.run_turn(req);
     }
     CursorLlmEngine::global().run_turn_with_trace(req, trace_id)
+}
+
+fn cursor_create_with_trace(
+    req: &CreateRequest,
+    trace_id: &TraceId,
+) -> Result<(), CursorError> {
+    #[cfg(test)]
+    if test_cursor_slot()
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .is_some()
+    {
+        // The test-only session runtime keeps its legacy create+turn seam inside
+        // `run_turn`; production always uses the explicit engine create below.
+        return Ok(());
+    }
+    CursorLlmEngine::global().create_with_trace(req, trace_id)
 }
 
 fn profile_for_business(key: &str) -> Result<BusinessProfileSnapshot, CursorError> {
@@ -265,7 +290,7 @@ fn host_adapter_turn(
 }
 
 fn cursor_adapter_turn(
-    session_id: &str,
+    _session_id: &str,
     message: &str,
     trace_id: &TraceId,
 ) -> Result<String, String> {
@@ -283,77 +308,126 @@ fn cursor_adapter_turn(
         return Ok(encode_routed(&cursor_err_routed(err)));
     };
 
-    let key = live_ctx
+    let Some(key) = live_ctx
         .binding
         .as_ref()
-        .and_then(session::binding_business_key)
-        .unwrap_or_else(|| SEEDED_BUSINESS_KEY.to_string());
+        .and_then(session::binding_business_id)
+    else {
+        let err = CursorError::new(
+            CursorErrorCode::SdkConfig,
+            cursor_adapter::frontend_message_for(CursorErrorCode::SdkConfig),
+        );
+        return Ok(encode_routed(&cursor_err_routed(err)));
+    };
 
     let profile = match profile_for_business(&key) {
         Ok(profile) => profile,
         Err(err) => return Ok(encode_routed(&cursor_err_routed(err))),
     };
 
-    let req = TurnRequest {
-        session_id: session_id.to_string(),
-        prompt: message.to_string(),
-        api_key,
-        profile,
-    };
+    let profile_for_create = profile.clone();
+    let profile_for_turn = profile;
+    let api_key_for_create = api_key.clone();
+    let result = r#loop::ensure_create_then_turn_with_error(
+        message,
+        CursorError::new(
+            CursorErrorCode::SdkConfig,
+            cursor_adapter::frontend_message_for(CursorErrorCode::SdkConfig),
+        ),
+        CursorError::new(
+            CursorErrorCode::SdkConfig,
+            cursor_adapter::frontend_message_for(CursorErrorCode::SdkConfig),
+        ),
+        CursorError::new(
+            CursorErrorCode::RecoverableFailure,
+            cursor_adapter::frontend_message_for(CursorErrorCode::RecoverableFailure),
+        ),
+        move |business_id, create_session_id| {
+            cursor_create_with_trace(
+                &CreateRequest {
+                    business_id: business_id.to_string(),
+                    session_id: create_session_id.to_string(),
+                    api_key: api_key_for_create.clone(),
+                    profile: profile_for_create.clone(),
+                },
+                trace_id,
+            )
+        },
+        move |business_id, turn_session_id, prompt| {
+            if profile_for_turn.business_id != business_id {
+                return Err(CursorError::new(
+                    CursorErrorCode::SdkConfig,
+                    cursor_adapter::frontend_message_for(CursorErrorCode::SdkConfig),
+                ));
+            }
+            let req = TurnRequest {
+                session_id: turn_session_id.to_string(),
+                prompt: prompt.to_string(),
+                api_key: api_key.clone(),
+                profile: profile_for_turn.clone(),
+            };
+            let turn_result = cursor_run_turn(&req, trace_id);
+            let should_persist = cursor_adapter::should_persist_cursor_result(&turn_result);
 
-    let result = cursor_run_turn(&req, trace_id);
-    let should_persist = cursor_adapter::should_persist_cursor_result(&result);
+            match turn_result {
+                Ok(out) => {
+                    if should_persist {
+                        let persist_started = Instant::now();
+                        let mut session = session::load_session(turn_session_id)
+                            .map_err(|error| CursorError::new(CursorErrorCode::Runner, error))?;
+                        append_user_assistant(&mut session, prompt, &out.text);
+                        log_timing(
+                            trace_id,
+                            "assistant.cursor",
+                            "cursor.session_persist.completed",
+                            persist_started,
+                            "ok",
+                        );
+                    }
+                    log_timing(
+                        trace_id,
+                        "assistant.cursor",
+                        "cursor.adapter.completed",
+                        started,
+                        "ok",
+                    );
+                    Ok(RoutedTurn {
+                        reply_text: out.text,
+                        terminal: Terminal::None,
+                        wrote: false,
+                        cursor_error: None,
+                    })
+                }
+                Err(err) => {
+                    if should_persist {
+                        let persist_started = Instant::now();
+                        let mut session = session::load_session(turn_session_id)
+                            .map_err(|error| CursorError::new(CursorErrorCode::Runner, error))?;
+                        append_user_assistant(&mut session, prompt, &err.message);
+                        log_timing(
+                            trace_id,
+                            "assistant.cursor",
+                            "cursor.session_persist.completed",
+                            persist_started,
+                            "ok",
+                        );
+                    }
+                    log_timing(
+                        trace_id,
+                        "assistant.cursor",
+                        "cursor.adapter.completed",
+                        started,
+                        "error",
+                    );
+                    Err(err)
+                }
+            }
+        },
+    );
 
     match result {
-        Ok(out) => {
-            if should_persist {
-                let persist_started = Instant::now();
-                let mut session = session::load_session(session_id)?;
-                append_user_assistant(&mut session, message, &out.text);
-                log_timing(
-                    trace_id,
-                    "assistant.cursor",
-                    "cursor.session_persist.completed",
-                    persist_started,
-                    "ok",
-                );
-            }
-            log_timing(
-                trace_id,
-                "assistant.cursor",
-                "cursor.adapter.completed",
-                started,
-                "ok",
-            );
-            Ok(encode_routed(&RoutedTurn {
-                reply_text: out.text,
-                terminal: Terminal::None,
-                wrote: false,
-                cursor_error: None,
-            }))
-        }
-        Err(err) => {
-            if should_persist {
-                let persist_started = Instant::now();
-                let mut session = session::load_session(session_id)?;
-                append_user_assistant(&mut session, message, &err.message);
-                log_timing(
-                    trace_id,
-                    "assistant.cursor",
-                    "cursor.session_persist.completed",
-                    persist_started,
-                    "ok",
-                );
-            }
-            log_timing(
-                trace_id,
-                "assistant.cursor",
-                "cursor.adapter.completed",
-                started,
-                "error",
-            );
-            Ok(encode_routed(&cursor_err_routed(err)))
-        }
+        Ok(routed) => Ok(encode_routed(&routed)),
+        Err(err) => Ok(encode_routed(&cursor_err_routed(err))),
     }
 }
 

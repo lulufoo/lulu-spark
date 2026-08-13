@@ -251,12 +251,13 @@ fn request_in_flight_cancel(rt: &Runtime, live: &mut session::AIAssistantSession
 /// Typed/internal Set (no business key) clears any previously loaded MCP config.
 /// Key-only public Set goes through `try_set_binding_json` which loads MCP first.
 pub fn set_binding(binding: session::Binding) -> Result<(), SetError> {
-    set_binding_with_mcp(binding, None)
+    set_binding_with_mcp(binding, None, None)
 }
 
 fn set_binding_with_mcp(
     binding: session::Binding,
     loaded_mcp: Option<McpServerConfig>,
+    business_id: Option<String>,
 ) -> Result<(), SetError> {
     if let Err(e) = session::validate_binding(&binding) {
         emit_lifecycle("onError", Some("set_invalid"));
@@ -275,6 +276,7 @@ fn set_binding_with_mcp(
             live.generation_seq = live.generation_seq.saturating_add(1);
             live.current_generation = Some(live.generation_seq);
             live.current_binding = Some(binding);
+            live.current_business_id = business_id;
             live.loaded_mcp_server = loaded_mcp;
             // Session cut: clear live id with generation update (no new-gen + old-session window).
             live.current_session_id = None;
@@ -320,7 +322,7 @@ pub fn try_set_binding_json(v: &Value) -> Result<(), SetError> {
         prompt: json!(config.capability_description.clone()),
         callbacks: parsed.callbacks,
     };
-    set_binding_with_mcp(binding, Some(config))
+    set_binding_with_mcp(binding, Some(config), Some(key))
 }
 
 /// Must Close Before T4 — A1 confirmed (not narrowed): the same decision-level
@@ -361,6 +363,7 @@ pub fn reset_binding() -> Result<(), ()> {
             let was = live.current_binding.is_some();
             request_in_flight_cancel(&rt, live);
             live.current_binding = None;
+            live.current_business_id = None;
             live.loaded_mcp_server = None;
             live.current_generation = None;
             live.current_session_id = None;
@@ -649,6 +652,78 @@ fn prompt_text_from_binding(prompt: &Value) -> String {
 
 fn current_binding_snapshot() -> Option<session::Binding> {
     session::live_context_owner().current_binding()
+}
+
+/// Execute the business request path from the current Binding:
+/// ensure-create first, then turn. The callbacks receive the Binding-derived
+/// `business_id` and live session id; callers cannot substitute a session id as
+/// the Agent routing key.
+pub fn ensure_create_then_turn<Create, Turn>(
+    prompt: &str,
+    create: Create,
+    turn: Turn,
+) -> Result<ChatTurnResult, String>
+where
+    Create: FnMut(&str, &str) -> Result<(), String>,
+    Turn: FnMut(&str, &str, &str) -> Result<ChatTurnResult, String>,
+{
+    ensure_create_then_turn_with_error(
+        prompt,
+        "rejected_unbound".to_string(),
+        "rejected_unbound".to_string(),
+        "rejected_not_live_session".to_string(),
+        create,
+        turn,
+    )
+}
+
+/// Typed-error form used by engine adapters while retaining the same Binding
+/// ownership and create-before-turn ordering.
+pub fn ensure_create_then_turn_with_error<E, R, Create, Turn>(
+    prompt: &str,
+    unbound_error: E,
+    invalid_binding_error: E,
+    missing_session_error: E,
+    mut create: Create,
+    mut turn: Turn,
+) -> Result<R, E>
+where
+    E: Clone,
+    Create: FnMut(&str, &str) -> Result<(), E>,
+    Turn: FnMut(&str, &str, &str) -> Result<R, E>,
+{
+    let live = session::live_context_owner();
+    let binding = live.current_binding().ok_or(unbound_error)?;
+    let business_id = session::binding_business_id(&binding).ok_or(invalid_binding_error)?;
+    let session_id = live.current_session_id().ok_or(missing_session_error)?;
+    create(&business_id, &session_id)?;
+    turn(&business_id, &session_id, prompt)
+}
+
+/// Cancel only the current Binding's business Agent turn.
+pub fn cancel_from_binding<Cancel>(cancel: Cancel) -> Result<(), String>
+where
+    Cancel: FnMut(&str) -> Result<(), String>,
+{
+    cancel_from_binding_with_error(
+        "rejected_unbound".to_string(),
+        "rejected_unbound".to_string(),
+        cancel,
+    )
+}
+
+/// Typed-error cancellation form. No `session_id` is exposed to the callback.
+pub fn cancel_from_binding_with_error<E, Cancel>(
+    unbound_error: E,
+    invalid_binding_error: E,
+    mut cancel: Cancel,
+) -> Result<(), E>
+where
+    Cancel: FnMut(&str) -> Result<(), E>,
+{
+    let binding = current_binding_snapshot().ok_or(unbound_error)?;
+    let business_id = session::binding_business_id(&binding).ok_or(invalid_binding_error)?;
+    cancel(&business_id)
 }
 
 pub fn map_llm_error(err: &LlmError) -> TurnOutcome {

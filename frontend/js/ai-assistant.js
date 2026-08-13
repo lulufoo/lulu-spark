@@ -219,16 +219,6 @@ export function mountAiAssistant(root, opts = {}) {
   }
 
   async function ensureSessionId(invoke) {
-    if (sessionId) return true;
-    try {
-      const state = await invoke('get_ai_assistant_binding');
-      if (state && typeof state === 'object' && state.session_id) {
-        applySessionPayload(state);
-      }
-    } catch {
-      // fall through
-    }
-    if (sessionId) return true;
     try {
       const ensured = await invoke('ensure_ai_assistant_session');
       if (ensured && typeof ensured === 'object' && ensured.session_id) {
