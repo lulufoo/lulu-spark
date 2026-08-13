@@ -753,12 +753,12 @@ async function disposeSlot(slot: AgentSlot): Promise<void> {
     // A cancelled/closing turn is expected to reject before disposal.
   }
   const agent = slot.agent;
-  slot.agent = null;
   if (!agent) return;
   const dispose = agent[Symbol.asyncDispose];
   if (typeof dispose === "function") {
     await dispose.call(agent);
   }
+  slot.agent = null;
 }
 
 async function handleSlotClose(
@@ -777,11 +777,14 @@ async function handleSlotClose(
   }
   try {
     await disposeSlot(slot);
-    return { closed: true };
-  } finally {
     if (slots.get(businessId) === slot) {
       slots.delete(businessId);
     }
+    return { closed: true };
+  } catch (err) {
+    // Keep the slot quarantined so a later close can retry the same Agent.
+    slot.closing = true;
+    throw err;
   }
 }
 
@@ -801,10 +804,10 @@ async function shutdownSlots(): Promise<void> {
         await disposeSlot(slot);
       } catch {
         // Shutdown is best-effort for every independent slot.
-      } finally {
-        if (slots.get(slot.businessId) === slot) {
-          slots.delete(slot.businessId);
-        }
+        return;
+      }
+      if (slots.get(slot.businessId) === slot) {
+        slots.delete(slot.businessId);
       }
     }),
   );
@@ -827,9 +830,7 @@ async function disposeCurrentAgent(): Promise<string | undefined> {
       await dispose.call(agent);
     }
   } catch (err) {
-    // Consistent failure: no usable current instance; allow retry create.
-    agent = null;
-    agentSessionId = null;
+    // Retain the old Agent so a later create can retry disposal.
     throw new ProtocolError(
       "runner",
       err instanceof Error ? err.message : "agent dispose failed",

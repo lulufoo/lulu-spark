@@ -191,7 +191,7 @@ describe("business-scoped create lifecycle (T-ReplaceCreate)", () => {
     assert.equal(notesTurn.result.text, "notes:still-live");
   });
 
-  it("reports dispose failure through handleLine and permits a new slot create", async () => {
+  it("retains a failed-disposal slot until cleanup can be retried", async () => {
     const created: FakeAgent[] = [];
     setAgentFactoryForTests(
       makeFactory({ created, disposeFailFor: new Set(["todos"]) }),
@@ -208,6 +208,20 @@ describe("business-scoped create lifecycle (T-ReplaceCreate)", () => {
     assert.equal(closeResult.ok, false);
     assert.equal(closeResult.error?.type, "sdk_run");
     assert.equal(created[0].disposed, false);
+    assert.equal(agentCardinalityForTests(), 1);
+
+    const blockedCreate = JSON.parse(
+      await handleLine(createLine("blocked", "todos", cwd, "blocked-session")),
+    );
+    assert.equal(blockedCreate.ok, false);
+    assert.equal(created.length, 1);
+
+    created[0].disposeFail = false;
+    const retriedClose = JSON.parse(
+      await handleLine(closeLine("retry-close", "todos")),
+    );
+    assert.equal(retriedClose.ok, true);
+    assert.equal(created[0].disposed, true);
     assert.equal(agentCardinalityForTests(), 0);
 
     setAgentFactoryForTests(makeFactory({ created }));
