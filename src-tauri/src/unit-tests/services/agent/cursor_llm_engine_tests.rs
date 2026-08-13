@@ -4,14 +4,16 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::{Duration, Instant};
+use std::{fs, path::PathBuf};
 
 use crate::config::secrets::{self, KEY_LLM_API_KEY_CURSOR};
 use crate::config::settings::{self, AppSettings, LlmSettings};
 use crate::services::agent::cursor_adapter::{
-    self, CursorError, CursorErrorCode, CursorLlmEngine, CursorRunnerClient, FakeCursorRunnerClient,
-    FakeLogEntry, TurnRequest,
+    self, CreateRequest, CursorError, CursorErrorCode, CursorLlmEngine, CursorRunnerClient,
+    FakeCursorRunnerClient, FakeLogEntry, TurnRequest,
 };
 use crate::services::agent::engine_router::{self, EngineKind, EngineRuntimeConfig};
+use crate::services::agent::profile::BusinessProfileSnapshot;
 use crate::services::agent::process_manager::{self, CursorAgentProcessManager, EnsureError};
 use crate::services::agent::session_cwd;
 use crate::services::mcp_endpoint_readiness::ReadyMcpTransports;
@@ -96,11 +98,13 @@ fn ready_mcp_sample() -> ReadyMcpTransports {
 }
 
 fn turn_req(session_id: &str, prompt: &str) -> TurnRequest {
+    let profile = super::test_business_profile("composer-1");
+    fs::create_dir_all(&profile.cwd).expect("test profile cwd");
     TurnRequest {
         session_id: session_id.into(),
         prompt: prompt.into(),
         api_key: "sk-engine-test".into(),
-        profile: super::test_business_profile("composer-1"),
+        profile,
     }
 }
 
@@ -110,6 +114,57 @@ fn methods(log: &Mutex<Vec<FakeLogEntry>>) -> Vec<String> {
         .iter()
         .map(|e| e.method.clone())
         .collect()
+}
+
+fn t5_profile(business_id: &str, model: &str, label: &str) -> (BusinessProfileSnapshot, PathBuf) {
+    let cwd = std::env::temp_dir().join(format!(
+        "t5-{label}-{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .expect("clock")
+            .as_nanos()
+    ));
+    fs::create_dir_all(&cwd).expect("profile cwd");
+    let mut profile = super::test_business_profile(model);
+    profile.business_id = business_id.to_string();
+    profile.cwd = cwd.clone();
+    (profile, cwd)
+}
+
+fn t5_create_request(
+    business_id: &str,
+    session_id: &str,
+    profile: BusinessProfileSnapshot,
+) -> CreateRequest {
+    CreateRequest {
+        business_id: business_id.to_string(),
+        session_id: session_id.to_string(),
+        profile,
+        api_key: "sk-engine-test".to_string(),
+    }
+}
+
+fn t5_turn_request(
+    profile: BusinessProfileSnapshot,
+    session_id: &str,
+    prompt: &str,
+) -> TurnRequest {
+    TurnRequest {
+        session_id: session_id.to_string(),
+        prompt: prompt.to_string(),
+        api_key: "sk-engine-test".to_string(),
+        profile,
+    }
+}
+
+fn t5_create_for_turn(req: &TurnRequest) -> CreateRequest {
+    CreateRequest {
+        business_id: req.profile.business_id.clone(),
+        session_id: req.session_id.clone(),
+        profile: req.profile.clone(),
+        api_key: req.api_key.clone(),
+    }
 }
 
 // ── Surface / Access 合同 ────────────────────────────────────────────────────
@@ -281,8 +336,12 @@ fn t3_run_turn_ensures_client_then_requests_with_upper_request_id() {
             manager_with_factory(settings_cursor(), counting_factory(spawns.clone(), log.clone()));
         let engine = CursorLlmEngine::with_manager(mgr);
 
+        let req = turn_req("sess_a", "hello");
+        engine
+            .create(&t5_create_for_turn(&req))
+            .expect("create");
         let out = engine
-            .run_turn(&turn_req("sess_a", "hello"))
+            .run_turn(&req)
             .expect("run_turn");
         assert_eq!(out.text, "fake-ok");
         assert_eq!(spawns.load(Ordering::SeqCst), 1, "managed runner once");
@@ -325,11 +384,16 @@ fn t3_same_session_multi_turn_reuses_managed_runner_no_respawn() {
             manager_with_factory(settings_cursor(), counting_factory(spawns.clone(), log.clone()));
         let engine = CursorLlmEngine::with_manager(mgr);
 
+        let first = turn_req("sess_reuse", "one");
         engine
-            .run_turn(&turn_req("sess_reuse", "one"))
+            .create(&t5_create_for_turn(&first))
+            .expect("create");
+        engine
+            .run_turn(&first)
             .expect("turn1");
+        let second = turn_req("sess_reuse", "two");
         engine
-            .run_turn(&turn_req("sess_reuse", "two"))
+            .run_turn(&second)
             .expect("turn2");
         assert_eq!(
             spawns.load(Ordering::SeqCst),
@@ -374,8 +438,12 @@ fn t3_process_generation_change_forces_create_for_same_session() {
         ));
         let engine = CursorLlmEngine::with_shared_manager(mgr.clone());
 
+        let before = turn_req("sess_gen", "before");
         engine
-            .run_turn(&turn_req("sess_gen", "before"))
+            .create(&t5_create_for_turn(&before))
+            .expect("before create");
+        engine
+            .run_turn(&before)
             .expect("before");
         assert_eq!(
             methods(&log).iter().filter(|x| *x == "create").count(),
@@ -384,8 +452,12 @@ fn t3_process_generation_change_forces_create_for_same_session() {
 
         // API key fingerprint replace bumps process generation.
         secrets::set_secret(KEY_LLM_API_KEY_CURSOR, "sk-gen-v2").expect("key2");
+        let after_key = turn_req("sess_gen", "after-key");
         engine
-            .run_turn(&turn_req("sess_gen", "after-key"))
+            .create(&t5_create_for_turn(&after_key))
+            .expect("after-key create");
+        engine
+            .run_turn(&after_key)
             .expect("after key replace");
         assert_eq!(spawns.load(Ordering::SeqCst), 2);
         assert_eq!(
@@ -396,8 +468,12 @@ fn t3_process_generation_change_forces_create_for_same_session() {
 
         // invalidate → Absent → next ensure rebuilds generation again.
         mgr.invalidate();
+        let after_invalidate = turn_req("sess_gen", "after-invalidate");
         engine
-            .run_turn(&turn_req("sess_gen", "after-invalidate"))
+            .create(&t5_create_for_turn(&after_invalidate))
+            .expect("after-invalidate create");
+        engine
+            .run_turn(&after_invalidate)
             .expect("after invalidate");
         assert_eq!(spawns.load(Ordering::SeqCst), 3);
         assert_eq!(
@@ -419,31 +495,29 @@ fn t3_foreground_switch_submits_create_only_no_host_dispose_create() {
             manager_with_factory(settings_cursor(), counting_factory(spawns.clone(), log.clone()));
         let engine = CursorLlmEngine::with_manager(mgr);
 
-        engine.run_turn(&turn_req("sess_fg1", "a")).expect("fg1");
-        engine.run_turn(&turn_req("sess_fg2", "b")).expect("fg2");
+        let first = turn_req("sess_fg1", "a");
+        engine
+            .create(&t5_create_for_turn(&first))
+            .expect("create");
+        engine.run_turn(&first).expect("fg1");
+        let second = turn_req("sess_fg2", "b");
+        engine.run_turn(&second).expect("fg2");
         assert_eq!(spawns.load(Ordering::SeqCst), 1, "switch must keep Node");
 
         let m = methods(&log);
         assert_eq!(
             m.iter().filter(|x| *x == "create").count(),
-            2,
-            "each foreground gets create(new context): {m:?}"
+            1,
+            "same business slot gets one explicit create: {m:?}"
         );
         assert!(
             !m.iter().any(|x| x == "close"),
             "Host/Engine must not orchestrate dispose→create via close: {m:?}"
         );
-        let create_idxs: Vec<_> = m
-            .iter()
-            .enumerate()
-            .filter(|(_, x)| *x == "create")
-            .map(|(i, _)| i)
-            .collect();
-        assert_eq!(create_idxs.len(), 2);
-        let between = &m[create_idxs[0]..create_idxs[1]];
-        assert!(
-            !between.iter().any(|x| x == "cancel" || x == "close"),
-            "between creates Host must not dispose; runner owns replace: {m:?}"
+        assert_eq!(
+            m.iter().filter(|x| *x == "turn").count(),
+            2,
+            "both UI sessions turn through the same business slot: {m:?}"
         );
     });
 }
@@ -497,8 +571,12 @@ fn t3_each_send_resolves_cursor_engine_cold_start_via_ensure() {
 
         // Switch engine to Cursor without recreating business session.
         *settings_slot.lock().unwrap() = settings_cursor();
+        let req = turn_req("sess_switch", "after-cursor");
+        engine
+            .create(&t5_create_for_turn(&req))
+            .expect("cold create");
         let out = engine
-            .run_turn(&turn_req("sess_switch", "after-cursor"))
+            .run_turn(&req)
             .expect("cold start after engine switch");
         assert_eq!(out.text, "fake-ok");
         assert_eq!(
@@ -533,8 +611,9 @@ fn t3_ensure_failure_is_recoverable_without_auto_replay() {
         );
         let engine = CursorLlmEngine::with_manager(mgr);
 
+        let req = turn_req("sess_fail", "x");
         let err = engine
-            .run_turn(&turn_req("sess_fail", "x"))
+            .create(&t5_create_for_turn(&req))
             .expect_err("ensure/spawn failure must surface");
         assert_ne!(
             err.message,
@@ -568,5 +647,190 @@ fn t3_runtime_cursor_path_uses_cursor_llm_engine_not_per_session_spawn() {
         runtime.contains("CursorLlmEngine")
             && (runtime.contains(".run_turn(") || runtime.contains("run_turn(&")),
         "runtime must invoke CursorLlmEngine run_turn"
+    );
+}
+
+// ── T-P3: businessId dispatch gate ──────────────────────────────────────────
+
+#[test]
+fn t5_engine_routes_create_turn_cancel_close_by_business_id() {
+    with_sandbox(|| {
+        secrets::set_secret(KEY_LLM_API_KEY_CURSOR, "sk-engine-test").expect("key");
+        let fake = FakeCursorRunnerClient::new();
+        let log = fake.log.clone();
+        let manager = manager_with_factory(
+            settings_cursor(),
+            counting_factory(Arc::new(AtomicUsize::new(0)), log.clone()),
+        );
+        let engine = CursorLlmEngine::with_manager(manager);
+        let (profile, cwd) = t5_profile("todo_task", "composer-1", "dispatch");
+
+        engine
+            .create(&t5_create_request("todo_task", "ui-session-a", profile.clone()))
+            .expect("create");
+        engine
+            .run_turn(&t5_turn_request(
+                profile,
+                "ui-session-b",
+                "hello",
+            ))
+            .expect("turn");
+        engine.cancel("todo_task").expect("cancel");
+        engine.close("todo_task").expect("close");
+
+        let entries = log.lock().unwrap().clone();
+        for method in ["create", "turn", "cancel", "close"] {
+            let entry = entries
+                .iter()
+                .find(|entry| entry.method == method)
+                .unwrap_or_else(|| panic!("expected {method} dispatch: {entries:?}"));
+            let params = entry.params.as_ref().expect("request params");
+            assert_eq!(
+                params.get("business_id").and_then(|value| value.as_str()),
+                Some("todo_task"),
+                "{method} must dispatch by business_id: {params}"
+            );
+        }
+
+        let create = entries
+            .iter()
+            .find(|entry| entry.method == "create")
+            .expect("create entry");
+        let params = create.params.as_ref().expect("create params");
+        assert_eq!(
+            params.get("session_id").and_then(|value| value.as_str()),
+            Some("ui-session-a"),
+            "session_id remains create metadata"
+        );
+        assert_eq!(
+            params.get("model").and_then(|value| value.as_str()),
+            Some("composer-1")
+        );
+        assert_eq!(
+            params.get("cwd").and_then(|value| value.as_str()),
+            Some(cwd.to_string_lossy().as_ref()),
+            "create must use the caller Profile cwd"
+        );
+        assert!(params.get("mcpServers").is_some());
+        assert!(
+            session_cwd::session_cwd_for("ui-session-a").is_none(),
+            "business create must not allocate session cwd"
+        );
+        let _ = fs::remove_dir_all(cwd);
+    });
+}
+
+#[test]
+fn t5_missing_business_id_hard_fails_without_runner_dispatch_or_session_fallback() {
+    with_sandbox(|| {
+        secrets::set_secret(KEY_LLM_API_KEY_CURSOR, "sk-engine-test").expect("key");
+        let fake = FakeCursorRunnerClient::new();
+        let log = fake.log.clone();
+        let spawns = Arc::new(AtomicUsize::new(0));
+        let manager = manager_with_factory(
+            settings_cursor(),
+            counting_factory(spawns.clone(), log.clone()),
+        );
+        let engine = CursorLlmEngine::with_manager(manager);
+        let (profile, cwd) = t5_profile("todo_task", "composer-1", "missing-business");
+
+        let error = engine
+            .create(&t5_create_request("", "session-only", profile.clone()))
+            .expect_err("missing create business_id must fail");
+        assert_ne!(error.code, CursorErrorCode::Cancelled);
+
+        let mut turn_profile = profile;
+        turn_profile.business_id.clear();
+        let error = engine
+            .run_turn(&t5_turn_request(turn_profile, "session-only", "must fail"))
+            .expect_err("missing turn business_id must fail");
+        assert_ne!(error.code, CursorErrorCode::Cancelled);
+
+        assert!(engine.cancel("").is_err());
+        assert!(engine.close("   ").is_err());
+        assert_eq!(spawns.load(Ordering::SeqCst), 0);
+        assert!(
+            log.lock().unwrap().is_empty(),
+            "session_id must never be used as a fallback dispatch key: {:?}",
+            methods(&log)
+        );
+        let _ = fs::remove_dir_all(cwd);
+    });
+}
+
+#[test]
+fn t5_incomplete_create_profile_hard_fails_without_profile_backfill_or_runner_dispatch() {
+    with_sandbox(|| {
+        secrets::set_secret(KEY_LLM_API_KEY_CURSOR, "sk-engine-test").expect("key");
+        let fake = FakeCursorRunnerClient::new();
+        let log = fake.log.clone();
+        let manager = manager_with_factory(
+            settings_cursor(),
+            counting_factory(Arc::new(AtomicUsize::new(0)), log.clone()),
+        );
+        let engine = CursorLlmEngine::with_manager(manager);
+        let (mut profile, cwd) = t5_profile("todo_task", "composer-1", "missing-profile");
+
+        profile.model.clear();
+        let error = engine
+            .create(&t5_create_request("todo_task", "session-profile", profile.clone()))
+            .expect_err("incomplete Profile must fail");
+        assert_ne!(error.code, CursorErrorCode::Cancelled);
+        assert!(
+            log.lock().unwrap().is_empty(),
+            "incomplete Profile must not reach Runner"
+        );
+
+        profile.model = "composer-1".to_string();
+        profile.mcp_servers.clear();
+        let error = engine
+            .create(&t5_create_request("todo_task", "session-profile", profile))
+            .expect_err("missing MCP Profile section must fail");
+        assert_ne!(error.code, CursorErrorCode::Cancelled);
+        assert!(
+            log.lock().unwrap().is_empty(),
+            "engine must not self-read or fabricate a missing Profile"
+        );
+        let _ = fs::remove_dir_all(cwd);
+    });
+}
+
+#[test]
+fn t5_engine_has_no_session_foreground_binding_or_multi_business_cache() {
+    let source = include_str!("../../../services/agent/cursor_adapter.rs");
+    let start = source
+        .find("pub struct CursorLlmEngine")
+        .expect("CursorLlmEngine struct");
+    let after = &source[start..];
+    let end = after
+        .find("\nfn log_cursor_timing")
+        .unwrap_or(after.len());
+    let engine_source = &after[..end];
+
+    assert!(
+        !engine_source.contains("ForegroundBind")
+            && !engine_source.contains("foreground:")
+            && !engine_source.contains("bind.session_id"),
+        "engine must not keep a session-keyed foreground Agent binding"
+    );
+    assert!(
+        !engine_source.contains("HashMap")
+            && !engine_source.contains("BTreeMap")
+            && !engine_source.contains("profile_cache")
+            && !engine_source.contains("agents:"),
+        "engine must not cache multi-business Agents or Profiles"
+    );
+    assert!(
+        !engine_source.contains("create_session_cwd")
+            && !engine_source.contains("cleanup_session_cwd"),
+        "business cwd must come from Profile, not session cwd lifecycle"
+    );
+    assert!(
+        engine_source.contains("\"business_id\"")
+            && engine_source.contains("\"create\"")
+            && engine_source.contains("\"turn\"")
+            && engine_source.contains("\"cancel\"")
+            && engine_source.contains("\"close\""),
+        "engine must expose business_id dispatch for every Runner lifecycle operation"
     );
 }

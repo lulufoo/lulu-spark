@@ -6,8 +6,8 @@ use std::sync::{Arc, Mutex};
 use crate::config::secrets::{self, KEY_LLM_API_KEY_CURSOR};
 use crate::config::settings::{self, AppSettings, LlmSettings};
 use crate::services::agent::cursor_adapter::{
-    CursorError, CursorLlmEngine, CursorRunnerClient, FakeCursorRunnerClient, FakeLogEntry,
-    TurnRequest,
+    CreateRequest, CursorError, CursorLlmEngine, CursorRunnerClient, FakeCursorRunnerClient,
+    FakeLogEntry, TurnRequest,
 };
 use crate::services::agent::engine_router::{self, EngineRuntimeConfig};
 use crate::services::agent::process_manager::{self, CursorAgentProcessManager, ProcessLifecycleState};
@@ -88,11 +88,22 @@ fn ready_mcp_sample() -> ReadyMcpTransports {
 }
 
 fn turn_req(session_id: &str, prompt: &str) -> TurnRequest {
+    let profile = super::test_business_profile("composer-1");
+    std::fs::create_dir_all(&profile.cwd).expect("test profile cwd");
     TurnRequest {
         session_id: session_id.into(),
         prompt: prompt.into(),
         api_key: "sk-verify".into(),
-        profile: super::test_business_profile("composer-1"),
+        profile,
+    }
+}
+
+fn create_req(req: &TurnRequest) -> CreateRequest {
+    CreateRequest {
+        business_id: req.profile.business_id.clone(),
+        session_id: req.session_id.clone(),
+        profile: req.profile.clone(),
+        api_key: req.api_key.clone(),
     }
 }
 
@@ -269,8 +280,10 @@ fn t5_verify_warm_then_cursor_turn_still_goes_through_request() {
         }
 
         let engine = CursorLlmEngine::with_manager(mgr);
+        let req = turn_req("sess_verify", "verify turn");
+        engine.create(&create_req(&req)).expect("create");
         let out = engine
-            .run_turn(&turn_req("sess_verify", "verify turn"))
+            .run_turn(&req)
             .expect("cursor turn");
         assert_eq!(out.text, "fake-ok");
 

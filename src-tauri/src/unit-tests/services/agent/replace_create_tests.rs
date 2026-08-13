@@ -9,8 +9,8 @@ use serde_json::{json, Value};
 use crate::config::secrets::{self, KEY_LLM_API_KEY_CURSOR};
 use crate::config::settings::{self, AppSettings, LlmSettings};
 use crate::services::agent::cursor_adapter::{
-    self, CursorError, CursorErrorCode, CursorLlmEngine, CursorRunnerClient, ErrorTrack,
-    FakeLogEntry, TurnRequest,
+    self, CreateRequest, CursorError, CursorErrorCode, CursorLlmEngine, CursorRunnerClient,
+    ErrorTrack, FakeLogEntry, TurnRequest,
 };
 use crate::services::agent::engine_router::{self, EngineRuntimeConfig};
 use crate::services::agent::process_manager::{self, CursorAgentProcessManager};
@@ -49,11 +49,22 @@ fn cfg_from(settings: &AppSettings) -> EngineRuntimeConfig {
 }
 
 fn turn_req(session_id: &str, prompt: &str) -> TurnRequest {
+    let profile = super::test_business_profile("composer-1");
+    std::fs::create_dir_all(&profile.cwd).expect("test profile cwd");
     TurnRequest {
         session_id: session_id.into(),
         prompt: prompt.into(),
         api_key: "sk-engine-test".into(),
-        profile: super::test_business_profile("composer-1"),
+        profile,
+    }
+}
+
+fn create_req(req: &TurnRequest) -> CreateRequest {
+    CreateRequest {
+        business_id: req.profile.business_id.clone(),
+        session_id: req.session_id.clone(),
+        profile: req.profile.clone(),
+        api_key: req.api_key.clone(),
     }
 }
 
@@ -182,8 +193,12 @@ fn t5_create_params_include_opaque_session_id() {
             fake.clone_factory(),
         );
         let engine = CursorLlmEngine::with_manager(mgr);
+        let req = turn_req("sess_wire_id", "hi");
         engine
-            .run_turn(&turn_req("sess_wire_id", "hi"))
+            .create(&create_req(&req))
+            .expect("create");
+        engine
+            .run_turn(&req)
             .expect("turn");
 
         let log = fake.log.lock().unwrap_or_else(|e| e.into_inner());
@@ -214,8 +229,12 @@ fn t5_profile_cwd_does_not_allocate_session_cwd_on_replace() {
         );
         let engine = CursorLlmEngine::with_manager(mgr);
 
+        let old_req = turn_req("sess_old", "a");
         engine
-            .run_turn(&turn_req("sess_old", "a"))
+            .create(&create_req(&old_req))
+            .expect("old create");
+        engine
+            .run_turn(&old_req)
             .expect("old turn");
         assert!(
             session_cwd::session_cwd_for("sess_old").is_none(),
@@ -230,8 +249,12 @@ fn t5_profile_cwd_does_not_allocate_session_cwd_on_replace() {
             "replaced_session_id": "sess_old",
         }));
 
+        let new_req = turn_req("sess_new", "b");
         engine
-            .run_turn(&turn_req("sess_new", "b"))
+            .create(&create_req(&new_req))
+            .expect("new create");
+        engine
+            .run_turn(&new_req)
             .expect("new turn");
 
         assert!(
@@ -256,8 +279,12 @@ fn t5_dispose_fail_create_error_does_not_depend_on_session_cwd_cleanup() {
         );
         let engine = CursorLlmEngine::with_manager(mgr);
 
+        let keep_req = turn_req("sess_keep", "a");
         engine
-            .run_turn(&turn_req("sess_keep", "a"))
+            .create(&create_req(&keep_req))
+            .expect("keep create");
+        engine
+            .run_turn(&keep_req)
             .expect("first");
         assert!(session_cwd::session_cwd_for("sess_keep").is_none());
 
@@ -267,8 +294,9 @@ fn t5_dispose_fail_create_error_does_not_depend_on_session_cwd_cleanup() {
             .unwrap_or_else(|e| e.into_inner()) =
             Some(("runner".into(), "asyncDispose failed".into()));
 
+        let next_req = turn_req("sess_next", "b");
         let err = engine
-            .run_turn(&turn_req("sess_next", "b"))
+            .create(&create_req(&next_req))
             .expect_err("dispose-fail create must fail");
         assert_eq!(err.code, CursorErrorCode::Runner);
 
@@ -340,7 +368,9 @@ fn t7_legacy_session_cwd_cleanup_failure_does_not_block_profile_turn() {
         );
         let engine = CursorLlmEngine::with_manager(mgr);
 
-        let result = engine.run_turn(&turn_req("sess_new_clean", "hi"));
+        let req = turn_req("sess_new_clean", "hi");
+        engine.create(&create_req(&req)).expect("create");
+        let result = engine.run_turn(&req);
         session_cwd::force_cleanup_fail_for_tests(false);
         let outcome = result.expect("Profile turn must not invoke legacy cwd cleanup");
         assert_eq!(outcome.text, "fake-ok");
@@ -388,8 +418,9 @@ fn t8_coalesced_host_skips_bind_and_turn() {
             fake.clone_factory(),
         );
         let engine = CursorLlmEngine::with_manager(mgr);
+        let req = turn_req("sess_t8_coal", "x");
         let err = engine
-            .run_turn(&turn_req("sess_t8_coal", "x"))
+            .create(&create_req(&req))
             .expect_err("coalesced");
         assert_eq!(
             cursor_adapter::error_track(&err),
@@ -430,8 +461,9 @@ fn t3_coalesced_create_result_does_not_bind_or_turn() {
         );
         let engine = CursorLlmEngine::with_manager(mgr);
 
+        let req = turn_req("sess_coalesced", "should-not-turn");
         let err = engine
-            .run_turn(&turn_req("sess_coalesced", "should-not-turn"))
+            .create(&create_req(&req))
             .expect_err("coalesced create must fail closed");
         assert_eq!(err.code, CursorErrorCode::RecoverableFailure);
         assert_ne!(err.code, CursorErrorCode::Cancelled);
@@ -449,7 +481,10 @@ fn t3_coalesced_create_result_does_not_bind_or_turn() {
         // Drop coalesced flag; a later successful create may bind.
         drop(log);
         engine
-            .run_turn(&turn_req("sess_coalesced", "now-ok"))
+            .create(&create_req(&req))
+            .expect("subsequent non-coalesced create");
+        engine
+            .run_turn(&req)
             .expect("subsequent non-coalesced create+turn");
         let log = fake.log.lock().unwrap_or_else(|e| e.into_inner());
         assert_eq!(
@@ -479,8 +514,9 @@ fn t3_coalesced_protocol_error_does_not_bind_or_turn() {
         );
         let engine = CursorLlmEngine::with_manager(mgr);
 
+        let req = turn_req("sess_coal_err", "x");
         let err = engine
-            .run_turn(&turn_req("sess_coal_err", "x"))
+            .create(&create_req(&req))
             .expect_err("coalesced protocol error");
         assert_eq!(err.code, CursorErrorCode::RecoverableFailure);
         let log = fake.log.lock().unwrap_or_else(|e| e.into_inner());

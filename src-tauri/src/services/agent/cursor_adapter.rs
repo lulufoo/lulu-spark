@@ -189,12 +189,56 @@ pub fn should_persist_cursor_result(result: &Result<TurnOutcome, CursorError>) -
     }
 }
 
+/// Ensure-create / prewarm request. The caller supplies the complete business
+/// Profile; the engine must not query or fabricate one.
+#[derive(Debug, Clone)]
+pub struct CreateRequest {
+    pub business_id: String,
+    pub session_id: String,
+    pub profile: BusinessProfileSnapshot,
+    pub api_key: String,
+}
+
 #[derive(Debug, Clone)]
 pub struct TurnRequest {
     pub session_id: String,
     pub prompt: String,
     pub api_key: String,
     pub profile: BusinessProfileSnapshot,
+}
+
+fn require_business_id(business_id: &str) -> Result<&str, CursorError> {
+    let business_id = business_id.trim();
+    if business_id.is_empty() {
+        return Err(CursorError::new(
+            CursorErrorCode::SdkConfig,
+            frontend_message_for(CursorErrorCode::SdkConfig),
+        ));
+    }
+    Ok(business_id)
+}
+
+fn validate_create_profile(req: &CreateRequest) -> Result<&str, CursorError> {
+    let business_id = require_business_id(&req.business_id)?;
+    if req.profile.business_id.trim() != business_id || req.profile.model.trim().is_empty() {
+        return Err(CursorError::new(
+            CursorErrorCode::SdkConfig,
+            frontend_message_for(CursorErrorCode::SdkConfig),
+        ));
+    }
+    if !req.profile.cwd.is_dir() {
+        return Err(CursorError::new(
+            CursorErrorCode::Cwd,
+            frontend_message_for(CursorErrorCode::Cwd),
+        ));
+    }
+    if req.profile.mcp_servers.is_empty() {
+        return Err(CursorError::new(
+            CursorErrorCode::McpUnavailable,
+            frontend_message_for(CursorErrorCode::McpUnavailable),
+        ));
+    }
+    Ok(business_id)
 }
 
 // ── Runner client port ───────────────────────────────────────────────────────
@@ -775,21 +819,14 @@ impl Drop for ProcessCursorRunnerClient {
     }
 }
 
-// ── CursorLlmEngine (Phase-Ensure) ───────────────────────────────────────────
-
-/// Foreground SDK Agent binding: session id + process generation that created it.
-#[derive(Debug, Clone, PartialEq, Eq)]
-struct ForegroundBind {
-    session_id: String,
-    generation: u64,
-}
+// ── CursorLlmEngine (businessId dispatch gate) ───────────────────────────────
 
 /// Cursor engine communication path: `ensure_client` → `request(request_id, …)`.
-/// Does not own/spawn `ProcessCursorRunnerClient` (manager does).
+/// The engine owns only parameter validation and dispatch; Runner owns Agent
+/// slots and Profile-backed Agent state.
 pub struct CursorLlmEngine {
     manager: Option<Arc<CursorAgentProcessManager>>,
     next_request_id: AtomicU64,
-    foreground: Mutex<Option<ForegroundBind>>,
 }
 
 impl CursorLlmEngine {
@@ -797,7 +834,6 @@ impl CursorLlmEngine {
         Self {
             manager: None,
             next_request_id: AtomicU64::new(1),
-            foreground: Mutex::new(None),
         }
     }
 
@@ -809,7 +845,6 @@ impl CursorLlmEngine {
         Self {
             manager: Some(manager),
             next_request_id: AtomicU64::new(1),
-            foreground: Mutex::new(None),
         }
     }
 
@@ -829,7 +864,7 @@ impl CursorLlmEngine {
         format!("eng-{n}")
     }
 
-    /// JSONL request via managed access; invalidate process on Runner/SdkRun (not Cancelled/Stale).
+    /// JSONL request via managed access; invalidate process on Runner/SdkRun.
     fn request_managed(
         &self,
         access: &ClientAccess,
@@ -852,7 +887,101 @@ impl CursorLlmEngine {
         }
     }
 
-    /// ILlmEngine-shaped turn entry: ensure managed client, then JSONL request(s).
+    fn ensure_access(&self, trace_id: Option<&TraceId>) -> Result<ClientAccess, CursorError> {
+        let ensure_started = Instant::now();
+        match self.manager().ensure_client() {
+            Ok(access) => {
+                log_cursor_timing(
+                    trace_id,
+                    "cursor.client_ensure.completed",
+                    ensure_started,
+                    "ok",
+                );
+                Ok(access)
+            }
+            Err(err) => {
+                log_cursor_timing(
+                    trace_id,
+                    "cursor.client_ensure.completed",
+                    ensure_started,
+                    "error",
+                );
+                Err(map_ensure_error(err))
+            }
+        }
+    }
+
+    /// Ensure-create / prewarm. Profile data is caller-owned and is sent
+    /// unchanged apart from the JSONL field names.
+    pub fn create(&self, req: &CreateRequest) -> Result<(), CursorError> {
+        self.create_inner(req, None)
+    }
+
+    pub(crate) fn create_with_trace(
+        &self,
+        req: &CreateRequest,
+        trace_id: &TraceId,
+    ) -> Result<(), CursorError> {
+        self.create_inner(req, Some(trace_id))
+    }
+
+    fn create_inner(
+        &self,
+        req: &CreateRequest,
+        trace_id: Option<&TraceId>,
+    ) -> Result<(), CursorError> {
+        let business_id = validate_create_profile(req)?;
+        let access = self.ensure_access(trace_id)?;
+        let rid = self.next_request_id();
+        let mcp_servers = serde_json::to_value(&req.profile.mcp_servers).map_err(|_| {
+            CursorError::new(
+                CursorErrorCode::Runner,
+                frontend_message_for(CursorErrorCode::Runner),
+            )
+        })?;
+        let params = json!({
+            "business_id": business_id,
+            "session_id": req.session_id,
+            "model": req.profile.model,
+            "cwd": req.profile.cwd.to_string_lossy(),
+            "mcpServers": mcp_servers,
+        });
+        let create_started = Instant::now();
+        let create_result = match self.request_managed(&access, &rid, "create", Some(params)) {
+            Ok(result) => {
+                log_cursor_timing(
+                    trace_id,
+                    "cursor.create.completed",
+                    create_started,
+                    "ok",
+                );
+                result
+            }
+            Err(err) => {
+                log_cursor_timing(
+                    trace_id,
+                    "cursor.create.completed",
+                    create_started,
+                    "error",
+                );
+                return Err(err);
+            }
+        };
+        if create_result
+            .get("coalesced")
+            .and_then(|value| value.as_bool())
+            == Some(true)
+        {
+            return Err(CursorError::new(
+                CursorErrorCode::RecoverableFailure,
+                frontend_message_for(CursorErrorCode::RecoverableFailure),
+            ));
+        }
+        Ok(())
+    }
+
+    /// Turn entry. The business key comes from the caller's complete Profile;
+    /// `session_id` remains coordination metadata and is not a Runner key.
     pub fn run_turn(&self, req: &TurnRequest) -> Result<TurnOutcome, CursorError> {
         self.run_turn_inner(req, None)
     }
@@ -871,108 +1000,18 @@ impl CursorLlmEngine {
         trace_id: Option<&TraceId>,
     ) -> Result<TurnOutcome, CursorError> {
         let run_started = Instant::now();
-        let mcp_servers = match serde_json::to_value(&req.profile.mcp_servers) {
-            Ok(value) => value,
-            Err(_) => {
-                return Err(CursorError::new(
-                    CursorErrorCode::Runner,
-                    frontend_message_for(CursorErrorCode::Runner),
-                ));
-            }
-        };
-
-        let ensure_started = Instant::now();
-        let access = match self.manager().ensure_client() {
-            Ok(access) => {
-                log_cursor_timing(
-                    trace_id,
-                    "cursor.client_ensure.completed",
-                    ensure_started,
-                    "ok",
-                );
-                access
-            }
-            Err(err) => {
-                log_cursor_timing(
-                    trace_id,
-                    "cursor.client_ensure.completed",
-                    ensure_started,
-                    "error",
-                );
-                return Err(map_ensure_error(err));
-            }
-        };
-
-        let need_create = {
-            let fg = self.foreground.lock().unwrap_or_else(|e| e.into_inner());
-            match fg.as_ref() {
-                Some(bind)
-                    if bind.session_id == req.session_id
-                        && bind.generation == access.generation() =>
-                {
-                    false
-                }
-                _ => true,
-            }
-        };
-
-        if need_create {
-            let rid = self.next_request_id();
-            let params = json!({
-                "session_id": req.session_id,
-                "model": req.profile.model,
-                "cwd": req.profile.cwd.to_string_lossy(),
-                "mcpServers": mcp_servers,
-            });
-            let create_started = Instant::now();
-            let create_result = match self.request_managed(&access, &rid, "create", Some(params)) {
-                Ok(result) => {
-                    log_cursor_timing(
-                        trace_id,
-                        "cursor.create.completed",
-                        create_started,
-                        "ok",
-                    );
-                    result
-                }
-                Err(err) => {
-                    log_cursor_timing(
-                        trace_id,
-                        "cursor.create.completed",
-                        create_started,
-                        "error",
-                    );
-                    return Err(err);
-                }
-            };
-            // Defense: coalesced must never look like a successful create (bind/turn).
-            if create_result
-                .get("coalesced")
-                .and_then(|v| v.as_bool())
-                == Some(true)
-            {
-                return Err(CursorError::new(
-                    CursorErrorCode::RecoverableFailure,
-                    frontend_message_for(CursorErrorCode::RecoverableFailure),
-                ));
-            }
-            // Bind foreground only after successful replace/create (session + process gen).
-            {
-                let mut fg = self.foreground.lock().unwrap_or_else(|e| e.into_inner());
-                *fg = Some(ForegroundBind {
-                    session_id: req.session_id.clone(),
-                    generation: access.generation(),
-                });
-            }
-        }
-
+        let business_id = require_business_id(&req.profile.business_id)?;
+        let access = self.ensure_access(trace_id)?;
         let rid = self.next_request_id();
         let turn_started = Instant::now();
         let result = match self.request_managed(
             &access,
             &rid,
             "turn",
-            Some(json!({ "prompt": req.prompt })),
+            Some(json!({
+                "business_id": business_id,
+                "prompt": req.prompt,
+            })),
         ) {
             Ok(result) => {
                 log_cursor_timing(trace_id, "cursor.turn.completed", turn_started, "ok");
@@ -985,7 +1024,7 @@ impl CursorLlmEngine {
         };
         let text = result
             .get("text")
-            .and_then(|x| x.as_str())
+            .and_then(|value| value.as_str())
             .unwrap_or("")
             .to_string();
         log_cursor_timing(trace_id, "cursor.run_turn.completed", run_started, "ok");
@@ -993,6 +1032,34 @@ impl CursorLlmEngine {
             text,
             should_persist: true,
         })
+    }
+
+    /// Cancel only the in-flight turn for one business slot.
+    pub fn cancel(&self, business_id: &str) -> Result<(), CursorError> {
+        let business_id = require_business_id(business_id)?;
+        let access = self.ensure_access(None)?;
+        let rid = self.next_request_id();
+        self.request_managed(
+            &access,
+            &rid,
+            "cancel",
+            Some(json!({ "business_id": business_id })),
+        )?;
+        Ok(())
+    }
+
+    /// Explicit operational close for one business slot.
+    pub fn close(&self, business_id: &str) -> Result<(), CursorError> {
+        let business_id = require_business_id(business_id)?;
+        let access = self.ensure_access(None)?;
+        let rid = self.next_request_id();
+        self.request_managed(
+            &access,
+            &rid,
+            "close",
+            Some(json!({ "business_id": business_id })),
+        )?;
+        Ok(())
     }
 }
 
