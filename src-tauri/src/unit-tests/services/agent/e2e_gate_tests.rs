@@ -24,8 +24,7 @@ use crate::services::agent::e2e_gate::{
 use crate::services::agent::r#loop::{self, EVENT_TURN_COMPLETED};
 use crate::services::agent::runtime;
 use crate::services::agent::session_cwd;
-use crate::services::mcp_endpoint_readiness::{self, ReadyMcpTransports};
-use crate::services::mcp_server_registry::{self, HttpMcpTransport, SEEDED_BUSINESS_KEY};
+use crate::services::mcp_server_registry::{self, SEEDED_BUSINESS_KEY};
 use crate::services::todo_task;
 use crate::test_support::TestSandbox;
 
@@ -143,21 +142,6 @@ fn install_cursor_engine() {
     secrets::set_secret(KEY_LLM_API_KEY_CURSOR, "sk-test-cursor-secret").expect("cursor key");
 }
 
-fn ready_mcp_sample() -> ReadyMcpTransports {
-    let mut headers = std::collections::BTreeMap::new();
-    headers.insert(
-        "Accept".into(),
-        "application/json, text/event-stream".into(),
-    );
-    ReadyMcpTransports {
-        transports: vec![HttpMcpTransport {
-            name: "workbench".into(),
-            url: "http://127.0.0.1:9876/mcp".into(),
-            headers,
-        }],
-    }
-}
-
 fn install_fake_cursor_runtime() -> Arc<Mutex<Vec<cursor_adapter::FakeLogEntry>>> {
     let fake = FakeCursorRunnerClient::new();
     let log = fake.log.clone();
@@ -167,11 +151,11 @@ fn install_fake_cursor_runtime() -> Arc<Mutex<Vec<cursor_adapter::FakeLogEntry>>
         Ok(Box::new(c) as Box<dyn cursor_adapter::CursorRunnerClient>)
     });
     runtime::set_cursor_runtime_for_tests(Some(Arc::new(runtime_rt)));
-    runtime::set_ready_mcp_for_tests(Some(ready_mcp_sample()));
+    runtime::set_profile_for_tests(Some(super::test_business_profile("composer-2.5")));
     fake.log.clone()
 }
 
-// ── Contract: Cursor route → runner; cwd + ready MCP; Host isolation; secrets; errors ──
+// ── Contract: Cursor route → runner; Profile cwd + MCP; Host isolation; secrets; errors ──
 
 #[test]
 fn t5_contract_cursor_route_calls_runner_with_cwd_and_ready_mcp() {
@@ -210,22 +194,21 @@ fn t5_contract_cursor_route_calls_runner_with_cwd_and_ready_mcp() {
             .get("cwd")
             .and_then(|v| v.as_str())
             .expect("local.cwd must be passed");
-        let expected_cwd = session_cwd::session_cwd_for(&sid).expect("session cwd");
+        let expected_cwd =
+            session_cwd::session_cwd_for(&sid).expect("legacy test runtime session cwd");
         assert_eq!(Path::new(cwd), expected_cwd.as_path());
         assert!(
             Path::new(cwd).is_dir(),
-            "session cwd must exist on disk: {cwd}"
+            "legacy test runtime cwd must exist on disk: {cwd}"
         );
         assert!(
             !Path::new(cwd).join(".git").exists(),
-            "session cwd must not be a git worktree root"
+            "legacy test runtime cwd must not be a git worktree root"
         );
 
         let mcp = params.get("mcpServers").expect("ready MCP must be passed");
-        let expected = serde_json::to_value(mcp_endpoint_readiness::map_to_sdk_mcp_servers(
-            &ready_mcp_sample(),
-        ))
-        .unwrap();
+        let expected_profile = super::test_business_profile("composer-2.5");
+        let expected = serde_json::to_value(&expected_profile.mcp_servers).unwrap();
         assert_eq!(
             mcp, &expected,
             "health-checked HTTP MCP config must be injected"
@@ -301,7 +284,7 @@ fn t5_contract_errors_are_distinguishable_not_host_generic() {
                 panic!("must not spawn without credential")
             }),
         )));
-        runtime::set_ready_mcp_for_tests(Some(ready_mcp_sample()));
+        runtime::set_profile_for_tests(Some(super::test_business_profile("composer-2.5")));
         r#loop::try_set_binding_json(&json!({ "key": SEEDED_BUSINESS_KEY })).expect("Set");
         let open = r#loop::open_ai_assistant_core(&master).unwrap();
         let sid = open["session_id"].as_str().unwrap();
@@ -359,9 +342,8 @@ fn t5_lifecycle_reset_cancels_inflight_and_blocks_stale_persist() {
             rt_a.run_turn(&cursor_adapter::TurnRequest {
                 session_id: "sess_t5_cut".into(),
                 prompt: "in-flight".into(),
-                model: "composer-2.5".into(),
                 api_key: "sk-test".into(),
-                ready_mcp: ready_mcp_sample(),
+                profile: super::test_business_profile("composer-2.5"),
             })
         });
         std::thread::sleep(Duration::from_millis(40));
@@ -407,9 +389,8 @@ fn t5_lifecycle_close_awaits_dispose_then_deletes_cwd_shell_close_does_not() {
             .run_turn(&cursor_adapter::TurnRequest {
                 session_id: "sess_t5_close".into(),
                 prompt: "hi".into(),
-                model: "composer-2.5".into(),
                 api_key: "sk-test".into(),
-                ready_mcp: ready_mcp_sample(),
+                profile: super::test_business_profile("composer-2.5"),
             })
             .expect("turn");
         let cwd = session_cwd::session_cwd_for("sess_t5_close").expect("cwd");

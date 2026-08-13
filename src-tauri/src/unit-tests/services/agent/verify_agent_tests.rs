@@ -91,9 +91,8 @@ fn turn_req(session_id: &str, prompt: &str) -> TurnRequest {
     TurnRequest {
         session_id: session_id.into(),
         prompt: prompt.into(),
-        model: "composer-1".into(),
         api_key: "sk-verify".into(),
-        ready_mcp: ready_mcp_sample(),
+        profile: super::test_business_profile("composer-1"),
     }
 }
 

@@ -170,3 +170,46 @@ fn missing_cursor_model_is_an_explicit_profile_failure() {
 
     mcp_server_registry::clear_for_tests();
 }
+
+#[test]
+fn t2_create_prewarm_and_turn_consumers_use_the_profile_source() {
+    let host_startup = include_str!("../../../services/agent/host_startup.rs");
+    let cursor_adapter = include_str!("../../../services/agent/cursor_adapter.rs");
+    let runtime = include_str!("../../../services/agent/runtime.rs");
+
+    assert!(
+        host_startup.contains("query_business_profile"),
+        "startup prewarm must resolve the Host Business Profile before warm"
+    );
+    assert!(
+        cursor_adapter.contains("BusinessProfileSnapshot")
+            && cursor_adapter.contains("profile.model")
+            && cursor_adapter.contains("profile.cwd")
+            && cursor_adapter.contains("profile.mcp_servers"),
+        "Cursor create assembly must consume all business fields from Profile"
+    );
+    assert!(
+        runtime.contains("query_business_profile"),
+        "production turn assembler must resolve the Host Business Profile"
+    );
+    assert!(
+        !runtime.contains("ready_mcp_for_binding_key")
+            && !runtime.contains("mcp_endpoint_readiness")
+            && !runtime.contains("session_cwd::"),
+        "runtime must not retain readiness/session cwd bypass assembly"
+    );
+
+    let engine_start = cursor_adapter
+        .find("pub struct CursorLlmEngine")
+        .expect("CursorLlmEngine");
+    let engine = &cursor_adapter[engine_start..];
+    let engine_end = engine
+        .find("pub struct CursorSessionRuntime")
+        .expect("test-only runtime boundary");
+    let production_engine = &engine[..engine_end];
+    assert!(
+        !production_engine.contains("session_cwd::")
+            && !production_engine.contains("mcp_endpoint_readiness"),
+        "production create/turn assembly must not bypass Profile"
+    );
+}

@@ -49,9 +49,10 @@ mod verify_agent_tests;
 mod profile_tests;
 
 use std::fs;
+use std::collections::BTreeMap;
 use std::io::{Read, Write};
 use std::net::TcpListener;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
@@ -62,9 +63,11 @@ use crate::config::secrets::{self, KEY_LLM_API_KEY};
 use crate::config::settings;
 use crate::services::agent::diagnostics::{self, DiagnosticEvent, TraceId};
 use crate::services::agent::llm::{self, LlmConfig, LlmError};
+use crate::services::agent::profile::BusinessProfileSnapshot;
 use crate::services::agent::session::{self, Session, Turn};
 use crate::services::agent::tools;
 use crate::services::agent::PLAN_ASSISTANT_SYSTEM_PROMPT;
+use crate::services::mcp_endpoint_readiness::SdkHttpMcpServer;
 use crate::services::todo_task;
 use crate::test_support::TestSandbox;
 
@@ -72,6 +75,29 @@ fn with_agent_sandbox<F: FnOnce(&TestSandbox)>(f: F) {
     let sandbox = TestSandbox::new();
     secrets::test_secrets_clear();
     f(&sandbox);
+}
+
+pub(crate) fn test_business_profile(model: &str) -> BusinessProfileSnapshot {
+    let mut headers = BTreeMap::new();
+    headers.insert(
+        "Accept".to_string(),
+        "application/json, text/event-stream".to_string(),
+    );
+    let mut mcp_servers = BTreeMap::new();
+    mcp_servers.insert(
+        "workbench".to_string(),
+        SdkHttpMcpServer {
+            transport_type: "http".to_string(),
+            url: "http://127.0.0.1:9876/mcp/todo_task".to_string(),
+            headers,
+        },
+    );
+    BusinessProfileSnapshot {
+        business_id: "todo_task".to_string(),
+        model: model.to_string(),
+        cwd: PathBuf::from("/tmp/lulu-workbench-business-cwd"),
+        mcp_servers,
+    }
 }
 
 fn create_bound_plan(title: &str) -> String {
@@ -240,9 +266,9 @@ fn assistant_diagnostics_are_correlated_without_message_content() {
         "Tauri command must carry a caller correlation id into the runtime"
     );
     assert!(
-        runtime.contains("cursor.mcp_readiness.completed")
+        runtime.contains("profile_for_business")
             && cursor_adapter.contains("cursor.turn.completed"),
-        "Cursor timing must expose readiness and SDK turn boundaries"
+        "Cursor execution must resolve the Host Business Profile and expose SDK turn boundaries"
     );
     assert!(
         frontend.contains("traceId") && frontend.contains("assistant-diagnostic"),

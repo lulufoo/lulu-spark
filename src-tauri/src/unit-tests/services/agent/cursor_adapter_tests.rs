@@ -8,8 +8,7 @@ use crate::services::agent::cursor_adapter::{
 };
 use crate::services::agent::r#loop;
 use crate::services::agent::session_cwd;
-use crate::services::mcp_endpoint_readiness::{self, ReadyMcpTransports};
-use crate::services::mcp_server_registry::{self, HttpMcpTransport};
+use crate::services::mcp_server_registry;
 use crate::test_support::TestSandbox;
 
 fn with_sandbox<F: FnOnce()>(f: F) {
@@ -48,28 +47,12 @@ fn t4_cursor_adapter_module_is_isolated_from_host_loop() {
 
 // ── T3: production process client + lifecycle ────────────────────────────────
 
-fn ready_mcp_sample() -> ReadyMcpTransports {
-    let mut headers = std::collections::BTreeMap::new();
-    headers.insert(
-        "Accept".into(),
-        "application/json, text/event-stream".into(),
-    );
-    ReadyMcpTransports {
-        transports: vec![HttpMcpTransport {
-            name: "workbench".into(),
-            url: "http://127.0.0.1:9876/mcp".into(),
-            headers,
-        }],
-    }
-}
-
 fn t3_turn_request(session_id: &str, prompt: &str) -> TurnRequest {
     TurnRequest {
         session_id: session_id.into(),
         prompt: prompt.into(),
-        model: "composer-2.5".into(),
         api_key: "sk-test-cursor-key".into(),
-        ready_mcp: ready_mcp_sample(),
+        profile: super::test_business_profile("composer-2.5"),
     }
 }
 
@@ -397,8 +380,8 @@ fn t3_create_uses_ready_mcp_servers_shape_and_keeps_key_out_of_jsonl() {
             "API key must not appear in JSONL params: {params}"
         );
         let mcp = params.get("mcpServers").expect("mcpServers");
-        let expected = mcp_endpoint_readiness::map_to_sdk_mcp_servers(&ready_mcp_sample());
-        let expected_v = serde_json::to_value(&expected).unwrap();
+        let expected_profile = super::test_business_profile("composer-2.5");
+        let expected_v = serde_json::to_value(&expected_profile.mcp_servers).unwrap();
         assert_eq!(mcp, &expected_v);
         // Factory receives key for env injection only.
         assert_eq!(

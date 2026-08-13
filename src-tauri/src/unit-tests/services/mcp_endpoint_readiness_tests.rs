@@ -498,7 +498,7 @@ fn t8_readiness_fails_when_health_mcp_field_empty_or_ok_false() {
 }
 
 #[test]
-fn t8_registry_and_binding_consumers_keep_default_mcp_slot_url_shape() {
+fn t8_registry_and_profile_consumers_keep_default_mcp_slot_url_shape() {
     mcp_server_registry::clear_for_tests();
     mcp_server_registry::seed_defaults();
     let got = mcp_server_registry::lookup(SEEDED_BUSINESS_KEY).expect("seeded");
@@ -515,14 +515,23 @@ fn t8_registry_and_binding_consumers_keep_default_mcp_slot_url_shape() {
 
     let runtime_src = include_str!("../../services/agent/runtime.rs");
     let adapter_src = include_str!("../../services/agent/cursor_adapter.rs");
+    let profile_src = include_str!("../../services/agent/profile.rs");
     assert!(
-        runtime_src.contains("ready_transports_for_business_key")
-            && runtime_src.contains("DEFAULT_MCP_PORT"),
-        "runtime Binding consumer must call readiness with DEFAULT_MCP_PORT"
+        runtime_src.contains("profile_for_business")
+            && runtime_src.contains("query_business_profile")
+            && !runtime_src.contains("ready_transports_for_business_key")
+            && !runtime_src.contains("mcp_endpoint_readiness")
+            && !runtime_src.contains("session_cwd::"),
+        "runtime Binding consumer must resolve the complete Host Business Profile"
     );
     assert!(
-        adapter_src.contains("map_to_sdk_mcp_servers"),
-        "cursor_adapter must inject mcpServers via map_to_sdk_mcp_servers"
+        adapter_src.contains("profile.mcp_servers"),
+        "cursor_adapter must inject Profile-provided mcpServers"
+    );
+    assert!(
+        profile_src.contains("mcp_endpoint_readiness::probe_mcp_endpoint_readiness")
+            && profile_src.contains("mcp_endpoint_readiness::map_to_sdk_mcp_servers"),
+        "Profile assembly must own readiness probing and SDK MCP mapping"
     );
     assert!(
         !runtime_src.contains("knowledge_mcp_") && !adapter_src.contains("knowledge_mcp_"),

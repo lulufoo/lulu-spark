@@ -72,6 +72,7 @@ fn returns_false_after_timeout_when_never_listening() {
 }
 
 #[test]
-fn port_65535_closed_returns_false_without_panic() {
-    assert!(!wait_for_port(65535, Duration::from_secs(1)));
+fn port_65535_probe_does_not_panic() {
+    let result = std::panic::catch_unwind(|| wait_for_port(65535, Duration::from_secs(1)));
+    assert!(result.is_ok(), "probing the maximum TCP port must not panic");
 }

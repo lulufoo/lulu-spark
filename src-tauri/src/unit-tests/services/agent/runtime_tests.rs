@@ -176,7 +176,7 @@ fn install_fake_cursor_runtime() -> Arc<Mutex<Vec<cursor_adapter::FakeLogEntry>>
         Ok(Box::new(c) as Box<dyn cursor_adapter::CursorRunnerClient>)
     });
     runtime::set_cursor_runtime_for_tests(Some(Arc::new(runtime_rt)));
-    runtime::set_ready_mcp_for_tests(Some(ready_mcp_sample()));
+    runtime::set_profile_for_tests(Some(super::test_business_profile("composer-2.5")));
     fake.log.clone()
 }
 
@@ -337,7 +337,7 @@ fn t4_cursor_failure_does_not_fallback_host_or_tools_dispatch() {
             ))
         });
         runtime::set_cursor_runtime_for_tests(Some(Arc::new(runtime_rt)));
-        runtime::set_ready_mcp_for_tests(Some(ready_mcp_sample()));
+        runtime::set_profile_for_tests(Some(super::test_business_profile("composer-2.5")));
 
         r#loop::try_set_binding_json(&json!({ "key": SEEDED_BUSINESS_KEY })).expect("Set");
         let open = r#loop::open_ai_assistant_core(&master).unwrap();
@@ -372,7 +372,7 @@ fn t4_cursor_error_keeps_typed_mapping_not_host_generic() {
                 panic!("must not spawn when credential missing")
             }),
         )));
-        runtime::set_ready_mcp_for_tests(Some(ready_mcp_sample()));
+        runtime::set_profile_for_tests(Some(super::test_business_profile("composer-2.5")));
 
         r#loop::try_set_binding_json(&json!({ "key": SEEDED_BUSINESS_KEY })).expect("Set");
         let open = r#loop::open_ai_assistant_core(&master).unwrap();

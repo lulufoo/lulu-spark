@@ -16,8 +16,6 @@ use crate::services::agent::engine_router::{self, EngineRuntimeConfig};
 use crate::services::agent::process_manager::{self, CursorAgentProcessManager};
 use crate::services::agent::session;
 use crate::services::agent::session_cwd::{self, CwdError};
-use crate::services::mcp_endpoint_readiness::ReadyMcpTransports;
-use crate::services::mcp_server_registry::HttpMcpTransport;
 use crate::test_support::TestSandbox;
 
 fn with_sandbox<F: FnOnce()>(f: F) {
@@ -50,28 +48,12 @@ fn cfg_from(settings: &AppSettings) -> EngineRuntimeConfig {
     engine_router::read_engine_runtime_config(settings).expect("runtime config")
 }
 
-fn ready_mcp_sample() -> ReadyMcpTransports {
-    let mut headers = std::collections::BTreeMap::new();
-    headers.insert(
-        "Accept".into(),
-        "application/json, text/event-stream".into(),
-    );
-    ReadyMcpTransports {
-        transports: vec![HttpMcpTransport {
-            name: "workbench".into(),
-            url: "http://127.0.0.1:9876/mcp".into(),
-            headers,
-        }],
-    }
-}
-
 fn turn_req(session_id: &str, prompt: &str) -> TurnRequest {
     TurnRequest {
         session_id: session_id.into(),
         prompt: prompt.into(),
-        model: "composer-1".into(),
         api_key: "sk-engine-test".into(),
-        ready_mcp: ready_mcp_sample(),
+        profile: super::test_business_profile("composer-1"),
     }
 }
 
@@ -219,7 +201,7 @@ fn t5_create_params_include_opaque_session_id() {
 }
 
 #[test]
-fn t5_host_cleanup_cwd_only_after_replaced_session_id() {
+fn t5_profile_cwd_does_not_allocate_session_cwd_on_replace() {
     with_sandbox(|| {
         secrets::set_secret(KEY_LLM_API_KEY_CURSOR, "sk-engine-test").expect("key");
         let fake = ReplaceCreateFake::new();
@@ -235,8 +217,10 @@ fn t5_host_cleanup_cwd_only_after_replaced_session_id() {
         engine
             .run_turn(&turn_req("sess_old", "a"))
             .expect("old turn");
-        let old_cwd = session_cwd::session_cwd_for("sess_old").expect("old cwd");
-        assert!(old_cwd.is_dir());
+        assert!(
+            session_cwd::session_cwd_for("sess_old").is_none(),
+            "Profile-owned cwd must not allocate a legacy session cwd"
+        );
 
         *fake
             .next_create_ok
@@ -251,21 +235,15 @@ fn t5_host_cleanup_cwd_only_after_replaced_session_id() {
             .expect("new turn");
 
         assert!(
-            !old_cwd.exists(),
-            "Host must cleanup_session_cwd(replaced_session_id) after successful replace"
+            session_cwd::session_cwd_for("sess_old").is_none()
+                && session_cwd::session_cwd_for("sess_new").is_none(),
+            "Profile replacement must remain independent of legacy session cwd state"
         );
-        assert!(
-            session_cwd::session_cwd_for("sess_old").is_none(),
-            "old allocation cleared"
-        );
-        let new_cwd = session_cwd::session_cwd_for("sess_new").expect("new cwd");
-        assert!(new_cwd.is_dir());
-        assert_ne!(old_cwd, new_cwd);
     });
 }
 
 #[test]
-fn t5_dispose_fail_create_error_skips_cwd_cleanup_and_replaced_id() {
+fn t5_dispose_fail_create_error_does_not_depend_on_session_cwd_cleanup() {
     with_sandbox(|| {
         secrets::set_secret(KEY_LLM_API_KEY_CURSOR, "sk-engine-test").expect("key");
         let fake = ReplaceCreateFake::new();
@@ -281,8 +259,7 @@ fn t5_dispose_fail_create_error_skips_cwd_cleanup_and_replaced_id() {
         engine
             .run_turn(&turn_req("sess_keep", "a"))
             .expect("first");
-        let keep = session_cwd::session_cwd_for("sess_keep").expect("cwd");
-        assert!(keep.is_dir());
+        assert!(session_cwd::session_cwd_for("sess_keep").is_none());
 
         *fake
             .next_create_err
@@ -296,10 +273,10 @@ fn t5_dispose_fail_create_error_skips_cwd_cleanup_and_replaced_id() {
         assert_eq!(err.code, CursorErrorCode::Runner);
 
         assert!(
-            keep.exists(),
-            "Host must not cleanup old cwd when create omits replaced_session_id / fails"
+            session_cwd::session_cwd_for("sess_keep").is_none()
+                && session_cwd::session_cwd_for("sess_next").is_none(),
+            "Profile create failure must not allocate or clean up session cwd"
         );
-        assert!(session_cwd::session_cwd_for("sess_keep").is_some());
     });
 }
 
@@ -340,7 +317,7 @@ fn t5_cwd_cleanup_failure_retains_dir_as_recoverable_error() {
 }
 
 #[test]
-fn t7_host_cwd_cleanup_failure_is_recoverable_not_persisted() {
+fn t7_legacy_session_cwd_cleanup_failure_does_not_block_profile_turn() {
     with_sandbox(|| {
         secrets::set_secret(KEY_LLM_API_KEY_CURSOR, "sk-engine-test").expect("key");
         let _old = session_cwd::create_session_cwd("sess_old_clean").expect("old cwd");
@@ -363,22 +340,16 @@ fn t7_host_cwd_cleanup_failure_is_recoverable_not_persisted() {
         );
         let engine = CursorLlmEngine::with_manager(mgr);
 
-        let err = engine
-            .run_turn(&turn_req("sess_new_clean", "hi"))
-            .expect_err("cleanup failure must surface");
-        assert_eq!(err.code, CursorErrorCode::RecoverableFailure);
-        assert_eq!(
-            cursor_adapter::error_track(&err),
-            ErrorTrack::RecoverableFailure
-        );
-        assert!(!cursor_adapter::should_persist_cursor_result(&Err(err)));
+        let result = engine.run_turn(&turn_req("sess_new_clean", "hi"));
+        session_cwd::force_cleanup_fail_for_tests(false);
+        let outcome = result.expect("Profile turn must not invoke legacy cwd cleanup");
+        assert_eq!(outcome.text, "fake-ok");
 
         let log = fake.log.lock().unwrap_or_else(|e| e.into_inner());
         assert!(
-            !log.iter().any(|e| e.method == "turn"),
-            "must not turn after cwd cleanup recoverable failure"
+            log.iter().any(|e| e.method == "turn"),
+            "Profile turn must proceed even when legacy cleanup is configured to fail"
         );
-        session_cwd::force_cleanup_fail_for_tests(false);
     });
 }
 
