@@ -1,9 +1,8 @@
 //! Engine-aware chat turn orchestration (busy / gate / persist / ChatTurnResult).
 //!
 //! Sibling to Host `loop` and Cursor `cursor_adapter`. Formal chat enters here;
-//! settings select Host (`run_loop`) or Cursor (adapter + Host MCP readiness via
-//! `GET /health` on `DEFAULT_MCP_PORT`). Cursor failures never fall back to Host
-//! LLM or process-local business tool handlers.
+//! settings select Host (`run_loop`) or Cursor (Profile-backed adapter). Cursor
+//! failures never fall back to Host LLM or process-local business tool handlers.
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, OnceLock};
@@ -17,16 +16,14 @@ use crate::services::agent::cursor_adapter::{
     TurnRequest,
 };
 use crate::services::agent::diagnostics::{self, DiagnosticEvent, TraceId};
+use crate::services::agent::profile::{self, BusinessProfileSnapshot};
 #[cfg(test)]
 use crate::services::agent::cursor_adapter::CursorSessionRuntime;
 use crate::services::agent::engine_router::{self, AdapterKind, EngineRouteError, TurnInput};
 use crate::services::agent::llm;
 use crate::services::agent::r#loop::{self, ChatTurnResult, Terminal, TurnOutcome};
 use crate::services::agent::session::{self, Turn};
-use crate::services::local_http::DEFAULT_HTTP_PORT;
-use crate::services::mcp_endpoint_readiness::{self, ReadyMcpTransports};
 use crate::services::mcp_server_registry::SEEDED_BUSINESS_KEY;
-use crate::DEFAULT_MCP_PORT;
 
 fn cursor_code_str(code: CursorErrorCode) -> &'static str {
     match code {
@@ -68,17 +65,19 @@ fn cursor_err_routed(err: CursorError) -> RoutedTurn {
 
 #[cfg(test)]
 static TEST_CURSOR_RT: OnceLock<Mutex<Option<Arc<CursorSessionRuntime>>>> = OnceLock::new();
-static TEST_READY_MCP: OnceLock<Mutex<Option<ReadyMcpTransports>>> = OnceLock::new();
 #[cfg(test)]
 static TEST_CURSOR_INSTALLED: AtomicBool = AtomicBool::new(false);
+#[cfg(test)]
+static TEST_PROFILE: OnceLock<Mutex<Option<BusinessProfileSnapshot>>> = OnceLock::new();
 
 #[cfg(test)]
 fn test_cursor_slot() -> &'static Mutex<Option<Arc<CursorSessionRuntime>>> {
     TEST_CURSOR_RT.get_or_init(|| Mutex::new(None))
 }
 
-fn test_ready_slot() -> &'static Mutex<Option<ReadyMcpTransports>> {
-    TEST_READY_MCP.get_or_init(|| Mutex::new(None))
+#[cfg(test)]
+fn test_profile_slot() -> &'static Mutex<Option<BusinessProfileSnapshot>> {
+    TEST_PROFILE.get_or_init(|| Mutex::new(None))
 }
 
 pub fn reset_for_tests() {
@@ -87,7 +86,10 @@ pub fn reset_for_tests() {
         *test_cursor_slot().lock().unwrap_or_else(|e| e.into_inner()) = None;
         TEST_CURSOR_INSTALLED.store(false, Ordering::SeqCst);
     }
-    *test_ready_slot().lock().unwrap_or_else(|e| e.into_inner()) = None;
+    #[cfg(test)]
+    {
+        *test_profile_slot().lock().unwrap_or_else(|e| e.into_inner()) = None;
+    }
 }
 
 #[cfg(test)]
@@ -96,8 +98,9 @@ pub fn set_cursor_runtime_for_tests(rt: Option<Arc<CursorSessionRuntime>>) {
     *test_cursor_slot().lock().unwrap_or_else(|e| e.into_inner()) = rt;
 }
 
-pub fn set_ready_mcp_for_tests(ready: Option<ReadyMcpTransports>) {
-    *test_ready_slot().lock().unwrap_or_else(|e| e.into_inner()) = ready;
+#[cfg(test)]
+pub fn set_profile_for_tests(profile: Option<BusinessProfileSnapshot>) {
+    *test_profile_slot().lock().unwrap_or_else(|e| e.into_inner()) = profile;
 }
 
 #[cfg(test)]
@@ -122,26 +125,18 @@ fn cursor_run_turn(
     CursorLlmEngine::global().run_turn_with_trace(req, trace_id)
 }
 
-/// Probe Host MCP readiness (`GET http://127.0.0.1:{DEFAULT_MCP_PORT}/health`)
-/// and return Binding transports (`/mcp/<slot>`). Health contract only.
-fn ready_mcp_for_binding_key(key: &str) -> Result<ReadyMcpTransports, CursorError> {
-    if let Some(ready) = test_ready_slot()
+fn profile_for_business(key: &str) -> Result<BusinessProfileSnapshot, CursorError> {
+    #[cfg(test)]
+    if let Some(profile) = test_profile_slot()
         .lock()
         .unwrap_or_else(|e| e.into_inner())
         .clone()
     {
-        return Ok(ready);
+        if profile.business_id == key {
+            return Ok(profile);
+        }
     }
-    let (http_port, mcp_port) = crate::config::settings::load()
-        .map(|s| (s.effective_http_port(), s.effective_mcp_port()))
-        .unwrap_or((DEFAULT_HTTP_PORT, DEFAULT_MCP_PORT));
-    mcp_endpoint_readiness::ready_transports_for_business_key(key, http_port, mcp_port)
-    .map_err(|_| {
-        CursorError::new(
-            CursorErrorCode::McpUnavailable,
-            cursor_adapter::frontend_message_for(CursorErrorCode::McpUnavailable),
-        )
-    })
+    profile::query_business_profile(key).map_err(cursor_adapter::map_profile_error)
 }
 
 fn append_user_assistant(session: &mut session::Session, user: &str, assistant: &str) {
@@ -274,14 +269,6 @@ fn cursor_adapter_turn(
     let started = Instant::now();
     // L2-A: consume AIAssistantSession execution-context snapshot (sole live owner).
     let live_ctx = session::live_context_owner().execution_context_snapshot();
-    // Same-session MCP config face (L2) — required before readiness/adapter.
-    if live_ctx.loaded_mcp_server.is_none() {
-        let err = CursorError::new(
-            CursorErrorCode::McpUnavailable,
-            cursor_adapter::frontend_message_for(CursorErrorCode::McpUnavailable),
-        );
-        return Ok(encode_routed(&cursor_err_routed(err)));
-    }
 
     let settings = settings::load().map_err(|e| e.to_string())?;
     let cfg = engine_router::read_engine_runtime_config(&settings).map_err(|e| e.to_string())?;
@@ -299,36 +286,16 @@ fn cursor_adapter_turn(
         .and_then(session::binding_business_key)
         .unwrap_or_else(|| SEEDED_BUSINESS_KEY.to_string());
 
-    let readiness_started = Instant::now();
-    let ready_mcp = match ready_mcp_for_binding_key(&key) {
-        Ok(ready) => {
-            log_timing(
-                trace_id,
-                "assistant.cursor",
-                "cursor.mcp_readiness.completed",
-                readiness_started,
-                "ok",
-            );
-            ready
-        }
-        Err(err) => {
-            log_timing(
-                trace_id,
-                "assistant.cursor",
-                "cursor.mcp_readiness.completed",
-                readiness_started,
-                "error",
-            );
-            return Ok(encode_routed(&cursor_err_routed(err)));
-        }
+    let profile = match profile_for_business(&key) {
+        Ok(profile) => profile,
+        Err(err) => return Ok(encode_routed(&cursor_err_routed(err))),
     };
 
     let req = TurnRequest {
         session_id: session_id.to_string(),
         prompt: message.to_string(),
-        model: cfg.model,
         api_key,
-        ready_mcp,
+        profile,
     };
 
     let result = cursor_run_turn(&req, trace_id);

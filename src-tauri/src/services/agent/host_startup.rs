@@ -12,9 +12,11 @@ use std::time::Instant;
 use crate::config::settings;
 use crate::services::agent::diagnostics::{self, DiagnosticEvent, TraceId};
 use crate::services::agent::engine_router::{self, EngineKind, EngineRuntimeConfig};
+use crate::services::agent::profile::query_business_profile;
 use crate::services::agent::process_manager::{
     CursorAgentProcessManager, ShutdownError, WarmError,
 };
+use crate::services::mcp_server_registry::SEEDED_BUSINESS_KEY;
 
 /// Observable outcome of a Host warm coordination attempt.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -116,6 +118,19 @@ fn coordinate_warm_with_trace(
             return outcome;
         }
     };
+    if cfg.engine == EngineKind::Cursor
+        && cfg
+            .credential
+            .as_deref()
+            .is_some_and(|credential| !credential.trim().is_empty())
+    {
+        if let Err(error) = query_business_profile(SEEDED_BUSINESS_KEY) {
+            eprintln!("[cursor-agent-process] warm skip: profile error: {error}");
+            let outcome = record(WarmCoordOutcome::Failed);
+            log_warm_outcome(&trace_id, outcome, started);
+            return outcome;
+        }
+    }
     let outcome = coordinate_warm_for(&cfg, || mgr.warm());
     match outcome {
         WarmCoordOutcome::Warmed => {

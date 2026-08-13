@@ -37,11 +37,12 @@ use serde_json::{json, Value};
 
 use crate::cursor_agent_runner_launch_path;
 use crate::services::agent::diagnostics::{self, DiagnosticEvent, TraceId};
+use crate::services::agent::profile::{BusinessProfileSnapshot, ProfileQueryError};
 use crate::services::agent::process_manager::{
     ClientAccess, CursorAgentProcessManager, EnsureError, RequestError,
 };
+#[cfg(test)]
 use crate::services::agent::session_cwd;
-use crate::services::mcp_endpoint_readiness::{self, ReadyMcpTransports};
 
 /// A1 confirmed: per-session `local.cwd` combined with injected `mcpServers`.
 pub const CURSOR_LOCAL_A1_CWD_MCPSERVERS_COMBO: bool = true;
@@ -157,6 +158,20 @@ pub fn map_runner_error(runner_type: &str, _detail: &str) -> CursorError {
     CursorError::new(code, frontend_message_for(code))
 }
 
+pub fn map_profile_error(error: ProfileQueryError) -> CursorError {
+    let code = match error {
+        ProfileQueryError::Cwd(_) => CursorErrorCode::Cwd,
+        ProfileQueryError::Settings(_) | ProfileQueryError::MissingModel => {
+            CursorErrorCode::SdkConfig
+        }
+        ProfileQueryError::InvalidBusinessId
+        | ProfileQueryError::Registry(_)
+        | ProfileQueryError::Readiness(_)
+        | ProfileQueryError::EmptyMcpServers => CursorErrorCode::McpUnavailable,
+    };
+    CursorError::new(code, frontend_message_for(code))
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TurnOutcome {
     pub text: String,
@@ -178,9 +193,8 @@ pub fn should_persist_cursor_result(result: &Result<TurnOutcome, CursorError>) -
 pub struct TurnRequest {
     pub session_id: String,
     pub prompt: String,
-    pub model: String,
     pub api_key: String,
-    pub ready_mcp: ReadyMcpTransports,
+    pub profile: BusinessProfileSnapshot,
 }
 
 // ── Runner client port ───────────────────────────────────────────────────────
@@ -857,29 +871,7 @@ impl CursorLlmEngine {
         trace_id: Option<&TraceId>,
     ) -> Result<TurnOutcome, CursorError> {
         let run_started = Instant::now();
-        let cwd_started = Instant::now();
-        let cwd = match session_cwd::create_session_cwd(&req.session_id) {
-            Ok(path) => {
-                log_cursor_timing(trace_id, "cursor.session_cwd.completed", cwd_started, "ok");
-                path
-            }
-            Err(_) => {
-                log_cursor_timing(
-                    trace_id,
-                    "cursor.session_cwd.completed",
-                    cwd_started,
-                    "error",
-                );
-                return Err(CursorError::new(
-                    CursorErrorCode::Cwd,
-                    frontend_message_for(CursorErrorCode::Cwd),
-                ));
-            }
-        };
-
-        let mcp_servers = match serde_json::to_value(
-            mcp_endpoint_readiness::map_to_sdk_mcp_servers(&req.ready_mcp),
-        ) {
+        let mcp_servers = match serde_json::to_value(&req.profile.mcp_servers) {
             Ok(value) => value,
             Err(_) => {
                 return Err(CursorError::new(
@@ -928,8 +920,8 @@ impl CursorLlmEngine {
             let rid = self.next_request_id();
             let params = json!({
                 "session_id": req.session_id,
-                "model": req.model,
-                "cwd": cwd.to_string_lossy(),
+                "model": req.profile.model,
+                "cwd": req.profile.cwd.to_string_lossy(),
                 "mcpServers": mcp_servers,
             });
             let create_started = Instant::now();
@@ -971,20 +963,6 @@ impl CursorLlmEngine {
                     session_id: req.session_id.clone(),
                     generation: access.generation(),
                 });
-            }
-            // Host cleans old session cwd only after runner confirms dispose via replaced_session_id.
-            if let Some(replaced) = create_result
-                .get("replaced_session_id")
-                .and_then(|x| x.as_str())
-            {
-                if let Err(e) = session_cwd::cleanup_session_cwd(replaced) {
-                    // Cleanup after successful replace is recoverable — never Session-turn persist.
-                    let _ = e;
-                    return Err(CursorError::new(
-                        CursorErrorCode::RecoverableFailure,
-                        frontend_message_for(CursorErrorCode::RecoverableFailure),
-                    ));
-                }
             }
         }
 
@@ -1133,16 +1111,12 @@ impl CursorSessionRuntime {
             }
         };
 
-        // Inject Host MCP Binding transports as SDK mcpServers (URL shape
-        // http://127.0.0.1:9876/mcp/<slot>; readiness already probed via /health).
-        let mcp_servers =
-            serde_json::to_value(mcp_endpoint_readiness::map_to_sdk_mcp_servers(&req.ready_mcp))
-                .map_err(|_| {
-                    CursorError::new(
-                        CursorErrorCode::Runner,
-                        frontend_message_for(CursorErrorCode::Runner),
-                    )
-                })?;
+        let mcp_servers = serde_json::to_value(&req.profile.mcp_servers).map_err(|_| {
+            CursorError::new(
+                CursorErrorCode::Runner,
+                frontend_message_for(CursorErrorCode::Runner),
+            )
+        })?;
 
         let cancel_gen_at_start = self.cancel_gen.load(Ordering::SeqCst);
 
@@ -1196,7 +1170,7 @@ impl CursorSessionRuntime {
                         "create",
                         Some(json!({
                             "session_id": req.session_id,
-                            "model": req.model,
+                            "model": req.profile.model,
                             "cwd": cwd.to_string_lossy(),
                             "mcpServers": mcp_servers,
                         })),

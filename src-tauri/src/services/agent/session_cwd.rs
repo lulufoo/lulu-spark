@@ -1,17 +1,16 @@
-//! Per-session independent working directory lifecycle (Cursor Local path).
+//! Legacy per-session working directory lifecycle for test-only Cursor doubles.
 //!
-//! Creates a unique cwd per session for Agent SDK Local `local.cwd`, and
-//! exposes cleanup hooks for session end. Create failure never silently shares
-//! a global/shared cwd; cleanup failure retries once then retains + warns.
+//! Production Cursor business cwd comes from the Host Business Profile. This
+//! module keeps the independent session lifecycle used by the legacy test
+//! runtime and exposes cleanup hooks for that runtime only. Create failure
+//! never silently shares a global/shared cwd; cleanup failure retries once then
+//! retains + warns.
 //!
 //! ## A1 (L3 Must Close Before P4 / F-46–F-47)
 //!
-//! Confirmed (not silently narrowed): Cursor Agent Local is used with the
-//! combination of per-session independent `local.cwd` **and** injected
-//! `mcpServers` on the same create params (see `cursor_adapter` / production
-//! `CursorLlmEngine` JSONL `create`).
-//! This module owns cwd lifecycle; production wiring injects the allocated path
-//! into `local.cwd` alongside mcpServers.
+//! The historical per-session `local.cwd` + injected `mcpServers` combination
+//! remains available to the legacy test runtime. Production wiring uses the
+//! Profile snapshot instead.
 //!
 //! Failure paths here must not fall back to process-local business tool dispatch
 //! (L09-I #7).
@@ -23,8 +22,8 @@ use std::sync::{Mutex, OnceLock};
 
 use crate::services::agent::session;
 
-/// A1 confirmed: per-session `local.cwd` + injected `mcpServers` combo is the
-/// Cursor Local delivery strategy (wired via production Cursor create path).
+/// Legacy test-runtime marker: per-session `local.cwd` + injected `mcpServers`
+/// remains available outside the production Profile-backed create path.
 pub const CURSOR_LOCAL_A1_CWD_MCPSERVERS_COMBO: bool = true;
 
 /// Default cleanup strategy for session end.
