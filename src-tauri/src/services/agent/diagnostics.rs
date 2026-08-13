@@ -24,6 +24,7 @@ pub const DIAGNOSTIC_LOG_FILE: &str = "assistant-diagnostic.jsonl";
 pub const BOUNDED_TEXT_MAX: usize = 1024;
 
 const BOUNDED_TEXT_FIELDS: &[&str] = &[
+    "business_id",
     "sdk_error_name",
     "sdk_error_code",
     "sdk_error_message",

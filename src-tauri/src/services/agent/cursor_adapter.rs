@@ -635,12 +635,19 @@ fn log_runner_stderr_line(pid: u32, line: &str) {
         .as_ref()
         .and_then(|value| value.get("text_len"))
         .and_then(Value::as_u64);
+    let business_id = parsed
+        .as_ref()
+        .and_then(|value| value.get("business_id"))
+        .and_then(Value::as_str);
     let mut diagnostic = DiagnosticEvent::point(
         "assistant.cursor.runner",
         mapped_event,
         &TraceId::new(),
     )
     .with_u64_field("pid", pid.into());
+    if let Some(business_id) = business_id {
+        diagnostic = diagnostic.with_bounded_text_field("business_id", business_id);
+    }
     if let Some(error_type) = runner_error_type_name(error_type) {
         diagnostic = diagnostic.with_static_field("error_type", error_type);
     }
@@ -663,6 +670,11 @@ fn log_runner_stderr_line(pid: u32, line: &str) {
         diagnostic = diagnostic.with_bounded_text_field("stderr_preview", line);
     }
     let _ = diagnostics::log(diagnostic);
+}
+
+#[cfg(test)]
+pub(crate) fn log_runner_stderr_line_for_tests(pid: u32, line: &str) {
+    log_runner_stderr_line(pid, line);
 }
 
 fn start_runner_stderr_reader(stderr: ChildStderr, pid: u32) {

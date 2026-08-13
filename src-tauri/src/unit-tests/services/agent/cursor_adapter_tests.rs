@@ -1,11 +1,15 @@
 //! T4 + T3: Cursor Local adapter — module isolation, production process client, lifecycle.
 
+use std::fs;
 use std::sync::Arc;
 use std::time::Duration;
+
+use serde_json::Value;
 
 use crate::services::agent::cursor_adapter::{
     self, CursorErrorCode, CursorSessionRuntime, FakeCursorRunnerClient, TurnRequest,
 };
+use crate::services::agent::diagnostics;
 use crate::services::agent::r#loop;
 use crate::services::agent::session_cwd;
 use crate::services::mcp_server_registry;
@@ -107,6 +111,26 @@ fn t3_production_runner_captures_stderr_and_logs_lifecycle_boundaries() {
             "production Runner diagnostics must include {marker}"
         );
     }
+}
+
+#[test]
+fn t3_runner_stderr_diagnostic_preserves_business_id_in_durable_log() {
+    with_sandbox(|| {
+        cursor_adapter::log_runner_stderr_line_for_tests(
+            4242,
+            r#"{"event":"turn_fail","business_id":"todos","error_type":"sdk_run"}"#,
+        );
+
+        let path = diagnostics::diagnostic_log_path().expect("diagnostic path");
+        let contents = fs::read_to_string(path).expect("diagnostic log");
+        let line = contents
+            .lines()
+            .last()
+            .expect("diagnostic line");
+        let event: Value = serde_json::from_str(line).expect("diagnostic JSON");
+        assert_eq!(event["event"], "cursor.runner.turn_fail");
+        assert_eq!(event["fields"]["business_id"], "todos");
+    });
 }
 
 #[test]
