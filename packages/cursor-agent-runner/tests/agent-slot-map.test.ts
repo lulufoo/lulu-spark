@@ -48,7 +48,9 @@ type FactoryOptions = {
   failCreates?: Map<string, number>;
   waitGates?: Map<string, Deferred<void>>;
   sendStarted?: Map<string, Deferred<void>>;
+  waitStarted?: Map<string, Deferred<void>>;
   failPrompts?: Set<string>;
+  cancelResolvesWait?: boolean;
 };
 
 function makeFactory(options: FactoryOptions = {}): AgentFactory {
@@ -87,6 +89,7 @@ function makeFactory(options: FactoryOptions = {}): AgentFactory {
         let cancelled = false;
         const waitGate = options.waitGates?.get(prompt);
         const wait = async () => {
+          options.waitStarted?.get(prompt)?.resolve(undefined);
           if (waitGate) await waitGate.promise;
           activeRuns.set(businessId, Math.max(0, (activeRuns.get(businessId) ?? 1) - 1));
           return {
@@ -100,7 +103,9 @@ function makeFactory(options: FactoryOptions = {}): AgentFactory {
           async cancel() {
             cancelled = true;
             agent.cancelledRuns += 1;
-            waitGate?.resolve(undefined);
+            if (options.cancelResolvesWait !== false) {
+              waitGate?.resolve(undefined);
+            }
           },
         };
       },
@@ -430,6 +435,62 @@ describe("businessId Agent slot map", () => {
     await shutdownRunnerForTests();
 
     assert.equal(created.every((agent) => agent.disposed), true);
+    assert.equal(agentCardinalityForTests(), 0);
+  });
+
+  it("waits for an active turn to finish before closing its Agent slot", async () => {
+    const created: FakeAgent[] = [];
+    const slowWait = deferred<void>();
+    const waitStarted = deferred<void>();
+    setAgentFactoryForTests(
+      makeFactory({
+        created,
+        waitGates: new Map([["slow", slowWait]]),
+        waitStarted: new Map([["slow", waitStarted]]),
+        cancelResolvesWait: false,
+      }),
+    );
+    const cwd = tempCwd();
+    assert.equal(response(await handleLine(createLine("c", "todos", cwd))).ok, true);
+
+    const turn = handleLine(turnLine("t", "todos", "slow"));
+    await waitStarted.promise;
+    const close = handleLine(closeLine("close", "todos"));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    assert.equal(created[0].disposed, false);
+    slowWait.resolve(undefined);
+    const [turnResult, closeResult] = await Promise.all([turn, close]);
+    assert.equal(response(turnResult).ok, false);
+    assert.equal(response(closeResult).ok, true);
+    assert.equal(created[0].disposed, true);
+  });
+
+  it("waits for an active turn to finish before runner shutdown disposes slots", async () => {
+    const created: FakeAgent[] = [];
+    const slowWait = deferred<void>();
+    const waitStarted = deferred<void>();
+    setAgentFactoryForTests(
+      makeFactory({
+        created,
+        waitGates: new Map([["slow", slowWait]]),
+        waitStarted: new Map([["slow", waitStarted]]),
+        cancelResolvesWait: false,
+      }),
+    );
+    const cwd = tempCwd();
+    assert.equal(response(await handleLine(createLine("c", "todos", cwd))).ok, true);
+
+    const turn = handleLine(turnLine("t", "todos", "slow"));
+    await waitStarted.promise;
+    const shutdown = shutdownRunnerForTests();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    assert.equal(created[0].disposed, false);
+    slowWait.resolve(undefined);
+    const [turnResult] = await Promise.all([turn, shutdown]);
+    assert.equal(response(turnResult).ok, false);
+    assert.equal(created[0].disposed, true);
     assert.equal(agentCardinalityForTests(), 0);
   });
 });

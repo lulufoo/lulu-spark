@@ -60,6 +60,7 @@ type AgentSlot = {
   activeSend: Promise<Run> | null;
   activeRun: Run | null;
   cancelRequested: boolean;
+  closing: boolean;
 };
 
 export type SdkRunStatus =
@@ -460,6 +461,7 @@ function newSlot(
     activeSend: null,
     activeRun: null,
     cancelRequested: false,
+    closing: false,
   };
   slots.set(businessId, slot);
   return slot;
@@ -541,6 +543,12 @@ async function handleSlotCreate(
 
   const requestedProfile = profileFromCreate(req);
   const existing = slots.get(businessId);
+  if (existing?.closing) {
+    throw new ProtocolError(
+      "runner",
+      `business_id=${businessId} slot is closing`,
+    );
+  }
   if (existing?.agent) {
     if (!isDeepStrictEqual(existing.profile, requestedProfile)) {
       throw new ProtocolError(
@@ -567,6 +575,12 @@ async function runSlotTurn(
   slot: AgentSlot,
   req: Extract<RunnerRequest, { method: "turn" }>,
 ): Promise<Record<string, unknown>> {
+  if (slot.closing) {
+    throw new ProtocolError(
+      "runner",
+      `business_id=${slot.businessId} slot is closing`,
+    );
+  }
   const agent = slot.agent;
   if (!agent) {
     throw new ProtocolError(
@@ -585,6 +599,17 @@ async function runSlotTurn(
       slot.activeSend = null;
     }
     slot.activeRun = run;
+    if (slot.closing) {
+      try {
+        await run.cancel();
+      } catch {
+        // Close will still wait for run.wait() before disposing the Agent.
+      }
+      throw new ProtocolError(
+        "runner",
+        `business_id=${slot.businessId} slot is closing`,
+      );
+    }
     if (slot.cancelRequested) {
       slot.cancelRequested = false;
       await run.cancel();
@@ -701,13 +726,12 @@ async function handleSlotCancel(
     await run.cancel();
   } catch (err) {
     throw Object.assign(new Error("cancel failed"), { cause: err });
-  } finally {
-    if (slot) slot.activeRun = null;
   }
   return { cancelled: true };
 }
 
 async function disposeSlot(slot: AgentSlot): Promise<void> {
+  slot.closing = true;
   if (slot.activeSend) {
     slot.cancelRequested = true;
     try {
@@ -722,7 +746,11 @@ async function disposeSlot(slot: AgentSlot): Promise<void> {
     } catch {
       // Best-effort cancel before dispose.
     }
-    slot.activeRun = null;
+  }
+  try {
+    await slot.turnTail;
+  } catch {
+    // A cancelled/closing turn is expected to reject before disposal.
   }
   const agent = slot.agent;
   slot.agent = null;
@@ -739,6 +767,7 @@ async function handleSlotClose(
   const businessId = req.params.business_id;
   const slot = slots.get(businessId);
   if (!slot) return { closed: true };
+  slot.closing = true;
   if (slot.createPromise) {
     try {
       await slot.createPromise;
@@ -746,16 +775,21 @@ async function handleSlotClose(
       return { closed: true };
     }
   }
-  slots.delete(businessId);
-  await disposeSlot(slot);
-  return { closed: true };
+  try {
+    await disposeSlot(slot);
+    return { closed: true };
+  } finally {
+    if (slots.get(businessId) === slot) {
+      slots.delete(businessId);
+    }
+  }
 }
 
 async function shutdownSlots(): Promise<void> {
   const current = [...slots.values()];
-  slots.clear();
   await Promise.all(
     current.map(async (slot) => {
+      slot.closing = true;
       if (slot.createPromise) {
         try {
           await slot.createPromise;
@@ -767,6 +801,10 @@ async function shutdownSlots(): Promise<void> {
         await disposeSlot(slot);
       } catch {
         // Shutdown is best-effort for every independent slot.
+      } finally {
+        if (slots.get(slot.businessId) === slot) {
+          slots.delete(slot.businessId);
+        }
       }
     }),
   );
