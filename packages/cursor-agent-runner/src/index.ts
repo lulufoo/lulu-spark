@@ -435,6 +435,21 @@ function emitDiagnostic(
   }
 }
 
+function emitProtocolFailure(
+  event: string,
+  businessId: string,
+  error: ProtocolError,
+  sessionId?: string,
+): void {
+  emitDiagnostic(
+    event,
+    businessId,
+    sessionId,
+    error.type,
+    summarizeCaught(error),
+  );
+}
+
 function profileFromCreate(
   req: Extract<RunnerRequest, { method: "create" }>,
 ): AgentProfile {
@@ -544,17 +559,21 @@ async function handleSlotCreate(
   const requestedProfile = profileFromCreate(req);
   const existing = slots.get(businessId);
   if (existing?.closing) {
-    throw new ProtocolError(
+    const error = new ProtocolError(
       "runner",
       `business_id=${businessId} slot is closing`,
     );
+    emitProtocolFailure("create_fail", businessId, error, req.params.session_id);
+    throw error;
   }
   if (existing?.agent) {
     if (!isDeepStrictEqual(existing.profile, requestedProfile)) {
-      throw new ProtocolError(
+      const error = new ProtocolError(
         "runner",
         `ready slot profile mismatch for business_id=${businessId}`,
       );
+      emitProtocolFailure("create_fail", businessId, error, req.params.session_id);
+      throw error;
     }
     emitDiagnostic("create_hit", businessId, req.params.session_id);
     return { agentId: existing.agent.agentId ?? null };
@@ -576,17 +595,21 @@ async function runSlotTurn(
   req: Extract<RunnerRequest, { method: "turn" }>,
 ): Promise<Record<string, unknown>> {
   if (slot.closing) {
-    throw new ProtocolError(
+    const error = new ProtocolError(
       "runner",
       `business_id=${slot.businessId} slot is closing`,
     );
+    emitProtocolFailure("turn_fail", slot.businessId, error);
+    throw error;
   }
   const agent = slot.agent;
   if (!agent) {
-    throw new ProtocolError(
+    const error = new ProtocolError(
       "runner",
       `business_id=${slot.businessId} has no ready agent`,
     );
+    emitProtocolFailure("turn_fail", slot.businessId, error);
+    throw error;
   }
 
   try {
@@ -605,10 +628,12 @@ async function runSlotTurn(
       } catch {
         // Close will still wait for run.wait() before disposing the Agent.
       }
-      throw new ProtocolError(
+      const error = new ProtocolError(
         "runner",
         `business_id=${slot.businessId} slot is closing`,
       );
+      emitProtocolFailure("turn_fail", slot.businessId, error);
+      throw error;
     }
     if (slot.cancelRequested) {
       slot.cancelRequested = false;
@@ -685,10 +710,12 @@ async function handleSlotTurn(
   const businessId = req.params.business_id;
   const slot = slots.get(businessId);
   if (!slot) {
-    throw new ProtocolError(
+    const error = new ProtocolError(
       "runner",
       `business_id=${businessId} has an empty agent slot`,
     );
+    emitProtocolFailure("turn_fail", businessId, error);
+    throw error;
   }
   if (slot.createPromise) {
     emitDiagnostic("prewarm_in_progress", businessId);

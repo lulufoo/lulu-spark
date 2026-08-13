@@ -175,10 +175,15 @@ function response(raw: string): Record<string, any> {
   return JSON.parse(raw) as Record<string, any>;
 }
 
-function diagnostics(): Array<{ event: string; business_id: string }> {
+function diagnostics(): Array<{
+  event: string;
+  business_id: string;
+  error_type?: string;
+}> {
   return diagnosticsForTests() as Array<{
     event: string;
     business_id: string;
+    error_type?: string;
   }>;
 }
 
@@ -269,6 +274,14 @@ describe("businessId Agent slot map", () => {
     assert.equal(created.length, 1);
     assert.equal(created[0].disposed, false);
     assert.equal(agentCardinalityForTests(), 1);
+    assert.ok(
+      diagnostics().some(
+        (event) =>
+          event.event === "create_fail" &&
+          event.business_id === "todos" &&
+          event.error_type === "runner",
+      ),
+    );
   });
 
   it("shares one creating promise with concurrent create and turn waiters", async () => {
@@ -348,6 +361,14 @@ describe("businessId Agent slot map", () => {
     assert.match(result.error.message, /empty|create|agent/i);
     assert.equal(created.length, 0);
     assert.equal(agentCardinalityForTests(), 0);
+    assert.ok(
+      diagnostics().some(
+        (event) =>
+          event.event === "turn_fail" &&
+          event.business_id === "missing" &&
+          event.error_type === "runner",
+      ),
+    );
   });
 
   it("returns a failed create to its waiters, resets the slot, and permits retry", async () => {
