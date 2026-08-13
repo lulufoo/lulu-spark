@@ -174,7 +174,7 @@ function profileFromCreate(
   return {
     model: req.params.model.trim(),
     cwd: req.params.cwd,
-    mcpServers: (req.params.mcpServers ?? {}) as Record<
+    mcpServers: req.params.mcpServers as Record<
       string,
       McpServerConfig
     >,
@@ -270,9 +270,6 @@ async function handleSlotCreate(
   req: Extract<RunnerRequest, { method: "create" }>,
 ): Promise<Record<string, unknown>> {
   const businessId = req.params.business_id;
-  if (!businessId) {
-    throw new ProtocolError("runner", "business_id is required");
-  }
 
   const requestedProfile = profileFromCreate(req);
   const existing = slots.get(businessId);
@@ -369,9 +366,6 @@ async function handleSlotTurn(
   req: Extract<RunnerRequest, { method: "turn" }>,
 ): Promise<Record<string, unknown>> {
   const businessId = req.params.business_id;
-  if (!businessId) {
-    throw new ProtocolError("runner", "business_id is required");
-  }
   const slot = slots.get(businessId);
   if (!slot) {
     throw new ProtocolError(
@@ -394,10 +388,7 @@ async function handleSlotTurn(
 async function handleSlotCancel(
   req: Extract<RunnerRequest, { method: "cancel" }>,
 ): Promise<Record<string, unknown>> {
-  const businessId = req.params?.business_id;
-  if (!businessId) {
-    throw new ProtocolError("runner", "business_id is required");
-  }
+  const businessId = req.params.business_id;
   const slot = slots.get(businessId);
   const run = slot?.activeRun;
   emitDiagnostic("cancel", businessId);
@@ -447,10 +438,7 @@ async function disposeSlot(slot: AgentSlot): Promise<void> {
 async function handleSlotClose(
   req: Extract<RunnerRequest, { method: "close" }>,
 ): Promise<Record<string, unknown>> {
-  const businessId = req.params?.business_id;
-  if (!businessId) {
-    throw new ProtocolError("runner", "business_id is required");
-  }
+  const businessId = req.params.business_id;
   const slot = slots.get(businessId);
   if (!slot) return { closed: true };
   if (slot.createPromise) {
@@ -755,7 +743,7 @@ export async function shutdownRunnerForTests(): Promise<void> {
   await handleLegacyClose();
 }
 
-/** Serialize stdout writes while allowing overlapping handleLine (coalesce / demux). */
+/** Serialize stdout writes while allowing overlapping handleLine (slot waits / demux). */
 let stdoutWriteChain: Promise<void> = Promise.resolve();
 
 function writeResponseLine(response: string): Promise<void> {
