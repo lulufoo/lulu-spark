@@ -5,7 +5,8 @@ use std::fs;
 use serde_json::json;
 
 use crate::commands::ai_assistant::{
-    agent_chat_turn_json, defensive_unbound_json, ensure_ai_assistant_session_json,
+    agent_chat_turn_json, cancel_ai_assistant_turn_json, defensive_unbound_json,
+    ensure_ai_assistant_session_json,
     execute_binding_json, get_ai_assistant_binding_json, open_ai_assistant_json,
     present_ai_assistant_json, query_binding_json, record_ai_assistant_timing,
     reset_binding_json, set_binding_json, shell_close_json, AI_ASSISTANT_WINDOW_LABEL,
@@ -257,6 +258,25 @@ fn t5_execute_json_exposes_distinguishable_reject_codes() {
         })
         .expect_err("stale");
         assert_eq!(stale.as_code(), "rejected_stale_generation");
+    });
+}
+
+#[test]
+fn cancel_ai_assistant_turn_marks_live_chat_cancelled_without_resetting_binding() {
+    with_cmd_sandbox(|| {
+        use crate::services::mcp_server_registry::SEEDED_BUSINESS_KEY;
+
+        assert_eq!(
+            set_binding_json(json!({ "key": SEEDED_BUSINESS_KEY }))["ok"],
+            true
+        );
+        r#loop::set_busy_for_tests(true);
+
+        let result = cancel_ai_assistant_turn_json();
+
+        assert_eq!(result["ok"], true);
+        assert_eq!(r#loop::is_chat_cancelled_for_tests(), true);
+        assert_eq!(query_binding_json()["state"], "bound");
     });
 }
 

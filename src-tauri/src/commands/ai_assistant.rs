@@ -112,6 +112,23 @@ pub fn execute_binding_json() -> Value {
     }
 }
 
+/// Cancel the current Binding's in-flight chat turn without closing its Agent slot.
+pub fn cancel_ai_assistant_turn_json() -> Value {
+    match runtime::cancel_from_binding() {
+        Ok(()) => json!({
+            "ok": true,
+            "cancelled": true,
+            "state": r#loop::binding_state(),
+        }),
+        Err(error) => json!({
+            "ok": false,
+            "cancelled": false,
+            "error": error,
+            "state": r#loop::binding_state(),
+        }),
+    }
+}
+
 /// Invokable Binding Contract Set (key-only; no engine selection parameter).
 #[tauri::command]
 pub async fn set_binding(app: AppHandle, binding: Value) -> Result<Value, String> {
@@ -156,6 +173,16 @@ pub async fn execute_binding() -> Result<Value, String> {
     Ok(tauri::async_runtime::spawn_blocking(execute_binding_json)
         .await
         .map_err(|e| e.to_string())?)
+}
+
+/// Invokable chat cancellation; does not reset Binding or dispose the Agent.
+#[tauri::command]
+pub async fn cancel_ai_assistant_turn() -> Result<Value, String> {
+    Ok(
+        tauri::async_runtime::spawn_blocking(cancel_ai_assistant_turn_json)
+            .await
+            .map_err(|e| e.to_string())?,
+    )
 }
 
 pub fn agent_chat_turn_json(

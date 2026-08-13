@@ -723,6 +723,10 @@ where
 {
     let binding = current_binding_snapshot().ok_or(unbound_error)?;
     let business_id = session::binding_business_id(&binding).ok_or(invalid_binding_error)?;
+    // Mark the live chat before invoking the engine-specific cancellation hook.
+    // This keeps Host-loop turns cancellable and makes a failed SDK cancel
+    // unable to erase the local cancellation intent.
+    session::with_live_mut(|live| live.chat_cancelled = true);
     cancel(&business_id)
 }
 

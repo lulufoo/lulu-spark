@@ -374,4 +374,60 @@ describe('ai-assistant composer Binding Contract gate', () => {
     expect(ensureCalls[1]).toBeLessThan(turnCalls[1]);
     api.dispose();
   });
+
+  it('exposes Cancel while a turn is pending and invokes Host cancellation', async () => {
+    let resolveTurn;
+    const turnPromise = new Promise((resolve) => {
+      resolveTurn = resolve;
+    });
+    invokeMock = vi.fn(async (cmd) => {
+      if (cmd === 'query_binding') return { state: 'bound' };
+      if (cmd === 'get_ai_assistant_binding') {
+        return { session_id: 'sess_cancel', busy: false };
+      }
+      if (cmd === 'ensure_ai_assistant_session') {
+        return { session_id: 'sess_cancel', busy: false };
+      }
+      if (cmd === 'agent_chat_turn') return turnPromise;
+      if (cmd === 'cancel_ai_assistant_turn') {
+        return { ok: true, cancelled: true };
+      }
+      if (cmd === 'shell_close_ai_assistant') return { ok: true, state: 'bound' };
+      return {};
+    });
+    window.__TAURI__.core.invoke = invokeMock;
+
+    const api = mountAiAssistant(root);
+    await vi.waitFor(() => {
+      expect(listenHandlers['ai-assistant:binding-changed']).toBeTruthy();
+      expect(api.getState().hostBound).toBe(true);
+    });
+
+    const input = root.querySelector('[data-role="input"]');
+    input.value = 'cancel me';
+    input.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+
+    const cancel = root.querySelector('[data-role="cancel"]');
+    await vi.waitFor(() => {
+      expect(cancel?.hidden).toBe(false);
+      expect(cancel?.disabled).toBe(false);
+    });
+    cancel.click();
+
+    await vi.waitFor(() => {
+      expect(invokeMock).toHaveBeenCalledWith('cancel_ai_assistant_turn');
+    });
+    expect(cancel.disabled).toBe(true);
+    expect(cancel.textContent).toContain('Cancelling');
+    expect(invokeMock).not.toHaveBeenCalledWith('shell_close_ai_assistant');
+
+    resolveTurn({ reply_text: 'cancelled', busy: false, terminal: 'error' });
+    await vi.waitFor(() => {
+      expect(root.querySelector('[data-role="cancel"]')?.hidden).toBe(true);
+    });
+    expect(api.getState().messages.some((message) => message.text === 'Cancelling…')).toBe(
+      false,
+    );
+    api.dispose();
+  });
 });

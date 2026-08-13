@@ -96,10 +96,15 @@ pub fn on_ui_session_close(_session_id: &str) {}
 
 /// Cancel the current business turn without disposing its Agent slot.
 pub fn cancel_from_binding() -> Result<(), String> {
+    let app_settings = settings::load().map_err(|error| error.to_string())?;
+    let engine = engine_router::resolve_engine(&app_settings).map_err(|error| error.to_string())?;
     r#loop::cancel_from_binding(|business_id| {
-        CursorLlmEngine::global()
-            .cancel(business_id)
-            .map_err(|error| error.message)
+        match engine {
+            engine_router::EngineKind::Host => Ok(()),
+            engine_router::EngineKind::Cursor => CursorLlmEngine::global()
+                .cancel(business_id)
+                .map_err(|error| error.message),
+        }
     })
 }
 

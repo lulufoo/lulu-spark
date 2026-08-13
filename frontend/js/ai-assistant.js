@@ -82,6 +82,7 @@ export function mountAiAssistant(root, opts = {}) {
   let hostBound = false;
   let hostBusy = false;
   let sending = false;
+  let cancelling = false;
   let inputSubmittedAt = null;
   /** @type {{ role: 'user'|'assistant'|'notice', text: string, error?: boolean }[]} */
   let messages = [];
@@ -100,6 +101,7 @@ export function mountAiAssistant(root, opts = {}) {
         <div class="ai-assistant-composer-shell">
           <textarea class="ai-assistant-input" data-role="input" rows="2" placeholder="Message… (Enter to send)" disabled></textarea>
           <div class="ai-assistant-composer-actions">
+            <button type="button" class="ai-assistant-cancel" data-role="cancel" aria-label="Cancel" hidden disabled>Cancel</button>
             <button type="submit" class="ai-assistant-send" data-role="send" aria-label="Send" disabled>
               <svg class="ai-assistant-send-icon" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
                 <path fill="currentColor" d="M8 13.8a.75.75 0 0 1-.75-.75V4.86L5.03 7.08a.75.75 0 1 1-1.06-1.06l3.5-3.5a.75.75 0 0 1 1.06 0l3.5 3.5a.75.75 0 1 1-1.06 1.06L8.75 4.86v8.19a.75.75 0 0 1-.75.75z"/>
@@ -116,6 +118,7 @@ export function mountAiAssistant(root, opts = {}) {
   const messagesEl = root.querySelector('[data-role="messages"]');
   const form = root.querySelector('[data-role="form"]');
   const input = root.querySelector('[data-role="input"]');
+  const cancelBtn = root.querySelector('[data-role="cancel"]');
   const sendBtn = root.querySelector('[data-role="send"]');
 
   function renderMessages() {
@@ -165,6 +168,10 @@ export function mountAiAssistant(root, opts = {}) {
   function setComposerEnabled(enabled) {
     input.disabled = !enabled;
     sendBtn.disabled = !enabled || sending;
+    sendBtn.hidden = sending;
+    cancelBtn.hidden = !sending;
+    cancelBtn.disabled = !sending || cancelling;
+    cancelBtn.textContent = cancelling ? 'Cancelling…' : 'Cancel';
   }
 
   function refreshComposerAndStatus() {
@@ -245,6 +252,7 @@ export function mountAiAssistant(root, opts = {}) {
       return;
     }
     sending = true;
+    cancelling = false;
     setComposerEnabled(false);
     messages.push({ role: 'user', text });
     pushNotice('Working…');
@@ -271,7 +279,13 @@ export function mountAiAssistant(root, opts = {}) {
         invokeCompletedAt - invokeStartedAt,
         inputToResponseMs,
       );
-      messages = messages.filter((m) => !(m.role === 'notice' && m.text === 'Working…'));
+      messages = messages.filter(
+        (m) =>
+          !(
+            m.role === 'notice' &&
+            (m.text === 'Working…' || m.text === 'Cancelling…')
+          ),
+      );
       if (result && typeof result === 'object') {
         if (result.busy) {
           pushNotice(String(result.reply_text || 'Busy — try again later'));
@@ -296,11 +310,45 @@ export function mountAiAssistant(root, opts = {}) {
       logAssistantDiagnostic(traceId, 'turn.invoke.completed', performance.now() - invokeStartedAt, {
         outcome: 'error',
       });
-      messages = messages.filter((m) => !(m.role === 'notice' && m.text === 'Working…'));
+      messages = messages.filter(
+        (m) =>
+          !(
+            m.role === 'notice' &&
+            (m.text === 'Working…' || m.text === 'Cancelling…')
+          ),
+      );
       pushNotice(err?.message ? String(err.message) : 'Failed to send', true);
     } finally {
       sending = false;
       setComposerEnabled(composerShouldEnable());
+    }
+  }
+
+  async function cancelMessage() {
+    const invoke = getTauriInvoke();
+    if (!invoke || !sending || cancelling) return;
+    cancelling = true;
+    messages = messages.map((m) =>
+      m.role === 'notice' && m.text === 'Working…'
+        ? { ...m, text: 'Cancelling…' }
+        : m,
+    );
+    renderMessages();
+    setComposerEnabled(false);
+    try {
+      const result = await invoke('cancel_ai_assistant_turn');
+      if (result && typeof result === 'object' && result.ok === false) {
+        throw new Error(String(result.error || 'Unable to cancel turn'));
+      }
+    } catch (err) {
+      cancelling = false;
+      messages = messages.map((m) =>
+        m.role === 'notice' && m.text === 'Cancelling…'
+          ? { ...m, text: 'Working…' }
+          : m,
+      );
+      pushNotice(err?.message ? String(err.message) : 'Unable to cancel turn', true);
+      setComposerEnabled(false);
     }
   }
 
@@ -312,6 +360,10 @@ export function mountAiAssistant(root, opts = {}) {
     inputSubmittedAt = null;
     input.value = '';
     void sendMessage(text, inputStartedAt);
+  });
+
+  cancelBtn.addEventListener('click', () => {
+    void cancelMessage();
   });
 
   // Enter sends; Shift+Enter inserts a newline (textarea default).
