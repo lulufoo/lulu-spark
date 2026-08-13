@@ -9,14 +9,94 @@
 use std::sync::Mutex;
 use std::time::Instant;
 
+use crate::config::secrets::{self, KEY_LLM_API_KEY_CURSOR};
 use crate::config::settings;
+use crate::services::agent::cursor_adapter::{
+    CursorError, CursorLlmEngine, CreateRequest,
+};
 use crate::services::agent::diagnostics::{self, DiagnosticEvent, TraceId};
 use crate::services::agent::engine_router::{self, EngineKind, EngineRuntimeConfig};
-use crate::services::agent::profile::query_business_profile;
+use crate::services::agent::profile::{
+    query_business_profile, BusinessProfileSnapshot, ProfileQueryError,
+};
 use crate::services::agent::process_manager::{
     CursorAgentProcessManager, ShutdownError, WarmError,
 };
 use crate::services::mcp_server_registry::SEEDED_BUSINESS_KEY;
+
+pub const DEFAULT_TODOS_BUSINESS_ID: &str = SEEDED_BUSINESS_KEY;
+pub const DEFAULT_TODOS_PREWARM_SESSION_ID: &str = "startup-prewarm-todo_task";
+
+#[derive(Debug)]
+pub enum PrewarmError {
+    Profile(ProfileQueryError),
+    Create(CursorError),
+}
+
+fn log_prewarm_event(event: &'static str, trace_id: &TraceId) {
+    let _ = diagnostics::log(
+        DiagnosticEvent::point("assistant.startup", event, trace_id)
+            .with_static_field("business_id", DEFAULT_TODOS_BUSINESS_ID),
+    );
+}
+
+fn prewarm_default_todos_agent_with_trace<Q>(
+    engine: &CursorLlmEngine,
+    query_profile: Q,
+    trace_id: TraceId,
+) -> Result<(), PrewarmError>
+where
+    Q: FnOnce(&str) -> Result<BusinessProfileSnapshot, ProfileQueryError>,
+{
+    let profile = match query_profile(DEFAULT_TODOS_BUSINESS_ID) {
+        Ok(profile) => profile,
+        Err(error) => {
+            log_prewarm_event("prewarm_create_fail", &trace_id);
+            return Err(PrewarmError::Profile(error));
+        }
+    };
+    let api_key = secrets::get_secret(KEY_LLM_API_KEY_CURSOR)
+        .ok()
+        .flatten()
+        .unwrap_or_default();
+    let request = CreateRequest {
+        business_id: DEFAULT_TODOS_BUSINESS_ID.to_string(),
+        session_id: DEFAULT_TODOS_PREWARM_SESSION_ID.to_string(),
+        profile,
+        api_key,
+    };
+    match engine.create(&request) {
+        Ok(()) => {
+            log_prewarm_event("prewarm_create_ok", &trace_id);
+            Ok(())
+        }
+        Err(error) => {
+            log_prewarm_event("prewarm_create_fail", &trace_id);
+            Err(PrewarmError::Create(error))
+        }
+    }
+}
+
+/// Startup-only default Todos prewarm. Failure is returned to the caller so
+/// App boot can log it and continue; the next business request owns retry.
+pub fn prewarm_default_todos_agent() -> Result<(), PrewarmError> {
+    prewarm_default_todos_agent_with_trace(
+        CursorLlmEngine::global(),
+        query_business_profile,
+        TraceId::new(),
+    )
+}
+
+/// Injected prewarm seam for startup tests.
+pub fn prewarm_default_todos_agent_for<Q>(
+    engine: &CursorLlmEngine,
+    query_profile: Q,
+) -> Result<(), PrewarmError>
+where
+    Q: FnOnce(&str) -> Result<BusinessProfileSnapshot, ProfileQueryError>,
+{
+    prewarm_default_todos_agent_with_trace(engine, query_profile, TraceId::new())
+}
 
 /// Observable outcome of a Host warm coordination attempt.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -118,23 +198,17 @@ fn coordinate_warm_with_trace(
             return outcome;
         }
     };
-    if cfg.engine == EngineKind::Cursor
-        && cfg
-            .credential
-            .as_deref()
-            .is_some_and(|credential| !credential.trim().is_empty())
-    {
-        if let Err(error) = query_business_profile(SEEDED_BUSINESS_KEY) {
-            eprintln!("[cursor-agent-process] warm skip: profile error: {error}");
-            let outcome = record(WarmCoordOutcome::Failed);
-            log_warm_outcome(&trace_id, outcome, started);
-            return outcome;
-        }
-    }
     let outcome = coordinate_warm_for(&cfg, || mgr.warm());
     match outcome {
         WarmCoordOutcome::Warmed => {
             eprintln!("[cursor-agent-process] warm: Warmed");
+            if let Err(error) = prewarm_default_todos_agent_with_trace(
+                CursorLlmEngine::global(),
+                query_business_profile,
+                trace_id.clone(),
+            ) {
+                eprintln!("[cursor-agent-process] default Todos prewarm failed: {error:?}");
+            }
         }
         WarmCoordOutcome::SkippedNoApiKey => {
             eprintln!("[cursor-agent-process] warm: SkippedNoApiKey");
