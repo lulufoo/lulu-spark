@@ -15,6 +15,7 @@ describe("JSONL protocol schema", () => {
         id: "r1",
         method: "create",
         params: {
+          business_id: "todo_task",
           session_id: "sess_opaque",
           model: "composer-2.5",
           cwd: "/tmp/session",
@@ -25,20 +26,37 @@ describe("JSONL protocol schema", () => {
     assert.equal(create.id, "r1");
     assert.equal(create.method, "create");
     if (create.method !== "create") throw new Error("expected create");
+    assert.equal(create.params.business_id, "todo_task");
     assert.equal(create.params.session_id, "sess_opaque");
     assert.equal(create.params.model, "composer-2.5");
     assert.equal(create.params.cwd, "/tmp/session");
     assert.deepEqual(create.params.mcpServers, {});
 
     const turn = parseRequest(
-      JSON.stringify({ id: "r2", method: "turn", params: { prompt: "hi" } }),
+      JSON.stringify({
+        id: "r2",
+        method: "turn",
+        params: { business_id: "todo_task", prompt: "hi" },
+      }),
     );
     assert.equal(turn.method, "turn");
 
-    const cancel = parseRequest(JSON.stringify({ id: "r3", method: "cancel" }));
+    const cancel = parseRequest(
+      JSON.stringify({
+        id: "r3",
+        method: "cancel",
+        params: { business_id: "todo_task" },
+      }),
+    );
     assert.equal(cancel.method, "cancel");
 
-    const close = parseRequest(JSON.stringify({ id: "r4", method: "close" }));
+    const close = parseRequest(
+      JSON.stringify({
+        id: "r4",
+        method: "close",
+        params: { business_id: "todo_task" },
+      }),
+    );
     assert.equal(close.method, "close");
   });
 
@@ -49,7 +67,12 @@ describe("JSONL protocol schema", () => {
           JSON.stringify({
             id: "no-sid",
             method: "create",
-            params: { model: "composer-2.5", cwd: "/tmp/x", mcpServers: {} },
+            params: {
+              business_id: "todo_task",
+              model: "composer-2.5",
+              cwd: "/tmp/x",
+              mcpServers: {},
+            },
           }),
         ),
       (e: unknown) => (e as { type?: string })?.type === "runner",
@@ -62,6 +85,7 @@ describe("JSONL protocol schema", () => {
         id: "m1",
         method: "create",
         params: {
+          business_id: "todo_task",
           session_id: "sess_m1",
           model: "composer-2.5",
           cwd: "/tmp/x",

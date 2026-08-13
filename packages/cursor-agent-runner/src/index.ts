@@ -683,21 +683,13 @@ async function handleLegacyClose() {
 async function dispatch(req: RunnerRequest): Promise<Record<string, unknown>> {
   switch (req.method) {
     case "create":
-      return req.params.business_id
-        ? handleSlotCreate(req)
-        : handleLegacyCreate(req);
+      return handleSlotCreate(req);
     case "turn":
-      return req.params.business_id
-        ? handleSlotTurn(req)
-        : handleLegacyTurn(req);
+      return handleSlotTurn(req);
     case "cancel":
-      return req.params?.business_id
-        ? handleSlotCancel(req)
-        : handleLegacyCancel();
+      return handleSlotCancel(req);
     case "close":
-      return req.params?.business_id
-        ? handleSlotClose(req)
-        : handleLegacyClose();
+      return handleSlotClose(req);
   }
 }
 

@@ -21,10 +21,10 @@ function tempCwd(): string {
 
 type FakeAgent = {
   agentId: string;
-  sessionId: string;
-  cancelled: boolean;
+  businessId: string;
   disposed: boolean;
   disposeFail?: boolean;
+  prompts: string[];
   send: (prompt: string) => Promise<{
     wait: () => Promise<{ status: string; result: string }>;
     cancel: () => Promise<void>;
@@ -38,18 +38,22 @@ function makeFactory(opts?: {
 }): AgentFactory {
   const created = opts?.created ?? [];
   return async (params) => {
-    const sessionId = String(params.sessionId ?? "");
+    const businessId = String(params.businessId ?? "");
     const agent: FakeAgent = {
-      agentId: `agent-${sessionId}`,
-      sessionId,
-      cancelled: false,
+      agentId: `agent-${businessId}`,
+      businessId,
       disposed: false,
-      disposeFail: opts?.disposeFailFor?.has(sessionId) ?? false,
-      async send(_prompt: string) {
+      disposeFail: opts?.disposeFailFor?.has(businessId) ?? false,
+      prompts: [],
+      async send(prompt: string) {
+        agent.prompts.push(prompt);
         return {
-          wait: async () => ({ status: "finished", result: "ok" }),
+          wait: async () => ({
+            status: "finished",
+            result: `${businessId}:${prompt}`,
+          }),
           cancel: async () => {
-            agent.cancelled = true;
+            // The slot owns cancellation; this fake only needs a stable Run port.
           },
         };
       },
@@ -65,15 +69,32 @@ function makeFactory(opts?: {
   };
 }
 
-function createLine(id: string, sessionId: string, cwd: string): string {
+function createLine(
+  id: string,
+  businessId: string,
+  cwd: string,
+  sessionId = `session-${id}`,
+): string {
   return JSON.stringify({
     id,
     method: "create",
     params: {
+      business_id: businessId,
       session_id: sessionId,
       model: "composer-2.5",
       cwd,
       mcpServers: {},
+    },
+  });
+}
+
+function closeLine(id: string, businessId: string, sessionId?: string): string {
+  return JSON.stringify({
+    id,
+    method: "close",
+    params: {
+      business_id: businessId,
+      ...(sessionId ? { session_id: sessionId } : {}),
     },
   });
 }
@@ -92,110 +113,152 @@ afterEach(() => {
   }
 });
 
-describe("replace-style create (T-ReplaceCreate)", () => {
-  it("first create succeeds without replaced_session_id and exposes one agent", async () => {
+describe("business-scoped create lifecycle (T-ReplaceCreate)", () => {
+  it("creates one business slot and treats a matching create as an idempotent hit", async () => {
     const created: FakeAgent[] = [];
     setAgentFactoryForTests(makeFactory({ created }));
     const cwd = tempCwd();
-    const raw = await handleLine(createLine("c1", "sess_a", cwd));
-    const res = JSON.parse(raw);
-    assert.equal(res.ok, true);
-    assert.equal(res.result.agentId, "agent-sess_a");
-    assert.equal(res.result.replaced_session_id, undefined);
+
+    const first = JSON.parse(
+      await handleLine(createLine("c1", "todos", cwd, "sess_a")),
+    );
+    const second = JSON.parse(
+      await handleLine(createLine("c2", "todos", cwd, "sess_b")),
+    );
+
+    assert.equal(first.ok, true);
+    assert.equal(second.ok, true);
+    assert.equal(first.result.agentId, "agent-todos");
+    assert.equal(second.result.agentId, "agent-todos");
+    assert.equal(first.result.replaced_session_id, undefined);
+    assert.equal(second.result.replaced_session_id, undefined);
     assert.equal(agentCardinalityForTests(), 1);
     assert.equal(created.length, 1);
+    assert.equal(created[0].disposed, false);
   });
 
-  it("second create cancels in-flight, awaits dispose, then creates; returns replaced_session_id", async () => {
+  it("keeps business slots independent and closes only the requested business", async () => {
     const created: FakeAgent[] = [];
     setAgentFactoryForTests(makeFactory({ created }));
-    const cwdA = tempCwd();
-    const cwdB = tempCwd();
+    const todosCwd = tempCwd();
+    const notesCwd = tempCwd();
 
-    const first = JSON.parse(await handleLine(createLine("c1", "sess_a", cwdA)));
-    assert.equal(first.ok, true);
+    assert.equal(
+      JSON.parse(await handleLine(createLine("a", "todos", todosCwd))).ok,
+      true,
+    );
+    assert.equal(
+      JSON.parse(await handleLine(createLine("b", "notes", notesCwd))).ok,
+      true,
+    );
+    assert.equal(agentCardinalityForTests(), 2);
 
-    const second = JSON.parse(await handleLine(createLine("c2", "sess_b", cwdB)));
-    assert.equal(second.ok, true);
-    assert.equal(second.result.replaced_session_id, "sess_a");
-    assert.equal(second.result.agentId, "agent-sess_b");
-    assert.equal(agentCardinalityForTests(), 1);
-    assert.equal(created.length, 2);
-    assert.equal(created[0].disposed, true);
-  });
+    const todosTurn = JSON.parse(
+      await handleLine(
+        JSON.stringify({
+          id: "turn-todos",
+          method: "turn",
+          params: {
+            business_id: "todos",
+            session_id: "ui-todos",
+            prompt: "hello",
+          },
+        }),
+      ),
+    );
+    assert.equal(todosTurn.ok, true);
+    assert.equal(todosTurn.result.text, "todos:hello");
 
-  it("replace keeps methods create/turn/cancel/close and never needs close for switch", async () => {
-    const created: FakeAgent[] = [];
-    setAgentFactoryForTests(makeFactory({ created }));
-    const a = tempCwd();
-    const b = tempCwd();
-    assert.equal(JSON.parse(await handleLine(createLine("1", "s1", a))).ok, true);
-    assert.equal(JSON.parse(await handleLine(createLine("2", "s2", b))).ok, true);
-    assert.equal(created[0].disposed, true);
-    assert.equal(agentCardinalityForTests(), 1);
     const closed = JSON.parse(
-      await handleLine(JSON.stringify({ id: "x", method: "close" })),
+      await handleLine(closeLine("close-todos", "todos", "ui-todos")),
     );
     assert.equal(closed.ok, true);
-    assert.equal(agentCardinalityForTests(), 0);
-  });
+    assert.equal(created.find((agent) => agent.businessId === "todos")?.disposed, true);
+    assert.equal(created.find((agent) => agent.businessId === "notes")?.disposed, false);
+    assert.equal(agentCardinalityForTests(), 1);
 
-  it("asyncDispose failure fails create, exposes no new agent, omits replaced_session_id", async () => {
-    const created: FakeAgent[] = [];
-    setAgentFactoryForTests(makeFactory({ created }));
-    const a = tempCwd();
-    const b = tempCwd();
-    assert.equal(JSON.parse(await handleLine(createLine("1", "sess_old", a))).ok, true);
-    created[0].disposeFail = true;
-    const res = JSON.parse(await handleLine(createLine("2", "sess_new", b)));
-    assert.equal(res.ok, false);
-    assert.equal(res.error?.type, "runner");
-    assert.equal(res.result?.replaced_session_id, undefined);
-    assert.ok(agentCardinalityForTests() <= 1);
-    assert.equal(
-      created.filter((c) => c.sessionId === "sess_new" && !c.disposed).length,
-      0,
+    const notesTurn = JSON.parse(
+      await handleLine(
+        JSON.stringify({
+          id: "turn-notes",
+          method: "turn",
+          params: { business_id: "notes", prompt: "still-live" },
+        }),
+      ),
     );
+    assert.equal(notesTurn.ok, true);
+    assert.equal(notesTurn.result.text, "notes:still-live");
   });
 
-  it("rapid switch coalesce-to-latest: skipped middle create never starts and is not Cancelled", async () => {
+  it("reports dispose failure through handleLine and permits a new slot create", async () => {
     const created: FakeAgent[] = [];
-    let releaseFirstCreate: (() => void) | undefined;
-    const firstCreateGate = new Promise<void>((resolve) => {
-      releaseFirstCreate = resolve;
+    setAgentFactoryForTests(
+      makeFactory({ created, disposeFailFor: new Set(["todos"]) }),
+    );
+    const cwd = tempCwd();
+
+    assert.equal(
+      JSON.parse(await handleLine(createLine("c1", "todos", cwd))).ok,
+      true,
+    );
+    const closeResult = JSON.parse(
+      await handleLine(closeLine("close", "todos")),
+    );
+    assert.equal(closeResult.ok, false);
+    assert.equal(closeResult.error?.type, "sdk_run");
+    assert.equal(created[0].disposed, false);
+    assert.equal(agentCardinalityForTests(), 0);
+
+    setAgentFactoryForTests(makeFactory({ created }));
+    const retried = JSON.parse(
+      await handleLine(createLine("c2", "todos", cwd, "retry-session")),
+    );
+    assert.equal(retried.ok, true);
+    assert.equal(retried.result.agentId, "agent-todos");
+    assert.equal(created.length, 2);
+    assert.equal(agentCardinalityForTests(), 1);
+  });
+
+  it("shares concurrent same-business creates instead of creating multiple agents", async () => {
+    const created: FakeAgent[] = [];
+    let releaseCreate!: () => void;
+    let markCreateStarted!: () => void;
+    const createStarted = new Promise<void>((resolve) => {
+      markCreateStarted = resolve;
+    });
+    const createGate = new Promise<void>((resolve) => {
+      releaseCreate = resolve;
     });
 
     setAgentFactoryForTests(async (params) => {
-      const sessionId = String(params.sessionId ?? "");
-      if (sessionId === "sess_a") {
-        await firstCreateGate;
-      }
+      markCreateStarted();
+      await createGate;
       return makeFactory({ created })(params);
     });
 
     const cwd = tempCwd();
-    const pA = handleLine(createLine("a", "sess_a", cwd));
-    await new Promise((r) => setTimeout(r, 10));
-    const pB = handleLine(createLine("b", "sess_b", cwd));
-    const pC = handleLine(createLine("c", "sess_c", cwd));
-    releaseFirstCreate?.();
+    const first = handleLine(createLine("a", "todos", cwd, "sess_a"));
+    await createStarted;
+    const second = handleLine(createLine("b", "todos", cwd, "sess_b"));
+    const third = handleLine(createLine("c", "todos", cwd, "sess_c"));
+    releaseCreate();
 
-    const [a, b, c] = await Promise.all([pA, pB, pC]);
-    const resA = JSON.parse(a);
-    const resB = JSON.parse(b);
-    const resC = JSON.parse(c);
+    const [firstRaw, secondRaw, thirdRaw] = await Promise.all([
+      first,
+      second,
+      third,
+    ]);
+    const firstResult = JSON.parse(firstRaw);
+    const secondResult = JSON.parse(secondRaw);
+    const thirdResult = JSON.parse(thirdRaw);
 
-    assert.equal(resA.ok, true);
-    // B was coalesced away — never executed as an Agent; not Cancelled / not success.
-    assert.equal(resB.ok, false);
-    assert.equal(resB.error?.type, "coalesced");
-    assert.notEqual(resB.error?.type, "cancelled");
-    assert.equal(resC.ok, true);
-    assert.equal(resC.result?.agentId, "agent-sess_c");
-    assert.ok(
-      !created.some((x) => x.sessionId === "sess_b"),
-      "coalesced middle session must never Agent.create",
-    );
+    assert.equal(firstResult.ok, true);
+    assert.equal(secondResult.ok, true);
+    assert.equal(thirdResult.ok, true);
+    assert.equal(firstResult.result.agentId, "agent-todos");
+    assert.equal(secondResult.result.agentId, "agent-todos");
+    assert.equal(thirdResult.result.agentId, "agent-todos");
+    assert.equal(created.length, 1);
     assert.equal(agentCardinalityForTests(), 1);
   });
 });
