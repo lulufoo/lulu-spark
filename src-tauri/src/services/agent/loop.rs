@@ -378,6 +378,21 @@ pub fn reset_binding() -> Result<(), ()> {
     Ok(())
 }
 
+/// Reset the current Binding and then close its Host-owned Agent slot by the
+/// captured business identity. The identity must be captured before Reset
+/// clears the live context.
+pub fn reset_binding_with_close<Close>(mut close: Close) -> Result<(), String>
+where
+    Close: FnMut(&str) -> Result<(), String>,
+{
+    let business_id = session::live_context_owner().current_business_id();
+    reset_binding().map_err(|_| "reset_binding_failed".to_string())?;
+    if let Some(business_id) = business_id {
+        close(&business_id)?;
+    }
+    Ok(())
+}
+
 /// Confirmed Host hook path for defensive cut (P2 Must Close Before).
 /// Call when leave/unmount was observed as missed while still bound.
 pub const DEFENSIVE_CUT_HOOK_PATH: &str =

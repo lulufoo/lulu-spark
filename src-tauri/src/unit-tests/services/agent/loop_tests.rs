@@ -3387,6 +3387,28 @@ fn t8_binding_request_helpers_reject_unbound_without_session_fallback() {
 }
 
 #[test]
+fn t4_reset_binding_with_close_routes_by_business_id_before_clearing_context() {
+    with_sandbox(|| {
+        r#loop::try_set_binding_json(&json!({ "key": "todo_task" })).expect("Set");
+        let _ = r#loop::ensure_chat_session_core().expect("ensure");
+        let calls = Arc::new(Mutex::new(Vec::<String>::new()));
+        let calls_for_close = calls.clone();
+
+        r#loop::reset_binding_with_close(move |business_id| {
+            calls_for_close
+                .lock()
+                .unwrap()
+                .push(business_id.to_string());
+            Ok(())
+        })
+        .expect("reset and close");
+
+        assert_eq!(*calls.lock().unwrap(), vec!["todo_task".to_string()]);
+        assert_eq!(r#loop::binding_state(), "unbound");
+    });
+}
+
+#[test]
 fn t6_explicit_reset_not_omitted_because_defensive_exists() {
     with_sandbox(|| {
         // Defensive cut exists, but normal leave still uses explicit Reset semantics.

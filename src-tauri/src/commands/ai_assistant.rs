@@ -80,13 +80,13 @@ fn unbound_ok_json() -> Value {
 
 /// Binding Contract Reset → unbound (idempotent).
 pub fn reset_binding_json() -> Value {
-    let _ = r#loop::reset_binding();
+    let _ = runtime::reset_binding();
     unbound_ok_json()
 }
 
 /// Host defensive cut → unbound (same semantics as Reset). Emits shell sync via core + command emit.
 pub fn defensive_unbound_json() -> Value {
-    let _ = r#loop::defensive_unbound();
+    let _ = runtime::reset_binding();
     unbound_ok_json()
 }
 

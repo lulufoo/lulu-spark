@@ -94,6 +94,21 @@ pub fn reset_for_tests() {
 /// UI session lifecycle is presentation-only; it must not dispose an Agent.
 pub fn on_ui_session_close(_session_id: &str) {}
 
+/// Reset the current Binding and close only its Cursor Agent slot by business
+/// identity. UI session close intentionally does not call this path.
+pub fn reset_binding() -> Result<(), String> {
+    let engine = settings::load()
+        .ok()
+        .and_then(|app_settings| engine_router::resolve_engine(&app_settings).ok());
+
+    r#loop::reset_binding_with_close(|business_id| match engine {
+        Some(engine_router::EngineKind::Cursor) => CursorLlmEngine::global()
+            .close(business_id)
+            .map_err(|error| error.message),
+        _ => Ok(()),
+    })
+}
+
 /// Cancel the current business turn without disposing its Agent slot.
 pub fn cancel_from_binding() -> Result<(), String> {
     let app_settings = settings::load().map_err(|error| error.to_string())?;
