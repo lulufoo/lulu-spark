@@ -134,18 +134,25 @@ describe('Host-only Assistant / Engine settings', () => {
     expect(payload.api_key_cursor).toBeUndefined();
   });
 
-  it('treats a legacy cursor response as the unconfigured Host panel', async () => {
-    api.fetchConfig.mockResolvedValueOnce(baseConfig({
-      assistant_engine: 'cursor',
-      llm: { platform: '', base_url: '', model: '' },
-    }));
-    const { openSettingsDialog } = await import(
-      '../frontend/js/components/modals/settings-dialog.js'
-    );
-    await openSettingsDialog();
+  it.each(['cursor', '', '   ', 'bogus', null, undefined])(
+    'treats invalid assistant_engine response %j as the unconfigured Host panel',
+    async (assistantEngine) => {
+      api.fetchConfig.mockResolvedValueOnce(baseConfig({
+        assistant_engine: assistantEngine,
+        llm: { platform: '', base_url: '', model: '' },
+      }));
+      const { openSettingsDialog } = await import(
+        '../frontend/js/components/modals/settings-dialog.js'
+      );
+      await openSettingsDialog();
 
-    expect(document.getElementById('settings-llm-engine').value).toBe('host');
-    expect(document.getElementById('settings-llm-model').value).toBe('');
-    expect(document.querySelectorAll('#settings-llm-engine option')).toHaveLength(1);
-  });
+      expect(document.getElementById('settings-llm-engine').value).toBe('host');
+      expect(document.getElementById('settings-llm-model').value).toBe('');
+      expect(document.getElementById('settings-llm-platform').value).toBe('glm');
+      expect(document.getElementById('settings-llm-base-url').value).toBe(
+        'https://open.bigmodel.cn/api/paas/v4',
+      );
+      expect(document.querySelectorAll('#settings-llm-engine option')).toHaveLength(1);
+    },
+  );
 });
