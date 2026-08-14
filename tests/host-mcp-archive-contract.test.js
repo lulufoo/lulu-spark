@@ -51,6 +51,14 @@ describe('T10 Host MCP archive + contract retarget (V2/V3/V4)', () => {
     expect(pkg.scripts.test).toContain('scripts/verify-host-mcp.mjs');
   });
 
+  it('archived verifier checks Host registry directly, not deleted readiness files', () => {
+    const src = read('archive/knowledge-mcp/scripts/verify.mjs');
+    expect(src).toContain('assertAc1AppBindingRegistryUrl');
+    expect(src).toContain('mcp_server_registry::lookup(&key)');
+    expect(src).not.toMatch(/mcp_endpoint_readiness/);
+    expect(src).not.toMatch(/readinessTests|readinessSrc/);
+  });
+
   it('e2e contract entry defaults to Host MCP URL :9876', () => {
     const e2ePath = join(repoRoot, 'scripts/todo-task-mcp-e2e.mjs');
     expect(existsSync(e2ePath), 'missing scripts/todo-task-mcp-e2e.mjs').toBe(true);

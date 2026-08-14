@@ -1607,20 +1607,16 @@ async function testMissingWorkbenchUrl() {
 const REPO_ROOT = path.join(PKG_ROOT, '..', '..');
 
 /**
- * AC1 — Host registry/readiness inject URL for Binding key todo_task is
+ * AC1 — Host registry exposes the Binding transport URL for key todo_task as
  * http://127.0.0.1:<mcp_port>/mcp/todo_task (key≡scene_slot; no bare /mcp overwrite).
  */
-async function assertAc1AppBindingInjectUrl() {
+async function assertAc1AppBindingRegistryUrl() {
   const registrySrc = fs.readFileSync(
     path.join(REPO_ROOT, 'src-tauri/src/services/mcp_server_registry.rs'),
     'utf8',
   );
-  const readinessSrc = fs.readFileSync(
-    path.join(REPO_ROOT, 'src-tauri/src/services/mcp_endpoint_readiness.rs'),
-    'utf8',
-  );
-  const readinessTests = fs.readFileSync(
-    path.join(REPO_ROOT, 'src-tauri/src/unit-tests/services/mcp_endpoint_readiness_tests.rs'),
+  const loopSrc = fs.readFileSync(
+    path.join(REPO_ROOT, 'src-tauri/src/services/agent/loop.rs'),
     'utf8',
   );
 
@@ -1636,19 +1632,8 @@ async function assertAc1AppBindingInjectUrl() {
       'AC1: registry seeded transport must format http://127.0.0.1:{}/mcp/{}',
     );
   }
-  if (!readinessSrc.includes('format!("http://127.0.0.1:{mcp_port}/mcp/{key}")')) {
-    throw new Error(
-      'AC1: readiness must inject http://127.0.0.1:{mcp_port}/mcp/{key} (not bare /mcp)',
-    );
-  }
-  if (readinessSrc.includes('format!("http://127.0.0.1:{mcp_port}/mcp")')) {
-    throw new Error('AC1: readiness must not overwrite with bare /mcp');
-  }
-  if (!readinessTests.includes('/mcp/{SEEDED_BUSINESS_KEY}')) {
-    throw new Error('AC1: readiness tests must observe inject URL .../mcp/todo_task');
-  }
-  if (!readinessTests.includes('ready_transports_inject_mcp_key_path_not_bare_mcp')) {
-    throw new Error('AC1: missing readiness test ready_transports_inject_mcp_key_path_not_bare_mcp');
+  if (!loopSrc.includes('mcp_server_registry::lookup(&key)')) {
+    throw new Error('AC1: key-only Binding Set must look up the Host registry directly');
   }
 }
 
@@ -1760,7 +1745,7 @@ async function assertAc6KeyOnlyBindingAndIdeMcpJsonOnly() {
  * A1 close observation = tools/list success on both registered path slots (AC2+AC3).
  */
 async function testDualChannelAcceptanceAc1ToAc6(workbenchUrl) {
-  await assertAc1AppBindingInjectUrl();
+  await assertAc1AppBindingRegistryUrl();
   await assertAc2ThroughAc5Runtime(workbenchUrl);
   await assertAc6KeyOnlyBindingAndIdeMcpJsonOnly();
 }
