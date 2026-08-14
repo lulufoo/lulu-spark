@@ -805,7 +805,6 @@ pub fn to_config_json(
         "test_sandbox": is_test_sandbox(),
         "has_github_token": has_github_token,
         "has_meili_key": has_meili_key,
-        "has_llm_key": has_host_key,
         "has_host_key": has_host_key,
         "llm": {
             "platform": current.platform,

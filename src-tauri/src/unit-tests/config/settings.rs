@@ -20,7 +20,6 @@ fn defaults_select_host_but_do_not_fabricate_llm_credentials() {
     let json = to_config_json(&settings, false, false, false);
     assert_eq!(json["assistant_engine"], "host");
     assert_eq!(json["has_host_key"], false);
-    assert_eq!(json["has_llm_key"], false);
     assert!(json.get("has_cursor_key").is_none());
 }
 

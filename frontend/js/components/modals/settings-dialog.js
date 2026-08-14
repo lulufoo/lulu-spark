@@ -158,8 +158,7 @@ function loadAssistantEnginePanel(cfg) {
   const categoryId = normalizeEngineCategory(cfg?.assistant_engine);
   const llm = cfg?.llm ?? {};
 
-  // Legacy `has_llm_key` maps to host credential (t3 migration).
-  engineKeyHints.has_host_key = Boolean(cfg?.has_host_key ?? cfg?.has_llm_key);
+  engineKeyHints.has_host_key = Boolean(cfg?.has_host_key);
   const engineSelect = document.getElementById('settings-llm-engine');
   const modelInput = document.getElementById('settings-llm-model');
   const keyHint = document.getElementById('settings-llm-key-hint');

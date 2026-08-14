@@ -745,7 +745,7 @@ where
 pub fn map_llm_error(err: &LlmError) -> TurnOutcome {
     let reply_text = match err {
         LlmError::MissingConfig => {
-            "LLM 配置不完整，请到应用「设置」中填写 api_key、base_url 与 model。".into()
+            "Host / GLM is not configured. Enter the API key and model in Settings.".into()
         }
         LlmError::Unauthorized => "鉴权失败，请检查 API Key 配置。".into(),
         LlmError::BadRequest(_) => "请求不被上游接受，请稍后重试或检查配置。".into(),

@@ -61,6 +61,23 @@ fn cursor_payload_is_rejected_without_rewriting_existing_settings() {
 }
 
 #[test]
+fn rejected_engine_payload_does_not_write_host_credential() {
+    with_config(|| {
+        secrets::set_secret(KEY_LLM_API_KEY, "sk-existing").expect("existing key");
+        let result = super::apply_config_payload(&serde_json::json!({
+            "assistant_engine": "cursor",
+            "api_key_host": "sk-should-not-write"
+        }));
+
+        assert!(result.is_err(), "legacy engine payload must be rejected");
+        assert_eq!(
+            secrets::get_secret(KEY_LLM_API_KEY).expect("get key"),
+            Some("sk-existing".into())
+        );
+    });
+}
+
+#[test]
 fn legacy_cursor_secret_payload_is_ignored() {
     with_config(|| {
         secrets::apply_token_payload(

@@ -13,11 +13,15 @@ use crate::config::settings;
 
 #[tauri::command]
 pub fn set_config(_app: AppHandle, payload: Value) -> Result<Value, String> {
-    if let Err(e) = secrets::apply_token_payload(&payload) {
+    apply_config_payload(&payload)
+}
+
+fn apply_config_payload(payload: &Value) -> Result<Value, String> {
+    let mut settings = settings::load().map_err(|e| format!("{e}"))?;
+    settings::apply_config_payload(&mut settings, payload).map_err(|e| format!("{e}"))?;
+    if let Err(e) = secrets::apply_token_payload(payload) {
         return Ok(secrets::secret_error_json(&e));
     }
-    let mut settings = settings::load().map_err(|e| format!("{e}"))?;
-    settings::apply_config_payload(&mut settings, &payload).map_err(|e| format!("{e}"))?;
     if !settings::is_test_sandbox() {
         settings::normalize_cache_dir(&mut settings);
         settings::normalize_prod_paths(&mut settings);

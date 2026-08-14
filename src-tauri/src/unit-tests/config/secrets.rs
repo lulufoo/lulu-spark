@@ -28,7 +28,6 @@ fn host_llm_key_is_the_only_assistant_credential_slot() {
     .expect("apply");
 
     assert!(has_host_key());
-    assert!(has_llm_key());
     assert_eq!(
         get_secret(KEY_LLM_API_KEY).expect("get host"),
         Some("sk-host".to_string())
@@ -59,9 +58,12 @@ fn empty_host_key_keeps_existing_key_when_ui_omits_credentials() {
 }
 
 #[test]
-fn legacy_api_key_empty_value_clears_host_key() {
+fn legacy_api_key_payload_is_ignored() {
     test_secrets_clear();
-    set_secret(KEY_LLM_API_KEY, "sk-old").expect("set");
-    apply_token_payload(&serde_json::json!({ "api_key": "" })).expect("apply");
-    assert_eq!(get_secret(KEY_LLM_API_KEY).expect("get"), None);
+    set_secret(KEY_LLM_API_KEY, "sk-existing").expect("set");
+    apply_token_payload(&serde_json::json!({ "api_key": "sk-legacy" })).expect("apply");
+    assert_eq!(
+        get_secret(KEY_LLM_API_KEY).expect("get"),
+        Some("sk-existing".to_string())
+    );
 }

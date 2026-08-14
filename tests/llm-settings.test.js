@@ -36,7 +36,6 @@ function baseConfig(overrides = {}) {
     github_user_url: '',
     has_github_token: false,
     assistant_engine: 'host',
-    has_llm_key: false,
     has_host_key: false,
     llm: {
       platform: 'glm',
@@ -81,7 +80,6 @@ describe('Host-only Assistant / Engine settings', () => {
     vi.clearAllMocks();
     mountSettingsDom();
     api.fetchConfig.mockResolvedValue(baseConfig({
-      has_llm_key: true,
       has_host_key: true,
       llm: {
         platform: 'glm',
@@ -90,7 +88,6 @@ describe('Host-only Assistant / Engine settings', () => {
       },
     }));
     api.setConfig.mockResolvedValue(baseConfig({
-      has_llm_key: true,
       has_host_key: true,
       llm: {
         platform: 'glm',

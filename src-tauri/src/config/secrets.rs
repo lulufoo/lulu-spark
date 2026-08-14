@@ -17,7 +17,7 @@ fn keyring_service() -> &'static str {
 
 pub const KEY_GITHUB_TOKEN: &str = "github_token";
 pub const KEY_MEILI_MASTER: &str = "meili_master_key";
-/// Host-engine credential slot (legacy `api_key` / `KEY_LLM_API_KEY`).
+/// Host/GLM credential slot.
 pub const KEY_LLM_API_KEY: &str = "llm_api_key";
 
 #[derive(Debug)]
@@ -175,17 +175,13 @@ pub fn has_meili_key() -> bool {
         .unwrap_or(false)
 }
 
-/// Host credential present (`KEY_LLM_API_KEY`). Alias kept as `has_llm_key`.
+/// Host credential present (`KEY_LLM_API_KEY`).
 pub fn has_host_key() -> bool {
     get_secret(KEY_LLM_API_KEY)
         .ok()
         .flatten()
         .map(|s| !s.is_empty())
         .unwrap_or(false)
-}
-
-pub fn has_llm_key() -> bool {
-    has_host_key()
 }
 
 /// Apply token fields from `set_config` payload.
@@ -204,15 +200,7 @@ pub fn apply_token_payload(payload: &serde_json::Value) -> Result<(), SecretErro
             set_secret(KEY_MEILI_MASTER, v)?;
         }
     }
-    // Legacy `api_key`: empty clears (existing set_config contract).
-    if let Some(v) = payload.get("api_key").and_then(|x| x.as_str()) {
-        if v.is_empty() {
-            delete_secret(KEY_LLM_API_KEY)?;
-        } else {
-            set_secret(KEY_LLM_API_KEY, v)?;
-        }
-    }
-    // Per-category keys: empty does not clear (UI omits blank credentials).
+    // Host key: empty does not clear (UI omits blank credentials).
     set_secret_if_nonempty(payload, "api_key_host", KEY_LLM_API_KEY)?;
     Ok(())
 }
