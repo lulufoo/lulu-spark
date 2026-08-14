@@ -18,7 +18,8 @@ const REQUIRED_MARKERS = [
   HOST_MCP_SLOT_URL,
   'cursor_ide',
   'todo_task',
-  'cursor-agent-runner',
+  'Host Agent Loop',
+  'registry',
   'IDE confirmation: BLOCKED',
   'AC: NOT_PASSED',
 ];
@@ -35,7 +36,7 @@ describe('T11 IDE/Binding Host MCP acceptance smoke record', () => {
     }
     // Must not claim full AC pass while IDE confirmation is blocked.
     expect(doc).not.toMatch(/AC:\s*PASSED/);
-    expect(doc).toMatch(/外部 MCP URL 消费者|external MCP URL consumer/i);
+    expect(doc).toMatch(/Host Agent Loop/);
   });
 
   it('npm test includes T11 IDE/Binding smoke gate', () => {
@@ -43,7 +44,7 @@ describe('T11 IDE/Binding Host MCP acceptance smoke record', () => {
     expect(pkg.scripts.test).toContain('tests/host-mcp-ide-binding-smoke.test.js');
   });
 
-  it('cursor-agent-runner is removed from the Host MCP surface', () => {
+  it('Cursor Agent runner is removed from the Host MCP surface', () => {
     const pkgJson = join(repoRoot, 'packages/cursor-agent-runner/package.json');
     expect(existsSync(pkgJson), 'cursor-agent-runner package must be removed').toBe(false);
     const adapter = readFileSync(

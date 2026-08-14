@@ -1,6 +1,6 @@
 /**
  * T7 / P4 layered coverage gate + L2 SK-4 Todos parity (P1–P6 / N1/N2).
- * Host Tools + Loop automated markers, UI/config/main-path + dual-platform
+ * Host Tools + Loop automated markers, UI/config/main-path + Host/GLM
  * smoke checklist, plan-task-write regression wiring, Todos parity acceptance.
  */
 // @vitest-environment jsdom
@@ -43,12 +43,11 @@ const REQUIRED_CHECKLIST_MARKERS = [
   '## UI 开窗',
   '## 配置保存',
   '## 主路径冒烟',
-  '## 双平台配置冒烟',
+  '## Host / GLM 配置冒烟',
   '## J1 / execute 门闩内核验收',
   '## Todos 主路径 parity（P1–P6 / N1/N2）',
   'H1 无 UI',
   '通用 Binding 夹具',
-  'KIMI',
   'GLM',
   'P1：进页 Set→onBound 后 Present 可对话',
   'P2：只读查计划/子项基于真实数据',
@@ -132,7 +131,7 @@ const OUT_OF_PARITY_TOOLS = [
 ];
 
 describe('AI assistant P4 layered smoke gate (t7)', () => {
-  it('ships executable smoke checklist with UI/config/main-path and dual-platform steps', () => {
+  it('ships executable smoke checklist with UI/config/main-path and Host/GLM steps', () => {
     expect(
       existsSync(checklistPath),
       'missing tests/ai-assistant-p4-smoke-checklist.md',
