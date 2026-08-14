@@ -6,7 +6,7 @@
 
 ## Conversation Standards
 
-- End each reply with one line: `Turn <n> - <model>` (`<n>` increments within the session; `<model>` names the LLM objectively).
+- End each reply with a separate final line: `Turn <n> - <model>`.
 - Do not use the `AskQuestion` tool.
 
 ## Mermaid in Conversation
