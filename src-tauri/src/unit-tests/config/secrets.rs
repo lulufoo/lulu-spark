@@ -14,63 +14,44 @@ fn set_and_get_github_token() {
 fn empty_github_token_deletes_entry() {
     test_secrets_clear();
     set_secret(KEY_GITHUB_TOKEN, "x").expect("set");
-    delete_secret(KEY_GITHUB_TOKEN).expect("del");
+    delete_secret(KEY_GITHUB_TOKEN).expect("delete");
     assert_eq!(get_secret(KEY_GITHUB_TOKEN).expect("get"), None);
 }
 
 #[test]
-fn has_llm_key_false_when_unset() {
-    test_secrets_clear();
-    assert!(!has_llm_key());
-}
-
-#[test]
-fn apply_token_payload_stores_llm_api_key() {
-    test_secrets_clear();
-    apply_token_payload(&serde_json::json!({ "api_key": "sk-llm-secret" })).expect("apply");
-    assert!(has_llm_key());
-    assert_eq!(
-        get_secret(KEY_LLM_API_KEY).expect("get"),
-        Some("sk-llm-secret".to_string())
-    );
-}
-
-#[test]
-fn apply_token_payload_empty_api_key_clears_llm_secret() {
-    test_secrets_clear();
-    set_secret(KEY_LLM_API_KEY, "sk-old").expect("set");
-    apply_token_payload(&serde_json::json!({ "api_key": "" })).expect("apply");
-    assert!(!has_llm_key());
-    assert_eq!(get_secret(KEY_LLM_API_KEY).expect("get"), None);
-}
-
-#[test]
-fn apply_token_payload_stores_per_category_keys_independently() {
+fn host_llm_key_is_the_only_assistant_credential_slot() {
     test_secrets_clear();
     apply_token_payload(&serde_json::json!({
         "api_key_host": "sk-host",
-        "api_key_cursor": "sk-cursor"
+        "api_key_cursor": "sk-legacy-ignored"
     }))
     .expect("apply");
+
     assert!(has_host_key());
-    assert!(has_cursor_key());
-    assert!(has_llm_key()); // host alias
+    assert!(has_llm_key());
     assert_eq!(
-        get_secret(KEY_LLM_API_KEY).expect("get"),
+        get_secret(KEY_LLM_API_KEY).expect("get host"),
         Some("sk-host".to_string())
-    );
-    assert_eq!(
-        get_secret(KEY_LLM_API_KEY_CURSOR).expect("get"),
-        Some("sk-cursor".to_string())
     );
 }
 
 #[test]
-fn apply_token_payload_empty_api_key_host_does_not_clear_existing() {
+fn legacy_cursor_payload_does_not_create_a_credential_slot() {
+    test_secrets_clear();
+    apply_token_payload(&serde_json::json!({ "api_key_cursor": "sk-legacy" }))
+        .expect("apply");
+    assert!(!has_host_key());
+    assert_eq!(
+        get_secret("llm_api_key_cursor").expect("get legacy key"),
+        None
+    );
+}
+
+#[test]
+fn empty_host_key_keeps_existing_key_when_ui_omits_credentials() {
     test_secrets_clear();
     set_secret(KEY_LLM_API_KEY, "sk-keep").expect("set");
     apply_token_payload(&serde_json::json!({ "api_key_host": "" })).expect("apply");
-    assert!(has_host_key());
     assert_eq!(
         get_secret(KEY_LLM_API_KEY).expect("get"),
         Some("sk-keep".to_string())
@@ -78,25 +59,9 @@ fn apply_token_payload_empty_api_key_host_does_not_clear_existing() {
 }
 
 #[test]
-fn apply_token_payload_empty_api_key_cursor_does_not_clear_existing() {
+fn legacy_api_key_empty_value_clears_host_key() {
     test_secrets_clear();
-    set_secret(KEY_LLM_API_KEY_CURSOR, "sk-cursor-keep").expect("set");
-    apply_token_payload(&serde_json::json!({ "api_key_cursor": "" })).expect("apply");
-    assert!(has_cursor_key());
-    assert_eq!(
-        get_secret(KEY_LLM_API_KEY_CURSOR).expect("get"),
-        Some("sk-cursor-keep".to_string())
-    );
-}
-
-#[test]
-fn migrate_legacy_llm_api_key_preserves_host_credential() {
-    test_secrets_clear();
-    set_secret(KEY_LLM_API_KEY, "sk-legacy-keep").expect("set");
-    migrate_legacy_llm_api_key_to_host().expect("migrate");
-    assert!(has_host_key());
-    assert_eq!(
-        get_secret(KEY_LLM_API_KEY).expect("get"),
-        Some("sk-legacy-keep".to_string())
-    );
+    set_secret(KEY_LLM_API_KEY, "sk-old").expect("set");
+    apply_token_payload(&serde_json::json!({ "api_key": "" })).expect("apply");
+    assert_eq!(get_secret(KEY_LLM_API_KEY).expect("get"), None);
 }

@@ -43,16 +43,15 @@ describe('T11 IDE/Binding Host MCP acceptance smoke record', () => {
     expect(pkg.scripts.test).toContain('tests/host-mcp-ide-binding-smoke.test.js');
   });
 
-  it('cursor-agent-runner remains a separate package (not Host-embedded MCP)', () => {
+  it('cursor-agent-runner is removed from the Host MCP surface', () => {
     const pkgJson = join(repoRoot, 'packages/cursor-agent-runner/package.json');
-    expect(existsSync(pkgJson), 'cursor-agent-runner package must remain').toBe(true);
+    expect(existsSync(pkgJson), 'cursor-agent-runner package must be removed').toBe(false);
     const adapter = readFileSync(
       join(repoRoot, 'src-tauri/src/services/mcp_protocol_adapter.rs'),
       'utf8',
     );
     expect(adapter).not.toMatch(/cursor-agent-runner/);
     const libRs = readFileSync(join(repoRoot, 'src-tauri/src/lib.rs'), 'utf8');
-    // Host may spawn the runner as an external process path, but must not nest it into MCP adapter.
-    expect(libRs).toMatch(/packages\/cursor-agent-runner/);
+    expect(libRs).not.toMatch(/packages\/cursor-agent-runner/);
   });
 });

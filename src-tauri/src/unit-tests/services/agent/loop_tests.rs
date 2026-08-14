@@ -3642,11 +3642,9 @@ fn t2_binding_from_json_accepts_key_only_rejects_legacy() {
 
 // --- t4: session capability context read-only consumption face ---
 //
-// Locks the engine-facing read API for future Host Loop + Cursor Local adapters.
-// No engine-branch injection code in this slice (L3).
+// Locks the Host Loop read API and keeps transport injection out of this slice.
 //
-// A1 confirmed (not narrowed): the same decision-level McpServerConfig shape
-// returned by this read face is the shared consumption form for both engines;
+// The same decision-level McpServerConfig shape is returned by this read face;
 // field-level transport schema (stdio/http/…) remains deferred.
 //
 // A2 confirmed (not narrowed): Host mcp_server_registry is the sole lookup
@@ -3669,11 +3667,11 @@ fn t4_read_face_exposes_decision_level_shape_matching_registry_value() {
             !view.capability_description.trim().is_empty(),
             "read face must expose non-empty decision-level capability description"
         );
-        // Shared form for both future engines (A1): same type/shape, no engine param.
+        // Shared decision-level form: same type/shape, no channel parameter.
         assert_eq!(
             view.capability_description,
             expected.capability_description,
-            "Host Loop and Cursor Local must consume the same decision-level fields"
+            "Host Loop must consume the decision-level fields"
         );
     });
 }
@@ -3805,13 +3803,13 @@ fn t4_read_face_cannot_reinject_legacy_tools_prompt_callbacks() {
 fn t4_a1_a2_handoff_assumptions_confirmed_not_narrowed() {
     with_sandbox(|| {
         use crate::services::mcp_server_registry::{self, SEEDED_BUSINESS_KEY};
-        // A1: one decision-level shape, dual-engine readable (no engine-specific fields).
+        // A1: one decision-level shape, with no channel-specific fields.
         r#loop::try_set_binding_json(&key_only_payload(SEEDED_BUSINESS_KEY)).expect("Set");
         let face = r#loop::session_capability_mcp_config().expect("face");
         let table = mcp_server_registry::lookup(SEEDED_BUSINESS_KEY).expect("table");
         assert_eq!(
             face, table,
-            "A1 confirmed: read face exposes the same decision-level form both engines will read"
+            "A1 confirmed: read face exposes the registry decision-level form"
         );
 
         // A2: Host authoritative table is the sole lookup source at Set; Binding
@@ -3821,8 +3819,8 @@ fn t4_a1_a2_handoff_assumptions_confirmed_not_narrowed() {
             "A2 confirmed: loaded view originates from Host registry lookup, not caller payload"
         );
         assert!(
-            r#loop::SESSION_CAPABILITY_READ_FACE_A1_DUAL_ENGINE_SAME_SHAPE,
-            "A1 must be explicitly confirmed in delivery (not silently narrowed)"
+            r#loop::SESSION_CAPABILITY_READ_FACE_REGISTRY_SHAPE,
+            "A1 must be explicitly confirmed in delivery"
         );
         assert!(
             r#loop::SESSION_CAPABILITY_READ_FACE_A2_HOST_REGISTRY_SOLE_LOOKUP,
@@ -3831,7 +3829,7 @@ fn t4_a1_a2_handoff_assumptions_confirmed_not_narrowed() {
     });
 }
 
-// --- T3 / P3: Host Loop empty tools + zero Cursor ---
+// --- T3 / P3: Host Loop empty tools ---
 
 #[test]
 fn t3_host_business_chat_sends_empty_tools_to_llm() {
@@ -3852,10 +3850,10 @@ fn t3_host_business_chat_sends_empty_tools_to_llm() {
 }
 
 #[test]
-fn t3_host_facade_open_ensure_chat_works_without_cursor() {
+fn t3_host_facade_open_ensure_chat_works_host_only() {
     with_sandbox(|| {
-        let master = create_bound_plan("t3-no-cursor");
-        let mock = spawn_scripted_llm(vec![assistant_text("无 Cursor 亦可完成门面会话")]);
+        let master = create_bound_plan("t3-host-only");
+        let mock = spawn_scripted_llm(vec![assistant_text("Host-only facade session")]);
         install_llm_cfg(&mock);
         arm_plan_binding(&master);
 
@@ -3874,30 +3872,30 @@ fn t3_host_facade_open_ensure_chat_works_without_cursor() {
             result.body["reply_text"]
                 .as_str()
                 .unwrap_or("")
-                .contains("门面会话")
+                .contains("Host-only facade session")
         );
         assert_host_llm_tools_empty(&mock.hits.lock().unwrap()[0]);
     });
 }
 
 #[test]
-fn t3_host_path_modules_do_not_import_cursor_adapter() {
-    // Module boundary: Host loop/llm must not import Cursor SDK / cursor_adapter.
+fn t3_host_path_modules_do_not_import_removed_agent_stack() {
+    // Module boundary: Host loop/llm must not import the removed agent stack.
     let loop_src = include_str!("../../../services/agent/loop.rs");
     let llm_src = include_str!("../../../services/agent/llm.rs");
     for (label, src) in [("loop.rs", loop_src), ("llm.rs", llm_src)] {
         let lower = src.to_ascii_lowercase();
         assert!(
-            !lower.contains("cursor_adapter"),
-            "{label} must not import/link cursor_adapter"
+            !lower.contains("process_manager"),
+            "{label} must not import/link process_manager"
         );
         assert!(
             !lower.contains("cursor_sdk"),
-            "{label} must not import/link Cursor SDK"
+            "{label} must not import/link removed SDK code"
         );
         assert!(
             !src.contains("cursor_agent") && !src.contains("CursorAgent"),
-            "{label} must not reference Cursor Agent SDK symbols"
+            "{label} must not reference removed agent symbols"
         );
     }
 }
@@ -3955,11 +3953,10 @@ fn t3_host_unexpected_tool_calls_never_call_process_dispatch() {
 }
 
 #[test]
-fn t3_a3_host_empty_tools_facade_usable_confirmed() {
-    // Must Close Before F-45 / AC2: A3 confirmed (not silently narrowed).
+fn t3_host_empty_tools_facade_usable_confirmed() {
     assert!(
-        r#loop::HOST_EMPTY_TOOLS_A3_FACADE_USABLE,
-        "A3 must be explicitly confirmed: Host empty tools still usable for facade session"
+        r#loop::HOST_EMPTY_TOOLS_FACADE_USABLE,
+        "Host empty tools must remain usable for facade sessions"
     );
     with_sandbox(|| {
         let master = create_bound_plan("t3-a3");

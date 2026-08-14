@@ -16,9 +16,9 @@ pub const EVENT_ASSISTANT_OPENED: &str = "ai-assistant:opened";
 /// Emitted when Binding Contract Set/Reset/defensive cut changes `query_binding` state (shell composer gate).
 pub const EVENT_BINDING_CHANGED: &str = "ai-assistant:binding-changed";
 
-/// P1 / T1: engine-opaque session facade — public open/ensure/chat entry points
-/// never accept Host/Cursor/engine selection parameters; callers cannot branch
-/// on engine type via signature or return/event payload fields.
+/// Engine-opaque session facade — public open/ensure/chat entry points never
+/// accept channel-selection parameters; callers cannot branch on the assistant
+/// channel via signatures or return/event payload fields.
 pub const SESSION_FACADE_ENGINE_OPAQUE: bool = true;
 
 pub fn open_ai_assistant_json(master_task_id: &str) -> Result<Value, String> {
@@ -190,7 +190,7 @@ pub fn agent_chat_turn_json(
     message: &str,
     master_task_id: Option<&str>,
 ) -> Result<ChatTurnResult, String> {
-    // Engine-aware orchestration (Host∥Cursor); public signature stays engine-opaque.
+    // Channel-aware orchestration stays behind the engine-opaque public facade.
     runtime::chat_turn(session_id, message, master_task_id)
 }
 

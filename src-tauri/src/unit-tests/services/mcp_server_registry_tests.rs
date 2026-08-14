@@ -111,7 +111,7 @@ fn seeded_config_exposes_structured_http_transport() {
         "seeded transport URL must point at MCP path: {}",
         t.url
     );
-    // Candidate URL presence is not readiness — that is mcp_endpoint_readiness's job.
+    // Candidate URL presence is transport data, not an endpoint readiness claim.
 }
 
 #[test]

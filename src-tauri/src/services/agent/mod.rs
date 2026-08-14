@@ -1,18 +1,12 @@
-//! Host MVP Agent: Session / Tools / LLM / Loop / Cursor Local adapter
-//! (`cursor_adapter` speaks JSONL to `packages/cursor-agent-runner`).
+//! Host MVP Agent: Session / Tools / LLM / Loop.
 
-pub mod cursor_adapter;
 pub mod diagnostics;
-pub mod e2e_gate;
 pub mod engine_router;
 pub mod host_startup;
 pub mod llm;
-pub mod process_manager;
-pub mod profile;
 pub mod r#loop;
 pub mod runtime;
 pub mod session;
-pub mod session_cwd;
 pub mod tools;
 
 /// Plan-assistant system prompt (code constant; not toml / corpus).

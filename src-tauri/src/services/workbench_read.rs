@@ -53,7 +53,6 @@ pub fn get_config(_repo_root: &Path) -> Value {
         secrets::has_github_token(),
         secrets::has_meili_key(),
         secrets::has_host_key(),
-        secrets::has_cursor_key(),
     )
 }
 

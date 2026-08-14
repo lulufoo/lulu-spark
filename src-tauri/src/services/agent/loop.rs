@@ -1,5 +1,5 @@
 //! Agent Loop + Host open/chat-turn core (single-flight, terminals, history caps).
-//! Host business path: LLM tools empty; no process-local tools::dispatch; zero Cursor.
+//! Host business path: LLM tools empty; no process-local tools::dispatch.
 
 use std::collections::HashMap;
 use std::panic::AssertUnwindSafe;
@@ -325,24 +325,21 @@ pub fn try_set_binding_json(v: &Value) -> Result<(), SetError> {
     set_binding_with_mcp(binding, Some(config), Some(key))
 }
 
-/// Must Close Before T4 — A1 confirmed (not narrowed): the same decision-level
-/// `McpServerConfig` shape is the shared read form for future Host Loop and
-/// Cursor Local adapters. Field-level transport schema remains deferred.
-pub const SESSION_CAPABILITY_READ_FACE_A1_DUAL_ENGINE_SAME_SHAPE: bool = true;
+/// The decision-level `McpServerConfig` shape is the shared read form for the
+/// Host Agent Loop. Field-level transport schema remains deferred.
+pub const SESSION_CAPABILITY_READ_FACE_REGISTRY_SHAPE: bool = true;
 
 /// Must Close Before T4 — A2 confirmed (not narrowed): Host `mcp_server_registry`
 /// is the sole lookup source; this face only exposes config already loaded by
 /// key-only Set from that table.
 pub const SESSION_CAPABILITY_READ_FACE_A2_HOST_REGISTRY_SOLE_LOOKUP: bool = true;
 
-/// Must Close Before F-45 / AC2 — A3 confirmed (not narrowed): Host adapter with
-/// empty tools and no Cursor still completes facade open/ensure/chat turns.
-pub const HOST_EMPTY_TOOLS_A3_FACADE_USABLE: bool = true;
+/// Host adapter with empty tools still completes facade open/ensure/chat turns.
+pub const HOST_EMPTY_TOOLS_FACADE_USABLE: bool = true;
 
-/// Read-only session capability consumption face for future engine adapters
-/// (Host Agent Loop + Cursor Local). Returns a detached clone of the MCP Server
-/// config loaded by key-only Binding Set. No engine-branch injection; no write
-/// path — only Set/Reset lifecycle may change the loaded value.
+/// Read-only session capability consumption face for the Host Agent Loop.
+/// Returns a detached clone of the MCP Server config loaded by key-only Binding
+/// Set. No write path — only Set/Reset lifecycle may change the loaded value.
 pub fn session_capability_mcp_config() -> Option<McpServerConfig> {
     session::live_context_owner().loaded_mcp_server()
 }

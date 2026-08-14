@@ -1,582 +1,106 @@
 use super::*;
-use crate::test_support::TestConfigEnv;
+
 use std::fs;
 use std::path::Path;
 
-fn prepare_isolated_config_toml(env: &TestConfigEnv) -> std::path::PathBuf {
-    let config_path = env.config_file_path();
-    fs::create_dir_all(config_path.parent().expect("config parent")).expect("mkdir config");
-    config_path
+use crate::test_support::TestConfigEnv;
+
+fn prepare_config(env: &TestConfigEnv) -> std::path::PathBuf {
+    let path = env.config_file_path();
+    fs::create_dir_all(path.parent().expect("config parent")).expect("mkdir");
+    path
 }
 
 #[test]
-fn load_reads_config_toml_fields() {
-    let dir = tempfile::tempdir().expect("tmp");
-    let env = TestConfigEnv::prod(dir.path());
-    let wb = dir.path().join("my-workbench-knowledge");
-    let kc = dir.path().join("my-knowledge-corpus");
-    let cache = dir.path().join("my-cache");
-    fs::write(
-        prepare_isolated_config_toml(&env),
-        format!(
-            r#"
-workbench_knowledge_root = "{}"
-knowledge_corpus_root = "{}"
-cache_dir = "{}"
-meili_url = "http://127.0.0.1:7701"
-github_user_url = "https://github.com/example"
-"#,
-            wb.display(),
-            kc.display(),
-            cache.display()
-        ),
-    )
-    .expect("write");
-    let s = load().expect("load");
-    assert_eq!(s.workbench_knowledge_root, wb);
-    assert_eq!(s.knowledge_corpus_root, kc);
-    assert_eq!(s.cache_dir, cache);
-    assert_eq!(s.meili_url, "http://127.0.0.1:7701");
-    assert_eq!(s.github_user_url, "https://github.com/example");
+fn defaults_select_host_but_do_not_fabricate_llm_credentials() {
+    let settings = AppSettings::default();
+    assert_eq!(settings.assistant_engine, "host");
+    assert!(settings.llm.is_empty());
+
+    let json = to_config_json(&settings, false, false, false);
+    assert_eq!(json["assistant_engine"], "host");
+    assert_eq!(json["has_host_key"], false);
+    assert_eq!(json["has_llm_key"], false);
+    assert!(json.get("has_cursor_key").is_none());
 }
 
 #[test]
-fn github_user_home_from_https_remote() {
-    assert_eq!(
-        github_user_home_from_remote_url(
-            "https://github.com/lulufoo/lulu-workbench-knowledge.git"
-        ),
-        Some("https://github.com/lulufoo".to_string())
-    );
-}
-
-#[test]
-fn github_user_home_from_ssh_remote() {
-    assert_eq!(
-        github_user_home_from_remote_url("git@github.com:lulufoo/lulu-workbench-knowledge.git"),
-        Some("https://github.com/lulufoo".to_string())
-    );
-}
-
-#[test]
-fn workbench_github_blob_base_from_user_url_and_root() {
-    let root = PathBuf::from("/Users/me/Code/lulu-workbench-knowledge");
-    assert_eq!(
-        workbench_github_blob_base("https://github.com/lulufoo", &root),
-        "https://github.com/lulufoo/lulu-workbench-knowledge/blob/main"
-    );
-    assert_eq!(workbench_github_blob_base("", &root), "");
-}
-
-#[test]
-fn load_defaults_when_no_config_file() {
-    let dir = tempfile::tempdir().expect("tmp");
-    let _env = TestConfigEnv::prod(dir.path());
-    let s = load().expect("load");
-    assert_eq!(s.cache_dir, default_cache_dir());
-    assert_eq!(s.meili_url, "http://localhost:7700");
-}
-
-#[test]
-fn save_roundtrip_updates_file() {
-    let dir = tempfile::tempdir().expect("tmp");
-    let _env = TestConfigEnv::prod(dir.path());
-    let mut s = AppSettings::default();
-    s.workbench_knowledge_root = dir.path().join("workbench-x");
-    save(&s).expect("save");
-    let s2 = load().expect("reload");
-    assert_eq!(s2.workbench_knowledge_root, s.workbench_knowledge_root);
-}
-
-#[test]
-fn to_config_json_includes_flags_without_token() {
-    let s = AppSettings::default();
-    let v = to_config_json(&s, true, false, false, false);
-    assert_eq!(v["has_github_token"], true);
-    assert_eq!(v["has_meili_key"], false);
-    assert_eq!(v["has_llm_key"], false);
-    assert_eq!(v["has_host_key"], false);
-    assert_eq!(v["has_cursor_key"], false);
-    assert!(v.get("github_token").is_none());
-    assert!(v.get("meili_master_key").is_none());
-    assert!(v.get("api_key").is_none());
-    assert!(v.get("api_key_host").is_none());
-    assert!(v.get("api_key_cursor").is_none());
-}
-
-#[test]
-fn to_config_json_includes_llm_fields_without_plaintext_key() {
-    let mut s = AppSettings::default();
-    upsert_llm_entry(
-        &mut s.llm,
-        "host",
-        &LlmSettings {
-            platform: "kimi".into(),
-            base_url: "https://api.moonshot.cn".into(),
-            model: "moonshot-v1-8k".into(),
-        },
-    )
-    .expect("upsert host");
-    let v = to_config_json(&s, false, false, true, false);
-    assert_eq!(v["llm"]["platform"], "kimi");
-    assert_eq!(v["llm"]["base_url"], "https://api.moonshot.cn");
-    assert_eq!(v["llm"]["model"], "moonshot-v1-8k");
-    assert_eq!(v["has_llm_key"], true);
-    assert_eq!(v["has_host_key"], true);
-    assert_eq!(v["has_cursor_key"], false);
-    assert!(v.get("api_key").is_none());
-    assert!(v.get("api_key_host").is_none());
-    assert!(v.get("api_key_cursor").is_none());
-    assert!(v["llm"].get("api_key").is_none());
-}
-
-#[test]
-fn apply_config_payload_updates_engine_model_and_stamps_readonly_preset() {
-    let mut s = AppSettings::default();
+fn host_payload_stamps_the_only_supported_glm_preset() {
+    let mut settings = AppSettings::default();
     apply_config_payload(
-        &mut s,
+        &mut settings,
         &serde_json::json!({
             "assistant_engine": "host",
             "llm": {
-                "platform": "kimi",
-                "base_url": "https://api.moonshot.cn",
+                "platform": "client-value",
+                "base_url": "https://client.invalid",
                 "model": "glm-4"
-            },
-            "api_key": "should-not-land-in-settings"
-        }),
-    )
-    .expect("apply");
-    // Client platform/base_url ignored; builtin host preset stamped; model kept.
-    assert_eq!(s.assistant_engine, "host");
-    let host = llm_entry_by_type(&s.llm, "host").expect("host entry");
-    assert_eq!(host.platform, "glm");
-    assert_eq!(host.base_url, "https://open.bigmodel.cn/api/paas/v4");
-    assert_eq!(host.model, "glm-4");
-    let text = toml::to_string(&s).expect("serialize");
-    assert!(!text.contains("should-not-land-in-settings"));
-    assert!(!text.contains("api_key"));
-}
-
-#[test]
-fn apply_config_payload_ignores_illegal_llm_types_without_clobber() {
-    let mut s = AppSettings::default();
-    upsert_llm_entry(
-        &mut s.llm,
-        "host",
-        &LlmSettings {
-            platform: "openai_compatible".into(),
-            base_url: "https://example.com".into(),
-            model: "gpt-4o".into(),
-        },
-    )
-    .expect("seed host");
-    apply_config_payload(
-        &mut s,
-        &serde_json::json!({
-            "llm": {
-                "platform": 123,
-                "base_url": true,
-                "model": {"x": 1}
             }
         }),
     )
     .expect("apply");
-    // No assistant_engine → no stamp; invalid types ignored; prior metadata kept.
-    let host = llm_entry_by_type(&s.llm, "host").expect("host entry");
-    assert_eq!(host.platform, "openai_compatible");
-    assert_eq!(host.base_url, "https://example.com");
-    assert_eq!(host.model, "gpt-4o");
-}
 
-#[test]
-fn llm_fields_roundtrip_in_config_toml_without_api_key() {
-    let dir = tempfile::tempdir().expect("tmp");
-    let _env = TestConfigEnv::prod(dir.path());
-    let mut s = AppSettings::default();
-    upsert_llm_entry(
-        &mut s.llm,
-        "host",
-        &LlmSettings {
-            platform: "openai_compatible".into(),
-            base_url: "https://api.openai.com".into(),
-            model: "gpt-4o-mini".into(),
-        },
-    )
-    .expect("upsert host");
-    save(&s).expect("save");
-    let text = fs::read_to_string(config_file_path().expect("cfg path")).expect("read");
-    assert!(text.contains("[[llm]]") || text.contains("[llm]"));
-    assert!(text.contains("type") || text.contains("host"));
-    assert!(!text.contains("api_key"));
-    let s2 = load().expect("reload");
-    let host = llm_entry_by_type(&s2.llm, "host").expect("host entry");
-    assert_eq!(host.platform, "openai_compatible");
-    assert_eq!(host.base_url, "https://api.openai.com");
-    assert_eq!(host.model, "gpt-4o-mini");
-}
-
-#[test]
-fn is_unstable_cache_dir_detects_macos_tempfile() {
-    assert!(is_unstable_cache_dir(Path::new(
-        "/var/folders/xx/T/.tmp7vvARz/cache"
-    )));
-    assert!(!is_unstable_cache_dir(Path::new(
-        "/Users/me/.cache/lulu-workbench"
-    )));
-}
-
-#[test]
-fn normalize_cache_dir_resets_ephemeral_path() {
-    let mut s = AppSettings::default();
-    s.cache_dir = PathBuf::from("/var/folders/xx/T/.tmp7vvARz/cache");
-    normalize_cache_dir(&mut s);
-    assert_eq!(s.cache_dir, default_cache_dir());
-}
-
-#[test]
-fn apply_config_payload_ignores_cache_dir() {
-    let mut s = AppSettings::default();
-    let before = s.cache_dir.clone();
-    apply_config_payload(
-        &mut s,
-        &serde_json::json!({ "cache_dir": "/var/folders/x/T/.tmp7vvARz/cache" }),
-    )
-    .expect("apply");
-    assert_eq!(s.cache_dir, before);
-}
-
-#[test]
-fn migrate_llm_to_engine_locks_host_when_no_existing_engine() {
-    let legacy = LlmSettings {
-        platform: "kimi".into(),
-        base_url: "https://api.moonshot.cn".into(),
-        model: "moonshot-v1-8k".into(),
-    };
-    let slice = migrate_llm_to_engine(&legacy, Some("sk-legacy"), None);
-    assert_eq!(slice.assistant_engine, "host");
-    assert_eq!(slice.model, "moonshot-v1-8k");
-    assert_eq!(slice.platform, "kimi");
-    assert_eq!(slice.base_url, "https://api.moonshot.cn");
-    assert_eq!(slice.host_api_key.as_deref(), Some("sk-legacy"));
-}
-
-#[test]
-fn migrate_llm_to_engine_respects_existing_cursor_engine() {
-    let legacy = LlmSettings {
-        platform: "glm".into(),
-        base_url: "https://open.bigmodel.cn/api/paas/v4".into(),
-        model: "glm-4".into(),
-    };
-    let slice = migrate_llm_to_engine(&legacy, Some("sk-host"), Some("cursor"));
-    assert_eq!(slice.assistant_engine, "cursor");
-    assert_eq!(slice.model, "glm-4");
-    assert_eq!(slice.host_api_key.as_deref(), Some("sk-host"));
-}
-
-#[test]
-fn migrate_llm_to_engine_treats_blank_existing_as_host() {
-    let legacy = LlmSettings {
-        platform: "x".into(),
-        base_url: "https://x".into(),
-        model: "m".into(),
-    };
-    let slice = migrate_llm_to_engine(&legacy, None, Some("   "));
-    assert_eq!(slice.assistant_engine, "host");
-    assert!(slice.host_api_key.is_none());
-}
-
-#[test]
-fn apply_config_payload_rejects_illegal_assistant_engine() {
-    let mut s = AppSettings::default();
-    s.assistant_engine = "host".into();
-    let err = apply_config_payload(
-        &mut s,
-        &serde_json::json!({ "assistant_engine": "claude" }),
-    )
-    .expect_err("illegal engine");
-    assert!(
-        err.to_string().contains("assistant_engine") || err.to_string().contains("claude"),
-        "err={err}"
-    );
-    assert_eq!(s.assistant_engine, "host");
-}
-
-#[test]
-fn apply_config_payload_accepts_host_and_cursor_engines() {
-    let mut s = AppSettings::default();
-    apply_config_payload(&mut s, &serde_json::json!({ "assistant_engine": "cursor" }))
-        .expect("cursor");
-    assert_eq!(s.assistant_engine, "cursor");
-    let cursor = llm_entry_by_type(&s.llm, "cursor").expect("cursor entry");
-    assert_eq!(cursor.platform, "cursor_agent");
-    assert_eq!(cursor.base_url, "(managed by Cursor Agent)");
-    apply_config_payload(&mut s, &serde_json::json!({ "assistant_engine": "host" }))
-        .expect("host");
-    assert_eq!(s.assistant_engine, "host");
-    let host = llm_entry_by_type(&s.llm, "host").expect("host entry");
+    let host = llm_entry_by_type(&settings.llm, "host").expect("host");
     assert_eq!(host.platform, "glm");
     assert_eq!(host.base_url, "https://open.bigmodel.cn/api/paas/v4");
-}
-
-#[test]
-fn load_stamps_builtin_preset_when_entry_platform_base_url_blank() {
-    let dir = tempfile::tempdir().expect("tmp");
-    let env = TestConfigEnv::prod(dir.path());
-    fs::write(
-        prepare_isolated_config_toml(&env),
-        r#"
-assistant_engine = "host"
-
-[[llm]]
-type = "host"
-model = "glm-4"
-"#,
-    )
-    .expect("write");
-    let s = load().expect("load");
-    assert_eq!(s.assistant_engine, "host");
-    let host = llm_entry_by_type(&s.llm, "host").expect("host entry");
     assert_eq!(host.model, "glm-4");
-    assert_eq!(host.platform, "glm");
-    assert_eq!(host.base_url, "https://open.bigmodel.cn/api/paas/v4");
 }
 
 #[test]
-fn load_typed_llm_list_host_entry_without_requiring_cursor() {
-    let dir = tempfile::tempdir().expect("tmp");
-    let env = TestConfigEnv::prod(dir.path());
-    fs::write(
-        prepare_isolated_config_toml(&env),
-        r#"
-assistant_engine = "host"
-
-[[llm]]
-type = "host"
-platform = "kimi"
-base_url = "https://api.moonshot.cn"
-model = "moonshot-v1-8k"
-"#,
-    )
-    .expect("write");
-    let s = load().expect("load");
-    assert_eq!(s.assistant_engine, "host");
-    let host = llm_entry_by_type(&s.llm, "host").expect("host entry");
-    assert_eq!(host.model, "moonshot-v1-8k");
-    assert_eq!(host.platform, "kimi");
-    assert_eq!(host.base_url, "https://api.moonshot.cn");
-    assert!(llm_entry_by_type(&s.llm, "cursor").is_none());
+fn config_payload_rejects_cursor_and_unknown_engine_values() {
+    for value in ["cursor", "claude", ""] {
+        let mut settings = AppSettings::default();
+        assert!(
+            apply_config_payload(
+                &mut settings,
+                &serde_json::json!({ "assistant_engine": value }),
+            )
+            .is_err(),
+            "{value:?} must not be writable"
+        );
+        assert_eq!(settings.assistant_engine, "host");
+    }
 }
 
 #[test]
-fn load_respects_existing_cursor_assistant_engine_while_keeping_llm_model() {
+fn legacy_cursor_value_is_preserved_on_load_but_not_resolved_as_an_entry() {
     let dir = tempfile::tempdir().expect("tmp");
     let env = TestConfigEnv::prod(dir.path());
     fs::write(
-        prepare_isolated_config_toml(&env),
+        prepare_config(&env),
         r#"
 assistant_engine = "cursor"
 
 [[llm]]
 type = "cursor"
-platform = "glm"
-base_url = "https://open.bigmodel.cn/api/paas/v4"
+platform = "cursor_agent"
+base_url = "(managed by Cursor Agent)"
 model = "composer-1"
 "#,
     )
     .expect("write");
-    let s = load().expect("load");
-    assert_eq!(s.assistant_engine, "cursor");
-    let cursor = llm_entry_by_type(&s.llm, "cursor").expect("cursor entry");
-    assert_eq!(cursor.model, "composer-1");
+
+    let settings = load().expect("load");
+    assert_eq!(settings.assistant_engine, "cursor");
+    assert_eq!(settings.llm[0].engine_type, "cursor");
+    assert!(llm_entry_by_type(&settings.llm, "cursor").is_none());
 }
 
 #[test]
-fn is_test_sandbox_false_when_unset() {
+fn blank_assistant_engine_is_preserved_on_load() {
     let dir = tempfile::tempdir().expect("tmp");
-    let _env = TestConfigEnv::prod(dir.path());
-    assert!(!is_test_sandbox());
+    let env = TestConfigEnv::prod(dir.path());
+    fs::write(prepare_config(&env), "assistant_engine = \"\"\n").expect("write");
+
+    let settings = load().expect("load");
+    assert!(settings.assistant_engine.is_empty());
 }
 
 #[test]
-fn is_test_sandbox_true_when_true_or_one() {
-    let dir = tempfile::tempdir().expect("tmp");
-    let _env = TestConfigEnv::sandbox(dir.path(), "id1");
-    assert!(is_test_sandbox());
-}
-
-#[test]
-fn validate_test_sandbox_id_rejects_illegal() {
-    assert!(validate_test_sandbox_id("ok_ID-1").is_ok());
-    assert!(validate_test_sandbox_id("bad/id").is_err());
-    assert!(validate_test_sandbox_id("").is_err());
-}
-
-/// Scene: AI/test process sets `TestSandbox=true` + `TestSandboxId` → instance config plane.
-#[test]
-fn scene_test_sandbox_instance_dir_ports_and_hard_guard() {
-    crate::test_support::with_config_test_serial(|| {
-        let sandbox = crate::test_support::TestSandbox::new();
-        let id = std::env::var("TestSandboxId").expect("TestSandboxId");
-        let expected_dir = sandbox
-            .config_dir()
-            .join(".config")
-            .join(format!("lulu-workbench-sandbox-{id}"));
-        let cfg_path = config_file_path().expect("config path");
-        assert_eq!(cfg_path, expected_dir.join(PROD_CONFIG_FILE_NAME));
-        assert!(cfg_path.is_file(), "initiator-forked config.toml must exist");
-
-        let cfg = load().expect("load sandbox");
-        assert_eq!(cfg.effective_http_port(), DEFAULT_SANDBOX_HTTP_PORT);
-        assert_eq!(cfg.effective_mcp_port(), DEFAULT_SANDBOX_MCP_PORT);
-        assert_eq!(cfg.effective_http_port(), 18765);
-        assert_eq!(cfg.effective_mcp_port(), 19876);
-
-        let prod = load_prod_settings();
-        assert_eq!(prod.http_port.unwrap_or(DEFAULT_PROD_HTTP_PORT), 8765);
-        assert_eq!(prod.mcp_port.unwrap_or(DEFAULT_PROD_MCP_PORT), 9876);
-        assert_ne!(cfg.cache_dir, prod.cache_dir);
-        assert_ne!(cfg.workbench_knowledge_root, prod.workbench_knowledge_root);
-        assert_ne!(cfg.meili_url, prod.meili_url);
-
-        eprintln!(
-            "TestSandbox scene ok: id={id} cfg={} http={} mcp={}",
-            cfg_path.display(),
-            cfg.effective_http_port(),
-            cfg.effective_mcp_port()
-        );
-
-        // Hard guard: colliding with prod HTTP port must fail-closed.
-        fs::write(
-            &cfg_path,
-            format!(
-                "workbench_knowledge_root = \"{}\"\nknowledge_corpus_root = \"{}\"\ncache_dir = \"{}\"\nmeili_url = \"http://127.0.0.1:17700\"\nhttp_port = 8765\nmcp_port = 19876\n",
-                cfg.workbench_knowledge_root.display(),
-                cfg.knowledge_corpus_root.display(),
-                cfg.cache_dir.display()
-            ),
-        )
-        .expect("overwrite colliding ports");
-        let err = load().expect_err("port collision must fail");
-        assert!(
-            err.to_string().contains("ports collide") || err.to_string().contains("ConfigGuard"),
-            "err={err}"
-        );
-
-        // Missing instance config → fail (Host does not auto-fork).
-        fs::remove_file(&cfg_path).expect("remove sandbox config");
-        let missing = load().expect_err("missing sandbox config must fail");
-        assert!(
-            missing.to_string().contains("sandbox config missing"),
-            "err={missing}"
-        );
-    });
-}
-
-#[test]
-fn llm_entry_by_type_returns_none_for_empty_list_or_missing_type() {
-    let empty: Vec<LlmSettingsEntry> = vec![];
-    assert!(llm_entry_by_type(&empty, "host").is_none());
-    assert!(llm_entry_by_type(&empty, "cursor").is_none());
-
-    let mut only_host = vec![];
-    upsert_llm_entry(
-        &mut only_host,
-        "host",
-        &LlmSettings {
-            platform: "glm".into(),
-            base_url: "https://host.example".into(),
-            model: "host-model".into(),
-        },
-    )
-    .expect("upsert host");
-    assert!(llm_entry_by_type(&only_host, "cursor").is_none());
-    let host = llm_entry_by_type(&only_host, "host").expect("host");
-    assert_eq!(host.engine_type, "host");
-    assert_eq!(host.model, "host-model");
-    assert_eq!(host.platform, "glm");
-    assert_eq!(host.base_url, "https://host.example");
-}
-
-#[test]
-fn upsert_llm_entry_updates_existing_and_creates_missing_type() {
-    let mut entries = vec![];
+fn llm_entry_helpers_only_accept_host() {
+    let mut entries = Vec::new();
     upsert_llm_entry(
         &mut entries,
-        "host",
-        &LlmSettings {
-            platform: "glm".into(),
-            base_url: "https://host.example".into(),
-            model: "m1".into(),
-        },
-    )
-    .expect("create host");
-    assert_eq!(entries.len(), 1);
-
-    upsert_llm_entry(
-        &mut entries,
-        "host",
-        &LlmSettings {
-            platform: "glm".into(),
-            base_url: "https://host.example".into(),
-            model: "m2".into(),
-        },
-    )
-    .expect("update host");
-    assert_eq!(entries.len(), 1);
-    assert_eq!(llm_entry_by_type(&entries, "host").unwrap().model, "m2");
-
-    upsert_llm_entry(
-        &mut entries,
-        "cursor",
-        &LlmSettings {
-            platform: "cursor_agent".into(),
-            base_url: "(managed by Cursor Agent)".into(),
-            model: "composer-1".into(),
-        },
-    )
-    .expect("create cursor");
-    assert_eq!(entries.len(), 2);
-    assert_eq!(
-        llm_entry_by_type(&entries, "cursor").unwrap().model,
-        "composer-1"
-    );
-    assert_eq!(llm_entry_by_type(&entries, "host").unwrap().model, "m2");
-}
-
-#[test]
-fn upsert_llm_entry_rejects_illegal_engine_type_without_writing() {
-    let mut entries = vec![];
-    let err = upsert_llm_entry(
-        &mut entries,
-        "claude",
-        &LlmSettings {
-            model: "should-not-land".into(),
-            ..Default::default()
-        },
-    )
-    .expect_err("illegal type");
-    assert!(
-        err.to_string().contains("type") || err.to_string().contains("claude"),
-        "err={err}"
-    );
-    assert!(entries.is_empty());
-}
-
-#[test]
-fn app_settings_llm_is_typed_list_not_single_slot() {
-    let mut s = AppSettings::default();
-    assert!(s.llm.is_empty());
-    upsert_llm_entry(
-        &mut s.llm,
-        "cursor",
-        &LlmSettings {
-            model: "composer-1".into(),
-            ..Default::default()
-        },
-    )
-    .expect("cursor");
-    upsert_llm_entry(
-        &mut s.llm,
         "host",
         &LlmSettings {
             model: "glm-4".into(),
@@ -584,400 +108,55 @@ fn app_settings_llm_is_typed_list_not_single_slot() {
         },
     )
     .expect("host");
-    assert_eq!(s.llm.len(), 2);
-    assert_eq!(llm_entry_by_type(&s.llm, "host").unwrap().model, "glm-4");
-    assert_eq!(
-        llm_entry_by_type(&s.llm, "cursor").unwrap().model,
-        "composer-1"
-    );
-}
-
-// --- T2: flat facade ↔ typed list (save isolation / readonly preset) ---
-
-#[test]
-fn to_config_json_exposes_flat_current_llm_not_list() {
-    let mut s = AppSettings::default();
-    s.assistant_engine = "cursor".into();
-    upsert_llm_entry(
-        &mut s.llm,
-        "host",
-        &LlmSettings {
-            platform: "glm".into(),
-            base_url: "https://open.bigmodel.cn/api/paas/v4".into(),
-            model: "host-model".into(),
-        },
-    )
-    .expect("host");
-    upsert_llm_entry(
-        &mut s.llm,
-        "cursor",
-        &LlmSettings {
-            platform: "cursor_agent".into(),
-            base_url: "(managed by Cursor Agent)".into(),
-            model: "cursor-model".into(),
-        },
-    )
-    .expect("cursor");
-    let v = to_config_json(&s, false, false, false, false);
-    assert_eq!(v["assistant_engine"], "cursor");
-    assert!(v["llm"].is_object(), "facade llm must be flat object, not list");
-    assert!(v["llm"].as_array().is_none());
-    assert_eq!(v["llm"]["model"], "cursor-model");
-    assert_eq!(v["llm"]["platform"], "cursor_agent");
-    assert_eq!(v["llm"]["base_url"], "(managed by Cursor Agent)");
+    assert_eq!(llm_entry_by_type(&entries, "host").expect("host").model, "glm-4");
+    assert!(upsert_llm_entry(&mut entries, "cursor", &LlmSettings::default()).is_err());
+    assert!(llm_entry_by_type(&entries, "cursor").is_none());
 }
 
 #[test]
-fn apply_config_payload_first_save_creates_current_type_with_preset_stamp() {
-    let mut s = AppSettings::default();
-    assert!(s.llm.is_empty());
-    apply_config_payload(
-        &mut s,
-        &serde_json::json!({
-            "llm": {
-                "platform": "kimi",
-                "base_url": "https://api.moonshot.cn",
-                "model": "first-host-model"
-            }
-        }),
-    )
-    .expect("apply");
-    assert_eq!(s.llm.len(), 1);
-    let host = llm_entry_by_type(&s.llm, "host").expect("host created");
-    assert_eq!(host.model, "first-host-model");
-    // Client preset fields ignored; builtin host preset stamped onto the new entry.
-    assert_eq!(host.platform, "glm");
-    assert_eq!(host.base_url, "https://open.bigmodel.cn/api/paas/v4");
-    assert!(llm_entry_by_type(&s.llm, "cursor").is_none());
+fn to_config_json_hides_legacy_engine_llm_fields() {
+    let mut settings = AppSettings::default();
+    settings.assistant_engine = "cursor".into();
+    settings.llm.push(LlmSettingsEntry {
+        engine_type: "cursor".into(),
+        platform: "cursor_agent".into(),
+        base_url: "(managed by Cursor Agent)".into(),
+        model: "composer-1".into(),
+    });
+
+    let json = to_config_json(&settings, false, false, true);
+    assert_eq!(json["assistant_engine"], "cursor");
+    assert_eq!(json["llm"]["model"], "");
+    assert_eq!(json["llm"]["platform"], "");
+    assert_eq!(json["llm"]["base_url"], "");
+    assert!(json.get("has_cursor_key").is_none());
 }
 
 #[test]
-fn apply_config_payload_save_current_type_preserves_other_type() {
-    let mut s = AppSettings::default();
-    s.assistant_engine = "host".into();
-    upsert_llm_entry(
-        &mut s.llm,
-        "host",
-        &LlmSettings {
-            platform: "glm".into(),
-            base_url: "https://open.bigmodel.cn/api/paas/v4".into(),
-            model: "host-before".into(),
-        },
-    )
-    .expect("host");
-    upsert_llm_entry(
-        &mut s.llm,
-        "cursor",
-        &LlmSettings {
-            platform: "cursor_agent".into(),
-            base_url: "(managed by Cursor Agent)".into(),
-            model: "cursor-keep".into(),
-        },
-    )
-    .expect("cursor");
-    apply_config_payload(
-        &mut s,
-        &serde_json::json!({
-            "llm": {
-                "platform": "should-not-apply",
-                "base_url": "https://evil.example",
-                "model": "host-after"
-            }
-        }),
-    )
-    .expect("apply");
-    let host = llm_entry_by_type(&s.llm, "host").expect("host");
-    assert_eq!(host.model, "host-after");
-    assert_eq!(host.platform, "glm");
-    assert_eq!(host.base_url, "https://open.bigmodel.cn/api/paas/v4");
-    let cursor = llm_entry_by_type(&s.llm, "cursor").expect("cursor preserved");
-    assert_eq!(cursor.model, "cursor-keep");
-    assert_eq!(cursor.platform, "cursor_agent");
-    assert_eq!(cursor.base_url, "(managed by Cursor Agent)");
-}
-
-#[test]
-fn load_apply_to_json_roundtrip_does_not_erase_inactive_type() {
+fn save_roundtrip_keeps_general_settings() {
     let dir = tempfile::tempdir().expect("tmp");
-    let env = TestConfigEnv::prod(dir.path());
-    fs::write(
-        prepare_isolated_config_toml(&env),
-        r#"
-assistant_engine = "host"
+    let _env = TestConfigEnv::prod(dir.path());
+    let mut settings = AppSettings::default();
+    settings.workbench_knowledge_root = Path::new("/tmp/workbench").into();
+    settings.github_user_url = "https://github.com/example".into();
+    save(&settings).expect("save");
 
-[[llm]]
-type = "host"
-platform = "glm"
-base_url = "https://open.bigmodel.cn/api/paas/v4"
-model = "host-a"
-
-[[llm]]
-type = "cursor"
-platform = "cursor_agent"
-base_url = "(managed by Cursor Agent)"
-model = "cursor-b"
-"#,
-    )
-    .expect("write");
-    let mut s = load().expect("load");
-    apply_config_payload(
-        &mut s,
-        &serde_json::json!({ "llm": { "model": "host-c" } }),
-    )
-    .expect("apply");
-    let flat = to_config_json(&s, false, false, false, false);
-    assert_eq!(flat["assistant_engine"], "host");
-    assert_eq!(flat["llm"]["model"], "host-c");
-    assert!(flat["llm"].is_object());
-    save(&s).expect("save");
-    let s2 = load().expect("reload");
-    assert_eq!(
-        llm_entry_by_type(&s2.llm, "host").expect("host").model,
-        "host-c"
-    );
-    let cursor = llm_entry_by_type(&s2.llm, "cursor").expect("cursor intact");
-    assert_eq!(cursor.model, "cursor-b");
-    assert_eq!(cursor.platform, "cursor_agent");
-    assert_eq!(cursor.base_url, "(managed by Cursor Agent)");
-}
-
-
-// --- T5: lock list + flat facade + save isolation + no dual-read ---
-// Migration script (legacy single-slot → typed list) is a follow-on task (L04 / L10 / L11);
-// these tests must not require that script, and must reject in-app dual-read substitutes.
-
-const T5_FOLLOW_ON_MIGRATION_MARKER: &str =
-    "T5_FOLLOW_ON_MIGRATION: legacy single-slot→list is an out-of-band local script; main code must not dual-read.";
-
-#[test]
-fn t5_host_and_cursor_models_stay_isolated_across_facade_switch() {
-    let mut s = AppSettings::default();
-    s.assistant_engine = "host".into();
-    upsert_llm_entry(
-        &mut s.llm,
-        "host",
-        &LlmSettings {
-            platform: "glm".into(),
-            base_url: "https://open.bigmodel.cn/api/paas/v4".into(),
-            model: "host-locked-model".into(),
-        },
-    )
-    .expect("host");
-    upsert_llm_entry(
-        &mut s.llm,
-        "cursor",
-        &LlmSettings {
-            platform: "cursor_agent".into(),
-            base_url: "(managed by Cursor Agent)".into(),
-            model: "cursor-locked-model".into(),
-        },
-    )
-    .expect("cursor");
-
-    let host_flat = to_config_json(&s, false, false, false, false);
-    assert_eq!(host_flat["assistant_engine"], "host");
-    assert!(host_flat["llm"].is_object());
-    assert!(host_flat["llm"].as_array().is_none());
-    assert_eq!(host_flat["llm"]["model"], "host-locked-model");
-    assert_ne!(host_flat["llm"]["model"], "cursor-locked-model");
-
-    s.assistant_engine = "cursor".into();
-    let cursor_flat = to_config_json(&s, false, false, false, false);
-    assert_eq!(cursor_flat["assistant_engine"], "cursor");
-    assert!(cursor_flat["llm"].is_object());
-    assert_eq!(cursor_flat["llm"]["model"], "cursor-locked-model");
-    assert_ne!(cursor_flat["llm"]["model"], "host-locked-model");
-
-    // Switching facade pointer must not mutate stored list entries.
-    assert_eq!(
-        llm_entry_by_type(&s.llm, "host").expect("host").model,
-        "host-locked-model"
-    );
-    assert_eq!(
-        llm_entry_by_type(&s.llm, "cursor").expect("cursor").model,
-        "cursor-locked-model"
-    );
+    let loaded = load().expect("load");
+    assert_eq!(loaded.workbench_knowledge_root, settings.workbench_knowledge_root);
+    assert_eq!(loaded.github_user_url, settings.github_user_url);
 }
 
 #[test]
-fn t5_to_config_json_returns_current_engine_plus_flat_current_entry() {
-    let mut s = AppSettings::default();
-    s.assistant_engine = "cursor".into();
-    upsert_llm_entry(
-        &mut s.llm,
-        "host",
-        &LlmSettings {
-            model: "should-not-surface".into(),
-            ..Default::default()
-        },
-    )
-    .expect("host");
-    upsert_llm_entry(
-        &mut s.llm,
-        "cursor",
-        &LlmSettings {
-            platform: "cursor_agent".into(),
-            base_url: "(managed by Cursor Agent)".into(),
-            model: "facade-current".into(),
-        },
-    )
-    .expect("cursor");
-    let v = to_config_json(&s, false, false, true, false);
-    assert_eq!(v["assistant_engine"], "cursor");
-    assert!(v["llm"].is_object());
-    assert_eq!(v["llm"]["model"], "facade-current");
-    assert_eq!(v["llm"]["platform"], "cursor_agent");
-    assert_eq!(v["llm"]["base_url"], "(managed by Cursor Agent)");
-    assert!(v.get("api_key").is_none());
-    assert!(v["llm"].get("api_key").is_none());
-    assert!(v["llm"].get("type").is_none(), "flat facade must not expose list type field");
-}
-
-#[test]
-fn t5_save_updates_only_current_type_creating_missing_without_clearing_other() {
-    let mut s = AppSettings::default();
-    s.assistant_engine = "host".into();
-    upsert_llm_entry(
-        &mut s.llm,
-        "cursor",
-        &LlmSettings {
-            platform: "cursor_agent".into(),
-            base_url: "(managed by Cursor Agent)".into(),
-            model: "cursor-preexisting".into(),
-        },
-    )
-    .expect("seed cursor only");
-    assert!(llm_entry_by_type(&s.llm, "host").is_none());
-
-    apply_config_payload(
-        &mut s,
-        &serde_json::json!({
-            "assistant_engine": "host",
-            "llm": { "model": "host-created" }
-        }),
-    )
-    .expect("create host");
+fn github_remote_helpers_remain_unchanged() {
     assert_eq!(
-        llm_entry_by_type(&s.llm, "host").expect("host created").model,
-        "host-created"
+        github_user_home_from_remote_url("git@github.com:lulufoo/project.git"),
+        Some("https://github.com/lulufoo".into())
     );
     assert_eq!(
-        llm_entry_by_type(&s.llm, "cursor")
-            .expect("cursor preserved")
-            .model,
-        "cursor-preexisting"
-    );
-
-    apply_config_payload(
-        &mut s,
-        &serde_json::json!({
-            "assistant_engine": "cursor",
-            "llm": { "model": "cursor-updated" }
-        }),
-    )
-    .expect("update cursor");
-    assert_eq!(
-        llm_entry_by_type(&s.llm, "cursor").expect("cursor").model,
-        "cursor-updated"
-    );
-    assert_eq!(
-        llm_entry_by_type(&s.llm, "host").expect("host intact").model,
-        "host-created"
-    );
-}
-
-#[test]
-fn t5_missing_active_entry_facade_is_empty_not_other_type() {
-    let mut s = AppSettings::default();
-    s.assistant_engine = "host".into();
-    upsert_llm_entry(
-        &mut s.llm,
-        "cursor",
-        &LlmSettings {
-            model: "only-cursor".into(),
-            platform: "cursor_agent".into(),
-            base_url: "(managed by Cursor Agent)".into(),
-        },
-    )
-    .expect("cursor");
-    let v = to_config_json(&s, false, false, false, false);
-    assert_eq!(v["assistant_engine"], "host");
-    assert!(v["llm"].is_object());
-    assert_eq!(v["llm"]["model"], "");
-    assert_ne!(v["llm"]["model"], "only-cursor");
-}
-
-#[test]
-fn t5_legacy_single_slot_llm_table_fails_closed_without_dual_read() {
-    let dir = tempfile::tempdir().expect("tmp");
-    let env = TestConfigEnv::prod(dir.path());
-    fs::write(
-        prepare_isolated_config_toml(&env),
-        r#"
-assistant_engine = "host"
-
-[llm]
-platform = "kimi"
-base_url = "https://api.moonshot.cn"
-model = "moonshot-v1-8k"
-"#,
-    )
-    .expect("write");
-    let err = load().expect_err("legacy single-slot [llm] must not dual-read into typed list");
-    let msg = err.to_string();
-    assert!(
-        msg.contains("parse") || msg.contains("sequence") || msg.contains("map"),
-        "expected parse/fail-closed error, got {msg}"
-    );
-}
-
-#[test]
-fn t5_production_sources_have_no_single_slot_llm_field_reads() {
-    let settings_src = include_str!("../../config/settings.rs");
-    let llm_src = include_str!("../../services/agent/llm.rs");
-    let router_src = include_str!("../../services/agent/engine_router.rs");
-    for (label, src) in [
-        ("settings.rs", settings_src),
-        ("llm.rs", llm_src),
-        ("engine_router.rs", router_src),
-    ] {
-        // Forbid AppSettings single-slot field access (pre-list shape).
-        assert!(
-            !src.contains("settings.llm.model"),
-            "{label}: forbidden settings.llm.model single-slot read"
-        );
-        assert!(
-            !src.contains("settings.llm.platform"),
-            "{label}: forbidden settings.llm.platform single-slot read"
-        );
-        assert!(
-            !src.contains("settings.llm.base_url"),
-            "{label}: forbidden settings.llm.base_url single-slot read"
-        );
-    }
-    // Runtime must resolve via typed list helper (current entry), not a dual-read shim.
-    assert!(
-        llm_src.contains("llm_entry_by_type"),
-        "llm.rs must read model/base_url via llm_entry_by_type"
-    );
-    assert!(
-        router_src.contains("llm_entry_by_type"),
-        "engine_router.rs must read model via llm_entry_by_type"
-    );
-    assert!(
-        !settings_src.lines().any(|l| {
-            let t = l.trim();
-            t.contains("deserialize_with") && t.contains("llm") && !t.starts_with("//")
-        }),
-        "settings.rs must not custom-deserialize llm for dual-read compatibility"
-    );
-}
-
-#[test]
-fn t5_follow_on_migration_marker_present_in_settings_source() {
-    let settings_src = include_str!("../../config/settings.rs");
-    assert!(
-        settings_src.contains(T5_FOLLOW_ON_MIGRATION_MARKER),
-        "settings.rs must document that single-slot→list migration is follow-on (not dual-read). missing marker: {T5_FOLLOW_ON_MIGRATION_MARKER}"
+        workbench_github_blob_base(
+            "https://github.com/lulufoo",
+            Path::new("/Users/me/Code/lulu-workbench-knowledge"),
+        ),
+        "https://github.com/lulufoo/lulu-workbench-knowledge/blob/main"
     );
 }

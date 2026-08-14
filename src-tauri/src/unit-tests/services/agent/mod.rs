@@ -6,53 +6,19 @@ mod loop_tests;
 #[path = "engine_router_tests.rs"]
 mod engine_router_tests;
 
-#[path = "cursor_adapter_tests.rs"]
-mod cursor_adapter_tests;
-
-#[path = "session_cwd_tests.rs"]
-mod session_cwd_tests;
-
 #[path = "runtime_tests.rs"]
 mod runtime_tests;
-
-#[path = "e2e_gate_tests.rs"]
-mod e2e_gate_tests;
-
-#[path = "process_manager_tests.rs"]
-mod process_manager_tests;
 
 #[path = "host_startup_tests.rs"]
 mod host_startup_tests;
 
-#[path = "host_shutdown_tests.rs"]
-mod host_shutdown_tests;
-
-#[path = "cursor_llm_engine_tests.rs"]
-mod cursor_llm_engine_tests;
-
-#[path = "replace_create_tests.rs"]
-mod replace_create_tests;
-
-#[path = "error_tracks_tests.rs"]
-mod error_tracks_tests;
-
 #[path = "ai_assistant_session_tests.rs"]
 mod ai_assistant_session_tests;
 
-#[path = "cutover_tests.rs"]
-mod cutover_tests;
-
-#[path = "verify_agent_tests.rs"]
-mod verify_agent_tests;
-
-#[path = "profile_tests.rs"]
-mod profile_tests;
-
 use std::fs;
-use std::collections::BTreeMap;
 use std::io::{Read, Write};
 use std::net::TcpListener;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
@@ -63,11 +29,9 @@ use crate::config::secrets::{self, KEY_LLM_API_KEY};
 use crate::config::settings;
 use crate::services::agent::diagnostics::{self, DiagnosticEvent, TraceId};
 use crate::services::agent::llm::{self, LlmConfig, LlmError};
-use crate::services::agent::profile::BusinessProfileSnapshot;
 use crate::services::agent::session::{self, Session, Turn};
 use crate::services::agent::tools;
 use crate::services::agent::PLAN_ASSISTANT_SYSTEM_PROMPT;
-use crate::services::mcp_endpoint_readiness::SdkHttpMcpServer;
 use crate::services::todo_task;
 use crate::test_support::TestSandbox;
 
@@ -75,29 +39,6 @@ fn with_agent_sandbox<F: FnOnce(&TestSandbox)>(f: F) {
     let sandbox = TestSandbox::new();
     secrets::test_secrets_clear();
     f(&sandbox);
-}
-
-pub(crate) fn test_business_profile(model: &str) -> BusinessProfileSnapshot {
-    let mut headers = BTreeMap::new();
-    headers.insert(
-        "Accept".to_string(),
-        "application/json, text/event-stream".to_string(),
-    );
-    let mut mcp_servers = BTreeMap::new();
-    mcp_servers.insert(
-        "workbench".to_string(),
-        SdkHttpMcpServer {
-            transport_type: "http".to_string(),
-            url: "http://127.0.0.1:9876/mcp/todo_task".to_string(),
-            headers,
-        },
-    );
-    BusinessProfileSnapshot {
-        business_id: "todo_task".to_string(),
-        model: model.to_string(),
-        cwd: PathBuf::from("/tmp/lulu-workbench-business-cwd"),
-        mcp_servers,
-    }
 }
 
 fn create_bound_plan(title: &str) -> String {
@@ -212,7 +153,7 @@ fn assistant_diagnostic_log_is_versioned_jsonl_with_safe_metadata_only() {
             &trace_id,
             Duration::from_millis(42),
         )
-        .with_static_field("engine", "cursor")
+        .with_static_field("adapter", "host")
         .with_bool_field("persisted", true);
 
         diagnostics::log(event).expect("write diagnostic event");
@@ -231,7 +172,7 @@ fn assistant_diagnostic_log_is_versioned_jsonl_with_safe_metadata_only() {
         assert_eq!(value["event"], "turn.completed");
         assert_eq!(value["trace_id"], "trace_12345678");
         assert_eq!(value["elapsed_ms"], 42);
-        assert_eq!(value["fields"]["engine"], "cursor");
+        assert_eq!(value["fields"]["adapter"], "host");
         assert_eq!(value["fields"]["persisted"], true);
         assert!(
             value.get("message").is_none()
@@ -251,9 +192,6 @@ fn assistant_diagnostics_are_correlated_without_message_content() {
         .expect("read assistant command");
     let runtime = fs::read_to_string(repo_root.join("src-tauri/src/services/agent/runtime.rs"))
         .expect("read assistant runtime");
-    let cursor_adapter =
-        fs::read_to_string(repo_root.join("src-tauri/src/services/agent/cursor_adapter.rs"))
-            .expect("read cursor adapter");
     let frontend =
         fs::read_to_string(repo_root.join("frontend/js/ai-assistant.js")).expect("read assistant UI");
     let diagnostics =
@@ -266,9 +204,9 @@ fn assistant_diagnostics_are_correlated_without_message_content() {
         "Tauri command must carry a caller correlation id into the runtime"
     );
     assert!(
-        runtime.contains("profile_for_business")
-            && cursor_adapter.contains("cursor.turn.completed"),
-        "Cursor execution must resolve the Host Business Profile and expose SDK turn boundaries"
+        runtime.contains("dispatch_from_settings")
+            && runtime.contains("assistant.host"),
+        "Host execution must resolve through the single runtime route"
     );
     assert!(
         frontend.contains("traceId") && frontend.contains("assistant-diagnostic"),
@@ -279,9 +217,8 @@ fn assistant_diagnostics_are_correlated_without_message_content() {
         "diagnostics must not provide an API for arbitrary dynamic strings"
     );
     assert!(
-        diagnostics.contains("with_bounded_text_field")
-            && diagnostics.contains("sdk_error_message"),
-        "diagnostics must allow bounded SDK error classification text"
+        diagnostics.contains("with_bounded_text_field"),
+        "diagnostics must allow bounded error classification text"
     );
 }
 
@@ -297,7 +234,7 @@ fn assistant_diagnostics_bounded_error_text_redacts_secrets_and_newlines() {
     assert!(cleaned.contains("sk-[REDACTED]"));
 
     let trace_id = TraceId::parse("trace_12345678").expect("valid trace id");
-    let event = DiagnosticEvent::point("assistant.cursor", "cursor.turn.completed", &trace_id)
+    let event = DiagnosticEvent::point("assistant.host", "turn.completed", &trace_id)
         .with_bounded_text_field("prompt", "should-not-appear")
         .with_bounded_text_field("sdk_error_message", "rate_limit: quota exceeded");
     assert!(event.fields.get("prompt").is_none());
@@ -682,28 +619,22 @@ fn llm_load_config_uses_active_host_entry_not_cursor_residue() {
             },
         )
         .expect("upsert host");
-        settings::upsert_llm_entry(
-            &mut s.llm,
-            "cursor",
-            &settings::LlmSettings {
-                platform: "cursor_agent".into(),
-                base_url: "https://cursor-residue.example".into(),
-                model: "cursor-residue-model".into(),
-            },
-        )
-        .expect("upsert cursor");
+        s.llm.push(settings::LlmSettingsEntry {
+            engine_type: "cursor".into(),
+            platform: "cursor_agent".into(),
+            base_url: "https://cursor-residue.example".into(),
+            model: "cursor-residue-model".into(),
+        });
         settings::save(&s).expect("save");
         secrets::set_secret(KEY_LLM_API_KEY, "sk-host-slot").expect("set host key");
-        secrets::set_secret(secrets::KEY_LLM_API_KEY_CURSOR, "sk-cursor-slot").expect("set cursor");
 
         let cfg = llm::load_llm_config().expect("cfg");
         assert_eq!(cfg.model, "host-active-model");
         assert_eq!(cfg.base_url, "https://host-only.example/v4");
         assert_ne!(cfg.model, "cursor-residue-model");
         assert_ne!(cfg.base_url, "https://cursor-residue.example");
-        // API key stays on secrets host slot — not pulled from the other type.
+        // API key stays on the Host/GLM slot.
         assert_eq!(cfg.api_key, "sk-host-slot");
-        assert_ne!(cfg.api_key, "sk-cursor-slot");
     });
 }
 
@@ -713,16 +644,12 @@ fn llm_load_config_missing_or_empty_active_entry_is_missing_config_no_cross_type
         let mut s = settings::load().expect("load");
         s.assistant_engine = "host".into();
         // Cursor entry alone must not satisfy Host load.
-        settings::upsert_llm_entry(
-            &mut s.llm,
-            "cursor",
-            &settings::LlmSettings {
-                base_url: "https://cursor-only.example".into(),
-                model: "cursor-only-model".into(),
-                ..Default::default()
-            },
-        )
-        .expect("upsert cursor");
+        s.llm.push(settings::LlmSettingsEntry {
+            engine_type: "cursor".into(),
+            platform: String::new(),
+            base_url: "https://cursor-only.example".into(),
+            model: "cursor-only-model".into(),
+        });
         settings::save(&s).expect("save");
         secrets::set_secret(KEY_LLM_API_KEY, "sk-present").expect("set");
 
@@ -732,7 +659,7 @@ fn llm_load_config_missing_or_empty_active_entry_is_missing_config_no_cross_type
 }
 
 #[test]
-fn llm_load_config_blank_assistant_engine_reads_host_entry() {
+fn llm_load_config_blank_assistant_engine_is_missing_config() {
     with_agent_sandbox(|_| {
         let mut s = settings::load().expect("load");
         s.assistant_engine = "".into();
@@ -746,21 +673,16 @@ fn llm_load_config_blank_assistant_engine_reads_host_entry() {
             },
         )
         .expect("upsert host");
-        settings::upsert_llm_entry(
-            &mut s.llm,
-            "cursor",
-            &settings::LlmSettings {
-                base_url: "https://should-not-use.example".into(),
-                model: "should-not-use".into(),
-                ..Default::default()
-            },
-        )
-        .expect("upsert cursor");
+        s.llm.push(settings::LlmSettingsEntry {
+            engine_type: "cursor".into(),
+            platform: String::new(),
+            base_url: "https://should-not-use.example".into(),
+            model: "should-not-use".into(),
+        });
         settings::save(&s).expect("save");
         secrets::set_secret(KEY_LLM_API_KEY, "sk-blank-host").expect("set");
 
-        let cfg = llm::load_llm_config().expect("blank engine defaults to host entry");
-        assert_eq!(cfg.model, "blank-host-model");
-        assert_eq!(cfg.base_url, "https://blank-defaults-host.example/v4");
+        let err = llm::load_llm_config().expect_err("blank engine");
+        assert!(matches!(err, LlmError::MissingConfig), "{err:?}");
     });
 }

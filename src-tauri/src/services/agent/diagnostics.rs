@@ -163,10 +163,7 @@ pub fn sanitize_bounded_text(value: &str) -> String {
             }
         })
         .collect();
-    let redacted = redact_sk_tokens(&session::redact_secrets(&collapsed)).replace(
-        "CURSOR_API_KEY",
-        "[REDACTED]",
-    );
+    let redacted = redact_sk_tokens(&session::redact_secrets(&collapsed));
     let trimmed = redacted.trim();
     if trimmed.chars().count() <= BOUNDED_TEXT_MAX {
         trimmed.to_string()

@@ -90,7 +90,7 @@ pub struct LlmSettings {
     pub model: String,
 }
 
-/// One typed LLM settings entry in `AppSettings.llm` (`host` | `cursor`).
+/// One typed LLM settings entry in `AppSettings.llm` (`host`).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct LlmSettingsEntry {
     #[serde(rename = "type")]
@@ -125,8 +125,8 @@ pub struct AppSettings {
     pub meili_url: String,
     #[serde(default = "default_github_user_url")]
     pub github_user_url: String,
-    /// Assistant engine selection: `host` | `cursor`. Default `host`.
-    /// Illegal values are rejected at route resolve time (not silently remapped).
+    /// Assistant engine selection: `host` (Agent Loop + GLM). Default `host`.
+    /// Legacy or empty values are retained on disk but treated as unconfigured.
     #[serde(default = "default_assistant_engine")]
     pub assistant_engine: String,
     /// Per-engine LLM settings list (`[[llm]]` in toml). Entries may be absent.
@@ -189,25 +189,11 @@ fn default_assistant_engine() -> String {
     "host".to_string()
 }
 
-/// Result of mapping legacy LLM settings into the Engine storage slice.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct EngineSettingsSlice {
-    pub assistant_engine: String,
-    pub model: String,
-    pub platform: String,
-    pub base_url: String,
-    pub host_api_key: Option<String>,
-}
-
 fn normalize_engine_value(raw: &str) -> Option<&'static str> {
-    match raw.trim().to_ascii_lowercase().as_str() {
-        "host" => Some("host"),
-        "cursor" => Some("cursor"),
-        _ => None,
-    }
+    (raw.trim().eq_ignore_ascii_case("host")).then_some("host")
 }
 
-/// Resolve the list entry for a legal engine type (`host` | `cursor`).
+/// Resolve the list entry for the supported engine type (`host`).
 /// Missing type or empty list → `None` (no panic). Illegal type → `None`.
 pub fn llm_entry_by_type<'a>(
     entries: &'a [LlmSettingsEntry],
@@ -252,10 +238,9 @@ pub fn upsert_llm_entry(
 /// Built-in readonly preset metadata (aligned with frontend `engine-presets.js`).
 /// Model remains independently editable; platform/base_url are never client-writable.
 fn builtin_preset_fields(engine: &str) -> Option<(&'static str, &'static str)> {
-    match normalize_engine_value(engine).unwrap_or("host") {
-        "cursor" => Some(("cursor_agent", "(managed by Cursor Agent)")),
+    match normalize_engine_value(engine) {
         // OpenAI-compatible path (docs.bigmodel.cn); chat_url appends /chat/completions when base ends in /v4.
-        "host" => Some(("glm", "https://open.bigmodel.cn/api/paas/v4")),
+        Some("host") => Some(("glm", "https://open.bigmodel.cn/api/paas/v4")),
         _ => None,
     }
 }
@@ -276,52 +261,15 @@ pub fn stamp_readonly_preset_fields(settings: &mut AppSettings) {
     }
 }
 
-/// Map legacy `LlmSettings` (+ optional api key) into Engine classification + Model + metadata.
-///
-/// - No / blank / illegal `existing_engine` → lock classification to `host`
-/// - Legal `host`|`cursor` → respect it; still carry Credential/Model from legacy
-/// - `platform` / `base_url` become readonly preset metadata on the slice
-pub fn migrate_llm_to_engine(
-    legacy: &LlmSettings,
-    api_key: Option<&str>,
-    existing_engine: Option<&str>,
-) -> EngineSettingsSlice {
-    let assistant_engine = existing_engine
-        .and_then(normalize_engine_value)
-        .unwrap_or("host")
-        .to_string();
-    let host_api_key = api_key
-        .map(str::trim)
-        .filter(|s| !s.is_empty())
-        .map(|s| s.to_string());
-    EngineSettingsSlice {
-        assistant_engine,
-        model: legacy.model.clone(),
-        platform: legacy.platform.clone(),
-        base_url: legacy.base_url.clone(),
-        host_api_key,
-    }
-}
-
-fn apply_engine_migration_on_load(settings: &mut AppSettings) {
-    let existing = settings.assistant_engine.trim();
-    let existing = (!existing.is_empty()).then_some(existing);
-    let lookup = existing.unwrap_or("host");
-    let current_fields = llm_entry_by_type(&settings.llm, lookup)
-        .map(LlmSettingsEntry::fields)
-        .unwrap_or_default();
-    let slice = migrate_llm_to_engine(&current_fields, None, existing);
-    settings.assistant_engine = slice.assistant_engine;
-    // Preserve non-empty platform/base_url on the current entry. Stamp builtin preset
-    // only when the entry is missing or both fields are blank.
-    let needs_stamp = match llm_entry_by_type(&settings.llm, &settings.assistant_engine) {
-        Some(e) => e.platform.trim().is_empty() && e.base_url.trim().is_empty(),
+fn stamp_host_preset_on_load(settings: &mut AppSettings) {
+    let is_host = normalize_engine_value(&settings.assistant_engine).is_some();
+    let needs_stamp = match llm_entry_by_type(&settings.llm, "host") {
+        Some(entry) => entry.platform.trim().is_empty() && entry.base_url.trim().is_empty(),
         None => true,
     };
-    if needs_stamp {
+    if is_host && needs_stamp {
         stamp_readonly_preset_fields(settings);
     }
-    let _ = crate::config::secrets::migrate_legacy_llm_api_key_to_host();
 }
 
 /// Personal GitHub home (`https://github.com/{owner}`) + workbench clone dir name → blob base for file links.
@@ -789,7 +737,7 @@ pub fn load() -> Result<AppSettings, SettingsError> {
     if should_normalize_for_path(&path) {
         normalize_prod_paths(&mut settings);
     }
-    apply_engine_migration_on_load(&mut settings);
+    stamp_host_preset_on_load(&mut settings);
     if is_test_sandbox() {
         validate_sandbox_against_prod(&settings, &load_prod_settings())?;
     }
@@ -823,17 +771,20 @@ pub fn save(settings: &AppSettings) -> Result<(), SettingsError> {
 }
 
 /// JSON shape for `get_config` / `set_config` (frontend field names).
-/// Never echoes plaintext api keys — only `has_*_key` hints.
+/// Never echoes plaintext api keys — only the Host/GLM key hint.
 pub fn to_config_json(
     settings: &AppSettings,
     has_github_token: bool,
     has_meili_key: bool,
     has_host_key: bool,
-    has_cursor_key: bool,
 ) -> serde_json::Value {
-    let current = llm_entry_by_type(&settings.llm, &settings.assistant_engine)
-        .map(LlmSettingsEntry::fields)
-        .unwrap_or_default();
+    let current = if normalize_engine_value(&settings.assistant_engine).is_some() {
+        llm_entry_by_type(&settings.llm, "host")
+            .map(LlmSettingsEntry::fields)
+            .unwrap_or_default()
+    } else {
+        LlmSettings::default()
+    };
     serde_json::json!({
         "workbench_knowledge_root": settings.workbench_knowledge_root.to_string_lossy(),
         "knowledge_corpus_root": settings.knowledge_corpus_root.to_string_lossy(),
@@ -848,7 +799,6 @@ pub fn to_config_json(
         "has_meili_key": has_meili_key,
         "has_llm_key": has_host_key,
         "has_host_key": has_host_key,
-        "has_cursor_key": has_cursor_key,
         "llm": {
             "platform": current.platform,
             "base_url": current.base_url,
@@ -858,8 +808,8 @@ pub fn to_config_json(
 }
 
 /// Apply `set_config` payload keys onto settings (toml fields only).
-/// Illegal `assistant_engine` values are rejected (aligned with `resolve_engine`: host|cursor).
-/// Flat `llm` maps to the current `assistant_engine` list entry (create if missing).
+/// Illegal or legacy `assistant_engine` values are rejected.
+/// Flat `llm` maps to the Host list entry (create if missing).
 /// `llm.platform` / `llm.base_url` from the client are ignored (preset readonly); when
 /// `assistant_engine` or `llm.model` is applied they are stamped from the builtin category preset.
 pub fn apply_config_payload(

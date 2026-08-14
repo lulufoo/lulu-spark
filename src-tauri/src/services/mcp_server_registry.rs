@@ -1,9 +1,8 @@
 //! Host-authoritative business key → MCP Server config registry.
 //!
-//! Value is a decision-level connection/capability description plus a structured
-//! HTTP transport definition consumable by Cursor Agent SDK Local (`mcpServers`).
-//! Endpoint *readiness* is owned by [`crate::services::mcp_endpoint_readiness`] —
-//! a candidate localhost URL here is never treated as ready by itself.
+//! Value is a Host-owned decision-level connection/capability description plus a
+//! structured HTTP transport definition. A candidate localhost URL is data only;
+//! the registry does not claim that the endpoint is ready.
 
 use std::collections::{BTreeMap, HashMap};
 use std::sync::{Mutex, OnceLock};
@@ -14,8 +13,8 @@ pub const SEEDED_BUSINESS_KEY: &str = "todo_task";
 /// Default inline mcpServers entry name for the Workbench Host MCP surface.
 pub const DEFAULT_HTTP_MCP_SERVER_NAME: &str = "workbench";
 
-/// Structured HTTP MCP transport for SDK consumption (name / URL / headers).
-/// Presence of this value is not readiness — probe via `mcp_endpoint_readiness`.
+/// Structured HTTP MCP transport for Host consumers (name / URL / headers).
+/// Presence of this value does not claim that the endpoint is ready.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HttpMcpTransport {
     pub name: String,
@@ -31,7 +30,7 @@ pub struct McpServerConfig {
 }
 
 impl McpServerConfig {
-    /// Expose the SDK-consumable HTTP MCP transport definition.
+    /// Expose the Host-consumable HTTP MCP transport definition.
     pub fn http_transport(&self) -> &HttpMcpTransport {
         &self.http_transport
     }

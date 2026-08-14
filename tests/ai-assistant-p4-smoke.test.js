@@ -92,7 +92,7 @@ const LOOP_MARKERS = [
   'history_truncation_keeps_system_and_dual_hard_caps',
   'terminal_no_plan_unsupported_and_error_are_distinguishable',
   't3_host_business_chat_sends_empty_tools_to_llm',
-  't3_a3_host_empty_tools_facade_usable_confirmed',
+  't3_host_empty_tools_facade_usable_confirmed',
   // L1+L2 integration markers retained on Host empty-tools path
   't2_key_only_set_llm_round_omits_tools_and_loads_mcp',
   't3_loop_rs_has_no_business_whitelist_dispatch_path',

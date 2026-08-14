@@ -19,8 +19,6 @@ pub const KEY_GITHUB_TOKEN: &str = "github_token";
 pub const KEY_MEILI_MASTER: &str = "meili_master_key";
 /// Host-engine credential slot (legacy `api_key` / `KEY_LLM_API_KEY`).
 pub const KEY_LLM_API_KEY: &str = "llm_api_key";
-/// Cursor-engine credential slot (`api_key_cursor`).
-pub const KEY_LLM_API_KEY_CURSOR: &str = "llm_api_key_cursor";
 
 #[derive(Debug)]
 pub enum SecretError {
@@ -186,24 +184,8 @@ pub fn has_host_key() -> bool {
         .unwrap_or(false)
 }
 
-pub fn has_cursor_key() -> bool {
-    get_secret(KEY_LLM_API_KEY_CURSOR)
-        .ok()
-        .flatten()
-        .map(|s| !s.is_empty())
-        .unwrap_or(false)
-}
-
-/// Backward-compatible alias: host credential slot.
 pub fn has_llm_key() -> bool {
     has_host_key()
-}
-
-/// Ensure legacy `KEY_LLM_API_KEY` remains the host slot (never silently discarded).
-pub fn migrate_legacy_llm_api_key_to_host() -> Result<(), SecretError> {
-    // Host slot *is* `KEY_LLM_API_KEY`; migration is a no-op preserve check.
-    let _ = get_secret(KEY_LLM_API_KEY)?;
-    Ok(())
 }
 
 /// Apply token fields from `set_config` payload.
@@ -232,7 +214,6 @@ pub fn apply_token_payload(payload: &serde_json::Value) -> Result<(), SecretErro
     }
     // Per-category keys: empty does not clear (UI omits blank credentials).
     set_secret_if_nonempty(payload, "api_key_host", KEY_LLM_API_KEY)?;
-    set_secret_if_nonempty(payload, "api_key_cursor", KEY_LLM_API_KEY_CURSOR)?;
     Ok(())
 }
 

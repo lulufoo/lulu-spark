@@ -168,7 +168,7 @@ fn t4_session_cache_remains_only_persistence_backend_no_parallel_store() {
 }
 
 #[test]
-fn t4_per_session_cwd_binding_mcp_isolation_preserved() {
+fn t4_per_binding_mcp_isolation_preserved() {
     with_sandbox(|| {
         r#loop::try_set_binding_json(&json!({ "key": SEEDED_BUSINESS_KEY }))
             .expect("first Set");
@@ -264,32 +264,6 @@ fn t4_no_dual_authority_between_runtime_and_ai_assistant_session() {
         assert!(snap2.session_id.is_none());
         assert!(r#loop::current_binding_clone().is_none());
         assert!(r#loop::loaded_mcp_server().is_none());
-    });
-}
-
-#[test]
-fn t4_process_client_failure_does_not_switch_business_session() {
-    with_sandbox(|| {
-        r#loop::try_set_binding_json(&json!({ "key": SEEDED_BUSINESS_KEY }))
-            .expect("Set");
-        let ensured = r#loop::ensure_chat_session_core().expect("ensure");
-        let sid = ensured["session_id"].as_str().unwrap().to_string();
-        let gen_before = session::live_context_owner()
-            .current_generation()
-            .expect("gen");
-        let binding_before = session::live_context_owner()
-            .current_binding()
-            .expect("binding");
-
-        // Simulate ProcessCursorRunnerClient / Node runner failure surface: live
-        // owner must be unchanged (never a business session switch).
-        session::note_runner_client_failure_for_tests();
-
-        let live = session::live_context_owner();
-        assert_eq!(live.current_session_id().as_deref(), Some(sid.as_str()));
-        assert_eq!(live.current_generation(), Some(gen_before));
-        assert_eq!(live.current_binding().as_ref(), Some(&binding_before));
-        assert!(live.loaded_mcp_server().is_some());
     });
 }
 

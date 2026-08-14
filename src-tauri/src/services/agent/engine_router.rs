@@ -1,24 +1,22 @@
-//! Settings → adapter routing (P2 / T2) + runtime config read (P4 / T4).
+//! Settings → Agent Loop routing and runtime configuration.
 //!
-//! Engine selection is read from `AppSettings.assistant_engine` only.
-//! Public session facade APIs must not accept engine parameters.
-//! `read_engine_runtime_config` aggregates category + model + credential for
-//! adapters; it is read-only and does not expose SDK/cwd/MCP as settings fields.
+//! The Host/GLM path is the only supported assistant channel. Legacy or
+//! unknown `assistant_engine` values remain untouched in local settings but
+//! resolve to an unconfigured state and never invoke an Agent.
 
 use serde::Serialize;
 
-use crate::config::secrets::{self, KEY_LLM_API_KEY, KEY_LLM_API_KEY_CURSOR};
+use crate::config::secrets::{self, KEY_LLM_API_KEY};
 use crate::config::settings::{self, AppSettings};
 
-/// Selected assistant engine (Host Loop vs Cursor Local).
+/// The only supported assistant engine: Agent Loop backed by GLM.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum EngineKind {
     Host,
-    Cursor,
 }
 
-/// Read-only snapshot for router/adapter consumption (no cwd / SDK / MCP fields).
+/// Read-only snapshot consumed by the Host LLM path.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct EngineRuntimeConfig {
     pub engine: EngineKind,
@@ -26,90 +24,73 @@ pub struct EngineRuntimeConfig {
     pub credential: Option<String>,
 }
 
-/// Which adapter stub/path was entered (internal observability; not a facade field).
+/// The only adapter path exposed by the router.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum AdapterKind {
     Host,
-    Cursor,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum EngineRouteError {
-    InvalidEngine(String),
+    /// Empty, legacy, or unknown settings do not select an assistant.
+    Unconfigured,
     Adapter(String),
 }
 
 impl std::fmt::Display for EngineRouteError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            EngineRouteError::InvalidEngine(v) => {
-                write!(f, "invalid assistant_engine value: {v}")
+            EngineRouteError::Unconfigured => {
+                write!(f, "assistant engine is not configured; configure Host / GLM")
             }
-            EngineRouteError::Adapter(msg) => write!(f, "adapter error: {msg}"),
+            EngineRouteError::Adapter(message) => write!(f, "adapter error: {message}"),
         }
     }
 }
 
 impl std::error::Error for EngineRouteError {}
 
-/// Minimal turn inputs for dispatch (adapters own richer shapes in t3/t4).
+/// Minimal turn inputs for dispatch.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TurnInput {
     pub session_id: String,
     pub message: String,
 }
 
-/// Internal route outcome — must not expose engine-selection keys to callers.
+/// Internal route outcome — engine selection stays out of the session facade.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct RouteOutcome {
     pub adapter: AdapterKind,
     pub body: String,
 }
 
-/// Read engine selection from settings.
+/// Resolve the only supported engine from settings.
 ///
-/// - missing / empty / whitespace → `Host` (no panic)
-/// - `"host"` / `"cursor"` (case-insensitive) → corresponding kind
-/// - any other value → `Err` (no silent fallback)
+/// `host` selects Agent Loop. Empty, legacy, and every other value are
+/// deliberately treated as unconfigured instead of silently falling back.
 pub fn resolve_engine(settings: &AppSettings) -> Result<EngineKind, EngineRouteError> {
-    let raw = settings.assistant_engine.trim();
-    if raw.is_empty() {
-        return Ok(EngineKind::Host);
-    }
-    match raw.to_ascii_lowercase().as_str() {
-        "host" => Ok(EngineKind::Host),
-        "cursor" => Ok(EngineKind::Cursor),
-        _ => Err(EngineRouteError::InvalidEngine(raw.to_string())),
+    if settings.assistant_engine.trim().eq_ignore_ascii_case("host") {
+        Ok(EngineKind::Host)
+    } else {
+        Err(EngineRouteError::Unconfigured)
     }
 }
 
-/// Aggregate current engine category + model + associated credential (secrets).
-///
-/// Read-only: does not write settings/secrets and does not surface SDK/cwd/MCP.
-/// Illegal category → same `Err` as `resolve_engine`. Missing credential → `None`.
+/// Aggregate the Host/GLM model and credential without changing settings.
 pub fn read_engine_runtime_config(
     settings: &AppSettings,
 ) -> Result<EngineRuntimeConfig, EngineRouteError> {
     let engine = resolve_engine(settings)?;
-    // Look up by resolved kind so blank/whitespace assistant_engine (→ Host)
-    // still reads the active Host list entry, not an empty miss.
-    let type_key = match engine {
-        EngineKind::Host => "host",
-        EngineKind::Cursor => "cursor",
-    };
-    let model = settings::llm_entry_by_type(&settings.llm, type_key)
-        .map(|e| e.model.clone())
+    let model = settings::llm_entry_by_type(&settings.llm, "host")
+        .map(|entry| entry.model.clone())
         .unwrap_or_default();
-    let secret_key = match engine {
-        EngineKind::Host => KEY_LLM_API_KEY,
-        EngineKind::Cursor => KEY_LLM_API_KEY_CURSOR,
-    };
-    let credential = secrets::get_secret(secret_key)
+    let credential = secrets::get_secret(KEY_LLM_API_KEY)
         .ok()
         .flatten()
-        .map(|s| s.trim().to_string())
-        .filter(|s| !s.is_empty());
+        .map(|secret| secret.trim().to_string())
+        .filter(|secret| !secret.is_empty());
+
     Ok(EngineRuntimeConfig {
         engine,
         model,
@@ -117,20 +98,14 @@ pub fn read_engine_runtime_config(
     })
 }
 
-/// Dispatch a chat turn to the Host or Cursor adapter entry.
-///
-/// Closures are injectable so callers/tests supply adapter bodies — Cursor path
-/// should go through `CursorLlmEngine` / `ClientAccess::request` (mcpServers +
-/// local.cwd). Engine kind is not written into JSONL API params.
-pub fn route_chat_turn<H, C>(
+/// Dispatch a turn through the single Host adapter.
+pub fn route_chat_turn<H>(
     engine: EngineKind,
     _input: &TurnInput,
     host_adapter: H,
-    cursor_adapter: C,
 ) -> Result<RouteOutcome, EngineRouteError>
 where
     H: FnOnce() -> Result<String, String>,
-    C: FnOnce() -> Result<String, String>,
 {
     match engine {
         EngineKind::Host => {
@@ -140,27 +115,18 @@ where
                 body,
             })
         }
-        EngineKind::Cursor => {
-            let body = cursor_adapter().map_err(EngineRouteError::Adapter)?;
-            Ok(RouteOutcome {
-                adapter: AdapterKind::Cursor,
-                body,
-            })
-        }
     }
 }
 
-/// Convenience: resolve from settings then dispatch (settings-only selection).
-pub fn dispatch_from_settings<H, C>(
+/// Resolve settings and dispatch through Agent Loop.
+pub fn dispatch_from_settings<H>(
     settings: &AppSettings,
     input: &TurnInput,
     host_adapter: H,
-    cursor_adapter: C,
 ) -> Result<RouteOutcome, EngineRouteError>
 where
     H: FnOnce() -> Result<String, String>,
-    C: FnOnce() -> Result<String, String>,
 {
     let engine = resolve_engine(settings)?;
-    route_chat_turn(engine, input, host_adapter, cursor_adapter)
+    route_chat_turn(engine, input, host_adapter)
 }

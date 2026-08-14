@@ -8,20 +8,18 @@ const GITHUB_USER_HINT_DEFAULT =
 
 const DEFAULT_ENGINE_CATEGORY = 'host';
 
-/** @type {{ has_host_key: boolean, has_cursor_key: boolean }} */
+/** @type {{ has_host_key: boolean }} */
 const engineKeyHints = {
   has_host_key: false,
-  has_cursor_key: false,
 };
 
-/** Per-category model drafts (`undefined` = not loaded for this panel session). */
-/** @type {{ host: string|undefined, cursor: string|undefined }} */
+/** Host model draft (`undefined` = not loaded for this panel session). */
+/** @type {{ host: string|undefined }} */
 const engineModelByCategory = {
   host: undefined,
-  cursor: undefined,
 };
 
-/** @type {'host' | 'cursor'} */
+/** @type {'host'} */
 let activeEngineCategory = DEFAULT_ENGINE_CATEGORY;
 
 // ── Nav switching ──────────────────────────────────────────────────────────
@@ -105,8 +103,7 @@ function syncKbHidePatternInput() {
 
 function normalizeEngineCategory(raw) {
   const id = String(raw || '').trim();
-  if (id === 'cursor' || id === 'host') return id;
-  return DEFAULT_ENGINE_CATEGORY;
+  return id === 'host' ? id : DEFAULT_ENGINE_CATEGORY;
 }
 
 function ensureEngineCategoryOptions() {
@@ -126,10 +123,7 @@ function ensureEngineCategoryOptions() {
 }
 
 function credentialHintForCategory(categoryId) {
-  const hasKey =
-    categoryId === 'cursor'
-      ? engineKeyHints.has_cursor_key
-      : engineKeyHints.has_host_key;
+  const hasKey = categoryId === 'host' && engineKeyHints.has_host_key;
   return hasKey
     ? 'API key configured. Enter a new key to replace it.'
     : 'No API key configured.';
@@ -166,17 +160,14 @@ function loadAssistantEnginePanel(cfg) {
 
   // Legacy `has_llm_key` maps to host credential (t3 migration).
   engineKeyHints.has_host_key = Boolean(cfg?.has_host_key ?? cfg?.has_llm_key);
-  engineKeyHints.has_cursor_key = Boolean(cfg?.has_cursor_key);
-
   const engineSelect = document.getElementById('settings-llm-engine');
   const modelInput = document.getElementById('settings-llm-model');
   const keyHint = document.getElementById('settings-llm-key-hint');
   const apiKeyInput = document.getElementById('settings-llm-api-key');
 
   activeEngineCategory = categoryId;
-  // Flat facade only returns the current type — forget other drafts so switch re-hydrates.
+  // The facade exposes only the Host/GLM model.
   engineModelByCategory.host = undefined;
-  engineModelByCategory.cursor = undefined;
   engineModelByCategory[categoryId] =
     typeof llm.model === 'string' ? llm.model : '';
 
@@ -192,8 +183,7 @@ function loadAssistantEnginePanel(cfg) {
 }
 
 /**
- * Rebind panel to the selected Engine type's model + readonly preset fields.
- * Stashes the previous type's in-progress model; hydrates unknown types via flat facade.
+ * Rebind panel to the Host/GLM model + readonly preset fields.
  * @param {string} categoryId
  * @param {{ clearCredential?: boolean }} [opts]
  */
@@ -218,24 +208,6 @@ async function applyEngineCategorySelection(
   if (clearCredential && apiKeyInput) apiKeyInput.value = '';
   if (keyHint) keyHint.textContent = credentialHintForCategory(id);
 
-  if (engineModelByCategory[id] === undefined) {
-    try {
-      await api.setConfig({ assistant_engine: id });
-      const cfg = await api.fetchConfig();
-      if (activeEngineCategory !== id) return;
-      engineModelByCategory[id] =
-        typeof cfg?.llm?.model === 'string' ? cfg.llm.model : '';
-      engineKeyHints.has_host_key = Boolean(
-        cfg?.has_host_key ?? cfg?.has_llm_key,
-      );
-      engineKeyHints.has_cursor_key = Boolean(cfg?.has_cursor_key);
-      if (keyHint) keyHint.textContent = credentialHintForCategory(id);
-    } catch {
-      if (activeEngineCategory !== id) return;
-      engineModelByCategory[id] = '';
-    }
-  }
-
   if (modelInput && activeEngineCategory === id) {
     modelInput.value = engineModelByCategory[id] ?? '';
     modelInput.readOnly = false;
@@ -252,12 +224,11 @@ async function saveAssistantEnginePanel() {
   const apiKey = document.getElementById('settings-llm-api-key')?.value.trim() ?? '';
 
   const payload = {
-    assistant_engine: categoryId,
+    assistant_engine: 'host',
     llm: { model },
   };
   if (apiKey) {
-    if (categoryId === 'cursor') payload.api_key_cursor = apiKey;
-    else payload.api_key_host = apiKey;
+    payload.api_key_host = apiKey;
   }
 
   btn.disabled = true;

@@ -1,8 +1,8 @@
 //! Config read/write commands.
 //!
-//! Persists `assistant_engine` (`host` | `cursor`), `llm.model`, and per-category
-//! credentials (`api_key_host` / `api_key_cursor`). `get_config` / `to_config_json`
-//! expose `has_host_key` / `has_cursor_key` hints only — never plaintext keys.
+//! Persists the Host/GLM `assistant_engine`, `llm.model`, and Host credential
+//! (`api_key_host`). `get_config` / `to_config_json` expose only a key hint —
+//! never plaintext credentials.
 //! Illegal `assistant_engine` values are rejected at `apply_config_payload`.
 
 use serde_json::Value;
@@ -28,7 +28,6 @@ pub fn set_config(_app: AppHandle, payload: Value) -> Result<Value, String> {
         secrets::has_github_token(),
         secrets::has_meili_key(),
         secrets::has_host_key(),
-        secrets::has_cursor_key(),
     ))
 }
 

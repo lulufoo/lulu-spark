@@ -5,7 +5,6 @@ pub mod repositories;
 pub mod services;
 
 use std::net::{SocketAddr, TcpStream, ToSocketAddrs};
-use std::path::Path;
 use std::sync::Mutex;
 use std::thread;
 use std::time::{Duration, Instant};
@@ -23,11 +22,6 @@ pub const DEFAULT_MCP_PORT: u16 = config::settings::DEFAULT_PROD_MCP_PORT;
 pub const READ_LATER_ASSISTANT_LABEL: &str = "read-later-assistant";
 pub const AI_ASSISTANT_LABEL: &str = "ai-assistant";
 pub const PLAN_ATTACHMENT_DIALOG_EXTENSIONS: &[&str] = &["md"];
-
-/// Launch path for the Cursor Agent SDK Node sidecar (system Node).
-pub fn cursor_agent_runner_launch_path(repo_root: &Path) -> std::path::PathBuf {
-    repo_root.join("packages/cursor-agent-runner/dist/index.js")
-}
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct ReadLaterAssistantWindowSpec {
@@ -455,8 +449,8 @@ pub fn run() {
             create_main_window(app)?;
             app.manage(services::reindex::ReindexState::new());
 
-            // Phase-Warm: Cursor+key → manager.warm(); skip/fail never blocks App startup.
-            services::agent::host_startup::schedule_cursor_runner_warm();
+            // Phase-Warm: retained coordination seam; Agent Loop warmup is deferred.
+            services::agent::host_startup::schedule_agent_loop_warm();
 
             let app_handle = app.handle().clone();
             std::thread::spawn(move || {
@@ -490,9 +484,6 @@ pub fn run() {
                 {
                     local_http.stop();
                 }
-                // Phase-Shutdown: reclaim resident cursor-agent-runner (Stopping→Absent).
-                // Failure is logged inside coordinator; never blocks App exit.
-                services::agent::host_startup::on_app_exit_shutdown();
             }
         });
 }
@@ -519,10 +510,6 @@ mod spawn_decision_tests;
 #[cfg(test)]
 #[path = "unit-tests/lib/knowledge_mcp_tests.rs"]
 mod knowledge_mcp_tests;
-
-#[cfg(test)]
-#[path = "unit-tests/lib/cursor_agent_runner_tests.rs"]
-mod cursor_agent_runner_tests;
 
 #[cfg(test)]
 #[path = "unit-tests/lib/read_later_assistant_window_tests.rs"]

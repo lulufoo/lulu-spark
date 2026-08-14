@@ -15,8 +15,8 @@ use crate::config::paths;
 use crate::services::id::random_hex12;
 use crate::services::mcp_server_registry::McpServerConfig;
 
-/// P1 / T1: session lifecycle entry (`create_session` / persist) does not expose
-/// an engine-selection API — no Host/Cursor parameter on create or session record.
+/// Session lifecycle entry (`create_session` / persist) does not expose an
+/// assistant-channel selection API or store it on the session record.
 pub const SESSION_LIFECYCLE_ENGINE_OPAQUE: bool = true;
 
 const ENGINE_SELECTION_KEYS: &[&str] = &[
@@ -26,8 +26,8 @@ const ENGINE_SELECTION_KEYS: &[&str] = &[
     "assistant_engine",
 ];
 
-/// True when a JSON value (recursively) carries engine-selection fields that
-/// would let a caller branch on Host vs Cursor.
+/// True when a JSON value (recursively) carries assistant-channel selection
+/// fields that would let a caller branch on the configured channel.
 pub fn value_exposes_engine_selection(v: &Value) -> bool {
     match v {
         Value::Object(map) => {
@@ -287,12 +287,6 @@ where
 
 pub fn reset_live_for_tests() {
     *live_slot().lock().unwrap_or_else(|e| e.into_inner()) = AIAssistantSession::default();
-}
-
-/// ProcessCursorRunnerClient / Node runner failure must never switch business session.
-/// Test hook: invoke after a simulated client failure; live owner stays unchanged.
-pub fn note_runner_client_failure_for_tests() {
-    // Intentionally no-op on live context — failure is engine/process scoped only.
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]

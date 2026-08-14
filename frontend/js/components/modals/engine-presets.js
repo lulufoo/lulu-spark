@@ -1,14 +1,14 @@
 /**
  * Built-in Assistant/Engine category + preset catalog (read-only).
- * Category ids align with L3 `assistant_engine`: `host` | `cursor`.
+ * The sole category id aligns with L3 `assistant_engine`: `host`.
  * Model is the only editable preset-carried field; no MCP/SDK/cwd keys.
  */
 
-/** @typedef {{ id: 'cursor' | 'host', label: string }} EngineCategory */
+/** @typedef {{ id: 'host', label: string }} EngineCategory */
 
 /**
  * @typedef {object} EnginePresetMeta
- * @property {'cursor' | 'host'} categoryId
+ * @property {'host'} categoryId
  * @property {string} displayName
  * @property {string[]} editableFields
  * @property {string[]} readonlyFields
@@ -20,26 +20,14 @@ const READONLY_FIELDS = Object.freeze(['platform', 'base_url']);
 
 /** @type {EngineCategory[]} */
 export const ENGINE_CATEGORIES = Object.freeze([
-  Object.freeze({ id: 'cursor', label: 'Cursor Agent' }),
-  Object.freeze({ id: 'host', label: 'Host / GLM' }),
+  Object.freeze({ id: 'host', label: 'Agent Loop / GLM' }),
 ]);
 
 /** @type {Readonly<Record<string, EnginePresetMeta>>} */
 const PRESETS = Object.freeze({
-  cursor: Object.freeze({
-    categoryId: 'cursor',
-    displayName: 'Cursor Agent',
-    editableFields: EDITABLE_FIELDS,
-    readonlyFields: READONLY_FIELDS,
-    fields: Object.freeze({
-      platform: 'cursor_agent',
-      base_url: '(managed by Cursor Agent)',
-      model: '',
-    }),
-  }),
   host: Object.freeze({
     categoryId: 'host',
-    displayName: 'Host / GLM',
+    displayName: 'Agent Loop / GLM',
     editableFields: EDITABLE_FIELDS,
     readonlyFields: READONLY_FIELDS,
     fields: Object.freeze({
