@@ -40,7 +40,8 @@ LuLu Workbench App 启动时由 Host 内嵌 Protocol Adapter 提供 Streamable H
 
 | 通道 | 配置方式 | URL 形态 | API 面 |
 |------|----------|----------|--------|
-| App（Binding） | Host registry/readiness 注入 SDK `mcpServers` | `http://127.0.0.1:<mcp_port>/mcp/todo_task` | todo only |
+| App（Binding） | key-only Binding Set；Host 按业务 key 直接查 registry | `http://127.0.0.1:<mcp_port>/mcp/todo_task` | todo only |
 | 外部 IDE | 人工 `mcp.json`（本文） | `http://127.0.0.1:<mcp_port>/mcp/cursor_ide` | corpus/archive + todo |
 
 ✅ Verified（源码）：`src-tauri/src/services/mcp_server_registry.rs` 种子 key `todo_task` → `/mcp/todo_task`。
+✅ Verified（源码）：`src-tauri/src/services/agent/loop.rs::try_set_binding_json` 直接按业务 key 调用 `mcp_server_registry::lookup`，并把结果加载到 Host session capability；当前路径不经过 `mcp_endpoint_readiness`，也不注入 SDK `mcpServers`。
