@@ -137,7 +137,7 @@ fn install_llm_cfg(mock: &MockLlm) {
         &mut s.llm,
         "host",
         &settings::LlmSettings {
-            platform: "openai_compatible".into(),
+            platform: "glm".into(),
             base_url: format!("http://127.0.0.1:{}", mock.port),
             model,
         },

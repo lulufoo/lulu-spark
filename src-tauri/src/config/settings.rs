@@ -16,6 +16,8 @@ use serde::{Deserialize, Serialize};
 pub const PROD_CONFIG_FILE_NAME: &str = "config.toml";
 
 pub const DEFAULT_GITHUB_USER_URL: &str = "";
+pub const HOST_LLM_PLATFORM: &str = "glm";
+pub const HOST_LLM_BASE_URL: &str = "https://open.bigmodel.cn/api/paas/v4";
 
 pub const DEFAULT_PROD_HTTP_PORT: u16 = 8765;
 pub const DEFAULT_PROD_MCP_PORT: u16 = 9876;
@@ -111,6 +113,12 @@ impl LlmSettingsEntry {
             model: self.model.clone(),
         }
     }
+}
+
+/// True when an entry selects the only supported Host platform.
+pub fn is_supported_host_llm_entry(entry: &LlmSettingsEntry) -> bool {
+    normalize_engine_value(&entry.engine_type) == Some("host")
+        && entry.platform.trim().eq_ignore_ascii_case(HOST_LLM_PLATFORM)
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -240,7 +248,7 @@ pub fn upsert_llm_entry(
 fn builtin_preset_fields(engine: &str) -> Option<(&'static str, &'static str)> {
     match normalize_engine_value(engine) {
         // OpenAI-compatible path (docs.bigmodel.cn); chat_url appends /chat/completions when base ends in /v4.
-        Some("host") => Some(("glm", "https://open.bigmodel.cn/api/paas/v4")),
+        Some("host") => Some((HOST_LLM_PLATFORM, HOST_LLM_BASE_URL)),
         _ => None,
     }
 }

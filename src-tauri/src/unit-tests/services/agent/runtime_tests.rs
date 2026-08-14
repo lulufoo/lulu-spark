@@ -115,7 +115,7 @@ fn install_host_llm(mock: &MockLlm) {
         &mut app_settings.llm,
         "host",
         &settings::LlmSettings {
-            platform: "openai_compatible".into(),
+            platform: "glm".into(),
             base_url: format!("http://127.0.0.1:{}", mock.port),
             model: "test-model".into(),
         },

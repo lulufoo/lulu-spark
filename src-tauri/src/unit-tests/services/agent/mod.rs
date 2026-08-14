@@ -586,8 +586,8 @@ fn llm_load_config_reads_settings_and_secret() {
             &mut s.llm,
             "host",
             &settings::LlmSettings {
-                platform: "kimi".into(),
-                base_url: "https://api.example.com".into(),
+                platform: "glm".into(),
+                base_url: "https://open.bigmodel.cn/api/paas/v4".into(),
                 model: "demo-model".into(),
             },
         )
@@ -597,8 +597,30 @@ fn llm_load_config_reads_settings_and_secret() {
 
         let cfg = llm::load_llm_config().expect("cfg");
         assert_eq!(cfg.api_key, "sk-from-secret");
-        assert_eq!(cfg.base_url, "https://api.example.com");
+        assert_eq!(cfg.base_url, "https://open.bigmodel.cn/api/paas/v4");
         assert_eq!(cfg.model, "demo-model");
+    });
+}
+
+#[test]
+fn llm_load_config_rejects_non_glm_host_entry() {
+    with_agent_sandbox(|_| {
+        let mut s = settings::load().expect("load");
+        settings::upsert_llm_entry(
+            &mut s.llm,
+            "host",
+            &settings::LlmSettings {
+                platform: "kimi".into(),
+                base_url: "https://api.example.com".into(),
+                model: "legacy-model".into(),
+            },
+        )
+        .expect("upsert legacy host llm");
+        settings::save(&s).expect("save llm settings");
+        secrets::set_secret(KEY_LLM_API_KEY, "sk-from-secret").expect("set");
+
+        let err = llm::load_llm_config().expect_err("non-GLM Host config");
+        assert!(matches!(err, LlmError::MissingConfig), "{err:?}");
     });
 }
 

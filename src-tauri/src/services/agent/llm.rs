@@ -54,7 +54,8 @@ pub fn load_llm_config() -> Result<LlmConfig, LlmError> {
     let api_key = secrets::get_secret(KEY_LLM_API_KEY)
         .map_err(|_| LlmError::MissingConfig)?
         .unwrap_or_default();
-    let entry = settings::llm_entry_by_type(&settings.llm, "host");
+    let entry = settings::llm_entry_by_type(&settings.llm, "host")
+        .filter(|entry| settings::is_supported_host_llm_entry(entry));
     let cfg = LlmConfig {
         api_key,
         base_url: entry.map(|e| e.base_url.clone()).unwrap_or_default(),
