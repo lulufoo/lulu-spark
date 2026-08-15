@@ -38,8 +38,9 @@ Guide the reply along: Problem / Goal → Direction → Framework → Implementa
 
 ## User Familiarity
 
-This project: **Inside**.
+This project: **New**.
 
-- **New:** explain what it does and why; gloss terms on first use.
-- **Working:** keep technical terms; gloss only unavoidable project names.
-- **Inside:** use source terms directly; skip accessibility gloss.
+- **New:** explain what it does, why it matters, and how it works; define project terms on first use.
+- **Oriented:** connect details to the overall structure; explain how key parts interact.
+- **Familiar:** assume core concepts and workflows are known; explain only unfamiliar project terms.
+- **Fluent:** use established project terminology directly; explain only ambiguity, non-obvious behavior, and important trade-offs.

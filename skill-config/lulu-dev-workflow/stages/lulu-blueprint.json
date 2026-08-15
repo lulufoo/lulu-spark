@@ -1,9 +1,0 @@
-{
-  "compose": {
-    "pbt_section_registry_url": "lulu-dev-workflow/lulu-blueprint/templates/section-registry.json",
-    "pbt_section_form_registry_url": "lulu-dev-workflow/lulu-blueprint/templates/section-form-registry.json",
-    "pbt_section_kw_criteria_url": "lulu-dev-workflow/lulu-blueprint/templates/section-kw-criteria.md",
-    "pbt_topic_role_instance_url": "lulu-dev-workflow/lulu-blueprint/templates/role-instance.json",
-    "pbt_topic_domain_instance_url": "lulu-dev-workflow/lulu-blueprint/templates/domain-instance.json"
-  }
-}

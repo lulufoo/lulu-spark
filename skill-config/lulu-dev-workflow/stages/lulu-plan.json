@@ -1,9 +1,0 @@
-{
-  "compose": {
-    "tpt_section_registry_url": "lulu-dev-workflow/lulu-plan/templates/section-registry.json",
-    "tpt_section_form_registry_url": "lulu-dev-workflow/lulu-plan/templates/section-form-registry.json",
-    "tpt_section_kw_criteria_url": "lulu-dev-workflow/lulu-plan/templates/section-kw-criteria.md",
-    "tpt_feature_role_instance_url": "lulu-dev-workflow/lulu-plan/templates/role-instance.json",
-    "tpt_feature_domain_instance_url": "lulu-dev-workflow/lulu-plan/templates/domain-instance.json"
-  }
-}

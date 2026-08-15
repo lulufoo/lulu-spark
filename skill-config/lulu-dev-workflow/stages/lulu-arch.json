@@ -1,9 +1,0 @@
-{
-  "compose": {
-    "tat_section_registry_url": "lulu-dev-workflow/lulu-arch/templates/section-registry.json",
-    "tat_section_form_registry_url": "lulu-dev-workflow/lulu-arch/templates/section-form-registry.json",
-    "tat_section_kw_criteria_url": "lulu-dev-workflow/lulu-arch/templates/section-kw-criteria.md",
-    "tat_topic_role_instance_url": "lulu-dev-workflow/lulu-arch/templates/role-instance.json",
-    "tat_topic_domain_instance_url": "lulu-dev-workflow/lulu-arch/templates/domain-instance.json"
-  }
-}
