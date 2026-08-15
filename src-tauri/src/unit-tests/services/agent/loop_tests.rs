@@ -3297,7 +3297,7 @@ fn t6_shell_close_is_not_cut_acceptance() {
 }
 
 #[test]
-fn t8_binding_request_helpers_route_create_turn_cancel_by_bound_business_id() {
+fn t8_binding_request_helpers_route_create_turn_cancel_by_current_session_id() {
     with_sandbox(|| {
         r#loop::try_set_binding_json(&json!({ "key": "todo_task" })).expect("Set");
         let session_id = r#loop::ensure_chat_session_core()
@@ -3306,6 +3306,12 @@ fn t8_binding_request_helpers_route_create_turn_cancel_by_bound_business_id() {
             .and_then(Value::as_str)
             .expect("session id")
             .to_string();
+        assert_eq!(
+            session::live_context_owner()
+                .current_business_id()
+                .as_deref(),
+            Some("todo_task")
+        );
         let calls = Arc::new(Mutex::new(Vec::<String>::new()));
 
         let create_calls = calls.clone();
@@ -3340,6 +3346,14 @@ fn t8_binding_request_helpers_route_create_turn_cancel_by_bound_business_id() {
                 format!("turn:{session_id}:hello"),
             ]
         );
+        assert!(
+            !calls
+                .lock()
+                .unwrap()
+                .iter()
+                .any(|entry| entry.contains("todo_task")),
+            "create/turn must record session identity, not Binding-derived identity"
+        );
 
         let cancel_calls = calls.clone();
         r#loop::cancel_from_binding(move |sid| {
@@ -3353,6 +3367,14 @@ fn t8_binding_request_helpers_route_create_turn_cancel_by_bound_business_id() {
         assert_eq!(
             calls.lock().unwrap().last().cloned().as_deref(),
             Some(format!("cancel:{session_id}").as_str())
+        );
+        assert!(
+            !calls
+                .lock()
+                .unwrap()
+                .iter()
+                .any(|entry| entry.contains("todo_task")),
+            "cancel must record session identity, not Binding-derived identity"
         );
     });
 }
@@ -3390,7 +3412,7 @@ fn t8_binding_request_helpers_reject_unbound_without_session_fallback() {
 }
 
 #[test]
-fn t4_reset_binding_with_close_routes_by_business_id_before_clearing_context() {
+fn t4_reset_binding_with_close_routes_by_session_id_before_clearing_context() {
     with_sandbox(|| {
         r#loop::try_set_binding_json(&json!({ "key": "todo_task" })).expect("Set");
         let session_id = r#loop::ensure_chat_session_core()
@@ -3400,17 +3422,47 @@ fn t4_reset_binding_with_close_routes_by_business_id_before_clearing_context() {
             .expect("session id")
             .to_string();
         let calls = Arc::new(Mutex::new(Vec::<String>::new()));
+        let live_during_close = Arc::new(Mutex::new(
+            None::<(String, Option<String>, Option<String>)>,
+        ));
         let calls_for_close = calls.clone();
+        let live_for_close = live_during_close.clone();
 
         r#loop::reset_binding_with_close(move |sid| {
+            let live = session::live_context_owner();
+            *live_for_close.lock().unwrap() = Some((
+                r#loop::binding_state().to_string(),
+                live.current_session_id(),
+                live.current_business_id(),
+            ));
             calls_for_close.lock().unwrap().push(sid.to_string());
             Ok(())
         })
         .expect("reset and close");
 
-        assert_eq!(*calls.lock().unwrap(), vec![session_id]);
+        assert_eq!(*calls.lock().unwrap(), vec![session_id.clone()]);
+        assert!(
+            !calls.lock().unwrap().iter().any(|sid| sid == "todo_task"),
+            "close must receive session identity, not Binding-derived identity"
+        );
+        let during = live_during_close
+            .lock()
+            .unwrap()
+            .clone()
+            .expect("close must run");
+        assert_eq!(
+            during.0, "bound",
+            "close must run before Binding is cleared"
+        );
+        assert_eq!(
+            during.1.as_deref(),
+            Some(session_id.as_str()),
+            "close must run before live session is cleared"
+        );
+        assert_eq!(during.2.as_deref(), Some("todo_task"));
         assert_eq!(r#loop::binding_state(), "unbound");
         assert!(session::live_context_owner().current_session_id().is_none());
+        assert!(session::live_context_owner().current_business_id().is_none());
     });
 }
 
@@ -3437,6 +3489,129 @@ fn record_session_calls() -> (
         })
     };
     (calls, create, turn)
+}
+
+fn switch_session_without_resetting_binding(label: &str) -> (String, String, u64) {
+    let session_a = r#loop::ensure_chat_session_core()
+        .expect("ensure A")
+        .get("session_id")
+        .and_then(Value::as_str)
+        .expect("session A")
+        .to_string();
+    let generation = r#loop::query_binding().generation.expect("bound generation");
+    let master = create_bound_plan(label);
+    let session_b = r#loop::open_ai_assistant_core(&master)
+        .expect("open B")
+        .get("session_id")
+        .and_then(Value::as_str)
+        .expect("session B")
+        .to_string();
+    assert_ne!(session_a, session_b);
+    assert_eq!(r#loop::binding_state(), "bound");
+    assert_eq!(
+        r#loop::query_binding().generation,
+        Some(generation),
+        "switching session must not re-Set Binding"
+    );
+    assert_eq!(
+        session::live_context_owner()
+            .current_business_id()
+            .as_deref(),
+        Some("todo_task"),
+        "same Binding must keep the same capability"
+    );
+    assert_eq!(
+        session::live_context_owner()
+            .current_session_id()
+            .as_deref(),
+        Some(session_b.as_str()),
+        "live holds only the current session identity"
+    );
+    (session_a, session_b, generation)
+}
+
+#[test]
+fn t_same_binding_switch_session_create_turn_do_not_reuse_prior_slot() {
+    with_sandbox(|| {
+        r#loop::try_set_binding_json(&json!({ "key": "todo_task" })).expect("Set");
+        let (session_a, session_b, generation) =
+            switch_session_without_resetting_binding("t2-switch-create-turn");
+        assert_eq!(r#loop::query_binding().generation, Some(generation));
+
+        let (calls, create, turn) = record_session_calls();
+        r#loop::ensure_create_then_turn("hello-b", create, turn).expect("create/turn B");
+        assert_eq!(
+            *calls.lock().unwrap(),
+            vec![
+                format!("create:{session_b}"),
+                format!("turn:{session_b}:hello-b"),
+            ]
+        );
+        assert!(
+            !calls
+                .lock()
+                .unwrap()
+                .iter()
+                .any(|entry| entry.contains(&session_a) || entry.contains("todo_task")),
+            "create/turn must use session B's slot, not session A or Binding identity"
+        );
+    });
+}
+
+#[test]
+fn t_cancel_reset_only_hit_current_session_not_prior_binding_slot() {
+    with_sandbox(|| {
+        r#loop::try_set_binding_json(&json!({ "key": "todo_task" })).expect("Set");
+        let (session_a, session_b, _) =
+            switch_session_without_resetting_binding("t2-switch-cancel-reset");
+        assert_eq!(
+            session::live_context_owner()
+                .current_session_id()
+                .as_deref(),
+            Some(session_b.as_str())
+        );
+        assert_ne!(
+            session::live_context_owner()
+                .current_session_id()
+                .as_deref(),
+            Some(session_a.as_str()),
+            "live must not keep the prior session as current"
+        );
+
+        let cancel_calls = Arc::new(Mutex::new(Vec::<String>::new()));
+        let cancel_for_cb = cancel_calls.clone();
+        r#loop::cancel_from_binding(move |sid| {
+            cancel_for_cb.lock().unwrap().push(sid.to_string());
+            Ok(())
+        })
+        .expect("cancel current session");
+        assert_eq!(*cancel_calls.lock().unwrap(), vec![session_b.clone()]);
+        assert!(
+            !cancel_calls
+                .lock()
+                .unwrap()
+                .iter()
+                .any(|sid| sid == &session_a || sid == "todo_task"),
+            "cancel must not hit the prior session or Binding identity"
+        );
+
+        let close_calls = Arc::new(Mutex::new(Vec::<String>::new()));
+        let close_for_cb = close_calls.clone();
+        r#loop::reset_binding_with_close(move |sid| {
+            close_for_cb.lock().unwrap().push(sid.to_string());
+            Ok(())
+        })
+        .expect("reset current session");
+        assert_eq!(*close_calls.lock().unwrap(), vec![session_b]);
+        assert!(
+            !close_calls
+                .lock()
+                .unwrap()
+                .iter()
+                .any(|sid| sid == &session_a || sid == "todo_task"),
+            "reset must not close the prior Binding slot"
+        );
+    });
 }
 
 #[test]

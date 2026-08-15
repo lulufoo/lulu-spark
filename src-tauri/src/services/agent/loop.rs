@@ -375,18 +375,17 @@ pub fn reset_binding() -> Result<(), ()> {
     Ok(())
 }
 
-/// Reset the current Binding and then close its Host-owned Agent slot by the
-/// captured live session identity. The identity must be captured before Reset
-/// clears the live context.
+/// Close the Host-owned Agent slot by the live session identity, then reset
+/// the current Binding. Close runs before Reset clears the live context.
 pub fn reset_binding_with_close<Close>(mut close: Close) -> Result<(), String>
 where
     Close: FnMut(&str) -> Result<(), String>,
 {
     let session_id = session::live_context_owner().current_session_id();
-    reset_binding().map_err(|_| "reset_binding_failed".to_string())?;
     if let Some(session_id) = session_id {
         close(&session_id)?;
     }
+    reset_binding().map_err(|_| "reset_binding_failed".to_string())?;
     Ok(())
 }
 
