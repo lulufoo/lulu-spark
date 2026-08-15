@@ -270,6 +270,7 @@ fn cancel_ai_assistant_turn_marks_live_chat_cancelled_without_resetting_binding(
             set_binding_json(json!({ "key": SEEDED_BUSINESS_KEY }))["ok"],
             true
         );
+        ensure_ai_assistant_session_json().expect("live session for cancel");
         r#loop::set_busy_for_tests(true);
 
         let result = cancel_ai_assistant_turn_json();

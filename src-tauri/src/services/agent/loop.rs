@@ -376,16 +376,16 @@ pub fn reset_binding() -> Result<(), ()> {
 }
 
 /// Reset the current Binding and then close its Host-owned Agent slot by the
-/// captured business identity. The identity must be captured before Reset
+/// captured live session identity. The identity must be captured before Reset
 /// clears the live context.
 pub fn reset_binding_with_close<Close>(mut close: Close) -> Result<(), String>
 where
     Close: FnMut(&str) -> Result<(), String>,
 {
-    let business_id = session::live_context_owner().current_business_id();
+    let session_id = session::live_context_owner().current_session_id();
     reset_binding().map_err(|_| "reset_binding_failed".to_string())?;
-    if let Some(business_id) = business_id {
-        close(&business_id)?;
+    if let Some(session_id) = session_id {
+        close(&session_id)?;
     }
     Ok(())
 }
@@ -667,17 +667,17 @@ fn current_binding_snapshot() -> Option<session::Binding> {
 }
 
 /// Execute the business request path from the current Binding:
-/// ensure-create first, then turn. The callbacks receive the Binding-derived
-/// `business_id` and live session id; callers cannot substitute a session id as
-/// the Agent routing key.
+/// ensure-create first, then turn. The callbacks receive the live session id
+/// as the Agent isolation key; Binding-derived identity stays on live to
+/// select capability and is not passed into these callbacks.
 pub fn ensure_create_then_turn<Create, Turn>(
     prompt: &str,
     create: Create,
     turn: Turn,
 ) -> Result<ChatTurnResult, String>
 where
-    Create: FnMut(&str, &str) -> Result<(), String>,
-    Turn: FnMut(&str, &str, &str) -> Result<ChatTurnResult, String>,
+    Create: FnMut(&str) -> Result<(), String>,
+    Turn: FnMut(&str, &str) -> Result<ChatTurnResult, String>,
 {
     ensure_create_then_turn_with_error(
         prompt,
@@ -689,8 +689,8 @@ where
     )
 }
 
-/// Typed-error form used by engine adapters while retaining the same Binding
-/// ownership and create-before-turn ordering.
+/// Typed-error form used by engine adapters while retaining Binding ownership,
+/// create-before-turn ordering, and session-id isolation routing.
 pub fn ensure_create_then_turn_with_error<E, R, Create, Turn>(
     prompt: &str,
     unbound_error: E,
@@ -701,18 +701,18 @@ pub fn ensure_create_then_turn_with_error<E, R, Create, Turn>(
 ) -> Result<R, E>
 where
     E: Clone,
-    Create: FnMut(&str, &str) -> Result<(), E>,
-    Turn: FnMut(&str, &str, &str) -> Result<R, E>,
+    Create: FnMut(&str) -> Result<(), E>,
+    Turn: FnMut(&str, &str) -> Result<R, E>,
 {
     let live = session::live_context_owner();
     let binding = live.current_binding().ok_or(unbound_error)?;
-    let business_id = session::binding_business_id(&binding).ok_or(invalid_binding_error)?;
+    let _business_id = session::binding_business_id(&binding).ok_or(invalid_binding_error)?;
     let session_id = live.current_session_id().ok_or(missing_session_error)?;
-    create(&business_id, &session_id)?;
-    turn(&business_id, &session_id, prompt)
+    create(&session_id)?;
+    turn(&session_id, prompt)
 }
 
-/// Cancel only the current Binding's business Agent turn.
+/// Cancel only the current live session's Agent turn.
 pub fn cancel_from_binding<Cancel>(cancel: Cancel) -> Result<(), String>
 where
     Cancel: FnMut(&str) -> Result<(), String>,
@@ -724,22 +724,28 @@ where
     )
 }
 
-/// Typed-error cancellation form. No `session_id` is exposed to the callback.
+/// Typed-error cancellation form. The callback receives the live session id
+/// as the Agent isolation key; Binding-derived identity is not exposed.
 pub fn cancel_from_binding_with_error<E, Cancel>(
     unbound_error: E,
     invalid_binding_error: E,
     mut cancel: Cancel,
 ) -> Result<(), E>
 where
+    E: Clone,
     Cancel: FnMut(&str) -> Result<(), E>,
 {
     let binding = current_binding_snapshot().ok_or(unbound_error)?;
-    let business_id = session::binding_business_id(&binding).ok_or(invalid_binding_error)?;
+    let _business_id =
+        session::binding_business_id(&binding).ok_or(invalid_binding_error.clone())?;
+    let session_id = session::live_context_owner()
+        .current_session_id()
+        .ok_or(invalid_binding_error)?;
     // Mark the live chat before invoking the engine-specific cancellation hook.
     // This keeps Host-loop turns cancellable and makes a failed SDK cancel
     // unable to erase the local cancellation intent.
     session::with_live_mut(|live| live.chat_cancelled = true);
-    cancel(&business_id)
+    cancel(&session_id)
 }
 
 pub fn map_llm_error(err: &LlmError) -> TurnOutcome {
