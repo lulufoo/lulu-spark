@@ -1271,3 +1271,159 @@ fn notes_scene_slot_initialize_lists_corpus_plus_selection() {
     stop_embedded_mcp_runtime(handle).expect("stop");
 }
 
+fn notes_proprietary_tool_names() -> BTreeSet<String> {
+    let notes = names_of(&tools_list_for_slot("notes"));
+    let shared: BTreeSet<String> = CORPUS_TOOLS
+        .iter()
+        .chain(TODO_TOOLS.iter())
+        .map(|s| (*s).to_string())
+        .collect();
+    notes.difference(&shared).cloned().collect()
+}
+
+/// P4 / T7 Normal: todo_task remains all todo tools, no corpus, original `/api` routes.
+#[test]
+fn p4_todo_task_surface_unchanged_all_todo_no_corpus_original_api() {
+    let table = build_slot_tool_table("todo_task").expect("todo_task registered");
+    assert_eq!(table.scene_slot, "todo_task");
+    assert!(!table.include_corpus);
+    assert!(table.include_todo);
+
+    let names = names_of(&tools_list_for_slot("todo_task"));
+    let expected: BTreeSet<_> = TODO_TOOLS.iter().map(|s| (*s).to_string()).collect();
+    assert_eq!(
+        names, expected,
+        "todo_task must stay the full todo tool set with no corpus"
+    );
+
+    let routes = route_map(&table);
+    for tool in TODO_TOOLS {
+        let (path, method) = expected_api_path(tool);
+        let got = routes.get(*tool).expect("todo route present");
+        assert_eq!(got.0, path, "todo_task {tool} must keep original /api path");
+        assert_eq!(got.1, method, "todo_task {tool} must keep original method");
+        assert!(
+            got.0.starts_with("/api/"),
+            "todo_task {tool} must still route through original /api, got {}",
+            got.0
+        );
+    }
+}
+
+/// P4 / T7 Normal: cursor_ide remains corpus four-pack + all todo, original `/api` routes.
+#[test]
+fn p4_cursor_ide_surface_unchanged_corpus_plus_todo_original_api() {
+    let table = build_slot_tool_table("cursor_ide").expect("cursor_ide registered");
+    assert_eq!(table.scene_slot, "cursor_ide");
+    assert!(table.include_corpus);
+    assert!(table.include_todo);
+
+    let names = names_of(&tools_list_for_slot("cursor_ide"));
+    let mut expected: BTreeSet<_> = CORPUS_TOOLS.iter().map(|s| (*s).to_string()).collect();
+    expected.extend(TODO_TOOLS.iter().map(|s| (*s).to_string()));
+    assert_eq!(
+        names, expected,
+        "cursor_ide must stay corpus four-pack + all todo"
+    );
+
+    let routes = route_map(&table);
+    for tool in expected.iter() {
+        let (path, method) = expected_api_path(tool);
+        let got = routes.get(tool).expect("cursor_ide route present");
+        assert_eq!(got.0, path, "cursor_ide {tool} must keep original /api path");
+        assert_eq!(got.1, method, "cursor_ide {tool} must keep original method");
+    }
+}
+
+/// P4 / T7 Normal: old two-slot tool surfaces stay distinguishable.
+#[test]
+fn p4_old_two_slot_surfaces_remain_distinguishable() {
+    let todo = names_of(&tools_list_for_slot("todo_task"));
+    let ide = names_of(&tools_list_for_slot("cursor_ide"));
+    assert!(!todo.is_empty());
+    assert!(!ide.is_empty());
+    assert_ne!(
+        todo, ide,
+        "todo_task and cursor_ide tool surfaces must remain distinguishable"
+    );
+}
+
+/// P4 / T7 Boundary: get_notes_selection and any notes-only tools stay off old slots.
+#[test]
+fn p4_notes_proprietary_tools_do_not_appear_on_old_slots() {
+    let proprietary = notes_proprietary_tool_names();
+    assert!(
+        proprietary.contains(NOTES_SELECTION_TOOL),
+        "get_notes_selection must be treated as notes-proprietary"
+    );
+    let locked: BTreeSet<_> = super::NOTES_SLOT_ONLY_TOOLS.iter().copied().collect();
+    let observed: BTreeSet<_> = proprietary.iter().map(String::as_str).collect();
+    assert_eq!(
+        observed, locked,
+        "notes-proprietary set must match NOTES_SLOT_ONLY_TOOLS"
+    );
+
+    for slot in ["todo_task", "cursor_ide"] {
+        let names = names_of(&tools_list_for_slot(slot));
+        assert!(
+            !names.contains(NOTES_SELECTION_TOOL),
+            "get_notes_selection must not appear on {slot}"
+        );
+        for tool in &proprietary {
+            assert!(
+                !names.contains(tool),
+                "notes-proprietary tool {tool} must not appear on {slot}"
+            );
+        }
+    }
+}
+
+/// P4 / T7 Boundary: notes tool surface is distinguishable from both old slots.
+#[test]
+fn p4_notes_surface_distinguishable_from_old_two_slots() {
+    let notes = names_of(&tools_list_for_slot("notes"));
+    let todo = names_of(&tools_list_for_slot("todo_task"));
+    let ide = names_of(&tools_list_for_slot("cursor_ide"));
+    assert_ne!(notes, todo, "notes must be distinguishable from todo_task");
+    assert_ne!(notes, ide, "notes must be distinguishable from cursor_ide");
+}
+
+/// P4 / T7 Exception: unregistered slots still hard-reject after notes is registered.
+#[test]
+fn p4_unregistered_slot_still_hard_rejects() {
+    assert!(
+        build_slot_tool_table("notes").is_some(),
+        "notes must be registered so hard-reject stays a distinct path"
+    );
+    assert!(build_slot_tool_table("__unknown__").is_none());
+    assert!(build_slot_tool_table("").is_none());
+    assert!(tools_list_for_slot("__unknown__").is_empty());
+
+    let port = ephemeral_port();
+    let bind_addr: SocketAddr = format!("127.0.0.1:{port}").parse().expect("bind addr");
+    let handle = start_embedded_mcp_runtime(McpRuntimeConfig { bind_addr }).expect("start");
+    let local = handle.local_addr();
+
+    let init = r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"p4-unknown","version":"0.0.1"}}}"#;
+    let (status, body, session) = http_post_json(
+        &format!("http://127.0.0.1:{}/mcp/__unknown__", local.port()),
+        init,
+    );
+    assert_eq!(
+        status, 404,
+        "unregistered slot must still HTTP hard-reject, body={body}"
+    );
+    let json: serde_json::Value = serde_json::from_str(&body).expect("reject JSON");
+    assert_eq!(
+        json.get("error").and_then(|v| v.as_str()),
+        Some("unknown_scene_slot"),
+        "reject body={body}"
+    );
+    assert!(
+        session.is_none(),
+        "unregistered slot must still not establish an MCP session"
+    );
+
+    stop_embedded_mcp_runtime(handle).expect("stop");
+}
+

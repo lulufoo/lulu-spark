@@ -240,6 +240,9 @@ struct SceneSlotApi {
 
 const REGISTERED_SCENE_SLOTS: &[&str] = &["todo_task", "cursor_ide", "notes"];
 
+/// Tools hung only on the notes slot (not seeded by scene_slot_api).
+const NOTES_SLOT_ONLY_TOOLS: &[&str] = &["get_notes_selection"];
+
 fn scene_slot_api(slot: &str) -> Option<SceneSlotApi> {
     match slot {
         "todo_task" => Some(SceneSlotApi {
@@ -375,11 +378,16 @@ pub fn build_slot_tool_table(slot: &str) -> Option<SlotToolTable> {
         tools.extend(todo_tool_routes());
     }
     if slot == "notes" {
-        tools.push(ToolRoute {
-            name: "get_notes_selection".into(),
-            method: HttpMethod::Get,
-            api_path: "/api/notes-selection".into(),
-        });
+        for &name in NOTES_SLOT_ONLY_TOOLS {
+            match name {
+                "get_notes_selection" => tools.push(ToolRoute {
+                    name: name.into(),
+                    method: HttpMethod::Get,
+                    api_path: "/api/notes-selection".into(),
+                }),
+                other => panic!("unmapped notes-only tool {other}"),
+            }
+        }
     }
     Some(SlotToolTable {
         scene_slot: slot.to_string(),

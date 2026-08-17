@@ -4834,3 +4834,31 @@ fn t4_main_and_sidebar_wire_notes_set_without_new_runtime() {
     );
 }
 
+/// P4 / T7: Binding Set notes must use `try_set_binding_json({ key: "notes" })`.
+/// typed `set_binding(Binding)` does not do registry lookup and cannot substitute.
+#[test]
+fn t6_p4_try_set_binding_json_notes_succeeds() {
+    with_sandbox(|| {
+        r#loop::try_set_binding_json(&json!({ "key": "notes" }))
+            .expect("P4: try_set_binding_json({ key: notes }) must succeed");
+        assert_bound_key("notes");
+    });
+}
+
+#[test]
+fn t6_p4_typed_set_binding_does_not_substitute_for_notes_key_lookup() {
+    with_sandbox(|| {
+        r#loop::set_binding(empty_tools_binding()).expect("typed Set");
+        assert_eq!(r#loop::binding_state(), "bound");
+        assert!(
+            r#loop::loaded_mcp_server().is_none(),
+            "typed set_binding(Binding) must not registry-lookup notes"
+        );
+        assert_ne!(
+            session::live_context_owner().current_business_id().as_deref(),
+            Some("notes"),
+            "typed set_binding must not bind the notes business key"
+        );
+    });
+}
+
