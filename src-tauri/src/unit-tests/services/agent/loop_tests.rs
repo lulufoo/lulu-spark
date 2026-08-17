@@ -4622,3 +4622,215 @@ fn t2_key_only_set_llm_round_omits_tools_and_loads_mcp() {
     });
 }
 
+// --- t4 / P3 T5: Notes main-UI Binding Set/Reset (key-only, Host loop_tests) ---
+//
+// Frontend consumer follows todos-binding.js key-only Set. Host tests live here;
+// do not add a new frontend test harness.
+
+fn repo_file(rel: &str) -> String {
+    let mut path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    path.pop();
+    path.push(rel);
+    std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("read {}: {e}", path.display()))
+}
+
+fn function_slice<'a>(src: &'a str, marker: &str) -> &'a str {
+    let start = src.find(marker).unwrap_or(src.len());
+    let rest = &src[start..];
+    let end = rest.len().min(2000);
+    &rest[..end]
+}
+
+fn assert_bound_key(key: &str) {
+    assert_eq!(r#loop::binding_state(), "bound", "expected bound for {key}");
+    let loaded = r#loop::loaded_mcp_server().expect("key-only Set must load MCP");
+    assert!(
+        loaded.http_transport().url.contains(&format!("/mcp/{key}")),
+        "loaded MCP url must contain /mcp/{key}, got {}",
+        loaded.http_transport().url
+    );
+    assert_eq!(
+        session::live_context_owner().current_business_id().as_deref(),
+        Some(key),
+        "live business id must be {key}"
+    );
+}
+
+#[test]
+fn t4_notes_key_only_set_binds_seeded_notes_mcp() {
+    with_sandbox(|| {
+        use crate::services::mcp_server_registry::{self, SEEDED_NOTES_KEY};
+        assert_eq!(r#loop::binding_state(), "unbound");
+        r#loop::try_set_binding_json(&key_only_payload(SEEDED_NOTES_KEY))
+            .expect("try_set_binding_json({{ key: notes }}) must succeed when seeded");
+        assert_bound_key(SEEDED_NOTES_KEY);
+        let loaded = r#loop::loaded_mcp_server().expect("notes mcp");
+        let expected = mcp_server_registry::lookup(SEEDED_NOTES_KEY).expect("registry notes");
+        assert_eq!(loaded, expected);
+        assert!(
+            loaded.http_transport().url.contains("/mcp/notes"),
+            "notes seed URL must be /mcp/notes"
+        );
+    });
+}
+
+#[test]
+fn t4_from_todos_back_to_main_then_set_notes() {
+    with_sandbox(|| {
+        use crate::services::mcp_server_registry::{SEEDED_BUSINESS_KEY, SEEDED_NOTES_KEY};
+        r#loop::try_set_binding_json(&key_only_payload(SEEDED_BUSINESS_KEY)).expect("todos Set");
+        assert_bound_key(SEEDED_BUSINESS_KEY);
+        r#loop::reset_binding().expect("leave todos Reset");
+        assert_eq!(r#loop::binding_state(), "unbound");
+        r#loop::try_set_binding_json(&key_only_payload(SEEDED_NOTES_KEY))
+            .expect("return to main then Set notes");
+        assert_bound_key(SEEDED_NOTES_KEY);
+    });
+}
+
+#[test]
+fn t4_switch_to_todos_resets_then_sets_todo_task() {
+    with_sandbox(|| {
+        use crate::services::mcp_server_registry::{SEEDED_BUSINESS_KEY, SEEDED_NOTES_KEY};
+        r#loop::try_set_binding_json(&key_only_payload(SEEDED_NOTES_KEY)).expect("notes Set");
+        assert_bound_key(SEEDED_NOTES_KEY);
+        r#loop::reset_binding().expect("switch to Todos: Reset first");
+        assert_eq!(r#loop::binding_state(), "unbound");
+        assert!(r#loop::loaded_mcp_server().is_none());
+        r#loop::try_set_binding_json(&key_only_payload(SEEDED_BUSINESS_KEY))
+            .expect("then Set todo_task");
+        assert_bound_key(SEEDED_BUSINESS_KEY);
+    });
+}
+
+#[test]
+fn t4_hub_and_shell_close_are_not_reset_paths() {
+    let shell = repo_file("frontend/js/home-entry-shell/shell.js");
+    let note_assistant = repo_file("frontend/js/note-assistant.js");
+    assert!(
+        !shell.contains("reset_binding")
+            && !shell.contains("resetNotesBinding")
+            && !shell.contains("resetTodosBinding"),
+        "Hub small window must not Reset Binding"
+    );
+    assert!(
+        !note_assistant.contains("reset_binding")
+            && !note_assistant.contains("resetNotesBinding")
+            && !note_assistant.contains("resetTodosBinding"),
+        "note-assistant / close-shell path must not Reset Binding"
+    );
+}
+
+#[test]
+fn t4_only_other_binding_page_resets_notes() {
+    let main = repo_file("frontend/js/main.js");
+    let mount_plan = function_slice(&main, "function mountPlanTasksRoute");
+    assert!(
+        mount_plan.contains("resetNotesBinding"),
+        "only switching to Todos (mountPlanTasksRoute) Reset notes before Set todo_task"
+    );
+    let mount_wb = function_slice(&main, "function mountWorkbench");
+    assert!(
+        mount_wb.contains("buildNotesBinding") && !mount_wb.contains("resetNotesBinding"),
+        "entering date/document main must Set notes and must not Reset"
+    );
+    let mount_home = function_slice(&main, "function mountHomeRoute");
+    assert!(
+        !mount_home.contains("resetNotesBinding") && !mount_home.contains("reset_binding"),
+        "home / Hub host route must not Reset notes"
+    );
+}
+
+#[test]
+fn t4_notes_unseeded_set_fails_unregistered_key_still_hard_reject() {
+    with_sandbox(|| {
+        use crate::services::mcp_server_registry::{self, SEEDED_NOTES_KEY};
+        mcp_server_registry::clear_for_tests();
+        let err = r#loop::try_set_binding_json(&key_only_payload(SEEDED_NOTES_KEY))
+            .expect_err("notes unseeded must fail Set");
+        assert_eq!(err.as_code(), "unknown_key");
+        assert_eq!(r#loop::binding_state(), "unbound");
+        assert!(r#loop::loaded_mcp_server().is_none());
+
+        mcp_server_registry::seed_defaults();
+        r#loop::try_set_binding_json(&key_only_payload(SEEDED_NOTES_KEY)).expect("seeded notes Set");
+        let err = r#loop::try_set_binding_json(&key_only_payload("not_a_registered_slot_xyz"))
+            .expect_err("unregistered key still hard-reject");
+        assert_eq!(err.as_code(), "unknown_key");
+        assert_bound_key(SEEDED_NOTES_KEY);
+    });
+}
+
+#[test]
+fn t4_notes_binding_consumer_follows_todos_key_only_contract() {
+    let binding = repo_file("frontend/js/plan-task/todos-binding.js");
+    let index = repo_file("frontend/js/plan-task/index.js");
+    assert!(
+        binding.contains("NOTES_BUSINESS_KEY") && binding.contains("'notes'"),
+        "todos-binding.js must export NOTES_BUSINESS_KEY = notes"
+    );
+    assert!(
+        binding.contains("export function assembleNotesBindingBody"),
+        "assembleNotesBindingBody must exist (todos-binding key-only contract)"
+    );
+    assert!(
+        binding.contains("export async function buildNotesBinding"),
+        "buildNotesBinding must invoke set_binding with key-only notes body"
+    );
+    assert!(
+        binding.contains("export async function resetNotesBinding"),
+        "resetNotesBinding must invoke reset_binding"
+    );
+    let assemble_start = binding
+        .find("function assembleNotesBindingBody")
+        .expect("assembleNotesBindingBody");
+    let assemble = binding
+        .get(assemble_start..assemble_start.saturating_add(180))
+        .unwrap_or(&binding[assemble_start..]);
+    assert!(assemble.contains("key"), "assembleNotesBindingBody is key-only");
+    assert!(
+        !assemble.contains("tools")
+            && !assemble.contains("prompt")
+            && !assemble.contains("callbacks"),
+        "Notes assemble must not build tools/prompt/callbacks"
+    );
+    assert!(
+        function_slice(&binding, "async function buildNotesBinding").contains("set_binding"),
+        "buildNotesBinding must invoke set_binding"
+    );
+    assert!(
+        !binding.contains("engine_type") && !binding.contains("engineType"),
+        "Notes Binding must not select an engine"
+    );
+    assert!(
+        index.contains("assembleNotesBindingBody")
+            && index.contains("buildNotesBinding")
+            && index.contains("resetNotesBinding")
+            && index.contains("NOTES_BUSINESS_KEY"),
+        "plan-task/index.js must re-export Notes Binding symbols"
+    );
+}
+
+#[test]
+fn t4_main_and_sidebar_wire_notes_set_without_new_runtime() {
+    let main = repo_file("frontend/js/main.js");
+    let sidebar = repo_file("frontend/js/components/sidebar.js");
+    let lifecycle = repo_file("frontend/js/plan-task/todos-lifecycle.js");
+    assert!(
+        main.contains("buildNotesBinding") && main.contains("resetNotesBinding"),
+        "main.js must Set notes on date/document main and Reset only when switching to Todos"
+    );
+    assert!(
+        sidebar.contains("buildNotesBinding"),
+        "sidebar.js selectDate path must Set notes on date/document main"
+    );
+    assert!(
+        !main.contains("new Agent") && !sidebar.contains("new Agent"),
+        "must not start a separate assistant runtime"
+    );
+    assert!(
+        lifecycle.contains("resetTodosBinding") && lifecycle.contains("notifyShellClose"),
+        "todos-lifecycle leave Reset / shell-close ≠ Reset remains the Todos contract"
+    );
+}
+

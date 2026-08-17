@@ -7,6 +7,10 @@ export {
   resetTodosBinding,
   assembleTodosBindingBody,
   TODOS_BUSINESS_KEY,
+  buildNotesBinding,
+  resetNotesBinding,
+  assembleNotesBindingBody,
+  NOTES_BUSINESS_KEY,
 } from './todos-binding.js';
 export {
   createTodosPageLifecycle,

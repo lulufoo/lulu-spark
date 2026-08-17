@@ -3,6 +3,7 @@ import { formatDate } from '../utils.js'
 import { renderDocList, loadTitles } from './cards.js'
 import { closeFloatingListSelect, createFloatingListSelect } from './floating-list-select.js'
 import { parseHash, navigateToDateList } from '../router/index.js'
+import { buildNotesBinding } from '../plan-task/todos-binding.js'
 
 // ── buildGroups ────────────────────────────────────────────────────────────
 
@@ -311,6 +312,7 @@ export function selectDate(date) {
       navigateToDateList(date);
       return;
     }
+    void buildNotesBinding();
   }
 
   state.ui.activeDate = date;
