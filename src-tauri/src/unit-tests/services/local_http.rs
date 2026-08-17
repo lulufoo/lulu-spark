@@ -2876,3 +2876,271 @@ fn notes_selection_write_is_sidecar_http_only_no_mcp_write_tool() {
         );
     });
 }
+
+// --- t5: Notes UI writes selection snapshot via existing Sidecar HTTP ---
+//
+// Proof surface is Host GET=PUT (t1). Do not add a new frontend test harness.
+// UI wiring is checked by reading the Notes consumer source (same pattern as t4).
+
+fn t5_repo_file(rel: &str) -> String {
+    let mut path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    path.pop();
+    path.push(rel);
+    std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("read {}: {e}", path.display()))
+}
+
+fn t5_function_slice<'a>(src: &'a str, marker: &str) -> &'a str {
+    let start = src.find(marker).unwrap_or(src.len());
+    let rest = &src[start..];
+    let end = rest.len().min(2400);
+    &rest[..end]
+}
+
+fn t5_assert_get_equals_put(port: u16, table: &Value) {
+    let (put_status, put_body) = http_put(port, NOTES_SELECTION_API, table);
+    assert_eq!(put_status, 200);
+    assert_eq!(&put_body, table);
+    let (get_status, get_body) = http_get(port, NOTES_SELECTION_API);
+    assert_eq!(get_status, 200);
+    assert_eq!(&get_body, table);
+    assert_eq!(get_body, put_body);
+}
+
+/// Normal: enter-Notes / date-change UI write is a full-table PUT; GET equals that PUT.
+#[test]
+fn t5_ui_enter_or_date_change_put_then_get_equals_put() {
+    let fixture = setup_repo_with_corpus();
+    let repo_root = fixture.repo_root.clone();
+    with_server(repo_root, |port| {
+        let table = json!({
+            "date": "20260817",
+            "documents": [
+                { "id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "selected": false },
+                { "id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "selected": false }
+            ]
+        });
+        t5_assert_get_equals_put(port, &table);
+    });
+}
+
+/// Normal: document-open UI write is a full-table PUT with at most one selected=true.
+#[test]
+fn t5_ui_document_change_put_then_get_equals_put() {
+    let fixture = setup_repo_with_corpus();
+    let repo_root = fixture.repo_root.clone();
+    with_server(repo_root, |port| {
+        let table = json!({
+            "date": "20260817",
+            "documents": [
+                { "id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "selected": false },
+                { "id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "selected": true }
+            ]
+        });
+        t5_assert_get_equals_put(port, &table);
+        let selected: Vec<_> = table["documents"]
+            .as_array()
+            .expect("documents")
+            .iter()
+            .filter(|d| d["selected"] == true)
+            .collect();
+        assert_eq!(selected.len(), 1);
+    });
+}
+
+/// Boundary: date-only write may list documents, all selected=false; GET equals PUT.
+#[test]
+fn t5_ui_date_only_put_all_unselected_get_equals_put() {
+    let fixture = setup_repo_with_corpus();
+    let repo_root = fixture.repo_root.clone();
+    with_server(repo_root, |port| {
+        let table = json!({
+            "date": "20260817",
+            "documents": [
+                { "id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "selected": false },
+                { "id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "selected": false }
+            ]
+        });
+        t5_assert_get_equals_put(port, &table);
+        let docs = table["documents"].as_array().expect("documents");
+        assert!(docs.iter().all(|d| d["selected"] == false));
+    });
+}
+
+/// Boundary: leave Notes business writes empty snapshot; GET equals that PUT.
+#[test]
+fn t5_ui_leave_notes_put_empty_then_get_equals_put() {
+    let fixture = setup_repo_with_corpus();
+    let repo_root = fixture.repo_root.clone();
+    with_server(repo_root, |port| {
+        let prior = json!({
+            "date": "20260817",
+            "documents": [{ "id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "selected": true }]
+        });
+        t5_assert_get_equals_put(port, &prior);
+        t5_assert_get_equals_put(port, &empty_notes_selection());
+    });
+}
+
+/// Boundary: Hub / shell-close is not a leave — last PUT remains; GET still equals it.
+#[test]
+fn t5_hub_or_shell_close_does_not_put_empty_get_keeps_last_put() {
+    let fixture = setup_repo_with_corpus();
+    let repo_root = fixture.repo_root.clone();
+    with_server(repo_root, |port| {
+        let table = json!({
+            "date": "20260817",
+            "documents": [{ "id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "selected": true }]
+        });
+        t5_assert_get_equals_put(port, &table);
+        let (get_status, get_body) = http_get(port, NOTES_SELECTION_API);
+        assert_eq!(get_status, 200);
+        assert_eq!(get_body, table);
+        assert_ne!(get_body, empty_notes_selection());
+    });
+}
+
+/// Normal: apiClient exposes writeNotesSelectionSnapshot over existing Sidecar PUT.
+#[test]
+fn t5_api_client_writes_snapshot_via_sidecar_http_put() {
+    let api = t5_repo_file("frontend/js/apiClient.js");
+    assert!(
+        api.contains("writeNotesSelectionSnapshot"),
+        "apiClient.js must export writeNotesSelectionSnapshot"
+    );
+    let write = t5_function_slice(&api, "function writeNotesSelectionSnapshot");
+    assert!(
+        write.contains("/api/notes-selection"),
+        "write must use t1 Sidecar path /api/notes-selection"
+    );
+    assert!(
+        write.contains("PUT") || write.contains("putJson") || write.contains("method: 'PUT'"),
+        "write must be HTTP PUT on Sidecar, not POST/invoke"
+    );
+    assert!(
+        !write.contains("invoke("),
+        "write must stay on Sidecar HTTP (apiClient), not Tauri/MCP invoke"
+    );
+}
+
+/// Boundary: clearNotesSelectionSnapshot writes the empty snapshot.
+#[test]
+fn t5_api_client_clears_snapshot_with_empty_table() {
+    let api = t5_repo_file("frontend/js/apiClient.js");
+    assert!(
+        api.contains("clearNotesSelectionSnapshot"),
+        "apiClient.js must export clearNotesSelectionSnapshot"
+    );
+    let clear = t5_function_slice(&api, "function clearNotesSelectionSnapshot");
+    assert!(
+        clear.contains("null") && clear.contains("documents"),
+        "clear must write {{ date: null, documents: [] }}"
+    );
+}
+
+/// Normal: enter Notes and sidebar selectDate overwrite the full-day group.
+#[test]
+fn t5_enter_notes_and_select_date_write_full_day_snapshot() {
+    let main = t5_repo_file("frontend/js/main.js");
+    let sidebar = t5_repo_file("frontend/js/components/sidebar.js");
+    let mount_wb = t5_function_slice(&main, "function mountWorkbench");
+    assert!(
+        mount_wb.contains("writeNotesSelectionSnapshot"),
+        "entering Notes (mountWorkbench) must write the current selection snapshot"
+    );
+    let select = t5_function_slice(&sidebar, "export function selectDate");
+    assert!(
+        select.contains("writeNotesSelectionSnapshot"),
+        "sidebar selectDate must full-table overwrite the day's group"
+    );
+}
+
+/// Normal: document open in main / cards overwrites with at most one selected=true.
+#[test]
+fn t5_document_open_in_main_and_cards_writes_snapshot() {
+    let main = t5_repo_file("frontend/js/main.js");
+    let cards = t5_repo_file("frontend/js/components/cards.js");
+    assert!(
+        main.contains("writeNotesSelectionSnapshot"),
+        "main.js document-open path must write the selection snapshot"
+    );
+    assert!(
+        cards.contains("writeNotesSelectionSnapshot"),
+        "cards.js document-open path must write the selection snapshot"
+    );
+}
+
+/// Boundary: only leaving Notes business clears; Hub / shell-close must not.
+#[test]
+fn t5_clear_only_when_leaving_notes_not_hub_or_shell_close() {
+    let main = t5_repo_file("frontend/js/main.js");
+    let shell = t5_repo_file("frontend/js/home-entry-shell/shell.js");
+    let note_assistant = t5_repo_file("frontend/js/note-assistant.js");
+    let mount_plan = t5_function_slice(&main, "function mountPlanTasksRoute");
+    assert!(
+        mount_plan.contains("clearNotesSelectionSnapshot"),
+        "leaving Notes for Todos (mountPlanTasksRoute) must write the empty snapshot"
+    );
+    assert!(
+        !shell.contains("clearNotesSelectionSnapshot") && !shell.contains("writeNotesSelectionSnapshot"),
+        "Hub small window must not clear or rewrite the selection snapshot"
+    );
+    assert!(
+        !note_assistant.contains("clearNotesSelectionSnapshot")
+            && !note_assistant.contains("writeNotesSelectionSnapshot"),
+        "close-shell / note-assistant must not clear the selection snapshot"
+    );
+}
+
+/// Exception: write stays Sidecar HTTP; no MCP write tool and no Tauri write map.
+#[test]
+fn t5_write_is_sidecar_http_only_no_mcp_or_tauri_write_map() {
+    let write_map = t5_repo_file("frontend/js/writeApiInvokeMap.js");
+    assert!(
+        !write_map.contains("notes-selection") && !write_map.contains("notes_selection"),
+        "must not add a Tauri write invoke for notes-selection"
+    );
+    for slot in ["todo_task", "cursor_ide", "notes"] {
+        if let Some(table) = crate::services::mcp_protocol_adapter::build_slot_tool_table(slot) {
+            for tool in &table.tools {
+                let name = tool.name.to_lowercase();
+                let writes = name.contains("notes_selection")
+                    && (name.contains("put")
+                        || name.contains("set")
+                        || name.contains("write")
+                        || name.contains("update"));
+                assert!(!writes, "must not add MCP write tool {}, slot {slot}", tool.name);
+            }
+        }
+    }
+}
+
+/// Exception: do not add a new frontend test harness; GET=PUT remains the proof.
+#[test]
+fn t5_does_not_add_frontend_notes_selection_test_harness() {
+    let pkg = t5_repo_file("package.json");
+    assert!(
+        !pkg.contains("notes-selection")
+            && !pkg.contains("writeNotesSelection")
+            && !pkg.contains("notes-selection-snapshot"),
+        "must not add a new frontend notes-selection test file to npm test"
+    );
+    let tests_dir = {
+        let mut path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        path.pop();
+        path.push("tests");
+        path
+    };
+    let extra = std::fs::read_dir(&tests_dir)
+        .expect("tests dir")
+        .filter_map(|e| e.ok())
+        .map(|e| e.file_name().to_string_lossy().into_owned())
+        .filter(|name| {
+            let lower = name.to_lowercase();
+            lower.contains("notes-selection") || lower.contains("notes_selection")
+        })
+        .collect::<Vec<_>>();
+    assert!(
+        extra.is_empty(),
+        "must not add a new frontend test harness, found {extra:?}"
+    );
+}

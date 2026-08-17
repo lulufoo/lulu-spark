@@ -91,6 +91,14 @@ export function createFetchDriver(baseUrl = DEFAULT_DEV_BASE) {
         body: JSON.stringify(body ?? {}),
       });
     },
+    async putJson(path, body) {
+      const pathname = path.startsWith('/') ? path : `/${path}`;
+      return fetch(this.buildUrl(pathname), {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body ?? {}),
+      });
+    },
   };
 }
 
@@ -160,6 +168,21 @@ export function createApiClient(driver) {
       return driver.getJson(pathAndQuery);
     },
   };
+}
+
+/**
+ * Full-table overwrite of Host notes selection via Sidecar HTTP PUT.
+ * @param {{ date: string|null, documents: { id: string, selected: boolean }[] }} snapshot
+ */
+export async function writeNotesSelectionSnapshot(snapshot) {
+  const driver = createFetchDriver();
+  const res = await driver.putJson('/api/notes-selection', snapshot);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+}
+
+/** Leave Notes business: write empty snapshot `{ date: null, documents: [] }`. */
+export async function clearNotesSelectionSnapshot() {
+  return writeNotesSelectionSnapshot({ date: null, documents: [] });
 }
 
 /**
