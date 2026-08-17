@@ -10,6 +10,9 @@ use std::sync::{Mutex, OnceLock};
 /// Seeded business key for Binding assembly (todo_task surface).
 pub const SEEDED_BUSINESS_KEY: &str = "todo_task";
 
+/// Seeded business key for Notes App Binding / MCP scene_slot (same string).
+pub const SEEDED_NOTES_KEY: &str = "notes";
+
 /// Default inline mcpServers entry name for the Workbench Host MCP surface.
 pub const DEFAULT_HTTP_MCP_SERVER_NAME: &str = "workbench";
 
@@ -47,7 +50,11 @@ pub enum McpServerLookupError {
 const SEEDED_TODO_CAPABILITY_DESCRIPTION: &str =
     "internal host-mcp todo_task capability surface";
 
-fn seeded_http_transport() -> HttpMcpTransport {
+/// Decision-level description for the L1 internal MCP `notes` surface.
+const SEEDED_NOTES_CAPABILITY_DESCRIPTION: &str =
+    "internal host-mcp notes capability surface";
+
+fn seeded_http_transport(key: &str) -> HttpMcpTransport {
     let mut headers = BTreeMap::new();
     headers.insert(
         "Accept".to_string(),
@@ -60,16 +67,23 @@ fn seeded_http_transport() -> HttpMcpTransport {
             crate::config::settings::load()
                 .map(|s| s.effective_mcp_port())
                 .unwrap_or(crate::DEFAULT_MCP_PORT),
-            SEEDED_BUSINESS_KEY
+            key
         ),
         headers,
     }
 }
 
-fn seeded_config() -> McpServerConfig {
+fn seeded_todo_config() -> McpServerConfig {
     McpServerConfig {
         capability_description: SEEDED_TODO_CAPABILITY_DESCRIPTION.to_string(),
-        http_transport: seeded_http_transport(),
+        http_transport: seeded_http_transport(SEEDED_BUSINESS_KEY),
+    }
+}
+
+fn seeded_notes_config() -> McpServerConfig {
+    McpServerConfig {
+        capability_description: SEEDED_NOTES_CAPABILITY_DESCRIPTION.to_string(),
+        http_transport: seeded_http_transport(SEEDED_NOTES_KEY),
     }
 }
 
@@ -79,7 +93,8 @@ fn table() -> &'static Mutex<HashMap<String, McpServerConfig>> {
     // not only when tests call `seed_defaults`.
     TABLE.get_or_init(|| {
         let mut map = HashMap::new();
-        map.insert(SEEDED_BUSINESS_KEY.to_string(), seeded_config());
+        map.insert(SEEDED_BUSINESS_KEY.to_string(), seeded_todo_config());
+        map.insert(SEEDED_NOTES_KEY.to_string(), seeded_notes_config());
         Mutex::new(map)
     })
 }
@@ -122,9 +137,10 @@ pub fn lookup(key: &str) -> Result<McpServerConfig, McpServerLookupError> {
         .ok_or(McpServerLookupError::NotFound)
 }
 
-/// Seed (or re-seed after test clear) the L1-backed business key for Binding assembly.
+/// Seed (or re-seed after test clear) L1-backed business keys for Binding assembly.
 pub fn seed_defaults() {
-    let _ = register(SEEDED_BUSINESS_KEY, seeded_config());
+    let _ = register(SEEDED_BUSINESS_KEY, seeded_todo_config());
+    let _ = register(SEEDED_NOTES_KEY, seeded_notes_config());
 }
 
 /// Test helper: reset Host-internal registry state.
