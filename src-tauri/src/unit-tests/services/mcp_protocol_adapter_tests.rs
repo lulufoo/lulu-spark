@@ -107,9 +107,13 @@ fn expected_api_path(tool: &str) -> (&'static str, HttpMethod) {
         "list_todo_attachments" => ("/api/todo-task-list-attachments", HttpMethod::Post),
         "get_todo_attachment" => ("/api/todo-task-get-attachment", HttpMethod::Post),
         "update_todo_attachment" => ("/api/todo-task-update-attachment", HttpMethod::Post),
+        "get_notes_selection" => ("/api/notes-selection", HttpMethod::Get),
         other => panic!("unexpected tool in fixture: {other}"),
     }
 }
+
+/// Read-only notes selection tool (t1 Sidecar GET /api/notes-selection).
+const NOTES_SELECTION_TOOL: &str = "get_notes_selection";
 
 fn names_of(tools: &[ToolDescriptor]) -> BTreeSet<String> {
     tools.iter().map(|t| t.name.clone()).collect()
@@ -1037,5 +1041,233 @@ fn p3_t10_host_dual_slot_list_call_and_unknown_hard_fail_smoke() {
     stop_embedded_mcp_runtime(mcp_handle).expect("stop MCP");
     local_http::stop(http_handle);
     drop(sandbox);
+}
+
+fn notes_expected_tool_names() -> BTreeSet<&'static str> {
+    let mut names: BTreeSet<&'static str> = CORPUS_TOOLS.iter().copied().collect();
+    names.insert(NOTES_SELECTION_TOOL);
+    names
+}
+
+fn adapter_source() -> &'static str {
+    include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/src/services/mcp_protocol_adapter.rs"
+    ))
+}
+
+fn source_fn_after<'a>(src: &'a str, fn_name: &str) -> &'a str {
+    src.split(&format!("fn {fn_name}"))
+        .nth(1)
+        .unwrap_or_else(|| panic!("{fn_name} must exist"))
+}
+
+/// Normal: notes tools/list = corpus four-pack + read-only get_notes_selection.
+#[test]
+fn tools_list_for_notes_is_corpus_four_pack_plus_get_notes_selection() {
+    let names = names_of(&tools_list_for_slot("notes"));
+    let expected: BTreeSet<_> = notes_expected_tool_names()
+        .into_iter()
+        .map(str::to_string)
+        .collect();
+    assert_eq!(
+        names, expected,
+        "notes tools/list must be corpus four-pack + get_notes_selection"
+    );
+}
+
+/// Normal: notes corpus routes are the same Sidecar /api paths as cursor_ide.
+#[test]
+fn notes_corpus_routes_match_cursor_ide_sidecar_api() {
+    let table = build_slot_tool_table("notes").expect("notes must be registered");
+    let routes = route_map(&table);
+    for tool in CORPUS_TOOLS {
+        let (path, method) = expected_api_path(tool);
+        let got = routes.get(*tool).expect("corpus route present on notes");
+        assert_eq!(got.0, path, "notes must proxy the same /api path as cursor_ide for {tool}");
+        assert_eq!(got.1, method, "notes must use the same HTTP method as cursor_ide for {tool}");
+    }
+}
+
+/// Normal: get_notes_selection proxies t1 GET /api/notes-selection and returns the snapshot shape.
+#[test]
+fn get_notes_selection_proxies_sidecar_read_snapshot() {
+    let body = r#"{"date":"2026-06-19","documents":[{"id":"11111111111111111111111111111111","selected":true}]}"#;
+    let (base, seen, join) = start_recording_sidecar(200, body);
+    let rt = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .expect("runtime");
+    let mapped = rt
+        .block_on(proxy_tool_call(
+            &base,
+            "notes",
+            NOTES_SELECTION_TOOL,
+            serde_json::json!({}),
+        ))
+        .expect("proxy must return mapped result")
+        .expect("Sidecar 200 → MCP success");
+    assert_eq!(mcp_text_ok(&mapped), body);
+
+    let snapshot: serde_json::Value = serde_json::from_str(mcp_text_ok(&mapped)).expect("snapshot JSON");
+    assert_eq!(snapshot["date"], "2026-06-19");
+    let docs = snapshot["documents"].as_array().expect("documents");
+    assert_eq!(docs.len(), 1);
+    assert_eq!(docs[0]["id"], "11111111111111111111111111111111");
+    assert_eq!(docs[0]["selected"], true);
+
+    let hits = seen.lock().expect("lock").clone();
+    assert!(
+        hits.iter()
+            .any(|(m, u)| m == "GET" && u == "/api/notes-selection"),
+        "get_notes_selection must GET /api/notes-selection, seen={hits:?}"
+    );
+    let _ = join.join();
+}
+
+/// Boundary: scene_slot_api("notes") seeds corpus only (no todo).
+#[test]
+fn scene_slot_api_notes_seeds_corpus_not_todo() {
+    assert!(
+        super::REGISTERED_SCENE_SLOTS.contains(&"notes"),
+        "REGISTERED_SCENE_SLOTS must include notes"
+    );
+    let api = super::scene_slot_api("notes").expect("notes must be a registered slot");
+    assert!(api.include_corpus, "notes must seed corpus four-pack");
+    assert!(!api.include_todo, "notes must not seed todo tools");
+
+    let table = build_slot_tool_table("notes").expect("notes table");
+    assert!(table.include_corpus);
+    assert!(!table.include_todo);
+}
+
+/// Boundary: get_notes_selection is a ToolRoute hung in build_slot_tool_table, not named by scene_slot_api.
+#[test]
+fn get_notes_selection_is_hung_in_build_slot_tool_table_not_scene_slot_api() {
+    let table = build_slot_tool_table("notes").expect("notes registered");
+    let route = table
+        .tools
+        .iter()
+        .find(|r| r.name == NOTES_SELECTION_TOOL)
+        .expect("build_slot_tool_table must attach get_notes_selection");
+    assert_eq!(route.api_path, "/api/notes-selection");
+    assert_eq!(route.method, HttpMethod::Get);
+    assert!(
+        !CORPUS_TOOLS.contains(&NOTES_SELECTION_TOOL),
+        "get_notes_selection is not a corpus seed tool"
+    );
+
+    let src = adapter_source();
+    let scene_fn = source_fn_after(src, "scene_slot_api")
+        .split("fn corpus_tool_routes")
+        .next()
+        .expect("scene_slot_api body");
+    assert!(
+        !scene_fn.contains("get_notes_selection"),
+        "scene_slot_api must not name a third tool"
+    );
+    let build_fn = source_fn_after(src, "build_slot_tool_table")
+        .split("/// Allowlisted tool names")
+        .next()
+        .expect("build_slot_tool_table body");
+    assert!(
+        build_fn.contains("get_notes_selection"),
+        "build_slot_tool_table must hang get_notes_selection as a ToolRoute"
+    );
+}
+
+/// Boundary: notes slot contains no todo tools.
+#[test]
+fn notes_slot_contains_no_todo_tools() {
+    let names = names_of(&tools_list_for_slot("notes"));
+    for tool in TODO_TOOLS {
+        assert!(
+            !names.contains(*tool),
+            "notes must not expose todo tool {tool}"
+        );
+    }
+    let table = build_slot_tool_table("notes").expect("notes registered");
+    assert!(!table.include_todo);
+}
+
+/// Exception: unregistered slots still return None after notes is registered.
+#[test]
+fn build_slot_tool_table_unregistered_still_none_when_notes_exists() {
+    assert!(
+        build_slot_tool_table("notes").is_some(),
+        "notes must be registered so the hard-reject path is distinguishable"
+    );
+    assert!(build_slot_tool_table("__unknown__").is_none());
+    assert!(build_slot_tool_table("").is_none());
+    assert!(tools_list_for_slot("__unknown__").is_empty());
+}
+
+/// Exception: notes exposes no MCP write-selection tool.
+#[test]
+fn notes_slot_has_no_mcp_write_selection_tool() {
+    let table = build_slot_tool_table("notes").expect("notes registered");
+    for tool in &table.tools {
+        let name = tool.name.to_lowercase();
+        let writes_selection = name.contains("notes_selection")
+            && (name.contains("put")
+                || name.contains("set")
+                || name.contains("write")
+                || name.contains("update"));
+        assert!(
+            !writes_selection,
+            "must not provide an MCP write-selection tool, found {}",
+            tool.name
+        );
+        assert!(
+            !(tool.api_path.contains("notes-selection") && tool.method != HttpMethod::Get),
+            "notes selection MCP route must be GET-only, found {} {:?}",
+            tool.name,
+            tool.method
+        );
+    }
+    assert!(
+        !table.tools.iter().any(|t| t.name == "put_notes_selection"
+            || t.name == "set_notes_selection"
+            || t.name == "write_notes_selection"),
+        "must not register a write-selection MCP tool name"
+    );
+}
+
+/// Normal: /mcp/notes is mounted and tools/list matches the notes surface.
+#[test]
+fn notes_scene_slot_initialize_lists_corpus_plus_selection() {
+    let port = ephemeral_port();
+    let bind_addr: SocketAddr = format!("127.0.0.1:{port}").parse().expect("bind addr");
+    let handle = start_embedded_mcp_runtime(McpRuntimeConfig { bind_addr }).expect("start");
+    let local = handle.local_addr();
+
+    let init = r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"t3-notes","version":"0.0.1"}}}"#;
+    let (status, body, _) = http_post_json(
+        &format!("http://127.0.0.1:{}/mcp/notes", local.port()),
+        init,
+    );
+    assert_ne!(
+        status, 404,
+        "registered notes slot must not hard-reject, body={body}"
+    );
+
+    let rt = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .expect("tokio");
+    let names = rt
+        .block_on(super::run_initialize_and_list_tools(local.port(), "notes"))
+        .expect("notes tools/list");
+    let got: BTreeSet<_> = names.iter().map(String::as_str).collect();
+    let expected = notes_expected_tool_names();
+    assert_eq!(got, expected, "HTTP tools/list for /mcp/notes");
+    for tool in TODO_TOOLS {
+        assert!(
+            !got.contains(tool),
+            "HTTP tools/list for notes must omit todo tool {tool}"
+        );
+    }
+
+    stop_embedded_mcp_runtime(handle).expect("stop");
 }
 
