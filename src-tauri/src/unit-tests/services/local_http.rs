@@ -171,6 +171,19 @@ fn http_post(port: u16, path: &str, payload: &Value) -> (u16, Value) {
     (status, body)
 }
 
+fn http_put(port: u16, path: &str, payload: &Value) -> (u16, Value) {
+    let url = format!("http://127.0.0.1:{port}{path}");
+    let client = blocking::Client::new();
+    let response = client
+        .put(&url)
+        .json(payload)
+        .send()
+        .expect("http put");
+    let status = response.status().as_u16();
+    let body: Value = response.json().unwrap_or(json!({}));
+    (status, body)
+}
+
 fn http_post_with_response(
     port: u16,
     path: &str,
@@ -2641,6 +2654,225 @@ fn post_todo_task_update_unknown_category_id_rejects() {
         assert_eq!(
             got["category_id"],
             crate::services::todo_task::types::DEFAULT_CATEGORY_ID
+        );
+    });
+}
+
+// --- t1: Host notes selection snapshot Sidecar HTTP ---
+
+const NOTES_SELECTION_API: &str = "/api/notes-selection";
+
+fn empty_notes_selection() -> Value {
+    json!({ "date": null, "documents": [] })
+}
+
+#[test]
+fn get_notes_selection_empty_snapshot_returns_200_not_404() {
+    let fixture = setup_repo_with_corpus();
+    let repo_root = fixture.repo_root.clone();
+    with_server(repo_root, |port| {
+        let (status, body) = http_get(port, NOTES_SELECTION_API);
+        assert_eq!(status, 200);
+        assert_eq!(body, empty_notes_selection());
+        assert!(body.get("_status").is_none());
+    });
+}
+
+#[test]
+fn put_notes_selection_full_table_then_get_equals_put() {
+    let fixture = setup_repo_with_corpus();
+    let repo_root = fixture.repo_root.clone();
+    with_server(repo_root, |port| {
+        let table = json!({
+            "date": "2026-06-19",
+            "documents": [
+                { "id": "11111111111111111111111111111111", "selected": true },
+                { "id": "22222222222222222222222222222222", "selected": false }
+            ]
+        });
+        let (put_status, put_body) = http_put(port, NOTES_SELECTION_API, &table);
+        assert_eq!(put_status, 200);
+        assert_eq!(put_body, table);
+        assert!(put_body.get("_status").is_none());
+
+        let (get_status, get_body) = http_get(port, NOTES_SELECTION_API);
+        assert_eq!(get_status, 200);
+        assert_eq!(get_body, table);
+        assert_eq!(get_body, put_body);
+    });
+}
+
+#[test]
+fn put_notes_selection_date_only_all_unselected_get_returns_as_written() {
+    let fixture = setup_repo_with_corpus();
+    let repo_root = fixture.repo_root.clone();
+    with_server(repo_root, |port| {
+        let table = json!({
+            "date": "2026-06-19",
+            "documents": [
+                { "id": "11111111111111111111111111111111", "selected": false },
+                { "id": "22222222222222222222222222222222", "selected": false }
+            ]
+        });
+        let (put_status, put_body) = http_put(port, NOTES_SELECTION_API, &table);
+        assert_eq!(put_status, 200);
+        assert_eq!(put_body, table);
+
+        let (get_status, get_body) = http_get(port, NOTES_SELECTION_API);
+        assert_eq!(get_status, 200);
+        assert_eq!(get_body, table);
+        let docs = get_body["documents"].as_array().expect("documents");
+        assert!(docs.iter().all(|d| d["selected"] == false));
+    });
+}
+
+#[test]
+fn put_notes_selection_empty_snapshot_returns_200_not_404() {
+    let fixture = setup_repo_with_corpus();
+    let repo_root = fixture.repo_root.clone();
+    with_server(repo_root, |port| {
+        let empty = empty_notes_selection();
+        let (put_status, put_body) = http_put(port, NOTES_SELECTION_API, &empty);
+        assert_eq!(put_status, 200);
+        assert_eq!(put_body, empty);
+
+        let (get_status, get_body) = http_get(port, NOTES_SELECTION_API);
+        assert_eq!(get_status, 200);
+        assert_eq!(get_body, empty);
+    });
+}
+
+#[test]
+fn put_notes_selection_one_selected_true_get_equals_put_without_normalize() {
+    let fixture = setup_repo_with_corpus();
+    let repo_root = fixture.repo_root.clone();
+    with_server(repo_root, |port| {
+        let table = json!({
+            "date": "2026-06-19",
+            "documents": [
+                { "id": "11111111111111111111111111111111", "selected": false },
+                { "id": "22222222222222222222222222222222", "selected": true },
+                { "id": "33333333333333333333333333333333", "selected": false }
+            ]
+        });
+        let (put_status, put_body) = http_put(port, NOTES_SELECTION_API, &table);
+        assert_eq!(put_status, 200);
+        assert_eq!(put_body, table);
+
+        let (get_status, get_body) = http_get(port, NOTES_SELECTION_API);
+        assert_eq!(get_status, 200);
+        assert_eq!(get_body, table);
+        let selected: Vec<_> = get_body["documents"]
+            .as_array()
+            .expect("documents")
+            .iter()
+            .filter(|d| d["selected"] == true)
+            .collect();
+        assert_eq!(selected.len(), 1);
+        assert_eq!(selected[0]["id"], "22222222222222222222222222222222");
+    });
+}
+
+#[test]
+fn notes_selection_document_ids_match_corpus_files() {
+    let catalog = setup_repo_with_catalog();
+    let repo_root = catalog.repo_root.clone();
+    let id = catalog.id.clone();
+    with_server(repo_root, |port| {
+        let table = json!({
+            "date": "2026-06-19",
+            "documents": [{ "id": id, "selected": true }]
+        });
+        let (put_status, put_body) = http_put(port, NOTES_SELECTION_API, &table);
+        assert_eq!(put_status, 200);
+        assert_eq!(put_body["documents"][0]["id"], id);
+
+        let (get_status, get_body) = http_get(port, NOTES_SELECTION_API);
+        assert_eq!(get_status, 200);
+        assert_eq!(get_body["documents"][0]["id"], id);
+
+        let (files_status, files_body) = http_post(
+            port,
+            "/api/corpus-files",
+            &json!({ "ids": [id] }),
+        );
+        assert_eq!(files_status, 200);
+        let items = files_body["items"].as_array().expect("items");
+        assert_eq!(items.len(), 1);
+        assert_eq!(items[0]["ok"], true);
+        assert_eq!(get_body["documents"][0]["id"], id);
+    });
+}
+
+#[test]
+fn notes_selection_only_served_under_existing_sidecar_api() {
+    let fixture = setup_repo_with_corpus();
+    let repo_root = fixture.repo_root.clone();
+    with_server(repo_root, |port| {
+        let (api_status, api_body) = http_get(port, NOTES_SELECTION_API);
+        assert_eq!(api_status, 200);
+        assert_eq!(api_body, empty_notes_selection());
+        assert!(NOTES_SELECTION_API.starts_with("/api/"));
+
+        let (bare_status, bare_body) = http_get(port, "/notes-selection");
+        assert_eq!(bare_status, 404);
+        assert!(bare_body.get("error").is_some());
+
+        let (put_bare_status, put_bare_body) =
+            http_put(port, "/notes-selection", &empty_notes_selection());
+        assert!(
+            put_bare_status == 404 || put_bare_status == 405,
+            "non-/api write must not succeed, got {put_bare_status}: {put_bare_body}"
+        );
+        assert_ne!(put_bare_status, 200);
+    });
+}
+
+#[test]
+fn notes_selection_write_is_sidecar_http_only_no_mcp_write_tool() {
+    for slot in ["todo_task", "cursor_ide", "notes"] {
+        if let Some(table) = crate::services::mcp_protocol_adapter::build_slot_tool_table(slot) {
+            for tool in &table.tools {
+                let name = tool.name.to_lowercase();
+                let writes_notes_selection = name.contains("notes_selection")
+                    && (name.contains("put")
+                        || name.contains("set")
+                        || name.contains("write")
+                        || name.contains("update"));
+                assert!(
+                    !writes_notes_selection,
+                    "this task must not add an MCP write tool, found {} on {slot}",
+                    tool.name
+                );
+                assert!(
+                    !(tool.api_path.contains("notes-selection")
+                        && !matches!(
+                            tool.method,
+                            crate::services::mcp_protocol_adapter::HttpMethod::Get
+                        )),
+                    "notes selection write must stay Sidecar HTTP, found {} {} on {slot}",
+                    tool.name,
+                    tool.api_path
+                );
+            }
+        }
+    }
+
+    let fixture = setup_repo_with_corpus();
+    let repo_root = fixture.repo_root.clone();
+    with_server(repo_root, |port| {
+        let table = json!({
+            "date": "2026-06-19",
+            "documents": [{ "id": "11111111111111111111111111111111", "selected": true }]
+        });
+        let (put_status, put_body) = http_put(port, NOTES_SELECTION_API, &table);
+        assert_eq!(put_status, 200);
+        assert_eq!(put_body, table);
+
+        let (post_status, post_body) = http_post(port, NOTES_SELECTION_API, &table);
+        assert_eq!(
+            post_status, 405,
+            "write is PUT on Sidecar HTTP, not POST: {post_body}"
         );
     });
 }

@@ -1,4 +1,4 @@
-//! Localhost HTTP API for MCP sidecar proxy (`GET/POST /api/corpus-*`, `/api/archive-*`, `/api/read-later*`, `/api/todo-tasks`, `/api/status`).
+//! Localhost HTTP API for MCP sidecar proxy (`GET/POST /api/corpus-*`, `/api/archive-*`, `/api/read-later*`, `/api/todo-tasks`, `GET/PUT /api/notes-selection`, `/api/status`).
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -10,6 +10,9 @@ use serde_json::{json, Value};
 use tiny_http::{Header, Method, Response, Server, StatusCode};
 
 use crate::services::archive_write::{archive_digest, archive_document};
+use crate::services::notes_selection::{
+    notes_selection_snapshot_get, notes_selection_snapshot_put, reset_snapshot,
+};
 use crate::services::todo_task;
 use crate::services::read_later;
 use crate::services::workbench_read::{
@@ -75,6 +78,7 @@ impl LocalHttpState {
 }
 
 pub fn start(repo_root: PathBuf, port: u16) -> Result<LocalHttpHandle, LocalHttpError> {
+    reset_snapshot();
     let addr = format!("127.0.0.1:{port}");
     let server = Server::http(&addr).map_err(|e| LocalHttpError::BindFailed(e.to_string()))?;
     let server = Arc::new(server);
@@ -175,6 +179,15 @@ fn handle_request(repo_root: &PathBuf, port: u16, request: tiny_http::Request) {
                 handle_read_later_delete(request, id);
                 return;
             }
+        }
+        respond_json(request, 405, json!({ "error": "Method not allowed" }));
+        return;
+    }
+
+    if request.method() == &Method::Put {
+        if path == "/api/notes-selection" {
+            handle_notes_selection_put(request);
+            return;
         }
         respond_json(request, 405, json!({ "error": "Method not allowed" }));
         return;
@@ -339,6 +352,10 @@ fn handle_request(repo_root: &PathBuf, port: u16, request: tiny_http::Request) {
                 respond_from_value(request, value);
                 return;
             }
+            "/api/notes-selection" => {
+                handle_notes_selection_get(request);
+                return;
+            }
             "/api/status" => {
                 respond_json(
                     request,
@@ -358,6 +375,21 @@ fn handle_request(repo_root: &PathBuf, port: u16, request: tiny_http::Request) {
     }
 
     respond_json(request, 405, json!({ "error": "Method not allowed" }));
+}
+
+fn handle_notes_selection_get(request: tiny_http::Request) {
+    respond_from_value(request, notes_selection_snapshot_get());
+}
+
+fn handle_notes_selection_put(mut request: tiny_http::Request) {
+    let payload = match read_json_body(&mut request) {
+        Ok(v) => v,
+        Err(err) => {
+            respond_json(request, 400, err);
+            return;
+        }
+    };
+    respond_from_value(request, notes_selection_snapshot_put(&payload));
 }
 
 fn handle_read_later_get(request: tiny_http::Request) {
