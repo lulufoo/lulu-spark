@@ -1,8 +1,6 @@
 ## Scope of This Document
 
-- All rules in this document apply only to assistant user-facing conversation replies.
-
-- No rule in this document may be interpreted as a writing requirement for any non-conversation output, including project documents, workflow-generated artifacts, code comments, cache files, or any other files in the repository.
+This document constrains conversation replies only, not non-conversation output.
 
 ## Conversation Standards
 
@@ -38,9 +36,9 @@ Guide the reply along: Problem / Goal → Direction → Framework → Implementa
 
 ## User Familiarity
 
-This project: **New**.
+Replies in this project must be followable by **New**.
 
-- **New:** explain what it does, why it matters, and how it works; define project terms on first use.
-- **Oriented:** connect details to the overall structure; explain how key parts interact.
-- **Familiar:** assume core concepts and workflows are known; explain only unfamiliar project terms.
-- **Fluent:** use established project terminology directly; explain only ambiguity, non-obvious behavior, and important trade-offs.
+- **New:** a first-time project inheritor with no prior context can follow.
+- **Oriented:** a reader who knows the purpose, not the structure, can place this point in the whole.
+- **Familiar:** a reader who knows the core concepts and workflows can proceed without a recap.
+- **Fluent:** a peer who shares the project's language can act on this point.
