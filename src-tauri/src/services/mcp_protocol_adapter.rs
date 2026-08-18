@@ -21,7 +21,7 @@ use rmcp::{
     model::{
         CallToolRequestParams, CallToolResponse, CallToolResult, ClientCapabilities, ClientInfo,
         ContentBlock, Implementation, ListToolsResult, PaginatedRequestParams, ServerCapabilities,
-        ServerInfo, Tool,
+        ServerInfo, Tool, ToolAnnotations,
     },
     service::RequestContext,
     transport::{
@@ -32,7 +32,7 @@ use rmcp::{
     },
     ErrorData as McpError, RoleServer,
 };
-use serde_json::Value;
+use serde_json::{json, Value};
 use tokio_util::sync::CancellationToken;
 
 use super::local_http;
@@ -212,8 +212,15 @@ pub enum HttpMethod {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ToolRoute {
     pub name: String,
+    pub description: String,
     pub method: HttpMethod,
     pub api_path: String,
+    /// True only when the tool changes no Host-managed data.
+    pub read_only: bool,
+    /// A destructive mutation hint for MCP clients. Meaningful only for writes.
+    pub destructive: bool,
+    /// JSON Schema passed to MCP `tools/list` and, later, to model tool definitions.
+    pub input_schema: Value,
 }
 
 /// Authoritative slot→tool routing table for a registered `scene_slot`.
@@ -261,108 +268,364 @@ fn scene_slot_api(slot: &str) -> Option<SceneSlotApi> {
     }
 }
 
+fn object_schema(properties: Value, required: &[&str]) -> Value {
+    let mut schema = json!({
+        "type": "object",
+        "properties": properties,
+        "additionalProperties": false,
+    });
+    if !required.is_empty() {
+        schema["required"] = json!(required);
+    }
+    schema
+}
+
+fn route(
+    name: &str,
+    description: &str,
+    method: HttpMethod,
+    api_path: &str,
+    input_schema: Value,
+    read_only: bool,
+    destructive: bool,
+) -> ToolRoute {
+    ToolRoute {
+        name: name.into(),
+        description: description.into(),
+        method,
+        api_path: api_path.into(),
+        read_only,
+        destructive,
+        input_schema,
+    }
+}
+
 fn corpus_tool_routes() -> Vec<ToolRoute> {
     vec![
-        ToolRoute {
-            name: "get_corpus_catalog".into(),
-            method: HttpMethod::Get,
-            api_path: "/api/corpus-catalog".into(),
-        },
-        ToolRoute {
-            name: "get_corpus_files".into(),
-            method: HttpMethod::Post,
-            api_path: "/api/corpus-files".into(),
-        },
-        ToolRoute {
-            name: "archive_document".into(),
-            method: HttpMethod::Post,
-            api_path: "/api/archive-document".into(),
-        },
-        ToolRoute {
-            name: "archive_digest".into(),
-            method: HttpMethod::Post,
-            api_path: "/api/archive-digest".into(),
-        },
+        route(
+            "get_corpus_catalog",
+            "List the latest archive entry for each top-level topic.",
+            HttpMethod::Get,
+            "/api/corpus-catalog",
+            object_schema(
+                json!({
+                    "mode": {
+                        "type": "string",
+                        "const": "latest_per_topic",
+                        "description": "The only supported catalog mode."
+                    }
+                }),
+                &["mode"],
+            ),
+            true,
+            false,
+        ),
+        route(
+            "get_corpus_files",
+            "Read archived digest bodies by entry id.",
+            HttpMethod::Post,
+            "/api/corpus-files",
+            object_schema(
+                json!({
+                    "ids": {
+                        "type": "array",
+                        "items": { "type": "string" },
+                        "description": "Archive entry ids to read."
+                    }
+                }),
+                &["ids"],
+            ),
+            true,
+            false,
+        ),
+        route(
+            "archive_document",
+            "Archive a formatted Markdown file by absolute source_path. The Host reads the file; never send document text.",
+            HttpMethod::Post,
+            "/api/archive-document",
+            object_schema(
+                json!({
+                    "source_path": {
+                        "type": "string",
+                        "description": "Absolute path to an allow-listed Markdown file."
+                    },
+                    "source_type": {
+                        "type": "string",
+                        "description": "Optional source type; defaults to summary."
+                    },
+                    "translations": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "lang": { "type": "string" },
+                                "content": { "type": "string" }
+                            },
+                            "required": ["lang", "content"],
+                            "additionalProperties": false
+                        },
+                        "description": "Optional translated Markdown bodies."
+                    },
+                    "master_task_id": {
+                        "type": "string",
+                        "description": "Optional Todo task id; must be paired with sub_task_id."
+                    },
+                    "sub_task_id": {
+                        "type": "string",
+                        "description": "Optional Todo subtask id; must be paired with master_task_id."
+                    }
+                }),
+                &["source_path"],
+            ),
+            false,
+            false,
+        ),
+        route(
+            "archive_digest",
+            "Write digest Markdown for an existing archive entry.",
+            HttpMethod::Post,
+            "/api/archive-digest",
+            object_schema(
+                json!({
+                    "id": { "type": "string", "description": "Archive entry id." },
+                    "digest": { "type": "string", "description": "Digest Markdown." },
+                    "force": {
+                        "type": "boolean",
+                        "description": "Overwrite an existing digest when true."
+                    }
+                }),
+                &["id", "digest"],
+            ),
+            false,
+            true,
+        ),
     ]
 }
 
 fn todo_tool_routes() -> Vec<ToolRoute> {
     vec![
-        ToolRoute {
-            name: "create_todo_task".into(),
-            method: HttpMethod::Post,
-            api_path: "/api/todo-task-create".into(),
-        },
-        ToolRoute {
-            name: "update_todo_task".into(),
-            method: HttpMethod::Post,
-            api_path: "/api/todo-task-update".into(),
-        },
-        ToolRoute {
-            name: "list_todo_tasks".into(),
-            method: HttpMethod::Get,
-            api_path: "/api/todo-tasks".into(),
-        },
-        ToolRoute {
-            name: "list_todo_categories".into(),
-            method: HttpMethod::Get,
-            api_path: "/api/todo-task-list-categories".into(),
-        },
-        ToolRoute {
-            name: "get_todo_task".into(),
-            method: HttpMethod::Get,
-            api_path: "/api/todo-task".into(),
-        },
-        ToolRoute {
-            name: "delete_todo_task".into(),
-            method: HttpMethod::Post,
-            api_path: "/api/todo-task-delete".into(),
-        },
-        ToolRoute {
-            name: "add_todo_sub".into(),
-            method: HttpMethod::Post,
-            api_path: "/api/todo-task-add-sub".into(),
-        },
-        ToolRoute {
-            name: "update_todo_sub".into(),
-            method: HttpMethod::Post,
-            api_path: "/api/todo-task-update-sub".into(),
-        },
-        ToolRoute {
-            name: "delete_todo_sub".into(),
-            method: HttpMethod::Post,
-            api_path: "/api/todo-task-delete-sub".into(),
-        },
-        ToolRoute {
-            name: "complete_todo".into(),
-            method: HttpMethod::Post,
-            api_path: "/api/todo-task-complete".into(),
-        },
-        ToolRoute {
-            name: "link_todo_archive".into(),
-            method: HttpMethod::Post,
-            api_path: "/api/todo-task-link-archive".into(),
-        },
-        ToolRoute {
-            name: "add_todo_attachment".into(),
-            method: HttpMethod::Post,
-            api_path: "/api/todo-task-add-attachment".into(),
-        },
-        ToolRoute {
-            name: "list_todo_attachments".into(),
-            method: HttpMethod::Post,
-            api_path: "/api/todo-task-list-attachments".into(),
-        },
-        ToolRoute {
-            name: "get_todo_attachment".into(),
-            method: HttpMethod::Post,
-            api_path: "/api/todo-task-get-attachment".into(),
-        },
-        ToolRoute {
-            name: "update_todo_attachment".into(),
-            method: HttpMethod::Post,
-            api_path: "/api/todo-task-update-attachment".into(),
-        },
+        route(
+            "create_todo_task",
+            "Create a todo task with a title and optional Markdown body, category, and initial subtask titles.",
+            HttpMethod::Post,
+            "/api/todo-task-create",
+            object_schema(
+                json!({
+                    "title": { "type": "string", "description": "Todo task title." },
+                    "todo_md": { "type": "string", "description": "Optional task body Markdown." },
+                    "category_id": { "type": "string", "description": "Optional todo category id." },
+                    "sub_titles": {
+                        "type": "array",
+                        "items": { "type": "string" },
+                        "description": "Optional initial subtask titles."
+                    }
+                }),
+                &["title"],
+            ),
+            false,
+            false,
+        ),
+        route(
+            "update_todo_task",
+            "Update a todo task's title, Markdown body, and/or category. Provide at least one field to change.",
+            HttpMethod::Post,
+            "/api/todo-task-update",
+            object_schema(
+                json!({
+                    "master_task_id": { "type": "string", "description": "Todo task id." },
+                    "title": { "type": "string", "description": "Replacement task title." },
+                    "todo_md": { "type": "string", "description": "Replacement task body; empty clears it." },
+                    "category_id": { "type": "string", "description": "Replacement category id." }
+                }),
+                &["master_task_id"],
+            ),
+            false,
+            false,
+        ),
+        route(
+            "list_todo_tasks",
+            "List todo tasks, optionally filtered by category id.",
+            HttpMethod::Get,
+            "/api/todo-tasks",
+            object_schema(
+                json!({
+                    "category_id": { "type": "string", "description": "Optional category id filter." }
+                }),
+                &[],
+            ),
+            true,
+            false,
+        ),
+        route(
+            "list_todo_categories",
+            "List all todo categories.",
+            HttpMethod::Get,
+            "/api/todo-task-list-categories",
+            object_schema(json!({}), &[]),
+            true,
+            false,
+        ),
+        route(
+            "get_todo_task",
+            "Get one todo task by id.",
+            HttpMethod::Get,
+            "/api/todo-task",
+            object_schema(
+                json!({ "id": { "type": "string", "description": "Todo task id." } }),
+                &["id"],
+            ),
+            true,
+            false,
+        ),
+        route(
+            "delete_todo_task",
+            "Delete a todo task and its contents.",
+            HttpMethod::Post,
+            "/api/todo-task-delete",
+            object_schema(
+                json!({ "master_task_id": { "type": "string", "description": "Todo task id." } }),
+                &["master_task_id"],
+            ),
+            false,
+            true,
+        ),
+        route(
+            "add_todo_sub",
+            "Add a subtask to a todo task.",
+            HttpMethod::Post,
+            "/api/todo-task-add-sub",
+            object_schema(
+                json!({
+                    "master_task_id": { "type": "string", "description": "Todo task id." },
+                    "title": { "type": "string", "description": "Subtask title." },
+                    "content": { "type": "string", "description": "Optional subtask content." }
+                }),
+                &["master_task_id", "title"],
+            ),
+            false,
+            false,
+        ),
+        route(
+            "update_todo_sub",
+            "Update a subtask title and optional content. A title is always required.",
+            HttpMethod::Post,
+            "/api/todo-task-update-sub",
+            object_schema(
+                json!({
+                    "master_task_id": { "type": "string", "description": "Todo task id." },
+                    "sub_task_id": { "type": "string", "description": "Subtask id." },
+                    "title": { "type": "string", "description": "Replacement subtask title." },
+                    "content": { "type": "string", "description": "Optional replacement content." }
+                }),
+                &["master_task_id", "sub_task_id", "title"],
+            ),
+            false,
+            false,
+        ),
+        route(
+            "delete_todo_sub",
+            "Delete a subtask.",
+            HttpMethod::Post,
+            "/api/todo-task-delete-sub",
+            object_schema(
+                json!({
+                    "master_task_id": { "type": "string", "description": "Todo task id." },
+                    "sub_task_id": { "type": "string", "description": "Subtask id." }
+                }),
+                &["master_task_id", "sub_task_id"],
+            ),
+            false,
+            true,
+        ),
+        route(
+            "complete_todo",
+            "Complete a todo task or one of its subtasks.",
+            HttpMethod::Post,
+            "/api/todo-task-complete",
+            object_schema(
+                json!({
+                    "master_task_id": { "type": "string", "description": "Todo task id." },
+                    "sub_task_id": { "type": "string", "description": "Optional subtask id." }
+                }),
+                &["master_task_id"],
+            ),
+            false,
+            false,
+        ),
+        route(
+            "link_todo_archive",
+            "Link an archive entry to a todo subtask.",
+            HttpMethod::Post,
+            "/api/todo-task-link-archive",
+            object_schema(
+                json!({
+                    "master_task_id": { "type": "string", "description": "Todo task id." },
+                    "sub_task_id": { "type": "string", "description": "Subtask id." },
+                    "archive_id": { "type": "string", "description": "Archive entry id." }
+                }),
+                &["master_task_id", "sub_task_id", "archive_id"],
+            ),
+            false,
+            false,
+        ),
+        route(
+            "add_todo_attachment",
+            "Copy a local Markdown file into a todo task as an attachment. Use source_path, never file content.",
+            HttpMethod::Post,
+            "/api/todo-task-add-attachment",
+            object_schema(
+                json!({
+                    "master_task_id": { "type": "string", "description": "Todo task id." },
+                    "source_path": { "type": "string", "description": "Absolute source Markdown path." }
+                }),
+                &["master_task_id", "source_path"],
+            ),
+            false,
+            false,
+        ),
+        route(
+            "list_todo_attachments",
+            "List attachments for a todo task.",
+            HttpMethod::Post,
+            "/api/todo-task-list-attachments",
+            object_schema(
+                json!({ "master_task_id": { "type": "string", "description": "Todo task id." } }),
+                &["master_task_id"],
+            ),
+            true,
+            false,
+        ),
+        route(
+            "get_todo_attachment",
+            "Read one todo attachment by file name.",
+            HttpMethod::Post,
+            "/api/todo-task-get-attachment",
+            object_schema(
+                json!({
+                    "master_task_id": { "type": "string", "description": "Todo task id." },
+                    "file_name": { "type": "string", "description": "Attachment file name." }
+                }),
+                &["master_task_id", "file_name"],
+            ),
+            true,
+            false,
+        ),
+        route(
+            "update_todo_attachment",
+            "Replace an existing todo attachment by copying a local Markdown file. Use source_path, never file content.",
+            HttpMethod::Post,
+            "/api/todo-task-update-attachment",
+            object_schema(
+                json!({
+                    "master_task_id": { "type": "string", "description": "Todo task id." },
+                    "file_name": { "type": "string", "description": "Existing attachment file name." },
+                    "source_path": { "type": "string", "description": "Absolute replacement Markdown path." }
+                }),
+                &["master_task_id", "file_name", "source_path"],
+            ),
+            false,
+            true,
+        ),
     ]
 }
 
@@ -380,11 +643,15 @@ pub fn build_slot_tool_table(slot: &str) -> Option<SlotToolTable> {
     if slot == "notes" {
         for &name in NOTES_SLOT_ONLY_TOOLS {
             match name {
-                "get_notes_selection" => tools.push(ToolRoute {
-                    name: name.into(),
-                    method: HttpMethod::Get,
-                    api_path: "/api/notes-selection".into(),
-                }),
+                "get_notes_selection" => tools.push(route(
+                    name,
+                    "Read the current Notes document-selection snapshot. Selection updates are not available through MCP.",
+                    HttpMethod::Get,
+                    "/api/notes-selection",
+                    object_schema(json!({}), &[]),
+                    true,
+                    false,
+                )),
                 other => panic!("unmapped notes-only tool {other}"),
             }
         }
@@ -512,10 +779,18 @@ struct SlotHandler {
     sidecar_base_url: String,
 }
 
-fn empty_object_schema() -> Arc<serde_json::Map<String, serde_json::Value>> {
-    let mut schema = serde_json::Map::new();
-    schema.insert("type".into(), serde_json::Value::String("object".into()));
-    Arc::new(schema)
+fn route_to_mcp_tool(route: ToolRoute) -> Tool {
+    let schema = route
+        .input_schema
+        .as_object()
+        .cloned()
+        .expect("MCP route input schema must be a JSON object");
+    let annotations = ToolAnnotations::new()
+        .read_only(route.read_only)
+        .destructive(route.destructive)
+        .idempotent(route.read_only)
+        .open_world(false);
+    Tool::new(route.name, route.description, Arc::new(schema)).with_annotations(annotations)
 }
 
 impl ServerHandler for SlotHandler {
@@ -528,11 +803,9 @@ impl ServerHandler for SlotHandler {
         _request: Option<PaginatedRequestParams>,
         _context: RequestContext<RoleServer>,
     ) -> impl std::future::Future<Output = Result<ListToolsResult, McpError>> + Send + '_ {
-        // Names come from the Host routing table; full input schemas land in later tasks.
-        let tools: Vec<Tool> = tools_list_for_slot(&self.scene_slot)
-            .into_iter()
-            .map(|d| Tool::new(d.name, "", empty_object_schema()))
-            .collect();
+        let tools: Vec<Tool> = build_slot_tool_table(&self.scene_slot)
+            .map(|table| table.tools.into_iter().map(route_to_mcp_tool).collect())
+            .unwrap_or_default();
         std::future::ready(Ok(ListToolsResult::with_all_items(tools)))
     }
 
@@ -725,6 +998,16 @@ pub fn close_gate_smoke_initialize_list(slot: &str) -> Result<CloseGateReport, C
 pub fn start_embedded_mcp_runtime(
     config: McpRuntimeConfig,
 ) -> Result<McpRuntimeHandle, McpStartError> {
+    start_embedded_mcp_runtime_with_sidecar(config, DEFAULT_SIDECAR_BASE_URL.to_string())
+}
+
+/// Start MCP with an explicit Sidecar HTTP base. Production uses
+/// [`start_embedded_mcp_runtime`]; this entry keeps integration tests isolated
+/// on ephemeral loopback ports.
+pub fn start_embedded_mcp_runtime_with_sidecar(
+    config: McpRuntimeConfig,
+    sidecar_base_url: String,
+) -> Result<McpRuntimeHandle, McpStartError> {
     let bind_addr = config.bind_addr;
     let cancel = CancellationToken::new();
     let cancel_child = cancel.child_token();
@@ -767,7 +1050,7 @@ pub fn start_embedded_mcp_runtime(
             let router = build_router(
                 port,
                 cancel_child.clone(),
-                DEFAULT_SIDECAR_BASE_URL.to_string(),
+                sidecar_base_url,
             );
             let _ = axum::serve(listener, router)
                 .with_graceful_shutdown(async move {

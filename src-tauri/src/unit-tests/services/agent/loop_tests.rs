@@ -1,5 +1,7 @@
 //! Loop + Host open/chat-turn contract tests (t4 / t3 Host empty-tools).
 
+use std::collections::BTreeMap;
+use std::fs;
 use std::io::{Read, Write};
 use std::net::TcpListener;
 use std::sync::{Arc, Mutex};
@@ -14,6 +16,11 @@ use crate::services::agent::llm::LlmConfig;
 use crate::services::agent::r#loop::{self, Terminal, TurnOutcome, EVENT_TURN_COMPLETED};
 use crate::services::agent::session::{self, Turn};
 use crate::services::agent::PLAN_ASSISTANT_SYSTEM_PROMPT;
+use crate::services::mcp_protocol_adapter::{
+    start_embedded_mcp_runtime_with_sidecar, stop_embedded_mcp_runtime, McpRuntimeConfig,
+};
+use crate::services::mcp_server_registry::{self, HttpMcpTransport, McpServerConfig};
+use crate::services::local_http;
 use crate::services::todo_task;
 use crate::test_support::TestSandbox;
 
@@ -24,6 +31,46 @@ fn with_sandbox<F: FnOnce()>(f: F) {
     crate::services::mcp_server_registry::clear_for_tests();
     crate::services::mcp_server_registry::seed_defaults();
     f();
+}
+
+fn ephemeral_port() -> u16 {
+    TcpListener::bind("127.0.0.1:0")
+        .expect("bind ephemeral port")
+        .local_addr()
+        .expect("ephemeral address")
+        .port()
+}
+
+fn start_isolated_mcp(
+    sandbox: &TestSandbox,
+) -> (local_http::LocalHttpHandle, crate::services::mcp_protocol_adapter::McpRuntimeHandle, u16) {
+    let sidecar_port = ephemeral_port();
+    let sidecar = local_http::start(sandbox.config_dir().to_path_buf(), sidecar_port)
+        .expect("start isolated Sidecar");
+    let mcp_port = ephemeral_port();
+    let mcp = start_embedded_mcp_runtime_with_sidecar(
+        McpRuntimeConfig {
+            bind_addr: format!("127.0.0.1:{mcp_port}").parse().expect("MCP address"),
+        },
+        format!("http://127.0.0.1:{sidecar_port}"),
+    )
+    .expect("start isolated MCP");
+    (sidecar, mcp, mcp_port)
+}
+
+fn register_test_mcp(scene: &str, mcp_port: u16) {
+    mcp_server_registry::register(
+        scene,
+        McpServerConfig {
+            capability_description: format!("{scene} test capability"),
+            http_transport: HttpMcpTransport {
+                name: format!("{scene}-test"),
+                url: format!("http://127.0.0.1:{mcp_port}/mcp/{scene}"),
+                headers: BTreeMap::new(),
+            },
+        },
+    )
+    .expect("register scene MCP");
 }
 
 fn create_bound_plan(title: &str) -> String {
@@ -175,7 +222,7 @@ fn assistant_tools(calls: Value, content: Option<&str>) -> (u16, Value) {
     )
 }
 
-/// Host business path: request must not carry a non-empty tools list.
+/// Typed/internal bindings without an MCP capability remain text-only.
 fn assert_host_llm_tools_empty(body: &Value) {
     match body.get("tools") {
         None => {}
@@ -188,8 +235,8 @@ fn assert_host_llm_tools_empty(body: &Value) {
         Some(other) => panic!("Host path tools must be absent or [], got {other}"),
     }
     if let Some(tc) = body.get("tool_choice") {
-        // tool_choice without tools is not Host empty-tools semantics.
-        panic!("Host empty-tools path must not send tool_choice, got {tc}");
+        // Text-only typed bindings must not request a tool choice.
+        panic!("typed text-only path must not send tool_choice, got {tc}");
     }
 }
 
@@ -257,6 +304,334 @@ fn run_loop_final_reply_none_terminal_and_wrote_false() {
         assert_eq!(sess.turns[1].role, "assistant");
         assert_host_llm_tools_empty(&mock.hits.lock().unwrap()[0]);
     });
+}
+
+#[test]
+fn run_loop_uses_notes_mcp_tools_and_feeds_tool_result_back_to_model() {
+    let sandbox = TestSandbox::new();
+    secrets::test_secrets_clear();
+    r#loop::reset_runtime_for_tests();
+    mcp_server_registry::clear_for_tests();
+    mcp_server_registry::seed_defaults();
+
+    let sidecar_port = ephemeral_port();
+    let sidecar = local_http::start(sandbox.config_dir().to_path_buf(), sidecar_port)
+        .expect("start isolated Sidecar");
+    let mcp_port = ephemeral_port();
+    let mcp = start_embedded_mcp_runtime_with_sidecar(
+        McpRuntimeConfig {
+            bind_addr: format!("127.0.0.1:{mcp_port}").parse().expect("MCP address"),
+        },
+        format!("http://127.0.0.1:{sidecar_port}"),
+    )
+    .expect("start isolated MCP");
+    mcp_server_registry::register(
+        "notes",
+        McpServerConfig {
+            capability_description: "notes test capability".into(),
+            http_transport: HttpMcpTransport {
+                name: "notes-test".into(),
+                url: format!("http://127.0.0.1:{mcp_port}/mcp/notes"),
+                headers: BTreeMap::new(),
+            },
+        },
+    )
+    .expect("register notes MCP");
+
+    let mock = spawn_scripted_llm(vec![
+        assistant_tools(
+            json!([{
+                "id": "selection_1",
+                "type": "function",
+                "function": {
+                    "name": "get_notes_selection",
+                    "arguments": "{}"
+                }
+            }]),
+            None,
+        ),
+        assistant_text("已读取当前笔记选择。"),
+    ]);
+    r#loop::try_set_binding_json(&json!({ "key": "notes" })).expect("Set notes binding");
+    let mut session = session::create_session(None, None).expect("session");
+    let outcome = r#loop::run_loop(&mut session, "读取当前选择", &cfg_for(&mock));
+
+    assert_outcome(&outcome, "none", false);
+    assert_eq!(
+        session
+            .turns
+            .iter()
+            .filter(|turn| turn.role == "tool")
+            .count(),
+        1,
+        "MCP tool result must be persisted as a role=tool turn"
+    );
+    let hits = mock.hits.lock().unwrap();
+    assert_eq!(hits.len(), 2, "tool result must trigger an LLM follow-up");
+    assert!(
+        hits[0]["tools"]
+            .as_array()
+            .is_some_and(|tools| tools.iter().any(|tool| {
+                tool.pointer("/function/name") == Some(&json!("get_notes_selection"))
+            })),
+        "active Notes MCP tools must be sent to the model"
+    );
+    assert!(
+        hits[1]["messages"]
+            .as_array()
+            .is_some_and(|messages| messages.iter().any(|message| {
+                message["role"] == "tool"
+                    && message["tool_call_id"] == "selection_1"
+                    && message["name"] == "get_notes_selection"
+            })),
+        "the model follow-up must receive the MCP result"
+    );
+
+    drop(hits);
+    stop_embedded_mcp_runtime(mcp).expect("stop MCP");
+    local_http::stop(sidecar);
+}
+
+#[test]
+fn run_loop_marks_successful_todo_mcp_mutation_as_wrote() {
+    let sandbox = TestSandbox::new();
+    secrets::test_secrets_clear();
+    r#loop::reset_runtime_for_tests();
+    mcp_server_registry::clear_for_tests();
+    mcp_server_registry::seed_defaults();
+
+    let todo_root = sandbox.workbench_knowledge_root().join("todo_tasks");
+    fs::create_dir_all(&todo_root).expect("create todo root");
+    fs::write(todo_root.join(".migration_gate_passed"), b"ok\n").expect("plant migration gate");
+    let sidecar_port = ephemeral_port();
+    let sidecar = local_http::start(sandbox.config_dir().to_path_buf(), sidecar_port)
+        .expect("start isolated Sidecar");
+    let mcp_port = ephemeral_port();
+    let mcp = start_embedded_mcp_runtime_with_sidecar(
+        McpRuntimeConfig {
+            bind_addr: format!("127.0.0.1:{mcp_port}").parse().expect("MCP address"),
+        },
+        format!("http://127.0.0.1:{sidecar_port}"),
+    )
+    .expect("start isolated MCP");
+    mcp_server_registry::register(
+        "todo_task",
+        McpServerConfig {
+            capability_description: "todo test capability".into(),
+            http_transport: HttpMcpTransport {
+                name: "todo-test".into(),
+                url: format!("http://127.0.0.1:{mcp_port}/mcp/todo_task"),
+                headers: BTreeMap::new(),
+            },
+        },
+    )
+    .expect("register todo MCP");
+
+    let mock = spawn_scripted_llm(vec![
+        assistant_tools(
+            json!([{
+                "id": "create_1",
+                "type": "function",
+                "function": {
+                    "name": "create_todo_task",
+                    "arguments": "{\"title\":\"MCP 创建任务\"}"
+                }
+            }]),
+            None,
+        ),
+        assistant_text("已创建任务。"),
+    ]);
+    r#loop::try_set_binding_json(&json!({ "key": "todo_task" })).expect("Set Todo binding");
+    let mut session = session::create_session(None, None).expect("session");
+    let outcome = r#loop::run_loop(&mut session, "创建一个任务", &cfg_for(&mock));
+
+    assert_outcome(&outcome, "none", true);
+    assert!(
+        todo_task::list_all().as_array().is_some_and(|tasks| {
+            tasks
+                .iter()
+                .any(|task| task["title"] == "MCP 创建任务")
+        }),
+        "a successful MCP tool mutation must reach the Sidecar handler"
+    );
+    let hits = mock.hits.lock().unwrap();
+    assert!(
+        hits[0]["tools"]
+            .as_array()
+            .is_some_and(|tools| tools.iter().any(|tool| {
+                tool.pointer("/function/name") == Some(&json!("create_todo_task"))
+            })),
+        "Todo tool definition must reach the model"
+    );
+
+    drop(hits);
+    stop_embedded_mcp_runtime(mcp).expect("stop MCP");
+    local_http::stop(sidecar);
+}
+
+#[test]
+fn run_loop_returns_argument_and_allowlist_failures_to_the_model_as_tool_turns() {
+    let sandbox = TestSandbox::new();
+    secrets::test_secrets_clear();
+    r#loop::reset_runtime_for_tests();
+    mcp_server_registry::clear_for_tests();
+    mcp_server_registry::seed_defaults();
+    let (sidecar, mcp, mcp_port) = start_isolated_mcp(&sandbox);
+    register_test_mcp("notes", mcp_port);
+
+    let mock = spawn_scripted_llm(vec![
+        assistant_tools(
+            json!([
+                {
+                    "id": "invalid_args",
+                    "type": "function",
+                    "function": {
+                        "name": "get_corpus_catalog",
+                        "arguments": "{}"
+                    }
+                },
+                {
+                    "id": "unknown_tool",
+                    "type": "function",
+                    "function": {
+                        "name": "not_exposed_by_notes",
+                        "arguments": "{}"
+                    }
+                }
+            ]),
+            None,
+        ),
+        assistant_text("工具参数或权限不正确，未执行读取。"),
+    ]);
+    r#loop::try_set_binding_json(&json!({ "key": "notes" })).expect("Set notes binding");
+    let mut session = session::create_session(None, None).expect("session");
+    let outcome = r#loop::run_loop(&mut session, "读取选择", &cfg_for(&mock));
+
+    assert_outcome(&outcome, "none", false);
+    let tool_turns: Vec<_> = session
+        .turns
+        .iter()
+        .filter(|turn| turn.role == "tool")
+        .collect();
+    assert_eq!(tool_turns.len(), 2);
+    assert!(
+        tool_turns[0]
+            .content
+            .as_deref()
+            .is_some_and(|content| content.contains("missing required property 'mode'")),
+        "arguments that violate the published schema must be rejected locally"
+    );
+    assert!(
+        tool_turns[1]
+            .content
+            .as_deref()
+            .is_some_and(|content| content.contains("not available in the active scene")),
+        "undiscovered tools must never be sent through MCP"
+    );
+    assert!(
+        mock.hits.lock().unwrap()[1]["messages"]
+            .as_array()
+            .is_some_and(|messages| messages.iter().filter(|message| message["role"] == "tool").count() == 2),
+        "both failures must be recoverable by the model on the next round"
+    );
+
+    stop_embedded_mcp_runtime(mcp).expect("stop MCP");
+    local_http::stop(sidecar);
+}
+
+#[test]
+fn run_loop_stops_after_bounded_mcp_tool_rounds() {
+    let sandbox = TestSandbox::new();
+    secrets::test_secrets_clear();
+    r#loop::reset_runtime_for_tests();
+    mcp_server_registry::clear_for_tests();
+    mcp_server_registry::seed_defaults();
+    let (sidecar, mcp, mcp_port) = start_isolated_mcp(&sandbox);
+    register_test_mcp("notes", mcp_port);
+
+    let responses = (0..=r#loop::MAX_MCP_TOOL_ROUNDS)
+        .map(|round| {
+            assistant_tools(
+                json!([{
+                    "id": format!("selection_{round}"),
+                    "type": "function",
+                    "function": {
+                        "name": "get_notes_selection",
+                        "arguments": "{}"
+                    }
+                }]),
+                None,
+            )
+        })
+        .collect();
+    let mock = spawn_scripted_llm(responses);
+    r#loop::try_set_binding_json(&json!({ "key": "notes" })).expect("Set notes binding");
+    let mut session = session::create_session(None, None).expect("session");
+    let outcome = r#loop::run_loop(&mut session, "反复读取选择", &cfg_for(&mock));
+
+    assert_outcome(&outcome, "error", false);
+    assert!(outcome.reply_text.contains("调用次数已达上限"));
+    assert_eq!(
+        session
+            .turns
+            .iter()
+            .filter(|turn| turn.role == "tool")
+            .count(),
+        r#loop::MAX_MCP_TOOL_ROUNDS,
+        "the cap must prevent the next requested tool call"
+    );
+    assert_eq!(
+        mock.hits.lock().unwrap().len(),
+        r#loop::MAX_MCP_TOOL_ROUNDS + 1,
+        "the cap is checked after the model requests its next tool round"
+    );
+
+    stop_embedded_mcp_runtime(mcp).expect("stop MCP");
+    local_http::stop(sidecar);
+}
+
+#[test]
+fn run_loop_does_not_call_mcp_after_reset_invalidates_its_generation() {
+    let sandbox = TestSandbox::new();
+    secrets::test_secrets_clear();
+    r#loop::reset_runtime_for_tests();
+    mcp_server_registry::clear_for_tests();
+    mcp_server_registry::seed_defaults();
+    let (sidecar, mcp, mcp_port) = start_isolated_mcp(&sandbox);
+    register_test_mcp("notes", mcp_port);
+
+    let mock = spawn_llm_with_mid_then_response(
+        || r#loop::reset_binding().expect("Reset while LLM response is in flight"),
+        assistant_tools(
+            json!([{
+                "id": "selection_after_reset",
+                "type": "function",
+                "function": {
+                    "name": "get_notes_selection",
+                    "arguments": "{}"
+                }
+            }]),
+            None,
+        ),
+    );
+    r#loop::try_set_binding_json(&json!({ "key": "notes" })).expect("Set notes binding");
+    let mut session = session::create_session(None, None).expect("session");
+    let outcome = r#loop::run_loop(&mut session, "读取选择", &cfg_for(&mock));
+
+    assert_outcome(&outcome, "error", false);
+    assert!(outcome.reply_text.contains("cancelled"));
+    assert!(
+        session.turns.is_empty(),
+        "cut cancellation must truncate the old generation's user and tool turns"
+    );
+    assert_eq!(
+        mock.hits.lock().unwrap().len(),
+        1,
+        "the LLM may return once, but MCP tools must not be called after Reset"
+    );
+
+    stop_embedded_mcp_runtime(mcp).expect("stop MCP");
+    local_http::stop(sidecar);
 }
 
 #[test]
@@ -4454,7 +4829,7 @@ fn t3_host_path_modules_do_not_import_removed_agent_stack() {
 }
 
 #[test]
-fn t3_host_reads_session_capability_mcp_config_readonly_without_tool_dispatch() {
+fn t3_host_reports_unavailable_loaded_mcp_without_dispatch() {
     with_sandbox(|| {
         use crate::services::mcp_server_registry::SEEDED_BUSINESS_KEY;
         let mock = spawn_scripted_llm(vec![assistant_text("读只读面后文本回复")]);
@@ -4462,16 +4837,23 @@ fn t3_host_reads_session_capability_mcp_config_readonly_without_tool_dispatch() 
         r#loop::try_set_binding_json(&key_only_payload(SEEDED_BUSINESS_KEY)).expect("Set");
         let before = r#loop::session_capability_mcp_config().expect("loaded");
 
-        // Host adapter may consume the L2 read face; must not mutate it via chat.
+        // A key-only binding must fail before the LLM when its configured MCP
+        // endpoint is unavailable, without mutating the loaded capability.
         let open = r#loop::ensure_chat_session_core().unwrap();
         let sid = open["session_id"].as_str().unwrap();
         let result = r#loop::agent_chat_turn_core(sid, "ping", None).unwrap();
-        assert_eq!(result.body["terminal"], "none");
+        assert_eq!(result.body["terminal"], "error");
         assert_eq!(result.body["wrote"], false);
+        assert!(
+            result.body["reply_text"]
+                .as_str()
+                .is_some_and(|text| text.contains("MCP")),
+            "unavailable MCP must be reported to the user"
+        );
 
         let after = r#loop::session_capability_mcp_config().expect("still loaded");
         assert_eq!(after, before, "chat must not rewrite session capability MCP config");
-        assert_host_llm_tools_empty(&mock.hits.lock().unwrap()[0]);
+        assert!(mock.hits.lock().unwrap().is_empty(), "LLM must not run without MCP tools");
     });
 }
 
@@ -4599,11 +4981,11 @@ fn t2_empty_tools_binding_text_only_round_succeeds() {
 }
 
 #[test]
-fn t2_key_only_set_llm_round_omits_tools_and_loads_mcp() {
+fn t2_key_only_set_loads_mcp_and_rejects_unreachable_endpoint() {
     with_sandbox(|| {
         use crate::services::mcp_server_registry::SEEDED_BUSINESS_KEY;
         let master = create_bound_plan("key-only空tools");
-        let mock = spawn_scripted_llm(vec![assistant_text("key-only无工具回复")]);
+        let mock = spawn_scripted_llm(vec![assistant_text("key-only工具回复")]);
         let mut sess = session::create_session(Some(&master), Some("key-only空tools")).unwrap();
         r#loop::try_set_binding_json(&key_only_payload(SEEDED_BUSINESS_KEY))
             .expect("key-only Set");
@@ -4611,14 +4993,17 @@ fn t2_key_only_set_llm_round_omits_tools_and_loads_mcp() {
         assert!(r#loop::session_capability_mcp_config().is_some());
         let before = todo_task::get_by_id(&master)["title"].clone();
         let out = r#loop::run_loop(&mut sess, "你好", &cfg_for(&mock));
-        assert_outcome(&out, "none", false);
+        assert_outcome(&out, "error", false);
         assert_eq!(out.wrote, false);
         assert!(
             !sess.turns.iter().any(|t| t.role == "tool"),
             "key-only business path must not dispatch in-process tools"
         );
         assert_eq!(todo_task::get_by_id(&master)["title"], before);
-        assert_host_llm_tools_empty(&mock.hits.lock().unwrap()[0]);
+        assert!(
+            mock.hits.lock().unwrap().is_empty(),
+            "the LLM must not receive an empty-tools fallback for a key-only MCP binding"
+        );
     });
 }
 

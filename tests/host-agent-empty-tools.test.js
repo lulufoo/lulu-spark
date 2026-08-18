@@ -1,11 +1,11 @@
 // @vitest-environment jsdom
 /**
- * t2 / P2 — Host Agent Loop business session tools empty (tech-doc T3/T6, AC2).
- * L1+L2: Binding call surface is key-only; Host Loop tools interface stays empty
- * (no in-process dispatch; MCP is the business capability plane).
+ * Host Agent Loop key-only Binding and MCP tool bridge.
+ * Binding.tools remains empty, but the active MCP scene supplies model-callable
+ * tools at turn time. In-process dispatch remains removed.
  *
  * Layer map (T5):
- * - Interface layer: loop tools field / Binding.tools slot (empty for business path).
+ * - Interface layer: Binding.tools remains empty; model tools come from MCP discovery.
  * - Capability layer: tools.rs dispatch removed (t3); business via MCP/HTTP only.
  * - Binding call surface: key-only Set (L2); Host registry loads MCP config.
  */
@@ -33,7 +33,7 @@ const packageJson = JSON.parse(
   readFileSync(join(fixtureRoot, 'package.json'), 'utf8'),
 );
 
-describe('t2 Host Agent empty tools — todos-binding key-only call surface', () => {
+describe('Host Agent MCP tools — todos-binding key-only call surface', () => {
   it('assembleTodosBindingBody submits key-only (no tools/prompt/callbacks payload)', () => {
     const body = assembleTodosBindingBody();
     expect(body).toEqual({ key: TODOS_BUSINESS_KEY });
@@ -89,7 +89,7 @@ describe('t2 Host Agent empty tools — todos-binding key-only call surface', ()
   });
 });
 
-describe('t2 Host Agent empty tools — source / interface layer locks', () => {
+describe('Host Agent MCP tools — source / interface layer locks', () => {
   it('openai_tool_definitions_for_binding API retained (interface); dispatch removed (capability, t3)', () => {
     expect(toolsRs).toMatch(
       /pub fn openai_tool_definitions_for_binding\s*\(\s*tools:\s*&Value\s*\)/,
@@ -98,15 +98,19 @@ describe('t2 Host Agent empty tools — source / interface layer locks', () => {
     expect(toolsRs).not.toMatch(/pub fn dispatch\s*\(/);
   });
 
-  it('loop keeps tools field path and skips tool_calls-driven todos when tools empty', () => {
-    // Host business path always passes empty tools to the LLM client (no Binding.tools defs).
+  it('derives model tools from active MCP while Binding.tools remains empty', () => {
+    expect(loopRs).toMatch(/mcp_client::discover_tools\s*\(\s*&config\s*\)/);
+    expect(loopRs).toMatch(/catalog\.definitions\.as_slice\(\)/);
     expect(loopRs).toMatch(
+      /mcp_client::call_tool\s*\(\s*mcp_config\s*,\s*&call\.name\s*,\s*arguments\s*\)/,
+    );
+    expect(loopRs).not.toMatch(
       /chat_completions\s*\(\s*&messages\s*,\s*&\s*\[\s*\]\s*,\s*config\s*\)/,
     );
-    expect(loopRs).toMatch(/Unexpected tool_calls with empty request tools/);
-    // Public key-only Set must clear Binding.tools (L1 empty-tools + L2 key-only).
+    // Public key-only Set still clears Binding.tools: tool definitions come
+    // from the loaded MCP server, not caller-controlled Binding data.
     expect(loopRs).toMatch(/tools:\s*json!\(\[\]\)/);
-    // No executable dispatch call sites (module docs/comments may still mention the name).
+    // No executable process-local dispatch call sites.
     const dispatchCallLines = loopRs
       .split('\n')
       .filter((line) => {

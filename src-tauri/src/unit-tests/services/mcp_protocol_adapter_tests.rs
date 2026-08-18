@@ -433,6 +433,142 @@ fn tools_list_contracts_when_corpus_switch_off() {
     );
 }
 
+#[test]
+fn mcp_tools_list_publishes_descriptions_schemas_and_mutation_hints() {
+    let port = ephemeral_port();
+    let bind_addr: SocketAddr = format!("127.0.0.1:{port}").parse().expect("bind addr");
+    let handle = start_embedded_mcp_runtime(McpRuntimeConfig { bind_addr }).expect("start");
+    let local = handle.local_addr();
+    let rt = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .expect("tokio");
+
+    let list_tools = |slot: &str| {
+        let slot = slot.to_string();
+        let port = local.port();
+        async move {
+            let url = format!("http://127.0.0.1:{port}/mcp/{slot}");
+            let transport = StreamableHttpClientTransport::from_uri(url);
+            let client = ClientInfo::new(
+                ClientCapabilities::default(),
+                Implementation::new("tool-contract-test", "0.1.0"),
+            )
+            .serve(transport)
+            .await
+            .expect("initialize");
+            let tools = client.list_tools(Default::default()).await.expect("tools/list");
+            let _ = client.cancel().await;
+            tools.tools
+        }
+    };
+
+    let todo_tools = rt.block_on(list_tools("todo_task"));
+    assert_eq!(todo_tools.len(), TODO_TOOLS.len(), "Todo MCP tool count");
+    for tool in &todo_tools {
+        assert!(
+            tool.description.as_deref().is_some_and(|d| !d.trim().is_empty()),
+            "{} needs a model-facing description",
+            tool.name
+        );
+        assert_eq!(
+            tool.input_schema["type"], "object",
+            "{} needs an object input schema",
+            tool.name
+        );
+        assert!(
+            tool.annotations.is_some(),
+            "{} needs read/write annotations",
+            tool.name
+        );
+    }
+    let create = todo_tools
+        .iter()
+        .find(|tool| tool.name == "create_todo_task")
+        .expect("create_todo_task");
+    assert!(
+        create.description.as_deref().is_some_and(|d| !d.trim().is_empty()),
+        "model-facing Todo tool needs a description"
+    );
+    assert_eq!(
+        create.input_schema["properties"]["title"]["type"], "string",
+        "create_todo_task title must be declared"
+    );
+    assert!(
+        create.input_schema["required"]
+            .as_array()
+            .is_some_and(|required| required.iter().any(|v| v == "title")),
+        "create_todo_task title must be required"
+    );
+    assert_eq!(
+        create
+            .annotations
+            .as_ref()
+            .and_then(|annotations| annotations.read_only_hint),
+        Some(false),
+        "Todo creation must be identified as mutating"
+    );
+
+    let notes_tools = rt.block_on(list_tools("notes"));
+    assert_eq!(
+        notes_tools.len(),
+        notes_expected_tool_names().len(),
+        "Notes MCP tool count"
+    );
+    for tool in &notes_tools {
+        assert!(
+            tool.description.as_deref().is_some_and(|d| !d.trim().is_empty()),
+            "{} needs a model-facing description",
+            tool.name
+        );
+        assert_eq!(
+            tool.input_schema["type"], "object",
+            "{} needs an object input schema",
+            tool.name
+        );
+        assert!(
+            tool.annotations.is_some(),
+            "{} needs read/write annotations",
+            tool.name
+        );
+    }
+    let catalog = notes_tools
+        .iter()
+        .find(|tool| tool.name == "get_corpus_catalog")
+        .expect("get_corpus_catalog");
+    assert_eq!(
+        catalog.input_schema["properties"]["mode"]["const"],
+        "latest_per_topic",
+        "catalog mode must be model-visible"
+    );
+    assert!(
+        catalog.input_schema["required"]
+            .as_array()
+            .is_some_and(|required| required.iter().any(|v| v == "mode")),
+        "catalog mode must be required"
+    );
+    let selection = notes_tools
+        .iter()
+        .find(|tool| tool.name == "get_notes_selection")
+        .expect("get_notes_selection");
+    assert_eq!(
+        selection
+            .annotations
+            .as_ref()
+            .and_then(|annotations| annotations.read_only_hint),
+        Some(true),
+        "notes selection snapshot must be marked read-only"
+    );
+    assert!(
+        !notes_tools
+            .iter()
+            .any(|tool| tool.name == "put_notes_selection"),
+        "notes-selection writes remain HTTP-only"
+    );
+
+    stop_embedded_mcp_runtime(handle).expect("stop MCP");
+}
+
 /// Exception: unregistered slot yields None (never enters proxy/allowlist handlers).
 #[test]
 fn build_slot_tool_table_unknown_slot_returns_none() {

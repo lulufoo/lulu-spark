@@ -1,5 +1,6 @@
 //! Agent Loop + Host open/chat-turn core (single-flight, terminals, history caps).
-//! Host business path: LLM tools empty; no process-local tools::dispatch.
+//! Key-only business bindings discover model tools over MCP; no process-local
+//! `tools::dispatch` path is available.
 
 use std::collections::HashMap;
 use std::panic::AssertUnwindSafe;
@@ -9,6 +10,7 @@ use serde::Serialize;
 use serde_json::{json, Value};
 
 use crate::services::agent::llm::{self, LlmConfig, LlmError};
+use crate::services::agent::mcp_client;
 use crate::services::agent::session::{self, Session, Turn};
 use crate::services::mcp_server_registry::{self, McpServerConfig, McpServerLookupError};
 use crate::services::todo_task;
@@ -22,6 +24,8 @@ pub const WINDOW_LABEL: &str = "ai-assistant";
 pub const MAX_CLARIFY_ROUNDS: u32 = 5;
 pub const MAX_HISTORY_MESSAGES: usize = 20;
 pub const MAX_USER_TURNS: usize = 8;
+pub const MAX_MCP_TOOL_ROUNDS: usize = 8;
+pub const MAX_MCP_TOOL_CALLS: usize = 16;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Terminal {
@@ -263,11 +267,12 @@ fn set_binding_with_mcp(
         emit_lifecycle("onError", Some("set_invalid"));
         return Err(e);
     }
-    let was_bound = {
+    let (was_bound, previous_business_id, generation, mcp_url) = {
         // Lock order: Runtime (orchestration) → AIAssistantSession (live context).
         let rt = runtime().lock().unwrap();
         session::with_live_mut(|live| {
             let was = live.current_binding.is_some();
+            let previous_business_id = live.current_business_id.clone();
             // Chat cancel on cut; do not set execute_cancelled here so replace mid-execute
             // still returns rejected_stale_generation (generation advance is the execute interrupt).
             if rt.busy {
@@ -276,13 +281,22 @@ fn set_binding_with_mcp(
             live.generation_seq = live.generation_seq.saturating_add(1);
             live.current_generation = Some(live.generation_seq);
             live.current_binding = Some(binding);
-            live.current_business_id = business_id;
+            live.current_business_id = business_id.clone();
             live.loaded_mcp_server = loaded_mcp;
             // Session cut: clear live id with generation update (no new-gen + old-session window).
             live.current_session_id = None;
-            was
+            let generation = live.current_generation;
+            let mcp_url = live
+                .loaded_mcp_server
+                .as_ref()
+                .map(|config| config.http_transport().url.clone());
+            (was, previous_business_id, generation, mcp_url)
         })
     };
+    eprintln!(
+        "[DEBUG-binding-transition] op=set previous_business_id={previous_business_id:?} \
+         business_id={business_id:?} generation={generation:?} mcp_url={mcp_url:?}"
+    );
     if was_bound {
         emit_lifecycle("onUnbound", None);
     }
@@ -334,7 +348,7 @@ pub const SESSION_CAPABILITY_READ_FACE_REGISTRY_SHAPE: bool = true;
 /// key-only Set from that table.
 pub const SESSION_CAPABILITY_READ_FACE_A2_HOST_REGISTRY_SOLE_LOOKUP: bool = true;
 
-/// Host adapter with empty tools still completes facade open/ensure/chat turns.
+/// Typed/internal bindings without an MCP capability still complete text-only facade turns.
 pub const HOST_EMPTY_TOOLS_FACADE_USABLE: bool = true;
 
 /// Read-only session capability consumption face for the Host Agent Loop.
@@ -354,19 +368,25 @@ pub fn loaded_mcp_server() -> Option<McpServerConfig> {
 /// Unloads session capability MCP config with the Binding.
 /// Bound→unbound emits onUnbound; symmetrically cancels in-flight execute and chat.
 pub fn reset_binding() -> Result<(), ()> {
-    let was_bound = {
+    let (was_bound, previous_business_id, previous_generation) = {
         let rt = runtime().lock().unwrap();
         session::with_live_mut(|live| {
             let was = live.current_binding.is_some();
+            let previous_business_id = live.current_business_id.clone();
+            let previous_generation = live.current_generation;
             request_in_flight_cancel(&rt, live);
             live.current_binding = None;
             live.current_business_id = None;
             live.loaded_mcp_server = None;
             live.current_generation = None;
             live.current_session_id = None;
-            was
+            (was, previous_business_id, previous_generation)
         })
     };
+    eprintln!(
+        "[DEBUG-binding-transition] op=reset was_bound={was_bound} \
+         previous_business_id={previous_business_id:?} previous_generation={previous_generation:?}"
+    );
     if was_bound {
         emit_lifecycle("onUnbound", None);
         // Shell sync: Bound→Unbound (defensive_unbound shares this path — no core-only bypass).
@@ -911,55 +931,220 @@ pub fn run_loop(session: &mut Session, user_message: &str, config: &LlmConfig) -
     });
     persist(session);
 
-    // Host P3: business path tools always empty; may read L2 MCP face (no tool_calls).
-    // Do not call process-local tools::dispatch (L09-I #7 / T3 Failure).
-    let _ = session_capability_mcp_config();
-
+    // A key-only Binding resolves this connection at Set time. Typed/internal
+    // bindings retain their historical text-only behavior when they carry no
+    // MCP capability config.
     if chat_turn_interrupted(generation) {
         return cancelled_turn_outcome(session, turns_checkpoint);
     }
-    let messages = build_llm_messages_from_turns(&session.turns, &system_prompt);
-    let msg = match llm::chat_completions(&messages, &[], config) {
-        Ok(m) => m,
-        Err(e) => {
-            if chat_turn_interrupted(generation) {
-                return cancelled_turn_outcome(session, turns_checkpoint);
+    let active_mcp = match session_capability_mcp_config() {
+        Some(config) => match mcp_client::discover_tools(&config) {
+            Ok(catalog) if !catalog.definitions.is_empty() => Some((config, catalog)),
+            Ok(_) => {
+                let reply = "当前场景的 MCP 服务未暴露任何工具，无法继续。".to_string();
+                session.turns.push(Turn {
+                    role: "assistant".into(),
+                    content: Some(reply.clone()),
+                    tool_call_id: None,
+                    tool_calls: None,
+                    name: None,
+                });
+                persist(session);
+                return TurnOutcome {
+                    reply_text: reply,
+                    terminal: Terminal::Error,
+                    wrote: false,
+                };
             }
-            let out = map_llm_error(&e);
+            Err(error) => {
+                let reply = format!("当前场景的 MCP 服务不可用：{error}");
+                session.turns.push(Turn {
+                    role: "assistant".into(),
+                    content: Some(reply.clone()),
+                    tool_call_id: None,
+                    tool_calls: None,
+                    name: None,
+                });
+                persist(session);
+                return TurnOutcome {
+                    reply_text: reply,
+                    terminal: Terminal::Error,
+                    wrote: false,
+                };
+            }
+        },
+        None => None,
+    };
+    if chat_turn_interrupted(generation) {
+        return cancelled_turn_outcome(session, turns_checkpoint);
+    }
+
+    let mut wrote = false;
+    let mut tool_rounds = 0usize;
+    let mut tool_call_count = 0usize;
+    let msg = loop {
+        if chat_turn_interrupted(generation) {
+            return cancelled_turn_outcome(session, turns_checkpoint);
+        }
+        let messages = build_llm_messages_from_turns(&session.turns, &system_prompt);
+        let tools = active_mcp
+            .as_ref()
+            .map(|(_, catalog)| catalog.definitions.as_slice())
+            .unwrap_or(&[]);
+        let msg = match llm::chat_completions(&messages, tools, config) {
+            Ok(message) => message,
+            Err(error) => {
+                if chat_turn_interrupted(generation) {
+                    return cancelled_turn_outcome(session, turns_checkpoint);
+                }
+                let mut out = map_llm_error(&error);
+                out.wrote = wrote;
+                session.turns.push(Turn {
+                    role: "assistant".into(),
+                    content: Some(out.reply_text.clone()),
+                    tool_call_id: None,
+                    tool_calls: None,
+                    name: None,
+                });
+                persist(session);
+                return out;
+            }
+        };
+
+        // Round-trip gate: cancel / generation may have been raised during LLM.
+        if chat_turn_interrupted(generation) {
+            return cancelled_turn_outcome(session, turns_checkpoint);
+        }
+
+        if msg.tool_calls.is_empty() {
+            break msg;
+        }
+
+        let Some((mcp_config, catalog)) = active_mcp.as_ref() else {
+            // Typed/internal Binding without an MCP server keeps the old
+            // text-only contract and never dispatches in-process tools.
+            let reply = "模型响应异常或请求了不支持的工具，未执行任何写入。".to_string();
             session.turns.push(Turn {
                 role: "assistant".into(),
-                content: Some(out.reply_text.clone()),
+                content: Some(reply.clone()),
                 tool_call_id: None,
                 tool_calls: None,
                 name: None,
             });
             persist(session);
-            return out;
+            return TurnOutcome {
+                reply_text: reply,
+                terminal: Terminal::Error,
+                wrote,
+            };
+        };
+
+        if tool_rounds >= MAX_MCP_TOOL_ROUNDS
+            || tool_call_count.saturating_add(msg.tool_calls.len()) > MAX_MCP_TOOL_CALLS
+        {
+            let reply = "工具调用次数已达上限，未继续执行。".to_string();
+            session.turns.push(Turn {
+                role: "assistant".into(),
+                content: Some(reply.clone()),
+                tool_call_id: None,
+                tool_calls: None,
+                name: None,
+            });
+            persist(session);
+            return TurnOutcome {
+                reply_text: reply,
+                terminal: Terminal::Error,
+                wrote,
+            };
         }
-    };
+        tool_rounds += 1;
+        tool_call_count += msg.tool_calls.len();
 
-    // Round-trip gate: cancel / generation may have been raised during LLM.
-    if chat_turn_interrupted(generation) {
-        return cancelled_turn_outcome(session, turns_checkpoint);
-    }
-
-    if !msg.tool_calls.is_empty() {
-        // Unexpected tool_calls with empty request tools — never dispatch in-process.
-        let reply = "模型响应异常或请求了不支持的工具，未执行任何写入。".to_string();
+        let tool_calls = Value::Array(
+            msg.tool_calls
+                .iter()
+                .map(|call| {
+                    json!({
+                        "id": call.id,
+                        "type": "function",
+                        "function": {
+                            "name": call.name,
+                            "arguments": call.arguments,
+                        }
+                    })
+                })
+                .collect(),
+        );
         session.turns.push(Turn {
             role: "assistant".into(),
-            content: Some(reply.clone()),
+            content: msg.content.clone(),
             tool_call_id: None,
-            tool_calls: None,
+            tool_calls: Some(tool_calls),
             name: None,
         });
         persist(session);
-        return TurnOutcome {
-            reply_text: reply,
-            terminal: Terminal::Error,
-            wrote: false,
-        };
-    }
+
+        for call in msg.tool_calls {
+            if chat_turn_interrupted(generation) {
+                return cancelled_turn_outcome(session, turns_checkpoint);
+            }
+
+            let result = if !catalog.contains(&call.name) {
+                mcp_client::ToolResult {
+                    content: format!("Tool '{}' is not available in the active scene.", call.name),
+                    is_error: true,
+                }
+            } else {
+                match serde_json::from_str::<Value>(&call.arguments) {
+                    Ok(arguments) => match catalog.validate_arguments(&call.name, &arguments) {
+                        Ok(()) => {
+                            if chat_turn_interrupted(generation) {
+                                return cancelled_turn_outcome(session, turns_checkpoint);
+                            }
+                            match mcp_client::call_tool(mcp_config, &call.name, arguments) {
+                                Ok(result) => result,
+                                Err(error) => mcp_client::ToolResult {
+                                    content: format!("MCP tool call failed: {error}"),
+                                    is_error: true,
+                                },
+                            }
+                        }
+                        Err(error) => mcp_client::ToolResult {
+                            content: format!("Tool arguments rejected: {error}"),
+                            is_error: true,
+                        },
+                    },
+                    Err(error) => mcp_client::ToolResult {
+                        content: format!("Tool arguments must be valid JSON: {error}"),
+                        is_error: true,
+                    },
+                }
+            };
+
+            if chat_turn_interrupted(generation) {
+                return cancelled_turn_outcome(session, turns_checkpoint);
+            }
+            if !result.is_error && catalog.is_mutating(&call.name) {
+                wrote = true;
+            }
+            session.turns.push(Turn {
+                role: "tool".into(),
+                content: Some(if result.content.trim().is_empty() {
+                    if result.is_error {
+                        "MCP tool failed without an error message.".into()
+                    } else {
+                        "MCP tool completed without text output.".into()
+                    }
+                } else {
+                    result.content
+                }),
+                tool_call_id: Some(call.id),
+                tool_calls: None,
+                name: Some(call.name),
+            });
+        }
+        persist(session);
+    };
 
     let content = msg.content.clone().unwrap_or_default();
     if content.trim().is_empty() {
@@ -975,7 +1160,7 @@ pub fn run_loop(session: &mut Session, user_message: &str, config: &LlmConfig) -
         return TurnOutcome {
             reply_text: reply,
             terminal: Terminal::Error,
-            wrote: false,
+            wrote,
         };
     }
 
@@ -999,7 +1184,7 @@ pub fn run_loop(session: &mut Session, user_message: &str, config: &LlmConfig) -
             return TurnOutcome {
                 reply_text: reply,
                 terminal: Terminal::Error,
-                wrote: false,
+                wrote,
             };
         }
         *count += 1;
@@ -1015,7 +1200,7 @@ pub fn run_loop(session: &mut Session, user_message: &str, config: &LlmConfig) -
         return TurnOutcome {
             reply_text: content,
             terminal: Terminal::None,
-            wrote: false,
+            wrote,
         };
     }
 
@@ -1031,7 +1216,7 @@ pub fn run_loop(session: &mut Session, user_message: &str, config: &LlmConfig) -
         return TurnOutcome {
             reply_text: content,
             terminal: Terminal::Business,
-            wrote: false,
+            wrote,
         };
     }
 
@@ -1046,7 +1231,7 @@ pub fn run_loop(session: &mut Session, user_message: &str, config: &LlmConfig) -
     TurnOutcome {
         reply_text: content,
         terminal: Terminal::None,
-        wrote: false,
+        wrote,
     }
 }
 

@@ -4,6 +4,7 @@ pub mod diagnostics;
 pub mod engine_router;
 pub mod host_startup;
 pub mod llm;
+pub mod mcp_client;
 pub mod r#loop;
 pub mod runtime;
 pub mod session;
