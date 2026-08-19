@@ -47,7 +47,7 @@ python3 "$WORKSPACE/scripts/dialogue_archive_normalize.py" \
   [--project inbox] [--doc-theme dialogue] [--slug <slug>]
 ```
 
-3. Resolve `sink`: `workbench` (default) → MCP `archive_document(source_path)` + digest under **内容约束**; `local-md` → keep `.cache` only, no MCP.
+3. Resolve `sink`: `workbench` (default) → theme-archive Embedded (`source_path` + digest under **内容约束**); `local-md` → keep `.cache` only, no MCP.
 4. Legacy `$TRANSCRIPT_CLEAN` / `to-archive-md` is **not** the path for Workbench `archive_document` after the path-only contract.
 
 ### `dialogue-summary` (process summary)
@@ -64,7 +64,7 @@ $TRANSCRIPT_CLEAN from-jsonl \
 
 Refuse worker dispatch if clean fails (`chrome_tags_remaining` or `user_turns==0`).
 
-2. Worker writes summary markdown to `.cache/…`, then Parent Phase B: `archive_document` with **`source_path`** + `source_type: summary` (+ digest per digest-workflow).
+2. Worker writes summary markdown to `.cache/…`, then Parent Phase B: theme-archive Embedded (`source_type: summary`, `content_constraint`).
 
 Paste path (either skill): no jsonl → skip normalize/clean; feedstock = pasted Markdown on disk → still path-based sink.
 
@@ -88,7 +88,7 @@ User need **not** say “用 sub-agent / 用 Grok” each run.
 1. Resolve jsonl / session.
 2. Resolve `sink` when applicable (`workbench` default).
 3. Run skill-specific normalize/clean → absolute `.md` path.
-4. Phase B: MCP `source_path` for `workbench`; local `.cache` only for `local-md`.
-5. Digest when `[AD-0]` applies — with **内容约束** for dialogue producers (see digest-workflow).
+4. Phase B: theme-archive Embedded for `workbench`; local `.cache` only for `local-md`.
+5. Digest when `[AD-0]` applies — with **内容约束** for dialogue producers (theme-archive `[AR-3]`).
 
 **Done when:** body delivered (and sunk per `sink`).

@@ -46,4 +46,4 @@ slug 冲突 → 询问用户后再继续。
 
 ## Step 5 · Hand off
 
-解析完成后从 `[AR-1]` 继续 Archive Workflow，经 MCP `archive_document` 落盘。
+解析完成后从 `[AR-1]` 继续 Archive Workflow（含 `[AR-1b]` 全文英文中译），经 MCP 落盘。

@@ -44,11 +44,11 @@ git -C $SKILL_DIR pull --rebase
 | 指令 | 目录 | 说明 |
 |------|------|------|
 | `dialogue-summary` | [dialogue-summary/](dialogue-summary/) | 自包含总结：覆盖面随对话、单元丰富度固定、忠实整合不灌水 + `〔User〕` → MCP 归档（`dtd_raw_summary`；已定稿落盘用 `theme-archive`） |
-| `dialogue-archive` | [dialogue-archive/](dialogue-archive/) | 节点切片脚本 + MCP `source_path` 原文归档；`sink=local-md` 仅 `.cache`（`dtd_raw_dialogue`） |
-| `theme-line` | [theme-line/](theme-line/) | 多平台视频/访谈稿（YouTube、InfoQ、plain）→ TranscriptBundle → 主题优先时间线大纲，保存至 `raw/` 并自动 digest |
-| `theme-fetch` | [theme-fetch/](theme-fetch/) | 多平台网页文章（WeChat、plain HTML…）→ ArticleBundle → 格式化 Markdown；Phase 3 经 MCP 落盘 + digest |
-| `theme-transcribe` | [theme-transcribe/](theme-transcribe/) | 视频/音频 URL → yt-dlp + Whisper 带时间戳转写 → 子话题拆分 → 流畅性 →（英文源）末段中译 → **handoff `theme-archive`**（上传 + digest）；独立于 `theme-line` |
-| `theme-archive` | [theme-archive/](theme-archive/) | 已定稿文档落盘 `raw/` + 适用时自动 digest（shared 契约）；承接原 theme-summary 落盘职责 |
+| `dialogue-archive` | [dialogue-archive/](dialogue-archive/) | 节点切片脚本 + **theme-archive** 原文归档；`sink=local-md` 仅 `.cache` |
+| `theme-line` | [theme-line/](theme-line/) | 视频/访谈稿 → ThemeLine 组稿 → **theme-archive**（全文英文才中译 + digest） |
+| `theme-fetch` | [theme-fetch/](theme-fetch/) | 网页文章组稿 → **theme-archive** |
+| `theme-transcribe` | [theme-transcribe/](theme-transcribe/) | STT → 子话题 → 流畅性 → **theme-archive**；独立于 `theme-line` |
+| `theme-archive` | [theme-archive/](theme-archive/) | 统一录入：raw + 全文英文默认中译 + 自动 digest |
 | `todo-task` | [todo-task/](todo-task/) | Todo 任务树 CRUD（MCP `todo_*` tools；经 local_http proxy） |
 
 ## 验收

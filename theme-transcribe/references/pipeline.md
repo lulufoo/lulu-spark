@@ -68,19 +68,8 @@ Keep the same `##` sections and time ranges. Improve readability only.
 
 ---
 
-## Phase 4 · Translate
-
-**When:** `meta.json.language == "en"` (or Whisper reported English).
-
-**Input:** `03-fluent.en.md`  
-**Output:** `04-fluent.zh.md`
-
-One shot. Mirror section structure and time ranges. Proper-noun fixes allowed when high-confidence from context (e.g. Ontology, FDE); mark uncertain names rather than guessing wildly.
-
----
-
-## Phase 5 · Archive / digest
+## Phase 4 · Archive / digest
 
 **Default ON.** Execute [`theme-archive`](../../theme-archive/SKILL.md) Embedded per [handoff-archive.md](handoff-archive.md).  
-Primary = fluent source; zh attachment if `04-fluent.zh.md` exists. Digest follows theme-archive `[AR-3]`.  
+Primary = fluent source only. **Do not** pre-translate. theme-archive `[AR-1b]` emits `-zh.md` when the body is full English.  
 Skip only if user opts out.

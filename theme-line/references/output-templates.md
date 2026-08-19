@@ -20,7 +20,7 @@ All archived `raw/` files use this header block (navigation paths resolved per [
 
 - **时长** / **发布**: 来自 `bundle.meta.duration_sec` / `bundle.meta.published_at`（非 yt-dlp 直接拉取）
 - 非视频源（`duration_sec: null`）省略时长行
-- **`-zh.md`**: same metadata lines; Chinese title e.g. `{Speaker}：{Event} | {Outlet}`
+- **`-zh.md`**: not built here — theme-archive `[AR-1b]` when body is full English
 - 可选 provenance：`> 采集：{platform} · {strategy} · 嘉宾：{speakers}`
 
 ## Default Theme-First Format

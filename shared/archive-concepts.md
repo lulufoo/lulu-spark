@@ -100,6 +100,6 @@ slug 冲突 → 与用户确认后再继续。
 
 ## References
 
-- theme-archive（raw + index，不触发 digest）：[../theme-archive/SKILL.md](../theme-archive/SKILL.md)
+- theme-archive（raw + 全文英文默认中译 + 自动 digest）：[../theme-archive/SKILL.md](../theme-archive/SKILL.md)
 - theme-line archive 步骤：[../theme-line/references/archive-steps.md](../theme-line/references/archive-steps.md)
 - digest workflow（shared）：[digest-workflow.md](digest-workflow.md)

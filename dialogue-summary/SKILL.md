@@ -238,8 +238,8 @@ Workbench App must be running (`workbench-knowledge` MCP). **Do not** write corp
 
 1. Infer `project` / `doc-theme` / `slug` / `ts` / `COMMON_PATH` (defaults: `inbox`, archive time UTC+8).
 2. Sanitize body; wrap per archive output shape (`来源：dialogue-summary`).
-3. Write summary markdown under `.cache/`, then MCP `archive_document` with `source_path` + `source_type: "summary"` (no `document`).
-4. If digest threshold met (raw body ≳ 200 chars): write digest per [references/digest-shape.md](references/digest-shape.md); MCP `archive_digest`.
+3. Write summary markdown under `.cache/`, then load [`theme-archive`](../theme-archive/SKILL.md) Embedded (`source_type: "summary"`, `content_constraint`). Do **not** call MCP here.
+4. theme-archive writes digest when the threshold is met.
 
 Done output:
 

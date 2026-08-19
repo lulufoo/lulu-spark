@@ -11,11 +11,11 @@ argument-hint: '[文档路径 | Markdown 正文] [--source-type summary|article|
 
 > **路径约定**：[archive-concepts.md](../shared/archive-concepts.md)（`COMMON_PATH`、`prefix`、`layers`）
 >
-> **输入**：已组好的 Markdown 文档（含 header + 正文）；可选附加文件（如 `-zh.md`）
+> **输入**：已组好的 Markdown 文档（含 header + 正文）。**不要**由 producer 预译。
 >
-> **输出**：`raw/<COMMON_PATH>`；更新 `index.json`；适用时 `digest/<COMMON_PATH>`
+> **输出**：`raw/<COMMON_PATH>`；全文英文时 `raw/…-zh.md`；更新 `index.json`；适用时 `digest/<COMMON_PATH>`
 >
-> **边界**：本 skill 负责 raw 落盘 + index，并在 `[AR-2]` 成功后 **自动**加载 shared digest 契约。digest 规则见 [digest-workflow.md](../shared/digest-workflow.md)（**非公开 skill**）。
+> **边界**：本 skill 负责 raw 落盘 + index + **全文英文默认中译**，并在 `[AR-2]` 成功后 **自动**加载 shared digest 契约。digest 规则见 [digest-workflow.md](../shared/digest-workflow.md)（**非公开 skill**）。翻译规则见 [full-english-translate.md](references/full-english-translate.md)。
 
 ## 触发后的首要动作
 
@@ -30,6 +30,7 @@ argument-hint: '[文档路径 | Markdown 正文] [--source-type summary|article|
 
 - 上游已确定 `COMMON_PATH`、文档正文、`source_type` 等。
 - 从 **Archive Workflow** 的 `[AR-1]` 起执行（跳过路径解析）。
+- `[AR-1]` 后执行 `[AR-1b]` 全文英文检测与默认中译（除非 `skip_translate: true`）。
 - `[AR-2]` 成功后执行 `[AR-3]` 自动 digest（除非上游显式 `skip_digest: true`）。
 - 完成后将 MCP 返回追加到上游输出。
 
@@ -99,9 +100,23 @@ Primary document 必须满足：
 · 正文非空
 ```
 
-附加文件（可选）：`raw/<topic-path>/<ts>-<slug>-zh.md` 等同目录命名规则。
-
 Standalone 若 header 缺导航行，按 [archive-concepts.md](../shared/archive-concepts.md) 补全后再归档。
+
+---
+
+### [AR-1b] 全文英文 → 默认中译
+
+翻译 **只** 在本步产生。Producer **禁止** 预译或传入 `translations`。
+
+1. Embedded `skip_translate: true` → 跳过，进入 `[AR-2]` 且省略 `translations`。
+2. 将 primary 落到 allow-list 路径后运行：
+
+```bash
+python3 "$SKILL_DIR/theme-archive/scripts/detect_full_english.py" "<primary.md>"
+```
+
+3. `full_english` → Agent 按 [full-english-translate.md](references/full-english-translate.md) 译出 `-zh.md`（中文标题；header 元数据与 digest 导航同行）。
+4. `not_full_english`（正文在去掉 chrome 后仍含汉字等）→ **不译**。禁止只译英文段落。
 
 ---
 
@@ -120,7 +135,7 @@ Standalone 若 header 缺导航行，按 [archive-concepts.md](../shared/archive
 ```
 
 - **Forbid:** `"document": "…"`（正文只经 `source_path` 由 Host 读盘）。
-- 无翻译文件时省略 `translations`（translation `content` 仍可为字符串；path 化后续）。
+- `translations` **仅**来自 `[AR-1b]`；未译则省略。
 - **不要**发送 `extra_documents` 或 `index_extra` — host 自动推导 `-{lang}.md` 与 index map。
 - `source_type` 默认：Standalone 未指定 → `summary`；Embedded 必须显式传入。
 - 记录返回的 `id`、`common_path`、`raw_path`、`extra_paths`。
@@ -158,14 +173,13 @@ MCP 返回错误 → **停止**；向用户报告 HTTP 状态与消息。**不�
 
 ## Producer 集成
 
-| Producer | 文档组稿 | 归档 | digest |
-|----------|----------|------|--------|
-| theme-fetch | Phase 2 Format | Phase 3 MCP `archive_document` | 按 [digest-workflow](../shared/digest-workflow.md) Embedded |
-| theme-line | Phase 2 Compose | Step 5 MCP | 同上 Embedded |
-| dialogue-summary / dialogue-archive | 各自 Output Shape | MCP `archive_document` | 同上 Embedded |
-| **本 skill Standalone** | 用户已定稿文档 | `[AR-2]` | **`[AR-3]` 自动** |
+| Producer | 文档组稿 | 归档 | 翻译 / digest |
+|----------|----------|------|----------------|
+| theme-fetch / theme-line / theme-transcribe | 各自 Compose | **Embedded 本 skill**（从 `[AR-1]`） | `[AR-1b]` + `[AR-3]` |
+| dialogue-summary / dialogue-archive | 各自 Output Shape | **Embedded 本 skill**（`sink=workbench`） | 同上；digest 须带 `content_constraint` |
+| **本 skill Standalone** | 用户已定稿文档 | `[AR-0]`–`[AR-3]` | 同上 |
 
-Producer 若自管 MCP，仍须遵守内部 digest 的 `[AD-0]`–`[AD-3]`；**不要**再指向已删除的顶层 `theme-digest/` 公开 skill。
+Producer **禁止**自管 `archive_document` / `archive_digest`，**禁止**按 `language == en` 预译。`sink=local-md` 的 dialogue-archive 除外（不入 corpus）。
 
 ---
 
@@ -182,6 +196,7 @@ Producer 若自管 MCP，仍须遵守内部 digest 的 `[AD-0]`–`[AD-3]`；**�
 | Doc | Purpose |
 |-----|---------|
 | [digest-workflow.md](../shared/digest-workflow.md) | shared digest 契约（`[AD-0]`–`[AD-3]`） |
-| [input-schema.md](references/input-schema.md) | Embedded 载荷字段（逻辑等价于 MCP 参数） |
+| [full-english-translate.md](references/full-english-translate.md) | 全文英文检测与默认中译 |
+| [input-schema.md](references/input-schema.md) | Embedded 载荷字段 |
 | [standalone-resolve.md](references/standalone-resolve.md) | Standalone 路径解析 |
 | [../shared/archive-concepts.md](../shared/archive-concepts.md) | 共享路径约定 |

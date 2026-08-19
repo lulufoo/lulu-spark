@@ -43,15 +43,6 @@ prefix      = "../../../"
 <body after sanitize; no TURN_SEP; no per-turn User/AI labels>
 ```
 
-## archive_document
+## Handoff theme-archive
 
-Write full markdown to `{workspace}/.cache/dialogue-summary/<ts>-<slug>.md`, then:
-
-```json
-{
-  "source_path": "<absolute path to that .md>",
-  "source_type": "summary"
-}
-```
-
-**Forbid:** `"document": "…"`.
+Write full markdown to `{workspace}/.cache/dialogue-summary/<ts>-<slug>.md`, then load [`theme-archive`](../../theme-archive/SKILL.md) Embedded (`source_type: summary`). **Forbid:** `"document": "…"` and self-managed MCP.

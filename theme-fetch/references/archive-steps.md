@@ -1,14 +1,16 @@
-# Save to Archive — Steps 1–6
+# Save to Archive
 
-> **路径约定：** [archive-concepts.md](../../shared/archive-concepts.md)（`COMMON_PATH`、`prefix`、`layers`）
+> **路径约定：** [archive-concepts.md](../../shared/archive-concepts.md)
+>
+> 组完 **主文件** 后 Embedded 执行 [theme-archive](../../theme-archive/SKILL.md)。**禁止**在本 skill 翻译或自管 MCP。
 
-After Phase 2 Format produces the Markdown body, execute these steps to save via Workbench MCP.
+After Phase 2 Format produces the Markdown body, execute these steps.
 
 ---
 
-### Step 1 · Select project and doc-theme
+### Step 1 · Select project and filenames
 
-Infer `project` from topics (closest match; unclear → `inbox`). Infer `doc-theme` from `bundle.meta.title` (kebab-case English). Infer `slug`, `ts`, `COMMON_PATH` from title.
+Infer `project` from topics (closest match; unclear → `inbox`). Infer `doc-theme` from `bundle.meta.title` (kebab-case English).
 
 ```
 topic-path  = <project>/<doc-theme>
@@ -21,60 +23,22 @@ Slug conflict → clarify with user before proceeding.
 
 ---
 
-### Step 2 · Detect source language
-
-Read `bundle.meta.language`：`en` → source + `-zh.md`；`zh` / `mixed` / `unknown` → source only.
-
----
-
-### Step 3 · Build documents
+### Step 2 · Build primary file only
 
 Primary： [output-templates.md](output-templates.md) header + Phase 2 body。
 
-英文源 → 翻译 body → `-zh.md`（同 header 模板）。
+Write to `{workspace}/.cache/theme-fetch/<ts>-<slug>.md`.
+
+`bundle.meta.language` does **not** drive translation. **Do not** build `-zh.md`.
 
 ---
 
-### Step 4 · archive_document (MCP)
+### Step 3 · Handoff theme-archive
 
-<HARD-GATE>
-Workbench App **must be running** (`workbench-knowledge` MCP). On failure → stop; **do not** write corpus files directly.
-</HARD-GATE>
+Load and execute [`theme-archive`](../../theme-archive/SKILL.md) **Embedded** from `[AR-1]`:
 
-Write Step 3 markdown to `{workspace}/.cache/theme-fetch/<ts>-<slug>.md`, then:
+- `primary_path` = Step 2 file
+- `source_type`: `article`
+- `COMMON_PATH` from Step 1
 
-```json
-{
-  "source_path": "<absolute path to that .md>",
-  "source_type": "article",
-  "translations": [
-    { "lang": "zh", "content": "<Step 3 -zh.md full markdown>" }
-  ]
-}
-```
-
-- Omit `translations` when language is not `en`.
-- Do **not** send paths, `extra_documents`, or `index_extra` — host derives `-{lang}.md` and index map.
-- Record returned `id`, `common_path`, `raw_path`, `extra_paths`.
-
----
-
-### Step 5 · archive_digest (MCP)
-
-When `[AD-0]` applies (`source_type = article` uses normal thresholds):
-
-1. Write digest per [digest-workflow](../../shared/digest-workflow.md) `[AD-1]`–`[AD-2]` from **primary raw only** (not `-zh.md`).
-2. Call MCP `archive_digest`:
-
-```json
-{
-  "id": "<Step 4 id>",
-  "digest": "<full digest markdown>"
-}
-```
-
-Use `"force": true` only when user confirms overwrite.
-
-```
-📋 digest: digest/<COMMON_PATH>  (or skipped)
-```
+theme-archive runs `[AR-1b]` then MCP + digest. Append its completion lines.

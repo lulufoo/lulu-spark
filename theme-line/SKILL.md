@@ -15,7 +15,7 @@ description: >-
 > 2. Compose ThemeLine
 > 3. Save to Archive
 >
-> Read this file in full before executing. Phase 3 saves via MCP **archive_document** + **archive_digest**.
+> Read this file in full before executing. Phase 3 hands off to **theme-archive** (translate + MCP + digest).
 
 Produce a readable transcript-derived document: themes first, time second.
 
@@ -69,13 +69,15 @@ Output patterns: [references/output-templates.md](references/output-templates.md
 
 Load and execute [references/archive-steps.md](references/archive-steps.md) from Step 1.
 
+**Do not** translate. **Do not** call `archive_document` / `archive_digest`. Translation and persist are theme-archive’s job.
+
 Path/config: [../shared/archive-concepts.md](../shared/archive-concepts.md)
 
 ## Title Handling
 
 - Video URL → use source title from `bundle.meta.title`
 - User custom title → prefer user's title
-- `-zh.md` title → concise Chinese (speaker + event + outlet)
+- If theme-archive emits `-zh.md`, its Chinese title follows [full-english-translate.md](../theme-archive/references/full-english-translate.md)
 
 ## Ask Only When Necessary
 
@@ -88,5 +90,5 @@ Defaults: source title · chronological · theme-first sections · secondary tim
 | [bundle-schema.md](references/bundle-schema.md) | TranscriptBundle contract |
 | [adapters/](references/adapters/) | Platform Acquire docs |
 | [compose-strategies.md](references/compose-strategies.md) | Compose rules |
-| [archive-steps.md](references/archive-steps.md) | Save to Archive Steps 1–9 |
+| [archive-steps.md](references/archive-steps.md) | Build primary → handoff theme-archive |
 | [output-templates.md](references/output-templates.md) | Output patterns |

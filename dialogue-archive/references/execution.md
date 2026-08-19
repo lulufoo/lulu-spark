@@ -31,7 +31,7 @@ MCP: [`archive.md`](archive.md).
    - `{workspace}/.cache/dialogue-archive/<ts>-<slug>.md`
 5. Run `$NORMALIZE` with `--transcript` `--start-node` `--end-node` `--out` `--title` (+ optional project/theme/slug). Exit ≠ 0 → stop.
 6. Phase B:
-   - `workbench`: MCP `archive_document` with **`source_path` only** (`source_type: dialogue`). Then digest under **content_constraint** (header `> 内容约束：…`) per [`../../shared/digest-workflow.md`](../../shared/digest-workflow.md). **Forbid** `"document"`.
+   - `workbench`: load [`theme-archive`](../../theme-archive/SKILL.md) Embedded (`source_type: dialogue`, `content_constraint`). **Forbid** `"document"` and self-managed MCP.
    - `local-md`: ensure file at `--out`; stop (no MCP).
 
 **Hard:** Parent **MUST NOT** hand-parse jsonl or hand-build `TURN_SEP` bodies for MCP. Use `$NORMALIZE` only.

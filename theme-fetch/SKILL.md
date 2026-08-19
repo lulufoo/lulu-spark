@@ -14,7 +14,7 @@ description: >-
 > 2. Format Article
 > 3. Save to Archive
 >
-> Read this file in full before executing. Phase 3 saves via Workbench MCP (`archive_document` + `archive_digest`).
+> Read this file in full before executing. Phase 3 hands off to **theme-archive** (translate + MCP + digest).
 
 Fetch external web articles, normalize structure, archive to `raw/` — **no summarization**, **no ThemeLine**.
 
@@ -76,7 +76,7 @@ Output patterns: [references/output-templates.md](references/output-templates.md
 
 ## Phase 3 · Save to Archive
 
-Load [references/archive-steps.md](references/archive-steps.md) — Step 4 **archive_document** · Step 5 **archive_digest**（MCP）。
+Load [references/archive-steps.md](references/archive-steps.md) — build primary, then Embedded **theme-archive**. Do **not** translate here.
 
 Path/config: [../shared/archive-concepts.md](../shared/archive-concepts.md)
 
@@ -88,7 +88,7 @@ Path/config: [../shared/archive-concepts.md](../shared/archive-concepts.md)
 
 ## Ask Only When Necessary
 
-Defaults: source title · infer project semantically · `language` from bundle · auto digest
+Defaults: source title · infer project semantically · theme-archive digest / full-English translate
 
 Ask only when: slug conflict · fetch blocked (verification page) · project ambiguous
 

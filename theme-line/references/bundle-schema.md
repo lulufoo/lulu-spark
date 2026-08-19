@@ -40,16 +40,7 @@ assets:                    # optional — 原始字幕 URL
 | `speakers` | `string[]` | yes | 已知嘉宾/讲者 canonical 名列表 |
 | `duration_sec` | `int` \| `null` | no | 视频时长（秒）；未知为 `null` |
 | `published_at` | `string` \| `null` | no | 发布日期 `YYYY-MM-DD` |
-| `language` | `"zh"` \| `"en"` \| `"mixed"` \| `"unknown"` | yes | 主语言；驱动 Phase 3 翻译分支 |
-
-### `meta.language` → Phase 3 翻译规则
-
-| `language` | Archive 行为 |
-|------------|--------------|
-| `en` | 英文源文件 + 生成 `-zh.md` 翻译 |
-| `zh` | 仅中文源文件，无 `-zh.md` |
-| `mixed` | 仅源文件，无 `-zh.md` |
-| `unknown` | 仅源文件，无 `-zh.md` |
+| `language` | `"zh"` \| `"en"` \| `"mixed"` \| `"unknown"` | yes | 主语言（采集元数据）。**不**驱动翻译；中译由 theme-archive 按正文是否全文英文决定。 |
 
 ---
 

@@ -1,6 +1,6 @@
 # Digest workflow（shared · 非公开 skill）
 
-> **可见性：** 共享契约，**不是**可触发的公开 skill。由 `theme-archive` 在 `[AR-3]` 自动执行；其它 producer（`theme-fetch` / `theme-line` / `dialogue-*`）在 `archive_document` 成功后 **Embedded** 按本文件 `[AD-0]`–`[AD-3]` 写 digest 并调 MCP。
+> **可见性：** 共享契约，**不是**可触发的公开 skill。由 `theme-archive` 在 `[AR-3]` 自动执行。Producer 经 theme-archive Embedded 录入，**不要**自管 `archive_digest`。
 >
 > **用户入口：** 补跑/重写 digest → 走 [`theme-archive`](../theme-archive/SKILL.md)（Digest-only Repair）。不要寻找已删除的顶层 `theme-digest`。
 >
@@ -17,7 +17,7 @@
 | 调用方 | 模式 |
 |--------|------|
 | `theme-archive` | `archive_document` 成功后 **自动**；或 Digest-only Repair |
-| `theme-fetch` / `theme-line` / `dialogue-*` 等 | Embedded：自管 `archive_document` 后按本文件执行 |
+| 各 producer | 经 theme-archive Embedded；digest 仍按本文件 `[AD-0]`–`[AD-3]` |
 
 ---
 

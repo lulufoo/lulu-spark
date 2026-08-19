@@ -14,7 +14,7 @@ description: >-
 > **Read this file in full before executing.** Phases:
 > 1. **Locate** — transcript + `start_node` / `end_node` (AI; short params)
 > 2. **Normalize** — script writes raw markdown (never hand-assemble body)
-> 3. **Sink** — `workbench` (`source_path` MCP) or `local-md` (`.cache` only)
+> 3. **Sink** — `workbench` (theme-archive Embedded) or `local-md` (`.cache` only)
 
 **Not** process summary (`dialogue-summary`). Body stays **verbatim** after mechanical strip — no compression.
 
@@ -55,7 +55,7 @@ Resolve **before** MCP checks.
 
 | `sink` | When | Phase B |
 |--------|------|---------|
-| `workbench` | Default | MCP `archive_document(source_path)` + digest under content constraint |
+| `workbench` | Default | theme-archive Embedded + digest under content constraint |
 | `local-md` | User intent refuses Workbench persist | Keep normalized md under workspace `.cache`; no MCP; no digest |
 
 Understand intent — do **not** maintain a phrase list. Unclear → default `workbench`.
@@ -119,18 +119,15 @@ Exit ≠ 0 → stop. Paste path: skip steps 3–5 when user already has TURN_SEP
 
 **`sink=workbench`**
 
-1. `archive_document` — **path only**:
+1. Load and execute [`theme-archive`](../theme-archive/SKILL.md) **Embedded** from `[AR-1]`:
 
-```json
-{
-  "source_path": "<absolute path to normalized .md>",
-  "source_type": "dialogue"
-}
-```
+- `primary_path` = normalized `.md`
+- `source_type`: `dialogue`
+- `content_constraint` required when digest will run
 
-**Forbid:** `"document": "…"`.
+**Forbid:** `"document": "…"`. **Do not** translate or call MCP here.
 
-2. When digest applies (≥2 Turn blocks or shared `[AD-0]`): require non-empty **content_constraint**, put in digest header, then `archive_digest` per [`../shared/digest-workflow.md`](../shared/digest-workflow.md).
+2. theme-archive `[AR-3]` writes digest when `[AD-0]` applies. Require non-empty **content_constraint**, put in digest header.
 
 Content constraint forms:
 
