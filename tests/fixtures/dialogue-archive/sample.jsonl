@@ -1,6 +1,0 @@
-{"role":"user","message":{"content":[{"type":"text","text":"<timestamp>Monday, Jan 1, 2026, 12:00 PM (UTC+8)</timestamp>\n<user_query>\nhello start\n</user_query>"}]}}
-{"role":"assistant","message":{"content":[{"type":"text","text":"first reply"},{"type":"tool_use","name":"x","input":{}}]}}
-{"type":"turn_ended","status":"success"}
-{"role":"assistant","message":{"content":[{"type":"text","text":"second assistant chunk"}]}}
-{"role":"user","message":{"content":[{"type":"text","text":"<user_query>\nsecond turn\n</user_query>"}]}}
-{"role":"assistant","message":{"content":[{"type":"text","text":"<thinking>secret</thinking>\nvisible answer"}]}}
