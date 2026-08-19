@@ -26,11 +26,11 @@ Shared digest shape: [`../shared/digest-workflow.md`](../shared/digest-workflow.
 ## Script Macros
 
 `$SKILL_DIR` = `lulu-workbench-skills` install root (Cursor: `~/.cursor/skills/lulu-workbench-skills`).  
-`$WORKSPACE` = active repo root (must contain `scripts/dialogue_archive_normalize.py`).
+`$WORKSPACE` = active repo root (`--out` under `{workspace}/.cache/…`).
 
 | Macro | Command |
 |-------|---------|
-| `$NORMALIZE` | `python3 "$WORKSPACE/scripts/dialogue_archive_normalize.py"` |
+| `$NORMALIZE` | `python3 "$SKILL_DIR/dialogue-archive/scripts/dialogue_archive_normalize.py"` |
 
 **Hard:** Prefer `$NORMALIZE` for raw. Do **not** hand-parse jsonl into TURN_SEP. If `$NORMALIZE` is missing, stop — do not fall back to assembling `document` for MCP.
 

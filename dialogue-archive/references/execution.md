@@ -8,12 +8,7 @@ MCP: [`archive.md`](archive.md).
 
 ## Script macros
 
-`$SKILL_DIR` = `lulu-workbench-skills` install root.  
-`$WORKSPACE` = active repo root.
-
-| Macro | Command |
-|-------|---------|
-| `$NORMALIZE` | `python3 "$WORKSPACE/scripts/dialogue_archive_normalize.py"` |
+`$NORMALIZE` is defined in [`../SKILL.md`](../SKILL.md) Script Macros. Do not restate the CLI here.
 
 ---
 

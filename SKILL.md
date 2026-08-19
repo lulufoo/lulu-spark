@@ -33,7 +33,7 @@ git -C $SKILL_DIR pull --rebase
 
 克隆完成后平台自动发现子 skill（`dialogue-summary`、`dialogue-archive`、`theme-line`、`theme-fetch`、`theme-transcribe`、`theme-archive`、`todo-task`），均无需额外操作。digest 为 `shared/digest-workflow` shared 契约，不单独发现。
 
-`dialogue-summary` 清洗脚本见包内 [`scripts/transcript-clean-control.py`](scripts/transcript-clean-control.py)；`dialogue-archive` 使用 workbench 仓库 `scripts/dialogue_archive_normalize.py` + MCP `source_path`。编排见 [`shared/dialogue-execution.md`](shared/dialogue-execution.md)。
+`dialogue-summary` 清洗脚本见包内 [`scripts/transcript-clean-control.py`](scripts/transcript-clean-control.py)；`dialogue-archive` 切片脚本见包内 [`dialogue-archive/scripts/dialogue_archive_normalize.py`](dialogue-archive/scripts/dialogue_archive_normalize.py) + MCP `source_path`。编排见 [`shared/dialogue-execution.md`](shared/dialogue-execution.md)。
 
 ## 前置条件
 

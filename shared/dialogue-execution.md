@@ -37,10 +37,10 @@ Hard-cut path-only:
 ### `dialogue-archive` (verbatim raw)
 
 1. Resolve transcript `.jsonl` and **1-based node range** (`start_node` / `end_node`; AI locates text anchors — script does not fuzzy-search).
-2. Run workspace script (not hand-assemble body):
+2. Run `$NORMALIZE` from `dialogue-archive/SKILL.md` (not hand-assemble body):
 
 ```bash
-python3 "$WORKSPACE/scripts/dialogue_archive_normalize.py" \
+$NORMALIZE \
   --transcript "<abs.jsonl>" \
   --start-node <N> --end-node <M> \
   --out "<abs.md>" --title "<title>" \
