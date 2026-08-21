@@ -47,16 +47,24 @@ function assertArchived() {
   }
 }
 
-function assertNoForbiddenAttachmentDeletes() {
-  const adapter = readFileSync(
+function readAdapterSource() {
+  return readFileSync(
     path.join(REPO_ROOT, 'src-tauri/src/services/mcp_protocol_adapter.rs'),
     'utf8',
   );
+}
+
+function assertNoForbiddenAttachmentDeletes() {
+  const adapter = readAdapterSource();
   for (const tool of FORBIDDEN_ATTACHMENT_DELETE_TOOL_NAMES) {
     if (adapter.includes(`name: "${tool}".into()`) || adapter.includes(`'${tool}'`)) {
       throw new Error(`Host MCP must not register attachment delete tool ${tool}`);
     }
   }
+}
+
+function assertWorkbenchRequiredTools() {
+  const adapter = readAdapterSource();
   for (const tool of WORKBENCH_REQUIRED_TOOLS) {
     if (!adapter.includes(tool)) {
       throw new Error(`Host MCP workbench must register ${tool}`);
@@ -96,14 +104,16 @@ async function probeHostIfUp() {
       clientInfo: { name: 'verify-host-mcp', version: '0.1.0' },
     },
   });
-  const unknown = await fetch(`${HOST_MCP_BASE}/mcp/__unknown__`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Accept: 'application/json, text/event-stream',
-    },
-    body: init,
-  });
+  const mcpPost = (slot) =>
+    fetch(`${HOST_MCP_BASE}/mcp/${slot}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json, text/event-stream',
+      },
+      body: init,
+    });
+  const unknown = await mcpPost('__unknown__');
   if (unknown.status !== 404) {
     throw new Error(
       `unknown scene_slot must HTTP 404 on ${HOST_MCP_BASE}; got ${unknown.status}`,
@@ -114,14 +124,7 @@ async function probeHostIfUp() {
   }
 
   for (const slot of RETIRED_APP_SLOTS) {
-    const retired = await fetch(`${HOST_MCP_BASE}/mcp/${slot}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Accept: 'application/json, text/event-stream',
-      },
-      body: init,
-    });
+    const retired = await mcpPost(slot);
     if (retired.status !== 404) {
       throw new Error(
         `retired App slot ${slot} must HTTP 404 on ${HOST_MCP_BASE}; got ${retired.status}`,
@@ -131,14 +134,7 @@ async function probeHostIfUp() {
 
   // Registered slot paths must not hard-reject at routing layer.
   for (const slot of REGISTERED_SLOTS) {
-    const res = await fetch(`${HOST_MCP_BASE}/mcp/${slot}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Accept: 'application/json, text/event-stream',
-      },
-      body: init,
-    });
+    const res = await mcpPost(slot);
     if (res.status === 404) {
       const body = await res.text();
       if (body.includes('unknown_scene_slot')) {
@@ -180,6 +176,9 @@ async function main() {
 
   assertNoForbiddenAttachmentDeletes();
   console.log('Host MCP forbids attachment delete tools: OK');
+
+  assertWorkbenchRequiredTools();
+  console.log('Host MCP workbench registers notes-only tools: OK');
 
   await assertSidecarFixtureIndependent();
   console.log('sidecar HTTP fixture independent of MCP: OK');
