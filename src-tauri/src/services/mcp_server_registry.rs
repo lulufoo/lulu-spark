@@ -122,7 +122,7 @@ pub fn lookup(key: &str) -> Result<McpServerConfig, McpServerLookupError> {
         .ok_or(McpServerLookupError::NotFound)
 }
 
-/// Seed (or re-seed after test clear) L1-backed business keys for Binding assembly.
+/// Seed (or re-seed after test clear) the L1-backed workbench Binding key.
 pub fn seed_defaults() {
     let _ = register(SEEDED_BUSINESS_KEY, seeded_workbench_config());
 }

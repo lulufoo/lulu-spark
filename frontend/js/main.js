@@ -30,7 +30,8 @@ import { initWorkbenchSearch } from './components/workbench-search.js'
 import { initCorpusSearch } from './components/corpus-search.js'
 import { mountCorpusDocList } from './components/corpus-doc-list.js'
 import { mountHomeHub } from './components/home-hub.js'
-import { mountPlanTaskSplit, buildNotesBinding, resetNotesBinding } from './plan-task/index.js'
+import { mountPlanTaskSplit } from './plan-task/index.js'
+import { setWorkbenchBinding } from './plan-task/todos-binding.js'
 import { initHeaderSync, clearHeaderSyncCorpusContext } from './header-sync.js'
 import { softwareDevSkillsContent } from './skills-software-dev-content.js'
 import { workbenchSkillsContent } from './skills-workbench-content.js'
@@ -817,9 +818,6 @@ function mountPlanTasksRoute(route) {
     return;
   }
 
-  if (typeof resetNotesBinding === 'function') {
-    void resetNotesBinding();
-  }
   if (typeof clearNotesSelectionSnapshot === 'function') {
     void clearNotesSelectionSnapshot().catch(() => {});
   }
@@ -834,9 +832,6 @@ function mountPlanTasksRoute(route) {
 }
 
 function mountWorkbench(route) {
-  if (typeof buildNotesBinding === 'function') {
-    void buildNotesBinding();
-  }
   if (typeof writeNotesSelectionSnapshot === 'function') {
     const params = route?.params || {};
     const notePath = params.note || '';
@@ -1050,6 +1045,7 @@ homeEntryShell = mountHomeEntryShell(document.body, {
     openCreateNote: openCreateNoteFromFab,
   },
 });
+void setWorkbenchBinding();
 
 /** Present-before-listen race buffer (L11-AR). Cleared on pull / successful open. */
 let pendingPresentOpen = false;

@@ -70,12 +70,13 @@ describe('Todos page Assistant entry removed — source contracts (t6)', () => {
     );
   });
 
-  it('keeps enter/leave Set/Reset wiring (Binding main path untouched)', () => {
+  it('keeps enter/leave lifecycle wiring without page Binding Set/Reset', () => {
     expect(planTaskIndex).toMatch(/onTodosPageEnter|createTodosPageLifecycle/);
     expect(planTaskIndex).toMatch(/onTodosPageLeave/);
     expect(planTaskIndex).toMatch(
       /function dispose\(\)\s*\{[\s\S]*?onTodosPageLeave/,
     );
+    expect(planTaskIndex).not.toMatch(/buildTodosBinding|resetTodosBinding/);
   });
 
   it('Host Present remains available for corner/shell (t3); not page-owned', () => {
@@ -109,7 +110,7 @@ describe('Todos page Assistant entry removed — source contracts (t6)', () => {
   });
 });
 
-describe('mountPlanTaskSplit — no page Assistant; Set/Reset retained (t6)', () => {
+describe('mountPlanTaskSplit — no page Assistant; zero page Set/Reset (t2)', () => {
   let container;
   let invokeMock;
   let hostBound;
@@ -208,40 +209,39 @@ describe('mountPlanTaskSplit — no page Assistant; Set/Reset retained (t6)', ()
     dispose();
   });
 
-  it('default Todos entry selects the first displayed active todo and Sets Binding', async () => {
+  it('default Todos entry selects the first displayed active todo and does not Set', async () => {
     const { dispose } = mountPlanTaskSplit(container);
     await vi.waitFor(() => {
-      expect(invokeMock).toHaveBeenCalledWith(
-        'set_binding',
-        expect.objectContaining({ binding: expect.any(Object) }),
-      );
+      expect(container.querySelector('.plan-task-master-item--selected')).not.toBeNull();
     });
 
     const selected = container.querySelector('.plan-task-master-item--selected');
     expect(selected?.dataset.masterId).toBe('task_alpha');
-    const setCall = invokeMock.mock.calls.find(([command]) => command === 'set_binding');
-    expect(setCall?.[1]?.binding).toEqual({ key: 'todo_task' });
-    expect(hostBound).toBe(true);
+    expect(invokeMock).not.toHaveBeenCalledWith(
+      'set_binding',
+      expect.anything(),
+    );
+    expect(hostBound).toBe(false);
     dispose();
   });
 
-  it('enter still Sets Binding; leave/dispose still Resets', async () => {
+  it('enter does not Set Binding; leave/dispose does not Reset', async () => {
     const { dispose } = mountPlanTaskSplit(container, {
       masterId: 'task_alpha',
     });
     await vi.waitFor(() => {
-      expect(invokeMock).toHaveBeenCalledWith(
-        'set_binding',
-        expect.objectContaining({ binding: expect.any(Object) }),
-      );
+      expect(container.querySelector('.plan-task-detail-toolbar')).not.toBeNull();
     });
-    expect(hostBound).toBe(true);
+    expect(invokeMock).not.toHaveBeenCalledWith(
+      'set_binding',
+      expect.anything(),
+    );
+    expect(hostBound).toBe(false);
 
     invokeMock.mockClear();
     dispose();
-    await vi.waitFor(() => {
-      expect(invokeMock).toHaveBeenCalledWith('reset_binding');
-    });
+    await new Promise((r) => setTimeout(r, 30));
+    expect(invokeMock).not.toHaveBeenCalledWith('reset_binding');
     expect(hostBound).toBe(false);
   });
 
@@ -250,14 +250,11 @@ describe('mountPlanTaskSplit — no page Assistant; Set/Reset retained (t6)', ()
       masterId: 'task_alpha',
     });
     await vi.waitFor(() => {
-      expect(invokeMock).toHaveBeenCalledWith(
-        'set_binding',
-        expect.objectContaining({ binding: expect.any(Object) }),
-      );
+      expect(container.querySelector('.plan-task-detail-toolbar')).not.toBeNull();
     });
 
     const before = await window.__TAURI__.core.invoke('query_binding');
-    expect(before.state).toBe('bound');
+    expect(before.state).toBe('unbound');
     const tokenBefore = hostBindingToken;
 
     expect(
@@ -269,8 +266,8 @@ describe('mountPlanTaskSplit — no page Assistant; Set/Reset retained (t6)', ()
     expect(present.surface).toBe('Present');
 
     const after = await window.__TAURI__.core.invoke('query_binding');
-    expect(after.state).toBe('bound');
-    expect(hostBound).toBe(true);
+    expect(after.state).toBe('unbound');
+    expect(hostBound).toBe(false);
     expect(hostBindingToken).toBe(tokenBefore);
     expect(invokeMock).not.toHaveBeenCalledWith('reset_binding');
     expect(invokeMock).not.toHaveBeenCalledWith(

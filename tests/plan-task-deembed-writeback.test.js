@@ -200,11 +200,12 @@ describe('mountPlanTaskSplit t4 runtime — N1 + writeback', () => {
       masterId: 'task_alpha',
     });
     await vi.waitFor(() => {
-      expect(invokeMock).toHaveBeenCalledWith(
-        'set_binding',
-        expect.objectContaining({ binding: expect.any(Object) }),
-      );
+      expect(container.querySelector('.plan-task-detail-toolbar')).not.toBeNull();
     });
+    expect(invokeMock).not.toHaveBeenCalledWith(
+      'set_binding',
+      expect.anything(),
+    );
 
     const exec = await window.__TAURI__.core.invoke('execute_binding');
     expect(exec.ok).toBe(true);

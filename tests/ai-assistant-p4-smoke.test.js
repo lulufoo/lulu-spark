@@ -24,12 +24,14 @@ vi.mock('../frontend/js/apiClient.js', async (importOriginal) => {
 
 import {
   createTodosPageLifecycle,
-  assembleTodosBindingBody,
-  TODOS_BUSINESS_KEY,
   TODOS_OPEN_AND_BIND_MAIN_PATH_DISABLED,
   TODOS_PARITY_ACCEPTANCE,
   mountPlanTaskSplit,
 } from '../frontend/js/plan-task/index.js';
+import {
+  setWorkbenchBinding,
+  WORKBENCH_BUSINESS_KEY,
+} from '../frontend/js/plan-task/todos-binding.js';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 const checklistPath = join(
@@ -193,10 +195,10 @@ describe('Todos SK-4 parity acceptance (P1–P6 / N1/N2)', () => {
     );
   });
 
-  it('Binding call surface submits key-only todo_task; no tools/prompt/callbacks payload', () => {
-    expect(TODOS_BUSINESS_KEY).toBe('todo_task');
-    const body = assembleTodosBindingBody();
-    expect(body).toEqual({ key: 'todo_task' });
+  it('Binding call surface submits key-only workbench; no tools/prompt/callbacks payload', () => {
+    expect(WORKBENCH_BUSINESS_KEY).toBe('workbench');
+    const body = { key: WORKBENCH_BUSINESS_KEY };
+    expect(body).toEqual({ key: 'workbench' });
     expect(body).not.toHaveProperty('tools');
     expect(body).not.toHaveProperty('prompt');
     expect(body).not.toHaveProperty('callbacks');
@@ -309,42 +311,41 @@ describe('Todos SK-4 parity acceptance (P1–P6 / N1/N2)', () => {
       };
     }
 
-    it('P1: enter Set→onBound then Present opens shell while bound (dialog ready)', async () => {
+    it('P1: page enter does not Set; Present stays independent of page Binding', async () => {
       const life = createTodosPageLifecycle(trackCallbacks());
-      const setResult = await life.onTodosPageEnter('task_alpha');
-      expect(setResult.ok).toBe(true);
-      expect(life.isBound()).toBe(true);
-      expect(events.map((e) => e.event)).toEqual(['onBound']);
+      await life.onTodosPageEnter('task_alpha');
+      expect(invokeMock).not.toHaveBeenCalledWith(
+        'set_binding',
+        expect.anything(),
+      );
+      expect(events.filter((e) => e.event === 'onBound')).toHaveLength(0);
 
       const present = await window.__TAURI__.core.invoke('present_ai_assistant');
       expect(present.surface).toBe('Present');
-      expect(life.isBound()).toBe(true);
-      const exec = await window.__TAURI__.core.invoke('execute_binding');
-      expect(exec.ok).toBe(true);
     });
 
-    it('P2–P5: Binding Set is key-only; capability surface is Host MCP key, not client tools/prompt', () => {
-      const body = assembleTodosBindingBody();
-      expect(body).toEqual({ key: TODOS_BUSINESS_KEY });
-      expect(body).not.toHaveProperty('tools');
-      expect(body).not.toHaveProperty('prompt');
-      expect(body).not.toHaveProperty('callbacks');
-      expect(body).not.toHaveProperty('engine');
+    it('P2–P5: Binding Set is key-only workbench; capability surface is Host MCP key', async () => {
+      const result = await setWorkbenchBinding(trackCallbacks());
+      expect(result.ok).toBe(true);
+      expect(result.binding).toEqual({ key: WORKBENCH_BUSINESS_KEY });
+      expect(result.binding).not.toHaveProperty('tools');
+      expect(result.binding).not.toHaveProperty('prompt');
+      expect(result.binding).not.toHaveProperty('callbacks');
+      expect(result.binding).not.toHaveProperty('engine');
+      expect(invokeMock).toHaveBeenCalledWith('set_binding', {
+        binding: { key: 'workbench' },
+      });
     });
 
-    it('P6: leave Reset→onUnbound then execute rejected', async () => {
+    it('P6: page leave does not Reset Binding', async () => {
       const life = createTodosPageLifecycle(trackCallbacks());
       await life.onTodosPageEnter('task_alpha');
       events.length = 0;
+      invokeMock.mockClear();
 
-      const left = await life.onTodosPageLeave();
-      expect(left.ok).toBe(true);
-      expect(left.state).toBe('unbound');
-      expect(events.map((e) => e.event)).toEqual(['onUnbound']);
-
-      const exec = await window.__TAURI__.core.invoke('execute_binding');
-      expect(exec.ok).toBe(false);
-      expect(exec.code).toBe('rejected_unbound');
+      await life.onTodosPageLeave();
+      expect(invokeMock).not.toHaveBeenCalledWith('reset_binding');
+      expect(events.filter((e) => e.event === 'onUnbound')).toHaveLength(0);
     });
 
     it('N2: Present without Set does not make execute succeed', async () => {
@@ -385,23 +386,24 @@ describe('Todos SK-4 parity acceptance (P1–P6 / N1/N2)', () => {
       container.remove();
     });
 
-    it('关壳≠Reset: shell close keeps Binding; Present still executable', async () => {
+    it('关壳≠Reset: shell close does not Reset and page enter did not Set', async () => {
       const life = createTodosPageLifecycle(trackCallbacks());
       await life.onTodosPageEnter('task_alpha');
       events.length = 0;
 
       const close = life.notifyShellClose();
       expect(close.reset).toBe(false);
-      expect(life.isBound()).toBe(true);
       expect(events.filter((e) => e.event === 'onUnbound')).toHaveLength(0);
+      expect(invokeMock).not.toHaveBeenCalledWith('reset_binding');
+      expect(invokeMock).not.toHaveBeenCalledWith(
+        'set_binding',
+        expect.anything(),
+      );
 
       await window.__TAURI__.core.invoke('present_ai_assistant');
-      const exec = await window.__TAURI__.core.invoke('execute_binding');
-      expect(exec.ok).toBe(true);
     });
 
-    it('Set 失败可恢复: failed enter then re-select Set succeeds and execute works', async () => {
-      const life = createTodosPageLifecycle(trackCallbacks());
+    it('Set 失败可恢复: failed workbench Set then retry succeeds and execute works', async () => {
       invokeMock.mockImplementation(async (cmd) => {
         if (cmd === 'set_binding') {
           return { ok: false, code: 'set_invalid', state: 'unbound' };
@@ -415,11 +417,10 @@ describe('Todos SK-4 parity acceptance (P1–P6 / N1/N2)', () => {
         return { ok: true, state: 'unbound' };
       });
 
-      await expect(life.onTodosPageEnter('task_alpha')).resolves.toMatchObject({
+      await expect(setWorkbenchBinding(trackCallbacks())).resolves.toMatchObject({
         ok: false,
         code: 'set_invalid',
       });
-      expect(life.isBound()).toBe(false);
       expect(events.map((e) => e.event)).toEqual(['onError']);
 
       let exec = await window.__TAURI__.core.invoke('execute_binding');
@@ -440,12 +441,14 @@ describe('Todos SK-4 parity acceptance (P1–P6 / N1/N2)', () => {
         if (cmd === 'present_ai_assistant') {
           return { surface: 'Present', window_label: 'ai-assistant' };
         }
+        if (cmd === 'ensure_ai_assistant_session') {
+          return { session_id: 'sess_1', busy: false };
+        }
         return {};
       });
 
-      const recovered = await life.onMasterSelectionChange('task_beta');
+      const recovered = await setWorkbenchBinding(trackCallbacks());
       expect(recovered.ok).toBe(true);
-      expect(life.isBound()).toBe(true);
       expect(events.map((e) => e.event)).toEqual(['onBound']);
       exec = await window.__TAURI__.core.invoke('execute_binding');
       expect(exec.ok).toBe(true);
@@ -481,7 +484,7 @@ describe('t6 layered acceptance L0/L1/L2 gate', () => {
     expect(loopRs).toMatch(/TODOS_EXPLICIT_LEAVE_RESET_PRIMARY/);
   });
 
-  it('Todos leave chain export remains primary (not replaced by defensive cut)', () => {
+  it('Todos leave remains explicit and no longer Resets Binding', () => {
     const indexJs = readFileSync(
       join(repoRoot, 'frontend/js/plan-task/index.js'),
       'utf8',
@@ -490,8 +493,8 @@ describe('t6 layered acceptance L0/L1/L2 gate', () => {
       join(repoRoot, 'frontend/js/plan-task/todos-lifecycle.js'),
       'utf8',
     );
-    expect(indexJs + '\n' + lifeJs).toMatch(/TODOS_EXPLICIT_LEAVE_RESET_CHAIN/);
     expect(indexJs).toMatch(/onTodosPageLeave/);
-    expect(lifeJs).toMatch(/resetTodosBinding/);
+    expect(lifeJs).not.toMatch(/resetTodosBinding|buildTodosBinding/);
+    expect(lifeJs).not.toMatch(/set_binding|reset_binding/);
   });
 });

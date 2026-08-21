@@ -247,7 +247,7 @@ struct SceneSlotApi {
 
 const REGISTERED_SCENE_SLOTS: &[&str] = &["workbench", "cursor_ide"];
 
-/// Tools hung only on the notes slot (not seeded by scene_slot_api).
+/// Tools hung only on the workbench slot (not seeded by scene_slot_api).
 const NOTES_SLOT_ONLY_TOOLS: &[&str] = &["get_notes_selection"];
 
 fn scene_slot_api(slot: &str) -> Option<SceneSlotApi> {

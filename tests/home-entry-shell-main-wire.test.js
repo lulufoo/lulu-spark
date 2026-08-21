@@ -181,3 +181,61 @@ describe('home-entry-shell unmount force A (T5)', () => {
     fx = null;
   });
 });
+
+describe('home-entry-shell workbench Binding (t2)', () => {
+  it('main.js Sets workbench Binding once immediately after mountHomeEntryShell', () => {
+    const source = readMain();
+    expect(source).toMatch(
+      /homeEntryShell\s*=\s*mountHomeEntryShell\s*\(\s*document\.body[\s\S]*?\}\s*\)\s*;\s*(?:\/\/[^\n]*\n\s*)*void\s+setWorkbenchBinding\s*\(\s*\)/,
+    );
+    const calls = source.match(/void\s+setWorkbenchBinding\s*\(\s*\)/g) || [];
+    expect(calls.length, 'exactly one process-level workbench Set').toBe(1);
+    expect(source).toMatch(/setWorkbenchBinding/);
+  });
+
+  it('does not put the Set in shell.js, #/home enter/leave, or Host process start', () => {
+    const source = readMain();
+    const shellJs = readFileSync(
+      join(repoRoot, 'frontend/js/home-entry-shell/shell.js'),
+      'utf8',
+    );
+    const libRs = readFileSync(join(repoRoot, 'src-tauri/src/lib.rs'), 'utf8');
+    expect(shellJs).not.toMatch(/setWorkbenchBinding|set_binding|reset_binding/);
+    expect(source).not.toMatch(
+      /#\/home[\s\S]{0,160}setWorkbenchBinding|setWorkbenchBinding[\s\S]{0,160}#\/home/,
+    );
+    expect(libRs).not.toMatch(/setWorkbenchBinding/);
+    const setupIdx = libRs.indexOf('.setup(|app|');
+    expect(setupIdx).toBeGreaterThanOrEqual(0);
+    const setupSlice = libRs.slice(setupIdx, setupIdx + 800);
+    expect(setupSlice).not.toMatch(/set_binding/);
+  });
+
+  it('business pages have zero Set/Reset: todos, notes, home, selectDate, mountWorkbench', () => {
+    const source = readMain();
+    const sidebarJs = readFileSync(
+      join(repoRoot, 'frontend/js/components/sidebar.js'),
+      'utf8',
+    );
+    const lifeJs = readFileSync(
+      join(repoRoot, 'frontend/js/plan-task/todos-lifecycle.js'),
+      'utf8',
+    );
+    expect(source).not.toMatch(
+      /\bbuildNotesBinding\b|\bresetNotesBinding\b|\bbuildTodosBinding\b|\bresetTodosBinding\b/,
+    );
+    const mountWorkbenchIdx = source.indexOf('function mountWorkbench');
+    expect(mountWorkbenchIdx).toBeGreaterThanOrEqual(0);
+    const mountSlice = source.slice(mountWorkbenchIdx, mountWorkbenchIdx + 400);
+    expect(mountSlice).not.toMatch(/set_binding|reset_binding|setWorkbenchBinding|buildNotesBinding/);
+
+    const mountTodosIdx = source.indexOf('function mountPlanTasksRoute');
+    expect(mountTodosIdx).toBeGreaterThanOrEqual(0);
+    const todosSlice = source.slice(mountTodosIdx, mountTodosIdx + 500);
+    expect(todosSlice).not.toMatch(/resetNotesBinding|set_binding|reset_binding/);
+
+    expect(sidebarJs).not.toMatch(/buildNotesBinding|set_binding|reset_binding|setWorkbenchBinding/);
+    expect(lifeJs).not.toMatch(/buildTodosBinding|resetTodosBinding|set_binding|reset_binding/);
+  });
+});
+

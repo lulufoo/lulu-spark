@@ -4,10 +4,10 @@
  * Binding.tools remains empty, but the active MCP scene supplies model-callable
  * tools at turn time. In-process dispatch remains removed.
  *
- * Layer map (T5):
+ * Layer map (t2):
  * - Interface layer: Binding.tools remains empty; model tools come from MCP discovery.
  * - Capability layer: tools.rs dispatch removed (t3); business via MCP/HTTP only.
- * - Binding call surface: key-only Set (L2); Host registry loads MCP config.
+ * - Binding call surface: key-only workbench Set (C7_4b-T).
  */
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -15,9 +15,8 @@ import { fileURLToPath } from 'node:url';
 import { describe, it, expect, vi } from 'vitest';
 
 import {
-  assembleTodosBindingBody,
-  buildTodosBinding,
-  TODOS_BUSINESS_KEY,
+  setWorkbenchBinding,
+  WORKBENCH_BUSINESS_KEY,
 } from '../frontend/js/plan-task/todos-binding.js';
 
 const fixtureRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -32,17 +31,14 @@ const loopRs = readFileSync(
 const packageJson = JSON.parse(
   readFileSync(join(fixtureRoot, 'package.json'), 'utf8'),
 );
+const todosBindingJs = readFileSync(
+  join(fixtureRoot, 'frontend/js/plan-task/todos-binding.js'),
+  'utf8',
+);
 
-describe('Host Agent MCP tools — todos-binding key-only call surface', () => {
-  it('assembleTodosBindingBody submits key-only (no tools/prompt/callbacks payload)', () => {
-    const body = assembleTodosBindingBody();
-    expect(body).toEqual({ key: TODOS_BUSINESS_KEY });
-    expect(body).not.toHaveProperty('tools');
-    expect(body).not.toHaveProperty('prompt');
-    expect(body).not.toHaveProperty('callbacks');
-  });
-
-  it('buildTodosBinding Sets with key-only payload and observes onBound', async () => {
+describe('Host Agent MCP tools — workbench key-only call surface', () => {
+  it('setWorkbenchBinding submits key-only workbench (no tools/prompt/callbacks payload)', async () => {
+    expect(WORKBENCH_BUSINESS_KEY).toBe('workbench');
     const events = [];
     const invokeMock = vi.fn(async (cmd, args) => {
       if (cmd === 'set_binding') {
@@ -66,26 +62,29 @@ describe('Host Agent MCP tools — todos-binding key-only call surface', () => {
     });
     window.__TAURI__ = { core: { invoke: invokeMock } };
 
-    const result = await buildTodosBinding(
-      { masterTaskId: 'task_empty_tools' },
-      {
-        onBound: (p) => events.push({ event: 'onBound', payload: p }),
-        onError: (p) => events.push({ event: 'onError', payload: p }),
-      },
-    );
+    const result = await setWorkbenchBinding({
+      onBound: (p) => events.push({ event: 'onBound', payload: p }),
+      onError: (p) => events.push({ event: 'onError', payload: p }),
+    });
 
     expect(result.ok).toBe(true);
-    expect(result.binding).toEqual({ key: TODOS_BUSINESS_KEY });
-    expect(invokeMock).toHaveBeenCalledWith(
-      'set_binding',
-      expect.objectContaining({
-        binding: { key: TODOS_BUSINESS_KEY },
-      }),
-    );
+    expect(result.binding).toEqual({ key: WORKBENCH_BUSINESS_KEY });
+    expect(result.binding).not.toHaveProperty('tools');
+    expect(result.binding).not.toHaveProperty('prompt');
+    expect(result.binding).not.toHaveProperty('callbacks');
+    expect(invokeMock).toHaveBeenCalledWith('set_binding', {
+      binding: { key: WORKBENCH_BUSINESS_KEY },
+    });
     expect(events.map((e) => e.event)).toEqual(['onBound']);
 
     delete window.__TAURI__;
     vi.restoreAllMocks();
+  });
+
+  it('helper module no longer exports todos/notes Binding assemblers', () => {
+    expect(todosBindingJs).not.toMatch(/\bassembleTodosBindingBody\b/);
+    expect(todosBindingJs).not.toMatch(/\bbuildTodosBinding\b/);
+    expect(todosBindingJs).not.toMatch(/\bTODOS_BUSINESS_KEY\b/);
   });
 });
 

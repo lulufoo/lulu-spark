@@ -3,16 +3,6 @@ import { renderCommentMarkdown } from '../comment-markdown.js';
 import { escHtml } from '../utils.js';
 import { closePlanTaskDialog, openPlanTaskDialog } from './dialog.js';
 export {
-  buildTodosBinding,
-  resetTodosBinding,
-  assembleTodosBindingBody,
-  TODOS_BUSINESS_KEY,
-  buildNotesBinding,
-  resetNotesBinding,
-  assembleNotesBindingBody,
-  NOTES_BUSINESS_KEY,
-} from './todos-binding.js';
-export {
   createTodosPageLifecycle,
   onTodosPageEnter,
   onMasterSelectionChange,

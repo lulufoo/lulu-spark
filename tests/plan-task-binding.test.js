@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 /**
- * L2 t3: Todos Binding 调用面只提交业务 key（key-only Set）。
- * Sources: tech-doc L11-T T3 / L09-I #4 / L13-VF AC5
+ * t2: App Binding helper is workbench-only Set (no Reset helper, no old keys).
+ * Sources: tech-doc C6-I / C7_4a-T / C7_4b-T
  */
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -9,10 +9,8 @@ import { fileURLToPath } from 'node:url';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
 import {
-  assembleTodosBindingBody,
-  buildTodosBinding,
-  resetTodosBinding,
-  TODOS_BUSINESS_KEY,
+  setWorkbenchBinding,
+  WORKBENCH_BUSINESS_KEY,
 } from '../frontend/js/plan-task/todos-binding.js';
 
 const fixtureRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -25,8 +23,19 @@ const planTaskIndexJs = readFileSync(
   'utf8',
 );
 
-/** Host mock aligned with t2 public key-only Binding boundary. */
-function acceptKeyOnlySet(binding) {
+const DELETED_HELPERS = [
+  'TODOS_BUSINESS_KEY',
+  'NOTES_BUSINESS_KEY',
+  'assembleTodosBindingBody',
+  'assembleNotesBindingBody',
+  'buildTodosBinding',
+  'buildNotesBinding',
+  'resetTodosBinding',
+  'resetNotesBinding',
+];
+
+/** Host mock aligned with t1: only workbench key-only Set succeeds. */
+function acceptWorkbenchKeyOnlySet(binding) {
   if (!binding || typeof binding !== 'object') {
     return { ok: false, code: 'set_invalid', state: 'unbound' };
   }
@@ -47,58 +56,61 @@ function acceptKeyOnlySet(binding) {
   if (typeof binding.key !== 'string' || !binding.key.trim()) {
     return { ok: false, code: 'set_invalid', state: 'unbound' };
   }
+  if (binding.key === 'notes' || binding.key === 'todo_task') {
+    return { ok: false, code: 'set_invalid', state: 'unbound' };
+  }
+  if (binding.key !== 'workbench') {
+    return { ok: false, code: 'set_invalid', state: 'unbound' };
+  }
   return { ok: true, state: 'bound' };
 }
 
-describe('Todos Binding 调用面 — source contracts (key-only)', () => {
-  it('exports seeded business key todo_task for Set', () => {
-    expect(TODOS_BUSINESS_KEY).toBe('todo_task');
-    expect(todosBindingJs).toMatch(/todo_task/);
-    expect(planTaskIndexJs).toMatch(
-      /todos-binding|buildTodosBinding|resetTodosBinding/,
-    );
+describe('Workbench Binding helper — source contracts', () => {
+  it('exports only WORKBENCH_BUSINESS_KEY and setWorkbenchBinding', async () => {
+    expect(WORKBENCH_BUSINESS_KEY).toBe('workbench');
+    expect(typeof setWorkbenchBinding).toBe('function');
+    expect(setWorkbenchBinding.length).toBeLessThanOrEqual(1);
+
+    const bindingMod = await import('../frontend/js/plan-task/todos-binding.js');
+    expect(Object.keys(bindingMod).sort()).toEqual([
+      'WORKBENCH_BUSINESS_KEY',
+      'setWorkbenchBinding',
+    ]);
+    for (const name of DELETED_HELPERS) {
+      expect(bindingMod[name], `${name} must be deleted`).toBeUndefined();
+      expect(todosBindingJs).not.toMatch(new RegExp(`\\b${name}\\b`));
+    }
+    expect(todosBindingJs).not.toMatch(/resetWorkbenchBinding|reset_binding/);
   });
 
-  it('production assemble/Set path has no tools/prompt/callbacks payload assembly', () => {
+  it('index.js does not re-export deleted Binding helpers', () => {
+    for (const name of DELETED_HELPERS) {
+      expect(planTaskIndexJs).not.toMatch(new RegExp(`\\b${name}\\b`));
+    }
+  });
+
+  it('production Set path has no tools/prompt/callbacks payload assembly', () => {
     expect(todosBindingJs).toMatch(/set_binding/);
-    expect(todosBindingJs).toMatch(/reset_binding/);
-    // assembleTodosBindingBody must not build legacy MCP payload fields
-    const assembleIdx = todosBindingJs.indexOf('function assembleTodosBindingBody');
-    expect(assembleIdx).toBeGreaterThanOrEqual(0);
-    const assembleSlice = todosBindingJs.slice(
-      assembleIdx,
-      assembleIdx + 400,
-    );
-    expect(assembleSlice).not.toMatch(/\btools\s*:/);
-    expect(assembleSlice).not.toMatch(/\bprompt\s*:/);
-    expect(assembleSlice).not.toMatch(/\bcallbacks\s*:/);
-    expect(assembleSlice).toMatch(/\bkey\b/);
+    const setIdx = todosBindingJs.indexOf('function setWorkbenchBinding');
+    expect(setIdx).toBeGreaterThanOrEqual(0);
+    const setSlice = todosBindingJs.slice(setIdx, setIdx + 500);
+    expect(setSlice).not.toMatch(/\btools\s*:/);
+    expect(setSlice).not.toMatch(/\bprompt\s*:/);
+    expect(setSlice).not.toMatch(/\bcallbacks\s*:/);
+    expect(setSlice).toMatch(/\bkey\b/);
   });
 
-  it('call surface has no engine selection parameters', () => {
+  it('call surface has no engine selection or master/route parameters', () => {
     expect(todosBindingJs).not.toMatch(/\bengineType\b|\bengine_type\b/);
+    expect(todosBindingJs).not.toMatch(/\bmasterTaskId\b|\bmaster_task_id\b/);
     expect(todosBindingJs).not.toMatch(
       /invoke\(\s*['"]set_binding['"][\s\S]*engine/,
     );
+    expect(todosBindingJs).not.toMatch(/['"]notes['"]|['"]todo_task['"]/);
   });
 });
 
-describe('assembleTodosBindingBody', () => {
-  it('returns key-only payload with business key', () => {
-    const body = assembleTodosBindingBody({ masterTaskId: 'task_alpha' });
-    expect(body).toEqual({ key: 'todo_task' });
-    expect(body).not.toHaveProperty('tools');
-    expect(body).not.toHaveProperty('prompt');
-    expect(body).not.toHaveProperty('callbacks');
-    expect(body).not.toHaveProperty('engine');
-    expect(body).not.toHaveProperty('engine_type');
-    expect(body).not.toHaveProperty('engineType');
-    expect(body).not.toHaveProperty('master_task_id');
-    expect(body).not.toHaveProperty('masterTaskId');
-  });
-});
-
-describe('buildTodosBinding / resetTodosBinding', () => {
+describe('setWorkbenchBinding', () => {
   let invokeMock;
   let events;
 
@@ -106,7 +118,7 @@ describe('buildTodosBinding / resetTodosBinding', () => {
     events = [];
     invokeMock = vi.fn(async (cmd, args) => {
       if (cmd === 'set_binding') {
-        return acceptKeyOnlySet(args?.binding);
+        return acceptWorkbenchKeyOnlySet(args?.binding);
       }
       if (cmd === 'reset_binding') {
         return { ok: true, state: 'unbound' };
@@ -141,26 +153,20 @@ describe('buildTodosBinding / resetTodosBinding', () => {
     };
   }
 
-  it('Sets with key-only payload, observes onBound; no MCP tools/prompt/callbacks', async () => {
+  it('Sets with key-only workbench payload, observes onBound; then ensure session', async () => {
     const cbs = trackCallbacks();
-    const result = await buildTodosBinding(
-      { masterTaskId: 'task_alpha' },
-      cbs,
-    );
+    const result = await setWorkbenchBinding(cbs);
 
     expect(result.ok).toBe(true);
     expect(result.state).toBe('bound');
-    expect(result.binding).toEqual({ key: 'todo_task' });
+    expect(result.binding).toEqual({ key: 'workbench' });
     expect(result.binding).not.toHaveProperty('tools');
     expect(result.binding).not.toHaveProperty('prompt');
     expect(result.binding).not.toHaveProperty('callbacks');
 
-    expect(invokeMock).toHaveBeenCalledWith(
-      'set_binding',
-      expect.objectContaining({
-        binding: { key: 'todo_task' },
-      }),
-    );
+    expect(invokeMock).toHaveBeenCalledWith('set_binding', {
+      binding: { key: 'workbench' },
+    });
 
     const setArgs = invokeMock.mock.calls.find((c) => c[0] === 'set_binding')?.[1];
     expect(Object.keys(setArgs.binding).sort()).toEqual(['key']);
@@ -173,76 +179,67 @@ describe('buildTodosBinding / resetTodosBinding', () => {
 
     expect(invokeMock).toHaveBeenCalledWith('ensure_ai_assistant_session');
     expect(events.map((e) => e.event)).toEqual(['onBound']);
+    expect(invokeMock).not.toHaveBeenCalledWith('reset_binding');
   });
 
-  it('Sets key-only binding without live instance context', async () => {
+  it('does not write master / route / instance id into Binding', async () => {
     const cbs = trackCallbacks();
-    const r1 = await buildTodosBinding(null, cbs);
-    const r2 = await buildTodosBinding({}, cbs);
-    const r3 = await buildTodosBinding({ masterTaskId: '' }, cbs);
-    const r4 = await buildTodosBinding({ masterTaskId: '   ' }, cbs);
-
-    expect([r1, r2, r3, r4].map((result) => result.ok)).toEqual([
-      true,
-      true,
-      true,
-      true,
-    ]);
-    for (const result of [r1, r2, r3, r4]) {
-      expect(result.binding).toEqual({ key: 'todo_task' });
-    }
-
-    const setCalls = invokeMock.mock.calls.filter(
-      ([command]) => command === 'set_binding',
-    );
-    expect(setCalls).toHaveLength(4);
-    for (const [, args] of setCalls) {
-      expect(args).toEqual({ binding: { key: 'todo_task' } });
-    }
-    expect(events.map((e) => e.event)).toEqual([
-      'onBound',
-      'onBound',
-      'onBound',
-      'onBound',
-    ]);
-  });
-
-  it('Reset observes onUnbound; reset_binding carries no config/engine args', async () => {
-    const cbs = trackCallbacks();
-    await buildTodosBinding({ masterTaskId: 'task_alpha' }, cbs);
-    events.length = 0;
-
-    invokeMock.mockImplementation(async (cmd) => {
-      if (cmd === 'reset_binding') return { ok: true, state: 'unbound' };
-      if (cmd === 'execute_binding') {
-        return { ok: false, code: 'rejected_unbound', state: 'unbound' };
-      }
-      if (cmd === 'query_binding') return { state: 'unbound' };
-      return { ok: true, state: 'unbound' };
+    const result = await setWorkbenchBinding({
+      ...cbs,
+      masterTaskId: 'task_alpha',
+      route: '#/plan-tasks',
     });
 
-    const resetResult = await resetTodosBinding(cbs);
-    expect(resetResult.ok).toBe(true);
-    expect(resetResult.state).toBe('unbound');
-    expect(events.map((e) => e.event)).toEqual(['onUnbound']);
-
-    const resetCall = invokeMock.mock.calls.find((c) => c[0] === 'reset_binding');
-    expect(resetCall).toBeTruthy();
-    // invoke('reset_binding') with no config/engine payload
-    expect(resetCall.length).toBe(1);
-    expect(resetCall?.[1] ?? {}).not.toHaveProperty('key');
-    expect(resetCall?.[1] ?? {}).not.toHaveProperty('tools');
-    expect(resetCall?.[1] ?? {}).not.toHaveProperty('prompt');
-    expect(resetCall?.[1] ?? {}).not.toHaveProperty('callbacks');
-    expect(resetCall?.[1] ?? {}).not.toHaveProperty('engine');
-
-    const invoke = window.__TAURI__.core.invoke;
-    const exec = await invoke('execute_binding');
-    expect(exec.ok).toBe(false);
-    expect(exec.code).toBe('rejected_unbound');
+    expect(result.ok).toBe(true);
+    expect(result.binding).toEqual({ key: 'workbench' });
+    const setArgs = invokeMock.mock.calls.find((c) => c[0] === 'set_binding')?.[1];
+    expect(setArgs).toEqual({ binding: { key: 'workbench' } });
+    expect(JSON.stringify(setArgs.binding)).not.toMatch(
+      /task_alpha|#\/plan-tasks|master/i,
+    );
   });
 
-  it('Set failure → onError(set_invalid); not bound; page path stays usable (no throw)', async () => {
+  it('swallows ensure_ai_assistant_session failure after a successful Set', async () => {
+    const cbs = trackCallbacks();
+    invokeMock.mockImplementation(async (cmd, args) => {
+      if (cmd === 'set_binding') {
+        return acceptWorkbenchKeyOnlySet(args?.binding);
+      }
+      if (cmd === 'ensure_ai_assistant_session') {
+        throw new Error('session boom');
+      }
+      return {};
+    });
+
+    const result = await setWorkbenchBinding(cbs);
+    expect(result.ok).toBe(true);
+    expect(result.state).toBe('bound');
+    expect(events.map((e) => e.event)).toEqual(['onBound']);
+  });
+
+  it('Host rejects notes|todo_task keys; helper never sends those keys', async () => {
+    const notesRejected = acceptWorkbenchKeyOnlySet({ key: 'notes' });
+    const todosRejected = acceptWorkbenchKeyOnlySet({ key: 'todo_task' });
+    expect(notesRejected).toEqual({
+      ok: false,
+      code: 'set_invalid',
+      state: 'unbound',
+    });
+    expect(todosRejected).toEqual({
+      ok: false,
+      code: 'set_invalid',
+      state: 'unbound',
+    });
+
+    await setWorkbenchBinding(trackCallbacks());
+    const setCalls = invokeMock.mock.calls.filter(([cmd]) => cmd === 'set_binding');
+    expect(setCalls).toHaveLength(1);
+    expect(setCalls[0][1].binding.key).toBe('workbench');
+    expect(setCalls[0][1].binding.key).not.toBe('notes');
+    expect(setCalls[0][1].binding.key).not.toBe('todo_task');
+  });
+
+  it('Set failure → onError(set_invalid); does not pretend workbench is bound', async () => {
     const cbs = trackCallbacks();
     invokeMock.mockImplementation(async (cmd) => {
       if (cmd === 'set_binding') {
@@ -251,26 +248,48 @@ describe('buildTodosBinding / resetTodosBinding', () => {
       return { ok: true, state: 'unbound' };
     });
 
-    const result = await buildTodosBinding({ masterTaskId: 'task_alpha' }, cbs);
+    const result = await setWorkbenchBinding(cbs);
     expect(result.ok).toBe(false);
     expect(result.code).toBe('set_invalid');
     expect(result.state).toBe('unbound');
     expect(events.map((e) => e.event)).toEqual(['onError']);
     expect(events[0].payload).toMatchObject({ category: 'set_invalid' });
-    expect(events[0].payload).not.toHaveProperty('master_task_id');
-    expect(events[0].payload).not.toHaveProperty('masterTaskId');
+    expect(invokeMock).not.toHaveBeenCalledWith('ensure_ai_assistant_session');
   });
 
-  it('legacy tools/prompt/callbacks shape is not a successful business Set path', async () => {
+  it('set_binding throw → onError / ok:false; not bound', async () => {
     const cbs = trackCallbacks();
-    const result = await buildTodosBinding({ masterTaskId: 'task_beta' }, cbs);
+    invokeMock.mockImplementation(async (cmd) => {
+      if (cmd === 'set_binding') {
+        throw new Error('ipc failed');
+      }
+      return {};
+    });
+
+    const result = await setWorkbenchBinding(cbs);
+    expect(result.ok).toBe(false);
+    expect(result.code).toBe('set_invalid');
+    expect(result.state).toBe('unbound');
+    expect(events.map((e) => e.event)).toEqual(['onError']);
+  });
+
+  it('missing invoke → onError / ok:false; does not pretend workbench is bound', async () => {
+    delete window.__TAURI__;
+    const cbs = trackCallbacks();
+    const result = await setWorkbenchBinding(cbs);
+    expect(result.ok).toBe(false);
+    expect(result.code).toBe('set_invalid');
+    expect(result.state).toBe('unbound');
+    expect(events.map((e) => e.event)).toEqual(['onError']);
+  });
+
+  it('legacy tools/prompt/callbacks shape is not a successful workbench Set path', async () => {
+    const result = await setWorkbenchBinding(trackCallbacks());
     expect(result.ok).toBe(true);
-
     const setArgs = invokeMock.mock.calls.find((c) => c[0] === 'set_binding')?.[1];
-    expect(setArgs.binding).toEqual({ key: 'todo_task' });
+    expect(setArgs.binding).toEqual({ key: 'workbench' });
 
-    // Host boundary rejects legacy shape (t2); consumer must not submit it
-    const legacyRejected = acceptKeyOnlySet({
+    const legacyRejected = acceptWorkbenchKeyOnlySet({
       tools: [{ name: 'get_plan' }],
       prompt: 'legacy',
       callbacks: {},
@@ -283,10 +302,7 @@ describe('buildTodosBinding / resetTodosBinding', () => {
   });
 
   it('callback payloads have no business/config/engine fields', async () => {
-    const cbs = trackCallbacks();
-    await buildTodosBinding({ masterTaskId: 'task_beta' }, cbs);
-    await resetTodosBinding(cbs);
-
+    await setWorkbenchBinding(trackCallbacks());
     for (const ev of events) {
       const p = ev.payload ?? {};
       expect(p).not.toHaveProperty('master_task_id');
@@ -295,7 +311,6 @@ describe('buildTodosBinding / resetTodosBinding', () => {
       expect(p).not.toHaveProperty('tools');
       expect(p).not.toHaveProperty('prompt');
       expect(p).not.toHaveProperty('engine');
-      expect(JSON.stringify(p)).not.toMatch(/assemble|fill.*prompt|拼装/i);
     }
   });
 });

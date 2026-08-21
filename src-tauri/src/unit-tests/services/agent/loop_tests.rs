@@ -5009,7 +5009,7 @@ fn t2_key_only_set_loads_mcp_and_rejects_unreachable_endpoint() {
 
 // --- t4: Host Binding key is workbench; old App keys fail at registry lookup ---
 //
-// Frontend consumer changes are a later task. Host tests live here.
+// Frontend consumer is process-level setWorkbenchBinding; pages no longer Set/Reset.
 
 fn repo_file(rel: &str) -> String {
     let mut path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
@@ -5095,18 +5095,22 @@ fn t4_only_other_binding_page_resets_notes() {
     let main = repo_file("frontend/js/main.js");
     let mount_plan = function_slice(&main, "function mountPlanTasksRoute");
     assert!(
-        mount_plan.contains("resetNotesBinding"),
-        "only switching to Todos (mountPlanTasksRoute) Reset notes before Set todo_task"
+        !mount_plan.contains("resetNotesBinding")
+            && !mount_plan.contains("set_binding")
+            && !mount_plan.contains("reset_binding"),
+        "mountPlanTasksRoute must not Set/Reset Binding"
     );
     let mount_wb = function_slice(&main, "function mountWorkbench");
     assert!(
-        mount_wb.contains("buildNotesBinding") && !mount_wb.contains("resetNotesBinding"),
-        "entering date/document main must Set notes and must not Reset"
+        !mount_wb.contains("buildNotesBinding")
+            && !mount_wb.contains("set_binding")
+            && !mount_wb.contains("reset_binding"),
+        "mountWorkbench must not Set/Reset Binding"
     );
     let mount_home = function_slice(&main, "function mountHomeRoute");
     assert!(
         !mount_home.contains("resetNotesBinding") && !mount_home.contains("reset_binding"),
-        "home / Hub host route must not Reset notes"
+        "home / Hub host route must not Reset Binding"
     );
 }
 
@@ -5167,48 +5171,40 @@ fn t4_notes_binding_consumer_follows_todos_key_only_contract() {
     let binding = repo_file("frontend/js/plan-task/todos-binding.js");
     let index = repo_file("frontend/js/plan-task/index.js");
     assert!(
-        binding.contains("NOTES_BUSINESS_KEY") && binding.contains("'notes'"),
-        "todos-binding.js must export NOTES_BUSINESS_KEY = notes"
+        binding.contains("WORKBENCH_BUSINESS_KEY") && binding.contains("'workbench'"),
+        "todos-binding.js must export WORKBENCH_BUSINESS_KEY = workbench"
     );
     assert!(
-        binding.contains("export function assembleNotesBindingBody"),
-        "assembleNotesBindingBody must exist (todos-binding key-only contract)"
+        binding.contains("export async function setWorkbenchBinding"),
+        "setWorkbenchBinding must exist (key-only workbench Set)"
     );
     assert!(
-        binding.contains("export async function buildNotesBinding"),
-        "buildNotesBinding must invoke set_binding with key-only notes body"
+        !binding.contains("NOTES_BUSINESS_KEY")
+            && !binding.contains("TODOS_BUSINESS_KEY")
+            && !binding.contains("assembleNotesBindingBody")
+            && !binding.contains("buildNotesBinding")
+            && !binding.contains("resetNotesBinding"),
+        "old notes/todos Binding helpers must be deleted"
+    );
+    let set_fn = function_slice(&binding, "async function setWorkbenchBinding");
+    assert!(
+        set_fn.contains("set_binding") && set_fn.contains("key"),
+        "setWorkbenchBinding must invoke key-only set_binding"
     );
     assert!(
-        binding.contains("export async function resetNotesBinding"),
-        "resetNotesBinding must invoke reset_binding"
-    );
-    let assemble_start = binding
-        .find("function assembleNotesBindingBody")
-        .expect("assembleNotesBindingBody");
-    let assemble = binding
-        .get(assemble_start..assemble_start.saturating_add(180))
-        .unwrap_or(&binding[assemble_start..]);
-    assert!(assemble.contains("key"), "assembleNotesBindingBody is key-only");
-    assert!(
-        !assemble.contains("tools")
-            && !assemble.contains("prompt")
-            && !assemble.contains("callbacks"),
-        "Notes assemble must not build tools/prompt/callbacks"
-    );
-    assert!(
-        function_slice(&binding, "async function buildNotesBinding").contains("set_binding"),
-        "buildNotesBinding must invoke set_binding"
+        !set_fn.contains("tools:") && !set_fn.contains("prompt:") && !set_fn.contains("callbacks:"),
+        "workbench Set must not assemble tools/prompt/callbacks"
     );
     assert!(
         !binding.contains("engine_type") && !binding.contains("engineType"),
-        "Notes Binding must not select an engine"
+        "Workbench Binding must not select an engine"
     );
     assert!(
-        index.contains("assembleNotesBindingBody")
-            && index.contains("buildNotesBinding")
-            && index.contains("resetNotesBinding")
-            && index.contains("NOTES_BUSINESS_KEY"),
-        "plan-task/index.js must re-export Notes Binding symbols"
+        !index.contains("assembleNotesBindingBody")
+            && !index.contains("buildNotesBinding")
+            && !index.contains("resetNotesBinding")
+            && !index.contains("NOTES_BUSINESS_KEY"),
+        "plan-task/index.js must not re-export old Notes Binding symbols"
     );
 }
 
@@ -5218,20 +5214,24 @@ fn t4_main_and_sidebar_wire_notes_set_without_new_runtime() {
     let sidebar = repo_file("frontend/js/components/sidebar.js");
     let lifecycle = repo_file("frontend/js/plan-task/todos-lifecycle.js");
     assert!(
-        main.contains("buildNotesBinding") && main.contains("resetNotesBinding"),
-        "main.js must Set notes on date/document main and Reset only when switching to Todos"
+        main.contains("setWorkbenchBinding")
+            && !main.contains("buildNotesBinding")
+            && !main.contains("resetNotesBinding"),
+        "main.js must Set workbench at app shell and must not wire notes Set/Reset"
     );
     assert!(
-        sidebar.contains("buildNotesBinding"),
-        "sidebar.js selectDate path must Set notes on date/document main"
+        !sidebar.contains("buildNotesBinding") && !sidebar.contains("set_binding"),
+        "sidebar.js selectDate path must not Set Binding"
     );
     assert!(
         !main.contains("new Agent") && !sidebar.contains("new Agent"),
         "must not start a separate assistant runtime"
     );
     assert!(
-        lifecycle.contains("resetTodosBinding") && lifecycle.contains("notifyShellClose"),
-        "todos-lifecycle leave Reset / shell-close ≠ Reset remains the Todos contract"
+        !lifecycle.contains("resetTodosBinding")
+            && !lifecycle.contains("buildTodosBinding")
+            && lifecycle.contains("notifyShellClose"),
+        "todos-lifecycle must keep shell-close ≠ Reset and must not call deleted Binding helpers"
     );
 }
 
