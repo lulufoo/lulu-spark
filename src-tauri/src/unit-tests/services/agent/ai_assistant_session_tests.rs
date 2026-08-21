@@ -311,3 +311,30 @@ fn t8_binding_business_id_is_derived_from_key_only_binding_not_session_id() {
         );
     });
 }
+
+#[test]
+fn t8_old_app_keys_notes_and_todo_task_fail_host_binding() {
+    with_sandbox(|| {
+        for key in ["notes", "todo_task"] {
+            let err = r#loop::try_set_binding_json(&json!({ "key": key }))
+                .expect_err("old App key must fail");
+            assert_eq!(err.as_code(), "unknown_key", "key={key}");
+            assert!(session::live_context_owner().current_binding().is_none());
+            assert!(session::live_context_owner().loaded_mcp_server().is_none());
+        }
+    });
+}
+
+#[test]
+fn t8_empty_key_is_invalid_and_does_not_bind_workbench() {
+    with_sandbox(|| {
+        let err = r#loop::try_set_binding_json(&json!({ "key": "" }))
+            .expect_err("empty key must fail");
+        assert_eq!(err.as_code(), "set_invalid");
+        assert!(session::live_context_owner().current_binding().is_none());
+        assert_ne!(
+            session::live_context_owner().current_business_id().as_deref(),
+            Some(SEEDED_BUSINESS_KEY)
+        );
+    });
+}

@@ -326,17 +326,17 @@ fn run_loop_uses_notes_mcp_tools_and_feeds_tool_result_back_to_model() {
     )
     .expect("start isolated MCP");
     mcp_server_registry::register(
-        "notes",
+        "workbench",
         McpServerConfig {
-            capability_description: "notes test capability".into(),
+            capability_description: "workbench test capability".into(),
             http_transport: HttpMcpTransport {
-                name: "notes-test".into(),
-                url: format!("http://127.0.0.1:{mcp_port}/mcp/notes"),
+                name: "workbench-test".into(),
+                url: format!("http://127.0.0.1:{mcp_port}/mcp/workbench"),
                 headers: BTreeMap::new(),
             },
         },
     )
-    .expect("register notes MCP");
+    .expect("register workbench MCP");
 
     let mock = spawn_scripted_llm(vec![
         assistant_tools(
@@ -352,7 +352,7 @@ fn run_loop_uses_notes_mcp_tools_and_feeds_tool_result_back_to_model() {
         ),
         assistant_text("已读取当前笔记选择。"),
     ]);
-    r#loop::try_set_binding_json(&json!({ "key": "notes" })).expect("Set notes binding");
+    r#loop::try_set_binding_json(&json!({ "key": "workbench" })).expect("Set workbench binding");
     let mut session = session::create_session(None, None).expect("session");
     let outcome = r#loop::run_loop(&mut session, "读取当前选择", &cfg_for(&mock));
 
@@ -415,17 +415,17 @@ fn run_loop_marks_successful_todo_mcp_mutation_as_wrote() {
     )
     .expect("start isolated MCP");
     mcp_server_registry::register(
-        "todo_task",
+        "workbench",
         McpServerConfig {
             capability_description: "todo test capability".into(),
             http_transport: HttpMcpTransport {
-                name: "todo-test".into(),
-                url: format!("http://127.0.0.1:{mcp_port}/mcp/todo_task"),
+                name: "workbench-test".into(),
+                url: format!("http://127.0.0.1:{mcp_port}/mcp/workbench"),
                 headers: BTreeMap::new(),
             },
         },
     )
-    .expect("register todo MCP");
+    .expect("register workbench MCP");
 
     let mock = spawn_scripted_llm(vec![
         assistant_tools(
@@ -441,7 +441,7 @@ fn run_loop_marks_successful_todo_mcp_mutation_as_wrote() {
         ),
         assistant_text("已创建任务。"),
     ]);
-    r#loop::try_set_binding_json(&json!({ "key": "todo_task" })).expect("Set Todo binding");
+    r#loop::try_set_binding_json(&json!({ "key": "workbench" })).expect("Set workbench binding");
     let mut session = session::create_session(None, None).expect("session");
     let outcome = r#loop::run_loop(&mut session, "创建一个任务", &cfg_for(&mock));
 
@@ -477,7 +477,7 @@ fn run_loop_returns_argument_and_allowlist_failures_to_the_model_as_tool_turns()
     mcp_server_registry::clear_for_tests();
     mcp_server_registry::seed_defaults();
     let (sidecar, mcp, mcp_port) = start_isolated_mcp(&sandbox);
-    register_test_mcp("notes", mcp_port);
+    register_test_mcp("workbench", mcp_port);
 
     let mock = spawn_scripted_llm(vec![
         assistant_tools(
@@ -503,7 +503,7 @@ fn run_loop_returns_argument_and_allowlist_failures_to_the_model_as_tool_turns()
         ),
         assistant_text("工具参数或权限不正确，未执行读取。"),
     ]);
-    r#loop::try_set_binding_json(&json!({ "key": "notes" })).expect("Set notes binding");
+    r#loop::try_set_binding_json(&json!({ "key": "workbench" })).expect("Set workbench binding");
     let mut session = session::create_session(None, None).expect("session");
     let outcome = r#loop::run_loop(&mut session, "读取选择", &cfg_for(&mock));
 
@@ -547,7 +547,7 @@ fn run_loop_stops_after_bounded_mcp_tool_rounds() {
     mcp_server_registry::clear_for_tests();
     mcp_server_registry::seed_defaults();
     let (sidecar, mcp, mcp_port) = start_isolated_mcp(&sandbox);
-    register_test_mcp("notes", mcp_port);
+    register_test_mcp("workbench", mcp_port);
 
     let responses = (0..=r#loop::MAX_MCP_TOOL_ROUNDS)
         .map(|round| {
@@ -565,7 +565,7 @@ fn run_loop_stops_after_bounded_mcp_tool_rounds() {
         })
         .collect();
     let mock = spawn_scripted_llm(responses);
-    r#loop::try_set_binding_json(&json!({ "key": "notes" })).expect("Set notes binding");
+    r#loop::try_set_binding_json(&json!({ "key": "workbench" })).expect("Set workbench binding");
     let mut session = session::create_session(None, None).expect("session");
     let outcome = r#loop::run_loop(&mut session, "反复读取选择", &cfg_for(&mock));
 
@@ -598,7 +598,7 @@ fn run_loop_does_not_call_mcp_after_reset_invalidates_its_generation() {
     mcp_server_registry::clear_for_tests();
     mcp_server_registry::seed_defaults();
     let (sidecar, mcp, mcp_port) = start_isolated_mcp(&sandbox);
-    register_test_mcp("notes", mcp_port);
+    register_test_mcp("workbench", mcp_port);
 
     let mock = spawn_llm_with_mid_then_response(
         || r#loop::reset_binding().expect("Reset while LLM response is in flight"),
@@ -614,7 +614,7 @@ fn run_loop_does_not_call_mcp_after_reset_invalidates_its_generation() {
             None,
         ),
     );
-    r#loop::try_set_binding_json(&json!({ "key": "notes" })).expect("Set notes binding");
+    r#loop::try_set_binding_json(&json!({ "key": "workbench" })).expect("Set workbench binding");
     let mut session = session::create_session(None, None).expect("session");
     let outcome = r#loop::run_loop(&mut session, "读取选择", &cfg_for(&mock));
 
@@ -3674,7 +3674,7 @@ fn t6_shell_close_is_not_cut_acceptance() {
 #[test]
 fn t8_binding_request_helpers_route_create_turn_cancel_by_current_session_id() {
     with_sandbox(|| {
-        r#loop::try_set_binding_json(&json!({ "key": "todo_task" })).expect("Set");
+        r#loop::try_set_binding_json(&json!({ "key": crate::services::mcp_server_registry::SEEDED_BUSINESS_KEY })).expect("Set");
         let session_id = r#loop::ensure_chat_session_core()
             .expect("ensure")
             .get("session_id")
@@ -3685,7 +3685,7 @@ fn t8_binding_request_helpers_route_create_turn_cancel_by_current_session_id() {
             session::live_context_owner()
                 .current_business_id()
                 .as_deref(),
-            Some("todo_task")
+            Some(crate::services::mcp_server_registry::SEEDED_BUSINESS_KEY)
         );
         let calls = Arc::new(Mutex::new(Vec::<String>::new()));
 
@@ -3726,7 +3726,7 @@ fn t8_binding_request_helpers_route_create_turn_cancel_by_current_session_id() {
                 .lock()
                 .unwrap()
                 .iter()
-                .any(|entry| entry.contains("todo_task")),
+                .any(|entry| entry.contains(crate::services::mcp_server_registry::SEEDED_BUSINESS_KEY)),
             "create/turn must record session identity, not Binding-derived identity"
         );
 
@@ -3748,7 +3748,7 @@ fn t8_binding_request_helpers_route_create_turn_cancel_by_current_session_id() {
                 .lock()
                 .unwrap()
                 .iter()
-                .any(|entry| entry.contains("todo_task")),
+                .any(|entry| entry.contains(crate::services::mcp_server_registry::SEEDED_BUSINESS_KEY)),
             "cancel must record session identity, not Binding-derived identity"
         );
     });
@@ -3789,7 +3789,7 @@ fn t8_binding_request_helpers_reject_unbound_without_session_fallback() {
 #[test]
 fn t4_reset_binding_with_close_routes_by_session_id_before_clearing_context() {
     with_sandbox(|| {
-        r#loop::try_set_binding_json(&json!({ "key": "todo_task" })).expect("Set");
+        r#loop::try_set_binding_json(&json!({ "key": crate::services::mcp_server_registry::SEEDED_BUSINESS_KEY })).expect("Set");
         let session_id = r#loop::ensure_chat_session_core()
             .expect("ensure")
             .get("session_id")
@@ -3817,7 +3817,7 @@ fn t4_reset_binding_with_close_routes_by_session_id_before_clearing_context() {
 
         assert_eq!(*calls.lock().unwrap(), vec![session_id.clone()]);
         assert!(
-            !calls.lock().unwrap().iter().any(|sid| sid == "todo_task"),
+            !calls.lock().unwrap().iter().any(|sid| sid == crate::services::mcp_server_registry::SEEDED_BUSINESS_KEY),
             "close must receive session identity, not Binding-derived identity"
         );
         let during = live_during_close
@@ -3834,7 +3834,7 @@ fn t4_reset_binding_with_close_routes_by_session_id_before_clearing_context() {
             Some(session_id.as_str()),
             "close must run before live session is cleared"
         );
-        assert_eq!(during.2.as_deref(), Some("todo_task"));
+        assert_eq!(during.2.as_deref(), Some(crate::services::mcp_server_registry::SEEDED_BUSINESS_KEY));
         assert_eq!(r#loop::binding_state(), "unbound");
         assert!(session::live_context_owner().current_session_id().is_none());
         assert!(session::live_context_owner().current_business_id().is_none());
@@ -3892,7 +3892,7 @@ fn switch_session_without_resetting_binding(label: &str) -> (String, String, u64
         session::live_context_owner()
             .current_business_id()
             .as_deref(),
-        Some("todo_task"),
+        Some(crate::services::mcp_server_registry::SEEDED_BUSINESS_KEY),
         "same Binding must keep the same capability"
     );
     assert_eq!(
@@ -3908,7 +3908,7 @@ fn switch_session_without_resetting_binding(label: &str) -> (String, String, u64
 #[test]
 fn t_same_binding_switch_session_create_turn_do_not_reuse_prior_slot() {
     with_sandbox(|| {
-        r#loop::try_set_binding_json(&json!({ "key": "todo_task" })).expect("Set");
+        r#loop::try_set_binding_json(&json!({ "key": crate::services::mcp_server_registry::SEEDED_BUSINESS_KEY })).expect("Set");
         let (session_a, session_b, generation) =
             switch_session_without_resetting_binding("t2-switch-create-turn");
         assert_eq!(r#loop::query_binding().generation, Some(generation));
@@ -3927,7 +3927,7 @@ fn t_same_binding_switch_session_create_turn_do_not_reuse_prior_slot() {
                 .lock()
                 .unwrap()
                 .iter()
-                .any(|entry| entry.contains(&session_a) || entry.contains("todo_task")),
+                .any(|entry| entry.contains(&session_a) || entry.contains(crate::services::mcp_server_registry::SEEDED_BUSINESS_KEY)),
             "create/turn must use session B's slot, not session A or Binding identity"
         );
     });
@@ -3936,7 +3936,7 @@ fn t_same_binding_switch_session_create_turn_do_not_reuse_prior_slot() {
 #[test]
 fn t_cancel_reset_only_hit_current_session_not_prior_binding_slot() {
     with_sandbox(|| {
-        r#loop::try_set_binding_json(&json!({ "key": "todo_task" })).expect("Set");
+        r#loop::try_set_binding_json(&json!({ "key": crate::services::mcp_server_registry::SEEDED_BUSINESS_KEY })).expect("Set");
         let (session_a, session_b, _) =
             switch_session_without_resetting_binding("t2-switch-cancel-reset");
         assert_eq!(
@@ -3966,7 +3966,7 @@ fn t_cancel_reset_only_hit_current_session_not_prior_binding_slot() {
                 .lock()
                 .unwrap()
                 .iter()
-                .any(|sid| sid == &session_a || sid == "todo_task"),
+                .any(|sid| sid == &session_a || sid == crate::services::mcp_server_registry::SEEDED_BUSINESS_KEY),
             "cancel must not hit the prior session or Binding identity"
         );
 
@@ -3983,7 +3983,7 @@ fn t_cancel_reset_only_hit_current_session_not_prior_binding_slot() {
                 .lock()
                 .unwrap()
                 .iter()
-                .any(|sid| sid == &session_a || sid == "todo_task"),
+                .any(|sid| sid == &session_a || sid == crate::services::mcp_server_registry::SEEDED_BUSINESS_KEY),
             "reset must not close the prior Binding slot"
         );
     });
@@ -3992,7 +3992,7 @@ fn t_cancel_reset_only_hit_current_session_not_prior_binding_slot() {
 #[test]
 fn t1_create_turn_cancel_reset_callbacks_receive_only_live_session_id() {
     with_sandbox(|| {
-        r#loop::try_set_binding_json(&json!({ "key": "todo_task" })).expect("Set");
+        r#loop::try_set_binding_json(&json!({ "key": crate::services::mcp_server_registry::SEEDED_BUSINESS_KEY })).expect("Set");
         let session_id = r#loop::ensure_chat_session_core()
             .expect("ensure")
             .get("session_id")
@@ -4000,7 +4000,7 @@ fn t1_create_turn_cancel_reset_callbacks_receive_only_live_session_id() {
             .expect("session id")
             .to_string();
         let live = session::live_context_owner();
-        assert_eq!(live.current_business_id().as_deref(), Some("todo_task"));
+        assert_eq!(live.current_business_id().as_deref(), Some(crate::services::mcp_server_registry::SEEDED_BUSINESS_KEY));
         assert_eq!(live.current_session_id().as_deref(), Some(session_id.as_str()));
 
         let (calls, create, turn) = record_session_calls();
@@ -4025,7 +4025,7 @@ fn t1_create_turn_cancel_reset_callbacks_receive_only_live_session_id() {
                 .lock()
                 .unwrap()
                 .iter()
-                .any(|entry| entry.contains("todo_task")),
+                .any(|entry| entry.contains(crate::services::mcp_server_registry::SEEDED_BUSINESS_KEY)),
             "create/turn must not receive Binding-derived identity"
         );
 
@@ -4061,7 +4061,7 @@ fn t1_create_turn_cancel_reset_callbacks_receive_only_live_session_id() {
 #[test]
 fn t1_same_binding_switch_session_routes_to_new_slot() {
     with_sandbox(|| {
-        r#loop::try_set_binding_json(&json!({ "key": "todo_task" })).expect("Set");
+        r#loop::try_set_binding_json(&json!({ "key": crate::services::mcp_server_registry::SEEDED_BUSINESS_KEY })).expect("Set");
         let session_a = r#loop::ensure_chat_session_core()
             .expect("ensure A")
             .get("session_id")
@@ -4081,7 +4081,7 @@ fn t1_same_binding_switch_session_routes_to_new_slot() {
             session::live_context_owner()
                 .current_business_id()
                 .as_deref(),
-            Some("todo_task"),
+            Some(crate::services::mcp_server_registry::SEEDED_BUSINESS_KEY),
             "switching session must not re-Set Binding"
         );
 
@@ -4129,7 +4129,7 @@ fn t1_same_binding_switch_session_routes_to_new_slot() {
 #[test]
 fn t1_current_business_id_stays_on_live_but_is_not_isolation_key() {
     with_sandbox(|| {
-        r#loop::try_set_binding_json(&json!({ "key": "todo_task" })).expect("Set");
+        r#loop::try_set_binding_json(&json!({ "key": crate::services::mcp_server_registry::SEEDED_BUSINESS_KEY })).expect("Set");
         let session_id = r#loop::ensure_chat_session_core()
             .expect("ensure")
             .get("session_id")
@@ -4140,7 +4140,7 @@ fn t1_current_business_id_stays_on_live_but_is_not_isolation_key() {
             session::live_context_owner()
                 .current_business_id()
                 .as_deref(),
-            Some("todo_task")
+            Some(crate::services::mcp_server_registry::SEEDED_BUSINESS_KEY)
         );
 
         let seen = Arc::new(Mutex::new(Vec::<String>::new()));
@@ -4172,7 +4172,7 @@ fn t1_current_business_id_stays_on_live_but_is_not_isolation_key() {
             session::live_context_owner()
                 .current_business_id()
                 .as_deref(),
-            Some("todo_task"),
+            Some(crate::services::mcp_server_registry::SEEDED_BUSINESS_KEY),
             "current_business_id remains on live after isolation routing"
         );
     });
@@ -4181,14 +4181,14 @@ fn t1_current_business_id_stays_on_live_but_is_not_isolation_key() {
 #[test]
 fn t1_binding_business_id_still_derives_from_binding_key() {
     with_sandbox(|| {
-        r#loop::try_set_binding_json(&json!({ "key": "todo_task" })).expect("Set");
+        r#loop::try_set_binding_json(&json!({ "key": crate::services::mcp_server_registry::SEEDED_BUSINESS_KEY })).expect("Set");
         let _ = r#loop::ensure_chat_session_core().expect("ensure");
         let binding = session::live_context_owner()
             .current_binding()
             .expect("bound");
         assert_eq!(
             session::binding_business_id(&binding).as_deref(),
-            Some("todo_task")
+            Some(crate::services::mcp_server_registry::SEEDED_BUSINESS_KEY)
         );
         let q = r#loop::query_binding();
         assert_eq!(q.state, "bound");
@@ -4199,7 +4199,7 @@ fn t1_binding_business_id_still_derives_from_binding_key() {
 #[test]
 fn t1_public_wrappers_use_same_session_isolation_key_as_with_error() {
     with_sandbox(|| {
-        r#loop::try_set_binding_json(&json!({ "key": "todo_task" })).expect("Set");
+        r#loop::try_set_binding_json(&json!({ "key": crate::services::mcp_server_registry::SEEDED_BUSINESS_KEY })).expect("Set");
         let session_id = r#loop::ensure_chat_session_core()
             .expect("ensure")
             .get("session_id")
@@ -4287,14 +4287,14 @@ fn t1_public_wrappers_use_same_session_isolation_key_as_with_error() {
 #[test]
 fn t1_bound_without_live_session_rejects_create_turn_cancel() {
     with_sandbox(|| {
-        r#loop::try_set_binding_json(&json!({ "key": "todo_task" })).expect("Set");
+        r#loop::try_set_binding_json(&json!({ "key": crate::services::mcp_server_registry::SEEDED_BUSINESS_KEY })).expect("Set");
         assert!(session::live_context_owner().current_session_id().is_none());
         assert!(session::live_context_owner().current_binding().is_some());
         assert_eq!(
             session::live_context_owner()
                 .current_business_id()
                 .as_deref(),
-            Some("todo_task")
+            Some(crate::services::mcp_server_registry::SEEDED_BUSINESS_KEY)
         );
 
         let create_called = Arc::new(Mutex::new(false));
@@ -5007,10 +5007,9 @@ fn t2_key_only_set_loads_mcp_and_rejects_unreachable_endpoint() {
     });
 }
 
-// --- t4 / P3 T5: Notes main-UI Binding Set/Reset (key-only, Host loop_tests) ---
+// --- t4: Host Binding key is workbench; old App keys fail at registry lookup ---
 //
-// Frontend consumer follows todos-binding.js key-only Set. Host tests live here;
-// do not add a new frontend test harness.
+// Frontend consumer changes are a later task. Host tests live here.
 
 fn repo_file(rel: &str) -> String {
     let mut path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
@@ -5042,49 +5041,34 @@ fn assert_bound_key(key: &str) {
 }
 
 #[test]
-fn t4_notes_key_only_set_binds_seeded_notes_mcp() {
+fn t4_workbench_key_only_set_binds_seeded_workbench_mcp() {
     with_sandbox(|| {
-        use crate::services::mcp_server_registry::{self, SEEDED_NOTES_KEY};
+        use crate::services::mcp_server_registry::{self, SEEDED_BUSINESS_KEY};
         assert_eq!(r#loop::binding_state(), "unbound");
-        r#loop::try_set_binding_json(&key_only_payload(SEEDED_NOTES_KEY))
-            .expect("try_set_binding_json({{ key: notes }}) must succeed when seeded");
-        assert_bound_key(SEEDED_NOTES_KEY);
-        let loaded = r#loop::loaded_mcp_server().expect("notes mcp");
-        let expected = mcp_server_registry::lookup(SEEDED_NOTES_KEY).expect("registry notes");
+        r#loop::try_set_binding_json(&key_only_payload(SEEDED_BUSINESS_KEY))
+            .expect("try_set_binding_json({{ key: workbench }}) must succeed when seeded");
+        assert_bound_key(SEEDED_BUSINESS_KEY);
+        assert_eq!(SEEDED_BUSINESS_KEY, "workbench");
+        let loaded = r#loop::loaded_mcp_server().expect("workbench mcp");
+        let expected = mcp_server_registry::lookup(SEEDED_BUSINESS_KEY).expect("registry workbench");
         assert_eq!(loaded, expected);
         assert!(
-            loaded.http_transport().url.contains("/mcp/notes"),
-            "notes seed URL must be /mcp/notes"
+            loaded.http_transport().url.ends_with("/mcp/workbench"),
+            "workbench seed URL must be /mcp/workbench"
         );
     });
 }
 
 #[test]
-fn t4_from_todos_back_to_main_then_set_notes() {
+fn t4_old_app_keys_notes_and_todo_task_fail_set_binding() {
     with_sandbox(|| {
-        use crate::services::mcp_server_registry::{SEEDED_BUSINESS_KEY, SEEDED_NOTES_KEY};
-        r#loop::try_set_binding_json(&key_only_payload(SEEDED_BUSINESS_KEY)).expect("todos Set");
-        assert_bound_key(SEEDED_BUSINESS_KEY);
-        r#loop::reset_binding().expect("leave todos Reset");
-        assert_eq!(r#loop::binding_state(), "unbound");
-        r#loop::try_set_binding_json(&key_only_payload(SEEDED_NOTES_KEY))
-            .expect("return to main then Set notes");
-        assert_bound_key(SEEDED_NOTES_KEY);
-    });
-}
-
-#[test]
-fn t4_switch_to_todos_resets_then_sets_todo_task() {
-    with_sandbox(|| {
-        use crate::services::mcp_server_registry::{SEEDED_BUSINESS_KEY, SEEDED_NOTES_KEY};
-        r#loop::try_set_binding_json(&key_only_payload(SEEDED_NOTES_KEY)).expect("notes Set");
-        assert_bound_key(SEEDED_NOTES_KEY);
-        r#loop::reset_binding().expect("switch to Todos: Reset first");
-        assert_eq!(r#loop::binding_state(), "unbound");
-        assert!(r#loop::loaded_mcp_server().is_none());
-        r#loop::try_set_binding_json(&key_only_payload(SEEDED_BUSINESS_KEY))
-            .expect("then Set todo_task");
-        assert_bound_key(SEEDED_BUSINESS_KEY);
+        for key in ["notes", "todo_task"] {
+            let err = r#loop::try_set_binding_json(&key_only_payload(key))
+                .expect_err("old App key must fail Host Binding");
+            assert_eq!(err.as_code(), "unknown_key", "key={key}");
+            assert_eq!(r#loop::binding_state(), "unbound");
+            assert!(r#loop::loaded_mcp_server().is_none());
+        }
     });
 }
 
@@ -5127,22 +5111,54 @@ fn t4_only_other_binding_page_resets_notes() {
 }
 
 #[test]
-fn t4_notes_unseeded_set_fails_unregistered_key_still_hard_reject() {
+fn t4_old_app_keys_still_unknown_after_seed_defaults() {
     with_sandbox(|| {
-        use crate::services::mcp_server_registry::{self, SEEDED_NOTES_KEY};
+        use crate::services::mcp_server_registry::{self, SEEDED_BUSINESS_KEY};
         mcp_server_registry::clear_for_tests();
-        let err = r#loop::try_set_binding_json(&key_only_payload(SEEDED_NOTES_KEY))
-            .expect_err("notes unseeded must fail Set");
-        assert_eq!(err.as_code(), "unknown_key");
+        for key in ["notes", "todo_task"] {
+            let err = r#loop::try_set_binding_json(&key_only_payload(key))
+                .expect_err("cleared old key must fail Set");
+            assert_eq!(err.as_code(), "unknown_key");
+        }
+        assert_eq!(r#loop::binding_state(), "unbound");
+
+        mcp_server_registry::seed_defaults();
+        r#loop::try_set_binding_json(&key_only_payload(SEEDED_BUSINESS_KEY))
+            .expect("seeded workbench Set");
+        for key in ["notes", "todo_task"] {
+            let err = r#loop::try_set_binding_json(&key_only_payload(key))
+                .expect_err("old App key still hard-reject after seed");
+            assert_eq!(err.as_code(), "unknown_key", "key={key}");
+        }
+        assert_bound_key(SEEDED_BUSINESS_KEY);
+    });
+}
+
+#[test]
+fn t4_empty_key_is_invalid_and_does_not_fall_to_workbench() {
+    with_sandbox(|| {
+        use crate::services::mcp_server_registry::SEEDED_BUSINESS_KEY;
+        let err = r#loop::try_set_binding_json(&key_only_payload(""))
+            .expect_err("empty key must fail");
+        assert_eq!(err.as_code(), "set_invalid");
         assert_eq!(r#loop::binding_state(), "unbound");
         assert!(r#loop::loaded_mcp_server().is_none());
 
-        mcp_server_registry::seed_defaults();
-        r#loop::try_set_binding_json(&key_only_payload(SEEDED_NOTES_KEY)).expect("seeded notes Set");
-        let err = r#loop::try_set_binding_json(&key_only_payload("not_a_registered_slot_xyz"))
-            .expect_err("unregistered key still hard-reject");
+        r#loop::try_set_binding_json(&key_only_payload(SEEDED_BUSINESS_KEY)).expect("workbench Set");
+        let err = r#loop::try_set_binding_json(&key_only_payload(""))
+            .expect_err("empty key must not replace workbench");
+        assert_eq!(err.as_code(), "set_invalid");
+        assert_bound_key(SEEDED_BUSINESS_KEY);
+    });
+}
+
+#[test]
+fn t4_cursor_ide_is_not_an_app_binding_key() {
+    with_sandbox(|| {
+        let err = r#loop::try_set_binding_json(&key_only_payload("cursor_ide"))
+            .expect_err("cursor_ide must not become the App Binding key");
         assert_eq!(err.as_code(), "unknown_key");
-        assert_bound_key(SEEDED_NOTES_KEY);
+        assert_eq!(r#loop::binding_state(), "unbound");
     });
 }
 
@@ -5219,30 +5235,30 @@ fn t4_main_and_sidebar_wire_notes_set_without_new_runtime() {
     );
 }
 
-/// P4 / T7: Binding Set notes must use `try_set_binding_json({ key: "notes" })`.
+/// P4: Binding Set workbench must use `try_set_binding_json({ key: "workbench" })`.
 /// typed `set_binding(Binding)` does not do registry lookup and cannot substitute.
 #[test]
-fn t6_p4_try_set_binding_json_notes_succeeds() {
+fn t6_p4_try_set_binding_json_workbench_succeeds() {
     with_sandbox(|| {
-        r#loop::try_set_binding_json(&json!({ "key": "notes" }))
-            .expect("P4: try_set_binding_json({ key: notes }) must succeed");
-        assert_bound_key("notes");
+        r#loop::try_set_binding_json(&json!({ "key": "workbench" }))
+            .expect("P4: try_set_binding_json({ key: workbench }) must succeed");
+        assert_bound_key("workbench");
     });
 }
 
 #[test]
-fn t6_p4_typed_set_binding_does_not_substitute_for_notes_key_lookup() {
+fn t6_p4_typed_set_binding_does_not_substitute_for_workbench_key_lookup() {
     with_sandbox(|| {
         r#loop::set_binding(empty_tools_binding()).expect("typed Set");
         assert_eq!(r#loop::binding_state(), "bound");
         assert!(
             r#loop::loaded_mcp_server().is_none(),
-            "typed set_binding(Binding) must not registry-lookup notes"
+            "typed set_binding(Binding) must not registry-lookup workbench"
         );
         assert_ne!(
             session::live_context_owner().current_business_id().as_deref(),
-            Some("notes"),
-            "typed set_binding must not bind the notes business key"
+            Some("workbench"),
+            "typed set_binding must not bind the workbench business key"
         );
     });
 }

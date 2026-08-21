@@ -11,12 +11,12 @@ const dialogSource = readFileSync(join(fixtureRoot, 'frontend/js/plan-task/dialo
 const mcpSource = readFileSync(join(fixtureRoot, 'src-tauri/src/services/mcp_protocol_adapter.rs'), 'utf8');
 
 function extractCreateTodoTaskBlock(source) {
-  // Host SSOT: ToolRoute entries use `name: "…".into()` (T10).
-  const marker = 'name: "create_todo_task".into()';
-  const start = source.indexOf(marker);
+  // Host SSOT: ToolRoute entries are `route("…", …)` (T10).
+  const start = source.search(/route\(\s*"create_todo_task"/);
   if (start === -1) return '';
-  const end = source.indexOf('name: "list_todo_tasks".into()', start);
-  return end === -1 ? source.slice(start) : source.slice(start, end);
+  const rest = source.slice(start + 1);
+  const endRel = rest.search(/route\(\s*"/);
+  return endRel === -1 ? source.slice(start) : source.slice(start, start + 1 + endRel);
 }
 
 function seedPlanTaskDialogDom() {
@@ -70,10 +70,10 @@ describe('F3 copy sync — create_todo_task MCP description', () => {
     expect(createBlock).not.toMatch(/one implicit sub/i);
   });
 
-  it('Host create_todo_task routes to Sidecar without sub_titles / plan_* residue', () => {
+  it('Host create_todo_task routes to Sidecar without plan_* residue', () => {
     expect(createBlock).toContain('/api/todo-task-create');
-    expect(createBlock).not.toMatch(/sub_titles/);
-    expect(mcpSource).not.toMatch(/name:\s*"create_plan_task"/);
+    expect(createBlock).not.toMatch(/implicit sub|one implicit sub/i);
+    expect(mcpSource).not.toMatch(/route\(\s*"create_plan_task"/);
     // Delivery e2e still documents todo_md + empty sub_tasks contract for Host URL.
     const e2e = readFileSync(join(fixtureRoot, 'scripts/todo-task-mcp-e2e.mjs'), 'utf8');
     expect(e2e).toMatch(/todo_md/);

@@ -158,10 +158,10 @@ fn http_transport_is_not_a_user_setting_surface() {
     );
 }
 
-/// Binding business key ≡ MCP scene_slot (L-slot-I).
-const NOTES_SCENE_SLOT: &str = "notes";
+/// Binding business key ≡ MCP scene_slot (App global slot).
+const WORKBENCH_SCENE_SLOT: &str = "workbench";
 
-const SEEDED_TODO_CAPABILITY: &str = "internal host-mcp todo_task capability surface";
+const SEEDED_WORKBENCH_CAPABILITY: &str = "internal host-mcp workbench capability surface";
 
 fn expected_seed_url(key: &str) -> String {
     format!(
@@ -171,113 +171,128 @@ fn expected_seed_url(key: &str) -> String {
     )
 }
 
+fn registry_source() -> &'static str {
+    include_str!("../../services/mcp_server_registry.rs")
+}
+
 #[test]
-fn lookup_notes_returns_seeded_mcp_notes_url() {
-    clear_for_tests();
-    seed_defaults();
-    let got = lookup(NOTES_SCENE_SLOT).expect("notes must be seeded");
-    assert!(
-        !got.capability_description.trim().is_empty(),
-        "notes seed must expose a non-empty decision-level description"
-    );
+fn seeded_business_key_is_workbench() {
     assert_eq!(
-        got.http_transport().url,
-        expected_seed_url(NOTES_SCENE_SLOT),
-        "notes transport URL must be http://127.0.0.1:{{port}}/mcp/notes, not a bare path"
-    );
-    assert!(
-        got.http_transport().url.contains("/mcp/notes"),
-        "notes path must be /mcp/notes: {}",
-        got.http_transport().url
+        SEEDED_BUSINESS_KEY, WORKBENCH_SCENE_SLOT,
+        "sole seeded Binding key must be workbench"
     );
 }
 
 #[test]
-fn notes_binding_key_equals_scene_slot_string() {
+fn seed_defaults_registers_only_workbench_with_mcp_workbench_url() {
     clear_for_tests();
     seed_defaults();
-    let got = lookup(NOTES_SCENE_SLOT).expect("notes");
+    let got = lookup(WORKBENCH_SCENE_SLOT).expect("workbench must be seeded");
+    assert!(
+        !got.capability_description.trim().is_empty(),
+        "workbench seed must expose a non-empty decision-level description"
+    );
+    assert_eq!(got.capability_description, SEEDED_WORKBENCH_CAPABILITY);
+    assert_eq!(
+        got.http_transport().url,
+        expected_seed_url(WORKBENCH_SCENE_SLOT),
+        "workbench transport URL must be http://127.0.0.1:{{port}}/mcp/workbench"
+    );
+    assert!(
+        got.http_transport().url.ends_with("/mcp/workbench"),
+        "HTTP URL must end with /mcp/workbench: {}",
+        got.http_transport().url
+    );
     let last = got
         .http_transport()
         .url
         .rsplit('/')
         .next()
         .expect("url path segment");
-    assert_eq!(
-        last, NOTES_SCENE_SLOT,
-        "URL last segment (scene_slot) must equal Binding key `notes`"
-    );
-    assert_eq!(
-        NOTES_SCENE_SLOT, "notes",
-        "App Binding business key and MCP scene_slot share the same string"
-    );
+    assert_eq!(last, WORKBENCH_SCENE_SLOT);
 }
 
 #[test]
-fn todo_task_seed_url_and_capability_remain_unchanged() {
+fn lookup_notes_and_todo_task_return_not_found() {
     clear_for_tests();
     seed_defaults();
-    let got = lookup(SEEDED_BUSINESS_KEY).expect("todo_task seed must remain");
-    assert_eq!(got.capability_description, SEEDED_TODO_CAPABILITY);
     assert_eq!(
-        got.http_transport().url,
-        expected_seed_url(SEEDED_BUSINESS_KEY)
+        lookup("notes").expect_err("notes must not remain a registry key"),
+        McpServerLookupError::NotFound
     );
-    let notes = lookup(NOTES_SCENE_SLOT).expect("notes");
-    assert_ne!(
-        notes.http_transport().url,
-        got.http_transport().url,
-        "notes must not reuse the todo_task URL"
-    );
-    assert_ne!(
-        notes.capability_description, got.capability_description,
-        "notes must not reuse the todo_task capability description"
+    assert_eq!(
+        lookup("todo_task").expect_err("todo_task must not remain a registry key"),
+        McpServerLookupError::NotFound
     );
 }
 
 #[test]
-fn seed_defaults_after_clear_reseeds_notes_and_is_idempotent() {
+fn registry_no_longer_exports_seeded_notes_key() {
+    let src = registry_source();
+    assert!(
+        !src.contains("SEEDED_NOTES_KEY"),
+        "registry must no longer export SEEDED_NOTES_KEY"
+    );
+}
+
+#[test]
+fn seed_defaults_after_clear_reseeds_workbench_and_is_idempotent() {
     clear_for_tests();
-    let err = lookup(NOTES_SCENE_SLOT).expect_err("cleared notes must be absent");
+    let err = lookup(WORKBENCH_SCENE_SLOT).expect_err("cleared workbench must be absent");
     assert_eq!(err, McpServerLookupError::NotFound);
     seed_defaults();
-    let first = lookup(NOTES_SCENE_SLOT).expect("reseed notes");
+    let first = lookup(WORKBENCH_SCENE_SLOT).expect("reseed workbench");
     seed_defaults();
-    let second = lookup(NOTES_SCENE_SLOT).expect("second seed_defaults still finds notes");
+    let second = lookup(WORKBENCH_SCENE_SLOT).expect("second seed_defaults still finds workbench");
     assert_eq!(first, second);
     assert_eq!(
         second.http_transport().url,
-        expected_seed_url(NOTES_SCENE_SLOT)
+        expected_seed_url(WORKBENCH_SCENE_SLOT)
+    );
+    assert_eq!(
+        lookup("notes").expect_err("notes stays unregistered"),
+        McpServerLookupError::NotFound
+    );
+    assert_eq!(
+        lookup("todo_task").expect_err("todo_task stays unregistered"),
+        McpServerLookupError::NotFound
     );
 }
 
 #[test]
-fn unregistered_key_still_not_found_after_notes_seed() {
+fn unregistered_key_still_not_found_after_workbench_seed() {
     clear_for_tests();
     seed_defaults();
-    lookup(NOTES_SCENE_SLOT).expect("notes seeded");
+    lookup(WORKBENCH_SCENE_SLOT).expect("workbench seeded");
     let err = lookup("unknown_business_key_xyz").expect_err("unknown key must fail");
     assert_eq!(err, McpServerLookupError::NotFound);
-    let cursor = lookup("cursor_ide").expect_err("notes must not reuse cursor_ide slot");
+    let cursor = lookup("cursor_ide").expect_err("workbench must not reuse cursor_ide as a Binding key");
     assert_eq!(cursor, McpServerLookupError::NotFound);
 }
 
 #[test]
-fn empty_key_still_invalid_after_notes_seed() {
+fn empty_key_still_invalid_does_not_fall_to_workbench() {
     clear_for_tests();
     seed_defaults();
     let err = lookup("").expect_err("empty key must fail");
     assert_eq!(err, McpServerLookupError::InvalidKey);
+    let ws = lookup("   ").expect_err("whitespace key must fail");
+    assert_eq!(ws, McpServerLookupError::InvalidKey);
+    lookup(WORKBENCH_SCENE_SLOT).expect("empty key must not silently land on workbench");
 }
 
 #[test]
-fn table_init_and_seed_defaults_both_register_notes() {
-    let src = include_str!("../../services/mcp_server_registry.rs");
+fn table_init_and_seed_defaults_only_register_workbench() {
+    let src = registry_source();
     let init = src.split("get_or_init").nth(1).expect("table get_or_init");
     let init_body = init.split("fn validate_key").next().expect("init body");
     assert!(
-        init_body.contains("notes") || init_body.contains("SEEDED_NOTES"),
-        "table init must seed notes on Host startup"
+        init_body.contains("workbench") || init_body.contains("SEEDED_BUSINESS_KEY"),
+        "table init must seed workbench on Host startup"
+    );
+    assert!(
+        !init_body.contains("SEEDED_NOTES") && !init_body.contains("\"notes\""),
+        "table init must not seed notes"
     );
     let seed_fn = src
         .split("pub fn seed_defaults")
@@ -288,7 +303,16 @@ fn table_init_and_seed_defaults_both_register_notes() {
         .next()
         .expect("seed_defaults body");
     assert!(
-        seed_body.contains("notes") || seed_body.contains("SEEDED_NOTES"),
-        "seed_defaults must register notes"
+        seed_body.contains("SEEDED_BUSINESS_KEY") || seed_body.contains("workbench"),
+        "seed_defaults must register workbench"
+    );
+    assert!(
+        !seed_body.contains("SEEDED_NOTES") && !seed_body.contains("\"notes\""),
+        "seed_defaults must not register notes"
+    );
+    let register_count = seed_body.matches("register(").count();
+    assert_eq!(
+        register_count, 1,
+        "seed_defaults must register exactly one key (workbench), got {register_count}"
     );
 }

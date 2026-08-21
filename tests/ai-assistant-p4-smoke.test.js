@@ -93,7 +93,7 @@ const LOOP_MARKERS = [
   't3_host_business_chat_sends_empty_tools_to_llm',
   't3_host_empty_tools_facade_usable_confirmed',
   // L1+L2 integration markers retained on Host empty-tools path
-  't2_key_only_set_llm_round_omits_tools_and_loads_mcp',
+  't2_empty_tools_binding_text_only_round_succeeds',
   't3_loop_rs_has_no_business_whitelist_dispatch_path',
   // J1 / execute 门闩内核验收夹具（SK-4 / H1，无业务 UI 驱动）
   'j1_1_legal_set_on_bound_execute_reset_rejects',

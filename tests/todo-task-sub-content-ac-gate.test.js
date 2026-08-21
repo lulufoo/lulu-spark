@@ -29,7 +29,7 @@ describe('t5 AC1 — title-only add (host / HTTP / MCP)', () => {
 
   it('Host adapter routes add_todo_sub; e2e keeps title-only success path', () => {
     const adapter = read(HOST_ADAPTER);
-    expect(adapter).toContain('name: "add_todo_sub".into()');
+    expect(adapter).toMatch(/route\(\s*"add_todo_sub"/);
     expect(adapter).toContain('/api/todo-task-add-sub');
 
     const e2e = read('scripts/todo-task-mcp-e2e.mjs');
@@ -73,7 +73,7 @@ describe('t5 AC3 — update modify/clear/omit content; no delete-content API', (
 
   it('Host adapter + e2e expose update_todo_sub content paths', () => {
     const adapter = read(HOST_ADAPTER);
-    expect(adapter).toContain('name: "update_todo_sub".into()');
+    expect(adapter).toMatch(/route\(\s*"update_todo_sub"/);
     expect(adapter).toContain('/api/todo-task-update-sub');
 
     const e2e = read('scripts/todo-task-mcp-e2e.mjs');
@@ -87,9 +87,9 @@ describe('t5 AC3 — update modify/clear/omit content; no delete-content API', (
     expect(http).toContain('/api/todo-task-update-sub');
 
     const adapter = read(HOST_ADAPTER);
-    expect(adapter).not.toContain('name: "delete_todo_sub_content".into()');
-    expect(adapter).not.toContain('name: "delete_sub_content".into()');
-    expect(adapter).toContain('name: "update_todo_sub".into()');
+    expect(adapter).not.toMatch(/route\(\s*"delete_todo_sub_content"/);
+    expect(adapter).not.toMatch(/route\(\s*"delete_sub_content"/);
+    expect(adapter).toMatch(/route\(\s*"update_todo_sub"/);
   });
 });
 

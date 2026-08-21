@@ -245,24 +245,20 @@ struct SceneSlotApi {
     include_todo: bool,
 }
 
-const REGISTERED_SCENE_SLOTS: &[&str] = &["todo_task", "cursor_ide", "notes"];
+const REGISTERED_SCENE_SLOTS: &[&str] = &["workbench", "cursor_ide"];
 
 /// Tools hung only on the notes slot (not seeded by scene_slot_api).
 const NOTES_SLOT_ONLY_TOOLS: &[&str] = &["get_notes_selection"];
 
 fn scene_slot_api(slot: &str) -> Option<SceneSlotApi> {
     match slot {
-        "todo_task" => Some(SceneSlotApi {
-            include_corpus: false,
+        "workbench" => Some(SceneSlotApi {
+            include_corpus: true,
             include_todo: true,
         }),
         "cursor_ide" => Some(SceneSlotApi {
             include_corpus: true,
             include_todo: true,
-        }),
-        "notes" => Some(SceneSlotApi {
-            include_corpus: true,
-            include_todo: false,
         }),
         _ => None,
     }
@@ -640,7 +636,7 @@ pub fn build_slot_tool_table(slot: &str) -> Option<SlotToolTable> {
     if api.include_todo {
         tools.extend(todo_tool_routes());
     }
-    if slot == "notes" {
+    if slot == "workbench" {
         for &name in NOTES_SLOT_ONLY_TOOLS {
             match name {
                 "get_notes_selection" => tools.push(route(

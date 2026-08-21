@@ -50,14 +50,15 @@ const FORBIDDEN_CATEGORY_CRUD_TOOLS = [
 ];
 
 function registeredToolNames(src) {
-  return [...src.matchAll(/name:\s*"([^"]+)"\.into\(\)/g)].map((m) => m[1]);
+  return [...src.matchAll(/route\(\s*"([^"]+)"/g)].map((m) => m[1]);
 }
 
 function toolRouteBlock(src, toolName) {
-  const start = src.indexOf(`name: "${toolName}".into()`);
+  const start = src.search(new RegExp(`route\\(\\s*"${toolName}"`));
   expect(start, `${toolName} route missing`).toBeGreaterThanOrEqual(0);
-  const next = src.indexOf('name: "', start + 1);
-  return src.slice(start, next === -1 ? undefined : next);
+  const rest = src.slice(start + 1);
+  const nextRel = rest.search(/route\(\s*"/);
+  return nextRel === -1 ? src.slice(start) : src.slice(start, start + 1 + nextRel);
 }
 
 describe('MCP tool surface hard-cut to todo_* (Host SSOT / T10)', () => {

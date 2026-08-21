@@ -15,10 +15,11 @@ function read(rel) {
 }
 
 function toolRouteBlock(src, toolName) {
-  const start = src.indexOf(`name: "${toolName}".into()`);
+  const start = src.search(new RegExp(`route\\(\\s*"${toolName}"`));
   expect(start, `${toolName} route missing`).toBeGreaterThanOrEqual(0);
-  const next = src.indexOf('name: "', start + 1);
-  return src.slice(start, next === -1 ? undefined : next);
+  const rest = src.slice(start + 1);
+  const nextRel = rest.search(/route\(\s*"/);
+  return nextRel === -1 ? src.slice(start) : src.slice(start, start + 1 + nextRel);
 }
 
 describe('t3 MCP add_todo_sub optional content (Host SSOT)', () => {
@@ -32,7 +33,7 @@ describe('t3 MCP add_todo_sub optional content (Host SSOT)', () => {
 describe('t3 MCP update_todo_sub (Host SSOT)', () => {
   it('registers update_todo_sub proxying POST /api/todo-task-update-sub', () => {
     const src = read(HOST_ADAPTER);
-    expect(src).toContain('name: "update_todo_sub".into()');
+    expect(src).toMatch(/route\(\s*"update_todo_sub"/);
     const block = toolRouteBlock(src, 'update_todo_sub');
     expect(block).toContain('/api/todo-task-update-sub');
   });

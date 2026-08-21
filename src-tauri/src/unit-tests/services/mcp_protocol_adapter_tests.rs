@@ -115,6 +115,22 @@ fn expected_api_path(tool: &str) -> (&'static str, HttpMethod) {
 /// Read-only notes selection tool (t1 Sidecar GET /api/notes-selection).
 const NOTES_SELECTION_TOOL: &str = "get_notes_selection";
 
+const WORKBENCH_SLOT: &str = "workbench";
+const CURSOR_IDE_SLOT: &str = "cursor_ide";
+
+fn workbench_expected_tool_names() -> BTreeSet<&'static str> {
+    let mut names: BTreeSet<&'static str> = CORPUS_TOOLS.iter().copied().collect();
+    names.extend(TODO_TOOLS.iter().copied());
+    names.insert(NOTES_SELECTION_TOOL);
+    names
+}
+
+fn cursor_ide_expected_tool_names() -> BTreeSet<&'static str> {
+    let mut names: BTreeSet<&'static str> = CORPUS_TOOLS.iter().copied().collect();
+    names.extend(TODO_TOOLS.iter().copied());
+    names
+}
+
 fn names_of(tools: &[ToolDescriptor]) -> BTreeSet<String> {
     tools.iter().map(|t| t.name.clone()).collect()
 }
@@ -177,7 +193,7 @@ fn start_mcp_listener_binds_localhost_ephemeral_port() {
 #[test]
 fn streamable_http_nested_under_mcp_scene_slot_is_reachable() {
     let bind_addr: SocketAddr = "127.0.0.1:0".parse().expect("parse bind addr");
-    let nest_path = "/mcp/todo_task";
+    let nest_path = "/mcp/workbench";
     let handle = start_mcp_listener(bind_addr).expect("start nested MCP scaffold");
     let local = handle.local_addr();
 
@@ -357,20 +373,27 @@ fn start_embedded_mcp_runtime_fails_closed_when_port_busy() {
     );
 }
 
-/// Normal: `todo_task` routing table = todo tools only (SCENE_SLOT_API includeCorpus=false).
+/// Normal: `workbench` routing table = corpus ∪ todo ∪ get_notes_selection.
 #[test]
-fn build_slot_tool_table_todo_task_matches_node_allowlist() {
-    let table = build_slot_tool_table("todo_task").expect("todo_task registered");
-    assert_eq!(table.scene_slot, "todo_task");
-    assert!(!table.include_corpus);
+fn build_slot_tool_table_workbench_is_corpus_todo_plus_notes_selection() {
+    let table = build_slot_tool_table(WORKBENCH_SLOT).expect("workbench registered");
+    assert_eq!(table.scene_slot, WORKBENCH_SLOT);
+    assert!(table.include_corpus);
     assert!(table.include_todo);
 
     let names: BTreeSet<_> = table.tools.iter().map(|t| t.name.as_str()).collect();
-    let expected: BTreeSet<_> = TODO_TOOLS.iter().copied().collect();
-    assert_eq!(names, expected, "todo_task tools must match Node includeTodo set");
+    let expected = workbench_expected_tool_names();
+    assert_eq!(
+        names, expected,
+        "workbench tools must be corpus + todo + get_notes_selection"
+    );
+    assert!(
+        names.contains(NOTES_SELECTION_TOOL),
+        "workbench must hang get_notes_selection"
+    );
 
     let routes = route_map(&table);
-    for tool in TODO_TOOLS {
+    for tool in expected.iter() {
         let (path, method) = expected_api_path(tool);
         let got = routes.get(*tool).expect("route present");
         assert_eq!(got.0, path, "api path for {tool}");
@@ -405,31 +428,45 @@ fn build_slot_tool_table_cursor_ide_matches_node_allowlist() {
     }
 }
 
-/// Boundary: includeCorpus=false shrinks list vs cursor_ide (Node SCENE_SLOT_API switch).
+/// Boundary: workbench is corpus+todo+notes-only; cursor_ide stays corpus+todo (not App-global).
 #[test]
-fn tools_list_contracts_when_corpus_switch_off() {
-    let todo_names = names_of(&tools_list_for_slot("todo_task"));
-    let ide_names = names_of(&tools_list_for_slot("cursor_ide"));
+fn tools_list_workbench_and_cursor_ide_remain_distinguishable() {
+    let wb_names = names_of(&tools_list_for_slot(WORKBENCH_SLOT));
+    let ide_names = names_of(&tools_list_for_slot(CURSOR_IDE_SLOT));
 
-    assert!(!todo_names.is_empty());
+    assert!(!wb_names.is_empty());
     assert!(!ide_names.is_empty());
     assert!(
-        ide_names.is_superset(&todo_names),
-        "cursor_ide must be a superset of todo_task when both includeTodo"
+        wb_names.contains(NOTES_SELECTION_TOOL),
+        "tools_list_for_slot(workbench) must include get_notes_selection"
+    );
+    assert!(
+        !ide_names.contains(NOTES_SELECTION_TOOL),
+        "cursor_ide must not be expanded with notes-only tools"
     );
     for corpus in CORPUS_TOOLS {
-        assert!(
-            !todo_names.contains(*corpus),
-            "todo_task must omit corpus tool {corpus} (includeCorpus=false)"
-        );
         assert!(
             ide_names.contains(*corpus),
             "cursor_ide must include corpus tool {corpus}"
         );
+        assert!(
+            wb_names.contains(*corpus),
+            "workbench must include corpus tool {corpus}"
+        );
+    }
+    for todo in TODO_TOOLS {
+        assert!(
+            ide_names.contains(*todo),
+            "cursor_ide must keep todo tool {todo}"
+        );
+        assert!(
+            wb_names.contains(*todo),
+            "workbench must include todo tool {todo}"
+        );
     }
     assert_ne!(
-        todo_names, ide_names,
-        "todo_task vs cursor_ide tool surfaces must be distinguishable"
+        wb_names, ide_names,
+        "workbench vs cursor_ide tool surfaces must be distinguishable"
     );
 }
 
@@ -463,9 +500,13 @@ fn mcp_tools_list_publishes_descriptions_schemas_and_mutation_hints() {
         }
     };
 
-    let todo_tools = rt.block_on(list_tools("todo_task"));
-    assert_eq!(todo_tools.len(), TODO_TOOLS.len(), "Todo MCP tool count");
-    for tool in &todo_tools {
+    let workbench_tools = rt.block_on(list_tools(WORKBENCH_SLOT));
+    assert_eq!(
+        workbench_tools.len(),
+        workbench_expected_tool_names().len(),
+        "Workbench MCP tool count"
+    );
+    for tool in &workbench_tools {
         assert!(
             tool.description.as_deref().is_some_and(|d| !d.trim().is_empty()),
             "{} needs a model-facing description",
@@ -482,7 +523,7 @@ fn mcp_tools_list_publishes_descriptions_schemas_and_mutation_hints() {
             tool.name
         );
     }
-    let create = todo_tools
+    let create = workbench_tools
         .iter()
         .find(|tool| tool.name == "create_todo_task")
         .expect("create_todo_task");
@@ -509,11 +550,11 @@ fn mcp_tools_list_publishes_descriptions_schemas_and_mutation_hints() {
         "Todo creation must be identified as mutating"
     );
 
-    let notes_tools = rt.block_on(list_tools("notes"));
+    let notes_tools = rt.block_on(list_tools(WORKBENCH_SLOT));
     assert_eq!(
         notes_tools.len(),
-        notes_expected_tool_names().len(),
-        "Notes MCP tool count"
+        workbench_expected_tool_names().len(),
+        "Workbench MCP tool count (notes-only tools hang here)"
     );
     for tool in &notes_tools {
         assert!(
@@ -650,7 +691,7 @@ fn registered_scene_slots_accept_initialize_http() {
     let local = handle.local_addr();
 
     let init = r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"t3-registered","version":"0.0.1"}}}"#;
-    for slot in ["todo_task", "cursor_ide"] {
+    for slot in [WORKBENCH_SLOT, CURSOR_IDE_SLOT] {
         let (status, body, _) = http_post_json(
             &format!("http://127.0.0.1:{}/mcp/{slot}", local.port()),
             init,
@@ -723,7 +764,7 @@ fn proxy_tool_call_unreachable_sidecar_maps_like_node() {
     let mapped = rt
         .block_on(proxy_tool_call(
             base,
-            "todo_task",
+            WORKBENCH_SLOT,
             "list_todo_categories",
             serde_json::json!({}),
         ))
@@ -778,14 +819,14 @@ fn start_recording_sidecar(
 fn representative_tools_call_per_registered_slot_hits_sidecar_api() {
     let cases = [
         (
-            "todo_task",
+            WORKBENCH_SLOT,
             "list_todo_categories",
             serde_json::json!({}),
             "GET",
             "/api/todo-task-list-categories",
         ),
         (
-            "cursor_ide",
+            CURSOR_IDE_SLOT,
             "get_corpus_catalog",
             serde_json::json!({"mode": "latest_per_topic"}),
             "GET",
@@ -832,7 +873,7 @@ fn proxy_tool_call_maps_sidecar_http_error_like_node() {
     let err = rt
         .block_on(proxy_tool_call(
             &base,
-            "todo_task",
+            WORKBENCH_SLOT,
             "list_todo_categories",
             serde_json::json!({}),
         ))
@@ -896,7 +937,7 @@ fn start_close_gate_dual_listen() -> (local_http::LocalHttpHandle, McpRuntimeHan
 fn close_gate_smoke_initialize_list_passes_v5_dual_listen_and_session() {
     let (http_handle, mcp_handle) = start_close_gate_dual_listen();
 
-    let report = close_gate_smoke_initialize_list("todo_task")
+    let report = close_gate_smoke_initialize_list(WORKBENCH_SLOT)
         .expect("P1 close gate must pass before Node spawn hard-cut");
 
     assert!(
@@ -922,7 +963,7 @@ fn close_gate_smoke_initialize_list_passes_v5_dual_listen_and_session() {
             .tool_names
             .iter()
             .any(|n| n == "list_todo_categories"),
-        "todo_task tools/list must include list_todo_categories, got {:?}",
+        "workbench tools/list must include list_todo_categories, got {:?}",
         report.tool_names
     );
 
@@ -954,7 +995,7 @@ fn health_success_is_not_session_level_close_gate_proof() {
         "health body must not embed tools/list names"
     );
 
-    let report = close_gate_smoke_initialize_list("todo_task").expect("session close gate");
+    let report = close_gate_smoke_initialize_list(WORKBENCH_SLOT).expect("session close gate");
     assert!(
         report.tools_list_ok && !report.tool_names.is_empty(),
         "session initialize+tools/list is the close-gate proof, not /health alone"
@@ -1059,29 +1100,29 @@ fn p3_t10_host_dual_slot_list_call_and_unknown_hard_fail_smoke() {
         .build()
         .expect("tokio");
 
-    let todo_names = rt
+    let workbench_names = rt
         .block_on(super::run_initialize_and_list_tools(
             CLOSE_GATE_MCP_PORT,
-            "todo_task",
+            WORKBENCH_SLOT,
         ))
-        .expect("todo_task tools/list on Host :9876");
-    for tool in ["list_todo_tasks", "create_todo_task"] {
+        .expect("workbench tools/list on Host :9876");
+    for tool in ["list_todo_tasks", "create_todo_task", NOTES_SELECTION_TOOL] {
         assert!(
-            todo_names.iter().any(|n| n == tool),
-            "T10/V2: todo_task missing {tool}; got {todo_names:?}"
+            workbench_names.iter().any(|n| n == tool),
+            "T10/V2: workbench missing {tool}; got {workbench_names:?}"
         );
     }
     for tool in CORPUS_TOOLS {
         assert!(
-            !todo_names.iter().any(|n| n == *tool),
-            "T10/V2: todo_task must not expose corpus tool {tool}"
+            workbench_names.iter().any(|n| n == *tool),
+            "T10/V2: workbench missing corpus tool {tool}"
         );
     }
 
     let ide_names = rt
         .block_on(super::run_initialize_and_list_tools(
             CLOSE_GATE_MCP_PORT,
-            "cursor_ide",
+            CURSOR_IDE_SLOT,
         ))
         .expect("cursor_ide tools/list on Host :9876");
     for tool in CORPUS_TOOLS {
@@ -1090,9 +1131,13 @@ fn p3_t10_host_dual_slot_list_call_and_unknown_hard_fail_smoke() {
             "T10/V2: cursor_ide missing {tool}; got {ide_names:?}"
         );
     }
+    assert!(
+        !ide_names.iter().any(|n| n == NOTES_SELECTION_TOOL),
+        "T10/V2: cursor_ide must not gain notes-only tools"
+    );
     assert_ne!(
-        todo_names, ide_names,
-        "T10/V2: todo_task and cursor_ide tools/list must be distinguishable"
+        workbench_names, ide_names,
+        "T10/V2: workbench and cursor_ide tools/list must be distinguishable"
     );
 
     async fn list_and_call(
@@ -1137,14 +1182,14 @@ fn p3_t10_host_dual_slot_list_call_and_unknown_hard_fail_smoke() {
     let (_, todo_err, todo_text) = rt
         .block_on(list_and_call(
             CLOSE_GATE_MCP_PORT,
-            "todo_task",
+            WORKBENCH_SLOT,
             "list_todo_tasks",
             serde_json::json!({}),
         ))
-        .expect("todo_task list_todo_tasks");
+        .expect("workbench list_todo_tasks");
     assert!(
         !todo_err,
-        "T10/V2: todo_task representative tools/call must succeed via Host→Sidecar; got {todo_text}"
+        "T10/V2: workbench representative tools/call must succeed via Host→Sidecar; got {todo_text}"
     );
 
     let (_, ide_err, ide_text) = rt
@@ -1179,12 +1224,6 @@ fn p3_t10_host_dual_slot_list_call_and_unknown_hard_fail_smoke() {
     drop(sandbox);
 }
 
-fn notes_expected_tool_names() -> BTreeSet<&'static str> {
-    let mut names: BTreeSet<&'static str> = CORPUS_TOOLS.iter().copied().collect();
-    names.insert(NOTES_SELECTION_TOOL);
-    names
-}
-
 fn adapter_source() -> &'static str {
     include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
@@ -1198,36 +1237,40 @@ fn source_fn_after<'a>(src: &'a str, fn_name: &str) -> &'a str {
         .unwrap_or_else(|| panic!("{fn_name} must exist"))
 }
 
-/// Normal: notes tools/list = corpus four-pack + read-only get_notes_selection.
+fn assert_old_app_slots_unregistered() {
+    for slot in ["notes", "todo_task"] {
+        assert!(
+            build_slot_tool_table(slot).is_none(),
+            "old App slot {slot} must not have a tool table"
+        );
+        assert!(
+            tools_list_for_slot(slot).is_empty(),
+            "tools_list_for_slot({slot}) must be empty"
+        );
+        assert!(
+            super::scene_slot_api(slot).is_none(),
+            "scene_slot_api({slot}) must be None"
+        );
+    }
+}
+
+/// Normal: workbench tools/list = corpus ∪ todo ∪ get_notes_selection.
 #[test]
-fn tools_list_for_notes_is_corpus_four_pack_plus_get_notes_selection() {
-    let names = names_of(&tools_list_for_slot("notes"));
-    let expected: BTreeSet<_> = notes_expected_tool_names()
+fn tools_list_for_workbench_is_corpus_todo_plus_get_notes_selection() {
+    let names = names_of(&tools_list_for_slot(WORKBENCH_SLOT));
+    let expected: BTreeSet<_> = workbench_expected_tool_names()
         .into_iter()
         .map(str::to_string)
         .collect();
     assert_eq!(
         names, expected,
-        "notes tools/list must be corpus four-pack + get_notes_selection"
+        "workbench tools/list must be corpus + todo + get_notes_selection"
     );
 }
 
-/// Normal: notes corpus routes are the same Sidecar /api paths as cursor_ide.
+/// Normal: get_notes_selection proxies t1 GET /api/notes-selection from the workbench slot.
 #[test]
-fn notes_corpus_routes_match_cursor_ide_sidecar_api() {
-    let table = build_slot_tool_table("notes").expect("notes must be registered");
-    let routes = route_map(&table);
-    for tool in CORPUS_TOOLS {
-        let (path, method) = expected_api_path(tool);
-        let got = routes.get(*tool).expect("corpus route present on notes");
-        assert_eq!(got.0, path, "notes must proxy the same /api path as cursor_ide for {tool}");
-        assert_eq!(got.1, method, "notes must use the same HTTP method as cursor_ide for {tool}");
-    }
-}
-
-/// Normal: get_notes_selection proxies t1 GET /api/notes-selection and returns the snapshot shape.
-#[test]
-fn get_notes_selection_proxies_sidecar_read_snapshot() {
+fn get_notes_selection_proxies_sidecar_read_snapshot_on_workbench() {
     let body = r#"{"date":"2026-06-19","documents":[{"id":"11111111111111111111111111111111","selected":true}]}"#;
     let (base, seen, join) = start_recording_sidecar(200, body);
     let rt = tokio::runtime::Builder::new_current_thread()
@@ -1237,7 +1280,7 @@ fn get_notes_selection_proxies_sidecar_read_snapshot() {
     let mapped = rt
         .block_on(proxy_tool_call(
             &base,
-            "notes",
+            WORKBENCH_SLOT,
             NOTES_SELECTION_TOOL,
             serde_json::json!({}),
         ))
@@ -1261,37 +1304,34 @@ fn get_notes_selection_proxies_sidecar_read_snapshot() {
     let _ = join.join();
 }
 
-/// Boundary: scene_slot_api("notes") seeds corpus only (no todo).
+/// Normal: REGISTERED_SCENE_SLOTS is only workbench + cursor_ide.
 #[test]
-fn scene_slot_api_notes_seeds_corpus_not_todo() {
-    assert!(
-        super::REGISTERED_SCENE_SLOTS.contains(&"notes"),
-        "REGISTERED_SCENE_SLOTS must include notes"
+fn registered_scene_slots_are_only_workbench_and_cursor_ide() {
+    assert_eq!(
+        super::REGISTERED_SCENE_SLOTS,
+        &[WORKBENCH_SLOT, CURSOR_IDE_SLOT]
     );
-    let api = super::scene_slot_api("notes").expect("notes must be a registered slot");
-    assert!(api.include_corpus, "notes must seed corpus four-pack");
-    assert!(!api.include_todo, "notes must not seed todo tools");
-
-    let table = build_slot_tool_table("notes").expect("notes table");
-    assert!(table.include_corpus);
-    assert!(!table.include_todo);
+    assert!(!super::REGISTERED_SCENE_SLOTS.contains(&"notes"));
+    assert!(!super::REGISTERED_SCENE_SLOTS.contains(&"todo_task"));
+    let api = super::scene_slot_api(WORKBENCH_SLOT).expect("workbench registered");
+    assert!(api.include_corpus);
+    assert!(api.include_todo);
+    let ide = super::scene_slot_api(CURSOR_IDE_SLOT).expect("cursor_ide stays registered");
+    assert!(ide.include_corpus);
+    assert!(ide.include_todo);
 }
 
-/// Boundary: get_notes_selection is a ToolRoute hung in build_slot_tool_table, not named by scene_slot_api.
+/// Boundary: get_notes_selection hangs on workbench in build_slot_tool_table, not scene_slot_api.
 #[test]
-fn get_notes_selection_is_hung_in_build_slot_tool_table_not_scene_slot_api() {
-    let table = build_slot_tool_table("notes").expect("notes registered");
+fn get_notes_selection_is_hung_on_workbench_not_scene_slot_api() {
+    let table = build_slot_tool_table(WORKBENCH_SLOT).expect("workbench registered");
     let route = table
         .tools
         .iter()
         .find(|r| r.name == NOTES_SELECTION_TOOL)
-        .expect("build_slot_tool_table must attach get_notes_selection");
+        .expect("build_slot_tool_table must attach get_notes_selection to workbench");
     assert_eq!(route.api_path, "/api/notes-selection");
     assert_eq!(route.method, HttpMethod::Get);
-    assert!(
-        !CORPUS_TOOLS.contains(&NOTES_SELECTION_TOOL),
-        "get_notes_selection is not a corpus seed tool"
-    );
 
     let src = adapter_source();
     let scene_fn = source_fn_after(src, "scene_slot_api")
@@ -1310,38 +1350,22 @@ fn get_notes_selection_is_hung_in_build_slot_tool_table_not_scene_slot_api() {
         build_fn.contains("get_notes_selection"),
         "build_slot_tool_table must hang get_notes_selection as a ToolRoute"
     );
-}
-
-/// Boundary: notes slot contains no todo tools.
-#[test]
-fn notes_slot_contains_no_todo_tools() {
-    let names = names_of(&tools_list_for_slot("notes"));
-    for tool in TODO_TOOLS {
-        assert!(
-            !names.contains(*tool),
-            "notes must not expose todo tool {tool}"
-        );
-    }
-    let table = build_slot_tool_table("notes").expect("notes registered");
-    assert!(!table.include_todo);
-}
-
-/// Exception: unregistered slots still return None after notes is registered.
-#[test]
-fn build_slot_tool_table_unregistered_still_none_when_notes_exists() {
     assert!(
-        build_slot_tool_table("notes").is_some(),
-        "notes must be registered so the hard-reject path is distinguishable"
+        build_fn.contains("workbench") || build_fn.contains(r#""workbench""#),
+        "notes-only tools must hang when slot == workbench"
     );
-    assert!(build_slot_tool_table("__unknown__").is_none());
-    assert!(build_slot_tool_table("").is_none());
-    assert!(tools_list_for_slot("__unknown__").is_empty());
 }
 
-/// Exception: notes exposes no MCP write-selection tool.
+/// Boundary: old App slots have no tool table.
 #[test]
-fn notes_slot_has_no_mcp_write_selection_tool() {
-    let table = build_slot_tool_table("notes").expect("notes registered");
+fn old_app_slots_have_no_tool_table() {
+    assert_old_app_slots_unregistered();
+}
+
+/// Exception: workbench exposes no MCP write-selection tool.
+#[test]
+fn workbench_slot_has_no_mcp_write_selection_tool() {
+    let table = build_slot_tool_table(WORKBENCH_SLOT).expect("workbench registered");
     for tool in &table.tools {
         let name = tool.name.to_lowercase();
         let writes_selection = name.contains("notes_selection")
@@ -1361,30 +1385,24 @@ fn notes_slot_has_no_mcp_write_selection_tool() {
             tool.method
         );
     }
-    assert!(
-        !table.tools.iter().any(|t| t.name == "put_notes_selection"
-            || t.name == "set_notes_selection"
-            || t.name == "write_notes_selection"),
-        "must not register a write-selection MCP tool name"
-    );
 }
 
-/// Normal: /mcp/notes is mounted and tools/list matches the notes surface.
+/// Normal: /mcp/workbench is mounted and tools/list matches the union surface.
 #[test]
-fn notes_scene_slot_initialize_lists_corpus_plus_selection() {
+fn workbench_scene_slot_initialize_lists_union_plus_selection() {
     let port = ephemeral_port();
     let bind_addr: SocketAddr = format!("127.0.0.1:{port}").parse().expect("bind addr");
     let handle = start_embedded_mcp_runtime(McpRuntimeConfig { bind_addr }).expect("start");
     let local = handle.local_addr();
 
-    let init = r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"t3-notes","version":"0.0.1"}}}"#;
+    let init = r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"t3-workbench","version":"0.0.1"}}}"#;
     let (status, body, _) = http_post_json(
-        &format!("http://127.0.0.1:{}/mcp/notes", local.port()),
+        &format!("http://127.0.0.1:{}/mcp/workbench", local.port()),
         init,
     );
     assert_ne!(
         status, 404,
-        "registered notes slot must not hard-reject, body={body}"
+        "registered workbench slot must not hard-reject, body={body}"
     );
 
     let rt = tokio::runtime::Builder::new_current_thread()
@@ -1392,74 +1410,68 @@ fn notes_scene_slot_initialize_lists_corpus_plus_selection() {
         .build()
         .expect("tokio");
     let names = rt
-        .block_on(super::run_initialize_and_list_tools(local.port(), "notes"))
-        .expect("notes tools/list");
+        .block_on(super::run_initialize_and_list_tools(local.port(), WORKBENCH_SLOT))
+        .expect("workbench tools/list");
     let got: BTreeSet<_> = names.iter().map(String::as_str).collect();
-    let expected = notes_expected_tool_names();
-    assert_eq!(got, expected, "HTTP tools/list for /mcp/notes");
-    for tool in TODO_TOOLS {
+    let expected = workbench_expected_tool_names();
+    assert_eq!(got, expected, "HTTP tools/list for /mcp/workbench");
+
+    stop_embedded_mcp_runtime(handle).expect("stop");
+}
+
+/// Exception: /mcp/notes and /mcp/todo_task hard-reject (not in registered table).
+#[test]
+fn old_app_slots_http_hard_reject_without_mcp_session() {
+    let port = ephemeral_port();
+    let bind_addr: SocketAddr = format!("127.0.0.1:{port}").parse().expect("bind addr");
+    let handle = start_embedded_mcp_runtime(McpRuntimeConfig { bind_addr }).expect("start");
+    let local = handle.local_addr();
+
+    let init = r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"t3-old-slots","version":"0.0.1"}}}"#;
+    for slot in ["notes", "todo_task"] {
+        let (status, body, session) = http_post_json(
+            &format!("http://127.0.0.1:{}/mcp/{slot}", local.port()),
+            init,
+        );
+        assert_eq!(
+            status, 404,
+            "old App slot {slot} must HTTP hard-reject, body={body}"
+        );
+        let json: serde_json::Value = serde_json::from_str(&body).expect("reject JSON");
+        assert_eq!(
+            json.get("error").and_then(|v| v.as_str()),
+            Some("unknown_scene_slot"),
+            "reject body={body}"
+        );
         assert!(
-            !got.contains(tool),
-            "HTTP tools/list for notes must omit todo tool {tool}"
+            session.is_none(),
+            "must not establish MCP session for old slot {slot}"
         );
     }
 
     stop_embedded_mcp_runtime(handle).expect("stop");
 }
 
-fn notes_proprietary_tool_names() -> BTreeSet<String> {
-    let notes = names_of(&tools_list_for_slot("notes"));
-    let shared: BTreeSet<String> = CORPUS_TOOLS
-        .iter()
-        .chain(TODO_TOOLS.iter())
-        .map(|s| (*s).to_string())
-        .collect();
-    notes.difference(&shared).cloned().collect()
-}
-
-/// P4 / T7 Normal: todo_task remains all todo tools, no corpus, original `/api` routes.
-#[test]
-fn p4_todo_task_surface_unchanged_all_todo_no_corpus_original_api() {
-    let table = build_slot_tool_table("todo_task").expect("todo_task registered");
-    assert_eq!(table.scene_slot, "todo_task");
-    assert!(!table.include_corpus);
-    assert!(table.include_todo);
-
-    let names = names_of(&tools_list_for_slot("todo_task"));
-    let expected: BTreeSet<_> = TODO_TOOLS.iter().map(|s| (*s).to_string()).collect();
-    assert_eq!(
-        names, expected,
-        "todo_task must stay the full todo tool set with no corpus"
-    );
-
-    let routes = route_map(&table);
-    for tool in TODO_TOOLS {
-        let (path, method) = expected_api_path(tool);
-        let got = routes.get(*tool).expect("todo route present");
-        assert_eq!(got.0, path, "todo_task {tool} must keep original /api path");
-        assert_eq!(got.1, method, "todo_task {tool} must keep original method");
-        assert!(
-            got.0.starts_with("/api/"),
-            "todo_task {tool} must still route through original /api, got {}",
-            got.0
-        );
-    }
-}
-
-/// P4 / T7 Normal: cursor_ide remains corpus four-pack + all todo, original `/api` routes.
+/// P4: cursor_ide remains corpus four-pack + all todo, original `/api` routes; not App-global.
 #[test]
 fn p4_cursor_ide_surface_unchanged_corpus_plus_todo_original_api() {
-    let table = build_slot_tool_table("cursor_ide").expect("cursor_ide registered");
-    assert_eq!(table.scene_slot, "cursor_ide");
+    let table = build_slot_tool_table(CURSOR_IDE_SLOT).expect("cursor_ide registered");
+    assert_eq!(table.scene_slot, CURSOR_IDE_SLOT);
     assert!(table.include_corpus);
     assert!(table.include_todo);
 
-    let names = names_of(&tools_list_for_slot("cursor_ide"));
-    let mut expected: BTreeSet<_> = CORPUS_TOOLS.iter().map(|s| (*s).to_string()).collect();
-    expected.extend(TODO_TOOLS.iter().map(|s| (*s).to_string()));
+    let names = names_of(&tools_list_for_slot(CURSOR_IDE_SLOT));
+    let expected: BTreeSet<_> = cursor_ide_expected_tool_names()
+        .into_iter()
+        .map(str::to_string)
+        .collect();
     assert_eq!(
         names, expected,
         "cursor_ide must stay corpus four-pack + all todo"
+    );
+    assert!(
+        !names.contains(NOTES_SELECTION_TOOL),
+        "cursor_ide must not be expanded into the App global slot"
     );
 
     let routes = route_map(&table);
@@ -1471,66 +1483,23 @@ fn p4_cursor_ide_surface_unchanged_corpus_plus_todo_original_api() {
     }
 }
 
-/// P4 / T7 Normal: old two-slot tool surfaces stay distinguishable.
+/// P4: workbench vs cursor_ide stay distinguishable; notes-only stays off cursor_ide.
 #[test]
-fn p4_old_two_slot_surfaces_remain_distinguishable() {
-    let todo = names_of(&tools_list_for_slot("todo_task"));
-    let ide = names_of(&tools_list_for_slot("cursor_ide"));
-    assert!(!todo.is_empty());
-    assert!(!ide.is_empty());
-    assert_ne!(
-        todo, ide,
-        "todo_task and cursor_ide tool surfaces must remain distinguishable"
-    );
-}
-
-/// P4 / T7 Boundary: get_notes_selection and any notes-only tools stay off old slots.
-#[test]
-fn p4_notes_proprietary_tools_do_not_appear_on_old_slots() {
-    let proprietary = notes_proprietary_tool_names();
-    assert!(
-        proprietary.contains(NOTES_SELECTION_TOOL),
-        "get_notes_selection must be treated as notes-proprietary"
-    );
+fn p4_notes_proprietary_tools_hang_on_workbench_not_cursor_ide() {
+    let wb = names_of(&tools_list_for_slot(WORKBENCH_SLOT));
+    let ide = names_of(&tools_list_for_slot(CURSOR_IDE_SLOT));
+    assert!(wb.contains(NOTES_SELECTION_TOOL));
+    assert!(!ide.contains(NOTES_SELECTION_TOOL));
     let locked: BTreeSet<_> = super::NOTES_SLOT_ONLY_TOOLS.iter().copied().collect();
-    let observed: BTreeSet<_> = proprietary.iter().map(String::as_str).collect();
-    assert_eq!(
-        observed, locked,
-        "notes-proprietary set must match NOTES_SLOT_ONLY_TOOLS"
-    );
-
-    for slot in ["todo_task", "cursor_ide"] {
-        let names = names_of(&tools_list_for_slot(slot));
-        assert!(
-            !names.contains(NOTES_SELECTION_TOOL),
-            "get_notes_selection must not appear on {slot}"
-        );
-        for tool in &proprietary {
-            assert!(
-                !names.contains(tool),
-                "notes-proprietary tool {tool} must not appear on {slot}"
-            );
-        }
-    }
+    assert!(locked.contains(NOTES_SELECTION_TOOL));
+    assert_ne!(wb, ide);
 }
 
-/// P4 / T7 Boundary: notes tool surface is distinguishable from both old slots.
+/// P4: unknown / old App slots still hard-reject after workbench is registered.
 #[test]
-fn p4_notes_surface_distinguishable_from_old_two_slots() {
-    let notes = names_of(&tools_list_for_slot("notes"));
-    let todo = names_of(&tools_list_for_slot("todo_task"));
-    let ide = names_of(&tools_list_for_slot("cursor_ide"));
-    assert_ne!(notes, todo, "notes must be distinguishable from todo_task");
-    assert_ne!(notes, ide, "notes must be distinguishable from cursor_ide");
-}
-
-/// P4 / T7 Exception: unregistered slots still hard-reject after notes is registered.
-#[test]
-fn p4_unregistered_slot_still_hard_rejects() {
-    assert!(
-        build_slot_tool_table("notes").is_some(),
-        "notes must be registered so hard-reject stays a distinct path"
-    );
+fn p4_unregistered_and_old_app_slots_still_hard_reject() {
+    assert!(build_slot_tool_table(WORKBENCH_SLOT).is_some());
+    assert_old_app_slots_unregistered();
     assert!(build_slot_tool_table("__unknown__").is_none());
     assert!(build_slot_tool_table("").is_none());
     assert!(tools_list_for_slot("__unknown__").is_empty());
@@ -1541,24 +1510,26 @@ fn p4_unregistered_slot_still_hard_rejects() {
     let local = handle.local_addr();
 
     let init = r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"p4-unknown","version":"0.0.1"}}}"#;
-    let (status, body, session) = http_post_json(
-        &format!("http://127.0.0.1:{}/mcp/__unknown__", local.port()),
-        init,
-    );
-    assert_eq!(
-        status, 404,
-        "unregistered slot must still HTTP hard-reject, body={body}"
-    );
-    let json: serde_json::Value = serde_json::from_str(&body).expect("reject JSON");
-    assert_eq!(
-        json.get("error").and_then(|v| v.as_str()),
-        Some("unknown_scene_slot"),
-        "reject body={body}"
-    );
-    assert!(
-        session.is_none(),
-        "unregistered slot must still not establish an MCP session"
-    );
+    for slot in ["__unknown__", "notes", "todo_task"] {
+        let (status, body, session) = http_post_json(
+            &format!("http://127.0.0.1:{}/mcp/{slot}", local.port()),
+            init,
+        );
+        assert_eq!(
+            status, 404,
+            "unregistered slot {slot} must still HTTP hard-reject, body={body}"
+        );
+        let json: serde_json::Value = serde_json::from_str(&body).expect("reject JSON");
+        assert_eq!(
+            json.get("error").and_then(|v| v.as_str()),
+            Some("unknown_scene_slot"),
+            "reject body={body}"
+        );
+        assert!(
+            session.is_none(),
+            "unregistered slot {slot} must still not establish an MCP session"
+        );
+    }
 
     stop_embedded_mcp_runtime(handle).expect("stop");
 }

@@ -57,7 +57,7 @@ function extractQuotedToolList(src, constName) {
 }
 
 function hostToolNames(src) {
-  return [...src.matchAll(/name:\s*"([^"]+)"\.into\(\)/g)].map((m) => m[1]);
+  return [...src.matchAll(/route\(\s*"([^"]+)"/g)].map((m) => m[1]);
 }
 
 describe('T10 — AC-Host/MCP (hard cut, no plan_* )', () => {
@@ -118,7 +118,9 @@ describe('T10 — AC-等价 (full 13-tool set in e2e)', () => {
       'get_todo_attachment',
       'update_todo_attachment',
     ]) {
-      expect(src, `Host missing route for ${tool}`).toContain(`name: "${tool}".into()`);
+      expect(src, `Host missing route for ${tool}`).toMatch(
+        new RegExp(`route\\(\\s*"${tool}"`),
+      );
     }
   });
 });
@@ -199,7 +201,7 @@ describe('T10 — AC-测试残留 (old contract names purged from delivery tests
     expect(e2e).not.toMatch(/name:\s*['"]complete_plan_sub['"]/);
     const host = read(HOST_ADAPTER);
     for (const tool of FORBIDDEN_PLAN_TOOLS) {
-      expect(host).not.toContain(`name: "${tool}".into()`);
+      expect(host).not.toMatch(new RegExp(`route\\(\\s*"${tool}"`));
     }
   });
 

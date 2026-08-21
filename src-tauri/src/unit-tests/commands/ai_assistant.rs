@@ -548,3 +548,45 @@ fn t1_session_lifecycle_entry_has_no_engine_selection_api() {
         })));
     });
 }
+
+#[test]
+fn set_binding_old_app_keys_notes_and_todo_task_fail() {
+    with_cmd_sandbox(|| {
+        for key in ["notes", "todo_task"] {
+            let result = set_binding_json(json!({ "key": key }));
+            assert_eq!(result["ok"], false, "key={key}");
+            assert_eq!(result["code"], "unknown_key", "key={key}");
+            assert_eq!(result["state"], "unbound", "key={key}");
+        }
+    });
+}
+
+#[test]
+fn set_binding_empty_key_is_invalid_not_workbench() {
+    with_cmd_sandbox(|| {
+        let empty = set_binding_json(json!({ "key": "" }));
+        assert_eq!(empty["ok"], false);
+        assert_eq!(empty["code"], "set_invalid");
+        assert_eq!(empty["state"], "unbound");
+
+        use crate::services::mcp_server_registry::SEEDED_BUSINESS_KEY;
+        assert_eq!(
+            set_binding_json(json!({ "key": SEEDED_BUSINESS_KEY }))["ok"],
+            true
+        );
+        let again = set_binding_json(json!({ "key": "" }));
+        assert_eq!(again["ok"], false);
+        assert_eq!(again["code"], "set_invalid");
+        assert_eq!(query_binding_json()["state"], "bound");
+    });
+}
+
+#[test]
+fn set_binding_cursor_ide_is_not_an_app_key() {
+    with_cmd_sandbox(|| {
+        let result = set_binding_json(json!({ "key": "cursor_ide" }));
+        assert_eq!(result["ok"], false);
+        assert_eq!(result["code"], "unknown_key");
+        assert_eq!(result["state"], "unbound");
+    });
+}
