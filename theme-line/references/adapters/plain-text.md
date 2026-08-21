@@ -39,7 +39,7 @@ source:
 
 meta:
   title: "<用户标题或文件名推断>"
-  speakers: []       # 由 Compose 推断
+  speakers: []       # 按 speaker-roster 从行内标签 / 标题抽出；空则 Compose 补 Host/Guest
   duration_sec: null
   published_at: null
   language: unknown    # 或由正文检测
@@ -61,6 +61,7 @@ assets:
 
 - SRT/VTT → 解析为 utterances 数组
 - 纯文本 → 按已有说话人行或段落拆成 utterances；保留全部正文
+- `meta.speakers` 与行内 `speaker`：按 [speaker-roster.md](../speaker-roster.md)
 
 Compose：`utterances>0` → `complete-dialogue`；空输入 → fail-fast
 

@@ -68,7 +68,7 @@ Keep source order. Source chapter titles (if present) are navigation markers onl
 
 ### Speaker Handling
 
-Prefer `utterance.speaker` or labels in the source text. If unknown: `Host`, named guest from `meta.speakers`, or `(uncertain)`. Caption-only sources are **not** diarization.
+Acquire must fill `meta.speakers` with proper names when title or in-text labels give them. Compose must put those names on turns. `(uncertain)` is fallback only. Rules: [speaker-roster.md](references/speaker-roster.md). Caption-only sources are **not** diarization.
 
 ### Transcript Fidelity
 
@@ -92,7 +92,7 @@ Path/config: [../shared/archive-concepts.md](../shared/archive-concepts.md)
 
 ## Ask Only When Necessary
 
-Defaults: source title · chronological complete dialogue · source-chapter nav if present else time-range nav · Host + named guest when evidenced
+Defaults: source title · chronological complete dialogue · source-chapter nav if present else time-range nav · named host/guest from title or labels when evidenced
 
 ## References
 
@@ -101,5 +101,6 @@ Defaults: source title · chronological complete dialogue · source-chapter nav 
 | [bundle-schema.md](references/bundle-schema.md) | TranscriptBundle contract |
 | [adapters/](references/adapters/) | Platform Acquire docs |
 | [compose-strategies.md](references/compose-strategies.md) | Compose rules |
+| [speaker-roster.md](references/speaker-roster.md) | Name roster + turn labels |
 | [archive-steps.md](references/archive-steps.md) | Build primary → handoff theme-archive |
 | [output-templates.md](references/output-templates.md) | Output patterns |

@@ -39,7 +39,7 @@ Prefer a **manual** track over auto-generated when both exist.
 python3 -c "from youtube_transcript_api import YouTubeTranscriptApi; t=YouTubeTranscriptApi(); print([ (x.language_code, x.is_generated) for x in t.list('{id}') ]); print(t.fetch('{id}', languages=['en','en-IN','en-US','zh-Hans','zh']).to_raw_data()[:2])"
 ```
 
-Map each caption to `{start_sec, end_sec, text, speaker: null}`. Prefer non-generated tracks.
+Map each caption to `{start_sec, end_sec, text, speaker}`. Set `speaker` from an in-text label on that line; otherwise `null`. Prefer non-generated tracks. Fill `meta.speakers` per [speaker-roster.md](../speaker-roster.md).
 
 4. Still no utterances → 降级 `plain`；请用户粘贴 transcript。不要改走 Whisper。
 
@@ -52,7 +52,7 @@ Map each caption to `{start_sec, end_sec, text, speaker: null}`. Prefer non-gene
 | Field | Source |
 |-------|--------|
 | `title` | yt-dlp title；失败则页面标题或 URL |
-| `speakers` | `["Host", "Guest"]`（推断上限；非 diarization） |
+| `speakers` | 按 [speaker-roster.md](../speaker-roster.md) 从标题人名对与行内标签抽出；抽不到再用 `["Host", "Guest"]` |
 | `duration_sec` | yt-dlp duration；失败则最后一条 caption 的时间 |
 | `published_at` | `upload_date` → `YYYY-MM-DD`；未知为 `null` |
 | `language` | 字幕语言检测 → `en` / `zh` / `mixed` / `unknown` |
@@ -63,8 +63,8 @@ Map each caption to `{start_sec, end_sec, text, speaker: null}`. Prefer non-gene
 
 ### `utterances`
 
-- 解析 VTT/SRT/API captions → `{start_sec, end_sec, text, speaker: null}`
-- 说话人在 Compose `complete-dialogue` 保守标注；上限 Host/Guest + `(uncertain)`
+- 解析 VTT/SRT/API captions → `{start_sec, end_sec, text, speaker}`
+- 行内标签写入 `speaker`；否则 `null`。名单与轮次名见 speaker-roster；**禁止**因无声纹就把全文标成 `(uncertain)`
 
 ### `fidelity`
 
@@ -91,5 +91,5 @@ Compose：`utterances>0` → `complete-dialogue`；否则 fail-fast。
 | 场景 | 处理 |
 |------|------|
 | yt-dlp 失败或无字幕 | API fallback；仍无则降级 `plain`，请用户粘贴 |
-| 仅 auto-generated 字幕 | 正常使用；说话人标 `(uncertain)` |
+| 仅 auto-generated 字幕 | 正常使用；仍按 speaker-roster 填名 |
 | 视频不可用 / geo-block | 降级 `plain`；告知用户。**禁止**下载媒体或 Whisper |

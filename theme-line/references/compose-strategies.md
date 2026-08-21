@@ -50,22 +50,25 @@ Walk utterances by `start_sec`. Each utterance appears **exactly once** after C6
 
 ### C5 · Speaker turns
 
-- Prefer `utterance.speaker`
-- Else use a speaker label already in the source text
-- Else `Host` / named guest from `meta.speakers` / `(uncertain)`
-- Caption-only sources are **not** diarization; do not treat inferred names as identified speakers
+Follow [speaker-roster.md](speaker-roster.md). Caption-only sources are **not** diarization.
+
+1. Confirm `meta.speakers` has proper names when title or in-text labels give them. If Acquire left `["Host", "Guest"]` but the title has a name pair, rebuild the roster here.
+2. Assign a speaker on **each utterance** before C6: `utterance.speaker` → in-text label → Host/Guest roles from the roster.
+3. Split overlap / Q→A boundaries as in speaker-roster. Do not leave two people inside one turn.
+4. Emit roster names (`{Host Name}:`, `{Guest Name}:`). Use `(uncertain)` only for turns that still cannot be assigned.
 
 ### C6 · Light clean & emit
 
 Allowed:
 
-- Merge consecutive caption fragments (same speaker or both unknown; VTT roll-up / gap < 1.5s)
+- Merge consecutive caption fragments **only when the assigned speaker is the same** (VTT roll-up / gap < 1.5s)
 - Drop consecutive exact duplicates
 - Apply C1 corrections
 - Merge same-speaker turns that were split only by caption chunking
 
 Forbidden:
 
+- Merge “both unknown” when the roster has two names
 - Paraphrase or summarize
 - Drop a turn or clause to “tighten”
 - Regroup by invented themes
@@ -98,5 +101,5 @@ ThemeLine body only（title / metadata / navigation 由 Phase 3 Archive 处理�
 可选 provenance（Archive header）：
 
 ```markdown
-> 采集：{platform} · complete-dialogue · 嘉宾：{speakers}
+> 采集：{platform} · complete-dialogue · 嘉宾：{guest} · 说话人：标题与问答推断
 ```

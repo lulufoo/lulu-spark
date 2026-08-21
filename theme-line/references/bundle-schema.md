@@ -37,7 +37,7 @@ assets:                    # optional — 原始字幕 URL
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `title` | `string` | yes | 文档标题（优先源标题） |
-| `speakers` | `string[]` | yes | 已知嘉宾/讲者 canonical 名列表 |
+| `speakers` | `string[]` | yes | 讲者 canonical 名。Acquire 能从标题或行内标签抽出人名时 MUST 写入；不要默认只留 `Host`/`Guest` |
 | `duration_sec` | `int` \| `null` | no | 视频时长（秒）；未知为 `null` |
 | `published_at` | `string` \| `null` | no | 发布日期 `YYYY-MM-DD` |
 | `language` | `"zh"` \| `"en"` \| `"mixed"` \| `"unknown"` | yes | 主语言（采集元数据）。**不**驱动翻译；中译由 theme-archive 按正文是否全文英文决定。 |

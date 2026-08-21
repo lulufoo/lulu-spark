@@ -42,6 +42,7 @@ Slug conflict → clarify with user before proceeding.
 ```
 
 - Body is the full lightly cleaned dialogue, not a theme outline.
+- Optional provenance (when speakers were inferred): `> 采集：{platform} · complete-dialogue · 嘉宾：{guest} · 说话人：标题与问答推断`
 - Omit 时长 line when `duration_sec` is null.
 - `prefix` = `../../../`.
 - Write to `{workspace}/.cache/theme-line/<ts>-<slug>.md`.

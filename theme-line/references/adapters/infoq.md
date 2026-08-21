@@ -43,7 +43,7 @@ curl -s -X POST "https://www.infoq.cn/public/v1/article/getDetail" \
 | Field | Source |
 |-------|--------|
 | `title` | `data.article_title` |
-| `speakers` | `data.no_author` 或从 manuscripts 推断 |
+| `speakers` | `data.no_author` 或 manuscripts；再按 [speaker-roster.md](../speaker-roster.md) 补全 |
 | `duration_sec` | `data.video.duration`（秒） |
 | `published_at` | `data.publish_time` → `YYYY-MM-DD` |
 | `language` | 正文检测 → `zh` / `en` / `mixed` / `unknown` |
