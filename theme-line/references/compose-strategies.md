@@ -46,7 +46,7 @@ Keep utterance order. Navigation only:
 
 ### C4 · Assign utterances
 
-Walk utterances by `start_sec`. Each utterance appears **exactly once** after C6 merge/dedupe. Coverage < 100% of non-empty source text → fix before Archive.
+Walk utterances by `start_sec`. Each utterance appears **exactly once** after C6 merge/dedupe. Coverage < 100% of non-empty source text → fix before Archive. Before handoff, run `theme-line/scripts/check_dialogue_coverage.py` (see [archive-steps.md](archive-steps.md)).
 
 ### C5 · Speaker turns
 

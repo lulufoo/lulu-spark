@@ -3,6 +3,8 @@
 > **路径约定：** [archive-concepts.md](../../shared/archive-concepts.md)
 >
 > 组完 **主文件** 后 Embedded 执行 [theme-archive](../../theme-archive/SKILL.md)。**禁止**在本 skill 翻译或自管 MCP。
+>
+> `$SKILL_DIR` = `lulu-workbench-skills` install root.
 
 After Phase 2 Compose, execute these steps.
 
@@ -46,6 +48,14 @@ Slug conflict → clarify with user before proceeding.
 - Omit 时长 line when `duration_sec` is null.
 - `prefix` = `../../../`.
 - Write to `{workspace}/.cache/theme-line/<ts>-<slug>.md`.
+- Also write the TranscriptBundle to `{workspace}/.cache/theme-line/<ts>-<slug>-bundle.json`.
+- Run coverage before handoff:
+
+```bash
+python3 "$SKILL_DIR/theme-line/scripts/check_dialogue_coverage.py" "<primary.md>" "<bundle.json>"
+```
+
+- Exit 1 → stop. Do not hand off theme-archive.
 - **Do not** build `-zh.md`. `bundle.meta.language` does **not** drive translation.
 
 ---

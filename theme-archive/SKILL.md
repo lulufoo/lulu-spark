@@ -115,30 +115,38 @@ Standalone 若 header 缺导航行，按 [archive-concepts.md](../shared/archive
 python3 "$SKILL_DIR/theme-archive/scripts/detect_full_english.py" "<primary.md>"
 ```
 
-3. `full_english` → Agent 按 [full-english-translate.md](references/full-english-translate.md) 译出 `-zh.md`（中文标题；header 元数据与 digest 导航同行）。
+3. `full_english` → Agent 按 [full-english-translate.md](references/full-english-translate.md) 译出完整 `-zh.md`（中文标题；header 元数据与 digest 导航同行）。**禁止**占位（`SEE_FILE` / `PLACEHOLDER` / `FULL_ZH`）。译完必须跑：
+
+```bash
+python3 "$SKILL_DIR/theme-archive/scripts/check_zh_parity.py" "<primary.md>" "<zh.md>"
+```
+
+   脚本失败 → **停止**，不要进入 `[AR-2]`。
 4. `not_full_english`（正文在去掉 chrome 后仍含汉字等）→ **不译**。禁止只译英文段落。
 
 ---
 
 ### [AR-2] archive_document (MCP)
 
-将 primary 全文写入 allow-list 路径（建议 `{workspace}/.cache/theme-archive/<ts>-<slug>.md`），再调用 MCP `archive_document`：
+将 primary 全文写入 allow-list 路径（建议 `{workspace}/.cache/theme-archive/<ts>-<slug>.md`），再调用 MCP `archive_document`。中译与英文同一条读盘路径：
 
 ```json
 {
   "source_path": "<absolute path to primary .md>",
   "source_type": "<summary|article|theme-line|dialogue|...>",
   "translations": [
-    { "lang": "zh", "content": "<附加 raw 全文>" }
+    { "lang": "zh", "source_path": "<absolute path to -zh.md>" }
   ]
 }
 ```
 
 - **Forbid:** `"document": "…"`（正文只经 `source_path` 由 Host 读盘）。
+- **Forbid:** 把整篇中译塞进 `translations.content`。长稿用 `source_path`。Host 拒绝占位、过短、小节/轮次对不齐的 zh。
 - `translations` **仅**来自 `[AR-1b]`；未译则省略。
 - **不要**发送 `extra_documents` 或 `index_extra` — host 自动推导 `-{lang}.md` 与 index map。
 - `source_type` 默认：Standalone 未指定 → `summary`；Embedded 必须显式传入。
 - 记录返回的 `id`、`common_path`、`raw_path`、`extra_paths`。
+- `[AR-1b]` 为 `full_english` 时，`extra_paths` 必须含 `-zh.md`；否则视为 `[AR-2]` 失败，不要进入 `[AR-3]`。
 
 ---
 

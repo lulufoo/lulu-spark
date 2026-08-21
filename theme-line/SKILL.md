@@ -72,7 +72,7 @@ Acquire must fill `meta.speakers` with proper names when title or in-text labels
 
 ### Transcript Fidelity
 
-Light clean only: merge caption fragments, drop consecutive duplicates, apply `fidelity.corrections`. Keep source wording and coverage. **No** paraphrase, summary, or dropped turns.
+Light clean only: merge caption fragments, drop consecutive duplicates, apply `fidelity.corrections`. Keep source wording and coverage. **No** paraphrase, summary, or dropped turns. Persist the bundle and run `scripts/check_dialogue_coverage.py` before Archive (see [archive-steps.md](references/archive-steps.md)).
 
 Output patterns: [references/output-templates.md](references/output-templates.md)
 
