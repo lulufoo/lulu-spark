@@ -84,16 +84,16 @@ export function assertDualChannelE2eContract() {
   if (!doc.includes('http://127.0.0.1:<mcp_port>/mcp/cursor_ide')) {
     throw new Error('dual-channel e2e: IDE URL convention missing from docs');
   }
-  if (!doc.includes('http://127.0.0.1:<mcp_port>/mcp/todo_task')) {
+  if (!doc.includes('http://127.0.0.1:<mcp_port>/mcp/workbench')) {
     throw new Error('dual-channel e2e: App Binding URL convention missing from docs');
   }
   if (!doc.includes('mcp.json')) {
     throw new Error('dual-channel e2e: docs must mention mcp.json');
   }
-  if (!binding.includes("TODOS_BUSINESS_KEY = 'todo_task'")) {
-    throw new Error('dual-channel e2e: Binding key must be todo_task');
+  if (!binding.includes("WORKBENCH_BUSINESS_KEY = 'workbench'")) {
+    throw new Error('dual-channel e2e: Binding key must be workbench');
   }
-  if (!binding.includes('return { key: TODOS_BUSINESS_KEY }')) {
+  if (!binding.includes('key: WORKBENCH_BUSINESS_KEY')) {
     throw new Error('dual-channel e2e: Binding must remain key-only');
   }
 }
@@ -114,16 +114,19 @@ async function listToolNamesOnSlot(mcpPort, sceneSlot, clientName) {
 
 /** Live A1/AC2/AC3/AC4 observation: path URL tools/list on both slots; unknown hard-fail. */
 async function runDualChannelLiveProbes(mcpPort) {
-  const todoNames = await listToolNamesOnSlot(mcpPort, 'todo_task', 'todo-task-mcp-e2e-dual-todo');
+  const workbenchNames = await listToolNamesOnSlot(mcpPort, 'workbench', 'todo-task-mcp-e2e-dual-workbench');
   for (const tool of EQUIVALENCE_TODO_TOOLS) {
-    if (!todoNames.includes(tool)) {
-      throw new Error(`dual-channel AC2: todo_task missing ${tool}`);
+    if (!workbenchNames.includes(tool)) {
+      throw new Error(`dual-channel AC2: workbench missing ${tool}`);
     }
   }
   for (const tool of CORPUS_TOOLS_E2E) {
-    if (todoNames.includes(tool)) {
-      throw new Error(`dual-channel AC2: todo_task must not expose ${tool}`);
+    if (!workbenchNames.includes(tool)) {
+      throw new Error(`dual-channel AC2: workbench missing ${tool}`);
     }
+  }
+  if (!workbenchNames.includes('get_notes_selection')) {
+    throw new Error('dual-channel AC2: workbench missing get_notes_selection');
   }
 
   const ideNames = await listToolNamesOnSlot(mcpPort, 'cursor_ide', 'todo-task-mcp-e2e-dual-ide');
@@ -224,7 +227,7 @@ function assertMasterStatusWire(status, label) {
 }
 
 const transport = new StreamableHTTPClientTransport(
-  new URL(`http://127.0.0.1:${mcpPort}/mcp/todo_task`),
+  new URL(`http://127.0.0.1:${mcpPort}/mcp/workbench`),
 );
 const client = new Client({ name: 'todo-task-mcp-e2e', version: '0.3.0' });
 

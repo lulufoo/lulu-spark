@@ -1275,7 +1275,7 @@ export function mountPlanTaskSplit(container, opts = {}) {
   /** Empty string = All categories. */
   let filterCategoryId = '';
   let categoryError = '';
-  /** Page lifecycle Binding: enter/select Set, leave Reset; shell close ≠ Reset. */
+  /** Page lifecycle hooks; Host Binding is process-level, not enter/leave. */
   const todosLifecycle = createTodosPageLifecycle({
     onUnbound: () => {
       // Unbound-state UI refresh (Todos small-change ceiling). No-op after dispose.

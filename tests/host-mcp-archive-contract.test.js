@@ -38,12 +38,62 @@ describe('T10 Host MCP archive + contract retarget (V2/V3/V4)', () => {
     expect(existsSync(verifyPath), 'missing scripts/verify-host-mcp.mjs').toBe(true);
     const src = readFileSync(verifyPath, 'utf8');
     expect(src).toContain(HOST_MCP_BASE);
-    expect(src).toMatch(/todo_task/);
+    expect(src).toMatch(/workbench/);
     expect(src).toMatch(/cursor_ide/);
     // Must not spawn Node MCP as a process (path may appear only as archive-gate joins)
     expect(src).not.toMatch(/spawnSidecar\s*\(/);
     expect(src).not.toMatch(/spawn\([^)]*index\.mjs/);
     expect(src).not.toMatch(/['"]packages\/knowledge-mcp\/index\.mjs['"]/);
+  });
+
+  it('verify-host-mcp registers workbench + cursor_ide, not todo_task as App slot', () => {
+    const src = read('scripts/verify-host-mcp.mjs');
+    expect(src).toContain("REGISTERED_SLOTS = ['workbench', 'cursor_ide']");
+    expect(src).not.toMatch(
+      /REGISTERED_SLOTS\s*=\s*\[[^\]]*(['"])todo_task\1/,
+    );
+    expect(src).not.toMatch(/REGISTERED_SLOTS\s*=\s*\[[^\]]*(['"])notes\1/);
+    expect(src).toContain('get_notes_selection');
+  });
+
+  it('verify-host-mcp asserts retired App slots /mcp/notes and /mcp/todo_task HTTP 404', () => {
+    const src = read('scripts/verify-host-mcp.mjs');
+    expect(src).toMatch(/\/mcp\/notes/);
+    expect(src).toMatch(/\/mcp\/todo_task/);
+    expect(src).toMatch(
+      /RETIRED_APP_SLOTS\s*=\s*\[[^\]]*(['"])notes\1[^\]]*(['"])todo_task\2/,
+    );
+    expect(src).toMatch(/status !== 404|status === 404/);
+  });
+
+  it('todo-task-mcp-e2e Binding key and App slot are workbench', () => {
+    const src = read('scripts/todo-task-mcp-e2e.mjs');
+    expect(src).toContain('http://127.0.0.1:<mcp_port>/mcp/workbench');
+    expect(src).toContain("WORKBENCH_BUSINESS_KEY = 'workbench'");
+    expect(src).toMatch(/\/mcp\/workbench/);
+    expect(src).not.toContain('http://127.0.0.1:<mcp_port>/mcp/todo_task');
+    expect(src).not.toMatch(
+      /new URL\(`http:\/\/127\.0\.0\.1:\$\{mcpPort\}\/mcp\/todo_task`\)/,
+    );
+    expect(src).not.toMatch(/listToolNamesOnSlot\(mcpPort,\s*['"]todo_task['"]/);
+    expect(src).toMatch(/listToolNamesOnSlot\(mcpPort,\s*['"]workbench['"]/);
+    expect(src).toContain('get_notes_selection');
+  });
+
+  it('knowledge-mcp.md App channel is /mcp/workbench; IDE URL unchanged', () => {
+    const doc = read('docs/knowledge-mcp.md');
+    expect(doc).toContain('http://127.0.0.1:<mcp_port>/mcp/workbench');
+    expect(doc).toContain('http://127.0.0.1:<mcp_port>/mcp/cursor_ide');
+    expect(doc).toContain('get_notes_selection');
+    expect(doc).not.toContain('http://127.0.0.1:<mcp_port>/mcp/todo_task');
+    expect(doc).not.toMatch(/http:\/\/127\.0\.0\.1:<mcp_port>\/#\/workbench/);
+    expect(doc).not.toMatch(/`#\/workbench`[^.\n]{0,40}\/mcp\//);
+  });
+
+  it('P4 smoke checklist P6 no longer writes off-page Reset', () => {
+    const checklist = read('tests/ai-assistant-p4-smoke-checklist.md');
+    expect(checklist).toContain('P6：离页不 Reset');
+    expect(checklist).not.toMatch(/P6：离页 Reset/);
   });
 
   it('npm test runs Host MCP verify script (not Node package verify)', () => {

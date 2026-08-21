@@ -17,8 +17,7 @@ function normalizeMasterId(id) {
 /**
  * @param {{ onBound?: Function, onUnbound?: Function, onError?: Function }} [callbacks]
  */
-export function createTodosPageLifecycle(callbacks = {}) {
-  void callbacks;
+export function createTodosPageLifecycle(_callbacks = {}) {
   let selectedMasterId = null;
 
   /**

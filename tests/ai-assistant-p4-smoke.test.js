@@ -56,7 +56,7 @@ const REQUIRED_CHECKLIST_MARKERS = [
   'P3：加子项成功且列表/详情出现',
   'P4：改主/子标题 Todos 侧可见',
   'P5：不支持操作明确拒绝且数据不变',
-  'P6：离页 Reset→onUnbound 后 execute 被拒',
+  'P6：离页不 Reset',
   'N1：调用 open_ai_assistant(masterTaskId)',
   'N2：未 Set 仅 Present 时不可发送/执行成功',
   '关壳≠Reset',

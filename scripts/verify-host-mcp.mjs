@@ -19,7 +19,13 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.join(__dirname, '..');
 const HOST_MCP_BASE = 'http://127.0.0.1:9876';
 
-const REGISTERED_SLOTS = ['todo_task', 'cursor_ide'];
+const REGISTERED_SLOTS = ['workbench', 'cursor_ide'];
+
+/** Retired App slots — `/mcp/notes` and `/mcp/todo_task` must HTTP 404. */
+const RETIRED_APP_SLOTS = ['notes', 'todo_task'];
+
+/** workbench tools/list must include notes-only tools (plus corpus ∪ todo). */
+const WORKBENCH_REQUIRED_TOOLS = ['get_notes_selection'];
 
 /** Attachment delete must stay absent from Host MCP tool surface (UI-only delete). */
 const FORBIDDEN_ATTACHMENT_DELETE_TOOL_NAMES = [
@@ -49,6 +55,11 @@ function assertNoForbiddenAttachmentDeletes() {
   for (const tool of FORBIDDEN_ATTACHMENT_DELETE_TOOL_NAMES) {
     if (adapter.includes(`name: "${tool}".into()`) || adapter.includes(`'${tool}'`)) {
       throw new Error(`Host MCP must not register attachment delete tool ${tool}`);
+    }
+  }
+  for (const tool of WORKBENCH_REQUIRED_TOOLS) {
+    if (!adapter.includes(tool)) {
+      throw new Error(`Host MCP workbench must register ${tool}`);
     }
   }
 }
@@ -100,6 +111,22 @@ async function probeHostIfUp() {
   }
   if (unknown.headers.get('mcp-session-id')) {
     throw new Error('unknown scene_slot must not establish MCP session');
+  }
+
+  for (const slot of RETIRED_APP_SLOTS) {
+    const retired = await fetch(`${HOST_MCP_BASE}/mcp/${slot}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json, text/event-stream',
+      },
+      body: init,
+    });
+    if (retired.status !== 404) {
+      throw new Error(
+        `retired App slot ${slot} must HTTP 404 on ${HOST_MCP_BASE}; got ${retired.status}`,
+      );
+    }
   }
 
   // Registered slot paths must not hard-reject at routing layer.
@@ -159,7 +186,7 @@ async function main() {
 
   const hostUp = await probeHostIfUp();
   if (hostUp) {
-    console.log(`live Host probe on ${HOST_MCP_BASE} (todo_task/cursor_ide + unknown): OK`);
+    console.log(`live Host probe on ${HOST_MCP_BASE} (workbench/cursor_ide + retired 404): OK`);
   } else if (process.env.VERIFY_HOST_MCP_SKIP_CARGO === '1') {
     // npm test already ran Host cargo suite (incl. T10 dual-slot smoke) before this script.
     console.log(
