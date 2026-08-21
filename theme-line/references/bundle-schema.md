@@ -74,7 +74,7 @@ corrections:
 | `start_sec` | `number` | yes | 章节起始秒 |
 | `end_sec` | `number` | no | 章节结束秒 |
 | `title` | `string` | no | 章节标题 |
-| `summary` | `string` | no | 章节摘要（summary-only 策略锚点） |
+| `summary` | `string` | no | 来源章节摘要（若有）。Compose **不得**用它代替 utterances |
 | `speaker` | `string` | no | 关联讲者 |
 
 ---
@@ -103,7 +103,7 @@ assets:
 
 ## Minimal examples
 
-### InfoQ（segment-seeded：`segments>0` AND `utterances>0`）
+### InfoQ（`complete-dialogue`：`utterances>0`；segments 仅导航）
 
 ```json
 {
@@ -148,7 +148,7 @@ assets:
 }
 ```
 
-### YouTube flat（flat-caption：`segments==0` AND `utterances>0`）
+### YouTube（`complete-dialogue`：`segments==0` AND `utterances>0`）
 
 ```json
 {
@@ -190,5 +190,6 @@ assets:
 ## Conformance
 
 - 所有 adapter Map 输出 MUST conform 本 schema
-- Compose MUST 读 bundle 形状选策略；Archive 只读 `bundle.meta`（不读 adapter 字段）
+- Compose MUST 在 `utterances.length > 0` 时走 `complete-dialogue`；`utterances` 空则 fail-fast
+- Archive 只读 `bundle.meta`（不读 adapter 字段）
 - 本文件不含平台 fetch 命令（见 `adapters/{platform}.md`）

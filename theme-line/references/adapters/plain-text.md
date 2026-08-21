@@ -15,6 +15,8 @@
 
 ## Acquire
 
+Read existing text only. Do **not** download media. Do **not** run Whisper.
+
 | Input | Action |
 |-------|--------|
 | `.srt` / `.vtt` | 读取文件内容 |
@@ -58,9 +60,9 @@ assets:
 ```
 
 - SRT/VTT → 解析为 utterances 数组
-- 纯文本 → 单条 utterance 或按段落拆分
+- 纯文本 → 按已有说话人行或段落拆成 utterances；保留全部正文
 
-Compose 策略：通常 `flat-caption`（`segments==0, utterances>0`）；若无法解析 → fail-fast
+Compose：`utterances>0` → `complete-dialogue`；空输入 → fail-fast
 
 ---
 
@@ -69,5 +71,5 @@ Compose 策略：通常 `flat-caption`（`segments==0, utterances>0`）；若无
 | 场景 | 处理 |
 |------|------|
 | 空输入 | 中止；请用户提供内容 |
-| 无法识别格式 | 作为单块 plain text utterance |
+| 无法识别格式 | 作为单块 plain text utterance（仍须保留全文） |
 | 从 InfoQ/YouTube 降级 | 保留原 URL 于 `source.url`（若已知） |

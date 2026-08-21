@@ -8,12 +8,10 @@
 
 | Strategy | Condition |
 |----------|-----------|
-| `segment-seeded` | `segments.length > 0` AND `utterances.length > 0` |
-| `flat-caption` | `segments.length == 0` AND `utterances.length > 0` |
-| `summary-only` | `segments.length > 0` AND `utterances.length == 0` |
-| **fail-fast** | `segments.length == 0` AND `utterances.length == 0` |
+| `complete-dialogue` | `utterances.length > 0` |
+| **fail-fast** | `utterances.length == 0` |
 
-**fail-fast：** 立即中止 Compose，报告 Acquire 失败，**不进入 Archive**。
+**fail-fast：** 立即中止 Compose，报告无字幕/转写可整理，**不进入 Archive**。`segments` 有值也不能改走摘要。
 
 ---
 
@@ -21,7 +19,7 @@
 
 ### C0 · Fail-fast check
 
-若 `segments` 与 `utterances` 均为空 → 输出失败原因，停止。
+若 `utterances` 为空 → 输出失败原因，停止。不要用 `segments[].summary` 组稿。
 
 ### C1 · Apply `fidelity.corrections`
 
@@ -33,64 +31,63 @@
 2. 候选 `wrong` 出现 ≥3 次 → 写入 `{wrong, correct: canonical}`
 3. 无候选则 `corrections: []`；**禁止** adapter 硬编码 per-video 表
 
-> adapter Map 阶段（t2）可预填 corrections；Compose C1 须再应用/合并。
+> adapter Map 阶段可预填 corrections；Compose C1 须再应用/合并。
 
 ### C2 · Select strategy
 
-按上表精确匹配（非 fail-fast 时）。
+`utterances.length > 0` → `complete-dialogue`。否则 fail-fast。
 
-### C3 · Build skeleton
+### C3 · Build navigation skeleton
 
-- **segment-seeded：** section 边界 = segments 按 `start_sec` 排序；标题取自 segment `title` 或 `summary` 首句
-- **flat-caption：** 语义 + 时间窗口切 section（目标 3–8 分钟/段）
-- **summary-only：** 每 segment 一节；body 来自 `summary`
+Keep utterance order. Navigation only:
 
-### C4 · Assign utterances to sections
+- **Source chapters present:** insert each `segments[].title` at its `start_sec` as a heading. Do not reorder utterances to fit a theme.
+- **No chapters:** insert time-range headings (about 3–8 minutes) as markers. Do not invent topic titles.
 
-- **segment-seeded：** utterances 分配区间 `[start_sec, next_start_sec)`；coverage < 30% 时以 segment `summary` 为锚，utterances 补充
-- **flat-caption：** 按时间窗口分组
-- **summary-only：** 无 utterances；仅用 segment summary
+### C4 · Assign utterances
+
+Walk utterances by `start_sec`. Each utterance appears **exactly once** after C6 merge/dedupe. Coverage < 100% of non-empty source text → fix before Archive.
 
 ### C5 · Speaker turns
 
-- 推断说话人；无法确定标 `(uncertain)`
-- **flat-caption 非 diarization**；上限 Host/Guest + `(uncertain)`
-- segment-seeded 可用 segment.speaker 或 meta.speakers
+- Prefer `utterance.speaker`
+- Else use a speaker label already in the source text
+- Else `Host` / named guest from `meta.speakers` / `(uncertain)`
+- Caption-only sources are **not** diarization; do not treat inferred names as identified speakers
 
-### C6 · Quality pass & emit
+### C6 · Light clean & emit
 
-- 去除 ASR 重复
-- Fidelity 版权检查（见下）
-- 输出 ThemeLine body
+Allowed:
+
+- Merge consecutive caption fragments (same speaker or both unknown; VTT roll-up / gap < 1.5s)
+- Drop consecutive exact duplicates
+- Apply C1 corrections
+- Merge same-speaker turns that were split only by caption chunking
+
+Forbidden:
+
+- Paraphrase or summarize
+- Drop a turn or clause to “tighten”
+- Regroup by invented themes
+- Replace dialogue with manuscript summaries
 
 ---
 
-## Fidelity（copyright）
+## Fidelity
 
-- Compose 输出为 **dialogue-style paraphrase**
-- **禁止** near-complete verbatim SRT 复制
-- 短引语 ≤2 句/section 可接受
+- Body is lightly cleaned **source wording**
+- Invariant: every non-empty input utterance is retained once after merge/dedupe
+- Short quotes are unnecessary; the body *is* the dialogue
 
 ---
 
 ## Strategy details
 
-### segment-seeded
+### complete-dialogue
 
-- 典型来源：InfoQ（manuscripts + SRT）
-- Section heading = manuscript 标题
-- Time line = segment `start_sec` 范围
-
-### flat-caption
-
-- 典型来源：YouTube auto-sub
-- 语义切分 + 时间窗口（3–8 min/section）
-- 说话人推断保守；`(uncertain)` 仅必要时
-
-### summary-only
-
-- 典型来源：InfoQ SRT 403（utterances 空）
-- 每 segment 一节；content 来自 `summary` 字段
+- Typical sources: YouTube captions, InfoQ SRT, pasted/local transcript
+- Heading = source chapter title or `MM:SS–MM:SS`
+- Body = speaker turns in time order
 
 ---
 
@@ -101,5 +98,5 @@ ThemeLine body only（title / metadata / navigation 由 Phase 3 Archive 处理�
 可选 provenance（Archive header）：
 
 ```markdown
-> 采集：{platform} · {strategy} · 嘉宾：{speakers}
+> 采集：{platform} · complete-dialogue · 嘉宾：{speakers}
 ```

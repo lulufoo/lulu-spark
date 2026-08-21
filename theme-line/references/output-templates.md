@@ -1,6 +1,6 @@
 # Output Templates
 
-Use one of these templates depending on the user's ask.
+Default is complete chronological dialogue. Do not use summary or paraphrase templates.
 
 ## Archive Header (Save to Archive)
 
@@ -21,60 +21,37 @@ All archived `raw/` files use this header block (navigation paths resolved per [
 - **时长** / **发布**: 来自 `bundle.meta.duration_sec` / `bundle.meta.published_at`（非 yt-dlp 直接拉取）
 - 非视频源（`duration_sec: null`）省略时长行
 - **`-zh.md`**: not built here — theme-archive `[AR-1b]` when body is full English
-- 可选 provenance：`> 采集：{platform} · {strategy} · 嘉宾：{speakers}`
+- 可选 provenance：`> 采集：{platform} · complete-dialogue · 嘉宾：{speakers}`
 
-## Default Theme-First Format
+## Complete Dialogue Format (default)
 
-Body only (metadata lives in archive header, not `Source:` line):
-
-```md
-# {Original Video Title}
-
-## {Theme}
-Time: {start} - {end}
-
-Host: {dialogue-style paraphrase}
-
-{Guest Name}: {dialogue-style paraphrase}
-```
-
-## Dense Research Format
+Body only (metadata lives in archive header). Keep every turn after light clean:
 
 ```md
-# {Original Video Title}
+## 00:00–03:12
 
-## {Theme}
-Time: {start} - {end}
-Focus: {one-line explanation}
+Host: {cleaned source wording}
 
-Host: {turn 1}
-{Guest Name}: {turn 2}
-Host: {turn 3}
-{Guest Name}: {turn 4}
+{Guest Name}: {cleaned source wording}
+
+Host: {cleaned source wording}
 ```
 
-Use this format when the user wants something closer to interview flow.
-
-## Summary-Lighter Format
+When the source has chapter titles, use those as headings and keep the same turn order:
 
 ```md
-# {Original Video Title}
-
-## {Theme}
+## {Source chapter title}
 Time: {start} - {end}
 
-Host: {question or framing}
+Host: {cleaned source wording}
 
-{Guest Name}: {main answer}
+{Guest Name}: {cleaned source wording}
 ```
-
-Use this format when the user wants fewer turns and higher compression.
 
 ## Naming Conventions
 
-- Prefer topic names over generic labels.
-- Keep section titles short and concrete.
-- Keep time on its own line.
-- Use speaker names consistently across sections.
+- Prefer source chapter titles or time ranges over invented topic names.
+- Keep time on its own line when a source chapter heading is used.
+- Use speaker names consistently.
 - If the host's name is unknown, use `Host`.
 - If a speaker label is inferred but not certain, use `{Speaker} (uncertain)`.

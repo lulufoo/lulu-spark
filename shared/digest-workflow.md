@@ -49,7 +49,7 @@ digest 是可选产出。以下任意一项满足即生成：
 
 ```text
 · raw 含 2+ 个 Turn 块（`## Turn N` 或归一化/TURN_SEP 等价的 Turn 分隔）
-· raw 含 2+ 个主题级小节（`## ` 标题且非 `## Turn`，如 ThemeLine 主题段）
+· raw 含 2+ 个主题级小节（`## ` 标题且非 `## Turn`，如 ThemeLine 时间/来源章节标）
 · raw 正文（去掉标题行、引用块导航后）字符数 ≥ 600
 · source_type 为 summary 且 raw 正文 ≥ 200
 · source_type 为 article 且 raw 正文 ≥ 600（常规阈值）

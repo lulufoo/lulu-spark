@@ -38,9 +38,10 @@ Slug conflict → clarify with user before proceeding.
 
 ---
 
-{ThemeLine body}
+{complete-dialogue body}
 ```
 
+- Body is the full lightly cleaned dialogue, not a theme outline.
 - Omit 时长 line when `duration_sec` is null.
 - `prefix` = `../../../`.
 - Write to `{workspace}/.cache/theme-line/<ts>-<slug>.md`.

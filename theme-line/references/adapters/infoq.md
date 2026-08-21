@@ -15,6 +15,8 @@
 
 ## Acquire
 
+Do **not** download the video file. Do **not** run Whisper.
+
 1. **Article detail API**
 
 ```bash
@@ -25,12 +27,12 @@ curl -s -X POST "https://www.infoq.cn/public/v1/article/getDetail" \
   -d '{"uuid":"{uuid}"}'
 ```
 
-预期：`code=0`，`data.article_title` 非空，`data.video.manuscripts` ≥1（正常视频）
+预期：`code=0`，`data.article_title` 非空
 
 2. **SRT subtitle**
 
 - 从响应 `data.video.ai_subtitle`（或等效字段）获取 SRT URL
-- GET 下载 SRT 文本
+- GET 下载 SRT 文本（字幕文件，不是媒体）
 
 ---
 
@@ -48,14 +50,17 @@ curl -s -X POST "https://www.infoq.cn/public/v1/article/getDetail" \
 
 ### `segments`（manuscripts + outlines）
 
+导航标记 only：
+
 1. 合并 `data.video.manuscripts` 与 `data.video.outlines`
 2. 按 `start_sec` 去重
-3. **同 `start_sec` 冲突时 manuscripts 优先**（有 content/summary）；outlines 仅补充 manuscripts 未覆盖的 `start_sec`
+3. **同 `start_sec` 冲突时 manuscripts 优先**；outlines 仅补充未覆盖的 `start_sec`
+4. Compose 只用 `title` / `start_sec` 做 heading，**不用** `summary` 当正文
 
 ### `utterances`（SRT）
 
 - 解析 SRT → `{start_sec, end_sec, text, speaker: null}`
-- SRT 不可用 → `utterances: []`（见 Quirks）
+- SRT 不可用 → `utterances: []` → Compose fail-fast
 
 ### `fidelity.corrections`（runtime-derived）
 
@@ -88,7 +93,7 @@ fetched_at: "<ISO8601>"
 | 场景 | 处理 |
 |------|------|
 | API `code != 0` 或空 `data` | 降级 `plain`；请用户粘贴 transcript |
-| SRT 403 / 网络失败 | `utterances: []`；compose 降级 `summary-only` |
-| manuscripts 与 outlines 均为空 | `segments: []`；若 utterances 也为空 → compose fail-fast |
+| SRT 403 / 网络失败 | `utterances: []`；Compose **fail-fast**。可请用户粘贴 SRT，或改走 `theme-transcribe` |
+| manuscripts 与 outlines 均为空 | `segments: []`；有 utterances 仍走 `complete-dialogue` |
 
-Compose 策略：`segments>0 AND utterances>0` → `segment-seeded`；`segments>0 AND utterances==0` → `summary-only`。
+Compose：`utterances>0` → `complete-dialogue`。

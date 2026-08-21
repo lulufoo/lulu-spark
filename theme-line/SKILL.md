@@ -1,10 +1,10 @@
 ---
 name: theme-line
 description: >-
-  Restructure video/interview transcripts (YouTube, InfoQ, plain text) into theme-first
-  timeline outlines with speaker-separated dialogue blocks. Multi-platform Acquire via
-  TranscriptBundle; saves to raw/ and auto digest. Use for 按主题整理 transcript,
-  Host/guest 对话展开, InfoQ/YouTube 视频归档.
+  Acquire existing captions or transcripts (YouTube, InfoQ, plain text) and
+  compose a complete chronological dialogue. No media download, no Whisper.
+  Hands off to theme-archive. Use for theme-line, 完整对话整理, YouTube/InfoQ
+  字幕采集, Host/guest 对话展开.
 ---
 
 # ThemeLine
@@ -12,12 +12,23 @@ description: >-
 > **4 mandatory phases:**
 > 0. Resolve Source
 > 1. Acquire → TranscriptBundle
-> 2. Compose ThemeLine
+> 2. Compose complete dialogue
 > 3. Save to Archive
 >
 > Read this file in full before executing. Phase 3 hands off to **theme-archive** (translate + MCP + digest).
 
-Produce a readable transcript-derived document: themes first, time second.
+Produce a complete chronological dialogue from captions or an existing transcript. Time and source chapters are navigation only.
+
+## Boundary
+
+| Skill | Role |
+|-------|------|
+| **theme-line** | Direct captions / API / local or pasted transcript → complete dialogue. **No** media download. **No** Whisper. |
+| `theme-transcribe` | Download media → Whisper → verbatim draft |
+| `theme-fetch` | Web articles |
+| `theme-archive` | Translate full English, persist raw, digest |
+
+Digest may summarize. **raw must keep the full dialogue.**
 
 ## Phase 0 · Resolve Source
 
@@ -32,7 +43,7 @@ Full routing: [adapters/README.md](references/adapters/README.md)
 ## Phase 1 · Acquire
 
 <HARD-GATE>
-MUST read the matching adapter doc before any fetch. Do NOT improvise platform-specific commands.
+MUST read the matching adapter doc before any fetch. Do NOT improvise platform-specific commands. Do NOT download audio/video. Do NOT run Whisper.
 </HARD-GATE>
 
 - Output MUST conform to [references/bundle-schema.md](references/bundle-schema.md)
@@ -46,22 +57,22 @@ Read [references/compose-strategies.md](references/compose-strategies.md) — st
 
 | Strategy | Condition |
 |----------|-----------|
-| `segment-seeded` | segments>0 AND utterances>0 |
-| `flat-caption` | segments==0 AND utterances>0 |
-| `summary-only` | segments>0 AND utterances==0 |
-| fail-fast | both==0 → stop, do not Archive |
+| `complete-dialogue` | `utterances.length > 0` |
+| fail-fast | `utterances.length == 0` → stop, do not Archive |
+
+`segments` never substitute for missing utterances. Do not emit `summary-only` or paraphrase outlines.
 
 ### Sectioning
 
-Build sections in chronological order. Theme titles describe topics, not mechanics. Timestamp is secondary metadata under each theme heading.
+Keep source order. Source chapter titles (if present) are navigation markers only. If no chapters, use time-range markers. Do not regroup by invented themes.
 
 ### Speaker Handling
 
-Expand by speaker turn: `Host`, named guest, or `(uncertain)` when needed. flat-caption is **not** diarization — cap at Host/Guest + `(uncertain)`.
+Prefer `utterance.speaker` or labels in the source text. If unknown: `Host`, named guest from `meta.speakers`, or `(uncertain)`. Caption-only sources are **not** diarization.
 
 ### Transcript Fidelity
 
-Dialogue-style paraphrase. **No** near-complete verbatim SRT copy. Short quotes ≤2 sentences/section OK. Apply `fidelity.corrections` per compose C1.
+Light clean only: merge caption fragments, drop consecutive duplicates, apply `fidelity.corrections`. Keep source wording and coverage. **No** paraphrase, summary, or dropped turns.
 
 Output patterns: [references/output-templates.md](references/output-templates.md)
 
@@ -81,7 +92,7 @@ Path/config: [../shared/archive-concepts.md](../shared/archive-concepts.md)
 
 ## Ask Only When Necessary
 
-Defaults: source title · chronological · theme-first sections · secondary time · Host + named guest
+Defaults: source title · chronological complete dialogue · source-chapter nav if present else time-range nav · Host + named guest when evidenced
 
 ## References
 

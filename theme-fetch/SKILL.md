@@ -27,7 +27,7 @@ Fetch external web articles, normalize structure, archive to `raw/` — **no sum
 
 Full routing: [adapters/README.md](references/adapters/README.md)
 
-**Boundary with theme-line:** `infoq.cn/video/*` → theme-line (transcript). `infoq.cn/article/*` full text → future `infoq-article` adapter; until then use `plain-html` or paste.
+**Boundary with theme-line:** `infoq.cn/video/*` → theme-line (complete dialogue from captions). `infoq.cn/article/*` full text → future `infoq-article` adapter; until then use `plain-html` or paste.
 
 ## Phase 1 · Acquire
 

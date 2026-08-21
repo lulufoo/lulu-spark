@@ -45,9 +45,9 @@ git -C $SKILL_DIR pull --rebase
 |------|------|------|
 | `dialogue-summary` | [dialogue-summary/](dialogue-summary/) | 自包含总结：覆盖面随对话、单元丰富度固定、忠实整合不灌水 + `〔User〕` → MCP 归档（`dtd_raw_summary`；已定稿落盘用 `theme-archive`） |
 | `dialogue-archive` | [dialogue-archive/](dialogue-archive/) | 节点切片脚本 + **theme-archive** 原文归档；`sink=local-md` 仅 `.cache` |
-| `theme-line` | [theme-line/](theme-line/) | 视频/访谈稿 → ThemeLine 组稿 → **theme-archive**（全文英文才中译 + digest） |
+| `theme-line` | [theme-line/](theme-line/) | 直接采集字幕/已有稿 → 完整对话组稿 → **theme-archive**（全文英文才中译 + digest） |
 | `theme-fetch` | [theme-fetch/](theme-fetch/) | 网页文章组稿 → **theme-archive** |
-| `theme-transcribe` | [theme-transcribe/](theme-transcribe/) | STT → 子话题 → 流畅性 → **theme-archive**；独立于 `theme-line` |
+| `theme-transcribe` | [theme-transcribe/](theme-transcribe/) | 下载媒体 + Whisper → 完整逐字稿 → **theme-archive**；无现成字幕时用 |
 | `theme-archive` | [theme-archive/](theme-archive/) | 统一录入：raw + 全文英文默认中译 + 自动 digest |
 | `todo-task` | [todo-task/](todo-task/) | Todo 任务树 CRUD（MCP `todo_*` tools；经 local_http proxy） |
 
