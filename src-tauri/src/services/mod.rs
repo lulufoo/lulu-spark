@@ -2,6 +2,7 @@ pub mod agent;
 pub mod annotation;
 pub mod archive_parse;
 pub mod archive_write;
+pub mod translation_gate;
 pub mod source_path_allow;
 pub mod id;
 pub mod corpus_git;

@@ -14,6 +14,7 @@ use crate::services::archive_parse::{
 use crate::services::id::random_entry_id;
 use crate::services::source_path_allow::{self, MAX_ARCHIVE_SOURCE_BYTES};
 use crate::services::todo_task;
+use crate::services::translation_gate;
 use crate::services::workbench_read::get_corpus_index;
 
 /// Options for Host-side note archive shell synthesis.
@@ -233,6 +234,7 @@ fn is_valid_lang(lang: &str) -> bool {
 fn parse_translations(
     payload: &Value,
     primary_common_path: &str,
+    primary_document: &str,
 ) -> Result<Vec<TranslationDoc>, Value> {
     let Some(arr) = payload.get("translations").and_then(|v| v.as_array()) else {
         return Ok(Vec::new());
@@ -246,16 +248,42 @@ fn parse_translations(
             .unwrap_or("")
             .trim()
             .to_string();
-        let content = item
-            .get("content")
-            .and_then(|v| v.as_str())
-            .unwrap_or("")
-            .to_string();
         if !is_valid_lang(&lang) {
             return Err(json!({ "error": format!("invalid translations.lang: {lang}"), "_status": 400 }));
         }
+        let inline = item
+            .get("content")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .trim();
+        let path = item
+            .get("source_path")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .trim();
+        let content = match (!inline.is_empty(), !path.is_empty()) {
+            (true, true) => {
+                return Err(json!({
+                    "error": "translations: use source_path or content, not both",
+                    "_status": 400
+                }));
+            }
+            (true, false) => inline.to_string(),
+            (false, true) => resolve_archive_source_markdown(path)?,
+            (false, false) => {
+                return Err(json!({
+                    "error": "translations.content or translations.source_path required",
+                    "_status": 400
+                }));
+            }
+        };
         if content.trim().is_empty() {
             return Err(json!({ "error": "translations.content must be non-empty", "_status": 400 }));
+        }
+        if lang == "zh" {
+            if let Err(msg) = translation_gate::check_zh_parity(primary_document, &content) {
+                return Err(json!({ "error": msg, "_status": 400 }));
+            }
         }
         if !seen.insert(lang.clone()) {
             return Err(json!({ "error": format!("duplicate translations.lang: {lang}"), "_status": 400 }));
@@ -375,7 +403,7 @@ fn archive_document_from_markdown(repo_root: &Path, document: &str, payload: &Va
     if let Some(err) = reject_legacy_translation_fields(payload) {
         return err;
     }
-    let translations = match parse_translations(payload, &parsed.common_path) {
+    let translations = match parse_translations(payload, &parsed.common_path, document) {
         Ok(v) => v,
         Err(v) => return v,
     };

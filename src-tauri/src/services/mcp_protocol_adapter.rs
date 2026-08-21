@@ -355,12 +355,13 @@ fn corpus_tool_routes() -> Vec<ToolRoute> {
                             "type": "object",
                             "properties": {
                                 "lang": { "type": "string" },
-                                "content": { "type": "string" }
+                                "content": { "type": "string" },
+                                "source_path": { "type": "string" }
                             },
-                            "required": ["lang", "content"],
+                            "required": ["lang"],
                             "additionalProperties": false
                         },
-                        "description": "Optional translated Markdown bodies."
+                        "description": "Optional translations. Prefer source_path. Host rejects stub or short zh."
                     },
                     "master_task_id": {
                         "type": "string",

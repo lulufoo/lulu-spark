@@ -177,6 +177,76 @@ fn archive_document_theme_line_with_zh_translation() {
 }
 
 #[test]
+fn archive_document_zh_from_source_path() {
+    let (sandbox, repo_root) = setup_corpus();
+    let zh_file = stage_source(&sandbox, "zh.md", THEME_LINE_ZH);
+    let v = archive_document(
+        &repo_root,
+        &path_payload(&sandbox, THEME_LINE_DOC, json!({
+            "source_type": "theme-line",
+            "translations": [{ "lang": "zh", "source_path": zh_file.to_str().unwrap() }]
+        })),
+    );
+    assert_eq!(v.get("ok"), Some(&json!(true)), "failed: {v}");
+    assert_eq!(
+        v["extra_paths"],
+        json!(["raw/learning-ai-agent/waymo-interview/202606191700-waymo-interview-zh.md"])
+    );
+}
+
+#[test]
+fn archive_document_rejects_zh_stub() {
+    let (sandbox, repo_root) = setup_corpus();
+    let v = archive_document(
+        &repo_root,
+        &path_payload(&sandbox, THEME_LINE_DOC, json!({
+            "source_type": "theme-line",
+            "translations": [{ "lang": "zh", "content": "# 题\n\n> 创建时间：2026年6月19日 17:00\n\n---\n\nSEE_FILE\n" }]
+        })),
+    );
+    assert_eq!(v.get("_status"), Some(&json!(400)));
+    assert!(v["error"].as_str().unwrap_or("").contains("stub"), "{v}");
+}
+
+#[test]
+fn archive_document_rejects_zh_too_short() {
+    let (sandbox, repo_root) = setup_corpus();
+    let long_en = format!(
+        "{}\n{}\nHost: hello\n",
+        THEME_LINE_DOC.trim_end(),
+        "word ".repeat(80)
+    );
+    let v = archive_document(
+        &repo_root,
+        &path_payload(&sandbox, &long_en, json!({
+            "source_type": "theme-line",
+            "translations": [{ "lang": "zh", "content": THEME_LINE_ZH }]
+        })),
+    );
+    assert_eq!(v.get("_status"), Some(&json!(400)));
+    assert!(v["error"].as_str().unwrap_or("").contains("too short"), "{v}");
+}
+
+#[test]
+fn archive_document_rejects_zh_content_and_source_path() {
+    let (sandbox, repo_root) = setup_corpus();
+    let zh_file = stage_source(&sandbox, "zh-both.md", THEME_LINE_ZH);
+    let v = archive_document(
+        &repo_root,
+        &path_payload(&sandbox, THEME_LINE_DOC, json!({
+            "source_type": "theme-line",
+            "translations": [{
+                "lang": "zh",
+                "content": THEME_LINE_ZH,
+                "source_path": zh_file.to_str().unwrap()
+            }]
+        })),
+    );
+    assert_eq!(v.get("_status"), Some(&json!(400)));
+    assert!(v["error"].as_str().unwrap_or("").contains("not both"), "{v}");
+}
+
+#[test]
 fn archive_document_multi_lang_translations() {
     let (sandbox, repo_root) = setup_corpus();
     let v = archive_document(
