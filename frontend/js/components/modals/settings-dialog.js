@@ -26,6 +26,9 @@ const engineModelByCategory = {
 /** @type {'host'} */
 let activeEngineCategory = DEFAULT_ENGINE_CATEGORY;
 
+/** Host MCP listen port (same value GET /health uses in its mcp template). */
+let mcpPort = 9876;
+
 // ── Nav switching ──────────────────────────────────────────────────────────
 
 function emitKnowledgeTab(tabId) {
@@ -239,6 +242,99 @@ document.querySelectorAll('.settings-nav-item').forEach(btn => {
 });
 
 // ── Helpers ────────────────────────────────────────────────────────────────
+
+function cursorIdeServerUrl() {
+  return `http://127.0.0.1:${mcpPort}/mcp/cursor_ide`;
+}
+
+function formatCursorIdeServerBlock(handle) {
+  return JSON.stringify(
+    {
+      url: cursorIdeServerUrl(),
+      headers: { Authorization: `Bearer ${handle}` },
+    },
+    null,
+    2,
+  );
+}
+
+function mcpServerBlockEl() {
+  return document.getElementById('settings-mcp-server-block');
+}
+
+function setMcpServerBlock(text) {
+  const el = mcpServerBlockEl();
+  if (el) el.value = text;
+}
+
+function clearMcpServerBlock() {
+  setMcpServerBlock('');
+}
+
+async function copyServerBlock(text) {
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(text);
+  }
+}
+
+async function issueOrRotateCursorIdeBlock(cmd, okMessage, failLabel) {
+  setResult('settings-result-mcp', '');
+  try {
+    const resp = await api.invoke(cmd);
+    const issued = resp?.handle;
+    if (!issued) throw new Error('Ticket command failed');
+    const text = formatCursorIdeServerBlock(issued);
+    setMcpServerBlock(text);
+    await copyServerBlock(text);
+    setResult('settings-result-mcp', okMessage);
+  } catch (e) {
+    clearMcpServerBlock();
+    setResult('settings-result-mcp', `${failLabel} failed: ${e.message || String(e)}`, true);
+  }
+}
+
+async function generateCursorIdeServerBlock() {
+  const btn = document.getElementById('btn-settings-mcp-generate');
+  if (btn) btn.disabled = true;
+  try {
+    await issueOrRotateCursorIdeBlock(
+      'issue_cursor_ide_ticket',
+      'Generated and copied cursor_ide server block.',
+      'Generate',
+    );
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+async function rotateCursorIdeTicket() {
+  const btn = document.getElementById('btn-settings-mcp-rotate');
+  if (btn) btn.disabled = true;
+  try {
+    await issueOrRotateCursorIdeBlock(
+      'rotate_cursor_ide_ticket',
+      'Rotated and copied cursor_ide server block.',
+      'Rotate',
+    );
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+async function revokeMcpSlotTicket() {
+  const btn = document.getElementById('btn-settings-mcp-revoke');
+  const slot = document.getElementById('settings-mcp-revoke-slot')?.value;
+  if (btn) btn.disabled = true;
+  setResult('settings-result-mcp', '');
+  try {
+    await api.invoke('revoke_mcp_slot_ticket', { slot });
+    setResult('settings-result-mcp', `Revoked ${slot} ticket.`);
+  } catch (e) {
+    setResult('settings-result-mcp', `Revoke failed: ${e.message || String(e)}`, true);
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
 
 function setResult(resultElId, message, isError = false) {
   const el = document.getElementById(resultElId);
@@ -595,6 +691,9 @@ async function loadSettingsSnapshot() {
       : 'No Sync token configured.';
 
     loadAssistantEnginePanel(cfg ?? {});
+    if (typeof cfg?.mcp_port === 'number' && cfg.mcp_port > 0) {
+      mcpPort = cfg.mcp_port;
+    }
 
     await syncGithubUserUrlLockFromWorkbenchRoot();
     syncKbHidePatternInput();
@@ -624,6 +723,8 @@ export async function openSettingsDialog(opts = {}) {
   setResult('settings-result-knowledge', '');
   setResult('settings-result-github', '');
   setResult('settings-result-llm', '');
+  setResult('settings-result-mcp', '');
+  clearMcpServerBlock();
   document.getElementById('settings-github-token').value = '';
   document.getElementById('settings-llm-api-key').value = '';
   const panelId = opts.panel || 'directories';
@@ -908,4 +1009,14 @@ document.getElementById('settings-llm-engine')?.addEventListener('change', (e) =
 
 document.getElementById('btn-settings-save-llm').addEventListener('click', () => {
   void saveAssistantEnginePanel();
+});
+
+document.getElementById('btn-settings-mcp-generate')?.addEventListener('click', () => {
+  void generateCursorIdeServerBlock();
+});
+document.getElementById('btn-settings-mcp-rotate')?.addEventListener('click', () => {
+  void rotateCursorIdeTicket();
+});
+document.getElementById('btn-settings-mcp-revoke')?.addEventListener('click', () => {
+  void revokeMcpSlotTicket();
 });

@@ -2,6 +2,7 @@ import {
   createApiClient,
   createFetchDriver,
   createTauriDriver,
+  invoke as invokeCommand,
   resolveReadDriver,
 } from './apiClient.js';
 import { getKbHidePattern } from './kb-hide-pattern.js';
@@ -105,6 +106,10 @@ export async function fetchAnnotationsSummary() {
 export async function fetchAnnotation(path) {
   const res = await getReadDriver().fetchGet(`/api/annotation?path=${encodeURIComponent(path)}`);
   return res.json();
+}
+
+export async function invoke(cmd, args) {
+  return assertWritePayload(await invokeCommand(cmd, args));
 }
 
 export async function fetchConfig() {

@@ -148,6 +148,11 @@ export function createTauriDriver() {
  * @param {'reindexKnowledge'|'reindexWorkbench'|'reindexKbRepo'|'getReindexStatus'|'getReindexWorkbenchStatus'} key
  * @param {Record<string, unknown>} [payload]
  */
+export async function invoke(cmd, args) {
+  const invokeFn = await loadTauriInvoke();
+  return args === undefined ? invokeFn(cmd) : invokeFn(cmd, args);
+}
+
 export async function invokeSearch(key, payload) {
   const resolved = resolveReindexInvoke(key, payload);
   if (!resolved) {

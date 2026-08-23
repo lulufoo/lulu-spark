@@ -387,6 +387,7 @@
         <button type="button" class="settings-nav-item" data-panel="knowledge">Knowledge</button>
         <button type="button" class="settings-nav-item" data-panel="llm">Assistant / Engine</button>
         <button type="button" class="settings-nav-item" data-panel="github">Sync</button>
+        <button type="button" class="settings-nav-item" data-panel="mcp">MCP</button>
       </nav>
       <div id="settings-panels">
         <div id="settings-panel-directories" class="settings-panel active">
@@ -534,6 +535,28 @@
               <button type="button" id="btn-settings-save-github" class="btn-settings-save">Save</button>
             </div>
           </div>
+        </div>
+        <div id="settings-panel-mcp" class="settings-panel">
+          <div class="settings-field">
+            <label for="settings-mcp-server-block">Cursor IDE server block</label>
+            <textarea id="settings-mcp-server-block" rows="8" spellcheck="false" autocomplete="off" readonly></textarea>
+            <span class="settings-field-hint">Generate copies a full server block for you to paste into Cursor. Host does not write that file.</span>
+          </div>
+          <div class="settings-panel-actions">
+            <button type="button" id="btn-settings-mcp-generate" class="btn-settings-save">Generate &amp; copy</button>
+            <button type="button" id="btn-settings-mcp-rotate" class="btn-settings-save">Rotate cursor_ide</button>
+          </div>
+          <div class="settings-field">
+            <label for="settings-mcp-revoke-slot">Revoke current ticket</label>
+            <div class="settings-connect-row">
+              <select id="settings-mcp-revoke-slot" aria-label="Slot to revoke">
+                <option value="cursor_ide">cursor_ide</option>
+                <option value="workbench">workbench</option>
+              </select>
+              <button type="button" id="btn-settings-mcp-revoke" class="btn-settings-save">Revoke</button>
+            </div>
+          </div>
+          <div id="settings-result-mcp" class="settings-result"></div>
         </div>
       </div>
     </div>
