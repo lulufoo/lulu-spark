@@ -1,75 +1,34 @@
-# ThemeTranscribe pipeline
+# ThemeTranscribe artifacts
 
-> Artifacts live under `<workspace>/.cache/theme-transcribe/<ts>-<slug>/`  
-> (`<workspace>` = Cursor workspace root / git top-level of the open project).
+Work root: `<workspace>/.cache/theme-transcribe/<ts>-<slug>/`.  
+Scripts own reads and writes. SKILL branches on `$TRANSCRIBE_CTL` JSON only.
 
----
-
-## Phase 1 · Transcribe
-
-**Goal:** source-language text with timestamps.
-
-**Acquire:** adapter + `scripts/transcribe.sh`.
-
-**Output format** (`01-transcript.<lang>.txt`), preferred:
+## Layout
 
 ```text
-[00:00:00 --> 00:00:12] First utterance…
-[00:00:12 --> 00:00:28] Next…
+media/source.*
+media/audio.wav
+logs/
+01-transcript.<lang>.txt
+01-transcript.<lang>.srt
+02-verbatim.<lang>.md
+03-dialogue-timed.<lang>.md
+03-time-segmented.<lang>.md
+meta.json
+corrections.json
+diarization.json
 ```
 
-Also accept Whisper `.srt` as source of truth; derive the `.txt` view if needed.
+`03-dialogue-timed` and `03-time-segmented` are alternatives. Install venvs stay under `~/.local/share/theme-transcribe/`.
 
-**Hard fail:** no timestamps.
+## Invariants
 
-**Language:** write detected / forced code into a one-line `meta.json`:
+1. `acquire` is the only Whisper call.
+2. `01-transcript` is read-only after acquire.
+3. `verbatim` keeps full coverage: no summary, no reorder, no drop.
+4. `route` labels existing time windows or falls back to time ranges.
+5. Chinese drafts are not written here.
 
-```json
-{ "language": "en", "model": "small", "source_url": "…" }
-```
+## Control stdout
 
----
-
-## Phase 2 · Subtopic split
-
-**Input:** `01-transcript.<lang>.txt` (and `.srt` if present).
-
-**Output:** `02-subtopics.<lang>.md`
-
-```markdown
-# <Title>
-
-## <Subtopic title>
-> 时间：MM:SS – MM:SS
-
-<body>
-
-## <Next subtopic>
-> 时间：MM:SS – MM:SS
-
-<body>
-```
-
-Rules:
-
-- Chronological section order.
-- Theme titles describe topics, not “intro / outro / Q&A mechanics” unless that is the topic.
-- Every body sentence must map to some timestamp span in Phase 1; no orphan claims.
-- Target roughly 3–12 sections for a ~10–20 min talk; scale with duration.
-
----
-
-## Phase 3 · Fluency
-
-**Input:** `02-subtopics.<lang>.md`  
-**Output:** `03-fluent.<lang>.md`
-
-Keep the same `##` sections and time ranges. Improve readability only.
-
----
-
-## Phase 4 · Archive / digest
-
-**Default ON.** Execute [`theme-archive`](../../theme-archive/SKILL.md) Embedded per [handoff-archive.md](handoff-archive.md).  
-Primary = fluent source only. **Do not** pre-translate. theme-archive `[AR-1b]` emits `-zh.md` when the body is full English.  
-Skip only if user opts out.
+`acquire` / `verbatim` / `route` each print one JSON object. Required on success: `ok`, `phase`. `route` also prints `mode`, `source_type`, `primary`, `speaker_count`, `turn_count`.

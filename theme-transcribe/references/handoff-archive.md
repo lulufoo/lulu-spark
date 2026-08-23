@@ -1,26 +1,26 @@
 # Handoff → theme-archive
 
-After fluency, **load and follow** [`theme-archive`](../../theme-archive/SKILL.md) in **Embedded** mode (do not re-implement archive or translation here).
+Load after `$TRANSCRIBE_CTL route`. Follow [`theme-archive`](../../theme-archive/SKILL.md) Embedded. Do not translate here.
 
 ## When
 
-- **Default:** run after `03-fluent.<lang>.md` is written.
-- **Skip:** user says 不归档 / skip archive / local only.
+- Default: after `route` stdout `ok` is true.
+- Skip: user says 不归档 / skip archive / local only.
 
-## Documents to pass
+## Payload
 
-| Role | File | Notes |
-|------|------|-------|
-| Primary | `03-fluent.<lang>.md` | Fluent **source** final; add archive header if missing |
+| Field | Source |
+|-------|--------|
+| Primary | `route` stdout `primary` (add archive header if missing) |
+| `source_type` | `route` stdout `source_type` (`dialogue` or `transcript`) |
+| `skip_translate` | only when the user forbids Chinese |
 
-**Do not** pass a zh attachment. theme-archive `[AR-1b]` decides.
-
-`source_type`: `summary` (unless user overrides).
+Do not pass `translations`. `content_constraint` is required when `source_type` is `dialogue`.
 
 ## Digest
 
-After `archive_document` succeeds, theme-archive **[AR-3]** runs shared digest. Theme-transcribe does **not** call `archive_digest` itself.
+theme-archive `[AR-3]` owns digest. Theme-transcribe does not call `archive_digest`.
 
 ## Revisions
 
-`archive_document` cannot overwrite existing `raw/` — new archive needs a new `ts` / path.
+New archive needs a new `ts` / path. `archive_document` does not overwrite `raw/`.

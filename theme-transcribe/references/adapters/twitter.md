@@ -12,7 +12,7 @@ Same as [generic-ytdlp.md](generic-ytdlp.md). yt-dlp Twitter extractor typically
 2. HLS / progressive media URL
 3. Fragment download
 
-Use `scripts/transcribe.sh` — do not hand-roll GraphQL calls.
+Use `$TRANSCRIBE_CTL acquire` — do not hand-roll GraphQL calls.
 
 ## Map
 

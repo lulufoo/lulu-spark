@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# ThemeTranscribe Phase 1: URL/file → timestamped Whisper transcript.
+# ThemeTranscribe acquire helper: URL/file → timestamped Whisper transcript.
+# Invoked by theme-transcribe-control.py acquire. Do not call schema from SKILL.
 # Usage: transcribe.sh <url-or-file> <work_dir> [whisper_model]
 # Stdout: result paths only. Tool noise → <work_dir>/logs/
 

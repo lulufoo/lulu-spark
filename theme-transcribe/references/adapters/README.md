@@ -1,6 +1,6 @@
-# Platform adapters — Phase 0 / Phase 1
+# Platform adapters — resolve / acquire
 
-> Phase 0 outputs `platform`; Phase 1 reads the matching adapter, then runs `scripts/transcribe.sh`.
+Phase 0 outputs `platform`. Load the matching adapter, then run `$TRANSCRIBE_CTL acquire`.
 
 ## Routing
 
@@ -8,9 +8,9 @@
 |---------------|------------|---------|
 | `x.com/*`, `twitter.com/*` | `twitter` | [twitter.md](twitter.md) |
 | `youtube.com/*`, `youtu.be/*` | `youtube` | [youtube.md](youtube.md) |
-| Other URL supported by yt-dlp, or local media path | `generic` | [generic-ytdlp.md](generic-ytdlp.md) |
+| Other yt-dlp URL, or local media path | `generic` | [generic-ytdlp.md](generic-ytdlp.md) |
 
-Unknown URL → try `generic`; if yt-dlp cannot extract, stop and ask user for a file or another URL.
+Unknown URL → try `generic`; if acquire `ok` is false, stop.
 
 ## Adapter doc structure
 

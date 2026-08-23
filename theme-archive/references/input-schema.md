@@ -28,7 +28,7 @@ content_constraint: "…"     # dialogue-* 写 digest 时必填
 |----------|-------------|
 | theme-fetch | `article` |
 | theme-line | `theme-line` |
-| theme-transcribe | `summary` |
+| theme-transcribe | `dialogue` or `transcript` (from route stdout) |
 | dialogue-summary | `summary` |
 | dialogue-archive | `dialogue` |
 
