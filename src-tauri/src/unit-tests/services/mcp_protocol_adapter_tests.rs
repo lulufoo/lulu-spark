@@ -8,13 +8,17 @@ use std::time::Duration;
 
 use super::*;
 use crate::services::local_http;
+use crate::services::mcp_oauth::{issue_for_slot, revoke_for_slot, Slot, TicketHandle};
 use crate::test_support::TestSandbox;
 use rmcp::{
     ServiceExt,
     model::{
         CallToolRequestParams, ClientCapabilities, ClientInfo, Implementation,
     },
-    transport::StreamableHttpClientTransport,
+    transport::{
+        StreamableHttpClientTransport,
+        streamable_http_client::StreamableHttpClientTransportConfig,
+    },
 };
 
 fn ephemeral_port() -> u16 {
@@ -37,17 +41,31 @@ fn http_get(url: &str) -> (u16, String) {
 }
 
 fn http_post_json(url: &str, body: &str) -> (u16, String, Option<String>) {
+    http_post_json_auth(url, body, None, None)
+}
+
+fn http_post_json_auth(
+    url: &str,
+    body: &str,
+    authorization: Option<&str>,
+    session_id: Option<&str>,
+) -> (u16, String, Option<String>) {
     let client = reqwest::blocking::Client::builder()
         .timeout(Duration::from_secs(2))
         .build()
         .expect("http client");
-    let response = client
+    let mut request = client
         .post(url)
         .header("Content-Type", "application/json")
         .header("Accept", "application/json, text/event-stream")
-        .body(body.to_string())
-        .send()
-        .expect("POST");
+        .body(body.to_string());
+    if let Some(authorization) = authorization {
+        request = request.header("Authorization", authorization);
+    }
+    if let Some(session_id) = session_id {
+        request = request.header("mcp-session-id", session_id);
+    }
+    let response = request.send().expect("POST");
     let status = response.status().as_u16();
     let session = response
         .headers()
@@ -56,6 +74,99 @@ fn http_post_json(url: &str, body: &str) -> (u16, String, Option<String>) {
         .map(|s| s.to_string());
     let body = response.text().expect("body");
     (status, body, session)
+}
+
+fn login_home() -> Option<String> {
+    std::env::var("USER").ok().and_then(|user| {
+        let path = format!("/Users/{user}");
+        std::path::Path::new(&path).is_dir().then_some(path)
+    })
+}
+
+fn with_login_home<T>(f: impl FnOnce() -> T) -> T {
+    let Some(login) = login_home() else {
+        return f();
+    };
+    if std::env::var("TestSandbox").is_err() {
+        return f();
+    }
+    let previous = std::env::var("HOME").ok();
+    unsafe { std::env::set_var("HOME", &login) };
+    let result = f();
+    unsafe {
+        match previous {
+            Some(home) => std::env::set_var("HOME", home),
+            None => std::env::remove_var("HOME"),
+        }
+    };
+    result
+}
+
+fn issue_live_ticket(slot: &str) -> TicketHandle {
+    with_login_home(|| {
+        issue_for_slot(Slot::parse(slot).expect("registered slot")).expect("issue live ticket")
+    })
+}
+
+fn bearer(ticket: &TicketHandle) -> String {
+    format!("Bearer {}", ticket.as_str())
+}
+
+fn authed_transport_config(
+    url: String,
+    ticket: &TicketHandle,
+) -> StreamableHttpClientTransportConfig {
+    StreamableHttpClientTransportConfig::with_uri(url).auth_header(ticket.as_str().to_string())
+}
+
+async fn run_initialize_and_list_tools_authed(
+    port: u16,
+    slot: &str,
+    ticket: &TicketHandle,
+) -> Result<Vec<String>, CloseGateError> {
+    let url = format!("http://127.0.0.1:{port}/mcp/{slot}");
+    let transport = StreamableHttpClientTransport::from_config(authed_transport_config(url, ticket));
+    let client_info = ClientInfo::new(
+        ClientCapabilities::default(),
+        Implementation::new("host-close-gate", "0.1.0"),
+    );
+    let client = client_info
+        .serve(transport)
+        .await
+        .map_err(|e| CloseGateError::InitializeFailed(format!("{e:#}")))?;
+    let tools = client
+        .list_tools(Default::default())
+        .await
+        .map_err(|e| CloseGateError::ToolsListFailed(format!("{e:#}")))?;
+    let names: Vec<String> = tools.tools.iter().map(|t| t.name.to_string()).collect();
+    let _ = client.cancel().await;
+    Ok(names)
+}
+
+fn assert_uniform_401(status: u16, body: &str, secret: Option<&str>) {
+    assert_eq!(
+        status, 401,
+        "registered slot must 401 without distinction, body={body}"
+    );
+    if let Some(secret) = secret {
+        assert!(!secret.is_empty(), "ticket secret must be non-empty");
+        assert!(!body.contains(secret), "401 must not write ticket secret");
+    }
+    let lower = body.to_ascii_lowercase();
+    assert!(
+        !(lower.contains("authorization:")
+            && lower.contains("bearer ")
+            && !lower.contains("[redacted]")),
+        "401 must not write full Authorization, body={body}"
+    );
+    assert!(
+        !body.contains("keychain_unavailable"),
+        "401 must not expose keychain_unavailable"
+    );
+    assert!(
+        !body.contains("\"rejected\""),
+        "401 must not expose rejected"
+    );
 }
 
 /// Corpus tools from Node `buildServer()` when `includeCorpus` is true.
@@ -196,6 +307,8 @@ fn streamable_http_nested_under_mcp_scene_slot_is_reachable() {
     let nest_path = "/mcp/workbench";
     let handle = start_mcp_listener(bind_addr).expect("start nested MCP scaffold");
     let local = handle.local_addr();
+    let ticket = issue_live_ticket(WORKBENCH_SLOT);
+    let auth = bearer(&ticket);
 
     // Minimal HTTP probe: a POST to the nested MCP path must get an HTTP response
     // (status line), proving the nest mount is live — not connection-refused / bare TCP.
@@ -206,7 +319,7 @@ fn streamable_http_nested_under_mcp_scene_slot_is_reachable() {
         .expect("read timeout");
     let body = r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"t1-scaffold","version":"0.0.1"}}}"#;
     let req = format!(
-        "POST {nest_path} HTTP/1.1\r\nHost: 127.0.0.1:{}\r\nContent-Type: application/json\r\nAccept: application/json, text/event-stream\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+        "POST {nest_path} HTTP/1.1\r\nHost: 127.0.0.1:{}\r\nContent-Type: application/json\r\nAccept: application/json, text/event-stream\r\nAuthorization: {auth}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
         local.port(),
         body.len()
     );
@@ -481,12 +594,12 @@ fn mcp_tools_list_publishes_descriptions_schemas_and_mutation_hints() {
         .build()
         .expect("tokio");
 
-    let list_tools = |slot: &str| {
+    let list_tools = |slot: &str, ticket: TicketHandle| {
         let slot = slot.to_string();
         let port = local.port();
         async move {
             let url = format!("http://127.0.0.1:{port}/mcp/{slot}");
-            let transport = StreamableHttpClientTransport::from_uri(url);
+            let transport = StreamableHttpClientTransport::from_config(authed_transport_config(url, &ticket));
             let client = ClientInfo::new(
                 ClientCapabilities::default(),
                 Implementation::new("tool-contract-test", "0.1.0"),
@@ -500,7 +613,8 @@ fn mcp_tools_list_publishes_descriptions_schemas_and_mutation_hints() {
         }
     };
 
-    let workbench_tools = rt.block_on(list_tools(WORKBENCH_SLOT));
+    let workbench_ticket = issue_live_ticket(WORKBENCH_SLOT);
+    let workbench_tools = rt.block_on(list_tools(WORKBENCH_SLOT, workbench_ticket.clone()));
     assert_eq!(
         workbench_tools.len(),
         workbench_expected_tool_names().len(),
@@ -550,7 +664,7 @@ fn mcp_tools_list_publishes_descriptions_schemas_and_mutation_hints() {
         "Todo creation must be identified as mutating"
     );
 
-    let notes_tools = rt.block_on(list_tools(WORKBENCH_SLOT));
+    let notes_tools = rt.block_on(list_tools(WORKBENCH_SLOT, workbench_ticket));
     assert_eq!(
         notes_tools.len(),
         workbench_expected_tool_names().len(),
@@ -692,13 +806,21 @@ fn registered_scene_slots_accept_initialize_http() {
 
     let init = r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"t3-registered","version":"0.0.1"}}}"#;
     for slot in [WORKBENCH_SLOT, CURSOR_IDE_SLOT] {
-        let (status, body, _) = http_post_json(
+        let ticket = issue_live_ticket(slot);
+        let auth = bearer(&ticket);
+        let (status, body, _) = http_post_json_auth(
             &format!("http://127.0.0.1:{}/mcp/{slot}", local.port()),
             init,
+            Some(&auth),
+            None,
         );
         assert_ne!(
             status, 404,
             "registered slot {slot} must not hard-reject, body={body}"
+        );
+        assert_ne!(
+            status, 401,
+            "registered slot {slot} holding a Live ticket must not 401, body={body}"
         );
         if let Ok(json) = serde_json::from_str::<serde_json::Value>(&body) {
             assert_ne!(
@@ -936,35 +1058,34 @@ fn start_close_gate_dual_listen() -> (local_http::LocalHttpHandle, McpRuntimeHan
 #[test]
 fn close_gate_smoke_initialize_list_passes_v5_dual_listen_and_session() {
     let (http_handle, mcp_handle) = start_close_gate_dual_listen();
+    let ticket = issue_live_ticket(WORKBENCH_SLOT);
 
-    let report = close_gate_smoke_initialize_list(WORKBENCH_SLOT)
+    let dual_listen_observed = observe_dual_listen(CLOSE_GATE_MCP_PORT, CLOSE_GATE_SIDECAR_PORT)
+        .expect("P1 close gate must observe dual listen");
+    let rt = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .expect("tokio");
+    let tool_names = rt
+        .block_on(run_initialize_and_list_tools_authed(
+            CLOSE_GATE_MCP_PORT,
+            WORKBENCH_SLOT,
+            &ticket,
+        ))
         .expect("P1 close gate must pass before Node spawn hard-cut");
 
     assert!(
-        report.dual_listen_observed,
-        "same-process :9876 + :8765 must be observable, report={report:?}"
-    );
-    assert_eq!(report.mcp_port, CLOSE_GATE_MCP_PORT);
-    assert_eq!(report.sidecar_port, CLOSE_GATE_SIDECAR_PORT);
-    assert!(
-        report.initialize_ok,
-        "Streamable HTTP initialize must succeed on registered slot"
+        dual_listen_observed,
+        "same-process :9876 + :8765 must be observable"
     );
     assert!(
-        report.tools_list_ok,
-        "tools/list must succeed on registered slot after initialize"
-    );
-    assert!(
-        !report.tool_names.is_empty(),
+        !tool_names.is_empty(),
         "tools/list must return at least one tool name"
     );
     assert!(
-        report
-            .tool_names
-            .iter()
-            .any(|n| n == "list_todo_categories"),
+        tool_names.iter().any(|n| n == "list_todo_categories"),
         "workbench tools/list must include list_todo_categories, got {:?}",
-        report.tool_names
+        tool_names
     );
 
     stop_embedded_mcp_runtime(mcp_handle).expect("stop MCP");
@@ -995,9 +1116,20 @@ fn health_success_is_not_session_level_close_gate_proof() {
         "health body must not embed tools/list names"
     );
 
-    let report = close_gate_smoke_initialize_list(WORKBENCH_SLOT).expect("session close gate");
+    let ticket = issue_live_ticket(WORKBENCH_SLOT);
+    let rt = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .expect("tokio");
+    let tool_names = rt
+        .block_on(run_initialize_and_list_tools_authed(
+            CLOSE_GATE_MCP_PORT,
+            WORKBENCH_SLOT,
+            &ticket,
+        ))
+        .expect("session close gate");
     assert!(
-        report.tools_list_ok && !report.tool_names.is_empty(),
+        !tool_names.is_empty(),
         "session initialize+tools/list is the close-gate proof, not /health alone"
     );
 
@@ -1100,10 +1232,12 @@ fn p3_t10_host_dual_slot_list_call_and_unknown_hard_fail_smoke() {
         .build()
         .expect("tokio");
 
+    let workbench_ticket = issue_live_ticket(WORKBENCH_SLOT);
     let workbench_names = rt
-        .block_on(super::run_initialize_and_list_tools(
+        .block_on(run_initialize_and_list_tools_authed(
             CLOSE_GATE_MCP_PORT,
             WORKBENCH_SLOT,
+            &workbench_ticket,
         ))
         .expect("workbench tools/list on Host :9876");
     for tool in ["list_todo_tasks", "create_todo_task", NOTES_SELECTION_TOOL] {
@@ -1119,10 +1253,12 @@ fn p3_t10_host_dual_slot_list_call_and_unknown_hard_fail_smoke() {
         );
     }
 
+    let ide_ticket = issue_live_ticket(CURSOR_IDE_SLOT);
     let ide_names = rt
-        .block_on(super::run_initialize_and_list_tools(
+        .block_on(run_initialize_and_list_tools_authed(
             CLOSE_GATE_MCP_PORT,
             CURSOR_IDE_SLOT,
+            &ide_ticket,
         ))
         .expect("cursor_ide tools/list on Host :9876");
     for tool in CORPUS_TOOLS {
@@ -1143,11 +1279,12 @@ fn p3_t10_host_dual_slot_list_call_and_unknown_hard_fail_smoke() {
     async fn list_and_call(
         port: u16,
         slot: &str,
+        ticket: &TicketHandle,
         tool: &str,
         args: serde_json::Value,
     ) -> Result<(Vec<String>, bool, String), String> {
         let url = format!("http://127.0.0.1:{port}/mcp/{slot}");
-        let transport = StreamableHttpClientTransport::from_uri(url);
+        let transport = StreamableHttpClientTransport::from_config(authed_transport_config(url, ticket));
         let client_info = ClientInfo::new(
             ClientCapabilities::default(),
             Implementation::new("t10-host-smoke", "0.1.0"),
@@ -1183,6 +1320,7 @@ fn p3_t10_host_dual_slot_list_call_and_unknown_hard_fail_smoke() {
         .block_on(list_and_call(
             CLOSE_GATE_MCP_PORT,
             WORKBENCH_SLOT,
+            &workbench_ticket,
             "list_todo_tasks",
             serde_json::json!({}),
         ))
@@ -1196,6 +1334,7 @@ fn p3_t10_host_dual_slot_list_call_and_unknown_hard_fail_smoke() {
         .block_on(list_and_call(
             CLOSE_GATE_MCP_PORT,
             "cursor_ide",
+            &ide_ticket,
             "get_corpus_catalog",
             serde_json::json!({"mode": "latest_per_topic"}),
         ))
@@ -1395,14 +1534,22 @@ fn workbench_scene_slot_initialize_lists_union_plus_selection() {
     let handle = start_embedded_mcp_runtime(McpRuntimeConfig { bind_addr }).expect("start");
     let local = handle.local_addr();
 
+    let ticket = issue_live_ticket(WORKBENCH_SLOT);
+    let auth = bearer(&ticket);
     let init = r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"t3-workbench","version":"0.0.1"}}}"#;
-    let (status, body, _) = http_post_json(
+    let (status, body, _) = http_post_json_auth(
         &format!("http://127.0.0.1:{}/mcp/workbench", local.port()),
         init,
+        Some(&auth),
+        None,
     );
     assert_ne!(
         status, 404,
         "registered workbench slot must not hard-reject, body={body}"
+    );
+    assert_ne!(
+        status, 401,
+        "registered workbench slot holding a Live ticket must not 401, body={body}"
     );
 
     let rt = tokio::runtime::Builder::new_current_thread()
@@ -1410,7 +1557,11 @@ fn workbench_scene_slot_initialize_lists_union_plus_selection() {
         .build()
         .expect("tokio");
     let names = rt
-        .block_on(super::run_initialize_and_list_tools(local.port(), WORKBENCH_SLOT))
+        .block_on(run_initialize_and_list_tools_authed(
+            local.port(),
+            WORKBENCH_SLOT,
+            &ticket,
+        ))
         .expect("workbench tools/list");
     let got: BTreeSet<_> = names.iter().map(String::as_str).collect();
     let expected = workbench_expected_tool_names();
@@ -1531,6 +1682,281 @@ fn p4_unregistered_and_old_app_slots_still_hard_reject() {
         );
     }
 
+    stop_embedded_mcp_runtime(handle).expect("stop");
+}
+
+fn start_ephemeral_mcp() -> McpRuntimeHandle {
+    let port = ephemeral_port();
+    let bind_addr: SocketAddr = format!("127.0.0.1:{port}").parse().expect("bind addr");
+    start_embedded_mcp_runtime(McpRuntimeConfig { bind_addr }).expect("start")
+}
+
+fn initialize_body(name: &str) -> String {
+    format!(
+        r#"{{"jsonrpc":"2.0","id":1,"method":"initialize","params":{{"protocolVersion":"2025-03-26","capabilities":{{}},"clientInfo":{{"name":"{name}","version":"0.0.1"}}}}}}"#
+    )
+}
+
+/// Normal: registered workbench slot holding that slot's Live ticket enters Streamable HTTP.
+#[test]
+fn registered_workbench_live_ticket_enters_streamable_http() {
+    let handle = start_ephemeral_mcp();
+    let ticket = issue_live_ticket(WORKBENCH_SLOT);
+    let auth = bearer(&ticket);
+    let (status, body, session) = http_post_json_auth(
+        &format!("http://127.0.0.1:{}/mcp/workbench", handle.local_addr().port()),
+        &initialize_body("t2-workbench-live"),
+        Some(&auth),
+        None,
+    );
+    assert_ne!(status, 401, "Live workbench ticket must enter StreamableHttpService, body={body}");
+    assert_ne!(status, 404, "registered workbench must not 404, body={body}");
+    let _ = session;
+    let names = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .expect("tokio")
+        .block_on(run_initialize_and_list_tools_authed(
+            handle.local_addr().port(),
+            WORKBENCH_SLOT,
+            &ticket,
+        ))
+        .expect("tools/list with Live ticket");
+    assert!(
+        names.iter().any(|n| n == "list_todo_categories"),
+        "workbench tools/list must remain available, got {names:?}"
+    );
+    stop_embedded_mcp_runtime(handle).expect("stop");
+}
+
+/// Normal: registered cursor_ide slot holding that slot's Live ticket is admitted.
+#[test]
+fn registered_cursor_ide_live_ticket_enters_streamable_http() {
+    let handle = start_ephemeral_mcp();
+    let ticket = issue_live_ticket(CURSOR_IDE_SLOT);
+    let names = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .expect("tokio")
+        .block_on(run_initialize_and_list_tools_authed(
+            handle.local_addr().port(),
+            CURSOR_IDE_SLOT,
+            &ticket,
+        ))
+        .expect("cursor_ide tools/list with Live ticket");
+    assert!(
+        names.iter().any(|n| n == "get_corpus_catalog"),
+        "cursor_ide tools/list must remain available, got {names:?}"
+    );
+    stop_embedded_mcp_runtime(handle).expect("stop");
+}
+
+/// Normal: GET /health stays exempt, does not consult the ledger, and keeps ok + non-empty mcp.
+#[test]
+fn get_health_is_exempt_and_does_not_consult_ledger() {
+    let _ = revoke_for_slot(Slot::Workbench);
+    let _ = revoke_for_slot(Slot::CursorIde);
+    let handle = start_ephemeral_mcp();
+    let (status, body) = http_get(&format!(
+        "http://127.0.0.1:{}/health",
+        handle.local_addr().port()
+    ));
+    assert_eq!(status, 200, "health must stay 200 without a ticket, body={body}");
+    let json: serde_json::Value = serde_json::from_str(&body).expect("health JSON");
+    assert_eq!(json.get("ok"), Some(&serde_json::Value::Bool(true)));
+    let mcp = json.get("mcp").and_then(|v| v.as_str()).unwrap_or("");
+    assert!(!mcp.trim().is_empty(), "health mcp field must stay non-empty, got {json}");
+
+    let health_fn = source_fn_after(adapter_source(), "health_json")
+        .split("async fn bare_mcp_reject")
+        .next()
+        .expect("health_json body");
+    assert!(
+        !health_fn.contains("verify_for_slot") && !health_fn.contains("ledger_record"),
+        "GET /health must not verify or read the ledger"
+    );
+    stop_embedded_mcp_runtime(handle).expect("stop");
+}
+
+/// Normal: adapter only consumes verify_for_slot; it never issues tickets.
+#[test]
+fn adapter_only_calls_verify_for_slot_and_never_issues() {
+    let src = adapter_source();
+    assert!(
+        src.contains("verify_for_slot"),
+        "adapter must call verify_for_slot"
+    );
+    assert!(
+        !src.contains("issue_for_slot"),
+        "adapter must not issue tickets"
+    );
+    assert!(
+        !src.contains("rotate_for_slot"),
+        "adapter must not rotate tickets"
+    );
+}
+
+/// Boundary: unknown slot and bare /mcp stay 404 without ledger lookup, session, or verify.
+#[test]
+fn unknown_and_bare_mcp_stay_404_without_ledger_or_verify() {
+    let ticket = issue_live_ticket(WORKBENCH_SLOT);
+    let auth = bearer(&ticket);
+    let handle = start_ephemeral_mcp();
+    let port = handle.local_addr().port();
+    let init = initialize_body("t2-unknown-bare");
+
+    for (url, expect_error) in [
+        (format!("http://127.0.0.1:{port}/mcp/__unknown__"), "unknown_scene_slot"),
+        (format!("http://127.0.0.1:{port}/mcp"), "scene_slot_required"),
+    ] {
+        let (status, body, session) = http_post_json_auth(&url, &init, Some(&auth), None);
+        assert_eq!(status, 404, "must stay 404 without entering verify, body={body}");
+        let json: serde_json::Value = serde_json::from_str(&body).expect("reject JSON");
+        assert_eq!(
+            json.get("error").and_then(|v| v.as_str()),
+            Some(expect_error),
+            "reject body={body}"
+        );
+        assert!(session.is_none(), "must not create an MCP session, url={url}");
+    }
+
+    let src = adapter_source();
+    for (fn_name, stop) in [
+        ("bare_mcp_reject", "async fn unknown_scene_slot_reject"),
+        ("unknown_scene_slot_reject", "fn mount_slot_service"),
+    ] {
+        let body = source_fn_after(src, fn_name)
+            .split(stop)
+            .next()
+            .unwrap_or_else(|| panic!("{fn_name} body"));
+        assert!(
+            !body.contains("verify_for_slot") && !body.contains("ledger_record"),
+            "{fn_name} must not consult the ledger"
+        );
+    }
+    stop_embedded_mcp_runtime(handle).expect("stop");
+}
+
+/// Boundary: every registered-slot HTTP request must carry Authorization; a session cannot replace the ticket.
+#[test]
+fn registered_slot_session_cannot_replace_ticket() {
+    let handle = start_ephemeral_mcp();
+    let ticket = issue_live_ticket(WORKBENCH_SLOT);
+    let auth = bearer(&ticket);
+    let url = format!(
+        "http://127.0.0.1:{}/mcp/workbench",
+        handle.local_addr().port()
+    );
+    let (status, body, _) = http_post_json_auth(
+        &url,
+        &initialize_body("t2-session-not-ticket"),
+        Some(&auth),
+        None,
+    );
+    assert_ne!(status, 401, "first authed request must pass, body={body}");
+
+    let (status, body, _) = http_post_json_auth(
+        &url,
+        &initialize_body("t2-session-only"),
+        None,
+        Some("session-is-not-a-ticket"),
+    );
+    assert_uniform_401(status, &body, None);
+    stop_embedded_mcp_runtime(handle).expect("stop");
+}
+
+/// Boundary: verify is cut before StreamableHttpService — no session without a ticket.
+#[test]
+fn verify_is_cut_before_streamable_http_service() {
+    let src = adapter_source();
+    assert!(
+        src.contains("verify_for_slot"),
+        "adapter must call verify_for_slot on registered slots"
+    );
+    let mount = source_fn_after(src, "mount_slot_service")
+        .split("fn build_router")
+        .next()
+        .expect("mount_slot_service body");
+    assert!(
+        mount.contains("nest_service") || mount.contains("StreamableHttpService"),
+        "registered slots still nest StreamableHttpService after the door"
+    );
+
+    let handle = start_ephemeral_mcp();
+    let (status, body, session) = http_post_json(
+        &format!(
+            "http://127.0.0.1:{}/mcp/workbench",
+            handle.local_addr().port()
+        ),
+        &initialize_body("t2-before-nest"),
+    );
+    assert_uniform_401(status, &body, None);
+    assert!(
+        session.is_none(),
+        "verify must reject before StreamableHttpService mints a session"
+    );
+    stop_embedded_mcp_runtime(handle).expect("stop");
+}
+
+/// Exception: missing, unknown, cross-slot, and revoked tickets are all 401.
+#[test]
+fn registered_slot_missing_unknown_mismatch_revoked_are_uniform_401() {
+    let handle = start_ephemeral_mcp();
+    let port = handle.local_addr().port();
+    let workbench_url = format!("http://127.0.0.1:{port}/mcp/workbench");
+    let ide_url = format!("http://127.0.0.1:{port}/mcp/cursor_ide");
+    let init = initialize_body("t2-reject-cases");
+
+    let (status, body, session) = http_post_json(&workbench_url, &init);
+    assert_uniform_401(status, &body, None);
+    assert!(session.is_none(), "no-ticket request must not mint a session");
+
+    let missing = TicketHandle::from_secret("no-such-ticket");
+    let missing_auth = bearer(&missing);
+    let (status, body, _) =
+        http_post_json_auth(&workbench_url, &init, Some(&missing_auth), None);
+    assert_uniform_401(status, &body, Some(missing.as_str()));
+
+    let workbench = issue_live_ticket(WORKBENCH_SLOT);
+    let workbench_auth = bearer(&workbench);
+    let (status, body, _) = http_post_json_auth(&ide_url, &init, Some(&workbench_auth), None);
+    assert_uniform_401(status, &body, Some(workbench.as_str()));
+
+    let live = issue_live_ticket(CURSOR_IDE_SLOT);
+    revoke_for_slot(Slot::CursorIde).expect("revoke");
+    let revoked_auth = bearer(&live);
+    let (status, body, _) = http_post_json_auth(&ide_url, &init, Some(&revoked_auth), None);
+    assert_uniform_401(status, &body, Some(live.as_str()));
+
+    stop_embedded_mcp_runtime(handle).expect("stop");
+}
+
+/// Exception: both rejected and keychain_unavailable map to 401 with no reason leak.
+#[test]
+fn rejected_and_keychain_unavailable_both_map_to_401() {
+    let src = adapter_source();
+    assert!(
+        src.contains("keychain_unavailable"),
+        "door must handle verify_for_slot keychain_unavailable as 401"
+    );
+    assert!(
+        src.contains("OAuthError::rejected") || src.contains("rejected"),
+        "door must handle verify_for_slot rejected as 401"
+    );
+    assert!(
+        src.contains("UNAUTHORIZED") || src.contains("401"),
+        "both verify failures must map to HTTP 401"
+    );
+
+    let handle = start_ephemeral_mcp();
+    let (status, body, _) = http_post_json(
+        &format!(
+            "http://127.0.0.1:{}/mcp/workbench",
+            handle.local_addr().port()
+        ),
+        &initialize_body("t2-rejected-401"),
+    );
+    assert_uniform_401(status, &body, None);
     stop_embedded_mcp_runtime(handle).expect("stop");
 }
 

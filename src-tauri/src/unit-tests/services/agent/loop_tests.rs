@@ -16,6 +16,7 @@ use crate::services::agent::llm::LlmConfig;
 use crate::services::agent::r#loop::{self, Terminal, TurnOutcome, EVENT_TURN_COMPLETED};
 use crate::services::agent::session::{self, Turn};
 use crate::services::agent::PLAN_ASSISTANT_SYSTEM_PROMPT;
+use crate::services::mcp_oauth::{issue_for_slot, Slot};
 use crate::services::mcp_protocol_adapter::{
     start_embedded_mcp_runtime_with_sidecar, stop_embedded_mcp_runtime, McpRuntimeConfig,
 };
@@ -58,6 +59,32 @@ fn start_isolated_mcp(
     (sidecar, mcp, mcp_port)
 }
 
+fn bearer_headers_for_slot(scene: &str) -> BTreeMap<String, String> {
+    let ticket = {
+        let previous = std::env::var("HOME").ok();
+        let login = std::env::var("USER").ok().map(|user| format!("/Users/{user}"));
+        if std::env::var("TestSandbox").is_ok() {
+            if let Some(login) = login.as_deref() {
+                unsafe { std::env::set_var("HOME", login) };
+            }
+        }
+        let issued = issue_for_slot(Slot::parse(scene).expect("registered slot")).expect("issue ticket");
+        if std::env::var("TestSandbox").is_ok() {
+            unsafe {
+                match previous {
+                    Some(home) => std::env::set_var("HOME", home),
+                    None => std::env::remove_var("HOME"),
+                }
+            };
+        }
+        issued
+    };
+    BTreeMap::from([(
+        "Authorization".to_string(),
+        format!("Bearer {}", ticket.as_str()),
+    )])
+}
+
 fn register_test_mcp(scene: &str, mcp_port: u16) {
     mcp_server_registry::register(
         scene,
@@ -66,7 +93,7 @@ fn register_test_mcp(scene: &str, mcp_port: u16) {
             http_transport: HttpMcpTransport {
                 name: format!("{scene}-test"),
                 url: format!("http://127.0.0.1:{mcp_port}/mcp/{scene}"),
-                headers: BTreeMap::new(),
+                headers: bearer_headers_for_slot(scene),
             },
         },
     )
@@ -332,7 +359,7 @@ fn run_loop_uses_notes_mcp_tools_and_feeds_tool_result_back_to_model() {
             http_transport: HttpMcpTransport {
                 name: "workbench-test".into(),
                 url: format!("http://127.0.0.1:{mcp_port}/mcp/workbench"),
-                headers: BTreeMap::new(),
+                headers: bearer_headers_for_slot("workbench"),
             },
         },
     )
@@ -421,7 +448,7 @@ fn run_loop_marks_successful_todo_mcp_mutation_as_wrote() {
             http_transport: HttpMcpTransport {
                 name: "workbench-test".into(),
                 url: format!("http://127.0.0.1:{mcp_port}/mcp/workbench"),
-                headers: BTreeMap::new(),
+                headers: bearer_headers_for_slot("workbench"),
             },
         },
     )

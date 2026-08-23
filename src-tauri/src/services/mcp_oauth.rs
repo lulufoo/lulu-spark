@@ -111,13 +111,7 @@ pub fn issue_for_slot(slot: Slot) -> Result<TicketHandle, OAuthError> {
             return Ok(record.handle);
         }
     }
-    let handle = new_handle();
-    write_record(&LedgerRecord {
-        slot,
-        handle: handle.clone(),
-        state: TicketState::Live,
-    })?;
-    Ok(handle)
+    persist_live(slot)
 }
 
 pub fn verify_for_slot(slot: Slot, handle: TicketHandle) -> Result<(), OAuthError> {
@@ -142,13 +136,7 @@ pub fn rotate_for_slot(slot: Slot) -> Result<TicketHandle, OAuthError> {
     if slot != Slot::CursorIde {
         return Err(OAuthError::rejected);
     }
-    let handle = new_handle();
-    write_record(&LedgerRecord {
-        slot,
-        handle: handle.clone(),
-        state: TicketState::Live,
-    })?;
-    Ok(handle)
+    persist_live(slot)
 }
 
 pub fn ledger_record(slot: Slot) -> Result<Option<LedgerRecord>, OAuthError> {
@@ -184,8 +172,35 @@ fn ensure_keychain_available() -> Result<(), OAuthError> {
 
 fn keychain_entry(slot: Slot) -> Result<keyring::Entry, OAuthError> {
     ensure_keychain_available()?;
+    #[cfg(test)]
+    expose_login_keychain_under_sandbox_home();
     keyring::Entry::new(keyring_service(), slot.as_str())
         .map_err(|_| OAuthError::keychain_unavailable)
+}
+
+#[cfg(test)]
+fn expose_login_keychain_under_sandbox_home() {
+    if std::env::var("TestSandbox").is_err() {
+        return;
+    }
+    let Ok(sandbox_home) = std::env::var("HOME") else {
+        return;
+    };
+    let Ok(user) = std::env::var("USER") else {
+        return;
+    };
+    let login = std::path::PathBuf::from(format!("/Users/{user}/Library/Keychains"));
+    if !login.is_dir() {
+        return;
+    }
+    let dest = std::path::PathBuf::from(sandbox_home).join("Library/Keychains");
+    if dest.exists() {
+        return;
+    }
+    if let Some(parent) = dest.parent() {
+        let _ = std::fs::create_dir_all(parent);
+    }
+    let _ = std::os::unix::fs::symlink(login, dest);
 }
 
 fn read_record(slot: Slot) -> Result<Option<LedgerRecord>, OAuthError> {
@@ -195,6 +210,16 @@ fn read_record(slot: Slot) -> Result<Option<LedgerRecord>, OAuthError> {
         Err(keyring::Error::NoEntry) => Ok(None),
         Err(_) => Err(OAuthError::keychain_unavailable),
     }
+}
+
+fn persist_live(slot: Slot) -> Result<TicketHandle, OAuthError> {
+    let handle = new_handle();
+    write_record(&LedgerRecord {
+        slot,
+        handle: handle.clone(),
+        state: TicketState::Live,
+    })?;
+    Ok(handle)
 }
 
 fn write_record(record: &LedgerRecord) -> Result<(), OAuthError> {

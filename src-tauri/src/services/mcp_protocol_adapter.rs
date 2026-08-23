@@ -11,9 +11,10 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use std::thread::{self, JoinHandle};
 
-use axum::extract::Path;
-use axum::http::{header, StatusCode};
-use axum::response::IntoResponse;
+use axum::extract::{Path, Request, State};
+use axum::http::{header, HeaderMap, StatusCode};
+use axum::middleware::{self, Next};
+use axum::response::{IntoResponse, Response};
 use axum::routing::{any, get};
 use axum::Router;
 use rmcp::{
@@ -36,6 +37,7 @@ use serde_json::{json, Value};
 use tokio_util::sync::CancellationToken;
 
 use super::local_http;
+use super::mcp_oauth::{verify_for_slot, OAuthError, Slot, TicketHandle};
 
 /// Default Sidecar loopback base (Host tiny_http `:8765`).
 pub const DEFAULT_SIDECAR_BASE_URL: &str = "http://127.0.0.1:8765";
@@ -862,7 +864,10 @@ fn mount_slot_service(
             Arc::new(LocalSessionManager::default()),
             StreamableHttpServerConfig::default().with_cancellation_token(cancel),
         );
-    router.nest_service(&format!("/mcp/{scene_slot}"), service)
+    let gated = Router::new()
+        .fallback_service(service)
+        .layer(middleware::from_fn_with_state(scene_slot, slot_bearer_gate));
+    router.nest_service(&format!("/mcp/{scene_slot}"), gated)
 }
 
 fn build_router(port: u16, cancel: CancellationToken, sidecar_base_url: String) -> Router {
@@ -877,6 +882,41 @@ fn build_router(port: u16, cancel: CancellationToken, sidecar_base_url: String) 
 
     // Unregistered `/mcp/<scene_slot>`: HTTP 404 JSON only — no LocalSessionManager / MCP session.
     router.route("/mcp/{scene_slot}", any(unknown_scene_slot_reject))
+}
+
+fn bearer_secret(headers: &HeaderMap) -> Option<&str> {
+    let value = headers.get(header::AUTHORIZATION)?.to_str().ok()?;
+    value
+        .strip_prefix("Bearer ")
+        .or_else(|| value.strip_prefix("bearer "))
+        .map(str::trim)
+        .filter(|secret| !secret.is_empty())
+}
+
+fn verify_registered_slot(scene_slot: &str, headers: &HeaderMap) -> Result<(), StatusCode> {
+    let slot = Slot::parse(scene_slot).map_err(|_| StatusCode::UNAUTHORIZED)?;
+    let Some(secret) = bearer_secret(headers) else {
+        return Err(StatusCode::UNAUTHORIZED);
+    };
+    match verify_for_slot(slot, TicketHandle::from_secret(secret)) {
+        Ok(()) => Ok(()),
+        Err(OAuthError::rejected) | Err(OAuthError::keychain_unavailable) => {
+            Err(StatusCode::UNAUTHORIZED)
+        }
+        Err(OAuthError::slot_unknown) => Err(StatusCode::UNAUTHORIZED),
+    }
+}
+
+async fn slot_bearer_gate(
+    State(scene_slot): State<&'static str>,
+    request: Request,
+    next: Next,
+) -> Response {
+    match verify_registered_slot(scene_slot, request.headers()) {
+        Ok(()) => next.run(request).await,
+        Err(StatusCode::UNAUTHORIZED) => StatusCode::UNAUTHORIZED.into_response(),
+        Err(status) => status.into_response(),
+    }
 }
 
 fn fetch_json_ok(
