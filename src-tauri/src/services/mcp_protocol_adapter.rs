@@ -912,11 +912,10 @@ async fn slot_bearer_gate(
     request: Request,
     next: Next,
 ) -> Response {
-    match verify_registered_slot(scene_slot, request.headers()) {
-        Ok(()) => next.run(request).await,
-        Err(StatusCode::UNAUTHORIZED) => StatusCode::UNAUTHORIZED.into_response(),
-        Err(status) => status.into_response(),
+    if let Err(status) = verify_registered_slot(scene_slot, request.headers()) {
+        return status.into_response();
     }
+    next.run(request).await
 }
 
 fn fetch_json_ok(

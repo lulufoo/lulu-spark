@@ -1,5 +1,6 @@
 pub mod ai_assistant;
 pub mod config_cmd;
+pub mod mcp_oauth;
 pub mod todo_task;
 pub mod read;
 pub mod read_later;
