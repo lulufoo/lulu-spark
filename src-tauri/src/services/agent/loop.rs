@@ -386,9 +386,14 @@ pub fn loaded_mcp_server() -> Option<McpServerConfig> {
     session_capability_mcp_config()
 }
 
+/// Reset unloads this session's Binding, MCP config, and ticket header only.
+/// MUST NOT call `revoke_for_slot`; the workbench ledger ticket stays Live.
+pub const RESET_UNLOADS_SESSION_ONLY: bool = true;
+
 /// Reset: discard current Binding → unbound. Idempotent when already unbound.
 /// Clears `current_session_id` (session cut, clear-first); does not wipe disk turns.
-/// Unloads session capability MCP config with the Binding.
+/// Unloads session capability MCP config and ticket header with the Binding.
+/// Does not revoke the workbench ledger ticket; next Set reuses the Live handle.
 /// Bound→unbound emits onUnbound; symmetrically cancels in-flight execute and chat.
 pub fn reset_binding() -> Result<(), ()> {
     let (was_bound, previous_business_id, previous_generation) = {
@@ -420,6 +425,7 @@ pub fn reset_binding() -> Result<(), ()> {
 
 /// Close the Host-owned Agent slot by the live session identity, then reset
 /// the current Binding. Close runs before Reset clears the live context.
+/// Same as `reset_binding`: unloads session only; does not revoke the ledger ticket.
 pub fn reset_binding_with_close<Close>(mut close: Close) -> Result<(), String>
 where
     Close: FnMut(&str) -> Result<(), String>,

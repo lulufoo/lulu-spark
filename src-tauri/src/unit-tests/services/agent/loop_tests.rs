@@ -5541,3 +5541,208 @@ fn t5_set_path_must_not_log_ticket_or_full_authorization() {
     });
 }
 
+// --- t6: Reset unloads session ticket header; does not revoke workbench ledger ---
+
+fn rust_pub_item<'a>(src: &'a str, marker: &str) -> &'a str {
+    let start = src.find(marker).unwrap_or_else(|| panic!("missing {marker}"));
+    let rest = &src[start..];
+    let end = rest[marker.len()..]
+        .find("\npub ")
+        .map(|i| marker.len() + i)
+        .unwrap_or(rest.len());
+    &rest[..end]
+}
+
+fn session_ticket_handle() -> TicketHandle {
+    let auth = session_authorization_bearer().expect("session ticket header");
+    let secret = auth
+        .strip_prefix("Bearer ")
+        .filter(|value| !value.is_empty() && !value.contains(' '))
+        .expect("session Authorization must be Bearer <handle>");
+    TicketHandle::from_secret(secret)
+}
+
+fn live_workbench_record() -> crate::services::mcp_oauth::LedgerRecord {
+    ledger_record(Slot::Workbench)
+        .expect("ledger")
+        .expect("workbench ledger row")
+}
+
+fn assert_session_unloaded_without_ticket_header() {
+    assert_eq!(r#loop::binding_state(), "unbound");
+    let loaded = r#loop::loaded_mcp_server();
+    assert!(
+        loaded.is_none()
+            || loaded
+                .as_ref()
+                .is_some_and(|cfg| !cfg.http_transport().headers.contains_key("Authorization")),
+        "Reset must unload session config or strip the ticket header"
+    );
+    assert!(
+        session_authorization_bearer().is_none(),
+        "Reset must leave no session Authorization header"
+    );
+}
+
+#[test]
+fn t6_reset_after_workbench_set_unloads_session_ticket_keeps_ledger_live() {
+    with_sandbox(|| {
+        assert!(
+            r#loop::RESET_UNLOADS_SESSION_ONLY,
+            "Reset must lock session-unload-only"
+        );
+        reset_workbench_slot();
+        r#loop::try_set_binding_json(&json!({ "key": "workbench" }))
+            .expect("workbench Set must inject a ticket");
+        assert_workbench_session_holds_live_ticket_seed_untouched();
+        let issued = session_ticket_handle();
+        let before = live_workbench_record();
+        assert_eq!(before.state, TicketState::Live);
+        assert_eq!(before.handle, issued);
+
+        r#loop::reset_binding().expect("Reset");
+        assert_session_unloaded_without_ticket_header();
+
+        let after = live_workbench_record();
+        assert_eq!(after.state, TicketState::Live);
+        assert_eq!(after.handle, issued);
+        assert_eq!(after.handle, before.handle);
+    });
+}
+
+#[test]
+fn t6_reset_then_set_reuses_same_workbench_handle() {
+    with_sandbox(|| {
+        reset_workbench_slot();
+        r#loop::try_set_binding_json(&json!({ "key": "workbench" })).expect("first Set");
+        let first = session_ticket_handle();
+        r#loop::reset_binding().expect("Reset");
+        assert_session_unloaded_without_ticket_header();
+        assert_eq!(live_workbench_record().state, TicketState::Live);
+        assert_eq!(live_workbench_record().handle, first);
+
+        r#loop::try_set_binding_json(&json!({ "key": "workbench" })).expect("next Set");
+        let second = session_ticket_handle();
+        assert_eq!(second, first);
+        let reused = issue_for_slot(Slot::Workbench).expect("reuse Live ticket");
+        assert_eq!(reused, first);
+        assert_eq!(live_workbench_record().state, TicketState::Live);
+        assert_eq!(live_workbench_record().handle, first);
+        assert_workbench_session_holds_live_ticket_seed_untouched();
+    });
+}
+
+#[test]
+fn t6_reset_binding_and_with_close_must_not_call_revoke_for_slot() {
+    let src = include_str!("../../../services/agent/loop.rs");
+    let reset_fn = rust_pub_item(src, "pub fn reset_binding()");
+    let close_fn = rust_pub_item(src, "pub fn reset_binding_with_close");
+    assert!(
+        !reset_fn.contains("revoke_for_slot"),
+        "reset_binding MUST NOT call revoke_for_slot"
+    );
+    assert!(
+        !close_fn.contains("revoke_for_slot"),
+        "reset_binding_with_close MUST NOT call revoke_for_slot"
+    );
+    assert!(
+        r#loop::RESET_UNLOADS_SESSION_ONLY,
+        "Reset contract marker must stay true"
+    );
+}
+
+#[test]
+fn t6_reset_binding_with_close_does_not_revoke_workbench_ledger() {
+    with_sandbox(|| {
+        reset_workbench_slot();
+        r#loop::try_set_binding_json(&json!({ "key": "workbench" })).expect("Set");
+        let issued = session_ticket_handle();
+        let session_id = r#loop::ensure_chat_session_core()
+            .expect("ensure")
+            .get("session_id")
+            .and_then(Value::as_str)
+            .expect("session id")
+            .to_string();
+        let closed = Arc::new(Mutex::new(Vec::<String>::new()));
+        let closed_for_fn = closed.clone();
+        r#loop::reset_binding_with_close(move |sid| {
+            closed_for_fn.lock().unwrap().push(sid.to_string());
+            Ok(())
+        })
+        .expect("reset_binding_with_close");
+        assert_eq!(*closed.lock().unwrap(), vec![session_id]);
+        assert_session_unloaded_without_ticket_header();
+        let record = live_workbench_record();
+        assert_eq!(record.state, TicketState::Live);
+        assert_eq!(record.handle, issued);
+    });
+}
+
+#[test]
+fn t6_already_unbound_reset_is_idempotent_and_does_not_change_ledger() {
+    with_sandbox(|| {
+        reset_workbench_slot();
+        let empty = ledger_record(Slot::Workbench).expect("ledger before any Set");
+        assert_eq!(r#loop::binding_state(), "unbound");
+        r#loop::reset_binding().expect("Reset while never bound");
+        r#loop::reset_binding().expect("second Reset while never bound");
+        assert_eq!(r#loop::binding_state(), "unbound");
+        assert!(r#loop::loaded_mcp_server().is_none());
+        assert_eq!(
+            ledger_record(Slot::Workbench).expect("ledger after unbound Reset"),
+            empty
+        );
+
+        r#loop::try_set_binding_json(&json!({ "key": "workbench" })).expect("Set");
+        let issued = session_ticket_handle();
+        r#loop::reset_binding().expect("Reset after Set");
+        let after_first = live_workbench_record();
+        assert_eq!(after_first.state, TicketState::Live);
+        assert_eq!(after_first.handle, issued);
+        assert_session_unloaded_without_ticket_header();
+
+        r#loop::reset_binding().expect("already-unbound Reset");
+        r#loop::reset_binding().expect("second already-unbound Reset");
+        assert_session_unloaded_without_ticket_header();
+        let after = live_workbench_record();
+        assert_eq!(after.state, TicketState::Live);
+        assert_eq!(after.handle, issued);
+        assert_eq!(after.handle, after_first.handle);
+    });
+}
+
+#[test]
+fn t6_reset_path_must_not_log_ticket_or_full_authorization() {
+    with_sandbox(|| {
+        reset_workbench_slot();
+        r#loop::try_set_binding_json(&json!({ "key": "workbench" })).expect("Set");
+        let secret = session_authorization_bearer()
+            .expect("session ticket header")
+            .strip_prefix("Bearer ")
+            .expect("Bearer")
+            .to_string();
+        r#loop::clear_lifecycle_events_for_tests();
+        r#loop::reset_binding().expect("Reset");
+        let src = include_str!("../../../services/agent/loop.rs");
+        let reset_fn = rust_pub_item(src, "pub fn reset_binding()");
+        let close_fn = rust_pub_item(src, "pub fn reset_binding_with_close");
+        let debug = reset_fn
+            .find("[DEBUG-binding-transition]")
+            .map(|idx| &reset_fn[idx..idx.saturating_add(240)])
+            .unwrap_or("");
+        assert!(
+            !debug.contains("Authorization") && !debug.contains("headers"),
+            "Reset debug must not print ticket headers"
+        );
+        assert!(
+            !reset_fn.contains("revoke_for_slot") && !close_fn.contains("revoke_for_slot"),
+            "Reset path must not call revoke_for_slot"
+        );
+        let events = format!("{:?}", r#loop::drain_lifecycle_events());
+        assert_secret_absent_from(&events, &secret);
+        assert_secret_absent_from(&format!("{:?}", r#loop::SetError::set_invalid()), &secret);
+        assert_secret_absent_from(r#loop::SetError::set_invalid().as_code(), &secret);
+        assert_secret_absent_from(debug, &secret);
+    });
+}
+
