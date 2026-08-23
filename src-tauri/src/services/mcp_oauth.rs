@@ -158,7 +158,7 @@ fn keyring_service() -> &'static str {
 static FORCE_KEYCHAIN_UNAVAILABLE: AtomicBool = AtomicBool::new(false);
 
 #[cfg(test)]
-fn test_force_keychain_unavailable(on: bool) {
+pub fn test_force_keychain_unavailable(on: bool) {
     FORCE_KEYCHAIN_UNAVAILABLE.store(on, Ordering::SeqCst);
 }
 

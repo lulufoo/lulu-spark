@@ -16,7 +16,10 @@ use crate::services::agent::llm::LlmConfig;
 use crate::services::agent::r#loop::{self, Terminal, TurnOutcome, EVENT_TURN_COMPLETED};
 use crate::services::agent::session::{self, Turn};
 use crate::services::agent::PLAN_ASSISTANT_SYSTEM_PROMPT;
-use crate::services::mcp_oauth::{issue_for_slot, Slot};
+use crate::services::mcp_oauth::{
+    issue_for_slot, ledger_record, revoke_for_slot, test_force_keychain_unavailable,
+    verify_for_slot, Slot, TicketHandle, TicketState,
+};
 use crate::services::mcp_protocol_adapter::{
     start_embedded_mcp_runtime_with_sidecar, stop_embedded_mcp_runtime, McpRuntimeConfig,
 };
@@ -29,6 +32,7 @@ fn with_sandbox<F: FnOnce()>(f: F) {
     let _sandbox = TestSandbox::new();
     secrets::test_secrets_clear();
     r#loop::reset_runtime_for_tests();
+    test_force_keychain_unavailable(false);
     crate::services::mcp_server_registry::clear_for_tests();
     crate::services::mcp_server_registry::seed_defaults();
     f();
@@ -4415,7 +4419,8 @@ fn t2_key_only_set_loads_mcp_server_into_session_capability_context() {
 
         let loaded = r#loop::loaded_mcp_server().expect("Set must load MCP Server config");
         let expected = mcp_server_registry::lookup(SEEDED_BUSINESS_KEY).expect("registry");
-        assert_eq!(loaded, expected);
+        assert_eq!(loaded.capability_description, expected.capability_description);
+        assert_workbench_session_holds_live_ticket_seed_untouched();
         assert!(
             !loaded.capability_description.trim().is_empty(),
             "loaded config must be decision-level non-empty"
@@ -4617,7 +4622,8 @@ fn t4_read_face_exposes_decision_level_shape_matching_registry_value() {
         let expected = mcp_server_registry::lookup(SEEDED_BUSINESS_KEY).expect("registry");
 
         // Decision-level shape parity with t1 value (capability_description only).
-        assert_eq!(view, expected);
+        assert_eq!(view.capability_description, expected.capability_description);
+        assert_workbench_session_holds_live_ticket_seed_untouched();
         assert!(
             !view.capability_description.trim().is_empty(),
             "read face must expose non-empty decision-level capability description"
@@ -4763,9 +4769,10 @@ fn t4_a1_a2_handoff_assumptions_confirmed_not_narrowed() {
         let face = r#loop::session_capability_mcp_config().expect("face");
         let table = mcp_server_registry::lookup(SEEDED_BUSINESS_KEY).expect("table");
         assert_eq!(
-            face, table,
+            face.capability_description, table.capability_description,
             "A1 confirmed: read face exposes the registry decision-level form"
         );
+        assert_workbench_session_holds_live_ticket_seed_untouched();
 
         // A2: Host authoritative table is the sole lookup source at Set; Binding
         // callers only need the stable business key (already exercised by Set path).
@@ -5052,6 +5059,74 @@ fn function_slice<'a>(src: &'a str, marker: &str) -> &'a str {
     &rest[..end]
 }
 
+fn session_authorization_bearer() -> Option<String> {
+    r#loop::loaded_mcp_server().and_then(|cfg| {
+        cfg.http_transport()
+            .headers
+            .get("Authorization")
+            .cloned()
+    })
+}
+
+fn reset_workbench_slot() {
+    test_force_keychain_unavailable(false);
+    revoke_for_slot(Slot::Workbench).expect("revoke workbench");
+}
+
+fn assert_secret_absent_from(text: &str, secret: &str) {
+    if secret.is_empty() {
+        panic!("ticket secret must be non-empty");
+    }
+    if text.contains(secret) {
+        panic!("secret must not appear in logs, errors, or formatted output");
+    }
+    let lower = text.to_ascii_lowercase();
+    if lower.contains("authorization:")
+        && !text.contains("[REDACTED]")
+        && lower.contains("bearer ")
+    {
+        panic!("full Authorization must not appear in formatted output");
+    }
+}
+
+fn assert_workbench_session_holds_live_ticket_seed_untouched() {
+    let loaded = r#loop::loaded_mcp_server().expect("session MCP transport");
+    let seed = mcp_server_registry::lookup(mcp_server_registry::SEEDED_BUSINESS_KEY)
+        .expect("registry seed");
+    assert_eq!(
+        loaded.capability_description, seed.capability_description,
+        "decision-level capability must still match the registry seed"
+    );
+    assert_eq!(
+        loaded.http_transport.url, seed.http_transport.url,
+        "session transport url must stay the seed url"
+    );
+    assert_eq!(
+        loaded.http_transport.name, seed.http_transport.name,
+        "session transport name must stay the seed name"
+    );
+    assert!(
+        !seed.http_transport.headers.contains_key("Authorization"),
+        "lookup(workbench) seed headers must not carry Authorization"
+    );
+    let auth = loaded
+        .http_transport
+        .headers
+        .get("Authorization")
+        .expect("session transport copy must carry Authorization");
+    let handle = auth
+        .strip_prefix("Bearer ")
+        .filter(|value| !value.is_empty() && !value.contains(' '))
+        .expect("session Authorization must be Bearer <handle>");
+    verify_for_slot(Slot::Workbench, TicketHandle::from_secret(handle))
+        .expect("session ticket must be the Live workbench ticket");
+    let record = ledger_record(Slot::Workbench)
+        .expect("ledger")
+        .expect("workbench ledger row");
+    assert_eq!(record.state, TicketState::Live);
+    assert_eq!(record.handle, TicketHandle::from_secret(handle));
+}
+
 fn assert_bound_key(key: &str) {
     assert_eq!(r#loop::binding_state(), "bound", "expected bound for {key}");
     let loaded = r#loop::loaded_mcp_server().expect("key-only Set must load MCP");
@@ -5065,6 +5140,9 @@ fn assert_bound_key(key: &str) {
         Some(key),
         "live business id must be {key}"
     );
+    if key == mcp_server_registry::SEEDED_BUSINESS_KEY {
+        assert_workbench_session_holds_live_ticket_seed_untouched();
+    }
 }
 
 #[test]
@@ -5078,7 +5156,8 @@ fn t4_workbench_key_only_set_binds_seeded_workbench_mcp() {
         assert_eq!(SEEDED_BUSINESS_KEY, "workbench");
         let loaded = r#loop::loaded_mcp_server().expect("workbench mcp");
         let expected = mcp_server_registry::lookup(SEEDED_BUSINESS_KEY).expect("registry workbench");
-        assert_eq!(loaded, expected);
+        assert_eq!(loaded.capability_description, expected.capability_description);
+        assert_workbench_session_holds_live_ticket_seed_untouched();
         assert!(
             loaded.http_transport().url.ends_with("/mcp/workbench"),
             "workbench seed URL must be /mcp/workbench"
@@ -5287,6 +5366,178 @@ fn t6_p4_typed_set_binding_does_not_substitute_for_workbench_key_lookup() {
             Some("workbench"),
             "typed set_binding must not bind the workbench business key"
         );
+    });
+}
+
+// --- t5: Binding Set injects workbench ticket; Keychain failure is set_invalid ---
+
+#[test]
+fn t5_workbench_set_issues_new_ticket_when_slot_empty() {
+    with_sandbox(|| {
+        reset_workbench_slot();
+        r#loop::clear_lifecycle_events_for_tests();
+        r#loop::try_set_binding_json(&json!({ "key": "workbench" }))
+            .expect("workbench Set must succeed");
+        assert_eq!(r#loop::binding_state(), "bound");
+        let events = r#loop::drain_lifecycle_events();
+        assert!(
+            events.iter().any(|e| e.event == "onBound"),
+            "successful Set must emit onBound: {events:?}"
+        );
+        assert_workbench_session_holds_live_ticket_seed_untouched();
+    });
+}
+
+#[test]
+fn t5_workbench_set_reuses_live_ticket_and_does_not_issue_a_second() {
+    with_sandbox(|| {
+        reset_workbench_slot();
+        let existing = issue_for_slot(Slot::Workbench).expect("pre-issue live");
+        r#loop::try_set_binding_json(&json!({ "key": "workbench" }))
+            .expect("workbench Set");
+        assert_workbench_session_holds_live_ticket_seed_untouched();
+        let auth = session_authorization_bearer().expect("session auth");
+        let session_handle =
+            TicketHandle::from_secret(auth.strip_prefix("Bearer ").expect("Bearer"));
+        assert_eq!(session_handle, existing);
+        let reused = issue_for_slot(Slot::Workbench).expect("reuse after Set");
+        assert_eq!(reused, existing);
+    });
+}
+
+#[test]
+fn t5_registry_seed_stays_without_authorization_after_set() {
+    with_sandbox(|| {
+        r#loop::try_set_binding_json(&json!({ "key": "workbench" })).expect("Set");
+        let seed = mcp_server_registry::lookup("workbench").expect("seed");
+        assert!(
+            !seed.http_transport.headers.contains_key("Authorization"),
+            "seeded_http_transport / lookup(workbench) must stay without ticket header"
+        );
+        assert!(
+            session_authorization_bearer()
+                .as_deref()
+                .is_some_and(|header| header.starts_with("Bearer ")),
+            "session transport copy must hold Authorization after Set"
+        );
+    });
+}
+
+#[test]
+fn t5_unknown_key_is_not_used_for_keychain_failure() {
+    with_sandbox(|| {
+        reset_workbench_slot();
+        test_force_keychain_unavailable(true);
+        let err = r#loop::try_set_binding_json(&json!({ "key": "workbench" }))
+            .expect_err("Keychain failure must fail Set");
+        assert_eq!(err.as_code(), "set_invalid");
+        assert_ne!(err.as_code(), "unknown_key");
+        test_force_keychain_unavailable(false);
+        let missing = r#loop::try_set_binding_json(&json!({ "key": "no_such_binding_key" }))
+            .expect_err("missing key");
+        assert_eq!(missing.as_code(), "unknown_key");
+    });
+}
+
+#[test]
+fn t5_set_error_codes_remain_set_invalid_and_unknown_key_only() {
+    let src = include_str!("../../../services/agent/session.rs");
+    assert!(src.contains("pub fn set_invalid"));
+    assert!(src.contains("pub fn unknown_key"));
+    assert!(
+        !src.contains("fn keychain") && !src.contains("SetError::ticket"),
+        "SetError must not gain Keychain/ticket codes"
+    );
+}
+
+#[test]
+fn t5_keychain_write_failure_keeps_unbound_issues_no_ticket_and_skips_on_bound() {
+    with_sandbox(|| {
+        reset_workbench_slot();
+        r#loop::clear_lifecycle_events_for_tests();
+        test_force_keychain_unavailable(true);
+        let err = r#loop::try_set_binding_json(&json!({ "key": "workbench" }))
+            .expect_err("Keychain write failure must fail Set");
+        assert_eq!(err.as_code(), "set_invalid");
+        assert_eq!(r#loop::binding_state(), "unbound");
+        assert!(r#loop::loaded_mcp_server().is_none());
+        assert!(session_authorization_bearer().is_none());
+        let events = r#loop::drain_lifecycle_events();
+        assert!(
+            events.iter().all(|e| e.event != "onBound"),
+            "Keychain failure must not emit onBound: {events:?}"
+        );
+        test_force_keychain_unavailable(false);
+        let record = ledger_record(Slot::Workbench).expect("ledger after failed Set");
+        assert!(
+            record
+                .as_ref()
+                .map(|row| row.state != TicketState::Live)
+                .unwrap_or(true),
+            "Keychain failure must not leave a Live workbench ticket"
+        );
+    });
+}
+
+#[test]
+fn t5_keychain_write_failure_keeps_original_binding() {
+    with_sandbox(|| {
+        r#loop::set_binding(valid_binding()).expect("original typed Binding");
+        let gen = r#loop::query_binding().generation;
+        r#loop::clear_lifecycle_events_for_tests();
+        reset_workbench_slot();
+        test_force_keychain_unavailable(true);
+        let err = r#loop::try_set_binding_json(&json!({ "key": "workbench" }))
+            .expect_err("Keychain failure");
+        assert_eq!(err.as_code(), "set_invalid");
+        assert_eq!(r#loop::binding_state(), "bound");
+        assert_eq!(r#loop::query_binding().generation, gen);
+        assert!(
+            r#loop::loaded_mcp_server().is_none(),
+            "failed workbench Set must not load a ticketed transport"
+        );
+        assert!(session_authorization_bearer().is_none());
+        let events = r#loop::drain_lifecycle_events();
+        assert!(events.iter().all(|e| e.event != "onBound"));
+        test_force_keychain_unavailable(false);
+        let record = ledger_record(Slot::Workbench).expect("ledger");
+        assert!(
+            record
+                .as_ref()
+                .map(|row| row.state != TicketState::Live)
+                .unwrap_or(true),
+            "failed Set must not issue a ticket"
+        );
+    });
+}
+
+#[test]
+fn t5_set_path_must_not_log_ticket_or_full_authorization() {
+    with_sandbox(|| {
+        reset_workbench_slot();
+        r#loop::try_set_binding_json(&json!({ "key": "workbench" })).expect("Set");
+        let auth = session_authorization_bearer().expect("auth");
+        let secret = auth
+            .strip_prefix("Bearer ")
+            .expect("Bearer")
+            .to_string();
+        let loop_src = include_str!("../../../services/agent/loop.rs");
+        assert!(
+            loop_src.contains("issue_for_slot"),
+            "try_set_binding_json must call issue_for_slot after workbench lookup"
+        );
+        let debug = loop_src
+            .find("[DEBUG-binding-transition]")
+            .map(|idx| &loop_src[idx..idx.saturating_add(240)])
+            .unwrap_or("");
+        assert!(
+            !debug.contains("Authorization") && !debug.contains("headers"),
+            "binding-transition debug must not print ticket headers"
+        );
+        let events = format!("{:?}", r#loop::drain_lifecycle_events());
+        assert_secret_absent_from(&events, &secret);
+        assert_secret_absent_from(&format!("{:?}", r#loop::SetError::set_invalid()), &secret);
+        assert_secret_absent_from(r#loop::SetError::set_invalid().as_code(), &secret);
     });
 }
 

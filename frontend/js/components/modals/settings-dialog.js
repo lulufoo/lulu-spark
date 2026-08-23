@@ -258,12 +258,8 @@ function formatCursorIdeServerBlock(handle) {
   );
 }
 
-function mcpServerBlockEl() {
-  return document.getElementById('settings-mcp-server-block');
-}
-
 function setMcpServerBlock(text) {
-  const el = mcpServerBlockEl();
+  const el = document.getElementById('settings-mcp-server-block');
   if (el) el.value = text;
 }
 

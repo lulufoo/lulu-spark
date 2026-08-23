@@ -12,6 +12,7 @@ use serde_json::{json, Value};
 use crate::services::agent::llm::{self, LlmConfig, LlmError};
 use crate::services::agent::mcp_client;
 use crate::services::agent::session::{self, Session, Turn};
+use crate::services::mcp_oauth::{issue_for_slot, Slot};
 use crate::services::mcp_server_registry::{self, McpServerConfig, McpServerLookupError};
 use crate::services::todo_task;
 
@@ -328,6 +329,7 @@ pub fn try_set_binding_json(v: &Value) -> Result<(), SetError> {
             return Err(SetError::set_invalid());
         }
     };
+    let config = inject_workbench_ticket(key.as_str(), config)?;
     // L1+L2: public key-only Set must not feed business tool handles to the
     // Agent Loop. The business key is already resolved into loaded_mcp_server;
     // Binding.tools stays an empty interface slot (no in-process dispatch).
@@ -337,6 +339,27 @@ pub fn try_set_binding_json(v: &Value) -> Result<(), SetError> {
         callbacks: parsed.callbacks,
     };
     set_binding_with_mcp(binding, Some(config), Some(key))
+}
+
+/// After workbench lookup: reuse a Live ticket or issue one, then write
+/// Authorization onto this session's transport copy. Registry seed is unchanged.
+/// Keychain failure returns `set_invalid` and must not reach `set_binding_with_mcp`.
+fn inject_workbench_ticket(key: &str, mut config: McpServerConfig) -> Result<McpServerConfig, SetError> {
+    if key != mcp_server_registry::SEEDED_BUSINESS_KEY {
+        return Ok(config);
+    }
+    let handle = match issue_for_slot(Slot::Workbench) {
+        Ok(handle) => handle,
+        Err(_) => {
+            emit_lifecycle("onError", Some("set_invalid"));
+            return Err(SetError::set_invalid());
+        }
+    };
+    config.http_transport.headers.insert(
+        "Authorization".to_string(),
+        format!("Bearer {}", handle.as_str()),
+    );
+    Ok(config)
 }
 
 /// The decision-level `McpServerConfig` shape is the shared read form for the
