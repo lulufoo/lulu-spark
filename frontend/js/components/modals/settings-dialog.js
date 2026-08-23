@@ -1,10 +1,14 @@
 import * as api from '../../api.js';
 import { setGithubUserUrl } from '../../constants.js';
 import { getKbHidePattern, saveKbHidePattern } from '../../kb-hide-pattern.js';
+import { state } from '../../state.js';
+import { escHtml } from '../../utils.js';
 import { getEnginePreset, listEngineCategories } from './engine-presets.js';
 
 const GITHUB_USER_HINT_DEFAULT =
-  'Your GitHub profile URL for Viewer remote links and promotion sources; may be saved with a Token.';
+  'Inferred from the Notes directory origin when possible; used for Viewer remote links.';
+const NOTES_CONNECT_NEEDS_ACCOUNT =
+  'Set a Sync token first to bind a Notes repository.';
 
 const DEFAULT_ENGINE_CATEGORY = 'host';
 
@@ -24,6 +28,10 @@ let activeEngineCategory = DEFAULT_ENGINE_CATEGORY;
 
 // ── Nav switching ──────────────────────────────────────────────────────────
 
+function emitKnowledgeTab(tabId) {
+  window.dispatchEvent(new CustomEvent('settings-knowledge-tab', { detail: tabId }));
+}
+
 function switchPanel(panelId) {
   document.querySelectorAll('.settings-nav-item').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.panel === panelId);
@@ -31,7 +39,194 @@ function switchPanel(panelId) {
   document.querySelectorAll('.settings-panel').forEach(panel => {
     panel.classList.toggle('active', panel.id === `settings-panel-${panelId}`);
   });
+  if (panelId === 'knowledge') {
+    const active = document.querySelector('#settings-panel-knowledge .settings-tab.active');
+    emitKnowledgeTab(active?.dataset.tab || 'directory');
+  }
 }
+
+function switchSettingsTab(panelId, tabId) {
+  const root = document.getElementById(`settings-panel-${panelId}`);
+  if (!root || !tabId) return;
+  root.querySelectorAll('.settings-tab').forEach((btn) => {
+    btn.classList.toggle('active', btn.dataset.tab === tabId);
+  });
+  root.querySelectorAll('.settings-tab-panel').forEach((panel) => {
+    panel.classList.toggle('active', panel.dataset.tab === tabId);
+  });
+  if (
+    panelId === 'knowledge' &&
+    document.getElementById('settings-panel-knowledge')?.classList.contains('active')
+  ) {
+    emitKnowledgeTab(tabId);
+  }
+}
+
+function switchNotesTab(tabId) {
+  switchSettingsTab('directories', tabId);
+}
+
+function normalizeNotesGithubRepoUrl(raw) {
+  const s = (raw || '').trim().replace(/\/+$/, '').replace(/\.git$/i, '');
+  if (!s) return '';
+  let ownerRepo = '';
+  const https = s.match(/^https?:\/\/github\.com\/([^/]+)\/([^/#?]+)/i);
+  const ssh = s.match(/^git@github\.com:([^/]+)\/([^/#?]+)/i);
+  if (https) ownerRepo = `${https[1]}/${https[2]}`;
+  else if (ssh) ownerRepo = `${ssh[1]}/${ssh[2]}`;
+  else if (/^[^/\s]+\/[^/\s]+$/.test(s)) ownerRepo = s;
+  else return '';
+  ownerRepo = ownerRepo.replace(/\.git$/i, '');
+  return `https://github.com/${ownerRepo}`;
+}
+
+function notesGithubRepoFullName(url) {
+  const m = String(url || '').match(/^https:\/\/github\.com\/([^/]+\/[^/]+)/i);
+  return m ? m[1] : url;
+}
+
+function renderNotesConnection(repoUrl, { locked = false } = {}) {
+  const addWrap = document.getElementById('notes-connect-add');
+  const item = document.getElementById('notes-connect-item');
+  const url = (repoUrl || '').trim();
+  if (addWrap) addWrap.hidden = Boolean(url);
+  if (!item) return;
+  if (!url) {
+    item.innerHTML = '';
+    return;
+  }
+  const fullName = notesGithubRepoFullName(url);
+  const deleteBtn = locked
+    ? ''
+    : `<button type="button" class="sediment-kb-delete-btn" id="btn-notes-connect-delete">Delete</button>`;
+  item.innerHTML = `<div class="repo-list-item">
+      <div class="repo-list-item-info">
+        <div class="repo-list-item-name">${escHtml(fullName)}</div>
+        <div class="repo-list-item-desc">${escHtml(url)}</div>
+      </div>
+      <div class="repo-list-item-actions">
+        <a class="repo-list-item-link" href="${escHtml(url)}" target="_blank" rel="noopener noreferrer">Link ↗</a>
+        ${deleteBtn}
+      </div>
+    </div>`;
+  if (!locked) {
+    document.getElementById('btn-notes-connect-delete')?.addEventListener('click', () => {
+      void deleteNotesGithubRepo();
+    });
+  }
+}
+
+function applyNotesGithubRepoFromInferResponse(resp) {
+  const inferred = normalizeNotesGithubRepoUrl(resp?.workbench_github_repo_url || '');
+  if (inferred && !isGithubAccountConfigured()) {
+    notesGithubRepoInferredFromOrigin = '';
+    renderNotesConnection(savedSnapshot.workbenchGithubRepoUrl, { locked: false });
+    setResult('notes-connect-error', NOTES_CONNECT_NEEDS_ACCOUNT, true);
+    syncNotesConnectionAccess();
+    return;
+  }
+  notesGithubRepoInferredFromOrigin = inferred;
+  if (inferred) {
+    renderNotesConnection(inferred, { locked: true });
+    setResult(
+      'notes-connect-error',
+      'Inferred from workbench directory git origin (read-only).',
+    );
+    return;
+  }
+  renderNotesConnection(savedSnapshot.workbenchGithubRepoUrl, { locked: false });
+  setResult('notes-connect-error', '');
+}
+
+async function saveNotesGithubRepoUrl(repoUrl) {
+  const resp = await api.setConfig({ workbench_github_repo_url: repoUrl });
+  if (resp?.error) throw new Error(resp.error);
+  savedSnapshot.workbenchGithubRepoUrl = repoUrl;
+  renderNotesConnection(repoUrl);
+}
+
+function isGithubAccountConfigured() {
+  if (savedSnapshot.hasGithubToken) return true;
+  const n = normalizeGithubUserUrl(savedSnapshot.githubUserUrl);
+  return /^https:\/\/github\.com\/[^/]+$/.test(n);
+}
+
+function syncNotesConnectionAccess() {
+  const allowed = isGithubAccountConfigured();
+  const input = document.getElementById('notes-connect-url');
+  const addBtn = document.getElementById('btn-notes-connect-add');
+  if (input) {
+    input.disabled = !allowed;
+    input.placeholder = allowed ? 'owner/repo or GitHub URL' : 'Set a Sync token first';
+  }
+  if (addBtn) addBtn.disabled = !allowed;
+  if (!allowed && !notesGithubRepoInferredFromOrigin) {
+    setResult('notes-connect-error', NOTES_CONNECT_NEEDS_ACCOUNT, true);
+  } else if (allowed) {
+    const el = document.getElementById('notes-connect-error');
+    if (el?.textContent === NOTES_CONNECT_NEEDS_ACCOUNT) {
+      setResult('notes-connect-error', '');
+    }
+  }
+}
+
+async function addNotesGithubRepo() {
+  const input = document.getElementById('notes-connect-url');
+  const btn = document.getElementById('btn-notes-connect-add');
+  const url = normalizeNotesGithubRepoUrl(input?.value || '');
+  if (!isGithubAccountConfigured()) {
+    setResult('notes-connect-error', NOTES_CONNECT_NEEDS_ACCOUNT, true);
+    return;
+  }
+  if (notesGithubRepoInferredFromOrigin) {
+    setResult('notes-connect-error', 'Inferred from git origin (read-only).', true);
+    return;
+  }
+  if (!url) {
+    setResult('notes-connect-error', 'Enter a GitHub repository URL.', true);
+    return;
+  }
+  if (savedSnapshot.workbenchGithubRepoUrl) {
+    setResult('notes-connect-error', 'Delete the current repository before adding another.', true);
+    return;
+  }
+  btn.disabled = true;
+  setResult('notes-connect-error', '');
+  try {
+    await saveNotesGithubRepoUrl(url);
+    if (input) input.value = '';
+    setResult('notes-connect-error', 'Added.');
+  } catch (e) {
+    setResult('notes-connect-error', e.message || String(e), true);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function deleteNotesGithubRepo() {
+  if (notesGithubRepoInferredFromOrigin) {
+    setResult('notes-connect-error', 'Inferred from git origin (read-only).', true);
+    return;
+  }
+  const btn = document.getElementById('btn-notes-connect-delete');
+  if (btn) btn.disabled = true;
+  setResult('notes-connect-error', '');
+  try {
+    await saveNotesGithubRepoUrl('');
+    setResult('notes-connect-error', 'Removed. You can add a repository again.');
+  } catch (e) {
+    setResult('notes-connect-error', e.message || String(e), true);
+    renderNotesConnection(savedSnapshot.workbenchGithubRepoUrl);
+  }
+}
+
+document.querySelectorAll('.settings-tab').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    const panel = btn.closest('.settings-panel');
+    const panelId = panel?.id?.replace(/^settings-panel-/, '');
+    if (panelId) switchSettingsTab(panelId, btn.dataset.tab);
+  });
+});
 
 document.querySelectorAll('.settings-nav-item').forEach(btn => {
   btn.addEventListener('click', async () => {
@@ -60,10 +255,13 @@ function normalizeGithubUserUrl(url) {
 const savedSnapshot = {
   workbenchKnowledgeRoot: '',
   githubUserUrl: '',
+  workbenchGithubRepoUrl: '',
+  hasGithubToken: false,
 };
 
 /** Origin 推断锁：推断成功后禁止手改 github_user_url。 */
 let githubUserUrlInferredFromOrigin = '';
+let notesGithubRepoInferredFromOrigin = '';
 
 function setGithubUserUrlInferredLock(inferredUrl, locked) {
   const input = document.getElementById('settings-github-user-url');
@@ -261,6 +459,7 @@ async function syncGithubUserUrlLockFromWorkbenchRoot() {
   const root = archiveInput?.value.trim() ?? '';
   if (!root) {
     clearGithubUserUrlInferredLock();
+    applyNotesGithubRepoFromInferResponse({});
     return;
   }
 
@@ -269,6 +468,7 @@ async function syncGithubUserUrlLockFromWorkbenchRoot() {
     resp = await api.inferGithubUserUrl(root);
   } catch (e) {
     clearGithubUserUrlInferredLock();
+    applyNotesGithubRepoFromInferResponse({});
     setResult(
       'settings-result-github',
       `Could not infer GitHub profile: ${e.message || String(e)}. If you just updated the app, fully restart and try again.`,
@@ -277,6 +477,7 @@ async function syncGithubUserUrlLockFromWorkbenchRoot() {
     return;
   }
 
+  applyNotesGithubRepoFromInferResponse(resp);
   const inferred = (resp?.github_user_url || '').trim();
   if (!inferred) {
     clearGithubUserUrlInferredLock();
@@ -312,6 +513,7 @@ async function applyWorkbenchRootInference({ revertOnConflict = true } = {}) {
   const root = archiveInput.value.trim();
   if (!root) {
     clearGithubUserUrlInferredLock();
+    applyNotesGithubRepoFromInferResponse({});
     return { ok: true };
   }
 
@@ -320,9 +522,11 @@ async function applyWorkbenchRootInference({ revertOnConflict = true } = {}) {
     resp = await api.inferGithubUserUrl(root);
   } catch (e) {
     clearGithubUserUrlInferredLock();
-    return { ok: true, noRemote: true, error: e.message || String(e) };
+    applyNotesGithubRepoFromInferResponse({});
+    return { ok: false, error: e.message || String(e) };
   }
 
+  applyNotesGithubRepoFromInferResponse(resp);
   const inferred = (resp?.github_user_url || '').trim();
   if (!inferred) {
     clearGithubUserUrlInferredLock();
@@ -357,17 +561,21 @@ async function loadSettingsSnapshot() {
     const cfg = await api.fetchConfig();
 
     const archiveInput = document.getElementById('settings-archive-root');
-    const kbInput = document.getElementById('settings-kb-root');
     const githubUserInput = document.getElementById('settings-github-user-url');
+    const corpusInput = document.getElementById('sediment-kb-corpus-path');
     const wbRoot = cfg?.workbench_knowledge_root ?? '';
+    const corpusRoot = cfg?.knowledge_corpus_root ?? '';
     const ghUrl = cfg?.github_user_url ?? '';
     if (wbRoot) {
       archiveInput.placeholder = wbRoot;
       archiveInput.value = wbRoot;
     }
-    if (cfg?.knowledge_corpus_root) {
-      kbInput.placeholder = cfg.knowledge_corpus_root;
-      kbInput.value = cfg.knowledge_corpus_root;
+    if (corpusInput) {
+      corpusInput.value = corpusRoot || state.ui.knowledgeCorpusRoot || '';
+      if (corpusRoot) {
+        corpusInput.placeholder = corpusRoot;
+        state.ui.knowledgeCorpusRoot = corpusRoot;
+      }
     }
     clearGithubUserUrlInferredLock();
     if (githubUserInput) {
@@ -376,16 +584,21 @@ async function loadSettingsSnapshot() {
     setGithubUserUrl(ghUrl);
     savedSnapshot.workbenchKnowledgeRoot = wbRoot;
     savedSnapshot.githubUserUrl = ghUrl;
+    savedSnapshot.workbenchGithubRepoUrl = cfg?.workbench_github_repo_url ?? '';
+    savedSnapshot.hasGithubToken = Boolean(cfg?.has_github_token);
+    renderNotesConnection(savedSnapshot.workbenchGithubRepoUrl);
+    setResult('notes-connect-error', '');
 
     const hintEl = document.getElementById('settings-token-hint');
     hintEl.textContent = cfg?.has_github_token
-      ? 'GitHub Token configured. Enter a new token to replace it.'
-      : 'No GitHub Token configured.';
+      ? 'Sync token configured. Enter a new token to replace it.'
+      : 'No Sync token configured.';
 
     loadAssistantEnginePanel(cfg ?? {});
 
     await syncGithubUserUrlLockFromWorkbenchRoot();
     syncKbHidePatternInput();
+    syncNotesConnectionAccess();
   } catch {
     document.getElementById('settings-token-hint').textContent =
       'Could not load settings; you can type and save.';
@@ -394,19 +607,31 @@ async function loadSettingsSnapshot() {
     loadAssistantEnginePanel({});
     clearGithubUserUrlInferredLock();
     syncKbHidePatternInput();
+    savedSnapshot.githubUserUrl = '';
+    savedSnapshot.workbenchGithubRepoUrl = '';
+    savedSnapshot.hasGithubToken = false;
+    renderNotesConnection('');
+    syncNotesConnectionAccess();
   }
 }
 
 // ── Open / close ───────────────────────────────────────────────────────────
 
-export async function openSettingsDialog() {
+export async function openSettingsDialog(opts = {}) {
   setResult('settings-result-directories', '');
-  setResult('settings-result-github', '');
+  setResult('notes-connect-error', '');
+  setResult('sediment-kb-corpus-error', '');
   setResult('settings-result-knowledge', '');
+  setResult('settings-result-github', '');
   setResult('settings-result-llm', '');
   document.getElementById('settings-github-token').value = '';
   document.getElementById('settings-llm-api-key').value = '';
-  switchPanel('directories');
+  const panelId = opts.panel || 'directories';
+  switchSettingsTab('directories', panelId === 'directories' ? (opts.tab || 'directory') : 'directory');
+  switchSettingsTab('knowledge', panelId === 'knowledge' ? (opts.tab || 'directory') : 'directory');
+  switchSettingsTab('llm', 'engine');
+  switchSettingsTab('github', 'account');
+  switchPanel(panelId);
   await loadSettingsSnapshot();
   document.getElementById('settings-dialog').classList.add('open');
 }
@@ -420,6 +645,57 @@ document.getElementById('btn-settings-cancel').addEventListener('click', closeSe
 document.getElementById('settings-dialog').addEventListener('click', (e) => {
   if (e.target === document.getElementById('settings-dialog')) closeSettingsDialog();
 });
+document.getElementById('btn-notes-connect-add')?.addEventListener('click', () => {
+  void addNotesGithubRepo();
+});
+document.getElementById('notes-connect-url')?.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') document.getElementById('btn-notes-connect-add')?.click();
+});
+document.getElementById('btn-sediment-kb-corpus-save')?.addEventListener('click', () => {
+  void (async () => {
+    const input = document.getElementById('sediment-kb-corpus-path');
+    const saveBtn = document.getElementById('btn-sediment-kb-corpus-save');
+    const knowledgeCorpusRoot = input?.value.trim() || '';
+    if (!knowledgeCorpusRoot) {
+      setResult('sediment-kb-corpus-error', 'Enter a directory path.', true);
+      return;
+    }
+    if (saveBtn) saveBtn.disabled = true;
+    setResult('sediment-kb-corpus-error', '');
+    try {
+      const resp = await api.setConfig({ knowledge_corpus_root: knowledgeCorpusRoot });
+      if (resp?.error) throw new Error(resp.error);
+      state.ui.knowledgeCorpusRoot = knowledgeCorpusRoot;
+      setResult('sediment-kb-corpus-error', 'Saved: Knowledge corpus directory.');
+    } catch (e) {
+      setResult('sediment-kb-corpus-error', e.message || String(e), true);
+    } finally {
+      if (saveBtn) saveBtn.disabled = false;
+    }
+  })();
+});
+document.getElementById('sediment-kb-corpus-path')?.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') document.getElementById('btn-sediment-kb-corpus-save')?.click();
+});
+document.getElementById('btn-settings-save-knowledge')?.addEventListener('click', () => {
+  const btn = document.getElementById('btn-settings-save-knowledge');
+  const pattern = document.getElementById('settings-kb-hide-pattern')?.value ?? '';
+  if (btn) btn.disabled = true;
+  setResult('settings-result-knowledge', '');
+  try {
+    const result = saveKbHidePattern(pattern);
+    if (!result.ok) {
+      setResult('settings-result-knowledge', `Invalid regex: ${result.error}`, true);
+      return;
+    }
+    setResult('settings-result-knowledge', 'Hide rules saved.');
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+});
+document.getElementById('settings-kb-hide-pattern')?.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') document.getElementById('btn-settings-save-knowledge')?.click();
+});
 
 document.getElementById('settings-archive-root').addEventListener('input', () => {
   const root = document.getElementById('settings-archive-root').value.trim();
@@ -432,14 +708,23 @@ document.getElementById('settings-archive-root').addEventListener('input', () =>
 
 document.getElementById('settings-archive-root').addEventListener('blur', async () => {
   const root = document.getElementById('settings-archive-root').value.trim();
-  if (!root || root === savedSnapshot.workbenchKnowledgeRoot) {
+  if (!root) {
     return;
   }
-  const inference = await applyWorkbenchRootInference({ revertOnConflict: true });
+  const pathChanged = root !== savedSnapshot.workbenchKnowledgeRoot;
+  const inference = await applyWorkbenchRootInference({ revertOnConflict: pathChanged });
   if (!inference.ok && inference.conflict) {
     setResult(
       'settings-result-directories',
-      `Directory not saved: GitHub profile on the GitHub tab (${inference.existing}) does not match origin inference (${inference.inferred}). Fix or clear the profile on the GitHub tab before changing the directory.`,
+      `Directory not saved: GitHub profile on Sync (${inference.existing}) does not match origin inference (${inference.inferred}). Fix or clear the profile on Sync before changing the directory.`,
+      true,
+    );
+    return;
+  }
+  if (inference.error) {
+    setResult(
+      'settings-result-directories',
+      `Could not infer GitHub profile: ${inference.error}. If you just updated the app, fully restart and try again.`,
       true,
     );
     return;
@@ -447,17 +732,17 @@ document.getElementById('settings-archive-root').addEventListener('blur', async 
   if (inference.locked && inference.inferred) {
     setResult(
       'settings-result-directories',
-      `GitHub profile inferred from git origin (locked — save on the GitHub tab).`,
+      `GitHub profile inferred from git origin (locked — save on Sync).`,
       false,
     );
     setResult('settings-result-github', '');
-    switchPanel('github');
+    if (pathChanged) switchPanel('directories');
     return;
   }
   if (inference.noRemote) {
     setResult(
       'settings-result-directories',
-      'No git origin detected; could not auto-infer GitHub profile — enter it manually on the GitHub tab.',
+      'No git origin detected; could not auto-infer GitHub profile — enter it manually on Sync.',
       false,
     );
   }
@@ -469,68 +754,62 @@ document.getElementById('btn-settings-save-directories').addEventListener('click
   const btn = document.getElementById('btn-settings-save-directories');
   const archiveInput = document.getElementById('settings-archive-root');
   const workbenchKnowledgeRoot = archiveInput.value.trim();
-  const knowledgeCorpusRoot = document.getElementById('settings-kb-root').value.trim();
   const githubUserInput = document.getElementById('settings-github-user-url');
 
-  if (!workbenchKnowledgeRoot && !knowledgeCorpusRoot) {
-    setResult('settings-result-directories', 'Enter at least one directory path.', true);
+  if (!workbenchKnowledgeRoot) {
+    setResult('settings-result-directories', 'Enter a directory path.', true);
     return;
   }
 
-  let includeWorkbenchRoot = Boolean(workbenchKnowledgeRoot);
+  let includeWorkbenchRoot = true;
   let includeGithubUrl = false;
   const messages = [];
 
-  if (workbenchKnowledgeRoot) {
-    try {
-      const check = await api.checkWorkbenchKnowledgeRoot(workbenchKnowledgeRoot);
-      if (check?.ok === false) {
-        setResult(
-          'settings-result-directories',
-          check.error || 'Workbench directory invalid; not saved.',
-          true,
-        );
-        includeWorkbenchRoot = false;
-        if (!knowledgeCorpusRoot) return;
-      }
-    } catch (e) {
+  try {
+    const check = await api.checkWorkbenchKnowledgeRoot(workbenchKnowledgeRoot);
+    if (check?.ok === false) {
       setResult(
         'settings-result-directories',
-        `Workbench directory validation failed: ${e.message || String(e)}`,
+        check.error || 'Workbench directory invalid; not saved.',
         true,
       );
-      includeWorkbenchRoot = false;
-      if (!knowledgeCorpusRoot) return;
+      return;
     }
+  } catch (e) {
+    setResult(
+      'settings-result-directories',
+      `Workbench directory validation failed: ${e.message || String(e)}`,
+      true,
+    );
+    return;
   }
 
-  if (workbenchKnowledgeRoot && includeWorkbenchRoot) {
-    const inference = await applyWorkbenchRootInference({ revertOnConflict: true });
-    if (!inference.ok && inference.conflict) {
-      setResult(
-        'settings-result-directories',
-        `Save cancelled: workbench directory and GitHub profile do not match (entered ${inference.existing}, origin inference ${inference.inferred}). workbench_knowledge_root was not written.`,
-        true,
-      );
-      includeWorkbenchRoot = false;
-      if (!knowledgeCorpusRoot) {
-        return;
-      }
-    } else if (inference.locked && inference.inferred) {
-      includeGithubUrl = true;
-      messages.push(`Inferred and locked GitHub profile ${inference.inferred}`);
-    }
+  const inference = await applyWorkbenchRootInference({ revertOnConflict: true });
+  if (!inference.ok && inference.conflict) {
+    setResult(
+      'settings-result-directories',
+      `Save cancelled: workbench directory and GitHub profile do not match (entered ${inference.existing}, origin inference ${inference.inferred}). workbench_knowledge_root was not written.`,
+      true,
+    );
+    return;
+  }
+  if (inference.error) {
+    messages.push(`Could not infer GitHub profile: ${inference.error}`);
+  }
+  if (inference.locked && inference.inferred) {
+    includeGithubUrl = true;
+    messages.push(`Inferred and locked GitHub profile ${inference.inferred}`);
   }
 
   const payload = {};
   if (includeWorkbenchRoot) {
     payload.workbench_knowledge_root = workbenchKnowledgeRoot;
   }
-  if (knowledgeCorpusRoot) {
-    payload.knowledge_corpus_root = knowledgeCorpusRoot;
-  }
   if (includeGithubUrl) {
     payload.github_user_url = githubUserInput.value.trim();
+  }
+  if (notesGithubRepoInferredFromOrigin && isGithubAccountConfigured()) {
+    payload.workbench_github_repo_url = notesGithubRepoInferredFromOrigin;
   }
 
   if (!Object.keys(payload).length) {
@@ -547,34 +826,14 @@ document.getElementById('btn-settings-save-directories').addEventListener('click
     }
     const parts = [];
     if (payload.workbench_knowledge_root) parts.push('Workbench knowledge directory');
-    if (payload.knowledge_corpus_root) parts.push('Knowledge corpus directory');
     if (payload.github_user_url) parts.push('GitHub profile');
+    if (payload.workbench_github_repo_url) parts.push('Notes GitHub repository');
     let msg = `Saved: ${parts.join(', ')}.`;
     if (messages.length) msg += ` ${messages.join('；')}`;
     setResult('settings-result-directories', msg);
     await loadSettingsSnapshot();
   } catch (e) {
     setResult('settings-result-directories', `Save failed: ${e.message || String(e)}`, true);
-  } finally {
-    btn.disabled = false;
-    btn.textContent = 'Save';
-  }
-});
-
-// ── Save: 知识库 hide pattern ───────────────────────────────────────────────
-
-document.getElementById('btn-settings-save-knowledge').addEventListener('click', () => {
-  const btn = document.getElementById('btn-settings-save-knowledge');
-  const pattern = document.getElementById('settings-kb-hide-pattern').value;
-  btn.disabled = true;
-  btn.textContent = 'Saving…';
-  try {
-    const result = saveKbHidePattern(pattern);
-    if (!result.ok) {
-      setResult('settings-result-knowledge', `Invalid regex: ${result.error}`, true);
-      return;
-    }
-    setResult('settings-result-knowledge', 'Hide rules saved.');
   } finally {
     btn.disabled = false;
     btn.textContent = 'Save';
@@ -593,6 +852,8 @@ document.getElementById('btn-settings-save-github').addEventListener('click', as
   const payload = {};
   if (!locked) {
     payload.github_user_url = githubUserUrl;
+  } else if (githubUserUrlInferredFromOrigin) {
+    payload.github_user_url = githubUserUrlInferredFromOrigin;
   }
   if (token) payload.github_token = token;
 

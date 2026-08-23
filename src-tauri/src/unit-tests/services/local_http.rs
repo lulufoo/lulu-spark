@@ -382,6 +382,40 @@ fn get_status_returns_ok_and_http_port() {
 }
 
 #[test]
+fn get_infer_github_user_url_reads_origin() {
+    let dir = tempfile::tempdir().expect("tmp");
+    assert!(crate::integrations::git::exec(dir.path(), &["init"])
+        .expect("init")
+        .success);
+    assert!(crate::integrations::git::exec(
+        dir.path(),
+        &[
+            "remote",
+            "add",
+            "origin",
+            "git@github.com:lulufoo/lulu-workbench-knowledge.git",
+        ],
+    )
+    .expect("remote add")
+    .success);
+    let fixture = setup_repo_with_corpus();
+    let repo_root = fixture.repo_root.clone();
+    let encoded = urlencoding::encode(dir.path().to_str().unwrap());
+    with_server(repo_root, |port| {
+        let (status, body) = http_get(
+            port,
+            &format!("/api/infer-github-user-url?path={encoded}"),
+        );
+        assert_eq!(status, 200);
+        assert_eq!(body["github_user_url"], "https://github.com/lulufoo");
+        assert_eq!(
+            body["workbench_github_repo_url"],
+            "https://github.com/lulufoo/lulu-workbench-knowledge"
+        );
+    });
+}
+
+#[test]
 fn get_corpus_file_raw_layer_returns_400() {
     let fixture = setup_repo_with_corpus();
     let repo_root = fixture.repo_root.clone();

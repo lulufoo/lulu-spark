@@ -17,7 +17,7 @@ use crate::services::todo_task;
 use crate::services::read_later;
 use crate::services::workbench_read::{
     get_corpus_asset, get_corpus_catalog_latest_per_topic, get_corpus_file, get_corpus_files_by_ids,
-    get_corpus_index,
+    get_corpus_index, infer_github_user_url,
 };
 
 pub const DEFAULT_HTTP_PORT: u16 = crate::config::settings::DEFAULT_PROD_HTTP_PORT;
@@ -365,6 +365,12 @@ fn handle_request(repo_root: &PathBuf, port: u16, request: tiny_http::Request) {
                         "http_port": port,
                     }),
                 );
+                return;
+            }
+            "/api/infer-github-user-url" => {
+                let params = parse_query(&url);
+                let path = params.get("path").map(String::as_str).unwrap_or("");
+                respond_from_value(request, infer_github_user_url(path));
                 return;
             }
             _ => {

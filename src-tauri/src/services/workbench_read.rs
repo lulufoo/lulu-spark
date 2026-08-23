@@ -18,7 +18,7 @@ use crate::config::secrets;
 use crate::config::settings;
 
 pub fn check_workbench_knowledge_root(path: &str) -> Value {
-    let p = std::path::PathBuf::from(path.trim());
+    let p = settings::expand_user_path(path);
     if path.trim().is_empty() {
         return json!({ "ok": false, "error": "路径为空" });
     }
@@ -39,9 +39,12 @@ pub fn check_workbench_knowledge_root(path: &str) -> Value {
 }
 
 pub fn infer_github_user_url(workbench_root: &str) -> Value {
-    let path = std::path::PathBuf::from(workbench_root);
+    let path = settings::expand_user_path(workbench_root);
+    let (github_user_url, workbench_github_repo_url) =
+        crate::config::settings::infer_workbench_github_from_root(&path);
     serde_json::json!({
-        "github_user_url": crate::config::settings::infer_github_user_url_from_workbench_root(&path)
+        "github_user_url": github_user_url,
+        "workbench_github_repo_url": workbench_github_repo_url,
     })
 }
 

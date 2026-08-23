@@ -149,32 +149,17 @@ async function _reloadTopicsIntoState() {
 
 // ── Repo menu dropdown ─────────────────────────────────────────────────────
 
-const _repoMenuWrap = document.getElementById('repo-menu-wrap');
-const _repoMenuDropdown = document.getElementById('repo-menu-dropdown');
 const _syncMenuDropdown = document.getElementById('sync-menu-dropdown');
 const _toolsMenuDropdown = document.getElementById('tools-menu-dropdown');
 const _skillsMenuDropdown = document.getElementById('skills-menu-dropdown');
 
 function _closeAllMenuDropdowns() {
-  _repoMenuDropdown.classList.remove('open');
-  _syncMenuDropdown.classList.remove('open');
-  _toolsMenuDropdown.classList.remove('open');
-  _skillsMenuDropdown.classList.remove('open');
+  _syncMenuDropdown?.classList.remove('open');
+  _toolsMenuDropdown?.classList.remove('open');
+  _skillsMenuDropdown?.classList.remove('open');
 }
 
 // ── 沉淀知识库（sediment-kb：精选列表，按分类分组）────────────────────────
-
-function _closeSedimentKbListDialog() {
-  document.getElementById('repo-list-dialog').classList.remove('open');
-}
-
-function _closeSedimentKbAddDialog() {
-  document.getElementById('sediment-kb-add-dialog').classList.remove('open');
-}
-
-function _closeSedimentKbManageDialog() {
-  document.getElementById('sediment-kb-manage-dialog').classList.remove('open');
-}
 
 let _kbCorpusStatus = null;
 let _kbCorpusDiffStatus = null;
@@ -201,10 +186,54 @@ async function _ensureSedimentKbCategories() {
   return _sedimentKbCategories;
 }
 
+function bindSedimentKbListActions(content) {
+  content.querySelectorAll('.repo-sync-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const repo = btn.dataset.repo;
+      btn.disabled = true;
+      btn.textContent = '…';
+      try {
+        await api.reindexKbRepo(repo);
+        const poll = () => api.getReindexStatus();
+        for (let i = 0; i < 120; i++) {
+          await new Promise(r => setTimeout(r, 2000));
+          const s = await poll();
+          if (s?.status !== 'running') break;
+        }
+        _kbCorpusStatus = null;
+        await loadSedimentKbList(true);
+      } catch (e) {
+        alert(`Sync failed: ${e.message}`);
+        btn.disabled = false;
+        btn.textContent = 'SYNC';
+      }
+    });
+  });
+
+  content.querySelectorAll('.repo-diff-badge').forEach(btn => {
+    btn.addEventListener('click', () => {
+      openKbDiffDialog(btn.dataset.repo);
+    });
+  });
+
+  content.querySelectorAll('.sediment-kb-inline-category').forEach(sel => {
+    sel.addEventListener('change', () => {
+      onInlineCategoryChange(sel.dataset.repo, sel.value);
+    });
+  });
+
+  content.querySelectorAll('.sediment-kb-delete-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      onDeleteSedimentKbRepo(btn.dataset.repo);
+    });
+  });
+}
+
 function renderSedimentKbListByCategory(repos) {
   const content = document.getElementById('repo-list-content');
+  if (!content) return;
   if (!repos || repos.length === 0) {
-    content.innerHTML = '<div id="repo-list-loading">No repositories found</div>';
+    content.innerHTML = '<div class="repo-list-loading">No repositories found</div>';
     return;
   }
 
@@ -273,47 +302,7 @@ function renderSedimentKbListByCategory(repos) {
   }).join('');
 
   content.innerHTML = html;
-
-  content.querySelectorAll('.repo-sync-btn').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      const repo = btn.dataset.repo;
-      btn.disabled = true;
-      btn.textContent = '…';
-      try {
-        await api.reindexKbRepo(repo);
-        const poll = () => api.getReindexStatus();
-        for (let i = 0; i < 120; i++) {
-          await new Promise(r => setTimeout(r, 2000));
-          const s = await poll();
-          if (s?.status !== 'running') break;
-        }
-        _kbCorpusStatus = null;
-        await loadSedimentKbList(true);
-      } catch (e) {
-        alert(`Sync failed: ${e.message}`);
-        btn.disabled = false;
-        btn.textContent = 'SYNC';
-      }
-    });
-  });
-
-  content.querySelectorAll('.repo-diff-badge').forEach(btn => {
-    btn.addEventListener('click', () => {
-      openKbDiffDialog(btn.dataset.repo);
-    });
-  });
-
-  content.querySelectorAll('.sediment-kb-inline-category').forEach(sel => {
-    sel.addEventListener('change', () => {
-      onInlineCategoryChange(sel.dataset.repo, sel.value);
-    });
-  });
-
-  content.querySelectorAll('.sediment-kb-delete-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      onDeleteSedimentKbRepo(btn.dataset.repo);
-    });
-  });
+  bindSedimentKbListActions(content);
 }
 
 async function onInlineCategoryChange(fullName, categoryId) {
@@ -348,7 +337,6 @@ async function loadSedimentKbList(forceRefresh = false) {
   _sedimentKbList = null;
   _sedimentKbError = null;
   _kbCorpusDiffStatus = null;
-  const content = document.getElementById('repo-list-content');
   try {
     const [reposData, catsData] = await Promise.all([
       api.fetchSedimentKbRepos(),
@@ -374,8 +362,9 @@ async function loadSedimentKbList(forceRefresh = false) {
     _sedimentKbError = e.message || String(e);
     _sedimentKbList = [];
     _kbCorpusStatus = [];
-    if (content) {
-      content.innerHTML = `<div id="repo-list-loading" style="color:#cf222e">Failed to load: ${escHtml(_sedimentKbError)}</div>`;
+    const list = document.getElementById('repo-list-content');
+    if (list) {
+      list.innerHTML = `<div class="repo-list-loading" style="color:#cf222e">Failed to load: ${escHtml(_sedimentKbError)}</div>`;
     }
     return;
   }
@@ -393,17 +382,17 @@ async function loadSedimentKbList(forceRefresh = false) {
   renderSedimentKbListByCategory(_sedimentKbList);
 }
 
-async function openSedimentKbListDialog() {
-  const title = document.querySelector('#repo-list-title-group h3');
-  if (title) title.textContent = '☰ Knowledge list';
-  document.getElementById('repo-list-dialog').classList.add('open');
+async function prepareSedimentKbList() {
   const content = document.getElementById('repo-list-content');
-  content.innerHTML = '<div id="repo-list-loading">Loading…</div>';
+  if (content && !content.innerHTML.trim()) {
+    content.innerHTML = '<div id="repo-list-loading">Loading…</div>';
+  }
   await loadSedimentKbList(true);
 }
 
-async function openSedimentKbAddDialog() {
+async function prepareSedimentKbAddForm() {
   const urlInput = document.getElementById('sediment-kb-add-url');
+  if (!urlInput) return;
   _setSedimentKbError('sediment-kb-add-error', '');
   urlInput.value = '';
   document.getElementById('sediment-kb-add-description').value = '';
@@ -417,8 +406,6 @@ async function openSedimentKbAddDialog() {
     document.getElementById('sediment-kb-add-category').innerHTML =
       '<option value="uncategorized">Uncategorized</option>';
   }
-  document.getElementById('sediment-kb-add-dialog').classList.add('open');
-  urlInput.focus();
 }
 
 function _renderSedimentKbManageList(categories) {
@@ -470,52 +457,37 @@ function _renderSedimentKbManageList(categories) {
   });
 }
 
-async function openSedimentKbManageDialog() {
+async function prepareSedimentKbManage() {
   _setSedimentKbError('sediment-kb-manage-error', '');
-  document.getElementById('sediment-kb-manage-new-name').value = '';
+  const nameInput = document.getElementById('sediment-kb-manage-new-name');
+  if (nameInput) nameInput.value = '';
   try {
     const categories = await _ensureSedimentKbCategories();
     _renderSedimentKbManageList(categories);
   } catch (e) {
-    document.getElementById('sediment-kb-manage-list').innerHTML =
-      `<div class="sediment-kb-error">${escHtml(e.message)}</div>`;
+    const list = document.getElementById('sediment-kb-manage-list');
+    if (list) {
+      list.innerHTML = `<div class="sediment-kb-error">${escHtml(e.message)}</div>`;
+    }
   }
-  document.getElementById('sediment-kb-manage-dialog').classList.add('open');
 }
 
 window.addEventListener('kb-diff-updated', () => {
   void loadSedimentKbList(true);
 });
 
-document.getElementById('btn-sediment-kb-list').addEventListener('click', () => {
-  _repoMenuDropdown.classList.remove('open');
-  void openSedimentKbListDialog();
+window.addEventListener('settings-knowledge-tab', (e) => {
+  const tabId = e.detail;
+  if (tabId === 'list') void prepareSedimentKbList();
+  else if (tabId === 'add') void prepareSedimentKbAddForm();
+  else if (tabId === 'categories') void prepareSedimentKbManage();
 });
 
-document.getElementById('btn-sediment-kb-add').addEventListener('click', () => {
-  _repoMenuDropdown.classList.remove('open');
-  void openSedimentKbAddDialog();
-});
-
-document.getElementById('btn-sediment-kb-manage').addEventListener('click', () => {
-  _repoMenuDropdown.classList.remove('open');
-  void openSedimentKbManageDialog();
-});
-
-document.getElementById('btn-repo-list-refresh').addEventListener('click', () => {
+document.getElementById('btn-repo-list-refresh')?.addEventListener('click', () => {
   void loadSedimentKbList(true);
 });
 
-document.getElementById('btn-repo-list-close').addEventListener('click', _closeSedimentKbListDialog);
-document.getElementById('repo-list-dialog').addEventListener('click', e => {
-  if (e.target === document.getElementById('repo-list-dialog')) _closeSedimentKbListDialog();
-});
-
-document.getElementById('btn-sediment-kb-add-cancel').addEventListener('click', _closeSedimentKbAddDialog);
-document.getElementById('sediment-kb-add-dialog').addEventListener('click', e => {
-  if (e.target === document.getElementById('sediment-kb-add-dialog')) _closeSedimentKbAddDialog();
-});
-document.getElementById('btn-sediment-kb-add-submit').addEventListener('click', () => {
+document.getElementById('btn-sediment-kb-add-submit')?.addEventListener('click', () => {
   void (async () => {
     const urlInput = document.getElementById('sediment-kb-add-url');
     const catSelect = document.getElementById('sediment-kb-add-category');
@@ -535,7 +507,9 @@ document.getElementById('btn-sediment-kb-add-submit').addEventListener('click', 
       if (res?.error) throw new Error(res.error);
       _sedimentKbList = null;
       _sedimentKbCategories = null;
-      _closeSedimentKbAddDialog();
+      urlInput.value = '';
+      descInput.value = '';
+      _setSedimentKbError('sediment-kb-add-error', 'Added.');
     } catch (e) {
       _setSedimentKbError('sediment-kb-add-error', e.message);
     } finally {
@@ -544,11 +518,7 @@ document.getElementById('btn-sediment-kb-add-submit').addEventListener('click', 
   })();
 });
 
-document.getElementById('btn-sediment-kb-manage-close').addEventListener('click', _closeSedimentKbManageDialog);
-document.getElementById('sediment-kb-manage-dialog').addEventListener('click', e => {
-  if (e.target === document.getElementById('sediment-kb-manage-dialog')) _closeSedimentKbManageDialog();
-});
-document.getElementById('btn-sediment-kb-manage-add').addEventListener('click', () => {
+document.getElementById('btn-sediment-kb-manage-add')?.addEventListener('click', () => {
   void (async () => {
     const input = document.getElementById('sediment-kb-manage-new-name');
     const name = input.value.trim();
@@ -568,11 +538,11 @@ document.getElementById('btn-sediment-kb-manage-add').addEventListener('click', 
   })();
 });
 
-document.getElementById('sediment-kb-add-url').addEventListener('keydown', e => {
-  if (e.key === 'Enter') document.getElementById('btn-sediment-kb-add-submit').click();
+document.getElementById('sediment-kb-add-url')?.addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('btn-sediment-kb-add-submit')?.click();
 });
-document.getElementById('sediment-kb-manage-new-name').addEventListener('keydown', e => {
-  if (e.key === 'Enter') document.getElementById('btn-sediment-kb-manage-add').click();
+document.getElementById('sediment-kb-manage-new-name')?.addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('btn-sediment-kb-manage-add')?.click();
 });
 
 // ── Event listeners ────────────────────────────────────────────────────────

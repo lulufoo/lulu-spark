@@ -33,6 +33,18 @@ pub fn open_repo(path: &Path) -> Result<Repository, GitError> {
     })
 }
 
+/// `origin` URL from git2 (no `git` on PATH required).
+pub fn origin_url(repo: &Path) -> Option<String> {
+    let repository = open_repo(repo).ok()?;
+    let remote = repository.find_remote("origin").ok()?;
+    let url = remote.url()?.trim();
+    if url.is_empty() {
+        None
+    } else {
+        Some(url.to_string())
+    }
+}
+
 /// Run git CLI in `repo` (only subprocess site in this module).
 pub(crate) fn exec(repo: &Path, args: &[&str]) -> Result<GitOutput, GitError> {
     let output = Command::new("git")

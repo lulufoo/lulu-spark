@@ -25,6 +25,7 @@ fn get_config_has_frontend_contract_keys() {
     assert!(v.get("workbench_knowledge_root").is_some());
     assert!(v.get("knowledge_corpus_root").is_some());
     assert!(v.get("github_user_url").is_some());
+    assert!(v.get("workbench_github_repo_url").is_some());
     assert!(v.get("meili_url").is_some());
     assert!(v.get("cache_dir").is_some());
     assert!(v.get("has_github_token").is_some());
@@ -171,6 +172,43 @@ fn get_draft_invalid_path() {
     let dir = tempfile::tempdir().expect("tmp");
     let v = get_draft(dir.path(), "..%2Fsecret");
     assert_eq!(v["error"], "Invalid path");
+}
+
+fn init_repo_with_github_origin(dir: &std::path::Path, origin: &str) {
+    assert!(crate::integrations::git::exec(dir, &["init"])
+        .expect("init")
+        .success);
+    assert!(crate::integrations::git::exec(dir, &["remote", "add", "origin", origin])
+        .expect("remote add")
+        .success);
+}
+
+#[test]
+fn infer_github_user_url_reads_ssh_origin() {
+    let dir = tempfile::tempdir().expect("tmp");
+    init_repo_with_github_origin(
+        dir.path(),
+        "git@github.com:lulufoo/lulu-workbench-knowledge.git",
+    );
+    let v = infer_github_user_url(dir.path().to_str().unwrap());
+    assert_eq!(v["github_user_url"], "https://github.com/lulufoo");
+    assert_eq!(
+        v["workbench_github_repo_url"],
+        "https://github.com/lulufoo/lulu-workbench-knowledge"
+    );
+}
+
+#[test]
+fn infer_github_user_url_trims_padded_path() {
+    let dir = tempfile::tempdir().expect("tmp");
+    init_repo_with_github_origin(dir.path(), "git@github.com:lulufoo/notes.git");
+    let padded = format!("  {}  ", dir.path().display());
+    let v = infer_github_user_url(&padded);
+    assert_eq!(v["github_user_url"], "https://github.com/lulufoo");
+    assert_eq!(
+        v["workbench_github_repo_url"],
+        "https://github.com/lulufoo/notes"
+    );
 }
 
 #[test]

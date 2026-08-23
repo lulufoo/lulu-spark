@@ -4,17 +4,26 @@ import { describe, expect, it } from 'vitest';
 const indexHtml = readFileSync(new URL('../frontend/index.html', import.meta.url), 'utf8');
 const mainJs = readFileSync(new URL('../frontend/js/main.js', import.meta.url), 'utf8');
 const apiJs = readFileSync(new URL('../frontend/js/api.js', import.meta.url), 'utf8');
+const settingsDialogJs = readFileSync(
+  new URL('../frontend/js/components/modals/settings-dialog.js', import.meta.url),
+  'utf8'
+);
 const moveDialogJs = readFileSync(
   new URL('../frontend/js/components/modals/move-dialog.js', import.meta.url),
   'utf8'
 );
 
 describe('sediment kb UI shell', () => {
-  it('menu renamed to Knowledge with add/manage/list entries', () => {
-    expect(indexHtml).toContain('id="btn-repo-menu">⚙ Knowledge</button>');
-    expect(indexHtml).toContain('id="btn-sediment-kb-add"');
-    expect(indexHtml).toContain('id="btn-sediment-kb-manage"');
-    expect(indexHtml).toContain('id="btn-sediment-kb-list"');
+  it('Knowledge settings hold list, add, and category tabs', () => {
+    expect(indexHtml).not.toContain('id="btn-repo-menu"');
+    expect(indexHtml).not.toContain('id="repo-menu-wrap"');
+    expect(indexHtml).toContain('id="settings-panel-knowledge"');
+    expect(indexHtml).toContain('id="settings-tab-knowledge-list"');
+    expect(indexHtml).toContain('id="settings-tab-knowledge-add"');
+    expect(indexHtml).toContain('id="settings-tab-knowledge-categories"');
+    expect(indexHtml).toContain('id="btn-sediment-kb-add-submit"');
+    expect(indexHtml).toContain('id="btn-sediment-kb-manage-add"');
+    expect(indexHtml).toContain('id="btn-repo-list-refresh"');
     expect(indexHtml).not.toContain('id="btn-repo-list"');
   });
 
@@ -23,8 +32,26 @@ describe('sediment kb UI shell', () => {
   });
 
   it('add and manage dialogs exist', () => {
-    expect(indexHtml).toContain('id="sediment-kb-add-dialog"');
-    expect(indexHtml).toContain('id="sediment-kb-manage-dialog"');
+    expect(indexHtml).not.toContain('id="sediment-kb-add-dialog"');
+    expect(indexHtml).not.toContain('id="sediment-kb-manage-dialog"');
+    expect(indexHtml).not.toContain('id="repo-list-dialog"');
+    expect(indexHtml).not.toContain('id="sediment-kb-corpus-dialog"');
+    expect(indexHtml).toContain('id="settings-panel-knowledge"');
+    expect(indexHtml).toContain('id="sediment-kb-corpus-path"');
+    expect(indexHtml).toContain('id="settings-kb-hide-pattern"');
+    expect(indexHtml).not.toContain('id="settings-kb-root"');
+    expect(indexHtml).not.toContain('id="kb-setting-nav"');
+    expect(indexHtml).toContain('id="settings-tab-notes-directory"');
+    expect(indexHtml).toContain('id="settings-tab-notes-connection"');
+    expect(indexHtml).toContain('id="settings-tab-knowledge-list"');
+    expect(indexHtml).toContain('id="settings-tab-knowledge-add"');
+    expect(indexHtml).toContain('id="settings-tab-knowledge-categories"');
+    expect(indexHtml).toContain('id="settings-tab-knowledge-directory"');
+    expect(indexHtml).toContain('id="settings-tab-knowledge-hidden"');
+    expect(indexHtml).toContain('id="settings-tab-llm-engine"');
+    expect(indexHtml).toContain('id="settings-tab-github-account"');
+    expect(indexHtml).toContain('id="notes-connect-item"');
+    expect(indexHtml).toMatch(/for="notes-connect-url">GitHub repository URL</);
     expect(indexHtml).toContain('id="sediment-kb-add-url"');
     expect(indexHtml).toContain('id="sediment-kb-add-category"');
     expect(indexHtml).toContain('id="sediment-kb-add-description"');
@@ -35,9 +62,9 @@ describe('sediment kb UI shell', () => {
     expect(match).not.toBeNull();
   });
 
-  it('openSedimentKbAddDialog clears description input', () => {
+  it('prepareSedimentKbAddForm clears description input', () => {
     expect(mainJs).toMatch(
-      /function openSedimentKbAddDialog\(\)[\s\S]*?getElementById\('sediment-kb-add-description'\)\.value = ''/
+      /function prepareSedimentKbAddForm\(\)[\s\S]*?getElementById\('sediment-kb-add-description'\)\.value = ''/
     );
   });
 
@@ -53,12 +80,80 @@ describe('sediment kb UI shell', () => {
   });
 
   it('main.js wires sediment kb helpers', () => {
-    expect(mainJs).toMatch(/function openSedimentKbAddDialog\(/);
-    expect(mainJs).toMatch(/function openSedimentKbManageDialog\(/);
+    expect(mainJs).toMatch(/function prepareSedimentKbAddForm\(/);
+    expect(mainJs).toMatch(/function prepareSedimentKbManage\(/);
+    expect(mainJs).toMatch(/function prepareSedimentKbList\(/);
+    expect(mainJs).not.toMatch(/function openSedimentKbCorpusDialog\(/);
+    expect(mainJs).not.toMatch(/openSettingsDialog\(\{ panel: 'knowledge'/);
+    expect(settingsDialogJs).toMatch(
+      /btn-sediment-kb-corpus-save[\s\S]*?api\.setConfig\(\{ knowledge_corpus_root: knowledgeCorpusRoot \}\)/
+    );
+    expect(settingsDialogJs).toMatch(/btn-settings-save-knowledge[\s\S]*?saveKbHidePattern\(pattern\)/);
     expect(mainJs).toMatch(/function renderSedimentKbListByCategory\(/);
     expect(mainJs).toMatch(/function onInlineCategoryChange\(/);
     expect(mainJs).toMatch(/function onDeleteSedimentKbRepo\(/);
     expect(mainJs).not.toMatch(/btn-kb-corpus-sync/);
+    expect(mainJs).not.toMatch(/btn-kb-setting-connect-add/);
+  });
+});
+
+describe('Notes GitHub connection', () => {
+  it('persists a single workbench_github_repo_url and can delete it', () => {
+    expect(settingsDialogJs).toMatch(/function normalizeNotesGithubRepoUrl\(/);
+    expect(settingsDialogJs).toMatch(/function renderNotesConnection\(/);
+    expect(settingsDialogJs).toMatch(
+      /api\.setConfig\(\{ workbench_github_repo_url: repoUrl \}\)/,
+    );
+    expect(settingsDialogJs).toMatch(/async function deleteNotesGithubRepo\(/);
+    expect(settingsDialogJs).toMatch(/btn-notes-connect-delete/);
+    expect(settingsDialogJs).toMatch(/target="_blank"/);
+  });
+
+  it('locks the inferred origin repo and hides Delete', () => {
+    expect(settingsDialogJs).toMatch(/function applyNotesGithubRepoFromInferResponse\(/);
+    expect(settingsDialogJs).toMatch(/resp\?\.workbench_github_repo_url/);
+    expect(settingsDialogJs).toMatch(/renderNotesConnection\(inferred, \{ locked: true \}\)/);
+    expect(settingsDialogJs).toMatch(/Inferred from workbench directory git origin \(read-only\)/);
+  });
+
+  it('re-infers on Directory blur even when the path matches the saved snapshot', () => {
+    expect(settingsDialogJs).not.toMatch(
+      /if \(!root \|\| root === savedSnapshot\.workbenchKnowledgeRoot\)/,
+    );
+    expect(settingsDialogJs).toContain(
+      'const pathChanged = root !== savedSnapshot.workbenchKnowledgeRoot',
+    );
+  });
+
+  it('does not disguise infer API errors as missing git origin', () => {
+    expect(settingsDialogJs).toMatch(
+      /return \{ ok: false, error: e\.message \|\| String\(e\) \}/,
+    );
+  });
+
+  it('blocks Notes Connection binding until a Sync token is saved', () => {
+    expect(settingsDialogJs).toMatch(/function isGithubAccountConfigured\(/);
+    expect(settingsDialogJs).toMatch(/savedSnapshot\.hasGithubToken/);
+    expect(settingsDialogJs).toMatch(
+      /isGithubAccountConfigured[\s\S]*?savedSnapshot\.hasGithubToken[\s\S]*?savedSnapshot\.githubUserUrl/,
+    );
+    expect(settingsDialogJs).toMatch(/function syncNotesConnectionAccess\(/);
+    expect(settingsDialogJs).toMatch(/Set a Sync token first to bind a Notes repository/);
+    expect(indexHtml).toMatch(
+      /<nav id="settings-nav">[\s\S]*data-panel="directories"[\s\S]*data-panel="knowledge"[\s\S]*data-panel="llm"[\s\S]*data-panel="github">Sync/,
+    );
+    expect(indexHtml).not.toMatch(
+      /data-panel="directories"[^>]*\bdisabled\b/,
+    );
+  });
+
+  it('keeps GitHub profile above the Sync token', () => {
+    const panelAt = indexHtml.indexOf('id="settings-panel-github"');
+    const profileAt = indexHtml.indexOf('id="settings-github-user-url"');
+    const tokenAt = indexHtml.indexOf('id="settings-github-token"');
+    expect(panelAt).toBeGreaterThan(-1);
+    expect(profileAt).toBeGreaterThan(panelAt);
+    expect(tokenAt).toBeGreaterThan(profileAt);
   });
 });
 

@@ -21,9 +21,10 @@ describe('P1 copy-switch shell (tech-doc T1 / index.html)', () => {
 
   it('header brand and entry controls align with table A', () => {
     expect(extractTagOuter(indexHtml, 'btn-nav-home-title')).toContain('LuLu Workbench');
-    expect(extractTagOuter(indexHtml, 'btn-repo-menu')).toContain('Knowledge');
     expect(extractTagOuter(indexHtml, 'btn-nav-home')).toContain('← Home');
-    expect(indexHtml).not.toMatch(/id="btn-repo-menu"[^>]*>[^<]*沉淀知识库/);
+    expect(indexHtml).toMatch(/data-panel="knowledge">Knowledge</);
+    expect(indexHtml).not.toContain('id="btn-repo-menu"');
+    expect(indexHtml).not.toContain('id="repo-menu-wrap"');
   });
 
   it('header menus use table B labels', () => {
@@ -43,7 +44,8 @@ describe('P1 copy-switch shell (tech-doc T1 / index.html)', () => {
   });
 
   it('repo list title uses table B2 knowledge list label', () => {
-    expect(indexHtml).toMatch(/id="repo-list-title-group"[\s\S]*?☰ Knowledge list/);
+    expect(indexHtml).toMatch(/data-tab="list"[^>]*>List</);
+    expect(indexHtml).toContain('id="repo-list-title-group"');
     expect(indexHtml).not.toContain('☰ 沉淀知识库列表');
   });
 
@@ -56,10 +58,37 @@ describe('P1 copy-switch shell (tech-doc T1 / index.html)', () => {
     expect(indexHtml).not.toContain('Read Later 待读');
   });
 
-  it('settings nav uses table B2 directories and GitHub account labels', () => {
-    expect(indexHtml).toMatch(/data-panel="directories">Directories</);
-    expect(indexHtml).toMatch(/data-panel="github">GitHub account</);
+  it('settings nav uses Notes, Knowledge, Assistant / Engine, then Sync', () => {
+    expect(indexHtml).toMatch(/data-panel="directories">Notes</);
     expect(indexHtml).toMatch(/data-panel="knowledge">Knowledge</);
+    expect(indexHtml).toMatch(/data-panel="github">Sync</);
+    expect(indexHtml).not.toMatch(/data-panel="github">GitHub account</);
+    expect(indexHtml).toMatch(/data-tab="hidden"[^>]*>Hidden files</);
+    const knowledgeTabs = indexHtml.match(/id="settings-panel-knowledge"[\s\S]*?role="tablist">([\s\S]*?)<\/div>/)?.[1] ?? '';
+    expect(knowledgeTabs.indexOf('data-tab="directory"')).toBeGreaterThan(-1);
+    expect(knowledgeTabs.indexOf('data-tab="directory"')).toBeLessThan(
+      knowledgeTabs.indexOf('data-tab="list"'),
+    );
+    expect(knowledgeTabs.indexOf('data-tab="list"')).toBeLessThan(
+      knowledgeTabs.indexOf('data-tab="categories"'),
+    );
+    expect(knowledgeTabs.indexOf('data-tab="categories"')).toBeLessThan(
+      knowledgeTabs.indexOf('data-tab="add"'),
+    );
+    expect(knowledgeTabs.indexOf('data-tab="add"')).toBeLessThan(
+      knowledgeTabs.indexOf('data-tab="hidden"'),
+    );
+    const nav = indexHtml.match(/<nav id="settings-nav">([\s\S]*?)<\/nav>/)?.[1] ?? '';
+    expect(nav.indexOf('data-panel="directories"')).toBeGreaterThan(-1);
+    expect(nav.indexOf('data-panel="directories"')).toBeLessThan(
+      nav.indexOf('data-panel="knowledge"'),
+    );
+    expect(nav.indexOf('data-panel="knowledge"')).toBeLessThan(
+      nav.indexOf('data-panel="llm"'),
+    );
+    expect(nav.indexOf('data-panel="llm"')).toBeLessThan(
+      nav.indexOf('data-panel="github"'),
+    );
   });
 
   it('delete dialog copy uses table B2 strings', () => {

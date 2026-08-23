@@ -34,6 +34,7 @@ function baseConfig(overrides = {}) {
     workbench_knowledge_root: '',
     knowledge_corpus_root: '',
     github_user_url: '',
+    workbench_github_repo_url: '',
     has_github_token: false,
     assistant_engine: 'host',
     has_host_key: false,

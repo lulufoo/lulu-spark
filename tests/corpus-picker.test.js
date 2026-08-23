@@ -174,7 +174,7 @@ describe('corpus pick shell integration', () => {
     expect(indexHtml).toMatch(/href="#\/corpus\/pick"/);
     expect(indexHtml).toContain('id="btn-corpus-pick"');
     expect(indexHtml).toContain('id="btn-nav-home"');
-    expect(indexHtml).toContain('id="repo-menu-wrap"');
+    expect(indexHtml).toContain('id="settings-panel-knowledge"');
   });
 
   it('main.js mounts corpus picker on corpus-pick route instead of redirect stub', () => {

@@ -693,7 +693,8 @@
     font-weight: 600;
   }
   .repo-diff-badge:hover { background: #ffe89d; border-color: #bf8700; }
-  #repo-list-loading { font-size: 13px; color: #8c959f; padding: 16px 0; text-align: center; }
+  #repo-list-loading,
+  .repo-list-loading { font-size: 13px; color: #8c959f; padding: 16px 0; text-align: center; }
   #repo-list-dialog-actions {
     display: flex;
     justify-content: flex-end;
@@ -764,6 +765,11 @@
     font-size: 12px;
     font-weight: 600;
     color: #57606a;
+  }
+  .sediment-kb-field-hint {
+    font-size: 11px;
+    color: #8c959f;
+    line-height: 1.4;
   }
   .sediment-kb-field input,
   .sediment-kb-field select,
@@ -5368,18 +5374,154 @@
     color: #57606a;
   }
   #btn-move-doc-cancel:hover { background: #eaeef2; }
-  #btn-move-doc-header {
-    background: #525960;
-    border: 1px solid #656d76;
-    color: #ecf0f4;
-    padding: 5px 12px;
-    border-radius: 6px;
-    font-size: 12px;
-    cursor: pointer;
-    transition: background .15s;
-  }
-  #btn-move-doc-header:hover { background: #5c6370; }
 
+  /* ── Knowledge Setting dialog (same left-nav / right-panel as GitHub) ── */
+  #sediment-kb-corpus-dialog-box {
+    background: #fff;
+    border-radius: 10px;
+    width: min(680px, 94vw);
+    max-height: 90vh;
+    box-shadow: 0 8px 40px rgba(0,0,0,.3);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    padding: 0;
+    gap: 0;
+  }
+  #sediment-kb-corpus-dialog-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 18px;
+    border-bottom: 1px solid #d0d7de;
+    font-size: 14px;
+    font-weight: 600;
+    color: #24292f;
+    flex-shrink: 0;
+  }
+  #btn-sediment-kb-corpus-close {
+    background: none;
+    border: none;
+    font-size: 16px;
+    cursor: pointer;
+    color: #57606a;
+    padding: 2px 6px;
+    border-radius: 4px;
+    line-height: 1;
+  }
+  #btn-sediment-kb-corpus-close:hover { background: #eaeef2; }
+  #sediment-kb-corpus-dialog-body {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+    min-height: 220px;
+  }
+  #kb-setting-nav {
+    width: 138px;
+    flex-shrink: 0;
+    border-right: 1px solid #d0d7de;
+    padding: 10px 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    background: #f6f8fa;
+  }
+  .kb-setting-nav-item {
+    background: none;
+    border: none;
+    text-align: left;
+    padding: 7px 16px;
+    font-size: 13px;
+    color: #24292f;
+    cursor: pointer;
+    border-radius: 0;
+    transition: background .1s;
+  }
+  .kb-setting-nav-item:hover { background: #eaeef2; }
+  .kb-setting-nav-item.active {
+    background: #dbe4ef;
+    font-weight: 600;
+    color: #0969da;
+  }
+  #kb-setting-panels {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px 24px;
+    display: flex;
+    flex-direction: column;
+  }
+  .kb-setting-panel { display: none; flex-direction: column; gap: 16px; }
+  .kb-setting-panel.active { display: flex; }
+  .kb-setting-panel-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: #24292f;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #d0d7de;
+  }
+  .kb-setting-field { display: flex; flex-direction: column; gap: 5px; }
+  .kb-setting-field label {
+    font-size: 12px;
+    color: #57606a;
+    font-weight: 600;
+  }
+  .kb-setting-field input {
+    width: 100%;
+    padding: 7px 10px;
+    border: 1px solid #d0d7de;
+    border-radius: 6px;
+    font-size: 13px;
+    font-family: ui-monospace, SFMono-Regular, monospace;
+    outline: none;
+    box-sizing: border-box;
+  }
+  .kb-setting-field input:focus { border-color: #0969da; }
+  .kb-setting-field-hint {
+    font-size: 11px;
+    color: #8c959f;
+    line-height: 1.4;
+  }
+  .kb-setting-result {
+    min-height: 18px;
+    font-size: 12px;
+    word-break: break-all;
+    line-height: 1.5;
+  }
+  .kb-setting-panel-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    padding-top: 4px;
+  }
+  .btn-kb-setting-primary {
+    background: #0969da;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    padding: 6px 18px;
+    font-size: 13px;
+    cursor: pointer;
+    font-weight: 600;
+  }
+  .btn-kb-setting-primary:hover:not(:disabled) { background: #0757b8; }
+  .btn-kb-setting-primary:disabled { opacity: .6; cursor: default; }
+  #sediment-kb-corpus-dialog-footer {
+    border-top: 1px solid #d0d7de;
+    padding: 10px 18px;
+    display: flex;
+    justify-content: flex-end;
+    flex-shrink: 0;
+  }
+  #btn-sediment-kb-corpus-cancel {
+    background: none;
+    border: 1px solid #d0d7de;
+    border-radius: 6px;
+    padding: 6px 16px;
+    font-size: 13px;
+    cursor: pointer;
+    color: #57606a;
+  }
+  #btn-sediment-kb-corpus-cancel:hover { background: #eaeef2; }
   #_tip {
     position: fixed;
     z-index: 9999;
@@ -5609,10 +5751,11 @@
 #settings-dialog.open { display: flex; }
 #settings-dialog-box {
   background: #fff;
-  border-radius: 10px;
-  width: min(680px, 94vw);
-  max-height: 90vh;
-  box-shadow: 0 8px 40px rgba(0,0,0,.3);
+  border-radius: 8px;
+  width: min(720px, 94vw);
+  height: min(560px, 86vh);
+  max-height: 86vh;
+  box-shadow: 0 8px 32px rgba(1,4,9,.18), 0 0 0 1px rgba(31,35,40,.08);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -5621,11 +5764,11 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 14px 18px;
+  padding: 12px 16px;
   border-bottom: 1px solid #d0d7de;
   font-size: 14px;
   font-weight: 600;
-  color: #24292f;
+  color: #1f2328;
   flex-shrink: 0;
 }
 #btn-settings-close {
@@ -5648,61 +5791,140 @@
   min-height: 0;
 }
 #settings-nav {
-  width: 138px;
+  width: 168px;
   flex-shrink: 0;
   border-right: 1px solid #d0d7de;
-  padding: 10px 0;
+  padding: 8px 0;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 1px;
   background: #f6f8fa;
 }
 .settings-nav-item {
   background: none;
   border: none;
   text-align: left;
-  padding: 7px 16px;
+  padding: 8px 14px;
   font-size: 13px;
-  color: #24292f;
+  color: #1f2328;
   cursor: pointer;
   border-radius: 0;
-  transition: background .1s;
+  line-height: 1.3;
 }
 .settings-nav-item:hover { background: #eaeef2; }
 .settings-nav-item.active {
-  background: #dbe4ef;
+  background: #fff;
   font-weight: 600;
   color: #0969da;
+  box-shadow: inset 2px 0 0 #0969da;
 }
+.settings-nav-item:disabled {
+  color: #8c959f;
+  cursor: not-allowed;
+  opacity: .7;
+}
+.settings-nav-item:disabled:hover { background: transparent; }
 
 /* Right panels */
 #settings-panels {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
-  padding: 20px 24px;
+  padding: 16px 20px 18px;
   display: flex;
   flex-direction: column;
 }
-.settings-panel { display: none; flex-direction: column; gap: 16px; }
-.settings-panel.active { display: flex; }
-.settings-panel-title {
-  font-size: 13px;
-  font-weight: 600;
-  color: #24292f;
-  padding-bottom: 10px;
+.settings-panel { display: none; flex-direction: column; gap: 14px; }
+.settings-panel.active { display: flex; flex: 1; min-height: 0; }
+.settings-tabs {
+  display: flex;
+  gap: 0;
   border-bottom: 1px solid #d0d7de;
+  margin: -16px -20px 2px;
+  padding: 0 12px;
+}
+.settings-tab {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  padding: 9px 12px 8px;
+  margin-bottom: -1px;
+  font-size: 13px;
+  color: #59636e;
+  cursor: pointer;
+  font-weight: 500;
+}
+.settings-tab:hover { color: #0969da; }
+.settings-tab.active {
+  color: #0969da;
+  border-bottom-color: #0969da;
+  font-weight: 600;
+}
+.settings-tab-panel { display: none; flex-direction: column; gap: 14px; }
+.settings-tab-panel.active { display: flex; }
+.settings-connect-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.settings-connect-row input {
+  flex: 1;
+  min-width: 0;
+  padding: 7px 10px;
+  border: 1px solid #d0d7de;
+  border-radius: 6px;
+  font-size: 13px;
+  font-family: ui-monospace, SFMono-Regular, monospace;
+  outline: none;
+  box-sizing: border-box;
+}
+.settings-connect-row input:focus { border-color: #0969da; }
+#notes-connect-add[hidden] { display: none; }
+#notes-connect-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+#settings-tab-notes-connection .repo-list-item {
+  flex-wrap: wrap;
 }
 
 /* Fields */
-.settings-field { display: flex; flex-direction: column; gap: 5px; }
+.settings-field { display: flex; flex-direction: column; gap: 4px; }
 .settings-field label {
   font-size: 12px;
-  color: #57606a;
+  color: #59636e;
   font-weight: 600;
+}
+#settings-panel-knowledge .settings-tabs { flex-wrap: wrap; }
+.settings-knowledge-list-head {
+  display: flex;
+  justify-content: flex-end;
+  flex-shrink: 0;
+}
+#settings-tab-knowledge-list.active {
+  flex: 1;
+  min-height: 0;
+}
+#settings-tab-knowledge-list #repo-list-content {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none;
+  overflow-y: auto;
+  padding-bottom: 8px;
+  scrollbar-gutter: stable;
+}
+#settings-tab-knowledge-list #repo-list-content::-webkit-scrollbar {
+  width: 8px;
+}
+#settings-tab-knowledge-list #repo-list-content::-webkit-scrollbar-thumb {
+  background: #d0d7de;
+  border-radius: 4px;
 }
 .settings-field input[type="text"],
 .settings-field input[type="password"],
-.settings-field select {
+.settings-field select,
+.settings-field textarea {
   width: 100%;
   padding: 7px 10px;
   border: 1px solid #d0d7de;
@@ -5713,7 +5935,7 @@
   background: #fff;
 }
 #settings-archive-root,
-#settings-kb-root,
+#sediment-kb-corpus-path,
 #settings-github-user-url {
   font-family: ui-monospace, SFMono-Regular, monospace;
 }
@@ -5734,12 +5956,14 @@
   line-height: 1.4;
 }
 .settings-result {
-  min-height: 18px;
+  min-height: 0;
   font-size: 12px;
+  line-height: 1.45;
 }
 .settings-panel-actions {
   display: flex;
   justify-content: flex-end;
+  gap: 8px;
   padding-top: 4px;
 }
 .btn-settings-save {
@@ -5758,10 +5982,11 @@
 /* Footer */
 #settings-dialog-footer {
   border-top: 1px solid #d0d7de;
-  padding: 10px 18px;
+  padding: 8px 16px;
   display: flex;
   justify-content: flex-end;
   flex-shrink: 0;
+  background: #f6f8fa;
 }
 #btn-settings-cancel {
   background: none;

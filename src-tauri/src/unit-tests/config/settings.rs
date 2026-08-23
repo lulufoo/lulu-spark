@@ -146,6 +146,28 @@ fn save_roundtrip_keeps_general_settings() {
 }
 
 #[test]
+fn workbench_github_repo_url_can_be_set_and_cleared() {
+    let mut settings = AppSettings::default();
+    apply_config_payload(
+        &mut settings,
+        &serde_json::json!({
+            "workbench_github_repo_url": "https://github.com/lulufoo/notes"
+        }),
+    )
+    .expect("apply");
+    assert_eq!(
+        settings.workbench_github_repo_url,
+        "https://github.com/lulufoo/notes"
+    );
+    apply_config_payload(
+        &mut settings,
+        &serde_json::json!({ "workbench_github_repo_url": "  " }),
+    )
+    .expect("clear");
+    assert_eq!(settings.workbench_github_repo_url, "");
+}
+
+#[test]
 fn github_remote_helpers_remain_unchanged() {
     assert_eq!(
         github_user_home_from_remote_url("git@github.com:lulufoo/project.git"),
@@ -157,5 +179,13 @@ fn github_remote_helpers_remain_unchanged() {
             Path::new("/Users/me/Code/lulu-workbench-knowledge"),
         ),
         "https://github.com/lulufoo/lulu-workbench-knowledge/blob/main"
+    );
+    assert_eq!(
+        github_repo_url_from_remote_url("git@github.com:lulufoo/lulu-workbench-knowledge.git"),
+        Some("https://github.com/lulufoo/lulu-workbench-knowledge".into())
+    );
+    assert_eq!(
+        github_repo_url_from_remote_url("https://github.com/lulufoo/notes.git"),
+        Some("https://github.com/lulufoo/notes".into())
     );
 }

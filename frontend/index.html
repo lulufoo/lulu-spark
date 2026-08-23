@@ -8,7 +8,7 @@
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/turndown/dist/turndown.min.js"></script>
 <script src="vendor/mermaid.min.js"></script>
-<link rel="stylesheet" href="app.css?v=20260705c">
+<link rel="stylesheet" href="app.css?v=20260823g">
 </head>
 <body>
 
@@ -28,14 +28,6 @@
     <div id="gs-kb-dropdown" class="gs-search-dropdown" style="display:none"></div>
   </div>
   <a href="https://github.com/lulufoo/lulu-workbench" target="_blank">GitHub ↗</a>
-  <div id="repo-menu-wrap">
-    <button id="btn-repo-menu">⚙ Knowledge</button>
-    <div id="repo-menu-dropdown">
-      <button id="btn-sediment-kb-add">＋ Add</button>
-      <button id="btn-sediment-kb-manage">⚙ Manage</button>
-      <button id="btn-sediment-kb-list">☰ List</button>
-    </div>
-  </div>
   <div id="sync-menu-wrap">
     <button id="btn-sync-menu">⇕ Sync</button>
     <div id="sync-menu-dropdown">
@@ -47,7 +39,7 @@
   <div id="tools-menu-wrap">
     <button id="btn-tools-menu">⛓ Tools</button>
     <div id="tools-menu-dropdown">
-      <button id="btn-move-doc-header">GitHub operations</button>
+      <button id="btn-move-doc-header">↗ GitHub</button>
       <button id="btn-base64">🔤 Base64</button>
       <button id="btn-qr">📱 QR code</button>
     </div>
@@ -245,62 +237,6 @@
   </div>
 </div>
 
-<!-- Repo list dialog -->
-<div id="repo-list-dialog">
-  <div id="repo-list-dialog-box">
-    <div id="repo-list-dialog-header">
-      <div id="repo-list-title-group">
-        <h3>☰ Knowledge list</h3>
-        <button id="btn-repo-list-refresh" title="Refresh">⟳</button>
-      </div>
-    </div>
-    <div id="repo-list-content"></div>
-    <div id="repo-list-dialog-actions">
-      <button id="btn-repo-list-close" class="md-header-btn">Close</button>
-    </div>
-  </div>
-</div>
-
-<!-- Sediment KB add dialog -->
-<div id="sediment-kb-add-dialog">
-  <div id="sediment-kb-add-dialog-box">
-    <h3>＋ Add repository</h3>
-    <div class="sediment-kb-field">
-      <label for="sediment-kb-add-url">GitHub repository URL</label>
-      <input id="sediment-kb-add-url" type="text" placeholder="owner/repo or GitHub URL" autocomplete="off" spellcheck="false" />
-    </div>
-    <div class="sediment-kb-field">
-      <label for="sediment-kb-add-category">Category (optional)</label>
-      <select id="sediment-kb-add-category"></select>
-    </div>
-    <div class="sediment-kb-field">
-      <label for="sediment-kb-add-description">Description (optional)</label>
-      <textarea id="sediment-kb-add-description" rows="3" placeholder="Repository description" autocomplete="off" spellcheck="false"></textarea>
-    </div>
-    <div id="sediment-kb-add-error" class="sediment-kb-error" style="display:none"></div>
-    <div id="sediment-kb-add-dialog-actions">
-      <button id="btn-sediment-kb-add-cancel" type="button" class="md-header-btn">Cancel</button>
-      <button id="btn-sediment-kb-add-submit" type="button" class="md-header-btn primary">Add</button>
-    </div>
-  </div>
-</div>
-
-<!-- Sediment KB manage dialog -->
-<div id="sediment-kb-manage-dialog">
-  <div id="sediment-kb-manage-dialog-box">
-    <h3>⚙ Manage categories</h3>
-    <div id="sediment-kb-manage-list"></div>
-    <div id="sediment-kb-manage-add-row">
-      <input id="sediment-kb-manage-new-name" type="text" placeholder="New category name" autocomplete="off" spellcheck="false" />
-      <button id="btn-sediment-kb-manage-add" type="button" class="md-header-btn">Add category</button>
-    </div>
-    <div id="sediment-kb-manage-error" class="sediment-kb-error" style="display:none"></div>
-    <div id="sediment-kb-manage-dialog-actions">
-      <button id="btn-sediment-kb-manage-close" type="button" class="md-header-btn">Close</button>
-    </div>
-  </div>
-</div>
-
 <div id="kb-diff-dialog">
   <div id="kb-diff-dialog-box">
     <div id="kb-diff-dialog-title-row">
@@ -321,7 +257,7 @@
 <div id="move-doc-dialog">
   <div id="move-doc-dialog-box">
     <div id="move-doc-dialog-header">
-      <span>GitHub operations</span>
+      <span>↗ GitHub</span>
       <button id="btn-move-doc-close" type="button" title="Close">✕</button>
     </div>
     <div id="move-doc-dialog-body">
@@ -447,87 +383,156 @@
     </div>
     <div id="settings-dialog-body">
       <nav id="settings-nav">
-        <button type="button" class="settings-nav-item active" data-panel="directories">Directories</button>
-        <button type="button" class="settings-nav-item" data-panel="github">GitHub account</button>
+        <button type="button" class="settings-nav-item active" data-panel="directories">Notes</button>
         <button type="button" class="settings-nav-item" data-panel="knowledge">Knowledge</button>
         <button type="button" class="settings-nav-item" data-panel="llm">Assistant / Engine</button>
+        <button type="button" class="settings-nav-item" data-panel="github">Sync</button>
       </nav>
       <div id="settings-panels">
         <div id="settings-panel-directories" class="settings-panel active">
-          <div class="settings-panel-title">Directories</div>
-          <div class="settings-field">
-            <label for="settings-archive-root">Workbench knowledge directory (workbench_knowledge_root)</label>
-            <input id="settings-archive-root" type="text" spellcheck="false" autocomplete="off" />
-            <span class="settings-field-hint">Local DDM archive repo; if already a git repo, GitHub profile is inferred from origin on save (see GitHub tab).</span>
+          <div class="settings-tabs" role="tablist">
+            <button type="button" class="settings-tab active" data-tab="directory" role="tab">Directory</button>
+            <button type="button" class="settings-tab" data-tab="connection" role="tab">Connection</button>
           </div>
-          <div class="settings-field">
-            <label for="settings-kb-root">Knowledge corpus directory (knowledge_corpus_root)</label>
-            <input id="settings-kb-root" type="text" spellcheck="false" autocomplete="off" />
-            <span class="settings-field-hint">Clone root for topic knowledge repos</span>
+          <div id="settings-tab-notes-directory" class="settings-tab-panel active" data-tab="directory">
+            <div class="settings-field">
+              <input id="settings-archive-root" type="text" spellcheck="false" autocomplete="off" aria-label="Directory" />
+              <span class="settings-field-hint">Local DDM archive repo; if already a git repo, GitHub profile is inferred from origin on save (see Sync).</span>
+            </div>
+            <div id="settings-result-directories" class="settings-result"></div>
+            <div class="settings-panel-actions">
+              <button type="button" id="btn-settings-save-directories" class="btn-settings-save">Save</button>
+            </div>
           </div>
-          <div id="settings-result-directories" class="settings-result"></div>
-          <div class="settings-panel-actions">
-            <button type="button" id="btn-settings-save-directories" class="btn-settings-save">Save</button>
+          <div id="settings-tab-notes-connection" class="settings-tab-panel" data-tab="connection">
+            <div id="notes-connect-add" class="settings-field">
+              <label for="notes-connect-url">GitHub repository URL</label>
+              <div class="settings-connect-row">
+                <input id="notes-connect-url" type="text" placeholder="owner/repo or GitHub URL" autocomplete="off" spellcheck="false" />
+                <button id="btn-notes-connect-add" type="button" class="btn-settings-save">Add</button>
+              </div>
+            </div>
+            <div id="notes-connect-error" class="settings-result"></div>
+            <div id="notes-connect-item"></div>
           </div>
         </div>
         <div id="settings-panel-knowledge" class="settings-panel">
-          <div class="settings-panel-title">Knowledge</div>
-          <div class="settings-field">
-            <label for="settings-kb-hide-pattern">Hidden filename regex (kb_hide_pattern)</label>
-            <input id="settings-kb-hide-pattern" type="text" spellcheck="false" autocomplete="off" placeholder="" />
-            <span class="settings-field-hint">Files matching entry.name are hidden in the tree; leave empty for no filter. Example: <code>\.xxx$</code></span>
+          <div class="settings-tabs" role="tablist">
+            <button type="button" class="settings-tab active" data-tab="directory" role="tab">Directory</button>
+            <button type="button" class="settings-tab" data-tab="list" role="tab">List</button>
+            <button type="button" class="settings-tab" data-tab="categories" role="tab">Categories</button>
+            <button type="button" class="settings-tab" data-tab="add" role="tab">Add</button>
+            <button type="button" class="settings-tab" data-tab="hidden" role="tab">Hidden files</button>
           </div>
-          <div id="settings-result-knowledge" class="settings-result"></div>
-          <div class="settings-panel-actions">
-            <button type="button" id="btn-settings-save-knowledge" class="btn-settings-save">Save</button>
+          <div id="settings-tab-knowledge-directory" class="settings-tab-panel active" data-tab="directory">
+            <div class="settings-field">
+              <label for="sediment-kb-corpus-path">Knowledge corpus directory (knowledge_corpus_root)</label>
+              <input id="sediment-kb-corpus-path" type="text" spellcheck="false" autocomplete="off" />
+              <span class="settings-field-hint">Clone root for topic knowledge repos</span>
+            </div>
+            <div id="sediment-kb-corpus-error" class="settings-result"></div>
+            <div class="settings-panel-actions">
+              <button id="btn-sediment-kb-corpus-save" type="button" class="btn-settings-save">Save</button>
+            </div>
           </div>
-        </div>
-        <div id="settings-panel-github" class="settings-panel">
-          <div class="settings-panel-title">GitHub account</div>
-          <div class="settings-field">
-            <label for="settings-github-user-url">GitHub profile (github_user_url)</label>
-            <input id="settings-github-user-url" type="text" spellcheck="false" autocomplete="off" placeholder="https://github.com/lulufoo" />
-            <span id="settings-github-user-hint" class="settings-field-hint">Personal GitHub URL for Viewer remote links and promote source; can be saved with Token.</span>
+          <div id="settings-tab-knowledge-list" class="settings-tab-panel" data-tab="list">
+            <div id="repo-list-title-group" class="settings-knowledge-list-head">
+              <button id="btn-repo-list-refresh" type="button" class="btn-settings-save" title="Refresh">Refresh</button>
+            </div>
+            <div id="repo-list-content"></div>
           </div>
-          <div class="settings-field">
-            <label for="settings-github-token">Personal Access Token</label>
-            <input id="settings-github-token" type="password" autocomplete="off" />
-            <span id="settings-token-hint" class="settings-field-hint"></span>
+          <div id="settings-tab-knowledge-categories" class="settings-tab-panel" data-tab="categories">
+            <div id="sediment-kb-manage-list"></div>
+            <div id="sediment-kb-manage-add-row" class="settings-connect-row">
+              <input id="sediment-kb-manage-new-name" type="text" placeholder="New category name" autocomplete="off" spellcheck="false" />
+              <button id="btn-sediment-kb-manage-add" type="button" class="btn-settings-save">Add category</button>
+            </div>
+            <div id="sediment-kb-manage-error" class="settings-result"></div>
           </div>
-          <div id="settings-result-github" class="settings-result"></div>
-          <div class="settings-panel-actions">
-            <button type="button" id="btn-settings-save-github" class="btn-settings-save">Save</button>
+          <div id="settings-tab-knowledge-add" class="settings-tab-panel" data-tab="add">
+            <div class="settings-field">
+              <label for="sediment-kb-add-url">GitHub repository URL</label>
+              <input id="sediment-kb-add-url" type="text" placeholder="owner/repo or GitHub URL" autocomplete="off" spellcheck="false" />
+            </div>
+            <div class="settings-field">
+              <label for="sediment-kb-add-category">Category (optional)</label>
+              <select id="sediment-kb-add-category"></select>
+            </div>
+            <div class="settings-field">
+              <label for="sediment-kb-add-description">Description (optional)</label>
+              <textarea id="sediment-kb-add-description" rows="3" placeholder="Repository description" autocomplete="off" spellcheck="false"></textarea>
+            </div>
+            <div id="sediment-kb-add-error" class="settings-result"></div>
+            <div class="settings-panel-actions">
+              <button id="btn-sediment-kb-add-submit" type="button" class="btn-settings-save">Add</button>
+            </div>
+          </div>
+          <div id="settings-tab-knowledge-hidden" class="settings-tab-panel" data-tab="hidden">
+            <div class="settings-field">
+              <label for="settings-kb-hide-pattern">Hidden filename regex (kb_hide_pattern)</label>
+              <input id="settings-kb-hide-pattern" type="text" spellcheck="false" autocomplete="off" placeholder="" />
+              <span class="settings-field-hint">Files matching entry.name are hidden in the tree; leave empty for no filter. Example: <code>\.xxx$</code></span>
+            </div>
+            <div id="settings-result-knowledge" class="settings-result"></div>
+            <div class="settings-panel-actions">
+              <button type="button" id="btn-settings-save-knowledge" class="btn-settings-save">Save</button>
+            </div>
           </div>
         </div>
         <div id="settings-panel-llm" class="settings-panel">
-          <div class="settings-panel-title">Assistant / Engine</div>
-          <div class="settings-field">
-            <label for="settings-llm-engine">Engine category</label>
-            <select id="settings-llm-engine">
-              <option value="host">Agent Loop / GLM</option>
-            </select>
-            <span class="settings-field-hint">Agent Loop / GLM is the only supported assistant engine. Preset fields below are read-only except Model.</span>
+          <div class="settings-tabs" role="tablist">
+            <button type="button" class="settings-tab active" data-tab="engine" role="tab">Engine</button>
           </div>
-          <div class="settings-field">
-            <label for="settings-llm-platform">Platform (read-only)</label>
-            <input id="settings-llm-platform" type="text" spellcheck="false" autocomplete="off" readonly class="settings-input-readonly" />
+          <div id="settings-tab-llm-engine" class="settings-tab-panel active" data-tab="engine">
+            <div class="settings-field">
+              <label for="settings-llm-engine">Engine category</label>
+              <select id="settings-llm-engine">
+                <option value="host">Agent Loop / GLM</option>
+              </select>
+              <span class="settings-field-hint">Agent Loop / GLM is the only supported assistant engine. Preset fields below are read-only except Model.</span>
+            </div>
+            <div class="settings-field">
+              <label for="settings-llm-platform">Platform (read-only)</label>
+              <input id="settings-llm-platform" type="text" spellcheck="false" autocomplete="off" readonly class="settings-input-readonly" />
+            </div>
+            <div class="settings-field">
+              <label for="settings-llm-base-url">Base URL (read-only)</label>
+              <input id="settings-llm-base-url" type="text" spellcheck="false" autocomplete="off" readonly class="settings-input-readonly" />
+            </div>
+            <div class="settings-field">
+              <label for="settings-llm-model">Model (model)</label>
+              <input id="settings-llm-model" type="text" spellcheck="false" autocomplete="off" placeholder="Agent model id" />
+            </div>
+            <div class="settings-field">
+              <label for="settings-llm-api-key">Credential</label>
+              <input id="settings-llm-api-key" type="password" autocomplete="off" />
+              <span id="settings-llm-key-hint" class="settings-field-hint"></span>
+            </div>
+            <div id="settings-result-llm" class="settings-result"></div>
+            <div class="settings-panel-actions">
+              <button type="button" id="btn-settings-save-llm" class="btn-settings-save">Save</button>
+            </div>
           </div>
-          <div class="settings-field">
-            <label for="settings-llm-base-url">Base URL (read-only)</label>
-            <input id="settings-llm-base-url" type="text" spellcheck="false" autocomplete="off" readonly class="settings-input-readonly" />
+        </div>
+        <div id="settings-panel-github" class="settings-panel">
+          <div class="settings-tabs" role="tablist">
+            <button type="button" class="settings-tab active" data-tab="account" role="tab">Account</button>
           </div>
-          <div class="settings-field">
-            <label for="settings-llm-model">Model (model)</label>
-            <input id="settings-llm-model" type="text" spellcheck="false" autocomplete="off" placeholder="Agent model id" />
-          </div>
-          <div class="settings-field">
-            <label for="settings-llm-api-key">Credential</label>
-            <input id="settings-llm-api-key" type="password" autocomplete="off" />
-            <span id="settings-llm-key-hint" class="settings-field-hint"></span>
-          </div>
-          <div id="settings-result-llm" class="settings-result"></div>
-          <div class="settings-panel-actions">
-            <button type="button" id="btn-settings-save-llm" class="btn-settings-save">Save</button>
+          <div id="settings-tab-github-account" class="settings-tab-panel active" data-tab="account">
+            <div class="settings-field">
+              <label for="settings-github-user-url">GitHub profile (github_user_url)</label>
+              <input id="settings-github-user-url" type="text" spellcheck="false" autocomplete="off" placeholder="https://github.com/lulufoo" />
+              <span id="settings-github-user-hint" class="settings-field-hint">Inferred from the Notes directory origin when possible; used for Viewer remote links.</span>
+            </div>
+            <div class="settings-field">
+              <label for="settings-github-token">GitHub token (sync key)</label>
+              <input id="settings-github-token" type="password" autocomplete="off" />
+              <span id="settings-token-hint" class="settings-field-hint">Used for Notes and Knowledge GitHub sync.</span>
+            </div>
+            <div id="settings-result-github" class="settings-result"></div>
+            <div class="settings-panel-actions">
+              <button type="button" id="btn-settings-save-github" class="btn-settings-save">Save</button>
+            </div>
           </div>
         </div>
       </div>

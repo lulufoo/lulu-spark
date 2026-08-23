@@ -43,7 +43,6 @@ describe('P2 copy-switch — main.js & modals (tech-doc T6)', () => {
     expect(mainJs).toContain('Updating…');
     expect(mainJs).toContain('↓ Update project');
     expect(mainJs).toContain('Could not load index.json:');
-    expect(mainJs).toContain('☰ Knowledge list');
     expect(mainJs).toContain('Loading…');
     expect(mainJs).toContain('No repositories found');
     expect(mainJs).toContain('Uncategorized');

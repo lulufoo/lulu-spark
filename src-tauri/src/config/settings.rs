@@ -133,6 +133,9 @@ pub struct AppSettings {
     pub meili_url: String,
     #[serde(default = "default_github_user_url")]
     pub github_user_url: String,
+    /// Optional Notes GitHub repository URL (`https://github.com/owner/repo`). Empty = none.
+    #[serde(default)]
+    pub workbench_github_repo_url: String,
     /// Assistant engine selection: `host` (Agent Loop + GLM). Default `host`.
     /// Legacy or empty values are retained on disk but treated as unconfigured.
     #[serde(default = "default_assistant_engine")]
@@ -171,6 +174,18 @@ fn home_dir() -> PathBuf {
     std::env::var("HOME")
         .map(PathBuf::from)
         .unwrap_or_else(|_| PathBuf::from("/tmp"))
+}
+
+/// Trim and expand `~` / `~/…` so Settings path fields match the on-disk repo.
+pub fn expand_user_path(raw: &str) -> PathBuf {
+    let s = raw.trim();
+    if s == "~" {
+        return home_dir();
+    }
+    if let Some(rest) = s.strip_prefix("~/") {
+        return home_dir().join(rest);
+    }
+    PathBuf::from(s)
 }
 
 fn default_workbench_knowledge_root() -> PathBuf {
@@ -294,16 +309,24 @@ pub fn workbench_github_blob_base(github_user_url: &str, workbench_knowledge_roo
     format!("{trimmed}/{repo}/blob/main")
 }
 
+fn workbench_git_origin_url(workbench_root: &Path) -> Option<String> {
+    crate::integrations::git::origin_url(workbench_root)
+}
+
 /// `https://github.com/{owner}` from `git remote get-url origin` when workbench root is a git repo.
 pub fn infer_github_user_url_from_workbench_root(workbench_root: &Path) -> Option<String> {
-    if !workbench_root.is_dir() || !workbench_root.join(".git").exists() {
-        return None;
+    github_user_home_from_remote_url(&workbench_git_origin_url(workbench_root)?)
+}
+
+/// Profile + repo URL from one origin read.
+pub fn infer_workbench_github_from_root(workbench_root: &Path) -> (Option<String>, Option<String>) {
+    match workbench_git_origin_url(workbench_root) {
+        Some(origin) => (
+            github_user_home_from_remote_url(&origin),
+            github_repo_url_from_remote_url(&origin),
+        ),
+        None => (None, None),
     }
-    let out = crate::integrations::git::exec(workbench_root, &["remote", "get-url", "origin"]).ok()?;
-    if !out.success {
-        return None;
-    }
-    github_user_home_from_remote_url(out.stdout.trim())
 }
 
 /// Parse owner home URL from a GitHub remote (HTTPS or SSH).
@@ -336,6 +359,30 @@ pub fn github_user_home_from_remote_url(remote: &str) -> Option<String> {
     None
 }
 
+/// Parse `https://github.com/{owner}/{repo}` from a GitHub remote (HTTPS or SSH).
+pub fn github_repo_url_from_remote_url(remote: &str) -> Option<String> {
+    let s = remote.trim();
+    if s.is_empty() {
+        return None;
+    }
+    let rest = s
+        .strip_prefix("https://github.com/")
+        .or_else(|| s.strip_prefix("http://github.com/"))
+        .or_else(|| s.strip_prefix("git@github.com:"))
+        .or_else(|| s.strip_prefix("ssh://git@github.com/"))?;
+    let mut parts = rest.split('/');
+    let owner = parts.next()?.trim();
+    let repo = parts
+        .next()?
+        .trim()
+        .trim_end_matches('/')
+        .trim_end_matches(".git");
+    if owner.is_empty() || repo.is_empty() {
+        return None;
+    }
+    Some(format!("https://github.com/{owner}/{repo}"))
+}
+
 impl Default for AppSettings {
     fn default() -> Self {
         Self {
@@ -344,6 +391,7 @@ impl Default for AppSettings {
             cache_dir: default_cache_dir(),
             meili_url: default_meili_url(),
             github_user_url: default_github_user_url(),
+            workbench_github_repo_url: String::new(),
             assistant_engine: default_assistant_engine(),
             llm: Vec::new(),
             http_port: None,
@@ -797,6 +845,7 @@ pub fn to_config_json(
         "workbench_knowledge_root": settings.workbench_knowledge_root.to_string_lossy(),
         "knowledge_corpus_root": settings.knowledge_corpus_root.to_string_lossy(),
         "github_user_url": settings.github_user_url,
+        "workbench_github_repo_url": settings.workbench_github_repo_url,
         "meili_url": settings.meili_url,
         "cache_dir": settings.cache_dir.to_string_lossy(),
         "assistant_engine": settings.assistant_engine,
@@ -848,6 +897,12 @@ pub fn apply_config_payload(
     }
     if let Some(v) = payload.get("github_user_url").and_then(|x| x.as_str()) {
         settings.github_user_url = v.to_string();
+    }
+    if let Some(v) = payload
+        .get("workbench_github_repo_url")
+        .and_then(|x| x.as_str())
+    {
+        settings.workbench_github_repo_url = v.trim().to_string();
     }
     if let Some(v) = payload.get("meili_url").and_then(|x| x.as_str()) {
         settings.meili_url = v.to_string();

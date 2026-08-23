@@ -12,6 +12,26 @@ fn init_repo(dir: &Path) {
 }
 
 #[test]
+fn origin_url_reads_ssh_remote() {
+    let dir = tempfile::tempdir().expect("tmp");
+    init_repo(dir.path());
+    exec(
+        dir.path(),
+        &[
+            "remote",
+            "add",
+            "origin",
+            "git@github.com:lulufoo/lulu-workbench-knowledge.git",
+        ],
+    )
+    .expect("remote add");
+    assert_eq!(
+        origin_url(dir.path()).as_deref(),
+        Some("git@github.com:lulufoo/lulu-workbench-knowledge.git")
+    );
+}
+
+#[test]
 fn status_porcelain_detects_untracked() {
     let dir = tempfile::tempdir().expect("tmp");
     init_repo(dir.path());
