@@ -23,6 +23,8 @@ description: >-
 
 **Formula:** clean feedstock → reader+genre → topic coverage (decision arc) + unit substance + fidelity integrate (`〔User〕` where shape-making) → **self-contained summary** → (optional) archive.
 
+**Chat surface:** 3.5 + Done receipt / file path only. **Forbid** pasting the finished summary body into chat after Gate (duplicate of the archive / cache file).
+
 This `SKILL.md` + `references/` are the runtime contract. Do **not** require any `.cache` scheme file to run.
 
 ---
@@ -71,7 +73,7 @@ Do not restate the full contract in steps; compose and Gate against that file + 
 
 ## Phase A — Self-contained summary
 
-**Visibility:** Steps 1–3 are **internal** by default (do not flood the user with candidate lists). User-facing stops: Step 0 only if scope/genre is ambiguous; **Step 3.5** (required); Step 6 delivers the body in chat then Phase B (unless opt-out).
+**Visibility:** Steps 1–3 are **internal** by default (do not flood the user with candidate lists). User-facing stops: Step 0 only if scope/genre is ambiguous; **Step 3.5** (required); Step 6 is Gate + receipt only — **never** re-print the finished summary in chat.
 
 **Who runs Phase A:** by default the **Grok worker** after parent clean ([execution.md](references/execution.md)). Steps below are the worker contract (also used if parent was told to write inline).
 
@@ -195,7 +197,7 @@ Write body per [references/output-shape.md](references/output-shape.md). While w
 - Self-contained prose; paths/commits only if needed (default: omit / appendix)
 - Fill from in-scope dialogue only — integrate and refine; **never invent** to look complete; **never fatten** with implementation pipeline
 
-### Step 6 — Gate → deliver body
+### Step 6 — Gate → receipt (no body reprint)
 
 Gate (T1 + T2 are the top acceptance; the rest only serve them):
 
@@ -212,9 +214,10 @@ Gate (T1 + T2 are the top acceptance; the rest only serve them):
 
 **On pass:**
 
-1. Post the **full summary body** in chat (so the user can see it; this is **not** a second confirm gate).
-2. If user said 不归档 / no archive → **stop** (Phase A complete).
-3. Else → **Phase B** immediately (no waiting for another “ok” unless the user interrupts).
+1. **Do not** paste the finished summary body into chat (3.5 already showed the spine; reprint is duplicate).
+2. Write the body to `.cache/dialogue-summary/<ts>-<slug>.md` (or `write_body_to` if set).
+3. If user said 不归档 / no archive → chat shows **only** the cache path; **stop** (Phase A complete).
+4. Else → **Phase B** immediately (no waiting for another “ok” unless the user interrupts). Chat shows **only** the Done receipt (paths). The reader opens `raw/` / the cache file.
 
 If spine/cores/genre must change after compose → back to Step 0/2/3 → **3.5 again** → recompose. Do not silently change spine in Phase B.
 
@@ -224,7 +227,7 @@ User-supplied Markdown:
 
 1. Check **summary feel** (all three): ordered topic sections; self-contained substance (not conclusion-only telegram; not second design doc); scope declared (or addable). Fail → reject or offer regenerate via Steps 0–5.
 2. Show title + spine outline + genre once for ack (substitutes 3.5 when paste skipped generation).
-3. Step 6 Gate → deliver body → Phase B (unless opt-out).
+3. Step 6 Gate → Phase B (unless opt-out). Chat: receipt / path only — no body reprint.
 
 ---
 
@@ -233,7 +236,7 @@ User-supplied Markdown:
 **Only** entry for MCP archive. Conventions: [references/archive.md](references/archive.md). Sanitize: [references/body-sanitize.md](references/body-sanitize.md).
 
 <HARD-GATE mcp="archive">
-Workbench App must be running (`workbench-knowledge` MCP). **Do not** write corpus files directly. Unavailable → error and stop (body already delivered in chat).
+Workbench App must be running (`workbench-knowledge` MCP). **Do not** write corpus files directly. Unavailable → error and stop (body already on the cache path; still do not dump it in chat).
 </HARD-GATE>
 
 1. Infer `project` / `doc-theme` / `slug` / `ts` / `COMMON_PATH` (defaults: `inbox`, archive time UTC+8).

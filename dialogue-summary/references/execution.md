@@ -77,7 +77,7 @@ clean_raw_json: {abs path from mechanical clean}
 scope: full | Turn X～Y | topic filter…
 genre_hint: G-arg | G-mech | infer
 SSOT_hint: {path if known} | none
-write_body_to: {abs .cache or omit → return in final message only}
+write_body_to: {abs workspace .cache/dialogue-summary/<ts>-<slug>.md — required}
 archive: no | defer-to-parent
 
 ## Feedstock rule
@@ -89,11 +89,13 @@ Phase A Steps 1–6. For eval / “直接看效果”: auto-confirm Step 3.5 aft
 Chinese body unless user asked otherwise.
 
 ## Done (receipt)
-Return:
+Return to parent (not for user chat dump):
 1. Step 3.5 block (verbatim)
-2. Full summary body (verbatim) — and write to write_body_to if set
+2. Absolute path of the written body (`write_body_to` **required** on default path)
 3. Gate checklist (pass/fail one-liners)
 4. clean_raw path used + approx turn count
+
+Parent **must not** paste the summary body into user chat. User-facing: 3.5 (when interactive) + Done receipt / cache path only.
 ```
 
 ---
@@ -102,8 +104,8 @@ Return:
 
 1. Resolve jsonl from session id / current chat / user path.
 2. Run mechanical clean → clean-raw path.
-3. Dispatch Grok worker with prompt above.
-4. On receipt: if interactive 3.5 required and not auto-eval → show spine to user; else deliver body.
-5. Phase B only if user wants archive and Gate passed.
+3. Dispatch Grok worker with prompt above. Always set `write_body_to` under workspace `.cache/dialogue-summary/`.
+4. On receipt: if interactive 3.5 required and not auto-eval → show spine to user; **do not** show the body.
+5. Phase B only if user wants archive and Gate passed. Chat: Done receipt only.
 
-**Done when:** body delivered (and archived if requested).
+**Done when:** body written to path (and archived if requested); chat has no full-body reprint.

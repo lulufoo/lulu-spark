@@ -91,4 +91,4 @@ User need **not** say “用 sub-agent / 用 Grok” each run.
 4. Phase B: theme-archive Embedded for `workbench`; local `.cache` only for `local-md`.
 5. Digest when `[AD-0]` applies — with **内容约束** for dialogue producers (theme-archive `[AR-3]`).
 
-**Done when:** body delivered (and sunk per `sink`).
+**Done when:** body written to path and sunk per `sink`; parent chat shows receipt / paths only — **no** full-body reprint.
