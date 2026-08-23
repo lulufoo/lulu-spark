@@ -319,6 +319,22 @@ describe('Settings MCP panel actions', () => {
     expect(settingsDialogSrc).not.toMatch(/console\.\w+\([^)]*handle/);
   });
 
+  it('keeps the generated server block when clipboard write is denied', async () => {
+    writeText.mockRejectedValueOnce(
+      new Error(
+        'The request is not allowed by the user agent or the platform in the current context, possibly because the user denied permission.',
+      ),
+    );
+    await openMcpPanel();
+    await clickId('btn-settings-mcp-generate');
+    expect(parseServerBlock(serverBlockText()).headers.Authorization).toBe(
+      `Bearer ${LIVE_HANDLE}`,
+    );
+    expect(resultText()).toMatch(/Clipboard copy was blocked/i);
+    expect(resultText()).not.toMatch(/^Generate failed/i);
+    expect(logSurfaces()).not.toContain(LIVE_HANDLE);
+  });
+
   it('does not pretend mcp.json was written or silently rotate when commands fail', async () => {
     await openMcpPanel();
     api.invoke.mockRejectedValueOnce(new Error('issue failed'));

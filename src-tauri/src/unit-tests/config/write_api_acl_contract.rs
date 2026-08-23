@@ -83,6 +83,12 @@ const TODO_TASK_CATEGORY_COMMANDS: &[&str] = &[
 
 const NOTE_WRITE_COMMANDS: &[&str] = &["archive_document"];
 
+const MCP_OAUTH_WRITE_COMMANDS: &[&str] = &[
+    "issue_cursor_ide_ticket",
+    "rotate_cursor_ide_ticket",
+    "revoke_mcp_slot_ticket",
+];
+
 const AI_ASSISTANT_WRITE_COMMANDS: &[&str] = &[
     "open_ai_assistant",
     "present_ai_assistant",
@@ -220,6 +226,22 @@ fn todo_task_comment_commands_are_acl_allowed() {
     let toml = fs::read_to_string(root.join("permissions/write-api.toml")).expect("toml");
     let allow = parse_write_api_toml_allow(&toml);
     let missing: Vec<_> = TODO_TASK_COMMENT_COMMANDS
+        .iter()
+        .filter(|cmd| !allow.contains(**cmd))
+        .copied()
+        .collect();
+    assert!(
+        missing.is_empty(),
+        "commands missing from write-api.toml ACL: {missing:?}"
+    );
+}
+
+#[test]
+fn mcp_oauth_write_commands_are_acl_allowed() {
+    let root = manifest_dir();
+    let toml = fs::read_to_string(root.join("permissions/write-api.toml")).expect("toml");
+    let allow = parse_write_api_toml_allow(&toml);
+    let missing: Vec<_> = MCP_OAUTH_WRITE_COMMANDS
         .iter()
         .filter(|cmd| !allow.contains(**cmd))
         .copied()

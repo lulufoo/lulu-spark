@@ -268,12 +268,18 @@ function clearMcpServerBlock() {
 }
 
 async function copyServerBlock(text) {
-  if (navigator.clipboard?.writeText) {
-    await navigator.clipboard.writeText(text);
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch {
+    // Tauri webview often denies Clipboard API; keep the ticket in the field.
   }
+  return false;
 }
 
-async function issueOrRotateCursorIdeBlock(cmd, okMessage, failLabel) {
+async function issueOrRotateCursorIdeBlock(cmd, copiedMessage, failLabel) {
   setResult('settings-result-mcp', '');
   try {
     const resp = await api.invoke(cmd);
@@ -281,8 +287,14 @@ async function issueOrRotateCursorIdeBlock(cmd, okMessage, failLabel) {
     if (!issued) throw new Error('Ticket command failed');
     const text = formatCursorIdeServerBlock(issued);
     setMcpServerBlock(text);
-    await copyServerBlock(text);
-    setResult('settings-result-mcp', okMessage);
+    const copied = await copyServerBlock(text);
+    const doneLabel = failLabel === 'Rotate' ? 'Rotated' : 'Generated';
+    setResult(
+      'settings-result-mcp',
+      copied
+        ? copiedMessage
+        : `${doneLabel} cursor_ide server block. Clipboard copy was blocked — copy the block from the field.`,
+    );
   } catch (e) {
     clearMcpServerBlock();
     setResult('settings-result-mcp', `${failLabel} failed: ${e.message || String(e)}`, true);
