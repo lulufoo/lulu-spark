@@ -37,7 +37,7 @@ Guide the reply along: Problem / Goal → Direction → Framework → Implementa
 
 ## User Familiarity
 
-Replies in this project must be followable by **New**.
+HARD-GATE: Replies in this project must be followable by **New**.
 
 - **New:** a first-time project inheritor with no prior context can follow.
 - **Oriented:** a reader who knows the purpose, not the structure, can place this point in the whole.
