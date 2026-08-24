@@ -55,7 +55,7 @@ Do not invent norms not listed here.
 
 | Field / concern | Reference | When |
 |-----------------|-----------|------|
-| `title` | `references/title-naming.md` | Before choosing or proposing a create title |
+| `title` | [`../shared/title-naming.md`](../shared/title-naming.md), **Todo profile** | Before choosing or proposing a create title |
 | `todo_md` body | `references/body-writing.md` | Before drafting problem-analysis body content |
 | `attachments` | `references/attachment-writing.md` | Before adding or updating an attachment |
 
@@ -101,7 +101,7 @@ Observable completion for a write request:
 ## References
 
 - Workbench tech plan: MCP todo tools (FM-3 HTTP + FM-6 SKILL)
-- Title norms: [title-naming](references/title-naming.md)
+- Shared title norms: [title-naming](../shared/title-naming.md) — Todo profile
 - Body norms: [body-writing](references/body-writing.md)
 - Attachment norms: [attachment-writing](references/attachment-writing.md)
 - Archive then link: [theme-archive](../theme-archive/SKILL.md) → `link_todo_archive`
