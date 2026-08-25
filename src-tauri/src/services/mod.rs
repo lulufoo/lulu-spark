@@ -30,6 +30,7 @@ pub mod mcp_protocol_adapter;
 pub mod mcp_oauth;
 pub mod lan_ip;
 pub mod bind;
+pub mod gateway;
 pub mod local_http;
 pub mod notes_selection;
 pub mod workbench_read;

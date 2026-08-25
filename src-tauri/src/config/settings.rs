@@ -21,8 +21,10 @@ pub const HOST_LLM_BASE_URL: &str = "https://open.bigmodel.cn/api/paas/v4";
 
 pub const DEFAULT_PROD_HTTP_PORT: u16 = 8765;
 pub const DEFAULT_PROD_MCP_PORT: u16 = 9876;
+pub const DEFAULT_PROD_GATEWAY_PORT: u16 = 7654;
 pub const DEFAULT_SANDBOX_HTTP_PORT: u16 = 18765;
 pub const DEFAULT_SANDBOX_MCP_PORT: u16 = 19876;
+pub const DEFAULT_SANDBOX_GATEWAY_PORT: u16 = 17654;
 
 const ENV_TEST_SANDBOX: &str = "TestSandbox";
 const ENV_TEST_SANDBOX_ID: &str = "TestSandboxId";
@@ -150,6 +152,9 @@ pub struct AppSettings {
     /// Host MCP listen port. `None` → plane default (prod 9876 / sandbox 19876).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub mcp_port: Option<u16>,
+    /// LAN HTTPS Gateway listen port. `None` → plane default (prod 7654 / sandbox 17654).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub gateway_port: Option<u16>,
 }
 
 impl AppSettings {
@@ -166,6 +171,14 @@ impl AppSettings {
             DEFAULT_SANDBOX_MCP_PORT
         } else {
             DEFAULT_PROD_MCP_PORT
+        })
+    }
+
+    pub fn effective_gateway_port(&self) -> u16 {
+        self.gateway_port.unwrap_or(if is_test_sandbox() {
+            DEFAULT_SANDBOX_GATEWAY_PORT
+        } else {
+            DEFAULT_PROD_GATEWAY_PORT
         })
     }
 }
@@ -396,6 +409,7 @@ impl Default for AppSettings {
             llm: Vec::new(),
             http_port: None,
             mcp_port: None,
+            gateway_port: None,
         }
     }
 }
@@ -548,13 +562,19 @@ pub fn validate_sandbox_against_prod(
     }
     let sh = sandbox.effective_http_port();
     let sm = sandbox.effective_mcp_port();
+    let sg = sandbox.effective_gateway_port();
     // Prod ports must not use sandbox plane defaults (env may be TestSandbox=true here).
     let ph = prod.http_port.unwrap_or(DEFAULT_PROD_HTTP_PORT);
     let pm = prod.mcp_port.unwrap_or(DEFAULT_PROD_MCP_PORT);
-    if sh == ph || sm == pm || sh == pm || sm == ph {
-        return Err(SettingsError::ConfigGuard(format!(
-            "sandbox ports collide with prod (sandbox http={sh} mcp={sm}, prod http={ph} mcp={pm})"
-        )));
+    let pg = prod.gateway_port.unwrap_or(DEFAULT_PROD_GATEWAY_PORT);
+    for s in [sh, sm, sg] {
+        for p in [ph, pm, pg] {
+            if s == p {
+                return Err(SettingsError::ConfigGuard(format!(
+                    "sandbox ports collide with prod (sandbox http={sh} mcp={sm} gateway={sg}, prod http={ph} mcp={pm} gateway={pg})"
+                )));
+            }
+        }
     }
     Ok(())
 }
@@ -851,6 +871,7 @@ pub fn to_config_json(
         "assistant_engine": settings.assistant_engine,
         "http_port": settings.effective_http_port(),
         "mcp_port": settings.effective_mcp_port(),
+        "gateway_port": settings.effective_gateway_port(),
         "test_sandbox": is_test_sandbox(),
         "has_github_token": has_github_token,
         "has_meili_key": has_meili_key,

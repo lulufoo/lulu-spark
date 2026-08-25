@@ -444,10 +444,27 @@ pub fn run() {
                     }
                 }
             }
+            let gateway = services::gateway::GatewayState::new();
+            if services::lan_ip::current_lan_ipv4().is_some() {
+                if let Ok(config_dir) = config::settings::settings_config_dir() {
+                    let gateway_port = boot_settings.effective_gateway_port();
+                    match services::gateway::boot(&boot_settings, config_dir) {
+                        services::gateway::BootDecision::Started(handle) => {
+                            eprintln!("[gateway] listening 0.0.0.0:{gateway_port}");
+                            gateway.set(handle);
+                        }
+                        services::gateway::BootDecision::SkippedNoLanIp => {}
+                        services::gateway::BootDecision::Failed(err) => {
+                            eprintln!("[gateway] start failed: {err}");
+                        }
+                    }
+                }
+            }
             // L2 Host key→MCP registry: seed L1 internal MCP business surface before Binding Set.
             services::mcp_server_registry::seed_defaults();
             app.manage(EmbeddedMcpRuntime::new(embedded_mcp_handle));
             app.manage(local_http);
+            app.manage(gateway);
 
             create_main_window(app)?;
             app.manage(services::reindex::ReindexState::new());
@@ -487,6 +504,9 @@ pub fn run() {
                 {
                     local_http.stop();
                 }
+                if let Some(gateway) = app_handle.try_state::<services::gateway::GatewayState>() {
+                    gateway.stop();
+                }
             }
         });
 }
@@ -521,3 +541,7 @@ mod read_later_assistant_window_tests;
 #[cfg(test)]
 #[path = "unit-tests/lib/ai_assistant_window_tests.rs"]
 mod ai_assistant_window_tests;
+
+#[cfg(test)]
+#[path = "unit-tests/lib/gateway_startup_tests.rs"]
+mod gateway_startup_tests;

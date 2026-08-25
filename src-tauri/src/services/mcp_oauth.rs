@@ -4,6 +4,8 @@ use std::fmt;
 use std::sync::Mutex;
 
 #[cfg(test)]
+use std::collections::HashMap;
+#[cfg(test)]
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use serde::{Deserialize, Serialize};
@@ -238,6 +240,7 @@ pub fn list_devices() -> Result<Vec<DeviceRecord>, OAuthError> {
         .collect())
 }
 
+#[cfg_attr(test, allow(dead_code))]
 fn keyring_service() -> &'static str {
     #[cfg(test)]
     {
@@ -253,6 +256,9 @@ fn keyring_service() -> &'static str {
 static FORCE_KEYCHAIN_UNAVAILABLE: AtomicBool = AtomicBool::new(false);
 
 #[cfg(test)]
+static TEST_SLOT_LEDGER: Mutex<Option<HashMap<String, String>>> = Mutex::new(None);
+
+#[cfg(test)]
 pub fn test_force_keychain_unavailable(on: bool) {
     FORCE_KEYCHAIN_UNAVAILABLE.store(on, Ordering::SeqCst);
 }
@@ -265,45 +271,31 @@ fn ensure_keychain_available() -> Result<(), OAuthError> {
     Ok(())
 }
 
-fn keychain_entry(slot: Slot) -> Result<keyring::Entry, OAuthError> {
-    ensure_keychain_available()?;
-    #[cfg(test)]
-    expose_login_keychain_under_sandbox_home();
-    keyring::Entry::new(keyring_service(), slot.as_str())
-        .map_err(|_| OAuthError::keychain_unavailable)
-}
-
 #[cfg(test)]
-fn expose_login_keychain_under_sandbox_home() {
-    if std::env::var("TestSandbox").is_err() {
-        return;
-    }
-    let Ok(sandbox_home) = std::env::var("HOME") else {
-        return;
-    };
-    let Ok(user) = std::env::var("USER") else {
-        return;
-    };
-    let login = std::path::PathBuf::from(format!("/Users/{user}/Library/Keychains"));
-    if !login.is_dir() {
-        return;
-    }
-    let dest = std::path::PathBuf::from(sandbox_home).join("Library/Keychains");
-    if dest.exists() {
-        return;
-    }
-    if let Some(parent) = dest.parent() {
-        let _ = std::fs::create_dir_all(parent);
-    }
-    let _ = std::os::unix::fs::symlink(login, dest);
+fn test_slot_ledger() -> std::sync::MutexGuard<'static, Option<HashMap<String, String>>> {
+    TEST_SLOT_LEDGER.lock().unwrap_or_else(|e| e.into_inner())
 }
 
 fn read_record(slot: Slot) -> Result<Option<LedgerRecord>, OAuthError> {
-    let entry = keychain_entry(slot)?;
-    match entry.get_password() {
-        Ok(raw) => parse_record(slot, &raw).map(Some),
-        Err(keyring::Error::NoEntry) => Ok(None),
-        Err(_) => Err(OAuthError::keychain_unavailable),
+    ensure_keychain_available()?;
+    #[cfg(test)]
+    {
+        let mut guard = test_slot_ledger();
+        let store = guard.get_or_insert_with(HashMap::new);
+        return match store.get(slot.as_str()) {
+            Some(raw) => parse_record(slot, raw).map(Some),
+            None => Ok(None),
+        };
+    }
+    #[cfg(not(test))]
+    {
+        let entry = keyring::Entry::new(keyring_service(), slot.as_str())
+            .map_err(|_| OAuthError::keychain_unavailable)?;
+        match entry.get_password() {
+            Ok(raw) => parse_record(slot, &raw).map(Some),
+            Err(keyring::Error::NoEntry) => Ok(None),
+            Err(_) => Err(OAuthError::keychain_unavailable),
+        }
     }
 }
 
@@ -318,10 +310,22 @@ fn persist_live(slot: Slot) -> Result<TicketHandle, OAuthError> {
 }
 
 fn write_record(record: &LedgerRecord) -> Result<(), OAuthError> {
-    let entry = keychain_entry(record.slot)?;
-    entry
-        .set_password(&serialize_record(record))
-        .map_err(|_| OAuthError::keychain_unavailable)
+    ensure_keychain_available()?;
+    #[cfg(test)]
+    {
+        let mut guard = test_slot_ledger();
+        let store = guard.get_or_insert_with(HashMap::new);
+        store.insert(record.slot.as_str().to_string(), serialize_record(record));
+        return Ok(());
+    }
+    #[cfg(not(test))]
+    {
+        let entry = keyring::Entry::new(keyring_service(), record.slot.as_str())
+            .map_err(|_| OAuthError::keychain_unavailable)?;
+        entry
+            .set_password(&serialize_record(record))
+            .map_err(|_| OAuthError::keychain_unavailable)
+    }
 }
 
 fn serialize_record(record: &LedgerRecord) -> String {

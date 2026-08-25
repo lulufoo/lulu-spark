@@ -4,6 +4,9 @@ use std::net::Ipv4Addr;
 use std::sync::Mutex;
 use std::time::{SystemTime, UNIX_EPOCH};
 
+#[cfg(test)]
+use std::collections::HashMap;
+
 use chacha20poly1305::aead::{Aead, KeyInit};
 use chacha20poly1305::{ChaCha20Poly1305, Nonce};
 use ed25519_dalek::{Signature, Signer, SigningKey, Verifier};
@@ -56,6 +59,10 @@ enum Session {
 
 static SESSION: Mutex<Option<Session>> = Mutex::new(None);
 
+#[cfg(test)]
+static TEST_KEYCHAIN: Mutex<Option<HashMap<String, String>>> = Mutex::new(None);
+
+#[cfg_attr(test, allow(dead_code))]
 fn bind_service() -> &'static str {
     #[cfg(test)]
     {
@@ -96,58 +103,61 @@ fn session_lock() -> std::sync::MutexGuard<'static, Option<Session>> {
     SESSION.lock().unwrap_or_else(|e| e.into_inner())
 }
 
-#[cfg(test)]
-fn expose_login_keychain_under_sandbox_home() {
-    if std::env::var("TestSandbox").is_err() {
-        return;
-    }
-    let Ok(sandbox_home) = std::env::var("HOME") else {
-        return;
-    };
-    let Ok(user) = std::env::var("USER") else {
-        return;
-    };
-    let login = std::path::PathBuf::from(format!("/Users/{user}/Library/Keychains"));
-    if !login.is_dir() {
-        return;
-    }
-    let dest = std::path::PathBuf::from(sandbox_home).join("Library/Keychains");
-    if dest.exists() {
-        return;
-    }
-    if let Some(parent) = dest.parent() {
-        let _ = std::fs::create_dir_all(parent);
-    }
-    let _ = std::os::unix::fs::symlink(login, dest);
-}
-
-fn keychain_entry(account: &str) -> Result<keyring::Entry, BindError> {
-    #[cfg(test)]
-    expose_login_keychain_under_sandbox_home();
-    keyring::Entry::new(bind_service(), account).map_err(|_| BindError::keychain_unavailable)
-}
-
 fn load_signing_key(account: &str) -> Result<SigningKey, BindError> {
-    let entry = keychain_entry(account)?;
-    match entry.get_password() {
-        Ok(raw) => Ok(SigningKey::from_bytes(&hex_decode_32(&raw)?)),
-        Err(keyring::Error::NoEntry) => Err(BindError::keychain_unavailable),
-        Err(_) => Err(BindError::keychain_unavailable),
+    match kc_get(account)? {
+        Some(raw) => Ok(SigningKey::from_bytes(&hex_decode_32(&raw)?)),
+        None => Err(BindError::keychain_unavailable),
     }
 }
 
 fn load_or_create_signing_key(account: &str) -> Result<SigningKey, BindError> {
-    let entry = keychain_entry(account)?;
-    match entry.get_password() {
-        Ok(raw) => Ok(SigningKey::from_bytes(&hex_decode_32(&raw)?)),
-        Err(keyring::Error::NoEntry) => {
-            let key = SigningKey::generate(&mut OsRng);
-            entry
-                .set_password(&hex_encode(&key.to_bytes()))
-                .map_err(|_| BindError::keychain_unavailable)?;
-            Ok(key)
+    if let Some(raw) = kc_get(account)? {
+        return Ok(SigningKey::from_bytes(&hex_decode_32(&raw)?));
+    }
+    let key = SigningKey::generate(&mut OsRng);
+    kc_set(account, &hex_encode(&key.to_bytes()))?;
+    Ok(key)
+}
+
+#[cfg(test)]
+fn test_kc() -> std::sync::MutexGuard<'static, Option<HashMap<String, String>>> {
+    TEST_KEYCHAIN.lock().unwrap_or_else(|e| e.into_inner())
+}
+
+fn kc_get(account: &str) -> Result<Option<String>, BindError> {
+    #[cfg(test)]
+    {
+        let mut guard = test_kc();
+        let store = guard.get_or_insert_with(HashMap::new);
+        return Ok(store.get(account).cloned());
+    }
+    #[cfg(not(test))]
+    {
+        let entry = keyring::Entry::new(bind_service(), account)
+            .map_err(|_| BindError::keychain_unavailable)?;
+        match entry.get_password() {
+            Ok(raw) => Ok(Some(raw)),
+            Err(keyring::Error::NoEntry) => Ok(None),
+            Err(_) => Err(BindError::keychain_unavailable),
         }
-        Err(_) => Err(BindError::keychain_unavailable),
+    }
+}
+
+fn kc_set(account: &str, value: &str) -> Result<(), BindError> {
+    #[cfg(test)]
+    {
+        let mut guard = test_kc();
+        let store = guard.get_or_insert_with(HashMap::new);
+        store.insert(account.to_string(), value.to_string());
+        return Ok(());
+    }
+    #[cfg(not(test))]
+    {
+        let entry = keyring::Entry::new(bind_service(), account)
+            .map_err(|_| BindError::keychain_unavailable)?;
+        entry
+            .set_password(value)
+            .map_err(|_| BindError::keychain_unavailable)
     }
 }
 
@@ -166,8 +176,7 @@ pub fn canonical_bind_string(payload: &BindPayload) -> String {
 }
 
 pub fn verify_bind_signature(payload: &BindPayload) -> Result<(), BindError> {
-    let signing = load_or_create_signing_key(ACCOUNT_SIGNING)?;
-    let verifying = signing.verifying_key();
+    let verifying = load_signing_key(ACCOUNT_SIGNING)?.verifying_key();
     let sig_bytes: [u8; 64] = hex_decode(&payload.sig)?
         .try_into()
         .map_err(|_| BindError::rejected)?;
@@ -175,12 +184,6 @@ pub fn verify_bind_signature(payload: &BindPayload) -> Result<(), BindError> {
     verifying
         .verify(canonical_bind_string(payload).as_bytes(), &sig)
         .map_err(|_| BindError::rejected)
-}
-
-pub fn signing_public_key_hex() -> Result<String, BindError> {
-    Ok(hex_encode(
-        load_signing_key(ACCOUNT_SIGNING)?.verifying_key().as_bytes(),
-    ))
 }
 
 pub fn binding_public_key_hex() -> Result<String, BindError> {
@@ -275,18 +278,14 @@ pub fn create_bind_payload(
 
 pub fn complete_bind(encrypted_request: &[u8]) -> Result<BindResult, BindError> {
     let mut guard = session_lock();
-    match guard.as_ref() {
+    let secret = match guard.as_ref() {
         None => return Err(BindError::session_unavailable),
         Some(Session::Consumed) => return Err(BindError::consumed),
         Some(Session::Live { exp, .. }) if now_secs() > *exp => {
             *guard = None;
             return Err(BindError::expired);
         }
-        Some(Session::Live { .. }) => {}
-    }
-    let secret = match guard.as_ref() {
         Some(Session::Live { secret, .. }) => *secret,
-        _ => return Err(BindError::session_unavailable),
     };
     let body = open_bind_request(&secret, encrypted_request)?;
     let v = body.get("v").and_then(Value::as_str).unwrap_or("");
@@ -322,11 +321,7 @@ pub fn test_expire_current_session() {
 
 #[cfg(test)]
 pub fn test_reset_bind_keychain() {
-    for account in [ACCOUNT_SIGNING, ACCOUNT_BINDING] {
-        if let Ok(entry) = keychain_entry(account) {
-            let _ = entry.delete_credential();
-        }
-    }
+    *test_kc() = Some(HashMap::new());
 }
 
 #[cfg(test)]

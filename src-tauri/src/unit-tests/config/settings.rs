@@ -189,3 +189,57 @@ fn github_remote_helpers_remain_unchanged() {
         Some("https://github.com/lulufoo/notes".into())
     );
 }
+
+#[test]
+fn gateway_ports_are_written_and_not_reused() {
+    assert_eq!(DEFAULT_PROD_GATEWAY_PORT, 7654);
+    assert_eq!(DEFAULT_SANDBOX_GATEWAY_PORT, 17654);
+    let ports = [
+        DEFAULT_PROD_HTTP_PORT,
+        DEFAULT_SANDBOX_HTTP_PORT,
+        DEFAULT_PROD_MCP_PORT,
+        DEFAULT_SANDBOX_MCP_PORT,
+        DEFAULT_PROD_GATEWAY_PORT,
+        DEFAULT_SANDBOX_GATEWAY_PORT,
+    ];
+    for (i, left) in ports.iter().enumerate() {
+        for right in ports.iter().skip(i + 1) {
+            assert_ne!(
+                left, right,
+                "Gateway ports must not reuse Host HTTP 8765/18765 or MCP 9876/19876"
+            );
+        }
+    }
+}
+
+#[test]
+fn effective_gateway_port_follows_prod_and_sandbox_planes() {
+    let dir = tempfile::tempdir().expect("tmp");
+    {
+        let _env = TestConfigEnv::prod(dir.path());
+        assert_eq!(AppSettings::default().effective_gateway_port(), 7654);
+    }
+    {
+        let _env = TestConfigEnv::sandbox(dir.path(), "gwport");
+        assert_eq!(AppSettings::default().effective_gateway_port(), 17654);
+    }
+}
+
+#[test]
+fn save_roundtrip_keeps_gateway_port() {
+    let dir = tempfile::tempdir().expect("tmp");
+    let _env = TestConfigEnv::prod(dir.path());
+    let mut settings = AppSettings::default();
+    settings.gateway_port = Some(7654);
+    save(&settings).expect("save");
+    let loaded = load().expect("load");
+    assert_eq!(loaded.gateway_port, Some(7654));
+    assert_eq!(loaded.effective_gateway_port(), 7654);
+}
+
+#[test]
+fn to_config_json_includes_gateway_port() {
+    let settings = AppSettings::default();
+    let json = to_config_json(&settings, false, false, false);
+    assert_eq!(json["gateway_port"], settings.effective_gateway_port());
+}
