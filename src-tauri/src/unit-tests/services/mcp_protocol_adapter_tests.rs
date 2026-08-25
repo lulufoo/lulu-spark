@@ -8,7 +8,10 @@ use std::time::Duration;
 
 use super::*;
 use crate::services::local_http;
-use crate::services::mcp_oauth::{issue_for_slot, revoke_for_slot, Slot, TicketHandle};
+use crate::services::mcp_oauth::{
+    issue_for_device, issue_for_slot, revoke_for_device, revoke_for_slot, OAuthError, Slot,
+    TicketHandle,
+};
 use crate::test_support::TestSandbox;
 use rmcp::{
     ServiceExt,
@@ -1452,6 +1455,7 @@ fn registered_scene_slots_are_only_workbench_and_cursor_ide() {
     );
     assert!(!super::REGISTERED_SCENE_SLOTS.contains(&"notes"));
     assert!(!super::REGISTERED_SCENE_SLOTS.contains(&"todo_task"));
+    assert!(!super::REGISTERED_SCENE_SLOTS.contains(&"mobile"));
     let api = super::scene_slot_api(WORKBENCH_SLOT).expect("workbench registered");
     assert!(api.include_corpus);
     assert!(api.include_todo);
@@ -1958,5 +1962,419 @@ fn rejected_and_keychain_unavailable_both_map_to_401() {
     );
     assert_uniform_401(status, &body, None);
     stop_embedded_mcp_runtime(handle).expect("stop");
+}
+
+const MOBILE_PATH: &str = "mobile";
+
+fn with_device_sandbox<F: FnOnce()>(test: F) {
+    let _sandbox = TestSandbox::new();
+    test();
+}
+
+fn issue_device_ticket(device_id: &str) -> TicketHandle {
+    issue_for_device(device_id, Some("t3-phone")).expect("issue device ticket")
+}
+
+fn start_looping_api_sidecar(
+    response_body: &'static str,
+) -> (String, std::sync::mpsc::Sender<()>, thread::JoinHandle<()>) {
+    use std::sync::mpsc;
+    use tiny_http::{Header, Response, Server, StatusCode};
+
+    let port = ephemeral_port();
+    let server = Server::http(format!("127.0.0.1:{port}")).expect("bind looping sidecar");
+    let base = format!("http://127.0.0.1:{port}");
+    let (stop_tx, stop_rx) = mpsc::channel::<()>();
+    let join = thread::spawn(move || {
+        loop {
+            if stop_rx.try_recv().is_ok() {
+                break;
+            }
+            let Ok(Some(request)) = server.recv_timeout(Duration::from_millis(100)) else {
+                continue;
+            };
+            let mut response =
+                Response::from_string(response_body).with_status_code(StatusCode::from(200));
+            response.add_header(
+                Header::from_bytes(&b"Content-Type"[..], &b"application/json"[..]).unwrap(),
+            );
+            let _ = request.respond(response);
+        }
+    });
+    thread::sleep(Duration::from_millis(20));
+    (base, stop_tx, join)
+}
+
+async fn list_and_call_mobile(
+    port: u16,
+    ticket: &TicketHandle,
+    tool: &str,
+    args: serde_json::Value,
+) -> Result<(Vec<String>, bool, String), String> {
+    let url = format!("http://127.0.0.1:{port}/mcp/{MOBILE_PATH}");
+    let transport = StreamableHttpClientTransport::from_config(authed_transport_config(url, ticket));
+    let client_info = ClientInfo::new(
+        ClientCapabilities::default(),
+        Implementation::new("t3-mobile", "0.1.0"),
+    );
+    let client = client_info
+        .serve(transport)
+        .await
+        .map_err(|e| format!("initialize mobile: {e:#}"))?;
+    let tools = client
+        .list_tools(Default::default())
+        .await
+        .map_err(|e| format!("list_tools mobile: {e:#}"))?;
+    let names: Vec<String> = tools.tools.iter().map(|t| t.name.to_string()).collect();
+    let mut params = CallToolRequestParams::new(tool.to_string());
+    if let Some(obj) = args.as_object() {
+        params.arguments = Some(obj.clone());
+    }
+    let result = client
+        .call_tool(params)
+        .await
+        .map_err(|e| format!("call_tool mobile/{tool}: {e:#}"))?;
+    let is_error = result.is_error.unwrap_or(false);
+    let text = result
+        .content
+        .first()
+        .and_then(|c| c.as_text().map(|t| t.text.clone()))
+        .unwrap_or_default();
+    let _ = client.cancel().await;
+    Ok((names, is_error, text))
+}
+
+fn post_mobile_initialize(
+    port: u16,
+    authorization: Option<&str>,
+) -> (u16, String, Option<String>) {
+    http_post_json_auth(
+        &format!("http://127.0.0.1:{port}/mcp/{MOBILE_PATH}"),
+        &initialize_body("t3-mobile"),
+        authorization,
+        None,
+    )
+}
+
+/// Normal: REGISTERED_SCENE_SLOTS stays workbench + cursor_ide; mobile is not a registered slot.
+#[test]
+fn t3_registered_scene_slots_exclude_mobile() {
+    assert_eq!(
+        super::REGISTERED_SCENE_SLOTS,
+        &[WORKBENCH_SLOT, CURSOR_IDE_SLOT]
+    );
+    assert!(!super::REGISTERED_SCENE_SLOTS.contains(&MOBILE_PATH));
+    assert!(super::scene_slot_api(MOBILE_PATH).is_none());
+    assert!(build_slot_tool_table(MOBILE_PATH).is_none());
+    assert!(tools_list_for_slot(MOBILE_PATH).is_empty());
+}
+
+/// Boundary: do not add a mobile arm to scene_slot_api / build_slot_tool_table; no Slot::Mobile.
+#[test]
+fn t3_scene_slot_api_and_tool_table_have_no_mobile_arm() {
+    let src = adapter_source();
+    let scene = source_fn_after(src, "scene_slot_api")
+        .split("fn object_schema")
+        .next()
+        .expect("scene_slot_api body");
+    assert!(
+        !scene.contains("mobile"),
+        "scene_slot_api must not grow a mobile arm"
+    );
+    let table = source_fn_after(src, "build_slot_tool_table")
+        .split("/// Allowlisted tool names")
+        .next()
+        .expect("build_slot_tool_table body");
+    assert!(
+        !table.contains("\"mobile\""),
+        "build_slot_tool_table must not grow a mobile arm"
+    );
+    assert!(
+        !src.contains("Slot::Mobile"),
+        "adapter must not add Slot::Mobile"
+    );
+    assert_eq!(Slot::parse(MOBILE_PATH), Err(OAuthError::slot_unknown));
+}
+
+/// Boundary: /mcp/mobile is nested before catch-all reject_unknown_slot.
+#[test]
+fn t3_mcp_mobile_nests_before_unknown_slot_catchall() {
+    let src = adapter_source();
+    assert!(
+        src.contains("/mcp/mobile"),
+        "adapter must independently nest /mcp/mobile"
+    );
+    let build = source_fn_after(src, "build_router")
+        .split("fn bearer_secret")
+        .next()
+        .expect("build_router body");
+    let mobile_at = build
+        .find("/mcp/mobile")
+        .expect("/mcp/mobile must appear in build_router before catch-all");
+    let catch_at = build
+        .find("/mcp/{scene_slot}")
+        .expect("catch-all /mcp/{{scene_slot}} must remain");
+    assert!(
+        mobile_at < catch_at,
+        "/mcp/mobile must nest before catch-all reject_unknown_slot"
+    );
+    assert!(
+        !super::REGISTERED_SCENE_SLOTS.contains(&MOBILE_PATH),
+        "mobile must not be written into REGISTERED_SCENE_SLOTS"
+    );
+}
+
+/// Normal: /mcp/mobile door only calls verify_device_token (not verify_for_slot).
+#[test]
+fn t3_mcp_mobile_door_only_calls_verify_device_token() {
+    let src = adapter_source();
+    assert!(
+        src.contains("verify_device_token"),
+        "/mcp/mobile door must call verify_device_token"
+    );
+    let registered = source_fn_after(src, "verify_registered_slot")
+        .split("async fn slot_bearer_gate")
+        .next()
+        .expect("verify_registered_slot body");
+    assert!(
+        registered.contains("verify_for_slot"),
+        "registered slots still use verify_for_slot"
+    );
+    assert!(
+        !registered.contains("verify_device_token"),
+        "registered-slot door must not switch to verify_device_token"
+    );
+    for chunk in src.split("fn ") {
+        if chunk.contains("verify_device_token(") {
+            assert!(
+                !chunk.contains("verify_for_slot("),
+                "the function that calls verify_device_token must not also call verify_for_slot"
+            );
+        }
+    }
+}
+
+/// Normal: MCP still listens on 127.0.0.1 only; T3 does not change /health.
+#[test]
+fn t3_mcp_stays_loopback_and_health_unchanged() {
+    let src = adapter_source();
+    assert!(
+        !src.contains("0.0.0.0"),
+        "MCP must keep listening on 127.0.0.1, not 0.0.0.0"
+    );
+    let health = source_fn_after(src, "health_json")
+        .split("async fn bare_mcp_reject")
+        .next()
+        .expect("health_json body");
+    assert!(
+        !health.contains("verify_device_token") && !health.contains("verify_for_slot"),
+        "T3 must not change /health to consult tickets"
+    );
+    assert!(!health.contains("mobile"), "T3 must not change /health");
+
+    let handle = start_ephemeral_mcp();
+    assert_eq!(handle.local_addr().ip().to_string(), "127.0.0.1");
+    let (status, body) = http_get(&format!(
+        "http://127.0.0.1:{}/health",
+        handle.local_addr().port()
+    ));
+    assert_eq!(status, 200, "T3 must not change /health, body={body}");
+    let json: serde_json::Value = serde_json::from_str(&body).expect("health JSON");
+    assert_eq!(json.get("ok"), Some(&serde_json::Value::Bool(true)));
+    let mcp = json.get("mcp").and_then(|v| v.as_str()).unwrap_or("");
+    assert!(!mcp.trim().is_empty(), "health mcp field must stay non-empty");
+    stop_embedded_mcp_runtime(handle).expect("stop");
+}
+
+/// Normal: /mcp/mobile is mounted; a live device ticket is admitted (not catch-all 404).
+#[test]
+fn t3_mcp_mobile_is_mounted_and_accepts_device_ticket() {
+    with_device_sandbox(|| {
+        let token = issue_device_ticket("phone-t3-mount");
+        let handle = start_ephemeral_mcp();
+        assert_eq!(handle.local_addr().ip().to_string(), "127.0.0.1");
+        let auth = bearer(&token);
+        let (status, body, session) =
+            post_mobile_initialize(handle.local_addr().port(), Some(&auth));
+        assert_ne!(
+            status, 404,
+            "/mcp/mobile must be mounted before catch-all, body={body}"
+        );
+        assert_ne!(
+            status, 401,
+            "live device ticket must pass the mobile door, body={body}"
+        );
+        if let Ok(json) = serde_json::from_str::<serde_json::Value>(&body) {
+            assert_ne!(
+                json.get("error").and_then(|v| v.as_str()),
+                Some("unknown_scene_slot"),
+                "/mcp/mobile must not fall into reject_unknown_slot, body={body}"
+            );
+        }
+        let _ = session;
+        stop_embedded_mcp_runtime(handle).expect("stop");
+    });
+}
+
+/// Normal: live device ticket lists the full workbench tool table, including NOTES_SLOT_ONLY_TOOLS.
+#[test]
+fn t3_mcp_mobile_tools_match_workbench_table_including_notes() {
+    with_device_sandbox(|| {
+        let token = issue_device_ticket("phone-t3-tools");
+        let handle = start_ephemeral_mcp();
+        let names = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .expect("tokio")
+            .block_on(run_initialize_and_list_tools_authed(
+                handle.local_addr().port(),
+                MOBILE_PATH,
+                &token,
+            ))
+            .expect("/mcp/mobile tools/list");
+        let got: BTreeSet<_> = names.iter().map(String::as_str).collect();
+        let expected = workbench_expected_tool_names();
+        assert_eq!(
+            got, expected,
+            "/mcp/mobile tools must equal build_slot_tool_table(\"workbench\")"
+        );
+        for name in super::NOTES_SLOT_ONLY_TOOLS {
+            assert!(
+                got.contains(name),
+                "/mcp/mobile must include workbench-only {name}"
+            );
+        }
+        let table = build_slot_tool_table(WORKBENCH_SLOT).expect("workbench table");
+        let table_names: BTreeSet<_> = table.tools.iter().map(|t| t.name.as_str()).collect();
+        assert_eq!(got, table_names);
+        assert!(
+            build_slot_tool_table(MOBILE_PATH).is_none(),
+            "reuse workbench table; do not register a mobile table"
+        );
+        stop_embedded_mcp_runtime(handle).expect("stop");
+    });
+}
+
+/// Normal: live device ticket can call the full workbench tool set through /mcp/mobile.
+#[test]
+fn t3_live_device_ticket_can_call_full_workbench_tools_on_mobile() {
+    with_device_sandbox(|| {
+        let token = issue_device_ticket("phone-t3-call");
+        let sidecar_body = r#"{"ok":true,"via":"mobile"}"#;
+        let (base, stop, join) = start_looping_api_sidecar(sidecar_body);
+        let handle = start_embedded_mcp_runtime_with_sidecar(
+            McpRuntimeConfig {
+                bind_addr: "127.0.0.1:0".parse().expect("bind"),
+            },
+            base,
+        )
+        .expect("start MCP with sidecar");
+        let port = handle.local_addr().port();
+        let rt = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .expect("tokio");
+
+        let cases = [
+            (NOTES_SELECTION_TOOL, serde_json::json!({})),
+            ("list_todo_categories", serde_json::json!({})),
+            (
+                "get_corpus_catalog",
+                serde_json::json!({"mode": "latest_per_topic"}),
+            ),
+        ];
+        for (tool, args) in cases {
+            let (names, is_error, text) = rt
+                .block_on(list_and_call_mobile(port, &token, tool, args))
+                .unwrap_or_else(|e| panic!("mobile must be able to call {tool}: {e}"));
+            let got: BTreeSet<_> = names.iter().map(String::as_str).collect();
+            assert_eq!(got, workbench_expected_tool_names(), "full workbench set");
+            assert!(!is_error, "mobile {tool} must succeed, got {text}");
+            assert_eq!(text, sidecar_body);
+        }
+
+        let _ = stop.send(());
+        stop_embedded_mcp_runtime(handle).expect("stop");
+        let _ = join.join();
+    });
+}
+
+/// Exception: workbench / cursor_ide slot tickets are rejected on /mcp/mobile.
+#[test]
+fn t3_slot_tickets_are_rejected_on_mcp_mobile() {
+    with_device_sandbox(|| {
+        let handle = start_ephemeral_mcp();
+        let port = handle.local_addr().port();
+        for slot in [Slot::Workbench, Slot::CursorIde] {
+            let ticket = issue_for_slot(slot).expect("issue slot ticket");
+            let auth = bearer(&ticket);
+            let (status, body, session) = post_mobile_initialize(port, Some(&auth));
+            assert_uniform_401(status, &body, Some(ticket.as_str()));
+            assert!(
+                session.is_none(),
+                "slot ticket must not mint a /mcp/mobile session"
+            );
+        }
+        stop_embedded_mcp_runtime(handle).expect("stop");
+    });
+}
+
+/// Exception: revoked and missing device tickets are rejected; unbound cannot call tools.
+#[test]
+fn t3_revoked_missing_and_unbound_cannot_call_mobile_tools() {
+    with_device_sandbox(|| {
+        let handle = start_ephemeral_mcp();
+        let port = handle.local_addr().port();
+
+        let (status, body, session) = post_mobile_initialize(port, None);
+        assert_uniform_401(status, &body, None);
+        assert!(session.is_none(), "unbound / no ticket must not mint a session");
+
+        let missing = TicketHandle::from_secret("00".repeat(32));
+        let missing_auth = bearer(&missing);
+        let (status, body, session) = post_mobile_initialize(port, Some(&missing_auth));
+        assert_uniform_401(status, &body, Some(missing.as_str()));
+        assert!(session.is_none(), "unknown device ticket must not mint a session");
+
+        let live = issue_device_ticket("phone-t3-revoke");
+        revoke_for_device("phone-t3-revoke").expect("revoke");
+        let revoked_auth = bearer(&live);
+        let (status, body, session) = post_mobile_initialize(port, Some(&revoked_auth));
+        assert_uniform_401(status, &body, Some(live.as_str()));
+        assert!(session.is_none(), "revoked device ticket must not mint a session");
+
+        let rt = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .expect("tokio");
+        let err = rt.block_on(run_initialize_and_list_tools_authed(
+            port,
+            MOBILE_PATH,
+            &missing,
+        ));
+        assert!(
+            err.is_err(),
+            "unbound / missing ticket must not list or call any mobile tool"
+        );
+
+        stop_embedded_mcp_runtime(handle).expect("stop");
+    });
+}
+
+/// Exception: oauth still rejects mobile; T3 failure must not change Slot.
+#[test]
+fn t3_oauth_still_rejects_mobile_and_does_not_change_slot() {
+    assert_eq!(Slot::parse(MOBILE_PATH), Err(OAuthError::slot_unknown));
+    let src = adapter_source();
+    assert!(!src.contains("Slot::Mobile"));
+    assert!(super::scene_slot_api(MOBILE_PATH).is_none());
+    let oauth = include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/src/services/mcp_oauth.rs"
+    ));
+    assert!(
+        !oauth.contains("Slot::Mobile"),
+        "T3 must not add Slot::Mobile"
+    );
 }
 

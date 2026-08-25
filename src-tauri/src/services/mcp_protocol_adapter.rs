@@ -37,7 +37,7 @@ use serde_json::{json, Value};
 use tokio_util::sync::CancellationToken;
 
 use super::local_http;
-use super::mcp_oauth::{verify_for_slot, OAuthError, Slot, TicketHandle};
+use super::mcp_oauth::{verify_device_token, verify_for_slot, OAuthError, Slot, TicketHandle};
 
 /// Default Sidecar loopback base (Host tiny_http `:8765`).
 pub const DEFAULT_SIDECAR_BASE_URL: &str = "http://127.0.0.1:8765";
@@ -846,6 +846,28 @@ async fn unknown_scene_slot_reject(Path(scene_slot): Path<String>) -> impl IntoR
     reject_unknown_slot(&scene_slot)
 }
 
+fn mount_mobile_service(
+    router: Router,
+    cancel: CancellationToken,
+    sidecar_base_url: String,
+) -> Router {
+    let service: StreamableHttpService<SlotHandler, LocalSessionManager> =
+        StreamableHttpService::new(
+            move || {
+                Ok(SlotHandler {
+                    scene_slot: "workbench".to_string(),
+                    sidecar_base_url: sidecar_base_url.clone(),
+                })
+            },
+            Arc::new(LocalSessionManager::default()),
+            StreamableHttpServerConfig::default().with_cancellation_token(cancel),
+        );
+    let gated = Router::new()
+        .fallback_service(service)
+        .layer(middleware::from_fn(mobile_device_bearer_gate));
+    router.nest_service("/mcp/mobile", gated)
+}
+
 fn mount_slot_service(
     router: Router,
     scene_slot: &'static str,
@@ -880,6 +902,9 @@ fn build_router(port: u16, cancel: CancellationToken, sidecar_base_url: String) 
         router = mount_slot_service(router, slot, cancel.clone(), sidecar_base_url.clone());
     }
 
+    // Independent /mcp/mobile nest — not a registered slot; must precede catch-all 404.
+    router = mount_mobile_service(router, cancel, sidecar_base_url);
+
     // Unregistered `/mcp/<scene_slot>`: HTTP 404 JSON only — no LocalSessionManager / MCP session.
     router.route("/mcp/{scene_slot}", any(unknown_scene_slot_reject))
 }
@@ -913,6 +938,23 @@ async fn slot_bearer_gate(
     next: Next,
 ) -> Response {
     if let Err(status) = verify_registered_slot(scene_slot, request.headers()) {
+        return status.into_response();
+    }
+    next.run(request).await
+}
+
+fn verify_mobile_device(headers: &HeaderMap) -> Result<(), StatusCode> {
+    let Some(secret) = bearer_secret(headers) else {
+        return Err(StatusCode::UNAUTHORIZED);
+    };
+    match verify_device_token(secret) {
+        Ok(_) => Ok(()),
+        Err(_) => Err(StatusCode::UNAUTHORIZED),
+    }
+}
+
+async fn mobile_device_bearer_gate(request: Request, next: Next) -> Response {
+    if let Err(status) = verify_mobile_device(request.headers()) {
         return status.into_response();
     }
     next.run(request).await
