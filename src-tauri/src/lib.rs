@@ -445,6 +445,7 @@ pub fn run() {
                 }
             }
             let gateway = services::gateway::GatewayState::new();
+            let discovery = services::discovery::DiscoveryState::new();
             if services::lan_ip::current_lan_ipv4().is_some() {
                 if let Ok(config_dir) = config::settings::settings_config_dir() {
                     let gateway_port = boot_settings.effective_gateway_port();
@@ -452,6 +453,7 @@ pub fn run() {
                         services::gateway::BootDecision::Started(handle) => {
                             eprintln!("[gateway] listening 0.0.0.0:{gateway_port}");
                             gateway.set(handle);
+                            discovery.try_start(gateway_port);
                         }
                         services::gateway::BootDecision::SkippedNoLanIp => {}
                         services::gateway::BootDecision::Failed(err) => {
@@ -465,6 +467,7 @@ pub fn run() {
             app.manage(EmbeddedMcpRuntime::new(embedded_mcp_handle));
             app.manage(local_http);
             app.manage(gateway);
+            app.manage(discovery);
 
             create_main_window(app)?;
             app.manage(services::reindex::ReindexState::new());
@@ -503,6 +506,10 @@ pub fn run() {
                 if let Some(local_http) = app_handle.try_state::<services::local_http::LocalHttpState>()
                 {
                     local_http.stop();
+                }
+                if let Some(discovery) = app_handle.try_state::<services::discovery::DiscoveryState>()
+                {
+                    discovery.stop();
                 }
                 if let Some(gateway) = app_handle.try_state::<services::gateway::GatewayState>() {
                     gateway.stop();
@@ -545,3 +552,7 @@ mod ai_assistant_window_tests;
 #[cfg(test)]
 #[path = "unit-tests/lib/gateway_startup_tests.rs"]
 mod gateway_startup_tests;
+
+#[cfg(test)]
+#[path = "unit-tests/lib/discovery_startup_tests.rs"]
+mod discovery_startup_tests;
