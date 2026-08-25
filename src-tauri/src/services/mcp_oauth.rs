@@ -1,11 +1,17 @@
-//! Host-local MCP OAuth: per-slot tickets and Keychain ledger.
+//! Host-local MCP OAuth: per-slot tickets, Keychain slot ledger, and config-dir device tickets.
 
 use std::fmt;
+use std::sync::Mutex;
 
 #[cfg(test)]
 use std::sync::atomic::{AtomicBool, Ordering};
 
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use sha2::{Digest, Sha256};
+
+use crate::config::settings;
+use crate::repositories::atomic_json;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Slot {
@@ -85,6 +91,16 @@ pub struct LedgerRecord {
     pub state: TicketState,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct DeviceRecord {
+    pub device_id: String,
+    pub device_label: Option<String>,
+    pub revoked: bool,
+}
+
+const DEVICE_LEDGER_FILE: &str = "device-tickets.json";
+static DEVICE_LEDGER_LOCK: Mutex<()> = Mutex::new(());
+
 #[allow(non_camel_case_types)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum OAuthError {
@@ -141,6 +157,85 @@ pub fn rotate_for_slot(slot: Slot) -> Result<TicketHandle, OAuthError> {
 
 pub fn ledger_record(slot: Slot) -> Result<Option<LedgerRecord>, OAuthError> {
     read_record(slot)
+}
+
+pub fn issue_for_device(
+    device_id: &str,
+    device_label: Option<&str>,
+) -> Result<TicketHandle, OAuthError> {
+    if device_id.is_empty() {
+        return Err(OAuthError::rejected);
+    }
+    let _lock = DEVICE_LEDGER_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    let handle = new_handle();
+    let hash = hash_token(handle.as_str());
+    let mut ledger = load_device_ledger()?;
+    if let Some(row) = ledger
+        .devices
+        .iter_mut()
+        .find(|row| row.device_id == device_id)
+    {
+        row.device_label = device_label.map(str::to_string);
+        row.token_hash = hash;
+        row.revoked = false;
+    } else {
+        ledger.devices.push(DeviceLedgerRow {
+            device_id: device_id.to_string(),
+            device_label: device_label.map(str::to_string),
+            token_hash: hash,
+            revoked: false,
+        });
+    }
+    save_device_ledger(&ledger)?;
+    Ok(handle)
+}
+
+pub fn verify_device_token(token: &str) -> Result<String, OAuthError> {
+    let _lock = DEVICE_LEDGER_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    let hash = hash_token(token);
+    let ledger = load_device_ledger()?;
+    ledger
+        .devices
+        .into_iter()
+        .find(|row| row.token_hash == hash && !row.revoked)
+        .map(|row| row.device_id)
+        .ok_or(OAuthError::rejected)
+}
+
+pub fn revoke_for_device(device_id: &str) -> Result<(), OAuthError> {
+    let _lock = DEVICE_LEDGER_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    let mut ledger = load_device_ledger()?;
+    if let Some(row) = ledger
+        .devices
+        .iter_mut()
+        .find(|row| row.device_id == device_id)
+    {
+        row.revoked = true;
+        save_device_ledger(&ledger)?;
+    }
+    Ok(())
+}
+
+pub fn list_devices() -> Result<Vec<DeviceRecord>, OAuthError> {
+    let _lock = DEVICE_LEDGER_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    let ledger = load_device_ledger()?;
+    Ok(ledger
+        .devices
+        .into_iter()
+        .map(|row| DeviceRecord {
+            device_id: row.device_id,
+            device_label: row.device_label,
+            revoked: row.revoked,
+        })
+        .collect())
 }
 
 fn keyring_service() -> &'static str {
@@ -273,6 +368,49 @@ fn read_random_bytes(buf: &mut [u8]) -> bool {
     }
     let _ = buf;
     false
+}
+
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+struct DeviceLedger {
+    #[serde(default)]
+    devices: Vec<DeviceLedgerRow>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+struct DeviceLedgerRow {
+    device_id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    device_label: Option<String>,
+    token_hash: String,
+    revoked: bool,
+}
+
+fn hash_token(token: &str) -> String {
+    Sha256::digest(token.as_bytes())
+        .iter()
+        .map(|b| format!("{b:02x}"))
+        .collect()
+}
+
+fn device_ledger_path() -> Result<std::path::PathBuf, OAuthError> {
+    Ok(settings::settings_config_dir()
+        .map_err(|_| OAuthError::rejected)?
+        .join(DEVICE_LEDGER_FILE))
+}
+
+fn load_device_ledger() -> Result<DeviceLedger, OAuthError> {
+    let path = device_ledger_path()?;
+    match std::fs::read_to_string(&path) {
+        Ok(raw) => serde_json::from_str(&raw).map_err(|_| OAuthError::rejected),
+        Err(err) if err.kind() == std::io::ErrorKind::NotFound => Ok(DeviceLedger::default()),
+        Err(_) => Err(OAuthError::rejected),
+    }
+}
+
+fn save_device_ledger(ledger: &DeviceLedger) -> Result<(), OAuthError> {
+    let path = device_ledger_path()?;
+    let value = serde_json::to_value(ledger).map_err(|_| OAuthError::rejected)?;
+    atomic_json::write_json(&path, &value).map_err(|_| OAuthError::rejected)
 }
 
 fn fill_weak_random(buf: &mut [u8]) {

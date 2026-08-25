@@ -1,0 +1,334 @@
+//! In-process bind ceremony: one ephemeral X25519 session, Ed25519 signed payload.
+
+use std::net::Ipv4Addr;
+use std::sync::Mutex;
+use std::time::{SystemTime, UNIX_EPOCH};
+
+use chacha20poly1305::aead::{Aead, KeyInit};
+use chacha20poly1305::{ChaCha20Poly1305, Nonce};
+use ed25519_dalek::{Signature, Signer, SigningKey, Verifier};
+use hkdf::Hkdf;
+use rand::rngs::OsRng;
+use rand::RngCore;
+use serde_json::Value;
+use sha2::Sha256;
+use x25519_dalek::{PublicKey, StaticSecret};
+
+use crate::services::mcp_oauth::issue_for_device;
+
+const BIND_TTL_SECS: u64 = 180;
+const ACCOUNT_SIGNING: &str = "signing";
+const ACCOUNT_BINDING: &str = "binding";
+const SEAL_INFO: &[u8] = b"lulu-workbench-bind-v1";
+
+#[allow(non_camel_case_types)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BindError {
+    session_unavailable,
+    expired,
+    consumed,
+    decrypt_failed,
+    invalid_request,
+    keychain_unavailable,
+    rejected,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BindPayload {
+    pub ip: Ipv4Addr,
+    pub port: u16,
+    pub temp_pub: String,
+    pub tls_fingerprint: String,
+    pub exp: u64,
+    pub sig: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BindResult {
+    pub device_mcp_token: String,
+    pub binding_public_key: String,
+}
+
+enum Session {
+    Live { secret: [u8; 32], exp: u64 },
+    Consumed,
+}
+
+static SESSION: Mutex<Option<Session>> = Mutex::new(None);
+
+fn bind_service() -> &'static str {
+    #[cfg(test)]
+    {
+        "lulu-workbench-bind-test"
+    }
+    #[cfg(not(test))]
+    {
+        "lulu-workbench-bind"
+    }
+}
+
+fn now_secs() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs()
+}
+
+fn hex_encode(bytes: &[u8]) -> String {
+    bytes.iter().map(|b| format!("{b:02x}")).collect()
+}
+
+fn hex_decode(text: &str) -> Result<Vec<u8>, BindError> {
+    if text.len() % 2 != 0 {
+        return Err(BindError::invalid_request);
+    }
+    (0..text.len() / 2)
+        .map(|i| u8::from_str_radix(&text[i * 2..i * 2 + 2], 16).map_err(|_| BindError::invalid_request))
+        .collect()
+}
+
+fn hex_decode_32(text: &str) -> Result<[u8; 32], BindError> {
+    let bytes = hex_decode(text)?;
+    bytes.try_into().map_err(|_| BindError::invalid_request)
+}
+
+fn session_lock() -> std::sync::MutexGuard<'static, Option<Session>> {
+    SESSION.lock().unwrap_or_else(|e| e.into_inner())
+}
+
+#[cfg(test)]
+fn expose_login_keychain_under_sandbox_home() {
+    if std::env::var("TestSandbox").is_err() {
+        return;
+    }
+    let Ok(sandbox_home) = std::env::var("HOME") else {
+        return;
+    };
+    let Ok(user) = std::env::var("USER") else {
+        return;
+    };
+    let login = std::path::PathBuf::from(format!("/Users/{user}/Library/Keychains"));
+    if !login.is_dir() {
+        return;
+    }
+    let dest = std::path::PathBuf::from(sandbox_home).join("Library/Keychains");
+    if dest.exists() {
+        return;
+    }
+    if let Some(parent) = dest.parent() {
+        let _ = std::fs::create_dir_all(parent);
+    }
+    let _ = std::os::unix::fs::symlink(login, dest);
+}
+
+fn keychain_entry(account: &str) -> Result<keyring::Entry, BindError> {
+    #[cfg(test)]
+    expose_login_keychain_under_sandbox_home();
+    keyring::Entry::new(bind_service(), account).map_err(|_| BindError::keychain_unavailable)
+}
+
+fn load_signing_key(account: &str) -> Result<SigningKey, BindError> {
+    let entry = keychain_entry(account)?;
+    match entry.get_password() {
+        Ok(raw) => Ok(SigningKey::from_bytes(&hex_decode_32(&raw)?)),
+        Err(keyring::Error::NoEntry) => Err(BindError::keychain_unavailable),
+        Err(_) => Err(BindError::keychain_unavailable),
+    }
+}
+
+fn load_or_create_signing_key(account: &str) -> Result<SigningKey, BindError> {
+    let entry = keychain_entry(account)?;
+    match entry.get_password() {
+        Ok(raw) => Ok(SigningKey::from_bytes(&hex_decode_32(&raw)?)),
+        Err(keyring::Error::NoEntry) => {
+            let key = SigningKey::generate(&mut OsRng);
+            entry
+                .set_password(&hex_encode(&key.to_bytes()))
+                .map_err(|_| BindError::keychain_unavailable)?;
+            Ok(key)
+        }
+        Err(_) => Err(BindError::keychain_unavailable),
+    }
+}
+
+fn ensure_bind_keys() -> Result<(SigningKey, SigningKey), BindError> {
+    Ok((
+        load_or_create_signing_key(ACCOUNT_SIGNING)?,
+        load_or_create_signing_key(ACCOUNT_BINDING)?,
+    ))
+}
+
+pub fn canonical_bind_string(payload: &BindPayload) -> String {
+    format!(
+        "v1|{}|{}|{}|{}|{}",
+        payload.ip, payload.port, payload.temp_pub, payload.tls_fingerprint, payload.exp
+    )
+}
+
+pub fn verify_bind_signature(payload: &BindPayload) -> Result<(), BindError> {
+    let signing = load_or_create_signing_key(ACCOUNT_SIGNING)?;
+    let verifying = signing.verifying_key();
+    let sig_bytes: [u8; 64] = hex_decode(&payload.sig)?
+        .try_into()
+        .map_err(|_| BindError::rejected)?;
+    let sig = Signature::from_bytes(&sig_bytes);
+    verifying
+        .verify(canonical_bind_string(payload).as_bytes(), &sig)
+        .map_err(|_| BindError::rejected)
+}
+
+pub fn signing_public_key_hex() -> Result<String, BindError> {
+    Ok(hex_encode(
+        load_signing_key(ACCOUNT_SIGNING)?.verifying_key().as_bytes(),
+    ))
+}
+
+pub fn binding_public_key_hex() -> Result<String, BindError> {
+    Ok(hex_encode(
+        load_signing_key(ACCOUNT_BINDING)?.verifying_key().as_bytes(),
+    ))
+}
+
+fn derive_seal_key(shared: &[u8; 32]) -> Result<[u8; 32], BindError> {
+    let hk = Hkdf::<Sha256>::new(None, shared);
+    let mut okm = [0u8; 32];
+    hk.expand(SEAL_INFO, &mut okm)
+        .map_err(|_| BindError::decrypt_failed)?;
+    Ok(okm)
+}
+
+pub fn seal_bind_request(
+    temp_pub_hex: &str,
+    device_id: &str,
+    device_label: Option<&str>,
+) -> Result<Vec<u8>, BindError> {
+    let host_pub = PublicKey::from(hex_decode_32(temp_pub_hex)?);
+    let eph = StaticSecret::random_from_rng(OsRng);
+    let eph_pub = PublicKey::from(&eph);
+    let shared = eph.diffie_hellman(&host_pub);
+    let key = derive_seal_key(shared.as_bytes())?;
+    let cipher = ChaCha20Poly1305::new_from_slice(&key).map_err(|_| BindError::decrypt_failed)?;
+    let mut nonce_bytes = [0u8; 12];
+    OsRng.fill_bytes(&mut nonce_bytes);
+    let mut body = serde_json::json!({ "v": "1", "device_id": device_id });
+    if let Some(label) = device_label {
+        body["device_label"] = Value::String(label.to_string());
+    }
+    let plaintext = serde_json::to_vec(&body).map_err(|_| BindError::invalid_request)?;
+    let ct = cipher
+        .encrypt(Nonce::from_slice(&nonce_bytes), plaintext.as_ref())
+        .map_err(|_| BindError::decrypt_failed)?;
+    let mut out = Vec::with_capacity(32 + 12 + ct.len());
+    out.extend_from_slice(eph_pub.as_bytes());
+    out.extend_from_slice(&nonce_bytes);
+    out.extend_from_slice(&ct);
+    Ok(out)
+}
+
+fn open_bind_request(secret: &[u8; 32], encrypted: &[u8]) -> Result<Value, BindError> {
+    if encrypted.len() < 32 + 12 + 16 {
+        return Err(BindError::session_unavailable);
+    }
+    let eph_pub = PublicKey::from(
+        <[u8; 32]>::try_from(&encrypted[..32]).map_err(|_| BindError::session_unavailable)?,
+    );
+    let nonce = &encrypted[32..44];
+    let ct = &encrypted[44..];
+    let host = StaticSecret::from(*secret);
+    let shared = host.diffie_hellman(&eph_pub);
+    let key = derive_seal_key(shared.as_bytes())?;
+    let cipher = ChaCha20Poly1305::new_from_slice(&key).map_err(|_| BindError::session_unavailable)?;
+    let plain = cipher
+        .decrypt(Nonce::from_slice(nonce), ct)
+        .map_err(|_| BindError::session_unavailable)?;
+    serde_json::from_slice(&plain).map_err(|_| BindError::invalid_request)
+}
+
+pub fn create_bind_payload(
+    ip: Ipv4Addr,
+    port: u16,
+    tls_fingerprint: &str,
+) -> Result<BindPayload, BindError> {
+    let (signing, _) = ensure_bind_keys()?;
+    let secret = StaticSecret::random_from_rng(OsRng);
+    let temp_pub = hex_encode(PublicKey::from(&secret).as_bytes());
+    let exp = now_secs() + BIND_TTL_SECS;
+    let payload = BindPayload {
+        ip,
+        port,
+        temp_pub,
+        tls_fingerprint: tls_fingerprint.to_string(),
+        exp,
+        sig: String::new(),
+    };
+    let sig = signing.sign(canonical_bind_string(&payload).as_bytes());
+    let payload = BindPayload {
+        sig: hex_encode(&sig.to_bytes()),
+        ..payload
+    };
+    *session_lock() = Some(Session::Live {
+        secret: secret.to_bytes(),
+        exp,
+    });
+    Ok(payload)
+}
+
+pub fn complete_bind(encrypted_request: &[u8]) -> Result<BindResult, BindError> {
+    let mut guard = session_lock();
+    match guard.as_ref() {
+        None => return Err(BindError::session_unavailable),
+        Some(Session::Consumed) => return Err(BindError::consumed),
+        Some(Session::Live { exp, .. }) if now_secs() > *exp => {
+            *guard = None;
+            return Err(BindError::expired);
+        }
+        Some(Session::Live { .. }) => {}
+    }
+    let secret = match guard.as_ref() {
+        Some(Session::Live { secret, .. }) => *secret,
+        _ => return Err(BindError::session_unavailable),
+    };
+    let body = open_bind_request(&secret, encrypted_request)?;
+    let v = body.get("v").and_then(Value::as_str).unwrap_or("");
+    let device_id = body
+        .get("device_id")
+        .and_then(Value::as_str)
+        .unwrap_or("");
+    if v != "1" || device_id.is_empty() {
+        return Err(BindError::invalid_request);
+    }
+    let device_label = body.get("device_label").and_then(Value::as_str);
+    let token = issue_for_device(device_id, device_label).map_err(|_| BindError::rejected)?;
+    *guard = Some(Session::Consumed);
+    Ok(BindResult {
+        device_mcp_token: token.as_str().to_string(),
+        binding_public_key: binding_public_key_hex()?,
+    })
+}
+
+#[cfg(test)]
+pub fn test_clear_session() {
+    *session_lock() = None;
+}
+
+#[cfg(test)]
+pub fn test_expire_current_session() {
+    let mut guard = session_lock();
+    if let Some(Session::Live { secret, .. }) = guard.as_ref() {
+        let secret = *secret;
+        *guard = Some(Session::Live { secret, exp: 0 });
+    }
+}
+
+#[cfg(test)]
+pub fn test_reset_bind_keychain() {
+    for account in [ACCOUNT_SIGNING, ACCOUNT_BINDING] {
+        if let Ok(entry) = keychain_entry(account) {
+            let _ = entry.delete_credential();
+        }
+    }
+}
+
+#[cfg(test)]
+#[path = "../../unit-tests/services/bind_tests.rs"]
+mod tests;
