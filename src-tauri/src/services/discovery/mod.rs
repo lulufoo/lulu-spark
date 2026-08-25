@@ -72,17 +72,17 @@ impl Session {
                     ipv4,
                     port: self.gateway_port,
                 };
+                if self.published.as_ref() == Some(&record) {
+                    return;
+                }
                 if let Err(err) = self.publisher.publish(record.clone()) {
                     eprintln!("[discovery] publish failed: {err}");
+                    self.published = None;
                     return;
                 }
                 self.published = Some(record);
             }
-            None => {
-                if self.published.take().is_some() {
-                    self.publisher.withdraw();
-                }
-            }
+            None => self.withdraw_if_published(),
         }
     }
 
