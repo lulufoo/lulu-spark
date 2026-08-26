@@ -28,7 +28,7 @@ pub fn issue_bind_with(gateway: &GatewayState) -> Result<Value, String> {
 }
 
 #[tauri::command]
-pub fn issue_bind(gateway: State<GatewayState>) -> Result<Value, String> {
+pub fn issue_bind(gateway: State<'_, GatewayState>) -> Result<Value, String> {
     issue_bind_with(&gateway)
 }
 

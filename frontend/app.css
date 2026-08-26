@@ -6365,6 +6365,63 @@
 }
 .qr-error { color: #e5534b; }
 
+/* ── Bind device dialog ── */
+#bind-dialog {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,0,0,.55);
+}
+#bind-dialog.open { display: flex; }
+#bind-dialog-box {
+  background: #fff;
+  border-radius: 10px;
+  padding: 24px 24px 20px;
+  width: min(480px, 90vw);
+  box-shadow: 0 8px 40px rgba(0,0,0,.3);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+#bind-dialog-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 14px;
+  font-weight: 600;
+  color: #24292f;
+}
+#btn-bind-close,
+#btn-bind-refresh {
+  background: none;
+  border: 1px solid #d0d7de;
+  border-radius: 6px;
+  padding: 3px 10px;
+  font-size: 12px;
+  cursor: pointer;
+  color: #57606a;
+}
+#btn-bind-close:hover,
+#btn-bind-refresh:hover { background: #eaeef2; }
+#bind-status,
+#bind-countdown {
+  font-size: 13px;
+  color: #57606a;
+}
+#bind-preview {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 280px;
+}
+#bind-preview canvas,
+#bind-preview img {
+  max-width: 100%;
+}
+
 /* ── Corpus doc list (Phase1b) ── */
 .corpus-doc-layout {
   display: flex;
