@@ -1,0 +1,5 @@
+{
+  "version": 2,
+  "rulesFile": "skill-config/lulu-rule-guard/rule-guard.json",
+  "ruleConfig": "skill-config/lulu-rule-guard/rule-guard-config.json"
+}

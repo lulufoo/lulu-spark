@@ -23,6 +23,14 @@ describe('T10 Host MCP archive + contract retarget (V2/V3/V4)', () => {
       existsSync(join(repoRoot, 'packages/knowledge-mcp/package.json')),
       'T10/V4: packages/knowledge-mcp must not remain installable as a runtime package',
     ).toBe(false);
+    expect(
+      existsSync(join(repoRoot, 'archive/knowledge-mcp/index.mjs')),
+      'archive/knowledge-mcp must not remain as a Node MCP snapshot',
+    ).toBe(false);
+    expect(
+      existsSync(join(repoRoot, 'archive/knowledge-mcp/package.json')),
+      'archive/knowledge-mcp must not remain installable as a Node package',
+    ).toBe(false);
   });
 
   it('npm test no longer installs or runs Node packages/knowledge-mcp', () => {
@@ -101,12 +109,11 @@ describe('T10 Host MCP archive + contract retarget (V2/V3/V4)', () => {
     expect(pkg.scripts.test).toContain('scripts/verify-host-mcp.mjs');
   });
 
-  it('archived verifier checks Host registry directly, not deleted readiness files', () => {
-    const src = read('archive/knowledge-mcp/scripts/verify.mjs');
-    expect(src).toContain('assertAc1AppBindingRegistryUrl');
-    expect(src).toContain('mcp_server_registry::lookup(&key)');
-    expect(src).not.toMatch(/mcp_endpoint_readiness/);
-    expect(src).not.toMatch(/readinessTests|readinessSrc/);
+  it('archived Node knowledge-mcp snapshot is removed', () => {
+    expect(
+      existsSync(join(repoRoot, 'archive/knowledge-mcp')),
+      'archive/knowledge-mcp must be gone',
+    ).toBe(false);
   });
 
   it('e2e contract entry defaults to Host MCP URL :9876', () => {

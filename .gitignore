@@ -1,19 +1,22 @@
 .DS_Store
 
-.cache
-
 # Meilisearch 数据库
 .meilisearch/
 
-# lulu-sync-rules (auto)
 .github/instructions/
+.github.worktrees/
+
+.cursor/agents
+
+.cache
 
 .venv
+.superpowers
+.worktrees
+.vscode
 
 node_modules
-.cursor
 
 # Rust / Tauri build output
 src-tauri/target/
 
-.github.worktrees/

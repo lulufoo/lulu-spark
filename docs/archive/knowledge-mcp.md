@@ -15,7 +15,7 @@ LuLu Workbench App 启动时由 Host 内嵌 Protocol Adapter 提供 Streamable H
 ✅ Verified（源码）：`src-tauri/src/services/mcp_protocol_adapter.rs` 登记 `cursor_ide` / `workbench` 槽；path 形态为 `/mcp/<scene_slot>`。  
 ✅ Verified（源码）：正式缺省 `DEFAULT_PROD_MCP_PORT = 9876`（`settings.rs` / `lib.rs` 再导出）。  
 沙箱 App（`TestSandbox=true`）请把 URL 端口改成实例 `config.toml` 中的 `mcp_port`（或沙箱缺省 `19876`）。  
-✅ Verified（源码）：Host 不再 spawn `packages/knowledge-mcp/index.mjs`（该包已归档至 `archive/knowledge-mcp/`）。  
+✅ Verified（源码）：Host 不再 spawn `packages/knowledge-mcp/index.mjs`；`packages/knowledge-mcp/` 与 `archive/knowledge-mcp/` 均已从仓库移除。  
 ✅ Verified（tech-doc L06-AR / L19-T T10）：IDE 通道仅 `mcp.json` 手配，不经 Binding；Node 包非运行时 SSOT。
 
 ### 可按字面执行的 `mcp.json` 示例

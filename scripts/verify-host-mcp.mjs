@@ -45,6 +45,13 @@ function assertArchived() {
       'T10/V4: Node knowledge-mcp package must be archived/removed (not runtime SSOT)',
     );
   }
+  const archivedDir = path.join(REPO_ROOT, 'archive', 'knowledge-mcp');
+  if (
+    existsSync(path.join(archivedDir, 'index.mjs')) ||
+    existsSync(path.join(archivedDir, 'package.json'))
+  ) {
+    throw new Error('Node knowledge-mcp archive snapshot must be removed');
+  }
 }
 
 function readAdapterSource() {
@@ -172,7 +179,9 @@ function runHostDualSlotCargoSmoke() {
 
 async function main() {
   assertArchived();
-  console.log(`archive gate: packages/knowledge-mcp absent (Host ${HOST_MCP_BASE} is SSOT)`);
+  console.log(
+    `archive gate: packages/knowledge-mcp and archive/knowledge-mcp absent (Host ${HOST_MCP_BASE} is SSOT)`,
+  );
 
   assertNoForbiddenAttachmentDeletes();
   console.log('Host MCP forbids attachment delete tools: OK');

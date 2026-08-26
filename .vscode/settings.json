@@ -1,7 +1,0 @@
-{
-  "workbench.editorAssociations": {
-    "*.flowchart.md": "flowchart.editor",
-    "*.flowchart.mmd": "flowchart.editor",
-    "*.flowchart.mermaid": "flowchart.editor"
-  }
-}
