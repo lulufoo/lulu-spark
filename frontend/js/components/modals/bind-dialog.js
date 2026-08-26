@@ -83,13 +83,15 @@ export async function openBindDialog() {
   clearPreview();
   try {
     const payload = await api.invoke('issue_bind');
-    el('bind-status').textContent = '';
     drawPayload(payload);
     startCountdown(payload.exp);
     startPolling();
-  } catch (err) {
-    el('bind-status').textContent = '';
+  } catch {
     clearPreview();
+  } finally {
+    if (el('bind-status').textContent === 'Loading…') {
+      el('bind-status').textContent = '';
+    }
   }
 }
 
