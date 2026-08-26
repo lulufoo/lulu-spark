@@ -197,6 +197,7 @@ fn keychain_bind_service_creates_binding_key_when_missing() {
 fn crate_exports_bind_and_registers_module() {
     let _: fn(Ipv4Addr, u16, &str) -> Result<BindPayload, BindError> = create_bind_payload;
     let _: fn(&[u8]) -> Result<BindResult, BindError> = complete_bind;
+    let _: fn() -> BindSessionState = bind_session_state;
     let _: fn(&str, Option<&str>) -> Result<crate::services::mcp_oauth::TicketHandle, _> =
         crate::services::mcp_oauth::issue_for_device;
     let src = include_str!(concat!(
@@ -231,6 +232,155 @@ fn bind_does_not_listen_and_does_not_store_tokens() {
         assert!(
             !src.contains(&done.device_mcp_token),
             "source must not hardcode tokens"
+        );
+    });
+}
+
+#[test]
+fn bind_session_state_is_idle_when_memory_has_no_session() {
+    with_bind(|| {
+        assert_eq!(bind_session_state(), BindSessionState::idle);
+    });
+}
+
+#[test]
+fn bind_session_state_is_live_after_create_while_now_at_or_before_exp() {
+    with_bind(|| {
+        let payload = draw(Ipv4Addr::new(10, 0, 0, 8), 7654, "33");
+        assert_eq!(bind_session_state(), BindSessionState::live);
+        let now = now_secs();
+        assert!(
+            payload.exp >= now,
+            "countdown material is payload.exp, got exp={} now={now}",
+            payload.exp
+        );
+    });
+}
+
+#[test]
+fn bind_session_state_is_consumed_after_complete_bind() {
+    with_bind(|| {
+        let payload = draw(Ipv4Addr::new(10, 0, 0, 9), 7654, "44");
+        let sealed = seal_bind_request(&payload.temp_pub, "phone-ro", None).expect("seal");
+        complete_bind(&sealed).expect("complete");
+        assert_eq!(bind_session_state(), BindSessionState::consumed);
+    });
+}
+
+#[test]
+fn bind_session_state_is_expired_when_live_and_now_after_exp() {
+    with_bind(|| {
+        draw(Ipv4Addr::new(10, 0, 0, 10), 7654, "55");
+        test_expire_current_session();
+        assert_eq!(bind_session_state(), BindSessionState::expired);
+    });
+}
+
+#[test]
+fn bind_session_state_stays_live_when_now_equals_exp() {
+    with_bind(|| {
+        draw(Ipv4Addr::new(10, 0, 0, 11), 7654, "66");
+        loop {
+            let now = now_secs();
+            test_set_current_session_exp(now);
+            let state = bind_session_state();
+            if now_secs() == now {
+                assert_eq!(state, BindSessionState::live);
+                break;
+            }
+        }
+    });
+}
+
+#[test]
+fn bind_session_state_expired_read_leaves_live_session_in_place() {
+    with_bind(|| {
+        let payload = draw(Ipv4Addr::new(10, 0, 0, 12), 7654, "77");
+        let sealed = seal_bind_request(&payload.temp_pub, "phone-ro-exp", None).expect("seal");
+        test_expire_current_session();
+        let before = test_session_bytes();
+        assert_eq!(bind_session_state(), BindSessionState::expired);
+        assert_eq!(
+            test_session_bytes(),
+            before,
+            "expired is computed from time; read must not clear SESSION"
+        );
+        assert_eq!(
+            complete_bind(&sealed).expect_err("still Live+expired"),
+            BindError::expired
+        );
+    });
+}
+
+#[test]
+fn bind_session_state_does_not_return_secret() {
+    with_bind(|| {
+        draw(Ipv4Addr::new(10, 0, 0, 13), 7654, "88");
+        let state = bind_session_state();
+        assert_eq!(state, BindSessionState::live);
+        let debug = format!("{state:?}");
+        assert_eq!(debug, "live");
+        let bind_src = include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/src/services/bind/mod.rs"
+        ));
+        assert!(
+            !bind_src.contains("BindSessionState {")
+                && !bind_src.contains("BindSessionState::live {"),
+            "four-state tag must not carry secret"
+        );
+    });
+}
+
+#[test]
+fn bind_session_state_is_read_only_across_two_calls() {
+    with_bind(|| {
+        draw(Ipv4Addr::new(10, 0, 0, 14), 7654, "99");
+        let before = test_session_bytes();
+        assert_eq!(bind_session_state(), BindSessionState::live);
+        assert_eq!(bind_session_state(), BindSessionState::live);
+        assert_eq!(
+            test_session_bytes(),
+            before,
+            "two reads must leave SESSION byte-identical"
+        );
+    });
+}
+
+#[test]
+fn bind_session_state_does_not_invent_a_clock_or_change_create_complete() {
+    let bind_src = include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/src/services/bind/mod.rs"
+    ));
+    let start = bind_src
+        .find("pub fn bind_session_state")
+        .expect("public read-only mouth");
+    let rest = &bind_src[start..];
+    let end = rest.find("\npub fn ").unwrap_or(rest.len());
+    let read_fn = &rest[..end];
+    assert!(
+        !read_fn.contains("BIND_TTL_SECS") && !read_fn.contains("now_secs() +"),
+        "countdown stays on create_bind_payload.exp; read must not mint a clock"
+    );
+    with_bind(|| {
+        let first = draw(Ipv4Addr::new(10, 0, 0, 15), 7654, "aa");
+        let sealed_first =
+            seal_bind_request(&first.temp_pub, "phone-ro-keep", None).expect("seal first");
+        assert_eq!(bind_session_state(), BindSessionState::live);
+        let second = draw(Ipv4Addr::new(10, 0, 0, 15), 7654, "aa");
+        assert_ne!(first.temp_pub, second.temp_pub);
+        assert_eq!(
+            complete_bind(&sealed_first).expect_err("create still replaces SESSION"),
+            BindError::session_unavailable
+        );
+        let sealed_second =
+            seal_bind_request(&second.temp_pub, "phone-ro-keep-2", None).expect("seal second");
+        complete_bind(&sealed_second).expect("complete_bind contract unchanged");
+        assert_eq!(bind_session_state(), BindSessionState::consumed);
+        assert_eq!(
+            complete_bind(&sealed_second).expect_err("replay still consumed"),
+            BindError::consumed
         );
     });
 }

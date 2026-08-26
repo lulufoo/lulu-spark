@@ -52,6 +52,16 @@ pub struct BindResult {
     pub binding_public_key: String,
 }
 
+#[allow(non_camel_case_types)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BindSessionState
+{
+    idle,
+    live,
+    consumed,
+    expired,
+}
+
 enum Session {
     Live { secret: [u8; 32], exp: u64 },
     Consumed,
@@ -305,6 +315,16 @@ pub fn complete_bind(encrypted_request: &[u8]) -> Result<BindResult, BindError> 
     })
 }
 
+pub fn bind_session_state() -> BindSessionState
+{
+    match session_lock().as_ref() {
+        None => BindSessionState::idle,
+        Some(Session::Consumed) => BindSessionState::consumed,
+        Some(Session::Live { exp, .. }) if now_secs() <= *exp => BindSessionState::live,
+        Some(Session::Live { .. }) => BindSessionState::expired,
+    }
+}
+
 #[cfg(test)]
 pub fn test_clear_session() {
     *session_lock() = None;
@@ -316,6 +336,30 @@ pub fn test_expire_current_session() {
     if let Some(Session::Live { secret, .. }) = guard.as_ref() {
         let secret = *secret;
         *guard = Some(Session::Live { secret, exp: 0 });
+    }
+}
+
+#[cfg(test)]
+pub fn test_set_current_session_exp(exp: u64) {
+    let mut guard = session_lock();
+    if let Some(Session::Live { secret, .. }) = guard.as_ref() {
+        let secret = *secret;
+        *guard = Some(Session::Live { secret, exp });
+    }
+}
+
+#[cfg(test)]
+pub fn test_session_bytes() -> Vec<u8> {
+    match session_lock().as_ref() {
+        None => Vec::new(),
+        Some(Session::Consumed) => vec![1],
+        Some(Session::Live { secret, exp }) => {
+            let mut out = Vec::with_capacity(41);
+            out.push(2);
+            out.extend_from_slice(secret);
+            out.extend_from_slice(&exp.to_le_bytes());
+            out
+        }
     }
 }
 
