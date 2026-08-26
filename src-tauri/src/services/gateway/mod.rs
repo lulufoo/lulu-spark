@@ -83,6 +83,12 @@ pub struct GatewayState {
     handle: Mutex<Option<GatewayHandle>>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GatewayListen {
+    pub port: u16,
+    pub tls_fingerprint: String,
+}
+
 impl GatewayState {
     pub fn new() -> Self {
         Self {
@@ -102,6 +108,14 @@ impl GatewayState {
                 stop(handle);
             }
         }
+    }
+
+    pub fn current(&self) -> Option<GatewayListen> {
+        let guard = self.handle.lock().ok()?;
+        guard.as_ref().map(|handle| GatewayListen {
+            port: handle.local_addr().port(),
+            tls_fingerprint: handle.tls_fingerprint().to_string(),
+        })
     }
 }
 

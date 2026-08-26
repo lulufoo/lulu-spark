@@ -306,6 +306,8 @@ pub fn run() {
             commands::mcp_oauth::issue_cursor_ide_ticket,
             commands::mcp_oauth::rotate_cursor_ide_ticket,
             commands::mcp_oauth::revoke_mcp_slot_ticket,
+            commands::bind::issue_bind,
+            commands::bind::read_bind_session,
             commands::sync::save_comment_draft,
             commands::sync::save_note_draft,
             commands::sync::clear_note_draft,
