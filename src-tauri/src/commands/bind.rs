@@ -3,7 +3,7 @@
 use serde_json::{json, Value};
 use tauri::State;
 
-use crate::services::bind::{bind_session_state, BindError};
+use crate::services::bind::{bind_session_state, log_bind_event, BindError};
 use crate::services::gateway::GatewayState;
 use crate::services::lan_ip::current_lan_ipv4;
 
@@ -12,11 +12,31 @@ pub fn bind_error_to_command_error(err: BindError) -> String {
 }
 
 pub fn issue_bind_with(gateway: &GatewayState) -> Result<Value, String> {
-    let ip = current_lan_ipv4().ok_or_else(|| "no_lan".to_string())?;
-    let listen = gateway.current().ok_or_else(|| "no_gateway".to_string())?;
+    log_bind_event("issue_bind", "started");
+    let ip = match current_lan_ipv4() {
+        Some(ip) => ip,
+        None => {
+            log_bind_event("issue_bind", "no_lan");
+            return Err("no_lan".to_string());
+        }
+    };
+    let listen = match gateway.current() {
+        Some(listen) => listen,
+        None => {
+            log_bind_event("issue_bind", "no_gateway");
+            return Err("no_gateway".to_string());
+        }
+    };
     let tls_fingerprint = listen.tls_fingerprint;
-    let payload = crate::services::bind::create_bind_payload(ip, listen.port, &tls_fingerprint)
-        .map_err(bind_error_to_command_error)?;
+    let payload = match crate::services::bind::create_bind_payload(ip, listen.port, &tls_fingerprint)
+    {
+        Ok(payload) => payload,
+        Err(err) => {
+            log_bind_event("issue_bind", "payload_failed");
+            return Err(bind_error_to_command_error(err));
+        }
+    };
+    log_bind_event("issue_bind", "succeeded");
     Ok(json!({
         "ip": ip.to_string(),
         "port": listen.port,

@@ -65,6 +65,8 @@ const SEDIMENT_KB_READ_COMMANDS: &[&str] = &[
     "get_sediment_kb_repos",
 ];
 
+const BIND_READ_COMMANDS: &[&str] = &["read_bind_session"];
+
 #[test]
 fn read_api_toml_and_acl_manifest_allow_lists_match() {
     let root = manifest_dir();
@@ -81,6 +83,22 @@ fn invoke_map_commands_are_acl_allowed() {
     let toml = fs::read_to_string(root.join("permissions/read-api.toml")).expect("toml");
     let allow = parse_read_api_toml_allow(&toml);
     let missing: Vec<_> = INVOKE_MAP_COMMANDS
+        .iter()
+        .filter(|cmd| !allow.contains(**cmd))
+        .copied()
+        .collect();
+    assert!(
+        missing.is_empty(),
+        "commands missing from read-api.toml ACL: {missing:?}"
+    );
+}
+
+#[test]
+fn bind_read_commands_are_acl_allowed() {
+    let root = manifest_dir();
+    let toml = fs::read_to_string(root.join("permissions/read-api.toml")).expect("toml");
+    let allow = parse_read_api_toml_allow(&toml);
+    let missing: Vec<_> = BIND_READ_COMMANDS
         .iter()
         .filter(|cmd| !allow.contains(**cmd))
         .copied()

@@ -2,12 +2,27 @@ import * as api from '../../api.js';
 
 const QR_OPTS = { width: 256, margin: 2 };
 const POLL_MS = 1000;
+const BIND_MOBILE_BUSINESS_ID = 'Bind_Mobile';
+const ISSUE_ERROR_STATUS = {
+  no_lan: 'No local network is available.',
+  no_gateway: 'The local gateway is unavailable.',
+  keychain_unavailable: 'The local Keychain is unavailable.',
+};
 
 let pollTimer = null;
 let countdownTimer = null;
 
 function el(id) {
   return document.getElementById(id);
+}
+
+function logBindEvent(event, outcome) {
+  console.info(`[bind] business_id=${BIND_MOBILE_BUSINESS_ID} event=${event} outcome=${outcome}`);
+}
+
+function bindErrorCode(error) {
+  const message = error instanceof Error ? error.message : String(error);
+  return Object.hasOwn(ISSUE_ERROR_STATUS, message) ? message : 'unknown';
 }
 
 function stopPolling() {
@@ -41,8 +56,13 @@ function drawPayload(payload) {
   });
   const canvas = document.createElement('canvas');
   QRCode.toCanvas(canvas, text, QR_OPTS, (err) => {
-    if (err) return;
+    if (err) {
+      logBindEvent('qr.render', 'failed');
+      el('bind-status').textContent = 'Unable to generate a binding code.';
+      return;
+    }
     el('bind-preview').appendChild(canvas);
+    logBindEvent('qr.render', 'succeeded');
   });
 }
 
@@ -74,6 +94,7 @@ function startPolling() {
 }
 
 export async function openBindDialog() {
+  logBindEvent('issue_bind', 'started');
   stopPolling();
   stopCountdown();
   el('bind-dialog').classList.add('open');
@@ -86,8 +107,12 @@ export async function openBindDialog() {
     drawPayload(payload);
     startCountdown(payload.exp);
     startPolling();
-  } catch {
+    logBindEvent('issue_bind', 'succeeded');
+  } catch (error) {
+    const code = bindErrorCode(error);
+    logBindEvent('issue_bind', code);
     clearPreview();
+    el('bind-status').textContent = ISSUE_ERROR_STATUS[code] || 'Unable to issue a binding code.';
   } finally {
     if (el('bind-status').textContent === 'Loading…') {
       el('bind-status').textContent = '';

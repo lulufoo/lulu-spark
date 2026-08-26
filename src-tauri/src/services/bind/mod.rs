@@ -23,6 +23,14 @@ const BIND_TTL_SECS: u64 = 180;
 const ACCOUNT_SIGNING: &str = "signing";
 const ACCOUNT_BINDING: &str = "binding";
 const SEAL_INFO: &[u8] = b"lulu-workbench-bind-v1";
+pub const BIND_MOBILE_BUSINESS_ID: &str = "Bind_Mobile";
+
+pub fn log_bind_event(event: &'static str, outcome: &'static str) {
+    eprintln!(
+        "[bind] business_id={} event={} outcome={}",
+        BIND_MOBILE_BUSINESS_ID, event, outcome
+    );
+}
 
 #[allow(non_camel_case_types)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -143,12 +151,26 @@ fn kc_get(account: &str) -> Result<Option<String>, BindError> {
     }
     #[cfg(not(test))]
     {
-        let entry = keyring::Entry::new(bind_service(), account)
-            .map_err(|_| BindError::keychain_unavailable)?;
+        let entry = match keyring::Entry::new(bind_service(), account) {
+            Ok(entry) => entry,
+            Err(_) => {
+                log_bind_event("keychain.read", "entry_failed");
+                return Err(BindError::keychain_unavailable);
+            }
+        };
         match entry.get_password() {
-            Ok(raw) => Ok(Some(raw)),
-            Err(keyring::Error::NoEntry) => Ok(None),
-            Err(_) => Err(BindError::keychain_unavailable),
+            Ok(raw) => {
+                log_bind_event("keychain.read", "existing");
+                Ok(Some(raw))
+            }
+            Err(keyring::Error::NoEntry) => {
+                log_bind_event("keychain.read", "missing");
+                Ok(None)
+            }
+            Err(_) => {
+                log_bind_event("keychain.read", "failed");
+                Err(BindError::keychain_unavailable)
+            }
         }
     }
 }
@@ -163,19 +185,37 @@ fn kc_set(account: &str, value: &str) -> Result<(), BindError> {
     }
     #[cfg(not(test))]
     {
-        let entry = keyring::Entry::new(bind_service(), account)
-            .map_err(|_| BindError::keychain_unavailable)?;
-        entry
+        let entry = match keyring::Entry::new(bind_service(), account) {
+            Ok(entry) => entry,
+            Err(_) => {
+                log_bind_event("keychain.write", "entry_failed");
+                return Err(BindError::keychain_unavailable);
+            }
+        };
+        let result = entry
             .set_password(value)
-            .map_err(|_| BindError::keychain_unavailable)
+            .map_err(|_| BindError::keychain_unavailable);
+        log_bind_event(
+            "keychain.write",
+            if result.is_ok() { "succeeded" } else { "failed" },
+        );
+        result
     }
 }
 
 fn ensure_bind_keys() -> Result<(SigningKey, SigningKey), BindError> {
-    Ok((
-        load_or_create_signing_key(ACCOUNT_SIGNING)?,
-        load_or_create_signing_key(ACCOUNT_BINDING)?,
-    ))
+    log_bind_event("keychain.ensure", "started");
+    let result = (|| {
+        Ok((
+            load_or_create_signing_key(ACCOUNT_SIGNING)?,
+            load_or_create_signing_key(ACCOUNT_BINDING)?,
+        ))
+    })();
+    log_bind_event(
+        "keychain.ensure",
+        if result.is_ok() { "succeeded" } else { "failed" },
+    );
+    result
 }
 
 pub fn canonical_bind_string(payload: &BindPayload) -> String {
@@ -262,7 +302,14 @@ pub fn create_bind_payload(
     port: u16,
     tls_fingerprint: &str,
 ) -> Result<BindPayload, BindError> {
-    let (signing, _) = ensure_bind_keys()?;
+    log_bind_event("payload.create", "started");
+    let (signing, _) = match ensure_bind_keys() {
+        Ok(keys) => keys,
+        Err(err) => {
+            log_bind_event("payload.create", "keychain_failed");
+            return Err(err);
+        }
+    };
     let secret = StaticSecret::random_from_rng(OsRng);
     let temp_pub = hex_encode(PublicKey::from(&secret).as_bytes());
     let exp = now_secs() + BIND_TTL_SECS;
@@ -283,6 +330,7 @@ pub fn create_bind_payload(
         secret: secret.to_bytes(),
         exp,
     });
+    log_bind_event("payload.create", "succeeded");
     Ok(payload)
 }
 

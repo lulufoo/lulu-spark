@@ -120,6 +120,34 @@ fn issue_bind_reads_lan_and_gateway_then_calls_create_bind_payload_without_front
 }
 
 #[test]
+fn issue_bind_logs_critical_path_with_bind_mobile_business_id() {
+    let bind_src = source("src/services/bind/mod.rs");
+    assert!(
+        bind_src.contains("BIND_MOBILE_BUSINESS_ID: &str = \"Bind_Mobile\""),
+        "Bind logs must carry the Bind_Mobile business ID"
+    );
+    for event in [
+        "keychain.read",
+        "keychain.write",
+        "keychain.ensure",
+        "payload.create",
+    ] {
+        assert!(
+            bind_src.contains(event),
+            "Bind service must log critical event {event}"
+        );
+    }
+
+    let command_src = source("src/commands/bind.rs");
+    for outcome in ["started", "no_lan", "no_gateway", "payload_failed", "succeeded"] {
+        assert!(
+            command_src.contains(&format!("\"{outcome}\"")),
+            "issue_bind must log outcome {outcome}"
+        );
+    }
+}
+
+#[test]
 fn issue_bind_succeeds_with_lan_ip_and_running_gateway_handle() {
     with_cmd(|| {
         with_nics(Some(lan_nics()), || {
@@ -374,4 +402,15 @@ fn bind_commands_are_declared_and_registered_in_generate_handler() {
             "lib.rs generate_handler must register {name}"
         );
     }
+
+    let write_acl = source("permissions/write-api.toml");
+    assert!(
+        write_acl.contains("\"issue_bind\""),
+        "issue_bind must be allowed by write-api ACL"
+    );
+    let read_acl = source("permissions/read-api.toml");
+    assert!(
+        read_acl.contains("\"read_bind_session\""),
+        "read_bind_session must be allowed by read-api ACL"
+    );
 }

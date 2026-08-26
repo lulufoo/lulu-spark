@@ -18,6 +18,7 @@ commands.allow = [
   "issue_cursor_ide_ticket",
   "rotate_cursor_ide_ticket",
   "revoke_mcp_slot_ticket",
+  "issue_bind",
   "tag_attach",
   "tag_detach",
   "tag_update_value",

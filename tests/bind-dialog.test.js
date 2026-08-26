@@ -399,4 +399,35 @@ describe('bind-dialog', () => {
       expect(makeEl('bind-preview').children).toHaveLength(0);
     }
   });
+
+  it('identifies issue failures with Bind_Mobile in the browser log', async () => {
+    const log = vi.spyOn(console, 'info').mockImplementation(() => {});
+    invokeMock.mockImplementation(async (cmd) => {
+      if (cmd === 'issue_bind') throw new Error('keychain_unavailable');
+      return undefined;
+    });
+
+    const { openBindDialog } = await import('../frontend/js/components/modals/bind-dialog.js');
+    await openBindDialog();
+
+    expect(makeEl('bind-status').textContent).toBe('The local Keychain is unavailable.');
+    expect(log).toHaveBeenCalledWith(
+      '[bind] business_id=Bind_Mobile event=issue_bind outcome=keychain_unavailable',
+    );
+    log.mockRestore();
+  });
+
+  it('identifies QR render failures with Bind_Mobile in the browser log', async () => {
+    const log = vi.spyOn(console, 'info').mockImplementation(() => {});
+    qrMocks.toCanvas.mockImplementation((canvas, text, opts, cb) => cb(new Error('render failed')));
+
+    const { openBindDialog } = await import('../frontend/js/components/modals/bind-dialog.js');
+    await openBindDialog();
+
+    expect(makeEl('bind-status').textContent).toBe('Unable to generate a binding code.');
+    expect(log).toHaveBeenCalledWith(
+      '[bind] business_id=Bind_Mobile event=qr.render outcome=failed',
+    );
+    log.mockRestore();
+  });
 });

@@ -31,4 +31,5 @@ commands.allow = [
   "get_tags_registry",
   "get_read_later",
   "get_todo_tasks",
+  "read_bind_session",
 ]
