@@ -29,20 +29,32 @@ test('workbench catalog exposes exactly the public child skills', () => {
 })
 
 test('each public child skill has one clickable item with required display fields', () => {
+  const cjk = /[\u4e00-\u9fff]/
   workbenchSkillsContent.groups.forEach((group) => {
     expect(group.name).toEqual(expect.any(String))
     expect(group.name).not.toBe('')
+    expect(group.name).not.toMatch(cjk)
     expect(group.items).toHaveLength(1)
 
     const item = group.items[0]
     expect(group.url).toContain(
       `lulu-workbench-skills/tree/main/${item.cmd}`
     )
-    expect(item.name).toEqual(expect.any(String))
-    expect(item.name).not.toBe('')
+    expect(item.name).toBe(group.name)
+    expect(item.name).not.toMatch(cjk)
     expect(item.desc).toEqual(expect.any(String))
     expect(item.desc).not.toBe('')
+    expect(item.desc).not.toMatch(cjk)
   })
+})
+
+test('skills dialog renders one English table row per skill and no group links', () => {
+  const mainJs = readFileSync(join(repoRoot, 'frontend/js/main.js'), 'utf8')
+  expect(mainJs).toContain('class="skill-table"')
+  expect(mainJs).toContain('class="skill-name"')
+  expect(mainJs).toContain('class="skill-cmd"')
+  expect(mainJs).not.toContain('skill-group-link')
+  expect(mainJs).not.toContain('skill-group-title')
 })
 
 test('workbench catalog does not expose legacy or internal skills', () => {

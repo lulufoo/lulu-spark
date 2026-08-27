@@ -3,79 +3,79 @@ export const workbenchSkillsContent = {
   title: '✦ Lulu Workbench Skills',
   groups: [
     {
-      name: '对话回顾',
+      name: 'Dialogue summary',
       url: 'https://github.com/lulufoo/lulu-workbench-skills/tree/main/dialogue-summary',
       items: [
         {
           cmd: 'dialogue-summary',
-          name: '过程回顾',
-          desc: '将对话整理为可独立阅读的过程总结，并按需归档',
+          name: 'Dialogue summary',
+          desc: 'Turn the conversation into a standalone process summary and archive it when needed.',
         },
       ],
     },
     {
-      name: '对话原文归档',
+      name: 'Dialogue archive',
       url: 'https://github.com/lulufoo/lulu-workbench-skills/tree/main/dialogue-archive',
       items: [
         {
           cmd: 'dialogue-archive',
-          name: '原文归档',
-          desc: '节点切片后按原文归档；local-md 仅落 .cache',
+          name: 'Dialogue archive',
+          desc: 'Slice nodes and archive the original text; local-md writes .cache only.',
         },
       ],
     },
     {
-      name: '完整对话整理',
+      name: 'Full conversation',
       url: 'https://github.com/lulufoo/lulu-workbench-skills/tree/main/theme-line',
       items: [
         {
           cmd: 'theme-line',
-          name: '完整对话整理',
-          desc: '采集字幕或已有稿为完整对话后交给 theme-archive',
+          name: 'Full conversation',
+          desc: 'Collect subtitles or an existing transcript as a full conversation for theme-archive.',
         },
       ],
     },
     {
-      name: '网页采集',
+      name: 'Web fetch',
       url: 'https://github.com/lulufoo/lulu-workbench-skills/tree/main/theme-fetch',
       items: [
         {
           cmd: 'theme-fetch',
-          name: '网页文章采集',
-          desc: '抓取网页或公众号文章，格式化后交给 theme-archive',
+          name: 'Web fetch',
+          desc: 'Fetch a web or WeChat article, format it, and hand it to theme-archive.',
         },
       ],
     },
     {
-      name: '视频转写',
+      name: 'Video transcription',
       url: 'https://github.com/lulufoo/lulu-workbench-skills/tree/main/theme-transcribe',
       items: [
         {
           cmd: 'theme-transcribe',
-          name: '视频转写流水线',
-          desc: '下载媒体 + Whisper，生成完整逐字稿后交给 theme-archive',
+          name: 'Video transcription',
+          desc: 'Download media, run Whisper, and hand the full transcript to theme-archive.',
         },
       ],
     },
     {
-      name: '主题文档归档',
+      name: 'Theme archive',
       url: 'https://github.com/lulufoo/lulu-workbench-skills/tree/main/theme-archive',
       items: [
         {
           cmd: 'theme-archive',
-          name: '文档归档',
-          desc: '将已格式化文档写入 raw 目录并更新索引',
+          name: 'Theme archive',
+          desc: 'Write the formatted document to raw and update the index.',
         },
       ],
     },
     {
-      name: 'Todo 任务',
+      name: 'Todo tasks',
       url: 'https://github.com/lulufoo/lulu-workbench-skills/tree/main/todo-task',
       items: [
         {
           cmd: 'todo-task',
-          name: 'Todo 任务',
-          desc: '经 Workbench MCP 创建、查询和维护 Todo 任务树',
+          name: 'Todo tasks',
+          desc: 'Create, query, and maintain Todo task trees through Workbench MCP.',
         },
       ],
     },

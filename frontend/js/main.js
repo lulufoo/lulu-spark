@@ -1159,32 +1159,29 @@ function _openSkillsDialog() {
   const data = workbenchSkillsContent;
   if (!data) return;
   document.getElementById('skills-dialog-title').textContent = data.title;
-  document.getElementById('skills-dialog-body').innerHTML = data.groups.map(g => {
-    const titleHtml = g.name
-      ? `<div class="skill-group-title"><a class="skill-group-link" href="${g.url}" target="_blank" rel="noopener noreferrer">${g.name} ↗</a></div>`
-      : '';
-    const items = g.items.map(i => {
-      if (typeof i === 'string') {
-        return `<div class="skill-item" data-copy="${_escapeAttr(i)}" title="Click to copy">${i}</div>`;
-      }
-      const tip = i.desc != null && i.desc !== ''
-        ? _escapeAttr(i.desc)
-        : 'Click to copy command';
-      return `<div class="skill-item skill-item-rich" data-copy="${_escapeAttr(i.cmd)}" title="${tip}">` +
-        `<span class="skill-item-name">${i.name}</span>` +
-        `<code class="skill-item-cmd">${i.cmd}</code>` +
-        `</div>`;
-    }).join('');
-    return `<div class="skill-group">${titleHtml}${items}</div>`;
+  const rows = data.groups.flatMap((g) => g.items).map((item) => {
+    const skill = typeof item === 'string'
+      ? { cmd: item, name: item, desc: 'Click to copy' }
+      : item;
+    const tip = skill.desc != null && skill.desc !== ''
+      ? _escapeAttr(skill.desc)
+      : 'Click to copy';
+    return `<tr class="skill-row">` +
+      `<td class="skill-name">${_escapeAttr(skill.name)}</td>` +
+      `<td class="skill-cmd" data-copy="${_escapeAttr(skill.cmd)}" title="${tip}">` +
+        `<code>${_escapeAttr(skill.cmd)}</code>` +
+      `</td>` +
+      `</tr>`;
   }).join('');
+  document.getElementById('skills-dialog-body').innerHTML =
+    `<table class="skill-table"><tbody>${rows}</tbody></table>`;
 
-  // Bind copy on item click
-  document.getElementById('skills-dialog-body').querySelectorAll('.skill-item[data-copy]').forEach(el => {
+  document.getElementById('skills-dialog-body').querySelectorAll('.skill-cmd[data-copy]').forEach((el) => {
     el.addEventListener('click', () => {
-      navigator.clipboard.writeText(el.dataset.copy).then(() => {
-        const orig = el.textContent;
-        el.textContent = '✓ Copied';
-        setTimeout(() => { el.textContent = orig; }, 1200);
+      const cmd = el.dataset.copy;
+      navigator.clipboard.writeText(cmd).then(() => {
+        el.innerHTML = '<code>Copied</code>';
+        setTimeout(() => { el.innerHTML = `<code>${_escapeAttr(cmd)}</code>`; }, 1200);
       });
     });
   });
