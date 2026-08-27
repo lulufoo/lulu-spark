@@ -35,6 +35,6 @@ export const TODO_TASK_UI_FILES = [
   'frontend/js/todo-task/attachments.js',
   'frontend/js/todo-task/comments.js',
   'frontend/js/todo-task/dialog.js',
-  'frontend/js/todo-task/todos-lifecycle.js',
-  'frontend/js/todo-task/todos-binding.js',
+  'frontend/js/todo-task/lifecycle.js',
+  'frontend/js/todo-task/binding.js',
 ];

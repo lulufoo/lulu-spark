@@ -1,6 +1,6 @@
 import { fetchIndex } from '../host/api.js';
 import { normalizeCorpusIndex } from '../corpus/corpus-index.js';
-import { escHtml, filenameFromPath, slugToTitle } from '../utils.js';
+import { escHtml, filenameFromPath, slugToTitle } from '../shared/utils.js';
 
 const UNAVAILABLE_MSG = 'List temporarily unavailable — try again later';
 

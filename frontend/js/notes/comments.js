@@ -5,17 +5,17 @@ import {
   ensureLayerComments,
   swapAdjacent,
   validateCommentIdsForReorder,
-} from '../comment-reorder.js'
-import { nowTs } from '../utils.js'
+} from '../shared/comment-reorder.js'
+import { nowTs } from '../shared/utils.js'
 import { openSettleDialog } from './settle-dialog.js'
 import { renderLinksBar } from './links-bar.js'
-import { confirmDeleteComment, removeCorpusComment } from '../components/comment-delete.js'
+import { confirmDeleteComment, removeCorpusComment } from '../shared/comment-delete.js'
 import {
   pasteIntoCommentEditor,
   prepareCommentMarkdown,
   renderCommentMarkdown,
-} from '../comment-markdown.js'
-import { renderMermaidBlocks } from '../mermaid-render.js'
+} from '../shared/comment-markdown.js'
+import { renderMermaidBlocks } from '../shared/mermaid-render.js'
 
 // ── renderComments ─────────────────────────────────────────────────────────
 

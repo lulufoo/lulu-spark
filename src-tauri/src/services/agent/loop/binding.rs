@@ -229,8 +229,8 @@ pub const DEFENSIVE_CUT_HOOK_PATH: &str =
 /// Explicit leave→Reset chain that defensive cut backs (does not replace).
 pub const DEFENSIVE_CUT_EXPLICIT_RESET_CHAIN: &[&str] = &[
     "frontend/js/todo-task/index.js::dispose",
-    "frontend/js/todo-task/todos-lifecycle.js::onTodosPageLeave",
-    "frontend/js/todo-task/todos-binding.js::resetTodosBinding",
+    "frontend/js/todo-task/lifecycle.js::onTodosPageLeave",
+    "frontend/js/todo-task/binding.js::resetTodosBinding",
     "src-tauri/src/services/agent/loop/binding.rs::reset_binding",
 ];
 

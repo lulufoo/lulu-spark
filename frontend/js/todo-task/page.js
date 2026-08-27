@@ -1,6 +1,6 @@
-import { escHtml } from '../utils.js';
+import { escHtml } from '../shared/utils.js';
 import { closeTodoTaskDialog, openTodoTaskDialog } from './dialog.js';
-import { createTodosPageLifecycle } from './todos-lifecycle.js';
+import { createTodosPageLifecycle } from './lifecycle.js';
 import {
   DEFAULT_PLAN_CATEGORY_ID,
   addPlanSub,
@@ -39,6 +39,7 @@ import { createDetailOwner, renderSubDetailPane } from './detail.js';
 import { createPlanMdOwner } from './plan-md.js';
 import { createAttachmentsOwner, renderAttachmentEditor } from './attachments.js';
 import { createCommentsOwner } from './comments.js';
+import { bindTodoDocHighlights } from '../doc-editor/index.js';
 
 const UNAVAILABLE_MSG = 'List temporarily unavailable. Please try again later.';
 const REFRESH_WARNING_MSG = 'Saved, but list refresh failed — retry';
@@ -297,15 +298,17 @@ export function mountTodoTaskSplit(container, opts = {}) {
     if (nextMaster) nextMaster.scrollTop = masterScroll;
     if (nextDetail && keepDetailScroll) nextDetail.scrollTop = detailScroll;
     syncCategoryFilterWidth(container);
-    if (!attachments.getEditor()) return;
-    if (existingEditor && attachments.refreshEditorNode(existingEditor, ui)) {
-      container.appendChild(existingEditor);
-      return;
+    if (attachments.getEditor()) {
+      if (existingEditor && attachments.refreshEditorNode(existingEditor, ui)) {
+        container.appendChild(existingEditor);
+      } else {
+        container.insertAdjacentHTML(
+          'beforeend',
+          renderAttachmentEditor(attachments.getEditor(), ui.disabled),
+        );
+      }
     }
-    container.insertAdjacentHTML(
-      'beforeend',
-      renderAttachmentEditor(attachments.getEditor(), ui.disabled),
-    );
+    bindTodoDocHighlights(container, selectedMasterId, attachments.getEditor());
   }
 
   function resetOwnersForMasterChange() {

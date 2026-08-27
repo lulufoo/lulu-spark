@@ -90,6 +90,25 @@ pub fn cache_todo_tasks_v1_path() -> Result<PathBuf, PathsError> {
     Ok(cache_dir()?.join("todo_tasks.json"))
 }
 
+/// Local highlight cache root: `{cache_dir}/doc-highlights`.
+pub fn doc_highlights_dir() -> Result<PathBuf, PathsError> {
+    Ok(cache_dir()?.join("doc-highlights"))
+}
+
+/// `{cache_dir}/doc-highlights/{md5}.json` — `md5` is 32 lowercase hex chars.
+pub fn doc_highlights_file(md5_hex: &str) -> Result<PathBuf, PathsError> {
+    let md5_hex = md5_hex.trim();
+    if md5_hex.len() != 32 || !md5_hex.bytes().all(|b| b.is_ascii_hexdigit()) {
+        return Err(PathsError::RepoRootUnavailable);
+    }
+    let dir = doc_highlights_dir()?;
+    let target = dir.join(format!("{md5_hex}.json"));
+    if !target.starts_with(&dir) {
+        return Err(PathsError::RepoRootUnavailable);
+    }
+    Ok(target)
+}
+
 pub fn sediment_kb_categories_path() -> Result<PathBuf, PathsError> {
     Ok(sediment_kb_dir()?.join("categories.json"))
 }

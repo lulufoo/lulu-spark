@@ -3,7 +3,7 @@ use tauri::AppHandle;
 
 use crate::config::paths;
 use crate::services::sediment_kb::{self, SedimentKbError};
-use crate::services::{annotation, archive_write, entry_write, kb_write, tag_write};
+use crate::services::{annotation, archive_write, doc_highlights, entry_write, kb_write, tag_write};
 
 fn repo_root() -> Result<std::path::PathBuf, String> {
     paths::repo_root().map_err(|e| format!("{e:?}"))
@@ -248,6 +248,16 @@ pub fn update_highlights(
         highlight,
         ts,
     ))
+}
+
+#[tauri::command]
+pub fn update_doc_highlights(
+    _app: AppHandle,
+    key: String,
+    highlight: Value,
+    ts: String,
+) -> Result<Value, String> {
+    Ok(doc_highlights::update_doc_highlights(&key, highlight, &ts))
 }
 
 #[tauri::command]

@@ -1,5 +1,5 @@
-import { escHtml } from '../utils.js';
-import { renderMermaidBlocks } from '../mermaid-render.js';
+import { escHtml } from '../shared/utils.js';
+import { renderMermaidBlocks } from '../shared/mermaid-render.js';
 
 /** Read-only Home chat markdown. Uses marked + mermaid; not the Notes editor. */
 

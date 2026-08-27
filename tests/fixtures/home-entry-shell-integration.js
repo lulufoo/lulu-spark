@@ -1,6 +1,6 @@
 /**
  * T7 integration harness — mounts a baseline home-entry shell with stub adapters.
- * Consumed by tests/home-entry-shell-integration.test.js.
+ * Consumed by tests/home-entry-shell/integration.test.js.
  */
 import { getBaselineEntries } from '../../frontend/js/home-entry-shell/entry-config.js';
 import { createContentRegistry } from '../../frontend/js/home-entry-shell/content-registry.js';

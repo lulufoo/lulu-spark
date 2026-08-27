@@ -68,6 +68,12 @@ export const READ_API_INVOKE_MAP = {
   '/api/status': { cmd: 'get_status' },
   '/api/read-later': { cmd: 'get_read_later' },
   '/api/todo-tasks': { cmd: 'get_todo_tasks' },
+  '/api/doc-highlights': {
+    cmd: 'get_doc_highlights',
+    args: (url) => ({
+      key: url.searchParams.get('key') ?? '',
+    }),
+  },
   '/api/kb/read': {
     cmd: 'kb_read',
     args: (url) => ({

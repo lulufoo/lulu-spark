@@ -1,10 +1,10 @@
 import * as api from '../host/api.js';
-import { escHtml, repoShortName } from '../utils.js';
-import { mountKbReader } from './kb-viewer.js';
-import { setHeaderSyncCorpusContext, clearHeaderSyncCorpusContext } from '../header-sync.js';
+import { escHtml, repoShortName } from '../shared/utils.js';
+import { mountKbReader } from './corpus-viewer.js';
+import { setHeaderSyncCorpusContext, clearHeaderSyncCorpusContext } from '../app-shell/header-sync.js';
 import { attachCorpusSidebarResize, detachCorpusSidebarResize } from './corpus-sidebar-resize.js';
-import { getKbHidePattern, shouldHideEntry } from './kb-hide-pattern.js';
-import { closeFloatingListSelect, createFloatingListSelect } from '../components/floating-list-select.js';
+import { getKbHidePattern, shouldHideEntry } from './corpus-hide-pattern.js';
+import { closeFloatingListSelect, createFloatingListSelect } from '../shared/floating-list-select.js';
 
 /**
  * @typedef {{ name: string, relative_path: string, is_dir: boolean, expanded: boolean, loaded: boolean, children: TreeNode[] }} TreeNode
@@ -78,7 +78,7 @@ export async function loadDirChildren(repo, relativePath) {
   return buildTreeNodes(entries, relativePath);
 }
 
-export { positionFloatingListMenu } from '../components/floating-list-menu.js';
+export { positionFloatingListMenu } from '../shared/floating-list-menu.js';
 
 /**
  * @param {HTMLElement} container

@@ -3,7 +3,7 @@ export {
   onTodosPageEnter,
   onMasterSelectionChange,
   onTodosPageLeave,
-} from './todos-lifecycle.js';
+} from './lifecycle.js';
 
 /**
  * t4 / N1: `open_ai_assistant(masterTaskId)` is not Todos executable success main path.

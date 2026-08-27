@@ -1,18 +1,20 @@
 import { state, getEntryId, loadDiffStatus } from '../host/state.js'
 import { getGithubUserUrl, workbenchGithubBlobBase } from '../host/constants.js'
 import { getActivePath } from '../corpus/corpus-path.js'
-import { escHtml, filenameFromPath, slugToTitle, formatDate, resetEditAreaScroll } from '../utils.js'
+import { escHtml, filenameFromPath, slugToTitle, formatDate, resetEditAreaScroll } from '../shared/utils.js'
 import * as api from '../host/api.js'
 import { updateTitlesInDOM, updateDiffInDOM } from './cards.js'
 import { renderLinksBar } from './links-bar.js'
 import { renderTagsBar } from './tags-bar.js'
 import { renderComments } from './comments.js'
-import { openDeleteDialog } from '../components/modals/delete-dialog.js'
-import { applyHighlights, initHighlightUI } from './highlights.js'
-import { initMermaid, renderMermaidBlocks } from '../mermaid-render.js'
-import { openKbDoc, saveKbDoc } from '../corpus/kb-viewer.js'
+import { openDeleteDialog } from './delete-dialog.js'
+import { notesDocKey } from '../doc-editor/identity.js'
+import { applyCachedHighlights, initDocHighlightOverlay } from '../doc-editor/highlights.js'
+import { renderDocMarkdown, setDocEditMode } from '../doc-editor/view.js'
+import { initMermaid, renderMermaidBlocks } from '../shared/mermaid-render.js'
+import { openKbDoc, saveKbDoc } from '../corpus/corpus-viewer.js'
 export { openKbDoc }
-import { mountKnowledgeSearch, triggerKnowledgeSearch } from '../corpus/knowledge-search.js'
+import { mountKnowledgeSearch, triggerKnowledgeSearch } from '../corpus/corpus-knowledge-search.js'
 import { navigateToNote, navigateBackToList, parseHash } from '../router/index.js'
 
 /** One-line chrome heading: same format as list `#date-heading` — `Jul 16, 2026 (Thu) · 6 items`. */
@@ -200,15 +202,37 @@ async function postProcessImages(container, layer, commonPath) {
   );
 }
 
+function notesIdentityKey() {
+  const path = state.viewer.entry?.common_path;
+  return path ? notesDocKey(path) : '';
+}
+
+function applyHighlights() {
+  const body = document.getElementById('md-body');
+  const identityKey = notesIdentityKey();
+  if (!body || !identityKey) return;
+  void applyCachedHighlights({
+    bodyEl: body,
+    identityKey,
+    excludeBarId: 'md-comments-bar',
+  });
+}
+
+function initHighlightUI() {
+  initDocHighlightOverlay({
+    getBody: () => document.getElementById('md-body'),
+    getEditArea: () => document.getElementById('md-edit-area'),
+    getIdentityKey: () => notesIdentityKey(),
+    excludeBarId: 'md-comments-bar',
+    buttonId: 'highlight-add-btn',
+  });
+}
+
 // ── renderDocBody ──────────────────────────────────────────────────────────
 
 export async function renderDocBody(text, layer, commonPath) {
   const body = document.getElementById('md-body');
-  if (typeof marked !== 'undefined') {
-    body.innerHTML = marked.parse(text);
-  } else {
-    body.innerHTML = `<pre style="white-space:pre-wrap;font-size:13px">${escHtml(text)}</pre>`;
-  }
+  renderDocMarkdown(body, text);
   postProcessLinks(body, layer, commonPath);
   document.getElementById('btn-edit').style.display = '';
   renderLinksBar(state.viewer.entry);
@@ -226,6 +250,7 @@ export async function renderDocBody(text, layer, commonPath) {
   delBtn.addEventListener('click', () => openDeleteDialog());
   zone.appendChild(delBtn);
   body.appendChild(zone);
+  void applyHighlights();
 }
 
 // ── Language helpers ───────────────────────────────────────────────────────
@@ -274,6 +299,7 @@ function updateHeaderUrls(entry, layer, activePath) {
 // ── openDoc ────────────────────────────────────────────────────────────────
 
 export async function openDoc(entry, layer = 'raw') {
+  initHighlightUI();
   state.viewer.entry = entry;
   state.viewer.layer = layer;
   state.viewer.annotation = {};
@@ -312,7 +338,6 @@ export async function openDoc(entry, layer = 'raw') {
       ? `${(bytes / 1024).toFixed(1)} KB`
       : `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   await renderDocBody(text, layer, activePath);
-  applyHighlights(state.viewer.annotation, layer);
   const hasDiff = state.index.diffStatus.get(`${layer}/${entry.common_path}`);
   if (hasDiff) showPendingBadge(); else hidePendingBadge();
 
@@ -349,7 +374,6 @@ export async function switchLang(lang) {
         ? `${(bytes / 1024).toFixed(1)} KB`
         : `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
     await renderDocBody(text, layer, activePath);
-    applyHighlights(state.viewer.annotation, layer);
     // restore scroll position
     const cacheKey = `${getEntryId(entry)}:${layer}`;
     const saved = state.viewer.scrollCache[cacheKey];
@@ -364,9 +388,7 @@ export async function switchLang(lang) {
 export function enterEditMode() {
   const editArea = document.getElementById('md-edit-area');
   const body = document.getElementById('md-body');
-  editArea.value = state.viewer.rawText;
-  body.style.display = 'none';
-  editArea.style.display = '';
+  setDocEditMode({ bodyEl: body, editAreaEl: editArea, text: state.viewer.rawText, editing: true });
   resetEditAreaScroll(editArea, { focus: true });
   document.getElementById('btn-edit').style.display = 'none';
   document.getElementById('btn-add-comment').style.display = 'none';
@@ -380,8 +402,7 @@ export function enterEditMode() {
 export function exitEditMode(rerender = true) {
   const editArea = document.getElementById('md-edit-area');
   const body = document.getElementById('md-body');
-  editArea.style.display = 'none';
-  body.style.display = '';
+  setDocEditMode({ bodyEl: body, editAreaEl: editArea, editing: false });
   document.getElementById('btn-edit').style.display = '';
   document.getElementById('btn-add-comment').style.display = '';
   document.getElementById('btn-save').style.display = 'none';

@@ -1,5 +1,5 @@
-import { escHtml } from '../utils.js';
-import { renderCommentMarkdown } from '../comment-markdown.js';
+import { escHtml } from '../shared/utils.js';
+import { renderCommentMarkdown } from '../shared/comment-markdown.js';
 import {
   COPY_MASTER_LABEL,
   COPY_MASTER_TITLE,

@@ -6,7 +6,7 @@ import {
   invoke as invokeCommand,
   resolveReadDriver,
 } from './apiClient.js';
-import { getKbHidePattern } from '../corpus/kb-hide-pattern.js';
+import { getKbHidePattern } from '../corpus/corpus-hide-pattern.js';
 
 function isTauriRuntime() {
   if (typeof window === 'undefined') return false;
@@ -376,6 +376,14 @@ export async function updateHighlight(commonPath, layer, highlight, ts) {
     highlight,
     ts,
   });
+}
+
+export async function fetchDocHighlights(key) {
+  return readGet(`/api/doc-highlights?key=${encodeURIComponent(key)}`);
+}
+
+export async function updateDocHighlights(key, highlight, ts) {
+  return writePost('/api/doc-highlights', { key, highlight, ts });
 }
 
 export async function fetchTopics() {

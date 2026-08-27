@@ -51,6 +51,14 @@ export const WRITE_API_INVOKE_MAP = {
       ts: body.ts,
     }),
   },
+  '/api/doc-highlights': {
+    cmd: 'update_doc_highlights',
+    args: (body) => ({
+      key: body.key,
+      highlight: body.highlight,
+      ts: body.ts,
+    }),
+  },
   '/api/update-links': {
     cmd: 'update_links',
     args: (body) => ({

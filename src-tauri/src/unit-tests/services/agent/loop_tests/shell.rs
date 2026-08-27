@@ -407,7 +407,7 @@ fn t4_hub_and_shell_close_are_not_reset_paths() {
 fn t4_main_and_sidebar_wire_notes_set_without_new_runtime() {
     let main = repo_file("frontend/js/main.js");
     let sidebar = repo_file("frontend/js/notes/sidebar.js");
-    let lifecycle = repo_file("frontend/js/todo-task/todos-lifecycle.js");
+    let lifecycle = repo_file("frontend/js/todo-task/lifecycle.js");
     assert!(
         main.contains("setWorkbenchBinding")
             && !main.contains("buildNotesBinding")

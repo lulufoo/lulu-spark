@@ -72,12 +72,12 @@ const CORPUS_TOOLS_E2E = [
  */
 export function assertDualChannelE2eContract() {
   const docPath = path.join(E2E_REPO_ROOT, 'docs', 'knowledge-mcp.md');
-  const bindingPath = path.join(E2E_REPO_ROOT, 'frontend', 'js', 'todo-task', 'todos-binding.js');
+  const bindingPath = path.join(E2E_REPO_ROOT, 'frontend', 'js', 'todo-task', 'binding.js');
   if (!fs.existsSync(docPath)) {
     throw new Error('dual-channel e2e: missing docs/knowledge-mcp.md');
   }
   if (!fs.existsSync(bindingPath)) {
-    throw new Error('dual-channel e2e: missing todos-binding.js');
+    throw new Error('dual-channel e2e: missing binding.js');
   }
   const doc = fs.readFileSync(docPath, 'utf8');
   const binding = fs.readFileSync(bindingPath, 'utf8');

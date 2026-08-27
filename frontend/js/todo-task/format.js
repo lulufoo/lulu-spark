@@ -1,4 +1,4 @@
-import { escHtml } from '../utils.js';
+import { escHtml } from '../shared/utils.js';
 import { DEFAULT_PLAN_CATEGORY_ID } from './host.js';
 
 export const COPY_MASTER_LABEL = 'Copy';

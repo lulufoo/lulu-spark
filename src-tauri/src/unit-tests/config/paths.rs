@@ -22,6 +22,21 @@ fn notes_draft_path_resolves_under_cache_drafts_notes() {
 }
 
 #[test]
+fn doc_highlights_file_uses_md5_under_cache() {
+    let _sandbox = TestSandbox::new();
+    let cache = cache_dir().expect("cache");
+    let got = doc_highlights_file("7e175ab16c747d8769bcd2cfdd6abc32").expect("file");
+    assert_eq!(
+        got,
+        cache
+            .join("doc-highlights")
+            .join("7e175ab16c747d8769bcd2cfdd6abc32.json")
+    );
+    assert!(doc_highlights_file("not-hex").is_err());
+    assert!(doc_highlights_file("../aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa").is_err());
+}
+
+#[test]
 fn notes_draft_path_rejects_empty_or_traversal_temp_id() {
     let _sandbox = TestSandbox::new();
     assert!(notes_draft_path("").is_err());

@@ -1,4 +1,4 @@
-import { escHtml } from '../utils.js';
+import { escHtml } from '../shared/utils.js';
 
 /** @typedef {'create-master' | 'create-category' | 'add-sub' | 'delete-master' | 'delete-sub'} TodoTaskDialogType */
 

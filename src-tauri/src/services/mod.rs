@@ -7,6 +7,7 @@ pub mod source_path_allow;
 pub mod id;
 pub mod corpus_git;
 pub mod draft;
+pub mod doc_highlights;
 pub mod entry_admin;
 pub mod kb_git;
 pub mod kb_iterm;

@@ -8,6 +8,7 @@ commands.allow = [
   "update_comments",
   "reorder_comments",
   "update_highlights",
+  "update_doc_highlights",
   "save_entry",
   "kb_save",
   "kb_update_comments",

@@ -79,19 +79,19 @@ export const MCP_FORBIDDEN_DELETE_TOOLS = [
 
 /** Integration-test file → regex probes for UI add/list/editor/save paths. */
 export const UI_ATTACHMENT_TEST_PROBES = {
-  'tests/todo-task-attachments.test.js': [
+  'tests/todo-task/attachments.test.js': [
     /listPlanAttachments invokes list_todo_attachments/,
     /addPlanAttachment invokes add_todo_attachment/,
     /shows attachment section listing associated files/,
     /pick flow stages then invokes add_todo_attachment/,
   ],
-  'tests/todo-task-attachment-editor.test.js': [
+  'tests/todo-task/attachment-editor.test.js': [
     /readPlanAttachment invokes read_todo_attachment/,
     /savePlanAttachment invokes save_todo_attachment with masterTaskId, fileName, sourcePath/,
     /clicking an attachment opens a modal with preview by default/,
     /can switch to edit mode and save via save_todo_attachment/,
   ],
-  'tests/todo-task-attachment-delete.test.js': [
+  'tests/todo-task/attachment-delete.test.js': [
     /invokes delete_todo_attachment with masterTaskId and fileName/,
     /confirming delete invokes delete_todo_attachment then removes item from list/,
   ],

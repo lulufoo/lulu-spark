@@ -83,6 +83,8 @@ const TODO_TASK_CATEGORY_COMMANDS: &[&str] = &[
 
 const NOTE_WRITE_COMMANDS: &[&str] = &["archive_document"];
 
+const DOC_HIGHLIGHTS_WRITE_COMMANDS: &[&str] = &["update_doc_highlights"];
+
 const MCP_OAUTH_WRITE_COMMANDS: &[&str] = &[
     "issue_cursor_ide_ticket",
     "rotate_cursor_ide_ticket",
@@ -262,6 +264,22 @@ fn mcp_oauth_write_commands_are_acl_allowed() {
     let toml = fs::read_to_string(root.join("permissions/write-api.toml")).expect("toml");
     let allow = parse_write_api_toml_allow(&toml);
     let missing: Vec<_> = MCP_OAUTH_WRITE_COMMANDS
+        .iter()
+        .filter(|cmd| !allow.contains(**cmd))
+        .copied()
+        .collect();
+    assert!(
+        missing.is_empty(),
+        "commands missing from write-api.toml ACL: {missing:?}"
+    );
+}
+
+#[test]
+fn doc_highlights_write_command_is_acl_allowed() {
+    let root = manifest_dir();
+    let toml = fs::read_to_string(root.join("permissions/write-api.toml")).expect("toml");
+    let allow = parse_write_api_toml_allow(&toml);
+    let missing: Vec<_> = DOC_HIGHLIGHTS_WRITE_COMMANDS
         .iter()
         .filter(|cmd| !allow.contains(**cmd))
         .copied()

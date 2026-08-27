@@ -1,4 +1,4 @@
-import { escHtml } from '../utils.js';
+import { escHtml } from '../shared/utils.js';
 import { formatRelativeTime } from './format.js';
 import {
   addPlanComment,

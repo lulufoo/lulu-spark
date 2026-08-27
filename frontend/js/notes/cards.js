@@ -1,8 +1,8 @@
 import { state } from '../host/state.js'
 import { LAYERS, IMPORTANCE_CYCLE } from '../host/constants.js'
-import { escHtml, slugToTitle, filenameFromPath, topicFromPath, timeFromTs, importanceBadgeHtml } from '../utils.js'
+import { escHtml, slugToTitle, filenameFromPath, topicFromPath, timeFromTs, importanceBadgeHtml } from '../shared/utils.js'
 import * as api from '../host/api.js'
-import { openMoveProjectDialog } from '../components/modals/move-project-dialog.js'
+import { openMoveProjectDialog } from './move-project-dialog.js'
 
 // ── Tag badges ─────────────────────────────────────────────────────────────
 

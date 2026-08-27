@@ -1,6 +1,6 @@
 import { state } from '../host/state.js'
 import { TAG_VALUE_MAX_LEN } from '../host/constants.js'
-import { suggestTags } from '../utils/tag-suggest.js'
+import { suggestTags } from './tag-suggest.js'
 import * as api from '../host/api.js'
 import { updateCardTagsBadge } from './cards.js'
 import { renderTagFilterChip } from './sidebar.js'

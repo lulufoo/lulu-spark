@@ -1209,8 +1209,8 @@ fn t4_defensive_cut_hook_path_is_confirmed_and_testable() {
         r#loop::DEFENSIVE_CUT_EXPLICIT_RESET_CHAIN,
         [
             "frontend/js/todo-task/index.js::dispose",
-            "frontend/js/todo-task/todos-lifecycle.js::onTodosPageLeave",
-            "frontend/js/todo-task/todos-binding.js::resetTodosBinding",
+            "frontend/js/todo-task/lifecycle.js::onTodosPageLeave",
+            "frontend/js/todo-task/binding.js::resetTodosBinding",
             "src-tauri/src/services/agent/loop/binding.rs::reset_binding",
         ]
     );
@@ -2763,11 +2763,11 @@ fn t4_cursor_ide_is_not_an_app_binding_key() {
 
 #[test]
 fn t4_notes_binding_consumer_follows_todos_key_only_contract() {
-    let binding = repo_file("frontend/js/todo-task/todos-binding.js");
+    let binding = repo_file("frontend/js/todo-task/binding.js");
     let index = repo_file("frontend/js/todo-task/index.js");
     assert!(
         binding.contains("WORKBENCH_BUSINESS_KEY") && binding.contains("'workbench'"),
-        "todos-binding.js must export WORKBENCH_BUSINESS_KEY = workbench"
+        "binding.js must export WORKBENCH_BUSINESS_KEY = workbench"
     );
     assert!(
         binding.contains("export async function setWorkbenchBinding"),

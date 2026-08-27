@@ -4,7 +4,7 @@ import {
   markEntryRead,
   openExternalUrl,
 } from './list.js';
-import { escHtml } from '../utils.js';
+import { escHtml } from '../shared/utils.js';
 
 export { bindFocusRefresh };
 
