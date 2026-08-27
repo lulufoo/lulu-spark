@@ -8,7 +8,7 @@ import { describe, it, expect } from 'vitest';
 const fixtureRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 const globalSearchPath = join(fixtureRoot, 'frontend/js/components/global-search.js');
 const mainJsPath = join(fixtureRoot, 'frontend/js/main.js');
-const knowledgeSearchPath = join(fixtureRoot, 'frontend/js/components/knowledge-search.js');
+const knowledgeSearchPath = join(fixtureRoot, 'frontend/js/corpus/knowledge-search.js');
 
 function collectJsFiles(dir) {
   const files = [];

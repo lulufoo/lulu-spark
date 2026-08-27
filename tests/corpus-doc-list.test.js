@@ -4,25 +4,25 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
-vi.mock('../frontend/js/api.js', () => ({
+vi.mock('../frontend/js/host/api.js', () => ({
   fetchKbList: vi.fn(),
   fetchKbDocCount: vi.fn(),
   fetchSedimentKbRepos: vi.fn(),
 }));
 
-vi.mock('../frontend/js/components/kb-viewer.js', () => ({
+vi.mock('../frontend/js/corpus/kb-viewer.js', () => ({
   mountKbReader: vi.fn(),
 }));
 
-import * as api from '../frontend/js/api.js';
-import { mountKbReader } from '../frontend/js/components/kb-viewer.js';
-import { getKbHidePattern } from '../frontend/js/kb-hide-pattern.js';
+import * as api from '../frontend/js/host/api.js';
+import { mountKbReader } from '../frontend/js/corpus/kb-viewer.js';
+import { getKbHidePattern } from '../frontend/js/corpus/kb-hide-pattern.js';
 import {
   buildTreeNodes,
   buildRepoPickerOptions,
   formatRepoMenuLabel,
   mountCorpusDocList,
-} from '../frontend/js/components/corpus-doc-list.js';
+} from '../frontend/js/corpus/corpus-doc-list.js';
 import { positionFloatingListMenu } from '../frontend/js/components/floating-list-menu.js';
 
 const fixtureRoot = join(dirname(fileURLToPath(import.meta.url)), '..');

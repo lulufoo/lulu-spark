@@ -1,5 +1,5 @@
-import { state, getEntryId } from '../../state.js'
-import * as api from '../../api.js'
+import { state, getEntryId } from '../../host/state.js'
+import * as api from '../../host/api.js'
 
 // ── openDeleteDialog / closeDeleteDialog ───────────────────────────────────
 

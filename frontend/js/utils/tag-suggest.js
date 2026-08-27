@@ -1,4 +1,4 @@
-import { TAG_SUGGEST_MIN_SCORE } from '../constants.js'
+import { TAG_SUGGEST_MIN_SCORE } from '../host/constants.js'
 
 function levenshtein(a, b) {
   const m = a.length;

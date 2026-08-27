@@ -18,23 +18,23 @@ export const TODO_TASK_BRAND_SITES = [
     mustNotMatch: NO_LEGACY_BRAND,
   },
   {
-    path: 'frontend/js/components/home-hub.js',
+    path: 'frontend/js/home-entry-shell/hub.js',
     mustMatch: [/<span class="home-desktop-shortcut-label">Todos<\/span>/],
     mustNotMatch: NO_LEGACY_BRAND,
   },
   {
-    path: 'frontend/js/todo-task-assistant.js',
+    path: 'frontend/js/todo-task/assistant.js',
     mustMatch: [/No todos yet/],
     mustNotMatch: NO_LEGACY_BRAND,
   },
   {
     // T6: popover chrome retired; brand title lives on the content adapter / EntryConfig.
-    path: 'frontend/js/todo-task-assistant.js',
+    path: 'frontend/js/todo-task/assistant.js',
     mustMatch: [/TODO_TASK_CONTENT_TITLE\s*=\s*['"]Todos['"]/],
     mustNotMatch: NO_LEGACY_BRAND,
   },
   {
-    path: 'frontend/js/todo-task-assistant.js',
+    path: 'frontend/js/todo-task/assistant.js',
     mustMatch: [/TODO_TASK_CONTENT_LABEL\s*=\s*['"]Open Todos['"]/, /['"]Todos['"]/],
     mustNotMatch: NO_LEGACY_BRAND,
   },

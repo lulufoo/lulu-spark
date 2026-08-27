@@ -12,7 +12,7 @@ const aiAssistantCmd = readFileSync(
 );
 const htmlPath = join(repoRoot, 'frontend/ai-assistant.html');
 const retiredJsPath = join(repoRoot, 'frontend/js/ai-assistant.js');
-const homeHubPath = join(repoRoot, 'frontend/js/components/home-hub.js');
+const homeHubPath = join(repoRoot, 'frontend/js/home-entry-shell/hub.js');
 const capabilityPath = join(
   repoRoot,
   'src-tauri/capabilities/ai-assistant.json',

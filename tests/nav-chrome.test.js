@@ -4,15 +4,15 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
-vi.mock('../frontend/js/components/workbench-search.js', () => ({
+vi.mock('../frontend/js/notes/workbench-search.js', () => ({
   closeWorkbenchSearch: vi.fn(),
 }));
-vi.mock('../frontend/js/components/corpus-search.js', () => ({
+vi.mock('../frontend/js/corpus/corpus-search.js', () => ({
   closeCorpusSearch: vi.fn(),
 }));
 
-import { closeWorkbenchSearch } from '../frontend/js/components/workbench-search.js';
-import { closeCorpusSearch } from '../frontend/js/components/corpus-search.js';
+import { closeWorkbenchSearch } from '../frontend/js/notes/workbench-search.js';
+import { closeCorpusSearch } from '../frontend/js/corpus/corpus-search.js';
 import { applySearchNavChrome } from '../frontend/js/nav-chrome.js';
 
 const fixtureRoot = join(dirname(fileURLToPath(import.meta.url)), '..');

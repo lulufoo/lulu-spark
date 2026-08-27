@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 
 const indexHtml = readFileSync(new URL('../frontend/index.html', import.meta.url), 'utf8');
 const mainJs = readFileSync(new URL('../frontend/js/main.js', import.meta.url), 'utf8');
-const apiJs = readFileSync(new URL('../frontend/js/api.js', import.meta.url), 'utf8');
+const apiJs = readFileSync(new URL('../frontend/js/host/api.js', import.meta.url), 'utf8');
 const settingsDialogJs = readFileSync(
   new URL('../frontend/js/components/modals/settings-dialog.js', import.meta.url),
   'utf8'

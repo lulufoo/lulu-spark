@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { buildCard, updateTitlesInDOM, loadTitles, sourceTypeBadgeHtml } from '../frontend/js/components/cards.js';
-import { state } from '../frontend/js/state.js';
-import * as api from '../frontend/js/api.js';
+import { buildCard, updateTitlesInDOM, loadTitles, sourceTypeBadgeHtml } from '../frontend/js/notes/cards.js';
+import { state } from '../frontend/js/host/state.js';
+import * as api from '../frontend/js/host/api.js';
 
-vi.mock('../frontend/js/api.js', () => ({
+vi.mock('../frontend/js/host/api.js', () => ({
   setImportance: vi.fn(),
   setDone: vi.fn(),
   fetchFileContent: vi.fn(),

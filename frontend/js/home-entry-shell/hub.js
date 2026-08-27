@@ -1,6 +1,6 @@
-import * as api from '../api.js';
+import * as api from '../host/api.js';
 import { escHtml } from '../utils.js';
-import { hydrateHomeChatMarkdown, renderHomeChatMarkdown } from './home-chat-render.js';
+import { hydrateHomeChatMarkdown, renderHomeChatMarkdown } from './chat-render.js';
 
 const BINDING_CHANGED_EVENT = 'ai-assistant:binding-changed';
 

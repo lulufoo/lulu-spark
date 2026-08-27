@@ -61,28 +61,28 @@ const { elements, makeEl, clickHandlers } = vi.hoisted(() => {
   return { elements, makeEl, clickHandlers };
 });
 
-vi.mock('../frontend/js/api.js', () => ({
+vi.mock('../frontend/js/host/api.js', () => ({
   fetchFileContent: vi.fn(),
   fetchAnnotation: vi.fn(),
   saveFile: vi.fn(),
   fetchKbStatus: vi.fn().mockResolvedValue({ error: null, total: 0, ahead: 0 }),
 }));
-vi.mock('../frontend/js/state.js', async () => {
-  const actual = await vi.importActual('../frontend/js/state.js');
+vi.mock('../frontend/js/host/state.js', async () => {
+  const actual = await vi.importActual('../frontend/js/host/state.js');
   return actual;
 });
-vi.mock('../frontend/js/components/kb-comments.js', () => ({
+vi.mock('../frontend/js/corpus/kb-comments.js', () => ({
   renderKbComments: vi.fn(),
   initKbCommentEvents: vi.fn(),
 }));
-vi.mock('../frontend/js/components/kb-highlights.js', () => ({
+vi.mock('../frontend/js/corpus/kb-highlights.js', () => ({
   applyKbHighlights: vi.fn(),
   initKbHighlightUI: vi.fn(),
 }));
-vi.mock('../frontend/js/components/kb-links-bar.js', () => ({ renderKbLinksBar: vi.fn() }));
+vi.mock('../frontend/js/corpus/kb-links-bar.js', () => ({ renderKbLinksBar: vi.fn() }));
 
-import { state } from '../frontend/js/state.js';
-import { saveKbDoc } from '../frontend/js/components/kb-viewer.js';
+import { state } from '../frontend/js/host/state.js';
+import { saveKbDoc } from '../frontend/js/corpus/kb-viewer.js';
 
 function enterKbEditMode() {
   clickHandlers['kb-btn-edit']();

@@ -7,7 +7,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 const invokeMock = vi.fn();
 const getJsonMock = vi.fn();
 
-vi.mock('../frontend/js/apiClient.js', async (importOriginal) => {
+vi.mock('../frontend/js/host/apiClient.js', async (importOriginal) => {
   const actual = await importOriginal();
   return {
     ...actual,
@@ -26,7 +26,7 @@ import {
   markEntryRead,
   mountReadLaterList,
   renderUnavailableState,
-} from '../frontend/js/components/read-later-list.js';
+} from '../frontend/js/read-later/list.js';
 
 const UNAVAILABLE_MSG = 'List temporarily unavailable. Please try again later';
 

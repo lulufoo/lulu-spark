@@ -1,14 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { DEFAULT_DEV_BASE } from '../frontend/js/apiClient.js';
+import { DEFAULT_DEV_BASE } from '../frontend/js/host/apiClient.js';
 
 const API_READ_PREFIX = `${DEFAULT_DEV_BASE}/api`;
 
-vi.mock('../frontend/js/kb-hide-pattern.js', () => ({
+vi.mock('../frontend/js/corpus/kb-hide-pattern.js', () => ({
   getKbHidePattern: vi.fn(() => ''),
 }));
 
-import { getKbHidePattern } from '../frontend/js/kb-hide-pattern.js';
-import { fetchKbDocCount } from '../frontend/js/api.js';
+import { getKbHidePattern } from '../frontend/js/corpus/kb-hide-pattern.js';
+import { fetchKbDocCount } from '../frontend/js/host/api.js';
 
 function mockFetch(body, ok = true, status = 200) {
   globalThis.fetch = vi.fn().mockResolvedValue({

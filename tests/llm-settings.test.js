@@ -4,14 +4,14 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
-vi.mock('../frontend/js/api.js', () => ({
+vi.mock('../frontend/js/host/api.js', () => ({
   fetchConfig: vi.fn(),
   setConfig: vi.fn(),
   inferGithubUserUrl: vi.fn(),
   checkWorkbenchKnowledgeRoot: vi.fn(),
 }));
 
-import * as api from '../frontend/js/api.js';
+import * as api from '../frontend/js/host/api.js';
 import {
   ENGINE_CATEGORIES,
   listEngineCategories,

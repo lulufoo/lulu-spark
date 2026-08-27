@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 // Mock DOM dependencies before importing sidebar
 vi.mock('../frontend/js/utils.js', () => ({ formatDate: () => ({ full: '2025-01-01', label: '01-01', year: '2025', weekday: 'Wed' }) }));
-vi.mock('../frontend/js/components/cards.js', () => ({ renderDocList: vi.fn(), loadTitles: vi.fn() }));
+vi.mock('../frontend/js/notes/cards.js', () => ({ renderDocList: vi.fn(), loadTitles: vi.fn() }));
 vi.mock('../frontend/js/router/index.js', () => ({
   parseHash: vi.fn(() => ({ name: 'workbench', params: {} })),
   navigateToDateList: vi.fn(),
@@ -93,7 +93,7 @@ globalThis.document = {
 
 globalThis.sessionStorage = { getItem: () => null, setItem: () => {} };
 
-import { state } from '../frontend/js/state.js';
+import { state } from '../frontend/js/host/state.js';
 import { parseHash, navigateToDateList } from '../frontend/js/router/index.js';
 import {
   buildGroups,
@@ -103,8 +103,8 @@ import {
   renderSidebar,
   applyListFilters,
   selectDate,
-} from '../frontend/js/components/sidebar.js';
-import { renderDocList } from '../frontend/js/components/cards.js';
+} from '../frontend/js/notes/sidebar.js';
+import { renderDocList } from '../frontend/js/notes/cards.js';
 
 const makeGroup = (date, topics, tagKeys = []) => ({
   date,
@@ -329,7 +329,7 @@ describe('sidebar channel nav', () => {
   });
 
   it('does not export selectReadLaterChannel', async () => {
-    const mod = await import('../frontend/js/components/sidebar.js');
+    const mod = await import('../frontend/js/notes/sidebar.js');
     expect(mod.selectReadLaterChannel).toBeUndefined();
   });
 });

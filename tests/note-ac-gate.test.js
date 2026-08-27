@@ -23,7 +23,7 @@ describe('Note AC gate (tech-doc VF / T-13)', () => {
   });
 
   it('AC-2: FAB Top-N ≤3 by created_at only; open via cta:open-entry', () => {
-    const assistant = read('frontend/js/note-assistant.js');
+    const assistant = read('frontend/js/notes/assistant.js');
     expect(assistant).toMatch(/export function selectTopNotesByCreatedAt/);
     expect(assistant).toMatch(/\.slice\(0,\s*3\)/);
     expect(assistant).toMatch(/created_at/);
@@ -38,13 +38,13 @@ describe('Note AC gate (tech-doc VF / T-13)', () => {
   });
 
   it('AC-3: create append-only via archiveDocument(source_type=note); not Overlay', () => {
-    const viewer = read('frontend/js/components/viewer.js');
+    const viewer = read('frontend/js/notes/viewer.js');
     expect(viewer).toMatch(
       /archiveDocument\(\{\s*body:\s*trimmed,\s*source_type:\s*'note'\s*\}\)/,
     );
     // finalizeCreateSession must not call Annotation write APIs
     expect(viewer).not.toMatch(/updateComments|update_comments|saveAnnotation/);
-    const writeMap = read('frontend/js/writeApiInvokeMap.js');
+    const writeMap = read('frontend/js/host/writeApiInvokeMap.js');
     expect(writeMap).toMatch(/\/api\/archive-document/);
     expect(writeMap).toMatch(/archive_document/);
 
@@ -54,7 +54,7 @@ describe('Note AC gate (tech-doc VF / T-13)', () => {
   });
 
   it('AC-4: create/edit share viewer.js shell — no second editor module', () => {
-    const viewer = read('frontend/js/components/viewer.js');
+    const viewer = read('frontend/js/notes/viewer.js');
     expect(viewer).toMatch(/export async function openDoc\s*\(/);
     expect(viewer).toMatch(/export async function openCreateNote\s*\(/);
     expect(existsSync(join(repoRoot, 'frontend/js/components/note-editor.js'))).toBe(false);
@@ -63,18 +63,18 @@ describe('Note AC gate (tech-doc VF / T-13)', () => {
 
   it('AC-5: management surfaces have no note create; CRUD stays save_entry/delete_entry', () => {
     for (const rel of [
-      'frontend/js/components/sidebar.js',
-      'frontend/js/components/cards.js',
-      'frontend/js/components/home-hub.js',
+      'frontend/js/notes/sidebar.js',
+      'frontend/js/notes/cards.js',
+      'frontend/js/home-entry-shell/hub.js',
     ]) {
       const src = read(rel);
       expect(src, rel).not.toMatch(/openCreateNote/);
       expect(src, rel).not.toMatch(/新建随记/);
       expect(src, rel).not.toMatch(/archiveDocument/);
     }
-    const writeMap = read('frontend/js/writeApiInvokeMap.js');
+    const writeMap = read('frontend/js/host/writeApiInvokeMap.js');
     expect(writeMap).toMatch(/cmd:\s*'save_entry'/);
-    const syncMap = read('frontend/js/syncApiInvokeMap.js');
+    const syncMap = read('frontend/js/host/syncApiInvokeMap.js');
     expect(syncMap).toMatch(/cmd:\s*'delete_entry'/);
     // create for notes is archive_document, not a management create_*_note
     expect(writeMap).not.toMatch(/create_note|create_entry/);
@@ -82,9 +82,9 @@ describe('Note AC gate (tech-doc VF / T-13)', () => {
 
   it('AC-6: Overlay user-visible copy is 批注 (not 添加笔记)', () => {
     for (const rel of [
-      'frontend/js/components/comments.js',
-      'frontend/js/components/kb-comments.js',
-      'frontend/js/components/kb-viewer.js',
+      'frontend/js/notes/comments.js',
+      'frontend/js/corpus/kb-comments.js',
+      'frontend/js/corpus/kb-viewer.js',
     ]) {
       const src = read(rel);
       expect(src, rel).toMatch(/Comment/);
@@ -96,7 +96,7 @@ describe('Note AC gate (tech-doc VF / T-13)', () => {
   });
 
   it('AC-7: archive failure keeps create session + draft (behavioral probe present)', () => {
-    const viewer = read('frontend/js/components/viewer.js');
+    const viewer = read('frontend/js/notes/viewer.js');
     expect(viewer).toMatch(/session\.status = 'creating'/);
     expect(viewer).toMatch(/alert\(`Save failed: \$\{e\.message\}`\)/);
     const behavioral = read('tests/viewer-create-note.test.js');
@@ -105,7 +105,7 @@ describe('Note AC gate (tech-doc VF / T-13)', () => {
   });
 
   it('AC-8: empty exit clears draft, no Primary create (behavioral probe present)', () => {
-    const viewer = read('frontend/js/components/viewer.js');
+    const viewer = read('frontend/js/notes/viewer.js');
     expect(viewer).toMatch(/if \(!trimmed\)/);
     expect(viewer).toMatch(/clearNoteDraft\(session\.tempId\)/);
     const behavioral = read('tests/viewer-create-note.test.js');
@@ -113,14 +113,14 @@ describe('Note AC gate (tech-doc VF / T-13)', () => {
   });
 
   it('AC-9: create locks source_type/topic — no mutation controls', () => {
-    const viewer = read('frontend/js/components/viewer.js');
+    const viewer = read('frontend/js/notes/viewer.js');
     expect(viewer).not.toMatch(/create-source-type|create-topic|name=["']source_type["']/);
     const behavioral = read('tests/viewer-create-note.test.js');
     expect(behavioral).toMatch(/create flow has no source_type\/topic mutation controls/);
   });
 
   it('AC-10: create success navigates note=common_path; empty exit lands list via navigateBackToList', () => {
-    const viewer = read('frontend/js/components/viewer.js');
+    const viewer = read('frontend/js/notes/viewer.js');
     // create success: navigateToNote with archiveDocument common_path (tech-doc T5 / chap-ar)
     expect(viewer).toMatch(/navigateToNote/);
     expect(viewer).toMatch(/common_path/);
@@ -169,7 +169,7 @@ describe('Note AC gate (tech-doc VF / T-13)', () => {
   });
 
   it('AC-11: create chrome hides shell-field controls (body-only)', () => {
-    const viewer = read('frontend/js/components/viewer.js');
+    const viewer = read('frontend/js/notes/viewer.js');
     expect(viewer).toMatch(/CREATE_CHROME_HIDDEN_IDS/);
     expect(viewer).toMatch(/applyCreateChrome/);
     expect(viewer).toMatch(/is-create/);
@@ -183,7 +183,7 @@ describe('Note AC gate (tech-doc VF / T-13)', () => {
   });
 
   it('VF falsifiable: create must not target annotations/ Overlay path', () => {
-    const viewer = read('frontend/js/components/viewer.js');
+    const viewer = read('frontend/js/notes/viewer.js');
     const finalize = viewer.slice(
       viewer.indexOf('async function finalizeCreateSession'),
       viewer.indexOf('export async function closeModal'),

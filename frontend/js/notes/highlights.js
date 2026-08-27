@@ -1,7 +1,7 @@
-import { state } from '../state.js'
-import * as api from '../api.js'
+import { state } from '../host/state.js'
+import * as api from '../host/api.js'
 import { nowTs } from '../utils.js'
-import { buildFlatText, buildNormIndex, wrapNthMatch, getOccurrenceIndex } from './highlight-utils.js'
+import { buildFlatText, buildNormIndex, wrapNthMatch, getOccurrenceIndex } from '../components/highlight-utils.js'
 // ── applyHighlights ────────────────────────────────────────────────────────
 export function applyHighlights(annotation, layer) {
   const container = document.getElementById('md-body');

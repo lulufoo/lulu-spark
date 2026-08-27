@@ -6,7 +6,7 @@ import {
   invoke as invokeCommand,
   resolveReadDriver,
 } from './apiClient.js';
-import { getKbHidePattern } from './kb-hide-pattern.js';
+import { getKbHidePattern } from '../corpus/kb-hide-pattern.js';
 
 function isTauriRuntime() {
   if (typeof window === 'undefined') return false;

@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 const indexHtml = readFileSync(join(repoRoot, 'frontend/index.html'), 'utf8');
 const appCss = readFileSync(join(repoRoot, 'frontend/app.css'), 'utf8');
-const viewerJs = readFileSync(join(repoRoot, 'frontend/js/components/viewer.js'), 'utf8');
+const viewerJs = readFileSync(join(repoRoot, 'frontend/js/notes/viewer.js'), 'utf8');
 const mainJs = readFileSync(join(repoRoot, 'frontend/js/main.js'), 'utf8');
 
 /** Extract outermost element with id, balanced for nested same-tag children. */

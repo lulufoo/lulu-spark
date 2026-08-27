@@ -13,14 +13,14 @@ const defaultCapabilityPath = join(
 const retiredCarriers = [
   {
     html: 'frontend/read-later-assistant.html',
-    js: 'frontend/js/read-later-assistant.js',
+    js: 'frontend/js/read-later/assistant.js',
     capability: 'src-tauri/capabilities/read-later-assistant.json',
     window: 'read-later-assistant',
     adapter: /createReadLaterContentAdapter/,
   },
   {
     html: 'frontend/todo-task-assistant.html',
-    js: 'frontend/js/todo-task-assistant.js',
+    js: 'frontend/js/todo-task/assistant.js',
     capability: 'src-tauri/capabilities/todo-task-assistant.json',
     window: 'todo-task-assistant',
     adapter: /createTodoTaskContentAdapter/,

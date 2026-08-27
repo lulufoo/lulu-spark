@@ -1,4 +1,4 @@
-import * as api from '../../api.js';
+import * as api from '../../host/api.js';
 
 const QR_OPTS = { width: 256, margin: 2 };
 const POLL_MS = 1000;

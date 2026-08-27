@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { test, expect, vi, beforeEach } from 'vitest'
-import { DEFAULT_DEV_BASE } from '../frontend/js/apiClient.js'
+import { DEFAULT_DEV_BASE } from '../frontend/js/host/apiClient.js'
 import {
   assertReadPayload,
   assertWritePayload,
@@ -12,7 +12,7 @@ import {
   updateComments, updateLinks, setImportance, setDone,
   deleteEntry, ghMove,
   fetchTopics, moveToProject,
-} from '../frontend/js/api.js'
+} from '../frontend/js/host/api.js'
 
 const API_READ_PREFIX = `${DEFAULT_DEV_BASE}/api`
 
@@ -40,7 +40,7 @@ function mockFetchHtml(status = 404) {
 beforeEach(() => { vi.restoreAllMocks() })
 
 test('api.js 无裸 fetch（读路径均经 readGet / writePost）', () => {
-  const src = readFileSync(new URL('../frontend/js/api.js', import.meta.url), 'utf8')
+  const src = readFileSync(new URL('../frontend/js/host/api.js', import.meta.url), 'utf8')
   expect([...src.matchAll(/await fetch\(/g)]).toHaveLength(0)
 })
 

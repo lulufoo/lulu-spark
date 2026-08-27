@@ -3,17 +3,17 @@ import { describe, it, expect, beforeAll, beforeEach, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { state } from '../frontend/js/state.js';
+import { state } from '../frontend/js/host/state.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const frontendJs = join(__dirname, '../frontend/js/components');
 
-vi.mock('../frontend/js/api.js', () => ({
+vi.mock('../frontend/js/host/api.js', () => ({
   updateKbComment: vi.fn(),
   updateComments: vi.fn(),
 }));
 
-import * as api from '../frontend/js/api.js';
+import * as api from '../frontend/js/host/api.js';
 import {
   confirmDeleteComment,
   initCommentDeleteConfirm,

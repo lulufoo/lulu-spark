@@ -7,8 +7,8 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { renderDocList } from '../frontend/js/components/cards.js';
-import { state } from '../frontend/js/state.js';
+import { renderDocList } from '../frontend/js/notes/cards.js';
+import { state } from '../frontend/js/host/state.js';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -23,7 +23,7 @@ const apiMocks = vi.hoisted(() => ({
   fetchFileContent: vi.fn(),
 }));
 
-vi.mock('../frontend/js/api.js', () => ({
+vi.mock('../frontend/js/host/api.js', () => ({
   deleteEntry: (...args) => apiMocks.deleteEntry(...args),
   setImportance: (...args) => apiMocks.setImportance(...args),
   setDone: (...args) => apiMocks.setDone(...args),
@@ -34,7 +34,7 @@ vi.mock('../frontend/js/components/modals/move-project-dialog.js', () => ({
   openMoveProjectDialog: vi.fn(),
 }));
 
-vi.mock('../frontend/js/components/viewer.js', () => ({
+vi.mock('../frontend/js/notes/viewer.js', () => ({
   closeModal: vi.fn(),
 }));
 
@@ -81,7 +81,7 @@ describe('T8 source: delete success → replace list (not history.back)', () => 
 });
 
 describe('T8 source: return-to-list scroll key + reload wiring', () => {
-  const cardsJs = read('frontend/js/components/cards.js');
+  const cardsJs = read('frontend/js/notes/cards.js');
   const mainJs = read('frontend/js/main.js');
 
   it('renderDocList restores cta_scroll_<date> after re-render', () => {
@@ -198,7 +198,7 @@ describe('T8 behavioral: delete-dialog confirm ok', () => {
     });
 
     // After resetModules, use the same state module the dialog binds to.
-    const mod = await import('../frontend/js/state.js');
+    const mod = await import('../frontend/js/host/state.js');
     mod.state.ui.activeDate = '20260719';
     mod.state.viewer.entry = {
       _id: 'entry-1',

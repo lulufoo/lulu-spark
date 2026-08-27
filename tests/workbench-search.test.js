@@ -8,7 +8,7 @@ const apiMocks = vi.hoisted(() => ({
   getReindexWorkbenchStatus: vi.fn(),
 }));
 
-vi.mock('../frontend/js/api.js', () => ({
+vi.mock('../frontend/js/host/api.js', () => ({
   searchWorkbench: (...args) => apiMocks.searchWorkbench(...args),
   searchKnowledge: (...args) => apiMocks.searchKnowledge(...args),
   reindexWorkbench: (...args) => apiMocks.reindexWorkbench(...args),
@@ -43,7 +43,7 @@ function installLocalStorageMock() {
 
 async function loadModule() {
   vi.resetModules();
-  return import('../frontend/js/components/workbench-search.js');
+  return import('../frontend/js/notes/workbench-search.js');
 }
 
 describe('workbench-search module', () => {

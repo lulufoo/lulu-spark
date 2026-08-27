@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { initKbComments, cleanupKbComments } from '../frontend/js/components/kb-comments.js';
-import { initKbHighlightUI, cleanupKbHighlightUI } from '../frontend/js/components/kb-highlights.js';
+import { initKbComments, cleanupKbComments } from '../frontend/js/corpus/kb-comments.js';
+import { initKbHighlightUI, cleanupKbHighlightUI } from '../frontend/js/corpus/kb-highlights.js';
 
 describe('kb comments/highlights scope', () => {
   beforeEach(() => {

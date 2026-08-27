@@ -3,7 +3,7 @@ import {
   getGithubUserUrl,
   setGithubUserUrl,
   workbenchGithubBlobBase,
-} from '../frontend/js/constants.js'
+} from '../frontend/js/host/constants.js'
 
 describe('github_user_url runtime', () => {
   afterEach(() => {

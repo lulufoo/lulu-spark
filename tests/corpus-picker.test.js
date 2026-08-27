@@ -4,13 +4,13 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
-vi.mock('../frontend/js/api.js', () => ({
+vi.mock('../frontend/js/host/api.js', () => ({
   fetchSedimentKbCategories: vi.fn(),
   fetchSedimentKbRepos: vi.fn(),
 }));
 
-import * as api from '../frontend/js/api.js';
-import { mountCorpusPicker, filterReposByCategory } from '../frontend/js/components/corpus-picker.js';
+import * as api from '../frontend/js/host/api.js';
+import { mountCorpusPicker, filterReposByCategory } from '../frontend/js/corpus/corpus-picker.js';
 
 const fixtureRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 const indexHtml = readFileSync(join(fixtureRoot, 'frontend/index.html'), 'utf8');

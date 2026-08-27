@@ -67,7 +67,7 @@ const { elements, makeEl, locationStub, navigateToNoteMock, navigateBackToListMo
   return { elements, makeEl, locationStub, navigateToNoteMock, navigateBackToListMock };
 });
 
-vi.mock('../frontend/js/api.js', () => ({
+vi.mock('../frontend/js/host/api.js', () => ({
   fetchFileContent: vi.fn().mockResolvedValue('# Test'),
   fetchAnnotation: vi.fn().mockResolvedValue({}),
   fetchDiffStatus: vi.fn().mockResolvedValue({
@@ -85,31 +85,31 @@ vi.mock('../frontend/js/api.js', () => ({
   clearNoteDraft: vi.fn().mockResolvedValue({ ok: true }),
   getNoteDraft: vi.fn().mockResolvedValue({ content: '' }),
 }));
-vi.mock('../frontend/js/state.js', async () => {
-  const actual = await vi.importActual('../frontend/js/state.js');
+vi.mock('../frontend/js/host/state.js', async () => {
+  const actual = await vi.importActual('../frontend/js/host/state.js');
   return { ...actual, loadDiffStatus: vi.fn().mockResolvedValue(undefined) };
 });
-vi.mock('../frontend/js/components/cards.js', () => ({
+vi.mock('../frontend/js/notes/cards.js', () => ({
   updateTitlesInDOM: vi.fn(),
   updateDiffInDOM: vi.fn(),
 }));
-vi.mock('../frontend/js/components/links-bar.js', () => ({ renderLinksBar: vi.fn() }));
-vi.mock('../frontend/js/components/tags-bar.js', () => ({ renderTagsBar: vi.fn() }));
-vi.mock('../frontend/js/components/comments.js', () => ({ renderComments: vi.fn() }));
+vi.mock('../frontend/js/notes/links-bar.js', () => ({ renderLinksBar: vi.fn() }));
+vi.mock('../frontend/js/notes/tags-bar.js', () => ({ renderTagsBar: vi.fn() }));
+vi.mock('../frontend/js/notes/comments.js', () => ({ renderComments: vi.fn() }));
 vi.mock('../frontend/js/components/modals/delete-dialog.js', () => ({ openDeleteDialog: vi.fn() }));
-vi.mock('../frontend/js/components/highlights.js', () => ({
+vi.mock('../frontend/js/notes/highlights.js', () => ({
   applyHighlights: vi.fn(),
   initHighlightUI: vi.fn(),
 }));
-vi.mock('../frontend/js/components/kb-viewer.js', () => ({
+vi.mock('../frontend/js/corpus/kb-viewer.js', () => ({
   openKbDoc: vi.fn(),
   saveKbDoc: vi.fn(),
 }));
-vi.mock('../frontend/js/components/knowledge-search.js', () => ({
+vi.mock('../frontend/js/corpus/knowledge-search.js', () => ({
   mountKnowledgeSearch: vi.fn(),
   triggerKnowledgeSearch: vi.fn(),
 }));
-vi.mock('../frontend/js/constants.js', () => ({
+vi.mock('../frontend/js/host/constants.js', () => ({
   getGithubUserUrl: vi.fn(() => ''),
   workbenchGithubBlobBase: vi.fn(() => null),
 }));
@@ -126,9 +126,9 @@ vi.mock('../frontend/js/router/index.js', async () => {
   };
 });
 
-import { openCreateNote, closeModal, openDoc } from '../frontend/js/components/viewer.js';
-import * as api from '../frontend/js/api.js';
-import { state } from '../frontend/js/state.js';
+import { openCreateNote, closeModal, openDoc } from '../frontend/js/notes/viewer.js';
+import * as api from '../frontend/js/host/api.js';
+import { state } from '../frontend/js/host/state.js';
 
 const CREATE_CHROME_HIDDEN_IDS = [
   'btn-edit',

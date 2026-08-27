@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { READ_API_INVOKE_MAP } from '../frontend/js/readApiInvokeMap.js';
+import { READ_API_INVOKE_MAP } from '../frontend/js/host/readApiInvokeMap.js';
 import {
   ATTACHMENT_COMMANDS,
   MCP_ATTACHMENT_TOOLS,
@@ -198,13 +198,13 @@ describe('P2 copy-switch — Plan Tasks UI (tech-doc T3)', () => {
 
 const T9_FRONTEND_TARGETS = [
   ...TODO_TASK_UI_FILES,
-  'frontend/js/todo-task-assistant.js',
+  'frontend/js/todo-task/assistant.js',
 ];
 
 describe('T9 — frontend/assistant Host API follow (tech-doc T9)', () => {
   it('index and assistant call GET /api/todo-tasks (not /api/plan-tasks)', () => {
     const index = readTodoTaskUiSource();
-    const assistant = read('frontend/js/todo-task-assistant.js');
+    const assistant = read('frontend/js/todo-task/assistant.js');
     expect(index).toContain("client.getJson('/api/todo-tasks')");
     expect(assistant).toContain("client.getJson('/api/todo-tasks')");
     expect(index).not.toContain("client.getJson('/api/plan-tasks')");

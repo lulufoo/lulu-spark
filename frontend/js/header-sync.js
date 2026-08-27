@@ -1,4 +1,4 @@
-import * as api from './api.js';
+import * as api from './host/api.js';
 import { openKbDiffDialog } from './components/modals/kb-diff-dialog.js';
 
 let corpusRepo = '';

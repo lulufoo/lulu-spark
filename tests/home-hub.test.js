@@ -3,8 +3,8 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import * as api from '../frontend/js/api.js';
-import { mountHomeHub } from '../frontend/js/components/home-hub.js';
+import * as api from '../frontend/js/host/api.js';
+import { mountHomeHub } from '../frontend/js/home-entry-shell/hub.js';
 
 const fixtureRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 const mainJs = readFileSync(join(fixtureRoot, 'frontend/js/main.js'), 'utf8');
@@ -471,7 +471,7 @@ describe('home hub chat sessions', () => {
 
   it('uses English chat chrome and the list/select/create commands', () => {
     const source = readFileSync(
-      join(fixtureRoot, 'frontend/js/components/home-hub.js'),
+      join(fixtureRoot, 'frontend/js/home-entry-shell/hub.js'),
       'utf8',
     );
     expect(source).toMatch(/list_chat_sessions/);

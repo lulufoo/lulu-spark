@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   SYNC_API_INVOKE_MAP,
   resolveSyncInvoke,
-} from '../frontend/js/syncApiInvokeMap.js';
+} from '../frontend/js/host/syncApiInvokeMap.js';
 
 /** [path, cmd, payload keys forwarded from HTTP body] */
 const P4_PATHS = [

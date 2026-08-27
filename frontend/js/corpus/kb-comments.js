@@ -1,13 +1,13 @@
-import { state } from '../state.js'
-import * as api from '../api.js'
-import { reorderKbComments } from '../api.js'
+import { state } from '../host/state.js'
+import * as api from '../host/api.js'
+import { reorderKbComments } from '../host/api.js'
 import {
   ensureKbComments,
   swapAdjacent,
   validateCommentIdsForReorder,
 } from '../comment-reorder.js'
 import { nowTs } from '../utils.js'
-import { confirmDeleteComment, removeKbComment } from './comment-delete.js'
+import { confirmDeleteComment, removeKbComment } from '../components/comment-delete.js'
 import {
   pasteIntoCommentEditor,
   prepareCommentMarkdown,

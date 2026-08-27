@@ -104,7 +104,7 @@ const { makeEl, trigger, clearDom, qrMocks, invokeMock } = vi.hoisted(() => {
   return { makeEl, trigger, clearDom, qrMocks, invokeMock };
 });
 
-vi.mock('../frontend/js/api.js', () => ({
+vi.mock('../frontend/js/host/api.js', () => ({
   invoke: (...args) => invokeMock(...args),
 }));
 

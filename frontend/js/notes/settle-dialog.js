@@ -1,5 +1,5 @@
-import { state } from '../state.js'
-import * as api from '../api.js'
+import { state } from '../host/state.js'
+import * as api from '../host/api.js'
 
 // ── Settle Dialog ─────────────────────────────────────────────────────────
 

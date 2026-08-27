@@ -1,7 +1,7 @@
-import { state } from '../state.js'
+import { state } from '../host/state.js'
 import { formatDate } from '../utils.js'
 import { renderDocList, loadTitles } from './cards.js'
-import { closeFloatingListSelect, createFloatingListSelect } from './floating-list-select.js'
+import { closeFloatingListSelect, createFloatingListSelect } from '../components/floating-list-select.js'
 import { parseHash, navigateToDateList } from '../router/index.js'
 
 // ── buildGroups ────────────────────────────────────────────────────────────
@@ -75,7 +75,7 @@ function _renderTopicFilter(parent) {
   const wrap = document.createElement('div');
   wrap.className = 'topic-filter';
 
-  /** @type {import('./floating-list-select.js').FloatingListSelectOption[]} */
+  /** @type {import('../components/floating-list-select.js').FloatingListSelectOption[]} */
   const options = [{ value: '', label: `All (${total})` }];
   for (const t of topics) {
     options.push({ value: t, label: `${t} (${topicCounts[t]})` });
@@ -139,7 +139,7 @@ function _renderTagFilter(parent) {
   const wrap = document.createElement('div');
   wrap.className = 'tag-filter';
 
-  /** @type {import('./floating-list-select.js').FloatingListSelectOption[]} */
+  /** @type {import('../components/floating-list-select.js').FloatingListSelectOption[]} */
   const options = [{ value: '', label: `All (${total})` }];
   const sortedKeys = Object.keys(tagCounts).sort((a, b) =>
     _tagLabel(a).localeCompare(_tagLabel(b))

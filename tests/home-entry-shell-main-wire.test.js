@@ -212,7 +212,7 @@ describe('home-entry-shell workbench Binding (t2)', () => {
   it('business pages have zero Set/Reset: todos, notes, home, selectDate, mountWorkbench', () => {
     const source = readMain();
     const sidebarJs = readFileSync(
-      join(repoRoot, 'frontend/js/components/sidebar.js'),
+      join(repoRoot, 'frontend/js/notes/sidebar.js'),
       'utf8',
     );
     const lifeJs = readFileSync(

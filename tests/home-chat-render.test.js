@@ -6,11 +6,11 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   renderHomeChatMarkdown,
   hydrateHomeChatMarkdown,
-} from '../frontend/js/components/home-chat-render.js';
+} from '../frontend/js/home-entry-shell/chat-render.js';
 
 const fixtureRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 const source = readFileSync(
-  join(fixtureRoot, 'frontend/js/components/home-chat-render.js'),
+  join(fixtureRoot, 'frontend/js/home-entry-shell/chat-render.js'),
   'utf8',
 );
 

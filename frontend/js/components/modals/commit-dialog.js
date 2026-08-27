@@ -1,4 +1,4 @@
-import * as api from '../../api.js'
+import * as api from '../../host/api.js'
 import { showToast } from '../toast.js'
 
 const HEADER_LABEL_IDLE = '↑ Commit changes';

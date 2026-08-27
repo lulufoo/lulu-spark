@@ -11,7 +11,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
 const getJsonMock = vi.fn();
 
-vi.mock('../frontend/js/apiClient.js', async (importOriginal) => {
+vi.mock('../frontend/js/host/apiClient.js', async (importOriginal) => {
   const actual = await importOriginal();
   return {
     ...actual,
@@ -28,7 +28,7 @@ import { readTodoTaskUiSource } from './helpers/todo-task-ui-source.js';
 const fixtureRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 const todoTaskIndex = readTodoTaskUiSource();
 const todoTaskAssistant = readFileSync(
-  join(fixtureRoot, 'frontend/js/todo-task-assistant.js'),
+  join(fixtureRoot, 'frontend/js/todo-task/assistant.js'),
   'utf8',
 );
 const aiAssistantCmd = readFileSync(

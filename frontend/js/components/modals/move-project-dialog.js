@@ -1,5 +1,5 @@
-import { getEntryId } from '../../state.js'
-import * as api from '../../api.js'
+import { getEntryId } from '../../host/state.js'
+import * as api from '../../host/api.js'
 
 // ── openMoveProjectDialog ──────────────────────────────────────────────────
 

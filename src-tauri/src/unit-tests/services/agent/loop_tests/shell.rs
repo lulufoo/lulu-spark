@@ -388,7 +388,7 @@ fn t3_host_facade_open_ensure_chat_works_host_only() {
 #[test]
 fn t4_hub_and_shell_close_are_not_reset_paths() {
     let shell = repo_file("frontend/js/home-entry-shell/shell.js");
-    let note_assistant = repo_file("frontend/js/note-assistant.js");
+    let note_assistant = repo_file("frontend/js/notes/assistant.js");
     assert!(
         !shell.contains("reset_binding")
             && !shell.contains("resetNotesBinding")
@@ -406,7 +406,7 @@ fn t4_hub_and_shell_close_are_not_reset_paths() {
 #[test]
 fn t4_main_and_sidebar_wire_notes_set_without_new_runtime() {
     let main = repo_file("frontend/js/main.js");
-    let sidebar = repo_file("frontend/js/components/sidebar.js");
+    let sidebar = repo_file("frontend/js/notes/sidebar.js");
     let lifecycle = repo_file("frontend/js/todo-task/todos-lifecycle.js");
     assert!(
         main.contains("setWorkbenchBinding")

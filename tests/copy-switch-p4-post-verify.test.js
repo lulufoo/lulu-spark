@@ -10,27 +10,27 @@ const P4_VERIFY_PATH = join(FEATURE_DIR, 'p4-post-switch-verification.json');
 const P4_SMOKE_PATH = join(FEATURE_DIR, 'p4-smoke-checklist.md');
 
 const TABLE_A_BRANDS = [
-  { zh: 'Workbench 笔记', en: 'Notes', file: 'frontend/js/components/home-hub.js' },
-  { zh: 'Read Later 待读', en: 'Read Later', file: 'frontend/js/components/home-hub.js' },
-  { zh: '沉淀知识库', en: 'Knowledge', file: 'frontend/js/components/home-hub.js' },
-  { zh: 'Todos', en: 'Todos', file: 'frontend/js/components/home-hub.js' },
+  { zh: 'Workbench 笔记', en: 'Notes', file: 'frontend/js/home-entry-shell/hub.js' },
+  { zh: 'Read Later 待读', en: 'Read Later', file: 'frontend/js/home-entry-shell/hub.js' },
+  { zh: '沉淀知识库', en: 'Knowledge', file: 'frontend/js/home-entry-shell/hub.js' },
+  { zh: 'Todos', en: 'Todos', file: 'frontend/js/home-entry-shell/hub.js' },
   { zh: 'LuLu Workbench', en: 'LuLu Workbench', file: 'frontend/index.html' },
-  { zh: '笔记助手', en: 'Notes Assistant', file: 'frontend/js/note-assistant.js' },
-  { zh: 'AI 助手', en: 'Chats', file: 'frontend/js/components/home-hub.js' },
-  { zh: 'Read Later 助手', en: 'Read Later', file: 'frontend/js/read-later-assistant.js' },
+  { zh: '笔记助手', en: 'Notes Assistant', file: 'frontend/js/notes/assistant.js' },
+  { zh: 'AI 助手', en: 'Chats', file: 'frontend/js/home-entry-shell/hub.js' },
+  { zh: 'Read Later 助手', en: 'Read Later', file: 'frontend/js/read-later/assistant.js' },
 ];
 
 const KEY_PATH_FILES = [
   'frontend/index.html',
-  'frontend/js/components/home-hub.js',
+  'frontend/js/home-entry-shell/hub.js',
   'frontend/js/todo-task/index.js',
   'frontend/js/todo-task/dialog.js',
-  'frontend/js/components/viewer.js',
-  'frontend/js/components/kb-viewer.js',
-  'frontend/js/components/sidebar.js',
-  'frontend/js/components/cards.js',
+  'frontend/js/notes/viewer.js',
+  'frontend/js/corpus/kb-viewer.js',
+  'frontend/js/notes/sidebar.js',
+  'frontend/js/notes/cards.js',
   'frontend/js/utils.js',
-  'frontend/js/note-assistant.js',
+  'frontend/js/notes/assistant.js',
 ];
 
 const SKILLS_EXCLUDED = [

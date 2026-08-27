@@ -7,8 +7,8 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { buildCard } from '../frontend/js/components/cards.js';
-import { state } from '../frontend/js/state.js';
+import { buildCard } from '../frontend/js/notes/cards.js';
+import { state } from '../frontend/js/host/state.js';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -22,7 +22,7 @@ const apiMocks = vi.hoisted(() => ({
   getReindexWorkbenchStatus: vi.fn(),
 }));
 
-vi.mock('../frontend/js/api.js', () => ({
+vi.mock('../frontend/js/host/api.js', () => ({
   searchWorkbench: (...args) => apiMocks.searchWorkbench(...args),
   reindexWorkbench: (...args) => apiMocks.reindexWorkbench(...args),
   getReindexWorkbenchStatus: (...args) => apiMocks.getReindexWorkbenchStatus(...args),
@@ -37,9 +37,9 @@ vi.mock('../frontend/js/components/modals/move-project-dialog.js', () => ({
 
 describe('T6 source: open/create entries → navigate-to-note (no modal.display path)', () => {
   const mainJs = read('frontend/js/main.js');
-  const searchJs = read('frontend/js/components/workbench-search.js');
-  const cardsJs = read('frontend/js/components/cards.js');
-  const assistantJs = read('frontend/js/note-assistant.js');
+  const searchJs = read('frontend/js/notes/workbench-search.js');
+  const cardsJs = read('frontend/js/notes/cards.js');
+  const assistantJs = read('frontend/js/notes/assistant.js');
 
   it('imports navigateToNote and uses it from cta:open-entry listener', () => {
     expect(mainJs).toMatch(/navigateToNote/);
@@ -137,7 +137,7 @@ describe('T6 behavioral: workbench-search layer + cards emit', () => {
     });
 
     vi.resetModules();
-    const { initWorkbenchSearch } = await import('../frontend/js/components/workbench-search.js');
+    const { initWorkbenchSearch } = await import('../frontend/js/notes/workbench-search.js');
     initWorkbenchSearch();
 
     const input = document.getElementById('gs-wb-input');
@@ -172,7 +172,7 @@ describe('T6 behavioral: workbench-search layer + cards emit', () => {
     });
 
     vi.resetModules();
-    const { initWorkbenchSearch } = await import('../frontend/js/components/workbench-search.js');
+    const { initWorkbenchSearch } = await import('../frontend/js/notes/workbench-search.js');
     initWorkbenchSearch();
 
     const input = document.getElementById('gs-wb-input');

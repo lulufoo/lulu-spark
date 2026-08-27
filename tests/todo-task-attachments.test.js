@@ -9,7 +9,7 @@ const getJsonMock = vi.fn();
 const dialogOpenMock = vi.fn();
 const convertFileSrcMock = vi.fn((path) => `asset://localhost/${encodeURIComponent(path)}`);
 
-vi.mock('../frontend/js/apiClient.js', async (importOriginal) => {
+vi.mock('../frontend/js/host/apiClient.js', async (importOriginal) => {
   const actual = await importOriginal();
   return {
     ...actual,

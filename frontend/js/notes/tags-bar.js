@@ -1,7 +1,7 @@
-import { state } from '../state.js'
-import { TAG_VALUE_MAX_LEN } from '../constants.js'
+import { state } from '../host/state.js'
+import { TAG_VALUE_MAX_LEN } from '../host/constants.js'
 import { suggestTags } from '../utils/tag-suggest.js'
-import * as api from '../api.js'
+import * as api from '../host/api.js'
 import { updateCardTagsBadge } from './cards.js'
 import { renderTagFilterChip } from './sidebar.js'
 
@@ -16,7 +16,7 @@ export async function refreshTagDisplayGlobally() {
     if (regData?.keys) state.index.tagsRegistry = { keys: regData.keys };
     if (summary && state.index.data) {
       state.index.annotations = summary;
-      const { mergeAnnotations } = await import('../state.js');
+      const { mergeAnnotations } = await import('../host/state.js');
       mergeAnnotations(state.index.data, summary);
       const { applyListFilters, renderSidebar, selectDate } = await import('./sidebar.js');
       applyListFilters();

@@ -8,7 +8,7 @@ const apiMocks = vi.hoisted(() => ({
   getReindexStatus: vi.fn(),
 }));
 
-vi.mock('../frontend/js/api.js', () => ({
+vi.mock('../frontend/js/host/api.js', () => ({
   searchKnowledge: (...args) => apiMocks.searchKnowledge(...args),
   searchWorkbench: (...args) => apiMocks.searchWorkbench(...args),
   reindexKnowledge: (...args) => apiMocks.reindexKnowledge(...args),
@@ -43,7 +43,7 @@ function installLocalStorageMock() {
 
 async function loadModule() {
   vi.resetModules();
-  return import('../frontend/js/components/corpus-search.js');
+  return import('../frontend/js/corpus/corpus-search.js');
 }
 
 describe('corpus-search module', () => {

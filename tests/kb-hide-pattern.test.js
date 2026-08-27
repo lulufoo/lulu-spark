@@ -6,7 +6,7 @@ import {
   validateKbHidePattern,
   saveKbHidePattern,
   shouldHideEntry,
-} from '../frontend/js/kb-hide-pattern.js';
+} from '../frontend/js/corpus/kb-hide-pattern.js';
 
 function installLocalStorageMock() {
   const store = {};

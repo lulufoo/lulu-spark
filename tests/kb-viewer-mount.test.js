@@ -13,7 +13,7 @@ const {
   openItermAt: vi.fn(),
 }));
 
-vi.mock('../frontend/js/api.js', () => ({
+vi.mock('../frontend/js/host/api.js', () => ({
   fetchKbFileContent,
   fetchKbAnnotation,
   fetchKbStatus,
@@ -25,19 +25,19 @@ vi.mock('../frontend/js/api.js', () => ({
   getReindexStatus: vi.fn(),
 }));
 
-vi.mock('../frontend/js/components/kb-comments.js', () => ({
+vi.mock('../frontend/js/corpus/kb-comments.js', () => ({
   renderKbComments: vi.fn(),
   initKbComments: vi.fn(),
   cleanupKbComments: vi.fn(),
 }));
 
-vi.mock('../frontend/js/components/kb-highlights.js', () => ({
+vi.mock('../frontend/js/corpus/kb-highlights.js', () => ({
   applyKbHighlights: vi.fn(),
   initKbHighlightUI: vi.fn(),
   cleanupKbHighlightUI: vi.fn(),
 }));
 
-vi.mock('../frontend/js/components/kb-links-bar.js', () => ({
+vi.mock('../frontend/js/corpus/kb-links-bar.js', () => ({
   renderKbLinksBar: vi.fn(),
 }));
 
@@ -45,8 +45,8 @@ vi.mock('../frontend/js/mermaid-render.js', () => ({
   renderMermaidBlocks: vi.fn().mockResolvedValue(undefined),
 }));
 
-import { state } from '../frontend/js/state.js';
-import { mountKbReader } from '../frontend/js/components/kb-viewer.js';
+import { state } from '../frontend/js/host/state.js';
+import { mountKbReader } from '../frontend/js/corpus/kb-viewer.js';
 
 function deferred() {
   let resolve;

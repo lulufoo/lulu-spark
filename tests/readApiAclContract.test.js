@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
-import { READ_API_INVOKE_MAP } from '../frontend/js/readApiInvokeMap.js'
+import { READ_API_INVOKE_MAP } from '../frontend/js/host/readApiInvokeMap.js'
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..')
 

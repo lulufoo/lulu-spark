@@ -19,7 +19,7 @@ const moveDialogJs = readFileSync(
   'utf8',
 );
 const settleDialogJs = readFileSync(
-  join(repoRoot, 'frontend/js/components/settle-dialog.js'),
+  join(repoRoot, 'frontend/js/notes/settle-dialog.js'),
   'utf8',
 );
 const modalSources = [

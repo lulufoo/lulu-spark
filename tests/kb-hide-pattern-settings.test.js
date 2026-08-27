@@ -8,7 +8,7 @@ import {
   KB_HIDE_PATTERN_KEY,
   getKbHidePattern,
   saveKbHidePattern,
-} from '../frontend/js/kb-hide-pattern.js';
+} from '../frontend/js/corpus/kb-hide-pattern.js';
 
 const fixtureRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 const indexHtml = readFileSync(join(fixtureRoot, 'frontend/index.html'), 'utf8');

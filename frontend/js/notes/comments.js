@@ -1,6 +1,6 @@
-import { state } from '../state.js'
-import * as api from '../api.js'
-import { reorderComments } from '../api.js'
+import { state } from '../host/state.js'
+import * as api from '../host/api.js'
+import { reorderComments } from '../host/api.js'
 import {
   ensureLayerComments,
   swapAdjacent,
@@ -9,7 +9,7 @@ import {
 import { nowTs } from '../utils.js'
 import { openSettleDialog } from './settle-dialog.js'
 import { renderLinksBar } from './links-bar.js'
-import { confirmDeleteComment, removeCorpusComment } from './comment-delete.js'
+import { confirmDeleteComment, removeCorpusComment } from '../components/comment-delete.js'
 import {
   pasteIntoCommentEditor,
   prepareCommentMarkdown,

@@ -1,4 +1,4 @@
-import { createApiClient, resolveReadDriver } from '../apiClient.js';
+import { createApiClient, resolveReadDriver } from '../host/apiClient.js';
 
 /** Host category registry — built-in default id matches unspecified create fallback. */
 export const DEFAULT_PLAN_CATEGORY_ID = 'uncategorized';

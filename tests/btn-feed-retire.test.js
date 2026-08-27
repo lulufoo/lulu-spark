@@ -10,11 +10,11 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
 const renderFeedMock = vi.fn();
 
-vi.mock('../frontend/js/feed.js', () => ({
+vi.mock('../frontend/js/builders/feed.js', () => ({
   renderFeed: (...args) => renderFeedMock(...args),
 }));
 
-import { createBuildersContentAdapter } from '../frontend/js/builders-assistant.js';
+import { createBuildersContentAdapter } from '../frontend/js/builders/assistant.js';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 

@@ -12,7 +12,7 @@ const getJsonMock = vi.fn();
 const fetchIndexMock = vi.fn();
 const renderFeedMock = vi.fn();
 
-vi.mock('../frontend/js/apiClient.js', async (importOriginal) => {
+vi.mock('../frontend/js/host/apiClient.js', async (importOriginal) => {
   const actual = await importOriginal();
   return {
     ...actual,
@@ -23,21 +23,21 @@ vi.mock('../frontend/js/apiClient.js', async (importOriginal) => {
   };
 });
 
-vi.mock('../frontend/js/api.js', () => ({
+vi.mock('../frontend/js/host/api.js', () => ({
   fetchIndex: (...args) => fetchIndexMock(...args),
 }));
 
-vi.mock('../frontend/js/feed.js', () => ({
+vi.mock('../frontend/js/builders/feed.js', () => ({
   renderFeed: (...args) => renderFeedMock(...args),
 }));
 
 import { createContentRegistry } from '../frontend/js/home-entry-shell/content-registry.js';
 import { getBaselineEntries } from '../frontend/js/home-entry-shell/entry-config.js';
 import { mountHomeEntryShell } from '../frontend/js/home-entry-shell/shell.js';
-import { createReadLaterContentAdapter } from '../frontend/js/read-later-assistant.js';
-import { createTodoTaskContentAdapter } from '../frontend/js/todo-task-assistant.js';
-import { createNotesContentAdapter } from '../frontend/js/note-assistant.js';
-import { createBuildersContentAdapter } from '../frontend/js/builders-assistant.js';
+import { createReadLaterContentAdapter } from '../frontend/js/read-later/assistant.js';
+import { createTodoTaskContentAdapter } from '../frontend/js/todo-task/assistant.js';
+import { createNotesContentAdapter } from '../frontend/js/notes/assistant.js';
+import { createBuildersContentAdapter } from '../frontend/js/builders/assistant.js';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -48,27 +48,27 @@ const ADAPTERS = [
   {
     key: 'read-later',
     create: createReadLaterContentAdapter,
-    sourcePath: 'frontend/js/read-later-assistant.js',
+    sourcePath: 'frontend/js/read-later/assistant.js',
     contentSelector:
       '.read-later-assistant-empty, .read-later-assistant-panel, .read-later-assistant-loading',
   },
   {
     key: 'todo-task',
     create: createTodoTaskContentAdapter,
-    sourcePath: 'frontend/js/todo-task-assistant.js',
+    sourcePath: 'frontend/js/todo-task/assistant.js',
     contentSelector:
       '.todo-task-assistant-empty, .todo-task-assistant-list, .todo-task-assistant-loading',
   },
   {
     key: 'notes',
     create: createNotesContentAdapter,
-    sourcePath: 'frontend/js/note-assistant.js',
+    sourcePath: 'frontend/js/notes/assistant.js',
     contentSelector: '.note-assistant-empty, .note-assistant-list, .note-assistant-loading',
   },
   {
     key: 'builders',
     create: createBuildersContentAdapter,
-    sourcePath: 'frontend/js/builders-assistant.js',
+    sourcePath: 'frontend/js/builders/assistant.js',
     contentSelector: '.feed-mock',
   },
 ];

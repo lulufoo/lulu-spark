@@ -1,4 +1,4 @@
-import { createApiClient, resolveReadDriver } from '../apiClient.js';
+import { createApiClient, resolveReadDriver } from '../host/apiClient.js';
 import { escHtml } from '../utils.js';
 
 const UNAVAILABLE_MSG = 'List temporarily unavailable. Please try again later';

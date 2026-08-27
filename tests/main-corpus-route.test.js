@@ -11,14 +11,14 @@ const apiMocks = vi.hoisted(() => ({
   getReindexStatus: vi.fn(),
 }));
 
-vi.mock('../frontend/js/api.js', () => ({
+vi.mock('../frontend/js/host/api.js', () => ({
   searchWorkbench: (...args) => apiMocks.searchWorkbench(...args),
   searchKnowledge: (...args) => apiMocks.searchKnowledge(...args),
   reindexKnowledge: (...args) => apiMocks.reindexKnowledge(...args),
   getReindexStatus: (...args) => apiMocks.getReindexStatus(...args),
 }));
 
-vi.mock('../frontend/js/components/workbench-search.js', () => ({
+vi.mock('../frontend/js/notes/workbench-search.js', () => ({
   closeWorkbenchSearch: vi.fn(),
   initWorkbenchSearch: vi.fn(),
 }));
@@ -76,13 +76,13 @@ function installLocalStorageMock() {
 /** Mirrors main.js wrapRouteMount + corpus-doc mount contract under test. */
 async function simulateCorpusRouteMount() {
   applySearchNavChrome('corpus-doc');
-  const { initCorpusSearch } = await import('../frontend/js/components/corpus-search.js');
+  const { initCorpusSearch } = await import('../frontend/js/corpus/corpus-search.js');
   initCorpusSearch();
 }
 
 async function loadCorpusSearchModule() {
   vi.resetModules();
-  return import('../frontend/js/components/corpus-search.js');
+  return import('../frontend/js/corpus/corpus-search.js');
 }
 
 describe('main.js corpus-doc route init wiring (source)', () => {

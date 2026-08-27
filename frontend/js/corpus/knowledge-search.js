@@ -1,4 +1,4 @@
-import { searchKnowledge, reindexKnowledge, getReindexStatus } from '../api.js'
+import { searchKnowledge, reindexKnowledge, getReindexStatus } from '../host/api.js'
 
 // ── State ─────────────────────────────────────────────────────────────────────
 // Possible states: idle | loading | showing | empty | syncing | unavailable

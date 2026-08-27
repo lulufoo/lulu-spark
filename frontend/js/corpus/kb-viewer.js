@@ -1,6 +1,6 @@
-import { state } from '../state.js'
+import { state } from '../host/state.js'
 import { escHtml, resetEditAreaScroll } from '../utils.js'
-import * as api from '../api.js'
+import * as api from '../host/api.js'
 import { renderKbComments, initKbComments, cleanupKbComments } from './kb-comments.js'
 import { applyKbHighlights, initKbHighlightUI, cleanupKbHighlightUI } from './kb-highlights.js'
 import { renderKbLinksBar } from './kb-links-bar.js'

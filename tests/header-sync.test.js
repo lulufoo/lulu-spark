@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
-vi.mock('../frontend/js/api.js', () => ({
+vi.mock('../frontend/js/host/api.js', () => ({
   reindexKbRepo: vi.fn(),
   getReindexStatus: vi.fn(),
 }));
@@ -14,7 +14,7 @@ vi.mock('../frontend/js/components/modals/commit-dialog.js', () => ({
   openCommitChangesDialog: vi.fn(),
 }));
 
-import * as api from '../frontend/js/api.js';
+import * as api from '../frontend/js/host/api.js';
 import { openKbDiffDialog } from '../frontend/js/components/modals/kb-diff-dialog.js';
 import { openCommitChangesDialog } from '../frontend/js/components/modals/commit-dialog.js';
 import {

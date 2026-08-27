@@ -7,7 +7,7 @@ const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..')
 const frontendJsRoot = join(repoRoot, 'frontend/js')
 
 /** Only apiClient may load @tauri-apps packages (dynamic import). */
-const TAURI_IMPORT_ALLOWLIST = new Set(['frontend/js/apiClient.js'])
+const TAURI_IMPORT_ALLOWLIST = new Set(['frontend/js/host/apiClient.js'])
 
 /** Static import or re-export from @tauri-apps (breaks bare ES modules in browser). */
 const STATIC_TAURI_IMPORT =
@@ -59,8 +59,8 @@ describe('frontend Tauri import contract', () => {
   })
 
   it('apiClient.js uses dynamic import for @tauri-apps (not static)', () => {
-    const text = readFileSync(join(repoRoot, 'frontend/js/apiClient.js'), 'utf8')
+    const text = readFileSync(join(repoRoot, 'frontend/js/host/apiClient.js'), 'utf8')
     expect(text).toMatch(/import\s*\(\s*['"]@tauri-apps\/api\/core['"]\s*\)/)
-    expect(findStaticTauriImports('frontend/js/apiClient.js')).toEqual([])
+    expect(findStaticTauriImports('frontend/js/host/apiClient.js')).toEqual([])
   })
 })

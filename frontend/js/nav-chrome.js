@@ -1,5 +1,5 @@
-import { closeWorkbenchSearch } from './components/workbench-search.js';
-import { closeCorpusSearch } from './components/corpus-search.js';
+import { closeWorkbenchSearch } from './notes/workbench-search.js';
+import { closeCorpusSearch } from './corpus/corpus-search.js';
 
 export function applySearchNavChrome(routeName) {
   closeWorkbenchSearch();

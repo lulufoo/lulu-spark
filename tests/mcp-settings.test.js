@@ -4,7 +4,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
-vi.mock('../frontend/js/api.js', () => ({
+vi.mock('../frontend/js/host/api.js', () => ({
   fetchConfig: vi.fn(),
   setConfig: vi.fn(),
   inferGithubUserUrl: vi.fn(),
@@ -12,7 +12,7 @@ vi.mock('../frontend/js/api.js', () => ({
   invoke: vi.fn(),
 }));
 
-import * as api from '../frontend/js/api.js';
+import * as api from '../frontend/js/host/api.js';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const indexHtml = readFileSync(join(root, 'frontend/index.html'), 'utf8');
@@ -20,7 +20,7 @@ const settingsDialogSrc = readFileSync(
   join(root, 'frontend/js/components/modals/settings-dialog.js'),
   'utf8',
 );
-const apiSrc = readFileSync(join(root, 'frontend/js/api.js'), 'utf8');
+const apiSrc = readFileSync(join(root, 'frontend/js/host/api.js'), 'utf8');
 
 const MCP_PORT = 19876;
 const HEALTH_MCP = `http://127.0.0.1:${MCP_PORT}/mcp/<scene_slot>`;

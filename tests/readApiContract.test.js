@@ -3,7 +3,7 @@ import {
   READ_API_INVOKE_MAP,
   normalizeForContract,
   resolveInvokeFromPath,
-} from '../frontend/js/readApiInvokeMap.js';
+} from '../frontend/js/host/readApiInvokeMap.js';
 
 describe('readApi contract map', () => {
   it('READ_API_INVOKE_MAP 的 path 与 cmd 一一对应（无遗漏路径）', () => {

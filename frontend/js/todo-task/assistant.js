@@ -1,6 +1,6 @@
-import { createApiClient, resolveReadDriver } from './apiClient.js';
-import { formatTodoTaskStatus } from './todo-task/index.js';
-import { escHtml } from './utils.js';
+import { createApiClient, resolveReadDriver } from '../host/apiClient.js';
+import { formatTodoTaskStatus } from './index.js';
+import { escHtml } from '../utils.js';
 
 const UNAVAILABLE_MSG = 'List temporarily unavailable. Please try again later.';
 

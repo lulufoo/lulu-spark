@@ -8,7 +8,7 @@ const openUrlMock = vi.fn();
 const getJsonMock = vi.fn();
 const invokeMock = vi.fn();
 
-vi.mock('../frontend/js/apiClient.js', async (importOriginal) => {
+vi.mock('../frontend/js/host/apiClient.js', async (importOriginal) => {
   const actual = await importOriginal();
   return {
     ...actual,
@@ -25,8 +25,8 @@ import {
   loadAssistantEntries,
   mountReadLaterAssistant,
   selectTop3Latest,
-} from '../frontend/js/read-later-assistant.js';
-import { openExternalUrl } from '../frontend/js/components/read-later-list.js';
+} from '../frontend/js/read-later/assistant.js';
+import { openExternalUrl } from '../frontend/js/read-later/list.js';
 
 const fixtureRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 const mainJs = readFileSync(join(fixtureRoot, 'frontend/js/main.js'), 'utf8');

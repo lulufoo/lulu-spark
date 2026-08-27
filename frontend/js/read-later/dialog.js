@@ -1,4 +1,4 @@
-import { mountReadLaterList } from '../read-later-list.js';
+import { mountReadLaterList } from './list.js';
 
 let unmountList = null;
 

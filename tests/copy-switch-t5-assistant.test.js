@@ -16,15 +16,15 @@ const todoTaskAssistantHtmlPath = join(
   'frontend/todo-task-assistant.html',
 );
 const homeHubJs = readFileSync(
-  join(repoRoot, 'frontend/js/components/home-hub.js'),
+  join(repoRoot, 'frontend/js/home-entry-shell/hub.js'),
   'utf8',
 );
 const readLaterAssistantJs = readFileSync(
-  join(repoRoot, 'frontend/js/read-later-assistant.js'),
+  join(repoRoot, 'frontend/js/read-later/assistant.js'),
   'utf8',
 );
 const todoTaskAssistantJs = readFileSync(
-  join(repoRoot, 'frontend/js/todo-task-assistant.js'),
+  join(repoRoot, 'frontend/js/todo-task/assistant.js'),
   'utf8',
 );
 

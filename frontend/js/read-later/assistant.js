@@ -3,8 +3,8 @@ import {
   loadReadLaterEntries,
   markEntryRead,
   openExternalUrl,
-} from './components/read-later-list.js';
-import { escHtml } from './utils.js';
+} from './list.js';
+import { escHtml } from '../utils.js';
 
 export { bindFocusRefresh };
 

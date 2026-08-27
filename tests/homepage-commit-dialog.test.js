@@ -40,7 +40,7 @@ const { makeEl, trigger, clearDom } = vi.hoisted(() => {
   return { makeEl, trigger, clearDom };
 });
 
-vi.mock('../frontend/js/api.js', () => ({
+vi.mock('../frontend/js/host/api.js', () => ({
   fetchDiffStatus: vi.fn().mockResolvedValue({
     new: [], modified: ['raw/a.md'], deleted: [], renamed: [], conflicted: [],
     total: 1, ahead: 0,
@@ -52,7 +52,7 @@ vi.mock('../frontend/js/components/toast.js', () => ({
   showToast: vi.fn(),
 }));
 
-import * as api from '../frontend/js/api.js';
+import * as api from '../frontend/js/host/api.js';
 import { showToast } from '../frontend/js/components/toast.js';
 
 function seedDom() {

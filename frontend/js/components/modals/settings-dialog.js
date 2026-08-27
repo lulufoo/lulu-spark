@@ -1,7 +1,7 @@
-import * as api from '../../api.js';
-import { setGithubUserUrl } from '../../constants.js';
-import { getKbHidePattern, saveKbHidePattern } from '../../kb-hide-pattern.js';
-import { state } from '../../state.js';
+import * as api from '../../host/api.js';
+import { setGithubUserUrl } from '../../host/constants.js';
+import { getKbHidePattern, saveKbHidePattern } from '../../corpus/kb-hide-pattern.js';
+import { state } from '../../host/state.js';
 import { escHtml } from '../../utils.js';
 import { getEnginePreset, listEngineCategories } from './engine-presets.js';
 

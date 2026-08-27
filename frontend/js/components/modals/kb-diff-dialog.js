@@ -1,4 +1,4 @@
-import * as api from '../../api.js';
+import * as api from '../../host/api.js';
 
 const GROUPS = [
   { key: 'new', label: 'New' },
