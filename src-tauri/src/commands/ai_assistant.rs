@@ -55,6 +55,18 @@ pub fn get_ai_assistant_binding_json() -> Value {
     r#loop::get_ai_assistant_binding_core()
 }
 
+pub fn list_chat_sessions_json() -> Result<Value, String> {
+    r#loop::list_chat_sessions_core()
+}
+
+pub fn select_chat_session_json(session_id: &str) -> Result<Value, String> {
+    r#loop::select_chat_session_core(session_id)
+}
+
+pub fn create_chat_session_json() -> Result<Value, String> {
+    r#loop::create_chat_session_core()
+}
+
 /// Binding Contract Set entry (key-only). Looks up Host MCP registry; rejects legacy
 /// tools/prompt/callbacks payload and engine selection parameters.
 pub fn set_binding_json(binding: Value) -> Value {
@@ -268,7 +280,7 @@ pub async fn present_ai_assistant(app: AppHandle) -> Result<Value, String> {
 
     #[cfg(not(test))]
     {
-        // Shell presentation is main-window listen → presentNormalize; no independent window.
+        // Present is main-window listen → navigate Home; no independent window.
         let _ = app.emit(EVENT_ASSISTANT_OPENED, &result);
     }
     #[cfg(test)]
@@ -314,6 +326,27 @@ pub async fn get_ai_assistant_binding() -> Result<Value, String> {
     Ok(tauri::async_runtime::spawn_blocking(get_ai_assistant_binding_json)
         .await
         .map_err(|e| e.to_string())?)
+}
+
+#[tauri::command]
+pub async fn list_chat_sessions() -> Result<Value, String> {
+    tauri::async_runtime::spawn_blocking(list_chat_sessions_json)
+        .await
+        .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+pub async fn select_chat_session(session_id: String) -> Result<Value, String> {
+    tauri::async_runtime::spawn_blocking(move || select_chat_session_json(&session_id))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+pub async fn create_chat_session() -> Result<Value, String> {
+    tauri::async_runtime::spawn_blocking(create_chat_session_json)
+        .await
+        .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]

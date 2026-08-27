@@ -1367,6 +1367,52 @@ pub fn open_ai_assistant_core(master_task_id: &str) -> Result<Value, String> {
     }))
 }
 
+/// Home history list. Does not change the live session.
+pub fn list_chat_sessions_core() -> Result<Value, String> {
+    let sessions = session::list_session_summaries()?;
+    let current_session_id = session::with_live_mut(|live| live.current_session_id.clone());
+    Ok(json!({
+        "sessions": sessions,
+        "current_session_id": current_session_id,
+    }))
+}
+
+/// Make an existing disk session the live chat session. Does not Set Binding.
+pub fn select_chat_session_core(session_id: &str) -> Result<Value, String> {
+    let id = session_id.trim();
+    if id.is_empty() {
+        return Err("Missing session_id".into());
+    }
+    let _ = session::load_session(id)?;
+    {
+        let rt = runtime().lock().unwrap();
+        if rt.busy {
+            return Err("Busy — try again later".into());
+        }
+    }
+    session::with_live_mut(|live| {
+        live.current_session_id = Some(id.to_string());
+    });
+    Ok(get_ai_assistant_binding_core())
+}
+
+/// Start a blank chat session and make it live. Does not Set Binding.
+pub fn create_chat_session_core() -> Result<Value, String> {
+    {
+        let rt = runtime().lock().unwrap();
+        if rt.busy {
+            return Err("Busy — try again later".into());
+        }
+    }
+    let sess = session::create_session(None, None)?;
+    session::with_live_mut(|live| {
+        live.current_session_id = Some(sess.session_id.clone());
+        live.bound_master_task_id = None;
+        live.bound_title = None;
+    });
+    Ok(get_ai_assistant_binding_core())
+}
+
 fn emit_payload(
     session_id: &str,
     wrote: bool,

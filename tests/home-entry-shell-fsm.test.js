@@ -73,9 +73,7 @@ describe('home-entry-shell fsm · A/B/C legal edges + snapshot (T2)', () => {
     expect(fsm.snapshot()).toEqual({ mode: 'C', entryId: 'notes' });
   });
 
-  // Migrated from blanket “reject A→C”: business openEntry from A stays illegal;
-  // AI bypass A→C_AI is covered in the AI describe below (T7 / L21-T).
-  it('rejects illegal business A→C (openEntry from A)', () => {
+  it('rejects illegal A→C (openEntry from A)', () => {
     const result = fsm.dispatch({ type: 'openEntry', entryId: 'builders' });
     expect(result.accepted).toBe(false);
     expect(result.transitions).toEqual([]);
@@ -144,13 +142,7 @@ describe('home-entry-shell fsm · A/B/C legal edges + snapshot (T2)', () => {
   });
 });
 
-/**
- * SK-1 / T1 — AI bypass FSM specialization (A→C_AI / C_AI→A).
- * AI entry id is locked to `ai-assistant`.
- */
-describe('home-entry-shell fsm · AI bypass A→C_AI / C_AI→A (T1)', () => {
-  const AI = 'ai-assistant';
-
+describe('home-entry-shell fsm · no Assistant overlay specialization', () => {
   /** @type {ReturnType<typeof createHomeEntryFsm>} */
   let fsm;
 
@@ -158,78 +150,26 @@ describe('home-entry-shell fsm · AI bypass A→C_AI / C_AI→A (T1)', () => {
     fsm = createHomeEntryFsm();
   });
 
-  it('A→C_AI: openEntry(ai-assistant) from A is accepted', () => {
-    const result = fsm.dispatch({ type: 'openEntry', entryId: AI });
-    expect(result.accepted).toBe(true);
-    expect(result.transitions).toEqual([{ from: 'A', to: 'C' }]);
-    expect(fsm.getState()).toBe('C');
-    expect(fsm.snapshot()).toEqual({ mode: 'C', entryId: AI });
+  it('openEntry(ai-assistant) from A is rejected like any other entry', () => {
+    const result = fsm.dispatch({ type: 'openEntry', entryId: 'ai-assistant' });
+    expect(result.accepted).toBe(false);
+    expect(fsm.getState()).toBe('A');
   });
 
-  it('C_AI→A: closeOverlay from AI C returns A (not B)', () => {
-    fsm.dispatch({ type: 'openEntry', entryId: AI });
-    const close = fsm.dispatch({ type: 'closeOverlay' });
-    expect(close.accepted).toBe(true);
-    expect(close.transitions).toEqual([{ from: 'C', to: 'A' }]);
-    expect(fsm.getState()).toBe('A');
-    expect(fsm.snapshot()).toEqual({ mode: 'A' });
-  });
-
-  it('hub business openEntry remains A-illegal; business closeOverlay still → B', () => {
-    expect(fsm.dispatch({ type: 'openEntry', entryId: 'builders' }).accepted).toBe(false);
-    expect(fsm.getState()).toBe('A');
-
+  it('closeOverlay from any C still lands on B', () => {
     fsm.dispatch({ type: 'openHub' });
-    fsm.dispatch({ type: 'openEntry', entryId: 'builders' });
+    fsm.dispatch({ type: 'openEntry', entryId: 'notes' });
     const close = fsm.dispatch({ type: 'closeOverlay' });
     expect(close.accepted).toBe(true);
     expect(close.transitions).toEqual([{ from: 'C', to: 'B' }]);
     expect(fsm.getState()).toBe('B');
   });
 
-  it('rejects silent A→B→C for AI: no composite open that fabricates hub path from A', () => {
-    // From A, only the AI specialization edge is legal — not a fabricated hub expand.
-    const biz = fsm.dispatch({ type: 'openEntry', entryId: 'notes' });
-    expect(biz.accepted).toBe(false);
-    expect(fsm.getState()).toBe('A');
-    // openHub alone is A→B; AI does not require or invent A→B→C.
-    const hub = fsm.dispatch({ type: 'openHub' });
-    expect(hub.accepted).toBe(true);
-    expect(hub.transitions).toEqual([{ from: 'A', to: 'B' }]);
-  });
-
-  it('idempotent: openEntry(ai-assistant) while already C_AI is rejected (no C→C)', () => {
-    fsm.dispatch({ type: 'openEntry', entryId: AI });
-    const again = fsm.dispatch({ type: 'openEntry', entryId: AI });
-    expect(again.accepted).toBe(false);
-    expect(again.transitions).toEqual([]);
-    expect(fsm.snapshot()).toEqual({ mode: 'C', entryId: AI });
-  });
-
-  // T7 / L08-AR / L22-VF: AI C + hub walks composite C→A→B (B/C hide AI is shell UI).
-  it('C_AI openHub walks C→A→B composite', () => {
-    fsm.dispatch({ type: 'openEntry', entryId: AI });
-    expect(fsm.snapshot()).toEqual({ mode: 'C', entryId: AI });
-
-    const hub = fsm.dispatch({ type: 'openHub' });
-    expect(hub.accepted).toBe(true);
-    expect(hub.transitions).toEqual([
-      { from: 'C', to: 'A' },
-      { from: 'A', to: 'B' },
-    ]);
-    expect(fsm.getState()).toBe('B');
-    expect(fsm.snapshot()).toEqual({ mode: 'B' });
-  });
-
-  it('business C openHub stays rejected (no C→A→B for hub business)', () => {
+  it('openHub from C stays rejected', () => {
     fsm.dispatch({ type: 'openHub' });
     fsm.dispatch({ type: 'openEntry', entryId: 'notes' });
-    expect(fsm.snapshot()).toEqual({ mode: 'C', entryId: 'notes' });
-
     const hub = fsm.dispatch({ type: 'openHub' });
     expect(hub.accepted).toBe(false);
-    expect(hub.transitions).toEqual([]);
     expect(fsm.getState()).toBe('C');
-    expect(fsm.snapshot()).toEqual({ mode: 'C', entryId: 'notes' });
   });
 });

@@ -96,6 +96,8 @@ const AI_ASSISTANT_WRITE_COMMANDS: &[&str] = &[
     "present_ai_assistant",
     "ensure_ai_assistant_session",
     "get_ai_assistant_binding",
+    "select_chat_session",
+    "create_chat_session",
     "agent_chat_turn",
 ];
 

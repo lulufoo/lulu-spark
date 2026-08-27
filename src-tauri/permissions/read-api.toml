@@ -32,4 +32,5 @@ commands.allow = [
   "get_read_later",
   "get_todo_tasks",
   "read_bind_session",
+  "list_chat_sessions",
 ]

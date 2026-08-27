@@ -33,7 +33,7 @@ use crate::services::agent::session::{self, Session, Turn};
 use crate::services::agent::tools;
 use crate::services::agent::PLAN_ASSISTANT_SYSTEM_PROMPT;
 use crate::services::todo_task;
-use crate::test_support::TestSandbox;
+use crate::test_support::{with_config_test_serial, TestSandbox};
 
 fn with_agent_sandbox<F: FnOnce(&TestSandbox)>(f: F) {
     let sandbox = TestSandbox::new();
@@ -71,6 +71,40 @@ fn agent_module_mount_point_is_addressable() {
 }
 
 // ── Session ──────────────────────────────────────────────────────────────────
+
+#[test]
+fn assistant_conversation_dir_requires_sandbox_and_misses_prod_cache() {
+    with_config_test_serial(|| {
+        assert!(
+            !settings::is_test_sandbox(),
+            "this isolation test must run outside TestSandbox"
+        );
+        let err = session::sessions_dir().expect_err("unisolated sessions_dir");
+        assert!(
+            err.contains("TestSandbox isolation"),
+            "unisolated error should name the sandbox gate, got {err}"
+        );
+        assert!(
+            session::create_session(None, None).is_err(),
+            "create_session must refuse the user's conversation directory"
+        );
+    });
+
+    with_agent_sandbox(|sandbox| {
+        let dir = session::sessions_dir().expect("isolated sessions_dir");
+        let expected = sandbox.cache_dir().join("agent").join("sessions");
+        assert_eq!(dir, expected);
+        sandbox
+            .assert_not_prod_path(&dir)
+            .expect("sessions_dir must not be under prod roots");
+        let sess = session::create_session(None, None).expect("create in sandbox");
+        let path = session::session_file_path(&sess.session_id).expect("path");
+        assert!(path.starts_with(&expected));
+        sandbox
+            .assert_not_prod_path(&path)
+            .expect("session file must not be under prod roots");
+    });
+}
 
 #[test]
 fn session_save_load_roundtrip_under_cache_agent_sessions() {

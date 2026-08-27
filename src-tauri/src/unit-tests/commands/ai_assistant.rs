@@ -5,12 +5,12 @@ use std::fs;
 use serde_json::json;
 
 use crate::commands::ai_assistant::{
-    agent_chat_turn_json, cancel_ai_assistant_turn_json, defensive_unbound_json,
-    ensure_ai_assistant_session_json,
-    execute_binding_json, get_ai_assistant_binding_json, open_ai_assistant_json,
+    agent_chat_turn_json, cancel_ai_assistant_turn_json, create_chat_session_json,
+    defensive_unbound_json, ensure_ai_assistant_session_json, execute_binding_json,
+    get_ai_assistant_binding_json, list_chat_sessions_json, open_ai_assistant_json,
     present_ai_assistant_json, query_binding_json, record_ai_assistant_timing,
-    reset_binding_json, set_binding_json, shell_close_json, AI_ASSISTANT_WINDOW_LABEL,
-    EVENT_BINDING_CHANGED,
+    reset_binding_json, select_chat_session_json, set_binding_json, shell_close_json,
+    AI_ASSISTANT_WINDOW_LABEL, EVENT_BINDING_CHANGED,
 };
 use crate::config::secrets::{self, KEY_LLM_API_KEY};
 use crate::config::settings;
@@ -18,6 +18,18 @@ use crate::services::agent::r#loop;
 use crate::services::agent::session::{self, Turn};
 use crate::services::todo_task;
 use crate::test_support::TestSandbox;
+
+fn is_session_when_label(title: &str) -> bool {
+    let bytes = title.as_bytes();
+    bytes.len() == 16
+        && bytes[4] == b'-'
+        && bytes[7] == b'-'
+        && bytes[10] == b' '
+        && bytes[13] == b':'
+        && bytes
+            .iter()
+            .all(|b| b.is_ascii_digit() || *b == b'-' || *b == b' ' || *b == b':')
+}
 
 fn with_cmd_sandbox<F: FnOnce()>(f: F) {
     let _sandbox = TestSandbox::new();
@@ -578,6 +590,65 @@ fn set_binding_empty_key_is_invalid_not_workbench() {
         assert_eq!(again["ok"], false);
         assert_eq!(again["code"], "set_invalid");
         assert_eq!(query_binding_json()["state"], "bound");
+    });
+}
+
+#[test]
+fn list_select_create_chat_sessions_for_home_history() {
+    with_cmd_sandbox(|| {
+        let empty = list_chat_sessions_json().expect("list empty");
+        assert_eq!(empty["sessions"].as_array().map(|a| a.len()), Some(0));
+
+        let first = create_chat_session_json().expect("create first");
+        let first_id = first["session_id"].as_str().expect("first id").to_string();
+        session::append_turn(
+            &first_id,
+            Turn {
+                role: "user".into(),
+                content: Some("Hello from first".into()),
+                tool_call_id: None,
+                tool_calls: None,
+                name: None,
+            },
+        )
+        .expect("append");
+
+        let second = create_chat_session_json().expect("create second");
+        let second_id = second["session_id"].as_str().expect("second id").to_string();
+        assert_ne!(first_id, second_id);
+
+        let listed = list_chat_sessions_json().expect("list two");
+        let sessions = listed["sessions"].as_array().expect("sessions array");
+        assert_eq!(sessions.len(), 2);
+        assert_eq!(listed["current_session_id"], second_id);
+        assert!(sessions.iter().any(|s| s["title"] == "Hello from first"));
+        assert!(
+            sessions.iter().any(|s| {
+                s["title"].as_str().is_some_and(|title| {
+                    title == "New conversation" || is_session_when_label(title)
+                })
+            }),
+            "untitled session should show date-time, got {sessions:?}"
+        );
+
+        let selected = select_chat_session_json(&first_id).expect("select first");
+        assert_eq!(selected["session_id"], first_id);
+        let turns = selected["turns"].as_array().expect("turns");
+        assert_eq!(turns.len(), 1);
+        assert_eq!(turns[0]["content"], "Hello from first");
+
+        let after = list_chat_sessions_json().expect("list after select");
+        assert_eq!(after["current_session_id"], first_id);
+
+        for _ in 0..20 {
+            create_chat_session_json().expect("fill list");
+        }
+        let capped = list_chat_sessions_json().expect("list cap");
+        assert_eq!(
+            capped["sessions"].as_array().map(|a| a.len()),
+            Some(20),
+            "Home history lists the 20 most recent sessions"
+        );
     });
 }
 

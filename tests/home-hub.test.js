@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import * as api from '../frontend/js/api.js';
 import { mountHomeHub } from '../frontend/js/components/home-hub.js';
 
 const fixtureRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -27,8 +28,10 @@ describe('mountHomeHub', () => {
 
     expect(container.querySelector('.home-hub-title')).toBeNull();
     expect(container.querySelector('.home-hub-subtitle')).toBeNull();
-    expect(container.querySelector('.home-desktop')).not.toBeNull();
-    expect(container.querySelector('.home-desktop-wallpaper')).not.toBeNull();
+    expect(container.querySelector('.home-chat')).not.toBeNull();
+    expect(container.querySelector('.home-chat-sidebar')).not.toBeNull();
+    expect(container.querySelector('[data-role="new-session"]')).not.toBeNull();
+    expect(container.querySelector('[data-role="session-list"]')).not.toBeNull();
 
     const shortcuts = container.querySelectorAll('.home-desktop-shortcut');
     expect(shortcuts).toHaveLength(4);
@@ -107,6 +110,183 @@ describe('mountHomeHub', () => {
 
     addSpy.mockRestore();
     removeSpy.mockRestore();
+  });
+});
+
+describe('home hub chat sessions', () => {
+  let container;
+  /** @type {import('vitest').MockInstance} */
+  let invokeSpy;
+  /** @type {{ session_id: string, title: string }[]} */
+  let sessions;
+  let currentId;
+  let bound;
+
+  beforeEach(() => {
+    container = document.createElement('div');
+    document.body.appendChild(container);
+    sessions = [
+      { session_id: 's1', title: 'Hello from first' },
+      { session_id: 's2', title: 'New conversation' },
+    ];
+    currentId = 's2';
+    bound = true;
+    invokeSpy = vi.spyOn(api, 'invoke').mockImplementation(async (cmd, args) => {
+      if (cmd === 'query_binding') return { state: bound ? 'bound' : 'unbound' };
+      if (cmd === 'list_chat_sessions') {
+        return { sessions, current_session_id: currentId };
+      }
+      if (cmd === 'get_ai_assistant_binding' || cmd === 'select_chat_session') {
+        if (cmd === 'select_chat_session') currentId = String(args?.sessionId || '');
+        return {
+          session_id: currentId,
+          turns:
+            currentId === 's1'
+              ? [{ role: 'user', content: 'Hello from first' }]
+              : [],
+        };
+      }
+      if (cmd === 'create_chat_session') {
+        currentId = 's3';
+        sessions = [{ session_id: 's3', title: 'New conversation' }, ...sessions];
+        return { session_id: 's3', turns: [] };
+      }
+      if (cmd === 'agent_chat_turn') {
+        return { reply_text: 'Hi back', terminal: 'ok' };
+      }
+      return {};
+    });
+  });
+
+  afterEach(() => {
+    invokeSpy.mockRestore();
+    container.remove();
+  });
+
+  async function mountReady() {
+    mountHomeHub(container, { navigate: vi.fn() });
+    await vi.waitFor(() => {
+      expect(container.querySelectorAll('.home-chat-session').length).toBe(2);
+    });
+  }
+
+  it('lists sessions and marks the current one active', async () => {
+    await mountReady();
+    const items = [...container.querySelectorAll('.home-chat-session')];
+    expect(items.map((el) => el.textContent)).toEqual([
+      'Hello from first',
+      'New conversation',
+    ]);
+    expect(
+      container.querySelector('[data-session-id="s2"]')?.classList.contains('is-active'),
+    ).toBe(true);
+  });
+
+  it('selects a session and hydrates its turns', async () => {
+    await mountReady();
+    container.querySelector('[data-session-id="s1"]').click();
+    await vi.waitFor(() => {
+      expect(invokeSpy).toHaveBeenCalledWith('select_chat_session', { sessionId: 's1' });
+      expect(container.querySelector('.home-chat-bubble--user')?.textContent).toBe(
+        'Hello from first',
+      );
+    });
+  });
+
+  it('creates a session from the left + control', async () => {
+    await mountReady();
+    container.querySelector('[data-role="new-session"]').click();
+    await vi.waitFor(() => {
+      expect(invokeSpy).toHaveBeenCalledWith('create_chat_session');
+      expect(container.querySelector('[data-session-id="s3"]')).not.toBeNull();
+    });
+  });
+
+  it('sends a bound turn and shows the reply', async () => {
+    await mountReady();
+    const input = container.querySelector('[data-role="input"]');
+    const form = container.querySelector('[data-role="form"]');
+    expect(input.disabled).toBe(false);
+    input.value = 'Hello there';
+    form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    await vi.waitFor(() => {
+      expect(invokeSpy).toHaveBeenCalledWith('agent_chat_turn', {
+        sessionId: 's2',
+        message: 'Hello there',
+      });
+      expect(container.textContent).toMatch(/Hi back/);
+    });
+  });
+
+  it('disables the composer when Binding is unbound', async () => {
+    bound = false;
+    mountHomeHub(container, { navigate: vi.fn() });
+    await vi.waitFor(() => {
+      expect(container.querySelector('[data-role="input"]').disabled).toBe(true);
+      expect(container.querySelector('[data-role="send"]').disabled).toBe(true);
+      expect(container.textContent).toMatch(/Chat requires a workspace Binding/);
+    });
+  });
+
+  it('shows date-time when a session has no title', async () => {
+    sessions = [{ session_id: 's9', title: '', updated_at: 1756272000 }];
+    currentId = 's9';
+    mountHomeHub(container, { navigate: vi.fn() });
+    await vi.waitFor(() => {
+      const item = container.querySelector('[data-session-id="s9"]');
+      expect(item).not.toBeNull();
+      expect(item.textContent).toMatch(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/);
+    });
+  });
+
+  it('keeps only the 20 most recent sessions from the host list', async () => {
+    sessions = Array.from({ length: 25 }, (_, i) => ({
+      session_id: `s${i}`,
+      title: `Chat ${i}`,
+    }));
+    currentId = 's0';
+    mountHomeHub(container, { navigate: vi.fn() });
+    await vi.waitFor(() => {
+      expect(container.querySelectorAll('.home-chat-session')).toHaveLength(20);
+    });
+  });
+
+  it('uses English chat chrome and the list/select/create commands', () => {
+    const source = readFileSync(
+      join(fixtureRoot, 'frontend/js/components/home-hub.js'),
+      'utf8',
+    );
+    expect(source).toMatch(/list_chat_sessions/);
+    expect(source).toMatch(/select_chat_session/);
+    expect(source).toMatch(/create_chat_session/);
+    expect(source).not.toMatch(/ensure_ai_assistant_session/);
+    mountHomeHub(container, { navigate: vi.fn() });
+    expect(container.querySelector('.home-chat-sessions-title')?.textContent).toBe('Chats');
+    expect(container.querySelector('.home-chat-composer-dock')).not.toBeNull();
+    expect(container.querySelector('[data-role="input"]')?.placeholder).toBe('Message…');
+    expect(container.querySelector('[data-role="send"]')?.textContent.trim()).toBe('Send');
+    expect(container.textContent).not.toMatch(/会话|发送|待办/);
+  });
+});
+
+describe('home hub composer and hub pairing', () => {
+  it('reserves a right rail so the composer dock does not sit under the global +', () => {
+    const appCss = readFileSync(join(fixtureRoot, 'frontend/app.css'), 'utf8');
+    expect(appCss).toMatch(/--home-chat-rail:\s*88px/);
+    expect(appCss).toMatch(/\.home-chat-composer-dock/);
+    expect(appCss).toMatch(/\.home-chat-composer-dock\s*\{[^}]*min-height:\s*40px/);
+    expect(appCss).toMatch(/\.home-chat-send\s*\{[^}]*width:\s*28px/);
+    expect(appCss).toMatch(/\.home-chat-bubble--user\s*\{[^}]*background:\s*#f0f2f4/);
+    expect(appCss).toMatch(
+      /\.home-chat-composer\s*\{[^}]*position:\s*absolute/,
+    );
+    expect(appCss).toMatch(
+      /\.home-chat-composer\s*\{[^}]*padding:[^;]*var\(--home-chat-rail\)/,
+    );
+    expect(appCss).toMatch(/\.home-chat-turn--user\s*\{[^}]*align-items:\s*flex-end/);
+    expect(appCss).toMatch(
+      /\.home-entry-shell__hub\s*\{[^}]*background:\s*#fff/,
+    );
   });
 });
 

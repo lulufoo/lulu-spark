@@ -15,8 +15,8 @@ const todoTaskAssistantHtmlPath = join(
   repoRoot,
   'frontend/todo-task-assistant.html',
 );
-const aiAssistantJs = readFileSync(
-  join(repoRoot, 'frontend/js/ai-assistant.js'),
+const homeHubJs = readFileSync(
+  join(repoRoot, 'frontend/js/components/home-hub.js'),
   'utf8',
 );
 const readLaterAssistantJs = readFileSync(
@@ -29,7 +29,7 @@ const todoTaskAssistantJs = readFileSync(
 );
 
 const assistantSources = [
-  aiAssistantJs,
+  homeHubJs,
   readLaterAssistantJs,
   todoTaskAssistantJs,
 ].join('\n');
@@ -41,24 +41,20 @@ describe('P2 copy-switch — Assistant pages (tech-doc T5)', () => {
     expect(existsSync(todoTaskAssistantHtmlPath)).toBe(false);
   });
 
-  it('ai-assistant uses table B2 Assistant branding and copy', () => {
-    // Branding lives in shell content module after independent HTML retirement (T4).
-    expect(aiAssistantJs).toContain('Assistant');
-    expect(aiAssistantJs).toContain('Unbound');
-    expect(aiAssistantJs).toContain('Bound');
-    expect(aiAssistantJs).toContain('Message…');
-    expect(aiAssistantJs).toContain('aria-label="Send"');
-    expect(aiAssistantJs).not.toContain('Bound:');
-    expect(aiAssistantJs).toContain('query_binding');
-    expect(aiAssistantJs).toContain('Tauri invoke unavailable');
-    expect(aiAssistantJs).toContain('Working…');
-    expect(aiAssistantJs).toContain('Busy — try again later');
-    expect(aiAssistantJs).toContain('Failed to send');
-    expect(aiAssistantJs).not.toContain('No todo bound');
-    expect(aiAssistantJs).not.toContain('No todo session bound');
-    expect(aiAssistantJs).not.toContain('待办助手');
-    expect(aiAssistantJs).not.toContain('尚未绑定');
-    expect(aiAssistantJs).not.toContain('发送');
+  it('Home chat uses English Assistant copy', () => {
+    expect(existsSync(join(repoRoot, 'frontend/js/ai-assistant.js'))).toBe(false);
+    expect(homeHubJs).toContain('Chats');
+    expect(homeHubJs).toContain('Message…');
+    expect(homeHubJs).toContain('Send');
+    expect(homeHubJs).toContain('query_binding');
+    expect(homeHubJs).toContain('Busy — try again later');
+    expect(homeHubJs).toContain('Failed to send');
+    expect(homeHubJs).toContain('Chat requires a workspace Binding.');
+    expect(homeHubJs).not.toContain('No todo bound');
+    expect(homeHubJs).not.toContain('No todo session bound');
+    expect(homeHubJs).not.toContain('待办助手');
+    expect(homeHubJs).not.toContain('尚未绑定');
+    expect(homeHubJs).not.toContain('发送');
   });
 
   it('read-later-assistant uses table A/B/B2 English copy', () => {

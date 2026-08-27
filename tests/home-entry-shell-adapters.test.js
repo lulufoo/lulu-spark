@@ -3,7 +3,7 @@
  * T6: four business content adapters mount into the shell content slot;
  * own chrome (FAB / popover / modal host) is retired; host callbacks remain.
  */
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
@@ -32,16 +32,12 @@ vi.mock('../frontend/js/feed.js', () => ({
 }));
 
 import { createContentRegistry } from '../frontend/js/home-entry-shell/content-registry.js';
-import {
-  getAiAssistantEntry,
-  getBaselineEntries,
-} from '../frontend/js/home-entry-shell/entry-config.js';
+import { getBaselineEntries } from '../frontend/js/home-entry-shell/entry-config.js';
 import { mountHomeEntryShell } from '../frontend/js/home-entry-shell/shell.js';
 import { createReadLaterContentAdapter } from '../frontend/js/read-later-assistant.js';
 import { createTodoTaskContentAdapter } from '../frontend/js/todo-task-assistant.js';
 import { createNotesContentAdapter } from '../frontend/js/note-assistant.js';
 import { createBuildersContentAdapter } from '../frontend/js/builders-assistant.js';
-import { createAiAssistantContentAdapter } from '../frontend/js/ai-assistant.js';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -249,64 +245,19 @@ describe('home-entry-shell adapters (T6)', () => {
   });
 });
 
-/**
- * T2: AI bypass entry + ContentAdapter registration + C_AI mount.
- * Entry is pinned (not getBaselineEntries); adapter registers in main.js only.
- */
-describe('home-entry-shell adapters · AI bypass ContentAdapter (T2)', () => {
-  beforeEach(() => {
-    document.body.innerHTML = '';
-  });
-
-  afterEach(() => {
-    document.body.innerHTML = '';
-  });
-
-  it('getAiAssistantEntry exposes id/contentKey=ai-assistant outside getBaselineEntries', () => {
-    const ai = getAiAssistantEntry();
-    expect(ai).toBeTruthy();
-    expect(ai.id).toBe('ai-assistant');
-    expect(ai.contentKey).toBe('ai-assistant');
-    expect(typeof ai.title).toBe('string');
-    expect(ai.title.length).toBeGreaterThan(0);
-    expect(typeof ai.overlayTitle).toBe('string');
-    expect(ai.overlayTitle.length).toBeGreaterThan(0);
-    expect(typeof ai.fabClass).toBe('string');
-    expect(ai.fabClass.length).toBeGreaterThan(0);
-
-    const baseline = getBaselineEntries();
-    expect(baseline.some((e) => e.id === 'ai-assistant')).toBe(false);
-    expect(baseline.some((e) => e.contentKey === 'ai-assistant')).toBe(false);
-  });
-
-  it('createAiAssistantContentAdapter mounts interactive chat UI into the slot', () => {
-    const adapter = createAiAssistantContentAdapter();
-    expect(typeof adapter.mount).toBe('function');
-
-    const slot = document.createElement('div');
-    document.body.appendChild(slot);
-    const handle = adapter.mount(slot, { host: {} });
-    expect(handle && typeof handle.unmount).toBe('function');
-
-    expect(slot.querySelector('.ai-assistant-messages')).not.toBeNull();
-    expect(slot.querySelector('.ai-assistant-composer')).not.toBeNull();
-    expect(slot.querySelector('[data-role="input"]')).not.toBeNull();
-    expect(slot.querySelector('[data-role="send"]')).not.toBeNull();
-    // Shell owns chrome; adapter must not invent its own FAB / independent-window chrome.
-    expect(slot.querySelector('[class*="-fab"]')).toBeNull();
-
-    handle.unmount();
-    expect(slot.querySelector('.ai-assistant-composer')).toBeNull();
-  });
-
-  it('main.js registers ai-assistant adapter beside baseline; content-registry.js stays factory-only', () => {
+describe('home-entry-shell adapters · Assistant overlay retired', () => {
+  it('does not ship an Assistant pin, adapter, or overlay module', () => {
     const mainSrc = readMain();
-    expect(mainSrc).toMatch(/createAiAssistantContentAdapter/);
-    expect(mainSrc).toMatch(
-      /\.register\(\s*['"]ai-assistant['"]\s*,\s*createAiAssistantContentAdapter\s*\(\s*\)\s*\)/,
+    expect(mainSrc).not.toMatch(/createAiAssistantContentAdapter/);
+    expect(mainSrc).not.toMatch(/getAiAssistantEntry/);
+    expect(mainSrc).not.toMatch(/\baiEntry\s*:/);
+
+    const configSrc = readFileSync(
+      join(repoRoot, 'frontend/js/home-entry-shell/entry-config.js'),
+      'utf8',
     );
-    expect(mainSrc).toMatch(/getAiAssistantEntry/);
-    expect(mainSrc).toMatch(/\baiEntry\s*:/);
+    expect(configSrc).not.toMatch(/getAiAssistantEntry/);
+    expect(configSrc).not.toMatch(/ai-assistant/);
 
     const registrySrc = readFileSync(
       join(repoRoot, 'frontend/js/home-entry-shell/content-registry.js'),
@@ -314,100 +265,9 @@ describe('home-entry-shell adapters · AI bypass ContentAdapter (T2)', () => {
     );
     expect(registrySrc).not.toMatch(/ai-assistant/);
     expect(registrySrc).not.toMatch(/createAiAssistantContentAdapter/);
-    expect(registrySrc).not.toMatch(/\.register\s*\(/);
-  });
 
-  it('ai-assistant adapter reuses mountAiAssistant and does not Reset or switch live', () => {
-    const src = readFileSync(join(repoRoot, 'frontend/js/ai-assistant.js'), 'utf8');
-    expect(src).toMatch(/export\s+function\s+createAiAssistantContentAdapter\s*\(/);
-    const factoryIdx = src.indexOf('function createAiAssistantContentAdapter');
-    expect(factoryIdx).toBeGreaterThanOrEqual(0);
-    const factoryBody = src.slice(factoryIdx);
-    expect(factoryBody).toMatch(/mountAiAssistant\s*\(/);
-    expect(src).not.toMatch(/reset_binding|resetBinding|reset_ai_assistant/);
-    expect(src).not.toMatch(/switch[_]?live|set_live_session/);
-  });
-
-  it('smoke: A shows AI bypass; C_AI mounts interactive chat via registered adapter', async () => {
-    const registry = createContentRegistry();
-    registerAll(registry);
-    registry.register('ai-assistant', createAiAssistantContentAdapter());
-
-    const config = getBaselineEntries();
-    const aiEntry = getAiAssistantEntry();
-    const anchor = document.createElement('div');
-    document.body.appendChild(anchor);
-    const shell = mountHomeEntryShell(anchor, {
-      config,
-      aiEntry,
-      registry,
-      host: {},
-    });
-
-    expect(shell.getState().mode).toBe('A');
-    const aiBtn = anchor.querySelector(
-      '[data-role="ai-entry"], [data-entry-id="ai-assistant"]',
-    );
-    expect(aiBtn).not.toBeNull();
-    expect(aiBtn.hidden).toBe(false);
-
-    aiBtn.click();
-    await vi.waitFor(() => {
-      expect(shell.getState()).toEqual({ mode: 'C', entryId: 'ai-assistant' });
-    });
-
-    const overlay = anchor.querySelector('[data-role="overlay"]');
-    expect(overlay.hidden).toBe(false);
-    const slot = anchor.querySelector('[data-role="content-slot"]');
-    await vi.waitFor(() => {
-      expect(slot.querySelector('.ai-assistant-composer')).not.toBeNull();
-      expect(slot.querySelector('[data-role="input"]')).not.toBeNull();
-    });
-    // Composer controls are present and wired (disabled until Binding Contract bound is OK).
-    const input = slot.querySelector('[data-role="input"]');
-    const send = slot.querySelector('[data-role="send"]');
-    const form = slot.querySelector('[data-role="form"]');
-    expect(input).toBeInstanceOf(HTMLTextAreaElement);
-    expect(send).toBeInstanceOf(HTMLButtonElement);
-    expect(form).toBeInstanceOf(HTMLFormElement);
-    expect(() => form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))).not.toThrow();
-
-    shell.unmount();
-  });
-
-  // T7 / L22-VF: B/C hide AI entry (adapter registry still mounted; visibility is shell).
-  it('B/C hide AI entry while baseline adapters remain registered', async () => {
-    const registry = createContentRegistry();
-    registerAll(registry);
-    registry.register('ai-assistant', createAiAssistantContentAdapter());
-
-    const config = getBaselineEntries();
-    const aiEntry = getAiAssistantEntry();
-    const anchor = document.createElement('div');
-    document.body.appendChild(anchor);
-    const shell = mountHomeEntryShell(anchor, {
-      config,
-      aiEntry,
-      registry,
-      host: {},
-    });
-
-    const aiBtn = anchor.querySelector(
-      '[data-role="ai-entry"], [data-entry-id="ai-assistant"]',
-    );
-    expect(aiBtn).not.toBeNull();
-    expect(aiBtn.hidden).toBe(false);
-
-    anchor.querySelector('[data-role="hub"]').click();
-    expect(shell.getState().mode).toBe('B');
-    expect(aiBtn.hidden).toBe(true);
-
-    await shell.openContent('notes');
-    expect(shell.getState()).toEqual({ mode: 'C', entryId: 'notes' });
-    expect(aiBtn.hidden).toBe(true);
-    // VF 否证: B/C 仍显 AI → fail above. Adapter registration remains for remount.
-    expect(registry.get('ai-assistant')).toBeTruthy();
-
-    shell.unmount();
+    expect(existsSync(join(repoRoot, 'frontend/js/ai-assistant.js'))).toBe(false);
+    const baseline = getBaselineEntries();
+    expect(baseline.some((e) => e.id === 'ai-assistant')).toBe(false);
   });
 });

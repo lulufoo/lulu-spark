@@ -19,14 +19,13 @@ import { openBindDialog } from './components/modals/bind-dialog.js'
 import { openSettingsDialog } from './components/modals/settings-dialog.js'
 import { initRouter, navigate, navigateToNote } from './router/index.js'
 import { openReadLaterDialog } from './components/modals/read-later-dialog.js'
-import { getAiAssistantEntry, getBaselineEntries } from './home-entry-shell/entry-config.js'
+import { getBaselineEntries } from './home-entry-shell/entry-config.js'
 import { createContentRegistry } from './home-entry-shell/content-registry.js'
 import { mountHomeEntryShell } from './home-entry-shell/shell.js'
 import { createReadLaterContentAdapter } from './read-later-assistant.js'
 import { createTodoTaskContentAdapter } from './todo-task-assistant.js'
 import { createNotesContentAdapter } from './note-assistant.js'
 import { createBuildersContentAdapter } from './builders-assistant.js'
-import { createAiAssistantContentAdapter } from './ai-assistant.js'
 import { applySearchNavChrome } from './nav-chrome.js'
 import { initWorkbenchSearch } from './components/workbench-search.js'
 import { initCorpusSearch } from './components/corpus-search.js'
@@ -1004,11 +1003,9 @@ homeEntryRegistry.register('read-later', createReadLaterContentAdapter());
 homeEntryRegistry.register('todo-task', createTodoTaskContentAdapter());
 homeEntryRegistry.register('notes', createNotesContentAdapter());
 homeEntryRegistry.register('builders', createBuildersContentAdapter());
-homeEntryRegistry.register('ai-assistant', createAiAssistantContentAdapter());
 
 homeEntryShell = mountHomeEntryShell(document.body, {
   config: getBaselineEntries(),
-  aiEntry: getAiAssistantEntry(),
   registry: homeEntryRegistry,
   host: {
     navigate,
@@ -1023,39 +1020,22 @@ let pendingPresentOpen = false;
 
 /**
  * ai-assistant:opened consumer (main window).
- * surface===Present → shell C_AI; ensure/session payloads sync only (no openEntry).
+ * surface===Present → Home chat; ensure/session payloads sync only (no overlay).
  * @param {unknown} payload
  */
 function handleAiAssistantOpenedPayload(payload) {
   if (!payload || typeof payload !== 'object') return;
   if (/** @type {{ surface?: unknown }} */ (payload).surface === 'Present') {
-    if (!homeEntryShell) {
-      pendingPresentOpen = true;
-      return;
-    }
     pendingPresentOpen = false;
-    void homeEntryShell.presentNormalize();
+    navigate('#/home');
   }
-  // ensure / other opened payloads: no shell open (Present≠ensure).
 }
 
 /** Pull frontend pending + Host pending_present once after mount/listen. */
 async function pullPendingPresentOpen() {
-  if (pendingPresentOpen && homeEntryShell) {
+  if (pendingPresentOpen) {
     pendingPresentOpen = false;
-    await homeEntryShell.presentNormalize();
-  }
-  const invoke =
-    typeof window !== 'undefined' &&
-    (window.__TAURI__?.core?.invoke || window.__TAURI_INTERNALS__?.invoke);
-  if (typeof invoke !== 'function' || !homeEntryShell) return;
-  try {
-    const state = await invoke('get_ai_assistant_binding');
-    if (state && typeof state === 'object' && state.pending_present) {
-      await homeEntryShell.presentNormalize();
-    }
-  } catch {
-    // Non-fatal; listener path may still open.
+    navigate('#/home');
   }
 }
 

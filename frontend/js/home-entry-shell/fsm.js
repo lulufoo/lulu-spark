@@ -1,11 +1,7 @@
 /**
  * Home-entry shell A/B/C state machine.
- * Legal edges: A↔B, B↔C; AI bypass A→C_AI / C_AI→A / C_AI openHub→C→A→B
- * (entry id ai-assistant). Switch business via C→B→C.
+ * Legal edges: A↔B, B↔C, C→B (closeOverlay), C→B→C (switch entry).
  */
-
-/** Locked AI bypass entry id (Present / corner click). */
-export const AI_ASSISTANT_ENTRY_ID = 'ai-assistant';
 
 /**
  * @typedef {'A' | 'B' | 'C'} FsmMode
@@ -52,18 +48,6 @@ export function createHomeEntryFsm(initial) {
     }
 
     if (event.type === 'openHub') {
-      // C_AI + hub conflict: composite C→A→B (business C stays rejected).
-      if (mode === 'C' && entryId === AI_ASSISTANT_ENTRY_ID) {
-        mode = 'B';
-        entryId = null;
-        return {
-          accepted: true,
-          transitions: [
-            { from: 'C', to: 'A' },
-            { from: 'A', to: 'B' },
-          ],
-        };
-      }
       if (mode !== 'A') {
         return { accepted: false, transitions: [] };
       }
@@ -73,7 +57,6 @@ export function createHomeEntryFsm(initial) {
 
     if (event.type === 'closeHub') {
       if (mode !== 'B') {
-        // C: keep C; A: no-op
         return { accepted: false, transitions: [] };
       }
       mode = 'A';
@@ -81,14 +64,8 @@ export function createHomeEntryFsm(initial) {
     }
 
     if (event.type === 'openEntry') {
-      // A→C_AI only (hub business openEntry remains B-only).
       if (mode === 'A') {
-        if (event.entryId !== AI_ASSISTANT_ENTRY_ID) {
-          return { accepted: false, transitions: [] };
-        }
-        mode = 'C';
-        entryId = event.entryId;
-        return { accepted: true, transitions: [{ from: 'A', to: 'C' }] };
+        return { accepted: false, transitions: [] };
       }
       if (mode === 'B') {
         mode = 'C';
@@ -99,7 +76,6 @@ export function createHomeEntryFsm(initial) {
         if (event.entryId === entryId) {
           return { accepted: false, transitions: [] };
         }
-        // Must go through B — no C→C direct edge
         const transitions = [
           { from: /** @type {FsmMode} */ ('C'), to: /** @type {FsmMode} */ ('B') },
           { from: /** @type {FsmMode} */ ('B'), to: /** @type {FsmMode} */ ('C') },
@@ -114,12 +90,6 @@ export function createHomeEntryFsm(initial) {
     if (event.type === 'closeOverlay') {
       if (mode !== 'C') {
         return { accepted: false, transitions: [] };
-      }
-      // C_AI→A; business C→B
-      if (entryId === AI_ASSISTANT_ENTRY_ID) {
-        mode = 'A';
-        entryId = null;
-        return { accepted: true, transitions: [{ from: 'C', to: 'A' }] };
       }
       mode = 'B';
       entryId = null;

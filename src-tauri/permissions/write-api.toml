@@ -61,6 +61,8 @@ commands.allow = [
   "ensure_ai_assistant_session",
   "shell_close_ai_assistant",
   "get_ai_assistant_binding",
+  "select_chat_session",
+  "create_chat_session",
   "set_binding",
   "reset_binding",
   "defensive_unbound",

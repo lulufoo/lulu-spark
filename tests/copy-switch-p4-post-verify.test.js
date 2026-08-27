@@ -16,7 +16,7 @@ const TABLE_A_BRANDS = [
   { zh: 'Todos', en: 'Todos', file: 'frontend/js/components/home-hub.js' },
   { zh: 'LuLu Workbench', en: 'LuLu Workbench', file: 'frontend/index.html' },
   { zh: '笔记助手', en: 'Notes Assistant', file: 'frontend/js/note-assistant.js' },
-  { zh: 'AI 助手', en: 'Assistant', file: 'frontend/js/ai-assistant.js' },
+  { zh: 'AI 助手', en: 'Chats', file: 'frontend/js/components/home-hub.js' },
   { zh: 'Read Later 助手', en: 'Read Later', file: 'frontend/js/read-later-assistant.js' },
 ];
 

@@ -10,7 +10,8 @@ const aiAssistantCmd = readFileSync(
   'utf8',
 );
 const htmlPath = join(repoRoot, 'frontend/ai-assistant.html');
-const jsPath = join(repoRoot, 'frontend/js/ai-assistant.js');
+const retiredJsPath = join(repoRoot, 'frontend/js/ai-assistant.js');
+const homeHubPath = join(repoRoot, 'frontend/js/components/home-hub.js');
 const capabilityPath = join(
   repoRoot,
   'src-tauri/capabilities/ai-assistant.json',
@@ -22,41 +23,45 @@ const defaultCapabilityPath = join(
 const appCssPath = join(repoRoot, 'frontend/app.css');
 
 describe('ai-assistant window shell (t5)', () => {
-  it('retires independent-window HTML; keeps shell AI content module', () => {
-    // T4 / L16-T: retire frontend/ai-assistant.html window carrier; chat UI stays in ai-assistant.js for shell content.
+  it('retires independent-window HTML and overlay chat module', () => {
     expect(existsSync(htmlPath), 'frontend/ai-assistant.html retired').toBe(
       false,
     );
-    expect(existsSync(jsPath), 'frontend/js/ai-assistant.js').toBe(true);
-    const js = readFileSync(jsPath, 'utf8');
-    expect(js).toMatch(/mountAiAssistant|createAiAssistantContentAdapter/);
+    expect(existsSync(retiredJsPath), 'frontend/js/ai-assistant.js retired').toBe(
+      false,
+    );
+    expect(existsSync(homeHubPath), 'Home chat module').toBe(true);
+    const js = readFileSync(homeHubPath, 'utf8');
+    expect(js).toMatch(/mountHomeHub/);
+    expect(js).toMatch(/list_chat_sessions|create_chat_session/);
   });
 
-  it('migrates retired chat layout styles into the main application stylesheet', () => {
+  it('Home chat layout styles live in the main application stylesheet', () => {
     const appCss = readFileSync(appCssPath, 'utf8');
-    expect(appCss).toMatch(/\.ai-assistant-panel/);
-    expect(appCss).toMatch(/\.ai-assistant-messages/);
-    expect(appCss).toMatch(/\.ai-assistant-bubble--user/);
-    expect(appCss).toMatch(/\.ai-assistant-composer/);
+    expect(appCss).toMatch(/\.home-chat-messages/);
+    expect(appCss).toMatch(/\.home-chat-bubble--user/);
+    expect(appCss).toMatch(/\.home-chat-composer/);
+    expect(appCss).not.toMatch(/\.ai-assistant-panel/);
+    expect(appCss).not.toMatch(/\.ai-assistant-fab\b/);
   });
 
   it('UI invokes agent_chat_turn and does not call plan write APIs', () => {
-    const js = readFileSync(jsPath, 'utf8');
+    const js = readFileSync(homeHubPath, 'utf8');
     expect(js).toMatch(/agent_chat_turn/);
     expect(js).not.toMatch(
       /add_todo_sub|update_todo_sub|update_todo_master_title|create_todo_task/,
     );
   });
 
-  it('UI pulls get_ai_assistant_binding after listen to heal first-open race', () => {
-    const js = readFileSync(jsPath, 'utf8');
+  it('UI pulls get_ai_assistant_binding after list to hydrate the current session', () => {
+    const js = readFileSync(homeHubPath, 'utf8');
     expect(js).toMatch(/get_ai_assistant_binding/);
     expect(aiAssistantCmd).toMatch(/get_ai_assistant_binding/);
     expect(libRs).toMatch(/get_ai_assistant_binding/);
   });
 
-  it('SK-3 T5: binding exposes turns; UI hydrates without Reset/切 live', () => {
-    const js = readFileSync(jsPath, 'utf8');
+  it('SK-3 T5: binding exposes turns; Home hydrates without Reset', () => {
+    const js = readFileSync(homeHubPath, 'utf8');
     const loopRs = readFileSync(
       join(repoRoot, 'src-tauri/src/services/agent/loop.rs'),
       'utf8',
@@ -65,21 +70,18 @@ describe('ai-assistant window shell (t5)', () => {
       join(repoRoot, 'src-tauri/src/services/agent/session.rs'),
       'utf8',
     );
-    // Host binding read path includes turns; disk via load_session.
     expect(loopRs).toMatch(/get_ai_assistant_binding_core[\s\S]*turns/);
     expect(sessionRs).toMatch(/load_session/);
-    // Shell hydrate on mount/re-show; must not Reset or switch live from content.
     expect(js).toMatch(/hydrateTurns/);
-    expect(js).toMatch(/shell_close_ai_assistant/);
     expect(js).not.toMatch(/invoke\(\s*['"]reset_binding['"]/);
   });
 
   it('composer eligibility follows Binding Contract query_binding, not todo session', () => {
-    const js = readFileSync(jsPath, 'utf8');
+    const js = readFileSync(homeHubPath, 'utf8');
     expect(js).toMatch(/query_binding/);
     expect(js).toMatch(/ai-assistant:binding-changed/);
     expect(js).toMatch(/hostBound/);
-    expect(js).toMatch(/Unbound/);
+    expect(js).toMatch(/Chat requires a workspace Binding/);
     expect(js).not.toMatch(/No todo bound/);
     expect(js).not.toMatch(/setComposerEnabled\(Boolean\(sessionId\)/);
   });
@@ -153,14 +155,10 @@ describe('ai-assistant window shell (t5)', () => {
     expect(ensureCore).not.toMatch(/entry_id/);
   });
 
-  it('shell dispose/close does not invoke Binding Contract Reset', () => {
-    const js = readFileSync(jsPath, 'utf8');
+  it('Home unmount does not invoke Binding Contract Reset', () => {
+    const js = readFileSync(homeHubPath, 'utf8');
     expect(js).not.toMatch(/reset_binding/);
-    // Present≠bound: shell may observe Host Present, but must not treat open as Set.
-    expect(js).toMatch(/Present/);
-    expect(js).toMatch(
-      /query_binding|binding_state|unbound|Present≠|Present !=|Present !==|not imply Set|does not imply Set/i,
-    );
+    expect(js).toMatch(/query_binding/);
   });
 
   it('J1 / H1 acceptance is kernel-API driven, not business UI click as sole driver', () => {
@@ -181,14 +179,11 @@ describe('ai-assistant window shell (t5)', () => {
     );
   });
 
-  it('T5 shell discards cached sessionId on binding-changed Unbound/new Bound', () => {
-    const js = readFileSync(jsPath, 'utf8');
-    // Unbound / new Bound must clear cached sessionId; composer stays gated by query_binding/hostBound.
-    expect(js).toMatch(/sessionId\s*=\s*['"]['"]/);
-    expect(js).toMatch(/applyHostContractState/);
+  it('T5 Home discards the current session on binding-changed Unbound', () => {
+    const js = readFileSync(homeHubPath, 'utf8');
+    expect(js).toMatch(/currentId\s*=\s*['"]['"]/);
     expect(js).toMatch(/ai-assistant:binding-changed/);
     expect(js).toMatch(/query_binding/);
-    // Must not keep driving execute from a stale cached session after cut/rebind.
     expect(js).toMatch(/hostBound/);
   });
 
@@ -234,8 +229,8 @@ describe('ai-assistant window shell (t5)', () => {
 });
 
 /**
- * T7 / L21-T / L22-VF — Present shell-in / no window / ensure / race / hydrate
- * (migrated from Present→create_or_focus window contract).
+ * T7 / L21-T / L22-VF — Present opens Home chat / no window / ensure / race / hydrate
+ * (migrated from Present→overlay / create_or_focus window contract).
  */
 describe('ai-assistant Present shell VF (t7)', () => {
   const mainJs = readFileSync(join(repoRoot, 'frontend/js/main.js'), 'utf8');
@@ -244,28 +239,29 @@ describe('ai-assistant Present shell VF (t7)', () => {
     'utf8',
   );
 
-  it('Present opens shell C_AI only: main listens surface Present → presentNormalize', () => {
+  it('Present opens Home only: main listens surface Present → navigate #/home', () => {
     expect(mainJs).toMatch(/ai-assistant:opened/);
-    expect(mainJs).toMatch(/presentNormalize\s*\(/);
+    expect(mainJs).toMatch(/navigate\('#\/home'\)/);
     expect(mainJs).toMatch(/surface\s*===\s*['"]Present['"]|surface\s*===\s*"Present"/);
+    expect(mainJs).not.toMatch(/handleAiAssistantOpenedPayload[\s\S]{0,400}presentNormalize/);
     // Migrated: must not call create_or_focus / WebviewWindow from Present path.
     expect(mainJs).not.toMatch(/create_or_focus_ai_assistant_window/);
     expect(mainJs).not.toMatch(/WebviewWindow/);
   });
 
-  it('ensure does not open shell: only Present surface drives presentNormalize', () => {
-    // L09-AR / L22-VF ensure: session payloads sync only — no openEntry.
+  it('ensure does not open Home: only Present surface navigates', () => {
+    // L09-AR / L22-VF ensure: session payloads sync only — no overlay / no Home jump.
     expect(mainJs).toMatch(/pendingPresentOpen|pullPendingPresentOpen/);
     expect(mainJs).toMatch(/ensure|session_id/);
-    // Branch: surface Present opens; otherwise (ensure) must not call presentNormalize in that arm.
     const handler = mainJs.match(
-      /function\s+onAiAssistantOpened[\s\S]*?^}/m,
+      /function\s+handleAiAssistantOpenedPayload[\s\S]*?^}/m,
     )?.[0] || mainJs.match(
       /ai-assistant:opened[\s\S]{0,1200}?surface[\s\S]{0,800}/,
     )?.[0];
     expect(handler, 'opened handler with surface branch').toBeTruthy();
     expect(handler).toMatch(/Present/);
-    expect(handler).toMatch(/presentNormalize/);
+    expect(handler).toMatch(/navigate\('#\/home'\)/);
+    expect(handler).not.toMatch(/presentNormalize/);
   });
 
   it('Present race heal: pending_present Host flag + mount pull', () => {
@@ -276,17 +272,15 @@ describe('ai-assistant Present shell VF (t7)', () => {
     expect(aiAssistantCmd).toMatch(/get_ai_assistant_binding|pending_present/);
   });
 
-  it('hydrate turns on binding read; close shell ≠ Reset (VF 水合 / 否证)', () => {
-    const js = readFileSync(jsPath, 'utf8');
+  it('hydrate turns on binding read; Home unmount ≠ Reset', () => {
+    const js = readFileSync(homeHubPath, 'utf8');
     expect(js).toMatch(/hydrateTurns/);
     expect(loopRs).toMatch(/get_ai_assistant_binding_core[\s\S]*turns/);
-    // 否证: 关弹层误 Reset — dispose/shell_close must not invoke reset_binding.
-    expect(js).toMatch(/shell_close_ai_assistant/);
     expect(js).not.toMatch(/invoke\(\s*['"]reset_binding['"]/);
   });
 
-  it('idempotent Present: presentNormalize kept; no second window create path', () => {
-    expect(mainJs).toMatch(/presentNormalize/);
+  it('idempotent Present: Home navigation kept; no second window create path', () => {
+    expect(mainJs).toMatch(/navigate\('#\/home'\)/);
     expect(aiAssistantCmd).not.toMatch(/create_or_focus_ai_assistant_window/);
     expect(libRs).not.toMatch(/fn create_or_focus_ai_assistant_window\s*\(/);
   });

@@ -8,6 +8,7 @@ use crate::services::agent::engine_router::{
     self, AdapterKind, EngineKind, EngineRouteError, EngineRuntimeConfig, TurnInput,
 };
 use crate::services::agent::session::{self, value_exposes_engine_selection};
+use crate::test_support::TestSandbox;
 
 fn settings_with_engine(value: &str) -> AppSettings {
     let mut settings = AppSettings::default();
@@ -132,10 +133,9 @@ fn route_result_does_not_expose_engine_selection_to_session_callers() {
     let json = serde_json::to_value(&outcome).expect("serialize");
     assert!(!value_exposes_engine_selection(&json), "route leaked engine: {json}");
 
-    let session = session::create_session(None, None);
-    if let Ok(session) = session {
-        let json = serde_json::to_value(&session).expect("serialize session");
-        assert!(!value_exposes_engine_selection(&json));
-        assert!(json.get("assistant_engine").is_none());
-    }
+    let _sandbox = TestSandbox::new();
+    let session = session::create_session(None, None).expect("isolated session");
+    let json = serde_json::to_value(&session).expect("serialize session");
+    assert!(!value_exposes_engine_selection(&json));
+    assert!(json.get("assistant_engine").is_none());
 }

@@ -131,16 +131,14 @@ describe('home-entry-shell main wiring (T5)', () => {
     );
   });
 
-  it('main.js listens ai-assistant:opened; Present surface → presentNormalize; ensure does not open', () => {
-    // T3 / L09-AR / L11-AR: main-window bridge opens shell C_AI only for surface Present.
+  it('main.js listens ai-assistant:opened; Present surface → Home, not the FAB overlay', () => {
     const source = readMain();
     expect(source).toMatch(/ai-assistant:opened/);
-    expect(source).toMatch(/presentNormalize\s*\(/);
     expect(source).toMatch(/surface/);
     expect(source).toMatch(/['"]Present['"]/);
-    // Race: stash pending Present before listener ready, pull once after mount.
+    expect(source).toMatch(/navigate\('#\/home'\)/);
+    expect(source).not.toMatch(/handleAiAssistantOpenedPayload[\s\S]{0,400}presentNormalize/);
     expect(source).toMatch(/pending/i);
-    // Must not sync shell state via OS focus.
     expect(source).not.toMatch(/setFocus|set_focus/);
   });
 });
