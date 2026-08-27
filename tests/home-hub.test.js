@@ -121,10 +121,20 @@ describe('home hub chat sessions', () => {
   let sessions;
   let currentId;
   let bound;
+  let listenHandlers;
 
   beforeEach(() => {
     container = document.createElement('div');
     document.body.appendChild(container);
+    listenHandlers = {};
+    window.__TAURI__ = {
+      event: {
+        listen: vi.fn(async (name, handler) => {
+          listenHandlers[name] = handler;
+          return vi.fn();
+        }),
+      },
+    };
     sessions = [
       { session_id: 's1', title: 'Hello from first' },
       { session_id: 's2', title: 'New conversation' },
@@ -161,6 +171,7 @@ describe('home hub chat sessions', () => {
   afterEach(() => {
     invokeSpy.mockRestore();
     container.remove();
+    delete window.__TAURI__;
   });
 
   async function mountReady() {
@@ -191,6 +202,84 @@ describe('home hub chat sessions', () => {
         'Hello from first',
       );
     });
+  });
+
+  it('hydrates select when the host payload uses sessionId', async () => {
+    invokeSpy.mockImplementation(async (cmd, args) => {
+      if (cmd === 'query_binding') return { state: 'bound' };
+      if (cmd === 'list_chat_sessions') {
+        return { sessions, current_session_id: currentId };
+      }
+      if (cmd === 'select_chat_session') {
+        currentId = String(args?.sessionId || '');
+        return {
+          sessionId: currentId,
+          turns: [{ role: 'user', content: 'Hello from first' }],
+        };
+      }
+      if (cmd === 'get_ai_assistant_binding') {
+        return { session_id: currentId, turns: [] };
+      }
+      return {};
+    });
+    await mountReady();
+    container.querySelector('[data-session-id="s1"]').click();
+    await vi.waitFor(() => {
+      expect(container.querySelector('.home-chat-bubble--user')?.textContent).toBe(
+        'Hello from first',
+      );
+    });
+  });
+
+  it('does not let a stale binding pull wipe a selected session', async () => {
+    await mountReady();
+    await vi.waitFor(() => {
+      expect(listenHandlers['ai-assistant:binding-changed']).toBeTruthy();
+    });
+    let releaseStale;
+    const stale = new Promise((resolve) => {
+      releaseStale = resolve;
+    });
+    let bindingPulls = 0;
+    invokeSpy.mockImplementation(async (cmd, args) => {
+      if (cmd === 'query_binding') return { state: 'bound' };
+      if (cmd === 'list_chat_sessions') {
+        return { sessions, current_session_id: currentId };
+      }
+      if (cmd === 'select_chat_session') {
+        currentId = String(args?.sessionId || '');
+        return {
+          session_id: 's1',
+          turns: [{ role: 'user', content: 'Hello from first' }],
+        };
+      }
+      if (cmd === 'get_ai_assistant_binding') {
+        bindingPulls += 1;
+        if (bindingPulls > 1) {
+          await stale;
+          return { session_id: 's2', turns: [] };
+        }
+        return { session_id: currentId, turns: [] };
+      }
+      return {};
+    });
+    const rebound = listenHandlers['ai-assistant:binding-changed']({
+      payload: { state: 'bound' },
+    });
+    await vi.waitFor(() => {
+      expect(bindingPulls).toBeGreaterThan(0);
+    });
+    container.querySelector('[data-session-id="s1"]').click();
+    await vi.waitFor(() => {
+      expect(container.querySelector('.home-chat-bubble--user')?.textContent).toBe(
+        'Hello from first',
+      );
+    });
+    releaseStale();
+    await rebound;
+    expect(container.querySelector('.home-chat-bubble--user')?.textContent).toBe(
+      'Hello from first',
+    );
   });
 
   it('creates a session from the left + control', async () => {

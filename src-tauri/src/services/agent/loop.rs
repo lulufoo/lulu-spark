@@ -1281,8 +1281,8 @@ fn plan_title(master_task_id: &str) -> Option<String> {
 /// Current chat session for the assistant window (may be empty if never opened).
 /// Does not expose business master id / title (stripped from Host surface).
 /// `pending_present` is taken (cleared) on pull so mount can heal Present-before-listen races.
-/// Extends with live-session `turns` (read-only hydrate via `session::load_session`);
-/// empty when no live / after Reset.
+/// Extends with live-session display `turns` (user/assistant text via
+/// `session::load_turns_value`); empty when no live / after Reset.
 pub fn get_ai_assistant_binding_core() -> Value {
     let (session_id, busy, pending_present) = {
         let mut rt = runtime().lock().unwrap();

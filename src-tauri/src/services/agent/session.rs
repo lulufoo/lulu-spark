@@ -473,15 +473,36 @@ pub fn list_session_summaries() -> Result<Vec<Value>, String> {
     Ok(items.into_iter().map(|(_, v)| v).collect())
 }
 
-/// Read-only turns for binding hydrate. Empty when no live session / load fails.
+/// Read-only turns for Home / binding hydrate. Empty when no live session / load fails.
+///
+/// User and assistant text only. Tool dumps stay on disk and must not ride the
+/// IPC — a single `list_todo_tasks` result can be hundreds of KB.
 pub fn load_turns_value(session_id: &str) -> Value {
     let id = session_id.trim();
     if id.is_empty() {
         return Value::Array(Vec::new());
     }
     match load_session(id) {
-        Ok(session) => serde_json::to_value(&session.turns)
-            .unwrap_or_else(|_| Value::Array(Vec::new())),
+        Ok(session) => Value::Array(
+            session
+                .turns
+                .iter()
+                .filter(|turn| {
+                    (turn.role == "user" || turn.role == "assistant")
+                        && turn
+                            .content
+                            .as_deref()
+                            .map(|text| !text.is_empty())
+                            .unwrap_or(false)
+                })
+                .map(|turn| {
+                    json!({
+                        "role": turn.role,
+                        "content": turn.content,
+                    })
+                })
+                .collect(),
+        ),
         Err(_) => Value::Array(Vec::new()),
     }
 }

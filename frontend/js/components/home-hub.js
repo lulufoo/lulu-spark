@@ -47,6 +47,12 @@ function hydrateTurns(turns) {
     }));
 }
 
+function sessionIdOf(payload) {
+  if (!payload || typeof payload !== 'object') return '';
+  const raw = payload.session_id ?? payload.sessionId;
+  return raw == null ? '' : String(raw);
+}
+
 /**
  * @param {HTMLElement} container
  * @param {{ navigate?: (hash: string) => void, openReadLater?: () => void }} opts
@@ -113,6 +119,7 @@ export function mountHomeHub(container, { navigate, openReadLater } = {}) {
   let messages = [];
   let hostBound = false;
   let sending = false;
+  let fetchGen = 0;
 
   function renderSessions() {
     if (!sessions.length) {
@@ -163,10 +170,11 @@ export function mountHomeHub(container, { navigate, openReadLater } = {}) {
     if (composerH > 0) messagesEl.style.paddingBottom = `${composerH}px`;
   }
 
-  function applySessionPayload(payload) {
+  function applySessionPayload(payload, gen) {
+    if (gen != null && gen !== fetchGen) return;
     if (!payload || typeof payload !== 'object') return;
-    if (payload.session_id != null) {
-      currentId = String(payload.session_id || '');
+    if (payload.session_id != null || payload.sessionId != null) {
+      currentId = sessionIdOf(payload);
     }
     if (Object.hasOwn(payload, 'turns')) {
       messages = hydrateTurns(payload.turns);
@@ -192,16 +200,24 @@ export function mountHomeHub(container, { navigate, openReadLater } = {}) {
   }
 
   async function selectSession(sessionId) {
+    const gen = ++fetchGen;
+    currentId = String(sessionId || '');
+    renderSessions();
     const payload = await api.invoke('select_chat_session', { sessionId });
-    applySessionPayload(payload);
+    applySessionPayload(payload, gen);
     await refreshList();
+    if (gen === fetchGen) renderMessages();
   }
 
   async function createSession() {
+    const gen = ++fetchGen;
     const payload = await api.invoke('create_chat_session');
-    applySessionPayload(payload);
+    applySessionPayload(payload, gen);
     await refreshList();
-    input.focus();
+    if (gen === fetchGen) {
+      renderMessages();
+      input.focus();
+    }
   }
 
   function showActionError(err) {
@@ -214,6 +230,7 @@ export function mountHomeHub(container, { navigate, openReadLater } = {}) {
   }
 
   async function applyBindingState() {
+    const gen = ++fetchGen;
     try {
       const summary = await api.invoke('query_binding');
       hostBound = summary && typeof summary === 'object' && summary.state === 'bound';
@@ -232,13 +249,15 @@ export function mountHomeHub(container, { navigate, openReadLater } = {}) {
     }
     try {
       await refreshList();
+      if (gen !== fetchGen) return;
       if (currentId) {
         const state = await api.invoke('get_ai_assistant_binding');
-        applySessionPayload(state);
+        applySessionPayload(state, gen);
       } else {
         renderMessages();
       }
     } catch {
+      if (gen !== fetchGen) return;
       renderSessions();
       renderMessages();
     }

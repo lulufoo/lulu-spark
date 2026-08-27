@@ -637,6 +637,27 @@ fn list_select_create_chat_sessions_for_home_history() {
         assert_eq!(turns.len(), 1);
         assert_eq!(turns[0]["content"], "Hello from first");
 
+        session::append_turn(
+            &first_id,
+            Turn {
+                role: "tool".into(),
+                content: Some("x".repeat(2048)),
+                tool_call_id: Some("call_1".into()),
+                tool_calls: None,
+                name: Some("list_todo_tasks".into()),
+            },
+        )
+        .expect("append tool dump");
+        let selected_again = select_chat_session_json(&first_id).expect("select after tool");
+        let turns_again = selected_again["turns"].as_array().expect("turns after tool");
+        assert_eq!(
+            turns_again.len(),
+            1,
+            "Home hydrate must omit tool dumps from select payload"
+        );
+        assert_eq!(turns_again[0]["content"], "Hello from first");
+        assert!(turns_again[0].get("tool_call_id").is_none());
+
         let after = list_chat_sessions_json().expect("list after select");
         assert_eq!(after["current_session_id"], first_id);
 
