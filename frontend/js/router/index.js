@@ -34,7 +34,7 @@ export function parseHash(hash) {
     return { name: 'workbench', params };
   }
 
-  if (path === 'plan-tasks' || path.startsWith('plan-tasks?')) {
+  if (path === 'todo-tasks' || path.startsWith('todo-tasks?')) {
     const queryString = path.includes('?') ? path.slice(path.indexOf('?') + 1) : '';
     const params = {};
     if (queryString) {
@@ -46,7 +46,7 @@ export function parseHash(hash) {
         params.sub = searchParams.get('sub') ?? '';
       }
     }
-    return { name: 'plan-tasks', params };
+    return { name: 'todo-tasks', params };
   }
 
   if (path === 'corpus' || path === 'corpus/pick') return { name: 'corpus-doc', params: { repo: '' } };

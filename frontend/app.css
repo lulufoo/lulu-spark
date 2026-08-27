@@ -16,7 +16,7 @@
   .corpus-doc-main,
   #feed-view,
   #home-view,
-  #plan-tasks-view,
+  #todo-tasks-view,
   #md-body,
   #kb-md-body,
   .viewer-body,
@@ -1576,15 +1576,15 @@
   }
 
   /* ── Plan task assistant widget (stacking retired → home-entry-shell) ── */
-  .pt-assistant-widget {
+  .todo-assistant-widget {
     z-index: 1200;
     pointer-events: none;
   }
-  .pt-assistant-fab,
-  .pt-assistant-popover {
+  .todo-assistant-fab,
+  .todo-assistant-popover {
     pointer-events: auto;
   }
-  .pt-assistant-fab {
+  .todo-assistant-fab {
     width: 40px;
     height: 40px;
     border: none;
@@ -1598,21 +1598,21 @@
     justify-content: center;
     transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
   }
-  .pt-assistant-fab:hover {
+  .todo-assistant-fab:hover {
     background: #116329;
     box-shadow: 0 4px 16px rgba(26, 127, 55, 0.38);
   }
-  .pt-assistant-fab--active {
+  .todo-assistant-fab--active {
     transform: scale(0.96);
     background: #116329;
   }
-  .pt-assistant-fab-icon {
+  .todo-assistant-fab-icon {
     width: 16px;
     height: 16px;
     display: block;
     flex-shrink: 0;
   }
-  .pt-assistant-popover {
+  .todo-assistant-popover {
     position: absolute;
     right: calc(100% + 12px);
     bottom: 0;
@@ -1626,10 +1626,10 @@
     box-shadow: 0 12px 32px rgba(31, 35, 40, 0.18);
     overflow: hidden;
   }
-  .pt-assistant-popover[hidden] {
+  .todo-assistant-popover[hidden] {
     display: none !important;
   }
-  .pt-assistant-popover-header {
+  .todo-assistant-popover-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -1639,12 +1639,12 @@
     background: #424a53;
     flex-shrink: 0;
   }
-  .pt-assistant-popover-title {
+  .todo-assistant-popover-title {
     font-size: 13px;
     font-weight: 600;
     color: #f0f3f6;
   }
-  .pt-assistant-close {
+  .todo-assistant-close {
     width: 28px;
     height: 28px;
     border: none;
@@ -1655,36 +1655,36 @@
     line-height: 1;
     cursor: pointer;
   }
-  .pt-assistant-close:hover {
+  .todo-assistant-close:hover {
     background: rgba(255, 255, 255, 0.12);
   }
-  .pt-assistant-popover-body {
+  .todo-assistant-popover-body {
     padding: 12px 14px 14px;
     overflow-y: auto;
   }
-  .plan-task-assistant-loading {
+  .todo-task-assistant-loading {
     padding: 16px 0;
     text-align: center;
     font-size: 13px;
     color: #57606a;
   }
-  .plan-task-assistant-state {
+  .todo-task-assistant-state {
     padding: 12px 0;
     text-align: center;
   }
-  .plan-task-assistant-state-title {
+  .todo-task-assistant-state-title {
     margin: 0 0 6px;
     font-size: 14px;
     font-weight: 600;
     color: #24292f;
   }
-  .plan-task-assistant-state-detail {
+  .todo-task-assistant-state-detail {
     margin: 0;
     font-size: 12px;
     color: #57606a;
     line-height: 1.45;
   }
-  .plan-task-assistant-list {
+  .todo-task-assistant-list {
     list-style: none;
     margin: 0;
     padding: 0;
@@ -1692,7 +1692,7 @@
     flex-direction: column;
     gap: 8px;
   }
-  .plan-task-assistant-item-link {
+  .todo-task-assistant-item-link {
     display: block;
     padding: 10px 12px;
     border: 1px solid #d0d7de;
@@ -1701,11 +1701,11 @@
     color: inherit;
     background: #fff;
   }
-  .plan-task-assistant-item-link:hover {
+  .todo-task-assistant-item-link:hover {
     border-color: #1a7f37;
     background: #f6ffed;
   }
-  .plan-task-assistant-item-status {
+  .todo-task-assistant-item-status {
     display: block;
     margin-bottom: 4px;
     font-size: 11px;
@@ -1713,27 +1713,27 @@
     line-height: 1.3;
     color: #57606a;
   }
-  .plan-task-assistant-item-summary {
+  .todo-task-assistant-item-summary {
     font-size: 13px;
     line-height: 1.4;
     color: #24292f;
     word-break: break-word;
   }
-  .plan-task-assistant-item--complete .plan-task-assistant-item-summary {
+  .todo-task-assistant-item--complete .todo-task-assistant-item-summary {
     color: #57606a;
     font-weight: 500;
   }
-  .plan-task-assistant-item--complete .plan-task-assistant-item-status {
+  .todo-task-assistant-item--complete .todo-task-assistant-item-status {
     color: #57606a;
   }
-  .plan-task-assistant-item--abandoned .plan-task-assistant-item-summary {
+  .todo-task-assistant-item--abandoned .todo-task-assistant-item-summary {
     color: #8c959f;
     text-decoration: line-through;
   }
-  .plan-task-assistant-item--abandoned .plan-task-assistant-item-status {
+  .todo-task-assistant-item--abandoned .todo-task-assistant-item-status {
     color: #8c959f;
   }
-  .plan-task-assistant-manage-link {
+  .todo-task-assistant-manage-link {
     display: block;
     width: 100%;
     margin-top: 10px;
@@ -1745,7 +1745,7 @@
     text-align: center;
     cursor: pointer;
   }
-  .plan-task-assistant-manage-link:hover {
+  .todo-task-assistant-manage-link:hover {
     text-decoration: underline;
   }
 
@@ -2005,13 +2005,13 @@
     font-size: 14px;
   }
 
-  #plan-tasks-view {
+  #todo-tasks-view {
     width: 100%;
     min-width: 0;
     min-height: 0;
     overflow: hidden;
   }
-  .plan-tasks-page {
+  .todo-tasks-page {
     display: flex;
     flex-direction: column;
     height: 100%;
@@ -2020,7 +2020,7 @@
     overflow: hidden;
     background: #fff;
   }
-  .plan-tasks-page-header {
+  .todo-tasks-page-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -2030,7 +2030,7 @@
     background: #fff;
     flex-shrink: 0;
   }
-  .plan-tasks-page-header-actions {
+  .todo-tasks-page-header-actions {
     display: flex;
     align-items: center;
     gap: 10px;
@@ -2038,10 +2038,10 @@
     flex-wrap: wrap;
     justify-content: flex-end;
   }
-  .plan-tasks-page-header-actions > .md-header-btn.primary {
+  .todo-tasks-page-header-actions > .md-header-btn.primary {
     margin-left: 2px;
   }
-  .plan-task-category-controls {
+  .todo-task-category-controls {
     display: inline-flex;
     align-items: center;
     flex-wrap: wrap;
@@ -2049,25 +2049,25 @@
     max-width: 100%;
   }
   /* Toolbar filter: same chip shell as status/category selects */
-  .plan-task-category-filter {
-    --plan-task-chip-fg: #24292f;
-    --plan-task-chip-bg: #f6f8fa;
-    --plan-task-chip-border: #d0d7de;
-    --plan-task-chip-bg-hover: #eaeef2;
-    --plan-task-chip-border-hover: #afb8c1;
-    --plan-task-chip-ring: rgba(9, 105, 218, 0.14);
+  .todo-task-category-filter {
+    --todo-task-chip-fg: #24292f;
+    --todo-task-chip-bg: #f6f8fa;
+    --todo-task-chip-border: #d0d7de;
+    --todo-task-chip-bg-hover: #eaeef2;
+    --todo-task-chip-border-hover: #afb8c1;
+    --todo-task-chip-ring: rgba(9, 105, 218, 0.14);
     flex: 0 0 auto;
     box-sizing: border-box;
     height: 28px;
     margin: 0;
     padding: 0 26px 0 12px;
-    border: 1px solid var(--plan-task-chip-border);
+    border: 1px solid var(--todo-task-chip-border);
     border-radius: 999px;
     font-size: 12px;
     font-weight: 500;
     line-height: 1;
-    color: var(--plan-task-chip-fg);
-    background-color: var(--plan-task-chip-bg);
+    color: var(--todo-task-chip-fg);
+    background-color: var(--todo-task-chip-bg);
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12' fill='none'%3E%3Cpath d='M3 4.5L6 7.5L9 4.5' stroke='%2357606a' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
     background-repeat: no-repeat;
     background-position: right 8px 50%;
@@ -2078,25 +2078,25 @@
     text-overflow: clip;
     transition: border-color 0.12s ease, background-color 0.12s ease, box-shadow 0.12s ease;
   }
-  .plan-task-category-filter:hover:not(:disabled) {
-    background-color: var(--plan-task-chip-bg-hover);
-    border-color: var(--plan-task-chip-border-hover);
+  .todo-task-category-filter:hover:not(:disabled) {
+    background-color: var(--todo-task-chip-bg-hover);
+    border-color: var(--todo-task-chip-border-hover);
   }
-  .plan-task-category-filter:focus {
+  .todo-task-category-filter:focus {
     outline: none;
   }
-  .plan-task-category-filter:focus-visible {
+  .todo-task-category-filter:focus-visible {
     border-color: #0969da;
-    box-shadow: 0 0 0 3px var(--plan-task-chip-ring);
+    box-shadow: 0 0 0 3px var(--todo-task-chip-ring);
   }
   /* Detail category: align with status pill on the right */
-  .plan-task-category-select {
-    --plan-task-chip-fg: #24292f;
-    --plan-task-chip-bg: #fff;
-    --plan-task-chip-border: #d0d7de;
-    --plan-task-chip-bg-hover: #f6f8fa;
-    --plan-task-chip-border-hover: #afb8c1;
-    --plan-task-chip-ring: rgba(9, 105, 218, 0.16);
+  .todo-task-category-select {
+    --todo-task-chip-fg: #24292f;
+    --todo-task-chip-bg: #fff;
+    --todo-task-chip-border: #d0d7de;
+    --todo-task-chip-bg-hover: #f6f8fa;
+    --todo-task-chip-border-hover: #afb8c1;
+    --todo-task-chip-ring: rgba(9, 105, 218, 0.16);
     flex: 0 0 auto;
     align-self: center;
     box-sizing: border-box;
@@ -2105,13 +2105,13 @@
     height: 28px;
     margin: 0;
     padding: 0 24px 0 12px;
-    border: 1px solid var(--plan-task-chip-border);
+    border: 1px solid var(--todo-task-chip-border);
     border-radius: 999px;
     font-size: 12px;
     font-weight: 500;
     line-height: 1;
-    color: var(--plan-task-chip-fg);
-    background-color: var(--plan-task-chip-bg);
+    color: var(--todo-task-chip-fg);
+    background-color: var(--todo-task-chip-bg);
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12' fill='none'%3E%3Cpath d='M3 4.5L6 7.5L9 4.5' stroke='%2357606a' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
     background-repeat: no-repeat;
     background-position: right 7px 50%;
@@ -2121,29 +2121,29 @@
     cursor: pointer;
     transition: border-color 0.12s ease, background-color 0.12s ease, box-shadow 0.12s ease;
   }
-  .plan-task-category-select:hover:not(:disabled) {
-    background-color: var(--plan-task-chip-bg-hover);
-    border-color: var(--plan-task-chip-border-hover);
+  .todo-task-category-select:hover:not(:disabled) {
+    background-color: var(--todo-task-chip-bg-hover);
+    border-color: var(--todo-task-chip-border-hover);
   }
-  .plan-task-category-select:focus {
+  .todo-task-category-select:focus {
     outline: none;
   }
-  .plan-task-category-select:focus-visible {
-    border-color: var(--plan-task-chip-border-hover);
-    box-shadow: 0 0 0 3px var(--plan-task-chip-ring);
+  .todo-task-category-select:focus-visible {
+    border-color: var(--todo-task-chip-border-hover);
+    box-shadow: 0 0 0 3px var(--todo-task-chip-ring);
   }
-  .plan-task-category-filter:disabled,
-  .plan-task-category-select:disabled {
+  .todo-task-category-filter:disabled,
+  .todo-task-category-select:disabled {
     opacity: 0.55;
     cursor: not-allowed;
   }
-  .plan-task-category-error {
+  .todo-task-category-error {
     margin: 0;
     width: 100%;
     font-size: 12px;
     color: #cf222e;
   }
-  .plan-task-active-only {
+  .todo-task-active-only {
     display: inline-flex;
     align-items: center;
     gap: 8px;
@@ -2156,10 +2156,10 @@
     font-size: 12px;
     font-weight: 500;
   }
-  .plan-task-active-only-label {
+  .todo-task-active-only-label {
     letter-spacing: 0.01em;
   }
-  .plan-task-active-only-switch {
+  .todo-task-active-only-switch {
     position: relative;
     width: 32px;
     height: 18px;
@@ -2170,7 +2170,7 @@
     cursor: pointer;
     transition: background-color 0.12s ease, border-color 0.12s ease;
   }
-  .plan-task-active-only-switch::after {
+  .todo-task-active-only-switch::after {
     content: '';
     position: absolute;
     top: 1px;
@@ -2182,25 +2182,25 @@
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
     transition: left 0.12s ease;
   }
-  .plan-task-active-only-switch[aria-checked='true'] {
+  .todo-task-active-only-switch[aria-checked='true'] {
     background: #1f883d;
     border-color: #1f883d;
   }
-  .plan-task-active-only-switch[aria-checked='true']::after {
+  .todo-task-active-only-switch[aria-checked='true']::after {
     left: 15px;
   }
-  .plan-task-active-only-switch:disabled {
+  .todo-task-active-only-switch:disabled {
     opacity: 0.55;
     cursor: not-allowed;
   }
-  .plan-tasks-page-title {
+  .todo-tasks-page-title {
     margin: 0;
     font-size: 15px;
     font-weight: 600;
     letter-spacing: -0.01em;
     color: #1f2328;
   }
-  .plan-task-split {
+  .todo-task-split {
     display: flex;
     flex: 1 1 auto;
     min-width: 0;
@@ -2208,7 +2208,7 @@
     overflow: hidden;
     background: #fff;
   }
-  .plan-task-split-master {
+  .todo-task-split-master {
     flex: 0 0 280px;
     border-right: 1px solid #d0d7de;
     overflow-x: hidden;
@@ -2217,7 +2217,7 @@
     padding: 16px 12px;
     box-sizing: border-box;
   }
-  .plan-task-split-detail {
+  .todo-task-split-detail {
     flex: 1 1 auto;
     min-width: 0;
     overflow-x: hidden;
@@ -2226,29 +2226,29 @@
     padding: 20px 24px;
     box-sizing: border-box;
   }
-  .plan-task-split-loading {
+  .todo-task-split-loading {
     padding: 24px;
     text-align: center;
     color: #57606a;
     font-size: 13px;
   }
-  .plan-task-split-state {
+  .todo-task-split-state {
     padding: 24px 12px;
     text-align: center;
     color: #57606a;
   }
-  .plan-task-split-state-title {
+  .todo-task-split-state-title {
     margin: 0 0 8px;
     font-size: 14px;
     font-weight: 600;
     color: #24292f;
   }
-  .plan-task-split-state-detail {
+  .todo-task-split-state-detail {
     margin: 0;
     font-size: 12px;
     line-height: 1.45;
   }
-  .plan-task-master-list {
+  .todo-task-master-list {
     list-style: none;
     margin: 0;
     padding: 0;
@@ -2256,7 +2256,7 @@
     flex-direction: column;
     gap: 6px;
   }
-  .plan-task-master-item {
+  .todo-task-master-item {
     display: flex;
     flex-direction: column;
     gap: 4px;
@@ -2268,15 +2268,15 @@
     text-align: left;
     cursor: pointer;
   }
-  .plan-task-master-item:hover {
+  .todo-task-master-item:hover {
     border-color: #1a7f37;
     background: #f6ffed;
   }
-  .plan-task-master-item--selected {
+  .todo-task-master-item--selected {
     border-color: #1a7f37;
     background: #f6ffed;
   }
-  .plan-task-master-title {
+  .todo-task-master-title {
     font-size: 13px;
     line-height: 1.4;
     font-weight: 600;
@@ -2284,29 +2284,29 @@
     overflow-wrap: anywhere;
     word-break: break-word;
   }
-  .plan-task-master-item--complete .plan-task-master-title {
+  .todo-task-master-item--complete .todo-task-master-title {
     color: #57606a;
     font-weight: 500;
   }
-  .plan-task-master-item--abandoned .plan-task-master-title {
+  .todo-task-master-item--abandoned .todo-task-master-title {
     color: #8c959f;
     text-decoration: line-through;
   }
-  .plan-task-master-meta {
+  .todo-task-master-meta {
     font-size: 11px;
     line-height: 1.35;
     color: #57606a;
   }
-  .plan-task-detail-header {
+  .todo-task-detail-header {
     margin-bottom: 12px;
   }
-  .plan-task-detail-title-row {
+  .todo-task-detail-title-row {
     display: flex;
     align-items: center;
     gap: 8px;
     margin: 0 0 4px;
   }
-  .plan-task-detail-title {
+  .todo-task-detail-title {
     display: block;
     flex: 1 1 auto;
     min-width: 0;
@@ -2323,52 +2323,52 @@
     line-height: 1.3;
     color: #24292f;
   }
-  .plan-task-detail-title--complete {
+  .todo-task-detail-title--complete {
     color: #57606a;
     font-weight: 600;
   }
-  .plan-task-detail-title--abandoned {
+  .todo-task-detail-title--abandoned {
     color: #8c959f;
     text-decoration: line-through;
   }
-  .plan-task-detail-title:focus {
+  .todo-task-detail-title:focus {
     outline: none;
     border-color: #d0d7de;
     background: #fff;
   }
-  .plan-task-detail-title:disabled {
+  .todo-task-detail-title:disabled {
     color: #57606a;
     cursor: not-allowed;
   }
-  .plan-task-detail-title-error {
+  .todo-task-detail-title-error {
     margin: 0 0 4px;
     font-size: 12px;
     color: #cf222e;
   }
   /* Shared status badge <select> (master + sub) */
-  .plan-task-status-select {
-    --plan-task-status-dot: #0969da;
-    --plan-task-status-fg: #24292f;
-    --plan-task-status-bg: #fff;
-    --plan-task-status-border: #d0d7de;
-    --plan-task-status-bg-hover: #f6f8fa;
-    --plan-task-status-border-hover: #afb8c1;
-    --plan-task-status-ring: rgba(9, 105, 218, 0.16);
+  .todo-task-status-select {
+    --todo-task-status-dot: #0969da;
+    --todo-task-status-fg: #24292f;
+    --todo-task-status-bg: #fff;
+    --todo-task-status-border: #d0d7de;
+    --todo-task-status-bg-hover: #f6f8fa;
+    --todo-task-status-border-hover: #afb8c1;
+    --todo-task-status-ring: rgba(9, 105, 218, 0.16);
     box-sizing: border-box;
     max-width: 100%;
     height: 28px;
     margin: 0;
     padding: 0 24px 0 18px;
-    border: 1px solid var(--plan-task-status-border);
+    border: 1px solid var(--todo-task-status-border);
     border-radius: 999px;
     font-size: 12px;
     font-weight: 500;
     line-height: 1;
     letter-spacing: 0;
-    color: var(--plan-task-status-fg);
-    background-color: var(--plan-task-status-bg);
+    color: var(--todo-task-status-fg);
+    background-color: var(--todo-task-status-bg);
     background-image:
-      radial-gradient(circle at center, var(--plan-task-status-dot) 0 2.25px, transparent 2.75px),
+      radial-gradient(circle at center, var(--todo-task-status-dot) 0 2.25px, transparent 2.75px),
       url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12' fill='none'%3E%3Cpath d='M3 4.5L6 7.5L9 4.5' stroke='%2357606a' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
     background-repeat: no-repeat;
     background-position: 9px 50%, right 7px 50%;
@@ -2378,78 +2378,78 @@
     cursor: pointer;
     transition: border-color 0.12s ease, background-color 0.12s ease, box-shadow 0.12s ease, color 0.12s ease;
   }
-  .plan-task-status-select:hover:not(:disabled) {
-    background-color: var(--plan-task-status-bg-hover);
-    border-color: var(--plan-task-status-border-hover);
+  .todo-task-status-select:hover:not(:disabled) {
+    background-color: var(--todo-task-status-bg-hover);
+    border-color: var(--todo-task-status-border-hover);
   }
-  .plan-task-status-select:focus {
+  .todo-task-status-select:focus {
     outline: none;
   }
-  .plan-task-status-select:focus-visible {
-    border-color: var(--plan-task-status-border-hover);
-    box-shadow: 0 0 0 3px var(--plan-task-status-ring);
+  .todo-task-status-select:focus-visible {
+    border-color: var(--todo-task-status-border-hover);
+    box-shadow: 0 0 0 3px var(--todo-task-status-ring);
   }
-  .plan-task-status-select:disabled {
+  .todo-task-status-select:disabled {
     cursor: default;
     opacity: 1;
     /* Read-only badge: keep status mark, drop fake dropdown affordance */
     padding-right: 10px;
-    background-image: radial-gradient(circle at center, var(--plan-task-status-dot) 0 2.25px, transparent 2.75px);
+    background-image: radial-gradient(circle at center, var(--todo-task-status-dot) 0 2.25px, transparent 2.75px);
     background-position: 9px 50%;
     background-size: 5px 5px;
   }
-  .plan-task-master-status-select {
+  .todo-task-master-status-select {
     flex: 0 0 auto;
     align-self: center;
   }
-  .plan-task-sub-status-select {
+  .todo-task-sub-status-select {
     height: 24px;
     font-size: 11px;
     padding: 0 22px 0 16px;
     background-position: 8px 50%, right 6px 50%;
     background-size: 4.5px 4.5px, 11px 11px;
   }
-  .plan-task-sub-status-select:disabled {
+  .todo-task-sub-status-select:disabled {
     padding-right: 8px;
     background-position: 8px 50%;
     background-size: 4.5px 4.5px;
   }
-  .plan-task-master-status-select--incomplete,
-  .plan-task-sub-status-select--incomplete {
-    --plan-task-status-dot: #0969da;
-    --plan-task-status-fg: #0550ae;
-    --plan-task-status-bg: #f6fbff;
-    --plan-task-status-border: #a7d4ff;
-    --plan-task-status-bg-hover: #ddf4ff;
-    --plan-task-status-border-hover: #54aeff;
-    --plan-task-status-ring: rgba(9, 105, 218, 0.18);
+  .todo-task-master-status-select--incomplete,
+  .todo-task-sub-status-select--incomplete {
+    --todo-task-status-dot: #0969da;
+    --todo-task-status-fg: #0550ae;
+    --todo-task-status-bg: #f6fbff;
+    --todo-task-status-border: #a7d4ff;
+    --todo-task-status-bg-hover: #ddf4ff;
+    --todo-task-status-border-hover: #54aeff;
+    --todo-task-status-ring: rgba(9, 105, 218, 0.18);
   }
-  .plan-task-master-status-select--complete,
-  .plan-task-sub-status-select--complete {
-    --plan-task-status-dot: #1a7f37;
-    --plan-task-status-fg: #116329;
-    --plan-task-status-bg: #f6ffed;
-    --plan-task-status-border: #9bd99b;
-    --plan-task-status-bg-hover: #dafbe1;
-    --plan-task-status-border-hover: #4ac26b;
-    --plan-task-status-ring: rgba(26, 127, 55, 0.18);
+  .todo-task-master-status-select--complete,
+  .todo-task-sub-status-select--complete {
+    --todo-task-status-dot: #1a7f37;
+    --todo-task-status-fg: #116329;
+    --todo-task-status-bg: #f6ffed;
+    --todo-task-status-border: #9bd99b;
+    --todo-task-status-bg-hover: #dafbe1;
+    --todo-task-status-border-hover: #4ac26b;
+    --todo-task-status-ring: rgba(26, 127, 55, 0.18);
   }
-  .plan-task-master-status-select--abandoned,
-  .plan-task-sub-status-select--abandoned {
-    --plan-task-status-dot: #6e7781;
-    --plan-task-status-fg: #656d76;
-    --plan-task-status-bg: #f6f8fa;
-    --plan-task-status-border: #d0d7de;
-    --plan-task-status-bg-hover: #eaeef2;
-    --plan-task-status-border-hover: #afb8c1;
-    --plan-task-status-ring: rgba(110, 119, 129, 0.2);
+  .todo-task-master-status-select--abandoned,
+  .todo-task-sub-status-select--abandoned {
+    --todo-task-status-dot: #6e7781;
+    --todo-task-status-fg: #656d76;
+    --todo-task-status-bg: #f6f8fa;
+    --todo-task-status-border: #d0d7de;
+    --todo-task-status-bg-hover: #eaeef2;
+    --todo-task-status-border-hover: #afb8c1;
+    --todo-task-status-ring: rgba(110, 119, 129, 0.2);
   }
-  .plan-task-detail-meta {
+  .todo-task-detail-meta {
     margin: 0;
     font-size: 12px;
     color: #57606a;
   }
-  .plan-task-detail-toolbar {
+  .todo-task-detail-toolbar {
     display: flex;
     align-items: center;
     flex-wrap: nowrap;
@@ -2459,31 +2459,31 @@
     border-top: 1px solid #eaeef2;
     border-bottom: 1px solid #eaeef2;
   }
-  .plan-task-btn-danger {
+  .todo-task-btn-danger {
     color: #cf222e;
     border-color: #ff8182;
   }
-  .plan-task-btn-danger:hover {
+  .todo-task-btn-danger:hover {
     background: #fff1f0;
     border-color: #cf222e;
   }
-  .plan-task-sub-list {
+  .todo-task-sub-list {
     display: flex;
     flex-direction: column;
     gap: 12px;
   }
-  .plan-task-sub {
+  .todo-task-sub {
     border: 1px solid #d0d7de;
     border-radius: 8px;
     padding: 12px 14px;
     cursor: pointer;
     background: #fff;
   }
-  .plan-task-sub--selected {
+  .todo-task-sub--selected {
     border-color: #116329;
     background: #fff;
   }
-  .plan-task-sub-header {
+  .todo-task-sub-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -2496,13 +2496,13 @@
     padding: 0;
     flex-shrink: unset;
   }
-  .plan-task-sub-title {
+  .todo-task-sub-title {
     margin: 0;
     font-size: 14px;
     font-weight: 600;
     color: #24292f;
   }
-  .plan-task-sub-title-input {
+  .todo-task-sub-title-input {
     flex: 1 1 auto;
     min-width: 0;
     margin: 0;
@@ -2515,26 +2515,26 @@
     font-weight: 600;
     line-height: 1.4;
   }
-  .plan-task-sub-title-input:focus {
+  .todo-task-sub-title-input:focus {
     outline: none;
   }
-  .plan-task-sub--selected .plan-task-sub-title-input {
+  .todo-task-sub--selected .todo-task-sub-title-input {
     background: #fff;
   }
-  .plan-task-sub-title-input:disabled {
+  .todo-task-sub-title-input:disabled {
     background: #fff;
     color: #57606a;
     cursor: not-allowed;
   }
-  .plan-task-sub-title-error {
+  .todo-task-sub-title-error {
     margin: 0 0 8px;
     font-size: 12px;
     color: #cf222e;
   }
-  .plan-task-sub-content-toggle {
+  .todo-task-sub-content-toggle {
     flex: 0 0 auto;
   }
-  .plan-task-sub-content-editor {
+  .todo-task-sub-content-editor {
     display: block;
     width: 100%;
     min-height: 72px;
@@ -2549,44 +2549,44 @@
     resize: vertical;
     box-sizing: border-box;
   }
-  .plan-task-sub-content-editor:focus {
+  .todo-task-sub-content-editor:focus {
     outline: none;
     border-color: #0969da;
     box-shadow: 0 0 0 2px rgba(9, 105, 218, 0.15);
   }
-  .plan-task-sub-content-editor:disabled {
+  .todo-task-sub-content-editor:disabled {
     opacity: 0.6;
     cursor: not-allowed;
   }
-  .plan-task-sub-header-actions {
+  .todo-task-sub-header-actions {
     display: flex;
     align-items: center;
     gap: 8px;
     flex-shrink: 0;
   }
-  .plan-task-sub-status {
+  .todo-task-sub-status {
     font-size: 11px;
     font-weight: 500;
     padding: 2px 8px;
     border-radius: 999px;
     line-height: 1.4;
   }
-  .plan-task-sub-status--incomplete {
+  .todo-task-sub-status--incomplete {
     color: #0969da;
     background: #ddf4ff;
   }
-  .plan-task-sub-status--complete {
+  .todo-task-sub-status--complete {
     color: #1a7f37;
     background: #dafbe1;
   }
-  .plan-task-sub-status--abandoned {
+  .todo-task-sub-status--abandoned {
     color: #57606a;
     background: #eaeef2;
   }
-  .plan-task-sub-menu {
+  .todo-task-sub-menu {
     position: relative;
   }
-  .plan-task-sub-menu-btn {
+  .todo-task-sub-menu-btn {
     border: none;
     background: transparent;
     color: #57606a;
@@ -2596,11 +2596,11 @@
     border-radius: 4px;
     cursor: pointer;
   }
-  .plan-task-sub-menu-btn:hover {
+  .todo-task-sub-menu-btn:hover {
     background: #eaeef2;
     color: #24292f;
   }
-  .plan-task-sub-menu-panel {
+  .todo-task-sub-menu-panel {
     position: absolute;
     top: calc(100% + 4px);
     right: 0;
@@ -2615,10 +2615,10 @@
     flex-direction: column;
     gap: 2px;
   }
-  .plan-task-sub-menu-panel[hidden] {
+  .todo-task-sub-menu-panel[hidden] {
     display: none !important;
   }
-  .plan-task-sub-menu-panel button {
+  .todo-task-sub-menu-panel button {
     border: none;
     background: transparent;
     text-align: left;
@@ -2628,44 +2628,44 @@
     color: #24292f;
     cursor: pointer;
   }
-  .plan-task-sub-menu-panel button:hover {
+  .todo-task-sub-menu-panel button:hover {
     background: #f6f8fa;
   }
-  .plan-task-sub-menu-panel button[data-action="delete-sub"] {
+  .todo-task-sub-menu-panel button[data-action="delete-sub"] {
     color: #cf222e;
   }
-  .plan-task-empty {
+  .todo-task-empty {
     padding: 32px 16px;
     text-align: center;
     color: #57606a;
   }
-  .plan-task-empty--sidebar {
+  .todo-task-empty--sidebar {
     margin-top: 24px;
   }
-  .plan-task-empty--detail {
+  .todo-task-empty--detail {
     border: 1px dashed #d0d7de;
     border-radius: 8px;
     padding: 32px 20px;
   }
-  .plan-task-empty-title {
+  .todo-task-empty-title {
     margin: 0 0 8px;
     font-size: 14px;
     font-weight: 600;
     color: #24292f;
   }
-  .plan-task-empty-detail {
+  .todo-task-empty-detail {
     margin: 0 0 16px;
     font-size: 12px;
     line-height: 1.45;
   }
-  .plan-task-refresh-warning {
+  .todo-task-refresh-warning {
     margin-bottom: 12px;
     padding: 12px;
     border: 1px solid #d4a72c;
     border-radius: 8px;
     background: #fff8c5;
   }
-  .plan-task-migration-warning {
+  .todo-task-migration-warning {
     margin-bottom: 12px;
     padding: 12px 14px;
     border: 1px solid #d0d7de;
@@ -2673,48 +2673,48 @@
     background: #f6f8fa;
     text-align: left;
   }
-  .plan-task-plan-md-section {
+  .todo-task-plan-md-section {
     margin-bottom: 16px;
     padding-bottom: 16px;
     border-bottom: 1px solid #eaeef2;
     min-width: 0;
     max-width: 100%;
   }
-  .plan-task-plan-md-header {
+  .todo-task-plan-md-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 8px;
     margin-bottom: 8px;
   }
-  .plan-task-plan-md-header-actions {
+  .todo-task-plan-md-header-actions {
     display: flex;
     align-items: center;
     gap: 8px;
     flex-shrink: 0;
   }
-  .md-header-btn.plan-task-copy-flash {
+  .md-header-btn.todo-task-copy-flash {
     background: #dafbe1;
     border-color: #4ac26b;
     color: #116329;
-    animation: plan-task-copy-flash 480ms ease-out;
+    animation: todo-task-copy-flash 480ms ease-out;
   }
-  @keyframes plan-task-copy-flash {
+  @keyframes todo-task-copy-flash {
     0% { transform: scale(1); }
     35% { transform: scale(1.06); }
     100% { transform: scale(1); }
   }
-  .plan-task-plan-md-title {
+  .todo-task-plan-md-title {
     margin: 0;
     font-size: 14px;
     font-weight: 600;
     color: #24292f;
   }
-  .plan-task-detail-body {
+  .todo-task-detail-body {
     min-width: 0;
     max-width: 100%;
   }
-  .plan-task-plan-md-preview {
+  .todo-task-plan-md-preview {
     display: block;
     width: 100%;
     max-width: 100%;
@@ -2731,96 +2731,96 @@
     overflow-wrap: anywhere;
     word-break: break-word;
   }
-  .plan-task-plan-md-preview p {
+  .todo-task-plan-md-preview p {
     margin: 0 0 10px;
     overflow-wrap: anywhere;
     word-break: break-word;
   }
-  .plan-task-plan-md-preview p:last-child {
+  .todo-task-plan-md-preview p:last-child {
     margin-bottom: 0;
   }
-  .plan-task-plan-md-preview h1,
-  .plan-task-plan-md-preview h2,
-  .plan-task-plan-md-preview h3,
-  .plan-task-plan-md-preview h4 {
+  .todo-task-plan-md-preview h1,
+  .todo-task-plan-md-preview h2,
+  .todo-task-plan-md-preview h3,
+  .todo-task-plan-md-preview h4 {
     margin: 0.8em 0 0.4em;
     color: #24292f;
     line-height: 1.35;
     overflow-wrap: anywhere;
   }
-  .plan-task-plan-md-preview h1:first-child,
-  .plan-task-plan-md-preview h2:first-child,
-  .plan-task-plan-md-preview h3:first-child,
-  .plan-task-plan-md-preview h4:first-child {
+  .todo-task-plan-md-preview h1:first-child,
+  .todo-task-plan-md-preview h2:first-child,
+  .todo-task-plan-md-preview h3:first-child,
+  .todo-task-plan-md-preview h4:first-child {
     margin-top: 0;
   }
   /* Global * { padding:0 } zeros list indent; restore so markers are not clipped. */
-  .plan-task-plan-md-preview ul,
-  .plan-task-plan-md-preview ol {
+  .todo-task-plan-md-preview ul,
+  .todo-task-plan-md-preview ol {
     margin: 0.4em 0 0.4em 1.5em;
     padding-left: 0.25em;
   }
-  .plan-task-plan-md-preview li {
+  .todo-task-plan-md-preview li {
     margin: 0.2em 0;
   }
-  .plan-task-plan-md-preview blockquote {
+  .todo-task-plan-md-preview blockquote {
     border-left: 3px solid #d0d7de;
     padding-left: 12px;
     color: #57606a;
     margin: 0.5em 0;
   }
-  .plan-task-plan-md-preview img,
-  .plan-task-plan-md-preview table {
+  .todo-task-plan-md-preview img,
+  .todo-task-plan-md-preview table {
     max-width: 100%;
   }
-  .plan-task-plan-md-preview table {
+  .todo-task-plan-md-preview table {
     border-collapse: collapse;
     width: 100%;
     margin: 0.8em 0;
   }
-  .plan-task-plan-md-preview th,
-  .plan-task-plan-md-preview td {
+  .todo-task-plan-md-preview th,
+  .todo-task-plan-md-preview td {
     border: 1px solid #d0d7de;
     padding: 6px 12px;
   }
-  .plan-task-plan-md-preview pre,
-  .plan-task-plan-md-preview code {
+  .todo-task-plan-md-preview pre,
+  .todo-task-plan-md-preview code {
     background: #f6f8fa;
     color: #24292f;
   }
-  .plan-task-plan-md-preview pre {
+  .todo-task-plan-md-preview pre {
     padding: 10px 12px;
     border-radius: 6px;
     overflow-x: auto;
     max-width: 100%;
     white-space: pre;
   }
-  .plan-task-plan-md-preview code {
+  .todo-task-plan-md-preview code {
     padding: 1px 4px;
     border-radius: 4px;
     font-size: 12px;
     white-space: break-spaces;
   }
-  .plan-task-plan-md-preview pre code {
+  .todo-task-plan-md-preview pre code {
     padding: 0;
     white-space: inherit;
   }
-  .plan-task-plan-md-empty {
+  .todo-task-plan-md-empty {
     margin: 0;
     color: #57606a;
     font-size: 13px;
   }
-  .plan-task-plan-md-loading {
+  .todo-task-plan-md-loading {
     margin: 0;
     color: #57606a;
     font-size: 13px;
   }
-  .plan-task-plan-md-error {
+  .todo-task-plan-md-error {
     margin: 0 0 8px;
     color: #cf222e;
     font-size: 12px;
   }
-  .plan-task-plan-md-editor {
+  .todo-task-plan-md-editor {
     display: block;
     width: 100%;
     min-height: 160px;
@@ -2835,43 +2835,43 @@
     box-sizing: border-box;
     resize: vertical;
   }
-  .plan-task-plan-md-toolbar {
+  .todo-task-plan-md-toolbar {
     display: flex;
     gap: 8px;
     margin-top: 8px;
   }
-  .plan-task-attachments-section {
+  .todo-task-attachments-section {
     margin-bottom: 12px;
     min-width: 0;
     max-width: 100%;
   }
-  .plan-task-comments-section {
+  .todo-task-comments-section {
     margin-top: 24px;
     margin-bottom: 12px;
     min-width: 0;
     max-width: 100%;
   }
-  .plan-task-comments-header {
+  .todo-task-comments-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 12px;
     min-width: 0;
   }
-  .plan-task-comments-heading {
+  .todo-task-comments-heading {
     display: flex;
     align-items: center;
     gap: 8px;
     min-width: 0;
   }
-  .plan-task-comments-title {
+  .todo-task-comments-title {
     margin: 0;
     font-size: 14px;
     font-weight: 600;
     color: #24292f;
     flex-shrink: 0;
   }
-  .plan-task-comments-count {
+  .todo-task-comments-count {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -2885,13 +2885,13 @@
     font-weight: 600;
     line-height: 1;
   }
-  .plan-task-comments-empty {
+  .todo-task-comments-empty {
     margin: 0;
     font-size: 12px;
     color: #8c959f;
     white-space: nowrap;
   }
-  .plan-task-comments-error {
+  .todo-task-comments-error {
     margin: 8px 0 0;
     padding: 8px 10px;
     border-radius: 6px;
@@ -2900,7 +2900,7 @@
     font-size: 12px;
     line-height: 1.4;
   }
-  .plan-task-comment-list {
+  .todo-task-comment-list {
     margin: 10px 0 0;
     padding: 0;
     list-style: none;
@@ -2909,27 +2909,27 @@
     background: #fff;
     overflow: hidden;
   }
-  .plan-task-comment-item {
+  .todo-task-comment-item {
     display: flex;
     align-items: flex-start;
     gap: 10px;
     padding: 10px 12px;
     border-bottom: 1px solid #eaeef2;
   }
-  .plan-task-comment-item:last-child {
+  .todo-task-comment-item:last-child {
     border-bottom: none;
   }
-  .plan-task-comment-item--editing {
+  .todo-task-comment-item--editing {
     flex-direction: column;
   }
-  .plan-task-comment-main {
+  .todo-task-comment-main {
     display: flex;
     flex-direction: column;
     gap: 4px;
     min-width: 0;
     flex: 1;
   }
-  .plan-task-comment-body {
+  .todo-task-comment-body {
     margin: 0;
     font-size: 13px;
     line-height: 1.45;
@@ -2937,17 +2937,17 @@
     white-space: pre-wrap;
     word-break: break-word;
   }
-  .plan-task-comment-meta {
+  .todo-task-comment-meta {
     font-size: 11px;
     color: #8c959f;
   }
-  .plan-task-comment-item-actions {
+  .todo-task-comment-item-actions {
     display: flex;
     align-items: center;
     gap: 6px;
     flex-shrink: 0;
   }
-  .plan-task-comment-delete {
+  .todo-task-comment-delete {
     border: none;
     background: transparent;
     color: #cf222e;
@@ -2955,12 +2955,12 @@
     cursor: pointer;
     padding: 4px 6px;
   }
-  .plan-task-comment-delete:disabled {
+  .todo-task-comment-delete:disabled {
     opacity: 0.5;
     cursor: not-allowed;
   }
-  .plan-task-comment-input,
-  .plan-task-comment-edit-area {
+  .todo-task-comment-input,
+  .todo-task-comment-edit-area {
     width: 100%;
     box-sizing: border-box;
     margin: 0;
@@ -2973,13 +2973,13 @@
     resize: vertical;
     min-height: 64px;
   }
-  .plan-task-comments-composer {
+  .todo-task-comments-composer {
     margin-top: 10px;
     display: flex;
     flex-direction: column;
     gap: 8px;
   }
-  .plan-task-comments-composer-label {
+  .todo-task-comments-composer-label {
     position: absolute;
     width: 1px;
     height: 1px;
@@ -2990,11 +2990,11 @@
     white-space: nowrap;
     border: 0;
   }
-  .plan-task-comments-composer-actions {
+  .todo-task-comments-composer-actions {
     display: flex;
     justify-content: flex-end;
   }
-  .plan-task-comment-delete-confirm {
+  .todo-task-comment-delete-confirm {
     position: fixed;
     inset: 0;
     z-index: 1200;
@@ -3002,13 +3002,13 @@
     align-items: center;
     justify-content: center;
   }
-  .plan-task-comment-delete-confirm-backdrop {
+  .todo-task-comment-delete-confirm-backdrop {
     position: absolute;
     inset: 0;
     background: rgba(31, 35, 40, 0.45);
     cursor: pointer;
   }
-  .plan-task-comment-delete-confirm-panel {
+  .todo-task-comment-delete-confirm-panel {
     position: relative;
     z-index: 1;
     width: min(400px, 92vw);
@@ -3017,51 +3017,51 @@
     background: #fff;
     box-shadow: 0 12px 40px rgba(31, 35, 40, 0.22);
   }
-  .plan-task-comment-delete-confirm-title {
+  .todo-task-comment-delete-confirm-title {
     margin: 0 0 8px;
     font-size: 15px;
     font-weight: 600;
     color: #24292f;
   }
-  .plan-task-comment-delete-confirm-body {
+  .todo-task-comment-delete-confirm-body {
     margin: 0;
     font-size: 13px;
     line-height: 1.5;
     color: #57606a;
   }
-  .plan-task-comment-delete-confirm-actions {
+  .todo-task-comment-delete-confirm-actions {
     display: flex;
     justify-content: flex-end;
     gap: 8px;
     margin-top: 16px;
   }
-  .plan-task-attachments-header {
+  .todo-task-attachments-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 12px;
     min-width: 0;
   }
-  .plan-task-attachments-heading {
+  .todo-task-attachments-heading {
     display: flex;
     align-items: center;
     gap: 8px;
     min-width: 0;
   }
-  .plan-task-attachments-header-actions {
+  .todo-task-attachments-header-actions {
     display: flex;
     align-items: center;
     gap: 8px;
     flex-shrink: 0;
   }
-  .plan-task-attachments-title {
+  .todo-task-attachments-title {
     margin: 0;
     font-size: 14px;
     font-weight: 600;
     color: #24292f;
     flex-shrink: 0;
   }
-  .plan-task-attachments-count {
+  .todo-task-attachments-count {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -3075,13 +3075,13 @@
     font-weight: 600;
     line-height: 1;
   }
-  .plan-task-attachments-empty {
+  .todo-task-attachments-empty {
     margin: 0;
     font-size: 12px;
     color: #8c959f;
     white-space: nowrap;
   }
-  .plan-task-attachments-error {
+  .todo-task-attachments-error {
     margin: 8px 0 0;
     padding: 8px 10px;
     border-radius: 6px;
@@ -3090,7 +3090,7 @@
     font-size: 12px;
     line-height: 1.4;
   }
-  .plan-task-attachment-list {
+  .todo-task-attachment-list {
     margin: 10px 0 0;
     padding: 0;
     list-style: none;
@@ -3099,7 +3099,7 @@
     background: #fff;
     overflow: hidden;
   }
-  .plan-task-attachment-item {
+  .todo-task-attachment-item {
     display: flex;
     align-items: center;
     gap: 10px;
@@ -3108,18 +3108,18 @@
     border-bottom: 1px solid #eaeef2;
     transition: background-color 120ms ease;
   }
-  .plan-task-attachment-item:last-child {
+  .todo-task-attachment-item:last-child {
     border-bottom: none;
   }
-  .plan-task-attachment-item:hover,
-  .plan-task-attachment-item:focus-visible {
+  .todo-task-attachment-item:hover,
+  .todo-task-attachment-item:focus-visible {
     background: #f6f8fa;
     outline: none;
   }
-  .plan-task-attachment-item:focus-visible {
+  .todo-task-attachment-item:focus-visible {
     box-shadow: inset 0 0 0 2px rgba(9, 105, 218, 0.35);
   }
-  .plan-task-attachment-icon {
+  .todo-task-attachment-icon {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -3135,14 +3135,14 @@
     flex-shrink: 0;
     font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   }
-  .plan-task-attachment-main {
+  .todo-task-attachment-main {
     display: flex;
     flex-direction: column;
     gap: 2px;
     min-width: 0;
     flex: 1;
   }
-  .plan-task-attachment-name {
+  .todo-task-attachment-name {
     font-size: 13px;
     font-weight: 600;
     color: #24292f;
@@ -3150,25 +3150,25 @@
     text-overflow: ellipsis;
     white-space: nowrap;
   }
-  .plan-task-attachment-meta {
+  .todo-task-attachment-meta {
     font-size: 11px;
     color: #8c959f;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
-  .plan-task-attachment-open-hint {
+  .todo-task-attachment-open-hint {
     font-size: 11px;
     color: #0969da;
     opacity: 0;
     transition: opacity 120ms ease;
     flex-shrink: 0;
   }
-  .plan-task-attachment-item:hover .plan-task-attachment-open-hint,
-  .plan-task-attachment-item:focus-visible .plan-task-attachment-open-hint {
+  .todo-task-attachment-item:hover .todo-task-attachment-open-hint,
+  .todo-task-attachment-item:focus-visible .todo-task-attachment-open-hint {
     opacity: 1;
   }
-  .plan-task-attachment-delete {
+  .todo-task-attachment-delete {
     appearance: none;
     margin: 0;
     padding: 4px 8px;
@@ -3181,18 +3181,18 @@
     cursor: pointer;
     flex-shrink: 0;
   }
-  .plan-task-attachment-delete:hover,
-  .plan-task-attachment-delete:focus-visible {
+  .todo-task-attachment-delete:hover,
+  .todo-task-attachment-delete:focus-visible {
     color: #cf222e;
     background: #fff1f0;
     border-color: #ffcecb;
     outline: none;
   }
-  .plan-task-attachment-delete:disabled {
+  .todo-task-attachment-delete:disabled {
     opacity: 0.5;
     cursor: not-allowed;
   }
-  .plan-task-attachment-delete-confirm {
+  .todo-task-attachment-delete-confirm {
     position: fixed;
     inset: 0;
     z-index: 1200;
@@ -3200,13 +3200,13 @@
     align-items: center;
     justify-content: center;
   }
-  .plan-task-attachment-delete-confirm-backdrop {
+  .todo-task-attachment-delete-confirm-backdrop {
     position: absolute;
     inset: 0;
     background: rgba(31, 35, 40, 0.45);
     cursor: pointer;
   }
-  .plan-task-attachment-delete-confirm-panel {
+  .todo-task-attachment-delete-confirm-panel {
     position: relative;
     z-index: 1;
     width: min(400px, 92vw);
@@ -3214,27 +3214,27 @@
     border-radius: 12px;
     background: #fff;
     box-shadow: 0 12px 40px rgba(31, 35, 40, 0.22);
-    animation: plan-task-attach-rise 140ms ease-out;
+    animation: todo-task-attach-rise 140ms ease-out;
   }
-  .plan-task-attachment-delete-confirm-title {
+  .todo-task-attachment-delete-confirm-title {
     margin: 0 0 8px;
     font-size: 15px;
     font-weight: 600;
     color: #24292f;
   }
-  .plan-task-attachment-delete-confirm-body {
+  .todo-task-attachment-delete-confirm-body {
     margin: 0;
     font-size: 13px;
     line-height: 1.5;
     color: #57606a;
   }
-  .plan-task-attachment-delete-confirm-actions {
+  .todo-task-attachment-delete-confirm-actions {
     display: flex;
     justify-content: flex-end;
     gap: 8px;
     margin-top: 16px;
   }
-  .plan-task-attachment-editor {
+  .todo-task-attachment-editor {
     position: fixed;
     inset: 0;
     z-index: 1100;
@@ -3243,13 +3243,13 @@
     justify-content: center;
     padding: 24px 16px;
   }
-  .plan-task-attachment-editor-backdrop {
+  .todo-task-attachment-editor-backdrop {
     position: absolute;
     inset: 0;
     background: rgba(31, 35, 40, 0.48);
     cursor: pointer;
   }
-  .plan-task-attachment-editor-panel {
+  .todo-task-attachment-editor-panel {
     position: relative;
     z-index: 1;
     /* was 96vw / 88vh; shrink viewport margins: horizontal −1/3, vertical −2/5 */
@@ -3262,18 +3262,18 @@
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    animation: plan-task-attach-rise 160ms ease-out;
+    animation: todo-task-attach-rise 160ms ease-out;
   }
   /* Short docs: hug content. Long docs / edit: grow into viewport. */
-  .plan-task-attachment-editor-panel--preview,
-  .plan-task-attachment-editor-panel--loading {
+  .todo-task-attachment-editor-panel--preview,
+  .todo-task-attachment-editor-panel--loading {
     height: auto;
     min-height: 220px;
   }
-  .plan-task-attachment-editor-panel--edit {
+  .todo-task-attachment-editor-panel--edit {
     height: min(949px, calc(100vh * (1 - 0.12 * 3 / 5)));
   }
-  @keyframes plan-task-attach-rise {
+  @keyframes todo-task-attach-rise {
     from {
       opacity: 0;
       transform: translateY(8px) scale(0.985);
@@ -3283,7 +3283,7 @@
       transform: translateY(0) scale(1);
     }
   }
-  .plan-task-attachment-editor-header {
+  .todo-task-attachment-editor-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -3293,20 +3293,20 @@
     background: #f6f8fa;
     flex-shrink: 0;
   }
-  .plan-task-attachment-editor-heading {
+  .todo-task-attachment-editor-heading {
     display: flex;
     align-items: center;
     gap: 10px;
     min-width: 0;
     flex: 1;
   }
-  .plan-task-attachment-editor-title-wrap {
+  .todo-task-attachment-editor-title-wrap {
     display: flex;
     flex-direction: column;
     gap: 2px;
     min-width: 0;
   }
-  .plan-task-attachment-editor-title {
+  .todo-task-attachment-editor-title {
     margin: 0;
     font-size: 14px;
     font-weight: 600;
@@ -3315,44 +3315,44 @@
     text-overflow: ellipsis;
     white-space: nowrap;
   }
-  .plan-task-attachment-editor-mode {
+  .todo-task-attachment-editor-mode {
     font-size: 11px;
     color: #656d76;
     letter-spacing: 0.01em;
   }
-  .plan-task-attachment-editor-actions {
+  .todo-task-attachment-editor-actions {
     display: flex;
     gap: 8px;
     flex-shrink: 0;
   }
-  .plan-task-attachment-editor-body {
+  .todo-task-attachment-editor-body {
     overflow: auto;
     flex: 1 1 auto;
     min-height: 0;
   }
-  .plan-task-attachment-editor-body--preview {
+  .todo-task-attachment-editor-body--preview {
     padding: 16px 24px 24px;
     background: #fff;
   }
-  .plan-task-attachment-editor-body--loading {
+  .todo-task-attachment-editor-body--loading {
     display: flex;
     align-items: center;
     justify-content: center;
     padding: 40px 24px;
     background: #f6f8fa;
   }
-  .plan-task-attachment-editor-body--edit {
+  .todo-task-attachment-editor-body--edit {
     display: flex;
     flex-direction: column;
     gap: 8px;
     padding: 14px 16px 12px;
     background: #fbfcfd;
   }
-  .plan-task-attachment-doc {
+  .todo-task-attachment-doc {
     width: 100%;
     overflow-x: auto;
   }
-  .plan-task-attachment-editor-footer {
+  .todo-task-attachment-editor-footer {
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -3362,139 +3362,139 @@
     background: #f6f8fa;
     flex-shrink: 0;
   }
-  .plan-task-attachment-editor-footer-hint {
+  .todo-task-attachment-editor-footer-hint {
     font-size: 12px;
     color: #8c959f;
   }
   /* Document typography — aligned with .viewer-body, restored against global * reset */
-  .plan-task-attachment-preview {
+  .todo-task-attachment-preview {
     color: #24292f;
     font-size: 13px;
     line-height: 1.55;
     overflow-wrap: anywhere;
     word-break: break-word;
   }
-  .plan-task-attachment-preview > :first-child {
+  .todo-task-attachment-preview > :first-child {
     margin-top: 0;
   }
-  .plan-task-attachment-preview > :last-child {
+  .todo-task-attachment-preview > :last-child {
     margin-bottom: 0;
   }
-  .plan-task-attachment-preview h1,
-  .plan-task-attachment-preview h2,
-  .plan-task-attachment-preview h3,
-  .plan-task-attachment-preview h4,
-  .plan-task-attachment-preview h5,
-  .plan-task-attachment-preview h6 {
+  .todo-task-attachment-preview h1,
+  .todo-task-attachment-preview h2,
+  .todo-task-attachment-preview h3,
+  .todo-task-attachment-preview h4,
+  .todo-task-attachment-preview h5,
+  .todo-task-attachment-preview h6 {
     margin: 1.15em 0 0.45em;
     color: #24292f;
     font-weight: 600;
     line-height: 1.3;
   }
-  .plan-task-attachment-preview h1:first-child,
-  .plan-task-attachment-preview h2:first-child,
-  .plan-task-attachment-preview h3:first-child,
-  .plan-task-attachment-preview h4:first-child,
-  .plan-task-attachment-preview h5:first-child,
-  .plan-task-attachment-preview h6:first-child {
+  .todo-task-attachment-preview h1:first-child,
+  .todo-task-attachment-preview h2:first-child,
+  .todo-task-attachment-preview h3:first-child,
+  .todo-task-attachment-preview h4:first-child,
+  .todo-task-attachment-preview h5:first-child,
+  .todo-task-attachment-preview h6:first-child {
     margin-top: 0;
   }
-  .plan-task-attachment-preview h1 {
+  .todo-task-attachment-preview h1 {
     font-size: 1.55em;
     padding-bottom: 0.3em;
     border-bottom: 1px solid #d0d7de;
   }
-  .plan-task-attachment-preview h2 {
+  .todo-task-attachment-preview h2 {
     font-size: 1.25em;
     padding-bottom: 0.22em;
     border-bottom: 1px solid #eaeef2;
   }
-  .plan-task-attachment-preview h3 {
+  .todo-task-attachment-preview h3 {
     font-size: 1.1em;
   }
-  .plan-task-attachment-preview h4,
-  .plan-task-attachment-preview h5,
-  .plan-task-attachment-preview h6 {
+  .todo-task-attachment-preview h4,
+  .todo-task-attachment-preview h5,
+  .todo-task-attachment-preview h6 {
     font-size: 1em;
   }
-  .plan-task-attachment-preview p {
+  .todo-task-attachment-preview p {
     margin: 0.65em 0;
   }
-  .plan-task-attachment-preview ul,
-  .plan-task-attachment-preview ol {
+  .todo-task-attachment-preview ul,
+  .todo-task-attachment-preview ol {
     margin: 0.55em 0 0.55em 1.6em;
     padding-left: 0.35em;
   }
-  .plan-task-attachment-preview ul {
+  .todo-task-attachment-preview ul {
     list-style: disc;
   }
-  .plan-task-attachment-preview ol {
+  .todo-task-attachment-preview ol {
     list-style: decimal;
   }
-  .plan-task-attachment-preview li {
+  .todo-task-attachment-preview li {
     margin: 0.28em 0;
     padding-left: 0.1em;
   }
-  .plan-task-attachment-preview li > ul,
-  .plan-task-attachment-preview li > ol {
+  .todo-task-attachment-preview li > ul,
+  .todo-task-attachment-preview li > ol {
     margin-top: 0.25em;
     margin-bottom: 0.25em;
   }
-  .plan-task-attachment-preview blockquote {
+  .todo-task-attachment-preview blockquote {
     margin: 0.8em 0;
     padding: 0.15em 0 0.15em 14px;
     border-left: 4px solid #d0d7de;
     color: #57606a;
   }
-  .plan-task-attachment-preview blockquote > :first-child {
+  .todo-task-attachment-preview blockquote > :first-child {
     margin-top: 0;
   }
-  .plan-task-attachment-preview blockquote > :last-child {
+  .todo-task-attachment-preview blockquote > :last-child {
     margin-bottom: 0;
   }
-  .plan-task-attachment-preview hr {
+  .todo-task-attachment-preview hr {
     margin: 1.4em 0;
     border: none;
     border-top: 1px solid #d0d7de;
   }
-  .plan-task-attachment-preview a {
+  .todo-task-attachment-preview a {
     color: #0969da;
     text-decoration: none;
   }
-  .plan-task-attachment-preview a:hover {
+  .todo-task-attachment-preview a:hover {
     text-decoration: underline;
   }
-  .plan-task-attachment-preview strong {
+  .todo-task-attachment-preview strong {
     font-weight: 650;
     color: #1f2328;
   }
-  .plan-task-attachment-preview img {
+  .todo-task-attachment-preview img {
     max-width: 100%;
     height: auto;
     border-radius: 6px;
   }
-  .plan-task-attachment-preview table {
+  .todo-task-attachment-preview table {
     width: 100%;
     margin: 1em 0;
     border-collapse: collapse;
   }
-  .plan-task-attachment-preview th,
-  .plan-task-attachment-preview td {
+  .todo-task-attachment-preview th,
+  .todo-task-attachment-preview td {
     border: 1px solid #d0d7de;
     padding: 7px 12px;
     font-size: 13px;
     line-height: 1.45;
     vertical-align: top;
   }
-  .plan-task-attachment-preview th {
+  .todo-task-attachment-preview th {
     background: #f6f8fa;
     font-weight: 600;
     white-space: nowrap;
   }
-  .plan-task-attachment-preview tr:nth-child(even) td {
+  .todo-task-attachment-preview tr:nth-child(even) td {
     background: #fbfcfd;
   }
-  .plan-task-attachment-preview code {
+  .todo-task-attachment-preview code {
     padding: 0.12em 0.4em;
     border: 1px solid #d0d7de;
     border-radius: 4px;
@@ -3503,7 +3503,7 @@
     font-size: 0.88em;
     white-space: break-spaces;
   }
-  .plan-task-attachment-preview pre {
+  .todo-task-attachment-preview pre {
     margin: 0.9em 0;
     padding: 14px 16px;
     border: 1px solid #d0d7de;
@@ -3512,19 +3512,19 @@
     overflow-x: auto;
     max-width: 100%;
   }
-  .plan-task-attachment-preview pre code {
+  .todo-task-attachment-preview pre code {
     padding: 0;
     border: none;
     background: none;
     font-size: 0.85em;
     white-space: pre;
   }
-  .plan-task-attachment-edit-label {
+  .todo-task-attachment-edit-label {
     font-size: 12px;
     font-weight: 600;
     color: #57606a;
   }
-  .plan-task-attachment-edit-area {
+  .todo-task-attachment-edit-area {
     width: 100%;
     flex: 1;
     min-height: 280px;
@@ -3539,17 +3539,17 @@
     line-height: 1.55;
     resize: none;
   }
-  .plan-task-attachment-edit-area:focus {
+  .todo-task-attachment-edit-area:focus {
     outline: none;
     border-color: #0969da;
     box-shadow: 0 0 0 3px rgba(9, 105, 218, 0.15);
   }
-  .plan-task-attachment-toolbar {
+  .todo-task-attachment-toolbar {
     display: flex;
     gap: 8px;
     flex-shrink: 0;
   }
-  .plan-task-attachment-error {
+  .todo-task-attachment-error {
     margin: 0 0 12px;
     padding: 8px 10px;
     border-radius: 6px;
@@ -3558,10 +3558,10 @@
     color: #cf222e;
     line-height: 1.4;
   }
-  .plan-task-attachment-editor-body--preview .plan-task-attachment-error {
+  .todo-task-attachment-editor-body--preview .todo-task-attachment-error {
     margin: 0 0 12px;
   }
-  .plan-task-attachment-loading {
+  .todo-task-attachment-loading {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -3571,30 +3571,30 @@
     font-size: 13px;
     color: #57606a;
   }
-  .plan-task-attachment-loading-dot {
+  .todo-task-attachment-loading-dot {
     width: 8px;
     height: 8px;
     border-radius: 50%;
     background: #0969da;
-    animation: plan-task-attach-pulse 900ms ease-in-out infinite;
+    animation: todo-task-attach-pulse 900ms ease-in-out infinite;
   }
-  @keyframes plan-task-attach-pulse {
+  @keyframes todo-task-attach-pulse {
     0%, 100% { opacity: 0.35; transform: scale(0.9); }
     50% { opacity: 1; transform: scale(1); }
   }
-  .plan-task-attachment-empty {
+  .todo-task-attachment-empty {
     margin: 0;
     padding: 28px 8px;
     text-align: center;
     font-size: 13px;
     color: #8c959f;
   }
-  .plan-task-sub-action-error {
+  .todo-task-sub-action-error {
     margin: 0 0 8px;
     font-size: 12px;
     color: #cf222e;
   }
-  .plan-task-sub-archives {
+  .todo-task-sub-archives {
     font-size: 12px;
     color: #57606a;
   }
@@ -6135,7 +6135,7 @@
 #btn-base64-copy:hover { background: #0757b8; }
 
 /* ── Plan Task dialog ── */
-#plan-task-dialog {
+#todo-task-dialog {
   position: fixed;
   inset: 0;
   z-index: 2000;
@@ -6144,8 +6144,8 @@
   justify-content: center;
   background: rgba(0, 0, 0, .45);
 }
-#plan-task-dialog.open { display: flex; }
-#plan-task-dialog-box {
+#todo-task-dialog.open { display: flex; }
+#todo-task-dialog-box {
   background: #fff;
   border: 1px solid #d0d7de;
   border-radius: 14px;
@@ -6156,26 +6156,26 @@
   flex-direction: column;
   overflow: hidden;
 }
-#plan-task-dialog-header {
+#todo-task-dialog-header {
   padding: 16px 18px 12px;
   border-bottom: 1px solid #d8dee4;
   background: linear-gradient(180deg, #fbfbfc 0%, #f6f8fa 100%);
 }
-#plan-task-dialog-title {
+#todo-task-dialog-title {
   margin: 0;
   font-size: 16px;
   font-weight: 600;
   letter-spacing: -0.01em;
   color: #1f2328;
 }
-#plan-task-dialog-body {
+#todo-task-dialog-body {
   overflow: auto;
   padding: 18px;
   display: flex;
   flex-direction: column;
   gap: 14px;
 }
-#plan-task-dialog-error {
+#todo-task-dialog-error {
   margin: 0 16px;
   padding: 8px 10px;
   border-radius: 6px;
@@ -6184,8 +6184,8 @@
   font-size: 12px;
   line-height: 1.4;
 }
-#plan-task-dialog-error[hidden] { display: none; }
-#plan-task-dialog-actions {
+#todo-task-dialog-error[hidden] { display: none; }
+#todo-task-dialog-actions {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
@@ -6193,29 +6193,29 @@
   border-top: 1px solid #d0d7de;
   background: #f6f8fa;
 }
-#plan-task-dialog-primary.danger {
+#todo-task-dialog-primary.danger {
   background: #cf222e;
   border-color: #cf222e;
   color: #fff;
 }
-#plan-task-dialog-primary.danger:hover {
+#todo-task-dialog-primary.danger:hover {
   background: #a40e26;
   border-color: #a40e26;
 }
-.plan-task-dialog-label {
+.todo-task-dialog-label {
   display: flex;
   flex-direction: column;
   gap: 6px;
 }
-.plan-task-dialog-label-text {
+.todo-task-dialog-label-text {
   font-size: 12px;
   font-weight: 600;
   color: #24292f;
 }
-.plan-task-dialog-required {
+.todo-task-dialog-required {
   color: #cf222e;
 }
-.plan-task-dialog-field {
+.todo-task-dialog-field {
   width: 100%;
   box-sizing: border-box;
   padding: 8px 10px;
@@ -6224,27 +6224,27 @@
   font-size: 13px;
   color: #24292f;
 }
-.plan-task-dialog-field:focus {
+.todo-task-dialog-field:focus {
   outline: none;
   border-color: #0969da;
   box-shadow: 0 0 0 3px rgba(9, 105, 218, .15);
 }
-.plan-task-dialog-section {
+.todo-task-dialog-section {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
-.plan-task-dialog-sub-rows {
+.todo-task-dialog-sub-rows {
   display: flex;
   flex-direction: column;
   gap: 6px;
 }
-.plan-task-dialog-sub-row {
+.todo-task-dialog-sub-row {
   display: flex;
   align-items: center;
   gap: 6px;
 }
-.plan-task-dialog-row-remove {
+.todo-task-dialog-row-remove {
   flex-shrink: 0;
   width: 28px;
   height: 28px;
@@ -6254,11 +6254,11 @@
   color: #57606a;
   cursor: pointer;
 }
-.plan-task-dialog-row-remove:disabled {
+.todo-task-dialog-row-remove:disabled {
   opacity: .45;
   cursor: not-allowed;
 }
-.plan-task-dialog-add-row {
+.todo-task-dialog-add-row {
   align-self: flex-start;
   border: none;
   background: transparent;
@@ -6267,23 +6267,23 @@
   cursor: pointer;
   padding: 0;
 }
-.plan-task-dialog-hint {
+.todo-task-dialog-hint {
   margin: 0;
   font-size: 11px;
   color: #57606a;
 }
-.plan-task-dialog-readonly {
+.todo-task-dialog-readonly {
   margin: 0;
   font-size: 12px;
   color: #57606a;
 }
-.plan-task-dialog-message {
+.todo-task-dialog-message {
   margin: 0;
   font-size: 13px;
   line-height: 1.5;
   color: #24292f;
 }
-.plan-task-dialog-lead {
+.todo-task-dialog-lead {
   margin: 0;
   font-size: 13px;
   line-height: 1.55;
@@ -6391,25 +6391,41 @@
 #bind-dialog-box {
   background: #fff;
   border-radius: 10px;
-  padding: 24px 24px 20px;
+  padding: 0;
   width: min(680px, 94vw);
   height: min(520px, 90vh);
   box-shadow: 0 8px 40px rgba(0,0,0,.3);
   display: flex;
   flex-direction: column;
-  gap: 12px;
   overflow: hidden;
 }
 #bind-dialog-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 16px;
+  padding: 16px 20px 14px;
+  border-bottom: 1px solid #d0d7de;
+  flex-shrink: 0;
+}
+#bind-dialog-heading {
+  min-width: 0;
+}
+#bind-dialog-title {
+  display: block;
   font-size: 14px;
   font-weight: 600;
   color: #24292f;
+  line-height: 1.3;
 }
-#btn-bind-close,
-#btn-bind-refresh {
+#bind-dialog-lead {
+  margin: 6px 0 0;
+  font-size: 12px;
+  line-height: 1.45;
+  font-weight: 400;
+  color: #57606a;
+}
+#btn-bind-close {
   background: none;
   border: 1px solid #d0d7de;
   border-radius: 6px;
@@ -6417,25 +6433,167 @@
   font-size: 12px;
   cursor: pointer;
   color: #57606a;
+  flex-shrink: 0;
 }
-#btn-bind-close:hover,
-#btn-bind-refresh:hover { background: #eaeef2; }
-#bind-status,
-#bind-countdown {
-  font-size: 13px;
-  color: #57606a;
+#btn-bind-close:hover { background: #eaeef2; }
+#bind-dialog-body {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) minmax(220px, 1.1fr);
+  gap: 24px;
+  align-items: center;
+  flex: 1;
+  min-height: 0;
+  padding: 20px 24px;
+  background: #f6f8fa;
+  overflow: auto;
+}
+#bind-qr-card {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  justify-self: center;
+  width: min(100%, 280px);
+  aspect-ratio: 1;
+  min-height: 0;
+  padding: 16px;
+  background: #fff;
+  border: 1px solid #d0d7de;
+  border-radius: 10px;
+  box-shadow: 0 1px 0 rgba(27, 31, 36, .04);
 }
 #bind-preview {
   display: flex;
   align-items: center;
   justify-content: center;
-  flex: 1;
+  width: 100%;
+  height: 100%;
   min-height: 0;
-  overflow: auto;
+  overflow: hidden;
+}
+#bind-preview:empty::before {
+  content: 'Preparing a new code…';
+  font-size: 13px;
+  color: #8c959f;
+}
+#bind-dialog-box.bind-state-expired #bind-preview:empty::before {
+  content: 'This code is no longer valid.';
+}
+#bind-dialog-box.bind-state-error #bind-preview:empty::before {
+  content: 'No code to display.';
 }
 #bind-preview canvas,
 #bind-preview img {
+  display: block;
   max-width: 100%;
+  max-height: 100%;
+}
+#bind-dialog-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+.bind-meta-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.bind-meta-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .02em;
+  text-transform: uppercase;
+  color: #8c959f;
+}
+#bind-status,
+#bind-countdown {
+  font-size: 13px;
+  font-weight: 600;
+  color: #24292f;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+#bind-status {
+  display: inline-flex;
+  align-self: flex-start;
+  max-width: 100%;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: #f6f8fa;
+}
+#bind-dialog-box.bind-state-waiting #bind-status {
+  color: #0969da;
+  background: #ddf4ff;
+}
+#bind-dialog-box.bind-state-success #bind-status {
+  color: #1a7f37;
+  background: #dafbe1;
+}
+#bind-dialog-box.bind-state-expired #bind-status {
+  color: #9a6700;
+  background: #fff8c5;
+}
+#bind-dialog-box.bind-state-error #bind-status {
+  color: #cf222e;
+  background: #ffebe9;
+}
+#bind-countdown {
+  font-variant-numeric: tabular-nums;
+}
+#bind-host {
+  margin: 0;
+  display: inline-flex;
+  align-self: flex-start;
+  max-width: 100%;
+  padding: 3px 8px;
+  border: 1px solid #d0d7de;
+  border-radius: 6px;
+  background: #fff;
+  color: #57606a;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+#bind-host[hidden] { display: none; }
+#bind-steps {
+  margin: 2px 0 0;
+  padding-left: 18px;
+  color: #57606a;
+  font-size: 12px;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+#bind-steps li + li { margin-top: 4px; }
+#bind-dialog-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 20px;
+  border-top: 1px solid #d0d7de;
+  background: #fff;
+  flex-shrink: 0;
+}
+#bind-footer-hint {
+  margin: 0;
+  font-size: 12px;
+  color: #8c959f;
+}
+#btn-bind-refresh {
+  background: #0969da;
+  border: 1px solid #0969da;
+  border-radius: 6px;
+  padding: 5px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  color: #fff;
+  flex-shrink: 0;
+}
+#btn-bind-refresh:hover { background: #0757b8; }
+#bind-dialog-box.bind-state-expired #bind-footer-hint {
+  color: #9a6700;
 }
 
 /* ── Corpus doc list (Phase1b) ── */

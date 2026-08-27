@@ -17,13 +17,13 @@ vi.mock('../frontend/js/apiClient.js', async (importOriginal) => {
 
 import {
   addPlanSub,
-  createPlanTask,
+  createTodoTask,
   deletePlanSub,
-  deletePlanTask,
-  loadPlanTasks,
-  mountPlanTaskSplit,
+  deleteTodoTask,
+  loadTodoTasks,
+  mountTodoTaskSplit,
   updatePlanMasterTitle,
-} from '../frontend/js/plan-task/index.js';
+} from '../frontend/js/todo-task/index.js';
 
 const sampleMaster = {
   master_task_id: 'task_new',
@@ -46,7 +46,7 @@ const createInvokeResult = {
   task: sampleMaster,
 };
 
-describe('createPlanTask', () => {
+describe('createTodoTask', () => {
   beforeEach(() => {
     invokeMock.mockReset();
     window.__TAURI__ = { core: { invoke: invokeMock } };
@@ -58,7 +58,7 @@ describe('createPlanTask', () => {
 
   it('invokes create_todo_task with title and subTitles', async () => {
     invokeMock.mockResolvedValue(createInvokeResult);
-    const result = await createPlanTask({ title: 'New Plan', subTitles: ['Sub A'] });
+    const result = await createTodoTask({ title: 'New Plan', subTitles: ['Sub A'] });
     expect(invokeMock).toHaveBeenCalledWith('create_todo_task', {
       title: 'New Plan',
       subTitles: ['Sub A'],
@@ -69,36 +69,36 @@ describe('createPlanTask', () => {
 
   it('omits subTitles when subTitles is undefined', async () => {
     invokeMock.mockResolvedValue(createInvokeResult);
-    await createPlanTask({ title: 'Implicit Plan' });
+    await createTodoTask({ title: 'Implicit Plan' });
     expect(invokeMock).toHaveBeenCalledWith('create_todo_task', { title: 'Implicit Plan' });
     expect(invokeMock.mock.calls[0][1]).not.toHaveProperty('subTitles');
   });
 
   it('omits subTitles when subTitles is null', async () => {
     invokeMock.mockResolvedValue(createInvokeResult);
-    await createPlanTask({ title: 'Implicit Plan', subTitles: null });
+    await createTodoTask({ title: 'Implicit Plan', subTitles: null });
     expect(invokeMock).toHaveBeenCalledWith('create_todo_task', { title: 'Implicit Plan' });
     expect(invokeMock.mock.calls[0][1]).not.toHaveProperty('subTitles');
   });
 
   it('throws with status when invoke returns service error payload', async () => {
     invokeMock.mockResolvedValue({ error: 'Missing title', _status: 400 });
-    await expect(createPlanTask({ title: '' })).rejects.toMatchObject({ status: 400 });
+    await expect(createTodoTask({ title: '' })).rejects.toMatchObject({ status: 400 });
   });
 
   it('throws when invoke rejects', async () => {
     invokeMock.mockRejectedValue(new Error('IPC failed'));
-    await expect(createPlanTask({ title: 'X' })).rejects.toThrow('IPC failed');
+    await expect(createTodoTask({ title: 'X' })).rejects.toThrow('IPC failed');
   });
 
   it('does not use createApiClient or local_http', async () => {
     invokeMock.mockResolvedValue(createInvokeResult);
-    await createPlanTask({ title: 'Direct' });
+    await createTodoTask({ title: 'Direct' });
     expect(getJsonMock).not.toHaveBeenCalled();
   });
 });
 
-describe('deletePlanTask', () => {
+describe('deleteTodoTask', () => {
   beforeEach(() => {
     invokeMock.mockReset();
     window.__TAURI__ = { core: { invoke: invokeMock } };
@@ -110,7 +110,7 @@ describe('deletePlanTask', () => {
 
   it('invokes delete_todo_task with masterTaskId', async () => {
     invokeMock.mockResolvedValue({ ok: true });
-    await deletePlanTask({ masterTaskId: 'task_new' });
+    await deleteTodoTask({ masterTaskId: 'task_new' });
     expect(invokeMock).toHaveBeenCalledWith('delete_todo_task', {
       masterTaskId: 'task_new',
     });
@@ -118,7 +118,7 @@ describe('deletePlanTask', () => {
 
   it('throws with status when invoke returns service error payload', async () => {
     invokeMock.mockResolvedValue({ error: 'Master not found', _status: 404 });
-    await expect(deletePlanTask({ masterTaskId: 'missing' })).rejects.toMatchObject({
+    await expect(deleteTodoTask({ masterTaskId: 'missing' })).rejects.toMatchObject({
       status: 404,
     });
   });
@@ -214,7 +214,7 @@ describe('updatePlanMasterTitle', () => {
   });
 });
 
-describe('plan-task read path regression', () => {
+describe('todo-task read path regression', () => {
   let container;
 
   beforeEach(() => {
@@ -231,18 +231,18 @@ describe('plan-task read path regression', () => {
     container.remove();
   });
 
-  it('loadPlanTasks still GETs /api/todo-tasks via apiClient', async () => {
+  it('loadTodoTasks still GETs /api/todo-tasks via apiClient', async () => {
     getJsonMock.mockResolvedValue([sampleMaster]);
-    const entries = await loadPlanTasks();
+    const entries = await loadTodoTasks();
     expect(getJsonMock).toHaveBeenCalledWith('/api/todo-tasks');
     expect(entries).toEqual([sampleMaster]);
   });
 
-  it('mountPlanTaskSplit still loads read-only list', async () => {
+  it('mountTodoTaskSplit still loads read-only list', async () => {
     getJsonMock.mockResolvedValue([sampleMaster]);
-    const { dispose } = mountPlanTaskSplit(container);
+    const { dispose } = mountTodoTaskSplit(container);
     await vi.waitFor(() => {
-      expect(container.querySelector('.plan-task-split-master')).not.toBeNull();
+      expect(container.querySelector('.todo-task-split-master')).not.toBeNull();
     });
     dispose();
   });

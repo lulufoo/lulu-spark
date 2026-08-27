@@ -32,10 +32,10 @@ const BASELINE = [
     panelHeight: 460,
   },
   {
-    key: 'plan-task',
+    key: 'todo-task',
     title: 'Todos',
-    fabClass: 'pt-assistant-fab',
-    fabIconClass: 'pt-assistant-fab-icon',
+    fabClass: 'todo-assistant-fab',
+    fabIconClass: 'todo-assistant-fab-icon',
     iconPaths:
       '<path fill="currentColor" d="M4 5.5A1.5 1.5 0 0 1 5.5 4h13A1.5 1.5 0 0 1 20 5.5v13a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 18.5v-13zM7 8h10v1.5H7V8zm0 3.5h10V13H7v-1.5zm0 3.5h6V16H7v-1z"/>',
     panelWidth: 340,

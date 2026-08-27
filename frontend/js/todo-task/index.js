@@ -1,7 +1,7 @@
 import { createApiClient, resolveReadDriver } from '../apiClient.js';
 import { renderCommentMarkdown } from '../comment-markdown.js';
 import { escHtml } from '../utils.js';
-import { closePlanTaskDialog, openPlanTaskDialog } from './dialog.js';
+import { closeTodoTaskDialog, openTodoTaskDialog } from './dialog.js';
 export {
   createTodosPageLifecycle,
   onTodosPageEnter,
@@ -69,7 +69,7 @@ function serviceError(data) {
   return err;
 }
 
-export async function loadPlanTasks() {
+export async function loadTodoTasks() {
   const mode = resolveReadDriver();
   const client = createApiClient(resolveReadDriver(mode));
   const data = await client.getJson('/api/todo-tasks');
@@ -89,7 +89,7 @@ async function invokePlanWrite(command, args) {
   return result;
 }
 
-export async function createPlanTask({ title, subTitles } = {}) {
+export async function createTodoTask({ title, subTitles } = {}) {
   const args = { title };
   if (subTitles != null) {
     args.subTitles = subTitles;
@@ -97,7 +97,7 @@ export async function createPlanTask({ title, subTitles } = {}) {
   return invokePlanWrite('create_todo_task', args);
 }
 
-export async function deletePlanTask({ masterTaskId } = {}) {
+export async function deleteTodoTask({ masterTaskId } = {}) {
   return invokePlanWrite('delete_todo_task', { masterTaskId });
 }
 
@@ -283,18 +283,18 @@ function escCopyDataAttr(text) {
     .replace(/\n/g, '&#10;');
 }
 
-export function formatPlanTaskStatus(status) {
+export function formatTodoTaskStatus(status) {
   return STATUS_LABELS[status] ?? status;
 }
 
 function buildDeepLink(masterId, subId) {
   const params = new URLSearchParams({ master: masterId, sub: subId });
-  return `#/plan-tasks?${params.toString()}`;
+  return `#/todo-tasks?${params.toString()}`;
 }
 
 function buildMasterDeepLink(masterId) {
   const params = new URLSearchParams({ master: masterId });
-  return `#/plan-tasks?${params.toString()}`;
+  return `#/todo-tasks?${params.toString()}`;
 }
 
 function sortMasters(masters) {
@@ -331,8 +331,8 @@ function controlsDisabled(busy) {
 
 function renderMigrationWarning() {
   return `
-    <div class="plan-task-migration-warning plan-task-split-state" role="status">
-      <p class="plan-task-split-state-detail">${escHtml(MIGRATION_WARNING_MSG)}</p>
+    <div class="todo-task-migration-warning todo-task-split-state" role="status">
+      <p class="todo-task-split-state-detail">${escHtml(MIGRATION_WARNING_MSG)}</p>
     </div>
   `;
 }
@@ -341,9 +341,9 @@ function renderRefreshWarning(refreshWarning, disabled) {
   if (!refreshWarning) return '';
   const disabledAttr = disabled ? ' disabled' : '';
   return `
-    <div class="plan-task-refresh-warning plan-task-split-state" role="status">
-      <p class="plan-task-split-state-detail">${escHtml(refreshWarning)}</p>
-      <button type="button" class="md-header-btn plan-task-refresh-retry"${disabledAttr} data-action="retry-refresh">Retry refresh</button>
+    <div class="todo-task-refresh-warning todo-task-split-state" role="status">
+      <p class="todo-task-split-state-detail">${escHtml(refreshWarning)}</p>
+      <button type="button" class="md-header-btn todo-task-refresh-retry"${disabledAttr} data-action="retry-refresh">Retry refresh</button>
     </div>
   `;
 }
@@ -407,12 +407,12 @@ function renderCategoryControls(categories, selectedCategoryId, categoryError, d
     `<option value="${CATEGORY_ACTION_DELETE}"${deleteDisabledAttr}>Delete category</option>`,
   ].join('');
   const errHtml = categoryError
-    ? `<p class="plan-task-category-error" role="alert">${escHtml(categoryError)}</p>`
+    ? `<p class="todo-task-category-error" role="alert">${escHtml(categoryError)}</p>`
     : '';
   return `
-    <div class="plan-task-category-controls">
+    <div class="todo-task-category-controls">
       <select
-        class="plan-task-category-filter"
+        class="todo-task-category-filter"
         data-action="filter-category"
         aria-label="Filter by category"${disabledAttr}
       >${options}</select>
@@ -446,7 +446,7 @@ function measureOptionLabelWidth(text, font) {
 
 /** Size the category filter to the widest option so labels are not truncated. */
 export function syncCategoryFilterWidth(root) {
-  const select = root?.querySelector?.('.plan-task-category-filter');
+  const select = root?.querySelector?.('.todo-task-category-filter');
   if (!(select instanceof HTMLSelectElement)) return;
   const font = getComputedStyle(select).font || '13px sans-serif';
   let maxPx = 0;
@@ -468,15 +468,15 @@ function renderPageHeader(
   const disabledAttr = disabled ? ' disabled' : '';
   const checked = activeOnly ? 'true' : 'false';
   return `
-    <header class="plan-tasks-page-header">
-      <h1 class="plan-tasks-page-title">Todos</h1>
-      <div class="plan-tasks-page-header-actions">
+    <header class="todo-tasks-page-header">
+      <h1 class="todo-tasks-page-title">Todos</h1>
+      <div class="todo-tasks-page-header-actions">
         ${renderCategoryControls(categories, selectedCategoryId, categoryError, disabled)}
-        <label class="plan-task-active-only">
-          <span class="plan-task-active-only-label">${ACTIVE_ONLY_LABEL}</span>
+        <label class="todo-task-active-only">
+          <span class="todo-task-active-only-label">${ACTIVE_ONLY_LABEL}</span>
           <button
             type="button"
-            class="plan-task-active-only-switch"
+            class="todo-task-active-only-switch"
             role="switch"
             data-action="toggle-active-only"
             aria-checked="${checked}"
@@ -499,29 +499,29 @@ function renderMasterList(masters, selectedMasterId, disabled) {
   const items = sortMasters(masters)
     .map((master) => {
       const selected =
-        master.master_task_id === selectedMasterId ? ' plan-task-master-item--selected' : '';
-      const statusMod = ` plan-task-master-item--${masterStatusClass(master.status)}`;
+        master.master_task_id === selectedMasterId ? ' todo-task-master-item--selected' : '';
+      const statusMod = ` todo-task-master-item--${masterStatusClass(master.status)}`;
       const subCount = master.sub_tasks?.length ?? 0;
       const meta = `${subCount} sub-tasks · ${formatRelativeTime(master.created_at) || 'Unknown time'}`;
       return `
         <li>
-          <button type="button" class="plan-task-master-item${selected}${statusMod}" data-master-id="${escHtml(master.master_task_id)}"${disabledAttr}>
-            <span class="plan-task-master-title">${escHtml(master.title)}</span>
-            <span class="plan-task-master-meta">${escHtml(meta)}</span>
+          <button type="button" class="todo-task-master-item${selected}${statusMod}" data-master-id="${escHtml(master.master_task_id)}"${disabledAttr}>
+            <span class="todo-task-master-title">${escHtml(master.title)}</span>
+            <span class="todo-task-master-meta">${escHtml(meta)}</span>
           </button>
         </li>
       `;
     })
     .join('');
-  return `<ul class="plan-task-master-list" role="list">${items}</ul>`;
+  return `<ul class="todo-task-master-list" role="list">${items}</ul>`;
 }
 
 function renderMasterEmpty(disabled) {
   const disabledAttr = disabled ? ' disabled' : '';
   return `
-    <div class="plan-task-empty plan-task-empty--sidebar">
-      <p class="plan-task-empty-title">No todos yet</p>
-      <p class="plan-task-empty-detail">Create your first todo to manage sub-tasks</p>
+    <div class="todo-task-empty todo-task-empty--sidebar">
+      <p class="todo-task-empty-title">No todos yet</p>
+      <p class="todo-task-empty-detail">Create your first todo to manage sub-tasks</p>
       <button type="button" class="md-header-btn primary" data-action="create-master"${disabledAttr}>New todo</button>
     </div>
   `;
@@ -529,18 +529,18 @@ function renderMasterEmpty(disabled) {
 
 function renderActiveOnlyEmpty() {
   return `
-    <div class="plan-task-empty plan-task-empty--sidebar">
-      <p class="plan-task-empty-title">${ACTIVE_ONLY_EMPTY_TITLE}</p>
-      <p class="plan-task-empty-detail">${ACTIVE_ONLY_EMPTY_DETAIL}</p>
+    <div class="todo-task-empty todo-task-empty--sidebar">
+      <p class="todo-task-empty-title">${ACTIVE_ONLY_EMPTY_TITLE}</p>
+      <p class="todo-task-empty-detail">${ACTIVE_ONLY_EMPTY_DETAIL}</p>
     </div>
   `;
 }
 
 function renderCategoryFilterEmpty() {
   return `
-    <div class="plan-task-empty plan-task-empty--sidebar">
-      <p class="plan-task-empty-title">${CATEGORY_FILTER_EMPTY_TITLE}</p>
-      <p class="plan-task-empty-detail">${CATEGORY_FILTER_EMPTY_DETAIL}</p>
+    <div class="todo-task-empty todo-task-empty--sidebar">
+      <p class="todo-task-empty-title">${CATEGORY_FILTER_EMPTY_TITLE}</p>
+      <p class="todo-task-empty-detail">${CATEGORY_FILTER_EMPTY_DETAIL}</p>
     </div>
   `;
 }
@@ -567,7 +567,7 @@ function renderMasterPane(
 
 function renderLinkedArchives(linkedArchiveIds) {
   if (!linkedArchiveIds?.length) return '';
-  return `<div class="plan-task-sub-archives">Linked archives:${escHtml(linkedArchiveIds.join(', '))}</div>`;
+  return `<div class="todo-task-sub-archives">Linked archives:${escHtml(linkedArchiveIds.join(', '))}</div>`;
 }
 
 function renderSubStatusSelect(sub, disabled) {
@@ -575,12 +575,12 @@ function renderSubStatusSelect(sub, disabled) {
   const options = ['incomplete', 'complete', 'abandoned']
     .map((status) => {
       const selected = sub.status === status ? ' selected' : '';
-      return `<option value="${escHtml(status)}"${selected}>${escHtml(formatPlanTaskStatus(status))}</option>`;
+      return `<option value="${escHtml(status)}"${selected}>${escHtml(formatTodoTaskStatus(status))}</option>`;
     })
     .join('');
   return `
     <select
-      class="plan-task-status-select plan-task-sub-status-select plan-task-sub-status-select--${escHtml(sub.status)}"
+      class="todo-task-status-select todo-task-sub-status-select todo-task-sub-status-select--${escHtml(sub.status)}"
       data-action="change-sub-status"
       data-sub-id="${escHtml(sub.sub_task_id)}"
       aria-label="Sub-task status"${disabledAttr}
@@ -590,18 +590,18 @@ function renderSubStatusSelect(sub, disabled) {
 
 function renderSubTitleError(error) {
   if (!error) return '';
-  return `<p class="plan-task-sub-title-error" role="alert">${escHtml(error)}</p>`;
+  return `<p class="todo-task-sub-title-error" role="alert">${escHtml(error)}</p>`;
 }
 
 function renderSubActionError(error) {
   if (!error) return '';
-  return `<p class="plan-task-sub-action-error" role="alert">${escHtml(error)}</p>`;
+  return `<p class="todo-task-sub-action-error" role="alert">${escHtml(error)}</p>`;
 }
 
 export function renderSubRow(master, sub, selectedSubId, ui) {
   const effectiveStatus = ui.subStatus?.[sub.sub_task_id] ?? sub.status;
   const subForRender = { ...sub, status: effectiveStatus };
-  const selected = sub.sub_task_id === selectedSubId ? ' plan-task-sub--selected' : '';
+  const selected = sub.sub_task_id === selectedSubId ? ' todo-task-sub--selected' : '';
   const title = ui.subTitleDrafts?.[sub.sub_task_id] ?? (sub.title || sub.sub_task_id);
   const disabledAttr = ui.disabled ? ' disabled' : '';
   const copyText = copySubIdPair(master.master_task_id, sub.sub_task_id);
@@ -611,7 +611,7 @@ export function renderSubRow(master, sub, selectedSubId, ui) {
     ui.subContentDrafts?.[sub.sub_task_id] ?? (typeof sub.content === 'string' ? sub.content : '');
   const contentEditor = expanded
     ? `<textarea
-          class="plan-task-sub-content-editor"
+          class="todo-task-sub-content-editor"
           data-action="edit-sub-content"
           data-sub-id="${escHtml(sub.sub_task_id)}"
           aria-label="Sub-task content"
@@ -619,21 +619,21 @@ export function renderSubRow(master, sub, selectedSubId, ui) {
         >${escHtml(contentValue)}</textarea>`
     : '';
   return `
-    <article data-sub-id="${escHtml(sub.sub_task_id)}" class="plan-task-sub${selected}">
-      <header class="plan-task-sub-header">
+    <article data-sub-id="${escHtml(sub.sub_task_id)}" class="todo-task-sub${selected}">
+      <header class="todo-task-sub-header">
         <input
           type="text"
-          class="plan-task-sub-title-input"
+          class="todo-task-sub-title-input"
           data-action="edit-sub-title"
           data-sub-id="${escHtml(sub.sub_task_id)}"
           value="${escHtml(title)}"
           aria-label="Sub-task title"
           ${ui.disabled ? 'disabled' : ''}
         />
-        <div class="plan-task-sub-header-actions">
+        <div class="todo-task-sub-header-actions">
           <button
             type="button"
-            class="md-header-btn plan-task-sub-content-toggle"
+            class="md-header-btn todo-task-sub-content-toggle"
             data-action="toggle-sub-content"
             data-sub-id="${escHtml(sub.sub_task_id)}"
             aria-expanded="${expanded ? 'true' : 'false'}"
@@ -641,9 +641,9 @@ export function renderSubRow(master, sub, selectedSubId, ui) {
             ${disabledAttr}
           >Content</button>
           ${renderSubStatusSelect(subForRender, ui.disabled)}
-          <div class="plan-task-sub-menu">
-            <button type="button" class="plan-task-sub-menu-btn" data-action="toggle-sub-menu" aria-label="More actions"${disabledAttr}>⋯</button>
-            <div class="plan-task-sub-menu-panel" hidden>
+          <div class="todo-task-sub-menu">
+            <button type="button" class="todo-task-sub-menu-btn" data-action="toggle-sub-menu" aria-label="More actions"${disabledAttr}>⋯</button>
+            <div class="todo-task-sub-menu-panel" hidden>
               <button type="button" data-action="copy-sub-id" data-copy-text="${escHtml(copyText)}">Copy ID</button>
               <button type="button" data-action="delete-sub" data-sub-id="${escHtml(sub.sub_task_id)}" data-sub-title="${escHtml(title)}">Delete</button>
             </div>
@@ -664,12 +664,12 @@ function renderMasterStatusSelect(status, disabled) {
   const options = ['incomplete', 'complete', 'abandoned']
     .map((value) => {
       const selected = wire === value ? ' selected' : '';
-      return `<option value="${escHtml(value)}"${selected}>${escHtml(formatPlanTaskStatus(value))}</option>`;
+      return `<option value="${escHtml(value)}"${selected}>${escHtml(formatTodoTaskStatus(value))}</option>`;
     })
     .join('');
   return `
     <select
-      class="plan-task-status-select plan-task-master-status-select plan-task-master-status-select--${escHtml(wire)}"
+      class="todo-task-status-select todo-task-master-status-select todo-task-master-status-select--${escHtml(wire)}"
       data-action="change-master-status"
       aria-label="Todo status"${disabledAttr}
     >${options}</select>
@@ -690,7 +690,7 @@ function renderMasterCategorySelect(master, categories, disabled) {
     .join('');
   return `
     <select
-      class="plan-task-category-select"
+      class="todo-task-category-select"
       data-action="change-master-category"
       aria-label="Todo category"${disabledAttr}
     >${options}</select>
@@ -702,13 +702,13 @@ function renderDetailTitle(master, ui = {}) {
   const status = masterStatusClass(master.status);
   const disabledAttr = ui.disabled ? ' disabled' : '';
   const error = ui.masterTitleError
-    ? `<p class="plan-task-detail-title-error">${escHtml(ui.masterTitleError)}</p>`
+    ? `<p class="todo-task-detail-title-error">${escHtml(ui.masterTitleError)}</p>`
     : '';
   return `
-    <div class="plan-task-detail-title-row">
+    <div class="todo-task-detail-title-row">
       <input
         type="text"
-        class="plan-task-detail-title plan-task-detail-title--${escHtml(status)}"
+        class="todo-task-detail-title todo-task-detail-title--${escHtml(status)}"
         data-action="edit-master-title"
         value="${escHtml(title)}"
         aria-label="Todo title"
@@ -726,9 +726,9 @@ export function renderSubDetail(master, selectedSubId) {
   const ui = { disabled: false, subStatus: {}, subActionErrors: {} };
   const items = subs.map((sub) => renderSubRow(master, sub, selectedSubId, ui)).join('');
   return `
-    <div class="plan-task-detail-body">
+    <div class="todo-task-detail-body">
       ${renderDetailTitle(master, ui)}
-      <div class="plan-task-sub-list">${items}</div>
+      <div class="todo-task-sub-list">${items}</div>
     </div>
   `;
 }
@@ -736,15 +736,15 @@ export function renderSubDetail(master, selectedSubId) {
 function renderDetailMeta(master) {
   const subCount = master.sub_tasks?.length ?? 0;
   const created = formatRelativeTime(master.created_at) || 'Unknown time';
-  return `<p class="plan-task-detail-meta">${subCount} sub-tasks · created ${escHtml(created)}</p>`;
+  return `<p class="todo-task-detail-meta">${subCount} sub-tasks · created ${escHtml(created)}</p>`;
 }
 
 function renderDetailToolbar(masterTaskId, disabled) {
   const disabledAttr = disabled ? ' disabled' : '';
   return `
-    <div class="plan-task-detail-toolbar">
+    <div class="todo-task-detail-toolbar">
       <button type="button" class="md-header-btn" data-action="add-sub" data-master-id="${escHtml(masterTaskId)}"${disabledAttr}>Add sub-task</button>
-      <button type="button" class="md-header-btn plan-task-btn-danger" data-action="delete-master"${disabledAttr}>Delete todo</button>
+      <button type="button" class="md-header-btn todo-task-btn-danger" data-action="delete-master"${disabledAttr}>Delete todo</button>
     </div>
   `;
 }
@@ -752,8 +752,8 @@ function renderDetailToolbar(masterTaskId, disabled) {
 function renderSubEmpty(disabled) {
   const disabledAttr = disabled ? ' disabled' : '';
   return `
-    <div class="plan-task-empty plan-task-empty--detail">
-      <p class="plan-task-empty-title">No sub-tasks yet</p>
+    <div class="todo-task-empty todo-task-empty--detail">
+      <p class="todo-task-empty-title">No sub-tasks yet</p>
       <button type="button" class="md-header-btn primary" data-action="add-sub"${disabledAttr}>Add sub-task</button>
     </div>
   `;
@@ -770,12 +770,12 @@ function flashCopyFeedback(btn, restoreLabel) {
   const prev = btn._copyFeedbackTimer;
   if (prev) clearTimeout(prev);
   btn.textContent = COPY_FEEDBACK_LABEL;
-  btn.classList.remove('plan-task-copy-flash');
+  btn.classList.remove('todo-task-copy-flash');
   void btn.offsetWidth;
-  btn.classList.add('plan-task-copy-flash');
+  btn.classList.add('todo-task-copy-flash');
   btn._copyFeedbackTimer = setTimeout(() => {
     btn.textContent = restoreLabel;
-    btn.classList.remove('plan-task-copy-flash');
+    btn.classList.remove('todo-task-copy-flash');
     btn._copyFeedbackTimer = null;
   }, COPY_FEEDBACK_MS);
 }
@@ -785,25 +785,25 @@ function renderPlanMdSection(master, ui) {
   const copyBtn = renderCopyMasterIdButton(master, ui.disabled);
   if (ui.planMdLoading) {
     return `
-      <section class="plan-task-plan-md-section" aria-label="Todo description">
-        <div class="plan-task-plan-md-header">
-          <h3 class="plan-task-plan-md-title">Todo description</h3>
-          <div class="plan-task-plan-md-header-actions">${copyBtn}</div>
+      <section class="todo-task-plan-md-section" aria-label="Todo description">
+        <div class="todo-task-plan-md-header">
+          <h3 class="todo-task-plan-md-title">Todo description</h3>
+          <div class="todo-task-plan-md-header-actions">${copyBtn}</div>
         </div>
-        <p class="plan-task-plan-md-loading">Loading description…</p>
+        <p class="todo-task-plan-md-loading">Loading description…</p>
       </section>
     `;
   }
   if (ui.planMdEditMode) {
     return `
-      <section class="plan-task-plan-md-section" aria-label="Todo description">
-        <div class="plan-task-plan-md-header">
-          <h3 class="plan-task-plan-md-title">Todo description</h3>
-          <div class="plan-task-plan-md-header-actions">${copyBtn}</div>
+      <section class="todo-task-plan-md-section" aria-label="Todo description">
+        <div class="todo-task-plan-md-header">
+          <h3 class="todo-task-plan-md-title">Todo description</h3>
+          <div class="todo-task-plan-md-header-actions">${copyBtn}</div>
         </div>
-        ${ui.planMdError ? `<p class="plan-task-plan-md-error" role="alert">${escHtml(ui.planMdError)}</p>` : ''}
-        <textarea class="plan-task-plan-md-editor"${disabledAttr}>${escHtml(ui.planMdDraft ?? '')}</textarea>
-        <div class="plan-task-plan-md-toolbar">
+        ${ui.planMdError ? `<p class="todo-task-plan-md-error" role="alert">${escHtml(ui.planMdError)}</p>` : ''}
+        <textarea class="todo-task-plan-md-editor"${disabledAttr}>${escHtml(ui.planMdDraft ?? '')}</textarea>
+        <div class="todo-task-plan-md-toolbar">
           <button type="button" class="md-header-btn primary" data-action="save-plan-md"${disabledAttr}>Save</button>
           <button type="button" class="md-header-btn" data-action="cancel-plan-md"${disabledAttr}>Cancel</button>
         </div>
@@ -813,17 +813,17 @@ function renderPlanMdSection(master, ui) {
   const planMd = master.todo_md ?? '';
   const previewHtml = planMd
     ? renderCommentMarkdown(planMd)
-    : '<p class="plan-task-plan-md-empty">No description</p>';
+    : '<p class="todo-task-plan-md-empty">No description</p>';
   return `
-    <section class="plan-task-plan-md-section" aria-label="Todo description">
-      <div class="plan-task-plan-md-header">
-        <h3 class="plan-task-plan-md-title">Todo description</h3>
-        <div class="plan-task-plan-md-header-actions">
+    <section class="todo-task-plan-md-section" aria-label="Todo description">
+      <div class="todo-task-plan-md-header">
+        <h3 class="todo-task-plan-md-title">Todo description</h3>
+        <div class="todo-task-plan-md-header-actions">
           ${copyBtn}
           <button type="button" class="md-header-btn" data-action="edit-plan-md"${disabledAttr}>Edit</button>
         </div>
       </div>
-      <div class="plan-task-plan-md-preview">${previewHtml}</div>
+      <div class="todo-task-plan-md-preview">${previewHtml}</div>
     </section>
   `;
 }
@@ -833,34 +833,34 @@ function renderAttachmentsSection(ui) {
   const items = ui.attachments ?? [];
   const confirmFile = ui.attachmentDeleteConfirm || '';
   const countHtml = items.length
-    ? `<span class="plan-task-attachments-count" aria-label="${items.length} attachments">${items.length}</span>`
+    ? `<span class="todo-task-attachments-count" aria-label="${items.length} attachments">${items.length}</span>`
     : '';
   const emptyHtml = items.length
     ? ''
-    : `<span class="plan-task-attachments-empty">${escHtml(ATTACHMENTS_EMPTY_MSG)}</span>`;
+    : `<span class="todo-task-attachments-empty">${escHtml(ATTACHMENTS_EMPTY_MSG)}</span>`;
   const listHtml = items.length
-    ? `<ul class="plan-task-attachment-list" role="list">${items
+    ? `<ul class="todo-task-attachment-list" role="list">${items
         .map((entry) => {
           const added = formatRelativeTime(entry.added_at);
           const meta = added ? `Added ${added}` : 'Markdown attachment';
           return `
         <li
-          class="plan-task-attachment-item"
+          class="todo-task-attachment-item"
           data-action="open-attachment"
           data-file-name="${escHtml(entry.file_name)}"
           role="button"
           tabindex="0"
           aria-label="Open attachment ${escHtml(entry.file_name)}"
         >
-          <span class="plan-task-attachment-icon" aria-hidden="true">MD</span>
-          <span class="plan-task-attachment-main">
-            <span class="plan-task-attachment-name">${escHtml(entry.file_name)}</span>
-            <span class="plan-task-attachment-meta">${escHtml(meta)}</span>
+          <span class="todo-task-attachment-icon" aria-hidden="true">MD</span>
+          <span class="todo-task-attachment-main">
+            <span class="todo-task-attachment-name">${escHtml(entry.file_name)}</span>
+            <span class="todo-task-attachment-meta">${escHtml(meta)}</span>
           </span>
-          <span class="plan-task-attachment-open-hint" aria-hidden="true">Open</span>
+          <span class="todo-task-attachment-open-hint" aria-hidden="true">Open</span>
           <button
             type="button"
-            class="plan-task-attachment-delete"
+            class="todo-task-attachment-delete"
             data-action="delete-attachment"
             data-file-name="${escHtml(entry.file_name)}"
             aria-label="Delete attachment ${escHtml(entry.file_name)}"
@@ -872,22 +872,22 @@ function renderAttachmentsSection(ui) {
         .join('')}</ul>`
     : '';
   const errHtml = ui.attachmentsError
-    ? `<p class="plan-task-attachments-error" role="alert">${escHtml(ui.attachmentsError)}</p>`
+    ? `<p class="todo-task-attachments-error" role="alert">${escHtml(ui.attachmentsError)}</p>`
     : '';
   const confirmHtml = confirmFile
     ? `
       <div
-        class="plan-task-attachment-delete-confirm"
+        class="todo-task-attachment-delete-confirm"
         data-attachment-delete-confirm
         role="dialog"
         aria-modal="true"
         aria-label="Delete attachment confirmation"
       >
-        <div class="plan-task-attachment-delete-confirm-backdrop" data-action="cancel-delete-attachment"></div>
-        <div class="plan-task-attachment-delete-confirm-panel">
-          <h4 class="plan-task-attachment-delete-confirm-title">Delete attachment</h4>
-          <p class="plan-task-attachment-delete-confirm-body">Delete “${escHtml(confirmFile)}”? The list entry and file will both be removed.</p>
-          <div class="plan-task-attachment-delete-confirm-actions">
+        <div class="todo-task-attachment-delete-confirm-backdrop" data-action="cancel-delete-attachment"></div>
+        <div class="todo-task-attachment-delete-confirm-panel">
+          <h4 class="todo-task-attachment-delete-confirm-title">Delete attachment</h4>
+          <p class="todo-task-attachment-delete-confirm-body">Delete “${escHtml(confirmFile)}”? The list entry and file will both be removed.</p>
+          <div class="todo-task-attachment-delete-confirm-actions">
             <button
               type="button"
               class="md-header-btn"
@@ -896,7 +896,7 @@ function renderAttachmentsSection(ui) {
             >Cancel</button>
             <button
               type="button"
-              class="md-header-btn plan-task-btn-danger"
+              class="md-header-btn todo-task-btn-danger"
               data-action="confirm-delete-attachment"
               data-file-name="${escHtml(confirmFile)}"
               ${disabledAttr}
@@ -906,13 +906,13 @@ function renderAttachmentsSection(ui) {
       </div>`
     : '';
   return `
-    <section class="plan-task-attachments-section" aria-label="Attachments">
-      <div class="plan-task-attachments-header">
-        <div class="plan-task-attachments-heading">
-          <h3 class="plan-task-attachments-title">Attachments</h3>
+    <section class="todo-task-attachments-section" aria-label="Attachments">
+      <div class="todo-task-attachments-header">
+        <div class="todo-task-attachments-heading">
+          <h3 class="todo-task-attachments-title">Attachments</h3>
           ${countHtml}
         </div>
-        <div class="plan-task-attachments-header-actions">
+        <div class="todo-task-attachments-header-actions">
           <button type="button" class="md-header-btn" data-action="pick-attachment-md"${disabledAttr}>Choose local .md</button>
           ${emptyHtml}
         </div>
@@ -930,27 +930,27 @@ function renderCommentsSection(ui) {
   const editId = ui.commentEditId || '';
   const confirmId = ui.commentDeleteConfirm || '';
   const countHtml = items.length
-    ? `<span class="plan-task-comments-count" aria-label="${items.length} process notes">${items.length}</span>`
+    ? `<span class="todo-task-comments-count" aria-label="${items.length} process notes">${items.length}</span>`
     : '';
   const emptyHtml =
     !items.length && !ui.commentsError
-      ? `<span class="plan-task-comments-empty">${escHtml(COMMENTS_EMPTY_MSG)}</span>`
+      ? `<span class="todo-task-comments-empty">${escHtml(COMMENTS_EMPTY_MSG)}</span>`
       : '';
   const listHtml = items.length
-    ? `<ul class="plan-task-comment-list" role="list">${items
+    ? `<ul class="todo-task-comment-list" role="list">${items
         .map((entry) => {
           const added = formatRelativeTime(entry.created_at);
           const meta = added ? `Added ${added}` : 'Process note';
           if (editId === entry.id) {
             return `
-        <li class="plan-task-comment-item plan-task-comment-item--editing" data-comment-id="${escHtml(entry.id)}">
+        <li class="todo-task-comment-item todo-task-comment-item--editing" data-comment-id="${escHtml(entry.id)}">
           <textarea
-            class="plan-task-comment-edit-area"
+            class="todo-task-comment-edit-area"
             data-comment-edit-input
             spellcheck="true"
             ${disabledAttr}
           >${escHtml(entry.body ?? '')}</textarea>
-          <div class="plan-task-comment-item-actions">
+          <div class="todo-task-comment-item-actions">
             <button type="button" class="md-header-btn" data-action="cancel-comment-edit"${disabledAttr}>Cancel</button>
             <button
               type="button"
@@ -963,12 +963,12 @@ function renderCommentsSection(ui) {
         </li>`;
           }
           return `
-        <li class="plan-task-comment-item" data-comment-id="${escHtml(entry.id)}">
-          <div class="plan-task-comment-main">
-            <p class="plan-task-comment-body">${escHtml(entry.body ?? '')}</p>
-            <span class="plan-task-comment-meta">${escHtml(meta)}</span>
+        <li class="todo-task-comment-item" data-comment-id="${escHtml(entry.id)}">
+          <div class="todo-task-comment-main">
+            <p class="todo-task-comment-body">${escHtml(entry.body ?? '')}</p>
+            <span class="todo-task-comment-meta">${escHtml(meta)}</span>
           </div>
-          <div class="plan-task-comment-item-actions">
+          <div class="todo-task-comment-item-actions">
             <button
               type="button"
               class="md-header-btn"
@@ -978,7 +978,7 @@ function renderCommentsSection(ui) {
             >Edit</button>
             <button
               type="button"
-              class="plan-task-comment-delete"
+              class="todo-task-comment-delete"
               data-action="delete-comment"
               data-comment-id="${escHtml(entry.id)}"
               aria-label="Delete process note"
@@ -991,22 +991,22 @@ function renderCommentsSection(ui) {
         .join('')}</ul>`
     : '';
   const errHtml = ui.commentsError
-    ? `<p class="plan-task-comments-error" role="alert">${escHtml(ui.commentsError)}</p>`
+    ? `<p class="todo-task-comments-error" role="alert">${escHtml(ui.commentsError)}</p>`
     : '';
   const confirmHtml = confirmId
     ? `
       <div
-        class="plan-task-comment-delete-confirm"
+        class="todo-task-comment-delete-confirm"
         data-comment-delete-confirm
         role="dialog"
         aria-modal="true"
         aria-label="Delete process note confirmation"
       >
-        <div class="plan-task-comment-delete-confirm-backdrop" data-action="cancel-delete-comment"></div>
-        <div class="plan-task-comment-delete-confirm-panel">
-          <h4 class="plan-task-comment-delete-confirm-title">Delete process note</h4>
-          <p class="plan-task-comment-delete-confirm-body">Delete this process note? This cannot be undone.</p>
-          <div class="plan-task-comment-delete-confirm-actions">
+        <div class="todo-task-comment-delete-confirm-backdrop" data-action="cancel-delete-comment"></div>
+        <div class="todo-task-comment-delete-confirm-panel">
+          <h4 class="todo-task-comment-delete-confirm-title">Delete process note</h4>
+          <p class="todo-task-comment-delete-confirm-body">Delete this process note? This cannot be undone.</p>
+          <div class="todo-task-comment-delete-confirm-actions">
             <button
               type="button"
               class="md-header-btn"
@@ -1015,7 +1015,7 @@ function renderCommentsSection(ui) {
             >Cancel</button>
             <button
               type="button"
-              class="md-header-btn plan-task-btn-danger"
+              class="md-header-btn todo-task-btn-danger"
               data-action="confirm-delete-comment"
               data-comment-id="${escHtml(confirmId)}"
               ${disabledAttr}
@@ -1025,28 +1025,28 @@ function renderCommentsSection(ui) {
       </div>`
     : '';
   return `
-    <section class="plan-task-comments-section" aria-label="Process notes">
-      <div class="plan-task-comments-header">
-        <div class="plan-task-comments-heading">
-          <h3 class="plan-task-comments-title">Process notes</h3>
+    <section class="todo-task-comments-section" aria-label="Process notes">
+      <div class="todo-task-comments-header">
+        <div class="todo-task-comments-heading">
+          <h3 class="todo-task-comments-title">Process notes</h3>
           ${countHtml}
         </div>
         ${emptyHtml}
       </div>
       ${errHtml}
       ${listHtml}
-      <div class="plan-task-comments-composer">
-        <label class="plan-task-comments-composer-label" for="plan-task-comment-input">New process note</label>
+      <div class="todo-task-comments-composer">
+        <label class="todo-task-comments-composer-label" for="todo-task-comment-input">New process note</label>
         <textarea
-          id="plan-task-comment-input"
-          class="plan-task-comment-input"
+          id="todo-task-comment-input"
+          class="todo-task-comment-input"
           data-comment-input
           rows="3"
           placeholder="Add a process note…"
           spellcheck="true"
           ${disabledAttr}
         ></textarea>
-        <div class="plan-task-comments-composer-actions">
+        <div class="todo-task-comments-composer-actions">
           <button type="button" class="md-header-btn primary" data-action="add-comment"${disabledAttr}>Add note</button>
         </div>
       </div>
@@ -1069,31 +1069,31 @@ function renderAttachmentEditor(editor, disabled) {
       ? 'edit'
       : 'preview';
   const errHtml = editor.error
-    ? `<p class="plan-task-attachment-error" role="alert">${escHtml(editor.error)}</p>`
+    ? `<p class="todo-task-attachment-error" role="alert">${escHtml(editor.error)}</p>`
     : '';
   let bodyHtml;
   let footerHtml = '';
   if (editor.loading) {
     bodyHtml = `
-      <div class="plan-task-attachment-loading" role="status">
-        <span class="plan-task-attachment-loading-dot" aria-hidden="true"></span>
+      <div class="todo-task-attachment-loading" role="status">
+        <span class="todo-task-attachment-loading-dot" aria-hidden="true"></span>
         <span>Loading attachment…</span>
       </div>`;
   } else if (editor.editMode) {
     bodyHtml = `
       ${errHtml}
-      <label class="plan-task-attachment-edit-label" for="plan-task-attachment-edit-area">Markdown source</label>
+      <label class="todo-task-attachment-edit-label" for="todo-task-attachment-edit-area">Markdown source</label>
       <textarea
-        id="plan-task-attachment-edit-area"
-        class="plan-task-attachment-edit-area"
+        id="todo-task-attachment-edit-area"
+        class="todo-task-attachment-edit-area"
         spellcheck="false"
         ${disabledAttr}
       >${escHtml(editor.content ?? '')}</textarea>
     `;
     footerHtml = `
-      <footer class="plan-task-attachment-editor-footer">
-        <span class="plan-task-attachment-editor-footer-hint">Save will overwrite this attachment</span>
-        <div class="plan-task-attachment-toolbar">
+      <footer class="todo-task-attachment-editor-footer">
+        <span class="todo-task-attachment-editor-footer-hint">Save will overwrite this attachment</span>
+        <div class="todo-task-attachment-toolbar">
           <button type="button" class="md-header-btn" data-action="cancel-attachment-edit"${disabledAttr}>Cancel</button>
           <button type="button" class="md-header-btn primary" data-action="save-attachment"${disabledAttr}>Save</button>
         </div>
@@ -1101,11 +1101,11 @@ function renderAttachmentEditor(editor, disabled) {
   } else {
     const previewHtml = editor.content
       ? renderCommentMarkdown(editor.content)
-      : '<p class="plan-task-attachment-empty">No content</p>';
+      : '<p class="todo-task-attachment-empty">No content</p>';
     bodyHtml = `
       ${errHtml}
-      <article class="plan-task-attachment-doc">
-        <div class="plan-task-attachment-preview">${previewHtml}</div>
+      <article class="todo-task-attachment-doc">
+        <div class="todo-task-attachment-preview">${previewHtml}</div>
       </article>
     `;
   }
@@ -1114,23 +1114,23 @@ function renderAttachmentEditor(editor, disabled) {
       ? `<button type="button" class="md-header-btn primary" data-action="edit-attachment"${disabledAttr}>Edit</button>`
       : '';
   return `
-    <div class="plan-task-attachment-editor" role="dialog" aria-modal="true" aria-label="${escHtml(editor.fileName)}">
-      <div class="plan-task-attachment-editor-backdrop" data-action="close-attachment-editor"></div>
-      <div class="plan-task-attachment-editor-panel plan-task-attachment-editor-panel--${panelMode}">
-        <header class="plan-task-attachment-editor-header">
-          <div class="plan-task-attachment-editor-heading">
-            <span class="plan-task-attachment-icon" aria-hidden="true">MD</span>
-            <div class="plan-task-attachment-editor-title-wrap">
-              <h3 class="plan-task-attachment-editor-title">${escHtml(editor.fileName)}</h3>
-              <span class="plan-task-attachment-editor-mode">${escHtml(modeLabel)}</span>
+    <div class="todo-task-attachment-editor" role="dialog" aria-modal="true" aria-label="${escHtml(editor.fileName)}">
+      <div class="todo-task-attachment-editor-backdrop" data-action="close-attachment-editor"></div>
+      <div class="todo-task-attachment-editor-panel todo-task-attachment-editor-panel--${panelMode}">
+        <header class="todo-task-attachment-editor-header">
+          <div class="todo-task-attachment-editor-heading">
+            <span class="todo-task-attachment-icon" aria-hidden="true">MD</span>
+            <div class="todo-task-attachment-editor-title-wrap">
+              <h3 class="todo-task-attachment-editor-title">${escHtml(editor.fileName)}</h3>
+              <span class="todo-task-attachment-editor-mode">${escHtml(modeLabel)}</span>
             </div>
           </div>
-          <div class="plan-task-attachment-editor-actions">
+          <div class="todo-task-attachment-editor-actions">
             ${editBtn}
             <button type="button" class="md-header-btn" data-action="close-attachment-editor"${disabledAttr}>Close</button>
           </div>
         </header>
-        <div class="plan-task-attachment-editor-body plan-task-attachment-editor-body--${panelMode}">${bodyHtml}</div>
+        <div class="todo-task-attachment-editor-body todo-task-attachment-editor-body--${panelMode}">${bodyHtml}</div>
         ${footerHtml}
       </div>
     </div>
@@ -1143,8 +1143,8 @@ export function renderSubDetailPane(master, selectedSubId, ui) {
     ? subs.map((sub) => renderSubRow(master, sub, selectedSubId, ui)).join('')
     : renderSubEmpty(ui.disabled);
   return `
-    <div class="plan-task-detail-body">
-      <div class="plan-task-detail-header">
+    <div class="todo-task-detail-body">
+      <div class="todo-task-detail-header">
         <div>
           ${renderDetailTitle(master, ui)}
           ${renderDetailMeta(master)}
@@ -1155,7 +1155,7 @@ export function renderSubDetailPane(master, selectedSubId, ui) {
       ${renderAttachmentsSection(ui)}
       ${renderRefreshWarning(ui.refreshWarning, ui.disabled)}
       ${renderDetailToolbar(master.master_task_id, ui.disabled)}
-      <div class="plan-task-sub-list">${items}</div>
+      <div class="todo-task-sub-list">${items}</div>
       ${renderCommentsSection(ui)}
     </div>
   `;
@@ -1163,27 +1163,27 @@ export function renderSubDetailPane(master, selectedSubId, ui) {
 
 function renderDetailEmpty() {
   return `
-    <div class="plan-task-split-detail-empty plan-task-empty">
-      <p class="plan-task-empty-title">Select a todo on the left</p>
-      <p class="plan-task-empty-detail">Or create a todo from the top right</p>
+    <div class="todo-task-split-detail-empty todo-task-empty">
+      <p class="todo-task-empty-title">Select a todo on the left</p>
+      <p class="todo-task-empty-detail">Or create a todo from the top right</p>
     </div>
   `;
 }
 
 function renderDeadLink() {
   return `
-    <div class="plan-task-split-dead-link plan-task-split-state">
-      <p class="plan-task-split-state-title">Task not found</p>
-      <p class="plan-task-split-state-detail">Link may be stale — pick again from the list</p>
+    <div class="todo-task-split-dead-link todo-task-split-state">
+      <p class="todo-task-split-state-title">Task not found</p>
+      <p class="todo-task-split-state-detail">Link may be stale — pick again from the list</p>
     </div>
   `;
 }
 
 function renderErrorEmpty(message = UNAVAILABLE_MSG) {
   return `
-    <div class="plan-task-split-error plan-task-split-state plan-task-split-state--error">
-      <p class="plan-task-split-state-title">Temporarily unavailable</p>
-      <p class="plan-task-split-state-detail">${escHtml(message)}</p>
+    <div class="todo-task-split-error todo-task-split-state todo-task-split-state--error">
+      <p class="todo-task-split-state-title">Temporarily unavailable</p>
+      <p class="todo-task-split-state-detail">${escHtml(message)}</p>
     </div>
   `;
 }
@@ -1198,11 +1198,11 @@ function renderPageShell({
   categoryError = '',
 }) {
   return `
-    <div class="plan-tasks-page">
+    <div class="todo-tasks-page">
       ${renderPageHeader(disabled, activeOnly, categories, filterCategoryId, categoryError)}
-      <div class="plan-task-split">
-        <aside class="plan-task-split-master" aria-label="Todos list">${masterHtml}</aside>
-        <section class="plan-task-split-detail" aria-label="Task details">${detailHtml}</section>
+      <div class="todo-task-split">
+        <aside class="todo-task-split-master" aria-label="Todos list">${masterHtml}</aside>
+        <section class="todo-task-split-detail" aria-label="Task details">${detailHtml}</section>
       </div>
     </div>
   `;
@@ -1229,7 +1229,7 @@ function bindFocusRefresh(refresh) {
  * @param {HTMLElement} container
  * @param {{ masterId?: string, subId?: string, navigate?: (hash: string) => void }} [opts]
  */
-export function mountPlanTaskSplit(container, opts = {}) {
+export function mountTodoTaskSplit(container, opts = {}) {
   const { masterId: initialMasterId = '', subId: initialSubId = '', navigate } = opts;
   let disposed = false;
   let masters = [];
@@ -1284,7 +1284,7 @@ export function mountPlanTaskSplit(container, opts = {}) {
   });
   let lifecycleEntered = false;
 
-  container.innerHTML = '<div class="plan-task-split-loading">Loading…</div>';
+  container.innerHTML = '<div class="todo-task-split-loading">Loading…</div>';
 
   function syncTodosBindingForSelection(masterId) {
     if (disposed) return;
@@ -1357,7 +1357,7 @@ export function mountPlanTaskSplit(container, opts = {}) {
   }
 
   function closeSubMenus() {
-    container.querySelectorAll('.plan-task-sub-menu-panel').forEach((panel) => {
+    container.querySelectorAll('.todo-task-sub-menu-panel').forEach((panel) => {
       panel.hidden = true;
     });
   }
@@ -1455,11 +1455,11 @@ export function mountPlanTaskSplit(container, opts = {}) {
   }
 
   function paint() {
-    if (!masters.length && container.querySelector('.plan-task-split-error')) {
+    if (!masters.length && container.querySelector('.todo-task-split-error')) {
       return;
     }
-    const masterPane = container.querySelector('.plan-task-split-master');
-    const detailPane = container.querySelector('.plan-task-split-detail');
+    const masterPane = container.querySelector('.todo-task-split-master');
+    const detailPane = container.querySelector('.todo-task-split-detail');
     const masterScroll = masterPane?.scrollTop ?? 0;
     const detailScroll = detailPane?.scrollTop ?? 0;
     const keepDetailScroll =
@@ -1473,7 +1473,7 @@ export function mountPlanTaskSplit(container, opts = {}) {
       filterCategoryId,
     );
     // Keep the same editor element node across paints so in-flight UI refs stay valid.
-    const existingEditor = container.querySelector('.plan-task-attachment-editor');
+    const existingEditor = container.querySelector('.todo-task-attachment-editor');
     if (existingEditor) existingEditor.remove();
     container.innerHTML = renderPageShell({
       masterHtml,
@@ -1485,8 +1485,8 @@ export function mountPlanTaskSplit(container, opts = {}) {
       categoryError,
     });
     paintedMasterId = selectedMasterId;
-    const nextMaster = container.querySelector('.plan-task-split-master');
-    const nextDetail = container.querySelector('.plan-task-split-detail');
+    const nextMaster = container.querySelector('.todo-task-split-master');
+    const nextDetail = container.querySelector('.todo-task-split-detail');
     if (nextMaster) nextMaster.scrollTop = masterScroll;
     if (nextDetail && keepDetailScroll) nextDetail.scrollTop = detailScroll;
     syncCategoryFilterWidth(container);
@@ -1502,7 +1502,7 @@ export function mountPlanTaskSplit(container, opts = {}) {
   }
 
   /**
-   * In-place deep-link update (hash change while already on plan-tasks).
+   * In-place deep-link update (hash change while already on todo-tasks).
    * No-ops when selection already matches so click→navigate does not double-load.
    * @param {{ masterId?: string, subId?: string }} [route]
    */
@@ -1616,7 +1616,7 @@ export function mountPlanTaskSplit(container, opts = {}) {
   async function saveAttachmentEditor() {
     if (!attachmentEditor || !selectedMasterId || controlsDisabled(busy)) return;
     const fileName = attachmentEditor.fileName;
-    const editorEl = container.querySelector('.plan-task-attachment-edit-area');
+    const editorEl = container.querySelector('.todo-task-attachment-edit-area');
     const content =
       editorEl instanceof HTMLTextAreaElement
         ? editorEl.value
@@ -1706,7 +1706,7 @@ export function mountPlanTaskSplit(container, opts = {}) {
 
   async function reloadList({ afterWrite = false } = {}) {
     try {
-      const [entries] = await Promise.all([loadPlanTasks(), loadCategories()]);
+      const [entries] = await Promise.all([loadTodoTasks(), loadCategories()]);
       if (disposed) return;
       masters = entries;
       resolveSelection();
@@ -1741,7 +1741,7 @@ export function mountPlanTaskSplit(container, opts = {}) {
       commentDeleteConfirm = '';
       refreshWarning = '';
       container.innerHTML = renderPageShell({
-        masterHtml: '<div class="plan-task-split-state"></div>',
+        masterHtml: '<div class="todo-task-split-state"></div>',
         detailHtml: renderErrorEmpty(),
         categories,
         filterCategoryId,
@@ -1756,7 +1756,7 @@ export function mountPlanTaskSplit(container, opts = {}) {
   function openCreateCategoryDialog(triggerEl) {
     if (controlsDisabled(busy)) return;
     categoryError = '';
-    openPlanTaskDialog({
+    openTodoTaskDialog({
       type: 'create-category',
       triggerEl: triggerEl instanceof HTMLElement ? triggerEl : null,
       onSubmit: async ({ name }) => {
@@ -2034,7 +2034,7 @@ export function mountPlanTaskSplit(container, opts = {}) {
 
   async function savePlanMd() {
     if (!selectedMasterId || controlsDisabled(busy)) return;
-    const editor = container.querySelector('.plan-task-plan-md-editor');
+    const editor = container.querySelector('.todo-task-plan-md-editor');
     planMdDraft = editor instanceof HTMLTextAreaElement ? editor.value : planMdDraft;
     planMdError = '';
     busy = true;
@@ -2247,12 +2247,12 @@ export function mountPlanTaskSplit(container, opts = {}) {
   }
 
   function openCreateDialog(triggerEl) {
-    openPlanTaskDialog({
+    openTodoTaskDialog({
       type: 'create-master',
       triggerEl,
       onSubmit: async ({ title, subTitles }) => {
         await runWriteAction(async () => {
-          const result = await createPlanTask({ title, subTitles });
+          const result = await createTodoTask({ title, subTitles });
           const createdId = result?.master_task_id ?? result?.task?.master_task_id;
           if (createdId) {
             selectedMasterId = createdId;
@@ -2268,7 +2268,7 @@ export function mountPlanTaskSplit(container, opts = {}) {
   function openAddSubDialog(triggerEl) {
     const master = findMaster(selectedMasterId);
     if (!master) return;
-    openPlanTaskDialog({
+    openTodoTaskDialog({
       type: 'add-sub',
       triggerEl,
       payload: { masterTitle: master.title },
@@ -2284,7 +2284,7 @@ export function mountPlanTaskSplit(container, opts = {}) {
   function openDeleteMasterDialog(triggerEl) {
     const master = findMaster(selectedMasterId);
     if (!master) return;
-    openPlanTaskDialog({
+    openTodoTaskDialog({
       type: 'delete-master',
       triggerEl,
       payload: {
@@ -2294,12 +2294,12 @@ export function mountPlanTaskSplit(container, opts = {}) {
       onSubmit: async () => {
         const masterTaskId = selectedMasterId;
         await runWriteAction(async () => {
-          await deletePlanTask({ masterTaskId });
+          await deleteTodoTask({ masterTaskId });
           selectedMasterId = '';
           selectedSubId = '';
           deadLink = false;
           if (typeof navigate === 'function') {
-            navigate('#/plan-tasks');
+            navigate('#/todo-tasks');
           }
         });
       },
@@ -2307,7 +2307,7 @@ export function mountPlanTaskSplit(container, opts = {}) {
   }
 
   function openDeleteSubDialog(triggerEl, subTaskId, subTitle) {
-    openPlanTaskDialog({
+    openTodoTaskDialog({
       type: 'delete-sub',
       triggerEl,
       payload: { subTitle },
@@ -2554,7 +2554,7 @@ export function mountPlanTaskSplit(container, opts = {}) {
     if (action === 'toggle-sub-menu') {
       event.preventDefault();
       event.stopPropagation();
-      const panel = actionEl?.closest('.plan-task-sub-menu')?.querySelector('.plan-task-sub-menu-panel');
+      const panel = actionEl?.closest('.todo-task-sub-menu')?.querySelector('.todo-task-sub-menu-panel');
       if (!(panel instanceof HTMLElement)) return;
       const willOpen = panel.hidden;
       closeSubMenus();
@@ -2577,7 +2577,7 @@ export function mountPlanTaskSplit(container, opts = {}) {
       return;
     }
 
-    const masterBtn = event.target.closest('.plan-task-master-item');
+    const masterBtn = event.target.closest('.todo-task-master-item');
     if (masterBtn?.dataset.masterId) {
       if (controlsDisabled(busy)) return;
       // Same master: keep list/detail scroll and current sub selection.
@@ -2617,13 +2617,13 @@ export function mountPlanTaskSplit(container, opts = {}) {
       return;
     }
 
-    const subEl = event.target.closest('.plan-task-sub');
+    const subEl = event.target.closest('.todo-task-sub');
     if (subEl?.dataset.subId && selectedMasterId) {
       if (controlsDisabled(busy)) return;
-      if (event.target.closest('.plan-task-sub-menu')) return;
-      if (event.target.closest('.plan-task-sub-title-input')) return;
-      if (event.target.closest('.plan-task-sub-status-select')) return;
-      if (event.target.closest('.plan-task-sub-content-editor')) return;
+      if (event.target.closest('.todo-task-sub-menu')) return;
+      if (event.target.closest('.todo-task-sub-title-input')) return;
+      if (event.target.closest('.todo-task-sub-status-select')) return;
+      if (event.target.closest('.todo-task-sub-content-editor')) return;
       if (event.target.closest('[data-action="toggle-sub-content"]')) return;
       closeSubMenus();
       selectedSubId = subEl.dataset.subId;
@@ -2635,7 +2635,7 @@ export function mountPlanTaskSplit(container, opts = {}) {
       return;
     }
 
-    if (!event.target.closest('.plan-task-sub-menu')) {
+    if (!event.target.closest('.todo-task-sub-menu')) {
       closeSubMenus();
     }
   };
@@ -2808,7 +2808,7 @@ export function mountPlanTaskSplit(container, opts = {}) {
   const onDialogClose = () => {
     if (!disposed) paint();
   };
-  document.addEventListener('plan-task-dialog-close', onDialogClose);
+  document.addEventListener('todo-task-dialog-close', onDialogClose);
   const disposeFocusRefresh = bindFocusRefresh(refresh);
 
   let unlistenTurnCompleted = null;
@@ -2835,8 +2835,8 @@ export function mountPlanTaskSplit(container, opts = {}) {
     try {
       void todosLifecycle.onTodosPageLeave();
     } finally {
-      document.removeEventListener('plan-task-dialog-close', onDialogClose);
-      closePlanTaskDialog();
+      document.removeEventListener('todo-task-dialog-close', onDialogClose);
+      closeTodoTaskDialog();
       disposeFocusRefresh();
       if (typeof unlistenTurnCompleted === 'function') {
         void unlistenTurnCompleted();

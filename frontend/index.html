@@ -8,7 +8,7 @@
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/turndown/dist/turndown.min.js"></script>
 <script src="vendor/mermaid.min.js"></script>
-<link rel="stylesheet" href="app.css?v=20260827c">
+<link rel="stylesheet" href="app.css?v=20260827e">
 </head>
 <body>
 
@@ -56,7 +56,7 @@
 <div id="home-view" style="display:none;overflow:hidden;height:calc(100vh - 52px);box-sizing:border-box;"></div>
 <div id="corpus-doc-view" style="display:none;height:calc(100vh - 52px);box-sizing:border-box;"></div>
 <div id="read-later-view" style="display:none;height:calc(100vh - 52px);box-sizing:border-box;"></div>
-<div id="plan-tasks-view" style="display:none;width:100%;min-width:0;height:calc(100vh - 52px);overflow:hidden;box-sizing:border-box;"></div>
+<div id="todo-tasks-view" style="display:none;width:100%;min-width:0;height:calc(100vh - 52px);overflow:hidden;box-sizing:border-box;"></div>
 
 <div class="layout">
   <aside id="sidebar">
@@ -140,13 +140,37 @@
 <div id="bind-dialog">
   <div id="bind-dialog-box">
     <div id="bind-dialog-header">
-      <span>📲 Bind device</span>
+      <div id="bind-dialog-heading">
+        <span id="bind-dialog-title">📲 Bind device</span>
+        <p id="bind-dialog-lead">Pair this Mac with the Workbench Android app on the same local network.</p>
+      </div>
       <button id="btn-bind-close">✕ Close</button>
     </div>
-    <div id="bind-status"></div>
-    <div id="bind-countdown"></div>
-    <div id="bind-preview"></div>
-    <button id="btn-bind-refresh" hidden>Refresh</button>
+    <div id="bind-dialog-body">
+      <div id="bind-qr-card">
+        <div id="bind-preview"></div>
+      </div>
+      <div id="bind-dialog-meta">
+        <div class="bind-meta-row">
+          <span class="bind-meta-label">Status</span>
+          <div id="bind-status" role="status" aria-live="polite"></div>
+        </div>
+        <div class="bind-meta-row">
+          <span class="bind-meta-label">Code</span>
+          <div id="bind-countdown"></div>
+        </div>
+        <p id="bind-host" hidden></p>
+        <ol id="bind-steps">
+          <li>Open the Workbench Android app.</li>
+          <li>Scan this code on the same local network.</li>
+          <li>Keep this window open until binding succeeds.</li>
+        </ol>
+      </div>
+    </div>
+    <div id="bind-dialog-footer">
+      <p id="bind-footer-hint">A new code is available if this one expires.</p>
+      <button id="btn-bind-refresh" hidden>New code</button>
+    </div>
   </div>
 </div>
 
@@ -577,16 +601,16 @@
 </div>
 
 <!-- Plan Task dialog -->
-<div id="plan-task-dialog">
-  <div id="plan-task-dialog-box">
-    <div id="plan-task-dialog-header">
-      <h3 id="plan-task-dialog-title"></h3>
+<div id="todo-task-dialog">
+  <div id="todo-task-dialog-box">
+    <div id="todo-task-dialog-header">
+      <h3 id="todo-task-dialog-title"></h3>
     </div>
-    <div id="plan-task-dialog-body"></div>
-    <p id="plan-task-dialog-error" hidden></p>
-    <div id="plan-task-dialog-actions">
-      <button type="button" id="plan-task-dialog-cancel" class="md-header-btn">Cancel</button>
-      <button type="button" id="plan-task-dialog-primary" class="md-header-btn primary">OK</button>
+    <div id="todo-task-dialog-body"></div>
+    <p id="todo-task-dialog-error" hidden></p>
+    <div id="todo-task-dialog-actions">
+      <button type="button" id="todo-task-dialog-cancel" class="md-header-btn">Cancel</button>
+      <button type="button" id="todo-task-dialog-primary" class="md-header-btn primary">OK</button>
     </div>
   </div>
 </div>

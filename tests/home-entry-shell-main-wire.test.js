@@ -24,7 +24,7 @@ function readAppCss() {
 /** Count top-level mount*AssistantWidget(document.body …) calls in main.js. */
 function countLegacyBodyMounts(source) {
   const re =
-    /mount(?:ReadLater|PlanTask|Note|Builders)AssistantWidget\s*\(\s*document\.body\b/g;
+    /mount(?:ReadLater|TodoTask|Note|Builders)AssistantWidget\s*\(\s*document\.body\b/g;
   return (source.match(re) || []).length;
 }
 
@@ -32,7 +32,7 @@ function countLegacyBodyMounts(source) {
 function hasFabMutexListener(source) {
   return (
     /closest\(\s*['"]\.rl-assistant-fab['"]\s*\)/.test(source) &&
-    /closest\(\s*['"]\.pt-assistant-fab['"]\s*\)/.test(source) &&
+    /closest\(\s*['"]\.todo-assistant-fab['"]\s*\)/.test(source) &&
     /closest\(\s*['"]\.note-assistant-fab['"]\s*\)/.test(source) &&
     /closest\(\s*['"]\.builders-entry-fab['"]\s*\)/.test(source)
   );
@@ -115,7 +115,7 @@ describe('home-entry-shell main wiring (T5)', () => {
   it('app.css removes the old independent four-FAB bottom stack offsets', () => {
     const css = readAppCss();
     // Former stack: rl 20 → pt 76 → note 132 → builders 188. Shell owns a single cluster anchor.
-    expect(css).not.toMatch(/\.pt-assistant-widget\s*\{[^}]*bottom:\s*76px/);
+    expect(css).not.toMatch(/\.todo-assistant-widget\s*\{[^}]*bottom:\s*76px/);
     expect(css).not.toMatch(/\.note-assistant-widget\s*\{[^}]*bottom:\s*132px/);
     expect(css).not.toMatch(/\.builders-entry\s*\{[^}]*bottom:\s*188px/);
     // Shell cluster remains the single bottom-right stack anchor.
@@ -218,7 +218,7 @@ describe('home-entry-shell workbench Binding (t2)', () => {
       'utf8',
     );
     const lifeJs = readFileSync(
-      join(repoRoot, 'frontend/js/plan-task/todos-lifecycle.js'),
+      join(repoRoot, 'frontend/js/todo-task/todos-lifecycle.js'),
       'utf8',
     );
     expect(source).not.toMatch(
@@ -229,7 +229,7 @@ describe('home-entry-shell workbench Binding (t2)', () => {
     const mountSlice = source.slice(mountWorkbenchIdx, mountWorkbenchIdx + 400);
     expect(mountSlice).not.toMatch(/set_binding|reset_binding|setWorkbenchBinding|buildNotesBinding/);
 
-    const mountTodosIdx = source.indexOf('function mountPlanTasksRoute');
+    const mountTodosIdx = source.indexOf('function mountTodoTasksRoute');
     expect(mountTodosIdx).toBeGreaterThanOrEqual(0);
     const todosSlice = source.slice(mountTodosIdx, mountTodosIdx + 500);
     expect(todosSlice).not.toMatch(/resetNotesBinding|set_binding|reset_binding/);

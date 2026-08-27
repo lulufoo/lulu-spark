@@ -40,7 +40,7 @@ sediment-kb 与 Read Later 的 SSOT（单一数据源）已迁入语料仓 `work
 
 - `sediment-kb/categories.json`、`sediment-kb/repos.json`
 - `read_later/read_later.json`
-- `plan_tasks/plan_tasks.json`
+- `todo_tasks/todo_tasks.json`
 
 `cache_dir` 仍保留 drafts、repo-commits、Meili 等可重建数据。
 

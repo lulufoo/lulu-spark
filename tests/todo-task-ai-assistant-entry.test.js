@@ -22,15 +22,15 @@ vi.mock('../frontend/js/apiClient.js', async (importOriginal) => {
   };
 });
 
-import { mountPlanTaskSplit } from '../frontend/js/plan-task/index.js';
+import { mountTodoTaskSplit } from '../frontend/js/todo-task/index.js';
 
 const fixtureRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
-const planTaskIndex = readFileSync(
-  join(fixtureRoot, 'frontend/js/plan-task/index.js'),
+const todoTaskIndex = readFileSync(
+  join(fixtureRoot, 'frontend/js/todo-task/index.js'),
   'utf8',
 );
-const planTaskAssistant = readFileSync(
-  join(fixtureRoot, 'frontend/js/plan-task-assistant.js'),
+const todoTaskAssistant = readFileSync(
+  join(fixtureRoot, 'frontend/js/todo-task-assistant.js'),
   'utf8',
 );
 
@@ -52,24 +52,24 @@ const sampleMasters = [
   },
 ];
 
-describe('plan-task AI assistant entry source wiring (t6)', () => {
-  it('plan-task/index.js has no page Present trigger; keeps turn-completed listen', () => {
-    expect(planTaskIndex).toMatch(/ai-assistant:turn-completed/);
-    expect(planTaskIndex).not.toMatch(/presentTodosAssistant/);
-    expect(planTaskIndex).not.toMatch(/data-action=["']open-ai-assistant["']/);
-    expect(planTaskIndex).not.toMatch(
+describe('todo-task AI assistant entry source wiring (t6)', () => {
+  it('todo-task/index.js has no page Present trigger; keeps turn-completed listen', () => {
+    expect(todoTaskIndex).toMatch(/ai-assistant:turn-completed/);
+    expect(todoTaskIndex).not.toMatch(/presentTodosAssistant/);
+    expect(todoTaskIndex).not.toMatch(/data-action=["']open-ai-assistant["']/);
+    expect(todoTaskIndex).not.toMatch(
       /invoke\(\s*['"]open_ai_assistant['"]\s*,\s*\{\s*masterTaskId/,
     );
   });
 
-  it('does not move Present / open_ai_assistant into plan-task-assistant FAB', () => {
-    expect(planTaskAssistant).not.toMatch(/open_ai_assistant/);
-    expect(planTaskAssistant).not.toMatch(/present_ai_assistant/);
-    expect(planTaskAssistant).not.toMatch(/ai-assistant:turn-completed/);
+  it('does not move Present / open_ai_assistant into todo-task-assistant FAB', () => {
+    expect(todoTaskAssistant).not.toMatch(/open_ai_assistant/);
+    expect(todoTaskAssistant).not.toMatch(/present_ai_assistant/);
+    expect(todoTaskAssistant).not.toMatch(/ai-assistant:turn-completed/);
   });
 });
 
-describe('mountPlanTaskSplit AI assistant entry', () => {
+describe('mountTodoTaskSplit AI assistant entry', () => {
   let container;
   let invokeMock;
   let listenMock;
@@ -115,22 +115,22 @@ describe('mountPlanTaskSplit AI assistant entry', () => {
   });
 
   it('never shows open-ai-assistant entry (selected or not)', async () => {
-    const { dispose } = mountPlanTaskSplit(container);
+    const { dispose } = mountTodoTaskSplit(container);
     await vi.waitFor(() => {
-      expect(container.querySelector('.plan-task-master-item')).not.toBeNull();
+      expect(container.querySelector('.todo-task-master-item')).not.toBeNull();
     });
     expect(container.querySelector('[data-action="open-ai-assistant"]')).toBeNull();
 
     container.querySelector('[data-master-id="task_alpha"]').click();
     await vi.waitFor(() => {
-      expect(container.querySelector('.plan-task-detail-toolbar')).not.toBeNull();
+      expect(container.querySelector('.todo-task-detail-toolbar')).not.toBeNull();
     });
     expect(container.querySelector('[data-action="open-ai-assistant"]')).toBeNull();
     dispose();
   });
 
   it('listens ai-assistant:turn-completed and refreshes when wrote=true', async () => {
-    const { dispose } = mountPlanTaskSplit(container, {
+    const { dispose } = mountTodoTaskSplit(container, {
       masterId: 'task_alpha',
     });
     await vi.waitFor(() => {
@@ -151,7 +151,7 @@ describe('mountPlanTaskSplit AI assistant entry', () => {
   });
 
   it('does not refresh when wrote=false', async () => {
-    const { dispose } = mountPlanTaskSplit(container, {
+    const { dispose } = mountTodoTaskSplit(container, {
       masterId: 'task_alpha',
     });
     await vi.waitFor(() => {

@@ -171,7 +171,7 @@ describe('home-entry-shell shell · entry cluster + OverlayChrome + triggers (T3
     expect(shell.getState()).toEqual({ mode: 'B' });
 
     // backdrop / outside cluster
-    entryBtn(anchor, 'plan-task').click();
+    entryBtn(anchor, 'todo-task').click();
     expect(shell.getState().mode).toBe('C');
     backdrop(anchor).click();
     expect(shell.getState()).toEqual({ mode: 'B' });
@@ -258,7 +258,7 @@ describe('home-entry-shell shell · entry cluster + OverlayChrome + triggers (T3
       'utf8',
     );
     expect(shellSrc).not.toMatch(/Read Later|Notes Assistant|Builders|Todos/);
-    expect(shellSrc).not.toMatch(/rl-assistant-|pt-assistant-|note-assistant-|builders-modal-/);
+    expect(shellSrc).not.toMatch(/rl-assistant-|todo-assistant-|note-assistant-|builders-modal-/);
   });
 
   // T7: shell-level business switch must traverse C→B→C (UI path)

@@ -22,18 +22,18 @@ vi.mock('../frontend/js/apiClient.js', async (importOriginal) => {
 });
 
 import {
-  mountPlanTaskSplit,
+  mountTodoTaskSplit,
   TODOS_OPEN_AND_BIND_MAIN_PATH_DISABLED,
-} from '../frontend/js/plan-task/index.js';
-import { PLAN_TASK_ASSISTANT_FAB_CHAT_DISABLED } from '../frontend/js/plan-task-assistant.js';
+} from '../frontend/js/todo-task/index.js';
+import { TODO_TASK_ASSISTANT_FAB_CHAT_DISABLED } from '../frontend/js/todo-task-assistant.js';
 
 const fixtureRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
-const planTaskIndex = readFileSync(
-  join(fixtureRoot, 'frontend/js/plan-task/index.js'),
+const todoTaskIndex = readFileSync(
+  join(fixtureRoot, 'frontend/js/todo-task/index.js'),
   'utf8',
 );
-const planTaskAssistant = readFileSync(
-  join(fixtureRoot, 'frontend/js/plan-task-assistant.js'),
+const todoTaskAssistant = readFileSync(
+  join(fixtureRoot, 'frontend/js/todo-task-assistant.js'),
   'utf8',
 );
 
@@ -58,38 +58,38 @@ const sampleMasters = [
 describe('t4 de-embed + writeback — source contracts', () => {
   it('N1: Todos stops open_ai_assistant(masterTaskId) as executable main path', () => {
     expect(TODOS_OPEN_AND_BIND_MAIN_PATH_DISABLED).toBe(true);
-    expect(planTaskIndex).not.toMatch(
+    expect(todoTaskIndex).not.toMatch(
       /invoke\(\s*['"]open_ai_assistant['"]\s*,\s*\{\s*masterTaskId/,
     );
-    expect(planTaskIndex).not.toMatch(/['"]open_ai_assistant['"]/);
+    expect(todoTaskIndex).not.toMatch(/['"]open_ai_assistant['"]/);
   });
 
   it('C-min: keeps turn-completed → onAiAssistantTurnCompleted → reloadList (mandatory)', () => {
-    expect(planTaskIndex).toMatch(/ai-assistant:turn-completed/);
-    expect(planTaskIndex).toMatch(/function onAiAssistantTurnCompleted\b/);
-    expect(planTaskIndex).toMatch(/reloadList\(\s*\{\s*afterWrite:\s*true\s*\}\s*\)/);
+    expect(todoTaskIndex).toMatch(/ai-assistant:turn-completed/);
+    expect(todoTaskIndex).toMatch(/function onAiAssistantTurnCompleted\b/);
+    expect(todoTaskIndex).toMatch(/reloadList\(\s*\{\s*afterWrite:\s*true\s*\}\s*\)/);
   });
 
   it('FAB Top3 stays non-chat (Boundary Out); not Present/Set/execute', () => {
-    expect(PLAN_TASK_ASSISTANT_FAB_CHAT_DISABLED).toBe(true);
-    expect(planTaskAssistant).not.toMatch(/open_ai_assistant/);
-    expect(planTaskAssistant).not.toMatch(/present_ai_assistant/);
-    expect(planTaskAssistant).not.toMatch(/set_binding/);
-    expect(planTaskAssistant).not.toMatch(/execute_binding/);
-    expect(planTaskAssistant).not.toMatch(/ai-assistant:turn-completed/);
+    expect(TODO_TASK_ASSISTANT_FAB_CHAT_DISABLED).toBe(true);
+    expect(todoTaskAssistant).not.toMatch(/open_ai_assistant/);
+    expect(todoTaskAssistant).not.toMatch(/present_ai_assistant/);
+    expect(todoTaskAssistant).not.toMatch(/set_binding/);
+    expect(todoTaskAssistant).not.toMatch(/execute_binding/);
+    expect(todoTaskAssistant).not.toMatch(/ai-assistant:turn-completed/);
   });
 
   it('T6: page Present entry removed; no open-and-bind bypass posing as de-embed', () => {
-    expect(planTaskIndex).not.toMatch(/presentTodosAssistant/);
-    expect(planTaskIndex).not.toMatch(/data-action=["']open-ai-assistant["']/);
+    expect(todoTaskIndex).not.toMatch(/presentTodosAssistant/);
+    expect(todoTaskIndex).not.toMatch(/data-action=["']open-ai-assistant["']/);
     // L12-I#3: must not keep openPlanAiAssistant open+bind bypass.
-    expect(planTaskIndex).not.toMatch(
+    expect(todoTaskIndex).not.toMatch(
       /function\s+openPlanAiAssistant[\s\S]{0,400}open_ai_assistant/,
     );
   });
 });
 
-describe('mountPlanTaskSplit t4 runtime — N1 + writeback', () => {
+describe('mountTodoTaskSplit t4 runtime — N1 + writeback', () => {
   let container;
   let invokeMock;
   let listenMock;
@@ -154,11 +154,11 @@ describe('mountPlanTaskSplit t4 runtime — N1 + writeback', () => {
   });
 
   it('N1/T6: no page Assistant Present trigger — no open_ai_assistant, no legacy bound write', async () => {
-    const { dispose } = mountPlanTaskSplit(container, {
+    const { dispose } = mountTodoTaskSplit(container, {
       masterId: 'task_alpha',
     });
     await vi.waitFor(() => {
-      expect(container.querySelector('.plan-task-detail-toolbar')).not.toBeNull();
+      expect(container.querySelector('.todo-task-detail-toolbar')).not.toBeNull();
     });
 
     expect(
@@ -179,7 +179,7 @@ describe('mountPlanTaskSplit t4 runtime — N1 + writeback', () => {
   });
 
   it('keeps turn-completed writeback refresh when wrote=true', async () => {
-    const { dispose } = mountPlanTaskSplit(container, {
+    const { dispose } = mountTodoTaskSplit(container, {
       masterId: 'task_alpha',
     });
     await vi.waitFor(() => {
@@ -196,11 +196,11 @@ describe('mountPlanTaskSplit t4 runtime — N1 + writeback', () => {
   });
 
   it('retains execute surface (de-embed does not remove execute path)', async () => {
-    const { dispose } = mountPlanTaskSplit(container, {
+    const { dispose } = mountTodoTaskSplit(container, {
       masterId: 'task_alpha',
     });
     await vi.waitFor(() => {
-      expect(container.querySelector('.plan-task-detail-toolbar')).not.toBeNull();
+      expect(container.querySelector('.todo-task-detail-toolbar')).not.toBeNull();
     });
     expect(invokeMock).not.toHaveBeenCalledWith(
       'set_binding',

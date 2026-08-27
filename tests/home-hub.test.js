@@ -36,15 +36,15 @@ describe('mountHomeHub', () => {
     const workbenchEntry = container.querySelector('[data-home-entry="workbench"]');
     const readLaterEntry = container.querySelector('[data-home-entry="read-later"]');
     const corpusEntry = container.querySelector('[data-home-entry="corpus"]');
-    const planTasksEntry = container.querySelector('[data-home-entry="plan-tasks"]');
+    const todoTasksEntry = container.querySelector('[data-home-entry="todo-tasks"]');
     expect(workbenchEntry).not.toBeNull();
     expect(readLaterEntry).not.toBeNull();
     expect(corpusEntry).not.toBeNull();
-    expect(planTasksEntry).not.toBeNull();
+    expect(todoTasksEntry).not.toBeNull();
     expect(workbenchEntry.textContent).toMatch(/Notes/);
     expect(readLaterEntry.textContent).toMatch(/Read Later/);
     expect(corpusEntry.textContent).toMatch(/Knowledge/);
-    expect(planTasksEntry.textContent).toMatch(/Todos/);
+    expect(todoTasksEntry.textContent).toMatch(/Todos/);
   });
 
   it('navigates to #/workbench when workbench entry is clicked', () => {
@@ -70,18 +70,18 @@ describe('mountHomeHub', () => {
     expect(navigate).not.toHaveBeenCalledWith('#/read-later');
   });
 
-  it('navigates to #/plan-tasks when plan-tasks entry is clicked', () => {
+  it('navigates to #/todo-tasks when todo-tasks entry is clicked', () => {
     mountHomeHub(container, { navigate });
 
-    container.querySelector('[data-home-entry="plan-tasks"]').click();
-    expect(navigate).toHaveBeenCalledWith('#/plan-tasks');
+    container.querySelector('[data-home-entry="todo-tasks"]').click();
+    expect(navigate).toHaveBeenCalledWith('#/todo-tasks');
   });
 
-  it('does not throw when plan-tasks entry is clicked without navigate', () => {
+  it('does not throw when todo-tasks entry is clicked without navigate', () => {
     mountHomeHub(container, {});
 
     expect(() => {
-      container.querySelector('[data-home-entry="plan-tasks"]').click();
+      container.querySelector('[data-home-entry="todo-tasks"]').click();
     }).not.toThrow();
   });
 

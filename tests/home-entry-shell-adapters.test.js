@@ -38,7 +38,7 @@ import {
 } from '../frontend/js/home-entry-shell/entry-config.js';
 import { mountHomeEntryShell } from '../frontend/js/home-entry-shell/shell.js';
 import { createReadLaterContentAdapter } from '../frontend/js/read-later-assistant.js';
-import { createPlanTaskContentAdapter } from '../frontend/js/plan-task-assistant.js';
+import { createTodoTaskContentAdapter } from '../frontend/js/todo-task-assistant.js';
 import { createNotesContentAdapter } from '../frontend/js/note-assistant.js';
 import { createBuildersContentAdapter } from '../frontend/js/builders-assistant.js';
 import { createAiAssistantContentAdapter } from '../frontend/js/ai-assistant.js';
@@ -46,7 +46,7 @@ import { createAiAssistantContentAdapter } from '../frontend/js/ai-assistant.js'
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 
 const CHROME_RE =
-  /\.(?:rl-assistant-(?:popover|fab|close)|pt-assistant-(?:popover|fab|close)|note-assistant-(?:popover|fab|close)|builders-(?:modal-host|modal-header|modal-close|entry-fab))\b/;
+  /\.(?:rl-assistant-(?:popover|fab|close)|todo-assistant-(?:popover|fab|close)|note-assistant-(?:popover|fab|close)|builders-(?:modal-host|modal-header|modal-close|entry-fab))\b/;
 
 const ADAPTERS = [
   {
@@ -57,11 +57,11 @@ const ADAPTERS = [
       '.read-later-assistant-empty, .read-later-assistant-panel, .read-later-assistant-loading',
   },
   {
-    key: 'plan-task',
-    create: createPlanTaskContentAdapter,
-    sourcePath: 'frontend/js/plan-task-assistant.js',
+    key: 'todo-task',
+    create: createTodoTaskContentAdapter,
+    sourcePath: 'frontend/js/todo-task-assistant.js',
     contentSelector:
-      '.plan-task-assistant-empty, .plan-task-assistant-list, .plan-task-assistant-loading',
+      '.todo-task-assistant-empty, .todo-task-assistant-list, .todo-task-assistant-loading',
   },
   {
     key: 'notes',
@@ -135,7 +135,7 @@ describe('home-entry-shell adapters (T6)', () => {
       });
 
       expect(slot.querySelector('.rl-assistant-popover'), key).toBeNull();
-      expect(slot.querySelector('.pt-assistant-popover'), key).toBeNull();
+      expect(slot.querySelector('.todo-assistant-popover'), key).toBeNull();
       expect(slot.querySelector('.note-assistant-popover'), key).toBeNull();
       expect(slot.querySelector('.builders-modal-host'), key).toBeNull();
       expect(slot.querySelector('.builders-modal-header'), key).toBeNull();
@@ -151,23 +151,23 @@ describe('home-entry-shell adapters (T6)', () => {
     for (const { key, sourcePath } of ADAPTERS) {
       const src = readFileSync(join(repoRoot, sourcePath), 'utf8');
       expect(src, key).not.toMatch(CHROME_RE);
-      expect(src, key).not.toMatch(/mount(?:ReadLater|PlanTask|Note|Builders)AssistantWidget/);
+      expect(src, key).not.toMatch(/mount(?:ReadLater|TodoTask|Note|Builders)AssistantWidget/);
     }
   });
 
   it('main.js registers all four baseline adapters on the ContentRegistry', () => {
     const source = readMain();
     expect(source).toMatch(/createReadLaterContentAdapter/);
-    expect(source).toMatch(/createPlanTaskContentAdapter/);
+    expect(source).toMatch(/createTodoTaskContentAdapter/);
     expect(source).toMatch(/createNotesContentAdapter/);
     expect(source).toMatch(/createBuildersContentAdapter/);
     expect(source).toMatch(/\.register\(\s*['"]read-later['"]/);
-    expect(source).toMatch(/\.register\(\s*['"]plan-task['"]/);
+    expect(source).toMatch(/\.register\(\s*['"]todo-task['"]/);
     expect(source).toMatch(/\.register\(\s*['"]notes['"]/);
     expect(source).toMatch(/\.register\(\s*['"]builders['"]/);
   });
 
-  it('read-later / plan-task adapters use host.navigate and host.openReadLater', async () => {
+  it('read-later / todo-task adapters use host.navigate and host.openReadLater', async () => {
     const navigate = vi.fn();
     const openReadLater = vi.fn();
 
@@ -185,14 +185,14 @@ describe('home-entry-shell adapters (T6)', () => {
 
     const ptSlot = document.createElement('div');
     document.body.appendChild(ptSlot);
-    const pt = createPlanTaskContentAdapter().mount(ptSlot, {
+    const pt = createTodoTaskContentAdapter().mount(ptSlot, {
       host: { navigate },
     });
     await vi.waitFor(() => {
-      expect(ptSlot.querySelector('.plan-task-assistant-manage-link')).not.toBeNull();
+      expect(ptSlot.querySelector('.todo-task-assistant-manage-link')).not.toBeNull();
     });
-    ptSlot.querySelector('.plan-task-assistant-manage-link').click();
-    expect(navigate).toHaveBeenCalledWith('#/plan-tasks');
+    ptSlot.querySelector('.todo-task-assistant-manage-link').click();
+    expect(navigate).toHaveBeenCalledWith('#/todo-tasks');
     pt.unmount();
   });
 

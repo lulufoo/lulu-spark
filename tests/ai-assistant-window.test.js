@@ -86,7 +86,7 @@ describe('ai-assistant window shell (t5)', () => {
 
   it('Todos Set provisions chat session without Present (ensure_ai_assistant_session)', () => {
     const todosBinding = readFileSync(
-      join(repoRoot, 'frontend/js/plan-task/todos-binding.js'),
+      join(repoRoot, 'frontend/js/todo-task/todos-binding.js'),
       'utf8',
     );
     expect(todosBinding).toMatch(/ensure_ai_assistant_session/);
@@ -177,7 +177,7 @@ describe('ai-assistant window shell (t5)', () => {
     expect(aiAssistantCmd).toMatch(/set_binding_json/);
     expect(aiAssistantCmd).toMatch(/execute_binding_json/);
     expect(aiAssistantCmd).not.toMatch(
-      /fn set_binding_json[\s\S]*plan-task|fn execute_binding_json[\s\S]*角位/,
+      /fn set_binding_json[\s\S]*todo-task|fn execute_binding_json[\s\S]*角位/,
     );
   });
 

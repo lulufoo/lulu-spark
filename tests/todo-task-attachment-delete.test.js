@@ -20,8 +20,8 @@ vi.mock('../frontend/js/apiClient.js', async (importOriginal) => {
 
 import {
   deletePlanAttachment,
-  mountPlanTaskSplit,
-} from '../frontend/js/plan-task/index.js';
+  mountTodoTaskSplit,
+} from '../frontend/js/todo-task/index.js';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -92,7 +92,7 @@ describe('deletePlanAttachment', () => {
   });
 });
 
-describe('mountPlanTaskSplit attachment delete entry', () => {
+describe('mountTodoTaskSplit attachment delete entry', () => {
   let container;
 
   beforeEach(() => {
@@ -115,12 +115,12 @@ describe('mountPlanTaskSplit attachment delete entry', () => {
   });
 
   async function mountAndWait() {
-    const api = mountPlanTaskSplit(container, {
+    const api = mountTodoTaskSplit(container, {
       masterId: 'task_alpha',
       subId: 'task_alpha_sub_01',
     });
     await vi.waitFor(() => {
-      expect(container.querySelector('.plan-task-attachment-item')).not.toBeNull();
+      expect(container.querySelector('.todo-task-attachment-item')).not.toBeNull();
     });
     return api;
   }
@@ -162,18 +162,18 @@ describe('mountPlanTaskSplit attachment delete entry', () => {
 
     await vi.waitFor(() => {
       const confirm = container.querySelector(
-        '[data-action="confirm-delete-attachment"], .plan-task-attachment-delete-confirm',
+        '[data-action="confirm-delete-attachment"], .todo-task-attachment-delete-confirm',
       );
       expect(confirm).not.toBeNull();
     });
 
     const confirmUi = container.querySelector(
-      '.plan-task-attachment-delete-confirm, [data-attachment-delete-confirm]',
+      '.todo-task-attachment-delete-confirm, [data-attachment-delete-confirm]',
     );
     expect(confirmUi).not.toBeNull();
     expect(confirmUi.textContent).toMatch(/attachment|notes\.md/i);
     expect(confirmUi.textContent).not.toMatch(/删除计划|子任务/);
-    expect(document.getElementById('plan-task-dialog')?.classList.contains('open')).not.toBe(
+    expect(document.getElementById('todo-task-dialog')?.classList.contains('open')).not.toBe(
       true,
     );
     dispose();
@@ -203,7 +203,7 @@ describe('mountPlanTaskSplit attachment delete entry', () => {
     await vi.waitFor(() => {
       expect(
         container.querySelector(
-          '[data-action="confirm-delete-attachment"], .plan-task-attachment-delete-confirm',
+          '[data-action="confirm-delete-attachment"], .todo-task-attachment-delete-confirm',
         ),
       ).not.toBeNull();
     });
@@ -211,7 +211,7 @@ describe('mountPlanTaskSplit attachment delete entry', () => {
     const confirmBtn =
       container.querySelector('[data-action="confirm-delete-attachment"]') ||
       container.querySelector(
-        '.plan-task-attachment-delete-confirm [data-action="confirm-delete-attachment"]',
+        '.todo-task-attachment-delete-confirm [data-action="confirm-delete-attachment"]',
       );
     expect(confirmBtn).not.toBeNull();
     confirmBtn.click();
@@ -248,7 +248,7 @@ describe('mountPlanTaskSplit attachment delete entry', () => {
     await vi.waitFor(() => {
       expect(
         container.querySelector(
-          '[data-action="cancel-delete-attachment"], .plan-task-attachment-delete-confirm',
+          '[data-action="cancel-delete-attachment"], .todo-task-attachment-delete-confirm',
         ),
       ).not.toBeNull();
     });
@@ -256,14 +256,14 @@ describe('mountPlanTaskSplit attachment delete entry', () => {
     const cancelBtn =
       container.querySelector('[data-action="cancel-delete-attachment"]') ||
       container.querySelector(
-        '.plan-task-attachment-delete-confirm [data-action="cancel-delete-attachment"]',
+        '.todo-task-attachment-delete-confirm [data-action="cancel-delete-attachment"]',
       );
     expect(cancelBtn).not.toBeNull();
     cancelBtn.click();
 
     await vi.waitFor(() => {
       expect(
-        container.querySelector('.plan-task-attachment-delete-confirm'),
+        container.querySelector('.todo-task-attachment-delete-confirm'),
       ).toBeNull();
     });
     expect(invokeMock).not.toHaveBeenCalledWith(
@@ -298,7 +298,7 @@ describe('mountPlanTaskSplit attachment delete entry', () => {
     container.querySelector('[data-action="confirm-delete-attachment"]').click();
 
     await vi.waitFor(() => {
-      const err = container.querySelector('.plan-task-attachments-error');
+      const err = container.querySelector('.todo-task-attachments-error');
       expect(err).not.toBeNull();
       expect(err.textContent.trim().length).toBeGreaterThan(0);
     });
@@ -311,25 +311,25 @@ describe('mountPlanTaskSplit attachment delete entry', () => {
 });
 
 describe('attachment delete does not loosen MCP / dialog contracts', () => {
-  it('dialog.js PlanTaskDialogType stays master/sub CRUD only (no attachment delete type)', () => {
+  it('dialog.js TodoTaskDialogType stays master/sub CRUD only (no attachment delete type)', () => {
     const dialogSrc = readFileSync(
-      join(repoRoot, 'frontend/js/plan-task/dialog.js'),
+      join(repoRoot, 'frontend/js/todo-task/dialog.js'),
       'utf8',
     );
     expect(dialogSrc).toMatch(
-      /@typedef \{'create-master' \| 'create-category' \| 'add-sub' \| 'delete-master' \| 'delete-sub'\} PlanTaskDialogType/,
+      /@typedef \{'create-master' \| 'create-category' \| 'add-sub' \| 'delete-master' \| 'delete-sub'\} TodoTaskDialogType/,
     );
     expect(dialogSrc).not.toMatch(/delete-attachment|attachment-delete/);
   });
 
-  it('index.js attachment delete confirm path does not openPlanTaskDialog', () => {
-    const src = readFileSync(join(repoRoot, 'frontend/js/plan-task/index.js'), 'utf8');
+  it('index.js attachment delete confirm path does not openTodoTaskDialog', () => {
+    const src = readFileSync(join(repoRoot, 'frontend/js/todo-task/index.js'), 'utf8');
     expect(src).toMatch(/data-action="delete-attachment"/);
     const marker = "action === 'delete-attachment'";
     const idx = src.indexOf(marker);
     expect(idx).toBeGreaterThan(-1);
     const actionBlock = src.slice(idx, idx + 500);
-    expect(actionBlock).not.toContain('openPlanTaskDialog');
+    expect(actionBlock).not.toContain('openTodoTaskDialog');
   });
 
   it('MCP schema still has no attachment delete tool', () => {

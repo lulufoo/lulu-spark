@@ -23,7 +23,7 @@ import { getAiAssistantEntry, getBaselineEntries } from './home-entry-shell/entr
 import { createContentRegistry } from './home-entry-shell/content-registry.js'
 import { mountHomeEntryShell } from './home-entry-shell/shell.js'
 import { createReadLaterContentAdapter } from './read-later-assistant.js'
-import { createPlanTaskContentAdapter } from './plan-task-assistant.js'
+import { createTodoTaskContentAdapter } from './todo-task-assistant.js'
 import { createNotesContentAdapter } from './note-assistant.js'
 import { createBuildersContentAdapter } from './builders-assistant.js'
 import { createAiAssistantContentAdapter } from './ai-assistant.js'
@@ -32,8 +32,8 @@ import { initWorkbenchSearch } from './components/workbench-search.js'
 import { initCorpusSearch } from './components/corpus-search.js'
 import { mountCorpusDocList } from './components/corpus-doc-list.js'
 import { mountHomeHub } from './components/home-hub.js'
-import { mountPlanTaskSplit } from './plan-task/index.js'
-import { setWorkbenchBinding } from './plan-task/todos-binding.js'
+import { mountTodoTaskSplit } from './todo-task/index.js'
+import { setWorkbenchBinding } from './todo-task/todos-binding.js'
 import { initHeaderSync, clearHeaderSyncCorpusContext } from './header-sync.js'
 import { workbenchSkillsContent } from './skills-workbench-content.js'
 import { normalizeCorpusIndex } from './corpus-index.js'
@@ -632,7 +632,7 @@ const feedView = document.getElementById('feed-view');
 let unmountCorpusDocList = null;
 let corpusDocListRepo = '';
 let unmountHomeHub = null;
-let unmountPlanTaskSplit = null;
+let unmountTodoTaskSplit = null;
 /** @type {ReturnType<typeof mountHomeEntryShell> | null} */
 let homeEntryShell = null;
 
@@ -673,9 +673,9 @@ function hideReadLaterView() {
   if (readLaterView) readLaterView.style.display = 'none';
 }
 
-function hidePlanTasksView() {
-  const planTasksView = document.getElementById('plan-tasks-view');
-  if (planTasksView) planTasksView.style.display = 'none';
+function hideTodoTasksView() {
+  const todoTasksView = document.getElementById('todo-tasks-view');
+  if (todoTasksView) todoTasksView.style.display = 'none';
 }
 
 function mountHomeRoute() {
@@ -685,7 +685,7 @@ function mountHomeRoute() {
   corpusDocListRepo = '';
   hideCorpusDocView();
   hideReadLaterView();
-  hidePlanTasksView();
+  hideTodoTasksView();
 
   if (feedView) feedView.style.display = 'none';
 
@@ -696,8 +696,8 @@ function mountHomeRoute() {
   if (!homeView) return;
   homeView.style.display = '';
 
-  unmountPlanTaskSplit?.();
-  unmountPlanTaskSplit = null;
+  unmountTodoTaskSplit?.();
+  unmountTodoTaskSplit = null;
   unmountHomeHub?.();
   unmountHomeHub = mountHomeHub(homeView, { navigate, openReadLater: openReadLaterDialog });
 }
@@ -705,11 +705,11 @@ function mountHomeRoute() {
 function mountCorpusDocRoute(route) {
   unmountHomeHub?.();
   unmountHomeHub = null;
-  unmountPlanTaskSplit?.();
-  unmountPlanTaskSplit = null;
+  unmountTodoTaskSplit?.();
+  unmountTodoTaskSplit = null;
   hideHomeView();
   hideReadLaterView();
-  hidePlanTasksView();
+  hideTodoTasksView();
 
   const layout = document.querySelector('.layout');
   if (layout) layout.style.display = 'none';
@@ -761,7 +761,7 @@ function writeNotesSelectionForEntry(entry) {
   void writeNotesSelectionSnapshot(notesSelectionForDate(date, selectedId)).catch(() => {});
 }
 
-function mountPlanTasksRoute(route) {
+function mountTodoTasksRoute(route) {
   clearHeaderSyncCorpusContext();
   unmountHomeHub?.();
   unmountHomeHub = null;
@@ -777,15 +777,15 @@ function mountPlanTasksRoute(route) {
   const layout = document.querySelector('.layout');
   if (layout) layout.style.display = 'none';
 
-  const planTasksView = document.getElementById('plan-tasks-view');
-  if (!planTasksView) return;
-  planTasksView.style.display = '';
+  const todoTasksView = document.getElementById('todo-tasks-view');
+  if (!todoTasksView) return;
+  todoTasksView.style.display = '';
 
   const masterId = route?.params?.master ?? '';
   const subId = route?.params?.sub ?? '';
   // Same page: update selection in-place. Remount would reset pane scroll positions.
-  if (typeof unmountPlanTaskSplit?.applyRoute === 'function') {
-    unmountPlanTaskSplit.applyRoute({ masterId, subId });
+  if (typeof unmountTodoTaskSplit?.applyRoute === 'function') {
+    unmountTodoTaskSplit.applyRoute({ masterId, subId });
     return;
   }
 
@@ -793,13 +793,13 @@ function mountPlanTasksRoute(route) {
     void clearNotesSelectionSnapshot().catch(() => {});
   }
 
-  unmountPlanTaskSplit?.();
-  const mounted = mountPlanTaskSplit(planTasksView, {
+  unmountTodoTaskSplit?.();
+  const mounted = mountTodoTaskSplit(todoTasksView, {
     masterId,
     subId,
     navigate,
   });
-  unmountPlanTaskSplit = mounted.unmount;
+  unmountTodoTaskSplit = mounted.unmount;
 }
 
 function mountWorkbench(route) {
@@ -819,15 +819,15 @@ function mountWorkbench(route) {
   clearHeaderSyncCorpusContext();
   unmountHomeHub?.();
   unmountHomeHub = null;
-  unmountPlanTaskSplit?.();
-  unmountPlanTaskSplit = null;
+  unmountTodoTaskSplit?.();
+  unmountTodoTaskSplit = null;
   hideHomeView();
   unmountCorpusDocList?.();
   unmountCorpusDocList = null;
   corpusDocListRepo = '';
   hideCorpusDocView();
   hideReadLaterView();
-  hidePlanTasksView();
+  hideTodoTasksView();
 
   if (feedView) feedView.style.display = 'none';
   // Restore archive elements to their natural display state.
@@ -978,7 +978,7 @@ initRouter({
   home: wrapRouteMount('home', mountHomeRoute),
   'corpus-doc': wrapRouteMount('corpus-doc', mountCorpusDocRoute),
   'read-later': wrapRouteMount('read-later', mountReadLaterRoute),
-  'plan-tasks': wrapRouteMount('plan-tasks', mountPlanTasksRoute),
+  'todo-tasks': wrapRouteMount('todo-tasks', mountTodoTasksRoute),
 }, { fallback: '#/home' });
 
 function closeNoteAssistantPanel() {
@@ -1001,7 +1001,7 @@ function openCreateNoteFromFab(opts = {}) {
 // SK-P3: single shell mount + content adapters in the shared content slot.
 const homeEntryRegistry = createContentRegistry();
 homeEntryRegistry.register('read-later', createReadLaterContentAdapter());
-homeEntryRegistry.register('plan-task', createPlanTaskContentAdapter());
+homeEntryRegistry.register('todo-task', createTodoTaskContentAdapter());
 homeEntryRegistry.register('notes', createNotesContentAdapter());
 homeEntryRegistry.register('builders', createBuildersContentAdapter());
 homeEntryRegistry.register('ai-assistant', createAiAssistantContentAdapter());

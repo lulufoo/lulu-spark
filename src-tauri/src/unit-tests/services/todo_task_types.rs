@@ -5,13 +5,13 @@ use serde_json::{json, Value};
 use crate::services::todo_task::types::{
     attachments_json_rel_path, comments_json_rel_path, index_entry_task_dir, AttachmentEntry,
     AttachmentsFile, CategoriesFile, Category, CommentEntry, CommentsFile, IndexEntry,
-    MasterTask, MasterTaskStatus, PlanTasksIndex, SubTask, SubTaskStatus, SubTasksFile,
+    MasterTask, MasterTaskStatus, TodoTasksIndex, SubTask, SubTaskStatus, SubTasksFile,
     DEFAULT_CATEGORY_ID, DEFAULT_CATEGORY_NAME,
 };
 
 #[test]
-fn plan_tasks_index_default_is_version_two_with_empty_tasks() {
-    let index = PlanTasksIndex::default();
+fn todo_tasks_index_default_is_version_two_with_empty_tasks() {
+    let index = TodoTasksIndex::default();
     assert_eq!(index.version, 2);
     assert!(index.tasks.is_empty());
 }
@@ -216,7 +216,7 @@ fn sub_task_deserialize_unknown_status_rejects() {
 }
 
 #[test]
-fn plan_tasks_index_roundtrip_preserves_tasks_map() {
+fn todo_tasks_index_roundtrip_preserves_tasks_map() {
     let mut tasks = HashMap::new();
     tasks.insert(
         "task_abc".to_string(),
@@ -229,12 +229,12 @@ fn plan_tasks_index_roundtrip_preserves_tasks_map() {
             category_id: DEFAULT_CATEGORY_ID.to_string(),
         },
     );
-    let index = PlanTasksIndex {
+    let index = TodoTasksIndex {
         version: 2,
         tasks,
     };
     let text = serde_json::to_string(&index).expect("serialize");
-    let parsed: PlanTasksIndex = serde_json::from_str(&text).expect("deserialize");
+    let parsed: TodoTasksIndex = serde_json::from_str(&text).expect("deserialize");
     assert_eq!(parsed.version, 2);
     assert_eq!(parsed.tasks.len(), 1);
     assert_eq!(parsed.tasks["task_abc"].status, MasterTaskStatus::Complete);

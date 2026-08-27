@@ -13,8 +13,8 @@ export function mountHomeHub(container, { navigate, openReadLater } = {}) {
       if (typeof openReadLater === 'function') openReadLater();
       else navigate('#/read-later');
     } else if (target === 'corpus') navigate('#/corpus');
-    else if (target === 'plan-tasks') {
-      if (typeof navigate === 'function') navigate('#/plan-tasks');
+    else if (target === 'todo-tasks') {
+      if (typeof navigate === 'function') navigate('#/todo-tasks');
     }
   };
 
@@ -41,7 +41,7 @@ export function mountHomeHub(container, { navigate, openReadLater } = {}) {
           </button>
         </li>
         <li>
-          <button type="button" class="home-desktop-shortcut" data-home-entry="plan-tasks">
+          <button type="button" class="home-desktop-shortcut" data-home-entry="todo-tasks">
             <span class="home-desktop-shortcut-icon" aria-hidden="true">📋</span>
             <span class="home-desktop-shortcut-label">Todos</span>
           </button>

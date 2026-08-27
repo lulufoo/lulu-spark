@@ -19,11 +19,11 @@ const retiredCarriers = [
     adapter: /createReadLaterContentAdapter/,
   },
   {
-    html: 'frontend/plan-task-assistant.html',
-    js: 'frontend/js/plan-task-assistant.js',
-    capability: 'src-tauri/capabilities/plan-task-assistant.json',
-    window: 'plan-task-assistant',
-    adapter: /createPlanTaskContentAdapter/,
+    html: 'frontend/todo-task-assistant.html',
+    js: 'frontend/js/todo-task-assistant.js',
+    capability: 'src-tauri/capabilities/todo-task-assistant.json',
+    window: 'todo-task-assistant',
+    adapter: /createTodoTaskContentAdapter/,
   },
 ];
 
@@ -47,7 +47,7 @@ describe('retired independent assistant windows', () => {
     expect(libRs).not.toMatch(/struct ReadLaterAssistantWindowSpec/);
     expect(libRs).not.toMatch(/WebviewUrl::App\(\s*"read-later-assistant\.html"/);
     expect(libRs).not.toMatch(/"read-later-assistant\.html"/);
-    expect(libRs).not.toMatch(/"plan-task-assistant\.html"/);
+    expect(libRs).not.toMatch(/"todo-task-assistant\.html"/);
   });
 
   it('retires orphan capability islands; main keeps default permissions', () => {
@@ -64,7 +64,7 @@ describe('retired independent assistant windows', () => {
     expect(capability.identifier).toBe('default');
     expect(capability.windows).toContain('main');
     expect(capability.windows).not.toContain('read-later-assistant');
-    expect(capability.windows).not.toContain('plan-task-assistant');
+    expect(capability.windows).not.toContain('todo-task-assistant');
 
     const capFiles = readdirSync(join(repoRoot, 'src-tauri/capabilities')).filter(
       (name) => name.endsWith('.json'),
@@ -74,7 +74,7 @@ describe('retired independent assistant windows', () => {
         readFileSync(join(repoRoot, 'src-tauri/capabilities', name), 'utf8'),
       );
       const windows = Array.isArray(cap.windows) ? cap.windows : [];
-      for (const window of ['read-later-assistant', 'plan-task-assistant']) {
+      for (const window of ['read-later-assistant', 'todo-task-assistant']) {
         if (windows.includes(window) && !windows.includes('main')) {
           expect.fail(
             `${name} is a permission island for retired ${window} window`,

@@ -48,22 +48,22 @@ pub fn read_later_path() -> Result<PathBuf, PathsError> {
         .join("read_later.json"))
 }
 
-pub fn plan_tasks_path() -> Result<PathBuf, PathsError> {
+pub fn todo_tasks_path() -> Result<PathBuf, PathsError> {
     Ok(workbench_knowledge_root()?
         .join("todo_tasks")
         .join("todo_tasks.json"))
 }
 
-pub fn plan_tasks_dir() -> Result<PathBuf, PathsError> {
+pub fn todo_tasks_dir() -> Result<PathBuf, PathsError> {
     Ok(workbench_knowledge_root()?.join("todo_tasks"))
 }
 
-pub fn plan_tasks_index_path() -> Result<PathBuf, PathsError> {
-    Ok(plan_tasks_dir()?.join("index.json"))
+pub fn todo_tasks_index_path() -> Result<PathBuf, PathsError> {
+    Ok(todo_tasks_dir()?.join("index.json"))
 }
 
-pub fn plan_tasks_categories_path() -> Result<PathBuf, PathsError> {
-    Ok(plan_tasks_dir()?.join("categories.json"))
+pub fn todo_tasks_categories_path() -> Result<PathBuf, PathsError> {
+    Ok(todo_tasks_dir()?.join("categories.json"))
 }
 
 fn validate_master_task_id(master_task_id: &str) -> Result<&str, PathsError> {
@@ -73,20 +73,20 @@ fn validate_master_task_id(master_task_id: &str) -> Result<&str, PathsError> {
     Ok(master_task_id)
 }
 
-pub fn plan_tasks_task_dir(master_task_id: &str) -> Result<PathBuf, PathsError> {
+pub fn todo_tasks_task_dir(master_task_id: &str) -> Result<PathBuf, PathsError> {
     let master_task_id = validate_master_task_id(master_task_id)?;
-    Ok(plan_tasks_dir()?.join("tasks").join(master_task_id))
+    Ok(todo_tasks_dir()?.join("tasks").join(master_task_id))
 }
 
-pub fn plan_tasks_sub_tasks_path(master_task_id: &str) -> Result<PathBuf, PathsError> {
-    Ok(plan_tasks_task_dir(master_task_id)?.join("sub_tasks.json"))
+pub fn todo_tasks_sub_tasks_path(master_task_id: &str) -> Result<PathBuf, PathsError> {
+    Ok(todo_tasks_task_dir(master_task_id)?.join("sub_tasks.json"))
 }
 
-pub fn plan_tasks_plan_md_path(master_task_id: &str) -> Result<PathBuf, PathsError> {
-    Ok(plan_tasks_task_dir(master_task_id)?.join("todo.md"))
+pub fn todo_tasks_plan_md_path(master_task_id: &str) -> Result<PathBuf, PathsError> {
+    Ok(todo_tasks_task_dir(master_task_id)?.join("todo.md"))
 }
 
-pub fn cache_plan_tasks_v1_path() -> Result<PathBuf, PathsError> {
+pub fn cache_todo_tasks_v1_path() -> Result<PathBuf, PathsError> {
     Ok(cache_dir()?.join("todo_tasks.json"))
 }
 

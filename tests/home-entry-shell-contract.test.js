@@ -7,10 +7,10 @@ import { getBaselineEntries } from '../frontend/js/home-entry-shell/entry-config
 import { createContentRegistry } from '../frontend/js/home-entry-shell/content-registry.js';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
-const BASELINE_KEYS = ['read-later', 'plan-task', 'notes', 'builders'];
+const BASELINE_KEYS = ['read-later', 'todo-task', 'notes', 'builders'];
 const BASELINE_TITLES = {
   'read-later': 'Read Later',
-  'plan-task': 'Todos',
+  'todo-task': 'Todos',
   notes: 'Notes Assistant',
   builders: 'Builders',
 };

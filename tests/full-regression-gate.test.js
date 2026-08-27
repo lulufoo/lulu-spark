@@ -7,14 +7,14 @@ const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 const pkg = JSON.parse(readFileSync(join(repoRoot, 'package.json'), 'utf8'));
 const testScript = pkg.scripts.test;
 
-const PLAN_TASK_VITEST = [
+const TODO_TASK_VITEST = [
   'tests/home-hub.test.js',
-  'tests/plan-task-assistant.test.js',
-  'tests/plan-task-split.test.js',
-  'tests/plan-task-write.test.js',
-  'tests/plan-task-preview-edit.test.js',
-  'tests/plan-task-ac-gate.test.js',
-  'tests/plan-task-ai-assistant-entry.test.js',
+  'tests/todo-task-assistant.test.js',
+  'tests/todo-task-split.test.js',
+  'tests/todo-task-write.test.js',
+  'tests/todo-task-preview-edit.test.js',
+  'tests/todo-task-ui-ac-gate.test.js',
+  'tests/todo-task-ai-assistant-entry.test.js',
   'tests/ai-assistant-p4-smoke.test.js',
 ];
 
@@ -25,8 +25,8 @@ const NOTE_FEATURE_VITEST = [
 ];
 
 describe('AC-全量回归 gate (tech-doc T-08 / VF)', () => {
-  it('npm test includes plan-task feature vitest files', () => {
-    for (const file of PLAN_TASK_VITEST) {
+  it('npm test includes todo-task feature vitest files', () => {
+    for (const file of TODO_TASK_VITEST) {
       expect(testScript, `missing ${file} in npm test`).toContain(file);
     }
   });

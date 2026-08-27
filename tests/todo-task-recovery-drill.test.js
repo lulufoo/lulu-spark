@@ -39,7 +39,7 @@ describe('T11 — AC-恢复 ops drill checklist', () => {
   it('checklist records code rollback, SKILL reinstall + Reload MCP, ops backup restore', () => {
     const doc = read(DRILL_DOC);
     expect(doc).toMatch(/代码回滚|回滚 Host|回滚.*MCP|git checkout|git revert/i);
-    expect(doc).toMatch(/回装.*SKILL|旧 SKILL|todo-task|plan-task/);
+    expect(doc).toMatch(/回装.*SKILL|旧 SKILL|todo-task|todo-task/);
     expect(doc).toMatch(/Reload MCP|重载 MCP/i);
     expect(doc).toMatch(/运维备份|备份恢复|ops backup/i);
     expect(doc).toMatch(/无自动反向|不提供自动反向|no automatic reverse/i);

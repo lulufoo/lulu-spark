@@ -17,7 +17,7 @@ import { describe, it, expect, vi } from 'vitest';
 import {
   setWorkbenchBinding,
   WORKBENCH_BUSINESS_KEY,
-} from '../frontend/js/plan-task/todos-binding.js';
+} from '../frontend/js/todo-task/todos-binding.js';
 
 const fixtureRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 const toolsRs = readFileSync(
@@ -32,7 +32,7 @@ const packageJson = JSON.parse(
   readFileSync(join(fixtureRoot, 'package.json'), 'utf8'),
 );
 const todosBindingJs = readFileSync(
-  join(fixtureRoot, 'frontend/js/plan-task/todos-binding.js'),
+  join(fixtureRoot, 'frontend/js/todo-task/todos-binding.js'),
   'utf8',
 );
 

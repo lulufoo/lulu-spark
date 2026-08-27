@@ -55,13 +55,13 @@ function stubMountEnv() {
     corpusDocListRepo: '',
     hideCorpusDocView: () => {},
     hideReadLaterView: () => {},
-    hidePlanTasksView: () => {},
+    hideTodoTasksView: () => {},
     hideHomeView: () => {},
     feedView: document.getElementById('feed-view') || { style: { display: '' } },
-    unmountPlanTaskSplit: null,
+    unmountTodoTaskSplit: null,
     unmountHomeHub: null,
     mountHomeHub: () => () => {},
-    mountPlanTaskSplit: () => ({ unmount: () => {} }),
+    mountTodoTaskSplit: () => ({ unmount: () => {} }),
     navigate: () => {},
     openReadLaterDialog: () => {},
     state: { ui: { activeDate: null } },
@@ -75,13 +75,13 @@ function compileMountFn(fnSource, env) {
     'corpusDocListRepo',
     'hideCorpusDocView',
     'hideReadLaterView',
-    'hidePlanTasksView',
+    'hideTodoTasksView',
     'hideHomeView',
     'feedView',
-    'unmountPlanTaskSplit',
+    'unmountTodoTaskSplit',
     'unmountHomeHub',
     'mountHomeHub',
-    'mountPlanTaskSplit',
+    'mountTodoTaskSplit',
     'navigate',
     'openReadLaterDialog',
     'state',
@@ -134,7 +134,7 @@ describe('T5 retire #btn-feed / showFeedView user entry', () => {
       expect(show).not.toMatch(BARE_BTN_FEED_CLASSLIST);
     });
 
-    it.each(['mountHomeRoute', 'mountPlanTasksRoute', 'mountWorkbench'])(
+    it.each(['mountHomeRoute', 'mountTodoTasksRoute', 'mountWorkbench'])(
       '%s does not bare-remove active on #btn-feed',
       (name) => {
         const src = extractFunctionSource(readMain(), name);
@@ -154,7 +154,7 @@ describe('T5 retire #btn-feed / showFeedView user entry', () => {
         <div id="home-view" style="display:none"></div>
         <div id="corpus-doc-view" style="display:none"></div>
         <div id="read-later-view" style="display:none"></div>
-        <div id="plan-tasks-view" style="display:none"></div>
+        <div id="todo-tasks-view" style="display:none"></div>
         <div class="layout">
           <main>
             <div id="status"></div>
@@ -171,7 +171,7 @@ describe('T5 retire #btn-feed / showFeedView user entry', () => {
       document.body.innerHTML = '';
     });
 
-    it.each(['mountHomeRoute', 'mountPlanTasksRoute', 'mountWorkbench'])(
+    it.each(['mountHomeRoute', 'mountTodoTasksRoute', 'mountWorkbench'])(
       '%s does not throw when #btn-feed is absent',
       (name) => {
         const fnSource = extractFunctionSource(readMain(), name);

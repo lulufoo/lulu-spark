@@ -124,7 +124,7 @@ describe('readApi contract map', () => {
     });
   });
 
-  it('resolveInvokeFromPath maps plan-tasks to get_todo_tasks', () => {
+  it('resolveInvokeFromPath maps todo-tasks to get_todo_tasks', () => {
     expect(resolveInvokeFromPath('/api/todo-tasks')).toEqual({
       cmd: 'get_todo_tasks',
       args: {},

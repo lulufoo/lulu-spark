@@ -23,9 +23,9 @@ vi.mock('../frontend/js/apiClient.js', async (importOriginal) => {
 import {
   addPlanAttachment,
   listPlanAttachments,
-  mountPlanTaskSplit,
+  mountTodoTaskSplit,
   pickLocalMarkdownFile,
-} from '../frontend/js/plan-task/index.js';
+} from '../frontend/js/todo-task/index.js';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -149,7 +149,7 @@ describe('pickLocalMarkdownFile', () => {
   });
 });
 
-describe('mountPlanTaskSplit attachment list + add', () => {
+describe('mountTodoTaskSplit attachment list + add', () => {
   let container;
 
   beforeEach(() => {
@@ -176,12 +176,12 @@ describe('mountPlanTaskSplit attachment list + add', () => {
   });
 
   async function mountAndWait() {
-    const api = mountPlanTaskSplit(container, {
+    const api = mountTodoTaskSplit(container, {
       masterId: 'task_alpha',
       subId: 'task_alpha_sub_01',
     });
     await vi.waitFor(() => {
-      expect(container.querySelector('.plan-task-attachments-section')).not.toBeNull();
+      expect(container.querySelector('.todo-task-attachments-section')).not.toBeNull();
     });
     return api;
   }
@@ -214,10 +214,10 @@ describe('mountPlanTaskSplit attachment list + add', () => {
       return {};
     });
     const { dispose } = await mountAndWait();
-    const empty = container.querySelector('.plan-task-attachments-empty');
+    const empty = container.querySelector('.todo-task-attachments-empty');
     expect(empty).not.toBeNull();
     expect(empty.textContent.trim().length).toBeGreaterThan(0);
-    expect(container.querySelectorAll('.plan-task-attachment-item')).toHaveLength(0);
+    expect(container.querySelectorAll('.todo-task-attachment-item')).toHaveLength(0);
     dispose();
   });
 
@@ -254,7 +254,7 @@ describe('mountPlanTaskSplit attachment list + add', () => {
     });
 
     const { dispose } = await mountAndWait();
-    expect(container.querySelector('.plan-task-attachments-empty')).not.toBeNull();
+    expect(container.querySelector('.todo-task-attachments-empty')).not.toBeNull();
 
     container.querySelector('[data-action="pick-attachment-md"]').click();
     await vi.waitFor(() => {
@@ -270,7 +270,7 @@ describe('mountPlanTaskSplit attachment list + add', () => {
     await vi.waitFor(() => {
       expect(container.textContent).toContain('new-notes.md');
     });
-    expect(container.querySelector('.plan-task-attachments-empty')).toBeNull();
+    expect(container.querySelector('.todo-task-attachments-empty')).toBeNull();
     dispose();
   });
 
@@ -287,7 +287,7 @@ describe('mountPlanTaskSplit attachment list + add', () => {
     const { dispose } = await mountAndWait();
     container.querySelector('[data-action="pick-attachment-md"]').click();
     await vi.waitFor(() => {
-      const err = container.querySelector('.plan-task-attachments-error');
+      const err = container.querySelector('.todo-task-attachments-error');
       expect(err).not.toBeNull();
       expect(err.textContent.trim().length).toBeGreaterThan(0);
     });
@@ -311,7 +311,7 @@ describe('mountPlanTaskSplit attachment list + add', () => {
     const { dispose } = await mountAndWait();
     container.querySelector('[data-action="pick-attachment-md"]').click();
     await vi.waitFor(() => {
-      const err = container.querySelector('.plan-task-attachments-error');
+      const err = container.querySelector('.todo-task-attachments-error');
       expect(err).not.toBeNull();
       expect(err.textContent).toMatch(/dialog unavailable|Failed to pick file|pick file/i);
     });
@@ -327,31 +327,31 @@ describe('mountPlanTaskSplit attachment list + add', () => {
       return {};
     });
     const { dispose } = await mountAndWait();
-    const section = container.querySelector('.plan-task-attachments-section');
+    const section = container.querySelector('.todo-task-attachments-section');
     expect(section.textContent).not.toContain('计划任务');
     dispose();
   });
 });
 
 describe('attachment add surface does not reuse dialog.js CRUD types', () => {
-  it('dialog.js PlanTaskDialogType remains the four master/sub CRUD types only', () => {
+  it('dialog.js TodoTaskDialogType remains the four master/sub CRUD types only', () => {
     const dialogSrc = readFileSync(
-      join(repoRoot, 'frontend/js/plan-task/dialog.js'),
+      join(repoRoot, 'frontend/js/todo-task/dialog.js'),
       'utf8',
     );
     expect(dialogSrc).toMatch(
-      /@typedef \{'create-master' \| 'create-category' \| 'add-sub' \| 'delete-master' \| 'delete-sub'\} PlanTaskDialogType/,
+      /@typedef \{'create-master' \| 'create-category' \| 'add-sub' \| 'delete-master' \| 'delete-sub'\} TodoTaskDialogType/,
     );
     expect(dialogSrc).not.toMatch(/add-attachment|pick-attachment|attachment/);
   });
 
-  it('index.js attachment pick action does not call openPlanTaskDialog', () => {
-    const src = readFileSync(join(repoRoot, 'frontend/js/plan-task/index.js'), 'utf8');
+  it('index.js attachment pick action does not call openTodoTaskDialog', () => {
+    const src = readFileSync(join(repoRoot, 'frontend/js/todo-task/index.js'), 'utf8');
     expect(src).toMatch(/data-action="pick-attachment-md"/);
     const marker = "action === 'pick-attachment-md'";
     const idx = src.indexOf(marker);
     expect(idx).toBeGreaterThan(-1);
     const actionBlock = src.slice(idx, idx + 400);
-    expect(actionBlock).not.toContain('openPlanTaskDialog');
+    expect(actionBlock).not.toContain('openTodoTaskDialog');
   });
 });

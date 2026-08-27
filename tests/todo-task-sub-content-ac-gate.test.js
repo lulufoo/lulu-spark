@@ -94,8 +94,8 @@ describe('t5 AC3 — update modify/clear/omit content; no delete-content API', (
 });
 
 describe('t5 AC4 — UI title-first + default collapsed expand editor', () => {
-  it('plan-task-sub-content-ui locks title-first and default-collapsed editor', () => {
-    const src = read('tests/plan-task-sub-content-ui.test.js');
+  it('todo-task-sub-content-ui locks title-first and default-collapsed editor', () => {
+    const src = read('tests/todo-task-sub-content-ui.test.js');
     expect(src).toContain(
       'renderSubRow title-first + default-collapsed content editor',
     );
@@ -109,16 +109,16 @@ describe('t5 AC4 — UI title-first + default collapsed expand editor', () => {
 });
 
 describe('t5 AC5 — Process notes after sub-list', () => {
-  it('plan-task-sub-content-ui asserts Process notes after sub-list in renderSubDetailPane', () => {
-    const src = read('tests/plan-task-sub-content-ui.test.js');
+  it('todo-task-sub-content-ui asserts Process notes after sub-list in renderSubDetailPane', () => {
+    const src = read('tests/todo-task-sub-content-ui.test.js');
     expect(src).toContain(
       'renderSubDetailPane Process notes after sub-list',
     );
     expect(src).toMatch(/commentsIdx\)\.toBeGreaterThan\(subListIdx\)/);
   });
 
-  it('plan-task-comments mounted detail keeps Process notes after sub-list', () => {
-    const src = read('tests/plan-task-comments.test.js');
+  it('todo-task-comments mounted detail keeps Process notes after sub-list', () => {
+    const src = read('tests/todo-task-comments.test.js');
     expect(src).toMatch(/Process notes[\s\S]*after[\s\S]*sub-list|after the sub-list/i);
   });
 });
@@ -128,7 +128,7 @@ describe('t5 wire-up / failure semantics', () => {
     const pkg = JSON.parse(read('package.json'));
     expect(pkg.scripts.test).toContain('tests/todo-task-sub-content-ac-gate.test.js');
     expect(pkg.scripts.test).toContain('tests/todo-task-mcp-sub-content.test.js');
-    expect(pkg.scripts.test).toContain('tests/plan-task-sub-content-ui.test.js');
+    expect(pkg.scripts.test).toContain('tests/todo-task-sub-content-ui.test.js');
   });
 
   it('existing missing-title 400 semantics remain asserted (not relaxed)', () => {

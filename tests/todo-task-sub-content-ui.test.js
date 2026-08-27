@@ -24,11 +24,11 @@ vi.mock('../frontend/js/apiClient.js', async (importOriginal) => {
 
 import {
   addPlanSub,
-  mountPlanTaskSplit,
+  mountTodoTaskSplit,
   renderSubDetailPane,
   renderSubRow,
   updatePlanSub,
-} from '../frontend/js/plan-task/index.js';
+} from '../frontend/js/todo-task/index.js';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -196,11 +196,11 @@ describe('renderSubRow title-first + default-collapsed content editor', () => {
       'task_new_sub_01',
       baseUi(),
     );
-    expect(html).toContain('plan-task-sub-title-input');
+    expect(html).toContain('todo-task-sub-title-input');
     expect(html).toContain('value="Sub A"');
     expect(html).toContain('data-action="toggle-sub-content"');
     expect(html).toMatch(/aria-expanded="false"/);
-    expect(html).not.toContain('plan-task-sub-content-editor');
+    expect(html).not.toContain('todo-task-sub-content-editor');
     expect(html).not.toContain('data-action="edit-sub-content"');
   });
 
@@ -213,9 +213,9 @@ describe('renderSubRow title-first + default-collapsed content editor', () => {
         expandedSubContent: { task_new_sub_01: true },
       }),
     );
-    expect(html).toContain('plan-task-sub-title-input');
+    expect(html).toContain('todo-task-sub-title-input');
     expect(html).toMatch(/aria-expanded="true"/);
-    expect(html).toContain('plan-task-sub-content-editor');
+    expect(html).toContain('todo-task-sub-content-editor');
     expect(html).toContain('data-action="edit-sub-content"');
     expect(html).toContain('optional body');
   });
@@ -228,8 +228,8 @@ describe('renderSubRow title-first + default-collapsed content editor', () => {
       baseUi(),
     );
     expect(html).toContain('Sub B title only');
-    expect(html).toContain('plan-task-sub-title-input');
-    expect(html).not.toContain('plan-task-sub-content-editor');
+    expect(html).toContain('todo-task-sub-title-input');
+    expect(html).not.toContain('todo-task-sub-content-editor');
     // collapsed density: no empty textarea body for absent content
     expect(html).not.toMatch(/<textarea[\s\S]*data-action="edit-sub-content"/);
   });
@@ -238,19 +238,19 @@ describe('renderSubRow title-first + default-collapsed content editor', () => {
 describe('renderSubDetailPane Process notes after sub-list', () => {
   it('places Process notes (comments section) after the sub-list as bottom block', () => {
     const html = renderSubDetailPane(sampleMaster, 'task_new_sub_01', baseUi());
-    const subListIdx = html.indexOf('plan-task-sub-list');
-    const commentsIdx = html.indexOf('plan-task-comments-section');
+    const subListIdx = html.indexOf('todo-task-sub-list');
+    const commentsIdx = html.indexOf('todo-task-comments-section');
     expect(subListIdx).toBeGreaterThan(-1);
     expect(commentsIdx).toBeGreaterThan(-1);
     expect(commentsIdx).toBeGreaterThan(subListIdx);
     // comments remain after attachments / toolbar / sub-list — last major content section
     const afterSubList = html.slice(subListIdx);
-    expect(afterSubList).toContain('plan-task-comments-section');
+    expect(afterSubList).toContain('todo-task-comments-section');
     expect(afterSubList).toMatch(/Process notes/i);
   });
 });
 
-describe('mountPlanTaskSplit session-only expand + title error path', () => {
+describe('mountTodoTaskSplit session-only expand + title error path', () => {
   let container;
 
   beforeEach(() => {
@@ -283,7 +283,7 @@ describe('mountPlanTaskSplit session-only expand + title error path', () => {
 
   it('expands content editor in-session via toggle; remount defaults back to collapsed', async () => {
     mockReadApis();
-    const { dispose } = mountPlanTaskSplit(container, {
+    const { dispose } = mountTodoTaskSplit(container, {
       masterId: 'task_new',
       subId: 'task_new_sub_01',
     });
@@ -294,7 +294,7 @@ describe('mountPlanTaskSplit session-only expand + title error path', () => {
     });
     expect(
       container.querySelector(
-        '[data-sub-id="task_new_sub_01"] .plan-task-sub-content-editor',
+        '[data-sub-id="task_new_sub_01"] .todo-task-sub-content-editor',
       ),
     ).toBeNull();
 
@@ -307,7 +307,7 @@ describe('mountPlanTaskSplit session-only expand + title error path', () => {
     await vi.waitFor(() => {
       expect(
         container.querySelector(
-          '[data-sub-id="task_new_sub_01"] .plan-task-sub-content-editor',
+          '[data-sub-id="task_new_sub_01"] .todo-task-sub-content-editor',
         ),
       ).not.toBeNull();
     });
@@ -315,7 +315,7 @@ describe('mountPlanTaskSplit session-only expand + title error path', () => {
     dispose();
 
     // remount = fresh session ui — expand must not persist
-    const { dispose: dispose2 } = mountPlanTaskSplit(container, {
+    const { dispose: dispose2 } = mountTodoTaskSplit(container, {
       masterId: 'task_new',
       subId: 'task_new_sub_01',
     });
@@ -326,7 +326,7 @@ describe('mountPlanTaskSplit session-only expand + title error path', () => {
     });
     expect(
       container.querySelector(
-        '[data-sub-id="task_new_sub_01"] .plan-task-sub-content-editor',
+        '[data-sub-id="task_new_sub_01"] .todo-task-sub-content-editor',
       ),
     ).toBeNull();
     dispose2();
@@ -343,7 +343,7 @@ describe('mountPlanTaskSplit session-only expand + title error path', () => {
       return {};
     });
 
-    const { dispose } = mountPlanTaskSplit(container, {
+    const { dispose } = mountTodoTaskSplit(container, {
       masterId: 'task_new',
       subId: 'task_new_sub_01',
     });
@@ -374,7 +374,7 @@ describe('mountPlanTaskSplit session-only expand + title error path', () => {
     });
     await vi.waitFor(() => {
       const err = container.querySelector(
-        '[data-sub-id="task_new_sub_01"] .plan-task-sub-title-error',
+        '[data-sub-id="task_new_sub_01"] .todo-task-sub-title-error',
       );
       expect(err).not.toBeNull();
       expect(err.textContent.trim().length).toBeGreaterThan(0);
@@ -384,8 +384,8 @@ describe('mountPlanTaskSplit session-only expand + title error path', () => {
 });
 
 describe('t4 test registration', () => {
-  it('npm test includes plan-task-sub-content-ui.test.js', () => {
+  it('npm test includes todo-task-sub-content-ui.test.js', () => {
     const pkg = JSON.parse(readFileSync(join(repoRoot, 'package.json'), 'utf8'));
-    expect(pkg.scripts.test).toContain('tests/plan-task-sub-content-ui.test.js');
+    expect(pkg.scripts.test).toContain('tests/todo-task-sub-content-ui.test.js');
   });
 });

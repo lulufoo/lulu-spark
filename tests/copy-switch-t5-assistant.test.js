@@ -11,9 +11,9 @@ const readLaterAssistantHtmlPath = join(
   repoRoot,
   'frontend/read-later-assistant.html',
 );
-const planTaskAssistantHtmlPath = join(
+const todoTaskAssistantHtmlPath = join(
   repoRoot,
-  'frontend/plan-task-assistant.html',
+  'frontend/todo-task-assistant.html',
 );
 const aiAssistantJs = readFileSync(
   join(repoRoot, 'frontend/js/ai-assistant.js'),
@@ -23,22 +23,22 @@ const readLaterAssistantJs = readFileSync(
   join(repoRoot, 'frontend/js/read-later-assistant.js'),
   'utf8',
 );
-const planTaskAssistantJs = readFileSync(
-  join(repoRoot, 'frontend/js/plan-task-assistant.js'),
+const todoTaskAssistantJs = readFileSync(
+  join(repoRoot, 'frontend/js/todo-task-assistant.js'),
   'utf8',
 );
 
 const assistantSources = [
   aiAssistantJs,
   readLaterAssistantJs,
-  planTaskAssistantJs,
+  todoTaskAssistantJs,
 ].join('\n');
 
 describe('P2 copy-switch — Assistant pages (tech-doc T5)', () => {
   it('assistant HTML shells are retired', () => {
     expect(existsSync(aiAssistantHtmlPath)).toBe(false);
     expect(existsSync(readLaterAssistantHtmlPath)).toBe(false);
-    expect(existsSync(planTaskAssistantHtmlPath)).toBe(false);
+    expect(existsSync(todoTaskAssistantHtmlPath)).toBe(false);
   });
 
   it('ai-assistant uses table B2 Assistant branding and copy', () => {
@@ -79,19 +79,19 @@ describe('P2 copy-switch — Assistant pages (tech-doc T5)', () => {
     expect(readLaterAssistantJs).not.toContain('加载中');
   });
 
-  it('plan-task-assistant uses table B/B2 English copy', () => {
-    expect(planTaskAssistantJs).toContain('No todos yet');
-    expect(planTaskAssistantJs).toContain(
+  it('todo-task-assistant uses table B/B2 English copy', () => {
+    expect(todoTaskAssistantJs).toContain('No todos yet');
+    expect(todoTaskAssistantJs).toContain(
       'After creating via MCP, latest tasks appear here',
     );
-    expect(planTaskAssistantJs).toContain('Temporarily unavailable');
-    expect(planTaskAssistantJs).toContain('View all →');
-    expect(planTaskAssistantJs).toContain('Loading…');
-    expect(planTaskAssistantJs).toContain('Open Todos');
-    expect(planTaskAssistantJs).toMatch(/\$\{complete\}\/\$\{total\} complete/);
-    expect(planTaskAssistantJs).not.toContain('暂无Todos');
-    expect(planTaskAssistantJs).not.toContain(' 完成');
-    expect(planTaskAssistantJs).not.toContain('加载中');
+    expect(todoTaskAssistantJs).toContain('Temporarily unavailable');
+    expect(todoTaskAssistantJs).toContain('View all →');
+    expect(todoTaskAssistantJs).toContain('Loading…');
+    expect(todoTaskAssistantJs).toContain('Open Todos');
+    expect(todoTaskAssistantJs).toMatch(/\$\{complete\}\/\$\{total\} complete/);
+    expect(todoTaskAssistantJs).not.toContain('暂无Todos');
+    expect(todoTaskAssistantJs).not.toContain(' 完成');
+    expect(todoTaskAssistantJs).not.toContain('加载中');
   });
 
   it('assistant sources have no user-facing Chinese (excl. comments)', () => {

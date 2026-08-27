@@ -21,12 +21,12 @@ import { parseHash } from '../frontend/js/router/index.js';
 import {
   copySubIdPair,
   formatMasterCopyText,
-  formatPlanTaskStatus,
-  loadPlanTasks,
-  mountPlanTaskSplit,
+  formatTodoTaskStatus,
+  loadTodoTasks,
+  mountTodoTaskSplit,
   renderSubDetail,
   setPlanMasterStatus,
-} from '../frontend/js/plan-task/index.js';
+} from '../frontend/js/todo-task/index.js';
 
 const fixtureRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 const mainJs = readFileSync(join(fixtureRoot, 'frontend/js/main.js'), 'utf8');
@@ -124,24 +124,24 @@ const sampleMasters = [
   },
 ];
 
-describe('parseHash plan-tasks deep-link', () => {
-  it('parses #/plan-tasks without query params', () => {
-    expect(parseHash('#/plan-tasks')).toEqual({
-      name: 'plan-tasks',
+describe('parseHash todo-tasks deep-link', () => {
+  it('parses #/todo-tasks without query params', () => {
+    expect(parseHash('#/todo-tasks')).toEqual({
+      name: 'todo-tasks',
       params: {},
     });
   });
 
-  it('parses #/plan-tasks?master=&sub= query params', () => {
-    expect(parseHash('#/plan-tasks?master=task_beta&sub=task_beta_sub_01')).toEqual({
-      name: 'plan-tasks',
+  it('parses #/todo-tasks?master=&sub= query params', () => {
+    expect(parseHash('#/todo-tasks?master=task_beta&sub=task_beta_sub_01')).toEqual({
+      name: 'todo-tasks',
       params: { master: 'task_beta', sub: 'task_beta_sub_01' },
     });
   });
 
-  it('parses trailing slash on plan-tasks route', () => {
-    expect(parseHash('#/plan-tasks/')).toEqual({
-      name: 'plan-tasks',
+  it('parses trailing slash on todo-tasks route', () => {
+    expect(parseHash('#/todo-tasks/')).toEqual({
+      name: 'todo-tasks',
       params: {},
     });
   });
@@ -169,11 +169,11 @@ describe('formatMasterCopyText', () => {
   });
 });
 
-describe('formatPlanTaskStatus', () => {
+describe('formatTodoTaskStatus', () => {
   it('maps incomplete, complete, and abandoned to English labels', () => {
-    expect(formatPlanTaskStatus('incomplete')).toBe('In progress');
-    expect(formatPlanTaskStatus('complete')).toBe('Completed');
-    expect(formatPlanTaskStatus('abandoned')).toBe('Abandoned');
+    expect(formatTodoTaskStatus('incomplete')).toBe('In progress');
+    expect(formatTodoTaskStatus('complete')).toBe('Completed');
+    expect(formatTodoTaskStatus('abandoned')).toBe('Abandoned');
   });
 });
 
@@ -192,9 +192,9 @@ describe('renderSubDetail', () => {
 
   it('renders distinct status modifier classes for three sub states', () => {
     const html = renderSubDetail(sampleMasters[0], 'task_alpha_sub_01');
-    expect(html).toContain('plan-task-sub-status-select--incomplete');
-    expect(html).toContain('plan-task-sub-status-select--complete');
-    expect(html).toContain('plan-task-sub-status-select--abandoned');
+    expect(html).toContain('todo-task-sub-status-select--incomplete');
+    expect(html).toContain('todo-task-sub-status-select--complete');
+    expect(html).toContain('todo-task-sub-status-select--abandoned');
   });
 
   it('renders linked_archive_ids as comma list with prefix', () => {
@@ -205,18 +205,18 @@ describe('renderSubDetail', () => {
 
   it('marks selected sub with selected class', () => {
     const html = renderSubDetail(sampleMasters[0], 'task_alpha_sub_02');
-    expect(html).toMatch(/data-sub-id="task_alpha_sub_02"[^>]*plan-task-sub--selected/);
+    expect(html).toMatch(/data-sub-id="task_alpha_sub_02"[^>]*todo-task-sub--selected/);
   });
 });
 
-describe('loadPlanTasks', () => {
+describe('loadTodoTasks', () => {
   beforeEach(() => {
     getJsonMock.mockReset();
   });
 
   it('GET /api/todo-tasks via apiClient and returns master array', async () => {
     getJsonMock.mockResolvedValue(sampleMasters);
-    const entries = await loadPlanTasks();
+    const entries = await loadTodoTasks();
     expect(getJsonMock).toHaveBeenCalledWith('/api/todo-tasks');
     expect(entries).toEqual(sampleMasters);
   });
@@ -226,13 +226,13 @@ describe('loadPlanTasks', () => {
       error: 'Workbench not running',
       _status: 503,
     });
-    await expect(loadPlanTasks()).rejects.toMatchObject({
+    await expect(loadTodoTasks()).rejects.toMatchObject({
       status: 503,
     });
   });
 });
 
-describe('mountPlanTaskSplit', () => {
+describe('mountTodoTaskSplit', () => {
   let container;
 
   beforeEach(() => {
@@ -251,23 +251,23 @@ describe('mountPlanTaskSplit', () => {
 
   it('renders left master list and right detail panes', async () => {
     getJsonMock.mockResolvedValue(sampleMasters);
-    const { dispose } = mountPlanTaskSplit(container);
+    const { dispose } = mountTodoTaskSplit(container);
     await vi.waitFor(() => {
-      expect(container.querySelector('.plan-task-split-master')).not.toBeNull();
-      expect(container.querySelector('.plan-task-split-detail')).not.toBeNull();
+      expect(container.querySelector('.todo-task-split-master')).not.toBeNull();
+      expect(container.querySelector('.todo-task-split-detail')).not.toBeNull();
     });
     dispose();
   });
 
   it('hides complete and abandoned masters by default (Active only on)', async () => {
     getJsonMock.mockResolvedValue(sampleMasters);
-    const { dispose } = mountPlanTaskSplit(container);
+    const { dispose } = mountTodoTaskSplit(container);
     await vi.waitFor(() => {
       expect(container.querySelector('[data-master-id="task_alpha"]')).not.toBeNull();
     });
     expect(container.querySelector('[data-master-id="task_complete"]')).toBeNull();
     expect(container.querySelector('[data-master-id="task_abandoned"]')).toBeNull();
-    expect(container.querySelectorAll('.plan-task-master-item')).toHaveLength(3);
+    expect(container.querySelectorAll('.todo-task-master-item')).toHaveLength(3);
     expect(container.querySelector('[data-action="toggle-active-only"]')).not.toBeNull();
     expect(container.textContent).toContain('Active only');
     expect(container.textContent).toContain('+ New todo');
@@ -278,7 +278,7 @@ describe('mountPlanTaskSplit', () => {
 
   it('shows complete and abandoned masters when Active only is turned off', async () => {
     getJsonMock.mockResolvedValue(sampleMasters);
-    const { dispose } = mountPlanTaskSplit(container);
+    const { dispose } = mountTodoTaskSplit(container);
     await vi.waitFor(() => {
       expect(container.querySelector('[data-action="toggle-active-only"]')).not.toBeNull();
     });
@@ -289,7 +289,7 @@ describe('mountPlanTaskSplit', () => {
       ).toBe('false');
       expect(container.querySelector('[data-master-id="task_complete"]')).not.toBeNull();
       expect(container.querySelector('[data-master-id="task_abandoned"]')).not.toBeNull();
-      expect(container.querySelectorAll('.plan-task-master-item')).toHaveLength(5);
+      expect(container.querySelectorAll('.todo-task-master-item')).toHaveLength(5);
     });
     dispose();
   });
@@ -299,7 +299,7 @@ describe('mountPlanTaskSplit', () => {
       { ...sampleMasters.find((m) => m.master_task_id === 'task_complete') },
       { ...sampleMasters.find((m) => m.master_task_id === 'task_abandoned') },
     ]);
-    const { dispose } = mountPlanTaskSplit(container);
+    const { dispose } = mountTodoTaskSplit(container);
     await vi.waitFor(() => {
       expect(container.textContent).toContain('No active todos');
       expect(container.textContent).toContain(
@@ -307,7 +307,7 @@ describe('mountPlanTaskSplit', () => {
       );
       expect(container.textContent).not.toContain('No todos yet');
       expect(
-        container.querySelector('.plan-task-empty--sidebar [data-action="create-master"]'),
+        container.querySelector('.todo-task-empty--sidebar [data-action="create-master"]'),
       ).toBeNull();
     });
     dispose();
@@ -315,13 +315,13 @@ describe('mountPlanTaskSplit', () => {
 
   it('clears selection for completed deep-link while Active only is on', async () => {
     getJsonMock.mockResolvedValue(sampleMasters);
-    const { dispose } = mountPlanTaskSplit(container, {
+    const { dispose } = mountTodoTaskSplit(container, {
       masterId: 'task_complete',
     });
     await vi.waitFor(() => {
       expect(container.querySelector('[data-master-id="task_complete"]')).toBeNull();
-      expect(container.querySelector('.plan-task-split-detail-empty')).not.toBeNull();
-      expect(container.querySelector('.plan-task-split-dead-link')).toBeNull();
+      expect(container.querySelector('.todo-task-split-detail-empty')).not.toBeNull();
+      expect(container.querySelector('.todo-task-split-dead-link')).toBeNull();
       expect(container.querySelector('[data-action="edit-master-title"]')).toBeNull();
     });
     dispose();
@@ -347,7 +347,7 @@ describe('mountPlanTaskSplit', () => {
     });
     window.__TAURI__ = { core: { invoke: invokeMock } };
 
-    const { dispose } = mountPlanTaskSplit(container, {
+    const { dispose } = mountTodoTaskSplit(container, {
       masterId: 'task_alpha',
     });
     await vi.waitFor(() => {
@@ -363,7 +363,7 @@ describe('mountPlanTaskSplit', () => {
         status: 'complete',
       });
       expect(container.querySelector('[data-master-id="task_alpha"]')).toBeNull();
-      expect(container.querySelector('.plan-task-split-detail-empty')).not.toBeNull();
+      expect(container.querySelector('.todo-task-split-detail-empty')).not.toBeNull();
     });
 
     dispose();
@@ -372,27 +372,27 @@ describe('mountPlanTaskSplit', () => {
 
   it('selects the first active master when opened without a deep-link', async () => {
     getJsonMock.mockResolvedValue(sampleMasters);
-    const { dispose } = mountPlanTaskSplit(container);
+    const { dispose } = mountTodoTaskSplit(container);
     await vi.waitFor(() => {
       expect(
-        container.querySelector('.plan-task-master-item--selected')?.dataset.masterId,
+        container.querySelector('.todo-task-master-item--selected')?.dataset.masterId,
       ).toBe('task_empty');
-      expect(container.querySelector('.plan-task-split-detail-empty')).toBeNull();
+      expect(container.querySelector('.todo-task-split-detail-empty')).toBeNull();
     });
     dispose();
   });
 
   it('selects master and sub from initial masterId/subId options', async () => {
     getJsonMock.mockResolvedValue(sampleMasters);
-    const { dispose } = mountPlanTaskSplit(container, {
+    const { dispose } = mountTodoTaskSplit(container, {
       masterId: 'task_alpha',
       subId: 'task_alpha_sub_02',
     });
     await vi.waitFor(() => {
       expect(
-        container.querySelector('.plan-task-master-item--selected')?.dataset.masterId,
+        container.querySelector('.todo-task-master-item--selected')?.dataset.masterId,
       ).toBe('task_alpha');
-      expect(container.querySelector('.plan-task-sub--selected')?.dataset.subId).toBe(
+      expect(container.querySelector('.todo-task-sub--selected')?.dataset.subId).toBe(
         'task_alpha_sub_02',
       );
     });
@@ -401,50 +401,50 @@ describe('mountPlanTaskSplit', () => {
 
   it('shows dead-link empty state for unknown masterId', async () => {
     getJsonMock.mockResolvedValue(sampleMasters);
-    const { dispose } = mountPlanTaskSplit(container, {
+    const { dispose } = mountTodoTaskSplit(container, {
       masterId: 'task_missing',
       subId: 'task_missing_sub_01',
     });
     await vi.waitFor(() => {
-      expect(container.querySelector('.plan-task-split-dead-link')).not.toBeNull();
+      expect(container.querySelector('.todo-task-split-dead-link')).not.toBeNull();
     });
     dispose();
   });
 
   it('shows dead-link empty state for unknown subId on valid master', async () => {
     getJsonMock.mockResolvedValue(sampleMasters);
-    const { dispose } = mountPlanTaskSplit(container, {
+    const { dispose } = mountTodoTaskSplit(container, {
       masterId: 'task_alpha',
       subId: 'task_alpha_sub_missing',
     });
     await vi.waitFor(() => {
-      expect(container.querySelector('.plan-task-split-dead-link')).not.toBeNull();
+      expect(container.querySelector('.todo-task-split-dead-link')).not.toBeNull();
     });
     dispose();
   });
 
   it('shows error empty state when GET fails', async () => {
     getJsonMock.mockRejectedValue(new Error('Failed to fetch'));
-    const { dispose } = mountPlanTaskSplit(container);
+    const { dispose } = mountTodoTaskSplit(container);
     await vi.waitFor(() => {
-      expect(container.querySelector('.plan-task-split-error')).not.toBeNull();
+      expect(container.querySelector('.todo-task-split-error')).not.toBeNull();
     });
     dispose();
   });
 
   it('updates selection when master item is clicked', async () => {
     getJsonMock.mockResolvedValue(sampleMasters);
-    const { dispose } = mountPlanTaskSplit(container);
+    const { dispose } = mountTodoTaskSplit(container);
     await vi.waitFor(() => {
-      expect(container.querySelectorAll('.plan-task-master-item')).toHaveLength(3);
+      expect(container.querySelectorAll('.todo-task-master-item')).toHaveLength(3);
     });
     container.querySelector('[data-master-id="task_migrated_err"]').click();
     await vi.waitFor(() => {
       expect(
-        container.querySelector('.plan-task-master-item--selected')?.dataset.masterId,
+        container.querySelector('.todo-task-master-item--selected')?.dataset.masterId,
       ).toBe('task_migrated_err');
       expect(
-        container.querySelector('.plan-task-sub-title-input')?.value,
+        container.querySelector('.todo-task-sub-title-input')?.value,
       ).toBe('Still visible sub');
     });
     dispose();
@@ -452,75 +452,75 @@ describe('mountPlanTaskSplit', () => {
 
   it('preserves master list scroll when selecting another master', async () => {
     getJsonMock.mockResolvedValue(sampleMasters);
-    const { dispose } = mountPlanTaskSplit(container, {
+    const { dispose } = mountTodoTaskSplit(container, {
       masterId: 'task_alpha',
       subId: 'task_alpha_sub_01',
     });
     await vi.waitFor(() => {
       expect(
-        container.querySelector('.plan-task-master-item--selected')?.dataset.masterId,
+        container.querySelector('.todo-task-master-item--selected')?.dataset.masterId,
       ).toBe('task_alpha');
     });
-    const masterPane = container.querySelector('.plan-task-split-master');
+    const masterPane = container.querySelector('.todo-task-split-master');
     masterPane.scrollTop = 140;
     container.querySelector('[data-master-id="task_migrated_err"]').click();
     await vi.waitFor(() => {
       expect(
-        container.querySelector('.plan-task-master-item--selected')?.dataset.masterId,
+        container.querySelector('.todo-task-master-item--selected')?.dataset.masterId,
       ).toBe('task_migrated_err');
     });
-    expect(container.querySelector('.plan-task-split-master')?.scrollTop).toBe(140);
+    expect(container.querySelector('.todo-task-split-master')?.scrollTop).toBe(140);
     dispose();
   });
 
   it('does not reset detail scroll when re-clicking the selected master', async () => {
     getJsonMock.mockResolvedValue(sampleMasters);
-    const { dispose } = mountPlanTaskSplit(container, {
+    const { dispose } = mountTodoTaskSplit(container, {
       masterId: 'task_alpha',
       subId: 'task_alpha_sub_01',
     });
     await vi.waitFor(() => {
-      expect(container.querySelector('.plan-task-split-detail')).not.toBeNull();
+      expect(container.querySelector('.todo-task-split-detail')).not.toBeNull();
     });
-    const detailPane = container.querySelector('.plan-task-split-detail');
+    const detailPane = container.querySelector('.todo-task-split-detail');
     detailPane.scrollTop = 220;
     container.querySelector('[data-master-id="task_alpha"]').click();
     await Promise.resolve();
-    expect(container.querySelector('.plan-task-split-detail')?.scrollTop).toBe(220);
+    expect(container.querySelector('.todo-task-split-detail')?.scrollTop).toBe(220);
     expect(
-      container.querySelector('.plan-task-master-item--selected')?.dataset.masterId,
+      container.querySelector('.todo-task-master-item--selected')?.dataset.masterId,
     ).toBe('task_alpha');
     dispose();
   });
 
   it('preserves detail scroll across same-master paint', async () => {
     getJsonMock.mockResolvedValue(sampleMasters);
-    const { dispose } = mountPlanTaskSplit(container, {
+    const { dispose } = mountTodoTaskSplit(container, {
       masterId: 'task_alpha',
       subId: 'task_alpha_sub_01',
     });
     await vi.waitFor(() => {
-      expect(container.querySelector('.plan-task-split-detail')).not.toBeNull();
+      expect(container.querySelector('.todo-task-split-detail')).not.toBeNull();
     });
-    const detailPane = container.querySelector('.plan-task-split-detail');
+    const detailPane = container.querySelector('.todo-task-split-detail');
     detailPane.scrollTop = 180;
-    document.dispatchEvent(new CustomEvent('plan-task-dialog-close'));
-    expect(container.querySelector('.plan-task-split-detail')?.scrollTop).toBe(180);
+    document.dispatchEvent(new CustomEvent('todo-task-dialog-close'));
+    expect(container.querySelector('.todo-task-split-detail')?.scrollTop).toBe(180);
     dispose();
   });
 
   it('applyRoute updates selection in-place and keeps master scroll', async () => {
     getJsonMock.mockResolvedValue(sampleMasters);
-    const api = mountPlanTaskSplit(container, {
+    const api = mountTodoTaskSplit(container, {
       masterId: 'task_alpha',
       subId: 'task_alpha_sub_01',
     });
     await vi.waitFor(() => {
       expect(
-        container.querySelector('.plan-task-master-item--selected')?.dataset.masterId,
+        container.querySelector('.todo-task-master-item--selected')?.dataset.masterId,
       ).toBe('task_alpha');
     });
-    const masterPane = container.querySelector('.plan-task-split-master');
+    const masterPane = container.querySelector('.todo-task-split-master');
     masterPane.scrollTop = 99;
     api.applyRoute({
       masterId: 'task_migrated_err',
@@ -528,16 +528,16 @@ describe('mountPlanTaskSplit', () => {
     });
     await vi.waitFor(() => {
       expect(
-        container.querySelector('.plan-task-master-item--selected')?.dataset.masterId,
+        container.querySelector('.todo-task-master-item--selected')?.dataset.masterId,
       ).toBe('task_migrated_err');
     });
-    expect(container.querySelector('.plan-task-split-master')?.scrollTop).toBe(99);
+    expect(container.querySelector('.todo-task-split-master')?.scrollTop).toBe(99);
     api.dispose();
   });
 
   it('renders title-area master status select with English labels and title markers', async () => {
     getJsonMock.mockResolvedValue(sampleMasters);
-    const { dispose } = mountPlanTaskSplit(container, {
+    const { dispose } = mountTodoTaskSplit(container, {
       masterId: 'task_alpha',
     });
     await vi.waitFor(() => {
@@ -548,18 +548,18 @@ describe('mountPlanTaskSplit', () => {
     const statusSelect = container.querySelector('[data-action="change-master-status"]');
     expect(statusSelect).toBeInstanceOf(HTMLSelectElement);
     expect(statusSelect.value).toBe('incomplete');
-    expect(statusSelect.className).toMatch(/plan-task-master-status-select--incomplete/);
+    expect(statusSelect.className).toMatch(/todo-task-master-status-select--incomplete/);
     const optionTexts = [...statusSelect.options].map((opt) => opt.textContent);
     expect(optionTexts).toEqual(['In progress', 'Completed', 'Abandoned']);
     const titleInput = container.querySelector('[data-action="edit-master-title"]');
     expect(titleInput.value).toBe('Alpha Task');
-    expect(titleInput.className).toMatch(/plan-task-detail-title--incomplete/);
+    expect(titleInput.className).toMatch(/todo-task-detail-title--incomplete/);
     dispose();
   });
 
   it('marks complete title muted and abandoned title with strikethrough class without changing title text', async () => {
     getJsonMock.mockResolvedValue(sampleMasters);
-    const { dispose: disposeComplete } = mountPlanTaskSplit(container);
+    const { dispose: disposeComplete } = mountTodoTaskSplit(container);
     await vi.waitFor(() => {
       expect(container.querySelector('[data-action="toggle-active-only"]')).not.toBeNull();
     });
@@ -578,11 +578,11 @@ describe('mountPlanTaskSplit', () => {
     });
     const completeTitle = container.querySelector('[data-action="edit-master-title"]');
     expect(completeTitle.value).toBe('Completed Master');
-    expect(completeTitle.className).toMatch(/plan-task-detail-title--complete/);
+    expect(completeTitle.className).toMatch(/todo-task-detail-title--complete/);
     disposeComplete();
 
     getJsonMock.mockResolvedValue(sampleMasters);
-    const { dispose: disposeAbandoned } = mountPlanTaskSplit(container);
+    const { dispose: disposeAbandoned } = mountTodoTaskSplit(container);
     await vi.waitFor(() => {
       expect(container.querySelector('[data-action="toggle-active-only"]')).not.toBeNull();
     });
@@ -601,7 +601,7 @@ describe('mountPlanTaskSplit', () => {
     });
     const abandonedTitle = container.querySelector('[data-action="edit-master-title"]');
     expect(abandonedTitle.value).toBe('Abandoned Master');
-    expect(abandonedTitle.className).toMatch(/plan-task-detail-title--abandoned/);
+    expect(abandonedTitle.className).toMatch(/todo-task-detail-title--abandoned/);
     disposeAbandoned();
   });
 
@@ -618,7 +618,7 @@ describe('mountPlanTaskSplit', () => {
     });
     window.__TAURI__ = { core: { invoke: invokeMock } };
     getJsonMock.mockResolvedValue(sampleMasters);
-    const { dispose } = mountPlanTaskSplit(container, {
+    const { dispose } = mountTodoTaskSplit(container, {
       masterId: 'task_alpha',
     });
     await vi.waitFor(() => {
@@ -647,52 +647,52 @@ describe('mountPlanTaskSplit', () => {
       configurable: true,
       value: { writeText },
     });
-    const { dispose } = mountPlanTaskSplit(container, {
+    const { dispose } = mountTodoTaskSplit(container, {
       masterId: 'task_alpha',
     });
     await vi.waitFor(() => {
       expect(container.querySelector('[data-action="copy-master-id"]')).not.toBeNull();
     });
-    const actions = container.querySelector('.plan-task-plan-md-header-actions');
+    const actions = container.querySelector('.todo-task-plan-md-header-actions');
     const copyBtn = actions?.querySelector('[data-action="copy-master-id"]');
     const editBtn = actions?.querySelector('[data-action="edit-plan-md"]');
     expect(copyBtn?.textContent).toBe('Copy');
     expect(copyBtn?.dataset.copyText).toBe('Title: Alpha Task\nID: task_alpha');
     expect(editBtn).not.toBeNull();
-    expect(container.querySelector('.plan-task-detail-toolbar [data-action="copy-master-id"]')).toBeNull();
+    expect(container.querySelector('.todo-task-detail-toolbar [data-action="copy-master-id"]')).toBeNull();
     copyBtn.click();
     expect(writeText).toHaveBeenCalledWith('Title: Alpha Task\nID: task_alpha');
     await vi.waitFor(() => {
       expect(copyBtn.textContent).toBe('✓ Copied');
-      expect(copyBtn.classList.contains('plan-task-copy-flash')).toBe(true);
+      expect(copyBtn.classList.contains('todo-task-copy-flash')).toBe(true);
     });
     dispose();
   });
 
   it('shows normal empty sub list state with add entry', async () => {
     getJsonMock.mockResolvedValue(sampleMasters);
-    const { dispose } = mountPlanTaskSplit(container, {
+    const { dispose } = mountTodoTaskSplit(container, {
       masterId: 'task_empty',
     });
     await vi.waitFor(() => {
-      expect(container.querySelector('.plan-task-empty--detail')).not.toBeNull();
+      expect(container.querySelector('.todo-task-empty--detail')).not.toBeNull();
       expect(container.textContent).toContain('No sub-tasks yet');
       expect(container.querySelector('[data-action="add-sub"]')).not.toBeNull();
-      expect(container.querySelector('.plan-task-split-state--error')).toBeNull();
+      expect(container.querySelector('.todo-task-split-state--error')).toBeNull();
     });
     dispose();
   });
 
   it('shows non-blocking migration_error banner while keeping plan operable', async () => {
     getJsonMock.mockResolvedValue(sampleMasters);
-    const { dispose } = mountPlanTaskSplit(container, {
+    const { dispose } = mountTodoTaskSplit(container, {
       masterId: 'task_migrated_err',
       subId: 'task_migrated_err_sub_01',
     });
     await vi.waitFor(() => {
-      expect(container.querySelector('.plan-task-migration-warning')).not.toBeNull();
+      expect(container.querySelector('.todo-task-migration-warning')).not.toBeNull();
       expect(container.textContent).toMatch(/migration|data/i);
-      expect(container.querySelector('.plan-task-sub-list .plan-task-sub')).not.toBeNull();
+      expect(container.querySelector('.todo-task-sub-list .todo-task-sub')).not.toBeNull();
       expect(container.querySelector('[data-action="add-sub"]')).not.toBeNull();
     });
     dispose();
@@ -701,7 +701,7 @@ describe('mountPlanTaskSplit', () => {
   it('calls navigate with updated hash when sub is clicked', async () => {
     getJsonMock.mockResolvedValue(sampleMasters);
     const navigate = vi.fn();
-    const { dispose } = mountPlanTaskSplit(container, {
+    const { dispose } = mountTodoTaskSplit(container, {
       masterId: 'task_alpha',
       subId: 'task_alpha_sub_01',
       navigate,
@@ -711,7 +711,7 @@ describe('mountPlanTaskSplit', () => {
     });
     container.querySelector('[data-sub-id="task_alpha_sub_02"]').click();
     expect(navigate).toHaveBeenCalledWith(
-      '#/plan-tasks?master=task_alpha&sub=task_alpha_sub_02',
+      '#/todo-tasks?master=task_alpha&sub=task_alpha_sub_02',
     );
     dispose();
   });
@@ -729,7 +729,7 @@ describe('mountPlanTaskSplit', () => {
     });
     window.__TAURI__ = { core: { invoke: invokeMock } };
     getJsonMock.mockResolvedValue(sampleMasters);
-    const { dispose } = mountPlanTaskSplit(container, {
+    const { dispose } = mountTodoTaskSplit(container, {
       masterId: 'task_alpha',
       subId: 'task_alpha_sub_01',
     });
@@ -756,66 +756,66 @@ describe('mountPlanTaskSplit', () => {
   });
 });
 
-describe('plan-tasks route source wiring', () => {
-  it('index.html includes #plan-tasks-view shell', () => {
-    expect(indexHtml).toMatch(/id="plan-tasks-view"/);
+describe('todo-tasks route source wiring', () => {
+  it('index.html includes #todo-tasks-view shell', () => {
+    expect(indexHtml).toMatch(/id="todo-tasks-view"/);
   });
 
-  it('index.html includes plan-task dialog shell', () => {
-    expect(indexHtml).toMatch(/id="plan-task-dialog"/);
-    expect(indexHtml).toMatch(/id="plan-task-dialog-primary"/);
+  it('index.html includes todo-task dialog shell', () => {
+    expect(indexHtml).toMatch(/id="todo-task-dialog"/);
+    expect(indexHtml).toMatch(/id="todo-task-dialog-primary"/);
   });
 
-  it('main.js defines mountPlanTasksRoute', () => {
-    expect(mainJs).toMatch(/function mountPlanTasksRoute/);
+  it('main.js defines mountTodoTasksRoute', () => {
+    expect(mainJs).toMatch(/function mountTodoTasksRoute/);
   });
 
-  it('main.js registers plan-tasks via wrapRouteMount in initRouter', () => {
+  it('main.js registers todo-tasks via wrapRouteMount in initRouter', () => {
     expect(mainJs).toMatch(
-      /['"]plan-tasks['"]:\s*wrapRouteMount\s*\(\s*['"]plan-tasks['"]\s*,\s*mountPlanTasksRoute/,
+      /['"]todo-tasks['"]:\s*wrapRouteMount\s*\(\s*['"]todo-tasks['"]\s*,\s*mountTodoTasksRoute/,
     );
   });
 
-  it('mountPlanTasksRoute passes master/sub params to split mount', () => {
-    const body = extractFunctionBody(mainJs, 'mountPlanTasksRoute');
-    expect(body).toMatch(/mountPlanTaskSplit/);
+  it('mountTodoTasksRoute passes master/sub params to split mount', () => {
+    const body = extractFunctionBody(mainJs, 'mountTodoTasksRoute');
+    expect(body).toMatch(/mountTodoTaskSplit/);
     expect(body).toMatch(/master/);
     expect(body).toMatch(/sub/);
   });
 
-  it('mountPlanTasksRoute applies deep-link in-place when already mounted', () => {
-    const body = extractFunctionBody(mainJs, 'mountPlanTasksRoute');
+  it('mountTodoTasksRoute applies deep-link in-place when already mounted', () => {
+    const body = extractFunctionBody(mainJs, 'mountTodoTasksRoute');
     expect(body).toMatch(/applyRoute/);
-    expect(body).toMatch(/unmountPlanTaskSplit\?\.applyRoute/);
+    expect(body).toMatch(/unmountTodoTaskSplit\?\.applyRoute/);
   });
 
   it('app.css defines full-screen split layout classes', () => {
-    expect(appCss).toMatch(/\.plan-task-split/);
-    expect(appCss).toMatch(/\.plan-task-split-master/);
-    expect(appCss).toMatch(/\.plan-task-split-detail/);
+    expect(appCss).toMatch(/\.todo-task-split/);
+    expect(appCss).toMatch(/\.todo-task-split-master/);
+    expect(appCss).toMatch(/\.todo-task-split-detail/);
   });
 
   it('app.css blocks scroll chaining from split panes to the document', () => {
     expect(appCss).toMatch(
-      /\.plan-task-split-master\s*\{[^}]*overscroll-behavior:\s*none/s,
+      /\.todo-task-split-master\s*\{[^}]*overscroll-behavior:\s*none/s,
     );
     expect(appCss).toMatch(
-      /\.plan-task-split-detail\s*\{[^}]*overscroll-behavior:\s*none/s,
+      /\.todo-task-split-detail\s*\{[^}]*overscroll-behavior:\s*none/s,
     );
     expect(appCss).toMatch(/body\s*\{[^}]*overflow:\s*hidden/s);
   });
 
   it('app.css styles plan-md preview and three sub status variants', () => {
-    expect(appCss).toMatch(/\.plan-task-plan-md-preview/);
-    expect(appCss).toMatch(/\.plan-task-sub-status-select--abandoned/);
-    expect(appCss).not.toMatch(/\.plan-task-plan-md-preview[\s\S]*background:\s*#000/);
+    expect(appCss).toMatch(/\.todo-task-plan-md-preview/);
+    expect(appCss).toMatch(/\.todo-task-sub-status-select--abandoned/);
+    expect(appCss).not.toMatch(/\.todo-task-plan-md-preview[\s\S]*background:\s*#000/);
   });
 
   it('app.css styles master title/status markers for complete muted and abandoned strike/gray', () => {
-    expect(appCss).toMatch(/\.plan-task-detail-title--complete/);
-    expect(appCss).toMatch(/\.plan-task-detail-title--abandoned/);
-    expect(appCss).toMatch(/\.plan-task-master-item--abandoned/);
-    expect(appCss).toMatch(/\.plan-task-master-status-select--abandoned/);
+    expect(appCss).toMatch(/\.todo-task-detail-title--complete/);
+    expect(appCss).toMatch(/\.todo-task-detail-title--abandoned/);
+    expect(appCss).toMatch(/\.todo-task-master-item--abandoned/);
+    expect(appCss).toMatch(/\.todo-task-master-status-select--abandoned/);
   });
 
   it('does not map set-status as an MCP tool', () => {
@@ -823,24 +823,24 @@ describe('plan-tasks route source wiring', () => {
       join(fixtureRoot, 'src-tauri/src/services/mcp_protocol_adapter.rs'),
       'utf8',
     );
-    expect(mcpIndex).not.toMatch(/set_todo_master_status|plan-task-set-status|set_master_status/);
+    expect(mcpIndex).not.toMatch(/set_todo_master_status|todo-task-set-status|set_master_status/);
   });
 
   it('app.css keeps plan-md preview inside bordered box under flex layout', () => {
-    expect(appCss).toMatch(/#plan-tasks-view\s*\{[^}]*min-width:\s*0/s);
-    expect(appCss).toMatch(/\.plan-tasks-page\s*\{[^}]*min-width:\s*0/s);
-    expect(appCss).toMatch(/\.plan-task-split\s*\{[^}]*min-width:\s*0/s);
+    expect(appCss).toMatch(/#todo-tasks-view\s*\{[^}]*min-width:\s*0/s);
+    expect(appCss).toMatch(/\.todo-tasks-page\s*\{[^}]*min-width:\s*0/s);
+    expect(appCss).toMatch(/\.todo-task-split\s*\{[^}]*min-width:\s*0/s);
     expect(appCss).toMatch(
-      /\.plan-task-split-detail\s*\{[^}]*min-width:\s*0/s,
+      /\.todo-task-split-detail\s*\{[^}]*min-width:\s*0/s,
     );
     expect(appCss).toMatch(
-      /\.plan-task-plan-md-preview\s*\{[^}]*width:\s*100%/s,
+      /\.todo-task-plan-md-preview\s*\{[^}]*width:\s*100%/s,
     );
     expect(appCss).toMatch(
-      /\.plan-task-plan-md-preview\s*\{[^}]*overflow-wrap:\s*anywhere/s,
+      /\.todo-task-plan-md-preview\s*\{[^}]*overflow-wrap:\s*anywhere/s,
     );
     expect(appCss).toMatch(
-      /\.plan-task-plan-md-preview ul,\s*\n\s*\.plan-task-plan-md-preview ol/,
+      /\.todo-task-plan-md-preview ul,\s*\n\s*\.todo-task-plan-md-preview ol/,
     );
   });
 });

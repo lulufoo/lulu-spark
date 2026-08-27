@@ -3210,9 +3210,9 @@ fn t4_defensive_cut_hook_path_is_confirmed_and_testable() {
     assert_eq!(
         r#loop::DEFENSIVE_CUT_EXPLICIT_RESET_CHAIN,
         [
-            "frontend/js/plan-task/index.js::dispose",
-            "frontend/js/plan-task/todos-lifecycle.js::onTodosPageLeave",
-            "frontend/js/plan-task/todos-binding.js::resetTodosBinding",
+            "frontend/js/todo-task/index.js::dispose",
+            "frontend/js/todo-task/todos-lifecycle.js::onTodosPageLeave",
+            "frontend/js/todo-task/todos-binding.js::resetTodosBinding",
             "src-tauri/src/services/agent/loop.rs::reset_binding",
         ]
     );
@@ -5199,12 +5199,12 @@ fn t4_hub_and_shell_close_are_not_reset_paths() {
 #[test]
 fn t4_only_other_binding_page_resets_notes() {
     let main = repo_file("frontend/js/main.js");
-    let mount_plan = function_slice(&main, "function mountPlanTasksRoute");
+    let mount_plan = function_slice(&main, "function mountTodoTasksRoute");
     assert!(
         !mount_plan.contains("resetNotesBinding")
             && !mount_plan.contains("set_binding")
             && !mount_plan.contains("reset_binding"),
-        "mountPlanTasksRoute must not Set/Reset Binding"
+        "mountTodoTasksRoute must not Set/Reset Binding"
     );
     let mount_wb = function_slice(&main, "function mountWorkbench");
     assert!(
@@ -5274,8 +5274,8 @@ fn t4_cursor_ide_is_not_an_app_binding_key() {
 
 #[test]
 fn t4_notes_binding_consumer_follows_todos_key_only_contract() {
-    let binding = repo_file("frontend/js/plan-task/todos-binding.js");
-    let index = repo_file("frontend/js/plan-task/index.js");
+    let binding = repo_file("frontend/js/todo-task/todos-binding.js");
+    let index = repo_file("frontend/js/todo-task/index.js");
     assert!(
         binding.contains("WORKBENCH_BUSINESS_KEY") && binding.contains("'workbench'"),
         "todos-binding.js must export WORKBENCH_BUSINESS_KEY = workbench"
@@ -5310,7 +5310,7 @@ fn t4_notes_binding_consumer_follows_todos_key_only_contract() {
             && !index.contains("buildNotesBinding")
             && !index.contains("resetNotesBinding")
             && !index.contains("NOTES_BUSINESS_KEY"),
-        "plan-task/index.js must not re-export old Notes Binding symbols"
+        "todo-task/index.js must not re-export old Notes Binding symbols"
     );
 }
 
@@ -5318,7 +5318,7 @@ fn t4_notes_binding_consumer_follows_todos_key_only_contract() {
 fn t4_main_and_sidebar_wire_notes_set_without_new_runtime() {
     let main = repo_file("frontend/js/main.js");
     let sidebar = repo_file("frontend/js/components/sidebar.js");
-    let lifecycle = repo_file("frontend/js/plan-task/todos-lifecycle.js");
+    let lifecycle = repo_file("frontend/js/todo-task/todos-lifecycle.js");
     assert!(
         main.contains("setWorkbenchBinding")
             && !main.contains("buildNotesBinding")

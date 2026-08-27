@@ -18,7 +18,7 @@ describe('Builders ↔ assistants capture-phase mutex retired (main.js T5/T7)', 
   it('main.js no longer contains the document-level FAB mutex closest checks', () => {
     const source = readMain();
     expect(source).not.toMatch(/closest\(\s*['"]\.rl-assistant-fab['"]\s*\)/);
-    expect(source).not.toMatch(/closest\(\s*['"]\.pt-assistant-fab['"]\s*\)/);
+    expect(source).not.toMatch(/closest\(\s*['"]\.todo-assistant-fab['"]\s*\)/);
     expect(source).not.toMatch(/closest\(\s*['"]\.note-assistant-fab['"]\s*\)/);
     expect(source).not.toMatch(/closest\(\s*['"]\.builders-entry-fab['"]\s*\)/);
   });
@@ -28,7 +28,7 @@ describe('Builders ↔ assistants capture-phase mutex retired (main.js T5/T7)', 
     const mounts = source.match(/mountHomeEntryShell\s*\(\s*document\.body\b/g) || [];
     expect(mounts.length).toBe(1);
     expect(source).not.toMatch(
-      /mount(?:ReadLater|PlanTask|Note|Builders)AssistantWidget\s*\(\s*document\.body\b/,
+      /mount(?:ReadLater|TodoTask|Note|Builders)AssistantWidget\s*\(\s*document\.body\b/,
     );
   });
 

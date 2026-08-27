@@ -18,11 +18,11 @@ vi.mock('../frontend/js/apiClient.js', async (importOriginal) => {
 import {
   abandonPlanSub,
   completePlan,
-  formatPlanTaskStatus,
-  mountPlanTaskSplit,
+  formatTodoTaskStatus,
+  mountTodoTaskSplit,
   readPlanMd,
   updatePlanMd,
-} from '../frontend/js/plan-task/index.js';
+} from '../frontend/js/todo-task/index.js';
 
 const REFRESH_WARNING_MSG = 'Saved, but list refresh failed — retry';
 
@@ -61,9 +61,9 @@ function setupTauri() {
   window.__TAURI__ = { core: { invoke: invokeMock } };
 }
 
-describe('formatPlanTaskStatus abandoned label', () => {
+describe('formatTodoTaskStatus abandoned label', () => {
   it('includes abandoned English label', () => {
-    expect(formatPlanTaskStatus('abandoned')).toBe('Abandoned');
+    expect(formatTodoTaskStatus('abandoned')).toBe('Abandoned');
   });
 });
 
@@ -136,7 +136,7 @@ describe('todo_md invoke wrappers', () => {
   });
 });
 
-describe('mountPlanTaskSplit todo_md preview and edit', () => {
+describe('mountTodoTaskSplit todo_md preview and edit', () => {
   let container;
 
   beforeEach(() => {
@@ -161,12 +161,12 @@ describe('mountPlanTaskSplit todo_md preview and edit', () => {
   });
 
   async function mountAndWait() {
-    const api = mountPlanTaskSplit(container, {
+    const api = mountTodoTaskSplit(container, {
       masterId: 'task_alpha',
       subId: 'task_alpha_sub_01',
     });
     await vi.waitFor(() => {
-      expect(container.querySelector('.plan-task-plan-md-preview')).not.toBeNull();
+      expect(container.querySelector('.todo-task-plan-md-preview')).not.toBeNull();
     });
     return api;
   }
@@ -174,7 +174,7 @@ describe('mountPlanTaskSplit todo_md preview and edit', () => {
   it('renders todo_md from HTTP as multi-paragraph markdown preview', async () => {
     getJsonMock.mockResolvedValue([sampleMaster]);
     const { dispose } = await mountAndWait();
-    const preview = container.querySelector('.plan-task-plan-md-preview');
+    const preview = container.querySelector('.todo-task-plan-md-preview');
     expect(preview).not.toBeNull();
     expect(global.marked.parse).toHaveBeenCalledWith(sampleMaster.todo_md);
     expect(preview.innerHTML).toContain('First paragraph.');
@@ -188,10 +188,10 @@ describe('mountPlanTaskSplit todo_md preview and edit', () => {
     const { dispose } = await mountAndWait();
     container.querySelector('[data-action="edit-plan-md"]').click();
     await vi.waitFor(() => {
-      expect(container.querySelector('.plan-task-plan-md-editor')).not.toBeNull();
+      expect(container.querySelector('.todo-task-plan-md-editor')).not.toBeNull();
     });
     expect(invokeMock).toHaveBeenCalledWith('read_todo_md', { masterTaskId: 'task_alpha' });
-    const editor = container.querySelector('.plan-task-plan-md-editor');
+    const editor = container.querySelector('.todo-task-plan-md-editor');
     expect(editor.value).toContain('Edited from disk');
     dispose();
   });
@@ -209,9 +209,9 @@ describe('mountPlanTaskSplit todo_md preview and edit', () => {
     const { dispose } = await mountAndWait();
     container.querySelector('[data-action="edit-plan-md"]').click();
     await vi.waitFor(() => {
-      expect(container.querySelector('.plan-task-plan-md-editor')).not.toBeNull();
+      expect(container.querySelector('.todo-task-plan-md-editor')).not.toBeNull();
     });
-    const editor = container.querySelector('.plan-task-plan-md-editor');
+    const editor = container.querySelector('.todo-task-plan-md-editor');
     editor.value = '# Saved\n\nNew content.';
     container.querySelector('[data-action="save-plan-md"]').click();
     await vi.waitFor(() => {
@@ -221,7 +221,7 @@ describe('mountPlanTaskSplit todo_md preview and edit', () => {
       });
     });
     await vi.waitFor(() => {
-      expect(container.querySelector('.plan-task-plan-md-editor')).toBeNull();
+      expect(container.querySelector('.todo-task-plan-md-editor')).toBeNull();
     });
     dispose();
   });
@@ -238,15 +238,15 @@ describe('mountPlanTaskSplit todo_md preview and edit', () => {
     const { dispose } = await mountAndWait();
     container.querySelector('[data-action="edit-plan-md"]').click();
     await vi.waitFor(() => {
-      expect(container.querySelector('.plan-task-plan-md-editor')).not.toBeNull();
+      expect(container.querySelector('.todo-task-plan-md-editor')).not.toBeNull();
     });
-    const editor = container.querySelector('.plan-task-plan-md-editor');
+    const editor = container.querySelector('.todo-task-plan-md-editor');
     editor.value = 'User draft content';
     container.querySelector('[data-action="save-plan-md"]').click();
     await vi.waitFor(() => {
-      expect(container.querySelector('.plan-task-plan-md-error')).not.toBeNull();
+      expect(container.querySelector('.todo-task-plan-md-error')).not.toBeNull();
     });
-    expect(container.querySelector('.plan-task-plan-md-editor').value).toBe('User draft content');
+    expect(container.querySelector('.todo-task-plan-md-editor').value).toBe('User draft content');
     expect(container.textContent).toMatch(/Disk full|Save failed/);
     dispose();
   });
@@ -262,9 +262,9 @@ describe('mountPlanTaskSplit todo_md preview and edit', () => {
     const { dispose } = await mountAndWait();
     container.querySelector('[data-action="edit-plan-md"]').click();
     await vi.waitFor(() => {
-      expect(container.querySelector('.plan-task-plan-md-editor')).not.toBeNull();
+      expect(container.querySelector('.todo-task-plan-md-editor')).not.toBeNull();
     });
-    container.querySelector('.plan-task-plan-md-editor').value = 'Saved text';
+    container.querySelector('.todo-task-plan-md-editor').value = 'Saved text';
     container.querySelector('[data-action="save-plan-md"]').click();
     await vi.waitFor(() => {
       expect(container.textContent).toContain(REFRESH_WARNING_MSG);
@@ -273,7 +273,7 @@ describe('mountPlanTaskSplit todo_md preview and edit', () => {
   });
 });
 
-describe('mountPlanTaskSplit status select actions', () => {
+describe('mountTodoTaskSplit status select actions', () => {
   let container;
 
   beforeEach(() => {
@@ -296,7 +296,7 @@ describe('mountPlanTaskSplit status select actions', () => {
   });
 
   async function mountAndWait() {
-    const api = mountPlanTaskSplit(container, {
+    const api = mountTodoTaskSplit(container, {
       masterId: 'task_alpha',
       subId: 'task_alpha_sub_01',
     });
@@ -393,7 +393,7 @@ describe('mountPlanTaskSplit status select actions', () => {
     const { dispose } = await mountAndWait();
     changeSubStatus('task_alpha_sub_01', 'complete');
     await vi.waitFor(() => {
-      expect(container.querySelector('.plan-task-sub-action-error')).not.toBeNull();
+      expect(container.querySelector('.todo-task-sub-action-error')).not.toBeNull();
     });
     expect(statusSelect('task_alpha_sub_01').value).toBe('incomplete');
     expect(statusSelect('task_alpha_sub_01').disabled).toBe(false);
@@ -408,7 +408,7 @@ describe('mountPlanTaskSplit status select actions', () => {
     await vi.waitFor(() => {
       expect(container.textContent).toContain('Sub not found');
     });
-    expect(container.querySelector('.plan-task-split-master')).not.toBeNull();
+    expect(container.querySelector('.todo-task-split-master')).not.toBeNull();
     dispose();
   });
 });

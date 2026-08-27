@@ -1,19 +1,19 @@
 /**
- * T15 AC fixture — brand sites + static probes for plan-task attachment AC gate.
- * Consumed by plan-task-ac-gate.test.js and plan-task-f3-copy.test.js.
+ * T15 AC fixture — brand sites + static probes for todo-task attachment AC gate.
+ * Consumed by todo-task-ui-ac-gate.test.js and todo-task-f3-copy.test.js.
  */
 
 const NO_LEGACY_BRAND = [/计划任务/];
 
 /** @type {{ path: string, mustMatch: RegExp[], mustNotMatch?: RegExp[] }[]} */
-export const PLAN_TASK_BRAND_SITES = [
+export const TODO_TASK_BRAND_SITES = [
   {
-    path: 'frontend/js/plan-task/index.js',
-    mustMatch: [/<h1 class="plan-tasks-page-title">Todos<\/h1>/],
+    path: 'frontend/js/todo-task/index.js',
+    mustMatch: [/<h1 class="todo-tasks-page-title">Todos<\/h1>/],
     mustNotMatch: NO_LEGACY_BRAND,
   },
   {
-    path: 'frontend/js/plan-task/index.js',
+    path: 'frontend/js/todo-task/index.js',
     mustMatch: [/aria-label="Todos list"/],
     mustNotMatch: NO_LEGACY_BRAND,
   },
@@ -23,19 +23,19 @@ export const PLAN_TASK_BRAND_SITES = [
     mustNotMatch: NO_LEGACY_BRAND,
   },
   {
-    path: 'frontend/js/plan-task-assistant.js',
+    path: 'frontend/js/todo-task-assistant.js',
     mustMatch: [/No todos yet/],
     mustNotMatch: NO_LEGACY_BRAND,
   },
   {
     // T6: popover chrome retired; brand title lives on the content adapter / EntryConfig.
-    path: 'frontend/js/plan-task-assistant.js',
-    mustMatch: [/PLAN_TASK_CONTENT_TITLE\s*=\s*['"]Todos['"]/],
+    path: 'frontend/js/todo-task-assistant.js',
+    mustMatch: [/TODO_TASK_CONTENT_TITLE\s*=\s*['"]Todos['"]/],
     mustNotMatch: NO_LEGACY_BRAND,
   },
   {
-    path: 'frontend/js/plan-task-assistant.js',
-    mustMatch: [/PLAN_TASK_CONTENT_LABEL\s*=\s*['"]Open Todos['"]/, /['"]Todos['"]/],
+    path: 'frontend/js/todo-task-assistant.js',
+    mustMatch: [/TODO_TASK_CONTENT_LABEL\s*=\s*['"]Open Todos['"]/, /['"]Todos['"]/],
     mustNotMatch: NO_LEGACY_BRAND,
   },
 ];
@@ -79,19 +79,19 @@ export const MCP_FORBIDDEN_DELETE_TOOLS = [
 
 /** Integration-test file → regex probes for UI add/list/editor/save paths. */
 export const UI_ATTACHMENT_TEST_PROBES = {
-  'tests/plan-task-attachments.test.js': [
+  'tests/todo-task-attachments.test.js': [
     /listPlanAttachments invokes list_todo_attachments/,
     /addPlanAttachment invokes add_todo_attachment/,
     /shows attachment section listing associated files/,
     /pick flow stages then invokes add_todo_attachment/,
   ],
-  'tests/plan-task-attachment-editor.test.js': [
+  'tests/todo-task-attachment-editor.test.js': [
     /readPlanAttachment invokes read_todo_attachment/,
     /savePlanAttachment invokes save_todo_attachment with masterTaskId, fileName, sourcePath/,
     /clicking an attachment opens a modal with preview by default/,
     /can switch to edit mode and save via save_todo_attachment/,
   ],
-  'tests/plan-task-attachment-delete.test.js': [
+  'tests/todo-task-attachment-delete.test.js': [
     /invokes delete_todo_attachment with masterTaskId and fileName/,
     /confirming delete invokes delete_todo_attachment then removes item from list/,
   ],

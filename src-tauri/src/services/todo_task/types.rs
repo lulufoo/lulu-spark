@@ -1,4 +1,4 @@
-//! Todo task master/sub types aligned with `plan_tasks.schema.json`.
+//! Todo task master/sub types aligned with `todo_tasks.schema.json`.
 
 use std::collections::HashMap;
 
@@ -77,18 +77,18 @@ pub struct MasterTask {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct PlanTasksFile {
+pub struct TodoTasksFile {
     pub version: u32,
     pub tasks: HashMap<String, MasterTask>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct PlanTasksIndex {
+pub struct TodoTasksIndex {
     pub version: u32,
     pub tasks: HashMap<String, IndexEntry>,
 }
 
-impl Default for PlanTasksIndex {
+impl Default for TodoTasksIndex {
     fn default() -> Self {
         Self {
             version: 2,

@@ -51,7 +51,7 @@ describe('home-entry-shell fsm · A/B/C legal edges + snapshot (T2)', () => {
     fsm.dispatch({ type: 'openEntry', entryId: 'read-later' });
     expect(fsm.snapshot()).toEqual({ mode: 'C', entryId: 'read-later' });
 
-    const switched = fsm.dispatch({ type: 'openEntry', entryId: 'plan-task' });
+    const switched = fsm.dispatch({ type: 'openEntry', entryId: 'todo-task' });
     expect(switched.accepted).toBe(true);
     // Composite path must include the intermediate B — never a single C→C hop.
     expect(switched.transitions).toEqual([
@@ -59,7 +59,7 @@ describe('home-entry-shell fsm · A/B/C legal edges + snapshot (T2)', () => {
       { from: 'B', to: 'C' },
     ]);
     expect(fsm.getState()).toBe('C');
-    expect(fsm.snapshot()).toEqual({ mode: 'C', entryId: 'plan-task' });
+    expect(fsm.snapshot()).toEqual({ mode: 'C', entryId: 'todo-task' });
   });
 
   it('closeHub while in C keeps C (no transition to A)', () => {

@@ -1400,16 +1400,16 @@ fn seed_v2_todo_for_http(
     sub_tasks: &Value,
     merge_index: bool,
 ) {
-    let plan_tasks_dir = wb.join("todo_tasks");
-    fs::create_dir_all(plan_tasks_dir.join("tasks").join(master_id)).expect("mkdir task");
+    let todo_tasks_dir = wb.join("todo_tasks");
+    fs::create_dir_all(todo_tasks_dir.join("tasks").join(master_id)).expect("mkdir task");
     if merge_index {
-        let index_path = plan_tasks_dir.join("index.json");
+        let index_path = todo_tasks_dir.join("index.json");
         let mut index: Value = if index_path.is_file() {
             serde_json::from_str(&fs::read_to_string(&index_path).unwrap()).unwrap_or_else(|_| {
                 json!({ "version": 2, "tasks": {} })
             })
         } else {
-            fs::create_dir_all(plan_tasks_dir.join("tasks")).expect("mkdir tasks");
+            fs::create_dir_all(todo_tasks_dir.join("tasks")).expect("mkdir tasks");
             json!({ "version": 2, "tasks": {} })
         };
         index["tasks"][master_id] = json!({
@@ -1426,7 +1426,7 @@ fn seed_v2_todo_for_http(
         .expect("write index");
     }
     fs::write(
-        plan_tasks_dir
+        todo_tasks_dir
             .join("tasks")
             .join(master_id)
             .join("sub_tasks.json"),
@@ -1434,7 +1434,7 @@ fn seed_v2_todo_for_http(
     )
     .expect("write sub_tasks");
     fs::write(
-        plan_tasks_dir
+        todo_tasks_dir
             .join("tasks")
             .join(master_id)
             .join("todo.md"),
@@ -3109,10 +3109,10 @@ fn t5_clear_only_when_leaving_notes_not_hub_or_shell_close() {
     let main = t5_repo_file("frontend/js/main.js");
     let shell = t5_repo_file("frontend/js/home-entry-shell/shell.js");
     let note_assistant = t5_repo_file("frontend/js/note-assistant.js");
-    let mount_plan = t5_function_slice(&main, "function mountPlanTasksRoute");
+    let mount_plan = t5_function_slice(&main, "function mountTodoTasksRoute");
     assert!(
         mount_plan.contains("clearNotesSelectionSnapshot"),
-        "leaving Notes for Todos (mountPlanTasksRoute) must write the empty snapshot"
+        "leaving Notes for Todos (mountTodoTasksRoute) must write the empty snapshot"
     );
     assert!(
         !shell.contains("clearNotesSelectionSnapshot") && !shell.contains("writeNotesSelectionSnapshot"),

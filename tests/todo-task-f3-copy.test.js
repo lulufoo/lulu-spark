@@ -3,11 +3,11 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, it, expect, beforeEach } from 'vitest';
-import { openPlanTaskDialog } from '../frontend/js/plan-task/dialog.js';
-import { PLAN_TASK_BRAND_SITES } from './fixtures/plan-task-ac15.js';
+import { openTodoTaskDialog } from '../frontend/js/todo-task/dialog.js';
+import { TODO_TASK_BRAND_SITES } from './fixtures/todo-task-ac15.js';
 
 const fixtureRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
-const dialogSource = readFileSync(join(fixtureRoot, 'frontend/js/plan-task/dialog.js'), 'utf8');
+const dialogSource = readFileSync(join(fixtureRoot, 'frontend/js/todo-task/dialog.js'), 'utf8');
 const mcpSource = readFileSync(join(fixtureRoot, 'src-tauri/src/services/mcp_protocol_adapter.rs'), 'utf8');
 
 function extractCreateTodoTaskBlock(source) {
@@ -19,21 +19,21 @@ function extractCreateTodoTaskBlock(source) {
   return endRel === -1 ? source.slice(start) : source.slice(start, start + 1 + endRel);
 }
 
-function seedPlanTaskDialogDom() {
+function seedTodoTaskDialogDom() {
   document.body.innerHTML = `
-    <div id="plan-task-dialog">
-      <h3 id="plan-task-dialog-title"></h3>
-      <div id="plan-task-dialog-body"></div>
-      <p id="plan-task-dialog-error" hidden></p>
-      <button type="button" id="plan-task-dialog-cancel"></button>
-      <button type="button" id="plan-task-dialog-primary"></button>
+    <div id="todo-task-dialog">
+      <h3 id="todo-task-dialog-title"></h3>
+      <div id="todo-task-dialog-body"></div>
+      <p id="todo-task-dialog-error" hidden></p>
+      <button type="button" id="todo-task-dialog-cancel"></button>
+      <button type="button" id="todo-task-dialog-primary"></button>
     </div>
   `;
 }
 
 describe('F3 copy sync — dialog.js', () => {
   beforeEach(() => {
-    seedPlanTaskDialogDom();
+    seedTodoTaskDialogDom();
   });
 
   it('does not mention implicit default sub task hint in source', () => {
@@ -42,20 +42,20 @@ describe('F3 copy sync — dialog.js', () => {
   });
 
   it('create-master dialog hint states empty sub list semantics', () => {
-    openPlanTaskDialog({ type: 'create-master', onSubmit: async () => {} });
-    const body = document.getElementById('plan-task-dialog-body');
-    const hint = body?.querySelector('.plan-task-dialog-hint')?.textContent?.trim() ?? '';
+    openTodoTaskDialog({ type: 'create-master', onSubmit: async () => {} });
+    const body = document.getElementById('todo-task-dialog-body');
+    const hint = body?.querySelector('.todo-task-dialog-hint')?.textContent?.trim() ?? '';
     expect(hint).not.toMatch(/默认子任务/);
     expect(hint).toMatch(/skip sub-tasks|no sub-tasks|will have none/i);
   });
 
   it('create-category dialog uses English copy and name field', () => {
-    openPlanTaskDialog({ type: 'create-category', onSubmit: async () => {} });
-    expect(document.getElementById('plan-task-dialog-title')?.textContent).toBe('New category');
-    expect(document.getElementById('plan-task-dialog-primary')?.textContent).toBe(
+    openTodoTaskDialog({ type: 'create-category', onSubmit: async () => {} });
+    expect(document.getElementById('todo-task-dialog-title')?.textContent).toBe('New category');
+    expect(document.getElementById('todo-task-dialog-primary')?.textContent).toBe(
       'Create category',
     );
-    const body = document.getElementById('plan-task-dialog-body');
+    const body = document.getElementById('todo-task-dialog-body');
     expect(body?.textContent).toMatch(/Organize todos under a shared category/i);
     expect(body?.querySelector('[data-field="name"]')).not.toBeNull();
     expect(body?.textContent).not.toMatch(/[\u4e00-\u9fff]/);
@@ -83,8 +83,8 @@ describe('F3 copy sync — create_todo_task MCP description', () => {
 
 describe('AC7 brand copy — user-visible Todos sites (tech-doc T14/T15)', () => {
   it('locks remaining brand sites to Todos without residual 计划任务 user copy', () => {
-    expect(PLAN_TASK_BRAND_SITES).toHaveLength(6);
-    for (const site of PLAN_TASK_BRAND_SITES) {
+    expect(TODO_TASK_BRAND_SITES).toHaveLength(6);
+    for (const site of TODO_TASK_BRAND_SITES) {
       const src = readFileSync(join(fixtureRoot, site.path), 'utf8');
       for (const re of site.mustMatch) {
         expect(src, `${site.path} mustMatch ${re}`).toMatch(re);
@@ -95,10 +95,10 @@ describe('AC7 brand copy — user-visible Todos sites (tech-doc T14/T15)', () =>
     }
   });
 
-  it('keeps technical plan-task identifiers (route/api) unchanged', () => {
-    const index = readFileSync(join(fixtureRoot, 'frontend/js/plan-task/index.js'), 'utf8');
-    expect(index).toMatch(/plan-tasks/);
+  it('keeps technical todo-task identifiers (route/api) unchanged', () => {
+    const index = readFileSync(join(fixtureRoot, 'frontend/js/todo-task/index.js'), 'utf8');
+    expect(index).toMatch(/todo-tasks/);
     const hub = readFileSync(join(fixtureRoot, 'frontend/js/components/home-hub.js'), 'utf8');
-    expect(hub).toMatch(/data-home-entry="plan-tasks"/);
+    expect(hub).toMatch(/data-home-entry="todo-tasks"/);
   });
 });

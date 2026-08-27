@@ -1,7 +1,7 @@
 /**
  * T7 / P4 layered coverage gate + L2 SK-4 Todos parity (P1–P6 / N1/N2).
  * Host Tools + Loop automated markers, UI/config/main-path + Host/GLM
- * smoke checklist, plan-task-write regression wiring, Todos parity acceptance.
+ * smoke checklist, todo-task-write regression wiring, Todos parity acceptance.
  */
 // @vitest-environment jsdom
 import { existsSync, readFileSync } from 'node:fs';
@@ -26,12 +26,12 @@ import {
   createTodosPageLifecycle,
   TODOS_OPEN_AND_BIND_MAIN_PATH_DISABLED,
   TODOS_PARITY_ACCEPTANCE,
-  mountPlanTaskSplit,
-} from '../frontend/js/plan-task/index.js';
+  mountTodoTaskSplit,
+} from '../frontend/js/todo-task/index.js';
 import {
   setWorkbenchBinding,
   WORKBENCH_BUSINESS_KEY,
-} from '../frontend/js/plan-task/todos-binding.js';
+} from '../frontend/js/todo-task/todos-binding.js';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 const checklistPath = join(
@@ -66,13 +66,13 @@ const REQUIRED_CHECKLIST_MARKERS = [
 const LAYERED_VITEST = [
   'tests/ai-assistant-window.test.js',
   'tests/llm-settings.test.js',
-  'tests/plan-task-ai-assistant-entry.test.js',
-  'tests/plan-task-write.test.js',
+  'tests/todo-task-ai-assistant-entry.test.js',
+  'tests/todo-task-write.test.js',
   'tests/ai-assistant-p4-smoke.test.js',
-  'tests/plan-task-binding.test.js',
-  'tests/plan-task-lifecycle.test.js',
-  'tests/plan-task-present-entry.test.js',
-  'tests/plan-task-deembed-writeback.test.js',
+  'tests/todo-task-binding.test.js',
+  'tests/todo-task-lifecycle.test.js',
+  'tests/todo-task-present-entry.test.js',
+  'tests/todo-task-deembed-writeback.test.js',
 ];
 
 const HOST_TOOLS_MARKERS = [
@@ -144,7 +144,7 @@ describe('AI assistant P4 layered smoke gate (t7)', () => {
     }
   });
 
-  it('npm test wires layered UI/config/entry + plan-task-write + this gate', () => {
+  it('npm test wires layered UI/config/entry + todo-task-write + this gate', () => {
     for (const file of LAYERED_VITEST) {
       expect(testScript, `missing ${file} in npm test`).toContain(file);
     }
@@ -365,11 +365,11 @@ describe('Todos SK-4 parity acceptance (P1–P6 / N1/N2)', () => {
     it('N1/T6: Todos has no page Present entry; Host Present skips open_ai_assistant', async () => {
       const container = document.createElement('div');
       document.body.appendChild(container);
-      const { dispose } = mountPlanTaskSplit(container, {
+      const { dispose } = mountTodoTaskSplit(container, {
         masterId: 'task_alpha',
       });
       await vi.waitFor(() => {
-        expect(container.querySelector('.plan-task-detail-toolbar')).not.toBeNull();
+        expect(container.querySelector('.todo-task-detail-toolbar')).not.toBeNull();
       });
       expect(
         container.querySelector('[data-action="open-ai-assistant"]'),
@@ -486,11 +486,11 @@ describe('t6 layered acceptance L0/L1/L2 gate', () => {
 
   it('Todos leave remains explicit and no longer Resets Binding', () => {
     const indexJs = readFileSync(
-      join(repoRoot, 'frontend/js/plan-task/index.js'),
+      join(repoRoot, 'frontend/js/todo-task/index.js'),
       'utf8',
     );
     const lifeJs = readFileSync(
-      join(repoRoot, 'frontend/js/plan-task/todos-lifecycle.js'),
+      join(repoRoot, 'frontend/js/todo-task/todos-lifecycle.js'),
       'utf8',
     );
     expect(indexJs).toMatch(/onTodosPageLeave/);

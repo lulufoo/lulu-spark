@@ -1,6 +1,6 @@
 /**
  * Plan-page AI assistant window shell.
- * Talks only via Host `agent_chat_turn` — never plan_task write commands.
+ * Talks only via Host `agent_chat_turn` — never todo_task write commands.
  *
  * Host dual surface:
  * - Binding Contract: Set/Reset/query/execute (+ callbacks)

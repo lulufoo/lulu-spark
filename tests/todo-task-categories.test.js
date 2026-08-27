@@ -26,14 +26,14 @@ import {
   createPlanCategory,
   deletePlanCategory,
   listPlanCategories,
-  mountPlanTaskSplit,
+  mountTodoTaskSplit,
   setPlanCategory,
-} from '../frontend/js/plan-task/index.js';
+} from '../frontend/js/todo-task/index.js';
 import { parseHash } from '../frontend/js/router/index.js';
 
 const fixtureRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
-const planTaskIndex = readFileSync(
-  join(fixtureRoot, 'frontend/js/plan-task/index.js'),
+const todoTaskIndex = readFileSync(
+  join(fixtureRoot, 'frontend/js/todo-task/index.js'),
   'utf8',
 );
 const routerSource = readFileSync(
@@ -102,20 +102,20 @@ function waitFor(predicate, { timeoutMs = 2000 } = {}) {
   });
 }
 
-describe('plan-task category source wiring (t4)', () => {
+describe('todo-task category source wiring (t4)', () => {
   it('invokes Host list/create/delete category commands (not Sidecar HTTP)', () => {
-    expect(planTaskIndex).toMatch(/list_todo_categories/);
-    expect(planTaskIndex).toMatch(/create_todo_category/);
-    expect(planTaskIndex).toMatch(/delete_todo_category/);
-    expect(planTaskIndex).toMatch(/set_todo_category/);
-    expect(planTaskIndex).not.toMatch(/\/api\/todo-task-list-categories/);
-    expect(planTaskIndex).not.toMatch(/sediment_kb_.*category/);
+    expect(todoTaskIndex).toMatch(/list_todo_categories/);
+    expect(todoTaskIndex).toMatch(/create_todo_category/);
+    expect(todoTaskIndex).toMatch(/delete_todo_category/);
+    expect(todoTaskIndex).toMatch(/set_todo_category/);
+    expect(todoTaskIndex).not.toMatch(/\/api\/todo-task-list-categories/);
+    expect(todoTaskIndex).not.toMatch(/sediment_kb_.*category/);
   });
 
   it('has no separate category management route', () => {
-    expect(routerSource).not.toMatch(/plan-task-categories|todo-categories|category-manage/);
-    expect(parseHash('#/plan-tasks')).toEqual({ name: 'plan-tasks', params: {} });
-    expect(parseHash('#/plan-task-categories').name).not.toBe('plan-task-categories');
+    expect(routerSource).not.toMatch(/todo-task-categories|todo-categories|category-manage/);
+    expect(parseHash('#/todo-tasks')).toEqual({ name: 'todo-tasks', params: {} });
+    expect(parseHash('#/todo-task-categories').name).not.toBe('todo-task-categories');
   });
 });
 
@@ -186,7 +186,7 @@ describe('category Host invoke helpers', () => {
   });
 });
 
-describe('mountPlanTaskSplit category dropdown', () => {
+describe('mountTodoTaskSplit category dropdown', () => {
   let container;
   let invokeMock;
 
@@ -194,18 +194,18 @@ describe('mountPlanTaskSplit category dropdown', () => {
     container = document.createElement('div');
     document.body.appendChild(container);
     const dialogHost = document.createElement('div');
-    dialogHost.id = 'plan-task-dialog-host';
+    dialogHost.id = 'todo-task-dialog-host';
     dialogHost.innerHTML = `
-      <div id="plan-task-dialog">
-        <div id="plan-task-dialog-box">
-          <div id="plan-task-dialog-header">
-            <h3 id="plan-task-dialog-title"></h3>
+      <div id="todo-task-dialog">
+        <div id="todo-task-dialog-box">
+          <div id="todo-task-dialog-header">
+            <h3 id="todo-task-dialog-title"></h3>
           </div>
-          <div id="plan-task-dialog-body"></div>
-          <p id="plan-task-dialog-error" hidden></p>
-          <div id="plan-task-dialog-actions">
-            <button type="button" id="plan-task-dialog-cancel" class="md-header-btn">Cancel</button>
-            <button type="button" id="plan-task-dialog-primary" class="md-header-btn primary">OK</button>
+          <div id="todo-task-dialog-body"></div>
+          <p id="todo-task-dialog-error" hidden></p>
+          <div id="todo-task-dialog-actions">
+            <button type="button" id="todo-task-dialog-cancel" class="md-header-btn">Cancel</button>
+            <button type="button" id="todo-task-dialog-primary" class="md-header-btn primary">OK</button>
           </div>
         </div>
       </div>
@@ -253,15 +253,15 @@ describe('mountPlanTaskSplit category dropdown', () => {
 
   afterEach(() => {
     container.remove();
-    document.getElementById('plan-task-dialog-host')?.remove();
+    document.getElementById('todo-task-dialog-host')?.remove();
     delete window.__TAURI__;
     vi.restoreAllMocks();
   });
 
   it('shows create/delete as options inside the category filter select', async () => {
-    const { dispose } = mountPlanTaskSplit(container);
-    await waitFor(() => container.querySelector('.plan-task-category-filter') != null);
-    const filter = container.querySelector('.plan-task-category-filter');
+    const { dispose } = mountTodoTaskSplit(container);
+    await waitFor(() => container.querySelector('.todo-task-category-filter') != null);
+    const filter = container.querySelector('.todo-task-category-filter');
     expect(filter).not.toBeNull();
     expect(filter.textContent).toContain('Uncategorized');
     expect(filter.textContent).not.toContain('待分类');
@@ -278,19 +278,19 @@ describe('mountPlanTaskSplit category dropdown', () => {
     expect(
       [...filter.querySelectorAll('option')].some((o) => o.value === '__delete_category__'),
     ).toBe(true);
-    expect(container.querySelector('.plan-task-category-menu')).toBeNull();
+    expect(container.querySelector('.todo-task-category-menu')).toBeNull();
     expect(invokeMock).toHaveBeenCalledWith('list_todo_categories', {});
     dispose();
   });
 
   it('filters the master list by selected category', async () => {
-    const { dispose } = mountPlanTaskSplit(container);
-    await waitFor(() => container.querySelector('.plan-task-category-filter') != null);
-    const filter = container.querySelector('.plan-task-category-filter');
+    const { dispose } = mountTodoTaskSplit(container);
+    await waitFor(() => container.querySelector('.todo-task-category-filter') != null);
+    const filter = container.querySelector('.todo-task-category-filter');
     filter.value = 'cat_work';
     filter.dispatchEvent(new Event('change', { bubbles: true }));
     await waitFor(() => {
-      const items = [...container.querySelectorAll('.plan-task-master-item')];
+      const items = [...container.querySelectorAll('.todo-task-master-item')];
       return items.length === 1 && items[0].dataset.masterId === 'task_beta';
     });
     expect(container.querySelector('[data-master-id="task_alpha"]')).toBeNull();
@@ -298,19 +298,19 @@ describe('mountPlanTaskSplit category dropdown', () => {
   });
 
   it('creates a category via create_todo_category dialog and refreshes the filter', async () => {
-    const { dispose } = mountPlanTaskSplit(container);
-    await waitFor(() => container.querySelector('.plan-task-category-filter') != null);
-    const filter = container.querySelector('.plan-task-category-filter');
+    const { dispose } = mountTodoTaskSplit(container);
+    await waitFor(() => container.querySelector('.todo-task-category-filter') != null);
+    const filter = container.querySelector('.todo-task-category-filter');
     filter.value = '__create_category__';
     filter.dispatchEvent(new Event('change', { bubbles: true }));
     await waitFor(() =>
-      document.getElementById('plan-task-dialog')?.classList.contains('open'),
+      document.getElementById('todo-task-dialog')?.classList.contains('open'),
     );
-    expect(document.getElementById('plan-task-dialog-title')?.textContent).toBe('New category');
-    const nameInput = document.querySelector('#plan-task-dialog-body [data-field="name"]');
+    expect(document.getElementById('todo-task-dialog-title')?.textContent).toBe('New category');
+    const nameInput = document.querySelector('#todo-task-dialog-body [data-field="name"]');
     expect(nameInput).not.toBeNull();
     nameInput.value = 'Ideas';
-    document.getElementById('plan-task-dialog-primary').click();
+    document.getElementById('todo-task-dialog-primary').click();
     await waitFor(() =>
       invokeMock.mock.calls.some((c) => c[0] === 'create_todo_category'),
     );
@@ -322,39 +322,39 @@ describe('mountPlanTaskSplit category dropdown', () => {
   });
 
   it('does not pretend success when deleting default/non-empty category fails', async () => {
-    const { dispose } = mountPlanTaskSplit(container);
-    await waitFor(() => container.querySelector('.plan-task-category-filter') != null);
+    const { dispose } = mountTodoTaskSplit(container);
+    await waitFor(() => container.querySelector('.todo-task-category-filter') != null);
 
-    let filter = container.querySelector('.plan-task-category-filter');
+    let filter = container.querySelector('.todo-task-category-filter');
     filter.value = 'uncategorized';
     filter.dispatchEvent(new Event('change', { bubbles: true }));
-    await waitFor(() => container.querySelector('.plan-task-category-filter')?.value === 'uncategorized');
-    const deleteOpt = [...container.querySelectorAll('.plan-task-category-filter option')].find(
+    await waitFor(() => container.querySelector('.todo-task-category-filter')?.value === 'uncategorized');
+    const deleteOpt = [...container.querySelectorAll('.todo-task-category-filter option')].find(
       (o) => o.value === '__delete_category__',
     );
     expect(deleteOpt?.disabled).toBe(true);
 
     // Re-query after paint — prior select node is detached.
-    filter = container.querySelector('.plan-task-category-filter');
+    filter = container.querySelector('.todo-task-category-filter');
     filter.value = 'cat_work';
     filter.dispatchEvent(new Event('change', { bubbles: true }));
     await waitFor(() => {
-      const opt = [...container.querySelectorAll('.plan-task-category-filter option')].find(
+      const opt = [...container.querySelectorAll('.todo-task-category-filter option')].find(
         (o) => o.value === '__delete_category__',
       );
       return opt && !opt.disabled;
     });
-    filter = container.querySelector('.plan-task-category-filter');
+    filter = container.querySelector('.todo-task-category-filter');
     filter.value = '__delete_category__';
     filter.dispatchEvent(new Event('change', { bubbles: true }));
     await waitFor(() =>
-      Boolean(container.querySelector('.plan-task-category-error')?.textContent?.length),
+      Boolean(container.querySelector('.todo-task-category-error')?.textContent?.length),
     );
-    expect(container.querySelector('.plan-task-category-error').textContent).toMatch(
+    expect(container.querySelector('.todo-task-category-error').textContent).toMatch(
       /not empty|failed|cannot delete/i,
     );
     expect(
-      [...container.querySelectorAll('.plan-task-category-filter option')].some(
+      [...container.querySelectorAll('.todo-task-category-filter option')].some(
         (o) => o.value === 'cat_work',
       ),
     ).toBe(true);
@@ -362,7 +362,7 @@ describe('mountPlanTaskSplit category dropdown', () => {
   });
 
   it('reassigns selected todo via set_todo_category', async () => {
-    const { dispose } = mountPlanTaskSplit(container, { masterId: 'task_alpha' });
+    const { dispose } = mountTodoTaskSplit(container, { masterId: 'task_alpha' });
     await waitFor(
       () => container.querySelector('[data-action="change-master-category"]') != null,
     );

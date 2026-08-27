@@ -5,8 +5,8 @@
 
 /** Explicit leave chain (page path). Binding Reset is no longer part of leave. */
 export const TODOS_EXPLICIT_LEAVE_RESET_CHAIN = Object.freeze([
-  'frontend/js/plan-task/index.js::dispose',
-  'frontend/js/plan-task/todos-lifecycle.js::onTodosPageLeave',
+  'frontend/js/todo-task/index.js::dispose',
+  'frontend/js/todo-task/todos-lifecycle.js::onTodosPageLeave',
 ]);
 
 function normalizeMasterId(id) {

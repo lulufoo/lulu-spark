@@ -181,7 +181,7 @@ function seedWorkbenchMountDom() {
     <div id="home-view" style="display:none"></div>
     <div id="corpus-doc-view" style="display:none"></div>
     <div id="read-later-view" style="display:none"></div>
-    <div id="plan-tasks-view" style="display:none"></div>
+    <div id="todo-tasks-view" style="display:none"></div>
     <div class="layout">
       <main id="main">
         <div id="status"></div>
@@ -203,10 +203,10 @@ function compileMountWorkbench(env) {
     'corpusDocListRepo',
     'hideCorpusDocView',
     'hideReadLaterView',
-    'hidePlanTasksView',
+    'hideTodoTasksView',
     'hideHomeView',
     'feedView',
-    'unmountPlanTaskSplit',
+    'unmountTodoTaskSplit',
     'unmountHomeHub',
     'state',
     'selectDate',
@@ -237,10 +237,10 @@ function stubWorkbenchMountEnv(overrides = {}) {
     corpusDocListRepo: '',
     hideCorpusDocView: () => {},
     hideReadLaterView: () => {},
-    hidePlanTasksView: () => {},
+    hideTodoTasksView: () => {},
     hideHomeView: () => {},
     feedView: document.getElementById('feed-view') || { style: { display: '' } },
-    unmountPlanTaskSplit: null,
+    unmountTodoTaskSplit: null,
     unmountHomeHub: null,
     selectDate,
     openDoc,

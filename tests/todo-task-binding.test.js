@@ -11,15 +11,15 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import {
   setWorkbenchBinding,
   WORKBENCH_BUSINESS_KEY,
-} from '../frontend/js/plan-task/todos-binding.js';
+} from '../frontend/js/todo-task/todos-binding.js';
 
 const fixtureRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 const todosBindingJs = readFileSync(
-  join(fixtureRoot, 'frontend/js/plan-task/todos-binding.js'),
+  join(fixtureRoot, 'frontend/js/todo-task/todos-binding.js'),
   'utf8',
 );
-const planTaskIndexJs = readFileSync(
-  join(fixtureRoot, 'frontend/js/plan-task/index.js'),
+const todoTaskIndexJs = readFileSync(
+  join(fixtureRoot, 'frontend/js/todo-task/index.js'),
   'utf8',
 );
 
@@ -71,7 +71,7 @@ describe('Workbench Binding helper — source contracts', () => {
     expect(typeof setWorkbenchBinding).toBe('function');
     expect(setWorkbenchBinding.length).toBeLessThanOrEqual(1);
 
-    const bindingMod = await import('../frontend/js/plan-task/todos-binding.js');
+    const bindingMod = await import('../frontend/js/todo-task/todos-binding.js');
     expect(Object.keys(bindingMod).sort()).toEqual([
       'WORKBENCH_BUSINESS_KEY',
       'setWorkbenchBinding',
@@ -85,7 +85,7 @@ describe('Workbench Binding helper — source contracts', () => {
 
   it('index.js does not re-export deleted Binding helpers', () => {
     for (const name of DELETED_HELPERS) {
-      expect(planTaskIndexJs).not.toMatch(new RegExp(`\\b${name}\\b`));
+      expect(todoTaskIndexJs).not.toMatch(new RegExp(`\\b${name}\\b`));
     }
   });
 
@@ -187,7 +187,7 @@ describe('setWorkbenchBinding', () => {
     const result = await setWorkbenchBinding({
       ...cbs,
       masterTaskId: 'task_alpha',
-      route: '#/plan-tasks',
+      route: '#/todo-tasks',
     });
 
     expect(result.ok).toBe(true);
@@ -195,7 +195,7 @@ describe('setWorkbenchBinding', () => {
     const setArgs = invokeMock.mock.calls.find((c) => c[0] === 'set_binding')?.[1];
     expect(setArgs).toEqual({ binding: { key: 'workbench' } });
     expect(JSON.stringify(setArgs.binding)).not.toMatch(
-      /task_alpha|#\/plan-tasks|master/i,
+      /task_alpha|#\/todo-tasks|master/i,
     );
   });
 

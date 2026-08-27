@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * E2E: todo MCP tools against Host MCP URL (default http://127.0.0.1:9876).
- * Env: MCP_PORT / HOST_MCP_PORT (default 9876); E2E_PLAN_TASKS_TASKS_DIR (optional)
+ * Env: MCP_PORT / HOST_MCP_PORT (default 9876); E2E_TODO_TASKS_TASKS_DIR (optional)
  * Does not spawn the archived Node MCP package — Host is runtime SSOT.
  */
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
@@ -72,7 +72,7 @@ const CORPUS_TOOLS_E2E = [
  */
 export function assertDualChannelE2eContract() {
   const docPath = path.join(E2E_REPO_ROOT, 'docs', 'knowledge-mcp.md');
-  const bindingPath = path.join(E2E_REPO_ROOT, 'frontend', 'js', 'plan-task', 'todos-binding.js');
+  const bindingPath = path.join(E2E_REPO_ROOT, 'frontend', 'js', 'todo-task', 'todos-binding.js');
   if (!fs.existsSync(docPath)) {
     throw new Error('dual-channel e2e: missing docs/knowledge-mcp.md');
   }
@@ -177,7 +177,7 @@ if (!Number.isFinite(mcpPort) || mcpPort <= 0) {
   process.exit(1);
 }
 
-const tasksDir = process.env.E2E_PLAN_TASKS_TASKS_DIR?.trim() || '';
+const tasksDir = process.env.E2E_TODO_TASKS_TASKS_DIR?.trim() || '';
 
 /** T10 / AC-等价 — full todo tool set (complete/link/attachment/update required; no complete_plan_sub). */
 const EQUIVALENCE_TODO_TOOLS = [

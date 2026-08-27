@@ -115,8 +115,8 @@ fn get_todo_tasks_json_corrupt_v2_storage_returns_err() {
     with_commands_todo_test(|| {
         let wb = crate::config::paths::workbench_knowledge_root().expect("wb");
         let master_id = "task_corrupt_cmd";
-        let plan_tasks_dir = wb.join("todo_tasks");
-        fs::create_dir_all(plan_tasks_dir.join("tasks").join(master_id)).expect("mkdir");
+        let todo_tasks_dir = wb.join("todo_tasks");
+        fs::create_dir_all(todo_tasks_dir.join("tasks").join(master_id)).expect("mkdir");
         let index = json!({
             "version": 2,
             "tasks": {
@@ -130,12 +130,12 @@ fn get_todo_tasks_json_corrupt_v2_storage_returns_err() {
             }
         });
         fs::write(
-            plan_tasks_dir.join("index.json"),
+            todo_tasks_dir.join("index.json"),
             serde_json::to_string_pretty(&index).expect("serialize"),
         )
         .expect("write index");
         fs::write(
-            plan_tasks_dir
+            todo_tasks_dir
                 .join("tasks")
                 .join(master_id)
                 .join("sub_tasks.json"),

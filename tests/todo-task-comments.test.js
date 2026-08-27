@@ -22,9 +22,9 @@ import {
   addPlanComment,
   deletePlanComment,
   listPlanComments,
-  mountPlanTaskSplit,
+  mountTodoTaskSplit,
   updatePlanComment,
-} from '../frontend/js/plan-task/index.js';
+} from '../frontend/js/todo-task/index.js';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -142,7 +142,7 @@ describe('listPlanComments / addPlanComment / updatePlanComment / deletePlanComm
   });
 });
 
-describe('mountPlanTaskSplit process notes section', () => {
+describe('mountTodoTaskSplit process notes section', () => {
   let container;
 
   beforeEach(() => {
@@ -165,12 +165,12 @@ describe('mountPlanTaskSplit process notes section', () => {
   });
 
   async function mountAndWait() {
-    const api = mountPlanTaskSplit(container, {
+    const api = mountTodoTaskSplit(container, {
       masterId: 'task_alpha',
       subId: 'task_alpha_sub_01',
     });
     await vi.waitFor(() => {
-      expect(container.querySelector('.plan-task-comments-section')).not.toBeNull();
+      expect(container.querySelector('.todo-task-comments-section')).not.toBeNull();
     });
     return api;
   }
@@ -194,8 +194,8 @@ describe('mountPlanTaskSplit process notes section', () => {
     expect(invokeMock).toHaveBeenCalledWith('list_todo_comments', {
       masterTaskId: 'task_alpha',
     });
-    const commentsSection = container.querySelector('.plan-task-comments-section');
-    const attachmentsSection = container.querySelector('.plan-task-attachments-section');
+    const commentsSection = container.querySelector('.todo-task-comments-section');
+    const attachmentsSection = container.querySelector('.todo-task-attachments-section');
     expect(commentsSection).not.toBeNull();
     expect(attachmentsSection).not.toBeNull();
     expect(commentsSection.textContent).toMatch(/Process notes/i);
@@ -209,8 +209,8 @@ describe('mountPlanTaskSplit process notes section', () => {
     mockList(sampleComments);
     const { dispose } = await mountAndWait();
     const html = container.innerHTML;
-    const subListIdx = html.indexOf('plan-task-sub-list');
-    const commentsIdx = html.indexOf('plan-task-comments-section');
+    const subListIdx = html.indexOf('todo-task-sub-list');
+    const commentsIdx = html.indexOf('todo-task-comments-section');
     expect(subListIdx).toBeGreaterThan(-1);
     expect(commentsIdx).toBeGreaterThan(-1);
     expect(commentsIdx).toBeGreaterThan(subListIdx);
@@ -222,7 +222,7 @@ describe('mountPlanTaskSplit process notes section', () => {
     getJsonMock.mockResolvedValue([sampleMaster]);
     mockList(sampleComments);
     const { dispose } = await mountAndWait();
-    const items = [...container.querySelectorAll('.plan-task-comment-item')];
+    const items = [...container.querySelectorAll('.todo-task-comment-item')];
     expect(items).toHaveLength(2);
     expect(items[0].textContent).toContain('Chose approach A over B');
     expect(items[1].textContent).toContain('Follow-up: verified edge case');
@@ -233,12 +233,12 @@ describe('mountPlanTaskSplit process notes section', () => {
     getJsonMock.mockResolvedValue([sampleMaster]);
     mockList([]);
     const { dispose } = await mountAndWait();
-    const section = container.querySelector('.plan-task-comments-section');
+    const section = container.querySelector('.todo-task-comments-section');
     expect(section).not.toBeNull();
-    const empty = container.querySelector('.plan-task-comments-empty');
+    const empty = container.querySelector('.todo-task-comments-empty');
     expect(empty).not.toBeNull();
     expect(empty.textContent.trim().length).toBeGreaterThan(0);
-    expect(container.querySelectorAll('.plan-task-comment-item')).toHaveLength(0);
+    expect(container.querySelectorAll('.todo-task-comment-item')).toHaveLength(0);
     dispose();
   });
 
@@ -254,12 +254,12 @@ describe('mountPlanTaskSplit process notes section', () => {
       return {};
     });
     const { dispose } = await mountAndWait();
-    const section = container.querySelector('.plan-task-comments-section');
+    const section = container.querySelector('.todo-task-comments-section');
     expect(section).not.toBeNull();
-    const err = container.querySelector('.plan-task-comments-error');
+    const err = container.querySelector('.todo-task-comments-error');
     expect(err).not.toBeNull();
     expect(err.textContent.trim().length).toBeGreaterThan(0);
-    expect(container.querySelector('.plan-task-comments-empty')).toBeNull();
+    expect(container.querySelector('.todo-task-comments-empty')).toBeNull();
     dispose();
   });
 
@@ -287,7 +287,7 @@ describe('mountPlanTaskSplit process notes section', () => {
     });
 
     const { dispose } = await mountAndWait();
-    expect(container.querySelector('.plan-task-comments-empty')).not.toBeNull();
+    expect(container.querySelector('.todo-task-comments-empty')).not.toBeNull();
 
     const input = container.querySelector('[data-comment-input]');
     expect(input).not.toBeNull();
@@ -303,7 +303,7 @@ describe('mountPlanTaskSplit process notes section', () => {
     await vi.waitFor(() => {
       expect(container.textContent).toContain('Why we picked A');
     });
-    expect(container.querySelector('.plan-task-comments-empty')).toBeNull();
+    expect(container.querySelector('.todo-task-comments-empty')).toBeNull();
     dispose();
   });
 
@@ -417,11 +417,11 @@ describe('mountPlanTaskSplit process notes section', () => {
     container.querySelector('[data-action="add-comment"]').click();
 
     await vi.waitFor(() => {
-      const err = container.querySelector('.plan-task-comments-error');
+      const err = container.querySelector('.todo-task-comments-error');
       expect(err).not.toBeNull();
       expect(err.textContent.trim().length).toBeGreaterThan(0);
     });
-    expect(container.querySelectorAll('.plan-task-comment-item')).toHaveLength(0);
+    expect(container.querySelectorAll('.todo-task-comment-item')).toHaveLength(0);
     dispose();
   });
 
@@ -429,7 +429,7 @@ describe('mountPlanTaskSplit process notes section', () => {
     getJsonMock.mockResolvedValue([sampleMaster]);
     mockList([]);
     const { dispose } = await mountAndWait();
-    const section = container.querySelector('.plan-task-comments-section');
+    const section = container.querySelector('.todo-task-comments-section');
     expect(section.textContent).not.toContain('计划任务');
     expect(section.textContent).not.toContain('过程备注');
     dispose();
@@ -438,7 +438,7 @@ describe('mountPlanTaskSplit process notes section', () => {
 
 describe('comments UI uses Tauri commands only (no MCP write path)', () => {
   it('index.js wires list/add/update/delete_todo_comment and has no MCP comment write', () => {
-    const src = readFileSync(join(repoRoot, 'frontend/js/plan-task/index.js'), 'utf8');
+    const src = readFileSync(join(repoRoot, 'frontend/js/todo-task/index.js'), 'utf8');
     expect(src).toMatch(/list_todo_comments/);
     expect(src).toMatch(/add_todo_comment/);
     expect(src).toMatch(/update_todo_comment/);

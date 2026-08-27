@@ -23,8 +23,8 @@ const TABLE_A_BRANDS = [
 const KEY_PATH_FILES = [
   'frontend/index.html',
   'frontend/js/components/home-hub.js',
-  'frontend/js/plan-task/index.js',
-  'frontend/js/plan-task/dialog.js',
+  'frontend/js/todo-task/index.js',
+  'frontend/js/todo-task/dialog.js',
   'frontend/js/components/viewer.js',
   'frontend/js/components/kb-viewer.js',
   'frontend/js/components/sidebar.js',

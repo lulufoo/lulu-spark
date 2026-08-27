@@ -284,7 +284,7 @@ describe('bind-dialog', () => {
     const { openBindDialog } = await import('../frontend/js/components/modals/bind-dialog.js');
     await openBindDialog();
 
-    expect(makeEl('bind-countdown').textContent).toMatch(/180/);
+    expect(makeEl('bind-countdown').textContent).toBe('Expires in 3:00');
     expect(readCalls().every((c) => c[0] === 'read_bind_session')).toBe(true);
     for (const call of readCalls()) {
       expect(call).toHaveLength(1);

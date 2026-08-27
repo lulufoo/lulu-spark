@@ -373,7 +373,7 @@ fn archive_document_with_task_ref_completes_sub_in_sandbox() {
 }
 
 #[test]
-fn archive_document_plan_task_fail_dual_store_rollback() {
+fn archive_document_todo_task_fail_dual_store_rollback() {
     let (sandbox, repo_root) = setup_corpus();
     let wb = crate::config::meili_env::workbench_knowledge_root_path(&repo_root);
     let created = create_master_with_subs("A2 rollback", Some(&["Sub"]));
@@ -423,7 +423,7 @@ fn archive_document_plan_task_fail_dual_store_rollback() {
 }
 
 #[test]
-fn archive_document_index_snapshot_restore_on_plan_task_fail() {
+fn archive_document_index_snapshot_restore_on_todo_task_fail() {
     let (sandbox, repo_root) = setup_corpus();
     let wb = crate::config::meili_env::workbench_knowledge_root_path(&repo_root);
     let created = create_master_with_subs("Index snapshot", Some(&["Sub"]));

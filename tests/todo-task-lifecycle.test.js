@@ -23,19 +23,19 @@ vi.mock('../frontend/js/apiClient.js', async (importOriginal) => {
 
 import {
   createTodosPageLifecycle,
-  mountPlanTaskSplit,
+  mountTodoTaskSplit,
   onTodosPageEnter,
   onMasterSelectionChange,
   onTodosPageLeave,
-} from '../frontend/js/plan-task/index.js';
+} from '../frontend/js/todo-task/index.js';
 
 const fixtureRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
-const planTaskIndexJs = readFileSync(
-  join(fixtureRoot, 'frontend/js/plan-task/index.js'),
+const todoTaskIndexJs = readFileSync(
+  join(fixtureRoot, 'frontend/js/todo-task/index.js'),
   'utf8',
 );
 const todosLifecycleJs = readFileSync(
-  join(fixtureRoot, 'frontend/js/plan-task/todos-lifecycle.js'),
+  join(fixtureRoot, 'frontend/js/todo-task/todos-lifecycle.js'),
   'utf8',
 );
 
@@ -86,24 +86,24 @@ function expectNoBindingInvoke(invokeMock) {
 }
 
 describe('Todos page lifecycle — source contracts', () => {
-  it('exports page lifecycle entry points from plan-task/index.js', () => {
+  it('exports page lifecycle entry points from todo-task/index.js', () => {
     expect(typeof createTodosPageLifecycle).toBe('function');
     expect(typeof onTodosPageEnter).toBe('function');
     expect(typeof onMasterSelectionChange).toBe('function');
     expect(typeof onTodosPageLeave).toBe('function');
-    expect(planTaskIndexJs).toMatch(/onTodosPageEnter|createTodosPageLifecycle/);
-    expect(planTaskIndexJs).toMatch(/onMasterSelectionChange/);
-    expect(planTaskIndexJs).toMatch(/onTodosPageLeave/);
+    expect(todoTaskIndexJs).toMatch(/onTodosPageEnter|createTodosPageLifecycle/);
+    expect(todoTaskIndexJs).toMatch(/onMasterSelectionChange/);
+    expect(todoTaskIndexJs).toMatch(/onTodosPageLeave/);
   });
 
   it('lifecycle internals no longer call Binding helpers', () => {
     expect(todosLifecycleJs).not.toMatch(/buildTodosBinding|resetTodosBinding/);
     expect(todosLifecycleJs).not.toMatch(/set_binding|reset_binding/);
-    expect(planTaskIndexJs).not.toMatch(/buildTodosBinding|resetTodosBinding/);
-    expect(planTaskIndexJs).toMatch(
+    expect(todoTaskIndexJs).not.toMatch(/buildTodosBinding|resetTodosBinding/);
+    expect(todoTaskIndexJs).toMatch(
       /function dispose\(\)\s*\{[\s\S]*?onTodosPageLeave/,
     );
-    expect(planTaskIndexJs).not.toMatch(
+    expect(todoTaskIndexJs).not.toMatch(
       /shell_close[\s\S]{0,120}onTodosPageLeave|onTodosPageLeave[\s\S]{0,120}shell_close/i,
     );
   });
@@ -198,7 +198,7 @@ describe('createTodosPageLifecycle — zero Binding', () => {
   });
 });
 
-describe('mountPlanTaskSplit wires page lifecycle without Binding', () => {
+describe('mountTodoTaskSplit wires page lifecycle without Binding', () => {
   let container;
   let invokeMock;
 
@@ -242,22 +242,22 @@ describe('mountPlanTaskSplit wires page lifecycle without Binding', () => {
   });
 
   it('mount / selection change / dispose issue zero Set/Reset', async () => {
-    const api = mountPlanTaskSplit(container, { masterId: 'task_alpha' });
+    const api = mountTodoTaskSplit(container, { masterId: 'task_alpha' });
     await vi.waitFor(() => {
-      expect(container.querySelector('.plan-task-detail-toolbar')).not.toBeNull();
+      expect(container.querySelector('.todo-task-detail-toolbar')).not.toBeNull();
     });
     expectNoBindingInvoke(invokeMock);
 
     invokeMock.mockClear();
     const betaBtn = container.querySelector(
-      '.plan-task-master-item[data-master-id="task_beta"]',
+      '.todo-task-master-item[data-master-id="task_beta"]',
     );
     expect(betaBtn).toBeTruthy();
     betaBtn.click();
     await vi.waitFor(() => {
       expect(
         container.querySelector(
-          '.plan-task-master-item--selected[data-master-id="task_beta"]',
+          '.todo-task-master-item--selected[data-master-id="task_beta"]',
         ),
       ).toBeTruthy();
     });
@@ -274,14 +274,14 @@ describe('mountPlanTaskSplit wires page lifecycle without Binding', () => {
   });
 
   it('mount without selection still chooses first displayed master and does not Set', async () => {
-    const api = mountPlanTaskSplit(container, { masterId: '' });
+    const api = mountTodoTaskSplit(container, { masterId: '' });
     await vi.waitFor(() => {
       expect(
-        container.querySelector('.plan-task-master-item--selected'),
+        container.querySelector('.todo-task-master-item--selected'),
       ).not.toBeNull();
     });
     const selected = container.querySelector(
-      '.plan-task-master-item--selected',
+      '.todo-task-master-item--selected',
     );
     expect(selected?.dataset.masterId).toBe('task_beta');
     expectNoBindingInvoke(invokeMock);
@@ -291,14 +291,14 @@ describe('mountPlanTaskSplit wires page lifecycle without Binding', () => {
 
 describe('t2 Todos leave is not a Binding Reset', () => {
   it('leave wiring stays explicit but no longer Resets Binding', () => {
-    expect(planTaskIndexJs).toMatch(
+    expect(todoTaskIndexJs).toMatch(
       /function dispose\(\)\s*\{[\s\S]*?onTodosPageLeave/,
     );
     expect(todosLifecycleJs).not.toMatch(/resetTodosBinding|reset_binding/);
-    expect(planTaskIndexJs).not.toMatch(
+    expect(todoTaskIndexJs).not.toMatch(
       /shell_close[\s\S]{0,160}resetTodosBinding|resetTodosBinding[\s\S]{0,160}shell_close/i,
     );
-    expect(planTaskIndexJs).not.toMatch(
+    expect(todoTaskIndexJs).not.toMatch(
       /shell_close[\s\S]{0,160}onTodosPageLeave|onTodosPageLeave[\s\S]{0,160}shell_close/i,
     );
   });
@@ -321,9 +321,9 @@ describe('t2 Todos leave is not a Binding Reset', () => {
       event: { listen: vi.fn(async () => vi.fn()) },
     };
 
-    const api = mountPlanTaskSplit(container, { masterId: 'task_alpha' });
+    const api = mountTodoTaskSplit(container, { masterId: 'task_alpha' });
     await vi.waitFor(() => {
-      expect(container.querySelector('.plan-task-detail-toolbar')).not.toBeNull();
+      expect(container.querySelector('.todo-task-detail-toolbar')).not.toBeNull();
     });
 
     invokeMock.mockClear();

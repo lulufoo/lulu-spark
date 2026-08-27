@@ -22,15 +22,15 @@ vi.mock('../frontend/js/apiClient.js', async (importOriginal) => {
   };
 });
 
-import { mountPlanTaskSplit } from '../frontend/js/plan-task/index.js';
+import { mountTodoTaskSplit } from '../frontend/js/todo-task/index.js';
 
 const fixtureRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
-const planTaskIndex = readFileSync(
-  join(fixtureRoot, 'frontend/js/plan-task/index.js'),
+const todoTaskIndex = readFileSync(
+  join(fixtureRoot, 'frontend/js/todo-task/index.js'),
   'utf8',
 );
-const planTaskAssistant = readFileSync(
-  join(fixtureRoot, 'frontend/js/plan-task-assistant.js'),
+const todoTaskAssistant = readFileSync(
+  join(fixtureRoot, 'frontend/js/todo-task-assistant.js'),
   'utf8',
 );
 const aiAssistantCmd = readFileSync(
@@ -59,24 +59,24 @@ const sampleMasters = [
 
 describe('Todos page Assistant entry removed — source contracts (t6)', () => {
   it('removes presentTodosAssistant / open-ai-assistant page trigger paths', () => {
-    expect(planTaskIndex).not.toMatch(/presentTodosAssistant/);
-    expect(planTaskIndex).not.toMatch(/openPlanAiAssistant/);
-    expect(planTaskIndex).not.toMatch(/data-action=["']open-ai-assistant["']/);
-    expect(planTaskIndex).not.toMatch(
+    expect(todoTaskIndex).not.toMatch(/presentTodosAssistant/);
+    expect(todoTaskIndex).not.toMatch(/openPlanAiAssistant/);
+    expect(todoTaskIndex).not.toMatch(/data-action=["']open-ai-assistant["']/);
+    expect(todoTaskIndex).not.toMatch(
       /action\s*===\s*['"]open-ai-assistant['"]/,
     );
-    expect(planTaskIndex).not.toMatch(
+    expect(todoTaskIndex).not.toMatch(
       /invoke\(\s*['"]open_ai_assistant['"]\s*,\s*\{\s*masterTaskId/,
     );
   });
 
   it('keeps enter/leave lifecycle wiring without page Binding Set/Reset', () => {
-    expect(planTaskIndex).toMatch(/onTodosPageEnter|createTodosPageLifecycle/);
-    expect(planTaskIndex).toMatch(/onTodosPageLeave/);
-    expect(planTaskIndex).toMatch(
+    expect(todoTaskIndex).toMatch(/onTodosPageEnter|createTodosPageLifecycle/);
+    expect(todoTaskIndex).toMatch(/onTodosPageLeave/);
+    expect(todoTaskIndex).toMatch(
       /function dispose\(\)\s*\{[\s\S]*?onTodosPageLeave/,
     );
-    expect(planTaskIndex).not.toMatch(/buildTodosBinding|resetTodosBinding/);
+    expect(todoTaskIndex).not.toMatch(/buildTodosBinding|resetTodosBinding/);
   });
 
   it('Host Present remains available for corner/shell (t3); not page-owned', () => {
@@ -92,25 +92,25 @@ describe('Todos page Assistant entry removed — source contracts (t6)', () => {
 
   // T7 / L22-VF Todos: page has no Assistant; Set/Reset remain the Binding main path.
   it('T7 VF: no in-page Assistant chrome; Present stays Host-owned shell path', () => {
-    expect(planTaskIndex).not.toMatch(/presentTodosAssistant/);
-    expect(planTaskIndex).not.toMatch(/data-action=["']open-ai-assistant["']/);
-    expect(planTaskIndex).toMatch(/onTodosPageEnter|onTodosPageLeave/);
+    expect(todoTaskIndex).not.toMatch(/presentTodosAssistant/);
+    expect(todoTaskIndex).not.toMatch(/data-action=["']open-ai-assistant["']/);
+    expect(todoTaskIndex).toMatch(/onTodosPageEnter|onTodosPageLeave/);
     // Migrated: page must not invoke create_or_focus / open_ai_assistant as a live path.
-    expect(planTaskIndex).not.toMatch(/create_or_focus_ai_assistant_window/);
-    expect(planTaskIndex).not.toMatch(
+    expect(todoTaskIndex).not.toMatch(/create_or_focus_ai_assistant_window/);
+    expect(todoTaskIndex).not.toMatch(
       /invoke\(\s*['"]open_ai_assistant['"]/,
     );
   });
 
-  it('does not upgrade FAB Top3 (plan-task-assistant.js) to chat Present or Set', () => {
-    expect(planTaskAssistant).not.toMatch(/present_ai_assistant/);
-    expect(planTaskAssistant).not.toMatch(/open_ai_assistant/);
-    expect(planTaskAssistant).not.toMatch(/set_binding/);
-    expect(planTaskAssistant).not.toMatch(/ai-assistant:turn-completed/);
+  it('does not upgrade FAB Top3 (todo-task-assistant.js) to chat Present or Set', () => {
+    expect(todoTaskAssistant).not.toMatch(/present_ai_assistant/);
+    expect(todoTaskAssistant).not.toMatch(/open_ai_assistant/);
+    expect(todoTaskAssistant).not.toMatch(/set_binding/);
+    expect(todoTaskAssistant).not.toMatch(/ai-assistant:turn-completed/);
   });
 });
 
-describe('mountPlanTaskSplit — no page Assistant; zero page Set/Reset (t2)', () => {
+describe('mountTodoTaskSplit — no page Assistant; zero page Set/Reset (t2)', () => {
   let container;
   let invokeMock;
   let hostBound;
@@ -196,11 +196,11 @@ describe('mountPlanTaskSplit — no page Assistant; zero page Set/Reset (t2)', (
   });
 
   it('renders no open-ai-assistant button when a master is selected', async () => {
-    const { dispose } = mountPlanTaskSplit(container, {
+    const { dispose } = mountTodoTaskSplit(container, {
       masterId: 'task_alpha',
     });
     await vi.waitFor(() => {
-      expect(container.querySelector('.plan-task-detail-toolbar')).not.toBeNull();
+      expect(container.querySelector('.todo-task-detail-toolbar')).not.toBeNull();
     });
     expect(
       container.querySelector('[data-action="open-ai-assistant"]'),
@@ -210,12 +210,12 @@ describe('mountPlanTaskSplit — no page Assistant; zero page Set/Reset (t2)', (
   });
 
   it('default Todos entry selects the first displayed active todo and does not Set', async () => {
-    const { dispose } = mountPlanTaskSplit(container);
+    const { dispose } = mountTodoTaskSplit(container);
     await vi.waitFor(() => {
-      expect(container.querySelector('.plan-task-master-item--selected')).not.toBeNull();
+      expect(container.querySelector('.todo-task-master-item--selected')).not.toBeNull();
     });
 
-    const selected = container.querySelector('.plan-task-master-item--selected');
+    const selected = container.querySelector('.todo-task-master-item--selected');
     expect(selected?.dataset.masterId).toBe('task_alpha');
     expect(invokeMock).not.toHaveBeenCalledWith(
       'set_binding',
@@ -226,11 +226,11 @@ describe('mountPlanTaskSplit — no page Assistant; zero page Set/Reset (t2)', (
   });
 
   it('enter does not Set Binding; leave/dispose does not Reset', async () => {
-    const { dispose } = mountPlanTaskSplit(container, {
+    const { dispose } = mountTodoTaskSplit(container, {
       masterId: 'task_alpha',
     });
     await vi.waitFor(() => {
-      expect(container.querySelector('.plan-task-detail-toolbar')).not.toBeNull();
+      expect(container.querySelector('.todo-task-detail-toolbar')).not.toBeNull();
     });
     expect(invokeMock).not.toHaveBeenCalledWith(
       'set_binding',
@@ -246,11 +246,11 @@ describe('mountPlanTaskSplit — no page Assistant; zero page Set/Reset (t2)', (
   });
 
   it('Present≠Set: Host Present does not write Binding; page has no Present trigger', async () => {
-    const { dispose } = mountPlanTaskSplit(container, {
+    const { dispose } = mountTodoTaskSplit(container, {
       masterId: 'task_alpha',
     });
     await vi.waitFor(() => {
-      expect(container.querySelector('.plan-task-detail-toolbar')).not.toBeNull();
+      expect(container.querySelector('.todo-task-detail-toolbar')).not.toBeNull();
     });
 
     const before = await window.__TAURI__.core.invoke('query_binding');
@@ -301,11 +301,11 @@ describe('mountPlanTaskSplit — no page Assistant; zero page Set/Reset (t2)', (
       return {};
     });
 
-    const { dispose } = mountPlanTaskSplit(container, {
+    const { dispose } = mountTodoTaskSplit(container, {
       masterId: 'task_alpha',
     });
     await vi.waitFor(() => {
-      expect(container.querySelector('.plan-task-detail-toolbar')).not.toBeNull();
+      expect(container.querySelector('.todo-task-detail-toolbar')).not.toBeNull();
     });
     expect(
       container.querySelector('[data-action="open-ai-assistant"]'),

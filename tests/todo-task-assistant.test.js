@@ -19,18 +19,18 @@ vi.mock('../frontend/js/apiClient.js', async (importOriginal) => {
 
 import {
   buildDeepLink,
-  createPlanTaskContentAdapter,
+  createTodoTaskContentAdapter,
   formatSubProgressSummary,
-  loadAssistantPlanTasks,
-  mountPlanTaskAssistant,
+  loadAssistantTodoTasks,
+  mountTodoTaskAssistant,
   selectTop3ByCreatedAt,
-} from '../frontend/js/plan-task-assistant.js';import { formatPlanTaskStatus } from '../frontend/js/plan-task/index.js';
+} from '../frontend/js/todo-task-assistant.js';import { formatTodoTaskStatus } from '../frontend/js/todo-task/index.js';
 
 const fixtureRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 const appCss = readFileSync(join(fixtureRoot, 'frontend/app.css'), 'utf8');
 const mainJs = readFileSync(join(fixtureRoot, 'frontend/js/main.js'), 'utf8');
 const assistantJs = readFileSync(
-  join(fixtureRoot, 'frontend/js/plan-task-assistant.js'),
+  join(fixtureRoot, 'frontend/js/todo-task-assistant.js'),
   'utf8',
 );
 
@@ -104,9 +104,9 @@ const sampleMasters = [
   },
 ];
 
-describe('plan-task-assistant source wiring', () => {
+describe('todo-task-assistant source wiring', () => {
   it('independent Plan FAB stack offset is retired; shell cluster owns bottom anchor', () => {
-    expect(appCss).not.toMatch(/\.pt-assistant-widget\s*\{[^}]*bottom:\s*76px/);
+    expect(appCss).not.toMatch(/\.todo-assistant-widget\s*\{[^}]*bottom:\s*76px/);
     expect(appCss).toMatch(/\.home-entry-shell__cluster\s*\{[^}]*bottom:\s*20px/);
   });
 
@@ -117,14 +117,14 @@ describe('plan-task-assistant source wiring', () => {
   });
 });
 
-describe('loadAssistantPlanTasks', () => {
+describe('loadAssistantTodoTasks', () => {
   beforeEach(() => {
     getJsonMock.mockReset();
   });
 
   it('GET /api/todo-tasks via apiClient and returns master array', async () => {
     getJsonMock.mockResolvedValue(sampleMasters);
-    const entries = await loadAssistantPlanTasks();
+    const entries = await loadAssistantTodoTasks();
     expect(getJsonMock).toHaveBeenCalledWith('/api/todo-tasks');
     expect(entries).toEqual(sampleMasters);
   });
@@ -134,7 +134,7 @@ describe('loadAssistantPlanTasks', () => {
       error: 'Workbench not running',
       _status: 503,
     });
-    await expect(loadAssistantPlanTasks()).rejects.toMatchObject({
+    await expect(loadAssistantTodoTasks()).rejects.toMatchObject({
       status: 503,
     });
   });
@@ -202,17 +202,17 @@ describe('formatSubProgressSummary', () => {
 describe('buildDeepLink', () => {
   it('builds split panel hash with master and sub query params', () => {
     expect(buildDeepLink('task_newest', 'task_newest_sub_02')).toBe(
-      '#/plan-tasks?master=task_newest&sub=task_newest_sub_02',
+      '#/todo-tasks?master=task_newest&sub=task_newest_sub_02',
     );
   });
 });
 
-describe('mountPlanTaskAssistant', () => {
+describe('mountTodoTaskAssistant', () => {
   let root;
 
   beforeEach(() => {
     root = document.createElement('div');
-    root.id = 'plan-task-assistant-root';
+    root.id = 'todo-task-assistant-root';
     document.body.appendChild(root);
     getJsonMock.mockReset();
     Object.defineProperty(document, 'visibilityState', {
@@ -223,20 +223,20 @@ describe('mountPlanTaskAssistant', () => {
 
   afterEach(() => {
     root.remove();
-    document.querySelectorAll('.pt-assistant-widget').forEach((el) => el.remove());
+    document.querySelectorAll('.todo-assistant-widget').forEach((el) => el.remove());
   });
 
   it('loads tasks on mount and displays top3 in created_at desc order', async () => {
     getJsonMock.mockResolvedValue(sampleMasters);
-    const { dispose } = mountPlanTaskAssistant(root);
+    const { dispose } = mountTodoTaskAssistant(root);
     await vi.waitFor(() => {
-      expect(root.querySelectorAll('.plan-task-assistant-item')).toHaveLength(3);
+      expect(root.querySelectorAll('.todo-task-assistant-item')).toHaveLength(3);
     });
-    const items = root.querySelectorAll('.plan-task-assistant-item');
+    const items = root.querySelectorAll('.todo-task-assistant-item');
     expect(items[0].dataset.masterId).toBe('task_newest');
     expect(items[1].dataset.masterId).toBe('task_extra4');
     expect(items[2].dataset.masterId).toBe('task_mid');
-    expect(items[0].querySelector('.plan-task-assistant-item-summary')?.textContent).toBe(
+    expect(items[0].querySelector('.todo-task-assistant-item-summary')?.textContent).toBe(
       'Newest Task · 1/2 complete',
     );
     dispose();
@@ -244,69 +244,69 @@ describe('mountPlanTaskAssistant', () => {
 
   it('renders deep-link href with master and sub query on each item', async () => {
     getJsonMock.mockResolvedValue(sampleMasters);
-    const { dispose } = mountPlanTaskAssistant(root);
+    const { dispose } = mountTodoTaskAssistant(root);
     await vi.waitFor(() => {
-      expect(root.querySelector('.plan-task-assistant-item-link')).not.toBeNull();
+      expect(root.querySelector('.todo-task-assistant-item-link')).not.toBeNull();
     });
-    const link = root.querySelector('.plan-task-assistant-item-link');
+    const link = root.querySelector('.todo-task-assistant-item-link');
     expect(link.getAttribute('href')).toBe(
-      '#/plan-tasks?master=task_newest&sub=task_newest_sub_02',
+      '#/todo-tasks?master=task_newest&sub=task_newest_sub_02',
     );
     dispose();
   });
 
   it('shows empty state when no tasks without placeholders', async () => {
     getJsonMock.mockResolvedValue([]);
-    const { dispose } = mountPlanTaskAssistant(root);
+    const { dispose } = mountTodoTaskAssistant(root);
     await vi.waitFor(() => {
-      expect(root.querySelector('.plan-task-assistant-empty')).not.toBeNull();
+      expect(root.querySelector('.todo-task-assistant-empty')).not.toBeNull();
     });
-    expect(root.querySelector('.plan-task-assistant-item')).toBeNull();
-    expect(root.querySelector('.plan-task-assistant-unavailable')).toBeNull();
+    expect(root.querySelector('.todo-task-assistant-item')).toBeNull();
+    expect(root.querySelector('.todo-task-assistant-unavailable')).toBeNull();
     dispose();
   });
 
   it('shows 1–2 tasks without padding to 3', async () => {
     getJsonMock.mockResolvedValue(sampleMasters.slice(0, 2));
-    const { dispose } = mountPlanTaskAssistant(root);
+    const { dispose } = mountTodoTaskAssistant(root);
     await vi.waitFor(() => {
-      expect(root.querySelectorAll('.plan-task-assistant-item')).toHaveLength(2);
+      expect(root.querySelectorAll('.todo-task-assistant-item')).toHaveLength(2);
     });
     dispose();
   });
 
   it('shows error empty state on GET failure without silent blank', async () => {
     getJsonMock.mockRejectedValue(new Error('Failed to fetch'));
-    const { dispose } = mountPlanTaskAssistant(root);
+    const { dispose } = mountTodoTaskAssistant(root);
     await vi.waitFor(() => {
-      expect(root.querySelector('.plan-task-assistant-state--error')).not.toBeNull();
+      expect(root.querySelector('.todo-task-assistant-state--error')).not.toBeNull();
     });
-    expect(root.querySelector('.plan-task-assistant-item')).toBeNull();
+    expect(root.querySelector('.todo-task-assistant-item')).toBeNull();
     dispose();
   });
 
-  it('navigates to #/plan-tasks when manage link is clicked', async () => {
+  it('navigates to #/todo-tasks when manage link is clicked', async () => {
     getJsonMock.mockResolvedValue(sampleMasters);
     const navigate = vi.fn();
-    const { dispose } = mountPlanTaskAssistant(root, { navigate });
+    const { dispose } = mountTodoTaskAssistant(root, { navigate });
     await vi.waitFor(() => {
-      expect(root.querySelector('.plan-task-assistant-manage-link')).not.toBeNull();
+      expect(root.querySelector('.todo-task-assistant-manage-link')).not.toBeNull();
     });
-    root.querySelector('.plan-task-assistant-manage-link').click();
-    expect(navigate).toHaveBeenCalledWith('#/plan-tasks');
+    root.querySelector('.todo-task-assistant-manage-link').click();
+    expect(navigate).toHaveBeenCalledWith('#/todo-tasks');
     dispose();
   });
 
   it('navigates via deep-link when item is clicked', async () => {
     getJsonMock.mockResolvedValue(sampleMasters);
     const navigate = vi.fn();
-    const { dispose } = mountPlanTaskAssistant(root, { navigate });
+    const { dispose } = mountTodoTaskAssistant(root, { navigate });
     await vi.waitFor(() => {
-      expect(root.querySelector('.plan-task-assistant-item-link')).not.toBeNull();
+      expect(root.querySelector('.todo-task-assistant-item-link')).not.toBeNull();
     });
-    root.querySelector('.plan-task-assistant-item-link').click();
+    root.querySelector('.todo-task-assistant-item-link').click();
     expect(navigate).toHaveBeenCalledWith(
-      '#/plan-tasks?master=task_newest&sub=task_newest_sub_02',
+      '#/todo-tasks?master=task_newest&sub=task_newest_sub_02',
     );
     dispose();
   });
@@ -360,34 +360,34 @@ describe('mountPlanTaskAssistant', () => {
       },
     ];
     getJsonMock.mockResolvedValue(masters);
-    const { dispose } = mountPlanTaskAssistant(root);
+    const { dispose } = mountTodoTaskAssistant(root);
     await vi.waitFor(() => {
-      expect(root.querySelectorAll('.plan-task-assistant-item')).toHaveLength(3);
+      expect(root.querySelectorAll('.todo-task-assistant-item')).toHaveLength(3);
     });
 
     const byId = (id) => root.querySelector(`[data-master-id="${id}"]`);
     const labelOf = (id) =>
-      byId(id)?.querySelector('.plan-task-assistant-item-status')?.textContent;
+      byId(id)?.querySelector('.todo-task-assistant-item-status')?.textContent;
 
-    expect(labelOf('task_in_progress')).toBe(formatPlanTaskStatus('incomplete'));
-    expect(labelOf('task_done')).toBe(formatPlanTaskStatus('complete'));
-    expect(labelOf('task_abandoned')).toBe(formatPlanTaskStatus('abandoned'));
+    expect(labelOf('task_in_progress')).toBe(formatTodoTaskStatus('incomplete'));
+    expect(labelOf('task_done')).toBe(formatTodoTaskStatus('complete'));
+    expect(labelOf('task_abandoned')).toBe(formatTodoTaskStatus('abandoned'));
     expect(labelOf('task_in_progress')).toBe('In progress');
     expect(labelOf('task_done')).toBe('Completed');
     expect(labelOf('task_abandoned')).toBe('Abandoned');
 
     expect(byId('task_in_progress')?.className).toMatch(
-      /plan-task-assistant-item--incomplete/,
+      /todo-task-assistant-item--incomplete/,
     );
     expect(byId('task_done')?.className).toMatch(
-      /plan-task-assistant-item--complete/,
+      /todo-task-assistant-item--complete/,
     );
     expect(byId('task_abandoned')?.className).toMatch(
-      /plan-task-assistant-item--abandoned/,
+      /todo-task-assistant-item--abandoned/,
     );
 
     const abandonedSummary = byId('task_abandoned')?.querySelector(
-      '.plan-task-assistant-item-summary',
+      '.todo-task-assistant-item-summary',
     )?.textContent;
     expect(abandonedSummary).toContain('Abandoned Master');
     expect(abandonedSummary).toBe('Abandoned Master · 0/1 complete');
@@ -396,18 +396,18 @@ describe('mountPlanTaskAssistant', () => {
 });
 
 describe('assistant status mark source alignment', () => {
-  it('reuses list formatPlanTaskStatus instead of a local label table', () => {
+  it('reuses list formatTodoTaskStatus instead of a local label table', () => {
     expect(assistantJs).toMatch(
-      /import\s*\{\s*formatPlanTaskStatus\s*\}\s*from\s*'\.\/plan-task\/index\.js'/,
+      /import\s*\{\s*formatTodoTaskStatus\s*\}\s*from\s*'\.\/todo-task\/index\.js'/,
     );
     expect(assistantJs).not.toMatch(/STATUS_LABELS\s*=/);
   });
 
   it('app.css styles assistant complete muted and abandoned strike/gray', () => {
-    expect(appCss).toMatch(/\.plan-task-assistant-item--complete/);
-    expect(appCss).toMatch(/\.plan-task-assistant-item--abandoned/);
+    expect(appCss).toMatch(/\.todo-task-assistant-item--complete/);
+    expect(appCss).toMatch(/\.todo-task-assistant-item--abandoned/);
     expect(appCss).toMatch(
-      /\.plan-task-assistant-item--abandoned[\s\S]*?text-decoration:\s*line-through/,
+      /\.todo-task-assistant-item--abandoned[\s\S]*?text-decoration:\s*line-through/,
     );
   });
 });
@@ -415,18 +415,18 @@ describe('assistant status mark source alignment', () => {
 describe('main window wiring', () => {
   it('main.js orchestrates via home-entry shell (legacy four-FAB mounts retired)', () => {
     expect(mainJs).toMatch(/mountHomeEntryShell\s*\(\s*document\.body\b/);
-    expect(mainJs).not.toMatch(/mountPlanTaskAssistantWidget\s*\(\s*document\.body\b/);
+    expect(mainJs).not.toMatch(/mountTodoTaskAssistantWidget\s*\(\s*document\.body\b/);
     expect(mainJs).not.toMatch(/mountReadLaterAssistantWidget\s*\(\s*document\.body\b/);
-    expect(mainJs).toMatch(/createPlanTaskContentAdapter/);
+    expect(mainJs).toMatch(/createTodoTaskContentAdapter/);
   });
 
   it('independent FAB bottom stack offsets are retired in app.css', () => {
-    expect(appCss).not.toMatch(/\.pt-assistant-widget\s*\{[^}]*bottom:\s*76px/);
+    expect(appCss).not.toMatch(/\.todo-assistant-widget\s*\{[^}]*bottom:\s*76px/);
     expect(appCss).toMatch(/\.home-entry-shell__cluster\s*\{[^}]*bottom:\s*20px/);
   });
 });
 
-describe('createPlanTaskContentAdapter', () => {
+describe('createTodoTaskContentAdapter', () => {
   /** @type {HTMLElement} */
   let slot;
 
@@ -442,14 +442,14 @@ describe('createPlanTaskContentAdapter', () => {
 
   it('mounts task list into the slot without self-owned chrome', async () => {
     getJsonMock.mockResolvedValue(sampleMasters);
-    const handle = createPlanTaskContentAdapter().mount(slot, {
+    const handle = createTodoTaskContentAdapter().mount(slot, {
       host: { navigate: () => {} },
     });
     await vi.waitFor(() => {
-      expect(slot.querySelectorAll('.plan-task-assistant-item')).toHaveLength(3);
+      expect(slot.querySelectorAll('.todo-task-assistant-item')).toHaveLength(3);
     });
-    expect(slot.querySelector('.pt-assistant-fab')).toBeNull();
-    expect(slot.querySelector('.pt-assistant-popover')).toBeNull();
+    expect(slot.querySelector('.todo-assistant-fab')).toBeNull();
+    expect(slot.querySelector('.todo-assistant-popover')).toBeNull();
     handle.unmount();
     expect(slot.innerHTML).toBe('');
   });

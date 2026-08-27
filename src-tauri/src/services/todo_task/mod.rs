@@ -22,7 +22,7 @@ use crate::services::source_path_allow::{
 
 use types::{
     index_entry_task_dir, AttachmentEntry, AttachmentsFile, CategoriesFile, Category, CommentEntry,
-    CommentsFile, IndexEntry, MasterTask, MasterTaskStatus, PlanTasksIndex, SubTask, SubTaskStatus,
+    CommentsFile, IndexEntry, MasterTask, MasterTaskStatus, TodoTasksIndex, SubTask, SubTaskStatus,
     SubTasksFile, DEFAULT_CATEGORY_ID, DEFAULT_CATEGORY_NAME,
 };
 
@@ -144,7 +144,7 @@ fn test_take_fail_delete_attachment_file() -> bool {
     TEST_FAIL_DELETE_ATTACHMENT_FILE.swap(false, Ordering::SeqCst)
 }
 
-const CORRUPT_STORAGE_ERROR: &str = "Invalid plan_tasks storage";
+const CORRUPT_STORAGE_ERROR: &str = "Invalid todo_tasks storage";
 
 fn with_write_lock<F, T>(f: F) -> T
 where
@@ -163,13 +163,13 @@ fn delete_v1_if_present(path: &std::path::Path) -> Result<bool, String> {
 }
 
 fn init_v2_index() -> Result<(), String> {
-    let plan_dir = paths::plan_tasks_dir().map_err(|e| format!("{e:?}"))?;
+    let plan_dir = paths::todo_tasks_dir().map_err(|e| format!("{e:?}"))?;
     fs::create_dir_all(plan_dir.join("tasks")).map_err(|e| e.to_string())?;
-    let index_path = paths::plan_tasks_index_path().map_err(|e| format!("{e:?}"))?;
+    let index_path = paths::todo_tasks_index_path().map_err(|e| format!("{e:?}"))?;
 
     if index_path.is_file() {
         if let Ok(text) = fs::read_to_string(&index_path) {
-            if let Ok(index) = serde_json::from_str::<PlanTasksIndex>(&text) {
+            if let Ok(index) = serde_json::from_str::<TodoTasksIndex>(&text) {
                 if index.version == 2 {
                     return Ok(());
                 }
@@ -177,11 +177,11 @@ fn init_v2_index() -> Result<(), String> {
         }
     }
 
-    let index = PlanTasksIndex::default();
-    write_plan_tasks_index(&index_path, &index)
+    let index = TodoTasksIndex::default();
+    write_todo_tasks_index(&index_path, &index)
 }
 
-fn write_plan_tasks_index(path: &std::path::Path, index: &PlanTasksIndex) -> Result<(), String> {
+fn write_todo_tasks_index(path: &std::path::Path, index: &TodoTasksIndex) -> Result<(), String> {
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent).map_err(|e| e.to_string())?;
     }
@@ -192,8 +192,8 @@ fn write_plan_tasks_index(path: &std::path::Path, index: &PlanTasksIndex) -> Res
 }
 
 fn ensure_bootstrap() -> Result<(), String> {
-    let wb_v1 = paths::plan_tasks_path().map_err(|e| format!("{e:?}"))?;
-    let cache_v1 = paths::cache_plan_tasks_v1_path().map_err(|e| format!("{e:?}"))?;
+    let wb_v1 = paths::todo_tasks_path().map_err(|e| format!("{e:?}"))?;
+    let cache_v1 = paths::cache_todo_tasks_v1_path().map_err(|e| format!("{e:?}"))?;
 
     let _deleted_wb = delete_v1_if_present(&wb_v1)?;
     let _deleted_cache = delete_v1_if_present(&cache_v1)?;
@@ -204,7 +204,7 @@ fn ensure_bootstrap() -> Result<(), String> {
 }
 
 fn migration_errors_path() -> Result<std::path::PathBuf, String> {
-    paths::plan_tasks_dir()
+    paths::todo_tasks_dir()
         .map(|d| d.join("migration_errors.json"))
         .map_err(|e| format!("{e:?}"))
 }
@@ -256,7 +256,7 @@ fn write_migrated_sub_tasks(path: &Path, sub_tasks: &SubTasksFile) -> Result<(),
 }
 
 fn migrate_one_plan_implicit_subs(master_id: &str) -> Result<(), String> {
-    let path = paths::plan_tasks_sub_tasks_path(master_id).map_err(|e| format!("{e:?}"))?;
+    let path = paths::todo_tasks_sub_tasks_path(master_id).map_err(|e| format!("{e:?}"))?;
     if !path.is_file() {
         return Err("missing sub_tasks.json".to_string());
     }
@@ -293,10 +293,10 @@ fn bootstrap_error(err: String) -> Value {
     json!({ "error": err, "_status": 500 })
 }
 
-fn snapshot_index() -> Result<PlanTasksIndex, String> {
-    let index_path = paths::plan_tasks_index_path().map_err(|e| format!("{e:?}"))?;
+fn snapshot_index() -> Result<TodoTasksIndex, String> {
+    let index_path = paths::todo_tasks_index_path().map_err(|e| format!("{e:?}"))?;
     if !index_path.is_file() {
-        return Ok(PlanTasksIndex::default());
+        return Ok(TodoTasksIndex::default());
     }
     let text = fs::read_to_string(&index_path).map_err(|e| e.to_string())?;
     serde_json::from_str(&text).map_err(|e| e.to_string())
@@ -324,20 +324,20 @@ fn write_sub_tasks_json(path: &Path, sub_tasks: &SubTasksFile) -> Result<(), Str
     atomic_json::write_json(path, &value)
 }
 
-fn write_index_snapshot(path: &Path, index: &PlanTasksIndex) -> Result<(), String> {
+fn write_index_snapshot(path: &Path, index: &TodoTasksIndex) -> Result<(), String> {
     #[cfg(test)]
     if test_take_fail_batch_index() {
         return Err("injected index.json write failure".to_string());
     }
     if index.tasks.is_empty() {
-        return write_plan_tasks_index(path, index);
+        return write_todo_tasks_index(path, index);
     }
     let value = serde_json::to_value(index).map_err(|e| e.to_string())?;
     atomic_json::write_json(path, &value)
 }
 
 fn rollback_before_index(master_task_id: &str) -> Result<(), String> {
-    let task_dir = paths::plan_tasks_task_dir(master_task_id).map_err(|e| format!("{e:?}"))?;
+    let task_dir = paths::todo_tasks_task_dir(master_task_id).map_err(|e| format!("{e:?}"))?;
     if task_dir.exists() {
         // Whole task_dir cascade — includes attachments/, attachments.json, comments.json.
         fs::remove_dir_all(&task_dir).map_err(|e| e.to_string())?;
@@ -345,8 +345,8 @@ fn rollback_before_index(master_task_id: &str) -> Result<(), String> {
     Ok(())
 }
 
-fn rollback_index_failure(snapshot: &PlanTasksIndex) -> Result<(), String> {
-    let index_path = paths::plan_tasks_index_path().map_err(|e| format!("{e:?}"))?;
+fn rollback_index_failure(snapshot: &TodoTasksIndex) -> Result<(), String> {
+    let index_path = paths::todo_tasks_index_path().map_err(|e| format!("{e:?}"))?;
     write_index_snapshot(&index_path, snapshot)
 }
 
@@ -358,12 +358,12 @@ fn write_task_batch(
     plan_md: &str,
 ) -> Result<(), String> {
     let snapshot = snapshot_index()?;
-    let task_dir = paths::plan_tasks_task_dir(master_task_id).map_err(|e| format!("{e:?}"))?;
+    let task_dir = paths::todo_tasks_task_dir(master_task_id).map_err(|e| format!("{e:?}"))?;
     fs::create_dir_all(&task_dir).map_err(|e| e.to_string())?;
 
-    let sub_tasks_path = paths::plan_tasks_sub_tasks_path(master_task_id).map_err(|e| format!("{e:?}"))?;
-    let plan_md_path = paths::plan_tasks_plan_md_path(master_task_id).map_err(|e| format!("{e:?}"))?;
-    let index_path = paths::plan_tasks_index_path().map_err(|e| format!("{e:?}"))?;
+    let sub_tasks_path = paths::todo_tasks_sub_tasks_path(master_task_id).map_err(|e| format!("{e:?}"))?;
+    let plan_md_path = paths::todo_tasks_plan_md_path(master_task_id).map_err(|e| format!("{e:?}"))?;
+    let index_path = paths::todo_tasks_index_path().map_err(|e| format!("{e:?}"))?;
 
     if let Err(e) = write_sub_tasks_json(&sub_tasks_path, sub_tasks) {
         let _ = rollback_before_index(master_task_id);
@@ -408,26 +408,26 @@ enum LoadOutcome {
     Corrupt,
 }
 
-fn load_v2_index_unlocked() -> Result<PlanTasksIndex, LoadOutcome> {
-    let index_path = match paths::plan_tasks_index_path() {
+fn load_v2_index_unlocked() -> Result<TodoTasksIndex, LoadOutcome> {
+    let index_path = match paths::todo_tasks_index_path() {
         Ok(p) => p,
-        Err(_) => return Ok(PlanTasksIndex::default()),
+        Err(_) => return Ok(TodoTasksIndex::default()),
     };
     if !index_path.is_file() {
-        return Ok(PlanTasksIndex::default());
+        return Ok(TodoTasksIndex::default());
     }
     let text = match fs::read_to_string(&index_path) {
         Ok(t) => t,
         Err(_) => return Err(LoadOutcome::Corrupt),
     };
-    match serde_json::from_str::<PlanTasksIndex>(&text) {
+    match serde_json::from_str::<TodoTasksIndex>(&text) {
         Ok(index) if index.version == 2 => Ok(index),
         _ => Err(LoadOutcome::Corrupt),
     }
 }
 
 fn load_sub_tasks_file(master_id: &str) -> Result<SubTasksFile, LoadOutcome> {
-    let path = match paths::plan_tasks_sub_tasks_path(master_id) {
+    let path = match paths::todo_tasks_sub_tasks_path(master_id) {
         Ok(p) => p,
         Err(_) => return Err(LoadOutcome::Corrupt),
     };
@@ -445,14 +445,14 @@ fn corrupt_storage_error() -> Value {
     json!({ "error": CORRUPT_STORAGE_ERROR, "_status": 500 })
 }
 
-fn load_v2_for_read() -> Result<PlanTasksIndex, Value> {
+fn load_v2_for_read() -> Result<TodoTasksIndex, Value> {
     if let Err(e) = ensure_bootstrap() {
         return Err(bootstrap_error(e));
     }
     match load_v2_index_unlocked() {
         Ok(index) => Ok(index),
         Err(LoadOutcome::Corrupt) => Err(corrupt_storage_error()),
-        Err(LoadOutcome::Missing) | Err(LoadOutcome::Ok) => Ok(PlanTasksIndex::default()),
+        Err(LoadOutcome::Missing) | Err(LoadOutcome::Ok) => Ok(TodoTasksIndex::default()),
     }
 }
 
@@ -467,10 +467,10 @@ fn default_categories_file() -> CategoriesFile {
     }
 }
 
-/// Load todo category registry via `paths::plan_tasks_categories_path`.
+/// Load todo category registry via `paths::todo_tasks_categories_path`.
 /// Missing file → in-memory built-in default「待分类」(does not require write).
 pub fn load_categories() -> Result<CategoriesFile, String> {
-    let path = paths::plan_tasks_categories_path().map_err(|e| format!("{e:?}"))?;
+    let path = paths::todo_tasks_categories_path().map_err(|e| format!("{e:?}"))?;
     if !path.is_file() {
         return Ok(default_categories_file());
     }
@@ -484,7 +484,7 @@ pub fn ensure_default_category() -> Result<CategoriesFile, String> {
 }
 
 fn ensure_default_category_unlocked() -> Result<CategoriesFile, String> {
-    let path = paths::plan_tasks_categories_path().map_err(|e| format!("{e:?}"))?;
+    let path = paths::todo_tasks_categories_path().map_err(|e| format!("{e:?}"))?;
     if !path.is_file() {
         let cats = default_categories_file();
         save_categories_unlocked(&cats)?;
@@ -506,7 +506,7 @@ fn ensure_default_category_unlocked() -> Result<CategoriesFile, String> {
 }
 
 fn save_categories_unlocked(cats: &CategoriesFile) -> Result<(), String> {
-    let path = paths::plan_tasks_categories_path().map_err(|e| format!("{e:?}"))?;
+    let path = paths::todo_tasks_categories_path().map_err(|e| format!("{e:?}"))?;
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent).map_err(|e| e.to_string())?;
     }
@@ -518,7 +518,7 @@ fn category_id_known(cats: &CategoriesFile, id: &str) -> bool {
     cats.categories.iter().any(|c| c.id == id)
 }
 
-fn count_members_with_category(index: &PlanTasksIndex, category_id: &str) -> usize {
+fn count_members_with_category(index: &TodoTasksIndex, category_id: &str) -> usize {
     index
         .tasks
         .values()
@@ -604,7 +604,7 @@ pub fn delete_todo_category(category_id: &str) -> Value {
         let index = match load_v2_index_unlocked() {
             Ok(i) => i,
             Err(LoadOutcome::Corrupt) => return corrupt_storage_error(),
-            Err(LoadOutcome::Missing) | Err(LoadOutcome::Ok) => PlanTasksIndex::default(),
+            Err(LoadOutcome::Missing) | Err(LoadOutcome::Ok) => TodoTasksIndex::default(),
         };
         if count_members_with_category(&index, category_id) > 0 {
             return json!({ "error": "Category not empty", "_status": 400 });
@@ -665,7 +665,7 @@ pub fn migrate_todos_default_category() -> Value {
         if let Err(e) = ensure_default_category_unlocked() {
             return json!({ "error": e, "_status": 500 });
         }
-        let index_path = match paths::plan_tasks_index_path() {
+        let index_path = match paths::todo_tasks_index_path() {
             Ok(p) => p,
             Err(e) => return json!({ "error": format!("{e:?}"), "_status": 500 }),
         };
@@ -738,7 +738,7 @@ fn load_master_task_unlocked(master_id: &str) -> Result<MasterTask, Value> {
     let index = match load_v2_index_unlocked() {
         Ok(i) => i,
         Err(LoadOutcome::Corrupt) => return Err(corrupt_storage_error()),
-        Err(LoadOutcome::Missing) | Err(LoadOutcome::Ok) => PlanTasksIndex::default(),
+        Err(LoadOutcome::Missing) | Err(LoadOutcome::Ok) => TodoTasksIndex::default(),
     };
     let entry = index
         .tasks
@@ -753,7 +753,7 @@ fn load_master_task_unlocked(master_id: &str) -> Result<MasterTask, Value> {
     Ok(assemble_master_task(entry, &subs))
 }
 
-fn find_master_id_for_any_id(index: &PlanTasksIndex, id: &str) -> Result<Option<String>, Value> {
+fn find_master_id_for_any_id(index: &TodoTasksIndex, id: &str) -> Result<Option<String>, Value> {
     if index.tasks.contains_key(id) {
         return Ok(Some(id.to_string()));
     }
@@ -771,7 +771,7 @@ fn find_master_id_for_any_id(index: &PlanTasksIndex, id: &str) -> Result<Option<
 }
 
 fn read_todo_md_or_empty(master_id: &str) -> Result<String, String> {
-    let path = paths::plan_tasks_plan_md_path(master_id).map_err(|e| format!("{e:?}"))?;
+    let path = paths::todo_tasks_plan_md_path(master_id).map_err(|e| format!("{e:?}"))?;
     if !path.is_file() {
         return Ok(String::new());
     }
@@ -884,7 +884,7 @@ fn load_master_response_unlocked(master_id: &str) -> Result<Value, Value> {
     let index = match load_v2_index_unlocked() {
         Ok(i) => i,
         Err(LoadOutcome::Corrupt) => return Err(corrupt_storage_error()),
-        Err(LoadOutcome::Missing) | Err(LoadOutcome::Ok) => PlanTasksIndex::default(),
+        Err(LoadOutcome::Missing) | Err(LoadOutcome::Ok) => TodoTasksIndex::default(),
     };
     let entry = index
         .tasks
@@ -949,14 +949,14 @@ pub fn update_todo_md(master_task_id: &str, plan_md: &str) -> Value {
         let index = match load_v2_index_unlocked() {
             Ok(i) => i,
             Err(LoadOutcome::Corrupt) => return corrupt_storage_error(),
-            Err(LoadOutcome::Missing) | Err(LoadOutcome::Ok) => PlanTasksIndex::default(),
+            Err(LoadOutcome::Missing) | Err(LoadOutcome::Ok) => TodoTasksIndex::default(),
         };
 
         if !index.tasks.contains_key(master_task_id) {
             return json!({ "error": "Task not found", "_status": 404 });
         }
 
-        let plan_md_path = match paths::plan_tasks_plan_md_path(master_task_id) {
+        let plan_md_path = match paths::todo_tasks_plan_md_path(master_task_id) {
             Ok(p) => p,
             Err(e) => return json!({ "error": format!("{e:?}"), "_status": 500 }),
         };
@@ -974,7 +974,7 @@ pub const MIGRATION_GATE_FILE: &str = ".migration_gate_passed";
 /// True when `todo_tasks/.migration_gate_passed` exists on disk.
 /// Re-reads the filesystem each call (cold restart / no process-local script exit code).
 pub fn migration_gate_passed() -> bool {
-    match paths::plan_tasks_dir() {
+    match paths::todo_tasks_dir() {
         Ok(dir) => dir.join(MIGRATION_GATE_FILE).is_file(),
         Err(_) => false,
     }
@@ -1149,7 +1149,7 @@ pub fn delete_master(master_task_id: &str) -> Value {
         let index = match load_v2_index_unlocked() {
             Ok(i) => i,
             Err(LoadOutcome::Corrupt) => return corrupt_storage_error(),
-            Err(LoadOutcome::Missing) | Err(LoadOutcome::Ok) => PlanTasksIndex::default(),
+            Err(LoadOutcome::Missing) | Err(LoadOutcome::Ok) => TodoTasksIndex::default(),
         };
 
         if !index.tasks.contains_key(master_task_id) {
@@ -1160,7 +1160,7 @@ pub fn delete_master(master_task_id: &str) -> Value {
             return json!({ "error": e, "_status": 500 });
         }
 
-        let index_path = match paths::plan_tasks_index_path() {
+        let index_path = match paths::todo_tasks_index_path() {
             Ok(p) => p,
             Err(e) => return json!({ "error": format!("{e:?}"), "_status": 500 }),
         };
@@ -1807,7 +1807,7 @@ fn save_comments_file_unlocked(path: &Path, file: &CommentsFile) -> Result<(), S
 fn load_plan_comments(
     master_task_id: &str,
 ) -> Result<(std::path::PathBuf, CommentsFile), Value> {
-    let task_dir = paths::plan_tasks_task_dir(master_task_id)
+    let task_dir = paths::todo_tasks_task_dir(master_task_id)
         .map_err(|e| json!({ "error": format!("{e:?}"), "_status": 500 }))?;
     let file = load_comments_file_unlocked(&task_dir.join("comments.json"))
         .map_err(|e| json!({ "error": e, "_status": 500 }))?;
@@ -1866,7 +1866,7 @@ pub fn add_comment(master_task_id: &str, body: &str) -> Value {
         let index = match load_v2_index_unlocked() {
             Ok(i) => i,
             Err(LoadOutcome::Corrupt) => return corrupt_storage_error(),
-            Err(LoadOutcome::Missing) | Err(LoadOutcome::Ok) => PlanTasksIndex::default(),
+            Err(LoadOutcome::Missing) | Err(LoadOutcome::Ok) => TodoTasksIndex::default(),
         };
 
         if !index.tasks.contains_key(master_task_id) {
@@ -1922,7 +1922,7 @@ pub fn update_comment(master_task_id: &str, comment_id: &str, body: &str) -> Val
         let index = match load_v2_index_unlocked() {
             Ok(i) => i,
             Err(LoadOutcome::Corrupt) => return corrupt_storage_error(),
-            Err(LoadOutcome::Missing) | Err(LoadOutcome::Ok) => PlanTasksIndex::default(),
+            Err(LoadOutcome::Missing) | Err(LoadOutcome::Ok) => TodoTasksIndex::default(),
         };
 
         if !index.tasks.contains_key(master_task_id) {
@@ -1973,7 +1973,7 @@ pub fn delete_comment(master_task_id: &str, comment_id: &str) -> Value {
         let index = match load_v2_index_unlocked() {
             Ok(i) => i,
             Err(LoadOutcome::Corrupt) => return corrupt_storage_error(),
-            Err(LoadOutcome::Missing) | Err(LoadOutcome::Ok) => PlanTasksIndex::default(),
+            Err(LoadOutcome::Missing) | Err(LoadOutcome::Ok) => TodoTasksIndex::default(),
         };
 
         if !index.tasks.contains_key(master_task_id) {
@@ -2021,14 +2021,14 @@ pub fn add_attachment(master_task_id: &str, source_path: &str) -> Value {
         let index = match load_v2_index_unlocked() {
             Ok(i) => i,
             Err(LoadOutcome::Corrupt) => return corrupt_storage_error(),
-            Err(LoadOutcome::Missing) | Err(LoadOutcome::Ok) => PlanTasksIndex::default(),
+            Err(LoadOutcome::Missing) | Err(LoadOutcome::Ok) => TodoTasksIndex::default(),
         };
 
         if !index.tasks.contains_key(master_task_id) {
             return json!({ "error": "Task not found", "_status": 404 });
         }
 
-        let task_dir = match paths::plan_tasks_task_dir(master_task_id) {
+        let task_dir = match paths::todo_tasks_task_dir(master_task_id) {
             Ok(p) => p,
             Err(e) => return json!({ "error": format!("{e:?}"), "_status": 500 }),
         };
@@ -2083,7 +2083,7 @@ fn attachment_in_manifest(manifest: &AttachmentsFile, file_name: &str) -> bool {
 fn load_plan_attachments_manifest(
     master_task_id: &str,
 ) -> Result<(std::path::PathBuf, AttachmentsFile), Value> {
-    let task_dir = paths::plan_tasks_task_dir(master_task_id)
+    let task_dir = paths::todo_tasks_task_dir(master_task_id)
         .map_err(|e| json!({ "error": format!("{e:?}"), "_status": 500 }))?;
     let manifest = load_attachments_file_unlocked(&task_dir.join("attachments.json"))
         .map_err(|e| json!({ "error": e, "_status": 500 }))?;
@@ -2177,7 +2177,7 @@ pub fn save_attachment(master_task_id: &str, file_name: &str, source_path: &str)
         let index = match load_v2_index_unlocked() {
             Ok(i) => i,
             Err(LoadOutcome::Corrupt) => return corrupt_storage_error(),
-            Err(LoadOutcome::Missing) | Err(LoadOutcome::Ok) => PlanTasksIndex::default(),
+            Err(LoadOutcome::Missing) | Err(LoadOutcome::Ok) => TodoTasksIndex::default(),
         };
 
         if !index.tasks.contains_key(master_task_id) {
@@ -2220,7 +2220,7 @@ pub fn delete_attachment(master_task_id: &str, file_name: &str) -> Value {
         let index = match load_v2_index_unlocked() {
             Ok(i) => i,
             Err(LoadOutcome::Corrupt) => return corrupt_storage_error(),
-            Err(LoadOutcome::Missing) | Err(LoadOutcome::Ok) => PlanTasksIndex::default(),
+            Err(LoadOutcome::Missing) | Err(LoadOutcome::Ok) => TodoTasksIndex::default(),
         };
 
         if !index.tasks.contains_key(master_task_id) {
