@@ -12,8 +12,9 @@ import './components/modals/delete-dialog.js'
 import './components/modals/commit-dialog.js'
 import { openKbDiffDialog } from './components/modals/kb-diff-dialog.js'
 import './components/modals/move-dialog.js'
-import { openBase64Dialog } from './components/modals/base64-dialog.js'
-import { openQrDialog } from './components/modals/qr-dialog.js'
+import { openConvertDialog } from './components/modals/convert-dialog.js'
+import './components/modals/base64-dialog.js'
+import './components/modals/qr-dialog.js'
 import { openBindDialog } from './components/modals/bind-dialog.js'
 import { openSettingsDialog } from './components/modals/settings-dialog.js'
 import { initRouter, navigate, navigateToNote } from './router/index.js'
@@ -940,14 +941,9 @@ document.getElementById('btn-settings').addEventListener('click', () => {
   openSettingsDialog();
 });
 
-document.getElementById('btn-base64').addEventListener('click', () => {
+document.getElementById('btn-convert').addEventListener('click', () => {
   _closeAllMenuDropdowns();
-  openBase64Dialog();
-});
-
-document.getElementById('btn-qr').addEventListener('click', () => {
-  _closeAllMenuDropdowns();
-  openQrDialog();
+  openConvertDialog('base64');
 });
 
 document.getElementById('btn-bind').addEventListener('click', () => {

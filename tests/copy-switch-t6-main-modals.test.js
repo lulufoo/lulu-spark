@@ -31,6 +31,7 @@ const modalSources = [
   readFileSync(join(repoRoot, 'frontend/js/components/modals/base64-dialog.js'), 'utf8'),
   readFileSync(join(repoRoot, 'frontend/js/components/modals/move-project-dialog.js'), 'utf8'),
   readFileSync(join(repoRoot, 'frontend/js/components/modals/qr-dialog.js'), 'utf8'),
+  readFileSync(join(repoRoot, 'frontend/js/components/modals/convert-dialog.js'), 'utf8'),
 ].join('\n');
 
 function withoutComments(src) {

@@ -375,6 +375,17 @@
   #tools-menu-dropdown button:disabled { opacity: .5; cursor: default; }
   #tools-menu-dropdown #btn-feed.active { color: #96c6f8; font-weight: 600; }
   #tools-menu-dropdown #btn-feed.active:hover { background: #525960; }
+  #tools-menu-dropdown { min-width: 150px; }
+  #tools-menu-dropdown button {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  #tools-menu-dropdown .tools-menu-icon {
+    width: 1.15em;
+    flex-shrink: 0;
+    text-align: center;
+  }
 
   /* ── Skills menu dropdown ── */
   #skills-menu-wrap {
@@ -5216,7 +5227,7 @@
     background: #fff;
     border-radius: 10px;
     width: min(680px, 94vw);
-    max-height: 90vh;
+    height: min(520px, 90vh);
     box-shadow: 0 8px 40px rgba(0,0,0,.3);
     display: flex;
     flex-direction: column;
@@ -5999,8 +6010,8 @@
 }
 #btn-settings-cancel:hover { background: #eaeef2; }
 
-/* ── Base64 tool dialog ── */
-#base64-dialog {
+/* ── Convert tool dialog (Base64 + QR) ── */
+#convert-dialog {
   position: fixed;
   inset: 0;
   z-index: 2000;
@@ -6009,26 +6020,29 @@
   justify-content: center;
   background: rgba(0,0,0,.55);
 }
-#base64-dialog.open { display: flex; }
-#base64-dialog-box {
+#convert-dialog.open { display: flex; }
+#convert-dialog-box {
   background: #fff;
   border-radius: 10px;
   padding: 24px 24px 20px;
-  width: min(480px, 90vw);
+  width: min(680px, 94vw);
+  height: min(520px, 90vh);
   box-shadow: 0 8px 40px rgba(0,0,0,.3);
   display: flex;
   flex-direction: column;
   gap: 12px;
+  overflow: hidden;
 }
-#base64-dialog-header {
+#convert-dialog-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   font-size: 14px;
   font-weight: 600;
   color: #24292f;
+  flex-shrink: 0;
 }
-#btn-base64-close {
+#btn-convert-close {
   background: none;
   border: 1px solid #d0d7de;
   border-radius: 6px;
@@ -6037,17 +6051,51 @@
   cursor: pointer;
   color: #57606a;
 }
-#btn-base64-close:hover { background: #eaeef2; }
+#btn-convert-close:hover { background: #eaeef2; }
+#convert-dialog-tabs {
+  display: flex;
+  gap: 2px;
+  align-self: flex-start;
+  background: #f6f8fa;
+  border: 1px solid #d0d7de;
+  border-radius: 6px;
+  padding: 2px;
+  flex-shrink: 0;
+}
+.convert-tab-btn {
+  background: none;
+  border: none;
+  border-radius: 4px;
+  padding: 3px 12px;
+  font-size: 12px;
+  cursor: pointer;
+  color: #57606a;
+}
+.convert-tab-btn.active {
+  background: #fff;
+  color: #24292f;
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(0,0,0,.1);
+}
+.convert-panel {
+  display: none;
+  flex: 1;
+  min-height: 0;
+  flex-direction: column;
+  gap: 12px;
+}
+.convert-panel.active { display: flex; }
 #base64-input,
 #base64-output {
   width: 100%;
-  height: 100px;
+  flex: 1;
+  min-height: 0;
   padding: 8px 10px;
   border: 1px solid #d0d7de;
   border-radius: 6px;
   font-size: 13px;
   font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
-  resize: vertical;
+  resize: none;
   outline: none;
   box-sizing: border-box;
   color: #24292f;
@@ -6300,54 +6348,16 @@
   box-shadow: none;
 }
 
-/* ── QR tool dialog ── */
-#qr-dialog {
-  position: fixed;
-  inset: 0;
-  z-index: 2000;
-  display: none;
-  align-items: center;
-  justify-content: center;
-  background: rgba(0,0,0,.55);
-}
-#qr-dialog.open { display: flex; }
-#qr-dialog-box {
-  background: #fff;
-  border-radius: 10px;
-  padding: 24px 24px 20px;
-  width: min(480px, 90vw);
-  box-shadow: 0 8px 40px rgba(0,0,0,.3);
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-#qr-dialog-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 14px;
-  font-weight: 600;
-  color: #24292f;
-}
-#btn-qr-close {
-  background: none;
-  border: 1px solid #d0d7de;
-  border-radius: 6px;
-  padding: 3px 10px;
-  font-size: 12px;
-  cursor: pointer;
-  color: #57606a;
-}
-#btn-qr-close:hover { background: #eaeef2; }
+/* ── QR panel (inside Convert) ── */
 #qr-input {
   width: 100%;
-  height: 100px;
+  flex: 0 0 88px;
   padding: 8px 10px;
   border: 1px solid #d0d7de;
   border-radius: 6px;
   font-size: 13px;
   font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
-  resize: vertical;
+  resize: none;
   outline: none;
   box-sizing: border-box;
   color: #24292f;
@@ -6357,7 +6367,9 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 280px;
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
 }
 #qr-preview canvas,
 #qr-preview img {
@@ -6380,11 +6392,13 @@
   background: #fff;
   border-radius: 10px;
   padding: 24px 24px 20px;
-  width: min(480px, 90vw);
+  width: min(680px, 94vw);
+  height: min(520px, 90vh);
   box-shadow: 0 8px 40px rgba(0,0,0,.3);
   display: flex;
   flex-direction: column;
   gap: 12px;
+  overflow: hidden;
 }
 #bind-dialog-header {
   display: flex;
@@ -6415,7 +6429,9 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 280px;
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
 }
 #bind-preview canvas,
 #bind-preview img {

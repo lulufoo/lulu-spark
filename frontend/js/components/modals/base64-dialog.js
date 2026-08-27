@@ -1,13 +1,10 @@
+import { openConvertDialog } from './convert-dialog.js';
+
 export function openBase64Dialog() {
   document.getElementById('base64-input').value = '';
   document.getElementById('base64-output').value = '';
-  document.getElementById('base64-dialog').classList.add('open');
-  document.getElementById('base64-input').focus();
+  openConvertDialog('base64');
 }
-
-document.getElementById('btn-base64-close').addEventListener('click', () => {
-  document.getElementById('base64-dialog').classList.remove('open');
-});
 
 document.getElementById('btn-base64-encode').addEventListener('click', () => {
   const input = document.getElementById('base64-input').value;

@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
-const OVERFLOW_MSG = '⚠️ 文本过长，无法生成二维码（QR 容量上限约 2 KB UTF-8）';
+const OVERFLOW_MSG = '⚠️ Text too long to generate QR code (capacity ~2 KB UTF-8)';
 
 const { makeEl, trigger, clearDom, qrMocks } = vi.hoisted(() => {
   const elements = {};
@@ -68,10 +68,10 @@ const { makeEl, trigger, clearDom, qrMocks } = vi.hoisted(() => {
 });
 
 function seedDom() {
-  makeEl('qr-dialog');
+  makeEl('convert-dialog');
   makeEl('qr-input');
   makeEl('qr-preview');
-  makeEl('btn-qr-close');
+  makeEl('btn-convert-close');
 }
 
 describe('qr-dialog', () => {
@@ -102,7 +102,7 @@ describe('qr-dialog', () => {
 
       expect(makeEl('qr-input').value).toBe('');
       expect(makeEl('qr-preview').innerHTML).toBe('');
-      expect(makeEl('qr-dialog').classList.contains('open')).toBe(true);
+      expect(makeEl('convert-dialog').classList.contains('open')).toBe(true);
       expect(makeEl('qr-input')._focused).toBe(true);
     });
 
@@ -111,14 +111,14 @@ describe('qr-dialog', () => {
 
       makeEl('qr-input').value = 'https://example.com';
       makeEl('qr-preview').innerHTML = '<canvas></canvas>';
-      makeEl('qr-dialog').classList.add('open');
+      makeEl('convert-dialog').classList.add('open');
 
-      await trigger('btn-qr-close', 'click');
+      await trigger('btn-convert-close', 'click');
       openQrDialog();
 
       expect(makeEl('qr-input').value).toBe('');
       expect(makeEl('qr-preview').innerHTML).toBe('');
-      expect(makeEl('qr-dialog').classList.contains('open')).toBe(true);
+      expect(makeEl('convert-dialog').classList.contains('open')).toBe(true);
     });
   });
 
@@ -189,11 +189,11 @@ describe('qr-dialog', () => {
 
   describe('event bindings', () => {
     it('removes open class when close button is clicked', async () => {
-      makeEl('qr-dialog').classList.add('open');
+      makeEl('convert-dialog').classList.add('open');
 
-      await trigger('btn-qr-close', 'click');
+      await trigger('btn-convert-close', 'click');
 
-      expect(makeEl('qr-dialog').classList.contains('open')).toBe(false);
+      expect(makeEl('convert-dialog').classList.contains('open')).toBe(false);
     });
 
     it('calls renderQr on qr-input input events', async () => {

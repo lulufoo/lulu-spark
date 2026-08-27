@@ -1,3 +1,5 @@
+import { openConvertDialog } from './convert-dialog.js';
+
 const QR_OPTS = { width: 256, margin: 2 };
 const OVERFLOW_MSG = '⚠️ Text too long to generate QR code (capacity ~2 KB UTF-8)';
 
@@ -13,8 +15,7 @@ function showQrError(preview, message = OVERFLOW_MSG) {
 export function openQrDialog() {
   document.getElementById('qr-input').value = '';
   document.getElementById('qr-preview').innerHTML = '';
-  document.getElementById('qr-dialog').classList.add('open');
-  document.getElementById('qr-input').focus();
+  openConvertDialog('qr');
 }
 
 export function renderQr(text) {
@@ -42,10 +43,6 @@ export function renderQr(text) {
     preview.appendChild(canvas);
   });
 }
-
-document.getElementById('btn-qr-close').addEventListener('click', () => {
-  document.getElementById('qr-dialog').classList.remove('open');
-});
 
 document.getElementById('qr-input').addEventListener('input', () => {
   renderQr(document.getElementById('qr-input').value);

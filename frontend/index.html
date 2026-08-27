@@ -8,7 +8,7 @@
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/turndown/dist/turndown.min.js"></script>
 <script src="vendor/mermaid.min.js"></script>
-<link rel="stylesheet" href="app.css?v=20260823g">
+<link rel="stylesheet" href="app.css?v=20260827c">
 </head>
 <body>
 
@@ -39,10 +39,9 @@
   <div id="tools-menu-wrap">
     <button id="btn-tools-menu">⛓ Tools</button>
     <div id="tools-menu-dropdown">
-      <button id="btn-move-doc-header">↗ GitHub</button>
-      <button id="btn-base64">🔤 Base64</button>
-      <button id="btn-qr">📱 QR code</button>
-      <button id="btn-bind">Bind device</button>
+      <button id="btn-move-doc-header"><span class="tools-menu-icon">↗</span>GitHub</button>
+      <button id="btn-convert"><span class="tools-menu-icon">🔀</span>Convert</button>
+      <button id="btn-bind"><span class="tools-menu-icon">📲</span>Bind device</button>
     </div>
   </div>
   <button id="btn-settings" type="button" title="Settings">⚙ Settings</button>
@@ -110,34 +109,32 @@
   </main>
 </div>
 
-<!-- Base64 tool dialog -->
-<div id="base64-dialog">
-  <div id="base64-dialog-box">
-    <div id="base64-dialog-header">
-      <span>🔤 Base64 convert</span>
-      <button id="btn-base64-close">✕ Close</button>
+<!-- Convert tool dialog (Base64 + QR) -->
+<div id="convert-dialog">
+  <div id="convert-dialog-box">
+    <div id="convert-dialog-header">
+      <span>🔀 Convert</span>
+      <button id="btn-convert-close">✕ Close</button>
     </div>
-    <textarea id="base64-input" placeholder="Enter text or Base64…" spellcheck="false"></textarea>
-    <div id="base64-dialog-actions">
-      <button id="btn-base64-encode">Encode →</button>
-      <button id="btn-base64-decode">← Decode</button>
+    <div id="convert-dialog-tabs">
+      <button type="button" id="convert-tab-base64" class="convert-tab-btn active">🔤 Base64</button>
+      <button type="button" id="convert-tab-qr" class="convert-tab-btn">📱 QR code</button>
     </div>
-    <textarea id="base64-output" readonly placeholder="Result…" spellcheck="false"></textarea>
-    <div id="base64-dialog-footer">
-      <button id="btn-base64-copy">Copy result</button>
+    <div id="convert-panel-base64" class="convert-panel active">
+      <textarea id="base64-input" placeholder="Enter text or Base64…" spellcheck="false"></textarea>
+      <div id="base64-dialog-actions">
+        <button id="btn-base64-encode">Encode →</button>
+        <button id="btn-base64-decode">← Decode</button>
+      </div>
+      <textarea id="base64-output" readonly placeholder="Result…" spellcheck="false"></textarea>
+      <div id="base64-dialog-footer">
+        <button id="btn-base64-copy">Copy result</button>
+      </div>
     </div>
-  </div>
-</div>
-
-<!-- QR tool dialog -->
-<div id="qr-dialog">
-  <div id="qr-dialog-box">
-    <div id="qr-dialog-header">
-      <span>📱 Text to QR code</span>
-      <button id="btn-qr-close">✕ Close</button>
+    <div id="convert-panel-qr" class="convert-panel">
+      <textarea id="qr-input" placeholder="Enter URL or text…" spellcheck="false"></textarea>
+      <div id="qr-preview"></div>
     </div>
-    <textarea id="qr-input" placeholder="Enter URL or text…" spellcheck="false"></textarea>
-    <div id="qr-preview"></div>
   </div>
 </div>
 
@@ -145,7 +142,7 @@
 <div id="bind-dialog">
   <div id="bind-dialog-box">
     <div id="bind-dialog-header">
-      <span>Bind device</span>
+      <span>📲 Bind device</span>
       <button id="btn-bind-close">✕ Close</button>
     </div>
     <div id="bind-status"></div>
