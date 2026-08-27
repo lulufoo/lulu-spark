@@ -17,7 +17,7 @@ const TABLE_A_BRANDS = [
   { zh: 'LuLu Workbench', en: 'LuLu Workbench', file: 'frontend/index.html' },
   { zh: '笔记助手', en: 'Notes Assistant', file: 'frontend/js/note-assistant.js' },
   { zh: 'AI 助手', en: 'Assistant', file: 'frontend/js/ai-assistant.js' },
-  { zh: 'Read Later 助手', en: 'Read Later', file: 'frontend/read-later-assistant.html' },
+  { zh: 'Read Later 助手', en: 'Read Later', file: 'frontend/js/read-later-assistant.js' },
 ];
 
 const KEY_PATH_FILES = [
@@ -35,7 +35,6 @@ const KEY_PATH_FILES = [
 
 const SKILLS_EXCLUDED = [
   'frontend/js/skills-workbench-content.js',
-  'frontend/js/skills-software-dev-content.js',
 ];
 
 function loadJson(relPath) {

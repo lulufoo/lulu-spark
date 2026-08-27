@@ -12,35 +12,15 @@ use std::time::{Duration, Instant};
 #[cfg(not(test))]
 use tauri::webview::{NewWindowResponse, WebviewWindowBuilder};
 #[cfg(not(test))]
-use tauri::{Manager, Url, WebviewUrl, WindowEvent};
+use tauri::{Manager, Url, WindowEvent};
 #[cfg(not(test))]
 use tauri_plugin_opener::OpenerExt;
 
 const CONNECT_TIMEOUT: Duration = Duration::from_millis(100);
 const RETRY_INTERVAL: Duration = Duration::from_millis(500);
 pub const DEFAULT_MCP_PORT: u16 = config::settings::DEFAULT_PROD_MCP_PORT;
-pub const READ_LATER_ASSISTANT_LABEL: &str = "read-later-assistant";
 pub const AI_ASSISTANT_LABEL: &str = "ai-assistant";
 pub const PLAN_ATTACHMENT_DIALOG_EXTENSIONS: &[&str] = &["md"];
-
-#[derive(Debug, PartialEq, Eq)]
-pub struct ReadLaterAssistantWindowSpec {
-    pub label: &'static str,
-    pub entry: &'static str,
-    pub always_on_top: bool,
-}
-
-pub fn read_later_assistant_entry_path() -> &'static str {
-    "read-later-assistant.html"
-}
-
-pub fn read_later_assistant_spec() -> ReadLaterAssistantWindowSpec {
-    ReadLaterAssistantWindowSpec {
-        label: READ_LATER_ASSISTANT_LABEL,
-        entry: read_later_assistant_entry_path(),
-        always_on_top: true,
-    }
-}
 
 fn localhost_addrs(port: u16) -> Vec<SocketAddr> {
     format!("localhost:{port}")
@@ -265,21 +245,6 @@ fn create_main_window(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>
             let _ = hide_target.hide();
         }
     });
-    Ok(())
-}
-
-#[cfg(not(test))]
-fn create_read_later_assistant_window(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
-    if app.get_webview_window(READ_LATER_ASSISTANT_LABEL).is_some() {
-        return Ok(());
-    }
-    WebviewWindowBuilder::new(
-        app,
-        "read-later-assistant",
-        WebviewUrl::App("read-later-assistant.html".into()),
-    )
-    .always_on_top(true)
-    .build()?;
     Ok(())
 }
 

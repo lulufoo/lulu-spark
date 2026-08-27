@@ -81,9 +81,9 @@ describe('F3 copy sync — create_todo_task MCP description', () => {
   });
 });
 
-describe('AC7 brand copy — 7 user-visible Todos sites (tech-doc T14/T15)', () => {
-  it('locks all 7 brand sites to Todos without residual 计划任务 user copy', () => {
-    expect(PLAN_TASK_BRAND_SITES).toHaveLength(7);
+describe('AC7 brand copy — user-visible Todos sites (tech-doc T14/T15)', () => {
+  it('locks remaining brand sites to Todos without residual 计划任务 user copy', () => {
+    expect(PLAN_TASK_BRAND_SITES).toHaveLength(6);
     for (const site of PLAN_TASK_BRAND_SITES) {
       const src = readFileSync(join(fixtureRoot, site.path), 'utf8');
       for (const re of site.mustMatch) {

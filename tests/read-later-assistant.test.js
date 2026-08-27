@@ -30,10 +30,6 @@ import { openExternalUrl } from '../frontend/js/components/read-later-list.js';
 
 const fixtureRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 const mainJs = readFileSync(join(fixtureRoot, 'frontend/js/main.js'), 'utf8');
-const assistantHtml = readFileSync(
-  join(fixtureRoot, 'frontend/read-later-assistant.html'),
-  'utf8',
-);
 
 const sampleEntries = [
   {
@@ -79,16 +75,6 @@ const sampleEntries = [
     read: false,
   },
 ];
-
-describe('read-later-assistant source wiring', () => {
-  it('read-later-assistant.html includes assistant root shell', () => {
-    expect(assistantHtml).toMatch(/id="read-later-assistant-root"/);
-  });
-
-  it('read-later-assistant.html loads read-later-assistant.js module', () => {
-    expect(assistantHtml).toMatch(/read-later-assistant\.js/);
-  });
-});
 
 describe('loadAssistantEntries', () => {
   beforeEach(() => {

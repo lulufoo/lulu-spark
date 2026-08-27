@@ -27,16 +27,6 @@ import {
 } from '../frontend/js/plan-task-assistant.js';import { formatPlanTaskStatus } from '../frontend/js/plan-task/index.js';
 
 const fixtureRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
-const assistantHtml = readFileSync(
-  join(fixtureRoot, 'frontend/plan-task-assistant.html'),
-  'utf8',
-);
-const assistantCapability = JSON.parse(
-  readFileSync(
-    join(fixtureRoot, 'src-tauri/capabilities/plan-task-assistant.json'),
-    'utf8',
-  ),
-);
 const appCss = readFileSync(join(fixtureRoot, 'frontend/app.css'), 'utf8');
 const mainJs = readFileSync(join(fixtureRoot, 'frontend/js/main.js'), 'utf8');
 const assistantJs = readFileSync(
@@ -115,19 +105,6 @@ const sampleMasters = [
 ];
 
 describe('plan-task-assistant source wiring', () => {
-  it('plan-task-assistant.html includes assistant root shell', () => {
-    expect(assistantHtml).toMatch(/id="plan-task-assistant-root"/);
-  });
-
-  it('plan-task-assistant.html loads plan-task-assistant.js module', () => {
-    expect(assistantHtml).toMatch(/plan-task-assistant\.js/);
-  });
-
-  it('capability grants read-api to plan-task-assistant window', () => {
-    expect(assistantCapability.windows).toContain('plan-task-assistant');
-    expect(assistantCapability.permissions).toContain('read-api');
-  });
-
   it('independent Plan FAB stack offset is retired; shell cluster owns bottom anchor', () => {
     expect(appCss).not.toMatch(/\.pt-assistant-widget\s*\{[^}]*bottom:\s*76px/);
     expect(appCss).toMatch(/\.home-entry-shell__cluster\s*\{[^}]*bottom:\s*20px/);

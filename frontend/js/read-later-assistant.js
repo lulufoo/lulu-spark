@@ -284,8 +284,3 @@ export function createReadLaterContentAdapter() {
 export function mountReadLaterContent(slotEl, host) {
   return createReadLaterContentAdapter().mount(slotEl, { host });
 }
-
-const bootstrapRoot = document.getElementById('read-later-assistant-root');
-if (bootstrapRoot) {
-  mountReadLaterAssistant(bootstrapRoot);
-}

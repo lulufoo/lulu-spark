@@ -103,18 +103,16 @@ describe('P2 copy-switch — main.js & modals (tech-doc T6)', () => {
     expect(body).not.toMatch(/[\u4e00-\u9fff]/);
   });
 
-  it('main.js skills chrome is English while inline lulu skills names may stay Chinese', () => {
+  it('main.js skills chrome is English', () => {
     expect(mainJs).toContain('Click to copy command');
     expect(mainJs).not.toContain('点击复制');
     expect(mainJs).not.toContain('已复制');
+    expect(mainJs).not.toContain('Lulu Learning Skills');
+    expect(mainJs).not.toContain('Lulu Dev Skills');
   });
 
   it('t6 sources have no user-facing Chinese outside skills catalog literals', () => {
-    const skillsBlock = mainJs.match(
-      /const _SKILLS_CONTENT = \{[\s\S]*?\n\};/,
-    )?.[0] ?? '';
-    const mainWithoutSkills = mainJs.replace(skillsBlock, '');
-    const body = withoutComments([mainWithoutSkills, modalSources].join('\n'));
+    const body = withoutComments([mainJs, modalSources].join('\n'));
     expect(body).not.toMatch(/[\u4e00-\u9fff]/);
   });
 });

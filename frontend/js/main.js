@@ -35,7 +35,6 @@ import { mountHomeHub } from './components/home-hub.js'
 import { mountPlanTaskSplit } from './plan-task/index.js'
 import { setWorkbenchBinding } from './plan-task/todos-binding.js'
 import { initHeaderSync, clearHeaderSyncCorpusContext } from './header-sync.js'
-import { softwareDevSkillsContent } from './skills-software-dev-content.js'
 import { workbenchSkillsContent } from './skills-workbench-content.js'
 import { normalizeCorpusIndex } from './corpus-index.js'
 import { writeNotesSelectionSnapshot, clearNotesSelectionSnapshot } from './apiClient.js'
@@ -1149,46 +1148,6 @@ document.addEventListener('cta:open-kb-doc', ({ detail }) => {
 
 // ── Skills dialog ─────────────────────────────────────────────────────────
 
-const _SKILLS_CONTENT = {
-  workbench: workbenchSkillsContent,
-  softwareDev: softwareDevSkillsContent,
-  lulu: {
-    title: '✦ Lulu Learning Skills',
-    groups: [
-      {
-        name: '通用模型',
-        url: 'https://github.com/lulufoo/lulu-learning-skills/tree/main/target-portrait-model',
-        items: [
-          { cmd: 'tpm', name: '目标画像模型', desc: '对人物/产品/组织/技术/方法论输出客观画像' }
-        ]
-      },
-      {
-        name: 'AADL · Layered Cognitive',
-        url: 'https://github.com/lulufoo/lulu-learning-skills/tree/main/layered-cognitive',
-        items: [
-          { cmd: 'lccm', name: '分层概念认知模型', desc: '诊断认知层次（感知→理解→洞察→创造）并逐层引导深化' }
-        ]
-      },
-      {
-        name: 'AADL · Practice Exercise',
-        url: 'https://github.com/lulufoo/lulu-learning-skills/tree/main/practice-exercise',
-        items: [
-          { cmd: 'rapm', name: '逆向应用练习模型', desc: '为目标概念设计练习任务、评审学习交付物、生成 LCCM 入口问题' }
-        ]
-      },
-      {
-        name: 'AADL · Domain Deepening',
-        url: 'https://github.com/lulufoo/lulu-learning-skills/tree/main/domain-deepening',
-        items: [
-          { cmd: 'dp_portrait', name: '领域框架视角模型', desc: '基于权威来源生成领域客观画像' },
-          { cmd: 'dp_graph',   name: '领域知识图谱模型', desc: '多轮迭代构建领域关键点网络' },
-          { cmd: 'dp_role',    name: '角色视图生成模型', desc: '从知识图谱为特定角色生成关注度矩阵与学习路径' }
-        ]
-      },
-    ]
-  }
-};
-
 function _escapeAttr(str) {
   return String(str)
     .replace(/&/g, '&amp;')
@@ -1196,8 +1155,8 @@ function _escapeAttr(str) {
     .replace(/</g, '&lt;');
 }
 
-function _openSkillsDialog(key) {
-  const data = _SKILLS_CONTENT[key];
+function _openSkillsDialog() {
+  const data = workbenchSkillsContent;
   if (!data) return;
   document.getElementById('skills-dialog-title').textContent = data.title;
   document.getElementById('skills-dialog-body').innerHTML = data.groups.map(g => {
@@ -1239,17 +1198,7 @@ function _closeSkillsDialog() {
 
 document.getElementById('btn-skill-workbench').addEventListener('click', () => {
   _skillsMenuDropdown.classList.remove('open');
-  _openSkillsDialog('workbench');
-});
-
-document.getElementById('btn-skill-lulu').addEventListener('click', () => {
-  _skillsMenuDropdown.classList.remove('open');
-  _openSkillsDialog('lulu');
-});
-
-document.getElementById('btn-skill-software-dev').addEventListener('click', () => {
-  _skillsMenuDropdown.classList.remove('open');
-  _openSkillsDialog('softwareDev');
+  _openSkillsDialog();
 });
 
 document.getElementById('btn-skills-dialog-close').addEventListener('click', _closeSkillsDialog);

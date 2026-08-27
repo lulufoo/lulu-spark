@@ -241,8 +241,3 @@ export function createPlanTaskContentAdapter() {
 export function mountPlanTaskContent(slotEl, host) {
   return createPlanTaskContentAdapter().mount(slotEl, { host });
 }
-
-const bootstrapRoot = document.getElementById('plan-task-assistant-root');
-if (bootstrapRoot) {
-  mountPlanTaskAssistant(bootstrapRoot);
-}

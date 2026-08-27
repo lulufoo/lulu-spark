@@ -23,11 +23,6 @@ export const PLAN_TASK_BRAND_SITES = [
     mustNotMatch: NO_LEGACY_BRAND,
   },
   {
-    path: 'frontend/plan-task-assistant.html',
-    mustMatch: [/<title>Todos<\/title>/],
-    mustNotMatch: NO_LEGACY_BRAND,
-  },
-  {
     path: 'frontend/js/plan-task-assistant.js',
     mustMatch: [/No todos yet/],
     mustNotMatch: NO_LEGACY_BRAND,

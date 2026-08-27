@@ -5,15 +5,15 @@ import { describe, expect, it } from 'vitest';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 
-// T4: independent ai-assistant.html retired; shell content lives in ai-assistant.js.
+// Independent assistant HTML window carriers retired; shell content lives in *-assistant.js.
 const aiAssistantHtmlPath = join(repoRoot, 'frontend/ai-assistant.html');
-const readLaterAssistantHtml = readFileSync(
-  join(repoRoot, 'frontend/read-later-assistant.html'),
-  'utf8',
+const readLaterAssistantHtmlPath = join(
+  repoRoot,
+  'frontend/read-later-assistant.html',
 );
-const planTaskAssistantHtml = readFileSync(
-  join(repoRoot, 'frontend/plan-task-assistant.html'),
-  'utf8',
+const planTaskAssistantHtmlPath = join(
+  repoRoot,
+  'frontend/plan-task-assistant.html',
 );
 const aiAssistantJs = readFileSync(
   join(repoRoot, 'frontend/js/ai-assistant.js'),
@@ -29,21 +29,16 @@ const planTaskAssistantJs = readFileSync(
 );
 
 const assistantSources = [
-  readLaterAssistantHtml,
-  planTaskAssistantHtml,
   aiAssistantJs,
   readLaterAssistantJs,
   planTaskAssistantJs,
 ].join('\n');
 
 describe('P2 copy-switch — Assistant pages (tech-doc T5)', () => {
-  it('assistant HTML shells use lang=en', () => {
+  it('assistant HTML shells are retired', () => {
     expect(existsSync(aiAssistantHtmlPath)).toBe(false);
-    expect(readLaterAssistantHtml).toMatch(/<html[^>]*\blang="en"/);
-    expect(planTaskAssistantHtml).toMatch(/<html[^>]*\blang="en"/);
-    for (const html of [readLaterAssistantHtml, planTaskAssistantHtml]) {
-      expect(html).not.toMatch(/lang="zh-CN"/);
-    }
+    expect(existsSync(readLaterAssistantHtmlPath)).toBe(false);
+    expect(existsSync(planTaskAssistantHtmlPath)).toBe(false);
   });
 
   it('ai-assistant uses table B2 Assistant branding and copy', () => {
@@ -67,7 +62,6 @@ describe('P2 copy-switch — Assistant pages (tech-doc T5)', () => {
   });
 
   it('read-later-assistant uses table A/B/B2 English copy', () => {
-    expect(readLaterAssistantHtml).toMatch(/<title>Read Later<\/title>/);
     expect(readLaterAssistantJs).toContain('Read Later');
     expect(readLaterAssistantJs).toContain('No items to read later');
     expect(readLaterAssistantJs).toContain(
@@ -86,7 +80,6 @@ describe('P2 copy-switch — Assistant pages (tech-doc T5)', () => {
   });
 
   it('plan-task-assistant uses table B/B2 English copy', () => {
-    expect(planTaskAssistantHtml).toMatch(/<title>Todos<\/title>/);
     expect(planTaskAssistantJs).toContain('No todos yet');
     expect(planTaskAssistantJs).toContain(
       'After creating via MCP, latest tasks appear here',
