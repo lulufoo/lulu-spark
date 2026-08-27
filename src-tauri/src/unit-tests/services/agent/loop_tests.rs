@@ -3307,7 +3307,7 @@ fn t4_defensive_cut_hook_path_is_confirmed_and_testable() {
     // Must Close Before: confirm hook-point file path is testable.
     assert_eq!(
         r#loop::DEFENSIVE_CUT_HOOK_PATH,
-        "src-tauri/src/services/agent/loop.rs::defensive_unbound",
+        "src-tauri/src/services/agent/loop/binding.rs::defensive_unbound",
         "P2 Done requires a confirmed, testable Host defensive-cut hook path"
     );
     // Explicit leave→Reset remains the primary path; defensive cut backs missed leave.
@@ -3317,7 +3317,7 @@ fn t4_defensive_cut_hook_path_is_confirmed_and_testable() {
             "frontend/js/todo-task/index.js::dispose",
             "frontend/js/todo-task/todos-lifecycle.js::onTodosPageLeave",
             "frontend/js/todo-task/todos-binding.js::resetTodosBinding",
-            "src-tauri/src/services/agent/loop.rs::reset_binding",
+            "src-tauri/src/services/agent/loop/binding.rs::reset_binding",
         ]
     );
     // Hook symbol is callable (not a UI-only stub).
@@ -4477,7 +4477,7 @@ fn t6_explicit_reset_not_omitted_because_defensive_exists() {
         // Defensive cut exists, but normal leave still uses explicit Reset semantics.
         assert_eq!(
             r#loop::TODOS_EXPLICIT_LEAVE_RESET_PRIMARY.last().copied(),
-            Some("src-tauri/src/services/agent/loop.rs::reset_binding")
+            Some("src-tauri/src/services/agent/loop/binding.rs::reset_binding")
         );
         let master = create_bound_plan("t6-explicit-primary");
         arm_plan_binding(&master);
@@ -4947,7 +4947,7 @@ fn t3_host_facade_open_ensure_chat_works_host_only() {
 #[test]
 fn t3_host_path_modules_do_not_import_removed_agent_stack() {
     // Module boundary: Host loop/llm must not import the removed agent stack.
-    let loop_src = include_str!("../../../services/agent/loop.rs");
+    let loop_src = super::loop_src::LOOP_SRC;
     let llm_src = include_str!("../../../services/agent/llm.rs");
     for (label, src) in [("loop.rs", loop_src), ("llm.rs", llm_src)] {
         let lower = src.to_ascii_lowercase();
@@ -5049,7 +5049,7 @@ fn t3_host_empty_tools_facade_usable_confirmed() {
 
 #[test]
 fn t3_loop_rs_has_no_business_whitelist_dispatch_path() {
-    let src = include_str!("../../../services/agent/loop.rs");
+    let src = super::loop_src::LOOP_SRC;
     // Comments may mention the ban; forbid call/import forms only.
     assert!(
         !src.contains("tools::dispatch(") && !src.contains("use crate::services::agent::tools"),
@@ -5625,7 +5625,7 @@ fn t5_set_path_must_not_log_ticket_or_full_authorization() {
             .strip_prefix("Bearer ")
             .expect("Bearer")
             .to_string();
-        let loop_src = include_str!("../../../services/agent/loop.rs");
+        let loop_src = super::loop_src::LOOP_SRC;
         assert!(
             loop_src.contains("issue_for_slot"),
             "try_set_binding_json must call issue_for_slot after workbench lookup"
@@ -5738,7 +5738,7 @@ fn t6_reset_then_set_reuses_same_workbench_handle() {
 
 #[test]
 fn t6_reset_binding_and_with_close_must_not_call_revoke_for_slot() {
-    let src = include_str!("../../../services/agent/loop.rs");
+    let src = super::loop_src::LOOP_SRC;
     let reset_fn = rust_pub_item(src, "pub fn reset_binding()");
     let close_fn = rust_pub_item(src, "pub fn reset_binding_with_close");
     assert!(
@@ -5827,7 +5827,7 @@ fn t6_reset_path_must_not_log_ticket_or_full_authorization() {
             .to_string();
         r#loop::clear_lifecycle_events_for_tests();
         r#loop::reset_binding().expect("Reset");
-        let src = include_str!("../../../services/agent/loop.rs");
+        let src = super::loop_src::LOOP_SRC;
         let reset_fn = rust_pub_item(src, "pub fn reset_binding()");
         let close_fn = rust_pub_item(src, "pub fn reset_binding_with_close");
         let debug = reset_fn

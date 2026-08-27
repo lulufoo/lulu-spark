@@ -2,6 +2,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
+import { readAgentLoopSource } from './helpers/agent-loop-source.js';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 const libRs = readFileSync(join(repoRoot, 'src-tauri/src/lib.rs'), 'utf8');
@@ -62,10 +63,7 @@ describe('ai-assistant window shell (t5)', () => {
 
   it('SK-3 T5: binding exposes turns; Home hydrates without Reset', () => {
     const js = readFileSync(homeHubPath, 'utf8');
-    const loopRs = readFileSync(
-      join(repoRoot, 'src-tauri/src/services/agent/loop.rs'),
-      'utf8',
-    );
+    const loopRs = readAgentLoopSource();
     const sessionRs = readFileSync(
       join(repoRoot, 'src-tauri/src/services/agent/session.rs'),
       'utf8',
@@ -141,10 +139,7 @@ describe('ai-assistant window shell (t5)', () => {
     expect(ensureFn, 'ensure_ai_assistant_session body').toBeTruthy();
     expect(ensureFn).toMatch(/emit\(\s*EVENT_ASSISTANT_OPENED/);
     expect(ensureFn).not.toMatch(/create_or_focus_ai_assistant_window/);
-    const loopRs = readFileSync(
-      join(repoRoot, 'src-tauri/src/services/agent/loop.rs'),
-      'utf8',
-    );
+    const loopRs = readAgentLoopSource();
     const ensureCore = loopRs.match(
       /pub fn ensure_chat_session_core[\s\S]*?^}/m,
     )?.[0];
@@ -181,7 +176,7 @@ describe('ai-assistant window shell (t5)', () => {
 
   it('T5 Home discards the current session on binding-changed Unbound', () => {
     const js = readFileSync(homeHubPath, 'utf8');
-    expect(js).toMatch(/currentId\s*=\s*['"]['"]/);
+    expect(js).toMatch(/currentSessionId\s*=\s*['"]['"]/);
     expect(js).toMatch(/ai-assistant:binding-changed/);
     expect(js).toMatch(/query_binding/);
     expect(js).toMatch(/hostBound/);
@@ -234,10 +229,7 @@ describe('ai-assistant window shell (t5)', () => {
  */
 describe('ai-assistant Present shell VF (t7)', () => {
   const mainJs = readFileSync(join(repoRoot, 'frontend/js/main.js'), 'utf8');
-  const loopRs = readFileSync(
-    join(repoRoot, 'src-tauri/src/services/agent/loop.rs'),
-    'utf8',
-  );
+  const loopRs = readAgentLoopSource();
 
   it('Present opens Home only: main listens surface Present → navigate #/home', () => {
     expect(mainJs).toMatch(/ai-assistant:opened/);

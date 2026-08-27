@@ -32,6 +32,7 @@ import {
   setWorkbenchBinding,
   WORKBENCH_BUSINESS_KEY,
 } from '../frontend/js/todo-task/todos-binding.js';
+import { readAgentLoopSource } from './helpers/agent-loop-source.js';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 const checklistPath = join(
@@ -474,10 +475,7 @@ describe('t6 layered acceptance L0/L1/L2 gate', () => {
     ]) {
       expect(loopTests, `missing ${marker}`).toContain(`fn ${marker}`);
     }
-    const loopRs = readFileSync(
-      join(repoRoot, 'src-tauri/src/services/agent/loop.rs'),
-      'utf8',
-    );
+    const loopRs = readAgentLoopSource();
     expect(loopRs).toMatch(/LAYERED_ACCEPTANCE_L0/);
     expect(loopRs).toMatch(/LAYERED_ACCEPTANCE_L1/);
     expect(loopRs).toMatch(/LAYERED_ACCEPTANCE_L2/);

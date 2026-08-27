@@ -52,7 +52,7 @@ fn t4_ai_assistant_session_type_lives_in_session_rs() {
 
 #[test]
 fn t4_loop_runtime_no_longer_owns_binding_mcp_live_session_fields() {
-    let src = include_str!("../../../services/agent/loop.rs");
+    let src = super::loop_src::LOOP_SRC;
     let body = runtime_struct_body(src);
     for forbidden in [
         "current_session_id",
@@ -284,7 +284,7 @@ fn t4_cancel_state_owned_by_ai_assistant_session_not_runtime() {
             "cancel flag authority is AIAssistantSession"
         );
         // Runtime orchestration busy may still be set by tests; cancel flag is not on Runtime.
-        let loop_src = include_str!("../../../services/agent/loop.rs");
+        let loop_src = super::loop_src::LOOP_SRC;
         let body = runtime_struct_body(loop_src);
         assert!(!body.contains("chat_cancelled"));
         assert!(!body.contains("execute_cancelled"));

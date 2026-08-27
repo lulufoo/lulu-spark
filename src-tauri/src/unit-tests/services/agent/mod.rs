@@ -1,5 +1,8 @@
 //! Agent module tests (Session / Tools / LLM / Loop).
 
+#[path = "loop_src.rs"]
+mod loop_src;
+
 #[path = "loop_tests.rs"]
 mod loop_tests;
 

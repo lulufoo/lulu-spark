@@ -19,16 +19,14 @@ import {
   setWorkbenchBinding,
   WORKBENCH_BUSINESS_KEY,
 } from '../frontend/js/todo-task/todos-binding.js';
+import { readAgentLoopSource } from './helpers/agent-loop-source.js';
 
 const fixtureRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 const toolsRs = readFileSync(
   join(fixtureRoot, 'src-tauri/src/services/agent/tools.rs'),
   'utf8',
 );
-const loopRs = readFileSync(
-  join(fixtureRoot, 'src-tauri/src/services/agent/loop.rs'),
-  'utf8',
-);
+const loopRs = readAgentLoopSource();
 const packageJson = JSON.parse(
   readFileSync(join(fixtureRoot, 'package.json'), 'utf8'),
 );
