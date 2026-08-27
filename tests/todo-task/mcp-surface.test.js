@@ -3,8 +3,10 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
+import { readRsPath } from '../helpers/read-rs-dir.js';
+
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
-const HOST_ADAPTER = 'src-tauri/src/services/mcp_protocol_adapter.rs';
+const HOST_ADAPTER = 'src-tauri/src/services/mcp_protocol_adapter';
 
 /** tech-doc 公开契约映射 — todo_* MCP tools (+ update_todo_sub / list_todo_categories); no complete_plan_sub. */
 const EXPECTED_TODO_TOOLS = [
@@ -65,7 +67,7 @@ describe('MCP tool surface hard-cut to todo_* (Host SSOT / T10)', () => {
   it('Host adapter registers exactly the todo_* tools incl. update_todo_sub; old plan_* names absent', () => {
     const indexPath = join(repoRoot, HOST_ADAPTER);
     expect(existsSync(indexPath), `missing ${HOST_ADAPTER}`).toBe(true);
-    const src = readFileSync(indexPath, 'utf8');
+    const src = readRsPath(indexPath);
     const names = registeredToolNames(src);
 
     for (const tool of EXPECTED_TODO_TOOLS) {
@@ -87,7 +89,7 @@ describe('MCP tool surface hard-cut to todo_* (Host SSOT / T10)', () => {
   });
 
   it('create_todo_task routes to Sidecar create API (todo_md contract lives on Host HTTP)', () => {
-    const src = readFileSync(join(repoRoot, HOST_ADAPTER), 'utf8');
+    const src = readRsPath(join(repoRoot, HOST_ADAPTER));
     const block = toolRouteBlock(src, 'create_todo_task');
     expect(block).toContain('/api/todo-task-create');
     expect(src).not.toMatch(/name:\s*"create_plan_task"/);
@@ -110,14 +112,14 @@ describe('MCP tool surface hard-cut to todo_* (Host SSOT / T10)', () => {
 
 describe('MCP category surface (tech-doc T-3 / AC1–AC4 / L09#4)', () => {
   it('registers list_todo_categories as thin proxy GET to Sidecar list-categories', () => {
-    const src = readFileSync(join(repoRoot, HOST_ADAPTER), 'utf8');
+    const src = readRsPath(join(repoRoot, HOST_ADAPTER));
     const block = toolRouteBlock(src, 'list_todo_categories');
     expect(block).toMatch(/HttpMethod::Get/);
     expect(block).toContain('/api/todo-task-list-categories');
   });
 
   it('forbids MCP category directory create/delete tools (L09#4)', () => {
-    const src = readFileSync(join(repoRoot, HOST_ADAPTER), 'utf8');
+    const src = readRsPath(join(repoRoot, HOST_ADAPTER));
     const names = registeredToolNames(src);
     for (const tool of FORBIDDEN_CATEGORY_CRUD_TOOLS) {
       expect(names, `forbidden category CRUD tool ${tool}`).not.toContain(tool);
@@ -125,7 +127,7 @@ describe('MCP category surface (tech-doc T-3 / AC1–AC4 / L09#4)', () => {
   });
 
   it('create_todo_task / list / update route to Sidecar paths that accept category_id', () => {
-    const src = readFileSync(join(repoRoot, HOST_ADAPTER), 'utf8');
+    const src = readRsPath(join(repoRoot, HOST_ADAPTER));
     expect(toolRouteBlock(src, 'create_todo_task')).toContain('/api/todo-task-create');
     expect(toolRouteBlock(src, 'list_todo_tasks')).toContain('/api/todo-tasks');
     expect(toolRouteBlock(src, 'update_todo_task')).toContain('/api/todo-task-update');
@@ -135,10 +137,7 @@ describe('MCP category surface (tech-doc T-3 / AC1–AC4 / L09#4)', () => {
   });
 
   it('Sidecar local_http exposes list-categories route and category_id on create/list/update', () => {
-    const httpSrc = readFileSync(
-      join(repoRoot, 'src-tauri/src/services/local_http/mod.rs'),
-      'utf8',
-    );
+    const httpSrc = readRsPath(join(repoRoot, 'src-tauri/src/services/local_http'));
     expect(httpSrc).toMatch(/\/api\/todo-task-list-categories/);
     expect(httpSrc).toMatch(/category_id/);
   });

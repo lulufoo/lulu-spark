@@ -458,7 +458,7 @@ pub fn validate_description_source_constraints() {
         .next()
         .expect("sediment prod");
     let write_cmd = include_str!("../commands/write.rs");
-    let workbench_read = include_str!("workbench_read.rs");
+    let workbench_read = include_str!("workbench_read/config.rs");
 
     let validate_fn = sediment_prod
         .split("fn validate_repo_access")

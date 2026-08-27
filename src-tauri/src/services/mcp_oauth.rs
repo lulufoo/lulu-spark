@@ -422,5 +422,5 @@ fn fill_weak_random(buf: &mut [u8]) {
 }
 
 #[cfg(test)]
-#[path = "../unit-tests/services/mcp_oauth_tests.rs"]
+#[path = "../unit-tests/services/mcp_oauth.rs"]
 mod tests;

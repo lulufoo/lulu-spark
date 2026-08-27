@@ -2768,12 +2768,22 @@ fn notes_selection_module_and_mcp_tool_are_gone() {
         !services.contains("notes_selection"),
         "services/mod.rs must not mount notes_selection"
     );
-    let adapter = t5_repo_file("src-tauri/src/services/mcp_protocol_adapter.rs");
+    let adapter = crate::test_support::read_rs_dir({
+        let mut p = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        p.pop();
+        p.push("src-tauri/src/services/mcp_protocol_adapter");
+        p
+    });
     assert!(
         !adapter.contains("get_notes_selection") && !adapter.contains("NOTES_SLOT_ONLY_TOOLS"),
         "MCP adapter must not hang get_notes_selection"
     );
-    let http = t5_repo_file("src-tauri/src/services/local_http/mod.rs");
+    let http = crate::test_support::read_rs_dir({
+        let mut p = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        p.pop();
+        p.push("src-tauri/src/services/local_http");
+        p
+    });
     assert!(
         !http.contains("/api/notes-selection") && !http.contains("notes_selection"),
         "Sidecar must not serve /api/notes-selection"

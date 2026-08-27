@@ -1,4 +1,4 @@
-//! Shared ID generation (`random_hex12`) for annotation, kb_write, and tag_write.
+//! Shared ID generation (`random_hex12`) for annotation, corpus write, and tag_write.
 
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};

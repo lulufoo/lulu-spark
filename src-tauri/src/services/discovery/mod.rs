@@ -293,5 +293,5 @@ impl DiscoveryState {
 }
 
 #[cfg(test)]
-#[path = "../../unit-tests/services/discovery_tests.rs"]
+#[path = "../../unit-tests/services/discovery.rs"]
 mod tests;

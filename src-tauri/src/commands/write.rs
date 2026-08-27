@@ -3,7 +3,7 @@ use tauri::AppHandle;
 
 use crate::config::paths;
 use crate::services::sediment_kb::{self, SedimentKbError};
-use crate::services::{annotation, archive_write, doc_highlights, entry_write, kb_write, tag_write};
+use crate::services::{annotation, archive_write, corpus, doc_highlights, entry_write, tag_write};
 
 fn repo_root() -> Result<std::path::PathBuf, String> {
     paths::repo_root().map_err(|e| format!("{e:?}"))
@@ -282,7 +282,7 @@ pub fn kb_save(
     path: String,
     content: String,
 ) -> Result<Value, String> {
-    Ok(kb_write::kb_save(&repo_root()?, repo, path, content))
+    Ok(corpus::kb_save(&repo_root()?, repo, path, content))
 }
 
 #[tauri::command]
@@ -293,7 +293,7 @@ pub fn kb_update_comments(
     comment: Value,
     ts: String,
 ) -> Result<Value, String> {
-    Ok(kb_write::kb_update_comments(
+    Ok(corpus::kb_update_comments(
         &repo_root()?,
         repo,
         path,
@@ -309,7 +309,7 @@ pub fn kb_reorder_comments(
     path: String,
     ids: Vec<String>,
 ) -> Result<Value, String> {
-    Ok(kb_write::kb_reorder_comments(&repo_root()?, repo, path, ids))
+    Ok(corpus::kb_reorder_comments(&repo_root()?, repo, path, ids))
 }
 
 #[tauri::command]
@@ -320,7 +320,7 @@ pub fn kb_update_highlights(
     highlight: Value,
     ts: String,
 ) -> Result<Value, String> {
-    Ok(kb_write::kb_update_highlights(
+    Ok(corpus::kb_update_highlights(
         &repo_root()?,
         repo,
         path,
@@ -336,7 +336,7 @@ pub fn kb_update_links(
     path: String,
     links: Value,
 ) -> Result<Value, String> {
-    Ok(kb_write::kb_update_links(&repo_root()?, repo, path, links))
+    Ok(corpus::kb_update_links(&repo_root()?, repo, path, links))
 }
 
 #[tauri::command]

@@ -3,6 +3,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { readAgentLoopSource, readAgentLoopTestsSource } from '../helpers/agent-loop-source.js';
+import { readRsPath } from '../helpers/read-rs-dir.js';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
 const libRs = readFileSync(join(repoRoot, 'src-tauri/src/lib.rs'), 'utf8');
@@ -64,9 +65,8 @@ describe('ai-assistant window shell (t5)', () => {
   it('SK-3 T5: binding exposes turns; Home hydrates without Reset', () => {
     const js = readFileSync(homeHubPath, 'utf8');
     const loopRs = readAgentLoopSource();
-    const sessionRs = readFileSync(
-      join(repoRoot, 'src-tauri/src/services/agent/session.rs'),
-      'utf8',
+    const sessionRs = readRsPath(
+      join(repoRoot, 'src-tauri/src/services/agent/session'),
     );
     expect(loopRs).toMatch(/get_ai_assistant_binding_core[\s\S]*turns/);
     expect(sessionRs).toMatch(/load_session/);

@@ -15,6 +15,7 @@ import {
   readTodoTaskUiSource,
   TODO_TASK_UI_FILES,
 } from '../helpers/todo-task-ui-source.js';
+import { readRsPath } from '../helpers/read-rs-dir.js';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
 const WRITE_COMMANDS = [
@@ -25,7 +26,8 @@ const WRITE_COMMANDS = [
 ];
 
 function read(rel) {
-  return readFileSync(join(repoRoot, rel), 'utf8');
+  const abs = join(repoRoot, rel);
+  return rel.includes('src-tauri/') ? readRsPath(abs) : readFileSync(abs, 'utf8');
 }
 
 describe('FM-4 AC gate (tech-doc VF / T-5)', () => {
@@ -89,7 +91,7 @@ describe('Plan-task attachment AC gate (tech-doc VF / T15)', () => {
   });
 
   it('AC2: MCP schema exposes add/list/get/update attachment tools', () => {
-    const mcp = read('src-tauri/src/services/mcp_protocol_adapter.rs');
+    const mcp = read('src-tauri/src/services/mcp_protocol_adapter');
     for (const tool of MCP_ATTACHMENT_TOOLS) {
       expect(mcp).toMatch(new RegExp(`['"]${tool}['"]`));
     }
@@ -105,7 +107,7 @@ describe('Plan-task attachment AC gate (tech-doc VF / T15)', () => {
   });
 
   it('AC6: MCP has no attachment delete tool; UI delete path is tested', () => {
-    const mcp = read('src-tauri/src/services/mcp_protocol_adapter.rs');
+    const mcp = read('src-tauri/src/services/mcp_protocol_adapter');
     for (const tool of MCP_FORBIDDEN_DELETE_TOOLS) {
       expect(mcp).not.toMatch(new RegExp(`['"]${tool}['"]`));
     }

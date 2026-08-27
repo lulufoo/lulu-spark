@@ -1282,12 +1282,15 @@ fn set_todo_category_json_unknown_rejects() {
 
 #[test]
 fn todo_category_commands_live_in_todo_task_not_write_rs() {
-    let todo_cmds = include_str!("../../commands/todo_task.rs");
+    let todo_cmds = crate::test_support::read_rs_dir(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/src/commands/todo_task"
+    ));
     assert!(
         todo_cmds.contains("list_todo_categories")
             && todo_cmds.contains("create_todo_category")
             && todo_cmds.contains("delete_todo_category"),
-        "Host category commands must live in commands/todo_task.rs"
+        "Host category commands must live in commands/todo_task/"
     );
     let write_rs = include_str!("../../commands/write.rs");
     assert!(

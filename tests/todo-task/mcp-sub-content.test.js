@@ -7,11 +7,13 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
+import { readRsPath } from '../helpers/read-rs-dir.js';
+
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
-const HOST_ADAPTER = 'src-tauri/src/services/mcp_protocol_adapter.rs';
+const HOST_ADAPTER = 'src-tauri/src/services/mcp_protocol_adapter';
 
 function read(rel) {
-  return readFileSync(join(repoRoot, rel), 'utf8');
+  return readRsPath(join(repoRoot, rel));
 }
 
 function toolRouteBlock(src, toolName) {

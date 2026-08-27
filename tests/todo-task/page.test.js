@@ -40,6 +40,8 @@ import {
   setPlanMasterStatus,
 } from '../../frontend/js/todo-task/index.js';
 
+import { readRsPath } from '../helpers/read-rs-dir.js';
+
 const fixtureRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
 const mainJs = readFileSync(join(fixtureRoot, 'frontend/js/main.js'), 'utf8');
 const indexHtml = readFileSync(join(fixtureRoot, 'frontend/index.html'), 'utf8');
@@ -858,9 +860,8 @@ describe('todo-tasks route source wiring', () => {
   });
 
   it('does not map set-status as an MCP tool', () => {
-    const mcpIndex = readFileSync(
-      join(fixtureRoot, 'src-tauri/src/services/mcp_protocol_adapter.rs'),
-      'utf8',
+    const mcpIndex = readRsPath(
+      join(fixtureRoot, 'src-tauri/src/services/mcp_protocol_adapter'),
     );
     expect(mcpIndex).not.toMatch(/set_todo_master_status|todo-task-set-status|set_master_status/);
   });

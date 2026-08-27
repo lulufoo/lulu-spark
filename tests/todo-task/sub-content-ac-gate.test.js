@@ -8,11 +8,13 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { readTodoTaskServiceTestsSource } from '../helpers/todo-task-ui-source.js';
 
+import { readRsPath } from '../helpers/read-rs-dir.js';
+
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
-const HOST_ADAPTER = 'src-tauri/src/services/mcp_protocol_adapter.rs';
+const HOST_ADAPTER = 'src-tauri/src/services/mcp_protocol_adapter';
 
 function read(rel) {
-  return readFileSync(join(repoRoot, rel), 'utf8');
+  return readRsPath(join(repoRoot, rel));
 }
 
 describe('t5 AC1 — title-only add (host / HTTP / MCP)', () => {
@@ -42,7 +44,7 @@ describe('t5 AC1 — title-only add (host / HTTP / MCP)', () => {
 
 describe('t5 AC2 — create-with-content round-trip; legacy missing field empty', () => {
   it('storage/service unit tests cover content persist + legacy absent read', () => {
-    const types = read('src-tauri/src/unit-tests/services/todo_task_types.rs');
+    const types = read('src-tauri/src/unit-tests/services/todo_task/types.rs');
     expect(types).toContain('sub_task_missing_content_deserializes_as_none');
     expect(types).toContain('sub_task_content_roundtrip_preserves_value');
 
@@ -83,7 +85,7 @@ describe('t5 AC3 — update modify/clear/omit content; no delete-content API', (
   });
 
   it('no delete-content API on HTTP or Host MCP surfaces', () => {
-    const http = read('src-tauri/src/services/local_http/mod.rs');
+    const http = read('src-tauri/src/services/local_http');
     expect(http).not.toMatch(/todo-task-delete-.*content|delete-sub-content|delete_content/);
     expect(http).toContain('/api/todo-task-update-sub');
 

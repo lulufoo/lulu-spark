@@ -5,10 +5,11 @@ import { fileURLToPath } from 'node:url';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { openTodoTaskDialog } from '../../frontend/js/todo-task/dialog.js';
 import { TODO_TASK_BRAND_SITES } from '../fixtures/todo-task-ac15.js';
+import { readRsPath } from '../helpers/read-rs-dir.js';
 
 const fixtureRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
 const dialogSource = readFileSync(join(fixtureRoot, 'frontend/js/todo-task/dialog.js'), 'utf8');
-const mcpSource = readFileSync(join(fixtureRoot, 'src-tauri/src/services/mcp_protocol_adapter.rs'), 'utf8');
+const mcpSource = readRsPath(join(fixtureRoot, 'src-tauri/src/services/mcp_protocol_adapter'));
 
 function extractCreateTodoTaskBlock(source) {
   // Host SSOT: ToolRoute entries are `route("…", …)` (T10).

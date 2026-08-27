@@ -400,5 +400,5 @@ fn json_status(status: StatusCode, body: &str) -> Response {
 }
 
 #[cfg(test)]
-#[path = "../../unit-tests/services/gateway_tests.rs"]
+#[path = "../../unit-tests/services/gateway.rs"]
 mod tests;

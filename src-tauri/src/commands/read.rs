@@ -101,7 +101,7 @@ pub async fn get_status(_app: AppHandle) -> Result<Value, String> {
 
 #[tauri::command]
 pub fn kb_read(_app: AppHandle, repo: String, path: String) -> Result<Value, String> {
-    Ok(crate::services::kb::kb_read_json(&repo_root()?, &repo, &path))
+    Ok(crate::services::corpus::kb_read_json(&repo_root()?, &repo, &path))
 }
 
 #[tauri::command]
@@ -112,7 +112,7 @@ pub fn kb_list(
     mode: Option<String>,
 ) -> Result<Value, String> {
     let mode = mode.unwrap_or_else(|| "flat".into());
-    Ok(crate::services::kb::kb_list_json(
+    Ok(crate::services::corpus::kb_list_json(
         &repo_root()?,
         &repo,
         &path,
@@ -127,7 +127,7 @@ pub fn kb_doc_count(
     hide_pattern: Option<String>,
     category_id: Option<String>,
 ) -> Result<Value, String> {
-    Ok(crate::services::kb::kb_doc_count_json(
+    Ok(crate::services::corpus::kb_doc_count_json(
         &repo_root()?,
         &repo,
         hide_pattern.as_deref(),
@@ -137,12 +137,12 @@ pub fn kb_doc_count(
 
 #[tauri::command]
 pub fn kb_annotation(_app: AppHandle, repo: String, path: String) -> Result<Value, String> {
-    Ok(crate::services::kb::kb_annotation_json(&repo_root()?, &repo, &path))
+    Ok(crate::services::corpus::kb_annotation_json(&repo_root()?, &repo, &path))
 }
 
 #[tauri::command]
 pub fn kb_status(_app: AppHandle, repo: String) -> Result<Value, String> {
-    Ok(crate::services::kb::kb_status_json(&repo_root()?, &repo))
+    Ok(crate::services::corpus::kb_status_json(&repo_root()?, &repo))
 }
 
 #[tauri::command]
@@ -219,7 +219,7 @@ pub fn get_kb_diff_status(_app: AppHandle) -> Result<Value, String> {
                         return None;
                     }
 
-                    let status = crate::services::kb::kb_status_json(&repo_root, full_name);
+                    let status = crate::services::corpus::kb_status_json(&repo_root, full_name);
                     let has_changes = status
                         .get("total")
                         .and_then(|total| total.as_u64())

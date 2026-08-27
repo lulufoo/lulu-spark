@@ -135,5 +135,5 @@ pub fn clear_for_tests() {
 }
 
 #[cfg(test)]
-#[path = "../unit-tests/services/mcp_server_registry_tests.rs"]
+#[path = "../unit-tests/services/mcp_server_registry.rs"]
 mod tests;

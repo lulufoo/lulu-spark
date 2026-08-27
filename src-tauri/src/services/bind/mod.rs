@@ -399,5 +399,5 @@ pub fn test_reset_bind_keychain() {
 }
 
 #[cfg(test)]
-#[path = "../../unit-tests/services/bind_tests.rs"]
+#[path = "../../unit-tests/services/bind.rs"]
 mod tests;

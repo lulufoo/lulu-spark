@@ -153,5 +153,5 @@ pub fn comments_json_rel_path(master_task_id: &str) -> String {
 }
 
 #[cfg(test)]
-#[path = "../../unit-tests/services/todo_task_types.rs"]
+#[path = "../../unit-tests/services/todo_task/types.rs"]
 mod types_tests;

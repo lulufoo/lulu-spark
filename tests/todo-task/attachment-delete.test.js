@@ -23,6 +23,8 @@ import {
   mountTodoTaskSplit,
 } from '../../frontend/js/todo-task/index.js';
 
+import { readRsPath } from '../helpers/read-rs-dir.js';
+
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
 
 const sampleMaster = {
@@ -333,7 +335,7 @@ describe('attachment delete does not loosen MCP / dialog contracts', () => {
   });
 
   it('MCP schema still has no attachment delete tool', () => {
-    const mcpSrc = readFileSync(join(repoRoot, 'src-tauri/src/services/mcp_protocol_adapter.rs'), 'utf8');
+    const mcpSrc = readRsPath(join(repoRoot, 'src-tauri/src/services/mcp_protocol_adapter'));
     expect(mcpSrc).toMatch(/add_todo_attachment/);
     expect(mcpSrc).toMatch(/list_todo_attachments/);
     expect(mcpSrc).toMatch(/get_todo_attachment/);

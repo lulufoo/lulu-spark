@@ -8,9 +8,10 @@ import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
+import { readRsPath } from '../helpers/read-rs-dir.js';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
-const HOST_ADAPTER = 'src-tauri/src/services/mcp_protocol_adapter.rs';
+const HOST_ADAPTER = 'src-tauri/src/services/mcp_protocol_adapter';
 
 /** tech-doc AC-等价 — full 13-tool set (update/complete/link/attachment required). */
 const EQUIVALENCE_TODO_TOOLS = [
@@ -46,7 +47,8 @@ const FORBIDDEN_PLAN_TOOLS = [
 ];
 
 function read(rel) {
-  return readFileSync(join(repoRoot, rel), 'utf8');
+  const abs = join(repoRoot, rel);
+  return rel.includes('src-tauri/') ? readRsPath(abs) : readFileSync(abs, 'utf8');
 }
 
 function extractQuotedToolList(src, constName) {
@@ -162,7 +164,7 @@ describe('T10 — AC-迁移 (gate marker; no plan.md/plan_tasks residue on succe
     expect(service).toContain('MIGRATION_GATE_FILE');
     expect(service).toContain('.migration_gate_passed');
     expect(service).toContain('migration_gate_passed');
-    const http = read('src-tauri/src/services/local_http/mod.rs');
+    const http = read('src-tauri/src/services/local_http');
     expect(http).toMatch(/migration_gate|MigGate|gated/i);
     const httpTests = read('src-tauri/src/unit-tests/services/local_http.rs');
     expect(httpTests).toContain('.migration_gate_passed');

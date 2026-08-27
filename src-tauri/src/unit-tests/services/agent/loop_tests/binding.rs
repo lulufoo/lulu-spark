@@ -2903,7 +2903,10 @@ fn t5_unknown_key_is_not_used_for_keychain_failure() {
 
 #[test]
 fn t5_set_error_codes_remain_set_invalid_and_unknown_key_only() {
-    let src = include_str!("../../../../services/agent/session.rs");
+    let src = crate::test_support::read_rs_dir(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/src/services/agent/session"
+    ));
     assert!(src.contains("pub fn set_invalid"));
     assert!(src.contains("pub fn unknown_key"));
     assert!(

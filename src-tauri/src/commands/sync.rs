@@ -2,7 +2,7 @@ use serde_json::Value;
 use tauri::AppHandle;
 
 use crate::services::{
-    corpus_git, draft, entry_admin, github_delete, github_move, kb_git, kb_iterm, settle,
+    corpus, corpus_git, draft, entry_admin, github, settle,
 };
 
 #[tauri::command]
@@ -49,14 +49,14 @@ pub async fn corpus_git_revert(_app: AppHandle, payload: Value) -> Result<Value,
 
 #[tauri::command]
 pub async fn kb_git_commit(_app: AppHandle, payload: Value) -> Result<Value, String> {
-    tauri::async_runtime::spawn_blocking(move || kb_git::kb_git_commit(&payload))
+    tauri::async_runtime::spawn_blocking(move || corpus::kb_git_commit(&payload))
         .await
         .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 pub async fn kb_git_revert(_app: AppHandle, payload: Value) -> Result<Value, String> {
-    tauri::async_runtime::spawn_blocking(move || kb_git::kb_git_revert(&payload))
+    tauri::async_runtime::spawn_blocking(move || corpus::kb_git_revert(&payload))
         .await
         .map_err(|e| e.to_string())
 }
@@ -77,14 +77,14 @@ pub async fn move_entry_project(_app: AppHandle, payload: Value) -> Result<Value
 
 #[tauri::command]
 pub async fn gh_move_assets(_app: AppHandle, payload: Value) -> Result<Value, String> {
-    tauri::async_runtime::spawn_blocking(move || github_move::gh_move_assets(&payload))
+    tauri::async_runtime::spawn_blocking(move || github::gh_move_assets(&payload))
         .await
         .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 pub async fn gh_delete_assets(_app: AppHandle, payload: Value) -> Result<Value, String> {
-    tauri::async_runtime::spawn_blocking(move || github_delete::gh_delete_assets(&payload))
+    tauri::async_runtime::spawn_blocking(move || github::gh_delete_assets(&payload))
         .await
         .map_err(|e| e.to_string())
 }
@@ -99,7 +99,7 @@ pub async fn settle_entry(_app: AppHandle, payload: Value) -> Result<Value, Stri
 
 #[tauri::command]
 pub async fn open_kb_in_iterm(_app: AppHandle, payload: Value) -> Result<Value, String> {
-    tauri::async_runtime::spawn_blocking(move || kb_iterm::open_kb_in_iterm(&payload))
+    tauri::async_runtime::spawn_blocking(move || corpus::open_kb_in_iterm(&payload))
         .await
         .map_err(|e| e.to_string())
 }

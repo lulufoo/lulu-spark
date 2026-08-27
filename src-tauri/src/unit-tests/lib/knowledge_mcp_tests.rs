@@ -11,12 +11,11 @@ use crate::services::mcp_protocol_adapter::{
 };
 
 fn lib_rs_source() -> String {
-    std::fs::read_to_string(
-        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("src")
-            .join("lib.rs"),
-    )
-    .expect("read src-tauri/src/lib.rs")
+    let src = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src");
+    let mut out = std::fs::read_to_string(src.join("lib.rs")).expect("read src-tauri/src/lib.rs");
+    out.push('\n');
+    out.push_str(&crate::test_support::read_rs_dir(src.join("host")));
+    out
 }
 
 fn this_test_source() -> String {

@@ -29,7 +29,10 @@ fn runtime_struct_body(src: &str) -> &str {
 #[test]
 fn t4_ai_assistant_session_type_lives_in_session_rs() {
     let _ = std::any::type_name::<AIAssistantSession>();
-    let src = include_str!("../../../services/agent/session.rs");
+    let src = crate::test_support::read_rs_dir(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/src/services/agent/session"
+    ));
     assert!(
         src.contains("struct AIAssistantSession"),
         "AIAssistantSession must live in session.rs (T-SessionMigrate / L2-A)"
@@ -215,7 +218,10 @@ fn t4_per_binding_mcp_isolation_preserved() {
 
 #[test]
 fn t4_engine_model_config_not_business_session_state() {
-    let session_src = include_str!("../../../services/agent/session.rs");
+    let session_src = crate::test_support::read_rs_dir(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/src/services/agent/session"
+    ));
     // AIAssistantSession / Session must not pin engine/model as business session state.
     let ai_start = session_src
         .find("struct AIAssistantSession")

@@ -5,7 +5,7 @@
  * (`p3_t10_host_dual_slot_list_call_and_unknown_hard_fail_smoke`); this script
  * gates archive/runtime independence and Sidecar fixture separation.
  */
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -52,10 +52,12 @@ function assertArchived() {
 }
 
 function readAdapterSource() {
-  return readFileSync(
-    path.join(REPO_ROOT, 'src-tauri/src/services/mcp_protocol_adapter.rs'),
-    'utf8',
-  );
+  const dir = path.join(REPO_ROOT, 'src-tauri/src/services/mcp_protocol_adapter');
+  return readdirSync(dir)
+    .filter((name) => name.endsWith('.rs'))
+    .sort()
+    .map((name) => readFileSync(path.join(dir, name), 'utf8'))
+    .join('\n');
 }
 
 function assertNoForbiddenAttachmentDeletes() {

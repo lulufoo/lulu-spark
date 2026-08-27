@@ -2,6 +2,8 @@ use super::*;
 use std::fs;
 use std::path::PathBuf;
 
+use serde_json::json;
+
 use crate::test_support::TestSandbox;
 
 #[test]

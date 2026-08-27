@@ -8,12 +8,14 @@ import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
+import { readRsPath } from '../helpers/read-rs-dir.js';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
 const DRILL_DOC = 'docs/archive/todo-task/plan-task-todos-contract/recovery-drill-checklist.md';
 
 function read(rel) {
-  return readFileSync(join(repoRoot, rel), 'utf8');
+  const abs = join(repoRoot, rel);
+  return rel.includes('src-tauri/') ? readRsPath(abs) : readFileSync(abs, 'utf8');
 }
 
 function listFilesRecursive(dir, out = []) {
@@ -102,7 +104,7 @@ describe('T11 — no automatic reverse migration (falsifier)', () => {
     );
     expect(gateFn).not.toMatch(/process::exit|std::process::exit|panic!\(/);
 
-    const http = read('src-tauri/src/services/local_http/mod.rs');
+    const http = read('src-tauri/src/services/local_http');
     expect(http).toContain('ensure_todo_api_ungated');
     expect(http).toMatch(/no auto-migrate|Durable migration gate/i);
   });

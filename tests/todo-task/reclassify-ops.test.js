@@ -9,6 +9,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, it, expect } from 'vitest';
+import { readRsPath } from '../helpers/read-rs-dir.js';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
 const EVIDENCE_PATH = join(
@@ -60,7 +61,7 @@ describe('todo reclassify ops (t5)', () => {
   });
 
   it('does not introduce MCP category directory CRUD tools', () => {
-    const src = readFileSync(join(repoRoot, 'src-tauri/src/services/mcp_protocol_adapter.rs'), 'utf8');
+    const src = readRsPath(join(repoRoot, 'src-tauri/src/services/mcp_protocol_adapter'));
     for (const tool of [
       'create_todo_category',
       'delete_todo_category',
