@@ -308,9 +308,10 @@ describe('mountTodoTaskSplit attachment editor modal', () => {
 
 describe('attachment editor surface contracts', () => {
   it('does not reuse read_todo_md / update_todo_md for attachment editor path', () => {
-    const src = readFileSync(join(repoRoot, 'frontend/js/todo-task/index.js'), 'utf8');
-    expect(src).toMatch(/read_todo_attachment/);
-    expect(src).toMatch(/save_todo_attachment/);
+    const host = readFileSync(join(repoRoot, 'frontend/js/todo-task/host.js'), 'utf8');
+    const src = readFileSync(join(repoRoot, 'frontend/js/todo-task/attachments.js'), 'utf8');
+    expect(host).toMatch(/read_todo_attachment/);
+    expect(host).toMatch(/save_todo_attachment/);
 
     const openIdx = src.indexOf("action === 'open-attachment'");
     expect(openIdx).toBeGreaterThan(-1);
@@ -326,7 +327,7 @@ describe('attachment editor surface contracts', () => {
   });
 
   it('attachment editor is a dedicated modal surface, not comments default-edit or todo_md inline', () => {
-    const src = readFileSync(join(repoRoot, 'frontend/js/todo-task/index.js'), 'utf8');
+    const src = readFileSync(join(repoRoot, 'frontend/js/todo-task/attachments.js'), 'utf8');
     expect(src).toMatch(/todo-task-attachment-editor/);
     expect(src).toMatch(/todo-task-attachment-preview/);
     expect(src).toMatch(/data-action="edit-attachment"/);

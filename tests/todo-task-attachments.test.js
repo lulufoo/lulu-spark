@@ -346,7 +346,7 @@ describe('attachment add surface does not reuse dialog.js CRUD types', () => {
   });
 
   it('index.js attachment pick action does not call openTodoTaskDialog', () => {
-    const src = readFileSync(join(repoRoot, 'frontend/js/todo-task/index.js'), 'utf8');
+    const src = readFileSync(join(repoRoot, 'frontend/js/todo-task/attachments.js'), 'utf8');
     expect(src).toMatch(/data-action="pick-attachment-md"/);
     const marker = "action === 'pick-attachment-md'";
     const idx = src.indexOf(marker);

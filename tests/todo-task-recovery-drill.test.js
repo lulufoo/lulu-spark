@@ -91,7 +91,7 @@ describe('T11 — no automatic reverse migration (falsifier)', () => {
   });
 
   it('missing .migration_gate_passed gates todo API only — ensure_todo_api_ungated, not App abort', () => {
-    const service = read('src-tauri/src/services/todo_task/mod.rs');
+    const service = read('src-tauri/src/services/todo_task/migrate.rs');
     expect(service).toContain('ensure_todo_api_ungated');
     expect(service).toContain('.migration_gate_passed');
     expect(service).toMatch(/_status["']?\s*:\s*503|503/);

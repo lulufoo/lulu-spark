@@ -6,6 +6,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
+import { readTodoTaskServiceTestsSource } from './helpers/todo-task-ui-source.js';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 const HOST_ADAPTER = 'src-tauri/src/services/mcp_protocol_adapter.rs';
@@ -45,7 +46,7 @@ describe('t5 AC2 — create-with-content round-trip; legacy missing field empty'
     expect(types).toContain('sub_task_missing_content_deserializes_as_none');
     expect(types).toContain('sub_task_content_roundtrip_preserves_value');
 
-    const svc = read('src-tauri/src/unit-tests/services/todo_task.rs');
+    const svc = readTodoTaskServiceTestsSource();
     expect(svc).toContain('add_sub_with_content_persists_and_load_roundtrips');
     expect(svc).toContain('load_legacy_sub_tasks_missing_content_reads_as_absent');
   });

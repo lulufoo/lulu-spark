@@ -10,6 +10,11 @@ import {
   RUST_SERVICE_AC_TESTS,
   UI_ATTACHMENT_TEST_PROBES,
 } from './fixtures/todo-task-ac15.js';
+import {
+  readTodoTaskServiceTestsSource,
+  readTodoTaskUiSource,
+  TODO_TASK_UI_FILES,
+} from './helpers/todo-task-ui-source.js';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 const WRITE_COMMANDS = [
@@ -46,7 +51,7 @@ describe('FM-4 AC gate (tech-doc VF / T-5)', () => {
   });
 
   it('I-4: todo-task write layer uses direct Tauri invoke (not fetch/local_http)', () => {
-    const src = read('frontend/js/todo-task/index.js');
+    const src = read('frontend/js/todo-task/host.js');
     expect(src).toMatch(/invokePlanWrite\('create_todo_task'/);
     expect(src).toMatch(/invokePlanWrite\('delete_todo_task'/);
     expect(src).toMatch(/invokePlanWrite\('add_todo_sub'/);
@@ -60,7 +65,7 @@ describe('FM-4 AC gate (tech-doc VF / T-5)', () => {
   });
 
   it('NG: todo-task UI has no complete_sub entry', () => {
-    const src = read('frontend/js/todo-task/index.js');
+    const src = readTodoTaskUiSource();
     expect(src).not.toMatch(/complete_sub/);
     expect(src).not.toMatch(/completeSub/);
   });
@@ -68,7 +73,7 @@ describe('FM-4 AC gate (tech-doc VF / T-5)', () => {
 
 describe('Plan-task attachment AC gate (tech-doc VF / T15)', () => {
   it('AC1/AC3/AC6/AC8: Rust service unit tests lock stem suffix, reject non-md, rollback, dual delete, cascade', () => {
-    const rust = read('src-tauri/src/unit-tests/services/todo_task.rs');
+    const rust = readTodoTaskServiceTestsSource();
     for (const marker of RUST_SERVICE_AC_TESTS) {
       expect(rust, marker).toContain(marker);
     }
@@ -109,8 +114,8 @@ describe('Plan-task attachment AC gate (tech-doc VF / T15)', () => {
     expect(deleteUi).toMatch(/MCP schema still has no attachment delete tool/);
   });
 
-  it('AC2/AC4/AC5: UI index.js uses verb-first attachment Tauri commands', () => {
-    const src = read('frontend/js/todo-task/index.js');
+  it('AC2/AC4/AC5: UI host.js uses verb-first attachment Tauri commands', () => {
+    const src = read('frontend/js/todo-task/host.js');
     expect(src).toMatch(/invokePlanPlain\('add_todo_attachment'/);
     expect(src).toMatch(/invokePlanPlain\('list_todo_attachments'/);
     expect(src).toMatch(/invokePlanPlain\('read_todo_attachment'/);
@@ -122,6 +127,14 @@ describe('Plan-task attachment AC gate (tech-doc VF / T15)', () => {
 
 const TODO_TASK_UI_SOURCES = [
   'frontend/js/todo-task/index.js',
+  'frontend/js/todo-task/page.js',
+  'frontend/js/todo-task/host.js',
+  'frontend/js/todo-task/format.js',
+  'frontend/js/todo-task/list.js',
+  'frontend/js/todo-task/detail.js',
+  'frontend/js/todo-task/plan-md.js',
+  'frontend/js/todo-task/attachments.js',
+  'frontend/js/todo-task/comments.js',
   'frontend/js/todo-task/dialog.js',
 ];
 
@@ -136,14 +149,14 @@ describe('P2 copy-switch — Plan Tasks UI (tech-doc T3)', () => {
   });
 
   it('status labels use table B English', () => {
-    const index = read('frontend/js/todo-task/index.js');
+    const index = readTodoTaskUiSource();
     expect(index).toContain("incomplete: 'In progress'");
     expect(index).toContain("complete: 'Completed'");
     expect(index).toContain("abandoned: 'Abandoned'");
   });
 
   it('empty states and toolbar use table B ∪ B2 English', () => {
-    const index = read('frontend/js/todo-task/index.js');
+    const index = readTodoTaskUiSource();
     expect(index).toContain('No todos yet');
     expect(index).toContain('Create your first todo to manage sub-tasks');
     expect(index).toContain('+ New todo');
@@ -153,7 +166,7 @@ describe('P2 copy-switch — Plan Tasks UI (tech-doc T3)', () => {
     expect(index).toContain('aria-label="Task details"');
     expect(index).toContain('Just now');
     expect(index).toContain('minutes ago');
-    expect(index).toContain('toLocaleDateString(\'en-US\')');
+    expect(index).toContain("toLocaleDateString('en-US')");
     expect(index).toContain('Active only');
     expect(index).toContain('No active todos');
     expect(index).toContain('Turn off Active only to see completed and abandoned todos.');
@@ -173,7 +186,7 @@ describe('P2 copy-switch — Plan Tasks UI (tech-doc T3)', () => {
   });
 
   it('API routes and invoke commands remain unchanged', () => {
-    const index = read('frontend/js/todo-task/index.js');
+    const index = readTodoTaskUiSource();
     expect(index).toContain("client.getJson('/api/todo-tasks')");
     expect(index).toContain('#/todo-tasks');
     expect(index).toContain('create_todo_task');
@@ -184,14 +197,13 @@ describe('P2 copy-switch — Plan Tasks UI (tech-doc T3)', () => {
 });
 
 const T9_FRONTEND_TARGETS = [
-  'frontend/js/todo-task/index.js',
-  'frontend/js/todo-task/dialog.js',
+  ...TODO_TASK_UI_FILES,
   'frontend/js/todo-task-assistant.js',
 ];
 
 describe('T9 — frontend/assistant Host API follow (tech-doc T9)', () => {
   it('index and assistant call GET /api/todo-tasks (not /api/plan-tasks)', () => {
-    const index = read('frontend/js/todo-task/index.js');
+    const index = readTodoTaskUiSource();
     const assistant = read('frontend/js/todo-task-assistant.js');
     expect(index).toContain("client.getJson('/api/todo-tasks')");
     expect(assistant).toContain("client.getJson('/api/todo-tasks')");
@@ -207,7 +219,7 @@ describe('T9 — frontend/assistant Host API follow (tech-doc T9)', () => {
   });
 
   it('index consumes todo_md wire field (not plan_md)', () => {
-    const index = read('frontend/js/todo-task/index.js');
+    const index = readTodoTaskUiSource();
     expect(index).toMatch(/master\.todo_md/);
     expect(index).not.toMatch(/master\.plan_md/);
   });
@@ -218,7 +230,7 @@ describe('T9 — frontend/assistant Host API follow (tech-doc T9)', () => {
   });
 
   it('todo-task invoke surface uses Host todo_* command names', () => {
-    const index = read('frontend/js/todo-task/index.js');
+    const index = readTodoTaskUiSource();
     for (const cmd of [
       'create_todo_task',
       'delete_todo_task',

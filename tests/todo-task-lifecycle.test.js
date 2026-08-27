@@ -28,12 +28,10 @@ import {
   onMasterSelectionChange,
   onTodosPageLeave,
 } from '../frontend/js/todo-task/index.js';
+import { readTodoTaskUiSource } from './helpers/todo-task-ui-source.js';
 
 const fixtureRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
-const todoTaskIndexJs = readFileSync(
-  join(fixtureRoot, 'frontend/js/todo-task/index.js'),
-  'utf8',
-);
+const todoTaskIndexJs = readTodoTaskUiSource();
 const todosLifecycleJs = readFileSync(
   join(fixtureRoot, 'frontend/js/todo-task/todos-lifecycle.js'),
   'utf8',

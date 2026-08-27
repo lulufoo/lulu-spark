@@ -8,12 +8,12 @@ const NO_LEGACY_BRAND = [/计划任务/];
 /** @type {{ path: string, mustMatch: RegExp[], mustNotMatch?: RegExp[] }[]} */
 export const TODO_TASK_BRAND_SITES = [
   {
-    path: 'frontend/js/todo-task/index.js',
+    path: 'frontend/js/todo-task/list.js',
     mustMatch: [/<h1 class="todo-tasks-page-title">Todos<\/h1>/],
     mustNotMatch: NO_LEGACY_BRAND,
   },
   {
-    path: 'frontend/js/todo-task/index.js',
+    path: 'frontend/js/todo-task/page.js',
     mustMatch: [/aria-label="Todos list"/],
     mustNotMatch: NO_LEGACY_BRAND,
   },

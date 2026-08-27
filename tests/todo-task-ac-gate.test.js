@@ -158,7 +158,7 @@ describe('T10 — AC-迁移 (gate marker; no plan.md/plan_tasks residue on succe
   });
 
   it('Host cold-start gate reads durable .migration_gate_passed (not in-process exit)', () => {
-    const service = read('src-tauri/src/services/todo_task/mod.rs');
+    const service = read('src-tauri/src/services/todo_task/migrate.rs');
     expect(service).toContain('MIGRATION_GATE_FILE');
     expect(service).toContain('.migration_gate_passed');
     expect(service).toContain('migration_gate_passed');

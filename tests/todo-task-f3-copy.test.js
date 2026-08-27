@@ -96,7 +96,7 @@ describe('AC7 brand copy — user-visible Todos sites (tech-doc T14/T15)', () =>
   });
 
   it('keeps technical todo-task identifiers (route/api) unchanged', () => {
-    const index = readFileSync(join(fixtureRoot, 'frontend/js/todo-task/index.js'), 'utf8');
+    const index = readFileSync(join(fixtureRoot, 'frontend/js/todo-task/format.js'), 'utf8');
     expect(index).toMatch(/todo-tasks/);
     const hub = readFileSync(join(fixtureRoot, 'frontend/js/components/home-hub.js'), 'utf8');
     expect(hub).toMatch(/data-home-entry="todo-tasks"/);

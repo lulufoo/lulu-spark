@@ -93,6 +93,14 @@ pub fn stop(handle: LocalHttpHandle) {
     let _ = handle.join.join();
 }
 
+fn todo_wire(result: Result<Value, todo_task::TodoError>, ok_status: u16) -> Value {
+    todo_task::into_wire(result, ok_status)
+}
+
+fn todo_wire_read(result: Result<Value, todo_task::TodoError>) -> Value {
+    todo_task::into_wire_read(result)
+}
+
 pub(crate) fn map_value_to_response(value: Value) -> (u16, String) {
     let status = value
         .get("_status")
@@ -154,7 +162,7 @@ fn handle_request(repo_root: &PathBuf, port: u16, request: tiny_http::Request) {
         && is_todo_api_path(&path)
     {
         if let Err(err) = todo_task::ensure_todo_api_ungated() {
-            respond_todo_api_gated(request, &path, err);
+            respond_todo_api_gated(request, &path, err.into_wire());
             return;
         }
     }
@@ -286,7 +294,7 @@ fn handle_request(repo_root: &PathBuf, port: u16, request: tiny_http::Request) {
                 return;
             }
             "/api/todo-task-list-categories" => {
-                let value = todo_task::list_todo_categories();
+                let value = todo_wire(todo_task::list_todo_categories(), 200);
                 let (status, body) = map_value_to_response(value);
                 respond_raw(request, status, body);
                 return;
@@ -294,7 +302,7 @@ fn handle_request(repo_root: &PathBuf, port: u16, request: tiny_http::Request) {
             "/api/todo-task" => {
                 let params = parse_query(&url);
                 let id = params.get("id").map(String::as_str).unwrap_or("");
-                let value = todo_task::get_by_id(id);
+                let value = todo_wire_read(todo_task::get_by_id(id));
                 let (status, body) = todo_task_get_response_body(&value);
                 respond_raw(request, status, body);
                 return;
@@ -403,7 +411,7 @@ fn handle_read_later_get(request: tiny_http::Request) {
 }
 
 fn handle_todo_tasks_get(request: tiny_http::Request, url: &str) {
-    let value = todo_task::list_all();
+    let value = todo_wire_read(todo_task::list_all());
     if !value.is_array() {
         respond_read_later_from_value(request, value);
         return;
@@ -559,7 +567,7 @@ fn handle_todo_task_delete_payload(payload: &Value) -> Value {
     let Some(master_task_id) = payload.get("master_task_id").and_then(|v| v.as_str()) else {
         return json!({ "error": "Missing master_task_id", "_status": 400 });
     };
-    todo_task::delete_master(master_task_id)
+    todo_wire(todo_task::delete_master(master_task_id), 200)
 }
 
 fn handle_todo_task_add_sub_payload(payload: &Value) -> Value {
@@ -570,7 +578,7 @@ fn handle_todo_task_add_sub_payload(payload: &Value) -> Value {
         return json!({ "error": "Missing title", "_status": 400 });
     };
     let content = payload.get("content").and_then(|v| v.as_str());
-    todo_task::add_sub(master_task_id, title, content)
+    todo_wire(todo_task::add_sub(master_task_id, title, content), 201)
 }
 
 fn handle_todo_task_update_sub_payload(payload: &Value) -> Value {
@@ -584,7 +592,10 @@ fn handle_todo_task_update_sub_payload(payload: &Value) -> Value {
         return json!({ "error": "Missing title", "_status": 400 });
     };
     let content = payload.get("content").map(|v| v.as_str().unwrap_or(""));
-    todo_task::update_sub_title(master_task_id, sub_task_id, title, content)
+    todo_wire(
+        todo_task::update_sub_title(master_task_id, sub_task_id, title, content),
+        200,
+    )
 }
 
 fn handle_todo_task_delete_sub_payload(payload: &Value) -> Value {
@@ -594,7 +605,7 @@ fn handle_todo_task_delete_sub_payload(payload: &Value) -> Value {
     let Some(sub_task_id) = payload.get("sub_task_id").and_then(|v| v.as_str()) else {
         return json!({ "error": "Missing sub_task_id", "_status": 400 });
     };
-    todo_task::delete_sub(master_task_id, sub_task_id)
+    todo_wire(todo_task::delete_sub(master_task_id, sub_task_id), 200)
 }
 
 fn handle_todo_task_complete_payload(payload: &Value) -> Value {
@@ -602,7 +613,7 @@ fn handle_todo_task_complete_payload(payload: &Value) -> Value {
         return json!({ "error": "Missing master_task_id", "_status": 400 });
     };
     let sub_task_id = payload.get("sub_task_id").and_then(|v| v.as_str());
-    todo_task::complete_todo(master_task_id, sub_task_id)
+    todo_wire(todo_task::complete_todo(master_task_id, sub_task_id), 200)
 }
 
 fn handle_todo_task_set_status_payload(payload: &Value) -> Value {
@@ -612,7 +623,7 @@ fn handle_todo_task_set_status_payload(payload: &Value) -> Value {
     let Some(status) = payload.get("status").and_then(|v| v.as_str()) else {
         return json!({ "error": "Missing status", "_status": 400 });
     };
-    todo_task::set_master_status(master_task_id, status)
+    todo_wire(todo_task::set_master_status(master_task_id, status), 200)
 }
 
 fn handle_todo_task_link_archive_payload(payload: &Value) -> Value {
@@ -625,7 +636,10 @@ fn handle_todo_task_link_archive_payload(payload: &Value) -> Value {
     let Some(archive_id) = payload.get("archive_id").and_then(|v| v.as_str()) else {
         return json!({ "error": "Missing archive_id", "_status": 400 });
     };
-    todo_task::link_archive(master_task_id, sub_task_id, archive_id)
+    todo_wire(
+        todo_task::link_archive(master_task_id, sub_task_id, archive_id),
+        200,
+    )
 }
 
 fn handle_todo_task_add_attachment_payload(payload: &Value) -> Value {
@@ -641,14 +655,14 @@ fn handle_todo_task_add_attachment_payload(payload: &Value) -> Value {
     let Some(source_path) = payload.get("source_path").and_then(|v| v.as_str()) else {
         return json!({ "error": "Missing source_path", "_status": 400 });
     };
-    todo_task::add_attachment(master_task_id, source_path)
+    todo_wire(todo_task::add_attachment(master_task_id, source_path), 201)
 }
 
 fn handle_todo_task_list_attachments_payload(payload: &Value) -> Value {
     let Some(master_task_id) = payload.get("master_task_id").and_then(|v| v.as_str()) else {
         return json!({ "error": "Missing master_task_id", "_status": 400 });
     };
-    todo_task::list_attachments(master_task_id)
+    todo_wire(todo_task::list_attachments(master_task_id), 200)
 }
 
 fn handle_todo_task_get_attachment_payload(payload: &Value) -> Value {
@@ -658,7 +672,7 @@ fn handle_todo_task_get_attachment_payload(payload: &Value) -> Value {
     let Some(file_name) = payload.get("file_name").and_then(|v| v.as_str()) else {
         return json!({ "error": "Missing file_name", "_status": 400 });
     };
-    todo_task::read_attachment(master_task_id, file_name)
+    todo_wire(todo_task::read_attachment(master_task_id, file_name), 200)
 }
 
 fn handle_todo_task_update_attachment_payload(payload: &Value) -> Value {
@@ -677,14 +691,17 @@ fn handle_todo_task_update_attachment_payload(payload: &Value) -> Value {
     let Some(source_path) = payload.get("source_path").and_then(|v| v.as_str()) else {
         return json!({ "error": "Missing source_path", "_status": 400 });
     };
-    todo_task::save_attachment(master_task_id, file_name, source_path)
+    todo_wire(
+        todo_task::save_attachment(master_task_id, file_name, source_path),
+        200,
+    )
 }
 
 fn handle_todo_task_list_comments_payload(payload: &Value) -> Value {
     let Some(master_task_id) = payload.get("master_task_id").and_then(|v| v.as_str()) else {
         return json!({ "error": "Missing master_task_id", "_status": 400 });
     };
-    todo_task::list_comments(master_task_id)
+    todo_wire(todo_task::list_comments(master_task_id), 200)
 }
 
 fn handle_todo_task_add_comment_payload(payload: &Value) -> Value {
@@ -694,7 +711,7 @@ fn handle_todo_task_add_comment_payload(payload: &Value) -> Value {
     let Some(body) = payload.get("body").and_then(|v| v.as_str()) else {
         return json!({ "error": "Missing body", "_status": 400 });
     };
-    todo_task::add_comment(master_task_id, body)
+    todo_wire(todo_task::add_comment(master_task_id, body), 201)
 }
 
 fn handle_todo_task_update_comment_payload(payload: &Value) -> Value {
@@ -707,7 +724,10 @@ fn handle_todo_task_update_comment_payload(payload: &Value) -> Value {
     let Some(body) = payload.get("body").and_then(|v| v.as_str()) else {
         return json!({ "error": "Missing body", "_status": 400 });
     };
-    todo_task::update_comment(master_task_id, comment_id, body)
+    todo_wire(
+        todo_task::update_comment(master_task_id, comment_id, body),
+        200,
+    )
 }
 
 fn handle_todo_task_delete_comment_payload(payload: &Value) -> Value {
@@ -717,7 +737,7 @@ fn handle_todo_task_delete_comment_payload(payload: &Value) -> Value {
     let Some(comment_id) = payload.get("comment_id").and_then(|v| v.as_str()) else {
         return json!({ "error": "Missing comment_id", "_status": 400 });
     };
-    todo_task::delete_comment(master_task_id, comment_id)
+    todo_wire(todo_task::delete_comment(master_task_id, comment_id), 200)
 }
 
 fn handle_todo_task_update_payload(payload: &Value) -> Value {
@@ -747,15 +767,18 @@ fn handle_todo_task_update_payload(payload: &Value) -> Value {
 
     // category_id alone → set category; otherwise update title/body first, then optional category.
     if title.is_none() && todo_md.is_none() {
-        return todo_task::set_master_category(master_task_id, category_id.unwrap_or(""));
+        return todo_wire(
+            todo_task::set_master_category(master_task_id, category_id.unwrap_or("")),
+            200,
+        );
     }
 
-    let updated = todo_task::update_master_fields(master_task_id, title, todo_md);
+    let updated = todo_wire(todo_task::update_master_fields(master_task_id, title, todo_md), 200);
     if updated.get("_status").and_then(|v| v.as_u64()).unwrap_or(200) >= 400 {
         return updated;
     }
     match category_id {
-        Some(cid) => todo_task::set_master_category(master_task_id, cid),
+        Some(cid) => todo_wire(todo_task::set_master_category(master_task_id, cid), 200),
         None => updated,
     }
 }
@@ -824,9 +847,15 @@ fn handle_todo_task_create(mut request: tiny_http::Request) {
     let value = match &sub_titles {
         Some(subs) => {
             let refs: Vec<&str> = subs.iter().map(String::as_str).collect();
-            todo_task::create_master_with_category(title, Some(&refs), todo_md, category_id)
+            todo_wire(
+                todo_task::create_master_with_category(title, Some(&refs), todo_md, category_id),
+                201,
+            )
         }
-        None => todo_task::create_master_with_category(title, None, todo_md, category_id),
+        None => todo_wire(
+            todo_task::create_master_with_category(title, None, todo_md, category_id),
+            201,
+        ),
     };
     respond_from_value(request, value);
 }

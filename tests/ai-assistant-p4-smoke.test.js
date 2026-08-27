@@ -486,7 +486,7 @@ describe('t6 layered acceptance L0/L1/L2 gate', () => {
 
   it('Todos leave remains explicit and no longer Resets Binding', () => {
     const indexJs = readFileSync(
-      join(repoRoot, 'frontend/js/todo-task/index.js'),
+      join(repoRoot, 'frontend/js/todo-task/page.js'),
       'utf8',
     );
     const lifeJs = readFileSync(

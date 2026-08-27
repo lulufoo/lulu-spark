@@ -30,12 +30,10 @@ import {
   setPlanCategory,
 } from '../frontend/js/todo-task/index.js';
 import { parseHash } from '../frontend/js/router/index.js';
+import { readTodoTaskUiSource } from './helpers/todo-task-ui-source.js';
 
 const fixtureRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
-const todoTaskIndex = readFileSync(
-  join(fixtureRoot, 'frontend/js/todo-task/index.js'),
-  'utf8',
-);
+const todoTaskIndex = readTodoTaskUiSource();
 const routerSource = readFileSync(
   join(fixtureRoot, 'frontend/js/router/index.js'),
   'utf8',

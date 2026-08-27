@@ -78,8 +78,7 @@ fn with_sandbox<F: FnOnce()>(f: F) {
 }
 
 fn create_bound_plan(title: &str) -> String {
-    let created = todo_task::create_master_with_subs(title, Some(&["subtask"]));
-    assert_eq!(created["_status"], 201);
+    let created = todo_task::create_master_with_subs(title, Some(&["subtask"])).expect("todo");
     created["master_task_id"]
         .as_str()
         .expect("master id")

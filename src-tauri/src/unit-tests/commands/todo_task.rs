@@ -60,19 +60,19 @@ fn get_todo_tasks_json_empty_returns_empty_array() {
 #[test]
 fn get_todo_tasks_json_returns_desc_sorted_array() {
     with_commands_todo_test(|| {
-        let created = create_master_with_subs("Plan A", None);
+        let created = create_master_with_subs("Plan A", None).expect("todo");
         assert!(created.get("master_task_id").is_some());
         let listed = get_todo_tasks_json().expect("list");
         let arr = listed.as_array().expect("array");
         assert!(!arr.is_empty());
-        assert_eq!(list_all(), listed);
+        assert_eq!(list_all().expect("todo"), listed);
     });
 }
 
 #[test]
 fn get_todo_tasks_json_v2_empty_sub_tasks_shape() {
     with_commands_todo_test(|| {
-        create_master_with_subs("Empty UI", None);
+        create_master_with_subs("Empty UI", None).expect("todo");
         let listed = get_todo_tasks_json().expect("list");
         let task = &listed.as_array().expect("array")[0];
         assert_master_task_shape(task);
@@ -85,7 +85,7 @@ fn get_todo_tasks_json_v2_empty_sub_tasks_shape() {
 #[test]
 fn get_todo_tasks_json_v2_multi_sub_shape() {
     with_commands_todo_test(|| {
-        create_master_with_subs("Multi UI", Some(&["A", "B"]));
+        create_master_with_subs("Multi UI", Some(&["A", "B"])).expect("todo");
         let listed = get_todo_tasks_json().expect("list");
         let task = &listed.as_array().expect("array")[0];
         assert_master_task_shape(task);
@@ -99,9 +99,9 @@ fn get_todo_tasks_json_v2_multi_sub_shape() {
 #[test]
 fn get_todo_tasks_json_sorts_by_created_at_desc() {
     with_commands_todo_test(|| {
-        create_master_with_subs("Older", None);
+        create_master_with_subs("Older", None).expect("todo");
         std::thread::sleep(std::time::Duration::from_millis(5));
-        create_master_with_subs("Newer", None);
+        create_master_with_subs("Newer", None).expect("todo");
         let listed = get_todo_tasks_json().expect("list");
         let arr = listed.as_array().expect("array");
         assert_eq!(arr.len(), 2);

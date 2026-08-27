@@ -23,12 +23,10 @@ vi.mock('../frontend/js/apiClient.js', async (importOriginal) => {
 });
 
 import { mountTodoTaskSplit } from '../frontend/js/todo-task/index.js';
+import { readTodoTaskUiSource } from './helpers/todo-task-ui-source.js';
 
 const fixtureRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
-const todoTaskIndex = readFileSync(
-  join(fixtureRoot, 'frontend/js/todo-task/index.js'),
-  'utf8',
-);
+const todoTaskIndex = readTodoTaskUiSource();
 const todoTaskAssistant = readFileSync(
   join(fixtureRoot, 'frontend/js/todo-task-assistant.js'),
   'utf8',

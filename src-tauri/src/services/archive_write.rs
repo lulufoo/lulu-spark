@@ -346,16 +346,14 @@ fn finalize_task_linked_archive(
     sub_task_id: &str,
     archive_id: &str,
 ) -> Value {
-    let complete = todo_task::complete_sub(master_task_id, sub_task_id);
-    if complete.get("_status").and_then(|v| v.as_u64()) != Some(200) {
+    if let Err(err) = todo_task::complete_sub(master_task_id, sub_task_id) {
         dual_store_rollback(written, index_path, index_snapshot);
-        return complete;
+        return err.into_wire();
     }
-    let linked = todo_task::link_archive(master_task_id, sub_task_id, archive_id);
-    if linked.get("_status").and_then(|v| v.as_u64()) != Some(200) {
+    if let Err(err) = todo_task::link_archive(master_task_id, sub_task_id, archive_id) {
         // link-fail asymmetry (FM-5): complete_sub already persisted; corpus rolls back only.
         dual_store_rollback(written, index_path, index_snapshot);
-        return linked;
+        return err.into_wire();
     }
     json!({ "ok": true })
 }

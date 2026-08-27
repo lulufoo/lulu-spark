@@ -87,8 +87,7 @@ fn register_test_mcp(scene: &str, mcp_port: u16) {
 }
 
 fn create_bound_plan(title: &str) -> String {
-    let created = todo_task::create_master_with_subs(title, Some(&["子项A"]));
-    assert_eq!(created["_status"], 201);
+    let created = todo_task::create_master_with_subs(title, Some(&["子项A"])).expect("todo");
     created["master_task_id"].as_str().unwrap().to_string()
 }
 
@@ -464,7 +463,7 @@ fn run_loop_marks_successful_todo_mcp_mutation_as_wrote() {
 
     assert_outcome(&outcome, "none", true);
     assert!(
-        todo_task::list_all().as_array().is_some_and(|tasks| {
+        todo_task::list_all().expect("todo").as_array().is_some_and(|tasks| {
             tasks
                 .iter()
                 .any(|task| task["title"] == "MCP 创建任务")
@@ -776,7 +775,7 @@ fn run_loop_host_empty_tools_rejects_tool_calls_without_dispatch() {
     // sends tools=[] and must not tools::dispatch even if the model returns tool_calls.
     with_sandbox(|| {
         let master = create_bound_plan("写前标题");
-        let title_before = todo_task::get_by_id(&master)["title"].clone();
+        let title_before = todo_task::get_by_id(&master).expect("todo")["title"].clone();
         let mock = spawn_scripted_llm(vec![assistant_tools(
             json!([{
                 "id": "call_1",
@@ -792,7 +791,7 @@ fn run_loop_host_empty_tools_rejects_tool_calls_without_dispatch() {
         arm_plan_binding(&master);
         let out = r#loop::run_loop(&mut sess, "把主标题改成写后标题", &cfg_for(&mock));
         assert_outcome(&out, "error", false);
-        assert_eq!(todo_task::get_by_id(&master)["title"], title_before);
+        assert_eq!(todo_task::get_by_id(&master).expect("todo")["title"], title_before);
         assert!(
             sess.turns.iter().all(|t| t.role != "tool"),
             "Host empty-tools path must not append tool turns"
@@ -824,7 +823,7 @@ fn parallel_tool_calls_are_rejected_without_process_dispatch() {
     // Narrowed (P3): Host does not serially dispatch parallel tool_calls.
     with_sandbox(|| {
         let master = create_bound_plan("批处理");
-        let before_subs = todo_task::get_by_id(&master)["sub_tasks"]
+        let before_subs = todo_task::get_by_id(&master).expect("todo")["sub_tasks"]
             .as_array()
             .unwrap()
             .len();
@@ -854,7 +853,7 @@ fn parallel_tool_calls_are_rejected_without_process_dispatch() {
         let out = r#loop::run_loop(&mut sess, "改不存在的子项并加一个", &cfg_for(&mock));
         assert_outcome(&out, "error", false);
         assert_eq!(
-            todo_task::get_by_id(&master)["sub_tasks"]
+            todo_task::get_by_id(&master).expect("todo")["sub_tasks"]
                 .as_array()
                 .unwrap()
                 .len(),
@@ -872,7 +871,7 @@ fn same_message_tool_calls_plus_content_does_not_dispatch_or_finalize() {
     // Narrowed (P3): tool_calls + content must not drive process-local writes.
     with_sandbox(|| {
         let master = create_bound_plan("同条");
-        let before_subs = todo_task::get_by_id(&master)["sub_tasks"]
+        let before_subs = todo_task::get_by_id(&master).expect("todo")["sub_tasks"]
             .as_array()
             .unwrap()
             .len();
@@ -893,7 +892,7 @@ fn same_message_tool_calls_plus_content_does_not_dispatch_or_finalize() {
         assert_outcome(&out, "error", false);
         assert_ne!(out.reply_text, "已新增同条子项");
         assert_eq!(
-            todo_task::get_by_id(&master)["sub_tasks"]
+            todo_task::get_by_id(&master).expect("todo")["sub_tasks"]
                 .as_array()
                 .unwrap()
                 .len(),
@@ -923,7 +922,7 @@ fn unbound_session_maps_to_business_no_plan_without_llm() {
 fn unknown_tool_name_is_error_terminal_and_does_not_write() {
     with_sandbox(|| {
         let master = create_bound_plan("未知工具");
-        let before = todo_task::get_by_id(&master)["title"].clone();
+        let before = todo_task::get_by_id(&master).expect("todo")["title"].clone();
         let mock = spawn_scripted_llm(vec![assistant_tools(
             json!([{
                 "id": "c1",
@@ -939,7 +938,7 @@ fn unknown_tool_name_is_error_terminal_and_does_not_write() {
         arm_plan_binding(&master);
         let out = r#loop::run_loop(&mut sess, "删掉计划", &cfg_for(&mock));
         assert_outcome(&out, "error", false);
-        assert_eq!(todo_task::get_by_id(&master)["title"], before);
+        assert_eq!(todo_task::get_by_id(&master).expect("todo")["title"], before);
         assert!(sess.turns.iter().all(|t| t.role != "tool"));
         assert_host_llm_tools_empty(&mock.hits.lock().unwrap()[0]);
     });
@@ -1006,7 +1005,7 @@ fn run_loop_host_text_paths_remain_observable_without_tool_writes() {
     // Narrowed (P3): Host facade chat remains usable via text replies; no tool writes.
     with_sandbox(|| {
         let master = create_bound_plan("子路径");
-        let before = todo_task::get_by_id(&master);
+        let before = todo_task::get_by_id(&master).expect("todo");
         let before_sub_title = before["sub_tasks"][0]["title"].clone();
         let before_len = before["sub_tasks"].as_array().unwrap().len();
         let mock = spawn_scripted_llm(vec![
@@ -1019,7 +1018,7 @@ fn run_loop_host_text_paths_remain_observable_without_tool_writes() {
         let out_add = r#loop::run_loop(&mut sess, "加一个子计划叫新观察子项", &cfg_for(&mock));
         assert_outcome(&out_add, "none", false);
         assert_eq!(
-            todo_task::get_by_id(&master)["sub_tasks"]
+            todo_task::get_by_id(&master).expect("todo")["sub_tasks"]
                 .as_array()
                 .unwrap()
                 .len(),
@@ -1029,7 +1028,7 @@ fn run_loop_host_text_paths_remain_observable_without_tool_writes() {
         let out_upd = r#loop::run_loop(&mut sess, "把原子项标题改成改后子标题", &cfg_for(&mock));
         assert_outcome(&out_upd, "none", false);
         assert_eq!(
-            todo_task::get_by_id(&master)["sub_tasks"][0]["title"],
+            todo_task::get_by_id(&master).expect("todo")["sub_tasks"][0]["title"],
             before_sub_title
         );
         let hits = mock.hits.lock().unwrap();
@@ -1103,7 +1102,7 @@ fn terminal_no_plan_unsupported_and_error_are_distinguishable() {
 fn malformed_response_is_error_and_does_not_write() {
     with_sandbox(|| {
         let master = create_bound_plan("畸形");
-        let before_subs = todo_task::get_by_id(&master)["sub_tasks"]
+        let before_subs = todo_task::get_by_id(&master).expect("todo")["sub_tasks"]
             .as_array()
             .unwrap()
             .len();
@@ -1113,7 +1112,7 @@ fn malformed_response_is_error_and_does_not_write() {
         let out = r#loop::run_loop(&mut sess, "加子项", &cfg_for(&mock));
         assert_outcome(&out, "error", false);
         assert_eq!(
-            todo_task::get_by_id(&master)["sub_tasks"]
+            todo_task::get_by_id(&master).expect("todo")["sub_tasks"]
                 .as_array()
                 .unwrap()
                 .len(),
@@ -1307,7 +1306,7 @@ fn in_flight_chat_keeps_binding_despite_busy_open_without_tool_writes() {
     with_sandbox(|| {
         let a = create_bound_plan("旧绑定");
         let b = create_bound_plan("新绑定");
-        let title_a = todo_task::get_by_id(&a)["title"].clone();
+        let title_a = todo_task::get_by_id(&a).expect("todo")["title"].clone();
         let mock = spawn_scripted_llm(vec![assistant_text("已理解改标题请求（无进程内写入）")]);
         install_llm_cfg(&mock);
         arm_plan_binding(&a);
@@ -1324,8 +1323,8 @@ fn in_flight_chat_keeps_binding_despite_busy_open_without_tool_writes() {
         let result = r#loop::agent_chat_turn_core(&sid, "改标题", Some(&a)).unwrap();
         assert_eq!(result.body["wrote"], false);
         assert_eq!(result.body["terminal"], "none");
-        assert_eq!(todo_task::get_by_id(&a)["title"], title_a);
-        assert_eq!(todo_task::get_by_id(&b)["title"], "新绑定");
+        assert_eq!(todo_task::get_by_id(&a).expect("todo")["title"], title_a);
+        assert_eq!(todo_task::get_by_id(&b).expect("todo")["title"], "新绑定");
         assert_host_llm_tools_empty(&mock.hits.lock().unwrap()[0]);
     });
 }
@@ -2678,7 +2677,7 @@ fn t1_agent_chat_turn_after_reset_does_not_invoke_llm() {
 fn t1_run_loop_aborts_tool_dispatch_when_generation_invalidated() {
     with_sandbox(|| {
         let master = create_bound_plan("t1-gen-tools");
-        let title_before = todo_task::get_by_id(&master)["title"]
+        let title_before = todo_task::get_by_id(&master).expect("todo")["title"]
             .as_str()
             .unwrap()
             .to_string();
@@ -2721,7 +2720,7 @@ fn t1_run_loop_aborts_tool_dispatch_when_generation_invalidated() {
             "stale-generation abort must be an error terminal, not a successful turn"
         );
         assert_eq!(
-            todo_task::get_by_id(&master)["title"],
+            todo_task::get_by_id(&master).expect("todo")["title"],
             title_before,
             "old Tools must not write after generation invalidation"
         );
@@ -3093,7 +3092,7 @@ fn t3_replace_set_while_busy_cancels_chat_and_interrupts_execute() {
 fn t3_mid_chat_reset_cancels_without_appending_business_turns() {
     with_sandbox(|| {
         let master = create_bound_plan("t3-chat-reset");
-        let title_before = todo_task::get_by_id(&master)["title"]
+        let title_before = todo_task::get_by_id(&master).expect("todo")["title"]
             .as_str()
             .unwrap()
             .to_string();
@@ -3136,7 +3135,7 @@ fn t3_mid_chat_reset_cancels_without_appending_business_turns() {
             "cancelled in-flight chat must stop as error, not fly the round to success"
         );
         assert_eq!(
-            todo_task::get_by_id(&master)["title"],
+            todo_task::get_by_id(&master).expect("todo")["title"],
             title_before,
             "cancelled chat must not dispatch tools"
         );
@@ -3155,7 +3154,7 @@ fn t3_mid_chat_replace_set_cancels_without_appending_business_turns() {
     with_sandbox(|| {
         let master_a = create_bound_plan("t3-chat-replace-a");
         let master_b = create_bound_plan("t3-chat-replace-b");
-        let title_before = todo_task::get_by_id(&master_a)["title"]
+        let title_before = todo_task::get_by_id(&master_a).expect("todo")["title"]
             .as_str()
             .unwrap()
             .to_string();
@@ -3189,7 +3188,7 @@ fn t3_mid_chat_replace_set_cancels_without_appending_business_turns() {
         let result = r#loop::agent_chat_turn_core(&sid, "改标题", Some(&master_a)).unwrap();
         assert_eq!(result.body["wrote"], false);
         assert_eq!(result.body["terminal"], "error");
-        assert_eq!(todo_task::get_by_id(&master_a)["title"], title_before);
+        assert_eq!(todo_task::get_by_id(&master_a).expect("todo")["title"], title_before);
         assert_eq!(
             session_turn_contents(&sid),
             turns_before,
@@ -3203,7 +3202,7 @@ fn t3_mid_chat_replace_set_cancels_without_appending_business_turns() {
 fn t3_run_loop_checks_cancel_flag_before_tool_dispatch() {
     with_sandbox(|| {
         let master = create_bound_plan("t3-flag-gate");
-        let title_before = todo_task::get_by_id(&master)["title"]
+        let title_before = todo_task::get_by_id(&master).expect("todo")["title"]
             .as_str()
             .unwrap()
             .to_string();
@@ -3239,7 +3238,7 @@ fn t3_run_loop_checks_cancel_flag_before_tool_dispatch() {
         );
         assert_eq!(result.body["wrote"], false);
         assert_eq!(result.body["terminal"], "error");
-        assert_eq!(todo_task::get_by_id(&master)["title"], title_before);
+        assert_eq!(todo_task::get_by_id(&master).expect("todo")["title"], title_before);
         assert_eq!(
             session_turn_contents(&sid),
             turns_before,
@@ -5000,7 +4999,7 @@ fn t3_host_reports_unavailable_loaded_mcp_without_dispatch() {
 fn t3_host_unexpected_tool_calls_never_call_process_dispatch() {
     with_sandbox(|| {
         let master = create_bound_plan("t3-no-dispatch");
-        let title_before = todo_task::get_by_id(&master)["title"].clone();
+        let title_before = todo_task::get_by_id(&master).expect("todo")["title"].clone();
         let mock = spawn_scripted_llm(vec![assistant_tools(
             json!([{
                 "id": "t3nd1",
@@ -5019,7 +5018,7 @@ fn t3_host_unexpected_tool_calls_never_call_process_dispatch() {
         let result = r#loop::agent_chat_turn_core(sid, "改标题", Some(&master)).unwrap();
         assert_eq!(result.body["wrote"], false);
         assert_eq!(result.body["terminal"], "error");
-        assert_eq!(todo_task::get_by_id(&master)["title"], title_before);
+        assert_eq!(todo_task::get_by_id(&master).expect("todo")["title"], title_before);
         let sess = session::load_session(sid).unwrap();
         assert!(sess.turns.iter().all(|t| t.role != "tool"));
         assert_host_llm_tools_empty(&mock.hits.lock().unwrap()[0]);
@@ -5071,7 +5070,7 @@ fn t3_nonempty_tools_binding_tool_calls_never_mutate_todo_task() {
     // Even with non-empty Binding.tools, Host L3 path never dispatches in-process.
     with_sandbox(|| {
         let master = create_bound_plan("t3非空tools");
-        let before = todo_task::get_by_id(&master)["title"].clone();
+        let before = todo_task::get_by_id(&master).expect("todo")["title"].clone();
         let mock = spawn_scripted_llm(vec![assistant_tools(
             json!([{
                 "id": "t3_dispatch_gone",
@@ -5087,7 +5086,7 @@ fn t3_nonempty_tools_binding_tool_calls_never_mutate_todo_task() {
         arm_plan_binding(&master);
         let out = r#loop::run_loop(&mut sess, "改标题", &cfg_for(&mock));
         assert_eq!(out.wrote, false);
-        assert_eq!(todo_task::get_by_id(&master)["title"], before);
+        assert_eq!(todo_task::get_by_id(&master).expect("todo")["title"], before);
         assert!(
             !sess.turns.iter().any(|t| t.role == "tool"),
             "no tool-role turns from removed dispatch path"
@@ -5130,7 +5129,7 @@ fn t2_key_only_set_loads_mcp_and_rejects_unreachable_endpoint() {
             .expect("key-only Set");
         assert!(r#loop::loaded_mcp_server().is_some());
         assert!(r#loop::session_capability_mcp_config().is_some());
-        let before = todo_task::get_by_id(&master)["title"].clone();
+        let before = todo_task::get_by_id(&master).expect("todo")["title"].clone();
         let out = r#loop::run_loop(&mut sess, "你好", &cfg_for(&mock));
         assert_outcome(&out, "error", false);
         assert_eq!(out.wrote, false);
@@ -5138,7 +5137,7 @@ fn t2_key_only_set_loads_mcp_and_rejects_unreachable_endpoint() {
             !sess.turns.iter().any(|t| t.role == "tool"),
             "key-only business path must not dispatch in-process tools"
         );
-        assert_eq!(todo_task::get_by_id(&master)["title"], before);
+        assert_eq!(todo_task::get_by_id(&master).expect("todo")["title"], before);
         assert!(
             mock.hits.lock().unwrap().is_empty(),
             "the LLM must not receive an empty-tools fallback for a key-only MCP binding"

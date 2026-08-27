@@ -1449,14 +1449,10 @@ pub(crate) fn run_loop_with_progress(
 }
 
 fn plan_title(master_task_id: &str) -> Option<String> {
-    let got = todo_task::get_by_id(master_task_id);
-    if got
-        .get("_status")
-        .and_then(|s| s.as_u64())
-        .is_some_and(|s| s >= 400)
-    {
-        return None;
-    }
+    let got = match todo_task::get_by_id(master_task_id) {
+        Ok(value) => value,
+        Err(_) => return None,
+    };
     got.get("title")
         .and_then(|v| v.as_str())
         .map(|s| s.to_string())

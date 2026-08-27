@@ -1511,7 +1511,7 @@ fn get_todo_tasks_includes_todo_md_and_migration_error_fields() {
         assert_eq!(list[0]["todo_md"], "");
         assert_eq!(list[0]["migration_error"], false);
 
-        let expected = crate::services::todo_task::list_all();
+        let expected = crate::services::todo_task::list_all().expect("todo");
         assert_eq!(body, expected);
     });
 }
@@ -1544,7 +1544,7 @@ fn get_todo_task_by_id_includes_todo_md_and_migration_error_matching_list() {
         assert_eq!(get_body["migration_error"], list[0]["migration_error"]);
         assert!(get_body.get("_status").is_none());
 
-        let expected = crate::services::todo_task::get_by_id(master_id);
+        let expected = crate::services::todo_task::get_by_id(master_id).expect("todo");
         assert_eq!(get_body, expected);
     });
 }
@@ -1630,13 +1630,13 @@ fn todo_tasks_http_body_helpers_preserve_read_path_fields() {
             .as_str()
             .expect("master_task_id");
 
-        let list_value = crate::services::todo_task::list_all();
+        let list_value = crate::services::todo_task::list_all().expect("todo");
         let list_body = todo_tasks_list_response_body(&list_value);
         let list_parsed: Value = serde_json::from_str(&list_body).expect("list json");
         assert_eq!(list_parsed, list_value);
         assert_http_master_has_todo_fields(&list_parsed[0]);
 
-        let get_value = crate::services::todo_task::get_by_id(master_id);
+        let get_value = crate::services::todo_task::get_by_id(master_id).expect("todo");
         let (get_status, get_body) = todo_task_get_response_body(&get_value);
         assert_eq!(get_status, 200);
         let get_parsed: Value = serde_json::from_str(&get_body).expect("get json");
@@ -2602,8 +2602,7 @@ fn post_todo_task_create_with_valid_category_id_assigns_it() {
     let fixture = setup_repo_for_todo_task();
     let repo_root = fixture.repo_root.clone();
     with_server(repo_root, |port| {
-        let created_cat = crate::services::todo_task::create_todo_category("Work");
-        assert_eq!(created_cat["_status"], 201);
+        let created_cat = crate::services::todo_task::create_todo_category("Work").expect("todo");
         let cat_id = created_cat["category_id"].as_str().expect("cat id").to_string();
 
         let (status, body) = http_post(
@@ -2645,7 +2644,7 @@ fn get_todo_tasks_optional_category_id_filters_and_omission_lists_all() {
     let fixture = setup_repo_for_todo_task();
     let repo_root = fixture.repo_root.clone();
     with_server(repo_root, |port| {
-        let created_cat = crate::services::todo_task::create_todo_category("Filter");
+        let created_cat = crate::services::todo_task::create_todo_category("Filter").expect("todo");
         let cat_id = created_cat["category_id"].as_str().expect("id").to_string();
 
         let (s1, b1) = http_post(
@@ -2684,7 +2683,7 @@ fn post_todo_task_update_category_id_alone_sets_category() {
     let fixture = setup_repo_for_todo_task();
     let repo_root = fixture.repo_root.clone();
     with_server(repo_root, |port| {
-        let created_cat = crate::services::todo_task::create_todo_category("Later");
+        let created_cat = crate::services::todo_task::create_todo_category("Later").expect("todo");
         let cat_id = created_cat["category_id"].as_str().expect("id").to_string();
         let (master_id, _, _) = create_todo_master(port, "Move me", &["S"]);
 

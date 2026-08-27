@@ -331,8 +331,7 @@ fn archive_document_rejects_bad_or_duplicate_lang() {
 fn archive_document_with_task_ref_completes_sub_in_sandbox() {
     let (sandbox, repo_root) = setup_corpus();
     let wb = crate::config::meili_env::workbench_knowledge_root_path(&repo_root);
-    let created = create_master_with_subs("Archive link", Some(&["Sub"]));
-    assert_eq!(created["_status"], 201);
+    let created = create_master_with_subs("Archive link", Some(&["Sub"])).expect("todo");
     let master_id = created["master_task_id"].as_str().unwrap();
     let sub_id = created["sub_task_id"].as_str().unwrap();
 
@@ -357,7 +356,7 @@ fn archive_document_with_task_ref_completes_sub_in_sandbox() {
     assert_eq!(entry["task_ref"]["master_task_id"], master_id);
     assert_eq!(entry["task_ref"]["sub_task_id"], sub_id);
 
-    let task = get_by_id(master_id);
+    let task = get_by_id(master_id).expect("todo");
     let sub = &task["sub_tasks"][0];
     assert_eq!(sub["status"], "complete");
     assert_eq!(
@@ -376,7 +375,7 @@ fn archive_document_with_task_ref_completes_sub_in_sandbox() {
 fn archive_document_todo_task_fail_dual_store_rollback() {
     let (sandbox, repo_root) = setup_corpus();
     let wb = crate::config::meili_env::workbench_knowledge_root_path(&repo_root);
-    let created = create_master_with_subs("A2 rollback", Some(&["Sub"]));
+    let created = create_master_with_subs("A2 rollback", Some(&["Sub"])).expect("todo");
     let master_id = created["master_task_id"].as_str().unwrap();
     let sub_id = created["sub_task_id"].as_str().unwrap();
 
@@ -410,7 +409,7 @@ fn archive_document_todo_task_fail_dual_store_rollback() {
         "index must restore to pre-request snapshot"
     );
 
-    let task = get_by_id(master_id);
+    let task = get_by_id(master_id).expect("todo");
     assert_eq!(task["sub_tasks"][0]["status"], "incomplete");
     assert_eq!(
         task["sub_tasks"][0]["linked_archive_ids"]
@@ -426,7 +425,7 @@ fn archive_document_todo_task_fail_dual_store_rollback() {
 fn archive_document_index_snapshot_restore_on_todo_task_fail() {
     let (sandbox, repo_root) = setup_corpus();
     let wb = crate::config::meili_env::workbench_knowledge_root_path(&repo_root);
-    let created = create_master_with_subs("Index snapshot", Some(&["Sub"]));
+    let created = create_master_with_subs("Index snapshot", Some(&["Sub"])).expect("todo");
     let master_id = created["master_task_id"].as_str().unwrap();
     let sub_id = created["sub_task_id"].as_str().unwrap();
 
@@ -470,7 +469,7 @@ fn archive_document_index_snapshot_restore_on_todo_task_fail() {
 fn archive_document_link_fail_corpus_rollback_plan_stays_complete() {
     let (sandbox, repo_root) = setup_corpus();
     let wb = crate::config::meili_env::workbench_knowledge_root_path(&repo_root);
-    let created = create_master_with_subs("Link fail", Some(&["Sub"]));
+    let created = create_master_with_subs("Link fail", Some(&["Sub"])).expect("todo");
     let master_id = created["master_task_id"].as_str().unwrap();
     let sub_id = created["sub_task_id"].as_str().unwrap();
 
@@ -501,7 +500,7 @@ fn archive_document_link_fail_corpus_rollback_plan_stays_complete() {
         serde_json::from_str(&fs::read_to_string(wb.join("index.json")).unwrap()).unwrap();
     assert_eq!(index_after, index_before, "corpus index must restore to pre-request snapshot");
 
-    let task = get_by_id(master_id);
+    let task = get_by_id(master_id).expect("todo");
     let sub = &task["sub_tasks"][0];
     assert_eq!(sub["status"], "complete", "complete_sub succeeded before link failure");
     assert_eq!(

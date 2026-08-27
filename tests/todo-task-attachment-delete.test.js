@@ -323,7 +323,7 @@ describe('attachment delete does not loosen MCP / dialog contracts', () => {
   });
 
   it('index.js attachment delete confirm path does not openTodoTaskDialog', () => {
-    const src = readFileSync(join(repoRoot, 'frontend/js/todo-task/index.js'), 'utf8');
+    const src = readFileSync(join(repoRoot, 'frontend/js/todo-task/attachments.js'), 'utf8');
     expect(src).toMatch(/data-action="delete-attachment"/);
     const marker = "action === 'delete-attachment'";
     const idx = src.indexOf(marker);

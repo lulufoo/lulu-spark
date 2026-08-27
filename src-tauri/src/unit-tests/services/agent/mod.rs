@@ -42,8 +42,7 @@ fn with_agent_sandbox<F: FnOnce(&TestSandbox)>(f: F) {
 }
 
 fn create_bound_plan(title: &str) -> String {
-    let created = todo_task::create_master_with_subs(title, Some(&["子项A"]));
-    assert_eq!(created["_status"], 201);
+    let created = todo_task::create_master_with_subs(title, Some(&["子项A"])).expect("todo");
     created["master_task_id"].as_str().unwrap().to_string()
 }
 
@@ -345,9 +344,9 @@ fn t3_todo_task_persistence_still_available_for_mcp_http() {
     // Backend keep: todo_task persistence remains for local_http / MCP (not via tools::dispatch).
     with_agent_sandbox(|_| {
         let master_id = create_bound_plan("持久化保留");
-        let got = todo_task::get_by_id(&master_id);
+        let got = todo_task::get_by_id(&master_id).expect("todo");
         assert_eq!(got["title"], "持久化保留");
-        let added = todo_task::add_sub(&master_id, "经服务新增", None);
+        let added = todo_task::add_sub(&master_id, "经服务新增", None).expect("todo");
         assert!(
             added.get("error").is_none(),
             "todo_task service must remain callable: {added}"

@@ -21,6 +21,9 @@ const todosBindingJs = readFileSync(
 const todoTaskIndexJs = readFileSync(
   join(fixtureRoot, 'frontend/js/todo-task/index.js'),
   'utf8',
+) + readFileSync(
+  join(fixtureRoot, 'frontend/js/todo-task/page.js'),
+  'utf8',
 );
 
 const DELETED_HELPERS = [

@@ -39,7 +39,7 @@ fn with_cmd_sandbox<F: FnOnce()>(f: F) {
 }
 
 fn create_plan(title: &str) -> String {
-    let created = todo_task::create_master_with_subs(title, Some(&["子A"]));
+    let created = todo_task::create_master_with_subs(title, Some(&["子A"])).expect("todo");
     created["master_task_id"].as_str().unwrap().to_string()
 }
 
