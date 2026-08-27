@@ -18,7 +18,6 @@ use base64::Engine;
 use sha2::{Digest, Sha256};
 
 use crate::config::settings::AppSettings;
-use crate::services::bind::complete_bind;
 use crate::services::lan_ip::current_lan_ipv4;
 
 pub const GATEWAY_CERT_FILE: &str = "gateway-cert.pem";
@@ -43,6 +42,7 @@ impl std::fmt::Display for GatewayError {
 pub struct GatewayConfig {
     pub listen_port: u16,
     pub mcp_port: u16,
+    pub sidecar_port: u16,
     pub config_dir: PathBuf,
 }
 
@@ -122,6 +122,7 @@ impl GatewayState {
 #[derive(Clone)]
 struct GwState {
     mcp_port: u16,
+    sidecar_port: u16,
 }
 
 pub fn advertised_address(port: u16) -> Option<String> {
@@ -132,6 +133,7 @@ pub fn boot(settings: &AppSettings, config_dir: PathBuf) -> BootDecision {
     boot_with(GatewayConfig {
         listen_port: settings.effective_gateway_port(),
         mcp_port: settings.effective_mcp_port(),
+        sidecar_port: settings.effective_http_port(),
         config_dir,
     })
 }
@@ -169,6 +171,7 @@ pub fn start(config: GatewayConfig) -> Result<GatewayHandle, GatewayError> {
     let shutdown = Handle::new();
     let shutdown_thread = shutdown.clone();
     let mcp_port = config.mcp_port;
+    let sidecar_port = config.sidecar_port;
     let join = thread::spawn(move || {
         let Ok(rt) = tokio::runtime::Builder::new_multi_thread()
             .enable_all()
@@ -181,7 +184,7 @@ pub fn start(config: GatewayConfig) -> Result<GatewayHandle, GatewayError> {
             let Ok(tls) = RustlsConfig::from_pem_file(cert_path, key_path).await else {
                 return;
             };
-            let app = build_router(mcp_port);
+            let app = build_router(mcp_port, sidecar_port);
             let _ = axum_server::from_tcp_rustls(tcp, tls)
                 .handle(shutdown_thread)
                 .serve(app.into_make_service())
@@ -255,42 +258,55 @@ fn wait_until_accepting(port: u16) -> Result<(), GatewayError> {
     )))
 }
 
-fn build_router(mcp_port: u16) -> Router {
+fn build_router(mcp_port: u16, sidecar_port: u16) -> Router {
     Router::new()
         .route("/bind/complete", any(bind_complete_named))
         .route("/mcp/mobile", any(forward_named))
         .route("/health", get(forward_named))
         .fallback(reject_unnamed)
-        .with_state(GwState { mcp_port })
+        .with_state(GwState {
+            mcp_port,
+            sidecar_port,
+        })
 }
 
-async fn bind_complete_named(request: Request) -> Response {
+async fn bind_complete_named(State(state): State<GwState>, request: Request) -> Response {
     if request.method() != Method::POST {
         return reject_unnamed().await;
     }
-    bind_complete(request).await
-}
-
-async fn bind_complete(request: Request) -> Response {
-    let bytes = match to_bytes(request.into_body(), 1024 * 1024).await {
-        Ok(bytes) => bytes,
-        Err(_) => {
-            return json_status(StatusCode::BAD_REQUEST, r#"{"error":"invalid_request"}"#);
-        }
+    let authorization = request
+        .headers()
+        .get(header::AUTHORIZATION)
+        .and_then(|v| v.to_str().ok())
+        .map(str::to_string);
+    let content_type = request
+        .headers()
+        .get(header::CONTENT_TYPE)
+        .and_then(|v| v.to_str().ok())
+        .map(str::to_string);
+    let body = match to_bytes(request.into_body(), 2 * 1024 * 1024).await {
+        Ok(bytes) => bytes.to_vec(),
+        Err(_) => Vec::new(),
     };
-    match complete_bind(bytes.as_ref()) {
-        Ok(result) => json_status(
-            StatusCode::OK,
-            &serde_json::json!({
-                "device_mcp_token": result.device_mcp_token,
-                "binding_public_key": result.binding_public_key,
-            })
-            .to_string(),
+    let sidecar_port = state.sidecar_port;
+    match tokio::task::spawn_blocking(move || {
+        proxy_loopback(
+            sidecar_port,
+            Method::POST,
+            "/api/bind-complete".to_string(),
+            authorization,
+            content_type,
+            body,
+        )
+    })
+    .await
+    {
+        Ok(Ok(response)) => response,
+        Ok(Err(msg)) => json_status(
+            StatusCode::BAD_GATEWAY,
+            &serde_json::json!({ "error": msg }).to_string(),
         ),
-        Err(err) => json_status(
-            StatusCode::BAD_REQUEST,
-            &serde_json::json!({ "error": format!("{err:?}") }).to_string(),
-        ),
+        Err(_) => json_status(StatusCode::BAD_GATEWAY, r#"{"error":"forward_join"}"#),
     }
 }
 

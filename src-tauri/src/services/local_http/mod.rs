@@ -1,4 +1,4 @@
-//! Localhost HTTP API for MCP sidecar proxy (`GET/POST /api/corpus-*`, `/api/archive-*`, `/api/read-later*`, `/api/todo-tasks`, `GET/PUT /api/notes-selection`, `/api/status`).
+//! Localhost HTTP API for MCP sidecar proxy (`GET/POST /api/corpus-*`, `/api/archive-*`, `/api/read-later*`, `/api/todo-tasks`, `GET/PUT /api/notes-selection`, `POST /api/bind-complete`, `/api/status`).
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -10,6 +10,7 @@ use serde_json::{json, Value};
 use tiny_http::{Header, Method, Response, Server, StatusCode};
 
 use crate::services::archive_write::{archive_digest, archive_document};
+use crate::services::bind::{complete_bind, BindError};
 use crate::services::notes_selection::{
     notes_selection_snapshot_get, notes_selection_snapshot_put, reset_snapshot,
 };
@@ -279,6 +280,10 @@ fn handle_request(repo_root: &PathBuf, port: u16, request: tiny_http::Request) {
                 handle_todo_task_post(request, handle_todo_task_update_payload);
                 return;
             }
+            "/api/bind-complete" => {
+                handle_bind_complete(request);
+                return;
+            }
             _ => {}
         }
     }
@@ -381,6 +386,31 @@ fn handle_request(repo_root: &PathBuf, port: u16, request: tiny_http::Request) {
     }
 
     respond_json(request, 405, json!({ "error": "Method not allowed" }));
+}
+
+fn handle_bind_complete(mut request: tiny_http::Request) {
+    let mut body = Vec::new();
+    if request.as_reader().read_to_end(&mut body).is_err() {
+        respond_json(request, 400, json!({ "error": "invalid_request" }));
+        return;
+    }
+    match complete_bind(&body) {
+        Ok(result) => respond_json(
+            request,
+            200,
+            json!({
+                "device_mcp_token": result.device_mcp_token,
+                "binding_public_key": result.binding_public_key,
+            }),
+        ),
+        Err(err) => {
+            let status = match err {
+                BindError::keychain_unavailable => 500,
+                _ => 400,
+            };
+            respond_json(request, status, json!({ "error": format!("{err:?}") }));
+        }
+    }
 }
 
 fn handle_notes_selection_get(request: tiny_http::Request) {

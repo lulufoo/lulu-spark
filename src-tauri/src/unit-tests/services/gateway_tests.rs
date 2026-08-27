@@ -59,9 +59,14 @@ fn gw_url(handle: &GatewayHandle, path: &str) -> String {
 }
 
 fn start_gw(mcp_port: u16, config_dir: &Path) -> GatewayHandle {
+    start_gw_with_sidecar(mcp_port, 9, config_dir)
+}
+
+fn start_gw_with_sidecar(mcp_port: u16, sidecar_port: u16, config_dir: &Path) -> GatewayHandle {
     start(GatewayConfig {
         listen_port: 0,
         mcp_port,
+        sidecar_port,
         config_dir: config_dir.to_path_buf(),
     })
     .expect("start gateway")
@@ -208,6 +213,7 @@ fn boot_skips_gateway_when_lan_ip_is_missing() {
         match boot_with(GatewayConfig {
             listen_port: occupied,
             mcp_port: occupied,
+            sidecar_port: occupied,
             config_dir: dir.path().to_path_buf(),
         }) {
             BootDecision::SkippedNoLanIp => {}
@@ -222,11 +228,14 @@ fn boot_skips_gateway_when_lan_ip_is_missing() {
 }
 
 #[test]
-fn post_bind_complete_hands_ciphertext_to_complete_bind() {
+fn post_bind_complete_forwards_ciphertext_to_sidecar() {
     with_bind_sandbox(|config_dir| {
         with_nics(Some(vec![nic("en0", "10.0.0.4")]), || {
             let mock = MockMcp::start();
-            let handle = start_gw(mock.port, config_dir);
+            let sidecar_port = ephemeral_loopback_port();
+            let sidecar = local_http::start(config_dir.to_path_buf(), sidecar_port)
+                .expect("start sidecar");
+            let handle = start_gw_with_sidecar(mock.port, sidecar_port, config_dir);
             let payload =
                 create_bind_payload(Ipv4Addr::new(10, 0, 0, 4), 17654, handle.tls_fingerprint())
                     .expect("draw");
@@ -250,13 +259,14 @@ fn post_bind_complete_hands_ciphertext_to_complete_bind() {
             );
             assert!(
                 mock.hits().is_empty(),
-                "bind complete must stay in-process and not hit MCP"
+                "bind complete must not hit MCP"
             );
             assert_eq!(
-                complete_bind(&sealed).expect_err("session consumed by gateway handoff"),
+                complete_bind(&sealed).expect_err("session consumed via sidecar"),
                 crate::services::bind::BindError::consumed
             );
             stop(handle);
+            local_http::stop(sidecar);
         });
     });
 }
@@ -342,8 +352,8 @@ fn host_http_stays_on_loopback_and_is_not_the_lan_allowlist() {
         "Host HTTP must keep listening on 127.0.0.1"
     );
     assert!(
-        !local_http_src.contains("/bind/complete") && !local_http_src.contains("/mcp/mobile"),
-        "LAN named routes are not a Host HTTP allowlist"
+        local_http_src.contains("/api/bind-complete") && !local_http_src.contains("/mcp/mobile"),
+        "Sidecar exposes bind-complete; LAN /mcp/mobile stays off Host HTTP"
     );
     let repo_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("..");
     let port = ephemeral_loopback_port();
@@ -433,8 +443,8 @@ fn gateway_does_not_decrypt_or_issue_tickets_or_cover_android() {
         );
     }
     assert!(
-        src.contains("complete_bind"),
-        "POST /bind/complete must hand ciphertext to Bind"
+        !src.contains("complete_bind") && src.contains("/api/bind-complete"),
+        "POST /bind/complete must proxy ciphertext to Sidecar"
     );
 }
 

@@ -12,7 +12,7 @@ This document defines **what git operations AI may perform** — authorization, 
 |---|---|
 | This doc | Git action limits (authorization, gates, forbidden ops, conflict policy) |
 | Not in this doc | Workflow-specific procedures (worktree setup, per-task commits, delivery) → see the active workflow SKILL |
-| GitHub URL content | See `docs/git/github-operations.md` |
+| GitHub URL content | See `docs/git/git-gh-operations.md` |
 | Trigger | Read this doc before any git command |
 
 ---
@@ -119,7 +119,7 @@ Interactive `rebase` · `cherry-pick` · `tag` · `commit --amend` · `bisect` �
 |---|---|
 | Local git operations | `git` |
 | GitHub: PRs, issues, checks, API | `gh` |
-| Read files from GitHub URLs | Do not fetch via HTTP — read `docs/git/github-operations.md` |
+| Read files from GitHub URLs | Do not fetch via HTTP — read `docs/git/git-gh-operations.md` |
 
 ---
 

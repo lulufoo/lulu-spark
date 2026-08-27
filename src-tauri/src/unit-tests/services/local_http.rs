@@ -8,6 +8,10 @@ use reqwest::blocking;
 use serde_json::{json, Value};
 
 use super::*;
+use crate::services::bind::{
+    complete_bind, create_bind_payload, seal_bind_request, test_clear_session,
+    test_reset_bind_keychain,
+};
 use crate::test_support::TestSandbox;
 
 fn assert_ac5_master_task_shape(task: &Value) {
@@ -379,6 +383,39 @@ fn get_status_returns_ok_and_http_port() {
     assert_eq!(status, 200);
     assert_eq!(body["ok"], true);
     assert_eq!(body["http_port"], port);
+}
+
+#[test]
+fn post_bind_complete_issues_ticket_via_sidecar() {
+    let fixture = setup_repo_without_index();
+    test_reset_bind_keychain();
+    test_clear_session();
+    let repo_root = fixture.repo_root.clone();
+    with_server(repo_root, |port| {
+        let payload = create_bind_payload(
+            "10.0.0.4".parse().expect("ip"),
+            17654,
+            &"ab".repeat(32),
+        )
+        .expect("draw");
+        let sealed =
+            seal_bind_request(&payload.temp_pub, "phone-http", Some("Pixel")).expect("seal");
+        let url = format!("http://127.0.0.1:{port}/api/bind-complete");
+        let response = blocking::Client::new()
+            .post(&url)
+            .header("content-type", "application/octet-stream")
+            .body(sealed.clone())
+            .send()
+            .expect("bind complete");
+        assert_eq!(response.status().as_u16(), 200);
+        let body: Value = response.json().expect("json");
+        assert_eq!(body["device_mcp_token"].as_str().map(str::len), Some(64));
+        assert_eq!(
+            complete_bind(&sealed).expect_err("consumed"),
+            crate::services::bind::BindError::consumed
+        );
+    });
+    test_clear_session();
 }
 
 #[test]

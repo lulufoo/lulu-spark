@@ -56,6 +56,7 @@ fn start_gateway_state() -> (GatewayState, u16, String, tempfile::TempDir) {
     let handle = start(GatewayConfig {
         listen_port: 0,
         mcp_port: 9,
+        sidecar_port: 9,
         config_dir: dir.path().to_path_buf(),
     })
     .expect("start gateway");
@@ -257,6 +258,7 @@ fn gateway_state_current_reads_handle_port_and_tls_fingerprint() {
     let handle = start(GatewayConfig {
         listen_port: 0,
         mcp_port: 9,
+        sidecar_port: 9,
         config_dir: dir.path().to_path_buf(),
     })
     .expect("start gateway");
