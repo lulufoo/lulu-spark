@@ -54,12 +54,6 @@ export function mergeAnnotations(indexData, summary) {
   }
 }
 
-export function buildPathToId(indexData) {
-  const map = new Map()
-  for (const [id, entry] of Object.entries(indexData)) map.set(entry.common_path, id)
-  return map
-}
-
 export function getEntryId(entry) {
   return entry._id || null
 }

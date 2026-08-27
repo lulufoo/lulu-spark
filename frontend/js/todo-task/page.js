@@ -1,113 +1,36 @@
-import { escHtml } from '../shared/utils.js';
-import { closeTodoTaskDialog, openTodoTaskDialog } from './dialog.js';
+import { closeTodoTaskDialog } from './dialog.js';
 import { createTodosPageLifecycle } from './lifecycle.js';
 import {
-  DEFAULT_PLAN_CATEGORY_ID,
-  addPlanSub,
-  createPlanCategory,
-  createTodoTask,
-  deletePlanCategory,
-  deletePlanSub,
-  deleteTodoTask,
   getTauriListen,
   listPlanCategories,
   loadTodoTasks,
-  setPlanCategory,
 } from './host.js';
 import {
-  COPY_MASTER_LABEL,
-  buildDeepLink,
-  buildMasterDeepLink,
   controlsDisabled,
   filterMastersForView,
-  flashCopyFeedback,
-  isDefaultCategory,
   isIncompleteMaster,
   masterCategoryId,
   pickDefaultSub,
   sortMasters,
 } from './format.js';
-import {
-  CATEGORY_ACTION_CREATE,
-  CATEGORY_ACTION_DELETE,
-  createListOwner,
-  renderMasterPane,
-  renderPageHeader,
-  syncCategoryFilterWidth,
-} from './list.js';
+import { createListOwner, renderMasterPane, syncCategoryFilterWidth } from './list.js';
 import { createDetailOwner, renderSubDetailPane } from './detail.js';
 import { createPlanMdOwner } from './plan-md.js';
 import { createAttachmentsOwner, renderAttachmentEditor } from './attachments.js';
 import { createCommentsOwner } from './comments.js';
 import { bindTodoDocHighlights } from '../doc-editor/index.js';
+import { createPageDialogs } from './page-dialogs.js';
+import { bindPageEvents } from './page-events.js';
+import {
+  REFRESH_WARNING_MSG,
+  bindFocusRefresh,
+  renderDeadLink,
+  renderDetailEmpty,
+  renderErrorEmpty,
+  renderPageShell,
+} from './page-render.js';
 
-const UNAVAILABLE_MSG = 'List temporarily unavailable. Please try again later.';
-const REFRESH_WARNING_MSG = 'Saved, but list refresh failed — retry';
 const AI_ASSISTANT_TURN_COMPLETED = 'ai-assistant:turn-completed';
-
-function renderDetailEmpty() {
-  return `
-    <div class="todo-task-split-detail-empty todo-task-empty">
-      <p class="todo-task-empty-title">Select a todo on the left</p>
-      <p class="todo-task-empty-detail">Or create a todo from the top right</p>
-    </div>
-  `;
-}
-
-function renderDeadLink() {
-  return `
-    <div class="todo-task-split-dead-link todo-task-split-state">
-      <p class="todo-task-split-state-title">Task not found</p>
-      <p class="todo-task-split-state-detail">Link may be stale — pick again from the list</p>
-    </div>
-  `;
-}
-
-function renderErrorEmpty(message = UNAVAILABLE_MSG) {
-  return `
-    <div class="todo-task-split-error todo-task-split-state todo-task-split-state--error">
-      <p class="todo-task-split-state-title">Temporarily unavailable</p>
-      <p class="todo-task-split-state-detail">${escHtml(message)}</p>
-    </div>
-  `;
-}
-
-function renderPageShell({
-  masterHtml,
-  detailHtml,
-  disabled = false,
-  activeOnly = true,
-  categories = [],
-  filterCategoryId = '',
-  categoryError = '',
-}) {
-  return `
-    <div class="todo-tasks-page">
-      ${renderPageHeader(disabled, activeOnly, categories, filterCategoryId, categoryError)}
-      <div class="todo-task-split">
-        <aside class="todo-task-split-master" aria-label="Todos list">${masterHtml}</aside>
-        <section class="todo-task-split-detail" aria-label="Task details">${detailHtml}</section>
-      </div>
-    </div>
-  `;
-}
-
-function bindFocusRefresh(refresh) {
-  const onFocus = () => {
-    void refresh();
-  };
-  const onVisibility = () => {
-    if (document.visibilityState === 'visible') {
-      void refresh();
-    }
-  };
-  window.addEventListener('focus', onFocus);
-  document.addEventListener('visibilitychange', onVisibility);
-  return () => {
-    window.removeEventListener('focus', onFocus);
-    document.removeEventListener('visibilitychange', onVisibility);
-  };
-}
 
 /**
  * @param {HTMLElement} container
@@ -171,6 +94,12 @@ export function mountTodoTaskSplit(container, opts = {}) {
 
   function findMaster(id) {
     return masters.find((master) => master.master_task_id === id) ?? null;
+  }
+
+  function setSelection({ masterId, subId, deadLink: nextDead }) {
+    if (masterId !== undefined) selectedMasterId = masterId;
+    if (subId !== undefined) selectedSubId = subId;
+    if (nextDead !== undefined) deadLink = nextDead;
   }
 
   function getUi() {
@@ -395,72 +324,6 @@ export function mountTodoTaskSplit(container, opts = {}) {
     }
   }
 
-  function openCreateCategoryDialog(triggerEl) {
-    if (controlsDisabled(busy)) return;
-    list.resetError();
-    openTodoTaskDialog({
-      type: 'create-category',
-      triggerEl: triggerEl instanceof HTMLElement ? triggerEl : null,
-      onSubmit: async ({ name }) => {
-        const trimmed = typeof name === 'string' ? name.trim() : '';
-        if (!trimmed) {
-          throw new Error('Please enter a category name');
-        }
-        await createPlanCategory({ name: trimmed });
-        await loadCategories();
-        if (!disposed) paint();
-      },
-    });
-  }
-
-  async function deleteFilteredCategory() {
-    if (controlsDisabled(busy) || !list.filterCategoryId) return;
-    const selected = categories.find((category) => category.id === list.filterCategoryId);
-    if (isDefaultCategory(selected, list.filterCategoryId)) return;
-    list.resetError();
-    busy = true;
-    paint();
-    try {
-      await deletePlanCategory({ categoryId: list.filterCategoryId });
-      list.clearFilterCategory();
-      await loadCategories();
-      busy = false;
-      await reloadList({ afterWrite: true });
-    } catch (err) {
-      busy = false;
-      list.setCategoryError(err?.message || 'Failed to delete category');
-      if (!disposed) paint();
-    }
-  }
-
-  async function runMasterCategoryChange(targetCategoryId, selectEl) {
-    const master = findMaster(selectedMasterId);
-    const prior = master ? masterCategoryId(master) : DEFAULT_PLAN_CATEGORY_ID;
-    if (!master || !selectedMasterId) {
-      if (selectEl instanceof HTMLSelectElement) selectEl.value = prior;
-      return;
-    }
-    if (!targetCategoryId || targetCategoryId === prior) return;
-    list.resetError();
-    busy = true;
-    paint();
-    try {
-      await setPlanCategory({
-        masterTaskId: selectedMasterId,
-        categoryId: targetCategoryId,
-      });
-      busy = false;
-      await reloadList({ afterWrite: true });
-    } catch (err) {
-      busy = false;
-      list.setCategoryError(err?.message || 'Failed to update category');
-      if (selectEl instanceof HTMLSelectElement) {
-        selectEl.value = prior;
-      }
-      if (!disposed) paint();
-    }
-  }
-
   async function refresh() {
     if (refreshPromise) {
       return refreshPromise;
@@ -491,295 +354,55 @@ export function mountTodoTaskSplit(container, opts = {}) {
     void reloadList({ afterWrite: true });
   }
 
-  function openCreateDialog(triggerEl) {
-    openTodoTaskDialog({
-      type: 'create-master',
-      triggerEl,
-      onSubmit: async ({ title, subTitles }) => {
-        await runWriteAction(async () => {
-          const result = await createTodoTask({ title, subTitles });
-          const createdId = result?.master_task_id ?? result?.task?.master_task_id;
-          if (createdId) {
-            selectedMasterId = createdId;
-            selectedSubId = '';
-            deadLink = false;
-            syncTodosBindingForSelection(selectedMasterId);
-          }
-        });
-      },
-    });
-  }
+  const dialogs = createPageDialogs({
+    getBusy: () => busy,
+    setBusy: (value) => {
+      busy = value;
+    },
+    paint,
+    findMaster,
+    getSelectedMasterId: () => selectedMasterId,
+    getSelectedSubId: () => selectedSubId,
+    setSelection,
+    getCategories: () => categories,
+    getList: () => list,
+    isDisposed: () => disposed,
+    reloadList,
+    loadCategories,
+    runWriteAction,
+    navigate,
+    syncTodosBindingForSelection,
+  });
 
-  function openAddSubDialog(triggerEl) {
-    const master = findMaster(selectedMasterId);
-    if (!master) return;
-    openTodoTaskDialog({
-      type: 'add-sub',
-      triggerEl,
-      payload: { masterTitle: master.title },
-      onSubmit: async ({ title }) => {
-        const masterTaskId = selectedMasterId;
-        await runWriteAction(async () => {
-          await addPlanSub({ masterTaskId, title });
-        });
-      },
-    });
-  }
+  const disposeEvents = bindPageEvents(container, {
+    getBusy: () => busy,
+    paint,
+    findMaster,
+    getSelectedMasterId: () => selectedMasterId,
+    getSelectedSubId: () => selectedSubId,
+    setSelection,
+    getList: () => list,
+    navigate,
+    closeSubMenus,
+    resetOwnersForMasterChange,
+    syncTodosBindingForSelection,
+    loadAttachmentsAndComments: async () => {
+      await attachments.loadForSelected();
+      await comments.loadForSelected();
+    },
+    isDisposed: () => disposed,
+    refresh,
+    setRefreshWarning: (value) => {
+      refreshWarning = value;
+    },
+    planMd,
+    attachments,
+    comments,
+    detail,
+    dialogs,
+    enforceActiveOnlySelection,
+  });
 
-  function openDeleteMasterDialog(triggerEl) {
-    const master = findMaster(selectedMasterId);
-    if (!master) return;
-    openTodoTaskDialog({
-      type: 'delete-master',
-      triggerEl,
-      payload: {
-        masterTitle: master.title,
-        subCount: master.sub_tasks?.length ?? 0,
-      },
-      onSubmit: async () => {
-        const masterTaskId = selectedMasterId;
-        await runWriteAction(async () => {
-          await deleteTodoTask({ masterTaskId });
-          selectedMasterId = '';
-          selectedSubId = '';
-          deadLink = false;
-          if (typeof navigate === 'function') {
-            navigate('#/todo-tasks');
-          }
-        });
-      },
-    });
-  }
-
-  function openDeleteSubDialog(triggerEl, subTaskId, subTitle) {
-    openTodoTaskDialog({
-      type: 'delete-sub',
-      triggerEl,
-      payload: { subTitle },
-      onSubmit: async () => {
-        const masterTaskId = selectedMasterId;
-        const deletingSelected = selectedSubId === subTaskId;
-        await runWriteAction(async () => {
-          await deletePlanSub({ masterTaskId, subTaskId });
-          if (deletingSelected) {
-            selectedSubId = '';
-            deadLink = false;
-            if (typeof navigate === 'function' && masterTaskId) {
-              navigate(buildMasterDeepLink(masterTaskId));
-            }
-          }
-        });
-      },
-    });
-  }
-
-  const onClick = (event) => {
-    const actionEl = event.target.closest('[data-action]');
-    const action = actionEl?.dataset.action;
-
-    if (action === 'retry-refresh') {
-      event.preventDefault();
-      if (controlsDisabled(busy)) return;
-      refreshWarning = '';
-      void refresh();
-      return;
-    }
-
-    if (action && planMd.handleClick(action)) {
-      event.preventDefault();
-      return;
-    }
-
-    if (action === 'toggle-active-only') {
-      event.preventDefault();
-      if (controlsDisabled(busy)) return;
-      list.toggleActiveOnly();
-      enforceActiveOnlySelection();
-      paint();
-      return;
-    }
-
-    if (action === 'create-master') {
-      event.preventDefault();
-      if (controlsDisabled(busy)) return;
-      openCreateDialog(actionEl instanceof HTMLElement ? actionEl : null);
-      return;
-    }
-
-    if (action && (attachments.handleClick(event, action, actionEl) || comments.handleClick(event, action, actionEl))) {
-      event.preventDefault();
-      return;
-    }
-
-    if (action && detail.handleClick(event, action, actionEl)) {
-      event.preventDefault();
-      return;
-    }
-
-    if (action === 'add-sub') {
-      event.preventDefault();
-      if (controlsDisabled(busy) || !selectedMasterId) return;
-      openAddSubDialog(actionEl instanceof HTMLElement ? actionEl : null);
-      return;
-    }
-
-    if (action === 'delete-master') {
-      event.preventDefault();
-      if (controlsDisabled(busy) || !selectedMasterId) return;
-      openDeleteMasterDialog(actionEl instanceof HTMLElement ? actionEl : null);
-      return;
-    }
-
-    if (action === 'delete-sub') {
-      event.preventDefault();
-      event.stopPropagation();
-      closeSubMenus();
-      if (controlsDisabled(busy) || !selectedMasterId) return;
-      const subTaskId = actionEl?.dataset.subId;
-      const subTitle = actionEl?.dataset.subTitle ?? '';
-      if (!subTaskId) return;
-      openDeleteSubDialog(
-        actionEl instanceof HTMLElement ? actionEl : null,
-        subTaskId,
-        subTitle,
-      );
-      return;
-    }
-
-    if (action === 'toggle-sub-menu') {
-      event.preventDefault();
-      event.stopPropagation();
-      const panel = actionEl?.closest('.todo-task-sub-menu')?.querySelector('.todo-task-sub-menu-panel');
-      if (!(panel instanceof HTMLElement)) return;
-      const willOpen = panel.hidden;
-      closeSubMenus();
-      panel.hidden = !willOpen;
-      return;
-    }
-
-    if (action === 'copy-sub-id' || action === 'copy-master-id') {
-      event.preventDefault();
-      event.stopPropagation();
-      const text = actionEl?.dataset.copyText ?? '';
-      if (text && navigator.clipboard?.writeText) {
-        void navigator.clipboard.writeText(text).then(() => {
-          if (action === 'copy-master-id' && actionEl instanceof HTMLElement) {
-            flashCopyFeedback(actionEl, COPY_MASTER_LABEL);
-          }
-        });
-      }
-      closeSubMenus();
-      return;
-    }
-
-    const masterBtn = event.target.closest('.todo-task-master-item');
-    if (masterBtn?.dataset.masterId) {
-      if (controlsDisabled(busy)) return;
-      if (masterBtn.dataset.masterId === selectedMasterId) {
-        closeSubMenus();
-        return;
-      }
-      resetOwnersForMasterChange();
-      selectedMasterId = masterBtn.dataset.masterId;
-      const master = findMaster(selectedMasterId);
-      const fallback = master ? pickDefaultSub(master) : null;
-      selectedSubId = fallback?.sub_task_id ?? '';
-      deadLink = false;
-      syncTodosBindingForSelection(selectedMasterId);
-      void (async () => {
-        await attachments.loadForSelected();
-        await comments.loadForSelected();
-        if (disposed) return;
-        paint();
-        if (typeof navigate === 'function' && selectedMasterId && selectedSubId) {
-          navigate(buildDeepLink(selectedMasterId, selectedSubId));
-        }
-      })();
-      return;
-    }
-
-    const subEl = event.target.closest('.todo-task-sub');
-    if (subEl?.dataset.subId && selectedMasterId) {
-      if (controlsDisabled(busy)) return;
-      if (event.target.closest('.todo-task-sub-menu')) return;
-      if (event.target.closest('.todo-task-sub-title-input')) return;
-      if (event.target.closest('.todo-task-sub-status-select')) return;
-      if (event.target.closest('.todo-task-sub-content-editor')) return;
-      if (event.target.closest('[data-action="toggle-sub-content"]')) return;
-      closeSubMenus();
-      selectedSubId = subEl.dataset.subId;
-      deadLink = false;
-      paint();
-      if (typeof navigate === 'function') {
-        navigate(buildDeepLink(selectedMasterId, selectedSubId));
-      }
-      return;
-    }
-
-    if (!event.target.closest('.todo-task-sub-menu')) {
-      closeSubMenus();
-    }
-  };
-
-  const onInput = (event) => {
-    detail.handleInput(event);
-  };
-
-  const onKeydown = (event) => {
-    if (comments.handleKeydown(event)) return;
-    if (attachments.handleKeydown(event)) return;
-    detail.handleTitleEnter(event);
-  };
-
-  const onFieldBlur = (event) => {
-    detail.handleBlur(event);
-  };
-
-  const onChange = (event) => {
-    const categoryFilter = event.target.closest('[data-action="filter-category"]');
-    if (categoryFilter instanceof HTMLSelectElement) {
-      if (controlsDisabled(busy)) {
-        categoryFilter.value = list.filterCategoryId;
-        return;
-      }
-      const nextValue = categoryFilter.value || '';
-      if (nextValue === CATEGORY_ACTION_CREATE) {
-        categoryFilter.value = list.filterCategoryId;
-        openCreateCategoryDialog(categoryFilter);
-        return;
-      }
-      if (nextValue === CATEGORY_ACTION_DELETE) {
-        categoryFilter.value = list.filterCategoryId;
-        void deleteFilteredCategory();
-        return;
-      }
-      list.setFilterCategoryId(nextValue);
-      enforceActiveOnlySelection();
-      paint();
-      return;
-    }
-    const masterCategorySelect = event.target.closest(
-      '[data-action="change-master-category"]',
-    );
-    if (masterCategorySelect instanceof HTMLSelectElement) {
-      if (controlsDisabled(busy) || !selectedMasterId) {
-        const master = findMaster(selectedMasterId);
-        masterCategorySelect.value = master
-          ? masterCategoryId(master)
-          : DEFAULT_PLAN_CATEGORY_ID;
-        return;
-      }
-      void runMasterCategoryChange(masterCategorySelect.value, masterCategorySelect);
-      return;
-    }
-    detail.handleChange(event);
-  };
-
-  container.addEventListener('click', onClick);
-  container.addEventListener('input', onInput);
-  container.addEventListener('keydown', onKeydown);
-  container.addEventListener('focusout', onFieldBlur);
-  container.addEventListener('change', onChange);
   const onDialogClose = () => {
     if (!disposed) paint();
   };
@@ -815,11 +438,7 @@ export function mountTodoTaskSplit(container, opts = {}) {
         void unlistenTurnCompleted();
         unlistenTurnCompleted = null;
       }
-      container.removeEventListener('click', onClick);
-      container.removeEventListener('input', onInput);
-      container.removeEventListener('keydown', onKeydown);
-      container.removeEventListener('focusout', onFieldBlur);
-      container.removeEventListener('change', onChange);
+      disposeEvents();
       container.innerHTML = '';
     }
   }

@@ -3,13 +3,11 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, it, expect } from 'vitest';
+import { readSettingsDialogSource } from '../helpers/read-frontend-js.js';
 
 const fixtureRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
 const indexHtml = readFileSync(join(fixtureRoot, 'frontend/index.html'), 'utf8');
-const settingsDialogJs = readFileSync(
-  join(fixtureRoot, 'frontend/js/app-shell/settings-dialog.js'),
-  'utf8',
-);
+const settingsDialogJs = readSettingsDialogSource();
 
 describe('Settings Knowledge Hidden files', () => {
   it('uses Settings Knowledge Hidden files tab', () => {

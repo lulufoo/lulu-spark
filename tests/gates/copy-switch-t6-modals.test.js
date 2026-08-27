@@ -2,10 +2,11 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
+import { readMainSource } from '../helpers/read-frontend-js.js';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
 
-const mainJs = readFileSync(join(repoRoot, 'frontend/js/main.js'), 'utf8');
+const mainJs = readMainSource();
 const commitDialogJs = readFileSync(
   join(repoRoot, 'frontend/js/app-shell/commit-dialog.js'),
   'utf8',

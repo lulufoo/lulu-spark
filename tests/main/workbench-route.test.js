@@ -24,9 +24,10 @@ vi.mock('../../frontend/js/corpus/corpus-search.js', () => ({
 }));
 
 import { applySearchNavChrome } from '../../frontend/js/app-shell/nav-chrome.js';
+import { readMainSource } from '../helpers/read-frontend-js.js';
 
 const fixtureRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
-const mainJs = readFileSync(join(fixtureRoot, 'frontend/js/main.js'), 'utf8');
+const mainJs = readMainSource();
 
 function extractFunctionBody(source, name) {
   const start = source.indexOf(`function ${name}`);
@@ -88,7 +89,7 @@ async function loadWorkbenchSearchModule() {
 describe('main.js workbench route init wiring (source)', () => {
   it('imports initWorkbenchSearch from notes/search.js', () => {
     expect(mainJs).toMatch(
-      /import\s*\{[^}]*initWorkbenchSearch[^}]*\}\s*from\s*'\.\/notes\/search\.js'/,
+      /import\s*\{[^}]*initWorkbenchSearch[^}]*\}\s*from\s*'[^']*notes\/search\.js'/,
     );
   });
 

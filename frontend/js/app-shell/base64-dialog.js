@@ -1,11 +1,3 @@
-import { openConvertDialog } from './convert-dialog.js';
-
-export function openBase64Dialog() {
-  document.getElementById('base64-input').value = '';
-  document.getElementById('base64-output').value = '';
-  openConvertDialog('base64');
-}
-
 document.getElementById('btn-base64-encode').addEventListener('click', () => {
   const input = document.getElementById('base64-input').value;
   const bytes = new TextEncoder().encode(input);

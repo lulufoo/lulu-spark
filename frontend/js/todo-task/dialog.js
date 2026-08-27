@@ -214,10 +214,6 @@ export function closeTodoTaskDialog() {
   document.dispatchEvent(new CustomEvent('todo-task-dialog-close'));
 }
 
-export function isTodoTaskDialogOpen() {
-  return getDialogEl()?.classList.contains('open') ?? false;
-}
-
 /**
  * @param {{
  *   type: TodoTaskDialogType,

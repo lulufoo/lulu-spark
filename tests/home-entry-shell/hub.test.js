@@ -5,9 +5,10 @@ import { fileURLToPath } from 'node:url';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import * as api from '../../frontend/js/host/api.js';
 import { mountHomeHub } from '../../frontend/js/home-entry-shell/hub.js';
+import { readMainSource } from '../helpers/read-frontend-js.js';
 
 const fixtureRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
-const mainJs = readFileSync(join(fixtureRoot, 'frontend/js/main.js'), 'utf8');
+const mainJs = readMainSource();
 
 describe('mountHomeHub', () => {
   let container;

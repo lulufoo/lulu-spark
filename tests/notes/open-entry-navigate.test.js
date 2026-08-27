@@ -7,12 +7,15 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { readFrontendJs, readMainSource } from '../helpers/read-frontend-js.js';
 import { buildCard } from '../../frontend/js/notes/cards.js';
 import { state } from '../../frontend/js/host/state.js';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
 
 function read(rel) {
+  if (rel === 'frontend/js/main.js') return readMainSource();
+  if (rel.startsWith('frontend/js/')) return readFrontendJs(rel);
   return readFileSync(join(repoRoot, rel), 'utf8');
 }
 

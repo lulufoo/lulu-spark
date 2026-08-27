@@ -80,8 +80,3 @@ export function getBaselineEntries() {
     panelHeight,
   }));
 }
-
-/** @returns {EntryConfig[]} */
-export function createEntryConfig() {
-  return getBaselineEntries();
-}

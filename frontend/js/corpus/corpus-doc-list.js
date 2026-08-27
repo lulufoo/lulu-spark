@@ -68,16 +68,6 @@ export function buildTreeNodes(entries, _parentPath) {
   return nodes;
 }
 
-/**
- * @param {string} repo
- * @param {string} relativePath
- * @returns {Promise<TreeNode[]>}
- */
-export async function loadDirChildren(repo, relativePath) {
-  const entries = await api.fetchKbList(repo, relativePath, 'flat');
-  return buildTreeNodes(entries, relativePath);
-}
-
 export { positionFloatingListMenu } from '../shared/floating-list-menu.js';
 
 /**

@@ -55,6 +55,11 @@ const { elements, makeEl } = vi.hoisted(() => {
     dispatchEvent: () => {},
   };
 
+  globalThis.window = {
+    location: { hash: '', replace() {} },
+    history: { back() {}, length: 1 },
+    addEventListener() {},
+  };
   globalThis.requestAnimationFrame = (fn) => fn();
   globalThis.marked = undefined; // not defined → renderDocBody falls back to <pre>
 

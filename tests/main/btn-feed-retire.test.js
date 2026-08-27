@@ -15,11 +15,12 @@ vi.mock('../../frontend/js/builders/feed.js', () => ({
 }));
 
 import { createBuildersContentAdapter } from '../../frontend/js/builders/assistant.js';
+import { readMainSource } from '../helpers/read-frontend-js.js';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
 
 function readMain() {
-  return readFileSync(join(repoRoot, 'frontend/js/main.js'), 'utf8');
+  return readMainSource();
 }
 
 function readIndexHtml() {

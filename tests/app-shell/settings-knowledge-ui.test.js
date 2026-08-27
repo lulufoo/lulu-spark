@@ -1,13 +1,11 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import { readHostApiSource, readMainSource, readSettingsDialogSource } from '../helpers/read-frontend-js.js';
 
 const indexHtml = readFileSync(new URL('../../frontend/index.html', import.meta.url), 'utf8');
-const mainJs = readFileSync(new URL('../../frontend/js/main.js', import.meta.url), 'utf8');
-const apiJs = readFileSync(new URL('../../frontend/js/host/api.js', import.meta.url), 'utf8');
-const settingsDialogJs = readFileSync(
-  new URL('../../frontend/js/app-shell/settings-dialog.js', import.meta.url),
-  'utf8'
-);
+const mainJs = readMainSource();
+const apiJs = readHostApiSource();
+const settingsDialogJs = readSettingsDialogSource();
 
 describe('Settings Knowledge UI', () => {
   it('Knowledge settings hold list, add, and category tabs', () => {

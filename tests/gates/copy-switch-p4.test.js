@@ -2,6 +2,7 @@ import { readFileSync, existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
+import { readFrontendJs } from '../helpers/read-frontend-js.js';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
 const FEATURE_DIR = 'docs/archive/ui/ui-english-copy-switch';
@@ -46,6 +47,7 @@ function loadJson(relPath) {
 function readSource(relPath) {
   const abs = join(repoRoot, relPath);
   expect(existsSync(abs), `missing ${relPath}`).toBe(true);
+  if (relPath.endsWith('.js')) return readFrontendJs(relPath);
   return readFileSync(abs, 'utf8');
 }
 

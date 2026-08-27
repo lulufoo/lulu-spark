@@ -13,7 +13,7 @@ export const TODO_TASK_BRAND_SITES = [
     mustNotMatch: NO_LEGACY_BRAND,
   },
   {
-    path: 'frontend/js/todo-task/page.js',
+    path: 'frontend/js/todo-task/page-render.js',
     mustMatch: [/aria-label="Todos list"/],
     mustNotMatch: NO_LEGACY_BRAND,
   },

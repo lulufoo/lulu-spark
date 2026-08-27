@@ -4,13 +4,12 @@ import { LAYERS, setGithubUserUrl } from './host/constants.js'
 import * as api from './host/api.js'
 import { buildGroups, renderSidebar, selectDate, applyListFilters, selectTag } from './notes/sidebar.js'
 import { initSidebarResize } from './notes/sidebar-resize.js'
-import { enterEditMode, exitEditMode, saveDoc, openCommitDialog, openDoc, openCreateNote } from './notes/viewer.js'
+import { enterEditMode, exitEditMode, saveDoc, openCommitDialog, openCreateNote } from './notes/viewer.js'
 import './shared/comment-delete.js'
 import './notes/comments.js'
 import './corpus/corpus-viewer.js'
 import './notes/delete-dialog.js'
 import './app-shell/commit-dialog.js'
-import { openKbDiffDialog } from './corpus/corpus-diff-dialog.js'
 import './app-shell/move-dialog.js'
 import { openConvertDialog } from './app-shell/convert-dialog.js'
 import './app-shell/base64-dialog.js'
@@ -26,16 +25,23 @@ import { createReadLaterContentAdapter } from './read-later/assistant.js'
 import { createTodoTaskContentAdapter } from './todo-task/assistant.js'
 import { createNotesContentAdapter } from './notes/assistant.js'
 import { createBuildersContentAdapter } from './builders/assistant.js'
-import { applySearchNavChrome } from './app-shell/nav-chrome.js'
-import { initWorkbenchSearch } from './notes/search.js'
-import { initCorpusSearch } from './corpus/corpus-search.js'
-import { mountCorpusDocList } from './corpus/corpus-doc-list.js'
-import { mountHomeHub } from './home-entry-shell/hub.js'
-import { mountTodoTaskSplit } from './todo-task/index.js'
 import { setWorkbenchBinding } from './todo-task/binding.js'
-import { initHeaderSync, clearHeaderSyncCorpusContext } from './app-shell/header-sync.js'
-import { workbenchSkillsContent } from './app-shell/skills-content.js'
+import { initHeaderSync } from './app-shell/header-sync.js'
 import { normalizeCorpusIndex } from './corpus/corpus-index.js'
+import './app-shell/sediment-kb.js'
+import { initTooltip } from './app-shell/tooltip.js'
+import './app-shell/skills-dialog.js'
+import {
+  getHomeEntryShell,
+  mountCorpusDocRoute,
+  mountHomeRoute,
+  mountReadLaterRoute,
+  mountTodoTasksRoute,
+  mountWorkbench,
+  setHomeEntryShell,
+  wrapRouteMount,
+} from './app-shell/routes.js'
+
 const titleCache = state.index.titleCache;
 
 // ── Fetch index.json ───────────────────────────────────────────────────────
@@ -125,26 +131,6 @@ async function pullProject() {
   }
 }
 
-// ── Repo menu helpers ──────────────────────────────────────────────────────
-
-async function _reloadTopicsIntoState() {
-  try {
-    const data = await api.fetchTopics();
-    const descMap = {};
-    const repoMap = {};
-    for (const t of (data.topics || [])) {
-      if (!t.repo) continue;
-      const key = t.dir || t.repo.split('/')[1];
-      if (t.description) descMap[key] = t.description;
-      repoMap[key] = `https://github.com/${t.repo}`;
-    }
-    state.index.topicDescriptions = descMap;
-    state.index.topicRepos = repoMap;
-  } catch (e) {
-    console.warn('fetchTopics failed:', e.message);
-  }
-}
-
 // ── Repo menu dropdown ─────────────────────────────────────────────────────
 
 const _syncMenuDropdown = document.getElementById('sync-menu-dropdown');
@@ -156,392 +142,6 @@ function _closeAllMenuDropdowns() {
   _toolsMenuDropdown?.classList.remove('open');
   _skillsMenuDropdown?.classList.remove('open');
 }
-
-// ── 沉淀知识库（sediment-kb：精选列表，按分类分组）────────────────────────
-
-let _kbCorpusStatus = null;
-let _kbCorpusDiffStatus = null;
-let _sedimentKbList = null;
-let _sedimentKbError = null;
-let _sedimentKbCategories = null;
-
-function _setSedimentKbError(elId, message) {
-  const el = document.getElementById(elId);
-  if (!el) return;
-  if (message) {
-    el.textContent = message;
-    el.style.display = '';
-  } else {
-    el.textContent = '';
-    el.style.display = 'none';
-  }
-}
-
-async function _ensureSedimentKbCategories() {
-  if (_sedimentKbCategories) return _sedimentKbCategories;
-  const data = await api.fetchSedimentKbCategories();
-  _sedimentKbCategories = data.categories || [];
-  return _sedimentKbCategories;
-}
-
-function bindSedimentKbListActions(content) {
-  content.querySelectorAll('.repo-sync-btn').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      const repo = btn.dataset.repo;
-      btn.disabled = true;
-      btn.textContent = '…';
-      try {
-        await api.reindexKbRepo(repo);
-        const poll = () => api.getReindexStatus();
-        for (let i = 0; i < 120; i++) {
-          await new Promise(r => setTimeout(r, 2000));
-          const s = await poll();
-          if (s?.status !== 'running') break;
-        }
-        _kbCorpusStatus = null;
-        await loadSedimentKbList(true);
-      } catch (e) {
-        alert(`Sync failed: ${e.message}`);
-        btn.disabled = false;
-        btn.textContent = 'SYNC';
-      }
-    });
-  });
-
-  content.querySelectorAll('.repo-diff-badge').forEach(btn => {
-    btn.addEventListener('click', () => {
-      openKbDiffDialog(btn.dataset.repo);
-    });
-  });
-
-  content.querySelectorAll('.sediment-kb-inline-category').forEach(sel => {
-    sel.addEventListener('change', () => {
-      onInlineCategoryChange(sel.dataset.repo, sel.value);
-    });
-  });
-
-  content.querySelectorAll('.sediment-kb-delete-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      onDeleteSedimentKbRepo(btn.dataset.repo);
-    });
-  });
-}
-
-function renderSedimentKbListByCategory(repos) {
-  const content = document.getElementById('repo-list-content');
-  if (!content) return;
-  if (!repos || repos.length === 0) {
-    content.innerHTML = '<div class="repo-list-loading">No repositories found</div>';
-    return;
-  }
-
-  const categories = _sedimentKbCategories || [];
-  const statusMap = {};
-  if (_kbCorpusStatus) {
-    for (const s of _kbCorpusStatus) statusMap[s.full_name] = s;
-  }
-
-  const groups = {};
-  for (const r of repos) {
-    const key = r.category_name || 'Uncategorized';
-    if (!groups[key]) groups[key] = [];
-    groups[key].push(r);
-  }
-  for (const key of Object.keys(groups)) {
-    groups[key].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'en', { sensitivity: 'base' }));
-  }
-
-  const sortedKeys = Object.keys(groups).sort((a, b) => {
-    if (a === 'Uncategorized') return 1;
-    if (b === 'Uncategorized') return -1;
-    return a.localeCompare(b, 'en', { sensitivity: 'base' });
-  });
-
-  const html = sortedKeys.map(key => {
-    const items = groups[key].map(r => {
-      const name = escHtml(r.name || r.full_name || '');
-      const desc = r.description ? `<div class="repo-list-item-desc">${escHtml(r.description)}</div>` : '';
-      const url = `https://github.com/${escHtml(r.full_name || r.name)}`;
-
-      let localBadge = '';
-      let diffBtnHtml = '';
-      let syncBtnHtml = '';
-      const st = statusMap[r.full_name];
-      if (st) {
-        localBadge = st.local_exists
-          ? `<span class="repo-local-badge repo-local-ok">Cloned</span>`
-          : `<span class="repo-local-badge repo-local-missing">Not cloned</span>`;
-        if (_kbCorpusDiffStatus?.get(r.full_name) === true) {
-          diffBtnHtml = `<button class="repo-diff-badge" data-repo="${escHtml(r.full_name)}" title="View local changes">✎</button>`;
-        }
-        syncBtnHtml = `<button class="repo-sync-btn" data-repo="${escHtml(r.full_name)}">SYNC</button>`;
-      }
-
-      const catSelectOptions = categories.map(c => {
-        const sel = c.id === r.category_id ? ' selected' : '';
-        return `<option value="${escHtml(c.id)}"${sel}>${escHtml(c.name)}</option>`;
-      }).join('');
-
-      return `<div class="repo-list-item">
-        <div class="repo-list-item-info">
-          <div class="repo-list-item-name">${name}${localBadge}</div>
-          ${desc}
-        </div>
-        <div class="repo-list-item-actions">
-          <select class="sediment-kb-inline-category" data-repo="${escHtml(r.full_name)}">${catSelectOptions}</select>
-          ${diffBtnHtml}
-          ${syncBtnHtml}
-          <a class="repo-list-item-link" href="${url}" target="_blank" rel="noopener noreferrer">Link ↗</a>
-          <button type="button" class="sediment-kb-delete-btn" data-repo="${escHtml(r.full_name)}" title="Remove from curated list">Delete</button>
-        </div>
-      </div>`;
-    }).join('');
-    return `<div class="repo-list-group-title">${escHtml(key)}</div>${items}`;
-  }).join('');
-
-  content.innerHTML = html;
-  bindSedimentKbListActions(content);
-}
-
-async function onInlineCategoryChange(fullName, categoryId) {
-  try {
-    const res = await api.updateSedimentKbRepoCategory(fullName, categoryId);
-    if (res?.error) throw new Error(res.error);
-    _sedimentKbList = null;
-    await loadSedimentKbList(true);
-  } catch (e) {
-    alert(`Failed to update category: ${e.message}`);
-    await loadSedimentKbList(true);
-  }
-}
-
-async function onDeleteSedimentKbRepo(fullName) {
-  try {
-    const res = await api.removeSedimentKbRepo(fullName);
-    if (res?.error) throw new Error(res.error);
-    _sedimentKbList = null;
-    await loadSedimentKbList(true);
-  } catch (e) {
-    alert(`Delete failed: ${e.message}`);
-  }
-}
-
-async function loadSedimentKbList(forceRefresh = false) {
-  if (!forceRefresh && _sedimentKbList && !_sedimentKbError) {
-    renderSedimentKbListByCategory(_sedimentKbList);
-    return;
-  }
-  _kbCorpusStatus = null;
-  _sedimentKbList = null;
-  _sedimentKbError = null;
-  _kbCorpusDiffStatus = null;
-  try {
-    const [reposData, catsData] = await Promise.all([
-      api.fetchSedimentKbRepos(),
-      api.fetchSedimentKbCategories(),
-    ]);
-    if (reposData?.error) throw new Error(reposData.error);
-    _sedimentKbCategories = catsData.categories || [];
-    _sedimentKbList = (reposData.repos || []).map((r) => ({
-      full_name: r.full_name,
-      name: (r.full_name || '').split('/').pop() || r.full_name,
-      description: r.description || '',
-      category_id: r.category_id,
-      category_name: r.category_name,
-      local_exists: r.local_exists === true,
-    }));
-    _kbCorpusStatus = _sedimentKbList.map((r) => ({
-      full_name: r.full_name,
-      name: r.name,
-      description: r.description,
-      local_exists: r.local_exists === true,
-    }));
-  } catch (e) {
-    _sedimentKbError = e.message || String(e);
-    _sedimentKbList = [];
-    _kbCorpusStatus = [];
-    const list = document.getElementById('repo-list-content');
-    if (list) {
-      list.innerHTML = `<div class="repo-list-loading" style="color:#cf222e">Failed to load: ${escHtml(_sedimentKbError)}</div>`;
-    }
-    return;
-  }
-  renderSedimentKbListByCategory(_sedimentKbList);
-
-  _kbCorpusDiffStatus = null;
-  try {
-    const diffData = await api.fetchKbDiffStatus();
-    _kbCorpusDiffStatus = new Map(
-      (diffData?.repos || []).map((repo) => [repo.full_name, repo.has_changes === true]),
-    );
-  } catch {
-    _kbCorpusDiffStatus = new Map();
-  }
-  renderSedimentKbListByCategory(_sedimentKbList);
-}
-
-async function prepareSedimentKbList() {
-  const content = document.getElementById('repo-list-content');
-  if (content && !content.innerHTML.trim()) {
-    content.innerHTML = '<div id="repo-list-loading">Loading…</div>';
-  }
-  await loadSedimentKbList(true);
-}
-
-async function prepareSedimentKbAddForm() {
-  const urlInput = document.getElementById('sediment-kb-add-url');
-  if (!urlInput) return;
-  _setSedimentKbError('sediment-kb-add-error', '');
-  urlInput.value = '';
-  document.getElementById('sediment-kb-add-description').value = '';
-  try {
-    const categories = await _ensureSedimentKbCategories();
-    const catSelect = document.getElementById('sediment-kb-add-category');
-    catSelect.innerHTML = categories.map(c =>
-      `<option value="${escHtml(c.id)}">${escHtml(c.name)}</option>`,
-    ).join('');
-  } catch (e) {
-    document.getElementById('sediment-kb-add-category').innerHTML =
-      '<option value="uncategorized">Uncategorized</option>';
-  }
-}
-
-function _renderSedimentKbManageList(categories) {
-  const list = document.getElementById('sediment-kb-manage-list');
-  list.innerHTML = categories.map(c => {
-    const isProtected = c.id === 'uncategorized';
-    const deleteBtn = isProtected
-      ? ''
-      : `<button type="button" class="sediment-kb-cat-delete-btn" data-id="${escHtml(c.id)}">Delete</button>`;
-    const nameCell = isProtected
-      ? `<span class="sediment-kb-cat-name-readonly">${escHtml(c.name)}</span>`
-      : `<input class="sediment-kb-cat-rename-input" data-id="${escHtml(c.id)}" type="text" value="${escHtml(c.name)}" />`;
-    return `<div class="sediment-kb-manage-row">${nameCell}${deleteBtn}</div>`;
-  }).join('');
-
-  list.querySelectorAll('.sediment-kb-cat-rename-input').forEach(input => {
-    input.addEventListener('change', async () => {
-      const id = input.dataset.id;
-      const name = input.value.trim();
-      if (!name) return;
-      try {
-        const res = await api.renameSedimentKbCategory(id, name);
-        if (res?.error) throw new Error(res.error);
-        _sedimentKbCategories = null;
-        const data = await api.fetchSedimentKbCategories();
-        _sedimentKbCategories = data.categories || [];
-        _renderSedimentKbManageList(_sedimentKbCategories);
-      } catch (e) {
-        _setSedimentKbError('sediment-kb-manage-error', e.message);
-      }
-    });
-  });
-
-  list.querySelectorAll('.sediment-kb-cat-delete-btn').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      try {
-        const res = await api.removeSedimentKbCategory(btn.dataset.id);
-        if (res?.error) throw new Error(res.error);
-        _sedimentKbCategories = null;
-        _sedimentKbList = null;
-        const data = await api.fetchSedimentKbCategories();
-        _sedimentKbCategories = data.categories || [];
-        _renderSedimentKbManageList(_sedimentKbCategories);
-        _setSedimentKbError('sediment-kb-manage-error', '');
-      } catch (e) {
-        _setSedimentKbError('sediment-kb-manage-error', e.message);
-      }
-    });
-  });
-}
-
-async function prepareSedimentKbManage() {
-  _setSedimentKbError('sediment-kb-manage-error', '');
-  const nameInput = document.getElementById('sediment-kb-manage-new-name');
-  if (nameInput) nameInput.value = '';
-  try {
-    const categories = await _ensureSedimentKbCategories();
-    _renderSedimentKbManageList(categories);
-  } catch (e) {
-    const list = document.getElementById('sediment-kb-manage-list');
-    if (list) {
-      list.innerHTML = `<div class="sediment-kb-error">${escHtml(e.message)}</div>`;
-    }
-  }
-}
-
-window.addEventListener('kb-diff-updated', () => {
-  void loadSedimentKbList(true);
-});
-
-window.addEventListener('settings-knowledge-tab', (e) => {
-  const tabId = e.detail;
-  if (tabId === 'list') void prepareSedimentKbList();
-  else if (tabId === 'add') void prepareSedimentKbAddForm();
-  else if (tabId === 'categories') void prepareSedimentKbManage();
-});
-
-document.getElementById('btn-repo-list-refresh')?.addEventListener('click', () => {
-  void loadSedimentKbList(true);
-});
-
-document.getElementById('btn-sediment-kb-add-submit')?.addEventListener('click', () => {
-  void (async () => {
-    const urlInput = document.getElementById('sediment-kb-add-url');
-    const catSelect = document.getElementById('sediment-kb-add-category');
-    const descInput = document.getElementById('sediment-kb-add-description');
-    const submitBtn = document.getElementById('btn-sediment-kb-add-submit');
-    const fullName = urlInput.value.trim();
-    if (!fullName) {
-      _setSedimentKbError('sediment-kb-add-error', 'Enter repository URL');
-      return;
-    }
-    submitBtn.disabled = true;
-    _setSedimentKbError('sediment-kb-add-error', '');
-    try {
-      const categoryId = catSelect.value || undefined;
-      const description = descInput.value.trim() || undefined;
-      const res = await api.addSedimentKbRepo(fullName, categoryId, description);
-      if (res?.error) throw new Error(res.error);
-      _sedimentKbList = null;
-      _sedimentKbCategories = null;
-      urlInput.value = '';
-      descInput.value = '';
-      _setSedimentKbError('sediment-kb-add-error', 'Added.');
-    } catch (e) {
-      _setSedimentKbError('sediment-kb-add-error', e.message);
-    } finally {
-      submitBtn.disabled = false;
-    }
-  })();
-});
-
-document.getElementById('btn-sediment-kb-manage-add')?.addEventListener('click', () => {
-  void (async () => {
-    const input = document.getElementById('sediment-kb-manage-new-name');
-    const name = input.value.trim();
-    if (!name) return;
-    try {
-      const res = await api.addSedimentKbCategory(name);
-      if (res?.error) throw new Error(res.error);
-      input.value = '';
-      _sedimentKbCategories = null;
-      const data = await api.fetchSedimentKbCategories();
-      _sedimentKbCategories = data.categories || [];
-      _renderSedimentKbManageList(_sedimentKbCategories);
-      _setSedimentKbError('sediment-kb-manage-error', '');
-    } catch (e) {
-      _setSedimentKbError('sediment-kb-manage-error', e.message);
-    }
-  })();
-});
-
-document.getElementById('sediment-kb-add-url')?.addEventListener('keydown', e => {
-  if (e.key === 'Enter') document.getElementById('btn-sediment-kb-add-submit')?.click();
-});
-document.getElementById('sediment-kb-manage-new-name')?.addEventListener('keydown', e => {
-  if (e.key === 'Enter') document.getElementById('btn-sediment-kb-manage-add')?.click();
-});
 
 // ── Event listeners ────────────────────────────────────────────────────────
 
@@ -559,341 +159,9 @@ document.getElementById('btn-panel-commit').addEventListener('click', openCommit
 
 initHeaderSync({ pullProject, loadIndex });
 
-// ── Fast tooltip shim ─────────────────────────────────────────────────────
-
-(function() {
-  const box = document.createElement('div');
-  box.id = '_tip';
-  document.body.appendChild(box);
-  let timer = null;
-
-  function show(el, x, y) {
-    const text = el.dataset.tip;
-    if (!text) return;
-    box.textContent = text;
-    const gap = 8;
-    let top = y + gap;
-    let left = x + gap;
-    box.classList.remove('visible');
-    box.style.display = 'block';
-    const bw = box.offsetWidth, bh = box.offsetHeight;
-    if (top + bh > window.innerHeight - 4) top = y - bh - gap;
-    if (left + bw > window.innerWidth - 4) left = window.innerWidth - bw - 4;
-    box.style.left = left + 'px';
-    box.style.top = top + 'px';
-    box.classList.add('visible');
-  }
-
-  function hide() {
-    clearTimeout(timer);
-    box.classList.remove('visible');
-  }
-
-  document.addEventListener('mouseover', e => {
-    const el = e.target.closest('[data-tip]');
-    if (!el) { hide(); return; }
-    if (!el.dataset.tip) { hide(); return; }
-    clearTimeout(timer);
-    timer = setTimeout(() => show(el, e.clientX, e.clientY), 150);
-  }, true);
-
-  document.addEventListener('mousemove', e => {
-    if (!box.classList.contains('visible')) return;
-    const el = e.target.closest('[data-tip]');
-    if (!el) return;
-    let top = e.clientY + 8, left = e.clientX + 8;
-    const bw = box.offsetWidth, bh = box.offsetHeight;
-    if (top + bh > window.innerHeight - 4) top = e.clientY - bh - 8;
-    if (left + bw > window.innerWidth - 4) left = window.innerWidth - bw - 4;
-    box.style.left = left + 'px';
-    box.style.top = top + 'px';
-  }, true);
-
-  document.addEventListener('mouseout', e => {
-    const el = e.target.closest('[data-tip]');
-    if (!el) return;
-    if (el.contains(e.relatedTarget)) return;
-    clearTimeout(timer);
-    hide();
-  }, true);
-})();
-
 // ── cta:reload ─────────────────────────────────────────────────────────────
 
 document.addEventListener('cta:reload', () => loadIndex());
-
-// ── Feed Tab (legacy #feed-view kept hidden; Builders entry is FAB-only) ───
-
-const feedView = document.getElementById('feed-view');
-
-let unmountCorpusDocList = null;
-let corpusDocListRepo = '';
-let unmountHomeHub = null;
-let unmountTodoTaskSplit = null;
-/** @type {ReturnType<typeof mountHomeEntryShell> | null} */
-let homeEntryShell = null;
-
-function updateNavChrome(routeName) {
-  const onHome = routeName === 'home';
-  const homeTitle = document.getElementById('btn-nav-home-title');
-  const homeNav = document.getElementById('btn-nav-home');
-  if (homeTitle) homeTitle.hidden = !onHome;
-  if (homeNav) homeNav.hidden = onHome;
-  applySearchNavChrome(routeName);
-}
-
-function wrapRouteMount(routeName, mountFn) {
-  return (route) => {
-    // Leave-host: force shell back to A so overlay never crosses pages.
-    homeEntryShell?.forceRecoverA('leave-route');
-    updateNavChrome(routeName);
-    if (routeName === 'workbench') initWorkbenchSearch();
-    if (routeName === 'corpus-doc') initCorpusSearch();
-    return mountFn(route);
-  };
-}
-
-function hideHomeView() {
-  const homeView = document.getElementById('home-view');
-  if (homeView) homeView.style.display = 'none';
-}
-
-function hideCorpusDocView() {
-  const docView = document.getElementById('corpus-doc-view');
-  if (docView) docView.style.display = 'none';
-  const layout = document.querySelector('.layout');
-  if (layout) layout.style.display = '';
-}
-
-function hideReadLaterView() {
-  const readLaterView = document.getElementById('read-later-view');
-  if (readLaterView) readLaterView.style.display = 'none';
-}
-
-function hideTodoTasksView() {
-  const todoTasksView = document.getElementById('todo-tasks-view');
-  if (todoTasksView) todoTasksView.style.display = 'none';
-}
-
-function mountHomeRoute() {
-  clearHeaderSyncCorpusContext();
-  unmountCorpusDocList?.();
-  unmountCorpusDocList = null;
-  corpusDocListRepo = '';
-  hideCorpusDocView();
-  hideReadLaterView();
-  hideTodoTasksView();
-
-  if (feedView) feedView.style.display = 'none';
-
-  const layout = document.querySelector('.layout');
-  if (layout) layout.style.display = 'none';
-
-  const homeView = document.getElementById('home-view');
-  if (!homeView) return;
-  homeView.style.display = '';
-
-  unmountTodoTaskSplit?.();
-  unmountTodoTaskSplit = null;
-  unmountHomeHub?.();
-  unmountHomeHub = mountHomeHub(homeView, { navigate, openReadLater: openReadLaterDialog });
-}
-
-function mountCorpusDocRoute(route) {
-  unmountHomeHub?.();
-  unmountHomeHub = null;
-  unmountTodoTaskSplit?.();
-  unmountTodoTaskSplit = null;
-  hideHomeView();
-  hideReadLaterView();
-  hideTodoTasksView();
-
-  const layout = document.querySelector('.layout');
-  if (layout) layout.style.display = 'none';
-
-  const docView = document.getElementById('corpus-doc-view');
-  if (!docView) return;
-  docView.style.display = '';
-
-  const repo = route?.params?.repo || '';
-  const initialPath = route?.params?.path || '';
-
-  if (unmountCorpusDocList && corpusDocListRepo === repo) {
-    // Same repo: update path in-place. Do not remount — remount resets expanded tree state.
-    void unmountCorpusDocList.navigateToPath?.(initialPath);
-    return;
-  }
-
-  unmountCorpusDocList?.();
-  unmountCorpusDocList = null;
-  corpusDocListRepo = '';
-
-  unmountCorpusDocList = mountCorpusDocList(docView, { repo, navigate, initialPath });
-  corpusDocListRepo = unmountCorpusDocList.repo ?? repo;
-}
-
-function mountReadLaterRoute() {
-  mountHomeRoute();
-  openReadLaterDialog();
-}
-
-function mountTodoTasksRoute(route) {
-  clearHeaderSyncCorpusContext();
-  unmountHomeHub?.();
-  unmountHomeHub = null;
-  unmountCorpusDocList?.();
-  unmountCorpusDocList = null;
-  corpusDocListRepo = '';
-  hideHomeView();
-  hideCorpusDocView();
-  hideReadLaterView();
-
-  if (feedView) feedView.style.display = 'none';
-
-  const layout = document.querySelector('.layout');
-  if (layout) layout.style.display = 'none';
-
-  const todoTasksView = document.getElementById('todo-tasks-view');
-  if (!todoTasksView) return;
-  todoTasksView.style.display = '';
-
-  const masterId = route?.params?.master ?? '';
-  const subId = route?.params?.sub ?? '';
-  // Same page: update selection in-place. Remount would reset pane scroll positions.
-  if (typeof unmountTodoTaskSplit?.applyRoute === 'function') {
-    unmountTodoTaskSplit.applyRoute({ masterId, subId });
-    return;
-  }
-
-  unmountTodoTaskSplit?.();
-  const mounted = mountTodoTaskSplit(todoTasksView, {
-    masterId,
-    subId,
-    navigate,
-  });
-  unmountTodoTaskSplit = mounted.unmount;
-}
-
-function mountWorkbench(route) {
-  clearHeaderSyncCorpusContext();
-  unmountHomeHub?.();
-  unmountHomeHub = null;
-  unmountTodoTaskSplit?.();
-  unmountTodoTaskSplit = null;
-  hideHomeView();
-  unmountCorpusDocList?.();
-  unmountCorpusDocList = null;
-  corpusDocListRepo = '';
-  hideCorpusDocView();
-  hideReadLaterView();
-  hideTodoTasksView();
-
-  if (feedView) feedView.style.display = 'none';
-  // Restore archive elements to their natural display state.
-  // date-heading is list-only — note/create branches hide it (avoid a second chrome row).
-  const status = document.getElementById('status');
-  const dateHeading = document.getElementById('date-heading');
-  const docList = document.getElementById('doc-list');
-  if (state.ui.activeDate) {
-    if (status) status.style.display = 'none';
-  } else {
-    if (status) status.style.display = '';
-  }
-
-  const params = route?.params || {};
-  const notePath = params.note || '';
-  const date = params.date || '';
-  const layer = params.layer || 'raw';
-  const creating = !!state.viewer?.createSession;
-
-  const ensureOutlet = () => {
-    let outlet = document.getElementById('note-outlet');
-    if (outlet) return outlet;
-    outlet = document.createElement('div');
-    outlet.id = 'note-outlet';
-    outlet.hidden = true;
-    const msg = document.createElement('div');
-    msg.id = 'note-outlet-message';
-    msg.className = 'note-outlet-message';
-    msg.hidden = true;
-    outlet.appendChild(msg);
-    document.getElementById('main')?.appendChild(outlet);
-    return outlet;
-  };
-
-  const activateOutlet = (mode, { note, layer: lyr, message = '' } = {}) => {
-    const outlet = ensureOutlet();
-    if (dateHeading) dateHeading.style.display = 'none';
-    if (docList) docList.style.display = 'none';
-    outlet.hidden = false;
-    outlet.dataset.wbMode = mode;
-    if (note) outlet.dataset.note = note;
-    else delete outlet.dataset.note;
-    if (lyr) outlet.dataset.layer = lyr;
-    else delete outlet.dataset.layer;
-
-    // Preserve #md-panel chrome — never wipe via textContent.
-    let msgEl = document.getElementById('note-outlet-message');
-    if (!msgEl) {
-      msgEl = document.createElement('div');
-      msgEl.id = 'note-outlet-message';
-      msgEl.className = 'note-outlet-message';
-      outlet.prepend(msgEl);
-    }
-    const panel = document.getElementById('md-panel');
-    if (message) {
-      msgEl.hidden = false;
-      msgEl.textContent = message;
-      if (panel) panel.hidden = true;
-    } else {
-      msgEl.hidden = true;
-      msgEl.textContent = '';
-      if (panel) panel.hidden = false;
-    }
-  };
-
-  if (notePath) {
-    const allEntries = Object.values(state.index?.data || {});
-    let entry = allEntries.find((e) => e.common_path === notePath);
-    if (!entry) entry = allEntries.find((e) => e.translations?.zh === notePath);
-    if (entry) {
-      activateOutlet('open', { note: entry.common_path, layer });
-      void openDoc(entry, layer);
-    } else {
-      activateOutlet('safe-empty', {
-        note: notePath,
-        message: `Note not found: ${notePath}`,
-      });
-    }
-    return;
-  }
-
-  if (creating) {
-    activateOutlet('create');
-    return;
-  }
-
-  const outlet = document.getElementById('note-outlet');
-  if (outlet) {
-    outlet.hidden = true;
-    outlet.dataset.wbMode = '';
-    delete outlet.dataset.note;
-    delete outlet.dataset.layer;
-  }
-  const msgEl = document.getElementById('note-outlet-message');
-  if (msgEl) {
-    msgEl.hidden = true;
-    msgEl.textContent = '';
-  }
-  const panel = document.getElementById('md-panel');
-  if (panel) panel.hidden = false;
-  if (docList) docList.style.display = '';
-  if (dateHeading) {
-    dateHeading.style.display = (date || state.ui.activeDate) ? '' : 'none';
-  }
-  if (date && typeof selectDate === 'function') selectDate(date);
-}
-
 document.getElementById('btn-settings').addEventListener('click', () => {
   _closeAllMenuDropdowns();
   openSettingsDialog();
@@ -930,6 +198,7 @@ api.fetchTopics().then(data => {
   state.index.topicRepos = repoMap;
 }).catch(() => {});
 initSidebarResize();
+initTooltip();
 loadIndex();
 
 initRouter({
@@ -941,7 +210,7 @@ initRouter({
 }, { fallback: '#/home' });
 
 function closeNoteAssistantPanel() {
-  homeEntryShell?.forceRecoverA('leave-host');
+  getHomeEntryShell()?.forceRecoverA('leave-host');
 }
 
 function openCreateNoteFromFab(opts = {}) {
@@ -964,7 +233,7 @@ homeEntryRegistry.register('todo-task', createTodoTaskContentAdapter());
 homeEntryRegistry.register('notes', createNotesContentAdapter());
 homeEntryRegistry.register('builders', createBuildersContentAdapter());
 
-homeEntryShell = mountHomeEntryShell(document.body, {
+const homeEntryShell = mountHomeEntryShell(document.body, {
   config: getBaselineEntries(),
   registry: homeEntryRegistry,
   host: {
@@ -973,6 +242,7 @@ homeEntryShell = mountHomeEntryShell(document.body, {
     openCreateNote: openCreateNoteFromFab,
   },
 });
+setHomeEntryShell(homeEntryShell);
 void setWorkbenchBinding();
 
 /** Present-before-listen race buffer (L11-AR). Cleared on pull / successful open. */
@@ -1084,61 +354,3 @@ document.addEventListener('cta:open-kb-doc', ({ detail }) => {
   if (!detail || !detail.repo || !detail.path) return
   navigate('#/corpus/' + encodeURIComponent(detail.repo) + '?path=' + encodeURIComponent(detail.path))
 });
-
-// ── Skills dialog ─────────────────────────────────────────────────────────
-
-function _escapeAttr(str) {
-  return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/"/g, '&quot;')
-    .replace(/</g, '&lt;');
-}
-
-function _openSkillsDialog() {
-  const data = workbenchSkillsContent;
-  if (!data) return;
-  document.getElementById('skills-dialog-title').textContent = data.title;
-  const rows = data.groups.flatMap((g) => g.items).map((item) => {
-    const skill = typeof item === 'string'
-      ? { cmd: item, name: item, desc: 'Click to copy' }
-      : item;
-    const tip = skill.desc != null && skill.desc !== ''
-      ? _escapeAttr(skill.desc)
-      : 'Click to copy';
-    return `<tr class="skill-row">` +
-      `<td class="skill-name">${_escapeAttr(skill.name)}</td>` +
-      `<td class="skill-cmd" data-copy="${_escapeAttr(skill.cmd)}" title="${tip}">` +
-        `<code>${_escapeAttr(skill.cmd)}</code>` +
-      `</td>` +
-      `</tr>`;
-  }).join('');
-  document.getElementById('skills-dialog-body').innerHTML =
-    `<table class="skill-table"><tbody>${rows}</tbody></table>`;
-
-  document.getElementById('skills-dialog-body').querySelectorAll('.skill-cmd[data-copy]').forEach((el) => {
-    el.addEventListener('click', () => {
-      const cmd = el.dataset.copy;
-      navigator.clipboard.writeText(cmd).then(() => {
-        el.innerHTML = '<code>Copied</code>';
-        setTimeout(() => { el.innerHTML = `<code>${_escapeAttr(cmd)}</code>`; }, 1200);
-      });
-    });
-  });
-
-  document.getElementById('skills-dialog').classList.add('open');
-}
-
-function _closeSkillsDialog() {
-  document.getElementById('skills-dialog').classList.remove('open');
-}
-
-document.getElementById('btn-skill-workbench').addEventListener('click', () => {
-  _skillsMenuDropdown.classList.remove('open');
-  _openSkillsDialog();
-});
-
-document.getElementById('btn-skills-dialog-close').addEventListener('click', _closeSkillsDialog);
-document.getElementById('skills-dialog').addEventListener('click', e => {
-  if (e.target === document.getElementById('skills-dialog')) _closeSkillsDialog();
-});
-

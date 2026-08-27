@@ -19,6 +19,7 @@ vi.mock('../../frontend/js/host/apiClient.js', async (importOriginal) => {
 });
 
 import { parseHash } from '../../frontend/js/router/index.js';
+import { readMainSource } from '../helpers/read-frontend-js.js';
 import {
   bindFocusRefresh,
   deleteReadLaterEntry,
@@ -31,7 +32,7 @@ import {
 const UNAVAILABLE_MSG = 'List temporarily unavailable. Please try again later';
 
 const fixtureRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
-const mainJs = readFileSync(join(fixtureRoot, 'frontend/js/main.js'), 'utf8');
+const mainJs = readMainSource();
 const indexHtml = readFileSync(join(fixtureRoot, 'frontend/index.html'), 'utf8');
 
 function extractFunctionBody(source, name) {

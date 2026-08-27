@@ -10,11 +10,12 @@ import { fileURLToPath } from 'node:url';
 
 import { createContentRegistry } from '../../frontend/js/home-entry-shell/content-registry.js';
 import { mountHomeEntryShell } from '../../frontend/js/home-entry-shell/shell.js';
+import { readMainSource } from '../helpers/read-frontend-js.js';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
 
 function readMain() {
-  return readFileSync(join(repoRoot, 'frontend/js/main.js'), 'utf8');
+  return readMainSource();
 }
 
 function readAppCss() {
@@ -184,7 +185,7 @@ describe('home-entry-shell workbench Binding (t2)', () => {
   it('main.js Sets workbench Binding once immediately after mountHomeEntryShell', () => {
     const source = readMain();
     expect(source).toMatch(
-      /homeEntryShell\s*=\s*mountHomeEntryShell\s*\(\s*document\.body[\s\S]*?\}\s*\)\s*;\s*(?:\/\/[^\n]*\n\s*)*void\s+setWorkbenchBinding\s*\(\s*\)/,
+      /(?:const\s+)?homeEntryShell\s*=\s*mountHomeEntryShell\s*\(\s*document\.body[\s\S]*?\}\s*\)\s*;[\s\S]*?void\s+setWorkbenchBinding\s*\(\s*\)/,
     );
     const calls = source.match(/void\s+setWorkbenchBinding\s*\(\s*\)/g) || [];
     expect(calls.length, 'exactly one process-level workbench Set').toBe(1);

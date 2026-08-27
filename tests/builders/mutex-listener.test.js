@@ -7,11 +7,12 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, it, expect } from 'vitest';
+import { readMainSource } from '../helpers/read-frontend-js.js';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
 
 function readMain() {
-  return readFileSync(join(repoRoot, 'frontend/js/main.js'), 'utf8');
+  return readMainSource();
 }
 
 describe('Builders ↔ assistants capture-phase mutex retired (main.js T5/T7)', () => {

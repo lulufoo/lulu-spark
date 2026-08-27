@@ -38,6 +38,7 @@ import { createReadLaterContentAdapter } from '../../frontend/js/read-later/assi
 import { createTodoTaskContentAdapter } from '../../frontend/js/todo-task/assistant.js';
 import { createNotesContentAdapter } from '../../frontend/js/notes/assistant.js';
 import { createBuildersContentAdapter } from '../../frontend/js/builders/assistant.js';
+import { readMainSource } from '../helpers/read-frontend-js.js';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
 
@@ -74,7 +75,7 @@ const ADAPTERS = [
 ];
 
 function readMain() {
-  return readFileSync(join(repoRoot, 'frontend/js/main.js'), 'utf8');
+  return readMainSource();
 }
 
 function registerAll(registry) {

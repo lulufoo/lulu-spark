@@ -10,6 +10,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { createHomeEntryFsm } from '../../frontend/js/home-entry-shell/fsm.js';
+import { readMainSource } from '../helpers/read-frontend-js.js';
 import {
   mountShellIntegrationFixture,
   hub,
@@ -23,7 +24,7 @@ import {
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
 
 function readMain() {
-  return readFileSync(join(repoRoot, 'frontend/js/main.js'), 'utf8');
+  return readMainSource();
 }
 
 describe('home-entry-shell integration · legal edges + triggers + hard counterexamples (T7)', () => {

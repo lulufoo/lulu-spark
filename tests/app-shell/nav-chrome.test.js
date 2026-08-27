@@ -14,9 +14,10 @@ vi.mock('../../frontend/js/corpus/corpus-search.js', () => ({
 import { closeWorkbenchSearch } from '../../frontend/js/notes/search.js';
 import { closeCorpusSearch } from '../../frontend/js/corpus/corpus-search.js';
 import { applySearchNavChrome } from '../../frontend/js/app-shell/nav-chrome.js';
+import { readMainSource } from '../helpers/read-frontend-js.js';
 
 const fixtureRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
-const mainJs = readFileSync(join(fixtureRoot, 'frontend/js/main.js'), 'utf8');
+const mainJs = readMainSource();
 
 function navChromeDom() {
   document.body.innerHTML = `
@@ -111,7 +112,7 @@ describe('applySearchNavChrome dual search wraps', () => {
 
 describe('main.js nav chrome integration', () => {
   it('imports applySearchNavChrome from nav-chrome.js via wrapRouteMount', () => {
-    expect(mainJs).toMatch(/from '\.\/app-shell\/nav-chrome\.js'/);
+    expect(mainJs).toMatch(/from '[^']*nav-chrome\.js'/);
     expect(mainJs).toMatch(/updateNavChrome\(routeName\)/);
   });
 

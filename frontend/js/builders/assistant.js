@@ -24,12 +24,3 @@ export function createBuildersContentAdapter() {
     },
   };
 }
-
-/**
- * @param {HTMLElement} slotEl
- * @param {unknown} [host]
- * @returns {{ unmount: () => void }}
- */
-export function mountBuildersContent(slotEl, host) {
-  return createBuildersContentAdapter().mount(slotEl, { host });
-}

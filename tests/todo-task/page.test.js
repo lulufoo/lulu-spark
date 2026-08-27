@@ -41,9 +41,10 @@ import {
 } from '../../frontend/js/todo-task/index.js';
 
 import { readRsPath } from '../helpers/read-rs-dir.js';
+import { readMainSource } from '../helpers/read-frontend-js.js';
 
 const fixtureRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
-const mainJs = readFileSync(join(fixtureRoot, 'frontend/js/main.js'), 'utf8');
+const mainJs = readMainSource();
 const indexHtml = readFileSync(join(fixtureRoot, 'frontend/index.html'), 'utf8');
 const appCss = readFileSync(join(fixtureRoot, 'frontend/app.css'), 'utf8');
 

@@ -275,12 +275,3 @@ export function createReadLaterContentAdapter() {
     },
   };
 }
-
-/**
- * @param {HTMLElement} slotEl
- * @param {{ navigate?: (hash: string) => void, openReadLater?: () => void }} [host]
- * @returns {{ unmount: () => void }}
- */
-export function mountReadLaterContent(slotEl, host) {
-  return createReadLaterContentAdapter().mount(slotEl, { host });
-}

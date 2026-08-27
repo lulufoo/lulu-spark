@@ -3,6 +3,7 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { test, expect } from 'vitest'
 import { workbenchSkillsContent } from '../../frontend/js/app-shell/skills-content.js'
+import { readMainSource } from '../helpers/read-frontend-js.js';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..')
 
@@ -49,7 +50,7 @@ test('each public child skill has one clickable item with required display field
 })
 
 test('skills dialog renders one English table row per skill and no group links', () => {
-  const mainJs = readFileSync(join(repoRoot, 'frontend/js/main.js'), 'utf8')
+  const mainJs = readMainSource()
   expect(mainJs).toContain('class="skill-table"')
   expect(mainJs).toContain('class="skill-name"')
   expect(mainJs).toContain('class="skill-cmd"')

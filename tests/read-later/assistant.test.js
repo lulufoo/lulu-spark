@@ -27,9 +27,10 @@ import {
   selectTop3Latest,
 } from '../../frontend/js/read-later/assistant.js';
 import { openExternalUrl } from '../../frontend/js/read-later/list.js';
+import { readMainSource } from '../helpers/read-frontend-js.js';
 
 const fixtureRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
-const mainJs = readFileSync(join(fixtureRoot, 'frontend/js/main.js'), 'utf8');
+const mainJs = readMainSource();
 
 const sampleEntries = [
   {

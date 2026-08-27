@@ -203,12 +203,3 @@ export function createNotesContentAdapter() {
     },
   };
 }
-
-/**
- * @param {HTMLElement} slotEl
- * @param {{ openCreateNote?: (opts?: object) => void|Promise<void> }} [host]
- * @returns {{ unmount: () => void }}
- */
-export function mountNotesContent(slotEl, host) {
-  return createNotesContentAdapter().mount(slotEl, { host });
-}

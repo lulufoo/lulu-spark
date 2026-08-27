@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { readAgentLoopSource, readAgentLoopTestsSource } from '../helpers/agent-loop-source.js';
 import { readRsPath } from '../helpers/read-rs-dir.js';
+import { readMainSource } from '../helpers/read-frontend-js.js';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
 const libRs = readFileSync(join(repoRoot, 'src-tauri/src/lib.rs'), 'utf8');
@@ -225,7 +226,7 @@ describe('ai-assistant window shell (t5)', () => {
  * (migrated from Present→overlay / create_or_focus window contract).
  */
 describe('ai-assistant Present shell VF (t7)', () => {
-  const mainJs = readFileSync(join(repoRoot, 'frontend/js/main.js'), 'utf8');
+  const mainJs = readMainSource();
   const loopRs = readAgentLoopSource();
 
   it('Present opens Home only: main listens surface Present → navigate #/home', () => {

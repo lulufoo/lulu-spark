@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { test, expect, vi, beforeEach } from 'vitest'
+import { readHostApiSource } from '../helpers/read-frontend-js.js'
 import { DEFAULT_DEV_BASE } from '../../frontend/js/host/apiClient.js'
 import {
   assertReadPayload,
@@ -40,7 +41,7 @@ function mockFetchHtml(status = 404) {
 beforeEach(() => { vi.restoreAllMocks() })
 
 test('api.js 无裸 fetch（读路径均经 readGet / writePost）', () => {
-  const src = readFileSync(new URL('../../frontend/js/host/api.js', import.meta.url), 'utf8')
+  const src = readHostApiSource()
   expect([...src.matchAll(/await fetch\(/g)]).toHaveLength(0)
 })
 

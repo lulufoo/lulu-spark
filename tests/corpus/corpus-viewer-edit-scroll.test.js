@@ -73,6 +73,8 @@ vi.mock('../../frontend/js/host/state.js', async () => {
 });
 vi.mock('../../frontend/js/corpus/corpus-comments.js', () => ({
   renderKbComments: vi.fn(),
+  initKbComments: vi.fn(),
+  cleanupKbComments: vi.fn(),
   initKbCommentEvents: vi.fn(),
 }));
 vi.mock('../../frontend/js/doc-editor/highlights.js', () => ({

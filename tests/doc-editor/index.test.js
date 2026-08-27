@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
+import { readFrontendJs } from '../helpers/read-frontend-js.js';
 import {
   knowledgeDocKey,
   notesDocKey,
@@ -11,6 +12,7 @@ import {
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
 
 function read(rel) {
+  if (rel.startsWith('frontend/js/')) return readFrontendJs(rel);
   return readFileSync(join(repoRoot, rel), 'utf8');
 }
 

@@ -130,12 +130,17 @@ describe('Plan-task attachment AC gate (tech-doc VF / T15)', () => {
 const TODO_TASK_UI_SOURCES = [
   'frontend/js/todo-task/index.js',
   'frontend/js/todo-task/page.js',
+  'frontend/js/todo-task/page-render.js',
+  'frontend/js/todo-task/page-dialogs.js',
+  'frontend/js/todo-task/page-events.js',
   'frontend/js/todo-task/host.js',
   'frontend/js/todo-task/format.js',
   'frontend/js/todo-task/list.js',
   'frontend/js/todo-task/detail.js',
+  'frontend/js/todo-task/detail-render.js',
   'frontend/js/todo-task/plan-md.js',
   'frontend/js/todo-task/attachments.js',
+  'frontend/js/todo-task/attachments-render.js',
   'frontend/js/todo-task/comments.js',
   'frontend/js/todo-task/dialog.js',
 ];

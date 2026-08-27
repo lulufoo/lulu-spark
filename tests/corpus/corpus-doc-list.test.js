@@ -24,9 +24,10 @@ import {
   mountCorpusDocList,
 } from '../../frontend/js/corpus/corpus-doc-list.js';
 import { positionFloatingListMenu } from '../../frontend/js/shared/floating-list-menu.js';
+import { readMainSource } from '../helpers/read-frontend-js.js';
 
 const fixtureRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
-const mainJs = readFileSync(join(fixtureRoot, 'frontend/js/main.js'), 'utf8');
+const mainJs = readMainSource();
 
 const sampleRootEntries = [
   { name: 'docs', relative_path: 'docs', is_dir: true },

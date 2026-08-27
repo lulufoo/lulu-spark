@@ -232,12 +232,3 @@ export function createTodoTaskContentAdapter() {
     },
   };
 }
-
-/**
- * @param {HTMLElement} slotEl
- * @param {{ navigate?: (hash: string) => void }} [host]
- * @returns {{ unmount: () => void }}
- */
-export function mountTodoTaskContent(slotEl, host) {
-  return createTodoTaskContentAdapter().mount(slotEl, { host });
-}
