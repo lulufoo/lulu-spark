@@ -3,7 +3,6 @@
 #[path = "loop_src.rs"]
 mod loop_src;
 
-#[path = "loop_tests.rs"]
 mod loop_tests;
 
 #[path = "engine_router_tests.rs"]

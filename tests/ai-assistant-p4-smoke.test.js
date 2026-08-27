@@ -32,7 +32,7 @@ import {
   setWorkbenchBinding,
   WORKBENCH_BUSINESS_KEY,
 } from '../frontend/js/todo-task/todos-binding.js';
-import { readAgentLoopSource } from './helpers/agent-loop-source.js';
+import { readAgentLoopSource, readAgentLoopTestsSource } from './helpers/agent-loop-source.js';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 const checklistPath = join(
@@ -164,10 +164,7 @@ describe('AI assistant P4 layered smoke gate (t7)', () => {
   });
 
   it('Loop layer covers clarify/write paths, busy rebind, failure taxonomy, history caps', () => {
-    const loopTests = readFileSync(
-      join(repoRoot, 'src-tauri/src/unit-tests/services/agent/loop_tests.rs'),
-      'utf8',
-    );
+    const loopTests = readAgentLoopTestsSource();
     for (const marker of LOOP_MARKERS) {
       expect(loopTests, `missing Loop test ${marker}`).toContain(
         `fn ${marker}`,
@@ -460,10 +457,7 @@ describe('Todos SK-4 parity acceptance (P1–P6 / N1/N2)', () => {
 
 describe('t6 layered acceptance L0/L1/L2 gate', () => {
   it('loop_tests lands L0/L1/L2 + leave-primary markers', () => {
-    const loopTests = readFileSync(
-      join(repoRoot, 'src-tauri/src/unit-tests/services/agent/loop_tests.rs'),
-      'utf8',
-    );
+    const loopTests = readAgentLoopTestsSource();
     for (const marker of [
       't6_layered_acceptance_markers_are_landed',
       't6_l0_unbound_reject_reset_idempotent_and_mid_reset_cancel',

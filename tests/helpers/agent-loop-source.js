@@ -13,3 +13,13 @@ export function readAgentLoopSource() {
     .map((name) => readFileSync(join(dir, name), 'utf8'))
     .join('\n');
 }
+
+/** Concatenate Loop unit tests under unit-tests/services/agent/loop_tests/. */
+export function readAgentLoopTestsSource() {
+  const dir = join(repoRoot, 'src-tauri/src/unit-tests/services/agent/loop_tests');
+  return readdirSync(dir)
+    .filter((name) => name.endsWith('.rs'))
+    .sort()
+    .map((name) => readFileSync(join(dir, name), 'utf8'))
+    .join('\n');
+}

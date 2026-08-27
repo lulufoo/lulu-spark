@@ -2,7 +2,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { readAgentLoopSource } from './helpers/agent-loop-source.js';
+import { readAgentLoopSource, readAgentLoopTestsSource } from './helpers/agent-loop-source.js';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 const libRs = readFileSync(join(repoRoot, 'src-tauri/src/lib.rs'), 'utf8');
@@ -158,10 +158,7 @@ describe('ai-assistant window shell (t5)', () => {
 
   it('J1 / H1 acceptance is kernel-API driven, not business UI click as sole driver', () => {
     // Contract acceptance must live in Host unit fixtures, not plan-page entry clicks.
-    const loopTests = readFileSync(
-      join(repoRoot, 'src-tauri/src/unit-tests/services/agent/loop_tests.rs'),
-      'utf8',
-    );
+    const loopTests = readAgentLoopTestsSource();
     expect(loopTests).toMatch(/j1_generic_binding_fixture|j1_h1_kernel_api_fixture/);
     expect(loopTests).toMatch(/j1_1_legal_set_on_bound_execute_reset_rejects/);
     expect(loopTests).toMatch(/j1_2_illegal_set_keeps_state_no_on_bound_emits_set_invalid/);
