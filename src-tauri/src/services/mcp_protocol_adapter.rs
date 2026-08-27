@@ -249,9 +249,6 @@ struct SceneSlotApi {
 
 const REGISTERED_SCENE_SLOTS: &[&str] = &["workbench", "cursor_ide"];
 
-/// Tools hung only on the workbench slot (not seeded by scene_slot_api).
-const NOTES_SLOT_ONLY_TOOLS: &[&str] = &["get_notes_selection"];
-
 fn scene_slot_api(slot: &str) -> Option<SceneSlotApi> {
     match slot {
         "workbench" => Some(SceneSlotApi {
@@ -638,22 +635,6 @@ pub fn build_slot_tool_table(slot: &str) -> Option<SlotToolTable> {
     }
     if api.include_todo {
         tools.extend(todo_tool_routes());
-    }
-    if slot == "workbench" {
-        for &name in NOTES_SLOT_ONLY_TOOLS {
-            match name {
-                "get_notes_selection" => tools.push(route(
-                    name,
-                    "Read the current Notes document-selection snapshot. Selection updates are not available through MCP.",
-                    HttpMethod::Get,
-                    "/api/notes-selection",
-                    object_schema(json!({}), &[]),
-                    true,
-                    false,
-                )),
-                other => panic!("unmapped notes-only tool {other}"),
-            }
-        }
     }
     Some(SlotToolTable {
         scene_slot: slot.to_string(),

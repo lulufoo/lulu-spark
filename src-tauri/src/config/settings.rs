@@ -58,6 +58,13 @@ pub fn is_test_sandbox() -> bool {
     )
 }
 
+/// Keychain-backed stores stay in process memory.
+/// `TestSandbox` is the product switch. `cfg(test)` keeps `cargo test --lib`
+/// off the login keychain even when a case did not open a sandbox.
+pub fn uses_in_memory_keychain() -> bool {
+    cfg!(test) || is_test_sandbox()
+}
+
 /// Optional instance id; `None` if unset/empty. Does not validate charset.
 pub fn test_sandbox_id_raw() -> Option<String> {
     std::env::var(ENV_TEST_SANDBOX_ID)

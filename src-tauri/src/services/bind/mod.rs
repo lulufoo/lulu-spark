@@ -1,11 +1,9 @@
 //! In-process bind ceremony: one ephemeral X25519 session, Ed25519 signed payload.
 
+use std::collections::HashMap;
 use std::net::Ipv4Addr;
 use std::sync::Mutex;
 use std::time::{SystemTime, UNIX_EPOCH};
-
-#[cfg(test)]
-use std::collections::HashMap;
 
 use chacha20poly1305::aead::{Aead, KeyInit};
 use chacha20poly1305::{ChaCha20Poly1305, Nonce};
@@ -17,6 +15,7 @@ use serde_json::Value;
 use sha2::Sha256;
 use x25519_dalek::{PublicKey, StaticSecret};
 
+use crate::config::settings;
 use crate::services::mcp_oauth::issue_for_device;
 
 const BIND_TTL_SECS: u64 = 180;
@@ -77,19 +76,11 @@ enum Session {
 
 static SESSION: Mutex<Option<Session>> = Mutex::new(None);
 
-#[cfg(test)]
-static TEST_KEYCHAIN: Mutex<Option<HashMap<String, String>>> = Mutex::new(None);
+static MEMORY_KEYCHAIN: Mutex<Option<HashMap<String, String>>> = Mutex::new(None);
 
 #[cfg_attr(test, allow(dead_code))]
 fn bind_service() -> &'static str {
-    #[cfg(test)]
-    {
-        "lulu-workbench-bind-test"
-    }
-    #[cfg(not(test))]
-    {
-        "lulu-workbench-bind"
-    }
+    "lulu-workbench-bind"
 }
 
 fn now_secs() -> u64 {
@@ -137,70 +128,61 @@ fn load_or_create_signing_key(account: &str) -> Result<SigningKey, BindError> {
     Ok(key)
 }
 
-#[cfg(test)]
-fn test_kc() -> std::sync::MutexGuard<'static, Option<HashMap<String, String>>> {
-    TEST_KEYCHAIN.lock().unwrap_or_else(|e| e.into_inner())
+fn memory_kc() -> std::sync::MutexGuard<'static, Option<HashMap<String, String>>> {
+    MEMORY_KEYCHAIN.lock().unwrap_or_else(|e| e.into_inner())
 }
 
 fn kc_get(account: &str) -> Result<Option<String>, BindError> {
-    #[cfg(test)]
-    {
-        let mut guard = test_kc();
+    if settings::uses_in_memory_keychain() {
+        let mut guard = memory_kc();
         let store = guard.get_or_insert_with(HashMap::new);
         return Ok(store.get(account).cloned());
     }
-    #[cfg(not(test))]
-    {
-        let entry = match keyring::Entry::new(bind_service(), account) {
-            Ok(entry) => entry,
-            Err(_) => {
-                log_bind_event("keychain.read", "entry_failed");
-                return Err(BindError::keychain_unavailable);
-            }
-        };
-        match entry.get_password() {
-            Ok(raw) => {
-                log_bind_event("keychain.read", "existing");
-                Ok(Some(raw))
-            }
-            Err(keyring::Error::NoEntry) => {
-                log_bind_event("keychain.read", "missing");
-                Ok(None)
-            }
-            Err(_) => {
-                log_bind_event("keychain.read", "failed");
-                Err(BindError::keychain_unavailable)
-            }
+    let entry = match keyring::Entry::new(bind_service(), account) {
+        Ok(entry) => entry,
+        Err(_) => {
+            log_bind_event("keychain.read", "entry_failed");
+            return Err(BindError::keychain_unavailable);
+        }
+    };
+    match entry.get_password() {
+        Ok(raw) => {
+            log_bind_event("keychain.read", "existing");
+            Ok(Some(raw))
+        }
+        Err(keyring::Error::NoEntry) => {
+            log_bind_event("keychain.read", "missing");
+            Ok(None)
+        }
+        Err(_) => {
+            log_bind_event("keychain.read", "failed");
+            Err(BindError::keychain_unavailable)
         }
     }
 }
 
 fn kc_set(account: &str, value: &str) -> Result<(), BindError> {
-    #[cfg(test)]
-    {
-        let mut guard = test_kc();
+    if settings::uses_in_memory_keychain() {
+        let mut guard = memory_kc();
         let store = guard.get_or_insert_with(HashMap::new);
         store.insert(account.to_string(), value.to_string());
         return Ok(());
     }
-    #[cfg(not(test))]
-    {
-        let entry = match keyring::Entry::new(bind_service(), account) {
-            Ok(entry) => entry,
-            Err(_) => {
-                log_bind_event("keychain.write", "entry_failed");
-                return Err(BindError::keychain_unavailable);
-            }
-        };
-        let result = entry
-            .set_password(value)
-            .map_err(|_| BindError::keychain_unavailable);
-        log_bind_event(
-            "keychain.write",
-            if result.is_ok() { "succeeded" } else { "failed" },
-        );
-        result
-    }
+    let entry = match keyring::Entry::new(bind_service(), account) {
+        Ok(entry) => entry,
+        Err(_) => {
+            log_bind_event("keychain.write", "entry_failed");
+            return Err(BindError::keychain_unavailable);
+        }
+    };
+    let result = entry
+        .set_password(value)
+        .map_err(|_| BindError::keychain_unavailable);
+    log_bind_event(
+        "keychain.write",
+        if result.is_ok() { "succeeded" } else { "failed" },
+    );
+    result
 }
 
 fn ensure_bind_keys() -> Result<(SigningKey, SigningKey), BindError> {
@@ -413,7 +395,7 @@ pub fn test_session_bytes() -> Vec<u8> {
 
 #[cfg(test)]
 pub fn test_reset_bind_keychain() {
-    *test_kc() = Some(HashMap::new());
+    *memory_kc() = Some(HashMap::new());
 }
 
 #[cfg(test)]

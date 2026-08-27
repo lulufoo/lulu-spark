@@ -64,25 +64,7 @@ fn start_isolated_mcp(
 }
 
 fn bearer_headers_for_slot(scene: &str) -> BTreeMap<String, String> {
-    let ticket = {
-        let previous = std::env::var("HOME").ok();
-        let login = std::env::var("USER").ok().map(|user| format!("/Users/{user}"));
-        if std::env::var("TestSandbox").is_ok() {
-            if let Some(login) = login.as_deref() {
-                unsafe { std::env::set_var("HOME", login) };
-            }
-        }
-        let issued = issue_for_slot(Slot::parse(scene).expect("registered slot")).expect("issue ticket");
-        if std::env::var("TestSandbox").is_ok() {
-            unsafe {
-                match previous {
-                    Some(home) => std::env::set_var("HOME", home),
-                    None => std::env::remove_var("HOME"),
-                }
-            };
-        }
-        issued
-    };
+    let ticket = issue_for_slot(Slot::parse(scene).expect("registered slot")).expect("issue ticket");
     BTreeMap::from([(
         "Authorization".to_string(),
         format!("Bearer {}", ticket.as_str()),
@@ -338,12 +320,16 @@ fn run_loop_final_reply_none_terminal_and_wrote_false() {
 }
 
 #[test]
-fn run_loop_uses_notes_mcp_tools_and_feeds_tool_result_back_to_model() {
+fn run_loop_uses_mcp_tools_and_feeds_tool_result_back_to_model() {
     let sandbox = TestSandbox::new();
     secrets::test_secrets_clear();
     r#loop::reset_runtime_for_tests();
     mcp_server_registry::clear_for_tests();
     mcp_server_registry::seed_defaults();
+
+    let todo_root = sandbox.workbench_knowledge_root().join("todo_tasks");
+    fs::create_dir_all(&todo_root).expect("create todo root");
+    fs::write(todo_root.join(".migration_gate_passed"), b"ok\n").expect("plant migration gate");
 
     let sidecar_port = ephemeral_port();
     let sidecar = local_http::start(sandbox.config_dir().to_path_buf(), sidecar_port)
@@ -375,17 +361,17 @@ fn run_loop_uses_notes_mcp_tools_and_feeds_tool_result_back_to_model() {
                 "id": "selection_1",
                 "type": "function",
                 "function": {
-                    "name": "get_notes_selection",
+                    "name": "list_todo_tasks",
                     "arguments": "{}"
                 }
             }]),
             None,
         ),
-        assistant_text("已读取当前笔记选择。"),
+        assistant_text("已读取当前待办列表。"),
     ]);
     r#loop::try_set_binding_json(&json!({ "key": "workbench" })).expect("Set workbench binding");
     let mut session = session::create_session(None, None).expect("session");
-    let outcome = r#loop::run_loop(&mut session, "读取当前选择", &cfg_for(&mock));
+    let outcome = r#loop::run_loop(&mut session, "读取当前待办", &cfg_for(&mock));
 
     assert_outcome(&outcome, "none", false);
     assert_eq!(
@@ -403,9 +389,9 @@ fn run_loop_uses_notes_mcp_tools_and_feeds_tool_result_back_to_model() {
         hits[0]["tools"]
             .as_array()
             .is_some_and(|tools| tools.iter().any(|tool| {
-                tool.pointer("/function/name") == Some(&json!("get_notes_selection"))
+                tool.pointer("/function/name") == Some(&json!("list_todo_tasks"))
             })),
-        "active Notes MCP tools must be sent to the model"
+        "active workbench MCP tools must be sent to the model"
     );
     assert!(
         hits[1]["messages"]
@@ -413,7 +399,7 @@ fn run_loop_uses_notes_mcp_tools_and_feeds_tool_result_back_to_model() {
             .is_some_and(|messages| messages.iter().any(|message| {
                 message["role"] == "tool"
                     && message["tool_call_id"] == "selection_1"
-                    && message["name"] == "get_notes_selection"
+                    && message["name"] == "list_todo_tasks"
             })),
         "the model follow-up must receive the MCP result"
     );
@@ -587,7 +573,7 @@ fn run_loop_stops_after_bounded_mcp_tool_rounds() {
                     "id": format!("selection_{round}"),
                     "type": "function",
                     "function": {
-                        "name": "get_notes_selection",
+                        "name": "list_todo_tasks",
                         "arguments": "{}"
                     }
                 }]),
@@ -598,7 +584,7 @@ fn run_loop_stops_after_bounded_mcp_tool_rounds() {
     let mock = spawn_scripted_llm(responses);
     r#loop::try_set_binding_json(&json!({ "key": "workbench" })).expect("Set workbench binding");
     let mut session = session::create_session(None, None).expect("session");
-    let outcome = r#loop::run_loop(&mut session, "反复读取选择", &cfg_for(&mock));
+    let outcome = r#loop::run_loop(&mut session, "反复读取待办", &cfg_for(&mock));
 
     assert_outcome(&outcome, "error", false);
     assert!(outcome.reply_text.contains("调用次数已达上限"));
@@ -622,6 +608,123 @@ fn run_loop_stops_after_bounded_mcp_tool_rounds() {
 }
 
 #[test]
+fn run_loop_offers_host_file_tools_and_keeps_scratch_writes_inside_cache() {
+    let sandbox = TestSandbox::new();
+    secrets::test_secrets_clear();
+    r#loop::reset_runtime_for_tests();
+    mcp_server_registry::clear_for_tests();
+    mcp_server_registry::seed_defaults();
+    let readable = sandbox.workbench_knowledge_root().join("readable.md");
+    fs::write(&readable, "needle-line\n").expect("plant readable file");
+    let forbidden = sandbox.workbench_knowledge_root().join("todo.md");
+    let (sidecar, mcp, mcp_port) = start_isolated_mcp(&sandbox);
+    register_test_mcp("workbench", mcp_port);
+
+    r#loop::try_set_binding_json(&json!({ "key": "workbench" })).expect("Set workbench binding");
+    let mut session = session::create_session(None, None).expect("session");
+    let scratch = sandbox
+        .cache_dir()
+        .join("agent-scratch")
+        .join(&session.session_id)
+        .join("pad.md");
+    let mock = spawn_scripted_llm(vec![
+        assistant_tools(
+            json!([{
+                "id": "host_read",
+                "type": "function",
+                "function": {
+                    "name": "read",
+                    "arguments": format!("{{\"path\":{}}}", json!(readable.to_string_lossy()))
+                }
+            }]),
+            None,
+        ),
+        assistant_tools(
+            json!([{
+                "id": "host_denied",
+                "type": "function",
+                "function": {
+                    "name": "write",
+                    "arguments": format!(
+                        "{{\"path\":{},\"content\":\"nope\"}}",
+                        json!(forbidden.to_string_lossy())
+                    )
+                }
+            }]),
+            None,
+        ),
+        assistant_tools(
+            json!([{
+                "id": "host_write",
+                "type": "function",
+                "function": {
+                    "name": "write",
+                    "arguments": format!(
+                        "{{\"path\":{},\"content\":\"scratch ok\"}}",
+                        json!(scratch.to_string_lossy())
+                    )
+                }
+            }]),
+            None,
+        ),
+        assistant_text("已读文件并写入草稿。"),
+    ]);
+    let outcome = r#loop::run_loop(&mut session, "读文件并写草稿", &cfg_for(&mock));
+
+    assert_outcome(&outcome, "none", true);
+    assert!(!forbidden.exists(), "Host write must not touch $WB");
+    assert_eq!(
+        fs::read_to_string(&scratch).expect("scratch"),
+        "scratch ok"
+    );
+    let hits = mock.hits.lock().unwrap();
+    assert!(
+        hits[0]["tools"].as_array().is_some_and(|tools| {
+            ["grep", "read", "write", "edit"].iter().all(|name| {
+                tools
+                    .iter()
+                    .any(|tool| tool.pointer("/function/name") == Some(&json!(name)))
+            }) && tools.iter().any(|tool| {
+                tool.pointer("/function/name") == Some(&json!("list_todo_tasks"))
+            })
+        }),
+        "model tools must include Host file tools and MCP tools"
+    );
+    let tool_turns: Vec<_> = session
+        .turns
+        .iter()
+        .filter(|turn| turn.role == "tool")
+        .collect();
+    assert_eq!(tool_turns.len(), 3);
+    assert!(
+        tool_turns[0]
+            .content
+            .as_deref()
+            .is_some_and(|content| content.contains("needle-line")),
+        "Host read must return the $WB file"
+    );
+    assert!(
+        tool_turns[1]
+            .content
+            .as_deref()
+            .is_some_and(|content| content.contains("outside the write fence")),
+        "Host write outside scratch must be denied"
+    );
+    let log = fs::read_to_string(
+        crate::services::agent::diagnostics::diagnostic_log_path().expect("diag path"),
+    )
+    .unwrap_or_default();
+    assert!(
+        log.contains("\"tool_name\":\"read\"") && log.contains("\"source\":\"host\""),
+        "Host file tools must reuse assistant-diagnostic.jsonl"
+    );
+
+    drop(hits);
+    stop_embedded_mcp_runtime(mcp).expect("stop MCP");
+    local_http::stop(sidecar);
+}
+
+#[test]
 fn run_loop_does_not_call_mcp_after_reset_invalidates_its_generation() {
     let sandbox = TestSandbox::new();
     secrets::test_secrets_clear();
@@ -638,7 +741,7 @@ fn run_loop_does_not_call_mcp_after_reset_invalidates_its_generation() {
                 "id": "selection_after_reset",
                 "type": "function",
                 "function": {
-                    "name": "get_notes_selection",
+                    "name": "list_todo_tasks",
                     "arguments": "{}"
                 }
             }]),
@@ -647,7 +750,7 @@ fn run_loop_does_not_call_mcp_after_reset_invalidates_its_generation() {
     );
     r#loop::try_set_binding_json(&json!({ "key": "workbench" })).expect("Set workbench binding");
     let mut session = session::create_session(None, None).expect("session");
-    let outcome = r#loop::run_loop(&mut session, "读取选择", &cfg_for(&mock));
+    let outcome = r#loop::run_loop(&mut session, "读取待办", &cfg_for(&mock));
 
     assert_outcome(&outcome, "error", false);
     assert!(outcome.reply_text.contains("cancelled"));

@@ -77,6 +77,44 @@ impl ToolCatalog {
             .ok_or_else(|| McpClientError::InvalidArguments(format!("tool '{name}' is not discovered")))?;
         validate_json_schema(schema, arguments, "$").map_err(McpClientError::InvalidArguments)
     }
+
+    pub(crate) fn from_parts(
+        definitions: Vec<Value>,
+        names: BTreeSet<String>,
+        read_only_names: BTreeSet<String>,
+        input_schemas: BTreeMap<String, Value>,
+    ) -> Self {
+        Self {
+            definitions,
+            names,
+            read_only_names,
+            input_schemas,
+        }
+    }
+
+    pub fn merge(mut self, other: ToolCatalog) -> Self {
+        for def in other.definitions {
+            let Some(name) = def
+                .pointer("/function/name")
+                .and_then(Value::as_str)
+                .map(str::to_string)
+            else {
+                continue;
+            };
+            if self.names.contains(&name) {
+                continue;
+            }
+            if other.read_only_names.contains(&name) {
+                self.read_only_names.insert(name.clone());
+            }
+            if let Some(schema) = other.input_schemas.get(&name) {
+                self.input_schemas.insert(name.clone(), schema.clone());
+            }
+            self.names.insert(name);
+            self.definitions.push(def);
+        }
+        self
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

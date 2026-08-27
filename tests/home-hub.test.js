@@ -193,6 +193,82 @@ describe('home hub chat sessions', () => {
     ).toBe(true);
   });
 
+  it('renders assistant replies as markdown and keeps user text escaped', async () => {
+    global.marked = {
+      parse: vi.fn((md) => `<h2>Hello</h2><p>${md}</p>`),
+    };
+    invokeSpy.mockImplementation(async (cmd, args) => {
+      if (cmd === 'query_binding') return { state: 'bound' };
+      if (cmd === 'list_chat_sessions') {
+        return { sessions, current_session_id: currentId };
+      }
+      if (cmd === 'select_chat_session') {
+        currentId = String(args?.sessionId || '');
+        return {
+          session_id: currentId,
+          turns: [
+            { role: 'user', content: '**plain**' },
+            { role: 'assistant', content: '## Hello' },
+          ],
+        };
+      }
+      if (cmd === 'get_ai_assistant_binding') {
+        return { session_id: currentId, turns: [] };
+      }
+      return {};
+    });
+    try {
+      await mountReady();
+      container.querySelector('[data-session-id="s1"]').click();
+      await vi.waitFor(() => {
+        expect(container.querySelector('.home-chat-bubble--user')?.textContent).toBe(
+          '**plain**',
+        );
+        expect(container.querySelector('.home-chat-md h2')?.textContent).toBe('Hello');
+      });
+      expect(global.marked.parse).toHaveBeenCalledWith('## Hello');
+    } finally {
+      delete global.marked;
+    }
+  });
+
+  it('hydrates mermaid fences in assistant replies', async () => {
+    global.marked = {
+      parse: () => '<pre><code class="language-mermaid">graph TD; A-->B;</code></pre>',
+    };
+    global.mermaid = {
+      initialize: vi.fn(),
+      render: vi.fn(async () => ({ svg: '<svg data-chat="1"></svg>' })),
+    };
+    invokeSpy.mockImplementation(async (cmd, args) => {
+      if (cmd === 'query_binding') return { state: 'bound' };
+      if (cmd === 'list_chat_sessions') {
+        return { sessions, current_session_id: currentId };
+      }
+      if (cmd === 'select_chat_session') {
+        currentId = String(args?.sessionId || '');
+        return {
+          session_id: currentId,
+          turns: [{ role: 'assistant', content: '```mermaid\ngraph TD; A-->B;\n```' }],
+        };
+      }
+      if (cmd === 'get_ai_assistant_binding') {
+        return { session_id: currentId, turns: [] };
+      }
+      return {};
+    });
+    try {
+      await mountReady();
+      container.querySelector('[data-session-id="s1"]').click();
+      await vi.waitFor(() => {
+        expect(container.querySelector('.home-chat-md .mermaid-diagram svg')).not.toBeNull();
+      });
+    } finally {
+      delete global.marked;
+      delete global.mermaid;
+    }
+  });
+
   it('selects a session and hydrates its turns', async () => {
     await mountReady();
     container.querySelector('[data-session-id="s1"]').click();
@@ -348,7 +424,9 @@ describe('home hub chat sessions', () => {
     expect(source).toMatch(/list_chat_sessions/);
     expect(source).toMatch(/select_chat_session/);
     expect(source).toMatch(/create_chat_session/);
+    expect(source).toMatch(/home-chat-render/);
     expect(source).not.toMatch(/ensure_ai_assistant_session/);
+    expect(source).not.toMatch(/viewer\.js|comment-markdown/);
     mountHomeHub(container, { navigate: vi.fn() });
     expect(container.querySelector('.home-chat-sessions-title')?.textContent).toBe('Chats');
     expect(container.querySelector('.home-chat-composer-dock')).not.toBeNull();
@@ -361,11 +439,14 @@ describe('home hub chat sessions', () => {
 describe('home hub composer and hub pairing', () => {
   it('reserves a right rail so the composer dock does not sit under the global +', () => {
     const appCss = readFileSync(join(fixtureRoot, 'frontend/app.css'), 'utf8');
-    expect(appCss).toMatch(/--home-chat-rail:\s*88px/);
+    expect(appCss).toMatch(/--home-chat-rail:\s*44px/);
+    expect(appCss).toMatch(/--home-chat-col:\s*calc\(50% \+ 360px\)/);
     expect(appCss).toMatch(/\.home-chat-composer-dock/);
     expect(appCss).toMatch(/\.home-chat-composer-dock\s*\{[^}]*min-height:\s*40px/);
     expect(appCss).toMatch(/\.home-chat-send\s*\{[^}]*width:\s*28px/);
     expect(appCss).toMatch(/\.home-chat-bubble--user\s*\{[^}]*background:\s*#f0f2f4/);
+    expect(appCss).toMatch(/\.home-chat-bubble--assistant\s*\{[^}]*white-space:\s*normal/);
+    expect(appCss).toMatch(/\.home-chat-md\s+p\s*\{/);
     expect(appCss).toMatch(
       /\.home-chat-composer\s*\{[^}]*position:\s*absolute/,
     );

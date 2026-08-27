@@ -36,8 +36,6 @@ import { setWorkbenchBinding } from './todo-task/todos-binding.js'
 import { initHeaderSync, clearHeaderSyncCorpusContext } from './header-sync.js'
 import { workbenchSkillsContent } from './skills-workbench-content.js'
 import { normalizeCorpusIndex } from './corpus-index.js'
-import { writeNotesSelectionSnapshot, clearNotesSelectionSnapshot } from './apiClient.js'
-
 const titleCache = state.index.titleCache;
 
 // ── Fetch index.json ───────────────────────────────────────────────────────
@@ -739,27 +737,6 @@ function mountReadLaterRoute() {
   openReadLaterDialog();
 }
 
-function notesSelectionForDate(date, selectedId = null) {
-  const group = (state.index.filteredGroups || []).find((g) => g.date === date)
-    || (state.index.groupedByDate || []).find((g) => g.date === date);
-  const documents = (group?.entries || []).map(({ id }) => ({
-    id,
-    selected: selectedId != null && id === selectedId,
-  }));
-  return { date: date || null, documents };
-}
-
-function writeNotesSelectionForEntry(entry) {
-  if (typeof writeNotesSelectionSnapshot !== 'function' || !entry) return;
-  const date = entry.created_at ? entry.created_at.slice(0, 8) : (state.ui.activeDate || '');
-  let selectedId = entry._id || null;
-  if (!selectedId && state.index.data) {
-    const hit = Object.entries(state.index.data).find(([, e]) => e === entry || e.common_path === entry.common_path);
-    if (hit) selectedId = hit[0];
-  }
-  void writeNotesSelectionSnapshot(notesSelectionForDate(date, selectedId)).catch(() => {});
-}
-
 function mountTodoTasksRoute(route) {
   clearHeaderSyncCorpusContext();
   unmountHomeHub?.();
@@ -788,10 +765,6 @@ function mountTodoTasksRoute(route) {
     return;
   }
 
-  if (typeof clearNotesSelectionSnapshot === 'function') {
-    void clearNotesSelectionSnapshot().catch(() => {});
-  }
-
   unmountTodoTaskSplit?.();
   const mounted = mountTodoTaskSplit(todoTasksView, {
     masterId,
@@ -802,19 +775,6 @@ function mountTodoTasksRoute(route) {
 }
 
 function mountWorkbench(route) {
-  if (typeof writeNotesSelectionSnapshot === 'function') {
-    const params = route?.params || {};
-    const notePath = params.note || '';
-    const date = params.date || state.ui.activeDate;
-    let selectedId = null;
-    if (notePath && state.index.data) {
-      const hit = Object.entries(state.index.data).find(
-        ([, e]) => e.common_path === notePath || e.translations?.zh === notePath,
-      );
-      if (hit) selectedId = hit[0];
-    }
-    void writeNotesSelectionSnapshot(notesSelectionForDate(date, selectedId)).catch(() => {});
-  }
   clearHeaderSyncCorpusContext();
   unmountHomeHub?.();
   unmountHomeHub = null;
@@ -1114,7 +1074,6 @@ document.addEventListener('cta:open-entry', ({ detail }) => {
     : (state.ui?.activeDate || '')
   if (!date) return
   selectDate(date)
-  writeNotesSelectionForEntry(entry)
   // Optional layer only when entry synthesizes one; consumer defaults when absent.
   const params = { date, note: entry.common_path }
   if (detail.layer) params.layer = detail.layer

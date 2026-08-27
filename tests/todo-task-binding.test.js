@@ -177,7 +177,7 @@ describe('setWorkbenchBinding', () => {
     expect(setArgs.binding).not.toHaveProperty('engine_type');
     expect(setArgs.binding).not.toHaveProperty('engineType');
 
-    expect(invokeMock).toHaveBeenCalledWith('ensure_ai_assistant_session');
+    expect(invokeMock).not.toHaveBeenCalledWith('ensure_ai_assistant_session');
     expect(events.map((e) => e.event)).toEqual(['onBound']);
     expect(invokeMock).not.toHaveBeenCalledWith('reset_binding');
   });
@@ -199,21 +199,15 @@ describe('setWorkbenchBinding', () => {
     );
   });
 
-  it('swallows ensure_ai_assistant_session failure after a successful Set', async () => {
+  it('does not create a chat session after a successful Set', async () => {
     const cbs = trackCallbacks();
-    invokeMock.mockImplementation(async (cmd, args) => {
-      if (cmd === 'set_binding') {
-        return acceptWorkbenchKeyOnlySet(args?.binding);
-      }
-      if (cmd === 'ensure_ai_assistant_session') {
-        throw new Error('session boom');
-      }
-      return {};
-    });
-
     const result = await setWorkbenchBinding(cbs);
     expect(result.ok).toBe(true);
     expect(result.state).toBe('bound');
+    expect(invokeMock).toHaveBeenCalledWith('set_binding', {
+      binding: { key: 'workbench' },
+    });
+    expect(invokeMock).not.toHaveBeenCalledWith('ensure_ai_assistant_session');
     expect(events.map((e) => e.event)).toEqual(['onBound']);
   });
 

@@ -1,18 +1,16 @@
-//! Keychain secrets (macOS). Unit tests use an in-memory store (`cfg(test)`).
-//! Debug (dev) builds use a plain-text TOML file to avoid Keychain prompts on
-//! every hot-rebuild; release builds use the system Keychain.
+//! Keychain secrets (macOS). `TestSandbox` (and `cfg(test)`) use an in-memory
+//! store. Debug (dev) builds without a sandbox use a plain-text TOML file to
+//! avoid Keychain prompts on every hot-rebuild; release builds without a
+//! sandbox use the system Keychain.
 
-#[cfg(test)]
 use std::collections::HashMap;
-#[cfg(test)]
 use std::sync::{LazyLock, Mutex};
 
+use crate::config::settings;
+
+#[allow(dead_code)]
 fn keyring_service() -> &'static str {
-    if crate::config::settings::is_test_sandbox() {
-        "lulu-workbench-sandbox"
-    } else {
-        "lulu-workbench"
-    }
+    "lulu-workbench"
 }
 
 pub const KEY_GITHUB_TOKEN: &str = "github_token";
@@ -35,34 +33,27 @@ impl std::fmt::Display for SecretError {
     }
 }
 
-// ── test store ────────────────────────────────────────────────────────────────
+// ── memory store (`TestSandbox` / `cfg(test)`) ────────────────────────────────
 
-#[cfg(test)]
-static TEST_SECRETS: LazyLock<Mutex<HashMap<String, String>>> =
+static MEMORY_SECRETS: LazyLock<Mutex<HashMap<String, String>>> =
     LazyLock::new(|| Mutex::new(HashMap::new()));
 
 #[cfg(test)]
 pub fn test_secrets_clear() {
-    if let Ok(mut m) = TEST_SECRETS.lock() {
+    if let Ok(mut m) = MEMORY_SECRETS.lock() {
         m.clear();
     }
 }
 
-#[cfg(test)]
-fn test_store() -> Result<std::sync::MutexGuard<'static, HashMap<String, String>>, SecretError> {
-    TEST_SECRETS.lock().map_err(|_| SecretError::Poisoned)
+fn memory_store() -> Result<std::sync::MutexGuard<'static, HashMap<String, String>>, SecretError> {
+    MEMORY_SECRETS.lock().map_err(|_| SecretError::Poisoned)
 }
 
 // ── dev store (debug builds only) ─────────────────────────────────────────────
 
 #[cfg(all(not(test), debug_assertions))]
 fn dev_secrets_path() -> std::path::PathBuf {
-    use crate::config::settings;
-    if settings::is_test_sandbox() {
-        settings::shared_sandbox_config_dir().join("dev-secrets.toml")
-    } else {
-        settings::prod_config_dir().join("dev-secrets.toml")
-    }
+    settings::prod_config_dir().join("dev-secrets.toml")
 }
 
 #[cfg(all(not(test), debug_assertions))]
@@ -90,72 +81,104 @@ fn write_dev_secrets(
 // ── public API ────────────────────────────────────────────────────────────────
 
 pub fn get_secret(key: &str) -> Result<Option<String>, SecretError> {
+    if settings::uses_in_memory_keychain() {
+        let map = memory_store()?;
+        return Ok(map.get(key).cloned());
+    }
+    #[cfg(not(test))]
+    {
+        return persistent_get_secret(key);
+    }
     #[cfg(test)]
     {
-        let map = test_store()?;
-        return Ok(map.get(key).cloned());
-    }
-    #[cfg(all(not(test), debug_assertions))]
-    {
-        let map = read_dev_secrets();
-        return Ok(map.get(key).cloned());
-    }
-    #[cfg(all(not(test), not(debug_assertions)))]
-    {
-        let entry = keyring::Entry::new(keyring_service(), key)
-            .map_err(|e| SecretError::Keyring(e.to_string()))?;
-        match entry.get_password() {
-            Ok(v) => Ok(Some(v)),
-            Err(keyring::Error::NoEntry) => Ok(None),
-            Err(e) => Err(SecretError::Keyring(e.to_string())),
-        }
+        let map = memory_store()?;
+        Ok(map.get(key).cloned())
     }
 }
 
 pub fn set_secret(key: &str, value: &str) -> Result<(), SecretError> {
-    #[cfg(test)]
-    {
-        let mut map = test_store()?;
+    if settings::uses_in_memory_keychain() {
+        let mut map = memory_store()?;
         map.insert(key.to_string(), value.to_string());
         return Ok(());
     }
-    #[cfg(all(not(test), debug_assertions))]
+    #[cfg(not(test))]
     {
-        let mut map = read_dev_secrets();
-        map.insert(key.to_string(), value.to_string());
-        return write_dev_secrets(&map);
+        return persistent_set_secret(key, value);
     }
-    #[cfg(all(not(test), not(debug_assertions)))]
+    #[cfg(test)]
     {
-        let entry = keyring::Entry::new(keyring_service(), key)
-            .map_err(|e| SecretError::Keyring(e.to_string()))?;
-        entry
-            .set_password(value)
-            .map_err(|e| SecretError::Keyring(e.to_string()))
+        let mut map = memory_store()?;
+        map.insert(key.to_string(), value.to_string());
+        Ok(())
     }
 }
 
 pub fn delete_secret(key: &str) -> Result<(), SecretError> {
-    #[cfg(test)]
-    {
-        let mut map = test_store()?;
+    if settings::uses_in_memory_keychain() {
+        let mut map = memory_store()?;
         map.remove(key);
         return Ok(());
     }
-    #[cfg(all(not(test), debug_assertions))]
+    #[cfg(not(test))]
     {
-        let mut map = read_dev_secrets();
-        map.remove(key);
-        return write_dev_secrets(&map);
+        return persistent_delete_secret(key);
     }
-    #[cfg(all(not(test), not(debug_assertions)))]
+    #[cfg(test)]
     {
-        let entry = keyring::Entry::new(keyring_service(), key)
-            .map_err(|e| SecretError::Keyring(e.to_string()))?;
-        match entry.delete_credential() {
-            Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
-            Err(e) => Err(SecretError::Keyring(e.to_string())),
-        }
+        let mut map = memory_store()?;
+        map.remove(key);
+        Ok(())
+    }
+}
+
+#[cfg(all(not(test), debug_assertions))]
+fn persistent_get_secret(key: &str) -> Result<Option<String>, SecretError> {
+    let map = read_dev_secrets();
+    Ok(map.get(key).cloned())
+}
+
+#[cfg(all(not(test), debug_assertions))]
+fn persistent_set_secret(key: &str, value: &str) -> Result<(), SecretError> {
+    let mut map = read_dev_secrets();
+    map.insert(key.to_string(), value.to_string());
+    write_dev_secrets(&map)
+}
+
+#[cfg(all(not(test), debug_assertions))]
+fn persistent_delete_secret(key: &str) -> Result<(), SecretError> {
+    let mut map = read_dev_secrets();
+    map.remove(key);
+    write_dev_secrets(&map)
+}
+
+#[cfg(all(not(test), not(debug_assertions)))]
+fn persistent_get_secret(key: &str) -> Result<Option<String>, SecretError> {
+    let entry = keyring::Entry::new(keyring_service(), key)
+        .map_err(|e| SecretError::Keyring(e.to_string()))?;
+    match entry.get_password() {
+        Ok(v) => Ok(Some(v)),
+        Err(keyring::Error::NoEntry) => Ok(None),
+        Err(e) => Err(SecretError::Keyring(e.to_string())),
+    }
+}
+
+#[cfg(all(not(test), not(debug_assertions)))]
+fn persistent_set_secret(key: &str, value: &str) -> Result<(), SecretError> {
+    let entry = keyring::Entry::new(keyring_service(), key)
+        .map_err(|e| SecretError::Keyring(e.to_string()))?;
+    entry
+        .set_password(value)
+        .map_err(|e| SecretError::Keyring(e.to_string()))
+}
+
+#[cfg(all(not(test), not(debug_assertions)))]
+fn persistent_delete_secret(key: &str) -> Result<(), SecretError> {
+    let entry = keyring::Entry::new(keyring_service(), key)
+        .map_err(|e| SecretError::Keyring(e.to_string()))?;
+    match entry.delete_credential() {
+        Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
+        Err(e) => Err(SecretError::Keyring(e.to_string())),
     }
 }
 

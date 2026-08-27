@@ -104,7 +104,7 @@ fn host_adapter_turn(
     let started = Instant::now();
     let mut session = session::load_session(session_id)?;
     let outcome = match llm::load_llm_config() {
-        Ok(config) => r#loop::run_loop(&mut session, message, &config),
+        Ok(config) => r#loop::run_loop_with_trace(&mut session, message, &config, trace_id),
         Err(error) => {
             let outcome = r#loop::map_llm_error(&error);
             append_user_assistant(&mut session, message, &outcome.reply_text);

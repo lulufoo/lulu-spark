@@ -58,9 +58,11 @@ describe('P1 copy-switch shell (tech-doc T1 / index.html)', () => {
     expect(indexHtml).not.toContain('Read Later 待读');
   });
 
-  it('settings nav uses Notes, Knowledge, Assistant / Engine, then Sync', () => {
+  it('settings nav uses Notes, Knowledge, Assistant, then Sync', () => {
     expect(indexHtml).toMatch(/data-panel="directories">Notes</);
     expect(indexHtml).toMatch(/data-panel="knowledge">Knowledge</);
+    expect(indexHtml).toMatch(/data-panel="llm">Assistant</);
+    expect(indexHtml).not.toMatch(/data-panel="llm">Assistant \/ Engine</);
     expect(indexHtml).toMatch(/data-panel="github">Sync</);
     expect(indexHtml).not.toMatch(/data-panel="github">GitHub account</);
     expect(indexHtml).toMatch(/data-tab="hidden"[^>]*>Hidden files</);

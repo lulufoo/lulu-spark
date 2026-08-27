@@ -238,6 +238,31 @@ fn save_roundtrip_keeps_gateway_port() {
 }
 
 #[test]
+fn uses_in_memory_keychain_is_true_during_lib_tests() {
+    assert!(
+        uses_in_memory_keychain(),
+        "cargo test --lib must keep Keychain stores in memory"
+    );
+}
+
+#[test]
+fn keychain_memory_switch_is_consulted_by_all_stores() {
+    let secrets = include_str!("../../config/secrets.rs");
+    let oauth = include_str!("../../services/mcp_oauth.rs");
+    let bind = include_str!("../../services/bind/mod.rs");
+    for (name, src) in [
+        ("secrets.rs", secrets),
+        ("mcp_oauth.rs", oauth),
+        ("bind/mod.rs", bind),
+    ] {
+        assert!(
+            src.contains("uses_in_memory_keychain"),
+            "{name} must consult settings::uses_in_memory_keychain"
+        );
+    }
+}
+
+#[test]
 fn to_config_json_includes_gateway_port() {
     let settings = AppSettings::default();
     let json = to_config_json(&settings, false, false, false);

@@ -1,10 +1,9 @@
 //! Host-local MCP OAuth: per-slot tickets, Keychain slot ledger, and config-dir device tickets.
 
+use std::collections::HashMap;
 use std::fmt;
 use std::sync::Mutex;
 
-#[cfg(test)]
-use std::collections::HashMap;
 #[cfg(test)]
 use std::sync::atomic::{AtomicBool, Ordering};
 
@@ -242,21 +241,13 @@ pub fn list_devices() -> Result<Vec<DeviceRecord>, OAuthError> {
 
 #[cfg_attr(test, allow(dead_code))]
 fn keyring_service() -> &'static str {
-    #[cfg(test)]
-    {
-        "lulu-workbench-mcp-oauth-test"
-    }
-    #[cfg(not(test))]
-    {
-        "lulu-workbench-mcp-oauth"
-    }
+    "lulu-workbench-mcp-oauth"
 }
 
 #[cfg(test)]
 static FORCE_KEYCHAIN_UNAVAILABLE: AtomicBool = AtomicBool::new(false);
 
-#[cfg(test)]
-static TEST_SLOT_LEDGER: Mutex<Option<HashMap<String, String>>> = Mutex::new(None);
+static MEMORY_SLOT_LEDGER: Mutex<Option<HashMap<String, String>>> = Mutex::new(None);
 
 #[cfg(test)]
 pub fn test_force_keychain_unavailable(on: bool) {
@@ -271,31 +262,30 @@ fn ensure_keychain_available() -> Result<(), OAuthError> {
     Ok(())
 }
 
-#[cfg(test)]
-fn test_slot_ledger() -> std::sync::MutexGuard<'static, Option<HashMap<String, String>>> {
-    TEST_SLOT_LEDGER.lock().unwrap_or_else(|e| e.into_inner())
+fn memory_slot_ledger() -> std::sync::MutexGuard<'static, Option<HashMap<String, String>>> {
+    MEMORY_SLOT_LEDGER.lock().unwrap_or_else(|e| e.into_inner())
+}
+
+fn read_memory_record(slot: Slot) -> Result<Option<LedgerRecord>, OAuthError> {
+    let mut guard = memory_slot_ledger();
+    let store = guard.get_or_insert_with(HashMap::new);
+    match store.get(slot.as_str()) {
+        Some(raw) => parse_record(slot, raw).map(Some),
+        None => Ok(None),
+    }
 }
 
 fn read_record(slot: Slot) -> Result<Option<LedgerRecord>, OAuthError> {
     ensure_keychain_available()?;
-    #[cfg(test)]
-    {
-        let mut guard = test_slot_ledger();
-        let store = guard.get_or_insert_with(HashMap::new);
-        return match store.get(slot.as_str()) {
-            Some(raw) => parse_record(slot, raw).map(Some),
-            None => Ok(None),
-        };
+    if settings::uses_in_memory_keychain() {
+        return read_memory_record(slot);
     }
-    #[cfg(not(test))]
-    {
-        let entry = keyring::Entry::new(keyring_service(), slot.as_str())
-            .map_err(|_| OAuthError::keychain_unavailable)?;
-        match entry.get_password() {
-            Ok(raw) => parse_record(slot, &raw).map(Some),
-            Err(keyring::Error::NoEntry) => Ok(None),
-            Err(_) => Err(OAuthError::keychain_unavailable),
-        }
+    let entry = keyring::Entry::new(keyring_service(), slot.as_str())
+        .map_err(|_| OAuthError::keychain_unavailable)?;
+    match entry.get_password() {
+        Ok(raw) => parse_record(slot, &raw).map(Some),
+        Err(keyring::Error::NoEntry) => Ok(None),
+        Err(_) => Err(OAuthError::keychain_unavailable),
     }
 }
 
@@ -311,21 +301,17 @@ fn persist_live(slot: Slot) -> Result<TicketHandle, OAuthError> {
 
 fn write_record(record: &LedgerRecord) -> Result<(), OAuthError> {
     ensure_keychain_available()?;
-    #[cfg(test)]
-    {
-        let mut guard = test_slot_ledger();
+    if settings::uses_in_memory_keychain() {
+        let mut guard = memory_slot_ledger();
         let store = guard.get_or_insert_with(HashMap::new);
         store.insert(record.slot.as_str().to_string(), serialize_record(record));
         return Ok(());
     }
-    #[cfg(not(test))]
-    {
-        let entry = keyring::Entry::new(keyring_service(), record.slot.as_str())
-            .map_err(|_| OAuthError::keychain_unavailable)?;
-        entry
-            .set_password(&serialize_record(record))
-            .map_err(|_| OAuthError::keychain_unavailable)
-    }
+    let entry = keyring::Entry::new(keyring_service(), record.slot.as_str())
+        .map_err(|_| OAuthError::keychain_unavailable)?;
+    entry
+        .set_password(&serialize_record(record))
+        .map_err(|_| OAuthError::keychain_unavailable)
 }
 
 fn serialize_record(record: &LedgerRecord) -> String {

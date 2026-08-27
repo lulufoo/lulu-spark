@@ -2729,229 +2729,9 @@ fn post_todo_task_update_unknown_category_id_rejects() {
     });
 }
 
-// --- t1: Host notes selection snapshot Sidecar HTTP ---
+// --- notes-selection stack removed ---
 
 const NOTES_SELECTION_API: &str = "/api/notes-selection";
-
-fn empty_notes_selection() -> Value {
-    json!({ "date": null, "documents": [] })
-}
-
-#[test]
-fn get_notes_selection_empty_snapshot_returns_200_not_404() {
-    let fixture = setup_repo_with_corpus();
-    let repo_root = fixture.repo_root.clone();
-    with_server(repo_root, |port| {
-        let (status, body) = http_get(port, NOTES_SELECTION_API);
-        assert_eq!(status, 200);
-        assert_eq!(body, empty_notes_selection());
-        assert!(body.get("_status").is_none());
-    });
-}
-
-#[test]
-fn put_notes_selection_full_table_then_get_equals_put() {
-    let fixture = setup_repo_with_corpus();
-    let repo_root = fixture.repo_root.clone();
-    with_server(repo_root, |port| {
-        let table = json!({
-            "date": "2026-06-19",
-            "documents": [
-                { "id": "11111111111111111111111111111111", "selected": true },
-                { "id": "22222222222222222222222222222222", "selected": false }
-            ]
-        });
-        let (put_status, put_body) = http_put(port, NOTES_SELECTION_API, &table);
-        assert_eq!(put_status, 200);
-        assert_eq!(put_body, table);
-        assert!(put_body.get("_status").is_none());
-
-        let (get_status, get_body) = http_get(port, NOTES_SELECTION_API);
-        assert_eq!(get_status, 200);
-        assert_eq!(get_body, table);
-        assert_eq!(get_body, put_body);
-    });
-}
-
-#[test]
-fn put_notes_selection_date_only_all_unselected_get_returns_as_written() {
-    let fixture = setup_repo_with_corpus();
-    let repo_root = fixture.repo_root.clone();
-    with_server(repo_root, |port| {
-        let table = json!({
-            "date": "2026-06-19",
-            "documents": [
-                { "id": "11111111111111111111111111111111", "selected": false },
-                { "id": "22222222222222222222222222222222", "selected": false }
-            ]
-        });
-        let (put_status, put_body) = http_put(port, NOTES_SELECTION_API, &table);
-        assert_eq!(put_status, 200);
-        assert_eq!(put_body, table);
-
-        let (get_status, get_body) = http_get(port, NOTES_SELECTION_API);
-        assert_eq!(get_status, 200);
-        assert_eq!(get_body, table);
-        let docs = get_body["documents"].as_array().expect("documents");
-        assert!(docs.iter().all(|d| d["selected"] == false));
-    });
-}
-
-#[test]
-fn put_notes_selection_empty_snapshot_returns_200_not_404() {
-    let fixture = setup_repo_with_corpus();
-    let repo_root = fixture.repo_root.clone();
-    with_server(repo_root, |port| {
-        let empty = empty_notes_selection();
-        let (put_status, put_body) = http_put(port, NOTES_SELECTION_API, &empty);
-        assert_eq!(put_status, 200);
-        assert_eq!(put_body, empty);
-
-        let (get_status, get_body) = http_get(port, NOTES_SELECTION_API);
-        assert_eq!(get_status, 200);
-        assert_eq!(get_body, empty);
-    });
-}
-
-#[test]
-fn put_notes_selection_one_selected_true_get_equals_put_without_normalize() {
-    let fixture = setup_repo_with_corpus();
-    let repo_root = fixture.repo_root.clone();
-    with_server(repo_root, |port| {
-        let table = json!({
-            "date": "2026-06-19",
-            "documents": [
-                { "id": "11111111111111111111111111111111", "selected": false },
-                { "id": "22222222222222222222222222222222", "selected": true },
-                { "id": "33333333333333333333333333333333", "selected": false }
-            ]
-        });
-        let (put_status, put_body) = http_put(port, NOTES_SELECTION_API, &table);
-        assert_eq!(put_status, 200);
-        assert_eq!(put_body, table);
-
-        let (get_status, get_body) = http_get(port, NOTES_SELECTION_API);
-        assert_eq!(get_status, 200);
-        assert_eq!(get_body, table);
-        let selected: Vec<_> = get_body["documents"]
-            .as_array()
-            .expect("documents")
-            .iter()
-            .filter(|d| d["selected"] == true)
-            .collect();
-        assert_eq!(selected.len(), 1);
-        assert_eq!(selected[0]["id"], "22222222222222222222222222222222");
-    });
-}
-
-#[test]
-fn notes_selection_document_ids_match_corpus_files() {
-    let catalog = setup_repo_with_catalog();
-    let repo_root = catalog.repo_root.clone();
-    let id = catalog.id.clone();
-    with_server(repo_root, |port| {
-        let table = json!({
-            "date": "2026-06-19",
-            "documents": [{ "id": id, "selected": true }]
-        });
-        let (put_status, put_body) = http_put(port, NOTES_SELECTION_API, &table);
-        assert_eq!(put_status, 200);
-        assert_eq!(put_body["documents"][0]["id"], id);
-
-        let (get_status, get_body) = http_get(port, NOTES_SELECTION_API);
-        assert_eq!(get_status, 200);
-        assert_eq!(get_body["documents"][0]["id"], id);
-
-        let (files_status, files_body) = http_post(
-            port,
-            "/api/corpus-files",
-            &json!({ "ids": [id] }),
-        );
-        assert_eq!(files_status, 200);
-        let items = files_body["items"].as_array().expect("items");
-        assert_eq!(items.len(), 1);
-        assert_eq!(items[0]["ok"], true);
-        assert_eq!(get_body["documents"][0]["id"], id);
-    });
-}
-
-#[test]
-fn notes_selection_only_served_under_existing_sidecar_api() {
-    let fixture = setup_repo_with_corpus();
-    let repo_root = fixture.repo_root.clone();
-    with_server(repo_root, |port| {
-        let (api_status, api_body) = http_get(port, NOTES_SELECTION_API);
-        assert_eq!(api_status, 200);
-        assert_eq!(api_body, empty_notes_selection());
-        assert!(NOTES_SELECTION_API.starts_with("/api/"));
-
-        let (bare_status, bare_body) = http_get(port, "/notes-selection");
-        assert_eq!(bare_status, 404);
-        assert!(bare_body.get("error").is_some());
-
-        let (put_bare_status, put_bare_body) =
-            http_put(port, "/notes-selection", &empty_notes_selection());
-        assert!(
-            put_bare_status == 404 || put_bare_status == 405,
-            "non-/api write must not succeed, got {put_bare_status}: {put_bare_body}"
-        );
-        assert_ne!(put_bare_status, 200);
-    });
-}
-
-#[test]
-fn notes_selection_write_is_sidecar_http_only_no_mcp_write_tool() {
-    for slot in ["todo_task", "cursor_ide", "notes"] {
-        if let Some(table) = crate::services::mcp_protocol_adapter::build_slot_tool_table(slot) {
-            for tool in &table.tools {
-                let name = tool.name.to_lowercase();
-                let writes_notes_selection = name.contains("notes_selection")
-                    && (name.contains("put")
-                        || name.contains("set")
-                        || name.contains("write")
-                        || name.contains("update"));
-                assert!(
-                    !writes_notes_selection,
-                    "this task must not add an MCP write tool, found {} on {slot}",
-                    tool.name
-                );
-                assert!(
-                    !(tool.api_path.contains("notes-selection")
-                        && !matches!(
-                            tool.method,
-                            crate::services::mcp_protocol_adapter::HttpMethod::Get
-                        )),
-                    "notes selection write must stay Sidecar HTTP, found {} {} on {slot}",
-                    tool.name,
-                    tool.api_path
-                );
-            }
-        }
-    }
-
-    let fixture = setup_repo_with_corpus();
-    let repo_root = fixture.repo_root.clone();
-    with_server(repo_root, |port| {
-        let table = json!({
-            "date": "2026-06-19",
-            "documents": [{ "id": "11111111111111111111111111111111", "selected": true }]
-        });
-        let (put_status, put_body) = http_put(port, NOTES_SELECTION_API, &table);
-        assert_eq!(put_status, 200);
-        assert_eq!(put_body, table);
-
-        let (post_status, post_body) = http_post(port, NOTES_SELECTION_API, &table);
-        assert_eq!(
-            post_status, 405,
-            "write is PUT on Sidecar HTTP, not POST: {post_body}"
-        );
-    });
-}
-
-// --- t5: Notes UI writes selection snapshot via existing Sidecar HTTP ---
-//
-// Proof surface is Host GET=PUT (t1). Do not add a new frontend test harness.
-// UI wiring is checked by reading the Notes consumer source (same pattern as t4).
 
 fn t5_repo_file(rel: &str) -> String {
     let mut path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
@@ -2960,232 +2740,91 @@ fn t5_repo_file(rel: &str) -> String {
     std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("read {}: {e}", path.display()))
 }
 
-fn t5_function_slice<'a>(src: &'a str, marker: &str) -> &'a str {
-    let start = src.find(marker).unwrap_or(src.len());
-    let rest = &src[start..];
-    let end = rest.len().min(2400);
-    &rest[..end]
-}
-
-fn t5_assert_get_equals_put(port: u16, table: &Value) {
-    let (put_status, put_body) = http_put(port, NOTES_SELECTION_API, table);
-    assert_eq!(put_status, 200);
-    assert_eq!(&put_body, table);
-    let (get_status, get_body) = http_get(port, NOTES_SELECTION_API);
-    assert_eq!(get_status, 200);
-    assert_eq!(&get_body, table);
-    assert_eq!(get_body, put_body);
-}
-
-/// Normal: enter-Notes / date-change UI write is a full-table PUT; GET equals that PUT.
+/// Exception: Sidecar no longer serves GET/PUT /api/notes-selection.
 #[test]
-fn t5_ui_enter_or_date_change_put_then_get_equals_put() {
+fn notes_selection_http_route_is_gone() {
     let fixture = setup_repo_with_corpus();
     let repo_root = fixture.repo_root.clone();
     with_server(repo_root, |port| {
-        let table = json!({
-            "date": "20260817",
-            "documents": [
-                { "id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "selected": false },
-                { "id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "selected": false }
-            ]
-        });
-        t5_assert_get_equals_put(port, &table);
-    });
-}
-
-/// Normal: document-open UI write is a full-table PUT with at most one selected=true.
-#[test]
-fn t5_ui_document_change_put_then_get_equals_put() {
-    let fixture = setup_repo_with_corpus();
-    let repo_root = fixture.repo_root.clone();
-    with_server(repo_root, |port| {
-        let table = json!({
-            "date": "20260817",
-            "documents": [
-                { "id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "selected": false },
-                { "id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "selected": true }
-            ]
-        });
-        t5_assert_get_equals_put(port, &table);
-        let selected: Vec<_> = table["documents"]
-            .as_array()
-            .expect("documents")
-            .iter()
-            .filter(|d| d["selected"] == true)
-            .collect();
-        assert_eq!(selected.len(), 1);
-    });
-}
-
-/// Boundary: date-only write may list documents, all selected=false; GET equals PUT.
-#[test]
-fn t5_ui_date_only_put_all_unselected_get_equals_put() {
-    let fixture = setup_repo_with_corpus();
-    let repo_root = fixture.repo_root.clone();
-    with_server(repo_root, |port| {
-        let table = json!({
-            "date": "20260817",
-            "documents": [
-                { "id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "selected": false },
-                { "id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "selected": false }
-            ]
-        });
-        t5_assert_get_equals_put(port, &table);
-        let docs = table["documents"].as_array().expect("documents");
-        assert!(docs.iter().all(|d| d["selected"] == false));
-    });
-}
-
-/// Boundary: leave Notes business writes empty snapshot; GET equals that PUT.
-#[test]
-fn t5_ui_leave_notes_put_empty_then_get_equals_put() {
-    let fixture = setup_repo_with_corpus();
-    let repo_root = fixture.repo_root.clone();
-    with_server(repo_root, |port| {
-        let prior = json!({
-            "date": "20260817",
-            "documents": [{ "id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "selected": true }]
-        });
-        t5_assert_get_equals_put(port, &prior);
-        t5_assert_get_equals_put(port, &empty_notes_selection());
-    });
-}
-
-/// Boundary: Hub / shell-close is not a leave — last PUT remains; GET still equals it.
-#[test]
-fn t5_hub_or_shell_close_does_not_put_empty_get_keeps_last_put() {
-    let fixture = setup_repo_with_corpus();
-    let repo_root = fixture.repo_root.clone();
-    with_server(repo_root, |port| {
-        let table = json!({
-            "date": "20260817",
-            "documents": [{ "id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "selected": true }]
-        });
-        t5_assert_get_equals_put(port, &table);
         let (get_status, get_body) = http_get(port, NOTES_SELECTION_API);
-        assert_eq!(get_status, 200);
-        assert_eq!(get_body, table);
-        assert_ne!(get_body, empty_notes_selection());
+        assert_eq!(get_status, 404, "GET /api/notes-selection must be gone: {get_body}");
+        let (put_status, put_body) = http_put(
+            port,
+            NOTES_SELECTION_API,
+            &json!({ "date": null, "documents": [] }),
+        );
+        assert!(
+            put_status == 404 || put_status == 405,
+            "PUT /api/notes-selection must be gone, got {put_status}: {put_body}"
+        );
+        assert_ne!(put_status, 200);
     });
 }
 
-/// Normal: apiClient exposes writeNotesSelectionSnapshot over existing Sidecar PUT.
+/// Exception: Host snapshot module and MCP notes-selection tools are gone.
 #[test]
-fn t5_api_client_writes_snapshot_via_sidecar_http_put() {
-    let api = t5_repo_file("frontend/js/apiClient.js");
+fn notes_selection_module_and_mcp_tool_are_gone() {
+    let services = t5_repo_file("src-tauri/src/services/mod.rs");
     assert!(
-        api.contains("writeNotesSelectionSnapshot"),
-        "apiClient.js must export writeNotesSelectionSnapshot"
+        !services.contains("notes_selection"),
+        "services/mod.rs must not mount notes_selection"
     );
-    let write = t5_function_slice(&api, "function writeNotesSelectionSnapshot");
+    let adapter = t5_repo_file("src-tauri/src/services/mcp_protocol_adapter.rs");
     assert!(
-        write.contains("/api/notes-selection"),
-        "write must use t1 Sidecar path /api/notes-selection"
+        !adapter.contains("get_notes_selection") && !adapter.contains("NOTES_SLOT_ONLY_TOOLS"),
+        "MCP adapter must not hang get_notes_selection"
     );
+    let http = t5_repo_file("src-tauri/src/services/local_http/mod.rs");
     assert!(
-        write.contains("PUT") || write.contains("putJson") || write.contains("method: 'PUT'"),
-        "write must be HTTP PUT on Sidecar, not POST/invoke"
+        !http.contains("/api/notes-selection") && !http.contains("notes_selection"),
+        "Sidecar must not serve /api/notes-selection"
     );
+    let notes_mod = {
+        let mut path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        path.pop();
+        path.push("src-tauri/src/services/notes_selection.rs");
+        path
+    };
     assert!(
-        !write.contains("invoke("),
-        "write must stay on Sidecar HTTP (apiClient), not Tauri/MCP invoke"
+        !notes_mod.exists(),
+        "notes_selection.rs must be deleted"
     );
-}
-
-/// Boundary: clearNotesSelectionSnapshot writes the empty snapshot.
-#[test]
-fn t5_api_client_clears_snapshot_with_empty_table() {
-    let api = t5_repo_file("frontend/js/apiClient.js");
-    assert!(
-        api.contains("clearNotesSelectionSnapshot"),
-        "apiClient.js must export clearNotesSelectionSnapshot"
-    );
-    let clear = t5_function_slice(&api, "function clearNotesSelectionSnapshot");
-    assert!(
-        clear.contains("null") && clear.contains("documents"),
-        "clear must write {{ date: null, documents: [] }}"
-    );
-}
-
-/// Normal: enter Notes and sidebar selectDate overwrite the full-day group.
-#[test]
-fn t5_enter_notes_and_select_date_write_full_day_snapshot() {
-    let main = t5_repo_file("frontend/js/main.js");
-    let sidebar = t5_repo_file("frontend/js/components/sidebar.js");
-    let mount_wb = t5_function_slice(&main, "function mountWorkbench");
-    assert!(
-        mount_wb.contains("writeNotesSelectionSnapshot"),
-        "entering Notes (mountWorkbench) must write the current selection snapshot"
-    );
-    let select = t5_function_slice(&sidebar, "export function selectDate");
-    assert!(
-        select.contains("writeNotesSelectionSnapshot"),
-        "sidebar selectDate must full-table overwrite the day's group"
-    );
-}
-
-/// Normal: document open in main / cards overwrites with at most one selected=true.
-#[test]
-fn t5_document_open_in_main_and_cards_writes_snapshot() {
-    let main = t5_repo_file("frontend/js/main.js");
-    let cards = t5_repo_file("frontend/js/components/cards.js");
-    assert!(
-        main.contains("writeNotesSelectionSnapshot"),
-        "main.js document-open path must write the selection snapshot"
-    );
-    assert!(
-        cards.contains("writeNotesSelectionSnapshot"),
-        "cards.js document-open path must write the selection snapshot"
-    );
-}
-
-/// Boundary: only leaving Notes business clears; Hub / shell-close must not.
-#[test]
-fn t5_clear_only_when_leaving_notes_not_hub_or_shell_close() {
-    let main = t5_repo_file("frontend/js/main.js");
-    let shell = t5_repo_file("frontend/js/home-entry-shell/shell.js");
-    let note_assistant = t5_repo_file("frontend/js/note-assistant.js");
-    let mount_plan = t5_function_slice(&main, "function mountTodoTasksRoute");
-    assert!(
-        mount_plan.contains("clearNotesSelectionSnapshot"),
-        "leaving Notes for Todos (mountTodoTasksRoute) must write the empty snapshot"
-    );
-    assert!(
-        !shell.contains("clearNotesSelectionSnapshot") && !shell.contains("writeNotesSelectionSnapshot"),
-        "Hub small window must not clear or rewrite the selection snapshot"
-    );
-    assert!(
-        !note_assistant.contains("clearNotesSelectionSnapshot")
-            && !note_assistant.contains("writeNotesSelectionSnapshot"),
-        "close-shell / note-assistant must not clear the selection snapshot"
-    );
-}
-
-/// Exception: write stays Sidecar HTTP; no MCP write tool and no Tauri write map.
-#[test]
-fn t5_write_is_sidecar_http_only_no_mcp_or_tauri_write_map() {
-    let write_map = t5_repo_file("frontend/js/writeApiInvokeMap.js");
-    assert!(
-        !write_map.contains("notes-selection") && !write_map.contains("notes_selection"),
-        "must not add a Tauri write invoke for notes-selection"
-    );
-    for slot in ["todo_task", "cursor_ide", "notes"] {
+    for slot in ["workbench", "cursor_ide", "todo_task", "notes"] {
         if let Some(table) = crate::services::mcp_protocol_adapter::build_slot_tool_table(slot) {
             for tool in &table.tools {
                 let name = tool.name.to_lowercase();
-                let writes = name.contains("notes_selection")
-                    && (name.contains("put")
-                        || name.contains("set")
-                        || name.contains("write")
-                        || name.contains("update"));
-                assert!(!writes, "must not add MCP write tool {}, slot {slot}", tool.name);
+                assert!(
+                    !name.contains("notes_selection") && !tool.api_path.contains("notes-selection"),
+                    "no notes-selection MCP tool, found {} on {slot}",
+                    tool.name
+                );
             }
         }
     }
 }
 
-/// Exception: do not add a new frontend test harness; GET=PUT remains the proof.
+/// Exception: frontend no longer writes a notes-selection snapshot.
+#[test]
+fn frontend_does_not_write_notes_selection_snapshot() {
+    for rel in [
+        "frontend/js/apiClient.js",
+        "frontend/js/main.js",
+        "frontend/js/components/sidebar.js",
+        "frontend/js/components/cards.js",
+        "frontend/js/writeApiInvokeMap.js",
+    ] {
+        let src = t5_repo_file(rel);
+        assert!(
+            !src.contains("writeNotesSelectionSnapshot")
+                && !src.contains("clearNotesSelectionSnapshot")
+                && !src.contains("/api/notes-selection")
+                && !src.contains("notes_selection"),
+            "{rel} must not write notes-selection"
+        );
+    }
+}
+
+/// Exception: do not add a frontend notes-selection test harness.
 #[test]
 fn t5_does_not_add_frontend_notes_selection_test_harness() {
     let pkg = t5_repo_file("package.json");

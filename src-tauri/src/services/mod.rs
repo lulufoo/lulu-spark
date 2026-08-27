@@ -33,5 +33,5 @@ pub mod bind;
 pub mod gateway;
 pub mod discovery;
 pub mod local_http;
-pub mod notes_selection;
 pub mod workbench_read;
+pub mod workbench_path_fence;

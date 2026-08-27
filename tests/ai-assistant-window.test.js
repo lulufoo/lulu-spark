@@ -86,12 +86,12 @@ describe('ai-assistant window shell (t5)', () => {
     expect(js).not.toMatch(/setComposerEnabled\(Boolean\(sessionId\)/);
   });
 
-  it('Todos Set provisions chat session without Present (ensure_ai_assistant_session)', () => {
+  it('Todos Set does not provision a chat session', () => {
     const todosBinding = readFileSync(
       join(repoRoot, 'frontend/js/todo-task/todos-binding.js'),
       'utf8',
     );
-    expect(todosBinding).toMatch(/ensure_ai_assistant_session/);
+    expect(todosBinding).not.toMatch(/ensure_ai_assistant_session/);
     expect(todosBinding).not.toMatch(
       /invoke\(\s*['"]open_ai_assistant['"]/,
     );

@@ -61,7 +61,7 @@ describe('T10 Host MCP archive + contract retarget (V2/V3/V4)', () => {
       /REGISTERED_SLOTS\s*=\s*\[[^\]]*(['"])todo_task\1/,
     );
     expect(src).not.toMatch(/REGISTERED_SLOTS\s*=\s*\[[^\]]*(['"])notes\1/);
-    expect(src).toContain('get_notes_selection');
+    expect(src).not.toContain('get_notes_selection');
   });
 
   it('verify-host-mcp asserts retired App slots /mcp/notes and /mcp/todo_task HTTP 404', () => {
@@ -85,14 +85,14 @@ describe('T10 Host MCP archive + contract retarget (V2/V3/V4)', () => {
     );
     expect(src).not.toMatch(/listToolNamesOnSlot\(mcpPort,\s*['"]todo_task['"]/);
     expect(src).toMatch(/listToolNamesOnSlot\(mcpPort,\s*['"]workbench['"]/);
-    expect(src).toContain('get_notes_selection');
+    expect(src).toMatch(/must not expose get_notes_selection/);
   });
 
   it('knowledge-mcp.md App channel is /mcp/workbench; IDE URL unchanged', () => {
-    const doc = read('docs/knowledge-mcp.md');
+    const doc = read('docs/archive/knowledge-mcp.md');
     expect(doc).toContain('http://127.0.0.1:<mcp_port>/mcp/workbench');
     expect(doc).toContain('http://127.0.0.1:<mcp_port>/mcp/cursor_ide');
-    expect(doc).toContain('get_notes_selection');
+    expect(doc).not.toContain('get_notes_selection');
     expect(doc).not.toContain('http://127.0.0.1:<mcp_port>/mcp/todo_task');
     expect(doc).not.toMatch(/http:\/\/127\.0\.0\.1:<mcp_port>\/#\/workbench/);
     expect(doc).not.toMatch(/`#\/workbench`[^.\n]{0,40}\/mcp\//);

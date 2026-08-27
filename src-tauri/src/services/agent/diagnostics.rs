@@ -37,6 +37,7 @@ const BOUNDED_TEXT_FIELDS: &[&str] = &[
     "sdk_wait_json",
     "sdk_model",
     "stderr_preview",
+    "tool_name",
 ];
 
 static WRITE_LOCK: OnceLock<Mutex<()>> = OnceLock::new();

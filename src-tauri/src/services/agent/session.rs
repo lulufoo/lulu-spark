@@ -12,6 +12,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
 use crate::config::paths;
+use crate::services::agent::path_fence::PathFence;
 use crate::services::id::random_hex12;
 use crate::services::mcp_server_registry::McpServerConfig;
 
@@ -215,6 +216,7 @@ pub struct AIAssistantSession {
     pub(crate) current_binding: Option<Binding>,
     pub(crate) current_business_id: Option<String>,
     pub(crate) loaded_mcp_server: Option<McpServerConfig>,
+    pub(crate) loaded_path_fence: Option<PathFence>,
     pub(crate) current_generation: Option<u64>,
     pub(crate) generation_seq: u64,
     pub(crate) execute_cancelled: bool,
@@ -239,6 +241,10 @@ impl AIAssistantSession {
 
     pub fn loaded_mcp_server(&self) -> Option<McpServerConfig> {
         self.loaded_mcp_server.clone()
+    }
+
+    pub fn loaded_path_fence(&self) -> Option<PathFence> {
+        self.loaded_path_fence.clone()
     }
 
     pub fn current_generation(&self) -> Option<u64> {

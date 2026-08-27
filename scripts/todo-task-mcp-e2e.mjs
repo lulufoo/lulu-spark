@@ -125,8 +125,8 @@ async function runDualChannelLiveProbes(mcpPort) {
       throw new Error(`dual-channel AC2: workbench missing ${tool}`);
     }
   }
-  if (!workbenchNames.includes('get_notes_selection')) {
-    throw new Error('dual-channel AC2: workbench missing get_notes_selection');
+  if (workbenchNames.includes('get_notes_selection')) {
+    throw new Error('dual-channel AC2: workbench must not expose get_notes_selection');
   }
 
   const ideNames = await listToolNamesOnSlot(mcpPort, 'cursor_ide', 'todo-task-mcp-e2e-dual-ide');

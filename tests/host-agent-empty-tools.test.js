@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
 /**
  * Host Agent Loop key-only Binding and MCP tool bridge.
- * Binding.tools remains empty, but the active MCP scene supplies model-callable
- * tools at turn time. In-process dispatch remains removed.
+ * Binding.tools remains empty. Model tools come from MCP discovery plus Host
+ * file tools (grep/read/write/edit) gated by the Set-time path fence.
+ * In-process business dispatch remains removed.
  *
  * Layer map (t2):
  * - Interface layer: Binding.tools remains empty; model tools come from MCP discovery.
@@ -97,17 +98,19 @@ describe('Host Agent MCP tools — source / interface layer locks', () => {
     expect(toolsRs).not.toMatch(/pub fn dispatch\s*\(/);
   });
 
-  it('derives model tools from active MCP while Binding.tools remains empty', () => {
+  it('derives model tools from active MCP plus Host file tools while Binding.tools remains empty', () => {
     expect(loopRs).toMatch(/mcp_client::discover_tools\s*\(\s*&config\s*\)/);
     expect(loopRs).toMatch(/catalog\.definitions\.as_slice\(\)/);
     expect(loopRs).toMatch(
       /mcp_client::call_tool\s*\(\s*mcp_config\s*,\s*&call\.name\s*,\s*arguments\s*\)/,
     );
+    expect(loopRs).toMatch(/fs_tools::call\s*\(/);
+    expect(loopRs).toMatch(/workbench_path_fence::expand_for_business_key/);
     expect(loopRs).not.toMatch(
       /chat_completions\s*\(\s*&messages\s*,\s*&\s*\[\s*\]\s*,\s*config\s*\)/,
     );
     // Public key-only Set still clears Binding.tools: tool definitions come
-    // from the loaded MCP server, not caller-controlled Binding data.
+    // from the loaded MCP server plus Host file tools, not caller-controlled Binding data.
     expect(loopRs).toMatch(/tools:\s*json!\(\[\]\)/);
     // No executable process-local dispatch call sites.
     const dispatchCallLines = loopRs

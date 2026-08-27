@@ -22,7 +22,8 @@ function emitCallback(fn, payload) {
 
 /**
  * Set key-only workbench Binding via Host Binding Contract.
- * Observes onBound / onError. Session heal after a successful Set may fail silently.
+ * Observes onBound / onError. Does not create a chat session — Set clears the
+ * live id; Home starts a conversation with + or the first send.
  *
  * @param {{ onBound?: Function, onUnbound?: Function, onError?: Function }} [callbacks]
  */
@@ -43,11 +44,6 @@ export async function setWorkbenchBinding(callbacks = {}) {
   }
 
   if (result && result.ok === true) {
-    try {
-      await invoke('ensure_ai_assistant_session');
-    } catch {
-      // Binding Contract Set already succeeded; session heal may retry on send.
-    }
     emitCallback(callbacks.onBound, {});
     return {
       ok: true,

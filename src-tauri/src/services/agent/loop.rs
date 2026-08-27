@@ -5,16 +5,21 @@
 use std::collections::HashMap;
 use std::panic::AssertUnwindSafe;
 use std::sync::{Mutex, OnceLock};
+use std::time::Instant;
 
 use serde::Serialize;
 use serde_json::{json, Value};
 
+use crate::services::agent::diagnostics::{self, DiagnosticEvent, TraceId};
+use crate::services::agent::fs_tools;
 use crate::services::agent::llm::{self, LlmConfig, LlmError};
 use crate::services::agent::mcp_client;
+use crate::services::agent::path_fence::PathFence;
 use crate::services::agent::session::{self, Session, Turn};
 use crate::services::mcp_oauth::{issue_for_slot, Slot};
 use crate::services::mcp_server_registry::{self, McpServerConfig, McpServerLookupError};
 use crate::services::todo_task;
+use crate::services::workbench_path_fence;
 
 pub use crate::services::agent::session::{
     validate_binding, Binding, BindingStateSummary, SetError,
@@ -256,13 +261,14 @@ fn request_in_flight_cancel(rt: &Runtime, live: &mut session::AIAssistantSession
 /// Typed/internal Set (no business key) clears any previously loaded MCP config.
 /// Key-only public Set goes through `try_set_binding_json` which loads MCP first.
 pub fn set_binding(binding: session::Binding) -> Result<(), SetError> {
-    set_binding_with_mcp(binding, None, None)
+    set_binding_with_mcp(binding, None, None, None)
 }
 
 fn set_binding_with_mcp(
     binding: session::Binding,
     loaded_mcp: Option<McpServerConfig>,
     business_id: Option<String>,
+    loaded_path_fence: Option<PathFence>,
 ) -> Result<(), SetError> {
     if let Err(e) = session::validate_binding(&binding) {
         emit_lifecycle("onError", Some("set_invalid"));
@@ -284,6 +290,7 @@ fn set_binding_with_mcp(
             live.current_binding = Some(binding);
             live.current_business_id = business_id.clone();
             live.loaded_mcp_server = loaded_mcp;
+            live.loaded_path_fence = loaded_path_fence;
             // Session cut: clear live id with generation update (no new-gen + old-session window).
             live.current_session_id = None;
             let generation = live.current_generation;
@@ -330,15 +337,17 @@ pub fn try_set_binding_json(v: &Value) -> Result<(), SetError> {
         }
     };
     let config = inject_workbench_ticket(key.as_str(), config)?;
+    let fence = workbench_path_fence::expand_for_business_key(key.as_str());
     // L1+L2: public key-only Set must not feed business tool handles to the
     // Agent Loop. The business key is already resolved into loaded_mcp_server;
-    // Binding.tools stays an empty interface slot (no in-process dispatch).
+    // Binding.tools stays an empty interface slot. File tools are Host-owned
+    // and gated by the fence attached here, not by caller-supplied paths.
     let binding = session::Binding {
         tools: json!([]),
         prompt: json!(config.capability_description.clone()),
         callbacks: parsed.callbacks,
     };
-    set_binding_with_mcp(binding, Some(config), Some(key))
+    set_binding_with_mcp(binding, Some(config), Some(key), fence)
 }
 
 /// After workbench lookup: reuse a Live ticket or issue one, then write
@@ -381,6 +390,12 @@ pub fn session_capability_mcp_config() -> Option<McpServerConfig> {
     session::live_context_owner().loaded_mcp_server()
 }
 
+/// Host file-tool fence attached at public key-only Set. Typed/internal Set
+/// leaves this empty. Scratch root is resolved per turn from `scratch_parent`.
+pub fn loaded_path_fence() -> Option<PathFence> {
+    session::live_context_owner().loaded_path_fence()
+}
+
 /// Observability alias for the session capability read face.
 pub fn loaded_mcp_server() -> Option<McpServerConfig> {
     session_capability_mcp_config()
@@ -406,6 +421,7 @@ pub fn reset_binding() -> Result<(), ()> {
             live.current_binding = None;
             live.current_business_id = None;
             live.loaded_mcp_server = None;
+            live.loaded_path_fence = None;
             live.current_generation = None;
             live.current_session_id = None;
             (was, previous_business_id, previous_generation)
@@ -895,6 +911,15 @@ fn chat_turn_interrupted(generation: u64) -> bool {
 }
 
 pub fn run_loop(session: &mut Session, user_message: &str, config: &LlmConfig) -> TurnOutcome {
+    run_loop_with_trace(session, user_message, config, &TraceId::new())
+}
+
+pub(crate) fn run_loop_with_trace(
+    session: &mut Session,
+    user_message: &str,
+    config: &LlmConfig,
+    trace_id: &TraceId,
+) -> TurnOutcome {
     let turns_checkpoint = session.turns.len();
     // Executable turns require Binding Contract bound — not session.bound_master_task_id.
     let Some((binding, generation)) = current_binding_generation_snapshot() else {
@@ -1008,6 +1033,21 @@ pub fn run_loop(session: &mut Session, user_message: &str, config: &LlmConfig) -
         return cancelled_turn_outcome(session, turns_checkpoint);
     }
 
+    let turn_fence = loaded_path_fence().map(|fence| {
+        fence
+            .with_session_scratch(&session.session_id)
+            .unwrap_or(fence)
+    });
+    let catalog = match (
+        active_mcp.as_ref().map(|(_, catalog)| catalog.clone()),
+        turn_fence.as_ref().map(|_| fs_tools::catalog()),
+    ) {
+        (Some(mcp), Some(host)) => Some(mcp.merge(host)),
+        (Some(mcp), None) => Some(mcp),
+        (None, Some(host)) => Some(host),
+        (None, None) => None,
+    };
+
     let mut wrote = false;
     let mut tool_rounds = 0usize;
     let mut tool_call_count = 0usize;
@@ -1016,9 +1056,9 @@ pub fn run_loop(session: &mut Session, user_message: &str, config: &LlmConfig) -
             return cancelled_turn_outcome(session, turns_checkpoint);
         }
         let messages = build_llm_messages_from_turns(&session.turns, &system_prompt);
-        let tools = active_mcp
+        let tools = catalog
             .as_ref()
-            .map(|(_, catalog)| catalog.definitions.as_slice())
+            .map(|catalog| catalog.definitions.as_slice())
             .unwrap_or(&[]);
         let msg = match llm::chat_completions(&messages, tools, config) {
             Ok(message) => message,
@@ -1049,7 +1089,7 @@ pub fn run_loop(session: &mut Session, user_message: &str, config: &LlmConfig) -
             break msg;
         }
 
-        let Some((mcp_config, catalog)) = active_mcp.as_ref() else {
+        let Some(catalog) = catalog.as_ref() else {
             // Typed/internal Binding without an MCP server keeps the old
             // text-only contract and never dispatches in-process tools.
             let reply = "模型响应异常或请求了不支持的工具，未执行任何写入。".to_string();
@@ -1118,6 +1158,12 @@ pub fn run_loop(session: &mut Session, user_message: &str, config: &LlmConfig) -
                 return cancelled_turn_outcome(session, turns_checkpoint);
             }
 
+            let use_host = fs_tools::is_builtin(&call.name)
+                && active_mcp
+                    .as_ref()
+                    .map(|(_, mcp_catalog)| !mcp_catalog.contains(&call.name))
+                    .unwrap_or(true);
+            let tool_started = Instant::now();
             let result = if !catalog.contains(&call.name) {
                 mcp_client::ToolResult {
                     content: format!("Tool '{}' is not available in the active scene.", call.name),
@@ -1130,12 +1176,46 @@ pub fn run_loop(session: &mut Session, user_message: &str, config: &LlmConfig) -
                             if chat_turn_interrupted(generation) {
                                 return cancelled_turn_outcome(session, turns_checkpoint);
                             }
-                            match mcp_client::call_tool(mcp_config, &call.name, arguments) {
-                                Ok(result) => result,
-                                Err(error) => mcp_client::ToolResult {
-                                    content: format!("MCP tool call failed: {error}"),
-                                    is_error: true,
-                                },
+                            if use_host {
+                                match turn_fence.as_ref() {
+                                    Some(fence) => fs_tools::call(&call.name, &arguments, fence),
+                                    None => mcp_client::ToolResult {
+                                        content: format!(
+                                            "Host tool '{}' has no path fence for this binding.",
+                                            call.name
+                                        ),
+                                        is_error: true,
+                                    },
+                                }
+                            } else {
+                                let Some((mcp_config, _)) = active_mcp.as_ref() else {
+                                    return {
+                                        let reply = format!(
+                                            "MCP tool '{}' has no MCP server for this binding.",
+                                            call.name
+                                        );
+                                        session.turns.push(Turn {
+                                            role: "assistant".into(),
+                                            content: Some(reply.clone()),
+                                            tool_call_id: None,
+                                            tool_calls: None,
+                                            name: None,
+                                        });
+                                        persist(session);
+                                        TurnOutcome {
+                                            reply_text: reply,
+                                            terminal: Terminal::Error,
+                                            wrote,
+                                        }
+                                    };
+                                };
+                                match mcp_client::call_tool(mcp_config, &call.name, arguments) {
+                                    Ok(result) => result,
+                                    Err(error) => mcp_client::ToolResult {
+                                        content: format!("MCP tool call failed: {error}"),
+                                        is_error: true,
+                                    },
+                                }
                             }
                         }
                         Err(error) => mcp_client::ToolResult {
@@ -1156,14 +1236,32 @@ pub fn run_loop(session: &mut Session, user_message: &str, config: &LlmConfig) -
             if !result.is_error && catalog.is_mutating(&call.name) {
                 wrote = true;
             }
+            let _ = diagnostics::log(
+                DiagnosticEvent::timing(
+                    "assistant.tools",
+                    "tool.completed",
+                    trace_id,
+                    tool_started.elapsed(),
+                )
+                .with_bounded_text_field("tool_name", &call.name)
+                .with_static_field("source", if use_host { "host" } else { "mcp" })
+                .with_bool_field("is_error", result.is_error),
+            );
+            let empty_copy = if use_host {
+                if result.is_error {
+                    "Host tool failed without an error message."
+                } else {
+                    "Host tool completed without text output."
+                }
+            } else if result.is_error {
+                "MCP tool failed without an error message."
+            } else {
+                "MCP tool completed without text output."
+            };
             session.turns.push(Turn {
                 role: "tool".into(),
                 content: Some(if result.content.trim().is_empty() {
-                    if result.is_error {
-                        "MCP tool failed without an error message.".into()
-                    } else {
-                        "MCP tool completed without text output.".into()
-                    }
+                    empty_copy.into()
                 } else {
                     result.content
                 }),

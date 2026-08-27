@@ -38,6 +38,7 @@ fn t4_ai_assistant_session_type_lives_in_session_rs() {
         "current_session_id",
         "current_binding",
         "loaded_mcp_server",
+        "loaded_path_fence",
         "current_generation",
         "chat_cancelled",
         "execute_cancelled",

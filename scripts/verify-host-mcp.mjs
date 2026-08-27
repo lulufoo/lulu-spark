@@ -24,9 +24,6 @@ const REGISTERED_SLOTS = ['workbench', 'cursor_ide'];
 /** Retired App slots — `/mcp/notes` and `/mcp/todo_task` must HTTP 404. */
 const RETIRED_APP_SLOTS = ['notes', 'todo_task'];
 
-/** workbench tools/list must include notes-only tools (plus corpus ∪ todo). */
-const WORKBENCH_REQUIRED_TOOLS = ['get_notes_selection'];
-
 /** Attachment delete must stay absent from Host MCP tool surface (UI-only delete). */
 const FORBIDDEN_ATTACHMENT_DELETE_TOOL_NAMES = [
   'delete_plan_attachment',
@@ -66,15 +63,6 @@ function assertNoForbiddenAttachmentDeletes() {
   for (const tool of FORBIDDEN_ATTACHMENT_DELETE_TOOL_NAMES) {
     if (adapter.includes(`name: "${tool}".into()`) || adapter.includes(`'${tool}'`)) {
       throw new Error(`Host MCP must not register attachment delete tool ${tool}`);
-    }
-  }
-}
-
-function assertWorkbenchRequiredTools() {
-  const adapter = readAdapterSource();
-  for (const tool of WORKBENCH_REQUIRED_TOOLS) {
-    if (!adapter.includes(tool)) {
-      throw new Error(`Host MCP workbench must register ${tool}`);
     }
   }
 }
@@ -185,9 +173,6 @@ async function main() {
 
   assertNoForbiddenAttachmentDeletes();
   console.log('Host MCP forbids attachment delete tools: OK');
-
-  assertWorkbenchRequiredTools();
-  console.log('Host MCP workbench registers notes-only tools: OK');
 
   await assertSidecarFixtureIndependent();
   console.log('sidecar HTTP fixture independent of MCP: OK');

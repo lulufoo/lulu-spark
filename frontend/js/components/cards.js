@@ -3,7 +3,6 @@ import { LAYERS, IMPORTANCE_CYCLE } from '../constants.js'
 import { escHtml, slugToTitle, filenameFromPath, topicFromPath, timeFromTs, importanceBadgeHtml } from '../utils.js'
 import * as api from '../api.js'
 import { openMoveProjectDialog } from './modals/move-project-dialog.js'
-import { writeNotesSelectionSnapshot } from '../apiClient.js'
 
 // ── Tag badges ─────────────────────────────────────────────────────────────
 
@@ -95,23 +94,9 @@ export function sourceTypeBadgeHtml(sourceType) {
 
 // ── Badge listeners ────────────────────────────────────────────────────────
 
-function writeNotesSelectionForCard(id, entry) {
-  const date = entry?.created_at
-    ? entry.created_at.slice(0, 8)
-    : (state.ui.activeDate || null);
-  const group = (state.index.filteredGroups || []).find((g) => g.date === date)
-    || (state.index.groupedByDate || []).find((g) => g.date === date);
-  const documents = (group?.entries || [{ id }]).map(({ id: docId }) => ({
-    id: docId,
-    selected: docId === id,
-  }));
-  void writeNotesSelectionSnapshot({ date, documents }).catch(() => {});
-}
-
 export function attachBadgeListeners(card, entry) {
   card.querySelectorAll('.badge[data-layer]').forEach(btn => {
     btn.addEventListener('click', () => {
-      writeNotesSelectionForCard(entry._id || card.dataset.id, entry);
       document.dispatchEvent(new CustomEvent('cta:open-entry', {
         detail: { common_path: entry.common_path, layer: btn.dataset.layer }
       }));
@@ -174,7 +159,6 @@ export function buildCard(id, entry, title) {
   if (entry.common_path.split('/')[0] === 'inbox') card.classList.add('inbox-pending');
   const firstLayer = LAYERS.find(l => entry.layers?.includes(l)) || 'raw';
   card.querySelector('.doc-title-btn').addEventListener('click', () => {
-    writeNotesSelectionForCard(id, entry);
     document.dispatchEvent(new CustomEvent('cta:open-entry', {
       detail: { common_path: entry.common_path, layer: firstLayer }
     }));

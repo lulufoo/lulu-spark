@@ -1,5 +1,6 @@
 import * as api from '../api.js';
 import { escHtml } from '../utils.js';
+import { hydrateHomeChatMarkdown, renderHomeChatMarkdown } from './home-chat-render.js';
 
 const BINDING_CHANGED_EVENT = 'ai-assistant:binding-changed';
 
@@ -120,6 +121,7 @@ export function mountHomeHub(container, { navigate, openReadLater } = {}) {
   let hostBound = false;
   let sending = false;
   let fetchGen = 0;
+  let mdPaintGen = 0;
 
   function renderSessions() {
     if (!sessions.length) {
@@ -138,16 +140,19 @@ export function mountHomeHub(container, { navigate, openReadLater } = {}) {
 
   function renderMessages() {
     if (!hostBound) {
+      mdPaintGen += 1;
       messagesEl.innerHTML =
         '<div class="home-chat-thread"><p class="home-chat-empty">Chat requires a workspace Binding.</p></div>';
       return;
     }
     if (!currentId) {
+      mdPaintGen += 1;
       messagesEl.innerHTML =
         '<div class="home-chat-thread"><p class="home-chat-empty">Select a conversation or start a new one.</p></div>';
       return;
     }
     if (!messages.length) {
+      mdPaintGen += 1;
       messagesEl.innerHTML =
         '<div class="home-chat-thread"><p class="home-chat-empty">No messages yet.</p></div>';
       return;
@@ -155,11 +160,19 @@ export function mountHomeHub(container, { navigate, openReadLater } = {}) {
     const turns = messages
       .map((m) => {
         const kind = m.role === 'user' ? 'user' : m.error ? 'error' : 'assistant';
-        return `<div class="home-chat-turn home-chat-turn--${kind}"><div class="home-chat-bubble home-chat-bubble--${kind}">${escHtml(m.text)}</div></div>`;
+        const body =
+          kind === 'assistant'
+            ? `<div class="home-chat-md">${renderHomeChatMarkdown(m.text)}</div>`
+            : escHtml(m.text);
+        return `<div class="home-chat-turn home-chat-turn--${kind}"><div class="home-chat-bubble home-chat-bubble--${kind}">${body}</div></div>`;
       })
       .join('');
     messagesEl.innerHTML = `<div class="home-chat-thread">${turns}</div>`;
     messagesEl.scrollTop = messagesEl.scrollHeight;
+    const paint = ++mdPaintGen;
+    void hydrateHomeChatMarkdown(messagesEl).then(() => {
+      if (paint === mdPaintGen) messagesEl.scrollTop = messagesEl.scrollHeight;
+    });
   }
 
   function syncComposerHeight() {

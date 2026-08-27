@@ -47,7 +47,7 @@ function baseConfig(overrides = {}) {
   };
 }
 
-describe('Host-only Assistant / Engine settings', () => {
+describe('Host-only Assistant settings', () => {
   it('exposes only Agent Loop / GLM in the preset catalog', () => {
     expect(ENGINE_CATEGORIES).toEqual([
       { id: 'host', label: 'Agent Loop / GLM' },

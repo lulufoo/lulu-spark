@@ -3,7 +3,6 @@ import { formatDate } from '../utils.js'
 import { renderDocList, loadTitles } from './cards.js'
 import { closeFloatingListSelect, createFloatingListSelect } from './floating-list-select.js'
 import { parseHash, navigateToDateList } from '../router/index.js'
-import { writeNotesSelectionSnapshot } from '../apiClient.js'
 
 // ── buildGroups ────────────────────────────────────────────────────────────
 
@@ -333,12 +332,6 @@ export function selectDate(date) {
 
   renderDocList(group.entries, date);
   loadTitles(group.entries, date);
-  if (route.name === 'workbench') {
-    void writeNotesSelectionSnapshot({
-      date,
-      documents: group.entries.map(({ id }) => ({ id, selected: false })),
-    }).catch(() => {});
-  }
 }
 
 // ── selectTopic ────────────────────────────────────────────────────

@@ -6765,8 +6765,8 @@
 
 /* ── Home chat (Assistant on Home) ── */
 .home-chat {
-  --home-chat-rail: 88px;
-  --home-chat-col: 720px;
+  --home-chat-rail: 44px;
+  --home-chat-col: calc(50% + 360px);
   --home-chat-composer-space: 88px;
   display: flex;
   width: 100%;
@@ -6923,7 +6923,7 @@
   flex: 1;
   min-height: 0;
   overflow: auto;
-  padding: 20px var(--home-chat-rail) var(--home-chat-composer-space, 88px) 24px;
+  padding: 20px var(--home-chat-rail) var(--home-chat-composer-space, 88px) 12px;
 }
 .home-chat-thread {
   width: 100%;
@@ -6976,6 +6976,70 @@
 .home-chat-bubble--assistant {
   width: 100%;
   max-width: 100%;
+  white-space: normal;
+}
+.home-chat-md > :first-child { margin-top: 0; }
+.home-chat-md > :last-child { margin-bottom: 0; }
+.home-chat-md p { margin: 0 0 10px; }
+.home-chat-md ul,
+.home-chat-md ol { margin: 0 0 10px; padding-left: 1.4em; }
+.home-chat-md li { margin: 2px 0; }
+.home-chat-md h1,
+.home-chat-md h2,
+.home-chat-md h3,
+.home-chat-md h4 {
+  margin: 16px 0 8px;
+  font-weight: 650;
+  line-height: 1.3;
+  color: #1f2328;
+}
+.home-chat-md h1 { font-size: 1.25em; }
+.home-chat-md h2 { font-size: 1.12em; }
+.home-chat-md h3,
+.home-chat-md h4 { font-size: 1em; }
+.home-chat-md code {
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-size: 0.86em;
+  background: #f0f2f4;
+  border-radius: 4px;
+  padding: 1px 5px;
+}
+.home-chat-md pre {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  overflow-x: auto;
+  background: #f6f8fa;
+  border-radius: 8px;
+}
+.home-chat-md pre code { background: none; padding: 0; }
+.home-chat-md blockquote {
+  margin: 0 0 10px;
+  padding: 0 0 0 12px;
+  border-left: 3px solid #d0d7de;
+  color: #57606a;
+}
+.home-chat-md hr {
+  display: block;
+  height: 1px;
+  margin: 12px 0;
+  background: #d0d7de;
+  border: none;
+}
+.home-chat-md a { color: #0969da; }
+.home-chat-md table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 0 0 12px;
+}
+.home-chat-md th,
+.home-chat-md td {
+  border: 1px solid #d0d7de;
+  padding: 6px 8px;
+  font-size: 13px;
+}
+.home-chat-md th {
+  background: #f6f8fa;
+  font-weight: 600;
 }
 .home-chat-bubble--error {
   width: 100%;
@@ -6989,7 +7053,7 @@
   z-index: 2;
   display: flex;
   justify-content: center;
-  padding: 28px var(--home-chat-rail) 16px 24px;
+  padding: 28px var(--home-chat-rail) 16px 12px;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0) 0%, #fff 40%);
   pointer-events: none;
 }
