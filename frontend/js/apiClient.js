@@ -26,6 +26,26 @@ async function loadTauriInvoke() {
   return invokeFnPromise;
 }
 
+let channelCtorPromise = null;
+
+async function loadTauriChannel() {
+  const fromWindow = typeof window !== 'undefined' && window.__TAURI__?.core?.Channel;
+  if (typeof fromWindow === 'function') return fromWindow;
+  if (!channelCtorPromise) {
+    channelCtorPromise = import('@tauri-apps/api/core').then((m) => m.Channel);
+  }
+  return channelCtorPromise;
+}
+
+/** Request-scoped Tauri Channel. Home must not import @tauri-apps/* itself. */
+export async function createChannel(onmessage) {
+  const Channel = await loadTauriChannel();
+  if (typeof Channel !== 'function') {
+    throw new Error('Tauri Channel is not available');
+  }
+  return new Channel(onmessage);
+}
+
 function isTauriRuntime() {
   if (typeof window === 'undefined') return false;
   return Boolean(window.__TAURI__ || window.__TAURI_INTERNALS__);

@@ -89,6 +89,10 @@ pub struct DiagnosticEvent {
     pub component: &'static str,
     pub event: &'static str,
     pub trace_id: String,
+    /// Chat id when the event belongs to a turn. Startup / other process-wide
+    /// events omit it.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub session_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub elapsed_ms: Option<u64>,
     pub fields: BTreeMap<&'static str, Value>,
@@ -107,6 +111,7 @@ impl DiagnosticEvent {
             component,
             event,
             trace_id: trace_id.as_str().to_string(),
+            session_id: None,
             elapsed_ms: Some(elapsed.as_millis().try_into().unwrap_or(u64::MAX)),
             fields: BTreeMap::new(),
         }
@@ -119,9 +124,16 @@ impl DiagnosticEvent {
             component,
             event,
             trace_id: trace_id.as_str().to_string(),
+            session_id: None,
             elapsed_ms: None,
             fields: BTreeMap::new(),
         }
+    }
+
+    /// Empty / invalid ids stay unset (startup and other non-chat events).
+    pub fn with_session_id(mut self, session_id: &str) -> Self {
+        self.session_id = sanitize_session_id(session_id);
+        self
     }
 
     pub fn with_static_field(mut self, name: &'static str, value: &'static str) -> Self {
@@ -151,6 +163,22 @@ impl DiagnosticEvent {
         }
         self
     }
+}
+
+fn sanitize_session_id(value: &str) -> Option<String> {
+    let value = value.trim();
+    if value.is_empty()
+        || !(4..=64).contains(&value.len())
+        || value.contains('/')
+        || value.contains('\\')
+        || value.contains("..")
+        || !value
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
+    {
+        return None;
+    }
+    Some(value.to_string())
 }
 
 pub fn sanitize_bounded_text(value: &str) -> String {

@@ -4,7 +4,8 @@
 
 use std::collections::HashMap;
 use std::panic::AssertUnwindSafe;
-use std::sync::{Mutex, OnceLock};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex, OnceLock};
 use std::time::Instant;
 
 use serde::Serialize;
@@ -12,6 +13,7 @@ use serde_json::{json, Value};
 
 use crate::services::agent::diagnostics::{self, DiagnosticEvent, TraceId};
 use crate::services::agent::fs_tools;
+use crate::services::agent::progress::{self, ProgressSink};
 use crate::services::agent::llm::{self, LlmConfig, LlmError};
 use crate::services::agent::mcp_client;
 use crate::services::agent::path_fence::PathFence;
@@ -32,6 +34,8 @@ pub const MAX_HISTORY_MESSAGES: usize = 20;
 pub const MAX_USER_TURNS: usize = 8;
 pub const MAX_MCP_TOOL_ROUNDS: usize = 8;
 pub const MAX_MCP_TOOL_CALLS: usize = 16;
+/// Concurrent in-flight chat turns (one row per session_id).
+pub const MAX_CHAT_FLIGHTS: usize = 3;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Terminal {
@@ -121,7 +125,17 @@ impl ExecError {
 
 type LifecycleListener = Box<dyn Fn(&LifecycleEvent) + Send + 'static>;
 
-/// Orchestration-only Host runtime (single-flight / present / clarify).
+#[allow(dead_code)]
+struct Flight {
+    #[allow(dead_code)]
+    request_id: String,
+    /// Same sink the loop holds on the stack; kept so a row is a full Flight.
+    #[allow(dead_code)]
+    sink: ProgressSink,
+    cancel: Arc<AtomicBool>,
+}
+
+/// Orchestration-only Host runtime (flight table / present / clarify).
 /// Binding, MCP capability, live session id, generation, and cancel flags are
 /// owned exclusively by [`session::AIAssistantSession`] (L2-A / T-SessionMigrate).
 #[derive(Default)]
@@ -132,6 +146,7 @@ struct Runtime {
     /// Present fired before main-window listener was ready (L11-AR race heal).
     pending_present: bool,
     clarify_counts: HashMap<String, u32>,
+    flights: HashMap<String, Flight>,
 }
 
 fn runtime() -> &'static Mutex<Runtime> {
@@ -244,8 +259,11 @@ fn request_in_flight_cancel(rt: &Runtime, live: &mut session::AIAssistantSession
     if rt.executing {
         live.execute_cancelled = true;
     }
-    if rt.busy {
+    if rt.busy || !rt.flights.is_empty() {
         live.chat_cancelled = true;
+        for flight in rt.flights.values() {
+            flight.cancel.store(true, Ordering::Relaxed);
+        }
     }
 }
 
@@ -282,8 +300,11 @@ fn set_binding_with_mcp(
             let previous_business_id = live.current_business_id.clone();
             // Chat cancel on cut; do not set execute_cancelled here so replace mid-execute
             // still returns rejected_stale_generation (generation advance is the execute interrupt).
-            if rt.busy {
+            if rt.busy || !rt.flights.is_empty() {
                 live.chat_cancelled = true;
+                for flight in rt.flights.values() {
+                    flight.cancel.store(true, Ordering::Relaxed);
+                }
             }
             live.generation_seq = live.generation_seq.saturating_add(1);
             live.current_generation = Some(live.generation_seq);
@@ -841,20 +862,35 @@ pub fn persist(session: &Session) {
     let _ = session::save_session(session);
 }
 
-/// Busy / live-session gate + mark busy. `Err` carries the early `ChatTurnResult`.
-pub fn try_begin_chat_turn(session_id: &str) -> Result<(), ChatTurnResult> {
+fn busy_turn_result(session_id: &str) -> ChatTurnResult {
+    ChatTurnResult {
+        body: json!({
+            "reply_text": "Busy — try again later",
+            "terminal": "none",
+            "wrote": false,
+            "busy": true,
+            "session_id": session_id,
+        }),
+        emit_turn_completed: None,
+    }
+}
+
+/// Flight gate + live-session check. `Err` carries the early `ChatTurnResult`.
+pub fn try_begin_chat_turn(
+    session_id: &str,
+    request_id: &TraceId,
+    sink: ProgressSink,
+) -> Result<(), ChatTurnResult> {
     let mut rt = runtime().lock().unwrap();
-    if rt.busy {
-        return Err(ChatTurnResult {
-            body: json!({
-                "reply_text": "Busy — try again later",
-                "terminal": "none",
-                "wrote": false,
-                "busy": true,
-                "session_id": session_id,
-            }),
-            emit_turn_completed: None,
-        });
+    if rt.flights.contains_key(session_id) {
+        return Err(busy_turn_result(session_id));
+    }
+    if rt.flights.len() >= MAX_CHAT_FLIGHTS {
+        return Err(busy_turn_result(session_id));
+    }
+    // Test hook: `set_busy_for_tests(true)` with an empty table still rejects.
+    if rt.busy && rt.flights.is_empty() {
+        return Err(busy_turn_result(session_id));
     }
     let live_id = session::with_live_mut(|live| live.current_session_id.clone());
     if live_id.as_deref() != Some(session_id) {
@@ -870,13 +906,31 @@ pub fn try_begin_chat_turn(session_id: &str) -> Result<(), ChatTurnResult> {
             emit_turn_completed: None,
         });
     }
+    rt.flights.insert(
+        session_id.to_string(),
+        Flight {
+            request_id: request_id.as_str().to_string(),
+            sink: Arc::clone(&sink),
+            cancel: Arc::new(AtomicBool::new(false)),
+        },
+    );
     rt.busy = true;
-    session::with_live_mut(|live| live.chat_cancelled = false);
+    if rt.flights.len() == 1 {
+        session::with_live_mut(|live| live.chat_cancelled = false);
+    }
     Ok(())
 }
 
+pub fn end_chat_turn(session_id: &str) {
+    let mut rt = runtime().lock().unwrap();
+    rt.flights.remove(session_id);
+    rt.busy = !rt.flights.is_empty();
+}
+
 pub fn end_chat_turn_busy() {
-    runtime().lock().unwrap().busy = false;
+    let mut rt = runtime().lock().unwrap();
+    rt.flights.clear();
+    rt.busy = false;
 }
 
 pub fn has_active_binding() -> bool {
@@ -905,9 +959,18 @@ fn cancelled_turn_outcome(session: &mut Session, turns_checkpoint: usize) -> Tur
     }
 }
 
-fn chat_turn_interrupted(generation: u64) -> bool {
+fn chat_turn_interrupted(session_id: &str, generation: u64) -> bool {
     let live = session::live_context_owner();
-    live.chat_cancelled() || live.current_generation() != Some(generation)
+    if live.chat_cancelled() || live.current_generation() != Some(generation) {
+        return true;
+    }
+    runtime()
+        .lock()
+        .unwrap()
+        .flights
+        .get(session_id)
+        .map(|flight| flight.cancel.load(Ordering::Relaxed))
+        .unwrap_or(false)
 }
 
 pub fn run_loop(session: &mut Session, user_message: &str, config: &LlmConfig) -> TurnOutcome {
@@ -919,6 +982,16 @@ pub(crate) fn run_loop_with_trace(
     user_message: &str,
     config: &LlmConfig,
     trace_id: &TraceId,
+) -> TurnOutcome {
+    run_loop_with_progress(session, user_message, config, trace_id, None)
+}
+
+pub(crate) fn run_loop_with_progress(
+    session: &mut Session,
+    user_message: &str,
+    config: &LlmConfig,
+    trace_id: &TraceId,
+    sink: Option<&ProgressSink>,
 ) -> TurnOutcome {
     let turns_checkpoint = session.turns.len();
     // Executable turns require Binding Contract bound — not session.bound_master_task_id.
@@ -988,7 +1061,7 @@ pub(crate) fn run_loop_with_trace(
     // A key-only Binding resolves this connection at Set time. Typed/internal
     // bindings retain their historical text-only behavior when they carry no
     // MCP capability config.
-    if chat_turn_interrupted(generation) {
+    if chat_turn_interrupted(&session.session_id, generation) {
         return cancelled_turn_outcome(session, turns_checkpoint);
     }
     let active_mcp = match session_capability_mcp_config() {
@@ -1029,7 +1102,7 @@ pub(crate) fn run_loop_with_trace(
         },
         None => None,
     };
-    if chat_turn_interrupted(generation) {
+    if chat_turn_interrupted(&session.session_id, generation) {
         return cancelled_turn_outcome(session, turns_checkpoint);
     }
 
@@ -1052,7 +1125,7 @@ pub(crate) fn run_loop_with_trace(
     let mut tool_rounds = 0usize;
     let mut tool_call_count = 0usize;
     let msg = loop {
-        if chat_turn_interrupted(generation) {
+        if chat_turn_interrupted(&session.session_id, generation) {
             return cancelled_turn_outcome(session, turns_checkpoint);
         }
         let messages = build_llm_messages_from_turns(&session.turns, &system_prompt);
@@ -1060,10 +1133,16 @@ pub(crate) fn run_loop_with_trace(
             .as_ref()
             .map(|catalog| catalog.definitions.as_slice())
             .unwrap_or(&[]);
+        progress::emit_progress(
+            sink,
+            &session.session_id,
+            trace_id,
+            "Requesting…",
+        );
         let msg = match llm::chat_completions(&messages, tools, config) {
             Ok(message) => message,
             Err(error) => {
-                if chat_turn_interrupted(generation) {
+                if chat_turn_interrupted(&session.session_id, generation) {
                     return cancelled_turn_outcome(session, turns_checkpoint);
                 }
                 let mut out = map_llm_error(&error);
@@ -1081,7 +1160,7 @@ pub(crate) fn run_loop_with_trace(
         };
 
         // Round-trip gate: cancel / generation may have been raised during LLM.
-        if chat_turn_interrupted(generation) {
+        if chat_turn_interrupted(&session.session_id, generation) {
             return cancelled_turn_outcome(session, turns_checkpoint);
         }
 
@@ -1154,9 +1233,15 @@ pub(crate) fn run_loop_with_trace(
         persist(session);
 
         for call in msg.tool_calls {
-            if chat_turn_interrupted(generation) {
+            if chat_turn_interrupted(&session.session_id, generation) {
                 return cancelled_turn_outcome(session, turns_checkpoint);
             }
+            progress::emit_progress(
+                sink,
+                &session.session_id,
+                trace_id,
+                format!("Calling {}…", call.name),
+            );
 
             let use_host = fs_tools::is_builtin(&call.name)
                 && active_mcp
@@ -1173,7 +1258,7 @@ pub(crate) fn run_loop_with_trace(
                 match serde_json::from_str::<Value>(&call.arguments) {
                     Ok(arguments) => match catalog.validate_arguments(&call.name, &arguments) {
                         Ok(()) => {
-                            if chat_turn_interrupted(generation) {
+                            if chat_turn_interrupted(&session.session_id, generation) {
                                 return cancelled_turn_outcome(session, turns_checkpoint);
                             }
                             if use_host {
@@ -1230,7 +1315,7 @@ pub(crate) fn run_loop_with_trace(
                 }
             };
 
-            if chat_turn_interrupted(generation) {
+            if chat_turn_interrupted(&session.session_id, generation) {
                 return cancelled_turn_outcome(session, turns_checkpoint);
             }
             if !result.is_error && catalog.is_mutating(&call.name) {
@@ -1243,6 +1328,7 @@ pub(crate) fn run_loop_with_trace(
                     trace_id,
                     tool_started.elapsed(),
                 )
+                .with_session_id(&session.session_id)
                 .with_bounded_text_field("tool_name", &call.name)
                 .with_static_field("source", if use_host { "host" } else { "mcp" })
                 .with_bool_field("is_error", result.is_error),
@@ -1482,12 +1568,6 @@ pub fn select_chat_session_core(session_id: &str) -> Result<Value, String> {
         return Err("Missing session_id".into());
     }
     let _ = session::load_session(id)?;
-    {
-        let rt = runtime().lock().unwrap();
-        if rt.busy {
-            return Err("Busy — try again later".into());
-        }
-    }
     session::with_live_mut(|live| {
         live.current_session_id = Some(id.to_string());
     });
@@ -1496,12 +1576,6 @@ pub fn select_chat_session_core(session_id: &str) -> Result<Value, String> {
 
 /// Start a blank chat session and make it live. Does not Set Binding.
 pub fn create_chat_session_core() -> Result<Value, String> {
-    {
-        let rt = runtime().lock().unwrap();
-        if rt.busy {
-            return Err("Busy — try again later".into());
-        }
-    }
     let sess = session::create_session(None, None)?;
     session::with_live_mut(|live| {
         live.current_session_id = Some(sess.session_id.clone());

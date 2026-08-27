@@ -94,6 +94,7 @@ export function mountHomeHub(container, { navigate, openReadLater } = {}) {
       <section class="home-chat-main">
         <div class="home-chat-messages" data-role="messages" aria-live="polite"></div>
         <form class="home-chat-composer" data-role="form">
+          <p class="home-chat-progress" data-role="progress-hint" hidden></p>
           <div class="home-chat-composer-dock">
             <textarea class="home-chat-input" data-role="input" rows="1" placeholder="Message…"></textarea>
             <button type="submit" class="home-chat-send" data-role="send" aria-label="Send" title="Send">
@@ -114,12 +115,14 @@ export function mountHomeHub(container, { navigate, openReadLater } = {}) {
   const form = container.querySelector('[data-role="form"]');
   const input = container.querySelector('[data-role="input"]');
   const sendBtn = container.querySelector('[data-role="send"]');
+  const progressHint = container.querySelector('[data-role="progress-hint"]');
 
   let sessions = [];
-  let currentId = '';
+  let currentSessionId = '';
   let messages = [];
   let hostBound = false;
-  let sending = false;
+  const progressByChat = Object.create(null);
+  const inFlight = new Set();
   let fetchGen = 0;
   let mdPaintGen = 0;
 
@@ -132,8 +135,12 @@ export function mountHomeHub(container, { navigate, openReadLater } = {}) {
       .map((s) => {
         const id = String(s.session_id || '');
         const title = sessionListLabel(s);
-        const active = id && id === currentId ? ' is-active' : '';
-        return `<button type="button" class="home-chat-session${active}" data-session-id="${escHtml(id)}" role="listitem">${escHtml(title)}</button>`;
+        const active = id && id === currentSessionId ? ' is-active' : '';
+        const flying = Boolean(progressByChat[id]);
+        const mark = flying
+          ? '<span class="home-chat-session-progress" aria-hidden="true">…</span>'
+          : '';
+        return `<button type="button" class="home-chat-session${active}" data-session-id="${escHtml(id)}" role="listitem">${escHtml(title)}${mark}</button>`;
       })
       .join('');
   }
@@ -145,7 +152,7 @@ export function mountHomeHub(container, { navigate, openReadLater } = {}) {
         '<div class="home-chat-thread"><p class="home-chat-empty">Chat requires a workspace Binding.</p></div>';
       return;
     }
-    if (!currentId) {
+    if (!currentSessionId) {
       mdPaintGen += 1;
       messagesEl.innerHTML =
         '<div class="home-chat-thread"><p class="home-chat-empty">Select a conversation or start a new one.</p></div>';
@@ -187,18 +194,33 @@ export function mountHomeHub(container, { navigate, openReadLater } = {}) {
     if (gen != null && gen !== fetchGen) return;
     if (!payload || typeof payload !== 'object') return;
     if (payload.session_id != null || payload.sessionId != null) {
-      currentId = sessionIdOf(payload);
+      currentSessionId = sessionIdOf(payload);
     }
     if (Object.hasOwn(payload, 'turns')) {
       messages = hydrateTurns(payload.turns);
     }
     renderSessions();
     renderMessages();
+    renderProgressHint();
+    setComposerEnabled(hostBound);
+  }
+
+  function renderProgressHint() {
+    const desc = currentSessionId ? String(progressByChat[currentSessionId] || '') : '';
+    if (!progressHint) return;
+    if (desc) {
+      progressHint.hidden = false;
+      progressHint.textContent = desc;
+    } else {
+      progressHint.hidden = true;
+      progressHint.textContent = '';
+    }
   }
 
   function setComposerEnabled(enabled) {
-    input.disabled = !enabled;
-    sendBtn.disabled = !enabled || sending;
+    const locked = !enabled || inFlight.has(currentSessionId);
+    input.disabled = locked;
+    sendBtn.disabled = locked;
   }
 
   async function refreshList() {
@@ -207,15 +229,17 @@ export function mountHomeHub(container, { navigate, openReadLater } = {}) {
       ? listed.sessions.slice(0, HOME_CHAT_LIST_LIMIT)
       : [];
     if (listed?.current_session_id) {
-      currentId = String(listed.current_session_id);
+      currentSessionId = String(listed.current_session_id);
     }
     renderSessions();
   }
 
   async function selectSession(sessionId) {
     const gen = ++fetchGen;
-    currentId = String(sessionId || '');
+    currentSessionId = String(sessionId || '');
     renderSessions();
+    renderProgressHint();
+    setComposerEnabled(hostBound);
     const payload = await api.invoke('select_chat_session', { sessionId });
     applySessionPayload(payload, gen);
     await refreshList();
@@ -251,8 +275,12 @@ export function mountHomeHub(container, { navigate, openReadLater } = {}) {
       hostBound = false;
     }
     if (!hostBound) {
-      currentId = '';
+      currentSessionId = '';
       messages = [];
+      Object.keys(progressByChat).forEach((key) => {
+        delete progressByChat[key];
+      });
+      inFlight.clear();
     }
     setComposerEnabled(hostBound);
     if (!hostBound) {
@@ -263,7 +291,7 @@ export function mountHomeHub(container, { navigate, openReadLater } = {}) {
     try {
       await refreshList();
       if (gen !== fetchGen) return;
-      if (currentId) {
+      if (currentSessionId) {
         const state = await api.invoke('get_ai_assistant_binding');
         applySessionPayload(state, gen);
       } else {
@@ -303,7 +331,7 @@ export function mountHomeHub(container, { navigate, openReadLater } = {}) {
   const onSubmit = (event) => {
     event.preventDefault();
     const text = String(input.value || '').trim();
-    if (!text || sending) return;
+    if (!text || inFlight.has(currentSessionId)) return;
     input.value = '';
     syncComposerHeight();
     void sendMessage(text);
@@ -312,58 +340,79 @@ export function mountHomeHub(container, { navigate, openReadLater } = {}) {
   const onKey = (event) => {
     if (event.key !== 'Enter' || event.shiftKey || event.isComposing) return;
     event.preventDefault();
-    if (input.disabled || sendBtn.disabled || sending) return;
+    if (input.disabled || sendBtn.disabled || inFlight.has(currentSessionId)) return;
     if (typeof form.requestSubmit === 'function') form.requestSubmit();
     else form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
   };
 
   async function sendMessage(text) {
+    let sid = '';
     try {
       if (!hostBound) {
         messages.push({ role: 'assistant', text: 'Chat requires a workspace Binding.', error: true });
         renderMessages();
         return;
       }
-      if (!currentId) {
+      if (!currentSessionId) {
         await createSession();
       }
-      if (!currentId) {
+      if (!currentSessionId) {
         messages.push({ role: 'assistant', text: 'Unable to start a conversation.', error: true });
         renderMessages();
         return;
       }
-      sending = true;
-      setComposerEnabled(false);
+      sid = currentSessionId;
+      inFlight.add(sid);
+      setComposerEnabled(hostBound);
       messages.push({ role: 'user', text });
       renderMessages();
-      const result = await api.invoke('agent_chat_turn', {
-        sessionId: currentId,
-        message: text,
+      const channel = await api.createChannel((payload) => {
+        const desc =
+          payload && typeof payload === 'object'
+            ? String(payload.desc ?? '')
+            : String(payload ?? '');
+        progressByChat[sid] = desc;
+        renderSessions();
+        renderProgressHint();
       });
-      if (result?.busy) {
-        messages.push({ role: 'assistant', text: String(result.reply_text || 'Busy — try again later') });
-      } else {
-        const reply = String(result?.reply_text || '');
-        if (reply) {
-          messages.push({
-            role: 'assistant',
-            text: reply,
-            error: result?.terminal === 'error',
-          });
+      const result = await api.invoke('agent_chat_turn', {
+        sessionId: sid,
+        message: text,
+        progress: channel,
+      });
+      if (currentSessionId === sid) {
+        if (result?.busy) {
+          messages.push({ role: 'assistant', text: String(result.reply_text || 'Busy — try again later') });
+        } else {
+          const reply = String(result?.reply_text || '');
+          if (reply) {
+            messages.push({
+              role: 'assistant',
+              text: reply,
+              error: result?.terminal === 'error',
+            });
+          }
         }
+        renderMessages();
       }
-      renderMessages();
       await refreshList();
     } catch (err) {
-      messages.push({
-        role: 'assistant',
-        text: err?.message ? String(err.message) : 'Failed to send',
-        error: true,
-      });
-      renderMessages();
+      if (currentSessionId) {
+        messages.push({
+          role: 'assistant',
+          text: err?.message ? String(err.message) : 'Failed to send',
+          error: true,
+        });
+        renderMessages();
+      }
     } finally {
-      sending = false;
-      setComposerEnabled(hostBound);
+      if (sid) {
+        inFlight.delete(sid);
+        delete progressByChat[sid];
+        renderSessions();
+        renderProgressHint();
+        setComposerEnabled(hostBound);
+      }
     }
   }
 

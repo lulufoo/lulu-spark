@@ -1,15 +1,13 @@
 //! Host command surface tests for open_ai_assistant / Present / agent_chat_turn.
 
-use std::fs;
-
 use serde_json::json;
 
 use crate::commands::ai_assistant::{
     agent_chat_turn_json, cancel_ai_assistant_turn_json, create_chat_session_json,
     defensive_unbound_json, ensure_ai_assistant_session_json, execute_binding_json,
     get_ai_assistant_binding_json, list_chat_sessions_json, open_ai_assistant_json,
-    present_ai_assistant_json, query_binding_json, record_ai_assistant_timing,
-    reset_binding_json, select_chat_session_json, set_binding_json, shell_close_json,
+    present_ai_assistant_json, query_binding_json, reset_binding_json,
+    select_chat_session_json, set_binding_json, shell_close_json,
     AI_ASSISTANT_WINDOW_LABEL, EVENT_BINDING_CHANGED,
 };
 use crate::config::secrets::{self, KEY_LLM_API_KEY};
@@ -497,33 +495,6 @@ fn t1_facade_happy_path_without_engine_params_and_payloads_leak_none() {
             !value_exposes_engine_selection(&pulled),
             "binding pull must not expose engine fields: {pulled}"
         );
-    });
-}
-
-#[test]
-fn record_ai_assistant_timing_persists_safe_ui_receive_duration() {
-    with_cmd_sandbox(|| {
-        record_ai_assistant_timing(
-            "ui_trace_12345678".into(),
-            "response_received".into(),
-            3,
-            Some(42),
-        )
-        .expect("record UI timing");
-
-        let path = crate::services::agent::diagnostics::diagnostic_log_path()
-            .expect("diagnostic path");
-        let log = fs::read_to_string(path).expect("diagnostic log");
-        let event: serde_json::Value =
-            serde_json::from_str(log.lines().last().expect("diagnostic event"))
-                .expect("JSONL event");
-
-        assert_eq!(event["component"], "assistant.ui");
-        assert_eq!(event["event"], "turn.response_received");
-        assert_eq!(event["trace_id"], "ui_trace_12345678");
-        assert_eq!(event["elapsed_ms"], 3);
-        assert_eq!(event["fields"]["input_to_response_ms"], 42);
-        assert!(event.get("message").is_none() && event.get("content").is_none());
     });
 }
 

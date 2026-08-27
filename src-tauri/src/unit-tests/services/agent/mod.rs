@@ -187,6 +187,7 @@ fn assistant_diagnostic_log_is_versioned_jsonl_with_safe_metadata_only() {
             &trace_id,
             Duration::from_millis(42),
         )
+        .with_session_id("sess_abcdef123456")
         .with_static_field("adapter", "host")
         .with_bool_field("persisted", true);
 
@@ -205,6 +206,7 @@ fn assistant_diagnostic_log_is_versioned_jsonl_with_safe_metadata_only() {
         assert_eq!(value["component"], "assistant.runtime");
         assert_eq!(value["event"], "turn.completed");
         assert_eq!(value["trace_id"], "trace_12345678");
+        assert_eq!(value["session_id"], "sess_abcdef123456");
         assert_eq!(value["elapsed_ms"], 42);
         assert_eq!(value["fields"]["adapter"], "host");
         assert_eq!(value["fields"]["persisted"], true);
@@ -213,6 +215,16 @@ fn assistant_diagnostic_log_is_versioned_jsonl_with_safe_metadata_only() {
                 && value.get("prompt").is_none()
                 && value.get("content").is_none(),
             "diagnostic event must not expose message content"
+        );
+
+        let startup = DiagnosticEvent::point("assistant.startup", "agent_loop_warm.scheduled", &trace_id);
+        let startup_line = serde_json::to_value(&startup).expect("serialize startup event");
+        assert!(startup_line.get("session_id").is_none());
+        assert!(
+            DiagnosticEvent::point("assistant.runtime", "turn.started", &trace_id)
+                .with_session_id("")
+                .session_id
+                .is_none()
         );
     });
 }
@@ -226,8 +238,6 @@ fn assistant_diagnostics_are_correlated_without_message_content() {
         .expect("read assistant command");
     let runtime = fs::read_to_string(repo_root.join("src-tauri/src/services/agent/runtime.rs"))
         .expect("read assistant runtime");
-    let frontend =
-        fs::read_to_string(repo_root.join("frontend/js/ai-assistant.js")).expect("read assistant UI");
     let diagnostics =
         fs::read_to_string(repo_root.join("src-tauri/src/services/agent/diagnostics.rs"))
             .expect("read diagnostics");
@@ -238,13 +248,13 @@ fn assistant_diagnostics_are_correlated_without_message_content() {
         "Tauri command must carry a caller correlation id into the runtime"
     );
     assert!(
+        !command.contains("record_ai_assistant_timing"),
+        "retired independent-window UI timing must not remain on the command surface"
+    );
+    assert!(
         runtime.contains("dispatch_from_settings")
             && runtime.contains("assistant.host"),
         "Host execution must resolve through the single runtime route"
-    );
-    assert!(
-        frontend.contains("traceId") && frontend.contains("assistant-diagnostic"),
-        "UI timing must correlate its invoke and render events with Host events"
     );
     assert!(
         !diagnostics.contains("with_dynamic_field"),

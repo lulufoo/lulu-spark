@@ -148,23 +148,52 @@ describe('parseHash todo-tasks deep-link', () => {
 });
 
 describe('copySubIdPair', () => {
-  it('formats per-sub copy string as master → sub', () => {
+  it('formats per-sub copy string as master → sub, with todo_ prefix on both ids', () => {
     expect(copySubIdPair('task_alpha', 'task_alpha_sub_01')).toBe(
-      'task_alpha → task_alpha_sub_01',
+      'todo_task_alpha → todo_task_alpha_sub_01',
     );
+  });
+
+  it('prefixes stored task_* ids for clipboard paste-back', () => {
+    expect(copySubIdPair('task_9b4bca4a89ae', 'task_9b4bca4a89ae_sub_01')).toBe(
+      'todo_task_9b4bca4a89ae → todo_task_9b4bca4a89ae_sub_01',
+    );
+  });
+
+  it('does not double-prefix ids that already have todo_', () => {
+    expect(
+      copySubIdPair('todo_task_9b4bca4a89ae', 'todo_task_9b4bca4a89ae_sub_01'),
+    ).toBe('todo_task_9b4bca4a89ae → todo_task_9b4bca4a89ae_sub_01');
   });
 });
 
 describe('formatMasterCopyText', () => {
-  it('formats title and ID on separate labeled lines', () => {
+  it('formats title and ID on separate labeled lines, with todo_ prefix on ID', () => {
     expect(formatMasterCopyText('Alpha Task', 'task_alpha')).toBe(
-      'Title: Alpha Task\nID: task_alpha',
+      'Title: Alpha Task\nID: todo_task_alpha',
+    );
+  });
+
+  it('prefixes stored task_* ids for clipboard paste-back', () => {
+    expect(
+      formatMasterCopyText(
+        'Workbench Home 聊天进度：请求维 Channel 与并行 flights（方案）',
+        'task_21cf9d096242',
+      ),
+    ).toBe(
+      'Title: Workbench Home 聊天进度：请求维 Channel 与并行 flights（方案）\nID: todo_task_21cf9d096242',
+    );
+  });
+
+  it('does not double-prefix an ID that already has todo_', () => {
+    expect(formatMasterCopyText('Alpha Task', 'todo_task_alpha')).toBe(
+      'Title: Alpha Task\nID: todo_task_alpha',
     );
   });
 
   it('falls back to (untitled) when title is blank', () => {
     expect(formatMasterCopyText('  ', 'task_alpha')).toBe(
-      'Title: (untitled)\nID: task_alpha',
+      'Title: (untitled)\nID: todo_task_alpha',
     );
   });
 });
@@ -186,8 +215,8 @@ describe('renderSubDetail', () => {
     expect(html).toContain('In progress');
     expect(html).toContain('Completed');
     expect(html).toContain('Abandoned');
-    expect(html).toContain('data-copy-text="task_alpha → task_alpha_sub_01"');
-    expect(html).toContain('data-copy-text="task_alpha → task_alpha_sub_02"');
+    expect(html).toContain('data-copy-text="todo_task_alpha → todo_task_alpha_sub_01"');
+    expect(html).toContain('data-copy-text="todo_task_alpha → todo_task_alpha_sub_02"');
   });
 
   it('renders distinct status modifier classes for three sub states', () => {
@@ -657,11 +686,11 @@ describe('mountTodoTaskSplit', () => {
     const copyBtn = actions?.querySelector('[data-action="copy-master-id"]');
     const editBtn = actions?.querySelector('[data-action="edit-plan-md"]');
     expect(copyBtn?.textContent).toBe('Copy');
-    expect(copyBtn?.dataset.copyText).toBe('Title: Alpha Task\nID: task_alpha');
+    expect(copyBtn?.dataset.copyText).toBe('Title: Alpha Task\nID: todo_task_alpha');
     expect(editBtn).not.toBeNull();
     expect(container.querySelector('.todo-task-detail-toolbar [data-action="copy-master-id"]')).toBeNull();
     copyBtn.click();
-    expect(writeText).toHaveBeenCalledWith('Title: Alpha Task\nID: task_alpha');
+    expect(writeText).toHaveBeenCalledWith('Title: Alpha Task\nID: todo_task_alpha');
     await vi.waitFor(() => {
       expect(copyBtn.textContent).toBe('✓ Copied');
       expect(copyBtn.classList.contains('todo-task-copy-flash')).toBe(true);

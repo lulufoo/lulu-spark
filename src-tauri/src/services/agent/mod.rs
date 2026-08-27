@@ -7,6 +7,7 @@ pub mod host_startup;
 pub mod llm;
 pub mod mcp_client;
 pub mod path_fence;
+pub mod progress;
 pub mod r#loop;
 pub mod runtime;
 pub mod session;

@@ -1,5 +1,6 @@
 import {
   createApiClient,
+  createChannel as createChannelFromClient,
   createFetchDriver,
   createTauriDriver,
   invoke as invokeCommand,
@@ -110,6 +111,10 @@ export async function fetchAnnotation(path) {
 
 export async function invoke(cmd, args) {
   return assertWritePayload(await invokeCommand(cmd, args));
+}
+
+export async function createChannel(onmessage) {
+  return createChannelFromClient(onmessage);
 }
 
 export async function fetchConfig() {

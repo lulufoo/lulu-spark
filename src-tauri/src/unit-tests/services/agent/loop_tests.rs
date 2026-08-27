@@ -715,8 +715,10 @@ fn run_loop_offers_host_file_tools_and_keeps_scratch_writes_inside_cache() {
     )
     .unwrap_or_default();
     assert!(
-        log.contains("\"tool_name\":\"read\"") && log.contains("\"source\":\"host\""),
-        "Host file tools must reuse assistant-diagnostic.jsonl"
+        log.contains("\"tool_name\":\"read\"")
+            && log.contains("\"source\":\"host\"")
+            && log.contains(&format!("\"session_id\":\"{}\"", session.session_id)),
+        "Host file tools must reuse assistant-diagnostic.jsonl with session_id"
     );
 
     drop(hits);
@@ -5846,6 +5848,70 @@ fn t6_reset_path_must_not_log_ticket_or_full_authorization() {
         assert_secret_absent_from(&format!("{:?}", r#loop::SetError::set_invalid()), &secret);
         assert_secret_absent_from(r#loop::SetError::set_invalid().as_code(), &secret);
         assert_secret_absent_from(debug, &secret);
+    });
+}
+
+#[test]
+fn flights_same_session_and_cap_three_allow_select() {
+    with_sandbox(|| {
+        let a = r#loop::create_chat_session_core().unwrap();
+        let a_id = a["session_id"].as_str().unwrap().to_string();
+        let b = r#loop::create_chat_session_core().unwrap();
+        let b_id = b["session_id"].as_str().unwrap().to_string();
+        let c = r#loop::create_chat_session_core().unwrap();
+        let c_id = c["session_id"].as_str().unwrap().to_string();
+        let d = r#loop::create_chat_session_core().unwrap();
+        let d_id = d["session_id"].as_str().unwrap().to_string();
+
+        let sink = crate::services::agent::progress::noop_sink();
+        let tid = crate::services::agent::diagnostics::TraceId::new();
+
+        r#loop::select_chat_session_core(&a_id).unwrap();
+        r#loop::try_begin_chat_turn(&a_id, &tid, sink.clone()).unwrap();
+        let same = r#loop::try_begin_chat_turn(&a_id, &tid, sink.clone()).unwrap_err();
+        assert_eq!(same.body["busy"], true);
+
+        r#loop::select_chat_session_core(&b_id).unwrap();
+        r#loop::try_begin_chat_turn(&b_id, &tid, sink.clone()).unwrap();
+        r#loop::select_chat_session_core(&c_id).unwrap();
+        r#loop::try_begin_chat_turn(&c_id, &tid, sink.clone()).unwrap();
+        r#loop::select_chat_session_core(&d_id).unwrap();
+        let fourth = r#loop::try_begin_chat_turn(&d_id, &tid, sink.clone()).unwrap_err();
+        assert_eq!(fourth.body["busy"], true);
+
+        r#loop::select_chat_session_core(&a_id).expect("select while other flights run");
+        r#loop::end_chat_turn(&a_id);
+        r#loop::try_begin_chat_turn(&a_id, &tid, sink).unwrap();
+    });
+}
+
+#[test]
+fn run_loop_emits_requesting_progress() {
+    with_sandbox(|| {
+        let master = create_bound_plan("进度");
+        let mock = spawn_scripted_llm(vec![assistant_text("收到")]);
+        let mut sess = session::create_session(Some(&master), Some("进度")).unwrap();
+        r#loop::set_binding(empty_tools_binding()).expect("empty tools Set");
+        let collected = Arc::new(Mutex::new(Vec::new()));
+        let slot = collected.clone();
+        let sink: crate::services::agent::progress::ProgressSink =
+            Arc::new(move |desc| slot.lock().unwrap().push(desc.desc));
+        let out = r#loop::run_loop_with_progress(
+            &mut sess,
+            "你好",
+            &cfg_for(&mock),
+            &crate::services::agent::diagnostics::TraceId::new(),
+            Some(&sink),
+        );
+        assert_outcome(&out, "none", false);
+        assert!(
+            collected
+                .lock()
+                .unwrap()
+                .iter()
+                .any(|desc| desc == "Requesting…"),
+            "loop must emit Requesting…"
+        );
     });
 }
 

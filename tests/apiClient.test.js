@@ -4,10 +4,14 @@ const invokeMock = vi.fn();
 
 vi.mock('@tauri-apps/api/core', () => ({
   invoke: (...args) => invokeMock(...args),
+  Channel: function Channel(onmessage) {
+    this.onmessage = onmessage;
+  },
 }));
 
 import {
   createApiClient,
+  createChannel,
   createFetchDriver,
   createTauriDriver,
   resolveReadDriver,
@@ -173,4 +177,10 @@ test('tauriDriver postJson invoke 返回 error+_status 404 时 ok 为 false', as
   expect(res.status).toBe(404);
   const data = await res.json();
   expect(data.error).toBe('file not found');
+});
+
+test('createChannel 用动态 import 的 Channel 构造请求维回调管', async () => {
+  const onmessage = vi.fn();
+  const channel = await createChannel(onmessage);
+  expect(channel.onmessage).toBe(onmessage);
 });

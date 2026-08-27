@@ -41,6 +41,7 @@ const COPY_MASTER_LABEL = 'Copy';
 const COPY_MASTER_TITLE = 'Copy title and ID';
 const COPY_FEEDBACK_LABEL = '✓ Copied';
 const COPY_FEEDBACK_MS = 1200;
+const COPY_ID_PREFIX = 'todo_';
 
 const STATUS_LABELS = {
   incomplete: 'In progress',
@@ -267,14 +268,19 @@ export async function pickLocalMarkdownFile() {
 }
 
 export function copySubIdPair(masterId, subId) {
-  return `${masterId} → ${subId}`;
+  return `${formatCopyId(masterId)} → ${formatCopyId(subId)}`;
+}
+
+function formatCopyId(rawId) {
+  const id = String(rawId ?? '').trim();
+  if (!id || id.startsWith(COPY_ID_PREFIX)) return id;
+  return `${COPY_ID_PREFIX}${id}`;
 }
 
 /** Clipboard payload for a todo: title + ID, English labels, one field per line. */
 export function formatMasterCopyText(title, masterTaskId) {
   const t = String(title ?? '').trim() || '(untitled)';
-  const id = String(masterTaskId ?? '').trim();
-  return `Title: ${t}\nID: ${id}`;
+  return `Title: ${t}\nID: ${formatCopyId(masterTaskId)}`;
 }
 
 function escCopyDataAttr(text) {

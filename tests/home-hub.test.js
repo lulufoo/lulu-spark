@@ -117,6 +117,8 @@ describe('home hub chat sessions', () => {
   let container;
   /** @type {import('vitest').MockInstance} */
   let invokeSpy;
+  /** @type {import('vitest').MockInstance} */
+  let createChannelSpy;
   /** @type {{ session_id: string, title: string }[]} */
   let sessions;
   let currentId;
@@ -141,6 +143,9 @@ describe('home hub chat sessions', () => {
     ];
     currentId = 's2';
     bound = true;
+    createChannelSpy = vi.spyOn(api, 'createChannel').mockImplementation(async (onmessage) => ({
+      onmessage,
+    }));
     invokeSpy = vi.spyOn(api, 'invoke').mockImplementation(async (cmd, args) => {
       if (cmd === 'query_binding') return { state: bound ? 'bound' : 'unbound' };
       if (cmd === 'list_chat_sessions') {
@@ -169,6 +174,7 @@ describe('home hub chat sessions', () => {
   });
 
   afterEach(() => {
+    createChannelSpy.mockRestore();
     invokeSpy.mockRestore();
     container.remove();
     delete window.__TAURI__;
@@ -378,7 +384,54 @@ describe('home hub chat sessions', () => {
       expect(invokeSpy).toHaveBeenCalledWith('agent_chat_turn', {
         sessionId: 's2',
         message: 'Hello there',
+        progress: expect.objectContaining({ onmessage: expect.any(Function) }),
       });
+      expect(container.textContent).toMatch(/Hi back/);
+    });
+  });
+
+  it('writes Requesting… onto the current chat hint and sidebar mark', async () => {
+    let onProgress;
+    createChannelSpy.mockImplementation(async (fn) => {
+      onProgress = fn;
+      return { onmessage: fn };
+    });
+    let releaseTurn;
+    const turnGate = new Promise((resolve) => {
+      releaseTurn = resolve;
+    });
+    invokeSpy.mockImplementation(async (cmd, args) => {
+      if (cmd === 'query_binding') return { state: 'bound' };
+      if (cmd === 'list_chat_sessions') {
+        return { sessions, current_session_id: currentId };
+      }
+      if (cmd === 'get_ai_assistant_binding') {
+        return { session_id: currentId, turns: [] };
+      }
+      if (cmd === 'agent_chat_turn') {
+        onProgress?.({ session_id: 's2', request_id: 'trace_1', desc: 'Requesting…' });
+        await turnGate;
+        return { reply_text: 'Hi back', terminal: 'ok' };
+      }
+      return {};
+    });
+    await mountReady();
+    const input = container.querySelector('[data-role="input"]');
+    const form = container.querySelector('[data-role="form"]');
+    input.value = 'Hello there';
+    form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    await vi.waitFor(() => {
+      expect(container.querySelector('[data-role="progress-hint"]')?.textContent).toBe(
+        'Requesting…',
+      );
+      expect(
+        container.querySelector('[data-session-id="s2"] .home-chat-session-progress')
+          ?.textContent,
+      ).toBe('…');
+    });
+    releaseTurn();
+    await vi.waitFor(() => {
+      expect(container.querySelector('[data-role="progress-hint"]')?.hidden).toBe(true);
       expect(container.textContent).toMatch(/Hi back/);
     });
   });
@@ -451,8 +504,9 @@ describe('home hub composer and hub pairing', () => {
       /\.home-chat-composer\s*\{[^}]*position:\s*absolute/,
     );
     expect(appCss).toMatch(
-      /\.home-chat-composer\s*\{[^}]*padding:[^;]*var\(--home-chat-rail\)/,
+      /\.home-chat-composer\s*\{[^}]*padding:\s*28px var\(--home-chat-rail\) 20px 12px/,
     );
+    expect(appCss).toMatch(/\.home-entry-shell__cluster\s*\{[^}]*bottom:\s*20px/);
     expect(appCss).toMatch(/\.home-chat-turn--user\s*\{[^}]*align-items:\s*flex-end/);
     expect(appCss).toMatch(
       /\.home-entry-shell__hub\s*\{[^}]*background:\s*#fff/,

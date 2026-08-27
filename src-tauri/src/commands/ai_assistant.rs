@@ -4,9 +4,11 @@
 use std::time::Instant;
 
 use serde_json::{json, Value};
+use tauri::ipc::Channel;
 use tauri::{AppHandle, Emitter};
 
 use crate::services::agent::diagnostics::{self, DiagnosticEvent, TraceId};
+use crate::services::agent::progress::{ProgressDesc, ProgressSink};
 use crate::services::agent::r#loop::{self, ChatTurnResult, EVENT_TURN_COMPLETED, WINDOW_LABEL};
 use crate::services::agent::runtime;
 pub use crate::services::agent::session::value_exposes_engine_selection;
@@ -211,37 +213,9 @@ fn agent_chat_turn_with_trace(
     message: &str,
     master_task_id: Option<&str>,
     trace_id: &TraceId,
+    sink: ProgressSink,
 ) -> Result<ChatTurnResult, String> {
-    runtime::chat_turn_with_trace(session_id, message, master_task_id, trace_id)
-}
-
-/// Persist browser-observed timing after the response is already visible.
-///
-/// This accepts only the two fixed UI phases and numeric durations. It never
-/// accepts message content or arbitrary browser-provided log fields.
-#[tauri::command]
-pub fn record_ai_assistant_timing(
-    trace_id: String,
-    phase: String,
-    elapsed_ms: u64,
-    input_to_response_ms: Option<u64>,
-) -> Result<(), String> {
-    let trace_id = TraceId::parse(&trace_id).ok_or_else(|| "invalid trace id".to_string())?;
-    let event = match phase.as_str() {
-        "response_received" => "turn.response_received",
-        "render_completed" => "turn.render_completed",
-        _ => return Err("invalid assistant timing phase".into()),
-    };
-    let mut diagnostic = DiagnosticEvent::timing(
-        "assistant.ui",
-        event,
-        &trace_id,
-        std::time::Duration::from_millis(elapsed_ms),
-    );
-    if let Some(input_to_response_ms) = input_to_response_ms {
-        diagnostic = diagnostic.with_u64_field("input_to_response_ms", input_to_response_ms);
-    }
-    diagnostics::log(diagnostic)
+    runtime::chat_turn_with_trace(session_id, message, master_task_id, trace_id, sink)
 }
 
 #[tauri::command]
@@ -356,22 +330,31 @@ pub async fn agent_chat_turn(
     message: String,
     master_task_id: Option<String>,
     trace_id: Option<String>,
+    progress: Channel<ProgressDesc>,
 ) -> Result<Value, String> {
     let trace_id = TraceId::from_optional(trace_id);
     let command_started = Instant::now();
     let worker_trace_id = trace_id.clone();
+    let sink: ProgressSink = std::sync::Arc::new(move |desc: ProgressDesc| {
+        let _ = progress.send(desc);
+    });
+    let session_id_for_log = session_id.clone();
     let result = tauri::async_runtime::spawn_blocking(move || {
         let worker_started = Instant::now();
-        let _ = diagnostics::log(DiagnosticEvent::point(
-            "assistant.command",
-            "blocking_worker.started",
-            &worker_trace_id,
-        ));
+        let _ = diagnostics::log(
+            DiagnosticEvent::point(
+                "assistant.command",
+                "blocking_worker.started",
+                &worker_trace_id,
+            )
+            .with_session_id(&session_id),
+        );
         let result = agent_chat_turn_with_trace(
             &session_id,
             &message,
             master_task_id.as_deref(),
             &worker_trace_id,
+            sink,
         );
         let outcome = if result.is_ok() { "ok" } else { "error" };
         let _ = diagnostics::log(
@@ -381,6 +364,7 @@ pub async fn agent_chat_turn(
                 &worker_trace_id,
                 worker_started.elapsed(),
             )
+            .with_session_id(&session_id)
             .with_static_field("outcome", outcome),
         );
         result
@@ -396,6 +380,7 @@ pub async fn agent_chat_turn(
                     &trace_id,
                     command_started.elapsed(),
                 )
+                .with_session_id(&session_id_for_log)
                 .with_static_field("outcome", "ok"),
             );
             result
@@ -408,6 +393,7 @@ pub async fn agent_chat_turn(
                     &trace_id,
                     command_started.elapsed(),
                 )
+                .with_session_id(&session_id_for_log)
                 .with_static_field("outcome", "error"),
             );
             return Err(err);
@@ -420,6 +406,7 @@ pub async fn agent_chat_turn(
                     &trace_id,
                     command_started.elapsed(),
                 )
+                .with_session_id(&session_id_for_log)
                 .with_static_field("outcome", "task_error"),
             );
             return Err(err.to_string());
