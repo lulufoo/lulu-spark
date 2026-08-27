@@ -14,7 +14,7 @@
 ## 推断规则
 
 1. 从 URL 解析 `owner` / `repo` / `ref` / `path`。
-2. 用 `gh api` 查询该文件历史（禁止 HTTP 拉 blob 页；见项目 `docs/git/github-operations.md`）。
+2. 用 `gh api` 查询该文件历史（禁止 HTTP 拉 blob 页；见项目 `docs/git/git-gh-operations.md`）。
 3. 取**最后一次非 Delete 提交**的 `commit.committer.date`，转为 UTC+8 的 `ts`（分钟精度）。
 4. 查询失败或为空 → `ts` = 归档时刻（UTC+8）。
 
