@@ -41,7 +41,7 @@ export function HashRouter({
     handlers[route.name]?.(route);
   }, [handlers, fallback, hash]);
 
-  return <ShellPages routeName={pageName} />;
+  return <ShellPages routeName={pageName} routeParams={route.params} />;
 }
 
 let root: Root | null = null;

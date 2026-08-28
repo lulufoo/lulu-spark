@@ -3,13 +3,19 @@ import { createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { flushSync } from 'react-dom';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
+
+vi.mock('../../frontend/src/host/api.ts', () => ({
+  reorderKbComments: vi.fn(),
+  updateKbComment: vi.fn(),
+}));
+
 import {
   initKbComments,
   cleanupKbComments,
   KbCommentDialog,
   openKbCommentDialog,
   closeKbCommentDialog,
-} from '../../frontend/src/corpus/corpus-comments.tsx';
+} from '../../frontend/src/corpus/ui/comments.tsx';
 import {
   cleanupDocHighlightOverlay,
   initDocHighlightOverlay,

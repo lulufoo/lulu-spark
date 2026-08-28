@@ -7,7 +7,7 @@ import {
   STORAGE_KEY,
   MIN_WIDTH,
   MAX_WIDTH,
-} from '../../frontend/src/corpus/corpus-sidebar-resize.ts';
+} from '../../frontend/src/corpus/ui/sidebar-resize.ts';
 
 function installLocalStorageMock() {
   const store = {};

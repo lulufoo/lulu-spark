@@ -209,8 +209,9 @@ describe('home-entry-shell workbench Binding (t2)', () => {
 
   it('business pages have zero Set/Reset: todos, notes, home, selectDate, mountWorkbench', () => {
     const source = readMain();
-    const sidebarJs = readFrontendJs('frontend/src/notes/sidebar.tsx');
-    const lifeJs = readFrontendJs('frontend/src/todo-task/lifecycle.ts');
+    const sidebarJs = readFrontendJs('frontend/src/notes/ui/sidebar.tsx');
+    const sidebarCommandsJs = readFrontendJs('frontend/src/notes/commands/sidebar.ts');
+    const lifeJs = readFrontendJs('frontend/src/todo-task/commands/lifecycle.ts');
     expect(source).not.toMatch(
       /\bbuildNotesBinding\b|\bresetNotesBinding\b|\bbuildTodosBinding\b|\bresetTodosBinding\b/,
     );
@@ -225,6 +226,9 @@ describe('home-entry-shell workbench Binding (t2)', () => {
     expect(todosSlice).not.toMatch(/resetNotesBinding|set_binding|reset_binding/);
 
     expect(sidebarJs).not.toMatch(/buildNotesBinding|set_binding|reset_binding|setWorkbenchBinding/);
+    expect(sidebarCommandsJs).not.toMatch(
+      /buildNotesBinding|set_binding|reset_binding|setWorkbenchBinding/,
+    );
     expect(lifeJs).not.toMatch(/buildTodosBinding|resetTodosBinding|set_binding|reset_binding/);
   });
 });

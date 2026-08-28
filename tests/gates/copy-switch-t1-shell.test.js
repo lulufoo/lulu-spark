@@ -5,7 +5,10 @@ import { describe, expect, it } from 'vitest';
 import { readShellHtml } from '../helpers/read-frontend-js.js';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
-const indexHtml = readShellHtml();
+const indexHtml = [
+  readShellHtml(),
+  readFileSync(join(repoRoot, 'frontend/src/notes/ui/sidebar.tsx'), 'utf8'),
+].join('\n');
 
 function extractTagOuter(html, id) {
   const re = new RegExp(`<[^>]+id="${id}"[^>]*>[\\s\\S]*?</[^>]+>`, 'i');

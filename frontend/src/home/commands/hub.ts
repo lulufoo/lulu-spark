@@ -1,0 +1,260 @@
+import * as api from '../../host/api.ts';
+import {
+  getHomeState,
+  hydrateTurns,
+  sessionIdOf,
+  setHomeState,
+  type HubSession,
+} from '../state/store.ts';
+
+export const BINDING_CHANGED_EVENT = 'ai-assistant:binding-changed';
+export const HOME_CHAT_LIST_LIMIT = 20;
+
+type TauriListen = (
+  event: string,
+  handler: (event: unknown) => void,
+) => Promise<() => void>;
+
+function getTauriListen(): TauriListen | null {
+  if (typeof window === 'undefined') return null;
+  const listen = (
+    window as Window & {
+      __TAURI__?: { event?: { listen?: TauriListen } };
+    }
+  ).__TAURI__?.event?.listen;
+  return typeof listen === 'function' ? listen : null;
+}
+
+let fetchGen = 0;
+let unlistenBinding: (() => void) | null = null;
+
+export function resetHomeCommands() {
+  fetchGen += 1;
+  if (typeof unlistenBinding === 'function') unlistenBinding();
+  unlistenBinding = null;
+}
+
+function applySessionPayload(payload: Record<string, unknown> | null, gen?: number) {
+  if (gen != null && gen !== fetchGen) return;
+  if (!payload || typeof payload !== 'object') return;
+  setHomeState((prev) => {
+    let currentSessionId = prev.currentSessionId;
+    let messages = prev.messages;
+    if (payload.session_id != null || payload.sessionId != null) {
+      currentSessionId = sessionIdOf(payload);
+    }
+    if (Object.hasOwn(payload, 'turns')) {
+      messages = hydrateTurns(payload.turns);
+    }
+    return { ...prev, currentSessionId, messages };
+  });
+}
+
+export async function refreshList(gen?: number) {
+  const listed = (await api.invoke('list_chat_sessions')) as {
+    sessions?: HubSession[];
+    current_session_id?: string;
+  };
+  if (gen != null && gen !== fetchGen) return;
+  setHomeState((prev) => ({
+    ...prev,
+    sessions: Array.isArray(listed?.sessions)
+      ? listed.sessions.slice(0, HOME_CHAT_LIST_LIMIT)
+      : [],
+    currentSessionId: listed?.current_session_id
+      ? String(listed.current_session_id)
+      : prev.currentSessionId,
+  }));
+}
+
+export async function selectSession(sessionId: string) {
+  const gen = ++fetchGen;
+  setHomeState((prev) => ({ ...prev, currentSessionId: String(sessionId || '') }));
+  const payload = (await api.invoke('select_chat_session', { sessionId })) as Record<
+    string,
+    unknown
+  >;
+  applySessionPayload(payload, gen);
+  await refreshList(gen);
+}
+
+export async function createSession() {
+  const gen = ++fetchGen;
+  const payload = (await api.invoke('create_chat_session')) as Record<string, unknown>;
+  applySessionPayload(payload, gen);
+  await refreshList(gen);
+  return gen === fetchGen;
+}
+
+export function showActionError(err: { message?: string } | undefined) {
+  setHomeState((prev) => ({
+    ...prev,
+    messages: [
+      ...prev.messages,
+      {
+        role: 'assistant',
+        text: err?.message ? String(err.message) : 'Unable to start a conversation.',
+        error: true,
+      },
+    ],
+  }));
+}
+
+export async function applyBindingState() {
+  const gen = ++fetchGen;
+  let hostBound = false;
+  try {
+    const summary = (await api.invoke('query_binding')) as { state?: string } | null;
+    hostBound = Boolean(summary && typeof summary === 'object' && summary.state === 'bound');
+  } catch {
+    hostBound = false;
+  }
+  if (gen !== fetchGen) return;
+  if (!hostBound) {
+    // Discard the current session on Unbound (source-scan: currentSessionId = '').
+    const currentSessionId = '';
+    setHomeState((prev) => ({
+      ...prev,
+      hostBound: false,
+      currentSessionId,
+      messages: [],
+      progressByChat: Object.create(null) as Record<string, string>,
+      inFlightIds: [],
+    }));
+    return;
+  }
+  setHomeState((prev) => ({ ...prev, hostBound: true }));
+  try {
+    await refreshList(gen);
+    if (gen !== fetchGen) return;
+    if (getHomeState().currentSessionId) {
+      const state = (await api.invoke('get_ai_assistant_binding')) as Record<string, unknown>;
+      applySessionPayload(state, gen);
+    }
+  } catch {
+    /* keep list / empty thread */
+  }
+}
+
+export async function sendMessage(text: string) {
+  let sid = '';
+  try {
+    const snap = getHomeState();
+    if (!snap.hostBound) {
+      setHomeState((prev) => ({
+        ...prev,
+        messages: [
+          ...prev.messages,
+          { role: 'assistant', text: 'Chat requires a workspace Binding.', error: true },
+        ],
+      }));
+      return;
+    }
+    if (!snap.currentSessionId) {
+      await createSession();
+    }
+    if (!getHomeState().currentSessionId) {
+      setHomeState((prev) => ({
+        ...prev,
+        messages: [
+          ...prev.messages,
+          { role: 'assistant', text: 'Unable to start a conversation.', error: true },
+        ],
+      }));
+      return;
+    }
+    sid = getHomeState().currentSessionId;
+    setHomeState((prev) => ({
+      ...prev,
+      inFlightIds: prev.inFlightIds.includes(sid) ? prev.inFlightIds : [...prev.inFlightIds, sid],
+      messages: [...prev.messages, { role: 'user', text }],
+    }));
+    const channel = await api.createChannel((payload: { desc?: unknown } | string) => {
+      const desc =
+        payload && typeof payload === 'object'
+          ? String(payload.desc ?? '')
+          : String(payload ?? '');
+      setHomeState((prev) => ({
+        ...prev,
+        progressByChat: { ...prev.progressByChat, [sid]: desc },
+      }));
+    });
+    const result = (await api.invoke('agent_chat_turn', {
+      sessionId: sid,
+      message: text,
+      progress: channel,
+    })) as { busy?: boolean; reply_text?: string; terminal?: string };
+    if (getHomeState().currentSessionId === sid) {
+      if (result?.busy) {
+        setHomeState((prev) => ({
+          ...prev,
+          messages: [
+            ...prev.messages,
+            {
+              role: 'assistant',
+              text: String(result.reply_text || 'Busy — try again later'),
+            },
+          ],
+        }));
+      } else {
+        const reply = String(result?.reply_text || '');
+        if (reply) {
+          setHomeState((prev) => ({
+            ...prev,
+            messages: [
+              ...prev.messages,
+              {
+                role: 'assistant',
+                text: reply,
+                error: result?.terminal === 'error',
+              },
+            ],
+          }));
+        }
+      }
+    }
+    await refreshList(fetchGen);
+  } catch (err) {
+    if (getHomeState().currentSessionId) {
+      setHomeState((prev) => ({
+        ...prev,
+        messages: [
+          ...prev.messages,
+          {
+            role: 'assistant',
+            text: err instanceof Error && err.message ? err.message : 'Failed to send',
+            error: true,
+          },
+        ],
+      }));
+    }
+  } finally {
+    if (sid) {
+      setHomeState((prev) => {
+        const progressByChat = { ...prev.progressByChat };
+        delete progressByChat[sid];
+        return {
+          ...prev,
+          inFlightIds: prev.inFlightIds.filter((id) => id !== sid),
+          progressByChat,
+        };
+      });
+    }
+  }
+}
+
+export function startHomeHub() {
+  void applyBindingState();
+  const listen = getTauriListen();
+  if (!listen) return;
+  void listen(BINDING_CHANGED_EVENT, () => {
+    void applyBindingState();
+  }).then((fn) => {
+    unlistenBinding = fn;
+  });
+}
+
+export function stopHomeHub() {
+  if (typeof unlistenBinding === 'function') unlistenBinding();
+  unlistenBinding = null;
+}

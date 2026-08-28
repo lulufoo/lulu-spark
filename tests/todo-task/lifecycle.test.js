@@ -33,7 +33,7 @@ import { readTodoTaskUiSource } from '../helpers/todo-task-ui-source.js';
 const fixtureRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
 const todoTaskIndexJs = readTodoTaskUiSource();
 const todosLifecycleJs = readFileSync(
-  join(fixtureRoot, 'frontend/src/todo-task/lifecycle.ts'),
+  join(fixtureRoot, 'frontend/src/todo-task/commands/lifecycle.ts'),
   'utf8',
 );
 

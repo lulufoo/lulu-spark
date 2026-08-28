@@ -28,7 +28,7 @@ import {
   markEntryRead,
   mountReadLaterList,
   renderUnavailableState,
-} from '../../frontend/src/read-later/list.tsx';
+} from '../../frontend/src/read-later/ui/list.tsx';
 
 const UNAVAILABLE_MSG = 'List temporarily unavailable. Please try again later';
 
@@ -99,8 +99,9 @@ const sampleEntries = [
 
 describe('read-later route', () => {
   describe('source wiring', () => {
-    it('index.html includes #read-later-view shell', () => {
-      expect(indexHtml).toMatch(/id="read-later-view"/);
+    it('Read Later list lives in the dialog, not a page slot', () => {
+      expect(indexHtml).toMatch(/id="read-later-dialog"/);
+      expect(indexHtml).not.toMatch(/id="read-later-view"/);
     });
 
     it('main.js defines mountReadLaterRoute', () => {

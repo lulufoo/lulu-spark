@@ -8,7 +8,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { readFrontendJs, readMainSource } from '../helpers/read-frontend-js.js';
-import { renderDocList } from '../../frontend/src/notes/cards.tsx';
+import { renderDocList } from '../../frontend/src/notes/ui/cards.tsx';
 import { state } from '../../frontend/src/host/state.ts';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
@@ -33,7 +33,7 @@ vi.mock('../../frontend/src/host/api.ts', () => ({
   fetchFileContent: (...args) => apiMocks.fetchFileContent(...args),
 }));
 
-vi.mock('../../frontend/src/notes/move-project-dialog.tsx', () => ({
+vi.mock('../../frontend/src/notes/ui/move-project-dialog.tsx', () => ({
   openMoveProjectDialog: vi.fn(),
   closeMoveProjectDialog: vi.fn(),
   MoveProjectDialog: () => null,
@@ -44,7 +44,7 @@ vi.mock('../../frontend/src/notes/viewer.ts', () => ({
 }));
 
 describe('T8 source: delete success → replace list (not history.back)', () => {
-  const deleteJs = read('frontend/src/notes/delete-dialog.tsx');
+  const deleteJs = read('frontend/src/notes/commands/delete-dialog.ts');
 
   function okHandlerSlice() {
     const okStart = deleteJs.indexOf('export async function confirmDeleteDocument');
@@ -84,8 +84,12 @@ describe('T8 source: delete success → replace list (not history.back)', () => 
 });
 
 describe('T8 source: return-to-list scroll key + reload wiring', () => {
-  const cardsJs = read('frontend/src/notes/cards.tsx');
-  const mainJs = [read('frontend/src/boot.ts'), read('frontend/src/shell-pages.tsx')].join('\n');
+  const cardsJs = read('frontend/src/notes/ui/cards.tsx');
+  const mainJs = [
+    read('frontend/src/boot.ts'),
+    read('frontend/src/shell-pages.tsx'),
+    read('frontend/src/notes/page.tsx'),
+  ].join('\n');
 
   it('renderDocList restores cta_scroll_<date> after re-render', () => {
     const renderStart = cardsJs.indexOf('export function renderDocList');
@@ -205,7 +209,7 @@ describe('T8 behavioral: delete-dialog confirm ok', () => {
       common_path: 'inbox/notes/gone.md',
     };
 
-    const { DeleteDialog, openDeleteDialog } = await import('../../frontend/src/notes/delete-dialog.tsx');
+    const { DeleteDialog, openDeleteDialog } = await import('../../frontend/src/notes/ui/delete-dialog.tsx');
     const root = createRoot(document.getElementById('delete-host'));
     flushSync(() => root.render(createElement(DeleteDialog)));
     openDeleteDialog();

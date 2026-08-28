@@ -126,8 +126,8 @@ describe('removeCorpusComment', () => {
 
 describe('note delete does not use window.confirm', () => {
   it('corpus-comments and notes/comments source do not use window.confirm', () => {
-    const kbSrc = readFrontendJs('frontend/src/corpus/corpus-comments.tsx');
-    const corpusSrc = readFrontendJs('frontend/src/notes/comments.tsx');
+    const kbSrc = readFrontendJs('frontend/src/corpus/ui/comments.tsx');
+    const corpusSrc = readFrontendJs('frontend/src/notes/ui/comments.tsx');
     expect(kbSrc).not.toContain('window.confirm');
     expect(kbSrc).toContain('confirmDeleteComment');
     expect(corpusSrc).not.toContain('window.confirm');

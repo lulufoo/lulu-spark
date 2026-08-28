@@ -27,17 +27,17 @@ vi.mock('../../frontend/src/host/api.ts', () => ({
   fetchIndex: (...args) => fetchIndexMock(...args),
 }));
 
-vi.mock('../../frontend/src/builders/feed.tsx', () => ({
+vi.mock('../../frontend/src/builders/ui/feed.tsx', () => ({
   renderFeed: (...args) => renderFeedMock(...args),
 }));
 
 import { createContentRegistry } from '../../frontend/src/home-entry-shell/content-registry.ts';
 import { getBaselineEntries } from '../../frontend/src/home-entry-shell/entry-config.ts';
 import { mountHomeEntryShell } from '../../frontend/src/home-entry-shell/shell.tsx';
-import { createReadLaterContentAdapter } from '../../frontend/src/read-later/assistant.tsx';
-import { createTodoTaskContentAdapter } from '../../frontend/src/todo-task/assistant.tsx';
-import { createNotesContentAdapter } from '../../frontend/src/notes/assistant.tsx';
-import { createBuildersContentAdapter } from '../../frontend/src/builders/assistant.tsx';
+import { createReadLaterContentAdapter } from '../../frontend/src/read-later/ui/assistant.tsx';
+import { createTodoTaskContentAdapter } from '../../frontend/src/todo-task/ui/assistant.tsx';
+import { createNotesContentAdapter } from '../../frontend/src/notes/ui/assistant.tsx';
+import { createBuildersContentAdapter } from '../../frontend/src/builders/ui/assistant.tsx';
 import { readFrontendJs, readMainSource } from '../helpers/read-frontend-js.js';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
@@ -49,27 +49,27 @@ const ADAPTERS = [
   {
     key: 'read-later',
     create: createReadLaterContentAdapter,
-    sourcePath: 'frontend/src/read-later/assistant.tsx',
+    sourcePath: 'frontend/src/read-later/ui/assistant.tsx',
     contentSelector:
       '.read-later-assistant-empty, .read-later-assistant-panel, .read-later-assistant-loading',
   },
   {
     key: 'todo-task',
     create: createTodoTaskContentAdapter,
-    sourcePath: 'frontend/src/todo-task/assistant.tsx',
+    sourcePath: 'frontend/src/todo-task/ui/assistant.tsx',
     contentSelector:
       '.todo-task-assistant-empty, .todo-task-assistant-list, .todo-task-assistant-loading',
   },
   {
     key: 'notes',
     create: createNotesContentAdapter,
-    sourcePath: 'frontend/src/notes/assistant.tsx',
+    sourcePath: 'frontend/src/notes/ui/assistant.tsx',
     contentSelector: '.note-assistant-empty, .note-assistant-list, .note-assistant-loading',
   },
   {
     key: 'builders',
     create: createBuildersContentAdapter,
-    sourcePath: 'frontend/src/builders/assistant.tsx',
+    sourcePath: 'frontend/src/builders/ui/assistant.tsx',
     contentSelector: '.feed-mock',
   },
 ];

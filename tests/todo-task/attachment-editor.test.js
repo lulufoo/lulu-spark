@@ -309,9 +309,9 @@ describe('mountTodoTaskSplit attachment editor modal', () => {
 
 describe('attachment editor surface contracts', () => {
   it('does not reuse read_todo_md / update_todo_md for attachment editor path', () => {
-    const host = readFileSync(join(repoRoot, 'frontend/src/todo-task/host.ts'), 'utf8');
-    const src = readFileSync(join(repoRoot, 'frontend/src/todo-task/attachments.tsx'), 'utf8')
-      + readFileSync(join(repoRoot, 'frontend/src/todo-task/attachments-render.tsx'), 'utf8');
+    const host = readFileSync(join(repoRoot, 'frontend/src/todo-task/state/host.ts'), 'utf8');
+    const src = readFileSync(join(repoRoot, 'frontend/src/todo-task/commands/attachments.ts'), 'utf8')
+      + readFileSync(join(repoRoot, 'frontend/src/todo-task/ui/attachments.tsx'), 'utf8');
     expect(host).toMatch(/read_todo_attachment/);
     expect(host).toMatch(/save_todo_attachment/);
 
@@ -329,8 +329,8 @@ describe('attachment editor surface contracts', () => {
   });
 
   it('attachment editor is a dedicated modal surface, not comments default-edit or todo_md inline', () => {
-    const src = readFileSync(join(repoRoot, 'frontend/src/todo-task/attachments.tsx'), 'utf8')
-      + readFileSync(join(repoRoot, 'frontend/src/todo-task/attachments-render.tsx'), 'utf8');
+    const src = readFileSync(join(repoRoot, 'frontend/src/todo-task/commands/attachments.ts'), 'utf8')
+      + readFileSync(join(repoRoot, 'frontend/src/todo-task/ui/attachments.tsx'), 'utf8');
     expect(src).toMatch(/todo-task-attachment-editor/);
     expect(src).toMatch(/todo-task-attachment-preview/);
     expect(src).toMatch(/data-action="edit-attachment"/);
@@ -349,7 +349,11 @@ describe('attachment editor surface contracts', () => {
   });
 
   it('dialog.js TodoTaskDialogType remains master/sub CRUD only (no attachment editor type)', () => {
-    const dialogSrc = readFrontendJs('frontend/src/todo-task/dialog.tsx');
+    const dialogSrc = [
+      readFrontendJs('frontend/src/todo-task/ui/dialog.tsx'),
+      readFrontendJs('frontend/src/todo-task/commands/dialog.ts'),
+      readFrontendJs('frontend/src/todo-task/state/dialog.ts'),
+    ].join('\n');
     expect(dialogSrc).toMatch(
       /TodoTaskDialogType[\s\S]*?'create-master'[\s\S]*?'create-category'[\s\S]*?'add-sub'[\s\S]*?'delete-master'[\s\S]*?'delete-sub'/,
     );

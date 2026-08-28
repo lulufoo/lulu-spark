@@ -8,33 +8,33 @@ const NO_LEGACY_BRAND = [/计划任务/];
 /** @type {{ path: string, mustMatch: RegExp[], mustNotMatch?: RegExp[] }[]} */
 export const TODO_TASK_BRAND_SITES = [
   {
-    path: 'frontend/src/todo-task/list.tsx',
+    path: 'frontend/src/todo-task/ui/list.tsx',
     mustMatch: [/<h1 class(?:Name)?="todo-tasks-page-title">Todos<\/h1>/],
     mustNotMatch: NO_LEGACY_BRAND,
   },
   {
-    path: 'frontend/src/todo-task/page-render.tsx',
+    path: 'frontend/src/todo-task/ui/page-render.tsx',
     mustMatch: [/aria-label="Todos list"/],
     mustNotMatch: NO_LEGACY_BRAND,
   },
   {
-    path: 'frontend/src/home/hub.tsx',
+    path: 'frontend/src/home/page.tsx',
     mustMatch: [/<span class(?:Name)?="home-desktop-shortcut-label">Todos<\/span>/],
     mustNotMatch: NO_LEGACY_BRAND,
   },
   {
-    path: 'frontend/src/todo-task/assistant.tsx',
+    path: 'frontend/src/todo-task/ui/assistant.tsx',
     mustMatch: [/No todos yet/],
     mustNotMatch: NO_LEGACY_BRAND,
   },
   {
     // T6: popover chrome retired; brand title lives on the content adapter / EntryConfig.
-    path: 'frontend/src/todo-task/assistant.tsx',
+    path: 'frontend/src/todo-task/ui/assistant.tsx',
     mustMatch: [/TODO_TASK_CONTENT_TITLE\s*=\s*['"]Todos['"]/],
     mustNotMatch: NO_LEGACY_BRAND,
   },
   {
-    path: 'frontend/src/todo-task/assistant.tsx',
+    path: 'frontend/src/todo-task/ui/assistant.tsx',
     mustMatch: [/TODO_TASK_CONTENT_LABEL\s*=\s*['"]Open Todos['"]/, /['"]Todos['"]/],
     mustNotMatch: NO_LEGACY_BRAND,
   },

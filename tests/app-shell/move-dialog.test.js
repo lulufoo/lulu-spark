@@ -1,12 +1,19 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { readShellHtml } from '../helpers/read-frontend-js.js';
+import { listFrontendSourceFiles, readShellHtml } from '../helpers/read-frontend-js.js';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const indexHtml = readShellHtml();
-const moveDialogJs = readFileSync(
-  new URL('../../frontend/src/app-shell/move-dialog.tsx', import.meta.url),
-  'utf8'
-);
+const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
+const appShellUi = listFrontendSourceFiles(join(repoRoot, 'frontend/src/app-shell/ui'))
+  .sort()
+  .map((abs) => readFileSync(abs, 'utf8'))
+  .join('\n');
+const indexHtml = [readShellHtml(), appShellUi].join('\n');
+const moveDialogJs = [
+  readFileSync(new URL('../../frontend/src/app-shell/ui/move-dialog.tsx', import.meta.url), 'utf8'),
+  readFileSync(new URL('../../frontend/src/app-shell/commands/move-dialog.ts', import.meta.url), 'utf8'),
+].join('\n');
 
 describe('gh-ops delete panel HTML', () => {
   it('has no arming button in delete panel actions', () => {

@@ -32,7 +32,7 @@ import {
   mountTodoTaskSplit,
   setPlanCategory,
 } from '../../frontend/src/todo-task/index.ts';
-import { TodoTaskDialog } from '../../frontend/src/todo-task/dialog.tsx';
+import { TodoTaskDialog } from '../../frontend/src/todo-task/ui/dialog.tsx';
 import { parseHash } from '../../frontend/src/router/index.ts';
 import { readTodoTaskUiSource } from '../helpers/todo-task-ui-source.js';
 

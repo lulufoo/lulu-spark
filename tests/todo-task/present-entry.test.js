@@ -28,7 +28,7 @@ import { readTodoTaskUiSource } from '../helpers/todo-task-ui-source.js';
 const fixtureRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
 const todoTaskIndex = readTodoTaskUiSource();
 const todoTaskAssistant = readFileSync(
-  join(fixtureRoot, 'frontend/src/todo-task/assistant.tsx'),
+  join(fixtureRoot, 'frontend/src/todo-task/ui/assistant.tsx'),
   'utf8',
 );
 const aiAssistantCmd = readFileSync(

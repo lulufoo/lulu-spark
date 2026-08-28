@@ -52,6 +52,6 @@ describe('tags:reconciled handler contract (main.js)', () => {
     expect(body).toMatch(/loadTagsRegistry/)
     expect(body).toMatch(/loadAnnotationsSummary/)
     expect(body).toMatch(/applyListFilters/)
-    expect(body).toMatch(/renderSidebar/)
+    expect(body).toMatch(/notifyState/)
   })
 })

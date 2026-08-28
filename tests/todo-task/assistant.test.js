@@ -24,7 +24,7 @@ import {
   loadAssistantTodoTasks,
   mountTodoTaskAssistant,
   selectTop3ByCreatedAt,
-} from '../../frontend/src/todo-task/assistant.tsx';
+} from '../../frontend/src/todo-task/ui/assistant.tsx';
 import { formatTodoTaskStatus } from '../../frontend/src/todo-task/index.ts';
 import { readMainSource } from '../helpers/read-frontend-js.js';
 
@@ -32,7 +32,7 @@ const fixtureRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
 const appCss = readFileSync(join(fixtureRoot, 'frontend/app.css'), 'utf8');
 const mainJs = readMainSource();
 const assistantJs = readFileSync(
-  join(fixtureRoot, 'frontend/src/todo-task/assistant.tsx'),
+  join(fixtureRoot, 'frontend/src/todo-task/ui/assistant.tsx'),
   'utf8',
 );
 
@@ -400,7 +400,7 @@ describe('mountTodoTaskAssistant', () => {
 describe('assistant status mark source alignment', () => {
   it('reuses list formatTodoTaskStatus instead of a local label table', () => {
     expect(assistantJs).toMatch(
-      /import\s*\{\s*formatTodoTaskStatus\s*\}\s*from\s*'\.\/index\.(js|ts)'/,
+      /import\s*\{\s*formatTodoTaskStatus\s*\}\s*from\s*'\.\.\/index\.(js|ts)'/,
     );
     expect(assistantJs).not.toMatch(/STATUS_LABELS\s*=/);
   });

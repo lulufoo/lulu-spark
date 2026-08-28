@@ -1,12 +1,18 @@
 import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { readShellHtml } from '../helpers/read-frontend-js.js';
-import { readHostApiSource, readMainSource, readSettingsDialogSource } from '../helpers/read-frontend-js.js';
+import { listFrontendSourceFiles, readHostApiSource, readShellHtml } from '../helpers/read-frontend-js.js';
 
-const indexHtml = readShellHtml();
-const mainJs = readMainSource();
+const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
+const appShellSrc = listFrontendSourceFiles(join(repoRoot, 'frontend/src/app-shell'))
+  .sort()
+  .map((abs) => readFileSync(abs, 'utf8'))
+  .join('\n');
+const indexHtml = [readShellHtml(), appShellSrc].join('\n');
+const mainJs = appShellSrc;
 const apiJs = readHostApiSource();
-const settingsDialogJs = readSettingsDialogSource();
+const settingsDialogJs = appShellSrc;
 
 describe('Settings Knowledge UI', () => {
   it('Knowledge settings hold list, add, and category tabs', () => {

@@ -1,14 +1,14 @@
 // @ts-nocheck
-import { createElement } from 'react';
+import { createElement, useLayoutEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { flushSync } from 'react-dom';
-import { closeTodoTaskDialog } from './dialog.tsx';
-import { createTodosPageLifecycle } from './lifecycle.ts';
+import { closeTodoTaskDialog } from './commands/dialog.ts';
+import { createTodosPageLifecycle } from './commands/lifecycle.ts';
 import {
   getTauriListen,
   listPlanCategories,
   loadTodoTasks,
-} from './host.ts';
+} from './state/host.ts';
 import {
   controlsDisabled,
   filterMastersForView,
@@ -16,32 +16,40 @@ import {
   masterCategoryId,
   pickDefaultSub,
   sortMasters,
-} from './format.ts';
-import { createListOwner, MasterPane, syncCategoryFilterWidth } from './list.tsx';
-import { createDetailOwner } from './detail.ts';
-import { SubDetailPane } from './detail-render.tsx';
-import { createPlanMdOwner } from './plan-md.tsx';
-import { createAttachmentsOwner } from './attachments.tsx';
-import { createCommentsOwner } from './comments.tsx';
+} from './state/format.ts';
+import { createListOwner } from './commands/list.ts';
+import { MasterPane, syncCategoryFilterWidth } from './ui/list.tsx';
+import { createDetailOwner } from './commands/detail.ts';
+import { SubDetailPane } from './ui/detail.tsx';
+import { createPlanMdOwner } from './commands/plan-md.ts';
+import { createAttachmentsOwner } from './commands/attachments.ts';
+import { createCommentsOwner } from './commands/comments.ts';
 import { bindTodoDocHighlights } from '../doc-editor/index.ts';
-import { createPageDialogs } from './page-dialogs.ts';
-import { bindPageEvents } from './page-events.ts';
+import { createPageDialogs } from './commands/page-dialogs.ts';
+import { bindFocusRefresh, bindPageEvents } from './commands/page-events.ts';
 import {
   DeadLink,
   DetailEmpty,
   ErrorEmpty,
   PageShell,
   REFRESH_WARNING_MSG,
-  bindFocusRefresh,
-} from './page-render.tsx';
+} from './ui/page-render.tsx';
 
 const AI_ASSISTANT_TURN_COMPLETED = 'ai-assistant:turn-completed';
 
+function loadingNode() {
+  return createElement('div', { className: 'todo-task-split-loading' }, 'Loading…');
+}
+
 /**
+ * Session for one Todos visit. `renderPage` paints JSX; this function does not
+ * create a React root. Production uses TodoTasksPage; tests use mountTodoTaskSplit.
+ *
  * @param {HTMLElement} container
  * @param {{ masterId?: string, subId?: string, navigate?: (hash: string) => void }} [opts]
+ * @param {(node: unknown) => void} renderPage
  */
-export function mountTodoTaskSplit(container, opts = {}) {
+function startTodoTasksSession(container, opts, renderPage) {
   const { masterId: initialMasterId = '', subId: initialSubId = '', navigate } = opts;
   let disposed = false;
   let masters = [];
@@ -55,6 +63,7 @@ export function mountTodoTaskSplit(container, opts = {}) {
   let paintedMasterId = '';
   /** @type {Array<{ id: string, name: string, is_default?: boolean }>} */
   let categories = [];
+  let paintTick = 0;
 
   const ctx = {
     isDisposed: () => disposed,
@@ -83,11 +92,13 @@ export function mountTodoTaskSplit(container, opts = {}) {
   });
   let lifecycleEntered = false;
 
-  const reactRoot = createRoot(container);
-  let paintTick = 0;
-  flushSync(() => {
-    reactRoot.render(createElement('div', { className: 'todo-task-split-loading' }, 'Loading…'));
-  });
+  function commitPage(node) {
+    flushSync(() => {
+      renderPage(node);
+    });
+  }
+
+  commitPage(loadingNode());
 
   function syncTodosBindingForSelection(masterId) {
     if (disposed) return;
@@ -221,26 +232,24 @@ export function mountTodoTaskSplit(container, opts = {}) {
     const existingEditor = container.querySelector('.todo-task-attachment-editor');
     if (existingEditor) existingEditor.remove();
     paintTick += 1;
-    flushSync(() => {
-      reactRoot.render(
-        createElement(PageShell, {
-          key: paintTick,
+    commitPage(
+      createElement(PageShell, {
+        key: paintTick,
+        disabled: ui.disabled,
+        activeOnly: list.activeOnly,
+        categories,
+        filterCategoryId: list.filterCategoryId,
+        categoryError: list.categoryError,
+        master: createElement(MasterPane, {
+          masters,
+          selectedMasterId,
           disabled: ui.disabled,
           activeOnly: list.activeOnly,
-          categories,
-          filterCategoryId: list.filterCategoryId,
-          categoryError: list.categoryError,
-          master: createElement(MasterPane, {
-            masters,
-            selectedMasterId,
-            disabled: ui.disabled,
-            activeOnly: list.activeOnly,
-            categoryId: list.filterCategoryId,
-          }),
-          detail: renderDetailNode(),
+          categoryId: list.filterCategoryId,
         }),
-      );
-    });
+        detail: renderDetailNode(),
+      }),
+    );
     paintedMasterId = selectedMasterId;
     const nextMaster = container.querySelector('.todo-task-split-master');
     const nextDetail = container.querySelector('.todo-task-split-detail');
@@ -322,18 +331,16 @@ export function mountTodoTaskSplit(container, opts = {}) {
       attachments.clearOnListError();
       comments.clearOnListError();
       refreshWarning = '';
-      flushSync(() => {
-        reactRoot.render(
-          createElement(PageShell, {
-            key: ++paintTick,
-            categories,
-            filterCategoryId: list.filterCategoryId,
-            categoryError: list.categoryError,
-            master: createElement('div', { className: 'todo-task-split-state' }),
-            detail: createElement(ErrorEmpty),
-          }),
-        );
-      });
+      commitPage(
+        createElement(PageShell, {
+          key: ++paintTick,
+          categories,
+          filterCategoryId: list.filterCategoryId,
+          categoryError: list.categoryError,
+          master: createElement('div', { className: 'todo-task-split-state' }),
+          detail: createElement(ErrorEmpty),
+        }),
+      );
       if (!lifecycleEntered) {
         syncTodosBindingForSelection('');
       }
@@ -455,14 +462,68 @@ export function mountTodoTaskSplit(container, opts = {}) {
         unlistenTurnCompleted = null;
       }
       disposeEvents();
-      flushSync(() => {
-        reactRoot.unmount();
-      });
-      container.innerHTML = '';
     }
   }
 
-  dispose.applyRoute = applyRoute;
-  dispose.refresh = refresh;
-  return { dispose, unmount: dispose, refresh, applyRoute };
+  return { dispose, refresh, applyRoute };
+}
+
+export type TodoTasksPageProps = {
+  masterId?: string;
+  subId?: string;
+  navigate?: (hash: string) => void;
+};
+
+/** Todos page. Production child of ShellPages; does not createRoot the page slot. */
+export function TodoTasksPage({
+  masterId = '',
+  subId = '',
+  navigate,
+}: TodoTasksPageProps = {}) {
+  const hostRef = useRef(null);
+  const sessionRef = useRef(null);
+  const [view, setView] = useState(loadingNode);
+
+  useLayoutEffect(() => {
+    const host = hostRef.current;
+    if (!host) return undefined;
+    const session = startTodoTasksSession(host, { masterId, subId, navigate }, setView);
+    sessionRef.current = session;
+    return () => {
+      session.dispose();
+      sessionRef.current = null;
+    };
+    // Start once for this visit. Hash master/sub updates go through applyRoute.
+  }, []);
+
+  useLayoutEffect(() => {
+    sessionRef.current?.applyRoute({ masterId, subId });
+  }, [masterId, subId]);
+
+  return createElement('div', { ref: hostRef, className: 'todo-tasks-react-host' }, view);
+}
+
+/**
+ * Test / leftover helper. Production Todos is a child of ShellPages, not this root.
+ *
+ * @param {HTMLElement} container
+ * @param {{ masterId?: string, subId?: string, navigate?: (hash: string) => void }} [opts]
+ */
+export function mountTodoTaskSplit(container, opts = {}) {
+  const reactRoot = createRoot(container);
+  const session = startTodoTasksSession(container, opts, (node) => {
+    reactRoot.render(node);
+  });
+
+  function dispose() {
+    session.dispose();
+    flushSync(() => {
+      reactRoot.unmount();
+    });
+    container.innerHTML = '';
+  }
+
+  dispose.applyRoute = session.applyRoute;
+  dispose.refresh = session.refresh;
+  return { dispose, unmount: dispose, refresh: session.refresh, applyRoute: session.applyRoute };
 }

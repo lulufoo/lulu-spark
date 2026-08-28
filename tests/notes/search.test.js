@@ -43,7 +43,7 @@ function installLocalStorageMock() {
 
 async function loadModule() {
   vi.resetModules();
-  return import('../../frontend/src/notes/search.tsx');
+  return import('../../frontend/src/notes/ui/search.tsx');
 }
 
 describe('notes search module', () => {

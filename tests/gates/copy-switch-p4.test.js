@@ -11,31 +11,33 @@ const P4_VERIFY_PATH = join(FEATURE_DIR, 'p4-post-switch-verification.json');
 const P4_SMOKE_PATH = join(FEATURE_DIR, 'p4-smoke-checklist.md');
 
 const TABLE_A_BRANDS = [
-  { zh: 'Workbench 笔记', en: 'Notes', file: 'frontend/src/home/hub.tsx' },
-  { zh: 'Read Later 待读', en: 'Read Later', file: 'frontend/src/home/hub.tsx' },
-  { zh: '沉淀知识库', en: 'Knowledge', file: 'frontend/src/home/hub.tsx' },
-  { zh: 'Todos', en: 'Todos', file: 'frontend/src/home/hub.tsx' },
+  { zh: 'Workbench 笔记', en: 'Notes', file: 'frontend/src/home/page.tsx' },
+  { zh: 'Read Later 待读', en: 'Read Later', file: 'frontend/src/home/page.tsx' },
+  { zh: '沉淀知识库', en: 'Knowledge', file: 'frontend/src/home/page.tsx' },
+  { zh: 'Todos', en: 'Todos', file: 'frontend/src/home/page.tsx' },
   { zh: 'LuLu Workbench', en: 'LuLu Workbench', file: 'frontend/src/shell.tsx' },
-  { zh: '笔记助手', en: 'Notes Assistant', file: 'frontend/src/notes/assistant.tsx' },
-  { zh: 'AI 助手', en: 'Chats', file: 'frontend/src/home/hub.tsx' },
-  { zh: 'Read Later 助手', en: 'Read Later', file: 'frontend/src/read-later/assistant.tsx' },
+  { zh: '笔记助手', en: 'Notes Assistant', file: 'frontend/src/notes/ui/assistant.tsx' },
+  { zh: 'AI 助手', en: 'Chats', file: 'frontend/src/home/page.tsx' },
+  { zh: 'Read Later 助手', en: 'Read Later', file: 'frontend/src/read-later/ui/assistant.tsx' },
 ];
 
 const KEY_PATH_FILES = [
   'frontend/src/shell.tsx',
-  'frontend/src/home/hub.tsx',
+  'frontend/src/home/page.tsx',
   'frontend/src/todo-task/index.ts',
-  'frontend/src/todo-task/dialog.tsx',
+  'frontend/src/todo-task/ui/dialog.tsx',
   'frontend/src/notes/viewer.ts',
-  'frontend/src/corpus/corpus-viewer.ts',
-  'frontend/src/notes/sidebar.tsx',
-  'frontend/src/notes/cards.tsx',
+  'frontend/src/corpus/viewer.ts',
+  'frontend/src/notes/ui/sidebar.tsx',
+  'frontend/src/notes/ui/cards.tsx',
+  'frontend/src/notes/commands/cards.ts',
   'frontend/src/shared/utils.ts',
-  'frontend/src/notes/assistant.tsx',
+  'frontend/src/notes/ui/assistant.tsx',
+  'frontend/src/notes/commands/assistant.ts',
 ];
 
 const SKILLS_EXCLUDED = [
-  'frontend/src/app-shell/skills-content.ts',
+  'frontend/src/app-shell/state/skills-content.ts',
 ];
 
 function loadJson(relPath) {

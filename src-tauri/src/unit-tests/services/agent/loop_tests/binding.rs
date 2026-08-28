@@ -2763,11 +2763,11 @@ fn t4_cursor_ide_is_not_an_app_binding_key() {
 
 #[test]
 fn t4_notes_binding_consumer_follows_todos_key_only_contract() {
-    let binding = repo_file("frontend/src/todo-task/binding.js");
-    let index = repo_file("frontend/src/todo-task/index.js");
+    let binding = repo_file("frontend/src/todo-task/binding.ts");
+    let index = repo_file("frontend/src/todo-task/index.ts");
     assert!(
         binding.contains("WORKBENCH_BUSINESS_KEY") && binding.contains("'workbench'"),
-        "binding.js must export WORKBENCH_BUSINESS_KEY = workbench"
+        "binding.ts must export WORKBENCH_BUSINESS_KEY = workbench"
     );
     assert!(
         binding.contains("export async function setWorkbenchBinding"),
@@ -2799,7 +2799,7 @@ fn t4_notes_binding_consumer_follows_todos_key_only_contract() {
             && !index.contains("buildNotesBinding")
             && !index.contains("resetNotesBinding")
             && !index.contains("NOTES_BUSINESS_KEY"),
-        "todo-task/index.js must not re-export old Notes Binding symbols"
+        "todo-task/index.ts must not re-export old Notes Binding symbols"
     );
 }
 

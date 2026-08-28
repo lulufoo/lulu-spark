@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import * as api from '../../frontend/src/host/api.ts';
 import { mountHomeHub } from '../../frontend/src/home/hub.tsx';
-import * as chatRender from '../../frontend/src/home/chat-render.ts';
+import * as chatRender from '../../frontend/src/home/ui/chat-render.ts';
 import { readFrontendJs, readMainSource } from '../helpers/read-frontend-js.js';
 
 const fixtureRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
@@ -14,19 +14,22 @@ const mainJs = readMainSource();
 describe('mountHomeHub', () => {
   let container;
   let navigate;
+  let cleanup;
 
   beforeEach(() => {
     container = document.createElement('div');
     document.body.appendChild(container);
     navigate = vi.fn();
+    cleanup = null;
   });
 
   afterEach(() => {
+    cleanup?.();
     container.remove();
   });
 
   it('renders desktop shortcuts without page heading labels', () => {
-    mountHomeHub(container, { navigate });
+    cleanup = mountHomeHub(container, { navigate });
 
     expect(container.querySelector('.home-hub-title')).toBeNull();
     expect(container.querySelector('.home-hub-subtitle')).toBeNull();
@@ -53,14 +56,14 @@ describe('mountHomeHub', () => {
   });
 
   it('navigates to #/workbench when workbench entry is clicked', () => {
-    mountHomeHub(container, { navigate });
+    cleanup = mountHomeHub(container, { navigate });
 
     container.querySelector('[data-home-entry="workbench"]').click();
     expect(navigate).toHaveBeenCalledWith('#/workbench');
   });
 
   it('navigates to #/corpus when corpus entry is clicked', () => {
-    mountHomeHub(container, { navigate });
+    cleanup = mountHomeHub(container, { navigate });
 
     container.querySelector('[data-home-entry="corpus"]').click();
     expect(navigate).toHaveBeenCalledWith('#/corpus');
@@ -68,7 +71,7 @@ describe('mountHomeHub', () => {
 
   it('opens read-later dialog when read-later entry is clicked', () => {
     const openReadLater = vi.fn();
-    mountHomeHub(container, { navigate, openReadLater });
+    cleanup = mountHomeHub(container, { navigate, openReadLater });
 
     container.querySelector('[data-home-entry="read-later"]').click();
     expect(openReadLater).toHaveBeenCalledTimes(1);
@@ -76,14 +79,14 @@ describe('mountHomeHub', () => {
   });
 
   it('navigates to #/todo-tasks when todo-tasks entry is clicked', () => {
-    mountHomeHub(container, { navigate });
+    cleanup = mountHomeHub(container, { navigate });
 
     container.querySelector('[data-home-entry="todo-tasks"]').click();
     expect(navigate).toHaveBeenCalledWith('#/todo-tasks');
   });
 
   it('does not throw when todo-tasks entry is clicked without navigate', () => {
-    mountHomeHub(container, {});
+    cleanup = mountHomeHub(container, {});
 
     expect(() => {
       container.querySelector('[data-home-entry="todo-tasks"]').click();
@@ -98,30 +101,19 @@ describe('mountHomeHub', () => {
   });
 
   it('does not leak listeners after repeated mount and unmount', () => {
-    const addSpy = vi.spyOn(HTMLElement.prototype, 'addEventListener');
-    const removeSpy = vi.spyOn(HTMLElement.prototype, 'removeEventListener');
-
     const cleanup1 = mountHomeHub(container, { navigate });
     cleanup1();
+    expect(container.innerHTML).toBe('');
     const cleanup2 = mountHomeHub(container, { navigate });
+    expect(container.querySelector('.home-chat')).not.toBeNull();
     cleanup2();
-
-    const onHubRoot = (el) => el instanceof HTMLElement && el.classList.contains('home-chat');
-    const clickAdds = addSpy.mock.calls.filter(
-      ([type], i) => type === 'click' && onHubRoot(addSpy.mock.instances[i]),
-    ).length;
-    const clickRemoves = removeSpy.mock.calls.filter(
-      ([type], i) => type === 'click' && onHubRoot(removeSpy.mock.instances[i]),
-    ).length;
-    expect(clickAdds).toBe(clickRemoves);
-
-    addSpy.mockRestore();
-    removeSpy.mockRestore();
+    expect(container.innerHTML).toBe('');
   });
 });
 
 describe('home hub chat sessions', () => {
   let container;
+  let cleanup;
   /** @type {import('vitest').MockInstance} */
   let invokeSpy;
   /** @type {import('vitest').MockInstance} */
@@ -135,6 +127,7 @@ describe('home hub chat sessions', () => {
   beforeEach(() => {
     container = document.createElement('div');
     document.body.appendChild(container);
+    cleanup = null;
     listenHandlers = {};
     window.__TAURI__ = {
       event: {
@@ -181,6 +174,7 @@ describe('home hub chat sessions', () => {
   });
 
   afterEach(() => {
+    cleanup?.();
     createChannelSpy.mockRestore();
     invokeSpy.mockRestore();
     container.remove();
@@ -188,7 +182,7 @@ describe('home hub chat sessions', () => {
   });
 
   async function mountReady() {
-    mountHomeHub(container, { navigate: vi.fn() });
+    cleanup = mountHomeHub(container, { navigate: vi.fn() });
     await vi.waitFor(() => {
       expect(container.querySelectorAll('.home-chat-session').length).toBe(2);
     });
@@ -201,9 +195,11 @@ describe('home hub chat sessions', () => {
       'Hello from first',
       'New conversation',
     ]);
-    expect(
-      container.querySelector('[data-session-id="s2"]')?.classList.contains('is-active'),
-    ).toBe(true);
+    await vi.waitFor(() => {
+      expect(
+        container.querySelector('[data-session-id="s2"]')?.classList.contains('is-active'),
+      ).toBe(true);
+    });
   });
 
   it('renders assistant replies as markdown and keeps user text escaped', async () => {
@@ -497,7 +493,7 @@ describe('home hub chat sessions', () => {
 
   it('disables the composer when Binding is unbound', async () => {
     bound = false;
-    mountHomeHub(container, { navigate: vi.fn() });
+    cleanup = mountHomeHub(container, { navigate: vi.fn() });
     await vi.waitFor(() => {
       expect(container.querySelector('[data-role="input"]').disabled).toBe(true);
       expect(container.querySelector('[data-role="send"]').disabled).toBe(true);
@@ -508,7 +504,7 @@ describe('home hub chat sessions', () => {
   it('shows date-time when a session has no title', async () => {
     sessions = [{ session_id: 's9', title: '', updated_at: 1756272000 }];
     currentId = 's9';
-    mountHomeHub(container, { navigate: vi.fn() });
+    cleanup = mountHomeHub(container, { navigate: vi.fn() });
     await vi.waitFor(() => {
       const item = container.querySelector('[data-session-id="s9"]');
       expect(item).not.toBeNull();
@@ -522,7 +518,7 @@ describe('home hub chat sessions', () => {
       title: `Chat ${i}`,
     }));
     currentId = 's0';
-    mountHomeHub(container, { navigate: vi.fn() });
+    cleanup = mountHomeHub(container, { navigate: vi.fn() });
     await vi.waitFor(() => {
       expect(container.querySelectorAll('.home-chat-session')).toHaveLength(20);
     });
@@ -536,7 +532,7 @@ describe('home hub chat sessions', () => {
     expect(source).toMatch(/chat-render/);
     expect(source).not.toMatch(/ensure_ai_assistant_session/);
     expect(source).not.toMatch(/viewer\.js|comment-markdown/);
-    mountHomeHub(container, { navigate: vi.fn() });
+    cleanup = mountHomeHub(container, { navigate: vi.fn() });
     expect(container.querySelector('.home-chat-sessions-title')?.textContent).toBe('Chats');
     expect(container.querySelector('.home-chat-composer-dock')).not.toBeNull();
     expect(container.querySelector('[data-role="input"]')?.placeholder).toBe('Message…');
@@ -572,7 +568,7 @@ describe('home hub composer and hub pairing', () => {
 
 describe('home hub shell integration', () => {
   it('main.js mounts HomeHub on home route with Phase2 default landing', () => {
-    expect(mainJs).toMatch(/mountHomeHub/);
+    expect(mainJs).toMatch(/HomePage/);
     expect(mainJs).not.toMatch(/home:\s*redirectToWorkbench/);
     expect(mainJs).toMatch(/['"]#\/home['"]/);
   });

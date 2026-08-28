@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { readFrontendJs } from '../helpers/read-frontend-js.js';
+import { readCorpusViewerSource, readFrontendJs, readNotesViewerSource } from '../helpers/read-frontend-js.js';
 import {
   knowledgeDocKey,
   notesDocKey,
@@ -32,14 +32,14 @@ describe('doc-editor identity and comment cut', () => {
   });
 
   it('Notes / Knowledge / Todos wire the common view and overlay', () => {
-    expect(read('frontend/src/notes/viewer.ts')).toMatch(/renderDocMarkdown/);
-    expect(read('frontend/src/notes/viewer.ts')).toMatch(/setDocEditMode/);
-    expect(read('frontend/src/notes/viewer.ts')).toMatch(/applyCachedHighlights|initDocHighlightOverlay/);
-    expect(read('frontend/src/notes/viewer.ts')).not.toMatch(/updateHighlight\(/);
-    expect(read('frontend/src/corpus/corpus-viewer.ts')).toMatch(/renderDocMarkdown/);
-    expect(read('frontend/src/corpus/corpus-viewer.ts')).toMatch(/setDocEditMode/);
-    expect(read('frontend/src/corpus/corpus-viewer.ts')).toMatch(/applyCachedHighlights|initDocHighlightOverlay/);
-    expect(read('frontend/src/corpus/corpus-viewer.ts')).not.toMatch(/updateKbHighlight\(/);
+    expect(readNotesViewerSource()).toMatch(/renderDocMarkdown/);
+    expect(readNotesViewerSource()).toMatch(/setDocEditMode/);
+    expect(readNotesViewerSource()).toMatch(/applyCachedHighlights|initDocHighlightOverlay/);
+    expect(readNotesViewerSource()).not.toMatch(/updateHighlight\(/);
+    expect(readCorpusViewerSource()).toMatch(/renderDocMarkdown/);
+    expect(readCorpusViewerSource()).toMatch(/setDocEditMode/);
+    expect(readCorpusViewerSource()).toMatch(/applyCachedHighlights|initDocHighlightOverlay/);
+    expect(readCorpusViewerSource()).not.toMatch(/updateKbHighlight\(/);
     expect(read('frontend/src/todo-task/page.tsx')).toMatch(/bindTodoDocHighlights/);
   });
 });

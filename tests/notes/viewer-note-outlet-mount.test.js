@@ -88,28 +88,28 @@ vi.mock('../../frontend/src/host/state.ts', async () => {
   const actual = await vi.importActual('../../frontend/src/host/state.ts');
   return { ...actual, loadDiffStatus: vi.fn().mockResolvedValue(undefined) };
 });
-vi.mock('../../frontend/src/notes/cards.tsx', () => ({
+vi.mock('../../frontend/src/notes/ui/cards.tsx', () => ({
   updateTitlesInDOM: vi.fn(),
   updateDiffInDOM: vi.fn(),
 }));
 vi.mock('../../frontend/src/island.ts', () => ({
   renderToHtml: () => '',
 }));
-vi.mock('../../frontend/src/notes/links-bar.tsx', () => ({ renderLinksBar: vi.fn() }));
-vi.mock('../../frontend/src/notes/tags-bar.tsx', () => ({ renderTagsBar: vi.fn() }));
+vi.mock('../../frontend/src/notes/ui/links-bar.tsx', () => ({ renderLinksBar: vi.fn() }));
+vi.mock('../../frontend/src/notes/ui/tags-bar.tsx', () => ({ renderTagsBar: vi.fn() }));
 
-vi.mock('../../frontend/src/notes/comments.tsx', () => ({ renderComments: vi.fn() }));
-vi.mock('../../frontend/src/notes/delete-dialog.tsx', () => ({ openDeleteDialog: vi.fn() }));
+vi.mock('../../frontend/src/notes/ui/comments.tsx', () => ({ renderComments: vi.fn() }));
+vi.mock('../../frontend/src/notes/ui/delete-dialog.tsx', () => ({ openDeleteDialog: vi.fn() }));
 vi.mock('../../frontend/src/doc-editor/highlights.ts', () => ({
   applyCachedHighlights: vi.fn(),
   initDocHighlightOverlay: vi.fn(),
   cleanupDocHighlightOverlay: vi.fn(),
 }));
-vi.mock('../../frontend/src/corpus/corpus-viewer.ts', () => ({
+vi.mock('../../frontend/src/corpus/viewer.ts', () => ({
   openKbDoc: vi.fn(),
   saveKbDoc: vi.fn(),
 }));
-vi.mock('../../frontend/src/corpus/corpus-knowledge-search.tsx', () => ({
+vi.mock('../../frontend/src/corpus/ui/knowledge-search.tsx', () => ({
   mountKnowledgeSearch: vi.fn(),
   triggerKnowledgeSearch: vi.fn(),
 }));

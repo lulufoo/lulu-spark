@@ -4,16 +4,16 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
-vi.mock('../../frontend/src/notes/search.tsx', () => ({
+vi.mock('../../frontend/src/notes/ui/search.tsx', () => ({
   closeWorkbenchSearch: vi.fn(),
 }));
-vi.mock('../../frontend/src/corpus/corpus-search.tsx', () => ({
+vi.mock('../../frontend/src/corpus/ui/search.tsx', () => ({
   closeCorpusSearch: vi.fn(),
 }));
 
-import { closeWorkbenchSearch } from '../../frontend/src/notes/search.tsx';
-import { closeCorpusSearch } from '../../frontend/src/corpus/corpus-search.tsx';
-import { applySearchNavChrome } from '../../frontend/src/app-shell/nav-chrome.ts';
+import { closeWorkbenchSearch } from '../../frontend/src/notes/ui/search.tsx';
+import { closeCorpusSearch } from '../../frontend/src/corpus/ui/search.tsx';
+import { applySearchNavChrome } from '../../frontend/src/app-shell/ui/nav-chrome.ts';
 import { readMainSource } from '../helpers/read-frontend-js.js';
 
 const fixtureRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
@@ -122,7 +122,7 @@ describe('main.js nav chrome integration', () => {
 
   it('keeps wrapRouteMount and home hub default landing', () => {
     expect(mainJs).toMatch(/wrapRouteMount/);
-    expect(mainJs).toMatch(/mountHomeHub/);
+    expect(mainJs).toMatch(/HomePage/);
     expect(mainJs).toMatch(/['"]#\/home['"]/);
   });
 });

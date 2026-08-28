@@ -2,8 +2,8 @@ import { existsSync, readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { test, expect } from 'vitest'
-import { readFrontendJs, readMainSource, readShellHtml } from '../helpers/read-frontend-js.js';
-import { workbenchSkillsContent } from '../../frontend/src/app-shell/skills-content.ts'
+import { readFrontendJs, readShellHtml } from '../helpers/read-frontend-js.js';
+import { workbenchSkillsContent } from '../../frontend/src/app-shell/state/skills-content.ts'
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..')
 
@@ -50,12 +50,12 @@ test('each public child skill has one clickable item with required display field
 })
 
 test('skills dialog renders one English table row per skill and no group links', () => {
-  const mainJs = readMainSource()
-  expect(mainJs).toMatch(/class(?:Name)?="skill-table"/)
-  expect(mainJs).toMatch(/class(?:Name)?="skill-name"/)
-  expect(mainJs).toMatch(/class(?:Name)?="skill-cmd"/)
-  expect(mainJs).not.toContain('skill-group-link')
-  expect(mainJs).not.toContain('skill-group-title')
+  const src = readFrontendJs('frontend/src/app-shell/ui/skills-dialog.tsx')
+  expect(src).toMatch(/class(?:Name)?="skill-table"/)
+  expect(src).toMatch(/class(?:Name)?="skill-name"/)
+  expect(src).toMatch(/class(?:Name)?="skill-cmd"/)
+  expect(src).not.toContain('skill-group-link')
+  expect(src).not.toContain('skill-group-title')
 })
 
 test('workbench catalog does not expose legacy or internal skills', () => {
@@ -81,7 +81,11 @@ test('SKILL dropdown keeps only Lulu Workbench Skills', () => {
 })
 
 test('skills dialog is a React component without import-time menu listener', () => {
-  const src = readFrontendJs('frontend/src/app-shell/skills-dialog.tsx')
+  const src = [
+    readFrontendJs('frontend/src/app-shell/ui/skills-dialog.tsx'),
+    readFrontendJs('frontend/src/app-shell/commands/skills-dialog.ts'),
+    readFrontendJs('frontend/src/app-shell/state/skills.ts'),
+  ].join('\n')
   expect(src).toMatch(/export function SkillsDialog/)
   expect(src).toMatch(/export function _openSkillsDialog/)
   expect(src).toMatch(/export function _closeSkillsDialog/)

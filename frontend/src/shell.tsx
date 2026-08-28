@@ -1,22 +1,24 @@
 // @ts-nocheck — chrome port; leftover islands still find these IDs.
-import { BindDialog, openBindDialog } from './app-shell/bind-dialog.tsx';
-import { CommitChangesDialog } from './app-shell/commit-dialog.tsx';
-import { ConvertDialog, openConvertDialog } from './app-shell/convert-dialog.tsx';
-import { MoveDocDialog, openMoveDocDialog } from './app-shell/move-dialog.tsx';
-import { SettingsDialog, openSettingsDialog } from './app-shell/settings-dialog.tsx';
-import { SettingsDialogChrome } from './app-shell/settings/chrome.tsx';
-import { SkillsDialog, _openSkillsDialog } from './app-shell/skills-dialog.tsx';
-import { KbCommentDialog } from './corpus/corpus-comments.tsx';
-import { KbDiffDialog } from './corpus/corpus-diff-dialog.tsx';
-import { KbCommitDialog } from './corpus/corpus-viewer/commit.tsx';
-import { NoteCommentDialog } from './notes/comments.tsx';
-import { DeleteDialog } from './notes/delete-dialog.tsx';
-import { MoveProjectDialog } from './notes/move-project-dialog.tsx';
-import { SettleDialog } from './notes/settle-dialog.tsx';
-import { MdCommitDialog } from './notes/viewer/commit.tsx';
-import { ReadLaterDialog } from './read-later/dialog.tsx';
+import { BindDialog, openBindDialog } from './app-shell/ui/bind-dialog.tsx';
+import { CommitChangesDialog } from './app-shell/ui/commit-dialog.tsx';
+import { ConvertDialog, openConvertDialog } from './app-shell/ui/convert-dialog.tsx';
+import { MoveDocDialog, openMoveDocDialog } from './app-shell/ui/move-dialog.tsx';
+import { SettingsDialog, openSettingsDialog } from './app-shell/ui/settings/dialog.tsx';
+import { SettingsDialogChrome } from './app-shell/ui/settings/chrome.tsx';
+import { SkillsDialog, _openSkillsDialog } from './app-shell/ui/skills-dialog.tsx';
+import { KbCommentDialog } from './corpus/ui/comments.tsx';
+import { KbDiffDialog } from './corpus/ui/diff-dialog.tsx';
+import { KbCommitDialog } from './corpus/ui/viewer/commit.tsx';
+import { NoteCommentDialog } from './notes/ui/comments.tsx';
+import { DeleteDialog } from './notes/ui/delete-dialog.tsx';
+import { MoveProjectDialog } from './notes/ui/move-project-dialog.tsx';
+import { SettleDialog } from './notes/ui/settle-dialog.tsx';
+import { MdCommitDialog } from './notes/ui/viewer/commit.tsx';
+import { ReadLaterDialog } from './read-later/ui/dialog.tsx';
 import { CommentDeleteDialog } from './shared/comment-delete.tsx';
-import { TodoTaskDialog } from './todo-task/dialog.tsx';
+import { TodoTaskDialog } from './todo-task/ui/dialog.tsx';
+import { WorkbenchSearch } from './notes/ui/search.tsx';
+import { CorpusSearch } from './corpus/ui/search.tsx';
 
 function closeMenuDropdowns() {
   document.getElementById('sync-menu-dropdown')?.classList.remove('open');
@@ -34,16 +36,8 @@ export function Shell() {
           <a id="btn-nav-home-title" href="#/home" className="header-home-link">LuLu Workbench</a>
           <a id="btn-nav-home" href="#/home" className="header-nav-back" hidden>← Home</a>
         </h1>
-        <div id="gs-wb-wrap" className="gs-search-wrap" hidden>
-          <input id="gs-wb-input" className="gs-search-input" type="text" placeholder="Search notes…" autoComplete="off" spellCheck={false} />
-          <button id="gs-wb-rebuild-btn" className="gs-rebuild-btn" style={{ display: 'none' }} title="Rebuild Workbench index">↺</button>
-          <div id="gs-wb-dropdown" className="gs-search-dropdown" style={{ display: 'none' }}></div>
-        </div>
-        <div id="gs-kb-wrap" className="gs-search-wrap" hidden>
-          <input id="gs-kb-input" className="gs-search-input" type="text" placeholder="Search knowledge…" autoComplete="off" spellCheck={false} />
-          <button id="gs-kb-rebuild-btn" className="gs-rebuild-btn" style={{ display: 'none' }} title="Rebuild knowledge index">↺</button>
-          <div id="gs-kb-dropdown" className="gs-search-dropdown" style={{ display: 'none' }}></div>
-        </div>
+        <WorkbenchSearch />
+        <CorpusSearch />
         <a href="https://github.com/lulufoo/lulu-workbench" target="_blank">GitHub ↗</a>
         <div id="sync-menu-wrap">
           <button id="btn-sync-menu">⇕ Sync</button>

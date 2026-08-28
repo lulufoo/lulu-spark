@@ -31,7 +31,7 @@ import {
 import {
   setWorkbenchBinding,
   WORKBENCH_BUSINESS_KEY,
-} from '../../frontend/src/todo-task/binding.js';
+} from '../../frontend/src/todo-task/commands/binding.ts';
 import { readAgentLoopSource, readAgentLoopTestsSource } from '../helpers/agent-loop-source.js';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
@@ -483,7 +483,7 @@ describe('t6 layered acceptance L0/L1/L2 gate', () => {
       'utf8',
     );
     const lifeJs = readFileSync(
-      join(repoRoot, 'frontend/src/todo-task/lifecycle.ts'),
+      join(repoRoot, 'frontend/src/todo-task/commands/lifecycle.ts'),
       'utf8',
     );
     expect(indexJs).toMatch(/onTodosPageLeave/);

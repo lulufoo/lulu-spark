@@ -76,7 +76,7 @@ describe('homepage commit dialog — delayed close + background submit', () => {
         rejectCommit = reject;
       }),
     );
-    const mod = await import('../../frontend/src/app-shell/commit-dialog.tsx');
+    const mod = await import('../../frontend/src/app-shell/commands/commit-dialog.ts');
     doCommitChanges = mod.doCommitChanges;
     closeCommitChangesDialog = mod.closeCommitChangesDialog;
     makeEl('commit-changes-dialog').classList.add('open');

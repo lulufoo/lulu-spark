@@ -6,13 +6,17 @@ import { createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { flushSync } from 'react-dom';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { openTodoTaskDialog, TodoTaskDialog } from '../../frontend/src/todo-task/dialog.tsx';
+import { openTodoTaskDialog, TodoTaskDialog } from '../../frontend/src/todo-task/ui/dialog.tsx';
 import { TODO_TASK_BRAND_SITES } from '../fixtures/todo-task-ac15.js';
 import { readRsPath } from '../helpers/read-rs-dir.js';
 import { readFrontendJs } from '../helpers/read-frontend-js.js';
 
 const fixtureRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
-const dialogSource = readFrontendJs('frontend/src/todo-task/dialog.tsx');
+const dialogSource = [
+  readFrontendJs('frontend/src/todo-task/ui/dialog.tsx'),
+  readFrontendJs('frontend/src/todo-task/commands/dialog.ts'),
+  readFrontendJs('frontend/src/todo-task/state/dialog.ts'),
+].join('\n');
 const mcpSource = readRsPath(join(fixtureRoot, 'src-tauri/src/services/mcp_protocol_adapter'));
 
 function extractCreateTodoTaskBlock(source) {
@@ -92,9 +96,13 @@ describe('AC7 brand copy — user-visible Todos sites (tech-doc T14/T15)', () =>
   it('locks remaining brand sites to Todos without residual 计划任务 user copy', () => {
     expect(TODO_TASK_BRAND_SITES).toHaveLength(6);
     for (const site of TODO_TASK_BRAND_SITES) {
-      const src = site.path.startsWith('frontend/src/')
-        ? readFrontendJs(site.path)
-        : readFileSync(join(fixtureRoot, site.path), 'utf8');
+      const remapped = site.path
+        .replace('frontend/src/todo-task/list.tsx', 'frontend/src/todo-task/ui/list.tsx')
+        .replace('frontend/src/todo-task/page-render.tsx', 'frontend/src/todo-task/ui/page-render.tsx')
+        .replace('frontend/src/todo-task/assistant.tsx', 'frontend/src/todo-task/ui/assistant.tsx');
+      const src = remapped.startsWith('frontend/src/')
+        ? readFrontendJs(remapped)
+        : readFileSync(join(fixtureRoot, remapped), 'utf8');
       for (const re of site.mustMatch) {
         expect(src, `${site.path} mustMatch ${re}`).toMatch(re);
       }
@@ -105,7 +113,7 @@ describe('AC7 brand copy — user-visible Todos sites (tech-doc T14/T15)', () =>
   });
 
   it('keeps technical todo-task identifiers (route/api) unchanged', () => {
-    const index = readFileSync(join(fixtureRoot, 'frontend/src/todo-task/format.ts'), 'utf8');
+    const index = readFileSync(join(fixtureRoot, 'frontend/src/todo-task/state/format.ts'), 'utf8');
     expect(index).toMatch(/todo-tasks/);
     const hub = readFrontendJs('frontend/src/home/hub.tsx');
     expect(hub).toMatch(/data-home-entry="todo-tasks"/);

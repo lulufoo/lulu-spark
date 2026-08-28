@@ -8,7 +8,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { readFrontendJs, readMainSource } from '../helpers/read-frontend-js.js';
-import { buildCard } from '../../frontend/src/notes/cards.tsx';
+import { buildCard } from '../../frontend/src/notes/ui/cards.tsx';
 import { state } from '../../frontend/src/host/state.ts';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
@@ -34,7 +34,7 @@ vi.mock('../../frontend/src/host/api.ts', () => ({
   fetchFileContent: vi.fn(),
 }));
 
-vi.mock('../../frontend/src/notes/move-project-dialog.tsx', () => ({
+vi.mock('../../frontend/src/notes/ui/move-project-dialog.tsx', () => ({
   openMoveProjectDialog: vi.fn(),
   closeMoveProjectDialog: vi.fn(),
   MoveProjectDialog: () => null,
@@ -42,9 +42,9 @@ vi.mock('../../frontend/src/notes/move-project-dialog.tsx', () => ({
 
 describe('T6 source: open/create entries → navigate-to-note (no modal.display path)', () => {
   const mainJs = read('frontend/src/boot.ts');
-  const searchJs = read('frontend/src/notes/search.tsx');
-  const cardsJs = read('frontend/src/notes/cards.tsx');
-  const assistantJs = read('frontend/src/notes/assistant.tsx');
+  const searchJs = read('frontend/src/notes/ui/search.tsx');
+  const cardsJs = read('frontend/src/notes/ui/cards.tsx');
+  const assistantJs = read('frontend/src/notes/ui/assistant.tsx');
 
   it('imports navigateToNote and uses it from cta:open-entry listener', () => {
     expect(mainJs).toMatch(/navigateToNote/);
@@ -142,7 +142,7 @@ describe('T6 behavioral: workbench-search layer + cards emit', () => {
     });
 
     vi.resetModules();
-    const { initWorkbenchSearch } = await import('../../frontend/src/notes/search.tsx');
+    const { initWorkbenchSearch } = await import('../../frontend/src/notes/ui/search.tsx');
     initWorkbenchSearch();
 
     const input = document.getElementById('gs-wb-input');
@@ -177,7 +177,7 @@ describe('T6 behavioral: workbench-search layer + cards emit', () => {
     });
 
     vi.resetModules();
-    const { initWorkbenchSearch } = await import('../../frontend/src/notes/search.tsx');
+    const { initWorkbenchSearch } = await import('../../frontend/src/notes/ui/search.tsx');
     initWorkbenchSearch();
 
     const input = document.getElementById('gs-wb-input');

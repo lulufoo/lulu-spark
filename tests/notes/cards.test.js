@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { buildCard, updateTitlesInDOM, loadTitles, sourceTypeBadgeHtml } from '../../frontend/src/notes/cards.tsx';
+import { buildCard, updateTitlesInDOM, sourceTypeBadgeHtml } from '../../frontend/src/notes/ui/cards.tsx';
+import { loadTitles } from '../../frontend/src/notes/commands/cards.ts';
 import { state } from '../../frontend/src/host/state.ts';
 import * as api from '../../frontend/src/host/api.ts';
 
@@ -10,7 +11,7 @@ vi.mock('../../frontend/src/host/api.ts', () => ({
   fetchFileContent: vi.fn(),
 }));
 
-vi.mock('../../frontend/src/notes/move-project-dialog.tsx', () => ({
+vi.mock('../../frontend/src/notes/ui/move-project-dialog.tsx', () => ({
   openMoveProjectDialog: vi.fn(),
   closeMoveProjectDialog: vi.fn(),
   MoveProjectDialog: () => null,

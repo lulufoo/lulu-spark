@@ -2008,6 +2008,12 @@
     min-height: 0;
     overflow: hidden;
   }
+  .todo-tasks-react-host {
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+  }
   .todo-tasks-page {
     display: flex;
     flex-direction: column;
@@ -6595,6 +6601,12 @@
 }
 
 /* ── Corpus doc list (Phase1b) ── */
+.corpus-doc-react-host {
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
 .corpus-doc-layout {
   display: flex;
   height: 100%;

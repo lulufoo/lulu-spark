@@ -10,19 +10,20 @@ vi.mock('../../frontend/src/host/api.ts', () => ({
   fetchSedimentKbRepos: vi.fn(),
 }));
 
-vi.mock('../../frontend/src/corpus/corpus-viewer.ts', () => ({
+vi.mock('../../frontend/src/corpus/viewer.ts', () => ({
   mountKbReader: vi.fn(),
+  ReaderShell: () => null,
 }));
 
 import * as api from '../../frontend/src/host/api.ts';
-import { mountKbReader } from '../../frontend/src/corpus/corpus-viewer.ts';
-import { getKbHidePattern } from '../../frontend/src/corpus/corpus-hide-pattern.ts';
+import { mountKbReader } from '../../frontend/src/corpus/viewer.ts';
+import { getKbHidePattern } from '../../frontend/src/corpus/state/hide-pattern.ts';
 import {
   buildTreeNodes,
   buildRepoPickerOptions,
   formatRepoMenuLabel,
   mountCorpusDocList,
-} from '../../frontend/src/corpus/corpus-doc-list.tsx';
+} from '../../frontend/src/corpus/page.tsx';
 import { positionFloatingListMenu } from '../../frontend/src/shared/floating-list-menu.ts';
 import { readMainSource } from '../helpers/read-frontend-js.js';
 
@@ -660,9 +661,34 @@ describe('mountCorpusDocList', () => {
 });
 
 describe('corpus doc route shell integration', () => {
-  it('main.js mounts corpus doc list on corpus-doc route instead of redirect stub', () => {
-    expect(mainJs).toMatch(/mountCorpusDocList/);
+  it('main.js paints CorpusDocPage on corpus-doc instead of createRoot-mounting the slot', () => {
+    expect(mainJs).toMatch(/CorpusDocPage/);
     expect(mainJs).not.toMatch(/'corpus-doc': redirectToWorkbench/);
     expect(mainJs).toMatch(/corpus-doc-view|mountCorpusDocRoute/);
+    const body = (() => {
+      const start = mainJs.indexOf('function mountCorpusDocRoute');
+      if (start === -1) return '';
+      const braceStart = mainJs.indexOf('{', start);
+      let depth = 0;
+      for (let i = braceStart; i < mainJs.length; i += 1) {
+        if (mainJs[i] === '{') depth += 1;
+        if (mainJs[i] === '}') {
+          depth -= 1;
+          if (depth === 0) return mainJs.slice(braceStart, i + 1);
+        }
+      }
+      return '';
+    })();
+    expect(body).not.toMatch(/mountCorpusDocList/);
+  });
+
+  it('CorpusDocPage applies path in-place and remounts when repo changes', () => {
+    const pageSrc = readFileSync(
+      join(fixtureRoot, 'frontend/src/corpus/page.tsx'),
+      'utf8',
+    );
+    expect(pageSrc).toMatch(/function CorpusDocPage/);
+    expect(pageSrc).toMatch(/navigateToPath/);
+    expect(pageSrc).toMatch(/sessionRef\.current\?\.navigateToPath/);
   });
 });

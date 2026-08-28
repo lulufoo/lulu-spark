@@ -47,7 +47,11 @@ import { readMainSource } from '../helpers/read-frontend-js.js';
 const fixtureRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
 const mainJs = readMainSource();
 const indexHtml = readShellHtml();
-const todoTaskDialogSrc = readFrontendJs('frontend/src/todo-task/dialog.tsx');
+const todoTaskDialogSrc = [
+  readFrontendJs('frontend/src/todo-task/ui/dialog.tsx'),
+  readFrontendJs('frontend/src/todo-task/commands/dialog.ts'),
+  readFrontendJs('frontend/src/todo-task/state/dialog.ts'),
+].join('\n');
 const appCss = readFileSync(join(fixtureRoot, 'frontend/app.css'), 'utf8');
 
 function extractFunctionBody(source, name) {
@@ -823,17 +827,24 @@ describe('todo-tasks route source wiring', () => {
     );
   });
 
-  it('mountTodoTasksRoute passes master/sub params to split mount', () => {
+  it('mountTodoTasksRoute does not createRoot-mount Todos', () => {
     const body = extractFunctionBody(mainJs, 'mountTodoTasksRoute');
-    expect(body).toMatch(/mountTodoTaskSplit/);
-    expect(body).toMatch(/master/);
-    expect(body).toMatch(/sub/);
+    expect(body).not.toMatch(/mountTodoTaskSplit/);
+    expect(body).toMatch(/todo-tasks-view/);
   });
 
-  it('mountTodoTasksRoute applies deep-link in-place when already mounted', () => {
-    const body = extractFunctionBody(mainJs, 'mountTodoTasksRoute');
-    expect(body).toMatch(/applyRoute/);
-    expect(body).toMatch(/unmountTodoTaskSplit\?\.applyRoute/);
+  it('ShellPages paints TodoTasksPage with master/sub from the hash', () => {
+    expect(mainJs).toMatch(/TodoTasksPage/);
+    expect(mainJs).toMatch(/routeParams/);
+    expect(mainJs).toMatch(/masterId=\{routeParams\.master/);
+    expect(mainJs).toMatch(/subId=\{routeParams\.sub/);
+  });
+
+  it('TodoTasksPage applies deep-link in-place via applyRoute', () => {
+    const pageSrc = readFrontendJs('frontend/src/todo-task/page.tsx');
+    expect(pageSrc).toMatch(/function TodoTasksPage/);
+    expect(pageSrc).toMatch(/applyRoute/);
+    expect(pageSrc).toMatch(/sessionRef\.current\?\.applyRoute/);
   });
 
   it('app.css defines full-screen split layout classes', () => {

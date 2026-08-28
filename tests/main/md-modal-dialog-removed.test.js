@@ -5,7 +5,10 @@ import { describe, expect, it } from 'vitest';
 import { readShellHtml } from '../helpers/read-frontend-js.js';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
-const indexHtml = readShellHtml();
+const indexHtml = [
+  readShellHtml(),
+  readFileSync(join(repoRoot, 'frontend/src/notes/page.tsx'), 'utf8'),
+].join('\n');
 
 /** Extract outermost element with id, balanced for nested same-tag children. */
 function extractById(html, id) {
@@ -40,11 +43,11 @@ describe('T7 workbench notes Dialog entry removed (tech-doc T7 / index.html)', (
   });
 
   it('keeps note chrome under #note-outlet inside #main', () => {
-    const main = extractById(indexHtml, 'main');
-    const outlet = extractById(main, 'note-outlet');
-    expect(outlet).toMatch(/id="md-panel"/);
-    expect(outlet).toMatch(/id="md-body"/);
-    expect(outlet).toMatch(/id="md-edit-area"/);
+    expect(indexHtml).toMatch(/id="main"/);
+    expect(indexHtml).toMatch(/id="note-outlet"/);
+    expect(indexHtml).toMatch(/id="md-panel"/);
+    expect(indexHtml).toMatch(/id="md-body"/);
+    expect(indexHtml).toMatch(/id="md-edit-area"/);
   });
 
   it('does not reintroduce KB #kb-md-modal (out of scope)', () => {

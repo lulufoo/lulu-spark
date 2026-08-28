@@ -13,7 +13,7 @@ import {
   loadAssistantNotes,
   mountNoteAssistant,
   createNotesContentAdapter,
-} from '../../frontend/src/notes/assistant.tsx';
+} from '../../frontend/src/notes/ui/assistant.tsx';
 
 const sampleEntries = [
   {

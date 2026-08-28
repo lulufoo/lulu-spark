@@ -18,12 +18,12 @@ vi.mock('../../frontend/src/host/api.ts', () => ({
   getReindexWorkbenchStatus: (...args) => apiMocks.getReindexWorkbenchStatus(...args),
 }));
 
-vi.mock('../../frontend/src/corpus/corpus-search.tsx', () => ({
+vi.mock('../../frontend/src/corpus/ui/search.tsx', () => ({
   closeCorpusSearch: vi.fn(),
   initCorpusSearch: vi.fn(),
 }));
 
-import { applySearchNavChrome } from '../../frontend/src/app-shell/nav-chrome.ts';
+import { applySearchNavChrome } from '../../frontend/src/app-shell/ui/nav-chrome.ts';
 import { readMainSource } from '../helpers/read-frontend-js.js';
 
 const fixtureRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
@@ -77,19 +77,19 @@ function installLocalStorageMock() {
 /** Mirrors main.js wrapRouteMount + workbench mount contract under test. */
 async function simulateWorkbenchRouteMount() {
   applySearchNavChrome('workbench');
-  const { initWorkbenchSearch } = await import('../../frontend/src/notes/search.tsx');
+  const { initWorkbenchSearch } = await import('../../frontend/src/notes/ui/search.tsx');
   initWorkbenchSearch();
 }
 
 async function loadWorkbenchSearchModule() {
   vi.resetModules();
-  return import('../../frontend/src/notes/search.tsx');
+  return import('../../frontend/src/notes/ui/search.tsx');
 }
 
 describe('main.js workbench route init wiring (source)', () => {
-  it('imports initWorkbenchSearch from notes/search.tsx', () => {
+  it('imports initWorkbenchSearch from notes/ui/search.tsx', () => {
     expect(mainJs).toMatch(
-      /import\s*\{[^}]*initWorkbenchSearch[^}]*\}\s*from\s*'[^']*notes\/search\.tsx'/,
+      /import\s*\{[^}]*initWorkbenchSearch[^}]*\}\s*from\s*'[^']*notes\/ui\/search\.tsx'/,
     );
   });
 
@@ -200,18 +200,15 @@ function compileMountWorkbench(env) {
   expect(fnSource, 'mountWorkbench missing').not.toBe('');
   const locals = [
     'clearHeaderSyncCorpusContext',
-    'unmountCorpusDocList',
-    'corpusDocListRepo',
     'hideCorpusDocView',
     'hideReadLaterView',
     'hideTodoTasksView',
     'hideHomeView',
     'feedView',
-    'unmountTodoTaskSplit',
-    'unmountHomeHub',
     'state',
     'selectDate',
     'openDoc',
+    'notifyState',
   ];
   const brace = fnSource.indexOf('{');
   const body = fnSource.slice(brace + 1, fnSource.lastIndexOf('}'));
@@ -234,17 +231,14 @@ function stubWorkbenchMountEnv(overrides = {}) {
   };
   return {
     clearHeaderSyncCorpusContext: () => {},
-    unmountCorpusDocList: null,
-    corpusDocListRepo: '',
     hideCorpusDocView: () => {},
     hideReadLaterView: () => {},
     hideTodoTasksView: () => {},
     hideHomeView: () => {},
     feedView: document.getElementById('feed-view') || { style: { display: '' } },
-    unmountTodoTaskSplit: null,
-    unmountHomeHub: null,
     selectDate,
     openDoc,
+    notifyState: vi.fn(),
     state,
   };
 }
@@ -273,12 +267,8 @@ describe('T2 mountWorkbench three-branch routing', () => {
 
     mount({ params: { date: '20260719', note: 'inbox/notes/a.md', layer: 'raw' } });
 
-    const outlet = document.getElementById('note-outlet');
-    expect(outlet, 'note outlet should exist').toBeTruthy();
-    expect(outlet.hidden).toBe(false);
-    expect(outlet.dataset.wbMode).toBe('open');
-    expect(document.getElementById('doc-list').style.display).toBe('none');
-    expect(document.getElementById('md-modal').style.display).toBe('none');
+    expect(env.openDoc).toHaveBeenCalledWith(entry, 'raw');
+    expect(env.state.viewer.outletMode).toBe('open');
     expect(env.selectDate).not.toHaveBeenCalled();
   });
 
@@ -292,12 +282,9 @@ describe('T2 mountWorkbench three-branch routing', () => {
 
     mount({ params: { date: '20260719', note: 'missing/path.md' } });
 
-    const outlet = document.getElementById('note-outlet');
-    expect(outlet, 'note outlet should exist').toBeTruthy();
-    expect(outlet.hidden).toBe(false);
-    expect(outlet.dataset.wbMode).toBe('safe-empty');
-    expect(outlet.textContent.trim().length).toBeGreaterThan(0);
-    expect(document.getElementById('md-modal').style.display).toBe('none');
+    expect(env.openDoc).not.toHaveBeenCalled();
+    expect(env.state.viewer.outletMode).toBe('safe-empty');
+    expect(env.state.viewer.outletMessage).toMatch(/Note not found/);
     expect(window.location.hash).toBe(hashBefore);
     expect(env.selectDate).not.toHaveBeenCalled();
   });
@@ -312,13 +299,9 @@ describe('T2 mountWorkbench three-branch routing', () => {
 
     mount({ params: { date: '20260719' } });
 
-    const outlet = document.getElementById('note-outlet');
-    expect(outlet, 'note outlet should exist').toBeTruthy();
-    expect(outlet.hidden).toBe(false);
-    expect(outlet.dataset.wbMode).toBe('create');
-    expect(document.getElementById('doc-list').style.display).toBe('none');
-    expect(document.getElementById('md-modal').style.display).toBe('none');
+    expect(env.state.viewer.outletMode).toBe('create');
     expect(env.selectDate).not.toHaveBeenCalled();
+    expect(env.openDoc).not.toHaveBeenCalled();
   });
 
   it('no note + not creating → list via selectDate from location.date', () => {
@@ -328,12 +311,8 @@ describe('T2 mountWorkbench three-branch routing', () => {
     mount({ params: { date: '20260719' } });
 
     expect(env.selectDate).toHaveBeenCalledWith('20260719');
-    const outlet = document.getElementById('note-outlet');
-    if (outlet) {
-      expect(outlet.hidden).toBe(true);
-      expect(outlet.dataset.wbMode || '').not.toMatch(/^(open|create|safe-empty)$/);
-    }
-    expect(document.getElementById('doc-list').style.display).not.toBe('none');
+    expect(env.state.viewer.outletMode).toBe('');
+    expect(env.openDoc).not.toHaveBeenCalled();
   });
 
   it('forbids treating missing note as always-list when createSession is active', () => {
@@ -347,6 +326,6 @@ describe('T2 mountWorkbench three-branch routing', () => {
     mount({ params: {} });
 
     expect(env.selectDate).not.toHaveBeenCalled();
-    expect(document.getElementById('note-outlet')?.dataset.wbMode).toBe('create');
+    expect(env.state.viewer.outletMode).toBe('create');
   });
 });

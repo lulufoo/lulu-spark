@@ -5,6 +5,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
+const shellHtml = readShellHtml();
 const QR_OPTS = { width: 256, margin: 2 };
 const PAYLOAD = {
   ip: '10.0.0.8',
@@ -135,7 +136,7 @@ function assertNoAddresses(call) {
 
 describe('bind-dialog markup and wiring', () => {
   it('adds a Tools bind entry as a sibling of Convert and keeps QR preview in Convert', () => {
-    const html = readShellHtml();
+    const html = shellHtml;
     const tools = extractById(html, 'tools-menu-dropdown');
     expect(tools).toMatch(/id="btn-convert"/);
     expect(tools).toMatch(/id="btn-bind"/);
@@ -148,7 +149,7 @@ describe('bind-dialog markup and wiring', () => {
   });
 
   it('adds an independent bind overlay with its own preview node', () => {
-    const html = readShellHtml();
+    const html = shellHtml;
     const overlay = extractById(html, 'bind-dialog');
     expect(overlay).toMatch(/id="bind-preview"/);
     expect(overlay).toMatch(/id="bind-status"/);
@@ -164,7 +165,7 @@ describe('bind-dialog markup and wiring', () => {
 
   it('wires Tools bind entry to openBindDialog, not Convert', () => {
     const shell = readSrc('frontend/src/shell.tsx');
-    expect(shell).toMatch(/from ['"]\.\/app-shell\/bind-dialog\.tsx['"]/);
+    expect(shell).toMatch(/from ['"]\.\/app-shell\/ui\/bind-dialog\.tsx['"]/);
     expect(shell).toMatch(/openBindDialog/);
     const bindBlock = shell.match(
       /id="btn-bind"[\s\S]{0,280}openBindDialog/,
@@ -181,8 +182,15 @@ describe('bind-dialog markup and wiring', () => {
   });
 
   it('does not reuse renderQr, qr-dialog, list_devices, or a frontend address', () => {
-    const src = readSrc('frontend/src/app-shell/bind-dialog.tsx');
-    const qrSrc = readSrc('frontend/src/app-shell/qr-dialog.tsx');
+    const src = [
+      readSrc('frontend/src/app-shell/ui/bind-dialog.tsx'),
+      readSrc('frontend/src/app-shell/commands/bind-dialog.ts'),
+      readSrc('frontend/src/app-shell/state/dialog-open.ts'),
+    ].join('\n');
+    const qrSrc = [
+      readSrc('frontend/src/app-shell/ui/qr-dialog.tsx'),
+      readSrc('frontend/src/app-shell/commands/qr-dialog.ts'),
+    ].join('\n');
     expect(src).toContain('QRCode.toCanvas');
     expect(src).toMatch(/QR_OPTS/);
     expect(src).toContain('issue_bind');
@@ -222,7 +230,7 @@ describe('bind-dialog', () => {
       if (cmd === 'read_bind_session') return 'live';
       return undefined;
     });
-    await import('../../frontend/src/app-shell/bind-dialog.tsx');
+    await import('../../frontend/src/app-shell/commands/bind-dialog.ts');
   });
 
   afterEach(() => {
@@ -249,7 +257,7 @@ describe('bind-dialog', () => {
       return undefined;
     });
 
-    const { openBindDialog } = await import('../../frontend/src/app-shell/bind-dialog.tsx');
+    const { openBindDialog } = await import('../../frontend/src/app-shell/commands/bind-dialog.ts');
     await openBindDialog();
 
     expect(issueCalls()).toHaveLength(1);
@@ -260,7 +268,7 @@ describe('bind-dialog', () => {
   });
 
   it('encodes the draw object as JSON and paints the bind preview via toCanvas + QR_OPTS', async () => {
-    const { openBindDialog } = await import('../../frontend/src/app-shell/bind-dialog.tsx');
+    const { openBindDialog } = await import('../../frontend/src/app-shell/commands/bind-dialog.ts');
     await openBindDialog();
 
     expect(qrMocks.toCanvas).toHaveBeenCalledTimes(1);
@@ -284,7 +292,7 @@ describe('bind-dialog', () => {
 
   it('uses payload exp for the countdown, not the read-session command', async () => {
     vi.spyOn(Date, 'now').mockReturnValue(1_700_000_000_000);
-    const { openBindDialog } = await import('../../frontend/src/app-shell/bind-dialog.tsx');
+    const { openBindDialog } = await import('../../frontend/src/app-shell/commands/bind-dialog.ts');
     await openBindDialog();
 
     expect(makeEl('bind-countdown').textContent).toBe('Expires in 3:00');
@@ -302,7 +310,7 @@ describe('bind-dialog', () => {
       return undefined;
     });
 
-    const { openBindDialog } = await import('../../frontend/src/app-shell/bind-dialog.tsx');
+    const { openBindDialog } = await import('../../frontend/src/app-shell/commands/bind-dialog.ts');
     await openBindDialog();
     expect(readCalls()).toHaveLength(0);
 
@@ -322,7 +330,7 @@ describe('bind-dialog', () => {
   });
 
   it('stops polling on close', async () => {
-    const { openBindDialog, closeBindDialog } = await import('../../frontend/src/app-shell/bind-dialog.tsx');
+    const { openBindDialog, closeBindDialog } = await import('../../frontend/src/app-shell/commands/bind-dialog.ts');
     await openBindDialog();
     closeBindDialog();
     expect(makeEl('bind-dialog').classList.contains('open')).toBe(false);
@@ -340,7 +348,7 @@ describe('bind-dialog', () => {
       return undefined;
     });
 
-    const { openBindDialog } = await import('../../frontend/src/app-shell/bind-dialog.tsx');
+    const { openBindDialog } = await import('../../frontend/src/app-shell/commands/bind-dialog.ts');
     await openBindDialog();
     expect(makeEl('bind-preview').children).toHaveLength(1);
 
@@ -362,7 +370,7 @@ describe('bind-dialog', () => {
       return undefined;
     });
 
-    const { openBindDialog } = await import('../../frontend/src/app-shell/bind-dialog.tsx');
+    const { openBindDialog } = await import('../../frontend/src/app-shell/commands/bind-dialog.ts');
     await openBindDialog();
     await vi.advanceTimersByTimeAsync(1000);
     expect(makeEl('btn-bind-refresh').hidden).toBe(false);
@@ -395,7 +403,7 @@ describe('bind-dialog', () => {
         return undefined;
       });
       qrMocks.toCanvas.mockImplementation((canvas, text, opts, cb) => cb(null));
-      const { openBindDialog } = await import('../../frontend/src/app-shell/bind-dialog.tsx');
+      const { openBindDialog } = await import('../../frontend/src/app-shell/commands/bind-dialog.ts');
       await openBindDialog();
 
       expect(makeEl('bind-dialog').classList.contains('open')).toBe(true);
@@ -412,7 +420,7 @@ describe('bind-dialog', () => {
       return undefined;
     });
 
-    const { openBindDialog } = await import('../../frontend/src/app-shell/bind-dialog.tsx');
+    const { openBindDialog } = await import('../../frontend/src/app-shell/commands/bind-dialog.ts');
     await openBindDialog();
 
     expect(makeEl('bind-status').textContent).toBe('The local Keychain is unavailable.');
@@ -426,7 +434,7 @@ describe('bind-dialog', () => {
     const log = vi.spyOn(console, 'info').mockImplementation(() => {});
     qrMocks.toCanvas.mockImplementation((canvas, text, opts, cb) => cb(new Error('render failed')));
 
-    const { openBindDialog } = await import('../../frontend/src/app-shell/bind-dialog.tsx');
+    const { openBindDialog } = await import('../../frontend/src/app-shell/commands/bind-dialog.ts');
     await openBindDialog();
 
     expect(makeEl('bind-status').textContent).toBe('Unable to generate a binding code.');

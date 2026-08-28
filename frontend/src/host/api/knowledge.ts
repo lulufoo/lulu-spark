@@ -1,5 +1,5 @@
 // @ts-nocheck — HTTP payloads stay unchecked like checkJs:false.
-import { getKbHidePattern } from '../../corpus/corpus-hide-pattern.js';
+import { getKbHidePattern } from '../../corpus/state/hide-pattern.ts';
 import { getReadDriver, normalizeReadError, readGet, writePost } from './transport.ts';
 
 export async function fetchKbFileContent(repo, path) {

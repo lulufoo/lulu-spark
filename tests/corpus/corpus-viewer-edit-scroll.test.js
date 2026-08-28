@@ -1,9 +1,8 @@
 // Node environment — uses global document stub (same pattern as viewer-badge.test.js)
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
-const { elements, makeEl, clickHandlers } = vi.hoisted(() => {
+const { elements, makeEl } = vi.hoisted(() => {
   const elements = {};
-  const clickHandlers = {};
 
   const makeEl = (id = '') => {
     if (id && elements[id]) return elements[id];
@@ -21,9 +20,7 @@ const { elements, makeEl, clickHandlers } = vi.hoisted(() => {
           else if (this._set.has(cls)) this._set.delete(cls); else this._set.add(cls);
         },
       },
-      addEventListener(type, handler) {
-        if (type === 'click' && id) clickHandlers[id] = handler;
-      },
+      addEventListener() {},
       children: [],
       appendChild(child) { this.children.push(child); return child; },
       querySelectorAll: () => [],
@@ -58,7 +55,7 @@ const { elements, makeEl, clickHandlers } = vi.hoisted(() => {
   globalThis.requestAnimationFrame = (fn) => fn();
   globalThis.marked = undefined;
 
-  return { elements, makeEl, clickHandlers };
+  return { elements, makeEl };
 });
 
 vi.mock('../../frontend/src/host/api.ts', () => ({
@@ -71,27 +68,32 @@ vi.mock('../../frontend/src/host/state.ts', async () => {
   const actual = await vi.importActual('../../frontend/src/host/state.ts');
   return actual;
 });
-vi.mock('../../frontend/src/corpus/corpus-comments.tsx', () => ({
+vi.mock('../../frontend/src/corpus/ui/comments.tsx', () => ({
   renderKbComments: vi.fn(),
   initKbComments: vi.fn(),
   cleanupKbComments: vi.fn(),
   initKbCommentEvents: vi.fn(),
+  KbCommentsBar: () => null,
+  KbCommentFloatNav: () => null,
 }));
 vi.mock('../../frontend/src/doc-editor/highlights.ts', () => ({
   applyCachedHighlights: vi.fn(),
   initDocHighlightOverlay: vi.fn(),
   cleanupDocHighlightOverlay: vi.fn(),
 }));
-vi.mock('../../frontend/src/corpus/corpus-links-bar.tsx', () => ({ renderKbLinksBar: vi.fn() }));
+vi.mock('../../frontend/src/corpus/ui/links-bar.tsx', () => ({
+  renderKbLinksBar: vi.fn(),
+  KbLinksBar: () => null,
+}));
 
 import { state } from '../../frontend/src/host/state.ts';
-import { saveKbDoc } from '../../frontend/src/corpus/corpus-viewer.ts';
+import { saveKbDoc, _kbEnterEditMode } from '../../frontend/src/corpus/viewer.ts';
 
 function enterKbEditMode() {
-  clickHandlers['kb-btn-edit']();
+  _kbEnterEditMode();
 }
 
-describe('_kbEnterEditMode (via #kb-btn-edit click)', () => {
+describe('_kbEnterEditMode (via command, not import-time #kb-btn-edit)', () => {
   beforeEach(() => {
     for (const el of Object.values(elements)) {
       el.style = {};
@@ -103,8 +105,8 @@ describe('_kbEnterEditMode (via #kb-btn-edit click)', () => {
     state.viewer.rawText = '';
   });
 
-  it('registers click handler on #kb-btn-edit', () => {
-    expect(clickHandlers['kb-btn-edit']).toBeTypeOf('function');
+  it('exports _kbEnterEditMode as a command', () => {
+    expect(_kbEnterEditMode).toBeTypeOf('function');
   });
 
   it('resets #kb-md-edit-area scrollTop to 0', () => {

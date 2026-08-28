@@ -18,12 +18,12 @@ vi.mock('../../frontend/src/host/api.ts', () => ({
   getReindexStatus: (...args) => apiMocks.getReindexStatus(...args),
 }));
 
-vi.mock('../../frontend/src/notes/search.tsx', () => ({
+vi.mock('../../frontend/src/notes/ui/search.tsx', () => ({
   closeWorkbenchSearch: vi.fn(),
   initWorkbenchSearch: vi.fn(),
 }));
 
-import { applySearchNavChrome } from '../../frontend/src/app-shell/nav-chrome.ts';
+import { applySearchNavChrome } from '../../frontend/src/app-shell/ui/nav-chrome.ts';
 import { readMainSource } from '../helpers/read-frontend-js.js';
 
 const fixtureRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
@@ -77,19 +77,19 @@ function installLocalStorageMock() {
 /** Mirrors main.js wrapRouteMount + corpus-doc mount contract under test. */
 async function simulateCorpusRouteMount() {
   applySearchNavChrome('corpus-doc');
-  const { initCorpusSearch } = await import('../../frontend/src/corpus/corpus-search.tsx');
+  const { initCorpusSearch } = await import('../../frontend/src/corpus/ui/search.tsx');
   initCorpusSearch();
 }
 
 async function loadCorpusSearchModule() {
   vi.resetModules();
-  return import('../../frontend/src/corpus/corpus-search.tsx');
+  return import('../../frontend/src/corpus/ui/search.tsx');
 }
 
 describe('main.js corpus-doc route init wiring (source)', () => {
   it('imports initCorpusSearch from corpus-search.tsx', () => {
     expect(mainJs).toMatch(
-      /import\s*\{[^}]*initCorpusSearch[^}]*\}\s*from\s*'[^']*corpus\/corpus-search\.tsx'/,
+      /import\s*\{[^}]*initCorpusSearch[^}]*\}\s*from\s*'[^']*corpus\/ui\/search\.tsx'/,
     );
   });
 

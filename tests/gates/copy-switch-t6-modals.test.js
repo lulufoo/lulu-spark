@@ -6,26 +6,39 @@ import { readFrontendJs, readMainSource } from '../helpers/read-frontend-js.js';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
 
-const mainJs = readMainSource();
-const commitDialogJs = readFrontendJs('frontend/src/app-shell/commit-dialog.tsx');
+const mainJs = [
+  readMainSource(),
+  readFrontendJs('frontend/src/notes/page.tsx'),
+].join('\n');
+const commitDialogJs = [
+  readFrontendJs('frontend/src/app-shell/ui/commit-dialog.tsx'),
+  readFrontendJs('frontend/src/app-shell/commands/commit-dialog.ts'),
+  readFrontendJs('frontend/src/app-shell/state/commit-changes.ts'),
+].join('\n');
 const deleteDialogJs = readFileSync(
-  join(repoRoot, 'frontend/src/notes/delete-dialog.tsx'),
+  join(repoRoot, 'frontend/src/notes/ui/delete-dialog.tsx'),
   'utf8',
 );
-const moveDialogJs = readFileSync(
-  join(repoRoot, 'frontend/src/app-shell/move-dialog.tsx'),
-  'utf8',
-);
-const settleDialogJs = readFrontendJs('frontend/src/notes/settle-dialog.tsx');
+const moveDialogJs = [
+  readFrontendJs('frontend/src/app-shell/ui/move-dialog.tsx'),
+  readFrontendJs('frontend/src/app-shell/commands/move-dialog.ts'),
+].join('\n');
+const settleDialogJs = [
+  readFrontendJs('frontend/src/notes/ui/settle-dialog.tsx'),
+  readFrontendJs('frontend/src/notes/commands/settle-dialog.ts'),
+].join('\n');
 const modalSources = [
   commitDialogJs,
   deleteDialogJs,
   moveDialogJs,
   settleDialogJs,
-  readFrontendJs('frontend/src/corpus/corpus-diff-dialog.tsx'),
-  readFrontendJs('frontend/src/app-shell/convert-dialog.tsx'),
-  readFrontendJs('frontend/src/notes/move-project-dialog.tsx'),
-  readFrontendJs('frontend/src/app-shell/qr-dialog.tsx'),
+  readFrontendJs('frontend/src/corpus/ui/diff-dialog.tsx'),
+  readFrontendJs('frontend/src/app-shell/ui/convert-dialog.tsx'),
+  readFrontendJs('frontend/src/app-shell/commands/convert-dialog.ts'),
+  readFrontendJs('frontend/src/notes/ui/move-project-dialog.tsx'),
+  readFrontendJs('frontend/src/notes/commands/move-project-dialog.ts'),
+  readFrontendJs('frontend/src/app-shell/ui/qr-dialog.tsx'),
+  readFrontendJs('frontend/src/app-shell/commands/qr-dialog.ts'),
 ].join('\n');
 
 

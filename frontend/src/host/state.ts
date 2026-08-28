@@ -47,6 +47,7 @@ export const state = {
     githubUserUrl: '',
     activeTopic: null,
     activeTagKey: null,
+    loadError: null,
   },
   viewer: {
     entry: null,
@@ -61,6 +62,17 @@ export const state = {
     kbPath: null,
     /** @type {{ tempId: string, status: 'creating' | 'saving' } | null} */
     createSession: null,
+    /** @type {'' | 'open' | 'create' | 'safe-empty'} */
+    outletMode: '',
+    outletMessage: '',
+    fileSize: '',
+    loadError: '',
+    loading: false,
+    editing: false,
+    saving: false,
+    pendingCommit: false,
+    bodyPaintKey: 0,
+    panelTitle: '',
   }
 }
 

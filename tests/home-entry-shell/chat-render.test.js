@@ -3,10 +3,10 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   renderHomeChatMarkdown,
   hydrateHomeChatMarkdown,
-} from '../../frontend/src/home/chat-render.ts';
+} from '../../frontend/src/home/ui/chat-render.ts';
 import { readFrontendJs } from '../helpers/read-frontend-js.js';
 
-const source = readFrontendJs('frontend/src/home/chat-render.ts');
+const source = readFrontendJs('frontend/src/home/ui/chat-render.ts');
 
 describe('home-chat-render isolation', () => {
   it('is a standalone chat renderer and does not import the Notes editor', () => {

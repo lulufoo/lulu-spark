@@ -6,8 +6,8 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { createElement } from 'react';
 import { readShellHtml } from '../helpers/read-frontend-js.js';
 import { renderToHtml } from '../../frontend/src/island.ts';
-import { Shell } from '../../frontend/src/shell.tsx';
-import { readHostApiSource, readSettingsDialogSource } from '../helpers/read-frontend-js.js';
+import { SettingsDialog } from '../../frontend/src/app-shell/ui/settings/dialog.tsx';
+import { listFrontendSourceFiles, readHostApiSource } from '../helpers/read-frontend-js.js';
 
 vi.mock('../../frontend/src/host/api.ts', () => ({
   fetchConfig: vi.fn(),
@@ -20,8 +20,12 @@ vi.mock('../../frontend/src/host/api.ts', () => ({
 import * as api from '../../frontend/src/host/api.ts';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '../..');
-const indexHtml = readShellHtml();
-const settingsDialogSrc = readSettingsDialogSource();
+const appShellSrc = listFrontendSourceFiles(join(root, 'frontend/src/app-shell'))
+  .sort()
+  .map((abs) => readFileSync(abs, 'utf8'))
+  .join('\n');
+const indexHtml = [readShellHtml(), appShellSrc].join('\n');
+const settingsDialogSrc = appShellSrc;
 const apiSrc = readHostApiSource();
 
 const MCP_PORT = 19876;
@@ -32,7 +36,7 @@ const NEW_HANDLE = 'ticket-opened-new';
 const ROTATED_HANDLE = 'ticket-after-rotate';
 
 function mountSettingsDom() {
-  document.body.innerHTML = renderToHtml(createElement(Shell));
+  document.body.innerHTML = renderToHtml(createElement(SettingsDialog));
 }
 
 function baseConfig(overrides = {}) {
@@ -92,7 +96,7 @@ function invokedNames() {
 
 async function openMcpPanel() {
   const { openSettingsDialog } = await import(
-    '../../frontend/src/app-shell/settings-dialog.tsx'
+    '../../frontend/src/app-shell/commands/settings/dialog.ts'
   );
   await openSettingsDialog({ panel: 'mcp' });
 }
@@ -182,7 +186,7 @@ describe('Settings MCP panel actions', () => {
     api.inferGithubUserUrl.mockResolvedValue({});
     api.checkWorkbenchKnowledgeRoot.mockResolvedValue({ ok: true });
     api.invoke.mockResolvedValue({ handle: LIVE_HANDLE });
-    await import('../../frontend/src/app-shell/settings-dialog.tsx');
+    await import('../../frontend/src/app-shell/commands/settings/dialog.ts');
   });
 
   afterEach(() => {

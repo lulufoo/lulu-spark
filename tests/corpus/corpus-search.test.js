@@ -43,7 +43,7 @@ function installLocalStorageMock() {
 
 async function loadModule() {
   vi.resetModules();
-  return import('../../frontend/src/corpus/corpus-search.tsx');
+  return import('../../frontend/src/corpus/ui/search.tsx');
 }
 
 describe('corpus-search module', () => {

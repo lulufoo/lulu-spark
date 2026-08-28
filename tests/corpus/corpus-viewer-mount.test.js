@@ -25,10 +25,12 @@ vi.mock('../../frontend/src/host/api.ts', () => ({
   getReindexStatus: vi.fn(),
 }));
 
-vi.mock('../../frontend/src/corpus/corpus-comments.tsx', () => ({
+vi.mock('../../frontend/src/corpus/ui/comments.tsx', () => ({
   renderKbComments: vi.fn(),
   initKbComments: vi.fn(),
   cleanupKbComments: vi.fn(),
+  KbCommentsBar: () => null,
+  KbCommentFloatNav: () => null,
 }));
 
 vi.mock('../../frontend/src/doc-editor/highlights.ts', () => ({
@@ -37,8 +39,9 @@ vi.mock('../../frontend/src/doc-editor/highlights.ts', () => ({
   cleanupDocHighlightOverlay: vi.fn(),
 }));
 
-vi.mock('../../frontend/src/corpus/corpus-links-bar.tsx', () => ({
+vi.mock('../../frontend/src/corpus/ui/links-bar.tsx', () => ({
   renderKbLinksBar: vi.fn(),
+  KbLinksBar: () => null,
 }));
 
 vi.mock('../../frontend/src/shared/mermaid-render.ts', () => ({
@@ -46,7 +49,7 @@ vi.mock('../../frontend/src/shared/mermaid-render.ts', () => ({
 }));
 
 import { state } from '../../frontend/src/host/state.ts';
-import { mountKbReader } from '../../frontend/src/corpus/corpus-viewer.ts';
+import { mountKbReader } from '../../frontend/src/corpus/viewer.ts';
 
 function deferred() {
   let resolve;

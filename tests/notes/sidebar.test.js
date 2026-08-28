@@ -4,7 +4,8 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 vi.mock('../../frontend/src/shared/utils.ts', () => ({
   formatDate: () => ({ full: '2025-01-01', label: '01-01', year: '2025', weekday: 'Wed' }),
 }));
-vi.mock('../../frontend/src/notes/cards.tsx', () => ({ renderDocList: vi.fn(), loadTitles: vi.fn() }));
+vi.mock('../../frontend/src/notes/ui/cards.tsx', () => ({ renderDocList: vi.fn(), loadTitles: vi.fn() }));
+vi.mock('../../frontend/src/notes/commands/cards.ts', () => ({ loadTitles: vi.fn() }));
 vi.mock('../../frontend/src/router/index.ts', () => ({
   parseHash: vi.fn(() => ({ name: 'workbench', params: {} })),
   navigateToDateList: vi.fn(),
@@ -12,16 +13,16 @@ vi.mock('../../frontend/src/router/index.ts', () => ({
 
 import { state } from '../../frontend/src/host/state.ts';
 import { parseHash, navigateToDateList } from '../../frontend/src/router/index.ts';
+import { renderSidebar } from '../../frontend/src/notes/ui/sidebar.tsx';
 import {
-  buildGroups,
-  selectTopic,
-  selectTag,
-  clearTagFilter,
-  renderSidebar,
   applyListFilters,
+  buildGroups,
+  clearTagFilter,
   selectDate,
-} from '../../frontend/src/notes/sidebar.tsx';
-import { renderDocList } from '../../frontend/src/notes/cards.tsx';
+  selectTag,
+  selectTopic,
+} from '../../frontend/src/notes/commands/sidebar.ts';
+import { renderDocList } from '../../frontend/src/notes/ui/cards.tsx';
 
 const makeGroup = (date, topics, tagKeys = []) => ({
   date,
@@ -254,7 +255,7 @@ describe('sidebar channel nav', () => {
   });
 
   it('does not export selectReadLaterChannel', async () => {
-    const mod = await import('../../frontend/src/notes/sidebar.tsx');
+    const mod = await import('../../frontend/src/notes/ui/sidebar.tsx');
     expect(mod.selectReadLaterChannel).toBeUndefined();
   });
 });
@@ -314,7 +315,7 @@ describe('selectDate while note/create active → list via location', () => {
     });
     selectDate('20260718');
     expect(navigateToDateList).not.toHaveBeenCalled();
-    expect(renderDocList).toHaveBeenCalled();
+    expect(renderDocList).not.toHaveBeenCalled();
     expect(state.ui.activeDate).toBe('20260718');
   });
 });

@@ -15,7 +15,7 @@ vi.mock('../../frontend/src/host/api.ts', () => ({
 
 async function loadModule() {
   vi.resetModules();
-  return import('../../frontend/src/corpus/corpus-knowledge-search.tsx');
+  return import('../../frontend/src/corpus/ui/knowledge-search.tsx');
 }
 
 function seedPanel() {

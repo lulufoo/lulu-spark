@@ -25,8 +25,8 @@ import {
   loadAssistantEntries,
   mountReadLaterAssistant,
   selectTop3Latest,
-} from '../../frontend/src/read-later/assistant.tsx';
-import { openExternalUrl } from '../../frontend/src/read-later/list.tsx';
+} from '../../frontend/src/read-later/ui/assistant.tsx';
+import { openExternalUrl } from '../../frontend/src/read-later/commands/list.ts';
 import { readMainSource } from '../helpers/read-frontend-js.js';
 
 const fixtureRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');

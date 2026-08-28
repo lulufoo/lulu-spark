@@ -1,31 +1,29 @@
 // @ts-nocheck — large port; DOM wiring stays unchecked like checkJs:false.
 import { state, loadDiffStatus, mergeAnnotations, notifyState } from './host/state.ts'
-import { escHtml } from './shared/utils.ts'
 import { LAYERS, setGithubUserUrl } from './host/constants.ts'
 import * as api from './host/api.ts'
-import { buildGroups, renderSidebar, selectDate, applyListFilters, selectTag } from './notes/sidebar.tsx'
-import { initSidebarResize } from './notes/sidebar-resize.ts'
+import { buildGroups, selectDate, applyListFilters, selectTag } from './notes/commands/sidebar.ts'
 import { openCreateNote } from './notes/viewer.ts'
-import './notes/comments.tsx'
-import './corpus/corpus-viewer.ts'
-import './app-shell/commit-dialog.tsx'
-import './app-shell/qr-dialog.tsx'
+import './notes/ui/comments.tsx'
+import './corpus/viewer.ts'
+import './app-shell/ui/commit-dialog.tsx'
+import './app-shell/ui/qr-dialog.tsx'
 import { navigate, navigateToNote } from './router/index.ts'
 import { setRouteHandlers } from './route-handlers.ts'
-import { openReadLaterDialog } from './read-later/dialog.tsx'
+import { openReadLaterDialog } from './read-later/commands/dialog.ts'
 import { getBaselineEntries } from './home-entry-shell/entry-config.ts'
 import { createContentRegistry } from './home-entry-shell/content-registry.ts'
 import { mountHomeEntryShell } from './home-entry-shell/shell.tsx'
-import { createReadLaterContentAdapter } from './read-later/assistant.tsx'
-import { createTodoTaskContentAdapter } from './todo-task/assistant.tsx'
-import { createNotesContentAdapter } from './notes/assistant.tsx'
-import { createBuildersContentAdapter } from './builders/assistant.tsx'
-import { setWorkbenchBinding } from './todo-task/binding.ts'
-import { initHeaderSync } from './app-shell/header-sync.ts'
-import { normalizeCorpusIndex } from './corpus/corpus-index.ts'
-import './app-shell/sediment-kb.tsx'
-import { initTooltip } from './app-shell/tooltip.ts'
-import './app-shell/skills-dialog.tsx'
+import { createReadLaterContentAdapter } from './read-later/ui/assistant.tsx'
+import { createTodoTaskContentAdapter } from './todo-task/ui/assistant.tsx'
+import { createNotesContentAdapter } from './notes/ui/assistant.tsx'
+import { createBuildersContentAdapter } from './builders/ui/assistant.tsx'
+import { setWorkbenchBinding } from './todo-task/commands/binding.ts'
+import { initHeaderSync } from './app-shell/commands/header-sync.ts'
+import { normalizeCorpusIndex } from './corpus/state/index.ts'
+import './app-shell/ui/settings/sediment-kb.tsx'
+import { initTooltip } from './app-shell/ui/tooltip.ts'
+import './app-shell/ui/skills-dialog.tsx'
 import {
   getHomeEntryShell,
   mountCorpusDocRoute,
@@ -48,11 +46,10 @@ async function loadIndex({ managedBtn = false } = {}) {
     state.index.groupedByDate = buildGroups(state.index.data);
     state.ui.activeTopic = null;
     state.ui.activeTagKey = null;
+    state.ui.loadError = null;
     applyListFilters();
-    renderSidebar();
     await Promise.all([loadDiffStatus(), loadAnnotationsSummary(), loadTagsRegistry()]);
     applyListFilters();
-    renderSidebar();
     const savedDate = sessionStorage.getItem('cta_active_date');
     const targetDate = (savedDate && state.index.filteredGroups.find(g => g.date === savedDate))
       ? savedDate
@@ -87,19 +84,8 @@ async function loadTagsRegistry() {
 // ── Error display ──────────────────────────────────────────────────────────
 
 function showError(msg) {
-  const status = document.getElementById('status');
-  status.style.display = '';
-  const errDiv = document.createElement('div');
-  errDiv.className = 'error-msg';
-  errDiv.innerHTML = escHtml(msg) + '<br>';
-  const retryBtn = document.createElement('button');
-  retryBtn.textContent = 'Retry';
-  retryBtn.addEventListener('click', loadIndex);
-  errDiv.appendChild(retryBtn);
-  status.innerHTML = '';
-  status.appendChild(errDiv);
-  document.getElementById('date-heading').style.display = 'none';
-  document.getElementById('doc-list').innerHTML = '';
+  state.ui.loadError = msg;
+  notifyState();
 }
 
 // ── Pull project ───────────────────────────────────────────────────────────
@@ -153,7 +139,6 @@ api.fetchTopics().then(data => {
   state.index.topicDescriptions = descMap;
   state.index.topicRepos = repoMap;
 }).catch(() => {});
-initSidebarResize();
 initTooltip();
 loadIndex();
 
@@ -256,7 +241,7 @@ function registerTagsReconciledListener() {
   const onReconciled = async () => {
     await Promise.all([loadTagsRegistry(), loadAnnotationsSummary()]);
     applyListFilters();
-    renderSidebar();
+    notifyState();
   };
   const tryAttach = () => {
     const listen = typeof window !== 'undefined' && window.__TAURI__?.event?.listen;

@@ -6,22 +6,22 @@ vi.mock('../../frontend/src/host/api.ts', () => ({
   getReindexStatus: vi.fn(),
 }));
 
-vi.mock('../../frontend/src/corpus/corpus-diff-dialog.tsx', () => ({
+vi.mock('../../frontend/src/corpus/ui/diff-dialog.tsx', () => ({
   openKbDiffDialog: vi.fn(),
 }));
 
-vi.mock('../../frontend/src/app-shell/commit-dialog.tsx', () => ({
+vi.mock('../../frontend/src/app-shell/commands/commit-dialog.ts', () => ({
   openCommitChangesDialog: vi.fn(),
 }));
 
 import * as api from '../../frontend/src/host/api.ts';
-import { openKbDiffDialog } from '../../frontend/src/corpus/corpus-diff-dialog.tsx';
-import { openCommitChangesDialog } from '../../frontend/src/app-shell/commit-dialog.tsx';
+import { openKbDiffDialog } from '../../frontend/src/corpus/ui/diff-dialog.tsx';
+import { openCommitChangesDialog } from '../../frontend/src/app-shell/commands/commit-dialog.ts';
 import {
   initHeaderSync,
   setHeaderSyncCorpusContext,
   clearHeaderSyncCorpusContext,
-} from '../../frontend/src/app-shell/header-sync.ts';
+} from '../../frontend/src/app-shell/commands/header-sync.ts';
 
 describe('header-sync', () => {
   beforeEach(() => {

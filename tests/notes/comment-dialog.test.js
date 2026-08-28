@@ -16,7 +16,7 @@ import {
   NoteCommentDialog,
   openCommentDialog,
   closeCommentDialog,
-} from '../../frontend/src/notes/comments.tsx';
+} from '../../frontend/src/notes/ui/comments.tsx';
 
 function mountNoteCommentDialog() {
   document.body.innerHTML = '<div id="comment-dialog-host"></div>';

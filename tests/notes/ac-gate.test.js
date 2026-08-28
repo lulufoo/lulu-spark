@@ -7,7 +7,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { readFrontendJs, readShellHtml } from '../helpers/read-frontend-js.js';
+import { readFrontendJs, readNotesViewerSource, readShellHtml } from '../helpers/read-frontend-js.js';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
 
@@ -25,12 +25,15 @@ describe('Note AC gate (tech-doc VF / T-13)', () => {
   });
 
   it('AC-2: FAB Top-N ≤3 by created_at only; open via cta:open-entry', () => {
-    const assistant = read('frontend/src/notes/assistant.tsx');
-    expect(assistant).toMatch(/export function selectTopNotesByCreatedAt/);
-    expect(assistant).toMatch(/\.slice\(0,\s*3\)/);
-    expect(assistant).toMatch(/created_at/);
+    const assistant = read('frontend/src/notes/ui/assistant.tsx');
+    const assistantCommands = read('frontend/src/notes/commands/assistant.ts');
+    const selectors = read('frontend/src/notes/state/selectors.ts');
+    expect(assistantCommands).toMatch(/selectTopNotesByCreatedAt/);
+    expect(selectors).toMatch(/export function selectTopNotesByCreatedAt/);
+    expect(selectors).toMatch(/\.slice\(0,\s*3\)/);
+    expect(selectors).toMatch(/created_at/);
     // Sort comparator must not read updated_at
-    expect(assistant).not.toMatch(/b\.updated_at|a\.updated_at/);
+    expect(selectors).not.toMatch(/b\.updated_at|a\.updated_at/);
     expect(assistant).toMatch(/cta:open-entry/);
 
     const behavioral = read('tests/notes/assistant.test.js');
@@ -41,7 +44,7 @@ describe('Note AC gate (tech-doc VF / T-13)', () => {
 
   it('AC-3: create append-only via archiveDocument(source_type=note); not Overlay', () => {
     // Read create.js alone (no re-export follow) so comment write APIs elsewhere do not pollute.
-    const create = readFileSync(join(repoRoot, 'frontend/src/notes/viewer/create.ts'), 'utf8');
+    const create = readFileSync(join(repoRoot, 'frontend/src/notes/commands/viewer/create.ts'), 'utf8');
     expect(create).toMatch(
       /archiveDocument\(\{\s*body:\s*trimmed,\s*source_type:\s*'note'\s*\}\)/,
     );
@@ -57,7 +60,7 @@ describe('Note AC gate (tech-doc VF / T-13)', () => {
   });
 
   it('AC-4: create/edit share viewer.js shell — no second editor module', () => {
-    const viewer = read('frontend/src/notes/viewer.ts');
+    const viewer = readNotesViewerSource();
     expect(viewer).toMatch(/export async function openDoc\s*\(/);
     expect(viewer).toMatch(/export async function openCreateNote\s*\(/);
     expect(existsSync(join(repoRoot, 'frontend/src/components/note-editor.js'))).toBe(false);
@@ -66,9 +69,17 @@ describe('Note AC gate (tech-doc VF / T-13)', () => {
 
   it('AC-5: management surfaces have no note create; CRUD stays save_entry/delete_entry', () => {
     for (const rel of [
-      'frontend/src/notes/sidebar.tsx',
-      'frontend/src/notes/cards.tsx',
-      'frontend/src/home/hub.tsx',
+      'frontend/src/notes/ui/sidebar.tsx',
+      'frontend/src/notes/commands/sidebar.ts',
+      'frontend/src/notes/ui/cards.tsx',
+      'frontend/src/notes/commands/cards.ts',
+      'frontend/src/notes/commands/assistant.ts',
+      'frontend/src/notes/commands/delete-dialog.ts',
+      'frontend/src/notes/commands/settle-dialog.ts',
+      'frontend/src/notes/commands/move-project-dialog.ts',
+      'frontend/src/notes/commands/viewer/doc.ts',
+      'frontend/src/notes/commands/viewer/commit.ts',
+      'frontend/src/home/page.tsx',
     ]) {
       const src = read(rel);
       expect(src, rel).not.toMatch(/openCreateNote/);
@@ -85,9 +96,8 @@ describe('Note AC gate (tech-doc VF / T-13)', () => {
 
   it('AC-6: Overlay user-visible copy is 批注 (not 添加笔记)', () => {
     for (const rel of [
-      'frontend/src/notes/comments.tsx',
-      'frontend/src/corpus/corpus-comments.tsx',
-      'frontend/src/corpus/corpus-viewer.ts',
+      'frontend/src/notes/ui/comments.tsx',
+      'frontend/src/corpus/ui/comments.tsx',
     ]) {
       const src = read(rel);
       expect(src, rel).toMatch(/Comment/);
@@ -99,7 +109,7 @@ describe('Note AC gate (tech-doc VF / T-13)', () => {
   });
 
   it('AC-7: archive failure keeps create session + draft (behavioral probe present)', () => {
-    const viewer = read('frontend/src/notes/viewer.ts');
+    const viewer = readNotesViewerSource();
     expect(viewer).toMatch(/session\.status = 'creating'/);
     expect(viewer).toMatch(/alert\(`Save failed: \$\{e\.message\}`\)/);
     const behavioral = read('tests/notes/viewer-create-note.test.js');
@@ -108,7 +118,7 @@ describe('Note AC gate (tech-doc VF / T-13)', () => {
   });
 
   it('AC-8: empty exit clears draft, no Primary create (behavioral probe present)', () => {
-    const viewer = read('frontend/src/notes/viewer.ts');
+    const viewer = readNotesViewerSource();
     expect(viewer).toMatch(/if \(!trimmed\)/);
     expect(viewer).toMatch(/clearNoteDraft\(session\.tempId\)/);
     const behavioral = read('tests/notes/viewer-create-note.test.js');
@@ -116,14 +126,14 @@ describe('Note AC gate (tech-doc VF / T-13)', () => {
   });
 
   it('AC-9: create locks source_type/topic — no mutation controls', () => {
-    const viewer = read('frontend/src/notes/viewer.ts');
+    const viewer = readNotesViewerSource();
     expect(viewer).not.toMatch(/create-source-type|create-topic|name=["']source_type["']/);
     const behavioral = read('tests/notes/viewer-create-note.test.js');
     expect(behavioral).toMatch(/create flow has no source_type\/topic mutation controls/);
   });
 
   it('AC-10: create success navigates note=common_path; empty exit lands list via navigateBackToList', () => {
-    const viewer = read('frontend/src/notes/viewer.ts');
+    const viewer = readNotesViewerSource();
     // create success: navigateToNote with archiveDocument common_path (tech-doc T5 / chap-ar)
     expect(viewer).toMatch(/navigateToNote/);
     expect(viewer).toMatch(/common_path/);
@@ -172,7 +182,7 @@ describe('Note AC gate (tech-doc VF / T-13)', () => {
   });
 
   it('AC-11: create chrome hides shell-field controls (body-only)', () => {
-    const viewer = read('frontend/src/notes/viewer.ts');
+    const viewer = readNotesViewerSource();
     expect(viewer).toMatch(/CREATE_CHROME_HIDDEN_IDS/);
     expect(viewer).toMatch(/applyCreateChrome/);
     expect(viewer).toMatch(/is-create/);
@@ -186,7 +196,7 @@ describe('Note AC gate (tech-doc VF / T-13)', () => {
   });
 
   it('VF falsifiable: create must not target annotations/ Overlay path', () => {
-    const create = readFileSync(join(repoRoot, 'frontend/src/notes/viewer/create.ts'), 'utf8');
+    const create = readFileSync(join(repoRoot, 'frontend/src/notes/commands/viewer/create.ts'), 'utf8');
     const finalize = create.slice(
       create.indexOf('async function finalizeCreateSession'),
       create.indexOf('export async function closeModal'),

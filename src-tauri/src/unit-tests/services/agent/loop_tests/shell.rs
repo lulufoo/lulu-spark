@@ -387,8 +387,9 @@ fn t3_host_facade_open_ensure_chat_works_host_only() {
 
 #[test]
 fn t4_hub_and_shell_close_are_not_reset_paths() {
-    let shell = repo_file("frontend/src/home-entry-shell/shell.js");
-    let note_assistant = repo_file("frontend/src/notes/assistant.js");
+    let shell = repo_file("frontend/src/home-entry-shell/shell.tsx");
+    let note_assistant = repo_file("frontend/src/notes/ui/assistant.tsx");
+    let note_assistant_commands = repo_file("frontend/src/notes/commands/assistant.ts");
     assert!(
         !shell.contains("reset_binding")
             && !shell.contains("resetNotesBinding")
@@ -398,7 +399,10 @@ fn t4_hub_and_shell_close_are_not_reset_paths() {
     assert!(
         !note_assistant.contains("reset_binding")
             && !note_assistant.contains("resetNotesBinding")
-            && !note_assistant.contains("resetTodosBinding"),
+            && !note_assistant.contains("resetTodosBinding")
+            && !note_assistant_commands.contains("reset_binding")
+            && !note_assistant_commands.contains("resetNotesBinding")
+            && !note_assistant_commands.contains("resetTodosBinding"),
         "note-assistant / close-shell path must not Reset Binding"
     );
 }
@@ -406,7 +410,8 @@ fn t4_hub_and_shell_close_are_not_reset_paths() {
 #[test]
 fn t4_main_and_sidebar_wire_notes_set_without_new_runtime() {
     let main = repo_file("frontend/src/boot.ts");
-    let sidebar = repo_file("frontend/src/notes/sidebar.tsx");
+    let sidebar = repo_file("frontend/src/notes/ui/sidebar.tsx");
+    let sidebar_commands = repo_file("frontend/src/notes/commands/sidebar.ts");
     let lifecycle = repo_file("frontend/src/todo-task/lifecycle.ts");
     assert!(
         main.contains("setWorkbenchBinding")
@@ -419,7 +424,13 @@ fn t4_main_and_sidebar_wire_notes_set_without_new_runtime() {
         "sidebar.js selectDate path must not Set Binding"
     );
     assert!(
-        !main.contains("new Agent") && !sidebar.contains("new Agent"),
+        !sidebar_commands.contains("buildNotesBinding") && !sidebar_commands.contains("set_binding"),
+        "sidebar-commands.ts selectDate path must not Set Binding"
+    );
+    assert!(
+        !main.contains("new Agent")
+            && !sidebar.contains("new Agent")
+            && !sidebar_commands.contains("new Agent"),
         "must not start a separate assistant runtime"
     );
     assert!(

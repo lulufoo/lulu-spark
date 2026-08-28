@@ -87,7 +87,7 @@ describe('ai-assistant window shell (t5)', () => {
 
   it('Todos Set does not provision a chat session', () => {
     const todosBinding = readFileSync(
-      join(repoRoot, 'frontend/src/todo-task/binding.ts'),
+      join(repoRoot, 'frontend/src/todo-task/commands/binding.ts'),
       'utf8',
     );
     expect(todosBinding).not.toMatch(/ensure_ai_assistant_session/);

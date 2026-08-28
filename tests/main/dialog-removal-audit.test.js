@@ -6,7 +6,10 @@ import { readShellHtml } from '../helpers/read-frontend-js.js';
 import { readMainSource, readNotesViewerSource } from '../helpers/read-frontend-js.js';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
-const indexHtml = readShellHtml();
+const indexHtml = [
+  readShellHtml(),
+  readFileSync(join(repoRoot, 'frontend/src/notes/page.tsx'), 'utf8'),
+].join('\n');
 const appCss = readFileSync(join(repoRoot, 'frontend/app.css'), 'utf8');
 const viewerJs = readNotesViewerSource();
 const mainJs = readMainSource();
@@ -39,10 +42,11 @@ function extractById(html, id) {
 
 describe('T9 Dialog removal audit (tech-doc T9 / SK-P3)', () => {
   it('keeps a single workbench note chrome tree under #note-outlet', () => {
-    const outlet = extractById(indexHtml, 'note-outlet');
-    expect(outlet).toMatch(/id="md-panel"/);
-    expect(outlet).toMatch(/id="note-outlet-message"/);
+    expect(indexHtml).toMatch(/id="note-outlet"/);
+    expect(indexHtml).toMatch(/id="md-panel"/);
+    expect(indexHtml).toMatch(/id="note-outlet-message"/);
     expect(indexHtml.match(/id="md-panel"/g) || []).toHaveLength(1);
+    expect(indexHtml.match(/id="note-outlet"/g) || []).toHaveLength(1);
     expect(indexHtml).not.toMatch(/\bid="md-modal"/);
     expect(indexHtml).not.toMatch(/\bid="md-backdrop"/);
   });
@@ -66,7 +70,7 @@ describe('T9 Dialog removal audit (tech-doc T9 / SK-P3)', () => {
     expect(viewerJs).not.toMatch(/getElementById\(\s*['"]md-backdrop['"]\s*\)/);
   });
 
-  it('mountWorkbench activateOutlet preserves #md-panel chrome (no textContent wipe)', () => {
+  it('mountWorkbench does not wipe #md-panel / outlet textContent; message stays in state', () => {
     const start = mainJs.indexOf('function mountWorkbench');
     expect(start).toBeGreaterThanOrEqual(0);
     const brace = mainJs.indexOf('{', start);
@@ -85,6 +89,6 @@ describe('T9 Dialog removal audit (tech-doc T9 / SK-P3)', () => {
     const body = mainJs.slice(start, end + 1);
     expect(body).not.toMatch(/outlet\.textContent\s*=\s*message/);
     expect(body).not.toMatch(/outlet\.textContent\s*=\s*['"]{2}/);
-    expect(body).toMatch(/note-outlet-message/);
+    expect(body).toMatch(/note-outlet-message|outletMessage/);
   });
 });

@@ -17,11 +17,11 @@ const todoTaskAssistantHtmlPath = join(
   'frontend/todo-task-assistant.html',
 );
 const homeHubJs = readFrontendJs('frontend/src/home/hub.tsx');
-const readLaterAssistantJs = readFrontendJs('frontend/src/read-later/assistant.tsx');
-const todoTaskAssistantJs = readFileSync(
-  join(repoRoot, 'frontend/src/todo-task/assistant.tsx'),
-  'utf8',
-);
+const readLaterAssistantJs = readFrontendJs('frontend/src/read-later/ui/assistant.tsx');
+const todoTaskAssistantJs = [
+  readFrontendJs('frontend/src/todo-task/ui/assistant.tsx'),
+  readFrontendJs('frontend/src/todo-task/commands/assistant.ts'),
+].join('\n');
 
 const assistantSources = [
   homeHubJs,

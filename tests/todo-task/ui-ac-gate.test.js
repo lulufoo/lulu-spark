@@ -56,7 +56,7 @@ describe('FM-4 AC gate (tech-doc VF / T-5)', () => {
   });
 
   it('I-4: todo-task write layer uses direct Tauri invoke (not fetch/local_http)', () => {
-    const src = read('frontend/src/todo-task/host.ts');
+    const src = read('frontend/src/todo-task/state/host.ts');
     expect(src).toMatch(/invokePlanWrite\('create_todo_task'/);
     expect(src).toMatch(/invokePlanWrite\('delete_todo_task'/);
     expect(src).toMatch(/invokePlanWrite\('add_todo_sub'/);
@@ -120,7 +120,7 @@ describe('Plan-task attachment AC gate (tech-doc VF / T15)', () => {
   });
 
   it('AC2/AC4/AC5: UI host.js uses verb-first attachment Tauri commands', () => {
-    const src = read('frontend/src/todo-task/host.ts');
+    const src = read('frontend/src/todo-task/state/host.ts');
     expect(src).toMatch(/invokePlanPlain\('add_todo_attachment'/);
     expect(src).toMatch(/invokePlanPlain\('list_todo_attachments'/);
     expect(src).toMatch(/invokePlanPlain\('read_todo_attachment'/);
@@ -133,19 +133,24 @@ describe('Plan-task attachment AC gate (tech-doc VF / T15)', () => {
 const TODO_TASK_UI_SOURCES = [
   'frontend/src/todo-task/index.ts',
   'frontend/src/todo-task/page.tsx',
-  'frontend/src/todo-task/page-render.tsx',
-  'frontend/src/todo-task/page-dialogs.ts',
-  'frontend/src/todo-task/page-events.ts',
-  'frontend/src/todo-task/host.ts',
-  'frontend/src/todo-task/format.ts',
-  'frontend/src/todo-task/list.tsx',
-  'frontend/src/todo-task/detail.ts',
-  'frontend/src/todo-task/detail-render.tsx',
-  'frontend/src/todo-task/plan-md.tsx',
-  'frontend/src/todo-task/attachments.tsx',
-  'frontend/src/todo-task/attachments-render.tsx',
-  'frontend/src/todo-task/comments.tsx',
-  'frontend/src/todo-task/dialog.tsx',
+  'frontend/src/todo-task/ui/page-render.tsx',
+  'frontend/src/todo-task/commands/page-dialogs.ts',
+  'frontend/src/todo-task/commands/page-events.ts',
+  'frontend/src/todo-task/state/host.ts',
+  'frontend/src/todo-task/state/format.ts',
+  'frontend/src/todo-task/ui/list.tsx',
+  'frontend/src/todo-task/commands/list.ts',
+  'frontend/src/todo-task/commands/detail.ts',
+  'frontend/src/todo-task/ui/detail.tsx',
+  'frontend/src/todo-task/ui/plan-md.tsx',
+  'frontend/src/todo-task/commands/plan-md.ts',
+  'frontend/src/todo-task/commands/attachments.ts',
+  'frontend/src/todo-task/ui/attachments.tsx',
+  'frontend/src/todo-task/ui/comments.tsx',
+  'frontend/src/todo-task/commands/comments.ts',
+  'frontend/src/todo-task/ui/dialog.tsx',
+  'frontend/src/todo-task/commands/dialog.ts',
+  'frontend/src/todo-task/state/dialog.ts',
 ];
 
 const CJK = /[\u4e00-\u9fff]/;
@@ -183,7 +188,11 @@ describe('P2 copy-switch — Plan Tasks UI (tech-doc T3)', () => {
   });
 
   it('dialog.js uses table B ∪ B2 English for CRUD copy', () => {
-    const dialog = read('frontend/src/todo-task/dialog.tsx');
+    const dialog = [
+      read('frontend/src/todo-task/ui/dialog.tsx'),
+      read('frontend/src/todo-task/commands/dialog.ts'),
+      read('frontend/src/todo-task/state/dialog.ts'),
+    ].join('\n');
     expect(dialog).toContain('New todo');
     expect(dialog).toContain('Create todo');
     expect(dialog).toContain('Please enter a todo name');
@@ -208,13 +217,17 @@ describe('P2 copy-switch — Plan Tasks UI (tech-doc T3)', () => {
 
 const T9_FRONTEND_TARGETS = [
   ...TODO_TASK_UI_FILES,
-  'frontend/src/todo-task/assistant.tsx',
+  'frontend/src/todo-task/ui/assistant.tsx',
+  'frontend/src/todo-task/commands/assistant.ts',
 ];
 
 describe('T9 — frontend/assistant Host API follow (tech-doc T9)', () => {
   it('index and assistant call GET /api/todo-tasks (not /api/plan-tasks)', () => {
     const index = readTodoTaskUiSource();
-    const assistant = read('frontend/src/todo-task/assistant.tsx');
+    const assistant = [
+      read('frontend/src/todo-task/ui/assistant.tsx'),
+      read('frontend/src/todo-task/commands/assistant.ts'),
+    ].join('\n');
     expect(index).toContain("client.getJson('/api/todo-tasks')");
     expect(assistant).toContain("client.getJson('/api/todo-tasks')");
     expect(index).not.toContain("client.getJson('/api/plan-tasks')");

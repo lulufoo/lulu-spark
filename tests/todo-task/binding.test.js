@@ -11,11 +11,11 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import {
   setWorkbenchBinding,
   WORKBENCH_BUSINESS_KEY,
-} from '../../frontend/src/todo-task/binding.ts';
+} from '../../frontend/src/todo-task/commands/binding.ts';
 
 const fixtureRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
 const todosBindingJs = readFileSync(
-  join(fixtureRoot, 'frontend/src/todo-task/binding.ts'),
+  join(fixtureRoot, 'frontend/src/todo-task/commands/binding.ts'),
   'utf8',
 );
 const todoTaskIndexJs = readFileSync(
@@ -74,7 +74,7 @@ describe('Workbench Binding helper — source contracts', () => {
     expect(typeof setWorkbenchBinding).toBe('function');
     expect(setWorkbenchBinding.length).toBeLessThanOrEqual(1);
 
-    const bindingMod = await import('../../frontend/src/todo-task/binding.ts');
+    const bindingMod = await import('../../frontend/src/todo-task/commands/binding.ts');
     expect(Object.keys(bindingMod).sort()).toEqual([
       'WORKBENCH_BUSINESS_KEY',
       'setWorkbenchBinding',

@@ -9,6 +9,7 @@ import { mountHomeHub } from '../../frontend/src/home/hub.tsx';
 
 describe('Home chat composer Binding Contract gate', () => {
   let container;
+  let cleanup;
   /** @type {import('vitest').MockInstance} */
   let invokeSpy;
   let listenHandlers;
@@ -17,6 +18,7 @@ describe('Home chat composer Binding Contract gate', () => {
   beforeEach(() => {
     container = document.createElement('div');
     document.body.appendChild(container);
+    cleanup = null;
     listenHandlers = {};
     bound = false;
     window.__TAURI__ = {
@@ -40,6 +42,7 @@ describe('Home chat composer Binding Contract gate', () => {
   });
 
   afterEach(() => {
+    cleanup?.();
     invokeSpy.mockRestore();
     container.remove();
     delete window.__TAURI__;
@@ -47,7 +50,7 @@ describe('Home chat composer Binding Contract gate', () => {
   });
 
   it('Present alone keeps the composer disabled', async () => {
-    mountHomeHub(container, { navigate: vi.fn() });
+    cleanup = mountHomeHub(container, { navigate: vi.fn() });
     await vi.waitFor(() => {
       expect(invokeSpy).toHaveBeenCalledWith('query_binding');
     });
@@ -58,7 +61,7 @@ describe('Home chat composer Binding Contract gate', () => {
   });
 
   it('binding-changed bound enables the composer', async () => {
-    mountHomeHub(container, { navigate: vi.fn() });
+    cleanup = mountHomeHub(container, { navigate: vi.fn() });
     await vi.waitFor(() => {
       expect(listenHandlers['ai-assistant:binding-changed']).toBeTruthy();
     });
@@ -90,7 +93,7 @@ describe('Home chat composer Binding Contract gate', () => {
       }
       return {};
     });
-    mountHomeHub(container, { navigate: vi.fn() });
+    cleanup = mountHomeHub(container, { navigate: vi.fn() });
     await vi.waitFor(() => {
       expect(container.querySelector('[data-session-id="s1"]')).not.toBeNull();
     });

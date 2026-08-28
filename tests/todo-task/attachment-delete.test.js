@@ -315,7 +315,11 @@ describe('mountTodoTaskSplit attachment delete entry', () => {
 
 describe('attachment delete does not loosen MCP / dialog contracts', () => {
   it('dialog.js TodoTaskDialogType stays master/sub CRUD only (no attachment delete type)', () => {
-    const dialogSrc = readFrontendJs('frontend/src/todo-task/dialog.tsx');
+    const dialogSrc = [
+      readFrontendJs('frontend/src/todo-task/ui/dialog.tsx'),
+      readFrontendJs('frontend/src/todo-task/commands/dialog.ts'),
+      readFrontendJs('frontend/src/todo-task/state/dialog.ts'),
+    ].join('\n');
     expect(dialogSrc).toMatch(
       /TodoTaskDialogType[\s\S]*?'create-master'[\s\S]*?'create-category'[\s\S]*?'add-sub'[\s\S]*?'delete-master'[\s\S]*?'delete-sub'/,
     );
@@ -323,8 +327,8 @@ describe('attachment delete does not loosen MCP / dialog contracts', () => {
   });
 
   it('index.js attachment delete confirm path does not openTodoTaskDialog', () => {
-    const src = readFileSync(join(repoRoot, 'frontend/src/todo-task/attachments.tsx'), 'utf8')
-      + readFileSync(join(repoRoot, 'frontend/src/todo-task/attachments-render.tsx'), 'utf8');
+    const src = readFileSync(join(repoRoot, 'frontend/src/todo-task/commands/attachments.ts'), 'utf8')
+      + readFileSync(join(repoRoot, 'frontend/src/todo-task/ui/attachments.tsx'), 'utf8');
     expect(src).toMatch(/data-action="delete-attachment"/);
     const marker = "action === 'delete-attachment'";
     const idx = src.indexOf(marker);

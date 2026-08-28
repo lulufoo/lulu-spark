@@ -11,11 +11,11 @@ import { readShellHtml } from '../helpers/read-frontend-js.js';
 
 const renderFeedMock = vi.fn();
 
-vi.mock('../../frontend/src/builders/feed.tsx', () => ({
+vi.mock('../../frontend/src/builders/ui/feed.tsx', () => ({
   renderFeed: (...args) => renderFeedMock(...args),
 }));
 
-import { createBuildersContentAdapter } from '../../frontend/src/builders/assistant.tsx';
+import { createBuildersContentAdapter } from '../../frontend/src/builders/ui/assistant.tsx';
 import { readMainSource } from '../helpers/read-frontend-js.js';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
@@ -53,39 +53,33 @@ const BTN_FEED_CLICK_WIRING =
 function stubMountEnv() {
   return {
     clearHeaderSyncCorpusContext: () => {},
-    unmountCorpusDocList: null,
-    corpusDocListRepo: '',
     hideCorpusDocView: () => {},
     hideReadLaterView: () => {},
     hideTodoTasksView: () => {},
     hideHomeView: () => {},
     feedView: document.getElementById('feed-view') || { style: { display: '' } },
-    unmountTodoTaskSplit: null,
-    unmountHomeHub: null,
-    mountHomeHub: () => () => {},
-    mountTodoTaskSplit: () => ({ unmount: () => {} }),
     navigate: () => {},
     openReadLaterDialog: () => {},
-    state: { ui: { activeDate: null } },
+    notifyState: () => {},
+    selectDate: () => {},
+    openDoc: () => {},
+    state: { ui: { activeDate: null }, viewer: { createSession: null, outletMode: '', outletMessage: '' }, index: { data: {} } },
   };
 }
 
 function compileMountFn(fnSource, env) {
   const locals = [
     'clearHeaderSyncCorpusContext',
-    'unmountCorpusDocList',
-    'corpusDocListRepo',
     'hideCorpusDocView',
     'hideReadLaterView',
     'hideTodoTasksView',
     'hideHomeView',
     'feedView',
-    'unmountTodoTaskSplit',
-    'unmountHomeHub',
-    'mountHomeHub',
-    'mountTodoTaskSplit',
     'navigate',
     'openReadLaterDialog',
+    'notifyState',
+    'selectDate',
+    'openDoc',
     'state',
   ];
   const brace = fnSource.indexOf('{');

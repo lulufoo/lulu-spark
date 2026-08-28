@@ -44,7 +44,7 @@ describe('global-search cleanup (TAC-7)', () => {
 
 describe('global-search cleanup regression (TAC-5)', () => {
   it('corpus-knowledge-search.js remains mounted from viewer (no global-search import)', () => {
-    const src = readFrontendJs('frontend/src/corpus/corpus-knowledge-search.tsx');
+    const src = readFrontendJs('frontend/src/corpus/ui/knowledge-search.tsx');
     expect(src).toMatch(/export function mountKnowledgeSearch/);
     expect(src).not.toMatch(/initGlobalSearch/);
   });

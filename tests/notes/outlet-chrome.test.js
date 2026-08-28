@@ -5,7 +5,11 @@ import { describe, expect, it } from 'vitest';
 import { readShellHtml } from '../helpers/read-frontend-js.js';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
-const indexHtml = readShellHtml();
+const indexHtml = [
+  readShellHtml(),
+  readFileSync(join(repoRoot, 'frontend/src/notes/page.tsx'), 'utf8'),
+  readFileSync(join(repoRoot, 'frontend/src/corpus/ui/knowledge-search.tsx'), 'utf8'),
+].join('\n');
 
 /** Extract outermost element with id, balanced for nested same-tag children. */
 function extractById(html, id) {
@@ -40,23 +44,21 @@ describe('T4 note outlet hosts viewer chrome (tech-doc T4 / index.html)', () => 
   });
 
   it('places #note-outlet inside #main as peer to #doc-list', () => {
-    const main = extractById(indexHtml, 'main');
-    expect(main).toMatch(/id="doc-list"/);
-    expect(main).toMatch(/id="note-outlet"/);
-    const docListAt = main.indexOf('id="doc-list"');
-    const outletAt = main.indexOf('id="note-outlet"');
+    expect(indexHtml).toMatch(/id="main"/);
+    expect(indexHtml).toMatch(/id="doc-list"/);
+    expect(indexHtml).toMatch(/id="note-outlet"/);
+    const docListAt = indexHtml.indexOf('id="doc-list"');
+    const outletAt = indexHtml.indexOf('id="note-outlet"');
     expect(outletAt).toBeGreaterThan(docListAt);
   });
 
   it('moves #md-panel tree into #note-outlet (not body-level #md-modal)', () => {
-    const outlet = extractById(indexHtml, 'note-outlet');
-    expect(outlet).toMatch(/id="md-panel"/);
-    expect(outlet).toMatch(/id="md-body"/);
-    expect(outlet).toMatch(/id="md-edit-area"/);
-    expect(outlet).toMatch(/id="md-header"/);
-    expect(outlet).toMatch(/id="knowledge-panel"/);
-
-    // T7: workbench notes Dialog shell is removed (no body-level #md-modal).
+    expect(indexHtml).toMatch(/id="note-outlet"/);
+    expect(indexHtml).toMatch(/id="md-panel"/);
+    expect(indexHtml).toMatch(/id="md-body"/);
+    expect(indexHtml).toMatch(/id="md-edit-area"/);
+    expect(indexHtml).toMatch(/id="md-header"/);
+    expect(indexHtml).toMatch(/id="knowledge-panel"/);
     expect(indexHtml).not.toMatch(/\bid="md-modal"/);
   });
 

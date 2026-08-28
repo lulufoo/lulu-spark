@@ -4,7 +4,7 @@ export {
   onTodosPageEnter,
   onMasterSelectionChange,
   onTodosPageLeave,
-} from './lifecycle.ts';
+} from './commands/lifecycle.ts';
 
 /**
  * t4 / N1: `open_ai_assistant(masterTaskId)` is not Todos executable success main path.
@@ -26,7 +26,7 @@ export const TODOS_PARITY_ACCEPTANCE = Object.freeze([
   'N2',
 ]);
 
-export { DEFAULT_PLAN_CATEGORY_ID } from './host.ts';
+export { DEFAULT_PLAN_CATEGORY_ID } from './state/host.ts';
 export {
   loadTodoTasks,
   createTodoTask,
@@ -55,14 +55,14 @@ export {
   updatePlanComment,
   deletePlanComment,
   pickLocalMarkdownFile,
-} from './host.ts';
+} from './state/host.ts';
 
 export {
   copySubIdPair,
   formatMasterCopyText,
   formatTodoTaskStatus,
-} from './format.ts';
+} from './state/format.ts';
 
-export { syncCategoryFilterWidth } from './list.tsx';
-export { renderSubRow, renderSubDetail, renderSubDetailPane } from './detail.ts';
-export { mountTodoTaskSplit } from './page.tsx';
+export { syncCategoryFilterWidth } from './ui/list.tsx';
+export { renderSubRow, renderSubDetail, renderSubDetailPane } from './ui/detail.tsx';
+export { mountTodoTaskSplit, TodoTasksPage } from './page.tsx';

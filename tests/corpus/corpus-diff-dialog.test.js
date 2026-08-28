@@ -18,7 +18,7 @@ vi.mock('../../frontend/src/host/api.ts', () => ({
 
 async function loadModule() {
   vi.resetModules();
-  const mod = await import('../../frontend/src/corpus/corpus-diff-dialog.tsx');
+  const mod = await import('../../frontend/src/corpus/ui/diff-dialog.tsx');
   document.body.innerHTML = '<div id="kb-diff-host"></div>';
   const root = createRoot(document.getElementById('kb-diff-host'));
   flushSync(() => root.render(createElement(mod.KbDiffDialog)));

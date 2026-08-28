@@ -100,20 +100,27 @@ export function readMainSource() {
     readFrontendJs('frontend/src/App.tsx'),
     readFrontendJs('frontend/src/hash-router.tsx'),
     readFrontendJs('frontend/src/shell-pages.tsx'),
-    readFrontendJs('frontend/src/app-shell/sediment-kb.tsx'),
+    readFrontendJs('frontend/src/app-shell/ui/settings/sediment-kb.tsx'),
     readFrontendJs('frontend/src/app-shell/routes.ts'),
-    readFrontendJs('frontend/src/app-shell/skills-dialog.tsx'),
-    readFrontendJs('frontend/src/app-shell/tooltip.ts'),
+    readFrontendJs('frontend/src/app-shell/ui/skills-dialog.tsx'),
+    readFrontendJs('frontend/src/app-shell/ui/tooltip.ts'),
   ].join('\n');
 }
 
 export function readSettingsDialogSource() {
-  const settingsDir = join(repoRoot, 'frontend/src/app-shell/settings');
+  const settingsDirs = [
+    join(repoRoot, 'frontend/src/app-shell/ui/settings'),
+    join(repoRoot, 'frontend/src/app-shell/commands/settings'),
+    join(repoRoot, 'frontend/src/app-shell/state/settings'),
+  ];
   return [
-    readFrontendJs('frontend/src/app-shell/settings-dialog.tsx'),
-    ...listFrontendSourceFiles(settingsDir)
-      .sort()
-      .map((abs) => readFileSync(abs, 'utf8')),
+    readFrontendJs('frontend/src/app-shell/ui/settings/dialog.tsx'),
+    readFrontendJs('frontend/src/app-shell/commands/settings/dialog.ts'),
+    ...settingsDirs.flatMap((dir) =>
+      listFrontendSourceFiles(dir)
+        .sort()
+        .map((abs) => readFileSync(abs, 'utf8')),
+    ),
   ].join('\n');
 }
 
@@ -122,11 +129,33 @@ export function readHostApiSource() {
 }
 
 export function readNotesViewerSource() {
-  return readFrontendJs('frontend/src/notes/viewer.ts');
+  const viewerDirs = [
+    join(repoRoot, 'frontend/src/notes/ui/viewer'),
+    join(repoRoot, 'frontend/src/notes/commands/viewer'),
+  ];
+  return [
+    readFrontendJs('frontend/src/notes/viewer.ts'),
+    ...viewerDirs.flatMap((dir) =>
+      listFrontendSourceFiles(dir)
+        .sort()
+        .map((abs) => readFileSync(abs, 'utf8')),
+    ),
+  ].join('\n');
 }
 
 export function readCorpusViewerSource() {
-  return readFrontendJs('frontend/src/corpus/corpus-viewer.ts');
+  const viewerDirs = [
+    join(repoRoot, 'frontend/src/corpus/ui/viewer'),
+    join(repoRoot, 'frontend/src/corpus/commands/viewer'),
+  ];
+  return [
+    readFrontendJs('frontend/src/corpus/viewer.ts'),
+    ...viewerDirs.flatMap((dir) =>
+      listFrontendSourceFiles(dir)
+        .sort()
+        .map((abs) => readFileSync(abs, 'utf8')),
+    ),
+  ].join('\n');
 }
 
 /**
