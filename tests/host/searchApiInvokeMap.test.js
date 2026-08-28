@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   REINDEX_INVOKE_MAP,
   resolveReindexInvoke,
-} from '../../frontend/js/host/searchApiInvokeMap.js';
+} from '../../frontend/src/host/searchApiInvokeMap.ts';
 
 const REINDEX_KEYS = [
   'reindexKnowledge',

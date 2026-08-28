@@ -11,7 +11,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
 const getJsonMock = vi.fn();
 
-vi.mock('../../frontend/js/host/apiClient.js', async (importOriginal) => {
+vi.mock('../../frontend/src/host/apiClient.ts', async (importOriginal) => {
   const actual = await importOriginal();
   return {
     ...actual,
@@ -22,13 +22,13 @@ vi.mock('../../frontend/js/host/apiClient.js', async (importOriginal) => {
   };
 });
 
-import { mountTodoTaskSplit } from '../../frontend/js/todo-task/index.js';
+import { mountTodoTaskSplit } from '../../frontend/src/todo-task/index.ts';
 import { readTodoTaskUiSource } from '../helpers/todo-task-ui-source.js';
 
 const fixtureRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
 const todoTaskIndex = readTodoTaskUiSource();
 const todoTaskAssistant = readFileSync(
-  join(fixtureRoot, 'frontend/js/todo-task/assistant.js'),
+  join(fixtureRoot, 'frontend/src/todo-task/assistant.tsx'),
   'utf8',
 );
 

@@ -2,7 +2,8 @@ import { existsSync, readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { test, expect } from 'vitest'
-import { workbenchSkillsContent } from '../../frontend/js/app-shell/skills-content.js'
+import { readShellHtml } from '../helpers/read-frontend-js.js';
+import { workbenchSkillsContent } from '../../frontend/src/app-shell/skills-content.ts'
 import { readMainSource } from '../helpers/read-frontend-js.js';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..')
@@ -51,9 +52,9 @@ test('each public child skill has one clickable item with required display field
 
 test('skills dialog renders one English table row per skill and no group links', () => {
   const mainJs = readMainSource()
-  expect(mainJs).toContain('class="skill-table"')
-  expect(mainJs).toContain('class="skill-name"')
-  expect(mainJs).toContain('class="skill-cmd"')
+  expect(mainJs).toMatch(/class(?:Name)?="skill-table"/)
+  expect(mainJs).toMatch(/class(?:Name)?="skill-name"/)
+  expect(mainJs).toMatch(/class(?:Name)?="skill-cmd"/)
   expect(mainJs).not.toContain('skill-group-link')
   expect(mainJs).not.toContain('skill-group-title')
 })
@@ -68,7 +69,7 @@ test('workbench catalog does not expose legacy or internal skills', () => {
 })
 
 test('SKILL dropdown keeps only Lulu Workbench Skills', () => {
-  const html = readFileSync(join(repoRoot, 'frontend/index.html'), 'utf8')
+  const html = readShellHtml()
   expect(html).toContain('id="btn-skill-workbench"')
   expect(html).toContain('✦ Lulu Workbench Skills')
   expect(html).not.toContain('id="btn-skill-lulu"')
@@ -76,6 +77,6 @@ test('SKILL dropdown keeps only Lulu Workbench Skills', () => {
   expect(html).not.toContain('Lulu Learning Skills')
   expect(html).not.toContain('Lulu Dev Skills')
   expect(
-    existsSync(join(repoRoot, 'frontend/js/skills-software-dev-content.js')),
+    existsSync(join(repoRoot, 'frontend/src/skills-software-dev-content.js')),
   ).toBe(false)
 })

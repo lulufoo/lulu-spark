@@ -3,9 +3,13 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { createElement } from 'react';
+import { readShellHtml } from '../helpers/read-frontend-js.js';
+import { renderToHtml } from '../../frontend/src/island.ts';
+import { Shell } from '../../frontend/src/shell.tsx';
 import { readHostApiSource, readSettingsDialogSource } from '../helpers/read-frontend-js.js';
 
-vi.mock('../../frontend/js/host/api.js', () => ({
+vi.mock('../../frontend/src/host/api.ts', () => ({
   fetchConfig: vi.fn(),
   setConfig: vi.fn(),
   inferGithubUserUrl: vi.fn(),
@@ -13,10 +17,10 @@ vi.mock('../../frontend/js/host/api.js', () => ({
   invoke: vi.fn(),
 }));
 
-import * as api from '../../frontend/js/host/api.js';
+import * as api from '../../frontend/src/host/api.ts';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '../..');
-const indexHtml = readFileSync(join(root, 'frontend/index.html'), 'utf8');
+const indexHtml = readShellHtml();
 const settingsDialogSrc = readSettingsDialogSource();
 const apiSrc = readHostApiSource();
 
@@ -28,11 +32,7 @@ const NEW_HANDLE = 'ticket-opened-new';
 const ROTATED_HANDLE = 'ticket-after-rotate';
 
 function mountSettingsDom() {
-  const markup = indexHtml.match(
-    /<!-- Settings dialog -->[\s\S]*?<!-- Skills dialog -->/,
-  )?.[0];
-  if (!markup) throw new Error('settings dialog markup not found');
-  document.body.innerHTML = markup.replace('<!-- Skills dialog -->', '');
+  document.body.innerHTML = renderToHtml(createElement(Shell));
 }
 
 function baseConfig(overrides = {}) {
@@ -92,7 +92,7 @@ function invokedNames() {
 
 async function openMcpPanel() {
   const { openSettingsDialog } = await import(
-    '../../frontend/js/app-shell/settings-dialog.js'
+    '../../frontend/src/app-shell/settings-dialog.tsx'
   );
   await openSettingsDialog({ panel: 'mcp' });
 }
@@ -182,7 +182,7 @@ describe('Settings MCP panel actions', () => {
     api.inferGithubUserUrl.mockResolvedValue({});
     api.checkWorkbenchKnowledgeRoot.mockResolvedValue({ ok: true });
     api.invoke.mockResolvedValue({ handle: LIVE_HANDLE });
-    await import('../../frontend/js/app-shell/settings-dialog.js');
+    await import('../../frontend/src/app-shell/settings-dialog.tsx');
   });
 
   afterEach(() => {

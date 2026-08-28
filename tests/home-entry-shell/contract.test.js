@@ -3,8 +3,8 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, it, expect, beforeEach } from 'vitest';
 
-import { getBaselineEntries } from '../../frontend/js/home-entry-shell/entry-config.js';
-import { createContentRegistry } from '../../frontend/js/home-entry-shell/content-registry.js';
+import { getBaselineEntries } from '../../frontend/src/home-entry-shell/entry-config.ts';
+import { createContentRegistry } from '../../frontend/src/home-entry-shell/content-registry.ts';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
 const BASELINE_KEYS = ['read-later', 'todo-task', 'notes', 'builders'];
@@ -81,11 +81,11 @@ describe('home-entry-shell contract · EntryConfig + ContentRegistry (T1)', () =
 
   it('adding or removing an entry only touches config + registry modules (not shell/fsm)', () => {
     const entryConfigSrc = readFileSync(
-      join(repoRoot, 'frontend/js/home-entry-shell/entry-config.js'),
+      join(repoRoot, 'frontend/src/home-entry-shell/entry-config.ts'),
       'utf8',
     );
     const registrySrc = readFileSync(
-      join(repoRoot, 'frontend/js/home-entry-shell/content-registry.js'),
+      join(repoRoot, 'frontend/src/home-entry-shell/content-registry.ts'),
       'utf8',
     );
 

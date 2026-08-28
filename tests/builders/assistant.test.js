@@ -6,11 +6,11 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
 const renderFeedMock = vi.fn();
 
-vi.mock('../../frontend/js/builders/feed.js', () => ({
+vi.mock('../../frontend/src/builders/feed.tsx', () => ({
   renderFeed: (...args) => renderFeedMock(...args),
 }));
 
-import { createBuildersContentAdapter } from '../../frontend/js/builders/assistant.js';
+import { createBuildersContentAdapter } from '../../frontend/src/builders/assistant.tsx';
 
 describe('createBuildersContentAdapter · slot mount + renderFeed', () => {
   /** @type {HTMLElement} */

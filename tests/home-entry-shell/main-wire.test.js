@@ -8,9 +8,9 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { createContentRegistry } from '../../frontend/js/home-entry-shell/content-registry.js';
-import { mountHomeEntryShell } from '../../frontend/js/home-entry-shell/shell.js';
-import { readMainSource } from '../helpers/read-frontend-js.js';
+import { createContentRegistry } from '../../frontend/src/home-entry-shell/content-registry.ts';
+import { mountHomeEntryShell } from '../../frontend/src/home-entry-shell/shell.tsx';
+import { readFrontendJs, readMainSource } from '../helpers/read-frontend-js.js';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
 
@@ -194,10 +194,7 @@ describe('home-entry-shell workbench Binding (t2)', () => {
 
   it('does not put the Set in shell.js, #/home enter/leave, or Host process start', () => {
     const source = readMain();
-    const shellJs = readFileSync(
-      join(repoRoot, 'frontend/js/home-entry-shell/shell.js'),
-      'utf8',
-    );
+    const shellJs = readFrontendJs('frontend/src/home-entry-shell/shell.tsx');
     const libRs = readFileSync(join(repoRoot, 'src-tauri/src/lib.rs'), 'utf8');
     expect(shellJs).not.toMatch(/setWorkbenchBinding|set_binding|reset_binding/);
     expect(source).not.toMatch(
@@ -212,14 +209,8 @@ describe('home-entry-shell workbench Binding (t2)', () => {
 
   it('business pages have zero Set/Reset: todos, notes, home, selectDate, mountWorkbench', () => {
     const source = readMain();
-    const sidebarJs = readFileSync(
-      join(repoRoot, 'frontend/js/notes/sidebar.js'),
-      'utf8',
-    );
-    const lifeJs = readFileSync(
-      join(repoRoot, 'frontend/js/todo-task/lifecycle.js'),
-      'utf8',
-    );
+    const sidebarJs = readFrontendJs('frontend/src/notes/sidebar.tsx');
+    const lifeJs = readFrontendJs('frontend/src/todo-task/lifecycle.ts');
     expect(source).not.toMatch(
       /\bbuildNotesBinding\b|\bresetNotesBinding\b|\bbuildTodosBinding\b|\bresetTodosBinding\b/,
     );

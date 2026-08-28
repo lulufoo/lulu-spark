@@ -3,12 +3,13 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, it, expect, beforeEach } from 'vitest';
-import { openTodoTaskDialog } from '../../frontend/js/todo-task/dialog.js';
+import { openTodoTaskDialog } from '../../frontend/src/todo-task/dialog.tsx';
 import { TODO_TASK_BRAND_SITES } from '../fixtures/todo-task-ac15.js';
 import { readRsPath } from '../helpers/read-rs-dir.js';
+import { readFrontendJs } from '../helpers/read-frontend-js.js';
 
 const fixtureRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
-const dialogSource = readFileSync(join(fixtureRoot, 'frontend/js/todo-task/dialog.js'), 'utf8');
+const dialogSource = readFrontendJs('frontend/src/todo-task/dialog.tsx');
 const mcpSource = readRsPath(join(fixtureRoot, 'src-tauri/src/services/mcp_protocol_adapter'));
 
 function extractCreateTodoTaskBlock(source) {
@@ -86,7 +87,9 @@ describe('AC7 brand copy — user-visible Todos sites (tech-doc T14/T15)', () =>
   it('locks remaining brand sites to Todos without residual 计划任务 user copy', () => {
     expect(TODO_TASK_BRAND_SITES).toHaveLength(6);
     for (const site of TODO_TASK_BRAND_SITES) {
-      const src = readFileSync(join(fixtureRoot, site.path), 'utf8');
+      const src = site.path.startsWith('frontend/src/')
+        ? readFrontendJs(site.path)
+        : readFileSync(join(fixtureRoot, site.path), 'utf8');
       for (const re of site.mustMatch) {
         expect(src, `${site.path} mustMatch ${re}`).toMatch(re);
       }
@@ -97,9 +100,9 @@ describe('AC7 brand copy — user-visible Todos sites (tech-doc T14/T15)', () =>
   });
 
   it('keeps technical todo-task identifiers (route/api) unchanged', () => {
-    const index = readFileSync(join(fixtureRoot, 'frontend/js/todo-task/format.js'), 'utf8');
+    const index = readFileSync(join(fixtureRoot, 'frontend/src/todo-task/format.ts'), 'utf8');
     expect(index).toMatch(/todo-tasks/);
-    const hub = readFileSync(join(fixtureRoot, 'frontend/js/home-entry-shell/hub.js'), 'utf8');
+    const hub = readFrontendJs('frontend/src/home/hub.tsx');
     expect(hub).toMatch(/data-home-entry="todo-tasks"/);
   });
 });

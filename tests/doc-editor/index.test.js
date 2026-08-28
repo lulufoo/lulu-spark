@@ -7,12 +7,12 @@ import {
   knowledgeDocKey,
   notesDocKey,
   todosDocKey,
-} from '../../frontend/js/doc-editor/identity.js';
+} from '../../frontend/src/doc-editor/identity.ts';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
 
 function read(rel) {
-  if (rel.startsWith('frontend/js/')) return readFrontendJs(rel);
+  if (rel.startsWith('frontend/src/')) return readFrontendJs(rel);
   return readFileSync(join(repoRoot, rel), 'utf8');
 }
 
@@ -25,21 +25,21 @@ describe('doc-editor identity and comment cut', () => {
   });
 
   it('common overlay does not import comments', () => {
-    const src = read('frontend/js/doc-editor/highlights.js');
+    const src = read('frontend/src/doc-editor/highlights.ts');
     expect(src).not.toMatch(/comments\.js|kb-comments/);
     expect(src).toMatch(/fetchDocHighlights|updateDocHighlights/);
     expect(src).not.toMatch(/updateHighlight\(|updateKbHighlight\(/);
   });
 
   it('Notes / Knowledge / Todos wire the common view and overlay', () => {
-    expect(read('frontend/js/notes/viewer.js')).toMatch(/renderDocMarkdown/);
-    expect(read('frontend/js/notes/viewer.js')).toMatch(/setDocEditMode/);
-    expect(read('frontend/js/notes/viewer.js')).toMatch(/applyCachedHighlights|initDocHighlightOverlay/);
-    expect(read('frontend/js/notes/viewer.js')).not.toMatch(/updateHighlight\(/);
-    expect(read('frontend/js/corpus/corpus-viewer.js')).toMatch(/renderDocMarkdown/);
-    expect(read('frontend/js/corpus/corpus-viewer.js')).toMatch(/setDocEditMode/);
-    expect(read('frontend/js/corpus/corpus-viewer.js')).toMatch(/applyCachedHighlights|initDocHighlightOverlay/);
-    expect(read('frontend/js/corpus/corpus-viewer.js')).not.toMatch(/updateKbHighlight\(/);
-    expect(read('frontend/js/todo-task/page.js')).toMatch(/bindTodoDocHighlights/);
+    expect(read('frontend/src/notes/viewer.ts')).toMatch(/renderDocMarkdown/);
+    expect(read('frontend/src/notes/viewer.ts')).toMatch(/setDocEditMode/);
+    expect(read('frontend/src/notes/viewer.ts')).toMatch(/applyCachedHighlights|initDocHighlightOverlay/);
+    expect(read('frontend/src/notes/viewer.ts')).not.toMatch(/updateHighlight\(/);
+    expect(read('frontend/src/corpus/corpus-viewer.ts')).toMatch(/renderDocMarkdown/);
+    expect(read('frontend/src/corpus/corpus-viewer.ts')).toMatch(/setDocEditMode/);
+    expect(read('frontend/src/corpus/corpus-viewer.ts')).toMatch(/applyCachedHighlights|initDocHighlightOverlay/);
+    expect(read('frontend/src/corpus/corpus-viewer.ts')).not.toMatch(/updateKbHighlight\(/);
+    expect(read('frontend/src/todo-task/page.tsx')).toMatch(/bindTodoDocHighlights/);
   });
 });

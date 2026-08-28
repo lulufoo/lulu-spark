@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   WRITE_API_INVOKE_MAP,
   resolveWriteInvoke,
-} from '../../frontend/js/host/writeApiInvokeMap.js';
+} from '../../frontend/src/host/writeApiInvokeMap.ts';
 
 const P2_PATHS = [
   ['/api/config', 'set_config', ['payload']],

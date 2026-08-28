@@ -4,11 +4,11 @@ import { fileURLToPath } from 'node:url';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
 
-/** Concatenate every JS file under frontend/js/todo-task/ for source-scan contracts. */
+/** Concatenate every JS file under frontend/src/todo-task/ for source-scan contracts. */
 export function readTodoTaskUiSource() {
-  const dir = join(repoRoot, 'frontend/js/todo-task');
+  const dir = join(repoRoot, 'frontend/src/todo-task');
   return readdirSync(dir)
-    .filter((name) => name.endsWith('.js'))
+    .filter((name) => name.endsWith('.js') || name.endsWith('.ts') || name.endsWith('.tsx'))
     .sort()
     .map((name) => readFileSync(join(dir, name), 'utf8'))
     .join('\n');
@@ -25,21 +25,21 @@ export function readTodoTaskServiceTestsSource() {
 }
 
 export const TODO_TASK_UI_FILES = [
-  'frontend/js/todo-task/index.js',
-  'frontend/js/todo-task/page.js',
-  'frontend/js/todo-task/page-render.js',
-  'frontend/js/todo-task/page-dialogs.js',
-  'frontend/js/todo-task/page-events.js',
-  'frontend/js/todo-task/host.js',
-  'frontend/js/todo-task/format.js',
-  'frontend/js/todo-task/list.js',
-  'frontend/js/todo-task/detail.js',
-  'frontend/js/todo-task/detail-render.js',
-  'frontend/js/todo-task/plan-md.js',
-  'frontend/js/todo-task/attachments.js',
-  'frontend/js/todo-task/attachments-render.js',
-  'frontend/js/todo-task/comments.js',
-  'frontend/js/todo-task/dialog.js',
-  'frontend/js/todo-task/lifecycle.js',
-  'frontend/js/todo-task/binding.js',
+  'frontend/src/todo-task/index.ts',
+  'frontend/src/todo-task/page.tsx',
+  'frontend/src/todo-task/page-render.tsx',
+  'frontend/src/todo-task/page-dialogs.ts',
+  'frontend/src/todo-task/page-events.ts',
+  'frontend/src/todo-task/host.ts',
+  'frontend/src/todo-task/format.ts',
+  'frontend/src/todo-task/list.tsx',
+  'frontend/src/todo-task/detail.ts',
+  'frontend/src/todo-task/detail-render.tsx',
+  'frontend/src/todo-task/plan-md.tsx',
+  'frontend/src/todo-task/attachments.tsx',
+  'frontend/src/todo-task/attachments-render.tsx',
+  'frontend/src/todo-task/comments.tsx',
+  'frontend/src/todo-task/dialog.tsx',
+  'frontend/src/todo-task/lifecycle.ts',
+  'frontend/src/todo-task/binding.ts',
 ];

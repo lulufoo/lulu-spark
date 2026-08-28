@@ -2,9 +2,10 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
+import { readShellHtml } from '../helpers/read-frontend-js.js';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
-const indexHtml = readFileSync(join(repoRoot, 'frontend/index.html'), 'utf8');
+const indexHtml = readShellHtml();
 
 /** Extract outermost element with id, balanced for nested same-tag children. */
 function extractById(html, id) {

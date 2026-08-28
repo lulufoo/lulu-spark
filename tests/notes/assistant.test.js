@@ -4,7 +4,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 const fetchIndexMock = vi.fn();
 const openCreateNoteMock = vi.fn();
 
-vi.mock('../../frontend/js/host/api.js', () => ({
+vi.mock('../../frontend/src/host/api.ts', () => ({
   fetchIndex: (...args) => fetchIndexMock(...args),
 }));
 
@@ -13,7 +13,7 @@ import {
   loadAssistantNotes,
   mountNoteAssistant,
   createNotesContentAdapter,
-} from '../../frontend/js/notes/assistant.js';
+} from '../../frontend/src/notes/assistant.tsx';
 
 const sampleEntries = [
   {

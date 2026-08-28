@@ -1208,9 +1208,9 @@ fn t4_defensive_cut_hook_path_is_confirmed_and_testable() {
     assert_eq!(
         r#loop::DEFENSIVE_CUT_EXPLICIT_RESET_CHAIN,
         [
-            "frontend/js/todo-task/index.js::dispose",
-            "frontend/js/todo-task/lifecycle.js::onTodosPageLeave",
-            "frontend/js/todo-task/binding.js::resetTodosBinding",
+            "frontend/src/todo-task/index.js::dispose",
+            "frontend/src/todo-task/lifecycle.js::onTodosPageLeave",
+            "frontend/src/todo-task/binding.js::resetTodosBinding",
             "src-tauri/src/services/agent/loop/binding.rs::reset_binding",
         ]
     );
@@ -2687,22 +2687,22 @@ fn t4_old_app_keys_notes_and_todo_task_fail_set_binding() {
 
 #[test]
 fn t4_only_other_binding_page_resets_notes() {
-    let main = repo_file("frontend/js/main.js");
-    let mount_plan = function_slice(&main, "function mountTodoTasksRoute");
+    let routes = repo_file("frontend/src/app-shell/routes.ts");
+    let mount_plan = function_slice(&routes, "function mountTodoTasksRoute");
     assert!(
         !mount_plan.contains("resetNotesBinding")
             && !mount_plan.contains("set_binding")
             && !mount_plan.contains("reset_binding"),
         "mountTodoTasksRoute must not Set/Reset Binding"
     );
-    let mount_wb = function_slice(&main, "function mountWorkbench");
+    let mount_wb = function_slice(&routes, "function mountWorkbench");
     assert!(
         !mount_wb.contains("buildNotesBinding")
             && !mount_wb.contains("set_binding")
             && !mount_wb.contains("reset_binding"),
         "mountWorkbench must not Set/Reset Binding"
     );
-    let mount_home = function_slice(&main, "function mountHomeRoute");
+    let mount_home = function_slice(&routes, "function mountHomeRoute");
     assert!(
         !mount_home.contains("resetNotesBinding") && !mount_home.contains("reset_binding"),
         "home / Hub host route must not Reset Binding"
@@ -2763,8 +2763,8 @@ fn t4_cursor_ide_is_not_an_app_binding_key() {
 
 #[test]
 fn t4_notes_binding_consumer_follows_todos_key_only_contract() {
-    let binding = repo_file("frontend/js/todo-task/binding.js");
-    let index = repo_file("frontend/js/todo-task/index.js");
+    let binding = repo_file("frontend/src/todo-task/binding.js");
+    let index = repo_file("frontend/src/todo-task/index.js");
     assert!(
         binding.contains("WORKBENCH_BUSINESS_KEY") && binding.contains("'workbench'"),
         "binding.js must export WORKBENCH_BUSINESS_KEY = workbench"

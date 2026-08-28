@@ -4,7 +4,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 const invokeMock = vi.fn();
 const getJsonMock = vi.fn();
 
-vi.mock('../../frontend/js/host/apiClient.js', async (importOriginal) => {
+vi.mock('../../frontend/src/host/apiClient.ts', async (importOriginal) => {
   const actual = await importOriginal();
   return {
     ...actual,
@@ -23,7 +23,7 @@ import {
   loadTodoTasks,
   mountTodoTaskSplit,
   updatePlanMasterTitle,
-} from '../../frontend/js/todo-task/index.js';
+} from '../../frontend/src/todo-task/index.ts';
 
 const sampleMaster = {
   master_task_id: 'task_new',

@@ -11,7 +11,7 @@ import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest';
 
 const getJsonMock = vi.fn();
 
-vi.mock('../../frontend/js/host/apiClient.js', async (importOriginal) => {
+vi.mock('../../frontend/src/host/apiClient.ts', async (importOriginal) => {
   const actual = await importOriginal();
   return {
     ...actual,
@@ -27,11 +27,11 @@ import {
   TODOS_OPEN_AND_BIND_MAIN_PATH_DISABLED,
   TODOS_PARITY_ACCEPTANCE,
   mountTodoTaskSplit,
-} from '../../frontend/js/todo-task/index.js';
+} from '../../frontend/src/todo-task/index.js';
 import {
   setWorkbenchBinding,
   WORKBENCH_BUSINESS_KEY,
-} from '../../frontend/js/todo-task/binding.js';
+} from '../../frontend/src/todo-task/binding.js';
 import { readAgentLoopSource, readAgentLoopTestsSource } from '../helpers/agent-loop-source.js';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
@@ -479,11 +479,11 @@ describe('t6 layered acceptance L0/L1/L2 gate', () => {
 
   it('Todos leave remains explicit and no longer Resets Binding', () => {
     const indexJs = readFileSync(
-      join(repoRoot, 'frontend/js/todo-task/page.js'),
+      join(repoRoot, 'frontend/src/todo-task/page.tsx'),
       'utf8',
     );
     const lifeJs = readFileSync(
-      join(repoRoot, 'frontend/js/todo-task/lifecycle.js'),
+      join(repoRoot, 'frontend/src/todo-task/lifecycle.ts'),
       'utf8',
     );
     expect(indexJs).toMatch(/onTodosPageLeave/);

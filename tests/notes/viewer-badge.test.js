@@ -68,38 +68,42 @@ const { elements, makeEl } = vi.hoisted(() => {
 
 // ── Mock all viewer.js dependencies ──────────────────────────────────────
 
-vi.mock('../../frontend/js/host/api.js', () => ({
+vi.mock('../../frontend/src/host/api.ts', () => ({
   fetchFileContent: vi.fn().mockResolvedValue('# Test'),
   fetchAnnotation: vi.fn().mockResolvedValue({}),
   saveFile: vi.fn(),
   commitFiles: vi.fn(),
 }));
-vi.mock('../../frontend/js/host/state.js', async () => {
-  const actual = await vi.importActual('../../frontend/js/host/state.js');
+vi.mock('../../frontend/src/host/state.ts', async () => {
+  const actual = await vi.importActual('../../frontend/src/host/state.ts');
   return actual;
 });
-vi.mock('../../frontend/js/notes/cards.js', () => ({
+vi.mock('../../frontend/src/notes/cards.tsx', () => ({
   updateTitlesInDOM: vi.fn(),
   updateDiffInDOM: vi.fn(),
 }));
-vi.mock('../../frontend/js/notes/links-bar.js', () => ({ renderLinksBar: vi.fn() }));
-vi.mock('../../frontend/js/notes/tags-bar.js', () => ({ renderTagsBar: vi.fn() }));
-vi.mock('../../frontend/js/notes/comments.js', () => ({ renderComments: vi.fn() }));
-vi.mock('../../frontend/js/notes/delete-dialog.js', () => ({ openDeleteDialog: vi.fn() }));
-vi.mock('../../frontend/js/doc-editor/highlights.js', () => ({
+vi.mock('../../frontend/src/island.ts', () => ({
+  renderToHtml: () => '',
+}));
+vi.mock('../../frontend/src/notes/links-bar.tsx', () => ({ renderLinksBar: vi.fn() }));
+vi.mock('../../frontend/src/notes/tags-bar.tsx', () => ({ renderTagsBar: vi.fn() }));
+
+vi.mock('../../frontend/src/notes/comments.tsx', () => ({ renderComments: vi.fn() }));
+vi.mock('../../frontend/src/notes/delete-dialog.tsx', () => ({ openDeleteDialog: vi.fn() }));
+vi.mock('../../frontend/src/doc-editor/highlights.ts', () => ({
   applyCachedHighlights: vi.fn(),
   initDocHighlightOverlay: vi.fn(),
   cleanupDocHighlightOverlay: vi.fn(),
 }));
-vi.mock('../../frontend/js/corpus/corpus-viewer.js', () => ({
+vi.mock('../../frontend/src/corpus/corpus-viewer.ts', () => ({
   openKbDoc: vi.fn(),
   saveKbDoc: vi.fn(),
 }));
-vi.mock('../../frontend/js/corpus/corpus-knowledge-search.js', () => ({
+vi.mock('../../frontend/src/corpus/corpus-knowledge-search.tsx', () => ({
   mountKnowledgeSearch: vi.fn(),
   triggerKnowledgeSearch: vi.fn(),
 }));
-vi.mock('../../frontend/js/host/constants.js', () => ({
+vi.mock('../../frontend/src/host/constants.ts', () => ({
   getGithubUserUrl: vi.fn(() => ''),
   workbenchGithubBlobBase: vi.fn(() => null),
 }));
@@ -111,8 +115,8 @@ import {
   exitEditMode,
   closeModal,
   openDoc,
-} from '../../frontend/js/notes/viewer.js';
-import { state } from '../../frontend/js/host/state.js';
+} from '../../frontend/src/notes/viewer.ts';
+import { state } from '../../frontend/src/host/state.ts';
 
 // ── Test helpers ──────────────────────────────────────────────────────────
 

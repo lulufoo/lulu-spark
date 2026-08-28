@@ -1,5 +1,29 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
+function serializeTestNode(node) {
+  if (node == null || node === false) return '';
+  if (typeof node === 'string' || typeof node === 'number') return String(node);
+  if (Array.isArray(node)) return node.map(serializeTestNode).join('');
+  const type = node.type;
+  const props = node.props || {};
+  if (typeof type !== 'string') return serializeTestNode(props.children);
+  const { children, className, ...rest } = props;
+  let attrs = className ? ` class="${className}"` : '';
+  for (const [key, value] of Object.entries(rest)) {
+    if (value == null || key === 'children') continue;
+    attrs += ` ${key}="${value}"`;
+  }
+  const inner = serializeTestNode(children);
+  if (type === 'img' || type === 'input' || type === 'br') {
+    return `<${type}${attrs}>`;
+  }
+  return `<${type}${attrs}>${inner}</${type}>`;
+}
+
+vi.mock('../../frontend/src/island.ts', () => ({
+  renderToHtml: (node) => serializeTestNode(node),
+}));
+
 const OVERFLOW_MSG = '⚠️ Text too long to generate QR code (capacity ~2 KB UTF-8)';
 
 const { makeEl, trigger, clearDom, qrMocks } = vi.hoisted(() => {
@@ -88,12 +112,12 @@ describe('qr-dialog', () => {
       cb(null, 'data:image/png;base64,mock');
     });
 
-    await import('../../frontend/js/app-shell/qr-dialog.js');
+    await import('../../frontend/src/app-shell/qr-dialog.tsx');
   });
 
   describe('openQrDialog', () => {
     it('clears input and preview, opens dialog, and focuses input', async () => {
-      const { openQrDialog } = await import('../../frontend/js/app-shell/qr-dialog.js');
+      const { openQrDialog } = await import('../../frontend/src/app-shell/qr-dialog.tsx');
 
       makeEl('qr-input').value = 'stale';
       makeEl('qr-preview').innerHTML = '<canvas></canvas>';
@@ -107,13 +131,14 @@ describe('qr-dialog', () => {
     });
 
     it('clears state when reopened after close', async () => {
-      const { openQrDialog } = await import('../../frontend/js/app-shell/qr-dialog.js');
+      const { openQrDialog } = await import('../../frontend/src/app-shell/qr-dialog.tsx');
+      const { closeConvertDialog } = await import('../../frontend/src/app-shell/convert-dialog.tsx');
 
       makeEl('qr-input').value = 'https://example.com';
       makeEl('qr-preview').innerHTML = '<canvas></canvas>';
       makeEl('convert-dialog').classList.add('open');
 
-      await trigger('btn-convert-close', 'click');
+      closeConvertDialog();
       openQrDialog();
 
       expect(makeEl('qr-input').value).toBe('');
@@ -124,7 +149,7 @@ describe('qr-dialog', () => {
 
   describe('renderQr', () => {
     it('renders QR via toCanvas for valid input', async () => {
-      const { renderQr } = await import('../../frontend/js/app-shell/qr-dialog.js');
+      const { renderQr } = await import('../../frontend/src/app-shell/qr-dialog.tsx');
 
       renderQr('https://example.com');
 
@@ -140,7 +165,7 @@ describe('qr-dialog', () => {
     });
 
     it('does not call QRCode for empty or whitespace-only input', async () => {
-      const { renderQr } = await import('../../frontend/js/app-shell/qr-dialog.js');
+      const { renderQr } = await import('../../frontend/src/app-shell/qr-dialog.tsx');
 
       renderQr('');
       renderQr('   \n\t  ');
@@ -152,7 +177,7 @@ describe('qr-dialog', () => {
     });
 
     it('shows visible overflow error with .qr-error for capacity failures', async () => {
-      const { renderQr } = await import('../../frontend/js/app-shell/qr-dialog.js');
+      const { renderQr } = await import('../../frontend/src/app-shell/qr-dialog.tsx');
 
       qrMocks.toCanvas.mockImplementation((canvas, text, opts, cb) => {
         cb(new Error('code length overflow'));
@@ -169,7 +194,7 @@ describe('qr-dialog', () => {
     });
 
     it('falls back to toDataURL + img when toCanvas fails with non-overflow error', async () => {
-      const { renderQr } = await import('../../frontend/js/app-shell/qr-dialog.js');
+      const { renderQr } = await import('../../frontend/src/app-shell/qr-dialog.tsx');
 
       qrMocks.toCanvas.mockImplementation((canvas, text, opts, cb) => {
         cb(new Error('canvas unsupported'));
@@ -189,9 +214,10 @@ describe('qr-dialog', () => {
 
   describe('event bindings', () => {
     it('removes open class when close button is clicked', async () => {
+      const { closeConvertDialog } = await import('../../frontend/src/app-shell/convert-dialog.tsx');
       makeEl('convert-dialog').classList.add('open');
 
-      await trigger('btn-convert-close', 'click');
+      closeConvertDialog();
 
       expect(makeEl('convert-dialog').classList.contains('open')).toBe(false);
     });

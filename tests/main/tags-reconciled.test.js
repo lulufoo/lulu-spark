@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..')
-const mainPath = join(repoRoot, 'frontend/js/main.js')
+const mainPath = join(repoRoot, 'frontend/src/boot.ts')
 const mainSource = readFileSync(mainPath, 'utf8')
 
 /** IPC-heavy calls that must not run on background tags:reconciled. */

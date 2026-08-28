@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { readAgentLoopSource, readAgentLoopTestsSource } from '../helpers/agent-loop-source.js';
 import { readRsPath } from '../helpers/read-rs-dir.js';
-import { readMainSource } from '../helpers/read-frontend-js.js';
+import { readFrontendJs, readMainSource } from '../helpers/read-frontend-js.js';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
 const libRs = readFileSync(join(repoRoot, 'src-tauri/src/lib.rs'), 'utf8');
@@ -13,8 +13,8 @@ const aiAssistantCmd = readFileSync(
   'utf8',
 );
 const htmlPath = join(repoRoot, 'frontend/ai-assistant.html');
-const retiredJsPath = join(repoRoot, 'frontend/js/ai-assistant.js');
-const homeHubPath = join(repoRoot, 'frontend/js/home-entry-shell/hub.js');
+const retiredJsPath = join(repoRoot, 'frontend/src/ai-assistant.js');
+const homeHubPath = join(repoRoot, 'frontend/src/home/hub.tsx');
 const capabilityPath = join(
   repoRoot,
   'src-tauri/capabilities/ai-assistant.json',
@@ -30,11 +30,11 @@ describe('ai-assistant window shell (t5)', () => {
     expect(existsSync(htmlPath), 'frontend/ai-assistant.html retired').toBe(
       false,
     );
-    expect(existsSync(retiredJsPath), 'frontend/js/ai-assistant.js retired').toBe(
+    expect(existsSync(retiredJsPath), 'frontend/src/ai-assistant.js retired').toBe(
       false,
     );
     expect(existsSync(homeHubPath), 'Home chat module').toBe(true);
-    const js = readFileSync(homeHubPath, 'utf8');
+    const js = readFrontendJs('frontend/src/home/hub.tsx');
     expect(js).toMatch(/mountHomeHub/);
     expect(js).toMatch(/list_chat_sessions|create_chat_session/);
   });
@@ -49,7 +49,7 @@ describe('ai-assistant window shell (t5)', () => {
   });
 
   it('UI invokes agent_chat_turn and does not call plan write APIs', () => {
-    const js = readFileSync(homeHubPath, 'utf8');
+    const js = readFrontendJs('frontend/src/home/hub.tsx');
     expect(js).toMatch(/agent_chat_turn/);
     expect(js).not.toMatch(
       /add_todo_sub|update_todo_sub|update_todo_master_title|create_todo_task/,
@@ -57,14 +57,14 @@ describe('ai-assistant window shell (t5)', () => {
   });
 
   it('UI pulls get_ai_assistant_binding after list to hydrate the current session', () => {
-    const js = readFileSync(homeHubPath, 'utf8');
+    const js = readFrontendJs('frontend/src/home/hub.tsx');
     expect(js).toMatch(/get_ai_assistant_binding/);
     expect(aiAssistantCmd).toMatch(/get_ai_assistant_binding/);
     expect(libRs).toMatch(/get_ai_assistant_binding/);
   });
 
   it('SK-3 T5: binding exposes turns; Home hydrates without Reset', () => {
-    const js = readFileSync(homeHubPath, 'utf8');
+    const js = readFrontendJs('frontend/src/home/hub.tsx');
     const loopRs = readAgentLoopSource();
     const sessionRs = readRsPath(
       join(repoRoot, 'src-tauri/src/services/agent/session'),
@@ -76,7 +76,7 @@ describe('ai-assistant window shell (t5)', () => {
   });
 
   it('composer eligibility follows Binding Contract query_binding, not todo session', () => {
-    const js = readFileSync(homeHubPath, 'utf8');
+    const js = readFrontendJs('frontend/src/home/hub.tsx');
     expect(js).toMatch(/query_binding/);
     expect(js).toMatch(/ai-assistant:binding-changed/);
     expect(js).toMatch(/hostBound/);
@@ -87,7 +87,7 @@ describe('ai-assistant window shell (t5)', () => {
 
   it('Todos Set does not provision a chat session', () => {
     const todosBinding = readFileSync(
-      join(repoRoot, 'frontend/js/todo-task/binding.js'),
+      join(repoRoot, 'frontend/src/todo-task/binding.js'),
       'utf8',
     );
     expect(todosBinding).not.toMatch(/ensure_ai_assistant_session/);
@@ -152,7 +152,7 @@ describe('ai-assistant window shell (t5)', () => {
   });
 
   it('Home unmount does not invoke Binding Contract Reset', () => {
-    const js = readFileSync(homeHubPath, 'utf8');
+    const js = readFrontendJs('frontend/src/home/hub.tsx');
     expect(js).not.toMatch(/reset_binding/);
     expect(js).toMatch(/query_binding/);
   });
@@ -173,7 +173,7 @@ describe('ai-assistant window shell (t5)', () => {
   });
 
   it('T5 Home discards the current session on binding-changed Unbound', () => {
-    const js = readFileSync(homeHubPath, 'utf8');
+    const js = readFrontendJs('frontend/src/home/hub.tsx');
     expect(js).toMatch(/currentSessionId\s*=\s*['"]['"]/);
     expect(js).toMatch(/ai-assistant:binding-changed/);
     expect(js).toMatch(/query_binding/);
@@ -263,7 +263,7 @@ describe('ai-assistant Present shell VF (t7)', () => {
   });
 
   it('hydrate turns on binding read; Home unmount ≠ Reset', () => {
-    const js = readFileSync(homeHubPath, 'utf8');
+    const js = readFrontendJs('frontend/src/home/hub.tsx');
     expect(js).toMatch(/hydrateTurns/);
     expect(loopRs).toMatch(/get_ai_assistant_binding_core[\s\S]*turns/);
     expect(js).not.toMatch(/invoke\(\s*['"]reset_binding['"]/);

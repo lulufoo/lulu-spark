@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { READ_API_INVOKE_MAP } from '../../frontend/js/host/readApiInvokeMap.js';
+import { READ_API_INVOKE_MAP } from '../../frontend/src/host/readApiInvokeMap.ts';
 import {
   ATTACHMENT_COMMANDS,
   MCP_ATTACHMENT_TOOLS,
@@ -16,6 +16,7 @@ import {
   TODO_TASK_UI_FILES,
 } from '../helpers/todo-task-ui-source.js';
 import { readRsPath } from '../helpers/read-rs-dir.js';
+import { readFrontendJs } from '../helpers/read-frontend-js.js';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
 const WRITE_COMMANDS = [
@@ -27,7 +28,9 @@ const WRITE_COMMANDS = [
 
 function read(rel) {
   const abs = join(repoRoot, rel);
-  return rel.includes('src-tauri/') ? readRsPath(abs) : readFileSync(abs, 'utf8');
+  if (rel.includes('src-tauri/')) return readRsPath(abs);
+  if (rel.startsWith('frontend/src/') && rel.endsWith('.js')) return readFrontendJs(rel);
+  return readFileSync(abs, 'utf8');
 }
 
 describe('FM-4 AC gate (tech-doc VF / T-5)', () => {
@@ -53,7 +56,7 @@ describe('FM-4 AC gate (tech-doc VF / T-5)', () => {
   });
 
   it('I-4: todo-task write layer uses direct Tauri invoke (not fetch/local_http)', () => {
-    const src = read('frontend/js/todo-task/host.js');
+    const src = read('frontend/src/todo-task/host.ts');
     expect(src).toMatch(/invokePlanWrite\('create_todo_task'/);
     expect(src).toMatch(/invokePlanWrite\('delete_todo_task'/);
     expect(src).toMatch(/invokePlanWrite\('add_todo_sub'/);
@@ -117,7 +120,7 @@ describe('Plan-task attachment AC gate (tech-doc VF / T15)', () => {
   });
 
   it('AC2/AC4/AC5: UI host.js uses verb-first attachment Tauri commands', () => {
-    const src = read('frontend/js/todo-task/host.js');
+    const src = read('frontend/src/todo-task/host.ts');
     expect(src).toMatch(/invokePlanPlain\('add_todo_attachment'/);
     expect(src).toMatch(/invokePlanPlain\('list_todo_attachments'/);
     expect(src).toMatch(/invokePlanPlain\('read_todo_attachment'/);
@@ -128,21 +131,21 @@ describe('Plan-task attachment AC gate (tech-doc VF / T15)', () => {
 });
 
 const TODO_TASK_UI_SOURCES = [
-  'frontend/js/todo-task/index.js',
-  'frontend/js/todo-task/page.js',
-  'frontend/js/todo-task/page-render.js',
-  'frontend/js/todo-task/page-dialogs.js',
-  'frontend/js/todo-task/page-events.js',
-  'frontend/js/todo-task/host.js',
-  'frontend/js/todo-task/format.js',
-  'frontend/js/todo-task/list.js',
-  'frontend/js/todo-task/detail.js',
-  'frontend/js/todo-task/detail-render.js',
-  'frontend/js/todo-task/plan-md.js',
-  'frontend/js/todo-task/attachments.js',
-  'frontend/js/todo-task/attachments-render.js',
-  'frontend/js/todo-task/comments.js',
-  'frontend/js/todo-task/dialog.js',
+  'frontend/src/todo-task/index.ts',
+  'frontend/src/todo-task/page.tsx',
+  'frontend/src/todo-task/page-render.tsx',
+  'frontend/src/todo-task/page-dialogs.ts',
+  'frontend/src/todo-task/page-events.ts',
+  'frontend/src/todo-task/host.ts',
+  'frontend/src/todo-task/format.ts',
+  'frontend/src/todo-task/list.tsx',
+  'frontend/src/todo-task/detail.ts',
+  'frontend/src/todo-task/detail-render.tsx',
+  'frontend/src/todo-task/plan-md.tsx',
+  'frontend/src/todo-task/attachments.tsx',
+  'frontend/src/todo-task/attachments-render.tsx',
+  'frontend/src/todo-task/comments.tsx',
+  'frontend/src/todo-task/dialog.tsx',
 ];
 
 const CJK = /[\u4e00-\u9fff]/;
@@ -180,7 +183,7 @@ describe('P2 copy-switch — Plan Tasks UI (tech-doc T3)', () => {
   });
 
   it('dialog.js uses table B ∪ B2 English for CRUD copy', () => {
-    const dialog = read('frontend/js/todo-task/dialog.js');
+    const dialog = read('frontend/src/todo-task/dialog.tsx');
     expect(dialog).toContain('New todo');
     expect(dialog).toContain('Create todo');
     expect(dialog).toContain('Please enter a todo name');
@@ -205,13 +208,13 @@ describe('P2 copy-switch — Plan Tasks UI (tech-doc T3)', () => {
 
 const T9_FRONTEND_TARGETS = [
   ...TODO_TASK_UI_FILES,
-  'frontend/js/todo-task/assistant.js',
+  'frontend/src/todo-task/assistant.tsx',
 ];
 
 describe('T9 — frontend/assistant Host API follow (tech-doc T9)', () => {
   it('index and assistant call GET /api/todo-tasks (not /api/plan-tasks)', () => {
     const index = readTodoTaskUiSource();
-    const assistant = read('frontend/js/todo-task/assistant.js');
+    const assistant = read('frontend/src/todo-task/assistant.tsx');
     expect(index).toContain("client.getJson('/api/todo-tasks')");
     expect(assistant).toContain("client.getJson('/api/todo-tasks')");
     expect(index).not.toContain("client.getJson('/api/plan-tasks')");

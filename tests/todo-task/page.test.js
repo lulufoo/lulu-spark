@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { readShellHtml } from '../helpers/read-frontend-js.js';
 
 const getJsonMock = vi.fn();
 
@@ -18,7 +19,7 @@ function mockTodoListReads(lists) {
   });
 }
 
-vi.mock('../../frontend/js/host/apiClient.js', async (importOriginal) => {
+vi.mock('../../frontend/src/host/apiClient.ts', async (importOriginal) => {
   const actual = await importOriginal();
   return {
     ...actual,
@@ -29,7 +30,7 @@ vi.mock('../../frontend/js/host/apiClient.js', async (importOriginal) => {
   };
 });
 
-import { parseHash } from '../../frontend/js/router/index.js';
+import { parseHash } from '../../frontend/src/router/index.ts';
 import {
   copySubIdPair,
   formatMasterCopyText,
@@ -38,14 +39,14 @@ import {
   mountTodoTaskSplit,
   renderSubDetail,
   setPlanMasterStatus,
-} from '../../frontend/js/todo-task/index.js';
+} from '../../frontend/src/todo-task/index.ts';
 
 import { readRsPath } from '../helpers/read-rs-dir.js';
 import { readMainSource } from '../helpers/read-frontend-js.js';
 
 const fixtureRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
 const mainJs = readMainSource();
-const indexHtml = readFileSync(join(fixtureRoot, 'frontend/index.html'), 'utf8');
+const indexHtml = readShellHtml();
 const appCss = readFileSync(join(fixtureRoot, 'frontend/app.css'), 'utf8');
 
 function extractFunctionBody(source, name) {
@@ -812,7 +813,8 @@ describe('todo-tasks route source wiring', () => {
     expect(mainJs).toMatch(/function mountTodoTasksRoute/);
   });
 
-  it('main.js registers todo-tasks via wrapRouteMount in initRouter', () => {
+  it('main.js registers todo-tasks via wrapRouteMount in setRouteHandlers', () => {
+    expect(mainJs).toMatch(/setRouteHandlers\s*\(/);
     expect(mainJs).toMatch(
       /['"]todo-tasks['"]:\s*wrapRouteMount\s*\(\s*['"]todo-tasks['"]\s*,\s*mountTodoTasksRoute/,
     );

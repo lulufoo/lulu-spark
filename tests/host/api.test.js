@@ -1,7 +1,8 @@
 import { readFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { test, expect, vi, beforeEach } from 'vitest'
-import { readHostApiSource } from '../helpers/read-frontend-js.js'
-import { DEFAULT_DEV_BASE } from '../../frontend/js/host/apiClient.js'
+import { DEFAULT_DEV_BASE } from '../../frontend/src/host/apiClient.ts'
 import {
   assertReadPayload,
   assertWritePayload,
@@ -13,8 +14,9 @@ import {
   updateComments, updateLinks, setImportance, setDone,
   deleteEntry, ghMove,
   fetchTopics, moveToProject,
-} from '../../frontend/js/host/api.js'
+} from '../../frontend/src/host/api.ts'
 
+const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..')
 const API_READ_PREFIX = `${DEFAULT_DEV_BASE}/api`
 
 function mockFetch(body, ok = true, status = 200) {
@@ -41,7 +43,12 @@ function mockFetchHtml(status = 404) {
 beforeEach(() => { vi.restoreAllMocks() })
 
 test('api.js 无裸 fetch（读路径均经 readGet / writePost）', () => {
-  const src = readHostApiSource()
+  const src = [
+    'frontend/src/host/api.ts',
+    'frontend/src/host/api/transport.ts',
+    'frontend/src/host/api/workbench.ts',
+    'frontend/src/host/api/knowledge.ts',
+  ].map((rel) => readFileSync(join(repoRoot, rel), 'utf8')).join('\n')
   expect([...src.matchAll(/await fetch\(/g)]).toHaveLength(0)
 })
 

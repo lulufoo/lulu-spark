@@ -3,11 +3,12 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { readShellHtml } from '../helpers/read-frontend-js.js';
 
 const invokeMock = vi.fn();
 const getJsonMock = vi.fn();
 
-vi.mock('../../frontend/js/host/apiClient.js', async (importOriginal) => {
+vi.mock('../../frontend/src/host/apiClient.ts', async (importOriginal) => {
   const actual = await importOriginal();
   return {
     ...actual,
@@ -18,7 +19,7 @@ vi.mock('../../frontend/js/host/apiClient.js', async (importOriginal) => {
   };
 });
 
-import { parseHash } from '../../frontend/js/router/index.js';
+import { parseHash } from '../../frontend/src/router/index.ts';
 import { readMainSource } from '../helpers/read-frontend-js.js';
 import {
   bindFocusRefresh,
@@ -27,13 +28,13 @@ import {
   markEntryRead,
   mountReadLaterList,
   renderUnavailableState,
-} from '../../frontend/js/read-later/list.js';
+} from '../../frontend/src/read-later/list.tsx';
 
 const UNAVAILABLE_MSG = 'List temporarily unavailable. Please try again later';
 
 const fixtureRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
 const mainJs = readMainSource();
-const indexHtml = readFileSync(join(fixtureRoot, 'frontend/index.html'), 'utf8');
+const indexHtml = readShellHtml();
 
 function extractFunctionBody(source, name) {
   const start = source.indexOf(`function ${name}`);
@@ -106,7 +107,8 @@ describe('read-later route', () => {
       expect(mainJs).toMatch(/function mountReadLaterRoute/);
     });
 
-    it('main.js registers read-later via wrapRouteMount in initRouter', () => {
+    it('main.js registers read-later via wrapRouteMount in setRouteHandlers', () => {
+      expect(mainJs).toMatch(/setRouteHandlers\s*\(/);
       expect(mainJs).toMatch(
         /['"]read-later['"]:\s*wrapRouteMount\s*\(\s*['"]read-later['"]\s*,\s*mountReadLaterRoute/,
       );
@@ -420,6 +422,42 @@ describe('mountReadLaterList', () => {
       expect(container.querySelector('.read-later-unavailable')).not.toBeNull();
     });
     expect(container.querySelector('.read-later-item')).toBeNull();
+    dispose();
+  });
+
+  it('keeps the unavailable banner when switching tabs after first-load failure', async () => {
+    getJsonMock.mockRejectedValue(new Error('Failed to fetch'));
+    const { dispose } = mountReadLaterList(container, {
+      showTabs: true,
+      initialFilter: 'unread',
+    });
+    await vi.waitFor(() => {
+      expect(container.querySelector('.read-later-unavailable')).not.toBeNull();
+    });
+    container.querySelector('[data-filter="all"]').click();
+    expect(container.querySelector('.read-later-unavailable')).not.toBeNull();
+    expect(container.querySelector('.read-later-empty')).not.toBeNull();
+    expect(container.querySelector('.read-later-item')).toBeNull();
+    dispose();
+  });
+
+  it('keeps the unavailable banner when switching tabs after a failed refresh', async () => {
+    getJsonMock.mockResolvedValueOnce(sampleEntries);
+    const { dispose } = mountReadLaterList(container, {
+      showTabs: true,
+      initialFilter: 'unread',
+    });
+    await vi.waitFor(() => {
+      expect(container.querySelectorAll('.read-later-item')).toHaveLength(1);
+    });
+    getJsonMock.mockRejectedValueOnce(new Error('Failed to fetch'));
+    window.dispatchEvent(new Event('focus'));
+    await vi.waitFor(() => {
+      expect(container.querySelector('.read-later-unavailable')).not.toBeNull();
+    });
+    container.querySelector('[data-filter="all"]').click();
+    expect(container.querySelector('.read-later-unavailable')).not.toBeNull();
+    expect(container.querySelectorAll('.read-later-item')).toHaveLength(2);
     dispose();
   });
 

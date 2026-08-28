@@ -40,7 +40,7 @@ const { makeEl, trigger, clearDom } = vi.hoisted(() => {
   return { makeEl, trigger, clearDom };
 });
 
-vi.mock('../../frontend/js/host/api.js', () => ({
+vi.mock('../../frontend/src/host/api.ts', () => ({
   fetchDiffStatus: vi.fn().mockResolvedValue({
     new: [], modified: ['raw/a.md'], deleted: [], renamed: [], conflicted: [],
     total: 1, ahead: 0,
@@ -48,12 +48,12 @@ vi.mock('../../frontend/js/host/api.js', () => ({
   commitFiles: vi.fn(),
 }));
 
-vi.mock('../../frontend/js/app-shell/toast.js', () => ({
+vi.mock('../../frontend/src/toast.tsx', () => ({
   showToast: vi.fn(),
 }));
 
-import * as api from '../../frontend/js/host/api.js';
-import { showToast } from '../../frontend/js/app-shell/toast.js';
+import * as api from '../../frontend/src/host/api.ts';
+import { showToast } from '../../frontend/src/toast.tsx';
 
 function seedDom() {
   makeEl('btn-push-index');
@@ -83,7 +83,7 @@ describe('homepage commit dialog — delayed close + background submit', () => {
         rejectCommit = reject;
       }),
     );
-    await import('../../frontend/js/app-shell/commit-dialog.js');
+    await import('../../frontend/src/app-shell/commit-dialog.tsx');
     makeEl('commit-changes-dialog').classList.add('open');
     makeEl('btn-push-index').disabled = false;
     makeEl('btn-push-index').textContent = '↑ 提交变更';

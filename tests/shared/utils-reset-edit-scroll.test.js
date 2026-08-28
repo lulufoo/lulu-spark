@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { resetEditAreaScroll } from '../../frontend/js/shared/utils.js';
+import { resetEditAreaScroll } from '../../frontend/src/shared/utils.ts';
 
 function makeEditArea() {
   const el = document.createElement('textarea');

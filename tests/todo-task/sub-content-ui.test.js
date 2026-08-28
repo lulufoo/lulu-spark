@@ -11,7 +11,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 const invokeMock = vi.fn();
 const getJsonMock = vi.fn();
 
-vi.mock('../../frontend/js/host/apiClient.js', async (importOriginal) => {
+vi.mock('../../frontend/src/host/apiClient.ts', async (importOriginal) => {
   const actual = await importOriginal();
   return {
     ...actual,
@@ -28,7 +28,7 @@ import {
   renderSubDetailPane,
   renderSubRow,
   updatePlanSub,
-} from '../../frontend/js/todo-task/index.js';
+} from '../../frontend/src/todo-task/index.ts';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
 

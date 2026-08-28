@@ -11,8 +11,8 @@ describe('AC invariants', () => {
     const viewer = readNotesViewerSource();
     expect(viewer).toMatch(/export async function openDoc\s*\(/);
     expect(viewer).toMatch(/export async function openCreateNote\s*\(/);
-    expect(existsSync(join(repoRoot, 'frontend/js/components/note-editor.js'))).toBe(false);
-    expect(existsSync(join(repoRoot, 'frontend/js/note-editor.js'))).toBe(false);
+    expect(existsSync(join(repoRoot, 'frontend/src/components/note-editor.js'))).toBe(false);
+    expect(existsSync(join(repoRoot, 'frontend/src/note-editor.js'))).toBe(false);
   });
 
   it('router tests include corpus ?path= deep link coverage', async () => {

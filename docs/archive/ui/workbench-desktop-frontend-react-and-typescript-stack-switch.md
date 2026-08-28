@@ -1,0 +1,158 @@
+# Workbench 桌面前端：React 与 TypeScript 技术栈切换
+
+官方参考：[Vite | Tauri](https://v2.tauri.app/start/frontend/vite/)
+
+关联 todo：`task_95c6c41562a4`
+
+决策来源：本会话调研 + 方案 + `/converge`（Q1 已锁 TypeScript；Q2 授权 P0 **未锁**）。
+
+---
+
+## 1. 目标
+
+把桌面 L2 从「静态 HTML + vanilla ESM」换成 **React + TypeScript**。路径是绞杀：新壳包住旧页，一页一换，应用始终能开。
+
+不改 L3 invoke map，不改 Rust，不与 Android 共用 UI。
+
+---
+
+## 2. 已锁决定
+
+| 项 | 决定 | 标记 |
+|----|------|------|
+| 终点 | 整站 React | 用户授权写方案 |
+| 语言 | 这一轮上 TypeScript | `/converge` Q1 = B |
+| 路径 | 绞杀，不是停机重写 | 方案默认；Q2 未改 |
+| 打包 | Vite；产出 `frontend/dist` | 方案默认；见官方 Vite+Tauri |
+| 路由 | 留下现有 `#` / `parseHash`；不上 react-router | 方案默认 |
+| 状态 | 留下 `host/state.js`，React 用 `useSyncExternalStore` 订阅 | 方案默认 |
+| 样式 | 留下 `frontend/app.css` | 方案默认 |
+| Host | `frontend/js/host/` 等到 P8 再搬进 `src/host/` | 方案默认 |
+| P0 落地 | 已授权并开工 | 用户 2026-08-28：开始落地 / 继续直到完成 |
+
+同一轮不上：Redux / Zustand / React Query、Tailwind / CSS-in-JS、react-router。
+
+---
+
+## 3. 现状（2026-08-28 工作区重核）
+
+| 项 | 现状 | 标记 |
+|----|------|------|
+| 打包器 / React / TS | P0 已接 Vite + React + TypeScript；UI 仍由 `js/main.js` 画 | ✅ Verified（`package.json`；`frontend/src/p0-pipeline.ts`） |
+| Tauri 前端 | `devUrl: http://localhost:5173`；`frontendDist: "../frontend/dist"`；`withGlobalTauri: true` | ✅ Verified（`src-tauri/tauri.conf.json`） |
+| 入口 | `index.html` → ESM `js/main.js`；marked / turndown 走 jsDelivr；mermaid / qrcode 在 `vendor/` | ✅ Verified（`frontend/index.html`） |
+| CSP | `connect-src` 含 `ipc:` / `ws:`；`script-src` 含 `'unsafe-eval'` 与 jsDelivr | ✅ Verified（`tauri.conf.json`） |
+| 生产 JS | 112 个文件（不含 `components/`），18,043 行 | ✅ Verified（`wc -l`，2026-08-28 重核） |
+| 碰 DOM 的文件 | 74 个，13,976 行 | ✅ Verified（`rg` + `wc`） |
+| CSS / HTML | `app.css` 7,371 行；`index.html` 643 行 | ✅ Verified（`wc -l`） |
+| 测试 | 129 个 vitest 文件；82 个含 `readFileSync` | ✅ Verified（`find` + `rg`） |
+| 路由 | 5 条 hash：home / workbench / corpus-doc / read-later / todo-tasks | ✅ Verified（`frontend/js/router/index.js`） |
+| L3 | `host/api.js` 现为 re-export；实现在 `host/api/{transport,workbench,knowledge}.js` | ✅ Verified（`frontend/js/host/api.js`） |
+| 分层 | L2 仍是「HTML / JS / CSS，只经 L3」 | ✅ Verified（`docs/architecture/layer-constraints.md`） |
+| Tauri import | `frontend/js/**` 与 `frontend/src/**` 禁止静态 `@tauri-apps/*`，仅 `apiClient.js` 可动态 import | ✅ Verified（`docs/coding/coding-workbench-discipline.md`；`tests/host/frontendTauriImportContract.test.js`） |
+
+并行中的 vanilla 拆分（未完成，勿回滚）：
+
+- `app-shell/routes.js` 已从 `main.js` 抽出路由挂载
+- `host/api/` 已拆 transport / workbench / knowledge
+- `app-shell/settings/`、`notes/viewer/`、`corpus/corpus-viewer/`、`todo-task/*-render.js` 等新目录/文件已出现
+
+✅ Verified（`git status --short frontend`，2026-08-28）
+
+---
+
+## 4. 目标模型
+
+### 4.1 运行时
+
+```text
+frontend/index.html     # 只剩 #root
+frontend/src/main.tsx   # createRoot
+frontend/src/App.tsx    # header + hash 路由
+frontend/src/host/      # P8 才从 js/host 搬来
+frontend/js/            # 绞杀期间仍活着；P8 删除
+frontend/dist/          # Vite 产出；Tauri frontendDist 指向这里
+```
+
+⚠️ Inferred：Vite 配置放仓库根、`root`/`outDir` 指向 `frontend/`，与现有「`package.json` 在仓库根」一致。官方示例的 `frontendDist` 是 `../dist`；本仓库应对 `../frontend/dist`。
+
+### 4.2 Tauri 接 Vite
+
+按官方字段改 `src-tauri/tauri.conf.json`：
+
+- `beforeDevCommand`：`npm run dev`
+- `beforeBuildCommand`：`npm run build`
+- `devUrl`：与 Vite `strictPort` 一致（官方示例 `http://localhost:5173`）
+- `frontendDist`：`../frontend/dist`
+
+Vite 须 `clearScreen: false`，`watch.ignored` 含 `**/src-tauri/**`。
+
+✅ Verified（官方文档 [Vite \| Tauri](https://v2.tauri.app/start/frontend/vite/)）
+
+### 4.3 绞杀岛屿
+
+P1 起：React 负责 header 与路由切换。每个尚未迁完的页面是一个空 `div`，仍调用现有 `mount*`（含已抽出的 `app-shell/routes.js`）。迁完一页，删掉该页的 vanilla 挂载。
+
+### 4.4 什么留下、什么换成 TSX
+
+| 留下（可 import，P8 再搬） | 迁到哪一页才换成 TSX |
+|---------------------------|----------------------|
+| `host/api*`、`apiClient`、invoke map | 碰 DOM 的阅读器、列表、对话框、壳 |
+| `router/index.js` 的 parse / navigate | `todo-task/detail-render.js` 等拼 HTML 字符串的渲染 |
+| `state.js`、FSM、format、comment-reorder / comment-markdown | |
+
+L2 仍只经 L3。`frontend/src/**` 同样禁止静态 `@tauri-apps/*`；门闩在 P0 起把扫描根扩到 `frontend/src`。
+
+---
+
+## 5. 阶段
+
+每一阶段结束应用都能开。迁哪一页，就改哪一页的源码扫描测试。
+
+| 阶段 | 做什么 | 完成条件 |
+|------|--------|----------|
+| P0 | Vite + React + TypeScript + Tauri hooks。界面仍是旧 JS。 | ✅ 管道已接；`vite build` 通过。❌ 本机未开 `tauri dev` 窗口 |
+| P1 | React 管 hash 路由；旧页当岛屿。Header 仍在 `index.html`（源码门闩锁着这些 id） | ✅ `mountHashRouter`；5 条路由仍走 `wrapRouteMount` |
+| P2 | Toast 改 React（`showToast` 合同不变）。Convert/Bind 对话框仍 vanilla，放到 P7 | ✅ `toast.test.js` 通过 |
+| P3 | Home + Read Later | hub、覆盖层、Read Later 列表 |
+| P4 | Todos（page / list / detail 的渲染改 TSX；host / lifecycle / binding 留下） | 列表、详情、创建、绑定 |
+| P5 | Notes（阅读器、评论、侧栏、搜索、创建会话） | 打开 / 编辑 / 评论 / 新建 / 返回 |
+| P6 | Corpus（复用 P5 组件，换 API 动词） | 打开知识库文档 + 评论 |
+| P7 | Settings 与剩余对话框 | 设置能保存；绑定 / 转换 / 提交可用 |
+| P8 | 删除 vanilla；`index.html` 只留 `#root`；marked 改 npm；CSP 去掉 jsDelivr | `frontend/js/` 不存在；`npm test` 全绿 |
+
+P0 **须再次授权**后再做。
+
+P5 的 Mermaid / 高亮 overlay 仍放在 `useEffect` 里，不改成组件树。
+
+⚠️ Inferred：`apiClient` 里「外置浏览器看 1430 端口」的判断，接 Vite 后可能要对齐 `devUrl` 端口。P0 核。
+
+---
+
+## 6. 与并行拆分的关系
+
+当前工作区正在把胖文件拆成模块。React 迁入时：
+
+1. **对接拆后模块**，不要把 `host/api/`、`routes.js`、`*-render.js` 合并回去。
+2. 未完成的拆分可以继续；P0 只动管道，不碰这些文件。
+3. 某一页开始改 TSX 时，以当时仓库里的模块边界为准，不以本文件第 3 节的行数为冻结合同。
+
+---
+
+## 7. 验收（整站）
+
+1. 桌面 UI 入口是 `frontend/src/main.tsx`，无 vanilla `js/main.js`。
+2. L3 仍只经 `apiClient` + invoke map；无静态 `@tauri-apps/*`（除允许的动态 import）。
+3. UI 文案仍为英文（`docs/biz/ui-conventions.md`）。
+4. 5 条 hash 路由行为与迁之前一致（打开、返回、创建、覆盖层收回）。
+5. `npm test`（含 cargo lib + vitest）全绿。
+
+---
+
+## 8. 开放
+
+| 项 | 状态 |
+|----|------|
+| 是否授权 P0 | ✅ Verified（用户 2026-08-28：开始落地） |
+| `devUrl` 端口 | ✅ Verified：5173（官方 Vite 示例；`tauri.conf.json` `devUrl`） |
+| 设计文档是否再归档进语料仓 | ❌ Unresolved（本文先落仓库） |

@@ -3,9 +3,10 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import * as api from '../../frontend/js/host/api.js';
-import { mountHomeHub } from '../../frontend/js/home-entry-shell/hub.js';
-import { readMainSource } from '../helpers/read-frontend-js.js';
+import * as api from '../../frontend/src/host/api.ts';
+import { mountHomeHub } from '../../frontend/src/home/hub.tsx';
+import * as chatRender from '../../frontend/src/home/chat-render.ts';
+import { readFrontendJs, readMainSource } from '../helpers/read-frontend-js.js';
 
 const fixtureRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
 const mainJs = readMainSource();
@@ -105,8 +106,13 @@ describe('mountHomeHub', () => {
     const cleanup2 = mountHomeHub(container, { navigate });
     cleanup2();
 
-    const clickAdds = addSpy.mock.calls.filter(([type]) => type === 'click').length;
-    const clickRemoves = removeSpy.mock.calls.filter(([type]) => type === 'click').length;
+    const onHubRoot = (el) => el instanceof HTMLElement && el.classList.contains('home-chat');
+    const clickAdds = addSpy.mock.calls.filter(
+      ([type], i) => type === 'click' && onHubRoot(addSpy.mock.instances[i]),
+    ).length;
+    const clickRemoves = removeSpy.mock.calls.filter(
+      ([type], i) => type === 'click' && onHubRoot(removeSpy.mock.instances[i]),
+    ).length;
     expect(clickAdds).toBe(clickRemoves);
 
     addSpy.mockRestore();
@@ -437,6 +443,58 @@ describe('home hub chat sessions', () => {
     });
   });
 
+  it('does not rehydrate mermaid or yank scroll on progress-only paints', async () => {
+    const hydrateSpy = vi.spyOn(chatRender, 'hydrateHomeChatMarkdown');
+    let onProgress;
+    createChannelSpy.mockImplementation(async (fn) => {
+      onProgress = fn;
+      return { onmessage: fn };
+    });
+    let releaseTurn;
+    const turnGate = new Promise((resolve) => {
+      releaseTurn = resolve;
+    });
+    invokeSpy.mockImplementation(async (cmd) => {
+      if (cmd === 'query_binding') return { state: 'bound' };
+      if (cmd === 'list_chat_sessions') {
+        return { sessions, current_session_id: currentId };
+      }
+      if (cmd === 'get_ai_assistant_binding') {
+        return { session_id: currentId, turns: [] };
+      }
+      if (cmd === 'agent_chat_turn') {
+        await turnGate;
+        return { reply_text: 'Hi back', terminal: 'ok' };
+      }
+      return {};
+    });
+    await mountReady();
+    const input = container.querySelector('[data-role="input"]');
+    const form = container.querySelector('[data-role="form"]');
+    input.value = 'Hello there';
+    form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    await vi.waitFor(() => {
+      expect(container.querySelector('.home-chat-bubble--user')?.textContent).toBe(
+        'Hello there',
+      );
+      expect(onProgress).toEqual(expect.any(Function));
+    });
+    const afterSend = hydrateSpy.mock.calls.length;
+    const messagesEl = container.querySelector('[data-role="messages"]');
+    Object.defineProperty(messagesEl, 'scrollHeight', { configurable: true, value: 400 });
+    Object.defineProperty(messagesEl, 'clientHeight', { configurable: true, value: 200 });
+    messagesEl.scrollTop = 12;
+    onProgress?.({ session_id: 's2', request_id: 'trace_1', desc: 'Requesting…' });
+    onProgress?.({ session_id: 's2', request_id: 'trace_1', desc: 'Working…' });
+    expect(container.querySelector('[data-role="progress-hint"]')?.textContent).toBe(
+      'Working…',
+    );
+    expect(hydrateSpy.mock.calls.length).toBe(afterSend);
+    expect(messagesEl.scrollTop).toBe(12);
+    hydrateSpy.mockRestore();
+    releaseTurn();
+  });
+
   it('disables the composer when Binding is unbound', async () => {
     bound = false;
     mountHomeHub(container, { navigate: vi.fn() });
@@ -471,10 +529,7 @@ describe('home hub chat sessions', () => {
   });
 
   it('uses English chat chrome and the list/select/create commands', () => {
-    const source = readFileSync(
-      join(fixtureRoot, 'frontend/js/home-entry-shell/hub.js'),
-      'utf8',
-    );
+    const source = readFrontendJs('frontend/src/home/hub.tsx');
     expect(source).toMatch(/list_chat_sessions/);
     expect(source).toMatch(/select_chat_session/);
     expect(source).toMatch(/create_chat_session/);

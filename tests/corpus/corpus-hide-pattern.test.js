@@ -6,7 +6,7 @@ import {
   validateKbHidePattern,
   saveKbHidePattern,
   shouldHideEntry,
-} from '../../frontend/js/corpus/corpus-hide-pattern.js';
+} from '../../frontend/src/corpus/corpus-hide-pattern.ts';
 
 function installLocalStorageMock() {
   const store = {};

@@ -3,11 +3,12 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { readFrontendJs } from '../helpers/read-frontend-js.js';
 
 const invokeMock = vi.fn();
 const getJsonMock = vi.fn();
 
-vi.mock('../../frontend/js/host/apiClient.js', async (importOriginal) => {
+vi.mock('../../frontend/src/host/apiClient.ts', async (importOriginal) => {
   const actual = await importOriginal();
   return {
     ...actual,
@@ -22,7 +23,7 @@ import {
   mountTodoTaskSplit,
   readPlanAttachment,
   savePlanAttachment,
-} from '../../frontend/js/todo-task/index.js';
+} from '../../frontend/src/todo-task/index.ts';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
 
@@ -308,9 +309,9 @@ describe('mountTodoTaskSplit attachment editor modal', () => {
 
 describe('attachment editor surface contracts', () => {
   it('does not reuse read_todo_md / update_todo_md for attachment editor path', () => {
-    const host = readFileSync(join(repoRoot, 'frontend/js/todo-task/host.js'), 'utf8');
-    const src = readFileSync(join(repoRoot, 'frontend/js/todo-task/attachments.js'), 'utf8')
-      + readFileSync(join(repoRoot, 'frontend/js/todo-task/attachments-render.js'), 'utf8');
+    const host = readFileSync(join(repoRoot, 'frontend/src/todo-task/host.ts'), 'utf8');
+    const src = readFileSync(join(repoRoot, 'frontend/src/todo-task/attachments.tsx'), 'utf8')
+      + readFileSync(join(repoRoot, 'frontend/src/todo-task/attachments-render.tsx'), 'utf8');
     expect(host).toMatch(/read_todo_attachment/);
     expect(host).toMatch(/save_todo_attachment/);
 
@@ -328,8 +329,8 @@ describe('attachment editor surface contracts', () => {
   });
 
   it('attachment editor is a dedicated modal surface, not comments default-edit or todo_md inline', () => {
-    const src = readFileSync(join(repoRoot, 'frontend/js/todo-task/attachments.js'), 'utf8')
-      + readFileSync(join(repoRoot, 'frontend/js/todo-task/attachments-render.js'), 'utf8');
+    const src = readFileSync(join(repoRoot, 'frontend/src/todo-task/attachments.tsx'), 'utf8')
+      + readFileSync(join(repoRoot, 'frontend/src/todo-task/attachments-render.tsx'), 'utf8');
     expect(src).toMatch(/todo-task-attachment-editor/);
     expect(src).toMatch(/todo-task-attachment-preview/);
     expect(src).toMatch(/data-action="edit-attachment"/);
@@ -348,12 +349,9 @@ describe('attachment editor surface contracts', () => {
   });
 
   it('dialog.js TodoTaskDialogType remains master/sub CRUD only (no attachment editor type)', () => {
-    const dialogSrc = readFileSync(
-      join(repoRoot, 'frontend/js/todo-task/dialog.js'),
-      'utf8',
-    );
+    const dialogSrc = readFrontendJs('frontend/src/todo-task/dialog.tsx');
     expect(dialogSrc).toMatch(
-      /@typedef \{'create-master' \| 'create-category' \| 'add-sub' \| 'delete-master' \| 'delete-sub'\} TodoTaskDialogType/,
+      /TodoTaskDialogType[\s\S]*?'create-master'[\s\S]*?'create-category'[\s\S]*?'add-sub'[\s\S]*?'delete-master'[\s\S]*?'delete-sub'/,
     );
     expect(dialogSrc).not.toMatch(/attachment-editor|open-attachment|edit-attachment/);
   });

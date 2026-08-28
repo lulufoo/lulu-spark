@@ -2,10 +2,11 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
+import { readShellHtml } from '../helpers/read-frontend-js.js';
 import { readMainSource, readNotesViewerSource } from '../helpers/read-frontend-js.js';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
-const indexHtml = readFileSync(join(repoRoot, 'frontend/index.html'), 'utf8');
+const indexHtml = readShellHtml();
 const appCss = readFileSync(join(repoRoot, 'frontend/app.css'), 'utf8');
 const viewerJs = readNotesViewerSource();
 const mainJs = readMainSource();

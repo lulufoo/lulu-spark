@@ -1,5 +1,10 @@
 // @vitest-environment jsdom
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+
+const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
 
 const TOAST_SELECTOR = '.wb-toast';
 
@@ -13,6 +18,13 @@ function isVisible(el) {
   return style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0';
 }
 
+describe('toast React export', () => {
+  it('frontend/src/toast.tsx exports showToast', () => {
+    const src = readFileSync(join(repoRoot, 'frontend/src/toast.tsx'), 'utf8');
+    expect(src).toMatch(/export\s+function\s+showToast\s*\(/);
+  });
+});
+
 describe('showToast', () => {
   beforeEach(() => {
     vi.useFakeTimers();
@@ -25,7 +37,7 @@ describe('showToast', () => {
   });
 
   it('renders a floating success toast that auto-dismisses after 3s', async () => {
-    const { showToast } = await import('../../frontend/js/app-shell/toast.js');
+    const { showToast } = await import('../../frontend/src/toast.tsx');
 
     showToast('saved', 'success');
 
@@ -43,7 +55,7 @@ describe('showToast', () => {
   });
 
   it('renders error toast with styling distinct from success', async () => {
-    const { showToast } = await import('../../frontend/js/app-shell/toast.js');
+    const { showToast } = await import('../../frontend/src/toast.tsx');
 
     showToast('failed', 'error');
 
@@ -53,7 +65,7 @@ describe('showToast', () => {
   });
 
   it('handles rapid consecutive calls without crash or invisible DOM leftovers', async () => {
-    const { showToast } = await import('../../frontend/js/app-shell/toast.js');
+    const { showToast } = await import('../../frontend/src/toast.tsx');
 
     expect(() => {
       showToast('first', 'success');
@@ -73,7 +85,7 @@ describe('showToast', () => {
   });
 
   it('renders empty message without throwing', async () => {
-    const { showToast } = await import('../../frontend/js/app-shell/toast.js');
+    const { showToast } = await import('../../frontend/src/toast.tsx');
 
     expect(() => showToast('', 'success')).not.toThrow();
 

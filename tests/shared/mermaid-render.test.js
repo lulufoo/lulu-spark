@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { initMermaid, renderMermaidBlocks } from '../../frontend/js/shared/mermaid-render.js';
+import { initMermaid, renderMermaidBlocks } from '../../frontend/src/shared/mermaid-render.ts';
 
 describe('initMermaid', () => {
   afterEach(() => {

@@ -3,7 +3,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import {
   closeFloatingListSelect,
   createFloatingListSelect,
-} from '../../frontend/js/shared/floating-list-select.js';
+} from '../../frontend/src/shared/floating-list-select.ts';
 
 describe('floating-list-select', () => {
   afterEach(() => {

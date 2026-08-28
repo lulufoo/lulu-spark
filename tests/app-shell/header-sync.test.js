@@ -1,27 +1,27 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
-vi.mock('../../frontend/js/host/api.js', () => ({
+vi.mock('../../frontend/src/host/api.ts', () => ({
   reindexKbRepo: vi.fn(),
   getReindexStatus: vi.fn(),
 }));
 
-vi.mock('../../frontend/js/corpus/corpus-diff-dialog.js', () => ({
+vi.mock('../../frontend/src/corpus/corpus-diff-dialog.tsx', () => ({
   openKbDiffDialog: vi.fn(),
 }));
 
-vi.mock('../../frontend/js/app-shell/commit-dialog.js', () => ({
+vi.mock('../../frontend/src/app-shell/commit-dialog.tsx', () => ({
   openCommitChangesDialog: vi.fn(),
 }));
 
-import * as api from '../../frontend/js/host/api.js';
-import { openKbDiffDialog } from '../../frontend/js/corpus/corpus-diff-dialog.js';
-import { openCommitChangesDialog } from '../../frontend/js/app-shell/commit-dialog.js';
+import * as api from '../../frontend/src/host/api.ts';
+import { openKbDiffDialog } from '../../frontend/src/corpus/corpus-diff-dialog.tsx';
+import { openCommitChangesDialog } from '../../frontend/src/app-shell/commit-dialog.tsx';
 import {
   initHeaderSync,
   setHeaderSyncCorpusContext,
   clearHeaderSyncCorpusContext,
-} from '../../frontend/js/app-shell/header-sync.js';
+} from '../../frontend/src/app-shell/header-sync.ts';
 
 describe('header-sync', () => {
   beforeEach(() => {

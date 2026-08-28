@@ -11,18 +11,18 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import {
   setWorkbenchBinding,
   WORKBENCH_BUSINESS_KEY,
-} from '../../frontend/js/todo-task/binding.js';
+} from '../../frontend/src/todo-task/binding.ts';
 
 const fixtureRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
 const todosBindingJs = readFileSync(
-  join(fixtureRoot, 'frontend/js/todo-task/binding.js'),
+  join(fixtureRoot, 'frontend/src/todo-task/binding.ts'),
   'utf8',
 );
 const todoTaskIndexJs = readFileSync(
-  join(fixtureRoot, 'frontend/js/todo-task/index.js'),
+  join(fixtureRoot, 'frontend/src/todo-task/index.ts'),
   'utf8',
 ) + readFileSync(
-  join(fixtureRoot, 'frontend/js/todo-task/page.js'),
+  join(fixtureRoot, 'frontend/src/todo-task/page.tsx'),
   'utf8',
 );
 
@@ -74,7 +74,7 @@ describe('Workbench Binding helper — source contracts', () => {
     expect(typeof setWorkbenchBinding).toBe('function');
     expect(setWorkbenchBinding.length).toBeLessThanOrEqual(1);
 
-    const bindingMod = await import('../../frontend/js/todo-task/binding.js');
+    const bindingMod = await import('../../frontend/src/todo-task/binding.ts');
     expect(Object.keys(bindingMod).sort()).toEqual([
       'WORKBENCH_BUSINESS_KEY',
       'setWorkbenchBinding',

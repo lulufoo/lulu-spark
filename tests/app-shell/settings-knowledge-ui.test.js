@@ -1,8 +1,9 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import { readShellHtml } from '../helpers/read-frontend-js.js';
 import { readHostApiSource, readMainSource, readSettingsDialogSource } from '../helpers/read-frontend-js.js';
 
-const indexHtml = readFileSync(new URL('../../frontend/index.html', import.meta.url), 'utf8');
+const indexHtml = readShellHtml();
 const mainJs = readMainSource();
 const apiJs = readHostApiSource();
 const settingsDialogJs = readSettingsDialogSource();
@@ -45,7 +46,7 @@ describe('Settings Knowledge UI', () => {
     expect(indexHtml).toContain('id="settings-tab-llm-engine"');
     expect(indexHtml).toContain('id="settings-tab-github-account"');
     expect(indexHtml).toContain('id="notes-connect-item"');
-    expect(indexHtml).toMatch(/for="notes-connect-url">GitHub repository URL</);
+    expect(indexHtml).toMatch(/htmlFor="notes-connect-url">GitHub repository URL</);
     expect(indexHtml).toContain('id="sediment-kb-add-url"');
     expect(indexHtml).toContain('id="sediment-kb-add-category"');
     expect(indexHtml).toContain('id="sediment-kb-add-description"');

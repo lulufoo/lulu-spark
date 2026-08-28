@@ -1,36 +1,28 @@
 // @vitest-environment jsdom
+import { createElement } from 'react';
+import { createRoot } from 'react-dom/client';
+import { flushSync } from 'react-dom';
 import { describe, it, expect, beforeAll, beforeEach, vi } from 'vitest';
-import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
-import { dirname, join } from 'node:path';
-import { state } from '../../frontend/js/host/state.js';
+import { readFrontendJs } from '../helpers/read-frontend-js.js';
+import { state } from '../../frontend/src/host/state.ts';
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const frontendJs = join(__dirname, '../../frontend/js');
-
-vi.mock('../../frontend/js/host/api.js', () => ({
+vi.mock('../../frontend/src/host/api.ts', () => ({
   updateKbComment: vi.fn(),
   updateComments: vi.fn(),
 }));
 
-import * as api from '../../frontend/js/host/api.js';
+import * as api from '../../frontend/src/host/api.ts';
 import {
+  CommentDeleteDialog,
   confirmDeleteComment,
-  initCommentDeleteConfirm,
   removeKbComment,
   removeCorpusComment,
-} from '../../frontend/js/shared/comment-delete.js';
+} from '../../frontend/src/shared/comment-delete.tsx';
 
 function mountCommentDeleteDialog() {
-  document.body.innerHTML = `
-    <div id="comment-delete-dialog">
-      <div id="comment-delete-dialog-box">
-        <button type="button" id="btn-comment-delete-cancel">取消</button>
-        <button type="button" id="btn-comment-delete-ok">删除</button>
-      </div>
-    </div>
-  `;
-  initCommentDeleteConfirm();
+  document.body.innerHTML = '<div id="comment-delete-host"></div>';
+  const root = createRoot(document.getElementById('comment-delete-host'));
+  flushSync(() => root.render(createElement(CommentDeleteDialog)));
 }
 
 beforeAll(() => {
@@ -134,8 +126,8 @@ describe('removeCorpusComment', () => {
 
 describe('note delete does not use window.confirm', () => {
   it('corpus-comments and notes/comments source do not use window.confirm', () => {
-    const kbSrc = readFileSync(join(frontendJs, 'corpus/corpus-comments.js'), 'utf8');
-    const corpusSrc = readFileSync(join(frontendJs, 'notes/comments.js'), 'utf8');
+    const kbSrc = readFrontendJs('frontend/src/corpus/corpus-comments.tsx');
+    const corpusSrc = readFrontendJs('frontend/src/notes/comments.tsx');
     expect(kbSrc).not.toContain('window.confirm');
     expect(kbSrc).toContain('confirmDeleteComment');
     expect(corpusSrc).not.toContain('window.confirm');

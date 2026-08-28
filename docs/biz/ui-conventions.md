@@ -20,5 +20,5 @@ Decision dialogue may use Chinese concept names (e.g. 执行中 / 完成 / 废�
 
 ### Evidence
 
-- ✅ Verified: todo-task status labels are English (`frontend/js/todo-task/index.js` → `STATUS_LABELS`: `In progress` / `Completed` / `Abandoned`).
+- ✅ Verified: todo-task status labels are English (`frontend/src/todo-task/index.js` → `STATUS_LABELS`: `In progress` / `Completed` / `Abandoned`).
 - ✅ Verified: the repo has a one-shot “UI English copy switch” verification asset requiring English status labels, buttons, empty states, etc. (`docs/archive/ui/ui-english-copy-switch/p4-smoke-checklist.md`).

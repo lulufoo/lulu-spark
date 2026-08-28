@@ -7,7 +7,7 @@ const apiMocks = vi.hoisted(() => ({
   getReindexStatus: vi.fn(),
 }));
 
-vi.mock('../../frontend/js/host/api.js', () => ({
+vi.mock('../../frontend/src/host/api.ts', () => ({
   searchKnowledge: (...args) => apiMocks.searchKnowledge(...args),
   reindexKnowledge: (...args) => apiMocks.reindexKnowledge(...args),
   getReindexStatus: (...args) => apiMocks.getReindexStatus(...args),
@@ -15,7 +15,7 @@ vi.mock('../../frontend/js/host/api.js', () => ({
 
 async function loadModule() {
   vi.resetModules();
-  return import('../../frontend/js/corpus/corpus-knowledge-search.js');
+  return import('../../frontend/src/corpus/corpus-knowledge-search.tsx');
 }
 
 function seedPanel() {

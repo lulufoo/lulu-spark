@@ -7,12 +7,12 @@ import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { readFrontendJs } from '../helpers/read-frontend-js.js';
+import { readFrontendJs, readShellHtml } from '../helpers/read-frontend-js.js';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
 
 function read(rel) {
-  if (rel.startsWith('frontend/js/')) return readFrontendJs(rel);
+  if (rel.startsWith('frontend/src/')) return readFrontendJs(rel);
   return readFileSync(join(repoRoot, rel), 'utf8');
 }
 
@@ -25,7 +25,7 @@ describe('Note AC gate (tech-doc VF / T-13)', () => {
   });
 
   it('AC-2: FAB Top-N ≤3 by created_at only; open via cta:open-entry', () => {
-    const assistant = read('frontend/js/notes/assistant.js');
+    const assistant = read('frontend/src/notes/assistant.tsx');
     expect(assistant).toMatch(/export function selectTopNotesByCreatedAt/);
     expect(assistant).toMatch(/\.slice\(0,\s*3\)/);
     expect(assistant).toMatch(/created_at/);
@@ -40,13 +40,14 @@ describe('Note AC gate (tech-doc VF / T-13)', () => {
   });
 
   it('AC-3: create append-only via archiveDocument(source_type=note); not Overlay', () => {
-    const viewer = read('frontend/js/notes/viewer.js');
-    expect(viewer).toMatch(
+    // Read create.js alone (no re-export follow) so comment write APIs elsewhere do not pollute.
+    const create = readFileSync(join(repoRoot, 'frontend/src/notes/viewer/create.ts'), 'utf8');
+    expect(create).toMatch(
       /archiveDocument\(\{\s*body:\s*trimmed,\s*source_type:\s*'note'\s*\}\)/,
     );
     // finalizeCreateSession must not call Annotation write APIs
-    expect(viewer).not.toMatch(/updateComments|update_comments|saveAnnotation/);
-    const writeMap = read('frontend/js/host/writeApiInvokeMap.js');
+    expect(create).not.toMatch(/updateComments|update_comments|saveAnnotation/);
+    const writeMap = read('frontend/src/host/writeApiInvokeMap.ts');
     expect(writeMap).toMatch(/\/api\/archive-document/);
     expect(writeMap).toMatch(/archive_document/);
 
@@ -56,27 +57,27 @@ describe('Note AC gate (tech-doc VF / T-13)', () => {
   });
 
   it('AC-4: create/edit share viewer.js shell — no second editor module', () => {
-    const viewer = read('frontend/js/notes/viewer.js');
+    const viewer = read('frontend/src/notes/viewer.ts');
     expect(viewer).toMatch(/export async function openDoc\s*\(/);
     expect(viewer).toMatch(/export async function openCreateNote\s*\(/);
-    expect(existsSync(join(repoRoot, 'frontend/js/components/note-editor.js'))).toBe(false);
-    expect(existsSync(join(repoRoot, 'frontend/js/note-editor.js'))).toBe(false);
+    expect(existsSync(join(repoRoot, 'frontend/src/components/note-editor.js'))).toBe(false);
+    expect(existsSync(join(repoRoot, 'frontend/src/note-editor.js'))).toBe(false);
   });
 
   it('AC-5: management surfaces have no note create; CRUD stays save_entry/delete_entry', () => {
     for (const rel of [
-      'frontend/js/notes/sidebar.js',
-      'frontend/js/notes/cards.js',
-      'frontend/js/home-entry-shell/hub.js',
+      'frontend/src/notes/sidebar.tsx',
+      'frontend/src/notes/cards.tsx',
+      'frontend/src/home/hub.tsx',
     ]) {
       const src = read(rel);
       expect(src, rel).not.toMatch(/openCreateNote/);
       expect(src, rel).not.toMatch(/新建随记/);
       expect(src, rel).not.toMatch(/archiveDocument/);
     }
-    const writeMap = read('frontend/js/host/writeApiInvokeMap.js');
+    const writeMap = read('frontend/src/host/writeApiInvokeMap.ts');
     expect(writeMap).toMatch(/cmd:\s*'save_entry'/);
-    const syncMap = read('frontend/js/host/syncApiInvokeMap.js');
+    const syncMap = read('frontend/src/host/syncApiInvokeMap.ts');
     expect(syncMap).toMatch(/cmd:\s*'delete_entry'/);
     // create for notes is archive_document, not a management create_*_note
     expect(writeMap).not.toMatch(/create_note|create_entry/);
@@ -84,21 +85,21 @@ describe('Note AC gate (tech-doc VF / T-13)', () => {
 
   it('AC-6: Overlay user-visible copy is 批注 (not 添加笔记)', () => {
     for (const rel of [
-      'frontend/js/notes/comments.js',
-      'frontend/js/corpus/corpus-comments.js',
-      'frontend/js/corpus/corpus-viewer.js',
+      'frontend/src/notes/comments.tsx',
+      'frontend/src/corpus/corpus-comments.tsx',
+      'frontend/src/corpus/corpus-viewer.ts',
     ]) {
       const src = read(rel);
       expect(src, rel).toMatch(/Comment/);
       expect(src, rel).not.toMatch(/添加笔记|编辑笔记|删除笔记/);
     }
-    const indexSrc = read('frontend/index.html');
+    const indexSrc = readShellHtml();
     expect(indexSrc).toMatch(/Comment/);
     expect(indexSrc).not.toMatch(/添加笔记|编辑笔记|删除笔记/);
   });
 
   it('AC-7: archive failure keeps create session + draft (behavioral probe present)', () => {
-    const viewer = read('frontend/js/notes/viewer.js');
+    const viewer = read('frontend/src/notes/viewer.ts');
     expect(viewer).toMatch(/session\.status = 'creating'/);
     expect(viewer).toMatch(/alert\(`Save failed: \$\{e\.message\}`\)/);
     const behavioral = read('tests/notes/viewer-create-note.test.js');
@@ -107,7 +108,7 @@ describe('Note AC gate (tech-doc VF / T-13)', () => {
   });
 
   it('AC-8: empty exit clears draft, no Primary create (behavioral probe present)', () => {
-    const viewer = read('frontend/js/notes/viewer.js');
+    const viewer = read('frontend/src/notes/viewer.ts');
     expect(viewer).toMatch(/if \(!trimmed\)/);
     expect(viewer).toMatch(/clearNoteDraft\(session\.tempId\)/);
     const behavioral = read('tests/notes/viewer-create-note.test.js');
@@ -115,14 +116,14 @@ describe('Note AC gate (tech-doc VF / T-13)', () => {
   });
 
   it('AC-9: create locks source_type/topic — no mutation controls', () => {
-    const viewer = read('frontend/js/notes/viewer.js');
+    const viewer = read('frontend/src/notes/viewer.ts');
     expect(viewer).not.toMatch(/create-source-type|create-topic|name=["']source_type["']/);
     const behavioral = read('tests/notes/viewer-create-note.test.js');
     expect(behavioral).toMatch(/create flow has no source_type\/topic mutation controls/);
   });
 
   it('AC-10: create success navigates note=common_path; empty exit lands list via navigateBackToList', () => {
-    const viewer = read('frontend/js/notes/viewer.js');
+    const viewer = read('frontend/src/notes/viewer.ts');
     // create success: navigateToNote with archiveDocument common_path (tech-doc T5 / chap-ar)
     expect(viewer).toMatch(/navigateToNote/);
     expect(viewer).toMatch(/common_path/);
@@ -171,7 +172,7 @@ describe('Note AC gate (tech-doc VF / T-13)', () => {
   });
 
   it('AC-11: create chrome hides shell-field controls (body-only)', () => {
-    const viewer = read('frontend/js/notes/viewer.js');
+    const viewer = read('frontend/src/notes/viewer.ts');
     expect(viewer).toMatch(/CREATE_CHROME_HIDDEN_IDS/);
     expect(viewer).toMatch(/applyCreateChrome/);
     expect(viewer).toMatch(/is-create/);
@@ -185,13 +186,23 @@ describe('Note AC gate (tech-doc VF / T-13)', () => {
   });
 
   it('VF falsifiable: create must not target annotations/ Overlay path', () => {
-    const viewer = read('frontend/js/notes/viewer.js');
-    const finalize = viewer.slice(
-      viewer.indexOf('async function finalizeCreateSession'),
-      viewer.indexOf('export async function closeModal'),
+    const create = readFileSync(join(repoRoot, 'frontend/src/notes/viewer/create.ts'), 'utf8');
+    const finalize = create.slice(
+      create.indexOf('async function finalizeCreateSession'),
+      create.indexOf('export async function closeModal'),
     );
     expect(finalize).toMatch(/archiveDocument/);
     expect(finalize).not.toMatch(/annotations/);
     expect(finalize).not.toMatch(/updateComments|fetchAnnotation/);
+  });
+});
+
+describe('Notes viewport after React host', () => {
+  it('app.css keeps #root / #root-shell on the body → .layout flex chain', () => {
+    const css = read('frontend/app.css');
+    expect(css).toMatch(/#root\s*,\s*#root-shell\s*\{[^}]*display:\s*flex/);
+    expect(css).toMatch(/#root\s*,\s*#root-shell\s*\{[^}]*flex-direction:\s*column/);
+    expect(css).toMatch(/#root\s*,\s*#root-shell\s*\{[^}]*flex:\s*1/);
+    expect(css).toMatch(/\.layout\s*\{[^}]*flex:\s*1/);
   });
 });

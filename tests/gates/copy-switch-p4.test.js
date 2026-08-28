@@ -11,31 +11,31 @@ const P4_VERIFY_PATH = join(FEATURE_DIR, 'p4-post-switch-verification.json');
 const P4_SMOKE_PATH = join(FEATURE_DIR, 'p4-smoke-checklist.md');
 
 const TABLE_A_BRANDS = [
-  { zh: 'Workbench 笔记', en: 'Notes', file: 'frontend/js/home-entry-shell/hub.js' },
-  { zh: 'Read Later 待读', en: 'Read Later', file: 'frontend/js/home-entry-shell/hub.js' },
-  { zh: '沉淀知识库', en: 'Knowledge', file: 'frontend/js/home-entry-shell/hub.js' },
-  { zh: 'Todos', en: 'Todos', file: 'frontend/js/home-entry-shell/hub.js' },
-  { zh: 'LuLu Workbench', en: 'LuLu Workbench', file: 'frontend/index.html' },
-  { zh: '笔记助手', en: 'Notes Assistant', file: 'frontend/js/notes/assistant.js' },
-  { zh: 'AI 助手', en: 'Chats', file: 'frontend/js/home-entry-shell/hub.js' },
-  { zh: 'Read Later 助手', en: 'Read Later', file: 'frontend/js/read-later/assistant.js' },
+  { zh: 'Workbench 笔记', en: 'Notes', file: 'frontend/src/home/hub.tsx' },
+  { zh: 'Read Later 待读', en: 'Read Later', file: 'frontend/src/home/hub.tsx' },
+  { zh: '沉淀知识库', en: 'Knowledge', file: 'frontend/src/home/hub.tsx' },
+  { zh: 'Todos', en: 'Todos', file: 'frontend/src/home/hub.tsx' },
+  { zh: 'LuLu Workbench', en: 'LuLu Workbench', file: 'frontend/src/shell.tsx' },
+  { zh: '笔记助手', en: 'Notes Assistant', file: 'frontend/src/notes/assistant.tsx' },
+  { zh: 'AI 助手', en: 'Chats', file: 'frontend/src/home/hub.tsx' },
+  { zh: 'Read Later 助手', en: 'Read Later', file: 'frontend/src/read-later/assistant.tsx' },
 ];
 
 const KEY_PATH_FILES = [
-  'frontend/index.html',
-  'frontend/js/home-entry-shell/hub.js',
-  'frontend/js/todo-task/index.js',
-  'frontend/js/todo-task/dialog.js',
-  'frontend/js/notes/viewer.js',
-  'frontend/js/corpus/corpus-viewer.js',
-  'frontend/js/notes/sidebar.js',
-  'frontend/js/notes/cards.js',
-  'frontend/js/shared/utils.js',
-  'frontend/js/notes/assistant.js',
+  'frontend/src/shell.tsx',
+  'frontend/src/home/hub.tsx',
+  'frontend/src/todo-task/index.ts',
+  'frontend/src/todo-task/dialog.tsx',
+  'frontend/src/notes/viewer.ts',
+  'frontend/src/corpus/corpus-viewer.ts',
+  'frontend/src/notes/sidebar.tsx',
+  'frontend/src/notes/cards.tsx',
+  'frontend/src/shared/utils.ts',
+  'frontend/src/notes/assistant.tsx',
 ];
 
 const SKILLS_EXCLUDED = [
-  'frontend/js/app-shell/skills-content.js',
+  'frontend/src/app-shell/skills-content.ts',
 ];
 
 function loadJson(relPath) {
@@ -125,7 +125,7 @@ describe('P4 copy-switch post-switch verification (tech-doc T8 / AC-2)', () => {
   });
 
   it('utils.js date and importance badges use English copy (table B/B2)', () => {
-    const utils = readSource('frontend/js/shared/utils.js');
+    const utils = readSource('frontend/src/shared/utils.ts');
     expect(utils).toContain("'Sun'");
     expect(utils).toContain('High');
     expect(utils).toContain('Cycle importance');

@@ -4,7 +4,7 @@ import {
   normalizeTableSeparators,
   pasteTextFromClipboard,
   renderCommentMarkdown,
-} from '../../frontend/js/shared/comment-markdown.js';
+} from '../../frontend/src/shared/comment-markdown.ts';
 
 describe('normalizeTableSeparators', () => {
   it('replaces em dash in GFM separator row', () => {

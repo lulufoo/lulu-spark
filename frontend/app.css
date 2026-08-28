@@ -37,6 +37,20 @@
     overflow: hidden;
   }
 
+  /* React host wraps the old body chrome. Keep the flex chain so .layout
+     (Notes list/viewer) still fills the viewport below the header. */
+  #root,
+  #root-shell {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    min-width: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+  }
+
   /* ── Header ── */
   header {
     background: #424a53;
@@ -7368,4 +7382,28 @@
   min-height: 0;
   overflow: auto;
   padding: 12px;
+}
+
+.wb-toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 10px 16px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  z-index: 10000;
+}
+
+.wb-toast-success {
+  background: #dafbe1;
+  color: #116329;
+  border: 1px solid #4ac26b;
+}
+
+.wb-toast-error {
+  background: #ffebe9;
+  color: #82071e;
+  border: 1px solid #ff8182;
 }

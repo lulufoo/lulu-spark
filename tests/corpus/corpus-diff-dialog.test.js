@@ -7,7 +7,7 @@ const apiMocks = vi.hoisted(() => ({
   revertKbFile: vi.fn(),
 }));
 
-vi.mock('../../frontend/js/host/api.js', () => ({
+vi.mock('../../frontend/src/host/api.ts', () => ({
   fetchKbStatus: (...args) => apiMocks.fetchKbStatus(...args),
   commitKbFile: (...args) => apiMocks.commitKbFile(...args),
   revertKbFile: (...args) => apiMocks.revertKbFile(...args),
@@ -32,7 +32,7 @@ function seedDiffDom() {
 async function loadModule() {
   vi.resetModules();
   seedDiffDom();
-  return import('../../frontend/js/corpus/corpus-diff-dialog.js');
+  return import('../../frontend/src/corpus/corpus-diff-dialog.tsx');
 }
 
 describe('corpus diff dialog', () => {

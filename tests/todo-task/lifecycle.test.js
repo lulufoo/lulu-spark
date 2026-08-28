@@ -10,7 +10,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
 const getJsonMock = vi.fn();
 
-vi.mock('../../frontend/js/host/apiClient.js', async (importOriginal) => {
+vi.mock('../../frontend/src/host/apiClient.ts', async (importOriginal) => {
   const actual = await importOriginal();
   return {
     ...actual,
@@ -27,13 +27,13 @@ import {
   onTodosPageEnter,
   onMasterSelectionChange,
   onTodosPageLeave,
-} from '../../frontend/js/todo-task/index.js';
+} from '../../frontend/src/todo-task/index.ts';
 import { readTodoTaskUiSource } from '../helpers/todo-task-ui-source.js';
 
 const fixtureRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
 const todoTaskIndexJs = readTodoTaskUiSource();
 const todosLifecycleJs = readFileSync(
-  join(fixtureRoot, 'frontend/js/todo-task/lifecycle.js'),
+  join(fixtureRoot, 'frontend/src/todo-task/lifecycle.ts'),
   'utf8',
 );
 

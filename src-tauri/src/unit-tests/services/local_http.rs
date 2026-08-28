@@ -2816,11 +2816,14 @@ fn notes_selection_module_and_mcp_tool_are_gone() {
 #[test]
 fn frontend_does_not_write_notes_selection_snapshot() {
     for rel in [
-        "frontend/js/host/apiClient.js",
-        "frontend/js/main.js",
-        "frontend/js/notes/sidebar.js",
-        "frontend/js/notes/cards.js",
-        "frontend/js/host/writeApiInvokeMap.js",
+        "frontend/src/host/apiClient.ts",
+        "frontend/src/boot.ts",
+        "frontend/src/notes/sidebar.tsx",
+        "frontend/src/notes/cards.tsx",
+        "frontend/src/host/writeApiInvokeMap.ts",
+        "frontend/src/main.tsx",
+        "frontend/src/hash-router.tsx",
+        "frontend/src/toast.tsx",
     ] {
         let src = t5_repo_file(rel);
         assert!(

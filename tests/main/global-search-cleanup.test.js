@@ -1,33 +1,22 @@
 // @vitest-environment node
-import { execSync } from 'node:child_process';
-import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, it, expect } from 'vitest';
+import { listFrontendSourceFiles, readFrontendJs } from '../helpers/read-frontend-js.js';
 
 const fixtureRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
-const globalSearchPath = join(fixtureRoot, 'frontend/js/components/global-search.js');
-const mainJsPath = join(fixtureRoot, 'frontend/js/main.js');
-const knowledgeSearchPath = join(fixtureRoot, 'frontend/js/corpus/corpus-knowledge-search.js');
+const globalSearchPath = join(fixtureRoot, 'frontend/src/components/global-search.js');
+const mainJsPath = join(fixtureRoot, 'frontend/src/boot.ts');
 
-function collectJsFiles(dir) {
-  const files = [];
-  for (const entry of readdirSync(dir)) {
-    const full = join(dir, entry);
-    if (statSync(full).isDirectory()) {
-      files.push(...collectJsFiles(full));
-    } else if (entry.endsWith('.js')) {
-      files.push(full);
-    }
-  }
-  return files;
-}
-
-const frontendJsFiles = collectJsFiles(join(fixtureRoot, 'frontend/js'));
+const frontendSourceFiles = [
+  ...listFrontendSourceFiles(join(fixtureRoot, 'frontend/src')),
+  ...listFrontendSourceFiles(join(fixtureRoot, 'frontend/src')),
+];
 const mainJs = readFileSync(mainJsPath, 'utf8');
 
 describe('global-search cleanup (TAC-7)', () => {
-  it('deletes frontend/js/components/global-search.js', () => {
+  it('deletes frontend/src/components/global-search.js', () => {
     expect(existsSync(globalSearchPath)).toBe(false);
   });
 
@@ -44,8 +33,8 @@ describe('global-search cleanup (TAC-7)', () => {
     expect(mainJs).not.toMatch(/_detectMode/);
   });
 
-  it('frontend JS has no initGlobalSearch or _detectMode references', () => {
-    for (const file of frontendJsFiles) {
+  it('frontend JS / TS has no initGlobalSearch or _detectMode references', () => {
+    for (const file of frontendSourceFiles) {
       const src = readFileSync(file, 'utf8');
       expect(src, file).not.toMatch(/initGlobalSearch/);
       expect(src, file).not.toMatch(/_detectMode/);
@@ -55,7 +44,7 @@ describe('global-search cleanup (TAC-7)', () => {
 
 describe('global-search cleanup regression (TAC-5)', () => {
   it('corpus-knowledge-search.js remains mounted from viewer (no global-search import)', () => {
-    const src = readFileSync(knowledgeSearchPath, 'utf8');
+    const src = readFrontendJs('frontend/src/corpus/corpus-knowledge-search.tsx');
     expect(src).toMatch(/export function mountKnowledgeSearch/);
     expect(src).not.toMatch(/initGlobalSearch/);
   });

@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { initKbComments, cleanupKbComments } from '../../frontend/js/corpus/corpus-comments.js';
+import { initKbComments, cleanupKbComments } from '../../frontend/src/corpus/corpus-comments.tsx';
 import {
   cleanupDocHighlightOverlay,
   initDocHighlightOverlay,
-} from '../../frontend/js/doc-editor/highlights.js';
+} from '../../frontend/src/doc-editor/highlights.ts';
 
 function bindKbHighlightForTest(reader) {
   initDocHighlightOverlay({

@@ -4,6 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit -p tsconfig.json && vite build",
     "test": "(cd src-tauri && cargo test --lib -- --test-threads=1) && VERIFY_HOST_MCP_SKIP_CARGO=1 node scripts/verify-host-mcp.mjs && npx vitest run --dir tests",
     "tauri": "tauri",
     "icons:regen": "tauri icon frontend/icons/app-icon.svg -o src-tauri/icons && rm -rf src-tauri/icons/android src-tauri/icons/ios && rm -f src-tauri/icons/Square*.png src-tauri/icons/StoreLogo.png src-tauri/icons/64x64.png"
@@ -20,10 +22,22 @@
     "url": "https://github.com/lulufoo/lulu-workbench/issues"
   },
   "homepage": "https://github.com/lulufoo/lulu-workbench#readme",
+  "dependencies": {
+    "marked": "^18.0.11",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
+    "turndown": "^7.2.4"
+  },
   "devDependencies": {
     "@tauri-apps/api": "^2",
     "@tauri-apps/cli": "^2",
+    "@types/react": "^19.1.12",
+    "@types/react-dom": "^19.1.9",
+    "@types/turndown": "^5.0.6",
+    "@vitejs/plugin-react": "^5.0.2",
     "jsdom": "^29.1.1",
+    "typescript": "^5.9.2",
+    "vite": "^7.1.5",
     "vitest": "^4.1.5"
   }
 }

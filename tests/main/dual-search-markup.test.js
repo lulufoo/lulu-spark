@@ -3,9 +3,10 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, it, expect } from 'vitest';
+import { readShellHtml } from '../helpers/read-frontend-js.js';
 
 const fixtureRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
-const indexHtml = readFileSync(join(fixtureRoot, 'frontend/index.html'), 'utf8');
+const indexHtml = readShellHtml();
 const appCss = readFileSync(join(fixtureRoot, 'frontend/app.css'), 'utf8');
 
 describe('dual search markup (index.html)', () => {
@@ -25,9 +26,9 @@ describe('dual search markup (index.html)', () => {
 
   it('removes gs-mode-pill and adds shared search classes', () => {
     expect(indexHtml).not.toMatch(/gs-mode-pill/);
-    expect(indexHtml).toMatch(/class="[^"]*gs-search-wrap/);
-    expect(indexHtml).toMatch(/class="[^"]*gs-search-input/);
-    expect(indexHtml).toMatch(/class="[^"]*gs-search-dropdown/);
+    expect(indexHtml).toMatch(/className="[^"]*gs-search-wrap/);
+    expect(indexHtml).toMatch(/className="[^"]*gs-search-input/);
+    expect(indexHtml).toMatch(/className="[^"]*gs-search-dropdown/);
   });
 
   it('both wraps default to hidden', () => {

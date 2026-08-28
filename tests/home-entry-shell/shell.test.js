@@ -4,9 +4,10 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { getBaselineEntries } from '../../frontend/js/home-entry-shell/entry-config.js';
-import { createContentRegistry } from '../../frontend/js/home-entry-shell/content-registry.js';
-import { mountHomeEntryShell } from '../../frontend/js/home-entry-shell/shell.js';
+import { getBaselineEntries } from '../../frontend/src/home-entry-shell/entry-config.ts';
+import { createContentRegistry } from '../../frontend/src/home-entry-shell/content-registry.ts';
+import { mountHomeEntryShell } from '../../frontend/src/home-entry-shell/shell.tsx';
+import { readFrontendJs } from '../helpers/read-frontend-js.js';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
 
@@ -254,7 +255,7 @@ describe('home-entry-shell shell · entry cluster + OverlayChrome + triggers (T3
 
   it('shell source has no hardcoded business UI; entries come from config', () => {
     const shellSrc = readFileSync(
-      join(repoRoot, 'frontend/js/home-entry-shell/shell.js'),
+      join(repoRoot, 'frontend/src/home-entry-shell/shell.tsx'),
       'utf8',
     );
     expect(shellSrc).not.toMatch(/Read Later|Notes Assistant|Builders|Todos/);
@@ -337,10 +338,7 @@ describe('home-entry-shell shell · Assistant pin retired', () => {
   });
 
   it('shell source does not introduce OS blur as a transfer trigger', () => {
-    const shellSrc = readFileSync(
-      join(repoRoot, 'frontend/js/home-entry-shell/shell.js'),
-      'utf8',
-    );
+    const shellSrc = readFrontendJs('frontend/src/home-entry-shell/shell.tsx');
     expect(shellSrc).not.toMatch(/\bblur\b/i);
     expect(shellSrc).not.toMatch(/visibilitychange|window\.blur|onblur/);
   });

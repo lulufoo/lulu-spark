@@ -3,11 +3,12 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { readFrontendJs } from '../helpers/read-frontend-js.js';
 
 const invokeMock = vi.fn();
 const getJsonMock = vi.fn();
 
-vi.mock('../../frontend/js/host/apiClient.js', async (importOriginal) => {
+vi.mock('../../frontend/src/host/apiClient.ts', async (importOriginal) => {
   const actual = await importOriginal();
   return {
     ...actual,
@@ -21,7 +22,7 @@ vi.mock('../../frontend/js/host/apiClient.js', async (importOriginal) => {
 import {
   deletePlanAttachment,
   mountTodoTaskSplit,
-} from '../../frontend/js/todo-task/index.js';
+} from '../../frontend/src/todo-task/index.ts';
 
 import { readRsPath } from '../helpers/read-rs-dir.js';
 
@@ -314,19 +315,16 @@ describe('mountTodoTaskSplit attachment delete entry', () => {
 
 describe('attachment delete does not loosen MCP / dialog contracts', () => {
   it('dialog.js TodoTaskDialogType stays master/sub CRUD only (no attachment delete type)', () => {
-    const dialogSrc = readFileSync(
-      join(repoRoot, 'frontend/js/todo-task/dialog.js'),
-      'utf8',
-    );
+    const dialogSrc = readFrontendJs('frontend/src/todo-task/dialog.tsx');
     expect(dialogSrc).toMatch(
-      /@typedef \{'create-master' \| 'create-category' \| 'add-sub' \| 'delete-master' \| 'delete-sub'\} TodoTaskDialogType/,
+      /TodoTaskDialogType[\s\S]*?'create-master'[\s\S]*?'create-category'[\s\S]*?'add-sub'[\s\S]*?'delete-master'[\s\S]*?'delete-sub'/,
     );
     expect(dialogSrc).not.toMatch(/delete-attachment|attachment-delete/);
   });
 
   it('index.js attachment delete confirm path does not openTodoTaskDialog', () => {
-    const src = readFileSync(join(repoRoot, 'frontend/js/todo-task/attachments.js'), 'utf8')
-      + readFileSync(join(repoRoot, 'frontend/js/todo-task/attachments-render.js'), 'utf8');
+    const src = readFileSync(join(repoRoot, 'frontend/src/todo-task/attachments.tsx'), 'utf8')
+      + readFileSync(join(repoRoot, 'frontend/src/todo-task/attachments-render.tsx'), 'utf8');
     expect(src).toMatch(/data-action="delete-attachment"/);
     const marker = "action === 'delete-attachment'";
     const idx = src.indexOf(marker);

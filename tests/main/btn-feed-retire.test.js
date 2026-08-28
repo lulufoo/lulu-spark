@@ -7,14 +7,15 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { readShellHtml } from '../helpers/read-frontend-js.js';
 
 const renderFeedMock = vi.fn();
 
-vi.mock('../../frontend/js/builders/feed.js', () => ({
+vi.mock('../../frontend/src/builders/feed.tsx', () => ({
   renderFeed: (...args) => renderFeedMock(...args),
 }));
 
-import { createBuildersContentAdapter } from '../../frontend/js/builders/assistant.js';
+import { createBuildersContentAdapter } from '../../frontend/src/builders/assistant.tsx';
 import { readMainSource } from '../helpers/read-frontend-js.js';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
@@ -24,7 +25,7 @@ function readMain() {
 }
 
 function readIndexHtml() {
-  return readFileSync(join(repoRoot, 'frontend/index.html'), 'utf8');
+  return readShellHtml();
 }
 
 function extractFunctionSource(source, name) {

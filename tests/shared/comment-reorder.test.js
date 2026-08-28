@@ -5,7 +5,7 @@ import {
   ensureLayerComments,
   swapAdjacent,
   validateCommentIdsForReorder,
-} from '../../frontend/js/shared/comment-reorder.js';
+} from '../../frontend/src/shared/comment-reorder.ts';
 
 describe('comment-reorder', () => {
   it('ensureLayerComments returns mutable array on annotation[layer]', () => {

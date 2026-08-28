@@ -6,13 +6,13 @@
 
 ## UI 开窗
 
-- [ ] 在计划页选中一条主计划，点击 AI 助手入口，应打开/聚焦 `ai-assistant` 窗（`always_on_top`）。✅ Verified（`frontend/js/todo-task/index.js` 调 `open_ai_assistant`；`src-tauri/src/lib.rs` `create_or_focus_ai_assistant_window`）
+- [ ] 在计划页选中一条主计划，点击 AI 助手入口，应打开/聚焦 `ai-assistant` 窗（`always_on_top`）。✅ Verified（`frontend/src/todo-task/index.js` 调 `open_ai_assistant`；`src-tauri/src/lib.rs` `create_or_focus_ai_assistant_window`）
 - [ ] 非计划页无该入口。✅ Verified（入口仅挂在计划页 `mountTodoTaskSplit`；见 `tests/todo-task/ai-assistant-entry.test.js`）
 - [ ] busy 时再次从另一计划打开：返回处理中/busy，绑定与 session 不变。✅ Verified（`open_ai_assistant_busy_rejects_rebind`）
 
 ## 配置保存
 
-- [ ] 设置 → Agent Loop / GLM：填写 model / API key，保存成功；platform 与 base_url 使用只读 GLM 预设。✅ Verified（`frontend/js/app-shell/settings-dialog.js`；`frontend/js/app-shell/engine-presets.js`；`tests/app-shell/settings-llm.test.js`）
+- [ ] 设置 → Agent Loop / GLM：填写 model / API key，保存成功；platform 与 base_url 使用只读 GLM 预设。✅ Verified（`frontend/src/app-shell/settings-dialog.js`；`frontend/src/app-shell/engine-presets.js`；`tests/app-shell/settings-llm.test.js`）
 - [ ] 重新打开设置：GLM platform/base_url/model 回显；API key 不回显明文（`has_host_key`）。✅ Verified（`get_config` / `to_config_json` 密钥掩码路径；`tests/app-shell/settings-llm.test.js`）
 
 ## 主路径冒烟

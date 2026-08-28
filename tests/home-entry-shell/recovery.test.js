@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
-import { createContentRegistry } from '../../frontend/js/home-entry-shell/content-registry.js';
-import { mountHomeEntryShell } from '../../frontend/js/home-entry-shell/shell.js';
+import { createContentRegistry } from '../../frontend/src/home-entry-shell/content-registry.ts';
+import { mountHomeEntryShell } from '../../frontend/src/home-entry-shell/shell.tsx';
 
 /**
  * Failure / recovery paths for the home-entry shell (T4).

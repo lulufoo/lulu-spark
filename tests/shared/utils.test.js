@@ -1,4 +1,4 @@
-import { escHtml, formatDate, timeFromTs, slugToTitle, nowTs, importanceBadgeHtml, filenameFromPath, topicFromPath, repoShortName } from '../../frontend/js/shared/utils.js'
+import { escHtml, formatDate, timeFromTs, slugToTitle, nowTs, importanceBadgeHtml, filenameFromPath, topicFromPath, repoShortName } from '../../frontend/src/shared/utils.ts'
 import { test, expect } from 'vitest'
 
 // escHtml

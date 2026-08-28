@@ -1,100 +1,17 @@
+// @vitest-environment jsdom
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
-// Mock DOM dependencies before importing sidebar
-vi.mock('../../frontend/js/shared/utils.js', () => ({ formatDate: () => ({ full: '2025-01-01', label: '01-01', year: '2025', weekday: 'Wed' }) }));
-vi.mock('../../frontend/js/notes/cards.js', () => ({ renderDocList: vi.fn(), loadTitles: vi.fn() }));
-vi.mock('../../frontend/js/router/index.js', () => ({
+vi.mock('../../frontend/src/shared/utils.ts', () => ({
+  formatDate: () => ({ full: '2025-01-01', label: '01-01', year: '2025', weekday: 'Wed' }),
+}));
+vi.mock('../../frontend/src/notes/cards.tsx', () => ({ renderDocList: vi.fn(), loadTitles: vi.fn() }));
+vi.mock('../../frontend/src/router/index.ts', () => ({
   parseHash: vi.fn(() => ({ name: 'workbench', params: {} })),
   navigateToDateList: vi.fn(),
 }));
 
-// Provide minimal document stub (supports _ensureSidebarZones)
-const makeEl = (tag = 'div') => {
-  const el = {
-    tag,
-    id: '',
-    className: '',
-    value: '',
-    textContent: '',
-    title: '',
-    disabled: false,
-    tabIndex: 0,
-    children: [],
-    style: {},
-    dataset: {},
-    innerHTML: '',
-    options: [],
-  };
-  const matchSel = (node, sel) => {
-    if (sel.startsWith('#') && node.id === sel.slice(1)) return node;
-    if (sel.startsWith('.')) {
-      const cls = sel.slice(1);
-      if (node.className === cls) return node;
-      if (typeof node.className === 'string' && node.className.split(/\s+/).includes(cls)) return node;
-    }
-    return null;
-  };
-  const query = (sel) => {
-    const direct = matchSel(el, sel);
-    if (direct) return direct;
-    for (const child of el.children) {
-      const found = child.querySelector?.(sel);
-      if (found) return found;
-    }
-    return null;
-  };
-  el.appendChild = (child) => {
-    if (child.id) el[`#${child.id}`] = child;
-    el.children.push(child);
-    return child;
-  };
-  el.append = (...nodes) => {
-    for (const n of nodes) el.appendChild(n);
-  };
-  el.insertAdjacentElement = (_pos, child) => el.appendChild(child);
-  el.addEventListener = vi.fn();
-  el.setAttribute = vi.fn();
-  el.querySelector = query;
-  el.querySelectorAll = (sel) => {
-    const results = [];
-    const walk = (node) => {
-      if (matchSel(node, sel)) results.push(node);
-      for (const c of node.children || []) walk(c);
-    };
-    walk(el);
-    return results;
-  };
-  if (tag === 'select') {
-    el.appendChild = (opt) => {
-      el.options.push(opt);
-      el.children.push(opt);
-      return opt;
-    };
-  }
-  return el;
-};
-
-const sidebarEl = makeEl('aside');
-sidebarEl.id = 'sidebar';
-
-const extraEls = {};
-globalThis.document = {
-  getElementById: (id) => {
-    if (id === 'sidebar') return sidebarEl;
-    if (extraEls[id]) return extraEls[id];
-    const el = makeEl();
-    el.id = id;
-    extraEls[id] = el;
-    return el;
-  },
-  createElement: (tag) => makeEl(tag),
-  querySelectorAll: () => [],
-};
-
-globalThis.sessionStorage = { getItem: () => null, setItem: () => {} };
-
-import { state } from '../../frontend/js/host/state.js';
-import { parseHash, navigateToDateList } from '../../frontend/js/router/index.js';
+import { state } from '../../frontend/src/host/state.ts';
+import { parseHash, navigateToDateList } from '../../frontend/src/router/index.ts';
 import {
   buildGroups,
   selectTopic,
@@ -103,8 +20,8 @@ import {
   renderSidebar,
   applyListFilters,
   selectDate,
-} from '../../frontend/js/notes/sidebar.js';
-import { renderDocList } from '../../frontend/js/notes/cards.js';
+} from '../../frontend/src/notes/sidebar.tsx';
+import { renderDocList } from '../../frontend/src/notes/cards.tsx';
 
 const makeGroup = (date, topics, tagKeys = []) => ({
   date,
@@ -118,8 +35,21 @@ const makeGroup = (date, topics, tagKeys = []) => ({
   })),
 });
 
+function seedDom() {
+  document.body.innerHTML = `
+    <aside id="sidebar"></aside>
+    <div id="status"></div>
+    <div id="date-heading"></div>
+    <div id="doc-list"></div>
+  `;
+}
+
+function sidebarEl() {
+  return document.getElementById('sidebar');
+}
+
 function findTagSelect() {
-  return sidebarEl.querySelector('.tag-select');
+  return sidebarEl()?.querySelector('.tag-select');
 }
 
 function tagOptionTexts(picker) {
@@ -127,10 +57,7 @@ function tagOptionTexts(picker) {
 }
 
 beforeEach(() => {
-  sidebarEl.children = [];
-  sidebarEl.innerHTML = '';
-  sidebarEl['#sidebar-channel-zone'] = undefined;
-  Object.keys(extraEls).forEach((k) => delete extraEls[k]);
+  seedDom();
   state.index.data = {
     a: { common_path: 'ai/x', created_at: '202501011200', tag_keys: ['k1'] },
     b: { common_path: 'ai/y', created_at: '202501021200', tag_keys: ['k1', 'k2'] },
@@ -208,9 +135,11 @@ describe('selectTag', () => {
     expect(state.ui.activeTopic).toBe('ai');
     expect(state.ui.activeTagKey).toBe('k2');
     for (const g of state.index.filteredGroups) {
-      expect(g.entries.every(({ entry }) =>
-        entry.common_path?.split('/')[0] === 'ai' && entry.tag_keys?.includes('k2')
-      )).toBe(true);
+      expect(
+        g.entries.every(
+          ({ entry }) => entry.common_path?.split('/')[0] === 'ai' && entry.tag_keys?.includes('k2'),
+        ),
+      ).toBe(true);
     }
   });
 
@@ -274,7 +203,7 @@ describe('renderSidebar tag filter', () => {
     state.ui.activeTagKey = 'k1';
     applyListFilters();
     renderSidebar();
-    const countEl = sidebarEl.querySelector('.tag-count');
+    const countEl = sidebarEl()?.querySelector('.tag-count');
     expect(countEl).toBeTruthy();
     expect(countEl.textContent).toBe('2 / 4 items');
     expect(countEl.style.display).not.toBe('none');
@@ -283,7 +212,7 @@ describe('renderSidebar tag filter', () => {
   it('无 activeTagKey 时 tag-count 隐藏', () => {
     applyListFilters();
     renderSidebar();
-    const countEl = sidebarEl.querySelector('.tag-count');
+    const countEl = sidebarEl()?.querySelector('.tag-count');
     expect(countEl.style.display).toBe('none');
   });
 
@@ -306,13 +235,9 @@ describe('renderSidebar tag filter', () => {
 
 describe('sidebar channel nav', () => {
   function channelTabChannels() {
-    const tabs = [];
-    const walk = (node) => {
-      if (node.className === 'sidebar-channel-tab') tabs.push(node.dataset.channel);
-      for (const child of node.children || []) walk(child);
-    };
-    walk(sidebarEl);
-    return tabs;
+    return [...(sidebarEl()?.querySelectorAll('.sidebar-channel-tab') || [])].map(
+      (node) => node.dataset.channel,
+    );
   }
 
   it('does not render read-later channel tab', () => {
@@ -329,7 +254,7 @@ describe('sidebar channel nav', () => {
   });
 
   it('does not export selectReadLaterChannel', async () => {
-    const mod = await import('../../frontend/js/notes/sidebar.js');
+    const mod = await import('../../frontend/src/notes/sidebar.tsx');
     expect(mod.selectReadLaterChannel).toBeUndefined();
   });
 });

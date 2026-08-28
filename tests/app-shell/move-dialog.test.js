@@ -1,9 +1,10 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import { readShellHtml } from '../helpers/read-frontend-js.js';
 
-const indexHtml = readFileSync(new URL('../../frontend/index.html', import.meta.url), 'utf8');
+const indexHtml = readShellHtml();
 const moveDialogJs = readFileSync(
-  new URL('../../frontend/js/app-shell/move-dialog.js', import.meta.url),
+  new URL('../../frontend/src/app-shell/move-dialog.tsx', import.meta.url),
   'utf8'
 );
 
@@ -13,14 +14,13 @@ describe('gh-ops delete panel HTML', () => {
   });
 
   it('confirm delete button is enabled by default', () => {
-    const match = indexHtml.match(/<button id="btn-delete-doc-ok"[^>]*>/);
-    expect(match).not.toBeNull();
-    expect(match[0]).not.toMatch(/\bdisabled\b/);
+    expect(indexHtml).toContain('id="btn-delete-doc-ok"');
+    expect(indexHtml).not.toMatch(/id="btn-delete-doc-ok"[^>]*\bdisabled(?!=\{deleteBusy\})/);
   });
 
   it('delete actions only contain confirm delete button', () => {
     const actionsMatch = indexHtml.match(
-      /<div class="gh-ops-panel-actions gh-ops-delete-actions">([\s\S]*?)<\/div>/
+      /<div className="gh-ops-panel-actions gh-ops-delete-actions">([\s\S]*?)<\/div>/
     );
     expect(actionsMatch).not.toBeNull();
     const buttons = [...actionsMatch[1].matchAll(/<button\b/g)];
@@ -37,18 +37,18 @@ describe('gh-ops delete panel JS', () => {
   });
 
   it('resetDeleteColumn enables confirm delete button', () => {
-    expect(moveDialogJs).toMatch(/function resetDeleteColumn\(\)[\s\S]*?deleteOkBtn\.disabled = false/);
+    expect(moveDialogJs).toMatch(/function resetDeleteColumn\(\)[\s\S]*?setDeleteBusy\(false\)/);
   });
 
   it('doDeleteDoc has no disabled guard and re-enables ok in finally', () => {
     expect(moveDialogJs).not.toMatch(/if \(okBtn\.disabled\) return/);
     expect(moveDialogJs).not.toMatch(/\bresetDeleteArm\(\)/);
-    expect(moveDialogJs).toMatch(/async function doDeleteDoc\(\)[\s\S]*?finally[\s\S]*?okBtn\.disabled = false/);
+    expect(moveDialogJs).toMatch(/async function onDelete\(\)[\s\S]*?finally[\s\S]*?setDeleteBusy\(false\)/);
   });
 
   it('delete-url Enter directly calls doDeleteDoc', () => {
     expect(moveDialogJs).toMatch(
-      /getElementById\('delete-url'\)\.addEventListener\('keydown'[\s\S]*?if \(e\.key === 'Enter'\) doDeleteDoc\(\)/
+      /id="delete-url"[\s\S]*?onKeyDown[\s\S]*?if \(e\.key === 'Enter'\) void onDelete\(\)/
     );
   });
 });

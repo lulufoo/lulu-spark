@@ -7,7 +7,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 const invokeMock = vi.fn();
 const getJsonMock = vi.fn();
 
-vi.mock('../../frontend/js/host/apiClient.js', async (importOriginal) => {
+vi.mock('../../frontend/src/host/apiClient.ts', async (importOriginal) => {
   const actual = await importOriginal();
   return {
     ...actual,
@@ -24,7 +24,7 @@ import {
   listPlanComments,
   mountTodoTaskSplit,
   updatePlanComment,
-} from '../../frontend/js/todo-task/index.js';
+} from '../../frontend/src/todo-task/index.ts';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
 
@@ -438,7 +438,7 @@ describe('mountTodoTaskSplit process notes section', () => {
 
 describe('comments UI uses Tauri commands only (no MCP write path)', () => {
   it('index.js wires list/add/update/delete_todo_comment and has no MCP comment write', () => {
-    const src = readFileSync(join(repoRoot, 'frontend/js/todo-task/host.js'), 'utf8');
+    const src = readFileSync(join(repoRoot, 'frontend/src/todo-task/host.ts'), 'utf8');
     expect(src).toMatch(/list_todo_comments/);
     expect(src).toMatch(/add_todo_comment/);
     expect(src).toMatch(/update_todo_comment/);

@@ -7,14 +7,15 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { readMainSource } from '../helpers/read-frontend-js.js';
-import { renderDocList } from '../../frontend/js/notes/cards.js';
-import { state } from '../../frontend/js/host/state.js';
+import { readFrontendJs, readMainSource } from '../helpers/read-frontend-js.js';
+import { renderDocList } from '../../frontend/src/notes/cards.tsx';
+import { state } from '../../frontend/src/host/state.ts';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
 
 function read(rel) {
-  if (rel === 'frontend/js/main.js') return readMainSource();
+  if (rel === 'frontend/src/boot.ts') return readMainSource();
+  if (rel.startsWith('frontend/src/')) return readFrontendJs(rel);
   return readFileSync(join(repoRoot, rel), 'utf8');
 }
 
@@ -25,28 +26,26 @@ const apiMocks = vi.hoisted(() => ({
   fetchFileContent: vi.fn(),
 }));
 
-vi.mock('../../frontend/js/host/api.js', () => ({
+vi.mock('../../frontend/src/host/api.ts', () => ({
   deleteEntry: (...args) => apiMocks.deleteEntry(...args),
   setImportance: (...args) => apiMocks.setImportance(...args),
   setDone: (...args) => apiMocks.setDone(...args),
   fetchFileContent: (...args) => apiMocks.fetchFileContent(...args),
 }));
 
-vi.mock('../../frontend/js/notes/move-project-dialog.js', () => ({
+vi.mock('../../frontend/src/notes/move-project-dialog.tsx', () => ({
   openMoveProjectDialog: vi.fn(),
 }));
 
-vi.mock('../../frontend/js/notes/viewer.js', () => ({
+vi.mock('../../frontend/src/notes/viewer.ts', () => ({
   closeModal: vi.fn(),
 }));
 
 describe('T8 source: delete success → replace list (not history.back)', () => {
-  const deleteJs = read('frontend/js/notes/delete-dialog.js');
+  const deleteJs = read('frontend/src/notes/delete-dialog.tsx');
 
   function okHandlerSlice() {
-    const okStart = deleteJs.indexOf(
-      "getElementById('btn-delete-confirm-ok').addEventListener('click'",
-    );
+    const okStart = deleteJs.indexOf('export async function confirmDeleteDocument');
     expect(okStart).toBeGreaterThan(-1);
     return deleteJs.slice(okStart, okStart + 1400);
   }
@@ -83,8 +82,8 @@ describe('T8 source: delete success → replace list (not history.back)', () => 
 });
 
 describe('T8 source: return-to-list scroll key + reload wiring', () => {
-  const cardsJs = read('frontend/js/notes/cards.js');
-  const mainJs = read('frontend/js/main.js');
+  const cardsJs = read('frontend/src/notes/cards.tsx');
+  const mainJs = read('frontend/src/boot.ts');
 
   it('renderDocList restores cta_scroll_<date> after re-render', () => {
     const renderStart = cardsJs.indexOf('export function renderDocList');
@@ -152,17 +151,11 @@ describe('T8 behavioral: delete-dialog confirm ok', () => {
   let replaceCalls;
   let reloadEvents;
 
-  function seedDeleteDom() {
-    document.body.innerHTML = `
-      <div id="delete-dialog" class="open">
-        <input id="delete-confirm-input" value="CONFIRM" />
-        <button id="btn-copy-confirm-word">Copy</button>
-        <button id="btn-delete-cancel">Cancel</button>
-        <button id="btn-delete-confirm-ok">Confirm delete</button>
-      </div>
-      <div id="doc-list"></div>
-      <div id="note-outlet" data-wb-mode="open"></div>
-    `;
+  function typeConfirm() {
+    const input = document.getElementById('delete-confirm-input');
+    const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+    setter.call(input, 'CONFIRM');
+    input.dispatchEvent(new Event('input', { bubbles: true }));
   }
 
   beforeEach(async () => {
@@ -172,7 +165,7 @@ describe('T8 behavioral: delete-dialog confirm ok', () => {
     historyBack = vi.fn();
     replaceCalls = [];
     reloadEvents = [];
-    seedDeleteDom();
+    document.body.innerHTML = '<div id="delete-host"></div><div id="doc-list"></div>';
 
     Object.defineProperty(window, 'location', {
       configurable: true,
@@ -199,15 +192,21 @@ describe('T8 behavioral: delete-dialog confirm ok', () => {
       reloadEvents.push(true);
     });
 
-    // After resetModules, use the same state module the dialog binds to.
-    const mod = await import('../../frontend/js/host/state.js');
+    const { createElement } = await import('react');
+    const { createRoot } = await import('react-dom/client');
+    const { flushSync } = await import('react-dom');
+    const mod = await import('../../frontend/src/host/state.ts');
     mod.state.ui.activeDate = '20260719';
     mod.state.viewer.entry = {
       _id: 'entry-1',
       common_path: 'inbox/notes/gone.md',
     };
 
-    await import('../../frontend/js/notes/delete-dialog.js');
+    const { DeleteDialog, openDeleteDialog } = await import('../../frontend/src/notes/delete-dialog.tsx');
+    const root = createRoot(document.getElementById('delete-host'));
+    flushSync(() => root.render(createElement(DeleteDialog)));
+    openDeleteDialog();
+    flushSync(() => {});
   });
 
   afterEach(() => {
@@ -215,9 +214,8 @@ describe('T8 behavioral: delete-dialog confirm ok', () => {
   });
 
   async function clickConfirmOk() {
-    const okBtn = document.getElementById('btn-delete-confirm-ok');
-    okBtn.disabled = false;
-    okBtn.click();
+    typeConfirm();
+    document.getElementById('btn-delete-confirm-ok').click();
     await vi.waitFor(() => {
       expect(apiMocks.deleteEntry).toHaveBeenCalled();
     });

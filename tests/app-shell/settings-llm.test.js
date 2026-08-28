@@ -1,32 +1,32 @@
 // @vitest-environment jsdom
+import { createElement } from 'react';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { readShellHtml } from '../helpers/read-frontend-js.js';
+import { renderToHtml } from '../../frontend/src/island.ts';
+import { Shell } from '../../frontend/src/shell.tsx';
 
-vi.mock('../../frontend/js/host/api.js', () => ({
+vi.mock('../../frontend/src/host/api.ts', () => ({
   fetchConfig: vi.fn(),
   setConfig: vi.fn(),
   inferGithubUserUrl: vi.fn(),
   checkWorkbenchKnowledgeRoot: vi.fn(),
 }));
 
-import * as api from '../../frontend/js/host/api.js';
+import * as api from '../../frontend/src/host/api.ts';
 import {
   ENGINE_CATEGORIES,
   listEngineCategories,
   getEnginePreset,
-} from '../../frontend/js/app-shell/engine-presets.js';
+} from '../../frontend/src/app-shell/engine-presets.ts';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '../..');
-const indexHtml = readFileSync(join(root, 'frontend/index.html'), 'utf8');
+const indexHtml = readShellHtml();
 
 function mountSettingsDom() {
-  const markup = indexHtml.match(
-    /<!-- Settings dialog -->[\s\S]*?<!-- Skills dialog -->/,
-  )?.[0];
-  if (!markup) throw new Error('settings dialog markup not found');
-  document.body.innerHTML = markup.replace('<!-- Skills dialog -->', '');
+  document.body.innerHTML = renderToHtml(createElement(Shell));
 }
 
 function baseConfig(overrides = {}) {
@@ -96,12 +96,12 @@ describe('Host-only Assistant settings', () => {
         model: 'glm-4',
       },
     }));
-    await import('../../frontend/js/app-shell/settings-dialog.js');
+    await import('../../frontend/src/app-shell/settings-dialog.tsx');
   });
 
   it('loads the GLM preset and model without a second engine slot', async () => {
     const { openSettingsDialog } = await import(
-      '../../frontend/js/app-shell/settings-dialog.js'
+      '../../frontend/src/app-shell/settings-dialog.tsx'
     );
     await openSettingsDialog();
 
@@ -118,7 +118,7 @@ describe('Host-only Assistant settings', () => {
 
   it('saves only Host/GLM model and credential fields', async () => {
     const { openSettingsDialog } = await import(
-      '../../frontend/js/app-shell/settings-dialog.js'
+      '../../frontend/src/app-shell/settings-dialog.tsx'
     );
     await openSettingsDialog();
     document.getElementById('settings-llm-model').value = 'glm-4-air';
@@ -143,7 +143,7 @@ describe('Host-only Assistant settings', () => {
         llm: { platform: '', base_url: '', model: '' },
       }));
       const { openSettingsDialog } = await import(
-        '../../frontend/js/app-shell/settings-dialog.js'
+        '../../frontend/src/app-shell/settings-dialog.tsx'
       );
       await openSettingsDialog();
 

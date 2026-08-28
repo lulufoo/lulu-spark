@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
+import { readFrontendJs } from '../helpers/read-frontend-js.js';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
 
@@ -15,16 +16,10 @@ const todoTaskAssistantHtmlPath = join(
   repoRoot,
   'frontend/todo-task-assistant.html',
 );
-const homeHubJs = readFileSync(
-  join(repoRoot, 'frontend/js/home-entry-shell/hub.js'),
-  'utf8',
-);
-const readLaterAssistantJs = readFileSync(
-  join(repoRoot, 'frontend/js/read-later/assistant.js'),
-  'utf8',
-);
+const homeHubJs = readFrontendJs('frontend/src/home/hub.tsx');
+const readLaterAssistantJs = readFrontendJs('frontend/src/read-later/assistant.tsx');
 const todoTaskAssistantJs = readFileSync(
-  join(repoRoot, 'frontend/js/todo-task/assistant.js'),
+  join(repoRoot, 'frontend/src/todo-task/assistant.tsx'),
   'utf8',
 );
 
@@ -42,7 +37,7 @@ describe('P2 copy-switch — Assistant pages (tech-doc T5)', () => {
   });
 
   it('Home chat uses English Assistant copy', () => {
-    expect(existsSync(join(repoRoot, 'frontend/js/ai-assistant.js'))).toBe(false);
+    expect(existsSync(join(repoRoot, 'frontend/src/ai-assistant.js'))).toBe(false);
     expect(homeHubJs).toContain('Chats');
     expect(homeHubJs).toContain('Message…');
     expect(homeHubJs).toContain('Send');

@@ -32,7 +32,7 @@ fn parse_acl_manifest_allow(text: &str) -> BTreeSet<String> {
         .collect()
 }
 
-/// 与 `frontend/js/host/readApiInvokeMap.js` 中 `cmd` 字段保持同步。
+/// 与 `frontend/src/host/readApiInvokeMap.ts` 中 `cmd` 字段保持同步。
 const INVOKE_MAP_COMMANDS: &[&str] = &[
     "get_corpus_index",
     "get_corpus_file",

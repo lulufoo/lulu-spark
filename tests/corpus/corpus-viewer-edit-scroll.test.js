@@ -61,31 +61,31 @@ const { elements, makeEl, clickHandlers } = vi.hoisted(() => {
   return { elements, makeEl, clickHandlers };
 });
 
-vi.mock('../../frontend/js/host/api.js', () => ({
+vi.mock('../../frontend/src/host/api.ts', () => ({
   fetchFileContent: vi.fn(),
   fetchAnnotation: vi.fn(),
   saveFile: vi.fn(),
   fetchKbStatus: vi.fn().mockResolvedValue({ error: null, total: 0, ahead: 0 }),
 }));
-vi.mock('../../frontend/js/host/state.js', async () => {
-  const actual = await vi.importActual('../../frontend/js/host/state.js');
+vi.mock('../../frontend/src/host/state.ts', async () => {
+  const actual = await vi.importActual('../../frontend/src/host/state.ts');
   return actual;
 });
-vi.mock('../../frontend/js/corpus/corpus-comments.js', () => ({
+vi.mock('../../frontend/src/corpus/corpus-comments.tsx', () => ({
   renderKbComments: vi.fn(),
   initKbComments: vi.fn(),
   cleanupKbComments: vi.fn(),
   initKbCommentEvents: vi.fn(),
 }));
-vi.mock('../../frontend/js/doc-editor/highlights.js', () => ({
+vi.mock('../../frontend/src/doc-editor/highlights.ts', () => ({
   applyCachedHighlights: vi.fn(),
   initDocHighlightOverlay: vi.fn(),
   cleanupDocHighlightOverlay: vi.fn(),
 }));
-vi.mock('../../frontend/js/corpus/corpus-links-bar.js', () => ({ renderKbLinksBar: vi.fn() }));
+vi.mock('../../frontend/src/corpus/corpus-links-bar.tsx', () => ({ renderKbLinksBar: vi.fn() }));
 
-import { state } from '../../frontend/js/host/state.js';
-import { saveKbDoc } from '../../frontend/js/corpus/corpus-viewer.js';
+import { state } from '../../frontend/src/host/state.ts';
+import { saveKbDoc } from '../../frontend/src/corpus/corpus-viewer.ts';
 
 function enterKbEditMode() {
   clickHandlers['kb-btn-edit']();

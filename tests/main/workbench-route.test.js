@@ -11,19 +11,19 @@ const apiMocks = vi.hoisted(() => ({
   getReindexWorkbenchStatus: vi.fn(),
 }));
 
-vi.mock('../../frontend/js/host/api.js', () => ({
+vi.mock('../../frontend/src/host/api.ts', () => ({
   searchWorkbench: (...args) => apiMocks.searchWorkbench(...args),
   searchKnowledge: (...args) => apiMocks.searchKnowledge(...args),
   reindexWorkbench: (...args) => apiMocks.reindexWorkbench(...args),
   getReindexWorkbenchStatus: (...args) => apiMocks.getReindexWorkbenchStatus(...args),
 }));
 
-vi.mock('../../frontend/js/corpus/corpus-search.js', () => ({
+vi.mock('../../frontend/src/corpus/corpus-search.tsx', () => ({
   closeCorpusSearch: vi.fn(),
   initCorpusSearch: vi.fn(),
 }));
 
-import { applySearchNavChrome } from '../../frontend/js/app-shell/nav-chrome.js';
+import { applySearchNavChrome } from '../../frontend/src/app-shell/nav-chrome.ts';
 import { readMainSource } from '../helpers/read-frontend-js.js';
 
 const fixtureRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
@@ -77,19 +77,19 @@ function installLocalStorageMock() {
 /** Mirrors main.js wrapRouteMount + workbench mount contract under test. */
 async function simulateWorkbenchRouteMount() {
   applySearchNavChrome('workbench');
-  const { initWorkbenchSearch } = await import('../../frontend/js/notes/search.js');
+  const { initWorkbenchSearch } = await import('../../frontend/src/notes/search.tsx');
   initWorkbenchSearch();
 }
 
 async function loadWorkbenchSearchModule() {
   vi.resetModules();
-  return import('../../frontend/js/notes/search.js');
+  return import('../../frontend/src/notes/search.tsx');
 }
 
 describe('main.js workbench route init wiring (source)', () => {
-  it('imports initWorkbenchSearch from notes/search.js', () => {
+  it('imports initWorkbenchSearch from notes/search.tsx', () => {
     expect(mainJs).toMatch(
-      /import\s*\{[^}]*initWorkbenchSearch[^}]*\}\s*from\s*'[^']*notes\/search\.js'/,
+      /import\s*\{[^}]*initWorkbenchSearch[^}]*\}\s*from\s*'[^']*notes\/search\.tsx'/,
     );
   });
 

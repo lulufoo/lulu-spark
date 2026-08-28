@@ -1,6 +1,32 @@
 // Node environment — uses global document stub with event capturing
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
+function serializeTestNode(node) {
+  if (node == null || node === false) return '';
+  if (typeof node === 'string' || typeof node === 'number') return String(node);
+  if (Array.isArray(node)) return node.map(serializeTestNode).join('');
+  const type = node.type;
+  const props = node.props || {};
+  if (typeof type !== 'string') return serializeTestNode(props.children);
+  const { children, className, style: _style, ...rest } = props;
+  let attrs = className ? ` class="${className}"` : '';
+  for (const [key, value] of Object.entries(rest)) {
+    if (value == null || value === false || key === 'children') continue;
+    if (typeof value === 'object') continue;
+    attrs += ` ${key}="${value}"`;
+  }
+  const inner = serializeTestNode(children);
+  if (type === 'img' || type === 'input' || type === 'br') {
+    return `<${type}${attrs}>`;
+  }
+  return `<${type}${attrs}>${inner}</${type}>`;
+}
+
+vi.mock('../../frontend/src/island.ts', () => ({
+  renderToHtml: (node) => serializeTestNode(node),
+}));
+
+
 // ── Global document stub with event listener capture ──────────────────────
 // vi.hoisted: runs before ESM imports, sets up globalThis.document
 
@@ -78,7 +104,7 @@ const mockDiffData = () => ({
   new: [], modified: [], deleted: [], renamed: [], conflicted: [], total: 0, ahead: 0,
 });
 
-vi.mock('../../frontend/js/host/api.js', () => ({
+vi.mock('../../frontend/src/host/api.ts', () => ({
   fetchFileContent: vi.fn().mockResolvedValue('# Test'),
   fetchAnnotation: vi.fn().mockResolvedValue({}),
   fetchDiffStatus: vi.fn().mockResolvedValue({ new: [], modified: [], deleted: [], renamed: [], conflicted: [], total: 0, ahead: 0 }),
@@ -86,38 +112,38 @@ vi.mock('../../frontend/js/host/api.js', () => ({
   commitFiles: vi.fn().mockResolvedValue({ ok: true }),
   revertFile: vi.fn().mockResolvedValue({ ok: true }),
 }));
-vi.mock('../../frontend/js/host/state.js', async () => {
-  const actual = await vi.importActual('../../frontend/js/host/state.js');
+vi.mock('../../frontend/src/host/state.ts', async () => {
+  const actual = await vi.importActual('../../frontend/src/host/state.ts');
   return { ...actual, loadDiffStatus: vi.fn().mockResolvedValue(undefined) };
 });
-vi.mock('../../frontend/js/notes/cards.js', () => ({
+vi.mock('../../frontend/src/notes/cards.tsx', () => ({
   updateTitlesInDOM: vi.fn(),
   updateDiffInDOM: vi.fn(),
 }));
-vi.mock('../../frontend/js/notes/links-bar.js', () => ({ renderLinksBar: vi.fn() }));
-vi.mock('../../frontend/js/notes/tags-bar.js', () => ({ renderTagsBar: vi.fn() }));
-vi.mock('../../frontend/js/notes/comments.js', () => ({ renderComments: vi.fn() }));
-vi.mock('../../frontend/js/notes/delete-dialog.js', () => ({ openDeleteDialog: vi.fn() }));
-vi.mock('../../frontend/js/doc-editor/highlights.js', () => ({
+vi.mock('../../frontend/src/notes/links-bar.tsx', () => ({ renderLinksBar: vi.fn() }));
+vi.mock('../../frontend/src/notes/tags-bar.tsx', () => ({ renderTagsBar: vi.fn() }));
+vi.mock('../../frontend/src/notes/comments.tsx', () => ({ renderComments: vi.fn() }));
+vi.mock('../../frontend/src/notes/delete-dialog.tsx', () => ({ openDeleteDialog: vi.fn() }));
+vi.mock('../../frontend/src/doc-editor/highlights.ts', () => ({
   applyCachedHighlights: vi.fn(),
   initDocHighlightOverlay: vi.fn(),
   cleanupDocHighlightOverlay: vi.fn(),
 }));
-vi.mock('../../frontend/js/corpus/corpus-viewer.js', () => ({
+vi.mock('../../frontend/src/corpus/corpus-viewer.ts', () => ({
   openKbDoc: vi.fn(),
   saveKbDoc: vi.fn(),
 }));
-vi.mock('../../frontend/js/corpus/corpus-knowledge-search.js', () => ({
+vi.mock('../../frontend/src/corpus/corpus-knowledge-search.tsx', () => ({
   mountKnowledgeSearch: vi.fn(),
   triggerKnowledgeSearch: vi.fn(),
 }));
-vi.mock('../../frontend/js/host/constants.js', () => ({
+vi.mock('../../frontend/src/host/constants.ts', () => ({
   getGithubUserUrl: vi.fn(() => ''),
   workbenchGithubBlobBase: vi.fn(() => null),
 }));
 
-import { openCommitDialog } from '../../frontend/js/notes/viewer.js';
-import * as api from '../../frontend/js/host/api.js';
+import { openCommitDialog } from '../../frontend/src/notes/viewer.ts';
+import * as api from '../../frontend/src/host/api.ts';
 
 // ── openCommitDialog ──────────────────────────────────────────────────────
 

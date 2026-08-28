@@ -1,18 +1,12 @@
 // @vitest-environment jsdom
-import { readFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   renderHomeChatMarkdown,
   hydrateHomeChatMarkdown,
-} from '../../frontend/js/home-entry-shell/chat-render.js';
+} from '../../frontend/src/home/chat-render.ts';
+import { readFrontendJs } from '../helpers/read-frontend-js.js';
 
-const fixtureRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
-const source = readFileSync(
-  join(fixtureRoot, 'frontend/js/home-entry-shell/chat-render.js'),
-  'utf8',
-);
+const source = readFrontendJs('frontend/src/home/chat-render.ts');
 
 describe('home-chat-render isolation', () => {
   it('is a standalone chat renderer and does not import the Notes editor', () => {

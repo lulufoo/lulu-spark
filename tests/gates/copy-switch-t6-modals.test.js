@@ -2,38 +2,32 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { readMainSource } from '../helpers/read-frontend-js.js';
+import { readFrontendJs, readMainSource } from '../helpers/read-frontend-js.js';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
 
 const mainJs = readMainSource();
-const commitDialogJs = readFileSync(
-  join(repoRoot, 'frontend/js/app-shell/commit-dialog.js'),
-  'utf8',
-);
+const commitDialogJs = readFrontendJs('frontend/src/app-shell/commit-dialog.tsx');
 const deleteDialogJs = readFileSync(
-  join(repoRoot, 'frontend/js/notes/delete-dialog.js'),
+  join(repoRoot, 'frontend/src/notes/delete-dialog.tsx'),
   'utf8',
 );
 const moveDialogJs = readFileSync(
-  join(repoRoot, 'frontend/js/app-shell/move-dialog.js'),
+  join(repoRoot, 'frontend/src/app-shell/move-dialog.tsx'),
   'utf8',
 );
-const settleDialogJs = readFileSync(
-  join(repoRoot, 'frontend/js/notes/settle-dialog.js'),
-  'utf8',
-);
+const settleDialogJs = readFrontendJs('frontend/src/notes/settle-dialog.tsx');
 const modalSources = [
   commitDialogJs,
   deleteDialogJs,
   moveDialogJs,
   settleDialogJs,
-  readFileSync(join(repoRoot, 'frontend/js/corpus/corpus-diff-dialog.js'), 'utf8'),
-  readFileSync(join(repoRoot, 'frontend/js/app-shell/base64-dialog.js'), 'utf8'),
-  readFileSync(join(repoRoot, 'frontend/js/notes/move-project-dialog.js'), 'utf8'),
-  readFileSync(join(repoRoot, 'frontend/js/app-shell/qr-dialog.js'), 'utf8'),
-  readFileSync(join(repoRoot, 'frontend/js/app-shell/convert-dialog.js'), 'utf8'),
+  readFrontendJs('frontend/src/corpus/corpus-diff-dialog.tsx'),
+  readFrontendJs('frontend/src/app-shell/convert-dialog.tsx'),
+  readFrontendJs('frontend/src/notes/move-project-dialog.tsx'),
+  readFrontendJs('frontend/src/app-shell/qr-dialog.tsx'),
 ].join('\n');
+
 
 function withoutComments(src) {
   return src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');

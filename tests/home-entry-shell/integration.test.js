@@ -9,7 +9,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { createHomeEntryFsm } from '../../frontend/js/home-entry-shell/fsm.js';
+import { createHomeEntryFsm } from '../../frontend/src/home-entry-shell/fsm.ts';
 import { readMainSource } from '../helpers/read-frontend-js.js';
 import {
   mountShellIntegrationFixture,

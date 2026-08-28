@@ -3,13 +3,14 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { readFrontendJs } from '../helpers/read-frontend-js.js';
 
 const invokeMock = vi.fn();
 const getJsonMock = vi.fn();
 const dialogOpenMock = vi.fn();
 const convertFileSrcMock = vi.fn((path) => `asset://localhost/${encodeURIComponent(path)}`);
 
-vi.mock('../../frontend/js/host/apiClient.js', async (importOriginal) => {
+vi.mock('../../frontend/src/host/apiClient.ts', async (importOriginal) => {
   const actual = await importOriginal();
   return {
     ...actual,
@@ -25,7 +26,7 @@ import {
   listPlanAttachments,
   mountTodoTaskSplit,
   pickLocalMarkdownFile,
-} from '../../frontend/js/todo-task/index.js';
+} from '../../frontend/src/todo-task/index.ts';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
 
@@ -335,19 +336,16 @@ describe('mountTodoTaskSplit attachment list + add', () => {
 
 describe('attachment add surface does not reuse dialog.js CRUD types', () => {
   it('dialog.js TodoTaskDialogType remains the four master/sub CRUD types only', () => {
-    const dialogSrc = readFileSync(
-      join(repoRoot, 'frontend/js/todo-task/dialog.js'),
-      'utf8',
-    );
+    const dialogSrc = readFrontendJs('frontend/src/todo-task/dialog.tsx');
     expect(dialogSrc).toMatch(
-      /@typedef \{'create-master' \| 'create-category' \| 'add-sub' \| 'delete-master' \| 'delete-sub'\} TodoTaskDialogType/,
+      /TodoTaskDialogType[\s\S]*?'create-master'[\s\S]*?'create-category'[\s\S]*?'add-sub'[\s\S]*?'delete-master'[\s\S]*?'delete-sub'/,
     );
     expect(dialogSrc).not.toMatch(/add-attachment|pick-attachment|attachment/);
   });
 
   it('index.js attachment pick action does not call openTodoTaskDialog', () => {
-    const src = readFileSync(join(repoRoot, 'frontend/js/todo-task/attachments.js'), 'utf8')
-      + readFileSync(join(repoRoot, 'frontend/js/todo-task/attachments-render.js'), 'utf8');
+    const src = readFileSync(join(repoRoot, 'frontend/src/todo-task/attachments.tsx'), 'utf8')
+      + readFileSync(join(repoRoot, 'frontend/src/todo-task/attachments-render.tsx'), 'utf8');
     expect(src).toMatch(/data-action="pick-attachment-md"/);
     const marker = "action === 'pick-attachment-md'";
     const idx = src.indexOf(marker);

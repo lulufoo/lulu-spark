@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 
-import { createHomeEntryFsm } from '../../frontend/js/home-entry-shell/fsm.js';
+import { createHomeEntryFsm } from '../../frontend/src/home-entry-shell/fsm.ts';
 
 /**
  * Table-driven A/B/C FSM for the home-entry shell (T2).

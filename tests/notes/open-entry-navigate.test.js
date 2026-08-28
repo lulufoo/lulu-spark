@@ -8,14 +8,14 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { readFrontendJs, readMainSource } from '../helpers/read-frontend-js.js';
-import { buildCard } from '../../frontend/js/notes/cards.js';
-import { state } from '../../frontend/js/host/state.js';
+import { buildCard } from '../../frontend/src/notes/cards.tsx';
+import { state } from '../../frontend/src/host/state.ts';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
 
 function read(rel) {
-  if (rel === 'frontend/js/main.js') return readMainSource();
-  if (rel.startsWith('frontend/js/')) return readFrontendJs(rel);
+  if (rel === 'frontend/src/boot.ts') return readMainSource();
+  if (rel.startsWith('frontend/src/')) return readFrontendJs(rel);
   return readFileSync(join(repoRoot, rel), 'utf8');
 }
 
@@ -25,7 +25,7 @@ const apiMocks = vi.hoisted(() => ({
   getReindexWorkbenchStatus: vi.fn(),
 }));
 
-vi.mock('../../frontend/js/host/api.js', () => ({
+vi.mock('../../frontend/src/host/api.ts', () => ({
   searchWorkbench: (...args) => apiMocks.searchWorkbench(...args),
   reindexWorkbench: (...args) => apiMocks.reindexWorkbench(...args),
   getReindexWorkbenchStatus: (...args) => apiMocks.getReindexWorkbenchStatus(...args),
@@ -34,15 +34,15 @@ vi.mock('../../frontend/js/host/api.js', () => ({
   fetchFileContent: vi.fn(),
 }));
 
-vi.mock('../../frontend/js/notes/move-project-dialog.js', () => ({
+vi.mock('../../frontend/src/notes/move-project-dialog.tsx', () => ({
   openMoveProjectDialog: vi.fn(),
 }));
 
 describe('T6 source: open/create entries → navigate-to-note (no modal.display path)', () => {
-  const mainJs = read('frontend/js/main.js');
-  const searchJs = read('frontend/js/notes/search.js');
-  const cardsJs = read('frontend/js/notes/cards.js');
-  const assistantJs = read('frontend/js/notes/assistant.js');
+  const mainJs = read('frontend/src/boot.ts');
+  const searchJs = read('frontend/src/notes/search.tsx');
+  const cardsJs = read('frontend/src/notes/cards.tsx');
+  const assistantJs = read('frontend/src/notes/assistant.tsx');
 
   it('imports navigateToNote and uses it from cta:open-entry listener', () => {
     expect(mainJs).toMatch(/navigateToNote/);
@@ -140,7 +140,7 @@ describe('T6 behavioral: workbench-search layer + cards emit', () => {
     });
 
     vi.resetModules();
-    const { initWorkbenchSearch } = await import('../../frontend/js/notes/search.js');
+    const { initWorkbenchSearch } = await import('../../frontend/src/notes/search.tsx');
     initWorkbenchSearch();
 
     const input = document.getElementById('gs-wb-input');
@@ -175,7 +175,7 @@ describe('T6 behavioral: workbench-search layer + cards emit', () => {
     });
 
     vi.resetModules();
-    const { initWorkbenchSearch } = await import('../../frontend/js/notes/search.js');
+    const { initWorkbenchSearch } = await import('../../frontend/src/notes/search.tsx');
     initWorkbenchSearch();
 
     const input = document.getElementById('gs-wb-input');

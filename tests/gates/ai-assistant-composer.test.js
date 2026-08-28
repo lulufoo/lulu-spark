@@ -4,8 +4,8 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import * as api from '../../frontend/js/host/api.js';
-import { mountHomeHub } from '../../frontend/js/home-entry-shell/hub.js';
+import * as api from '../../frontend/src/host/api.ts';
+import { mountHomeHub } from '../../frontend/src/home/hub.tsx';
 
 describe('Home chat composer Binding Contract gate', () => {
   let container;

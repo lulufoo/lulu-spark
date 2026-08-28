@@ -17,6 +17,9 @@
 
 node_modules
 
+# Vite frontend output
+frontend/dist
+
 # Rust / Tauri build output
 src-tauri/target/
 

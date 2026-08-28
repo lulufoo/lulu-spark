@@ -6,6 +6,6 @@
 
 2. **UI handlers**: Long work must be async; restore UI in `.finally()` (or `try/finally`).
 
-3. **`@tauri-apps/*`**: No static import in `frontend/js/**` — Tauri only via `apiClient.js` or `window.__TAURI__` (`frontendTauriImportContract.test.js`).
+3. **`@tauri-apps/*`**: No static import in `frontend/src/**` — Tauri only via `apiClient.js` or `window.__TAURI__` (`frontendTauriImportContract.test.js`).
 
 4. **Tauri command ACL (`permissions/*.toml`)**: New invoke commands must also go on the matching allowlist (`write-api` / `read-api` / `sync-api` / `search-api`).

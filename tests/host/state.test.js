@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { state } from '../../frontend/js/host/state.js';
+import { state } from '../../frontend/src/host/state.ts';
 
 describe('state initial values', () => {
   it('state.index.filteredGroups 初始值为 []', () => {

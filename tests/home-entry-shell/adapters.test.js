@@ -12,7 +12,7 @@ const getJsonMock = vi.fn();
 const fetchIndexMock = vi.fn();
 const renderFeedMock = vi.fn();
 
-vi.mock('../../frontend/js/host/apiClient.js', async (importOriginal) => {
+vi.mock('../../frontend/src/host/apiClient.ts', async (importOriginal) => {
   const actual = await importOriginal();
   return {
     ...actual,
@@ -23,22 +23,22 @@ vi.mock('../../frontend/js/host/apiClient.js', async (importOriginal) => {
   };
 });
 
-vi.mock('../../frontend/js/host/api.js', () => ({
+vi.mock('../../frontend/src/host/api.ts', () => ({
   fetchIndex: (...args) => fetchIndexMock(...args),
 }));
 
-vi.mock('../../frontend/js/builders/feed.js', () => ({
+vi.mock('../../frontend/src/builders/feed.tsx', () => ({
   renderFeed: (...args) => renderFeedMock(...args),
 }));
 
-import { createContentRegistry } from '../../frontend/js/home-entry-shell/content-registry.js';
-import { getBaselineEntries } from '../../frontend/js/home-entry-shell/entry-config.js';
-import { mountHomeEntryShell } from '../../frontend/js/home-entry-shell/shell.js';
-import { createReadLaterContentAdapter } from '../../frontend/js/read-later/assistant.js';
-import { createTodoTaskContentAdapter } from '../../frontend/js/todo-task/assistant.js';
-import { createNotesContentAdapter } from '../../frontend/js/notes/assistant.js';
-import { createBuildersContentAdapter } from '../../frontend/js/builders/assistant.js';
-import { readMainSource } from '../helpers/read-frontend-js.js';
+import { createContentRegistry } from '../../frontend/src/home-entry-shell/content-registry.ts';
+import { getBaselineEntries } from '../../frontend/src/home-entry-shell/entry-config.ts';
+import { mountHomeEntryShell } from '../../frontend/src/home-entry-shell/shell.tsx';
+import { createReadLaterContentAdapter } from '../../frontend/src/read-later/assistant.tsx';
+import { createTodoTaskContentAdapter } from '../../frontend/src/todo-task/assistant.tsx';
+import { createNotesContentAdapter } from '../../frontend/src/notes/assistant.tsx';
+import { createBuildersContentAdapter } from '../../frontend/src/builders/assistant.tsx';
+import { readFrontendJs, readMainSource } from '../helpers/read-frontend-js.js';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
 
@@ -49,27 +49,27 @@ const ADAPTERS = [
   {
     key: 'read-later',
     create: createReadLaterContentAdapter,
-    sourcePath: 'frontend/js/read-later/assistant.js',
+    sourcePath: 'frontend/src/read-later/assistant.tsx',
     contentSelector:
       '.read-later-assistant-empty, .read-later-assistant-panel, .read-later-assistant-loading',
   },
   {
     key: 'todo-task',
     create: createTodoTaskContentAdapter,
-    sourcePath: 'frontend/js/todo-task/assistant.js',
+    sourcePath: 'frontend/src/todo-task/assistant.tsx',
     contentSelector:
       '.todo-task-assistant-empty, .todo-task-assistant-list, .todo-task-assistant-loading',
   },
   {
     key: 'notes',
     create: createNotesContentAdapter,
-    sourcePath: 'frontend/js/notes/assistant.js',
+    sourcePath: 'frontend/src/notes/assistant.tsx',
     contentSelector: '.note-assistant-empty, .note-assistant-list, .note-assistant-loading',
   },
   {
     key: 'builders',
     create: createBuildersContentAdapter,
-    sourcePath: 'frontend/js/builders/assistant.js',
+    sourcePath: 'frontend/src/builders/assistant.tsx',
     contentSelector: '.feed-mock',
   },
 ];
@@ -146,7 +146,9 @@ describe('home-entry-shell adapters (T6)', () => {
 
   it('sources retire self-owned chrome (popover / modal host / fab close)', () => {
     for (const { key, sourcePath } of ADAPTERS) {
-      const src = readFileSync(join(repoRoot, sourcePath), 'utf8');
+      const src = sourcePath.startsWith('frontend/src/')
+        ? readFrontendJs(sourcePath)
+        : readFileSync(join(repoRoot, sourcePath), 'utf8');
       expect(src, key).not.toMatch(CHROME_RE);
       expect(src, key).not.toMatch(/mount(?:ReadLater|TodoTask|Note|Builders)AssistantWidget/);
     }
@@ -254,20 +256,20 @@ describe('home-entry-shell adapters · Assistant overlay retired', () => {
     expect(mainSrc).not.toMatch(/\baiEntry\s*:/);
 
     const configSrc = readFileSync(
-      join(repoRoot, 'frontend/js/home-entry-shell/entry-config.js'),
+      join(repoRoot, 'frontend/src/home-entry-shell/entry-config.ts'),
       'utf8',
     );
     expect(configSrc).not.toMatch(/getAiAssistantEntry/);
     expect(configSrc).not.toMatch(/ai-assistant/);
 
     const registrySrc = readFileSync(
-      join(repoRoot, 'frontend/js/home-entry-shell/content-registry.js'),
+      join(repoRoot, 'frontend/src/home-entry-shell/content-registry.ts'),
       'utf8',
     );
     expect(registrySrc).not.toMatch(/ai-assistant/);
     expect(registrySrc).not.toMatch(/createAiAssistantContentAdapter/);
 
-    expect(existsSync(join(repoRoot, 'frontend/js/ai-assistant.js'))).toBe(false);
+    expect(existsSync(join(repoRoot, 'frontend/src/ai-assistant.js'))).toBe(false);
     const baseline = getBaselineEntries();
     expect(baseline.some((e) => e.id === 'ai-assistant')).toBe(false);
   });

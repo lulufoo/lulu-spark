@@ -7,7 +7,7 @@ import {
   navigateToNote,
   navigateBackToList,
   navigateToDateList,
-} from '../../frontend/js/router/index.js';
+} from '../../frontend/src/router/index.ts';
 
 describe('parseHash', () => {
   it('parses #/workbench', () => {
@@ -129,7 +129,7 @@ describe('parseHash', () => {
   });
 });
 
-describe('initRouter fallback', () => {
+describe('initRouter fallback (library API; app entry uses mountHashRouter)', () => {
   let handlers;
   let hashValue;
   let listeners;
@@ -298,7 +298,7 @@ describe('navigate', () => {
   });
 });
 
-describe('Phase2 fallback (default #/home)', () => {
+describe('Phase2 fallback via initRouter (library API; app entry uses mountHashRouter)', () => {
   let handlers;
   let hashValue;
   let listeners;

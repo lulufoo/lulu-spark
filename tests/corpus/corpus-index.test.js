@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { normalizeCorpusIndex } from '../../frontend/js/corpus/corpus-index.js'
+import { normalizeCorpusIndex } from '../../frontend/src/corpus/corpus-index.ts'
 
 describe('normalizeCorpusIndex', () => {
   it('从 entries 克隆并附加 _id', () => {
