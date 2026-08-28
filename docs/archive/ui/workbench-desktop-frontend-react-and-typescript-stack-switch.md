@@ -111,6 +111,8 @@ L2 仍只经 L3。`frontend/src/**` 同样禁止静态 `@tauri-apps/*`；门闩�
 
 ## 5. 阶段
 
+后续收岛与块内分层以 `docs/archive/ui/workbench-desktop-l2-in-block-layering-and-page-lift-tech-plan.md` 为准。下表 P3–P8 是栈切换当时的阶段划分，不再当实施顺序。✅ Verified（`3e09485` 已做完对话框与五个槽；vanilla `frontend/js/` 已不存在）
+
 每一阶段结束应用都能开。迁哪一页，就改哪一页的源码扫描测试。
 
 | 阶段 | 做什么 | 完成条件 |
@@ -160,3 +162,4 @@ P5 的 Mermaid / 高亮 overlay 仍放在 `useEffect` 里，不改成组件树�
 | 是否授权 P0 | ✅ Verified（用户 2026-08-28：开始落地） |
 | `devUrl` 端口 | ✅ Verified：5173（官方 Vite 示例；`tauri.conf.json` `devUrl`） |
 | 设计文档是否再归档进语料仓 | ❌ Unresolved（本文先落仓库） |
+| 收岛与块内分层 | 见 `workbench-desktop-l2-in-block-layering-and-page-lift-tech-plan.md` |
