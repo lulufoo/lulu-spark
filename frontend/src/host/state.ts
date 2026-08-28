@@ -1,5 +1,31 @@
 // @ts-nocheck — index / viewer shapes stay unchecked like checkJs:false.
+import { useSyncExternalStore } from 'react'
 import * as api from './api.ts'
+
+let stateVersion = 0
+const stateListeners = new Set()
+
+export function subscribeState(listener) {
+  stateListeners.add(listener)
+  return () => {
+    stateListeners.delete(listener)
+  }
+}
+
+export function notifyState() {
+  stateVersion += 1
+  stateListeners.forEach((fn) => fn())
+}
+
+export function getStateVersion() {
+  return stateVersion
+}
+
+/** Pages read `state` after this hook so a notify re-renders them. */
+export function useHostState() {
+  useSyncExternalStore(subscribeState, getStateVersion, getStateVersion)
+  return state
+}
 
 export const state = {
   index: {

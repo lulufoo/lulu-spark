@@ -1,10 +1,13 @@
 // @ts-nocheck — ported from JS; state shapes stay unchecked like checkJs:false.
 import type { ReactNode } from 'react';
+import { useSyncExternalStore } from 'react';
+import { flushSync } from 'react-dom';
 import { state } from '../host/state.ts'
 import * as api from '../host/api.ts'
 import { renderToHtml } from '../island.ts';
+import { createModuleStore } from '../shared/module-store.ts';
 
-// ── Settle Dialog ─────────────────────────────────────────────────────────
+const openStore = createModuleStore(false);
 
 let _settleCtx = null;
 let _topicsCache = null;
@@ -41,7 +44,8 @@ function _nowTs() {
 
 function _updatePreview() {
   const ts = _nowTs();
-  document.getElementById('settle-filename-ts').textContent = ts;
+  const el = document.getElementById('settle-filename-ts');
+  if (el) el.textContent = ts;
   _scheduleCheck();
 }
 
@@ -90,6 +94,18 @@ function paintSettleResult(el, node: ReactNode) {
   el.innerHTML = renderToHtml(node);
 }
 
+function onThemeSelectChange(e) {
+  const inp = document.getElementById('settle-theme-input');
+  if (e.target.value === '__new__') {
+    inp.style.display = '';
+    inp.value = '';
+    inp.focus();
+  } else {
+    inp.style.display = 'none';
+    _scheduleCheck();
+  }
+}
+
 export async function openSettleDialog(comment, layer, entry) {
   let topics;
   try {
@@ -105,6 +121,11 @@ export async function openSettleDialog(comment, layer, entry) {
   }
 
   _settleCtx = { comment, layer, entry, repo };
+
+  flushSync(() => {
+    openStore.set(true);
+  });
+  document.getElementById('settle-dialog')?.classList.add('open');
 
   document.getElementById('settle-repo-display').textContent = repo;
   document.getElementById('settle-content').value = comment.text;
@@ -124,7 +145,6 @@ export async function openSettleDialog(comment, layer, entry) {
 
   document.getElementById('settle-file-warn').textContent = '';
   _updatePreview();
-  document.getElementById('settle-dialog').classList.add('open');
 
   api.fetchRepoDirs(repo).then(data => {
     sel.disabled = false;
@@ -153,7 +173,8 @@ export async function openSettleDialog(comment, layer, entry) {
 
 export function closeSettleDialog() {
   clearTimeout(_checkTimer);
-  document.getElementById('settle-dialog').classList.remove('open');
+  openStore.set(false);
+  document.getElementById('settle-dialog')?.classList.remove('open');
   _settleCtx = null;
 }
 
@@ -233,23 +254,71 @@ async function _doSettle() {
   }
 }
 
-// ── Event listeners ────────────────────────────────────────────────────────
+export function SettleDialog() {
+  const open = useSyncExternalStore(openStore.subscribe, openStore.getSnapshot);
 
-document.getElementById('btn-settle-submit').addEventListener('click', _doSettle);
-document.getElementById('btn-settle-cancel').addEventListener('click', closeSettleDialog);
-document.getElementById('settle-dialog').addEventListener('click', e => {
-  if (e.target === document.getElementById('settle-dialog')) closeSettleDialog();
-});
-document.getElementById('settle-slug').addEventListener('input', _updatePreview);
-document.getElementById('settle-theme-select').addEventListener('change', e => {
-  const inp = document.getElementById('settle-theme-input');
-  if (e.target.value === '__new__') {
-    inp.style.display = '';
-    inp.value = '';
-    inp.focus();
-  } else {
-    inp.style.display = 'none';
-    _scheduleCheck();
-  }
-});
-document.getElementById('settle-theme-input').addEventListener('input', _scheduleCheck);
+  return (
+    <div
+      id="settle-dialog"
+      className={open ? 'open' : undefined}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) closeSettleDialog();
+      }}
+    >
+      <div id="settle-dialog-box">
+        <h3>⬆ Promote to knowledge repo</h3>
+        <div className="settle-field">
+          <label>Target repo</label>
+          <span id="settle-repo-display"></span>
+        </div>
+        <div className="settle-field">
+          <label>Target folder (doc-theme)</label>
+          <select id="settle-theme-select" onChange={onThemeSelectChange}></select>
+          <input
+            id="settle-theme-input"
+            type="text"
+            placeholder="＋ New folder…"
+            autoComplete="off"
+            style={{ display: 'none' }}
+            onInput={() => _scheduleCheck()}
+          />
+        </div>
+        <div className="settle-field">
+          <label>Filename</label>
+          <div className="settle-filename-row">
+            <span className="settle-filename-ts" id="settle-filename-ts"></span>
+            <span className="settle-filename-dash">-</span>
+            <input
+              id="settle-slug"
+              type="text"
+              placeholder="Enter name"
+              autoComplete="off"
+              spellCheck={false}
+              onInput={() => _updatePreview()}
+            />
+            <span className="settle-filename-ext">.md</span>
+          </div>
+          <div id="settle-file-warn"></div>
+        </div>
+        <div className="settle-field">
+          <label>Body</label>
+          <textarea id="settle-content" rows={10}></textarea>
+        </div>
+        <div id="settle-result"></div>
+        <div id="settle-dialog-actions">
+          <button id="btn-settle-cancel" type="button" className="md-header-btn" onClick={() => closeSettleDialog()}>
+            Cancel
+          </button>
+          <button
+            id="btn-settle-submit"
+            type="button"
+            className="md-header-btn primary"
+            onClick={() => void _doSettle()}
+          >
+            Push
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}

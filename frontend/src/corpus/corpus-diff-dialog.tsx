@@ -1,6 +1,9 @@
-import type { ReactNode } from 'react';
+import { useSyncExternalStore, type ReactNode } from 'react';
 import * as api from '../host/api.ts';
 import { renderToHtml } from '../island.ts';
+import { createModuleStore } from '../shared/module-store.ts';
+
+const openStore = createModuleStore(false);
 
 const GROUPS = [
   { key: 'new', label: 'New' },
@@ -23,13 +26,11 @@ type DiffStatus = {
 
 type DiffElements = {
   dialog: HTMLElement | null;
-  box: HTMLElement | null;
   title: HTMLElement | null;
   fileList: HTMLElement | null;
-  msg: HTMLTextAreaElement | null;
+  msg: HTMLInputElement | null;
   result: HTMLElement | null;
   okBtn: HTMLButtonElement | null;
-  cancelBtn: HTMLButtonElement | null;
   revertBtn: HTMLButtonElement | null;
 };
 
@@ -39,13 +40,11 @@ let closeTimer: ReturnType<typeof setTimeout> | null = null;
 function getElements(): DiffElements {
   return {
     dialog: document.getElementById('kb-diff-dialog'),
-    box: document.getElementById('kb-diff-dialog-box'),
     title: document.getElementById('kb-diff-dialog-title'),
     fileList: document.getElementById('kb-diff-file-list'),
-    msg: document.getElementById('kb-diff-msg') as HTMLTextAreaElement | null,
+    msg: document.getElementById('kb-diff-msg') as HTMLInputElement | null,
     result: document.getElementById('kb-diff-result'),
     okBtn: document.getElementById('btn-kb-diff-ok') as HTMLButtonElement | null,
-    cancelBtn: document.getElementById('btn-kb-diff-cancel') as HTMLButtonElement | null,
     revertBtn: document.getElementById('btn-kb-diff-revert-all') as HTMLButtonElement | null,
   };
 }
@@ -147,12 +146,14 @@ export async function openKbDiffDialog(repo: string) {
   result.textContent = '';
   result.style.color = '';
   okBtn.textContent = 'Commit';
+  openStore.set(true);
   dialog.classList.add('open');
   await refreshDialog();
 }
 
 export function closeKbDiffDialog() {
   const { dialog, result, okBtn } = getElements();
+  openStore.set(false);
   clearCloseTimer();
   dialog?.classList.remove('open');
   if (result) {
@@ -165,7 +166,7 @@ export function closeKbDiffDialog() {
   }
 }
 
-async function handleCommit() {
+async function handleKbDiffCommit() {
   const { msg, result, okBtn, revertBtn } = getElements();
   if (!msg || !result || !okBtn || !revertBtn) return;
   okBtn.disabled = true;
@@ -190,7 +191,7 @@ async function handleCommit() {
   }
 }
 
-async function handleRevertAll() {
+async function handleKbDiffRevertAll() {
   const { result, okBtn, revertBtn } = getElements();
   if (!result || !okBtn || !revertBtn) return;
   okBtn.disabled = true;
@@ -214,13 +215,53 @@ async function handleRevertAll() {
   }
 }
 
-getElements().cancelBtn?.addEventListener('click', closeKbDiffDialog);
-getElements().okBtn?.addEventListener('click', () => {
-  void handleCommit();
-});
-getElements().revertBtn?.addEventListener('click', () => {
-  void handleRevertAll();
-});
-getElements().dialog?.addEventListener('click', (event) => {
-  if (event.target === getElements().dialog) closeKbDiffDialog();
-});
+export function KbDiffDialog() {
+  const open = useSyncExternalStore(openStore.subscribe, openStore.getSnapshot);
+
+  return (
+    <div
+      id="kb-diff-dialog"
+      className={open ? 'open' : undefined}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) closeKbDiffDialog();
+      }}
+    >
+      <div id="kb-diff-dialog-box">
+        <div id="kb-diff-dialog-title-row">
+          <h3 id="kb-diff-dialog-title">✎ Local changes</h3>
+          <button
+            id="btn-kb-diff-revert-all"
+            type="button"
+            onClick={() => {
+              void handleKbDiffRevertAll();
+            }}
+          >
+            Discard changes
+          </button>
+        </div>
+        <div id="kb-diff-file-list"></div>
+        <input
+          id="kb-diff-msg"
+          type="text"
+          placeholder="Commit message (empty: chore: update via viewer)"
+          autoComplete="off"
+        />
+        <div id="kb-diff-dialog-actions">
+          <span id="kb-diff-result"></span>
+          <button id="btn-kb-diff-cancel" type="button" onClick={() => closeKbDiffDialog()}>
+            Cancel
+          </button>
+          <button
+            id="btn-kb-diff-ok"
+            type="button"
+            onClick={() => {
+              void handleKbDiffCommit();
+            }}
+          >
+            Commit
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}

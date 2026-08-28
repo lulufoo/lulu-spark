@@ -574,7 +574,7 @@ describe('home hub shell integration', () => {
   it('main.js mounts HomeHub on home route with Phase2 default landing', () => {
     expect(mainJs).toMatch(/mountHomeHub/);
     expect(mainJs).not.toMatch(/home:\s*redirectToWorkbench/);
-    expect(mainJs).toMatch(/fallback:\s*['"]#\/home['"]/);
+    expect(mainJs).toMatch(/['"]#\/home['"]/);
   });
 
   it('main.js swaps left header title for back link off home', () => {

@@ -1,29 +1,50 @@
 // @ts-nocheck — ported from JS; state shapes stay unchecked like checkJs:false.
+import { useSyncExternalStore } from 'react';
+import { flushSync } from 'react-dom';
 import { getEntryId } from '../host/state.ts'
 import * as api from '../host/api.ts'
 import { renderToHtml } from '../island.ts';
+import { createModuleStore } from '../shared/module-store.ts';
 
-// ── openMoveProjectDialog ──────────────────────────────────────────────────
+const openStore = createModuleStore(false);
+
+let _currentEntry = null;
 
 // entry is passed directly from the card; no dependency on state.viewer
 export async function openMoveProjectDialog(entry) {
   if (!entry) return;
 
   const currentProject = entry.common_path.split('/')[0];
-  const result = document.getElementById('move-project-result');
-  result.textContent = 'Loading project list…';
-  result.style.color = '#8c959f';
-  document.getElementById('move-project-dialog').classList.add('open');
-  // store reference for doMoveProject
   _currentEntry = entry;
+  flushSync(() => {
+    openStore.set(true);
+  });
+  document.getElementById('move-project-dialog')?.classList.add('open');
+
+  const result = document.getElementById('move-project-result');
+  if (result) {
+    result.textContent = 'Loading project list…';
+    result.style.color = '#8c959f';
+  }
 
   await _loadProjects(currentProject);
+}
+
+export function closeMoveProjectDialog() {
+  openStore.set(false);
+  document.getElementById('move-project-dialog')?.classList.remove('open');
+  const list = document.getElementById('move-project-list');
+  if (list) list.innerHTML = '';
+  const result = document.getElementById('move-project-result');
+  if (result) result.textContent = '';
+  _currentEntry = null;
 }
 
 function ProjectListItem({ proj, desc }) {
   const inbox = proj === 'inbox';
   return (
     <button
+      type="button"
       className="move-project-item"
       data-project={proj}
       style={inbox ? { color: '#cf222e', borderColor: '#ffcbc8' } : undefined}
@@ -37,8 +58,10 @@ function ProjectListItem({ proj, desc }) {
 async function _loadProjects(currentProject) {
   const result = document.getElementById('move-project-result');
   const list = document.getElementById('move-project-list');
-  result.textContent = 'Loading project list…';
-  result.style.color = '#8c959f';
+  if (result) {
+    result.textContent = 'Loading project list…';
+    result.style.color = '#8c959f';
+  }
 
   // Load topics
   let projects = [];
@@ -52,12 +75,14 @@ async function _loadProjects(currentProject) {
     projects = data.topics.map(t => t.dir || (t.repo ? t.repo.split('/').pop() : null)).filter(Boolean);
     projects.sort((a, b) => a.localeCompare(b, 'en', { sensitivity: 'base' }));
   } catch (e) {
-    result.style.color = '#cf222e';
-    result.textContent = 'Failed to load: ' + e.message;
+    if (result) {
+      result.style.color = '#cf222e';
+      result.textContent = 'Failed to load: ' + e.message;
+    }
     return;
   }
 
-  // Render project list
+  if (!list) return;
   try {
     const items = projects.filter((proj) => proj !== currentProject);
     list.innerHTML = renderToHtml(
@@ -67,25 +92,17 @@ async function _loadProjects(currentProject) {
         ))}
       </>,
     );
-    list.querySelectorAll('.move-project-item').forEach((btn) => {
-      btn.addEventListener('click', () => doMoveProject(btn.dataset.project));
-    });
-    result.textContent = `Current project: ${currentProject} — choose target`;
-    result.style.color = '#57606a';
+    if (result) {
+      result.textContent = `Current project: ${currentProject} — choose target`;
+      result.style.color = '#57606a';
+    }
   } catch (e) {
     console.error('[move-project] render error', e);
-    result.style.color = '#cf222e';
-    result.textContent = 'Render failed: ' + e.message;
+    if (result) {
+      result.style.color = '#cf222e';
+      result.textContent = 'Render failed: ' + e.message;
+    }
   }
-}
-
-let _currentEntry = null;
-
-export function closeMoveProjectDialog() {
-  document.getElementById('move-project-dialog').classList.remove('open');
-  document.getElementById('move-project-list').innerHTML = '';
-  document.getElementById('move-project-result').textContent = '';
-  _currentEntry = null;
 }
 
 async function doMoveProject(newProject) {
@@ -93,8 +110,10 @@ async function doMoveProject(newProject) {
   if (!entry) return;
 
   const result = document.getElementById('move-project-result');
-  result.style.color = '#57606a';
-  result.textContent = 'Moving…';
+  if (result) {
+    result.style.color = '#57606a';
+    result.textContent = 'Moving…';
+  }
 
   document.querySelectorAll('.move-project-item').forEach(b => b.disabled = true);
 
@@ -104,21 +123,49 @@ async function doMoveProject(newProject) {
     const data = await api.moveToProject(id, newProject);
     if (!data.ok) throw new Error(data.error || 'failed');
 
-    result.style.color = '#1a7f37';
-    result.textContent = `✓ Moved to ${newProject}`;
+    if (result) {
+      result.style.color = '#1a7f37';
+      result.textContent = `✓ Moved to ${newProject}`;
+    }
 
     setTimeout(() => {
       closeMoveProjectDialog();
       document.dispatchEvent(new CustomEvent('cta:reload'));
     }, 800);
   } catch (e) {
-    result.style.color = '#cf222e';
-    result.textContent = `✗ ${e.message}`;
+    if (result) {
+      result.style.color = '#cf222e';
+      result.textContent = `✗ ${e.message}`;
+    }
     document.querySelectorAll('.move-project-item').forEach(b => b.disabled = false);
   }
 }
 
-// ── Event listeners ────────────────────────────────────────────────────────
+export function MoveProjectDialog() {
+  const open = useSyncExternalStore(openStore.subscribe, openStore.getSnapshot);
 
-document.getElementById('btn-move-project-close').addEventListener('click', closeMoveProjectDialog);
-document.getElementById('move-project-backdrop').addEventListener('click', closeMoveProjectDialog);
+  return (
+    <div id="move-project-dialog" className={open ? 'open' : undefined}>
+      <div id="move-project-backdrop" onClick={() => closeMoveProjectDialog()}></div>
+      <div id="move-project-dialog-box">
+        <h3>↷ Switch project</h3>
+        <div id="move-project-result" style={{ fontSize: '12px', color: '#57606a', marginBottom: '8px' }}></div>
+        <div
+          id="move-project-list"
+          style={{ display: 'flex', flexDirection: 'column', gap: '4px', maxHeight: '300px', overflowY: 'auto' }}
+          onClick={(e) => {
+            const btn = e.target.closest?.('.move-project-item');
+            if (btn instanceof HTMLElement && btn.dataset.project) {
+              void doMoveProject(btn.dataset.project);
+            }
+          }}
+        ></div>
+        <div id="move-project-dialog-actions">
+          <button id="btn-move-project-close" type="button" onClick={() => closeMoveProjectDialog()}>
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}

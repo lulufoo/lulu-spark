@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
-const { makeEl, trigger, clearDom } = vi.hoisted(() => {
+const { makeEl, clearDom } = vi.hoisted(() => {
   const elements = {};
   const clearDom = () => {
     for (const key of Object.keys(elements)) delete elements[key];
@@ -16,11 +16,6 @@ const { makeEl, trigger, clearDom } = vi.hoisted(() => {
         add(cls) { this._set.add(cls); },
         remove(cls) { this._set.delete(cls); },
       },
-      _listeners: {},
-      addEventListener(event, fn) {
-        if (!this._listeners[event]) this._listeners[event] = [];
-        this._listeners[event].push(fn);
-      },
       innerHTML: '',
       textContent: '',
       value: '',
@@ -29,15 +24,11 @@ const { makeEl, trigger, clearDom } = vi.hoisted(() => {
     if (id) elements[id] = el;
     return el;
   };
-  const trigger = async (id, event, eventData = {}) => {
-    const el = makeEl(id);
-    for (const fn of el._listeners[event] || []) await fn(eventData);
-  };
   globalThis.document = {
     getElementById: (id) => makeEl(id),
     addEventListener: () => {},
   };
-  return { makeEl, trigger, clearDom };
+  return { makeEl, clearDom };
 });
 
 vi.mock('../../frontend/src/host/api.ts', () => ({
@@ -68,6 +59,8 @@ function seedDom() {
 describe('homepage commit dialog — delayed close + background submit', () => {
   let resolveCommit;
   let rejectCommit;
+  let doCommitChanges;
+  let closeCommitChangesDialog;
 
   beforeEach(async () => {
     vi.useFakeTimers();
@@ -83,7 +76,9 @@ describe('homepage commit dialog — delayed close + background submit', () => {
         rejectCommit = reject;
       }),
     );
-    await import('../../frontend/src/app-shell/commit-dialog.tsx');
+    const mod = await import('../../frontend/src/app-shell/commit-dialog.tsx');
+    doCommitChanges = mod.doCommitChanges;
+    closeCommitChangesDialog = mod.closeCommitChangesDialog;
     makeEl('commit-changes-dialog').classList.add('open');
     makeEl('btn-push-index').disabled = false;
     makeEl('btn-push-index').textContent = '↑ 提交变更';
@@ -94,7 +89,7 @@ describe('homepage commit dialog — delayed close + background submit', () => {
   });
 
   it('AC1: keeps open class within 500ms of clicking submit', async () => {
-    void trigger('btn-commit-changes-ok', 'click');
+    doCommitChanges();
     await Promise.resolve();
 
     const dialog = makeEl('commit-changes-dialog');
@@ -103,7 +98,7 @@ describe('homepage commit dialog — delayed close + background submit', () => {
   });
 
   it('AC2: removes open class and calls commitFiles after 500ms', async () => {
-    void trigger('btn-commit-changes-ok', 'click');
+    doCommitChanges();
     await Promise.resolve();
 
     vi.advanceTimersByTime(500);
@@ -116,7 +111,7 @@ describe('homepage commit dialog — delayed close + background submit', () => {
   });
 
   it('AC3: keeps btn-push-index enabled while commit is in flight', async () => {
-    void trigger('btn-commit-changes-ok', 'click');
+    doCommitChanges();
     vi.advanceTimersByTime(500);
     await Promise.resolve();
 
@@ -124,7 +119,7 @@ describe('homepage commit dialog — delayed close + background submit', () => {
   });
 
   it('AC4: shows success toast after api.commitFiles resolves', async () => {
-    void trigger('btn-commit-changes-ok', 'click');
+    doCommitChanges();
     vi.advanceTimersByTime(500);
     await Promise.resolve();
 
@@ -135,7 +130,7 @@ describe('homepage commit dialog — delayed close + background submit', () => {
   });
 
   it('AC4: shows error toast with 提交失败 prefix on reject', async () => {
-    void trigger('btn-commit-changes-ok', 'click');
+    doCommitChanges();
     vi.advanceTimersByTime(500);
     await Promise.resolve();
 
@@ -147,24 +142,22 @@ describe('homepage commit dialog — delayed close + background submit', () => {
   });
 
   it('AC5: backdrop click during delay closes dialog without committing', async () => {
-    void trigger('btn-commit-changes-ok', 'click');
+    doCommitChanges();
     await Promise.resolve();
 
-    const dialog = makeEl('commit-changes-dialog');
-    const backdropHandler = dialog._listeners.click?.[0];
-    backdropHandler?.({ target: dialog });
+    closeCommitChangesDialog();
 
-    expect(dialog.classList.contains('open')).toBe(false);
+    expect(makeEl('commit-changes-dialog').classList.contains('open')).toBe(false);
     vi.advanceTimersByTime(500);
     await Promise.resolve();
     expect(api.commitFiles).not.toHaveBeenCalled();
   });
 
   it('AC6: cancel during delay does not call commitFiles', async () => {
-    void trigger('btn-commit-changes-ok', 'click');
+    doCommitChanges();
     await Promise.resolve();
 
-    await trigger('btn-commit-changes-cancel', 'click');
+    closeCommitChangesDialog();
 
     vi.advanceTimersByTime(500);
     await Promise.resolve();
@@ -172,8 +165,8 @@ describe('homepage commit dialog — delayed close + background submit', () => {
   });
 
   it('A2: double-click submit schedules only one commitFiles call', async () => {
-    void trigger('btn-commit-changes-ok', 'click');
-    void trigger('btn-commit-changes-ok', 'click');
+    doCommitChanges();
+    doCommitChanges();
     vi.advanceTimersByTime(500);
     await Promise.resolve();
 

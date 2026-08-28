@@ -1,4 +1,7 @@
 // @vitest-environment jsdom
+import { createElement } from 'react';
+import { createRoot } from 'react-dom/client';
+import { flushSync } from 'react-dom';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
 const apiMocks = vi.hoisted(() => ({
@@ -13,26 +16,13 @@ vi.mock('../../frontend/src/host/api.ts', () => ({
   revertKbFile: (...args) => apiMocks.revertKbFile(...args),
 }));
 
-function seedDiffDom() {
-  document.body.innerHTML = `
-    <div id="kb-diff-dialog">
-      <div id="kb-diff-dialog-box">
-        <div id="kb-diff-dialog-title"></div>
-        <div id="kb-diff-file-list"></div>
-        <textarea id="kb-diff-msg"></textarea>
-        <div id="kb-diff-result"></div>
-        <button id="btn-kb-diff-ok">Commit</button>
-        <button id="btn-kb-diff-cancel">Cancel</button>
-        <button id="btn-kb-diff-revert-all">Revert</button>
-      </div>
-    </div>
-  `;
-}
-
 async function loadModule() {
   vi.resetModules();
-  seedDiffDom();
-  return import('../../frontend/src/corpus/corpus-diff-dialog.tsx');
+  const mod = await import('../../frontend/src/corpus/corpus-diff-dialog.tsx');
+  document.body.innerHTML = '<div id="kb-diff-host"></div>';
+  const root = createRoot(document.getElementById('kb-diff-host'));
+  flushSync(() => root.render(createElement(mod.KbDiffDialog)));
+  return mod;
 }
 
 describe('corpus diff dialog', () => {

@@ -34,30 +34,33 @@
 
 ---
 
-## 3. 现状（2026-08-28 工作区重核）
+## 3. 现状（2026-08-28 绞杀后重核）
 
 | 项 | 现状 | 标记 |
 |----|------|------|
-| 打包器 / React / TS | P0 已接 Vite + React + TypeScript；UI 仍由 `js/main.js` 画 | ✅ Verified（`package.json`；`frontend/src/p0-pipeline.ts`） |
-| Tauri 前端 | `devUrl: http://localhost:5173`；`frontendDist: "../frontend/dist"`；`withGlobalTauri: true` | ✅ Verified（`src-tauri/tauri.conf.json`） |
-| 入口 | `index.html` → ESM `js/main.js`；marked / turndown 走 jsDelivr；mermaid / qrcode 在 `vendor/` | ✅ Verified（`frontend/index.html`） |
-| CSP | `connect-src` 含 `ipc:` / `ws:`；`script-src` 含 `'unsafe-eval'` 与 jsDelivr | ✅ Verified（`tauri.conf.json`） |
-| 生产 JS | 112 个文件（不含 `components/`），18,043 行 | ✅ Verified（`wc -l`，2026-08-28 重核） |
-| 碰 DOM 的文件 | 74 个，13,976 行 | ✅ Verified（`rg` + `wc`） |
-| CSS / HTML | `app.css` 7,371 行；`index.html` 643 行 | ✅ Verified（`wc -l`） |
-| 测试 | 129 个 vitest 文件；82 个含 `readFileSync` | ✅ Verified（`find` + `rg`） |
-| 路由 | 5 条 hash：home / workbench / corpus-doc / read-later / todo-tasks | ✅ Verified（`frontend/js/router/index.js`） |
-| L3 | `host/api.js` 现为 re-export；实现在 `host/api/{transport,workbench,knowledge}.js` | ✅ Verified（`frontend/js/host/api.js`） |
-| 分层 | L2 仍是「HTML / JS / CSS，只经 L3」 | ✅ Verified（`docs/architecture/layer-constraints.md`） |
-| Tauri import | `frontend/js/**` 与 `frontend/src/**` 禁止静态 `@tauri-apps/*`，仅 `apiClient.js` 可动态 import | ✅ Verified（`docs/coding/coding-workbench-discipline.md`；`tests/host/frontendTauriImportContract.test.js`） |
+| 打包器 / React / TS | Vite + React + TypeScript；入口 `frontend/src/main.tsx` | ✅ Verified（`package.json`；`frontend/src/main.tsx`） |
+| Tauri 前端 | `devUrl: http://localhost:5173`；`frontendDist: "../frontend/dist"` | ✅ Verified（`src-tauri/tauri.conf.json`） |
+| 入口 HTML | `index.html` 只留 `#root`；module 指向 `src/main.tsx`；marked 走 npm；mermaid / qrcode 仍在 `vendor/` | ✅ Verified（`frontend/index.html` 16 行） |
+| 壳 | `App` 画 `Shell`（header + 对话框）和 `HashRouter`（五个页面槽） | ✅ Verified（`frontend/src/App.tsx`；`shell.tsx`；`hash-router.tsx`；`shell-pages.tsx`） |
+| 对话框 | Settings / Bind / Skills / Commit / Comment / Move / Settle / Todo / Convert / Read Later 等由 `Shell` 挂组件，不再内联静态盒子 | ✅ Verified（`frontend/src/shell.tsx` 的 `<XxxDialog />`） |
+| vanilla 目录 | `frontend/js/` 已不存在；`frontend/src` 无 `.js` | ✅ Verified（`test -d frontend/js`；`find frontend/src -name '*.js'`） |
+| 源码规模 | 125 个 `.ts`/`.tsx`，22,208 行；53 个文件仍有 `@ts-nocheck` | ✅ Verified（`find` + `rg` + `wc`，2026-08-28） |
+| CSS | `app.css` 7,410 行 | ✅ Verified（`wc -l`） |
+| 测试 | 126 个 vitest 文件 | ✅ Verified（`find tests -name '*.test.js'`） |
+| 路由 | 仍是 `#` / `parseHash`：home / workbench / corpus-doc / read-later / todo-tasks。`HashRouter` 按路由显隐五个槽；`routes.ts` 的 `mount*` 仍往这些槽里挂岛屿 | ✅ Verified（`frontend/src/router/index.ts`；`hash-router.tsx`；`app-shell/routes.ts`） |
+| 状态 | `host/state.ts` 仍是可变对象；已有 `useHostState` / `notifyState`。对话框另用 `createModuleStore` | ✅ Verified（`frontend/src/host/state.ts`；`shared/module-store.ts`） |
+| Host | 已在 `frontend/src/host/`（不再等 P8 从 `js/host` 搬） | ✅ Verified（`frontend/src/host/`） |
+| 分层 | L2 只经 L3 | ✅ Verified（`docs/architecture/layer-constraints.md`） |
+| Tauri import | `frontend/src/**` 禁止静态 `@tauri-apps/*`，仅 `apiClient` 可动态 import | ✅ Verified（`docs/coding/coding-workbench-discipline.md`） |
 
-并行中的 vanilla 拆分（未完成，勿回滚）：
+还没做完的绞杀（页面仍是嵌套 `createRoot` 岛屿，不是路由树里的子组件）：
 
-- `app-shell/routes.js` 已从 `main.js` 抽出路由挂载
-- `host/api/` 已拆 transport / workbench / knowledge
-- `app-shell/settings/`、`notes/viewer/`、`corpus/corpus-viewer/`、`todo-task/*-render.js` 等新目录/文件已出现
+- Home / Todos / Corpus 仍由 `routes.ts` 调用 `mountHomeHub` / `mountTodoTaskSplit` / `mountCorpusDocList`
+- Notes 阅读器 / 侧栏仍改 `ShellPages` 里的 DOM id
+- `boot.ts` 仍负责拉 index、注册 hash handler、挂 home-entry overlay
+- `@ts-nocheck` 尚未逐文件拆掉
 
-✅ Verified（`git status --short frontend`，2026-08-28）
+✅ Verified（本轮 `tsc`、vitest 123/126 文件、浏览器 `#/home` Settings / Bind / `#/todo-tasks` / `#/workbench`）
 
 ---
 
@@ -67,12 +70,13 @@
 
 ```text
 frontend/index.html     # 只剩 #root
-frontend/src/main.tsx   # createRoot
-frontend/src/App.tsx    # header + hash 路由
-frontend/src/host/      # P8 才从 js/host 搬来
-frontend/js/            # 绞杀期间仍活着；P8 删除
+frontend/src/main.tsx   # createRoot → App → boot.ts
+frontend/src/App.tsx    # Shell（header + 对话框）+ HashRouter（页面槽）
+frontend/src/host/      # 已从 js/host 搬来
 frontend/dist/          # Vite 产出；Tauri frontendDist 指向这里
 ```
+
+✅ Verified（`frontend/index.html`；`frontend/src/main.tsx`；`test -d frontend/js` 为否）
 
 ⚠️ Inferred：Vite 配置放仓库根、`root`/`outDir` 指向 `frontend/`，与现有「`package.json` 在仓库根」一致。官方示例的 `frontendDist` 是 `../dist`；本仓库应对 `../frontend/dist`。
 

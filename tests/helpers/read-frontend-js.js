@@ -97,6 +97,9 @@ export function readFrontendSrcTree() {
 export function readMainSource() {
   return [
     readFrontendJs('frontend/src/boot.ts'),
+    readFrontendJs('frontend/src/App.tsx'),
+    readFrontendJs('frontend/src/hash-router.tsx'),
+    readFrontendJs('frontend/src/shell-pages.tsx'),
     readFrontendJs('frontend/src/app-shell/sediment-kb.tsx'),
     readFrontendJs('frontend/src/app-shell/routes.ts'),
     readFrontendJs('frontend/src/app-shell/skills-dialog.tsx'),
@@ -126,21 +129,31 @@ export function readCorpusViewerSource() {
   return readFrontendJs('frontend/src/corpus/corpus-viewer.ts');
 }
 
-/** Desktop chrome: React shell JSX, dialogs it mounts, plus remaining index.html IDs. */
+/**
+ * Desktop chrome: React shell + hash-router page slots + files they import.
+ * One hop only — do not walk the whole src graph into source-scan tests.
+ */
 export function readShellHtml() {
-  const shellAbs = join(repoRoot, 'frontend/src/shell.tsx');
-  const shell = readFileSync(shellAbs, 'utf8');
-  const extras = [];
-  const seen = new Set([shellAbs]);
-  for (const match of shell.matchAll(/from\s+['"](\.[^'"]+)['"]/g)) {
-    const resolved = resolve(dirname(shellAbs), match[1]);
-    if (!existsSync(resolved) || seen.has(resolved)) continue;
-    seen.add(resolved);
-    extras.push(readFileSync(resolved, 'utf8'));
+  const entries = [
+    join(repoRoot, 'frontend/src/shell.tsx'),
+    join(repoRoot, 'frontend/src/hash-router.tsx'),
+  ];
+  const seen = new Set();
+  const parts = [];
+  for (const entry of entries) {
+    if (!existsSync(entry) || seen.has(entry)) continue;
+    seen.add(entry);
+    const text = readFileSync(entry, 'utf8');
+    parts.push(text);
+    for (const match of text.matchAll(/from\s+['"](\.[^'"]+)['"]/g)) {
+      const resolved = resolve(dirname(entry), match[1]);
+      if (!existsSync(resolved) || seen.has(resolved)) continue;
+      seen.add(resolved);
+      parts.push(readFileSync(resolved, 'utf8'));
+    }
   }
   return [
-    shell,
-    ...extras,
+    ...parts,
     readFileSync(join(repoRoot, 'frontend/index.html'), 'utf8'),
   ].join('\n');
 }

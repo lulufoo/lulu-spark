@@ -4922,6 +4922,7 @@
     justify-content: center;
     background: rgba(0,0,0,.45);
   }
+  #kb-comment-dialog.open { display: flex; }
   #kb-comment-dialog-box {
     background: #fff;
     border-radius: 10px;

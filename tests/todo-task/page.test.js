@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { readShellHtml } from '../helpers/read-frontend-js.js';
+import { readFrontendJs, readShellHtml } from '../helpers/read-frontend-js.js';
 
 const getJsonMock = vi.fn();
 
@@ -47,6 +47,7 @@ import { readMainSource } from '../helpers/read-frontend-js.js';
 const fixtureRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
 const mainJs = readMainSource();
 const indexHtml = readShellHtml();
+const todoTaskDialogSrc = readFrontendJs('frontend/src/todo-task/dialog.tsx');
 const appCss = readFileSync(join(fixtureRoot, 'frontend/app.css'), 'utf8');
 
 function extractFunctionBody(source, name) {
@@ -804,9 +805,11 @@ describe('todo-tasks route source wiring', () => {
     expect(indexHtml).toMatch(/id="todo-tasks-view"/);
   });
 
-  it('index.html includes todo-task dialog shell', () => {
-    expect(indexHtml).toMatch(/id="todo-task-dialog"/);
-    expect(indexHtml).toMatch(/id="todo-task-dialog-primary"/);
+  it('TodoTaskDialog includes todo-task dialog shell', () => {
+    expect(todoTaskDialogSrc).toMatch(/id="todo-task-dialog"/);
+    expect(todoTaskDialogSrc).toMatch(/id="todo-task-dialog-primary"/);
+    expect(todoTaskDialogSrc).toMatch(/export function TodoTaskDialog/);
+    expect(todoTaskDialogSrc).toMatch(/export function openTodoTaskDialog/);
   });
 
   it('main.js defines mountTodoTasksRoute', () => {

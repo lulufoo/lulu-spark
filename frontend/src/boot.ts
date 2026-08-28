@@ -1,11 +1,11 @@
 // @ts-nocheck — large port; DOM wiring stays unchecked like checkJs:false.
-import { state, loadDiffStatus, mergeAnnotations } from './host/state.ts'
+import { state, loadDiffStatus, mergeAnnotations, notifyState } from './host/state.ts'
 import { escHtml } from './shared/utils.ts'
 import { LAYERS, setGithubUserUrl } from './host/constants.ts'
 import * as api from './host/api.ts'
 import { buildGroups, renderSidebar, selectDate, applyListFilters, selectTag } from './notes/sidebar.tsx'
 import { initSidebarResize } from './notes/sidebar-resize.ts'
-import { enterEditMode, exitEditMode, saveDoc, openCommitDialog, openCreateNote } from './notes/viewer.ts'
+import { openCreateNote } from './notes/viewer.ts'
 import './notes/comments.tsx'
 import './corpus/corpus-viewer.ts'
 import './app-shell/commit-dialog.tsx'
@@ -58,6 +58,7 @@ async function loadIndex({ managedBtn = false } = {}) {
       ? savedDate
       : (state.index.filteredGroups.length > 0 ? state.index.filteredGroups[0].date : null);
     if (targetDate) selectDate(targetDate);
+    notifyState();
   } catch (e) {
     showError(`Could not load index.json: ${e.message}`);
   }
@@ -125,20 +126,6 @@ async function pullProject() {
     btn.textContent = '↓ Update project';
   }
 }
-
-// ── Event listeners ────────────────────────────────────────────────────────
-
-document.getElementById('doc-list').addEventListener('scroll', () => {
-  if (state.ui.activeDate) {
-    sessionStorage.setItem('cta_scroll_' + state.ui.activeDate, document.getElementById('doc-list').scrollTop);
-  }
-}, { passive: true });
-
-document.getElementById('btn-edit').addEventListener('click', enterEditMode);
-document.getElementById('btn-save').addEventListener('click', saveDoc);
-document.getElementById('btn-cancel-edit').addEventListener('click', () => exitEditMode(false));
-
-document.getElementById('btn-panel-commit').addEventListener('click', openCommitDialog);
 
 initHeaderSync({ pullProject, loadIndex });
 
@@ -264,14 +251,6 @@ function registerAiAssistantOpenedListener() {
 }
 
 registerAiAssistantOpenedListener();
-
-document.getElementById('btn-edit')?.addEventListener(
-  'click',
-  () => {
-    closeNoteAssistantPanel();
-  },
-  true,
-);
 
 function registerTagsReconciledListener() {
   const onReconciled = async () => {

@@ -1,5 +1,5 @@
 // @ts-nocheck — ported from JS; state shapes stay unchecked like checkJs:false.
-import { state } from '../host/state.ts';
+import { notifyState, state } from '../host/state.ts';
 import { formatDate } from '../shared/utils.ts';
 import { renderDocList, loadTitles } from './cards.tsx';
 import { closeFloatingListSelect, createFloatingListSelect } from '../shared/floating-list-select.ts';
@@ -332,6 +332,7 @@ export function selectDate(date: string) {
 
   state.ui.activeDate = date;
   sessionStorage.setItem('cta_active_date', date);
+  notifyState();
 
   document.querySelectorAll('.date-tab').forEach((t) => {
     t.classList.toggle('active', (t as HTMLElement).dataset.date === date);

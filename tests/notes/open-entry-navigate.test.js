@@ -36,6 +36,8 @@ vi.mock('../../frontend/src/host/api.ts', () => ({
 
 vi.mock('../../frontend/src/notes/move-project-dialog.tsx', () => ({
   openMoveProjectDialog: vi.fn(),
+  closeMoveProjectDialog: vi.fn(),
+  MoveProjectDialog: () => null,
 }));
 
 describe('T6 source: open/create entries → navigate-to-note (no modal.display path)', () => {
@@ -47,7 +49,7 @@ describe('T6 source: open/create entries → navigate-to-note (no modal.display 
   it('imports navigateToNote and uses it from cta:open-entry listener', () => {
     expect(mainJs).toMatch(/navigateToNote/);
     expect(mainJs).toMatch(
-      /import\s*\{[^}]*navigateToNote[^}]*\}\s*from\s*['"]\.\/router\/index\.js['"]/,
+      /import\s*\{[^}]*navigateToNote[^}]*\}\s*from\s*['"]\.\/router\/index\.(js|ts)['"]/,
     );
     const listenerStart = mainJs.indexOf("addEventListener('cta:open-entry'");
     expect(listenerStart).toBeGreaterThan(-1);

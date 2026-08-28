@@ -1,7 +1,9 @@
+import { useEffect, useSyncExternalStore } from 'react';
 import * as api from '../host/api.ts';
 import { setGithubUserUrl } from '../host/constants.ts';
 import { saveKbHidePattern } from '../corpus/corpus-hide-pattern.ts';
 import { state } from '../host/state.ts';
+import { createModuleStore } from '../shared/module-store.ts';
 import { applyEngineCategorySelection, saveAssistantEnginePanel } from './settings/engine.ts';
 import {
   applyWorkbenchRootInference,
@@ -26,7 +28,7 @@ import {
 } from './settings/store.ts';
 import { loadSettingsSnapshot } from './settings/snapshot.tsx';
 import { switchPanel, switchSettingsTab } from './settings/tabs.tsx';
-import { paintSettingsChrome } from './settings/chrome.tsx';
+import { SettingsDialogChrome } from './settings/chrome.tsx';
 
 type SettingsOpenOpts = { panel?: string; tab?: string };
 type Inference = {
@@ -47,24 +49,27 @@ function btn(id: string): HTMLButtonElement {
   return document.getElementById(id) as HTMLButtonElement;
 }
 
-let painted = false;
+const openStore = createModuleStore(false);
 let wired = false;
 
-function ensureSettingsChrome() {
-  const host = document.getElementById('settings-dialog');
-  if (!host) return;
-  if (!painted) {
-    paintSettingsChrome(host);
-    painted = true;
-  }
-  if (!wired) {
-    wireSettingsDialog();
-    wired = true;
-  }
+function ensureWired() {
+  if (wired) return;
+  // renderToHtml paints into a detached box. Wiring against document there
+  // throws and React drops the Settings subtree from the HTML snapshot.
+  if (!document.getElementById('settings-dialog-box')) return;
+  wireSettingsDialog();
+  wired = true;
+}
+
+export function closeSettingsDialog() {
+  openStore.set(false);
+  document.getElementById('settings-dialog')?.classList.remove('open');
 }
 
 export async function openSettingsDialog(opts: SettingsOpenOpts = {}) {
-  ensureSettingsChrome();
+  openStore.set(true);
+  document.getElementById('settings-dialog')?.classList.add('open');
+  ensureWired();
   setResult('settings-result-directories', '');
   setResult('notes-connect-error', '');
   setResult('sediment-kb-corpus-error', '');
@@ -73,8 +78,10 @@ export async function openSettingsDialog(opts: SettingsOpenOpts = {}) {
   setResult('settings-result-llm', '');
   setResult('settings-result-mcp', '');
   clearMcpServerBlock();
-  input('settings-github-token').value = '';
-  input('settings-llm-api-key').value = '';
+  const tokenInput = input('settings-github-token');
+  const keyInput = input('settings-llm-api-key');
+  if (tokenInput) tokenInput.value = '';
+  if (keyInput) keyInput.value = '';
   const panelId = opts.panel || 'directories';
   switchSettingsTab('directories', panelId === 'directories' ? (opts.tab || 'directory') : 'directory');
   switchSettingsTab('knowledge', panelId === 'knowledge' ? (opts.tab || 'directory') : 'directory');
@@ -82,11 +89,26 @@ export async function openSettingsDialog(opts: SettingsOpenOpts = {}) {
   switchSettingsTab('github', 'account');
   switchPanel(panelId);
   await loadSettingsSnapshot();
-  document.getElementById('settings-dialog')?.classList.add('open');
 }
 
-function closeSettingsDialog() {
-  document.getElementById('settings-dialog')?.classList.remove('open');
+export function SettingsDialog() {
+  const open = useSyncExternalStore(openStore.subscribe, openStore.getSnapshot);
+
+  useEffect(() => {
+    ensureWired();
+  }, []);
+
+  return (
+    <div
+      id="settings-dialog"
+      className={open ? 'open' : undefined}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) closeSettingsDialog();
+      }}
+    >
+      <SettingsDialogChrome />
+    </div>
+  );
 }
 
 function wireSettingsDialog() {
@@ -110,8 +132,8 @@ function wireSettingsDialog() {
     });
   });
 
-  btn('btn-settings-close').addEventListener('click', closeSettingsDialog);
-  btn('btn-settings-cancel').addEventListener('click', closeSettingsDialog);
+  btn('btn-settings-close')?.addEventListener('click', closeSettingsDialog);
+  btn('btn-settings-cancel')?.addEventListener('click', closeSettingsDialog);
   document.getElementById('settings-dialog')?.addEventListener('click', (e) => {
     if (e.target === document.getElementById('settings-dialog')) closeSettingsDialog();
   });
@@ -168,14 +190,14 @@ function wireSettingsDialog() {
     if ((e as KeyboardEvent).key === 'Enter') document.getElementById('btn-settings-save-knowledge')?.click();
   });
 
-  input('settings-archive-root').addEventListener('input', () => {
+  input('settings-archive-root')?.addEventListener('input', () => {
     const root = input('settings-archive-root').value.trim();
     if (!root) {
       clearGithubUserUrlInferredLock();
     }
   });
 
-  input('settings-archive-root').addEventListener('blur', async () => {
+  input('settings-archive-root')?.addEventListener('blur', async () => {
     const root = input('settings-archive-root').value.trim();
     if (!root) {
       return;
@@ -217,7 +239,7 @@ function wireSettingsDialog() {
     }
   });
 
-  btn('btn-settings-save-directories').addEventListener('click', async () => {
+  btn('btn-settings-save-directories')?.addEventListener('click', async () => {
     const saveBtn = btn('btn-settings-save-directories');
     const archiveInput = input('settings-archive-root');
     const workbenchKnowledgeRoot = archiveInput.value.trim();
@@ -309,7 +331,7 @@ function wireSettingsDialog() {
     }
   });
 
-  btn('btn-settings-save-github').addEventListener('click', async () => {
+  btn('btn-settings-save-github')?.addEventListener('click', async () => {
     const saveBtn = btn('btn-settings-save-github');
     const githubInput = input('settings-github-user-url');
     const githubUserUrl = githubInput.value.trim();
@@ -372,7 +394,7 @@ function wireSettingsDialog() {
     void applyEngineCategorySelection((e.target as HTMLSelectElement).value, { clearCredential: true });
   });
 
-  btn('btn-settings-save-llm').addEventListener('click', () => {
+  btn('btn-settings-save-llm')?.addEventListener('click', () => {
     void saveAssistantEnginePanel();
   });
 
@@ -386,5 +408,3 @@ function wireSettingsDialog() {
     void revokeMcpSlotTicket();
   });
 }
-
-ensureSettingsChrome();

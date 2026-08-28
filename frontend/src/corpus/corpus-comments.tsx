@@ -1,3 +1,4 @@
+import { memo, useSyncExternalStore } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { flushSync } from 'react-dom';
 import { state } from '../host/state.ts';
@@ -15,8 +16,11 @@ import {
   prepareCommentMarkdown,
   renderCommentMarkdown,
 } from '../shared/comment-markdown.ts';
+import { createModuleStore } from '../shared/module-store.ts';
 import { renderMermaidBlocks } from '../shared/mermaid-render.ts';
 import { renderToHtml } from '../island.ts';
+
+const openStore = createModuleStore(false);
 
 type KbComment = { id: string; text?: string; ts?: string };
 type KbAnnotation = { comments?: KbComment[] };
@@ -24,7 +28,6 @@ type ApiOk = { ok?: boolean; error?: string; id?: string };
 
 let _kbCommentsRoot: HTMLElement | null = null;
 const _kbCommentsCleanups: Array<() => void> = [];
-let _kbDialogEventsBound = false;
 let _kbCommentsBarRoot: Root | null = null;
 let _kbFloatNavRoot: Root | null = null;
 let _kbPaintedComments: KbComment[] = [];
@@ -334,6 +337,8 @@ export function openKbCommentDialog(editComment: KbComment | null = null, _noteI
 
   if (title) title.textContent = editComment ? '💬 Edit comment' : '💬 Add comment';
   content.textContent = editComment?.text || '';
+  openStore.set(true);
+  dialog.classList.add('open');
   dialog.style.display = 'flex';
   _resetKbDialogTabs();
   content.focus();
@@ -347,8 +352,12 @@ export function openKbCommentDialog(editComment: KbComment | null = null, _noteI
 }
 
 export function closeKbCommentDialog() {
+  openStore.set(false);
   const dialog = document.getElementById('kb-comment-dialog');
-  if (dialog) dialog.style.display = 'none';
+  if (dialog) {
+    dialog.classList.remove('open');
+    dialog.style.display = 'none';
+  }
   _editingComment = null;
 }
 
@@ -385,55 +394,36 @@ export async function saveKbComment() {
   }
 }
 
-function bindKbCommentDialogEvents() {
-  if (_kbDialogEventsBound) return;
-  _kbDialogEventsBound = true;
+async function onKbCommentTabClick(btn: HTMLElement) {
+  document.querySelectorAll('#kb-comment-dialog .comment-tab-btn').forEach((b) => b.classList.remove('active'));
+  btn.classList.add('active');
+  const isPreview = btn.dataset.tab === 'preview';
+  const editorBox = document.getElementById('kb-comment-editor-box');
+  const previewPane = document.getElementById('kb-comment-preview-pane');
+  if (!editorBox || !previewPane) return;
+  if (isPreview) {
+    const text = prepareCommentMarkdown(document.getElementById('kb-comment-dialog-content')?.textContent || '');
+    previewPane.innerHTML = commentMarkdownHtml(text);
+    await renderMermaidBlocks(previewPane);
+    editorBox.style.display = 'none';
+    previewPane.style.display = 'block';
+  } else {
+    editorBox.style.display = '';
+    previewPane.style.display = 'none';
+  }
+}
 
-  document.getElementById('kb-btn-comment-cancel')?.addEventListener('click', closeKbCommentDialog);
-  document.getElementById('kb-btn-comment-save')?.addEventListener('click', () => {
-    void saveKbComment();
-  });
-
-  document.getElementById('kb-comment-dialog')?.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') {
-      e.stopPropagation();
-      closeKbCommentDialog();
-    }
-  });
-
-  document.getElementById('kb-comment-dialog-content')?.addEventListener('keydown', (e) => {
-    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-      e.preventDefault();
-      void saveKbComment();
-    }
-  });
-
-  document.getElementById('kb-comment-dialog-content')?.addEventListener('paste', (e) => {
+function onKbCommentContentKeyDown(e: KeyboardEvent) {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
     e.preventDefault();
-    const el = document.getElementById('kb-comment-dialog-content');
-    pasteIntoCommentEditor(el, (e as ClipboardEvent).clipboardData);
-  });
+    void saveKbComment();
+  }
+}
 
-  document.querySelectorAll('#kb-comment-dialog .comment-tab-btn').forEach((btn) => {
-    btn.addEventListener('click', async () => {
-      document.querySelectorAll('#kb-comment-dialog .comment-tab-btn').forEach((b) => b.classList.remove('active'));
-      btn.classList.add('active');
-      const isPreview = (btn as HTMLElement).dataset.tab === 'preview';
-      const editorBox = document.getElementById('kb-comment-editor-box');
-      const previewPane = document.getElementById('kb-comment-preview-pane');
-      if (!editorBox || !previewPane) return;
-      if (isPreview) {
-        const text = prepareCommentMarkdown(document.getElementById('kb-comment-dialog-content')?.textContent || '');
-        previewPane.innerHTML = commentMarkdownHtml(text);
-        await renderMermaidBlocks(previewPane);
-        editorBox.style.display = 'none';
-        previewPane.style.display = 'block';
-      } else {
-        editorBox.style.display = '';
-        previewPane.style.display = 'none';
-      }
-    });
-  });
+function onKbCommentContentPaste(e: ClipboardEvent) {
+  e.preventDefault();
+  const el = document.getElementById('kb-comment-dialog-content');
+  pasteIntoCommentEditor(el, e.clipboardData);
 }
 
 export function cleanupKbComments() {
@@ -458,7 +448,6 @@ export function initKbComments(container?: Element | null) {
   if (!container) return;
   cleanupKbComments();
   _kbCommentsRoot = container as HTMLElement;
-  bindKbCommentDialogEvents();
 
   const addBtn = container.querySelector('.kb-btn-add-comment');
   if (addBtn) {
@@ -473,4 +462,88 @@ export function initKbCommentEvents() {
   const legacyBody = document.getElementById('kb-md-body');
   const root = legacyBody?.closest('.kb-reader') ?? legacyBody?.parentElement;
   if (root) initKbComments(root);
+}
+
+const KbCommentDialogInner = memo(function KbCommentDialogInner() {
+  return (
+    <div id="kb-comment-dialog-box">
+      <div id="kb-comment-dialog-header">
+        <h3 id="kb-comment-dialog-title">💬 Add comment</h3>
+        <div id="kb-comment-dialog-tabs">
+          <button
+            type="button"
+            className="comment-tab-btn active"
+            data-tab="edit"
+            onClick={(e) => void onKbCommentTabClick(e.currentTarget)}
+          >
+            Edit
+          </button>
+          <button
+            type="button"
+            className="comment-tab-btn"
+            data-tab="preview"
+            onClick={(e) => void onKbCommentTabClick(e.currentTarget)}
+          >
+            Preview
+          </button>
+        </div>
+      </div>
+      <div
+        id="kb-comment-editor-box"
+        className="comment-editor-box"
+        onClick={() => document.getElementById('kb-comment-dialog-content')?.focus()}
+      >
+        <div
+          id="kb-comment-dialog-content"
+          className="comment-editor-content"
+          contentEditable={true}
+          suppressContentEditableWarning={true}
+          spellCheck={false}
+          autoCorrect="off"
+          autoCapitalize="off"
+          data-placeholder="Comment… (Ctrl/Cmd+Enter to save)"
+          onKeyDown={(e) => onKbCommentContentKeyDown(e.nativeEvent)}
+          onPaste={(e) => onKbCommentContentPaste(e.nativeEvent)}
+        />
+      </div>
+      <div id="kb-comment-preview-pane" className="md-body" style={{ display: 'none' }} />
+      <div id="kb-comment-dialog-actions">
+        <button
+          id="kb-btn-comment-cancel"
+          type="button"
+          className="md-header-btn"
+          onClick={() => closeKbCommentDialog()}
+        >
+          Cancel
+        </button>
+        <button
+          id="kb-btn-comment-save"
+          type="button"
+          className="md-header-btn primary"
+          onClick={() => void saveKbComment()}
+        >
+          Save
+        </button>
+      </div>
+    </div>
+  );
+});
+
+export function KbCommentDialog() {
+  const open = useSyncExternalStore(openStore.subscribe, openStore.getSnapshot);
+  return (
+    <div
+      id="kb-comment-dialog"
+      className={open ? 'open' : undefined}
+      style={{ display: open ? 'flex' : 'none' }}
+      onKeyDown={(e) => {
+        if (e.key === 'Escape') {
+          e.stopPropagation();
+          closeKbCommentDialog();
+        }
+      }}
+    >
+      <KbCommentDialogInner />
+    </div>
+  );
 }

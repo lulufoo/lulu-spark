@@ -2,8 +2,11 @@
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { describe, it, expect, beforeEach } from 'vitest';
-import { openTodoTaskDialog } from '../../frontend/src/todo-task/dialog.tsx';
+import { createElement } from 'react';
+import { createRoot } from 'react-dom/client';
+import { flushSync } from 'react-dom';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { openTodoTaskDialog, TodoTaskDialog } from '../../frontend/src/todo-task/dialog.tsx';
 import { TODO_TASK_BRAND_SITES } from '../fixtures/todo-task-ac15.js';
 import { readRsPath } from '../helpers/read-rs-dir.js';
 import { readFrontendJs } from '../helpers/read-frontend-js.js';
@@ -21,21 +24,23 @@ function extractCreateTodoTaskBlock(source) {
   return endRel === -1 ? source.slice(start) : source.slice(start, start + 1 + endRel);
 }
 
-function seedTodoTaskDialogDom() {
-  document.body.innerHTML = `
-    <div id="todo-task-dialog">
-      <h3 id="todo-task-dialog-title"></h3>
-      <div id="todo-task-dialog-body"></div>
-      <p id="todo-task-dialog-error" hidden></p>
-      <button type="button" id="todo-task-dialog-cancel"></button>
-      <button type="button" id="todo-task-dialog-primary"></button>
-    </div>
-  `;
+function mountTodoTaskDialog() {
+  document.body.innerHTML = '<div id="todo-task-dialog-host"></div>';
+  const root = createRoot(document.getElementById('todo-task-dialog-host'));
+  flushSync(() => root.render(createElement(TodoTaskDialog)));
+  return root;
 }
 
 describe('F3 copy sync — dialog.js', () => {
+  let dialogRoot;
+
   beforeEach(() => {
-    seedTodoTaskDialogDom();
+    dialogRoot = mountTodoTaskDialog();
+  });
+
+  afterEach(() => {
+    flushSync(() => dialogRoot?.unmount());
+    document.body.innerHTML = '';
   });
 
   it('does not mention implicit default sub task hint in source', () => {

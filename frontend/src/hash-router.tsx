@@ -1,10 +1,24 @@
-import { useEffect } from 'react';
+import { useEffect, useSyncExternalStore } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { flushSync } from 'react-dom';
 import { parseHash } from './router/index.ts';
+import { ShellPages } from './shell-pages.tsx';
 
 export type RouteCtx = { name: string; params: Record<string, string> };
 export type RouteHandlers = Record<string, (ctx: RouteCtx) => void>;
+
+function subscribeHash(onStoreChange: () => void) {
+  window.addEventListener('hashchange', onStoreChange);
+  window.addEventListener('popstate', onStoreChange);
+  return () => {
+    window.removeEventListener('hashchange', onStoreChange);
+    window.removeEventListener('popstate', onStoreChange);
+  };
+}
+
+function getHashSnapshot() {
+  return window.location.hash;
+}
 
 export function HashRouter({
   handlers,
@@ -13,26 +27,21 @@ export function HashRouter({
   handlers: RouteHandlers;
   fallback?: string;
 }) {
+  const hash = useSyncExternalStore(subscribeHash, getHashSnapshot, getHashSnapshot);
+  const route = parseHash(hash) as RouteCtx;
+  const pageName = route.name === 'unknown' ? 'home' : route.name;
+
   useEffect(() => {
-    const mount = () => {
-      const route = parseHash(window.location.hash) as RouteCtx;
-      if (route.name === 'unknown') {
-        if (window.location.hash !== fallback) {
-          window.location.replace(fallback);
-        }
-        return;
+    if (route.name === 'unknown') {
+      if (window.location.hash !== fallback) {
+        window.location.replace(fallback);
       }
-      handlers[route.name]?.(route);
-    };
-    window.addEventListener('hashchange', mount);
-    window.addEventListener('popstate', mount);
-    mount();
-    return () => {
-      window.removeEventListener('hashchange', mount);
-      window.removeEventListener('popstate', mount);
-    };
-  }, [handlers, fallback]);
-  return null;
+      return;
+    }
+    handlers[route.name]?.(route);
+  }, [handlers, fallback, hash]);
+
+  return <ShellPages routeName={pageName} />;
 }
 
 let root: Root | null = null;

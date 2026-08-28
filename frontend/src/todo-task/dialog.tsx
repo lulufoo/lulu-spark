@@ -1,6 +1,8 @@
-import type { ReactNode } from 'react';
+import type { MouseEvent, ReactNode } from 'react';
+import { useSyncExternalStore } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { flushSync } from 'react-dom';
+import { createModuleStore } from '../shared/module-store.ts';
 
 export type TodoTaskDialogType =
   | 'create-master'
@@ -9,11 +11,14 @@ export type TodoTaskDialogType =
   | 'delete-master'
   | 'delete-sub';
 
+const openStore = createModuleStore(false);
+
 let lastTrigger: HTMLElement | null = null;
 let submitHandler: ((values: Record<string, unknown>) => Promise<void>) | null = null;
 let keydownHandler: ((event: KeyboardEvent) => void) | null = null;
 let bodyRoot: Root | null = null;
 let bodyHost: Element | null = null;
+let activeType: TodoTaskDialogType | null = null;
 
 function getDialogEl() {
   return document.getElementById('todo-task-dialog');
@@ -247,10 +252,12 @@ function restoreFocus() {
 export function closeTodoTaskDialog() {
   const dialog = getDialogEl();
   if (!dialog) return;
+  openStore.set(false);
   dialog.classList.remove('open');
   setSubmitLoading(false);
   setDialogError('');
   submitHandler = null;
+  activeType = null;
   if (keydownHandler) {
     document.removeEventListener('keydown', keydownHandler);
     keydownHandler = null;
@@ -270,15 +277,20 @@ export function openTodoTaskDialog({
   onSubmit: (values: Record<string, unknown>) => Promise<void>;
   triggerEl?: HTMLElement | null;
 }) {
-  wireTodoTaskDialog();
   const dialog = getDialogEl();
   if (!dialog) return;
 
   lastTrigger = triggerEl;
   submitHandler = onSubmit;
-  dialog.dataset.dialogType = type;
+  activeType = type;
+  flushSync(() => {
+    openStore.set(true);
+  });
+  const opened = getDialogEl();
+  if (!opened) return;
+  opened.dataset.dialogType = type;
   renderDialogBody(type, payload);
-  dialog.classList.add('open');
+  opened.classList.add('open');
   focusFirstField();
 
   keydownHandler = (event) => {
@@ -394,49 +406,76 @@ function paintSubRows(rows: string[]) {
   );
 }
 
-function wireTodoTaskDialog() {
-  const dialog = getDialogEl();
-  if (!dialog || dialog.dataset.wired === '1') return;
-  dialog.dataset.wired = '1';
+function onDialogClick(event: MouseEvent<HTMLDivElement>) {
+  const dialog = event.currentTarget;
+  if (event.target === dialog) {
+    closeTodoTaskDialog();
+    return;
+  }
 
-  dialog.addEventListener('click', (event) => {
-    if (event.target === dialog) {
-      closeTodoTaskDialog();
-    }
-  });
-
-  getCancelBtn()?.addEventListener('click', () => closeTodoTaskDialog());
-  getPrimaryBtn()?.addEventListener('click', () => {
-    const type = dialog.dataset.dialogType as TodoTaskDialogType | undefined;
-    if (type) void handleSubmit(type);
-  });
-
-  dialog.addEventListener('click', (event) => {
-    const actionEl = (event.target as HTMLElement | null)?.closest('[data-action]') as HTMLElement | null;
-    const action = actionEl?.dataset.action;
-    if (action === 'add-sub-row') {
-      event.preventDefault();
-      if (!dialog.querySelector('[data-sub-rows]')) return;
-      const rows = collectSubTitleRows();
-      rows.push('');
-      paintSubRows(rows);
-      const inputs = dialog.querySelectorAll('[data-sub-row-input]');
-      const last = inputs[inputs.length - 1];
-      if (last instanceof HTMLElement) last.focus();
-      return;
-    }
-    if (action === 'remove-sub-row') {
-      event.preventDefault();
-      const row = actionEl?.closest('.todo-task-dialog-sub-row');
-      const rowInput = row?.querySelector('[data-sub-row-input]');
-      if (!(rowInput instanceof HTMLInputElement)) return;
-      const allInputs = [...dialog.querySelectorAll('[data-sub-row-input]')];
-      const rows = allInputs
-        .filter((node) => node !== rowInput)
-        .map((node) => (node as HTMLInputElement).value.trim());
-      paintSubRows(rows.length ? rows : ['']);
-    }
-  });
+  const actionEl = (event.target as HTMLElement | null)?.closest('[data-action]') as HTMLElement | null;
+  const action = actionEl?.dataset.action;
+  if (action === 'add-sub-row') {
+    event.preventDefault();
+    if (!dialog.querySelector('[data-sub-rows]')) return;
+    const rows = collectSubTitleRows();
+    rows.push('');
+    paintSubRows(rows);
+    const inputs = dialog.querySelectorAll('[data-sub-row-input]');
+    const last = inputs[inputs.length - 1];
+    if (last instanceof HTMLElement) last.focus();
+    return;
+  }
+  if (action === 'remove-sub-row') {
+    event.preventDefault();
+    const row = actionEl?.closest('.todo-task-dialog-sub-row');
+    const rowInput = row?.querySelector('[data-sub-row-input]');
+    if (!(rowInput instanceof HTMLInputElement)) return;
+    const allInputs = [...dialog.querySelectorAll('[data-sub-row-input]')];
+    const rows = allInputs
+      .filter((node) => node !== rowInput)
+      .map((node) => (node as HTMLInputElement).value.trim());
+    paintSubRows(rows.length ? rows : ['']);
+  }
 }
 
-wireTodoTaskDialog();
+export function TodoTaskDialog() {
+  const open = useSyncExternalStore(openStore.subscribe, openStore.getSnapshot);
+
+  return (
+    <div
+      id="todo-task-dialog"
+      className={open ? 'open' : undefined}
+      data-dialog-type={activeType ?? undefined}
+      onClick={onDialogClick}
+    >
+      <div id="todo-task-dialog-box">
+        <div id="todo-task-dialog-header">
+          <h3 id="todo-task-dialog-title"></h3>
+        </div>
+        <div id="todo-task-dialog-body"></div>
+        <p id="todo-task-dialog-error" hidden></p>
+        <div id="todo-task-dialog-actions">
+          <button
+            type="button"
+            id="todo-task-dialog-cancel"
+            className="md-header-btn"
+            onClick={() => closeTodoTaskDialog()}
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            id="todo-task-dialog-primary"
+            className="md-header-btn primary"
+            onClick={() => {
+              if (activeType) void handleSubmit(activeType);
+            }}
+          >
+            OK
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}

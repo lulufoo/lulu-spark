@@ -12,6 +12,8 @@ vi.mock('../../frontend/src/host/api.ts', () => ({
 
 vi.mock('../../frontend/src/notes/move-project-dialog.tsx', () => ({
   openMoveProjectDialog: vi.fn(),
+  closeMoveProjectDialog: vi.fn(),
+  MoveProjectDialog: () => null,
 }));
 
 beforeEach(() => {

@@ -1,6 +1,15 @@
 // @vitest-environment jsdom
+import { createElement } from 'react';
+import { createRoot } from 'react-dom/client';
+import { flushSync } from 'react-dom';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { initKbComments, cleanupKbComments } from '../../frontend/src/corpus/corpus-comments.tsx';
+import {
+  initKbComments,
+  cleanupKbComments,
+  KbCommentDialog,
+  openKbCommentDialog,
+  closeKbCommentDialog,
+} from '../../frontend/src/corpus/corpus-comments.tsx';
 import {
   cleanupDocHighlightOverlay,
   initDocHighlightOverlay,
@@ -16,19 +25,18 @@ function bindKbHighlightForTest(reader) {
   });
 }
 
+function mountKbCommentDialog() {
+  const host = document.createElement('div');
+  host.id = 'kb-comment-dialog-host';
+  document.body.appendChild(host);
+  const root = createRoot(host);
+  flushSync(() => root.render(createElement(KbCommentDialog)));
+}
+
 describe('kb comments/highlights scope', () => {
   beforeEach(() => {
-    document.body.innerHTML = `
-      <div id="kb-comment-dialog">
-        <button id="kb-btn-comment-cancel"></button>
-        <button id="kb-btn-comment-save"></button>
-        <div id="kb-comment-dialog-content"></div>
-        <div id="kb-comment-editor-box"></div>
-        <div id="kb-comment-preview-pane"></div>
-        <button class="comment-tab-btn" data-tab="edit"></button>
-        <button class="comment-tab-btn" data-tab="preview"></button>
-      </div>
-    `;
+    document.body.innerHTML = '';
+    mountKbCommentDialog();
   });
 
   it('init/cleanup cycle does not stack add-comment listeners', () => {
@@ -99,5 +107,39 @@ describe('kb comments/highlights scope', () => {
     expect(btn.style.display).toBe('none');
 
     cleanupDocHighlightOverlay();
+  });
+
+  it('KbCommentDialog keep ids and Cancel closes via onClick', () => {
+    const dialog = document.getElementById('kb-comment-dialog');
+    expect(dialog).toBeTruthy();
+    expect(document.getElementById('kb-comment-dialog-title').textContent).toMatch(/Add comment/);
+    expect(document.getElementById('kb-comment-dialog-content').getAttribute('contenteditable')).toBe('true');
+    expect(document.getElementById('kb-btn-comment-cancel')).toBeTruthy();
+    expect(document.getElementById('kb-btn-comment-save')).toBeTruthy();
+
+    openKbCommentDialog();
+    expect(dialog.classList.contains('open')).toBe(true);
+
+    document.getElementById('kb-btn-comment-cancel').click();
+    expect(dialog.classList.contains('open')).toBe(false);
+
+    openKbCommentDialog();
+    closeKbCommentDialog();
+    expect(dialog.classList.contains('open')).toBe(false);
+  });
+
+  it('preview tab hides editor and shows preview pane', async () => {
+    openKbCommentDialog();
+    document.getElementById('kb-comment-dialog-content').textContent = 'kb preview';
+    document.querySelector('#kb-comment-dialog .comment-tab-btn[data-tab="preview"]').click();
+    await Promise.resolve();
+
+    expect(document.getElementById('kb-comment-editor-box').style.display).toBe('none');
+    expect(document.getElementById('kb-comment-preview-pane').style.display).toBe('block');
+    expect(document.getElementById('kb-comment-preview-pane').innerHTML).toMatch(/kb preview/);
+
+    document.querySelector('#kb-comment-dialog .comment-tab-btn[data-tab="edit"]').click();
+    expect(document.getElementById('kb-comment-editor-box').style.display).toBe('');
+    expect(document.getElementById('kb-comment-preview-pane').style.display).toBe('none');
   });
 });

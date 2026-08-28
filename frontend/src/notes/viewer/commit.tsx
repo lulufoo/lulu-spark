@@ -1,6 +1,12 @@
-import type { ReactNode } from 'react';
+import { useSyncExternalStore, type ReactNode } from 'react';
 import * as api from '../../host/api.ts';
+import { loadDiffStatus } from '../../host/state.ts';
 import { renderToHtml } from '../../island.ts';
+import { updateDiffInDOM } from '../cards.tsx';
+import { escHtml } from '../../shared/utils.ts';
+import { createModuleStore } from '../../shared/module-store.ts';
+
+const openStore = createModuleStore(false);
 
 const GROUPS = [
   { key: 'new', label: 'New' },
@@ -36,7 +42,8 @@ export function hidePendingBadge() {
 }
 
 export function closeCommitDialog() {
-  (document.getElementById('md-commit-dialog') as HTMLElement).classList.remove('open');
+  openStore.set(false);
+  document.getElementById('md-commit-dialog')?.classList.remove('open');
 }
 
 export async function openCommitDialog() {
@@ -51,6 +58,7 @@ export async function openCommitDialog() {
   resultEl.style.color = '';
   paintFileList(fileList, <div style={{ fontSize: 12, color: '#8c959f' }}>Loading…</div>);
   okBtn.disabled = false;
+  openStore.set(true);
   dialog.classList.add('open');
 
   try {
@@ -98,4 +106,124 @@ export async function openCommitDialog() {
       <div style={{ fontSize: 12, color: '#cf222e' }}>Failed to get status: {e.message}</div>,
     );
   }
+}
+
+export async function doMdCommit() {
+  const btn = document.getElementById('md-btn-commit-ok') as HTMLButtonElement;
+  const resultEl = document.getElementById('md-commit-dialog-result') as HTMLElement;
+  const msg =
+    (document.getElementById('md-commit-dialog-msg') as HTMLInputElement).value.trim() ||
+    'update: edit via viewer';
+  btn.disabled = true;
+  resultEl.textContent = 'Committing…';
+  resultEl.style.color = '#8c959f';
+  try {
+    const data = (await api.commitFiles(msg)) as { error?: string };
+    if (data.error) throw new Error(data.error);
+    resultEl.style.color = '#1a7f37';
+    resultEl.textContent = '✓ Pushed!';
+    await loadDiffStatus();
+    updateDiffInDOM();
+    hidePendingBadge();
+    setTimeout(() => closeCommitDialog(), 1500);
+  } catch (e) {
+    resultEl.style.color = '#cf222e';
+    resultEl.textContent = `✗ ${(e as Error).message}`;
+    btn.disabled = false;
+  }
+}
+
+export async function doMdRevertAll() {
+  const btn = document.getElementById('md-btn-revert-all') as HTMLButtonElement;
+  if (!btn.classList.contains('confirm')) {
+    btn.classList.add('confirm');
+    btn.textContent = 'Revert all changes?';
+    setTimeout(() => {
+      btn.classList.remove('confirm');
+      btn.textContent = 'Revert all changes';
+    }, 3000);
+    return;
+  }
+  btn.disabled = true;
+  try {
+    const data = (await api.revertFile('', '')) as { error?: string };
+    if (data.error) throw new Error(data.error);
+    await loadDiffStatus();
+    updateDiffInDOM();
+    hidePendingBadge();
+    closeCommitDialog();
+  } catch (e) {
+    const resultEl = document.getElementById('md-commit-dialog-result');
+    if (resultEl) resultEl.textContent = `Revert failed: ${(e as Error).message}`;
+    btn.disabled = false;
+  } finally {
+    btn.classList.remove('confirm');
+    btn.textContent = 'Revert all changes';
+  }
+}
+
+export async function doMdRevertFile(revertBtn: HTMLButtonElement) {
+  const path = revertBtn.dataset.path;
+  const type = revertBtn.dataset.type;
+  revertBtn.disabled = true;
+  try {
+    const data = (await api.revertFile(path, type)) as { error?: string };
+    if (data.error) throw new Error(data.error);
+    await openCommitDialog();
+  } catch (e) {
+    revertBtn.disabled = false;
+    const resultEl = document.getElementById('md-commit-dialog-result');
+    if (resultEl) resultEl.textContent = `Revert failed: ${escHtml((e as Error).message)}`;
+  }
+}
+
+export function MdCommitDialog() {
+  const open = useSyncExternalStore(openStore.subscribe, openStore.getSnapshot);
+
+  return (
+    <div
+      id="md-commit-dialog"
+      className={open ? 'open' : undefined}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) closeCommitDialog();
+      }}
+    >
+      <div id="md-commit-dialog-box">
+        <div id="md-commit-dialog-title">
+          <h3>● Commit changes</h3>
+          <button id="md-btn-revert-all" type="button" onClick={() => void doMdRevertAll()}>
+            Revert all changes
+          </button>
+        </div>
+        <div
+          id="md-commit-file-list"
+          onClick={(e) => {
+            const revertBtn = (e.target as HTMLElement).closest?.('.kb-revert-btn');
+            if (!revertBtn) return;
+            void doMdRevertFile(revertBtn as HTMLButtonElement);
+          }}
+        ></div>
+        <input id="md-commit-dialog-msg" type="text" placeholder="update: edit via viewer" />
+        <div id="md-commit-dialog-actions">
+          <span id="md-commit-dialog-result"></span>
+          <button
+            id="md-btn-commit-cancel"
+            type="button"
+            className="md-header-btn"
+            onClick={() => closeCommitDialog()}
+          >
+            Cancel
+          </button>
+          <button
+            id="md-btn-commit-ok"
+            type="button"
+            className="md-header-btn primary"
+            onClick={() => void doMdCommit()}
+          >
+            Commit
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }

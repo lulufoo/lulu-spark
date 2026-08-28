@@ -1,10 +1,13 @@
-import type { ReactNode } from 'react';
+import { useSyncExternalStore, type ReactNode } from 'react';
 import { state } from '../../host/state.ts';
 import * as api from '../../host/api.ts';
 import { renderKbComments } from '../corpus-comments.tsx';
 import { applyKbHighlights } from './highlight.ts';
 import { kbHidePendingBadge, kbPendingMsg, showKbReindexBtn } from './chrome.tsx';
 import { renderToHtml } from '../../island.ts';
+import { createModuleStore } from '../../shared/module-store.ts';
+
+const openStore = createModuleStore(false);
 
 const REVERTABLE = new Set(['new', 'modified', 'deleted']);
 const GROUPS = [
@@ -107,6 +110,7 @@ export async function openKbCommitDialog() {
   okBtn.disabled = false;
   okBtn.textContent = 'Commit';
   _resetRevertAllBtn();
+  openStore.set(true);
   dialog.classList.add('open');
 
   await _refreshKbCommitFileList();
@@ -230,6 +234,7 @@ export async function _kbRevertAll(btn: HTMLButtonElement) {
 }
 
 export function closeKbCommitDialog() {
+  openStore.set(false);
   document.getElementById('kb-commit-dialog')?.classList.remove('open');
   const okBtn = document.getElementById('kb-btn-commit-ok');
   if (okBtn) okBtn.textContent = 'Commit';
@@ -260,4 +265,68 @@ export async function doKbCommit() {
     result.textContent = `✗ ${e instanceof Error ? e.message : String(e)}`;
     btn.disabled = false;
   }
+}
+
+export function KbCommitDialog() {
+  const open = useSyncExternalStore(openStore.subscribe, openStore.getSnapshot);
+
+  return (
+    <div
+      id="kb-commit-dialog"
+      className={open ? 'open' : undefined}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) closeKbCommitDialog();
+      }}
+    >
+      <div id="kb-commit-dialog-box">
+        <div id="kb-commit-dialog-title">
+          <h3>● Commit changes</h3>
+          <button
+            id="kb-btn-revert-all"
+            type="button"
+            onClick={(e) => {
+              void _kbRevertAll(e.currentTarget);
+            }}
+          >
+            Revert all changes
+          </button>
+        </div>
+        <div id="kb-commit-file-list"></div>
+        <input
+          id="kb-commit-msg"
+          type="text"
+          placeholder="chore: update via viewer"
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              void doKbCommit();
+            }
+            if (e.key === 'Escape') {
+              e.stopPropagation();
+              closeKbCommitDialog();
+            }
+          }}
+        />
+        <div id="kb-commit-dialog-actions">
+          <span id="kb-commit-result"></span>
+          <button
+            id="kb-btn-commit-cancel"
+            type="button"
+            className="md-header-btn"
+            onClick={() => closeKbCommitDialog()}
+          >
+            Cancel
+          </button>
+          <button
+            id="kb-btn-commit-ok"
+            type="button"
+            className="md-header-btn primary"
+            onClick={() => void doKbCommit()}
+          >
+            Commit
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }

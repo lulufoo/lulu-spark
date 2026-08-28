@@ -35,6 +35,8 @@ vi.mock('../../frontend/src/host/api.ts', () => ({
 
 vi.mock('../../frontend/src/notes/move-project-dialog.tsx', () => ({
   openMoveProjectDialog: vi.fn(),
+  closeMoveProjectDialog: vi.fn(),
+  MoveProjectDialog: () => null,
 }));
 
 vi.mock('../../frontend/src/notes/viewer.ts', () => ({
@@ -83,7 +85,7 @@ describe('T8 source: delete success → replace list (not history.back)', () => 
 
 describe('T8 source: return-to-list scroll key + reload wiring', () => {
   const cardsJs = read('frontend/src/notes/cards.tsx');
-  const mainJs = read('frontend/src/boot.ts');
+  const mainJs = [read('frontend/src/boot.ts'), read('frontend/src/shell-pages.tsx')].join('\n');
 
   it('renderDocList restores cta_scroll_<date> after re-render', () => {
     const renderStart = cardsJs.indexOf('export function renderDocList');
@@ -95,7 +97,8 @@ describe('T8 source: return-to-list scroll key + reload wiring', () => {
 
   it('main persists cta_scroll_<date> on doc-list scroll (save before leave)', () => {
     expect(mainJs).toMatch(/cta_scroll_/);
-    expect(mainJs).toMatch(/doc-list['"]\)\.addEventListener\(\s*['"]scroll['"]/);
+    expect(mainJs).toMatch(/getElementById\('doc-list'\)/);
+    expect(mainJs).toMatch(/addEventListener\('scroll'/);
   });
 });
 

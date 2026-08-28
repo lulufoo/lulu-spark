@@ -1,7 +1,4 @@
-import { createRoot } from 'react-dom/client';
-import { flushSync } from 'react-dom';
-
-function SettingsDialogChrome() {
+export function SettingsDialogChrome() {
   return (
     <div id="settings-dialog-box">
       <div id="settings-dialog-header">
@@ -12,31 +9,17 @@ function SettingsDialogChrome() {
       </div>
       <div id="settings-dialog-body">
         <nav id="settings-nav">
-          <button type="button" className="settings-nav-item active" data-panel="directories">
-            Notes
-          </button>
-          <button type="button" className="settings-nav-item" data-panel="knowledge">
-            Knowledge
-          </button>
-          <button type="button" className="settings-nav-item" data-panel="llm">
-            Assistant
-          </button>
-          <button type="button" className="settings-nav-item" data-panel="github">
-            Sync
-          </button>
-          <button type="button" className="settings-nav-item" data-panel="mcp">
-            MCP
-          </button>
+          <button type="button" className="settings-nav-item active" data-panel="directories">Notes</button>
+          <button type="button" className="settings-nav-item" data-panel="knowledge">Knowledge</button>
+          <button type="button" className="settings-nav-item" data-panel="llm">Assistant</button>
+          <button type="button" className="settings-nav-item" data-panel="github">Sync</button>
+          <button type="button" className="settings-nav-item" data-panel="mcp">MCP</button>
         </nav>
         <div id="settings-panels">
           <div id="settings-panel-directories" className="settings-panel active">
             <div className="settings-tabs" role="tablist">
-              <button type="button" className="settings-tab active" data-tab="directory" role="tab">
-                Directory
-              </button>
-              <button type="button" className="settings-tab" data-tab="connection" role="tab">
-                Connection
-              </button>
+              <button type="button" className="settings-tab active" data-tab="directory" role="tab">Directory</button>
+              <button type="button" className="settings-tab" data-tab="connection" role="tab">Connection</button>
             </div>
             <div id="settings-tab-notes-directory" className="settings-tab-panel active" data-tab="directory">
               <div className="settings-field">
@@ -81,21 +64,11 @@ function SettingsDialogChrome() {
           </div>
           <div id="settings-panel-knowledge" className="settings-panel">
             <div className="settings-tabs" role="tablist">
-              <button type="button" className="settings-tab active" data-tab="directory" role="tab">
-                Directory
-              </button>
-              <button type="button" className="settings-tab" data-tab="list" role="tab">
-                List
-              </button>
-              <button type="button" className="settings-tab" data-tab="categories" role="tab">
-                Categories
-              </button>
-              <button type="button" className="settings-tab" data-tab="add" role="tab">
-                Add
-              </button>
-              <button type="button" className="settings-tab" data-tab="hidden" role="tab">
-                Hidden files
-              </button>
+              <button type="button" className="settings-tab active" data-tab="directory" role="tab">Directory</button>
+              <button type="button" className="settings-tab" data-tab="list" role="tab">List</button>
+              <button type="button" className="settings-tab" data-tab="categories" role="tab">Categories</button>
+              <button type="button" className="settings-tab" data-tab="add" role="tab">Add</button>
+              <button type="button" className="settings-tab" data-tab="hidden" role="tab">Hidden files</button>
             </div>
             <div
               id="settings-tab-knowledge-directory"
@@ -157,13 +130,7 @@ function SettingsDialogChrome() {
               </div>
               <div className="settings-field">
                 <label htmlFor="sediment-kb-add-description">Description (optional)</label>
-                <textarea
-                  id="sediment-kb-add-description"
-                  rows={3}
-                  placeholder="Repository description"
-                  autoComplete="off"
-                  spellCheck={false}
-                />
+                <textarea id="sediment-kb-add-description" rows={3} placeholder="Repository description" autoComplete="off" spellCheck={false} />
               </div>
               <div id="sediment-kb-add-error" className="settings-result" />
               <div className="settings-panel-actions">
@@ -197,9 +164,7 @@ function SettingsDialogChrome() {
           </div>
           <div id="settings-panel-llm" className="settings-panel">
             <div className="settings-tabs" role="tablist">
-              <button type="button" className="settings-tab active" data-tab="engine" role="tab">
-                Engine
-              </button>
+              <button type="button" className="settings-tab active" data-tab="engine" role="tab">Engine</button>
             </div>
             <div id="settings-tab-llm-engine" className="settings-tab-panel active" data-tab="engine">
               <div className="settings-field">
@@ -259,9 +224,7 @@ function SettingsDialogChrome() {
           </div>
           <div id="settings-panel-github" className="settings-panel">
             <div className="settings-tabs" role="tablist">
-              <button type="button" className="settings-tab active" data-tab="account" role="tab">
-                Account
-              </button>
+              <button type="button" className="settings-tab active" data-tab="account" role="tab">Account</button>
             </div>
             <div id="settings-tab-github-account" className="settings-tab-panel active" data-tab="account">
               <div className="settings-field">
@@ -338,11 +301,4 @@ function SettingsDialogChrome() {
       </div>
     </div>
   );
-}
-
-export function paintSettingsChrome(host: HTMLElement) {
-  const root = createRoot(host);
-  flushSync(() => {
-    root.render(<SettingsDialogChrome />);
-  });
 }

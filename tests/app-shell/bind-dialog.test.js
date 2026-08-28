@@ -48,7 +48,7 @@ function extractById(html, id) {
   throw new Error(`unclosed #${id}`);
 }
 
-const { makeEl, trigger, clearDom, qrMocks, invokeMock } = vi.hoisted(() => {
+const { makeEl, clearDom, qrMocks, invokeMock } = vi.hoisted(() => {
   const elements = {};
   const qrMocks = { toCanvas: vi.fn() };
   const invokeMock = vi.fn();
@@ -87,11 +87,6 @@ const { makeEl, trigger, clearDom, qrMocks, invokeMock } = vi.hoisted(() => {
     return el;
   };
 
-  const trigger = async (id, event, eventData = {}) => {
-    const el = makeEl(id);
-    for (const fn of el._listeners[event] || []) await fn(eventData);
-  };
-
   globalThis.document = {
     getElementById: (id) => makeEl(id),
     createElement: (tag) => {
@@ -103,7 +98,7 @@ const { makeEl, trigger, clearDom, qrMocks, invokeMock } = vi.hoisted(() => {
   };
   globalThis.QRCode = qrMocks;
 
-  return { makeEl, trigger, clearDom, qrMocks, invokeMock };
+  return { makeEl, clearDom, qrMocks, invokeMock };
 });
 
 vi.mock('../../frontend/src/host/api.ts', () => ({
@@ -201,6 +196,12 @@ describe('bind-dialog markup and wiring', () => {
     expect(qrSrc).toContain("getElementById('qr-preview')");
     expect(qrSrc).toContain('export function renderQr');
     expect(qrSrc).toContain('export function openQrDialog');
+    expect(src).toMatch(/export function BindDialog/);
+    expect(src).toMatch(/createModuleStore/);
+    expect(src).toMatch(/useSyncExternalStore/);
+    expect(src).toMatch(/id="btn-bind-close"[\s\S]*?onClick/);
+    expect(src).toMatch(/id="btn-bind-refresh"[\s\S]*?onClick/);
+    expect(src).not.toMatch(/addEventListener/);
   });
 });
 
@@ -321,9 +322,9 @@ describe('bind-dialog', () => {
   });
 
   it('stops polling on close', async () => {
-    const { openBindDialog } = await import('../../frontend/src/app-shell/bind-dialog.tsx');
+    const { openBindDialog, closeBindDialog } = await import('../../frontend/src/app-shell/bind-dialog.tsx');
     await openBindDialog();
-    await trigger('btn-bind-close', 'click');
+    closeBindDialog();
     expect(makeEl('bind-dialog').classList.contains('open')).toBe(false);
 
     const before = readCalls().length;
@@ -368,7 +369,7 @@ describe('bind-dialog', () => {
     const readsAtRefresh = readCalls().length;
 
     session = 'live';
-    const refresh = trigger('btn-bind-refresh', 'click');
+    const refresh = openBindDialog();
     expect(makeEl('bind-status').textContent).toMatch(/Loading/);
     await refresh;
 

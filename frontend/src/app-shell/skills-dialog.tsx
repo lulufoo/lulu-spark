@@ -1,7 +1,12 @@
+import { useState, useSyncExternalStore } from 'react';
+import { createModuleStore } from '../shared/module-store.ts';
 import { workbenchSkillsContent } from './skills-content.ts';
 import { renderToHtml } from '../island.ts';
 
 type SkillItem = { cmd: string; name: string; desc?: string };
+type SkillsState = { open: boolean; title: string; items: SkillItem[] };
+
+const skillsStore = createModuleStore<SkillsState>({ open: false, title: '', items: [] });
 
 function normalizeSkill(item: string | SkillItem): SkillItem {
   return typeof item === 'string'
@@ -10,6 +15,7 @@ function normalizeSkill(item: string | SkillItem): SkillItem {
 }
 
 function SkillTable({ items }: { items: SkillItem[] }) {
+  const [copied, setCopied] = useState<string | null>(null);
   return (
     <table className="skill-table">
       <tbody>
@@ -18,8 +24,19 @@ function SkillTable({ items }: { items: SkillItem[] }) {
           return (
             <tr className="skill-row" key={skill.cmd}>
               <td className="skill-name">{skill.name}</td>
-              <td className="skill-cmd" data-copy={skill.cmd} title={tip}>
-                <code>{skill.cmd}</code>
+              <td
+                className="skill-cmd"
+                data-copy={skill.cmd}
+                title={tip}
+                onClick={() => {
+                  const cmd = skill.cmd;
+                  navigator.clipboard.writeText(cmd).then(() => {
+                    setCopied(cmd);
+                    setTimeout(() => { setCopied(null); }, 1200);
+                  });
+                }}
+              >
+                <code>{copied === skill.cmd ? 'Copied' : skill.cmd}</code>
               </td>
             </tr>
           );
@@ -36,8 +53,8 @@ function paintSkillCmd(el: HTMLElement, text: string) {
 export function _openSkillsDialog() {
   const data = workbenchSkillsContent;
   if (!data) return;
-  document.getElementById('skills-dialog-title')!.textContent = data.title;
   const items = data.groups.flatMap((g: { items: Array<string | SkillItem> }) => g.items).map(normalizeSkill);
+  document.getElementById('skills-dialog-title')!.textContent = data.title;
   document.getElementById('skills-dialog-body')!.innerHTML = renderToHtml(
     <SkillTable items={items} />,
   );
@@ -53,19 +70,41 @@ export function _openSkillsDialog() {
     });
   });
 
+  skillsStore.set({ open: true, title: data.title, items });
   document.getElementById('skills-dialog')!.classList.add('open');
 }
 
 export function _closeSkillsDialog() {
+  skillsStore.set((s) => ({ ...s, open: false }));
   document.getElementById('skills-dialog')!.classList.remove('open');
 }
 
-document.getElementById('btn-skill-workbench')!.addEventListener('click', () => {
-  document.getElementById('skills-menu-dropdown')?.classList.remove('open');
-  _openSkillsDialog();
-});
-
-document.getElementById('btn-skills-dialog-close')!.addEventListener('click', _closeSkillsDialog);
-document.getElementById('skills-dialog')!.addEventListener('click', (e) => {
-  if (e.target === document.getElementById('skills-dialog')) _closeSkillsDialog();
-});
+export function SkillsDialog() {
+  const { open, title, items } = useSyncExternalStore(skillsStore.subscribe, skillsStore.getSnapshot);
+  return (
+    <div
+      id="skills-dialog"
+      className={open ? 'open' : undefined}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) _closeSkillsDialog();
+      }}
+    >
+      <div id="skills-dialog-box">
+        <div id="skills-dialog-header">
+          <h3 id="skills-dialog-title">{title}</h3>
+          <button
+            id="btn-skills-dialog-close"
+            type="button"
+            className="md-header-btn"
+            onClick={() => _closeSkillsDialog()}
+          >
+            ✕ Close
+          </button>
+        </div>
+        <div id="skills-dialog-body">
+          <SkillTable items={items} />
+        </div>
+      </div>
+    </div>
+  );
+}

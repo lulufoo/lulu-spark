@@ -22,6 +22,9 @@ vi.mock('../../frontend/src/host/apiClient.ts', async (importOriginal) => {
   };
 });
 
+import { createElement } from 'react';
+import { createRoot } from 'react-dom/client';
+import { flushSync } from 'react-dom';
 import {
   createPlanCategory,
   deletePlanCategory,
@@ -29,6 +32,7 @@ import {
   mountTodoTaskSplit,
   setPlanCategory,
 } from '../../frontend/src/todo-task/index.ts';
+import { TodoTaskDialog } from '../../frontend/src/todo-task/dialog.tsx';
 import { parseHash } from '../../frontend/src/router/index.ts';
 import { readTodoTaskUiSource } from '../helpers/todo-task-ui-source.js';
 
@@ -187,28 +191,16 @@ describe('category Host invoke helpers', () => {
 describe('mountTodoTaskSplit category dropdown', () => {
   let container;
   let invokeMock;
+  let dialogRoot;
 
   beforeEach(() => {
     container = document.createElement('div');
     document.body.appendChild(container);
     const dialogHost = document.createElement('div');
     dialogHost.id = 'todo-task-dialog-host';
-    dialogHost.innerHTML = `
-      <div id="todo-task-dialog">
-        <div id="todo-task-dialog-box">
-          <div id="todo-task-dialog-header">
-            <h3 id="todo-task-dialog-title"></h3>
-          </div>
-          <div id="todo-task-dialog-body"></div>
-          <p id="todo-task-dialog-error" hidden></p>
-          <div id="todo-task-dialog-actions">
-            <button type="button" id="todo-task-dialog-cancel" class="md-header-btn">Cancel</button>
-            <button type="button" id="todo-task-dialog-primary" class="md-header-btn primary">OK</button>
-          </div>
-        </div>
-      </div>
-    `;
     document.body.appendChild(dialogHost);
+    dialogRoot = createRoot(dialogHost);
+    flushSync(() => dialogRoot.render(createElement(TodoTaskDialog)));
     getJsonMock.mockReset();
     getJsonMock.mockResolvedValue(sampleMasters);
     invokeMock = vi.fn().mockImplementation(async (cmd, args) => {
@@ -251,6 +243,7 @@ describe('mountTodoTaskSplit category dropdown', () => {
 
   afterEach(() => {
     container.remove();
+    flushSync(() => dialogRoot?.unmount());
     document.getElementById('todo-task-dialog-host')?.remove();
     delete window.__TAURI__;
     vi.restoreAllMocks();

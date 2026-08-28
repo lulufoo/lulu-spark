@@ -1,7 +1,10 @@
-import type { ReactNode } from 'react';
+import { useSyncExternalStore, type ReactNode } from 'react';
 import * as api from '../host/api.ts';
 import { showToast } from '../toast.tsx';
 import { renderToHtml } from '../island.ts';
+import { createModuleStore } from '../shared/module-store.ts';
+
+const openStore = createModuleStore(false);
 
 const HEADER_LABEL_IDLE = '↑ Commit changes';
 const HEADER_LABEL_CHECKING = 'Checking…';
@@ -54,6 +57,7 @@ export async function openCommitChangesDialog() {
   result.style.color = '';
   (document.getElementById('commit-changes-msg') as HTMLInputElement).value = '';
   (document.getElementById('btn-commit-changes-ok') as HTMLButtonElement).disabled = false;
+  openStore.set(true);
   document.getElementById('commit-changes-dialog')?.classList.add('open');
 
   try {
@@ -117,7 +121,8 @@ export async function openCommitChangesDialog() {
   }
 }
 
-function closeCommitChangesDialog() {
+export function closeCommitChangesDialog() {
+  openStore.set(false);
   clearCommitCloseTimer();
   document.getElementById('commit-changes-dialog')?.classList.remove('open');
   const ok = document.getElementById('btn-commit-changes-ok') as HTMLButtonElement | null;
@@ -129,7 +134,7 @@ function closeCommitChangesDialog() {
   }
 }
 
-function doCommitChanges() {
+export function doCommitChanges() {
   const msg = (document.getElementById('commit-changes-msg') as HTMLInputElement).value.trim();
   clearCommitCloseTimer();
   commitCloseTimer = setTimeout(() => {
@@ -149,8 +154,44 @@ function doCommitChanges() {
   }, CLOSE_DELAY_MS);
 }
 
-document.getElementById('btn-commit-changes-cancel')?.addEventListener('click', closeCommitChangesDialog);
-document.getElementById('btn-commit-changes-ok')?.addEventListener('click', doCommitChanges);
-document.getElementById('commit-changes-dialog')?.addEventListener('click', (e) => {
-  if (e.target === document.getElementById('commit-changes-dialog')) closeCommitChangesDialog();
-});
+export function CommitChangesDialog() {
+  const open = useSyncExternalStore(openStore.subscribe, openStore.getSnapshot);
+
+  return (
+    <div
+      id="commit-changes-dialog"
+      className={open ? 'open' : undefined}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) closeCommitChangesDialog();
+      }}
+    >
+      <div id="commit-changes-dialog-box">
+        <h3>↑ Commit changes</h3>
+        <div id="commit-changes-file-list"></div>
+        <input
+          id="commit-changes-msg"
+          type="text"
+          placeholder="Commit message (empty: chore: update via viewer)"
+          autoComplete="off"
+        />
+        <div id="commit-changes-dialog-actions">
+          <span id="commit-changes-result"></span>
+          <button
+            id="btn-commit-changes-cancel"
+            type="button"
+            onClick={() => closeCommitChangesDialog()}
+          >
+            Cancel
+          </button>
+          <button
+            id="btn-commit-changes-ok"
+            type="button"
+            onClick={() => doCommitChanges()}
+          >
+            Commit
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}

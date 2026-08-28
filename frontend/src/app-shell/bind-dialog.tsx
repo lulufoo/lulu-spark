@@ -1,4 +1,6 @@
+import { useSyncExternalStore } from 'react';
 import * as api from '../host/api.ts';
+import { createModuleStore } from '../shared/module-store.ts';
 
 declare const QRCode: {
   toCanvas: (
@@ -27,6 +29,8 @@ type BindPayload = {
   exp?: number;
   sig?: string;
 };
+
+const openStore = createModuleStore(false);
 
 let pollTimer: ReturnType<typeof setInterval> | null = null;
 let countdownTimer: ReturnType<typeof setInterval> | null = null;
@@ -173,6 +177,7 @@ export async function openBindDialog() {
   logBindEvent('issue_bind', 'started');
   stopPolling();
   stopCountdown();
+  openStore.set(true);
   el('bind-dialog')?.classList.add('open');
   setBindState('loading');
   const status = el('bind-status');
@@ -211,13 +216,55 @@ export async function openBindDialog() {
   }
 }
 
-function closeBindDialog() {
+export function closeBindDialog() {
   stopPolling();
   stopCountdown();
+  openStore.set(false);
   el('bind-dialog')?.classList.remove('open');
 }
 
-el('btn-bind-close')?.addEventListener('click', closeBindDialog);
-el('btn-bind-refresh')?.addEventListener('click', () => {
-  void openBindDialog();
-});
+export function BindDialog() {
+  const open = useSyncExternalStore(openStore.subscribe, openStore.getSnapshot);
+  return (
+    <div id="bind-dialog" className={open ? 'open' : undefined}>
+      <div id="bind-dialog-box">
+        <div id="bind-dialog-header">
+          <div id="bind-dialog-heading">
+            <span id="bind-dialog-title">📲 Bind device</span>
+            <p id="bind-dialog-lead">Pair this Mac with the Workbench Android app on the same local network.</p>
+          </div>
+          <button id="btn-bind-close" type="button" onClick={() => closeBindDialog()}>
+            ✕ Close
+          </button>
+        </div>
+        <div id="bind-dialog-body">
+          <div id="bind-qr-card">
+            <div id="bind-preview"></div>
+          </div>
+          <div id="bind-dialog-meta">
+            <div className="bind-meta-row">
+              <span className="bind-meta-label">Status</span>
+              <div id="bind-status" role="status" aria-live="polite"></div>
+            </div>
+            <div className="bind-meta-row">
+              <span className="bind-meta-label">Code</span>
+              <div id="bind-countdown"></div>
+            </div>
+            <p id="bind-host" hidden></p>
+            <ol id="bind-steps">
+              <li>Open the Workbench Android app.</li>
+              <li>Scan this code on the same local network.</li>
+              <li>Keep this window open until binding succeeds.</li>
+            </ol>
+          </div>
+        </div>
+        <div id="bind-dialog-footer">
+          <p id="bind-footer-hint">A new code is available if this one expires.</p>
+          <button id="btn-bind-refresh" type="button" hidden onClick={() => { void openBindDialog(); }}>
+            New code
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}

@@ -2,9 +2,8 @@ import { existsSync, readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { test, expect } from 'vitest'
-import { readShellHtml } from '../helpers/read-frontend-js.js';
+import { readFrontendJs, readMainSource, readShellHtml } from '../helpers/read-frontend-js.js';
 import { workbenchSkillsContent } from '../../frontend/src/app-shell/skills-content.ts'
-import { readMainSource } from '../helpers/read-frontend-js.js';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..')
 
@@ -79,4 +78,20 @@ test('SKILL dropdown keeps only Lulu Workbench Skills', () => {
   expect(
     existsSync(join(repoRoot, 'frontend/src/skills-software-dev-content.js')),
   ).toBe(false)
+})
+
+test('skills dialog is a React component without import-time menu listener', () => {
+  const src = readFrontendJs('frontend/src/app-shell/skills-dialog.tsx')
+  expect(src).toMatch(/export function SkillsDialog/)
+  expect(src).toMatch(/export function _openSkillsDialog/)
+  expect(src).toMatch(/export function _closeSkillsDialog/)
+  expect(src).toMatch(/createModuleStore/)
+  expect(src).toMatch(/useSyncExternalStore/)
+  expect(src).toMatch(/id="skills-dialog"/)
+  expect(src).toMatch(/id="skills-dialog-title"/)
+  expect(src).toMatch(/id="skills-dialog-body"/)
+  expect(src).toMatch(/id="btn-skills-dialog-close"[\s\S]*?onClick/)
+  expect(src).toMatch(/e\.target === e\.currentTarget/)
+  expect(src).not.toMatch(/getElementById\(\s*['"]btn-skill-workbench['"]\s*\)/)
+  expect(src).not.toMatch(/btn-skill-workbench['"]\s*\)!\s*\.addEventListener/)
 })

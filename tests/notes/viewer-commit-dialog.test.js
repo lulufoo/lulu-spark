@@ -27,10 +27,10 @@ vi.mock('../../frontend/src/island.ts', () => ({
 }));
 
 
-// ── Global document stub with event listener capture ──────────────────────
+// ── Global document stub ──────────────────────────────────────────────────
 // vi.hoisted: runs before ESM imports, sets up globalThis.document
 
-const { elements, makeEl, trigger } = vi.hoisted(() => {
+const { makeEl } = vi.hoisted(() => {
   const elements = {};
   const makeEl = (id = '') => {
     if (id && elements[id]) return elements[id];
@@ -47,11 +47,6 @@ const { elements, makeEl, trigger } = vi.hoisted(() => {
           else if (force === false) this._set.delete(cls);
           else if (this._set.has(cls)) this._set.delete(cls); else this._set.add(cls);
         },
-      },
-      _listeners: {},
-      addEventListener(event, fn) {
-        if (!this._listeners[event]) this._listeners[event] = [];
-        this._listeners[event].push(fn);
       },
       children: [],
       appendChild(child) { this.children.push(child); return child; },
@@ -73,15 +68,6 @@ const { elements, makeEl, trigger } = vi.hoisted(() => {
     return el;
   };
 
-  // Simulates a DOM event by calling all registered handlers for the event.
-  const trigger = async (id, event, eventData = {}) => {
-    const el = id ? (elements[id] || makeEl(id)) : null;
-    const handlers = el?._listeners[event] || [];
-    for (const fn of handlers) {
-      await fn(eventData);
-    }
-  };
-
   globalThis.document = {
     getElementById: (id) => (id ? makeEl(id) : null),
     addEventListener: () => {},
@@ -95,20 +81,15 @@ const { elements, makeEl, trigger } = vi.hoisted(() => {
   globalThis.requestAnimationFrame = (fn) => fn();
   globalThis.marked = undefined;
 
-  return { elements, makeEl, trigger };
+  return { makeEl };
 });
-
-// ── Mock all viewer.js dependencies ──────────────────────────────────────
 
 const mockDiffData = () => ({
   new: [], modified: [], deleted: [], renamed: [], conflicted: [], total: 0, ahead: 0,
 });
 
 vi.mock('../../frontend/src/host/api.ts', () => ({
-  fetchFileContent: vi.fn().mockResolvedValue('# Test'),
-  fetchAnnotation: vi.fn().mockResolvedValue({}),
   fetchDiffStatus: vi.fn().mockResolvedValue({ new: [], modified: [], deleted: [], renamed: [], conflicted: [], total: 0, ahead: 0 }),
-  saveFile: vi.fn(),
   commitFiles: vi.fn().mockResolvedValue({ ok: true }),
   revertFile: vi.fn().mockResolvedValue({ ok: true }),
 }));
@@ -120,29 +101,8 @@ vi.mock('../../frontend/src/notes/cards.tsx', () => ({
   updateTitlesInDOM: vi.fn(),
   updateDiffInDOM: vi.fn(),
 }));
-vi.mock('../../frontend/src/notes/links-bar.tsx', () => ({ renderLinksBar: vi.fn() }));
-vi.mock('../../frontend/src/notes/tags-bar.tsx', () => ({ renderTagsBar: vi.fn() }));
-vi.mock('../../frontend/src/notes/comments.tsx', () => ({ renderComments: vi.fn() }));
-vi.mock('../../frontend/src/notes/delete-dialog.tsx', () => ({ openDeleteDialog: vi.fn() }));
-vi.mock('../../frontend/src/doc-editor/highlights.ts', () => ({
-  applyCachedHighlights: vi.fn(),
-  initDocHighlightOverlay: vi.fn(),
-  cleanupDocHighlightOverlay: vi.fn(),
-}));
-vi.mock('../../frontend/src/corpus/corpus-viewer.ts', () => ({
-  openKbDoc: vi.fn(),
-  saveKbDoc: vi.fn(),
-}));
-vi.mock('../../frontend/src/corpus/corpus-knowledge-search.tsx', () => ({
-  mountKnowledgeSearch: vi.fn(),
-  triggerKnowledgeSearch: vi.fn(),
-}));
-vi.mock('../../frontend/src/host/constants.ts', () => ({
-  getGithubUserUrl: vi.fn(() => ''),
-  workbenchGithubBlobBase: vi.fn(() => null),
-}));
 
-import { openCommitDialog } from '../../frontend/src/notes/viewer.ts';
+import { closeCommitDialog, doMdCommit, doMdRevertAll, openCommitDialog } from '../../frontend/src/notes/viewer/commit.tsx';
 import * as api from '../../frontend/src/host/api.ts';
 
 // ── openCommitDialog ──────────────────────────────────────────────────────
@@ -203,19 +163,19 @@ describe('openCommitDialog', () => {
   });
 });
 
-// ── Cancel button ─────────────────────────────────────────────────────────
+// ── Cancel ────────────────────────────────────────────────────────────────
 
-describe('cancel button', () => {
-  it('click closes the dialog', async () => {
+describe('cancel', () => {
+  it('closeCommitDialog removes the open class', () => {
     makeEl('md-commit-dialog').classList.add('open');
-    await trigger('md-btn-commit-cancel', 'click');
+    closeCommitDialog();
     expect(makeEl('md-commit-dialog').classList.contains('open')).toBe(false);
   });
 });
 
-// ── OK button ─────────────────────────────────────────────────────────────
+// ── OK ────────────────────────────────────────────────────────────────────
 
-describe('OK button', () => {
+describe('OK', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     api.commitFiles.mockResolvedValue({ ok: true });
@@ -228,27 +188,27 @@ describe('OK button', () => {
 
   it('calls api.commitFiles with input message', async () => {
     makeEl('md-commit-dialog-msg').value = 'my commit message';
-    await trigger('md-btn-commit-ok', 'click');
+    await doMdCommit();
     expect(api.commitFiles).toHaveBeenCalledWith('my commit message');
   });
 
   it('calls api.commitFiles with default message when input is empty', async () => {
     makeEl('md-commit-dialog-msg').value = '';
-    await trigger('md-btn-commit-ok', 'click');
+    await doMdCommit();
     expect(api.commitFiles).toHaveBeenCalledWith('update: edit via viewer');
   });
 
   it('shows error and re-enables button on failure', async () => {
     api.commitFiles.mockRejectedValueOnce(new Error('push failed'));
-    await trigger('md-btn-commit-ok', 'click');
+    await doMdCommit();
     expect(makeEl('md-commit-dialog-result').textContent).toContain('push failed');
     expect(makeEl('md-btn-commit-ok').disabled).toBe(false);
   });
 });
 
-// ── Revert-all button ─────────────────────────────────────────────────────
+// ── Revert-all ────────────────────────────────────────────────────────────
 
-describe('revert-all button', () => {
+describe('revert-all', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     const btn = makeEl('md-btn-revert-all');
@@ -265,19 +225,19 @@ describe('revert-all button', () => {
   });
 
   it('first click adds confirm class', async () => {
-    await trigger('md-btn-revert-all', 'click');
+    await doMdRevertAll();
     expect(makeEl('md-btn-revert-all').classList.contains('confirm')).toBe(true);
   });
 
   it('confirm state auto-resets after timeout', async () => {
-    await trigger('md-btn-revert-all', 'click');
+    await doMdRevertAll();
     vi.runAllTimers();
     expect(makeEl('md-btn-revert-all').classList.contains('confirm')).toBe(false);
   });
 
   it('second click calls api.revertFile with empty path and type', async () => {
     makeEl('md-btn-revert-all').classList.add('confirm');
-    await trigger('md-btn-revert-all', 'click');
+    await doMdRevertAll();
     expect(api.revertFile).toHaveBeenCalledWith('', '');
   });
 });

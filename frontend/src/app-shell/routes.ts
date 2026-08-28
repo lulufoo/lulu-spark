@@ -11,6 +11,9 @@ import { navigate } from '../router/index.ts';
 import { openReadLaterDialog } from '../read-later/dialog.tsx';
 import { openDoc } from '../notes/viewer.ts';
 import { selectDate } from '../notes/sidebar.tsx';
+import { getHomeEntryShell, setHomeEntryShell } from '../home-entry-shell/access.ts';
+
+export { getHomeEntryShell, setHomeEntryShell };
 
 const feedView = document.getElementById('feed-view');
 
@@ -18,16 +21,6 @@ let unmountCorpusDocList = null;
 let corpusDocListRepo = '';
 let unmountHomeHub = null;
 let unmountTodoTaskSplit = null;
-/** @type {{ forceRecoverA?: (reason: string) => void } | null} */
-let homeEntryShell = null;
-
-export function setHomeEntryShell(shell) {
-  homeEntryShell = shell;
-}
-
-export function getHomeEntryShell() {
-  return homeEntryShell;
-}
 
 function updateNavChrome(routeName) {
   const onHome = routeName === 'home';
@@ -41,7 +34,7 @@ function updateNavChrome(routeName) {
 export function wrapRouteMount(routeName, mountFn) {
   return (route) => {
     // Leave-host: force shell back to A so overlay never crosses pages.
-    homeEntryShell?.forceRecoverA('leave-route');
+    getHomeEntryShell()?.forceRecoverA('leave-route');
     updateNavChrome(routeName);
     if (routeName === 'workbench') initWorkbenchSearch();
     if (routeName === 'corpus-doc') initCorpusSearch();

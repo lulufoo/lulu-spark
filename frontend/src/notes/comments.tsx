@@ -1,4 +1,5 @@
 // @ts-nocheck — ported from JS; state shapes stay unchecked like checkJs:false.
+import { memo, useSyncExternalStore } from 'react';
 import { state } from '../host/state.ts';
 import * as api from '../host/api.ts';
 import { reorderComments } from '../host/api.ts';
@@ -9,7 +10,10 @@ import { renderLinksBar } from './links-bar.tsx';
 import { confirmDeleteComment, removeCorpusComment } from '../shared/comment-delete.tsx';
 import { pasteIntoCommentEditor, prepareCommentMarkdown, renderCommentMarkdown } from '../shared/comment-markdown.ts';
 import { renderMermaidBlocks } from '../shared/mermaid-render.ts';
+import { createModuleStore } from '../shared/module-store.ts';
 import { renderToHtml } from '../island.ts';
+
+const openStore = createModuleStore(false);
 
 let _floatNavObserver: IntersectionObserver | null = null;
 
@@ -294,7 +298,8 @@ export async function openCommentDialog(
       /* ignore */
     }
   }
-  document.getElementById('comment-dialog')!.classList.add('open');
+  openStore.set(true);
+  document.getElementById('comment-dialog')?.classList.add('open');
   _resetDialogTabs();
   requestAnimationFrame(() => {
     content.focus();
@@ -308,7 +313,8 @@ export async function openCommentDialog(
 }
 
 export function closeCommentDialog() {
-  document.getElementById('comment-dialog')!.classList.remove('open');
+  openStore.set(false);
+  document.getElementById('comment-dialog')?.classList.remove('open');
   _commentEditCtx = null;
   _clearDraft();
 }
@@ -362,33 +368,31 @@ export async function saveComment() {
   }
 }
 
-document.querySelectorAll('.comment-tab-btn').forEach((btn) => {
-  btn.addEventListener('click', async () => {
-    document.querySelectorAll('.comment-tab-btn').forEach((b) => b.classList.remove('active'));
-    btn.classList.add('active');
-    const isPreview = (btn as HTMLElement).dataset.tab === 'preview';
-    const editorBox = document.getElementById('comment-editor-box')!;
-    const previewPane = document.getElementById('comment-preview-pane')!;
-    if (isPreview) {
-      _previewModeText = prepareCommentMarkdown(document.getElementById('comment-dialog-content')!.innerText);
-      const inner = renderCommentMarkdown(_previewModeText);
-      previewPane.innerHTML = renderToHtml(
-        <div className="comment-item-text" dangerouslySetInnerHTML={{ __html: inner }} />,
-      );
-      await renderMermaidBlocks(previewPane);
-      editorBox.style.display = 'none';
-      previewPane.style.display = 'block';
-    } else {
-      _previewModeText = null;
-      editorBox.style.display = '';
-      previewPane.style.display = 'none';
-    }
-  });
-});
+async function onNoteCommentTabClick(btn: HTMLElement) {
+  document.querySelectorAll('#comment-dialog .comment-tab-btn').forEach((b) => b.classList.remove('active'));
+  btn.classList.add('active');
+  const isPreview = btn.dataset.tab === 'preview';
+  const editorBox = document.getElementById('comment-editor-box')!;
+  const previewPane = document.getElementById('comment-preview-pane')!;
+  if (isPreview) {
+    _previewModeText = prepareCommentMarkdown(document.getElementById('comment-dialog-content')!.innerText);
+    const inner = renderCommentMarkdown(_previewModeText);
+    previewPane.innerHTML = renderToHtml(
+      <div className="comment-item-text" dangerouslySetInnerHTML={{ __html: inner }} />,
+    );
+    await renderMermaidBlocks(previewPane);
+    editorBox.style.display = 'none';
+    previewPane.style.display = 'block';
+  } else {
+    _previewModeText = null;
+    editorBox.style.display = '';
+    previewPane.style.display = 'none';
+  }
+}
 
 function _resetDialogTabs() {
   _previewModeText = null;
-  document.querySelectorAll('.comment-tab-btn').forEach((b) => {
+  document.querySelectorAll('#comment-dialog .comment-tab-btn').forEach((b) => {
     b.classList.toggle('active', (b as HTMLElement).dataset.tab === 'edit');
   });
   const editorBox = document.getElementById('comment-editor-box');
@@ -405,28 +409,18 @@ if (_btnAddComment) {
     openCommentDialog(null, null, null, nextIdx);
   });
 }
-document.getElementById('btn-comment-cancel')?.addEventListener('click', closeCommentDialog);
-document.getElementById('btn-comment-save')?.addEventListener('click', saveComment);
-document.getElementById('comment-dialog')?.addEventListener('keydown', (e) => {
-  if ((e as KeyboardEvent).key === 'Escape') {
-    e.stopPropagation();
-    closeCommentDialog();
+
+function onNoteCommentContentKeyDown(e: KeyboardEvent) {
+  if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+    e.preventDefault();
+    void saveComment();
   }
-});
-document.getElementById('comment-dialog-content')?.addEventListener('keydown', (e) => {
-  const ke = e as KeyboardEvent;
-  if (ke.key === 'Enter' && (ke.metaKey || ke.ctrlKey)) {
-    ke.preventDefault();
-    saveComment();
-  }
-});
-document.getElementById('comment-dialog-content')?.addEventListener('input', () => {
-  _scheduleDraftSave();
-});
-document.getElementById('comment-dialog-content')?.addEventListener('paste', (e) => {
+}
+
+function onNoteCommentContentPaste(e: ClipboardEvent) {
   e.preventDefault();
   const el = document.getElementById('comment-dialog-content')!;
-  pasteIntoCommentEditor(el, (e as ClipboardEvent).clipboardData);
+  pasteIntoCommentEditor(el, e.clipboardData);
   const sel = window.getSelection();
   if (sel && sel.rangeCount > 0) {
     const range = sel.getRangeAt(0);
@@ -436,17 +430,9 @@ document.getElementById('comment-dialog-content')?.addEventListener('paste', (e)
       el.scrollTop += rect.bottom - elRect.bottom + 8;
     }
   }
-});
+}
 
 let _mouseDownOnOverlay = false;
-document.getElementById('comment-dialog')?.addEventListener('mousedown', (e) => {
-  _mouseDownOnOverlay = e.target === document.getElementById('comment-dialog');
-});
-document.getElementById('comment-dialog')?.addEventListener('click', (e) => {
-  if (e.target === document.getElementById('comment-dialog') && _mouseDownOnOverlay) {
-    closeCommentDialog();
-  }
-});
 
 document.addEventListener('settle:done', (event) => {
   const { commentId, layer, entry, url } = (event as CustomEvent).detail;
@@ -460,3 +446,90 @@ document.addEventListener('settle:done', (event) => {
   renderComments(state.viewer.annotation, layer, entry);
   renderLinksBar(entry);
 });
+
+const NoteCommentDialogInner = memo(function NoteCommentDialogInner() {
+  return (
+    <div id="comment-dialog-box">
+      <div id="comment-dialog-header">
+        <h3 id="comment-dialog-title">💬 Add comment</h3>
+        <div id="comment-dialog-tabs">
+          <button
+            type="button"
+            className="comment-tab-btn active"
+            data-tab="edit"
+            onClick={(e) => void onNoteCommentTabClick(e.currentTarget)}
+          >
+            Edit
+          </button>
+          <button
+            type="button"
+            className="comment-tab-btn"
+            data-tab="preview"
+            onClick={(e) => void onNoteCommentTabClick(e.currentTarget)}
+          >
+            Preview
+          </button>
+        </div>
+      </div>
+      <div
+        id="comment-editor-box"
+        className="comment-editor-box"
+        onClick={() => document.getElementById('comment-dialog-content')?.focus()}
+      >
+        <div
+          id="comment-dialog-content"
+          className="comment-editor-content"
+          contentEditable={true}
+          suppressContentEditableWarning={true}
+          spellCheck={false}
+          autoCorrect="off"
+          autoCapitalize="off"
+          data-placeholder="Comment… (Ctrl/Cmd+Enter to save)"
+          onKeyDown={(e) => onNoteCommentContentKeyDown(e.nativeEvent)}
+          onInput={() => _scheduleDraftSave()}
+          onPaste={(e) => onNoteCommentContentPaste(e.nativeEvent)}
+        />
+      </div>
+      <div id="comment-preview-pane" className="md-body" style={{ display: 'none' }} />
+      <div id="comment-dialog-actions">
+        <button id="btn-comment-cancel" type="button" className="md-header-btn" onClick={() => closeCommentDialog()}>
+          Cancel
+        </button>
+        <button
+          id="btn-comment-save"
+          type="button"
+          className="md-header-btn primary"
+          onClick={() => void saveComment()}
+        >
+          Save
+        </button>
+      </div>
+    </div>
+  );
+});
+
+export function NoteCommentDialog() {
+  const open = useSyncExternalStore(openStore.subscribe, openStore.getSnapshot);
+  return (
+    <div
+      id="comment-dialog"
+      className={open ? 'open' : undefined}
+      onKeyDown={(e) => {
+        if (e.key === 'Escape') {
+          e.stopPropagation();
+          closeCommentDialog();
+        }
+      }}
+      onMouseDown={(e) => {
+        _mouseDownOnOverlay = e.target === e.currentTarget;
+      }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget && _mouseDownOnOverlay) {
+          closeCommentDialog();
+        }
+      }}
+    >
+      <NoteCommentDialogInner />
+    </div>
+  );
+}
