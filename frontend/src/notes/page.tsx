@@ -175,9 +175,9 @@ function NotesReaderBody() {
 
   return (
     <div className="viewer-body" style={creating || editing ? { display: 'none' } : undefined}>
-      <NotesCommentsBar />
-      <div id="md-body" ref={bodyRef} />
-      <NotesDeleteZone />
+      <NotesCommentsBar key="comments" />
+      <div id="md-body" key="md-body" ref={bodyRef} />
+      <NotesDeleteZone key="delete" />
     </div>
   );
 }

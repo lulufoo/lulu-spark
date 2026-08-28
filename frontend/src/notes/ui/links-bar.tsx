@@ -45,10 +45,6 @@ export function NotesLinksBar() {
     }
   }, [entry, linksKey, host.index.titleFetchCache]);
 
-  if (!entry || creating) {
-    return <div id="md-links-bar" className="viewer-chrome-persisted" style={{ display: 'none', ...barStyle }} />;
-  }
-
   useEffect(() => {
     const trimmed = url.trim();
     if (!adding || !trimmed) return undefined;
@@ -60,6 +56,10 @@ export function NotesLinksBar() {
     }, 500);
     return () => clearTimeout(timer);
   }, [adding, url]);
+
+  if (!entry || creating) {
+    return <div id="md-links-bar" className="viewer-chrome-persisted" style={{ display: 'none', ...barStyle }} />;
+  }
 
   async function onConfirmAdd() {
     const trimmed = url.trim();
