@@ -55,7 +55,6 @@ Combat the tendency toward overengineering:
 - No abstractions for single-use code
 - No "flexibility" or "configurability" that wasn't requested
 - No error handling for impossible scenarios
-- If 200 lines could be 50, rewrite it
 
 **The test:** Would a senior engineer say this is overcomplicated? If yes, simplify.
 
