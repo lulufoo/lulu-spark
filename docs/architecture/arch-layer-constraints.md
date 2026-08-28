@@ -1,4 +1,4 @@
-# 架构分层约束
+# Architecture Layer Constraints
 
 This document is the **target** architecture constraint, not a snapshot of current code. When implementation diverges, change the code to match this file. Do not rewrite this file to match today's listen map or call graph.
 

@@ -11,6 +11,8 @@ alwaysApply: true
 
 3. GitHub link reading → read docs/git/git-gh-operations.md first. No exceptions.
 
-4. Architecture work → read `docs/architecture/layer-constraints.md`. No exceptions.
+4. Cross-layer / call-direction work → read `docs/architecture/arch-layer-constraints.md`. No exceptions.
 
-5. Business / product UI conventions (user-facing strings, labels, status text, empty states, placeholders) → read `docs/biz/ui-conventions.md` first. No exceptions.
+5. UI-layer changes → read and follow `docs/architecture/ui-layer-constraints.md`. No exceptions.
+
+6. UI build (business-layer copy) → read and follow `docs/biz/ui-build-constraints.md`. No exceptions.

@@ -14,7 +14,7 @@
 
 桌面 L2 已经换成 React + TypeScript。生产页已是 `ShellPages` 的子组件；命令改状态、画面读快照重绘。还开着的是空槽、正文 markdown leftover、QR leftover，以及本机 Tauri 验收。不另开一轮「架构重构」。✅ Verified（`shell-pages.tsx` 画 `HomePage` / `TodoTasksPage` / `CorpusDocPage` / `NotesSidebar`+`NotesMain`；`routes.ts` 仍 `getElementById` 三个空槽；`notes/ui/viewer/body.tsx` / `corpus/ui/viewer/shell.tsx` 仍灌正文；`app-shell/ui/qr-dialog.tsx` 仍 leftover `#qr-preview`）
 
-不改 L3 invoke map，不改 Rust，不与 Android 共用 UI。不上 Redux / Zustand / React Query、react-router、Tailwind。✅ Verified（栈切换方案 §2；`docs/architecture/layer-constraints.md`：L2 只经 L3）
+不改 L3 invoke map，不改 Rust，不与 Android 共用 UI。不上 Redux / Zustand / React Query、react-router、Tailwind。✅ Verified（栈切换方案 §2；`docs/architecture/arch-layer-constraints.md`：L2 只经 L3）
 
 ```mermaid
 flowchart TB
@@ -38,7 +38,7 @@ flowchart TB
 | # | 合同 | 依据 |
 |---|------|------|
 | 1 | **第一刀是业务目录，第二刀是块内职责。** 保持 `notes/`、`home/`、`todo-task/`、`corpus/`、`read-later/`、`app-shell/`、`host/`、`shared/`。不把 `frontend/src` 收成顶层 `data/`、`logic/`、`ui/`。 | ✅ Verified（现有 `frontend/src` 目录）；会话 2026-08-28 已锁 |
-| 2 | **IO 只经现有 Host 出口。** 新代码走 `host/api` + `apiClient`。Todos 已有的 `todo-task/state/host.ts` 留在本块，不先并进 `host/api`。禁止再造一套「数据层」绕 L3。 | ✅ Verified（`host/api.ts`、`host/apiClient.ts`、`todo-task/state/host.ts`；`docs/architecture/layer-constraints.md`） |
+| 2 | **IO 只经现有 Host 出口。** 新代码走 `host/api` + `apiClient`。Todos 已有的 `todo-task/state/host.ts` 留在本块，不先并进 `host/api`。禁止再造一套「数据层」绕 L3。 | ✅ Verified（`host/api.ts`、`host/apiClient.ts`、`todo-task/state/host.ts`；`docs/architecture/arch-layer-constraints.md`） |
 | 3 | **收一页 = 这页不再 `mount*(空盒子)`，且命令不再画 UI。** 画面读快照画 JSX；状态变了 `notify`；命令调 API、改状态，不准 `innerHTML` / 再 `createRoot` 进该页槽。 | ✅ Verified（`shell-pages.tsx` 画 `HomePage` / `TodoTasksPage` / `CorpusDocPage` / `NotesSidebar`+`NotesMain`。`selectDate` 不再找 `#doc-list`。阅读器 `mountKbReader` 认领 layout 里的壳。命令对 leftover id 仍双写，给 Node stub 测试用） |
 | 4 | **`host/state` 先当订阅源，不先拆成五个 store。** 本块已有自己的 host 的，继续用（Todos）。 | ✅ Verified（`host/state.ts`；`todo-task/state/host.ts`） |
 | 5 | **块内用 `ui/` `commands/` `state/` 三夹标职责。** 根上只留 `page.tsx` 和可选桶（`viewer.ts` / `hub.tsx` / `index.ts` / `routes.ts`）。不把 `frontend/src` 收成顶层 `data/` `logic/` `ui/`。不适用：`host/` `shared/` `doc-editor/` `router/` 与根上壳文件。旧扁平路径不留桩。Notes / Corpus 链接、标签、搜索、评论条、Settings 列表 / 连接已读快照画 JSX；正文 markdown 与 QR leftover 仍可 `innerHTML`。 | ✅ Verified（业务块含 `builders/`；`ls frontend/src/builders`；2026-08-28 leftover 收口：`notes/ui/{links-bar,tags-bar,search,comments}.tsx`；`corpus/ui/{search,links-bar,knowledge-search,diff-dialog}.tsx`；`app-shell/ui/settings/{sediment-kb,notes-connection}.tsx`；`builders/ui/feed.tsx`） |
@@ -272,7 +272,7 @@ App
 2. 不在收岛完成前，让页面组件和 `mount*` 同时画同一页。
 3. 不引入新状态库、react-router、新 CSS 方案。
 4. L2 不静态 import `@tauri-apps/*`。✅ Verified（`docs/coding/coding-workbench-discipline.md`）
-5. 用户可见文案仍为英文。✅ Verified（`docs/biz/ui-conventions.md`）
+5. 用户可见文案仍为英文。✅ Verified（`docs/biz/ui-build-constraints.md`）
 6. 不把 Todos 的 `state/host.ts` 为了对齐「三层」而搬进 `host/api`（除非另授权）。
 
 ---

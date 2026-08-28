@@ -50,7 +50,7 @@
 | 路由 | 仍是 `#` / `parseHash`：home / workbench / corpus-doc / read-later / todo-tasks。`HashRouter` 按路由显隐五个槽；`routes.ts` 的 `mount*` 仍往这些槽里挂岛屿 | ✅ Verified（`frontend/src/router/index.ts`；`hash-router.tsx`；`app-shell/routes.ts`） |
 | 状态 | `host/state.ts` 仍是可变对象；已有 `useHostState` / `notifyState`。对话框另用 `createModuleStore` | ✅ Verified（`frontend/src/host/state.ts`；`shared/module-store.ts`） |
 | Host | 已在 `frontend/src/host/`（不再等 P8 从 `js/host` 搬） | ✅ Verified（`frontend/src/host/`） |
-| 分层 | L2 只经 L3 | ✅ Verified（`docs/architecture/layer-constraints.md`） |
+| 分层 | L2 只经 L3 | ✅ Verified（`docs/architecture/arch-layer-constraints.md`） |
 | Tauri import | `frontend/src/**` 禁止静态 `@tauri-apps/*`，仅 `apiClient` 可动态 import | ✅ Verified（`docs/coding/coding-workbench-discipline.md`） |
 
 还没做完的绞杀（页面仍是嵌套 `createRoot` 岛屿，不是路由树里的子组件）：
@@ -149,7 +149,7 @@ P5 的 Mermaid / 高亮 overlay 仍放在 `useEffect` 里，不改成组件树�
 
 1. 桌面 UI 入口是 `frontend/src/main.tsx`，无 vanilla `js/main.js`。
 2. L3 仍只经 `apiClient` + invoke map；无静态 `@tauri-apps/*`（除允许的动态 import）。
-3. UI 文案仍为英文（`docs/biz/ui-conventions.md`）。
+3. UI 文案仍为英文（`docs/biz/ui-build-constraints.md`）。
 4. 5 条 hash 路由行为与迁之前一致（打开、返回、创建、覆盖层收回）。
 5. `npm test`（含 cargo lib + vitest）全绿。
 
