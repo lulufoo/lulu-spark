@@ -1,4 +1,3 @@
-// @ts-nocheck — ported from JS; highlight DOM wiring stays unchecked like checkJs:false.
 import { state } from '../../state/host.ts'
 import { renderKbComments } from '../comments.tsx'
 import { renderKbLinksBar } from '../links-bar.tsx'
@@ -14,8 +13,7 @@ import { renderDocMarkdown } from '../../../doc-editor/view.tsx'
 const KB_BODY_ID = 'kb-md-body'
 const KB_HIGHLIGHT_BTN_ID = 'kb-highlight-add-btn'
 
-/** @type {HTMLElement | null} */
-let _kbHighlightRoot = null
+let _kbHighlightRoot: HTMLElement | null = null
 
 export function kbIdentityKey() {
   const { kbRepo, kbPath } = state.viewer
@@ -45,16 +43,17 @@ export function cleanupKbHighlightUI() {
 }
 
 export function initKbHighlightUI(container?: Element | null) {
-  if (!container) {
+  let root = container
+  if (!root) {
     const legacyBody = document.getElementById(KB_BODY_ID)
-    container = legacyBody?.closest('.kb-reader') ?? legacyBody?.parentElement
-    if (!container) return
+    root = legacyBody?.closest('.kb-reader') ?? legacyBody?.parentElement
+    if (!root) return
   }
-  _kbHighlightRoot = container
+  _kbHighlightRoot = root as HTMLElement
   initDocHighlightOverlay({
     getBody: () => kbBodyEl(_kbHighlightRoot),
     getEditArea: () =>
-      container.querySelector('.kb-reader-edit-area') ||
+      (root.querySelector('.kb-reader-edit-area') as HTMLElement | null) ||
       document.getElementById('kb-md-edit-area'),
     getIdentityKey: () => kbIdentityKey(),
     excludeBarId: 'kb-md-comments-bar',
@@ -64,13 +63,14 @@ export function initKbHighlightUI(container?: Element | null) {
 }
 
 // ── postProcessLinks (KB) ──────────────────────────────────────────────────
-export function postProcessKbLinks(container) {
-  container.querySelectorAll('a[href]').forEach(a => {
-    const href = a.getAttribute('href');
+export function postProcessKbLinks(container: Element) {
+  container.querySelectorAll('a[href]').forEach((a) => {
+    const el = a as HTMLAnchorElement
+    const href = el.getAttribute('href');
     if (!href || href.startsWith('#')) return;
     if (href.startsWith('http://') || href.startsWith('https://')) {
-      a.target = '_blank';
-      a.rel = 'noopener noreferrer';
+      el.target = '_blank';
+      el.rel = 'noopener noreferrer';
     }
   });
 }
@@ -81,7 +81,7 @@ export async function renderKbMdBody(text: string, bodyEl?: HTMLElement | null) 
   renderDocMarkdown(body, text);
   postProcessKbLinks(body);
   await renderMermaidBlocks(body);
-  renderKbComments(state.viewer.annotation);
+  renderKbComments(state.viewer.annotation as { comments?: { id: string; text?: string; ts?: string }[] });
   void applyKbHighlights();
-  renderKbLinksBar(state.viewer.annotation);
+  renderKbLinksBar();
 }

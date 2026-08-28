@@ -1,4 +1,3 @@
-// @ts-nocheck — ported from JS; state shapes stay unchecked like checkJs:false.
 import { state } from '../../state/host.ts';
 import { getGithubUserUrl, workbenchGithubBlobBase } from '../../../host/constants.ts';
 import * as api from '../../../host/api.ts';
@@ -58,7 +57,7 @@ async function postProcessImages(container: Element, layer: string, commonPath: 
       const href = img.getAttribute('src');
       if (!href || href.startsWith('#') || isExternalOrSpecialImgSrc(href)) return;
       try {
-        const blobUrl = await api.fetchCorpusAssetAsBlobUrl(layer, commonPath, href);
+        const blobUrl = (await api.fetchCorpusAssetAsBlobUrl(layer, commonPath, href)) as string;
         _corpusBlobUrls.add(blobUrl);
         (img as HTMLImageElement).src = blobUrl;
       } catch {

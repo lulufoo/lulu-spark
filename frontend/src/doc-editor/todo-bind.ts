@@ -1,16 +1,20 @@
-// @ts-nocheck — DOM wiring stays unchecked like checkJs:false.
 import { todosDocKey } from './identity.ts';
 import { applyCachedHighlights, initDocHighlightOverlay } from './highlights.ts';
+import type { TodoHighlightEditor } from './types.ts';
 
-function previewEls(container) {
+function previewEls(container: Element) {
   if (!container) return [];
   return [
     container.querySelector('.todo-task-plan-md-preview'),
     container.querySelector('.todo-task-attachment-preview'),
-  ].filter(Boolean);
+  ].filter((el): el is Element => Boolean(el));
 }
 
-function identityForBody(bodyEl, taskId, attachmentEditor) {
+function identityForBody(
+  bodyEl: Element | null | undefined,
+  taskId: string,
+  attachmentEditor?: TodoHighlightEditor | null,
+) {
   if (!taskId || !bodyEl) return '';
   if (
     bodyEl.classList.contains('todo-task-attachment-preview') &&
@@ -21,7 +25,11 @@ function identityForBody(bodyEl, taskId, attachmentEditor) {
   return todosDocKey(taskId);
 }
 
-export function bindTodoDocHighlights(container, taskId, attachmentEditor) {
+export function bindTodoDocHighlights(
+  container: Element | null | undefined,
+  taskId: string | null | undefined,
+  attachmentEditor?: TodoHighlightEditor | null,
+) {
   if (!container || !taskId) return;
   initDocHighlightOverlay({
     getBody: () => {

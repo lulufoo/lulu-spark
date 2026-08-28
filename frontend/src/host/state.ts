@@ -1,11 +1,28 @@
-// @ts-nocheck — index / viewer shapes stay unchecked like checkJs:false.
 import { useSyncExternalStore } from 'react'
 import * as api from './api.ts'
+import type { HostIndexAnnotation, HostNoteEntry, HostState } from './snapshot-types.ts'
+
+export type {
+  HostCreateSession,
+  HostDiffStatus,
+  HostIndex,
+  HostIndexAnnotation,
+  HostNoteEntry,
+  HostNoteGroup,
+  HostNoteTag,
+  HostOutletMode,
+  HostState,
+  HostTagMeta,
+  HostTagsRegistry,
+  HostUi,
+  HostViewer,
+  HostViewerAnnotation,
+} from './snapshot-types.ts'
 
 let stateVersion = 0
-const stateListeners = new Set()
+const stateListeners = new Set<() => void>()
 
-export function subscribeState(listener) {
+export function subscribeState(listener: () => void) {
   stateListeners.add(listener)
   return () => {
     stateListeners.delete(listener)
@@ -27,7 +44,7 @@ export function useHostState() {
   return state
 }
 
-export const state = {
+export const state: HostState = {
   index: {
     data: null,
     groupedByDate: [],
@@ -38,7 +55,7 @@ export const state = {
     tagsRegistry: { keys: {} },
     titleFetchCache: new Map(),
     topicDescriptions: {},
-    topicRepos: {}
+    topicRepos: {},
   },
   ui: {
     activeDate: null,
@@ -56,13 +73,11 @@ export const state = {
     rawText: '',
     annotation: {},
     commentEditCtx: null,
-    scrollCache: {},  // key: "entryId:layer" → scrollTop
+    scrollCache: {},
     isKb: false,
     kbRepo: null,
     kbPath: null,
-    /** @type {{ tempId: string, status: 'creating' | 'saving' } | null} */
     createSession: null,
-    /** @type {'' | 'open' | 'create' | 'safe-empty'} */
     outletMode: '',
     outletMessage: '',
     fileSize: '',
@@ -73,10 +88,13 @@ export const state = {
     pendingCommit: false,
     bodyPaintKey: 0,
     panelTitle: '',
-  }
+  },
 }
 
-export function mergeAnnotations(indexData, summary) {
+export function mergeAnnotations(
+  indexData: Record<string, HostNoteEntry>,
+  summary: Record<string, HostIndexAnnotation>,
+) {
   for (const entry of Object.values(indexData)) {
     const ann = summary[entry.common_path]
     entry.done = ann?.done || undefined
@@ -93,16 +111,21 @@ export function mergeAnnotations(indexData, summary) {
   }
 }
 
-export function getEntryId(entry) {
-  return entry._id || null
+export function getEntryId(entry: HostNoteEntry | null | undefined) {
+  return entry?._id || null
 }
+
+type DiffStatusPayload = {
+  modified?: string[]
+  conflicted?: string[]
+} | null
 
 export async function loadDiffStatus() {
   try {
-    const data = await api.fetchDiffStatus()
+    const data = (await api.fetchDiffStatus()) as DiffStatusPayload
     if (!data) return
     state.index.diffStatus.clear()
-    for (const p of (data.modified || [])) state.index.diffStatus.set(p, 'modified')
-    for (const p of (data.conflicted || [])) state.index.diffStatus.set(p, 'conflict')
+    for (const p of data.modified || []) state.index.diffStatus.set(p, 'modified')
+    for (const p of data.conflicted || []) state.index.diffStatus.set(p, 'conflict')
   } catch { /* non-critical */ }
 }

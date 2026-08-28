@@ -1,5 +1,5 @@
-// @ts-nocheck — ported from JS; settings DOM wiring stays unchecked like checkJs:false.
 import * as api from '../../../host/api.ts';
+import type { SettingsConfig } from '../../state/types.ts';
 import { getKbHidePattern } from '../../../corpus/state/hide-pattern.ts';
 import { setGithubUserUrl } from '../../../host/constants.ts';
 import { state } from '../../../host/state.ts';
@@ -12,7 +12,7 @@ import { renderNotesConnection, syncNotesConnectionAccess } from './notes-github
 import { savedSnapshot, setResult, store } from '../../state/settings/store.ts';
 
 export function syncKbHidePatternInput() {
-  const kbHideInput = document.getElementById('settings-kb-hide-pattern');
+  const kbHideInput = document.getElementById('settings-kb-hide-pattern') as HTMLInputElement | null;
   if (kbHideInput) {
     kbHideInput.value = getKbHidePattern();
   }
@@ -20,15 +20,15 @@ export function syncKbHidePatternInput() {
 
 export async function loadSettingsSnapshot() {
   try {
-    const cfg = await api.fetchConfig();
+    const cfg = (await api.fetchConfig()) as SettingsConfig;
 
-    const archiveInput = document.getElementById('settings-archive-root');
-    const githubUserInput = document.getElementById('settings-github-user-url');
-    const corpusInput = document.getElementById('sediment-kb-corpus-path');
+    const archiveInput = document.getElementById('settings-archive-root') as HTMLInputElement | null;
+    const githubUserInput = document.getElementById('settings-github-user-url') as HTMLInputElement | null;
+    const corpusInput = document.getElementById('sediment-kb-corpus-path') as HTMLInputElement | null;
     const wbRoot = cfg?.workbench_knowledge_root ?? '';
     const corpusRoot = cfg?.knowledge_corpus_root ?? '';
     const ghUrl = cfg?.github_user_url ?? '';
-    if (wbRoot) {
+    if (wbRoot && archiveInput) {
       archiveInput.placeholder = wbRoot;
       archiveInput.value = wbRoot;
     }
@@ -51,7 +51,7 @@ export async function loadSettingsSnapshot() {
     renderNotesConnection(savedSnapshot.workbenchGithubRepoUrl);
     setResult('notes-connect-error', '');
 
-    const hintEl = document.getElementById('settings-token-hint');
+    const hintEl = document.getElementById('settings-token-hint') as HTMLElement;
     hintEl.textContent = cfg?.has_github_token
       ? 'Sync token configured. Enter a new token to replace it.'
       : 'No Sync token configured.';
@@ -65,10 +65,10 @@ export async function loadSettingsSnapshot() {
     syncKbHidePatternInput();
     syncNotesConnectionAccess();
   } catch {
-    document.getElementById('settings-token-hint').textContent =
-      'Could not load settings; you can type and save.';
-    document.getElementById('settings-llm-key-hint').textContent =
-      'Could not load settings; you can type and save.';
+    const tokenHint = document.getElementById('settings-token-hint');
+    if (tokenHint) tokenHint.textContent = 'Could not load settings; you can type and save.';
+    const llmHint = document.getElementById('settings-llm-key-hint');
+    if (llmHint) llmHint.textContent = 'Could not load settings; you can type and save.';
     loadAssistantEnginePanel({});
     clearGithubUserUrlInferredLock();
     syncKbHidePatternInput();

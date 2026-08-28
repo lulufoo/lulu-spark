@@ -1,9 +1,8 @@
-// @ts-nocheck — host/state snapshots stay unchecked; do not type this file alone.
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
 import { notifyState, useHostState } from '../state/host.ts';
 import { addNoteLink, fetchAndCacheLinkTitle, removeNoteLink, resolveLinkTitle } from '../commands/links-bar.ts';
 
-const barStyle = {
+const barStyle: CSSProperties = {
   padding: '8px 20px',
   borderBottom: '1px solid #d0d7de',
   alignItems: 'center',
@@ -23,7 +22,7 @@ export function NotesLinksBar() {
   const links = entry?.links || [];
   const linksKey = links.map((l) => l.url).join('\0');
   const [adding, setAdding] = useState(false);
-  const [confirmIndex, setConfirmIndex] = useState(null);
+  const [confirmIndex, setConfirmIndex] = useState<number | null>(null);
   const [url, setUrl] = useState('');
   const [preview, setPreview] = useState('');
   const [resolvedTitle, setResolvedTitle] = useState('');

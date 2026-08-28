@@ -1,16 +1,8 @@
-// @ts-nocheck — host/state snapshots stay unchecked; do not type this file alone.
 import { notifyState, state } from '../state/host.ts';
 import { IMPORTANCE_CYCLE } from '../../host/constants.ts';
 import { slugToTitle, filenameFromPath } from '../../shared/utils.ts';
 import * as api from '../../host/api.ts';
-
-type NoteEntry = {
-  common_path: string;
-  layers?: string[];
-  done?: boolean | undefined;
-  importance?: string;
-  translations?: { zh?: string };
-};
+import type { NoteEntry } from '../state/types.ts';
 
 function asRecord(entry: NoteEntry): Record<string, unknown> {
   return entry as unknown as Record<string, unknown>;
@@ -43,10 +35,8 @@ export async function toggleDone(entry: NoteEntry) {
 }
 
 export async function loadTitles(entries: { id: string; entry: NoteEntry }[], date: string) {
-  if (!state.index.titleCache.has(date)) {
-    state.index.titleCache.set(date, new Map());
-  }
-  const cache = state.index.titleCache.get(date);
+  const cache = state.index.titleCache.get(date) ?? new Map<string, string>();
+  state.index.titleCache.set(date, cache);
   const pending = entries.filter(({ id }) => !cache.has(id));
   if (pending.length === 0) {
     if (state.ui.activeDate === date) notifyState();

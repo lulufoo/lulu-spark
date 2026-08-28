@@ -1,4 +1,3 @@
-// @ts-nocheck — Tauri window / driver shapes stay unchecked like checkJs:false.
 /** Dev HTTP base for legacy `VITE_*_API=fetch` browser mode (optional). */
 export const DEFAULT_DEV_BASE = 'http://127.0.0.1:8765';
 
@@ -6,40 +5,43 @@ import { resolveInvokeFromPath } from './readApiInvokeMap.ts';
 import { resolveReindexInvoke } from './searchApiInvokeMap.ts';
 import { resolveSyncInvoke } from './syncApiInvokeMap.ts';
 import { resolveWriteInvoke } from './writeApiInvokeMap.ts';
+import type { ApiDriver, InvokeResponse, JsonReader, TauriInvoke } from './api-types.ts';
 
-let invokeFnPromise = null;
+type TauriChannelCtor = new (onmessage?: (payload: unknown) => void) => unknown;
 
-function getGlobalTauriInvoke() {
+let invokeFnPromise: Promise<TauriInvoke> | null = null;
+
+function getGlobalTauriInvoke(): TauriInvoke | null {
   if (typeof window === 'undefined') return null;
   const invokeFromTauri =
     window.__TAURI__?.core?.invoke || window.__TAURI_INTERNALS__?.invoke;
   return typeof invokeFromTauri === 'function' ? invokeFromTauri : null;
 }
 
-async function loadTauriInvoke() {
+async function loadTauriInvoke(): Promise<TauriInvoke> {
   const globalInvoke = getGlobalTauriInvoke();
   if (globalInvoke) {
     return globalInvoke;
   }
   if (!invokeFnPromise) {
-    invokeFnPromise = import('@tauri-apps/api/core').then((m) => m.invoke);
+    invokeFnPromise = import('@tauri-apps/api/core').then((m) => m.invoke as TauriInvoke);
   }
   return invokeFnPromise;
 }
 
-let channelCtorPromise = null;
+let channelCtorPromise: Promise<TauriChannelCtor> | null = null;
 
-async function loadTauriChannel() {
+async function loadTauriChannel(): Promise<TauriChannelCtor> {
   const fromWindow = typeof window !== 'undefined' && window.__TAURI__?.core?.Channel;
-  if (typeof fromWindow === 'function') return fromWindow;
+  if (typeof fromWindow === 'function') return fromWindow as TauriChannelCtor;
   if (!channelCtorPromise) {
-    channelCtorPromise = import('@tauri-apps/api/core').then((m) => m.Channel);
+    channelCtorPromise = import('@tauri-apps/api/core').then((m) => m.Channel as TauriChannelCtor);
   }
   return channelCtorPromise;
 }
 
 /** Request-scoped Tauri Channel. Home must not import @tauri-apps/* itself. */
-export async function createChannel(onmessage) {
+export async function createChannel(onmessage?: (payload?: any) => void) {
   const Channel = await loadTauriChannel();
   if (typeof Channel !== 'function') {
     throw new Error('Tauri Channel is not available');
@@ -56,7 +58,7 @@ function isTauriRuntime() {
  * @param {string} [baseUrl]
  * @returns {{ getJson(pathAndQuery: string): Promise<unknown> }}
  */
-export function buildReadUrl(pathAndQuery, baseUrl = DEFAULT_DEV_BASE) {
+export function buildReadUrl(pathAndQuery: string, baseUrl = DEFAULT_DEV_BASE) {
   const root = baseUrl.replace(/\/$/, '');
   const path = pathAndQuery.startsWith('/') ? pathAndQuery : `/${pathAndQuery}`;
   return `${root}${path}`;
@@ -66,15 +68,10 @@ export function buildReadUrl(pathAndQuery, baseUrl = DEFAULT_DEV_BASE) {
  * Wrap Tauri invoke JSON payload as fetch-like Response (P1 read / P2 write).
  * @param {unknown} payload
  */
-export function wrapInvokePayload(payload) {
-  if (
-    payload &&
-    typeof payload === 'object' &&
-    'error' in payload &&
-    payload.error
-  ) {
-    const status =
-      typeof payload._status === 'number' ? payload._status : 500;
+export function wrapInvokePayload(payload: unknown): InvokeResponse {
+  if (payload && typeof payload === 'object' && 'error' in payload && payload.error) {
+    const rec = payload as { error?: unknown; _status?: unknown };
+    const status = typeof rec._status === 'number' ? rec._status : 500;
     return {
       ok: false,
       status,
@@ -90,23 +87,23 @@ export function wrapInvokePayload(payload) {
   };
 }
 
-export function createFetchDriver(baseUrl = DEFAULT_DEV_BASE) {
+export function createFetchDriver(baseUrl = DEFAULT_DEV_BASE): ApiDriver {
   const root = baseUrl.replace(/\/$/, '');
   return {
-    buildUrl(pathAndQuery) {
+    buildUrl(pathAndQuery: string) {
       return buildReadUrl(pathAndQuery, root);
     },
-    async getJson(pathAndQuery) {
-      const res = await fetch(this.buildUrl(pathAndQuery), { method: 'GET' });
+    async getJson(pathAndQuery: string) {
+      const res = await fetch(this.buildUrl!(pathAndQuery), { method: 'GET' });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       return res.json();
     },
-    async fetchGet(pathAndQuery) {
-      return fetch(this.buildUrl(pathAndQuery), { method: 'GET' });
+    async fetchGet(pathAndQuery: string) {
+      return fetch(this.buildUrl!(pathAndQuery), { method: 'GET' });
     },
-    async postJson(path, body) {
+    async postJson(path: string, body?: unknown) {
       const pathname = path.startsWith('/') ? path : `/${path}`;
-      return fetch(this.buildUrl(pathname), {
+      return fetch(this.buildUrl!(pathname), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body ?? {}),
@@ -115,18 +112,18 @@ export function createFetchDriver(baseUrl = DEFAULT_DEV_BASE) {
   };
 }
 
-export function createTauriDriver() {
+export function createTauriDriver(): ApiDriver {
   return {
-    async getJson(pathAndQuery) {
+    async getJson(pathAndQuery: string) {
       const resolved = resolveInvokeFromPath(pathAndQuery);
       const pathname = new URL(pathAndQuery, 'http://local').pathname;
       if (!resolved) {
         throw new Error(`No Tauri invoke mapping for ${pathname}`);
       }
-      const invoke = await loadTauriInvoke();
-      return invoke(resolved.cmd, resolved.args);
+      const invokeFn = await loadTauriInvoke();
+      return invokeFn(resolved.cmd, resolved.args);
     },
-    async fetchGet(pathAndQuery) {
+    async fetchGet(pathAndQuery: string) {
       try {
         const payload = await this.getJson(pathAndQuery);
         return wrapInvokePayload(payload);
@@ -135,15 +132,16 @@ export function createTauriDriver() {
         return wrapInvokePayload({ error: message, _status: 500 });
       }
     },
-    async postJson(path, body) {
-      const resolved = resolveWriteInvoke(path, body) ?? resolveSyncInvoke(path, body);
+    async postJson(path: string, body?: unknown) {
+      const rec = body && typeof body === 'object' ? (body as Record<string, unknown>) : {};
+      const resolved = resolveWriteInvoke(path, rec) ?? resolveSyncInvoke(path, rec);
       const pathname = path.startsWith('/') ? path : `/${path}`;
       if (!resolved) {
         throw new Error(`No Tauri invoke mapping for POST ${pathname}`);
       }
-      const invoke = await loadTauriInvoke();
+      const invokeFn = await loadTauriInvoke();
       try {
-        const payload = await invoke(resolved.cmd, resolved.args);
+        const payload = await invokeFn(resolved.cmd, resolved.args);
         return wrapInvokePayload(payload);
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
@@ -161,28 +159,28 @@ export function createTauriDriver() {
  * @param {'reindexKnowledge'|'reindexWorkbench'|'reindexKbRepo'|'getReindexStatus'|'getReindexWorkbenchStatus'} key
  * @param {Record<string, unknown>} [payload]
  */
-export async function invoke(cmd, args?) {
+export async function invoke(cmd: string, args?: Record<string, unknown>) {
   const invokeFn = await loadTauriInvoke();
   return args === undefined ? invokeFn(cmd) : invokeFn(cmd, args);
 }
 
-export async function invokeSearch(key, payload) {
+export async function invokeSearch(key: string, payload?: Record<string, unknown>): Promise<any> {
   const resolved = resolveReindexInvoke(key, payload);
   if (!resolved) {
     throw new Error(`No reindex invoke mapping for ${key}`);
   }
-  const invoke = await loadTauriInvoke();
+  const invokeFn = await loadTauriInvoke();
   try {
-    return await invoke(resolved.cmd, resolved.args);
+    return await invokeFn(resolved.cmd, resolved.args);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     return { error: message };
   }
 }
 
-export function createApiClient(driver) {
+export function createApiClient(driver: JsonReader) {
   return {
-    getJson(pathAndQuery) {
+    getJson(pathAndQuery: string) {
       return driver.getJson(pathAndQuery);
     },
   };
@@ -193,7 +191,9 @@ export function createApiClient(driver) {
  * With mode: returns bound driver instance (fetch only in P1).
  * @param {string} [mode]
  */
-export function resolveReadDriver(mode?) {
+export function resolveReadDriver(): string;
+export function resolveReadDriver(mode: string): ApiDriver;
+export function resolveReadDriver(mode?: string): string | ApiDriver {
   const envMode =
     typeof import.meta !== 'undefined' && import.meta.env?.VITE_READ_API;
   const resolved = mode ?? envMode ?? (isTauriRuntime() ? 'tauri' : 'fetch');

@@ -1,8 +1,7 @@
-// @ts-nocheck — DOM wiring stays unchecked like checkJs:false.
 import { closeWorkbenchSearch } from '../../notes/ui/search.tsx';
 import { closeCorpusSearch } from '../../corpus/ui/search.tsx';
 
-export function applySearchNavChrome(routeName) {
+export function applySearchNavChrome(routeName: string) {
   closeWorkbenchSearch();
   closeCorpusSearch();
 
@@ -12,8 +11,8 @@ export function applySearchNavChrome(routeName) {
 
   const wbWrap = document.getElementById('gs-wb-wrap');
   const kbWrap = document.getElementById('gs-kb-wrap');
-  const wbInput = document.getElementById('gs-wb-input');
-  const kbInput = document.getElementById('gs-kb-input');
+  const wbInput = document.getElementById('gs-wb-input') as HTMLInputElement | null;
+  const kbInput = document.getElementById('gs-kb-input') as HTMLInputElement | null;
 
   if (onHome) {
     if (wbWrap) wbWrap.hidden = true;

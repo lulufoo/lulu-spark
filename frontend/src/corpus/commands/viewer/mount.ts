@@ -1,4 +1,3 @@
-// @ts-nocheck — ported from JS; container._kbUnmount and viewer state stay unchecked.
 import { flushSync } from 'react-dom';
 import { state } from '../../state/host.ts';
 import { resetEditAreaScroll } from '../../../shared/utils.ts';
@@ -8,29 +7,39 @@ import { setDocEditMode } from '../../../doc-editor/view.tsx';
 import { openKbCommitDialog } from './commit.ts';
 import { cleanupKbHighlightUI, initKbHighlightUI, renderKbMdBody } from '../../ui/viewer/highlight.ts';
 import { paintKbError, paintKbLoading, paintKbPlain, paintReaderShell } from '../../ui/viewer/shell.tsx';
+import {
+  errMessage,
+  type KbReaderHost,
+  type ReaderListener,
+} from '../../state/types.ts';
 
 let loadToken = 0;
 
-export function bindReaderListener(listeners, el, type, handler) {
+export function bindReaderListener(
+  listeners: ReaderListener[],
+  el: EventTarget,
+  type: string,
+  handler: EventListener,
+) {
   el.addEventListener(type, handler);
   listeners.push([el, type, handler]);
 }
 
-export function formatFileSize(text) {
+export function formatFileSize(text: string) {
   const bytes = new Blob([text]).size;
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-export function buildReaderTitle(repo, path) {
+export function buildReaderTitle(repo: string, path: string) {
   const pathParts = (path || '').split('/');
   const fileName = pathParts.pop();
   const repoName = (repo || '').split('/').pop();
   return pathParts.length > 0 ? `${repoName}/.../${fileName}` : `${repoName}/${fileName}`;
 }
 
-export function wireReindexBtn(btn, repo) {
+export function wireReindexBtn(btn: HTMLButtonElement, repo: string) {
   btn.textContent = '↺ Rebuild index';
   btn.title = 'Rebuild search index for this library';
   btn.disabled = false;
@@ -64,7 +73,7 @@ export function wireReindexBtn(btn, repo) {
     } catch (e) {
       btn.textContent = 'Rebuild failed';
       btn.disabled = false;
-      btn.title = e.message;
+      btn.title = errMessage(e, 'Rebuild failed');
     }
   };
 }
@@ -74,7 +83,10 @@ export function wireReindexBtn(btn, repo) {
  * @param {{ repo: string, path: string, url?: string }} opts
  * @returns {Promise<{ unmount: () => void }>}
  */
-export async function mountKbReader(container, { repo, path, url }) {
+export async function mountKbReader(
+  container: KbReaderHost,
+  { repo, path, url }: { repo: string; path: string; url?: string },
+) {
   if (container._kbUnmount) {
     container._kbUnmount();
   }
@@ -94,25 +106,23 @@ export async function mountKbReader(container, { repo, path, url }) {
   let root = paintReaderShell(container);
 
   const ui = {
-    title: container.querySelector('.kb-reader-title'),
-    fileSize: container.querySelector('.kb-file-size'),
-    githubLink: container.querySelector('.kb-github-link'),
-    itermBtn: container.querySelector('.kb-btn-open-iterm'),
-    btnCopyHttp: container.querySelector('.kb-btn-copy-http'),
-    btnCopyPath: container.querySelector('.kb-btn-copy-path'),
-    btnEdit: container.querySelector('.kb-btn-edit'),
-    btnSave: container.querySelector('.kb-btn-save'),
-    btnCancelEdit: container.querySelector('.kb-btn-cancel-edit'),
-    btnAddComment: container.querySelector('.kb-btn-add-comment'),
-    btnPending: container.querySelector('.kb-btn-pending'),
-    btnReindex: container.querySelector('.kb-btn-reindex'),
-    body: container.querySelector('.kb-reader-body'),
-    editArea: container.querySelector('.kb-reader-edit-area'),
+    title: container.querySelector('.kb-reader-title') as HTMLElement,
+    fileSize: container.querySelector('.kb-file-size') as HTMLElement,
+    githubLink: container.querySelector('.kb-github-link') as HTMLAnchorElement,
+    itermBtn: container.querySelector('.kb-btn-open-iterm') as HTMLButtonElement,
+    btnCopyHttp: container.querySelector('.kb-btn-copy-http') as HTMLButtonElement,
+    btnCopyPath: container.querySelector('.kb-btn-copy-path') as HTMLButtonElement,
+    btnEdit: container.querySelector('.kb-btn-edit') as HTMLButtonElement,
+    btnSave: container.querySelector('.kb-btn-save') as HTMLButtonElement,
+    btnCancelEdit: container.querySelector('.kb-btn-cancel-edit') as HTMLButtonElement,
+    btnAddComment: container.querySelector('.kb-btn-add-comment') as HTMLButtonElement,
+    btnPending: container.querySelector('.kb-btn-pending') as HTMLButtonElement,
+    btnReindex: container.querySelector('.kb-btn-reindex') as HTMLButtonElement,
+    body: container.querySelector('.kb-reader-body') as HTMLElement,
+    editArea: container.querySelector('.kb-reader-edit-area') as HTMLTextAreaElement,
   };
 
-  /** @type {Array<[HTMLElement, string, (...args: any[]) => void]>} */
-  const listeners = [];
-  let pendingMsg = '';
+  const listeners: ReaderListener[] = [];
 
   ui.title.textContent = buildReaderTitle(repo, path);
   ui.githubLink.href = url || '#';
@@ -127,13 +137,11 @@ export async function mountKbReader(container, { repo, path, url }) {
   ui.itermBtn.style.display = '';
   wireReindexBtn(ui.btnReindex, repo);
 
-  function showPendingBadge(msg) {
-    pendingMsg = msg;
+  function showPendingBadge(_msg: string) {
     ui.btnPending.style.display = '';
   }
 
   function hidePendingBadge() {
-    pendingMsg = '';
     ui.btnPending.style.display = 'none';
   }
 
@@ -175,9 +183,10 @@ export async function mountKbReader(container, { repo, path, url }) {
       ui.btnEdit.style.display = '';
       if (newContent !== originalContent) {
         showPendingBadge('update: edit via viewer');
-        wireReindexBtn(ui.btnReindex, state.viewer.kbRepo);
+        wireReindexBtn(ui.btnReindex, state.viewer.kbRepo ?? repo);
       }
-    } catch (e) {
+    } catch (err) {
+      const e = err as { message?: string };
       alert(`Save failed: ${e.message}`);
     } finally {
       ui.btnSave.disabled = false;
@@ -185,8 +194,9 @@ export async function mountKbReader(container, { repo, path, url }) {
     }
   }
 
-  function onDirty(e) {
-    showPendingBadge(e.detail?.msg || 'chore: update via viewer');
+  function onDirty(e: Event) {
+    const detail = (e as CustomEvent<{ msg?: string }>).detail;
+    showPendingBadge(detail?.msg || 'chore: update via viewer');
   }
 
   function unmount() {
@@ -221,9 +231,11 @@ export async function mountKbReader(container, { repo, path, url }) {
     void saveDoc();
   });
   bindReaderListener(listeners, ui.btnCancelEdit, 'click', exitEditMode);
-  bindReaderListener(listeners, ui.btnPending, 'click', openKbCommitDialog);
+  bindReaderListener(listeners, ui.btnPending, 'click', () => {
+    void openKbCommitDialog();
+  });
   bindReaderListener(listeners, ui.btnCopyHttp, 'click', (e) => {
-    const btn = e.currentTarget;
+    const btn = e.currentTarget as HTMLButtonElement;
     const copyUrl = btn.dataset.url || '';
     if (!copyUrl) return;
     navigator.clipboard
@@ -238,7 +250,7 @@ export async function mountKbReader(container, { repo, path, url }) {
       .catch(() => {});
   });
   bindReaderListener(listeners, ui.btnCopyPath, 'click', (e) => {
-    const btn = e.currentTarget;
+    const btn = e.currentTarget as HTMLButtonElement;
     const copyPath = btn.dataset.path || '';
     if (!copyPath) return;
     navigator.clipboard
@@ -252,16 +264,18 @@ export async function mountKbReader(container, { repo, path, url }) {
       })
       .catch(() => {});
   });
-  bindReaderListener(listeners, ui.itermBtn, 'click', async () => {
-    ui.itermBtn.disabled = true;
-    try {
-      const res = await api.openItermAt(repo);
-      if (res.error) alert(`Failed to open terminal: ${res.error}`);
-    } catch (e) {
-      alert(`Failed to open terminal: ${e.message}`);
-    } finally {
-      ui.itermBtn.disabled = false;
-    }
+  bindReaderListener(listeners, ui.itermBtn, 'click', () => {
+    void (async () => {
+      ui.itermBtn.disabled = true;
+      try {
+        const res = await api.openItermAt(repo);
+        if (res.error) alert(`Failed to open terminal: ${res.error}`);
+      } catch (e) {
+        alert(`Failed to open terminal: ${errMessage(e, 'Failed to open terminal')}`);
+      } finally {
+        ui.itermBtn.disabled = false;
+      }
+    })();
   });
 
   document.addEventListener('kb:dirty', onDirty);
@@ -281,12 +295,12 @@ export async function mountKbReader(container, { repo, path, url }) {
       state.viewer.annotation = ann;
 
       if (mdResult.status === 'rejected') {
-        throw new Error(mdResult.reason?.message || 'fetch failed');
+        throw new Error(errMessage(mdResult.reason, 'fetch failed'));
       }
-      const result = mdResult.value;
+      const result = mdResult.value as { error?: string; content?: string };
       if (result.error) throw new Error(result.error);
 
-      const text = result.content;
+      const text = typeof result.content === 'string' ? result.content : '';
       state.viewer.rawText = text;
       ui.fileSize.textContent = formatFileSize(text);
 
@@ -303,16 +317,16 @@ export async function mountKbReader(container, { repo, path, url }) {
 
       api
         .fetchKbStatus(repo)
-        .then((data) => {
+        .then((data: { error?: unknown; total?: number; ahead?: number }) => {
           if (token !== loadToken) return;
-          if (!data.error && (data.total > 0 || data.ahead > 0)) {
+          if (!data.error && ((data.total ?? 0) > 0 || (data.ahead ?? 0) > 0)) {
             showPendingBadge('chore: update via viewer');
           }
         })
         .catch(() => {});
     } catch (e) {
       if (token !== loadToken) return;
-      paintKbError(ui.body, e.message);
+      paintKbError(ui.body, errMessage(e, 'fetch failed'));
       ui.btnEdit.style.display = 'none';
     }
   })();

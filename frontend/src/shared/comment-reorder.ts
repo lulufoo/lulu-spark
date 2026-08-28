@@ -2,9 +2,7 @@
  * Shared helpers for corpus/KB comment list reorder (in-memory + id validation).
  */
 
-type CommentLike = { id?: string };
-type LayerData = { comments?: CommentLike[] };
-type Annotation = Record<string, unknown>;
+import type { Annotation, CommentLike, LayerData } from './types.ts';
 
 export function ensureLayerComments(annotation: Annotation, layer: string): CommentLike[] {
   if (!annotation[layer]) annotation[layer] = {};

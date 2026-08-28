@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { createRoot } from 'react-dom/client';
@@ -9,6 +8,7 @@ import {
   loadAssistantTodoTasks,
   selectTop3ByCreatedAt,
 } from '../commands/assistant.ts';
+import type { TodoMaster, TodoSub } from '../state/types.ts';
 
 export {
   buildDeepLink,
@@ -19,18 +19,18 @@ export {
 
 const UNAVAILABLE_MSG = 'List temporarily unavailable. Please try again later.';
 
-function masterStatusClass(status) {
+function masterStatusClass(status?: string) {
   return status === 'complete' || status === 'abandoned' ? status : 'incomplete';
 }
 
-function pickSubForDeepLink(master) {
+function pickSubForDeepLink(master: TodoMaster) {
   const subs = master.sub_tasks ?? [];
-  const incomplete = subs.find((sub) => sub.status !== 'complete');
+  const incomplete = subs.find((sub: TodoSub) => sub.status !== 'complete');
   const sub = incomplete ?? subs[0];
   return sub?.sub_task_id ?? '';
 }
 
-function bindFocusRefresh(refresh) {
+function bindFocusRefresh(refresh: () => Promise<void> | void) {
   const onFocus = () => {
     void refresh();
   };
@@ -65,7 +65,13 @@ function ErrorEmpty({ message = UNAVAILABLE_MSG }) {
   );
 }
 
-function TaskList({ masters, navigate }) {
+function TaskList({
+  masters,
+  navigate,
+}: {
+  masters: TodoMaster[];
+  navigate?: (hash: string) => void;
+}) {
   return (
     <ul className="todo-task-assistant-list">
       {masters.map((master) => {
@@ -100,7 +106,7 @@ function TaskList({ masters, navigate }) {
   );
 }
 
-function ManageLink({ onManage }) {
+function ManageLink({ onManage }: { onManage: () => void }) {
   return (
     <button type="button" className="todo-task-assistant-manage-link" onClick={onManage}>
       View all →
@@ -108,11 +114,19 @@ function ManageLink({ onManage }) {
   );
 }
 
-export function TodoTaskAssistant({ autoLoad = true, navigate, handleRef }) {
+export function TodoTaskAssistant({
+  autoLoad = true,
+  navigate,
+  handleRef,
+}: {
+  autoLoad?: boolean;
+  navigate?: (hash: string) => void;
+  handleRef?: { current: { refresh: () => Promise<void> } };
+}) {
   const [loading, setLoading] = useState(false);
-  const [masters, setMasters] = useState([]);
-  const [error, setError] = useState(null);
-  const refreshPromise = useRef(null);
+  const [masters, setMasters] = useState<TodoMaster[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const refreshPromise = useRef<Promise<void> | null>(null);
   const mastersRef = useRef(masters);
   mastersRef.current = masters;
   const showManage = typeof navigate === 'function';
@@ -186,7 +200,10 @@ export function TodoTaskAssistant({ autoLoad = true, navigate, handleRef }) {
  * @param {HTMLElement} root
  * @param {{ autoLoad?: boolean, navigate?: (hash: string) => void }} [opts]
  */
-export function mountTodoTaskAssistant(root, opts = {}) {
+export function mountTodoTaskAssistant(
+  root: HTMLElement,
+  opts: { autoLoad?: boolean; navigate?: (hash: string) => void } = {},
+) {
   const handleRef = { current: { refresh: () => Promise.resolve() } };
   const reactRoot = createRoot(root);
   flushSync(() => {
@@ -227,7 +244,10 @@ export function createTodoTaskContentAdapter() {
      * @param {HTMLElement} slotEl
      * @param {{ host?: { navigate?: (hash: string) => void } }} [ctx]
      */
-    mount(slotEl, ctx = {}) {
+    mount(
+      slotEl: HTMLElement,
+      ctx: { host?: { navigate?: (hash: string) => void } } = {},
+    ) {
       const host = ctx.host ?? {};
       slotEl.setAttribute('aria-label', TODO_TASK_CONTENT_LABEL);
       slotEl.setAttribute('title', TODO_TASK_CONTENT_TITLE);

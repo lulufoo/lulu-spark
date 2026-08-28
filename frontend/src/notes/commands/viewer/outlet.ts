@@ -1,8 +1,9 @@
-// @ts-nocheck — outlet mode lives on host/state; leftover callers still use these names.
 import { notifyState, state } from '../../state/host.ts';
 import { formatDate } from '../../../shared/utils.ts';
+import type { HostOutletMode } from '../../../host/snapshot-types.ts';
+import type { NoteEntry } from '../../state/types.ts';
 
-export function setNotePanelTitle(entryOrDate) {
+export function setNotePanelTitle(entryOrDate?: string | NoteEntry | null) {
   const titleEl = document.getElementById('md-panel-title');
   const dateStr = typeof entryOrDate === 'string'
     ? entryOrDate
@@ -31,7 +32,7 @@ export function setNotePanelTitle(entryOrDate) {
 }
 
 /** Reveal note outlet chrome. React also reads outletMode; keep id writes for leftover tests. */
-export function showNoteOutlet(mode) {
+export function showNoteOutlet(mode?: HostOutletMode) {
   state.viewer.outletMode = mode || 'open';
   if (mode !== 'safe-empty') state.viewer.outletMessage = '';
   const outlet = document.getElementById('note-outlet');

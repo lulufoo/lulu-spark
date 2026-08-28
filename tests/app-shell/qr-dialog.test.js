@@ -26,7 +26,7 @@ vi.mock('../../frontend/src/island.ts', () => ({
 
 const OVERFLOW_MSG = '⚠️ Text too long to generate QR code (capacity ~2 KB UTF-8)';
 
-const { makeEl, trigger, clearDom, qrMocks } = vi.hoisted(() => {
+const { makeEl, clearDom, qrMocks } = vi.hoisted(() => {
   const elements = {};
   const qrMocks = {
     toCanvas: vi.fn(),
@@ -71,11 +71,6 @@ const { makeEl, trigger, clearDom, qrMocks } = vi.hoisted(() => {
     return el;
   };
 
-  const trigger = async (id, event, eventData = {}) => {
-    const el = makeEl(id);
-    for (const fn of el._listeners[event] || []) await fn(eventData);
-  };
-
   globalThis.document = {
     getElementById: (id) => makeEl(id),
     createElement: (tag) => {
@@ -88,7 +83,7 @@ const { makeEl, trigger, clearDom, qrMocks } = vi.hoisted(() => {
 
   globalThis.QRCode = qrMocks;
 
-  return { makeEl, trigger, clearDom, qrMocks };
+  return { makeEl, clearDom, qrMocks };
 });
 
 function seedDom() {
@@ -151,7 +146,7 @@ describe('qr-dialog', () => {
     it('renders QR via toCanvas for valid input', async () => {
       const { renderQr } = await import('../../frontend/src/app-shell/ui/qr-dialog.tsx');
 
-      renderQr('https://example.com');
+      renderQr('https://example.com', makeEl('qr-preview'));
 
       expect(qrMocks.toCanvas).toHaveBeenCalledTimes(1);
       expect(qrMocks.toCanvas).toHaveBeenCalledWith(
@@ -167,8 +162,8 @@ describe('qr-dialog', () => {
     it('does not call QRCode for empty or whitespace-only input', async () => {
       const { renderQr } = await import('../../frontend/src/app-shell/ui/qr-dialog.tsx');
 
-      renderQr('');
-      renderQr('   \n\t  ');
+      renderQr('', makeEl('qr-preview'));
+      renderQr('   \n\t  ', makeEl('qr-preview'));
 
       expect(qrMocks.toCanvas).not.toHaveBeenCalled();
       expect(qrMocks.toDataURL).not.toHaveBeenCalled();
@@ -186,7 +181,7 @@ describe('qr-dialog', () => {
         cb(new Error('The amount of data is too big to be stored in a QR Code'));
       });
 
-      renderQr('x'.repeat(3000));
+      renderQr('x'.repeat(3000), makeEl('qr-preview'));
 
       expect(makeEl('qr-preview').innerHTML).toContain('qr-error');
       expect(makeEl('qr-preview').innerHTML).toContain(OVERFLOW_MSG);
@@ -200,7 +195,7 @@ describe('qr-dialog', () => {
         cb(new Error('canvas unsupported'));
       });
 
-      renderQr('https://example.com');
+      renderQr('https://example.com', makeEl('qr-preview'));
 
       expect(qrMocks.toDataURL).toHaveBeenCalledTimes(1);
       expect(qrMocks.toDataURL).toHaveBeenCalledWith(
@@ -222,13 +217,5 @@ describe('qr-dialog', () => {
       expect(makeEl('convert-dialog').classList.contains('open')).toBe(false);
     });
 
-    it('calls renderQr on qr-input input events', async () => {
-      makeEl('qr-input').value = 'https://example.com';
-
-      await trigger('qr-input', 'input');
-
-      expect(qrMocks.toCanvas).toHaveBeenCalledTimes(1);
-      expect(qrMocks.toCanvas.mock.calls[0][1]).toBe('https://example.com');
-    });
   });
 });

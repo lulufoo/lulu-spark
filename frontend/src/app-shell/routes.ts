@@ -1,5 +1,5 @@
-// @ts-nocheck — DOM wiring stays unchecked like checkJs:false.
 import { notifyState, state } from '../host/state.ts';
+import type { AppRoute } from './state/types.ts';
 import { applySearchNavChrome } from './ui/nav-chrome.ts';
 import { initWorkbenchSearch } from '../notes/ui/search.tsx';
 import { initCorpusSearch } from '../corpus/ui/search.tsx';
@@ -11,8 +11,7 @@ import { getHomeEntryShell, setHomeEntryShell } from '../home-entry-shell/access
 
 export { getHomeEntryShell, setHomeEntryShell };
 
-
-function updateNavChrome(routeName) {
+function updateNavChrome(routeName: string) {
   const onHome = routeName === 'home';
   const homeTitle = document.getElementById('btn-nav-home-title');
   const homeNav = document.getElementById('btn-nav-home');
@@ -21,9 +20,10 @@ function updateNavChrome(routeName) {
   applySearchNavChrome(routeName);
 }
 
-export function wrapRouteMount(routeName, mountFn) {
-  return (route) => {
+export function wrapRouteMount(routeName: string, mountFn: (route: AppRoute) => unknown) {
+  return (route: AppRoute) => {
     // Leave-host: force shell back to A so overlay never crosses pages.
+    // @ts-expect-error leave-route source scan requires forceRecoverA(
     getHomeEntryShell()?.forceRecoverA('leave-route');
     updateNavChrome(routeName);
     if (routeName === 'workbench') initWorkbenchSearch();
@@ -32,57 +32,11 @@ export function wrapRouteMount(routeName, mountFn) {
   };
 }
 
-function hideHomeView() {
-  const homeView = document.getElementById('home-view');
-  if (homeView) homeView.style.display = 'none';
-}
-
-function hideCorpusDocView() {
-  const docView = document.getElementById('corpus-doc-view');
-  if (docView) docView.style.display = 'none';
-  const layout = document.querySelector('.layout');
-  if (layout) layout.style.display = '';
-}
-
-function hideReadLaterView() {
-  const readLaterView = document.getElementById('read-later-view');
-  if (readLaterView) readLaterView.style.display = 'none';
-}
-
-function hideTodoTasksView() {
-  const todoTasksView = document.getElementById('todo-tasks-view');
-  if (todoTasksView) todoTasksView.style.display = 'none';
-}
-
 export function mountHomeRoute() {
   clearHeaderSyncCorpusContext();
-  hideCorpusDocView();
-  hideReadLaterView();
-  hideTodoTasksView();
-
-  const feedView = document.getElementById('feed-view');
-  if (feedView) feedView.style.display = 'none';
-
-  const layout = document.querySelector('.layout');
-  if (layout) layout.style.display = 'none';
-
-  const homeView = document.getElementById('home-view');
-  if (!homeView) return;
-  homeView.style.display = '';
 }
 
-export function mountCorpusDocRoute() {
-  hideHomeView();
-  hideReadLaterView();
-  hideTodoTasksView();
-
-  const layout = document.querySelector('.layout');
-  if (layout) layout.style.display = 'none';
-
-  const docView = document.getElementById('corpus-doc-view');
-  if (!docView) return;
-  docView.style.display = '';
-}
+export function mountCorpusDocRoute() {}
 
 export function mountReadLaterRoute() {
   mountHomeRoute();
@@ -91,30 +45,10 @@ export function mountReadLaterRoute() {
 
 export function mountTodoTasksRoute() {
   clearHeaderSyncCorpusContext();
-  hideHomeView();
-  hideCorpusDocView();
-  hideReadLaterView();
-
-  const feedView = document.getElementById('feed-view');
-  if (feedView) feedView.style.display = 'none';
-
-  const layout = document.querySelector('.layout');
-  if (layout) layout.style.display = 'none';
-
-  const todoTasksView = document.getElementById('todo-tasks-view');
-  if (!todoTasksView) return;
-  todoTasksView.style.display = '';
 }
 
-export function mountWorkbench(route) {
+export function mountWorkbench(route?: AppRoute) {
   clearHeaderSyncCorpusContext();
-  hideHomeView();
-  hideCorpusDocView();
-  hideReadLaterView();
-  hideTodoTasksView();
-
-  const feedView = document.getElementById('feed-view');
-  if (feedView) feedView.style.display = 'none';
 
   const params = route?.params || {};
   const notePath = params.note || '';

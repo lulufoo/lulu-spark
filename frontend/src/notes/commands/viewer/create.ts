@@ -1,4 +1,3 @@
-// @ts-nocheck — DOM wiring stays unchecked like checkJs:false.
 import { notifyState, state } from '../../state/host.ts';
 import { resetEditAreaScroll } from '../../../shared/utils.ts';
 import * as api from '../../../host/api.ts';
@@ -27,8 +26,7 @@ const CREATE_CHROME_HIDDEN_IDS = [
   'md-commit-bar',
 ];
 
-/** @type {Record<string, string>|null} */
-let createChromePrevDisplay = null;
+let createChromePrevDisplay: Record<string, string> | null = null;
 
 export function applyCreateChrome() {
   const outlet = document.getElementById('note-outlet');
@@ -66,8 +64,9 @@ export function clearCreateChrome() {
 }
 
 export function locationDate() {
-  const route = parseHash();
-  return route.params?.date || state.ui.activeDate || '';
+  const route = parseHash(typeof window !== 'undefined' ? window.location.hash : '');
+  const params = route.params as { date?: string };
+  return params.date || state.ui.activeDate || '';
 }
 
 export function dismissViewerModal() {
@@ -84,7 +83,7 @@ export function dismissViewerModal() {
  * Binds crash buffer at drafts/notes/<temp_id>. Does not pretend an index entry exists.
  * @param {{ temp_id: string }} opts
  */
-export async function openCreateNote({ temp_id } = {}) {
+export async function openCreateNote({ temp_id }: { temp_id?: string } = {}) {
   if (!temp_id) return;
   const prevMode = state.viewer.outletMode || '';
   try {
@@ -111,9 +110,10 @@ export async function openCreateNote({ temp_id } = {}) {
     applyCreateChrome();
 
     const editArea = document.getElementById('md-edit-area');
-    if (editArea) {
-      editArea.value = content;
-      resetEditAreaScroll(editArea, { focus: true });
+    if (editArea && 'value' in editArea) {
+      const area = editArea as HTMLTextAreaElement;
+      area.value = content;
+      resetEditAreaScroll(area, { focus: true });
     }
 
     showNoteOutlet('create');
@@ -132,7 +132,7 @@ export async function finalizeCreateSession() {
   if (!session || session.status === 'saving') return;
 
   const editArea = document.getElementById('md-edit-area');
-  const trimmed = (editArea?.value ?? '').trim();
+  const trimmed = (editArea && 'value' in editArea ? String((editArea as HTMLTextAreaElement).value) : '').trim();
 
   if (!trimmed) {
     await api.clearNoteDraft(session.tempId);
@@ -144,7 +144,9 @@ export async function finalizeCreateSession() {
   session.status = 'saving';
   try {
     await api.saveNoteDraft(session.tempId, trimmed);
-    const archived = await api.archiveDocument({ body: trimmed, source_type: 'note' });
+    const archived = (await api.archiveDocument({ body: trimmed, source_type: 'note' })) as {
+      common_path?: string;
+    };
     const commonPath = archived?.common_path;
     await api.clearNoteDraft(session.tempId);
     state.viewer.createSession = null;
@@ -154,9 +156,10 @@ export async function finalizeCreateSession() {
       navigateToNote({ date, note: commonPath });
     }
     showNoteOutlet('open');
-  } catch (e) {
+  } catch (err) {
     session.status = 'creating';
     showNoteOutlet('create');
+    const e = err as { message?: string };
     alert(`Save failed: ${e.message}`);
   }
 }

@@ -1,5 +1,4 @@
-// @ts-nocheck
-import { createElement, useLayoutEffect, useRef, useState } from 'react';
+import { createElement, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { flushSync } from 'react-dom';
 import { closeTodoTaskDialog } from './commands/dialog.ts';
@@ -34,8 +33,21 @@ import {
   PageShell,
   REFRESH_WARNING_MSG,
 } from './ui/page-render.tsx';
+import type { TodoCategory, TodoMaster } from './state/types.ts';
 
 const AI_ASSISTANT_TURN_COMPLETED = 'ai-assistant:turn-completed';
+
+type TodoSessionOpts = {
+  masterId?: string;
+  subId?: string;
+  navigate?: (hash: string) => void;
+};
+
+type TodoSession = {
+  dispose: () => void;
+  refresh: () => Promise<void>;
+  applyRoute: (route?: { masterId?: string; subId?: string }) => void;
+};
 
 function loadingNode() {
   return createElement('div', { className: 'todo-task-split-loading' }, 'Loading…');
@@ -49,33 +61,36 @@ function loadingNode() {
  * @param {{ masterId?: string, subId?: string, navigate?: (hash: string) => void }} [opts]
  * @param {(node: unknown) => void} renderPage
  */
-function startTodoTasksSession(container, opts, renderPage) {
+function startTodoTasksSession(
+  container: HTMLElement,
+  opts: TodoSessionOpts = {},
+  renderPage: (node: ReactNode) => void,
+): TodoSession {
   const { masterId: initialMasterId = '', subId: initialSubId = '', navigate } = opts;
   let disposed = false;
-  let masters = [];
+  let masters: TodoMaster[] = [];
   let selectedMasterId = initialMasterId;
   let selectedSubId = initialSubId;
   let deadLink = false;
   let validateInitialSubLink = Boolean(initialSubId);
-  let refreshPromise = null;
+  let refreshPromise: Promise<void> | null = null;
   let busy = false;
   let refreshWarning = '';
   let paintedMasterId = '';
-  /** @type {Array<{ id: string, name: string, is_default?: boolean }>} */
-  let categories = [];
+  let categories: TodoCategory[] = [];
   let paintTick = 0;
 
   const ctx = {
     isDisposed: () => disposed,
     isBusy: () => controlsDisabled(busy),
-    setBusy: (value) => {
+    setBusy: (value: boolean) => {
       busy = value;
     },
     paint: () => paint(),
     getSelectedMasterId: () => selectedMasterId,
     getContainer: () => container,
     findSelectedMaster: () => findMaster(selectedMasterId),
-    reloadList: (options) => reloadList(options),
+    reloadList: (options?: { afterWrite?: boolean }) => reloadList(options),
     getCategories: () => categories,
   };
 
@@ -92,7 +107,7 @@ function startTodoTasksSession(container, opts, renderPage) {
   });
   let lifecycleEntered = false;
 
-  function commitPage(node) {
+  function commitPage(node: ReactNode) {
     flushSync(() => {
       renderPage(node);
     });
@@ -100,7 +115,7 @@ function startTodoTasksSession(container, opts, renderPage) {
 
   commitPage(loadingNode());
 
-  function syncTodosBindingForSelection(masterId) {
+  function syncTodosBindingForSelection(masterId: string) {
     if (disposed) return;
     const id = typeof masterId === 'string' ? masterId.trim() : '';
     if (!lifecycleEntered) {
@@ -112,11 +127,19 @@ function startTodoTasksSession(container, opts, renderPage) {
     void todosLifecycle.onMasterSelectionChange(id);
   }
 
-  function findMaster(id) {
+  function findMaster(id: string) {
     return masters.find((master) => master.master_task_id === id) ?? null;
   }
 
-  function setSelection({ masterId, subId, deadLink: nextDead }) {
+  function setSelection({
+    masterId,
+    subId,
+    deadLink: nextDead,
+  }: {
+    masterId?: string;
+    subId?: string;
+    deadLink?: boolean;
+  }) {
     if (masterId !== undefined) selectedMasterId = masterId;
     if (subId !== undefined) selectedSubId = subId;
     if (nextDead !== undefined) deadLink = nextDead;
@@ -138,7 +161,7 @@ function startTodoTasksSession(container, opts, renderPage) {
 
   function closeSubMenus() {
     container.querySelectorAll('.todo-task-sub-menu-panel').forEach((panel) => {
-      panel.hidden = true;
+      (panel as HTMLElement).hidden = true;
     });
   }
 
@@ -177,14 +200,14 @@ function startTodoTasksSession(container, opts, renderPage) {
         const subs = master.sub_tasks ?? [];
         if (validateInitialSubLink && initialSubId && selectedSubId === initialSubId) {
           validateInitialSubLink = false;
-          const sub = subs.find((item) => item.sub_task_id === selectedSubId);
+          const sub = subs.find((item: { sub_task_id: string }) => item.sub_task_id === selectedSubId);
           if (!sub) {
             deadLink = true;
             selectedSubId = '';
           }
         } else if (
           !selectedSubId ||
-          !subs.some((item) => item.sub_task_id === selectedSubId)
+          !subs.some((item: { sub_task_id: string }) => item.sub_task_id === selectedSubId)
         ) {
           const fallback = pickDefaultSub(master);
           selectedSubId = fallback?.sub_task_id ?? '';
@@ -222,8 +245,8 @@ function startTodoTasksSession(container, opts, renderPage) {
     if (!masters.length && container.querySelector('.todo-task-split-error')) {
       return;
     }
-    const masterPane = container.querySelector('.todo-task-split-master');
-    const detailPane = container.querySelector('.todo-task-split-detail');
+    const masterPane = container.querySelector('.todo-task-split-master') as HTMLElement | null;
+    const detailPane = container.querySelector('.todo-task-split-detail') as HTMLElement | null;
     const masterScroll = masterPane?.scrollTop ?? 0;
     const detailScroll = detailPane?.scrollTop ?? 0;
     const keepDetailScroll =
@@ -251,8 +274,8 @@ function startTodoTasksSession(container, opts, renderPage) {
       }),
     );
     paintedMasterId = selectedMasterId;
-    const nextMaster = container.querySelector('.todo-task-split-master');
-    const nextDetail = container.querySelector('.todo-task-split-detail');
+    const nextMaster = container.querySelector('.todo-task-split-master') as HTMLElement | null;
+    const nextDetail = container.querySelector('.todo-task-split-detail') as HTMLElement | null;
     if (nextMaster) nextMaster.scrollTop = masterScroll;
     if (nextDetail && keepDetailScroll) nextDetail.scrollTop = detailScroll;
     syncCategoryFilterWidth(container);
@@ -268,7 +291,7 @@ function startTodoTasksSession(container, opts, renderPage) {
     detail.resetForSelectionChange();
   }
 
-  function applyRoute(route = {}) {
+  function applyRoute(route: { masterId?: string; subId?: string } = {}) {
     if (disposed) return;
     const masterId = route.masterId ?? '';
     const subId = route.subId ?? '';
@@ -357,7 +380,7 @@ function startTodoTasksSession(container, opts, renderPage) {
     return refreshPromise;
   }
 
-  async function runWriteAction(actionFn) {
+  async function runWriteAction(actionFn: () => Promise<void>) {
     busy = true;
     paint();
     try {
@@ -370,16 +393,16 @@ function startTodoTasksSession(container, opts, renderPage) {
     }
   }
 
-  function onAiAssistantTurnCompleted(event) {
+  function onAiAssistantTurnCompleted(event: { payload?: unknown }) {
     if (disposed) return;
-    const payload = event?.payload;
+    const payload = event?.payload as { wrote?: boolean } | undefined;
     if (!payload || payload.wrote !== true) return;
     void reloadList({ afterWrite: true });
   }
 
   const dialogs = createPageDialogs({
     getBusy: () => busy,
-    setBusy: (value) => {
+    setBusy: (value: boolean) => {
       busy = value;
     },
     paint,
@@ -415,7 +438,7 @@ function startTodoTasksSession(container, opts, renderPage) {
     },
     isDisposed: () => disposed,
     refresh,
-    setRefreshWarning: (value) => {
+    setRefreshWarning: (value: string) => {
       refreshWarning = value;
     },
     planMd,
@@ -432,7 +455,7 @@ function startTodoTasksSession(container, opts, renderPage) {
   document.addEventListener('todo-task-dialog-close', onDialogClose);
   const disposeFocusRefresh = bindFocusRefresh(refresh);
 
-  let unlistenTurnCompleted = null;
+  let unlistenTurnCompleted: (() => void) | null = null;
   const listen = getTauriListen();
   if (listen) {
     void listen(AI_ASSISTANT_TURN_COMPLETED, onAiAssistantTurnCompleted).then(
@@ -480,9 +503,9 @@ export function TodoTasksPage({
   subId = '',
   navigate,
 }: TodoTasksPageProps = {}) {
-  const hostRef = useRef(null);
-  const sessionRef = useRef(null);
-  const [view, setView] = useState(loadingNode);
+  const hostRef = useRef<HTMLDivElement | null>(null);
+  const sessionRef = useRef<TodoSession | null>(null);
+  const [view, setView] = useState<ReactNode>(loadingNode);
 
   useLayoutEffect(() => {
     const host = hostRef.current;
@@ -509,9 +532,9 @@ export function TodoTasksPage({
  * @param {HTMLElement} container
  * @param {{ masterId?: string, subId?: string, navigate?: (hash: string) => void }} [opts]
  */
-export function mountTodoTaskSplit(container, opts = {}) {
+export function mountTodoTaskSplit(container: HTMLElement, opts: TodoSessionOpts = {}) {
   const reactRoot = createRoot(container);
-  const session = startTodoTasksSession(container, opts, (node) => {
+  const session = startTodoTasksSession(container, opts, (node: ReactNode) => {
     reactRoot.render(node);
   });
 

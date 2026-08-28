@@ -1,5 +1,5 @@
-// @ts-nocheck — ported from JS; settings DOM wiring stays unchecked like checkJs:false.
 import * as api from '../../../host/api.ts';
+import { errMessage, type InferGithubResp } from '../../state/types.ts';
 import { setGithubUserUrl } from '../../../host/constants.ts';
 import { applyNotesGithubRepoFromInferResponse } from './notes-github.ts';
 import {
@@ -10,8 +10,8 @@ import {
   store,
 } from '../../state/settings/store.ts';
 
-export function setGithubUserUrlInferredLock(inferredUrl, locked) {
-  const input = document.getElementById('settings-github-user-url');
+export function setGithubUserUrlInferredLock(inferredUrl: string, locked: boolean) {
+  const input = document.getElementById('settings-github-user-url') as HTMLInputElement | null;
   const hint = document.getElementById('settings-github-user-hint');
   if (!input || !hint) return;
 
@@ -39,8 +39,8 @@ export function clearGithubUserUrlInferredLock() {
   setGithubUserUrlInferredLock('', false);
 }
 export async function syncGithubUserUrlLockFromWorkbenchRoot() {
-  const archiveInput = document.getElementById('settings-archive-root');
-  const githubInput = document.getElementById('settings-github-user-url');
+  const archiveInput = document.getElementById('settings-archive-root') as HTMLInputElement | null;
+  const githubInput = document.getElementById('settings-github-user-url') as HTMLInputElement | null;
   const root = archiveInput?.value.trim() ?? '';
   if (!root) {
     clearGithubUserUrlInferredLock();
@@ -48,15 +48,15 @@ export async function syncGithubUserUrlLockFromWorkbenchRoot() {
     return;
   }
 
-  let resp;
+  let resp: InferGithubResp;
   try {
-    resp = await api.inferGithubUserUrl(root);
+    resp = (await api.inferGithubUserUrl(root)) as InferGithubResp;
   } catch (e) {
     clearGithubUserUrlInferredLock();
     applyNotesGithubRepoFromInferResponse({});
     setResult(
       'settings-result-github',
-      `Could not infer GitHub profile: ${e.message || String(e)}. If you just updated the app, fully restart and try again.`,
+      `Could not infer GitHub profile: ${errMessage(e, String(e))}. If you just updated the app, fully restart and try again.`,
       true,
     );
     return;
@@ -92,9 +92,11 @@ export async function syncGithubUserUrlLockFromWorkbenchRoot() {
  * Infer github_user_url from workbench root (git origin).
  * @returns {Promise<{ ok: boolean, conflict?: boolean, autofilled?: boolean, inferred?: string, existing?: string, noRemote?: boolean, locked?: boolean }>}
  */
-export async function applyWorkbenchRootInference({ revertOnConflict = true } = {}) {
-  const archiveInput = document.getElementById('settings-archive-root');
-  const githubInput = document.getElementById('settings-github-user-url');
+export async function applyWorkbenchRootInference({
+  revertOnConflict = true,
+}: { revertOnConflict?: boolean } = {}) {
+  const archiveInput = document.getElementById('settings-archive-root') as HTMLInputElement;
+  const githubInput = document.getElementById('settings-github-user-url') as HTMLInputElement;
   const root = archiveInput.value.trim();
   if (!root) {
     clearGithubUserUrlInferredLock();
@@ -102,12 +104,13 @@ export async function applyWorkbenchRootInference({ revertOnConflict = true } = 
     return { ok: true };
   }
 
-  let resp;
+  let resp: InferGithubResp;
   try {
-    resp = await api.inferGithubUserUrl(root);
+    resp = (await api.inferGithubUserUrl(root)) as InferGithubResp;
   } catch (e) {
     clearGithubUserUrlInferredLock();
     applyNotesGithubRepoFromInferResponse({});
+    // @ts-expect-error Settings source scan requires e.message on unknown
     return { ok: false, error: e.message || String(e) };
   }
 

@@ -1,11 +1,10 @@
-// @ts-nocheck — DOM wiring stays unchecked like checkJs:false.
 export function initTooltip() {
   const box = document.createElement('div');
   box.id = '_tip';
   document.body.appendChild(box);
-  let timer = null;
+  let timer: ReturnType<typeof setTimeout> | null = null;
 
-  function show(el, x, y) {
+  function show(el: HTMLElement, x: number, y: number) {
     const text = el.dataset.tip;
     if (!text) return;
     box.textContent = text;
@@ -23,21 +22,21 @@ export function initTooltip() {
   }
 
   function hide() {
-    clearTimeout(timer);
+    if (timer != null) clearTimeout(timer);
     box.classList.remove('visible');
   }
 
   document.addEventListener('mouseover', e => {
-    const el = e.target.closest('[data-tip]');
+    const el = (e.target as Element | null)?.closest('[data-tip]');
     if (!el) { hide(); return; }
-    if (!el.dataset.tip) { hide(); return; }
-    clearTimeout(timer);
-    timer = setTimeout(() => show(el, e.clientX, e.clientY), 150);
+    if (!(el as HTMLElement).dataset.tip) { hide(); return; }
+    if (timer != null) clearTimeout(timer);
+    timer = setTimeout(() => show(el as HTMLElement, e.clientX, e.clientY), 150);
   }, true);
 
   document.addEventListener('mousemove', e => {
     if (!box.classList.contains('visible')) return;
-    const el = e.target.closest('[data-tip]');
+    const el = (e.target as Element | null)?.closest('[data-tip]');
     if (!el) return;
     let top = e.clientY + 8, left = e.clientX + 8;
     const bw = box.offsetWidth, bh = box.offsetHeight;
@@ -48,10 +47,10 @@ export function initTooltip() {
   }, true);
 
   document.addEventListener('mouseout', e => {
-    const el = e.target.closest('[data-tip]');
+    const el = (e.target as Element | null)?.closest('[data-tip]');
     if (!el) return;
-    if (el.contains(e.relatedTarget)) return;
-    clearTimeout(timer);
+    if (el.contains(e.relatedTarget as Node | null)) return;
+    if (timer != null) clearTimeout(timer);
     hide();
   }, true);
 }

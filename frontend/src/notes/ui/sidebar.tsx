@@ -1,4 +1,3 @@
-// @ts-nocheck — host/state snapshots stay unchecked; do not type this file alone.
 import { useLayoutEffect, useRef } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { flushSync } from 'react-dom';
@@ -25,16 +24,8 @@ export {
   selectTopic,
 };
 
-type NoteEntry = {
-  common_path?: string | null;
-  created_at?: string;
-  tag_keys?: string[];
-};
-
-type Group = { date: string; entries: { id: string; entry: NoteEntry }[] };
-
 function _renderTopicFilter(parent: HTMLElement) {
-  const allEntries = Object.values((state.index.data || {}) as Record<string, NoteEntry>);
+  const allEntries = Object.values(state.index.data || {});
   if (allEntries.length === 0) return;
   const topicCounts: Record<string, number> = {};
   for (const entry of allEntries) {
@@ -83,7 +74,7 @@ function _renderTopicFilter(parent: HTMLElement) {
 }
 
 function _entriesInTagCountScope() {
-  const allEntries = Object.values((state.index.data || {}) as Record<string, NoteEntry>);
+  const allEntries = Object.values(state.index.data || {});
   const topic = state.ui.activeTopic;
   if (!topic) return allEntries;
   return allEntries.filter((entry) => (entry.common_path?.split('/')[0] || 'unknown') === topic);
@@ -172,7 +163,7 @@ export function NotesSidebar() {
   const topic = host.ui.activeTopic;
   const tag = host.ui.activeTagKey;
   const registry = host.index.tagsRegistry;
-  const groups = (host.index.filteredGroups || []) as Group[];
+  const groups = host.index.filteredGroups || [];
   const activeDate = host.ui.activeDate;
 
   useLayoutEffect(() => {

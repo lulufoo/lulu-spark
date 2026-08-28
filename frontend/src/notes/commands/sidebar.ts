@@ -1,15 +1,7 @@
-// @ts-nocheck — host/state snapshots stay unchecked; do not type this file alone.
 import { notifyState, state } from '../state/host.ts';
 import { loadTitles } from './cards.ts';
 import { parseHash, navigateToDateList } from '../../router/index.ts';
-
-type NoteEntry = {
-  common_path?: string | null;
-  created_at?: string;
-  tag_keys?: string[];
-};
-
-type Group = { date: string; entries: { id: string; entry: NoteEntry }[] };
+import type { NoteEntry } from '../state/types.ts';
 
 export function buildGroups(indexData: Record<string, NoteEntry>) {
   const map = new Map<string, { id: string; entry: NoteEntry }[]>();
@@ -28,7 +20,7 @@ export function buildGroups(indexData: Record<string, NoteEntry>) {
 }
 
 export function applyListFilters() {
-  let groups = state.index.groupedByDate as Group[];
+  let groups = state.index.groupedByDate;
   const topic = state.ui.activeTopic;
   if (topic) {
     groups = groups
@@ -79,9 +71,10 @@ function _refreshFilteredList() {
 }
 
 export function selectDate(date: string) {
-  const route = parseHash();
+  const route = parseHash(typeof window !== 'undefined' ? window.location.hash : '');
   if (route.name === 'workbench') {
-    const hasNote = Boolean(route.params?.note);
+    const params = route.params as { note?: string };
+    const hasNote = Boolean(params.note);
     const creating = Boolean(state.viewer?.createSession);
     if (hasNote || creating) {
       if (creating) state.viewer.createSession = null;
@@ -94,7 +87,7 @@ export function selectDate(date: string) {
   sessionStorage.setItem('cta_active_date', date);
   notifyState();
 
-  const group = (state.index.filteredGroups as Group[]).find((g) => g.date === date);
+  const group = state.index.filteredGroups.find((g) => g.date === date);
   if (!group) return;
   loadTitles(group.entries, date);
 }

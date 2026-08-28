@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { renderAttachmentEditor } from '../ui/attachments.tsx';
 import {
   addPlanAttachment,
@@ -9,17 +8,24 @@ import {
   savePlanAttachment,
   stagePlanAttachmentSource,
 } from '../state/host.ts';
+import {
+  elementValue,
+  errMessage,
+  type AttachmentEditor,
+  type TodoAttachment,
+  type TodoPageCtx,
+} from '../state/types.ts';
 
 const ATTACHMENT_PICK_CANCEL_MSG = 'File selection cancelled';
 
-export function createAttachmentsOwner(ctx) {
-  let attachments = [];
+export function createAttachmentsOwner(ctx: TodoPageCtx) {
+  let attachments: TodoAttachment[] = [];
   let attachmentsError = '';
   let attachmentDeleteConfirm = '';
-  let attachmentEditor = null;
+  let attachmentEditor: AttachmentEditor | null = null;
   let attachmentLoadToken = 0;
 
-  function setAttachmentEditor(next) {
+  function setAttachmentEditor(next: AttachmentEditor | null) {
     attachmentEditor = next;
   }
 
@@ -35,7 +41,8 @@ export function createAttachmentsOwner(ctx) {
     closeEditor();
   }
 
-  function refreshEditorNode(editorNode, ui) {
+  function refreshEditorNode(editorNode: Element, ui: { disabled?: boolean }) {
+    if (!attachmentEditor) return false;
     const tmp = document.createElement('div');
     tmp.innerHTML = renderAttachmentEditor(attachmentEditor, ui.disabled);
     const fresh = tmp.firstElementChild;
@@ -64,7 +71,7 @@ export function createAttachmentsOwner(ctx) {
     }
   }
 
-  async function openEditor(fileName) {
+  async function openEditor(fileName: string) {
     const selectedMasterId = ctx.getSelectedMasterId();
     if (!selectedMasterId || ctx.isBusy() || !fileName) return;
     const masterTaskId = selectedMasterId;
@@ -108,7 +115,7 @@ export function createAttachmentsOwner(ctx) {
         fileName,
         content: '',
         editMode: false,
-        error: err?.message || 'Failed to load attachment',
+        error: errMessage(err, 'Failed to load attachment'),
         loading: false,
       });
     } finally {
@@ -136,10 +143,8 @@ export function createAttachmentsOwner(ctx) {
     if (!attachmentEditor || !selectedMasterId || ctx.isBusy()) return;
     const fileName = attachmentEditor.fileName;
     const editorEl = ctx.getContainer().querySelector('.todo-task-attachment-edit-area');
-    const content =
-      editorEl instanceof HTMLTextAreaElement
-        ? editorEl.value
-        : attachmentEditor.content;
+    const next = elementValue(editorEl);
+    const content = next || attachmentEditor.content;
     setAttachmentEditor({ ...attachmentEditor, content, error: '' });
     ctx.setBusy(true);
     ctx.paint();
@@ -171,7 +176,7 @@ export function createAttachmentsOwner(ctx) {
         fileName,
         content,
         editMode: true,
-        error: err?.message || 'Save failed',
+        error: errMessage(err, 'Save failed'),
         loading: false,
       });
     } finally {
@@ -189,8 +194,9 @@ export function createAttachmentsOwner(ctx) {
     try {
       picked = await pickLocalMarkdownFile();
     } catch (err) {
-      attachmentsError = err?.message
-        ? `Failed to pick file: ${err.message}`
+      const pickMsg = errMessage(err, '');
+      attachmentsError = pickMsg
+        ? `Failed to pick file: ${pickMsg}`
         : 'Failed to pick file';
       ctx.paint();
       return;
@@ -221,12 +227,12 @@ export function createAttachmentsOwner(ctx) {
       if (!ctx.isDisposed()) ctx.paint();
     } catch (err) {
       ctx.setBusy(false);
-      attachmentsError = err?.message || 'Failed to add attachment';
+      attachmentsError = errMessage(err, 'Failed to add attachment');
       ctx.paint();
     }
   }
 
-  function openDeleteConfirm(fileName) {
+  function openDeleteConfirm(fileName: string) {
     if (!ctx.getSelectedMasterId() || ctx.isBusy() || !fileName) return;
     attachmentDeleteConfirm = fileName;
     attachmentsError = '';
@@ -238,7 +244,7 @@ export function createAttachmentsOwner(ctx) {
     ctx.paint();
   }
 
-  async function confirmDelete(fileName) {
+  async function confirmDelete(fileName: string) {
     const selectedMasterId = ctx.getSelectedMasterId();
     if (!selectedMasterId || ctx.isBusy() || !fileName) return;
     const masterTaskId = selectedMasterId;
@@ -254,7 +260,7 @@ export function createAttachmentsOwner(ctx) {
     } catch (err) {
       if (ctx.isDisposed() || ctx.getSelectedMasterId() !== masterTaskId) return;
       attachmentDeleteConfirm = '';
-      attachmentsError = err?.message || 'Failed to delete attachment';
+      attachmentsError = errMessage(err, 'Failed to delete attachment');
     } finally {
       ctx.setBusy(false);
       if (!ctx.isDisposed()) ctx.paint();
@@ -279,7 +285,7 @@ export function createAttachmentsOwner(ctx) {
     },
     loadForSelected,
     refreshEditorNode,
-    appendEditor(container, ui, existingEditor) {
+    appendEditor(container: Element, ui: { disabled?: boolean }, existingEditor: Element | null) {
       if (!attachmentEditor) return;
       const node = existingEditor || container.querySelector('.todo-task-attachment-editor');
       if (node && refreshEditorNode(node, ui)) {
@@ -291,7 +297,7 @@ export function createAttachmentsOwner(ctx) {
         renderAttachmentEditor(attachmentEditor, ui.disabled),
       );
     },
-    handleClick(event, action, actionEl) {
+    handleClick(event: Event, action: string, actionEl: HTMLElement | null) {
       if (action === 'pick-attachment-md') {
         void pickAndAdd();
         return true;
@@ -340,7 +346,7 @@ export function createAttachmentsOwner(ctx) {
       }
       return false;
     },
-    handleKeydown(event) {
+    handleKeydown(event: KeyboardEvent) {
       if (event.key === 'Escape') {
         if (attachmentDeleteConfirm) {
           event.preventDefault();
@@ -365,7 +371,9 @@ export function createAttachmentsOwner(ctx) {
           return true;
         }
       }
-      const attachItem = event.target.closest('[data-action="open-attachment"]');
+      const attachItem = (event.target as Element | null)?.closest(
+        '[data-action="open-attachment"]',
+      );
       if (
         attachItem instanceof HTMLElement &&
         (event.key === 'Enter' || event.key === ' ')

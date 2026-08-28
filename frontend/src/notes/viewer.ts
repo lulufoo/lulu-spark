@@ -1,4 +1,3 @@
-// @ts-nocheck — DOM wiring stays unchecked like checkJs:false.
 import { initMermaid } from '../shared/mermaid-render.ts';
 import { openKbDoc } from '../corpus/viewer.ts';
 import { initHighlightUI } from './ui/viewer/body.tsx';

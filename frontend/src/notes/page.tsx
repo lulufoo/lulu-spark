@@ -7,7 +7,6 @@ import { getGithubUserUrl, workbenchGithubBlobBase } from '../host/constants.ts'
 import { useHostState } from './state/host.ts';
 import { getHomeEntryShell } from '../home-entry-shell/access.ts';
 import { formatDate } from '../shared/utils.ts';
-import type { NoteGroup, NotesViewer } from './state/types.ts';
 import { NotesCommentFloatNav, NotesCommentsBar, NotesDeleteZone, openCommentDialog } from './ui/comments.tsx';
 import { NotesDocList } from './ui/cards.tsx';
 import { NotesLinksBar } from './ui/links-bar.tsx';
@@ -69,7 +68,7 @@ function NotesStatus() {
 function NotesDateHeading() {
   const host = useHostState();
   const date = host.ui.activeDate;
-  const groups = (host.index.filteredGroups || []) as { date: string; entries: unknown[] }[];
+  const groups = host.index.filteredGroups || [];
   const group = date ? groups.find((g) => g.date === date) : null;
   const empty = groups.length === 0 && (host.ui.activeTopic || host.ui.activeTagKey);
   if (empty) {
@@ -90,9 +89,9 @@ function NotesDateHeading() {
 
 function NotesTagChip() {
   const host = useHostState();
-  const key = host.ui.activeTagKey as string | null;
+  const key = host.ui.activeTagKey;
   if (!key) return null;
-  const registry = host.index.tagsRegistry as { keys?: Record<string, { value?: string }> };
+  const registry = host.index.tagsRegistry;
   const label = registry.keys?.[key]?.value || key;
   return (
     <span id="tag-filter-chip" className="tag-filter-chip">
@@ -138,7 +137,7 @@ function copyLocalPath(
 
 function NotesReaderBody() {
   const host = useHostState();
-  const viewer = host.viewer as unknown as NotesViewer;
+  const viewer = host.viewer;
   const bodyRef = useRef<HTMLDivElement | null>(null);
   const paintKey = viewer.bodyPaintKey;
   const rawText = viewer.rawText;
@@ -184,7 +183,7 @@ function NotesReaderBody() {
 
 function NotesOutletChrome({ routeParams }: { routeParams: Record<string, string> }) {
   const host = useHostState();
-  const viewer = host.viewer as unknown as NotesViewer;
+  const viewer = host.viewer;
   const mode = notesViewMode(routeParams, viewer);
   const creating = mode === 'create' || Boolean(viewer.createSession);
   const editing = viewer.editing || creating;
@@ -195,7 +194,7 @@ function NotesOutletChrome({ routeParams }: { routeParams: Record<string, string
   const activePath = entry ? getActivePath(entry, viewer.lang || '', layer) : '';
   const githubUrl = ghBase && entry ? `${ghBase}/${layer}/${activePath}` : '';
   const topicDir = entry?.common_path?.split('/')[0];
-  const topicRepos = host.index.topicRepos as Record<string, string>;
+  const topicRepos = host.index.topicRepos;
   const kbUrl = topicDir ? topicRepos?.[topicDir] : '';
   const relPath = entry ? `${layer}/${activePath}` : '';
   const fullPath = host.ui.workbenchKnowledgeRoot ? `${host.ui.workbenchKnowledgeRoot}/${relPath}` : relPath;
@@ -205,7 +204,7 @@ function NotesOutletChrome({ routeParams }: { routeParams: Record<string, string
   const loadFailed = Boolean(viewer.loadError);
 
   const dateStr = String(entry?.created_at || host.ui.activeDate || routeParams.date || '').slice(0, 8);
-  const groups = (host.index.filteredGroups || host.index.groupedByDate || []) as NoteGroup[];
+  const groups = host.index.filteredGroups || host.index.groupedByDate || [];
   const group = /^\d{8}$/.test(dateStr) ? groups.find((g) => g.date === dateStr) : null;
   const count = group?.entries?.length;
   const panelTitle =
@@ -335,7 +334,7 @@ function NotesOutletChrome({ routeParams }: { routeParams: Record<string, string
             type="button"
             style={{ display: creating || editing || !entry ? 'none' : undefined }}
             onClick={() => {
-              const layerData = (viewer.annotation && viewer.annotation[viewer.layer]) || {};
+              const layerData = (viewer.annotation[viewer.layer] || {}) as { comments?: unknown[] };
               const nextIdx = (layerData.comments || []).length + 1;
               void openCommentDialog(null, null, null, nextIdx);
             }}
@@ -426,7 +425,7 @@ export function NotesMain({ routeParams }: { routeParams: Record<string, string>
 
   const date = host.ui.activeDate;
   const group = date
-    ? (host.index.filteredGroups as NoteGroup[]).find(
+    ? host.index.filteredGroups.find(
         (g) => g.date === date,
       )
     : null;

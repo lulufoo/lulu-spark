@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { renderToHtml } from '../../island.ts';
 import { renderCommentMarkdown } from '../../shared/comment-markdown.ts';
 import {
@@ -6,8 +5,23 @@ import {
   COPY_MASTER_TITLE,
   formatMasterCopyText,
 } from '../state/format.ts';
+import type { TodoMaster } from '../state/types.ts';
 
-function CopyMasterIdButton({ master, disabled }) {
+type PlanMdUi = {
+  disabled?: boolean;
+  planMdLoading?: boolean;
+  planMdEditMode?: boolean;
+  planMdError?: string;
+  planMdDraft?: string;
+};
+
+function CopyMasterIdButton({
+  master,
+  disabled,
+}: {
+  master?: TodoMaster | null;
+  disabled?: boolean;
+}) {
   const copyText = formatMasterCopyText(master?.title, master?.master_task_id);
   return (
     <button
@@ -23,11 +37,11 @@ function CopyMasterIdButton({ master, disabled }) {
   );
 }
 
-export function renderPlanMdSection(master, ui) {
+export function renderPlanMdSection(master: TodoMaster, ui: PlanMdUi) {
   return renderToHtml(<PlanMdSection master={master} ui={ui} />);
 }
 
-export function PlanMdSection({ master, ui }) {
+export function PlanMdSection({ master, ui }: { master: TodoMaster; ui: PlanMdUi }) {
   const copyBtn = <CopyMasterIdButton master={master} disabled={ui.disabled} />;
   if (ui.planMdLoading) {
     return (

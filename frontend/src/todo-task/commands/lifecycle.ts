@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Todos page lifecycle: enter / selection / leave stay exported.
  * Page path no longer Sets or Resets Host Binding (process-level workbench Set).
@@ -10,7 +9,7 @@ export const TODOS_EXPLICIT_LEAVE_RESET_CHAIN = Object.freeze([
   'frontend/src/todo-task/lifecycle.js::onTodosPageLeave',
 ]);
 
-function normalizeMasterId(id) {
+function normalizeMasterId(id: unknown) {
   if (typeof id !== 'string') return '';
   return id.trim();
 }
@@ -18,14 +17,14 @@ function normalizeMasterId(id) {
 /**
  * @param {{ onBound?: Function, onUnbound?: Function, onError?: Function }} [callbacks]
  */
-export function createTodosPageLifecycle(_callbacks = {}) {
-  let selectedMasterId = null;
+export function createTodosPageLifecycle(_callbacks: Record<string, unknown> = {}) {
+  let selectedMasterId: string | null = null;
 
   /**
    * Enter Todos page. Binding is process-level; this is a page-lifecycle hook only.
    * @param {string} [selectedId]
    */
-  async function onTodosPageEnter(selectedId = '') {
+  async function onTodosPageEnter(selectedId: string = '') {
     const id = normalizeMasterId(selectedId);
     selectedMasterId = id || null;
     return { ok: true, skipped: 'page_binding_removed', selectedMasterId };
@@ -35,7 +34,7 @@ export function createTodosPageLifecycle(_callbacks = {}) {
    * In-page master change. Does not Present or write Host Binding.
    * @param {string} nextId
    */
-  async function onMasterSelectionChange(nextId) {
+  async function onMasterSelectionChange(nextId: string) {
     const id = normalizeMasterId(nextId);
     if (!id) {
       return { ok: false, skipped: 'empty_context' };
@@ -81,12 +80,12 @@ export function createTodosPageLifecycle(_callbacks = {}) {
 const defaultLifecycle = createTodosPageLifecycle();
 
 /** @param {string} [selectedMasterId] */
-export function onTodosPageEnter(selectedMasterId) {
+export function onTodosPageEnter(selectedMasterId?: string) {
   return defaultLifecycle.onTodosPageEnter(selectedMasterId);
 }
 
 /** @param {string} masterTaskId */
-export function onMasterSelectionChange(masterTaskId) {
+export function onMasterSelectionChange(masterTaskId: string) {
   return defaultLifecycle.onMasterSelectionChange(masterTaskId);
 }
 

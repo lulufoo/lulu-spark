@@ -20,17 +20,22 @@ declare const QRCode: {
 const QR_OPTS = { width: 256, margin: 2 };
 const OVERFLOW_MSG = '⚠️ Text too long to generate QR code (capacity ~2 KB UTF-8)';
 
+/** Node stub tests pass a plain object, not a real HTMLElement. */
+export type QrPreviewHost = {
+  innerHTML: string;
+  appendChild: (child: HTMLCanvasElement) => unknown;
+};
+
 function isOverflowError(err: unknown) {
   const msg = String((err as Error | undefined)?.message || err || '');
   return /overflow|too big|too large/i.test(msg);
 }
 
-function showQrError(preview: HTMLElement, message = OVERFLOW_MSG) {
+function showQrError(preview: QrPreviewHost, message = OVERFLOW_MSG) {
   preview.innerHTML = renderToHtml(<p className="qr-error">{message}</p>);
 }
 
-export function renderQr(text: string) {
-  const preview = document.getElementById('qr-preview')!;
+export function renderQr(text: string, preview: QrPreviewHost) {
   preview.innerHTML = '';
   const trimmed = (text ?? '').trim();
   if (!trimmed) return;
@@ -54,8 +59,3 @@ export function renderQr(text: string) {
     preview.appendChild(canvas);
   });
 }
-
-document.getElementById('qr-input')?.addEventListener('input', () => {
-  const input = document.getElementById('qr-input') as HTMLInputElement | null;
-  renderQr(input?.value ?? '');
-});

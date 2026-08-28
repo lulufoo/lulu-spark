@@ -1,4 +1,3 @@
-// @ts-nocheck
 import {
   abandonPlanSub,
   completePlan,
@@ -7,14 +6,15 @@ import {
   updatePlanSub,
 } from '../state/host.ts';
 import { masterStatusClass } from '../state/format.ts';
+import { errMessage, type TodoPageCtx } from '../state/types.ts';
 
-export function createDetailOwner(ctx) {
-  const optimisticSubStatus = {};
-  const subActionErrors = {};
-  const subTitleErrors = {};
-  const subTitleDrafts = {};
-  const expandedSubContent = {};
-  const subContentDrafts = {};
+export function createDetailOwner(ctx: TodoPageCtx) {
+  const optimisticSubStatus: Record<string, string> = {};
+  const subActionErrors: Record<string, string> = {};
+  const subTitleErrors: Record<string, string> = {};
+  const subTitleDrafts: Record<string, string> = {};
+  const expandedSubContent: Record<string, boolean> = {};
+  const subContentDrafts: Record<string, string> = {};
   let masterTitleDraft = '';
   let masterTitleError = '';
 
@@ -35,7 +35,11 @@ export function createDetailOwner(ctx) {
     masterTitleError = '';
   }
 
-  async function runSubStatusAction(subTaskId, targetStatus, actionFn) {
+  async function runSubStatusAction(
+    subTaskId: string,
+    targetStatus: string,
+    actionFn: (args: { masterTaskId?: string; subTaskId?: string }) => Promise<unknown>,
+  ) {
     const master = ctx.findSelectedMaster();
     const sub = master?.sub_tasks?.find((item) => item.sub_task_id === subTaskId);
     if (!master || !sub || sub.status !== 'incomplete') return;
@@ -51,12 +55,12 @@ export function createDetailOwner(ctx) {
     } catch (err) {
       delete optimisticSubStatus[subTaskId];
       ctx.setBusy(false);
-      subActionErrors[subTaskId] = err?.message || 'Operation failed';
+      subActionErrors[subTaskId] = errMessage(err, 'Operation failed');
       ctx.paint();
     }
   }
 
-  async function runSubTitleSave(subTaskId, title) {
+  async function runSubTitleSave(subTaskId: string, title: string) {
     const master = ctx.findSelectedMaster();
     const sub = master?.sub_tasks?.find((item) => item.sub_task_id === subTaskId);
     if (!master || !sub) return;
@@ -87,12 +91,12 @@ export function createDetailOwner(ctx) {
     } catch (err) {
       delete subTitleDrafts[subTaskId];
       ctx.setBusy(false);
-      subTitleErrors[subTaskId] = err?.message || 'Save failed';
+      subTitleErrors[subTaskId] = errMessage(err, 'Save failed');
       ctx.paint();
     }
   }
 
-  async function runSubContentSave(subTaskId, content) {
+  async function runSubContentSave(subTaskId: string, content: string) {
     const master = ctx.findSelectedMaster();
     const sub = master?.sub_tasks?.find((item) => item.sub_task_id === subTaskId);
     if (!master || !sub) return;
@@ -118,12 +122,12 @@ export function createDetailOwner(ctx) {
       await ctx.reloadList({ afterWrite: true });
     } catch (err) {
       ctx.setBusy(false);
-      subActionErrors[subTaskId] = err?.message || 'Save failed';
+      subActionErrors[subTaskId] = errMessage(err, 'Save failed');
       ctx.paint();
     }
   }
 
-  async function runMasterTitleSave(title) {
+  async function runMasterTitleSave(title: string) {
     const master = ctx.findSelectedMaster();
     if (!master) return;
     const trimmed = title.trim();
@@ -151,12 +155,16 @@ export function createDetailOwner(ctx) {
       await ctx.reloadList({ afterWrite: true });
     } catch (err) {
       ctx.setBusy(false);
-      masterTitleError = err?.message || 'Save failed';
+      masterTitleError = errMessage(err, 'Save failed');
       ctx.paint();
     }
   }
 
-  async function runSubStatusChange(subTaskId, targetStatus, selectEl) {
+  async function runSubStatusChange(
+    subTaskId: string,
+    targetStatus: string,
+    selectEl: HTMLSelectElement,
+  ) {
     const master = ctx.findSelectedMaster();
     const sub = master?.sub_tasks?.find((item) => item.sub_task_id === subTaskId);
     const priorStatus = sub?.status ?? 'incomplete';
@@ -180,7 +188,7 @@ export function createDetailOwner(ctx) {
     }
   }
 
-  async function runMasterStatusChange(targetStatus, selectEl) {
+  async function runMasterStatusChange(targetStatus: string, selectEl: HTMLSelectElement) {
     const master = ctx.findSelectedMaster();
     const priorStatus = masterStatusClass(master?.status);
     if (!master) {
@@ -226,20 +234,20 @@ export function createDetailOwner(ctx) {
       };
     },
     resetForSelectionChange,
-    setMasterTitleDraft(value) {
+    setMasterTitleDraft(value: string) {
       masterTitleDraft = value;
     },
-    setSubTitleDraft(subTaskId, value) {
+    setSubTitleDraft(subTaskId: string, value: string) {
       subTitleDrafts[subTaskId] = value;
     },
-    setSubContentDraft(subTaskId, value) {
+    setSubContentDraft(subTaskId: string, value: string) {
       subContentDrafts[subTaskId] = value;
     },
-    toggleSubContent(subTaskId) {
+    toggleSubContent(subTaskId: string) {
       if (expandedSubContent[subTaskId]) delete expandedSubContent[subTaskId];
       else expandedSubContent[subTaskId] = true;
     },
-    handleClick(event, action, actionEl) {
+    handleClick(event: Event, action: string, actionEl: HTMLElement | null) {
       if (action === 'toggle-sub-content') {
         event.stopPropagation();
         if (ctx.isBusy()) return true;
@@ -251,34 +259,36 @@ export function createDetailOwner(ctx) {
       }
       return false;
     },
-    handleInput(event) {
-      const masterTitleInput = event.target.closest('[data-action="edit-master-title"]');
+    handleInput(event: Event) {
+      const target = event.target as Element | null;
+      const masterTitleInput = target?.closest('[data-action="edit-master-title"]');
       if (masterTitleInput instanceof HTMLInputElement) {
         if (ctx.isBusy() || !ctx.getSelectedMasterId()) return true;
         masterTitleDraft = masterTitleInput.value;
         return true;
       }
-      const contentInput = event.target.closest('[data-action="edit-sub-content"]');
+      const contentInput = target?.closest('[data-action="edit-sub-content"]');
       if (contentInput instanceof HTMLTextAreaElement) {
         if (ctx.isBusy() || !ctx.getSelectedMasterId()) return true;
         subContentDrafts[contentInput.dataset.subId ?? ''] = contentInput.value;
         return true;
       }
-      const input = event.target.closest('[data-action="edit-sub-title"]');
+      const input = target?.closest('[data-action="edit-sub-title"]');
       if (!(input instanceof HTMLInputElement) || ctx.isBusy() || !ctx.getSelectedMasterId()) {
         return Boolean(input);
       }
       subTitleDrafts[input.dataset.subId ?? ''] = input.value;
       return true;
     },
-    handleBlur(event) {
-      const masterTitleInput = event.target.closest('[data-action="edit-master-title"]');
+    handleBlur(event: Event) {
+      const target = event.target as Element | null;
+      const masterTitleInput = target?.closest('[data-action="edit-master-title"]');
       if (masterTitleInput instanceof HTMLInputElement) {
         if (ctx.isBusy() || !ctx.getSelectedMasterId()) return true;
         void runMasterTitleSave(masterTitleInput.value);
         return true;
       }
-      const contentInput = event.target.closest('[data-action="edit-sub-content"]');
+      const contentInput = target?.closest('[data-action="edit-sub-content"]');
       if (contentInput instanceof HTMLTextAreaElement) {
         if (ctx.isBusy() || !ctx.getSelectedMasterId()) return true;
         const subTaskId = contentInput.dataset.subId;
@@ -286,7 +296,7 @@ export function createDetailOwner(ctx) {
         void runSubContentSave(subTaskId, contentInput.value);
         return true;
       }
-      const input = event.target.closest('[data-action="edit-sub-title"]');
+      const input = target?.closest('[data-action="edit-sub-title"]');
       if (!(input instanceof HTMLInputElement) || ctx.isBusy() || !ctx.getSelectedMasterId()) {
         return Boolean(input instanceof HTMLInputElement);
       }
@@ -295,8 +305,9 @@ export function createDetailOwner(ctx) {
       void runSubTitleSave(subTaskId, input.value);
       return true;
     },
-    handleChange(event) {
-      const masterSelect = event.target.closest('[data-action="change-master-status"]');
+    handleChange(event: Event) {
+      const target = event.target as Element | null;
+      const masterSelect = target?.closest('[data-action="change-master-status"]');
       if (masterSelect instanceof HTMLSelectElement) {
         if (ctx.isBusy() || !ctx.getSelectedMasterId()) {
           const master = ctx.findSelectedMaster();
@@ -306,7 +317,7 @@ export function createDetailOwner(ctx) {
         void runMasterStatusChange(masterSelect.value, masterSelect);
         return true;
       }
-      const select = event.target.closest('[data-action="change-sub-status"]');
+      const select = target?.closest('[data-action="change-sub-status"]');
       if (!(select instanceof HTMLSelectElement)) return false;
       if (ctx.isBusy() || !ctx.getSelectedMasterId()) {
         select.value = select.dataset.currentStatus ?? select.value;
@@ -317,8 +328,8 @@ export function createDetailOwner(ctx) {
       void runSubStatusChange(subTaskId, select.value, select);
       return true;
     },
-    handleTitleEnter(event) {
-      const titleInput = event.target.closest(
+    handleTitleEnter(event: KeyboardEvent) {
+      const titleInput = (event.target as Element | null)?.closest(
         '[data-action="edit-master-title"], [data-action="edit-sub-title"]',
       );
       if (!(titleInput instanceof HTMLInputElement)) return false;

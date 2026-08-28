@@ -1,5 +1,10 @@
 /// <reference types="vite/client" />
 
+interface ImportMetaEnv {
+  readonly VITE_READ_API?: string;
+  readonly VITE_WRITE_API?: string;
+}
+
 export {};
 
 declare global {
@@ -12,8 +17,16 @@ declare global {
           handler: (event: { payload?: unknown }) => void,
         ) => Promise<() => void>;
       };
+      dialog?: {
+        open?: (opts: {
+          multiple?: boolean;
+          filters?: { name: string; extensions: string[] }[];
+        }) => Promise<string | string[] | null>;
+      };
       core?: {
         invoke?: (cmd: string, args?: Record<string, unknown>) => Promise<unknown>;
+        convertFileSrc?: (path: string) => string;
+        Channel?: new (onmessage?: (payload: unknown) => void) => unknown;
       };
       opener?: {
         openUrl?: (url: string) => Promise<void>;

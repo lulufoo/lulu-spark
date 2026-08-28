@@ -1,28 +1,12 @@
-// @ts-nocheck — host/state snapshots stay unchecked; do not type this file alone.
 import { notifyState, state } from '../state/host.ts';
 import { LAYERS } from '../../host/constants.ts';
 import { slugToTitle, filenameFromPath, topicFromPath, timeFromTs } from '../../shared/utils.ts';
 import { openMoveProjectDialog } from './move-project-dialog.tsx';
 import { renderToHtml } from '../../island.ts';
 import { cycleImportance, loadTitles, toggleDone } from '../commands/cards.ts';
+import type { NoteEntry, NoteTag } from '../state/types.ts';
 
 export { cycleImportance, loadTitles, toggleDone };
-
-type NoteTag = { unknown?: boolean; value?: string; key?: string };
-
-type NoteEntry = {
-  _id?: string;
-  common_path: string;
-  created_at?: string;
-  layers?: string[];
-  source_type?: string;
-  done?: boolean | undefined;
-  importance?: string;
-  links?: unknown[];
-  tags?: NoteTag[];
-  translations?: { zh?: string };
-  _comment_counts?: Record<string, number>;
-};
 
 function asRecord(entry: NoteEntry): Record<string, unknown> {
   return entry as unknown as Record<string, unknown>;
@@ -61,7 +45,7 @@ function TagBadges({ tags }: { tags?: NoteTag[] }) {
   );
 }
 
-function tagsBadgesHtml(entry: NoteEntry): string {
+export function tagsBadgesHtml(entry: NoteEntry): string {
   if (!entry.tags?.length) return '';
   return renderToHtml(<TagBadges tags={entry.tags} />);
 }
@@ -288,7 +272,7 @@ export function buildCard(id: string, entry: NoteEntry, title?: string | null) {
 
   const topic = topicFromPath(entry.common_path);
   const displayTitle = title !== undefined ? title : null;
-  const time = timeFromTs(entry.created_at);
+  const time = timeFromTs(entry.created_at || '');
   const projectDir = entry.common_path.split('/')[0];
   const topicDesc = state.index.topicDescriptions[projectDir] || '';
 
@@ -328,7 +312,7 @@ export function DocCard({
 }) {
   entry._id = id;
   const topic = topicFromPath(entry.common_path);
-  const time = timeFromTs(entry.created_at);
+  const time = timeFromTs(entry.created_at || '');
   const projectDir = entry.common_path.split('/')[0];
   const topicDesc = state.index.topicDescriptions[projectDir] || '';
   const className = [
@@ -427,11 +411,11 @@ export function updateTitlesInDOM(date: string) {
   const cache = state.index.titleCache.get(date);
   if (!cache) return;
   const group =
-    state.index.groupedByDate.find((g: { date: string }) => g.date === date) ||
-    state.index.filteredGroups.find((g: { date: string }) => g.date === date);
+    state.index.groupedByDate.find((g) => g.date === date) ||
+    state.index.filteredGroups.find((g) => g.date === date);
   if (!group) return;
 
-  for (const { id, entry } of group.entries as { id: string; entry: NoteEntry }[]) {
+  for (const { id, entry } of group.entries) {
     const card = document.querySelector(`.doc-card[data-id="${id}"]`);
     if (!card) continue;
 
@@ -470,9 +454,9 @@ export function updateTitlesInDOM(date: string) {
 
 export function updateDiffInDOM() {
   if (!state.ui.activeDate) return;
-  const group = state.index.groupedByDate.find((g: { date: string }) => g.date === state.ui.activeDate);
+  const group = state.index.groupedByDate.find((g) => g.date === state.ui.activeDate);
   if (!group) return;
-  for (const { id, entry } of group.entries as { id: string; entry: NoteEntry }[]) {
+  for (const { id, entry } of group.entries) {
     const card = document.querySelector(`.doc-card[data-id="${id}"]`);
     if (!card) continue;
     const metaEl = card.querySelector('.doc-meta');
@@ -480,7 +464,7 @@ export function updateDiffInDOM() {
       const diffState = getEntryDiffState(entry);
       metaEl.innerHTML = renderToHtml(
         <>
-          {timeFromTs(entry.created_at)}
+          {timeFromTs(entry.created_at || '')}
           <DiffDot diffState={diffState} />
         </>,
       );

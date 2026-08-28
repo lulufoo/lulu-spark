@@ -1,13 +1,20 @@
-// @ts-nocheck — DOM wiring stays unchecked like checkJs:false.
 const STORAGE_KEY = 'cta_sidebar_width';
 const DEFAULT_WIDTH = 221;
 const MIN_WIDTH = 180;
 const MAX_WIDTH = 400;
 
-let _resizeInitialized = false;
-let _dragState = null;
+type DragState = {
+  aside: HTMLElement;
+  resizer: HTMLElement;
+  startX: number;
+  startWidth: number;
+  lastWidth: number;
+};
 
-function setSidebarWidth(aside, px) {
+let _resizeInitialized = false;
+let _dragState: DragState | null = null;
+
+function setSidebarWidth(aside: HTMLElement, px: number) {
   const w = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, px));
   aside.style.setProperty('--sidebar-width', `${w}px`);
   aside.style.width = `${w}px`;
@@ -15,17 +22,17 @@ function setSidebarWidth(aside, px) {
   return w;
 }
 
-function persistSidebarWidth(px) {
+function persistSidebarWidth(px: number) {
   globalThis.localStorage?.setItem?.(STORAGE_KEY, String(px));
 }
 
-function onPointerMove(e) {
+function onPointerMove(e: PointerEvent) {
   if (!_dragState) return;
   const next = setSidebarWidth(_dragState.aside, _dragState.startWidth + (e.clientX - _dragState.startX));
   _dragState.lastWidth = next;
 }
 
-function onPointerUp(e) {
+function onPointerUp(e: PointerEvent) {
   if (!_dragState) return;
   const resizer = _dragState.resizer;
   if (resizer.hasPointerCapture(e.pointerId)) {
@@ -38,7 +45,7 @@ function onPointerUp(e) {
   _dragState = null;
 }
 
-function onPointerDown(e) {
+function onPointerDown(e: PointerEvent) {
   const aside = document.getElementById('sidebar');
   const resizer = document.getElementById('sidebar-resizer');
   if (!aside || !resizer || e.button !== 0) return;
@@ -58,7 +65,7 @@ export function initSidebarResize() {
   if (!aside || !resizer) return;
   _resizeInitialized = true;
 
-  const saved = parseInt(globalThis.localStorage?.getItem?.(STORAGE_KEY), 10);
+  const saved = parseInt(globalThis.localStorage?.getItem?.(STORAGE_KEY) ?? '', 10);
   setSidebarWidth(aside, Number.isFinite(saved) ? saved : DEFAULT_WIDTH);
 
   resizer.addEventListener('pointerdown', onPointerDown);

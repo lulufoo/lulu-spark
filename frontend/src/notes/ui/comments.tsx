@@ -1,4 +1,3 @@
-// @ts-nocheck — ported from JS; state shapes stay unchecked like checkJs:false.
 import { memo, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { notifyState, state, useHostState } from '../state/host.ts';
 import { commentOpenStore } from '../state/dialog-open.ts';
@@ -11,9 +10,9 @@ import { confirmDeleteComment, removeCorpusComment } from '../../shared/comment-
 import { pasteIntoCommentEditor, prepareCommentMarkdown, renderCommentMarkdown } from '../../shared/comment-markdown.ts';
 import { renderMermaidBlocks } from '../../shared/mermaid-render.ts';
 import { renderToHtml } from '../../island.ts';
+import type { NoteEntry } from '../state/types.ts';
 
 type CommentRec = { id: string; text: string; ts?: string };
-type NoteEntry = { common_path: string; links?: { url: string }[] };
 type LayerData = { comments?: CommentRec[] };
 type Annotation = Record<string, LayerData | undefined> & { links?: { url: string }[] };
 
@@ -23,7 +22,8 @@ function annotation(): Annotation {
 
 function layerComments(host = state): CommentRec[] {
   const layer = host.viewer.layer || 'raw';
-  return host.viewer.annotation?.[layer]?.comments || [];
+  const layerData = host.viewer.annotation[layer] as LayerData | undefined;
+  return layerData?.comments || [];
 }
 
 const _tip = () => document.getElementById('comment-preview-tip');
@@ -211,7 +211,7 @@ export function NotesCommentFloatNav() {
       return undefined;
     }
     const observer = new IntersectionObserver(
-      ([e]) => setVisible(!e.isIntersecting),
+      ([e]) => setVisible(!e?.isIntersecting),
       { root, threshold: 0 },
     );
     observer.observe(bar);
@@ -255,7 +255,10 @@ async function moveNoteComment(layer: string, entry: NoteEntry, idx: number, del
     return;
   }
   try {
-    const data = await reorderComments(entry.common_path, layer, check.ids);
+    const data = (await reorderComments(entry.common_path, layer, check.ids)) as {
+      ok?: boolean;
+      error?: string;
+    };
     if (data?.ok !== true) throw new Error(data?.error || 'failed');
   } catch (e) {
     alert(`Reorder failed: ${(e as Error).message}`);
@@ -306,12 +309,14 @@ export async function openCommentDialog(
     content.innerText = editComment.text;
   } else {
     _commentEditCtx = { noteIndex };
-    const commonPath = (entry || state.viewer.entry).common_path;
+    const target = entry || state.viewer.entry;
+    if (!target) return;
+    const commonPath = target.common_path;
     _draftKey = commonPath;
     titleEl.textContent = '💬 Add comment';
     content.innerText = '';
     try {
-      const draft = await api.getDraft(commonPath);
+      const draft = (await api.getDraft(commonPath)) as { content?: string };
       if (draft.content) content.innerText = draft.content;
     } catch {
       /* ignore */
@@ -354,7 +359,10 @@ export async function saveComment() {
         closeCommentDialog();
         return;
       }
-      const data = await api.updateComments(entry!.common_path, layer, { id: c.id, text }, ts);
+      const data = (await api.updateComments(entry!.common_path, layer, { id: c.id, text }, ts)) as {
+        ok?: boolean;
+        error?: string;
+      };
       if (data.ok) {
         c.text = text;
         const ld = annotation()[layer as string] || {};
@@ -367,11 +375,18 @@ export async function saveComment() {
       }
     } else {
       if (!state.viewer.entry) return;
-      const data = await api.updateComments(state.viewer.entry.common_path, state.viewer.layer, { text }, ts);
+      const data = (await api.updateComments(state.viewer.entry.common_path, state.viewer.layer, { text }, ts)) as {
+        ok?: boolean;
+        error?: string;
+        id?: string;
+      };
       if (data.ok) {
-        if (!state.viewer.annotation[state.viewer.layer]) state.viewer.annotation[state.viewer.layer] = {};
-        if (!state.viewer.annotation[state.viewer.layer].comments) state.viewer.annotation[state.viewer.layer].comments = [];
-        state.viewer.annotation[state.viewer.layer].comments.push({ id: data.id, text, ts });
+        const ann = annotation();
+        const layer = state.viewer.layer;
+        if (!ann[layer]) ann[layer] = {};
+        const ld = ann[layer] as LayerData;
+        if (!ld.comments) ld.comments = [];
+        ld.comments.push({ id: data.id || '', text, ts });
         _clearDraft();
         closeCommentDialog();
         notifyState();
@@ -421,7 +436,7 @@ function _resetDialogTabs() {
 }
 
 export function openAddCommentFromChrome() {
-  const layerData = (state.viewer.annotation && state.viewer.annotation[state.viewer.layer]) || {};
+  const layerData = (state.viewer.annotation[state.viewer.layer] || {}) as LayerData;
   const nextIdx = (layerData.comments || []).length + 1;
   void openCommentDialog(null, null, null, nextIdx);
 }
@@ -456,9 +471,10 @@ document.addEventListener('settle:done', (event) => {
   ld.comments = (ld.comments || []).filter((x) => x.id !== commentId);
   if (!ld.comments.length) delete state.viewer.annotation[layer];
   else state.viewer.annotation[layer] = ld;
-  if (!state.viewer.annotation.links) state.viewer.annotation.links = [];
-  state.viewer.annotation.links.push({ url });
-  entry.links = state.viewer.annotation.links;
+  const ann = annotation();
+  if (!ann.links) ann.links = [];
+  ann.links.push({ url });
+  entry.links = ann.links;
   notifyState();
 });
 

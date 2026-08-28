@@ -830,7 +830,7 @@ describe('todo-tasks route source wiring', () => {
   it('mountTodoTasksRoute does not createRoot-mount Todos', () => {
     const body = extractFunctionBody(mainJs, 'mountTodoTasksRoute');
     expect(body).not.toMatch(/mountTodoTaskSplit/);
-    expect(body).toMatch(/todo-tasks-view/);
+    expect(body).not.toMatch(/createRoot/);
   });
 
   it('ShellPages paints TodoTasksPage with master/sub from the hash', () => {

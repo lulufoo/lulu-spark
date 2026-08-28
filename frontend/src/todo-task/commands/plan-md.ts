@@ -1,7 +1,7 @@
-// @ts-nocheck
 import { readPlanMd, updatePlanMd } from '../state/host.ts';
+import { elementValue, errMessage, type TodoPageCtx } from '../state/types.ts';
 
-export function createPlanMdOwner(ctx) {
+export function createPlanMdOwner(ctx: TodoPageCtx) {
   let planMdEditMode = false;
   let planMdDraft = '';
   let planMdError = '';
@@ -29,7 +29,7 @@ export function createPlanMdOwner(ctx) {
         planMdDraft = await readPlanMd({ masterTaskId: selectedMasterId });
         planMdEditMode = true;
       } catch (err) {
-        planMdError = err?.message || 'Failed to load description';
+        planMdError = errMessage(err, 'Failed to load description');
         planMdEditMode = false;
       } finally {
         planMdLoading = false;
@@ -40,7 +40,8 @@ export function createPlanMdOwner(ctx) {
       const selectedMasterId = ctx.getSelectedMasterId();
       if (!selectedMasterId || ctx.isBusy()) return;
       const editor = ctx.getContainer().querySelector('.todo-task-plan-md-editor');
-      planMdDraft = editor instanceof HTMLTextAreaElement ? editor.value : planMdDraft;
+      const next = elementValue(editor);
+      planMdDraft = next || planMdDraft;
       planMdError = '';
       ctx.setBusy(true);
       ctx.paint();
@@ -52,7 +53,7 @@ export function createPlanMdOwner(ctx) {
       } catch (err) {
         ctx.setBusy(false);
         planMdEditMode = true;
-        planMdError = err?.message || 'Save failed';
+        planMdError = errMessage(err, 'Save failed');
         ctx.paint();
       }
     },
@@ -61,7 +62,7 @@ export function createPlanMdOwner(ctx) {
       reset();
       ctx.paint();
     },
-    handleClick(action) {
+    handleClick(action: string) {
       if (action === 'edit-plan-md') {
         void this.enterEdit();
         return true;

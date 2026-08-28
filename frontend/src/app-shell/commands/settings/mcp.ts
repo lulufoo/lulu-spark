@@ -1,12 +1,12 @@
-// @ts-nocheck — settings DOM wiring stays unchecked like checkJs:false.
 import * as api from '../../../host/api.ts';
 import { setResult, store } from '../../state/settings/store.ts';
+import { errMessage } from '../../state/types.ts';
 
 export function cursorIdeServerUrl() {
   return `http://127.0.0.1:${store.mcpPort}/mcp/cursor_ide`;
 }
 
-export function formatCursorIdeServerBlock(handle) {
+export function formatCursorIdeServerBlock(handle: string) {
   return JSON.stringify(
     {
       url: cursorIdeServerUrl(),
@@ -17,8 +17,8 @@ export function formatCursorIdeServerBlock(handle) {
   );
 }
 
-export function setMcpServerBlock(text) {
-  const el = document.getElementById('settings-mcp-server-block');
+export function setMcpServerBlock(text: string) {
+  const el = document.getElementById('settings-mcp-server-block') as HTMLTextAreaElement | null;
   if (el) el.value = text;
 }
 
@@ -26,7 +26,7 @@ export function clearMcpServerBlock() {
   setMcpServerBlock('');
 }
 
-async function copyServerBlock(text) {
+async function copyServerBlock(text: string) {
   try {
     if (navigator.clipboard?.writeText) {
       await navigator.clipboard.writeText(text);
@@ -38,10 +38,10 @@ async function copyServerBlock(text) {
   return false;
 }
 
-async function issueOrRotateCursorIdeBlock(cmd, copiedMessage, failLabel) {
+async function issueOrRotateCursorIdeBlock(cmd: string, copiedMessage: string, failLabel: string) {
   setResult('settings-result-mcp', '');
   try {
-    const resp = await api.invoke(cmd);
+    const resp = (await api.invoke(cmd)) as { handle?: string };
     const issued = resp?.handle;
     if (!issued) throw new Error('Ticket command failed');
     const text = formatCursorIdeServerBlock(issued);
@@ -56,12 +56,12 @@ async function issueOrRotateCursorIdeBlock(cmd, copiedMessage, failLabel) {
     );
   } catch (e) {
     clearMcpServerBlock();
-    setResult('settings-result-mcp', `${failLabel} failed: ${e.message || String(e)}`, true);
+    setResult('settings-result-mcp', `${failLabel} failed: ${errMessage(e, String(e))}`, true);
   }
 }
 
 export async function generateCursorIdeServerBlock() {
-  const btn = document.getElementById('btn-settings-mcp-generate');
+  const btn = document.getElementById('btn-settings-mcp-generate') as HTMLButtonElement | null;
   if (btn) btn.disabled = true;
   try {
     await issueOrRotateCursorIdeBlock(
@@ -75,7 +75,7 @@ export async function generateCursorIdeServerBlock() {
 }
 
 export async function rotateCursorIdeTicket() {
-  const btn = document.getElementById('btn-settings-mcp-rotate');
+  const btn = document.getElementById('btn-settings-mcp-rotate') as HTMLButtonElement | null;
   if (btn) btn.disabled = true;
   try {
     await issueOrRotateCursorIdeBlock(
@@ -89,15 +89,15 @@ export async function rotateCursorIdeTicket() {
 }
 
 export async function revokeMcpSlotTicket() {
-  const btn = document.getElementById('btn-settings-mcp-revoke');
-  const slot = document.getElementById('settings-mcp-revoke-slot')?.value;
+  const btn = document.getElementById('btn-settings-mcp-revoke') as HTMLButtonElement | null;
+  const slot = (document.getElementById('settings-mcp-revoke-slot') as HTMLSelectElement | null)?.value;
   if (btn) btn.disabled = true;
   setResult('settings-result-mcp', '');
   try {
     await api.invoke('revoke_mcp_slot_ticket', { slot });
     setResult('settings-result-mcp', `Revoked ${slot} ticket.`);
   } catch (e) {
-    setResult('settings-result-mcp', `Revoke failed: ${e.message || String(e)}`, true);
+    setResult('settings-result-mcp', `Revoke failed: ${errMessage(e, String(e))}`, true);
   } finally {
     if (btn) btn.disabled = false;
   }

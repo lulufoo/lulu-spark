@@ -1,15 +1,11 @@
-// @ts-nocheck — DOM wiring stays unchecked like checkJs:false.
+import type { ListNavOptions, NoteNavParams, ParsedRoute, RouteHandlers } from './types.ts';
+
 const DEFAULT_FALLBACK = '#/home';
 
-/** @type {Record<string, (ctx: { name: string, params: Record<string, string> }) => void> | null} */
-let handlersRef = null;
+let handlersRef: RouteHandlers | null = null;
 let fallbackRef = DEFAULT_FALLBACK;
 
-/**
- * @param {string | undefined} hash
- * @returns {{ name: string, params: Record<string, string> }}
- */
-export function parseHash(hash) {
+export function parseHash(hash?: string): ParsedRoute {
   const raw = hash ?? (typeof window !== 'undefined' ? window.location.hash : '');
   const stripped = raw.startsWith('#') ? raw.slice(1) : raw;
   const path = stripped.replace(/^\/+/, '').replace(/\/+$/, '');
@@ -19,7 +15,7 @@ export function parseHash(hash) {
   if (path === 'read-later') return { name: 'read-later', params: {} };
   if (path === 'workbench' || path.startsWith('workbench?')) {
     const queryString = path.includes('?') ? path.slice(path.indexOf('?') + 1) : '';
-    const params = {};
+    const params: Record<string, string> = {};
     if (queryString) {
       const searchParams = new URLSearchParams(queryString);
       if (searchParams.has('date')) {
@@ -37,7 +33,7 @@ export function parseHash(hash) {
 
   if (path === 'todo-tasks' || path.startsWith('todo-tasks?')) {
     const queryString = path.includes('?') ? path.slice(path.indexOf('?') + 1) : '';
-    const params = {};
+    const params: Record<string, string> = {};
     if (queryString) {
       const searchParams = new URLSearchParams(queryString);
       if (searchParams.has('master')) {
@@ -58,7 +54,7 @@ export function parseHash(hash) {
       try {
         const [repoEncoded, ...queryParts] = repoPart.split('?');
         const queryString = queryParts.length > 0 ? queryParts.join('?') : '';
-        const params = { repo: decodeURIComponent(repoEncoded) };
+        const params: Record<string, string> = { repo: decodeURIComponent(repoEncoded) };
         if (queryString) {
           const searchParams = new URLSearchParams(queryString);
           if (searchParams.has('path')) {
@@ -75,8 +71,7 @@ export function parseHash(hash) {
   return { name: 'unknown', params: {} };
 }
 
-/** @param {string} hash */
-export function normalizeHash(hash) {
+export function normalizeHash(hash: string) {
   if (parseHash(hash).name === 'unknown') return DEFAULT_FALLBACK;
   return hash.startsWith('#') ? hash : `#/${hash.replace(/^\/+/, '')}`;
 }
@@ -92,11 +87,7 @@ function mountCurrentRoute() {
   handlersRef?.[route.name]?.(route);
 }
 
-/**
- * @param {Record<string, (ctx: { name: string, params: Record<string, string> }) => void>} handlers
- * @param {{ fallback?: string }} [options]
- */
-export function initRouter(handlers, options = {}) {
+export function initRouter(handlers: RouteHandlers, options: { fallback?: string } = {}) {
   handlersRef = handlers;
   fallbackRef = options.fallback ?? DEFAULT_FALLBACK;
   window.addEventListener('hashchange', mountCurrentRoute);
@@ -104,19 +95,14 @@ export function initRouter(handlers, options = {}) {
   mountCurrentRoute();
 }
 
-/** @param {string} hash */
-export function navigate(hash) {
+export function navigate(hash: string) {
   window.location.hash = hash;
 }
 
 /** Tracks list→note pushes so exit can prefer history.back. */
 let noteNavDepth = 0;
 
-/**
- * @param {{ date?: string, note?: string, layer?: string }} [params]
- * @returns {string}
- */
-function buildWorkbenchHash({ date, note, layer } = {}) {
+function buildWorkbenchHash({ date, note, layer }: NoteNavParams = {}) {
   const searchParams = new URLSearchParams();
   if (date) searchParams.set('date', date);
   if (note) searchParams.set('note', note);
@@ -128,10 +114,8 @@ function buildWorkbenchHash({ date, note, layer } = {}) {
 /**
  * List→note: write date+note(+optional layer) via navigate (browser history).
  * Failure: leave location unchanged (stay list / safe empty).
- * @param {{ date?: string, note?: string, layer?: string }} [params]
- * @returns {boolean}
  */
-export function navigateToNote({ date, note, layer } = {}) {
+export function navigateToNote({ date, note, layer }: NoteNavParams = {}) {
   if (!date || !note) return false;
   try {
     navigate(buildWorkbenchHash({ date, note, layer }));
@@ -146,9 +130,8 @@ export function navigateToNote({ date, note, layer } = {}) {
  * Exit note / create: prefer history.back when a list→note push is available;
  * otherwise strip note and keep date. May mutate hash (exit-must-not-change-hash abolished).
  * Create-in-progress: call onClearCreate, land on list without writing a temp note.
- * @param {{ date?: string, onClearCreate?: () => void }} [options]
  */
-export function navigateBackToList({ date, onClearCreate } = {}) {
+export function navigateBackToList({ date, onClearCreate }: ListNavOptions = {}) {
   if (typeof onClearCreate === 'function') {
     onClearCreate();
   }
@@ -177,9 +160,8 @@ export function navigateBackToList({ date, onClearCreate } = {}) {
 /**
  * Sidebar date (or any explicit date pick) → list for that date.
  * Always strips note/layer; does not use history.back (target date may differ from prior list entry).
- * @param {string} [date]
  */
-export function navigateToDateList(date) {
+export function navigateToDateList(date?: string) {
   noteNavDepth = 0;
   navigate(buildWorkbenchHash({ date: date || '' }));
 }

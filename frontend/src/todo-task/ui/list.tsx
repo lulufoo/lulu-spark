@@ -8,6 +8,7 @@ import {
   sortMasters,
 } from '../state/format.ts';
 import { CATEGORY_ACTION_CREATE, CATEGORY_ACTION_DELETE } from '../commands/list.ts';
+import type { TodoCategory, TodoMaster } from '../state/types.ts';
 
 const ACTIVE_ONLY_LABEL = 'Active only';
 const ACTIVE_ONLY_EMPTY_TITLE = 'No active todos';
@@ -17,22 +18,13 @@ const ALL_CATEGORIES_LABEL = 'All categories';
 const CATEGORY_FILTER_EMPTY_TITLE = 'No todos in this category';
 const CATEGORY_FILTER_EMPTY_DETAIL = 'Choose another category or create a todo in this one.';
 
-type Category = { id: string; name?: string; is_default?: boolean };
-type Master = {
-  master_task_id: string;
-  title?: string;
-  status?: string;
-  created_at?: number | string;
-  sub_tasks?: unknown[];
-};
-
 function CategoryControls({
   categories,
   selectedCategoryId,
   categoryError,
   disabled,
 }: {
-  categories: Category[];
+  categories: TodoCategory[];
   selectedCategoryId: string;
   categoryError: string;
   disabled: boolean;
@@ -114,7 +106,7 @@ export function PageHeader({
 }: {
   disabled?: boolean;
   activeOnly?: boolean;
-  categories?: Category[];
+  categories?: TodoCategory[];
   selectedCategoryId?: string;
   categoryError?: string;
 }) {
@@ -151,7 +143,7 @@ export function PageHeader({
 export function renderPageHeader(
   disabled: boolean,
   activeOnly = true,
-  categories: Category[] = [],
+  categories: TodoCategory[] = [],
   selectedCategoryId = '',
   categoryError = '',
 ) {
@@ -171,13 +163,13 @@ function MasterList({
   selectedMasterId,
   disabled,
 }: {
-  masters: Master[];
+  masters: TodoMaster[];
   selectedMasterId: string;
   disabled: boolean;
 }) {
   return (
     <ul className="todo-task-master-list" role="list">
-      {sortMasters(masters).map((master: Master) => {
+      {sortMasters(masters).map((master: TodoMaster) => {
         const selected =
           master.master_task_id === selectedMasterId ? ' todo-task-master-item--selected' : '';
         const statusMod = ` todo-task-master-item--${masterStatusClass(master.status)}`;
@@ -238,7 +230,7 @@ export function MasterPane({
   activeOnly = true,
   categoryId = '',
 }: {
-  masters: Master[];
+  masters: TodoMaster[];
   selectedMasterId: string;
   disabled: boolean;
   activeOnly?: boolean;
@@ -258,7 +250,7 @@ export function MasterPane({
 }
 
 export function renderMasterPane(
-  masters: Master[],
+  masters: TodoMaster[],
   selectedMasterId: string,
   disabled: boolean,
   activeOnly = true,

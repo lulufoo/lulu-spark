@@ -1,41 +1,44 @@
-// @ts-nocheck
 import { createApiClient, resolveReadDriver } from '../../host/apiClient.ts';
+import type { TodoMaster, TodoSub } from '../state/types.ts';
 
-function serviceError(data) {
+type ServiceError = Error & { status?: number };
+
+function serviceError(data: unknown): ServiceError | null {
   if (!data || typeof data !== 'object' || Array.isArray(data)) return null;
-  if (!data.error) return null;
-  const err = new Error(String(data.error));
-  err.status = typeof data._status === 'number' ? data._status : 500;
+  const rec = data as { error?: unknown; _status?: unknown };
+  if (!rec.error) return null;
+  const err = new Error(String(rec.error)) as ServiceError;
+  err.status = typeof rec._status === 'number' ? rec._status : 500;
   return err;
 }
 
-export async function loadAssistantTodoTasks() {
+export async function loadAssistantTodoTasks(): Promise<TodoMaster[]> {
   const mode = resolveReadDriver();
   const client = createApiClient(resolveReadDriver(mode));
   const data = await client.getJson('/api/todo-tasks');
   const err = serviceError(data);
   if (err) throw err;
-  return Array.isArray(data) ? data : [];
+  return Array.isArray(data) ? (data as TodoMaster[]) : [];
 }
 
-export function selectTop3ByCreatedAt(entries) {
+export function selectTop3ByCreatedAt(entries: TodoMaster[]) {
   return [...entries]
     .sort((a, b) => {
-      const aTime = Date.parse(a.created_at ?? '') || 0;
-      const bTime = Date.parse(b.created_at ?? '') || 0;
+      const aTime = Date.parse(String(a.created_at ?? '')) || 0;
+      const bTime = Date.parse(String(b.created_at ?? '')) || 0;
       return bTime - aTime;
     })
     .slice(0, 3);
 }
 
-export function formatSubProgressSummary(master) {
+export function formatSubProgressSummary(master: TodoMaster) {
   const subs = master.sub_tasks ?? [];
-  const complete = subs.filter((sub) => sub.status === 'complete').length;
+  const complete = subs.filter((sub: TodoSub) => sub.status === 'complete').length;
   const total = subs.length;
   return `${master.title} · ${complete}/${total} complete`;
 }
 
-export function buildDeepLink(masterId, subId) {
+export function buildDeepLink(masterId: string, subId: string) {
   const params = new URLSearchParams({ master: masterId, sub: subId });
   return `#/todo-tasks?${params.toString()}`;
 }

@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * App Binding consumer: one process-level key-only Set for the workbench surface.
  * Host looks up MCP Server config; consumer does not assemble tools/prompt/callbacks
@@ -15,7 +14,19 @@ function getTauriInvoke() {
   return typeof invoke === 'function' ? invoke : null;
 }
 
-function emitCallback(fn, payload) {
+type BindingCallbacks = {
+  onBound?: (payload?: unknown) => void;
+  onUnbound?: (payload?: unknown) => void;
+  onError?: (payload?: unknown) => void;
+};
+
+type SetBindingResult = {
+  ok?: boolean;
+  code?: string;
+  state?: string;
+};
+
+function emitCallback(fn: ((payload?: unknown) => void) | undefined, payload: unknown) {
   if (typeof fn === 'function') {
     fn(payload);
   }
@@ -28,24 +39,24 @@ function emitCallback(fn, payload) {
  *
  * @param {{ onBound?: Function, onUnbound?: Function, onError?: Function }} [callbacks]
  */
-export async function setWorkbenchBinding(callbacks = {}) {
+export async function setWorkbenchBinding(hooks: BindingCallbacks = {}) {
   const binding = { key: WORKBENCH_BUSINESS_KEY };
   const invoke = getTauriInvoke();
   if (!invoke) {
-    emitCallback(callbacks.onError, { category: 'set_invalid' });
+    emitCallback(hooks.onError, { category: 'set_invalid' });
     return { ok: false, code: 'set_invalid', state: 'unbound', binding };
   }
 
-  let result;
+  let result: SetBindingResult | undefined;
   try {
-    result = await invoke('set_binding', { binding });
+    result = (await invoke('set_binding', { binding })) as SetBindingResult;
   } catch {
-    emitCallback(callbacks.onError, { category: 'set_invalid' });
+    emitCallback(hooks.onError, { category: 'set_invalid' });
     return { ok: false, code: 'set_invalid', state: 'unbound', binding };
   }
 
   if (result && result.ok === true) {
-    emitCallback(callbacks.onBound, {});
+    emitCallback(hooks.onBound, {});
     return {
       ok: true,
       state: result.state ?? 'bound',
@@ -55,7 +66,7 @@ export async function setWorkbenchBinding(callbacks = {}) {
 
   const code =
     result && typeof result.code === 'string' ? result.code : 'set_invalid';
-  emitCallback(callbacks.onError, { category: code });
+  emitCallback(hooks.onError, { category: code });
   return {
     ok: false,
     code,

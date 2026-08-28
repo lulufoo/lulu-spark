@@ -1,4 +1,3 @@
-// @ts-nocheck
 import {
   COPY_MASTER_LABEL,
   buildDeepLink,
@@ -9,8 +8,57 @@ import {
 } from '../state/format.ts';
 import { CATEGORY_ACTION_CREATE, CATEGORY_ACTION_DELETE } from './list.ts';
 import { DEFAULT_PLAN_CATEGORY_ID } from '../state/host.ts';
+import type { TodoMaster } from '../state/types.ts';
 
-export function bindFocusRefresh(refresh) {
+type PageEventsDeps = {
+  getBusy: () => boolean;
+  paint: () => void;
+  findMaster: (id: string) => TodoMaster | null;
+  getSelectedMasterId: () => string;
+  getSelectedSubId: () => string;
+  setSelection: (next: { masterId?: string; subId?: string; deadLink?: boolean }) => void;
+  getList: () => {
+    filterCategoryId: string;
+    toggleActiveOnly: () => void;
+    setFilterCategoryId: (id: string) => void;
+  };
+  navigate?: (hash: string) => void;
+  closeSubMenus: () => void;
+  resetOwnersForMasterChange: () => void;
+  syncTodosBindingForSelection: (masterId: string) => void;
+  loadAttachmentsAndComments: () => Promise<void>;
+  isDisposed: () => boolean;
+  refresh: () => Promise<void>;
+  setRefreshWarning: (value: string) => void;
+  planMd: { handleClick: (action: string) => boolean };
+  attachments: {
+    handleClick: (event: Event, action: string, actionEl: HTMLElement | null) => boolean;
+    handleKeydown: (event: KeyboardEvent) => boolean;
+  };
+  comments: {
+    handleClick: (event: Event, action: string, actionEl: HTMLElement | null) => boolean;
+    handleKeydown: (event: KeyboardEvent) => boolean;
+  };
+  detail: {
+    handleClick: (event: Event, action: string, actionEl: HTMLElement | null) => boolean;
+    handleInput: (event: Event) => boolean | void;
+    handleBlur: (event: Event) => boolean | void;
+    handleChange: (event: Event) => boolean | void;
+    handleTitleEnter: (event: KeyboardEvent) => boolean | void;
+  };
+  dialogs: {
+    openCreateDialog: (triggerEl: HTMLElement | null) => void;
+    openAddSubDialog: (triggerEl: HTMLElement | null) => void;
+    openDeleteMasterDialog: (triggerEl: HTMLElement | null) => void;
+    openDeleteSubDialog: (triggerEl: HTMLElement | null, subTaskId: string, subTitle: string) => void;
+    openCreateCategoryDialog: (triggerEl: EventTarget | null) => void;
+    deleteFilteredCategory: () => Promise<void>;
+    runMasterCategoryChange: (targetCategoryId: string, selectEl: HTMLSelectElement) => Promise<void>;
+  };
+  enforceActiveOnlySelection: () => void;
+};
+
+export function bindFocusRefresh(refresh: () => Promise<void> | void) {
   const onFocus = () => {
     void refresh();
   };
@@ -27,13 +75,12 @@ export function bindFocusRefresh(refresh) {
   };
 }
 
-export function bindPageEvents(container, deps) {
+export function bindPageEvents(container: HTMLElement, deps: PageEventsDeps) {
   const {
     getBusy,
     paint,
     findMaster,
     getSelectedMasterId,
-    getSelectedSubId,
     setSelection,
     getList,
     navigate,
@@ -51,8 +98,10 @@ export function bindPageEvents(container, deps) {
     dialogs,
   } = deps;
 
-  const onClick = (event) => {
-    const actionEl = event.target.closest('[data-action]');
+  const onClick = (event: MouseEvent) => {
+    const actionEl = (event.target as Element | null)?.closest(
+      '[data-action]',
+    ) as HTMLElement | null;
     const action = actionEl?.dataset.action;
 
     if (action === 'retry-refresh') {
@@ -150,7 +199,9 @@ export function bindPageEvents(container, deps) {
       return;
     }
 
-    const masterBtn = event.target.closest('.todo-task-master-item');
+    const masterBtn = (event.target as Element | null)?.closest(
+      '.todo-task-master-item',
+    ) as HTMLElement | null;
     if (masterBtn?.dataset.masterId) {
       if (controlsDisabled(getBusy())) return;
       if (masterBtn.dataset.masterId === getSelectedMasterId()) {
@@ -178,14 +229,15 @@ export function bindPageEvents(container, deps) {
       return;
     }
 
-    const subEl = event.target.closest('.todo-task-sub');
+    const clickTarget = event.target as Element | null;
+    const subEl = clickTarget?.closest('.todo-task-sub') as HTMLElement | null;
     if (subEl?.dataset.subId && getSelectedMasterId()) {
       if (controlsDisabled(getBusy())) return;
-      if (event.target.closest('.todo-task-sub-menu')) return;
-      if (event.target.closest('.todo-task-sub-title-input')) return;
-      if (event.target.closest('.todo-task-sub-status-select')) return;
-      if (event.target.closest('.todo-task-sub-content-editor')) return;
-      if (event.target.closest('[data-action="toggle-sub-content"]')) return;
+      if (clickTarget?.closest('.todo-task-sub-menu')) return;
+      if (clickTarget?.closest('.todo-task-sub-title-input')) return;
+      if (clickTarget?.closest('.todo-task-sub-status-select')) return;
+      if (clickTarget?.closest('.todo-task-sub-content-editor')) return;
+      if (clickTarget?.closest('[data-action="toggle-sub-content"]')) return;
       closeSubMenus();
       setSelection({
         masterId: getSelectedMasterId(),
@@ -199,28 +251,30 @@ export function bindPageEvents(container, deps) {
       return;
     }
 
-    if (!event.target.closest('.todo-task-sub-menu')) {
+    if (!clickTarget?.closest('.todo-task-sub-menu')) {
       closeSubMenus();
     }
   };
 
-  const onInput = (event) => {
+  const onInput = (event: Event) => {
     detail.handleInput(event);
   };
 
-  const onKeydown = (event) => {
+  const onKeydown = (event: KeyboardEvent) => {
     if (comments.handleKeydown(event)) return;
     if (attachments.handleKeydown(event)) return;
     detail.handleTitleEnter(event);
   };
 
-  const onFieldBlur = (event) => {
+  const onFieldBlur = (event: Event) => {
     detail.handleBlur(event);
   };
 
-  const onChange = (event) => {
+  const onChange = (event: Event) => {
     const list = getList();
-    const categoryFilter = event.target.closest('[data-action="filter-category"]');
+    const categoryFilter = (event.target as Element | null)?.closest(
+      '[data-action="filter-category"]',
+    );
     if (categoryFilter instanceof HTMLSelectElement) {
       if (controlsDisabled(getBusy())) {
         categoryFilter.value = list.filterCategoryId;
@@ -242,7 +296,7 @@ export function bindPageEvents(container, deps) {
       paint();
       return;
     }
-    const masterCategorySelect = event.target.closest(
+    const masterCategorySelect = (event.target as Element | null)?.closest(
       '[data-action="change-master-category"]',
     );
     if (masterCategorySelect instanceof HTMLSelectElement) {

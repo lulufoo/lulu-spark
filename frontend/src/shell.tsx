@@ -1,4 +1,3 @@
-// @ts-nocheck — chrome port; leftover islands still find these IDs.
 import { BindDialog, openBindDialog } from './app-shell/ui/bind-dialog.tsx';
 import { CommitChangesDialog } from './app-shell/ui/commit-dialog.tsx';
 import { ConvertDialog, openConvertDialog } from './app-shell/ui/convert-dialog.tsx';
@@ -6,6 +5,8 @@ import { MoveDocDialog, openMoveDocDialog } from './app-shell/ui/move-dialog.tsx
 import { SettingsDialog, openSettingsDialog } from './app-shell/ui/settings/dialog.tsx';
 import { SettingsDialogChrome } from './app-shell/ui/settings/chrome.tsx';
 import { SkillsDialog, _openSkillsDialog } from './app-shell/ui/skills-dialog.tsx';
+
+void SettingsDialogChrome;
 import { KbCommentDialog } from './corpus/ui/comments.tsx';
 import { KbDiffDialog } from './corpus/ui/diff-dialog.tsx';
 import { KbCommitDialog } from './corpus/ui/viewer/commit.tsx';

@@ -1,9 +1,9 @@
-// @ts-nocheck — viewer annotation shape stays loose like the former .ts wire file.
 import { useEffect, useSyncExternalStore } from 'react';
 import { state } from '../host/state.ts';
 import * as api from '../host/api.ts';
 import { nowTs } from './utils.ts';
 import { createModuleStore } from './module-store.ts';
+import type { Annotation, CommentLike, LayerData, WriteResult } from './types.ts';
 
 const openStore = createModuleStore(false);
 
@@ -34,10 +34,11 @@ export function confirmDeleteComment() {
 
 export async function removeKbComment(comment: { id: string }) {
   const { kbRepo, kbPath, annotation } = state.viewer;
-  const data = await api.updateKbComment(kbRepo, kbPath, { id: comment.id, text: '' }, nowTs());
+  const data = (await api.updateKbComment(kbRepo, kbPath, { id: comment.id, text: '' }, nowTs())) as WriteResult;
   if (!data.ok) throw new Error(data.error || 'failed');
-  if (annotation?.comments) {
-    annotation.comments = annotation.comments.filter((c: { id: string }) => c.id !== comment.id);
+  const ann = annotation as Annotation;
+  if (Array.isArray(ann.comments)) {
+    ann.comments = (ann.comments as CommentLike[]).filter((c) => c.id !== comment.id);
   }
 }
 
@@ -46,12 +47,13 @@ export async function removeCorpusComment(
   layer: string,
   entry: { common_path: string },
 ) {
-  const data = await api.updateComments(entry.common_path, layer, { id: c.id, text: '' }, nowTs());
+  const data = (await api.updateComments(entry.common_path, layer, { id: c.id, text: '' }, nowTs())) as WriteResult;
   if (!data.ok) throw new Error(data.error || 'failed');
-  const ld = state.viewer.annotation[layer] || {};
-  ld.comments = (ld.comments || []).filter((x: { id: string }) => x.id !== c.id);
-  if (!ld.comments.length) delete state.viewer.annotation[layer];
-  else state.viewer.annotation[layer] = ld;
+  const annotation = state.viewer.annotation as Annotation;
+  const ld = (annotation[layer] || {}) as LayerData;
+  ld.comments = (ld.comments || []).filter((x) => x.id !== c.id);
+  if (!ld.comments.length) delete annotation[layer];
+  else annotation[layer] = ld;
 }
 
 export function CommentDeleteDialog() {

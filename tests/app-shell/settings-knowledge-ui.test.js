@@ -76,7 +76,9 @@ describe('Settings Knowledge UI', () => {
   });
 
   it('addSedimentKbRepo includes description in request body', () => {
-    expect(apiJs).toMatch(/export async function addSedimentKbRepo\(fullName, categoryId, description\)/);
+    expect(apiJs).toMatch(
+      /export async function addSedimentKbRepo\(\s*fullName\??(?::[^,)]+)?,\s*categoryId\??(?::[^,)]+)?,\s*description\??(?::[^,)]+)?/,
+    );
     expect(apiJs).toMatch(/body\.description = description/);
   });
 

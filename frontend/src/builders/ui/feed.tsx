@@ -1,12 +1,21 @@
-// @ts-nocheck — ported from JS; feed payloads stay unchecked like checkJs:false.
 import { useEffect, useState } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { flushSync } from 'react-dom';
 import { loadBuilderFeeds } from '../commands/feed.ts';
 import { fmtDate, fmtDateFull, pickXSelection } from '../state/selectors.ts';
+import {
+  errMessage,
+  type BlogsFeedData,
+  type BuilderBlog,
+  type BuilderPodcast,
+  type BuilderXUser,
+  type FeedViewState,
+  type PodcastsFeedData,
+  type XFeedData,
+} from '../state/types.ts';
 import { getXHandle, isXCollapsed, saveXCollapsed, saveXHandle } from '../state/x-prefs.ts';
 
-function XUser({ user }) {
+function XUser({ user }: { user: BuilderXUser }) {
   const tweets = user.tweets || [];
   return (
     <div className="feed-person">
@@ -45,7 +54,7 @@ function XUser({ user }) {
   );
 }
 
-function PodcastItem({ p, index }) {
+function PodcastItem({ p, index }: { p: BuilderPodcast; index: number }) {
   const [open, setOpen] = useState(false);
   const id = `feed-podcast-${index}`;
   const preview = p.transcript ? p.transcript.slice(0, 300) : '';
@@ -83,7 +92,7 @@ function PodcastItem({ p, index }) {
   );
 }
 
-function Podcasts({ podcasts }) {
+function Podcasts({ podcasts }: { podcasts?: BuilderPodcast[] }) {
   if (!podcasts || podcasts.length === 0) {
     return <div className="feed-empty">No podcasts</div>;
   }
@@ -96,7 +105,7 @@ function Podcasts({ podcasts }) {
   );
 }
 
-function Blogs({ blogs }) {
+function Blogs({ blogs }: { blogs?: BuilderBlog[] }) {
   if (!blogs || blogs.length === 0) {
     return <div className="feed-empty">No blogs yet (blog sources still being configured)</div>;
   }
@@ -117,11 +126,23 @@ function Blogs({ blogs }) {
   );
 }
 
-function FeedError({ message }) {
+function FeedError({ message }: { message?: string }) {
   return <div className="feed-error">Failed to load: {message}</div>;
 }
 
-function FeedView({ generatedAt, podcastsData, blogsData, xData, xUsers }) {
+function FeedView({
+  generatedAt,
+  podcastsData,
+  blogsData,
+  xData,
+  xUsers,
+}: {
+  generatedAt: string;
+  podcastsData: PodcastsFeedData;
+  blogsData: BlogsFeedData;
+  xData: XFeedData;
+  xUsers: BuilderXUser[];
+}) {
   const [collapsed, setCollapsed] = useState(isXCollapsed());
   const [handle, setHandle] = useState(getXHandle());
   const { xSelHandle, xSelUser } = pickXSelection(xUsers, handle);
@@ -195,7 +216,7 @@ function FeedView({ generatedAt, podcastsData, blogsData, xData, xUsers }) {
 }
 
 export function BuildersFeed() {
-  const [view, setView] = useState({ kind: 'loading' });
+  const [view, setView] = useState<FeedViewState>({ kind: 'loading' });
 
   useEffect(() => {
     let cancelled = false;
@@ -212,7 +233,7 @@ export function BuildersFeed() {
         });
       })
       .catch((e) => {
-        if (!cancelled) setView({ kind: 'error', message: e.message });
+        if (!cancelled) setView({ kind: 'error', message: errMessage(e, String(e)) });
       });
     return () => {
       cancelled = true;
@@ -232,10 +253,10 @@ export function BuildersFeed() {
   );
 }
 
-const feedRoots = new WeakMap();
+const feedRoots = new WeakMap<Element, Root>();
 
 /** Home-entry slot adapter / tests: mount React feed into the slot. */
-export function renderFeed(container) {
+export function renderFeed(container: Element) {
   let root = feedRoots.get(container);
   if (!root) {
     root = createRoot(container);

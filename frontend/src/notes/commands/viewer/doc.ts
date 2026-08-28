@@ -1,4 +1,3 @@
-// @ts-nocheck — ported from JS; state shapes stay unchecked like checkJs:false.
 import { state, getEntryId, loadDiffStatus, notifyState } from '../../state/host.ts';
 import { getActivePath } from '../../../corpus/state/path.ts';
 import { filenameFromPath, slugToTitle, resetEditAreaScroll } from '../../../shared/utils.ts';
@@ -8,6 +7,13 @@ import { saveKbDoc } from '../../../corpus/viewer.ts';
 import { closeCommitDialog, hidePendingBadge, showPendingBadge } from './commit.ts';
 import { initHighlightUI } from '../../ui/viewer/body.tsx';
 import { setNotePanelTitle, showNoteOutlet } from './outlet.ts';
+import type { HostViewerAnnotation } from '../../../host/snapshot-types.ts';
+import type { NoteEntry } from '../../state/types.ts';
+
+function asTextArea(el: HTMLElement | null) {
+  if (!el || !('value' in el)) return null;
+  return el as HTMLTextAreaElement;
+}
 
 function formatFileSize(text: string) {
   const bytes = new Blob([text]).size;
@@ -16,17 +22,17 @@ function formatFileSize(text: string) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-export function updateLangBar(_entry) {
+export function updateLangBar(_entry?: NoteEntry | null) {
   notifyState();
 }
 
-export function updateHeaderUrls(_entry, _layer, _activePath) {
+export function updateHeaderUrls(_entry?: NoteEntry | null, _layer?: string, _activePath?: string) {
   notifyState();
 }
 
 let openDocGen = 0;
 
-export async function openDoc(entry, layer = 'raw') {
+export async function openDoc(entry: NoteEntry, layer = 'raw') {
   const gen = ++openDocGen;
   initHighlightUI();
   state.viewer.entry = entry;
@@ -48,18 +54,21 @@ export async function openDoc(entry, layer = 'raw') {
   showNoteOutlet('open');
   notifyState();
 
-  const activePath = getActivePath(entry, state.viewer.lang, layer);
+  const activePath = getActivePath(entry, state.viewer.lang || '', layer);
   const [mdResult, annResult] = await Promise.allSettled([
     api.fetchFileContent(layer, activePath),
     api.fetchAnnotation(entry.common_path).catch(() => ({})),
   ]);
   if (gen !== openDocGen) return;
 
-  if (annResult.status === 'fulfilled') state.viewer.annotation = annResult.value || {};
+  if (annResult.status === 'fulfilled') {
+    state.viewer.annotation = (annResult.value || {}) as HostViewerAnnotation;
+  }
 
   if (mdResult.status === 'rejected') {
     state.viewer.loading = false;
-    state.viewer.loadError = mdResult.reason?.message || 'fetch failed';
+    const reason = mdResult.reason;
+    state.viewer.loadError = reason instanceof Error ? reason.message : 'fetch failed';
     state.viewer.bodyPaintKey += 1;
     notifyState();
     return;
@@ -78,7 +87,7 @@ export async function openDoc(entry, layer = 'raw') {
   notifyState();
 }
 
-export async function switchLang(lang) {
+export async function switchLang(lang: string | null) {
   if (!state.viewer.entry) return;
   const entry = state.viewer.entry;
   const layer = state.viewer.layer;
@@ -94,7 +103,7 @@ export async function switchLang(lang) {
   state.viewer.bodyPaintKey += 1;
   notifyState();
 
-  const activePath = getActivePath(entry, lang, layer);
+  const activePath = getActivePath(entry, lang || '', layer);
   try {
     const text = await api.fetchFileContent(layer, activePath);
     if (gen !== openDocGen) return;
@@ -113,13 +122,13 @@ export async function switchLang(lang) {
   } catch (e) {
     if (gen !== openDocGen) return;
     state.viewer.loading = false;
-    state.viewer.loadError = e.message;
+    state.viewer.loadError = e instanceof Error ? e.message : String(e);
     state.viewer.bodyPaintKey += 1;
     notifyState();
   }
 }
 
-function setEditChromeDisplay(editing) {
+function setEditChromeDisplay(editing: boolean) {
   const btnSave = document.getElementById('btn-save');
   const btnCancel = document.getElementById('btn-cancel-edit');
   const btnEdit = document.getElementById('btn-edit');
@@ -131,7 +140,7 @@ function setEditChromeDisplay(editing) {
 export function enterEditMode() {
   state.viewer.editing = true;
   notifyState();
-  const editArea = document.getElementById('md-edit-area');
+  const editArea = asTextArea(document.getElementById('md-edit-area'));
   const body = document.getElementById('md-body');
   if (body && editArea) {
     setDocEditMode({ bodyEl: body, editAreaEl: editArea, text: state.viewer.rawText, editing: true });
@@ -150,7 +159,7 @@ export function exitEditMode(rerender = true) {
   state.viewer.pendingCommit = Boolean(_hasDiff);
   if (_hasDiff) showPendingBadge();
   else hidePendingBadge();
-  const editArea = document.getElementById('md-edit-area');
+  const editArea = asTextArea(document.getElementById('md-edit-area'));
   const body = document.getElementById('md-body');
   if (body && editArea) {
     setDocEditMode({ bodyEl: body, editAreaEl: editArea, editing: false });
@@ -168,30 +177,31 @@ export async function saveDoc() {
     return;
   }
   if (!state.viewer.entry) return;
-  const editArea = document.getElementById('md-edit-area');
+  const editArea = asTextArea(document.getElementById('md-edit-area'));
   const newContent = editArea?.value ?? state.viewer.rawText;
   state.viewer.saving = true;
   notifyState();
 
   try {
-    const activePath = getActivePath(state.viewer.entry, state.viewer.lang, state.viewer.layer);
-    const data = await api.saveFile(state.viewer.layer, activePath, newContent);
+    const activePath = getActivePath(state.viewer.entry, state.viewer.lang || '', state.viewer.layer);
+    const data = (await api.saveFile(state.viewer.layer, activePath, newContent)) as { error?: string };
     if (data.error) throw new Error(data.error);
 
     state.viewer.rawText = newContent;
-    const date = state.viewer.entry.created_at.slice(0, 8);
+    const date = (state.viewer.entry.created_at || '').slice(0, 8);
     const h1Match = newContent.match(/^#\s+(.+)/m);
     const newTitle = h1Match ? h1Match[1].trim() : slugToTitle(filenameFromPath(state.viewer.entry.common_path));
     const entryId = getEntryId(state.viewer.entry);
-    if (!state.index.titleCache.has(date)) state.index.titleCache.set(date, new Map());
-    state.index.titleCache.get(date).set(entryId, newTitle);
+    const cache = state.index.titleCache.get(date) ?? new Map<string, string>();
+    state.index.titleCache.set(date, cache);
+    if (entryId) cache.set(entryId, newTitle);
     exitEditMode(true);
     await loadDiffStatus();
     state.viewer.pendingCommit = true;
     showPendingBadge();
     notifyState();
   } catch (e) {
-    alert(`Save failed: ${e.message}`);
+    alert(`Save failed: ${e instanceof Error ? e.message : String(e)}`);
   } finally {
     state.viewer.saving = false;
     notifyState();

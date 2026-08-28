@@ -1,12 +1,13 @@
-// @ts-nocheck — DOM wiring stays unchecked like checkJs:false.
 import { positionFloatingListMenu } from './floating-list-menu.ts';
+import type {
+  FloatingListOpenState,
+  FloatingListSelectConfig,
+  FloatingListSelectOption,
+  FloatingListSelectSync,
+  ListSelectPicker,
+} from './types.ts';
 
-/**
- * @typedef {{ value: string, label: string, title?: string }} FloatingListSelectOption
- */
-
-/** @type {{ menu: HTMLElement, trigger: HTMLElement, picker: HTMLElement, docListener: (event: MouseEvent) => void } | null} */
-let _openState = null;
+let _openState: FloatingListOpenState | null = null;
 
 export function closeFloatingListSelect() {
   if (!_openState) return;
@@ -18,18 +19,14 @@ export function closeFloatingListSelect() {
   _openState = null;
 }
 
-/**
- * @param {{
- *   ariaLabel: string,
- *   value: string,
- *   options: FloatingListSelectOption[],
- *   pickerClass?: string,
- *   onSelect: (value: string) => void,
- * }} config
- * @returns {{ picker: HTMLElement, sync: (next: { value: string, options: FloatingListSelectOption[] }) => void }}
- */
-export function createFloatingListSelect({ ariaLabel, value, options, pickerClass = '', onSelect }) {
-  const picker = document.createElement('div');
+export function createFloatingListSelect({
+  ariaLabel,
+  value,
+  options,
+  pickerClass = '',
+  onSelect,
+}: FloatingListSelectConfig): { picker: ListSelectPicker; sync: (next: FloatingListSelectSync) => void } {
+  const picker = document.createElement('div') as ListSelectPicker;
   picker.className = ['list-select-picker', pickerClass].filter(Boolean).join(' ');
 
   const trigger = document.createElement('button');
@@ -49,12 +46,10 @@ export function createFloatingListSelect({ ariaLabel, value, options, pickerClas
   trigger.append(labelSpan, chevron);
   picker.appendChild(trigger);
 
-  /** @type {string} */
   let currentValue = value;
-  /** @type {FloatingListSelectOption[]} */
-  let currentOptions = options;
+  let currentOptions: FloatingListSelectOption[] = options;
 
-  function findLabel(val) {
+  function findLabel(val: string) {
     return currentOptions.find((o) => o.value === val)?.label ?? currentOptions[0]?.label ?? '';
   }
 
@@ -95,8 +90,9 @@ export function createFloatingListSelect({ ariaLabel, value, options, pickerClas
 
     document.body.appendChild(menu);
 
-    const docListener = (event) => {
-      if (event.target.closest('.list-select-trigger') || event.target.closest('.list-select-menu')) {
+    const docListener = (event: MouseEvent) => {
+      const target = event.target as Element | null;
+      if (target?.closest('.list-select-trigger') || target?.closest('.list-select-menu')) {
         return;
       }
       closeFloatingListSelect();
@@ -110,7 +106,8 @@ export function createFloatingListSelect({ ariaLabel, value, options, pickerClas
     document.addEventListener('mousedown', docListener);
 
     menu.addEventListener('click', (event) => {
-      const option = event.target.closest('.list-select-option');
+      const target = event.target as Element | null;
+      const option = target?.closest('.list-select-option') as HTMLElement | null;
       if (!option) return;
       const next = option.dataset.value ?? '';
       closeFloatingListSelect();

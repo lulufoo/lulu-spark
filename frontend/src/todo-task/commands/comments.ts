@@ -1,13 +1,13 @@
-// @ts-nocheck
 import {
   addPlanComment,
   deletePlanComment,
   listPlanComments,
   updatePlanComment,
 } from '../state/host.ts';
+import { elementValue, errMessage, type TodoComment, type TodoPageCtx } from '../state/types.ts';
 
-export function createCommentsOwner(ctx) {
-  let comments = [];
+export function createCommentsOwner(ctx: TodoPageCtx) {
+  let comments: TodoComment[] = [];
   let commentsError = '';
   let commentEditId = '';
   let commentDeleteConfirm = '';
@@ -35,7 +35,7 @@ export function createCommentsOwner(ctx) {
     } catch (err) {
       if (ctx.isDisposed() || ctx.getSelectedMasterId() !== masterId) return;
       comments = [];
-      commentsError = err?.message || 'Failed to load process notes';
+      commentsError = errMessage(err, 'Failed to load process notes');
     }
   }
 
@@ -43,7 +43,7 @@ export function createCommentsOwner(ctx) {
     const selectedMasterId = ctx.getSelectedMasterId();
     if (!selectedMasterId || ctx.isBusy()) return;
     const input = ctx.getContainer().querySelector('[data-comment-input]');
-    const body = input instanceof HTMLTextAreaElement ? input.value : '';
+    const body = elementValue(input);
     const masterTaskId = selectedMasterId;
     ctx.setBusy(true);
     commentsError = '';
@@ -56,14 +56,14 @@ export function createCommentsOwner(ctx) {
       await loadForSelected();
     } catch (err) {
       if (ctx.isDisposed() || ctx.getSelectedMasterId() !== masterTaskId) return;
-      commentsError = err?.message || 'Failed to add process note';
+      commentsError = errMessage(err, 'Failed to add process note');
     } finally {
       ctx.setBusy(false);
       if (!ctx.isDisposed()) ctx.paint();
     }
   }
 
-  function beginEdit(commentId) {
+  function beginEdit(commentId: string) {
     if (!ctx.getSelectedMasterId() || ctx.isBusy() || !commentId) return;
     commentEditId = commentId;
     commentDeleteConfirm = '';
@@ -76,11 +76,11 @@ export function createCommentsOwner(ctx) {
     ctx.paint();
   }
 
-  async function saveEdit(commentId) {
+  async function saveEdit(commentId: string) {
     const selectedMasterId = ctx.getSelectedMasterId();
     if (!selectedMasterId || ctx.isBusy() || !commentId) return;
     const editInput = ctx.getContainer().querySelector('[data-comment-edit-input]');
-    const body = editInput instanceof HTMLTextAreaElement ? editInput.value : '';
+    const body = elementValue(editInput);
     const masterTaskId = selectedMasterId;
     ctx.setBusy(true);
     commentsError = '';
@@ -93,14 +93,14 @@ export function createCommentsOwner(ctx) {
       await loadForSelected();
     } catch (err) {
       if (ctx.isDisposed() || ctx.getSelectedMasterId() !== masterTaskId) return;
-      commentsError = err?.message || 'Failed to update process note';
+      commentsError = errMessage(err, 'Failed to update process note');
     } finally {
       ctx.setBusy(false);
       if (!ctx.isDisposed()) ctx.paint();
     }
   }
 
-  function openDeleteConfirm(commentId) {
+  function openDeleteConfirm(commentId: string) {
     if (!ctx.getSelectedMasterId() || ctx.isBusy() || !commentId) return;
     commentDeleteConfirm = commentId;
     commentEditId = '';
@@ -113,7 +113,7 @@ export function createCommentsOwner(ctx) {
     ctx.paint();
   }
 
-  async function confirmDelete(commentId) {
+  async function confirmDelete(commentId: string) {
     const selectedMasterId = ctx.getSelectedMasterId();
     if (!selectedMasterId || ctx.isBusy() || !commentId) return;
     const masterTaskId = selectedMasterId;
@@ -129,7 +129,7 @@ export function createCommentsOwner(ctx) {
     } catch (err) {
       if (ctx.isDisposed() || ctx.getSelectedMasterId() !== masterTaskId) return;
       commentDeleteConfirm = '';
-      commentsError = err?.message || 'Failed to delete process note';
+      commentsError = errMessage(err, 'Failed to delete process note');
     } finally {
       ctx.setBusy(false);
       if (!ctx.isDisposed()) ctx.paint();
@@ -154,7 +154,7 @@ export function createCommentsOwner(ctx) {
       commentDeleteConfirm = '';
     },
     loadForSelected,
-    handleClick(event, action, actionEl) {
+    handleClick(event: Event, action: string, actionEl: HTMLElement | null) {
       if (action === 'add-comment') {
         void addFromComposer();
         return true;
@@ -195,7 +195,7 @@ export function createCommentsOwner(ctx) {
       }
       return false;
     },
-    handleKeydown(event) {
+    handleKeydown(event: KeyboardEvent) {
       if (event.key !== 'Escape') return false;
       if (commentDeleteConfirm) {
         event.preventDefault();

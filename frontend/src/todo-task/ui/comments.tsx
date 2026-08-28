@@ -1,14 +1,22 @@
-// @ts-nocheck
 import { renderToHtml } from '../../island.ts';
 import { formatRelativeTime } from '../state/format.ts';
+import type { TodoComment } from '../state/types.ts';
 
 const COMMENTS_EMPTY_MSG = 'No process notes';
 
-export function renderCommentsSection(ui) {
+type CommentsUi = {
+  comments?: TodoComment[];
+  commentsError?: string;
+  commentEditId?: string;
+  commentDeleteConfirm?: string;
+  disabled?: boolean;
+};
+
+export function renderCommentsSection(ui: CommentsUi) {
   return renderToHtml(<CommentsSection ui={ui} />);
 }
 
-export function CommentsSection({ ui }) {
+export function CommentsSection({ ui }: { ui: CommentsUi }) {
   const items = ui.comments ?? [];
   const editId = ui.commentEditId || '';
   const confirmId = ui.commentDeleteConfirm || '';

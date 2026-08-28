@@ -1,5 +1,4 @@
-// @ts-nocheck — host/state snapshots stay unchecked; do not type this file alone.
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
 import { notifyState, useHostState } from '../state/host.ts';
 import { TAG_VALUE_MAX_LEN } from '../../host/constants.ts';
 import { suggestTags } from '../commands/tag-suggest.ts';
@@ -13,7 +12,7 @@ import {
 
 export { refreshTagDisplayGlobally };
 
-const barStyle = {
+const barStyle: CSSProperties = {
   padding: '8px 20px',
   borderBottom: '1px solid #d0d7de',
   flexWrap: 'wrap',
@@ -32,7 +31,7 @@ export function NotesTagsBar() {
   const creating = Boolean(host.viewer.createSession);
   const tags = entry?.tags || [];
   const [adding, setAdding] = useState(false);
-  const [editingIndex, setEditingIndex] = useState(null);
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [addValue, setAddValue] = useState('');
   const [addPreview, setAddPreview] = useState('');
   const [addPreviewColor, setAddPreviewColor] = useState('#8c959f');
@@ -55,15 +54,17 @@ export function NotesTagsBar() {
 
   const suggestions = adding ? suggestTags(addValue, host.index.tagsRegistry) : [];
 
-  async function onDetach(key) {
+  async function onDetach(key?: string) {
+    if (!key) return;
     const result = await detachNoteTag(key);
     if (!result.ok) alert(result.error || 'Failed to remove tag');
   }
 
-  async function onSaveEdit(key) {
+  async function onSaveEdit(key?: string) {
     setSaving(true);
     setEditError('');
     try {
+      if (!key) return;
       const result = await updateNoteTagValue(key, editValue);
       if (!result.ok) {
         setEditError(result.error || 'Update failed');
@@ -71,13 +72,13 @@ export function NotesTagsBar() {
       }
       setEditingIndex(null);
     } catch (e) {
-      setEditError(e.message || 'Update failed');
+      setEditError(e instanceof Error ? e.message : 'Update failed');
     } finally {
       setSaving(false);
     }
   }
 
-  async function onAttach(payload) {
+  async function onAttach(payload: { key?: string; value?: string }) {
     const result = await attachNoteTag(payload);
     if (!result.ok) {
       setAddPreview(`Error: ${result.error || 'Add failed'}`);

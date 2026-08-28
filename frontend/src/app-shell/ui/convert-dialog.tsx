@@ -1,9 +1,10 @@
-import { useEffect, useState, useSyncExternalStore } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import {
   closeConvertDialog,
   setConvertTab,
 } from '../commands/convert-dialog.ts';
 import { convertStore } from '../state/convert.ts';
+import { renderQr } from './qr-dialog.tsx';
 
 export { closeConvertDialog, openConvertDialog, setConvertTab } from '../commands/convert-dialog.ts';
 
@@ -13,6 +14,8 @@ export function ConvertDialog() {
   const [output, setOutput] = useState('');
   const [outputError, setOutputError] = useState(false);
   const [copyLabel, setCopyLabel] = useState('Copy result');
+  const [qrText, setQrText] = useState('');
+  const qrPreviewRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -20,7 +23,15 @@ export function ConvertDialog() {
     setOutput('');
     setOutputError(false);
     setCopyLabel('Copy result');
+    setQrText('');
+    if (qrPreviewRef.current) qrPreviewRef.current.innerHTML = '';
   }, [open]);
+
+  function paintQr(text: string) {
+    setQrText(text);
+    const preview = qrPreviewRef.current;
+    if (preview) renderQr(text, preview);
+  }
 
   function encode() {
     const bytes = new TextEncoder().encode(input);
@@ -122,12 +133,11 @@ export function ConvertDialog() {
             id="qr-input"
             placeholder="Enter URL or text…"
             spellCheck={false}
-            onInput={(e) => {
-              const text = (e.target as HTMLTextAreaElement).value;
-              void import('./qr-dialog.tsx').then(({ renderQr }) => renderQr(text));
-            }}
+            value={qrText}
+            onChange={(e) => paintQr(e.target.value)}
+            onInput={(e) => paintQr(e.currentTarget.value)}
           />
-          <div id="qr-preview"></div>
+          <div id="qr-preview" ref={qrPreviewRef}></div>
         </div>
       </div>
     </div>

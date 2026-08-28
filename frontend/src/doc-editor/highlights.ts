@@ -1,26 +1,30 @@
-// @ts-nocheck — DOM wiring stays unchecked like checkJs:false.
 import * as api from '../host/api.ts';
 import { nowTs } from '../shared/utils.ts';
 import {
   wrapNthMatch,
   getOccurrenceIndex,
 } from './highlight-utils.ts';
+import type {
+  ApplyHighlightsArgs,
+  DeleteHighlightArgs,
+  HighlightOverlayConfig,
+  HighlightRecord,
+  HighlightsPayload,
+} from './types.ts';
 
-/** @type {Array<() => void>} */
-const _cleanups = [];
-/** @type {HTMLButtonElement | null} */
-let _btn = null;
+const _cleanups: Array<() => void> = [];
+let _btn: HTMLButtonElement | null = null;
 
 function hideBtn() {
   if (_btn) _btn.style.display = 'none';
 }
 
-function resolveBtn(buttonId) {
+function resolveBtn(buttonId?: string): HTMLButtonElement {
   if (buttonId) {
     const existing = document.getElementById(buttonId);
     if (existing instanceof HTMLButtonElement) return existing;
   }
-  let btn = document.getElementById('doc-highlight-add-btn');
+  let btn = document.getElementById('doc-highlight-add-btn') as HTMLButtonElement | null;
   if (!btn) {
     btn = document.createElement('button');
     btn.id = 'doc-highlight-add-btn';
@@ -32,7 +36,7 @@ function resolveBtn(buttonId) {
   return btn;
 }
 
-function unwrapMarks(container) {
+function unwrapMarks(container: Element | null) {
   if (!container) return;
   container.querySelectorAll('mark.doc-highlight').forEach((mark) => {
     mark.querySelectorAll('.highlight-del-btn').forEach((b) => b.remove());
@@ -41,12 +45,12 @@ function unwrapMarks(container) {
   container.normalize();
 }
 
-export async function applyCachedHighlights({ bodyEl, identityKey, excludeBarId = '' }) {
+export async function applyCachedHighlights({ bodyEl, identityKey, excludeBarId = '' }: ApplyHighlightsArgs) {
   if (!bodyEl || !identityKey) return;
   unwrapMarks(bodyEl);
-  let highlights = [];
+  let highlights: HighlightRecord[] = [];
   try {
-    const data = await api.fetchDocHighlights(identityKey);
+    const data = (await api.fetchDocHighlights(identityKey)) as HighlightsPayload;
     highlights = Array.isArray(data?.highlights) ? data.highlights : [];
   } catch {
     highlights = [];
@@ -65,13 +69,14 @@ export async function applyCachedHighlights({ bodyEl, identityKey, excludeBarId 
   }
 }
 
-async function deleteCachedHighlight({ bodyEl, identityKey, excludeBarId, id }) {
+async function deleteCachedHighlight({ bodyEl, identityKey, excludeBarId, id }: DeleteHighlightArgs) {
   if (!identityKey || !id) return;
   try {
-    const data = await api.updateDocHighlights(identityKey, { id }, nowTs());
+    const data = (await api.updateDocHighlights(identityKey, { id }, nowTs())) as HighlightsPayload;
     if (!data.ok) throw new Error(data.error || 'failed');
     await applyCachedHighlights({ bodyEl, identityKey, excludeBarId });
   } catch (e) {
+    // @ts-expect-error overlay alert uses e.message
     alert(`Failed to remove highlight: ${e.message}`);
   }
 }
@@ -93,15 +98,15 @@ export function initDocHighlightOverlay({
   getIdentityKey,
   excludeBarId = '',
   buttonId,
-}) {
+}: HighlightOverlayConfig) {
   cleanupDocHighlightOverlay();
   const btn = resolveBtn(buttonId);
   _btn = btn;
-  let pendingText = null;
+  let pendingText: string | null = null;
   let pendingOccurrence = 0;
-  let pendingBody = null;
+  let pendingBody: Element | null = null;
 
-  const onDocMouseDown = (e) => {
+  const onDocMouseDown = (e: MouseEvent) => {
     if (e.target !== btn) hideBtn();
   };
   document.addEventListener('mousedown', onDocMouseDown);
@@ -123,7 +128,7 @@ export function initDocHighlightOverlay({
       hideBtn();
       return;
     }
-    const editArea = getEditArea?.();
+    const editArea = getEditArea?.() as HTMLElement | null;
     if (editArea && editArea.style.display !== 'none') return;
 
     const exclude = excludeBarId ? document.getElementById(excludeBarId) : null;
@@ -148,7 +153,7 @@ export function initDocHighlightOverlay({
   document.addEventListener('mouseup', onMouseUp);
   _cleanups.push(() => document.removeEventListener('mouseup', onMouseUp));
 
-  const onBtnMouseDown = (e) => e.preventDefault();
+  const onBtnMouseDown = (e: MouseEvent) => e.preventDefault();
   btn.addEventListener('mousedown', onBtnMouseDown);
   _cleanups.push(() => btn.removeEventListener('mousedown', onBtnMouseDown));
 
@@ -162,23 +167,24 @@ export function initDocHighlightOverlay({
     const identityKey = getIdentityKey?.(body) || '';
     if (!text || !identityKey || !body) return;
     try {
-      const data = await api.updateDocHighlights(
+      const data = (await api.updateDocHighlights(
         identityKey,
         { text, occurrence },
         nowTs(),
-      );
+      )) as HighlightsPayload;
       if (!data.ok) throw new Error(data.error || 'failed');
       wrapNthMatch(
         body,
         text,
         occurrence,
-        data.id,
+        data.id as string,
         (id) => {
           void deleteCachedHighlight({ bodyEl: body, identityKey, excludeBarId, id });
         },
         excludeBarId,
       );
     } catch (e) {
+      // @ts-expect-error overlay alert uses e.message
       alert(`Highlight failed: ${e.message}`);
     }
   };
