@@ -41,7 +41,7 @@ class SettingsActivity : ComponentActivity() {
         setContent {
             val mainHandler = remember { Handler(Looper.getMainLooper()) }
             val settingsStore = remember {
-                SettingsStore(SettingsCommands(runtime.llm)).also {
+                SettingsStore(SettingsCommands(runtime.llm, runtime.asr)).also {
                     it.dispatch(SettingsIntent.Load)
                 }
             }
@@ -96,6 +96,12 @@ class SettingsActivity : ComponentActivity() {
                                 )
                             },
                             onReset = { settingsStore.dispatch(SettingsIntent.Reset) },
+                            onSaveAsr = { appId, secretId, secretKey ->
+                                settingsStore.dispatch(
+                                    SettingsIntent.SaveAsr(appId, secretId, secretKey),
+                                )
+                            },
+                            onClearAsr = { settingsStore.dispatch(SettingsIntent.ClearAsr) },
                             onStartScan = {
                                 val granted = ContextCompat.checkSelfPermission(
                                     this@SettingsActivity,

@@ -14,6 +14,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import com.lulu.workbench.android.chat.commands.AndroidVoiceRecorder
 import com.lulu.workbench.android.chat.commands.ChatCommands
 import com.lulu.workbench.android.chat.state.ChatStore
 import com.lulu.workbench.android.chat.ui.ChatScreen
@@ -34,7 +35,7 @@ class MainActivity : ComponentActivity() {
             val mainHandler = remember { Handler(Looper.getMainLooper()) }
             val chatStore = remember {
                 ChatStore(
-                    ChatCommands(runtime.agent),
+                    ChatCommands(runtime.agent, runtime.asr, AndroidVoiceRecorder()),
                     runOffMain = { block -> Thread { block() }.start() },
                     runOnMain = { block -> mainHandler.post { block() } },
                 )

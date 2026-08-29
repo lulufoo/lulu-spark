@@ -7,6 +7,12 @@ data class ChatSessionItem(
     val title: String,
 )
 
+enum class VoicePhase {
+    Idle,
+    Recording,
+    Recognizing,
+}
+
 data class ChatState(
     val sessionId: String? = null,
     val progress: String = "",
@@ -14,6 +20,9 @@ data class ChatState(
     val inFlight: Boolean = false,
     val sessions: List<ChatSessionItem> = emptyList(),
     val turns: List<HistoryTurn> = emptyList(),
+    val voicePhase: VoicePhase = VoicePhase.Idle,
+    val voiceHint: String = "",
+    val asrConfigured: Boolean = false,
 )
 
 sealed class ChatIntent {
@@ -24,6 +33,14 @@ sealed class ChatIntent {
     data class DeleteSession(val id: String) : ChatIntent()
 
     data class Send(val text: String) : ChatIntent()
+
+    data object VoicePress : ChatIntent()
+
+    data class VoiceRelease(val cancel: Boolean) : ChatIntent()
+
+    data object MicDenied : ChatIntent()
+
+    data object RefreshAsr : ChatIntent()
 }
 
 internal fun sessionTitle(turns: List<HistoryTurn>): String {

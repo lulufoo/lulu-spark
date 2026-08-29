@@ -3,7 +3,7 @@ plugins {
 }
 
 android {
-    namespace = "com.lulu.workbench.android.agent"
+    namespace = "com.lulu.workbench.android.asr"
     compileSdk {
         version = release(36) {
             minorApiLevel = 1
@@ -19,9 +19,7 @@ android {
 }
 
 dependencies {
-    implementation(project(":llm"))
-    implementation(project(":asr"))
-    implementation(project(":wmcp"))
+    implementation(project(":network"))
     implementation(project(":storage"))
     implementation(project(":log"))
     testImplementation(libs.junit)

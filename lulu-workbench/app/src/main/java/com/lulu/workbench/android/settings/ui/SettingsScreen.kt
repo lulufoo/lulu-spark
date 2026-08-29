@@ -15,12 +15,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
@@ -29,8 +27,6 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -66,6 +62,8 @@ fun SettingsScreen(
     onSelect: (String) -> Unit,
     onSave: (baseUrl: String, model: String, apiKey: String) -> Unit,
     onReset: () -> Unit,
+    onSaveAsr: (appId: String, secretId: String, secretKey: String) -> Unit,
+    onClearAsr: () -> Unit,
     onStartScan: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -77,6 +75,11 @@ fun SettingsScreen(
     }
     var apiKey by remember(state.active.id, state.active.hasApiKey) {
         mutableStateOf(if (state.active.hasApiKey) SAVED_API_KEY_MASK else "")
+    }
+    var asrAppId by remember(state.asr.appId) { mutableStateOf(state.asr.appId) }
+    var asrSecretId by remember(state.asr.secretId) { mutableStateOf(state.asr.secretId) }
+    var asrSecretKey by remember(state.asr.hasSecretKey) {
+        mutableStateOf(if (state.asr.hasSecretKey) SAVED_API_KEY_MASK else "")
     }
     val selected = state.catalog.firstOrNull { it.id == state.active.id }
         ?: state.catalog.firstOrNull()
@@ -119,23 +122,17 @@ fun SettingsScreen(
                         selected = selected,
                         onSelect = onSelect,
                     )
-                    OutlinedTextField(
+                    SettingsTextField(
                         value = baseUrl,
                         onValueChange = { baseUrl = it },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
-                        label = { Text("Base URL") },
-                        colors = settingsFieldColors(),
+                        label = "Base URL",
                     )
-                    OutlinedTextField(
+                    SettingsTextField(
                         value = model,
                         onValueChange = { model = it },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
-                        label = { Text("Model") },
-                        colors = settingsFieldColors(),
+                        label = "Model",
                     )
-                    OutlinedTextField(
+                    SettingsTextField(
                         value = apiKey,
                         onValueChange = { next ->
                             apiKey = if (apiKey == SAVED_API_KEY_MASK) {
@@ -144,25 +141,10 @@ fun SettingsScreen(
                                 next
                             }
                         },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
-                        label = { Text("API key") },
-                        placeholder = { Text("Not set") },
-                        supportingText = {
-                            Text(
-                                if (state.active.hasApiKey) {
-                                    "Saved on this device"
-                                } else {
-                                    "Required to call the model"
-                                },
-                            )
-                        },
-                        visualTransformation = if (apiKey.isEmpty()) {
-                            VisualTransformation.None
-                        } else {
-                            PasswordVisualTransformation()
-                        },
-                        colors = settingsFieldColors(),
+                        label = "API key",
+                        placeholder = "Not set",
+                        supporting = if (state.active.hasApiKey) "Saved on this device" else null,
+                        visualTransformation = secretTransform(apiKey),
                     )
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -182,25 +164,63 @@ fun SettingsScreen(
                 }
                 Spacer(modifier = Modifier.height(12.dp))
                 SettingsCard {
+                    Text("Speech recognition", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        "Tencent Cloud one-sentence ASR. Keys stay on this device.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = colors.onSurfaceVariant,
+                    )
+                    SettingsTextField(
+                        value = asrAppId,
+                        onValueChange = { asrAppId = it },
+                        label = "App ID",
+                    )
+                    SettingsTextField(
+                        value = asrSecretId,
+                        onValueChange = { asrSecretId = it },
+                        label = "Secret ID",
+                    )
+                    SettingsTextField(
+                        value = asrSecretKey,
+                        onValueChange = { next ->
+                            asrSecretKey = if (asrSecretKey == SAVED_API_KEY_MASK) {
+                                next.filterNot { it == '•' }
+                            } else {
+                                next
+                            }
+                        },
+                        label = "Secret key",
+                        placeholder = "Not set",
+                        supporting = if (state.asr.hasSecretKey) "Saved on this device" else null,
+                        visualTransformation = secretTransform(asrSecretKey),
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Button(
+                            onClick = {
+                                onSaveAsr(
+                                    asrAppId,
+                                    asrSecretId,
+                                    apiKeyForSave(asrSecretKey),
+                                )
+                            },
+                            colors = settingsButtonColors(),
+                        ) {
+                            Text("Save")
+                        }
+                        TextButton(onClick = onClearAsr) {
+                            Text("Clear keys", color = colors.onSurfaceVariant)
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+                SettingsCard {
                     BindScreen(state = bindState, onScan = onStartScan)
                 }
             }
-        }
-    }
-}
-
-@Composable
-private fun SettingsCard(content: @Composable () -> Unit) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
-        color = MaterialTheme.colorScheme.surface,
-    ) {
-        Column(
-            modifier = Modifier.padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            content()
         }
     }
 }
@@ -219,7 +239,7 @@ private fun SettingsHeader(onBack: () -> Unit) {
         Column(modifier = Modifier.padding(start = 4.dp, top = 12.dp, bottom = 12.dp)) {
             Text("Settings", style = MaterialTheme.typography.titleLarge)
             Text(
-                "Model and device",
+                "Model, speech, and device",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -236,15 +256,13 @@ private fun ProviderMenu(
 ) {
     var open by remember { mutableStateOf(false) }
     ExposedDropdownMenuBox(expanded = open, onExpandedChange = { open = it }) {
-        OutlinedTextField(
+        SettingsTextField(
             value = selected?.label.orEmpty(),
             onValueChange = {},
-            modifier = Modifier.menuAnchor().fillMaxWidth(),
+            modifier = Modifier.menuAnchor(),
+            label = "Provider",
             readOnly = true,
             enabled = catalog.isNotEmpty(),
-            singleLine = true,
-            label = { Text("Provider") },
-            colors = settingsFieldColors(),
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = open) },
         )
         ExposedDropdownMenu(expanded = open, onDismissRequest = { open = false }) {
@@ -262,23 +280,5 @@ private fun ProviderMenu(
     }
 }
 
-@Composable
-private fun settingsButtonColors() = ButtonDefaults.buttonColors(
-    containerColor = MaterialTheme.colorScheme.surfaceVariant,
-    contentColor = MaterialTheme.colorScheme.onSurface,
-)
-
-@Composable
-private fun settingsFieldColors() = OutlinedTextFieldDefaults.colors(
-    focusedBorderColor = MaterialTheme.colorScheme.outline,
-    unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.65f),
-    focusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
-    unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
-    focusedTextColor = MaterialTheme.colorScheme.onSurface,
-    unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
-    cursorColor = MaterialTheme.colorScheme.onSurfaceVariant,
-    focusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant,
-    unfocusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant,
-    focusedSupportingTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
-    unfocusedSupportingTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
-)
+private fun secretTransform(value: String): VisualTransformation =
+    if (value.isEmpty()) VisualTransformation.None else PasswordVisualTransformation()

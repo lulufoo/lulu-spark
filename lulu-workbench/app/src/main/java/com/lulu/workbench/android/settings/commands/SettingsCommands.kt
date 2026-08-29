@@ -1,11 +1,14 @@
 package com.lulu.workbench.android.settings.commands
 
+import com.lulu.workbench.android.asr.AsrClient
+import com.lulu.workbench.android.asr.AsrConfig
 import com.lulu.workbench.android.llm.LlmActive
 import com.lulu.workbench.android.llm.LlmClient
 import com.lulu.workbench.android.llm.LlmPreset
 
 class SettingsCommands(
     private val llm: LlmClient,
+    private val asr: AsrClient,
 ) {
     fun catalog(): List<LlmPreset> = llm.catalog()
 
@@ -21,5 +24,15 @@ class SettingsCommands(
 
     fun reset() {
         llm.resetActive()
+    }
+
+    fun loadAsr(): AsrConfig = asr.loadConfig()
+
+    fun saveAsr(appId: String, secretId: String, secretKey: String) {
+        asr.saveConfig(appId, secretId, secretKey)
+    }
+
+    fun clearAsr() {
+        asr.clearConfig()
     }
 }

@@ -6,6 +6,8 @@ import com.lulu.workbench.android.agent.session.SessionId
 import com.lulu.workbench.android.agent.session.SessionRegistry
 import com.lulu.workbench.android.agent.tools.ToolDispatcher
 import com.lulu.workbench.android.agent.tools.fs.FsTools
+import com.lulu.workbench.android.asr.AsrClient
+import com.lulu.workbench.android.asr.AsrFactory
 import com.lulu.workbench.android.llm.LlmClient
 import com.lulu.workbench.android.llm.LlmFactory
 import com.lulu.workbench.android.storage.Storage
@@ -44,6 +46,7 @@ class WorkbenchRuntime(
     val agent: AgentFacade,
     val llm: LlmClient,
     val wmcp: WmcpClient,
+    val asr: AsrClient,
 ) {
     companion object {
         fun create(filesDir: File): WorkbenchRuntime = create(StorageFactory.create(filesDir))
@@ -53,7 +56,8 @@ class WorkbenchRuntime(
         private fun create(storage: Storage): WorkbenchRuntime {
             val llm = LlmFactory.create(storage)
             val wmcp = WmcpFactory.create(storage)
-            return WorkbenchRuntime(AgentFacade(llm, wmcp, storage), llm, wmcp)
+            val asr = AsrFactory.create(storage)
+            return WorkbenchRuntime(AgentFacade(llm, wmcp, storage), llm, wmcp, asr)
         }
     }
 }

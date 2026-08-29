@@ -26,6 +26,7 @@ rootProject.name = "LuLuWorkbench"
 include(":app")
 include(":agent")
 include(":llm")
+include(":asr")
 include(":wmcp")
 include(":network")
 include(":storage")

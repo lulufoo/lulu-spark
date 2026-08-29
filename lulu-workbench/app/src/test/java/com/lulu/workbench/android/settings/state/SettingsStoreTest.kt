@@ -10,8 +10,8 @@ import org.junit.Test
 class SettingsStoreTest {
     @Test
     fun saveWritesCurrentProfileAndKeepsKeyWhenBlank() {
-        val llm = WorkbenchRuntime.createForTest().llm
-        val store = SettingsStore(SettingsCommands(llm))
+        val runtime = WorkbenchRuntime.createForTest()
+        val store = SettingsStore(SettingsCommands(runtime.llm, runtime.asr))
         store.dispatch(SettingsIntent.Load)
         store.dispatch(
             SettingsIntent.Save(
@@ -35,7 +35,8 @@ class SettingsStoreTest {
 
     @Test
     fun selectThenResetUsesPresetDefaults() {
-        val store = SettingsStore(SettingsCommands(WorkbenchRuntime.createForTest().llm))
+        val runtime = WorkbenchRuntime.createForTest()
+        val store = SettingsStore(SettingsCommands(runtime.llm, runtime.asr))
         store.dispatch(SettingsIntent.Load)
         assertEquals("glm", store.state.active.id)
         assertFalse(store.state.active.hasApiKey)
@@ -52,5 +53,20 @@ class SettingsStoreTest {
         store.dispatch(SettingsIntent.Reset)
         assertEquals("https://api.moonshot.ai/v1", store.state.active.baseUrl)
         assertEquals("kimi-k3", store.state.active.model)
+    }
+
+    @Test
+    fun saveAsrWritesKeysAndClearRemovesThem() {
+        val runtime = WorkbenchRuntime.createForTest()
+        val store = SettingsStore(SettingsCommands(runtime.llm, runtime.asr))
+        store.dispatch(SettingsIntent.Load)
+        assertFalse(store.state.asr.hasSecretKey)
+        store.dispatch(SettingsIntent.SaveAsr("125", "AKID", "secret"))
+        assertEquals("125", store.state.asr.appId)
+        assertEquals("AKID", store.state.asr.secretId)
+        assertTrue(store.state.asr.hasSecretKey)
+        store.dispatch(SettingsIntent.ClearAsr)
+        assertFalse(store.state.asr.hasSecretKey)
+        assertEquals("", store.state.asr.appId)
     }
 }

@@ -42,6 +42,7 @@ android {
 dependencies {
     implementation(project(":agent"))
     implementation(project(":llm"))
+    implementation(project(":asr"))
     implementation(project(":wmcp"))
     implementation(project(":log"))
     implementation(project(":markdown"))

@@ -6,6 +6,9 @@ import androidx.compose.runtime.setValue
 import com.lulu.workbench.android.agent.loop.TurnProgress
 import com.lulu.workbench.android.agent.session.HistoryTurn
 import com.lulu.workbench.android.agent.session.SessionId
+import com.lulu.workbench.android.asr.AsrException
+import com.lulu.workbench.android.asr.AsrNotConfiguredException
+import com.lulu.workbench.android.asr.isVoiceTooShort
 import com.lulu.workbench.android.chat.commands.ChatCommands
 
 class ChatStore(
@@ -20,17 +23,25 @@ class ChatStore(
         when (intent) {
             ChatIntent.NewSession -> {
                 if (state.inFlight) return
+                abandonVoice()
                 val id = commands.createSession()
-                state = ChatState(sessionId = id.value, sessions = listed())
+                state = ChatState(
+                    sessionId = id.value,
+                    sessions = listed(),
+                    asrConfigured = asrReady(),
+                )
             }
             is ChatIntent.SelectSession -> {
                 if (state.inFlight) return
+                abandonVoice()
                 val id = intent.id
                 state = state.copy(
                     sessionId = id,
                     lastReply = "",
                     progress = "",
                     turns = emptyList(),
+                    voicePhase = VoicePhase.Idle,
+                    voiceHint = "",
                 )
                 runOffMain {
                     val loaded = sessionTurns(id)
@@ -45,6 +56,7 @@ class ChatStore(
             }
             is ChatIntent.DeleteSession -> {
                 if (state.inFlight) return
+                abandonVoice()
                 commands.deleteSession(SessionId(intent.id))
                 val remaining = listed()
                 if (state.sessionId != intent.id) {
@@ -53,7 +65,7 @@ class ChatStore(
                 }
                 val next = remaining.firstOrNull()
                 if (next == null) {
-                    state = ChatState()
+                    state = ChatState(asrConfigured = asrReady())
                     return
                 }
                 val loaded = sessionTurns(next.id)
@@ -62,7 +74,16 @@ class ChatStore(
                     lastReply = lastAssistant(loaded),
                     sessions = remaining,
                     turns = loaded,
+                    asrConfigured = asrReady(),
                 )
+            }
+            ChatIntent.RefreshAsr -> {
+                state = state.copy(asrConfigured = asrReady())
+            }
+            ChatIntent.VoicePress -> onVoicePress()
+            is ChatIntent.VoiceRelease -> onVoiceRelease(intent.cancel)
+            ChatIntent.MicDenied -> {
+                state = state.copy(voiceHint = "Microphone permission denied")
             }
             is ChatIntent.Send -> {
                 val text = intent.text.trim()
@@ -91,6 +112,64 @@ class ChatStore(
         }
     }
 
+    private fun onVoicePress() {
+        if (state.inFlight || state.voicePhase != VoicePhase.Idle) return
+        if (!asrReady()) {
+            state = state.copy(asrConfigured = false)
+            return
+        }
+        try {
+            commands.startVoice()
+        } catch (error: SecurityException) {
+            state = state.copy(voiceHint = "Microphone permission denied")
+            return
+        } catch (error: Exception) {
+            state = state.copy(voiceHint = "Microphone failed")
+            return
+        }
+        state = state.copy(voicePhase = VoicePhase.Recording, voiceHint = "")
+    }
+
+    private fun onVoiceRelease(cancel: Boolean) {
+        if (state.voicePhase != VoicePhase.Recording) return
+        val wav = runCatching { commands.stopVoice() }.getOrDefault(ByteArray(0))
+        if (cancel) {
+            state = state.copy(voicePhase = VoicePhase.Idle, voiceHint = "")
+            return
+        }
+        if (isVoiceTooShort(wav)) {
+            state = state.copy(voicePhase = VoicePhase.Idle, voiceHint = "Too short")
+            return
+        }
+        state = state.copy(voicePhase = VoicePhase.Recognizing, voiceHint = "")
+        runOffMain {
+            try {
+                val text = commands.transcribe(wav).trim()
+                runOnMain { finishRecognize(text, null) }
+            } catch (error: Exception) {
+                runOnMain { finishRecognize("", voiceErrorHint(error)) }
+            }
+        }
+    }
+
+    private fun finishRecognize(text: String, errorHint: String?) {
+        if (state.voicePhase != VoicePhase.Recognizing) return
+        state = state.copy(voicePhase = VoicePhase.Idle, voiceHint = errorHint.orEmpty())
+        when {
+            errorHint != null -> Unit
+            text.isEmpty() -> state = state.copy(voiceHint = "No speech detected")
+            else -> dispatch(ChatIntent.Send(text))
+        }
+    }
+
+    private fun abandonVoice() {
+        if (state.voicePhase == VoicePhase.Idle) return
+        if (state.voicePhase == VoicePhase.Recording) {
+            runCatching { commands.stopVoice() }
+        }
+        state = state.copy(voicePhase = VoicePhase.Idle, voiceHint = "")
+    }
+
     private fun applyProgress(sessionId: String, progress: TurnProgress) {
         if (state.sessionId != sessionId) return
         state = when (progress) {
@@ -112,18 +191,28 @@ class ChatStore(
 
     private fun restore(): ChatState {
         val items = listed()
-        val current = items.firstOrNull() ?: return ChatState()
+        val current = items.firstOrNull() ?: return ChatState(asrConfigured = asrReady())
         val loaded = sessionTurns(current.id)
         return ChatState(
             sessionId = current.id,
             lastReply = lastAssistant(loaded),
             sessions = items,
             turns = loaded,
+            asrConfigured = asrReady(),
         )
     }
 
+    private fun asrReady(): Boolean = commands.isAsrConfigured()
+
     private fun sessionTurns(id: String): List<HistoryTurn> =
         visibleTurns(commands.turns(SessionId(id)))
+
+    private fun voiceErrorHint(error: Exception): String =
+        when (error) {
+            is AsrNotConfiguredException -> "Recognition failed"
+            is AsrException -> error.message?.takeIf { it.isNotBlank() } ?: "Recognition failed"
+            else -> "Recognition failed"
+        }
 
     private fun listed(): List<ChatSessionItem> =
         commands.listSessions().asReversed().map { id ->

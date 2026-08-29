@@ -1,5 +1,6 @@
 package com.lulu.workbench.android.settings.state
 
+import com.lulu.workbench.android.asr.AsrConfig
 import com.lulu.workbench.android.llm.LlmActive
 import com.lulu.workbench.android.llm.LlmPreset
 
@@ -12,6 +13,7 @@ data class SettingsState(
         model = "",
         hasApiKey = false,
     ),
+    val asr: AsrConfig = AsrConfig(),
 )
 
 sealed class SettingsIntent {
@@ -26,4 +28,12 @@ sealed class SettingsIntent {
     ) : SettingsIntent()
 
     data object Reset : SettingsIntent()
+
+    data class SaveAsr(
+        val appId: String,
+        val secretId: String,
+        val secretKey: String,
+    ) : SettingsIntent()
+
+    data object ClearAsr : SettingsIntent()
 }

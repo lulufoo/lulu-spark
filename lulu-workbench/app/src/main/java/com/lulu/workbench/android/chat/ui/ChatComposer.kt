@@ -14,18 +14,27 @@ import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
+import android.widget.Toast
+import com.lulu.workbench.android.chat.state.VoicePhase
 
 @Composable
 internal fun ChatComposer(
@@ -33,6 +42,12 @@ internal fun ChatComposer(
     onDraftChange: (String) -> Unit,
     sendEnabled: Boolean,
     onSend: () -> Unit,
+    voicePhase: VoicePhase,
+    voiceHint: String,
+    voiceEnabled: Boolean,
+    asrConfigured: Boolean,
+    onVoicePress: () -> Unit,
+    onVoiceRelease: (cancel: Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val colors = MaterialTheme.colorScheme
@@ -41,57 +56,102 @@ internal fun ChatComposer(
     val sendActions = remember {
         KeyboardActions(onSend = { onSendLatest.value() })
     }
+    var voiceMode by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    val focusManager = LocalFocusManager.current
+    val keyboard = LocalSoftwareKeyboardController.current
+    fun switchMode() {
+        if (voicePhase == VoicePhase.Recognizing) return
+        if (voicePhase == VoicePhase.Recording) onVoiceRelease(true)
+        val toVoice = !voiceMode
+        voiceMode = toVoice
+        if (toVoice) {
+            focusManager.clearFocus(force = true)
+            keyboard?.hide()
+            if (shouldToastVoiceSwitch(asrConfigured, toVoice = true)) {
+                Toast.makeText(context, AsrMissingToast, Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
     Column(modifier = modifier.fillMaxWidth()) {
         HorizontalDivider(color = colors.outline.copy(alpha = 0.55f))
         Surface(color = colors.surface) {
             Row(
-                modifier = Modifier.padding(start = 12.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
+                modifier = Modifier.padding(start = 4.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Surface(
-                    modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(20.dp),
-                    color = colors.surfaceVariant,
+                IconButton(
+                    onClick = { switchMode() },
+                    enabled = voicePhase != VoicePhase.Recognizing,
                 ) {
-                    BasicTextField(
-                        value = draft,
-                        onValueChange = onDraftChange,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 14.dp, vertical = 10.dp),
-                        singleLine = true,
-                        textStyle = MaterialTheme.typography.bodyLarge.copy(
-                            color = colors.onSurface,
-                        ),
-                        cursorBrush = SolidColor(colors.onSurfaceVariant),
-                        keyboardOptions = keyboardOptions,
-                        keyboardActions = sendActions,
-                        decorationBox = { inner ->
-                            if (draft.isEmpty()) {
-                                Text(
-                                    "Message…",
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    color = colors.onSurfaceVariant,
-                                )
-                            }
-                            inner()
-                        },
+                    if (voiceMode) {
+                        Icon(ComposerKeyboard, contentDescription = "Keyboard")
+                    } else {
+                        Icon(ComposerMic, contentDescription = "Voice input")
+                    }
+                }
+                if (voiceMode) {
+                    ChatHoldToTalk(
+                        phase = voicePhase,
+                        enabled = voiceEnabled,
+                        onPress = onVoicePress,
+                        onRelease = onVoiceRelease,
+                        modifier = Modifier.weight(1f),
                     )
+                } else {
+                    Surface(
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(20.dp),
+                        color = colors.surfaceVariant,
+                    ) {
+                        BasicTextField(
+                            value = draft,
+                            onValueChange = onDraftChange,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 14.dp, vertical = 10.dp),
+                            singleLine = true,
+                            textStyle = MaterialTheme.typography.bodyLarge.copy(
+                                color = colors.onSurface,
+                            ),
+                            cursorBrush = SolidColor(colors.onSurfaceVariant),
+                            keyboardOptions = keyboardOptions,
+                            keyboardActions = sendActions,
+                            decorationBox = { inner ->
+                                if (draft.isEmpty()) {
+                                    Text(
+                                        "Message…",
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        color = colors.onSurfaceVariant,
+                                    )
+                                }
+                                inner()
+                            },
+                        )
+                    }
+                    FilledIconButton(
+                        onClick = onSend,
+                        enabled = sendEnabled,
+                        shape = CircleShape,
+                        modifier = Modifier.padding(start = 8.dp),
+                        colors = IconButtonDefaults.filledIconButtonColors(
+                            containerColor = colors.primary,
+                            contentColor = colors.onPrimary,
+                            disabledContainerColor = colors.surfaceVariant,
+                            disabledContentColor = colors.onSurfaceVariant,
+                        ),
+                    ) {
+                        Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Send")
+                    }
                 }
-                FilledIconButton(
-                    onClick = onSend,
-                    enabled = sendEnabled,
-                    shape = CircleShape,
-                    modifier = Modifier.padding(start = 8.dp),
-                    colors = IconButtonDefaults.filledIconButtonColors(
-                        containerColor = colors.primary,
-                        contentColor = colors.onPrimary,
-                        disabledContainerColor = colors.surfaceVariant,
-                        disabledContentColor = colors.onSurfaceVariant,
-                    ),
-                ) {
-                    Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Send")
-                }
+            }
+            if (voiceMode && voiceHint.isNotEmpty() && voicePhase != VoicePhase.Recording) {
+                Text(
+                    text = voiceHint,
+                    modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 8.dp),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = colors.onSurfaceVariant,
+                )
             }
         }
     }

@@ -27,6 +27,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -40,14 +41,24 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
+import android.Manifest
+import android.content.pm.PackageManager
 import com.lulu.workbench.android.HomeEdgeAction
 import com.lulu.workbench.android.chat.state.ChatIntent
 import com.lulu.workbench.android.chat.state.ChatState
 import com.lulu.workbench.android.chat.state.ChatStore
+import com.lulu.workbench.android.chat.state.VoicePhase
 import com.lulu.workbench.android.homeEdgeAction
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import kotlin.math.roundToInt
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
@@ -59,6 +70,22 @@ fun ChatScreen(
     modifier: Modifier = Modifier,
 ) {
     var drawerOpen by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    val micLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { granted ->
+        if (!granted) store.dispatch(ChatIntent.MicDenied)
+    }
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                store.dispatch(ChatIntent.RefreshAsr)
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
     val density = LocalDensity.current
     val scope = rememberCoroutineScope()
     var paneX by remember { mutableFloatStateOf(0f) }
@@ -158,6 +185,17 @@ fun ChatScreen(
                     onOpenDrawer = { settle(true) },
                     onNewSession = { store.dispatch(ChatIntent.NewSession) },
                     onSend = { text -> store.dispatch(ChatIntent.Send(text)) },
+                    onVoicePress = {
+                        val granted = ContextCompat.checkSelfPermission(
+                            context,
+                            Manifest.permission.RECORD_AUDIO,
+                        ) == PackageManager.PERMISSION_GRANTED
+                        if (granted) store.dispatch(ChatIntent.VoicePress)
+                        else micLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                    },
+                    onVoiceRelease = { cancel ->
+                        store.dispatch(ChatIntent.VoiceRelease(cancel))
+                    },
                 )
                 if (progress > 0.02f) {
                     Box(
@@ -183,6 +221,8 @@ private fun ChatPane(
     onOpenDrawer: () -> Unit,
     onNewSession: () -> Unit,
     onSend: (String) -> Unit,
+    onVoicePress: () -> Unit,
+    onVoiceRelease: (Boolean) -> Unit,
 ) {
     var draft by remember { mutableStateOf("") }
     val focusManager = LocalFocusManager.current
@@ -235,6 +275,16 @@ private fun ChatPane(
             onDraftChange = { draft = it },
             sendEnabled = sendEnabled,
             onSend = { submit() },
+            voicePhase = state.voicePhase,
+            voiceHint = state.voiceHint,
+            voiceEnabled = voiceHoldEnabled(
+                inFlight = state.inFlight,
+                phase = state.voicePhase,
+                asrConfigured = state.asrConfigured,
+            ),
+            asrConfigured = state.asrConfigured,
+            onVoicePress = onVoicePress,
+            onVoiceRelease = onVoiceRelease,
             modifier = Modifier.chatComposerImePadding(),
         )
     }

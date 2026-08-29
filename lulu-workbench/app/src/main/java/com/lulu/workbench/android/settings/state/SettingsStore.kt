@@ -26,10 +26,22 @@ class SettingsStore(
                 commands.reset()
                 reload()
             }
+            is SettingsIntent.SaveAsr -> {
+                commands.saveAsr(intent.appId, intent.secretId, intent.secretKey)
+                reload()
+            }
+            SettingsIntent.ClearAsr -> {
+                commands.clearAsr()
+                reload()
+            }
         }
     }
 
     private fun reload() {
-        state = SettingsState(catalog = commands.catalog(), active = commands.loadActive())
+        state = SettingsState(
+            catalog = commands.catalog(),
+            active = commands.loadActive(),
+            asr = commands.loadAsr(),
+        )
     }
 }
