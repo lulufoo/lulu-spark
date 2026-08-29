@@ -40,7 +40,11 @@ class SettingsActivity : ComponentActivity() {
         val runtime = (application as WorkbenchApp).runtime
         setContent {
             val mainHandler = remember { Handler(Looper.getMainLooper()) }
-            val settingsStore = remember { SettingsStore(SettingsCommands(runtime.llm)) }
+            val settingsStore = remember {
+                SettingsStore(SettingsCommands(runtime.llm)).also {
+                    it.dispatch(SettingsIntent.Load)
+                }
+            }
             val bindStore = remember {
                 BindStore(
                     BindCommands(runtime.wmcp, Build.MODEL),
@@ -77,7 +81,6 @@ class SettingsActivity : ComponentActivity() {
                         )
                     } else {
                         LaunchedEffect(Unit) {
-                            settingsStore.dispatch(SettingsIntent.Load)
                             bindStore.dispatch(BindIntent.Query)
                         }
                         SettingsScreen(

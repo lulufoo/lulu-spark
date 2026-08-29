@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
@@ -35,8 +34,13 @@ private val UserMaxFraction = 0.78f
 @Composable
 internal fun ChatTranscript(
     state: ChatState,
+    ready: Boolean = true,
     modifier: Modifier = Modifier,
 ) {
+    if (!ready) {
+        Box(modifier.fillMaxSize())
+        return
+    }
     if (state.turns.isEmpty() && state.progress.isEmpty()) {
         Box(modifier.fillMaxSize()) {
             Text(
@@ -48,25 +52,19 @@ internal fun ChatTranscript(
         }
         return
     }
+    val turns = state.turns
+    val lastIndex = turns.size + if (state.progress.isNotEmpty()) 1 else 0
     val listState = rememberLazyListState()
-    val lastIndex = state.turns.size + if (state.progress.isNotEmpty()) 1 else 0
-    LaunchedEffect(lastIndex) {
-        if (lastIndex > 0) listState.scrollToItem(lastIndex - 1)
+    LaunchedEffect(state.sessionId, lastIndex) {
+        if (lastIndex > 0) listState.scrollToItem(0)
     }
     LazyColumn(
         state = listState,
         modifier = modifier.fillMaxSize(),
+        reverseLayout = true,
         contentPadding = PaddingValues(horizontal = TranscriptPadH, vertical = TranscriptPadV),
         verticalArrangement = Arrangement.spacedBy(TurnGap),
     ) {
-        itemsIndexed(
-            state.turns,
-            key = { index, turn -> "$index:${turn.role}:${turn.content}" },
-        ) { index, turn ->
-            val prevRole = state.turns.getOrNull(index - 1)?.role
-            val extraTop = if (prevRole != null && prevRole != turn.role) RoleChangeExtra else 0.dp
-            ChatTurnRow(turn, extraTop)
-        }
         if (state.progress.isNotEmpty()) {
             item(key = "progress") {
                 Text(
@@ -78,6 +76,20 @@ internal fun ChatTranscript(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
+        }
+        items(
+            count = turns.size,
+            key = { reverseIndex ->
+                val index = turns.lastIndex - reverseIndex
+                val turn = turns[index]
+                "$index:${turn.role}:${turn.content}"
+            },
+        ) { reverseIndex ->
+            val index = turns.lastIndex - reverseIndex
+            val turn = turns[index]
+            val prevRole = turns.getOrNull(index - 1)?.role
+            val extraTop = if (prevRole != null && prevRole != turn.role) RoleChangeExtra else 0.dp
+            ChatTurnRow(turn, extraTop)
         }
     }
 }

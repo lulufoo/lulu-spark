@@ -25,13 +25,23 @@ class ChatStore(
             }
             is ChatIntent.SelectSession -> {
                 if (state.inFlight) return
-                val loaded = sessionTurns(intent.id)
+                val id = intent.id
                 state = state.copy(
-                    sessionId = intent.id,
-                    lastReply = lastAssistant(loaded),
+                    sessionId = id,
+                    lastReply = "",
                     progress = "",
-                    turns = loaded,
+                    turns = emptyList(),
                 )
+                runOffMain {
+                    val loaded = sessionTurns(id)
+                    runOnMain {
+                        if (state.sessionId != id || state.inFlight) return@runOnMain
+                        state = state.copy(
+                            lastReply = lastAssistant(loaded),
+                            turns = loaded,
+                        )
+                    }
+                }
             }
             is ChatIntent.DeleteSession -> {
                 if (state.inFlight) return

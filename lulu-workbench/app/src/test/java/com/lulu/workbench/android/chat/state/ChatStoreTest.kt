@@ -105,6 +105,30 @@ class ChatStoreTest {
     }
 
     @Test
+    fun selectSessionSetsIdBeforeBackgroundLoad() {
+        val turns = mapOf(
+            "sess_old" to listOf(HistoryTurn("user", "old question")),
+            "sess_new" to listOf(HistoryTurn("user", "new question")),
+        )
+        var queued: (() -> Unit)? = null
+        val store = ChatStore(
+            ChatCommands(
+                create = { SessionId("sess_fresh") },
+                sendTurn = { _, _, _ -> },
+                list = { listOf(SessionId("sess_old"), SessionId("sess_new")) },
+                turnsOf = { id -> turns.getValue(id.value) },
+            ),
+            runOffMain = { queued = it },
+            runOnMain = { it() },
+        )
+        store.dispatch(ChatIntent.SelectSession("sess_old"))
+        assertEquals("sess_old", store.state.sessionId)
+        assertTrue(store.state.turns.isEmpty())
+        queued!!.invoke()
+        assertEquals("old question", store.state.turns.first().content)
+    }
+
+    @Test
     fun newSessionIsIgnoredWhileInFlight() {
         val store = ChatStore(
             ChatCommands(

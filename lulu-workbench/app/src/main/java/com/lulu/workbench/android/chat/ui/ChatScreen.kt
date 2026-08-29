@@ -66,12 +66,16 @@ fun ChatScreen(
     val scope = rememberCoroutineScope()
     var paneX by remember { mutableFloatStateOf(0f) }
     var settleJob by remember { mutableStateOf<Job?>(null) }
+    var transcriptReady by remember { mutableStateOf(true) }
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
         val drawerWidth = maxWidth * 0.78f
         val drawerWidthPx = with(density) { drawerWidth.toPx() }
         val edgePx = with(density) { 56.dp.toPx() }
         LaunchedEffect(drawerWidthPx) {
             paneX = if (drawerOpen) drawerWidthPx else 0f
+        }
+        LaunchedEffect(paneX, drawerOpen) {
+            if (!drawerOpen && paneX < 2f) transcriptReady = true
         }
         fun settle(open: Boolean, velocityX: Float = 0f) {
             drawerOpen = open
@@ -129,16 +133,16 @@ fun ChatScreen(
                     settle(false)
                 },
                 onSelectSession = { id ->
-                    store.dispatch(ChatIntent.SelectSession(id))
+                    if (id != store.state.sessionId) {
+                        transcriptReady = false
+                        store.dispatch(ChatIntent.SelectSession(id))
+                    }
                     settle(false)
                 },
                 onDeleteSession = { id ->
                     store.dispatch(ChatIntent.DeleteSession(id))
                 },
-                onOpenSettings = {
-                    settle(false)
-                    onOpenSettings()
-                },
+                onOpenSettings = onOpenSettings,
                 modifier = Modifier
                     .width(drawerWidth)
                     .fillMaxHeight(),
@@ -153,6 +157,7 @@ fun ChatScreen(
             ) {
                 ChatPane(
                     state = store.state,
+                    transcriptReady = transcriptReady,
                     onOpenDrawer = { settle(true) },
                     onNewSession = { store.dispatch(ChatIntent.NewSession) },
                     onSend = { text -> store.dispatch(ChatIntent.Send(text)) },
@@ -177,6 +182,7 @@ fun ChatScreen(
 @Composable
 private fun ChatPane(
     state: ChatState,
+    transcriptReady: Boolean,
     onOpenDrawer: () -> Unit,
     onNewSession: () -> Unit,
     onSend: (String) -> Unit,
@@ -221,6 +227,7 @@ private fun ChatPane(
         HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.55f))
         ChatTranscript(
             state = state,
+            ready = transcriptReady,
             modifier = Modifier
                 .weight(1f)
                 .fillMaxWidth()
