@@ -15,7 +15,7 @@ const TABLE_A_BRANDS = [
   { zh: 'Read Later 待读', en: 'Read Later', file: 'frontend/src/home/page.tsx' },
   { zh: '沉淀知识库', en: 'Knowledge', file: 'frontend/src/home/page.tsx' },
   { zh: 'Todos', en: 'Todos', file: 'frontend/src/home/page.tsx' },
-  { zh: 'LuLu Workbench', en: 'LuLu Workbench', file: 'frontend/src/shell.tsx' },
+  { zh: 'Lulu Workbench', en: 'Lulu Workbench', file: 'frontend/src/shell.tsx' },
   { zh: '笔记助手', en: 'Notes Assistant', file: 'frontend/src/notes/ui/assistant.tsx' },
   { zh: 'AI 助手', en: 'Chats', file: 'frontend/src/home/page.tsx' },
   { zh: 'Read Later 助手', en: 'Read Later', file: 'frontend/src/read-later/ui/assistant.tsx' },

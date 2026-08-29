@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "LuLu Workbench",
+  "productName": "Lulu Workbench",
   "version": "0.1.0",
   "identifier": "com.lulu.workbench",
   "build": {
@@ -15,7 +15,7 @@
       {
         "label": "main",
         "create": false,
-        "title": "LuLu Workbench",
+        "title": "Lulu Workbench",
         "width": 1280,
         "height": 800
       }

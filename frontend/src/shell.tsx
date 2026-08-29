@@ -34,7 +34,7 @@ export function Shell() {
 
       <header>
         <h1>
-          <a id="btn-nav-home-title" href="#/home" className="header-home-link">LuLu Workbench</a>
+          <a id="btn-nav-home-title" href="#/home" className="header-home-link">Lulu Workbench</a>
           <a id="btn-nav-home" href="#/home" className="header-nav-back" hidden>← Home</a>
         </h1>
         <WorkbenchSearch />
