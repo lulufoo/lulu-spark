@@ -351,7 +351,7 @@ fn proxy_loopback(
 ) -> Result<Response, String> {
     let url = format!("http://127.0.0.1:{mcp_port}{path}");
     let client = reqwest::blocking::Client::builder()
-        .timeout(Duration::from_secs(10))
+        .timeout(Duration::from_secs(60))
         .build()
         .map_err(|err| err.to_string())?;
     let reqwest_method = reqwest::Method::from_bytes(method.as_str().as_bytes())
