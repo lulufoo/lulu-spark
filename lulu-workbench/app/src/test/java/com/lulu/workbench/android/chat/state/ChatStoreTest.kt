@@ -175,4 +175,43 @@ class ChatStoreTest {
         store.dispatch(ChatIntent.Send("second"))
         assertEquals(listOf("first", "reply-1", "second", "reply-2"), store.state.turns.map { it.content })
     }
+
+    @Test
+    fun deleteCurrentSessionSwitchesToNewestRemaining() {
+        val ids = mutableListOf("sess_a", "sess_b")
+        val store = ChatStore(
+            ChatCommands(
+                create = { SessionId("unused") },
+                sendTurn = { _, _, _ -> },
+                list = { ids.map { SessionId(it) } },
+                turnsOf = { id ->
+                    listOf(HistoryTurn("user", id.value), HistoryTurn("assistant", "a-${id.value}"))
+                },
+                remove = { id -> ids.remove(id.value) },
+            ),
+        )
+        assertEquals("sess_b", store.state.sessionId)
+        store.dispatch(ChatIntent.DeleteSession("sess_b"))
+        assertEquals("sess_a", store.state.sessionId)
+        assertEquals(listOf("sess_a"), store.state.sessions.map { it.id })
+        assertEquals("sess_a", store.state.turns.first().content)
+    }
+
+    @Test
+    fun deleteLastSessionClearsChat() {
+        val ids = mutableListOf("only")
+        val store = ChatStore(
+            ChatCommands(
+                create = { SessionId("unused") },
+                sendTurn = { _, _, _ -> },
+                list = { ids.map { SessionId(it) } },
+                turnsOf = { listOf(HistoryTurn("user", "hi")) },
+                remove = { id -> ids.remove(id.value) },
+            ),
+        )
+        store.dispatch(ChatIntent.DeleteSession("only"))
+        assertEquals(null, store.state.sessionId)
+        assertTrue(store.state.sessions.isEmpty())
+        assertTrue(store.state.turns.isEmpty())
+    }
 }

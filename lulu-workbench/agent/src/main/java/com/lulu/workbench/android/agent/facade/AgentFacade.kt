@@ -27,6 +27,11 @@ class AgentFacade(
 
     fun createSession(): SessionId = sessions.create()
 
+    fun deleteSession(sessionId: SessionId) {
+        loops.remove(sessionId)
+        sessions.delete(sessionId)
+    }
+
     fun loadTurns(sessionId: SessionId): List<HistoryTurn> = sessions.loadTurns(sessionId)
 
     fun loop(sessionId: SessionId): AgentLoop =

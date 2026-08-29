@@ -33,6 +33,12 @@ class SessionRegistry(
 
     fun list(): List<SessionId> = ids.toList()
 
+    fun delete(id: SessionId) {
+        if (!ids.remove(id)) return
+        writeIndex()
+        storage.list("sessions/${id.value}").forEach { storage.delete(it) }
+    }
+
     fun roots(id: SessionId): SessionRoots =
         SessionRoots(
             historyPath = "sessions/${id.value}/history",

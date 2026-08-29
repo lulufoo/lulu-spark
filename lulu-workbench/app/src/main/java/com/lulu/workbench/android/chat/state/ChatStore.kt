@@ -33,6 +33,27 @@ class ChatStore(
                     turns = loaded,
                 )
             }
+            is ChatIntent.DeleteSession -> {
+                if (state.inFlight) return
+                commands.deleteSession(SessionId(intent.id))
+                val remaining = listed()
+                if (state.sessionId != intent.id) {
+                    state = state.copy(sessions = remaining)
+                    return
+                }
+                val next = remaining.firstOrNull()
+                if (next == null) {
+                    state = ChatState()
+                    return
+                }
+                val loaded = sessionTurns(next.id)
+                state = ChatState(
+                    sessionId = next.id,
+                    lastReply = lastAssistant(loaded),
+                    sessions = remaining,
+                    turns = loaded,
+                )
+            }
             is ChatIntent.Send -> {
                 val text = intent.text.trim()
                 if (text.isEmpty() || state.inFlight) return

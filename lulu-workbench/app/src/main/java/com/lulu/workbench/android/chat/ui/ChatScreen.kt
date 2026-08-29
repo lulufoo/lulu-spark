@@ -132,6 +132,9 @@ fun ChatScreen(
                     store.dispatch(ChatIntent.SelectSession(id))
                     settle(false)
                 },
+                onDeleteSession = { id ->
+                    store.dispatch(ChatIntent.DeleteSession(id))
+                },
                 onOpenSettings = {
                     settle(false)
                     onOpenSettings()

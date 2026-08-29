@@ -21,6 +21,8 @@ sealed class ChatIntent {
 
     data class SelectSession(val id: String) : ChatIntent()
 
+    data class DeleteSession(val id: String) : ChatIntent()
+
     data class Send(val text: String) : ChatIntent()
 }
 

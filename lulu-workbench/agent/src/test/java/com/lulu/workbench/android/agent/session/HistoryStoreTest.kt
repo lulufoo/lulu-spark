@@ -25,6 +25,19 @@ class HistoryStoreTest {
     }
 
     @Test
+    fun deleteRemovesIndexAndHistory() {
+        val storage = MemoryStorage()
+        val sessions = SessionRegistry(storage)
+        val keep = sessions.create()
+        val drop = sessions.create()
+        sessions.saveTurns(drop, listOf(HistoryTurn("user", "bye")))
+        sessions.delete(drop)
+        assertEquals(listOf(keep), sessions.list())
+        assertTrue(storage.read(sessions.roots(drop).historyPath) == null)
+        assertEquals(keep, sessions.list().single())
+    }
+
+    @Test
     fun roundTripKeepsNewlinesInAssistantContent() {
         val raw = encodeTurns(listOf(HistoryTurn("assistant", "概览：\n\n| 维度 | 豆包 |\n|------|------|")))
         val loaded = decodeTurns(raw).single()

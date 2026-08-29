@@ -10,12 +10,14 @@ class ChatCommands(
     private val sendTurn: (SessionId, String, (TurnProgress) -> Unit) -> Unit,
     private val list: () -> List<SessionId> = { emptyList() },
     private val turnsOf: (SessionId) -> List<HistoryTurn> = { emptyList() },
+    private val remove: (SessionId) -> Unit = {},
 ) {
     constructor(agent: AgentFacade) : this(
         create = { agent.createSession() },
         sendTurn = { id, text, onProgress -> agent.loop(id).send(text, onProgress) },
         list = { agent.listSessions() },
         turnsOf = { agent.loadTurns(it) },
+        remove = { agent.deleteSession(it) },
     )
 
     fun createSession(): SessionId = create()
@@ -23,6 +25,8 @@ class ChatCommands(
     fun listSessions(): List<SessionId> = list()
 
     fun turns(sessionId: SessionId): List<HistoryTurn> = turnsOf(sessionId)
+
+    fun deleteSession(sessionId: SessionId) = remove(sessionId)
 
     fun send(sessionId: SessionId, text: String, onProgress: (TurnProgress) -> Unit) {
         sendTurn(sessionId, text, onProgress)

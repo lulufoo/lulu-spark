@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -22,10 +23,11 @@ fun BindScreen(
         state.bound -> "Bound"
         else -> "Not bound"
     }
+    val colors = MaterialTheme.colorScheme
     val statusColor = when {
-        state.completing -> MaterialTheme.colorScheme.primary
-        state.bound -> MaterialTheme.colorScheme.primary
-        else -> MaterialTheme.colorScheme.onSurfaceVariant
+        state.completing -> colors.onSurface
+        state.bound -> colors.onSurface
+        else -> colors.onSurfaceVariant
     }
     Column(
         modifier = modifier,
@@ -35,16 +37,22 @@ fun BindScreen(
         Text(
             "Pair this phone with Mac Workbench.",
             style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            color = colors.onSurfaceVariant,
         )
         Text(status, style = MaterialTheme.typography.titleSmall, color = statusColor)
         if (state.error.isNotEmpty()) {
-            Text(state.error, color = MaterialTheme.colorScheme.error)
+            Text(state.error, color = colors.error)
         }
         Button(
             onClick = onScan,
             enabled = !state.completing,
             modifier = Modifier.fillMaxWidth(),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = colors.surfaceVariant,
+                contentColor = colors.onSurface,
+                disabledContainerColor = colors.surfaceVariant.copy(alpha = 0.6f),
+                disabledContentColor = colors.onSurfaceVariant,
+            ),
         ) {
             Text("Scan QR code")
         }

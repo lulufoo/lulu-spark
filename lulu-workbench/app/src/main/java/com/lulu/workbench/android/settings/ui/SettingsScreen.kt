@@ -17,6 +17,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
@@ -26,6 +27,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -106,6 +108,7 @@ fun SettingsScreen(
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
                         label = { Text("Base URL") },
+                        colors = settingsFieldColors(),
                     )
                     OutlinedTextField(
                         value = model,
@@ -113,6 +116,7 @@ fun SettingsScreen(
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
                         label = { Text("Model") },
+                        colors = settingsFieldColors(),
                     )
                     OutlinedTextField(
                         value = apiKey,
@@ -141,16 +145,22 @@ fun SettingsScreen(
                         } else {
                             PasswordVisualTransformation()
                         },
+                        colors = settingsFieldColors(),
                     )
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Button(onClick = { onSave(baseUrl, model, apiKeyForSave(apiKey)) }) {
+                        Button(
+                            onClick = { onSave(baseUrl, model, apiKeyForSave(apiKey)) },
+                            colors = settingsButtonColors(),
+                        ) {
                             Text("Save")
                         }
-                        TextButton(onClick = onReset) { Text("Reset defaults") }
+                        TextButton(onClick = onReset) {
+                            Text("Reset defaults", color = colors.onSurfaceVariant)
+                        }
                     }
                 }
                 Spacer(modifier = Modifier.height(12.dp))
@@ -217,6 +227,7 @@ private fun ProviderMenu(
             enabled = catalog.isNotEmpty(),
             singleLine = true,
             label = { Text("Provider") },
+            colors = settingsFieldColors(),
             supportingText = {
                 val platform = selected?.id.orEmpty()
                 if (platform.isNotEmpty()) Text("Platform: $platform")
@@ -237,3 +248,24 @@ private fun ProviderMenu(
         }
     }
 }
+
+@Composable
+private fun settingsButtonColors() = ButtonDefaults.buttonColors(
+    containerColor = MaterialTheme.colorScheme.surfaceVariant,
+    contentColor = MaterialTheme.colorScheme.onSurface,
+)
+
+@Composable
+private fun settingsFieldColors() = OutlinedTextFieldDefaults.colors(
+    focusedBorderColor = MaterialTheme.colorScheme.outline,
+    unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.65f),
+    focusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+    unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+    focusedTextColor = MaterialTheme.colorScheme.onSurface,
+    unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+    cursorColor = MaterialTheme.colorScheme.onSurfaceVariant,
+    focusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant,
+    unfocusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant,
+    focusedSupportingTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+    unfocusedSupportingTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+)
