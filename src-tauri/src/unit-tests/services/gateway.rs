@@ -90,6 +90,8 @@ fn sha256_hex(bytes: &[u8]) -> String {
 struct MockMcp {
     port: u16,
     hits: Arc<Mutex<Vec<(String, String, Vec<u8>)>>>,
+    last_accept: Arc<Mutex<Option<String>>>,
+    last_session: Arc<Mutex<Option<String>>>,
     server: Arc<tiny_http::Server>,
     join: Option<thread::JoinHandle<()>>,
 }
@@ -101,12 +103,28 @@ impl MockMcp {
             tiny_http::Server::http(format!("127.0.0.1:{port}")).expect("mock mcp listen"),
         );
         let hits = Arc::new(Mutex::new(Vec::new()));
+        let last_accept = Arc::new(Mutex::new(None));
+        let last_session = Arc::new(Mutex::new(None));
         let server_thread = Arc::clone(&server);
         let hits_thread = Arc::clone(&hits);
+        let accept_thread = Arc::clone(&last_accept);
+        let session_thread = Arc::clone(&last_session);
         let join = thread::spawn(move || {
             for mut request in server_thread.incoming_requests() {
                 let method = request.method().to_string();
                 let path = request.url().split('?').next().unwrap_or("").to_string();
+                let accept = request
+                    .headers()
+                    .iter()
+                    .find(|h| h.field.equiv("Accept"))
+                    .map(|h| h.value.as_str().to_string());
+                let session = request
+                    .headers()
+                    .iter()
+                    .find(|h| h.field.equiv("mcp-session-id"))
+                    .map(|h| h.value.as_str().to_string());
+                *accept_thread.lock().expect("accept") = accept;
+                *session_thread.lock().expect("session") = session;
                 let mut body = Vec::new();
                 let _ = request.as_reader().read_to_end(&mut body);
                 hits_thread
@@ -135,18 +153,26 @@ impl MockMcp {
                 } else {
                     (599, serde_json::json!({ "leaked": path }).to_string())
                 };
-                let response = tiny_http::Response::from_string(payload)
+                let mut response = tiny_http::Response::from_string(payload)
                     .with_status_code(tiny_http::StatusCode(status))
                     .with_header(
                         tiny_http::Header::from_bytes(&b"Content-Type"[..], &b"application/json"[..])
                             .expect("header"),
                     );
+                if path == "/mcp/mobile" {
+                    response = response.with_header(
+                        tiny_http::Header::from_bytes(&b"mcp-session-id"[..], &b"gw-session-1"[..])
+                            .expect("session header"),
+                    );
+                }
                 let _ = request.respond(response);
             }
         });
         Self {
             port,
             hits,
+            last_accept,
+            last_session,
             server,
             join: Some(join),
         }
@@ -154,6 +180,14 @@ impl MockMcp {
 
     fn hits(&self) -> Vec<(String, String, Vec<u8>)> {
         self.hits.lock().expect("hits").clone()
+    }
+
+    fn last_accept(&self) -> Option<String> {
+        self.last_accept.lock().expect("accept").clone()
+    }
+
+    fn last_session(&self) -> Option<String> {
+        self.last_session.lock().expect("session").clone()
     }
 }
 
@@ -292,6 +326,37 @@ fn named_forward_mcp_mobile_to_loopback_mcp_port() {
     assert_eq!(hits.len(), 1);
     assert_eq!(hits[0].0, "POST");
     assert_eq!(hits[0].1, "/mcp/mobile");
+    stop(handle);
+}
+
+#[test]
+fn named_forward_preserves_mcp_streamable_headers() {
+    let dir = tempfile::tempdir().expect("tmp");
+    let mock = MockMcp::start();
+    let handle = start_gw(mock.port, dir.path());
+    let response = https_client()
+        .post(gw_url(&handle, "/mcp/mobile"))
+        .header("authorization", "Bearer device-ticket")
+        .header("content-type", "application/json")
+        .header("accept", "application/json, text/event-stream")
+        .header("mcp-session-id", "from-phone")
+        .header("mcp-protocol-version", "2025-03-26")
+        .body(r#"{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}"#)
+        .send()
+        .expect("mcp mobile headers");
+    assert_eq!(response.status().as_u16(), 200);
+    assert_eq!(
+        mock.last_accept().as_deref(),
+        Some("application/json, text/event-stream")
+    );
+    assert_eq!(mock.last_session().as_deref(), Some("from-phone"));
+    assert_eq!(
+        response
+            .headers()
+            .get("mcp-session-id")
+            .and_then(|v| v.to_str().ok()),
+        Some("gw-session-1")
+    );
     stop(handle);
 }
 

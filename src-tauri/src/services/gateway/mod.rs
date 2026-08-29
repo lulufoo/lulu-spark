@@ -274,16 +274,7 @@ async fn bind_complete_named(State(state): State<GwState>, request: Request) -> 
     if request.method() != Method::POST {
         return reject_unnamed().await;
     }
-    let authorization = request
-        .headers()
-        .get(header::AUTHORIZATION)
-        .and_then(|v| v.to_str().ok())
-        .map(str::to_string);
-    let content_type = request
-        .headers()
-        .get(header::CONTENT_TYPE)
-        .and_then(|v| v.to_str().ok())
-        .map(str::to_string);
+    let headers = hop_headers(request.headers(), BIND_FORWARD_HEADERS);
     let body = match to_bytes(request.into_body(), 2 * 1024 * 1024).await {
         Ok(bytes) => bytes.to_vec(),
         Err(_) => Vec::new(),
@@ -294,8 +285,7 @@ async fn bind_complete_named(State(state): State<GwState>, request: Request) -> 
             sidecar_port,
             Method::POST,
             "/api/bind-complete".to_string(),
-            authorization,
-            content_type,
+            headers,
             body,
         )
     })
@@ -317,23 +307,14 @@ async fn forward_named(State(state): State<GwState>, request: Request) -> Respon
         .path_and_query()
         .map(|pq| pq.as_str().to_string())
         .unwrap_or_else(|| request.uri().path().to_string());
-    let authorization = request
-        .headers()
-        .get(header::AUTHORIZATION)
-        .and_then(|v| v.to_str().ok())
-        .map(str::to_string);
-    let content_type = request
-        .headers()
-        .get(header::CONTENT_TYPE)
-        .and_then(|v| v.to_str().ok())
-        .map(str::to_string);
+    let headers = hop_headers(request.headers(), MCP_FORWARD_HEADERS);
     let body = match to_bytes(request.into_body(), 2 * 1024 * 1024).await {
         Ok(bytes) => bytes.to_vec(),
         Err(_) => Vec::new(),
     };
     let mcp_port = state.mcp_port;
     match tokio::task::spawn_blocking(move || {
-        proxy_loopback(mcp_port, method, path, authorization, content_type, body)
+        proxy_loopback(mcp_port, method, path, headers, body)
     })
     .await
     {
@@ -346,12 +327,26 @@ async fn forward_named(State(state): State<GwState>, request: Request) -> Respon
     }
 }
 
+fn hop_headers(
+    incoming: &axum::http::HeaderMap,
+    names: &[&str],
+) -> Vec<(String, String)> {
+    names
+        .iter()
+        .filter_map(|name| {
+            incoming
+                .get(*name)
+                .and_then(|value| value.to_str().ok())
+                .map(|value| ((*name).to_string(), value.to_string()))
+        })
+        .collect()
+}
+
 fn proxy_loopback(
     mcp_port: u16,
     method: Method,
     path: String,
-    authorization: Option<String>,
-    content_type: Option<String>,
+    headers: Vec<(String, String)>,
     body: Vec<u8>,
 ) -> Result<Response, String> {
     let url = format!("http://127.0.0.1:{mcp_port}{path}");
@@ -362,11 +357,8 @@ fn proxy_loopback(
     let reqwest_method = reqwest::Method::from_bytes(method.as_str().as_bytes())
         .map_err(|err| err.to_string())?;
     let mut request = client.request(reqwest_method, url).body(body);
-    if let Some(value) = authorization {
-        request = request.header(header::AUTHORIZATION, value);
-    }
-    if let Some(value) = content_type {
-        request = request.header(header::CONTENT_TYPE, value);
+    for (name, value) in headers {
+        request = request.header(name, value);
     }
     let response = request.send().map_err(|err| err.to_string())?;
     let status = StatusCode::from_u16(response.status().as_u16())
@@ -377,14 +369,29 @@ fn proxy_loopback(
         .and_then(|v| v.to_str().ok())
         .unwrap_or("application/json")
         .to_string();
+    let session = response
+        .headers()
+        .get("mcp-session-id")
+        .and_then(|v| v.to_str().ok())
+        .map(|v| v.to_string());
     let payload = response.text().map_err(|err| err.to_string())?;
-    Ok((
-        status,
-        [(header::CONTENT_TYPE, content_type)],
-        payload,
-    )
-        .into_response())
+    let mut builder = Response::builder()
+        .status(status)
+        .header(header::CONTENT_TYPE, content_type);
+    if let Some(session) = session {
+        builder = builder.header("mcp-session-id", session);
+    }
+    builder.body(payload.into()).map_err(|err| err.to_string())
 }
+
+const BIND_FORWARD_HEADERS: &[&str] = &["authorization", "content-type"];
+const MCP_FORWARD_HEADERS: &[&str] = &[
+    "authorization",
+    "content-type",
+    "accept",
+    "mcp-session-id",
+    "mcp-protocol-version",
+];
 
 async fn reject_unnamed() -> Response {
     json_status(StatusCode::NOT_FOUND, r#"{"error":"not_found"}"#)
