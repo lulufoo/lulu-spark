@@ -1,4 +1,4 @@
-//! Corpus entry delete / move-project (local FS + index.json only).
+//! Notes entry delete / move-project (local FS + index.json only).
 
 use std::collections::HashSet;
 use std::fs;
@@ -10,14 +10,14 @@ use crate::config::paths;
 use crate::repositories::annotation_paths::annotation_json_path;
 use crate::services::annotation::read_annotation_object;
 use crate::services::tags_registry::{adjust_refs, read_registry, save_registry};
-const LAYERS: &[&str] = &["raw", "distilled", "trace", "digest", "diagnose"];
+const LAYERS: &[&str] = &["raw", "digest"];
 
-fn workbench_knowledge_root() -> Result<PathBuf, Value> {
-    paths::workbench_knowledge_root().map_err(|e| json!({ "error": format!("{e:?}") }))
+fn notes_root() -> Result<PathBuf, Value> {
+    paths::notes_root().map_err(|e| json!({ "error": format!("{e:?}") }))
 }
 
-fn load_index(corpus: &Path) -> Result<(PathBuf, Map<String, Value>), Value> {
-    let index_path = corpus.join("index.json");
+fn load_index(notes: &Path) -> Result<(PathBuf, Map<String, Value>), Value> {
+    let index_path = notes.join("index.json");
     if !index_path.is_file() {
         return Err(json!({ "error": "index.json not found", "_status": 404 }));
     }
@@ -72,11 +72,11 @@ pub fn delete_entry(payload: &Value) -> Value {
     if !is_valid_entry_id(entry_id) {
         return json!({ "error": "Invalid id", "_status": 400 });
     }
-    let corpus = match workbench_knowledge_root() {
+    let notes = match notes_root() {
         Ok(p) => p,
         Err(v) => return v,
     };
-    let (index_path, mut entries) = match load_index(&corpus) {
+    let (index_path, mut entries) = match load_index(&notes) {
         Ok(v) => v,
         Err(v) => return v,
     };
@@ -89,8 +89,8 @@ pub fn delete_entry(payload: &Value) -> Value {
     }
     let mut deleted = Vec::new();
     for layer in LAYERS {
-        let target = corpus.join(layer).join(common_path);
-        if !target.starts_with(&corpus) {
+        let target = notes.join(layer).join(common_path);
+        if !target.starts_with(&notes) {
             continue;
         }
         if target.is_file() {
@@ -98,18 +98,18 @@ pub fn delete_entry(payload: &Value) -> Value {
             deleted.push(format!("{layer}/{common_path}"));
         }
     }
-    if let Some(ann_path) = annotation_json_path(&corpus, common_path) {
+    if let Some(ann_path) = annotation_json_path(&notes, common_path) {
         if ann_path.is_file() {
-            let ann = read_annotation_object(&corpus, common_path);
+            let ann = read_annotation_object(&notes, common_path);
             if let Some(arr) = ann.get("tag_keys").and_then(|v| v.as_array()) {
                 let keys: Vec<String> = arr
                     .iter()
                     .filter_map(|v| v.as_str().map(String::from))
                     .collect();
                 if !keys.is_empty() {
-                    let mut reg = read_registry(&corpus);
+                    let mut reg = read_registry(&notes);
                     adjust_refs(&mut reg, &keys, -1);
-                    let _ = save_registry(&corpus, &reg);
+                    let _ = save_registry(&notes, &reg);
                 }
             }
             let _ = fs::remove_file(&ann_path);
@@ -139,11 +139,11 @@ pub fn move_entry_project(payload: &Value) -> Value {
     if !valid.is_empty() && !valid.contains(new_project) {
         return json!({ "error": format!("Unknown project: {new_project}"), "_status": 400 });
     }
-    let corpus = match workbench_knowledge_root() {
+    let notes = match notes_root() {
         Ok(p) => p,
         Err(v) => return v,
     };
-    let (index_path, mut entries) = match load_index(&corpus) {
+    let (index_path, mut entries) = match load_index(&notes) {
         Ok(v) => v,
         Err(v) => return v,
     };
@@ -167,20 +167,20 @@ pub fn move_entry_project(payload: &Value) -> Value {
 
     let mut moves: Vec<(PathBuf, PathBuf)> = Vec::new();
     for layer in LAYERS {
-        let src = corpus.join(layer).join(old_cp);
-        let dst = corpus.join(layer).join(&new_cp);
+        let src = notes.join(layer).join(old_cp);
+        let dst = notes.join(layer).join(&new_cp);
         if src.exists() {
             moves.push((src, dst));
         }
     }
-    if let Some(ann_src) = annotation_json_path(&corpus, old_cp) {
+    if let Some(ann_src) = annotation_json_path(&notes, old_cp) {
         if ann_src.exists() {
             let new_ann_rel = if new_cp.ends_with(".md") {
                 format!("{}.json", &new_cp[..new_cp.len() - 3])
             } else {
                 format!("{new_cp}.json")
             };
-            let ann_dst = corpus.join("annotations").join(&new_ann_rel);
+            let ann_dst = notes.join("annotations").join(&new_ann_rel);
             moves.push((ann_src, ann_dst));
         }
     }
@@ -197,8 +197,8 @@ pub fn move_entry_project(payload: &Value) -> Value {
             zh_parts[1] = parts[1];
         }
         new_zh = Some(zh_parts.join("/"));
-        let zh_src = corpus.join("raw").join(old_zh);
-        let zh_dst = corpus.join("raw").join(new_zh.as_ref().unwrap());
+        let zh_src = notes.join("raw").join(old_zh);
+        let zh_dst = notes.join("raw").join(new_zh.as_ref().unwrap());
         if zh_src.exists() {
             moves.push((zh_src, zh_dst));
         }

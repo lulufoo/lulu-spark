@@ -13,7 +13,7 @@ vi.mock('../../frontend/src/host/api.ts', () => ({
   fetchConfig: vi.fn(),
   setConfig: vi.fn(),
   inferGithubUserUrl: vi.fn(),
-  checkWorkbenchKnowledgeRoot: vi.fn(),
+  checkWorkbenchRoot: vi.fn(),
   invoke: vi.fn(),
 }));
 
@@ -41,8 +41,8 @@ function mountSettingsDom() {
 
 function baseConfig(overrides = {}) {
   return {
-    workbench_knowledge_root: '',
-    knowledge_corpus_root: '',
+    workbench_root: '',
+    knowledge_root: '',
     github_user_url: '',
     workbench_github_repo_url: '',
     has_github_token: false,
@@ -184,7 +184,7 @@ describe('Settings MCP panel actions', () => {
     api.fetchConfig.mockResolvedValue(baseConfig());
     api.setConfig.mockResolvedValue(baseConfig());
     api.inferGithubUserUrl.mockResolvedValue({});
-    api.checkWorkbenchKnowledgeRoot.mockResolvedValue({ ok: true });
+    api.checkWorkbenchRoot.mockResolvedValue({ ok: true });
     api.invoke.mockResolvedValue({ handle: LIVE_HANDLE });
     await import('../../frontend/src/app-shell/commands/settings/dialog.ts');
   });

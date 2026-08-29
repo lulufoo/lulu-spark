@@ -1,4 +1,4 @@
-//! Localhost HTTP API for MCP sidecar proxy (`GET/POST /api/corpus-*`, `/api/archive-*`, `/api/read-later*`, `/api/todo-tasks`, `POST /api/bind-complete`, `/api/status`).
+//! Localhost HTTP API for MCP sidecar proxy (`GET/POST /api/notes-*`, `/api/archive-*`, `/api/read-later*`, `/api/todo-tasks`, `POST /api/bind-complete`, `/api/status`).
 
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};

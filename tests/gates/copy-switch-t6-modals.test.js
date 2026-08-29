@@ -32,7 +32,7 @@ const modalSources = [
   deleteDialogJs,
   moveDialogJs,
   settleDialogJs,
-  readFrontendJs('frontend/src/corpus/ui/diff-dialog.tsx'),
+  readFrontendJs('frontend/src/knowledge/ui/diff-dialog.tsx'),
   readFrontendJs('frontend/src/app-shell/ui/convert-dialog.tsx'),
   readFrontendJs('frontend/src/app-shell/commands/convert-dialog.ts'),
   readFrontendJs('frontend/src/notes/ui/move-project-dialog.tsx'),
@@ -67,7 +67,7 @@ describe('P2 copy-switch — main.js & modals (tech-doc T6)', () => {
     expect(mainJs).not.toContain('加载中');
   });
 
-  it('commit-dialog.js aligns with corpus-viewer commit copy', () => {
+  it('commit-dialog.js aligns with knowledge-viewer commit copy', () => {
     expect(commitDialogJs).toContain("↑ Commit changes");
     expect(commitDialogJs).toContain('Checking…');
     expect(commitDialogJs).toContain('Loading…');

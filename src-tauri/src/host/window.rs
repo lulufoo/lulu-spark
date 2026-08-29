@@ -65,6 +65,7 @@ pub(crate) fn create_main_window(app: &tauri::App) -> Result<(), Box<dyn std::er
             }
         })
         .build()?;
+    eprintln!("[DEBUG-assistant] host: main window created");
 
     let hide_target = window.clone();
     window.on_window_event(move |event| {

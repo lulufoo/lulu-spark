@@ -42,7 +42,13 @@ function emitCallback(fn: ((payload?: unknown) => void) | undefined, payload: un
 export async function setWorkbenchBinding(hooks: BindingCallbacks = {}) {
   const binding = { key: WORKBENCH_BUSINESS_KEY };
   const invoke = getTauriInvoke();
+  console.info('[DEBUG-assistant] setWorkbenchBinding', {
+    hasInvoke: Boolean(invoke),
+    hasTauri: Boolean(typeof window !== 'undefined' && window.__TAURI__),
+    hasInternals: Boolean(typeof window !== 'undefined' && window.__TAURI_INTERNALS__),
+  });
   if (!invoke) {
+    console.info('[DEBUG-assistant] setWorkbenchBinding skip: no invoke');
     emitCallback(hooks.onError, { category: 'set_invalid' });
     return { ok: false, code: 'set_invalid', state: 'unbound', binding };
   }
@@ -50,7 +56,9 @@ export async function setWorkbenchBinding(hooks: BindingCallbacks = {}) {
   let result: SetBindingResult | undefined;
   try {
     result = (await invoke('set_binding', { binding })) as SetBindingResult;
-  } catch {
+    console.info('[DEBUG-assistant] setWorkbenchBinding host result', result);
+  } catch (err) {
+    console.info('[DEBUG-assistant] setWorkbenchBinding invoke threw', err);
     emitCallback(hooks.onError, { category: 'set_invalid' });
     return { ok: false, code: 'set_invalid', state: 'unbound', binding };
   }

@@ -3,7 +3,7 @@ use std::path::Path;
 
 use serde_json::{json, Map, Value};
 
-use crate::config::meili_env::workbench_knowledge_root_path;
+use crate::config::meili_env::workbench_root_path;
 
 pub fn get_draft(_repo_root: &Path, path: &str) -> Value {
     let decoded = urlencoding::decode(path).unwrap_or_else(|_| path.into());
@@ -73,13 +73,16 @@ pub fn categories_from_git_status(stdout: &str) -> Map<String, Value> {
 }
 
 pub fn get_status(repo_root: &Path) -> Value {
-    let corpus = workbench_knowledge_root_path(repo_root);
-    let git_root = corpus.join(".git");
+    let workbench = workbench_root_path(repo_root);
+    let git_root = workbench.join(".git");
     if !git_root.exists() {
-        let msg = format!("corpus is not a git repository: {}", corpus.display());
+        let msg = format!(
+            "workbench_root is not a git repository: {}",
+            workbench.display()
+        );
         return json!({ "error": msg });
     }
-    let stdout = match crate::integrations::git::status_porcelain(&corpus) {
+    let stdout = match crate::integrations::git::status_porcelain(&workbench) {
         Ok(s) => s,
         Err(e) => return json!({ "error": e.message }),
     };
@@ -89,12 +92,12 @@ pub fn get_status(repo_root: &Path) -> Value {
         .filter_map(|k| categories.get(*k).and_then(|v| v.as_array()))
         .map(|a| a.len())
         .sum();
-    let ahead = crate::integrations::git::ahead_count(&corpus).unwrap_or(0);
+    let ahead = crate::integrations::git::ahead_count(&workbench).unwrap_or(0);
     categories.insert("total".into(), json!(total));
     categories.insert("ahead".into(), json!(ahead));
     categories.insert(
-        "workbench_knowledge_root".into(),
-        json!(corpus.to_string_lossy().to_string()),
+        "workbench_root".into(),
+        json!(workbench.to_string_lossy().to_string()),
     );
     Value::Object(categories)
 }

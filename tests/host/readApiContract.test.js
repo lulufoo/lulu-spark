@@ -99,13 +99,13 @@ describe('readApi contract map', () => {
     });
   });
 
-  it('resolveInvokeFromPath maps corpus-asset query args', () => {
+  it('resolveInvokeFromPath maps notes-asset query args', () => {
     expect(
       resolveInvokeFromPath(
-        '/api/corpus-asset?layer=raw&base=ai/note.md&href=note.png',
+        '/api/notes-asset?layer=raw&base=ai/note.md&href=note.png',
       ),
     ).toEqual({
-      cmd: 'get_corpus_asset',
+      cmd: 'get_notes_asset',
       args: { layer: 'raw', base: 'ai/note.md', href: 'note.png' },
     });
   });

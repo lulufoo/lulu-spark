@@ -18,9 +18,9 @@ vi.mock('../../frontend/src/host/api.ts', () => ({
   getReindexWorkbenchStatus: (...args) => apiMocks.getReindexWorkbenchStatus(...args),
 }));
 
-vi.mock('../../frontend/src/corpus/ui/search.tsx', () => ({
-  closeCorpusSearch: vi.fn(),
-  initCorpusSearch: vi.fn(),
+vi.mock('../../frontend/src/knowledge/ui/search.tsx', () => ({
+  closeKnowledgeSearch: vi.fn(),
+  initKnowledgeSearch: vi.fn(),
 }));
 
 import { applySearchNavChrome } from '../../frontend/src/app-shell/ui/nav-chrome.ts';
@@ -180,7 +180,7 @@ function extractFunctionSource(source, name) {
 function seedWorkbenchMountDom() {
   document.body.innerHTML = `
     <div id="home-view" style="display:none"></div>
-    <div id="corpus-doc-view" style="display:none"></div>
+    <div id="knowledge-doc-view" style="display:none"></div>
     <div id="read-later-view" style="display:none"></div>
     <div id="todo-tasks-view" style="display:none"></div>
     <div class="layout">
@@ -199,8 +199,8 @@ function compileMountWorkbench(env) {
   const fnSource = extractFunctionSource(mainJs, 'mountWorkbench');
   expect(fnSource, 'mountWorkbench missing').not.toBe('');
   const locals = [
-    'clearHeaderSyncCorpusContext',
-    'hideCorpusDocView',
+    'clearHeaderSyncKnowledgeContext',
+    'hideKnowledgeDocView',
     'hideReadLaterView',
     'hideTodoTasksView',
     'hideHomeView',
@@ -230,8 +230,8 @@ function stubWorkbenchMountEnv(overrides = {}) {
     viewer: { createSession: null, ...(overrides.state?.viewer || {}) },
   };
   return {
-    clearHeaderSyncCorpusContext: () => {},
-    hideCorpusDocView: () => {},
+    clearHeaderSyncKnowledgeContext: () => {},
+    hideKnowledgeDocView: () => {},
     hideReadLaterView: () => {},
     hideTodoTasksView: () => {},
     hideHomeView: () => {},

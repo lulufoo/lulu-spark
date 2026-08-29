@@ -40,11 +40,11 @@ const P2_PATHS = [
     'sediment_kb_remove_category',
     ['payload'],
   ],
-  ['/api/archive-document', 'archive_document', ['payload']],
+  ['/api/create-note', 'create_note', ['payload']],
 ];
 
 describe('writeApiContract', () => {
-  it('covers all P2 POST paths with command names including archive-document', () => {
+  it('covers all P2 POST paths with command names including create-note', () => {
     expect(Object.keys(WRITE_API_INVOKE_MAP).length).toBeGreaterThanOrEqual(P2_PATHS.length);
     for (const [path, cmd] of P2_PATHS) {
       expect(WRITE_API_INVOKE_MAP[path]?.cmd, path).toBe(cmd);
@@ -91,7 +91,7 @@ describe('writeApiContract', () => {
     expect(resolved.args).not.toHaveProperty('common_path');
   });
 
-  it('corpus annotation endpoints map common_path → commonPath only', () => {
+  it('notes annotation endpoints map common_path → commonPath only', () => {
     const cases = [
       [
         '/api/update-comments',
@@ -177,13 +177,13 @@ describe('writeApiContract', () => {
     });
   });
 
-  it('archive-document invoke args pass HTTP body as payload (snake HTTP ↔ camel invoke)', () => {
+  it('create-note invoke args pass HTTP body as payload (snake HTTP ↔ camel invoke)', () => {
     const body = {
       source_path: '/tmp/title.md',
       source_type: 'summary',
     };
-    expect(resolveWriteInvoke('/api/archive-document', body)).toEqual({
-      cmd: 'archive_document',
+    expect(resolveWriteInvoke('/api/create-note', body)).toEqual({
+      cmd: 'create_note',
       args: { payload: body },
     });
   });

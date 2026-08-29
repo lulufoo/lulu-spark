@@ -144,7 +144,7 @@ export async function finalizeCreateSession() {
   session.status = 'saving';
   try {
     await api.saveNoteDraft(session.tempId, trimmed);
-    const archived = (await api.archiveDocument({ body: trimmed, source_type: 'note' })) as {
+    const archived = (await api.createNote({ body: trimmed, source_type: 'jot' })) as {
       common_path?: string;
     };
     const commonPath = archived?.common_path;

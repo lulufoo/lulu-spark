@@ -24,8 +24,8 @@ fn get_config_has_frontend_contract_keys() {
         .unwrap()
         .to_path_buf();
     let v = get_config(&root);
-    assert!(v.get("workbench_knowledge_root").is_some());
-    assert!(v.get("knowledge_corpus_root").is_some());
+    assert!(v.get("workbench_root").is_some());
+    assert!(v.get("knowledge_root").is_some());
     assert!(v.get("github_user_url").is_some());
     assert!(v.get("workbench_github_repo_url").is_some());
     assert!(v.get("meili_url").is_some());
@@ -44,26 +44,27 @@ fn get_config_has_frontend_contract_keys() {
 fn with_sediment_kb_topics_cache<F: FnOnce(&std::path::Path, &std::path::Path)>(f: F) {
     let sandbox = TestSandbox::new();
     let cfg_dir = sandbox.config_dir();
-    let wb = sandbox.workbench_knowledge_root();
+    let wb = sandbox.workbench_root();
     fs::create_dir_all(&wb).expect("mkdir");
     f(cfg_dir, wb.as_path());
 }
 
-fn with_corpus_repo<F: FnOnce(&std::path::Path)>(
+fn with_notes_repo<F: FnOnce(&std::path::Path)>(
     setup: impl FnOnce(&std::path::Path, &std::path::Path),
     f: F,
 ) {
     let sandbox = TestSandbox::new();
     let cfg_dir = sandbox.config_dir();
-    let wb = sandbox.workbench_knowledge_root();
-    setup(cfg_dir, wb.as_path());
+    let notes = sandbox.workbench_root().join("notes");
+    fs::create_dir_all(&notes).expect("notes");
+    setup(cfg_dir, notes.as_path());
     f(cfg_dir);
 }
 
 #[test]
 fn get_topics_missing_sediment_kb_inits_and_returns_inbox_only() {
-    with_sediment_kb_topics_cache(|cfg, corpus| {
-        let v = get_topics(corpus);
+    with_sediment_kb_topics_cache(|cfg, wb| {
+        let v = get_topics(wb);
         assert!(v.get("error").is_none(), "expected init fallback, got {v:?}");
         assert_eq!(v["source"], "sediment-kb");
         let topics = v["topics"].as_array().expect("topics array");
@@ -80,13 +81,13 @@ fn get_topics_reads_from_sediment_kb_with_category_fields() {
         add_repo, ensure_uncategorized, set_test_repo_validator, UNCATEGORIZED_ID,
     };
 
-    with_sediment_kb_topics_cache(|cfg, corpus| {
+    with_sediment_kb_topics_cache(|cfg, wb| {
         set_test_repo_validator(Some(|name| Ok(name.to_string())));
         ensure_uncategorized().expect("ensure");
         add_repo("lulufoo/kb-a", None, "Saved KB description").expect("add");
         set_test_repo_validator(None);
 
-        let v = get_topics(corpus);
+        let v = get_topics(wb);
         assert!(v.get("error").is_none(), "unexpected error: {v:?}");
         assert_eq!(v["source"], "sediment-kb");
         let topics = v["topics"].as_array().expect("topics array");
@@ -138,9 +139,9 @@ fn description_source_constraints_hold() {
 fn get_topics_empty_repos_returns_inbox_only() {
     use crate::services::sediment_kb::ensure_uncategorized;
 
-    with_sediment_kb_topics_cache(|_, corpus| {
+    with_sediment_kb_topics_cache(|_, wb| {
         ensure_uncategorized().expect("ensure");
-        let v = get_topics(corpus);
+        let v = get_topics(wb);
         assert!(v.get("error").is_none(), "unexpected error: {v:?}");
         let topics = v["topics"].as_array().expect("topics array");
         assert_eq!(topics.len(), 1);
@@ -214,46 +215,46 @@ fn infer_github_user_url_trims_padded_path() {
 }
 
 #[test]
-fn check_workbench_knowledge_root_requires_dir_and_index() {
+fn check_workbench_root_requires_dir_and_index() {
     let dir = tempfile::tempdir().expect("tmp");
-    let missing = check_workbench_knowledge_root("/no/such/workbench");
+    let missing = check_workbench_root("/no/such/workbench");
     assert_eq!(missing["ok"], false);
 
     let no_index_dir = dir.path().join("empty");
     fs::create_dir_all(&no_index_dir).expect("mkdir");
-    let no_index = check_workbench_knowledge_root(no_index_dir.to_str().unwrap());
+    let no_index = check_workbench_root(no_index_dir.to_str().unwrap());
     assert_eq!(no_index["ok"], false);
     assert!(no_index["error"].as_str().unwrap().contains("index.json"));
 
-    let corpus = dir.path().join("corpus");
-    fs::create_dir_all(&corpus).expect("mkdir");
-    fs::write(corpus.join("index.json"), br#"{"entries":[]}"#).expect("write");
-    let ok = check_workbench_knowledge_root(corpus.to_str().unwrap());
+    let store = dir.path().join("store");
+    fs::create_dir_all(&store).expect("mkdir");
+    fs::write(store.join("index.json"), br#"{"entries":[]}"#).expect("write");
+    let ok = check_workbench_root(store.to_str().unwrap());
     assert_eq!(ok["ok"], true);
 }
 
 #[test]
-fn get_corpus_index_reads_json() {
-    with_corpus_repo(
-        |_, corpus| {
-            fs::create_dir_all(corpus).expect("mkdir");
-            fs::write(corpus.join("index.json"), br#"{"entries":[]}"#).expect("write");
+fn get_notes_index_reads_json() {
+    with_notes_repo(
+        |_, notes| {
+            fs::create_dir_all(notes).expect("mkdir");
+            fs::write(notes.join("index.json"), br#"{"entries":[]}"#).expect("write");
         },
         |cfg_dir| {
-            let v = get_corpus_index(cfg_dir);
+            let v = get_notes_index(cfg_dir);
             assert_eq!(v["entries"], json!([]));
         },
     );
 }
 
 #[test]
-fn get_corpus_file_rejects_traversal() {
-    with_corpus_repo(
-        |_, corpus| {
-            fs::create_dir_all(corpus.join("raw")).expect("mkdir");
+fn get_notes_file_rejects_traversal() {
+    with_notes_repo(
+        |_, notes| {
+            fs::create_dir_all(notes.join("raw")).expect("mkdir");
         },
         |cfg_dir| {
-            let v = get_corpus_file(cfg_dir, "raw", "../index.json");
+            let v = get_notes_file(cfg_dir, "raw", "../index.json");
             assert_eq!(v["error"], "Invalid path");
         },
     );
@@ -263,19 +264,19 @@ fn get_corpus_file_rejects_traversal() {
 fn get_annotations_summary_includes_resolved_tags() {
     use crate::repositories::annotation_paths::annotation_json_path;
     use crate::repositories::atomic_json;
-    use crate::test_support::with_sandbox_corpus;
+    use crate::test_support::with_sandbox_notes;
 
-    with_sandbox_corpus(true, |dir, corpus| {
+    with_sandbox_notes(true, |dir, notes| {
         let cp = "ai/tags.md";
         fs::write(
-            corpus.join("index.json"),
+            notes.join("index.json"),
             serde_json::to_string(&serde_json::json!({
                 "entries": { "e1": { "common_path": cp } }
             }))
             .unwrap(),
         )
         .expect("index");
-        let ann_path = annotation_json_path(&corpus, cp).expect("path");
+        let ann_path = annotation_json_path(&notes, cp).expect("path");
         if let Some(parent) = ann_path.parent() {
             fs::create_dir_all(parent).expect("mkdir");
         }
@@ -286,7 +287,7 @@ fn get_annotations_summary_includes_resolved_tags() {
         .expect("ann");
         let mut reg = crate::services::tags_registry::empty_registry();
         reg["keys"]["knownkey123456"] = serde_json::json!({ "value": "Known", "refs": 1 });
-        assert!(crate::services::tags_registry::save_registry(&corpus, &reg).is_none());
+        assert!(crate::services::tags_registry::save_registry(&notes, &reg).is_none());
 
         let summary = get_annotations_summary(dir);
         let entry = summary[cp].as_object().expect("entry");
@@ -301,31 +302,31 @@ fn get_annotations_summary_includes_resolved_tags() {
 }
 
 #[test]
-fn get_corpus_file_returns_content() {
-    with_corpus_repo(
-        |_, corpus| {
-            let raw = corpus.join("raw").join("a.md");
+fn get_notes_file_returns_content() {
+    with_notes_repo(
+        |_, notes| {
+            let raw = notes.join("raw").join("a.md");
             fs::create_dir_all(raw.parent().unwrap()).expect("mkdir");
             fs::write(&raw, b"hello").expect("write");
         },
         |cfg_dir| {
-            let v = get_corpus_file(cfg_dir, "raw", "a.md");
+            let v = get_notes_file(cfg_dir, "raw", "a.md");
             assert_eq!(v["content"], "hello");
         },
     );
 }
 
 #[test]
-fn get_corpus_asset_returns_png_bytes() {
-    with_corpus_repo(
-        |_, corpus| {
-            let png = corpus.join("raw").join("ai").join("note.png");
+fn get_notes_asset_returns_png_bytes() {
+    with_notes_repo(
+        |_, notes| {
+            let png = notes.join("raw").join("ai").join("note.png");
             fs::create_dir_all(png.parent().unwrap()).expect("mkdir");
             fs::write(&png, b"\x89PNG\r\n").expect("write");
-            fs::write(corpus.join("raw").join("ai").join("note.md"), b"# x").expect("md");
+            fs::write(notes.join("raw").join("ai").join("note.md"), b"# x").expect("md");
         },
         |cfg_dir| {
-            let v = get_corpus_asset(cfg_dir, "raw", "ai/note.md", "note.png");
+            let v = get_notes_asset(cfg_dir, "raw", "ai/note.md", "note.png");
             assert!(v.get("data_b64").and_then(|x| x.as_str()).is_some());
             assert_eq!(v["mime_type"], "image/png");
         },
@@ -333,46 +334,46 @@ fn get_corpus_asset_returns_png_bytes() {
 }
 
 #[test]
-fn get_corpus_asset_rejects_traversal() {
-    with_corpus_repo(
-        |_, corpus| {
-            fs::create_dir_all(corpus.join("raw")).expect("mkdir");
+fn get_notes_asset_rejects_traversal() {
+    with_notes_repo(
+        |_, notes| {
+            fs::create_dir_all(notes.join("raw")).expect("mkdir");
         },
         |cfg_dir| {
-            let v = get_corpus_asset(cfg_dir, "raw", "ai/note.md", "../index.json");
+            let v = get_notes_asset(cfg_dir, "raw", "ai/note.md", "../index.json");
             assert_eq!(v["error"], "Invalid path");
         },
     );
 }
 
 #[test]
-fn get_corpus_asset_rejects_non_whitelist_ext() {
-    with_corpus_repo(
-        |_, corpus| {
-            let svg = corpus.join("raw").join("x.svg");
+fn get_notes_asset_rejects_non_whitelist_ext() {
+    with_notes_repo(
+        |_, notes| {
+            let svg = notes.join("raw").join("x.svg");
             fs::create_dir_all(svg.parent().unwrap()).expect("mkdir");
             fs::write(&svg, b"<svg").expect("write");
-            fs::write(corpus.join("raw").join("x.md"), b"#").expect("md");
+            fs::write(notes.join("raw").join("x.md"), b"#").expect("md");
         },
         |cfg_dir| {
-            let v = get_corpus_asset(cfg_dir, "raw", "x.md", "x.svg");
+            let v = get_notes_asset(cfg_dir, "raw", "x.md", "x.svg");
             assert_eq!(v["error"], "Unsupported media type");
         },
     );
 }
 
 #[test]
-fn get_corpus_catalog_latest_per_topic_picks_newest() {
+fn get_notes_catalog_latest_per_topic_picks_newest() {
     let id_old = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
     let id_new = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
     let id_pg = "cccccccccccccccccccccccccccccccc";
-    with_corpus_repo(
-        move |_, corpus| {
-            fs::create_dir_all(corpus.join("digest/ai")).expect("mkdir");
-            fs::create_dir_all(corpus.join("digest/personal-growth")).expect("mkdir");
-            fs::write(corpus.join("digest/ai/old.md"), b"old").expect("write");
-            fs::write(corpus.join("digest/ai/new.md"), b"new").expect("write");
-            fs::write(corpus.join("digest/personal-growth/speech.md"), b"speech").expect("write");
+    with_notes_repo(
+        move |_, notes| {
+            fs::create_dir_all(notes.join("digest/ai")).expect("mkdir");
+            fs::create_dir_all(notes.join("digest/personal-growth")).expect("mkdir");
+            fs::write(notes.join("digest/ai/old.md"), b"old").expect("write");
+            fs::write(notes.join("digest/ai/new.md"), b"new").expect("write");
+            fs::write(notes.join("digest/personal-growth/speech.md"), b"speech").expect("write");
             let index = json!({
                 "entries": {
                     id_old: {
@@ -402,10 +403,10 @@ fn get_corpus_catalog_latest_per_topic_picks_newest() {
                     }
                 }
             });
-            fs::write(corpus.join("index.json"), index.to_string()).expect("write index");
+            fs::write(notes.join("index.json"), index.to_string()).expect("write index");
         },
         move |cfg_dir| {
-            let v = get_corpus_catalog_latest_per_topic(cfg_dir);
+            let v = get_notes_catalog_latest_per_topic(cfg_dir);
             let items = v["items"].as_array().expect("items");
             assert_eq!(items.len(), 2);
             let ai = items.iter().find(|i| i["topic"] == "ai").expect("ai topic");
@@ -419,12 +420,12 @@ fn get_corpus_catalog_latest_per_topic_picks_newest() {
 }
 
 #[test]
-fn get_corpus_files_by_ids_batch() {
+fn get_notes_files_by_ids_batch() {
     let id_ok = "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
-    with_corpus_repo(
-        move |_, corpus| {
-            fs::create_dir_all(corpus.join("digest/ai")).expect("mkdir");
-            fs::write(corpus.join("digest/ai/note.md"), b"# digest body").expect("write");
+    with_notes_repo(
+        move |_, notes| {
+            fs::create_dir_all(notes.join("digest/ai")).expect("mkdir");
+            fs::write(notes.join("digest/ai/note.md"), b"# digest body").expect("write");
             let index = json!({
                 "entries": {
                     id_ok: {
@@ -434,10 +435,10 @@ fn get_corpus_files_by_ids_batch() {
                     }
                 }
             });
-            fs::write(corpus.join("index.json"), index.to_string()).expect("write index");
+            fs::write(notes.join("index.json"), index.to_string()).expect("write index");
         },
         move |cfg_dir| {
-            let v = get_corpus_files_by_ids(
+            let v = get_notes_files_by_ids(
                 cfg_dir,
                 &[
                     id_ok.to_string(),
@@ -456,14 +457,14 @@ fn get_corpus_files_by_ids_batch() {
 }
 
 #[test]
-fn get_corpus_files_by_ids_rejects_empty() {
-    with_corpus_repo(
-        |_, corpus| {
-            fs::create_dir_all(corpus).expect("mkdir");
-            fs::write(corpus.join("index.json"), br#"{"entries":{}}"#).expect("write");
+fn get_notes_files_by_ids_rejects_empty() {
+    with_notes_repo(
+        |_, notes| {
+            fs::create_dir_all(notes).expect("mkdir");
+            fs::write(notes.join("index.json"), br#"{"entries":{}}"#).expect("write");
         },
         |cfg_dir| {
-            let v = get_corpus_files_by_ids(cfg_dir, &[]);
+            let v = get_notes_files_by_ids(cfg_dir, &[]);
             assert_eq!(v["_status"], 400);
         },
     );
@@ -471,10 +472,10 @@ fn get_corpus_files_by_ids_rejects_empty() {
 
 #[test]
 fn get_annotation_decodes_percent_encoding() {
-    with_corpus_repo(
-        |_, corpus| {
-            fs::create_dir_all(corpus.join("annotations").join("ai")).expect("mkdir");
-            let ann_path = corpus.join("annotations/ai/note.json");
+    with_notes_repo(
+        |_, notes| {
+            fs::create_dir_all(notes.join("annotations").join("ai")).expect("mkdir");
+            let ann_path = notes.join("annotations/ai/note.json");
             fs::write(&ann_path, br#"{"done":true}"#).expect("write");
         },
         |cfg_dir| {

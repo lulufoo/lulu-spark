@@ -59,8 +59,8 @@ export const state: HostState = {
   },
   ui: {
     activeDate: null,
-    workbenchKnowledgeRoot: '',
-    knowledgeCorpusRoot: '',
+    workbenchRoot: '',
+    knowledgeRoot: '',
     githubUserUrl: '',
     activeTopic: null,
     activeTagKey: null,
@@ -125,7 +125,11 @@ export async function loadDiffStatus() {
     const data = (await api.fetchDiffStatus()) as DiffStatusPayload
     if (!data) return
     state.index.diffStatus.clear()
-    for (const p of data.modified || []) state.index.diffStatus.set(p, 'modified')
-    for (const p of data.conflicted || []) state.index.diffStatus.set(p, 'conflict')
+    for (const p of data.modified || []) {
+      state.index.diffStatus.set(p.replace(/^notes\//, ''), 'modified')
+    }
+    for (const p of data.conflicted || []) {
+      state.index.diffStatus.set(p.replace(/^notes\//, ''), 'conflict')
+    }
   } catch { /* non-critical */ }
 }

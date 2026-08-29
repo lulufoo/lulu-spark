@@ -53,21 +53,21 @@ describe('parseHash', () => {
     expect(result.params).not.toHaveProperty('layer');
   });
 
-  it('parses #/corpus as empty repo corpus-doc', () => {
-    expect(parseHash('#/corpus')).toEqual({ name: 'corpus-doc', params: { repo: '' } });
+  it('parses #/knowledge as empty repo knowledge-doc', () => {
+    expect(parseHash('#/knowledge')).toEqual({ name: 'knowledge-doc', params: { repo: '' } });
   });
 
-  it('parses legacy #/corpus/pick as empty repo corpus-doc', () => {
-    expect(parseHash('#/corpus/pick')).toEqual({ name: 'corpus-doc', params: { repo: '' } });
+  it('parses legacy #/knowledge/pick as empty repo knowledge-doc', () => {
+    expect(parseHash('#/knowledge/pick')).toEqual({ name: 'knowledge-doc', params: { repo: '' } });
   });
 
-  it('parses #/corpus/:repo with slash in repo', () => {
-    expect(parseHash('#/corpus/lulufoo/myrepo')).toEqual({
-      name: 'corpus-doc',
+  it('parses #/knowledge/:repo with slash in repo', () => {
+    expect(parseHash('#/knowledge/lulufoo/myrepo')).toEqual({
+      name: 'knowledge-doc',
       params: { repo: 'lulufoo/myrepo' },
     });
-    expect(parseHash('#/corpus/lulufoo%2Fmyrepo')).toEqual({
-      name: 'corpus-doc',
+    expect(parseHash('#/knowledge/lulufoo%2Fmyrepo')).toEqual({
+      name: 'knowledge-doc',
       params: { repo: 'lulufoo/myrepo' },
     });
   });
@@ -84,45 +84,45 @@ describe('parseHash', () => {
     expect(parseHash('#/read-later/')).toEqual({ name: 'read-later', params: {} });
   });
 
-  it('parses #/corpus/:repo?path= for deep link', () => {
-    expect(parseHash('#/corpus/owner/repo?path=docs/guide.md')).toEqual({
-      name: 'corpus-doc',
+  it('parses #/knowledge/:repo?path= for deep link', () => {
+    expect(parseHash('#/knowledge/owner/repo?path=docs/guide.md')).toEqual({
+      name: 'knowledge-doc',
       params: { repo: 'owner/repo', path: 'docs/guide.md' },
     });
   });
 
   it('decodes repo and path when encoded', () => {
-    expect(parseHash('#/corpus/lulufoo%2Fmyrepo?path=readme.md')).toEqual({
-      name: 'corpus-doc',
+    expect(parseHash('#/knowledge/lulufoo%2Fmyrepo?path=readme.md')).toEqual({
+      name: 'knowledge-doc',
       params: { repo: 'lulufoo/myrepo', path: 'readme.md' },
     });
   });
 
   it('omits path when ?path= query is absent', () => {
-    const result = parseHash('#/corpus/lulufoo/myrepo');
+    const result = parseHash('#/knowledge/lulufoo/myrepo');
     expect(result).toEqual({
-      name: 'corpus-doc',
+      name: 'knowledge-doc',
       params: { repo: 'lulufoo/myrepo' },
     });
     expect(result.params).not.toHaveProperty('path');
   });
 
   it('handles empty ?path= value', () => {
-    expect(parseHash('#/corpus/owner/repo?path=')).toEqual({
-      name: 'corpus-doc',
+    expect(parseHash('#/knowledge/owner/repo?path=')).toEqual({
+      name: 'knowledge-doc',
       params: { repo: 'owner/repo', path: '' },
     });
   });
 
   it('does not merge query into repo when repo contains slash', () => {
-    expect(parseHash('#/corpus/lulufoo/myrepo?path=a.md')).toEqual({
-      name: 'corpus-doc',
+    expect(parseHash('#/knowledge/lulufoo/myrepo?path=a.md')).toEqual({
+      name: 'knowledge-doc',
       params: { repo: 'lulufoo/myrepo', path: 'a.md' },
     });
   });
 
   it('returns unknown for invalid repo encoding with query', () => {
-    expect(parseHash('#/corpus/%?path=foo.md')).toEqual({
+    expect(parseHash('#/knowledge/%?path=foo.md')).toEqual({
       name: 'unknown',
       params: {},
     });
@@ -138,7 +138,7 @@ describe('initRouter fallback (library API; app entry uses mountHashRouter)', ()
     handlers = {
       workbench: vi.fn(),
       home: vi.fn(),
-      'corpus-doc': vi.fn(),
+      'knowledge-doc': vi.fn(),
     };
     hashValue = '';
     listeners = {};
@@ -203,7 +203,7 @@ describe('hash navigation', () => {
     handlers = {
       workbench: vi.fn(),
       home: vi.fn(),
-      'corpus-doc': vi.fn(() => navigate('#/workbench')),
+      'knowledge-doc': vi.fn(() => navigate('#/workbench')),
     };
     vi.stubGlobal('window', {
       addEventListener(type, fn) {
@@ -240,18 +240,18 @@ describe('hash navigation', () => {
     expect(handlers.home).toHaveBeenCalledTimes(1);
 
     handlers.home.mockClear();
-    hashValue = '#/corpus/owner/repo';
+    hashValue = '#/knowledge/owner/repo';
     listeners.popstate();
-    expect(handlers['corpus-doc']).toHaveBeenCalledTimes(1);
+    expect(handlers['knowledge-doc']).toHaveBeenCalledTimes(1);
   });
 
-  it('back navigation from corpus route does not leave blank mount', () => {
+  it('back navigation from knowledge route does not leave blank mount', () => {
     initRouter(handlers, { fallback: '#/workbench' });
     expect(handlers.workbench).toHaveBeenCalledTimes(1);
 
-    hashValue = '#/corpus/owner/repo';
+    hashValue = '#/knowledge/owner/repo';
     listeners.hashchange();
-    expect(handlers['corpus-doc']).toHaveBeenCalledTimes(1);
+    expect(handlers['knowledge-doc']).toHaveBeenCalledTimes(1);
 
     const workbenchCallsAfterRedirect = handlers.workbench.mock.calls.length;
     expect(workbenchCallsAfterRedirect).toBeGreaterThanOrEqual(1);
@@ -307,7 +307,7 @@ describe('Phase2 fallback via initRouter (library API; app entry uses mountHashR
     handlers = {
       workbench: vi.fn(),
       home: vi.fn(),
-      'corpus-doc': vi.fn(),
+      'knowledge-doc': vi.fn(),
     };
     hashValue = '';
     listeners = {};
@@ -394,13 +394,13 @@ describe('Phase2 fallback via initRouter (library API; app entry uses mountHashR
     expect(handlers.home).toHaveBeenCalledTimes(1);
   });
 
-  it('back navigation from corpus doc returns to home hub', () => {
+  it('back navigation from knowledge doc returns to home hub', () => {
     initRouter(handlers);
     expect(handlers.home).toHaveBeenCalledTimes(1);
 
-    hashValue = '#/corpus/owner/repo';
+    hashValue = '#/knowledge/owner/repo';
     listeners.hashchange();
-    expect(handlers['corpus-doc']).toHaveBeenCalledTimes(1);
+    expect(handlers['knowledge-doc']).toHaveBeenCalledTimes(1);
 
     handlers.home.mockClear();
     hashValue = '#/home';

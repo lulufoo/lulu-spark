@@ -1,6 +1,6 @@
 import * as api from '../../../host/api.ts';
 import { setGithubUserUrl } from '../../../host/constants.ts';
-import { saveKbHidePattern } from '../../../corpus/state/hide-pattern.ts';
+import { saveKbHidePattern } from '../../../knowledge/state/hide-pattern.ts';
 import { state } from '../../../host/state.ts';
 import { applyEngineCategorySelection, saveAssistantEnginePanel } from './engine.ts';
 import {
@@ -71,7 +71,7 @@ export async function openSettingsDialog(opts: SettingsOpenOpts = {}) {
   ensureWired();
   setResult('settings-result-directories', '');
   setResult('notes-connect-error', '');
-  setResult('sediment-kb-corpus-error', '');
+  setResult('knowledge-root-error', '');
   setResult('settings-result-knowledge', '');
   setResult('settings-result-github', '');
   setResult('settings-result-llm', '');
@@ -122,32 +122,32 @@ function wireSettingsDialog() {
   document.getElementById('notes-connect-url')?.addEventListener('keydown', (e) => {
     if ((e as KeyboardEvent).key === 'Enter') document.getElementById('btn-notes-connect-add')?.click();
   });
-  document.getElementById('btn-sediment-kb-corpus-save')?.addEventListener('click', () => {
+  document.getElementById('btn-knowledge-root-save')?.addEventListener('click', () => {
     void (async () => {
-      const pathInput = document.getElementById('sediment-kb-corpus-path') as HTMLInputElement | null;
-      const saveBtn = document.getElementById('btn-sediment-kb-corpus-save') as HTMLButtonElement | null;
-      const knowledgeCorpusRoot = pathInput?.value.trim() || '';
-      if (!knowledgeCorpusRoot) {
-        setResult('sediment-kb-corpus-error', 'Enter a directory path.', true);
+      const pathInput = document.getElementById('knowledge-root-path') as HTMLInputElement | null;
+      const saveBtn = document.getElementById('btn-knowledge-root-save') as HTMLButtonElement | null;
+      const knowledgeRoot = pathInput?.value.trim() || '';
+      if (!knowledgeRoot) {
+        setResult('knowledge-root-error', 'Enter a directory path.', true);
         return;
       }
       if (saveBtn) saveBtn.disabled = true;
-      setResult('sediment-kb-corpus-error', '');
+      setResult('knowledge-root-error', '');
       try {
-        const resp = await api.setConfig({ knowledge_corpus_root: knowledgeCorpusRoot });
+        const resp = await api.setConfig({ knowledge_root: knowledgeRoot });
         if (resp?.error) throw new Error(resp.error);
-        state.ui.knowledgeCorpusRoot = knowledgeCorpusRoot;
-        setResult('sediment-kb-corpus-error', 'Saved: Knowledge corpus directory.');
+        state.ui.knowledgeRoot = knowledgeRoot;
+        setResult('knowledge-root-error', 'Saved: Knowledge directory.');
       } catch (err) {
         const e = err as Error;
-        setResult('sediment-kb-corpus-error', e.message || String(e), true);
+        setResult('knowledge-root-error', e.message || String(e), true);
       } finally {
         if (saveBtn) saveBtn.disabled = false;
       }
     })();
   });
-  document.getElementById('sediment-kb-corpus-path')?.addEventListener('keydown', (e) => {
-    if ((e as KeyboardEvent).key === 'Enter') document.getElementById('btn-sediment-kb-corpus-save')?.click();
+  document.getElementById('knowledge-root-path')?.addEventListener('keydown', (e) => {
+    if ((e as KeyboardEvent).key === 'Enter') document.getElementById('btn-knowledge-root-save')?.click();
   });
   document.getElementById('btn-settings-save-knowledge')?.addEventListener('click', () => {
     const saveBtn = document.getElementById('btn-settings-save-knowledge') as HTMLButtonElement | null;
@@ -181,7 +181,7 @@ function wireSettingsDialog() {
     if (!root) {
       return;
     }
-    const pathChanged = root !== savedSnapshot.workbenchKnowledgeRoot;
+    const pathChanged = root !== savedSnapshot.workbenchRoot;
     const inference = (await applyWorkbenchRootInference({ revertOnConflict: pathChanged })) as Inference;
     if (!inference.ok && inference.conflict) {
       setResult(
@@ -221,10 +221,10 @@ function wireSettingsDialog() {
   btn('btn-settings-save-directories')?.addEventListener('click', async () => {
     const saveBtn = btn('btn-settings-save-directories');
     const archiveInput = input('settings-archive-root');
-    const workbenchKnowledgeRoot = archiveInput.value.trim();
+    const workbenchRoot = archiveInput.value.trim();
     const githubUserInput = input('settings-github-user-url');
 
-    if (!workbenchKnowledgeRoot) {
+    if (!workbenchRoot) {
       setResult('settings-result-directories', 'Enter a directory path.', true);
       return;
     }
@@ -234,7 +234,7 @@ function wireSettingsDialog() {
     const messages: string[] = [];
 
     try {
-      const check = await api.checkWorkbenchKnowledgeRoot(workbenchKnowledgeRoot);
+      const check = await api.checkWorkbenchRoot(workbenchRoot);
       if (check?.ok === false) {
         setResult(
           'settings-result-directories',
@@ -257,7 +257,7 @@ function wireSettingsDialog() {
     if (!inference.ok && inference.conflict) {
       setResult(
         'settings-result-directories',
-        `Save cancelled: workbench directory and GitHub profile do not match (entered ${inference.existing}, origin inference ${inference.inferred}). workbench_knowledge_root was not written.`,
+        `Save cancelled: workbench directory and GitHub profile do not match (entered ${inference.existing}, origin inference ${inference.inferred}). workbench_root was not written.`,
         true,
       );
       return;
@@ -272,7 +272,7 @@ function wireSettingsDialog() {
 
     const payload: Record<string, string> = {};
     if (includeWorkbenchRoot) {
-      payload.workbench_knowledge_root = workbenchKnowledgeRoot;
+      payload.workbench_root = workbenchRoot;
     }
     if (includeGithubUrl) {
       payload.github_user_url = githubUserInput.value.trim();
@@ -294,7 +294,7 @@ function wireSettingsDialog() {
         setGithubUserUrl(payload.github_user_url);
       }
       const parts: string[] = [];
-      if (payload.workbench_knowledge_root) parts.push('Workbench knowledge directory');
+      if (payload.workbench_root) parts.push('Workbench knowledge directory');
       if (payload.github_user_url) parts.push('GitHub profile');
       if (payload.workbench_github_repo_url) parts.push('Notes GitHub repository');
       let msg = `Saved: ${parts.join(', ')}.`;

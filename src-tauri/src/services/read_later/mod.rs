@@ -1,4 +1,4 @@
-//! Read Later queue persisted at `{workbench_knowledge_root}/read_later/read_later.json`.
+//! Read Later queue persisted at `{workbench_root}/read_later/read_later.json`.
 
 use std::fs;
 use std::sync::Mutex;

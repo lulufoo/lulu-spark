@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 
 use serde_json::Value;
 
-use crate::config::meili_env::workbench_knowledge_root_path;
+use crate::config::meili_env::notes_root_path;
 use crate::integrations::search::{MeiliAdminError, MeiliBackend};
 
 use super::common::{
@@ -33,10 +33,10 @@ fn walk_md_files(dir: &Path, base: &Path, out: &mut Vec<(PathBuf, String)>) {
     }
 }
 
-pub fn collect_documents(corpus_root: &Path) -> Vec<Value> {
+pub fn collect_documents(notes_root: &Path) -> Vec<Value> {
     let mut docs = Vec::new();
     for layer in WORKBENCH_LAYERS {
-        let layer_dir = corpus_root.join(layer);
+        let layer_dir = notes_root.join(layer);
         if !layer_dir.is_dir() {
             continue;
         }
@@ -69,7 +69,7 @@ pub fn full_rebuild(repo_root: &Path) -> Result<String, String> {
         .require_health()
         .map_err(MeiliAdminError::into_message)?;
 
-    let corpus = workbench_knowledge_root_path(repo_root);
+    let notes = notes_root_path(repo_root);
     meili.wipe_index("workbench").map_err(MeiliAdminError::into_message)?;
     meili
         .ensure_index("workbench", "id")
@@ -89,7 +89,7 @@ pub fn full_rebuild(repo_root: &Path) -> Result<String, String> {
         )
         .map_err(MeiliAdminError::into_message)?;
 
-    let docs = collect_documents(&corpus);
+    let docs = collect_documents(&notes);
     if docs.is_empty() {
         return Ok("No documents found.".to_string());
     }

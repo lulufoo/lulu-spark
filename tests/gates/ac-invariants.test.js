@@ -15,16 +15,16 @@ describe('AC invariants', () => {
     expect(existsSync(join(repoRoot, 'frontend/src/note-editor.js'))).toBe(false);
   });
 
-  it('router tests include corpus ?path= deep link coverage', async () => {
+  it('router tests include knowledge ?path= deep link coverage', async () => {
     const { readFileSync } = await import('node:fs');
     const routerTest = readFileSync(join(repoRoot, 'tests/router/index.test.js'), 'utf8');
-    expect(routerTest).toMatch(/parseHash\('#\/corpus\/owner\/repo\?path=docs\/guide\.md'\)/);
+    expect(routerTest).toMatch(/parseHash\('#\/knowledge\/owner\/repo\?path=docs\/guide\.md'\)/);
   });
 
-  it('corpus-doc-list tests cover in-tree open + mountKbReader mock', async () => {
+  it('knowledge-doc-list tests cover in-tree open + mountKbReader mock', async () => {
     const { readFileSync } = await import('node:fs');
-    const corpusTest = readFileSync(join(repoRoot, 'tests/corpus/corpus-doc-list.test.js'), 'utf8');
-    expect(corpusTest).toMatch(/mountKbReader/);
-    expect(corpusTest).toMatch(/replaceState|syncCorpusHash/);
+    const knowledgeTest = readFileSync(join(repoRoot, 'tests/knowledge/knowledge-doc-list.test.js'), 'utf8');
+    expect(knowledgeTest).toMatch(/mountKbReader/);
+    expect(knowledgeTest).toMatch(/replaceState|syncKnowledgeHash/);
   });
 });

@@ -5,7 +5,7 @@ use std::path::Path;
 use chrono::{Datelike, FixedOffset, Utc};
 use serde_json::{json, Value};
 
-use crate::config::meili_env::{github_user_url_string, workbench_knowledge_root_path};
+use crate::config::meili_env::{github_user_url_string, notes_root_path, workbench_root_path};
 use crate::config::settings::workbench_github_blob_base;
 use crate::integrations::github::{self, decode_contents_payload};
 use crate::integrations::search::{build_knowledge_document, MeiliBackend};
@@ -14,7 +14,7 @@ use crate::repositories::atomic_json;
 use crate::services::annotation::read_annotation_object;
 use crate::services::workbench_read::get_topics;
 
-const LAYERS: &[&str] = &["raw", "distilled", "digest", "trace", "diagnose"];
+const LAYERS: &[&str] = &["raw", "digest"];
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SettleParams {
@@ -252,7 +252,7 @@ fn fill_repo_and_artifacts(repo_root: &Path, p: &mut SettleParams) -> Result<(),
     let ts = now.format("%Y%m%d%H%M").to_string();
     let date_str = format!("{}年{}月{}日", now.year(), now.month(), now.day());
 
-    let wb_root = workbench_knowledge_root_path(repo_root);
+    let wb_root = workbench_root_path(repo_root);
     let github_blob_base = workbench_github_blob_base(&github_user_url_string(repo_root), &wb_root);
     let (filename, dst_path, dst_url, full_content) = build_settle_artifacts(
         &github_blob_base,
@@ -292,28 +292,28 @@ fn meili_upsert_best_effort(repo_root: &Path, p: &SettleParams) -> Option<String
 }
 
 fn update_annotation_link(
-    corpus: &Path,
+    notes: &Path,
     common_path: &str,
     dst_url: &str,
 ) -> Result<(), String> {
-    let Some(target) = annotation_json_path(corpus, common_path) else {
+    let Some(target) = annotation_json_path(notes, common_path) else {
         return Err("invalid common_path".into());
     };
-    let mut ann = read_annotation_object(corpus, common_path);
+    let mut ann = read_annotation_object(notes, common_path);
     append_link(&mut ann, dst_url);
     atomic_json::write_json(&target, &ann).map_err(|e| e.to_string())
 }
 
 fn delete_comment_from_annotation(
-    corpus: &Path,
+    notes: &Path,
     common_path: &str,
     layer: &str,
     comment_id: &str,
 ) -> Result<(), String> {
-    let Some(target) = annotation_json_path(corpus, common_path) else {
+    let Some(target) = annotation_json_path(notes, common_path) else {
         return Err("invalid common_path".into());
     };
-    let mut ann = read_annotation_object(corpus, common_path);
+    let mut ann = read_annotation_object(notes, common_path);
     remove_comment(&mut ann, layer, comment_id);
     atomic_json::write_json(&target, &ann).map_err(|e| e.to_string())
 }
@@ -392,8 +392,8 @@ pub fn settle_entry(repo_root: &Path, payload: &Value) -> Value {
         warns.push(w);
     }
 
-    let corpus = workbench_knowledge_root_path(repo_root);
-    if let Err(e) = update_annotation_link(&corpus, &p.common_path, &p.dst_url) {
+    let notes = notes_root_path(repo_root);
+    if let Err(e) = update_annotation_link(&notes, &p.common_path, &p.dst_url) {
         warns.push(format!("更新 annotation.links 失败：{e}"));
     }
 
@@ -402,7 +402,7 @@ pub fn settle_entry(repo_root: &Path, payload: &Value) -> Value {
     }
 
     if let Err(e) = delete_comment_from_annotation(
-        &corpus,
+        &notes,
         &p.common_path,
         &p.layer,
         &p.comment_id,

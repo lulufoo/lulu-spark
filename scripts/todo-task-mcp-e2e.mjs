@@ -59,11 +59,11 @@ export function writePlanMdToDisk(tasksDir, masterId, content) {
 
 const E2E_REPO_ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 
-const CORPUS_TOOLS_E2E = [
-  'get_corpus_catalog',
-  'get_corpus_files',
-  'archive_document',
-  'archive_digest',
+const NOTES_TOOLS_E2E = [
+  'get_notes_catalog',
+  'get_notes_files',
+  'create_note',
+  'create_note_digest',
 ];
 
 /**
@@ -120,7 +120,7 @@ async function runDualChannelLiveProbes(mcpPort) {
       throw new Error(`dual-channel AC2: workbench missing ${tool}`);
     }
   }
-  for (const tool of CORPUS_TOOLS_E2E) {
+  for (const tool of NOTES_TOOLS_E2E) {
     if (!workbenchNames.includes(tool)) {
       throw new Error(`dual-channel AC2: workbench missing ${tool}`);
     }
@@ -130,7 +130,7 @@ async function runDualChannelLiveProbes(mcpPort) {
   }
 
   const ideNames = await listToolNamesOnSlot(mcpPort, 'cursor_ide', 'todo-task-mcp-e2e-dual-ide');
-  for (const tool of CORPUS_TOOLS_E2E) {
+  for (const tool of NOTES_TOOLS_E2E) {
     if (!ideNames.includes(tool)) {
       throw new Error(`dual-channel AC3: cursor_ide missing ${tool}`);
     }

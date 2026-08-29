@@ -16,7 +16,7 @@ type SyncInvokeEntry = {
 
 export const SYNC_API_INVOKE_MAP: Record<string, SyncInvokeEntry> = {
   '/api/commit': {
-    cmd: 'corpus_git_commit',
+    cmd: 'workbench_git_commit',
     args: (body) =>
       syncPayload({
         message: body.message,
@@ -24,7 +24,7 @@ export const SYNC_API_INVOKE_MAP: Record<string, SyncInvokeEntry> = {
       }),
   },
   '/api/pull': {
-    cmd: 'corpus_git_pull',
+    cmd: 'workbench_git_pull',
     args: () => syncPayload({}),
   },
   '/api/delete': {
@@ -88,8 +88,8 @@ export const SYNC_API_INVOKE_MAP: Record<string, SyncInvokeEntry> = {
         type: body.type,
       }),
   },
-  '/api/corpus-revert': {
-    cmd: 'corpus_git_revert',
+  '/api/workbench-revert': {
+    cmd: 'workbench_git_revert',
     args: (body) => syncPayload({ path: body.path, type: body.type }),
   },
   '/api/open-iterm': {

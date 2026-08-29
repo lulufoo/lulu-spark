@@ -47,7 +47,7 @@ pub fn run() {
             commands::read::get_doc_highlights,
             commands::read::get_config,
             commands::read::infer_github_user_url,
-            commands::read::check_workbench_knowledge_root,
+            commands::read::check_workbench_root,
             commands::config_cmd::set_config,
             commands::mcp_oauth::issue_cursor_ide_ticket,
             commands::mcp_oauth::rotate_cursor_ide_ticket,
@@ -57,9 +57,9 @@ pub fn run() {
             commands::sync::save_comment_draft,
             commands::sync::save_note_draft,
             commands::sync::clear_note_draft,
-            commands::sync::corpus_git_commit,
-            commands::sync::corpus_git_pull,
-            commands::sync::corpus_git_revert,
+            commands::sync::workbench_git_commit,
+            commands::sync::workbench_git_pull,
+            commands::sync::workbench_git_revert,
             commands::sync::kb_git_commit,
             commands::sync::kb_git_revert,
             commands::sync::delete_entry,
@@ -77,9 +77,9 @@ pub fn run() {
             commands::read::get_repo_dirs,
             commands::read::check_file,
             commands::read::fetch_link_title,
-            commands::read::get_corpus_index,
-            commands::read::get_corpus_file,
-            commands::read::get_corpus_asset,
+            commands::read::get_notes_index,
+            commands::read::get_notes_file,
+            commands::read::get_notes_asset,
             commands::read::get_kb_diff_status,
             commands::read::get_sediment_kb_categories,
             commands::read::get_sediment_kb_repos,
@@ -131,7 +131,7 @@ pub fn run() {
             commands::search::reindex_knowledge,
             commands::search::reindex_workbench,
             commands::search::reindex_kb_repo,
-            commands::search::sync_knowledge_corpus,
+            commands::search::sync_knowledge,
             commands::search::get_reindex_status,
             commands::search::get_reindex_workbench_status,
             commands::write::set_done,
@@ -156,7 +156,7 @@ pub fn run() {
             commands::write::sediment_kb_add_category,
             commands::write::sediment_kb_rename_category,
             commands::write::sediment_kb_remove_category,
-            commands::write::archive_document,
+            commands::write::create_note,
         ])
         .setup(|app| {
             // Auto-start Meilisearch if not already running
@@ -231,9 +231,10 @@ pub fn run() {
                 let Ok(repo_root) = crate::config::paths::repo_root() else {
                     return;
                 };
-                let corpus =
-                    crate::config::meili_env::workbench_knowledge_root_path(&repo_root);
-                if !corpus.join("index.json").is_file() {
+                let wb = crate::config::meili_env::workbench_root_path(&repo_root);
+                let _ = crate::services::notes::ensure_notes_layout(&wb);
+                let _ = crate::services::knowledge_layout::ensure_knowledge_registry_layout(&wb);
+                if !wb.join("notes").join("index.json").is_file() {
                     return;
                 }
                 if services::tags_registry::reconcile_tags(&repo_root).is_none() {

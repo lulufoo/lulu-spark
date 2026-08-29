@@ -30,8 +30,8 @@ function makeSandbox() {
   writeFileSync(
     join(configDir, 'config.toml'),
     [
-      `workbench_knowledge_root = "${wbRoot}"`,
-      `knowledge_corpus_root = "${wbRoot}"`,
+      `workbench_root = "${wbRoot}"`,
+      `knowledge_root = "${wbRoot}"`,
       `cache_dir = "${cacheDir}"`,
       '',
     ].join('\n'),

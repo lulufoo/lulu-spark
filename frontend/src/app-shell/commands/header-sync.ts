@@ -1,31 +1,31 @@
 import * as api from '../../host/api.ts';
-import { openKbDiffDialog } from '../../corpus/ui/diff-dialog.tsx';
+import { openKbDiffDialog } from '../../knowledge/ui/diff-dialog.tsx';
 import { errMessage, type HeaderSyncDeps } from '../state/types.ts';
 
-let corpusRepo = '';
-let onCorpusRefresh: (() => void | Promise<void>) | null = null;
+let knowledgeRepo = '';
+let onKnowledgeRefresh: (() => void | Promise<void>) | null = null;
 
-export function setHeaderSyncCorpusContext(
+export function setHeaderSyncKnowledgeContext(
   repo: string,
   onRefresh?: (() => void | Promise<void>) | null,
 ) {
-  corpusRepo = repo || '';
-  onCorpusRefresh = typeof onRefresh === 'function' ? onRefresh : null;
+  knowledgeRepo = repo || '';
+  onKnowledgeRefresh = typeof onRefresh === 'function' ? onRefresh : null;
 }
 
-export function clearHeaderSyncCorpusContext() {
-  corpusRepo = '';
-  onCorpusRefresh = null;
+export function clearHeaderSyncKnowledgeContext() {
+  knowledgeRepo = '';
+  onKnowledgeRefresh = null;
 }
 
-async function pullCorpusRepo(repo: string) {
+async function pullKnowledgeRepo(repo: string) {
   await api.reindexKbRepo(repo);
   for (let i = 0; i < 120; i++) {
     await new Promise((r) => setTimeout(r, 2000));
     const status = (await api.getReindexStatus()) as { status?: string };
     if (status?.status !== 'running') break;
   }
-  if (onCorpusRefresh) await onCorpusRefresh();
+  if (onKnowledgeRefresh) await onKnowledgeRefresh();
 }
 
 /**
@@ -38,8 +38,8 @@ export function initHeaderSync({ pullProject, loadIndex, openWorkbenchCommit }: 
     }));
 
   document.getElementById('btn-push-index')?.addEventListener('click', () => {
-    if (corpusRepo) {
-      void openKbDiffDialog(corpusRepo);
+    if (knowledgeRepo) {
+      void openKbDiffDialog(knowledgeRepo);
       return;
     }
     void openWorkbench();
@@ -48,10 +48,10 @@ export function initHeaderSync({ pullProject, loadIndex, openWorkbenchCommit }: 
   document.getElementById('btn-pull')?.addEventListener('click', () => {
     const btn = document.getElementById('btn-pull') as HTMLButtonElement | null;
     if (!btn) return;
-    if (corpusRepo) {
+    if (knowledgeRepo) {
       btn.disabled = true;
       btn.textContent = 'Updating…';
-      void pullCorpusRepo(corpusRepo)
+      void pullKnowledgeRepo(knowledgeRepo)
         .catch((err) => {
           alert(`Update failed: ${errMessage(err, 'Unknown error')}`);
         })
@@ -73,8 +73,8 @@ export function initHeaderSync({ pullProject, loadIndex, openWorkbenchCommit }: 
       btn.disabled = false;
       btn.textContent = '⟳ Refresh local';
     };
-    if (corpusRepo && onCorpusRefresh) {
-      void Promise.resolve(onCorpusRefresh()).finally(finish);
+    if (knowledgeRepo && onKnowledgeRefresh) {
+      void Promise.resolve(onKnowledgeRefresh()).finally(finish);
       return;
     }
     loadIndex().finally(finish);

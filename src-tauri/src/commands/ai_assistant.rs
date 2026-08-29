@@ -58,7 +58,14 @@ pub fn get_ai_assistant_binding_json() -> Value {
 }
 
 pub fn list_chat_sessions_json() -> Result<Value, String> {
-    r#loop::list_chat_sessions_core()
+    let value = r#loop::list_chat_sessions_core()?;
+    let count = value
+        .get("sessions")
+        .and_then(|s| s.as_array())
+        .map(|a| a.len())
+        .unwrap_or(0);
+    eprintln!("[DEBUG-assistant] host: list_chat_sessions count={count}");
+    Ok(value)
 }
 
 pub fn select_chat_session_json(session_id: &str) -> Result<Value, String> {
@@ -72,16 +79,31 @@ pub fn create_chat_session_json() -> Result<Value, String> {
 /// Binding Contract Set entry (key-only). Looks up Host MCP registry; rejects legacy
 /// tools/prompt/callbacks payload and engine selection parameters.
 pub fn set_binding_json(binding: Value) -> Value {
+    eprintln!(
+        "[DEBUG-assistant] host: set_binding_json in key={:?}",
+        binding.get("key")
+    );
     match r#loop::try_set_binding_json(&binding) {
-        Ok(()) => json!({
-            "ok": true,
-            "state": r#loop::binding_state(),
-        }),
-        Err(e) => json!({
-            "ok": false,
-            "code": e.as_code(),
-            "state": r#loop::binding_state(),
-        }),
+        Ok(()) => {
+            let state = r#loop::binding_state();
+            eprintln!("[DEBUG-assistant] host: set_binding_json ok state={state}");
+            json!({
+                "ok": true,
+                "state": state,
+            })
+        }
+        Err(e) => {
+            let state = r#loop::binding_state();
+            eprintln!(
+                "[DEBUG-assistant] host: set_binding_json err code={} state={state}",
+                e.as_code()
+            );
+            json!({
+                "ok": false,
+                "code": e.as_code(),
+                "state": state,
+            })
+        }
     }
 }
 
@@ -106,7 +128,10 @@ pub fn defensive_unbound_json() -> Value {
 
 /// Binding Contract read-only query (business-agnostic summary).
 pub fn query_binding_json() -> Value {
-    serde_json::to_value(r#loop::query_binding()).unwrap_or_else(|_| json!({ "state": "unbound" }))
+    let value = serde_json::to_value(r#loop::query_binding())
+        .unwrap_or_else(|_| json!({ "state": "unbound" }));
+    eprintln!("[DEBUG-assistant] host: query_binding {value}");
+    value
 }
 
 /// Binding Contract execute gate: requires bound; applies current Binding tools/prompt.
@@ -146,9 +171,15 @@ pub fn cancel_ai_assistant_turn_json() -> Value {
 /// Invokable Binding Contract Set (key-only; no engine selection parameter).
 #[tauri::command]
 pub async fn set_binding(app: AppHandle, binding: Value) -> Result<Value, String> {
+    eprintln!("[DEBUG-assistant] host: set_binding command");
     let result = tauri::async_runtime::spawn_blocking(move || set_binding_json(binding))
         .await
         .map_err(|e| e.to_string())?;
+    eprintln!(
+        "[DEBUG-assistant] host: emit {} ok={:?}",
+        EVENT_BINDING_CHANGED,
+        result.get("ok")
+    );
     let _ = app.emit(EVENT_BINDING_CHANGED, &result);
     Ok(result)
 }

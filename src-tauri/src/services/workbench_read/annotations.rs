@@ -3,7 +3,7 @@ use std::path::Path;
 
 use serde_json::{json, Map, Value};
 
-use crate::config::meili_env::workbench_knowledge_root_path;
+use crate::config::meili_env::notes_root_path;
 use crate::services::annotation::read_annotation_object;
 use crate::services::tags_registry::read_registry;
 
@@ -13,8 +13,8 @@ pub fn get_annotation(repo_root: &Path, path: &str) -> Value {
     if common_path.is_empty() || common_path.contains("..") {
         return json!({ "error": "Invalid path" });
     }
-    let corpus = workbench_knowledge_root_path(repo_root);
-    read_annotation_object(&corpus, common_path)
+    let notes = notes_root_path(repo_root);
+    read_annotation_object(&notes, common_path)
 }
 
 fn resolve_tags(registry: &Value, tag_keys: &[Value]) -> Value {
@@ -38,9 +38,9 @@ fn resolve_tags(registry: &Value, tag_keys: &[Value]) -> Value {
 }
 
 pub fn get_annotations_summary(repo_root: &Path) -> Value {
-    let corpus = workbench_knowledge_root_path(repo_root);
-    let registry = read_registry(&corpus);
-    let index_path = corpus.join("index.json");
+    let notes = notes_root_path(repo_root);
+    let registry = read_registry(&notes);
+    let index_path = notes.join("index.json");
     let Ok(text) = fs::read_to_string(&index_path) else {
         return json!({ "error": format!("No such file: {}", index_path.display()) });
     };
@@ -69,7 +69,7 @@ pub fn get_annotations_summary(repo_root: &Path) -> Value {
         if common_path.is_empty() {
             continue;
         }
-        let ann = read_annotation_object(&corpus, &common_path);
+        let ann = read_annotation_object(&notes, &common_path);
         let Some(ann_obj) = ann.as_object() else {
             continue;
         };
@@ -96,7 +96,7 @@ pub fn get_annotations_summary(repo_root: &Path) -> Value {
                 summary.insert("tags".into(), resolve_tags(&registry, tag_keys));
             }
         }
-        for layer in ["raw", "distilled", "digest", "trace", "diagnose"] {
+        for layer in ["raw", "digest"] {
             let Some(layer_data) = ann_obj.get(layer).and_then(|v| v.as_object()) else {
                 continue;
             };

@@ -4,7 +4,7 @@ use serde_json::{json, Value};
 
 pub const BATCH_SIZE: usize = 100;
 pub const SKIP_FILES: &[&str] = &["_index.md", "README.md", "readme.md"];
-pub const WORKBENCH_LAYERS: &[&str] = &["raw", "distilled", "digest", "diagnose"];
+pub const WORKBENCH_LAYERS: &[&str] = &["raw", "digest"];
 
 /// `re.sub(r'[^a-zA-Z0-9\-_]', '_', raw_id)[:511]` (workbench L118–120, knowledge L166–167).
 pub fn sanitize_doc_id(raw_id: &str) -> String {

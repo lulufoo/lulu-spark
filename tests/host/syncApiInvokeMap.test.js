@@ -6,8 +6,8 @@ import {
 
 /** [path, cmd, payload keys forwarded from HTTP body] */
 const P4_PATHS = [
-  ['/api/commit', 'corpus_git_commit', ['message', 'files']],
-  ['/api/pull', 'corpus_git_pull', []],
+  ['/api/commit', 'workbench_git_commit', ['message', 'files']],
+  ['/api/pull', 'workbench_git_pull', []],
   ['/api/delete', 'delete_entry', ['id']],
   ['/api/move-project', 'move_entry_project', ['id', 'new_project']],
   ['/api/gh-move', 'gh_move_assets', ['src_url', 'dst_dir_url']],
@@ -21,7 +21,7 @@ const P4_PATHS = [
   ['/api/kb/commit', 'kb_git_commit', ['repo', 'message']],
   ['/api/kb/revert', 'kb_git_revert', ['repo', 'path', 'type']],
   ['/api/open-iterm', 'open_kb_in_iterm', ['repo']],
-  ['/api/corpus-revert', 'corpus_git_revert', ['path', 'type']],
+  ['/api/workbench-revert', 'workbench_git_revert', ['path', 'type']],
 ];
 
 describe('syncApiInvokeMap', () => {
@@ -40,18 +40,18 @@ describe('syncApiInvokeMap', () => {
     }
   });
 
-  it('commit maps body into payload for corpus_git_commit', () => {
+  it('commit maps body into payload for workbench_git_commit', () => {
     expect(
       resolveSyncInvoke('/api/commit', { message: 'x', files: ['a.md'] })
     ).toEqual({
-      cmd: 'corpus_git_commit',
+      cmd: 'workbench_git_commit',
       args: { payload: { message: 'x', files: ['a.md'] } },
     });
   });
 
-  it('pull maps empty payload for corpus_git_pull', () => {
+  it('pull maps empty payload for workbench_git_pull', () => {
     expect(resolveSyncInvoke('/api/pull', {})).toEqual({
-      cmd: 'corpus_git_pull',
+      cmd: 'workbench_git_pull',
       args: { payload: {} },
     });
   });
@@ -167,18 +167,18 @@ describe('syncApiInvokeMap', () => {
     expect(resolveSyncInvoke('/api/nope', {})).toBeNull();
   });
 
-  it('corpus-revert maps path+type into payload for corpus_git_revert', () => {
+  it('workbench-revert maps path+type into payload for workbench_git_revert', () => {
     expect(
-      resolveSyncInvoke('/api/corpus-revert', { path: 'raw/foo/bar.md', type: 'modified' })
+      resolveSyncInvoke('/api/workbench-revert', { path: 'raw/foo/bar.md', type: 'modified' })
     ).toEqual({
-      cmd: 'corpus_git_revert',
+      cmd: 'workbench_git_revert',
       args: { payload: { path: 'raw/foo/bar.md', type: 'modified' } },
     });
   });
 
-  it('corpus-revert with empty body passes undefined values without crashing', () => {
-    const result = resolveSyncInvoke('/api/corpus-revert', {});
-    expect(result?.cmd).toBe('corpus_git_revert');
+  it('workbench-revert with empty body passes undefined values without crashing', () => {
+    const result = resolveSyncInvoke('/api/workbench-revert', {});
+    expect(result?.cmd).toBe('workbench_git_revert');
     expect(result?.args).toEqual({ payload: { path: undefined, type: undefined } });
   });
 });

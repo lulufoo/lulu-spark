@@ -14,7 +14,7 @@ fn with_sediment_kb_cache<F: FnOnce(&Path)>(f: F) {
     let _sandbox = TestSandbox::new();
     let wb = crate::config::settings::load()
         .expect("load")
-        .workbench_knowledge_root;
+        .workbench_root;
     f(wb.as_path());
 }
 
@@ -32,11 +32,11 @@ fn init_creates_categories_and_repos_with_uncategorized() {
         ensure_uncategorized().expect("ensure");
         let cat_path = paths::sediment_kb_categories_path().expect("cat path");
         let repo_path = paths::sediment_kb_repos_path().expect("repo path");
-        assert_eq!(cat_path, wb_root.join("sediment-kb").join("categories.json"));
-        assert_eq!(repo_path, wb_root.join("sediment-kb").join("repos.json"));
+        assert_eq!(cat_path, wb_root.join("knowledge").join("categories.json"));
+        assert_eq!(repo_path, wb_root.join("knowledge").join("repos.json"));
         let cache = paths::cache_dir().expect("cache");
-        assert!(!cat_path.starts_with(cache.join("sediment-kb")));
-        assert!(!repo_path.starts_with(cache.join("sediment-kb")));
+        assert!(!cat_path.starts_with(cache.join("knowledge")));
+        assert!(!repo_path.starts_with(cache.join("knowledge")));
         assert!(cat_path.is_file());
         assert!(repo_path.is_file());
 

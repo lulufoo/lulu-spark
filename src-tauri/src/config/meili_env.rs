@@ -10,13 +10,18 @@ fn settings_or_default() -> AppSettings {
     settings::load().unwrap_or_default()
 }
 
-pub fn workbench_knowledge_root_path(_repo_root: &Path) -> PathBuf {
-    settings_or_default().workbench_knowledge_root
+pub fn workbench_root_path(_repo_root: &Path) -> PathBuf {
+    settings_or_default().workbench_root
 }
 
-pub fn knowledge_corpus_root_string(_repo_root: &Path) -> String {
+/// Notes files: `{workbench_root}/notes`.
+pub fn notes_root_path(_repo_root: &Path) -> PathBuf {
+    workbench_root_path(_repo_root).join("notes")
+}
+
+pub fn knowledge_root_string(_repo_root: &Path) -> String {
     settings_or_default()
-        .knowledge_corpus_root
+        .knowledge_root
         .to_string_lossy()
         .into_owned()
 }

@@ -7,12 +7,12 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 vi.mock('../../frontend/src/notes/ui/search.tsx', () => ({
   closeWorkbenchSearch: vi.fn(),
 }));
-vi.mock('../../frontend/src/corpus/ui/search.tsx', () => ({
-  closeCorpusSearch: vi.fn(),
+vi.mock('../../frontend/src/knowledge/ui/search.tsx', () => ({
+  closeKnowledgeSearch: vi.fn(),
 }));
 
 import { closeWorkbenchSearch } from '../../frontend/src/notes/ui/search.tsx';
-import { closeCorpusSearch } from '../../frontend/src/corpus/ui/search.tsx';
+import { closeKnowledgeSearch } from '../../frontend/src/knowledge/ui/search.tsx';
 import { applySearchNavChrome } from '../../frontend/src/app-shell/ui/nav-chrome.ts';
 import { readMainSource } from '../helpers/read-frontend-js.js';
 
@@ -61,8 +61,8 @@ describe('applySearchNavChrome dual search wraps', () => {
     expect(document.getElementById('gs-kb-input').disabled).toBe(true);
   });
 
-  it('corpus-doc: kb visible+enabled, wb hidden', () => {
-    applySearchNavChrome('corpus-doc');
+  it('knowledge-doc: kb visible+enabled, wb hidden', () => {
+    applySearchNavChrome('knowledge-doc');
 
     expect(document.getElementById('gs-wb-wrap').hidden).toBe(true);
     expect(document.getElementById('gs-kb-wrap').hidden).toBe(false);
@@ -73,16 +73,16 @@ describe('applySearchNavChrome dual search wraps', () => {
   it('calls close*Search on every route switch', () => {
     applySearchNavChrome('home');
     applySearchNavChrome('workbench');
-    applySearchNavChrome('corpus-doc');
+    applySearchNavChrome('knowledge-doc');
 
     expect(closeWorkbenchSearch).toHaveBeenCalledTimes(3);
-    expect(closeCorpusSearch).toHaveBeenCalledTimes(3);
+    expect(closeKnowledgeSearch).toHaveBeenCalledTimes(3);
   });
 
-  it('rapid home ↔ workbench ↔ corpus leaves only the active wrap visible', () => {
+  it('rapid home ↔ workbench ↔ knowledge leaves only the active wrap visible', () => {
     applySearchNavChrome('home');
     applySearchNavChrome('workbench');
-    applySearchNavChrome('corpus-doc');
+    applySearchNavChrome('knowledge-doc');
     applySearchNavChrome('home');
     applySearchNavChrome('workbench');
 

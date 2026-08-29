@@ -27,7 +27,7 @@ fn run_loop_uses_mcp_tools_and_feeds_tool_result_back_to_model() {
     mcp_server_registry::clear_for_tests();
     mcp_server_registry::seed_defaults();
 
-    let todo_root = sandbox.workbench_knowledge_root().join("todo_tasks");
+    let todo_root = sandbox.workbench_root().join("todo_tasks");
     fs::create_dir_all(&todo_root).expect("create todo root");
     fs::write(todo_root.join(".migration_gate_passed"), b"ok\n").expect("plant migration gate");
 
@@ -117,7 +117,7 @@ fn run_loop_marks_successful_todo_mcp_mutation_as_wrote() {
     mcp_server_registry::clear_for_tests();
     mcp_server_registry::seed_defaults();
 
-    let todo_root = sandbox.workbench_knowledge_root().join("todo_tasks");
+    let todo_root = sandbox.workbench_root().join("todo_tasks");
     fs::create_dir_all(&todo_root).expect("create todo root");
     fs::write(todo_root.join(".migration_gate_passed"), b"ok\n").expect("plant migration gate");
     let sidecar_port = ephemeral_port();
@@ -203,7 +203,7 @@ fn run_loop_returns_argument_and_allowlist_failures_to_the_model_as_tool_turns()
                     "id": "invalid_args",
                     "type": "function",
                     "function": {
-                        "name": "get_corpus_catalog",
+                        "name": "get_notes_catalog",
                         "arguments": "{}"
                     }
                 },
@@ -314,9 +314,9 @@ fn run_loop_offers_host_file_tools_and_keeps_scratch_writes_inside_cache() {
     r#loop::reset_runtime_for_tests();
     mcp_server_registry::clear_for_tests();
     mcp_server_registry::seed_defaults();
-    let readable = sandbox.workbench_knowledge_root().join("readable.md");
+    let readable = sandbox.workbench_root().join("readable.md");
     fs::write(&readable, "needle-line\n").expect("plant readable file");
-    let forbidden = sandbox.workbench_knowledge_root().join("todo.md");
+    let forbidden = sandbox.workbench_root().join("todo.md");
     let (sidecar, mcp, mcp_port) = start_isolated_mcp(&sandbox);
     register_test_mcp("workbench", mcp_port);
 

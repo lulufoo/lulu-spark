@@ -6,29 +6,29 @@ use serde_json::json;
 use crate::repositories::annotation_paths::annotation_json_path;
 use crate::repositories::atomic_json;
 use crate::services::annotation::read_annotation_object;
-use crate::test_support::with_sandbox_corpus;
+use crate::test_support::with_sandbox_notes;
 
 #[test]
-fn registry_path_points_under_corpus_tags() {
-    with_sandbox_corpus(false, |_dir, corpus| {
+fn registry_path_points_under_notes_tags() {
+    with_sandbox_notes(false, |_dir, notes| {
         assert_eq!(
-            registry_path(&corpus),
-            corpus.join("tags/registry.json")
+            registry_path(&notes),
+            notes.join("tags/registry.json")
         );
     });
 }
 
 #[test]
 fn read_registry_missing_file_returns_empty_keys() {
-    with_sandbox_corpus(false, |_dir, corpus| {
-        let reg = read_registry(&corpus);
+    with_sandbox_notes(false, |_dir, notes| {
+        let reg = read_registry(&notes);
         assert_eq!(reg["keys"], json!({}));
     });
 }
 
 #[test]
 fn save_registry_creates_tags_dir() {
-    with_sandbox_corpus(false, |_dir, corpus| {
+    with_sandbox_notes(false, |_dir, notes| {
         let mut reg = empty_registry();
         adjust_refs(
             &mut reg,
@@ -36,8 +36,8 @@ fn save_registry_creates_tags_dir() {
             1,
         );
         reg["keys"]["k1"]["value"] = json!("demo");
-        assert!(save_registry(&corpus, &reg).is_none());
-        assert!(registry_path(&corpus).is_file());
+        assert!(save_registry(&notes, &reg).is_none());
+        assert!(registry_path(&notes).is_file());
     });
 }
 
@@ -60,51 +60,51 @@ fn adjust_refs_empty_keys_no_panic() {
 
 #[test]
 fn reconcile_drops_registry_key_with_zero_refs() {
-    with_sandbox_corpus(true, |dir, corpus| {
+    with_sandbox_notes(true, |dir, notes| {
         let cp1 = "ai/a.md";
         let cp2 = "ai/b.md";
-        fs::write(corpus.join("index.json"), index_two_entries(cp1, cp2)).expect("index");
-        write_annotation(&corpus, cp1, json!({ "tag_keys": ["tagabc123456"] }));
-        write_annotation(&corpus, cp2, json!({ "tag_keys": ["tagabc123456"] }));
+        fs::write(notes.join("index.json"), index_two_entries(cp1, cp2)).expect("index");
+        write_annotation(&notes, cp1, json!({ "tag_keys": ["tagabc123456"] }));
+        write_annotation(&notes, cp2, json!({ "tag_keys": ["tagabc123456"] }));
 
         let mut reg = empty_registry();
         reg["keys"]["tagabc123456"] = json!({ "value": "x", "refs": 99 });
-        assert!(save_registry(&corpus, &reg).is_none());
+        assert!(save_registry(&notes, &reg).is_none());
 
         assert!(reconcile_tags(dir).is_none());
-        let after = read_registry(&corpus);
+        let after = read_registry(&notes);
         assert_eq!(after["keys"]["tagabc123456"]["refs"], 2);
 
-        write_annotation(&corpus, cp1, json!({}));
-        write_annotation(&corpus, cp2, json!({}));
+        write_annotation(&notes, cp1, json!({}));
+        write_annotation(&notes, cp2, json!({}));
         assert!(reconcile_tags(dir).is_none());
-        let final_reg = read_registry(&corpus);
+        let final_reg = read_registry(&notes);
         assert!(final_reg["keys"].get("tagabc123456").is_none());
     });
 }
 
 #[test]
 fn reconcile_removes_stale_tag_keys_from_annotation() {
-    with_sandbox_corpus(true, |dir, corpus| {
+    with_sandbox_notes(true, |dir, notes| {
         let cp = "ai/stale.md";
-        fs::write(corpus.join("index.json"), index_one_entry(cp)).expect("index");
+        fs::write(notes.join("index.json"), index_one_entry(cp)).expect("index");
         write_annotation(
-            &corpus,
+            &notes,
             cp,
             json!({ "tag_keys": ["ghostkey123456", "realkey12345678"] }),
         );
         let mut reg = empty_registry();
         reg["keys"]["realkey12345678"] = json!({ "value": "ok", "refs": 0 });
-        assert!(save_registry(&corpus, &reg).is_none());
+        assert!(save_registry(&notes, &reg).is_none());
 
         assert!(reconcile_tags(dir).is_none());
 
-        let ann = read_annotation_object(&corpus, cp);
+        let ann = read_annotation_object(&notes, cp);
         let keys = ann["tag_keys"].as_array().expect("tag_keys");
         assert_eq!(keys.len(), 1);
         assert_eq!(keys[0], "realkey12345678");
 
-        let reg = read_registry(&corpus);
+        let reg = read_registry(&notes);
         assert_eq!(reg["keys"]["realkey12345678"]["refs"], 1);
         assert!(reg["keys"].get("ghostkey123456").is_none());
     });
@@ -127,8 +127,8 @@ fn index_two_entries(cp1: &str, cp2: &str) -> String {
     .expect("index json")
 }
 
-fn write_annotation(corpus: &std::path::Path, common_path: &str, ann: serde_json::Value) {
-    let path = annotation_json_path(corpus, common_path).expect("ann path");
+fn write_annotation(notes: &std::path::Path, common_path: &str, ann: serde_json::Value) {
+    let path = annotation_json_path(notes, common_path).expect("ann path");
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent).expect("mkdir");
     }

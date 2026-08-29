@@ -133,8 +133,8 @@ pub fn to_config_json(
         LlmSettings::default()
     };
     serde_json::json!({
-        "workbench_knowledge_root": settings.workbench_knowledge_root.to_string_lossy(),
-        "knowledge_corpus_root": settings.knowledge_corpus_root.to_string_lossy(),
+        "workbench_root": settings.workbench_root.to_string_lossy(),
+        "knowledge_root": settings.knowledge_root.to_string_lossy(),
         "github_user_url": settings.github_user_url,
         "workbench_github_repo_url": settings.workbench_github_repo_url,
         "meili_url": settings.meili_url,
@@ -175,17 +175,11 @@ pub fn apply_config_payload(
         settings.assistant_engine = normalized.to_string();
         engine_touched = true;
     }
-    if let Some(v) = payload
-        .get("workbench_knowledge_root")
-        .and_then(|x| x.as_str())
-    {
-        settings.workbench_knowledge_root = std::path::PathBuf::from(v);
+    if let Some(v) = payload.get("workbench_root").and_then(|x| x.as_str()) {
+        settings.workbench_root = std::path::PathBuf::from(v);
     }
-    if let Some(v) = payload
-        .get("knowledge_corpus_root")
-        .and_then(|x| x.as_str())
-    {
-        settings.knowledge_corpus_root = std::path::PathBuf::from(v);
+    if let Some(v) = payload.get("knowledge_root").and_then(|x| x.as_str()) {
+        settings.knowledge_root = std::path::PathBuf::from(v);
     }
     if let Some(v) = payload.get("github_user_url").and_then(|x| x.as_str()) {
         settings.github_user_url = v.to_string();

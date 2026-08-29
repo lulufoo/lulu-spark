@@ -2,7 +2,7 @@ import { useEffect, type CSSProperties } from 'react';
 import { applySearchNavChrome } from './app-shell/ui/nav-chrome.ts';
 import { useHostState } from './host/state.ts';
 import { HomePage } from './home/page.tsx';
-import { CorpusDocPage } from './corpus/page.tsx';
+import { KnowledgeDocPage } from './knowledge/page.tsx';
 import { TodoTasksPage } from './todo-task/page.tsx';
 import { NotesMain, NotesSidebar } from './notes/page.tsx';
 import { openReadLaterDialog } from './read-later/commands/dialog.ts';
@@ -22,7 +22,7 @@ export function ShellPages({
 }) {
   const host = useHostState();
   const homeOn = routeName === 'home' || routeName === 'read-later';
-  const corpusOn = routeName === 'corpus-doc';
+  const knowledgeOn = routeName === 'knowledge-doc';
   const todoOn = routeName === 'todo-tasks';
   const notesOn = routeName === 'workbench';
 
@@ -43,14 +43,14 @@ export function ShellPages({
         {homeOn ? <HomePage navigate={navigate} openReadLater={openReadLaterDialog} /> : null}
       </div>
       <div
-        id="corpus-doc-view"
-        style={slotStyle(corpusOn, {
+        id="knowledge-doc-view"
+        style={slotStyle(knowledgeOn, {
           height: 'calc(100vh - 52px)',
           boxSizing: 'border-box',
         })}
       >
-        {corpusOn ? (
-          <CorpusDocPage
+        {knowledgeOn ? (
+          <KnowledgeDocPage
             key={routeParams.repo ?? ''}
             repo={routeParams.repo ?? ''}
             path={routeParams.path ?? ''}

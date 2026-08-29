@@ -1,5 +1,5 @@
 import { initMermaid } from '../shared/mermaid-render.ts';
-import { openKbDoc } from '../corpus/viewer.ts';
+import { openKbDoc } from '../knowledge/viewer.ts';
 import { initHighlightUI } from './ui/viewer/body.tsx';
 import { enterEditMode, exitEditMode, openDoc, saveDoc, switchLang } from './commands/viewer/doc.ts';
 import { closeModal, openCreateNote } from './commands/viewer/create.ts';

@@ -3,11 +3,11 @@ import { DEFAULT_DEV_BASE } from '../../frontend/src/host/apiClient.ts';
 
 const API_READ_PREFIX = `${DEFAULT_DEV_BASE}/api`;
 
-vi.mock('../../frontend/src/corpus/state/hide-pattern.ts', () => ({
+vi.mock('../../frontend/src/knowledge/state/hide-pattern.ts', () => ({
   getKbHidePattern: vi.fn(() => ''),
 }));
 
-import { getKbHidePattern } from '../../frontend/src/corpus/state/hide-pattern.ts';
+import { getKbHidePattern } from '../../frontend/src/knowledge/state/hide-pattern.ts';
 import { fetchKbDocCount } from '../../frontend/src/host/api.ts';
 
 function mockFetch(body, ok = true, status = 200) {

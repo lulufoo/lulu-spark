@@ -70,5 +70,5 @@ commands.allow = [
   "query_binding",
   "execute_binding",
   "agent_chat_turn",
-  "archive_document",
+  "create_note",
 ]

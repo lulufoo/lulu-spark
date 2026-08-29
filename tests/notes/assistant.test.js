@@ -18,7 +18,7 @@ import {
 const sampleEntries = [
   {
     _id: 'n_oldest',
-    source_type: 'note',
+    source_type: 'jot',
     common_path: 'inbox/notes/202607011000-oldest.md',
     created_at: '202607011000',
     title: 'Oldest Note',
@@ -26,7 +26,7 @@ const sampleEntries = [
   },
   {
     _id: 'n_newest',
-    source_type: 'note',
+    source_type: 'jot',
     common_path: 'inbox/notes/202607061000-newest.md',
     created_at: '202607061000',
     title: 'Newest Note',
@@ -34,7 +34,7 @@ const sampleEntries = [
   },
   {
     _id: 'n_mid',
-    source_type: 'note',
+    source_type: 'jot',
     common_path: 'inbox/notes/202607031000-mid.md',
     created_at: '202607031000',
     title: 'Mid Note',
@@ -42,7 +42,7 @@ const sampleEntries = [
   },
   {
     _id: 'n_extra4',
-    source_type: 'note',
+    source_type: 'jot',
     common_path: 'inbox/notes/202607041000-extra4.md',
     created_at: '202607041000',
     title: 'Extra Note 4',
@@ -58,7 +58,7 @@ const sampleEntries = [
   },
   {
     _id: 'n_updated_trap',
-    source_type: 'note',
+    source_type: 'jot',
     common_path: 'inbox/notes/202606011000-trap.md',
     created_at: '202606011000',
     updated_at: '202607099999',
@@ -77,11 +77,20 @@ function indexPayload(entries = sampleEntries) {
 }
 
 describe('selectTopNotesByCreatedAt', () => {
-  it('filters source_type=note, sorts created_at desc, slices to ≤3', () => {
+  it('filters source_type=jot, sorts created_at desc, slices to ≤3', () => {
     const top = selectTopNotesByCreatedAt(sampleEntries);
     expect(top).toHaveLength(3);
     expect(top.map((e) => e._id)).toEqual(['n_newest', 'n_extra4', 'n_mid']);
-    expect(top.every((e) => e.source_type === 'note')).toBe(true);
+    expect(top.every((e) => e.source_type === 'jot')).toBe(true);
+  });
+
+  it('includes legacy source_type=note with jot', () => {
+    const top = selectTopNotesByCreatedAt([
+      { _id: 'legacy', source_type: 'note', created_at: '202607020000' },
+      { _id: 'new', source_type: 'jot', created_at: '202607030000' },
+      { _id: 'sum', source_type: 'summary', created_at: '202607090000' },
+    ]);
+    expect(top.map((e) => e._id)).toEqual(['new', 'legacy']);
   });
 
   it('ignores updated_at when ordering (created_at only)', () => {
@@ -116,11 +125,11 @@ describe('loadAssistantNotes', () => {
     fetchIndexMock.mockReset();
   });
 
-  it('loads corpus-index via fetchIndex and returns entry list', async () => {
+  it('loads notes-index via fetchIndex and returns entry list', async () => {
     fetchIndexMock.mockResolvedValue(indexPayload());
     const entries = await loadAssistantNotes();
     expect(fetchIndexMock).toHaveBeenCalled();
-    expect(entries.some((e) => e.source_type === 'note')).toBe(true);
+    expect(entries.some((e) => e.source_type === 'jot')).toBe(true);
     expect(entries.find((e) => e._id === 'n_newest')?.common_path).toBe(
       'inbox/notes/202607061000-newest.md',
     );
@@ -165,7 +174,7 @@ describe('mountNoteAssistant', () => {
 
   it('shows empty list state when no notes without placeholders', async () => {
     fetchIndexMock.mockResolvedValue(
-      indexPayload(sampleEntries.filter((e) => e.source_type !== 'note')),
+      indexPayload(sampleEntries.filter((e) => e.source_type !== 'jot')),
     );
     const { dispose } = mountNoteAssistant(root);
     await vi.waitFor(() => {

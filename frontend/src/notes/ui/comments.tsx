@@ -6,7 +6,7 @@ import { reorderComments } from '../../host/api.ts';
 import { ensureLayerComments, swapAdjacent, validateCommentIdsForReorder } from '../../shared/comment-reorder.ts';
 import { nowTs } from '../../shared/utils.ts';
 import { openSettleDialog } from './settle-dialog.tsx';
-import { confirmDeleteComment, removeCorpusComment } from '../../shared/comment-delete.tsx';
+import { confirmDeleteComment, removeNoteComment } from '../../shared/comment-delete.tsx';
 import { pasteIntoCommentEditor, prepareCommentMarkdown, renderCommentMarkdown } from '../../shared/comment-markdown.ts';
 import { renderMermaidBlocks } from '../../shared/mermaid-render.ts';
 import { renderToHtml } from '../../island.ts';
@@ -189,7 +189,7 @@ function CommentItem({
 async function onDeleteComment(c: CommentRec, layer: string, entry: NoteEntry) {
   if (!(await confirmDeleteComment())) return;
   try {
-    await removeCorpusComment(c, layer, entry);
+    await removeNoteComment(c, layer, entry);
     notifyState();
   } catch (e) {
     alert(`Delete failed: ${(e as Error).message}`);
@@ -576,7 +576,7 @@ export function NotesDeleteZone() {
       <button
         id="btn-delete"
         type="button"
-        title="Deletes all linked files (raw / distilled / trace / digest / diagnose)"
+        title="Deletes all linked files (raw / digest)"
         onClick={() => {
           void import('./delete-dialog.tsx').then(({ openDeleteDialog }) => openDeleteDialog());
         }}

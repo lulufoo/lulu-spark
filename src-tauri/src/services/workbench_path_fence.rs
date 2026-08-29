@@ -11,9 +11,9 @@ pub fn expand_for_business_key(key: &str) -> Option<PathFence> {
     if key != SEEDED_BUSINESS_KEY {
         return None;
     }
-    let wb = stored_path(paths::workbench_knowledge_root().ok()?);
+    let wb = stored_path(paths::workbench_root().ok()?);
     let cache = stored_path(paths::cache_dir().ok()?);
-    let corpus = stored_path(paths::knowledge_corpus_root().ok()?);
+    let knowledge = stored_path(paths::knowledge_root().ok()?);
 
     let mut read_allow = vec![wb.clone()];
     let mut read_deny = vec![wb.join(".git")];
@@ -28,7 +28,7 @@ pub fn expand_for_business_key(key: &str) -> Option<PathFence> {
                 if name.is_empty() {
                     continue;
                 }
-                let dir = stored_path(corpus.join(name));
+                let dir = stored_path(knowledge.join(name));
                 read_allow.push(dir.clone());
                 read_deny.push(dir.join(".git"));
             }

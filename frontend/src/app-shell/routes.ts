@@ -2,8 +2,8 @@ import { notifyState, state } from '../host/state.ts';
 import type { AppRoute } from './state/types.ts';
 import { applySearchNavChrome } from './ui/nav-chrome.ts';
 import { initWorkbenchSearch } from '../notes/ui/search.tsx';
-import { initCorpusSearch } from '../corpus/ui/search.tsx';
-import { clearHeaderSyncCorpusContext } from './commands/header-sync.ts';
+import { initKnowledgeSearch } from '../knowledge/ui/search.tsx';
+import { clearHeaderSyncKnowledgeContext } from './commands/header-sync.ts';
 import { openReadLaterDialog } from '../read-later/commands/dialog.ts';
 import { openDoc } from '../notes/viewer.ts';
 import { selectDate } from '../notes/commands/sidebar.ts';
@@ -27,16 +27,16 @@ export function wrapRouteMount(routeName: string, mountFn: (route: AppRoute) => 
     getHomeEntryShell()?.forceRecoverA('leave-route');
     updateNavChrome(routeName);
     if (routeName === 'workbench') initWorkbenchSearch();
-    if (routeName === 'corpus-doc') initCorpusSearch();
+    if (routeName === 'knowledge-doc') initKnowledgeSearch();
     return mountFn(route);
   };
 }
 
 export function mountHomeRoute() {
-  clearHeaderSyncCorpusContext();
+  clearHeaderSyncKnowledgeContext();
 }
 
-export function mountCorpusDocRoute() {}
+export function mountKnowledgeDocRoute() {}
 
 export function mountReadLaterRoute() {
   mountHomeRoute();
@@ -44,11 +44,11 @@ export function mountReadLaterRoute() {
 }
 
 export function mountTodoTasksRoute() {
-  clearHeaderSyncCorpusContext();
+  clearHeaderSyncKnowledgeContext();
 }
 
 export function mountWorkbench(route?: AppRoute) {
-  clearHeaderSyncCorpusContext();
+  clearHeaderSyncKnowledgeContext();
 
   const params = route?.params || {};
   const notePath = params.note || '';

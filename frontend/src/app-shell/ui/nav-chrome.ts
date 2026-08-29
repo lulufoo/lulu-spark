@@ -1,13 +1,13 @@
 import { closeWorkbenchSearch } from '../../notes/ui/search.tsx';
-import { closeCorpusSearch } from '../../corpus/ui/search.tsx';
+import { closeKnowledgeSearch } from '../../knowledge/ui/search.tsx';
 
 export function applySearchNavChrome(routeName: string) {
   closeWorkbenchSearch();
-  closeCorpusSearch();
+  closeKnowledgeSearch();
 
   const onHome = routeName === 'home';
   const onWorkbench = routeName === 'workbench';
-  const onCorpus = routeName === 'corpus-doc';
+  const onKnowledge = routeName === 'knowledge-doc';
 
   const wbWrap = document.getElementById('gs-wb-wrap');
   const kbWrap = document.getElementById('gs-kb-wrap');
@@ -24,7 +24,7 @@ export function applySearchNavChrome(routeName: string) {
     if (kbWrap) kbWrap.hidden = true;
     if (wbInput) wbInput.disabled = false;
     if (kbInput) kbInput.disabled = true;
-  } else if (onCorpus) {
+  } else if (onKnowledge) {
     if (wbWrap) wbWrap.hidden = true;
     if (kbWrap) kbWrap.hidden = false;
     if (wbInput) wbInput.disabled = true;

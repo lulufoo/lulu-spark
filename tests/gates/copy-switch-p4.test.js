@@ -27,7 +27,7 @@ const KEY_PATH_FILES = [
   'frontend/src/todo-task/index.ts',
   'frontend/src/todo-task/ui/dialog.tsx',
   'frontend/src/notes/viewer.ts',
-  'frontend/src/corpus/viewer.ts',
+  'frontend/src/knowledge/viewer.ts',
   'frontend/src/notes/ui/sidebar.tsx',
   'frontend/src/notes/ui/cards.tsx',
   'frontend/src/notes/commands/cards.ts',

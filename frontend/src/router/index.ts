@@ -46,10 +46,10 @@ export function parseHash(hash?: string): ParsedRoute {
     return { name: 'todo-tasks', params };
   }
 
-  if (path === 'corpus' || path === 'corpus/pick') return { name: 'corpus-doc', params: { repo: '' } };
+  if (path === 'knowledge' || path === 'knowledge/pick') return { name: 'knowledge-doc', params: { repo: '' } };
 
-  if (path.startsWith('corpus/')) {
-    const repoPart = path.slice('corpus/'.length);
+  if (path.startsWith('knowledge/')) {
+    const repoPart = path.slice('knowledge/'.length);
     if (repoPart) {
       try {
         const [repoEncoded, ...queryParts] = repoPart.split('?');
@@ -61,7 +61,7 @@ export function parseHash(hash?: string): ParsedRoute {
             params.path = searchParams.get('path') ?? '';
           }
         }
-        return { name: 'corpus-doc', params };
+        return { name: 'knowledge-doc', params };
       } catch {
         return { name: 'unknown', params: {} };
       }

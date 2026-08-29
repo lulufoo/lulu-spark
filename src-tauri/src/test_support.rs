@@ -45,25 +45,25 @@ pub fn with_config_test_serial<F: FnOnce()>(f: F) {
 
 fn prepare_sandbox_roots(dir: &Path) -> (PathBuf, PathBuf, PathBuf) {
     let wb = dir.join("workbench-knowledge");
-    let corpus = dir.join("corpus");
+    let clones = dir.join("knowledge-clones");
     let cache = dir.join("cache");
     std::fs::create_dir_all(&wb).expect("mkdir wb");
-    std::fs::create_dir_all(&corpus).expect("mkdir corpus");
+    std::fs::create_dir_all(&clones).expect("mkdir knowledge-clones");
     std::fs::create_dir_all(&cache).expect("mkdir cache");
-    (wb, corpus, cache)
+    (wb, clones, cache)
 }
 
 fn write_sandbox_config(
     config_path: &Path,
     wb: &Path,
-    corpus: &Path,
+    clones: &Path,
     cache: &Path,
     ports: (u16, u16),
 ) {
     settings::write_test_config_with_cache(
         config_path,
         wb,
-        Some(corpus),
+        Some(clones),
         Some(cache),
         "http://127.0.0.1:17700",
         ports.0,
@@ -102,10 +102,10 @@ impl std::error::Error for ProdPathGuardError {}
 fn assert_path_not_under_prod_roots(
     path: &Path,
     prod_wb: &Path,
-    prod_corpus: &Path,
+    prod_clones: &Path,
     prod_cache: &Path,
 ) -> Result<(), ProdPathGuardError> {
-    for root in [prod_wb, prod_corpus, prod_cache] {
+    for root in [prod_wb, prod_clones, prod_cache] {
         if path_under_prod_root(path, root) {
             return Err(ProdPathGuardError {
                 path: path.to_path_buf(),
@@ -349,15 +349,15 @@ fn write_fake_prod_config(home: &Path) {
         .join("lulu-workbench")
         .join(settings::PROD_CONFIG_FILE_NAME);
     let prod_wb = home.join("prod-wb");
-    let prod_corpus = home.join("prod-corpus");
+    let prod_clones = home.join("prod-knowledge-clones");
     let prod_cache = home.join("prod-cache");
     std::fs::create_dir_all(&prod_wb).expect("mkdir prod wb");
-    std::fs::create_dir_all(&prod_corpus).expect("mkdir prod corpus");
+    std::fs::create_dir_all(&prod_clones).expect("mkdir prod knowledge-clones");
     std::fs::create_dir_all(&prod_cache).expect("mkdir prod cache");
     settings::write_test_config_with_cache(
         &prod_config_path,
         &prod_wb,
-        Some(&prod_corpus),
+        Some(&prod_clones),
         Some(&prod_cache),
         "http://127.0.0.1:7700",
         settings::DEFAULT_PROD_HTTP_PORT,
@@ -370,8 +370,8 @@ fn write_fake_prod_config(home: &Path) {
 pub struct TestSandbox {
     config_env: TestConfigEnv,
     dir: tempfile::TempDir,
-    prod_workbench_knowledge_root: PathBuf,
-    prod_knowledge_corpus_root: PathBuf,
+    prod_workbench_root: PathBuf,
+    prod_knowledge_root: PathBuf,
     prod_cache_dir: PathBuf,
 }
 
@@ -385,22 +385,22 @@ impl TestSandbox {
         write_fake_prod_config(dir.path());
 
         let prod = settings::load_prod_settings();
-        let prod_workbench_knowledge_root = prod.workbench_knowledge_root.clone();
-        let prod_knowledge_corpus_root = prod.knowledge_corpus_root.clone();
+        let prod_workbench_root = prod.workbench_root.clone();
+        let prod_knowledge_root = prod.knowledge_root.clone();
         let prod_cache_dir = prod.cache_dir.clone();
 
-        let (wb, corpus, cache) = prepare_sandbox_roots(dir.path());
-        write_sandbox_config(&config_path, &wb, &corpus, &cache, ports);
+        let (wb, clones, cache) = prepare_sandbox_roots(dir.path());
+        write_sandbox_config(&config_path, &wb, &clones, &cache, ports);
         let cfg = settings::load().expect("load");
         for path in [
-            cfg.workbench_knowledge_root.as_path(),
-            cfg.knowledge_corpus_root.as_path(),
+            cfg.workbench_root.as_path(),
+            cfg.knowledge_root.as_path(),
             cfg.cache_dir.as_path(),
         ] {
             assert_path_not_under_prod_roots(
                 path,
-                &prod_workbench_knowledge_root,
-                &prod_knowledge_corpus_root,
+                &prod_workbench_root,
+                &prod_knowledge_root,
                 &prod_cache_dir,
             )
             .expect("TestSandbox must not use prod roots");
@@ -409,8 +409,8 @@ impl TestSandbox {
         Self {
             config_env,
             dir,
-            prod_workbench_knowledge_root,
-            prod_knowledge_corpus_root,
+            prod_workbench_root,
+            prod_knowledge_root,
             prod_cache_dir,
         }
     }
@@ -427,28 +427,28 @@ impl TestSandbox {
         self.config_env.ports()
     }
 
-    pub fn workbench_knowledge_root(&self) -> PathBuf {
+    pub fn workbench_root(&self) -> PathBuf {
         settings::load()
             .expect("load sandbox config")
-            .workbench_knowledge_root
+            .workbench_root
     }
 
-    pub fn knowledge_corpus_root(&self) -> PathBuf {
+    pub fn knowledge_root(&self) -> PathBuf {
         settings::load()
             .expect("load sandbox config")
-            .knowledge_corpus_root
+            .knowledge_root
     }
 
     pub fn cache_dir(&self) -> PathBuf {
         settings::load().expect("load sandbox config").cache_dir
     }
 
-    pub fn prod_workbench_knowledge_root(&self) -> &Path {
-        &self.prod_workbench_knowledge_root
+    pub fn prod_workbench_root(&self) -> &Path {
+        &self.prod_workbench_root
     }
 
-    pub fn prod_knowledge_corpus_root(&self) -> &Path {
-        &self.prod_knowledge_corpus_root
+    pub fn prod_knowledge_root(&self) -> &Path {
+        &self.prod_knowledge_root
     }
 
     pub fn prod_cache_dir(&self) -> &Path {
@@ -458,8 +458,8 @@ impl TestSandbox {
     pub fn assert_not_prod_path(&self, path: &Path) -> Result<(), ProdPathGuardError> {
         assert_path_not_under_prod_roots(
             path,
-            &self.prod_workbench_knowledge_root,
-            &self.prod_knowledge_corpus_root,
+            &self.prod_workbench_root,
+            &self.prod_knowledge_root,
             &self.prod_cache_dir,
         )
     }
@@ -481,13 +481,13 @@ pub fn read_rs_dir(dir: impl AsRef<Path>) -> String {
         .join("\n")
 }
 
-pub fn with_sandbox_corpus<F: FnOnce(&Path, &Path)>(prepare_ai_subdir: bool, f: F) {
+pub fn with_sandbox_notes<F: FnOnce(&Path, &Path)>(prepare_ai_subdir: bool, f: F) {
     let sandbox = TestSandbox::new();
-    let wb = sandbox.workbench_knowledge_root();
+    let notes = sandbox.workbench_root().join("notes");
     if prepare_ai_subdir {
-        std::fs::create_dir_all(wb.join("annotations/ai")).expect("mkdir");
+        std::fs::create_dir_all(notes.join("annotations/ai")).expect("mkdir");
     } else {
-        std::fs::create_dir_all(wb.join("annotations")).expect("mkdir");
+        std::fs::create_dir_all(notes.join("annotations")).expect("mkdir");
     }
-    f(sandbox.config_dir(), wb.as_path());
+    f(sandbox.config_dir(), notes.as_path());
 }

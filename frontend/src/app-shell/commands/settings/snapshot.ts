@@ -1,6 +1,6 @@
 import * as api from '../../../host/api.ts';
 import type { SettingsConfig } from '../../state/types.ts';
-import { getKbHidePattern } from '../../../corpus/state/hide-pattern.ts';
+import { getKbHidePattern } from '../../../knowledge/state/hide-pattern.ts';
 import { setGithubUserUrl } from '../../../host/constants.ts';
 import { state } from '../../../host/state.ts';
 import { loadAssistantEnginePanel } from './engine.ts';
@@ -24,19 +24,19 @@ export async function loadSettingsSnapshot() {
 
     const archiveInput = document.getElementById('settings-archive-root') as HTMLInputElement | null;
     const githubUserInput = document.getElementById('settings-github-user-url') as HTMLInputElement | null;
-    const corpusInput = document.getElementById('sediment-kb-corpus-path') as HTMLInputElement | null;
-    const wbRoot = cfg?.workbench_knowledge_root ?? '';
-    const corpusRoot = cfg?.knowledge_corpus_root ?? '';
+    const knowledgeInput = document.getElementById('knowledge-root-path') as HTMLInputElement | null;
+    const wbRoot = cfg?.workbench_root ?? '';
+    const knowledgeRoot = cfg?.knowledge_root ?? '';
     const ghUrl = cfg?.github_user_url ?? '';
     if (wbRoot && archiveInput) {
       archiveInput.placeholder = wbRoot;
       archiveInput.value = wbRoot;
     }
-    if (corpusInput) {
-      corpusInput.value = corpusRoot || state.ui.knowledgeCorpusRoot || '';
-      if (corpusRoot) {
-        corpusInput.placeholder = corpusRoot;
-        state.ui.knowledgeCorpusRoot = corpusRoot;
+    if (knowledgeInput) {
+      knowledgeInput.value = knowledgeRoot || state.ui.knowledgeRoot || '';
+      if (knowledgeRoot) {
+        knowledgeInput.placeholder = knowledgeRoot;
+        state.ui.knowledgeRoot = knowledgeRoot;
       }
     }
     clearGithubUserUrlInferredLock();
@@ -44,7 +44,7 @@ export async function loadSettingsSnapshot() {
       githubUserInput.value = ghUrl;
     }
     setGithubUserUrl(ghUrl);
-    savedSnapshot.workbenchKnowledgeRoot = wbRoot;
+    savedSnapshot.workbenchRoot = wbRoot;
     savedSnapshot.githubUserUrl = ghUrl;
     savedSnapshot.workbenchGithubRepoUrl = cfg?.workbench_github_repo_url ?? '';
     savedSnapshot.hasGithubToken = Boolean(cfg?.has_github_token);

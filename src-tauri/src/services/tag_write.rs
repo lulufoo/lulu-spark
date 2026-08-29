@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 
 use serde_json::{json, Value};
 
-use crate::config::meili_env::workbench_knowledge_root_path;
+use crate::config::meili_env::notes_root_path;
 use crate::repositories::annotation_paths::annotation_json_path;
 use crate::repositories::atomic_json;
 use crate::services::annotation::read_annotation_object;
@@ -18,16 +18,16 @@ fn invalid_common_path() -> Value {
     json!({ "error": "Invalid common_path", "_status": 400 })
 }
 
-fn corpus_and_path(repo_root: &Path, common_path: &str) -> Result<(PathBuf, PathBuf), Value> {
+fn notes_and_path(repo_root: &Path, common_path: &str) -> Result<(PathBuf, PathBuf), Value> {
     let cp = common_path.trim();
     if cp.is_empty() || cp.contains("..") {
         return Err(invalid_common_path());
     }
-    let corpus = workbench_knowledge_root_path(repo_root);
-    let Some(target) = annotation_json_path(&corpus, cp) else {
+    let notes = notes_root_path(repo_root);
+    let Some(target) = annotation_json_path(&notes, cp) else {
         return Err(invalid_common_path());
     };
-    Ok((corpus, target))
+    Ok((notes, target))
 }
 
 fn validate_value(value: &str) -> Result<String, Value> {
@@ -90,7 +90,7 @@ fn find_key_by_value(registry: &Value, value: &str) -> Option<String> {
 }
 
 pub fn tag_attach(repo_root: &Path, common_path: &str, payload: &Value) -> Value {
-    let Ok((corpus, target)) = corpus_and_path(repo_root, common_path) else {
+    let Ok((notes, target)) = notes_and_path(repo_root, common_path) else {
         return invalid_common_path();
     };
     let cp = common_path.trim();
@@ -98,10 +98,10 @@ pub fn tag_attach(repo_root: &Path, common_path: &str, payload: &Value) -> Value
     let key_opt = payload.get("key").and_then(|v| v.as_str()).map(str::trim);
     let value_opt = payload.get("value").and_then(|v| v.as_str());
 
-    let mut registry = read_registry(&corpus);
+    let mut registry = read_registry(&notes);
     let registry_snapshot = registry.clone();
 
-    let mut ann = read_annotation_object(&corpus, cp);
+    let mut ann = read_annotation_object(&notes, cp);
     let mut keys = tag_keys_vec(&ann);
     let Value::Object(ref mut ann_map) = ann else {
         return json!({ "error": "Invalid annotation state", "_status": 500 });
@@ -122,11 +122,11 @@ pub fn tag_attach(repo_root: &Path, common_path: &str, payload: &Value) -> Value
         adjust_refs(&mut registry, &[key.to_string()], 1);
         dedup_tag_keys(&mut keys);
         ann_map.insert("tag_keys".into(), json!(keys));
-        if let Some(err) = save_registry(&corpus, &registry) {
+        if let Some(err) = save_registry(&notes, &registry) {
             return err;
         }
         if let Some(err) = persist_annotation_file(&target, &ann) {
-            let _ = save_registry(&corpus, &registry_snapshot);
+            let _ = save_registry(&notes, &registry_snapshot);
             return err;
         }
         return json!({ "ok": true, "key": key });
@@ -150,11 +150,11 @@ pub fn tag_attach(repo_root: &Path, common_path: &str, payload: &Value) -> Value
         adjust_refs(&mut registry, &[existing_key.clone()], 1);
         dedup_tag_keys(&mut keys);
         ann_map.insert("tag_keys".into(), json!(keys));
-        if let Some(err) = save_registry(&corpus, &registry) {
+        if let Some(err) = save_registry(&notes, &registry) {
             return err;
         }
         if let Some(err) = persist_annotation_file(&target, &ann) {
-            let _ = save_registry(&corpus, &registry_snapshot);
+            let _ = save_registry(&notes, &registry_snapshot);
             return err;
         }
         return json!({ "ok": true, "key": existing_key });
@@ -171,18 +171,18 @@ pub fn tag_attach(repo_root: &Path, common_path: &str, payload: &Value) -> Value
         .expect("keys object");
     reg_keys.insert(new_key.clone(), json!({ "value": value, "refs": 1 }));
 
-    if let Some(err) = save_registry(&corpus, &registry) {
+    if let Some(err) = save_registry(&notes, &registry) {
         return err;
     }
     if let Some(err) = persist_annotation_file(&target, &ann) {
-        let _ = save_registry(&corpus, &registry_snapshot);
+        let _ = save_registry(&notes, &registry_snapshot);
         return err;
     }
     json!({ "ok": true, "key": new_key })
 }
 
 pub fn tag_detach(repo_root: &Path, common_path: &str, key: &str) -> Value {
-    let Ok((corpus, target)) = corpus_and_path(repo_root, common_path) else {
+    let Ok((notes, target)) = notes_and_path(repo_root, common_path) else {
         return invalid_common_path();
     };
     let cp = common_path.trim();
@@ -191,10 +191,10 @@ pub fn tag_detach(repo_root: &Path, common_path: &str, key: &str) -> Value {
         return json!({ "error": "Invalid key", "_status": 400 });
     }
 
-    let mut registry = read_registry(&corpus);
+    let mut registry = read_registry(&notes);
     let registry_snapshot = registry.clone();
 
-    let mut ann = read_annotation_object(&corpus, cp);
+    let mut ann = read_annotation_object(&notes, cp);
     let mut keys = tag_keys_vec(&ann);
     let Value::Object(ref mut ann_map) = ann else {
         return json!({ "error": "Invalid annotation state", "_status": 500 });
@@ -212,11 +212,11 @@ pub fn tag_detach(repo_root: &Path, common_path: &str, key: &str) -> Value {
         ann_map.insert("tag_keys".into(), json!(keys));
     }
 
-    if let Some(err) = save_registry(&corpus, &registry) {
+    if let Some(err) = save_registry(&notes, &registry) {
         return err;
     }
     if let Some(err) = persist_annotation_file(&target, &ann) {
-        let _ = save_registry(&corpus, &registry_snapshot);
+        let _ = save_registry(&notes, &registry_snapshot);
         return err;
     }
     json!({ "ok": true })
@@ -232,8 +232,8 @@ pub fn tag_update_value(repo_root: &Path, key: &str, value: &str) -> Value {
         Err(e) => return e,
     };
 
-    let corpus = workbench_knowledge_root_path(repo_root);
-    let mut registry = read_registry(&corpus);
+    let notes = notes_root_path(repo_root);
+    let mut registry = read_registry(&notes);
     let Some(reg_keys) = registry.get_mut("keys").and_then(|v| v.as_object_mut()) else {
         return json!({ "error": "Invalid registry", "_status": 500 });
     };
@@ -245,7 +245,7 @@ pub fn tag_update_value(repo_root: &Path, key: &str, value: &str) -> Value {
     };
     obj.insert("value".into(), json!(value));
 
-    if let Some(err) = save_registry(&corpus, &registry) {
+    if let Some(err) = save_registry(&notes, &registry) {
         return err;
     }
     json!({ "ok": true })

@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 use chrono::Utc;
 use serde_json::{json, Value};
 
-use crate::config::meili_env::knowledge_corpus_root_string;
+use crate::config::meili_env::knowledge_root_string;
 use crate::config::paths;
 use crate::integrations::git;
 use crate::integrations::search::{build_knowledge_document, MeiliAdminError, MeiliBackend};
@@ -108,7 +108,7 @@ pub fn rebuild(repo_root: &Path, wipe: bool, force_repo: Option<&str>) -> Result
         .require_health()
         .map_err(MeiliAdminError::into_message)?;
 
-    let kb_root = PathBuf::from(knowledge_corpus_root_string(repo_root));
+    let kb_root = PathBuf::from(knowledge_root_string(repo_root));
     let cache_path = commit_cache_path()?;
 
     if wipe {

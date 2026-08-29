@@ -88,15 +88,15 @@ export function SettingsDialogChrome() {
               data-tab="directory"
             >
               <div className="settings-field">
-                <label htmlFor="sediment-kb-corpus-path">
-                  Knowledge corpus directory (knowledge_corpus_root)
+                <label htmlFor="knowledge-root-path">
+                  Knowledge directory (knowledge_root)
                 </label>
-                <input id="sediment-kb-corpus-path" type="text" spellCheck={false} autoComplete="off" />
+                <input id="knowledge-root-path" type="text" spellCheck={false} autoComplete="off" />
                 <span className="settings-field-hint">Clone root for topic knowledge repos</span>
               </div>
-              <div id="sediment-kb-corpus-error" className="settings-result" />
+              <div id="knowledge-root-error" className="settings-result" />
               <div className="settings-panel-actions">
-                <button id="btn-sediment-kb-corpus-save" type="button" className="btn-settings-save">
+                <button id="btn-knowledge-root-save" type="button" className="btn-settings-save">
                   Save
                 </button>
               </div>

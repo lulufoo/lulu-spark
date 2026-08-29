@@ -52,8 +52,8 @@ const BTN_FEED_CLICK_WIRING =
 
 function stubMountEnv() {
   return {
-    clearHeaderSyncCorpusContext: () => {},
-    hideCorpusDocView: () => {},
+    clearHeaderSyncKnowledgeContext: () => {},
+    hideKnowledgeDocView: () => {},
     hideReadLaterView: () => {},
     hideTodoTasksView: () => {},
     hideHomeView: () => {},
@@ -69,8 +69,8 @@ function stubMountEnv() {
 
 function compileMountFn(fnSource, env) {
   const locals = [
-    'clearHeaderSyncCorpusContext',
-    'hideCorpusDocView',
+    'clearHeaderSyncKnowledgeContext',
+    'hideKnowledgeDocView',
     'hideReadLaterView',
     'hideTodoTasksView',
     'hideHomeView',
@@ -148,7 +148,7 @@ describe('T5 retire #btn-feed / showFeedView user entry', () => {
     beforeEach(() => {
       document.body.innerHTML = `
         <div id="home-view" style="display:none"></div>
-        <div id="corpus-doc-view" style="display:none"></div>
+        <div id="knowledge-doc-view" style="display:none"></div>
         <div id="read-later-view" style="display:none"></div>
         <div id="todo-tasks-view" style="display:none"></div>
         <div class="layout">

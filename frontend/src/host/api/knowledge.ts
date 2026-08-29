@@ -1,4 +1,4 @@
-import { getKbHidePattern } from '../../corpus/state/hide-pattern.ts';
+import { getKbHidePattern } from '../../knowledge/state/hide-pattern.ts';
 import { asRecord, type InvokeResponse, type PathArg } from '../api-types.ts';
 import { getReadDriver, normalizeReadError, readGet, writePost } from './transport.ts';
 
@@ -138,9 +138,9 @@ export async function openItermAt(repo: string) {
   return writePost('/api/open-iterm', { repo });
 }
 
-export async function syncKnowledgeCorpus() {
+export async function syncKnowledge() {
   const { invokeSearch } = await import('../apiClient.ts');
-  return invokeSearch('syncKnowledgeCorpus');
+  return invokeSearch('syncKnowledge');
 }
 
 export async function searchKnowledge(q: string, limit = 10) {

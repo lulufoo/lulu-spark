@@ -134,7 +134,7 @@ function goHomeEntry(
   else if (dest === 'read-later') {
     if (typeof openReadLater === 'function') openReadLater();
     else navigateFn?.('#/read-later');
-  } else if (dest === 'corpus') navigateFn?.('#/corpus');
+  } else if (dest === 'knowledge') navigateFn?.('#/knowledge');
   else if (dest === 'todo-tasks') navigateFn?.('#/todo-tasks');
 }
 
@@ -244,8 +244,8 @@ export function HomePage({
           <button
             type="button"
             className="home-chat-nav-item home-desktop-shortcut"
-            data-home-entry="corpus"
-            onClick={() => goHomeEntry('corpus', navigateFn, openReadLater)}
+            data-home-entry="knowledge"
+            onClick={() => goHomeEntry('knowledge', navigateFn, openReadLater)}
           >
             <span className="home-desktop-shortcut-icon" aria-hidden="true">
               📚

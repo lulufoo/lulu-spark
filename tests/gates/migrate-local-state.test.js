@@ -29,8 +29,8 @@ function makeSandbox() {
   writeFileSync(
     join(configDir, 'config.toml'),
     [
-      `workbench_knowledge_root = "${wbRoot}"`,
-      `knowledge_corpus_root = "${wbRoot}"`,
+      `workbench_root = "${wbRoot}"`,
+      `knowledge_root = "${wbRoot}"`,
       `cache_dir = "${cacheDir}"`,
       '',
     ].join('\n'),
@@ -73,7 +73,7 @@ afterEach(() => {
 });
 
 describe('migrate-local-state', () => {
-  it('migrates sediment-kb and read_later from cache_dir to workbench_knowledge_root', () => {
+  it('migrates sediment-kb and read_later from cache_dir to workbench_root', () => {
     const { configDir, cacheDir, wbRoot } = makeSandbox();
     mkdirSync(join(cacheDir, 'sediment-kb'), { recursive: true });
     const categories = JSON.stringify({ version: 1, categories: [{ id: 'c1', name: 'Cat' }] });
@@ -104,8 +104,8 @@ describe('migrate-local-state', () => {
 
     runMigrate(configDir);
 
-    expect(readFileSync(join(wbRoot, 'sediment-kb', 'categories.json'), 'utf8')).toBe(categories);
-    expect(readFileSync(join(wbRoot, 'sediment-kb', 'repos.json'), 'utf8')).toBe(repos);
+    expect(readFileSync(join(wbRoot, 'knowledge', 'categories.json'), 'utf8')).toBe(categories);
+    expect(readFileSync(join(wbRoot, 'knowledge', 'repos.json'), 'utf8')).toBe(repos);
     expect(readFileSync(join(wbRoot, 'read_later', 'read_later.json'), 'utf8')).toBe(readLater);
     expect(readFileSync(join(wbRoot, 'plan_tasks', 'plan_tasks.json'), 'utf8')).toBe(planTasks);
   });
@@ -140,7 +140,7 @@ describe('migrate-local-state', () => {
       JSON.stringify({ version: 1, tasks: [{ id: 'cache', title: 'Cache' }] }),
     );
     mkdirSync(join(wbRoot, 'plan_tasks'), { recursive: true });
-    const existing = JSON.stringify({ version: 1, tasks: [{ id: 'corpus', title: 'Corpus' }] });
+    const existing = JSON.stringify({ version: 1, tasks: [{ id: 'keep', title: 'Keep' }] });
     writeFileSync(join(wbRoot, 'plan_tasks', 'plan_tasks.json'), existing);
 
     runMigrate(configDir);
@@ -161,7 +161,7 @@ describe('migrate-local-state', () => {
     writeFileSync(join(cacheDir, 'sediment-kb', 'categories.json'), categories);
 
     runMigrate(configDir);
-    const target = join(wbRoot, 'sediment-kb', 'categories.json');
+    const target = join(wbRoot, 'knowledge', 'categories.json');
     const mtimeAfterFirst = statSync(target).mtimeMs;
 
     runMigrate(configDir);
@@ -172,31 +172,31 @@ describe('migrate-local-state', () => {
   it('skips when target already exists with identical content', () => {
     const { configDir, cacheDir, wbRoot } = makeSandbox();
     mkdirSync(join(cacheDir, 'sediment-kb'), { recursive: true });
-    mkdirSync(join(wbRoot, 'sediment-kb'), { recursive: true });
+    mkdirSync(join(wbRoot, 'knowledge'), { recursive: true });
     const repos = JSON.stringify({ version: 1, repos: [] });
     writeFileSync(join(cacheDir, 'sediment-kb', 'repos.json'), repos);
-    writeFileSync(join(wbRoot, 'sediment-kb', 'repos.json'), repos);
-    const mtimeBefore = statSync(join(wbRoot, 'sediment-kb', 'repos.json')).mtimeMs;
+    writeFileSync(join(wbRoot, 'knowledge', 'repos.json'), repos);
+    const mtimeBefore = statSync(join(wbRoot, 'knowledge', 'repos.json')).mtimeMs;
 
     runMigrate(configDir);
 
-    expect(statSync(join(wbRoot, 'sediment-kb', 'repos.json')).mtimeMs).toBe(mtimeBefore);
+    expect(statSync(join(wbRoot, 'knowledge', 'repos.json')).mtimeMs).toBe(mtimeBefore);
   });
 
   it('does not destructively overwrite when target content differs', () => {
     const { configDir, cacheDir, wbRoot } = makeSandbox();
     mkdirSync(join(cacheDir, 'sediment-kb'), { recursive: true });
-    mkdirSync(join(wbRoot, 'sediment-kb'), { recursive: true });
+    mkdirSync(join(wbRoot, 'knowledge'), { recursive: true });
     writeFileSync(
       join(cacheDir, 'sediment-kb', 'categories.json'),
       JSON.stringify({ version: 1, categories: [{ id: 'new', name: 'New' }] }),
     );
     const existing = JSON.stringify({ version: 1, categories: [{ id: 'keep', name: 'Keep' }] });
-    writeFileSync(join(wbRoot, 'sediment-kb', 'categories.json'), existing);
+    writeFileSync(join(wbRoot, 'knowledge', 'categories.json'), existing);
 
     runMigrate(configDir);
 
-    expect(readFileSync(join(wbRoot, 'sediment-kb', 'categories.json'), 'utf8')).toBe(existing);
+    expect(readFileSync(join(wbRoot, 'knowledge', 'categories.json'), 'utf8')).toBe(existing);
   });
 
   it('exits gracefully when cache sources are absent', () => {
@@ -204,7 +204,7 @@ describe('migrate-local-state', () => {
     expect(() => runMigrate(configDir)).not.toThrow();
   });
 
-  describe('plan_tasks migration (cache plan_tasks.json → corpus plan_tasks/plan_tasks.json)', () => {
+  describe('plan_tasks migration (cache plan_tasks.json → workbench plan_tasks/plan_tasks.json)', () => {
     it('copied: copies source when target is absent and creates plan_tasks/', () => {
       const { configDir, cacheDir, wbRoot } = makeSandbox();
       const planTasks = samplePlanTasks();
@@ -230,7 +230,7 @@ describe('migrate-local-state', () => {
       expect(readFileSync(join(wbRoot, 'plan_tasks', 'plan_tasks.json'), 'utf8')).toBe(planTasks);
     });
 
-    it('skip_diff: preserves corpus file when content differs', () => {
+    it('skip_diff: preserves workbench file when content differs', () => {
       const { configDir, cacheDir, wbRoot } = makeSandbox();
       writeFileSync(join(cacheDir, 'plan_tasks.json'), samplePlanTasks());
       mkdirSync(join(wbRoot, 'plan_tasks'), { recursive: true });

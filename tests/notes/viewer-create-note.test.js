@@ -76,7 +76,7 @@ vi.mock('../../frontend/src/host/api.ts', () => ({
   saveFile: vi.fn(),
   commitFiles: vi.fn().mockResolvedValue({ ok: true }),
   revertFile: vi.fn().mockResolvedValue({ ok: true }),
-  archiveDocument: vi.fn().mockResolvedValue({
+  createNote: vi.fn().mockResolvedValue({
     ok: true,
     id: 'a'.repeat(32),
     common_path: 'inbox/notes/202607101430-hello.md',
@@ -106,11 +106,11 @@ vi.mock('../../frontend/src/doc-editor/highlights.ts', () => ({
   initDocHighlightOverlay: vi.fn(),
   cleanupDocHighlightOverlay: vi.fn(),
 }));
-vi.mock('../../frontend/src/corpus/viewer.ts', () => ({
+vi.mock('../../frontend/src/knowledge/viewer.ts', () => ({
   openKbDoc: vi.fn(),
   saveKbDoc: vi.fn(),
 }));
-vi.mock('../../frontend/src/corpus/ui/knowledge-search.tsx', () => ({
+vi.mock('../../frontend/src/knowledge/ui/knowledge-search.tsx', () => ({
   mountKnowledgeSearch: vi.fn(),
   triggerKnowledgeSearch: vi.fn(),
 }));
@@ -185,7 +185,7 @@ function resetViewerDom() {
   state.viewer.rawText = '';
   state.viewer.createSession = null;
   vi.clearAllMocks();
-  api.archiveDocument.mockResolvedValue({
+  api.createNote.mockResolvedValue({
     ok: true,
     id: 'a'.repeat(32),
     common_path: 'inbox/notes/202607101430-hello.md',
@@ -274,7 +274,7 @@ describe('create session exit', () => {
     resetViewerDom();
     await openCreateNote({ temp_id: 'tmp-exit' });
     vi.clearAllMocks();
-    api.archiveDocument.mockResolvedValue({
+    api.createNote.mockResolvedValue({
       ok: true,
       id: 'b'.repeat(32),
       common_path: 'inbox/notes/202607101431-body.md',
@@ -288,15 +288,15 @@ describe('create session exit', () => {
     vi.useRealTimers();
   });
 
-  it('trim-nonempty exit: Primary create via archiveDocument, then navigate note=common_path', async () => {
+  it('trim-nonempty exit: Primary create via createNote, then navigate note=common_path', async () => {
     makeEl('md-edit-area').value = '  hello note\n';
     locationStub.hash = '#/workbench?date=20260710';
 
     await closeModal();
 
-    expect(api.archiveDocument).toHaveBeenCalledWith({
+    expect(api.createNote).toHaveBeenCalledWith({
       body: 'hello note',
-      source_type: 'note',
+      source_type: 'jot',
     });
     expect(api.clearNoteDraft).toHaveBeenCalledWith('tmp-exit');
     expect(navigateToNoteMock).toHaveBeenCalledWith({
@@ -314,7 +314,7 @@ describe('create session exit', () => {
 
     await closeModal();
 
-    expect(api.archiveDocument).not.toHaveBeenCalled();
+    expect(api.createNote).not.toHaveBeenCalled();
     expect(api.clearNoteDraft).toHaveBeenCalledWith('tmp-exit');
     expect(makeEl('note-outlet').hidden).toBe(true);
     expect(state.viewer.createSession).toBeNull();
@@ -324,7 +324,7 @@ describe('create session exit', () => {
 
   it('archive failure: alert, keep create session + draft, no Annotation API', async () => {
     makeEl('md-edit-area').value = 'retry me';
-    api.archiveDocument.mockRejectedValueOnce(new Error('409: conflict'));
+    api.createNote.mockRejectedValueOnce(new Error('409: conflict'));
 
     await closeModal();
 
@@ -334,7 +334,7 @@ describe('create session exit', () => {
     expect(makeEl('note-outlet').dataset.wbMode).toBe('create');
     expect(state.viewer.createSession?.tempId).toBe('tmp-exit');
     expect(state.viewer.createSession?.status).toBe('creating');
-    expect(api.archiveDocument).toHaveBeenCalled();
+    expect(api.createNote).toHaveBeenCalled();
     expect(navigateToNoteMock).not.toHaveBeenCalled();
     expect(navigateBackToListMock).not.toHaveBeenCalled();
   });
@@ -345,7 +345,7 @@ describe('create session exit', () => {
 
     await closeModal();
 
-    expect(api.archiveDocument).not.toHaveBeenCalled();
+    expect(api.createNote).not.toHaveBeenCalled();
     expect(api.clearNoteDraft).toHaveBeenCalledWith('tmp-exit');
     expect(state.viewer.createSession).toBeNull();
     expect(makeEl('note-outlet').hidden).toBe(true);

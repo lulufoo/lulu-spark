@@ -10,7 +10,7 @@ use crate::config::paths;
 /// Max bytes for a source `.md` copied into todo attachments (2 MiB).
 pub const MAX_ATTACHMENT_SOURCE_BYTES: u64 = 2 * 1024 * 1024;
 
-/// Max bytes for a source `.md` archived via `archive_document` (8 MiB).
+/// Max bytes for a source `.md` archived via `create_note` (8 MiB).
 pub const MAX_ARCHIVE_SOURCE_BYTES: u64 = 8 * 1024 * 1024;
 
 fn push_root(roots: &mut Vec<PathBuf>, p: PathBuf) {
@@ -27,10 +27,10 @@ fn push_root(roots: &mut Vec<PathBuf>, p: PathBuf) {
 /// Canonical roots under which `source_path` may reside.
 pub fn allow_roots() -> Vec<PathBuf> {
     let mut roots = Vec::new();
-    if let Ok(p) = paths::knowledge_corpus_root() {
+    if let Ok(p) = paths::knowledge_root() {
         push_root(&mut roots, p);
     }
-    if let Ok(p) = paths::workbench_knowledge_root() {
+    if let Ok(p) = paths::workbench_root() {
         push_root(&mut roots, p);
     }
     if let Ok(p) = paths::cache_dir() {

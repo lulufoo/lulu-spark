@@ -7,7 +7,7 @@ use serde_json::{json, Value};
 use crate::config::secrets;
 use crate::config::settings;
 
-pub fn check_workbench_knowledge_root(path: &str) -> Value {
+pub fn check_workbench_root(path: &str) -> Value {
     let p = settings::expand_user_path(path);
     if path.trim().is_empty() {
         return json!({ "ok": false, "error": "路径为空" });
@@ -18,11 +18,12 @@ pub fn check_workbench_knowledge_root(path: &str) -> Value {
             "error": format!("目录不存在：{}", p.display())
         });
     }
-    let index_path = p.join("index.json");
-    if !index_path.is_file() {
+    let notes_index = p.join("notes").join("index.json");
+    let legacy_index = p.join("index.json");
+    if !notes_index.is_file() && !legacy_index.is_file() {
         return json!({
             "ok": false,
-            "error": format!("未找到 index.json：{}", index_path.display())
+            "error": format!("未找到 index.json：{}", notes_index.display())
         });
     }
     json!({ "ok": true })

@@ -11,18 +11,18 @@ type ReadInvokeEntry = {
 };
 
 export const READ_API_INVOKE_MAP: Record<string, ReadInvokeEntry> = {
-  '/api/corpus-index': {
-    cmd: 'get_corpus_index',
+  '/api/notes-index': {
+    cmd: 'get_notes_index',
   },
-  '/api/corpus-file': {
-    cmd: 'get_corpus_file',
+  '/api/notes-file': {
+    cmd: 'get_notes_file',
     args: (url) => ({
       layer: url.searchParams.get('layer') ?? '',
       path: url.searchParams.get('path') ?? '',
     }),
   },
-  '/api/corpus-asset': {
-    cmd: 'get_corpus_asset',
+  '/api/notes-asset': {
+    cmd: 'get_notes_asset',
     args: (url) => ({
       layer: url.searchParams.get('layer') ?? '',
       base: url.searchParams.get('base') ?? '',
@@ -68,7 +68,7 @@ export const READ_API_INVOKE_MAP: Record<string, ReadInvokeEntry> = {
     args: (url) => ({ path: url.searchParams.get('path') ?? '' }),
   },
   '/api/check-workbench-root': {
-    cmd: 'check_workbench_knowledge_root',
+    cmd: 'check_workbench_root',
     args: (url) => ({ path: url.searchParams.get('path') ?? '' }),
   },
   '/api/status': { cmd: 'get_status' },

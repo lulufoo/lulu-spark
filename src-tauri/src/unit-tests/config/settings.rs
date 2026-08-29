@@ -136,12 +136,12 @@ fn save_roundtrip_keeps_general_settings() {
     let dir = tempfile::tempdir().expect("tmp");
     let _env = TestConfigEnv::prod(dir.path());
     let mut settings = AppSettings::default();
-    settings.workbench_knowledge_root = Path::new("/tmp/workbench").into();
+    settings.workbench_root = Path::new("/tmp/workbench").into();
     settings.github_user_url = "https://github.com/example".into();
     save(&settings).expect("save");
 
     let loaded = load().expect("load");
-    assert_eq!(loaded.workbench_knowledge_root, settings.workbench_knowledge_root);
+    assert_eq!(loaded.workbench_root, settings.workbench_root);
     assert_eq!(loaded.github_user_url, settings.github_user_url);
 }
 

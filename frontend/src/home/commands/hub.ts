@@ -102,14 +102,20 @@ export function showActionError(err: { message?: string } | undefined) {
 
 export async function applyBindingState() {
   const gen = ++fetchGen;
+  console.info('[DEBUG-assistant] home: applyBindingState start', { gen });
   let hostBound = false;
   try {
     const summary = (await api.invoke('query_binding')) as { state?: string } | null;
     hostBound = Boolean(summary && typeof summary === 'object' && summary.state === 'bound');
-  } catch {
+    console.info('[DEBUG-assistant] home: query_binding', summary);
+  } catch (err) {
     hostBound = false;
+    console.info('[DEBUG-assistant] home: query_binding failed', err);
   }
-  if (gen !== fetchGen) return;
+  if (gen !== fetchGen) {
+    console.info('[DEBUG-assistant] home: applyBindingState stale', { gen, fetchGen });
+    return;
+  }
   if (!hostBound) {
     // Discard the current session on Unbound (source-scan: currentSessionId = '').
     const currentSessionId = '';
@@ -121,18 +127,23 @@ export async function applyBindingState() {
       progressByChat: Object.create(null) as Record<string, string>,
       inFlightIds: [],
     }));
+    console.info('[DEBUG-assistant] home: unbound, skip list');
     return;
   }
   setHomeState((prev) => ({ ...prev, hostBound: true }));
   try {
     await refreshList(gen);
     if (gen !== fetchGen) return;
+    console.info('[DEBUG-assistant] home: bound, list', {
+      sessions: getHomeState().sessions.length,
+      currentSessionId: getHomeState().currentSessionId,
+    });
     if (getHomeState().currentSessionId) {
       const state = (await api.invoke('get_ai_assistant_binding')) as Record<string, unknown>;
       applySessionPayload(state, gen);
     }
-  } catch {
-    /* keep list / empty thread */
+  } catch (err) {
+    console.info('[DEBUG-assistant] home: bound list/session failed', err);
   }
 }
 
@@ -244,13 +255,22 @@ export async function sendMessage(text: string) {
 }
 
 export function startHomeHub() {
-  void applyBindingState();
   const listen = getTauriListen();
-  if (!listen) return;
+  console.info('[DEBUG-assistant] home: startHomeHub', {
+    hasListen: Boolean(listen),
+    hasTauri: Boolean(typeof window !== 'undefined' && window.__TAURI__),
+  });
+  void applyBindingState();
+  if (!listen) {
+    console.info('[DEBUG-assistant] home: binding-changed listen missing');
+    return;
+  }
   void listen(BINDING_CHANGED_EVENT, () => {
+    console.info('[DEBUG-assistant] home: binding-changed received');
     void applyBindingState();
   }).then((fn) => {
     unlistenBinding = fn;
+    console.info('[DEBUG-assistant] home: binding-changed listen attached');
   });
 }
 

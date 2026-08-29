@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""One-shot idempotent migration: cache_dir SSOT → workbench_knowledge_root.
+"""One-shot idempotent migration: cache_dir SSOT → workbench_root.
 
 Reads ``config.toml`` (``LULU_WB_CONFIG_DIR`` or ``~/.config/lulu-workbench``).
 Not invoked at application startup — run manually after deploy.
@@ -17,8 +17,8 @@ except ImportError:  # pragma: no cover - Python < 3.11
     import tomli as tomllib  # type: ignore[no-redef]
 
 MIGRATIONS: tuple[tuple[str, str], ...] = (
-    ("sediment-kb/categories.json", "sediment-kb/categories.json"),
-    ("sediment-kb/repos.json", "sediment-kb/repos.json"),
+    ("sediment-kb/categories.json", "knowledge/categories.json"),
+    ("sediment-kb/repos.json", "knowledge/repos.json"),
     ("read_later.json", "read_later/read_later.json"),
     ("plan_tasks.json", "plan_tasks/plan_tasks.json"),
 )
@@ -34,7 +34,7 @@ def default_cache_dir() -> Path:
     return Path.home() / ".cache" / "lulu-workbench"
 
 
-def default_workbench_knowledge_root() -> Path:
+def default_workbench_root() -> Path:
     return Path.home() / "Code"
 
 
@@ -45,11 +45,8 @@ def load_roots() -> tuple[Path, Path]:
     else:
         data = {}
     cache = Path(data["cache_dir"]) if "cache_dir" in data else default_cache_dir()
-    wb = (
-        Path(data["workbench_knowledge_root"])
-        if "workbench_knowledge_root" in data
-        else default_workbench_knowledge_root()
-    )
+    raw = data.get("workbench_root") or data.get("workbench_knowledge_root")
+    wb = Path(raw) if raw else default_workbench_root()
     return cache, wb
 
 

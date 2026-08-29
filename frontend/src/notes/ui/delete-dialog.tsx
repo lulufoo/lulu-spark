@@ -36,7 +36,7 @@ export function DeleteDialog() {
       <div id="delete-dialog-box">
         <h3>⚠️ Delete document</h3>
         <p id="delete-dialog-desc">
-          Deletes all linked files (raw / distilled / trace / digest) and removes from index.json.{' '}
+          Deletes all linked files (raw / digest) and removes from index.json.{' '}
           <strong>Cannot be undone</strong>.
         </p>
         <div id="delete-dialog-confirm-row">

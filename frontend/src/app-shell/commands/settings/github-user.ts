@@ -127,7 +127,7 @@ export async function applyWorkbenchRootInference({
 
   if (existing && existingNorm !== inferredNorm) {
     if (revertOnConflict) {
-      archiveInput.value = savedSnapshot.workbenchKnowledgeRoot;
+      archiveInput.value = savedSnapshot.workbenchRoot;
     }
     clearGithubUserUrlInferredLock();
     return { ok: false, conflict: true, existing, inferred };

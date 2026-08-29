@@ -30,32 +30,38 @@ pub fn cache_dir() -> Result<PathBuf, PathsError> {
     Ok(settings()?.cache_dir)
 }
 
-pub fn workbench_knowledge_root() -> Result<PathBuf, PathsError> {
-    Ok(settings()?.workbench_knowledge_root)
+pub fn workbench_root() -> Result<PathBuf, PathsError> {
+    Ok(settings()?.workbench_root)
 }
 
-pub fn knowledge_corpus_root() -> Result<PathBuf, PathsError> {
-    Ok(settings()?.knowledge_corpus_root)
+/// Notes files live at `{workbench_root}/notes/`.
+pub fn notes_root() -> Result<PathBuf, PathsError> {
+    Ok(workbench_root()?.join("notes"))
 }
 
+pub fn knowledge_root() -> Result<PathBuf, PathsError> {
+    Ok(settings()?.knowledge_root)
+}
+
+/// Knowledge registry (repo list / categories) at `{workbench_root}/knowledge/`.
 pub fn sediment_kb_dir() -> Result<PathBuf, PathsError> {
-    Ok(workbench_knowledge_root()?.join("sediment-kb"))
+    Ok(workbench_root()?.join("knowledge"))
 }
 
 pub fn read_later_path() -> Result<PathBuf, PathsError> {
-    Ok(workbench_knowledge_root()?
+    Ok(workbench_root()?
         .join("read_later")
         .join("read_later.json"))
 }
 
 pub fn todo_tasks_path() -> Result<PathBuf, PathsError> {
-    Ok(workbench_knowledge_root()?
+    Ok(workbench_root()?
         .join("todo_tasks")
         .join("todo_tasks.json"))
 }
 
 pub fn todo_tasks_dir() -> Result<PathBuf, PathsError> {
-    Ok(workbench_knowledge_root()?.join("todo_tasks"))
+    Ok(workbench_root()?.join("todo_tasks"))
 }
 
 pub fn todo_tasks_index_path() -> Result<PathBuf, PathsError> {

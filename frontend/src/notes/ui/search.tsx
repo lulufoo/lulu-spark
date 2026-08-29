@@ -8,9 +8,7 @@ const HIST_MAX = 10;
 
 const LAYER_LABEL: Record<string, string> = {
   raw: 'Original',
-  distilled: 'Distilled',
   digest: 'Summary',
-  diagnose: 'Diagnose',
 };
 
 type WbHit = {

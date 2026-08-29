@@ -42,7 +42,7 @@ export async function removeKbComment(comment: { id: string }) {
   }
 }
 
-export async function removeCorpusComment(
+export async function removeNoteComment(
   c: { id: string },
   layer: string,
   entry: { common_path: string },

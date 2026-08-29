@@ -1,9 +1,9 @@
 import { state, getEntryId, loadDiffStatus, notifyState } from '../../state/host.ts';
-import { getActivePath } from '../../../corpus/state/path.ts';
+import { getActivePath } from '../../../knowledge/state/path.ts';
 import { filenameFromPath, slugToTitle, resetEditAreaScroll } from '../../../shared/utils.ts';
 import * as api from '../../../host/api.ts';
 import { setDocEditMode } from '../../../doc-editor/view.tsx';
-import { saveKbDoc } from '../../../corpus/viewer.ts';
+import { saveKbDoc } from '../../../knowledge/viewer.ts';
 import { closeCommitDialog, hidePendingBadge, showPendingBadge } from './commit.ts';
 import { initHighlightUI } from '../../ui/viewer/body.tsx';
 import { setNotePanelTitle, showNoteOutlet } from './outlet.ts';

@@ -45,7 +45,7 @@ def config_dir() -> Path:
     return Path.home() / ".config" / "lulu-workbench"
 
 
-def default_workbench_knowledge_root() -> Path:
+def default_workbench_root() -> Path:
     return Path.home() / "Code"
 
 
@@ -55,9 +55,8 @@ def load_workbench_root() -> Path:
         data = tomllib.loads(path.read_text(encoding="utf-8"))
     else:
         data = {}
-    if "workbench_knowledge_root" in data:
-        return Path(data["workbench_knowledge_root"])
-    return default_workbench_knowledge_root()
+    raw = data.get("workbench_root") or data.get("workbench_knowledge_root")
+    return Path(raw) if raw else default_workbench_root()
 
 
 def gate_path(todo_root: Path) -> Path:
@@ -236,7 +235,7 @@ def rewrite_storage_paths(todo_root: Path) -> None:
 
 def main() -> int:
     wb_root = load_workbench_root()
-    log_event(event="start", workbench_knowledge_root=str(wb_root))
+    log_event(event="start", workbench_root=str(wb_root))
 
     todo_root, root_errors = migrate_root(wb_root)
     if root_errors:

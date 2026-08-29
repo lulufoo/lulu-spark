@@ -88,6 +88,7 @@ const SOURCE_TYPE_LABELS: Record<string, string> = {
   dialogue: 'Dialogue',
   summary: 'Summary',
   'theme-line': 'Video',
+  jot: 'Jot',
   note: 'Note',
 };
 

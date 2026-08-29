@@ -1,7 +1,7 @@
 /**
  * Note feature AC gate (tech-doc §VF AC-1～AC-11 / T10 / §SK-P3).
  * Static probes lock failure signals; behavioral coverage lives in
- * note-assistant / viewer-create-note / router / mount / list-return suites + archive_write.rs.
+ * note-assistant / viewer-create-note / router / mount / list-return suites + notes.rs.
  */
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -18,8 +18,8 @@ function read(rel) {
 
 describe('Note AC gate (tech-doc VF / T-13)', () => {
   it('AC-1: conflict / history probes lock Primary raw+index non-mutation', () => {
-    const rust = read('src-tauri/src/unit-tests/services/archive_write.rs');
-    expect(rust).toMatch(/fn archive_note_document_conflict_does_not_mutate_history/);
+    const rust = read('src-tauri/src/unit-tests/services/notes.rs');
+    expect(rust).toMatch(/fn create_jot_conflict_does_not_mutate_history/);
     expect(rust).toMatch(/history Entry must not change on conflict/);
     expect(rust).toMatch(/raw must not be rewritten on conflict/);
   });
@@ -42,20 +42,20 @@ describe('Note AC gate (tech-doc VF / T-13)', () => {
     expect(behavioral).toMatch(/dispatches cta:open-entry/);
   });
 
-  it('AC-3: create append-only via archiveDocument(source_type=note); not Overlay', () => {
+  it('AC-3: create append-only via createNote(source_type=jot); not Overlay', () => {
     // Read create.js alone (no re-export follow) so comment write APIs elsewhere do not pollute.
     const create = readFileSync(join(repoRoot, 'frontend/src/notes/commands/viewer/create.ts'), 'utf8');
     expect(create).toMatch(
-      /archiveDocument\(\{\s*body:\s*trimmed,\s*source_type:\s*'note'\s*\}\)/,
+      /createNote\(\{\s*body:\s*trimmed,\s*source_type:\s*'jot'\s*\}\)/,
     );
     // finalizeCreateSession must not call Annotation write APIs
     expect(create).not.toMatch(/updateComments|update_comments|saveAnnotation/);
     const writeMap = read('frontend/src/host/writeApiInvokeMap.ts');
-    expect(writeMap).toMatch(/\/api\/archive-document/);
-    expect(writeMap).toMatch(/archive_document/);
+    expect(writeMap).toMatch(/\/api\/create-note/);
+    expect(writeMap).toMatch(/create_note/);
 
-    const rust = read('src-tauri/src/unit-tests/services/archive_write.rs');
-    expect(rust).toMatch(/fn archive_note_document_writes_raw_index_with_source_type_note/);
+    const rust = read('src-tauri/src/unit-tests/services/notes.rs');
+    expect(rust).toMatch(/fn create_jot_writes_raw_index_with_source_type_jot/);
     expect(rust).toMatch(/must not write Annotation path/);
   });
 
@@ -84,20 +84,20 @@ describe('Note AC gate (tech-doc VF / T-13)', () => {
       const src = read(rel);
       expect(src, rel).not.toMatch(/openCreateNote/);
       expect(src, rel).not.toMatch(/新建随记/);
-      expect(src, rel).not.toMatch(/archiveDocument/);
+      expect(src, rel).not.toMatch(/createNote/);
     }
     const writeMap = read('frontend/src/host/writeApiInvokeMap.ts');
     expect(writeMap).toMatch(/cmd:\s*'save_entry'/);
     const syncMap = read('frontend/src/host/syncApiInvokeMap.ts');
     expect(syncMap).toMatch(/cmd:\s*'delete_entry'/);
-    // create for notes is archive_document, not a management create_*_note
-    expect(writeMap).not.toMatch(/create_note|create_entry/);
+    // management CRUD stays save/delete; create_note is the write command
+    expect(writeMap).not.toMatch(/create_entry/);
   });
 
   it('AC-6: Overlay user-visible copy is 批注 (not 添加笔记)', () => {
     for (const rel of [
       'frontend/src/notes/ui/comments.tsx',
-      'frontend/src/corpus/ui/comments.tsx',
+      'frontend/src/knowledge/ui/comments.tsx',
     ]) {
       const src = read(rel);
       expect(src, rel).toMatch(/Comment/);
@@ -134,7 +134,7 @@ describe('Note AC gate (tech-doc VF / T-13)', () => {
 
   it('AC-10: create success navigates note=common_path; empty exit lands list via navigateBackToList', () => {
     const viewer = readNotesViewerSource();
-    // create success: navigateToNote with archiveDocument common_path (tech-doc T5 / chap-ar)
+    // create success: navigateToNote with createNote common_path (tech-doc T5 / chap-ar)
     expect(viewer).toMatch(/navigateToNote/);
     expect(viewer).toMatch(/common_path/);
     expect(viewer).toMatch(/navigateBackToList/);
@@ -201,7 +201,7 @@ describe('Note AC gate (tech-doc VF / T-13)', () => {
       create.indexOf('async function finalizeCreateSession'),
       create.indexOf('export async function closeModal'),
     );
-    expect(finalize).toMatch(/archiveDocument/);
+    expect(finalize).toMatch(/createNote/);
     expect(finalize).not.toMatch(/annotations/);
     expect(finalize).not.toMatch(/updateComments|fetchAnnotation/);
   });

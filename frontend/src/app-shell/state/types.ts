@@ -4,8 +4,8 @@ export type AppRoute = {
 };
 
 export type SettingsConfig = {
-  workbench_knowledge_root?: string;
-  knowledge_corpus_root?: string;
+  workbench_root?: string;
+  knowledge_root?: string;
   github_user_url?: string;
   workbench_github_repo_url?: string;
   has_github_token?: boolean;

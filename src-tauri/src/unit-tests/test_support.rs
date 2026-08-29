@@ -12,7 +12,7 @@ use crate::config::settings::{
 };
 use crate::test_support::{
     CONFIG_TEST_SERIAL, TestConfigEnv, TestSandbox, install_env_restore_probe,
-    install_test_config_env_construction_probe, with_sandbox_corpus,
+    install_test_config_env_construction_probe, with_sandbox_notes,
 };
 
 fn prod_cache_dir_mtime() -> Option<SystemTime> {
@@ -303,8 +303,8 @@ fn test_sandbox_new_creates_isolated_three_roots() {
     let sandbox = TestSandbox::new();
     let cfg = settings::load().expect("load");
     let base = sandbox.config_dir();
-    assert!(cfg.workbench_knowledge_root.starts_with(base));
-    assert!(cfg.knowledge_corpus_root.starts_with(base));
+    assert!(cfg.workbench_root.starts_with(base));
+    assert!(cfg.knowledge_root.starts_with(base));
     assert!(cfg.cache_dir.starts_with(base));
     assert_ne!(cfg.cache_dir, default_cache_dir());
     assert_eq!(
@@ -322,8 +322,8 @@ fn write_test_config_persists_to_sandbox_config_toml() {
     let sandbox = TestSandbox::new();
     let path = settings::config_file_path().expect("cfg path");
     let text = fs::read_to_string(&path).expect("read config");
-    assert!(text.contains("workbench_knowledge_root"));
-    assert!(text.contains("knowledge_corpus_root"));
+    assert!(text.contains("workbench_root"));
+    assert!(text.contains("knowledge_root"));
     assert!(text.contains("cache_dir"));
     assert!(path.ends_with("config.toml"));
     let _ = sandbox;
@@ -408,10 +408,10 @@ fn atomic_config_write_replaces_hard_link_without_mutating_protected_file() {
 fn nested_test_sandbox_serializes_distinct_roots() {
     crate::test_support::with_config_test_serial(|| {
         let outer = TestSandbox::new();
-        let outer_wb = settings::load().expect("load").workbench_knowledge_root;
+        let outer_wb = settings::load().expect("load").workbench_root;
         {
             let inner = TestSandbox::new();
-            let inner_wb = settings::load().expect("load").workbench_knowledge_root;
+            let inner_wb = settings::load().expect("load").workbench_root;
             assert_ne!(outer_wb, inner_wb);
             assert!(settings::config_file_path()
                 .expect("cfg")
@@ -419,7 +419,7 @@ fn nested_test_sandbox_serializes_distinct_roots() {
             drop(inner);
         }
         assert_eq!(
-            settings::load().expect("load").workbench_knowledge_root,
+            settings::load().expect("load").workbench_root,
             outer_wb
         );
     });
@@ -430,8 +430,8 @@ fn lib_tests_do_not_touch_prod_cache_dir_mtime() {
     let before = prod_cache_dir_mtime();
     {
         let _sandbox = TestSandbox::new();
-        with_sandbox_corpus(true, |_dir, corpus| {
-            let _ = fs::create_dir_all(corpus.join("annotations/ai"));
+        with_sandbox_notes(true, |_dir, notes| {
+            let _ = fs::create_dir_all(notes.join("annotations/ai"));
         });
     }
     let after = prod_cache_dir_mtime();
@@ -453,12 +453,12 @@ fn test_sandbox_records_prod_three_roots_at_new() {
     let sandbox = TestSandbox::new();
     // Prod roots are the fake prod under the sandbox HOME, not the machine prod.
     assert_eq!(
-        sandbox.prod_workbench_knowledge_root(),
+        sandbox.prod_workbench_root(),
         sandbox.config_dir().join("prod-wb")
     );
     assert_eq!(
-        sandbox.prod_knowledge_corpus_root(),
-        sandbox.config_dir().join("prod-corpus")
+        sandbox.prod_knowledge_root(),
+        sandbox.config_dir().join("prod-knowledge-clones")
     );
     assert_eq!(sandbox.prod_cache_dir(), sandbox.config_dir().join("prod-cache"));
     let _ = load_prod_settings();
@@ -469,23 +469,23 @@ fn test_sandbox_write_paths_not_equal_prod_roots() {
     let sandbox = TestSandbox::new();
     let cfg = settings::load().expect("load");
     assert_ne!(
-        cfg.workbench_knowledge_root,
-        sandbox.prod_workbench_knowledge_root()
+        cfg.workbench_root,
+        sandbox.prod_workbench_root()
     );
     assert_ne!(cfg.cache_dir, sandbox.prod_cache_dir());
     assert_ne!(
-        cfg.knowledge_corpus_root,
-        sandbox.prod_knowledge_corpus_root()
+        cfg.knowledge_root,
+        sandbox.prod_knowledge_root()
     );
 }
 
 #[test]
-fn assert_not_prod_path_rejects_prod_workbench_knowledge_root() {
+fn assert_not_prod_path_rejects_prod_workbench_root() {
     let sandbox = TestSandbox::new();
-    let prod = sandbox.prod_workbench_knowledge_root();
+    let prod = sandbox.prod_workbench_root();
     assert!(sandbox.assert_not_prod_path(&prod).is_err());
     assert!(sandbox
-        .assert_not_prod_path(&prod.join("sediment-kb"))
+        .assert_not_prod_path(&prod.join("knowledge"))
         .is_err());
 }
 

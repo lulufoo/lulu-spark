@@ -2,7 +2,7 @@ use serde_json::{json, Value};
 use tauri::AppHandle;
 
 use crate::config::paths;
-use crate::config::meili_env::workbench_knowledge_root_path;
+use crate::config::meili_env::notes_root_path;
 use crate::integrations::{gh_read, meilisearch};
 use crate::services::sediment_kb;
 use crate::services::tags_registry;
@@ -52,8 +52,8 @@ pub fn get_annotations(_app: AppHandle) -> Result<Value, String> {
 
 #[tauri::command]
 pub fn get_tags_registry(_app: AppHandle) -> Result<Value, String> {
-    let corpus = workbench_knowledge_root_path(&repo_root()?);
-    Ok(tags_registry::read_registry(&corpus))
+    let notes = notes_root_path(&repo_root()?);
+    Ok(tags_registry::read_registry(&notes))
 }
 
 #[tauri::command]
@@ -87,8 +87,8 @@ pub fn infer_github_user_url(_app: AppHandle, path: String) -> Result<Value, Str
 }
 
 #[tauri::command]
-pub fn check_workbench_knowledge_root(_app: AppHandle, path: String) -> Result<Value, String> {
-    Ok(workbench_read::check_workbench_knowledge_root(&path))
+pub fn check_workbench_root(_app: AppHandle, path: String) -> Result<Value, String> {
+    Ok(workbench_read::check_workbench_root(&path))
 }
 
 #[tauri::command]
@@ -101,7 +101,7 @@ pub async fn get_status(_app: AppHandle) -> Result<Value, String> {
 
 #[tauri::command]
 pub fn kb_read(_app: AppHandle, repo: String, path: String) -> Result<Value, String> {
-    Ok(crate::services::corpus::kb_read_json(&repo_root()?, &repo, &path))
+    Ok(crate::services::knowledge::kb_read_json(&repo_root()?, &repo, &path))
 }
 
 #[tauri::command]
@@ -112,7 +112,7 @@ pub fn kb_list(
     mode: Option<String>,
 ) -> Result<Value, String> {
     let mode = mode.unwrap_or_else(|| "flat".into());
-    Ok(crate::services::corpus::kb_list_json(
+    Ok(crate::services::knowledge::kb_list_json(
         &repo_root()?,
         &repo,
         &path,
@@ -127,7 +127,7 @@ pub fn kb_doc_count(
     hide_pattern: Option<String>,
     category_id: Option<String>,
 ) -> Result<Value, String> {
-    Ok(crate::services::corpus::kb_doc_count_json(
+    Ok(crate::services::knowledge::kb_doc_count_json(
         &repo_root()?,
         &repo,
         hide_pattern.as_deref(),
@@ -137,12 +137,12 @@ pub fn kb_doc_count(
 
 #[tauri::command]
 pub fn kb_annotation(_app: AppHandle, repo: String, path: String) -> Result<Value, String> {
-    Ok(crate::services::corpus::kb_annotation_json(&repo_root()?, &repo, &path))
+    Ok(crate::services::knowledge::kb_annotation_json(&repo_root()?, &repo, &path))
 }
 
 #[tauri::command]
 pub fn kb_status(_app: AppHandle, repo: String) -> Result<Value, String> {
-    Ok(crate::services::corpus::kb_status_json(&repo_root()?, &repo))
+    Ok(crate::services::knowledge::kb_status_json(&repo_root()?, &repo))
 }
 
 #[tauri::command]
@@ -171,27 +171,27 @@ pub async fn fetch_link_title(_app: AppHandle, url: String) -> Result<Value, Str
 }
 
 #[tauri::command]
-pub fn get_corpus_index(_app: AppHandle) -> Result<Value, String> {
-    Ok(workbench_read::get_corpus_index(&repo_root()?))
+pub fn get_notes_index(_app: AppHandle) -> Result<Value, String> {
+    Ok(workbench_read::get_notes_index(&repo_root()?))
 }
 
 #[tauri::command]
-pub fn get_corpus_file(
+pub fn get_notes_file(
     _app: AppHandle,
     layer: String,
     path: String,
 ) -> Result<Value, String> {
-    Ok(workbench_read::get_corpus_file(&repo_root()?, &layer, &path))
+    Ok(workbench_read::get_notes_file(&repo_root()?, &layer, &path))
 }
 
 #[tauri::command]
-pub fn get_corpus_asset(
+pub fn get_notes_asset(
     _app: AppHandle,
     layer: String,
     base: String,
     href: String,
 ) -> Result<Value, String> {
-    Ok(workbench_read::get_corpus_asset(
+    Ok(workbench_read::get_notes_asset(
         &repo_root()?,
         &layer,
         &base,
@@ -202,8 +202,8 @@ pub fn get_corpus_asset(
 #[tauri::command]
 pub fn get_kb_diff_status(_app: AppHandle) -> Result<Value, String> {
     let repo_root = repo_root()?;
-    let knowledge_corpus_root = std::path::PathBuf::from(
-        crate::config::meili_env::knowledge_corpus_root_string(&repo_root),
+    let knowledge_root = std::path::PathBuf::from(
+        crate::config::meili_env::knowledge_root_string(&repo_root),
     );
 
     let repos: Vec<Value> = workbench_read::get_topics(&repo_root)
@@ -215,11 +215,11 @@ pub fn get_kb_diff_status(_app: AppHandle) -> Result<Value, String> {
                 .filter_map(|item| {
                     let full_name = item.get("repo")?.as_str()?;
                     let name = full_name.split('/').next_back().unwrap_or(full_name);
-                    if !knowledge_corpus_root.join(name).is_dir() {
+                    if !knowledge_root.join(name).is_dir() {
                         return None;
                     }
 
-                    let status = crate::services::corpus::kb_status_json(&repo_root, full_name);
+                    let status = crate::services::knowledge::kb_status_json(&repo_root, full_name);
                     let has_changes = status
                         .get("total")
                         .and_then(|total| total.as_u64())
@@ -245,11 +245,11 @@ pub fn sediment_kb_categories_json() -> Result<Value, String> {
 }
 
 fn sediment_kb_local_exists(repo_root: &std::path::Path, full_name: &str) -> bool {
-    let knowledge_corpus_root = std::path::PathBuf::from(
-        crate::config::meili_env::knowledge_corpus_root_string(repo_root),
+    let knowledge_root = std::path::PathBuf::from(
+        crate::config::meili_env::knowledge_root_string(repo_root),
     );
     let name = full_name.split('/').next_back().unwrap_or(full_name);
-    knowledge_corpus_root.join(name).is_dir()
+    knowledge_root.join(name).is_dir()
 }
 
 pub fn sediment_kb_repos_json(repo_root: &std::path::Path) -> Result<Value, String> {

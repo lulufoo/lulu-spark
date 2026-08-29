@@ -1,17 +1,17 @@
-//! Corpus annotation write handlers (port `server.py` P2 annotation POSTs).
+//! Notes annotation write handlers (port `server.py` P2 annotation POSTs).
 
 use std::fs;
 use std::path::{Path, PathBuf};
 
 use serde_json::{json, Map, Value};
 
-use crate::config::meili_env::workbench_knowledge_root_path;
+use crate::config::meili_env::notes_root_path;
 use crate::repositories::annotation_paths::annotation_json_path;
 use crate::repositories::atomic_json;
 
 use super::id::random_hex12;
 
-const ANNOTATION_LAYERS: &[&str] = &["raw", "distilled", "digest", "trace", "diagnose"];
+const ANNOTATION_LAYERS: &[&str] = &["raw", "digest"];
 
 fn is_valid_http_url(url: &str) -> bool {
     let rest = url
@@ -35,16 +35,16 @@ fn invalid_layer(layer: &str) -> Value {
     })
 }
 
-fn corpus_write_target(repo_root: &Path, common_path: &str) -> Result<(PathBuf, PathBuf), Value> {
+fn notes_write_target(repo_root: &Path, common_path: &str) -> Result<(PathBuf, PathBuf), Value> {
     let cp = common_path.trim();
     if cp.is_empty() || cp.contains("..") {
         return Err(invalid_common_path());
     }
-    let corpus = workbench_knowledge_root_path(repo_root);
-    let Some(target) = annotation_json_path(&corpus, cp) else {
+    let notes = notes_root_path(repo_root);
+    let Some(target) = annotation_json_path(&notes, cp) else {
         return Err(invalid_common_path());
     };
-    Ok((corpus, target))
+    Ok((notes, target))
 }
 
 fn persist_annotation(target: &Path, ann: &Value) -> Option<Value> {
@@ -53,8 +53,8 @@ fn persist_annotation(target: &Path, ann: &Value) -> Option<Value> {
         .map(|e| json!({ "error": e, "_status": 500 }))
 }
 
-pub fn read_annotation_object(corpus: &Path, common_path: &str) -> Value {
-    let Some(p) = annotation_json_path(corpus, common_path) else {
+pub fn read_annotation_object(notes: &Path, common_path: &str) -> Value {
+    let Some(p) = annotation_json_path(notes, common_path) else {
         return json!({});
     };
     if !p.is_file() {
@@ -67,11 +67,11 @@ pub fn read_annotation_object(corpus: &Path, common_path: &str) -> Value {
 }
 
 pub fn set_done(repo_root: &Path, common_path: &str, done: bool) -> Value {
-    let Ok((corpus, target)) = corpus_write_target(repo_root, common_path) else {
+    let Ok((notes, target)) = notes_write_target(repo_root, common_path) else {
         return invalid_common_path();
     };
     let cp = common_path.trim();
-    let mut ann = read_annotation_object(&corpus, cp);
+    let mut ann = read_annotation_object(&notes, cp);
     let Value::Object(ref mut map) = ann else {
         return json!({ "error": "Invalid annotation state", "_status": 500 });
     };
@@ -87,7 +87,7 @@ pub fn set_done(repo_root: &Path, common_path: &str, done: bool) -> Value {
 }
 
 pub fn set_importance(repo_root: &Path, common_path: &str, importance: Option<String>) -> Value {
-    let Ok((corpus, target)) = corpus_write_target(repo_root, common_path) else {
+    let Ok((notes, target)) = notes_write_target(repo_root, common_path) else {
         return invalid_common_path();
     };
     let imp = importance.as_deref().map(str::trim);
@@ -100,7 +100,7 @@ pub fn set_importance(repo_root: &Path, common_path: &str, importance: Option<St
         }
     }
     let cp = common_path.trim();
-    let mut ann = read_annotation_object(&corpus, cp);
+    let mut ann = read_annotation_object(&notes, cp);
     let Value::Object(ref mut map) = ann else {
         return json!({ "error": "Invalid annotation state", "_status": 500 });
     };
@@ -116,7 +116,7 @@ pub fn set_importance(repo_root: &Path, common_path: &str, importance: Option<St
 }
 
 pub fn update_links(repo_root: &Path, common_path: &str, links: Value) -> Value {
-    let Ok((corpus, target)) = corpus_write_target(repo_root, common_path) else {
+    let Ok((notes, target)) = notes_write_target(repo_root, common_path) else {
         return invalid_common_path();
     };
     let links_arr = match links {
@@ -136,7 +136,7 @@ pub fn update_links(repo_root: &Path, common_path: &str, links: Value) -> Value 
         }
     }
     let cp = common_path.trim();
-    let mut ann = read_annotation_object(&corpus, cp);
+    let mut ann = read_annotation_object(&notes, cp);
     let Value::Object(ref mut map) = ann else {
         return json!({ "error": "Invalid annotation state", "_status": 500 });
     };
@@ -162,7 +162,7 @@ pub fn update_comments(
     if !ANNOTATION_LAYERS.contains(&layer) {
         return invalid_layer(layer);
     }
-    let Ok((corpus, target)) = corpus_write_target(repo_root, common_path) else {
+    let Ok((notes, target)) = notes_write_target(repo_root, common_path) else {
         return invalid_common_path();
     };
     let cp = common_path.trim();
@@ -180,7 +180,7 @@ pub fn update_comments(
         .to_string();
     let ts = ts.trim().to_string();
 
-    let mut ann = read_annotation_object(&corpus, cp);
+    let mut ann = read_annotation_object(&notes, cp);
     let Value::Object(ref mut root) = ann else {
         return json!({ "error": "Invalid annotation state", "_status": 500 });
     };
@@ -244,11 +244,11 @@ pub fn reorder_comments(
     if !ANNOTATION_LAYERS.contains(&layer) {
         return invalid_layer(layer);
     }
-    let Ok((corpus, target)) = corpus_write_target(repo_root, common_path) else {
+    let Ok((notes, target)) = notes_write_target(repo_root, common_path) else {
         return invalid_common_path();
     };
     let cp = common_path.trim();
-    let mut ann = read_annotation_object(&corpus, cp);
+    let mut ann = read_annotation_object(&notes, cp);
     let Value::Object(ref mut root) = ann else {
         return json!({ "error": "Invalid annotation state", "_status": 500 });
     };
@@ -298,7 +298,7 @@ pub fn update_highlights(
     if !ANNOTATION_LAYERS.contains(&layer) {
         return invalid_layer(layer);
     }
-    let Ok((corpus, target)) = corpus_write_target(repo_root, common_path) else {
+    let Ok((notes, target)) = notes_write_target(repo_root, common_path) else {
         return invalid_common_path();
     };
     let cp = common_path.trim();
@@ -317,7 +317,7 @@ pub fn update_highlights(
     let occurrence = highlight.get("occurrence").cloned();
     let ts = ts.trim().to_string();
 
-    let mut ann = read_annotation_object(&corpus, cp);
+    let mut ann = read_annotation_object(&notes, cp);
     let Value::Object(ref mut root) = ann else {
         return json!({ "error": "Invalid annotation state", "_status": 500 });
     };

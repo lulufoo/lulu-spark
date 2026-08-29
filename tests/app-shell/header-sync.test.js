@@ -6,7 +6,7 @@ vi.mock('../../frontend/src/host/api.ts', () => ({
   getReindexStatus: vi.fn(),
 }));
 
-vi.mock('../../frontend/src/corpus/ui/diff-dialog.tsx', () => ({
+vi.mock('../../frontend/src/knowledge/ui/diff-dialog.tsx', () => ({
   openKbDiffDialog: vi.fn(),
 }));
 
@@ -15,17 +15,17 @@ vi.mock('../../frontend/src/app-shell/commands/commit-dialog.ts', () => ({
 }));
 
 import * as api from '../../frontend/src/host/api.ts';
-import { openKbDiffDialog } from '../../frontend/src/corpus/ui/diff-dialog.tsx';
+import { openKbDiffDialog } from '../../frontend/src/knowledge/ui/diff-dialog.tsx';
 import { openCommitChangesDialog } from '../../frontend/src/app-shell/commands/commit-dialog.ts';
 import {
   initHeaderSync,
-  setHeaderSyncCorpusContext,
-  clearHeaderSyncCorpusContext,
+  setHeaderSyncKnowledgeContext,
+  clearHeaderSyncKnowledgeContext,
 } from '../../frontend/src/app-shell/commands/header-sync.ts';
 
 describe('header-sync', () => {
   beforeEach(() => {
-    clearHeaderSyncCorpusContext();
+    clearHeaderSyncKnowledgeContext();
     vi.clearAllMocks();
     document.body.innerHTML = `
       <button id="btn-push-index">↑ Commit changes</button>
@@ -39,31 +39,31 @@ describe('header-sync', () => {
     });
   });
 
-  it('routes commit to kb diff dialog when corpus repo is active', () => {
-    setHeaderSyncCorpusContext('owner/repo', vi.fn());
+  it('routes commit to kb diff dialog when knowledge repo is active', () => {
+    setHeaderSyncKnowledgeContext('owner/repo', vi.fn());
     document.getElementById('btn-push-index').click();
     expect(openKbDiffDialog).toHaveBeenCalledWith('owner/repo');
     expect(openCommitChangesDialog).not.toHaveBeenCalled();
   });
 
-  it('routes commit to workbench dialog when no corpus repo is active', () => {
+  it('routes commit to workbench dialog when no knowledge repo is active', () => {
     document.getElementById('btn-push-index').click();
     expect(openCommitChangesDialog).toHaveBeenCalledTimes(1);
     expect(openKbDiffDialog).not.toHaveBeenCalled();
   });
 
-  it('routes local refresh to corpus callback when corpus repo is active', async () => {
+  it('routes local refresh to knowledge callback when knowledge repo is active', async () => {
     const onRefresh = vi.fn().mockResolvedValue(undefined);
-    setHeaderSyncCorpusContext('owner/repo', onRefresh);
+    setHeaderSyncKnowledgeContext('owner/repo', onRefresh);
     document.getElementById('btn-local-refresh').click();
     await Promise.resolve();
     expect(onRefresh).toHaveBeenCalledTimes(1);
   });
 
-  it('routes pull to kb reindex when corpus repo is active', async () => {
+  it('routes pull to kb reindex when knowledge repo is active', async () => {
     api.reindexKbRepo.mockResolvedValue(undefined);
     api.getReindexStatus.mockResolvedValue({ status: 'idle' });
-    setHeaderSyncCorpusContext('owner/repo', vi.fn());
+    setHeaderSyncKnowledgeContext('owner/repo', vi.fn());
     document.getElementById('btn-pull').click();
     await Promise.resolve();
     expect(api.reindexKbRepo).toHaveBeenCalledWith('owner/repo');

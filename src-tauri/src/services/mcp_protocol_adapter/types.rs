@@ -84,7 +84,7 @@ pub struct ToolRoute {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SlotToolTable {
     pub scene_slot: String,
-    pub include_corpus: bool,
+    pub include_notes: bool,
     pub include_todo: bool,
     pub tools: Vec<ToolRoute>,
 }
@@ -98,7 +98,7 @@ pub struct ToolDescriptor {
 /// Registered scene_slot → API surface seeds (ported from Node `SCENE_SLOT_API`).
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct SceneSlotApi {
-    pub include_corpus: bool,
+    pub include_notes: bool,
     pub include_todo: bool,
 }
 

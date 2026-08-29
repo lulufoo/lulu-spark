@@ -13,4 +13,5 @@ flushSync(() => {
 });
 window.__WB_P0_PIPELINE__ = { react: version };
 
+console.info('[DEBUG-assistant] main: App painted; importing boot');
 void import('./boot.ts');

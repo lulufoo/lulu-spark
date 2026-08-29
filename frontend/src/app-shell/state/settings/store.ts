@@ -16,7 +16,7 @@ export const engineModelByCategory: { host: string | undefined } = {
 };
 
 export const savedSnapshot = {
-  workbenchKnowledgeRoot: '',
+  workbenchRoot: '',
   githubUserUrl: '',
   workbenchGithubRepoUrl: '',
   hasGithubToken: false,

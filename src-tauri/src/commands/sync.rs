@@ -2,7 +2,7 @@ use serde_json::Value;
 use tauri::AppHandle;
 
 use crate::services::{
-    corpus, corpus_git, draft, entry_admin, github, settle,
+    knowledge, draft, entry_admin, github, settle, workbench_git,
 };
 
 #[tauri::command]
@@ -27,36 +27,36 @@ pub fn clear_note_draft(_app: AppHandle, temp_id: String) -> Result<Value, Strin
 }
 
 #[tauri::command]
-pub async fn corpus_git_commit(_app: AppHandle, payload: Value) -> Result<Value, String> {
-    tauri::async_runtime::spawn_blocking(move || corpus_git::corpus_git_commit(&payload))
+pub async fn workbench_git_commit(_app: AppHandle, payload: Value) -> Result<Value, String> {
+    tauri::async_runtime::spawn_blocking(move || workbench_git::workbench_git_commit(&payload))
         .await
         .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-pub async fn corpus_git_pull(_app: AppHandle, payload: Value) -> Result<Value, String> {
-    tauri::async_runtime::spawn_blocking(move || corpus_git::corpus_git_pull(&payload))
+pub async fn workbench_git_pull(_app: AppHandle, payload: Value) -> Result<Value, String> {
+    tauri::async_runtime::spawn_blocking(move || workbench_git::workbench_git_pull(&payload))
         .await
         .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-pub async fn corpus_git_revert(_app: AppHandle, payload: Value) -> Result<Value, String> {
-    tauri::async_runtime::spawn_blocking(move || corpus_git::corpus_git_revert(&payload))
+pub async fn workbench_git_revert(_app: AppHandle, payload: Value) -> Result<Value, String> {
+    tauri::async_runtime::spawn_blocking(move || workbench_git::workbench_git_revert(&payload))
         .await
         .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 pub async fn kb_git_commit(_app: AppHandle, payload: Value) -> Result<Value, String> {
-    tauri::async_runtime::spawn_blocking(move || corpus::kb_git_commit(&payload))
+    tauri::async_runtime::spawn_blocking(move || knowledge::kb_git_commit(&payload))
         .await
         .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 pub async fn kb_git_revert(_app: AppHandle, payload: Value) -> Result<Value, String> {
-    tauri::async_runtime::spawn_blocking(move || corpus::kb_git_revert(&payload))
+    tauri::async_runtime::spawn_blocking(move || knowledge::kb_git_revert(&payload))
         .await
         .map_err(|e| e.to_string())
 }
@@ -99,7 +99,7 @@ pub async fn settle_entry(_app: AppHandle, payload: Value) -> Result<Value, Stri
 
 #[tauri::command]
 pub async fn open_kb_in_iterm(_app: AppHandle, payload: Value) -> Result<Value, String> {
-    tauri::async_runtime::spawn_blocking(move || corpus::open_kb_in_iterm(&payload))
+    tauri::async_runtime::spawn_blocking(move || knowledge::open_kb_in_iterm(&payload))
         .await
         .map_err(|e| e.to_string())
 }

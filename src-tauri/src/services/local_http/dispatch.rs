@@ -3,14 +3,14 @@ use std::path::PathBuf;
 use serde_json::{json, Value};
 use tiny_http::Method;
 
-use crate::services::archive_write::{archive_digest, archive_document};
+use crate::services::notes::{create_note_digest, create_note};
 use crate::services::todo_task;
 use crate::services::workbench_read::{
-    get_corpus_asset, get_corpus_catalog_latest_per_topic, get_corpus_file, get_corpus_index,
+    get_notes_asset, get_notes_catalog_latest_per_topic, get_notes_file, get_notes_index,
     infer_github_user_url,
 };
 
-use super::archive::{handle_archive_post, handle_corpus_files_post};
+use super::archive::{handle_archive_post, handle_notes_files_post};
 use super::bind::handle_bind_complete;
 use super::read_later::{
     handle_read_later_delete, handle_read_later_get, handle_read_later_patch, handle_read_later_post,
@@ -102,16 +102,16 @@ pub(super) fn handle_request(repo_root: &PathBuf, port: u16, request: tiny_http:
                 handle_read_later_post(request);
                 return;
             }
-            "/api/corpus-files" => {
-                handle_corpus_files_post(repo_root, request);
+            "/api/notes-files" => {
+                handle_notes_files_post(repo_root, request);
                 return;
             }
-            "/api/archive-document" => {
-                handle_archive_post(repo_root, request, archive_document);
+            "/api/create-note" => {
+                handle_archive_post(repo_root, request, create_note);
                 return;
             }
-            "/api/archive-digest" => {
-                handle_archive_post(repo_root, request, archive_digest);
+            "/api/create-note-digest" => {
+                handle_archive_post(repo_root, request, create_note_digest);
                 return;
             }
             "/api/todo-task-create" => {
@@ -214,7 +214,7 @@ pub(super) fn handle_request(repo_root: &PathBuf, port: u16, request: tiny_http:
                 respond_raw(request, status, body);
                 return;
             }
-            "/api/corpus-catalog" => {
+            "/api/notes-catalog" => {
                 let params = parse_query(&url);
                 let mode = params.get("mode").map(String::as_str).unwrap_or("");
                 if mode != "latest_per_topic" {
@@ -225,16 +225,16 @@ pub(super) fn handle_request(repo_root: &PathBuf, port: u16, request: tiny_http:
                     );
                     return;
                 }
-                let value = get_corpus_catalog_latest_per_topic(repo_root);
+                let value = get_notes_catalog_latest_per_topic(repo_root);
                 respond_from_value(request, value);
                 return;
             }
-            "/api/corpus-index" => {
-                let value = get_corpus_index(repo_root);
+            "/api/notes-index" => {
+                let value = get_notes_index(repo_root);
                 respond_from_value(request, value);
                 return;
             }
-            "/api/corpus-file" => {
+            "/api/notes-file" => {
                 let params = parse_query(&url);
                 let layer = params.get("layer").map(String::as_str).unwrap_or("");
                 let common_path = params.get("path").map(String::as_str).unwrap_or("");
@@ -246,16 +246,16 @@ pub(super) fn handle_request(repo_root: &PathBuf, port: u16, request: tiny_http:
                     );
                     return;
                 }
-                let value = get_corpus_file(repo_root, layer, common_path);
+                let value = get_notes_file(repo_root, layer, common_path);
                 respond_from_value(request, value);
                 return;
             }
-            "/api/corpus-asset" => {
+            "/api/notes-asset" => {
                 let params = parse_query(&url);
                 let layer = params.get("layer").map(String::as_str).unwrap_or("");
                 let base = params.get("base").map(String::as_str).unwrap_or("");
                 let href = params.get("href").map(String::as_str).unwrap_or("");
-                let value = get_corpus_asset(repo_root, layer, base, href);
+                let value = get_notes_asset(repo_root, layer, base, href);
                 respond_from_value(request, value);
                 return;
             }

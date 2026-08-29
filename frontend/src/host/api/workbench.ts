@@ -2,7 +2,7 @@ import { asRecord, type PathArg } from '../api-types.ts';
 import { getReadDriver, readGet, writePost } from './transport.ts';
 
 export async function fetchIndex() {
-  return readGet('/api/corpus-index?_=' + Date.now());
+  return readGet('/api/notes-index?_=' + Date.now());
 }
 
 export async function fetchDiffStatus() {
@@ -28,15 +28,15 @@ export async function fetchConfig() {
   return readGet('/api/config');
 }
 
-export async function inferGithubUserUrl(workbenchKnowledgeRoot: string) {
+export async function inferGithubUserUrl(workbenchRoot: string) {
   return readGet(
-    `/api/infer-github-user-url?path=${encodeURIComponent(workbenchKnowledgeRoot)}&_=${Date.now()}`,
+    `/api/infer-github-user-url?path=${encodeURIComponent(workbenchRoot)}&_=${Date.now()}`,
   );
 }
 
-export async function checkWorkbenchKnowledgeRoot(workbenchKnowledgeRoot: string) {
+export async function checkWorkbenchRoot(workbenchRoot: string) {
   return readGet(
-    `/api/check-workbench-root?path=${encodeURIComponent(workbenchKnowledgeRoot)}&_=${Date.now()}`,
+    `/api/check-workbench-root?path=${encodeURIComponent(workbenchRoot)}&_=${Date.now()}`,
   );
 }
 
@@ -46,21 +46,21 @@ export async function setConfig(payload?: unknown) {
 
 export async function fetchFileContent(layer: PathArg, commonPath: PathArg): Promise<string> {
   const data = await readGet(
-    `/api/corpus-file?layer=${encodeURIComponent(String(layer ?? ''))}&path=${encodeURIComponent(String(commonPath ?? ''))}&_=${Date.now()}`
+    `/api/notes-file?layer=${encodeURIComponent(String(layer ?? ''))}&path=${encodeURIComponent(String(commonPath ?? ''))}&_=${Date.now()}`
   );
   if (typeof data === 'string') return data;
   const content = asRecord(data)?.content;
   return typeof content === 'string' ? content : '';
 }
 
-/** Load corpus raster asset via invoke; returns blob: URL (caller may revoke). */
-export async function fetchCorpusAssetAsBlobUrl(
+/** Load notes raster asset via invoke; returns blob: URL (caller may revoke). */
+export async function fetchNotesAssetAsBlobUrl(
   layer: string,
   baseCommonPath: string,
   href: string,
 ) {
   const data = await readGet(
-    `/api/corpus-asset?layer=${encodeURIComponent(layer)}&base=${encodeURIComponent(baseCommonPath)}&href=${encodeURIComponent(href)}&_=${Date.now()}`
+    `/api/notes-asset?layer=${encodeURIComponent(layer)}&base=${encodeURIComponent(baseCommonPath)}&href=${encodeURIComponent(href)}&_=${Date.now()}`
   );
   const rec = asRecord(data);
   if (rec?.error) {
@@ -94,7 +94,7 @@ export async function commitFiles(message: string, files?: unknown) {
 }
 
 export async function revertFile(path?: string, type?: string) {
-  return writePost('/api/corpus-revert', { path: path ?? '', type: type ?? '' });
+  return writePost('/api/workbench-revert', { path: path ?? '', type: type ?? '' });
 }
 
 export async function pullProject() {
@@ -253,11 +253,11 @@ export async function settleComment(
   });
 }
 
-/** Archive via HTTP/MCP `archive_document` parity.
- * Note create: `{ body, source_type: 'note' }` (Host synthesize).
- * Path archive: `{ source_path, source_type }` — no `document` body. */
-export async function archiveDocument(payload?: unknown) {
-  return writePost('/api/archive-document', payload || {});
+/** Create a note via HTTP/MCP `create_note` parity.
+ * Jot create: `{ body, source_type: 'jot' }` (Host synthesize).
+ * Path create: `{ source_path, source_type }` — no `document` body. */
+export async function createNote(payload?: unknown) {
+  return writePost('/api/create-note', payload || {});
 }
 
 /** Note-create crash buffer under `drafts/notes/<temp_id>`. */

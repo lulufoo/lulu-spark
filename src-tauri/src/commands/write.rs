@@ -3,7 +3,7 @@ use tauri::AppHandle;
 
 use crate::config::paths;
 use crate::services::sediment_kb::{self, SedimentKbError};
-use crate::services::{annotation, archive_write, corpus, doc_highlights, entry_write, tag_write};
+use crate::services::{annotation, knowledge, doc_highlights, entry_write, notes, tag_write};
 
 fn repo_root() -> Result<std::path::PathBuf, String> {
     paths::repo_root().map_err(|e| format!("{e:?}"))
@@ -282,7 +282,7 @@ pub fn kb_save(
     path: String,
     content: String,
 ) -> Result<Value, String> {
-    Ok(corpus::kb_save(&repo_root()?, repo, path, content))
+    Ok(knowledge::kb_save(&repo_root()?, repo, path, content))
 }
 
 #[tauri::command]
@@ -293,7 +293,7 @@ pub fn kb_update_comments(
     comment: Value,
     ts: String,
 ) -> Result<Value, String> {
-    Ok(corpus::kb_update_comments(
+    Ok(knowledge::kb_update_comments(
         &repo_root()?,
         repo,
         path,
@@ -309,7 +309,7 @@ pub fn kb_reorder_comments(
     path: String,
     ids: Vec<String>,
 ) -> Result<Value, String> {
-    Ok(corpus::kb_reorder_comments(&repo_root()?, repo, path, ids))
+    Ok(knowledge::kb_reorder_comments(&repo_root()?, repo, path, ids))
 }
 
 #[tauri::command]
@@ -320,7 +320,7 @@ pub fn kb_update_highlights(
     highlight: Value,
     ts: String,
 ) -> Result<Value, String> {
-    Ok(corpus::kb_update_highlights(
+    Ok(knowledge::kb_update_highlights(
         &repo_root()?,
         repo,
         path,
@@ -336,7 +336,7 @@ pub fn kb_update_links(
     path: String,
     links: Value,
 ) -> Result<Value, String> {
-    Ok(corpus::kb_update_links(&repo_root()?, repo, path, links))
+    Ok(knowledge::kb_update_links(&repo_root()?, repo, path, links))
 }
 
 #[tauri::command]
@@ -378,11 +378,11 @@ pub fn tag_update_value(
     Ok(tag_write::tag_update_value(&repo_root()?, &key, &value))
 }
 
-/// Thin Tauri/HTTP-parity wrapper around `archive_write::archive_document`.
+/// Thin Tauri/HTTP-parity wrapper around `notes::create_note`.
 /// Business errors stay in the Value (`error` + `_status`); do not convert to Err.
-/// App note-create may pass `{ body, source_type: "note" }` (no `source_path`) → Host synthesis.
-/// MCP/HTTP archive body uses `source_path` only — `document` is rejected.
-pub fn archive_document_json(payload: Value) -> Result<Value, String> {
+/// App jot-create may pass `{ body, source_type: "jot" }` (no `source_path`) → Host synthesis.
+/// MCP/HTTP create body uses `source_path` only — `document` is rejected.
+pub fn create_note_json(payload: Value) -> Result<Value, String> {
     let root = repo_root()?;
     if payload.get("document").is_some() {
         return Ok(serde_json::json!({
@@ -395,11 +395,11 @@ pub fn archive_document_json(payload: Value) -> Result<Value, String> {
             .get("source_type")
             .and_then(|v| v.as_str())
             .unwrap_or("");
-        if source_type == "note" {
-            return match archive_write::archive_note_document(
+        if source_type == "jot" {
+            return match notes::create_jot(
                 &root,
                 body,
-                &archive_write::NoteCreateOpts::default(),
+                &notes::JotCreateOpts::default(),
             ) {
                 Ok(v) => Ok(v),
                 Err(msg) => {
@@ -415,12 +415,12 @@ pub fn archive_document_json(payload: Value) -> Result<Value, String> {
             };
         }
     }
-    Ok(archive_write::archive_document(&root, &payload))
+    Ok(notes::create_note(&root, &payload))
 }
 
 #[tauri::command]
-pub fn archive_document(_app: AppHandle, payload: Value) -> Result<Value, String> {
-    archive_document_json(payload)
+pub fn create_note(_app: AppHandle, payload: Value) -> Result<Value, String> {
+    create_note_json(payload)
 }
 
 #[cfg(test)]
@@ -428,5 +428,5 @@ pub fn archive_document(_app: AppHandle, payload: Value) -> Result<Value, String
 mod sediment_kb_write_tests;
 
 #[cfg(test)]
-#[path = "../unit-tests/commands/archive_document_write.rs"]
-mod archive_document_write_tests;
+#[path = "../unit-tests/commands/create_note_write.rs"]
+mod create_note_write_tests;

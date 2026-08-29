@@ -28,7 +28,7 @@ describe('Settings Knowledge UI', () => {
     expect(indexHtml).not.toContain('id="btn-repo-list"');
   });
 
-  it('removes full corpus sync button from list dialog', () => {
+  it('removes full knowledge sync button from list dialog', () => {
     expect(indexHtml).not.toContain('id="btn-kb-corpus-sync"');
   });
 
@@ -36,9 +36,9 @@ describe('Settings Knowledge UI', () => {
     expect(indexHtml).not.toContain('id="sediment-kb-add-dialog"');
     expect(indexHtml).not.toContain('id="sediment-kb-manage-dialog"');
     expect(indexHtml).not.toContain('id="repo-list-dialog"');
-    expect(indexHtml).not.toContain('id="sediment-kb-corpus-dialog"');
+    expect(indexHtml).not.toContain('id="knowledge-root-dialog"');
     expect(indexHtml).toContain('id="settings-panel-knowledge"');
-    expect(indexHtml).toContain('id="sediment-kb-corpus-path"');
+    expect(indexHtml).toContain('id="knowledge-root-path"');
     expect(indexHtml).toContain('id="settings-kb-hide-pattern"');
     expect(indexHtml).not.toContain('id="settings-kb-root"');
     expect(indexHtml).not.toContain('id="kb-setting-nav"');
@@ -89,7 +89,7 @@ describe('Settings Knowledge UI', () => {
     expect(mainJs).not.toMatch(/function openSedimentKbCorpusDialog\(/);
     expect(mainJs).not.toMatch(/openSettingsDialog\(\{ panel: 'knowledge'/);
     expect(settingsDialogJs).toMatch(
-      /btn-sediment-kb-corpus-save[\s\S]*?api\.setConfig\(\{ knowledge_corpus_root: knowledgeCorpusRoot \}\)/
+      /btn-knowledge-root-save[\s\S]*?api\.setConfig\(\{ knowledge_root: knowledgeRoot \}\)/
     );
     expect(settingsDialogJs).toMatch(/btn-settings-save-knowledge[\s\S]*?saveKbHidePattern\(pattern\)/);
     expect(mainJs).toMatch(/function renderSedimentKbListByCategory\(/);
@@ -121,10 +121,10 @@ describe('Notes GitHub connection', () => {
 
   it('re-infers on Directory blur even when the path matches the saved snapshot', () => {
     expect(settingsDialogJs).not.toMatch(
-      /if \(!root \|\| root === savedSnapshot\.workbenchKnowledgeRoot\)/,
+      /if \(!root \|\| root === savedSnapshot\.workbenchRoot\)/,
     );
     expect(settingsDialogJs).toContain(
-      'const pathChanged = root !== savedSnapshot.workbenchKnowledgeRoot',
+      'const pathChanged = root !== savedSnapshot.workbenchRoot',
     );
   });
 

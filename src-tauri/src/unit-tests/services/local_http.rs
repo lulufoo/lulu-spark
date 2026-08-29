@@ -59,20 +59,21 @@ fn ephemeral_port() -> u16 {
 
 fn setup_repo_without_index() -> RepoFixture {
     let sandbox = TestSandbox::new();
-    let wb = sandbox.workbench_knowledge_root();
-    fs::create_dir_all(&wb).expect("mkdir corpus");
+    let wb = sandbox.workbench_root();
+    fs::create_dir_all(&wb).expect("mkdir workbench");
     RepoFixture {
         repo_root: sandbox.config_dir().to_path_buf(),
         _sandbox: sandbox,
     }
 }
 
-fn setup_repo_with_corpus() -> RepoFixture {
+fn setup_repo_with_notes() -> RepoFixture {
     let sandbox = TestSandbox::new();
-    let wb = sandbox.workbench_knowledge_root();
-    fs::create_dir_all(wb.join("digest")).expect("mkdir digest");
-    fs::write(wb.join("index.json"), br#"{"entries":[]}"#).expect("index");
-    fs::write(wb.join("digest/note.md"), b"digest body").expect("digest file");
+    let wb = sandbox.workbench_root();
+    let notes = wb.join("notes");
+    fs::create_dir_all(notes.join("digest")).expect("mkdir digest");
+    fs::write(notes.join("index.json"), br#"{"entries":[]}"#).expect("index");
+    fs::write(notes.join("digest/note.md"), b"digest body").expect("digest file");
     RepoFixture {
         repo_root: sandbox.config_dir().to_path_buf(),
         _sandbox: sandbox,
@@ -81,8 +82,8 @@ fn setup_repo_with_corpus() -> RepoFixture {
 
 fn setup_repo_for_read_later() -> RepoFixture {
     let sandbox = TestSandbox::new();
-    let wb = sandbox.workbench_knowledge_root();
-    fs::create_dir_all(&wb).expect("mkdir corpus");
+    let wb = sandbox.workbench_root();
+    fs::create_dir_all(&wb).expect("mkdir workbench");
     RepoFixture {
         repo_root: sandbox.config_dir().to_path_buf(),
         _sandbox: sandbox,
@@ -99,8 +100,8 @@ fn plant_migration_gate(wb: &std::path::Path) {
 
 fn setup_repo_for_todo_task() -> RepoFixture {
     let sandbox = TestSandbox::new();
-    let wb = sandbox.workbench_knowledge_root();
-    fs::create_dir_all(&wb).expect("mkdir corpus");
+    let wb = sandbox.workbench_root();
+    fs::create_dir_all(&wb).expect("mkdir workbench");
     // Happy-path todo HTTP tests assume migration already succeeded (t5 wrote the marker).
     plant_migration_gate(&wb);
     RepoFixture {
@@ -111,8 +112,8 @@ fn setup_repo_for_todo_task() -> RepoFixture {
 
 fn setup_repo_for_todo_task_without_gate() -> RepoFixture {
     let sandbox = TestSandbox::new();
-    let wb = sandbox.workbench_knowledge_root();
-    fs::create_dir_all(&wb).expect("mkdir corpus");
+    let wb = sandbox.workbench_root();
+    fs::create_dir_all(&wb).expect("mkdir workbench");
     RepoFixture {
         repo_root: sandbox.config_dir().to_path_buf(),
         _sandbox: sandbox,
@@ -121,8 +122,9 @@ fn setup_repo_for_todo_task_without_gate() -> RepoFixture {
 
 fn setup_repo_with_catalog() -> CatalogFixture {
     let sandbox = TestSandbox::new();
-    let wb = sandbox.workbench_knowledge_root();
-    fs::create_dir_all(wb.join("digest/ai")).expect("mkdir digest");
+    let wb = sandbox.workbench_root();
+    let notes = wb.join("notes");
+    fs::create_dir_all(notes.join("digest/ai")).expect("mkdir digest");
     let id = "11111111111111111111111111111111";
     let index = json!({
         "entries": {
@@ -133,8 +135,8 @@ fn setup_repo_with_catalog() -> CatalogFixture {
             }
         }
     });
-    fs::write(wb.join("index.json"), index.to_string()).expect("index");
-    fs::write(wb.join("digest/ai/note.md"), b"digest body").expect("digest file");
+    fs::write(notes.join("index.json"), index.to_string()).expect("index");
+    fs::write(notes.join("digest/ai/note.md"), b"digest body").expect("digest file");
     CatalogFixture {
         repo_root: sandbox.config_dir().to_path_buf(),
         id: id.to_string(),
@@ -144,10 +146,11 @@ fn setup_repo_with_catalog() -> CatalogFixture {
 
 fn setup_repo_for_archive() -> RepoFixture {
     let sandbox = TestSandbox::new();
-    let wb = sandbox.workbench_knowledge_root();
-    fs::create_dir_all(wb.join("raw")).expect("mkdir raw");
-    fs::create_dir_all(wb.join("digest")).expect("mkdir digest");
-    fs::write(wb.join("index.json"), br#"{"entries":{}}"#).expect("index");
+    let wb = sandbox.workbench_root();
+    let notes = wb.join("notes");
+    fs::create_dir_all(notes.join("raw")).expect("mkdir raw");
+    fs::create_dir_all(notes.join("digest")).expect("mkdir digest");
+    fs::write(notes.join("index.json"), br#"{"entries":{}}"#).expect("index");
     RepoFixture {
         repo_root: sandbox.config_dir().to_path_buf(),
         _sandbox: sandbox,
@@ -290,12 +293,12 @@ fn with_server<F: FnOnce(u16)>(repo_root: PathBuf, f: F) {
 }
 
 #[test]
-fn get_corpus_catalog_latest_per_topic() {
+fn get_notes_catalog_latest_per_topic() {
     let catalog = setup_repo_with_catalog();
     let repo_root = catalog.repo_root.clone();
     let id = catalog.id.clone();
     with_server(repo_root, |port| {
-        let (status, body) = http_get(port, "/api/corpus-catalog?mode=latest_per_topic");
+        let (status, body) = http_get(port, "/api/notes-catalog?mode=latest_per_topic");
         assert_eq!(status, 200);
         let items = body["items"].as_array().expect("items");
         assert_eq!(items.len(), 1);
@@ -306,25 +309,25 @@ fn get_corpus_catalog_latest_per_topic() {
 }
 
 #[test]
-fn get_corpus_catalog_unsupported_mode_returns_400() {
+fn get_notes_catalog_unsupported_mode_returns_400() {
     let catalog = setup_repo_with_catalog();
     let repo_root = catalog.repo_root.clone();
     with_server(repo_root, |port| {
-        let (status, body) = http_get(port, "/api/corpus-catalog?mode=unknown");
+        let (status, body) = http_get(port, "/api/notes-catalog?mode=unknown");
         assert_eq!(status, 400);
         assert!(body.get("error").is_some());
     });
 }
 
 #[test]
-fn post_corpus_files_returns_batch() {
+fn post_notes_files_returns_batch() {
     let catalog = setup_repo_with_catalog();
     let repo_root = catalog.repo_root.clone();
     let id = catalog.id.clone();
     with_server(repo_root, |port| {
         let (status, body) = http_post(
             port,
-            "/api/corpus-files",
+            "/api/notes-files",
             &json!({ "ids": [id, "22222222222222222222222222222222"] }),
         );
         assert_eq!(status, 200);
@@ -337,23 +340,23 @@ fn post_corpus_files_returns_batch() {
 }
 
 #[test]
-fn post_corpus_files_empty_ids_returns_400() {
+fn post_notes_files_empty_ids_returns_400() {
     let catalog = setup_repo_with_catalog();
     let repo_root = catalog.repo_root.clone();
     with_server(repo_root, |port| {
-        let (status, body) = http_post(port, "/api/corpus-files", &json!({ "ids": [] }));
+        let (status, body) = http_post(port, "/api/notes-files", &json!({ "ids": [] }));
         assert_eq!(status, 400);
         assert!(body.get("error").is_some());
     });
 }
 
 #[test]
-fn get_corpus_index_matches_workbench_read() {
-    let fixture = setup_repo_with_corpus();
+fn get_notes_index_matches_workbench_read() {
+    let fixture = setup_repo_with_notes();
     let repo_root = fixture.repo_root.clone();
-    let expected = crate::services::workbench_read::get_corpus_index(&repo_root);
+    let expected = crate::services::workbench_read::get_notes_index(&repo_root);
     with_server(repo_root, |port| {
-        let (status, body) = http_get(port, "/api/corpus-index");
+        let (status, body) = http_get(port, "/api/notes-index");
         assert_eq!(status, 200);
         assert_eq!(body, expected);
         assert!(body.get("_status").is_none());
@@ -361,11 +364,11 @@ fn get_corpus_index_matches_workbench_read() {
 }
 
 #[test]
-fn get_corpus_file_digest_returns_content() {
-    let fixture = setup_repo_with_corpus();
+fn get_notes_file_digest_returns_content() {
+    let fixture = setup_repo_with_notes();
     let repo_root = fixture.repo_root.clone();
     with_server(repo_root, |port| {
-        let (status, body) = http_get(port, "/api/corpus-file?layer=digest&path=note.md");
+        let (status, body) = http_get(port, "/api/notes-file?layer=digest&path=note.md");
         assert_eq!(status, 200);
         assert_eq!(body["content"], "digest body");
     });
@@ -373,7 +376,7 @@ fn get_corpus_file_digest_returns_content() {
 
 #[test]
 fn get_status_returns_ok_and_http_port() {
-    let fixture = setup_repo_with_corpus();
+    let fixture = setup_repo_with_notes();
     let repo_root = fixture.repo_root.clone();
     let port = ephemeral_port();
     let handle = start(repo_root, port).expect("start");
@@ -435,7 +438,7 @@ fn get_infer_github_user_url_reads_origin() {
     )
     .expect("remote add")
     .success);
-    let fixture = setup_repo_with_corpus();
+    let fixture = setup_repo_with_notes();
     let repo_root = fixture.repo_root.clone();
     let encoded = urlencoding::encode(dir.path().to_str().unwrap());
     with_server(repo_root, |port| {
@@ -453,26 +456,27 @@ fn get_infer_github_user_url_reads_origin() {
 }
 
 #[test]
-fn get_corpus_file_raw_layer_returns_400() {
-    let fixture = setup_repo_with_corpus();
+fn get_notes_file_raw_layer_returns_400() {
+    let fixture = setup_repo_with_notes();
     let repo_root = fixture.repo_root.clone();
     with_server(repo_root, |port| {
-        let (status, body) = http_get(port, "/api/corpus-file?layer=raw&path=x");
+        let (status, body) = http_get(port, "/api/notes-file?layer=raw&path=x");
         assert_eq!(status, 400);
         assert!(body.get("error").is_some());
     });
 }
 
 #[test]
-fn get_corpus_asset_raw_returns_base64_png() {
+fn get_notes_asset_raw_returns_base64_png() {
     let sandbox = TestSandbox::new();
-    let wb = sandbox.workbench_knowledge_root();
-    fs::create_dir_all(wb.join("raw/ai")).expect("mkdir raw");
-    fs::write(wb.join("raw/ai/note.png"), b"\x89PNG\r\n").expect("png");
-    fs::write(wb.join("raw/ai/note.md"), b"# note").expect("md");
+    let wb = sandbox.workbench_root();
+    let notes = wb.join("notes");
+    fs::create_dir_all(notes.join("raw/ai")).expect("mkdir raw");
+    fs::write(notes.join("raw/ai/note.png"), b"\x89PNG\r\n").expect("png");
+    fs::write(notes.join("raw/ai/note.md"), b"# note").expect("md");
     let repo_root = sandbox.config_dir().to_path_buf();
     with_server(repo_root, |port| {
-        let q = "/api/corpus-asset?layer=raw&base=ai/note.md&href=note.png";
+        let q = "/api/notes-asset?layer=raw&base=ai/note.md&href=note.png";
         let (status, body) = http_get(port, q);
         assert_eq!(status, 200);
         assert!(body.get("data_b64").and_then(|x| x.as_str()).is_some());
@@ -485,7 +489,7 @@ fn maps_workbench_read_status_404_without_status_in_body() {
     let fixture = setup_repo_without_index();
     let repo_root = fixture.repo_root.clone();
     with_server(repo_root, |port| {
-        let (status, body) = http_get(port, "/api/corpus-index");
+        let (status, body) = http_get(port, "/api/notes-index");
         assert_eq!(status, 404);
         assert!(body.get("error").is_some());
         assert!(body.get("_status").is_none());
@@ -494,7 +498,7 @@ fn maps_workbench_read_status_404_without_status_in_body() {
 
 #[test]
 fn start_fails_when_port_in_use_without_panic() {
-    let fixture = setup_repo_with_corpus();
+    let fixture = setup_repo_with_notes();
     let repo_root = fixture.repo_root.clone();
     let port = ephemeral_port();
     let _guard = TcpListener::bind(format!("127.0.0.1:{port}")).expect("occupy port");
@@ -514,7 +518,7 @@ Summary body here.
 "#;
 
 #[test]
-fn post_archive_document_and_digest() {
+fn post_create_note_and_digest() {
     let fixture = setup_repo_for_archive();
     let stage_dir = fixture._sandbox.cache_dir().join("archive_source_stage");
     fs::create_dir_all(&stage_dir).expect("stage dir");
@@ -525,7 +529,7 @@ fn post_archive_document_and_digest() {
     with_server(repo_root, |port| {
         let (status, body) = http_post(
             port,
-            "/api/archive-document",
+            "/api/create-note",
             &json!({
                 "source_path": source_path.to_str().unwrap(),
                 "source_type": "summary",
@@ -536,7 +540,7 @@ fn post_archive_document_and_digest() {
         let id = body["id"].as_str().expect("id");
         let (d_status, d_body) = http_post(
             port,
-            "/api/archive-digest",
+            "/api/create-note-digest",
             &json!({ "id": id, "digest": "# T — 摘要\n\n## 概述\n\nok" }),
         );
         assert_eq!(d_status, 200);
@@ -545,13 +549,13 @@ fn post_archive_document_and_digest() {
 }
 
 #[test]
-fn post_archive_document_rejects_document_field() {
+fn post_create_note_rejects_document_field() {
     let fixture = setup_repo_for_archive();
     let repo_root = fixture.repo_root.clone();
     with_server(repo_root, |port| {
         let (status, body) = http_post(
             port,
-            "/api/archive-document",
+            "/api/create-note",
             &json!({ "document": SAMPLE_DOC }),
         );
         assert_eq!(status, 400);
@@ -567,7 +571,7 @@ fn post_archive_document_rejects_document_field() {
 
 #[test]
 fn post_unknown_returns_404() {
-    let fixture = setup_repo_with_corpus();
+    let fixture = setup_repo_with_notes();
     let repo_root = fixture.repo_root.clone();
     with_server(repo_root, |port| {
         let (status, body) = http_get(port, "/api/unknown");
@@ -595,21 +599,21 @@ fn default_http_port_is_8765() {
 
 #[test]
 fn local_http_state_start_sets_http_ready_and_listens() {
-    let fixture = setup_repo_with_corpus();
+    let fixture = setup_repo_with_notes();
     let repo_root = fixture.repo_root.clone();
     let state = LocalHttpState::new();
     let port = ephemeral_port();
     state.try_start(repo_root, port);
     assert!(state.is_ready());
     thread::sleep(Duration::from_millis(50));
-    let (status, _) = http_get(port, "/api/corpus-index");
+    let (status, _) = http_get(port, "/api/notes-index");
     assert_eq!(status, 200);
     state.stop();
 }
 
 #[test]
 fn local_http_state_stop_clears_http_ready_and_releases_port() {
-    let fixture = setup_repo_with_corpus();
+    let fixture = setup_repo_with_notes();
     let repo_root = fixture.repo_root.clone();
     let state = LocalHttpState::new();
     let port = ephemeral_port();
@@ -623,7 +627,7 @@ fn local_http_state_stop_clears_http_ready_and_releases_port() {
 
 #[test]
 fn local_http_state_three_cycles_no_port_leak() {
-    let fixture = setup_repo_with_corpus();
+    let fixture = setup_repo_with_notes();
     let repo_root = fixture.repo_root.clone();
     let state = LocalHttpState::new();
     let port = ephemeral_port();
@@ -640,7 +644,7 @@ fn local_http_state_three_cycles_no_port_leak() {
 
 #[test]
 fn local_http_state_bind_failure_keeps_http_ready_false() {
-    let fixture = setup_repo_with_corpus();
+    let fixture = setup_repo_with_notes();
     let repo_root = fixture.repo_root.clone();
     let port = ephemeral_port();
     let _guard = TcpListener::bind(format!("127.0.0.1:{port}")).expect("occupy port");
@@ -767,7 +771,7 @@ fn patch_read_later_unknown_id_returns_404_with_cors() {
 
 #[test]
 fn patch_non_read_later_path_returns_405() {
-    let fixture = setup_repo_with_corpus();
+    let fixture = setup_repo_with_notes();
     let repo_root = fixture.repo_root.clone();
     with_server(repo_root, |port| {
         let (status, _) =
@@ -778,7 +782,7 @@ fn patch_non_read_later_path_returns_405() {
 
 #[test]
 fn options_non_read_later_path_returns_405() {
-    let fixture = setup_repo_with_corpus();
+    let fixture = setup_repo_with_notes();
     let repo_root = fixture.repo_root.clone();
     with_server(repo_root, |port| {
         let (status, _) = http_options(port, "/api/status");
@@ -932,7 +936,7 @@ fn post_todo_task_create_response_ac5_field_matrix() {
         assert_eq!(body["task"]["sub_tasks"][0]["title"], "Sub A");
         assert_eq!(body["task"]["sub_tasks"][0]["implicit"], false);
 
-        let wb = crate::config::paths::workbench_knowledge_root().expect("wb");
+        let wb = crate::config::paths::workbench_root().expect("wb");
         let master_id = body["master_task_id"].as_str().unwrap();
         assert!(
             wb.join("todo_tasks")
@@ -989,7 +993,7 @@ fn http_list_get_create_carry_tri_state_status_including_abandoned() {
         assert_ac5_master_task_shape(&create_body["task"]);
         assert_eq!(create_body["task"]["status"], "incomplete");
 
-        let wb = crate::config::paths::workbench_knowledge_root().expect("wb");
+        let wb = crate::config::paths::workbench_root().expect("wb");
         let complete_id = "task_http_status_complete";
         let abandoned_id = "task_http_status_abandoned";
         seed_v2_todo_for_http(
@@ -1073,7 +1077,7 @@ fn post_todo_task_set_status_updates_master_and_reads_back_consistently() {
                 .expect("master in list");
             assert_eq!(listed["status"], target);
 
-            let wb = crate::config::paths::workbench_knowledge_root().expect("wb");
+            let wb = crate::config::paths::workbench_root().expect("wb");
             let index: Value = serde_json::from_str(
                 &fs::read_to_string(wb.join("todo_tasks").join("index.json")).unwrap(),
             )
@@ -1564,7 +1568,7 @@ fn get_todo_tasks_todo_md_matches_disk_bytes() {
             .as_str()
             .expect("master_task_id");
 
-        let wb = crate::config::paths::workbench_knowledge_root().expect("wb");
+        let wb = crate::config::paths::workbench_root().expect("wb");
         let plan_path = wb
             .join("todo_tasks")
             .join("tasks")
@@ -1600,7 +1604,7 @@ fn get_todo_tasks_empty_todo_md_matches_empty_disk_file() {
             .as_str()
             .expect("master_task_id");
 
-        let wb = crate::config::paths::workbench_knowledge_root().expect("wb");
+        let wb = crate::config::paths::workbench_root().expect("wb");
         let plan_path = wb
             .join("todo_tasks")
             .join("tasks")
@@ -1661,7 +1665,7 @@ fn post_todo_task_create_with_todo_md_persists_and_lists() {
             .as_str()
             .expect("master_task_id");
 
-        let wb = crate::config::paths::workbench_knowledge_root().expect("wb");
+        let wb = crate::config::paths::workbench_root().expect("wb");
         let plan_path = wb
             .join("todo_tasks")
             .join("tasks")
@@ -1709,7 +1713,7 @@ fn get_todo_tasks_migration_error_plan_still_in_list() {
     let fixture = setup_repo_for_todo_task();
     let repo_root = fixture.repo_root.clone();
     with_server(repo_root, |port| {
-        let wb = crate::config::paths::workbench_knowledge_root().expect("wb");
+        let wb = crate::config::paths::workbench_root().expect("wb");
         let master_id = "task_http_migrate_err";
         seed_v2_todo_for_http(
             &wb,
@@ -1980,7 +1984,7 @@ fn todo_task_attachment_http_has_no_delete_or_ui_paths() {
 #[test]
 fn todo_api_gate_missing_marker_keeps_todo_http_gated_while_status_ok() {
     let fixture = setup_repo_for_todo_task_without_gate();
-    let wb = crate::config::paths::workbench_knowledge_root().expect("wb");
+    let wb = crate::config::paths::workbench_root().expect("wb");
     let repo_root = fixture.repo_root.clone();
     with_server(repo_root, |port| {
         let (status_ok, status_body) = http_get(port, "/api/status");
@@ -2017,7 +2021,7 @@ fn todo_api_gate_missing_marker_keeps_todo_http_gated_while_status_ok() {
 #[test]
 fn todo_api_gate_missing_marker_does_not_auto_migrate_on_startup() {
     let sandbox = TestSandbox::new();
-    let wb = sandbox.workbench_knowledge_root();
+    let wb = sandbox.workbench_root();
     let plan_root = wb.join("plan_tasks");
     fs::create_dir_all(plan_root.join("tasks")).expect("mkdir plan_tasks/tasks");
     fs::write(
@@ -2067,7 +2071,7 @@ fn todo_api_gate_passed_marker_opens_todo_http() {
 #[test]
 fn todo_api_gate_cold_restart_rereads_durable_marker_not_process_exit_code() {
     let sandbox = TestSandbox::new();
-    let wb = sandbox.workbench_knowledge_root();
+    let wb = sandbox.workbench_root();
     fs::create_dir_all(&wb).expect("mkdir wb");
     let repo_root = sandbox.config_dir().to_path_buf();
 
@@ -2095,7 +2099,7 @@ fn todo_api_gate_cold_restart_rereads_durable_marker_not_process_exit_code() {
 #[test]
 fn todo_api_gate_rereads_marker_while_server_running() {
     let sandbox = TestSandbox::new();
-    let wb = sandbox.workbench_knowledge_root();
+    let wb = sandbox.workbench_root();
     fs::create_dir_all(&wb).expect("mkdir wb");
     let repo_root = sandbox.config_dir().to_path_buf();
     with_server(repo_root, |port| {
@@ -2343,7 +2347,7 @@ fn todo_task_comment_http_surfaces_service_errors() {
     with_server(repo_root, |port| {
         let master_id = create_todo_master_id(port, "Bad comments file");
 
-        let wb = crate::config::paths::workbench_knowledge_root().expect("wb");
+        let wb = crate::config::paths::workbench_root().expect("wb");
         let comments_path = wb
             .join("todo_tasks")
             .join("tasks")
@@ -2742,7 +2746,7 @@ fn t5_repo_file(rel: &str) -> String {
 /// Exception: Sidecar no longer serves GET/PUT /api/notes-selection.
 #[test]
 fn notes_selection_http_route_is_gone() {
-    let fixture = setup_repo_with_corpus();
+    let fixture = setup_repo_with_notes();
     let repo_root = fixture.repo_root.clone();
     with_server(repo_root, |port| {
         let (get_status, get_body) = http_get(port, NOTES_SELECTION_API);

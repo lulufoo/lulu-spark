@@ -5,7 +5,7 @@ import type { HostIndexAnnotation, HostNoteEntry } from './host/snapshot-types.t
 import { buildGroups, selectDate, applyListFilters, selectTag } from './notes/commands/sidebar.ts';
 import { openCreateNote } from './notes/viewer.ts';
 import './notes/ui/comments.tsx';
-import './corpus/viewer.ts';
+import './knowledge/viewer.ts';
 import './app-shell/ui/commit-dialog.tsx';
 import './app-shell/ui/qr-dialog.tsx';
 import { navigate, navigateToNote } from './router/index.ts';
@@ -20,13 +20,13 @@ import { createNotesContentAdapter } from './notes/ui/assistant.tsx';
 import { createBuildersContentAdapter } from './builders/ui/assistant.tsx';
 import { setWorkbenchBinding } from './todo-task/commands/binding.ts';
 import { initHeaderSync } from './app-shell/commands/header-sync.ts';
-import { normalizeCorpusIndex } from './corpus/state/index.ts';
+import { normalizeKnowledgeIndex } from './knowledge/state/index.ts';
 import './app-shell/ui/settings/sediment-kb.tsx';
 import { initTooltip } from './app-shell/ui/tooltip.ts';
 import './app-shell/ui/skills-dialog.tsx';
 import {
   getHomeEntryShell,
-  mountCorpusDocRoute,
+  mountKnowledgeDocRoute,
   mountHomeRoute,
   mountReadLaterRoute,
   mountTodoTasksRoute,
@@ -57,7 +57,7 @@ async function loadIndex({ managedBtn = false }: { managedBtn?: boolean } = {}) 
   void managedBtn;
   try {
     const data = await api.fetchIndex();
-    state.index.data = normalizeCorpusIndex(data) as Record<string, HostNoteEntry>;
+    state.index.data = normalizeKnowledgeIndex(data) as Record<string, HostNoteEntry>;
     state.index.groupedByDate = buildGroups(state.index.data);
     state.ui.activeTopic = null;
     state.ui.activeTagKey = null;
@@ -140,8 +140,8 @@ document.addEventListener('cta:reload', () => loadIndex());
 
 api.fetchConfig().then((d) => {
   const cfg = d as SettingsConfig;
-  state.ui.workbenchKnowledgeRoot = cfg.workbench_knowledge_root || '';
-  state.ui.knowledgeCorpusRoot = cfg.knowledge_corpus_root || '';
+  state.ui.workbenchRoot = cfg.workbench_root || '';
+  state.ui.knowledgeRoot = cfg.knowledge_root || '';
   state.ui.githubUserUrl = cfg.github_user_url || '';
   setGithubUserUrl(cfg.github_user_url);
 }).catch(() => {});
@@ -164,7 +164,7 @@ loadIndex();
 setRouteHandlers({
   workbench: wrapRouteMount('workbench', (route) => mountWorkbench(route)),
   home: wrapRouteMount('home', mountHomeRoute),
-  'corpus-doc': wrapRouteMount('corpus-doc', mountCorpusDocRoute),
+  'knowledge-doc': wrapRouteMount('knowledge-doc', mountKnowledgeDocRoute),
   'read-later': wrapRouteMount('read-later', mountReadLaterRoute),
   'todo-tasks': wrapRouteMount('todo-tasks', mountTodoTasksRoute),
 }, '#/home');
@@ -204,7 +204,10 @@ const homeEntryShell = mountHomeEntryShell(document.body, {
   },
 });
 setHomeEntryShell(homeEntryShell);
-void setWorkbenchBinding();
+console.info('[DEBUG-assistant] boot: setWorkbenchBinding');
+void setWorkbenchBinding().then((result) => {
+  console.info('[DEBUG-assistant] boot: setWorkbenchBinding result', result);
+});
 
 /** Present-before-listen race buffer (L11-AR). Cleared on pull / successful open. */
 let pendingPresentOpen = false;
@@ -307,5 +310,5 @@ document.addEventListener('cta:open-entry', (event) => {
 document.addEventListener('cta:open-kb-doc', (event) => {
   const detail = (event as CustomEvent<{ repo?: string; path?: string }>).detail;
   if (!detail || !detail.repo || !detail.path) return;
-  navigate('#/corpus/' + encodeURIComponent(detail.repo) + '?path=' + encodeURIComponent(detail.path));
+  navigate('#/knowledge/' + encodeURIComponent(detail.repo) + '?path=' + encodeURIComponent(detail.path));
 });

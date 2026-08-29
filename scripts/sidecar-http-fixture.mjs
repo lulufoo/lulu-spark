@@ -41,7 +41,7 @@ export function startSidecarHttpFixture(port) {
       return;
     }
 
-    if (req.method === 'GET' && url.pathname === '/api/corpus-catalog') {
+    if (req.method === 'GET' && url.pathname === '/api/notes-catalog') {
       respondJson(res, 200, { items: [] });
       return;
     }

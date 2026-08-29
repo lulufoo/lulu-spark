@@ -6,16 +6,16 @@ export {
 } from './api/transport.ts';
 
 export {
-  archiveDocument,
+  createNote,
   checkFileExists,
-  checkWorkbenchKnowledgeRoot,
+  checkWorkbenchRoot,
   clearNoteDraft,
   commitFiles,
   deleteEntry,
   fetchAnnotation,
   fetchAnnotationsSummary,
   fetchConfig,
-  fetchCorpusAssetAsBlobUrl,
+  fetchNotesAssetAsBlobUrl,
   fetchDiffStatus,
   fetchDocHighlights,
   fetchFileContent,
@@ -75,7 +75,7 @@ export {
   saveKbFile,
   searchKnowledge,
   searchWorkbench,
-  syncKnowledgeCorpus,
+  syncKnowledge,
   updateKbComment,
   updateKbHighlight,
   updateKbLinks,

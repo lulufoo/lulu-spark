@@ -168,7 +168,7 @@ system prompt 内嵌一级索引（0次读取）
 | 沉淀知识 | 笔记达标 → 一键同步 → 写入知识仓库 → 自动 upsert 索引 |
 | AI 查知识库 | system prompt 含一级索引 → `gh api` 读 `_index.md` → `gh api` 读文档 |
 | 维护 corpus 成员 | 编辑 `.cache/knowledge-index.json` 并提交 |
-| 同步 topics / ↷ 切换项目 | 沉淀知识库 `sediment-kb/repos.json`；前端经 `GET /api/topics` 读取 |
+| 同步 topics / ↷ 切换项目 | Knowledge 登记 `knowledge/repos.json`；前端经 `GET /api/topics` 读取 |
 | 首次建搜索索引 | App 内 **重建索引**（`reindex_knowledge` / `reindex_workbench`） |
 
 ---

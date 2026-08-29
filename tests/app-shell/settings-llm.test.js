@@ -12,7 +12,7 @@ vi.mock('../../frontend/src/host/api.ts', () => ({
   fetchConfig: vi.fn(),
   setConfig: vi.fn(),
   inferGithubUserUrl: vi.fn(),
-  checkWorkbenchKnowledgeRoot: vi.fn(),
+  checkWorkbenchRoot: vi.fn(),
 }));
 
 import * as api from '../../frontend/src/host/api.ts';
@@ -35,8 +35,8 @@ function mountSettingsDom() {
 
 function baseConfig(overrides = {}) {
   return {
-    workbench_knowledge_root: '',
-    knowledge_corpus_root: '',
+    workbench_root: '',
+    knowledge_root: '',
     github_user_url: '',
     workbench_github_repo_url: '',
     has_github_token: false,

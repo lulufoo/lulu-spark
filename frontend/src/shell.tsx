@@ -7,9 +7,9 @@ import { SettingsDialogChrome } from './app-shell/ui/settings/chrome.tsx';
 import { SkillsDialog, _openSkillsDialog } from './app-shell/ui/skills-dialog.tsx';
 
 void SettingsDialogChrome;
-import { KbCommentDialog } from './corpus/ui/comments.tsx';
-import { KbDiffDialog } from './corpus/ui/diff-dialog.tsx';
-import { KbCommitDialog } from './corpus/ui/viewer/commit.tsx';
+import { KbCommentDialog } from './knowledge/ui/comments.tsx';
+import { KbDiffDialog } from './knowledge/ui/diff-dialog.tsx';
+import { KbCommitDialog } from './knowledge/ui/viewer/commit.tsx';
 import { NoteCommentDialog } from './notes/ui/comments.tsx';
 import { DeleteDialog } from './notes/ui/delete-dialog.tsx';
 import { MoveProjectDialog } from './notes/ui/move-project-dialog.tsx';
@@ -19,7 +19,7 @@ import { ReadLaterDialog } from './read-later/ui/dialog.tsx';
 import { CommentDeleteDialog } from './shared/comment-delete.tsx';
 import { TodoTaskDialog } from './todo-task/ui/dialog.tsx';
 import { WorkbenchSearch } from './notes/ui/search.tsx';
-import { CorpusSearch } from './corpus/ui/search.tsx';
+import { KnowledgeSearch } from './knowledge/ui/search.tsx';
 
 function closeMenuDropdowns() {
   document.getElementById('sync-menu-dropdown')?.classList.remove('open');
@@ -38,7 +38,7 @@ export function Shell() {
           <a id="btn-nav-home" href="#/home" className="header-nav-back" hidden>← Home</a>
         </h1>
         <WorkbenchSearch />
-        <CorpusSearch />
+        <KnowledgeSearch />
         <a href="https://github.com/lulufoo/lulu-workbench" target="_blank">GitHub ↗</a>
         <div id="sync-menu-wrap">
           <button id="btn-sync-menu">⇕ Sync</button>

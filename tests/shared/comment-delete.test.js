@@ -16,7 +16,7 @@ import {
   CommentDeleteDialog,
   confirmDeleteComment,
   removeKbComment,
-  removeCorpusComment,
+  removeNoteComment,
 } from '../../frontend/src/shared/comment-delete.tsx';
 
 function mountCommentDeleteDialog() {
@@ -87,7 +87,7 @@ describe('removeKbComment', () => {
   });
 });
 
-describe('removeCorpusComment', () => {
+describe('removeNoteComment', () => {
   const entry = { common_path: 'ai/note.md' };
   const layer = 'raw';
   const comment = { id: 'c1', text: 'note' };
@@ -100,7 +100,7 @@ describe('removeCorpusComment', () => {
 
   it('成功时从 layer.comments 移除对应项', async () => {
     api.updateComments.mockResolvedValue({ ok: true });
-    await removeCorpusComment(comment, layer, entry);
+    await removeNoteComment(comment, layer, entry);
     expect(api.updateComments).toHaveBeenCalledWith(
       'ai/note.md',
       'raw',
@@ -113,24 +113,24 @@ describe('removeCorpusComment', () => {
   it('删除最后一条时移除 layer 键', async () => {
     state.viewer.annotation = { raw: { comments: [comment] } };
     api.updateComments.mockResolvedValue({ ok: true });
-    await removeCorpusComment(comment, layer, entry);
+    await removeNoteComment(comment, layer, entry);
     expect(state.viewer.annotation.raw).toBeUndefined();
   });
 
   it('API 返回 ok:false 时抛出错误', async () => {
     api.updateComments.mockResolvedValue({ ok: false, error: 'Comment not found' });
-    await expect(removeCorpusComment(comment, layer, entry)).rejects.toThrow('Comment not found');
+    await expect(removeNoteComment(comment, layer, entry)).rejects.toThrow('Comment not found');
     expect(state.viewer.annotation.raw.comments).toHaveLength(2);
   });
 });
 
 describe('note delete does not use window.confirm', () => {
-  it('corpus-comments and notes/comments source do not use window.confirm', () => {
-    const kbSrc = readFrontendJs('frontend/src/corpus/ui/comments.tsx');
-    const corpusSrc = readFrontendJs('frontend/src/notes/ui/comments.tsx');
+  it('knowledge comments and notes comments source do not use window.confirm', () => {
+    const kbSrc = readFrontendJs('frontend/src/knowledge/ui/comments.tsx');
+    const notesSrc = readFrontendJs('frontend/src/notes/ui/comments.tsx');
     expect(kbSrc).not.toContain('window.confirm');
     expect(kbSrc).toContain('confirmDeleteComment');
-    expect(corpusSrc).not.toContain('window.confirm');
-    expect(corpusSrc).toContain('confirmDeleteComment');
+    expect(notesSrc).not.toContain('window.confirm');
+    expect(notesSrc).toContain('confirmDeleteComment');
   });
 });

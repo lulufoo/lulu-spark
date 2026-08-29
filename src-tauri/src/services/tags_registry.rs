@@ -1,4 +1,4 @@
-//! Tags registry (`corpus/tags/registry.json`) — refs, reconcile.
+//! Tags registry (`notes/tags/registry.json`) — refs, reconcile.
 
 use std::collections::HashMap;
 use std::fs;
@@ -6,21 +6,21 @@ use std::path::{Path, PathBuf};
 
 use serde_json::{json, Map, Value};
 
-use crate::config::meili_env::workbench_knowledge_root_path;
+use crate::config::meili_env::notes_root_path;
 use crate::repositories::annotation_paths::annotation_json_path;
 use crate::repositories::atomic_json;
 use crate::services::annotation::read_annotation_object;
 
-pub fn registry_path(corpus: &Path) -> PathBuf {
-    corpus.join("tags/registry.json")
+pub fn registry_path(notes: &Path) -> PathBuf {
+    notes.join("tags/registry.json")
 }
 
 pub fn empty_registry() -> Value {
     json!({ "keys": {} })
 }
 
-pub fn read_registry(corpus: &Path) -> Value {
-    let path = registry_path(corpus);
+pub fn read_registry(notes: &Path) -> Value {
+    let path = registry_path(notes);
     if !path.is_file() {
         return empty_registry();
     }
@@ -30,8 +30,8 @@ pub fn read_registry(corpus: &Path) -> Value {
     serde_json::from_str(&text).unwrap_or_else(|_| empty_registry())
 }
 
-pub fn save_registry(corpus: &Path, registry: &Value) -> Option<Value> {
-    let path = registry_path(corpus);
+pub fn save_registry(notes: &Path, registry: &Value) -> Option<Value> {
+    let path = registry_path(notes);
     if let Some(parent) = path.parent() {
         if let Err(e) = fs::create_dir_all(parent) {
             return Some(json!({ "error": e.to_string(), "_status": 500 }));
@@ -98,7 +98,7 @@ pub fn remove_key_if_zero(registry: &mut Value, key: &str) {
     }
 }
 
-fn index_common_paths(corpus: &Path, index_path: &Path) -> Option<Vec<String>> {
+fn index_common_paths(notes: &Path, index_path: &Path) -> Option<Vec<String>> {
     let text = fs::read_to_string(index_path).ok()?;
     let index_data: Value = serde_json::from_str(&text).ok()?;
     let entries = index_data
@@ -126,18 +126,18 @@ fn index_common_paths(corpus: &Path, index_path: &Path) -> Option<Vec<String>> {
 }
 
 pub fn reconcile_tags(repo_root: &Path) -> Option<Value> {
-    let corpus = workbench_knowledge_root_path(repo_root);
-    let index_path = corpus.join("index.json");
+    let notes = notes_root_path(repo_root);
+    let index_path = notes.join("index.json");
     if !index_path.is_file() {
         return None;
     }
-    let paths = index_common_paths(&corpus, &index_path)?;
-    let old = read_registry(&corpus);
+    let paths = index_common_paths(&notes, &index_path)?;
+    let old = read_registry(&notes);
 
     let old_keys = old.get("keys").and_then(|v| v.as_object());
     let mut ref_counts: HashMap<String, u32> = HashMap::new();
     for common_path in &paths {
-        let ann = read_annotation_object(&corpus, common_path);
+        let ann = read_annotation_object(&notes, common_path);
         let Some(arr) = ann.get("tag_keys").and_then(|v| v.as_array()) else {
             continue;
         };
@@ -168,7 +168,7 @@ pub fn reconcile_tags(repo_root: &Path) -> Option<Value> {
     let new_registry = json!({ "keys": new_keys });
 
     for common_path in &paths {
-        let ann = read_annotation_object(&corpus, common_path);
+        let ann = read_annotation_object(&notes, common_path);
         let Value::Object(mut map) = ann else {
             continue;
         };
@@ -197,7 +197,7 @@ pub fn reconcile_tags(repo_root: &Path) -> Option<Value> {
         } else {
             map.insert("tag_keys".into(), Value::Array(valid));
         }
-        let Some(target) = annotation_json_path(&corpus, common_path) else {
+        let Some(target) = annotation_json_path(&notes, common_path) else {
             return Some(json!({ "error": "Invalid common_path", "_status": 400 }));
         };
         if let Err(e) = atomic_json::write_json(&target, &Value::Object(map)) {
@@ -205,7 +205,7 @@ pub fn reconcile_tags(repo_root: &Path) -> Option<Value> {
         }
     }
 
-    save_registry(&corpus, &new_registry)
+    save_registry(&notes, &new_registry)
 }
 
 #[cfg(test)]

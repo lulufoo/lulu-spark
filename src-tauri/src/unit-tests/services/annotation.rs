@@ -1,15 +1,15 @@
 use super::*;
 use std::fs;
 
-use crate::test_support::with_sandbox_corpus;
+use crate::test_support::with_sandbox_notes;
 
 #[test]
 fn set_done_true_writes_done_key() {
-    with_sandbox_corpus(true, |dir, corpus| {
+    with_sandbox_notes(true, |dir, notes| {
         let cp = "ai/note-done.md";
         let v = set_done(dir, cp, true);
         assert_eq!(v["ok"], json!(true));
-        let p = annotation_json_path(&corpus, cp).expect("path");
+        let p = annotation_json_path(&notes, cp).expect("path");
         let read: Value =
             serde_json::from_str(&fs::read_to_string(&p).expect("read")).expect("json");
         assert_eq!(read["done"], json!(true));
@@ -18,11 +18,11 @@ fn set_done_true_writes_done_key() {
 
 #[test]
 fn set_importance_high() {
-    with_sandbox_corpus(true, |dir, corpus| {
+    with_sandbox_notes(true, |dir, notes| {
         let cp = "ai/note-importance.md";
         let v = set_importance(dir, cp, Some("high".into()));
         assert_eq!(v["ok"], json!(true));
-        let p = annotation_json_path(&corpus, cp).expect("path");
+        let p = annotation_json_path(&notes, cp).expect("path");
         let read: Value =
             serde_json::from_str(&fs::read_to_string(&p).expect("read")).expect("json");
         assert_eq!(read["importance"], json!("high"));
@@ -31,7 +31,7 @@ fn set_importance_high() {
 
 #[test]
 fn update_comments_new_returns_id() {
-    with_sandbox_corpus(true, |dir, _corpus| {
+    with_sandbox_notes(true, |dir, _notes| {
         let v = update_comments(
             dir,
             "ai/note-comments.md",
@@ -46,7 +46,7 @@ fn update_comments_new_returns_id() {
 
 #[test]
 fn update_links_invalid_url() {
-    with_sandbox_corpus(true, |dir, _corpus| {
+    with_sandbox_notes(true, |dir, _notes| {
         let v = update_links(
             dir,
             "ai/note-bad-url.md",
@@ -58,7 +58,7 @@ fn update_links_invalid_url() {
 
 #[test]
 fn update_links_invalid_common_path() {
-    with_sandbox_corpus(true, |dir, _corpus| {
+    with_sandbox_notes(true, |dir, _notes| {
         let v = update_links(
             dir,
             "../evil.md",
@@ -71,12 +71,12 @@ fn update_links_invalid_common_path() {
 
 #[test]
 fn update_links_persists_links_array() {
-    with_sandbox_corpus(true, |dir, corpus| {
+    with_sandbox_notes(true, |dir, notes| {
         let cp = "ai/note-links.md";
         let links = json!([{ "url": "https://github.com/foo/bar" }]);
         let v = update_links(dir, cp, links.clone());
         assert_eq!(v["ok"], json!(true));
-        let p = annotation_json_path(&corpus, cp).expect("path");
+        let p = annotation_json_path(&notes, cp).expect("path");
         let read: Value =
             serde_json::from_str(&fs::read_to_string(&p).expect("read")).expect("json");
         assert_eq!(read["links"], links);
@@ -85,7 +85,7 @@ fn update_links_persists_links_array() {
 
 #[test]
 fn update_links_empty_array_removes_links_key() {
-    with_sandbox_corpus(true, |dir, corpus| {
+    with_sandbox_notes(true, |dir, notes| {
         let cp = "ai/note-clear-links.md";
         let seed = update_links(
             dir,
@@ -95,14 +95,14 @@ fn update_links_empty_array_removes_links_key() {
         assert_eq!(seed["ok"], json!(true));
         let v = update_links(dir, cp, json!([]));
         assert_eq!(v["ok"], json!(true));
-        let p = annotation_json_path(&corpus, cp).expect("path");
+        let p = annotation_json_path(&notes, cp).expect("path");
         assert!(!p.exists());
     });
 }
 
 #[test]
 fn update_links_creates_annotation_when_topic_dir_missing() {
-    with_sandbox_corpus(false, |dir, corpus| {
+    with_sandbox_notes(false, |dir, notes| {
         let cp = "inbox/new-note.md";
         let v = update_links(
             dir,
@@ -110,14 +110,14 @@ fn update_links_creates_annotation_when_topic_dir_missing() {
             json!([{ "url": "https://github.com/foo/bar" }]),
         );
         assert_eq!(v["ok"], json!(true));
-        let p = annotation_json_path(&corpus, cp).expect("path");
+        let p = annotation_json_path(&notes, cp).expect("path");
         assert!(p.is_file());
     });
 }
 
 #[test]
 fn reorder_comments_persists_new_order() {
-    with_sandbox_corpus(true, |dir, corpus| {
+    with_sandbox_notes(true, |dir, notes| {
         let cp = "ai/note-reorder.md";
         let seed = update_comments(
             dir,
@@ -153,7 +153,7 @@ fn reorder_comments_persists_new_order() {
         );
         assert_eq!(v["ok"], json!(true));
 
-        let p = annotation_json_path(&corpus, cp).expect("path");
+        let p = annotation_json_path(&notes, cp).expect("path");
         let read: Value =
             serde_json::from_str(&fs::read_to_string(&p).expect("read")).expect("json");
         let ids: Vec<String> = read["raw"]["comments"]
@@ -195,7 +195,7 @@ fn repro_legacy_reorder_drops_unknown_id_without_error() {
 
 #[test]
 fn reorder_comments_rejects_unknown_id() {
-    with_sandbox_corpus(true, |dir, _corpus| {
+    with_sandbox_notes(true, |dir, _notes| {
         let cp = "ai/note-reorder-bad.md";
         let seed = update_comments(
             dir,
@@ -213,7 +213,7 @@ fn reorder_comments_rejects_unknown_id() {
 
 #[test]
 fn repro_reorder_invalid_common_path_returns_400() {
-    with_sandbox_corpus(true, |dir, _corpus| {
+    with_sandbox_notes(true, |dir, _notes| {
         let v = reorder_comments(dir, "../evil.md", "raw", vec!["x".into()]);
         assert_eq!(v["error"], "Invalid common_path");
         assert_eq!(v["_status"], 400);

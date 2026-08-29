@@ -144,12 +144,12 @@ fn assert_uniform_401(status: u16, body: &str, secret: Option<&str>) {
     );
 }
 
-/// Corpus tools from Node `buildServer()` when `includeCorpus` is true.
-const CORPUS_TOOLS: &[&str] = &[
-    "get_corpus_catalog",
-    "get_corpus_files",
-    "archive_document",
-    "archive_digest",
+/// Notes tools from Node `buildServer()` when `includeNotes` is true.
+const NOTES_TOOLS: &[&str] = &[
+    "get_notes_catalog",
+    "get_notes_files",
+    "create_note",
+    "create_note_digest",
 ];
 
 /// Todo tools from Node `buildServer()` when `includeTodo` is true.
@@ -174,10 +174,10 @@ const TODO_TOOLS: &[&str] = &[
 /// tool name → Sidecar `/api/*` path transplanted from Node `registerTool` handlers.
 fn expected_api_path(tool: &str) -> (&'static str, HttpMethod) {
     match tool {
-        "get_corpus_catalog" => ("/api/corpus-catalog", HttpMethod::Get),
-        "get_corpus_files" => ("/api/corpus-files", HttpMethod::Post),
-        "archive_document" => ("/api/archive-document", HttpMethod::Post),
-        "archive_digest" => ("/api/archive-digest", HttpMethod::Post),
+        "get_notes_catalog" => ("/api/notes-catalog", HttpMethod::Get),
+        "get_notes_files" => ("/api/notes-files", HttpMethod::Post),
+        "create_note" => ("/api/create-note", HttpMethod::Post),
+        "create_note_digest" => ("/api/create-note-digest", HttpMethod::Post),
         "create_todo_task" => ("/api/todo-task-create", HttpMethod::Post),
         "update_todo_task" => ("/api/todo-task-update", HttpMethod::Post),
         "list_todo_tasks" => ("/api/todo-tasks", HttpMethod::Get),
@@ -201,13 +201,13 @@ const WORKBENCH_SLOT: &str = "workbench";
 const CURSOR_IDE_SLOT: &str = "cursor_ide";
 
 fn workbench_expected_tool_names() -> BTreeSet<&'static str> {
-    let mut names: BTreeSet<&'static str> = CORPUS_TOOLS.iter().copied().collect();
+    let mut names: BTreeSet<&'static str> = NOTES_TOOLS.iter().copied().collect();
     names.extend(TODO_TOOLS.iter().copied());
     names
 }
 
 fn cursor_ide_expected_tool_names() -> BTreeSet<&'static str> {
-    let mut names: BTreeSet<&'static str> = CORPUS_TOOLS.iter().copied().collect();
+    let mut names: BTreeSet<&'static str> = NOTES_TOOLS.iter().copied().collect();
     names.extend(TODO_TOOLS.iter().copied());
     names
 }
@@ -456,17 +456,17 @@ fn start_embedded_mcp_runtime_fails_closed_when_port_busy() {
     );
 }
 
-/// Normal: `workbench` routing table = corpus ∪ todo.
+/// Normal: `workbench` routing table = notes ∪ todo.
 #[test]
-fn build_slot_tool_table_workbench_is_corpus_todo() {
+fn build_slot_tool_table_workbench_is_notes_todo() {
     let table = build_slot_tool_table(WORKBENCH_SLOT).expect("workbench registered");
     assert_eq!(table.scene_slot, WORKBENCH_SLOT);
-    assert!(table.include_corpus);
+    assert!(table.include_notes);
     assert!(table.include_todo);
 
     let names: BTreeSet<_> = table.tools.iter().map(|t| t.name.as_str()).collect();
     let expected = workbench_expected_tool_names();
-    assert_eq!(names, expected, "workbench tools must be corpus + todo");
+    assert_eq!(names, expected, "workbench tools must be notes + todo");
     assert!(
         !names.contains("get_notes_selection"),
         "workbench must not hang get_notes_selection"
@@ -486,18 +486,18 @@ fn build_slot_tool_table_workbench_is_corpus_todo() {
     }
 }
 
-/// Normal: `cursor_ide` routing table = corpus + todo (SCENE_SLOT_API both true).
+/// Normal: `cursor_ide` routing table = notes + todo (SCENE_SLOT_API both true).
 #[test]
 fn build_slot_tool_table_cursor_ide_matches_node_allowlist() {
     let table = build_slot_tool_table("cursor_ide").expect("cursor_ide registered");
     assert_eq!(table.scene_slot, "cursor_ide");
-    assert!(table.include_corpus);
+    assert!(table.include_notes);
     assert!(table.include_todo);
 
     let names: BTreeSet<_> = table.tools.iter().map(|t| t.name.as_str()).collect();
-    let mut expected: BTreeSet<_> = CORPUS_TOOLS.iter().copied().collect();
+    let mut expected: BTreeSet<_> = NOTES_TOOLS.iter().copied().collect();
     expected.extend(TODO_TOOLS.iter().copied());
-    assert_eq!(names, expected, "cursor_ide tools must match Node corpus+todo set");
+    assert_eq!(names, expected, "cursor_ide tools must match Node notes+todo set");
 
     let routes = route_map(&table);
     for tool in expected.iter() {
@@ -508,9 +508,9 @@ fn build_slot_tool_table_cursor_ide_matches_node_allowlist() {
     }
 }
 
-/// Boundary: workbench and cursor_ide both expose corpus ∪ todo; notes-selection is gone.
+/// Boundary: workbench and cursor_ide both expose notes ∪ todo; notes-selection is gone.
 #[test]
-fn tools_list_workbench_and_cursor_ide_are_corpus_todo() {
+fn tools_list_workbench_and_cursor_ide_are_notes_todo() {
     let wb_names = names_of(&tools_list_for_slot(WORKBENCH_SLOT));
     let ide_names = names_of(&tools_list_for_slot(CURSOR_IDE_SLOT));
 
@@ -524,14 +524,14 @@ fn tools_list_workbench_and_cursor_ide_are_corpus_todo() {
         !ide_names.contains("get_notes_selection"),
         "cursor_ide must not include get_notes_selection"
     );
-    for corpus in CORPUS_TOOLS {
+    for tool in NOTES_TOOLS {
         assert!(
-            ide_names.contains(*corpus),
-            "cursor_ide must include corpus tool {corpus}"
+            ide_names.contains(*tool),
+            "cursor_ide must include notes tool {tool}"
         );
         assert!(
-            wb_names.contains(*corpus),
-            "workbench must include corpus tool {corpus}"
+            wb_names.contains(*tool),
+            "workbench must include notes tool {tool}"
         );
     }
     for todo in TODO_TOOLS {
@@ -546,7 +546,7 @@ fn tools_list_workbench_and_cursor_ide_are_corpus_todo() {
     }
     assert_eq!(
         wb_names, ide_names,
-        "workbench and cursor_ide now share corpus ∪ todo"
+        "workbench and cursor_ide now share notes ∪ todo"
     );
 }
 
@@ -635,7 +635,7 @@ fn mcp_tools_list_publishes_descriptions_schemas_and_mutation_hints() {
     assert_eq!(
         notes_tools.len(),
         workbench_expected_tool_names().len(),
-        "Workbench MCP tool count is corpus ∪ todo"
+        "Workbench MCP tool count is notes ∪ todo"
     );
     for tool in &notes_tools {
         assert!(
@@ -656,8 +656,8 @@ fn mcp_tools_list_publishes_descriptions_schemas_and_mutation_hints() {
     }
     let catalog = notes_tools
         .iter()
-        .find(|tool| tool.name == "get_corpus_catalog")
-        .expect("get_corpus_catalog");
+        .find(|tool| tool.name == "get_notes_catalog")
+        .expect("get_notes_catalog");
     assert_eq!(
         catalog.input_schema["properties"]["mode"]["const"],
         "latest_per_topic",
@@ -904,10 +904,10 @@ fn representative_tools_call_per_registered_slot_hits_sidecar_api() {
         ),
         (
             CURSOR_IDE_SLOT,
-            "get_corpus_catalog",
+            "get_notes_catalog",
             serde_json::json!({"mode": "latest_per_topic"}),
             "GET",
-            "/api/corpus-catalog?mode=latest_per_topic",
+            "/api/notes-catalog?mode=latest_per_topic",
         ),
     ];
 
@@ -969,14 +969,14 @@ fn adapter_source_forbids_fs_and_domain_direct_access() {
         "tokio::fs",
         "crate::services::todo_task",
         "crate::services::workbench_read",
-        "crate::services::archive_write",
+        "crate::services::notes",
         "crate::services::kb",
-        "crate::services::corpus",
+        "crate::services::knowledge",
         "crate::repositories",
     ] {
         assert!(
             !src.contains(needle),
-            "Adapter must not {needle}; domain/Corpus only via Sidecar HTTP"
+            "Adapter must not {needle}; domain/notes only via Sidecar HTTP"
         );
     }
     assert!(
@@ -1148,11 +1148,13 @@ fn p3_t10_knowledge_mcp_package_not_runtime_ssot() {
 fn p3_t10_host_dual_slot_list_call_and_unknown_hard_fail_smoke() {
     // Sidecar HTTP fixture: independent local_http on :8765 with migration gate planted.
     let sandbox = TestSandbox::new();
-    let wb = sandbox.workbench_knowledge_root();
+    let wb = sandbox.workbench_root();
     let todo_root = wb.join("todo_tasks");
     fs::create_dir_all(&todo_root).expect("mkdir todo_tasks");
     fs::write(todo_root.join(".migration_gate_passed"), b"ok\n").expect("plant migration gate");
-    fs::write(wb.join("index.json"), br#"{"entries":{}}"#).expect("plant empty corpus index");
+    let notes = wb.join("notes");
+    fs::create_dir_all(&notes).expect("notes");
+    fs::write(notes.join("index.json"), br#"{"entries":{}}"#).expect("plant empty notes index");
 
     let http_handle =
         local_http::start(sandbox.config_dir().to_path_buf(), CLOSE_GATE_SIDECAR_PORT)
@@ -1199,10 +1201,10 @@ fn p3_t10_host_dual_slot_list_call_and_unknown_hard_fail_smoke() {
             "T10/V2: workbench missing {tool}; got {workbench_names:?}"
         );
     }
-    for tool in CORPUS_TOOLS {
+    for tool in NOTES_TOOLS {
         assert!(
             workbench_names.iter().any(|n| n == *tool),
-            "T10/V2: workbench missing corpus tool {tool}"
+            "T10/V2: workbench missing notes tool {tool}"
         );
     }
 
@@ -1214,7 +1216,7 @@ fn p3_t10_host_dual_slot_list_call_and_unknown_hard_fail_smoke() {
             &ide_ticket,
         ))
         .expect("cursor_ide tools/list on Host :9876");
-    for tool in CORPUS_TOOLS {
+    for tool in NOTES_TOOLS {
         assert!(
             ide_names.iter().any(|n| n == *tool),
             "T10/V2: cursor_ide missing {tool}; got {ide_names:?}"
@@ -1230,7 +1232,7 @@ fn p3_t10_host_dual_slot_list_call_and_unknown_hard_fail_smoke() {
     );
     assert_eq!(
         workbench_names, ide_names,
-        "T10/V2: workbench and cursor_ide tools/list are corpus ∪ todo"
+        "T10/V2: workbench and cursor_ide tools/list are notes ∪ todo"
     );
 
     async fn list_and_call(
@@ -1292,10 +1294,10 @@ fn p3_t10_host_dual_slot_list_call_and_unknown_hard_fail_smoke() {
             CLOSE_GATE_MCP_PORT,
             "cursor_ide",
             &ide_ticket,
-            "get_corpus_catalog",
+            "get_notes_catalog",
             serde_json::json!({"mode": "latest_per_topic"}),
         ))
-        .expect("cursor_ide get_corpus_catalog");
+        .expect("cursor_ide get_notes_catalog");
     assert!(
         !ide_err,
         "T10/V2: cursor_ide representative tools/call must succeed via Host→Sidecar; got {ide_text}"
@@ -1354,15 +1356,15 @@ fn assert_old_app_slots_unregistered() {
     }
 }
 
-/// Normal: workbench tools/list = corpus ∪ todo.
+/// Normal: workbench tools/list = notes ∪ todo.
 #[test]
-fn tools_list_for_workbench_is_corpus_todo() {
+fn tools_list_for_workbench_is_notes_todo() {
     let names = names_of(&tools_list_for_slot(WORKBENCH_SLOT));
     let expected: BTreeSet<_> = workbench_expected_tool_names()
         .into_iter()
         .map(str::to_string)
         .collect();
-    assert_eq!(names, expected, "workbench tools/list must be corpus + todo");
+    assert_eq!(names, expected, "workbench tools/list must be notes + todo");
     assert!(!names.contains("get_notes_selection"));
 }
 
@@ -1377,10 +1379,10 @@ fn registered_scene_slots_are_only_workbench_and_cursor_ide() {
     assert!(!super::REGISTERED_SCENE_SLOTS.contains(&"todo_task"));
     assert!(!super::REGISTERED_SCENE_SLOTS.contains(&"mobile"));
     let api = super::scene_slot_api(WORKBENCH_SLOT).expect("workbench registered");
-    assert!(api.include_corpus);
+    assert!(api.include_notes);
     assert!(api.include_todo);
     let ide = super::scene_slot_api(CURSOR_IDE_SLOT).expect("cursor_ide stays registered");
-    assert!(ide.include_corpus);
+    assert!(ide.include_notes);
     assert!(ide.include_todo);
 }
 
@@ -1511,12 +1513,12 @@ fn old_app_slots_http_hard_reject_without_mcp_session() {
     stop_embedded_mcp_runtime(handle).expect("stop");
 }
 
-/// P4: cursor_ide remains corpus four-pack + all todo, original `/api` routes; not App-global.
+/// P4: cursor_ide remains notes four-pack + all todo, original `/api` routes; not App-global.
 #[test]
-fn p4_cursor_ide_surface_unchanged_corpus_plus_todo_original_api() {
+fn p4_cursor_ide_surface_unchanged_notes_plus_todo_original_api() {
     let table = build_slot_tool_table(CURSOR_IDE_SLOT).expect("cursor_ide registered");
     assert_eq!(table.scene_slot, CURSOR_IDE_SLOT);
-    assert!(table.include_corpus);
+    assert!(table.include_notes);
     assert!(table.include_todo);
 
     let names = names_of(&tools_list_for_slot(CURSOR_IDE_SLOT));
@@ -1526,7 +1528,7 @@ fn p4_cursor_ide_surface_unchanged_corpus_plus_todo_original_api() {
         .collect();
     assert_eq!(
         names, expected,
-        "cursor_ide must stay corpus four-pack + all todo"
+        "cursor_ide must stay notes four-pack + all todo"
     );
     assert!(
         !names.contains("get_notes_selection"),
@@ -1651,7 +1653,7 @@ fn registered_cursor_ide_live_ticket_enters_streamable_http() {
         ))
         .expect("cursor_ide tools/list with Live ticket");
     assert!(
-        names.iter().any(|n| n == "get_corpus_catalog"),
+        names.iter().any(|n| n == "get_notes_catalog"),
         "cursor_ide tools/list must remain available, got {names:?}"
     );
     stop_embedded_mcp_runtime(handle).expect("stop");
@@ -2179,7 +2181,7 @@ fn t3_live_device_ticket_can_call_full_workbench_tools_on_mobile() {
             ("list_todo_tasks", serde_json::json!({})),
             ("list_todo_categories", serde_json::json!({})),
             (
-                "get_corpus_catalog",
+                "get_notes_catalog",
                 serde_json::json!({"mode": "latest_per_topic"}),
             ),
         ];

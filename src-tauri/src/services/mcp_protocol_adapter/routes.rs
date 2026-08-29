@@ -7,11 +7,11 @@ use super::types::{HttpMethod, SceneSlotApi, SlotToolTable, ToolDescriptor, Tool
 pub(crate) fn scene_slot_api(slot: &str) -> Option<SceneSlotApi> {
     match slot {
         "workbench" => Some(SceneSlotApi {
-            include_corpus: true,
+            include_notes: true,
             include_todo: true,
         }),
         "cursor_ide" => Some(SceneSlotApi {
-            include_corpus: true,
+            include_notes: true,
             include_todo: true,
         }),
         _ => None,
@@ -50,13 +50,13 @@ pub(super) fn route(
     }
 }
 
-pub(super) fn corpus_tool_routes() -> Vec<ToolRoute> {
+pub(super) fn notes_tool_routes() -> Vec<ToolRoute> {
     vec![
         route(
-            "get_corpus_catalog",
+            "get_notes_catalog",
             "List the latest archive entry for each top-level topic.",
             HttpMethod::Get,
-            "/api/corpus-catalog",
+            "/api/notes-catalog",
             object_schema(
                 json!({
                     "mode": {
@@ -71,10 +71,10 @@ pub(super) fn corpus_tool_routes() -> Vec<ToolRoute> {
             false,
         ),
         route(
-            "get_corpus_files",
+            "get_notes_files",
             "Read archived digest bodies by entry id.",
             HttpMethod::Post,
-            "/api/corpus-files",
+            "/api/notes-files",
             object_schema(
                 json!({
                     "ids": {
@@ -89,10 +89,10 @@ pub(super) fn corpus_tool_routes() -> Vec<ToolRoute> {
             false,
         ),
         route(
-            "archive_document",
-            "Archive a formatted Markdown file by absolute source_path. The Host reads the file; never send document text.",
+            "create_note",
+            "Create a note from an allow-listed Markdown file by absolute source_path. The Host reads the file; never send document text.",
             HttpMethod::Post,
-            "/api/archive-document",
+            "/api/create-note",
             object_schema(
                 json!({
                     "source_path": {
@@ -132,10 +132,10 @@ pub(super) fn corpus_tool_routes() -> Vec<ToolRoute> {
             false,
         ),
         route(
-            "archive_digest",
-            "Write digest Markdown for an existing archive entry.",
+            "create_note_digest",
+            "Write digest Markdown for an existing note.",
             HttpMethod::Post,
-            "/api/archive-digest",
+            "/api/create-note-digest",
             object_schema(
                 json!({
                     "id": { "type": "string", "description": "Archive entry id." },
@@ -385,15 +385,15 @@ pub(super) fn todo_tool_routes() -> Vec<ToolRoute> {
 pub fn build_slot_tool_table(slot: &str) -> Option<SlotToolTable> {
     let api = scene_slot_api(slot)?;
     let mut tools = Vec::new();
-    if api.include_corpus {
-        tools.extend(corpus_tool_routes());
+    if api.include_notes {
+        tools.extend(notes_tool_routes());
     }
     if api.include_todo {
         tools.extend(todo_tool_routes());
     }
     Some(SlotToolTable {
         scene_slot: slot.to_string(),
-        include_corpus: api.include_corpus,
+        include_notes: api.include_notes,
         include_todo: api.include_todo,
         tools,
     })

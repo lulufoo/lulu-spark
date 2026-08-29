@@ -13,7 +13,7 @@ pub mod runtime;
 pub mod session;
 pub mod tools;
 
-/// Plan-assistant system prompt (code constant; not toml / corpus).
+/// Plan-assistant system prompt (code constant; not toml / notes store).
 pub const PLAN_ASSISTANT_SYSTEM_PROMPT: &str = r#"你是 lulu-workbench 的「计划任务」对话助手。当前会话只服务用户从计划页打开时所绑定的那一个计划。
 
 ## 你能做的事

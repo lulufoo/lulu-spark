@@ -1,4 +1,4 @@
-//! Mechanical zh-translation checks before corpus write.
+//! Mechanical zh-translation checks before notes write.
 //!
 //! Skill text cannot stop a stub. Host rejects markers, short bodies, and
 //! heading/turn mismatch. Keep these rules in sync with

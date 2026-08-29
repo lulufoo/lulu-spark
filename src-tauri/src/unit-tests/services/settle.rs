@@ -71,7 +71,7 @@ fn resolve_target_repo_by_dir_or_name() {
 #[test]
 fn build_settle_artifacts_root_theme() {
     let (_, dst_path, url, body) = build_settle_artifacts(
-        "https://gh.com/corpus",
+        "https://gh.com/notes",
         "proj/note.md",
         "slug",
         ".",
@@ -116,19 +116,19 @@ fn append_link_and_remove_comment() {
 #[test]
 fn local_annotation_updated_when_put_would_succeed() {
     with_repo_list(
-        r#"{"repos":[{"full_name":"o/proj","name":"proj","type":"KNOWLEDGE_CORPUS","description":""}]}"#,
+        r#"{"repos":[{"full_name":"o/proj","name":"proj","type":"knowledge","description":""}]}"#,
         |root| {
-            let corpus = crate::config::settings::load()
+            let wb = crate::config::settings::load()
                 .expect("load")
-                .workbench_knowledge_root;
-            fs::create_dir_all(corpus.join("annotations/proj")).expect("ann dir");
-            let ann_path = corpus.join("annotations/proj/note.json");
+                .workbench_root;
+            fs::create_dir_all(wb.join("annotations/proj")).expect("ann dir");
+            let ann_path = wb.join("annotations/proj/note.json");
             fs::write(
                 &ann_path,
                 r#"{"raw":{"comments":[{"id":"c1","text":"t"}]}}"#,
             )
             .expect("ann");
-            let mut ann = read_annotation_object(&corpus, "proj/note.md");
+            let mut ann = read_annotation_object(&wb, "proj/note.md");
             append_link(&mut ann, "https://github.com/o/r/blob/main/f.md");
             remove_comment(&mut ann, "raw", "c1");
             atomic_json::write_json(&ann_path, &ann).expect("write");

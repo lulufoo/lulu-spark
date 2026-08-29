@@ -54,12 +54,12 @@ test('api.js 无裸 fetch（读路径均经 readGet / writePost）', () => {
 
 // ── GET endpoints ──────────────────────────────────────────────────────────
 
-test('fetchIndex 调用 /api/corpus-index 并返回 JSON', async () => {
+test('fetchIndex 调用 /api/notes-index 并返回 JSON', async () => {
   mockFetch({ entries: [] })
   const result = await fetchIndex()
   expect(fetch).toHaveBeenCalledOnce()
   expect(fetch.mock.calls[0][0]).toMatch(
-    new RegExp(`^${API_READ_PREFIX}/corpus-index`)
+    new RegExp(`^${API_READ_PREFIX}/notes-index`)
   )
   expect(result).toEqual({ entries: [] })
 })
@@ -112,10 +112,10 @@ test('fetchAnnotation 对 path 做 encodeURIComponent', async () => {
 })
 
 test('fetchConfig 调用 /api/config', async () => {
-  mockFetch({ workbench_knowledge_root: '/tmp' })
+  mockFetch({ workbench_root: '/tmp' })
   const result = await fetchConfig()
   expect(fetch.mock.calls[0][0]).toBe(`${API_READ_PREFIX}/config`)
-  expect(result.workbench_knowledge_root).toBe('/tmp')
+  expect(result.workbench_root).toBe('/tmp')
 })
 
 test('setConfig 发送 POST 到 /api/config', async () => {
@@ -127,12 +127,12 @@ test('setConfig 发送 POST 到 /api/config', async () => {
   expect(body.github_token).toBe('ghp_test')
 })
 
-test('fetchFileContent 调用 /api/corpus-file 并返回 content', async () => {
+test('fetchFileContent 调用 /api/notes-file 并返回 content', async () => {
   mockFetch({ content: '# Hello' })
   const text = await fetchFileContent('raw', 'ai/note.md')
   expect(fetch.mock.calls[0][0]).toMatch(
     new RegExp(
-      `^${API_READ_PREFIX}/corpus-file\\?layer=raw&path=${encodeURIComponent('ai/note.md')}`
+      `^${API_READ_PREFIX}/notes-file\\?layer=raw&path=${encodeURIComponent('ai/note.md')}`
     )
   )
   expect(text).toBe('# Hello')
@@ -194,10 +194,10 @@ test('pullProject 发送 POST 到 /api/pull', async () => {
   expect(fetch.mock.calls[0][1].method).toBe('POST')
 })
 
-test('revertFile 发送 path 和 type 到 /api/corpus-revert', async () => {
+test('revertFile 发送 path 和 type 到 /api/workbench-revert', async () => {
   mockFetch({ ok: true })
   const result = await revertFile('raw/foo/bar.md', 'modified')
-  expect(fetch.mock.calls[0][0]).toBe(`${DEFAULT_DEV_BASE}/api/corpus-revert`)
+  expect(fetch.mock.calls[0][0]).toBe(`${DEFAULT_DEV_BASE}/api/workbench-revert`)
   expect(fetch.mock.calls[0][1].method).toBe('POST')
   const body = JSON.parse(fetch.mock.calls[0][1].body)
   expect(body.path).toBe('raw/foo/bar.md')

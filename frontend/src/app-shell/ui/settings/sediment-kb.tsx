@@ -1,6 +1,6 @@
 import { Fragment, useSyncExternalStore } from 'react';
 import * as api from '../../../host/api.ts';
-import { openKbDiffDialog } from '../../../corpus/ui/diff-dialog.tsx';
+import { openKbDiffDialog } from '../../../knowledge/ui/diff-dialog.tsx';
 import {
   patchSedimentKb,
   sedimentKbStore,

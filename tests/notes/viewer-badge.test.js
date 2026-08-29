@@ -95,11 +95,11 @@ vi.mock('../../frontend/src/doc-editor/highlights.ts', () => ({
   initDocHighlightOverlay: vi.fn(),
   cleanupDocHighlightOverlay: vi.fn(),
 }));
-vi.mock('../../frontend/src/corpus/viewer.ts', () => ({
+vi.mock('../../frontend/src/knowledge/viewer.ts', () => ({
   openKbDoc: vi.fn(),
   saveKbDoc: vi.fn(),
 }));
-vi.mock('../../frontend/src/corpus/ui/knowledge-search.tsx', () => ({
+vi.mock('../../frontend/src/knowledge/ui/knowledge-search.tsx', () => ({
   mountKnowledgeSearch: vi.fn(),
   triggerKnowledgeSearch: vi.fn(),
 }));
@@ -137,7 +137,7 @@ beforeEach(() => {
   state.viewer.rawText = '';
   state.viewer.isKb = false;
   state.index.diffStatus = new Map();
-  state.ui.workbenchKnowledgeRoot = '';
+  state.ui.workbenchRoot = '';
   state.index.topicRepos = {};
   state.index.titleCache = new Map();
 });

@@ -113,7 +113,7 @@ fn get_todo_tasks_json_sorts_by_created_at_desc() {
 #[test]
 fn get_todo_tasks_json_corrupt_v2_storage_returns_err() {
     with_commands_todo_test(|| {
-        let wb = crate::config::paths::workbench_knowledge_root().expect("wb");
+        let wb = crate::config::paths::workbench_root().expect("wb");
         let master_id = "task_corrupt_cmd";
         let todo_tasks_dir = wb.join("todo_tasks");
         fs::create_dir_all(todo_tasks_dir.join("tasks").join(master_id)).expect("mkdir");

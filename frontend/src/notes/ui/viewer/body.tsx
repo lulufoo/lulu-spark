@@ -7,10 +7,10 @@ import { renderDocMarkdown } from '../../../doc-editor/view.tsx';
 import { renderMermaidBlocks } from '../../../shared/mermaid-render.ts';
 
 function resolveRelativeLink(href: string, layer: string, commonPath: string) {
-  const ghBase = workbenchGithubBlobBase(getGithubUserUrl(), state.ui.workbenchKnowledgeRoot);
+  const ghBase = workbenchGithubBlobBase(getGithubUserUrl(), state.ui.workbenchRoot);
   if (!ghBase) return null;
   try {
-    const base = `http://x/${layer}/${commonPath}`;
+    const base = `http://x/notes/${layer}/${commonPath}`;
     const resolved = new URL(href, base);
     const repoPath = resolved.pathname.slice(1);
     return `${ghBase}/${repoPath}`;
@@ -37,13 +37,13 @@ function postProcessLinks(container: Element, layer: string, commonPath: string)
   });
 }
 
-const _corpusBlobUrls = new Set<string>();
+const _notesBlobUrls = new Set<string>();
 
-function revokeCorpusBlobUrls() {
-  for (const url of _corpusBlobUrls) {
+function revokeNotesBlobUrls() {
+  for (const url of _notesBlobUrls) {
     URL.revokeObjectURL(url);
   }
-  _corpusBlobUrls.clear();
+  _notesBlobUrls.clear();
 }
 
 function isExternalOrSpecialImgSrc(src: string) {
@@ -57,8 +57,8 @@ async function postProcessImages(container: Element, layer: string, commonPath: 
       const href = img.getAttribute('src');
       if (!href || href.startsWith('#') || isExternalOrSpecialImgSrc(href)) return;
       try {
-        const blobUrl = (await api.fetchCorpusAssetAsBlobUrl(layer, commonPath, href)) as string;
-        _corpusBlobUrls.add(blobUrl);
+        const blobUrl = (await api.fetchNotesAssetAsBlobUrl(layer, commonPath, href)) as string;
+        _notesBlobUrls.add(blobUrl);
         (img as HTMLImageElement).src = blobUrl;
       } catch {
         if (!(img as HTMLImageElement).alt) (img as HTMLImageElement).alt = href;
@@ -98,7 +98,7 @@ export async function renderDocBody(text: string, layer: string, commonPath: str
   if (!body) return;
   renderDocMarkdown(body, text);
   postProcessLinks(body, layer, commonPath);
-  revokeCorpusBlobUrls();
+  revokeNotesBlobUrls();
   await postProcessImages(body, layer, commonPath);
   await renderMermaidBlocks(body);
   void applyHighlights();

@@ -1,13 +1,13 @@
-//! Corpus Markdown entry writes (port `server.py` `_handle_save`).
+//! Notes Markdown entry writes (port `server.py` `_handle_save`).
 
 use std::fs;
 use std::path::Path;
 
 use serde_json::{json, Value};
 
-use crate::config::meili_env::workbench_knowledge_root_path;
+use crate::config::meili_env::notes_root_path;
 
-const EDITABLE_LAYERS: &[&str] = &["raw", "distilled", "digest", "trace"];
+const EDITABLE_LAYERS: &[&str] = &["raw", "digest"];
 
 pub fn save_entry(
     repo_root: &Path,
@@ -27,16 +27,16 @@ pub fn save_entry(
         return json!({ "error": "Invalid path", "_status": 400 });
     }
 
-    let corpus = workbench_knowledge_root_path(repo_root);
-    let target = corpus.join(layer).join(common_path);
-    let corpus_canon = match corpus.canonicalize() {
+    let notes = notes_root_path(repo_root);
+    let target = notes.join(layer).join(common_path);
+    let notes_canon = match notes.canonicalize() {
         Ok(p) => p,
         Err(e) => return json!({ "error": e.to_string(), "_status": 500 }),
     };
     let target_canon = target.canonicalize().unwrap_or(target.clone());
     let prefix = format!(
         "{}{}",
-        corpus_canon.to_string_lossy(),
+        notes_canon.to_string_lossy(),
         std::path::MAIN_SEPARATOR
     );
     if !target_canon.to_string_lossy().starts_with(&prefix) {

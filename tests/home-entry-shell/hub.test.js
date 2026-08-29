@@ -43,15 +43,15 @@ describe('mountHomeHub', () => {
 
     const workbenchEntry = container.querySelector('[data-home-entry="workbench"]');
     const readLaterEntry = container.querySelector('[data-home-entry="read-later"]');
-    const corpusEntry = container.querySelector('[data-home-entry="corpus"]');
+    const knowledgeEntry = container.querySelector('[data-home-entry="knowledge"]');
     const todoTasksEntry = container.querySelector('[data-home-entry="todo-tasks"]');
     expect(workbenchEntry).not.toBeNull();
     expect(readLaterEntry).not.toBeNull();
-    expect(corpusEntry).not.toBeNull();
+    expect(knowledgeEntry).not.toBeNull();
     expect(todoTasksEntry).not.toBeNull();
     expect(workbenchEntry.textContent).toMatch(/Notes/);
     expect(readLaterEntry.textContent).toMatch(/Read Later/);
-    expect(corpusEntry.textContent).toMatch(/Knowledge/);
+    expect(knowledgeEntry.textContent).toMatch(/Knowledge/);
     expect(todoTasksEntry.textContent).toMatch(/Todos/);
   });
 
@@ -62,11 +62,11 @@ describe('mountHomeHub', () => {
     expect(navigate).toHaveBeenCalledWith('#/workbench');
   });
 
-  it('navigates to #/corpus when corpus entry is clicked', () => {
+  it('navigates to #/knowledge when knowledge entry is clicked', () => {
     cleanup = mountHomeHub(container, { navigate });
 
-    container.querySelector('[data-home-entry="corpus"]').click();
-    expect(navigate).toHaveBeenCalledWith('#/corpus');
+    container.querySelector('[data-home-entry="knowledge"]').click();
+    expect(navigate).toHaveBeenCalledWith('#/knowledge');
   });
 
   it('opens read-later dialog when read-later entry is clicked', () => {

@@ -121,7 +121,7 @@ pub fn reindex_kb_repo(
 }
 
 #[tauri::command]
-pub fn sync_knowledge_corpus(
+pub fn sync_knowledge(
     app: AppHandle,
     state: State<'_, ReindexState>,
 ) -> Result<Value, String> {

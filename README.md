@@ -11,10 +11,10 @@
    - `git clone https://github.com/lulufoo/lulu-workbench-knowledge.git`
 2. **配置路径** — 首次启动 App 打开 **设置**，或编辑 `~/.config/lulu-workbench/config.toml`：
    ```toml
-   workbench_knowledge_root = "/你的本地路径/lulu-workbench-knowledge"
-   knowledge_corpus_root = "/你的本地路径/Code"   # 沉淀知识库各 topic 仓库 clone 根目录
+   workbench_root = "/你的本地路径/lulu-workbench-knowledge"
+   knowledge_root = "/你的本地路径/Code"   # 沉淀知识库各 topic 仓库 clone 根目录
    cache_dir = "/Users/你的用户名/.cache/lulu-workbench"   # 可选；默认即此路径，一般无需改
-   github_user_url = ""   # 可选；个人 GitHub 主页，如 https://github.com/lulufoo（结合 workbench_knowledge_root 目录名生成 blob 链接）
+   github_user_url = ""   # 可选；个人 GitHub 主页，如 https://github.com/lulufoo（结合 workbench_root 目录名生成 blob 链接）
    meili_url = "http://localhost:7700"
    ```
    GitHub Token、Meili Master Key 在设置页写入 Keychain。
@@ -36,9 +36,10 @@ cargo tauri dev      # 官方运行时（同时启 localhost HTTP :8765 + Host M
 
 ## SSOT 与 TestSandbox
 
-sediment-kb 与 Read Later 的 SSOT（单一数据源）已迁入语料仓 `workbench_knowledge_root`：
+Knowledge 登记、Read Later 与笔记的 SSOT（单一数据源）已迁入语料仓 `workbench_root`：
 
-- `sediment-kb/categories.json`、`sediment-kb/repos.json`
+- `notes/raw/`、`notes/digest/`、`notes/index.json`、`notes/annotations/`、`notes/tags/`
+- `knowledge/categories.json`、`knowledge/repos.json`
 - `read_later/read_later.json`
 - `todo_tasks/todo_tasks.json`
 

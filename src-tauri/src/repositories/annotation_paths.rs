@@ -1,4 +1,4 @@
-//! Corpus annotation file paths (single source for read + write).
+//! Notes annotation file paths (single source for read + write).
 
 use std::path::{Component, Path, PathBuf};
 
@@ -15,9 +15,9 @@ fn path_has_only_normal_components(path: &Path) -> bool {
         .all(|c| matches!(c, Component::Normal(_)))
 }
 
-/// Resolve `annotations/{rel}.json` under `corpus`, rejecting traversal.
+/// Resolve `annotations/{rel}.json` under notes root, rejecting traversal.
 /// Does not require `annotations/{topic}/` to exist yet (writes create parents).
-pub fn annotation_json_path(corpus: &Path, common_path: &str) -> Option<PathBuf> {
+pub fn annotation_json_path(notes: &Path, common_path: &str) -> Option<PathBuf> {
     let cp = common_path.trim();
     if cp.is_empty() || cp.contains("..") || cp.starts_with('/') {
         return None;
@@ -29,8 +29,8 @@ pub fn annotation_json_path(corpus: &Path, common_path: &str) -> Option<PathBuf>
     if rel.contains("..") || !path_has_only_normal_components(Path::new(&rel)) {
         return None;
     }
-    let corpus_canon = corpus.canonicalize().ok()?;
-    let ann_root = corpus_canon.join("annotations");
+    let notes_canon = notes.canonicalize().ok()?;
+    let ann_root = notes_canon.join("annotations");
     let target = ann_root.join(&rel);
     if !target.starts_with(&ann_root) {
         return None;

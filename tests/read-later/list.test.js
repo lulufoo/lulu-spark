@@ -57,7 +57,7 @@ function seedReadLaterRouteDom({ includeReadLaterView = true } = {}) {
     : '';
   document.body.innerHTML = `
     <div id="home-view" style="display:block;"></div>
-    <div id="corpus-doc-view" style="display:block;"></div>
+    <div id="knowledge-doc-view" style="display:block;"></div>
     <div class="layout" style="display:block;"></div>
     ${readLaterView}
     <button id="btn-feed"></button>
@@ -70,12 +70,12 @@ function createMountReadLaterRouteFromMain() {
   if (!body) return null;
   return new Function(
     'unmountHomeHub',
-    'unmountCorpusDocList',
+    'unmountKnowledgeDocList',
     'unmountReadLaterList',
     'feedView',
     'mountReadLaterList',
     'hideHomeView',
-    'hideCorpusDocView',
+    'hideKnowledgeDocView',
     `return function mountReadLaterRoute() ${body}`,
   );
 }

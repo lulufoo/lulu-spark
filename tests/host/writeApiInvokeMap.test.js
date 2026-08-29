@@ -29,7 +29,7 @@ const P2_WRITE_PATHS = [
   '/api/sediment-kb/categories/add',
   '/api/sediment-kb/categories/rename',
   '/api/sediment-kb/categories/remove',
-  '/api/archive-document',
+  '/api/create-note',
   '/api/note-draft',
   '/api/note-draft/clear',
 ];
@@ -104,13 +104,13 @@ describe('writeApiInvokeMap', () => {
     });
   });
 
-  it('resolveWriteInvoke maps archive-document to archive_document (snake↔camel style)', () => {
+  it('resolveWriteInvoke maps create-note to create_note (snake↔camel style)', () => {
     const body = {
       source_path: '/tmp/note.md',
       source_type: 'summary',
     };
-    expect(resolveWriteInvoke('/api/archive-document', body)).toEqual({
-      cmd: 'archive_document',
+    expect(resolveWriteInvoke('/api/create-note', body)).toEqual({
+      cmd: 'create_note',
       args: { payload: body },
     });
   });
@@ -143,13 +143,13 @@ describe('writeApiInvokeMap', () => {
     expect(resolved.cmd).toBe('update_doc_highlights');
   });
 
-  it('archive-document invoke does not route to Annotation write commands', () => {
-    const resolved = resolveWriteInvoke('/api/archive-document', {
+  it('create-note invoke does not route to Annotation write commands', () => {
+    const resolved = resolveWriteInvoke('/api/create-note', {
       source_path: '/tmp/note.md',
       source_type: 'summary',
     });
     expect(resolved).not.toBeNull();
     expect(ANNOTATION_WRITE_CMDS.has(resolved.cmd)).toBe(false);
-    expect(resolved.cmd).toBe('archive_document');
+    expect(resolved.cmd).toBe('create_note');
   });
 });

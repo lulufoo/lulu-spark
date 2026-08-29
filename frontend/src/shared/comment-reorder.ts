@@ -1,5 +1,5 @@
 /**
- * Shared helpers for corpus/KB comment list reorder (in-memory + id validation).
+ * Shared helpers for notes/KB comment list reorder (in-memory + id validation).
  */
 
 import type { Annotation, CommentLike, LayerData } from './types.ts';

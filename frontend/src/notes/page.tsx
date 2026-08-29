@@ -1,9 +1,9 @@
 import { useEffect, useLayoutEffect, useRef } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { flushSync } from 'react-dom';
-import { getActivePath } from '../corpus/state/path.ts';
-import { KnowledgeSearchHost } from '../corpus/ui/knowledge-search.tsx';
-import { getGithubUserUrl, workbenchGithubBlobBase } from '../host/constants.ts';
+import { getActivePath } from '../knowledge/state/path.ts';
+import { KnowledgeSearchHost } from '../knowledge/ui/knowledge-search.tsx';
+import { getGithubUserUrl, notesFileRelPath, workbenchGithubBlobBase } from '../host/constants.ts';
 import { useHostState } from './state/host.ts';
 import { getHomeEntryShell } from '../home-entry-shell/access.ts';
 import { formatDate } from '../shared/utils.ts';
@@ -123,7 +123,7 @@ function copyLocalPath(
 ) {
   if (!entry) return;
   const activePath = getActivePath(entry, lang || '', layer);
-  const relPath = `${layer}/${activePath}`;
+  const relPath = notesFileRelPath(layer, activePath);
   const fullPath = workbenchRoot ? `${workbenchRoot}/${relPath}` : relPath;
   const btn = document.getElementById('btn-copy-path');
   if (!btn) return;
@@ -190,14 +190,14 @@ function NotesOutletChrome({ routeParams }: { routeParams: Record<string, string
   const entry = viewer.entry;
   const layer = viewer.layer || 'raw';
   const hasZh = Boolean(entry?.translations?.zh);
-  const ghBase = workbenchGithubBlobBase(getGithubUserUrl(), host.ui.workbenchKnowledgeRoot);
+  const ghBase = workbenchGithubBlobBase(getGithubUserUrl(), host.ui.workbenchRoot);
   const activePath = entry ? getActivePath(entry, viewer.lang || '', layer) : '';
-  const githubUrl = ghBase && entry ? `${ghBase}/${layer}/${activePath}` : '';
+  const githubUrl = ghBase && entry ? `${ghBase}/${notesFileRelPath(layer, activePath)}` : '';
   const topicDir = entry?.common_path?.split('/')[0];
   const topicRepos = host.index.topicRepos;
   const kbUrl = topicDir ? topicRepos?.[topicDir] : '';
-  const relPath = entry ? `${layer}/${activePath}` : '';
-  const fullPath = host.ui.workbenchKnowledgeRoot ? `${host.ui.workbenchKnowledgeRoot}/${relPath}` : relPath;
+  const relPath = entry ? notesFileRelPath(layer, activePath) : '';
+  const fullPath = host.ui.workbenchRoot ? `${host.ui.workbenchRoot}/${relPath}` : relPath;
   const fileSize = viewer.fileSize || (viewer.rawText ? formatBytes(viewer.rawText) : '');
   const hasDiff = entry ? host.index.diffStatus.get(`${layer}/${entry.common_path}`) : false;
   const showPending = Boolean(hasDiff || viewer.pendingCommit);
@@ -311,7 +311,7 @@ function NotesOutletChrome({ routeParams }: { routeParams: Record<string, string
             data-tip={fullPath}
             style={{ display: entry && !creating ? undefined : 'none' }}
             onClick={() =>
-              copyLocalPath(entry, viewer.lang, viewer.layer, host.ui.workbenchKnowledgeRoot)
+              copyLocalPath(entry, viewer.lang, viewer.layer, host.ui.workbenchRoot)
             }
           >
             📁

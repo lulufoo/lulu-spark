@@ -75,8 +75,8 @@ beforeEach(() => {
   state.ui.activeTopic = null;
   state.ui.activeTagKey = null;
   state.ui.activeDate = null;
-  state.ui.workbenchKnowledgeRoot = '';
-  state.ui.knowledgeCorpusRoot = '';
+  state.ui.workbenchRoot = '';
+  state.ui.knowledgeRoot = '';
 });
 
 describe('selectTopic', () => {

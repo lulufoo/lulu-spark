@@ -8,7 +8,7 @@ const REINDEX_KEYS = [
   'reindexKnowledge',
   'reindexWorkbench',
   'reindexKbRepo',
-  'syncKnowledgeCorpus',
+  'syncKnowledge',
   'getReindexStatus',
   'getReindexWorkbenchStatus',
 ];

@@ -75,7 +75,7 @@ vi.mock('../../frontend/src/host/api.ts', () => ({
   saveFile: vi.fn().mockResolvedValue({ ok: true }),
   commitFiles: vi.fn().mockResolvedValue({ ok: true }),
   revertFile: vi.fn().mockResolvedValue({ ok: true }),
-  archiveDocument: vi.fn().mockResolvedValue({
+  createNote: vi.fn().mockResolvedValue({
     ok: true,
     id: 'a'.repeat(32),
     common_path: 'inbox/notes/202607101430-hello.md',
@@ -105,11 +105,11 @@ vi.mock('../../frontend/src/doc-editor/highlights.ts', () => ({
   initDocHighlightOverlay: vi.fn(),
   cleanupDocHighlightOverlay: vi.fn(),
 }));
-vi.mock('../../frontend/src/corpus/viewer.ts', () => ({
+vi.mock('../../frontend/src/knowledge/viewer.ts', () => ({
   openKbDoc: vi.fn(),
   saveKbDoc: vi.fn(),
 }));
-vi.mock('../../frontend/src/corpus/ui/knowledge-search.tsx', () => ({
+vi.mock('../../frontend/src/knowledge/ui/knowledge-search.tsx', () => ({
   mountKnowledgeSearch: vi.fn(),
   triggerKnowledgeSearch: vi.fn(),
 }));
@@ -172,7 +172,7 @@ function resetDom() {
   state.viewer.createSession = null;
   state.index.diffStatus = new Map();
   vi.clearAllMocks();
-  api.archiveDocument.mockResolvedValue({
+  api.createNote.mockResolvedValue({
     ok: true,
     id: 'a'.repeat(32),
     common_path: 'inbox/notes/202607101430-hello.md',
@@ -251,11 +251,11 @@ describe('T5 openCreateNote / finalizeCreateSession on note outlet', () => {
     expect(locationStub.hash).toBe('#/workbench?date=20260710');
   });
 
-  it('create success: navigate note=common_path from archiveDocument', async () => {
+  it('create success: navigate note=common_path from createNote', async () => {
     await openCreateNote({ temp_id: 'tmp-ok' });
     makeEl('md-edit-area').value = 'hello archived note';
     vi.clearAllMocks();
-    api.archiveDocument.mockResolvedValue({
+    api.createNote.mockResolvedValue({
       ok: true,
       id: 'b'.repeat(32),
       common_path: 'inbox/notes/202607101431-body.md',
@@ -265,9 +265,9 @@ describe('T5 openCreateNote / finalizeCreateSession on note outlet', () => {
 
     await closeModal();
 
-    expect(api.archiveDocument).toHaveBeenCalledWith({
+    expect(api.createNote).toHaveBeenCalledWith({
       body: 'hello archived note',
-      source_type: 'note',
+      source_type: 'jot',
     });
     expect(navigateToNoteMock).toHaveBeenCalledWith({
       date: '20260710',
@@ -280,7 +280,7 @@ describe('T5 openCreateNote / finalizeCreateSession on note outlet', () => {
   it('create failure: visible error, stay on outlet create state, no Dialog / md-modal fallback', async () => {
     await openCreateNote({ temp_id: 'tmp-fail' });
     makeEl('md-edit-area').value = 'will fail';
-    api.archiveDocument.mockRejectedValueOnce(new Error('409: conflict'));
+    api.createNote.mockRejectedValueOnce(new Error('409: conflict'));
 
     await closeModal();
 

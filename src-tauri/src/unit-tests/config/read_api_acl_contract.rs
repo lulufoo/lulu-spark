@@ -34,9 +34,9 @@ fn parse_acl_manifest_allow(text: &str) -> BTreeSet<String> {
 
 /// 与 `frontend/src/host/readApiInvokeMap.ts` 中 `cmd` 字段保持同步。
 const INVOKE_MAP_COMMANDS: &[&str] = &[
-    "get_corpus_index",
-    "get_corpus_file",
-    "get_corpus_asset",
+    "get_notes_index",
+    "get_notes_file",
+    "get_notes_asset",
     "get_topics",
     "search_knowledge",
     "search_workbench",
@@ -46,7 +46,7 @@ const INVOKE_MAP_COMMANDS: &[&str] = &[
     "get_note_draft",
     "get_config",
     "infer_github_user_url",
-    "check_workbench_knowledge_root",
+    "check_workbench_root",
     "get_status",
     "kb_read",
     "kb_list",
@@ -142,7 +142,7 @@ fn settings_github_infer_commands_are_acl_allowed() {
     let root = manifest_dir();
     let toml = fs::read_to_string(root.join("permissions/read-api.toml")).expect("toml");
     let allow = parse_read_api_toml_allow(&toml);
-    for cmd in ["infer_github_user_url", "check_workbench_knowledge_root"] {
+    for cmd in ["infer_github_user_url", "check_workbench_root"] {
         assert!(allow.contains(cmd), "{cmd} must be in read-api.toml");
     }
 }

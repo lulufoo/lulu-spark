@@ -19,7 +19,7 @@ describe('Settings Knowledge Hidden files', () => {
     expect(indexHtml).toMatch(/id="settings-panel-knowledge"/);
     expect(indexHtml).toMatch(/data-tab="hidden"[^>]*>Hidden files</);
     expect(indexHtml).toMatch(/id="settings-kb-hide-pattern"/);
-    expect(indexHtml).not.toMatch(/id="sediment-kb-corpus-dialog"/);
+    expect(indexHtml).not.toMatch(/id="knowledge-root-dialog"/);
   });
 
   it('shows hint example \\.xxx$', () => {

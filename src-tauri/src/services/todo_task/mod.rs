@@ -1,4 +1,4 @@
-//! Todo tasks persisted at `{workbench_knowledge_root}/todo_tasks/` (v2: index + per-task files).
+//! Todo tasks persisted at `{workbench_root}/todo_tasks/` (v2: index + per-task files).
 
 pub mod types;
 

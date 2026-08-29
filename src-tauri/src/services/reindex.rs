@@ -7,7 +7,7 @@ use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
-use crate::config::meili_env::knowledge_corpus_root_string;
+use crate::config::meili_env::knowledge_root_string;
 use crate::config::paths;
 use crate::integrations::git;
 use crate::services::index_build::{rebuild_knowledge_index, rebuild_workbench_index};
@@ -173,7 +173,7 @@ pub fn run_knowledge_reindex_blocking(
         })
         .unwrap_or_default();
 
-    let kb_root = PathBuf::from(knowledge_corpus_root_string(repo_root));
+    let kb_root = PathBuf::from(knowledge_root_string(repo_root));
     let mut failed_repos = Vec::new();
     let handles: Vec<_> = repos
         .iter()
@@ -208,7 +208,7 @@ pub fn run_kb_sync_and_index_blocking(repo_root: &Path, repo: &str) -> Result<St
         return Err("invalid repo format".to_string());
     }
     let repo_name = repo.split('/').next_back().unwrap_or(repo);
-    let kb_root = PathBuf::from(knowledge_corpus_root_string(repo_root));
+    let kb_root = PathBuf::from(knowledge_root_string(repo_root));
     let (_, status, err) = sync_repo_blocking(repo, &kb_root);
     if status.contains("failed") {
         let msg = err.unwrap_or_else(|| "unknown error".to_string());
@@ -236,7 +236,7 @@ pub fn run_knowledge_pull_and_reindex(
         })
         .unwrap_or_default();
 
-    let kb_root = PathBuf::from(knowledge_corpus_root_string(repo_root));
+    let kb_root = PathBuf::from(knowledge_root_string(repo_root));
     let mut failed_repos = Vec::new();
     let handles: Vec<_> = repos
         .iter()
@@ -293,7 +293,7 @@ pub fn run_kb_reindex_blocking(repo_root: &Path, repo: &str) -> Result<String, S
         return Err("invalid repo format".to_string());
     }
     let repo_name = repo.split('/').next_back().unwrap_or(repo);
-    let kb_root = PathBuf::from(knowledge_corpus_root_string(repo_root));
+    let kb_root = PathBuf::from(knowledge_root_string(repo_root));
     let local_dir = kb_root.join(repo_name);
     if !local_dir.is_dir() {
         return Err(format!("repo not cloned locally: {repo_name}"));

@@ -1,12 +1,12 @@
 use std::path::Path;
 
 /// Personal GitHub home (`https://github.com/{owner}`) + workbench clone dir name → blob base for file links.
-pub fn workbench_github_blob_base(github_user_url: &str, workbench_knowledge_root: &Path) -> String {
+pub fn workbench_github_blob_base(github_user_url: &str, workbench_root: &Path) -> String {
     let trimmed = github_user_url.trim().trim_end_matches('/');
     if trimmed.is_empty() {
         return String::new();
     }
-    let repo = workbench_knowledge_root
+    let repo = workbench_root
         .file_name()
         .and_then(|n| n.to_str())
         .filter(|s| !s.is_empty())

@@ -48,16 +48,16 @@ fn create_bound_plan(title: &str) -> String {
     created["master_task_id"].as_str().unwrap().to_string()
 }
 
-fn assert_under_cache_not_corpus(path: &Path, sandbox: &TestSandbox) {
+fn assert_under_cache_not_knowledge_root(path: &Path, sandbox: &TestSandbox) {
     let cache = sandbox.cache_dir();
-    let corpus = sandbox.knowledge_corpus_root();
+    let knowledge = sandbox.knowledge_root();
     assert!(
         path.starts_with(&cache),
         "path {path:?} must be under cache_dir {cache:?}"
     );
     assert!(
-        !path.starts_with(&corpus),
-        "path {path:?} must not be under knowledge_corpus_root {corpus:?}"
+        !path.starts_with(&knowledge),
+        "path {path:?} must not be under knowledge_root {knowledge:?}"
     );
 }
 
@@ -116,7 +116,7 @@ fn session_save_load_roundtrip_under_cache_agent_sessions() {
         assert_eq!(sess.turns.len(), 0);
 
         let path = session::session_file_path(&sess.session_id).expect("path");
-        assert_under_cache_not_corpus(&path, sandbox);
+        assert_under_cache_not_knowledge_root(&path, sandbox);
         let expected_dir = sandbox.cache_dir().join("agent").join("sessions");
         assert!(
             path.starts_with(&expected_dir),
@@ -152,7 +152,7 @@ fn agent_error_log_writes_under_cache_agent_without_secrets() {
         .expect("log");
 
         let log_dir = session::agent_log_dir().expect("log dir");
-        assert_under_cache_not_corpus(&log_dir, sandbox);
+        assert_under_cache_not_knowledge_root(&log_dir, sandbox);
         assert!(
             log_dir.ends_with("agent") || log_dir.file_name().and_then(|n| n.to_str()) == Some("agent"),
             "log dir should be cache/agent, got {log_dir:?}"
@@ -195,7 +195,7 @@ fn assistant_diagnostic_log_is_versioned_jsonl_with_safe_metadata_only() {
         diagnostics::log(event).expect("write diagnostic event");
 
         let path = diagnostics::diagnostic_log_path().expect("diagnostic log path");
-        assert_under_cache_not_corpus(&path, sandbox);
+        assert_under_cache_not_knowledge_root(&path, sandbox);
         let log = fs::read_to_string(&path).expect("read diagnostic log");
         let line = log
             .lines()

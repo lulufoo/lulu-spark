@@ -85,20 +85,27 @@ fn set_binding_with_mcp(
 /// session capability context. Rejects legacy tools/prompt/callbacks payload.
 pub fn try_set_binding_json(v: &Value) -> Result<(), SetError> {
     let parsed = session::binding_from_json(v).map_err(|e| {
+        eprintln!(
+            "[DEBUG-assistant] host: binding_from_json failed code={}",
+            e.as_code()
+        );
         emit_lifecycle("onError", Some(e.as_code()));
         e
     })?;
     let key = session::binding_business_key(&parsed).ok_or_else(|| {
+        eprintln!("[DEBUG-assistant] host: binding_business_key missing");
         emit_lifecycle("onError", Some("set_invalid"));
         SetError::set_invalid()
     })?;
     let config = match mcp_server_registry::lookup(&key) {
         Ok(cfg) => cfg,
         Err(McpServerLookupError::NotFound) => {
+            eprintln!("[DEBUG-assistant] host: mcp lookup not found key={key}");
             emit_lifecycle("onError", Some("unknown_key"));
             return Err(SetError::unknown_key());
         }
         Err(McpServerLookupError::InvalidKey) => {
+            eprintln!("[DEBUG-assistant] host: mcp lookup invalid key={key}");
             emit_lifecycle("onError", Some("set_invalid"));
             return Err(SetError::set_invalid());
         }
@@ -127,6 +134,7 @@ fn inject_workbench_ticket(key: &str, mut config: McpServerConfig) -> Result<Mcp
     let handle = match issue_for_slot(Slot::Workbench) {
         Ok(handle) => handle,
         Err(_) => {
+            eprintln!("[DEBUG-assistant] host: inject_workbench_ticket failed");
             emit_lifecycle("onError", Some("set_invalid"));
             return Err(SetError::set_invalid());
         }

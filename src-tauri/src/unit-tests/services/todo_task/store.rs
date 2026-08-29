@@ -1,7 +1,7 @@
 use super::*;
 
 #[test]
-fn todo_tasks_path_is_under_workbench_knowledge_root() {
+fn todo_tasks_path_is_under_workbench_root() {
     with_todo_task_sandbox(|wb| {
         let path = paths::todo_tasks_path().expect("path");
         assert_eq!(path, wb.join("todo_tasks").join("todo_tasks.json"));
@@ -39,7 +39,7 @@ fn todo_task_tests_do_not_touch_prod_todo_tasks_or_cache() {
 #[test]
 fn todo_task_fixture_rejects_prod_todo_tasks_path() {
     let sandbox = TestSandbox::new();
-    let prod_wb = sandbox.prod_workbench_knowledge_root();
+    let prod_wb = sandbox.prod_workbench_root();
     let prod_todo_tasks = prod_wb.join("todo_tasks").join("todo_tasks.json");
     assert!(sandbox.assert_not_prod_path(&prod_todo_tasks).is_err());
     let prod_cache_plan = sandbox.prod_cache_dir().join("todo_tasks.json");
@@ -49,13 +49,13 @@ fn todo_task_fixture_rejects_prod_todo_tasks_path() {
 #[test]
 fn todo_task_paths_require_sandbox_isolation() {
     let sandbox = TestSandbox::new();
-    let wb = paths::workbench_knowledge_root().expect("wb");
+    let wb = paths::workbench_root().expect("wb");
     let plan_path = paths::todo_tasks_path().expect("todo_tasks");
     assert!(plan_path.starts_with(&wb));
     assert_ne!(
         plan_path,
         sandbox
-            .prod_workbench_knowledge_root()
+            .prod_workbench_root()
             .join("todo_tasks")
             .join("todo_tasks.json")
     );

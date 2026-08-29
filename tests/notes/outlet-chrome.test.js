@@ -8,7 +8,7 @@ const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
 const indexHtml = [
   readShellHtml(),
   readFileSync(join(repoRoot, 'frontend/src/notes/page.tsx'), 'utf8'),
-  readFileSync(join(repoRoot, 'frontend/src/corpus/ui/knowledge-search.tsx'), 'utf8'),
+  readFileSync(join(repoRoot, 'frontend/src/knowledge/ui/knowledge-search.tsx'), 'utf8'),
 ].join('\n');
 
 /** Extract outermost element with id, balanced for nested same-tag children. */

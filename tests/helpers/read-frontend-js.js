@@ -143,13 +143,13 @@ export function readNotesViewerSource() {
   ].join('\n');
 }
 
-export function readCorpusViewerSource() {
+export function readKnowledgeViewerSource() {
   const viewerDirs = [
-    join(repoRoot, 'frontend/src/corpus/ui/viewer'),
-    join(repoRoot, 'frontend/src/corpus/commands/viewer'),
+    join(repoRoot, 'frontend/src/knowledge/ui/viewer'),
+    join(repoRoot, 'frontend/src/knowledge/commands/viewer'),
   ];
   return [
-    readFrontendJs('frontend/src/corpus/viewer.ts'),
+    readFrontendJs('frontend/src/knowledge/viewer.ts'),
     ...viewerDirs.flatMap((dir) =>
       listFrontendSourceFiles(dir)
         .sort()

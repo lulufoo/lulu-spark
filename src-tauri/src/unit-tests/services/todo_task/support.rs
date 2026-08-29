@@ -17,7 +17,7 @@ pub(super) const V1_STUB_JSON: &str = r#"{"version":1,"tasks":{}}"#;
 pub(super) fn with_todo_task_sandbox<F: FnOnce(&Path)>(f: F) {
     let _sandbox = TestSandbox::new();
     test_reset_all_injection_flags();
-    let wb = paths::workbench_knowledge_root().expect("workbench root");
+    let wb = paths::workbench_root().expect("workbench root");
     f(&wb);
 }
 
@@ -31,7 +31,7 @@ pub(super) fn master_from_value(v: &serde_json::Value) -> &serde_json::Value {
 
 pub(super) fn prod_todo_tasks_mtime() -> Option<SystemTime> {
     settings::AppSettings::default()
-        .workbench_knowledge_root
+        .workbench_root
         .join("todo_tasks")
         .join("todo_tasks.json")
         .metadata()

@@ -76,7 +76,7 @@ describe('read-api ACL 与前端 invoke 映射一致', () => {
   })
 
   it('设置页依赖的推断/校验命令已列入 ACL', () => {
-    for (const cmd of ['infer_github_user_url', 'check_workbench_knowledge_root']) {
+    for (const cmd of ['infer_github_user_url', 'check_workbench_root']) {
       expect(tomlAllow, `${cmd} in toml`).toContain(cmd)
       expect(aclAllow, `${cmd} in acl`).toContain(cmd)
     }
