@@ -24,4 +24,10 @@ dependencyResolutionManagement {
 
 rootProject.name = "LuLuWorkbench"
 include(":app")
+include(":agent")
+include(":llm")
+include(":wmcp")
+include(":network")
+include(":storage")
+include(":log")
  
