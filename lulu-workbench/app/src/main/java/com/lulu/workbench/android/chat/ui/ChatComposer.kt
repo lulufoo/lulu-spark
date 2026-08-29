@@ -19,6 +19,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.SolidColor
@@ -29,12 +31,16 @@ import androidx.compose.ui.unit.dp
 internal fun ChatComposer(
     draft: String,
     onDraftChange: (String) -> Unit,
-    enabled: Boolean,
     sendEnabled: Boolean,
     onSend: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val colors = MaterialTheme.colorScheme
+    val onSendLatest = rememberUpdatedState(onSend)
+    val keyboardOptions = remember { KeyboardOptions(imeAction = ImeAction.Send) }
+    val sendActions = remember {
+        KeyboardActions(onSend = { onSendLatest.value() })
+    }
     Column(modifier = modifier.fillMaxWidth()) {
         HorizontalDivider(color = colors.outline.copy(alpha = 0.55f))
         Surface(color = colors.surface) {
@@ -53,14 +59,13 @@ internal fun ChatComposer(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 14.dp, vertical = 10.dp),
-                        enabled = enabled,
                         singleLine = true,
                         textStyle = MaterialTheme.typography.bodyLarge.copy(
                             color = colors.onSurface,
                         ),
                         cursorBrush = SolidColor(colors.onSurfaceVariant),
-                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
-                        keyboardActions = KeyboardActions(onSend = { onSend() }),
+                        keyboardOptions = keyboardOptions,
+                        keyboardActions = sendActions,
                         decorationBox = { inner ->
                             if (draft.isEmpty()) {
                                 Text(

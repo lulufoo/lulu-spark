@@ -17,6 +17,7 @@ import androidx.compose.ui.Modifier
 import com.lulu.workbench.android.chat.commands.ChatCommands
 import com.lulu.workbench.android.chat.state.ChatStore
 import com.lulu.workbench.android.chat.ui.ChatScreen
+import com.lulu.workbench.android.chat.ui.applyChatWindowIme
 import com.lulu.workbench.android.log.LogModule
 import com.lulu.workbench.android.log.WbLog
 import com.lulu.workbench.android.ui.theme.LuLuWorkbenchTheme
@@ -27,6 +28,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         WbLog.module(LogModule.APP).i("activity create")
         enableEdgeToEdge()
+        applyChatWindowIme(window)
         val runtime = (application as WorkbenchApp).runtime
         setContent {
             val mainHandler = remember { Handler(Looper.getMainLooper()) }
