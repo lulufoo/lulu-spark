@@ -5,7 +5,7 @@ import java.io.File
 interface LogEnv {
     val debug: Boolean
 
-    val file: File
+    fun fileFor(tsMs: Long): File
 
     fun nowMs(): Long
 

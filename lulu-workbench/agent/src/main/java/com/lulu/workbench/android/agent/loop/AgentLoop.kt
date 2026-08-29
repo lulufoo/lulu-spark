@@ -71,8 +71,11 @@ class AgentLoop(
                 onProgress(TurnProgress.Finished(reply))
                 return
             }
+            log.i(
+                "llm session=${sessionId.value} request=$requestId calls=${result.toolCalls.size}",
+            )
             if (result.toolCalls.isEmpty()) {
-                log.i("finished session=${sessionId.value} request=$requestId")
+                log.i("finished session=${sessionId.value} request=$requestId calls=0")
                 turns.add(HistoryTurn(role = "assistant", content = result.text))
                 sessions.saveTurns(sessionId, turns)
                 onProgress(TurnProgress.Finished(result.text))

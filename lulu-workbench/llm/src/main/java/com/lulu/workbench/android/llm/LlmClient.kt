@@ -101,11 +101,17 @@ class LlmClientImpl(
             log.w("complete http ${response.status}")
             throw LlmHttpException(response.status)
         }
-        log.d("complete ok id=${active.id} tools=${tools.size}")
         val raw = response.body.decodeToString()
+        val calls = decodeToolCalls(raw)
+        val finish = decodeFinishReason(raw)
+        log.d(
+            "complete ok id=${active.id} tools=${tools.size} " +
+                "calls=${calls.size} finish=${finish.ifEmpty { "-" }} " +
+                "hasKey=${hasToolCallsKey(raw)}",
+        )
         return LlmCompletion(
             text = decodeAssistantText(raw),
-            toolCalls = decodeToolCalls(raw),
+            toolCalls = calls,
         )
     }
 }

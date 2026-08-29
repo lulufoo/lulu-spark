@@ -39,6 +39,14 @@ internal fun decodeAssistantText(json: String): String {
     return unescape(readJsonString(from, quote))
 }
 
+internal fun decodeFinishReason(json: String): String {
+    val key = json.indexOf("\"finish_reason\"")
+    if (key < 0) return ""
+    return readStringAfterKey(json, key)
+}
+
+internal fun hasToolCallsKey(json: String): Boolean = json.indexOf("\"tool_calls\"") >= 0
+
 internal fun decodeToolCalls(json: String): List<LlmToolCall> {
     val key = json.indexOf("\"tool_calls\"")
     if (key < 0) return emptyList()

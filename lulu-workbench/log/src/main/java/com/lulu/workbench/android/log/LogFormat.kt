@@ -38,6 +38,12 @@ internal fun isoUtc(tsMs: Long): String {
     return format.format(Date(tsMs))
 }
 
+internal fun logFileName(tsMs: Long, timeZone: TimeZone = TimeZone.getDefault()): String {
+    val format = SimpleDateFormat("yyyy-MM-dd", Locale.US)
+    format.timeZone = timeZone
+    return format.format(Date(tsMs)) + "-workbench.jsonl"
+}
+
 private fun escape(value: String): String =
     value
         .replace("\\", "\\\\")

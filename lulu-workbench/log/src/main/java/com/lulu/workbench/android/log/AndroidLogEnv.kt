@@ -14,7 +14,9 @@ class AndroidLogEnv(
     override val debug: Boolean,
 ) : LogEnv {
     private val app = context.applicationContext
-    override val file: File = File(filesDir, LOG_FILE)
+    private val logDir: File = File(filesDir, "logs")
+
+    override fun fileFor(tsMs: Long): File = File(logDir, logFileName(tsMs))
 
     override fun nowMs(): Long = System.currentTimeMillis()
 
@@ -49,4 +51,3 @@ class AndroidLogEnv(
     }
 }
 
-private const val LOG_FILE = "logs/workbench.jsonl"

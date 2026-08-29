@@ -1,8 +1,10 @@
 package com.lulu.workbench.android.log
 
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.util.TimeZone
 
 class LogFormatTest {
     @Test
@@ -30,5 +32,12 @@ class LogFormatTest {
         assertFalse(line.contains("\"session\""))
         assertFalse(line.contains("\"request\""))
         assertTrue(isoUtc(0L).contains("T"))
+    }
+
+    @Test
+    fun dailyFileNameUsesDatePrefix() {
+        val utc = TimeZone.getTimeZone("UTC")
+        assertEquals("1970-01-01-workbench.jsonl", logFileName(0L, utc))
+        assertEquals("2026-08-29-workbench.jsonl", logFileName(1_787_961_600_000L, utc))
     }
 }

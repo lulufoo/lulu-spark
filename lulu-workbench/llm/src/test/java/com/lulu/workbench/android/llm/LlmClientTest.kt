@@ -94,6 +94,18 @@ class LlmClientTest {
     }
 
     @Test
+    fun decodeFinishReasonAndToolCallsKey() {
+        val raw =
+            """{"choices":[{"finish_reason":"stop","message":{"content":"ok"}}]}"""
+        assertEquals("stop", decodeFinishReason(raw))
+        assertFalse(hasToolCallsKey(raw))
+        val withCalls =
+            """{"choices":[{"finish_reason":"tool_calls","message":{"content":null,"tool_calls":[]}}]}"""
+        assertEquals("tool_calls", decodeFinishReason(withCalls))
+        assertTrue(hasToolCallsKey(withCalls))
+    }
+
+    @Test
     fun decodeToolCallsReadsFunction() {
         val calls =
             decodeToolCalls(
