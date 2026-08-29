@@ -19,8 +19,8 @@ Do not pass `translations`. `content_constraint` is required when `source_type` 
 
 ## Digest
 
-theme-archive `[AR-3]` owns digest. Theme-transcribe does not call `archive_digest`.
+theme-archive `[AR-3]` owns digest. Theme-transcribe does not call `create_note_digest`.
 
 ## Revisions
 
-New archive needs a new `ts` / path. `archive_document` does not overwrite `raw/`.
+New archive needs a new `ts` / path. `create_note` does not overwrite `raw/`.

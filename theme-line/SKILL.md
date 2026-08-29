@@ -80,7 +80,7 @@ Output patterns: [references/output-templates.md](references/output-templates.md
 
 Load and execute [references/archive-steps.md](references/archive-steps.md) from Step 1.
 
-**Do not** translate. **Do not** call `archive_document` / `archive_digest`. Translation and persist are theme-archive’s job.
+**Do not** translate. **Do not** call `create_note` / `create_note_digest`. Translation and persist are theme-archive’s job.
 
 Path/config: [../shared/archive-concepts.md](../shared/archive-concepts.md)
 

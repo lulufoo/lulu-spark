@@ -13,7 +13,7 @@
 > 
 > 刊载：{publisher} · 作者 {author} · 发布 {published_at}
 > 
-> 导航：[distilled]({prefix}distilled/{COMMON_PATH}) · [digest]({prefix}digest/{COMMON_PATH}) · [trace]({prefix}trace/{COMMON_PATH})
+> 导航：[digest]({prefix}digest/{COMMON_PATH})
 
 ---
 

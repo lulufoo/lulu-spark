@@ -17,7 +17,7 @@ Legacy clean feedstock (summary): [`transcript-clean.md`](transcript-clean.md).
 
 ---
 
-## `archive_document` contract (both skills)
+## `create_note` contract (both skills)
 
 Hard-cut path-only:
 
@@ -48,7 +48,7 @@ $NORMALIZE \
 ```
 
 3. Resolve `sink`: `workbench` (default) → theme-archive Embedded (`source_path` + digest under **内容约束**); `local-md` → keep `.cache` only, no MCP.
-4. Legacy `$TRANSCRIPT_CLEAN` / `to-archive-md` is **not** the path for Workbench `archive_document` after the path-only contract.
+4. Legacy `$TRANSCRIPT_CLEAN` / `to-archive-md` is **not** the path for Workbench `create_note` after the path-only contract.
 
 ### `dialogue-summary` (process summary)
 

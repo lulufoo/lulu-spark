@@ -35,7 +35,7 @@ python3 "$SKILL_DIR/theme-archive/scripts/detect_full_english.py" "<primary.md>"
 python3 "$SKILL_DIR/theme-archive/scripts/check_zh_parity.py" "<primary.md>" "<zh.md>"
 ```
 
-- Exit 1 → stop. Do not call `archive_document`. Host repeats the same checks.
+- Exit 1 → stop. Do not call `create_note`. Host repeats the same checks.
 - Do not summarize or add commentary.
 - theme-line zh title: `{Speaker}：{Event} | {Outlet}` when those are known; otherwise a concise Chinese title.
 

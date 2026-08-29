@@ -56,7 +56,7 @@ Standalone 从 `[AR-0]` 起执行路径解析，见 [references/standalone-resol
 
 当用户请求补跑/重写 digest、且 raw 已归档：
 
-1. 解析 entry `id` 与 raw 正文（用户提供 id / COMMON_PATH / 粘贴 raw；Agent 不直读 corpus）。
+1. 解析 entry `id` 与 raw 正文（用户提供 id / COMMON_PATH / 粘贴 raw；Agent 不直读 notes）。
 2. 加载 [digest-workflow.md](../shared/digest-workflow.md)，以 Repair/Embedded 执行 `[AD-0]`–`[AD-3]`。
 3. 用户声明 `--force-digest` / 「重写 digest」→ `force: true`；digest 已存在且未 force → 提示后结束。
 
@@ -67,7 +67,7 @@ Standalone 从 `[AR-0]` 起执行路径解析，见 [references/standalone-resol
 ## Archive Workflow
 
 <HARD-GATE mcp="archive">
-Workbench App **必须运行**（MCP `workbench-knowledge` 可用）。**禁止**直写 corpus 文件系统。
+Workbench App **必须运行**（MCP `workbench-knowledge` 可用）。**禁止**直写 notes 文件系统。
 </HARD-GATE>
 
 ### [AR-0] 路径与文件名（Standalone only）
@@ -126,9 +126,9 @@ python3 "$SKILL_DIR/theme-archive/scripts/check_zh_parity.py" "<primary.md>" "<z
 
 ---
 
-### [AR-2] archive_document (MCP)
+### [AR-2] create_note (MCP)
 
-将 primary 全文写入 allow-list 路径（建议 `{workspace}/.cache/theme-archive/<ts>-<slug>.md`），再调用 MCP `archive_document`。中译与英文同一条读盘路径：
+将 primary 全文写入 allow-list 路径（建议 `{workspace}/.cache/theme-archive/<ts>-<slug>.md`），再调用 MCP `create_note`。中译与英文同一条读盘路径：
 
 ```json
 {
@@ -156,7 +156,7 @@ python3 "$SKILL_DIR/theme-archive/scripts/check_zh_parity.py" "<primary.md>" "<z
 
 1. **Read** [digest-workflow.md](../shared/digest-workflow.md)（shared 契约，非公开 skill）。
 2. 以 Embedded 传入：`id`、raw 正文（primary）、`COMMON_PATH`、`source_type`。
-3. 按该文件 `[AD-0]`–`[AD-3]` 执行；适用则 MCP `archive_digest`，否则输出跳过行。
+3. 按该文件 `[AD-0]`–`[AD-3]` 执行；适用则 MCP `create_note_digest`，否则输出跳过行。
 
 ---
 
@@ -174,7 +174,7 @@ python3 "$SKILL_DIR/theme-archive/scripts/check_zh_parity.py" "<primary.md>" "<z
 
 ### [AR-5] 失败处理
 
-MCP 返回错误 → **停止**；向用户报告 HTTP 状态与消息。**不要**尝试直写 corpus 作为回退。  
+MCP 返回错误 → **停止**；向用户报告 HTTP 状态与消息。**不要**尝试直写 notes 作为回退。  
 `[AR-2]` 已成功而 `[AR-3]` 失败 → 报告 raw 已落盘、digest 失败，可经 Digest-only Repair 重试；**不要**回滚 raw。
 
 ---
@@ -187,7 +187,7 @@ MCP 返回错误 → **停止**；向用户报告 HTTP 状态与消息。**不�
 | dialogue-summary / dialogue-archive | 各自 Output Shape | **Embedded 本 skill**（`sink=workbench`） | 同上；digest 须带 `content_constraint` |
 | **本 skill Standalone** | 用户已定稿文档 | `[AR-0]`–`[AR-3]` | 同上 |
 
-Producer **禁止**自管 `archive_document` / `archive_digest`，**禁止**按 `language == en` 预译。`sink=local-md` 的 dialogue-archive 除外（不入 corpus）。
+Producer **禁止**自管 `create_note` / `create_note_digest`，**禁止**按 `language == en` 预译。`sink=local-md` 的 dialogue-archive 除外（不入 notes）。
 
 ---
 

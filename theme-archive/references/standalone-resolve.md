@@ -1,6 +1,6 @@
 # Standalone Path Resolution
 
-> Standalone 模式下 theme-archive 自行解析 `COMMON_PATH`，经 MCP `archive_document` 落盘。
+> Standalone 模式下 theme-archive 自行解析 `COMMON_PATH`，经 MCP `create_note` 落盘。
 
 ## Step 1 · Infer project and doc-theme
 

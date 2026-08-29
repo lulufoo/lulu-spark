@@ -40,4 +40,4 @@ Phase N 组稿完成（仅主文件）→
 ```
 
 Producer 负责：选 project/doc-theme、组 header、Compose 主文件。  
-theme-archive 负责：全文英文中译、`archive_document`、`[AR-3]` digest。
+theme-archive 负责：全文英文中译、`create_note`、`[AR-3]` digest。

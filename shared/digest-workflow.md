@@ -1,22 +1,22 @@
 # Digest workflow（shared · 非公开 skill）
 
-> **可见性：** 共享契约，**不是**可触发的公开 skill。由 `theme-archive` 在 `[AR-3]` 自动执行。Producer 经 theme-archive Embedded 录入，**不要**自管 `archive_digest`。
+> **可见性：** 共享契约，**不是**可触发的公开 skill。由 `theme-archive` 在 `[AR-3]` 自动执行。Producer 经 theme-archive Embedded 录入，**不要**自管 `create_note_digest`。
 >
 > **用户入口：** 补跑/重写 digest → 走 [`theme-archive`](../theme-archive/SKILL.md)（Digest-only Repair）。不要寻找已删除的顶层 `theme-digest`。
 >
 > **路径约定：** [archive-concepts.md](archive-concepts.md)（`COMMON_PATH`、`prefix`、`layers`）
 >
-> **输入：** raw 正文 + entry `id`（来自 `archive_document`；补跑时由 theme-archive 解析后传入）
+> **输入：** raw 正文 + entry `id`（来自 `create_note`；补跑时由 theme-archive 解析后传入）
 >
 > **输出：** `digest/<COMMON_PATH>`；更新 `index.json` 的 `layers`
 >
-> **禁止：** 生成概述时读取 `distilled/`、`diagnose/`、`trace/` 下任何文件
+> **禁止：** 生成概述时读取 raw 以外的任何 notes 层
 
 ## 谁加载本文件
 
 | 调用方 | 模式 |
 |--------|------|
-| `theme-archive` | `archive_document` 成功后 **自动**；或 Digest-only Repair |
+| `theme-archive` | `create_note` 成功后 **自动**；或 Digest-only Repair |
 | 各 producer | 经 theme-archive Embedded；digest 仍按本文件 `[AD-0]`–`[AD-3]` |
 
 ---
@@ -40,7 +40,7 @@ raw 已存在、需补跑或 `--force` 重写：由 **theme-archive** 解析 `id
 ## Archive Digest Workflow
 
 <HARD-GATE mcp="archive">
-落盘 MUST 经 MCP `archive_digest`。**禁止**直写 digest 或 index。
+落盘 MUST 经 MCP `create_note_digest`。**禁止**直写 digest 或 index。
 </HARD-GATE>
 
 ### [AD-0] 适用条件
@@ -73,7 +73,7 @@ digest 是可选产出。以下任意一项满足即生成：
 [一段话：本对话/总结/稿围绕什么主题、讨论或收敛到什么落点；仅依据 raw，不展开章节、不列概念表。]
 ```
 
-**导航行（条件追加）**：若已知 index 条目 `layers` 含 `distilled` / `trace` 时追加链接。前缀 `<prefix>` 见 [archive-concepts.md](archive-concepts.md)。
+**导航行**：仅链回 raw。前缀 `<prefix>` 见 [archive-concepts.md](archive-concepts.md)。
 
 ---
 
@@ -103,9 +103,9 @@ Digest 头 **必须**含：
 
 ---
 
-### [AD-3] archive_digest (MCP)
+### [AD-3] create_note_digest (MCP)
 
-调用 MCP `archive_digest`：
+调用 MCP `create_note_digest`：
 
 ```json
 {

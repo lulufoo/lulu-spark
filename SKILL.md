@@ -37,7 +37,7 @@ git -C $SKILL_DIR pull --rebase
 
 ## 前置条件
 
-归档 skill 执行前 **Workbench App 必须运行**（MCP `workbench-knowledge` 可用，`http://127.0.0.1:9876/mcp`）。corpus 根目录由 Workbench 管理，**无需**本地配置文件。
+归档 skill 执行前 **Workbench App 必须运行**（MCP `workbench-knowledge` 可用，`http://127.0.0.1:9876/mcp`）。notes 根目录由 Workbench 管理，**无需**本地配置文件。
 
 ## 子 skill
 
