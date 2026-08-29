@@ -5,7 +5,7 @@
 | `sink` | Corpus / MCP |
 |--------|----------------|
 | `workbench` | This document applies in full |
-| `local-md` | Skip MCP; write workspace `.cache` only — do **not** write corpus `raw/` / `digest/` / `index.json` by hand |
+| `local-md` | Skip MCP; write workspace `.cache` only — do **not** write notes `raw/` / `digest/` / `index.json` by hand |
 
 ## MCP prerequisite (`sink=workbench` only)
 
@@ -14,8 +14,8 @@ Workbench App **must** be running (`workbench-knowledge` at `http://127.0.0.1:98
 
 | Op | MCP tool |
 |----|----------|
-| Write raw + index | `archive_document` |
-| Write digest + layers | `archive_digest` |
+| Write raw + index | `create_note` |
+| Write digest + layers | `create_note_digest` |
 
 First step when archiving to Workbench: confirm MCP available.
 
@@ -54,7 +54,7 @@ prefix      = "../../../"
 …turn body…
 ```
 
-## archive_document
+## create_note
 
 Hard-cut: body comes from Host reading a file. **Do not** send `document`.
 
@@ -67,7 +67,7 @@ Hard-cut: body comes from Host reading a file. **Do not** send `document`.
 
 If the tool/API still rejects `source_path` or requires `document`, stop and report Host/MCP not yet upgraded — do **not** paste the full markdown into the tool call.
 
-## archive_digest
+## create_note_digest
 
 MCP fields unchanged: `id` + `digest` (+ optional `force`).
 

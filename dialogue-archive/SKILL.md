@@ -34,7 +34,7 @@ Shared digest shape: [`../shared/digest-workflow.md`](../shared/digest-workflow.
 
 **Hard:** Prefer `$NORMALIZE` for raw. Do **not** hand-parse jsonl into TURN_SEP. If `$NORMALIZE` is missing, stop — do not fall back to assembling `document` for MCP.
 
-Legacy `$TRANSCRIPT_CLEAN` (`transcript-clean-control.py`) is **not** the path for Workbench `archive_document` after this contract; do not use it to build MCP payloads.
+Legacy `$TRANSCRIPT_CLEAN` (`transcript-clean-control.py`) is **not** the path for Workbench `create_note` after this contract; do not use it to build MCP payloads.
 
 ---
 
@@ -145,7 +145,7 @@ Digest header **must** include:
 
 ```json
 {
-  "id": "<archive_document id>",
+  "id": "<create_note id>",
   "digest": "<full digest markdown>"
 }
 ```
@@ -162,7 +162,7 @@ Done:
 **`sink=local-md`**
 
 1. Ensure file at `{workspace}/.cache/dialogue-archive/<ts>-<slug>.md`.
-2. Do **not** call `archive_document` / `archive_digest`.
+2. Do **not** call `create_note` / `create_note_digest`.
 
 Done:
 
@@ -176,10 +176,10 @@ Done:
 ## Hard constraints
 
 1. **Script-only raw** for session transcripts — no hand-built TURN_SEP for MCP.
-2. **Path-only `archive_document`** — `source_path` only.
+2. **Path-only `create_note`** — `source_path` only.
 3. **Node indices are AI’s job** — script does not search anchors.
 4. **Digest needs content_constraint** when writing digest.
-5. **MCP only** for corpus writes when `sink=workbench`.
+5. **MCP only** for notes writes when `sink=workbench`.
 
 ---
 
