@@ -75,6 +75,13 @@ fn read_later_path_under_workbench_root() {
 }
 
 #[test]
+fn mcp_channel_tools_path_under_workbench_root() {
+    let sandbox = TestSandbox::new();
+    let path = mcp_channel_tools_path().expect("mcp_channel_tools");
+    assert_eq!(path, sandbox.workbench_root().join("mcp_channel_tools.json"));
+}
+
+#[test]
 fn todo_tasks_path_under_workbench_root() {
     let sandbox = TestSandbox::new();
     let wb = sandbox.workbench_root();

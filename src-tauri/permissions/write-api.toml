@@ -71,4 +71,6 @@ commands.allow = [
   "execute_binding",
   "agent_chat_turn",
   "create_note",
+  "set_mcp_channel_tools",
+  "revoke_mcp_device_ticket",
 ]

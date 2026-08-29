@@ -233,6 +233,8 @@ fn commands_are_declared_and_registered_in_generate_handler() {
         "commands::mcp_oauth::issue_cursor_ide_ticket",
         "commands::mcp_oauth::rotate_cursor_ide_ticket",
         "commands::mcp_oauth::revoke_mcp_slot_ticket",
+        "commands::mcp_oauth::get_mcp_ticket_view",
+        "commands::mcp_oauth::revoke_mcp_device_ticket",
     ] {
         assert!(
             lib.contains(name),
@@ -296,6 +298,28 @@ fn command_error_strings_do_not_leak_ticket_secret() {
         assert_secret_absent(&err, &secret);
         assert_secret_absent(&format!("{err:?}"), &secret);
     });
+}
+
+#[test]
+fn get_mcp_ticket_view_and_device_revoke_use_shared_oauth() {
+    let sandbox = TestSandbox::new();
+    reset_slots();
+    let workbench = issue_for_slot(Slot::Workbench).expect("wb");
+    let view = super::get_mcp_ticket_view("workbench".into()).expect("view");
+    assert_eq!(view["state"], "live");
+    assert!(view.get("handle").is_none());
+    assert!(!view.to_string().contains(workbench.as_str()));
+
+    let phone = crate::services::mcp_oauth::issue_for_device("phone-cmd", Some("Pixel"))
+        .expect("phone");
+    let mobile = super::get_mcp_ticket_view("mobile".into()).expect("mobile");
+    assert_eq!(mobile["devices"][0]["device_id"], "phone-cmd");
+    assert!(!mobile.to_string().contains(phone.as_str()));
+    let revoked = super::revoke_mcp_device_ticket("phone-cmd".into()).expect("revoke");
+    assert_eq!(revoked, json!({ "ok": true }));
+    let after = super::get_mcp_ticket_view("mobile".into()).expect("after");
+    assert_eq!(after["devices"][0]["revoked"], true);
+    let _ = sandbox;
 }
 
 #[test]

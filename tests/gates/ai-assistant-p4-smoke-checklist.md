@@ -12,7 +12,7 @@
 
 ## 配置保存
 
-- [ ] 设置 → Agent Loop / GLM：填写 model / API key，保存成功；platform 与 base_url 使用只读 GLM 预设。✅ Verified（`frontend/src/app-shell/settings-dialog.js`；`frontend/src/app-shell/engine-presets.js`；`tests/app-shell/settings-llm.test.js`）
+- [ ] 设置 → GLM：填写 model / API key，保存成功；platform 与 base_url 使用只读 GLM 预设。✅ Verified（`frontend/src/app-shell/settings-dialog.js`；`frontend/src/app-shell/engine-presets.js`；`tests/app-shell/settings-llm.test.js`）
 - [ ] 重新打开设置：GLM platform/base_url/model 回显；API key 不回显明文（`has_host_key`）。✅ Verified（`get_config` / `to_config_json` 密钥掩码路径；`tests/app-shell/settings-llm.test.js`）
 
 ## 主路径冒烟
@@ -25,7 +25,7 @@
 
 对 Host / GLM 执行一次「保存配置 → 开助手 → 发一句可完成的查看/改计划请求 → 观察到成功调用或等价业务回复」：
 
-- [ ] **GLM**（platform=`glm`；使用 Agent Loop / GLM 预设的 base_url、model 与 API key）
+- [ ] **GLM**（platform=`glm`；使用 GLM 预设的 base_url、model 与 API key）
 
 通过信号：至少一次上游成功或可观察的业务终态；缺 API key 时引导设置而非沉默失败。✅ Verified（配置面：`llm-settings`；失败分型：`llm_error_taxonomy_*` / Loop `length_and_http_errors_*`；不自动重试）
 

@@ -8,7 +8,7 @@ use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
+use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 
 use crate::config::settings;
@@ -69,7 +69,7 @@ pub enum TicketState {
 }
 
 impl TicketState {
-    fn as_str(self) -> &'static str {
+    pub(crate) fn as_str(self) -> &'static str {
         match self {
             TicketState::Live => "live",
             TicketState::Revoked => "revoked",
@@ -97,6 +97,7 @@ pub struct DeviceRecord {
     pub device_id: String,
     pub device_label: Option<String>,
     pub revoked: bool,
+    pub token_hint: Option<String>,
 }
 
 const DEVICE_LEDGER_FILE: &str = "device-tickets.json";
@@ -172,6 +173,7 @@ pub fn issue_for_device(
         .unwrap_or_else(|e| e.into_inner());
     let handle = new_handle();
     let hash = hash_token(handle.as_str());
+    let hint = token_hint(handle.as_str());
     let mut ledger = load_device_ledger()?;
     if let Some(row) = ledger
         .devices
@@ -180,12 +182,14 @@ pub fn issue_for_device(
     {
         row.device_label = device_label.map(str::to_string);
         row.token_hash = hash;
+        row.token_hint = Some(hint);
         row.revoked = false;
     } else {
         ledger.devices.push(DeviceLedgerRow {
             device_id: device_id.to_string(),
             device_label: device_label.map(str::to_string),
             token_hash: hash,
+            token_hint: Some(hint),
             revoked: false,
         });
     }
@@ -235,8 +239,59 @@ pub fn list_devices() -> Result<Vec<DeviceRecord>, OAuthError> {
             device_id: row.device_id,
             device_label: row.device_label,
             revoked: row.revoked,
+            token_hint: row.token_hint,
         })
         .collect())
+}
+
+pub fn token_hint(secret: &str) -> String {
+    let trimmed = secret.trim();
+    if trimmed.len() < 4 {
+        return "••••".to_string();
+    }
+    format!("••••{}", &trimmed[trimmed.len() - 4..])
+}
+
+pub fn ticket_view(channel: &str) -> Result<Value, OAuthError> {
+    match channel {
+        "workbench" => slot_ticket_view(Slot::Workbench, false),
+        "cursor_ide" => slot_ticket_view(Slot::CursorIde, true),
+        "mobile" => mobile_ticket_view(),
+        _ => Err(OAuthError::slot_unknown),
+    }
+}
+
+fn slot_ticket_view(slot: Slot, include_handle: bool) -> Result<Value, OAuthError> {
+    match ledger_record(slot)? {
+        None => Ok(json!({
+            "channel": slot.as_str(),
+            "state": "none",
+        })),
+        Some(record) => {
+            let mut value = json!({
+                "channel": slot.as_str(),
+                "state": record.state.as_str(),
+                "hint": token_hint(record.handle.as_str()),
+            });
+            if include_handle && record.state == TicketState::Live {
+                value["handle"] = json!(record.handle.as_str());
+            }
+            Ok(value)
+        }
+    }
+}
+
+fn mobile_ticket_view() -> Result<Value, OAuthError> {
+    let devices = list_devices()?;
+    Ok(json!({
+        "channel": "mobile",
+        "devices": devices.iter().map(|row| json!({
+            "device_id": row.device_id,
+            "device_label": row.device_label,
+            "revoked": row.revoked,
+            "hint": row.token_hint,
+        })).collect::<Vec<_>>(),
+    }))
 }
 
 #[cfg_attr(test, allow(dead_code))]
@@ -372,6 +427,8 @@ struct DeviceLedgerRow {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     device_label: Option<String>,
     token_hash: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    token_hint: Option<String>,
     revoked: bool,
 }
 

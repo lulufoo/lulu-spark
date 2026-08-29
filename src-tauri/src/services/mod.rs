@@ -24,6 +24,7 @@ pub mod tag_write;
 pub mod tags_registry;
 pub mod mcp_server_registry;
 pub mod mcp_protocol_adapter;
+pub mod mcp_channel_tools;
 pub mod mcp_oauth;
 pub mod lan_ip;
 pub mod bind;

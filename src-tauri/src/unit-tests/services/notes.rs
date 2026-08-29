@@ -5,7 +5,7 @@ use serde_json::json;
 
 use crate::services::archive_parse::parse_archive_document;
 use crate::services::notes::{
-    create_note_digest, create_note, create_jot, synthesize_jot_document,
+    create_note_content, create_note_digest, create_note, create_jot, synthesize_jot_document,
     JotCreateOpts,
 };
 use crate::services::todo_task::{
@@ -665,6 +665,44 @@ fn create_jot_rejects_empty_body_without_writing() {
             .map(|mut d| d.next().is_none())
             .unwrap_or(true)
     });
+}
+
+#[test]
+fn create_note_content_writes_from_markdown_body() {
+    let (_sandbox, repo_root) = setup_notes();
+    let v = create_note_content(
+        &repo_root,
+        &json!({
+            "content": SAMPLE_DOC,
+            "source_type": "summary",
+        }),
+    );
+    assert_eq!(v.get("ok"), Some(&json!(true)), "create_note_content failed: {v}");
+    assert_eq!(v["id"].as_str().expect("id").len(), 32);
+}
+
+#[test]
+fn create_note_content_rejects_source_path_and_empty() {
+    let (_sandbox, repo_root) = setup_notes();
+    let with_path = create_note_content(
+        &repo_root,
+        &json!({
+            "content": SAMPLE_DOC,
+            "source_path": "/tmp/x.md",
+        }),
+    );
+    assert_eq!(with_path.get("_status"), Some(&json!(400)));
+    assert!(
+        with_path["error"]
+            .as_str()
+            .unwrap_or("")
+            .contains("content"),
+        "{with_path}"
+    );
+    let empty = create_note_content(&repo_root, &json!({ "content": "   " }));
+    assert_eq!(empty.get("_status"), Some(&json!(400)));
+    let missing = create_note_content(&repo_root, &json!({ "source_type": "summary" }));
+    assert_eq!(missing.get("_status"), Some(&json!(400)));
 }
 
 #[test]

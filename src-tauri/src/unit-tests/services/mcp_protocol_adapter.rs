@@ -842,6 +842,7 @@ fn proxy_tool_call_unreachable_sidecar_maps_like_node() {
         .block_on(proxy_tool_call(
             base,
             WORKBENCH_SLOT,
+            WORKBENCH_SLOT,
             "list_todo_categories",
             serde_json::json!({}),
         ))
@@ -920,7 +921,7 @@ fn representative_tools_call_per_registered_slot_hits_sidecar_api() {
         let body = r#"{"ok":true,"proxy":"sidecar"}"#;
         let (base, seen, join) = start_recording_sidecar(200, body);
         let mapped = rt
-            .block_on(proxy_tool_call(&base, slot, tool, args))
+            .block_on(proxy_tool_call(&base, slot, slot, tool, args))
             .expect("proxy must return mapped result")
             .expect("Sidecar 200 → MCP success");
         assert_eq!(mcp_text_ok(&mapped), body);
@@ -950,6 +951,7 @@ fn proxy_tool_call_maps_sidecar_http_error_like_node() {
     let err = rt
         .block_on(proxy_tool_call(
             &base,
+            WORKBENCH_SLOT,
             WORKBENCH_SLOT,
             "list_todo_categories",
             serde_json::json!({}),
@@ -2261,6 +2263,111 @@ fn t3_revoked_missing_and_unbound_cannot_call_mobile_tools() {
 
         stop_embedded_mcp_runtime(handle).expect("stop");
     });
+}
+
+/// Normal: unchecked tools are omitted from /mcp/mobile tools/list and rejected on call.
+#[test]
+fn channel_filter_hides_and_rejects_create_note_on_mobile() {
+    with_device_sandbox(|| {
+        let all = workbench_expected_tool_names();
+        let enabled: Vec<String> = all
+            .iter()
+            .copied()
+            .filter(|name| *name != "create_note")
+            .map(str::to_string)
+            .collect();
+        crate::services::mcp_channel_tools::set_enabled("mobile", enabled).expect("save");
+
+        let token = issue_device_ticket("phone-channel-filter");
+        let sidecar_body = r#"{"ok":true,"via":"mobile"}"#;
+        let (base, stop, join) = start_looping_api_sidecar(sidecar_body);
+        let handle = start_embedded_mcp_runtime_with_sidecar(
+            McpRuntimeConfig {
+                bind_addr: "127.0.0.1:0".parse().expect("bind"),
+            },
+            base,
+        )
+        .expect("start MCP with sidecar");
+        let port = handle.local_addr().port();
+        let rt = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .expect("tokio");
+
+        let names = rt
+            .block_on(run_initialize_and_list_tools_authed(
+                port,
+                MOBILE_PATH,
+                &token,
+            ))
+            .expect("mobile list");
+        let got: BTreeSet<_> = names.iter().map(String::as_str).collect();
+        assert!(!got.contains("create_note"), "unchecked tool must leave list");
+        assert!(got.contains("get_notes_catalog"));
+        assert_ne!(got, all, "mobile list must no longer equal the full table");
+
+        let err = rt.block_on(list_and_call_mobile(
+            port,
+            &token,
+            "create_note",
+            serde_json::json!({"source_path": "/tmp/x.md"}),
+        ));
+        assert!(
+            err.is_err(),
+            "call_tool must reject an unchecked mobile tool, got {err:?}"
+        );
+
+        let _ = stop.send(());
+        stop_embedded_mcp_runtime(handle).expect("stop");
+        let _ = join.join();
+    });
+}
+
+/// Plan B: same MCP name, mobile channel posts /api/create-note-content.
+#[test]
+fn mobile_channel_create_note_hits_content_api() {
+    let table = build_channel_tool_table(WORKBENCH_SLOT, MOBILE_PATH).expect("overlay");
+    let create = table
+        .tools
+        .iter()
+        .find(|t| t.name == "create_note")
+        .expect("create_note");
+    assert_eq!(create.api_path, "/api/create-note-content");
+    let required = create.input_schema["required"]
+        .as_array()
+        .expect("required");
+    assert!(required.iter().any(|v| v.as_str() == Some("content")));
+    assert!(!required.iter().any(|v| v.as_str() == Some("source_path")));
+
+    let path_table = build_channel_tool_table(WORKBENCH_SLOT, WORKBENCH_SLOT).expect("path");
+    let path_create = path_table
+        .tools
+        .iter()
+        .find(|t| t.name == "create_note")
+        .expect("create_note");
+    assert_eq!(path_create.api_path, "/api/create-note");
+
+    let (base, seen, join) = start_recording_sidecar(200, r#"{"ok":true}"#);
+    let rt = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .expect("runtime");
+    rt.block_on(proxy_tool_call(
+        &base,
+        WORKBENCH_SLOT,
+        MOBILE_PATH,
+        "create_note",
+        serde_json::json!({"content": "# T\n\nbody"}),
+    ))
+    .expect("proxy")
+    .expect("200");
+    let hits = seen.lock().expect("lock").clone();
+    assert!(
+        hits.iter()
+            .any(|(m, u)| m == "POST" && u == "/api/create-note-content"),
+        "mobile create_note must POST /api/create-note-content, seen={hits:?}"
+    );
+    let _ = join.join();
 }
 
 /// Exception: oauth still rejects mobile; T3 failure must not change Slot.

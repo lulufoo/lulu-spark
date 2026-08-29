@@ -33,6 +33,29 @@ pub fn create_note(repo_root: &Path, payload: &Value) -> Value {
     create_note_from_markdown(repo_root, &document, payload)
 }
 
+/// Public note API (HTTP / MCP mobile): Markdown body in `content`. No `source_path`.
+pub fn create_note_content(repo_root: &Path, payload: &Value) -> Value {
+    if payload.get("source_path").is_some() {
+        return json!({
+            "error": "source_path is not supported; use content",
+            "_status": 400
+        });
+    }
+    if payload.get("document").is_some() {
+        return json!({
+            "error": "document is not supported; use content",
+            "_status": 400
+        });
+    }
+    let Some(content) = payload.get("content").and_then(|v| v.as_str()) else {
+        return json!({ "error": "Missing content", "_status": 400 });
+    };
+    if content.trim().is_empty() {
+        return json!({ "error": "Content is empty", "_status": 400 });
+    }
+    create_note_from_markdown(repo_root, content, payload)
+}
+
 /// Internal write path used by jot synthesis and tests that already hold markdown.
 pub(super) fn create_note_from_markdown(repo_root: &Path, document: &str, payload: &Value) -> Value {
     let source_type = payload

@@ -1,4 +1,4 @@
-//! Note writes for MCP (`create_note`, `create_note_digest`).
+//! Note writes for MCP (`create_note`, `create_note_content`, `create_note_digest`).
 
 mod digest;
 mod document;

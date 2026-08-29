@@ -549,6 +549,49 @@ fn post_create_note_and_digest() {
 }
 
 #[test]
+fn post_create_note_content_writes_from_body() {
+    let fixture = setup_repo_for_archive();
+    let repo_root = fixture.repo_root.clone();
+    with_server(repo_root, |port| {
+        let (status, body) = http_post(
+            port,
+            "/api/create-note-content",
+            &json!({
+                "content": SAMPLE_DOC,
+                "source_type": "summary",
+            }),
+        );
+        assert_eq!(status, 200, "{body}");
+        assert_eq!(body["ok"], true);
+        assert_eq!(body["id"].as_str().expect("id").len(), 32);
+    });
+}
+
+#[test]
+fn post_create_note_content_rejects_source_path() {
+    let fixture = setup_repo_for_archive();
+    let repo_root = fixture.repo_root.clone();
+    with_server(repo_root, |port| {
+        let (status, body) = http_post(
+            port,
+            "/api/create-note-content",
+            &json!({
+                "content": SAMPLE_DOC,
+                "source_path": "/tmp/x.md",
+            }),
+        );
+        assert_eq!(status, 400);
+        assert!(
+            body["error"]
+                .as_str()
+                .unwrap_or("")
+                .contains("content"),
+            "{body}"
+        );
+    });
+}
+
+#[test]
 fn post_create_note_rejects_document_field() {
     let fixture = setup_repo_for_archive();
     let repo_root = fixture.repo_root.clone();

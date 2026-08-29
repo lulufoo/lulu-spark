@@ -412,3 +412,11 @@ pub fn tools_list_for_slot(slot: &str) -> Vec<ToolDescriptor> {
         .unwrap_or_default()
 }
 
+/// Grouped catalog for Settings checkboxes. Not a slot table.
+pub fn catalog_groups() -> Vec<(&'static str, Vec<ToolRoute>)> {
+    vec![
+        ("notes", notes_tool_routes()),
+        ("todo", todo_tool_routes()),
+    ]
+}
+

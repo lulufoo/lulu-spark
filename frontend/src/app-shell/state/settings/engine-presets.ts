@@ -18,13 +18,13 @@ const EDITABLE_FIELDS = Object.freeze(['model']);
 const READONLY_FIELDS = Object.freeze(['platform', 'base_url']);
 
 export const ENGINE_CATEGORIES: readonly EngineCategory[] = Object.freeze([
-  Object.freeze({ id: 'host' as const, label: 'Agent Loop / GLM' }),
+  Object.freeze({ id: 'host' as const, label: 'GLM' }),
 ]);
 
 const PRESETS: Readonly<Record<string, EnginePresetMeta>> = Object.freeze({
   host: Object.freeze({
     categoryId: 'host' as const,
-    displayName: 'Agent Loop / GLM',
+    displayName: 'GLM',
     editableFields: EDITABLE_FIELDS as unknown as string[],
     readonlyFields: READONLY_FIELDS as unknown as string[],
     fields: Object.freeze({

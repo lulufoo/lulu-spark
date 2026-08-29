@@ -9,11 +9,20 @@ import {
   syncGithubUserUrlLockFromWorkbenchRoot,
 } from './github-user.ts';
 import {
-  clearMcpServerBlock,
-  generateCursorIdeServerBlock,
-  rotateCursorIdeTicket,
-  revokeMcpSlotTicket,
+  deselectAllMcpChannelTools,
+  loadMcpChannelTools,
+  paintMcpToolGroups,
+  persistMcpChannelTools,
+  selectAllMcpChannelTools,
 } from './mcp.ts';
+import {
+  clearMcpServerBlock,
+  copyCursorIdeServerBlock,
+  expireMobileDevice,
+  expireWorkbenchTicket,
+  loadMcpTicketView,
+  runCursorIdePrimaryAction,
+} from './mcp-tickets.ts';
 import {
   addWorkbenchGithubRepo,
   isGithubAccountConfigured,
@@ -76,6 +85,7 @@ export async function openSettingsDialog(opts: SettingsOpenOpts = {}) {
   setResult('settings-result-github', '');
   setResult('settings-result-llm', '');
   setResult('settings-result-mcp', '');
+  setResult('settings-result-mcp-tools', '');
   clearMcpServerBlock();
   const tokenInput = input('settings-github-token');
   const keyInput = input('settings-llm-api-key');
@@ -86,8 +96,12 @@ export async function openSettingsDialog(opts: SettingsOpenOpts = {}) {
   switchSettingsTab('knowledge', panelId === 'knowledge' ? (opts.tab || 'directory') : 'directory');
   switchSettingsTab('llm', 'engine');
   switchSettingsTab('github', 'account');
+  switchSettingsTab('mcp', panelId === 'mcp' ? (opts.tab || 'tickets') : 'tickets');
   switchPanel(panelId);
   await loadSettingsSnapshot();
+  await loadMcpChannelTools();
+  requestAnimationFrame(() => paintMcpToolGroups());
+  await loadMcpTicketView();
 }
 
 function wireSettingsDialog() {
@@ -97,6 +111,7 @@ function wireSettingsDialog() {
       const panelId = panel?.id?.replace(/^settings-panel-/, '');
       const tab = (tabBtn as HTMLElement).dataset.tab;
       if (panelId && tab) switchSettingsTab(panelId, tab);
+      if (panelId === 'mcp' && tab === 'tools') void loadMcpChannelTools();
     });
   });
 
@@ -377,13 +392,34 @@ function wireSettingsDialog() {
     void saveAssistantEnginePanel();
   });
 
-  document.getElementById('btn-settings-mcp-generate')?.addEventListener('click', () => {
-    void generateCursorIdeServerBlock();
+  document.getElementById('btn-settings-mcp-primary')?.addEventListener('click', () => {
+    void runCursorIdePrimaryAction();
   });
-  document.getElementById('btn-settings-mcp-rotate')?.addEventListener('click', () => {
-    void rotateCursorIdeTicket();
+  document.getElementById('btn-settings-mcp-copy')?.addEventListener('click', () => {
+    void copyCursorIdeServerBlock();
   });
-  document.getElementById('btn-settings-mcp-revoke')?.addEventListener('click', () => {
-    void revokeMcpSlotTicket();
+  document.getElementById('btn-settings-mcp-workbench-expire')?.addEventListener('click', () => {
+    void expireWorkbenchTicket();
+  });
+  document.getElementById('settings-mcp-device-list')?.addEventListener('click', (event) => {
+    const target = event.target as HTMLElement | null;
+    const deviceId = target?.closest('button')?.dataset.mcpDeviceExpire;
+    if (deviceId) void expireMobileDevice(deviceId);
+  });
+  document.getElementById('settings-mcp-ticket-channel')?.addEventListener('change', () => {
+    void loadMcpTicketView();
+  });
+  document.getElementById('settings-mcp-channel')?.addEventListener('change', () => {
+    paintMcpToolGroups();
+  });
+  document.getElementById('settings-mcp-tool-groups')?.addEventListener('change', (event) => {
+    const target = event.target as HTMLElement | null;
+    if (target?.matches?.('input[data-mcp-tool]')) void persistMcpChannelTools();
+  });
+  document.getElementById('btn-settings-mcp-tools-select-all')?.addEventListener('click', () => {
+    void selectAllMcpChannelTools();
+  });
+  document.getElementById('btn-settings-mcp-tools-deselect-all')?.addEventListener('click', () => {
+    void deselectAllMcpChannelTools();
   });
 }

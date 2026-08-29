@@ -350,6 +350,34 @@ fn list_devices_returns_id_label_revoked_without_token_or_hash() {
             ledger.contains("token_hash"),
             "ledger row must persist a token hash field"
         );
+        let hint = token_hint(token.as_str());
+        assert_eq!(listed[0].token_hint.as_deref(), Some(hint.as_str()));
+    });
+}
+
+#[test]
+fn ticket_view_masks_workbench_and_lists_mobile_without_secrets() {
+    with_device_sandbox(|| {
+        let workbench = issue_for_slot(Slot::Workbench).expect("wb");
+        let cursor = issue_for_slot(Slot::CursorIde).expect("ide");
+        let phone = issue_for_device("phone-view", Some("Pixel")).expect("phone");
+
+        let wb = ticket_view("workbench").expect("wb view");
+        assert_eq!(wb["channel"], "workbench");
+        assert_eq!(wb["state"], "live");
+        assert_eq!(wb["hint"], token_hint(workbench.as_str()));
+        assert!(wb.get("handle").is_none(), "workbench view must omit handle");
+        let wb_text = wb.to_string();
+        assert!(!wb_text.contains(workbench.as_str()));
+
+        let ide = ticket_view("cursor_ide").expect("ide view");
+        assert_eq!(ide["handle"], cursor.as_str());
+
+        let mobile = ticket_view("mobile").expect("mobile view");
+        assert_eq!(mobile["devices"][0]["device_id"], "phone-view");
+        assert_eq!(mobile["devices"][0]["hint"], token_hint(phone.as_str()));
+        assert!(!mobile.to_string().contains(phone.as_str()));
+        assert_eq!(ticket_view("nope").expect_err("unknown"), OAuthError::slot_unknown);
     });
 }
 

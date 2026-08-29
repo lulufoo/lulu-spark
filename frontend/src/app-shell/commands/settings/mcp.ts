@@ -1,104 +1,151 @@
 import * as api from '../../../host/api.ts';
-import { setResult, store } from '../../state/settings/store.ts';
+import { setResult } from '../../state/settings/store.ts';
 import { errMessage } from '../../state/types.ts';
 
-export function cursorIdeServerUrl() {
-  return `http://127.0.0.1:${store.mcpPort}/mcp/cursor_ide`;
-}
+type McpTool = { name: string; description?: string };
+type McpToolGroup = { id: string; label?: string; tools?: McpTool[] };
+type McpToolsSnapshot = {
+  groups?: McpToolGroup[];
+  enabled?: Record<string, string[]>;
+};
 
-export function formatCursorIdeServerBlock(handle: string) {
-  return JSON.stringify(
-    {
-      url: cursorIdeServerUrl(),
-      headers: { Authorization: `Bearer ${handle}` },
-    },
-    null,
-    2,
+let toolsSnapshot: McpToolsSnapshot | null = null;
+let persistBusy = false;
+let persistQueued = false;
+
+function catalogNames(snapshot: McpToolsSnapshot | null): string[] {
+  return (snapshot?.groups ?? []).flatMap((group) =>
+    (group.tools ?? []).map((tool) => tool.name).filter((name): name is string => Boolean(name)),
   );
 }
 
-export function setMcpServerBlock(text: string) {
-  const el = document.getElementById('settings-mcp-server-block') as HTMLTextAreaElement | null;
-  if (el) el.value = text;
+function toolInputs() {
+  return [
+    ...document.querySelectorAll<HTMLInputElement>('#settings-mcp-tool-groups input[data-mcp-tool]'),
+  ];
 }
 
-export function clearMcpServerBlock() {
-  setMcpServerBlock('');
+function selectedChannel() {
+  return (
+    (document.getElementById('settings-mcp-channel') as HTMLSelectElement | null)?.value ||
+    'workbench'
+  );
 }
 
-async function copyServerBlock(text: string) {
-  try {
-    if (navigator.clipboard?.writeText) {
-      await navigator.clipboard.writeText(text);
-      return true;
+/** Missing channel key = all catalog tools on (same as Host). Explicit `[]` = all off. */
+function enabledNamesForChannel(snapshot: McpToolsSnapshot | null, channel: string) {
+  const catalog = catalogNames(snapshot);
+  const listed = snapshot?.enabled?.[channel];
+  if (!Array.isArray(listed)) return new Set(catalog);
+  return new Set(listed);
+}
+
+export function paintMcpToolGroups() {
+  const groupsEl = document.getElementById('settings-mcp-tool-groups');
+  const channel = selectedChannel();
+  if (!groupsEl) return;
+  groupsEl.replaceChildren();
+  const groups = toolsSnapshot?.groups;
+  if (!Array.isArray(groups) || !groups.length) return;
+  const enabled = enabledNamesForChannel(toolsSnapshot, channel);
+  for (const group of groups) {
+    const fieldset = document.createElement('fieldset');
+    fieldset.className = 'settings-mcp-tool-group';
+    const legend = document.createElement('legend');
+    legend.textContent = group.label || group.id;
+    fieldset.appendChild(legend);
+    for (const tool of group.tools || []) {
+      const label = document.createElement('label');
+      label.className = 'settings-mcp-tool';
+      const input = document.createElement('input');
+      input.type = 'checkbox';
+      input.dataset.mcpTool = tool.name;
+      input.checked = enabled.has(tool.name);
+      const span = document.createElement('span');
+      span.textContent = tool.name;
+      label.appendChild(input);
+      label.appendChild(span);
+      fieldset.appendChild(label);
     }
-  } catch {
-    // Tauri webview often denies Clipboard API; keep the ticket in the field.
+    groupsEl.appendChild(fieldset);
   }
-  return false;
 }
 
-async function issueOrRotateCursorIdeBlock(cmd: string, copiedMessage: string, failLabel: string) {
-  setResult('settings-result-mcp', '');
+export async function loadMcpChannelTools() {
   try {
-    const resp = (await api.invoke(cmd)) as { handle?: string };
-    const issued = resp?.handle;
-    if (!issued) throw new Error('Ticket command failed');
-    const text = formatCursorIdeServerBlock(issued);
-    setMcpServerBlock(text);
-    const copied = await copyServerBlock(text);
-    const doneLabel = failLabel === 'Rotate' ? 'Rotated' : 'Generated';
-    setResult(
-      'settings-result-mcp',
-      copied
-        ? copiedMessage
-        : `${doneLabel} cursor_ide server block. Clipboard copy was blocked — copy the block from the field.`,
-    );
+    toolsSnapshot = (await api.invoke('get_mcp_channel_tools')) as McpToolsSnapshot;
+    paintMcpToolGroups();
+    if (!toolInputs().length) {
+      setResult('settings-result-mcp-tools', 'Load tools failed: empty catalog.', true);
+    }
   } catch (e) {
-    clearMcpServerBlock();
-    setResult('settings-result-mcp', `${failLabel} failed: ${errMessage(e, String(e))}`, true);
+    toolsSnapshot = null;
+    paintMcpToolGroups();
+    setResult('settings-result-mcp-tools', `Load tools failed: ${errMessage(e, String(e))}`, true);
   }
 }
 
-export async function generateCursorIdeServerBlock() {
-  const btn = document.getElementById('btn-settings-mcp-generate') as HTMLButtonElement | null;
-  if (btn) btn.disabled = true;
-  try {
-    await issueOrRotateCursorIdeBlock(
-      'issue_cursor_ide_ticket',
-      'Generated and copied cursor_ide server block.',
-      'Generate',
-    );
-  } finally {
-    if (btn) btn.disabled = false;
-  }
+function rememberEnabled(channel: string, enabled: string[]) {
+  if (!toolsSnapshot) return;
+  const next = { ...(toolsSnapshot.enabled || {}) };
+  const catalog = catalogNames(toolsSnapshot);
+  const allOn =
+    enabled.length === catalog.length && catalog.every((name) => enabled.includes(name));
+  if (allOn) delete next[channel];
+  else next[channel] = enabled;
+  toolsSnapshot = { ...toolsSnapshot, enabled: next };
 }
 
-export async function rotateCursorIdeTicket() {
-  const btn = document.getElementById('btn-settings-mcp-rotate') as HTMLButtonElement | null;
-  if (btn) btn.disabled = true;
-  try {
-    await issueOrRotateCursorIdeBlock(
-      'rotate_cursor_ide_ticket',
-      'Rotated and copied cursor_ide server block.',
-      'Rotate',
-    );
-  } finally {
-    if (btn) btn.disabled = false;
-  }
+async function writeCurrentSelection() {
+  const channel = selectedChannel();
+  const boxes = toolInputs();
+  if (!boxes.length) return false;
+  const enabled = boxes
+    .filter((el) => el.checked)
+    .map((el) => el.dataset.mcpTool)
+    .filter((name): name is string => Boolean(name));
+  await api.invoke('set_mcp_channel_tools', { channel, enabled });
+  rememberEnabled(channel, enabled);
+  setResult('settings-result-mcp-tools', `Updated /mcp/${channel} tools.`);
+  return true;
 }
 
-export async function revokeMcpSlotTicket() {
-  const btn = document.getElementById('btn-settings-mcp-revoke') as HTMLButtonElement | null;
-  const slot = (document.getElementById('settings-mcp-revoke-slot') as HTMLSelectElement | null)?.value;
-  if (btn) btn.disabled = true;
-  setResult('settings-result-mcp', '');
+export async function persistMcpChannelTools() {
+  if (persistBusy) {
+    persistQueued = true;
+    return;
+  }
+  persistBusy = true;
+  setResult('settings-result-mcp-tools', '');
   try {
-    await api.invoke('revoke_mcp_slot_ticket', { slot });
-    setResult('settings-result-mcp', `Revoked ${slot} ticket.`);
+    do {
+      persistQueued = false;
+      if (!(await writeCurrentSelection())) {
+        setResult('settings-result-mcp-tools', 'Update tools failed: tool list is empty.', true);
+      }
+    } while (persistQueued);
   } catch (e) {
-    setResult('settings-result-mcp', `Revoke failed: ${errMessage(e, String(e))}`, true);
+    setResult('settings-result-mcp-tools', `Update tools failed: ${errMessage(e, String(e))}`, true);
   } finally {
-    if (btn) btn.disabled = false;
+    persistBusy = false;
   }
+}
+
+async function applyAllChecked(checked: boolean) {
+  if (!toolInputs().length) await loadMcpChannelTools();
+  const boxes = toolInputs();
+  if (!boxes.length) {
+    setResult('settings-result-mcp-tools', 'Update tools failed: tool list is empty.', true);
+    return;
+  }
+  for (const box of boxes) box.checked = checked;
+  await persistMcpChannelTools();
+}
+
+export async function selectAllMcpChannelTools() {
+  await applyAllChecked(true);
+}
+
+export async function deselectAllMcpChannelTools() {
+  await applyAllChecked(false);
 }

@@ -1,3 +1,5 @@
+import { McpChannelToolsHost } from './mcp-channel-tools.tsx';
+import { McpTicketsHost } from './mcp-tickets.tsx';
 import { WorkbenchConnectionHost } from './workbench-connection.tsx';
 import {
   onRepoListRefresh,
@@ -208,10 +210,10 @@ export function SettingsDialogChrome() {
               <div className="settings-field">
                 <label htmlFor="settings-llm-engine">Engine category</label>
                 <select id="settings-llm-engine">
-                  <option value="host">Agent Loop / GLM</option>
+                  <option value="host">GLM</option>
                 </select>
                 <span className="settings-field-hint">
-                  Agent Loop / GLM is the only supported assistant engine. Preset fields below are read-only
+                  GLM is the only supported assistant engine. Preset fields below are read-only
                   except Model.
                 </span>
               </div>
@@ -294,41 +296,16 @@ export function SettingsDialogChrome() {
             </div>
           </div>
           <div id="settings-panel-mcp" className="settings-panel">
-            <div className="settings-field">
-              <label htmlFor="settings-mcp-server-block">Cursor IDE server block</label>
-              <textarea
-                id="settings-mcp-server-block"
-                rows={8}
-                spellCheck={false}
-                autoComplete="off"
-                readOnly
-              />
-              <span className="settings-field-hint">
-                Generate copies a full server block for you to paste into Cursor. Host does not write that
-                file.
-              </span>
+            <div className="settings-tabs" role="tablist">
+              <button type="button" className="settings-tab active" data-tab="tickets" role="tab">Tickets</button>
+              <button type="button" className="settings-tab" data-tab="tools" role="tab">Tools</button>
             </div>
-            <div className="settings-panel-actions">
-              <button type="button" id="btn-settings-mcp-generate" className="btn-settings-save">
-                Generate & copy
-              </button>
-              <button type="button" id="btn-settings-mcp-rotate" className="btn-settings-save">
-                Rotate cursor_ide
-              </button>
+            <div id="settings-tab-mcp-tickets" className="settings-tab-panel active" data-tab="tickets">
+              <McpTicketsHost />
             </div>
-            <div className="settings-field">
-              <label htmlFor="settings-mcp-revoke-slot">Revoke current ticket</label>
-              <div className="settings-connect-row">
-                <select id="settings-mcp-revoke-slot" aria-label="Slot to revoke">
-                  <option value="cursor_ide">cursor_ide</option>
-                  <option value="workbench">workbench</option>
-                </select>
-                <button type="button" id="btn-settings-mcp-revoke" className="btn-settings-save">
-                  Revoke
-                </button>
-              </div>
+            <div id="settings-tab-mcp-tools" className="settings-tab-panel" data-tab="tools">
+              <McpChannelToolsHost />
             </div>
-            <div id="settings-result-mcp" className="settings-result" />
           </div>
         </div>
       </div>

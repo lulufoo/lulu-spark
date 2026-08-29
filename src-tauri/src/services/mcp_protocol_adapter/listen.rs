@@ -33,7 +33,8 @@ use crate::services::local_http;
 use crate::services::mcp_oauth::{verify_device_token, verify_for_slot, OAuthError, Slot, TicketHandle};
 use super::proxy::{mapped_to_call_tool_result, proxy_tool_call};
 use super::types::ToolRoute;
-use super::routes::{build_slot_tool_table, scene_slot_api, tools_list_for_slot};
+use super::channel_routes::build_channel_tool_table;
+use super::routes::scene_slot_api;
 use super::types::{
     CloseGateError, CloseGateReport, McpRuntimeConfig, McpRuntimeHandle, McpStartError,
     McpStopError, McpToolError, DEFAULT_SIDECAR_BASE_URL, REGISTERED_SCENE_SLOTS,
@@ -70,6 +71,7 @@ pub(super) fn reject_scene_slot_required() -> (StatusCode, [(header::HeaderName,
 /// Configuration for the embedded Host MCP runtime.
 pub(super) struct SlotHandler {
     scene_slot: String,
+    channel: String,
     sidecar_base_url: String,
 }
 
@@ -97,8 +99,16 @@ impl ServerHandler for SlotHandler {
         _request: Option<PaginatedRequestParams>,
         _context: RequestContext<RoleServer>,
     ) -> impl std::future::Future<Output = Result<ListToolsResult, McpError>> + Send + '_ {
-        let tools: Vec<Tool> = build_slot_tool_table(&self.scene_slot)
-            .map(|table| table.tools.into_iter().map(route_to_mcp_tool).collect())
+        let enabled = crate::services::mcp_channel_tools::enabled_names(&self.channel);
+        let tools: Vec<Tool> = build_channel_tool_table(&self.scene_slot, &self.channel)
+            .map(|table| {
+                table
+                    .tools
+                    .into_iter()
+                    .filter(|route| enabled.contains(&route.name))
+                    .map(route_to_mcp_tool)
+                    .collect()
+            })
             .unwrap_or_default();
         std::future::ready(Ok(ListToolsResult::with_all_items(tools)))
     }
@@ -109,10 +119,20 @@ impl ServerHandler for SlotHandler {
         _context: RequestContext<RoleServer>,
     ) -> impl std::future::Future<Output = Result<CallToolResponse, McpError>> + Send + '_ {
         let slot = self.scene_slot.clone();
+        let channel = self.channel.clone();
         let base = self.sidecar_base_url.clone();
         async move {
+            if !crate::services::mcp_channel_tools::is_enabled(&channel, request.name.as_ref()) {
+                return Err(McpError::invalid_params(
+                    format!(
+                        "tool '{}' is not enabled for channel '{}'",
+                        request.name, channel
+                    ),
+                    None,
+                ));
+            }
             let args = Value::Object(request.arguments.unwrap_or_default());
-            match proxy_tool_call(&base, &slot, request.name.as_ref(), args).await {
+            match proxy_tool_call(&base, &slot, &channel, request.name.as_ref(), args).await {
                 Ok(mapped) => Ok(mapped_to_call_tool_result(mapped).into()),
                 Err(msg) => Err(McpError::invalid_params(msg, None)),
             }
@@ -151,6 +171,7 @@ pub(super) fn mount_mobile_service(
             move || {
                 Ok(SlotHandler {
                     scene_slot: "workbench".to_string(),
+                    channel: "mobile".to_string(),
                     sidecar_base_url: sidecar_base_url.clone(),
                 })
             },
@@ -175,6 +196,7 @@ pub(super) fn mount_slot_service(
             move || {
                 Ok(SlotHandler {
                     scene_slot: slot.clone(),
+                    channel: slot.clone(),
                     sidecar_base_url: sidecar_base_url.clone(),
                 })
             },

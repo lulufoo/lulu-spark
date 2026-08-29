@@ -52,16 +52,16 @@ function baseConfig(overrides = {}) {
 }
 
 describe('Host-only Assistant settings', () => {
-  it('exposes only Agent Loop / GLM in the preset catalog', () => {
+  it('exposes only GLM in the preset catalog', () => {
     expect(ENGINE_CATEGORIES).toEqual([
-      { id: 'host', label: 'Agent Loop / GLM' },
+      { id: 'host', label: 'GLM' },
     ]);
     expect(listEngineCategories()).toEqual([
-      { id: 'host', label: 'Agent Loop / GLM' },
+      { id: 'host', label: 'GLM' },
     ]);
 
     const preset = getEnginePreset('host');
-    expect(preset.displayName).toBe('Agent Loop / GLM');
+    expect(preset.displayName).toBe('GLM');
     expect(preset.editableFields).toEqual(['model']);
     expect(preset.fields).toEqual({
       platform: 'glm',

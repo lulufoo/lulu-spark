@@ -89,7 +89,10 @@ const MCP_OAUTH_WRITE_COMMANDS: &[&str] = &[
     "issue_cursor_ide_ticket",
     "rotate_cursor_ide_ticket",
     "revoke_mcp_slot_ticket",
+    "revoke_mcp_device_ticket",
 ];
+
+const MCP_CHANNEL_TOOLS_WRITE_COMMANDS: &[&str] = &["set_mcp_channel_tools"];
 
 const BIND_WRITE_COMMANDS: &[&str] = &["issue_bind"];
 
@@ -248,6 +251,22 @@ fn bind_write_commands_are_acl_allowed() {
     let toml = fs::read_to_string(root.join("permissions/write-api.toml")).expect("toml");
     let allow = parse_write_api_toml_allow(&toml);
     let missing: Vec<_> = BIND_WRITE_COMMANDS
+        .iter()
+        .filter(|cmd| !allow.contains(**cmd))
+        .copied()
+        .collect();
+    assert!(
+        missing.is_empty(),
+        "commands missing from write-api.toml ACL: {missing:?}"
+    );
+}
+
+#[test]
+fn mcp_channel_tools_write_command_is_acl_allowed() {
+    let root = manifest_dir();
+    let toml = fs::read_to_string(root.join("permissions/write-api.toml")).expect("toml");
+    let allow = parse_write_api_toml_allow(&toml);
+    let missing: Vec<_> = MCP_CHANNEL_TOOLS_WRITE_COMMANDS
         .iter()
         .filter(|cmd| !allow.contains(**cmd))
         .copied()
