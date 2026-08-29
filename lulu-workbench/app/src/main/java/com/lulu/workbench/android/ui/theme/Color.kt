@@ -2,9 +2,15 @@ package com.lulu.workbench.android.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-val Ink = Color(0xFF1A1A1A)
-val InkMuted = Color(0xFF8A8A8E)
-val Paper = Color(0xFFF7F7F8)
-val PaperRaised = Color(0xFFFFFFFF)
-val Chip = Color(0xFFF0F0F2)
-val Accent = Color(0xFF1A1A1A)
+/** JetBrains New UI Dark–adjacent: graphite, not OLED black. */
+val StudioBg = Color(0xFF1E1F22)
+val StudioPanel = Color(0xFF2B2D30)
+val StudioRaised = Color(0xFF3C3F41)
+val StudioText = Color(0xFFDFE1E5)
+val StudioMuted = Color(0xFF9DA0A8)
+val StudioStroke = Color(0xFF43454A)
+val StudioAccent = Color(0xFF548AF7)
+val StudioOnAccent = Color(0xFFFFFFFF)
+val StudioBubble = Color(0xFF2E3A4A)
+val StudioError = Color(0xFFE06C75)
+val StudioScrim = Color(0x99000000)

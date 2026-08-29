@@ -7,7 +7,12 @@ import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -40,7 +45,12 @@ fun QrScanPane(
         }
     }
     Column(modifier = modifier.fillMaxSize()) {
-        TextButton(onClick = onCancel) { Text("Cancel") }
+        Surface(color = MaterialTheme.colorScheme.surface) {
+            TextButton(
+                onClick = onCancel,
+                modifier = Modifier.windowInsetsPadding(WindowInsets.statusBars),
+            ) { Text("Cancel") }
+        }
         AndroidView(
             modifier = Modifier.fillMaxSize(),
             factory = { viewContext ->

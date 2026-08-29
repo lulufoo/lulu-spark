@@ -19,10 +19,18 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.lulu.workbench.android.agent.session.HistoryTurn
 import com.lulu.workbench.android.chat.state.ChatState
 import com.lulu.workbench.android.markdown.MarkdownBody
+
+private val TranscriptPadH = 20.dp
+private val TranscriptPadV = 20.dp
+private val TurnGap = 10.dp
+private val RoleChangeExtra = 8.dp
+private val AssistantEndGutter = 32.dp
+private val UserMaxFraction = 0.78f
 
 @Composable
 internal fun ChatTranscript(
@@ -35,7 +43,7 @@ internal fun ChatTranscript(
                 "Workbench",
                 modifier = Modifier.align(Alignment.Center),
                 style = MaterialTheme.typography.headlineSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
             )
         }
         return
@@ -48,19 +56,24 @@ internal fun ChatTranscript(
     LazyColumn(
         state = listState,
         modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        contentPadding = PaddingValues(horizontal = TranscriptPadH, vertical = TranscriptPadV),
+        verticalArrangement = Arrangement.spacedBy(TurnGap),
     ) {
         itemsIndexed(
             state.turns,
             key = { index, turn -> "$index:${turn.role}:${turn.content}" },
-        ) { _, turn ->
-            ChatTurnRow(turn)
+        ) { index, turn ->
+            val prevRole = state.turns.getOrNull(index - 1)?.role
+            val extraTop = if (prevRole != null && prevRole != turn.role) RoleChangeExtra else 0.dp
+            ChatTurnRow(turn, extraTop)
         }
         if (state.progress.isNotEmpty()) {
             item(key = "progress") {
                 Text(
                     state.progress,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(end = AssistantEndGutter, top = RoleChangeExtra),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -70,25 +83,35 @@ internal fun ChatTranscript(
 }
 
 @Composable
-private fun ChatTurnRow(turn: HistoryTurn) {
+private fun ChatTurnRow(turn: HistoryTurn, extraTop: Dp) {
     val user = turn.role == "user"
     if (user) {
-        BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+        BoxWithConstraints(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = extraTop),
+        ) {
             Surface(
                 modifier = Modifier
                     .align(Alignment.CenterEnd)
-                    .widthIn(max = maxWidth * 0.82f),
-                shape = RoundedCornerShape(18.dp),
-                color = MaterialTheme.colorScheme.surfaceVariant,
+                    .widthIn(max = maxWidth * UserMaxFraction),
+                shape = RoundedCornerShape(18.dp, 18.dp, 6.dp, 18.dp),
+                color = MaterialTheme.colorScheme.primaryContainer,
             ) {
                 Text(
                     turn.content,
                     modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
                     style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer,
                 )
             }
         }
     } else {
-        MarkdownBody(turn.content, modifier = Modifier.fillMaxWidth())
+        MarkdownBody(
+            turn.content,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = extraTop, end = AssistantEndGutter),
+        )
     }
 }

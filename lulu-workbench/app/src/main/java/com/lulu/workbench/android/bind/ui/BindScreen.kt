@@ -3,7 +3,6 @@ package com.lulu.workbench.android.bind.ui
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -29,7 +28,7 @@ fun BindScreen(
         else -> MaterialTheme.colorScheme.onSurfaceVariant
     }
     Column(
-        modifier = modifier.padding(20.dp),
+        modifier = modifier,
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Text("Device", style = MaterialTheme.typography.titleMedium)

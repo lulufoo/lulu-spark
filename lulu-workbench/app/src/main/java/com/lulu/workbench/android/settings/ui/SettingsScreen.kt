@@ -4,10 +4,15 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -16,11 +21,12 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -67,88 +73,124 @@ fun SettingsScreen(
     }
     val selected = state.catalog.firstOrNull { it.id == state.active.id }
         ?: state.catalog.firstOrNull()
-    Column(
-        modifier = modifier
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-    ) {
-        SettingsHeader(onBack = onBack)
-        Spacer(modifier = Modifier.height(16.dp))
-        OutlinedCard(modifier = Modifier.fillMaxWidth()) {
+    val colors = MaterialTheme.colorScheme
+    Surface(modifier = modifier.fillMaxSize(), color = colors.background) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .windowInsetsPadding(WindowInsets.safeDrawing),
+        ) {
+            SettingsHeader(onBack = onBack)
+            HorizontalDivider(color = colors.outline.copy(alpha = 0.55f))
             Column(
-                modifier = Modifier.padding(20.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier
+                    .weight(1f)
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 16.dp, vertical = 16.dp),
             ) {
-                Text("Language model", style = MaterialTheme.typography.titleMedium)
-                Text(
-                    "Provider, endpoint, and credentials for chat.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                ProviderMenu(
-                    catalog = state.catalog,
-                    selected = selected,
-                    onSelect = onSelect,
-                )
-                OutlinedTextField(
-                    value = baseUrl,
-                    onValueChange = { baseUrl = it },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    label = { Text("Base URL") },
-                )
-                OutlinedTextField(
-                    value = model,
-                    onValueChange = { model = it },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    label = { Text("Model") },
-                )
-                OutlinedTextField(
-                    value = apiKey,
-                    onValueChange = { next ->
-                        apiKey = if (apiKey == SAVED_API_KEY_MASK) next.filterNot { it == '•' } else next
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    label = { Text("API key") },
-                    placeholder = { Text("Not set") },
-                    supportingText = {
-                        Text(if (state.active.hasApiKey) "Saved on this device" else "Required to call the model")
-                    },
-                    visualTransformation = if (apiKey.isEmpty()) {
-                        VisualTransformation.None
-                    } else {
-                        PasswordVisualTransformation()
-                    },
-                )
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Button(onClick = { onSave(baseUrl, model, apiKeyForSave(apiKey)) }) {
-                        Text("Save")
+                SettingsCard {
+                    Text("Language model", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        "Provider, endpoint, and credentials for chat.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = colors.onSurfaceVariant,
+                    )
+                    ProviderMenu(
+                        catalog = state.catalog,
+                        selected = selected,
+                        onSelect = onSelect,
+                    )
+                    OutlinedTextField(
+                        value = baseUrl,
+                        onValueChange = { baseUrl = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        label = { Text("Base URL") },
+                    )
+                    OutlinedTextField(
+                        value = model,
+                        onValueChange = { model = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        label = { Text("Model") },
+                    )
+                    OutlinedTextField(
+                        value = apiKey,
+                        onValueChange = { next ->
+                            apiKey = if (apiKey == SAVED_API_KEY_MASK) {
+                                next.filterNot { it == '•' }
+                            } else {
+                                next
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        label = { Text("API key") },
+                        placeholder = { Text("Not set") },
+                        supportingText = {
+                            Text(
+                                if (state.active.hasApiKey) {
+                                    "Saved on this device"
+                                } else {
+                                    "Required to call the model"
+                                },
+                            )
+                        },
+                        visualTransformation = if (apiKey.isEmpty()) {
+                            VisualTransformation.None
+                        } else {
+                            PasswordVisualTransformation()
+                        },
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Button(onClick = { onSave(baseUrl, model, apiKeyForSave(apiKey)) }) {
+                            Text("Save")
+                        }
+                        TextButton(onClick = onReset) { Text("Reset defaults") }
                     }
-                    TextButton(onClick = onReset) { Text("Reset defaults") }
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+                SettingsCard {
+                    BindScreen(state = bindState, onScan = onStartScan)
                 }
             }
         }
-        Spacer(modifier = Modifier.height(12.dp))
-        OutlinedCard(modifier = Modifier.fillMaxWidth()) {
-            BindScreen(state = bindState, onScan = onStartScan)
+    }
+}
+
+@Composable
+private fun SettingsCard(content: @Composable () -> Unit) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        color = MaterialTheme.colorScheme.surface,
+    ) {
+        Column(
+            modifier = Modifier.padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            content()
         }
     }
 }
 
 @Composable
 private fun SettingsHeader(onBack: () -> Unit) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(end = 16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
         IconButton(onClick = onBack) {
             Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
         }
-        Column(modifier = Modifier.padding(start = 4.dp)) {
-            Text("Settings", style = MaterialTheme.typography.headlineSmall)
+        Column(modifier = Modifier.padding(start = 4.dp, top = 12.dp, bottom = 12.dp)) {
+            Text("Settings", style = MaterialTheme.typography.titleLarge)
             Text(
                 "Model and device",
                 style = MaterialTheme.typography.bodySmall,

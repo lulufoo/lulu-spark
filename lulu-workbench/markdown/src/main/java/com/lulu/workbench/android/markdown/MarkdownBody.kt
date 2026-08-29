@@ -44,7 +44,7 @@ fun MarkdownBody(
     val blocks = remember(source) { parseMdBlocks(source) }
     Column(
         modifier = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         blocks.forEach { block -> MdBlockView(block) }
     }
@@ -81,14 +81,19 @@ private fun MdBlockView(block: MdBlock) {
                 InlineSpans(
                     block.spans,
                     type.bodyLarge.copy(fontStyle = FontStyle.Italic, color = colors.onSurfaceVariant),
-                    modifier = Modifier.padding(start = 10.dp),
+                    modifier = Modifier.padding(start = 12.dp),
                 )
             }
         }
         is MdBlock.ListItem -> {
             val mark = if (block.ordered) "${block.index}. " else "•  "
             Row(modifier = Modifier.fillMaxWidth()) {
-                Text(mark, style = type.bodyLarge)
+                Text(
+                    mark,
+                    modifier = Modifier.width(22.dp),
+                    style = type.bodyLarge,
+                    color = colors.onSurfaceVariant,
+                )
                 InlineSpans(block.spans, type.bodyLarge, modifier = Modifier.weight(1f))
             }
         }

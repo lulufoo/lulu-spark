@@ -6,10 +6,13 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -36,14 +39,21 @@ internal fun ChatDrawer(
     onOpenSettings: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val colors = MaterialTheme.colorScheme
     Column(
         modifier = modifier
             .fillMaxHeight()
-            .background(MaterialTheme.colorScheme.surface)
-            .padding(horizontal = 16.dp, vertical = 20.dp),
+            .background(colors.surface)
+            .windowInsetsPadding(WindowInsets.safeDrawing)
+            .padding(horizontal = 12.dp, vertical = 12.dp),
     ) {
-        Text("Chats", style = MaterialTheme.typography.titleLarge)
-        Spacer(modifier = Modifier.height(16.dp))
+        Text(
+            "Chats",
+            style = MaterialTheme.typography.titleLarge,
+            color = colors.onSurface,
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
+        )
+        Spacer(modifier = Modifier.height(8.dp))
         DrawerRow(
             label = "New chat",
             selected = false,
@@ -57,8 +67,8 @@ internal fun ChatDrawer(
             Text(
                 "No chats yet",
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(vertical = 8.dp),
+                color = colors.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
             )
         } else {
             LazyColumn(modifier = Modifier.weight(1f, fill = true)) {
@@ -74,7 +84,7 @@ internal fun ChatDrawer(
         if (state.sessions.isEmpty()) {
             Spacer(modifier = Modifier.weight(1f))
         }
-        HorizontalDivider()
+        HorizontalDivider(color = colors.outline.copy(alpha = 0.55f))
         Spacer(modifier = Modifier.height(8.dp))
         DrawerRow(
             label = "Settings",
@@ -98,10 +108,10 @@ private fun DrawerRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
+            .clip(RoundedCornerShape(8.dp))
             .background(if (selected) colors.surfaceVariant else colors.surface)
             .clickable(onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 12.dp),
+            .padding(horizontal = 10.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
@@ -109,6 +119,7 @@ private fun DrawerRow(
         Text(
             text = label,
             style = MaterialTheme.typography.bodyLarge,
+            color = if (selected) colors.onSurface else colors.onSurfaceVariant,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
