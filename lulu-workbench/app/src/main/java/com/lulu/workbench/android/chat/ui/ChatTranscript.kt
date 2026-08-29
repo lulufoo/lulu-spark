@@ -44,7 +44,7 @@ internal fun ChatTranscript(
     if (state.turns.isEmpty() && state.progress.isEmpty()) {
         Box(modifier.fillMaxSize()) {
             Text(
-                "Workbench",
+                "Lulu Workbench",
                 modifier = Modifier.align(Alignment.Center),
                 style = MaterialTheme.typography.headlineSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),

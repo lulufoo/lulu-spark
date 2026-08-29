@@ -35,7 +35,7 @@ fun BindScreen(
     ) {
         Text("Device", style = MaterialTheme.typography.titleMedium)
         Text(
-            "Pair this phone with Mac Workbench.",
+            "Pair this phone with Lulu Workbench on Mac.",
             style = MaterialTheme.typography.bodySmall,
             color = colors.onSurfaceVariant,
         )

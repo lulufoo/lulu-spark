@@ -5,4 +5,10 @@
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:navigationBarColor">@android:color/transparent</item>
     </style>
+
+    <style name="Theme.LuluWorkbench.Starting" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/studio_bg</item>
+        <item name="windowSplashScreenAnimatedIcon">@mipmap/ic_brand_circle</item>
+        <item name="postSplashScreenTheme">@style/Theme.LuLuWorkbench</item>
+    </style>
 </resources>

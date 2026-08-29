@@ -6,19 +6,23 @@ import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
@@ -44,17 +48,33 @@ fun QrScanPane(
             runCatching { cameraProviderFuture.get().unbindAll() }
         }
     }
-    Column(modifier = modifier.fillMaxSize()) {
-        Surface(color = MaterialTheme.colorScheme.surface) {
-            TextButton(
-                onClick = onCancel,
-                modifier = Modifier.windowInsetsPadding(WindowInsets.statusBars),
-            ) { Text("Cancel") }
+    val colors = MaterialTheme.colorScheme
+    val previewBg = colors.background.toArgb()
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .background(colors.background),
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(colors.background)
+                .windowInsetsPadding(WindowInsets.statusBars),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            TextButton(onClick = onCancel) {
+                Text("Cancel", color = colors.onSurface)
+            }
         }
         AndroidView(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth(),
             factory = { viewContext ->
-                val previewView = PreviewView(viewContext)
+                val previewView = PreviewView(viewContext).apply {
+                    setBackgroundColor(previewBg)
+                    scaleType = PreviewView.ScaleType.FILL_CENTER
+                }
                 cameraProviderFuture.addListener(
                     {
                         val cameraProvider = cameraProviderFuture.get()

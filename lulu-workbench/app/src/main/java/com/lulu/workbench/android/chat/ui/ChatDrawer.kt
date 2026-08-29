@@ -59,7 +59,7 @@ internal fun ChatDrawer(
             .padding(horizontal = 12.dp, vertical = 12.dp),
     ) {
         Text(
-            "Chats",
+            "Lulu Workbench",
             style = MaterialTheme.typography.titleLarge,
             color = colors.onSurface,
             modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
