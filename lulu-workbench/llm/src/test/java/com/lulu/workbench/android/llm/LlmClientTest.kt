@@ -117,11 +117,60 @@ class LlmClientTest {
     }
 
     @Test
+    fun decodeToolCallsKeepsArgsThatContainBrackets() {
+        val calls =
+            decodeToolCalls(
+                """{"choices":[{"finish_reason":"tool_calls","message":{"content":null,"tool_calls":[{"id":"c1","type":"function","function":{"name":"list_todo_tasks","arguments":"[]"}}]}}]}""",
+            )
+        assertEquals("list_todo_tasks", calls.single().name)
+        assertEquals("[]", calls.single().arguments)
+    }
+
+    @Test
+    fun decodeToolCallsReadsObjectArguments() {
+        val calls =
+            decodeToolCalls(
+                """{"choices":[{"message":{"tool_calls":[{"id":"c2","type":"function","function":{"name":"list_todo_tasks","arguments":{"status":[]}}}]}}]}""",
+            )
+        assertEquals("list_todo_tasks", calls.single().name)
+        assertEquals("""{"status":[]}""", calls.single().arguments)
+    }
+
+    @Test
+    fun decodeToolCallsReadsNameBeforeId() {
+        val calls =
+            decodeToolCalls(
+                """{"choices":[{"finish_reason":"tool_calls","message":{"tool_calls":[{"function":{"name":"list_todo_tasks","arguments":"[]"},"id":"c3","type":"function"}]}}]}""",
+            )
+        assertEquals("c3", calls.single().id)
+        assertEquals("list_todo_tasks", calls.single().name)
+        assertEquals("[]", calls.single().arguments)
+    }
+
+    @Test
+    fun completeTimeoutIsLlmException() {
+        val llm = LlmClientImpl(MemoryStorage(), TimeoutNetwork())
+        llm.saveActive("https://example.test/v1", "m", "k")
+        try {
+            llm.complete(listOf(LlmMessage("user", "hi")))
+            org.junit.Assert.fail("expected timeout")
+        } catch (error: LlmException) {
+            assertEquals("llm timeout", error.message)
+        }
+    }
+
+    @Test
     fun chatUrlAppendsOnV4() {
         assertEquals(
             "https://open.bigmodel.cn/api/paas/v4/chat/completions",
             chatUrl("https://open.bigmodel.cn/api/paas/v4"),
         )
+    }
+}
+
+private class TimeoutNetwork : NetworkClient {
+    override fun execute(request: HttpRequest): HttpResponse {
+        throw java.net.SocketTimeoutException("timeout")
     }
 }
 

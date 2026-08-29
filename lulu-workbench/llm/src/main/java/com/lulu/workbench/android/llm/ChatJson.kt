@@ -51,25 +51,41 @@ internal fun decodeToolCalls(json: String): List<LlmToolCall> {
     val key = json.indexOf("\"tool_calls\"")
     if (key < 0) return emptyList()
     val start = json.indexOf('[', startIndex = key)
-    val end = json.indexOf(']', startIndex = start)
-    if (start < 0 || end < 0) return emptyList()
-    val slice = json.substring(start, end + 1)
+    if (start < 0) return emptyList()
+    val end = matchingCloser(json, start)
+    if (end < 0) return emptyList()
     val calls = mutableListOf<LlmToolCall>()
-    var cursor = 0
-    while (true) {
-        val idAt = slice.indexOf("\"id\"", startIndex = cursor)
-        if (idAt < 0) return calls
-        val nameAt = slice.indexOf("\"name\"", startIndex = idAt)
-        val argsAt = slice.indexOf("\"arguments\"", startIndex = idAt)
-        if (nameAt < 0 || argsAt < 0) return calls
-        val id = readStringAfterKey(slice, idAt)
-        val name = readStringAfterKey(slice, nameAt)
-        val arguments = readStringAfterKey(slice, argsAt)
-        if (id.isNotEmpty() && name.isNotEmpty()) {
-            calls.add(LlmToolCall(id = id, name = name, arguments = arguments))
+    var cursor = start + 1
+    while (cursor < end) {
+        val objAt = json.indexOf('{', startIndex = cursor)
+        if (objAt < 0 || objAt >= end) return calls
+        val objEnd = matchingCloser(json, objAt)
+        if (objEnd < 0 || objEnd > end) return calls
+        val obj = json.substring(objAt, objEnd + 1)
+        val idAt = obj.indexOf("\"id\"")
+        val nameAt = obj.indexOf("\"name\"")
+        val argsAt = obj.indexOf("\"arguments\"")
+        if (idAt >= 0 && nameAt >= 0) {
+            val id = readStringAfterKey(obj, idAt)
+            val name = readStringAfterKey(obj, nameAt)
+            val arguments = if (argsAt >= 0) readJsonAfterKey(obj, argsAt) else "{}"
+            if (id.isNotEmpty() && name.isNotEmpty()) {
+                calls.add(LlmToolCall(id = id, name = name, arguments = arguments))
+            }
         }
-        cursor = maxOf(nameAt, argsAt) + 1
+        cursor = objEnd + 1
     }
+    return calls
+}
+
+internal fun toolCallsPreview(json: String): String {
+    val key = json.indexOf("\"tool_calls\"")
+    if (key < 0) return "-"
+    val start = json.indexOf('[', startIndex = key)
+    if (start < 0) return "no-array"
+    val end = matchingCloser(json, start)
+    val raw = if (end < 0) json.substring(start).take(160) else json.substring(start, end + 1)
+    return if (raw.length > 160) raw.take(160) + "…" else raw
 }
 
 private fun encodeMessage(message: LlmMessage): String {
@@ -96,6 +112,52 @@ private fun readStringAfterKey(json: String, keyAt: Int): String {
     val quote = json.indexOf('"', startIndex = colon + 1)
     if (quote < 0) return ""
     return unescape(readJsonString(json, quote))
+}
+
+private fun readJsonAfterKey(json: String, keyAt: Int): String {
+    val colon = json.indexOf(':', startIndex = keyAt)
+    if (colon < 0) return ""
+    var i = colon + 1
+    while (i < json.length && json[i].isWhitespace()) i += 1
+    if (i >= json.length) return ""
+    return when (json[i]) {
+        '"' -> unescape(readJsonString(json, i))
+        '{', '[' -> {
+            val close = matchingCloser(json, i)
+            if (close < 0) "" else json.substring(i, close + 1)
+        }
+        else -> ""
+    }
+}
+
+private fun matchingCloser(json: String, openAt: Int): Int {
+    val open = json[openAt]
+    val close = if (open == '[') ']' else '}'
+    var depth = 0
+    var i = openAt
+    var inString = false
+    while (i < json.length) {
+        val c = json[i]
+        if (inString) {
+            if (c == '\\' && i + 1 < json.length) {
+                i += 2
+                continue
+            }
+            if (c == '"') inString = false
+            i += 1
+            continue
+        }
+        when (c) {
+            '"' -> inString = true
+            open -> depth += 1
+            close -> {
+                depth -= 1
+                if (depth == 0) return i
+            }
+        }
+        i += 1
+    }
+    return -1
 }
 
 private fun readJsonString(source: String, openQuote: Int): String {

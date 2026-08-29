@@ -25,6 +25,15 @@ class OkHttpNetworkClientTest {
         }
     }
 
+    @Test
+    fun defaultClientAllowsSixtySecondRead() {
+        val client = defaultHttpClient()
+        assertEquals(60_000, client.readTimeoutMillis.toLong())
+        assertEquals(60_000, client.writeTimeoutMillis.toLong())
+        assertEquals(15_000, client.connectTimeoutMillis.toLong())
+        assertEquals(0, client.callTimeoutMillis.toLong())
+    }
+
     @Test(expected = UnsupportedOperationException::class)
     fun executeStreamIsReserved() {
         OkHttpNetworkClient().executeStream(

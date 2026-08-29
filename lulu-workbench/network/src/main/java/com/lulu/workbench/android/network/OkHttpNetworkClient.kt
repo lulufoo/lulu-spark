@@ -8,11 +8,12 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.security.SecureRandom
 import java.security.cert.X509Certificate
+import java.util.concurrent.TimeUnit
 import javax.net.ssl.SSLContext
 import javax.net.ssl.X509TrustManager
 
 class OkHttpNetworkClient(
-    private val openClient: OkHttpClient = OkHttpClient(),
+    private val openClient: OkHttpClient = defaultHttpClient(),
 ) : NetworkClient {
     override fun execute(request: HttpRequest): HttpResponse {
         val client = clientFor(request.tlsFingerprint)
@@ -31,7 +32,7 @@ class OkHttpNetworkClient(
                 )
             }
         } catch (error: Exception) {
-            log.e("execute ${request.method} failed")
+            log.e("execute ${request.method} failed ${error.javaClass.simpleName}")
             throw error
         }
     }
@@ -53,6 +54,13 @@ class OkHttpNetworkClient(
             .build()
     }
 }
+
+internal fun defaultHttpClient(): OkHttpClient =
+    OkHttpClient.Builder()
+        .connectTimeout(15, TimeUnit.SECONDS)
+        .readTimeout(60, TimeUnit.SECONDS)
+        .writeTimeout(60, TimeUnit.SECONDS)
+        .build()
 
 private val log = WbLog.module(LogModule.NETWORK)
 
