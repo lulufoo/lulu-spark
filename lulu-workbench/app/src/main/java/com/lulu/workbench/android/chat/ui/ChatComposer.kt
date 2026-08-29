@@ -20,6 +20,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -48,6 +49,7 @@ internal fun ChatComposer(
     asrConfigured: Boolean,
     onVoicePress: () -> Unit,
     onVoiceRelease: (cancel: Boolean) -> Unit,
+    onVoiceHintShown: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val colors = MaterialTheme.colorScheme
@@ -58,6 +60,11 @@ internal fun ChatComposer(
     }
     var voiceMode by remember { mutableStateOf(false) }
     val context = LocalContext.current
+    LaunchedEffect(voiceHint) {
+        if (voiceHint.isEmpty()) return@LaunchedEffect
+        Toast.makeText(context, voiceHint, Toast.LENGTH_SHORT).show()
+        onVoiceHintShown()
+    }
     val focusManager = LocalFocusManager.current
     val keyboard = LocalSoftwareKeyboardController.current
     fun switchMode() {
@@ -144,14 +151,6 @@ internal fun ChatComposer(
                         Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Send")
                     }
                 }
-            }
-            if (voiceMode && voiceHint.isNotEmpty() && voicePhase != VoicePhase.Recording) {
-                Text(
-                    text = voiceHint,
-                    modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 8.dp),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = colors.onSurfaceVariant,
-                )
             }
         }
     }

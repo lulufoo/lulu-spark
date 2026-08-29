@@ -80,6 +80,11 @@ class ChatStore(
             ChatIntent.RefreshAsr -> {
                 state = state.copy(asrConfigured = asrReady())
             }
+            ChatIntent.ClearVoiceHint -> {
+                if (state.voiceHint.isNotEmpty()) {
+                    state = state.copy(voiceHint = "")
+                }
+            }
             ChatIntent.VoicePress -> onVoicePress()
             is ChatIntent.VoiceRelease -> onVoiceRelease(intent.cancel)
             ChatIntent.MicDenied -> {

@@ -26,6 +26,12 @@ class WavPcmTest {
         assertFalse(isVoiceTooShort(pcmToWav(ByteArray(MinVoicePcmBytes))))
     }
 
+    @Test
+    fun maxClipIs56SecondsOfPcm16kMono() {
+        assertEquals(1_792_000, MaxVoicePcmBytes)
+        assertEquals(MaxVoiceSeconds, MaxVoicePcmBytes / (AsrPcmSampleRate * 2))
+    }
+
     private fun readInt32Le(bytes: ByteArray, at: Int): Int =
         (bytes[at].toInt() and 0xFF) or
             ((bytes[at + 1].toInt() and 0xFF) shl 8) or

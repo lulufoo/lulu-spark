@@ -196,6 +196,7 @@ fun ChatScreen(
                     onVoiceRelease = { cancel ->
                         store.dispatch(ChatIntent.VoiceRelease(cancel))
                     },
+                    onVoiceHintShown = { store.dispatch(ChatIntent.ClearVoiceHint) },
                 )
                 if (progress > 0.02f) {
                     Box(
@@ -223,6 +224,7 @@ private fun ChatPane(
     onSend: (String) -> Unit,
     onVoicePress: () -> Unit,
     onVoiceRelease: (Boolean) -> Unit,
+    onVoiceHintShown: () -> Unit,
 ) {
     var draft by remember { mutableStateOf("") }
     val focusManager = LocalFocusManager.current
@@ -285,6 +287,7 @@ private fun ChatPane(
             asrConfigured = state.asrConfigured,
             onVoicePress = onVoicePress,
             onVoiceRelease = onVoiceRelease,
+            onVoiceHintShown = onVoiceHintShown,
             modifier = Modifier.chatComposerImePadding(),
         )
     }

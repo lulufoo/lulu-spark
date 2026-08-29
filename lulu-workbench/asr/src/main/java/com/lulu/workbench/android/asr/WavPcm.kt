@@ -3,6 +3,8 @@ package com.lulu.workbench.android.asr
 const val AsrPcmSampleRate = 16_000
 const val AsrWavHeaderBytes = 44
 const val MinVoicePcmBytes = 3_200
+const val MaxVoiceSeconds = 56
+const val MaxVoicePcmBytes = AsrPcmSampleRate * 2 * MaxVoiceSeconds
 
 fun pcmToWav(
     pcm: ByteArray,

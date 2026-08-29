@@ -11,7 +11,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -20,7 +22,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
+import android.os.SystemClock
+import com.lulu.workbench.android.asr.MaxVoiceSeconds
 import com.lulu.workbench.android.chat.state.VoicePhase
+import kotlinx.coroutines.delay
 
 internal const val VoiceCancelSlopDp = 56f
 
@@ -38,6 +43,12 @@ internal const val AsrMissingToast = "Speech recognition is not configured"
 internal fun shouldToastVoiceSwitch(asrConfigured: Boolean, toVoice: Boolean): Boolean =
     toVoice && !asrConfigured
 
+internal fun voiceRemainingSeconds(elapsedMs: Long, maxSeconds: Int = MaxVoiceSeconds): Int =
+    (maxSeconds - (elapsedMs / 1000L).toInt()).coerceAtLeast(0)
+
+internal fun voiceHoldLabel(cancel: Boolean, remaining: Int): String =
+    if (cancel) "Release to cancel" else "Release to send · $remaining"
+
 @Composable
 internal fun ChatHoldToTalk(
     phase: VoicePhase,
@@ -50,10 +61,24 @@ internal fun ChatHoldToTalk(
     val slopPx = with(LocalDensity.current) { VoiceCancelSlopDp.dp.toPx() }
     var holding by remember { mutableStateOf(false) }
     var cancelArmed by remember { mutableStateOf(false) }
+    val counting = phase == VoicePhase.Recording
+    var remaining by remember { mutableIntStateOf(MaxVoiceSeconds) }
+    LaunchedEffect(counting) {
+        if (!counting) {
+            remaining = MaxVoiceSeconds
+            return@LaunchedEffect
+        }
+        val started = SystemClock.elapsedRealtime()
+        remaining = MaxVoiceSeconds
+        while (true) {
+            remaining = voiceRemainingSeconds(SystemClock.elapsedRealtime() - started)
+            if (remaining == 0) break
+            delay(200)
+        }
+    }
     val label = when {
         phase == VoicePhase.Recognizing -> "Recognizing…"
-        holding && cancelArmed -> "Release to cancel"
-        holding -> "Release to send"
+        holding -> voiceHoldLabel(cancelArmed, remaining)
         else -> "Hold to talk"
     }
     val container = when {

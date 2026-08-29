@@ -41,6 +41,8 @@ sealed class ChatIntent {
     data object MicDenied : ChatIntent()
 
     data object RefreshAsr : ChatIntent()
+
+    data object ClearVoiceHint : ChatIntent()
 }
 
 internal fun sessionTitle(turns: List<HistoryTurn>): String {

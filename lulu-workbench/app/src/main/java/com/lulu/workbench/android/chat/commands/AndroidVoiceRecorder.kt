@@ -5,13 +5,13 @@ import android.media.AudioFormat
 import android.media.AudioRecord
 import android.media.MediaRecorder
 import com.lulu.workbench.android.asr.AsrPcmSampleRate
+import com.lulu.workbench.android.asr.MaxVoicePcmBytes
 import com.lulu.workbench.android.asr.pcmToWav
 import com.lulu.workbench.android.log.LogModule
 import com.lulu.workbench.android.log.WbLog
 import java.io.ByteArrayOutputStream
 import kotlin.math.max
 
-private const val MaxVoicePcmBytes = 1_800_000
 private const val ReadBytes = 4_096
 
 class AndroidVoiceRecorder : VoiceRecorder {

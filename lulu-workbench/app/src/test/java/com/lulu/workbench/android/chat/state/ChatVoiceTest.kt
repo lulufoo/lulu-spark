@@ -123,6 +123,8 @@ class ChatVoiceTest {
         val store = voiceStore()
         store.dispatch(ChatIntent.MicDenied)
         assertEquals("Microphone permission denied", store.state.voiceHint)
+        store.dispatch(ChatIntent.ClearVoiceHint)
+        assertEquals("", store.state.voiceHint)
     }
 
     private fun voiceStore(
