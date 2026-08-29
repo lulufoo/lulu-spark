@@ -23,7 +23,7 @@ internal val LLM_PRESETS: List<LlmPreset> =
     listOf(
         LlmPreset(
             id = "glm",
-            label = "Agent Loop / GLM",
+            label = "GLM",
             defaultBaseUrl = "https://open.bigmodel.cn/api/paas/v4",
             defaultModel = "",
         ),

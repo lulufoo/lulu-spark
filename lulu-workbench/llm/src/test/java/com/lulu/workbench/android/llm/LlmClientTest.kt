@@ -88,7 +88,7 @@ class LlmClientTest {
         val catalog = LlmClientImpl(MemoryStorage(), RejectNetwork()).catalog()
         assertEquals(listOf("glm", "kimi", "openai"), catalog.map { it.id })
         val glm = catalog.single { it.id == "glm" }
-        assertEquals("Agent Loop / GLM", glm.label)
+        assertEquals("GLM", glm.label)
         assertEquals("https://open.bigmodel.cn/api/paas/v4", glm.defaultBaseUrl)
         assertEquals("", glm.defaultModel)
     }
