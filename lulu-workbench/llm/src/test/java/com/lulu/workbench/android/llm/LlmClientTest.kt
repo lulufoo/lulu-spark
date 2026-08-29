@@ -160,6 +160,16 @@ class LlmClientTest {
     }
 
     @Test
+    fun decodeAssistantTextKeepsNewlinesAndQuotes() {
+        val json =
+            """{"choices":[{"message":{"content":"概览：\n\n| 维度 | 豆包 |\n|------|------|\n说 \"好\""}}]}"""
+        assertEquals(
+            "概览：\n\n| 维度 | 豆包 |\n|------|------|\n说 \"好\"",
+            decodeAssistantText(json),
+        )
+    }
+
+    @Test
     fun chatUrlAppendsOnV4() {
         assertEquals(
             "https://open.bigmodel.cn/api/paas/v4/chat/completions",

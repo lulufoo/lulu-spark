@@ -36,7 +36,7 @@ internal fun decodeAssistantText(json: String): String {
     val colon = from.indexOf(':', startIndex = key)
     val quote = from.indexOf('"', startIndex = colon + 1)
     if (quote < 0) return ""
-    return unescape(readJsonString(from, quote))
+    return readJsonString(from, quote)
 }
 
 internal fun decodeFinishReason(json: String): String {
@@ -111,7 +111,7 @@ private fun readStringAfterKey(json: String, keyAt: Int): String {
     val colon = json.indexOf(':', startIndex = keyAt)
     val quote = json.indexOf('"', startIndex = colon + 1)
     if (quote < 0) return ""
-    return unescape(readJsonString(json, quote))
+    return readJsonString(json, quote)
 }
 
 private fun readJsonAfterKey(json: String, keyAt: Int): String {
@@ -121,7 +121,7 @@ private fun readJsonAfterKey(json: String, keyAt: Int): String {
     while (i < json.length && json[i].isWhitespace()) i += 1
     if (i >= json.length) return ""
     return when (json[i]) {
-        '"' -> unescape(readJsonString(json, i))
+        '"' -> readJsonString(json, i)
         '{', '[' -> {
             val close = matchingCloser(json, i)
             if (close < 0) "" else json.substring(i, close + 1)
@@ -165,20 +165,36 @@ private fun readJsonString(source: String, openQuote: Int): String {
     var i = openQuote + 1
     while (i < source.length) {
         val c = source[i]
-        if (c == '\\' && i + 1 < source.length) {
-            out.append(source[i + 1])
-            i += 2
+        if (c == '"') break
+        if (c != '\\' || i + 1 >= source.length) {
+            out.append(c)
+            i += 1
             continue
         }
-        if (c == '"') break
-        out.append(c)
-        i += 1
+        when (val next = source[i + 1]) {
+            'n' -> out.append('\n')
+            'r' -> out.append('\r')
+            't' -> out.append('\t')
+            '"' -> out.append('"')
+            '\\' -> out.append('\\')
+            '/' -> out.append('/')
+            'u' -> {
+                if (i + 5 < source.length) {
+                    val code = source.substring(i + 2, i + 6).toIntOrNull(16)
+                    if (code != null) {
+                        out.append(code.toChar())
+                        i += 6
+                        continue
+                    }
+                }
+                out.append('u')
+            }
+            else -> out.append(next)
+        }
+        i += 2
     }
     return out.toString()
 }
 
 private fun escape(value: String): String =
     value.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n")
-
-private fun unescape(value: String): String =
-    value.replace("\\n", "\n").replace("\\\"", "\"").replace("\\\\", "\\")

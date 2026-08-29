@@ -30,4 +30,5 @@ include(":wmcp")
 include(":network")
 include(":storage")
 include(":log")
+include(":markdown")
  

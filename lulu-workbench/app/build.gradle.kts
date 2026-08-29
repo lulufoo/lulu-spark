@@ -44,6 +44,7 @@ dependencies {
     implementation(project(":llm"))
     implementation(project(":wmcp"))
     implementation(project(":log"))
+    implementation(project(":markdown"))
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.runtime.compose)

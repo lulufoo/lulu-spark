@@ -1,6 +1,7 @@
 package com.lulu.workbench.android.agent.facade
 
 import com.lulu.workbench.android.agent.loop.AgentLoop
+import com.lulu.workbench.android.agent.session.HistoryTurn
 import com.lulu.workbench.android.agent.session.SessionId
 import com.lulu.workbench.android.agent.session.SessionRegistry
 import com.lulu.workbench.android.agent.tools.ToolDispatcher
@@ -25,6 +26,8 @@ class AgentFacade(
     fun listSessions(): List<SessionId> = sessions.list()
 
     fun createSession(): SessionId = sessions.create()
+
+    fun loadTurns(sessionId: SessionId): List<HistoryTurn> = sessions.loadTurns(sessionId)
 
     fun loop(sessionId: SessionId): AgentLoop =
         loops.getOrPut(sessionId) {

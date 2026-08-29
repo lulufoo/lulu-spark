@@ -23,4 +23,12 @@ class HistoryStoreTest {
         assertEquals("hi", sessions.loadTurns(id).first().content)
         assertTrue(storage.read("sessions/${id.value}/tools") == null)
     }
+
+    @Test
+    fun roundTripKeepsNewlinesInAssistantContent() {
+        val raw = encodeTurns(listOf(HistoryTurn("assistant", "概览：\n\n| 维度 | 豆包 |\n|------|------|")))
+        val loaded = decodeTurns(raw).single()
+        assertEquals("概览：\n\n| 维度 | 豆包 |\n|------|------|", loaded.content)
+        assertTrue(raw.contains("\\n"))
+    }
 }
