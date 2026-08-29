@@ -1,13 +1,13 @@
 import { useSyncExternalStore } from 'react';
-import { deleteNotesGithubRepo } from '../../commands/settings/notes-github.ts';
-import { notesConnectionStore } from '../../state/settings/store.ts';
+import { deleteWorkbenchGithubRepo } from '../../commands/settings/workbench-github.ts';
+import { workbenchConnectionStore } from '../../state/settings/store.ts';
 
-function notesGithubRepoFullName(url: string) {
+function workbenchGithubRepoFullName(url: string) {
   const m = String(url || '').match(/^https:\/\/github\.com\/([^/]+\/[^/]+)/i);
   return m ? m[1] : String(url || '');
 }
 
-function NotesConnectionItem({
+function WorkbenchConnectionItem({
   fullName,
   url,
   locked,
@@ -35,9 +35,9 @@ function NotesConnectionItem({
           <button
             type="button"
             className="sediment-kb-delete-btn"
-            id="btn-notes-connect-delete"
+            id="btn-workbench-connect-delete"
             onClick={() => {
-              void deleteNotesGithubRepo();
+              void deleteWorkbenchGithubRepo();
             }}
           >
             Delete
@@ -48,15 +48,15 @@ function NotesConnectionItem({
   );
 }
 
-export function NotesConnectionHost() {
+export function WorkbenchConnectionHost() {
   const { url, locked } = useSyncExternalStore(
-    notesConnectionStore.subscribe,
-    notesConnectionStore.getSnapshot,
+    workbenchConnectionStore.subscribe,
+    workbenchConnectionStore.getSnapshot,
   );
   if (!url) return null;
   return (
-    <NotesConnectionItem
-      fullName={notesGithubRepoFullName(url)}
+    <WorkbenchConnectionItem
+      fullName={workbenchGithubRepoFullName(url)}
       url={url}
       locked={locked}
     />

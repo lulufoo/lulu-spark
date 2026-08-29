@@ -1,9 +1,9 @@
 import { createModuleStore } from '../../../shared/module-store.ts';
 
 export const GITHUB_USER_HINT_DEFAULT =
-  'Inferred from the Notes directory origin when possible; used for Viewer remote links.';
-export const NOTES_CONNECT_NEEDS_ACCOUNT =
-  'Set a Sync token first to bind a Notes repository.';
+  'Inferred from the Workbench directory origin when possible; used for Viewer remote links.';
+export const WORKBENCH_CONNECT_NEEDS_ACCOUNT =
+  'Set a Sync token first to bind a Workbench repository.';
 export const DEFAULT_ENGINE_CATEGORY = 'host';
 
 export const engineKeyHints = {
@@ -27,7 +27,7 @@ export const store = {
   /** Host MCP listen port (same value GET /health uses in its mcp template). */
   mcpPort: 9876,
   githubUserUrlInferredFromOrigin: '',
-  notesGithubRepoInferredFromOrigin: '',
+  workbenchGithubRepoInferredFromOrigin: '',
 };
 
 export function setResult(resultElId: string, message: string, isError = false) {
@@ -45,7 +45,7 @@ export function isGithubUserUrlInferredLocked(): boolean {
   return Boolean(store.githubUserUrlInferredFromOrigin);
 }
 
-export const notesConnectionStore = createModuleStore({
+export const workbenchConnectionStore = createModuleStore({
   url: '',
   locked: false,
 });

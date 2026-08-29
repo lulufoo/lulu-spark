@@ -104,7 +104,7 @@ pub struct AppSettings {
     pub meili_url: String,
     #[serde(default = "default_github_user_url")]
     pub github_user_url: String,
-    /// Optional Notes GitHub repository URL (`https://github.com/owner/repo`). Empty = none.
+    /// Optional Workbench GitHub repository URL (`https://github.com/owner/repo`). Empty = none.
     #[serde(default)]
     pub workbench_github_repo_url: String,
     /// Assistant engine selection: `host` (Agent Loop + GLM). Default `host`.

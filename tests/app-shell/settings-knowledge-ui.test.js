@@ -42,8 +42,8 @@ describe('Settings Knowledge UI', () => {
     expect(indexHtml).toContain('id="settings-kb-hide-pattern"');
     expect(indexHtml).not.toContain('id="settings-kb-root"');
     expect(indexHtml).not.toContain('id="kb-setting-nav"');
-    expect(indexHtml).toContain('id="settings-tab-notes-directory"');
-    expect(indexHtml).toContain('id="settings-tab-notes-connection"');
+    expect(indexHtml).toContain('id="settings-tab-workbench-directory"');
+    expect(indexHtml).toContain('id="settings-tab-workbench-connection"');
     expect(indexHtml).toContain('id="settings-tab-knowledge-list"');
     expect(indexHtml).toContain('id="settings-tab-knowledge-add"');
     expect(indexHtml).toContain('id="settings-tab-knowledge-categories"');
@@ -51,8 +51,8 @@ describe('Settings Knowledge UI', () => {
     expect(indexHtml).toContain('id="settings-tab-knowledge-hidden"');
     expect(indexHtml).toContain('id="settings-tab-llm-engine"');
     expect(indexHtml).toContain('id="settings-tab-github-account"');
-    expect(indexHtml).toContain('id="notes-connect-item"');
-    expect(indexHtml).toMatch(/htmlFor="notes-connect-url">GitHub repository URL</);
+    expect(indexHtml).toContain('id="workbench-connect-item"');
+    expect(indexHtml).toMatch(/htmlFor="workbench-connect-url">GitHub repository URL</);
     expect(indexHtml).toContain('id="sediment-kb-add-url"');
     expect(indexHtml).toContain('id="sediment-kb-add-category"');
     expect(indexHtml).toContain('id="sediment-kb-add-description"');
@@ -100,22 +100,22 @@ describe('Settings Knowledge UI', () => {
   });
 });
 
-describe('Notes GitHub connection', () => {
+describe('Workbench GitHub connection', () => {
   it('persists a single workbench_github_repo_url and can delete it', () => {
-    expect(settingsDialogJs).toMatch(/function normalizeNotesGithubRepoUrl\(/);
-    expect(settingsDialogJs).toMatch(/function renderNotesConnection\(/);
+    expect(settingsDialogJs).toMatch(/function normalizeWorkbenchGithubRepoUrl\(/);
+    expect(settingsDialogJs).toMatch(/function renderWorkbenchConnection\(/);
     expect(settingsDialogJs).toMatch(
       /api\.setConfig\(\{ workbench_github_repo_url: repoUrl \}\)/,
     );
-    expect(settingsDialogJs).toMatch(/async function deleteNotesGithubRepo\(/);
-    expect(settingsDialogJs).toMatch(/btn-notes-connect-delete/);
+    expect(settingsDialogJs).toMatch(/async function deleteWorkbenchGithubRepo\(/);
+    expect(settingsDialogJs).toMatch(/btn-workbench-connect-delete/);
     expect(settingsDialogJs).toMatch(/target="_blank"/);
   });
 
   it('locks the inferred origin repo and hides Delete', () => {
-    expect(settingsDialogJs).toMatch(/function applyNotesGithubRepoFromInferResponse\(/);
+    expect(settingsDialogJs).toMatch(/function applyWorkbenchGithubRepoFromInferResponse\(/);
     expect(settingsDialogJs).toMatch(/resp\?\.workbench_github_repo_url/);
-    expect(settingsDialogJs).toMatch(/renderNotesConnection\(inferred, \{ locked: true \}\)/);
+    expect(settingsDialogJs).toMatch(/renderWorkbenchConnection\(inferred, \{ locked: true \}\)/);
     expect(settingsDialogJs).toMatch(/Inferred from workbench directory git origin \(read-only\)/);
   });
 
@@ -134,19 +134,19 @@ describe('Notes GitHub connection', () => {
     );
   });
 
-  it('blocks Notes Connection binding until a Sync token is saved', () => {
+  it('blocks Workbench Connection binding until a Sync token is saved', () => {
     expect(settingsDialogJs).toMatch(/function isGithubAccountConfigured\(/);
     expect(settingsDialogJs).toMatch(/savedSnapshot\.hasGithubToken/);
     expect(settingsDialogJs).toMatch(
       /isGithubAccountConfigured[\s\S]*?savedSnapshot\.hasGithubToken[\s\S]*?savedSnapshot\.githubUserUrl/,
     );
-    expect(settingsDialogJs).toMatch(/function syncNotesConnectionAccess\(/);
-    expect(settingsDialogJs).toMatch(/Set a Sync token first to bind a Notes repository/);
+    expect(settingsDialogJs).toMatch(/function syncWorkbenchConnectionAccess\(/);
+    expect(settingsDialogJs).toMatch(/Set a Sync token first to bind a Workbench repository/);
     expect(indexHtml).toMatch(
-      /<nav id="settings-nav">[\s\S]*data-panel="directories"[\s\S]*data-panel="knowledge"[\s\S]*data-panel="llm"[\s\S]*data-panel="github">Sync/,
+      /<nav id="settings-nav">[\s\S]*data-panel="workbench"[\s\S]*data-panel="knowledge"[\s\S]*data-panel="llm"[\s\S]*data-panel="github">Sync/,
     );
     expect(indexHtml).not.toMatch(
-      /data-panel="directories"[^>]*\bdisabled\b/,
+      /data-panel="workbench"[^>]*\bdisabled\b/,
     );
   });
 

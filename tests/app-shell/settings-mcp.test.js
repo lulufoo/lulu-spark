@@ -113,16 +113,16 @@ const consoleSpies = [];
 let writeText;
 
 describe('Settings MCP panel markup', () => {
-  it('adds an independent MCP nav item and panel beside Notes / Knowledge / Assistant / Sync', () => {
+  it('adds an independent MCP nav item and panel beside Workbench / Knowledge / Assistant / Sync', () => {
     const nav = indexHtml.match(/<nav id="settings-nav">([\s\S]*?)<\/nav>/)?.[1] ?? '';
-    expect(nav).toMatch(/data-panel="directories"/);
+    expect(nav).toMatch(/data-panel="workbench"/);
     expect(nav).toMatch(/data-panel="knowledge"/);
     expect(nav).toMatch(/data-panel="llm"/);
     expect(nav).toMatch(/data-panel="github"/);
     expect(nav).toMatch(/data-panel="mcp"[^>]*>\s*MCP/);
     expect(indexHtml).toMatch(/id="settings-panels"/);
     expect(indexHtml).toMatch(/id="settings-panel-mcp"/);
-    expect(indexHtml).toMatch(/id="settings-panel-directories"/);
+    expect(indexHtml).toMatch(/id="settings-panel-workbench"/);
     expect(indexHtml).toMatch(/id="settings-panel-knowledge"/);
     expect(indexHtml).toMatch(/id="settings-panel-llm"/);
     expect(indexHtml).toMatch(/id="settings-panel-github"/);

@@ -15,9 +15,9 @@ import {
   revokeMcpSlotTicket,
 } from './mcp.ts';
 import {
-  addNotesGithubRepo,
+  addWorkbenchGithubRepo,
   isGithubAccountConfigured,
-} from './notes-github.ts';
+} from './workbench-github.ts';
 import {
   isGithubUserUrlInferredLocked,
   savedSnapshot,
@@ -69,8 +69,8 @@ export async function openSettingsDialog(opts: SettingsOpenOpts = {}) {
   settingsOpenStore.set(true);
   document.getElementById('settings-dialog')?.classList.add('open');
   ensureWired();
-  setResult('settings-result-directories', '');
-  setResult('notes-connect-error', '');
+  setResult('settings-result-workbench', '');
+  setResult('workbench-connect-error', '');
   setResult('knowledge-root-error', '');
   setResult('settings-result-knowledge', '');
   setResult('settings-result-github', '');
@@ -81,8 +81,8 @@ export async function openSettingsDialog(opts: SettingsOpenOpts = {}) {
   const keyInput = input('settings-llm-api-key');
   if (tokenInput) tokenInput.value = '';
   if (keyInput) keyInput.value = '';
-  const panelId = opts.panel || 'directories';
-  switchSettingsTab('directories', panelId === 'directories' ? (opts.tab || 'directory') : 'directory');
+  const panelId = opts.panel || 'workbench';
+  switchSettingsTab('workbench', panelId === 'workbench' ? (opts.tab || 'directory') : 'directory');
   switchSettingsTab('knowledge', panelId === 'knowledge' ? (opts.tab || 'directory') : 'directory');
   switchSettingsTab('llm', 'engine');
   switchSettingsTab('github', 'account');
@@ -116,11 +116,11 @@ function wireSettingsDialog() {
   document.getElementById('settings-dialog')?.addEventListener('click', (e) => {
     if (e.target === document.getElementById('settings-dialog')) closeSettingsDialog();
   });
-  document.getElementById('btn-notes-connect-add')?.addEventListener('click', () => {
-    void addNotesGithubRepo();
+  document.getElementById('btn-workbench-connect-add')?.addEventListener('click', () => {
+    void addWorkbenchGithubRepo();
   });
-  document.getElementById('notes-connect-url')?.addEventListener('keydown', (e) => {
-    if ((e as KeyboardEvent).key === 'Enter') document.getElementById('btn-notes-connect-add')?.click();
+  document.getElementById('workbench-connect-url')?.addEventListener('keydown', (e) => {
+    if ((e as KeyboardEvent).key === 'Enter') document.getElementById('btn-workbench-connect-add')?.click();
   });
   document.getElementById('btn-knowledge-root-save')?.addEventListener('click', () => {
     void (async () => {
@@ -169,15 +169,15 @@ function wireSettingsDialog() {
     if ((e as KeyboardEvent).key === 'Enter') document.getElementById('btn-settings-save-knowledge')?.click();
   });
 
-  input('settings-archive-root')?.addEventListener('input', () => {
-    const root = input('settings-archive-root').value.trim();
+  input('settings-workbench-root')?.addEventListener('input', () => {
+    const root = input('settings-workbench-root').value.trim();
     if (!root) {
       clearGithubUserUrlInferredLock();
     }
   });
 
-  input('settings-archive-root')?.addEventListener('blur', async () => {
-    const root = input('settings-archive-root').value.trim();
+  input('settings-workbench-root')?.addEventListener('blur', async () => {
+    const root = input('settings-workbench-root').value.trim();
     if (!root) {
       return;
     }
@@ -185,7 +185,7 @@ function wireSettingsDialog() {
     const inference = (await applyWorkbenchRootInference({ revertOnConflict: pathChanged })) as Inference;
     if (!inference.ok && inference.conflict) {
       setResult(
-        'settings-result-directories',
+        'settings-result-workbench',
         `Directory not saved: GitHub profile on Sync (${inference.existing}) does not match origin inference (${inference.inferred}). Fix or clear the profile on Sync before changing the directory.`,
         true,
       );
@@ -193,7 +193,7 @@ function wireSettingsDialog() {
     }
     if (inference.error) {
       setResult(
-        'settings-result-directories',
+        'settings-result-workbench',
         `Could not infer GitHub profile: ${inference.error}. If you just updated the app, fully restart and try again.`,
         true,
       );
@@ -201,31 +201,31 @@ function wireSettingsDialog() {
     }
     if (inference.locked && inference.inferred) {
       setResult(
-        'settings-result-directories',
+        'settings-result-workbench',
         `GitHub profile inferred from git origin (locked — save on Sync).`,
         false,
       );
       setResult('settings-result-github', '');
-      if (pathChanged) switchPanel('directories');
+      if (pathChanged) switchPanel('workbench');
       return;
     }
     if (inference.noRemote) {
       setResult(
-        'settings-result-directories',
+        'settings-result-workbench',
         'No git origin detected; could not auto-infer GitHub profile — enter it manually on Sync.',
         false,
       );
     }
   });
 
-  btn('btn-settings-save-directories')?.addEventListener('click', async () => {
-    const saveBtn = btn('btn-settings-save-directories');
-    const archiveInput = input('settings-archive-root');
-    const workbenchRoot = archiveInput.value.trim();
+  btn('btn-settings-save-workbench')?.addEventListener('click', async () => {
+    const saveBtn = btn('btn-settings-save-workbench');
+    const workbenchInput = input('settings-workbench-root');
+    const workbenchRoot = workbenchInput.value.trim();
     const githubUserInput = input('settings-github-user-url');
 
     if (!workbenchRoot) {
-      setResult('settings-result-directories', 'Enter a directory path.', true);
+      setResult('settings-result-workbench', 'Enter a directory path.', true);
       return;
     }
 
@@ -237,7 +237,7 @@ function wireSettingsDialog() {
       const check = await api.checkWorkbenchRoot(workbenchRoot);
       if (check?.ok === false) {
         setResult(
-          'settings-result-directories',
+          'settings-result-workbench',
           check.error || 'Workbench directory invalid; not saved.',
           true,
         );
@@ -246,7 +246,7 @@ function wireSettingsDialog() {
     } catch (err) {
       const e = err as Error;
       setResult(
-        'settings-result-directories',
+        'settings-result-workbench',
         `Workbench directory validation failed: ${e.message || String(e)}`,
         true,
       );
@@ -256,7 +256,7 @@ function wireSettingsDialog() {
     const inference = (await applyWorkbenchRootInference({ revertOnConflict: true })) as Inference;
     if (!inference.ok && inference.conflict) {
       setResult(
-        'settings-result-directories',
+        'settings-result-workbench',
         `Save cancelled: workbench directory and GitHub profile do not match (entered ${inference.existing}, origin inference ${inference.inferred}). workbench_root was not written.`,
         true,
       );
@@ -277,8 +277,8 @@ function wireSettingsDialog() {
     if (includeGithubUrl) {
       payload.github_user_url = githubUserInput.value.trim();
     }
-    if (store.notesGithubRepoInferredFromOrigin && isGithubAccountConfigured()) {
-      payload.workbench_github_repo_url = store.notesGithubRepoInferredFromOrigin;
+    if (store.workbenchGithubRepoInferredFromOrigin && isGithubAccountConfigured()) {
+      payload.workbench_github_repo_url = store.workbenchGithubRepoInferredFromOrigin;
     }
 
     if (!Object.keys(payload).length) {
@@ -294,16 +294,16 @@ function wireSettingsDialog() {
         setGithubUserUrl(payload.github_user_url);
       }
       const parts: string[] = [];
-      if (payload.workbench_root) parts.push('Workbench knowledge directory');
+      if (payload.workbench_root) parts.push('Workbench directory');
       if (payload.github_user_url) parts.push('GitHub profile');
-      if (payload.workbench_github_repo_url) parts.push('Notes GitHub repository');
+      if (payload.workbench_github_repo_url) parts.push('Workbench GitHub repository');
       let msg = `Saved: ${parts.join(', ')}.`;
       if (messages.length) msg += ` ${messages.join('；')}`;
-      setResult('settings-result-directories', msg);
+      setResult('settings-result-workbench', msg);
       await loadSettingsSnapshot();
     } catch (err) {
       const e = err as Error;
-      setResult('settings-result-directories', `Save failed: ${e.message || String(e)}`, true);
+      setResult('settings-result-workbench', `Save failed: ${e.message || String(e)}`, true);
     } finally {
       saveBtn.disabled = false;
       saveBtn.textContent = 'Save';

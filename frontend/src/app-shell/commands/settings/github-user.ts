@@ -1,7 +1,7 @@
 import * as api from '../../../host/api.ts';
 import { errMessage, type InferGithubResp } from '../../state/types.ts';
 import { setGithubUserUrl } from '../../../host/constants.ts';
-import { applyNotesGithubRepoFromInferResponse } from './notes-github.ts';
+import { applyWorkbenchGithubRepoFromInferResponse } from './workbench-github.ts';
 import {
   GITHUB_USER_HINT_DEFAULT,
   normalizeGithubUserUrl,
@@ -39,12 +39,12 @@ export function clearGithubUserUrlInferredLock() {
   setGithubUserUrlInferredLock('', false);
 }
 export async function syncGithubUserUrlLockFromWorkbenchRoot() {
-  const archiveInput = document.getElementById('settings-archive-root') as HTMLInputElement | null;
+  const workbenchInput = document.getElementById('settings-workbench-root') as HTMLInputElement | null;
   const githubInput = document.getElementById('settings-github-user-url') as HTMLInputElement | null;
-  const root = archiveInput?.value.trim() ?? '';
+  const root = workbenchInput?.value.trim() ?? '';
   if (!root) {
     clearGithubUserUrlInferredLock();
-    applyNotesGithubRepoFromInferResponse({});
+    applyWorkbenchGithubRepoFromInferResponse({});
     return;
   }
 
@@ -53,7 +53,7 @@ export async function syncGithubUserUrlLockFromWorkbenchRoot() {
     resp = (await api.inferGithubUserUrl(root)) as InferGithubResp;
   } catch (e) {
     clearGithubUserUrlInferredLock();
-    applyNotesGithubRepoFromInferResponse({});
+    applyWorkbenchGithubRepoFromInferResponse({});
     setResult(
       'settings-result-github',
       `Could not infer GitHub profile: ${errMessage(e, String(e))}. If you just updated the app, fully restart and try again.`,
@@ -62,7 +62,7 @@ export async function syncGithubUserUrlLockFromWorkbenchRoot() {
     return;
   }
 
-  applyNotesGithubRepoFromInferResponse(resp);
+  applyWorkbenchGithubRepoFromInferResponse(resp);
   const inferred = (resp?.github_user_url || '').trim();
   if (!inferred) {
     clearGithubUserUrlInferredLock();
@@ -95,12 +95,12 @@ export async function syncGithubUserUrlLockFromWorkbenchRoot() {
 export async function applyWorkbenchRootInference({
   revertOnConflict = true,
 }: { revertOnConflict?: boolean } = {}) {
-  const archiveInput = document.getElementById('settings-archive-root') as HTMLInputElement;
+  const workbenchInput = document.getElementById('settings-workbench-root') as HTMLInputElement;
   const githubInput = document.getElementById('settings-github-user-url') as HTMLInputElement;
-  const root = archiveInput.value.trim();
+  const root = workbenchInput.value.trim();
   if (!root) {
     clearGithubUserUrlInferredLock();
-    applyNotesGithubRepoFromInferResponse({});
+    applyWorkbenchGithubRepoFromInferResponse({});
     return { ok: true };
   }
 
@@ -109,12 +109,12 @@ export async function applyWorkbenchRootInference({
     resp = (await api.inferGithubUserUrl(root)) as InferGithubResp;
   } catch (e) {
     clearGithubUserUrlInferredLock();
-    applyNotesGithubRepoFromInferResponse({});
+    applyWorkbenchGithubRepoFromInferResponse({});
     // @ts-expect-error Settings source scan requires e.message on unknown
     return { ok: false, error: e.message || String(e) };
   }
 
-  applyNotesGithubRepoFromInferResponse(resp);
+  applyWorkbenchGithubRepoFromInferResponse(resp);
   const inferred = (resp?.github_user_url || '').trim();
   if (!inferred) {
     clearGithubUserUrlInferredLock();
@@ -127,7 +127,7 @@ export async function applyWorkbenchRootInference({
 
   if (existing && existingNorm !== inferredNorm) {
     if (revertOnConflict) {
-      archiveInput.value = savedSnapshot.workbenchRoot;
+      workbenchInput.value = savedSnapshot.workbenchRoot;
     }
     clearGithubUserUrlInferredLock();
     return { ok: false, conflict: true, existing, inferred };

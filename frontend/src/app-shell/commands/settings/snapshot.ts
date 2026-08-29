@@ -8,7 +8,7 @@ import {
   clearGithubUserUrlInferredLock,
   syncGithubUserUrlLockFromWorkbenchRoot,
 } from './github-user.ts';
-import { renderNotesConnection, syncNotesConnectionAccess } from './notes-github.ts';
+import { renderWorkbenchConnection, syncWorkbenchConnectionAccess } from './workbench-github.ts';
 import { savedSnapshot, setResult, store } from '../../state/settings/store.ts';
 
 export function syncKbHidePatternInput() {
@@ -22,15 +22,15 @@ export async function loadSettingsSnapshot() {
   try {
     const cfg = (await api.fetchConfig()) as SettingsConfig;
 
-    const archiveInput = document.getElementById('settings-archive-root') as HTMLInputElement | null;
+    const workbenchInput = document.getElementById('settings-workbench-root') as HTMLInputElement | null;
     const githubUserInput = document.getElementById('settings-github-user-url') as HTMLInputElement | null;
     const knowledgeInput = document.getElementById('knowledge-root-path') as HTMLInputElement | null;
     const wbRoot = cfg?.workbench_root ?? '';
     const knowledgeRoot = cfg?.knowledge_root ?? '';
     const ghUrl = cfg?.github_user_url ?? '';
-    if (wbRoot && archiveInput) {
-      archiveInput.placeholder = wbRoot;
-      archiveInput.value = wbRoot;
+    if (wbRoot && workbenchInput) {
+      workbenchInput.placeholder = wbRoot;
+      workbenchInput.value = wbRoot;
     }
     if (knowledgeInput) {
       knowledgeInput.value = knowledgeRoot || state.ui.knowledgeRoot || '';
@@ -48,8 +48,8 @@ export async function loadSettingsSnapshot() {
     savedSnapshot.githubUserUrl = ghUrl;
     savedSnapshot.workbenchGithubRepoUrl = cfg?.workbench_github_repo_url ?? '';
     savedSnapshot.hasGithubToken = Boolean(cfg?.has_github_token);
-    renderNotesConnection(savedSnapshot.workbenchGithubRepoUrl);
-    setResult('notes-connect-error', '');
+    renderWorkbenchConnection(savedSnapshot.workbenchGithubRepoUrl);
+    setResult('workbench-connect-error', '');
 
     const hintEl = document.getElementById('settings-token-hint') as HTMLElement;
     hintEl.textContent = cfg?.has_github_token
@@ -63,7 +63,7 @@ export async function loadSettingsSnapshot() {
 
     await syncGithubUserUrlLockFromWorkbenchRoot();
     syncKbHidePatternInput();
-    syncNotesConnectionAccess();
+    syncWorkbenchConnectionAccess();
   } catch {
     const tokenHint = document.getElementById('settings-token-hint');
     if (tokenHint) tokenHint.textContent = 'Could not load settings; you can type and save.';
@@ -75,7 +75,7 @@ export async function loadSettingsSnapshot() {
     savedSnapshot.githubUserUrl = '';
     savedSnapshot.workbenchGithubRepoUrl = '';
     savedSnapshot.hasGithubToken = false;
-    renderNotesConnection('');
-    syncNotesConnectionAccess();
+    renderWorkbenchConnection('');
+    syncWorkbenchConnectionAccess();
   }
 }

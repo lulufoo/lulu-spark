@@ -5896,13 +5896,13 @@
   box-sizing: border-box;
 }
 .settings-connect-row input:focus { border-color: #0969da; }
-#notes-connect-add[hidden] { display: none; }
-#notes-connect-item {
+#workbench-connect-add[hidden] { display: none; }
+#workbench-connect-item {
   display: flex;
   flex-direction: column;
   gap: 6px;
 }
-#settings-tab-notes-connection .repo-list-item {
+#settings-tab-workbench-connection .repo-list-item {
   flex-wrap: wrap;
 }
 
@@ -5951,7 +5951,7 @@
   box-sizing: border-box;
   background: #fff;
 }
-#settings-archive-root,
+#settings-workbench-root,
 #knowledge-root-path,
 #settings-github-user-url {
   font-family: ui-monospace, SFMono-Regular, monospace;
