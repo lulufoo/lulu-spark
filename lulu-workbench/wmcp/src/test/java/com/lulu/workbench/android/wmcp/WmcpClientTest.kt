@@ -20,6 +20,17 @@ class WmcpClientTest {
     }
 
     @Test
+    fun deviceIdIsStablePlaintext() {
+        val storage = MemoryStorage()
+        val wmcp = WmcpClientImpl(storage, RecordingNetwork())
+        val first = wmcp.deviceId()
+        assertTrue(first.startsWith("dev_"))
+        assertEquals(20, first.length)
+        assertEquals(first, wmcp.deviceId())
+        assertEquals(first, WmcpClientImpl(storage, RecordingNetwork()).deviceId())
+    }
+
+    @Test
     fun unboundListToolsDoesNotCallNetwork() {
         val network = RecordingNetwork()
         val wmcp = WmcpClientImpl(MemoryStorage(), network)

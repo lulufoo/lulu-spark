@@ -41,6 +41,8 @@ private class BoundWmcp(
 ) : WmcpClient {
     override fun isBound(): Boolean = true
 
+    override fun deviceId(): String = "dev_bound"
+
     override fun completeBind(offer: BindOffer, deviceLabel: String?): BindResult = error("unused")
 
     override fun listTools(): List<McpTool> = tools.toList()

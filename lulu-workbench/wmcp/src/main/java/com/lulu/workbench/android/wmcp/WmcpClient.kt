@@ -30,6 +30,8 @@ class McpFailedException(message: String) : Exception(message)
 interface WmcpClient {
     fun isBound(): Boolean
 
+    fun deviceId(): String
+
     fun completeBind(offer: BindOffer, deviceLabel: String? = null): BindResult
 
     fun listTools(): List<McpTool>
@@ -106,7 +108,7 @@ class WmcpClientImpl(
         log.i("mcp session ready")
     }
 
-    private fun deviceId(): String {
+    override fun deviceId(): String {
         val existing = storage.getSecret(DEVICE_ID_SECRET)
         if (!existing.isNullOrEmpty()) return existing
         val id = "dev_" + UUID.randomUUID().toString().replace("-", "").take(16)

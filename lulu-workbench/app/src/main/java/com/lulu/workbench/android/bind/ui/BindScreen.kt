@@ -9,6 +9,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import com.lulu.workbench.android.bind.state.BindState
 
@@ -33,13 +34,20 @@ fun BindScreen(
         modifier = modifier,
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Text("Device", style = MaterialTheme.typography.titleMedium)
+        Text("Mac pair", style = MaterialTheme.typography.titleMedium)
         Text(
             "Pair this phone with Lulu Workbench on Mac.",
             style = MaterialTheme.typography.bodySmall,
             color = colors.onSurfaceVariant,
         )
         Text(status, style = MaterialTheme.typography.titleSmall, color = statusColor)
+        if (state.deviceId.isNotEmpty()) {
+            Text(
+                state.deviceId,
+                style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                color = colors.onSurfaceVariant,
+            )
+        }
         if (state.error.isNotEmpty()) {
             Text(state.error, color = colors.error)
         }

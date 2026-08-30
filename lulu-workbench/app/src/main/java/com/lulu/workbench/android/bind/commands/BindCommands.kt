@@ -9,6 +9,8 @@ class BindCommands(
 ) {
     fun isBound(): Boolean = wmcp.isBound()
 
+    fun deviceId(): String = wmcp.deviceId()
+
     fun completeFromQr(qrJson: String) {
         wmcp.completeBind(parseBindOffer(qrJson), deviceLabel)
     }

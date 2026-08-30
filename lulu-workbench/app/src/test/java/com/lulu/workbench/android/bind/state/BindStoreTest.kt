@@ -26,7 +26,16 @@ class BindStoreTest {
         )
         assertTrue(store.state.bound)
         assertFalse(store.state.scanning)
+        assertEquals("dev_testphone1", store.state.deviceId)
         assertEquals(1, wmcp.completes)
+    }
+
+    @Test
+    fun queryExposesDeviceId() {
+        val store = BindStore(BindCommands(FakeWmcp(), "Pixel"))
+        store.dispatch(BindIntent.Query)
+        assertEquals("dev_testphone1", store.state.deviceId)
+        assertFalse(store.state.bound)
     }
 
     @Test
@@ -44,6 +53,8 @@ private class FakeWmcp(
     var completes = 0
 
     override fun isBound(): Boolean = completes > 0
+
+    override fun deviceId(): String = "dev_testphone1"
 
     override fun completeBind(offer: BindOffer, deviceLabel: String?): BindResult {
         if (fail) throw BindFailedException("bind failed")

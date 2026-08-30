@@ -16,7 +16,11 @@ class BindStore(
     fun dispatch(intent: BindIntent) {
         when (intent) {
             BindIntent.Query ->
-                state = BindState(bound = commands.isBound(), error = state.error)
+                state = BindState(
+                    bound = commands.isBound(),
+                    deviceId = commands.deviceId(),
+                    error = state.error,
+                )
             BindIntent.StartScan ->
                 state = state.copy(scanning = true, error = "")
             BindIntent.CancelScan ->
@@ -29,11 +33,17 @@ class BindStore(
                 runOffMain {
                     try {
                         commands.completeFromQr(intent.qr)
-                        runOnMain { state = BindState(bound = true) }
+                        runOnMain {
+                            state = BindState(
+                                bound = true,
+                                deviceId = commands.deviceId(),
+                            )
+                        }
                     } catch (error: Exception) {
                         runOnMain {
                             state = BindState(
                                 bound = commands.isBound(),
+                                deviceId = commands.deviceId(),
                                 error = error.message ?: "bind failed",
                             )
                         }

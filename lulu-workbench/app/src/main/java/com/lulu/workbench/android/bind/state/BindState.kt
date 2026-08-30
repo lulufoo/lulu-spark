@@ -2,6 +2,7 @@ package com.lulu.workbench.android.bind.state
 
 data class BindState(
     val bound: Boolean = false,
+    val deviceId: String = "",
     val scanning: Boolean = false,
     val completing: Boolean = false,
     val error: String = "",

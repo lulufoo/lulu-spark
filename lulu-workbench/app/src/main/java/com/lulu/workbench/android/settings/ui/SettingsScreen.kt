@@ -111,6 +111,10 @@ fun SettingsScreen(
                     .padding(horizontal = 16.dp, vertical = 16.dp),
             ) {
                 SettingsCard {
+                    BindScreen(state = bindState, onScan = onStartScan)
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+                SettingsCard {
                     Text("Language model", style = MaterialTheme.typography.titleMedium)
                     Text(
                         "Provider, endpoint, and credentials for chat.",
@@ -216,10 +220,6 @@ fun SettingsScreen(
                         }
                     }
                 }
-                Spacer(modifier = Modifier.height(12.dp))
-                SettingsCard {
-                    BindScreen(state = bindState, onScan = onStartScan)
-                }
             }
         }
     }
@@ -239,7 +239,7 @@ private fun SettingsHeader(onBack: () -> Unit) {
         Column(modifier = Modifier.padding(start = 4.dp, top = 12.dp, bottom = 12.dp)) {
             Text("Settings", style = MaterialTheme.typography.titleLarge)
             Text(
-                "Model, speech, and device",
+                "Mac pair, model, and speech",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

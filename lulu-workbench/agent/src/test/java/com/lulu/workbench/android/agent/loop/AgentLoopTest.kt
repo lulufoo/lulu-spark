@@ -101,6 +101,8 @@ private class ScriptedLlm(
 private class UnboundWmcp : WmcpClient {
     override fun isBound(): Boolean = false
 
+    override fun deviceId(): String = "dev_unbound"
+
     override fun completeBind(offer: BindOffer, deviceLabel: String?): BindResult =
         error("unused")
 
@@ -111,6 +113,8 @@ private class UnboundWmcp : WmcpClient {
 
 private class ThrowingListWmcp : WmcpClient {
     override fun isBound(): Boolean = true
+
+    override fun deviceId(): String = "dev_throw"
 
     override fun completeBind(offer: BindOffer, deviceLabel: String?): BindResult =
         error("unused")
