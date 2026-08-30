@@ -6962,8 +6962,20 @@
   text-align: center;
 }
 .home-chat-session {
-  display: block;
+  display: flex;
+  align-items: center;
   width: 100%;
+  border-radius: 8px;
+  background: transparent;
+}
+.home-chat-session:hover { background: #e7ebef; }
+.home-chat-session.is-active {
+  background: #fff;
+  box-shadow: 0 0 0 1px #e4e8ec;
+}
+.home-chat-session-open {
+  flex: 1;
+  min-width: 0;
   padding: 8px 10px;
   border: none;
   border-radius: 8px;
@@ -6977,12 +6989,86 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.home-chat-session:hover { background: #e7ebef; }
-.home-chat-session.is-active {
-  background: #fff;
+.home-chat-session.is-active .home-chat-session-open {
   color: #24292f;
   font-weight: 600;
-  box-shadow: 0 0 0 1px #e4e8ec;
+}
+.home-chat-session-delete {
+  display: none;
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  margin-right: 4px;
+  padding: 0;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: #57606a;
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+}
+.home-chat-session:hover .home-chat-session-delete,
+.home-chat-session:focus-within .home-chat-session-delete {
+  display: inline-flex;
+}
+.home-chat-session-delete:hover,
+.home-chat-session-delete:focus-visible {
+  background: #ffebe9;
+  color: #cf222e;
+}
+.home-chat-session-delete-icon {
+  width: 14px;
+  height: 14px;
+  display: block;
+}
+.home-chat-delete-confirm {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.home-chat-delete-confirm-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(31, 35, 40, 0.45);
+  cursor: pointer;
+}
+.home-chat-delete-confirm-panel {
+  position: relative;
+  z-index: 1;
+  width: min(400px, 92vw);
+  padding: 18px 18px 14px;
+  border-radius: 12px;
+  background: #fff;
+}
+.home-chat-delete-confirm-title {
+  margin: 0 0 8px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #24292f;
+}
+.home-chat-delete-confirm-body {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #57606a;
+}
+.home-chat-delete-confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+}
+.home-chat-btn-danger {
+  color: #cf222e;
+  border-color: #ff8182;
+}
+.home-chat-btn-danger:hover {
+  background: #fff1f0;
+  border-color: #cf222e;
 }
 .home-chat-main {
   position: relative;

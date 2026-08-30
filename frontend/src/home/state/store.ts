@@ -115,3 +115,11 @@ export function sessionIdOf(payload: { session_id?: unknown; sessionId?: unknown
   const raw = payload.session_id ?? payload.sessionId;
   return raw == null ? '' : String(raw);
 }
+
+/** Next row after `deletedId`; if none, the previous row; if none, empty. */
+export function neighborSessionId(sessions: HubSession[], deletedId: string) {
+  const ids = sessions.map((s) => String(s.session_id || '')).filter(Boolean);
+  const index = ids.indexOf(deletedId);
+  if (index < 0) return ids[0] || '';
+  return ids[index + 1] || ids[index - 1] || '';
+}

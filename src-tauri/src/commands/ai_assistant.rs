@@ -76,6 +76,10 @@ pub fn create_chat_session_json() -> Result<Value, String> {
     r#loop::create_chat_session_core()
 }
 
+pub fn delete_chat_session_json(session_id: &str) -> Result<Value, String> {
+    r#loop::delete_chat_session_core(session_id)
+}
+
 /// Binding Contract Set entry (key-only). Looks up Host MCP registry; rejects legacy
 /// tools/prompt/callbacks payload and engine selection parameters.
 pub fn set_binding_json(binding: Value) -> Value {
@@ -355,6 +359,13 @@ pub async fn create_chat_session() -> Result<Value, String> {
 }
 
 #[tauri::command]
+pub async fn delete_chat_session(session_id: String) -> Result<Value, String> {
+    tauri::async_runtime::spawn_blocking(move || delete_chat_session_json(&session_id))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
 pub async fn agent_chat_turn(
     app: AppHandle,
     session_id: String,
@@ -455,3 +466,7 @@ pub async fn agent_chat_turn(
 #[cfg(test)]
 #[path = "../unit-tests/commands/ai_assistant.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "../unit-tests/commands/ai_assistant_chat_delete.rs"]
+mod chat_delete_tests;

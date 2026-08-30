@@ -95,6 +95,19 @@ pub fn load_session(session_id: &str) -> Result<Session, String> {
     serde_json::from_str(&text).map_err(|e| e.to_string())
 }
 
+pub fn delete_session(session_id: &str) -> Result<(), String> {
+    let path = session_file_path(session_id)?;
+    if !path.is_file() {
+        return Err("Session not found".into());
+    }
+    fs::remove_file(&path).map_err(|e| e.to_string())?;
+    let tmp = path.with_extension("json.tmp");
+    if tmp.is_file() {
+        let _ = fs::remove_file(&tmp);
+    }
+    Ok(())
+}
+
 const HOME_CHAT_LIST_LIMIT: usize = 20;
 
 fn format_session_when(updated_at: i64) -> String {

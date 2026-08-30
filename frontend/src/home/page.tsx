@@ -2,8 +2,10 @@ import { memo, useEffect, useLayoutEffect, useRef, type FormEvent, type Keyboard
 import { createRoot, type Root } from 'react-dom/client';
 import { flushSync } from 'react-dom';
 import { hydrateHomeChatMarkdown, renderHomeChatMarkdown } from './ui/chat-render.ts';
+import { SessionList } from './ui/session-list.tsx';
 import {
   createSession,
+  deleteSession,
   resetHomeCommands,
   selectSession,
   sendMessage,
@@ -16,61 +18,14 @@ import {
   messagePaintKey,
   progressHint,
   resetHomeState,
-  sessionListLabel,
   useHomeState,
   type HubMessage,
-  type HubSession,
 } from './state/store.ts';
 
 export type HomePageChrome = {
   navigate?: (hash: string) => void;
   openReadLater?: () => void;
 };
-
-function SessionList({
-  sessions,
-  currentSessionId,
-  progressByChat,
-  onSelect,
-}: {
-  sessions: HubSession[];
-  currentSessionId: string;
-  progressByChat: Record<string, string>;
-  onSelect: (id: string) => void;
-}) {
-  if (!sessions.length) {
-    return <p className="home-chat-sessions-empty">No conversations yet.</p>;
-  }
-  return (
-    <>
-      {sessions.map((s) => {
-        const id = String(s.session_id || '');
-        const title = sessionListLabel(s);
-        const active = id && id === currentSessionId ? ' is-active' : '';
-        const flying = Boolean(progressByChat[id]);
-        return (
-          <button
-            key={id || title}
-            type="button"
-            className={`home-chat-session${active}`}
-            data-session-id={id}
-            role="listitem"
-            onClick={() => {
-              if (id) onSelect(id);
-            }}
-          >
-            {title}
-            {flying ? (
-              <span className="home-chat-session-progress" aria-hidden="true">
-                …
-              </span>
-            ) : null}
-          </button>
-        );
-      })}
-    </>
-  );
-}
 
 const MessageThread = memo(function MessageThread({
   hostBound,
@@ -293,8 +248,12 @@ export function HomePage({
             sessions={state.sessions}
             currentSessionId={state.currentSessionId}
             progressByChat={state.progressByChat}
+            inFlightIds={state.inFlightIds}
             onSelect={(id) => {
               void selectSession(id).catch(showActionError);
+            }}
+            onDelete={(id) => {
+              void deleteSession(id);
             }}
           />
         </div>

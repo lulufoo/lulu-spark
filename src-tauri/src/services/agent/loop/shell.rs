@@ -160,6 +160,27 @@ pub fn create_chat_session_core() -> Result<Value, String> {
     Ok(get_ai_assistant_binding_core())
 }
 
+/// Remove a disk session. Rejects an in-flight turn. Clears live id when it matches.
+pub fn delete_chat_session_core(session_id: &str) -> Result<Value, String> {
+    let id = session_id.trim();
+    if id.is_empty() {
+        return Err("Missing session_id".into());
+    }
+    {
+        let rt = runtime().lock().unwrap();
+        if rt.flights.contains_key(id) {
+            return Err("Conversation is running".into());
+        }
+    }
+    session::delete_session(id)?;
+    session::with_live_mut(|live| {
+        if live.current_session_id.as_deref() == Some(id) {
+            live.current_session_id = None;
+        }
+    });
+    list_chat_sessions_core()
+}
+
 /// Compatibility entry — production formal chat goes through `runtime::chat_turn`.
 /// Delegates so Host loop tests keep a stable symbol while orchestration is engine-aware.
 pub fn agent_chat_turn_core(

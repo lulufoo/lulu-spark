@@ -2,6 +2,7 @@ import * as api from '../../host/api.ts';
 import {
   getHomeState,
   hydrateTurns,
+  neighborSessionId,
   sessionIdOf,
   setHomeState,
   type HubSession,
@@ -84,6 +85,25 @@ export async function createSession() {
   applySessionPayload(payload, gen);
   await refreshList(gen);
   return gen === fetchGen;
+}
+
+export async function deleteSession(sessionId: string) {
+  const id = String(sessionId || '');
+  const snap = getHomeState();
+  if (!id || snap.inFlightIds.includes(id)) return;
+  const nextId = neighborSessionId(snap.sessions, id);
+  const wasCurrent = snap.currentSessionId === id;
+  const gen = ++fetchGen;
+  try {
+    await api.invoke('delete_chat_session', { sessionId: id });
+    if (gen !== fetchGen) return;
+    await refreshList(gen);
+    if (gen !== fetchGen || !wasCurrent) return;
+    if (nextId) await selectSession(nextId);
+    else setHomeState((prev) => ({ ...prev, currentSessionId: '', messages: [] }));
+  } catch (err) {
+    showActionError(err instanceof Error ? err : { message: String(err) });
+  }
 }
 
 export function showActionError(err: { message?: string } | undefined) {

@@ -103,6 +103,7 @@ const AI_ASSISTANT_WRITE_COMMANDS: &[&str] = &[
     "get_ai_assistant_binding",
     "select_chat_session",
     "create_chat_session",
+    "delete_chat_session",
     "agent_chat_turn",
 ];
 

@@ -197,7 +197,10 @@ describe('home hub chat sessions', () => {
     ]);
     await vi.waitFor(() => {
       expect(
-        container.querySelector('[data-session-id="s2"]')?.classList.contains('is-active'),
+        container
+          .querySelector('[data-session-id="s2"]')
+          ?.closest('.home-chat-session')
+          ?.classList.contains('is-active'),
       ).toBe(true);
     });
   });
@@ -529,6 +532,7 @@ describe('home hub chat sessions', () => {
     expect(source).toMatch(/list_chat_sessions/);
     expect(source).toMatch(/select_chat_session/);
     expect(source).toMatch(/create_chat_session/);
+    expect(source).toMatch(/delete_chat_session/);
     expect(source).toMatch(/chat-render/);
     expect(source).not.toMatch(/ensure_ai_assistant_session/);
     expect(source).not.toMatch(/viewer\.js|comment-markdown/);
