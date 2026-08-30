@@ -37,8 +37,11 @@ Map the user request, then call **only** the tools that match. Do not run a fixe
 | User intent | Do | Do not |
 |-------------|----|--------|
 | Create / save / archive a note | Stage Markdown on an allow-listed path (desktop) or send `content` (mobile). Infer `project` / `theme` / `title` / `created_at` when the user did not give them — [standalone-resolve.md](references/standalone-resolve.md) if the input is a lone path or paste. Then `create_note`. | Write `notes/` on disk |
-| Inspect latest notes per topic | `get_notes_catalog` | — |
-| Read digest bodies by id | `get_notes_files` | — |
+| List catalogs with newest note pointer | `get_all_notes_catalog` | — |
+| Latest digest body per catalog (one call) | `get_latest_digest_per_catalog` | — |
+| List note ids in one catalog | `get_notes_by_catalog` | — |
+| Read one digest | `get_note_digest_by_id` | — |
+| Read one raw body | `get_note_content_by_id` | — |
 
 **Create is one tool.** `digest` is a required `create_note` field. When a digest will be written, pass `digest_body` on the same call. Host AD-0 decides whether `auto` writes.
 
@@ -68,8 +71,11 @@ Do not invent norms not listed here.
 | MCP tool | Purpose |
 |----------|---------|
 | `create_note` | Create a note (desktop: `source_path` + `title` + `digest`; mobile: `content` + `title` + `digest`) |
-| `get_notes_catalog` | Latest archive entry per top-level topic |
-| `get_notes_files` | Read digest bodies by entry id |
+| `get_all_notes_catalog` | Every project catalog with newest `note_id` + `created_at` (no bodies) |
+| `get_latest_digest_per_catalog` | Newest digest Markdown for every catalog in one call |
+| `get_notes_by_catalog` | Every note id in one catalog (`catalog` = project name) |
+| `get_note_digest_by_id` | Digest Markdown for one note id |
+| `get_note_content_by_id` | Raw Markdown for one note id (Host truncates over 10KB) |
 
 Field names, limits, and optionality: live MCP schema only.
 
