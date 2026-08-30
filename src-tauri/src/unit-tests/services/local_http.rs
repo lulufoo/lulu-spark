@@ -125,18 +125,20 @@ fn setup_repo_with_catalog() -> CatalogFixture {
     let wb = sandbox.workbench_root();
     let notes = wb.join("notes");
     fs::create_dir_all(notes.join("digest/ai")).expect("mkdir digest");
+    fs::create_dir_all(notes.join("raw/ai")).expect("mkdir raw");
     let id = "11111111111111111111111111111111";
     let index = json!({
         "entries": {
             id: {
                 "common_path": "ai/note.md",
                 "created_at": "202606190004",
-                "layers": ["digest"]
+                "layers": ["raw", "digest"]
             }
         }
     });
     fs::write(notes.join("index.json"), index.to_string()).expect("index");
     fs::write(notes.join("digest/ai/note.md"), b"digest body").expect("digest file");
+    fs::write(notes.join("raw/ai/note.md"), b"raw body").expect("raw file");
     CatalogFixture {
         repo_root: sandbox.config_dir().to_path_buf(),
         id: id.to_string(),
@@ -293,58 +295,48 @@ fn with_server<F: FnOnce(u16)>(repo_root: PathBuf, f: F) {
 }
 
 #[test]
-fn get_notes_catalog_latest_per_topic() {
+fn get_all_notes_catalogs() {
     let catalog = setup_repo_with_catalog();
     let repo_root = catalog.repo_root.clone();
     let id = catalog.id.clone();
     with_server(repo_root, |port| {
-        let (status, body) = http_get(port, "/api/notes-catalog?mode=latest_per_topic");
+        let (status, body) = http_get(port, "/api/notes-catalogs");
         assert_eq!(status, 200);
         let items = body["items"].as_array().expect("items");
         assert_eq!(items.len(), 1);
-        assert_eq!(items[0]["id"], id);
-        assert_eq!(items[0]["topic"], "ai");
-        assert!(items[0].get("common_path").is_none());
+        assert_eq!(items[0]["note_id"], id);
+        assert_eq!(items[0]["catalog"], "ai");
+        assert!(items[0].get("content").is_none());
+        let (status, body) = http_get(port, "/api/notes-latest-digests");
+        assert_eq!(status, 200);
+        let latest = body["items"].as_array().expect("latest");
+        assert_eq!(latest.len(), 1);
+        assert_eq!(latest[0]["catalog"], "ai");
+        assert_eq!(latest[0]["note_id"], id);
+        assert_eq!(latest[0]["ok"], true);
+        assert_eq!(latest[0]["content"], "digest body");
     });
 }
 
 #[test]
-fn get_notes_catalog_unsupported_mode_returns_400() {
-    let catalog = setup_repo_with_catalog();
-    let repo_root = catalog.repo_root.clone();
-    with_server(repo_root, |port| {
-        let (status, body) = http_get(port, "/api/notes-catalog?mode=unknown");
-        assert_eq!(status, 400);
-        assert!(body.get("error").is_some());
-    });
-}
-
-#[test]
-fn post_notes_files_returns_batch() {
+fn post_notes_by_catalog_and_note_reads() {
     let catalog = setup_repo_with_catalog();
     let repo_root = catalog.repo_root.clone();
     let id = catalog.id.clone();
     with_server(repo_root, |port| {
-        let (status, body) = http_post(
-            port,
-            "/api/notes-files",
-            &json!({ "ids": [id, "22222222222222222222222222222222"] }),
-        );
+        let (status, body) = http_post(port, "/api/notes-by-catalog", &json!({ "catalog": "ai" }));
         assert_eq!(status, 200);
-        let items = body["items"].as_array().expect("items");
-        assert_eq!(items.len(), 2);
-        assert_eq!(items[0]["ok"], true);
-        assert_eq!(items[0]["content"], "digest body");
-        assert_eq!(items[1]["ok"], false);
-    });
-}
-
-#[test]
-fn post_notes_files_empty_ids_returns_400() {
-    let catalog = setup_repo_with_catalog();
-    let repo_root = catalog.repo_root.clone();
-    with_server(repo_root, |port| {
-        let (status, body) = http_post(port, "/api/notes-files", &json!({ "ids": [] }));
+        assert_eq!(body["ids"], json!([id]));
+        let (status, body) = http_post(port, "/api/note-digest", &json!({ "id": id }));
+        assert_eq!(status, 200);
+        assert_eq!(body["ok"], true);
+        assert_eq!(body["content"], "digest body");
+        let (status, body) = http_post(port, "/api/note-content", &json!({ "id": id }));
+        assert_eq!(status, 200);
+        assert_eq!(body["ok"], true);
+        assert_eq!(body["content"], "raw body");
+        assert_eq!(body["truncated"], false);
+        let (status, body) = http_post(port, "/api/note-digest", &json!({}));
         assert_eq!(status, 400);
         assert!(body.get("error").is_some());
     });

@@ -146,8 +146,11 @@ fn assert_uniform_401(status: u16, body: &str, secret: Option<&str>) {
 
 /// Notes tools from Node `buildServer()` when `includeNotes` is true.
 const NOTES_TOOLS: &[&str] = &[
-    "get_notes_catalog",
-    "get_notes_files",
+    "get_all_notes_catalog",
+    "get_latest_digest_per_catalog",
+    "get_notes_by_catalog",
+    "get_note_digest_by_id",
+    "get_note_content_by_id",
     "create_note",
 ];
 
@@ -173,8 +176,11 @@ const TODO_TOOLS: &[&str] = &[
 /// tool name → Sidecar `/api/*` path transplanted from Node `registerTool` handlers.
 fn expected_api_path(tool: &str) -> (&'static str, HttpMethod) {
     match tool {
-        "get_notes_catalog" => ("/api/notes-catalog", HttpMethod::Get),
-        "get_notes_files" => ("/api/notes-files", HttpMethod::Post),
+        "get_all_notes_catalog" => ("/api/notes-catalogs", HttpMethod::Get),
+        "get_latest_digest_per_catalog" => ("/api/notes-latest-digests", HttpMethod::Get),
+        "get_notes_by_catalog" => ("/api/notes-by-catalog", HttpMethod::Post),
+        "get_note_digest_by_id" => ("/api/note-digest", HttpMethod::Post),
+        "get_note_content_by_id" => ("/api/note-content", HttpMethod::Post),
         "create_note" => ("/api/create-note", HttpMethod::Post),
         "create_todo_task" => ("/api/todo-task-create", HttpMethod::Post),
         "update_todo_task" => ("/api/todo-task-update", HttpMethod::Post),
@@ -664,18 +670,20 @@ fn mcp_tools_list_publishes_descriptions_schemas_and_mutation_hints() {
     }
     let catalog = notes_tools
         .iter()
-        .find(|tool| tool.name == "get_notes_catalog")
-        .expect("get_notes_catalog");
-    assert_eq!(
-        catalog.input_schema["properties"]["mode"]["const"],
-        "latest_per_topic",
-        "catalog mode must be model-visible"
+        .find(|tool| tool.name == "get_all_notes_catalog")
+        .expect("get_all_notes_catalog");
+    assert!(
+        catalog
+            .input_schema
+            .get("required")
+            .and_then(|v| v.as_array())
+            .map(|required| required.is_empty())
+            .unwrap_or(true),
+        "catalog list must not require mode"
     );
     assert!(
-        catalog.input_schema["required"]
-            .as_array()
-            .is_some_and(|required| required.iter().any(|v| v == "mode")),
-        "catalog mode must be required"
+        notes_tools.iter().any(|tool| tool.name == "get_note_content_by_id"),
+        "raw read must be hung"
     );
     assert!(
         !notes_tools
@@ -913,10 +921,10 @@ fn representative_tools_call_per_registered_slot_hits_sidecar_api() {
         ),
         (
             CURSOR_IDE_SLOT,
-            "get_notes_catalog",
-            serde_json::json!({"mode": "latest_per_topic"}),
+            "get_all_notes_catalog",
+            serde_json::json!({}),
             "GET",
-            "/api/notes-catalog?mode=latest_per_topic",
+            "/api/notes-catalogs",
         ),
     ];
 
@@ -1304,10 +1312,10 @@ fn p3_t10_host_dual_slot_list_call_and_unknown_hard_fail_smoke() {
             CLOSE_GATE_MCP_PORT,
             "cursor_ide",
             &ide_ticket,
-            "get_notes_catalog",
-            serde_json::json!({"mode": "latest_per_topic"}),
+            "get_all_notes_catalog",
+            serde_json::json!({}),
         ))
-        .expect("cursor_ide get_notes_catalog");
+        .expect("cursor_ide get_all_notes_catalog");
     assert!(
         !ide_err,
         "T10/V2: cursor_ide representative tools/call must succeed via Host→Sidecar; got {ide_text}"
@@ -1663,7 +1671,7 @@ fn registered_cursor_ide_live_ticket_enters_streamable_http() {
         ))
         .expect("cursor_ide tools/list with Live ticket");
     assert!(
-        names.iter().any(|n| n == "get_notes_catalog"),
+        names.iter().any(|n| n == "get_all_notes_catalog"),
         "cursor_ide tools/list must remain available, got {names:?}"
     );
     stop_embedded_mcp_runtime(handle).expect("stop");
@@ -2191,8 +2199,8 @@ fn t3_live_device_ticket_can_call_full_workbench_tools_on_mobile() {
             ("list_todo_tasks", serde_json::json!({})),
             ("list_todo_categories", serde_json::json!({})),
             (
-                "get_notes_catalog",
-                serde_json::json!({"mode": "latest_per_topic"}),
+                "get_all_notes_catalog",
+                serde_json::json!({}),
             ),
         ];
         for (tool, args) in cases {
@@ -2311,7 +2319,7 @@ fn channel_filter_hides_and_rejects_create_note_on_mobile() {
             .expect("mobile list");
         let got: BTreeSet<_> = names.iter().map(String::as_str).collect();
         assert!(!got.contains("create_note"), "unchecked tool must leave list");
-        assert!(got.contains("get_notes_catalog"));
+        assert!(got.contains("get_all_notes_catalog"));
         assert_ne!(got, all, "mobile list must no longer equal the full table");
 
         let err = rt.block_on(list_and_call_mobile(

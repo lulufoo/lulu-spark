@@ -38,7 +38,7 @@ fn set_enabled_subset_filters_only_that_channel() {
     let sandbox = TestSandbox::new();
     set_enabled("mobile", without("create_note")).expect("save mobile");
     assert!(!is_enabled("mobile", "create_note"));
-    assert!(is_enabled("mobile", "get_notes_catalog"));
+    assert!(is_enabled("mobile", "get_all_notes_catalog"));
     assert!(is_enabled("workbench", "create_note"));
     assert!(is_enabled("cursor_ide", "create_note"));
     let path = paths::mcp_channel_tools_path().expect("path");

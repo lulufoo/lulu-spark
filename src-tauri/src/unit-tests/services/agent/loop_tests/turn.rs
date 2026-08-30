@@ -203,7 +203,7 @@ fn run_loop_returns_argument_and_allowlist_failures_to_the_model_as_tool_turns()
                     "id": "invalid_args",
                     "type": "function",
                     "function": {
-                        "name": "get_notes_catalog",
+                        "name": "get_note_digest_by_id",
                         "arguments": "{}"
                     }
                 },
@@ -235,7 +235,7 @@ fn run_loop_returns_argument_and_allowlist_failures_to_the_model_as_tool_turns()
         tool_turns[0]
             .content
             .as_deref()
-            .is_some_and(|content| content.contains("missing required property 'mode'")),
+            .is_some_and(|content| content.contains("missing required property 'id'")),
         "arguments that violate the published schema must be rejected locally"
     );
     assert!(

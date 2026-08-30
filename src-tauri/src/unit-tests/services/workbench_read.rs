@@ -363,17 +363,17 @@ fn get_notes_asset_rejects_non_whitelist_ext() {
 }
 
 #[test]
-fn get_notes_catalog_latest_per_topic_picks_newest() {
+fn list_all_notes_catalogs_picks_newest_including_raw_only() {
     let id_old = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
     let id_new = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
     let id_pg = "cccccccccccccccccccccccccccccccc";
+    let id_raw = "dddddddddddddddddddddddddddddddd";
     with_notes_repo(
         move |_, notes| {
-            fs::create_dir_all(notes.join("digest/ai")).expect("mkdir");
-            fs::create_dir_all(notes.join("digest/personal-growth")).expect("mkdir");
-            fs::write(notes.join("digest/ai/old.md"), b"old").expect("write");
-            fs::write(notes.join("digest/ai/new.md"), b"new").expect("write");
-            fs::write(notes.join("digest/personal-growth/speech.md"), b"speech").expect("write");
+            fs::create_dir_all(notes.join("digest/ai/notes")).expect("mkdir ai digest");
+            fs::create_dir_all(notes.join("digest/personal-growth")).expect("mkdir pg digest");
+            fs::write(notes.join("digest/ai/notes/new.md"), b"# newest digest").expect("write");
+            fs::write(notes.join("digest/personal-growth/speech.md"), b"# pg digest").expect("write");
             let index = json!({
                 "entries": {
                     id_old: {
@@ -382,7 +382,7 @@ fn get_notes_catalog_latest_per_topic_picks_newest() {
                         "layers": ["digest"]
                     },
                     id_new: {
-                        "common_path": "ai/new.md",
+                        "common_path": "ai/notes/new.md",
                         "created_at": "202606190004",
                         "layers": ["digest"]
                     },
@@ -396,9 +396,9 @@ fn get_notes_catalog_latest_per_topic_picks_newest() {
                         "created_at": "202606999999",
                         "layers": ["digest"]
                     },
-                    "dddddddddddddddddddddddddddddddd": {
-                        "common_path": "ai/no-digest.md",
-                        "created_at": "202606999999",
+                    id_raw: {
+                        "common_path": "ai/jot.md",
+                        "created_at": "202606200000",
                         "layers": ["raw"]
                     }
                 }
@@ -406,66 +406,99 @@ fn get_notes_catalog_latest_per_topic_picks_newest() {
             fs::write(notes.join("index.json"), index.to_string()).expect("write index");
         },
         move |cfg_dir| {
-            let v = get_notes_catalog_latest_per_topic(cfg_dir);
+            let v = list_all_notes_catalogs(cfg_dir);
             let items = v["items"].as_array().expect("items");
             assert_eq!(items.len(), 2);
-            let ai = items.iter().find(|i| i["topic"] == "ai").expect("ai topic");
-            assert_eq!(ai["id"], id_new);
-            assert_eq!(ai["created_at"], "202606190004");
-            assert!(ai.get("common_path").is_none());
-            let pg = items.iter().find(|i| i["topic"] == "personal-growth").expect("pg");
-            assert_eq!(pg["id"], id_pg);
+            let ai = items.iter().find(|i| i["catalog"] == "ai").expect("ai");
+            assert_eq!(ai["note_id"], id_raw);
+            assert_eq!(ai["created_at"], "202606200000");
+            assert!(ai.get("content").is_none());
+            let pg = items
+                .iter()
+                .find(|i| i["catalog"] == "personal-growth")
+                .expect("pg");
+            assert_eq!(pg["note_id"], id_pg);
+            let listed = list_notes_by_catalog(cfg_dir, "ai");
+            assert_eq!(
+                listed["ids"],
+                json!([id_raw, id_new, id_old])
+            );
+            let latest = get_latest_digest_per_catalog(cfg_dir);
+            let latest_items = latest["items"].as_array().expect("latest items");
+            let ai_digest = latest_items
+                .iter()
+                .find(|i| i["catalog"] == "ai")
+                .expect("ai digest");
+            assert_eq!(ai_digest["note_id"], id_new);
+            assert_eq!(ai_digest["ok"], true);
+            assert_eq!(ai_digest["content"], "# newest digest");
         },
     );
 }
 
 #[test]
-fn get_notes_files_by_ids_batch() {
+fn get_note_digest_and_content_by_id() {
     let id_ok = "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
     with_notes_repo(
         move |_, notes| {
-            fs::create_dir_all(notes.join("digest/ai")).expect("mkdir");
-            fs::write(notes.join("digest/ai/note.md"), b"# digest body").expect("write");
+            fs::create_dir_all(notes.join("digest/ai")).expect("mkdir digest");
+            fs::create_dir_all(notes.join("raw/ai")).expect("mkdir raw");
+            fs::write(notes.join("digest/ai/note.md"), b"# digest body").expect("write digest");
+            fs::write(notes.join("raw/ai/note.md"), b"# raw body").expect("write raw");
             let index = json!({
                 "entries": {
                     id_ok: {
                         "common_path": "ai/note.md",
                         "created_at": "202606190004",
-                        "layers": ["digest"]
+                        "layers": ["raw", "digest"]
                     }
                 }
             });
             fs::write(notes.join("index.json"), index.to_string()).expect("write index");
         },
         move |cfg_dir| {
-            let v = get_notes_files_by_ids(
-                cfg_dir,
-                &[
-                    id_ok.to_string(),
-                    "ffffffffffffffffffffffffffffffff".to_string(),
-                    "bad".to_string(),
-                ],
-            );
-            let items = v["items"].as_array().expect("items");
-            assert_eq!(items.len(), 3);
-            assert_eq!(items[0]["ok"], true);
-            assert_eq!(items[0]["content"], "# digest body");
-            assert_eq!(items[1]["ok"], false);
-            assert_eq!(items[2]["ok"], false);
+            let digest = get_note_digest_by_id(cfg_dir, id_ok);
+            assert_eq!(digest["ok"], true);
+            assert_eq!(digest["content"], "# digest body");
+            let missing = get_note_digest_by_id(cfg_dir, "ffffffffffffffffffffffffffffffff");
+            assert_eq!(missing["ok"], false);
+            let bad = get_note_digest_by_id(cfg_dir, "bad");
+            assert_eq!(bad["ok"], false);
+            let raw = get_note_content_by_id(cfg_dir, id_ok);
+            assert_eq!(raw["ok"], true);
+            assert_eq!(raw["content"], "# raw body");
+            assert_eq!(raw["truncated"], false);
+            assert_eq!(get_note_digest_by_id(cfg_dir, "")["_status"], 400);
         },
     );
 }
 
 #[test]
-fn get_notes_files_by_ids_rejects_empty() {
+fn get_note_content_truncates_over_10kb() {
+    let id_ok = "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
+    let over = "你".repeat(4000);
+    assert!(over.len() > RAW_CONTENT_MAX_BYTES);
     with_notes_repo(
-        |_, notes| {
-            fs::create_dir_all(notes).expect("mkdir");
-            fs::write(notes.join("index.json"), br#"{"entries":{}}"#).expect("write");
+        move |_, notes| {
+            fs::create_dir_all(notes.join("raw/inbox")).expect("mkdir raw");
+            fs::write(notes.join("raw/inbox/note.md"), over.as_bytes()).expect("write raw");
+            let index = json!({
+                "entries": {
+                    id_ok: {
+                        "common_path": "inbox/note.md",
+                        "created_at": "202606190004",
+                        "layers": ["raw"]
+                    }
+                }
+            });
+            fs::write(notes.join("index.json"), index.to_string()).expect("write index");
         },
-        |cfg_dir| {
-            let v = get_notes_files_by_ids(cfg_dir, &[]);
-            assert_eq!(v["_status"], 400);
+        move |cfg_dir| {
+            let raw = get_note_content_by_id(cfg_dir, id_ok);
+            assert_eq!(raw["ok"], true);
+            assert_eq!(raw["truncated"], true);
+            let content = raw["content"].as_str().expect("content");
+            assert!(content.len() <= RAW_CONTENT_MAX_BYTES);
         },
     );
 }

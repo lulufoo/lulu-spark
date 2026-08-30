@@ -6,11 +6,14 @@ use tiny_http::Method;
 use crate::services::notes::{create_note_content, create_note};
 use crate::services::todo_task;
 use crate::services::workbench_read::{
-    get_notes_asset, get_notes_catalog_latest_per_topic, get_notes_file, get_notes_index,
+    get_latest_digest_per_catalog, get_notes_asset, get_notes_file, get_notes_index,
+    list_all_notes_catalogs,
     infer_github_user_url,
 };
 
-use super::archive::{handle_archive_post, handle_notes_files_post};
+use super::archive::{
+    handle_archive_post, handle_note_content_post, handle_note_digest_post, handle_notes_by_catalog_post,
+};
 use super::bind::handle_bind_complete;
 use super::read_later::{
     handle_read_later_delete, handle_read_later_get, handle_read_later_patch, handle_read_later_post,
@@ -102,8 +105,16 @@ pub(super) fn handle_request(repo_root: &PathBuf, port: u16, request: tiny_http:
                 handle_read_later_post(request);
                 return;
             }
-            "/api/notes-files" => {
-                handle_notes_files_post(repo_root, request);
+            "/api/notes-by-catalog" => {
+                handle_notes_by_catalog_post(repo_root, request);
+                return;
+            }
+            "/api/note-digest" => {
+                handle_note_digest_post(repo_root, request);
+                return;
+            }
+            "/api/note-content" => {
+                handle_note_content_post(repo_root, request);
                 return;
             }
             "/api/create-note" => {
@@ -214,18 +225,13 @@ pub(super) fn handle_request(repo_root: &PathBuf, port: u16, request: tiny_http:
                 respond_raw(request, status, body);
                 return;
             }
-            "/api/notes-catalog" => {
-                let params = parse_query(&url);
-                let mode = params.get("mode").map(String::as_str).unwrap_or("");
-                if mode != "latest_per_topic" {
-                    respond_json(
-                        request,
-                        400,
-                        json!({ "error": "Unsupported mode; use mode=latest_per_topic" }),
-                    );
-                    return;
-                }
-                let value = get_notes_catalog_latest_per_topic(repo_root);
+            "/api/notes-catalogs" => {
+                let value = list_all_notes_catalogs(repo_root);
+                respond_from_value(request, value);
+                return;
+            }
+            "/api/notes-latest-digests" => {
+                let value = get_latest_digest_per_catalog(repo_root);
                 respond_from_value(request, value);
                 return;
             }

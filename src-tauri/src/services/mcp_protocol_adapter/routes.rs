@@ -126,37 +126,70 @@ pub(super) fn create_note_properties(include_source_path: bool) -> Value {
 pub(super) fn notes_tool_routes() -> Vec<ToolRoute> {
     vec![
         route(
-            "get_notes_catalog",
-            "List the latest archive entry for each top-level topic.",
+            "get_all_notes_catalog",
+            "List every note catalog (project name) with the newest note_id and created_at. Does not return digest or raw bodies.",
             HttpMethod::Get,
-            "/api/notes-catalog",
+            "/api/notes-catalogs",
+            object_schema(json!({}), &[]),
+            true,
+            false,
+        ),
+        route(
+            "get_latest_digest_per_catalog",
+            "Return the newest digest Markdown for every catalog in one call. Each item is catalog, note_id, created_at, and content. Catalogs with no digest are omitted.",
+            HttpMethod::Get,
+            "/api/notes-latest-digests",
+            object_schema(json!({}), &[]),
+            true,
+            false,
+        ),
+        route(
+            "get_notes_by_catalog",
+            "List every note id in one catalog. Catalog is the project name (inbox, ai). Returns ids only, newest first.",
+            HttpMethod::Post,
+            "/api/notes-by-catalog",
             object_schema(
                 json!({
-                    "mode": {
+                    "catalog": {
                         "type": "string",
-                        "const": "latest_per_topic",
-                        "description": "The only supported catalog mode."
+                        "description": "Project catalog name, such as inbox."
                     }
                 }),
-                &["mode"],
+                &["catalog"],
             ),
             true,
             false,
         ),
         route(
-            "get_notes_files",
-            "Read archived digest bodies by entry id.",
+            "get_note_digest_by_id",
+            "Read one note's digest Markdown by archive entry id.",
             HttpMethod::Post,
-            "/api/notes-files",
+            "/api/note-digest",
             object_schema(
                 json!({
-                    "ids": {
-                        "type": "array",
-                        "items": { "type": "string" },
-                        "description": "Archive entry ids to read."
+                    "id": {
+                        "type": "string",
+                        "description": "Archive entry id (32-char hex)."
                     }
                 }),
-                &["ids"],
+                &["id"],
+            ),
+            true,
+            false,
+        ),
+        route(
+            "get_note_content_by_id",
+            "Read one note's raw Markdown by archive entry id. Bodies longer than 10KB are truncated.",
+            HttpMethod::Post,
+            "/api/note-content",
+            object_schema(
+                json!({
+                    "id": {
+                        "type": "string",
+                        "description": "Archive entry id (32-char hex)."
+                    }
+                }),
+                &["id"],
             ),
             true,
             false,
