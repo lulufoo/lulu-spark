@@ -504,6 +504,73 @@ fn get_note_content_truncates_over_10kb() {
 }
 
 #[test]
+fn notes_search_filter_and_hit_projection() {
+    assert_eq!(
+        notes_raw_search_filter(None).expect("filter"),
+        r#"layer = "raw""#
+    );
+    assert_eq!(
+        notes_raw_search_filter(Some("inbox")).expect("filter"),
+        r#"layer = "raw" AND common_path STARTS WITH "inbox/""#
+    );
+    assert_eq!(
+        notes_raw_search_filter(Some("personal-growth")).expect("filter"),
+        r#"layer = "raw" AND common_path STARTS WITH "personal-growth/""#
+    );
+    let bad = notes_raw_search_filter(Some(r#"inbox" OR layer = "digest"#));
+    assert_eq!(bad.expect_err("reject injected catalog")["_status"], 400);
+
+    let id = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+    let mut path_index = std::collections::HashMap::new();
+    path_index.insert(
+        "ai/note.md".to_string(),
+        (id.to_string(), "202606190004".to_string()),
+    );
+    let hits = vec![
+        json!({
+            "layer": "digest",
+            "common_path": "ai/note.md",
+            "title": "digest title",
+            "_formatted": { "body": "digest <em>hit</em>" }
+        }),
+        json!({
+            "layer": "raw",
+            "common_path": "ai/note.md",
+            "title": "raw title",
+            "_formatted": { "body": "raw <em>hit</em>" }
+        }),
+        json!({
+            "layer": "raw",
+            "common_path": "orphan.md",
+            "title": "orphan",
+            "body": "no index"
+        }),
+    ];
+    let items = project_raw_search_hits(&hits, &path_index);
+    assert_eq!(items.len(), 1);
+    assert_eq!(items[0]["note_id"], id);
+    assert_eq!(items[0]["catalog"], "ai");
+    assert_eq!(items[0]["title"], "raw title");
+    assert_eq!(items[0]["created_at"], "202606190004");
+    assert_eq!(items[0]["matches"][0]["snippet"], "raw <em>hit</em>");
+    assert!(items[0].get("content").is_none());
+}
+
+#[test]
+fn search_notes_rejects_empty_q() {
+    with_notes_repo(
+        |_, notes| {
+            fs::write(notes.join("index.json"), br#"{"entries":{}}"#).expect("index");
+        },
+        |cfg_dir| {
+            let v = search_notes(cfg_dir, "  ", None, None);
+            assert_eq!(v["_status"], 400);
+            assert_eq!(v["error"], "Missing q");
+        },
+    );
+}
+
+#[test]
 fn get_annotation_decodes_percent_encoding() {
     with_notes_repo(
         |_, notes| {

@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use serde_json::{json, Value};
 
 use crate::services::workbench_read::{
-    get_note_content_by_id, get_note_digest_by_id, list_notes_by_catalog,
+    get_note_content_by_id, get_note_digest_by_id, list_notes_by_catalog, search_notes,
 };
 
 use super::respond::{respond_from_value, respond_json};
@@ -67,6 +67,27 @@ pub(super) fn handle_note_content_post(repo_root: &PathBuf, mut request: tiny_ht
         return;
     };
     respond_read(request, get_note_content_by_id(repo_root, id));
+}
+
+pub(super) fn handle_notes_search_post(repo_root: &PathBuf, mut request: tiny_http::Request) {
+    let payload = match read_json_body(&mut request) {
+        Ok(v) => v,
+        Err(err) => {
+            respond_from_value(request, err);
+            return;
+        }
+    };
+    let Some(q) = payload.get("q").and_then(|v| v.as_str()) else {
+        respond_json(request, 400, json!({ "error": "Missing q" }));
+        return;
+    };
+    let catalog = payload.get("catalog").and_then(|v| v.as_str());
+    let limit = payload.get("limit").and_then(|v| {
+        v.as_u64()
+            .map(|n| n as u32)
+            .or_else(|| v.as_i64().and_then(|n| u32::try_from(n).ok()))
+    });
+    respond_read(request, search_notes(repo_root, q, catalog, limit));
 }
 
 pub(super) fn handle_archive_post(

@@ -195,6 +195,31 @@ pub(super) fn notes_tool_routes() -> Vec<ToolRoute> {
             false,
         ),
         route(
+            "search_notes",
+            "Search notes by text. Searches raw bodies only. Returns notes with match snippets. Does not return digest or raw bodies. Optional catalog limits to one project. Default limit 5.",
+            HttpMethod::Post,
+            "/api/notes-search",
+            object_schema(
+                json!({
+                    "q": {
+                        "type": "string",
+                        "description": "Search query."
+                    },
+                    "catalog": {
+                        "type": "string",
+                        "description": "Optional project catalog name, such as inbox."
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "description": "Optional max notes to return. Default 5, max 50."
+                    }
+                }),
+                &["q"],
+            ),
+            true,
+            false,
+        ),
+        route(
             "create_note",
             "Create a note from an allow-listed Markdown file by absolute source_path. The Host reads the file; never send document text. Path is {project}/{theme}/{created_at}-{6-char}-{source filename}. digest is required (auto|always|never). When a digest is written, pass digest_body on this same call.",
             HttpMethod::Post,

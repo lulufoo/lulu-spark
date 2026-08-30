@@ -9,6 +9,10 @@ fn build_search_body_has_required_fields() {
     assert_eq!(body["attributesToCrop"], json!(["body"]));
     assert_eq!(body["cropLength"], 80);
     assert_eq!(body["attributesToHighlight"], json!(["body"]));
+    assert!(body.get("filter").is_none());
+    let filtered = build_search_body_filtered("rust", 5, Some(r#"layer = "raw""#));
+    assert_eq!(filtered["filter"], r#"layer = "raw""#);
+    assert_eq!(filtered["limit"], 5);
 }
 
 #[test]

@@ -57,12 +57,24 @@ impl SearchBackend for MeiliBackend {
     }
 
     fn search(&self, index_uid: &str, q: &str, limit: Option<u32>) -> Value {
+        self.search_filtered(index_uid, q, limit, None)
+    }
+}
+
+impl MeiliBackend {
+    pub fn search_filtered(
+        &self,
+        index_uid: &str,
+        q: &str,
+        limit: Option<u32>,
+        filter: Option<&str>,
+    ) -> Value {
         let q = q.trim();
         if q.is_empty() {
             return json!({ "error": "q parameter required" });
         }
         let limit = parse_limit(limit);
-        let body = build_search_body(q, limit);
+        let body = build_search_body_filtered(q, limit, filter);
         let result = self.meili_post(index_uid, &body);
         map_search_result(result)
     }
@@ -73,13 +85,21 @@ pub fn parse_limit(limit: Option<u32>) -> u32 {
 }
 
 pub fn build_search_body(q: &str, limit: u32) -> Value {
-    json!({
+    build_search_body_filtered(q, limit, None)
+}
+
+pub fn build_search_body_filtered(q: &str, limit: u32, filter: Option<&str>) -> Value {
+    let mut body = json!({
         "q": q,
         "limit": limit,
         "attributesToCrop": ["body"],
         "cropLength": 80,
         "attributesToHighlight": ["body"],
-    })
+    });
+    if let Some(filter) = filter {
+        body["filter"] = json!(filter);
+    }
+    body
 }
 
 pub fn search_path(index_uid: &str) -> String {

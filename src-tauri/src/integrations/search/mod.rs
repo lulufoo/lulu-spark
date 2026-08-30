@@ -8,8 +8,8 @@ use serde_json::Value;
 
 pub use meili_admin::MeiliAdminError;
 pub use meili_backend::{
-    build_knowledge_document, build_search_body, documents_path, map_search_result, parse_limit,
-    search_path, MeiliBackend,
+    build_knowledge_document, build_search_body, build_search_body_filtered, documents_path,
+    map_search_result, parse_limit, search_path, MeiliBackend,
 };
 
 pub trait SearchBackend: Send + Sync {

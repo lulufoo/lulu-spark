@@ -339,6 +339,16 @@ fn post_notes_by_catalog_and_note_reads() {
         let (status, body) = http_post(port, "/api/note-digest", &json!({}));
         assert_eq!(status, 400);
         assert!(body.get("error").is_some());
+        let (status, body) = http_post(port, "/api/notes-search", &json!({}));
+        assert_eq!(status, 400);
+        assert!(body.get("error").is_some());
+        let (status, body) = http_post(
+            port,
+            "/api/notes-search",
+            &json!({ "q": "rust", "catalog": "inbox\" OR layer = \"digest" }),
+        );
+        assert_eq!(status, 400);
+        assert_eq!(body["error"], "Invalid catalog");
     });
 }
 

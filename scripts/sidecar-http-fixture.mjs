@@ -51,6 +51,11 @@ export function startSidecarHttpFixture(port) {
       return;
     }
 
+    if (req.method === 'POST' && url.pathname === '/api/notes-search') {
+      respondJson(res, 200, { items: [] });
+      return;
+    }
+
     respondJson(res, 404, { error: 'not found' });
   });
 

@@ -1,9 +1,14 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::Path;
 
-use serde_json::{json, Value};
+use serde_json::{json, Map, Value};
+
+use crate::integrations::search::MeiliBackend;
 
 use super::notes::{get_notes_file, load_notes_index_entries};
+
+pub const NOTES_SEARCH_DEFAULT_LIMIT: u32 = 5;
+const NOTES_SEARCH_MAX_LIMIT: u32 = 50;
 
 pub const RAW_CONTENT_MAX_BYTES: usize = 10 * 1024;
 
@@ -267,4 +272,129 @@ fn read_note_layer(repo_root: &Path, id: &str, layer: &str, truncate_raw: bool) 
         "ok": true,
         "content": raw,
     })
+}
+
+fn is_safe_search_catalog(catalog: &str) -> bool {
+    let raw = catalog.trim();
+    !raw.is_empty()
+        && raw.len() <= 64
+        && raw
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
+}
+
+fn parse_notes_search_limit(limit: Option<u32>) -> u32 {
+    match limit {
+        None | Some(0) => NOTES_SEARCH_DEFAULT_LIMIT,
+        Some(n) => n.min(NOTES_SEARCH_MAX_LIMIT),
+    }
+}
+
+pub(crate) fn notes_raw_search_filter(catalog: Option<&str>) -> Result<String, Value> {
+    match catalog.map(str::trim).filter(|s| !s.is_empty()) {
+        None => Ok(r#"layer = "raw""#.to_string()),
+        Some(catalog) if is_safe_search_catalog(catalog) => Ok(format!(
+            r#"layer = "raw" AND common_path STARTS WITH "{catalog}/""#
+        )),
+        Some(_) => Err(json!({ "error": "Invalid catalog", "_status": 400 })),
+    }
+}
+
+fn snippet_from_hit(hit: &Value) -> String {
+    hit.pointer("/_formatted/body")
+        .and_then(|v| v.as_str())
+        .or_else(|| hit.get("body").and_then(|v| v.as_str()))
+        .unwrap_or("")
+        .to_string()
+}
+
+fn index_by_common_path(entries: &Map<String, Value>) -> HashMap<String, (String, String)> {
+    let mut map = HashMap::new();
+    for (id, entry) in entries {
+        if !is_valid_entry_id(id) {
+            continue;
+        }
+        let Some(common_path) = entry.get("common_path").and_then(|v| v.as_str()) else {
+            continue;
+        };
+        if common_path.is_empty() {
+            continue;
+        }
+        let created_at = entry
+            .get("created_at")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string();
+        map.entry(common_path.to_string())
+            .or_insert((id.clone(), created_at));
+    }
+    map
+}
+
+pub(crate) fn project_raw_search_hits(
+    hits: &[Value],
+    path_index: &HashMap<String, (String, String)>,
+) -> Vec<Value> {
+    let mut items = Vec::new();
+    let mut seen = HashSet::new();
+    for hit in hits {
+        if hit.get("layer").and_then(|v| v.as_str()) != Some("raw") {
+            continue;
+        }
+        let Some(common_path) = hit.get("common_path").and_then(|v| v.as_str()) else {
+            continue;
+        };
+        if !seen.insert(common_path.to_string()) {
+            continue;
+        }
+        let Some((note_id, created_at)) = path_index.get(common_path) else {
+            continue;
+        };
+        items.push(json!({
+            "note_id": note_id,
+            "catalog": catalog_from_common_path(common_path),
+            "title": hit.get("title").and_then(|v| v.as_str()).unwrap_or(""),
+            "created_at": created_at,
+            "matches": [{ "snippet": snippet_from_hit(hit) }],
+        }));
+    }
+    items
+}
+
+/// Search notes in the workbench Meili index. Raw layer only; no digest bodies.
+pub fn search_notes(
+    repo_root: &Path,
+    q: &str,
+    catalog: Option<&str>,
+    limit: Option<u32>,
+) -> Value {
+    let q = q.trim();
+    if q.is_empty() {
+        return json!({ "error": "Missing q", "_status": 400 });
+    }
+    let filter = match notes_raw_search_filter(catalog) {
+        Ok(f) => f,
+        Err(e) => return e,
+    };
+    let entries = match load_notes_index_entries(repo_root) {
+        Ok(e) => e,
+        Err(v) => return v,
+    };
+    let limit = parse_notes_search_limit(limit);
+    let result = MeiliBackend::new(repo_root).search_filtered(
+        "workbench",
+        q,
+        Some(limit),
+        Some(&filter),
+    );
+    if let Some(err) = result.get("error").and_then(|v| v.as_str()) {
+        let status = if err == "q parameter required" { 400 } else { 503 };
+        return json!({ "error": err, "_status": status });
+    }
+    let hits = result
+        .get("hits")
+        .and_then(|v| v.as_array())
+        .cloned()
+        .unwrap_or_default();
+    json!({ "items": project_raw_search_hits(&hits, &index_by_common_path(&entries)) })
 }

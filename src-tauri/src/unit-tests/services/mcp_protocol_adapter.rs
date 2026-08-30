@@ -151,6 +151,7 @@ const NOTES_TOOLS: &[&str] = &[
     "get_notes_by_catalog",
     "get_note_digest_by_id",
     "get_note_content_by_id",
+    "search_notes",
     "create_note",
 ];
 
@@ -181,6 +182,7 @@ fn expected_api_path(tool: &str) -> (&'static str, HttpMethod) {
         "get_notes_by_catalog" => ("/api/notes-by-catalog", HttpMethod::Post),
         "get_note_digest_by_id" => ("/api/note-digest", HttpMethod::Post),
         "get_note_content_by_id" => ("/api/note-content", HttpMethod::Post),
+        "search_notes" => ("/api/notes-search", HttpMethod::Post),
         "create_note" => ("/api/create-note", HttpMethod::Post),
         "create_todo_task" => ("/api/todo-task-create", HttpMethod::Post),
         "update_todo_task" => ("/api/todo-task-update", HttpMethod::Post),
@@ -684,6 +686,10 @@ fn mcp_tools_list_publishes_descriptions_schemas_and_mutation_hints() {
     assert!(
         notes_tools.iter().any(|tool| tool.name == "get_note_content_by_id"),
         "raw read must be hung"
+    );
+    assert!(
+        notes_tools.iter().any(|tool| tool.name == "search_notes"),
+        "notes search must be hung"
     );
     assert!(
         !notes_tools
