@@ -20,6 +20,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
@@ -59,7 +60,9 @@ internal fun MdBlockView(block: MdBlock) {
                 MdInlineView(
                     block.spans,
                     type.bodyLarge.copy(fontStyle = FontStyle.Italic, color = colors.onSurfaceVariant),
-                    modifier = Modifier.padding(start = 12.dp),
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(start = 12.dp),
                 )
             }
         }
@@ -91,14 +94,22 @@ internal fun MdBlockView(block: MdBlock) {
                         modifier = Modifier.padding(bottom = 6.dp),
                     )
                 }
-                Text(
-                    block.text,
-                    style = type.bodyMedium.copy(fontFamily = FontFamily.Monospace),
-                )
+                Box(modifier = Modifier.fillMaxWidth().clipToBounds()) {
+                    Text(
+                        block.text,
+                        modifier = Modifier.horizontalScroll(rememberScrollState()),
+                        style = type.bodyMedium.copy(fontFamily = FontFamily.Monospace),
+                        softWrap = false,
+                    )
+                }
             }
         }
         is MdBlock.Table -> MdTableView(block)
-        MdBlock.Rule -> HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+        MdBlock.Rule -> HorizontalDivider(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 4.dp),
+        )
     }
 }
 
@@ -108,13 +119,13 @@ private fun MdTableView(table: MdBlock.Table) {
     val type = MaterialTheme.typography
     val colCount = table.headers.size
     if (colCount == 0) return
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .horizontalScroll(rememberScrollState()),
-    ) {
+    Row(modifier = Modifier.fillMaxWidth()) {
         repeat(colCount) { col ->
-            Column(modifier = Modifier.width(IntrinsicSize.Max)) {
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .widthIn(min = 0.dp),
+            ) {
                 MdCell(
                     table.headers[col],
                     type.labelLarge.copy(fontWeight = FontWeight.SemiBold),
@@ -138,9 +149,9 @@ private fun MdCell(
     val colors = MaterialTheme.colorScheme
     Box(
         modifier = Modifier
-            .widthIn(min = 72.dp)
+            .fillMaxWidth()
             .then(if (header) Modifier.background(colors.surfaceVariant.copy(alpha = 0.6f)) else Modifier)
-            .padding(horizontal = 10.dp, vertical = 8.dp),
+            .padding(horizontal = 8.dp, vertical = 8.dp),
     ) {
         MdInlineView(spans, style)
     }

@@ -55,7 +55,8 @@ class AgentLoop(
     ) {
         val turns = sessions.loadTurns(sessionId).toMutableList()
         turns.add(HistoryTurn(role = "user", content = text))
-        val messages = turns.map { LlmMessage(it.role, it.content) }.toMutableList()
+        val messages = mutableListOf(LlmMessage("system", MOBILE_CHAT_SYSTEM_PROMPT))
+        messages.addAll(turns.map { LlmMessage(it.role, it.content) })
         val defs = tools.definitions()
         val toolRoot = sessions.roots(sessionId).toolPath
         var rounds = 0

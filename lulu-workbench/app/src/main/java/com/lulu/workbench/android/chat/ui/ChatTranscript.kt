@@ -18,6 +18,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.lulu.workbench.android.agent.session.HistoryTurn
@@ -56,7 +57,7 @@ internal fun ChatTranscript(
     val listState = remember(state.sessionId) { LazyListState() }
     LazyColumn(
         state = listState,
-        modifier = modifier.fillMaxSize(),
+        modifier = modifier.fillMaxSize().clipToBounds(),
         reverseLayout = true,
         contentPadding = PaddingValues(horizontal = TranscriptPadH, vertical = TranscriptPadV),
         verticalArrangement = Arrangement.spacedBy(TurnGap),

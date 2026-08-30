@@ -111,10 +111,33 @@ class AgentLoopTest {
         assertEquals("# parked", storage.read(bodyPath)?.decodeToString())
         assertTrue(storage.list("sessions/${id.value}/tools").isEmpty())
     }
+
+    @Test
+    fun sendPrefixesMobileSystemPromptWithoutSavingIt() {
+        val storage = MemoryStorage()
+        val sessions = SessionRegistry(storage)
+        val id = sessions.create()
+        val llm = ScriptedLlm(mutableListOf(LlmCompletion(text = "ok")))
+        AgentLoop(
+            id,
+            llm,
+            ToolDispatcher(FsTools(), UnboundWmcp(), storage),
+            sessions,
+        ).send("hi") {}
+        val first = llm.seen.single().first()
+        assertEquals("system", first.role)
+        assertEquals(MOBILE_CHAT_SYSTEM_PROMPT, first.content)
+        assertTrue(first.content.contains("Android App"))
+        assertTrue(first.content.contains("排版面向手机一屏宽度"))
+        val saved = sessions.loadTurns(id)
+        assertTrue(saved.none { it.role == "system" })
+        assertEquals("user", saved.first().role)
+    }
 }
 
 private class ScriptedLlm(
     private val replies: MutableList<LlmCompletion>,
+    val seen: MutableList<List<LlmMessage>> = mutableListOf(),
 ) : LlmClient {
     override fun catalog(): List<LlmPreset> = llmCatalog()
 
@@ -130,7 +153,10 @@ private class ScriptedLlm(
     override fun complete(
         messages: List<LlmMessage>,
         tools: List<LlmToolDef>,
-    ): LlmCompletion = replies.removeFirst()
+    ): LlmCompletion {
+        seen.add(messages)
+        return replies.removeFirst()
+    }
 }
 
 private class UnboundWmcp : WmcpClient {

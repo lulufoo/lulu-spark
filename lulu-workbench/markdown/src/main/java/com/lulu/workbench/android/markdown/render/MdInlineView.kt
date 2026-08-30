@@ -1,5 +1,6 @@
 package com.lulu.workbench.android.markdown.render
 
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -48,5 +49,5 @@ internal fun MdInlineView(
             }
         }
     }
-    Text(text = annotated, style = style, modifier = modifier)
+    Text(text = annotated, style = style, modifier = modifier.fillMaxWidth())
 }
