@@ -1,40 +1,37 @@
 # Standalone Path Resolution
 
-> Standalone 模式下 theme-archive 自行解析 `COMMON_PATH`，经 MCP `create_note` 落盘。
+> Standalone 模式下 theme-archive 推断 `project` / `theme` / `title` / `created_at`，经 MCP `create_note` 落盘。`common_path` 由 Host 返回。
 
-## Step 1 · Infer project and doc-theme
+## Step 1 · Infer project and theme
 
 语义推断 `project`（最接近 topics；无合适项 → `inbox`）。
 
-从文档标题或正文语义推断 `doc-theme`（kebab-case 英文，3–5 词）。
+从文档标题或正文语义推断 `theme`（kebab-case 英文，3–5 词）。
 
-## Step 2 · Slug and timestamp
+## Step 2 · Title and timestamp
 
 ```
-slug = kebab-case(English summary of # title)
-ts   = YYYYMMDDHHMM (UTC+8)
-COMMON_PATH = <project>/<doc-theme>/<ts>-<slug>.md
+title = # heading or first line
+created_at = YYYYMMDDHHMM (UTC+8); omit to let Host use now
 ```
 
-slug 冲突 → 询问用户后再继续。
+不要再拼 `{ts}-{slug}` 作为写入身份。
 
 ## Step 3 · Header defaults
 
-若用户文档缺少 header 字段，补全：
+若用户文档缺少标题或正文分隔，补全：
 
 ```markdown
 # {Title}
 
 > 创建时间：{YYYY年M月D日 HH:MM}
-> 来源：theme-archive
-> 导航：[digest](../../../digest/{COMMON_PATH})
 
 ---
 
 {body}
 ```
 
-`prefix = "../../../"`（topic-path 始终 2 段）。MCP 产出者 raw header **仅含 digest 链接**。
+不要写入 digest 导航行。Host 会重写 raw 壳。
 
 ## Step 4 · source_type
 

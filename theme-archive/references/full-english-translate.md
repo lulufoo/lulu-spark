@@ -26,7 +26,7 @@ python3 "$SKILL_DIR/theme-archive/scripts/detect_full_english.py" "<primary.md>"
 
 ## How to translate
 
-- Same header metadata and digest nav as primary; **Chinese `#` title**.
+- Same header metadata as primary if present; **Chinese `#` title**. Do not add a digest nav line.
 - Translate the full body, not selected paragraphs.
 - Write the full zh file next to the primary (`<ts>-<slug>-zh.md`). Do **not** put `SEE_FILE`, `PLACEHOLDER`, `FULL_ZH`, or “see file” stubs in the body.
 - Run the parity script **before** `[AR-2]`:

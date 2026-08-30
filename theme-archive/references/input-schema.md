@@ -5,9 +5,12 @@
 ## Required fields
 
 ```yaml
-COMMON_PATH: "<topic-path>/<ts>-<slug>.md"
-source_type: "summary | article | theme-line | dialogue | …"
+title: "<display title>"
+source_type: "summary | article | theme-line | dialogue | transcript | jot"
 primary_path: "<absolute path to header+body .md under .cache>"
+project: "<optional; default inbox>"
+theme: "<optional; default notes>"
+created_at: "<optional YYYYMMDDHHMM UTC+8>"
 ```
 
 或等价地传入 `documents[0].content`（组稿正文）；落盘仍由 theme-archive 写成 `source_path` 再调 MCP。
@@ -39,5 +42,5 @@ Phase N 组稿完成（仅主文件）→
 加载并完整执行 ../theme-archive/SKILL.md（Embedded，从 [AR-1] 起）
 ```
 
-Producer 负责：选 project/doc-theme、组 header、Compose 主文件。  
-theme-archive 负责：全文英文中译、`create_note`、`[AR-3]` digest。
+Producer 负责：选 project/theme、确定 title、Compose 主文件。  
+theme-archive 负责：全文英文中译、`create_note`（含 `title`）、`[AR-3]` digest。

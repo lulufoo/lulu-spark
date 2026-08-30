@@ -9,7 +9,7 @@ argument-hint: '[文档路径 | Markdown 正文] [--source-type summary|article|
 
 # theme-archive — Workbench 文档归档
 
-> **路径约定**：[archive-concepts.md](../shared/archive-concepts.md)（`COMMON_PATH`、`prefix`、`layers`）
+> **路径约定**：[archive-concepts.md](../shared/archive-concepts.md)（`COMMON_PATH`、`layers`）
 >
 > **输入**：已组好的 Markdown 文档（含 header + 正文）。**不要**由 producer 预译。
 >
@@ -28,7 +28,7 @@ argument-hint: '[文档路径 | Markdown 正文] [--source-type summary|article|
 
 由 producer 在文档组好后传入完整 Markdown 与元数据。
 
-- 上游已确定 `COMMON_PATH`、文档正文、`source_type` 等。
+- 上游已确定 `title`、文档正文、`source_type`，以及可选的 `project` / `theme` / `created_at`。
 - 从 **Archive Workflow** 的 `[AR-1]` 起执行（跳过路径解析）。
 - `[AR-1]` 后执行 `[AR-1b]` 全文英文检测与默认中译（除非 `skip_translate: true`）。
 - `[AR-2]` 成功后执行 `[AR-3]` 自动 digest（除非上游显式 `skip_digest: true`）。
@@ -72,17 +72,17 @@ Workbench App **必须运行**（MCP `workbench-knowledge` 可用）。**禁止*
 
 ### [AR-0] 路径与文件名（Standalone only）
 
-Embedded → 跳过，使用上游传入的 `COMMON_PATH`。
+Embedded → 跳过路径推断，使用上游传入的 `title` / `project` / `theme` / `created_at`（缺省由 Host 填）。
 
 Standalone：
 
 1. 语义推断 `project`（最接近 topics；无匹配 → `inbox`）
-2. 从文档 `# 标题` 或首行推断 `doc-theme`（kebab-case 英文，3–5 词）
-3. `slug` = 标题 kebab-case 英文摘要
-4. `ts` = `YYYYMMDDHHMM`（UTC+8）
-5. `COMMON_PATH` = `<topic-path>/<ts>-<slug>.md`，`topic-path` = `<project>/<doc-theme>`
+2. 从文档 `# 标题` 或首行推断 `theme`（kebab-case 英文，3–5 词）
+3. `created_at` = `YYYYMMDDHHMM`（UTC+8）；缺省则省略，由 Host 填 now
+4. `title` = 文档 `# 标题` 或首行
+5. 落盘路径由 Host 分配：`{project}/{theme}/{created_at}-{6 alnum}-{source basename}`。以 MCP 返回的 `common_path` 为准。
 
-slug 冲突 → 与用户确认后再继续。
+不要再拼 `{ts}-{slug}` 作为写入身份。
 
 ---
 
@@ -94,13 +94,11 @@ Standalone：组档前对正文应用 [references/body-sanitize.md](references/b
 Primary document 必须满足：
 
 ```text
-· 以 `# 标题` 开头
-· 含 `> 创建时间：` 元数据行
-· 含 `> 导航：` 行，且 digest 链接已 fully resolved（无占位符）
-· 正文非空
+· 能确定 title（`# 标题` 或首行）
+· 正文非空（`---` 后，或全文）
 ```
 
-Standalone 若 header 缺导航行，按 [archive-concepts.md](../shared/archive-concepts.md) 补全后再归档。
+不要要求 digest 导航行。Host 会重写 raw 壳：`# {title}` + `> 创建时间：` + `---` + body。
 
 ---
 
@@ -115,7 +113,7 @@ Standalone 若 header 缺导航行，按 [archive-concepts.md](../shared/archive
 python3 "$SKILL_DIR/theme-archive/scripts/detect_full_english.py" "<primary.md>"
 ```
 
-3. `full_english` → Agent 按 [full-english-translate.md](references/full-english-translate.md) 译出完整 `-zh.md`（中文标题；header 元数据与 digest 导航同行）。**禁止**占位（`SEE_FILE` / `PLACEHOLDER` / `FULL_ZH`）。译完必须跑：
+3. `full_english` → Agent 按 [full-english-translate.md](references/full-english-translate.md) 译出完整 `-zh.md`（中文标题；header 可保留创建时间）。**禁止**占位（`SEE_FILE` / `PLACEHOLDER` / `FULL_ZH`）。译完必须跑：
 
 ```bash
 python3 "$SKILL_DIR/theme-archive/scripts/check_zh_parity.py" "<primary.md>" "<zh.md>"
@@ -133,7 +131,11 @@ python3 "$SKILL_DIR/theme-archive/scripts/check_zh_parity.py" "<primary.md>" "<z
 ```json
 {
   "source_path": "<absolute path to primary .md>",
-  "source_type": "<summary|article|theme-line|dialogue|...>",
+  "title": "<display title>",
+  "project": "<optional; default inbox>",
+  "theme": "<optional; default notes>",
+  "created_at": "<optional YYYYMMDDHHMM UTC+8>",
+  "source_type": "<summary|article|theme-line|dialogue|transcript|jot>",
   "translations": [
     { "lang": "zh", "source_path": "<absolute path to -zh.md>" }
   ]
@@ -164,9 +166,9 @@ python3 "$SKILL_DIR/theme-archive/scripts/check_zh_parity.py" "<primary.md>" "<z
 
 ```text
 > ✅ ThemeArchive 归档完成
-> 📄 raw：raw/<topic-path>/<ts>-<slug>.md
-> 📄 zh： raw/.../-zh.md          （有翻译文件时）
-> 📋 digest：digest/<topic-path>/<ts>-<slug>.md  （或 ⏭ 已跳过）
+> 📄 raw：raw/<common_path>          （MCP 返回）
+> 📄 zh： raw/<stem>-zh.md           （有翻译文件时）
+> 📋 digest：digest/<common_path>    （或 ⏭ 已跳过）
 > 🗂 id: <id> · source_type: <type>
 ```
 
@@ -193,9 +195,9 @@ Producer **禁止**自管 `create_note` / `create_note_digest`，**禁止**按 `
 
 ## Ask Only When Necessary
 
-默认：语义推断 project · 标题推断 slug。
+默认：语义推断 project / theme；标题作 `title`。
 
-仅当 slug 冲突、project 无法推断、或文档 header 缺关键字段时询问用户。
+仅当 project 无法推断、或无法确定 title 时询问用户。
 
 ---
 

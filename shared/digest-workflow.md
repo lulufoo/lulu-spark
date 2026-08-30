@@ -66,14 +66,12 @@ digest 是可选产出。以下任意一项满足即生成：
 
 > 创建时间：[与 raw 相同的 ts]
 
-> 导航：[raw](`<prefix>`raw/`<COMMON_PATH>`)[可选追加链接，见下]
-
 ## 概述
 
 [一段话：本对话/总结/稿围绕什么主题、讨论或收敛到什么落点；仅依据 raw，不展开章节、不列概念表。]
 ```
 
-**导航行**：仅链回 raw。前缀 `<prefix>` 见 [archive-concepts.md](archive-concepts.md)。
+不要写回 raw 的导航行。Digest 与 raw 通过同一 `common_path` 和 `layers` 关联。
 
 ---
 

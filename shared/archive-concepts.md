@@ -13,7 +13,7 @@ Workbench App **必须运行**（MCP `workbench-knowledge` 可用，`http://127.
 
 | 操作 | MCP tool |
 |------|----------|
-| 写 raw + index | `create_note`（**仅** `source_path`；禁止 `document` 正文） |
+| 写 raw + index | `create_note`（`source_path` + `title`；禁止 `document`） |
 | 写 digest + layers | `create_note_digest`（`id` + `digest`；写作须含内容约束，见 digest-workflow） |
 | 读 digest 目录 | `get_notes_catalog` / `get_notes_files` |
 </HARD-GATE>
@@ -21,8 +21,17 @@ Workbench App **必须运行**（MCP `workbench-knowledge` 可用，`http://127.
 `create_note` 合同：先将 Markdown 落到 allow-list 绝对路径（建议 `{workspace}/.cache/…`），再传：
 
 ```json
-{ "source_path": "<abs.md>", "source_type": "<summary|dialogue|article|…>" }
+{
+  "source_path": "<abs.md>",
+  "title": "<display title>",
+  "project": "<optional; default inbox>",
+  "theme": "<optional; default notes>",
+  "created_at": "<optional YYYYMMDDHHMM UTC+8>",
+  "source_type": "<summary|article|theme-line|dialogue|transcript|jot>"
+}
 ```
+
+Host 分配 `common_path`：`{project}/{theme}/{created_at}-{6 alnum}-{source basename}`。不要再拼 `{ts}-{slug}`，不要发送 `document`。
 
 各 skill 首步确认：`> ✅ Workbench MCP 可用`
 
@@ -31,17 +40,15 @@ Workbench App **必须运行**（MCP `workbench-knowledge` 可用，`http://127.
 ## Path symbols
 
 ```
-COMMON_PATH = <topic-path>/<ts>-<slug>.md
-topic-path  = <project>/<doc-theme>    # 始终 2 段
-prefix      = "../../../"              # raw/ 文件内导航相对前缀
+COMMON_PATH = <project>/<theme>/<created_at>-<6 alnum>[-<source-basename>].md
 ```
 
 | 目录 | 路径模式（均在 workbench store 的 `notes/` 下） |
 |------|---------|
-| raw | `notes/raw/<topic-path>/<ts>-<slug>.md` |
-| raw (zh) | `notes/raw/<topic-path>/<ts>-<slug>-zh.md` |
+| raw | `notes/raw/<COMMON_PATH>` |
+| raw (zh) | `notes/raw/<stem>-zh.md` |
 | digest | `notes/digest/<COMMON_PATH>` |
-| debug bundle | `.cache/<topic-path>/<ts>-<slug>-bundle.json`（可选调试；禁止 Agent 直写） |
+| debug bundle | `.cache/…`（可选调试；禁止 Agent 直写 notes） |
 
 **禁止** 将 TranscriptBundle 或其它中间产物写入 notes。
 
@@ -67,26 +74,31 @@ Archive digest 完成后追加 `"digest"`：
 
 ---
 
-## Navigation line
+## Raw shell
 
-**MCP 产出者**（`theme-archive`、`theme-line`、`dialogue-summary`、`dialogue-archive`、`theme-fetch`）raw header **仅含 digest 链接**（Workbench `create_note` 解析要求）：
+Host 写入 raw 时只保留：
 
 ```markdown
-> 导航：[digest]({prefix}digest/{COMMON_PATH})
-```
+# {title}
 
-digest 文件导航行仅链回 raw。`prefix` 仍是 `../../../`（`notes/raw` 与 `notes/digest` 为兄弟目录）。
+> 创建时间：{YYYY年M月D日 HH:MM}
 
 ---
 
-## Slug & timestamp
-
-```
-ts   = YYYYMMDDHHMM (UTC+8)
-slug = kebab-case summary of source title (English, no spaces)
+{body}
 ```
 
-slug 冲突 → 与用户确认后再继续。
+不要要求、也不要依赖 digest 导航行。Digest 与 raw 通过同一 `common_path` 和 `layers` 关联。
+
+---
+
+## Timestamp
+
+```
+created_at = YYYYMMDDHHMM (UTC+8)
+```
+
+文件名中的 6 位随机段由 Host 生成，用于避免同秒冲突。
 
 ---
 
