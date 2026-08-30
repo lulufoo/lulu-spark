@@ -1,7 +1,7 @@
 # Android wmcp 目录与依赖重构技术方案
 
 > 源码：`lulu-workbench-android/lulu-workbench/wmcp/src/main/java/com/lulu/workbench/android/wmcp/`
-> 连接保持合同：`docs/archive/android-wmcp-connection-keep-alive-tech-plan.md`
+> 连接保持合同：`docs/archive/v0.1/android-wmcp-connection-keep-alive-tech-plan.md`
 > Related todo: `task_a2a93efb9e6e_sub_16`
 > 决策来源：本会话；exit gate: locked
 

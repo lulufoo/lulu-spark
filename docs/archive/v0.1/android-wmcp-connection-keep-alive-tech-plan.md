@@ -1,7 +1,7 @@
 # Android wmcp 连接保持技术方案
 
 > Related todo: `task_a2a93efb9e6e_sub_14`
-> 目录与依赖重构：`docs/archive/android-wmcp-directory-dependency-reorg-tech-plan.md`
+> 目录与依赖重构：`docs/archive/v0.1/android-wmcp-directory-dependency-reorg-tech-plan.md`
 > 决策来源：本会话 `/converge`，exit gate: locked
 
 ## 1. 目标
@@ -57,7 +57,7 @@ flowchart LR
 | 连接保持 | 订 MCP 事件；已绑定时主动激活；未连通 10s 再激活；已连通 10s 打 `tools/list`；对外回调 | 不另开探活协议（探活用现有 `tools/list`） |
 | UI | 订保持；画色点 | 不自己探活 |
 
-模块仍只在 `:wmcp` 做 MCP，`:app` 只 MVI。✅ Verified（`docs/archive/workbench-android-architecture.md` §4）
+模块仍只在 `:wmcp` 做 MCP，`:app` 只 MVI。✅ Verified（`docs/archive/v0.1/workbench-android-architecture.md` §4）
 
 ---
 
