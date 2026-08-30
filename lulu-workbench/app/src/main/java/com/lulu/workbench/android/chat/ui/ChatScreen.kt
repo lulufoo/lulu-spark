@@ -7,25 +7,12 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
-import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Menu
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -37,8 +24,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalFocusManager
-import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -52,9 +37,7 @@ import android.Manifest
 import android.content.pm.PackageManager
 import com.lulu.workbench.android.HomeEdgeAction
 import com.lulu.workbench.android.chat.state.ChatIntent
-import com.lulu.workbench.android.chat.state.ChatState
 import com.lulu.workbench.android.chat.state.ChatStore
-import com.lulu.workbench.android.chat.state.VoicePhase
 import com.lulu.workbench.android.homeEdgeAction
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -67,6 +50,8 @@ import kotlinx.coroutines.launch
 fun ChatScreen(
     store: ChatStore,
     onOpenSettings: () -> Unit,
+    onOpenStaged: (String) -> Unit,
+    onOpenStagedAll: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var drawerOpen by remember { mutableStateOf(false) }
@@ -81,6 +66,7 @@ fun ChatScreen(
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
                 store.dispatch(ChatIntent.RefreshAsr)
+                store.dispatch(ChatIntent.RefreshStaged)
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -184,6 +170,8 @@ fun ChatScreen(
                     transcriptReady = transcriptReady,
                     onOpenDrawer = { settle(true) },
                     onNewSession = { store.dispatch(ChatIntent.NewSession) },
+                    onOpenStaged = onOpenStaged,
+                    onOpenStagedAll = onOpenStagedAll,
                     onSend = { text -> store.dispatch(ChatIntent.Send(text)) },
                     onVoicePress = {
                         val granted = ContextCompat.checkSelfPermission(
@@ -212,83 +200,5 @@ fun ChatScreen(
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun ChatPane(
-    state: ChatState,
-    transcriptReady: Boolean,
-    onOpenDrawer: () -> Unit,
-    onNewSession: () -> Unit,
-    onSend: (String) -> Unit,
-    onVoicePress: () -> Unit,
-    onVoiceRelease: (Boolean) -> Unit,
-    onVoiceHintShown: () -> Unit,
-) {
-    var draft by remember { mutableStateOf("") }
-    val focusManager = LocalFocusManager.current
-    val keyboard = LocalSoftwareKeyboardController.current
-    fun dismissIme() {
-        focusManager.clearFocus(force = true)
-        keyboard?.hide()
-    }
-    val sendEnabled = !state.inFlight && draft.isNotBlank()
-    val title = state.sessions.firstOrNull { it.id == state.sessionId }?.title ?: "Lulu Workbench"
-    fun submit() {
-        if (!sendEnabled) return
-        val text = draft
-        draft = ""
-        onSend(text)
-    }
-    Column(modifier = Modifier.fillMaxSize()) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .windowInsetsPadding(WindowInsets.statusBars)
-                .dismissImeOnTap { dismissIme() },
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            IconButton(onClick = onOpenDrawer) {
-                Icon(Icons.Filled.Menu, contentDescription = "Chats")
-            }
-            Text(
-                text = title,
-                modifier = Modifier.weight(1f),
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurface,
-                maxLines = 1,
-            )
-            IconButton(onClick = onNewSession, enabled = !state.inFlight) {
-                Icon(Icons.Filled.Add, contentDescription = "New chat")
-            }
-        }
-        HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.55f))
-        ChatTranscript(
-            state = state,
-            ready = transcriptReady,
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxWidth()
-                .dismissImeOnTap { dismissIme() },
-        )
-        ChatComposer(
-            draft = draft,
-            onDraftChange = { draft = it },
-            sendEnabled = sendEnabled,
-            onSend = { submit() },
-            voicePhase = state.voicePhase,
-            voiceHint = state.voiceHint,
-            voiceEnabled = voiceHoldEnabled(
-                inFlight = state.inFlight,
-                phase = state.voicePhase,
-                asrConfigured = state.asrConfigured,
-            ),
-            asrConfigured = state.asrConfigured,
-            onVoicePress = onVoicePress,
-            onVoiceRelease = onVoiceRelease,
-            onVoiceHintShown = onVoiceHintShown,
-            modifier = Modifier.chatComposerImePadding(),
-        )
     }
 }

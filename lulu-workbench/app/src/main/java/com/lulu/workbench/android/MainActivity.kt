@@ -55,6 +55,23 @@ class MainActivity : ComponentActivity() {
                         onOpenSettings = {
                             startActivity(Intent(this@MainActivity, SettingsActivity::class.java))
                         },
+                        onOpenStaged = { id ->
+                            startActivity(
+                                StageActivity.fileIntent(
+                                    this@MainActivity,
+                                    chatStore.state.sessionId,
+                                    id,
+                                ),
+                            )
+                        },
+                        onOpenStagedAll = {
+                            startActivity(
+                                StageActivity.listIntent(
+                                    this@MainActivity,
+                                    chatStore.state.sessionId,
+                                ),
+                            )
+                        },
                         modifier = Modifier.fillMaxSize(),
                     )
                 }

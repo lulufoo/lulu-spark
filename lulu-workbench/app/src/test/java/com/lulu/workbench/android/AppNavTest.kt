@@ -29,4 +29,24 @@ class AppNavTest {
             settingsBackAction(scanning = true),
         )
     }
+
+    @Test
+    fun stagedFileFromListGoesBackToList() {
+        assertEquals(
+            StageBackAction.CloseFile,
+            stageBackAction(fileOpen = true, openedFromList = true),
+        )
+    }
+
+    @Test
+    fun stagedDeepLinkOrListFinishesActivity() {
+        assertEquals(
+            StageBackAction.FinishStage,
+            stageBackAction(fileOpen = true, openedFromList = false),
+        )
+        assertEquals(
+            StageBackAction.FinishStage,
+            stageBackAction(fileOpen = false, openedFromList = false),
+        )
+    }
 }

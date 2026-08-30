@@ -1,5 +1,7 @@
-package com.lulu.workbench.android.markdown
+package com.lulu.workbench.android.markdown.parse
 
+import com.lulu.workbench.android.markdown.model.MdBlock
+import com.lulu.workbench.android.markdown.model.MdInline
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test

@@ -3,6 +3,7 @@ package com.lulu.workbench.android.agent.loop
 import com.lulu.workbench.android.agent.session.HistoryTurn
 import com.lulu.workbench.android.agent.session.SessionId
 import com.lulu.workbench.android.agent.session.SessionRegistry
+import com.lulu.workbench.android.agent.session.sessionTitle
 import com.lulu.workbench.android.agent.tools.ToolDispatcher
 import com.lulu.workbench.android.llm.LlmClient
 import com.lulu.workbench.android.llm.LlmException
@@ -94,7 +95,13 @@ class AgentLoop(
             for (call in result.toolCalls) {
                 log.i("tool session=${sessionId.value} request=$requestId name=${call.name}")
                 onProgress(TurnProgress.CallingTool(call.name))
-                val output = tools.call(call.name, call.arguments, toolRoot)
+                val output = tools.call(
+                    call.name,
+                    call.arguments,
+                    toolRoot,
+                    sessionId.value,
+                    sessionTitle(turns),
+                )
                 messages.add(LlmMessage(role = "tool", content = output, toolCallId = call.id))
             }
         }

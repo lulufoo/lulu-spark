@@ -1,4 +1,4 @@
-package com.lulu.workbench.android.markdown
+package com.lulu.workbench.android.markdown.model
 
 internal sealed class MdBlock {
     data class Heading(val level: Int, val spans: List<MdInline>) : MdBlock()

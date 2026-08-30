@@ -4,6 +4,7 @@ import com.lulu.workbench.android.agent.facade.AgentFacade
 import com.lulu.workbench.android.agent.loop.TurnProgress
 import com.lulu.workbench.android.agent.session.HistoryTurn
 import com.lulu.workbench.android.agent.session.SessionId
+import com.lulu.workbench.android.agent.tools.stage.StagedItem
 import com.lulu.workbench.android.asr.AsrAudioFormat
 import com.lulu.workbench.android.asr.AsrClient
 
@@ -16,6 +17,7 @@ class ChatCommands(
     private val asrReady: () -> Boolean = { false },
     private val transcribe: (ByteArray) -> String = { "" },
     private val recorder: VoiceRecorder = IdleVoiceRecorder,
+    private val stagedOf: (SessionId) -> List<StagedItem> = { emptyList() },
 ) {
     constructor(
         agent: AgentFacade,
@@ -30,6 +32,7 @@ class ChatCommands(
         asrReady = { asr.isConfigured() },
         transcribe = { audio -> asr.recognize(audio, AsrAudioFormat.Wav).text },
         recorder = recorder,
+        stagedOf = { id -> agent.listStaged(id) },
     )
 
     fun createSession(): SessionId = create()
@@ -51,4 +54,6 @@ class ChatCommands(
     fun stopVoice(): ByteArray = recorder.stop()
 
     fun transcribe(wav: ByteArray): String = transcribe.invoke(wav)
+
+    fun listStaged(sessionId: SessionId): List<StagedItem> = stagedOf(sessionId)
 }

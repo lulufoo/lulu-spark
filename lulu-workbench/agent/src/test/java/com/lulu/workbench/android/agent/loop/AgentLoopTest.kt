@@ -76,6 +76,41 @@ class AgentLoopTest {
         assertEquals("hello", (seen.last() as TurnProgress.Finished).reply)
         assertTrue(!loop.inFlight)
     }
+
+    @Test
+    fun sendStagesOutsideSessionScratch() {
+        val storage = MemoryStorage()
+        val sessions = SessionRegistry(storage)
+        val id = sessions.create()
+        val loop =
+            AgentLoop(
+                id,
+                ScriptedLlm(
+                    mutableListOf(
+                        LlmCompletion(
+                            text = "",
+                            toolCalls =
+                                listOf(
+                                    LlmToolCall(
+                                        id = "c1",
+                                        name = "stage",
+                                        arguments = """{"title":"Parked","content":"# parked"}""",
+                                    ),
+                                ),
+                        ),
+                        LlmCompletion(text = "staged"),
+                    ),
+                ),
+                ToolDispatcher(FsTools(), UnboundWmcp(), storage),
+                sessions,
+            )
+        loop.send("park this") {}
+        val metas = storage.list("staged").filter { it.endsWith("/meta") }
+        assertEquals(1, metas.size)
+        val bodyPath = metas.single().removeSuffix("/meta") + "/body.md"
+        assertEquals("# parked", storage.read(bodyPath)?.decodeToString())
+        assertTrue(storage.list("sessions/${id.value}/tools").isEmpty())
+    }
 }
 
 private class ScriptedLlm(

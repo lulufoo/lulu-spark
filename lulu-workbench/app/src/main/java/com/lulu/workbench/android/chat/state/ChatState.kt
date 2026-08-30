@@ -25,6 +25,13 @@ data class ChatState(
     val voiceHint: String = "",
     val asrConfigured: Boolean = false,
     val mcpLink: McpLinkState = McpLinkState.Unbound,
+    val stagedThisChat: List<ChatStagedItem> = emptyList(),
+)
+
+data class ChatStagedItem(
+    val id: String,
+    val handle: String,
+    val title: String,
 )
 
 sealed class ChatIntent {
@@ -44,18 +51,9 @@ sealed class ChatIntent {
 
     data object RefreshAsr : ChatIntent()
 
-    data object ClearVoiceHint : ChatIntent()
-}
+    data object RefreshStaged : ChatIntent()
 
-internal fun sessionTitle(turns: List<HistoryTurn>): String {
-    val line = turns
-        .firstOrNull { it.role == "user" }
-        ?.content
-        ?.lineSequence()
-        ?.firstOrNull()
-        ?.trim()
-        .orEmpty()
-    return if (line.isEmpty()) "New chat" else line.take(40)
+    data object ClearVoiceHint : ChatIntent()
 }
 
 internal fun lastAssistant(turns: List<HistoryTurn>): String =

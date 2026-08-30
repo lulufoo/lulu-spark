@@ -15,3 +15,11 @@ internal enum class SettingsBackAction {
 
 internal fun settingsBackAction(scanning: Boolean): SettingsBackAction =
     if (scanning) SettingsBackAction.CancelScan else SettingsBackAction.FinishSettings
+
+internal enum class StageBackAction {
+    FinishStage,
+    CloseFile,
+}
+
+internal fun stageBackAction(fileOpen: Boolean, openedFromList: Boolean): StageBackAction =
+    if (fileOpen && openedFromList) StageBackAction.CloseFile else StageBackAction.FinishStage

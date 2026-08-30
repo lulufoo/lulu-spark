@@ -34,6 +34,17 @@ class ToolDispatcherTest {
         assertTrue(create.parametersJson.contains("\"title\""))
         assertTrue(create.parametersJson.contains("\"content\""))
     }
+
+    @Test
+    fun unboundLocalToolsIncludeFsAndStage() {
+        val defs =
+            ToolDispatcher(FsTools(), UnboundForDispatch(), MemoryStorage()).definitions()
+        val names = defs.map { it.name }
+        assertTrue(names.containsAll(listOf("read", "grep", "write", "edit")))
+        assertTrue(names.containsAll(listOf("stage", "list_staged", "get_staged")))
+        assertTrue(defs.none { it.name == "create_note" })
+        assertTrue(defs.none { it.name == "delete_staged" })
+    }
 }
 
 private class BoundWmcp(
@@ -46,6 +57,18 @@ private class BoundWmcp(
     override fun completeBind(offer: BindOffer, deviceLabel: String?): BindResult = error("unused")
 
     override fun listTools(): List<McpTool> = tools.toList()
+
+    override fun callTool(name: String, arguments: String): McpToolResult = error("unused")
+}
+
+private class UnboundForDispatch : WmcpClient {
+    override fun isBound(): Boolean = false
+
+    override fun deviceId(): String = "dev_unbound"
+
+    override fun completeBind(offer: BindOffer, deviceLabel: String?): BindResult = error("unused")
+
+    override fun listTools(): List<McpTool> = emptyList()
 
     override fun callTool(name: String, arguments: String): McpToolResult = error("unused")
 }

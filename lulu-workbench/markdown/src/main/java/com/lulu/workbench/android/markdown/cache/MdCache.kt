@@ -1,7 +1,9 @@
-package com.lulu.workbench.android.markdown
+package com.lulu.workbench.android.markdown.cache
 
 import com.lulu.workbench.android.log.LogModule
 import com.lulu.workbench.android.log.WbLog
+import com.lulu.workbench.android.markdown.model.MdBlock
+import com.lulu.workbench.android.markdown.parse.parseMdBlocks
 import java.security.MessageDigest
 import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap

@@ -1,5 +1,7 @@
-package com.lulu.workbench.android.markdown
+package com.lulu.workbench.android.markdown.parse
 
+import com.lulu.workbench.android.markdown.model.MdBlock
+import com.lulu.workbench.android.markdown.model.MdInline
 import org.commonmark.ext.gfm.strikethrough.Strikethrough
 import org.commonmark.ext.gfm.strikethrough.StrikethroughExtension
 import org.commonmark.ext.gfm.tables.TableBlock
@@ -139,7 +141,7 @@ private fun rowCells(row: TableRow): List<List<MdInline>> {
     return cells
 }
 
-internal fun inlineSpans(node: Node): List<MdInline> {
+private fun inlineSpans(node: Node): List<MdInline> {
     val out = mutableListOf<MdInline>()
     var child = node.firstChild
     while (child != null) {

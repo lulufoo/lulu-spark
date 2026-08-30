@@ -6,6 +6,8 @@ import com.lulu.workbench.android.agent.session.SessionId
 import com.lulu.workbench.android.agent.session.SessionRegistry
 import com.lulu.workbench.android.agent.tools.ToolDispatcher
 import com.lulu.workbench.android.agent.tools.fs.FsTools
+import com.lulu.workbench.android.agent.tools.stage.StageStore
+import com.lulu.workbench.android.agent.tools.stage.StagedItem
 import com.lulu.workbench.android.asr.AsrClient
 import com.lulu.workbench.android.asr.AsrFactory
 import com.lulu.workbench.android.llm.LlmClient
@@ -22,6 +24,7 @@ class AgentFacade(
     storage: Storage,
 ) {
     private val sessions = SessionRegistry(storage)
+    private val stages = StageStore(storage)
     private val tools = ToolDispatcher(FsTools(), wmcp, storage)
     private val loops = mutableMapOf<SessionId, AgentLoop>()
 
@@ -35,6 +38,17 @@ class AgentFacade(
     }
 
     fun loadTurns(sessionId: SessionId): List<HistoryTurn> = sessions.loadTurns(sessionId)
+
+    fun listStaged(): List<StagedItem> = stages.list()
+
+    fun listStaged(sessionId: SessionId): List<StagedItem> = stages.listForSession(sessionId.value)
+
+    fun getStaged(id: String): StagedItem? = stages.get(id)
+
+    fun updateStaged(id: String, title: String, body: String): StagedItem? =
+        stages.update(id, title, body)
+
+    fun deleteStaged(id: String): Boolean = stages.delete(id)
 
     fun loop(sessionId: SessionId): AgentLoop =
         loops.getOrPut(sessionId) {

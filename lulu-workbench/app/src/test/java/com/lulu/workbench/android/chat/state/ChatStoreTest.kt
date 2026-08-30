@@ -3,6 +3,8 @@ package com.lulu.workbench.android.chat.state
 import com.lulu.workbench.android.agent.loop.TurnProgress
 import com.lulu.workbench.android.agent.session.HistoryTurn
 import com.lulu.workbench.android.agent.session.SessionId
+import com.lulu.workbench.android.agent.session.sessionTitle
+import com.lulu.workbench.android.agent.tools.stage.StagedItem
 import com.lulu.workbench.android.chat.commands.ChatCommands
 import com.lulu.workbench.android.wmcp.McpKeepAlive
 import com.lulu.workbench.android.wmcp.McpLinkListener
@@ -258,6 +260,23 @@ class ChatStoreTest {
         assertEquals(McpLinkState.Connected, store.state.mcpLink)
         store.dispatch(ChatIntent.NewSession)
         assertEquals(McpLinkState.Connected, store.state.mcpLink)
+    }
+
+    @Test
+    fun finishRefreshesStagedThisChat() {
+        val staged = mutableListOf<StagedItem>()
+        val store = ChatStore(
+            ChatCommands(
+                create = { SessionId("sess_test") },
+                sendTurn = { _, _, onProgress ->
+                    staged += StagedItem("stg_1", "F1", "Parked", "sess_test", "hello")
+                    onProgress(TurnProgress.Finished("staged"))
+                },
+                stagedOf = { staged.toList() },
+            ),
+        )
+        store.dispatch(ChatIntent.Send("park this"))
+        assertEquals(listOf(ChatStagedItem("stg_1", "F1", "Parked")), store.state.stagedThisChat)
     }
 }
 

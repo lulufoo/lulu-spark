@@ -15,8 +15,8 @@ Mac 侧入口与分层以 Workbench 仓库 `docs/architecture/arch-layer-constra
 1. 多 session 并行的实现是多个 `loop` **实例**同时跑，不是一个 `loop` 里用一张表假装并行。每个 session 同时只有一轮 in-flight；不同 session 的 `loop` 可以一起跑。
 2. 一轮请求的进度状态由该 session 的 `loop` 实例抛出。`:app` 用 MVI 接收并画出。不单开 `progress` 包。
 3. Chat Agent 跑在手机上。没有 MCP（未绑定或 Mac 不在线）时仍可 LLM 对话 + 本地 `fs` 工具。MCP 必须绑定后才可用。手机不是 Mac 上那个 Agent 的远程窗口。
-4. 每个 session 两根目录：对话历史，以及工具 scratch。围栏只给工具那一根。本地工具是 `read` / `grep` / `write` / `edit`。这些文件只在手机应用内，不写 Mac 磁盘。工具进不去历史根。
-5. 模块只有 `:app` `:agent` `:llm` `:wmcp` `:network` `:storage`，没有 `:core`。`:agent` 只有 `facade` / `loop` / `session` / `tools`（含 `fs`），没有自建 mcp client。`:storage` 不认 session。`:network` 按扫码指纹钉 Gateway 证书。MVI 只在 `:app`。
+4. 每个 session 两根目录：对话历史，以及工具 scratch。围栏只给工具那一根。本地工具是 `read` / `grep` / `write` / `edit`，外加 App 级 `stage` / `list_staged` / `get_staged`（不进 scratch）。这些文件只在手机应用内，不写 Mac 磁盘。工具进不去历史根。
+5. 模块只有 `:app` `:agent` `:llm` `:wmcp` `:network` `:storage`，没有 `:core`。`:agent` 只有 `facade` / `loop` / `session` / `tools`（含 `fs` 与 `stage`），没有自建 mcp client。`:storage` 不认 session。`:network` 按扫码指纹钉 Gateway 证书。MVI 只在 `:app`。
 6. 绑定用现有扫码，完成走 `/bind/complete`，工具走 `/mcp/mobile`。只在局域网。不直连 Host MCP，也不配 `cursor_ide` 本机 URL。MVP 不新开 Port B 业务路由，不做公网中继。
 
 LLM 未配置时界面如何提示：仍未决，不是不变项。❌ Unresolved
@@ -145,6 +145,7 @@ flowchart LR
 | `session` | `SessionId`、两根路径、历史交给 `:storage` |
 | `tools` | 合并工具表并分发 |
 | `tools/fs` | `read` / `grep` / `write` / `edit` |
+| `tools/stage` | `stage` / `list_staged` / `get_staged`；库在 `staged/`，不进 session scratch |
 
 不单开 `progress` 包，不单开 mcp client 包。
 
@@ -155,7 +156,7 @@ flowchart LR
 - LLM 在 `:llm`，不在 `:agent`。
 - MCP 在 `:wmcp`，`:agent` 只决定调不调、调哪个名字。
 - 不迁桌面 Binding Contract。
-- 未绑定也能跑 `loop`（纯 LLM + 本地 `fs`）。Mac 当前 `run_loop` 在无 Binding 时直接拒绝聊天。✅ Verified（`loop/turn.rs` 在无 Binding 时返回 `Unbound — no active Binding Contract`）
+- 未绑定也能跑 `loop`（纯 LLM + 本地 `fs` + `stage`）。Mac 当前 `run_loop` 在无 Binding 时直接拒绝聊天。✅ Verified（`loop/turn.rs` 在无 Binding 时返回 `Unbound — no active Binding Contract`）
 
 ---
 
@@ -169,6 +170,7 @@ flowchart LR
 |----|--------|------------------|
 | 对话历史 | `:agent` 写轮次 | 不能 |
 | 工具 scratch | `read` / `grep` / `write` / `edit` | 只能进这一根 |
+| App 级暂存 `staged/` | `stage` / `list_staged` / `get_staged` | 不进 session 围栏；删对话不删 |
 
 围栏只给工具 session 路径这一条，不加黑名单。历史根与工具根分开，因此不必用黑名单保护对话记录。
 
@@ -176,7 +178,7 @@ flowchart LR
 
 Mac 文件工具是 Host 本地工具，`write` / `edit` 进 `{scratch_parent}/{session_id}`。✅ Verified（`fs_tools.rs`、`path_fence.rs` 的 `with_session_scratch`）
 
-未绑定：工具表只有 `fs`。已绑定：`fs` 加上 `:wmcp` 列出的 MCP 工具。分发按名字：本地四件进 `fs`，其余进 `:wmcp`。对齐 Mac 合并 MCP catalog 与 `fs_tools::catalog` 再分发。✅ Verified（`loop/turn.rs`）
+未绑定：工具表是 `fs` 加 `stage` 族。已绑定：再加上 `:wmcp` 列出的 MCP 工具。分发按名字：四件进 `fs`，`stage` / `list_staged` / `get_staged` 进 `stage`，其余进 `:wmcp`。对齐 Mac 合并 MCP catalog 与 `fs_tools::catalog` 再分发。✅ Verified（`loop/turn.rs`；Android `ToolDispatcher`）
 
 ---
 

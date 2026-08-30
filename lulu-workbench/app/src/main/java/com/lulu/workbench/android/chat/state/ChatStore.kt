@@ -6,6 +6,7 @@ import androidx.compose.runtime.setValue
 import com.lulu.workbench.android.agent.loop.TurnProgress
 import com.lulu.workbench.android.agent.session.HistoryTurn
 import com.lulu.workbench.android.agent.session.SessionId
+import com.lulu.workbench.android.agent.session.sessionTitle
 import com.lulu.workbench.android.asr.AsrException
 import com.lulu.workbench.android.asr.AsrNotConfiguredException
 import com.lulu.workbench.android.asr.isVoiceTooShort
@@ -57,6 +58,7 @@ class ChatStore(
                     sessions = listed(),
                     asrConfigured = asrReady(),
                     mcpLink = state.mcpLink,
+                    stagedThisChat = stagedItems(id.value),
                 )
             }
             is ChatIntent.SelectSession -> {
@@ -70,6 +72,7 @@ class ChatStore(
                     turns = emptyList(),
                     voicePhase = VoicePhase.Idle,
                     voiceHint = "",
+                    stagedThisChat = stagedItems(id),
                 )
                 runOffMain {
                     val loaded = loadTurns(id)
@@ -101,6 +104,7 @@ class ChatStore(
                     sessions = remaining,
                     asrConfigured = asrReady(),
                     mcpLink = state.mcpLink,
+                    stagedThisChat = stagedItems(next.id),
                 )
                 runOffMain {
                     val loaded = loadTurns(next.id)
@@ -115,6 +119,9 @@ class ChatStore(
             }
             ChatIntent.RefreshAsr -> {
                 state = state.copy(asrConfigured = asrReady())
+            }
+            ChatIntent.RefreshStaged -> {
+                state = state.copy(stagedThisChat = stagedItems(state.sessionId))
             }
             ChatIntent.ClearVoiceHint -> {
                 if (state.voiceHint.isNotEmpty()) {
@@ -228,6 +235,7 @@ class ChatStore(
                     inFlight = false,
                     sessions = listed(),
                     turns = turns,
+                    stagedThisChat = stagedItems(sessionId),
                 )
             }
         }
@@ -244,7 +252,15 @@ class ChatStore(
             sessions = items,
             asrConfigured = asrReady(),
             mcpLink = keepAlive.state(),
+            stagedThisChat = stagedItems(current.id),
         )
+    }
+
+    private fun stagedItems(sessionId: String?): List<ChatStagedItem> {
+        if (sessionId == null) return emptyList()
+        return commands.listStaged(SessionId(sessionId)).map {
+            ChatStagedItem(it.id, it.handle, it.title)
+        }
     }
 
     private fun asrReady(): Boolean = commands.isAsrConfigured()
