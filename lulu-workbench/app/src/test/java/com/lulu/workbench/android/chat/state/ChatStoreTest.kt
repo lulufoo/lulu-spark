@@ -124,6 +124,7 @@ class ChatStoreTest {
             runOffMain = { queued = it },
             runOnMain = { it() },
         )
+        assertTrue(store.state.turns.isEmpty())
         store.dispatch(ChatIntent.SelectSession("sess_old"))
         assertEquals("sess_old", store.state.sessionId)
         assertTrue(store.state.turns.isEmpty())

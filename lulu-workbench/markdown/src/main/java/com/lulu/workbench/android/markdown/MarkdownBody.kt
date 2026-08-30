@@ -41,7 +41,7 @@ fun MarkdownBody(
     source: String,
     modifier: Modifier = Modifier,
 ) {
-    val blocks = remember(source) { parseMdBlocks(source) }
+    val blocks = remember(source) { cachedMdBlocks(source) }
     Column(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(10.dp),

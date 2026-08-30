@@ -10,6 +10,7 @@ import com.lulu.workbench.android.asr.AsrException
 import com.lulu.workbench.android.asr.AsrNotConfiguredException
 import com.lulu.workbench.android.asr.isVoiceTooShort
 import com.lulu.workbench.android.chat.commands.ChatCommands
+import com.lulu.workbench.android.markdown.prefetchMarkdown
 import com.lulu.workbench.android.wmcp.IdleKeepAlive
 import com.lulu.workbench.android.wmcp.McpKeepAlive
 
@@ -27,6 +28,19 @@ class ChatStore(
             runOnMain {
                 if (state.mcpLink != next) {
                     state = state.copy(mcpLink = next)
+                }
+            }
+        }
+        val id = state.sessionId
+        if (id != null) {
+            runOffMain {
+                val loaded = loadTurns(id)
+                runOnMain {
+                    if (state.sessionId != id) return@runOnMain
+                    state = state.copy(
+                        lastReply = lastAssistant(loaded),
+                        turns = loaded,
+                    )
                 }
             }
         }
@@ -58,7 +72,7 @@ class ChatStore(
                     voiceHint = "",
                 )
                 runOffMain {
-                    val loaded = sessionTurns(id)
+                    val loaded = loadTurns(id)
                     runOnMain {
                         if (state.sessionId != id || state.inFlight) return@runOnMain
                         state = state.copy(
@@ -82,15 +96,22 @@ class ChatStore(
                     state = ChatState(asrConfigured = asrReady(), mcpLink = state.mcpLink)
                     return
                 }
-                val loaded = sessionTurns(next.id)
                 state = ChatState(
                     sessionId = next.id,
-                    lastReply = lastAssistant(loaded),
                     sessions = remaining,
-                    turns = loaded,
                     asrConfigured = asrReady(),
                     mcpLink = state.mcpLink,
                 )
+                runOffMain {
+                    val loaded = loadTurns(next.id)
+                    runOnMain {
+                        if (state.sessionId != next.id) return@runOnMain
+                        state = state.copy(
+                            lastReply = lastAssistant(loaded),
+                            turns = loaded,
+                        )
+                    }
+                }
             }
             ChatIntent.RefreshAsr -> {
                 state = state.copy(asrConfigured = asrReady())
@@ -120,12 +141,15 @@ class ChatStore(
                 runOffMain {
                     try {
                         commands.send(SessionId(id), text) { progress ->
+                            if (progress is TurnProgress.Finished) {
+                                prefetchMarkdown(progress.reply)
+                            }
                             runOnMain { applyProgress(id, progress) }
                         }
                     } catch (error: Exception) {
-                        runOnMain {
-                            applyProgress(id, TurnProgress.Finished(error.message ?: "Send failed."))
-                        }
+                        val reply = error.message ?: "Send failed."
+                        prefetchMarkdown(reply)
+                        runOnMain { applyProgress(id, TurnProgress.Finished(reply)) }
                     }
                 }
             }
@@ -215,12 +239,9 @@ class ChatStore(
             asrConfigured = asrReady(),
             mcpLink = keepAlive.state(),
         )
-        val loaded = sessionTurns(current.id)
         return ChatState(
             sessionId = current.id,
-            lastReply = lastAssistant(loaded),
             sessions = items,
-            turns = loaded,
             asrConfigured = asrReady(),
             mcpLink = keepAlive.state(),
         )
@@ -228,8 +249,13 @@ class ChatStore(
 
     private fun asrReady(): Boolean = commands.isAsrConfigured()
 
-    private fun sessionTurns(id: String): List<HistoryTurn> =
-        visibleTurns(commands.turns(SessionId(id)))
+    private fun loadTurns(id: String): List<HistoryTurn> {
+        val loaded = visibleTurns(commands.turns(SessionId(id)))
+        loaded.forEach { turn ->
+            if (turn.role == "assistant") prefetchMarkdown(turn.content)
+        }
+        return loaded
+    }
 
     private fun voiceErrorHint(error: Exception): String =
         when (error) {

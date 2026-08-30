@@ -78,7 +78,7 @@ internal fun ChatTranscript(
             key = { reverseIndex ->
                 val index = turns.lastIndex - reverseIndex
                 val turn = turns[index]
-                "$index:${turn.role}:${turn.content}"
+                "${state.sessionId}:$index:${turn.role}"
             },
         ) { reverseIndex ->
             val index = turns.lastIndex - reverseIndex
