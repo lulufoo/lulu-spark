@@ -40,6 +40,7 @@ Map the user request, then call **only** the tools that match. Do not run a fixe
 | List catalogs with newest note pointer | `get_all_notes_catalog` | — |
 | Latest digest body per catalog (one call) | `get_latest_digest_per_catalog` | — |
 | List note ids in one catalog | `get_notes_by_catalog` | — |
+| Search notes by text | `search_notes` | Do not loop catalog-by-catalog |
 | Read one digest | `get_note_digest_by_id` | — |
 | Read one raw body | `get_note_content_by_id` | — |
 
@@ -74,6 +75,7 @@ Do not invent norms not listed here.
 | `get_all_notes_catalog` | Every project catalog with newest `note_id` + `created_at` (no bodies) |
 | `get_latest_digest_per_catalog` | Newest digest Markdown for every catalog in one call |
 | `get_notes_by_catalog` | Every note id in one catalog (`catalog` = project name) |
+| `search_notes` | Search raw note bodies; returns note ids and match snippets (no digest) |
 | `get_note_digest_by_id` | Digest Markdown for one note id |
 | `get_note_content_by_id` | Raw Markdown for one note id (Host truncates over 10KB) |
 
