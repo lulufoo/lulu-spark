@@ -151,7 +151,7 @@ fn run_loop_marks_successful_todo_mcp_mutation_as_wrote() {
                 "type": "function",
                 "function": {
                     "name": "create_todo_task",
-                    "arguments": "{\"title\":\"MCP 创建任务\"}"
+                    "arguments": "{\"title\":\"MCP 创建任务\",\"todo_md\":\"MCP body\"}"
                 }
             }]),
             None,

@@ -614,11 +614,21 @@ fn mcp_tools_list_publishes_descriptions_schemas_and_mutation_hints() {
         create.input_schema["properties"]["title"]["type"], "string",
         "create_todo_task title must be declared"
     );
+    assert_eq!(
+        create.input_schema["properties"]["todo_md"]["type"], "string",
+        "create_todo_task todo_md must be declared"
+    );
     assert!(
         create.input_schema["required"]
             .as_array()
             .is_some_and(|required| required.iter().any(|v| v == "title")),
         "create_todo_task title must be required"
+    );
+    assert!(
+        create.input_schema["required"]
+            .as_array()
+            .is_some_and(|required| required.iter().any(|v| v == "todo_md")),
+        "create_todo_task todo_md must be required"
     );
     assert_eq!(
         create

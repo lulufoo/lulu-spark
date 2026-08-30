@@ -655,11 +655,20 @@ if (deleteMasterResult.isError || !deleteMasterText.includes('"ok":true')) {
   throw new Error(`delete_todo_task failed: ${deleteMasterText}`);
 }
 
+const missingBody = await client.callTool({
+  name: 'create_todo_task',
+  arguments: { title: 'No body' },
+});
+if (!missingBody.isError) {
+  throw new Error('expected validation error when todo_md omitted');
+}
+
 const invalid = await client.callTool({
   name: 'create_todo_task',
   arguments: {
     title:
       'one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen twenty twentyone',
+    todo_md: 'body for title-length check',
   },
 });
 if (!invalid.isError) {

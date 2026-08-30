@@ -851,7 +851,7 @@ fn get_todo_tasks_returns_created_masters() {
         let (create_status, create_body) = http_post(
             port,
             "/api/todo-task-create",
-            &json!({ "title": "Listed master", "sub_titles": ["Sub A", "Sub B"] }),
+            &json!({ "title": "Listed master", "todo_md": HTTP_CREATE_TODO_MD, "sub_titles": ["Sub A", "Sub B"] }),
         );
         assert_eq!(create_status, 201);
         let master_id = create_body["master_task_id"]
@@ -877,7 +877,7 @@ fn post_todo_task_create_omit_sub_titles_creates_empty_sub_tasks() {
         let (status, body) = http_post(
             port,
             "/api/todo-task-create",
-            &json!({ "title": "Master only" }),
+            &json!({ "title": "Master only", "todo_md": HTTP_CREATE_TODO_MD }),
         );
         assert_eq!(status, 201);
         assert!(body.get("master_task_id").and_then(|v| v.as_str()).is_some());
@@ -897,7 +897,7 @@ fn post_todo_task_create_empty_sub_titles_matches_omit() {
         let (status, body) = http_post(
             port,
             "/api/todo-task-create",
-            &json!({ "title": "Empty array", "sub_titles": [] }),
+            &json!({ "title": "Empty array", "todo_md": HTTP_CREATE_TODO_MD, "sub_titles": [] }),
         );
         assert_eq!(status, 201);
         let subs = body["task"]["sub_tasks"].as_array().expect("sub_tasks");
@@ -914,7 +914,7 @@ fn post_todo_task_create_single_explicit_sub() {
         let (status, body) = http_post(
             port,
             "/api/todo-task-create",
-            &json!({ "title": "Master", "sub_titles": ["Sub A"] }),
+            &json!({ "title": "Master", "todo_md": HTTP_CREATE_TODO_MD, "sub_titles": ["Sub A"] }),
         );
         assert_eq!(status, 201);
         let subs = body["task"]["sub_tasks"].as_array().expect("sub_tasks");
@@ -932,7 +932,7 @@ fn post_todo_task_create_multiple_explicit_subs() {
         let (status, body) = http_post(
             port,
             "/api/todo-task-create",
-            &json!({ "title": "Master", "sub_titles": ["Sub A", "Sub B"] }),
+            &json!({ "title": "Master", "todo_md": HTTP_CREATE_TODO_MD, "sub_titles": ["Sub A", "Sub B"] }),
         );
         assert_eq!(status, 201);
         let subs = body["task"]["sub_tasks"].as_array().expect("sub_tasks");
@@ -952,10 +952,55 @@ fn post_todo_task_create_blank_title_returns_400() {
         let (status, body) = http_post(
             port,
             "/api/todo-task-create",
-            &json!({ "title": "   " }),
+            &json!({ "title": "   ", "todo_md": HTTP_CREATE_TODO_MD }),
         );
         assert_eq!(status, 400);
         assert!(body.get("error").is_some());
+    });
+}
+
+#[test]
+fn post_todo_task_create_omit_todo_md_returns_400() {
+    let fixture = setup_repo_for_todo_task();
+    let repo_root = fixture.repo_root.clone();
+    with_server(repo_root, |port| {
+        let (status, body) = http_post(
+            port,
+            "/api/todo-task-create",
+            &json!({ "title": "No body" }),
+        );
+        assert_eq!(status, 400);
+        assert_eq!(body["error"], "Missing todo_md");
+    });
+}
+
+#[test]
+fn post_todo_task_create_null_todo_md_returns_400() {
+    let fixture = setup_repo_for_todo_task();
+    let repo_root = fixture.repo_root.clone();
+    with_server(repo_root, |port| {
+        let (status, body) = http_post(
+            port,
+            "/api/todo-task-create",
+            &json!({ "title": "Null body", "todo_md": null }),
+        );
+        assert_eq!(status, 400);
+        assert_eq!(body["error"], "Missing todo_md");
+    });
+}
+
+#[test]
+fn post_todo_task_create_blank_todo_md_returns_400() {
+    let fixture = setup_repo_for_todo_task();
+    let repo_root = fixture.repo_root.clone();
+    with_server(repo_root, |port| {
+        let (status, body) = http_post(
+            port,
+            "/api/todo-task-create",
+            &json!({ "title": "Blank body", "todo_md": "   " }),
+        );
+        assert_eq!(status, 400);
+        assert_eq!(body["error"], "Missing todo_md");
     });
 }
 
@@ -967,7 +1012,7 @@ fn post_todo_task_create_response_ac5_field_matrix() {
         let (status, body) = http_post(
             port,
             "/api/todo-task-create",
-            &json!({ "title": "AC5 master", "sub_titles": ["Sub A"] }),
+            &json!({ "title": "AC5 master", "todo_md": HTTP_CREATE_TODO_MD, "sub_titles": ["Sub A"] }),
         );
         assert_eq!(status, 201);
         assert!(body.get("master_task_id").and_then(|v| v.as_str()).is_some());
@@ -990,11 +1035,13 @@ fn post_todo_task_create_response_ac5_field_matrix() {
     });
 }
 
+const HTTP_CREATE_TODO_MD: &str = "HTTP fixture body";
+
 fn create_todo_master(port: u16, title: &str, sub_titles: &[&str]) -> (String, String, Value) {
     let payload = if sub_titles.is_empty() {
-        json!({ "title": title })
+        json!({ "title": title, "todo_md": HTTP_CREATE_TODO_MD })
     } else {
-        json!({ "title": title, "sub_titles": sub_titles })
+        json!({ "title": title, "todo_md": HTTP_CREATE_TODO_MD, "sub_titles": sub_titles })
     };
     let (status, body) = http_post(port, "/api/todo-task-create", &payload);
     assert_eq!(status, 201);
@@ -1028,7 +1075,7 @@ fn http_list_get_create_carry_tri_state_status_including_abandoned() {
         let (create_status, create_body) = http_post(
             port,
             "/api/todo-task-create",
-            &json!({ "title": "Create incomplete", "sub_titles": ["Sub"] }),
+            &json!({ "title": "Create incomplete", "todo_md": HTTP_CREATE_TODO_MD, "sub_titles": ["Sub"] }),
         );
         assert_eq!(create_status, 201);
         assert_ac5_master_task_shape(&create_body["task"]);
@@ -1467,7 +1514,7 @@ fn post_todo_task_create_blank_sub_title_element_returns_400() {
         let (status, body) = http_post(
             port,
             "/api/todo-task-create",
-            &json!({ "title": "Master", "sub_titles": ["ok", "  "] }),
+            &json!({ "title": "Master", "todo_md": HTTP_CREATE_TODO_MD, "sub_titles": ["ok", "  "] }),
         );
         assert_eq!(status, 400);
         assert!(body.get("error").is_some());
@@ -1544,7 +1591,7 @@ fn get_todo_tasks_includes_todo_md_and_migration_error_fields() {
         let (create_status, _) = http_post(
             port,
             "/api/todo-task-create",
-            &json!({ "title": "HTTP plan fields" }),
+            &json!({ "title": "HTTP plan fields", "todo_md": HTTP_CREATE_TODO_MD }),
         );
         assert_eq!(create_status, 201);
 
@@ -1553,7 +1600,7 @@ fn get_todo_tasks_includes_todo_md_and_migration_error_fields() {
         let list = body.as_array().expect("array");
         assert_eq!(list.len(), 1);
         assert_http_master_has_todo_fields(&list[0]);
-        assert_eq!(list[0]["todo_md"], "");
+        assert_eq!(list[0]["todo_md"], HTTP_CREATE_TODO_MD);
         assert_eq!(list[0]["migration_error"], false);
 
         let expected = crate::services::todo_task::list_all().expect("todo");
@@ -1569,7 +1616,7 @@ fn get_todo_task_by_id_includes_todo_md_and_migration_error_matching_list() {
         let (create_status, create_body) = http_post(
             port,
             "/api/todo-task-create",
-            &json!({ "title": "HTTP get by id fields" }),
+            &json!({ "title": "HTTP get by id fields", "todo_md": HTTP_CREATE_TODO_MD }),
         );
         assert_eq!(create_status, 201);
         let master_id = create_body["master_task_id"]
@@ -1602,7 +1649,7 @@ fn get_todo_tasks_todo_md_matches_disk_bytes() {
         let (create_status, create_body) = http_post(
             port,
             "/api/todo-task-create",
-            &json!({ "title": "Disk plan md" }),
+            &json!({ "title": "Disk plan md", "todo_md": HTTP_CREATE_TODO_MD }),
         );
         assert_eq!(create_status, 201);
         let master_id = create_body["master_task_id"]
@@ -1638,7 +1685,7 @@ fn get_todo_tasks_empty_todo_md_matches_empty_disk_file() {
         let (create_status, create_body) = http_post(
             port,
             "/api/todo-task-create",
-            &json!({ "title": "Empty plan md" }),
+            &json!({ "title": "Empty plan md", "todo_md": HTTP_CREATE_TODO_MD }),
         );
         assert_eq!(create_status, 201);
         let master_id = create_body["master_task_id"]
@@ -1651,6 +1698,7 @@ fn get_todo_tasks_empty_todo_md_matches_empty_disk_file() {
             .join("tasks")
             .join(master_id)
             .join("todo.md");
+        fs::write(&plan_path, "").expect("clear plan.md");
         assert_eq!(fs::read_to_string(&plan_path).unwrap(), "");
 
         let (list_status, list_body) = http_get_with_response(port, "/api/todo-tasks");
@@ -1668,7 +1716,7 @@ fn todo_tasks_http_body_helpers_preserve_read_path_fields() {
         let (create_status, create_body) = http_post(
             port,
             "/api/todo-task-create",
-            &json!({ "title": "Body helper fields" }),
+            &json!({ "title": "Body helper fields", "todo_md": HTTP_CREATE_TODO_MD }),
         );
         assert_eq!(create_status, 201);
         let master_id = create_body["master_task_id"]
@@ -1734,7 +1782,8 @@ fn post_todo_task_create_title_too_long_returns_400() {
             port,
             "/api/todo-task-create",
             &json!({
-                "title": "one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen twenty twentyone"
+                "title": "one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen twenty twentyone",
+                "todo_md": HTTP_CREATE_TODO_MD
             }),
         );
         assert_eq!(status, 400);
@@ -1790,7 +1839,11 @@ fn get_todo_tasks_migration_error_plan_still_in_list() {
 }
 
 fn create_todo_master_id(port: u16, title: &str) -> String {
-    let (status, body) = http_post(port, "/api/todo-task-create", &json!({ "title": title }));
+    let (status, body) = http_post(
+        port,
+        "/api/todo-task-create",
+        &json!({ "title": title, "todo_md": HTTP_CREATE_TODO_MD }),
+    );
     assert_eq!(status, 201);
     body["master_task_id"]
         .as_str()
@@ -2102,7 +2155,7 @@ fn todo_api_gate_passed_marker_opens_todo_http() {
         let (create_status, create_body) = http_post(
             port,
             "/api/todo-task-create",
-            &json!({ "title": "ungated master" }),
+            &json!({ "title": "ungated master", "todo_md": HTTP_CREATE_TODO_MD }),
         );
         assert_eq!(create_status, 201);
         assert!(create_body.get("master_task_id").is_some());
@@ -2632,7 +2685,7 @@ fn post_todo_task_create_omits_category_id_falls_to_default() {
         let (status, body) = http_post(
             port,
             "/api/todo-task-create",
-            &json!({ "title": "No cat", "sub_titles": ["S"] }),
+            &json!({ "title": "No cat", "todo_md": HTTP_CREATE_TODO_MD, "sub_titles": ["S"] }),
         );
         assert_eq!(status, 201);
         assert_eq!(
@@ -2655,6 +2708,7 @@ fn post_todo_task_create_with_valid_category_id_assigns_it() {
             "/api/todo-task-create",
             &json!({
                 "title": "In work",
+                "todo_md": HTTP_CREATE_TODO_MD,
                 "sub_titles": ["S"],
                 "category_id": cat_id,
             }),
@@ -2674,6 +2728,7 @@ fn post_todo_task_create_unknown_category_id_rejects() {
             "/api/todo-task-create",
             &json!({
                 "title": "Bad cat",
+                "todo_md": HTTP_CREATE_TODO_MD,
                 "sub_titles": ["S"],
                 "category_id": "cat_missing_zzz",
             }),
@@ -2695,7 +2750,7 @@ fn get_todo_tasks_optional_category_id_filters_and_omission_lists_all() {
         let (s1, b1) = http_post(
             port,
             "/api/todo-task-create",
-            &json!({ "title": "In filter", "sub_titles": ["S"], "category_id": cat_id }),
+            &json!({ "title": "In filter", "todo_md": HTTP_CREATE_TODO_MD, "sub_titles": ["S"], "category_id": cat_id }),
         );
         assert_eq!(s1, 201);
         let in_id = b1["master_task_id"].as_str().unwrap().to_string();
@@ -2703,7 +2758,7 @@ fn get_todo_tasks_optional_category_id_filters_and_omission_lists_all() {
         let (s2, b2) = http_post(
             port,
             "/api/todo-task-create",
-            &json!({ "title": "Default one", "sub_titles": ["S"] }),
+            &json!({ "title": "Default one", "todo_md": HTTP_CREATE_TODO_MD, "sub_titles": ["S"] }),
         );
         assert_eq!(s2, 201);
         let def_id = b2["master_task_id"].as_str().unwrap().to_string();

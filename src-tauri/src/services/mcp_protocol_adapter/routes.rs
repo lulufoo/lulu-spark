@@ -177,13 +177,13 @@ pub(super) fn todo_tool_routes() -> Vec<ToolRoute> {
     vec![
         route(
             "create_todo_task",
-            "Create a todo task with a title and optional Markdown body, category, and initial subtask titles.",
+            "Create a todo task with a title and required Markdown body, plus optional category and initial subtask titles.",
             HttpMethod::Post,
             "/api/todo-task-create",
             object_schema(
                 json!({
                     "title": { "type": "string", "description": "Todo task title." },
-                    "todo_md": { "type": "string", "description": "Optional task body Markdown." },
+                    "todo_md": { "type": "string", "description": "Required task body Markdown. Blank is rejected." },
                     "category_id": { "type": "string", "description": "Optional todo category id." },
                     "sub_titles": {
                         "type": "array",
@@ -191,7 +191,7 @@ pub(super) fn todo_tool_routes() -> Vec<ToolRoute> {
                         "description": "Optional initial subtask titles."
                     }
                 }),
-                &["title"],
+                &["title", "todo_md"],
             ),
             false,
             false,

@@ -295,8 +295,17 @@ pub(super) fn handle_todo_task_create(mut request: tiny_http::Request) {
     };
 
     let todo_md = match payload.get("todo_md") {
-        None | Some(Value::Null) => "",
-        Some(Value::String(s)) => s.as_str(),
+        None | Some(Value::Null) => {
+            respond_json(request, 400, json!({ "error": "Missing todo_md" }));
+            return;
+        }
+        Some(Value::String(s)) => {
+            if s.trim().is_empty() {
+                respond_json(request, 400, json!({ "error": "Missing todo_md" }));
+                return;
+            }
+            s.as_str()
+        }
         Some(_) => {
             respond_json(request, 400, json!({ "error": "Invalid todo_md" }));
             return;
