@@ -34,6 +34,14 @@ class SettingsStore(
                 commands.clearAsr()
                 reload()
             }
+            is SettingsIntent.SaveWebSearch -> {
+                commands.saveWebSearch(intent.apiKey)
+                reload()
+            }
+            SettingsIntent.ClearWebSearch -> {
+                commands.clearWebSearch()
+                reload()
+            }
         }
     }
 
@@ -42,6 +50,7 @@ class SettingsStore(
             catalog = commands.catalog(),
             active = commands.loadActive(),
             asr = commands.loadAsr(),
+            webSearch = commands.loadWebSearch(),
         )
     }
 }

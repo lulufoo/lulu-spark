@@ -8,6 +8,7 @@ import com.lulu.workbench.android.agent.tools.ToolDispatcher
 import com.lulu.workbench.android.agent.tools.fs.FsTools
 import com.lulu.workbench.android.agent.tools.stage.StageStore
 import com.lulu.workbench.android.agent.tools.stage.StagedItem
+import com.lulu.workbench.android.agent.tools.web.WebSearchTools
 import com.lulu.workbench.android.asr.AsrClient
 import com.lulu.workbench.android.asr.AsrFactory
 import com.lulu.workbench.android.llm.LlmClient
@@ -22,10 +23,11 @@ class AgentFacade(
     private val llm: LlmClient,
     private val wmcp: WmcpClient,
     storage: Storage,
+    web: WebSearchTools = WebSearchTools(storage),
 ) {
     private val sessions = SessionRegistry(storage)
     private val stages = StageStore(storage)
-    private val tools = ToolDispatcher(FsTools(), wmcp, storage)
+    private val tools = ToolDispatcher(FsTools(), wmcp, storage, web)
     private val loops = mutableMapOf<SessionId, AgentLoop>()
 
     fun listSessions(): List<SessionId> = sessions.list()
@@ -61,6 +63,7 @@ class WorkbenchRuntime(
     val llm: LlmClient,
     val wmcp: WmcpClient,
     val asr: AsrClient,
+    val webSearch: WebSearchTools,
 ) {
     companion object {
         fun create(filesDir: File): WorkbenchRuntime = create(StorageFactory.create(filesDir))
@@ -71,7 +74,8 @@ class WorkbenchRuntime(
             val llm = LlmFactory.create(storage)
             val wmcp = WmcpFactory.create(storage)
             val asr = AsrFactory.create(storage)
-            return WorkbenchRuntime(AgentFacade(llm, wmcp, storage), llm, wmcp, asr)
+            val web = WebSearchTools(storage)
+            return WorkbenchRuntime(AgentFacade(llm, wmcp, storage, web), llm, wmcp, asr, web)
         }
     }
 }

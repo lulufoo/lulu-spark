@@ -42,7 +42,7 @@ class SettingsActivity : ComponentActivity() {
         setContent {
             val mainHandler = remember { Handler(Looper.getMainLooper()) }
             val settingsStore = remember {
-                SettingsStore(SettingsCommands(runtime.llm, runtime.asr)).also {
+                SettingsStore(SettingsCommands(runtime.llm, runtime.asr, runtime.webSearch)).also {
                     it.dispatch(SettingsIntent.Load)
                 }
             }
@@ -107,6 +107,12 @@ class SettingsActivity : ComponentActivity() {
                                 )
                             },
                             onClearAsr = { settingsStore.dispatch(SettingsIntent.ClearAsr) },
+                            onSaveWebSearch = { apiKey ->
+                                settingsStore.dispatch(SettingsIntent.SaveWebSearch(apiKey))
+                            },
+                            onClearWebSearch = {
+                                settingsStore.dispatch(SettingsIntent.ClearWebSearch)
+                            },
                             onStartScan = {
                                 val granted = ContextCompat.checkSelfPermission(
                                     this@SettingsActivity,

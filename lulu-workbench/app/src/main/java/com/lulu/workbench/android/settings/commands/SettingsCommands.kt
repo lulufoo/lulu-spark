@@ -1,5 +1,7 @@
 package com.lulu.workbench.android.settings.commands
 
+import com.lulu.workbench.android.agent.tools.web.WebSearchConfig
+import com.lulu.workbench.android.agent.tools.web.WebSearchTools
 import com.lulu.workbench.android.asr.AsrClient
 import com.lulu.workbench.android.asr.AsrConfig
 import com.lulu.workbench.android.llm.LlmActive
@@ -9,6 +11,7 @@ import com.lulu.workbench.android.llm.LlmPreset
 class SettingsCommands(
     private val llm: LlmClient,
     private val asr: AsrClient,
+    private val web: WebSearchTools,
 ) {
     fun catalog(): List<LlmPreset> = llm.catalog()
 
@@ -34,5 +37,15 @@ class SettingsCommands(
 
     fun clearAsr() {
         asr.clearConfig()
+    }
+
+    fun loadWebSearch(): WebSearchConfig = web.loadConfig()
+
+    fun saveWebSearch(apiKey: String) {
+        web.saveKey(apiKey)
+    }
+
+    fun clearWebSearch() {
+        web.clear()
     }
 }

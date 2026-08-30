@@ -64,6 +64,8 @@ fun SettingsScreen(
     onReset: () -> Unit,
     onSaveAsr: (appId: String, secretId: String, secretKey: String) -> Unit,
     onClearAsr: () -> Unit,
+    onSaveWebSearch: (apiKey: String) -> Unit,
+    onClearWebSearch: () -> Unit,
     onStartScan: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -80,6 +82,9 @@ fun SettingsScreen(
     var asrSecretId by remember(state.asr.secretId) { mutableStateOf(state.asr.secretId) }
     var asrSecretKey by remember(state.asr.hasSecretKey) {
         mutableStateOf(if (state.asr.hasSecretKey) SAVED_API_KEY_MASK else "")
+    }
+    var webSearchKey by remember(state.webSearch.hasApiKey) {
+        mutableStateOf(if (state.webSearch.hasApiKey) SAVED_API_KEY_MASK else "")
     }
     val selected = state.catalog.firstOrNull { it.id == state.active.id }
         ?: state.catalog.firstOrNull()
@@ -220,6 +225,48 @@ fun SettingsScreen(
                         }
                     }
                 }
+                Spacer(modifier = Modifier.height(12.dp))
+                SettingsCard {
+                    Text("Web search", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        "Tavily Search. Works without a key (keyless, rate-limited). Optional key uses your monthly credits.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = colors.onSurfaceVariant,
+                    )
+                    SettingsTextField(
+                        value = webSearchKey,
+                        onValueChange = { next ->
+                            webSearchKey = if (webSearchKey == SAVED_API_KEY_MASK) {
+                                next.filterNot { it == '•' }
+                            } else {
+                                next
+                            }
+                        },
+                        label = "API key",
+                        placeholder = "Not set",
+                        supporting = if (state.webSearch.hasApiKey) {
+                            "Saved on this device"
+                        } else {
+                            null
+                        },
+                        visualTransformation = secretTransform(webSearchKey),
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Button(
+                            onClick = { onSaveWebSearch(apiKeyForSave(webSearchKey)) },
+                            colors = settingsButtonColors(),
+                        ) {
+                            Text("Save")
+                        }
+                        TextButton(onClick = onClearWebSearch) {
+                            Text("Clear key", color = colors.onSurfaceVariant)
+                        }
+                    }
+                }
             }
         }
     }
@@ -239,7 +286,7 @@ private fun SettingsHeader(onBack: () -> Unit) {
         Column(modifier = Modifier.padding(start = 4.dp, top = 12.dp, bottom = 12.dp)) {
             Text("Settings", style = MaterialTheme.typography.titleLarge)
             Text(
-                "Mac pair, model, and speech",
+                "Mac pair, model, speech, and web search",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

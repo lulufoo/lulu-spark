@@ -2,6 +2,7 @@ package com.lulu.workbench.android.agent.tools
 
 import com.lulu.workbench.android.agent.tools.fs.FsTools
 import com.lulu.workbench.android.agent.tools.stage.StageTools
+import com.lulu.workbench.android.agent.tools.web.WebSearchTools
 import com.lulu.workbench.android.llm.LlmToolDef
 import com.lulu.workbench.android.storage.Storage
 import com.lulu.workbench.android.wmcp.WmcpClient
@@ -10,19 +11,21 @@ class ToolDispatcher(
     private val fs: FsTools,
     private val wmcp: WmcpClient,
     private val storage: Storage,
+    private val web: WebSearchTools = WebSearchTools(storage),
 ) {
     private val stage = StageTools(storage)
 
     fun definitions(): List<LlmToolDef> {
-        val local = fs.definitions() + stage.definitions()
+        val local = fs.definitions() + stage.definitions() + web.definitions()
         if (!wmcp.isBound()) return local
         val remote = try {
             wmcp.listTools()
         } catch (_: Exception) {
             emptyList()
         }
+        val localNames = local.map { it.name }.toSet()
         return local +
-            remote.map { tool ->
+            remote.filter { it.name !in localNames }.map { tool ->
                 val description =
                     if (tool.name == NOTE_CONTENT_TOOL) {
                         NOTE_CONTENT_STAGE_DESCRIPTION
@@ -49,6 +52,9 @@ class ToolDispatcher(
         }
         if (name in stage.names) {
             return stage.call(name, arguments, sessionId, sessionTitle)
+        }
+        if (name in web.names) {
+            return web.call(name, arguments)
         }
         if (!wmcp.isBound()) {
             return "Tool '$name' is not available."

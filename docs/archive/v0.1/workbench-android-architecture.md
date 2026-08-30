@@ -14,9 +14,9 @@ Mac 侧入口与分层以 Workbench 仓库 `docs/architecture/arch-layer-constra
 
 1. 多 session 并行的实现是多个 `loop` **实例**同时跑，不是一个 `loop` 里用一张表假装并行。每个 session 同时只有一轮 in-flight；不同 session 的 `loop` 可以一起跑。
 2. 一轮请求的进度状态由该 session 的 `loop` 实例抛出。`:app` 用 MVI 接收并画出。不单开 `progress` 包。
-3. Chat Agent 跑在手机上。没有 MCP（未绑定或 Mac 不在线）时仍可 LLM 对话 + 本地 `fs` 工具。MCP 必须绑定后才可用。手机不是 Mac 上那个 Agent 的远程窗口。
-4. 每个 session 两根目录：对话历史，以及工具 scratch。围栏只给工具那一根。本地工具是 `read` / `grep` / `write` / `edit`，外加 App 级 `stage` / `list_staged` / `get_staged`（不进 scratch）。这些文件只在手机应用内，不写 Mac 磁盘。工具进不去历史根。
-5. 模块只有 `:app` `:agent` `:llm` `:wmcp` `:network` `:storage`，没有 `:core`。`:agent` 只有 `facade` / `loop` / `session` / `tools`（含 `fs` 与 `stage`），没有自建 mcp client。`:storage` 不认 session。`:network` 按扫码指纹钉 Gateway 证书。MVI 只在 `:app`。
+3. Chat Agent 跑在手机上。没有 MCP（未绑定或 Mac 不在线）时仍可 LLM 对话 + 本地 `fs` 工具 + `web_search`。MCP 必须绑定后才可用。手机不是 Mac 上那个 Agent 的远程窗口。
+4. 每个 session 两根目录：对话历史，以及工具 scratch。围栏只给工具那一根。本地工具是 `read` / `grep` / `write` / `edit`，外加 App 级 `stage` / `list_staged` / `get_staged`（不进 scratch），以及不经 Mac、不跟 LLM 厂商绑定的 `web_search`（只回短摘要 + 链接，不写盘）。这些文件只在手机应用内，不写 Mac 磁盘。工具进不去历史根。
+5. 模块只有 `:app` `:agent` `:llm` `:wmcp` `:network` `:storage`，没有 `:core`。`:agent` 只有 `facade` / `loop` / `session` / `tools`（含 `fs`、`stage` 与 `web`），没有自建 mcp client。`:storage` 不认 session。`:network` 按扫码指纹钉 Gateway 证书。MVI 只在 `:app`。
 6. 绑定用现有扫码，完成走 `/bind/complete`，工具走 `/mcp/mobile`。只在局域网。不直连 Host MCP，也不配 `cursor_ide` 本机 URL。MVP 不新开 Port B 业务路由，不做公网中继。
 
 LLM 未配置时界面如何提示：仍未决，不是不变项。❌ Unresolved
@@ -32,6 +32,7 @@ flowchart LR
   UI[Chat 主界面] --> Agent[手机 Agent]
   Agent --> LLM[可配置的 LLM]
   Agent --> Fs[本地文件工具]
+  Agent --> Web[本地 web_search]
   Agent -.->|未绑定：不可用| MCP
   Agent -->|已绑定| GW[Mac LAN Gateway]
   GW --> MCP["/mcp/mobile"]
@@ -41,7 +42,10 @@ flowchart LR
 |------|--------|------|
 | 对话智能 | 手机 Agent 调 LLM | 不需要 |
 | 本地 `read` / `grep` / `write` / `edit` | 手机 Agent，按 session 隔离 | 不需要 |
+| 公网检索摘要 + 链接 | 手机 Agent 调 Tavily（默认 keyless；可选本机 key） | 不需要 |
 | 笔记 / 知识库 / Todo 等 | Mac MCP | 必须绑定 |
+
+公网检索走手机本地 `web_search`，不经 Mac、不跟 LLM 厂商工具绑定。无 key 时请求头 `X-Tavily-Access-Mode: keyless`；有 key 时 `Authorization: Bearer`。✅ Verified（对话锁定；Android `WebSearchTools`；[Tavily keyless](https://docs.tavily.com/documentation/keyless)）
 
 「绑定」指手机与 Mac 配对（`Bind_Mobile`），不是 Mac 桌面助手里把 Agent 绑到业务 key 的 Binding Contract。
 
@@ -97,10 +101,10 @@ MVP 不新开 Port B 业务路由，也不做公网中继。绑定仍走已有�
 | 模块 | 一句话 |
 |------|--------|
 | `:app` | 壳、Chat / 设置 / 扫码界面、MVI |
-| `:agent` | 对话循环、多 session、本地文件工具、session 隔离 |
+| `:agent` | 对话循环、多 session、本地文件工具、`web_search`、session 隔离 |
 | `:llm` | LLM 配置形状与补全请求 |
 | `:wmcp` | 绑定握手与密码学；调 `/mcp/mobile` |
-| `:network` | 出站 HTTPS 客户端（LLM 公网 + Mac Gateway） |
+| `:network` | 出站 HTTPS 客户端（LLM 公网 + Mac Gateway + Tavily） |
 | `:storage` | 纯读写：路径上的文件，以及按键存取的密钥 |
 
 ```mermaid
@@ -111,7 +115,8 @@ flowchart LR
   agent --> llm
   agent --> wmcp
   agent --> store[":storage"]
-  llm --> net[":network"]
+  agent --> net[":network"]
+  llm --> net
   wmcp --> net
   llm --> store
   wmcp --> store
@@ -124,7 +129,7 @@ flowchart LR
 | 模块 | 必须 | 禁止 |
 |------|------|------|
 | `:app` | 扫码界面；用 MVI 画 Chat / 设置 / 绑定状态 | 自己发 HTTP；自己算工具围栏 |
-| `:agent` | 按 `SessionId` 算历史根与工具根；分发本地工具与 `:wmcp` 工具 | 自建 MCP 客户端；自建 HTTPS 栈 |
+| `:agent` | 按 `SessionId` 算历史根与工具根；分发本地工具（含 `web_search`，走 `:network`）与 `:wmcp` 工具 | 自建 MCP 客户端；自建 HTTPS 栈 |
 | `:llm` | 表达配置与补全 | 认 `SessionId`；直连 Mac |
 | `:wmcp` | 扫码载荷上的握手与密码学；把 TLS 指纹交给 `:network`；带 token 调 MCP | 实现 TLS 钉证书；当 server |
 | `:network` | 普通 HTTPS；按传入的指纹钉 Gateway 证书 | 解析绑定协议；认 session |
@@ -146,6 +151,7 @@ flowchart LR
 | `tools` | 合并工具表并分发 |
 | `tools/fs` | `read` / `grep` / `write` / `edit` |
 | `tools/stage` | `stage` / `list_staged` / `get_staged`；库在 `staged/`，不进 session scratch |
+| `tools/web` | `web_search`；Tavily 短摘要 + 链接；默认 keyless，可选密钥在 `:storage` |
 
 不单开 `progress` 包，不单开 mcp client 包。
 
@@ -156,7 +162,7 @@ flowchart LR
 - LLM 在 `:llm`，不在 `:agent`。
 - MCP 在 `:wmcp`，`:agent` 只决定调不调、调哪个名字。
 - 不迁桌面 Binding Contract。
-- 未绑定也能跑 `loop`（纯 LLM + 本地 `fs` + `stage`）。Mac 当前 `run_loop` 在无 Binding 时直接拒绝聊天。✅ Verified（`loop/turn.rs` 在无 Binding 时返回 `Unbound — no active Binding Contract`）
+- 未绑定也能跑 `loop`（纯 LLM + 本地 `fs` + `stage` + `web_search`）。Mac 当前 `run_loop` 在无 Binding 时直接拒绝聊天。✅ Verified（`loop/turn.rs` 在无 Binding 时返回 `Unbound — no active Binding Contract`；Android `ToolDispatcher`）
 
 ---
 
@@ -178,7 +184,7 @@ flowchart LR
 
 Mac 文件工具是 Host 本地工具，`write` / `edit` 进 `{scratch_parent}/{session_id}`。✅ Verified（`fs_tools.rs`、`path_fence.rs` 的 `with_session_scratch`）
 
-未绑定：工具表是 `fs` 加 `stage` 族。已绑定：再加上 `:wmcp` 列出的 MCP 工具。分发按名字：四件进 `fs`，`stage` / `list_staged` / `get_staged` 进 `stage`，其余进 `:wmcp`。对齐 Mac 合并 MCP catalog 与 `fs_tools::catalog` 再分发。✅ Verified（`loop/turn.rs`；Android `ToolDispatcher`）
+未绑定：工具表是 `fs` 加 `stage` 族加 `web_search`。已绑定：再加上 `:wmcp` 列出的 MCP 工具。分发按名字：四件进 `fs`，`stage` / `list_staged` / `get_staged` 进 `stage`，`web_search` 进 `web`，其余进 `:wmcp`。对齐 Mac 合并 MCP catalog 与 `fs_tools::catalog` 再分发。✅ Verified（`loop/turn.rs`；Android `ToolDispatcher`）
 
 ---
 
@@ -202,18 +208,20 @@ flowchart TB
   L --> T
   L --> LLM[":llm"]
   T --> WMCP[":wmcp"]
+  T --> NET[":network"]
   S --> ST[":storage"]
   LLM --> ST
   WMCP --> ST
-  LLM --> NET[":network"]
+  LLM --> NET
   WMCP --> NET
   NET --> GLM[GLM HTTPS]
   NET --> GW[Mac Gateway HTTPS]
+  NET --> Tavily[Tavily HTTPS]
 ```
 
 ### 禁止
 
-1. 任何模块跳过 `:network` 自己做套接字访问 LLM 或 Gateway。
+1. 任何模块跳过 `:network` 自己做套接字访问 LLM、Gateway 或 Tavily。
 2. `:agent` 内实现 Streamable HTTP MCP 客户端。
 3. 手机直连 `127.0.0.1` 上的 Host MCP 或 `cursor_ide` 槽。
 4. `:storage` 接收 `SessionId` 或实现围栏。
@@ -234,6 +242,7 @@ flowchart TB
 - Chat 主界面（Compose + MVI）
 - 手机本地 LLM 配置与对话
 - 多 session；本地文件工具与两根目录隔离
+- 手机本地 `web_search`（短摘要 + 链接）
 - 扫码绑定 Mac；绑定后经 Gateway 使用 `/mcp/mobile`
 
 不做：

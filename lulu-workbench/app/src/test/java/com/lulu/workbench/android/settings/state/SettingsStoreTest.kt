@@ -11,7 +11,7 @@ class SettingsStoreTest {
     @Test
     fun saveWritesCurrentProfileAndKeepsKeyWhenBlank() {
         val runtime = WorkbenchRuntime.createForTest()
-        val store = SettingsStore(SettingsCommands(runtime.llm, runtime.asr))
+        val store = SettingsStore(SettingsCommands(runtime.llm, runtime.asr, runtime.webSearch))
         store.dispatch(SettingsIntent.Load)
         store.dispatch(
             SettingsIntent.Save(
@@ -36,7 +36,7 @@ class SettingsStoreTest {
     @Test
     fun selectThenResetUsesPresetDefaults() {
         val runtime = WorkbenchRuntime.createForTest()
-        val store = SettingsStore(SettingsCommands(runtime.llm, runtime.asr))
+        val store = SettingsStore(SettingsCommands(runtime.llm, runtime.asr, runtime.webSearch))
         store.dispatch(SettingsIntent.Load)
         assertEquals("glm", store.state.active.id)
         assertFalse(store.state.active.hasApiKey)
@@ -58,7 +58,7 @@ class SettingsStoreTest {
     @Test
     fun saveAsrWritesKeysAndClearRemovesThem() {
         val runtime = WorkbenchRuntime.createForTest()
-        val store = SettingsStore(SettingsCommands(runtime.llm, runtime.asr))
+        val store = SettingsStore(SettingsCommands(runtime.llm, runtime.asr, runtime.webSearch))
         store.dispatch(SettingsIntent.Load)
         assertFalse(store.state.asr.hasSecretKey)
         store.dispatch(SettingsIntent.SaveAsr("125", "AKID", "secret"))
@@ -68,5 +68,19 @@ class SettingsStoreTest {
         store.dispatch(SettingsIntent.ClearAsr)
         assertFalse(store.state.asr.hasSecretKey)
         assertEquals("", store.state.asr.appId)
+    }
+
+    @Test
+    fun saveWebSearchWritesKeyAndClearRemovesIt() {
+        val runtime = WorkbenchRuntime.createForTest()
+        val store = SettingsStore(SettingsCommands(runtime.llm, runtime.asr, runtime.webSearch))
+        store.dispatch(SettingsIntent.Load)
+        assertFalse(store.state.webSearch.hasApiKey)
+        store.dispatch(SettingsIntent.SaveWebSearch("  tvly-test  "))
+        assertTrue(store.state.webSearch.hasApiKey)
+        store.dispatch(SettingsIntent.SaveWebSearch("   "))
+        assertTrue(store.state.webSearch.hasApiKey)
+        store.dispatch(SettingsIntent.ClearWebSearch)
+        assertFalse(store.state.webSearch.hasApiKey)
     }
 }

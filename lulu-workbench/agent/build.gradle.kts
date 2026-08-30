@@ -22,6 +22,7 @@ dependencies {
     implementation(project(":llm"))
     implementation(project(":asr"))
     implementation(project(":wmcp"))
+    implementation(project(":network"))
     implementation(project(":storage"))
     implementation(project(":log"))
     testImplementation(libs.junit)

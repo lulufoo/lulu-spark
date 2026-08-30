@@ -1,5 +1,6 @@
 package com.lulu.workbench.android.settings.state
 
+import com.lulu.workbench.android.agent.tools.web.WebSearchConfig
 import com.lulu.workbench.android.asr.AsrConfig
 import com.lulu.workbench.android.llm.LlmActive
 import com.lulu.workbench.android.llm.LlmPreset
@@ -14,6 +15,7 @@ data class SettingsState(
         hasApiKey = false,
     ),
     val asr: AsrConfig = AsrConfig(),
+    val webSearch: WebSearchConfig = WebSearchConfig(),
 )
 
 sealed class SettingsIntent {
@@ -36,4 +38,8 @@ sealed class SettingsIntent {
     ) : SettingsIntent()
 
     data object ClearAsr : SettingsIntent()
+
+    data class SaveWebSearch(val apiKey: String) : SettingsIntent()
+
+    data object ClearWebSearch : SettingsIntent()
 }

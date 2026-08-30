@@ -1,6 +1,11 @@
 package com.lulu.workbench.android.agent.tools
 
 import com.lulu.workbench.android.agent.tools.fs.FsTools
+import com.lulu.workbench.android.agent.tools.web.SECRET_NAME
+import com.lulu.workbench.android.agent.tools.web.WebSearchTools
+import com.lulu.workbench.android.network.HttpRequest
+import com.lulu.workbench.android.network.HttpResponse
+import com.lulu.workbench.android.network.NetworkClient
 import com.lulu.workbench.android.storage.MemoryStorage
 import com.lulu.workbench.android.wmcp.BindOffer
 import com.lulu.workbench.android.wmcp.BindResult
@@ -42,8 +47,49 @@ class ToolDispatcherTest {
         val names = defs.map { it.name }
         assertTrue(names.containsAll(listOf("read", "grep", "write", "edit")))
         assertTrue(names.containsAll(listOf("stage", "list_staged", "get_staged")))
+        assertTrue(names.contains("web_search"))
         assertTrue(defs.none { it.name == "create_note" })
         assertTrue(defs.none { it.name == "delete_staged" })
+    }
+
+    @Test
+    fun webSearchStaysLocalWhenBound() {
+        val storage = MemoryStorage()
+        storage.putSecret(SECRET_NAME, "tvly-test")
+        val network =
+            ScriptedNetwork(
+                HttpResponse(
+                    status = 200,
+                    body =
+                        """{"results":[{"title":"Kotlin","url":"https://kotlin.test","content":"lang"}]}"""
+                            .encodeToByteArray(),
+                ),
+            )
+        val dispatcher =
+            ToolDispatcher(
+                FsTools(),
+                BoundWmcp(McpTool("web_search", "remote search", "{}")),
+                storage,
+                WebSearchTools(storage, network),
+            )
+        val out = dispatcher.call("web_search", """{"query":"kotlin"}""", "/tmp")
+        assertTrue(out.contains("https://kotlin.test"))
+        assertTrue(out.contains("Kotlin"))
+        assertTrue(!out.contains("remote search"))
+    }
+
+    @Test
+    fun localWebSearchWinsOverRemoteCatalog() {
+        val defs =
+            ToolDispatcher(
+                FsTools(),
+                BoundWmcp(McpTool("web_search", "remote search", "{}")),
+                MemoryStorage(),
+            ).definitions()
+        val webs = defs.filter { it.name == "web_search" }
+        assertEquals(1, webs.size)
+        assertTrue(webs.single().description.contains("public web"))
+        assertTrue(!webs.single().description.contains("remote search"))
     }
 
     @Test
@@ -165,6 +211,12 @@ private class CallingWmcp(
         if (name != expectedName) error("unexpected tool $name")
         return McpToolResult(text = result)
     }
+}
+
+private class ScriptedNetwork(
+    private val response: HttpResponse,
+) : NetworkClient {
+    override fun execute(request: HttpRequest): HttpResponse = response
 }
 
 private class UnboundForDispatch : WmcpClient {
