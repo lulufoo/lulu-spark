@@ -34,11 +34,15 @@ class MainActivity : ComponentActivity() {
         setContent {
             val mainHandler = remember { Handler(Looper.getMainLooper()) }
             val chatStore = remember {
-                ChatStore(
+                val keepAlive = runtime.wmcp.keepAlive()
+                val store = ChatStore(
                     ChatCommands(runtime.agent, runtime.asr, AndroidVoiceRecorder()),
+                    keepAlive = keepAlive,
                     runOffMain = { block -> Thread { block() }.start() },
                     runOnMain = { block -> mainHandler.post { block() } },
                 )
+                keepAlive.start()
+                store
             }
             LuLuWorkbenchTheme {
                 Scaffold(

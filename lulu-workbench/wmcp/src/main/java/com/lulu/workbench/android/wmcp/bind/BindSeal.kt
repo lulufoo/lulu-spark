@@ -1,5 +1,6 @@
-package com.lulu.workbench.android.wmcp
+package com.lulu.workbench.android.wmcp.bind
 
+import com.lulu.workbench.android.wmcp.shared.jsonString
 import org.bouncycastle.crypto.agreement.X25519Agreement
 import org.bouncycastle.crypto.digests.SHA256Digest
 import org.bouncycastle.crypto.generators.HKDFBytesGenerator

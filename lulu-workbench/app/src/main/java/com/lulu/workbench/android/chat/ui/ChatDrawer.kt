@@ -39,6 +39,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.lulu.workbench.android.chat.state.ChatSessionItem
 import com.lulu.workbench.android.chat.state.ChatState
+import com.lulu.workbench.android.ui.McpLinkDot
 
 @Composable
 internal fun ChatDrawer(
@@ -58,12 +59,18 @@ internal fun ChatDrawer(
             .windowInsetsPadding(WindowInsets.safeDrawing)
             .padding(horizontal = 12.dp, vertical = 12.dp),
     ) {
-        Text(
-            "Lulu Workbench",
-            style = MaterialTheme.typography.titleLarge,
-            color = colors.onSurface,
+        Row(
             modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
-        )
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(
+                "Lulu Workbench",
+                style = MaterialTheme.typography.titleLarge,
+                color = colors.onSurface,
+            )
+            McpLinkDot(state.mcpLink)
+        }
         Spacer(modifier = Modifier.height(8.dp))
         DrawerRow(
             label = "New chat",

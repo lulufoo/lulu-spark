@@ -1,24 +1,16 @@
-package com.lulu.workbench.android.wmcp
+package com.lulu.workbench.android.wmcp.mcp
 
-import com.lulu.workbench.android.network.HttpRequest
 import com.lulu.workbench.android.network.HttpResponse
-import com.lulu.workbench.android.network.NetworkClient
 import com.lulu.workbench.android.storage.MemoryStorage
+import com.lulu.workbench.android.wmcp.BindFailedException
+import com.lulu.workbench.android.wmcp.McpLinkState
+import com.lulu.workbench.android.wmcp.keepalive.MCP_KEEP_ALIVE_RETRY_MS
+import com.lulu.workbench.android.wmcp.keepalive.ManualLinkClock
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class WmcpClientTest {
-    @Test
-    fun parseOfferReadsQrFields() {
-        val offer = parseBindOffer(
-            """{"ip":"10.0.0.2","port":7654,"temp_pub":"aa","tls_fingerprint":"ff","exp":1,"sig":"ss"}""",
-        )
-        assertEquals("10.0.0.2", offer.ip)
-        assertEquals(7654, offer.port)
-        assertEquals("ff", offer.tlsFingerprint)
-    }
-
     @Test
     fun deviceIdIsStablePlaintext() {
         val storage = MemoryStorage()
@@ -90,41 +82,6 @@ class WmcpClientTest {
     }
 
     @Test
-    fun jsonRpcPayloadReadsSseData() {
-        val raw = "event: message\ndata: {\"result\":{\"tools\":[{\"name\":\"get_notes\"}]}}\n\n"
-        assertEquals(
-            listOf("get_notes"),
-            parseToolNames(jsonRpcPayload(raw)),
-        )
-    }
-
-    @Test
-    fun parseToolsKeepsHostInputSchemaAndDescription() {
-        val tools = parseTools(LIST_TOOLS_WITH_SCHEMA)
-        assertEquals(1, tools.size)
-        assertEquals("create_note", tools[0].name)
-        assertEquals("Create a note from Markdown content.", tools[0].description)
-        assertTrue(tools[0].inputSchemaJson.contains("\"properties\""))
-        assertTrue(tools[0].inputSchemaJson.contains("\"title\""))
-        assertTrue(tools[0].inputSchemaJson.contains("\"content\""))
-        assertTrue(tools[0].inputSchemaJson.contains("\"required\""))
-    }
-
-    @Test
-    fun parseToolsDoesNotTreatNestedNameAsTool() {
-        val body =
-            """{"result":{"tools":[{"name":"create_todo_task","description":"Add a task.","inputSchema":{"type":"object","properties":{"title":{"type":"string","description":"name of the task"}}}}]}}"""
-        assertEquals(listOf("create_todo_task"), parseToolNames(body))
-    }
-
-    @Test
-    fun parseToolsFallsBackWhenSchemaMissing() {
-        val tools = parseTools("""{"result":{"tools":[{"name":"get_notes"}]}}""")
-        assertEquals("get_notes", tools.single().name)
-        assertEquals("""{"type":"object"}""", tools.single().inputSchemaJson)
-    }
-
-    @Test
     fun listToolsWorksWhenInitializeOmitsSession() {
         val network = RecordingNetwork(
             HttpResponse(200, """{"device_mcp_token":"tok"}""".encodeToByteArray()),
@@ -185,33 +142,126 @@ class WmcpClientTest {
             HttpResponse(200, """{"device_mcp_token":"tok"}""".encodeToByteArray()),
             HttpResponse(406, ByteArray(0)),
         )
-        val wmcp = WmcpClientImpl(MemoryStorage(), network)
+        val wmcp = wmcpClient(network)
         wmcp.completeBind(liveOffer())
         assertTrue(wmcp.listTools().isEmpty())
+        assertEquals(McpLinkState.Disconnected, wmcp.keepAlive().state())
     }
-}
 
-private const val LIST_TOOLS_WITH_SCHEMA =
-    """{"result":{"tools":[{"name":"create_note","description":"Create a note from Markdown content.","inputSchema":{"type":"object","properties":{"title":{"type":"string"},"content":{"type":"string"},"project":{"type":"string"}},"required":["content","title"],"additionalProperties":false}}]}}"""
+    @Test
+    fun listToolsSuccessMarksConnected() {
+        val network = RecordingNetwork(
+            HttpResponse(200, """{"device_mcp_token":"tok"}""".encodeToByteArray()),
+            HttpResponse(
+                200,
+                """{"result":{"protocolVersion":"2025-03-26"}}""".encodeToByteArray(),
+                mapOf("mcp-session-id" to "sess-1"),
+            ),
+            HttpResponse(202, ByteArray(0)),
+            HttpResponse(200, """{"result":{"tools":[{"name":"get_notes"}]}}""".encodeToByteArray()),
+        )
+        val wmcp = wmcpClient(network)
+        wmcp.completeBind(liveOffer())
+        assertEquals(McpLinkState.Unbound, wmcp.keepAlive().state())
+        wmcp.listTools()
+        assertEquals(McpLinkState.Connected, wmcp.keepAlive().state())
+    }
 
-private fun liveOffer(): BindOffer =
-    BindOffer(
-        ip = "10.0.0.2",
-        port = 7654,
-        tempPub = randomTempPubHex(),
-        tlsFingerprint = "ff",
-        exp = 4_102_444_800,
-        sig = "ss",
-    )
+    @Test
+    fun callToolJsonRpcErrorDoesNotDisconnect() {
+        val network = RecordingNetwork(
+            HttpResponse(200, """{"device_mcp_token":"tok"}""".encodeToByteArray()),
+            HttpResponse(
+                200,
+                """{"result":{"protocolVersion":"2025-03-26"}}""".encodeToByteArray(),
+                mapOf("mcp-session-id" to "sess-1"),
+            ),
+            HttpResponse(202, ByteArray(0)),
+            HttpResponse(
+                200,
+                """{"jsonrpc":"2.0","id":2,"error":{"code":-32602,"message":"bad args"}}""".encodeToByteArray(),
+            ),
+        )
+        val wmcp = wmcpClient(network)
+        wmcp.completeBind(liveOffer())
+        val result = wmcp.callTool("create_note", "{}")
+        assertTrue(result.text.contains("bad args") || result.text.contains("error"))
+        assertEquals(McpLinkState.Connected, wmcp.keepAlive().state())
+    }
 
-private class RecordingNetwork(
-    vararg responses: HttpResponse,
-) : NetworkClient {
-    private val queue = responses.toMutableList()
-    val requests = mutableListOf<HttpRequest>()
+    @Test
+    fun conversationListToolsCancelsKeepAliveRetry() {
+        val clock = ManualLinkClock()
+        val network = RecordingNetwork(
+            HttpResponse(200, """{"device_mcp_token":"tok"}""".encodeToByteArray()),
+            HttpResponse(406, ByteArray(0)),
+            HttpResponse(
+                200,
+                """{"result":{"protocolVersion":"2025-03-26"}}""".encodeToByteArray(),
+                mapOf("mcp-session-id" to "sess-1"),
+            ),
+            HttpResponse(202, ByteArray(0)),
+            HttpResponse(200, """{"result":{"tools":[{"name":"get_notes"}]}}""".encodeToByteArray()),
+            HttpResponse(200, """{"result":{"tools":[{"name":"get_notes"}]}}""".encodeToByteArray()),
+        )
+        val wmcp = wmcpClient(network, clock)
+        wmcp.completeBind(liveOffer())
+        wmcp.keepAlive().start()
+        assertEquals(McpLinkState.Disconnected, wmcp.keepAlive().state())
+        assertEquals(1, clock.pending())
+        assertEquals(listOf("get_notes"), wmcp.listTools().map { it.name })
+        assertEquals(McpLinkState.Connected, wmcp.keepAlive().state())
+        clock.advance(MCP_KEEP_ALIVE_RETRY_MS)
+        assertEquals(McpLinkState.Connected, wmcp.keepAlive().state())
+        assertEquals(2, clock.executeCount)
+    }
 
-    override fun execute(request: HttpRequest): HttpResponse {
-        requests.add(request)
-        return queue.removeFirst()
+    @Test
+    fun listToolsLinkFailureDoesNotFlipGreenOnStaleSessionRetry() {
+        val clock = ManualLinkClock()
+        val network = RecordingNetwork(
+            HttpResponse(200, """{"device_mcp_token":"tok"}""".encodeToByteArray()),
+            HttpResponse(
+                200,
+                """{"result":{"protocolVersion":"2025-03-26"}}""".encodeToByteArray(),
+                mapOf("mcp-session-id" to "sess-1"),
+            ),
+            HttpResponse(202, ByteArray(0)),
+            HttpResponse(200, """{"result":{"tools":[{"name":"get_notes"}]}}""".encodeToByteArray()),
+            HttpResponse(406, ByteArray(0)),
+            HttpResponse(406, ByteArray(0)),
+        )
+        val wmcp = wmcpClient(network, clock)
+        wmcp.completeBind(liveOffer())
+        wmcp.keepAlive().start()
+        assertEquals(listOf("get_notes"), wmcp.listTools().map { it.name })
+        assertEquals(McpLinkState.Connected, wmcp.keepAlive().state())
+        assertTrue(wmcp.listTools().isEmpty())
+        assertEquals(McpLinkState.Disconnected, wmcp.keepAlive().state())
+        clock.advance(MCP_KEEP_ALIVE_RETRY_MS)
+        assertEquals(McpLinkState.Disconnected, wmcp.keepAlive().state())
+    }
+
+    @Test
+    fun keepAliveProbeMarksDisconnectedWhenHostGone() {
+        val clock = ManualLinkClock()
+        val network = RecordingNetwork(
+            HttpResponse(200, """{"device_mcp_token":"tok"}""".encodeToByteArray()),
+            HttpResponse(
+                200,
+                """{"result":{"protocolVersion":"2025-03-26"}}""".encodeToByteArray(),
+                mapOf("mcp-session-id" to "sess-1"),
+            ),
+            HttpResponse(202, ByteArray(0)),
+            HttpResponse(200, """{"result":{"tools":[{"name":"get_notes"}]}}""".encodeToByteArray()),
+            HttpResponse(406, ByteArray(0)),
+        )
+        val wmcp = wmcpClient(network, clock)
+        wmcp.completeBind(liveOffer())
+        wmcp.keepAlive().start()
+        assertEquals(listOf("get_notes"), wmcp.listTools().map { it.name })
+        assertEquals(McpLinkState.Connected, wmcp.keepAlive().state())
+        clock.advance(MCP_KEEP_ALIVE_RETRY_MS)
+        assertEquals(McpLinkState.Disconnected, wmcp.keepAlive().state())
     }
 }

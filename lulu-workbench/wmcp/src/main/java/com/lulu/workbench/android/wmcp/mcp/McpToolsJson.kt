@@ -1,4 +1,6 @@
-package com.lulu.workbench.android.wmcp
+package com.lulu.workbench.android.wmcp.mcp
+
+import com.lulu.workbench.android.wmcp.McpTool
 
 private const val EMPTY_OBJECT_SCHEMA = """{"type":"object"}"""
 

@@ -10,14 +10,27 @@ import com.lulu.workbench.android.asr.AsrException
 import com.lulu.workbench.android.asr.AsrNotConfiguredException
 import com.lulu.workbench.android.asr.isVoiceTooShort
 import com.lulu.workbench.android.chat.commands.ChatCommands
+import com.lulu.workbench.android.wmcp.IdleKeepAlive
+import com.lulu.workbench.android.wmcp.McpKeepAlive
 
 class ChatStore(
     private val commands: ChatCommands,
+    private val keepAlive: McpKeepAlive = IdleKeepAlive,
     private val runOffMain: (() -> Unit) -> Unit = { it() },
     private val runOnMain: (() -> Unit) -> Unit = { it() },
 ) {
     var state: ChatState by mutableStateOf(restore())
         private set
+
+    init {
+        keepAlive.addListener { next ->
+            runOnMain {
+                if (state.mcpLink != next) {
+                    state = state.copy(mcpLink = next)
+                }
+            }
+        }
+    }
 
     fun dispatch(intent: ChatIntent) {
         when (intent) {
@@ -29,6 +42,7 @@ class ChatStore(
                     sessionId = id.value,
                     sessions = listed(),
                     asrConfigured = asrReady(),
+                    mcpLink = state.mcpLink,
                 )
             }
             is ChatIntent.SelectSession -> {
@@ -65,7 +79,7 @@ class ChatStore(
                 }
                 val next = remaining.firstOrNull()
                 if (next == null) {
-                    state = ChatState(asrConfigured = asrReady())
+                    state = ChatState(asrConfigured = asrReady(), mcpLink = state.mcpLink)
                     return
                 }
                 val loaded = sessionTurns(next.id)
@@ -75,6 +89,7 @@ class ChatStore(
                     sessions = remaining,
                     turns = loaded,
                     asrConfigured = asrReady(),
+                    mcpLink = state.mcpLink,
                 )
             }
             ChatIntent.RefreshAsr -> {
@@ -196,7 +211,10 @@ class ChatStore(
 
     private fun restore(): ChatState {
         val items = listed()
-        val current = items.firstOrNull() ?: return ChatState(asrConfigured = asrReady())
+        val current = items.firstOrNull() ?: return ChatState(
+            asrConfigured = asrReady(),
+            mcpLink = keepAlive.state(),
+        )
         val loaded = sessionTurns(current.id)
         return ChatState(
             sessionId = current.id,
@@ -204,6 +222,7 @@ class ChatStore(
             sessions = items,
             turns = loaded,
             asrConfigured = asrReady(),
+            mcpLink = keepAlive.state(),
         )
     }
 

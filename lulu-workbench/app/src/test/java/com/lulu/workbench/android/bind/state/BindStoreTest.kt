@@ -4,6 +4,9 @@ import com.lulu.workbench.android.bind.commands.BindCommands
 import com.lulu.workbench.android.wmcp.BindFailedException
 import com.lulu.workbench.android.wmcp.BindOffer
 import com.lulu.workbench.android.wmcp.BindResult
+import com.lulu.workbench.android.wmcp.McpKeepAlive
+import com.lulu.workbench.android.wmcp.McpLinkListener
+import com.lulu.workbench.android.wmcp.McpLinkState
 import com.lulu.workbench.android.wmcp.McpTool
 import com.lulu.workbench.android.wmcp.McpToolResult
 import com.lulu.workbench.android.wmcp.WmcpClient
@@ -45,6 +48,18 @@ class BindStoreTest {
         assertFalse(store.state.bound)
         assertTrue(store.state.error.isNotEmpty())
     }
+
+    @Test
+    fun keepAliveReplaySetsLinkWithoutStart() {
+        val keep = RecordingKeepAlive(McpLinkState.Connected)
+        val store = BindStore(BindCommands(FakeWmcp(), "Pixel"), keepAlive = keep)
+        assertEquals(McpLinkState.Connected, store.state.mcpLink)
+        assertEquals(0, keep.starts)
+        keep.emit(McpLinkState.Disconnected)
+        assertEquals(McpLinkState.Disconnected, store.state.mcpLink)
+        assertEquals(0, keep.starts)
+        store.release()
+    }
 }
 
 private class FakeWmcp(
@@ -65,4 +80,31 @@ private class FakeWmcp(
     override fun listTools(): List<McpTool> = emptyList()
 
     override fun callTool(name: String, arguments: String): McpToolResult = error("unused")
+}
+
+private class RecordingKeepAlive(
+    private var current: McpLinkState,
+) : McpKeepAlive {
+    var starts = 0
+    private val listeners = mutableListOf<McpLinkListener>()
+
+    override fun addListener(listener: McpLinkListener) {
+        listeners.add(listener)
+        listener.onMcpLink(current)
+    }
+
+    override fun removeListener(listener: McpLinkListener) {
+        listeners.remove(listener)
+    }
+
+    override fun start() {
+        starts += 1
+    }
+
+    override fun state(): McpLinkState = current
+
+    fun emit(next: McpLinkState) {
+        current = next
+        listeners.forEach { it.onMcpLink(next) }
+    }
 }

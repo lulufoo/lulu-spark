@@ -1,4 +1,7 @@
-package com.lulu.workbench.android.wmcp
+package com.lulu.workbench.android.wmcp.mcp
+
+import com.lulu.workbench.android.wmcp.McpFailedException
+import com.lulu.workbench.android.wmcp.shared.jsonString
 
 internal const val MCP_PROTOCOL_VERSION = "2025-03-26"
 internal const val MCP_ACCEPT = "application/json, text/event-stream"

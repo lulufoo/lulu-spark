@@ -1,6 +1,7 @@
 package com.lulu.workbench.android.chat.state
 
 import com.lulu.workbench.android.agent.session.HistoryTurn
+import com.lulu.workbench.android.wmcp.McpLinkState
 
 data class ChatSessionItem(
     val id: String,
@@ -23,6 +24,7 @@ data class ChatState(
     val voicePhase: VoicePhase = VoicePhase.Idle,
     val voiceHint: String = "",
     val asrConfigured: Boolean = false,
+    val mcpLink: McpLinkState = McpLinkState.Unbound,
 )
 
 sealed class ChatIntent {

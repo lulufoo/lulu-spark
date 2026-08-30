@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
@@ -48,9 +49,13 @@ class SettingsActivity : ComponentActivity() {
             val bindStore = remember {
                 BindStore(
                     BindCommands(runtime.wmcp, Build.MODEL),
+                    keepAlive = runtime.wmcp.keepAlive(),
                     runOffMain = { block -> Thread { block() }.start() },
                     runOnMain = { block -> mainHandler.post { block() } },
                 )
+            }
+            DisposableEffect(bindStore) {
+                onDispose { bindStore.release() }
             }
             val cameraLauncher = rememberLauncherForActivityResult(
                 ActivityResultContracts.RequestPermission(),

@@ -4,6 +4,9 @@ import com.lulu.workbench.android.agent.loop.TurnProgress
 import com.lulu.workbench.android.agent.session.HistoryTurn
 import com.lulu.workbench.android.agent.session.SessionId
 import com.lulu.workbench.android.chat.commands.ChatCommands
+import com.lulu.workbench.android.wmcp.McpKeepAlive
+import com.lulu.workbench.android.wmcp.McpLinkListener
+import com.lulu.workbench.android.wmcp.McpLinkState
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -237,5 +240,46 @@ class ChatStoreTest {
         assertEquals(null, store.state.sessionId)
         assertTrue(store.state.sessions.isEmpty())
         assertTrue(store.state.turns.isEmpty())
+    }
+
+    @Test
+    fun mcpLinkCallbackUpdatesStateAndSurvivesNewSession() {
+        val keep = RecordingKeepAlive(McpLinkState.Disconnected)
+        val store = ChatStore(
+            ChatCommands(
+                create = { SessionId("sess_link") },
+                sendTurn = { _, _, _ -> },
+            ),
+            keepAlive = keep,
+        )
+        assertEquals(McpLinkState.Disconnected, store.state.mcpLink)
+        keep.emit(McpLinkState.Connected)
+        assertEquals(McpLinkState.Connected, store.state.mcpLink)
+        store.dispatch(ChatIntent.NewSession)
+        assertEquals(McpLinkState.Connected, store.state.mcpLink)
+    }
+}
+
+private class RecordingKeepAlive(
+    private var current: McpLinkState,
+) : McpKeepAlive {
+    private val listeners = mutableListOf<McpLinkListener>()
+
+    override fun addListener(listener: McpLinkListener) {
+        listeners.add(listener)
+        listener.onMcpLink(current)
+    }
+
+    override fun removeListener(listener: McpLinkListener) {
+        listeners.remove(listener)
+    }
+
+    override fun start() = Unit
+
+    override fun state(): McpLinkState = current
+
+    fun emit(next: McpLinkState) {
+        current = next
+        listeners.forEach { it.onMcpLink(next) }
     }
 }
