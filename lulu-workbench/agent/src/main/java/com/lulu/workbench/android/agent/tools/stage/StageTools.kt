@@ -31,6 +31,13 @@ class StageTools(
             ),
         )
 
+    fun createFromBody(
+        title: String,
+        content: String,
+        sessionId: String,
+        sessionTitle: String,
+    ) = store.create(title, content, sessionId, sessionTitle)
+
     fun call(
         name: String,
         arguments: String,

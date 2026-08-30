@@ -23,9 +23,15 @@ class ToolDispatcher(
         }
         return local +
             remote.map { tool ->
+                val description =
+                    if (tool.name == NOTE_CONTENT_TOOL) {
+                        NOTE_CONTENT_STAGE_DESCRIPTION
+                    } else {
+                        tool.description.ifEmpty { tool.name }
+                    }
                 LlmToolDef(
                     name = tool.name,
-                    description = tool.description.ifEmpty { tool.name },
+                    description = description,
                     parametersJson = tool.inputSchemaJson.ifBlank { """{"type":"object"}""" },
                 )
             }
@@ -48,7 +54,12 @@ class ToolDispatcher(
             return "Tool '$name' is not available."
         }
         return try {
-            wmcp.callTool(name, arguments).text
+            val remoteText = wmcp.callTool(name, arguments).text
+            if (name == NOTE_CONTENT_TOOL) {
+                stageNoteContentResult(remoteText, stage, sessionId, sessionTitle)
+            } else {
+                remoteText
+            }
         } catch (error: Exception) {
             error.message ?: "Tool '$name' failed."
         }
