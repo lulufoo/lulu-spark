@@ -19,6 +19,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.lulu.workbench.android.markdown.render.MdDocument
 
+private val DocumentPadH = 16.dp
+private val DocumentPadV = 12.dp
+
 enum class MarkdownPaneMode {
     Preview,
     Edit,
@@ -35,36 +38,30 @@ fun MarkdownPane(
     placeholder: String = "Markdown…",
 ) {
     val colors = MaterialTheme.colorScheme
-    Surface(
-        modifier = modifier.fillMaxSize(),
-        shape = RoundedCornerShape(12.dp),
-        color = colors.surface,
-    ) {
-        Column(modifier = Modifier.fillMaxSize()) {
-            Row(
-                modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-            ) {
-                ModeTab(
-                    label = "Preview",
-                    selected = mode == MarkdownPaneMode.Preview,
-                    onClick = { onModeChange(MarkdownPaneMode.Preview) },
-                )
-                ModeTab(
-                    label = "Edit",
-                    selected = mode == MarkdownPaneMode.Edit,
-                    onClick = { onModeChange(MarkdownPaneMode.Edit) },
-                )
-            }
-            HorizontalDivider(color = colors.outline.copy(alpha = 0.45f))
-            when (mode) {
-                MarkdownPaneMode.Preview -> MarkdownPreview(source)
-                MarkdownPaneMode.Edit -> MarkdownSourceEditor(
-                    source = source,
-                    onSourceChange = onSourceChange,
-                    placeholder = placeholder,
-                )
-            }
+    Column(modifier = modifier.fillMaxSize()) {
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            ModeTab(
+                label = "Preview",
+                selected = mode == MarkdownPaneMode.Preview,
+                onClick = { onModeChange(MarkdownPaneMode.Preview) },
+            )
+            ModeTab(
+                label = "Edit",
+                selected = mode == MarkdownPaneMode.Edit,
+                onClick = { onModeChange(MarkdownPaneMode.Edit) },
+            )
+        }
+        HorizontalDivider(color = colors.outline.copy(alpha = 0.45f))
+        when (mode) {
+            MarkdownPaneMode.Preview -> MarkdownPreview(source)
+            MarkdownPaneMode.Edit -> MarkdownSourceEditor(
+                source = source,
+                onSourceChange = onSourceChange,
+                placeholder = placeholder,
+            )
         }
     }
 }
@@ -76,7 +73,7 @@ private fun MarkdownPreview(source: String) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(20.dp),
+                .padding(horizontal = DocumentPadH, vertical = DocumentPadV),
             contentAlignment = Alignment.TopStart,
         ) {
             Text(
@@ -92,7 +89,7 @@ private fun MarkdownPreview(source: String) {
                 modifier = Modifier
                     .fillMaxSize()
                     .verticalScroll(rememberScrollState())
-                    .padding(20.dp),
+                    .padding(horizontal = DocumentPadH, vertical = DocumentPadV),
             )
         }
     }

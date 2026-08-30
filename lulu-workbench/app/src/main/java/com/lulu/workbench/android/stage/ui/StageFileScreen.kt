@@ -79,8 +79,7 @@ internal fun StageFileScreen(
             Column(
                 modifier = Modifier
                     .weight(1f)
-                    .imePadding()
-                    .padding(horizontal = 16.dp, vertical = 16.dp),
+                    .imePadding(),
             ) {
                 if (mode == MarkdownPaneMode.Edit) {
                     OutlinedTextField(
@@ -88,7 +87,7 @@ internal fun StageFileScreen(
                         onValueChange = { title = it },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(bottom = 12.dp),
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
                         singleLine = true,
                         textStyle = MaterialTheme.typography.bodyLarge,
                         label = { Text("Title", style = MaterialTheme.typography.bodySmall) },
