@@ -1,4 +1,5 @@
-//! Note writes for MCP (`create_note`, `create_note_content`, `create_note_digest`).
+//! Note writes for MCP (`create_note`, `create_note_content`). Digest is a
+//! `create_note` field (`digest` + optional `digest_body`), not a second tool.
 
 mod create_meta;
 mod digest;

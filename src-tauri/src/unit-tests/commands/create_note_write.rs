@@ -42,6 +42,7 @@ fn create_note_json_success_returns_entry_handle() {
         "source_path": path.to_str().unwrap(),
         "title": "Test Title",
         "source_type": "summary",
+        "digest": "never",
     }))
     .expect("command Result");
     assert_eq!(v.get("ok"), Some(&json!(true)), "archive failed: {v}");
@@ -88,6 +89,7 @@ fn create_note_json_second_write_gets_new_filename() {
         "source_path": path.to_str().unwrap(),
         "title": "Test Title",
         "source_type": "summary",
+        "digest": "never",
     });
     let first = create_note_json(payload.clone()).expect("first");
     let second = create_note_json(payload).expect("second");

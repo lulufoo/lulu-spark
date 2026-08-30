@@ -6,6 +6,9 @@ use crate::config::meili_env::notes_root_path;
 use crate::services::id::random_entry_id;
 
 use super::create_meta::{assemble_raw, body_from_source, parse_create_meta};
+use super::digest::{
+    digest_body_from_payload, digest_should_write, parse_digest_mode, write_digest_file,
+};
 use super::store::{
     dual_store_rollback, load_entries_map, notes_layer_path, parse_translations,
     reject_legacy_translation_fields, resolve_archive_source_markdown, rollback_written,
@@ -78,11 +81,20 @@ fn write_note(
         Ok(m) => m,
         Err(v) => return v,
     };
+    let digest_mode = match parse_digest_mode(payload) {
+        Ok(m) => m,
+        Err(v) => return v,
+    };
     let body = body_from_source(source);
     let raw_doc = match assemble_raw(&meta.title, &meta.created_at, &body) {
         Ok(s) => s,
         Err(v) => return v,
     };
+    let want_digest = digest_should_write(digest_mode, &raw_doc, &meta.source_type);
+    let digest_body = digest_body_from_payload(payload);
+    if want_digest && digest_body.is_none() {
+        return json!({ "error": "Missing digest_body", "_status": 400 });
+    }
 
     if let Some(err) = reject_legacy_translation_fields(payload) {
         return err;
@@ -133,6 +145,21 @@ fn write_note(
         written.push(path.clone());
     }
 
+    let mut digest_rel: Option<String> = None;
+    if want_digest {
+        let Some(digest_md) = digest_body.as_deref() else {
+            rollback_written(&written);
+            return json!({ "error": "Missing digest_body", "_status": 400 });
+        };
+        match write_digest_file(&notes, &meta.common_path, digest_md, &mut written) {
+            Ok(rel) => digest_rel = Some(rel),
+            Err(v) => {
+                rollback_written(&written);
+                return v;
+            }
+        }
+    }
+
     let id = random_entry_id();
     let (index_path, mut entries) = match load_entries_map(repo_root) {
         Ok(v) => v,
@@ -146,7 +173,12 @@ fn write_note(
     let mut entry = Map::new();
     entry.insert("common_path".to_string(), json!(meta.common_path));
     entry.insert("created_at".to_string(), json!(meta.created_at));
-    entry.insert("layers".to_string(), json!(["raw"]));
+    let layers = if digest_rel.is_some() {
+        json!(["raw", "digest"])
+    } else {
+        json!(["raw"])
+    };
+    entry.insert("layers".to_string(), layers);
     entry.insert("source_type".to_string(), json!(meta.source_type));
     if !translations.is_empty() {
         let mut map = Map::new();
@@ -172,6 +204,9 @@ fn write_note(
     });
     if !extra_rel_paths.is_empty() {
         response["extra_paths"] = json!(extra_rel_paths);
+    }
+    if let Some(rel) = digest_rel {
+        response["digest_path"] = json!(rel);
     }
     response
 }

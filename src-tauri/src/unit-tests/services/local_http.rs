@@ -534,18 +534,13 @@ fn post_create_note_and_digest() {
                 "source_path": source_path.to_str().unwrap(),
                 "title": "Test Title",
                 "source_type": "summary",
+                "digest": "always",
+                "digest_body": "# T — 摘要\n\n## 概述\n\nok",
             }),
         );
         assert_eq!(status, 200);
         assert_eq!(body["ok"], true);
-        let id = body["id"].as_str().expect("id");
-        let (d_status, d_body) = http_post(
-            port,
-            "/api/create-note-digest",
-            &json!({ "id": id, "digest": "# T — 摘要\n\n## 概述\n\nok" }),
-        );
-        assert_eq!(d_status, 200);
-        assert_eq!(d_body["ok"], true);
+        assert!(body["digest_path"].as_str().unwrap_or("").starts_with("digest/"));
     });
 }
 
@@ -561,6 +556,7 @@ fn post_create_note_content_writes_from_body() {
                 "content": SAMPLE_DOC,
                 "title": "Test Title",
                 "source_type": "summary",
+                "digest": "never",
             }),
         );
         assert_eq!(status, 200, "{body}");

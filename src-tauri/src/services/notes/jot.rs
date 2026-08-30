@@ -62,6 +62,7 @@ pub fn create_jot(
         "source_type": "jot",
         "project": "inbox",
         "theme": "notes",
+        "digest": "never",
     });
     if !ts.is_empty() {
         payload["created_at"] = json!(ts);

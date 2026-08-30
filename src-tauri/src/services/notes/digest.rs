@@ -1,100 +1,103 @@
-use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use serde_json::{json, Value};
 
-use crate::config::meili_env::notes_root_path;
-use crate::services::archive_parse::is_valid_entry_id;
+use super::create_meta::body_from_source;
+use super::store::{notes_layer_path, write_markdown_atomic};
 
-use super::store::{notes_layer_path, load_entries_map, save_entries, write_markdown_atomic};
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum DigestMode {
+    Auto,
+    Always,
+    Never,
+}
 
-pub fn create_note_digest(repo_root: &Path, payload: &Value) -> Value {
-    let id = payload
-        .get("id")
+pub(super) fn parse_digest_mode(payload: &Value) -> Result<DigestMode, Value> {
+    match payload.get("digest").and_then(|v| v.as_str()).map(str::trim) {
+        Some("auto") => Ok(DigestMode::Auto),
+        Some("always") => Ok(DigestMode::Always),
+        Some("never") => Ok(DigestMode::Never),
+        Some(_) => Err(json!({ "error": "Invalid digest", "_status": 400 })),
+        None => Err(json!({ "error": "Missing digest", "_status": 400 })),
+    }
+}
+
+pub(super) fn digest_body_from_payload(payload: &Value) -> Option<String> {
+    payload
+        .get("digest_body")
         .and_then(|v| v.as_str())
-        .unwrap_or("")
-        .trim();
-    if !is_valid_entry_id(id) {
-        return json!({ "error": "Invalid id", "_status": 400 });
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(|s| s.to_string())
+}
+
+/// `auto` follows Host AD-0; `always` writes; `never` skips.
+pub(super) fn digest_should_write(mode: DigestMode, raw: &str, source_type: &str) -> bool {
+    match mode {
+        DigestMode::Always => true,
+        DigestMode::Never => false,
+        DigestMode::Auto => digest_applies(raw, source_type),
     }
+}
 
-    let digest = payload
-        .get("digest")
-        .and_then(|v| v.as_str())
-        .unwrap_or("")
-        .to_string();
-    if digest.trim().is_empty() {
-        return json!({ "error": "Missing digest", "_status": 400 });
+/// AD-0: digest is worth writing when any rule matches.
+pub(super) fn digest_applies(raw: &str, source_type: &str) -> bool {
+    if turn_block_count(raw) >= 2 {
+        return true;
     }
-
-    let force = payload
-        .get("force")
-        .and_then(|v| v.as_bool())
-        .unwrap_or(false);
-
-    let (index_path, mut entries) = match load_entries_map(repo_root) {
-        Ok(v) => v,
-        Err(v) => return v,
-    };
-
-    let Some(entry_val) = entries.get(id).cloned() else {
-        return json!({ "error": "Entry not found", "_status": 404 });
-    };
-    let Some(common_path) = entry_val.get("common_path").and_then(|v| v.as_str()) else {
-        return json!({ "error": "Missing common_path", "_status": 500 });
-    };
-    if common_path.is_empty() {
-        return json!({ "error": "Missing common_path", "_status": 500 });
+    if theme_heading_count(raw) >= 2 {
+        return true;
     }
-
-    let notes = notes_root_path(repo_root);
-    let raw_path = match notes_layer_path(&notes, "raw", common_path) {
-        Ok(p) => p,
-        Err(v) => return v,
-    };
-    if !raw_path.is_file() {
-        return json!({
-            "error": format!("File not found: raw/{common_path}"),
-            "_status": 404
-        });
+    let body_len = body_from_source(raw).chars().count();
+    if body_len >= 600 {
+        return true;
     }
+    if source_type == "summary" && body_len >= 200 {
+        return true;
+    }
+    if source_type == "article" && body_len >= 600 {
+        return true;
+    }
+    false
+}
 
-    let digest_path = match notes_layer_path(&notes, "digest", common_path) {
-        Ok(p) => p,
-        Err(v) => return v,
-    };
-    if digest_path.is_file() && !force {
-        return json!({
+pub(super) fn write_digest_file(
+    notes: &Path,
+    common_path: &str,
+    digest_body: &str,
+    written: &mut Vec<PathBuf>,
+) -> Result<String, Value> {
+    let digest_path = notes_layer_path(notes, "digest", common_path)?;
+    if digest_path.is_file() {
+        return Err(json!({
             "error": format!("File already exists: digest/{common_path}"),
             "_status": 409
-        });
+        }));
     }
-
-    if let Err(e) = write_markdown_atomic(&digest_path, &digest) {
-        return json!({ "error": e, "_status": 500 });
+    if let Err(e) = write_markdown_atomic(&digest_path, digest_body) {
+        return Err(json!({ "error": e, "_status": 500 }));
     }
+    written.push(digest_path);
+    Ok(format!("digest/{common_path}"))
+}
 
-    let mut entry_obj = entry_val.as_object().cloned().unwrap_or_default();
-    let mut layers: Vec<Value> = entry_obj
-        .get("layers")
-        .and_then(|v| v.as_array())
-        .cloned()
-        .unwrap_or_default();
-    if !layers.iter().any(|l| l.as_str() == Some("digest")) {
-        layers.push(json!("digest"));
-    }
-    entry_obj.insert("layers".to_string(), Value::Array(layers));
-    entries.insert(id.to_string(), Value::Object(entry_obj));
+fn turn_block_count(raw: &str) -> usize {
+    let headings = raw
+        .lines()
+        .filter(|line| {
+            let t = line.trim();
+            t.starts_with("## Turn ") || t.starts_with("## TURN ")
+        })
+        .count();
+    let seps = raw.matches("<!-- DDM:TURN_SEP:v1 -->").count();
+    headings.max(seps)
+}
 
-    if let Err(v) = save_entries(&index_path, &entries) {
-        let _ = fs::remove_file(&digest_path);
-        return v;
-    }
-
-    json!({
-        "ok": true,
-        "id": id,
-        "common_path": common_path,
-        "digest_path": format!("digest/{common_path}")
-    })
+fn theme_heading_count(raw: &str) -> usize {
+    raw.lines()
+        .filter(|line| {
+            let t = line.trim();
+            t.starts_with("## ") && !t.starts_with("## Turn ") && !t.starts_with("## TURN ")
+        })
+        .count()
 }

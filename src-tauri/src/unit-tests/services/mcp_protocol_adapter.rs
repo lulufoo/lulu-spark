@@ -149,7 +149,6 @@ const NOTES_TOOLS: &[&str] = &[
     "get_notes_catalog",
     "get_notes_files",
     "create_note",
-    "create_note_digest",
 ];
 
 /// Todo tools from Node `buildServer()` when `includeTodo` is true.
@@ -177,7 +176,6 @@ fn expected_api_path(tool: &str) -> (&'static str, HttpMethod) {
         "get_notes_catalog" => ("/api/notes-catalog", HttpMethod::Get),
         "get_notes_files" => ("/api/notes-files", HttpMethod::Post),
         "create_note" => ("/api/create-note", HttpMethod::Post),
-        "create_note_digest" => ("/api/create-note-digest", HttpMethod::Post),
         "create_todo_task" => ("/api/todo-task-create", HttpMethod::Post),
         "update_todo_task" => ("/api/todo-task-update", HttpMethod::Post),
         "list_todo_tasks" => ("/api/todo-tasks", HttpMethod::Get),
@@ -2338,6 +2336,7 @@ fn mobile_channel_create_note_hits_content_api() {
         .expect("required");
     assert!(required.iter().any(|v| v.as_str() == Some("content")));
     assert!(required.iter().any(|v| v.as_str() == Some("title")));
+    assert!(required.iter().any(|v| v.as_str() == Some("digest")));
     assert!(!required.iter().any(|v| v.as_str() == Some("source_path")));
 
     let path_table = build_channel_tool_table(WORKBENCH_SLOT, WORKBENCH_SLOT).expect("path");
@@ -2352,6 +2351,7 @@ fn mobile_channel_create_note_hits_content_api() {
         .expect("required");
     assert!(path_required.iter().any(|v| v.as_str() == Some("source_path")));
     assert!(path_required.iter().any(|v| v.as_str() == Some("title")));
+    assert!(path_required.iter().any(|v| v.as_str() == Some("digest")));
 
     let (base, seen, join) = start_recording_sidecar(200, r#"{"ok":true}"#);
     let rt = tokio::runtime::Builder::new_current_thread()

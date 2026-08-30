@@ -63,7 +63,6 @@ const NOTES_TOOLS_E2E = [
   'get_notes_catalog',
   'get_notes_files',
   'create_note',
-  'create_note_digest',
 ];
 
 /**

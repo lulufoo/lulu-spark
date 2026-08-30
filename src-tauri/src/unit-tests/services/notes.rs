@@ -4,8 +4,7 @@ use std::path::PathBuf;
 use serde_json::json;
 
 use crate::services::notes::{
-    create_note_content, create_note_digest, create_note, create_jot, synthesize_jot_document,
-    JotCreateOpts,
+    create_note_content, create_note, create_jot, synthesize_jot_document, JotCreateOpts,
 };
 use crate::services::todo_task::{create_master_with_subs, get_by_id};
 use crate::test_support::TestSandbox;
@@ -45,6 +44,9 @@ fn path_payload(sandbox: &TestSandbox, content: &str, mut base: serde_json::Valu
     obj.insert("source_path".to_string(), json!(path.to_str().unwrap()));
     if !obj.contains_key("title") {
         obj.insert("title".to_string(), json!("Test Title"));
+    }
+    if !obj.contains_key("digest") {
+        obj.insert("digest".to_string(), json!("never"));
     }
     obj.remove("document");
     base
@@ -101,45 +103,96 @@ fn create_note_second_write_gets_new_filename() {
 }
 
 #[test]
-fn create_note_digest_writes_digest_and_updates_layers() {
+fn create_note_always_writes_digest_and_updates_layers() {
     let (sandbox, repo_root) = setup_notes();
-    let created = create_note(&repo_root, &path_payload(&sandbox, SAMPLE_DOC, json!({})));
-    let id = created["id"].as_str().unwrap();
     let digest_body = "# Test — 摘要\n\n> 创建时间：2026年6月19日 14:30\n\n## 概述\n\noverview";
-    let v = create_note_digest(
+    let v = create_note(
         &repo_root,
-        &json!({ "id": id, "digest": digest_body }),
+        &path_payload(
+            &sandbox,
+            SAMPLE_DOC,
+            json!({
+                "digest": "always",
+                "digest_body": digest_body,
+            }),
+        ),
     );
-    assert_eq!(v.get("ok"), Some(&json!(true)));
+    assert_eq!(v.get("ok"), Some(&json!(true)), "create_note failed: {v}");
+    let id = v["id"].as_str().unwrap();
     let notes = crate::config::meili_env::notes_root_path(&repo_root);
-    let common_path = created["common_path"].as_str().unwrap();
+    let common_path = v["common_path"].as_str().unwrap();
     let digest = notes.join("digest").join(common_path);
     assert!(digest.is_file());
+    assert_eq!(v["digest_path"], json!(format!("digest/{common_path}")));
     let index: serde_json::Value =
         serde_json::from_str(&fs::read_to_string(notes.join("index.json")).unwrap()).unwrap();
-    assert!(index["entries"][id]["layers"]
-        .as_array()
-        .unwrap()
-        .contains(&json!("digest")));
+    assert_eq!(
+        index["entries"][id]["layers"],
+        json!(["raw", "digest"])
+    );
 }
 
 #[test]
-fn create_note_digest_force_overwrites_existing() {
+fn create_note_requires_digest() {
     let (sandbox, repo_root) = setup_notes();
-    let created = create_note(&repo_root, &path_payload(&sandbox, SAMPLE_DOC, json!({})));
-    let id = created["id"].as_str().unwrap();
-    let digest_body = "# Test — 摘要\n\n## 概述\n\nv1";
-    create_note_digest(&repo_root, &json!({ "id": id, "digest": digest_body }));
-    let blocked = create_note_digest(
+    let path = stage_source(&sandbox, "source.md", SAMPLE_DOC);
+    let v = create_note(
         &repo_root,
-        &json!({ "id": id, "digest": "# v2\n\n## 概述\n\nblocked" }),
+        &json!({
+            "source_path": path.to_str().unwrap(),
+            "title": "Test Title",
+            "source_type": "summary",
+        }),
     );
-    assert_eq!(blocked.get("_status"), Some(&json!(409)));
-    let ok = create_note_digest(
+    assert_eq!(v.get("_status"), Some(&json!(400)));
+    assert!(v["error"].as_str().unwrap_or("").contains("digest"), "{v}");
+}
+
+#[test]
+fn create_note_always_requires_digest_body() {
+    let (sandbox, repo_root) = setup_notes();
+    let v = create_note(
         &repo_root,
-        &json!({ "id": id, "digest": "# v2\n\n## 概述\n\nforced", "force": true }),
+        &path_payload(&sandbox, SAMPLE_DOC, json!({ "digest": "always" })),
     );
-    assert_eq!(ok.get("ok"), Some(&json!(true)));
+    assert_eq!(v.get("_status"), Some(&json!(400)));
+    assert!(
+        v["error"].as_str().unwrap_or("").contains("digest_body"),
+        "{v}"
+    );
+}
+
+#[test]
+fn create_note_auto_skips_short_summary() {
+    let (sandbox, repo_root) = setup_notes();
+    let v = create_note(
+        &repo_root,
+        &path_payload(&sandbox, SAMPLE_DOC, json!({ "digest": "auto" })),
+    );
+    assert_eq!(v.get("ok"), Some(&json!(true)), "{v}");
+    assert!(v.get("digest_path").is_none());
+    let notes = crate::config::meili_env::notes_root_path(&repo_root);
+    let common_path = v["common_path"].as_str().unwrap();
+    assert!(!notes.join("digest").join(common_path).is_file());
+}
+
+#[test]
+fn create_note_auto_requires_digest_body_when_ad0_applies() {
+    let (sandbox, repo_root) = setup_notes();
+    let long = format!("# T\n\n---\n\n{}", "x".repeat(200));
+    let v = create_note(
+        &repo_root,
+        &path_payload(
+            &sandbox,
+            &long,
+            json!({ "digest": "auto", "source_type": "summary" }),
+        ),
+    );
+    assert_eq!(v.get("_status"), Some(&json!(400)));
+    assert!(
+        v["error"].as_str().unwrap_or("").contains("digest_body"),
+        "{v}"
+    );
 }
 
 const THEME_LINE_DOC: &str = r#"# Interview Title
@@ -489,6 +542,7 @@ fn create_note_content_writes_from_markdown_body() {
             "content": SAMPLE_DOC,
             "title": "Test Title",
             "source_type": "summary",
+            "digest": "never",
         }),
     );
     assert_eq!(v.get("ok"), Some(&json!(true)), "create_note_content failed: {v}");
@@ -594,6 +648,7 @@ fn create_note_rejects_disallowed_source_path() {
             "source_path": outside.to_str().unwrap(),
             "title": "Test Title",
             "source_type": "summary",
+            "digest": "never",
         }),
     );
     let status = v.get("_status").and_then(|s| s.as_u64()).unwrap_or(0);

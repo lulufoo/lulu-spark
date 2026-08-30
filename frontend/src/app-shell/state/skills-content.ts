@@ -31,7 +31,7 @@ export const workbenchSkillsContent = {
         {
           cmd: 'theme-line',
           name: 'Full conversation',
-          desc: 'Collect subtitles or an existing transcript as a full conversation for theme-archive.',
+          desc: 'Collect subtitles or an existing transcript as a full conversation, then save as a note.',
         },
       ],
     },
@@ -42,7 +42,7 @@ export const workbenchSkillsContent = {
         {
           cmd: 'theme-fetch',
           name: 'Web fetch',
-          desc: 'Fetch a web or WeChat article, format it, and hand it to theme-archive.',
+          desc: 'Fetch a web or WeChat article, format it, and save as a note.',
         },
       ],
     },
@@ -53,18 +53,18 @@ export const workbenchSkillsContent = {
         {
           cmd: 'theme-transcribe',
           name: 'Video transcription',
-          desc: 'Download media, run Whisper, and hand the full transcript to theme-archive.',
+          desc: 'Download media, run Whisper, and save the full transcript as a note.',
         },
       ],
     },
     {
-      name: 'Theme archive',
-      url: 'https://github.com/lulufoo/lulu-workbench-skills/tree/main/theme-archive',
+      name: 'Notes',
+      url: 'https://github.com/lulufoo/lulu-workbench-skills/tree/main/note-task',
       items: [
         {
-          cmd: 'theme-archive',
-          name: 'Theme archive',
-          desc: 'Write the formatted document to raw and update the index.',
+          cmd: 'note-task',
+          name: 'Notes',
+          desc: 'Create and read Workbench notes through MCP.',
         },
       ],
     },

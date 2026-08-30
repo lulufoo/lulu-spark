@@ -77,6 +77,15 @@ pub(super) fn create_note_properties(include_source_path: bool) -> Value {
             "description": "Optional YYYYMMDDHHMM (UTC+8). Defaults to now."
         },
         "source_type": source_type_schema(),
+        "digest": {
+            "type": "string",
+            "enum": ["auto", "always", "never"],
+            "description": "Required. auto writes a digest when Host AD-0 applies; always writes; never skips. digest_body is required whenever a digest is written."
+        },
+        "digest_body": {
+            "type": "string",
+            "description": "Digest Markdown. Required when digest is always, or auto and the note meets Host digest rules."
+        },
         "translations": {
             "type": "array",
             "items": {
@@ -154,31 +163,12 @@ pub(super) fn notes_tool_routes() -> Vec<ToolRoute> {
         ),
         route(
             "create_note",
-            "Create a note from an allow-listed Markdown file by absolute source_path. The Host reads the file; never send document text. Path is {project}/{theme}/{created_at}-{6-char}-{source filename}.",
+            "Create a note from an allow-listed Markdown file by absolute source_path. The Host reads the file; never send document text. Path is {project}/{theme}/{created_at}-{6-char}-{source filename}. digest is required (auto|always|never). When a digest is written, pass digest_body on this same call.",
             HttpMethod::Post,
             "/api/create-note",
-            object_schema(create_note_properties(true), &["source_path", "title"]),
+            object_schema(create_note_properties(true), &["source_path", "title", "digest"]),
             false,
             false,
-        ),
-        route(
-            "create_note_digest",
-            "Write digest Markdown for an existing note.",
-            HttpMethod::Post,
-            "/api/create-note-digest",
-            object_schema(
-                json!({
-                    "id": { "type": "string", "description": "Archive entry id." },
-                    "digest": { "type": "string", "description": "Digest Markdown." },
-                    "force": {
-                        "type": "boolean",
-                        "description": "Overwrite an existing digest when true."
-                    }
-                }),
-                &["id", "digest"],
-            ),
-            false,
-            true,
         ),
     ]
 }

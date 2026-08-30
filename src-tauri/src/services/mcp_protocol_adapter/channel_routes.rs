@@ -6,10 +6,10 @@ use super::types::{HttpMethod, SlotToolTable, ToolRoute};
 fn create_note_content_route() -> ToolRoute {
     route(
         "create_note",
-        "Create a note from Markdown content. Send title and body; do not send source_path. Path is {project}/{theme}/{created_at}-{6-char}.md.",
+        "Create a note from Markdown content. Send title and body; do not send source_path. Path is {project}/{theme}/{created_at}-{6-char}.md. digest is required (auto|always|never). When a digest is written, pass digest_body on this same call.",
         HttpMethod::Post,
         "/api/create-note-content",
-        object_schema(create_note_properties(false), &["content", "title"]),
+        object_schema(create_note_properties(false), &["content", "title", "digest"]),
         false,
         false,
     )

@@ -13,7 +13,7 @@ const PUBLIC_CMDS = [
   'theme-line',
   'theme-fetch',
   'theme-transcribe',
-  'theme-archive',
+  'note-task',
   'todo-task',
 ]
 

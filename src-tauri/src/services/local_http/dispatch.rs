@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use serde_json::{json, Value};
 use tiny_http::Method;
 
-use crate::services::notes::{create_note_content, create_note_digest, create_note};
+use crate::services::notes::{create_note_content, create_note};
 use crate::services::todo_task;
 use crate::services::workbench_read::{
     get_notes_asset, get_notes_catalog_latest_per_topic, get_notes_file, get_notes_index,
@@ -112,10 +112,6 @@ pub(super) fn handle_request(repo_root: &PathBuf, port: u16, request: tiny_http:
             }
             "/api/create-note-content" => {
                 handle_archive_post(repo_root, request, create_note_content);
-                return;
-            }
-            "/api/create-note-digest" => {
-                handle_archive_post(repo_root, request, create_note_digest);
                 return;
             }
             "/api/todo-task-create" => {
