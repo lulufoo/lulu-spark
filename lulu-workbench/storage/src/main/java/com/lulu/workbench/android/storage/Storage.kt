@@ -1,5 +1,6 @@
 package com.lulu.workbench.android.storage
 
+import com.lulu.workbench.android.storage.file.FileStorage
 import java.io.File
 
 /** Path-and-key store. Does not know sessions. */

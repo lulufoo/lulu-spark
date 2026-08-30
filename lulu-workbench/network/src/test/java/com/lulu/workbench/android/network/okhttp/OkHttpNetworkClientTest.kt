@@ -1,5 +1,6 @@
-package com.lulu.workbench.android.network
+package com.lulu.workbench.android.network.okhttp
 
+import com.lulu.workbench.android.network.HttpRequest
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import org.junit.Assert.assertArrayEquals

@@ -1,5 +1,7 @@
 package com.lulu.workbench.android.network
 
+import com.lulu.workbench.android.network.okhttp.OkHttpNetworkClient
+
 /** Outbound HTTPS only. Does not parse bind or MCP meaning. */
 data class HttpRequest(
     val method: String,

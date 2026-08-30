@@ -1,5 +1,6 @@
 package com.lulu.workbench.android.log
 
+import com.lulu.workbench.android.log.format.logFileName
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before

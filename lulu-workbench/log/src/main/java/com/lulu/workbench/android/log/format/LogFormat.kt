@@ -1,4 +1,6 @@
-package com.lulu.workbench.android.log
+package com.lulu.workbench.android.log.format
+
+import com.lulu.workbench.android.log.LogLevel
 
 import java.text.SimpleDateFormat
 import java.util.Date

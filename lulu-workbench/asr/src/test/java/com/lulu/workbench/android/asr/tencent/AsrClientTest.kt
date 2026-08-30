@@ -1,4 +1,9 @@
-package com.lulu.workbench.android.asr
+package com.lulu.workbench.android.asr.tencent
+
+import com.lulu.workbench.android.asr.AsrApiException
+import com.lulu.workbench.android.asr.AsrAudioFormat
+import com.lulu.workbench.android.asr.AsrException
+import com.lulu.workbench.android.asr.AsrNotConfiguredException
 
 import com.lulu.workbench.android.network.HttpRequest
 import com.lulu.workbench.android.network.HttpResponse

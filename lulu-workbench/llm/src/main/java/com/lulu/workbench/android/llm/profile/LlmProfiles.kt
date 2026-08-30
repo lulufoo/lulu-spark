@@ -1,5 +1,9 @@
-package com.lulu.workbench.android.llm
+package com.lulu.workbench.android.llm.profile
 
+import com.lulu.workbench.android.llm.DEFAULT_LLM_ID
+import com.lulu.workbench.android.llm.LLM_PRESETS
+import com.lulu.workbench.android.llm.LlmActive
+import com.lulu.workbench.android.llm.llmPreset
 import com.lulu.workbench.android.storage.Storage
 
 internal class LlmProfiles(

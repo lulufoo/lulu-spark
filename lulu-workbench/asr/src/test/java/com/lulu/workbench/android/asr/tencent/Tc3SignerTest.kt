@@ -1,4 +1,4 @@
-package com.lulu.workbench.android.asr
+package com.lulu.workbench.android.asr.tencent
 
 import org.junit.Assert.assertEquals
 import org.junit.Test

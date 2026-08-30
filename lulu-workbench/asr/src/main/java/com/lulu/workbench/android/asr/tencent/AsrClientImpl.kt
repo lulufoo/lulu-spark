@@ -1,10 +1,19 @@
-package com.lulu.workbench.android.asr
+package com.lulu.workbench.android.asr.tencent
 
+import com.lulu.workbench.android.asr.AsrApiException
+import com.lulu.workbench.android.asr.AsrAudioFormat
+import com.lulu.workbench.android.asr.AsrClient
+import com.lulu.workbench.android.asr.AsrConfig
+import com.lulu.workbench.android.asr.AsrException
+import com.lulu.workbench.android.asr.AsrHttpException
+import com.lulu.workbench.android.asr.AsrNotConfiguredException
+import com.lulu.workbench.android.asr.AsrResult
+import com.lulu.workbench.android.asr.DefaultAsrEngine
+import com.lulu.workbench.android.asr.DefaultAsrRegion
 import com.lulu.workbench.android.log.LogModule
 import com.lulu.workbench.android.log.WbLog
 import com.lulu.workbench.android.network.HttpRequest
 import com.lulu.workbench.android.network.NetworkClient
-import com.lulu.workbench.android.network.NetworkFactory
 import com.lulu.workbench.android.storage.Storage
 import java.io.IOException
 import java.net.SocketTimeoutException
@@ -18,7 +27,7 @@ internal const val AsrProfilePath = "asr/tencent"
 internal const val AsrSecretName = "asr_tencent_key"
 internal const val MaxAsrRawBytes = 2_200_000
 
-class AsrClientImpl(
+internal class AsrClientImpl(
     private val storage: Storage,
     private val network: NetworkClient,
     private val nowSeconds: () -> Long = { System.currentTimeMillis() / 1000L },
@@ -124,10 +133,6 @@ class AsrClientImpl(
     }
 
     private fun secretKey(): String? = storage.getSecret(AsrSecretName)?.trim()?.ifBlank { null }
-}
-
-object AsrFactory {
-    fun create(storage: Storage): AsrClient = AsrClientImpl(storage, NetworkFactory.create())
 }
 
 internal fun encodeSentenceBody(engine: String, format: String, audio: ByteArray): String {

@@ -1,4 +1,8 @@
-package com.lulu.workbench.android.llm
+package com.lulu.workbench.android.llm.chat
+
+import com.lulu.workbench.android.llm.LlmMessage
+import com.lulu.workbench.android.llm.LlmToolCall
+import com.lulu.workbench.android.llm.LlmToolDef
 
 internal fun chatUrl(baseUrl: String): String {
     val base = baseUrl.trim().trimEnd('/')

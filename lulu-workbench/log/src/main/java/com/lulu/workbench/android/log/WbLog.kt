@@ -1,5 +1,6 @@
 package com.lulu.workbench.android.log
 
+import com.lulu.workbench.android.log.format.formatLogLine
 import java.io.File
 
 internal const val LOG_PATH_CACHE_MS = 60_000L

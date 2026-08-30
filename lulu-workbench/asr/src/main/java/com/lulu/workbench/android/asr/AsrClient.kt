@@ -1,5 +1,9 @@
 package com.lulu.workbench.android.asr
 
+import com.lulu.workbench.android.asr.tencent.AsrClientImpl
+import com.lulu.workbench.android.network.NetworkFactory
+import com.lulu.workbench.android.storage.Storage
+
 const val DefaultAsrEngine = "16k_zh"
 const val DefaultAsrRegion = "ap-guangzhou"
 
@@ -43,4 +47,8 @@ interface AsrClient {
     fun isConfigured(): Boolean
 
     fun recognize(audio: ByteArray, format: AsrAudioFormat = AsrAudioFormat.Wav): AsrResult
+}
+
+object AsrFactory {
+    fun create(storage: Storage): AsrClient = AsrClientImpl(storage, NetworkFactory.create())
 }

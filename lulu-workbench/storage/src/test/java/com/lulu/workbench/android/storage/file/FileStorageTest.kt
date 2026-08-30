@@ -1,4 +1,4 @@
-package com.lulu.workbench.android.storage
+package com.lulu.workbench.android.storage.file
 
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals

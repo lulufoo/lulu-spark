@@ -1,5 +1,14 @@
-package com.lulu.workbench.android.llm
+package com.lulu.workbench.android.llm.host
 
+import com.lulu.workbench.android.llm.LlmException
+import com.lulu.workbench.android.llm.LlmMessage
+import com.lulu.workbench.android.llm.LlmNotConfiguredException
+import com.lulu.workbench.android.llm.chat.chatUrl
+import com.lulu.workbench.android.llm.chat.decodeAssistantText
+import com.lulu.workbench.android.llm.chat.decodeFinishReason
+import com.lulu.workbench.android.llm.chat.decodeToolCalls
+import com.lulu.workbench.android.llm.chat.hasToolCallsKey
+import com.lulu.workbench.android.llm.llmPreset
 import com.lulu.workbench.android.network.HttpRequest
 import com.lulu.workbench.android.network.HttpResponse
 import com.lulu.workbench.android.network.NetworkClient

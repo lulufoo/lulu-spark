@@ -1,4 +1,8 @@
-package com.lulu.workbench.android.network
+package com.lulu.workbench.android.network.okhttp
+
+import com.lulu.workbench.android.network.HttpRequest
+import com.lulu.workbench.android.network.HttpResponse
+import com.lulu.workbench.android.network.NetworkClient
 
 import com.lulu.workbench.android.log.LogModule
 import com.lulu.workbench.android.log.WbLog
@@ -12,7 +16,7 @@ import java.util.concurrent.TimeUnit
 import javax.net.ssl.SSLContext
 import javax.net.ssl.X509TrustManager
 
-class OkHttpNetworkClient(
+internal class OkHttpNetworkClient(
     private val openClient: OkHttpClient = defaultHttpClient(),
 ) : NetworkClient {
     override fun execute(request: HttpRequest): HttpResponse {

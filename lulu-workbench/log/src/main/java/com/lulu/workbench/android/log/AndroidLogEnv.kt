@@ -1,5 +1,7 @@
 package com.lulu.workbench.android.log
 
+import com.lulu.workbench.android.log.format.logFileName
+
 import android.content.Context
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities

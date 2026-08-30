@@ -1,13 +1,8 @@
 package com.lulu.workbench.android.llm
 
-import com.lulu.workbench.android.log.LogModule
-import com.lulu.workbench.android.log.WbLog
-import com.lulu.workbench.android.network.HttpRequest
-import com.lulu.workbench.android.network.NetworkClient
+import com.lulu.workbench.android.llm.host.LlmClientImpl
 import com.lulu.workbench.android.network.NetworkFactory
 import com.lulu.workbench.android.storage.Storage
-import java.io.IOException
-import java.net.SocketTimeoutException
 
 data class LlmToolDef(
     val name: String,
@@ -56,82 +51,6 @@ interface LlmClient {
     ): LlmCompletion
 }
 
-class LlmClientImpl(
-    storage: Storage,
-    private val network: NetworkClient,
-) : LlmClient {
-    private val profiles = LlmProfiles(storage)
-
-    override fun catalog(): List<LlmPreset> = llmCatalog()
-
-    override fun loadActive(): LlmActive = profiles.loadActive()
-
-    override fun select(id: String) {
-        profiles.select(id)
-    }
-
-    override fun saveActive(baseUrl: String, model: String, apiKey: String) {
-        profiles.saveActive(baseUrl, model, apiKey)
-    }
-
-    override fun resetActive() {
-        profiles.resetActive()
-    }
-
-    override fun complete(
-        messages: List<LlmMessage>,
-        tools: List<LlmToolDef>,
-    ): LlmCompletion {
-        val active = profiles.loadActive()
-        val apiKey = profiles.apiKey(active.id)
-        if (apiKey.isEmpty() || active.model.isBlank()) {
-            log.w("complete skipped: not configured id=${active.id}")
-            throw LlmNotConfiguredException()
-        }
-        val response = try {
-            network.execute(
-                HttpRequest(
-                    method = "POST",
-                    url = chatUrl(active.baseUrl),
-                    headers = mapOf(
-                        "Authorization" to "Bearer $apiKey",
-                        "Content-Type" to "application/json",
-                    ),
-                    body = encodeChatBody(active.model, messages, tools).encodeToByteArray(),
-                ),
-            )
-        } catch (_: SocketTimeoutException) {
-            log.w("complete timeout id=${active.id}")
-            throw LlmException("llm timeout")
-        } catch (error: IOException) {
-            log.w("complete network ${error.javaClass.simpleName}")
-            throw LlmException("llm network failed")
-        }
-        if (response.status !in 200..299) {
-            log.w("complete http ${response.status}")
-            throw LlmHttpException(response.status)
-        }
-        val raw = response.body.decodeToString()
-        val calls = decodeToolCalls(raw)
-        val finish = decodeFinishReason(raw)
-        val hasKey = hasToolCallsKey(raw)
-        log.d(
-            "complete ok id=${active.id} tools=${tools.size} " +
-                "calls=${calls.size} finish=${finish.ifEmpty { "-" }} " +
-                "hasKey=$hasKey",
-        )
-        if (calls.isEmpty() && hasKey) {
-            log.d("complete unread tool_calls preview=${toolCallsPreview(raw)}")
-        }
-        return LlmCompletion(
-            text = decodeAssistantText(raw),
-            toolCalls = calls,
-        )
-    }
-}
-
 object LlmFactory {
     fun create(storage: Storage): LlmClient = LlmClientImpl(storage, NetworkFactory.create())
 }
-
-private val log = WbLog.module(LogModule.LLM)

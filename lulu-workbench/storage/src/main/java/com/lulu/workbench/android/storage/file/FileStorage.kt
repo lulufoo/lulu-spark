@@ -1,5 +1,6 @@
-package com.lulu.workbench.android.storage
+package com.lulu.workbench.android.storage.file
 
+import com.lulu.workbench.android.storage.Storage
 import java.io.File
 import java.nio.file.Path
 
@@ -7,7 +8,7 @@ import java.nio.file.Path
  * Private-directory files. Secrets are plaintext on purpose.
  * TODO: encrypt secrets (Android Keystore) in a later pass.
  */
-class FileStorage(
+internal class FileStorage(
     private val root: File,
 ) : Storage {
     init {
