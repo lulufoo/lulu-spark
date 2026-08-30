@@ -1,5 +1,6 @@
 //! Note writes for MCP (`create_note`, `create_note_content`, `create_note_digest`).
 
+mod create_meta;
 mod digest;
 mod document;
 mod jot;

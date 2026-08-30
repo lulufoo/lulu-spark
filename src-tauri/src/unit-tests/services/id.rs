@@ -23,3 +23,14 @@ fn random_entry_id_returns_32_lower_hex() {
     assert_eq!(s.len(), 32);
     assert!(s.chars().all(|c| c.is_ascii_hexdigit() && !c.is_uppercase()));
 }
+
+#[test]
+fn random_alnum6_is_six_lowercase_alnum() {
+    let s = crate::services::id::random_alnum6();
+    assert_eq!(s.len(), 6);
+    assert!(
+        s.chars()
+            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit()),
+        "expected [a-z0-9]{{6}}, got {s:?}"
+    );
+}

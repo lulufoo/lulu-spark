@@ -532,6 +532,7 @@ fn post_create_note_and_digest() {
             "/api/create-note",
             &json!({
                 "source_path": source_path.to_str().unwrap(),
+                "title": "Test Title",
                 "source_type": "summary",
             }),
         );
@@ -558,6 +559,7 @@ fn post_create_note_content_writes_from_body() {
             "/api/create-note-content",
             &json!({
                 "content": SAMPLE_DOC,
+                "title": "Test Title",
                 "source_type": "summary",
             }),
         );

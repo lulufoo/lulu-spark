@@ -381,7 +381,7 @@ pub fn tag_update_value(
 /// Thin Tauri/HTTP-parity wrapper around `notes::create_note`.
 /// Business errors stay in the Value (`error` + `_status`); do not convert to Err.
 /// App jot-create may pass `{ body, source_type: "jot" }` (no `source_path`) → Host synthesis.
-/// MCP/HTTP create body uses `source_path` only — `document` is rejected.
+/// MCP/HTTP path create uses `source_path` + `title`; `document` is rejected.
 pub fn create_note_json(payload: Value) -> Result<Value, String> {
     let root = repo_root()?;
     if payload.get("document").is_some() {

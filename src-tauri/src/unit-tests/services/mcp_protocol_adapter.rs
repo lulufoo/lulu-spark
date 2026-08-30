@@ -2337,6 +2337,7 @@ fn mobile_channel_create_note_hits_content_api() {
         .as_array()
         .expect("required");
     assert!(required.iter().any(|v| v.as_str() == Some("content")));
+    assert!(required.iter().any(|v| v.as_str() == Some("title")));
     assert!(!required.iter().any(|v| v.as_str() == Some("source_path")));
 
     let path_table = build_channel_tool_table(WORKBENCH_SLOT, WORKBENCH_SLOT).expect("path");
@@ -2346,6 +2347,11 @@ fn mobile_channel_create_note_hits_content_api() {
         .find(|t| t.name == "create_note")
         .expect("create_note");
     assert_eq!(path_create.api_path, "/api/create-note");
+    let path_required = path_create.input_schema["required"]
+        .as_array()
+        .expect("required");
+    assert!(path_required.iter().any(|v| v.as_str() == Some("source_path")));
+    assert!(path_required.iter().any(|v| v.as_str() == Some("title")));
 
     let (base, seen, join) = start_recording_sidecar(200, r#"{"ok":true}"#);
     let rt = tokio::runtime::Builder::new_current_thread()

@@ -1,16 +1,13 @@
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use serde_json::json;
 
-use crate::services::archive_parse::parse_archive_document;
 use crate::services::notes::{
     create_note_content, create_note_digest, create_note, create_jot, synthesize_jot_document,
     JotCreateOpts,
 };
-use crate::services::todo_task::{
-    create_master_with_subs, get_by_id, test_set_fail_complete_sub, test_set_fail_link_archive,
-};
+use crate::services::todo_task::{create_master_with_subs, get_by_id};
 use crate::test_support::TestSandbox;
 
 const SAMPLE_DOC: &str = r#"# Test Title
@@ -34,13 +31,6 @@ fn setup_notes() -> (TestSandbox, std::path::PathBuf) {
     (sandbox, repo_root)
 }
 
-fn read_v2_index(wb: &Path) -> serde_json::Value {
-    serde_json::from_str(
-        &fs::read_to_string(wb.join("todo_tasks").join("index.json")).expect("index.json"),
-    )
-    .expect("parse index.json")
-}
-
 fn stage_source(sandbox: &TestSandbox, name: &str, content: &str) -> PathBuf {
     let dir = sandbox.cache_dir().join("archive_source_stage");
     fs::create_dir_all(&dir).expect("stage dir");
@@ -53,8 +43,21 @@ fn path_payload(sandbox: &TestSandbox, content: &str, mut base: serde_json::Valu
     let path = stage_source(sandbox, "source.md", content);
     let obj = base.as_object_mut().expect("object");
     obj.insert("source_path".to_string(), json!(path.to_str().unwrap()));
+    if !obj.contains_key("title") {
+        obj.insert("title".to_string(), json!("Test Title"));
+    }
     obj.remove("document");
     base
+}
+
+fn filename_has_ts_rand(common_path: &str) -> bool {
+    let file = common_path.rsplit('/').next().unwrap_or("");
+    file.len() >= 19
+        && file[..12].chars().all(|c| c.is_ascii_digit())
+        && file.as_bytes().get(12) == Some(&b'-')
+        && file[13..19]
+            .chars()
+            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit())
 }
 
 
@@ -69,8 +72,15 @@ fn create_note_writes_raw_and_index() {
     let id = v["id"].as_str().expect("id");
     assert_eq!(id.len(), 32);
     let notes = crate::config::meili_env::notes_root_path(&repo_root);
-    let raw = notes.join("raw/inbox/test-topic/202606191430-test-slug.md");
+    let common_path = v["common_path"].as_str().expect("common_path");
+    assert!(common_path.starts_with("inbox/notes/"), "{common_path}");
+    assert!(common_path.ends_with("-source.md"), "{common_path}");
+    assert!(filename_has_ts_rand(common_path), "{common_path}");
+    let raw = notes.join("raw").join(common_path);
     assert!(raw.is_file());
+    let raw_text = fs::read_to_string(&raw).unwrap();
+    assert!(raw_text.starts_with("# Test Title\n"));
+    assert!(!raw_text.contains("[digest]("));
     let index: serde_json::Value =
         serde_json::from_str(&fs::read_to_string(notes.join("index.json")).unwrap()).unwrap();
     assert!(index["entries"][id]["layers"]
@@ -80,12 +90,14 @@ fn create_note_writes_raw_and_index() {
 }
 
 #[test]
-fn create_note_conflict_returns_409() {
+fn create_note_second_write_gets_new_filename() {
     let (sandbox, repo_root) = setup_notes();
     let payload = path_payload(&sandbox, SAMPLE_DOC, json!({}));
-    assert_eq!(create_note(&repo_root, &payload).get("ok"), Some(&json!(true)));
-    let v = create_note(&repo_root, &payload);
-    assert_eq!(v.get("_status"), Some(&json!(409)));
+    let first = create_note(&repo_root, &payload);
+    let second = create_note(&repo_root, &payload);
+    assert_eq!(first.get("ok"), Some(&json!(true)));
+    assert_eq!(second.get("ok"), Some(&json!(true)));
+    assert_ne!(first["common_path"], second["common_path"]);
 }
 
 #[test]
@@ -100,7 +112,8 @@ fn create_note_digest_writes_digest_and_updates_layers() {
     );
     assert_eq!(v.get("ok"), Some(&json!(true)));
     let notes = crate::config::meili_env::notes_root_path(&repo_root);
-    let digest = notes.join("digest/inbox/test-topic/202606191430-test-slug.md");
+    let common_path = created["common_path"].as_str().unwrap();
+    let digest = notes.join("digest").join(common_path);
     assert!(digest.is_file());
     let index: serde_json::Value =
         serde_json::from_str(&fs::read_to_string(notes.join("index.json")).unwrap()).unwrap();
@@ -155,21 +168,24 @@ const THEME_LINE_ZH: &str = r#"# 中文标题
 #[test]
 fn create_note_theme_line_with_zh_translation() {
     let (sandbox, repo_root) = setup_notes();
-    let zh_path = "learning-ai-agent/waymo-interview/202606191700-waymo-interview-zh.md";
     let v = create_note(
         &repo_root,
         &path_payload(&sandbox, THEME_LINE_DOC, json!({
+            "title": "Interview Title",
+            "project": "learning-ai-agent",
+            "theme": "waymo-interview",
+            "created_at": "202606191700",
             "source_type": "theme-line",
             "translations": [{ "lang": "zh", "content": THEME_LINE_ZH }]
         })),
     );
     assert_eq!(v.get("ok"), Some(&json!(true)), "failed: {v}");
     let notes = crate::config::meili_env::notes_root_path(&repo_root);
+    let common_path = v["common_path"].as_str().unwrap();
+    assert!(common_path.starts_with("learning-ai-agent/waymo-interview/202606191700-"));
+    let zh_path = format!("{}-zh.md", common_path.trim_end_matches(".md"));
     assert!(notes.join(format!("raw/{zh_path}")).is_file());
-    assert_eq!(
-        v["extra_paths"],
-        json!([format!("raw/{zh_path}")])
-    );
+    assert_eq!(v["extra_paths"], json!([format!("raw/{zh_path}")]));
     let id = v["id"].as_str().unwrap();
     let index: serde_json::Value =
         serde_json::from_str(&fs::read_to_string(notes.join("index.json")).unwrap()).unwrap();
@@ -183,15 +199,18 @@ fn create_note_zh_from_source_path() {
     let v = create_note(
         &repo_root,
         &path_payload(&sandbox, THEME_LINE_DOC, json!({
+            "title": "Interview Title",
+            "project": "learning-ai-agent",
+            "theme": "waymo-interview",
+            "created_at": "202606191700",
             "source_type": "theme-line",
             "translations": [{ "lang": "zh", "source_path": zh_file.to_str().unwrap() }]
         })),
     );
     assert_eq!(v.get("ok"), Some(&json!(true)), "failed: {v}");
-    assert_eq!(
-        v["extra_paths"],
-        json!(["raw/learning-ai-agent/waymo-interview/202606191700-waymo-interview-zh.md"])
-    );
+    let common_path = v["common_path"].as_str().unwrap();
+    let zh_path = format!("raw/{}-zh.md", common_path.trim_end_matches(".md"));
+    assert_eq!(v["extra_paths"], json!([zh_path]));
 }
 
 #[test]
@@ -264,13 +283,14 @@ fn create_note_multi_lang_translations() {
     let notes = crate::config::meili_env::notes_root_path(&repo_root);
     let index: serde_json::Value =
         serde_json::from_str(&fs::read_to_string(notes.join("index.json")).unwrap()).unwrap();
+    let stem = v["common_path"].as_str().unwrap().trim_end_matches(".md");
     assert_eq!(
         index["entries"][id]["translations"]["zh"],
-        json!("learning-ai-agent/waymo-interview/202606191700-waymo-interview-zh.md")
+        json!(format!("{stem}-zh.md"))
     );
     assert_eq!(
         index["entries"][id]["translations"]["fr"],
-        json!("learning-ai-agent/waymo-interview/202606191700-waymo-interview-fr.md")
+        json!(format!("{stem}-fr.md"))
     );
 }
 
@@ -328,10 +348,8 @@ fn create_note_rejects_bad_or_duplicate_lang() {
 }
 
 #[test]
-fn create_note_with_task_ref_completes_sub_in_sandbox() {
+fn create_note_ignores_task_ids_and_does_not_link_todo() {
     let (sandbox, repo_root) = setup_notes();
-    let wb = crate::config::meili_env::workbench_root_path(&repo_root);
-    let notes = wb.join("notes");
     let created = create_master_with_subs("Archive link", Some(&["Sub"])).expect("todo");
     let master_id = created["master_task_id"].as_str().unwrap();
     let sub_id = created["sub_task_id"].as_str().unwrap();
@@ -351,167 +369,15 @@ fn create_note_with_task_ref_completes_sub_in_sandbox() {
     assert_eq!(v.get("ok"), Some(&json!(true)), "archive failed: {v}");
     let archive_id = v["id"].as_str().expect("id");
 
+    let notes = crate::config::meili_env::notes_root_path(&repo_root);
     let index: serde_json::Value =
         serde_json::from_str(&fs::read_to_string(notes.join("index.json")).unwrap()).unwrap();
-    let entry = &index["entries"][archive_id];
-    assert_eq!(entry["task_ref"]["master_task_id"], master_id);
-    assert_eq!(entry["task_ref"]["sub_task_id"], sub_id);
+    assert!(index["entries"][archive_id].get("task_ref").is_none());
 
     let task = get_by_id(master_id).expect("todo");
     let sub = &task["sub_tasks"][0];
-    assert_eq!(sub["status"], "complete");
-    assert_eq!(
-        sub["linked_archive_ids"].as_array().unwrap()[0],
-        archive_id
-    );
-
-    let index = read_v2_index(&wb);
-    assert_eq!(index["version"], 2);
-    assert!(index["tasks"].get(master_id).is_some());
-    let task_dir = wb.join("todo_tasks").join("tasks").join(master_id);
-    assert!(task_dir.join("sub_tasks.json").is_file());
-}
-
-#[test]
-fn create_note_todo_task_fail_dual_store_rollback() {
-    let (sandbox, repo_root) = setup_notes();
-    let wb = crate::config::meili_env::workbench_root_path(&repo_root);
-    let notes = wb.join("notes");
-    let created = create_master_with_subs("A2 rollback", Some(&["Sub"])).expect("todo");
-    let master_id = created["master_task_id"].as_str().unwrap();
-    let sub_id = created["sub_task_id"].as_str().unwrap();
-
-    let index_before: serde_json::Value =
-        serde_json::from_str(&fs::read_to_string(notes.join("index.json")).unwrap()).unwrap();
-
-    test_set_fail_complete_sub(true);
-    let result = create_note(
-        &repo_root,
-        &path_payload(
-            &sandbox,
-            SAMPLE_DOC,
-            json!({
-                "source_type": "summary",
-                "master_task_id": master_id,
-                "sub_task_id": sub_id,
-            }),
-        ),
-    );
-
-    assert_ne!(result.get("ok"), Some(&json!(true)), "expected todo_task failure: {result}");
-    assert_eq!(result.get("_status"), Some(&json!(500)));
-
-    let raw = notes.join("raw/inbox/test-topic/202606191430-test-slug.md");
-    assert!(!raw.exists(), "orphan markdown must be removed after rollback");
-
-    let index_after: serde_json::Value =
-        serde_json::from_str(&fs::read_to_string(notes.join("index.json")).unwrap()).unwrap();
-    assert_eq!(
-        index_after, index_before,
-        "index must restore to pre-request snapshot"
-    );
-
-    let task = get_by_id(master_id).expect("todo");
-    assert_eq!(task["sub_tasks"][0]["status"], "incomplete");
-    assert_eq!(
-        task["sub_tasks"][0]["linked_archive_ids"]
-            .as_array()
-            .unwrap()
-            .len(),
-        0
-    );
-
-}
-
-#[test]
-fn create_note_index_snapshot_restore_on_todo_task_fail() {
-    let (sandbox, repo_root) = setup_notes();
-    let wb = crate::config::meili_env::workbench_root_path(&repo_root);
-    let notes = wb.join("notes");
-    let created = create_master_with_subs("Index snapshot", Some(&["Sub"])).expect("todo");
-    let master_id = created["master_task_id"].as_str().unwrap();
-    let sub_id = created["sub_task_id"].as_str().unwrap();
-
-    let index_path = notes.join("index.json");
-    let mut index: serde_json::Value =
-        serde_json::from_str(&fs::read_to_string(&index_path).unwrap()).unwrap();
-    index["entries"]["seed_entry_00000000000000000000000001"] = json!({
-        "common_path": "inbox/seed/existing.md",
-        "created_at": "2026年1月1日 00:00",
-        "layers": ["raw"],
-        "source_type": "summary"
-    });
-    fs::write(&index_path, serde_json::to_string_pretty(&index).unwrap()).unwrap();
-    let index_before = index.clone();
-
-    test_set_fail_complete_sub(true);
-    let result = create_note(
-        &repo_root,
-        &path_payload(
-            &sandbox,
-            SAMPLE_DOC,
-            json!({
-                "source_type": "summary",
-                "master_task_id": master_id,
-                "sub_task_id": sub_id,
-            }),
-        ),
-    );
-    assert_ne!(result.get("ok"), Some(&json!(true)));
-
-    let index_after: serde_json::Value =
-        serde_json::from_str(&fs::read_to_string(&index_path).unwrap()).unwrap();
-    assert_eq!(
-        index_after, index_before,
-        "rollback must restore full entries map including pre-existing keys"
-    );
-
-}
-
-#[test]
-fn create_note_link_fail_notes_rollback_plan_stays_complete() {
-    let (sandbox, repo_root) = setup_notes();
-    let wb = crate::config::meili_env::workbench_root_path(&repo_root);
-    let notes = wb.join("notes");
-    let created = create_master_with_subs("Link fail", Some(&["Sub"])).expect("todo");
-    let master_id = created["master_task_id"].as_str().unwrap();
-    let sub_id = created["sub_task_id"].as_str().unwrap();
-
-    let index_before: serde_json::Value =
-        serde_json::from_str(&fs::read_to_string(notes.join("index.json")).unwrap()).unwrap();
-
-    test_set_fail_link_archive(true);
-    let result = create_note(
-        &repo_root,
-        &path_payload(
-            &sandbox,
-            SAMPLE_DOC,
-            json!({
-                "source_type": "summary",
-                "master_task_id": master_id,
-                "sub_task_id": sub_id,
-            }),
-        ),
-    );
-
-    assert_ne!(result.get("ok"), Some(&json!(true)), "expected link failure: {result}");
-    assert_eq!(result.get("_status"), Some(&json!(500)));
-
-    let raw = notes.join("raw/inbox/test-topic/202606191430-test-slug.md");
-    assert!(!raw.exists(), "notes raw must rollback on link failure");
-
-    let index_after: serde_json::Value =
-        serde_json::from_str(&fs::read_to_string(notes.join("index.json")).unwrap()).unwrap();
-    assert_eq!(index_after, index_before, "notes index must restore to pre-request snapshot");
-
-    let task = get_by_id(master_id).expect("todo");
-    let sub = &task["sub_tasks"][0];
-    assert_eq!(sub["status"], "complete", "complete_sub succeeded before link failure");
-    assert_eq!(
-        sub["linked_archive_ids"].as_array().unwrap().len(),
-        0,
-        "link_archive must not append on failure"
-    );
+    assert_eq!(sub["status"], "incomplete");
+    assert!(sub["linked_archive_ids"].as_array().unwrap().is_empty());
 }
 
 fn jot_opts_with_ts(ts: &str) -> JotCreateOpts {
@@ -522,24 +388,16 @@ fn jot_opts_with_ts(ts: &str) -> JotCreateOpts {
 }
 
 #[test]
-fn synthesize_jot_document_builds_parseable_shell() {
+fn synthesize_jot_document_builds_shell_without_nav() {
     let body = "First line title\n\nMore body content.";
     let doc = synthesize_jot_document(body, &jot_opts_with_ts("202607101430"))
         .expect("synthesize");
-    let parsed = parse_archive_document(&doc).expect("parse must accept synthesized shell");
-    assert_eq!(
-        parsed.common_path,
-        "inbox/notes/202607101430-first-line-title.md"
-    );
     assert!(doc.starts_with("# First line title\n"), "H1 from first line: {doc}");
     assert!(
         doc.contains("> 创建时间：2026年7月10日 14:30"),
         "created_at line: {doc}"
     );
-    assert!(
-        doc.contains("[digest](../../../digest/inbox/notes/202607101430-first-line-title.md)"),
-        "digest nav: {doc}"
-    );
+    assert!(!doc.contains("[digest]("), "no digest nav: {doc}");
     assert!(
         doc.contains("---\n\nFirst line title\n\nMore body content."),
         "body preserved after separator: {doc}"
@@ -547,30 +405,13 @@ fn synthesize_jot_document_builds_parseable_shell() {
 }
 
 #[test]
-fn synthesize_jot_document_empty_first_line_falls_back_to_ts_slug() {
+fn synthesize_jot_document_empty_first_line_falls_back_to_ts() {
     let body = "\n\nBody without a title line.";
     let doc = synthesize_jot_document(body, &jot_opts_with_ts("202607101431"))
         .expect("synthesize");
-    let parsed = parse_archive_document(&doc).expect("parse");
-    assert_eq!(
-        parsed.common_path,
-        "inbox/notes/202607101431-jot.md"
-    );
     assert!(
-        doc.starts_with("# 202607101431-jot\n") || doc.starts_with("# jot\n"),
-        "H1 falls back to timestamp/slug: {doc}"
-    );
-}
-
-#[test]
-fn synthesize_jot_document_defaults_topic_inbox() {
-    let doc = synthesize_jot_document("Hello note", &jot_opts_with_ts("202607101432"))
-        .expect("synthesize");
-    let parsed = parse_archive_document(&doc).expect("parse");
-    assert!(
-        parsed.common_path.starts_with("inbox/"),
-        "topic must default to inbox: {}",
-        parsed.common_path
+        doc.starts_with("# 202607101431\n"),
+        "H1 falls back to timestamp: {doc}"
     );
 }
 
@@ -583,14 +424,17 @@ fn create_jot_writes_raw_index_with_source_type_jot() {
     assert_eq!(v.get("ok"), Some(&json!(true)), "failed: {v}");
     let id = v["id"].as_str().expect("id");
     let common_path = v["common_path"].as_str().expect("common_path");
-    assert_eq!(common_path, "inbox/notes/202607101433-quick-capture.md");
+    assert!(common_path.starts_with("inbox/notes/202607101433-"), "{common_path}");
+    assert!(common_path.ends_with(".md"), "{common_path}");
+    assert!(filename_has_ts_rand(common_path), "{common_path}");
 
     let notes = crate::config::meili_env::notes_root_path(&repo_root);
     let raw = notes.join("raw").join(common_path);
     assert!(raw.is_file(), "raw must exist at {raw:?}");
     let raw_text = fs::read_to_string(&raw).expect("read raw");
-    assert!(raw_text.contains("Quick capture"));
-    parse_archive_document(&raw_text).expect("stored doc must remain parseable");
+    assert!(raw_text.starts_with("# Quick capture\n"));
+    assert!(raw_text.contains("Details here."));
+    assert!(!raw_text.contains("[digest]("));
 
     let index: serde_json::Value =
         serde_json::from_str(&fs::read_to_string(notes.join("index.json")).unwrap()).unwrap();
@@ -601,49 +445,18 @@ fn create_jot_writes_raw_index_with_source_type_jot() {
         .as_array()
         .unwrap()
         .contains(&json!("raw")));
-    assert!(
-        !notes.join("annotations").exists()
-            || fs::read_dir(notes.join("annotations"))
-                .map(|mut d| d.next().is_none())
-                .unwrap_or(true),
-        "must not write Annotation path"
-    );
 }
 
 #[test]
-fn create_jot_conflict_does_not_mutate_history() {
+fn create_jot_second_write_gets_new_filename() {
     let (_sandbox, repo_root) = setup_notes();
     let opts = jot_opts_with_ts("202607101434");
     let body = "Same path note";
     let first = create_jot(&repo_root, body, &opts).expect("first create");
+    let second = create_jot(&repo_root, body, &opts).expect("second create");
     assert_eq!(first.get("ok"), Some(&json!(true)));
-    let id = first["id"].as_str().unwrap().to_string();
-    let notes = crate::config::meili_env::notes_root_path(&repo_root);
-    let index_before: serde_json::Value =
-        serde_json::from_str(&fs::read_to_string(notes.join("index.json")).unwrap()).unwrap();
-    let raw_before = fs::read_to_string(
-        notes.join("raw/inbox/notes/202607101434-same-path-note.md"),
-    )
-    .unwrap();
-
-    let err = create_jot(&repo_root, body, &opts).expect_err("409 conflict");
-    assert!(
-        err.contains("409") || err.to_lowercase().contains("already exists"),
-        "expected conflict error: {err}"
-    );
-
-    let index_after: serde_json::Value =
-        serde_json::from_str(&fs::read_to_string(notes.join("index.json")).unwrap()).unwrap();
-    assert_eq!(index_after, index_before, "history Entry must not change on conflict");
-    assert_eq!(
-        index_after["entries"][&id]["source_type"],
-        json!("jot")
-    );
-    let raw_after = fs::read_to_string(
-        notes.join("raw/inbox/notes/202607101434-same-path-note.md"),
-    )
-    .unwrap();
-    assert_eq!(raw_after, raw_before, "raw must not be rewritten on conflict");
+    assert_eq!(second.get("ok"), Some(&json!(true)));
+    assert_ne!(first["common_path"], second["common_path"]);
 }
 
 #[test]
@@ -674,11 +487,41 @@ fn create_note_content_writes_from_markdown_body() {
         &repo_root,
         &json!({
             "content": SAMPLE_DOC,
+            "title": "Test Title",
             "source_type": "summary",
         }),
     );
     assert_eq!(v.get("ok"), Some(&json!(true)), "create_note_content failed: {v}");
     assert_eq!(v["id"].as_str().expect("id").len(), 32);
+    let common_path = v["common_path"].as_str().expect("common_path");
+    assert!(common_path.starts_with("inbox/notes/"), "{common_path}");
+    assert!(common_path.ends_with(".md"), "{common_path}");
+    assert!(!common_path.ends_with("-source.md"), "{common_path}");
+    assert!(filename_has_ts_rand(common_path), "{common_path}");
+}
+
+#[test]
+fn create_note_content_requires_title() {
+    let (_sandbox, repo_root) = setup_notes();
+    let v = create_note_content(
+        &repo_root,
+        &json!({
+            "content": "body only",
+            "source_type": "summary",
+        }),
+    );
+    assert_eq!(v.get("_status"), Some(&json!(400)));
+    assert!(v["error"].as_str().unwrap_or("").contains("title"), "{v}");
+}
+
+#[test]
+fn create_note_rejects_unknown_source_type() {
+    let (sandbox, repo_root) = setup_notes();
+    let v = create_note(
+        &repo_root,
+        &path_payload(&sandbox, SAMPLE_DOC, json!({ "source_type": "podcast" })),
+    );
+    assert_eq!(v.get("_status"), Some(&json!(400)));
 }
 
 #[test]
@@ -703,6 +546,21 @@ fn create_note_content_rejects_source_path_and_empty() {
     assert_eq!(empty.get("_status"), Some(&json!(400)));
     let missing = create_note_content(&repo_root, &json!({ "source_type": "summary" }));
     assert_eq!(missing.get("_status"), Some(&json!(400)));
+}
+
+#[test]
+fn create_note_requires_title() {
+    let (sandbox, repo_root) = setup_notes();
+    let path = stage_source(&sandbox, "source.md", SAMPLE_DOC);
+    let v = create_note(
+        &repo_root,
+        &json!({
+            "source_path": path.to_str().unwrap(),
+            "source_type": "summary",
+        }),
+    );
+    assert_eq!(v.get("_status"), Some(&json!(400)));
+    assert!(v["error"].as_str().unwrap_or("").contains("title"), "{v}");
 }
 
 #[test]
@@ -734,6 +592,7 @@ fn create_note_rejects_disallowed_source_path() {
         &repo_root,
         &json!({
             "source_path": outside.to_str().unwrap(),
+            "title": "Test Title",
             "source_type": "summary",
         }),
     );

@@ -7,7 +7,6 @@ use crate::config::meili_env::notes_root_path;
 use crate::repositories::atomic_json;
 use crate::services::archive_parse::expected_lang_common_path;
 use crate::services::source_path_allow::{self, MAX_ARCHIVE_SOURCE_BYTES};
-use crate::services::todo_task;
 use crate::services::translation_gate;
 use crate::services::workbench_read::get_notes_index;
 
@@ -198,43 +197,3 @@ pub(super) fn dual_store_rollback(
     let _ = save_entries(index_path, snapshot_entries);
 }
 
-pub(super) fn parse_task_ref(payload: &Value) -> Result<Option<(String, String)>, Value> {
-    let master = payload
-        .get("master_task_id")
-        .and_then(|v| v.as_str())
-        .map(str::trim)
-        .filter(|s| !s.is_empty());
-    let sub = payload
-        .get("sub_task_id")
-        .and_then(|v| v.as_str())
-        .map(str::trim)
-        .filter(|s| !s.is_empty());
-    match (master, sub) {
-        (None, None) => Ok(None),
-        (Some(m), Some(s)) => Ok(Some((m.to_string(), s.to_string()))),
-        _ => Err(json!({
-            "error": "master_task_id and sub_task_id must appear together",
-            "_status": 400
-        })),
-    }
-}
-
-pub(super) fn finalize_task_linked_archive(
-    written: &[PathBuf],
-    index_path: &Path,
-    index_snapshot: &Map<String, Value>,
-    master_task_id: &str,
-    sub_task_id: &str,
-    archive_id: &str,
-) -> Value {
-    if let Err(err) = todo_task::complete_sub(master_task_id, sub_task_id) {
-        dual_store_rollback(written, index_path, index_snapshot);
-        return err.into_wire();
-    }
-    if let Err(err) = todo_task::link_archive(master_task_id, sub_task_id, archive_id) {
-        // link-fail asymmetry (FM-5): complete_sub already persisted; notes rolls back only.
-        dual_store_rollback(written, index_path, index_snapshot);
-        return err.into_wire();
-    }
-    json!({ "ok": true })
-}

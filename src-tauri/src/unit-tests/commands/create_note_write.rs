@@ -40,6 +40,7 @@ fn create_note_json_success_returns_entry_handle() {
     let path = stage_source(&sandbox, SAMPLE_DOC);
     let v = create_note_json(json!({
         "source_path": path.to_str().unwrap(),
+        "title": "Test Title",
         "source_type": "summary",
     }))
     .expect("command Result");
@@ -80,16 +81,17 @@ fn create_note_json_rejects_document_field() {
 }
 
 #[test]
-fn create_note_json_conflict_returns_409() {
+fn create_note_json_second_write_gets_new_filename() {
     let sandbox = setup_notes();
     let path = stage_source(&sandbox, SAMPLE_DOC);
     let payload = json!({
         "source_path": path.to_str().unwrap(),
+        "title": "Test Title",
         "source_type": "summary",
     });
     let first = create_note_json(payload.clone()).expect("first");
-    assert_eq!(first.get("ok"), Some(&json!(true)));
     let second = create_note_json(payload).expect("second");
-    assert!(second.get("error").is_some(), "expected conflict: {second}");
-    assert_eq!(second.get("_status"), Some(&json!(409)));
+    assert_eq!(first.get("ok"), Some(&json!(true)));
+    assert_eq!(second.get("ok"), Some(&json!(true)));
+    assert_ne!(first["common_path"], second["common_path"]);
 }
