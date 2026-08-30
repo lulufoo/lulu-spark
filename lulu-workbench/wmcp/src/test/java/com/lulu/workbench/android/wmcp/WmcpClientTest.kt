@@ -58,11 +58,13 @@ class WmcpClientTest {
                 mapOf("mcp-session-id" to "sess-1"),
             ),
             HttpResponse(202, ByteArray(0)),
-            HttpResponse(200, """{"result":{"tools":[{"name":"get_notes"}]}}""".encodeToByteArray()),
+            HttpResponse(200, LIST_TOOLS_WITH_SCHEMA.encodeToByteArray()),
         )
         val wmcp = WmcpClientImpl(MemoryStorage(), network)
         wmcp.completeBind(liveOffer())
-        assertEquals(listOf("get_notes"), wmcp.listTools().map { it.name })
+        val listed = wmcp.listTools()
+        assertEquals(listOf("create_note"), listed.map { it.name })
+        assertTrue(listed.single().inputSchemaJson.contains("\"title\""))
         val init = network.requests[1]
         val initialized = network.requests[2]
         val list = network.requests[3]
@@ -83,6 +85,32 @@ class WmcpClientTest {
             listOf("get_notes"),
             parseToolNames(jsonRpcPayload(raw)),
         )
+    }
+
+    @Test
+    fun parseToolsKeepsHostInputSchemaAndDescription() {
+        val tools = parseTools(LIST_TOOLS_WITH_SCHEMA)
+        assertEquals(1, tools.size)
+        assertEquals("create_note", tools[0].name)
+        assertEquals("Create a note from Markdown content.", tools[0].description)
+        assertTrue(tools[0].inputSchemaJson.contains("\"properties\""))
+        assertTrue(tools[0].inputSchemaJson.contains("\"title\""))
+        assertTrue(tools[0].inputSchemaJson.contains("\"content\""))
+        assertTrue(tools[0].inputSchemaJson.contains("\"required\""))
+    }
+
+    @Test
+    fun parseToolsDoesNotTreatNestedNameAsTool() {
+        val body =
+            """{"result":{"tools":[{"name":"create_todo_task","description":"Add a task.","inputSchema":{"type":"object","properties":{"title":{"type":"string","description":"name of the task"}}}}]}}"""
+        assertEquals(listOf("create_todo_task"), parseToolNames(body))
+    }
+
+    @Test
+    fun parseToolsFallsBackWhenSchemaMissing() {
+        val tools = parseTools("""{"result":{"tools":[{"name":"get_notes"}]}}""")
+        assertEquals("get_notes", tools.single().name)
+        assertEquals("""{"type":"object"}""", tools.single().inputSchemaJson)
     }
 
     @Test
@@ -151,6 +179,9 @@ class WmcpClientTest {
         assertTrue(wmcp.listTools().isEmpty())
     }
 }
+
+private const val LIST_TOOLS_WITH_SCHEMA =
+    """{"result":{"tools":[{"name":"create_note","description":"Create a note from Markdown content.","inputSchema":{"type":"object","properties":{"title":{"type":"string"},"content":{"type":"string"},"project":{"type":"string"}},"required":["content","title"],"additionalProperties":false}}]}}"""
 
 private fun liveOffer(): BindOffer =
     BindOffer(

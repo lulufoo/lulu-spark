@@ -23,7 +23,7 @@ class ToolDispatcher(
                 LlmToolDef(
                     name = tool.name,
                     description = tool.description.ifEmpty { tool.name },
-                    parametersJson = """{"type":"object"}""",
+                    parametersJson = tool.inputSchemaJson.ifBlank { """{"type":"object"}""" },
                 )
             }
     }

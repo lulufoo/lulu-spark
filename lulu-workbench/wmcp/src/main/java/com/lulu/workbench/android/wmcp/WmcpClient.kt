@@ -16,6 +16,7 @@ data class BindResult(
 data class McpTool(
     val name: String,
     val description: String,
+    val inputSchemaJson: String = """{"type":"object"}""",
 )
 
 data class McpToolResult(
@@ -78,7 +79,7 @@ class WmcpClientImpl(
         if (!isBound()) return emptyList()
         return try {
             ensureSession()
-            parseToolNames(mcpPost("tools/list", "{}")).map { McpTool(name = it, description = "") }
+            parseTools(mcpPost("tools/list", "{}"))
         } catch (error: Exception) {
             log.e("mcp tools/list unavailable")
             emptyList()
@@ -174,21 +175,6 @@ private data class McpExchange(
 
 object WmcpFactory {
     fun create(storage: Storage): WmcpClient = WmcpClientImpl(storage, NetworkFactory.create())
-}
-
-internal fun parseToolNames(body: String): List<String> {
-    val names = mutableListOf<String>()
-    var cursor = 0
-    while (true) {
-        val key = body.indexOf("\"name\"", startIndex = cursor)
-        if (key < 0) return names
-        val colon = body.indexOf(':', startIndex = key)
-        val quote = body.indexOf('"', startIndex = colon + 1)
-        val end = body.indexOf('"', startIndex = quote + 1)
-        if (quote < 0 || end < 0) return names
-        names.add(body.substring(quote + 1, end))
-        cursor = end + 1
-    }
 }
 
 private val log = WbLog.module(LogModule.WMCP)
