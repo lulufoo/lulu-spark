@@ -2,51 +2,41 @@
 
 ## Sink scope
 
-| `sink` | Corpus / MCP |
-|--------|----------------|
+| `sink` | MCP |
+|--------|-----|
 | `workbench` | This document applies in full |
-| `local-md` | Skip MCP; write workspace `.cache` only — do **not** write notes `raw/` / `digest/` / `index.json` by hand |
+| `local-md` | Skip MCP; write workspace `.cache` only — do **not** write the notes store by hand |
 
 ## MCP prerequisite (`sink=workbench` only)
 
-Workbench App **must** be running (`workbench-knowledge` at `http://127.0.0.1:9876/mcp`).  
-**Do not** write `raw/` / `digest/` / `index.json` directly. Use MCP only.
+Workbench App **must** be running.  
+**Do not** write notes `raw/` / `digest/` / `index.json` directly. Use MCP only. Load note-task and route Create.
 
 | Op | MCP tool |
 |----|----------|
-| Write raw + index | `create_note` |
-| Write digest + layers | `create_note_digest` |
+| Write raw (+ digest per `digest` field) | `create_note` |
 
 First step when archiving to Workbench: confirm MCP available.
 
-## Paths
+## Staging path
 
 ```text
-COMMON_PATH = <project>/<doc-theme>/<ts>-<slug>.md
-topic-path  = <project>/<doc-theme>   # always 2 segments
-prefix      = "../../../"
+{workspace}/.cache/dialogue-archive/<ts>-<slug>.md
 ```
 
-| Dir | Pattern |
-|-----|---------|
-| raw | `raw/<COMMON_PATH>` |
-| digest | `digest/<COMMON_PATH>` |
-| normalize / local-md | `{workspace}/.cache/dialogue-archive/<ts>-<slug>.md` |
+Host assigns `common_path` on Create. Do not invent a notes write identity.
 
 - `project`: closest topics match; else `inbox`
-- `doc-theme` / `slug`: kebab-case
-- `ts`: `YYYYMMDDHHMM` (UTC+8 archive time)
+- `doc-theme` / `slug`: kebab-case (staging filename only)
+- `ts`: `YYYYMMDDHHMM` (UTC+8) for the staging filename
 
-## Raw header (verbatim producer — script)
-
-`sink=workbench`:
+## Raw header (script)
 
 ```markdown
 # <Title>
 
 > 创建时间：YYYY年M月D日 HH:MM
 > 来源：dialogue-archive
-> 导航：[digest](../../../digest/<COMMON_PATH>)
 
 ---
 
@@ -54,24 +44,17 @@ prefix      = "../../../"
 …turn body…
 ```
 
+Host rewrites the raw shell.
+
+`sink=local-md`: script adds `> 落点：local-md` when `--local-md` is passed.
+
 ## create_note
 
-Hard-cut: body comes from Host reading a file. **Do not** send `document`.
-
-```json
-{
-  "source_path": "<absolute path to normalized .md>",
-  "source_type": "dialogue"
-}
-```
+Hard-cut: body comes from Host reading a file. **Do not** send `document`. Fields: live MCP schema (`title` + `source_path` + `digest` on desktop).
 
 If the tool/API still rejects `source_path` or requires `document`, stop and report Host/MCP not yet upgraded — do **not** paste the full markdown into the tool call.
 
-## create_note_digest
-
-MCP fields unchanged: `id` + `digest` (+ optional `force`).
-
-Writing contract: non-empty **内容约束** must appear in the digest header:
+`digest_body` writing contract: non-empty **内容约束** must appear in the digest header:
 
 ```markdown
 > 内容约束：<content_constraint>

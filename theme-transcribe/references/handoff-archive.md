@@ -1,6 +1,6 @@
-# Handoff → theme-archive
+# Handoff → note-task
 
-Load after `$TRANSCRIBE_CTL route`. Follow [`theme-archive`](../../theme-archive/SKILL.md) Embedded. Do not translate here.
+Load after `$TRANSCRIBE_CTL route`. Load note-task and route Create. Need `-zh.md`: run `$SKILL_DIR/note-task/scripts/detect_full_english.py` then `check_zh_parity.py`, pass `translations`.
 
 ## When
 
@@ -13,14 +13,14 @@ Load after `$TRANSCRIBE_CTL route`. Follow [`theme-archive`](../../theme-archive
 |-------|--------|
 | Primary | `route` stdout `primary` (add archive header if missing) |
 | `source_type` | `route` stdout `source_type` (`dialogue` or `transcript`) |
-| `skip_translate` | only when the user forbids Chinese |
+| Chinese companion | only when the caller translated first (`translations` on `create_note`) |
 
-Do not pass `translations`. `content_constraint` is required when `source_type` is `dialogue`.
+`content_constraint` is required in `digest_body` when `source_type` is `dialogue`.
 
 ## Digest
 
-theme-archive `[AR-3]` owns digest. Theme-transcribe does not call `create_note_digest`.
+`digest` / `digest_body` are `create_note` fields. Theme-transcribe does not call a digest-only tool.
 
 ## Revisions
 
-New archive needs a new `ts` / path. `create_note` does not overwrite `raw/`.
+New archive needs a new staging `ts` / path. `create_note` does not overwrite `raw/`.

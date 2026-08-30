@@ -1,25 +1,21 @@
 # Save to Archive
 
-> **路径约定：** [archive-concepts.md](../../shared/archive-concepts.md)
->
-> 组完 **主文件** 后 Embedded 执行 [theme-archive](../../theme-archive/SKILL.md)。**禁止**在本 skill 翻译或自管 MCP。
+> 组完 **主文件** 后加载 note-task，走 Create。需要中文稿时，先跑 note-task 的 `detect_full_english.py` / `check_zh_parity.py`，再带 `translations`。
 
 After Phase 2 Format produces the Markdown body, execute these steps.
 
 ---
 
-### Step 1 · Select project and filenames
+### Step 1 · Select project and staging name
 
 Infer `project` from topics (closest match; unclear → `inbox`). Infer `doc-theme` from `bundle.meta.title` (kebab-case English).
 
 ```
-topic-path  = <project>/<doc-theme>
-slug        = kebab-case summary of source title
-ts          = YYYYMMDDHHMM (UTC+8)
-COMMON_PATH = <topic-path>/<ts>-<slug>.md
+slug = kebab-case summary of source title
+ts   = YYYYMMDDHHMM (UTC+8)
 ```
 
-Slug conflict → clarify with user before proceeding.
+Staging path only — Host assigns `common_path` on Create. Slug conflict → clarify with user before proceeding.
 
 ---
 
@@ -29,16 +25,15 @@ Primary： [output-templates.md](output-templates.md) header + Phase 2 body。
 
 Write to `{workspace}/.cache/theme-fetch/<ts>-<slug>.md`.
 
-`bundle.meta.language` does **not** drive translation. **Do not** build `-zh.md`.
+`bundle.meta.language` does **not** drive translation. Need `-zh.md` → run `$SKILL_DIR/note-task/scripts/detect_full_english.py` then `check_zh_parity.py` before Create.
 
 ---
 
-### Step 3 · Handoff theme-archive
+### Step 3 · Handoff note-task
 
-Load and execute [`theme-archive`](../../theme-archive/SKILL.md) **Embedded** from `[AR-1]`:
+Load note-task and route **Create**:
 
-- `primary_path` = Step 2 file
+- stage path = Step 2 file
 - `source_type`: `article`
-- `COMMON_PATH` from Step 1
 
-theme-archive runs `[AR-1b]` then MCP + digest. Append its completion lines.
+Append `create_note` completion fields (`id`, `common_path`, `raw_path`, optional `digest_path`).

@@ -58,6 +58,7 @@ class DialogueArchiveNormalizeTest(unittest.TestCase):
             self.assertIn("visible answer", body)
             self.assertNotIn("<thinking>", body)
             self.assertNotIn("<user_query>", body)
+            self.assertNotIn("导航：[digest]", body)
             self.assertEqual(body.count("## User（Turn"), 2)
 
     def test_invalid_range_exits_2(self) -> None:

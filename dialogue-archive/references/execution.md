@@ -24,9 +24,10 @@ MCP: [`archive.md`](archive.md).
    - **Forbid** loading entire jsonl into model context.
 4. Infer `title` / `project` / `doc-theme` / `slug` / `ts`; choose `--out`:
    - `{workspace}/.cache/dialogue-archive/<ts>-<slug>.md`
-5. Run `$NORMALIZE` with `--transcript` `--start-node` `--end-node` `--out` `--title` (+ optional project/theme/slug). Exit ≠ 0 → stop.
+   - This is a staging path only. Do not treat it as Host `common_path`.
+5. Run `$NORMALIZE` with `--transcript` `--start-node` `--end-node` `--out` `--title` (+ optional project/theme/slug). For `local-md`, also pass `--local-md`. Exit ≠ 0 → stop.
 6. Phase B:
-   - `workbench`: load [`theme-archive`](../../theme-archive/SKILL.md) Embedded (`source_type: dialogue`, `content_constraint`). **Forbid** `"document"` and self-managed MCP.
+   - `workbench`: load note-task and route Create (`source_type: dialogue`, `content_constraint` when writing digest). **Forbid** `"document"` and Host HTTP.
    - `local-md`: ensure file at `--out`; stop (no MCP).
 
 **Hard:** Parent **MUST NOT** hand-parse jsonl or hand-build `TURN_SEP` bodies for MCP. Use `$NORMALIZE` only.
@@ -38,18 +39,22 @@ Paste path: user supplies finished TURN_SEP markdown on disk → skip steps 3–
 ## Content constraint (digest)
 
 Required whenever digest is written. Forms: node/Turn range narrative, one-line focus, or both.  
-Must appear in digest header. Do not re-fetch full raw solely to write digest.
+Must appear in the digest header. Do not re-fetch full raw solely to write digest.
+
+```markdown
+> 内容约束：<content_constraint>
+```
 
 ---
 
 ## Done receipt
 
-`workbench`:
+`workbench` — use Host-returned paths, do not invent them:
 
 ```text
 > ✅ dialogue-archive complete（sink=workbench）
-> 📄 raw：raw/<COMMON_PATH>
-> 📋 digest：digest/<COMMON_PATH>（或已跳过）
+> 📄 raw：<raw_path>
+> 📋 digest：<digest_path 或已跳过>
 > 🧭 nodes：<start>-<end>；约束：<content_constraint 摘要>
 ```
 

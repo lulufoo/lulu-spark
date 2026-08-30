@@ -150,17 +150,12 @@ def render_markdown(
     *,
     title: str,
     created_at: str,
-    project: str,
-    doc_theme: str,
-    ts: str,
-    slug: str,
     start: int,
     end: int,
     transcript_name: str,
     turns: list[tuple[str, str]],
-    omit_digest_nav: bool,
+    local_md: bool,
 ) -> str:
-    common = f"{project}/{doc_theme}/{ts}-{slug}.md"
     lines = [
         f"# {title}",
         "",
@@ -168,9 +163,7 @@ def render_markdown(
         "> 来源：dialogue-archive",
         f"> 源节点：{start}-{end}（{transcript_name}）",
     ]
-    if not omit_digest_nav:
-        lines.append(f"> 导航：[digest](../../../digest/{common})")
-    else:
+    if local_md:
         lines.append("> 落点：local-md")
     lines.extend(["", "---", ""])
     for i, (user, ai) in enumerate(turns, 1):
@@ -200,11 +193,11 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     p.add_argument("--doc-theme", default="dialogue")
     p.add_argument("--slug", default=None)
     p.add_argument("--created-at", default=None)
-    p.add_argument("--ts", default=None, help="YYYYMMDDHHMM for COMMON_PATH")
+    p.add_argument("--ts", default=None, help="YYYYMMDDHHMM staging filename hint")
     p.add_argument(
-        "--omit-digest-nav",
+        "--local-md",
         action="store_true",
-        help="local-md: omit digest nav; add 落点：local-md",
+        help="sink=local-md: add 落点：local-md (never writes a digest nav line)",
     )
     p.add_argument("--dry-run", action="store_true")
     return p.parse_args(argv)
@@ -251,7 +244,7 @@ def main(argv: list[str] | None = None) -> int:
                     "skipped_non_chat": skipped,
                     "turns": len(turns),
                     "out": str(out.resolve()),
-                    "common_path": f"{args.project}/{args.doc_theme}/{ts}-{slug}.md",
+                    "staging": f"{args.project}/{args.doc_theme}/{ts}-{slug}.md",
                 },
                 ensure_ascii=False,
                 indent=2,
@@ -262,15 +255,11 @@ def main(argv: list[str] | None = None) -> int:
     body = render_markdown(
         title=args.title,
         created_at=created_at,
-        project=args.project,
-        doc_theme=args.doc_theme,
-        ts=ts,
-        slug=slug,
         start=start,
         end=end,
         transcript_name=transcript.name,
         turns=turns,
-        omit_digest_nav=args.omit_digest_nav,
+        local_md=args.local_md,
     )
     try:
         out.parent.mkdir(parents=True, exist_ok=True)

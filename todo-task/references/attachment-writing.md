@@ -27,7 +27,7 @@ For a dialogue attachment:
 4. Use `dialogue-archive` with `sink=local-md`.
 5. Attach the resulting local Markdown through the Todo attachment tool.
 
-`local-md` means do not call `create_note` or `create_note_digest`; the dialogue
+`local-md` means do not call `create_note`; the dialogue
 must not enter Workbench notes. Copying the local file into Todo attachments
 is still required when the user requested an attachment.
 

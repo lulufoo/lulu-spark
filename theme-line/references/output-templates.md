@@ -4,7 +4,7 @@ Default is complete chronological dialogue. Do not use summary or paraphrase tem
 
 ## Archive Header (Save to Archive)
 
-All archived `raw/` files use this header block (navigation paths resolved per [archive-steps.md](archive-steps.md) Step 3):
+All archived `raw/` files use this header block:
 
 ```md
 # {Document Title}
@@ -13,14 +13,12 @@ All archived `raw/` files use this header block (navigation paths resolved per [
 
 > 时长：约 {duration_min} 分钟 · 发布：{YYYY-MM-DD}
 
-> 导航：[digest](...)
-
 > 原文：[Video]({url})
 ```
 
 - **时长** / **发布**: 来自 `bundle.meta.duration_sec` / `bundle.meta.published_at`（非 yt-dlp 直接拉取）
 - 非视频源（`duration_sec: null`）省略时长行
-- **`-zh.md`**: not built here — theme-archive `[AR-1b]` when body is full English
+- **`-zh.md`**: not built here — caller detects / translates / parity-checks, then `translations` on `create_note`
 - 可选 provenance：`> 采集：{platform} · complete-dialogue · 嘉宾：{guest} · 说话人：标题与问答推断`
 
 ## Complete Dialogue Format (default)

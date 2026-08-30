@@ -3,7 +3,7 @@ name: theme-line
 description: >-
   Acquire existing captions or transcripts (YouTube, InfoQ, plain text) and
   compose a complete chronological dialogue. No media download, no Whisper.
-  Hands off to theme-archive. Use for theme-line, 完整对话整理, YouTube/InfoQ
+  Hands off to note-task. Use for theme-line, 完整对话整理, YouTube/InfoQ
   字幕采集, Host/guest 对话展开.
 ---
 
@@ -15,7 +15,7 @@ description: >-
 > 2. Compose complete dialogue
 > 3. Save to Archive
 >
-> Read this file in full before executing. Phase 3 hands off to **theme-archive** (translate + MCP + digest).
+> Read this file in full before executing. Phase 3 hands off to **note-task** (Create).
 
 Produce a complete chronological dialogue from captions or an existing transcript. Time and source chapters are navigation only.
 
@@ -26,7 +26,7 @@ Produce a complete chronological dialogue from captions or an existing transcrip
 | **theme-line** | Direct captions / API / local or pasted transcript → complete dialogue. **No** media download. **No** Whisper. |
 | `theme-transcribe` | Download media → Whisper → verbatim draft |
 | `theme-fetch` | Web articles |
-| `theme-archive` | Translate full English, persist raw, digest |
+| `note-task` | Persist the note via MCP `create_note` |
 
 Digest may summarize. **raw must keep the full dialogue.**
 
@@ -48,8 +48,7 @@ MUST read the matching adapter doc before any fetch. Do NOT improvise platform-s
 
 - Output MUST conform to [references/bundle-schema.md](references/bundle-schema.md)
 - Read `references/adapters/{platform}.md` → Match / Acquire / Map / Quirks
-- Bundle is ephemeral (memory only); optional debug: `{archive_root}/.cache/{topic-path}/{ts}-{slug}-bundle.json`
-- **禁止** persist bundle to `trace/`
+- Bundle is ephemeral (memory only); optional debug: `{workspace}/.cache/theme-line/{ts}-{slug}-bundle.json`
 
 ## Phase 2 · Compose
 
@@ -80,15 +79,13 @@ Output patterns: [references/output-templates.md](references/output-templates.md
 
 Load and execute [references/archive-steps.md](references/archive-steps.md) from Step 1.
 
-**Do not** translate. **Do not** call `create_note` / `create_note_digest`. Translation and persist are theme-archive’s job.
-
-Path/config: [../shared/archive-concepts.md](../shared/archive-concepts.md)
+Do not call Host HTTP. Load note-task for Create. Need `-zh.md`: run note-task `detect_full_english.py` / `check_zh_parity.py`, then pass `translations`.
 
 ## Title Handling
 
 - Video URL → use source title from `bundle.meta.title`
 - User custom title → prefer user's title
-- If theme-archive emits `-zh.md`, its Chinese title follows [full-english-translate.md](../theme-archive/references/full-english-translate.md)
+- If a `-zh.md` is produced, use a concise Chinese title (`{Speaker}：{Event} | {Outlet}` when known)
 
 ## Ask Only When Necessary
 
@@ -102,5 +99,5 @@ Defaults: source title · chronological complete dialogue · source-chapter nav 
 | [adapters/](references/adapters/) | Platform Acquire docs |
 | [compose-strategies.md](references/compose-strategies.md) | Compose rules |
 | [speaker-roster.md](references/speaker-roster.md) | Name roster + turn labels |
-| [archive-steps.md](references/archive-steps.md) | Build primary → handoff theme-archive |
+| [archive-steps.md](references/archive-steps.md) | Build primary → handoff note-task |
 | [output-templates.md](references/output-templates.md) | Output patterns |

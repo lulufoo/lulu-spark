@@ -1,14 +1,9 @@
 #!/usr/bin/env python3
-"""CLI: clean Cursor transcripts into clean-raw.json; render archive markdown.
-
-SSOT for lulu-workbench-skills (shared by dialogue-summary / dialogue-archive).
+"""CLI: clean Cursor transcripts into clean-raw.json for dialogue-summary.
 
 Usage:
   transcript-clean-control.py from-jsonl --session-id ID --jsonl PATH --out PATH [--title T]
   transcript-clean-control.py from-raw-md --session-id ID --raw PATH --out PATH [--title T]
-  transcript-clean-control.py to-archive-md --clean-raw PATH --out PATH \\
-      --title T --project P --doc-theme D --slug S --ts YYYYMMDDHHMM \\
-      [--source-label dialogue-archive] [--ts-display '...']
 """
 from __future__ import annotations
 
@@ -16,7 +11,6 @@ import argparse
 import importlib.util
 import json
 import re
-import sys
 from pathlib import Path
 
 
@@ -166,143 +160,6 @@ def cmd_from_raw_md(
     )
 
 
-_TS_RE = re.compile(r"^\d{12}$")
-
-
-def _ts_display(ts: str, override: str | None) -> str:
-    if override:
-        return override
-    if not _TS_RE.match(ts):
-        raise SystemExit(f"invalid --ts {ts!r}; expected YYYYMMDDHHMM")
-    y, mo, d = int(ts[0:4]), int(ts[4:6]), int(ts[6:8])
-    hh, mm = ts[8:10], ts[10:12]
-    return f"{y}年{mo}月{d}日 {hh}:{mm}"
-
-
-def render_archive_markdown(
-    doc: dict,
-    *,
-    title: str,
-    project: str,
-    doc_theme: str,
-    slug: str,
-    ts: str,
-    source_label: str,
-    ts_display: str | None,
-    omit_digest_nav: bool = False,
-) -> str:
-    """Render clean-raw turns into dialogue-archive Core Output Shape (verbatim u/a)."""
-    if not _TS_RE.match(ts):
-        raise SystemExit(f"invalid --ts {ts!r}; expected YYYYMMDDHHMM")
-    common = f"{project}/{doc_theme}/{ts}-{slug}.md"
-    disp = _ts_display(ts, ts_display)
-    turns = doc.get("turns") or []
-    parts: list[str] = [
-        f"# {title}",
-        "",
-        f"> 创建时间：{disp}",
-        f"> 来源：{source_label}",
-    ]
-    if omit_digest_nav:
-        parts.append("> 落点：local-md")
-    else:
-        parts.append(f"> 导航：[digest](../../../digest/{common})")
-    parts += [
-        "",
-        "---",
-        "",
-    ]
-    for t in turns:
-        n = int(t.get("n") or 0)
-        u = (t.get("u") or "").rstrip()
-        a = (t.get("a") or "").rstrip()
-        parts += [
-            "<!-- DDM:TURN_SEP:v1 -->",
-            "",
-            f"## User（Turn {n}）",
-            "",
-            u,
-            "",
-            "<!-- DDM:TURN_SEP:v1 -->",
-            "",
-            "## AI",
-            "",
-            a,
-            "",
-        ]
-    return "\n".join(parts).rstrip() + "\n"
-
-
-def cmd_to_archive_md(
-    clean_raw: Path,
-    out: Path,
-    *,
-    title: str,
-    project: str,
-    doc_theme: str,
-    slug: str,
-    ts: str,
-    source_label: str,
-    ts_display: str | None,
-    omit_empty_ai: bool,
-    omit_digest_nav: bool = False,
-) -> int:
-    doc = json.loads(clean_raw.read_text(encoding="utf-8"))
-    turns = list(doc.get("turns") or [])
-    if omit_empty_ai:
-        turns = [t for t in turns if str(t.get("a") or "").strip()]
-        doc = {**doc, "turns": turns}
-    if not turns:
-        print(
-            json.dumps(
-                {"error": "clean-raw has zero turns", "clean_raw": str(clean_raw)},
-                ensure_ascii=False,
-            ),
-            file=sys.stderr,
-        )
-        return 1
-    bad = schema.assert_no_chrome_doc(doc)
-    if bad:
-        print(
-            json.dumps(
-                {"error": "chrome_tags_remaining", "detail": bad},
-                ensure_ascii=False,
-            ),
-            file=sys.stderr,
-        )
-        return 1
-    md = render_archive_markdown(
-        doc,
-        title=title,
-        project=project,
-        doc_theme=doc_theme,
-        slug=slug,
-        ts=ts,
-        source_label=source_label,
-        ts_display=ts_display,
-        omit_digest_nav=omit_digest_nav,
-    )
-    out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(md, encoding="utf-8")
-    user_headers = md.count("## User（Turn")
-    common = f"{project}/{doc_theme}/{ts}-{slug}.md"
-    print(
-        json.dumps(
-            {
-                "written": str(out.resolve()),
-                "common_path": common,
-                "user_turns": len(turns),
-                "user_headers": user_headers,
-                "sep_ok": "<!-- DDM:TURN_SEP:v1 -->" in md,
-                "match": user_headers == len(turns),
-            },
-            ensure_ascii=False,
-            indent=2,
-        )
-    )
-    return 0 if user_headers == len(turns) else 1
-
-
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -323,27 +180,6 @@ def main() -> int:
     p2.add_argument("--turn-from", type=int, help="Inclusive start turn n")
     p2.add_argument("--turn-to", type=int, help="Inclusive end turn n")
 
-    p3 = sub.add_parser("to-archive-md")
-    p3.add_argument("--clean-raw", required=True)
-    p3.add_argument("--out", required=True)
-    p3.add_argument("--title", required=True)
-    p3.add_argument("--project", required=True)
-    p3.add_argument("--doc-theme", required=True)
-    p3.add_argument("--slug", required=True)
-    p3.add_argument("--ts", required=True, help="YYYYMMDDHHMM UTC+8")
-    p3.add_argument("--source-label", default="dialogue-archive")
-    p3.add_argument("--ts-display", help="Override 创建时间 display string")
-    p3.add_argument(
-        "--omit-empty-ai",
-        action="store_true",
-        help="Skip turns whose assistant body is empty (e.g. in-progress last turn)",
-    )
-    p3.add_argument(
-        "--omit-digest-nav",
-        action="store_true",
-        help="Omit digest navigation line (sink=local-md)",
-    )
-
     args = ap.parse_args()
     if args.cmd == "from-jsonl":
         return cmd_from_jsonl(
@@ -362,20 +198,6 @@ def main() -> int:
             args.title,
             args.turn_from,
             args.turn_to,
-        )
-    if args.cmd == "to-archive-md":
-        return cmd_to_archive_md(
-            Path(args.clean_raw),
-            Path(args.out),
-            title=args.title,
-            project=args.project,
-            doc_theme=args.doc_theme,
-            slug=args.slug,
-            ts=args.ts,
-            source_label=args.source_label,
-            ts_display=args.ts_display,
-            omit_empty_ai=bool(args.omit_empty_ai),
-            omit_digest_nav=bool(args.omit_digest_nav),
         )
     return 2
 

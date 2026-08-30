@@ -9,16 +9,16 @@ description: >-
 
 # ThemeTranscribe
 
-Turn a media URL or local file into a complete source-language verbatim draft and hand it to `theme-archive`. Done when archive returns paths, or when the user opted out of archive after the English draft exists.
+Turn a media URL or local file into a complete source-language verbatim draft and hand it to `note-task`. Done when archive returns paths, or when the user opted out of archive after the English draft exists.
 
 ## Boundary
 
 | Skill | Role |
 |-------|------|
-| **theme-transcribe** | Acquire once → verbatim → route → hand off `theme-archive` |
+| **theme-transcribe** | Acquire once → verbatim → route → hand off `note-task` |
 | `theme-line` | Direct captions / API / paste → complete chronological dialogue. No media download, no Whisper. |
 | `theme-fetch` | Web articles |
-| `theme-archive` | Translate full English, persist raw, digest |
+| `note-task` | Persist the note via MCP `create_note` |
 
 ## Triggers
 
@@ -41,13 +41,13 @@ Subcommands: `--help` · `acquire` · `verbatim` · `route`.
 5. Branch on stdout `mode` only:
    - `dialogue-timed` → announce speaker count; Agent may replace `Speaker A/B` with names evidenced in the draft; `source_type` is `dialogue`.
    - `time-segmented` → announce time-range segmentation, no speaker labels; `source_type` is `transcript`.
-6. Load [handoff-archive.md](references/handoff-archive.md). Compose archive header on stdout `primary`. Load and execute [`theme-archive`](../theme-archive/SKILL.md) Embedded. Skip only when the user says 不归档 / skip archive / local only. `skip_translate: true` only when the user says 停止中文翻译.
+6. Load [handoff-archive.md](references/handoff-archive.md). Compose archive header on stdout `primary`. Load note-task Create. Skip only when the user says 不归档 / skip archive / local only. Need `-zh.md`: run note-task `detect_full_english.py` / `check_zh_parity.py`, then pass `translations`.
 
 Ask only when acquire cannot proceed, language is ambiguous, or archive slug conflicts. Default model: `small`.
 
 ## Chat
 
-Return phase lines, stdout counts, and theme-archive paths. Do not paste the transcript. Tool noise stays in `logs/`.
+Return phase lines, stdout counts, and note-task paths. Do not paste the transcript. Tool noise stays in `logs/`.
 
 ## References
 
@@ -56,4 +56,3 @@ Return phase lines, stdout counts, and theme-archive paths. Do not paste the tra
 | [pipeline.md](references/pipeline.md) | Artifact names after a script error |
 | [adapters/](references/adapters/) | Phase 0 / acquire |
 | [handoff-archive.md](references/handoff-archive.md) | Archive step |
-| [../theme-archive/SKILL.md](../theme-archive/SKILL.md) | Translate + persist |

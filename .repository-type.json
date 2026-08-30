@@ -6,6 +6,9 @@
     "dialogue-summary",
     "dialogue-archive",
     "theme-line",
-    "theme-archive"
+    "theme-fetch",
+    "theme-transcribe",
+    "note-task",
+    "todo-task"
   ]
 }

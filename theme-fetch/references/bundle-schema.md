@@ -2,7 +2,7 @@
 
 > **Version:** `schema_version: 1`
 >
-> Phase 1 (Acquire) 输出、Phase 2 (Format) 输入的唯一中间契约。内存 ephemeral；**禁止**写入 `trace/`。可选调试落盘：`{archive_root}/.cache/{topic-path}/{ts}-{slug}-bundle.json`。
+> Phase 1 (Acquire) 输出、Phase 2 (Format) 输入的唯一中间契约。内存 ephemeral。可选调试落盘：`{workspace}/.cache/theme-fetch/{ts}-{slug}-bundle.json`。
 
 ---
 
@@ -37,7 +37,7 @@ content:                   # required — 正文载体
 | `author` | `string` \| `null` | no | 作者 |
 | `publisher` | `string` \| `null` | no | 刊载方（公众号名、站点名） |
 | `published_at` | `string` \| `null` | no | `YYYY-MM-DD` 或 `YYYY-MM-DD HH:MM` |
-| `language` | `"zh"` \| `"en"` \| `"mixed"` \| `"unknown"` | yes | 采集元数据。**不**驱动翻译；中译由 theme-archive 按正文是否全文英文决定。 |
+| `language` | `"zh"` \| `"en"` \| `"mixed"` \| `"unknown"` | yes | 采集元数据。**不**驱动翻译；需要中文稿时由调用方按 full-english-translate 处理。 |
 
 ### `meta.language` → Phase 3 翻译规则
 

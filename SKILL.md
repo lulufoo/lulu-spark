@@ -2,7 +2,7 @@
 name: lulu-workbench-skills
 description: >-
   lulu-workbench 归档技能包安装。克隆到平台 skills 目录（Cursor / Copilot / Claude / Codex）；归档经 Workbench App MCP 落盘。
-  Use when: 安装 workbench skills、dialogue-summary dialogue-archive theme-line theme-fetch theme-transcribe theme-archive todo-task
+  Use when: 安装 workbench skills、dialogue-summary dialogue-archive theme-line theme-fetch theme-transcribe note-task todo-task
 ---
 
 # lulu-workbench-skills — 安装
@@ -31,9 +31,9 @@ git clone https://github.com/lulufoo/lulu-workbench-skills.git $SKILL_DIR
 git -C $SKILL_DIR pull --rebase
 ```
 
-克隆完成后平台自动发现子 skill（`dialogue-summary`、`dialogue-archive`、`theme-line`、`theme-fetch`、`theme-transcribe`、`theme-archive`、`todo-task`），均无需额外操作。digest 为 `shared/digest-workflow` shared 契约，不单独发现。
+克隆完成后平台自动发现子 skill（`dialogue-summary`、`dialogue-archive`、`theme-line`、`theme-fetch`、`theme-transcribe`、`note-task`、`todo-task`），均无需额外操作。digest 写法由 note-task 自己说明，不单独发现。
 
-`dialogue-summary` 清洗脚本见包内 [`scripts/transcript-clean-control.py`](scripts/transcript-clean-control.py)；`dialogue-archive` 切片脚本见包内 [`dialogue-archive/scripts/dialogue_archive_normalize.py`](dialogue-archive/scripts/dialogue_archive_normalize.py) + MCP `source_path`。编排见 [`shared/dialogue-execution.md`](shared/dialogue-execution.md)。
+`dialogue-summary` 清洗脚本见包内 [`scripts/transcript-clean-control.py`](scripts/transcript-clean-control.py)；`dialogue-archive` 切片脚本见包内 [`dialogue-archive/scripts/dialogue_archive_normalize.py`](dialogue-archive/scripts/dialogue_archive_normalize.py)。各 skill 自己编排。
 
 ## 前置条件
 
@@ -43,16 +43,16 @@ git -C $SKILL_DIR pull --rebase
 
 | 指令 | 目录 | 说明 |
 |------|------|------|
-| `dialogue-summary` | [dialogue-summary/](dialogue-summary/) | 自包含总结：覆盖面随对话、单元丰富度固定、忠实整合不灌水 + `〔User〕` → MCP 归档（`dtd_raw_summary`；已定稿落盘用 `theme-archive`） |
-| `dialogue-archive` | [dialogue-archive/](dialogue-archive/) | 节点切片脚本 + **theme-archive** 原文归档；`sink=local-md` 仅 `.cache` |
-| `theme-line` | [theme-line/](theme-line/) | 直接采集字幕/已有稿 → 完整对话组稿 → **theme-archive**（全文英文才中译 + digest） |
-| `theme-fetch` | [theme-fetch/](theme-fetch/) | 网页文章组稿 → **theme-archive** |
-| `theme-transcribe` | [theme-transcribe/](theme-transcribe/) | 下载媒体 + Whisper → 完整逐字稿 → **theme-archive**；无现成字幕时用 |
-| `theme-archive` | [theme-archive/](theme-archive/) | 统一录入：raw + 全文英文默认中译 + 自动 digest |
+| `dialogue-summary` | [dialogue-summary/](dialogue-summary/) | 自包含总结：覆盖面随对话、单元丰富度固定、忠实整合不灌水 + `〔User〕` → 加载 note-task 归档 |
+| `dialogue-archive` | [dialogue-archive/](dialogue-archive/) | 节点切片脚本 + **note-task** 原文归档；`sink=local-md` 仅 `.cache` |
+| `theme-line` | [theme-line/](theme-line/) | 直接采集字幕/已有稿 → 完整对话组稿 → **note-task** |
+| `theme-fetch` | [theme-fetch/](theme-fetch/) | 网页文章组稿 → **note-task** |
+| `theme-transcribe` | [theme-transcribe/](theme-transcribe/) | 下载媒体 + Whisper → 完整逐字稿 → **note-task**；无现成字幕时用 |
+| `note-task` | [note-task/](note-task/) | 笔记 MCP 地图：`create_note` / catalog / files |
 | `todo-task` | [todo-task/](todo-task/) | Todo 任务树 CRUD（MCP `todo_*` tools；经 local_http proxy） |
 
 ## 验收
 
 触发任一子 skill 时，首步确认 Workbench MCP 可用；归档成功后 MCP 返回 `id` / `common_path` / `raw_path`（或 digest 路径）。
 
-共享规范：[archive-concepts](shared/archive-concepts.md)。digest 为shared 契约：[shared/digest-workflow.md](shared/digest-workflow.md)（由 theme-archive 自动调用；勿作公开 skill）。
+路径公式与 digest 写法由 note-task 自己的 references 说明（随 `create_note` 的 `digest_body`）。

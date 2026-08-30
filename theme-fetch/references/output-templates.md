@@ -12,8 +12,6 @@
 > 原文：{url}
 > 
 > 刊载：{publisher} · 作者 {author} · 发布 {published_at}
-> 
-> 导航：[digest]({prefix}digest/{COMMON_PATH})
 
 ---
 

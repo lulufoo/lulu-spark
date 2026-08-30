@@ -24,11 +24,10 @@ writing and returns to topic confirmation.
 
 Set the reader-facing title, header, and opening.
 
-1. Apply the **Document profile** in
-   [`../../shared/title-naming.md`](../../shared/title-naming.md). Name the
-   central subject and distinctive focus, not the source or chapter list.
-2. For archive output, write the fully resolved header below. For local output,
-   start with H1 and omit unresolved archive navigation.
+1. Title: user-given as given. Otherwise name the process subject and its
+   distinctive focus — not the chat, the source, or a chapter list.
+2. For archive output, write the header below. For local output,
+   start with H1 and omit the archive metadata lines.
 3. Start with the first substantive topic. Supply only the context later topics
    need; do not add a mandatory `0. 读前说明`.
 
@@ -37,7 +36,6 @@ Set the reader-facing title, header, and opening.
 
 > 创建时间：<UTC+8 datetime>
 > 来源：<dialogue/session label>
-> 导航：[digest](<resolved digest link>)
 
 ---
 ```

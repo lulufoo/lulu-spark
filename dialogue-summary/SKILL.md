@@ -37,14 +37,13 @@ This entry owns phase order, user gates, and handoffs.
 | `$CORE_TOPICS` | Internal emphasis marks |
 | `$SINK` | `archive` (default) or `local` |
 | `$DRAFT` | Validated summary Markdown path |
-| `$COMMON_PATH` | Archive path; archive sink only |
 
 ## Phase 0 — Bind input
 
 Resolve one feedstock source.
 
 1. **Cursor session:** load
-   [`../shared/transcript-clean.md`](../shared/transcript-clean.md), run
+   [`references/transcript-clean.md`](references/transcript-clean.md), run
    `$TRANSCRIPT_CLEAN from-jsonl`, and bind `$FEEDSTOCK` from its `written`
    output. A non-zero result stops the run.
 2. **Supplied dialogue/Markdown:** bind it directly as `$FEEDSTOCK`; do not
@@ -66,9 +65,8 @@ Establish the document spine before prose exists.
 Compose only from confirmed state.
 
 1. Bind `$SINK=local` for `--no-archive`; otherwise bind `$SINK=archive`.
-2. For archive output, load
-   [`../shared/archive-concepts.md`](../shared/archive-concepts.md) and resolve
-   `$COMMON_PATH` plus the header values. Local output has no digest link.
+2. For archive output, write title / 创建时间 / 来源 in the draft header.
+   Do not invent a notes path. Local output: H1 only.
 3. Load [`references/summary-writing.md`](references/summary-writing.md).
 4. Write to an absolute cache path and bind it as `$DRAFT`, using `$FEEDSTOCK`,
    `$CONFIRM`, `$CORE_TOPICS`, `$SINK`, any owning-document pointer, and the
@@ -80,8 +78,7 @@ Compose only from confirmed state.
 Finish through the selected sink.
 
 1. **Local:** return `$DRAFT`.
-2. **Archive:** load [`../theme-archive/SKILL.md`](../theme-archive/SKILL.md)
-   and run its Embedded workflow with `$DRAFT`, `$COMMON_PATH`,
+2. **Archive:** load note-task and route Create with `$DRAFT`,
    `source_type=summary`, and the constraint that digest must not reconstruct
    omitted dialogue or implementation detail.
 3. Archive failure reports the owning phase and stops; do not call archive MCP
@@ -96,5 +93,5 @@ Report only observable results:
 > 🧭 scope：<confirmed scope>
 > 🧱 topics：<count>
 > 📄 draft：<absolute path>
-> 🗂 archive：<theme-archive result | skipped>
+> 🗂 archive：<note-task result | skipped>
 ```

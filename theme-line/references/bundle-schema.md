@@ -2,7 +2,7 @@
 
 > **Version:** `schema_version: 1`
 >
-> Phase 1 (Acquire) 输出、Phase 2 (Compose) 输入的唯一中间契约。内存 ephemeral；**禁止**写入 `trace/`。可选调试落盘：`{archive_root}/.cache/{topic-path}/{ts}-{slug}-bundle.json`。
+> Phase 1 (Acquire) 输出、Phase 2 (Compose) 输入的唯一中间契约。内存 ephemeral。可选调试落盘：`{workspace}/.cache/theme-line/{ts}-{slug}-bundle.json`。
 
 ---
 
@@ -40,7 +40,7 @@ assets:                    # optional — 原始字幕 URL
 | `speakers` | `string[]` | yes | 讲者 canonical 名。Acquire 能从标题或行内标签抽出人名时 MUST 写入；不要默认只留 `Host`/`Guest` |
 | `duration_sec` | `int` \| `null` | no | 视频时长（秒）；未知为 `null` |
 | `published_at` | `string` \| `null` | no | 发布日期 `YYYY-MM-DD` |
-| `language` | `"zh"` \| `"en"` \| `"mixed"` \| `"unknown"` | yes | 主语言（采集元数据）。**不**驱动翻译；中译由 theme-archive 按正文是否全文英文决定。 |
+| `language` | `"zh"` \| `"en"` \| `"mixed"` \| `"unknown"` | yes | 主语言（采集元数据）。**不**驱动翻译；需要中文稿时由调用方按 full-english-translate 处理。 |
 
 ---
 
