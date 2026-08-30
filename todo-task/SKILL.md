@@ -38,7 +38,7 @@ Map the user request, then call **only** the tools that match. Do not run a fixe
 | User intent | Do | Do not |
 |-------------|----|--------|
 | Store / save document or notes as todo body | `create_todo_task` with `todo_md` (or update body if Host/MCP exposes an update-body tool) | Add sub-tasks without an explicit ask |
-| Create an empty todo (title only) | `create_todo_task` with title; omit `todo_md` | Add sub-tasks without an explicit ask |
+| Create a todo | `create_todo_task` with `title` and `todo_md` (draft body per body-writing.md when the user did not supply one) | Omit `todo_md`; add sub-tasks without an explicit ask |
 | Add / remove a sub-task | `add_todo_sub` / `delete_todo_sub` | Infer subs from document structure |
 | Complete master or sub | `complete_todo` (`master_task_id` required; `sub_task_id` optional — omit → complete master; with sub → complete that sub) | Call tools not listed in this SKILL |
 | Link archive to a **completed** sub | `link_todo_archive` (after archive exists) | Link without a completed sub + archive id |
@@ -75,7 +75,7 @@ Do not invent norms not listed here.
 
 | MCP tool | Purpose |
 |----------|---------|
-| `create_todo_task` | Create master (title + optional `todo_md` body) |
+| `create_todo_task` | Create master (title + `todo_md` body) |
 | `list_todo_tasks` | List all masters |
 | `get_todo_task` | Get one master by id |
 | `delete_todo_task` | Delete master |
