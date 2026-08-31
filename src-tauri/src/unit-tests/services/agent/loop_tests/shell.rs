@@ -412,7 +412,7 @@ fn t4_main_and_sidebar_wire_notes_set_without_new_runtime() {
     let main = repo_file("frontend/src/boot.ts");
     let sidebar = repo_file("frontend/src/notes/ui/sidebar.tsx");
     let sidebar_commands = repo_file("frontend/src/notes/commands/sidebar.ts");
-    let lifecycle = repo_file("frontend/src/todo-task/lifecycle.ts");
+    let lifecycle = repo_file("frontend/src/todo-task/commands/lifecycle.ts");
     assert!(
         main.contains("setWorkbenchBinding")
             && !main.contains("buildNotesBinding")

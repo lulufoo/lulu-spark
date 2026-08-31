@@ -2763,7 +2763,7 @@ fn t4_cursor_ide_is_not_an_app_binding_key() {
 
 #[test]
 fn t4_notes_binding_consumer_follows_todos_key_only_contract() {
-    let binding = repo_file("frontend/src/todo-task/binding.ts");
+    let binding = repo_file("frontend/src/todo-task/commands/binding.ts");
     let index = repo_file("frontend/src/todo-task/index.ts");
     assert!(
         binding.contains("WORKBENCH_BUSINESS_KEY") && binding.contains("'workbench'"),
