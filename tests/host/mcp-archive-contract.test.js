@@ -88,14 +88,15 @@ describe('T10 Host MCP archive + contract retarget (V2/V3/V4)', () => {
     expect(src).toMatch(/must not expose get_notes_selection/);
   });
 
-  it('knowledge-mcp.md App channel is /mcp/workbench; IDE URL unchanged', () => {
-    const doc = read('docs/archive/knowledge-mcp.md');
-    expect(doc).toContain('http://127.0.0.1:<mcp_port>/mcp/workbench');
-    expect(doc).toContain('http://127.0.0.1:<mcp_port>/mcp/cursor_ide');
-    expect(doc).not.toContain('get_notes_selection');
-    expect(doc).not.toContain('http://127.0.0.1:<mcp_port>/mcp/todo_task');
-    expect(doc).not.toMatch(/http:\/\/127\.0\.0\.1:<mcp_port>\/#\/workbench/);
-    expect(doc).not.toMatch(/`#\/workbench`[^.\n]{0,40}\/mcp\//);
+  it('live Host MCP URLs keep App workbench + IDE cursor_ide', () => {
+    const readme = read('README.md');
+    const verify = read('scripts/verify-host-mcp.mjs');
+    expect(readme).toContain('http://127.0.0.1:<mcp_port>/mcp/cursor_ide');
+    expect(verify).toContain("REGISTERED_SLOTS = ['workbench', 'cursor_ide']");
+    expect(readme).not.toContain('get_notes_selection');
+    expect(verify).not.toContain('get_notes_selection');
+    expect(readme).not.toContain('http://127.0.0.1:<mcp_port>/mcp/todo_task');
+    expect(verify).not.toMatch(/http:\/\/127\.0\.0\.1:<mcp_port>\/#\/workbench/);
   });
 
   it('P4 smoke checklist P6 no longer writes off-page Reset', () => {
