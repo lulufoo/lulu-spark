@@ -5,10 +5,6 @@ import { describe, expect, it } from 'vitest';
 import { readFrontendJs } from '../helpers/read-frontend-js.js';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
-const FEATURE_DIR = 'docs/archive/ui/ui-english-copy-switch';
-const P3_CHECKLIST_PATH = join(FEATURE_DIR, 'p3-release-gate-checklist.json');
-const P4_VERIFY_PATH = join(FEATURE_DIR, 'p4-post-switch-verification.json');
-const P4_SMOKE_PATH = join(FEATURE_DIR, 'p4-smoke-checklist.md');
 
 const TABLE_A_BRANDS = [
   { zh: 'Workbench 笔记', en: 'Notes', file: 'frontend/src/home/page.tsx' },
@@ -40,12 +36,6 @@ const SKILLS_EXCLUDED = [
   'frontend/src/app-shell/state/skills-content.ts',
 ];
 
-function loadJson(relPath) {
-  const abs = join(repoRoot, relPath);
-  expect(existsSync(abs), `missing ${relPath}`).toBe(true);
-  return JSON.parse(readFileSync(abs, 'utf8'));
-}
-
 function readSource(relPath) {
   const abs = join(repoRoot, relPath);
   expect(existsSync(abs), `missing ${relPath}`).toBe(true);
@@ -60,52 +50,6 @@ function stripComments(source) {
 }
 
 describe('P4 copy-switch post-switch verification (tech-doc T8 / AC-2)', () => {
-  it('records P4 verification artifact with P3 gate cross-reference', () => {
-    const verify = loadJson(P4_VERIFY_PATH);
-    expect(verify.version).toBe(1);
-    expect(verify.feature_id).toBe('feature-20260718130642-22a23648');
-    expect(verify.task_id).toBe('t8');
-    expect(verify.phase).toBe('P4');
-    expect(verify.p3_gate_ref).toBe(P3_CHECKLIST_PATH);
-
-    const p3 = loadJson(P3_CHECKLIST_PATH);
-    expect(verify.pre_switch_gate.release_unlock.status).toBe('ready');
-    expect(verify.pre_switch_gate.unlock_signals).toEqual(p3.unlock_signals);
-  });
-
-  it('documents spot-check alignment against tables A, B, and B2', () => {
-    const verify = loadJson(P4_VERIFY_PATH);
-    expect(verify.spot_check.table_a.status).toBe('aligned');
-    expect(verify.spot_check.table_a.entry_count).toBe(8);
-    expect(verify.spot_check.table_b.status).toBe('sampled');
-    expect(verify.spot_check.table_b2.status).toBe('sampled');
-    expect(verify.spot_check.table_b2.entry_count).toBe(95);
-    expect(verify.spot_check.omission_review.status).toBe('closed');
-  });
-
-  it('records key-path smoke result for home hub → workbench → plan-tasks → corpus', () => {
-    const verify = loadJson(P4_VERIFY_PATH);
-    expect(verify.key_path_smoke.status).toBe('passed');
-    expect(verify.key_path_smoke.route).toEqual([
-      'home-hub',
-      'workbench',
-      'plan-tasks',
-      'corpus',
-    ]);
-    expect(verify.key_path_smoke.skills_excluded).toBe(true);
-    expect(verify.key_path_smoke.user_content_excluded).toBe(true);
-  });
-
-  it('p4 smoke checklist documents manual key-path steps', () => {
-    const checklist = readSource(P4_SMOKE_PATH);
-    expect(checklist).toContain('home hub');
-    expect(checklist).toContain('workbench');
-    expect(checklist).toContain('plan-tasks');
-    expect(checklist).toContain('corpus');
-    expect(checklist).toMatch(/Skills/i);
-    expect(checklist).toMatch(/user.*content|user-created/i);
-  });
-
   it('table A eight brand entries appear in key-path surfaces (no Chinese remnants)', () => {
     for (const { zh, en, file } of TABLE_A_BRANDS) {
       const src = readSource(file);

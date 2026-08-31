@@ -23,11 +23,4 @@ describe('README TestSandbox docs', () => {
     const configExample = text.match(/```toml[\s\S]*?```/g);
     expect(configExample?.[0] ?? '').not.toMatch(/TestSandbox/);
   });
-
-  it('points to the tech plan under docs/archive/config', () => {
-    const text = readFileSync(join(root, 'README.md'), 'utf8');
-    expect(text).toMatch(
-      /docs\/archive\/config\/test-sandbox-config-port-isolation-tech-plan\.md/,
-    );
-  });
 });

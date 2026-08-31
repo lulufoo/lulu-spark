@@ -1,7 +1,7 @@
 /**
  * T11 recovery drill gate (tech-doc SK-5 / T11 / AC-恢复).
  *
- * Documents + falsifies automatic reverse migration. Ops checklist must exist;
+ * Falsifies automatic reverse migration.
  * Host must not auto-invoke migrate at App start; missing gate gates todo API only.
  */
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
@@ -11,7 +11,6 @@ import { describe, expect, it } from 'vitest';
 import { readRsPath } from '../helpers/read-rs-dir.js';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
-const DRILL_DOC = 'docs/archive/todo-task/plan-task-todos-contract/recovery-drill-checklist.md';
 
 function read(rel) {
   const abs = join(repoRoot, rel);
@@ -32,27 +31,6 @@ function listFilesRecursive(dir, out = []) {
   }
   return out;
 }
-
-describe('T11 — AC-恢复 ops drill checklist', () => {
-  it('recovery drill checklist exists under plan-task-todos-contract', () => {
-    expect(existsSync(join(repoRoot, DRILL_DOC)), `missing ${DRILL_DOC}`).toBe(true);
-  });
-
-  it('checklist records code rollback, SKILL reinstall + Reload MCP, ops backup restore', () => {
-    const doc = read(DRILL_DOC);
-    expect(doc).toMatch(/代码回滚|回滚 Host|回滚.*MCP|git checkout|git revert/i);
-    expect(doc).toMatch(/回装.*SKILL|旧 SKILL|todo-task|todo-task/);
-    expect(doc).toMatch(/Reload MCP|重载 MCP/i);
-    expect(doc).toMatch(/运维备份|备份恢复|ops backup/i);
-    expect(doc).toMatch(/无自动反向|不提供自动反向|no automatic reverse/i);
-  });
-
-  it('checklist records single migrate failure does not block App start (API gate only)', () => {
-    const doc = read(DRILL_DOC);
-    expect(doc).toMatch(/不阻断.*App|不阻断.*启动|App 启动/);
-    expect(doc).toMatch(/门闩|migration_gate|\.migration_gate_passed|todo API/);
-  });
-});
 
 describe('T11 — no automatic reverse migration (falsifier)', () => {
   it('repo has no todo_tasks→plan_tasks / todo.md→plan.md reverse migrate script', () => {

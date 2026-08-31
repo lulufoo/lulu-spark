@@ -1,10 +1,9 @@
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
-const LOCK_PATH = 'docs/archive/todo-task/plan-task-todos-contract/vocab-lock-confirmation.json';
 
 const EXPECTED_TOOLS = [
   'create_todo_task',
@@ -22,48 +21,31 @@ const EXPECTED_TOOLS = [
   'update_todo_attachment',
 ];
 
-function loadLock() {
-  const abs = join(repoRoot, LOCK_PATH);
-  expect(existsSync(abs), `missing ${LOCK_PATH}`).toBe(true);
-  return JSON.parse(readFileSync(abs, 'utf8'));
+function read(rel) {
+  return readFileSync(join(repoRoot, rel), 'utf8');
 }
 
 describe('plan→todo vocab lock (tech-doc SK-0 / T1)', () => {
-  it('records locked public contract mapping with hard-cut rules', () => {
-    const lock = loadLock();
-    expect(lock.version).toBe(1);
-    expect(lock.feature_id).toBe('feature-20260721160725-475641f1');
-    expect(lock.task_id).toBe('t1');
-    expect(lock.status).toBe('locked');
-    expect(lock.hard_cut).toEqual({
-      dual_names: false,
-      aliases: false,
-      complete_plan_sub_restored: false,
-    });
+  it('Host MCP todo routes keep locked public names and todo_md', () => {
+    const routes = read('src-tauri/src/services/mcp_protocol_adapter/routes.rs');
+    for (const name of EXPECTED_TOOLS) {
+      expect(routes, `missing tool ${name}`).toContain(`"${name}"`);
+    }
+    expect(routes).toContain('todo_md');
+    expect(routes).not.toContain('complete_plan_sub');
+  });
 
-    expect(lock.slash).toBe('todo-task');
-    expect(lock.host_module).toBe('todo_task');
-    expect(lock.wire_field).toBe('todo_md');
-    expect(lock.http_prefix).toBe('/api/todo-');
-    expect(lock.disk).toEqual({
-      root_dir: 'todo_tasks/',
-      body_file: 'todo.md',
-    });
-
-    expect(lock.mcp_tools).toEqual(EXPECTED_TOOLS);
-    expect(lock.mcp_tools).toContain('complete_todo');
-    expect(lock.mcp_tools).not.toContain('complete_plan_sub');
-    expect(lock.excluded_tools).toEqual(['complete_plan_sub']);
-
-    expect(lock.source).toEqual({
-      tech_doc_section: '公开契约映射',
-      tech_doc_ref:
-        'lulu-plan/revision1/tech-doc.md#公开契约映射',
-    });
+  it('HTTP prefix is /api/todo- and disk body is todo.md', () => {
+    const dispatch = read('src-tauri/src/services/local_http/dispatch.rs');
+    const paths = read('src-tauri/src/config/paths.rs');
+    expect(dispatch).toMatch(/\/api\/todo-tasks/);
+    expect(dispatch).toMatch(/\/api\/todo-task-/);
+    expect(paths).toContain('.join("todo.md")');
+    expect(paths).not.toContain('.join("plan.md")');
   });
 
   it('npm test includes todo-task vocab lock test', () => {
-    const pkg = JSON.parse(readFileSync(join(repoRoot, 'package.json'), 'utf8'));
+    const pkg = JSON.parse(read('package.json'));
     expect(pkg.scripts.test).toMatch(/vitest run --dir tests/);
   });
 });
