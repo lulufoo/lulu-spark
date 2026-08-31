@@ -4040,9 +4040,14 @@
   }
   #file-popup .file-popup-loading {
     margin: 0;
-    padding: 24px;
+    padding: 24px 36px;
     color: #656d76;
     font-size: 13px;
+  }
+  #file-popup .viewer-body,
+  #file-popup .viewer-edit-area {
+    padding-left: 36px;
+    padding-right: 36px;
   }
   /* knowledge panel */
   #knowledge-panel {
