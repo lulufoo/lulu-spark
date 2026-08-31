@@ -25,6 +25,25 @@ fn respond_read(request: tiny_http::Request, value: Value) {
     respond_json(request, 200, value);
 }
 
+fn handle_note_id_post(
+    repo_root: &PathBuf,
+    mut request: tiny_http::Request,
+    handler: fn(&Path, &str) -> Value,
+) {
+    let payload = match read_json_body(&mut request) {
+        Ok(v) => v,
+        Err(err) => {
+            respond_from_value(request, err);
+            return;
+        }
+    };
+    let Some(id) = payload.get("id").and_then(|v| v.as_str()) else {
+        respond_json(request, 400, json!({ "error": "Missing id" }));
+        return;
+    };
+    respond_read(request, handler(repo_root, id));
+}
+
 pub(super) fn handle_notes_by_catalog_post(repo_root: &PathBuf, mut request: tiny_http::Request) {
     let payload = match read_json_body(&mut request) {
         Ok(v) => v,
@@ -40,49 +59,16 @@ pub(super) fn handle_notes_by_catalog_post(repo_root: &PathBuf, mut request: tin
     respond_read(request, list_notes_by_catalog(repo_root, catalog));
 }
 
-pub(super) fn handle_note_digest_post(repo_root: &PathBuf, mut request: tiny_http::Request) {
-    let payload = match read_json_body(&mut request) {
-        Ok(v) => v,
-        Err(err) => {
-            respond_from_value(request, err);
-            return;
-        }
-    };
-    let Some(id) = payload.get("id").and_then(|v| v.as_str()) else {
-        respond_json(request, 400, json!({ "error": "Missing id" }));
-        return;
-    };
-    respond_read(request, get_note_digest_by_id(repo_root, id));
+pub(super) fn handle_note_digest_post(repo_root: &PathBuf, request: tiny_http::Request) {
+    handle_note_id_post(repo_root, request, get_note_digest_by_id);
 }
 
-pub(super) fn handle_note_content_post(repo_root: &PathBuf, mut request: tiny_http::Request) {
-    let payload = match read_json_body(&mut request) {
-        Ok(v) => v,
-        Err(err) => {
-            respond_from_value(request, err);
-            return;
-        }
-    };
-    let Some(id) = payload.get("id").and_then(|v| v.as_str()) else {
-        respond_json(request, 400, json!({ "error": "Missing id" }));
-        return;
-    };
-    respond_read(request, get_note_content_by_id(repo_root, id));
+pub(super) fn handle_note_content_post(repo_root: &PathBuf, request: tiny_http::Request) {
+    handle_note_id_post(repo_root, request, get_note_content_by_id);
 }
 
-pub(super) fn handle_note_path_post(repo_root: &PathBuf, mut request: tiny_http::Request) {
-    let payload = match read_json_body(&mut request) {
-        Ok(v) => v,
-        Err(err) => {
-            respond_from_value(request, err);
-            return;
-        }
-    };
-    let Some(id) = payload.get("id").and_then(|v| v.as_str()) else {
-        respond_json(request, 400, json!({ "error": "Missing id" }));
-        return;
-    };
-    respond_read(request, get_note_path_by_id(repo_root, id));
+pub(super) fn handle_note_path_post(repo_root: &PathBuf, request: tiny_http::Request) {
+    handle_note_id_post(repo_root, request, get_note_path_by_id);
 }
 
 pub(super) fn handle_notes_search_post(repo_root: &PathBuf, mut request: tiny_http::Request) {

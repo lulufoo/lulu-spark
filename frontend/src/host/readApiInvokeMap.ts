@@ -145,6 +145,13 @@ export const READ_API_INVOKE_MAP: Record<string, ReadInvokeEntry> = {
   '/api/sediment-kb/repos': {
     cmd: 'get_sediment_kb_repos',
   },
+  '/api/file': {
+    cmd: 'get_notes_file',
+    args: (url) => ({
+      layer: url.searchParams.get('layer') ?? 'raw',
+      path: url.searchParams.get('path') ?? '',
+    }),
+  },
 };
 
 /**

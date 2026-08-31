@@ -38,18 +38,12 @@ fn get_note_path_route() -> ToolRoute {
 }
 
 pub fn apply_channel_routes(mut table: SlotToolTable, channel: &str) -> SlotToolTable {
-    if channel == "mobile" {
-        for tool in &mut table.tools {
-            if tool.name == "create_note" {
-                *tool = create_note_content_route();
-            }
+    for tool in &mut table.tools {
+        if channel == "mobile" && tool.name == "create_note" {
+            *tool = create_note_content_route();
         }
-    }
-    if channel == "workbench" {
-        for tool in &mut table.tools {
-            if tool.name == "get_note_content_by_id" {
-                *tool = get_note_path_route();
-            }
+        if channel == "workbench" && tool.name == "get_note_content_by_id" {
+            *tool = get_note_path_route();
         }
     }
     table

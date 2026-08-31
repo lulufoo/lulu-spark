@@ -195,6 +195,14 @@ export const WRITE_API_INVOKE_MAP: Record<string, WriteInvokeEntry> = {
     cmd: 'clear_note_draft',
     args: (body) => ({ tempId: body?.temp_id ?? '' }),
   },
+  '/api/file': {
+    cmd: 'save_entry',
+    args: (body) => ({
+      layer: body.layer ?? 'raw',
+      commonPath: body.path ?? body.common_path,
+      content: body.content,
+    }),
+  },
 };
 
 /**
