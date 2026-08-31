@@ -1,18 +1,14 @@
-//! Host file tools (grep / read / write / edit). Paths are checked against a PathFence only.
+//! Host file tools (grep / read / write / edit) plus Chat-scoped Stage trio.
 
-use std::fs;
 use std::path::Path;
 
-use regex::Regex;
 use serde_json::{json, Value};
 
+use super::fs_file_ops as file_ops;
 use super::mcp_client::{ToolCatalog, ToolResult};
-use super::path_fence::{require_absolute, PathFence};
-
-const READ_DEFAULT_LIMIT: usize = 2000;
-const GREP_MAX_MATCHES: usize = 80;
-const GREP_MAX_FILES: usize = 2000;
-const GREP_MAX_FILE_BYTES: u64 = 1_000_000;
+use super::path_fence::PathFence;
+use super::session::{self, StagedEntry};
+use crate::services::id::random_hex12;
 
 pub fn catalog() -> ToolCatalog {
     ToolCatalog::from_local_tools(vec![
@@ -74,19 +70,62 @@ pub fn catalog() -> ToolCatalog {
             }),
             false,
         ),
+        local_tool(
+            "stage",
+            "Register a file path on this Chat's Stage. path is required; title is optional and defaults to the last path segment without extension. Does not store file body.",
+            json!({
+                "type": "object",
+                "properties": {
+                    "path": { "type": "string", "description": "File path to register." },
+                    "title": { "type": "string", "description": "Optional display title." }
+                },
+                "required": ["path"],
+                "additionalProperties": false
+            }),
+            false,
+        ),
+        local_tool(
+            "list_staged",
+            "List this Chat's Stage registrations (id, path, title). Does not return file bodies.",
+            json!({
+                "type": "object",
+                "properties": {},
+                "additionalProperties": false
+            }),
+            true,
+        ),
+        local_tool(
+            "get_staged",
+            "Return one Stage registration by id (id, path, title). Does not return file body; use read for contents.",
+            json!({
+                "type": "object",
+                "properties": {
+                    "id": { "type": "string", "description": "Staged entry id." }
+                },
+                "required": ["id"],
+                "additionalProperties": false
+            }),
+            true,
+        ),
     ])
 }
 
 pub fn is_builtin(name: &str) -> bool {
-    matches!(name, "grep" | "read" | "write" | "edit")
+    matches!(
+        name,
+        "grep" | "read" | "write" | "edit" | "stage" | "list_staged" | "get_staged"
+    )
 }
 
 pub fn call(name: &str, arguments: &Value, fence: &PathFence) -> ToolResult {
     let result = match name {
-        "grep" => grep(arguments, fence),
-        "read" => read(arguments, fence),
-        "write" => write(arguments, fence),
-        "edit" => edit(arguments, fence),
+        "grep" => file_ops::grep(arguments, fence),
+        "read" => file_ops::read(arguments, fence),
+        "write" => file_ops::write(arguments, fence),
+        "edit" => file_ops::edit(arguments, fence),
+        "stage" => stage(arguments),
+        "list_staged" => list_staged(),
+        "get_staged" => get_staged(arguments),
         other => Err(format!("unknown file tool '{other}'")),
     };
     match result {
@@ -147,179 +186,64 @@ impl ToolCatalog {
     }
 }
 
-fn arg_str(arguments: &Value, key: &str) -> Result<String, String> {
-    arguments
-        .get(key)
+fn live_session_id() -> Result<String, String> {
+    session::live_context_owner()
+        .current_session_id()
+        .filter(|id| !id.trim().is_empty())
+        .ok_or_else(|| "no live session".into())
+}
+
+fn default_title(path: &str) -> String {
+    Path::new(path)
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .filter(|s| !s.is_empty())
+        .unwrap_or(path)
+        .to_string()
+}
+
+fn entry_json(entry: &StagedEntry) -> Result<String, String> {
+    serde_json::to_string(entry).map_err(|e| e.to_string())
+}
+
+fn stage(arguments: &Value) -> Result<String, String> {
+    let path = file_ops::arg_str(arguments, "path")?;
+    if path.trim().is_empty() {
+        return Err("missing path".into());
+    }
+    let title = arguments
+        .get("title")
         .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
         .map(|s| s.to_string())
-        .ok_or_else(|| format!("missing {key}"))
+        .unwrap_or_else(|| default_title(&path));
+    let sid = live_session_id()?;
+    let mut sess = session::load_session(&sid)?;
+    let entry = StagedEntry {
+        id: format!("stg_{}", random_hex12()),
+        path,
+        title,
+    };
+    sess.staged.push(entry.clone());
+    session::save_session(&sess)?;
+    entry_json(&entry)
 }
 
-fn grep(arguments: &Value, fence: &PathFence) -> Result<String, String> {
-    let pattern = arg_str(arguments, "pattern")?;
-    let regex = Regex::new(&pattern).map_err(|e| format!("invalid pattern: {e}"))?;
-    let roots = match arguments.get("path").and_then(Value::as_str) {
-        Some(path) => {
-            let path = require_absolute(path)?;
-            if !fence.allows_read(&path) {
-                return Err("path is outside the read fence".into());
-            }
-            vec![path]
-        }
-        None => fence.read_allow.clone(),
-    };
-    let mut matches = Vec::new();
-    let mut files_seen = 0usize;
-    for root in roots {
-        walk_grep(&root, fence, &regex, &mut matches, &mut files_seen);
-        if matches.len() >= GREP_MAX_MATCHES || files_seen >= GREP_MAX_FILES {
-            break;
-        }
-    }
-    if matches.is_empty() {
-        return Ok("No matches.".into());
-    }
-    Ok(matches.join("\n"))
+fn list_staged() -> Result<String, String> {
+    let sess = session::load_session(&live_session_id()?)?;
+    serde_json::to_string(&sess.staged).map_err(|e| e.to_string())
 }
 
-fn walk_grep(
-    root: &Path,
-    fence: &PathFence,
-    regex: &Regex,
-    matches: &mut Vec<String>,
-    files_seen: &mut usize,
-) {
-    if matches.len() >= GREP_MAX_MATCHES || *files_seen >= GREP_MAX_FILES {
-        return;
-    }
-    if root.is_file() {
-        grep_file(root, fence, regex, matches, files_seen);
-        return;
-    }
-    let Ok(entries) = fs::read_dir(root) else {
-        return;
-    };
-    for entry in entries.flatten() {
-        if matches.len() >= GREP_MAX_MATCHES || *files_seen >= GREP_MAX_FILES {
-            return;
-        }
-        let path = entry.path();
-        if !fence.allows_read(&path) {
-            continue;
-        }
-        if path.is_dir() {
-            if path.file_name().and_then(|n| n.to_str()) == Some(".git") {
-                continue;
-            }
-            walk_grep(&path, fence, regex, matches, files_seen);
-        } else if path.is_file() {
-            grep_file(&path, fence, regex, matches, files_seen);
-        }
-    }
-}
-
-fn grep_file(
-    path: &Path,
-    fence: &PathFence,
-    regex: &Regex,
-    matches: &mut Vec<String>,
-    files_seen: &mut usize,
-) {
-    if !fence.allows_read(path) {
-        return;
-    }
-    *files_seen += 1;
-    let Ok(meta) = fs::metadata(path) else {
-        return;
-    };
-    if meta.len() > GREP_MAX_FILE_BYTES {
-        return;
-    }
-    let Ok(text) = fs::read_to_string(path) else {
-        return;
-    };
-    for (idx, line) in text.lines().enumerate() {
-        if matches.len() >= GREP_MAX_MATCHES {
-            return;
-        }
-        if regex.is_match(line) {
-            matches.push(format!("{}:{}:{line}", path.display(), idx + 1));
-        }
-    }
-}
-
-fn read(arguments: &Value, fence: &PathFence) -> Result<String, String> {
-    let path = require_absolute(&arg_str(arguments, "path")?)?;
-    if !fence.allows_read(&path) {
-        return Err("path is outside the read fence".into());
-    }
-    if !path.is_file() {
-        return Err("file not found".into());
-    }
-    let text = fs::read_to_string(&path).map_err(|e| e.to_string())?;
-    let offset = arguments
-        .get("offset")
-        .and_then(Value::as_u64)
-        .map(|n| n.max(1) as usize)
-        .unwrap_or(1);
-    let limit = arguments
-        .get("limit")
-        .and_then(Value::as_u64)
-        .map(|n| n as usize)
-        .unwrap_or(READ_DEFAULT_LIMIT)
-        .max(1);
-    let lines: Vec<&str> = text.lines().collect();
-    let start = offset.saturating_sub(1).min(lines.len());
-    let end = start.saturating_add(limit).min(lines.len());
-    if start >= end {
-        return Ok("File is empty.".into());
-    }
-    let body = lines[start..end]
+fn get_staged(arguments: &Value) -> Result<String, String> {
+    let id = file_ops::arg_str(arguments, "id")?;
+    let sess = session::load_session(&live_session_id()?)?;
+    let entry = sess
+        .staged
         .iter()
-        .enumerate()
-        .map(|(i, line)| format!("{}:{line}", start + i + 1))
-        .collect::<Vec<_>>()
-        .join("\n");
-    Ok(body)
-}
-
-fn write(arguments: &Value, fence: &PathFence) -> Result<String, String> {
-    let path = require_absolute(&arg_str(arguments, "path")?)?;
-    if !fence.allows_write(&path) {
-        return Err("path is outside the write fence".into());
-    }
-    let content = arg_str(arguments, "content")?;
-    if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent).map_err(|e| e.to_string())?;
-    }
-    fs::write(&path, content).map_err(|e| e.to_string())?;
-    Ok(format!("Wrote {}", path.display()))
-}
-
-fn edit(arguments: &Value, fence: &PathFence) -> Result<String, String> {
-    let path = require_absolute(&arg_str(arguments, "path")?)?;
-    if !fence.allows_write(&path) {
-        return Err("path is outside the write fence".into());
-    }
-    if !path.is_file() {
-        return Err("file not found".into());
-    }
-    let old_text = arg_str(arguments, "old_text")?;
-    let new_text = arg_str(arguments, "new_text")?;
-    if old_text.is_empty() {
-        return Err("old_text must not be empty".into());
-    }
-    let current = fs::read_to_string(&path).map_err(|e| e.to_string())?;
-    let count = current.matches(&old_text).count();
-    if count == 0 {
-        return Err("old_text not found".into());
-    }
-    if count > 1 {
-        return Err("old_text matched more than once".into());
-    }
-    let next = current.replacen(&old_text, &new_text, 1);
-    fs::write(&path, next).map_err(|e| e.to_string())?;
-    Ok(format!("Edited {}", path.display()))
+        .find(|entry| entry.id == id)
+        .ok_or_else(|| "staged file not found".to_string())?;
+    entry_json(entry)
 }
 
 #[cfg(test)]

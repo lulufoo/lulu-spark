@@ -2,6 +2,7 @@
 
 pub mod diagnostics;
 pub mod engine_router;
+mod fs_file_ops;
 pub mod fs_tools;
 pub mod host_startup;
 pub mod llm;
