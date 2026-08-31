@@ -51,7 +51,7 @@
 | 状态 | `host/state.ts` 仍是可变对象；已有 `useHostState` / `notifyState`。对话框另用 `createModuleStore` | ✅ Verified（`frontend/src/host/state.ts`；`shared/module-store.ts`） |
 | Host | 已在 `frontend/src/host/`（不再等 P8 从 `js/host` 搬） | ✅ Verified（`frontend/src/host/`） |
 | 分层 | L2 只经 L3 | ✅ Verified（`docs/architecture/arch-layer-constraints.md`） |
-| Tauri import | `frontend/src/**` 禁止静态 `@tauri-apps/*`，仅 `apiClient` 可动态 import | ✅ Verified（`docs/coding/workbench-coding-discipline.md`） |
+| Tauri import | `frontend/src/**` 禁止静态 `@tauri-apps/*`，仅 `apiClient` 可动态 import | ✅ Verified（`docs/architecture/workbench-coding-discipline.md`） |
 
 还没做完的绞杀（页面仍是嵌套 `createRoot` 岛屿，不是路由树里的子组件）：
 

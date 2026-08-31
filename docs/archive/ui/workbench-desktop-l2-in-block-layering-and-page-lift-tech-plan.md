@@ -271,7 +271,7 @@ App
 1. 不把目录改成顶层 `data/` / `logic/` / `ui/`。块内用 `ui/` `commands/` `state/`，不建 `data/` `logic/`。✅ Verified（§2 合同 1、5；`ls frontend/src`）
 2. 不在收岛完成前，让页面组件和 `mount*` 同时画同一页。
 3. 不引入新状态库、react-router、新 CSS 方案。
-4. L2 不静态 import `@tauri-apps/*`。✅ Verified（`docs/coding/workbench-coding-discipline.md`）
+4. L2 不静态 import `@tauri-apps/*`。✅ Verified（`docs/architecture/workbench-coding-discipline.md`）
 5. 用户可见文案仍为英文。✅ Verified（`docs/biz/ui-build-constraints.md`）
 6. 不把 Todos 的 `state/host.ts` 为了对齐「三层」而搬进 `host/api`（除非另授权）。
 

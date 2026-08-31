@@ -9,3 +9,5 @@
 3. **`@tauri-apps/*`**: No static import in `frontend/src/**`. Only `host/apiClient.ts` may dynamic-import (`frontendTauriImportContract.test.js`). Channel only via `createChannel`.
 
 4. **Tauri command ACL (`src-tauri/permissions/*.toml`)**: New invoke commands must also go on the matching allowlist (`write-api` / `read-api` / `sync-api` / `search-api`).
+
+5. **`docs/archive`**: Code and tests must not depend on it.
