@@ -190,7 +190,7 @@ fn live_session_id() -> Result<String, String> {
     session::live_context_owner()
         .current_session_id()
         .filter(|id| !id.trim().is_empty())
-        .ok_or_else(|| "no live session".into())
+        .ok_or_else(|| "no live session".to_string())
 }
 
 fn default_title(path: &str) -> String {
@@ -209,7 +209,7 @@ fn entry_json(entry: &StagedEntry) -> Result<String, String> {
 fn stage(arguments: &Value) -> Result<String, String> {
     let path = file_ops::arg_str(arguments, "path")?;
     if path.trim().is_empty() {
-        return Err("missing path".into());
+        return Err("missing path".to_string());
     }
     let title = arguments
         .get("title")

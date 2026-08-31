@@ -12,7 +12,7 @@ use crate::services::workbench_read::{
 };
 
 use super::archive::{
-    handle_archive_post, handle_note_content_post, handle_note_digest_post,
+    handle_archive_post, handle_note_content_post, handle_note_digest_post, handle_note_path_post,
     handle_notes_by_catalog_post, handle_notes_search_post,
 };
 use super::bind::handle_bind_complete;
@@ -116,6 +116,10 @@ pub(super) fn handle_request(repo_root: &PathBuf, port: u16, request: tiny_http:
             }
             "/api/note-content" => {
                 handle_note_content_post(repo_root, request);
+                return;
+            }
+            "/api/note-path" => {
+                handle_note_path_post(repo_root, request);
                 return;
             }
             "/api/notes-search" => {

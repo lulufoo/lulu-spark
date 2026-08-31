@@ -2417,3 +2417,116 @@ fn t3_oauth_still_rejects_mobile_and_does_not_change_slot() {
     );
 }
 
+fn note_content_tool(table: &SlotToolTable) -> &ToolRoute {
+    table
+        .tools
+        .iter()
+        .find(|t| t.name == "get_note_content_by_id")
+        .expect("get_note_content_by_id")
+}
+
+/// Normal: workbench channel hangs get_note_content_by_id on POST /api/note-path.
+#[test]
+fn workbench_channel_get_note_content_by_id_hits_note_path() {
+    let table = build_channel_tool_table(WORKBENCH_SLOT, WORKBENCH_SLOT).expect("workbench");
+    let tool = note_content_tool(&table);
+    assert_eq!(tool.name, "get_note_content_by_id");
+    assert_eq!(tool.api_path, "/api/note-path");
+    assert_eq!(tool.method, HttpMethod::Post);
+
+    let (base, seen, join) = start_recording_sidecar(200, r#"{"id":"x","ok":true,"path":"/tmp/n.md"}"#);
+    let rt = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .expect("runtime");
+    rt.block_on(proxy_tool_call(
+        &base,
+        WORKBENCH_SLOT,
+        WORKBENCH_SLOT,
+        "get_note_content_by_id",
+        serde_json::json!({ "id": "11111111111111111111111111111111" }),
+    ))
+    .expect("proxy")
+    .expect("200");
+    let hits = seen.lock().expect("lock").clone();
+    assert!(
+        hits.iter()
+            .any(|(m, u)| m == "POST" && u == "/api/note-path"),
+        "workbench get_note_content_by_id must POST /api/note-path, seen={hits:?}"
+    );
+    let _ = join.join();
+}
+
+/// Normal: cursor_ide and mobile keep get_note_content_by_id on /api/note-content.
+/// Boundary: /mcp/mobile still uses workbench scene_slot; split is by channel, not slot.
+#[test]
+fn cursor_ide_and_mobile_get_note_content_by_id_still_hit_note_content() {
+    assert!(super::scene_slot_api(MOBILE_PATH).is_none());
+    assert_eq!(
+        super::REGISTERED_SCENE_SLOTS,
+        &[WORKBENCH_SLOT, CURSOR_IDE_SLOT]
+    );
+
+    let ide = build_channel_tool_table(CURSOR_IDE_SLOT, CURSOR_IDE_SLOT).expect("cursor_ide");
+    let ide_tool = note_content_tool(&ide);
+    assert_eq!(ide_tool.name, "get_note_content_by_id");
+    assert_eq!(ide_tool.api_path, "/api/note-content");
+    assert_eq!(ide_tool.method, HttpMethod::Post);
+
+    let mobile = build_channel_tool_table(WORKBENCH_SLOT, MOBILE_PATH).expect("mobile overlay");
+    let mobile_tool = note_content_tool(&mobile);
+    assert_eq!(mobile_tool.name, "get_note_content_by_id");
+    assert_eq!(
+        mobile_tool.api_path, "/api/note-content",
+        "mobile must not inherit workbench note-path from scene_slot=workbench"
+    );
+
+    let (base, seen, join) =
+        start_recording_sidecar(200, r#"{"id":"x","ok":true,"content":"body","truncated":false}"#);
+    let rt = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .expect("runtime");
+    rt.block_on(proxy_tool_call(
+        &base,
+        WORKBENCH_SLOT,
+        MOBILE_PATH,
+        "get_note_content_by_id",
+        serde_json::json!({ "id": "11111111111111111111111111111111" }),
+    ))
+    .expect("proxy")
+    .expect("200");
+    let hits = seen.lock().expect("lock").clone();
+    assert!(
+        hits.iter()
+            .any(|(m, u)| m == "POST" && u == "/api/note-content"),
+        "mobile get_note_content_by_id must POST /api/note-content, seen={hits:?}"
+    );
+    let _ = join.join();
+}
+
+/// Boundary: MCP name stays get_note_content_by_id; digest still hangs /api/note-digest.
+#[test]
+fn get_note_content_by_id_name_and_digest_route_unchanged() {
+    for (slot, channel) in [
+        (WORKBENCH_SLOT, WORKBENCH_SLOT),
+        (CURSOR_IDE_SLOT, CURSOR_IDE_SLOT),
+        (WORKBENCH_SLOT, MOBILE_PATH),
+    ] {
+        let table = build_channel_tool_table(slot, channel).expect("table");
+        assert!(
+            table.tools.iter().any(|t| t.name == "get_note_content_by_id"),
+            "{channel} must keep MCP name get_note_content_by_id"
+        );
+        let digest = table
+            .tools
+            .iter()
+            .find(|t| t.name == "get_note_digest_by_id")
+            .expect("get_note_digest_by_id");
+        assert_eq!(
+            digest.api_path, "/api/note-digest",
+            "{channel} digest must stay on /api/note-digest"
+        );
+    }
+}
+

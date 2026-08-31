@@ -3,6 +3,7 @@ use std::path::Path;
 
 use serde_json::{json, Map, Value};
 
+use crate::config::meili_env::notes_root_path;
 use crate::integrations::search::MeiliBackend;
 
 use super::notes::{get_notes_file, load_notes_index_entries};
@@ -210,6 +211,49 @@ pub fn get_note_digest_by_id(repo_root: &Path, id: &str) -> Value {
 
 pub fn get_note_content_by_id(repo_root: &Path, id: &str) -> Value {
     read_note_layer(repo_root, id, "raw", true)
+}
+
+/// Locate the raw note file. Success is `{id, ok, path}` only — no body text.
+pub fn get_note_path_by_id(repo_root: &Path, id: &str) -> Value {
+    let id = id.trim();
+    if id.is_empty() {
+        return json!({ "error": "Missing id", "_status": 400 });
+    }
+    if !is_valid_entry_id(id) {
+        return json!({ "id": id, "ok": false, "error": "Invalid id" });
+    }
+    let entries = match load_notes_index_entries(repo_root) {
+        Ok(e) => e,
+        Err(v) => return v,
+    };
+    let Some(entry) = entries.get(id) else {
+        return json!({ "id": id, "ok": false, "error": "Entry not found" });
+    };
+    let Some(common_path) = entry.get("common_path").and_then(|v| v.as_str()) else {
+        return json!({ "id": id, "ok": false, "error": "Missing common_path" });
+    };
+    let common_path = common_path.trim();
+    if common_path.is_empty() || common_path.contains("..") {
+        return json!({ "id": id, "ok": false, "error": "Invalid path" });
+    }
+    let notes = notes_root_path(repo_root);
+    let target = notes.join("raw").join(common_path);
+    let Ok(notes_canon) = notes.canonicalize() else {
+        return json!({ "id": id, "ok": false, "error": "Notes root missing" });
+    };
+    let target_canon = target.canonicalize().unwrap_or(target);
+    let prefix = format!("{}{}", notes_canon.to_string_lossy(), std::path::MAIN_SEPARATOR);
+    if !target_canon.to_string_lossy().starts_with(&prefix) {
+        return json!({ "id": id, "ok": false, "error": "Path traversal not allowed" });
+    }
+    if !target_canon.is_file() {
+        return json!({ "id": id, "ok": false, "error": format!("File not found: raw/{common_path}") });
+    }
+    json!({
+        "id": id,
+        "ok": true,
+        "path": target_canon.to_string_lossy(),
+    })
 }
 
 fn read_note_layer(repo_root: &Path, id: &str, layer: &str, truncate_raw: bool) -> Value {

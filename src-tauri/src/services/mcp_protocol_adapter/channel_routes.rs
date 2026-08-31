@@ -1,5 +1,7 @@
 //! Per-channel overlays on the slot tool table. Same MCP name, different Sidecar path.
 
+use serde_json::json;
+
 use super::routes::{create_note_properties, object_schema, route};
 use super::types::{HttpMethod, SlotToolTable, ToolRoute};
 
@@ -15,11 +17,38 @@ fn create_note_content_route() -> ToolRoute {
     )
 }
 
+fn get_note_path_route() -> ToolRoute {
+    route(
+        "get_note_content_by_id",
+        "Return the raw file absolute path for one note by archive entry id. Does not return body text.",
+        HttpMethod::Post,
+        "/api/note-path",
+        object_schema(
+            json!({
+                "id": {
+                    "type": "string",
+                    "description": "Archive entry id (32-char hex)."
+                }
+            }),
+            &["id"],
+        ),
+        true,
+        false,
+    )
+}
+
 pub fn apply_channel_routes(mut table: SlotToolTable, channel: &str) -> SlotToolTable {
     if channel == "mobile" {
         for tool in &mut table.tools {
             if tool.name == "create_note" {
                 *tool = create_note_content_route();
+            }
+        }
+    }
+    if channel == "workbench" {
+        for tool in &mut table.tools {
+            if tool.name == "get_note_content_by_id" {
+                *tool = get_note_path_route();
             }
         }
     }

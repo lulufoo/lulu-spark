@@ -2977,3 +2977,84 @@ fn t5_does_not_add_frontend_notes_selection_test_harness() {
         "must not add a new frontend test harness, found {extra:?}"
     );
 }
+
+/// Normal: POST /api/note-path returns {id, ok, path} as the raw absolute path.
+#[test]
+fn post_note_path_returns_raw_absolute_path() {
+    let catalog = setup_repo_with_catalog();
+    let repo_root = catalog.repo_root.clone();
+    let id = catalog.id.clone();
+    let expected_path = crate::config::meili_env::notes_root_path(&repo_root)
+        .join("raw")
+        .join("ai/note.md");
+    let expected = expected_path
+        .canonicalize()
+        .unwrap_or(expected_path);
+    with_server(repo_root, |port| {
+        let (status, body) = http_post(port, "/api/note-path", &json!({ "id": id }));
+        assert_eq!(status, 200, "note-path status, body={body}");
+        assert_eq!(body["id"], id);
+        assert_eq!(body["ok"], true);
+        let path = body["path"].as_str().expect("path");
+        assert_eq!(path, expected.to_string_lossy());
+        assert!(
+            PathBuf::from(path).is_absolute(),
+            "path must be absolute, got {path}"
+        );
+        assert!(
+            path.ends_with("raw/ai/note.md") || path.ends_with("raw\\ai\\note.md"),
+            "path must point at the raw file, got {path}"
+        );
+        assert!(
+            body.get("content").is_none(),
+            "note-path must not return body text, got {body}"
+        );
+        assert_ne!(path, "raw body", "must not treat content as path");
+
+        let (digest_status, digest) = http_post(port, "/api/note-digest", &json!({ "id": id }));
+        assert_eq!(digest_status, 200);
+        assert_eq!(digest["ok"], true);
+        assert_eq!(digest["content"], "digest body");
+        let (content_status, content) = http_post(port, "/api/note-content", &json!({ "id": id }));
+        assert_eq!(content_status, 200);
+        assert_eq!(content["ok"], true);
+        assert_eq!(content["content"], "raw body");
+        assert_eq!(content["truncated"], false);
+    });
+}
+
+/// Exception: missing or invalid id is not ok, and does not treat body text as path.
+#[test]
+fn post_note_path_rejects_missing_or_invalid_id() {
+    let catalog = setup_repo_with_catalog();
+    let repo_root = catalog.repo_root.clone();
+    with_server(repo_root, |port| {
+        let (status, body) = http_post(port, "/api/note-path", &json!({}));
+        assert!(
+            status == 400 || body.get("ok") != Some(&json!(true)),
+            "missing id must not succeed, status={status} body={body}"
+        );
+        assert_ne!(body.get("path").and_then(|v| v.as_str()), Some("raw body"));
+        assert!(
+            body.get("content").is_none(),
+            "missing id must not return body text as path, got {body}"
+        );
+
+        let (_status, body) = http_post(port, "/api/note-path", &json!({ "id": "bad" }));
+        assert_ne!(body.get("ok"), Some(&json!(true)), "invalid id body={body}");
+        assert_ne!(body.get("path").and_then(|v| v.as_str()), Some("raw body"));
+        assert!(body.get("content").is_none(), "invalid id must not return content, got {body}");
+
+        let (_status, body) = http_post(
+            port,
+            "/api/note-path",
+            &json!({ "id": "ffffffffffffffffffffffffffffffff" }),
+        );
+        assert_ne!(
+            body.get("ok"),
+            Some(&json!(true)),
+            "unknown id must not succeed, body={body}"
+        );
+        assert!(body.get("content").is_none(), "unknown id must not return content, got {body}");
+    });
+}
