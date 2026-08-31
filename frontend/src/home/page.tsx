@@ -13,6 +13,8 @@ import {
   startHomeHub,
   stopHomeHub,
 } from './commands/hub.ts';
+import { openStagedFile } from './commands/staged.ts';
+import { StagedList } from './ui/staged-list.tsx';
 import {
   composerLocked,
   messagePaintKey,
@@ -267,6 +269,7 @@ export function HomePage({
           />
         </div>
         <form ref={formRef} className="home-chat-composer" data-role="form" onSubmit={onSubmit}>
+          <StagedList items={state.staged} onOpen={openStagedFile} />
           <p className="home-chat-progress" data-role="progress-hint" hidden={!hint}>
             {hint}
           </p>

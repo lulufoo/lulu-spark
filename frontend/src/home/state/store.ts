@@ -14,10 +14,17 @@ export type HubMessage = {
   error?: boolean;
 };
 
+export type HubStagedEntry = {
+  id: string;
+  path: string;
+  title: string;
+};
+
 export type HomeState = {
   sessions: HubSession[];
   currentSessionId: string;
   messages: HubMessage[];
+  staged: HubStagedEntry[];
   hostBound: boolean;
   progressByChat: Record<string, string>;
   inFlightIds: string[];
@@ -28,6 +35,7 @@ function emptyState(): HomeState {
     sessions: [],
     currentSessionId: '',
     messages: [],
+    staged: [],
     hostBound: false,
     progressByChat: Object.create(null) as Record<string, string>,
     inFlightIds: [],
@@ -91,6 +99,23 @@ export function sessionListLabel(session: HubSession) {
   const title = String(session?.title || '').trim();
   if (title) return title;
   return formatSessionWhen(session?.updated_at) || 'New conversation';
+}
+
+export function hydrateStaged(raw: unknown): HubStagedEntry[] {
+  if (!Array.isArray(raw)) return [];
+  const out: HubStagedEntry[] = [];
+  for (const row of raw) {
+    if (!row || typeof row !== 'object') continue;
+    const path = String((row as { path?: unknown }).path ?? '').trim();
+    if (!path) continue;
+    const title = String((row as { title?: unknown }).title ?? '').trim();
+    out.push({
+      id: String((row as { id?: unknown }).id ?? ''),
+      path,
+      title: title || path.split('/').pop() || path,
+    });
+  }
+  return out;
 }
 
 export function hydrateTurns(turns: unknown): HubMessage[] {

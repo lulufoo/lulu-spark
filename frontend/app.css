@@ -7235,8 +7235,39 @@
 }
 .home-chat-composer-dock,
 .home-chat-composer .home-chat-input,
-.home-chat-composer .home-chat-send {
+.home-chat-composer .home-chat-send,
+.home-chat-staged {
   pointer-events: auto;
+}
+.home-chat-staged {
+  width: 100%;
+  max-width: var(--home-chat-col);
+  margin: 0 0 8px;
+  border: 1px solid #d0d7de;
+  border-radius: 10px;
+  background: #fff;
+}
+.home-chat-staged-summary {
+  cursor: pointer;
+  padding: 6px 10px;
+  font-size: 12px;
+  line-height: 1.3;
+  color: #57606a;
+}
+.home-chat-staged-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 6px 10px;
+  border: none;
+  background: transparent;
+  font: inherit;
+  font-size: 13px;
+  color: #24292f;
+  cursor: pointer;
+}
+.home-chat-staged-item:hover {
+  background: #f6f8fa;
 }
 .home-chat-composer-dock {
   display: flex;

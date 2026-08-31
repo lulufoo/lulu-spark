@@ -1,6 +1,8 @@
 import * as api from '../../host/api.ts';
+import { refreshStagedFromBinding } from './staged.ts';
 import {
   getHomeState,
+  hydrateStaged,
   hydrateTurns,
   neighborSessionId,
   sessionIdOf,
@@ -38,17 +40,15 @@ export function resetHomeCommands() {
 function applySessionPayload(payload: Record<string, unknown> | null, gen?: number) {
   if (gen != null && gen !== fetchGen) return;
   if (!payload || typeof payload !== 'object') return;
-  setHomeState((prev) => {
-    let currentSessionId = prev.currentSessionId;
-    let messages = prev.messages;
-    if (payload.session_id != null || payload.sessionId != null) {
-      currentSessionId = sessionIdOf(payload);
-    }
-    if (Object.hasOwn(payload, 'turns')) {
-      messages = hydrateTurns(payload.turns);
-    }
-    return { ...prev, currentSessionId, messages };
-  });
+  setHomeState((prev) => ({
+    ...prev,
+    currentSessionId:
+      payload.session_id != null || payload.sessionId != null
+        ? sessionIdOf(payload)
+        : prev.currentSessionId,
+    messages: Object.hasOwn(payload, 'turns') ? hydrateTurns(payload.turns) : prev.messages,
+    staged: Object.hasOwn(payload, 'staged') ? hydrateStaged(payload.staged) : prev.staged,
+  }));
 }
 
 export async function refreshList(gen?: number) {
@@ -100,7 +100,7 @@ export async function deleteSession(sessionId: string) {
     await refreshList(gen);
     if (gen !== fetchGen || !wasCurrent) return;
     if (nextId) await selectSession(nextId);
-    else setHomeState((prev) => ({ ...prev, currentSessionId: '', messages: [] }));
+    else setHomeState((prev) => ({ ...prev, currentSessionId: '', messages: [], staged: [] }));
   } catch (err) {
     showActionError(err instanceof Error ? err : { message: String(err) });
   }
@@ -144,6 +144,7 @@ export async function applyBindingState() {
       hostBound: false,
       currentSessionId,
       messages: [],
+      staged: [],
       progressByChat: Object.create(null) as Record<string, string>,
       inFlightIds: [],
     }));
@@ -243,6 +244,7 @@ export async function sendMessage(text: string) {
           }));
         }
       }
+      await refreshStagedFromBinding(sid, fetchGen, () => fetchGen);
     }
     await refreshList(fetchGen);
   } catch (err) {
