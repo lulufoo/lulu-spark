@@ -8,6 +8,8 @@ const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
 const indexHtml = [
   readShellHtml(),
   readFileSync(join(repoRoot, 'frontend/src/notes/ui/sidebar.tsx'), 'utf8'),
+  readFileSync(join(repoRoot, 'frontend/src/notes/ui/search.tsx'), 'utf8'),
+  readFileSync(join(repoRoot, 'frontend/src/knowledge/ui/search.tsx'), 'utf8'),
 ].join('\n');
 
 function extractTagOuter(html, id) {
@@ -43,8 +45,10 @@ describe('P1 copy-switch shell (tech-doc T1 / index.html)', () => {
   it('search placeholders and rebuild titles use table B', () => {
     expect(indexHtml).toMatch(/id="gs-wb-input"[^>]*placeholder="Search notes…"/);
     expect(indexHtml).toMatch(/id="gs-kb-input"[^>]*placeholder="Search knowledge…"/);
-    expect(indexHtml).toMatch(/id="gs-wb-rebuild-btn"[^>]*title="Rebuild Workbench index"/);
-    expect(indexHtml).toMatch(/id="gs-kb-rebuild-btn"[^>]*title="Rebuild knowledge index"/);
+    expect(indexHtml).toMatch(/id="gs-wb-rebuild-btn"/);
+    expect(indexHtml).toMatch(/useState\('Rebuild Workbench index'\)/);
+    expect(indexHtml).toMatch(/id="gs-kb-rebuild-btn"/);
+    expect(indexHtml).toMatch(/useState\('Rebuild knowledge index'\)/);
   });
 
   it('repo list title uses table B2 knowledge list label', () => {

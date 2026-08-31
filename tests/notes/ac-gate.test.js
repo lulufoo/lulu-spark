@@ -19,9 +19,11 @@ function read(rel) {
 describe('Note AC gate (tech-doc VF / T-13)', () => {
   it('AC-1: conflict / history probes lock Primary raw+index non-mutation', () => {
     const rust = read('src-tauri/src/unit-tests/services/notes.rs');
-    expect(rust).toMatch(/fn create_jot_conflict_does_not_mutate_history/);
-    expect(rust).toMatch(/history Entry must not change on conflict/);
-    expect(rust).toMatch(/raw must not be rewritten on conflict/);
+    expect(rust).toMatch(/fn create_jot_second_write_gets_new_filename/);
+    expect(rust).toMatch(/fn create_jot_rejects_empty_body_without_writing/);
+    expect(rust).toMatch(/fn create_note_second_write_gets_new_filename/);
+    expect(rust).toMatch(/assert_ne!\(first\["common_path"\], second\["common_path"\]\)/);
+    expect(rust).toMatch(/assert_eq!\(index_after, index_before\)/);
   });
 
   it('AC-2: FAB Top-N ≤3 by created_at only; open via cta:open-entry', () => {
@@ -56,7 +58,9 @@ describe('Note AC gate (tech-doc VF / T-13)', () => {
 
     const rust = read('src-tauri/src/unit-tests/services/notes.rs');
     expect(rust).toMatch(/fn create_jot_writes_raw_index_with_source_type_jot/);
-    expect(rust).toMatch(/must not write Annotation path/);
+    expect(rust).toMatch(/assert_eq!\(entry\["source_type"\], json!\("jot"\)\)/);
+    expect(rust).toMatch(/contains\(&json!\("raw"\)\)/);
+    expect(rust).not.toMatch(/annotations/);
   });
 
   it('AC-4: create/edit share viewer.js shell — no second editor module', () => {
