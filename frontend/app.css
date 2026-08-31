@@ -7255,7 +7255,9 @@
   color: #57606a;
 }
 .home-chat-staged-item {
-  display: block;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
   width: 100%;
   text-align: left;
   padding: 6px 10px;
@@ -7265,6 +7267,17 @@
   font-size: 13px;
   color: #24292f;
   cursor: pointer;
+}
+.home-chat-staged-id {
+  flex: 0 0 auto;
+  font-variant-numeric: tabular-nums;
+  color: #57606a;
+}
+.home-chat-staged-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .home-chat-staged-item:hover {
   background: #f6f8fa;

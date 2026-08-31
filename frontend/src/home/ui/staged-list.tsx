@@ -18,9 +18,15 @@ export function StagedList({
           className="home-chat-staged-item"
           data-role="staged-item"
           data-staged-path={item.path}
+          data-staged-id={item.id}
           onClick={() => onOpen(item.path, item.title)}
         >
-          {item.title}
+          <span className="home-chat-staged-id" data-role="staged-id">
+            {item.id}
+          </span>
+          <span className="home-chat-staged-title" data-role="staged-title">
+            {item.title}
+          </span>
         </button>
       ))}
     </details>

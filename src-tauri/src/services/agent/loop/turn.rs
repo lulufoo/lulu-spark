@@ -8,8 +8,9 @@ use crate::services::agent::diagnostics::{self, DiagnosticEvent, TraceId};
 use crate::services::agent::fs_tools;
 use crate::services::agent::llm::{self, LlmConfig};
 use crate::services::agent::mcp_client;
+use crate::services::agent::note_content_stage;
 use crate::services::agent::progress::{self, ProgressSink};
-use crate::services::agent::session::{Session, Turn};
+use crate::services::agent::session::{self, Session, Turn};
 
 use super::binding::{
     current_binding_generation_snapshot, current_binding_snapshot, loaded_path_fence,
@@ -364,10 +365,16 @@ pub(crate) fn run_loop_with_progress(
                 }
             };
 
+            let (result, staged_note) =
+                note_content_stage::overlay_tool_result(&call.name, result);
+            if staged_note || (call.name == "stage" && !result.is_error) {
+                session::adopt_disk_staged(session);
+            }
+
             if chat_turn_interrupted(&session.session_id, generation) {
                 return cancelled_turn_outcome(session, turns_checkpoint);
             }
-            if !result.is_error && catalog.is_mutating(&call.name) {
+            if !result.is_error && (catalog.is_mutating(&call.name) || staged_note) {
                 wrote = true;
             }
             let _ = diagnostics::log(

@@ -2433,6 +2433,16 @@ fn workbench_channel_get_note_content_by_id_hits_note_path() {
     assert_eq!(tool.name, "get_note_content_by_id");
     assert_eq!(tool.api_path, "/api/note-path");
     assert_eq!(tool.method, HttpMethod::Post);
+    assert!(
+        tool.description.contains("staged document id") && tool.description.contains("F1"),
+        "workbench description must say the return is a Stage document id, got {}",
+        tool.description
+    );
+    assert!(
+        !tool.description.to_ascii_lowercase().contains("absolute path"),
+        "workbench description must not tell the model to expect a path: {}",
+        tool.description
+    );
 
     let (base, seen, join) = start_recording_sidecar(200, r#"{"id":"x","ok":true,"path":"/tmp/n.md"}"#);
     let rt = tokio::runtime::Builder::new_current_thread()

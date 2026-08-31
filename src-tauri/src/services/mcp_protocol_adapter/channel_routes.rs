@@ -20,7 +20,7 @@ fn create_note_content_route() -> ToolRoute {
 fn get_note_path_route() -> ToolRoute {
     route(
         "get_note_content_by_id",
-        "Return the raw file absolute path for one note by archive entry id. Does not return body text.",
+        "Stage one note onto this Chat and return the staged document id (F1, F2, …). Input id is the archive entry id. Does not return file path or body. The user reads the file from the Stage list. Use get_note_digest_by_id for a digest.",
         HttpMethod::Post,
         "/api/note-path",
         object_schema(

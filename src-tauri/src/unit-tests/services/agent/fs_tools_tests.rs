@@ -215,8 +215,10 @@ fn stage_path_appends_default_title_without_body() {
         assert!(!result.is_error && !result.content.contains(SECRET_BODY), "{}", result.content);
         let loaded = session::load_session(sid).expect("load");
         assert_eq!(loaded.staged.len(), 1);
+        assert_eq!(loaded.staged[0].id, "F1");
         assert_path_only(&serde_json::to_value(&loaded.staged[0]).unwrap(), &path_str, "my-note");
         assert_path_only(&as_json(&result.content), &path_str, "my-note");
+        assert_eq!(as_json(&result.content)["id"], "F1");
     });
 }
 

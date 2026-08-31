@@ -7,6 +7,7 @@ pub mod fs_tools;
 pub mod host_startup;
 pub mod llm;
 pub mod mcp_client;
+pub mod note_content_stage;
 pub mod path_fence;
 pub mod progress;
 pub mod r#loop;

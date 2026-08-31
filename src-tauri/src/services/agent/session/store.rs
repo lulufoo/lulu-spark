@@ -242,6 +242,13 @@ pub fn load_staged_value(session_id: &str) -> Value {
     }
 }
 
+/// Copy `staged` from disk onto the live session so a later persist cannot wipe it.
+pub fn adopt_disk_staged(session: &mut Session) {
+    if let Ok(fresh) = load_session(&session.session_id) {
+        session.staged = fresh.staged;
+    }
+}
+
 pub fn append_turn(session_id: &str, turn: Turn) -> Result<Session, String> {
     let mut session = load_session(session_id)?;
     session.turns.push(turn);

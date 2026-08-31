@@ -8,7 +8,6 @@ use super::fs_file_ops as file_ops;
 use super::mcp_client::{ToolCatalog, ToolResult};
 use super::path_fence::PathFence;
 use super::session::{self, StagedEntry};
-use crate::services::id::random_hex12;
 
 pub fn catalog() -> ToolCatalog {
     ToolCatalog::from_local_tools(vec![
@@ -72,7 +71,7 @@ pub fn catalog() -> ToolCatalog {
         ),
         local_tool(
             "stage",
-            "Register a file path on this Chat's Stage. path is required; title is optional and defaults to the last path segment without extension. Does not store file body.",
+            "Register a file path on this Chat's Stage and assign a staged document id (F1, F2, …). path is required; title is optional and defaults to the last path segment without extension. Does not store file body.",
             json!({
                 "type": "object",
                 "properties": {
@@ -96,11 +95,11 @@ pub fn catalog() -> ToolCatalog {
         ),
         local_tool(
             "get_staged",
-            "Return one Stage registration by id (id, path, title). Does not return file body; use read for contents.",
+            "Return one Stage registration by staged document id (F1, F2, …). Returns id, path, and title. Does not return file body.",
             json!({
                 "type": "object",
                 "properties": {
-                    "id": { "type": "string", "description": "Staged entry id." }
+                    "id": { "type": "string", "description": "Staged document id (F1, F2, …)." }
                 },
                 "required": ["id"],
                 "additionalProperties": false
@@ -202,32 +201,49 @@ fn default_title(path: &str) -> String {
         .to_string()
 }
 
+fn parse_handle(id: &str) -> Option<u32> {
+    let rest = id.strip_prefix('F')?;
+    if rest.is_empty() || !rest.bytes().all(|b| b.is_ascii_digit()) {
+        return None;
+    }
+    rest.parse().ok()
+}
+
+fn next_handle(staged: &[StagedEntry]) -> String {
+    let high = staged.iter().filter_map(|e| parse_handle(&e.id)).max().unwrap_or(0);
+    format!("F{}", high + 1)
+}
+
 fn entry_json(entry: &StagedEntry) -> Result<String, String> {
     serde_json::to_string(entry).map_err(|e| e.to_string())
 }
 
-fn stage(arguments: &Value) -> Result<String, String> {
-    let path = file_ops::arg_str(arguments, "path")?;
-    if path.trim().is_empty() {
+pub(crate) fn stage_path(path: &str, title: Option<&str>) -> Result<StagedEntry, String> {
+    let path = path.trim();
+    if path.is_empty() {
         return Err("missing path".to_string());
     }
-    let title = arguments
-        .get("title")
-        .and_then(Value::as_str)
+    let title = title
         .map(str::trim)
         .filter(|s| !s.is_empty())
         .map(|s| s.to_string())
-        .unwrap_or_else(|| default_title(&path));
+        .unwrap_or_else(|| default_title(path));
     let sid = live_session_id()?;
     let mut sess = session::load_session(&sid)?;
     let entry = StagedEntry {
-        id: format!("stg_{}", random_hex12()),
-        path,
+        id: next_handle(&sess.staged),
+        path: path.to_string(),
         title,
     };
     sess.staged.push(entry.clone());
     session::save_session(&sess)?;
-    entry_json(&entry)
+    Ok(entry)
+}
+
+fn stage(arguments: &Value) -> Result<String, String> {
+    let path = file_ops::arg_str(arguments, "path")?;
+    let title = arguments.get("title").and_then(Value::as_str);
+    entry_json(&stage_path(&path, title)?)
 }
 
 fn list_staged() -> Result<String, String> {
