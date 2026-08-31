@@ -16,3 +16,5 @@ alwaysApply: true
 5. UI-layer changes → read and follow `docs/architecture/ui-layer-constraints.md`. No exceptions.
 
 6. UI build (business-layer copy) → read and follow `docs/biz/ui-build-constraints.md`. No exceptions.
+
+7. Workbench frontend / Tauri invoke / ACL → read and follow `docs/coding/workbench-coding-discipline.md`. No exceptions.

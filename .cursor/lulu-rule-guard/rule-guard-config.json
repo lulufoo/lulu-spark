@@ -13,14 +13,19 @@
       {
         "glob": "**/*.{js,ts,jsx,tsx,py,go,rs,rb,swift,html,css,json,java,kt}",
         "required": [
-          "docs/coding/coding-global-discipline.md",
-          "docs/coding/coding-execution-constraints.md"
+          "docs/coding/global-coding-discipline.md"
         ]
       },
       {
-        "glob": "**/*.{ts,js}",
+        "glob": "**/*.{ts,tsx,js}",
         "required": [
-          "docs/coding/coding-workbench-discipline.md"
+          "docs/coding/ts-coding-constraints.md"
+        ]
+      },
+      {
+        "glob": "**/*.rs",
+        "required": [
+          "docs/coding/rs-coding-constraints.md"
         ]
       },
       {
