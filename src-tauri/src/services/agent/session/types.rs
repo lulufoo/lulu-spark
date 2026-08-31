@@ -166,6 +166,14 @@ impl AIAssistantSession {
     }
 }
 
+/// Chat-scoped Stage registration. Path metadata only — never file body.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct StagedEntry {
+    pub id: String,
+    pub path: String,
+    pub title: String,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Session {
     pub session_id: String,
@@ -175,4 +183,6 @@ pub struct Session {
     pub bound_title: Option<String>,
     #[serde(default)]
     pub turns: Vec<Turn>,
+    #[serde(default)]
+    pub staged: Vec<StagedEntry>,
 }

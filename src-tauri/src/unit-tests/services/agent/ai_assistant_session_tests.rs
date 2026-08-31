@@ -345,3 +345,148 @@ fn t8_empty_key_is_invalid_and_does_not_bind_workbench() {
         );
     });
 }
+
+fn staged_entry(id: &str, path: &str, title: &str) -> session::StagedEntry {
+    session::StagedEntry {
+        id: id.into(),
+        path: path.into(),
+        title: title.into(),
+    }
+}
+
+fn read_session_json(session_id: &str) -> serde_json::Value {
+    let path = session::session_file_path(session_id).expect("path");
+    serde_json::from_str(&std::fs::read_to_string(path).expect("read")).expect("json")
+}
+
+fn assert_path_only_staged(entry: &serde_json::Value) {
+    let obj = entry.as_object().expect("staged object");
+    assert!(obj.contains_key("id") && obj.contains_key("path") && obj.contains_key("title"));
+    for forbidden in ["content", "body", "text"] {
+        assert!(
+            !obj.contains_key(forbidden),
+            "staged must not persist {forbidden}"
+        );
+    }
+}
+
+#[test]
+fn t1_new_session_json_has_empty_staged_and_no_body() {
+    with_sandbox(|| {
+        let sess = session::create_session(None, None).expect("create");
+        let raw = read_session_json(&sess.session_id);
+        let staged = raw
+            .get("staged")
+            .and_then(|v| v.as_array())
+            .expect("session JSON must have staged array");
+        assert!(staged.is_empty(), "new session staged must be empty");
+        assert_eq!(raw["turns"], json!([]));
+    });
+}
+
+#[test]
+fn t1_save_staged_roundtrip_does_not_enter_turns() {
+    with_sandbox(|| {
+        let mut sess = session::create_session(None, None).expect("create");
+        let entry = staged_entry("stg_1", "/tmp/note.md", "note");
+        sess.staged.push(entry.clone());
+        session::save_session(&sess).expect("save");
+
+        let loaded = session::load_session(&sess.session_id).expect("load");
+        assert_eq!(loaded.staged, vec![entry]);
+        assert!(
+            loaded.turns.is_empty(),
+            "staged must not be written into turns"
+        );
+
+        let raw = read_session_json(&sess.session_id);
+        assert_eq!(raw["staged"].as_array().expect("arr").len(), 1);
+        assert_path_only_staged(&raw["staged"][0]);
+        assert_eq!(raw["turns"], json!([]));
+    });
+}
+
+#[test]
+fn t1_binding_core_includes_session_id_turns_and_staged() {
+    with_sandbox(|| {
+        let created = r#loop::create_chat_session_core().expect("create");
+        assert!(created.get("session_id").is_some());
+        assert!(created.get("turns").is_some());
+        assert!(
+            created.get("staged").is_some(),
+            "create/select/get binding must carry staged"
+        );
+        assert_eq!(created["staged"], json!([]));
+
+        let sid = created["session_id"].as_str().unwrap().to_string();
+        let mut sess = session::load_session(&sid).expect("load");
+        sess.staged.push(staged_entry("stg_bind", "/tmp/a.md", "A"));
+        session::save_session(&sess).expect("save");
+
+        let binding = r#loop::get_ai_assistant_binding_core();
+        assert_eq!(binding["session_id"], sid);
+        assert!(binding.get("turns").is_some());
+        assert_eq!(
+            binding["staged"],
+            json!([{"id": "stg_bind", "path": "/tmp/a.md", "title": "A"}])
+        );
+
+        let other = r#loop::create_chat_session_core().expect("other");
+        assert_ne!(other["session_id"], sid);
+        let selected = r#loop::select_chat_session_core(&sid).expect("select");
+        assert_eq!(selected["session_id"], sid);
+        assert_eq!(
+            selected["staged"],
+            json!([{"id": "stg_bind", "path": "/tmp/a.md", "title": "A"}])
+        );
+    });
+}
+
+#[test]
+fn t1_staged_is_isolated_by_session_id() {
+    with_sandbox(|| {
+        let mut a = session::create_session(None, None).expect("a");
+        let mut b = session::create_session(None, None).expect("b");
+        a.staged.push(staged_entry("stg_a", "/tmp/a.md", "A"));
+        b.staged.push(staged_entry("stg_b", "/tmp/b.md", "B"));
+        session::save_session(&a).expect("save a");
+        session::save_session(&b).expect("save b");
+
+        let loaded_a = session::load_session(&a.session_id).expect("load a");
+        let loaded_b = session::load_session(&b.session_id).expect("load b");
+        assert_eq!(loaded_a.staged[0].id, "stg_a");
+        assert_eq!(loaded_b.staged[0].id, "stg_b");
+        assert_ne!(loaded_a.staged, loaded_b.staged);
+    });
+}
+
+#[test]
+fn t1_delete_session_removes_file_and_staged() {
+    with_sandbox(|| {
+        let mut sess = session::create_session(None, None).expect("create");
+        sess.staged.push(staged_entry("stg_gone", "/tmp/x.md", "X"));
+        session::save_session(&sess).expect("save");
+        let path = session::session_file_path(&sess.session_id).expect("path");
+        assert!(path.is_file());
+
+        session::delete_session(&sess.session_id).expect("delete");
+        assert!(!path.is_file(), "session file and staged must disappear");
+        assert!(session::load_session(&sess.session_id).is_err());
+    });
+}
+
+#[test]
+fn t1_pack_outcome_chat_turn_result_has_no_staged() {
+    let runtime = include_str!("../../../services/agent/runtime.rs");
+    let start = runtime.find("fn pack_outcome").expect("pack_outcome");
+    let rest = &runtime[start..];
+    let end = rest.find("\nfn ").unwrap_or(rest.len());
+    let pack = &rest[..end];
+    assert!(
+        !pack.contains("staged"),
+        "pack_outcome must not put staged on ChatTurnResult"
+    );
+    for key in ["reply_text", "terminal", "wrote", "busy", "session_id"] {
+        assert!(pack.contains(key), "pack_outcome body must keep {key}");
+    }
+}

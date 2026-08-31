@@ -72,6 +72,7 @@ pub fn create_session(
             .filter(|s| !s.is_empty())
             .map(|s| s.to_string()),
         turns: Vec::new(),
+        staged: Vec::new(),
     };
     save_session(&session)?;
     Ok(session)
@@ -225,6 +226,18 @@ pub fn load_turns_value(session_id: &str) -> Value {
                 })
                 .collect(),
         ),
+        Err(_) => Value::Array(Vec::new()),
+    }
+}
+
+/// Read-only staged registrations for Home / binding hydrate. Empty when no live session / load fails.
+pub fn load_staged_value(session_id: &str) -> Value {
+    let id = session_id.trim();
+    if id.is_empty() {
+        return Value::Array(Vec::new());
+    }
+    match load_session(id) {
+        Ok(session) => serde_json::to_value(&session.staged).unwrap_or_else(|_| Value::Array(Vec::new())),
         Err(_) => Value::Array(Vec::new()),
     }
 }

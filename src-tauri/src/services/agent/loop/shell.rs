@@ -52,12 +52,14 @@ pub fn get_ai_assistant_binding_core() -> Value {
         (session_id, rt.busy, pending_present)
     };
     let turns = session::load_turns_value(&session_id);
+    let staged = session::load_staged_value(&session_id);
     json!({
         "session_id": session_id,
         "window_label": WINDOW_LABEL,
         "busy": busy,
         "pending_present": pending_present,
         "turns": turns,
+        "staged": staged,
     })
 }
 
