@@ -7,6 +7,7 @@ import {
   titleFromPath,
   viewStore,
 } from '../state/store.ts';
+import { revokeFilePopupAssetUrls } from '../state/assets.ts';
 
 export type OpenFilePopupInput = {
   path: string;
@@ -19,6 +20,7 @@ function asTextArea(el: HTMLElement | null) {
 }
 
 export function closeFilePopup() {
+  revokeFilePopupAssetUrls();
   viewStore.set(emptyFilePopupView());
 }
 

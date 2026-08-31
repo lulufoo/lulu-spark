@@ -47,3 +47,14 @@ export function layerFromAbsPath(path: string): 'raw' | 'digest' {
   }
   return 'raw';
 }
+
+/** Notes tree after `/notes/raw/` or `/notes/digest/`. Empty when the path is not a note. */
+export function commonPathFromAbsPath(path: string): string {
+  const normalized = path.replace(/\\/g, '/');
+  for (const layer of ['raw', 'digest'] as const) {
+    const marker = `/notes/${layer}/`;
+    const idx = normalized.lastIndexOf(marker);
+    if (idx >= 0) return normalized.slice(idx + marker.length);
+  }
+  return '';
+}
