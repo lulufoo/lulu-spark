@@ -1,24 +1,24 @@
-# GitHub Link Reading (❌ non-mechanizable — action triggers)
+# Git gh Operations
 
-当用户消息里出现 `github.com/{owner}/{repo}/blob/{ref}/{path}`
-或 `raw.githubusercontent.com/{owner}/{repo}/{ref}/{path}` 时：
+When a user message contains `github.com/{owner}/{repo}/blob/{ref}/{path}`
+or `raw.githubusercontent.com/{owner}/{repo}/{ref}/{path}`:
 
-1. **禁止直接拉取**：不得通过任何 HTTP(S) 方式拉取该 URL 的内容——
-   无论是内置的网页抓取能力、浏览器、IDE 扩展，还是 MCP 工具，均不得使用。
+1. **Do not fetch directly**: Do not retrieve that URL's content via any HTTP(S) method —
+   not built-in web fetch, browser, IDE extension, or MCP tools.
 
-2. **改走 gh api**：在可执行 `gh` 的 Shell 环境中运行：
+2. **Use `gh api` instead**: In a Shell where `gh` is available, run:
 
    ```bash
    gh api "repos/{owner}/{repo}/contents/{path}?ref={ref}" \
      --jq '.content' | base64 -d
    ```
 
-3. **URL 解析**：从 URL 直接解析 `owner` / `repo` / `ref` / `path`，无需映射表。
+3. **URL parsing**: Parse `owner` / `repo` / `ref` / `path` directly from the URL. No mapping table.
 
-4. **失败处理**：
+4. **Failure handling**:
 
-   | 状态码 | 处理 |
-   |--------|------|
-   | 404 | 告知路径不存在或无访问权限 |
-   | 403 | 告知需执行 `gh auth login` 或申请仓库权限 |
-   | 其他失败 | 不得静默回退到任何 URL/HTTP 方式重试 |
+   | Status | Action |
+   |--------|--------|
+   | 404 | Tell the user the path does not exist or is not accessible |
+   | 403 | Tell the user to run `gh auth login` or request repository access |
+   | Other failures | Do not silently fall back to any URL/HTTP retry |

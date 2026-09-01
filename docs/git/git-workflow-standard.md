@@ -139,8 +139,6 @@ Branch and worktree path conventions for a specific workflow (e.g. `wt/<type>-<s
 
 **Code changes for feature work must happen in a worktree, not in the main checkout.**
 
-Concrete commands and paths → see the active workflow SKILL (e.g. `lulu-dev-workflow/tech-code/SKILL.md` § Preparing).
-
 ---
 
 ## Failure Modes
