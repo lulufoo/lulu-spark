@@ -7,7 +7,7 @@ use serde_json::{json, Value};
 use super::fs_file_ops as file_ops;
 use super::mcp_client::{ToolCatalog, ToolResult};
 use super::path_fence::PathFence;
-use super::session::{self, StagedEntry};
+use super::session::{Session, StagedEntry};
 
 pub fn catalog() -> ToolCatalog {
     ToolCatalog::from_local_tools(vec![
@@ -116,15 +116,21 @@ pub fn is_builtin(name: &str) -> bool {
     )
 }
 
-pub fn call(name: &str, arguments: &Value, fence: &PathFence) -> ToolResult {
+/// Host tools. Stage trio mutates `session` in memory (turn persists); file tools ignore it.
+pub fn call(
+    name: &str,
+    arguments: &Value,
+    fence: &PathFence,
+    session: &mut Session,
+) -> ToolResult {
     let result = match name {
         "grep" => file_ops::grep(arguments, fence),
         "read" => file_ops::read(arguments, fence),
         "write" => file_ops::write(arguments, fence),
         "edit" => file_ops::edit(arguments, fence),
-        "stage" => stage(arguments),
-        "list_staged" => list_staged(),
-        "get_staged" => get_staged(arguments),
+        "stage" => stage(arguments, session),
+        "list_staged" => list_staged(session),
+        "get_staged" => get_staged(arguments, session),
         other => Err(format!("unknown file tool '{other}'")),
     };
     match result {
@@ -185,13 +191,6 @@ impl ToolCatalog {
     }
 }
 
-fn live_session_id() -> Result<String, String> {
-    session::live_context_owner()
-        .current_session_id()
-        .filter(|id| !id.trim().is_empty())
-        .ok_or_else(|| "no live session".to_string())
-}
-
 fn default_title(path: &str) -> String {
     Path::new(path)
         .file_stem()
@@ -218,7 +217,12 @@ fn entry_json(entry: &StagedEntry) -> Result<String, String> {
     serde_json::to_string(entry).map_err(|e| e.to_string())
 }
 
-pub(crate) fn stage_path(path: &str, title: Option<&str>) -> Result<StagedEntry, String> {
+/// Register a path on the turn session in memory. Caller persists (`persist` / `save_session`).
+pub(crate) fn stage_into(
+    session: &mut Session,
+    path: &str,
+    title: Option<&str>,
+) -> Result<StagedEntry, String> {
     let path = path.trim();
     if path.is_empty() {
         return Err("missing path".to_string());
@@ -228,33 +232,28 @@ pub(crate) fn stage_path(path: &str, title: Option<&str>) -> Result<StagedEntry,
         .filter(|s| !s.is_empty())
         .map(|s| s.to_string())
         .unwrap_or_else(|| default_title(path));
-    let sid = live_session_id()?;
-    let mut sess = session::load_session(&sid)?;
     let entry = StagedEntry {
-        id: next_handle(&sess.staged),
+        id: next_handle(&session.staged),
         path: path.to_string(),
         title,
     };
-    sess.staged.push(entry.clone());
-    session::save_session(&sess)?;
+    session.staged.push(entry.clone());
     Ok(entry)
 }
 
-fn stage(arguments: &Value) -> Result<String, String> {
+fn stage(arguments: &Value, session: &mut Session) -> Result<String, String> {
     let path = file_ops::arg_str(arguments, "path")?;
     let title = arguments.get("title").and_then(Value::as_str);
-    entry_json(&stage_path(&path, title)?)
+    entry_json(&stage_into(session, &path, title)?)
 }
 
-fn list_staged() -> Result<String, String> {
-    let sess = session::load_session(&live_session_id()?)?;
-    serde_json::to_string(&sess.staged).map_err(|e| e.to_string())
+fn list_staged(session: &Session) -> Result<String, String> {
+    serde_json::to_string(&session.staged).map_err(|e| e.to_string())
 }
 
-fn get_staged(arguments: &Value) -> Result<String, String> {
+fn get_staged(arguments: &Value, session: &Session) -> Result<String, String> {
     let id = file_ops::arg_str(arguments, "id")?;
-    let sess = session::load_session(&live_session_id()?)?;
-    let entry = sess
+    let entry = session
         .staged
         .iter()
         .find(|entry| entry.id == id)

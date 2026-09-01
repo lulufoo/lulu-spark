@@ -10,7 +10,7 @@ use crate::services::agent::llm::{self, LlmConfig};
 use crate::services::agent::mcp_client;
 use crate::services::agent::note_content_stage;
 use crate::services::agent::progress::{self, ProgressSink};
-use crate::services::agent::session::{self, Session, Turn};
+use crate::services::agent::session::{Session, Turn};
 
 use super::binding::{
     current_binding_generation_snapshot, current_binding_snapshot, loaded_path_fence,
@@ -313,7 +313,9 @@ pub(crate) fn run_loop_with_progress(
                             }
                             if use_host {
                                 match turn_fence.as_ref() {
-                                    Some(fence) => fs_tools::call(&call.name, &arguments, fence),
+                                    Some(fence) => {
+                                        fs_tools::call(&call.name, &arguments, fence, session)
+                                    }
                                     None => mcp_client::ToolResult {
                                         content: format!(
                                             "Host tool '{}' has no path fence for this binding.",
@@ -366,10 +368,7 @@ pub(crate) fn run_loop_with_progress(
             };
 
             let (result, staged_note) =
-                note_content_stage::overlay_tool_result(&call.name, result);
-            if staged_note || (call.name == "stage" && !result.is_error) {
-                session::adopt_disk_staged(session);
-            }
+                note_content_stage::overlay_tool_result(&call.name, result, session);
 
             if chat_turn_interrupted(&session.session_id, generation) {
                 return cancelled_turn_outcome(session, turns_checkpoint);

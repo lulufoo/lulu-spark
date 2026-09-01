@@ -4,11 +4,16 @@ use serde_json::{json, Value};
 
 use super::fs_tools;
 use super::mcp_client::ToolResult;
+use super::session::Session;
 
 pub const NOTE_CONTENT_TOOL: &str = "get_note_content_by_id";
 
-/// After a workbench note-path success, register Stage and return F1/F2… only.
-pub fn overlay_tool_result(name: &str, result: ToolResult) -> (ToolResult, bool) {
+/// After a workbench note-path success, register Stage on `session` and return F1/F2… only.
+pub fn overlay_tool_result(
+    name: &str,
+    result: ToolResult,
+    session: &mut Session,
+) -> (ToolResult, bool) {
     if name != NOTE_CONTENT_TOOL || result.is_error {
         return (result, false);
     }
@@ -33,7 +38,7 @@ pub fn overlay_tool_result(name: &str, result: ToolResult) -> (ToolResult, bool)
         );
     };
     let note_id = value.get("id").and_then(Value::as_str).unwrap_or("");
-    match fs_tools::stage_path(path, None) {
+    match fs_tools::stage_into(session, path, None) {
         Ok(entry) => (
             ToolResult {
                 content: json!({

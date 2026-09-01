@@ -6,7 +6,7 @@ use serde_json::{json, Value};
 use crate::services::agent::fs_tools;
 use crate::services::agent::path_fence::PathFence;
 use crate::services::agent::r#loop;
-use crate::services::agent::session;
+use crate::services::agent::session::{self, Session};
 use crate::test_support::TestSandbox;
 
 fn unique_dir(label: &str) -> PathBuf {
@@ -38,6 +38,16 @@ fn live_fence() -> (PathFence, PathBuf, PathBuf) {
     (fence, read_root, scratch_parent.join("sess_fs"))
 }
 
+fn unused_session() -> Session {
+    Session {
+        session_id: "sess_fs_unused".into(),
+        bound_master_task_id: None,
+        bound_title: None,
+        turns: Vec::new(),
+        staged: Vec::new(),
+    }
+}
+
 #[test]
 fn catalog_exposes_the_four_host_file_tools() {
     let catalog = fs_tools::catalog();
@@ -53,11 +63,13 @@ fn catalog_exposes_the_four_host_file_tools() {
 #[test]
 fn grep_and_read_stay_inside_the_read_fence() {
     let (fence, read_root, _scratch) = live_fence();
+    let mut sess = unused_session();
     fs::write(read_root.join("a.txt"), "alpha\nfind-me\nomega\n").expect("write");
     let grep = fs_tools::call(
         "grep",
         &json!({ "pattern": "find-me", "path": read_root.to_string_lossy() }),
         &fence,
+        &mut sess,
     );
     assert!(!grep.is_error, "{}", grep.content);
     assert!(grep.content.contains("find-me"));
@@ -70,6 +82,7 @@ fn grep_and_read_stay_inside_the_read_fence() {
             "limit": 1
         }),
         &fence,
+        &mut sess,
     );
     assert!(!read.is_error, "{}", read.content);
     assert_eq!(read.content, "2:find-me");
@@ -78,6 +91,7 @@ fn grep_and_read_stay_inside_the_read_fence() {
         "read",
         &json!({ "path": "/etc/hosts" }),
         &fence,
+        &mut sess,
     );
     assert!(denied.is_error);
     assert!(denied.content.contains("outside the read fence"));
@@ -86,11 +100,13 @@ fn grep_and_read_stay_inside_the_read_fence() {
 #[test]
 fn write_and_edit_are_scratch_only() {
     let (fence, read_root, scratch) = live_fence();
+    let mut sess = unused_session();
     let outside = read_root.join("todo.md");
     let denied = fs_tools::call(
         "write",
         &json!({ "path": outside.to_string_lossy(), "content": "nope" }),
         &fence,
+        &mut sess,
     );
     assert!(denied.is_error);
     assert!(!outside.exists());
@@ -100,6 +116,7 @@ fn write_and_edit_are_scratch_only() {
         "write",
         &json!({ "path": pad.to_string_lossy(), "content": "hello world" }),
         &fence,
+        &mut sess,
     );
     assert!(!wrote.is_error, "{}", wrote.content);
     assert_eq!(fs::read_to_string(&pad).expect("read pad"), "hello world");
@@ -112,6 +129,7 @@ fn write_and_edit_are_scratch_only() {
             "new_text": "scratch"
         }),
         &fence,
+        &mut sess,
     );
     assert!(!edited.is_error, "{}", edited.content);
     assert_eq!(fs::read_to_string(&pad).expect("read pad"), "hello scratch");
@@ -124,6 +142,7 @@ fn write_and_edit_are_scratch_only() {
             "new_text": "x"
         }),
         &fence,
+        &mut sess,
     );
     assert!(!twice.is_error);
     let twice_again = fs_tools::call(
@@ -134,12 +153,14 @@ fn write_and_edit_are_scratch_only() {
             "new_text": "y"
         }),
         &fence,
+        &mut sess,
     );
     assert!(!twice_again.is_error);
     let dup = fs_tools::call(
         "write",
         &json!({ "path": pad.to_string_lossy(), "content": "aa aa" }),
         &fence,
+        &mut sess,
     );
     assert!(!dup.is_error);
     let many = fs_tools::call(
@@ -150,6 +171,7 @@ fn write_and_edit_are_scratch_only() {
             "new_text": "bb"
         }),
         &fence,
+        &mut sess,
     );
     assert!(many.is_error);
     assert!(many.content.contains("more than once"));
@@ -157,7 +179,7 @@ fn write_and_edit_are_scratch_only() {
 
 const SECRET_BODY: &str = "SECRET_BODY_MUST_NOT_APPEAR";
 
-fn with_live_chat<F: FnOnce(&PathFence, &str)>(f: F) {
+fn with_live_chat<F: FnOnce(&PathFence, &mut Session)>(f: F) {
     let _sandbox = TestSandbox::new();
     r#loop::reset_runtime_for_tests();
     let sid = r#loop::create_chat_session_core().expect("chat")["session_id"]
@@ -165,7 +187,8 @@ fn with_live_chat<F: FnOnce(&PathFence, &str)>(f: F) {
         .unwrap()
         .to_string();
     let (fence, _, _) = live_fence();
-    f(&fence, &sid);
+    let mut sess = session::load_session(&sid).expect("load");
+    f(&fence, &mut sess);
 }
 
 fn as_json(content: &str) -> Value {
@@ -207,60 +230,89 @@ fn catalog_registers_stage_trio_off_cursor_ide_and_mobile() {
 }
 
 #[test]
-fn stage_path_appends_default_title_without_body() {
-    with_live_chat(|fence, sid| {
+fn stage_into_appends_default_title_without_body() {
+    with_live_chat(|fence, sess| {
         let path = write_note("stage-default", "my-note.md");
         let path_str = path.to_string_lossy().to_string();
-        let result = fs_tools::call("stage", &json!({ "path": path_str }), fence);
+        let result = fs_tools::call("stage", &json!({ "path": path_str }), fence, sess);
         assert!(!result.is_error && !result.content.contains(SECRET_BODY), "{}", result.content);
-        let loaded = session::load_session(sid).expect("load");
-        assert_eq!(loaded.staged.len(), 1);
-        assert_eq!(loaded.staged[0].id, "F1");
-        assert_path_only(&serde_json::to_value(&loaded.staged[0]).unwrap(), &path_str, "my-note");
+        assert_eq!(sess.staged.len(), 1);
+        assert_eq!(sess.staged[0].id, "F1");
+        assert_path_only(&serde_json::to_value(&sess.staged[0]).unwrap(), &path_str, "my-note");
         assert_path_only(&as_json(&result.content), &path_str, "my-note");
         assert_eq!(as_json(&result.content)["id"], "F1");
+        session::save_session(sess).expect("persist");
+        let loaded = session::load_session(&sess.session_id).expect("reload");
+        assert_eq!(loaded.staged.len(), 1);
+        assert_eq!(loaded.staged[0].id, "F1");
     });
 }
 
 #[test]
 fn stage_uses_caller_title() {
-    with_live_chat(|fence, sid| {
+    with_live_chat(|fence, sess| {
         let path = write_note("stage-title", "file.md");
         let path_str = path.to_string_lossy().to_string();
-        let result = fs_tools::call("stage", &json!({ "path": path_str, "title": "Given Title" }), fence);
+        let result =
+            fs_tools::call("stage", &json!({ "path": path_str, "title": "Given Title" }), fence, sess);
         assert!(!result.is_error, "{}", result.content);
-        let loaded = session::load_session(sid).expect("load");
-        assert_eq!((loaded.staged[0].title.as_str(), loaded.staged[0].path.as_str()), ("Given Title", path_str.as_str()));
+        assert_eq!(
+            (sess.staged[0].title.as_str(), sess.staged[0].path.as_str()),
+            ("Given Title", path_str.as_str())
+        );
     });
 }
 
 #[test]
-fn list_staged_lists_only_current_session() {
-    with_live_chat(|fence, sid_a| {
+fn list_staged_lists_only_the_session_passed_in() {
+    with_live_chat(|fence, sess_a| {
+        let sid_a = sess_a.session_id.clone();
         let a = write_note("list-a", "a.md");
-        assert!(!fs_tools::call("stage", &json!({"path": a.to_string_lossy(), "title": "A"}), fence).is_error);
-        let sid_b = r#loop::create_chat_session_core().expect("b")["session_id"].as_str().unwrap().to_string();
+        assert!(!fs_tools::call(
+            "stage",
+            &json!({"path": a.to_string_lossy(), "title": "A"}),
+            fence,
+            sess_a
+        )
+        .is_error);
+        session::save_session(sess_a).expect("save a");
+
+        let sid_b = r#loop::create_chat_session_core().expect("b")["session_id"]
+            .as_str()
+            .unwrap()
+            .to_string();
+        let mut sess_b = session::load_session(&sid_b).expect("b");
         let b = write_note("list-b", "b.md");
-        assert!(!fs_tools::call("stage", &json!({"path": b.to_string_lossy(), "title": "B"}), fence).is_error);
-        let listed_b = as_json(&fs_tools::call("list_staged", &json!({}), fence).content);
+        assert!(!fs_tools::call(
+            "stage",
+            &json!({"path": b.to_string_lossy(), "title": "B"}),
+            fence,
+            &mut sess_b
+        )
+        .is_error);
+        let listed_b = as_json(&fs_tools::call("list_staged", &json!({}), fence, &mut sess_b).content);
         assert_eq!(listed_b.as_array().expect("b").len(), 1);
         assert_eq!(listed_b[0]["title"], "B");
         assert_ne!(sid_a, sid_b);
-        r#loop::select_chat_session_core(sid_a).expect("select a");
-        let listed_a = as_json(&fs_tools::call("list_staged", &json!({}), fence).content);
+
+        let mut sess_a2 = session::load_session(&sid_a).expect("a again");
+        let listed_a = as_json(&fs_tools::call("list_staged", &json!({}), fence, &mut sess_a2).content);
         assert_eq!(listed_a.as_array().expect("a")[0]["title"], "A");
         assert_eq!(listed_a.as_array().unwrap().len(), 1);
+        assert!(session::load_session(&sid_b).expect("b disk").staged.is_empty());
+        session::save_session(&sess_b).expect("save b");
+        assert_eq!(session::load_session(&sid_b).expect("b after").staged.len(), 1);
     });
 }
 
 #[test]
 fn get_staged_returns_id_path_title_without_body() {
-    with_live_chat(|fence, sid| {
+    with_live_chat(|fence, sess| {
         let path = write_note("get-staged", "doc.md");
         let path_str = path.to_string_lossy().to_string();
-        assert!(!fs_tools::call("stage", &json!({ "path": path_str }), fence).is_error);
-        let id = session::load_session(sid).expect("load").staged[0].id.clone();
-        let got = fs_tools::call("get_staged", &json!({ "id": id }), fence);
+        assert!(!fs_tools::call("stage", &json!({ "path": path_str }), fence, sess).is_error);
+        let id = sess.staged[0].id.clone();
+        let got = fs_tools::call("get_staged", &json!({ "id": id }), fence, sess);
         assert!(!got.is_error && !got.content.contains(SECRET_BODY), "{}", got.content);
         assert_path_only(&as_json(&got.content), &path_str, "doc");
     });
@@ -268,19 +320,43 @@ fn get_staged_returns_id_path_title_without_body() {
 
 #[test]
 fn stage_missing_path_fails_and_does_not_write() {
-    with_live_chat(|fence, sid| {
-        let result = fs_tools::call("stage", &json!({ "title": "no-path" }), fence);
+    with_live_chat(|fence, sess| {
+        let result = fs_tools::call("stage", &json!({ "title": "no-path" }), fence, sess);
         assert!(result.is_error && !result.content.contains(SECRET_BODY));
-        assert!(session::load_session(sid).expect("load").staged.is_empty());
+        assert!(sess.staged.is_empty());
     });
 }
 
 #[test]
 fn get_staged_missing_or_unknown_id_fails_without_body() {
-    with_live_chat(|fence, _sid| {
+    with_live_chat(|fence, sess| {
         for args in [json!({}), json!({ "id": "stg_missing" })] {
-            let result = fs_tools::call("get_staged", &args, fence);
+            let result = fs_tools::call("get_staged", &args, fence, sess);
             assert!(result.is_error && !result.content.contains(SECRET_BODY), "{}", result.content);
         }
+    });
+}
+
+#[test]
+fn stage_does_not_follow_live_when_session_differs() {
+    with_live_chat(|fence, sess_live| {
+        let sid_live = sess_live.session_id.clone();
+        let sid_turn = r#loop::create_chat_session_core().expect("turn")["session_id"]
+            .as_str()
+            .unwrap()
+            .to_string();
+        r#loop::select_chat_session_core(&sid_live).expect("live");
+        let mut turn = session::load_session(&sid_turn).expect("turn");
+        let path = write_note("stage-turn", "t.md");
+        assert!(!fs_tools::call(
+            "stage",
+            &json!({ "path": path.to_string_lossy(), "title": "T" }),
+            fence,
+            &mut turn
+        )
+        .is_error);
+        session::save_session(&turn).expect("persist turn");
+        assert_eq!(session::load_session(&sid_turn).expect("turn").staged.len(), 1);
+        assert!(session::load_session(&sid_live).expect("live").staged.is_empty());
     });
 }
