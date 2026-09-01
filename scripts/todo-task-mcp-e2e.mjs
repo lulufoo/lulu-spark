@@ -74,30 +74,49 @@ const NOTES_TOOLS_E2E = [
  * Live AC2/AC3/AC4/A1 probes run after MCP connect when sidecar is up.
  */
 export function assertDualChannelE2eContract() {
-  const docPath = path.join(E2E_REPO_ROOT, 'docs', 'knowledge-mcp.md');
-  const bindingPath = path.join(E2E_REPO_ROOT, 'frontend', 'js', 'todo-task', 'binding.js');
+  const docPath = path.join(
+    E2E_REPO_ROOT,
+    'docs',
+    'architecture',
+    'arch-layer-constraints.md',
+  );
   if (!fs.existsSync(docPath)) {
-    throw new Error('dual-channel e2e: missing docs/knowledge-mcp.md');
-  }
-  if (!fs.existsSync(bindingPath)) {
-    throw new Error('dual-channel e2e: missing binding.js');
+    throw new Error('dual-channel e2e: missing docs/architecture/arch-layer-constraints.md');
   }
   const doc = fs.readFileSync(docPath, 'utf8');
-  const binding = fs.readFileSync(bindingPath, 'utf8');
-  if (!doc.includes('http://127.0.0.1:<mcp_port>/mcp/cursor_ide')) {
-    throw new Error('dual-channel e2e: IDE URL convention missing from docs');
+  if (!doc.includes('127.0.0.1:9876/mcp/cursor_ide')) {
+    throw new Error('dual-channel e2e: Skills loopback URL missing from architecture constraints');
   }
-  if (!doc.includes('http://127.0.0.1:<mcp_port>/mcp/workbench')) {
-    throw new Error('dual-channel e2e: App Binding URL convention missing from docs');
+  if (!doc.includes('127.0.0.1:9876/mcp/workbench')) {
+    throw new Error('dual-channel e2e: workbench internal URL missing from architecture constraints');
   }
-  if (!doc.includes('mcp.json')) {
-    throw new Error('dual-channel e2e: docs must mention mcp.json');
+  if (!doc.includes('Skills must not enter L0')) {
+    throw new Error('dual-channel e2e: Skills must not enter L0');
   }
-  if (!binding.includes("WORKBENCH_BUSINESS_KEY = 'workbench'")) {
-    throw new Error('dual-channel e2e: Binding key must be workbench');
+  const l0PathsLine = doc.split('\n').find((line) => line.includes('**L0 paths**'));
+  if (!l0PathsLine) {
+    throw new Error('dual-channel e2e: L0 paths sentence missing from architecture constraints');
   }
-  if (!binding.includes('key: WORKBENCH_BUSINESS_KEY')) {
-    throw new Error('dual-channel e2e: Binding must remain key-only');
+  if (
+    !l0PathsLine.includes('/mcp/mobile') ||
+    !l0PathsLine.includes('/health') ||
+    !l0PathsLine.includes('/bind/complete')
+  ) {
+    throw new Error('dual-channel e2e: L0 named-path set missing from architecture constraints');
+  }
+  if (l0PathsLine.includes('cursor_ide')) {
+    throw new Error('dual-channel e2e: L0 paths must not include /mcp/cursor_ide');
+  }
+  const l0Title = doc.split('\n').find((line) => line.includes('subgraph L0'));
+  const l0Sentence = doc
+    .split('\n')
+    .find((line) => line.includes('| **L0**') && !line.includes('L0 paths'));
+  if (
+    (l0Title && l0Title.includes('Android')) ||
+    (l0Sentence && l0Sentence.includes('Android')) ||
+    l0PathsLine.includes('Android')
+  ) {
+    throw new Error('dual-channel e2e: L0 must not be labeled Android');
   }
 }
 

@@ -74,11 +74,14 @@ describe('T10 Host MCP archive + contract retarget (V2/V3/V4)', () => {
     expect(src).toMatch(/status !== 404|status === 404/);
   });
 
-  it('todo-task-mcp-e2e Binding key and App slot are workbench', () => {
+  it('todo-task-mcp-e2e reads architecture constraints for Skills loopback and L0 paths', () => {
     const src = read('scripts/todo-task-mcp-e2e.mjs');
-    expect(src).toContain('http://127.0.0.1:<mcp_port>/mcp/workbench');
-    expect(src).toContain("WORKBENCH_BUSINESS_KEY = 'workbench'");
+    expect(src).toContain('docs/architecture/arch-layer-constraints.md');
+    expect(src).toContain('127.0.0.1:9876/mcp/cursor_ide');
+    expect(src).toContain('127.0.0.1:9876/mcp/workbench');
     expect(src).toMatch(/\/mcp\/workbench/);
+    expect(src).not.toContain('docs/knowledge-mcp.md');
+    expect(src).not.toContain('frontend/js/todo-task/binding.js');
     expect(src).not.toContain('http://127.0.0.1:<mcp_port>/mcp/todo_task');
     expect(src).not.toMatch(
       /new URL\(`http:\/\/127\.0\.0\.1:\$\{mcpPort\}\/mcp\/todo_task`\)/,
