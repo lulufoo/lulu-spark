@@ -18,3 +18,5 @@ alwaysApply: true
 6. UI build (business-layer copy) → read and follow `docs/biz/ui-build-constraints.md`. No exceptions.
 
 7. Workbench frontend / Tauri invoke / ACL → read and follow `docs/architecture/workbench-coding-discipline.md`. No exceptions.
+
+8. Unit tests (Rust / JS / TS) → read and follow `docs/test/unit-test-principles.md`. No exceptions.
