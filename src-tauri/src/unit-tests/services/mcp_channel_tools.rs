@@ -26,7 +26,14 @@ fn missing_file_enables_full_catalog_on_every_channel() {
     let _sandbox = TestSandbox::new();
     let all = catalog();
     for channel in MCP_CHANNELS {
-        assert_eq!(enabled_names(channel), all, "{channel}");
+        let enabled = enabled_names(channel);
+        if *channel == "workbench" {
+            assert_eq!(enabled, all, "{channel}");
+            assert!(is_enabled(channel, "delete_note"), "{channel} delete_note");
+        } else {
+            assert!(!enabled.contains("delete_note"), "{channel} must hide delete_note");
+            assert_eq!(enabled.len(), all.len() - 1, "{channel} catalog minus workbench-only");
+        }
         assert!(is_enabled(channel, "create_note"), "{channel} create_note");
     }
     assert!(enabled_names("not-a-channel").is_empty());
@@ -57,13 +64,18 @@ fn set_enabled_subset_filters_only_that_channel() {
 fn set_enabled_all_tools_omits_channel_key() {
     let _sandbox = TestSandbox::new();
     set_enabled("mobile", without("create_note")).expect("subset");
-    let all: Vec<String> = {
-        let mut names: Vec<String> = catalog().into_iter().collect();
+    // Mobile cannot enable workbench-only tools; "all on" = catalog minus those.
+    let all_mobile: Vec<String> = {
+        let mut names: Vec<String> = catalog()
+            .into_iter()
+            .filter(|n| n != "delete_note")
+            .collect();
         names.sort();
         names
     };
-    set_enabled("mobile", all).expect("restore all");
+    set_enabled("mobile", all_mobile).expect("restore all");
     assert!(is_enabled("mobile", "create_note"));
+    assert!(!is_enabled("mobile", "delete_note"));
     let path = paths::mcp_channel_tools_path().expect("path");
     assert!(
         !path.exists(),
@@ -87,6 +99,10 @@ fn snapshot_lists_groups_and_per_channel_enabled() {
         snap["channels"],
         serde_json::json!(["workbench", "cursor_ide", "mobile"])
     );
+    assert_eq!(
+        snap["workbench_only_tools"],
+        serde_json::json!(["delete_note"])
+    );
     let groups = snap["groups"].as_array().expect("groups");
     assert_eq!(groups[0]["id"], "notes");
     assert_eq!(groups[1]["id"], "todo");
@@ -97,7 +113,27 @@ fn snapshot_lists_groups_and_per_channel_enabled() {
         .filter_map(|v| v.as_str())
         .collect();
     assert!(!mobile.contains("create_note"));
+    assert!(!mobile.contains("delete_note"));
     assert!(mobile.contains("list_todo_tasks"));
+    let workbench: HashSet<&str> = snap["enabled"]["workbench"]
+        .as_array()
+        .expect("workbench")
+        .iter()
+        .filter_map(|v| v.as_str())
+        .collect();
+    assert!(workbench.contains("delete_note"));
+}
+
+#[test]
+fn delete_note_never_enables_on_non_workbench_even_if_listed() {
+    let _sandbox = TestSandbox::new();
+    let mut with_delete: Vec<String> = catalog().into_iter().collect();
+    with_delete.sort();
+    set_enabled("cursor_ide", with_delete.clone()).expect("save full list");
+    assert!(!is_enabled("cursor_ide", "delete_note"));
+    set_enabled("mobile", with_delete).expect("save full list");
+    assert!(!is_enabled("mobile", "delete_note"));
+    assert!(is_enabled("workbench", "delete_note"));
 }
 
 #[test]

@@ -7,6 +7,7 @@ type McpToolGroup = { id: string; label?: string; tools?: McpTool[] };
 type McpToolsSnapshot = {
   groups?: McpToolGroup[];
   enabled?: Record<string, string[]>;
+  workbench_only_tools?: string[];
 };
 
 let toolsSnapshot: McpToolsSnapshot | null = null;
@@ -17,6 +18,19 @@ function catalogNames(snapshot: McpToolsSnapshot | null): string[] {
   return (snapshot?.groups ?? []).flatMap((group) =>
     (group.tools ?? []).map((tool) => tool.name).filter((name): name is string => Boolean(name)),
   );
+}
+
+function workbenchOnlyTools(snapshot: McpToolsSnapshot | null): Set<string> {
+  return new Set(
+    (snapshot?.workbench_only_tools ?? []).filter((name): name is string => Boolean(name)),
+  );
+}
+
+/** Catalog names visible / selectable for the given MCP channel. */
+function catalogNamesForChannel(snapshot: McpToolsSnapshot | null, channel: string): string[] {
+  const only = workbenchOnlyTools(snapshot);
+  if (channel === 'workbench' || !only.size) return catalogNames(snapshot);
+  return catalogNames(snapshot).filter((name) => !only.has(name));
 }
 
 function toolInputs() {
@@ -34,10 +48,10 @@ function selectedChannel() {
 
 /** Missing channel key = all catalog tools on (same as Host). Explicit `[]` = all off. */
 function enabledNamesForChannel(snapshot: McpToolsSnapshot | null, channel: string) {
-  const catalog = catalogNames(snapshot);
+  const catalog = catalogNamesForChannel(snapshot, channel);
   const listed = snapshot?.enabled?.[channel];
   if (!Array.isArray(listed)) return new Set(catalog);
-  return new Set(listed);
+  return new Set(listed.filter((name) => catalog.includes(name)));
 }
 
 export function paintMcpToolGroups() {
@@ -48,6 +62,7 @@ export function paintMcpToolGroups() {
   const groups = toolsSnapshot?.groups;
   if (!Array.isArray(groups) || !groups.length) return;
   const enabled = enabledNamesForChannel(toolsSnapshot, channel);
+  const only = workbenchOnlyTools(toolsSnapshot);
   for (const group of groups) {
     const fieldset = document.createElement('fieldset');
     fieldset.className = 'settings-mcp-tool-group';
@@ -55,6 +70,7 @@ export function paintMcpToolGroups() {
     legend.textContent = group.label || group.id;
     fieldset.appendChild(legend);
     for (const tool of group.tools || []) {
+      if (channel !== 'workbench' && only.has(tool.name)) continue;
       const label = document.createElement('label');
       label.className = 'settings-mcp-tool';
       const input = document.createElement('input');
@@ -88,7 +104,7 @@ export async function loadMcpChannelTools() {
 function rememberEnabled(channel: string, enabled: string[]) {
   if (!toolsSnapshot) return;
   const next = { ...(toolsSnapshot.enabled || {}) };
-  const catalog = catalogNames(toolsSnapshot);
+  const catalog = catalogNamesForChannel(toolsSnapshot, channel);
   const allOn =
     enabled.length === catalog.length && catalog.every((name) => enabled.includes(name));
   if (allOn) delete next[channel];

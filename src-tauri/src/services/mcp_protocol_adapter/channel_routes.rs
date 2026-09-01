@@ -38,6 +38,10 @@ fn get_note_path_route() -> ToolRoute {
 }
 
 pub fn apply_channel_routes(mut table: SlotToolTable, channel: &str) -> SlotToolTable {
+    // Product hard-gate: delete_note is workbench-only (not Settings-checkbox soft hide).
+    if channel != "workbench" {
+        table.tools.retain(|t| t.name != "delete_note");
+    }
     for tool in &mut table.tools {
         if channel == "mobile" && tool.name == "create_note" {
             *tool = create_note_content_route();

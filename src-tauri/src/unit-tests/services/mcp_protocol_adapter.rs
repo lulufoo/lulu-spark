@@ -153,6 +153,22 @@ const NOTES_TOOLS: &[&str] = &[
     "get_note_content_by_id",
     "search_notes",
     "create_note",
+    "delete_note",
+    "list_notes_categories",
+    "create_notes_category",
+    "update_notes_category",
+    "delete_notes_category",
+];
+
+/// Notes tools exposed on `/mcp/cursor_ide` and `/mcp/mobile` (channel hard-gate).
+const NOTES_TOOLS_NON_WORKBENCH: &[&str] = &[
+    "get_all_notes_catalog",
+    "get_latest_digest_per_catalog",
+    "get_notes_by_catalog",
+    "get_note_digest_by_id",
+    "get_note_content_by_id",
+    "search_notes",
+    "create_note",
     "list_notes_categories",
     "create_notes_category",
     "update_notes_category",
@@ -188,6 +204,7 @@ fn expected_api_path(tool: &str) -> (&'static str, HttpMethod) {
         "get_note_content_by_id" => ("/api/note-content", HttpMethod::Post),
         "search_notes" => ("/api/notes-search", HttpMethod::Post),
         "create_note" => ("/api/create-note", HttpMethod::Post),
+        "delete_note" => ("/api/delete-note", HttpMethod::Post),
         "list_notes_categories" => ("/api/notes-categories", HttpMethod::Get),
         "create_notes_category" => ("/api/notes-category-create", HttpMethod::Post),
         "update_notes_category" => ("/api/notes-category-update", HttpMethod::Post),
@@ -221,7 +238,7 @@ fn workbench_expected_tool_names() -> BTreeSet<&'static str> {
 }
 
 fn cursor_ide_expected_tool_names() -> BTreeSet<&'static str> {
-    let mut names: BTreeSet<&'static str> = NOTES_TOOLS.iter().copied().collect();
+    let mut names: BTreeSet<&'static str> = NOTES_TOOLS_NON_WORKBENCH.iter().copied().collect();
     names.extend(TODO_TOOLS.iter().copied());
     names
 }
@@ -1248,12 +1265,16 @@ fn p3_t10_host_dual_slot_list_call_and_unknown_hard_fail_smoke() {
             &ide_ticket,
         ))
         .expect("cursor_ide tools/list on Host :9876");
-    for tool in NOTES_TOOLS {
+    for tool in NOTES_TOOLS_NON_WORKBENCH {
         assert!(
             ide_names.iter().any(|n| n == *tool),
             "T10/V2: cursor_ide missing {tool}; got {ide_names:?}"
         );
     }
+    assert!(
+        !ide_names.iter().any(|n| n == "delete_note"),
+        "T10/V2: cursor_ide must not expose workbench-only delete_note"
+    );
     assert!(
         !ide_names.iter().any(|n| n == "get_notes_selection"),
         "T10/V2: cursor_ide must not gain notes-selection tools"
@@ -1262,9 +1283,17 @@ fn p3_t10_host_dual_slot_list_call_and_unknown_hard_fail_smoke() {
         !workbench_names.iter().any(|n| n == "get_notes_selection"),
         "T10/V2: workbench must not expose get_notes_selection"
     );
+    let wb_set: BTreeSet<_> = workbench_names.iter().map(String::as_str).collect();
+    let ide_set: BTreeSet<_> = ide_names.iter().map(String::as_str).collect();
     assert_eq!(
-        workbench_names, ide_names,
-        "T10/V2: workbench and cursor_ide tools/list are notes ∪ todo"
+        wb_set,
+        workbench_expected_tool_names(),
+        "T10/V2: workbench tools/list"
+    );
+    assert_eq!(
+        ide_set,
+        cursor_ide_expected_tool_names(),
+        "T10/V2: cursor_ide tools/list"
     );
 
     async fn list_and_call(
@@ -1554,13 +1583,14 @@ fn p4_cursor_ide_surface_unchanged_notes_plus_todo_original_api() {
     assert!(table.include_todo);
 
     let names = names_of(&tools_list_for_slot(CURSOR_IDE_SLOT));
-    let expected: BTreeSet<_> = cursor_ide_expected_tool_names()
+    // Slot catalog still includes workbench-only tools; channel overlay strips them at listen time.
+    let expected: BTreeSet<_> = workbench_expected_tool_names()
         .into_iter()
         .map(str::to_string)
         .collect();
     assert_eq!(
         names, expected,
-        "cursor_ide must stay notes four-pack + all todo"
+        "cursor_ide slot catalog must stay notes ∪ todo (channel hard-gates are separate)"
     );
     assert!(
         !names.contains("get_notes_selection"),
@@ -2152,7 +2182,7 @@ fn t3_mcp_mobile_is_mounted_and_accepts_device_ticket() {
     });
 }
 
-/// Normal: live device ticket lists the full workbench tool table.
+/// Normal: live device ticket lists notes∪todo minus workbench-only tools.
 #[test]
 fn t3_mcp_mobile_tools_match_workbench_table() {
     with_device_sandbox(|| {
@@ -2169,16 +2199,20 @@ fn t3_mcp_mobile_tools_match_workbench_table() {
             ))
             .expect("/mcp/mobile tools/list");
         let got: BTreeSet<_> = names.iter().map(String::as_str).collect();
-        let expected = workbench_expected_tool_names();
+        let expected = cursor_ide_expected_tool_names();
         assert_eq!(
             got, expected,
-            "/mcp/mobile tools must equal build_slot_tool_table(\"workbench\")"
+            "/mcp/mobile tools = notes∪todo minus workbench-only (delete_note)"
         );
         assert!(
             !got.contains("get_notes_selection"),
             "/mcp/mobile must not include get_notes_selection"
         );
-        let table = build_slot_tool_table(WORKBENCH_SLOT).expect("workbench table");
+        assert!(
+            !got.contains("delete_note"),
+            "/mcp/mobile must not include delete_note"
+        );
+        let table = build_channel_tool_table(WORKBENCH_SLOT, MOBILE_PATH).expect("mobile channel");
         let table_names: BTreeSet<_> = table.tools.iter().map(|t| t.name.as_str()).collect();
         assert_eq!(got, table_names);
         assert!(
@@ -2222,7 +2256,11 @@ fn t3_live_device_ticket_can_call_full_workbench_tools_on_mobile() {
                 .block_on(list_and_call_mobile(port, &token, tool, args))
                 .unwrap_or_else(|e| panic!("mobile must be able to call {tool}: {e}"));
             let got: BTreeSet<_> = names.iter().map(String::as_str).collect();
-            assert_eq!(got, workbench_expected_tool_names(), "full workbench set");
+            assert_eq!(
+                got,
+                cursor_ide_expected_tool_names(),
+                "mobile channel set = notes∪todo minus workbench-only"
+            );
             assert!(!is_error, "mobile {tool} must succeed, got {text}");
             assert_eq!(text, sidecar_body);
         }
@@ -2521,6 +2559,47 @@ fn cursor_ide_and_mobile_get_note_content_by_id_still_hit_note_content() {
         "mobile get_note_content_by_id must POST /api/note-content, seen={hits:?}"
     );
     let _ = join.join();
+}
+
+/// Product hard-gate: delete_note only on workbench channel.
+#[test]
+fn delete_note_is_workbench_channel_only() {
+    let wb = build_channel_tool_table(WORKBENCH_SLOT, WORKBENCH_SLOT).expect("workbench");
+    let delete = wb
+        .tools
+        .iter()
+        .find(|t| t.name == "delete_note")
+        .expect("workbench must expose delete_note");
+    assert_eq!(delete.api_path, "/api/delete-note");
+    assert_eq!(delete.method, HttpMethod::Post);
+
+    let ide = build_channel_tool_table(CURSOR_IDE_SLOT, CURSOR_IDE_SLOT).expect("cursor_ide");
+    assert!(
+        ide.tools.iter().all(|t| t.name != "delete_note"),
+        "cursor_ide must not list delete_note"
+    );
+
+    let mobile = build_channel_tool_table(WORKBENCH_SLOT, MOBILE_PATH).expect("mobile");
+    assert!(
+        mobile.tools.iter().all(|t| t.name != "delete_note"),
+        "mobile must not list delete_note even with scene_slot=workbench"
+    );
+
+    let rt = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .expect("runtime");
+    let err = rt.block_on(proxy_tool_call(
+        "http://127.0.0.1:9",
+        CURSOR_IDE_SLOT,
+        CURSOR_IDE_SLOT,
+        "delete_note",
+        serde_json::json!({ "id": "11111111111111111111111111111111" }),
+    ));
+    assert!(
+        err.is_err(),
+        "cursor_ide delete_note must fail allowlist before sidecar"
+    );
 }
 
 /// Boundary: MCP name stays get_note_content_by_id; digest still hangs /api/note-digest.

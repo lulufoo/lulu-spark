@@ -229,6 +229,23 @@ pub(super) fn notes_tool_routes() -> Vec<ToolRoute> {
             false,
         ),
         route(
+            "delete_note",
+            "Hard-delete one note by archive entry id (raw, digest, annotation, index). Irreversible. Exposed only on the workbench MCP channel (/mcp/workbench); not available on cursor_ide or mobile.",
+            HttpMethod::Post,
+            "/api/delete-note",
+            object_schema(
+                json!({
+                    "id": {
+                        "type": "string",
+                        "description": "Archive entry id (32-char hex)."
+                    }
+                }),
+                &["id"],
+            ),
+            false,
+            false,
+        ),
+        route(
             "list_notes_categories",
             "List notes categories (id, title, description, folder). Does not list notes. Inbox is always present.",
             HttpMethod::Get,

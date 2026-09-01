@@ -613,6 +613,17 @@ fn post_create_note_rejects_document_field() {
 }
 
 #[test]
+fn post_delete_note_rejects_invalid_id() {
+    let fixture = setup_repo_for_archive();
+    let repo_root = fixture.repo_root.clone();
+    with_server(repo_root, |port| {
+        let (status, body) = http_post(port, "/api/delete-note", &json!({ "id": "not-hex" }));
+        assert_eq!(status, 400, "{body}");
+        assert!(body.get("error").is_some(), "{body}");
+    });
+}
+
+#[test]
 fn post_unknown_returns_404() {
     let fixture = setup_repo_with_notes();
     let repo_root = fixture.repo_root.clone();

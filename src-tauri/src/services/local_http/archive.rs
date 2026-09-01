@@ -107,3 +107,18 @@ pub(super) fn handle_archive_post(
     let value = handler(repo_root, &payload);
     respond_from_value(request, value);
 }
+
+/// MCP `delete_note` → Sidecar; same domain as UI Tauri `delete_entry`.
+pub(super) fn handle_delete_note_post(mut request: tiny_http::Request) {
+    let payload = match read_json_body(&mut request) {
+        Ok(v) => v,
+        Err(err) => {
+            respond_from_value(request, err);
+            return;
+        }
+    };
+    respond_from_value(
+        request,
+        crate::services::entry_admin::delete_entry(&payload),
+    );
+}

@@ -12,8 +12,8 @@ use crate::services::workbench_read::{
 };
 
 use super::archive::{
-    handle_archive_post, handle_note_content_post, handle_note_digest_post, handle_note_path_post,
-    handle_notes_by_catalog_post, handle_notes_search_post,
+    handle_archive_post, handle_delete_note_post, handle_note_content_post, handle_note_digest_post,
+    handle_note_path_post, handle_notes_by_catalog_post, handle_notes_search_post,
 };
 use super::bind::handle_bind_complete;
 use super::notes_cat::{
@@ -136,6 +136,10 @@ pub(super) fn handle_request(repo_root: &PathBuf, port: u16, request: tiny_http:
             }
             "/api/create-note-content" => {
                 handle_archive_post(repo_root, request, create_note_content);
+                return;
+            }
+            "/api/delete-note" => {
+                handle_delete_note_post(request);
                 return;
             }
             "/api/notes-category-create" => {

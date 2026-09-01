@@ -1,6 +1,7 @@
 //! Per-channel MCP tool allowlist (`/mcp/workbench`, `/mcp/cursor_ide`, `/mcp/mobile`).
 //!
-//! Missing channel key = all catalog tools enabled (current Host behavior).
+//! Missing channel key = all catalog tools enabled (current Host behavior),
+//! minus tools that are product-hard-gated to another channel.
 
 use std::collections::{BTreeMap, HashSet};
 use std::fs;
@@ -14,6 +15,9 @@ use crate::repositories::atomic_json;
 use crate::services::mcp_protocol_adapter::catalog_groups;
 
 pub const MCP_CHANNELS: &[&str] = &["workbench", "cursor_ide", "mobile"];
+
+/// Catalog tools that Settings may list, but only `/mcp/workbench` may enable or expose.
+pub const WORKBENCH_ONLY_TOOLS: &[&str] = &["delete_note"];
 
 static LOCK: Mutex<()> = Mutex::new(());
 
@@ -54,15 +58,29 @@ fn save_stored(stored: &Stored) -> Result<(), String> {
     atomic_json::write_json(&path, &value)
 }
 
+fn apply_channel_tool_policy(channel: &str, mut names: HashSet<String>) -> HashSet<String> {
+    if channel != "workbench" {
+        for tool in WORKBENCH_ONLY_TOOLS {
+            names.remove(*tool);
+        }
+    }
+    names
+}
+
+fn effective_catalog(channel: &str, catalog: &HashSet<String>) -> HashSet<String> {
+    apply_channel_tool_policy(channel, catalog.clone())
+}
+
 fn enabled_from_stored(stored: &Stored, channel: &str, catalog: &HashSet<String>) -> HashSet<String> {
-    match stored.channels.get(channel) {
+    let raw = match stored.channels.get(channel) {
         None => catalog.clone(),
         Some(list) => list
             .iter()
             .filter(|name| catalog.contains(*name))
             .cloned()
             .collect(),
-    }
+    };
+    apply_channel_tool_policy(channel, raw)
 }
 
 /// Enabled tool names for a channel. Unknown channel → empty.
@@ -90,9 +108,10 @@ pub fn set_enabled(channel: &str, enabled: Vec<String>) -> Result<(), String> {
             return Err(format!("unknown tool: {name}"));
         }
     }
-    let selected: HashSet<String> = enabled.into_iter().collect();
+    let mut selected: HashSet<String> = enabled.into_iter().collect();
+    selected = apply_channel_tool_policy(channel, selected);
     let mut stored = load_stored();
-    if selected == catalog {
+    if selected == effective_catalog(channel, &catalog) {
         stored.channels.remove(channel);
     } else {
         let mut list: Vec<String> = selected.into_iter().collect();
@@ -117,6 +136,7 @@ pub fn snapshot() -> Result<Value, String> {
     }
     Ok(json!({
         "channels": MCP_CHANNELS,
+        "workbench_only_tools": WORKBENCH_ONLY_TOOLS,
         "groups": groups.iter().map(|(id, tools)| {
             json!({
                 "id": id,
