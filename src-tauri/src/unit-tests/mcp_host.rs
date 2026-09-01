@@ -905,6 +905,31 @@ fn representative_tools_call_per_registered_slot_hits_services() {
     );
 }
 
+/// Regression: MCP dispatch must isolate a synchronous Meili client from the
+/// async MCP worker; otherwise reqwest panics while dropping its inner runtime.
+#[test]
+fn proxy_dispatches_search_notes_on_blocking_worker() {
+    let _sandbox = TestSandbox::new();
+    plant_empty_notes_index();
+    let rt = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .expect("runtime");
+
+    let result = rt
+        .block_on(proxy_tool_call(
+            WORKBENCH_SLOT,
+            WORKBENCH_SLOT,
+            "search_notes",
+            serde_json::json!({ "q": "regression" }),
+        ))
+        .expect("blocking worker must return a mapped tool result");
+    assert!(
+        result.is_err(),
+        "unreachable sandbox Meili must be a tool error, not an MCP worker panic"
+    );
+}
+
 /// Exception: Services `_status` maps to the same MCP error wire as the old HTTP mapper.
 #[test]
 fn proxy_tool_call_maps_service_error_like_node() {

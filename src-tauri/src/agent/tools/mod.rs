@@ -12,6 +12,7 @@ use serde_json::Value;
 use crate::mcp_host::registry::McpServerConfig;
 use crate::services::path_fence::PathFence;
 
+use super::diagnostics::TraceId;
 use super::mcp;
 use super::session::Session;
 
@@ -118,6 +119,7 @@ pub fn invoke(
     arguments_json: &str,
     fence: Option<&PathFence>,
     session: &mut Session,
+    trace_id: &TraceId,
 ) -> InvokeOutcome {
     let host = uses_host(turn, name);
     let Some(catalog) = turn.catalog.as_ref() else {
@@ -184,7 +186,7 @@ pub fn invoke(
                 "MCP tool '{name}' has no MCP server for this binding."
             ));
         };
-        match mcp::call_tool(mcp_config, name, arguments) {
+        match mcp::call_tool(mcp_config, name, arguments, trace_id, &session.session_id) {
             Ok(result) => result,
             Err(error) => ToolResult {
                 content: format!("MCP tool call failed: {error}"),

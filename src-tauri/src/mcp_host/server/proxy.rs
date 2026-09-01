@@ -47,6 +47,10 @@ pub fn mapped_to_call_tool_result(
 
 /// Dispatch one allowlisted tool call to its Services function and map the wire.
 ///
+/// Catalog invocations are synchronous and can use blocking integrations. Run
+/// them on Tokio's blocking pool so request handling never drops a blocking
+/// client from the async MCP worker.
+///
 /// Outer `Err` = protocol/routing failure (unknown slot/tool).
 /// Inner `Result` = Node-equivalent tool success vs tool error.
 pub async fn proxy_tool_call(
@@ -57,5 +61,7 @@ pub async fn proxy_tool_call(
 ) -> Result<Result<McpToolResult, McpToolError>, String> {
     let route = resolve_route(slot, channel, tool)
         .ok_or_else(|| format!("tool '{tool}' is not allowlisted for slot '{slot}'"))?;
-    Ok(map_service_value_to_mcp((route.invoke)(&args)))
+    tokio::task::spawn_blocking(move || map_service_value_to_mcp((route.invoke)(&args)))
+        .await
+        .map_err(|error| format!("in-process MCP tool worker failed: {error}"))
 }

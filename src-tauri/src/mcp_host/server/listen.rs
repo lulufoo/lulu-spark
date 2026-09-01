@@ -3,6 +3,7 @@
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::thread;
+use std::time::Instant;
 
 use axum::extract::{Path, Request, State};
 use axum::http::{header, HeaderMap, StatusCode};
@@ -29,6 +30,8 @@ use rmcp::{
 use serde_json::Value;
 use tokio_util::sync::CancellationToken;
 
+use crate::agent::diagnostics::{self, DiagnosticEvent, TraceId};
+use crate::agent::mcp::DIAGNOSTIC_TRACE_HEADER;
 use crate::main_host;
 use crate::services::mcp_oauth::{verify_device_token, verify_for_slot, OAuthError, Slot, TicketHandle};
 use crate::services::settings::mcp_catalog;
@@ -116,7 +119,24 @@ impl ServerHandler for SlotHandler {
         let slot = self.scene_slot.clone();
         let channel = self.channel.clone();
         async move {
+            let trace_id = TraceId::new();
+            let tool_name = request.name.to_string();
+            let call_started = Instant::now();
+            let _ = diagnostics::log(
+                DiagnosticEvent::point("mcp_host.tools", "call.started", &trace_id)
+                    .with_bounded_text_field("tool_name", &tool_name),
+            );
             if !mcp_catalog::is_enabled(&channel, request.name.as_ref()) {
+                let _ = diagnostics::log(
+                    DiagnosticEvent::timing(
+                        "mcp_host.tools",
+                        "call.completed",
+                        &trace_id,
+                        call_started.elapsed(),
+                    )
+                    .with_bounded_text_field("tool_name", &tool_name)
+                    .with_static_field("outcome", "disabled"),
+                );
                 return Err(McpError::invalid_params(
                     format!(
                         "tool '{}' is not enabled for channel '{}'",
@@ -126,10 +146,21 @@ impl ServerHandler for SlotHandler {
                 ));
             }
             let args = Value::Object(request.arguments.unwrap_or_default());
-            match proxy_tool_call(&slot, &channel, request.name.as_ref(), args).await {
+            let result = match proxy_tool_call(&slot, &channel, &tool_name, args).await {
                 Ok(mapped) => Ok(mapped_to_call_tool_result(mapped).into()),
                 Err(msg) => Err(McpError::invalid_params(msg, None)),
-            }
+            };
+            let _ = diagnostics::log(
+                DiagnosticEvent::timing(
+                    "mcp_host.tools",
+                    "call.completed",
+                    &trace_id,
+                    call_started.elapsed(),
+                )
+                .with_bounded_text_field("tool_name", &tool_name)
+                .with_static_field("outcome", if result.is_ok() { "ok" } else { "error" }),
+            );
+            result
         }
     }
 }
@@ -246,10 +277,53 @@ pub(super) async fn slot_bearer_gate(
     request: Request,
     next: Next,
 ) -> Response {
+    let trace_id = request
+        .headers()
+        .get(DIAGNOSTIC_TRACE_HEADER)
+        .and_then(|value| value.to_str().ok())
+        .and_then(TraceId::parse)
+        .unwrap_or_else(TraceId::new);
+    let request_started = Instant::now();
+    let _ = diagnostics::log(DiagnosticEvent::point(
+        "mcp_host.http",
+        "request.auth.started",
+        &trace_id,
+    ));
     if let Err(status) = verify_registered_slot(scene_slot, request.headers()) {
-        return status.into_response();
+        let response = status.into_response();
+        let _ = diagnostics::log(
+            DiagnosticEvent::timing(
+                "mcp_host.http",
+                "request.completed",
+                &trace_id,
+                request_started.elapsed(),
+            )
+            .with_static_field("outcome", "unauthorized")
+            .with_u64_field("http_status", response.status().as_u16().into()),
+        );
+        return response;
     }
-    next.run(request).await
+    let _ = diagnostics::log(
+        DiagnosticEvent::timing(
+            "mcp_host.http",
+            "request.auth.completed",
+            &trace_id,
+            request_started.elapsed(),
+        )
+        .with_static_field("outcome", "ok"),
+    );
+    let response = next.run(request).await;
+    let _ = diagnostics::log(
+        DiagnosticEvent::timing(
+            "mcp_host.http",
+            "request.completed",
+            &trace_id,
+            request_started.elapsed(),
+        )
+        .with_static_field("outcome", "response")
+        .with_u64_field("http_status", response.status().as_u16().into()),
+    );
+    response
 }
 
 pub(super) fn verify_mobile_device(headers: &HeaderMap) -> Result<(), StatusCode> {

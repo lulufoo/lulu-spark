@@ -291,6 +291,7 @@ pub(crate) fn run_loop_with_progress(
                 &call.arguments,
                 turn_fence.as_ref(),
                 session,
+                trace_id,
             ) {
                 InvokeOutcome::Done {
                     result,
