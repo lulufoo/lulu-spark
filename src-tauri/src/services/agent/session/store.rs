@@ -242,6 +242,26 @@ pub fn load_staged_value(session_id: &str) -> Value {
     }
 }
 
+/// Remove one Stage registration by handle id (F1, F2, …). Does not renumber remaining ids.
+pub fn unstage_entry(session_id: &str, staged_id: &str) -> Result<Session, String> {
+    let session_id = session_id.trim();
+    let staged_id = staged_id.trim();
+    if session_id.is_empty() {
+        return Err("Missing session_id".into());
+    }
+    if staged_id.is_empty() {
+        return Err("Missing staged id".into());
+    }
+    let mut session = load_session(session_id)?;
+    let before = session.staged.len();
+    session.staged.retain(|entry| entry.id != staged_id);
+    if session.staged.len() == before {
+        return Err("staged id not found".into());
+    }
+    save_session(&session)?;
+    Ok(session)
+}
+
 pub fn append_turn(session_id: &str, turn: Turn) -> Result<Session, String> {
     let mut session = load_session(session_id)?;
     session.turns.push(turn);

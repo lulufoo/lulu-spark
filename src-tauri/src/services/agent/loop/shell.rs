@@ -183,6 +183,25 @@ pub fn delete_chat_session_core(session_id: &str) -> Result<Value, String> {
     list_chat_sessions_core()
 }
 
+/// UI-only: remove one Stage entry by F-handle. Rejects in-flight turns. Not an agent/MCP tool.
+pub fn unstage_chat_staged_core(session_id: &str, staged_id: &str) -> Result<Value, String> {
+    let sid = session_id.trim();
+    if sid.is_empty() {
+        return Err("Missing session_id".into());
+    }
+    {
+        let rt = runtime().lock().unwrap();
+        if rt.flights.contains_key(sid) {
+            return Err("Conversation is running".into());
+        }
+    }
+    let session = session::unstage_entry(sid, staged_id)?;
+    Ok(json!({
+        "session_id": session.session_id,
+        "staged": session.staged,
+    }))
+}
+
 /// Compatibility entry — production formal chat goes through `runtime::chat_turn`.
 /// Delegates so Host loop tests keep a stable symbol while orchestration is engine-aware.
 pub fn agent_chat_turn_core(

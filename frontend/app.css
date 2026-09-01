@@ -7502,11 +7502,17 @@ button.notes-cat-item:disabled { opacity: .65; cursor: default; }
   line-height: 1.3;
   color: #57606a;
 }
+.home-chat-staged-row {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+}
 .home-chat-staged-item {
   display: flex;
   align-items: baseline;
   gap: 8px;
-  width: 100%;
+  flex: 1 1 auto;
+  min-width: 0;
   text-align: left;
   padding: 6px 10px;
   border: none;
@@ -7527,8 +7533,28 @@ button.notes-cat-item:disabled { opacity: .65; cursor: default; }
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.home-chat-staged-item:hover {
+.home-chat-staged-row:hover {
   background: #f6f8fa;
+}
+.home-chat-staged-remove {
+  flex: 0 0 auto;
+  align-self: center;
+  width: 28px;
+  height: 28px;
+  margin: 0 6px 0 0;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: #57606a;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+.home-chat-staged-remove:hover,
+.home-chat-staged-remove:focus-visible {
+  color: #cf222e;
+  background: #ffebe9;
 }
 .home-chat-composer-dock {
   display: flex;

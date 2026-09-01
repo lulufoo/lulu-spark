@@ -13,7 +13,7 @@ import {
   startHomeHub,
   stopHomeHub,
 } from './commands/hub.ts';
-import { openStagedFile } from './commands/staged.ts';
+import { openStagedFile, unstageStaged } from './commands/staged.ts';
 import { StagedList } from './ui/staged-list.tsx';
 import {
   composerLocked,
@@ -269,7 +269,14 @@ export function HomePage({
           />
         </div>
         <form ref={formRef} className="home-chat-composer" data-role="form" onSubmit={onSubmit}>
-          <StagedList items={state.staged} onOpen={openStagedFile} />
+          <StagedList
+            items={state.staged}
+            canRemove={state.hostBound && !locked}
+            onOpen={openStagedFile}
+            onRemove={(id) => {
+              void unstageStaged(id);
+            }}
+          />
           <p className="home-chat-progress" data-role="progress-hint" hidden={!hint}>
             {hint}
           </p>

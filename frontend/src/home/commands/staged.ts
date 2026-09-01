@@ -20,3 +20,29 @@ export async function refreshStagedFromBinding(
     /* turn already applied; keep prior staged */
   }
 }
+
+/** UI-only: remove one Stage F-handle from the current Chat. */
+export async function unstageStaged(id: string) {
+  const stagedId = String(id || '').trim();
+  const sid = getHomeState().currentSessionId;
+  if (!stagedId || !sid) return;
+  try {
+    const result = (await api.invoke('unstage_chat_staged', {
+      sessionId: sid,
+      id: stagedId,
+    })) as { staged?: unknown };
+    if (getHomeState().currentSessionId !== sid) return;
+    setHomeState((prev) => ({ ...prev, staged: hydrateStaged(result?.staged) }));
+  } catch (err) {
+    const text =
+      err instanceof Error && err.message
+        ? err.message
+        : typeof err === 'object' && err && 'message' in err
+          ? String((err as { message?: unknown }).message || 'Failed to remove from Stage')
+          : 'Failed to remove from Stage';
+    setHomeState((prev) => ({
+      ...prev,
+      messages: [...prev.messages, { role: 'assistant', text, error: true }],
+    }));
+  }
+}
