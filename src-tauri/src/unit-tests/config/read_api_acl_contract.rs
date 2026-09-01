@@ -37,6 +37,7 @@ const INVOKE_MAP_COMMANDS: &[&str] = &[
     "get_notes_index",
     "get_notes_file",
     "get_notes_asset",
+    "list_notes_categories",
     "get_topics",
     "search_knowledge",
     "search_workbench",

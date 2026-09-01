@@ -43,14 +43,10 @@ fn delete_entry_removes_file_and_index() {
 
 #[test]
 fn move_entry_project_moves_zh_translation() {
-    use crate::services::sediment_kb::{add_repo, ensure_uncategorized, set_test_repo_validator};
-
     with_notes_fixture(
         |_, notes| {
-            set_test_repo_validator(Some(|name| Ok(name.to_string())));
-            ensure_uncategorized().expect("ensure");
-            add_repo("lulufoo/learning-ai-llm", None, "").expect("add target project repo");
-            set_test_repo_validator(None);
+            crate::services::notes::create_notes_category("learning-ai-llm", "LLM", "")
+                .expect("notes category");
 
             let old_zh = "inbox/topic/slug-zh.md";
             fs::create_dir_all(notes.join("raw/inbox/topic")).expect("mkdir");

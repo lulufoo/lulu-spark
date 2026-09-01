@@ -8,7 +8,7 @@ import type { NoteEntry } from '../state/types.ts';
 export { moveProjectOpenStore };
 export { moveProjectViewStore } from '../state/move-project.ts';
 
-type TopicRec = { dir?: string; repo?: string; description?: string };
+type NotesCatRec = { id?: string; folder?: string; title?: string; description?: string };
 
 let currentEntry: NoteEntry | null = null;
 
@@ -27,30 +27,22 @@ async function loadProjects(currentProject: string) {
     busy: false,
   });
 
-  let projects: string[] = [];
-  const topicsMap: Record<string, string> = {};
   try {
-    const data = (await api.fetchTopics()) as { topics?: TopicRec[] };
-    for (const t of data.topics || []) {
-      const key = t.dir || (t.repo ? t.repo.split('/').pop() : null);
-      if (key) topicsMap[key] = t.description || '';
-    }
-    projects = (data.topics || [])
-      .map((t) => t.dir || (t.repo ? t.repo.split('/').pop() : null))
-      .filter((proj): proj is string => Boolean(proj));
-    projects.sort((a, b) => a.localeCompare(b, 'en', { sensitivity: 'base' }));
-  } catch (e) {
-    patchMoveProject({
-      result: 'Failed to load: ' + (e as Error).message,
-      resultKind: 'err',
-    });
-    return;
-  }
-
-  try {
-    const items = projects
-      .filter((proj) => proj !== currentProject)
-      .map((proj) => ({ proj, desc: topicsMap[proj] || '' }));
+    const data = (await api.fetchNotesCategories()) as { categories?: NotesCatRec[] };
+    const items = (data.categories || [])
+      .map((c) => {
+        const id = typeof c.id === 'string' ? c.id.trim() : '';
+        const folder =
+          typeof c.folder === 'string' && c.folder.trim() ? c.folder.trim() : id;
+        if (!folder || folder === currentProject) return null;
+        return {
+          proj: folder,
+          title: typeof c.title === 'string' && c.title.trim() ? c.title.trim() : folder,
+          desc: typeof c.description === 'string' ? c.description : '',
+        };
+      })
+      .filter((item): item is { proj: string; title: string; desc: string } => Boolean(item))
+      .sort((a, b) => a.title.localeCompare(b.title, 'en', { sensitivity: 'base' }));
     patchMoveProject({
       items,
       result: `Current project: ${currentProject} — choose target`,

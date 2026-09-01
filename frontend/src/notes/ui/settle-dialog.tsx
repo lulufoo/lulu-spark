@@ -3,6 +3,7 @@ import {
   closeSettleDialog,
   doSettle,
   setSettleContent,
+  setSettleRepo,
   setSettleSlug,
   setSettleThemeInput,
   setSettleThemeSelect,
@@ -27,8 +28,19 @@ export function SettleDialog() {
       <div id="settle-dialog-box">
         <h3>⬆ Promote to knowledge repo</h3>
         <div className="settle-field">
-          <label>Target repo</label>
-          <span id="settle-repo-display">{view.repo}</span>
+          <label htmlFor="settle-repo-select">Target repo</label>
+          <select
+            id="settle-repo-select"
+            value={view.repo}
+            onChange={(e) => void setSettleRepo(e.target.value)}
+          >
+            <option value="">Choose repository…</option>
+            {view.repos.map((r) => (
+              <option key={r.fullName} value={r.fullName}>
+                {r.description ? `${r.fullName} — ${r.description}` : r.fullName}
+              </option>
+            ))}
+          </select>
         </div>
         <div className="settle-field">
           <label>Target folder (doc-theme)</label>

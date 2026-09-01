@@ -56,13 +56,15 @@ pub fn valid_doc_theme(doc_theme: &str) -> bool {
     !doc_theme.contains("..") && !doc_theme.contains('/')
 }
 
-pub fn resolve_target_repo(topics: &Value, project_dir: &str) -> Option<(String, String)> {
+pub fn resolve_listed_repo(topics: &Value, full_name: &str) -> Option<(String, String)> {
+    let want = full_name.trim();
+    if want.is_empty() {
+        return None;
+    }
     let arr = topics.get("topics")?.as_array()?;
     for t in arr {
         let repo = t.get("repo")?.as_str()?;
-        let repo_name = repo.split('/').next_back().unwrap_or(repo);
-        let dir_match = t.get("dir").and_then(|v| v.as_str()) == Some(project_dir);
-        if repo_name == project_dir || dir_match {
+        if repo == want {
             let desc = t
                 .get("description")
                 .and_then(|v| v.as_str())
@@ -212,6 +214,15 @@ pub fn validate_payload(payload: &Value) -> Result<SettleParams, Value> {
     if project_dir.is_empty() {
         return Err(json!({ "error": "Invalid common_path", "_status": 400 }));
     }
+    let target_repo = payload
+        .get("repo")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .trim()
+        .to_string();
+    if target_repo.is_empty() {
+        return Err(json!({ "error": "Missing repo", "_status": 400 }));
+    }
 
     Ok(SettleParams {
         common_path: common_path.to_string(),
@@ -221,7 +232,7 @@ pub fn validate_payload(payload: &Value) -> Result<SettleParams, Value> {
         slug: slug.to_string(),
         content: content.to_string(),
         project_dir,
-        target_repo: String::new(),
+        target_repo,
         topic_desc: String::new(),
         owner: String::new(),
         repo_name: String::new(),
@@ -234,9 +245,9 @@ pub fn validate_payload(payload: &Value) -> Result<SettleParams, Value> {
 
 fn fill_repo_and_artifacts(repo_root: &Path, p: &mut SettleParams) -> Result<(), Value> {
     let topics = get_topics(repo_root);
-    let (target_repo, topic_desc) = resolve_target_repo(&topics, &p.project_dir).ok_or_else(|| {
+    let (target_repo, topic_desc) = resolve_listed_repo(&topics, &p.target_repo).ok_or_else(|| {
         json!({
-            "error": format!("No GitHub repo found for project: {}", p.project_dir),
+            "error": format!("Unknown knowledge repo: {}", p.target_repo),
             "_status": 400
         })
     })?;

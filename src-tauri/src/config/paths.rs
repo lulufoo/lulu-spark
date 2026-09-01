@@ -39,6 +39,11 @@ pub fn notes_root() -> Result<PathBuf, PathsError> {
     Ok(workbench_root()?.join("notes"))
 }
 
+/// Notes category registry: `{workbench_root}/notes/categories.json`.
+pub fn notes_categories_path() -> Result<PathBuf, PathsError> {
+    Ok(notes_root()?.join("categories.json"))
+}
+
 pub fn knowledge_root() -> Result<PathBuf, PathsError> {
     Ok(settings()?.knowledge_root)
 }

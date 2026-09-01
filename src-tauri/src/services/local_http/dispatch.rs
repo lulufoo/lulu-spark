@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use serde_json::{json, Value};
 use tiny_http::Method;
 
-use crate::services::notes::{create_note_content, create_note};
+use crate::services::notes::{create_note, create_note_content};
 use crate::services::todo_task;
 use crate::services::workbench_read::{
     get_latest_digest_per_catalog, get_notes_asset, get_notes_file, get_notes_index,
@@ -16,6 +16,10 @@ use super::archive::{
     handle_notes_by_catalog_post, handle_notes_search_post,
 };
 use super::bind::handle_bind_complete;
+use super::notes_cat::{
+    handle_notes_categories_get, handle_notes_category_create, handle_notes_category_delete,
+    handle_notes_category_update,
+};
 use super::read_later::{
     handle_read_later_delete, handle_read_later_get, handle_read_later_patch, handle_read_later_post,
 };
@@ -134,6 +138,18 @@ pub(super) fn handle_request(repo_root: &PathBuf, port: u16, request: tiny_http:
                 handle_archive_post(repo_root, request, create_note_content);
                 return;
             }
+            "/api/notes-category-create" => {
+                handle_notes_category_create(request);
+                return;
+            }
+            "/api/notes-category-delete" => {
+                handle_notes_category_delete(request);
+                return;
+            }
+            "/api/notes-category-update" => {
+                handle_notes_category_update(request);
+                return;
+            }
             "/api/todo-task-create" => {
                 handle_todo_task_create(request);
                 return;
@@ -237,6 +253,10 @@ pub(super) fn handle_request(repo_root: &PathBuf, port: u16, request: tiny_http:
             "/api/notes-catalogs" => {
                 let value = list_all_notes_catalogs(repo_root);
                 respond_from_value(request, value);
+                return;
+            }
+            "/api/notes-categories" => {
+                handle_notes_categories_get(request);
                 return;
             }
             "/api/notes-latest-digests" => {

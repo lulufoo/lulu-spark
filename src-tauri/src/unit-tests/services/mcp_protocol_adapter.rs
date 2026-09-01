@@ -153,6 +153,10 @@ const NOTES_TOOLS: &[&str] = &[
     "get_note_content_by_id",
     "search_notes",
     "create_note",
+    "list_notes_categories",
+    "create_notes_category",
+    "update_notes_category",
+    "delete_notes_category",
 ];
 
 /// Todo tools from Node `buildServer()` when `includeTodo` is true.
@@ -184,6 +188,10 @@ fn expected_api_path(tool: &str) -> (&'static str, HttpMethod) {
         "get_note_content_by_id" => ("/api/note-content", HttpMethod::Post),
         "search_notes" => ("/api/notes-search", HttpMethod::Post),
         "create_note" => ("/api/create-note", HttpMethod::Post),
+        "list_notes_categories" => ("/api/notes-categories", HttpMethod::Get),
+        "create_notes_category" => ("/api/notes-category-create", HttpMethod::Post),
+        "update_notes_category" => ("/api/notes-category-update", HttpMethod::Post),
+        "delete_notes_category" => ("/api/notes-category-delete", HttpMethod::Post),
         "create_todo_task" => ("/api/todo-task-create", HttpMethod::Post),
         "update_todo_task" => ("/api/todo-task-update", HttpMethod::Post),
         "list_todo_tasks" => ("/api/todo-tasks", HttpMethod::Get),

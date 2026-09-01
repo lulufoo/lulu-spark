@@ -44,6 +44,14 @@ describe('Settings Knowledge UI', () => {
     expect(indexHtml).not.toContain('id="kb-setting-nav"');
     expect(indexHtml).toContain('id="settings-tab-workbench-directory"');
     expect(indexHtml).toContain('id="settings-tab-workbench-connection"');
+    expect(indexHtml).toContain('id="settings-panel-notes"');
+    expect(indexHtml).toContain('id="settings-tab-notes-add"');
+    expect(indexHtml).toContain('id="settings-tab-notes-edit"');
+    expect(indexHtml).toContain('id="notes-cat-list"');
+    expect(indexHtml).toContain('id="notes-cat-edit-dialog"');
+    expect(indexHtml).toContain('id="notes-cat-edit-dialog-box"');
+    expect(indexHtml).not.toContain('id="settings-tab-notes-categories"');
+    expect(indexHtml).not.toContain('id="settings-tab-workbench-categories"');
     expect(indexHtml).toContain('id="settings-tab-knowledge-list"');
     expect(indexHtml).toContain('id="settings-tab-knowledge-add"');
     expect(indexHtml).toContain('id="settings-tab-knowledge-categories"');
@@ -143,7 +151,7 @@ describe('Workbench GitHub connection', () => {
     expect(settingsDialogJs).toMatch(/function syncWorkbenchConnectionAccess\(/);
     expect(settingsDialogJs).toMatch(/Set a Sync token first to bind a Workbench repository/);
     expect(indexHtml).toMatch(
-      /<nav id="settings-nav">[\s\S]*data-panel="workbench"[\s\S]*data-panel="knowledge"[\s\S]*data-panel="llm"[\s\S]*data-panel="github">Sync/,
+      /<nav id="settings-nav">[\s\S]*data-panel="workbench"[\s\S]*data-panel="notes"[\s\S]*data-panel="knowledge"[\s\S]*data-panel="llm"[\s\S]*data-panel="github">Sync/,
     );
     expect(indexHtml).not.toMatch(
       /data-panel="workbench"[^>]*\bdisabled\b/,

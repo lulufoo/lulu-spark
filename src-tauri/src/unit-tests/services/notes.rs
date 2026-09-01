@@ -38,6 +38,10 @@ fn stage_source(sandbox: &TestSandbox, name: &str, content: &str) -> PathBuf {
     p.canonicalize().expect("canon")
 }
 
+fn add_project(id: &str) {
+    crate::services::notes::create_notes_category(id, id, "").expect("notes category");
+}
+
 fn path_payload(sandbox: &TestSandbox, content: &str, mut base: serde_json::Value) -> serde_json::Value {
     let path = stage_source(sandbox, "source.md", content);
     let obj = base.as_object_mut().expect("object");
@@ -221,6 +225,7 @@ const THEME_LINE_ZH: &str = r#"# 中文标题
 #[test]
 fn create_note_theme_line_with_zh_translation() {
     let (sandbox, repo_root) = setup_notes();
+    add_project("learning-ai-agent");
     let v = create_note(
         &repo_root,
         &path_payload(&sandbox, THEME_LINE_DOC, json!({
@@ -248,6 +253,7 @@ fn create_note_theme_line_with_zh_translation() {
 #[test]
 fn create_note_zh_from_source_path() {
     let (sandbox, repo_root) = setup_notes();
+    add_project("learning-ai-agent");
     let zh_file = stage_source(&sandbox, "zh.md", THEME_LINE_ZH);
     let v = create_note(
         &repo_root,
@@ -566,6 +572,21 @@ fn create_note_content_requires_title() {
     );
     assert_eq!(v.get("_status"), Some(&json!(400)));
     assert!(v["error"].as_str().unwrap_or("").contains("title"), "{v}");
+}
+
+#[test]
+fn create_note_rejects_unknown_project() {
+    let (sandbox, repo_root) = setup_notes();
+    let v = create_note(
+        &repo_root,
+        &path_payload(
+            &sandbox,
+            SAMPLE_DOC,
+            json!({ "source_type": "summary", "project": "not-a-category" }),
+        ),
+    );
+    assert_eq!(v.get("_status"), Some(&json!(400)));
+    assert!(v["error"].as_str().unwrap_or("").contains("Unknown project"), "{v}");
 }
 
 #[test]

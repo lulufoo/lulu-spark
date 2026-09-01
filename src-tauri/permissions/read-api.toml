@@ -23,6 +23,7 @@ commands.allow = [
   "get_notes_index",
   "get_notes_file",
   "get_notes_asset",
+  "list_notes_categories",
   "get_kb_diff_status",
   "get_sediment_kb_categories",
   "get_sediment_kb_repos",

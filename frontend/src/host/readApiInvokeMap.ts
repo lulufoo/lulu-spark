@@ -30,6 +30,7 @@ export const READ_API_INVOKE_MAP: Record<string, ReadInvokeEntry> = {
     }),
   },
   '/api/topics': { cmd: 'get_topics' },
+  '/api/notes-categories': { cmd: 'list_notes_categories' },
   '/api/search-knowledge': {
     cmd: 'search_knowledge',
     args: (url) => ({

@@ -17,6 +17,7 @@ pub(crate) const TODO_TASK_MASTER_STATUS_WIRE: &[&str] = &["incomplete", "comple
 mod archive;
 mod bind;
 mod dispatch;
+mod notes_cat;
 mod read_later;
 mod respond;
 mod todo;

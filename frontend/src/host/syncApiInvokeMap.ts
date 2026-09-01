@@ -61,6 +61,7 @@ export const SYNC_API_INVOKE_MAP: Record<string, SyncInvokeEntry> = {
         doc_theme: body.doc_theme,
         slug: body.slug,
         content: body.content,
+        repo: body.repo,
       }),
   },
   '/api/draft': {

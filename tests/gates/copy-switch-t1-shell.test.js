@@ -66,8 +66,9 @@ describe('P1 copy-switch shell (tech-doc T1 / index.html)', () => {
     expect(indexHtml).not.toContain('Read Later 待读');
   });
 
-  it('settings nav uses Workbench, Knowledge, Assistant, then Sync', () => {
+  it('settings nav uses Workbench, Notes, Knowledge, Assistant, then Sync', () => {
     expect(indexHtml).toMatch(/data-panel="workbench">Workbench</);
+    expect(indexHtml).toMatch(/data-panel="notes">Notes</);
     expect(indexHtml).toMatch(/data-panel="knowledge">Knowledge</);
     expect(indexHtml).toMatch(/data-panel="llm">Assistant</);
     expect(indexHtml).not.toMatch(/data-panel="llm">Assistant \/ Engine</);
@@ -91,6 +92,9 @@ describe('P1 copy-switch shell (tech-doc T1 / index.html)', () => {
     const nav = indexHtml.match(/<nav id="settings-nav">([\s\S]*?)<\/nav>/)?.[1] ?? '';
     expect(nav.indexOf('data-panel="workbench"')).toBeGreaterThan(-1);
     expect(nav.indexOf('data-panel="workbench"')).toBeLessThan(
+      nav.indexOf('data-panel="notes"'),
+    );
+    expect(nav.indexOf('data-panel="notes"')).toBeLessThan(
       nav.indexOf('data-panel="knowledge"'),
     );
     expect(nav.indexOf('data-panel="knowledge"')).toBeLessThan(

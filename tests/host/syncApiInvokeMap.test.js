@@ -115,6 +115,7 @@ describe('syncApiInvokeMap', () => {
       doc_theme: 't',
       slug: 's',
       content: '# hi',
+      repo: 'owner/kb',
     };
     expect(resolveSyncInvoke('/api/settle', body)).toEqual({
       cmd: 'settle_entry',

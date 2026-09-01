@@ -242,6 +242,7 @@ export async function settleComment(
   docTheme: unknown,
   slug: PathArg,
   content: string,
+  repo: string,
 ) {
   return writePost('/api/settle', {
     common_path: commonPath,
@@ -250,6 +251,7 @@ export async function settleComment(
     doc_theme: docTheme,
     slug,
     content,
+    repo,
   });
 }
 

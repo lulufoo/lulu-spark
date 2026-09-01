@@ -2,12 +2,11 @@ import { flushSync } from 'react-dom';
 import * as api from '../../host/api.ts';
 import { settleOpenStore } from '../state/dialog-open.ts';
 import { emptySettleView, patchSettle, settleViewStore } from '../state/settle.ts';
+import { fetchSettleRepoDirs, loadKnowledgeRepos } from './settle-repos.ts';
 
 export { settleOpenStore };
 export { settleViewStore } from '../state/settle.ts';
 
-type TopicRec = { repo?: string; dir?: string };
-type TopicsFile = { topics?: TopicRec[] };
 type SettleComment = { id: string; text: string };
 type SettleEntry = { common_path: string };
 type SettleCtx = {
@@ -18,24 +17,7 @@ type SettleCtx = {
 };
 
 let settleCtx: SettleCtx | null = null;
-let topicsCache: TopicsFile | null = null;
 let checkTimer: ReturnType<typeof setTimeout> | null = null;
-
-async function getTopics() {
-  if (topicsCache) return topicsCache;
-  topicsCache = (await api.fetchTopics()) as TopicsFile;
-  return topicsCache;
-}
-
-function deriveRepo(commonPath: string, topics: TopicsFile) {
-  const projectDir = commonPath.split('/')[0];
-  for (const t of topics.topics || []) {
-    if (!t.repo) continue;
-    const repoName = t.repo.split('/')[1];
-    if (repoName === projectDir || t.dir === projectDir) return t.repo;
-  }
-  return null;
-}
 
 function extractSlug(commonPath: string) {
   const filename = commonPath.split('/').pop() || '';
@@ -70,7 +52,7 @@ export function scheduleSettleCheck() {
 }
 
 async function checkExistence() {
-  if (!settleCtx) return;
+  if (!settleCtx?.repo) return;
   const view = settleViewStore.getSnapshot();
   const slug = view.slug.trim();
   const docTheme = view.showThemeInput ? view.themeInput.trim() : view.themeSelect;
@@ -114,46 +96,28 @@ export function setSettleThemeInput(value: string) {
   scheduleSettleCheck();
 }
 
-export async function openSettleDialog(comment: SettleComment, layer: string, entry: SettleEntry) {
-  let topics: TopicsFile;
-  try {
-    topics = await getTopics();
-  } catch (e) {
-    alert(`Could not load topics.json: ${(e as Error).message}`);
-    return;
-  }
-  const repo = deriveRepo(entry.common_path, topics);
-  if (!repo) {
-    alert(`Could not find GitHub repository for ${entry.common_path.split('/')[0]}`);
-    return;
-  }
-
-  settleCtx = { comment, layer, entry, repo };
-  settleViewStore.set({
-    ...emptySettleView(),
+export async function setSettleRepo(repo: string) {
+  if (!settleCtx) return;
+  settleCtx.repo = repo;
+  patchSettle({
     repo,
-    slug: extractSlug(entry.common_path),
-    content: comment.text,
-    filenameTs: nowTs(),
-    dirsLoading: true,
-    submitLabel: 'Push',
-    submitDisabled: false,
+    dirs: [],
+    dirsLoading: Boolean(repo),
+    dirsError: '',
+    themeSelect: '',
+    showThemeInput: false,
+    themeInput: '',
+    fileWarnPath: '',
   });
-
-  flushSync(() => {
-    settleOpenStore.set(true);
-  });
-  dualWriteSettleOpen(true);
-  updateSettlePreview();
-
+  if (!repo) return;
   try {
-    const data = (await api.fetchRepoDirs(repo)) as { error?: string; dirs?: string[] };
+    const data = await fetchSettleRepoDirs(repo);
     if (data.error) {
       patchSettle({ dirsLoading: false, dirsError: data.error });
       return;
     }
     const dirs = data.dirs || [];
-    const hint = entry.common_path.split('/')[1] || '';
+    const hint = settleCtx.entry.common_path.split('/')[1] || '';
     patchSettle({
       dirs,
       dirsLoading: false,
@@ -164,6 +128,37 @@ export async function openSettleDialog(comment: SettleComment, layer: string, en
   } catch (e) {
     patchSettle({ dirsLoading: false, dirsError: (e as Error).message });
   }
+}
+
+export async function openSettleDialog(comment: SettleComment, layer: string, entry: SettleEntry) {
+  let repos;
+  try {
+    repos = await loadKnowledgeRepos();
+  } catch (e) {
+    alert(`Could not load Knowledge repositories: ${(e as Error).message}`);
+    return;
+  }
+  if (!repos.length) {
+    alert('Add a Knowledge repository in Settings first.');
+    return;
+  }
+
+  settleCtx = { comment, layer, entry, repo: '' };
+  settleViewStore.set({
+    ...emptySettleView(),
+    repos,
+    slug: extractSlug(entry.common_path),
+    content: comment.text,
+    filenameTs: nowTs(),
+    submitLabel: 'Push',
+    submitDisabled: false,
+  });
+
+  flushSync(() => {
+    settleOpenStore.set(true);
+  });
+  dualWriteSettleOpen(true);
+  updateSettlePreview();
 }
 
 export function closeSettleDialog() {
@@ -179,6 +174,11 @@ export async function doSettle() {
   if (!settleCtx) return;
   const { comment, layer, entry } = settleCtx;
   const view = settleViewStore.getSnapshot();
+  const repo = view.repo.trim();
+  if (!repo) {
+    alert('Choose a Knowledge repository');
+    return;
+  }
   const docTheme = view.showThemeInput ? view.themeInput.trim() : view.themeSelect;
 
   if (!docTheme || docTheme === '__new__') {
@@ -219,6 +219,7 @@ export async function doSettle() {
       docTheme,
       slug,
       content,
+      repo,
     )) as { error?: string; url?: string; warn?: string | string[] };
     if (data.error) {
       patchSettle({

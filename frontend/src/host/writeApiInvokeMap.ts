@@ -184,6 +184,18 @@ export const WRITE_API_INVOKE_MAP: Record<string, WriteInvokeEntry> = {
     cmd: 'create_note',
     args: (body) => ({ payload: body ?? {} }),
   },
+  '/api/notes-category-create': {
+    cmd: 'create_notes_category',
+    args: (body) => ({ payload: body ?? {} }),
+  },
+  '/api/notes-category-update': {
+    cmd: 'update_notes_category',
+    args: (body) => ({ payload: body ?? {} }),
+  },
+  '/api/notes-category-delete': {
+    cmd: 'delete_notes_category',
+    args: (body) => ({ payload: body ?? {} }),
+  },
   '/api/note-draft': {
     cmd: 'save_note_draft',
     args: (body) => ({

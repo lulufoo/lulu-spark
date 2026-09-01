@@ -41,6 +41,9 @@ const P2_PATHS = [
     ['payload'],
   ],
   ['/api/create-note', 'create_note', ['payload']],
+  ['/api/notes-category-create', 'create_notes_category', ['payload']],
+  ['/api/notes-category-update', 'update_notes_category', ['payload']],
+  ['/api/notes-category-delete', 'delete_notes_category', ['payload']],
 ];
 
 describe('writeApiContract', () => {

@@ -31,7 +31,7 @@ export function MoveProjectDialog() {
           id="move-project-list"
           style={{ display: 'flex', flexDirection: 'column', gap: '4px', maxHeight: '300px', overflowY: 'auto' }}
         >
-          {view.items.map(({ proj, desc }) => {
+          {view.items.map(({ proj, title, desc }) => {
             const inbox = proj === 'inbox';
             return (
               <button
@@ -42,7 +42,7 @@ export function MoveProjectDialog() {
                 style={inbox ? { color: '#cf222e', borderColor: '#ffcbc8' } : undefined}
                 onClick={() => void doMoveProject(proj)}
               >
-                <span className="move-project-item-name">{proj}</span>
+                <span className="move-project-item-name">{title}</span>
                 {desc ? <span className="move-project-item-desc">{desc}</span> : null}
               </button>
             );

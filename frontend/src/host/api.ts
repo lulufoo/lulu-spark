@@ -6,6 +6,13 @@ export {
 } from './api/transport.ts';
 
 export {
+  createNotesCategory,
+  deleteNotesCategory,
+  fetchNotesCategories,
+  updateNotesCategory,
+} from './api/notes-categories.ts';
+
+export {
   createNote,
   checkFileExists,
   checkWorkbenchRoot,

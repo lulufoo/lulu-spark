@@ -32,7 +32,7 @@ fn validate_rejects_invalid_layer() {
 }
 
 #[test]
-fn validate_rejects_unknown_project() {
+fn validate_rejects_missing_repo() {
     with_repo_list(r#"{"repos":[]}"#, |root| {
         let v = settle_entry(
             root,
@@ -46,26 +46,22 @@ fn validate_rejects_unknown_project() {
             }),
         );
         assert_eq!(v["_status"], 400);
-        assert!(v["error"]
-            .as_str()
-            .unwrap_or("")
-            .contains("No GitHub repo"));
+        assert!(v["error"].as_str().unwrap_or("").contains("Missing repo"));
     });
 }
 
 #[test]
-fn resolve_target_repo_by_dir_or_name() {
+fn resolve_listed_repo_by_full_name() {
     let topics = json!({
         "topics": [
             { "repo": "o/my-repo", "dir": "proj", "description": "d1" },
             { "repo": "o/other", "description": "d2" }
         ]
     });
-    let (r, desc) = resolve_target_repo(&topics, "proj").expect("proj");
+    let (r, desc) = resolve_listed_repo(&topics, "o/my-repo").expect("repo");
     assert_eq!(r, "o/my-repo");
     assert_eq!(desc, "d1");
-    let (r2, _) = resolve_target_repo(&topics, "other").expect("name");
-    assert_eq!(r2, "o/other");
+    assert!(resolve_listed_repo(&topics, "proj").is_none());
 }
 
 #[test]

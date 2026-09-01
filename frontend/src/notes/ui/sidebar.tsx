@@ -42,7 +42,11 @@ function _renderTopicFilter(parent: HTMLElement) {
 
   const options: { value: string; label: string; title?: string }[] = [{ value: '', label: `All (${total})` }];
   for (const t of topics) {
-    options.push({ value: t, label: `${t} (${topicCounts[t]})` });
+    const title = state.index.topicTitles[t];
+    options.push({
+      value: t,
+      label: `${title && title !== t ? title : t} (${topicCounts[t]})`,
+    });
   }
   if (topicCounts['unknown']) {
     options.push({

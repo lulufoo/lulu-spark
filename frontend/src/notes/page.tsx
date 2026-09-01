@@ -122,7 +122,7 @@ function copyLocalPath(
   workbenchRoot: string,
 ) {
   if (!entry) return;
-  const activePath = getActivePath(entry, lang || '', layer);
+  const activePath = getActivePath(entry, lang || '', layer) || '';
   const relPath = notesFileRelPath(layer, activePath);
   const fullPath = workbenchRoot ? `${workbenchRoot}/${relPath}` : relPath;
   const btn = document.getElementById('btn-copy-path');
@@ -191,11 +191,9 @@ function NotesOutletChrome({ routeParams }: { routeParams: Record<string, string
   const layer = viewer.layer || 'raw';
   const hasZh = Boolean(entry?.translations?.zh);
   const ghBase = workbenchGithubBlobBase(getGithubUserUrl(), host.ui.workbenchRoot);
-  const activePath = entry ? getActivePath(entry, viewer.lang || '', layer) : '';
+  const activePath = entry ? getActivePath(entry, viewer.lang || '', layer) || '' : '';
   const githubUrl = ghBase && entry ? `${ghBase}/${notesFileRelPath(layer, activePath)}` : '';
-  const topicDir = entry?.common_path?.split('/')[0];
-  const topicRepos = host.index.topicRepos;
-  const kbUrl = topicDir ? topicRepos?.[topicDir] : '';
+  const kbUrl = '';
   const relPath = entry ? notesFileRelPath(layer, activePath) : '';
   const fullPath = host.ui.workbenchRoot ? `${host.ui.workbenchRoot}/${relPath}` : relPath;
   const fileSize = viewer.fileSize || (viewer.rawText ? formatBytes(viewer.rawText) : '');

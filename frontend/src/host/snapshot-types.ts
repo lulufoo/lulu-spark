@@ -54,6 +54,7 @@ export type HostIndex = {
   tagsRegistry: HostTagsRegistry;
   titleFetchCache: Map<string, string>;
   topicDescriptions: Record<string, string>;
+  topicTitles: Record<string, string>;
   topicRepos: Record<string, string>;
 };
 

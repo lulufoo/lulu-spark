@@ -55,6 +55,7 @@ export const state: HostState = {
     tagsRegistry: { keys: {} },
     titleFetchCache: new Map(),
     topicDescriptions: {},
+    topicTitles: {},
     topicRepos: {},
   },
   ui: {

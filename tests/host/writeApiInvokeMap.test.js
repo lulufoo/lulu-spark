@@ -32,6 +32,9 @@ const P2_WRITE_PATHS = [
   '/api/create-note',
   '/api/note-draft',
   '/api/note-draft/clear',
+  '/api/notes-category-create',
+  '/api/notes-category-update',
+  '/api/notes-category-delete',
 ];
 
 const ANNOTATION_WRITE_CMDS = new Set([
@@ -48,7 +51,7 @@ describe('writeApiInvokeMap', () => {
     for (const p of P2_WRITE_PATHS) {
       expect(WRITE_API_INVOKE_MAP[p]?.cmd, p).toBeTruthy();
     }
-    expect(Object.keys(WRITE_API_INVOKE_MAP)).toHaveLength(28);
+    expect(Object.keys(WRITE_API_INVOKE_MAP)).toHaveLength(31);
   });
 
   it('maps /api/file absolute-path write to save_entry', () => {

@@ -13,7 +13,7 @@ import {
   saveFile, commitFiles, pullProject, revertFile,
   updateComments, updateLinks, setImportance, setDone,
   deleteEntry, ghMove,
-  fetchTopics, moveToProject,
+  fetchTopics, fetchNotesCategories, createNotesCategory, updateNotesCategory, deleteNotesCategory, moveToProject,
 } from '../../frontend/src/host/api.ts'
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..')
@@ -328,4 +328,39 @@ test('moveToProject 服务器返回 HTML 时不抛出 JSON 解析异常', async 
   const err = await moveToProject('a'.repeat(32), 'ai').catch(e => e)
   expect(err).toBeInstanceOf(Error)
   expect(err.message).toBe('not found')
+})
+
+test('fetchNotesCategories calls /api/notes-categories', async () => {
+  mockFetch({ categories: [{ id: 'inbox', title: 'Inbox', description: '' }] })
+  const result = await fetchNotesCategories()
+  expect(fetch.mock.calls[0][0]).toMatch(new RegExp(`^${API_READ_PREFIX}/notes-categories\\?_=\\d+$`))
+  expect(result.categories[0].id).toBe('inbox')
+})
+
+test('createNotesCategory posts title description', async () => {
+  mockFetch({ ok: true })
+  await createNotesCategory('Ops', 'desc')
+  expect(fetch.mock.calls[0][0]).toBe(`${DEFAULT_DEV_BASE}/api/notes-category-create`)
+  expect(JSON.parse(fetch.mock.calls[0][1].body)).toEqual({
+    title: 'Ops',
+    description: 'desc',
+  })
+})
+
+test('updateNotesCategory posts id title description', async () => {
+  mockFetch({ ok: true })
+  await updateNotesCategory('ops', 'Operations', 'runbooks')
+  expect(fetch.mock.calls[0][0]).toBe(`${DEFAULT_DEV_BASE}/api/notes-category-update`)
+  expect(JSON.parse(fetch.mock.calls[0][1].body)).toEqual({
+    id: 'ops',
+    title: 'Operations',
+    description: 'runbooks',
+  })
+})
+
+test('deleteNotesCategory posts id', async () => {
+  mockFetch({ ok: true })
+  await deleteNotesCategory('ops')
+  expect(fetch.mock.calls[0][0]).toBe(`${DEFAULT_DEV_BASE}/api/notes-category-delete`)
+  expect(JSON.parse(fetch.mock.calls[0][1].body)).toEqual({ id: 'ops' })
 })

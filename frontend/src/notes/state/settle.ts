@@ -2,8 +2,14 @@ import { createModuleStore } from '../../shared/module-store.ts';
 
 export type SettleResultKind = '' | 'ok' | 'err';
 
+export type SettleRepoOption = {
+  fullName: string;
+  description: string;
+};
+
 export type SettleView = {
   repo: string;
+  repos: SettleRepoOption[];
   slug: string;
   content: string;
   filenameTs: string;
@@ -25,6 +31,7 @@ export type SettleView = {
 export function emptySettleView(): SettleView {
   return {
     repo: '',
+    repos: [],
     slug: '',
     content: '',
     filenameTs: '',

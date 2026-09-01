@@ -55,6 +55,15 @@ fn repo_root_matches_cargo_manifest_parent() {
 }
 
 #[test]
+fn notes_categories_path_under_notes_not_knowledge() {
+    let sandbox = TestSandbox::new();
+    let wb = sandbox.workbench_root();
+    let path = notes_categories_path().expect("notes cats");
+    assert_eq!(path, wb.join("notes").join("categories.json"));
+    assert_ne!(path, sediment_kb_categories_path().expect("kb cats"));
+}
+
+#[test]
 fn sediment_kb_paths_under_workbench_root() {
     let sandbox = TestSandbox::new();
     let wb = sandbox.workbench_root();

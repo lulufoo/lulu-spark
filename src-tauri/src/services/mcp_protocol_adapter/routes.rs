@@ -66,7 +66,7 @@ pub(super) fn create_note_properties(include_source_path: bool) -> Value {
         },
         "project": {
             "type": "string",
-            "description": "Optional first path segment. Defaults to inbox."
+            "description": "Optional notes category folder (first path segment). Must exist in notes/categories.json. Defaults to inbox."
         },
         "theme": {
             "type": "string",
@@ -225,6 +225,60 @@ pub(super) fn notes_tool_routes() -> Vec<ToolRoute> {
             HttpMethod::Post,
             "/api/create-note",
             object_schema(create_note_properties(true), &["source_path", "title", "digest"]),
+            false,
+            false,
+        ),
+        route(
+            "list_notes_categories",
+            "List notes categories (id, title, description, folder). Does not list notes. Inbox is always present.",
+            HttpMethod::Get,
+            "/api/notes-categories",
+            object_schema(json!({}), &[]),
+            true,
+            false,
+        ),
+        route(
+            "create_notes_category",
+            "Add a notes category. Id is generated as UTC+8 timestamp plus 6 random chars. Does not move existing notes.",
+            HttpMethod::Post,
+            "/api/notes-category-create",
+            object_schema(
+                json!({
+                    "title": { "type": "string", "description": "Display title." },
+                    "description": { "type": "string", "description": "Optional description." }
+                }),
+                &["title"],
+            ),
+            false,
+            false,
+        ),
+        route(
+            "update_notes_category",
+            "Change a notes category title or description. Does not move existing notes or change the id.",
+            HttpMethod::Post,
+            "/api/notes-category-update",
+            object_schema(
+                json!({
+                    "id": { "type": "string", "description": "Category id. Cannot be renamed." },
+                    "title": { "type": "string", "description": "Display title." },
+                    "description": { "type": "string", "description": "Optional description." }
+                }),
+                &["id", "title"],
+            ),
+            false,
+            false,
+        ),
+        route(
+            "delete_notes_category",
+            "Remove a notes category from the allow-list. Does not delete or move existing notes. Inbox cannot be deleted.",
+            HttpMethod::Post,
+            "/api/notes-category-delete",
+            object_schema(
+                json!({
+                    "id": { "type": "string", "description": "Category id to remove from the allow-list." }
+                }),
+                &["id"],
+            ),
             false,
             false,
         ),

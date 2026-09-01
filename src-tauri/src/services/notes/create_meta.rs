@@ -35,6 +35,15 @@ pub(super) fn parse_create_meta(
         .to_string();
 
     let project = path_segment(payload, "project", "inbox")?;
+    if !super::categories::known_ids()
+        .map(|ids| ids.contains(&project))
+        .unwrap_or(false)
+    {
+        return Err(json!({
+            "error": format!("Unknown project: {project}"),
+            "_status": 400
+        }));
+    }
     let theme = path_segment(payload, "theme", "notes")?;
     let created_at = parse_created_at(payload)?;
     let source_type = parse_source_type(payload)?;

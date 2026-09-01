@@ -34,6 +34,11 @@ import {
   store,
 } from '../../state/settings/store.ts';
 import { settingsOpenStore } from '../../state/dialog-open.ts';
+import {
+  clearNotesCategoryError,
+  closeNotesCategoryEditor,
+  loadNotesCategories,
+} from './notes-categories.ts';
 import { loadSettingsSnapshot } from './snapshot.ts';
 import { switchPanel, switchSettingsTab } from '../../ui/settings/tabs.ts';
 
@@ -70,11 +75,13 @@ export function ensureWired() {
 }
 
 export function closeSettingsDialog() {
+  closeNotesCategoryEditor();
   settingsOpenStore.set(false);
   document.getElementById('settings-dialog')?.classList.remove('open');
 }
 
 export async function openSettingsDialog(opts: SettingsOpenOpts = {}) {
+  closeNotesCategoryEditor();
   settingsOpenStore.set(true);
   document.getElementById('settings-dialog')?.classList.add('open');
   ensureWired();
@@ -93,12 +100,14 @@ export async function openSettingsDialog(opts: SettingsOpenOpts = {}) {
   if (keyInput) keyInput.value = '';
   const panelId = opts.panel || 'workbench';
   switchSettingsTab('workbench', panelId === 'workbench' ? (opts.tab || 'directory') : 'directory');
+  switchSettingsTab('notes', panelId === 'notes' ? (opts.tab || 'add') : 'add');
   switchSettingsTab('knowledge', panelId === 'knowledge' ? (opts.tab || 'directory') : 'directory');
   switchSettingsTab('llm', 'engine');
   switchSettingsTab('github', 'account');
   switchSettingsTab('mcp', panelId === 'mcp' ? (opts.tab || 'tickets') : 'tickets');
   switchPanel(panelId);
   await loadSettingsSnapshot();
+  await loadNotesCategories();
   await loadMcpChannelTools();
   requestAnimationFrame(() => paintMcpToolGroups());
   await loadMcpTicketView();
@@ -110,6 +119,8 @@ function wireSettingsDialog() {
       const panel = tabBtn.closest('.settings-panel');
       const panelId = panel?.id?.replace(/^settings-panel-/, '');
       const tab = (tabBtn as HTMLElement).dataset.tab;
+      if (panelId !== 'notes' || tab !== 'edit') closeNotesCategoryEditor();
+      if (panelId === 'notes') clearNotesCategoryError();
       if (panelId && tab) switchSettingsTab(panelId, tab);
       if (panelId === 'mcp' && tab === 'tools') void loadMcpChannelTools();
     });
@@ -119,6 +130,7 @@ function wireSettingsDialog() {
     navBtn.addEventListener('click', async () => {
       const panelId = (navBtn as HTMLElement).dataset.panel;
       if (!panelId) return;
+      if (panelId !== 'notes') closeNotesCategoryEditor();
       switchPanel(panelId);
       if (panelId === 'github') {
         await syncGithubUserUrlLockFromWorkbenchRoot();

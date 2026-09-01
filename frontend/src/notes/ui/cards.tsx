@@ -8,6 +8,15 @@ import type { NoteEntry, NoteTag } from '../state/types.ts';
 
 export { cycleImportance, loadTitles, toggleDone };
 
+function catalogTopicLabel(commonPath: string): string {
+  const topic = topicFromPath(commonPath);
+  const parts = topic.split('/');
+  const first = parts[0] || '';
+  const title = first ? state.index.topicTitles[first] : '';
+  if (title) parts[0] = title;
+  return parts.join('/');
+}
+
 function asRecord(entry: NoteEntry): Record<string, unknown> {
   return entry as unknown as Record<string, unknown>;
 }
@@ -271,7 +280,7 @@ export function buildCard(id: string, entry: NoteEntry, title?: string | null) {
   card.dataset.id = id;
   entry._id = id;
 
-  const topic = topicFromPath(entry.common_path);
+  const topic = catalogTopicLabel(entry.common_path);
   const displayTitle = title !== undefined ? title : null;
   const time = timeFromTs(entry.created_at || '');
   const projectDir = entry.common_path.split('/')[0];
@@ -312,7 +321,7 @@ export function DocCard({
   title: string | null;
 }) {
   entry._id = id;
-  const topic = topicFromPath(entry.common_path);
+  const topic = catalogTopicLabel(entry.common_path);
   const time = timeFromTs(entry.created_at || '');
   const projectDir = entry.common_path.split('/')[0];
   const topicDesc = state.index.topicDescriptions[projectDir] || '';

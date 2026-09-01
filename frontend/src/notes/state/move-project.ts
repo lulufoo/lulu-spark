@@ -4,6 +4,7 @@ export type MoveProjectResultKind = '' | 'loading' | 'hint' | 'ok' | 'err';
 
 export type MoveProjectItem = {
   proj: string;
+  title: string;
   desc: string;
 };
 

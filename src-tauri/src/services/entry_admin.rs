@@ -44,23 +44,11 @@ fn save_index(index_path: &Path, entries: &Map<String, Value>) -> Result<(), Val
 }
 
 fn valid_projects() -> HashSet<String> {
-    let Ok(repo_root) = crate::config::paths::repo_root() else {
-        return HashSet::new();
-    };
-    let topics = crate::services::workbench_read::get_topics(&repo_root);
-    let mut set = HashSet::new();
-    if let Some(arr) = topics.get("topics").and_then(|v| v.as_array()) {
-        for t in arr {
-            if let Some(d) = t.get("dir").and_then(|v| v.as_str()) {
-                set.insert(d.to_string());
-            } else if let Some(r) = t.get("repo").and_then(|v| v.as_str()) {
-                if let Some(name) = r.split('/').next_back() {
-                    set.insert(name.to_string());
-                }
-            }
-        }
-    }
-    set
+    crate::services::notes::known_ids().unwrap_or_else(|_| {
+        let mut set = HashSet::new();
+        set.insert(crate::services::notes::INBOX_ID.to_string());
+        set
+    })
 }
 
 fn is_valid_entry_id(id: &str) -> bool {

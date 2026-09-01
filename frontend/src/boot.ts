@@ -38,8 +38,8 @@ import type { SettingsConfig } from './app-shell/state/types.ts';
 
 const titleCache = state.index.titleCache;
 
-type TopicsPayload = {
-  topics?: Array<{ repo?: string; dir?: string; description?: string }>;
+type NotesCategoriesPayload = {
+  categories?: Array<{ id?: string; folder?: string; title?: string; description?: string }>;
 };
 
 type TagsRegistryPayload = {
@@ -145,18 +145,21 @@ api.fetchConfig().then((d) => {
   state.ui.githubUserUrl = cfg.github_user_url || '';
   setGithubUserUrl(cfg.github_user_url);
 }).catch(() => {});
-api.fetchTopics().then((data) => {
-  const payload = data as TopicsPayload;
+api.fetchNotesCategories().then((data) => {
+  const payload = data as NotesCategoriesPayload;
   const descMap: Record<string, string> = {};
-  const repoMap: Record<string, string> = {};
-  for (const t of payload.topics || []) {
-    if (!t.repo) continue;
-    const key = t.dir || t.repo.split('/')[1];
-    if (t.description) descMap[key] = t.description;
-    repoMap[key] = `https://github.com/${t.repo}`;
+  const titleMap: Record<string, string> = {};
+  for (const c of payload.categories || []) {
+    const id = typeof c.id === 'string' ? c.id.trim() : '';
+    const folder =
+      typeof c.folder === 'string' && c.folder.trim() ? c.folder.trim() : id;
+    if (!folder) continue;
+    titleMap[folder] = typeof c.title === 'string' ? c.title : folder;
+    descMap[folder] = typeof c.description === 'string' ? c.description : '';
   }
+  state.index.topicTitles = titleMap;
   state.index.topicDescriptions = descMap;
-  state.index.topicRepos = repoMap;
+  state.index.topicRepos = {};
 }).catch(() => {});
 initTooltip();
 loadIndex();
