@@ -32,34 +32,40 @@ flowchart TB
     CMD["Tauri commands  invoke"]
   end
 
-  subgraph L4["L4 Services"]
-    SVC[orchestration]
+  subgraph L4["L4 Host core"]
+    AGT[Agent]
+    SVC[Services]
   end
 
-  subgraph L5["L5 Integrations"]
-    INT[external IO]
+  subgraph L5["L5 External services"]
+    INT[GitHub / Meili]
   end
 
   subgraph L6["L6 Data"]
-    REPO[Repositories + config roots]
+    REPO[paths + atomic writes]
   end
 
   subgraph L7["L7 Index"]
-    IDX[index build]
-    MEILI[Meilisearch]
+    IDX[index rebuild]
   end
 
   INTMCP[Workbench internal MCP]
+  MEILI[Meilisearch process]
 
   IDE --> SKILL --> GW
   AND --> GW
-  GW -->|/mcp/cursor_ide /mcp/mobile| MCP --> SVC
-  GW -->|/bind/complete| HTTP --> SVC
+  GW -->|/mcp/cursor_ide /mcp/mobile| MCP
+  GW -->|/bind/complete| HTTP
   INTMCP -->|127.0.0.1:9876 /mcp/workbench| MCP
-  UI --> BR --> CMD --> SVC
-  SVC --> INT
-  SVC --> REPO
-  SVC --> IDX --> MEILI
+  UI --> BR --> CMD
+  MCP --> L4
+  HTTP --> L4
+  CMD --> L4
+  AGT --> SVC
+  SVC --> L5
+  SVC --> L6
+  SVC --> L7
+  IDX -.->|Meili HTTP| MEILI
 ```
 
 
@@ -81,10 +87,10 @@ flowchart TB
 | **L1-cmd**         | Tauri commands are the desktop-UI path into L4 (through L3 only); they are not the bus for MCP or Host HTTP.                                                              |
 | **L2**             | Desktop HTML / JS / CSS goes through L3 only.                                                                                                                             |
 | **L3**             | Bridge does mapping and ACL only; no business rules, no IO.                                                                                                               |
-| **L4**             | Services is the only orchestration point, including pairing and ticket issue. The three L1 doors do not each own orchestration.                                           |
-| **L5**             | Integrations talk to external IO only; they do not store authority.                                                                                                       |
+| **L4**             | Agent and Services; downstream L5, L6, L7.                                                                                                                                |
+| **L5**             | External services only: GitHub, Meili. They do not store authority.                                                                                                       |
 | **L6**             | Data owns paths and atomic writes.                                                                                                                                        |
-| **L7**             | Index may be off or rebuilt; it must not replace L6.                                                                                                                      |
+| **L7**             | Rebuild only; must not replace L6.                                                                                                                                        |
 
 
 Cross-cutting (not a layer): config and secrets flow downward only.
@@ -100,5 +106,6 @@ Cross-cutting (not a layer): config and secrets flow downward only.
 5. MCP and Host HTTP must not enter L4 through Tauri commands.
 6. L2 must not skip L3; L0 must not touch L6; L0 must not call L4 (forward to L1 only).
 7. An L7 failure must not rewrite the L1 contract, and must not let L4 switch to another source of truth.
+8. L5, L6, and L7 must not call L4.
 
 Entering MCP after credentials from Host HTTP Bind is a new entry, not a nested call inside the same layer.
