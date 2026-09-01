@@ -154,7 +154,7 @@ describe('AI assistant P4 layered smoke gate (t7)', () => {
 
   it('Host Tools layer has update_master_title shell + validation coverage', () => {
     const toolsTests = readFileSync(
-      join(repoRoot, 'src-tauri/src/unit-tests/services/agent/mod.rs'),
+      join(repoRoot, 'src-tauri/src/unit-tests/agent/mod.rs'),
       'utf8',
     );
     for (const marker of HOST_TOOLS_MARKERS) {

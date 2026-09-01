@@ -12,8 +12,8 @@ use crate::commands::ai_assistant::{
 };
 use crate::config::secrets::{self, KEY_LLM_API_KEY};
 use crate::config::settings;
-use crate::services::agent::r#loop;
-use crate::services::agent::session::{self, Turn};
+use crate::agent::r#loop;
+use crate::agent::session::{self, Turn};
 use crate::services::todo_task;
 use crate::test_support::TestSandbox;
 
@@ -431,8 +431,8 @@ fn t1_facade_signatures_are_engine_opaque_type_locked() {
         agent_chat_turn_json, ensure_ai_assistant_session_json,
         SESSION_FACADE_ENGINE_OPAQUE,
     };
-    use crate::services::agent::r#loop::ChatTurnResult;
-    use crate::services::agent::session::{self, SESSION_LIFECYCLE_ENGINE_OPAQUE};
+    use crate::agent::r#loop::ChatTurnResult;
+    use crate::agent::session::{self, SESSION_LIFECYCLE_ENGINE_OPAQUE};
     use serde_json::Value;
 
     assert!(
@@ -499,7 +499,7 @@ fn t1_facade_happy_path_without_engine_params_and_payloads_leak_none() {
 fn t1_session_lifecycle_entry_has_no_engine_selection_api() {
     with_cmd_sandbox(|| {
         use crate::commands::ai_assistant::value_exposes_engine_selection;
-        use crate::services::agent::session::{self, SESSION_LIFECYCLE_ENGINE_OPAQUE};
+        use crate::agent::session::{self, SESSION_LIFECYCLE_ENGINE_OPAQUE};
 
         assert!(SESSION_LIFECYCLE_ENGINE_OPAQUE);
         // Lifecycle create accepts only optional master/title — no engine.

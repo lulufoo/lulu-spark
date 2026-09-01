@@ -14,7 +14,7 @@ function readRsTree(dir) {
 
 /** Concatenate Host agent loop owner sources (binding / shell / turn + thin facade). */
 export function readAgentLoopSource() {
-  const agent = join(repoRoot, 'src-tauri/src/services/agent');
+  const agent = join(repoRoot, 'src-tauri/src/agent');
   return [
     readFileSync(join(agent, 'loop/mod.rs'), 'utf8'),
     readRsTree(join(agent, 'binding')),
@@ -23,9 +23,9 @@ export function readAgentLoopSource() {
   ].join('\n');
 }
 
-/** Concatenate Loop unit tests under unit-tests/services/agent/loop_tests/. */
+/** Concatenate Loop unit tests under unit-tests/agent/loop_tests/. */
 export function readAgentLoopTestsSource() {
-  const dir = join(repoRoot, 'src-tauri/src/unit-tests/services/agent/loop_tests');
+  const dir = join(repoRoot, 'src-tauri/src/unit-tests/agent/loop_tests');
   return readdirSync(dir)
     .filter((name) => name.endsWith('.rs'))
     .sort()

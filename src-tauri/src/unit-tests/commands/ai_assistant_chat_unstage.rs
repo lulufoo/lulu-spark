@@ -3,11 +3,11 @@
 use std::sync::Arc;
 
 use crate::commands::ai_assistant::{create_chat_session_json, unstage_chat_staged_json};
-use crate::services::agent::diagnostics::TraceId;
-use crate::services::agent::tools::{host, stage};
-use crate::services::agent::progress::ProgressSink;
-use crate::services::agent::r#loop;
-use crate::services::agent::session::{self, StagedEntry};
+use crate::agent::diagnostics::TraceId;
+use crate::agent::tools::{host, stage};
+use crate::agent::progress::ProgressSink;
+use crate::agent::r#loop;
+use crate::agent::session::{self, StagedEntry};
 use crate::test_support::TestSandbox;
 
 fn with_cmd_sandbox<F: FnOnce()>(f: F) {

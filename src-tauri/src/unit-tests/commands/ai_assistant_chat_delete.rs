@@ -5,10 +5,10 @@ use std::sync::Arc;
 use crate::commands::ai_assistant::{
     create_chat_session_json, delete_chat_session_json, list_chat_sessions_json,
 };
-use crate::services::agent::diagnostics::TraceId;
-use crate::services::agent::progress::ProgressSink;
-use crate::services::agent::r#loop;
-use crate::services::agent::session;
+use crate::agent::diagnostics::TraceId;
+use crate::agent::progress::ProgressSink;
+use crate::agent::r#loop;
+use crate::agent::session;
 use crate::test_support::TestSandbox;
 
 fn with_cmd_sandbox<F: FnOnce()>(f: F) {

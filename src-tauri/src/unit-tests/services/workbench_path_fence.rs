@@ -4,7 +4,7 @@ use std::path::Path;
 use serde_json::json;
 
 use crate::config::paths;
-use crate::services::agent::r#loop;
+use crate::agent::r#loop;
 use crate::services::mcp_host::registry::{self, SEEDED_BUSINESS_KEY};
 use crate::services::workbench_path_fence::expand_for_business_key;
 use crate::test_support::TestSandbox;

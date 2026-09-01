@@ -7,11 +7,11 @@ use serde_json::{json, Value};
 use tauri::ipc::Channel;
 use tauri::{AppHandle, Emitter};
 
-use crate::services::agent::diagnostics::{self, DiagnosticEvent, TraceId};
-use crate::services::agent::progress::{ProgressDesc, ProgressSink};
-use crate::services::agent::r#loop::{self, ChatTurnResult, EVENT_TURN_COMPLETED, WINDOW_LABEL};
-use crate::services::agent::runtime;
-pub use crate::services::agent::session::value_exposes_engine_selection;
+use crate::agent::diagnostics::{self, DiagnosticEvent, TraceId};
+use crate::agent::progress::{ProgressDesc, ProgressSink};
+use crate::agent::r#loop::{self, ChatTurnResult, EVENT_TURN_COMPLETED, WINDOW_LABEL};
+use crate::agent::runtime;
+pub use crate::agent::session::value_exposes_engine_selection;
 
 pub const AI_ASSISTANT_WINDOW_LABEL: &str = WINDOW_LABEL;
 pub const EVENT_ASSISTANT_OPENED: &str = "ai-assistant:opened";

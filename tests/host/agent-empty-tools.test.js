@@ -22,9 +22,9 @@ import {
 import { readAgentLoopSource } from '../helpers/agent-loop-source.js';
 
 const fixtureRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
-const toolsRsPath = join(fixtureRoot, 'src-tauri/src/services/agent/tools.rs');
+const toolsRsPath = join(fixtureRoot, 'src-tauri/src/agent/tools.rs');
 const agentModRs = readFileSync(
-  join(fixtureRoot, 'src-tauri/src/services/agent/mod.rs'),
+  join(fixtureRoot, 'src-tauri/src/agent/mod.rs'),
   'utf8',
 );
 const loopRs = readAgentLoopSource();

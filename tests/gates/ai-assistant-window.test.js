@@ -67,7 +67,7 @@ describe('ai-assistant window shell (t5)', () => {
     const js = readFrontendJs('frontend/src/home/hub.tsx');
     const loopRs = readAgentLoopSource();
     const sessionRs = readRsPath(
-      join(repoRoot, 'src-tauri/src/services/agent/session'),
+      join(repoRoot, 'src-tauri/src/agent/session'),
     );
     expect(loopRs).toMatch(/get_ai_assistant_binding_core[\s\S]*turns/);
     expect(sessionRs).toMatch(/load_session/);
