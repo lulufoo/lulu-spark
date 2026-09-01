@@ -35,6 +35,9 @@ describe('mountHomeHub', () => {
     expect(container.querySelector('.home-hub-subtitle')).toBeNull();
     expect(container.querySelector('.home-chat')).not.toBeNull();
     expect(container.querySelector('.home-chat-sidebar')).not.toBeNull();
+    const resizer = container.querySelector('.home-chat-sidebar-resizer.sidebar-resizer');
+    expect(resizer).not.toBeNull();
+    expect(resizer?.getAttribute('role')).toBe('separator');
     expect(container.querySelector('[data-role="new-session"]')).not.toBeNull();
     expect(container.querySelector('[data-role="session-list"]')).not.toBeNull();
 

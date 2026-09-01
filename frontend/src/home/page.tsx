@@ -1,4 +1,5 @@
 import { memo, useEffect, useLayoutEffect, useRef, type FormEvent, type KeyboardEvent } from 'react';
+import { attachHomeSidebarResize, detachHomeSidebarResize } from './ui/sidebar-resize.ts';
 import { createRoot, type Root } from 'react-dom/client';
 import { flushSync } from 'react-dom';
 import { hydrateHomeChatMarkdown, renderHomeChatMarkdown } from './ui/chat-render.ts';
@@ -106,6 +107,7 @@ export function HomePage({
   const messagesRef = useRef<HTMLDivElement | null>(null);
   const formRef = useRef<HTMLFormElement | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
+  const sidebarRef = useRef<HTMLElement | null>(null);
   const lastPaintKeyRef = useRef('');
   const mdPaintGenRef = useRef(0);
   const paintKey = messagePaintKey(state);
@@ -113,6 +115,13 @@ export function HomePage({
   useEffect(() => {
     startHomeHub();
     return () => stopHomeHub();
+  }, []);
+
+  useEffect(() => {
+    const aside = sidebarRef.current;
+    if (!aside) return undefined;
+    attachHomeSidebarResize(aside);
+    return () => detachHomeSidebarResize();
   }, []);
 
   useLayoutEffect(() => {
@@ -174,7 +183,7 @@ export function HomePage({
 
   return (
     <div className="home-chat">
-      <aside className="home-chat-sidebar">
+      <aside ref={sidebarRef} className="home-chat-sidebar">
         <nav className="home-chat-nav" aria-label="Workbench">
           <button
             type="button"
@@ -259,6 +268,13 @@ export function HomePage({
             }}
           />
         </div>
+        <div
+          className="home-chat-sidebar-resizer sidebar-resizer"
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="Resize sidebar"
+          tabIndex={0}
+        />
       </aside>
       <section className="home-chat-main">
         <div ref={messagesRef} className="home-chat-messages" data-role="messages" aria-live="polite">

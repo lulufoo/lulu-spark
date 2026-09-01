@@ -7098,13 +7098,17 @@ button.notes-cat-item:disabled { opacity: .65; cursor: default; }
   overflow: hidden;
 }
 .home-chat-sidebar {
+  --home-chat-sidebar-width: 248px;
+  position: relative;
   display: flex;
   flex-direction: column;
-  width: 248px;
+  width: var(--home-chat-sidebar-width);
+  flex: 0 0 var(--home-chat-sidebar-width);
   flex-shrink: 0;
   border-right: 1px solid #e8ecf0;
   background: #f3f5f7;
   min-height: 0;
+  overflow: hidden;
 }
 .home-chat-nav {
   display: flex;
