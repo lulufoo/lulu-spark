@@ -97,7 +97,7 @@ fn t2_chat_session_identity_must_match_live_current() {
         assert_eq!(live_session_id().as_deref(), Some(live.as_str()));
 
         // Stale / foreign session id must be rejected; must not re-pin runtime.
-        let foreign = session::create_session(None, None).unwrap().session_id;
+        let foreign = session::create_session().unwrap().session_id;
         let rejected = r#loop::agent_chat_turn_core(&foreign, "ping", Some(&master));
         match rejected {
             Ok(result) => {

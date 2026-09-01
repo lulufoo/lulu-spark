@@ -134,7 +134,7 @@ fn route_result_does_not_expose_engine_selection_to_session_callers() {
     assert!(!value_exposes_engine_selection(&json), "route leaked engine: {json}");
 
     let _sandbox = TestSandbox::new();
-    let session = session::create_session(None, None).expect("isolated session");
+    let session = session::create_session().expect("isolated session");
     let json = serde_json::to_value(&session).expect("serialize session");
     assert!(!value_exposes_engine_selection(&json));
     assert!(json.get("assistant_engine").is_none());

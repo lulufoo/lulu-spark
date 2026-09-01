@@ -233,8 +233,7 @@ pub fn run() {
             host::create_main_window(app)?;
             app.manage(services::reindex::ReindexState::new());
 
-            // Phase-Warm: retained coordination seam; Agent Loop warmup is deferred.
-            services::agent::host_startup::schedule_agent_loop_warm();
+            // No Agent Loop startup warmup: first chat pays cold start (MCP/LLM).
 
             let app_handle = app.handle().clone();
             std::thread::spawn(move || {

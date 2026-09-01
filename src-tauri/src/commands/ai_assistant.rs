@@ -262,7 +262,7 @@ pub async fn open_ai_assistant(
     app: AppHandle,
     master_task_id: String,
 ) -> Result<Value, String> {
-    // Legacy open+bind path (writes bound_master_task_id via open_ai_assistant_core).
+    // Legacy open path (session shell only; does not bind master / Binding Contract).
     // Todos page Present must use present_ai_assistant instead (L2 t3 / L06-T).
     let result = tauri::async_runtime::spawn_blocking(move || open_ai_assistant_json(&master_task_id))
         .await

@@ -3,14 +3,14 @@
  * Host Agent Loop key-only Binding and MCP tool bridge.
  * Binding.tools remains empty. Model tools come from MCP discovery plus Host
  * file tools (grep/read/write/edit) gated by the Set-time path fence.
- * In-process business dispatch remains removed.
+ * Legacy in-process OpenAI plan tool defs (`agent/tools.rs`) are removed.
  *
- * Layer map (t2):
+ * Layer map:
  * - Interface layer: Binding.tools remains empty; model tools come from MCP discovery.
- * - Capability layer: tools.rs dispatch removed (t3); business via MCP/HTTP only.
+ * - Capability layer: business via MCP/HTTP only; no agent/tools.rs.
  * - Binding call surface: key-only workbench Set (C7_4b-T).
  */
-import { readFileSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, it, expect, vi } from 'vitest';
@@ -22,8 +22,9 @@ import {
 import { readAgentLoopSource } from '../helpers/agent-loop-source.js';
 
 const fixtureRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
-const toolsRs = readFileSync(
-  join(fixtureRoot, 'src-tauri/src/services/agent/tools.rs'),
+const toolsRsPath = join(fixtureRoot, 'src-tauri/src/services/agent/tools.rs');
+const agentModRs = readFileSync(
+  join(fixtureRoot, 'src-tauri/src/services/agent/mod.rs'),
   'utf8',
 );
 const loopRs = readAgentLoopSource();
@@ -88,12 +89,11 @@ describe('Host Agent MCP tools — workbench key-only call surface', () => {
 });
 
 describe('Host Agent MCP tools — source / interface layer locks', () => {
-  it('openai_tool_definitions_for_binding API retained (interface); dispatch removed (capability, t3)', () => {
-    expect(toolsRs).toMatch(
-      /pub fn openai_tool_definitions_for_binding\s*\(\s*tools:\s*&Value\s*\)/,
-    );
-    expect(toolsRs).toMatch(/pub fn openai_tool_definitions\s*\(/);
-    expect(toolsRs).not.toMatch(/pub fn dispatch\s*\(/);
+  it('legacy agent/tools.rs OpenAI plan defs are removed', () => {
+    expect(existsSync(toolsRsPath)).toBe(false);
+    expect(agentModRs).not.toMatch(/\bmod tools\b/);
+    expect(agentModRs).not.toMatch(/openai_tool_definitions/);
+    expect(agentModRs).toMatch(/WORKBENCH_HOST_SYSTEM_PROMPT/);
   });
 
   it('derives model tools from active MCP plus Host file tools while Binding.tools remains empty', () => {

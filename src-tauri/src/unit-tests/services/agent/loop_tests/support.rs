@@ -15,7 +15,7 @@ pub(super) use crate::config::settings;
 pub(super) use crate::services::agent::llm::LlmConfig;
 pub(super) use crate::services::agent::r#loop::{self, Terminal, TurnOutcome, EVENT_TURN_COMPLETED};
 pub(super) use crate::services::agent::session::{self, Turn};
-pub(super) use crate::services::agent::PLAN_ASSISTANT_SYSTEM_PROMPT;
+pub(super) use crate::services::agent::WORKBENCH_HOST_SYSTEM_PROMPT;
 pub(super) use crate::services::local_http;
 pub(super) use crate::services::mcp_oauth::{
     issue_for_slot, ledger_record, revoke_for_slot, test_force_keychain_unavailable,
@@ -105,7 +105,7 @@ pub(super) fn plan_tools_binding(master: &str) -> r#loop::Binding {
     ]);
     r#loop::Binding {
         tools,
-        prompt: json!(PLAN_ASSISTANT_SYSTEM_PROMPT),
+        prompt: json!(WORKBENCH_HOST_SYSTEM_PROMPT),
         callbacks: json!({}),
     }
 }
@@ -535,7 +535,7 @@ pub(super) fn key_only_payload(key: &str) -> Value {
 pub(super) fn empty_tools_binding() -> r#loop::Binding {
     r#loop::Binding {
         tools: json!([]),
-        prompt: json!(PLAN_ASSISTANT_SYSTEM_PROMPT),
+        prompt: json!(WORKBENCH_HOST_SYSTEM_PROMPT),
         callbacks: json!({}),
     }
 }

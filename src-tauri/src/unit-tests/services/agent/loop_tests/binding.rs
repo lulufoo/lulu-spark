@@ -1447,7 +1447,7 @@ fn t5_host_reject_reasons_are_distinguishable() {
         arm_plan_binding(&master);
         let open = r#loop::open_ai_assistant_core(&master).unwrap();
         let live = open["session_id"].as_str().unwrap().to_string();
-        let foreign = session::create_session(None, None).unwrap().session_id;
+        let foreign = session::create_session().unwrap().session_id;
         assert_ne!(foreign, live);
         let rejected = r#loop::agent_chat_turn_core(&foreign, "ping", Some(&master))
             .expect("chat returns body with reject signal");

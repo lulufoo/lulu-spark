@@ -450,8 +450,7 @@ fn t1_facade_signatures_are_engine_opaque_type_locked() {
     let _: fn(&str) -> Result<Value, String> = open_ai_assistant_json;
     let _: fn() -> Result<Value, String> = ensure_ai_assistant_session_json;
     let _: fn(&str, &str, Option<&str>) -> Result<ChatTurnResult, String> = agent_chat_turn_json;
-    let _: fn(Option<&str>, Option<&str>) -> Result<session::Session, String> =
-        session::create_session;
+    let _: fn() -> Result<session::Session, String> = session::create_session;
 }
 
 #[test]
@@ -506,7 +505,7 @@ fn t1_session_lifecycle_entry_has_no_engine_selection_api() {
 
         assert!(SESSION_LIFECYCLE_ENGINE_OPAQUE);
         // Lifecycle create accepts only optional master/title — no engine.
-        let sess = session::create_session(Some("master_x"), Some("title_x")).expect("create");
+        let sess = session::create_session().expect("create");
         let serialized = serde_json::to_value(&sess).expect("serialize session");
         assert!(
             !value_exposes_engine_selection(&serialized),

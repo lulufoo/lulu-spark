@@ -124,8 +124,6 @@ fn overlay_stages_turn_session_not_live() {
 fn other_tools_pass_through() {
     let mut sess = session::Session {
         session_id: "sess_passthrough".into(),
-        bound_master_task_id: None,
-        bound_title: None,
         turns: Vec::new(),
         staged: Vec::new(),
     };

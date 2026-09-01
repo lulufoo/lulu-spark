@@ -57,20 +57,9 @@ pub fn session_file_path(session_id: &str) -> Result<PathBuf, String> {
     Ok(sessions_dir()?.join(format!("{id}.json")))
 }
 
-pub fn create_session(
-    bound_master_task_id: Option<&str>,
-    bound_title: Option<&str>,
-) -> Result<Session, String> {
+pub fn create_session() -> Result<Session, String> {
     let session = Session {
         session_id: format!("sess_{}", random_hex12()),
-        bound_master_task_id: bound_master_task_id
-            .map(str::trim)
-            .filter(|s| !s.is_empty())
-            .map(|s| s.to_string()),
-        bound_title: bound_title
-            .map(str::trim)
-            .filter(|s| !s.is_empty())
-            .map(|s| s.to_string()),
         turns: Vec::new(),
         staged: Vec::new(),
     };
@@ -123,14 +112,6 @@ fn format_session_when(updated_at: i64) -> String {
 }
 
 fn session_list_title(session: &Session, updated_at: i64) -> String {
-    if let Some(title) = session
-        .bound_title
-        .as_deref()
-        .map(str::trim)
-        .filter(|s| !s.is_empty())
-    {
-        return title.to_string();
-    }
     session
         .turns
         .iter()

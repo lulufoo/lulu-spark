@@ -78,12 +78,10 @@ pub fn ensure_chat_session_core() -> Result<Value, String> {
             }
         }
     }
-    let sess = session::create_session(None, None)?;
+    let sess = session::create_session()?;
     let _rt = runtime().lock().unwrap();
     session::with_live_mut(|live| {
         live.current_session_id = Some(sess.session_id.clone());
-        live.bound_master_task_id = None;
-        live.bound_title = None;
     });
     Ok(json!({
         "session_id": sess.session_id,
@@ -113,11 +111,9 @@ pub fn open_ai_assistant_core(master_task_id: &str) -> Result<Value, String> {
         }));
     }
 
-    let sess = session::create_session(None, None)?;
+    let sess = session::create_session()?;
     session::with_live_mut(|live| {
         live.current_session_id = Some(sess.session_id.clone());
-        live.bound_master_task_id = None;
-        live.bound_title = None;
     });
     rt.clarify_counts.insert(sess.session_id.clone(), 0);
 
@@ -153,11 +149,9 @@ pub fn select_chat_session_core(session_id: &str) -> Result<Value, String> {
 
 /// Start a blank chat session and make it live. Does not Set Binding.
 pub fn create_chat_session_core() -> Result<Value, String> {
-    let sess = session::create_session(None, None)?;
+    let sess = session::create_session()?;
     session::with_live_mut(|live| {
         live.current_session_id = Some(sess.session_id.clone());
-        live.bound_master_task_id = None;
-        live.bound_title = None;
     });
     Ok(get_ai_assistant_binding_core())
 }

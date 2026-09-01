@@ -8,7 +8,7 @@ fn run_loop_final_reply_none_terminal_and_wrote_false() {
     with_sandbox(|| {
         let mock = spawn_scripted_llm(vec![assistant_text("你好，我是计划助手")]);
         let master = create_bound_plan("主计划");
-        let mut sess = session::create_session(Some(&master), Some("主计划")).unwrap();
+        let mut sess = session::create_session().unwrap();
         arm_plan_binding(&master);
         let out = r#loop::run_loop(&mut sess, "你好", &cfg_for(&mock));
         assert_outcome(&out, "none", false);
@@ -70,7 +70,7 @@ fn run_loop_uses_mcp_tools_and_feeds_tool_result_back_to_model() {
         assistant_text("已读取当前待办列表。"),
     ]);
     r#loop::try_set_binding_json(&json!({ "key": "workbench" })).expect("Set workbench binding");
-    let mut session = session::create_session(None, None).expect("session");
+    let mut session = session::create_session().expect("session");
     let outcome = r#loop::run_loop(&mut session, "读取当前待办", &cfg_for(&mock));
 
     assert_outcome(&outcome, "none", false);
@@ -159,7 +159,7 @@ fn run_loop_marks_successful_todo_mcp_mutation_as_wrote() {
         assistant_text("已创建任务。"),
     ]);
     r#loop::try_set_binding_json(&json!({ "key": "workbench" })).expect("Set workbench binding");
-    let mut session = session::create_session(None, None).expect("session");
+    let mut session = session::create_session().expect("session");
     let outcome = r#loop::run_loop(&mut session, "创建一个任务", &cfg_for(&mock));
 
     assert_outcome(&outcome, "none", true);
@@ -221,7 +221,7 @@ fn run_loop_returns_argument_and_allowlist_failures_to_the_model_as_tool_turns()
         assistant_text("工具参数或权限不正确，未执行读取。"),
     ]);
     r#loop::try_set_binding_json(&json!({ "key": "workbench" })).expect("Set workbench binding");
-    let mut session = session::create_session(None, None).expect("session");
+    let mut session = session::create_session().expect("session");
     let outcome = r#loop::run_loop(&mut session, "读取选择", &cfg_for(&mock));
 
     assert_outcome(&outcome, "none", false);
@@ -283,7 +283,7 @@ fn run_loop_stops_after_bounded_mcp_tool_rounds() {
         .collect();
     let mock = spawn_scripted_llm(responses);
     r#loop::try_set_binding_json(&json!({ "key": "workbench" })).expect("Set workbench binding");
-    let mut session = session::create_session(None, None).expect("session");
+    let mut session = session::create_session().expect("session");
     let outcome = r#loop::run_loop(&mut session, "反复读取待办", &cfg_for(&mock));
 
     assert_outcome(&outcome, "error", false);
@@ -321,7 +321,7 @@ fn run_loop_offers_host_file_tools_and_keeps_scratch_writes_inside_cache() {
     register_test_mcp("workbench", mcp_port);
 
     r#loop::try_set_binding_json(&json!({ "key": "workbench" })).expect("Set workbench binding");
-    let mut session = session::create_session(None, None).expect("session");
+    let mut session = session::create_session().expect("session");
     let scratch = sandbox
         .cache_dir()
         .join("agent-scratch")
@@ -451,7 +451,7 @@ fn run_loop_does_not_call_mcp_after_reset_invalidates_its_generation() {
         ),
     );
     r#loop::try_set_binding_json(&json!({ "key": "workbench" })).expect("Set workbench binding");
-    let mut session = session::create_session(None, None).expect("session");
+    let mut session = session::create_session().expect("session");
     let outcome = r#loop::run_loop(&mut session, "读取待办", &cfg_for(&mock));
 
     assert_outcome(&outcome, "error", false);
@@ -488,7 +488,7 @@ fn run_loop_host_empty_tools_rejects_tool_calls_without_dispatch() {
             }]),
             None,
         )]);
-        let mut sess = session::create_session(Some(&master), Some("写前标题")).unwrap();
+        let mut sess = session::create_session().unwrap();
         arm_plan_binding(&master);
         let out = r#loop::run_loop(&mut sess, "把主标题改成写后标题", &cfg_for(&mock));
         assert_outcome(&out, "error", false);
@@ -510,7 +510,7 @@ fn run_loop_clarify_under_limit_returns_none_not_wrote() {
         let mock = spawn_scripted_llm(vec![assistant_text(
             "请问您要改的是主标题，还是某个子计划的标题？",
         )]);
-        let mut sess = session::create_session(Some(&master), Some("歧义计划")).unwrap();
+        let mut sess = session::create_session().unwrap();
         arm_plan_binding(&master);
         let out = r#loop::run_loop(&mut sess, "改标题", &cfg_for(&mock));
         assert_outcome(&out, "none", false);
@@ -549,7 +549,7 @@ fn parallel_tool_calls_are_rejected_without_process_dispatch() {
             ]),
             None,
         )]);
-        let mut sess = session::create_session(Some(&master), Some("批处理")).unwrap();
+        let mut sess = session::create_session().unwrap();
         arm_plan_binding(&master);
         let out = r#loop::run_loop(&mut sess, "改不存在的子项并加一个", &cfg_for(&mock));
         assert_outcome(&out, "error", false);
@@ -587,7 +587,7 @@ fn same_message_tool_calls_plus_content_does_not_dispatch_or_finalize() {
             }]),
             Some("这段 content 不是终态"),
         )]);
-        let mut sess = session::create_session(Some(&master), Some("同条")).unwrap();
+        let mut sess = session::create_session().unwrap();
         arm_plan_binding(&master);
         let out = r#loop::run_loop(&mut sess, "加子项", &cfg_for(&mock));
         assert_outcome(&out, "error", false);
@@ -607,7 +607,7 @@ fn same_message_tool_calls_plus_content_does_not_dispatch_or_finalize() {
 fn unbound_session_maps_to_business_no_plan_without_llm() {
     with_sandbox(|| {
         let mock = spawn_scripted_llm(vec![assistant_text("should-not-run")]);
-        let mut sess = session::create_session(None, None).unwrap();
+        let mut sess = session::create_session().unwrap();
         let out = r#loop::run_loop(&mut sess, "加个子计划", &cfg_for(&mock));
         assert_outcome(&out, "business", false);
         assert!(
@@ -635,7 +635,7 @@ fn unknown_tool_name_is_error_terminal_and_does_not_write() {
             }]),
             None,
         )]);
-        let mut sess = session::create_session(Some(&master), Some("未知工具")).unwrap();
+        let mut sess = session::create_session().unwrap();
         arm_plan_binding(&master);
         let out = r#loop::run_loop(&mut sess, "删掉计划", &cfg_for(&mock));
         assert_outcome(&out, "error", false);
@@ -658,7 +658,7 @@ fn unsupported_tool_calls_upstream_is_error_terminal_no_prompt_json() {
                 }
             }),
         )]);
-        let mut sess = session::create_session(Some(&master), Some("上游")).unwrap();
+        let mut sess = session::create_session().unwrap();
         arm_plan_binding(&master);
         let out = r#loop::run_loop(&mut sess, "加子项", &cfg_for(&mock));
         assert_outcome(&out, "error", false);
@@ -692,7 +692,7 @@ fn length_and_http_errors_map_to_error_terminal_no_retry() {
         ] {
             r#loop::reset_runtime_for_tests();
             let mock = spawn_scripted_llm(vec![resp]);
-            let mut sess = session::create_session(Some(&master), Some("错误分型")).unwrap();
+            let mut sess = session::create_session().unwrap();
         arm_plan_binding(&master);
             let out = r#loop::run_loop(&mut sess, "ping", &cfg_for(&mock));
             assert_outcome(&out, "error", false);
@@ -713,7 +713,7 @@ fn run_loop_host_text_paths_remain_observable_without_tool_writes() {
             assistant_text("已记录新增子计划的请求（Host 本阶段不经 tool_calls 写入）"),
             assistant_text("已记录改子标题的请求（Host 本阶段不经 tool_calls 写入）"),
         ]);
-        let mut sess = session::create_session(Some(&master), Some("子路径")).unwrap();
+        let mut sess = session::create_session().unwrap();
         arm_plan_binding(&master);
 
         let out_add = r#loop::run_loop(&mut sess, "加一个子计划叫新观察子项", &cfg_for(&mock));
@@ -743,7 +743,7 @@ fn run_loop_host_text_paths_remain_observable_without_tool_writes() {
 fn terminal_no_plan_unsupported_and_error_are_distinguishable() {
     with_sandbox(|| {
         let mock_unused = spawn_scripted_llm(vec![assistant_text("should-not-run")]);
-        let mut unbound = session::create_session(None, None).unwrap();
+        let mut unbound = session::create_session().unwrap();
         let no_plan = r#loop::run_loop(&mut unbound, "加子计划", &cfg_for(&mock_unused));
         assert_outcome(&no_plan, "business", false);
         assert!(
@@ -757,7 +757,7 @@ fn terminal_no_plan_unsupported_and_error_are_distinguishable() {
         let mock_unsup = spawn_scripted_llm(vec![assistant_text(
             "目前不支持删除计划，我只能查看、加子计划或改标题。",
         )]);
-        let mut sess = session::create_session(Some(&master), Some("分型")).unwrap();
+        let mut sess = session::create_session().unwrap();
         arm_plan_binding(&master);
         let unsupported = r#loop::run_loop(&mut sess, "删掉这个计划", &cfg_for(&mock_unsup));
         assert_outcome(&unsupported, "business", false);
@@ -777,7 +777,7 @@ fn terminal_no_plan_unsupported_and_error_are_distinguishable() {
                 }]
             }),
         )]);
-        let mut sess2 = session::create_session(Some(&master), Some("分型")).unwrap();
+        let mut sess2 = session::create_session().unwrap();
         arm_plan_binding(&master);
         let tech_err = r#loop::run_loop(&mut sess2, "继续", &cfg_for(&mock_err));
         assert_outcome(&tech_err, "error", false);
@@ -808,7 +808,7 @@ fn malformed_response_is_error_and_does_not_write() {
             .unwrap()
             .len();
         let mock = spawn_scripted_llm(vec![(200, json!({}))]);
-        let mut sess = session::create_session(Some(&master), Some("畸形")).unwrap();
+        let mut sess = session::create_session().unwrap();
         arm_plan_binding(&master);
         let out = r#loop::run_loop(&mut sess, "加子项", &cfg_for(&mock));
         assert_outcome(&out, "error", false);
@@ -837,7 +837,7 @@ fn missing_tool_call_id_is_error_no_write() {
             }]),
             None,
         )]);
-        let mut sess = session::create_session(Some(&master), Some("缺id")).unwrap();
+        let mut sess = session::create_session().unwrap();
         arm_plan_binding(&master);
         let out = r#loop::run_loop(&mut sess, "加", &cfg_for(&mock));
         assert_outcome(&out, "error", false);
@@ -860,7 +860,7 @@ fn tool_rounds_hard_cap_eight_errors() {
             }]),
             None,
         )]);
-        let mut sess = session::create_session(Some(&master), Some("工具上限")).unwrap();
+        let mut sess = session::create_session().unwrap();
         arm_plan_binding(&master);
         let out = r#loop::run_loop(&mut sess, "一直读", &cfg_for(&mock));
         assert_outcome(&out, "error", false);
@@ -875,7 +875,7 @@ fn tool_rounds_hard_cap_eight_errors() {
 fn clarify_rounds_hard_cap_five_errors() {
     with_sandbox(|| {
         let master = create_bound_plan("澄清上限");
-        let mut sess = session::create_session(Some(&master), Some("澄清上限")).unwrap();
+        let mut sess = session::create_session().unwrap();
         arm_plan_binding(&master);
         for i in 0..5 {
             let mock = spawn_scripted_llm(vec![assistant_text(&format!(
@@ -1262,7 +1262,7 @@ fn t3_nonempty_tools_binding_tool_calls_never_mutate_todo_task() {
             }]),
             None,
         )]);
-        let mut sess = session::create_session(Some(&master), Some("t3非空tools")).unwrap();
+        let mut sess = session::create_session().unwrap();
         arm_plan_binding(&master);
         let out = r#loop::run_loop(&mut sess, "改标题", &cfg_for(&mock));
         assert_eq!(out.wrote, false);
@@ -1281,7 +1281,7 @@ fn t2_empty_tools_binding_text_only_round_succeeds() {
     with_sandbox(|| {
         let master = create_bound_plan("空tools纯文本");
         let mock = spawn_scripted_llm(vec![assistant_text("纯文本回复，无工具")]);
-        let mut sess = session::create_session(Some(&master), Some("空tools纯文本")).unwrap();
+        let mut sess = session::create_session().unwrap();
         r#loop::set_binding(empty_tools_binding()).expect("empty tools Set");
         let out = r#loop::run_loop(&mut sess, "你好", &cfg_for(&mock));
         assert_outcome(&out, "none", false);
@@ -1296,7 +1296,7 @@ fn t2_key_only_set_loads_mcp_and_rejects_unreachable_endpoint() {
         use crate::services::mcp_host::registry::SEEDED_BUSINESS_KEY;
         let master = create_bound_plan("key-only空tools");
         let mock = spawn_scripted_llm(vec![assistant_text("key-only工具回复")]);
-        let mut sess = session::create_session(Some(&master), Some("key-only空tools")).unwrap();
+        let mut sess = session::create_session().unwrap();
         r#loop::try_set_binding_json(&key_only_payload(SEEDED_BUSINESS_KEY))
             .expect("key-only Set");
         assert!(r#loop::loaded_mcp_server().is_some());
@@ -1322,7 +1322,7 @@ fn run_loop_emits_requesting_progress() {
     with_sandbox(|| {
         let master = create_bound_plan("进度");
         let mock = spawn_scripted_llm(vec![assistant_text("收到")]);
-        let mut sess = session::create_session(Some(&master), Some("进度")).unwrap();
+        let mut sess = session::create_session().unwrap();
         r#loop::set_binding(empty_tools_binding()).expect("empty tools Set");
         let collected = Arc::new(Mutex::new(Vec::new()));
         let slot = collected.clone();

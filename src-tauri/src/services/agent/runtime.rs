@@ -16,12 +16,6 @@ use crate::services::agent::progress::{self, ProgressSink};
 use crate::services::agent::r#loop::{self, ChatTurnResult, Terminal, TurnOutcome};
 use crate::services::agent::session::{self, Turn};
 
-/// Test reset hook retained for the command/runtime lifecycle contract.
-pub fn reset_for_tests() {}
-
-/// UI session lifecycle is presentation-only; it does not dispose an Agent.
-pub fn on_ui_session_close(_session_id: &str) {}
-
 /// Reset the current Binding. Agent Loop owns all live context cleanup.
 pub fn reset_binding() -> Result<(), String> {
     r#loop::reset_binding().map_err(|_| "reset_binding_failed".to_string())

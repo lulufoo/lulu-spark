@@ -44,7 +44,7 @@ pub(crate) fn run_loop_with_progress(
     sink: Option<&ProgressSink>,
 ) -> TurnOutcome {
     let turns_checkpoint = session.turns.len();
-    // Executable turns require Binding Contract bound — not session.bound_master_task_id.
+    // Executable turns require Binding Contract bound.
     let Some((binding, generation)) = current_binding_generation_snapshot() else {
         session.turns.push(Turn {
             role: "user".into(),

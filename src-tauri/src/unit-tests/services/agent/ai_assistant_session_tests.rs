@@ -373,7 +373,7 @@ fn assert_path_only_staged(entry: &serde_json::Value) {
 #[test]
 fn t1_new_session_json_has_empty_staged_and_no_body() {
     with_sandbox(|| {
-        let sess = session::create_session(None, None).expect("create");
+        let sess = session::create_session().expect("create");
         let raw = read_session_json(&sess.session_id);
         let staged = raw
             .get("staged")
@@ -387,7 +387,7 @@ fn t1_new_session_json_has_empty_staged_and_no_body() {
 #[test]
 fn t1_save_staged_roundtrip_does_not_enter_turns() {
     with_sandbox(|| {
-        let mut sess = session::create_session(None, None).expect("create");
+        let mut sess = session::create_session().expect("create");
         let entry = staged_entry("stg_1", "/tmp/note.md", "note");
         sess.staged.push(entry.clone());
         session::save_session(&sess).expect("save");
@@ -445,8 +445,8 @@ fn t1_binding_core_includes_session_id_turns_and_staged() {
 #[test]
 fn t1_staged_is_isolated_by_session_id() {
     with_sandbox(|| {
-        let mut a = session::create_session(None, None).expect("a");
-        let mut b = session::create_session(None, None).expect("b");
+        let mut a = session::create_session().expect("a");
+        let mut b = session::create_session().expect("b");
         a.staged.push(staged_entry("stg_a", "/tmp/a.md", "A"));
         b.staged.push(staged_entry("stg_b", "/tmp/b.md", "B"));
         session::save_session(&a).expect("save a");
@@ -463,7 +463,7 @@ fn t1_staged_is_isolated_by_session_id() {
 #[test]
 fn t1_delete_session_removes_file_and_staged() {
     with_sandbox(|| {
-        let mut sess = session::create_session(None, None).expect("create");
+        let mut sess = session::create_session().expect("create");
         sess.staged.push(staged_entry("stg_gone", "/tmp/x.md", "X"));
         session::save_session(&sess).expect("save");
         let path = session::session_file_path(&sess.session_id).expect("path");

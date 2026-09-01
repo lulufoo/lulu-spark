@@ -41,8 +41,6 @@ fn live_fence() -> (PathFence, PathBuf, PathBuf) {
 fn unused_session() -> Session {
     Session {
         session_id: "sess_fs_unused".into(),
-        bound_master_task_id: None,
-        bound_title: None,
         turns: Vec::new(),
         staged: Vec::new(),
     }

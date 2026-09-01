@@ -107,8 +107,6 @@ pub struct LiveExecContext {
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct AIAssistantSession {
     pub(crate) current_session_id: Option<String>,
-    pub(crate) bound_master_task_id: Option<String>,
-    pub(crate) bound_title: Option<String>,
     pub(crate) current_binding: Option<Binding>,
     pub(crate) current_business_id: Option<String>,
     pub(crate) loaded_mcp_server: Option<McpServerConfig>,
@@ -177,10 +175,6 @@ pub struct StagedEntry {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Session {
     pub session_id: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub bound_master_task_id: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub bound_title: Option<String>,
     #[serde(default)]
     pub turns: Vec<Turn>,
     #[serde(default)]

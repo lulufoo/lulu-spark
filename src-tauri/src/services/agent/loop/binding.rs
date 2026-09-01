@@ -116,9 +116,10 @@ pub fn try_set_binding_json(v: &Value) -> Result<(), SetError> {
     // Agent Loop. The business key is already resolved into loaded_mcp_server;
     // Binding.tools stays an empty interface slot. File tools are Host-owned
     // and gated by the fence attached here, not by caller-supplied paths.
+    // LLM system prompt is agent-owned (not registry capability_description).
     let binding = session::Binding {
         tools: json!([]),
-        prompt: json!(config.capability_description.clone()),
+        prompt: json!(crate::services::agent::WORKBENCH_HOST_SYSTEM_PROMPT),
         callbacks: parsed.callbacks,
     };
     set_binding_with_mcp(binding, Some(config), Some(key), fence)

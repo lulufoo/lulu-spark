@@ -11,9 +11,6 @@ mod engine_router_tests;
 #[path = "runtime_tests.rs"]
 mod runtime_tests;
 
-#[path = "host_startup_tests.rs"]
-mod host_startup_tests;
-
 #[path = "ai_assistant_session_tests.rs"]
 mod ai_assistant_session_tests;
 
@@ -32,8 +29,7 @@ use crate::config::settings;
 use crate::services::agent::diagnostics::{self, DiagnosticEvent, TraceId};
 use crate::services::agent::llm::{self, LlmConfig, LlmError};
 use crate::services::agent::session::{self, Session, Turn};
-use crate::services::agent::tools;
-use crate::services::agent::PLAN_ASSISTANT_SYSTEM_PROMPT;
+use crate::services::agent::WORKBENCH_HOST_SYSTEM_PROMPT;
 use crate::services::todo_task;
 use crate::test_support::{with_config_test_serial, TestSandbox};
 
@@ -41,6 +37,22 @@ fn with_agent_sandbox<F: FnOnce(&TestSandbox)>(f: F) {
     let sandbox = TestSandbox::new();
     secrets::test_secrets_clear();
     f(&sandbox);
+}
+
+/// Minimal OpenAI-shaped tool defs for LLM HTTP tests (not Host business SSOT).
+fn sample_openai_tool_defs() -> Vec<Value> {
+    vec![json!({
+        "type": "function",
+        "function": {
+            "name": "sample_tool",
+            "description": "unit-test fixture tool",
+            "parameters": {
+                "type": "object",
+                "properties": {},
+                "additionalProperties": false
+            }
+        }
+    })]
 }
 
 fn create_bound_plan(title: &str) -> String {
@@ -65,10 +77,8 @@ fn assert_under_cache_not_knowledge_root(path: &Path, sandbox: &TestSandbox) {
 
 #[test]
 fn agent_module_mount_point_is_addressable() {
-    let _ = PLAN_ASSISTANT_SYSTEM_PROMPT;
+    let _ = WORKBENCH_HOST_SYSTEM_PROMPT;
     let _ = std::any::type_name::<Session>();
-    let defs = tools::openai_tool_definitions();
-    assert_eq!(defs.len(), 5);
 }
 
 // ── Session ──────────────────────────────────────────────────────────────────
@@ -86,7 +96,7 @@ fn assistant_conversation_dir_requires_sandbox_and_misses_prod_cache() {
             "unisolated error should name the sandbox gate, got {err}"
         );
         assert!(
-            session::create_session(None, None).is_err(),
+            session::create_session().is_err(),
             "create_session must refuse the user's conversation directory"
         );
     });
@@ -98,7 +108,7 @@ fn assistant_conversation_dir_requires_sandbox_and_misses_prod_cache() {
         sandbox
             .assert_not_prod_path(&dir)
             .expect("sessions_dir must not be under prod roots");
-        let sess = session::create_session(None, None).expect("create in sandbox");
+        let sess = session::create_session().expect("create in sandbox");
         let path = session::session_file_path(&sess.session_id).expect("path");
         assert!(path.starts_with(&expected));
         sandbox
@@ -110,9 +120,8 @@ fn assistant_conversation_dir_requires_sandbox_and_misses_prod_cache() {
 #[test]
 fn session_save_load_roundtrip_under_cache_agent_sessions() {
     with_agent_sandbox(|sandbox| {
-        let sess = session::create_session(Some("task_abc"), Some("标题")).expect("create");
+        let sess = session::create_session().expect("create");
         assert!(!sess.session_id.is_empty());
-        assert_eq!(sess.bound_master_task_id.as_deref(), Some("task_abc"));
         assert_eq!(sess.turns.len(), 0);
 
         let path = session::session_file_path(&sess.session_id).expect("path");
@@ -289,55 +298,19 @@ fn assistant_diagnostics_bounded_error_text_redacts_secrets_and_newlines() {
     );
 }
 
-// ── Tools (interface layer kept; capability dispatch removed in t3) ───────────
+// ── Tools (in-process OpenAI plan defs removed; MCP/fs_tools are turn SSOT) ───
 
 #[test]
-fn tools_definitions_are_exactly_five_whitelist_names() {
-    // Interface layer: OpenAI tool definition shape retained (t2/t3 boundary).
-    let defs = tools::openai_tool_definitions();
-    let names: Vec<&str> = defs
-        .iter()
-        .map(|t| t["function"]["name"].as_str().unwrap_or(""))
-        .collect();
-    assert_eq!(
-        names,
-        vec![
-            "get_plan",
-            "list_sub_tasks",
-            "add_sub_task",
-            "update_sub_title",
-            "update_master_title",
-        ]
-    );
-}
-
-#[test]
-fn t2_openai_tool_definitions_for_binding_empty_when_binding_tools_empty() {
-    // Interface layer: empty Binding.tools → no OpenAI tool defs to the model.
-    let defs = tools::openai_tool_definitions_for_binding(&json!([]));
-    assert!(defs.is_empty(), "expected empty defs, got {defs:?}");
-    // Non-empty binding names still intersect whitelist (API shape retained).
-    let with_names = tools::openai_tool_definitions_for_binding(&json!([
-        { "name": "get_plan" },
-        { "name": "list_sub_tasks" }
-    ]));
-    assert_eq!(with_names.len(), 2);
-}
-
-#[test]
-fn t3_tools_rs_has_no_pub_dispatch_capability() {
-    // Capability layer: in-process business dispatch must be gone (not a silent no-op).
-    let src = include_str!("../../../services/agent/tools.rs");
+fn t3_agent_tools_rs_module_removed() {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("src/services/agent/tools.rs");
     assert!(
-        !src.contains("pub fn dispatch"),
-        "tools.rs must not export pub fn dispatch (in-process business tools removed)"
+        !path.exists(),
+        "legacy agent/tools.rs OpenAI plan defs must be deleted"
     );
+    let mod_src = include_str!("../../../services/agent/mod.rs");
     assert!(
-        !src.contains("todo_task::add_sub")
-            && !src.contains("todo_task::update_sub_title")
-            && !src.contains("todo_task::update_master_title")
-            && !src.contains("todo_task::get_by_id"),
-        "tools.rs must not call todo_task handlers (capability lives on MCP/HTTP)"
+        !mod_src.contains("mod tools"),
+        "agent/mod.rs must not declare tools module"
     );
 }
 
@@ -445,7 +418,7 @@ fn llm_chat_completions_sends_openai_compatible_non_stream_request() {
             )
         });
         let cfg = llm_config_for(&mock);
-        let tools_defs = tools::openai_tool_definitions();
+        let tools_defs = sample_openai_tool_defs();
         let messages = vec![json!({"role":"user","content":"ping"})];
         let msg = llm::chat_completions(&messages, &tools_defs, &cfg).expect("chat");
         assert_eq!(msg.content.as_deref(), Some("hi"));
@@ -465,7 +438,7 @@ fn llm_chat_completions_sends_openai_compatible_non_stream_request() {
         assert_eq!(hits[0].body["tool_choice"], "auto");
         assert_eq!(hits[0].body["model"], "test-model");
         let sent_tools = hits[0].body["tools"].as_array().expect("tools");
-        assert_eq!(sent_tools.len(), 5);
+        assert_eq!(sent_tools.len(), 1);
     });
 }
 
@@ -525,7 +498,7 @@ fn llm_error_taxonomy_no_retry_and_length_not_continued() {
             });
             let err = llm::chat_completions(
                 &[json!({"role":"user","content":"x"})],
-                &tools::openai_tool_definitions(),
+                &sample_openai_tool_defs(),
                 &llm_config_for(&mock),
             )
             .expect_err("length");
@@ -599,7 +572,7 @@ fn llm_unsupported_tool_calls_errors_without_prompt_json_fallback() {
                 }),
             )
         });
-        let tools_defs = tools::openai_tool_definitions();
+        let tools_defs = sample_openai_tool_defs();
         let err = llm::chat_completions(
             &[json!({"role":"user","content":"add a sub task"})],
             &tools_defs,
