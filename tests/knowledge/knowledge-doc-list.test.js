@@ -367,6 +367,46 @@ describe('mountKnowledgeDocList', () => {
     expect(container.querySelectorAll('.knowledge-doc-main-row')).toHaveLength(0);
   });
 
+  it('opens a second file in the reader after the first', async () => {
+    api.fetchKbList.mockResolvedValue([
+      { name: 'alpha.md', relative_path: 'alpha.md', is_dir: false },
+      { name: 'beta.md', relative_path: 'beta.md', is_dir: false },
+    ]);
+
+    mountKnowledgeDocList(container, { repo: 'owner/repo', navigate });
+    await flushPromises();
+
+    const clickFile = (relativePath) => {
+      const label = container.querySelector(
+        `.knowledge-doc-tree-node[data-relative-path="${relativePath}"] .knowledge-doc-tree-label`,
+      );
+      expect(label).not.toBeNull();
+      label.click();
+    };
+
+    clickFile('alpha.md');
+    await flushPromises();
+    clickFile('beta.md');
+    await flushPromises();
+
+    expect(mountKbReader).toHaveBeenCalledTimes(2);
+    expect(mountKbReader).toHaveBeenNthCalledWith(
+      1,
+      container.querySelector('.knowledge-doc-reader-pane'),
+      expect.objectContaining({ repo: 'owner/repo', path: 'alpha.md' }),
+    );
+    expect(mountKbReader).toHaveBeenNthCalledWith(
+      2,
+      container.querySelector('.knowledge-doc-reader-pane'),
+      expect.objectContaining({ repo: 'owner/repo', path: 'beta.md' }),
+    );
+    expect(
+      container
+        .querySelector('.knowledge-doc-tree-node[data-relative-path="beta.md"] .knowledge-doc-tree-label')
+        ?.classList.contains('selected'),
+    ).toBe(true);
+  });
+
   it('opens file in reader and syncs hash without router navigate', async () => {
     api.fetchKbList.mockResolvedValue(sampleRootEntries);
     const replaceState = vi.spyOn(history, 'replaceState');

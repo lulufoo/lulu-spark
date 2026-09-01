@@ -263,7 +263,6 @@ function startKnowledgeDocSession(
       void onExpandNode(node);
       return;
     }
-    selectedPath = relativePath;
     void (async () => {
       await navigateToPath(relativePath);
       syncKnowledgeHash(relativePath);
