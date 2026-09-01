@@ -1,5 +1,6 @@
 pub mod commands;
 pub mod config;
+pub mod gateway;
 pub mod host;
 pub mod integrations;
 pub mod repositories;
@@ -204,19 +205,19 @@ pub fn run() {
                     }
                 }
             }
-            let gateway = services::gateway::GatewayState::new();
-            let discovery = services::discovery::DiscoveryState::new();
-            if services::lan_ip::current_lan_ipv4().is_some() {
+            let gateway = crate::gateway::GatewayState::new();
+            let discovery = crate::gateway::discovery::DiscoveryState::new();
+            if host::lan_ip::current_lan_ipv4().is_some() {
                 if let Ok(config_dir) = config::settings::settings_config_dir() {
                     let gateway_port = boot_settings.effective_gateway_port();
-                    match services::gateway::boot(&boot_settings, config_dir) {
-                        services::gateway::BootDecision::Started(handle) => {
+                    match crate::gateway::boot(&boot_settings, config_dir) {
+                        crate::gateway::BootDecision::Started(handle) => {
                             eprintln!("[gateway] listening 0.0.0.0:{gateway_port}");
                             gateway.set(handle);
                             discovery.try_start(gateway_port);
                         }
-                        services::gateway::BootDecision::SkippedNoLanIp => {}
-                        services::gateway::BootDecision::Failed(err) => {
+                        crate::gateway::BootDecision::SkippedNoLanIp => {}
+                        crate::gateway::BootDecision::Failed(err) => {
                             eprintln!("[gateway] start failed: {err}");
                         }
                     }
@@ -267,11 +268,11 @@ pub fn run() {
                 {
                     local_http.stop();
                 }
-                if let Some(discovery) = app_handle.try_state::<services::discovery::DiscoveryState>()
+                if let Some(discovery) = app_handle.try_state::<crate::gateway::discovery::DiscoveryState>()
                 {
                     discovery.stop();
                 }
-                if let Some(gateway) = app_handle.try_state::<services::gateway::GatewayState>() {
+                if let Some(gateway) = app_handle.try_state::<crate::gateway::GatewayState>() {
                     gateway.stop();
                 }
             }

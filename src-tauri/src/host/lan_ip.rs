@@ -81,5 +81,5 @@ fn enumerate_nics() -> Vec<NicIpv4> {
 }
 
 #[cfg(test)]
-#[path = "../../unit-tests/services/lan_ip.rs"]
+#[path = "../unit-tests/host/lan_ip.rs"]
 mod tests;

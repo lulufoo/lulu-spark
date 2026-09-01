@@ -7,7 +7,7 @@ use std::sync::{Arc, Condvar, Mutex};
 use std::thread::{self, JoinHandle};
 use std::time::Duration;
 
-use crate::services::lan_ip::current_lan_ipv4;
+use crate::host::lan_ip::current_lan_ipv4;
 
 pub const SERVICE_TYPE: &str = "_lulu-workbench._tcp";
 pub const DEFAULT_REFRESH_INTERVAL: Duration = Duration::from_secs(30);
@@ -293,5 +293,5 @@ impl DiscoveryState {
 }
 
 #[cfg(test)]
-#[path = "../../unit-tests/services/discovery.rs"]
+#[path = "../unit-tests/gateway/discovery.rs"]
 mod tests;

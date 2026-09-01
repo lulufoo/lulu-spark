@@ -4,8 +4,8 @@ use serde_json::{json, Value};
 use tauri::State;
 
 use crate::services::bind::{bind_session_state, log_bind_event, BindError};
-use crate::services::gateway::GatewayState;
-use crate::services::lan_ip::current_lan_ipv4;
+use crate::gateway::GatewayState;
+use crate::host::lan_ip::current_lan_ipv4;
 
 pub fn bind_error_to_command_error(err: BindError) -> String {
     format!("{err:?}")

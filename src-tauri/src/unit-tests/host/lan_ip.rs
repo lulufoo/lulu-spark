@@ -117,7 +117,7 @@ fn crate_exports_lan_ip_and_stays_ipv4_only() {
     let _ipv6_unused: Option<Ipv6Addr> = None;
     let src = include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/src/services/lan_ip/mod.rs"
+        "/src/host/lan_ip.rs"
     ));
     assert!(
         !src.contains("Host HTTP") && !src.contains("0.0.0.0"),
@@ -126,13 +126,18 @@ fn crate_exports_lan_ip_and_stays_ipv4_only() {
 }
 
 #[test]
-fn services_mod_registers_lan_ip() {
-    let src = include_str!(concat!(
+fn host_mod_registers_lan_ip() {
+    let host = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/src/host/mod.rs"));
+    let services = include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
         "/src/services/mod.rs"
     ));
     assert!(
-        src.contains("pub mod lan_ip"),
-        "services/mod.rs must register lan_ip"
+        host.contains("pub mod lan_ip"),
+        "host/mod.rs must register lan_ip"
+    );
+    assert!(
+        !services.contains("pub mod lan_ip"),
+        "lan_ip must not remain under services/"
     );
 }

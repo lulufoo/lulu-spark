@@ -4,8 +4,6 @@ This document is the **target** architecture constraint, not a snapshot of curre
 
 Technical call-direction only: no business objects, no reverse calls, no layer skips.
 
-Source: 2026-09-01 session `/converge` (seven locked items). ⚠️ Inferred (session decisions, not source facts)
-
 ```mermaid
 flowchart TB
   subgraph UP["Upstream"]
@@ -93,7 +91,7 @@ flowchart TB
 | **L7**             | Rebuild only; must not replace L6.                                                                                                                                        |
 
 
-Cross-cutting (not a layer): config and secrets flow downward only.
+Cross-cutting (not a layer): config and secrets flow downward only. Host process facts (live NIC, port liveness) live in `host/` and flow downward; they are not config.
 
 ---
 

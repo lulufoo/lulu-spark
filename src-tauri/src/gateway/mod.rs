@@ -18,7 +18,9 @@ use base64::Engine;
 use sha2::{Digest, Sha256};
 
 use crate::config::settings::AppSettings;
-use crate::services::lan_ip::current_lan_ipv4;
+use crate::host::lan_ip::current_lan_ipv4;
+
+pub mod discovery;
 
 pub const GATEWAY_CERT_FILE: &str = "gateway-cert.pem";
 pub const GATEWAY_KEY_FILE: &str = "gateway-key.pem";
@@ -407,5 +409,5 @@ fn json_status(status: StatusCode, body: &str) -> Response {
 }
 
 #[cfg(test)]
-#[path = "../../unit-tests/services/gateway.rs"]
+#[path = "../unit-tests/gateway.rs"]
 mod tests;

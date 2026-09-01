@@ -17,7 +17,7 @@ use crate::services::bind::{
     complete_bind, create_bind_payload, seal_bind_request, test_clear_session,
     test_reset_bind_keychain,
 };
-use crate::services::lan_ip::{test_override_nics, NicIpv4};
+use crate::host::lan_ip::{test_override_nics, NicIpv4};
 use crate::services::local_http;
 use crate::test_support::TestSandbox;
 
@@ -429,14 +429,19 @@ fn host_http_stays_on_loopback_and_is_not_the_lan_allowlist() {
 }
 
 #[test]
-fn services_mod_registers_gateway_as_in_process_module() {
+fn crate_registers_gateway_as_in_process_module() {
+    let lib = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/src/lib.rs"));
     let services = include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
         "/src/services/mod.rs"
     ));
     assert!(
-        services.contains("pub mod gateway"),
-        "services/mod.rs must register Gateway"
+        lib.contains("pub mod gateway"),
+        "lib.rs must register Gateway at crate root"
+    );
+    assert!(
+        !services.contains("pub mod gateway"),
+        "Gateway must not remain under services/"
     );
     let cargo = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/Cargo.toml"));
     assert_eq!(
@@ -491,7 +496,7 @@ fn lan_named_routes_are_only_bind_mobile_and_health() {
 fn gateway_does_not_decrypt_or_issue_tickets_or_cover_android() {
     let src = include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/src/services/gateway/mod.rs"
+        "/src/gateway/mod.rs"
     ));
     for needle in [
         "issue_for_device",

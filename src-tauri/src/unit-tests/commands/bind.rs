@@ -8,8 +8,8 @@ use crate::services::bind::{
     bind_session_state, complete_bind, create_bind_payload, seal_bind_request, test_clear_session,
     test_expire_current_session, test_reset_bind_keychain, BindError, BindSessionState,
 };
-use crate::services::gateway::{start, GatewayConfig, GatewayListen, GatewayState};
-use crate::services::lan_ip::{test_override_nics, NicIpv4};
+use crate::gateway::{start, GatewayConfig, GatewayListen, GatewayState};
+use crate::host::lan_ip::{test_override_nics, NicIpv4};
 use crate::test_support::TestSandbox;
 
 fn nic(name: &str, addr: &str) -> NicIpv4 {
@@ -229,7 +229,7 @@ fn bind_commands_are_host_only_and_not_mounted_on_gateway() {
         );
     }
 
-    let gateway = source("src/services/gateway/mod.rs");
+    let gateway = source("src/gateway/mod.rs");
     assert!(
         !gateway.contains("issue_bind") && !gateway.contains("read_bind_session"),
         "bind commands must not be mounted on Gateway"
@@ -275,7 +275,7 @@ fn gateway_state_current_reads_handle_port_and_tls_fingerprint() {
         "stop must clear the readable handle"
     );
 
-    let gateway = source("src/services/gateway/mod.rs");
+    let gateway = source("src/gateway/mod.rs");
     let start = gateway
         .find("pub fn current")
         .expect("GatewayState must expose a read of the current handle");
@@ -375,7 +375,7 @@ fn lan_ip_and_gateway_listen_are_independent() {
     with_cmd(|| {
         with_nics(Some(lan_nics()), || {
             assert_eq!(
-                crate::services::lan_ip::current_lan_ipv4(),
+                crate::host::lan_ip::current_lan_ipv4(),
                 Some(Ipv4Addr::new(10, 0, 0, 4))
             );
             let state = GatewayState::new();

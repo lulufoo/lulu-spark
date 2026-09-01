@@ -4,7 +4,7 @@ use std::time::Duration;
 
 use super::*;
 use crate::config::settings::{DEFAULT_PROD_GATEWAY_PORT, DEFAULT_SANDBOX_GATEWAY_PORT};
-use crate::services::lan_ip::{test_override_nics, NicIpv4};
+use crate::host::lan_ip::{test_override_nics, NicIpv4};
 
 fn nic(name: &str, addr: &str) -> NicIpv4 {
     NicIpv4 {
@@ -216,7 +216,7 @@ fn advertisement_does_not_carry_health_credentials_or_tls_identity() {
 fn discovery_uses_system_mdns_not_homemade_udp_or_network_listener() {
     let src = include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/src/services/discovery/mod.rs"
+        "/src/gateway/discovery.rs"
     ));
     let cargo = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/Cargo.toml"));
     assert!(
@@ -248,14 +248,22 @@ fn discovery_uses_system_mdns_not_homemade_udp_or_network_listener() {
 }
 
 #[test]
-fn services_mod_registers_discovery() {
-    let src = include_str!(concat!(
+fn gateway_registers_discovery() {
+    let gateway = include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/src/gateway/mod.rs"
+    ));
+    let services = include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
         "/src/services/mod.rs"
     ));
     assert!(
-        src.contains("pub mod discovery"),
-        "services/mod.rs must register discovery"
+        gateway.contains("pub mod discovery"),
+        "gateway must own discovery"
+    );
+    assert!(
+        !services.contains("pub mod discovery"),
+        "discovery must not remain under services/"
     );
 }
 
@@ -263,7 +271,7 @@ fn services_mod_registers_discovery() {
 fn discovery_does_not_change_mcp_mobile_or_prove_identity_via_health() {
     let src = include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/src/services/discovery/mod.rs"
+        "/src/gateway/discovery.rs"
     ));
     for needle in ["/mcp/mobile", "verify_device_token", "/health", "tls_fingerprint"] {
         assert!(
