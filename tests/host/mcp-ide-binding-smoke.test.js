@@ -13,7 +13,7 @@ describe('T11 IDE/Binding Host MCP acceptance smoke record', () => {
   it('Host registers workbench + cursor_ide; README documents the IDE URL', () => {
     const readme = readFileSync(join(repoRoot, 'README.md'), 'utf8');
     const types = readFileSync(
-      join(repoRoot, 'src-tauri/src/services/mcp_protocol_adapter/types.rs'),
+      join(repoRoot, 'src-tauri/src/services/mcp_host/server/types.rs'),
       'utf8',
     );
     expect(readme).toContain('http://127.0.0.1:<mcp_port>/mcp/cursor_ide');
@@ -30,7 +30,7 @@ describe('T11 IDE/Binding Host MCP acceptance smoke record', () => {
     const pkgJson = join(repoRoot, 'packages/cursor-agent-runner/package.json');
     expect(existsSync(pkgJson), 'cursor-agent-runner package must be removed').toBe(false);
     const adapter = readRsPath(
-      join(repoRoot, 'src-tauri/src/services/mcp_protocol_adapter'),
+      join(repoRoot, 'src-tauri/src/services/mcp_host'),
     );
     expect(adapter).not.toMatch(/cursor-agent-runner/);
     const libRs = readFileSync(join(repoRoot, 'src-tauri/src/lib.rs'), 'utf8');

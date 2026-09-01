@@ -24,8 +24,8 @@ fn run_loop_uses_mcp_tools_and_feeds_tool_result_back_to_model() {
     let sandbox = TestSandbox::new();
     secrets::test_secrets_clear();
     r#loop::reset_runtime_for_tests();
-    mcp_server_registry::clear_for_tests();
-    mcp_server_registry::seed_defaults();
+    mcp_registry::clear_for_tests();
+    mcp_registry::seed_defaults();
 
     let todo_root = sandbox.workbench_root().join("todo_tasks");
     fs::create_dir_all(&todo_root).expect("create todo root");
@@ -42,7 +42,7 @@ fn run_loop_uses_mcp_tools_and_feeds_tool_result_back_to_model() {
         format!("http://127.0.0.1:{sidecar_port}"),
     )
     .expect("start isolated MCP");
-    mcp_server_registry::register(
+    mcp_registry::register(
         "workbench",
         McpServerConfig {
             capability_description: "workbench test capability".into(),
@@ -114,8 +114,8 @@ fn run_loop_marks_successful_todo_mcp_mutation_as_wrote() {
     let sandbox = TestSandbox::new();
     secrets::test_secrets_clear();
     r#loop::reset_runtime_for_tests();
-    mcp_server_registry::clear_for_tests();
-    mcp_server_registry::seed_defaults();
+    mcp_registry::clear_for_tests();
+    mcp_registry::seed_defaults();
 
     let todo_root = sandbox.workbench_root().join("todo_tasks");
     fs::create_dir_all(&todo_root).expect("create todo root");
@@ -131,7 +131,7 @@ fn run_loop_marks_successful_todo_mcp_mutation_as_wrote() {
         format!("http://127.0.0.1:{sidecar_port}"),
     )
     .expect("start isolated MCP");
-    mcp_server_registry::register(
+    mcp_registry::register(
         "workbench",
         McpServerConfig {
             capability_description: "todo test capability".into(),
@@ -191,8 +191,8 @@ fn run_loop_returns_argument_and_allowlist_failures_to_the_model_as_tool_turns()
     let sandbox = TestSandbox::new();
     secrets::test_secrets_clear();
     r#loop::reset_runtime_for_tests();
-    mcp_server_registry::clear_for_tests();
-    mcp_server_registry::seed_defaults();
+    mcp_registry::clear_for_tests();
+    mcp_registry::seed_defaults();
     let (sidecar, mcp, mcp_port) = start_isolated_mcp(&sandbox);
     register_test_mcp("workbench", mcp_port);
 
@@ -261,8 +261,8 @@ fn run_loop_stops_after_bounded_mcp_tool_rounds() {
     let sandbox = TestSandbox::new();
     secrets::test_secrets_clear();
     r#loop::reset_runtime_for_tests();
-    mcp_server_registry::clear_for_tests();
-    mcp_server_registry::seed_defaults();
+    mcp_registry::clear_for_tests();
+    mcp_registry::seed_defaults();
     let (sidecar, mcp, mcp_port) = start_isolated_mcp(&sandbox);
     register_test_mcp("workbench", mcp_port);
 
@@ -312,8 +312,8 @@ fn run_loop_offers_host_file_tools_and_keeps_scratch_writes_inside_cache() {
     let sandbox = TestSandbox::new();
     secrets::test_secrets_clear();
     r#loop::reset_runtime_for_tests();
-    mcp_server_registry::clear_for_tests();
-    mcp_server_registry::seed_defaults();
+    mcp_registry::clear_for_tests();
+    mcp_registry::seed_defaults();
     let readable = sandbox.workbench_root().join("readable.md");
     fs::write(&readable, "needle-line\n").expect("plant readable file");
     let forbidden = sandbox.workbench_root().join("todo.md");
@@ -431,8 +431,8 @@ fn run_loop_does_not_call_mcp_after_reset_invalidates_its_generation() {
     let sandbox = TestSandbox::new();
     secrets::test_secrets_clear();
     r#loop::reset_runtime_for_tests();
-    mcp_server_registry::clear_for_tests();
-    mcp_server_registry::seed_defaults();
+    mcp_registry::clear_for_tests();
+    mcp_registry::seed_defaults();
     let (sidecar, mcp, mcp_port) = start_isolated_mcp(&sandbox);
     register_test_mcp("workbench", mcp_port);
 
@@ -1149,7 +1149,7 @@ fn t3_host_path_modules_do_not_import_removed_agent_stack() {
 #[test]
 fn t3_host_reports_unavailable_loaded_mcp_without_dispatch() {
     with_sandbox(|| {
-        use crate::services::mcp_server_registry::SEEDED_BUSINESS_KEY;
+        use crate::services::mcp_host::registry::SEEDED_BUSINESS_KEY;
         let mock = spawn_scripted_llm(vec![assistant_text("读只读面后文本回复")]);
         install_llm_cfg(&mock);
         r#loop::try_set_binding_json(&key_only_payload(SEEDED_BUSINESS_KEY)).expect("Set");
@@ -1293,7 +1293,7 @@ fn t2_empty_tools_binding_text_only_round_succeeds() {
 #[test]
 fn t2_key_only_set_loads_mcp_and_rejects_unreachable_endpoint() {
     with_sandbox(|| {
-        use crate::services::mcp_server_registry::SEEDED_BUSINESS_KEY;
+        use crate::services::mcp_host::registry::SEEDED_BUSINESS_KEY;
         let master = create_bound_plan("key-only空tools");
         let mock = spawn_scripted_llm(vec![assistant_text("key-only工具回复")]);
         let mut sess = session::create_session(Some(&master), Some("key-only空tools")).unwrap();

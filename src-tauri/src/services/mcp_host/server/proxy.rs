@@ -3,7 +3,7 @@
 use rmcp::model::{CallToolResult, ContentBlock};
 use serde_json::Value;
 
-use super::channel_routes::build_channel_tool_table;
+use crate::services::mcp_host::catalog::resolve_route;
 use super::types::{HttpMethod, McpToolError, McpToolResult};
 
 pub fn map_sidecar_response_to_mcp(
@@ -74,12 +74,7 @@ pub async fn proxy_tool_call(
     tool: &str,
     args: Value,
 ) -> Result<Result<McpToolResult, McpToolError>, String> {
-    let table = build_channel_tool_table(slot, channel)
-        .ok_or_else(|| format!("unregistered scene_slot: {slot}"))?;
-    let route = table
-        .tools
-        .iter()
-        .find(|r| r.name == tool)
+    let route = resolve_route(slot, channel, tool)
         .ok_or_else(|| format!("tool '{tool}' is not allowlisted for slot '{slot}'"))?;
 
     let base = sidecar_base_url.trim_end_matches('/');

@@ -31,10 +31,10 @@ use tokio_util::sync::CancellationToken;
 
 use crate::services::local_http;
 use crate::services::mcp_oauth::{verify_device_token, verify_for_slot, OAuthError, Slot, TicketHandle};
+use crate::services::settings::mcp_catalog;
 use super::proxy::{mapped_to_call_tool_result, proxy_tool_call};
 use super::types::ToolRoute;
-use super::channel_routes::build_channel_tool_table;
-use super::routes::scene_slot_api;
+use super::slot::is_registered_scene_slot;
 use super::types::{
     CloseGateError, CloseGateReport, McpRuntimeConfig, McpRuntimeHandle, McpStartError,
     McpStopError, McpToolError, DEFAULT_SIDECAR_BASE_URL, REGISTERED_SCENE_SLOTS,
@@ -99,18 +99,14 @@ impl ServerHandler for SlotHandler {
         _request: Option<PaginatedRequestParams>,
         _context: RequestContext<RoleServer>,
     ) -> impl std::future::Future<Output = Result<ListToolsResult, McpError>> + Send + '_ {
-        let enabled = crate::services::mcp_channel_tools::enabled_names(&self.channel);
-        let tools: Vec<Tool> = build_channel_tool_table(&self.scene_slot, &self.channel)
-            .map(|table| {
-                table
-                    .tools
-                    .into_iter()
-                    .filter(|route| enabled.contains(&route.name))
-                    .map(route_to_mcp_tool)
-                    .collect()
-            })
-            .unwrap_or_default();
-        std::future::ready(Ok(ListToolsResult::with_all_items(tools)))
+        let scene_slot = self.scene_slot.clone();
+        let channel = self.channel.clone();
+        std::future::ready(Ok(ListToolsResult::with_all_items(
+            catalog_routes(&scene_slot, &channel)
+                .into_iter()
+                .map(route_to_mcp_tool)
+                .collect(),
+        )))
     }
 
     fn call_tool(
@@ -122,7 +118,7 @@ impl ServerHandler for SlotHandler {
         let channel = self.channel.clone();
         let base = self.sidecar_base_url.clone();
         async move {
-            if !crate::services::mcp_channel_tools::is_enabled(&channel, request.name.as_ref()) {
+            if !mcp_catalog::is_enabled(&channel, request.name.as_ref()) {
                 return Err(McpError::invalid_params(
                     format!(
                         "tool '{}' is not enabled for channel '{}'",
@@ -138,6 +134,11 @@ impl ServerHandler for SlotHandler {
             }
         }
     }
+}
+
+fn catalog_routes(scene_slot: &str, channel: &str) -> Vec<ToolRoute> {
+    let enabled = mcp_catalog::enabled_grouped(channel);
+    crate::services::mcp_host::catalog::build_routes_for_channel(scene_slot, channel, &enabled)
 }
 
 /// Readiness probe contract matching Node `GET /health` (`ok` + non-empty `mcp`).
@@ -364,7 +365,7 @@ pub(super) async fn run_initialize_and_list_tools(
 ///
 /// Must pass before removing Node spawn paths (P2/T7).
 pub fn close_gate_smoke_initialize_list(slot: &str) -> Result<CloseGateReport, CloseGateError> {
-    if scene_slot_api(slot).is_none() {
+    if !is_registered_scene_slot(slot) {
         return Err(CloseGateError::UnregisteredSlot(slot.to_string()));
     }
 

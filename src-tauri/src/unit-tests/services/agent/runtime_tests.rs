@@ -15,7 +15,7 @@ use crate::services::agent::r#loop::{self, ChatTurnResult, EVENT_TURN_COMPLETED}
 use crate::services::agent::runtime;
 use crate::services::agent::session::value_exposes_engine_selection;
 use crate::services::agent::PLAN_ASSISTANT_SYSTEM_PROMPT;
-use crate::services::mcp_server_registry;
+use crate::services::mcp_host::registry as mcp_registry;
 use crate::services::todo_task;
 use crate::test_support::TestSandbox;
 
@@ -69,12 +69,12 @@ fn with_sandbox<F: FnOnce()>(f: F) {
     secrets::test_secrets_clear();
     r#loop::reset_runtime_for_tests();
     runtime::reset_for_tests();
-    mcp_server_registry::clear_for_tests();
-    mcp_server_registry::seed_defaults();
+    mcp_registry::clear_for_tests();
+    mcp_registry::seed_defaults();
     f();
     runtime::reset_for_tests();
     r#loop::reset_runtime_for_tests();
-    mcp_server_registry::clear_for_tests();
+    mcp_registry::clear_for_tests();
 }
 
 fn create_bound_plan(title: &str) -> String {

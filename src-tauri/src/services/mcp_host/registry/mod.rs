@@ -107,7 +107,7 @@ fn validate_config(config: &McpServerConfig) -> Result<(), McpServerLookupError>
 pub fn register(key: &str, config: McpServerConfig) -> Result<(), McpServerLookupError> {
     validate_key(key)?;
     validate_config(&config)?;
-    let mut guard = table().lock().expect("mcp_server_registry lock");
+    let mut guard = table().lock().expect("mcp_registry lock");
     guard.insert(key.to_string(), config);
     Ok(())
 }
@@ -115,7 +115,7 @@ pub fn register(key: &str, config: McpServerConfig) -> Result<(), McpServerLooku
 /// Look up MCP Server config by business key.
 pub fn lookup(key: &str) -> Result<McpServerConfig, McpServerLookupError> {
     validate_key(key)?;
-    let guard = table().lock().expect("mcp_server_registry lock");
+    let guard = table().lock().expect("mcp_registry lock");
     guard
         .get(key)
         .cloned()
@@ -130,10 +130,10 @@ pub fn seed_defaults() {
 /// Test helper: reset Host-internal registry state.
 #[cfg(test)]
 pub fn clear_for_tests() {
-    let mut guard = table().lock().expect("mcp_server_registry lock");
+    let mut guard = table().lock().expect("mcp_registry lock");
     guard.clear();
 }
 
 #[cfg(test)]
-#[path = "../unit-tests/services/mcp_server_registry.rs"]
+#[path = "../../../unit-tests/services/mcp_host/registry.rs"]
 mod tests;

@@ -234,7 +234,7 @@ fn present_command_json_does_not_set_binding() {
         assert_eq!(exec["code"], "rejected_unbound");
 
         // Present after Set still leaves bound and does not replace.
-        use crate::services::mcp_server_registry::SEEDED_BUSINESS_KEY;
+        use crate::services::mcp_host::registry::SEEDED_BUSINESS_KEY;
         let set = set_binding_json(json!({ "key": SEEDED_BUSINESS_KEY }));
         assert_eq!(set["ok"], true);
         let gen_before = query_binding_json()["generation"].clone();

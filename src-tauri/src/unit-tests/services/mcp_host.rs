@@ -492,8 +492,7 @@ fn start_embedded_mcp_runtime_fails_closed_when_port_busy() {
 fn build_slot_tool_table_workbench_is_notes_todo() {
     let table = build_slot_tool_table(WORKBENCH_SLOT).expect("workbench registered");
     assert_eq!(table.scene_slot, WORKBENCH_SLOT);
-    assert!(table.include_notes);
-    assert!(table.include_todo);
+    assert!(!table.tools.is_empty());
 
     let names: BTreeSet<_> = table.tools.iter().map(|t| t.name.as_str()).collect();
     let expected = workbench_expected_tool_names();
@@ -522,8 +521,7 @@ fn build_slot_tool_table_workbench_is_notes_todo() {
 fn build_slot_tool_table_cursor_ide_matches_node_allowlist() {
     let table = build_slot_tool_table("cursor_ide").expect("cursor_ide registered");
     assert_eq!(table.scene_slot, "cursor_ide");
-    assert!(table.include_notes);
-    assert!(table.include_todo);
+    assert!(!table.tools.is_empty());
 
     let names: BTreeSet<_> = table.tools.iter().map(|t| t.name.as_str()).collect();
     let mut expected: BTreeSet<_> = NOTES_TOOLS.iter().copied().collect();
@@ -1388,7 +1386,7 @@ fn adapter_source() -> &'static str {
     SRC.get_or_init(|| {
         crate::test_support::read_rs_dir(concat!(
             env!("CARGO_MANIFEST_DIR"),
-            "/src/services/mcp_protocol_adapter"
+            "/src/services/mcp_host"
         ))
     })
     .as_str()
@@ -1411,8 +1409,8 @@ fn assert_old_app_slots_unregistered() {
             "tools_list_for_slot({slot}) must be empty"
         );
         assert!(
-            super::scene_slot_api(slot).is_none(),
-            "scene_slot_api({slot}) must be None"
+            !super::is_registered_scene_slot(slot),
+            "is_registered_scene_slot({slot}) must be false"
         );
     }
 }
@@ -1439,12 +1437,8 @@ fn registered_scene_slots_are_only_workbench_and_cursor_ide() {
     assert!(!super::REGISTERED_SCENE_SLOTS.contains(&"notes"));
     assert!(!super::REGISTERED_SCENE_SLOTS.contains(&"todo_task"));
     assert!(!super::REGISTERED_SCENE_SLOTS.contains(&"mobile"));
-    let api = super::scene_slot_api(WORKBENCH_SLOT).expect("workbench registered");
-    assert!(api.include_notes);
-    assert!(api.include_todo);
-    let ide = super::scene_slot_api(CURSOR_IDE_SLOT).expect("cursor_ide stays registered");
-    assert!(ide.include_notes);
-    assert!(ide.include_todo);
+    assert!(super::is_registered_scene_slot(WORKBENCH_SLOT));
+    assert!(super::is_registered_scene_slot(CURSOR_IDE_SLOT));
 }
 
 /// Boundary: get_notes_selection is not hung on workbench.
@@ -1462,7 +1456,7 @@ fn get_notes_selection_is_not_hung_on_workbench() {
     let src = adapter_source();
     assert!(
         !src.contains("get_notes_selection") && !src.contains("NOTES_SLOT_ONLY_TOOLS"),
-        "mcp_protocol_adapter must not mention notes-selection tools"
+        "mcp_host must not mention notes-selection tools"
     );
 }
 
@@ -1579,8 +1573,7 @@ fn old_app_slots_http_hard_reject_without_mcp_session() {
 fn p4_cursor_ide_surface_unchanged_notes_plus_todo_original_api() {
     let table = build_slot_tool_table(CURSOR_IDE_SLOT).expect("cursor_ide registered");
     assert_eq!(table.scene_slot, CURSOR_IDE_SLOT);
-    assert!(table.include_notes);
-    assert!(table.include_todo);
+    assert!(!table.tools.is_empty());
 
     let names = names_of(&tools_list_for_slot(CURSOR_IDE_SLOT));
     // Slot catalog still includes workbench-only tools; channel overlay strips them at listen time.
@@ -2030,22 +2023,22 @@ fn t3_registered_scene_slots_exclude_mobile() {
         &[WORKBENCH_SLOT, CURSOR_IDE_SLOT]
     );
     assert!(!super::REGISTERED_SCENE_SLOTS.contains(&MOBILE_PATH));
-    assert!(super::scene_slot_api(MOBILE_PATH).is_none());
+    assert!(!super::is_registered_scene_slot(MOBILE_PATH));
     assert!(build_slot_tool_table(MOBILE_PATH).is_none());
     assert!(tools_list_for_slot(MOBILE_PATH).is_empty());
 }
 
-/// Boundary: do not add a mobile arm to scene_slot_api / build_slot_tool_table; no Slot::Mobile.
+/// Boundary: do not add a mobile arm to slot registration / build_slot_tool_table; no Slot::Mobile.
 #[test]
-fn t3_scene_slot_api_and_tool_table_have_no_mobile_arm() {
+fn t3_scene_slot_registration_and_tool_table_have_no_mobile_arm() {
     let src = adapter_source();
-    let scene = source_fn_after(src, "scene_slot_api")
-        .split("fn object_schema")
-        .next()
-        .expect("scene_slot_api body");
     assert!(
-        !scene.contains("mobile"),
-        "scene_slot_api must not grow a mobile arm"
+        !src.contains("SceneSlotApi"),
+        "slot layer must not use per-slot business flags"
+    );
+    assert!(
+        !src.contains("include_notes"),
+        "tool tables must not gate on include_notes"
     );
     let table = source_fn_after(src, "build_slot_tool_table")
         .split("/// Allowlisted tool names")
@@ -2344,7 +2337,7 @@ fn channel_filter_hides_and_rejects_create_note_on_mobile() {
             .filter(|name| *name != "create_note")
             .map(str::to_string)
             .collect();
-        crate::services::mcp_channel_tools::set_enabled("mobile", enabled).expect("save");
+        crate::services::settings::mcp_channel_tools::set_enabled("mobile", enabled).expect("save");
 
         let token = issue_device_ticket("phone-channel-filter");
         let sidecar_body = r#"{"ok":true,"via":"mobile"}"#;
@@ -2452,7 +2445,7 @@ fn t3_oauth_still_rejects_mobile_and_does_not_change_slot() {
     assert_eq!(Slot::parse(MOBILE_PATH), Err(OAuthError::slot_unknown));
     let src = adapter_source();
     assert!(!src.contains("Slot::Mobile"));
-    assert!(super::scene_slot_api(MOBILE_PATH).is_none());
+    assert!(!super::is_registered_scene_slot(MOBILE_PATH));
     let oauth = include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
         "/src/services/mcp_oauth.rs"
@@ -2517,7 +2510,7 @@ fn workbench_channel_get_note_content_by_id_hits_note_path() {
 /// Boundary: /mcp/mobile still uses workbench scene_slot; split is by channel, not slot.
 #[test]
 fn cursor_ide_and_mobile_get_note_content_by_id_still_hit_note_content() {
-    assert!(super::scene_slot_api(MOBILE_PATH).is_none());
+    assert!(!super::is_registered_scene_slot(MOBILE_PATH));
     assert_eq!(
         super::REGISTERED_SCENE_SLOTS,
         &[WORKBENCH_SLOT, CURSOR_IDE_SLOT]

@@ -4,14 +4,14 @@ use serde_json::json;
 
 use crate::services::agent::r#loop::{self, Binding};
 use crate::services::agent::session::{self, AIAssistantSession};
-use crate::services::mcp_server_registry::{self, SEEDED_BUSINESS_KEY};
+use crate::services::mcp_host::registry::{self, SEEDED_BUSINESS_KEY};
 use crate::test_support::TestSandbox;
 
 fn with_sandbox<F: FnOnce()>(f: F) {
     let _sandbox = TestSandbox::new();
     r#loop::reset_runtime_for_tests();
-    mcp_server_registry::clear_for_tests();
-    mcp_server_registry::seed_defaults();
+    registry::clear_for_tests();
+    registry::seed_defaults();
     f();
 }
 

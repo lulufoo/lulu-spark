@@ -21,10 +21,11 @@ pub(super) use crate::services::mcp_oauth::{
     issue_for_slot, ledger_record, revoke_for_slot, test_force_keychain_unavailable,
     verify_for_slot, Slot, TicketHandle, TicketState,
 };
-pub(super) use crate::services::mcp_protocol_adapter::{
+pub(super) use crate::services::mcp_host::{
     start_embedded_mcp_runtime_with_sidecar, stop_embedded_mcp_runtime, McpRuntimeConfig,
 };
-pub(super) use crate::services::mcp_server_registry::{self, HttpMcpTransport, McpServerConfig};
+pub(super) use crate::services::mcp_host::registry::{HttpMcpTransport, McpServerConfig};
+pub(super) use crate::services::mcp_host::registry as mcp_registry;
 pub(super) use crate::services::todo_task;
 pub(super) use crate::test_support::TestSandbox;
 
@@ -35,8 +36,8 @@ pub(super) fn with_sandbox<F: FnOnce()>(f: F) {
     secrets::test_secrets_clear();
     r#loop::reset_runtime_for_tests();
     test_force_keychain_unavailable(false);
-    crate::services::mcp_server_registry::clear_for_tests();
-    crate::services::mcp_server_registry::seed_defaults();
+    crate::services::mcp_host::registry::clear_for_tests();
+    crate::services::mcp_host::registry::seed_defaults();
     f();
 }
 
@@ -50,7 +51,7 @@ pub(super) fn ephemeral_port() -> u16 {
 
 pub(super) fn start_isolated_mcp(
     sandbox: &TestSandbox,
-) -> (local_http::LocalHttpHandle, crate::services::mcp_protocol_adapter::McpRuntimeHandle, u16) {
+) -> (local_http::LocalHttpHandle, crate::services::mcp_host::McpRuntimeHandle, u16) {
     let sidecar_port = ephemeral_port();
     let sidecar = local_http::start(sandbox.config_dir().to_path_buf(), sidecar_port)
         .expect("start isolated Sidecar");
@@ -74,7 +75,7 @@ pub(super) fn bearer_headers_for_slot(scene: &str) -> BTreeMap<String, String> {
 }
 
 pub(super) fn register_test_mcp(scene: &str, mcp_port: u16) {
-    mcp_server_registry::register(
+    mcp_registry::register(
         scene,
         McpServerConfig {
             capability_description: format!("{scene} test capability"),
@@ -512,7 +513,7 @@ pub(super) fn switch_session_without_resetting_binding(label: &str) -> (String, 
         session::live_context_owner()
             .current_business_id()
             .as_deref(),
-        Some(crate::services::mcp_server_registry::SEEDED_BUSINESS_KEY),
+        Some(crate::services::mcp_host::registry::SEEDED_BUSINESS_KEY),
         "same Binding must keep the same capability"
     );
     assert_eq!(
@@ -589,7 +590,7 @@ pub(super) fn assert_secret_absent_from(text: &str, secret: &str) {
 
 pub(super) fn assert_workbench_session_holds_live_ticket_seed_untouched() {
     let loaded = r#loop::loaded_mcp_server().expect("session MCP transport");
-    let seed = mcp_server_registry::lookup(mcp_server_registry::SEEDED_BUSINESS_KEY)
+    let seed = mcp_registry::lookup(mcp_registry::SEEDED_BUSINESS_KEY)
         .expect("registry seed");
     assert_eq!(
         loaded.capability_description, seed.capability_description,
@@ -638,7 +639,7 @@ pub(super) fn assert_bound_key(key: &str) {
         Some(key),
         "live business id must be {key}"
     );
-    if key == mcp_server_registry::SEEDED_BUSINESS_KEY {
+    if key == mcp_registry::SEEDED_BUSINESS_KEY {
         assert_workbench_session_holds_live_ticket_seed_untouched();
     }
 }

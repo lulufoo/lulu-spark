@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::PathBuf;
 
-use crate::services::mcp_channel_tools::set_enabled;
+use crate::services::settings::mcp_channel_tools::set_enabled;
 use crate::test_support::TestSandbox;
 
 fn source(rel: &str) -> String {

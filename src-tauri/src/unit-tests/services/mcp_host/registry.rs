@@ -175,7 +175,7 @@ fn expected_seed_url(key: &str) -> String {
 }
 
 fn registry_source() -> &'static str {
-    include_str!("../../services/mcp_server_registry.rs")
+    include_str!("../../../services/mcp_host/registry/mod.rs")
 }
 
 #[test]

@@ -2,10 +2,10 @@ use std::collections::HashSet;
 use std::fs;
 
 use crate::config::paths;
-use crate::services::mcp_channel_tools::{
+use crate::services::settings::mcp_channel_tools::{
     enabled_names, is_enabled, set_enabled, snapshot, MCP_CHANNELS,
 };
-use crate::services::mcp_protocol_adapter::catalog_groups;
+use crate::services::mcp_host::catalog_groups;
 use crate::test_support::TestSandbox;
 
 fn catalog() -> HashSet<String> {
@@ -53,11 +53,17 @@ fn set_enabled_subset_filters_only_that_channel() {
     let stored: serde_json::Value = serde_json::from_str(&fs::read_to_string(&path).expect("read"))
         .expect("json");
     assert!(stored["channels"].get("workbench").is_none());
-    assert!(stored["channels"]["mobile"]
+    let mobile_notes = stored["channels"]["mobile"]["notes"]
         .as_array()
-        .expect("mobile list")
+        .expect("mobile notes");
+    assert!(mobile_notes
         .iter()
         .all(|n| n.as_str() != Some("create_note")));
+    assert!(stored["channels"]["mobile"]["todo"]
+        .as_array()
+        .expect("mobile todo")
+        .iter()
+        .any(|n| n.as_str() == Some("list_todo_tasks")));
 }
 
 #[test]
@@ -137,17 +143,51 @@ fn delete_note_never_enables_on_non_workbench_even_if_listed() {
 }
 
 #[test]
-fn listen_filters_list_and_call_through_this_service() {
+fn load_migrates_legacy_flat_channel_lists() {
+    let sandbox = TestSandbox::new();
+    let path = paths::mcp_channel_tools_path().expect("path");
+    fs::write(
+        &path,
+        serde_json::json!({
+            "channels": {
+                "mobile": ["get_all_notes_catalog", "list_todo_tasks"]
+            }
+        })
+        .to_string(),
+    )
+    .expect("write legacy");
+    sandbox.assert_not_prod_path(&path).expect("sandbox file");
+    let grouped = crate::services::settings::mcp_channel_tools::enabled_by_group("mobile");
+    assert!(grouped.notes.contains(&"get_all_notes_catalog".into()));
+    assert!(grouped.todo.contains(&"list_todo_tasks".into()));
+    assert!(is_enabled("mobile", "get_all_notes_catalog"));
+    assert!(is_enabled("mobile", "list_todo_tasks"));
+}
+
+#[test]
+fn snapshot_exposes_grouped_enabled() {
+    let _sandbox = TestSandbox::new();
+    set_enabled("mobile", without("create_note")).expect("save");
+    let snap = snapshot().expect("snapshot");
+    assert!(snap["enabled_grouped"]["mobile"]["notes"]
+        .as_array()
+        .expect("mobile notes grouped")
+        .iter()
+        .all(|n| n.as_str() != Some("create_note")));
+}
+
+#[test]
+fn listen_filters_list_and_call_through_settings_catalog() {
     let listen = include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/src/services/mcp_protocol_adapter/listen.rs"
+        "/src/services/mcp_host/server/listen.rs"
     ));
     assert!(
-        listen.contains("mcp_channel_tools::enabled_names"),
-        "list_tools must filter by channel checkboxes"
+        listen.contains("mcp_catalog::enabled_grouped"),
+        "list_tools must filter by grouped channel checkboxes"
     );
     assert!(
-        listen.contains("mcp_channel_tools::is_enabled"),
+        listen.contains("mcp_catalog::is_enabled"),
         "call_tool must reject unchecked tools"
     );
     assert!(

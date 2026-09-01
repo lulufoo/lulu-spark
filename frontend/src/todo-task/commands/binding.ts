@@ -4,7 +4,7 @@
  * or select an engine. No Reset helper — Binding is not tied to page enter/leave.
  */
 
-/** Seeded business key — aligned with Host `mcp_server_registry::SEEDED_BUSINESS_KEY`. */
+/** Seeded business key — aligned with Host `mcp_host::registry::SEEDED_BUSINESS_KEY`. */
 export const WORKBENCH_BUSINESS_KEY = 'workbench';
 
 function getTauriInvoke() {

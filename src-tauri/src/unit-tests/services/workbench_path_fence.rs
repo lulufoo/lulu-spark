@@ -5,7 +5,7 @@ use serde_json::json;
 
 use crate::config::paths;
 use crate::services::agent::r#loop;
-use crate::services::mcp_server_registry::{self, SEEDED_BUSINESS_KEY};
+use crate::services::mcp_host::registry::{self, SEEDED_BUSINESS_KEY};
 use crate::services::workbench_path_fence::expand_for_business_key;
 use crate::test_support::TestSandbox;
 
@@ -22,8 +22,8 @@ fn same_path(left: &Path, right: &Path) -> bool {
 fn with_sandbox<F: FnOnce(&TestSandbox)>(f: F) {
     let sandbox = TestSandbox::new();
     r#loop::reset_runtime_for_tests();
-    mcp_server_registry::clear_for_tests();
-    mcp_server_registry::seed_defaults();
+    registry::clear_for_tests();
+    registry::seed_defaults();
     f(&sandbox);
 }
 

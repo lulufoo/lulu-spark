@@ -52,7 +52,7 @@ function assertArchived() {
 }
 
 function readAdapterSource() {
-  const dir = path.join(REPO_ROOT, 'src-tauri/src/services/mcp_protocol_adapter');
+  const dir = path.join(REPO_ROOT, 'src-tauri/src/services/mcp_host');
   return readdirSync(dir)
     .filter((name) => name.endsWith('.rs'))
     .sort()

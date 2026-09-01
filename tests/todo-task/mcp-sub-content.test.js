@@ -10,7 +10,7 @@ import { describe, expect, it } from 'vitest';
 import { readRsPath } from '../helpers/read-rs-dir.js';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
-const HOST_ADAPTER = 'src-tauri/src/services/mcp_protocol_adapter';
+const HOST_ADAPTER = 'src-tauri/src/services/mcp_host';
 
 function read(rel) {
   return readRsPath(join(repoRoot, rel));

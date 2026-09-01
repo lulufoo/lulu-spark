@@ -2,8 +2,13 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
+import { readRsPath } from '../helpers/read-rs-dir.js';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
+const todoCatalogDir = join(
+  repoRoot,
+  'src-tauri/src/services/mcp_host/catalog/groups/todo',
+);
 
 const EXPECTED_TOOLS = [
   'create_todo_task',
@@ -26,13 +31,13 @@ function read(rel) {
 }
 
 describe('plan→todo vocab lock (tech-doc SK-0 / T1)', () => {
-  it('Host MCP todo routes keep locked public names and todo_md', () => {
-    const routes = read('src-tauri/src/services/mcp_protocol_adapter/routes.rs');
+  it('Host MCP todo catalog keeps locked public names and todo_md', () => {
+    const catalog = readRsPath(todoCatalogDir);
     for (const name of EXPECTED_TOOLS) {
-      expect(routes, `missing tool ${name}`).toContain(`"${name}"`);
+      expect(catalog, `missing tool ${name}`).toContain(`"${name}"`);
     }
-    expect(routes).toContain('todo_md');
-    expect(routes).not.toContain('complete_plan_sub');
+    expect(catalog).toContain('todo_md');
+    expect(catalog).not.toContain('complete_plan_sub');
   });
 
   it('HTTP prefix is /api/todo- and disk body is todo.md', () => {

@@ -7,7 +7,7 @@ use serde_json::{json, Value};
 use crate::services::agent::path_fence::PathFence;
 use crate::services::agent::session::{self, BindingStateSummary, SetError};
 use crate::services::mcp_oauth::{issue_for_slot, Slot};
-use crate::services::mcp_server_registry::{self, McpServerConfig, McpServerLookupError};
+use crate::services::mcp_host::registry::{self, McpServerConfig, McpServerLookupError};
 use crate::services::workbench_path_fence;
 
 use super::flights::{emit_lifecycle, emit_shell_binding_changed, request_in_flight_cancel, runtime};
@@ -97,7 +97,7 @@ pub fn try_set_binding_json(v: &Value) -> Result<(), SetError> {
         emit_lifecycle("onError", Some("set_invalid"));
         SetError::set_invalid()
     })?;
-    let config = match mcp_server_registry::lookup(&key) {
+    let config = match registry::lookup(&key) {
         Ok(cfg) => cfg,
         Err(McpServerLookupError::NotFound) => {
             eprintln!("[DEBUG-assistant] host: mcp lookup not found key={key}");
@@ -128,7 +128,7 @@ pub fn try_set_binding_json(v: &Value) -> Result<(), SetError> {
 /// Authorization onto this session's transport copy. Registry seed is unchanged.
 /// Keychain failure returns `set_invalid` and must not reach `set_binding_with_mcp`.
 fn inject_workbench_ticket(key: &str, mut config: McpServerConfig) -> Result<McpServerConfig, SetError> {
-    if key != mcp_server_registry::SEEDED_BUSINESS_KEY {
+    if key != registry::SEEDED_BUSINESS_KEY {
         return Ok(config);
     }
     let handle = match issue_for_slot(Slot::Workbench) {
@@ -150,7 +150,7 @@ fn inject_workbench_ticket(key: &str, mut config: McpServerConfig) -> Result<Mcp
 /// Host Agent Loop. Field-level transport schema remains deferred.
 pub const SESSION_CAPABILITY_READ_FACE_REGISTRY_SHAPE: bool = true;
 
-/// Must Close Before T4 — A2 confirmed (not narrowed): Host `mcp_server_registry`
+/// Must Close Before T4 — A2 confirmed (not narrowed): Host `mcp_host::registry`
 /// is the sole lookup source; this face only exposes config already loaded by
 /// key-only Set from that table.
 pub const SESSION_CAPABILITY_READ_FACE_A2_HOST_REGISTRY_SOLE_LOOKUP: bool = true;

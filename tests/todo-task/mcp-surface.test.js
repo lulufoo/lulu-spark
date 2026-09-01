@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
 import { readRsPath } from '../helpers/read-rs-dir.js';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
-const HOST_ADAPTER = 'src-tauri/src/services/mcp_protocol_adapter';
+const HOST_ADAPTER = 'src-tauri/src/services/mcp_host';
 
 /** tech-doc 公开契约映射 — todo_* MCP tools (+ update_todo_sub / list_todo_categories); no complete_plan_sub. */
 const EXPECTED_TODO_TOOLS = [

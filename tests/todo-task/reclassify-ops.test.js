@@ -61,7 +61,7 @@ describe('todo reclassify ops (t5)', () => {
   });
 
   it('does not introduce MCP category directory CRUD tools', () => {
-    const src = readRsPath(join(repoRoot, 'src-tauri/src/services/mcp_protocol_adapter'));
+    const src = readRsPath(join(repoRoot, 'src-tauri/src/services/mcp_host'));
     for (const tool of [
       'create_todo_category',
       'delete_todo_category',

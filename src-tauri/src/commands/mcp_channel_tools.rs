@@ -4,12 +4,12 @@ use serde_json::{json, Value};
 
 #[tauri::command]
 pub fn get_mcp_channel_tools() -> Result<Value, String> {
-    crate::services::mcp_channel_tools::snapshot()
+    crate::services::settings::mcp_channel_tools::snapshot()
 }
 
 #[tauri::command]
 pub fn set_mcp_channel_tools(channel: String, enabled: Vec<String>) -> Result<Value, String> {
-    crate::services::mcp_channel_tools::set_enabled(&channel, enabled)?;
+    crate::services::settings::mcp_channel_tools::set_enabled(&channel, enabled)?;
     Ok(json!({ "ok": true }))
 }
 

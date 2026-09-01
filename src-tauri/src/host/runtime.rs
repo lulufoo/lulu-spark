@@ -25,11 +25,11 @@ impl MeiliProcess {
 /// Holds the embedded Host MCP runtime (independent OS thread + tokio).
 /// Lifecycle: start in app setup; stop/join on app exit.
 pub struct EmbeddedMcpRuntime {
-    handle: Mutex<Option<services::mcp_protocol_adapter::McpRuntimeHandle>>,
+    handle: Mutex<Option<services::mcp_host::McpRuntimeHandle>>,
 }
 
 impl EmbeddedMcpRuntime {
-    pub fn new(handle: Option<services::mcp_protocol_adapter::McpRuntimeHandle>) -> Self {
+    pub fn new(handle: Option<services::mcp_host::McpRuntimeHandle>) -> Self {
         Self {
             handle: Mutex::new(handle),
         }
@@ -38,7 +38,7 @@ impl EmbeddedMcpRuntime {
     pub fn stop(&self) {
         if let Ok(mut guard) = self.handle.lock() {
             if let Some(handle) = guard.take() {
-                let _ = services::mcp_protocol_adapter::stop_embedded_mcp_runtime(handle);
+                let _ = services::mcp_host::stop_embedded_mcp_runtime(handle);
             }
         }
     }

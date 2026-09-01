@@ -19,7 +19,7 @@ use rmcp::{
 };
 use serde_json::{json, Value};
 
-use crate::services::mcp_server_registry::McpServerConfig;
+use crate::services::mcp_host::registry::McpServerConfig;
 
 const CLIENT_NAME: &str = "workbench-host-agent";
 const CLIENT_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -342,7 +342,7 @@ pub(crate) fn headers_from_config_for_tests(
 ) -> Result<HashMap<HeaderName, HeaderValue>, McpClientError> {
     transport_headers(&McpServerConfig {
         capability_description: "test".into(),
-        http_transport: crate::services::mcp_server_registry::HttpMcpTransport {
+        http_transport: crate::services::mcp_host::registry::HttpMcpTransport {
             name: "test".into(),
             url: "http://127.0.0.1/test".into(),
             headers,

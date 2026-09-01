@@ -465,20 +465,29 @@ impl TestSandbox {
     }
 }
 
-/// Concatenate every `.rs` file in a source directory (sorted by path).
+/// Concatenate every `.rs` file under a source directory tree (sorted by path).
 pub fn read_rs_dir(dir: impl AsRef<Path>) -> String {
-    let mut files: Vec<_> = std::fs::read_dir(dir.as_ref())
-        .unwrap_or_else(|e| panic!("read {}: {e}", dir.as_ref().display()))
-        .filter_map(|e| e.ok())
-        .map(|e| e.path())
-        .filter(|p| p.extension().and_then(|e| e.to_str()) == Some("rs"))
-        .collect();
+    let mut files = Vec::new();
+    collect_rs_files(dir.as_ref(), &mut files);
     files.sort();
     files
         .into_iter()
         .map(|p| std::fs::read_to_string(&p).unwrap_or_default())
         .collect::<Vec<_>>()
         .join("\n")
+}
+
+fn collect_rs_files(dir: &Path, out: &mut Vec<PathBuf>) {
+    let entries = std::fs::read_dir(dir)
+        .unwrap_or_else(|e| panic!("read {}: {e}", dir.display()));
+    for entry in entries.filter_map(|e| e.ok()) {
+        let path = entry.path();
+        if path.is_dir() {
+            collect_rs_files(&path, out);
+        } else if path.extension().and_then(|e| e.to_str()) == Some("rs") {
+            out.push(path);
+        }
+    }
 }
 
 pub fn with_sandbox_notes<F: FnOnce(&Path, &Path)>(prepare_ai_subdir: bool, f: F) {
