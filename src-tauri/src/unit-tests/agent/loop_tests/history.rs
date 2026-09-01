@@ -15,7 +15,7 @@ fn workbench_host_system_prompt_is_nonempty_code_constant() {
 #[test]
 fn key_only_set_applies_workbench_host_system_prompt_not_registry_capability() {
     with_sandbox(|| {
-        use crate::services::mcp_host::registry::{self, SEEDED_BUSINESS_KEY};
+        use crate::mcp_host::registry::{self, SEEDED_BUSINESS_KEY};
         r#loop::try_set_binding_json(&json!({ "key": SEEDED_BUSINESS_KEY })).expect("Set");
         let live = session::live_context_owner();
         let prompt = live

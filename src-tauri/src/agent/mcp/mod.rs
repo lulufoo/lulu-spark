@@ -17,7 +17,7 @@ use rmcp::{
 };
 use serde_json::Value;
 
-use crate::services::mcp_host::registry::McpServerConfig;
+use crate::mcp_host::registry::McpServerConfig;
 
 use super::tools::catalog::{self, ToolCatalog, ToolResult};
 
@@ -166,7 +166,7 @@ pub(crate) fn headers_from_config_for_tests(
 ) -> Result<HashMap<HeaderName, HeaderValue>, McpError> {
     transport_headers(&McpServerConfig {
         capability_description: "test".into(),
-        http_transport: crate::services::mcp_host::registry::HttpMcpTransport {
+        http_transport: crate::mcp_host::registry::HttpMcpTransport {
             name: "test".into(),
             url: "http://127.0.0.1/test".into(),
             headers,

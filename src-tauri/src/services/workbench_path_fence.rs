@@ -3,7 +3,7 @@
 
 use crate::config::paths;
 use crate::services::path_fence::{stored_path, PathFence};
-use crate::services::mcp_host::registry::SEEDED_BUSINESS_KEY;
+use crate::mcp_host::registry::SEEDED_BUSINESS_KEY;
 use crate::services::sediment_kb;
 
 /// Expand fence lists for a business key. Unknown keys yield `None`.

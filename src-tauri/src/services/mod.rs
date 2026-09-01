@@ -22,7 +22,6 @@ pub mod sediment_kb;
 pub mod settle;
 pub mod tag_write;
 pub mod tags_registry;
-pub mod mcp_host;
 pub mod settings;
 pub mod mcp_oauth;
 pub mod bind;

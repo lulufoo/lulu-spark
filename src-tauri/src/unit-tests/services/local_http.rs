@@ -2884,7 +2884,7 @@ fn notes_selection_module_and_mcp_tool_are_gone() {
     let adapter = crate::test_support::read_rs_dir({
         let mut p = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         p.pop();
-        p.push("src-tauri/src/services/mcp_host");
+        p.push("src-tauri/src/mcp_host");
         p
     });
     assert!(
@@ -2912,7 +2912,7 @@ fn notes_selection_module_and_mcp_tool_are_gone() {
         "notes_selection.rs must be deleted"
     );
     for slot in ["workbench", "cursor_ide", "todo_task", "notes"] {
-        if let Some(table) = crate::services::mcp_host::build_slot_tool_table(slot) {
+        if let Some(table) = crate::mcp_host::build_slot_tool_table(slot) {
             for tool in &table.tools {
                 let name = tool.name.to_lowercase();
                 assert!(

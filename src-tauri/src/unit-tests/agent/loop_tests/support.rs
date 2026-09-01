@@ -21,11 +21,11 @@ pub(super) use crate::services::mcp_oauth::{
     issue_for_slot, ledger_record, revoke_for_slot, test_force_keychain_unavailable,
     verify_for_slot, Slot, TicketHandle, TicketState,
 };
-pub(super) use crate::services::mcp_host::{
+pub(super) use crate::mcp_host::{
     start_embedded_mcp_runtime_with_sidecar, stop_embedded_mcp_runtime, McpRuntimeConfig,
 };
-pub(super) use crate::services::mcp_host::registry::{HttpMcpTransport, McpServerConfig};
-pub(super) use crate::services::mcp_host::registry as mcp_registry;
+pub(super) use crate::mcp_host::registry::{HttpMcpTransport, McpServerConfig};
+pub(super) use crate::mcp_host::registry as mcp_registry;
 pub(super) use crate::services::todo_task;
 pub(super) use crate::test_support::TestSandbox;
 
@@ -36,8 +36,8 @@ pub(super) fn with_sandbox<F: FnOnce()>(f: F) {
     secrets::test_secrets_clear();
     r#loop::reset_runtime_for_tests();
     test_force_keychain_unavailable(false);
-    crate::services::mcp_host::registry::clear_for_tests();
-    crate::services::mcp_host::registry::seed_defaults();
+    crate::mcp_host::registry::clear_for_tests();
+    crate::mcp_host::registry::seed_defaults();
     f();
 }
 
@@ -51,7 +51,7 @@ pub(super) fn ephemeral_port() -> u16 {
 
 pub(super) fn start_isolated_mcp(
     sandbox: &TestSandbox,
-) -> (local_http::LocalHttpHandle, crate::services::mcp_host::McpRuntimeHandle, u16) {
+) -> (local_http::LocalHttpHandle, crate::mcp_host::McpRuntimeHandle, u16) {
     let sidecar_port = ephemeral_port();
     let sidecar = local_http::start(sandbox.config_dir().to_path_buf(), sidecar_port)
         .expect("start isolated Sidecar");
@@ -513,7 +513,7 @@ pub(super) fn switch_session_without_resetting_binding(label: &str) -> (String, 
         session::live_context_owner()
             .current_business_id()
             .as_deref(),
-        Some(crate::services::mcp_host::registry::SEEDED_BUSINESS_KEY),
+        Some(crate::mcp_host::registry::SEEDED_BUSINESS_KEY),
         "same Binding must keep the same capability"
     );
     assert_eq!(

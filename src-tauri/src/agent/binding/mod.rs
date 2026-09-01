@@ -7,7 +7,7 @@ use serde_json::{json, Value};
 use crate::services::path_fence::PathFence;
 use crate::agent::session::{self, BindingStateSummary, SetError};
 use crate::services::mcp_oauth::{issue_for_slot, Slot};
-use crate::services::mcp_host::registry::{self, McpServerConfig, McpServerLookupError};
+use crate::mcp_host::registry::{self, McpServerConfig, McpServerLookupError};
 use crate::services::workbench_path_fence;
 
 use crate::agent::turn::{emit_lifecycle, emit_shell_binding_changed, request_in_flight_cancel, runtime};

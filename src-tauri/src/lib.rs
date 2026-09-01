@@ -4,6 +4,7 @@ pub mod config;
 pub mod gateway;
 pub mod host;
 pub mod integrations;
+pub mod mcp_host;
 pub mod repositories;
 pub mod services;
 
@@ -193,8 +194,8 @@ pub fn run() {
                 // Embedded MCP only (dual-listen with Sidecar). Bind failure is fail-closed:
                 // never fall back to spawning a Node MCP sidecar.
                 let mcp_bind = SocketAddr::from(([127, 0, 0, 1], mcp_port));
-                match services::mcp_host::start_embedded_mcp_runtime(
-                    services::mcp_host::McpRuntimeConfig {
+                match crate::mcp_host::start_embedded_mcp_runtime(
+                    crate::mcp_host::McpRuntimeConfig {
                         bind_addr: mcp_bind,
                     },
                 ) {
@@ -225,7 +226,7 @@ pub fn run() {
                 }
             }
             // L2 Host key→MCP registry: seed L1 internal MCP business surface before Binding Set.
-            services::mcp_host::seed_defaults();
+            crate::mcp_host::seed_defaults();
             app.manage(EmbeddedMcpRuntime::new(embedded_mcp_handle));
             app.manage(local_http);
             app.manage(gateway);

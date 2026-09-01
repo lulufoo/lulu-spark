@@ -1,7 +1,5 @@
 use std::sync::Mutex;
 
-use crate::services;
-
 /// Holds the spawned Meilisearch child process so we can kill it on app exit.
 #[cfg(not(test))]
 pub struct MeiliProcess(Mutex<Option<std::process::Child>>);
@@ -25,11 +23,11 @@ impl MeiliProcess {
 /// Holds the embedded Host MCP runtime (independent OS thread + tokio).
 /// Lifecycle: start in app setup; stop/join on app exit.
 pub struct EmbeddedMcpRuntime {
-    handle: Mutex<Option<services::mcp_host::McpRuntimeHandle>>,
+    handle: Mutex<Option<crate::mcp_host::McpRuntimeHandle>>,
 }
 
 impl EmbeddedMcpRuntime {
-    pub fn new(handle: Option<services::mcp_host::McpRuntimeHandle>) -> Self {
+    pub fn new(handle: Option<crate::mcp_host::McpRuntimeHandle>) -> Self {
         Self {
             handle: Mutex::new(handle),
         }
@@ -38,7 +36,7 @@ impl EmbeddedMcpRuntime {
     pub fn stop(&self) {
         if let Ok(mut guard) = self.handle.lock() {
             if let Some(handle) = guard.take() {
-                let _ = services::mcp_host::stop_embedded_mcp_runtime(handle);
+                let _ = crate::mcp_host::stop_embedded_mcp_runtime(handle);
             }
         }
     }

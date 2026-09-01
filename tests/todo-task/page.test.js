@@ -878,7 +878,7 @@ describe('todo-tasks route source wiring', () => {
 
   it('does not map set-status as an MCP tool', () => {
     const mcpIndex = readRsPath(
-      join(fixtureRoot, 'src-tauri/src/services/mcp_host'),
+      join(fixtureRoot, 'src-tauri/src/mcp_host'),
     );
     expect(mcpIndex).not.toMatch(/set_todo_master_status|todo-task-set-status|set_master_status/);
   });

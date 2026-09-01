@@ -11,7 +11,7 @@ import { describe, expect, it } from 'vitest';
 import { readRsPath } from '../helpers/read-rs-dir.js';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
-const HOST_ADAPTER = 'src-tauri/src/services/mcp_host';
+const HOST_ADAPTER = 'src-tauri/src/mcp_host';
 
 /** tech-doc AC-等价 — full 13-tool set (update/complete/link/attachment required). */
 const EQUIVALENCE_TODO_TOOLS = [

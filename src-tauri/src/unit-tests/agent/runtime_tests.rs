@@ -15,7 +15,7 @@ use crate::agent::r#loop::{self, ChatTurnResult, EVENT_TURN_COMPLETED};
 use crate::agent::runtime;
 use crate::agent::session::value_exposes_engine_selection;
 use crate::agent::WORKBENCH_HOST_SYSTEM_PROMPT;
-use crate::services::mcp_host::registry as mcp_registry;
+use crate::mcp_host::registry as mcp_registry;
 use crate::services::todo_task;
 use crate::test_support::TestSandbox;
 

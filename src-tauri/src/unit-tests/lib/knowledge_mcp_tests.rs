@@ -5,7 +5,7 @@ use std::time::Duration;
 
 use super::*;
 use crate::services::local_http;
-use crate::services::mcp_host::{
+use crate::mcp_host::{
     observe_dual_listen, start_embedded_mcp_runtime, stop_embedded_mcp_runtime, McpRuntimeConfig,
     McpStartError,
 };

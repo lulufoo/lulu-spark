@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::services::path_fence::PathFence;
-use crate::services::mcp_host::registry::McpServerConfig;
+use crate::mcp_host::registry::McpServerConfig;
 
 /// Session lifecycle entry (`create_session` / persist) does not expose an
 /// assistant-channel selection API or store it on the session record.

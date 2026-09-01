@@ -17,7 +17,7 @@ const dialogSource = [
   readFrontendJs('frontend/src/todo-task/commands/dialog.ts'),
   readFrontendJs('frontend/src/todo-task/state/dialog.ts'),
 ].join('\n');
-const mcpSource = readRsPath(join(fixtureRoot, 'src-tauri/src/services/mcp_host'));
+const mcpSource = readRsPath(join(fixtureRoot, 'src-tauri/src/mcp_host'));
 
 function extractCreateTodoTaskBlock(source) {
   // Host SSOT: ToolRoute entries are `route("…", …)` (T10).

@@ -4,7 +4,7 @@ use serde_json::json;
 
 use crate::agent::r#loop::{self, Binding};
 use crate::agent::session::{self, AIAssistantSession};
-use crate::services::mcp_host::registry::{self, SEEDED_BUSINESS_KEY};
+use crate::mcp_host::registry::{self, SEEDED_BUSINESS_KEY};
 use crate::test_support::TestSandbox;
 
 fn with_sandbox<F: FnOnce()>(f: F) {

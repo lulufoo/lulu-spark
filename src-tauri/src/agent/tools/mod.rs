@@ -9,7 +9,7 @@ use std::fmt;
 
 use serde_json::Value;
 
-use crate::services::mcp_host::registry::McpServerConfig;
+use crate::mcp_host::registry::McpServerConfig;
 use crate::services::path_fence::PathFence;
 
 use super::mcp;

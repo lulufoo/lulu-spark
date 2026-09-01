@@ -1636,7 +1636,7 @@ fn t6_l2_missed_reset_defensive_cut_then_not_executable() {
 #[test]
 fn t8_binding_request_helpers_route_create_turn_cancel_by_current_session_id() {
     with_sandbox(|| {
-        r#loop::try_set_binding_json(&json!({ "key": crate::services::mcp_host::registry::SEEDED_BUSINESS_KEY })).expect("Set");
+        r#loop::try_set_binding_json(&json!({ "key": crate::mcp_host::registry::SEEDED_BUSINESS_KEY })).expect("Set");
         let session_id = r#loop::ensure_chat_session_core()
             .expect("ensure")
             .get("session_id")
@@ -1647,7 +1647,7 @@ fn t8_binding_request_helpers_route_create_turn_cancel_by_current_session_id() {
             session::live_context_owner()
                 .current_business_id()
                 .as_deref(),
-            Some(crate::services::mcp_host::registry::SEEDED_BUSINESS_KEY)
+            Some(crate::mcp_host::registry::SEEDED_BUSINESS_KEY)
         );
         let calls = Arc::new(Mutex::new(Vec::<String>::new()));
 
@@ -1688,7 +1688,7 @@ fn t8_binding_request_helpers_route_create_turn_cancel_by_current_session_id() {
                 .lock()
                 .unwrap()
                 .iter()
-                .any(|entry| entry.contains(crate::services::mcp_host::registry::SEEDED_BUSINESS_KEY)),
+                .any(|entry| entry.contains(crate::mcp_host::registry::SEEDED_BUSINESS_KEY)),
             "create/turn must record session identity, not Binding-derived identity"
         );
 
@@ -1710,7 +1710,7 @@ fn t8_binding_request_helpers_route_create_turn_cancel_by_current_session_id() {
                 .lock()
                 .unwrap()
                 .iter()
-                .any(|entry| entry.contains(crate::services::mcp_host::registry::SEEDED_BUSINESS_KEY)),
+                .any(|entry| entry.contains(crate::mcp_host::registry::SEEDED_BUSINESS_KEY)),
             "cancel must record session identity, not Binding-derived identity"
         );
     });
@@ -1751,7 +1751,7 @@ fn t8_binding_request_helpers_reject_unbound_without_session_fallback() {
 #[test]
 fn t4_reset_binding_with_close_routes_by_session_id_before_clearing_context() {
     with_sandbox(|| {
-        r#loop::try_set_binding_json(&json!({ "key": crate::services::mcp_host::registry::SEEDED_BUSINESS_KEY })).expect("Set");
+        r#loop::try_set_binding_json(&json!({ "key": crate::mcp_host::registry::SEEDED_BUSINESS_KEY })).expect("Set");
         let session_id = r#loop::ensure_chat_session_core()
             .expect("ensure")
             .get("session_id")
@@ -1779,7 +1779,7 @@ fn t4_reset_binding_with_close_routes_by_session_id_before_clearing_context() {
 
         assert_eq!(*calls.lock().unwrap(), vec![session_id.clone()]);
         assert!(
-            !calls.lock().unwrap().iter().any(|sid| sid == crate::services::mcp_host::registry::SEEDED_BUSINESS_KEY),
+            !calls.lock().unwrap().iter().any(|sid| sid == crate::mcp_host::registry::SEEDED_BUSINESS_KEY),
             "close must receive session identity, not Binding-derived identity"
         );
         let during = live_during_close
@@ -1796,7 +1796,7 @@ fn t4_reset_binding_with_close_routes_by_session_id_before_clearing_context() {
             Some(session_id.as_str()),
             "close must run before live session is cleared"
         );
-        assert_eq!(during.2.as_deref(), Some(crate::services::mcp_host::registry::SEEDED_BUSINESS_KEY));
+        assert_eq!(during.2.as_deref(), Some(crate::mcp_host::registry::SEEDED_BUSINESS_KEY));
         assert_eq!(r#loop::binding_state(), "unbound");
         assert!(session::live_context_owner().current_session_id().is_none());
         assert!(session::live_context_owner().current_business_id().is_none());
@@ -1806,7 +1806,7 @@ fn t4_reset_binding_with_close_routes_by_session_id_before_clearing_context() {
 #[test]
 fn t_same_binding_switch_session_create_turn_do_not_reuse_prior_slot() {
     with_sandbox(|| {
-        r#loop::try_set_binding_json(&json!({ "key": crate::services::mcp_host::registry::SEEDED_BUSINESS_KEY })).expect("Set");
+        r#loop::try_set_binding_json(&json!({ "key": crate::mcp_host::registry::SEEDED_BUSINESS_KEY })).expect("Set");
         let (session_a, session_b, generation) =
             switch_session_without_resetting_binding("t2-switch-create-turn");
         assert_eq!(r#loop::query_binding().generation, Some(generation));
@@ -1825,7 +1825,7 @@ fn t_same_binding_switch_session_create_turn_do_not_reuse_prior_slot() {
                 .lock()
                 .unwrap()
                 .iter()
-                .any(|entry| entry.contains(&session_a) || entry.contains(crate::services::mcp_host::registry::SEEDED_BUSINESS_KEY)),
+                .any(|entry| entry.contains(&session_a) || entry.contains(crate::mcp_host::registry::SEEDED_BUSINESS_KEY)),
             "create/turn must use session B's slot, not session A or Binding identity"
         );
     });
@@ -1834,7 +1834,7 @@ fn t_same_binding_switch_session_create_turn_do_not_reuse_prior_slot() {
 #[test]
 fn t_cancel_reset_only_hit_current_session_not_prior_binding_slot() {
     with_sandbox(|| {
-        r#loop::try_set_binding_json(&json!({ "key": crate::services::mcp_host::registry::SEEDED_BUSINESS_KEY })).expect("Set");
+        r#loop::try_set_binding_json(&json!({ "key": crate::mcp_host::registry::SEEDED_BUSINESS_KEY })).expect("Set");
         let (session_a, session_b, _) =
             switch_session_without_resetting_binding("t2-switch-cancel-reset");
         assert_eq!(
@@ -1864,7 +1864,7 @@ fn t_cancel_reset_only_hit_current_session_not_prior_binding_slot() {
                 .lock()
                 .unwrap()
                 .iter()
-                .any(|sid| sid == &session_a || sid == crate::services::mcp_host::registry::SEEDED_BUSINESS_KEY),
+                .any(|sid| sid == &session_a || sid == crate::mcp_host::registry::SEEDED_BUSINESS_KEY),
             "cancel must not hit the prior session or Binding identity"
         );
 
@@ -1881,7 +1881,7 @@ fn t_cancel_reset_only_hit_current_session_not_prior_binding_slot() {
                 .lock()
                 .unwrap()
                 .iter()
-                .any(|sid| sid == &session_a || sid == crate::services::mcp_host::registry::SEEDED_BUSINESS_KEY),
+                .any(|sid| sid == &session_a || sid == crate::mcp_host::registry::SEEDED_BUSINESS_KEY),
             "reset must not close the prior Binding slot"
         );
     });
@@ -1890,7 +1890,7 @@ fn t_cancel_reset_only_hit_current_session_not_prior_binding_slot() {
 #[test]
 fn t1_create_turn_cancel_reset_callbacks_receive_only_live_session_id() {
     with_sandbox(|| {
-        r#loop::try_set_binding_json(&json!({ "key": crate::services::mcp_host::registry::SEEDED_BUSINESS_KEY })).expect("Set");
+        r#loop::try_set_binding_json(&json!({ "key": crate::mcp_host::registry::SEEDED_BUSINESS_KEY })).expect("Set");
         let session_id = r#loop::ensure_chat_session_core()
             .expect("ensure")
             .get("session_id")
@@ -1898,7 +1898,7 @@ fn t1_create_turn_cancel_reset_callbacks_receive_only_live_session_id() {
             .expect("session id")
             .to_string();
         let live = session::live_context_owner();
-        assert_eq!(live.current_business_id().as_deref(), Some(crate::services::mcp_host::registry::SEEDED_BUSINESS_KEY));
+        assert_eq!(live.current_business_id().as_deref(), Some(crate::mcp_host::registry::SEEDED_BUSINESS_KEY));
         assert_eq!(live.current_session_id().as_deref(), Some(session_id.as_str()));
 
         let (calls, create, turn) = record_session_calls();
@@ -1923,7 +1923,7 @@ fn t1_create_turn_cancel_reset_callbacks_receive_only_live_session_id() {
                 .lock()
                 .unwrap()
                 .iter()
-                .any(|entry| entry.contains(crate::services::mcp_host::registry::SEEDED_BUSINESS_KEY)),
+                .any(|entry| entry.contains(crate::mcp_host::registry::SEEDED_BUSINESS_KEY)),
             "create/turn must not receive Binding-derived identity"
         );
 
@@ -1959,7 +1959,7 @@ fn t1_create_turn_cancel_reset_callbacks_receive_only_live_session_id() {
 #[test]
 fn t1_same_binding_switch_session_routes_to_new_slot() {
     with_sandbox(|| {
-        r#loop::try_set_binding_json(&json!({ "key": crate::services::mcp_host::registry::SEEDED_BUSINESS_KEY })).expect("Set");
+        r#loop::try_set_binding_json(&json!({ "key": crate::mcp_host::registry::SEEDED_BUSINESS_KEY })).expect("Set");
         let session_a = r#loop::ensure_chat_session_core()
             .expect("ensure A")
             .get("session_id")
@@ -1979,7 +1979,7 @@ fn t1_same_binding_switch_session_routes_to_new_slot() {
             session::live_context_owner()
                 .current_business_id()
                 .as_deref(),
-            Some(crate::services::mcp_host::registry::SEEDED_BUSINESS_KEY),
+            Some(crate::mcp_host::registry::SEEDED_BUSINESS_KEY),
             "switching session must not re-Set Binding"
         );
 
@@ -2027,7 +2027,7 @@ fn t1_same_binding_switch_session_routes_to_new_slot() {
 #[test]
 fn t1_current_business_id_stays_on_live_but_is_not_isolation_key() {
     with_sandbox(|| {
-        r#loop::try_set_binding_json(&json!({ "key": crate::services::mcp_host::registry::SEEDED_BUSINESS_KEY })).expect("Set");
+        r#loop::try_set_binding_json(&json!({ "key": crate::mcp_host::registry::SEEDED_BUSINESS_KEY })).expect("Set");
         let session_id = r#loop::ensure_chat_session_core()
             .expect("ensure")
             .get("session_id")
@@ -2038,7 +2038,7 @@ fn t1_current_business_id_stays_on_live_but_is_not_isolation_key() {
             session::live_context_owner()
                 .current_business_id()
                 .as_deref(),
-            Some(crate::services::mcp_host::registry::SEEDED_BUSINESS_KEY)
+            Some(crate::mcp_host::registry::SEEDED_BUSINESS_KEY)
         );
 
         let seen = Arc::new(Mutex::new(Vec::<String>::new()));
@@ -2070,7 +2070,7 @@ fn t1_current_business_id_stays_on_live_but_is_not_isolation_key() {
             session::live_context_owner()
                 .current_business_id()
                 .as_deref(),
-            Some(crate::services::mcp_host::registry::SEEDED_BUSINESS_KEY),
+            Some(crate::mcp_host::registry::SEEDED_BUSINESS_KEY),
             "current_business_id remains on live after isolation routing"
         );
     });
@@ -2079,14 +2079,14 @@ fn t1_current_business_id_stays_on_live_but_is_not_isolation_key() {
 #[test]
 fn t1_binding_business_id_still_derives_from_binding_key() {
     with_sandbox(|| {
-        r#loop::try_set_binding_json(&json!({ "key": crate::services::mcp_host::registry::SEEDED_BUSINESS_KEY })).expect("Set");
+        r#loop::try_set_binding_json(&json!({ "key": crate::mcp_host::registry::SEEDED_BUSINESS_KEY })).expect("Set");
         let _ = r#loop::ensure_chat_session_core().expect("ensure");
         let binding = session::live_context_owner()
             .current_binding()
             .expect("bound");
         assert_eq!(
             session::binding_business_id(&binding).as_deref(),
-            Some(crate::services::mcp_host::registry::SEEDED_BUSINESS_KEY)
+            Some(crate::mcp_host::registry::SEEDED_BUSINESS_KEY)
         );
         let q = r#loop::query_binding();
         assert_eq!(q.state, "bound");
@@ -2097,7 +2097,7 @@ fn t1_binding_business_id_still_derives_from_binding_key() {
 #[test]
 fn t1_public_wrappers_use_same_session_isolation_key_as_with_error() {
     with_sandbox(|| {
-        r#loop::try_set_binding_json(&json!({ "key": crate::services::mcp_host::registry::SEEDED_BUSINESS_KEY })).expect("Set");
+        r#loop::try_set_binding_json(&json!({ "key": crate::mcp_host::registry::SEEDED_BUSINESS_KEY })).expect("Set");
         let session_id = r#loop::ensure_chat_session_core()
             .expect("ensure")
             .get("session_id")
@@ -2185,14 +2185,14 @@ fn t1_public_wrappers_use_same_session_isolation_key_as_with_error() {
 #[test]
 fn t1_bound_without_live_session_rejects_create_turn_cancel() {
     with_sandbox(|| {
-        r#loop::try_set_binding_json(&json!({ "key": crate::services::mcp_host::registry::SEEDED_BUSINESS_KEY })).expect("Set");
+        r#loop::try_set_binding_json(&json!({ "key": crate::mcp_host::registry::SEEDED_BUSINESS_KEY })).expect("Set");
         assert!(session::live_context_owner().current_session_id().is_none());
         assert!(session::live_context_owner().current_binding().is_some());
         assert_eq!(
             session::live_context_owner()
                 .current_business_id()
                 .as_deref(),
-            Some(crate::services::mcp_host::registry::SEEDED_BUSINESS_KEY)
+            Some(crate::mcp_host::registry::SEEDED_BUSINESS_KEY)
         );
 
         let create_called = Arc::new(Mutex::new(false));
@@ -2270,7 +2270,7 @@ fn t6_binding_contract_rejects_top_level_business_ids() {
 #[test]
 fn t2_key_only_set_loads_mcp_server_into_session_capability_context() {
     with_sandbox(|| {
-        use crate::services::mcp_host::registry::{self, SEEDED_BUSINESS_KEY};
+        use crate::mcp_host::registry::{self, SEEDED_BUSINESS_KEY};
         assert_eq!(r#loop::binding_state(), "unbound");
         assert!(r#loop::loaded_mcp_server().is_none());
 
@@ -2292,7 +2292,7 @@ fn t2_key_only_set_loads_mcp_server_into_session_capability_context() {
 #[test]
 fn t2_reset_binding_unloads_mcp_server_config() {
     with_sandbox(|| {
-        use crate::services::mcp_host::registry::SEEDED_BUSINESS_KEY;
+        use crate::mcp_host::registry::SEEDED_BUSINESS_KEY;
         r#loop::try_set_binding_json(&key_only_payload(SEEDED_BUSINESS_KEY)).expect("Set");
         assert!(r#loop::loaded_mcp_server().is_some());
 
@@ -2308,7 +2308,7 @@ fn t2_reset_binding_unloads_mcp_server_config() {
 #[test]
 fn t2_set_reset_public_json_reject_engine_selection_params() {
     with_sandbox(|| {
-        use crate::services::mcp_host::registry::SEEDED_BUSINESS_KEY;
+        use crate::mcp_host::registry::SEEDED_BUSINESS_KEY;
         // Public Set must not accept engine selection parameters.
         for payload in [
             json!({ "key": SEEDED_BUSINESS_KEY, "engine": "host" }),
@@ -2329,7 +2329,7 @@ fn t2_set_reset_public_json_reject_engine_selection_params() {
 #[test]
 fn t2_replace_set_with_new_key_replaces_loaded_mcp_config() {
     with_sandbox(|| {
-        use crate::services::mcp_host::registry::{self, McpServerConfig, SEEDED_BUSINESS_KEY};
+        use crate::mcp_host::registry::{self, McpServerConfig, SEEDED_BUSINESS_KEY};
         r#loop::try_set_binding_json(&key_only_payload(SEEDED_BUSINESS_KEY)).expect("first Set");
         let first = r#loop::loaded_mcp_server().expect("first loaded");
 
@@ -2370,7 +2370,7 @@ fn t2_reset_when_unbound_is_idempotent_mcp_slot_stays_empty() {
 #[test]
 fn t2_unknown_key_fails_explicitly_without_destroying_prior_mcp_context() {
     with_sandbox(|| {
-        use crate::services::mcp_host::registry::SEEDED_BUSINESS_KEY;
+        use crate::mcp_host::registry::SEEDED_BUSINESS_KEY;
         r#loop::try_set_binding_json(&key_only_payload(SEEDED_BUSINESS_KEY)).expect("seed bound");
         let prior = r#loop::loaded_mcp_server().expect("prior MCP");
         let gen = r#loop::query_binding().generation;
@@ -2391,7 +2391,7 @@ fn t2_unknown_key_fails_explicitly_without_destroying_prior_mcp_context() {
 #[test]
 fn t2_legacy_tools_prompt_callbacks_payload_rejected_at_public_boundary() {
     with_sandbox(|| {
-        use crate::services::mcp_host::registry::SEEDED_BUSINESS_KEY;
+        use crate::mcp_host::registry::SEEDED_BUSINESS_KEY;
         // Unbound: legacy payload cannot bypass key→MCP lookup.
         let err = r#loop::try_set_binding_json(&json!({
             "tools": [{ "name": "tool_a", "handle": "opaque-tool-a" }],
@@ -2442,7 +2442,7 @@ fn t2_missing_or_invalid_key_input_fails_explicitly() {
 fn t2_binding_from_json_accepts_key_only_rejects_legacy() {
     with_sandbox(|| {
         use crate::agent::session;
-        use crate::services::mcp_host::registry::SEEDED_BUSINESS_KEY;
+        use crate::mcp_host::registry::SEEDED_BUSINESS_KEY;
         let b = session::binding_from_json(&key_only_payload(SEEDED_BUSINESS_KEY))
             .expect("key-only parse");
         assert_eq!(
@@ -2475,7 +2475,7 @@ fn t2_binding_from_json_accepts_key_only_rejects_legacy() {
 #[test]
 fn t4_read_face_exposes_decision_level_shape_matching_registry_value() {
     with_sandbox(|| {
-        use crate::services::mcp_host::registry::{self, SEEDED_BUSINESS_KEY};
+        use crate::mcp_host::registry::{self, SEEDED_BUSINESS_KEY};
         r#loop::try_set_binding_json(&key_only_payload(SEEDED_BUSINESS_KEY)).expect("Set");
 
         let view = r#loop::session_capability_mcp_config()
@@ -2501,7 +2501,7 @@ fn t4_read_face_exposes_decision_level_shape_matching_registry_value() {
 #[test]
 fn t4_read_face_returns_none_when_unbound_or_after_reset() {
     with_sandbox(|| {
-        use crate::services::mcp_host::registry::SEEDED_BUSINESS_KEY;
+        use crate::mcp_host::registry::SEEDED_BUSINESS_KEY;
         assert!(
             r#loop::session_capability_mcp_config().is_none(),
             "unbound consumption face must be empty/None"
@@ -2521,7 +2521,7 @@ fn t4_read_face_returns_none_when_unbound_or_after_reset() {
 #[test]
 fn t4_read_face_is_readonly_consumer_mutate_does_not_rewrite_session() {
     with_sandbox(|| {
-        use crate::services::mcp_host::registry::SEEDED_BUSINESS_KEY;
+        use crate::mcp_host::registry::SEEDED_BUSINESS_KEY;
         r#loop::try_set_binding_json(&key_only_payload(SEEDED_BUSINESS_KEY)).expect("Set");
         let original = r#loop::session_capability_mcp_config().expect("loaded");
 
@@ -2541,7 +2541,7 @@ fn t4_read_face_is_readonly_consumer_mutate_does_not_rewrite_session() {
 #[test]
 fn t4_only_set_reset_lifecycle_may_change_loaded_config() {
     with_sandbox(|| {
-        use crate::services::mcp_host::registry::{self, McpServerConfig, SEEDED_BUSINESS_KEY};
+        use crate::mcp_host::registry::{self, McpServerConfig, SEEDED_BUSINESS_KEY};
         assert!(r#loop::session_capability_mcp_config().is_none());
 
         // Lifecycle Set loads.
@@ -2595,7 +2595,7 @@ fn t4_only_set_reset_lifecycle_may_change_loaded_config() {
 #[test]
 fn t4_read_face_cannot_reinject_legacy_tools_prompt_callbacks() {
     with_sandbox(|| {
-        use crate::services::mcp_host::registry::SEEDED_BUSINESS_KEY;
+        use crate::mcp_host::registry::SEEDED_BUSINESS_KEY;
         r#loop::try_set_binding_json(&key_only_payload(SEEDED_BUSINESS_KEY)).expect("Set");
         let via_read = r#loop::session_capability_mcp_config().expect("read face");
 
@@ -2624,7 +2624,7 @@ fn t4_read_face_cannot_reinject_legacy_tools_prompt_callbacks() {
 #[test]
 fn t4_a1_a2_handoff_assumptions_confirmed_not_narrowed() {
     with_sandbox(|| {
-        use crate::services::mcp_host::registry::{self, SEEDED_BUSINESS_KEY};
+        use crate::mcp_host::registry::{self, SEEDED_BUSINESS_KEY};
         // A1: one decision-level shape, with no channel-specific fields.
         r#loop::try_set_binding_json(&key_only_payload(SEEDED_BUSINESS_KEY)).expect("Set");
         let face = r#loop::session_capability_mcp_config().expect("face");
@@ -2655,7 +2655,7 @@ fn t4_a1_a2_handoff_assumptions_confirmed_not_narrowed() {
 #[test]
 fn t4_workbench_key_only_set_binds_seeded_workbench_mcp() {
     with_sandbox(|| {
-        use crate::services::mcp_host::registry::{self, SEEDED_BUSINESS_KEY};
+        use crate::mcp_host::registry::{self, SEEDED_BUSINESS_KEY};
         assert_eq!(r#loop::binding_state(), "unbound");
         r#loop::try_set_binding_json(&key_only_payload(SEEDED_BUSINESS_KEY))
             .expect("try_set_binding_json({{ key: workbench }}) must succeed when seeded");
@@ -2712,7 +2712,7 @@ fn t4_only_other_binding_page_resets_notes() {
 #[test]
 fn t4_old_app_keys_still_unknown_after_seed_defaults() {
     with_sandbox(|| {
-        use crate::services::mcp_host::registry::{self, SEEDED_BUSINESS_KEY};
+        use crate::mcp_host::registry::{self, SEEDED_BUSINESS_KEY};
         mcp_registry::clear_for_tests();
         for key in ["notes", "todo_task"] {
             let err = r#loop::try_set_binding_json(&key_only_payload(key))
@@ -2736,7 +2736,7 @@ fn t4_old_app_keys_still_unknown_after_seed_defaults() {
 #[test]
 fn t4_empty_key_is_invalid_and_does_not_fall_to_workbench() {
     with_sandbox(|| {
-        use crate::services::mcp_host::registry::SEEDED_BUSINESS_KEY;
+        use crate::mcp_host::registry::SEEDED_BUSINESS_KEY;
         let err = r#loop::try_set_binding_json(&key_only_payload(""))
             .expect_err("empty key must fail");
         assert_eq!(err.as_code(), "set_invalid");

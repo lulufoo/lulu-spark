@@ -7,7 +7,7 @@ import { readRsPath } from '../helpers/read-rs-dir.js';
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
 const todoCatalogDir = join(
   repoRoot,
-  'src-tauri/src/services/mcp_host/catalog/groups/todo',
+  'src-tauri/src/mcp_host/catalog/groups/todo',
 );
 
 const EXPECTED_TOOLS = [

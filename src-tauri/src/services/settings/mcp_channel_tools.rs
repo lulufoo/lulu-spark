@@ -12,7 +12,7 @@ use serde_json::{json, Value};
 
 use crate::config::paths;
 use crate::repositories::atomic_json;
-use crate::services::mcp_host::catalog::catalog_groups;
+use crate::mcp_host::catalog::catalog_groups;
 
 pub const MCP_CHANNELS: &[&str] = &["workbench", "cursor_ide", "mobile"];
 

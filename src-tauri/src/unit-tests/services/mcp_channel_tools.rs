@@ -5,7 +5,7 @@ use crate::config::paths;
 use crate::services::settings::mcp_channel_tools::{
     enabled_names, is_enabled, set_enabled, snapshot, MCP_CHANNELS,
 };
-use crate::services::mcp_host::catalog_groups;
+use crate::mcp_host::catalog_groups;
 use crate::test_support::TestSandbox;
 
 fn catalog() -> HashSet<String> {
@@ -180,7 +180,7 @@ fn snapshot_exposes_grouped_enabled() {
 fn listen_filters_list_and_call_through_settings_catalog() {
     let listen = include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/src/services/mcp_host/server/listen.rs"
+        "/src/mcp_host/server/listen.rs"
     ));
     assert!(
         listen.contains("mcp_catalog::enabled_grouped"),

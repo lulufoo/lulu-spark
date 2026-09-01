@@ -1149,7 +1149,7 @@ fn t3_host_path_modules_do_not_import_removed_agent_stack() {
 #[test]
 fn t3_host_reports_unavailable_loaded_mcp_without_dispatch() {
     with_sandbox(|| {
-        use crate::services::mcp_host::registry::SEEDED_BUSINESS_KEY;
+        use crate::mcp_host::registry::SEEDED_BUSINESS_KEY;
         let mock = spawn_scripted_llm(vec![assistant_text("读只读面后文本回复")]);
         install_llm_cfg(&mock);
         r#loop::try_set_binding_json(&key_only_payload(SEEDED_BUSINESS_KEY)).expect("Set");
@@ -1297,7 +1297,7 @@ fn t2_empty_tools_binding_text_only_round_succeeds() {
 #[test]
 fn t2_key_only_set_loads_mcp_and_rejects_unreachable_endpoint() {
     with_sandbox(|| {
-        use crate::services::mcp_host::registry::SEEDED_BUSINESS_KEY;
+        use crate::mcp_host::registry::SEEDED_BUSINESS_KEY;
         let master = create_bound_plan("key-only空tools");
         let mock = spawn_scripted_llm(vec![assistant_text("key-only工具回复")]);
         let mut sess = session::create_session().unwrap();

@@ -33,8 +33,8 @@ fn with_cmd_sandbox<F: FnOnce()>(f: F) {
     let _sandbox = TestSandbox::new();
     secrets::test_secrets_clear();
     r#loop::reset_runtime_for_tests();
-    crate::services::mcp_host::registry::clear_for_tests();
-    crate::services::mcp_host::registry::seed_defaults();
+    crate::mcp_host::registry::clear_for_tests();
+    crate::mcp_host::registry::seed_defaults();
     f();
 }
 
@@ -158,7 +158,7 @@ fn present_and_ensure_path_does_not_imply_set() {
 #[test]
 fn j1_command_fixture_set_execute_reset_reject_via_json() {
     with_cmd_sandbox(|| {
-        use crate::services::mcp_host::registry::SEEDED_BUSINESS_KEY;
+        use crate::mcp_host::registry::SEEDED_BUSINESS_KEY;
         let binding = json!({ "key": SEEDED_BUSINESS_KEY });
         let set = set_binding_json(binding);
         assert_eq!(set["ok"], true);
@@ -221,7 +221,7 @@ fn j1_present_not_bound_execute_rejects_without_set() {
 #[test]
 fn t5_defensive_unbound_json_returns_unbound_and_shares_binding_changed_event() {
     with_cmd_sandbox(|| {
-        use crate::services::mcp_host::registry::SEEDED_BUSINESS_KEY;
+        use crate::mcp_host::registry::SEEDED_BUSINESS_KEY;
         let binding = json!({ "key": SEEDED_BUSINESS_KEY });
         assert_eq!(set_binding_json(binding)["ok"], true);
         assert_eq!(query_binding_json()["state"], "bound");
@@ -249,7 +249,7 @@ fn t5_execute_json_exposes_distinguishable_reject_codes() {
         assert_eq!(unbound["ok"], false);
         assert_eq!(unbound["code"], "rejected_unbound");
 
-        use crate::services::mcp_host::registry::SEEDED_BUSINESS_KEY;
+        use crate::mcp_host::registry::SEEDED_BUSINESS_KEY;
         let binding = json!({ "key": SEEDED_BUSINESS_KEY });
         assert_eq!(set_binding_json(binding.clone())["ok"], true);
         // Mid-execute Reset → reset_cancelled (Host signal).
@@ -272,7 +272,7 @@ fn t5_execute_json_exposes_distinguishable_reject_codes() {
 #[test]
 fn cancel_ai_assistant_turn_marks_live_chat_cancelled_without_resetting_binding() {
     with_cmd_sandbox(|| {
-        use crate::services::mcp_host::registry::SEEDED_BUSINESS_KEY;
+        use crate::mcp_host::registry::SEEDED_BUSINESS_KEY;
 
         assert_eq!(
             set_binding_json(json!({ "key": SEEDED_BUSINESS_KEY }))["ok"],
@@ -362,7 +362,7 @@ fn sk3_t5_binding_turns_empty_without_live_or_after_reset() {
         );
 
         // Set then Reset cuts live; turns must be empty (not executable old session).
-        use crate::services::mcp_host::registry::SEEDED_BUSINESS_KEY;
+        use crate::mcp_host::registry::SEEDED_BUSINESS_KEY;
         let binding = json!({ "key": SEEDED_BUSINESS_KEY });
         assert_eq!(set_binding_json(binding)["ok"], true);
         // Successful Set itself clears live session id.
@@ -549,7 +549,7 @@ fn set_binding_empty_key_is_invalid_not_workbench() {
         assert_eq!(empty["code"], "set_invalid");
         assert_eq!(empty["state"], "unbound");
 
-        use crate::services::mcp_host::registry::SEEDED_BUSINESS_KEY;
+        use crate::mcp_host::registry::SEEDED_BUSINESS_KEY;
         assert_eq!(
             set_binding_json(json!({ "key": SEEDED_BUSINESS_KEY }))["ok"],
             true
