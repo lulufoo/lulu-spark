@@ -4,7 +4,7 @@
 //! enabled lists + catalog factory — not from per-slot business flags.
 
 use super::types::{SlotToolTable, ToolDescriptor, REGISTERED_SCENE_SLOTS};
-use crate::mcp_host::catalog::groups::{knowledge, notes, todo};
+use crate::mcp_host::catalog::groups::{global, knowledge, notes, todo};
 use crate::mcp_host::catalog::{build_routes_for_channel, catalog_groups};
 use crate::services::settings::mcp_catalog;
 
@@ -49,6 +49,7 @@ pub fn build_channel_tool_table(slot: &str, channel: &str) -> Option<SlotToolTab
     tools.extend(notes::routes_for_channel(channel));
     tools.extend(todo::routes_for_channel(channel));
     tools.extend(knowledge::routes_for_channel(channel));
+    tools.extend(global::routes_for_channel(channel));
     Some(SlotToolTable {
         scene_slot: slot.to_string(),
         tools,

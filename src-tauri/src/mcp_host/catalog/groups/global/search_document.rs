@@ -1,10 +1,10 @@
-//! MCP API: `search_knowledge`
+//! MCP API: `search_document`
 
 use serde_json::{json, Value};
 
 use crate::mcp_host::catalog::route_util::{missing_field, notes_repo_root, object_schema, route};
 use crate::mcp_host::ToolRoute;
-use crate::services::knowledge::search_knowledge_mcp;
+use crate::services::knowledge::search_document_mcp;
 
 pub fn available_in(_channel: &str) -> bool {
     true
@@ -20,7 +20,7 @@ pub fn invoke(args: &Value) -> Value {
             .or_else(|| v.as_i64().and_then(|n| u32::try_from(n).ok()))
     });
     match notes_repo_root() {
-        Ok(root) => search_knowledge_mcp(&root, q, limit),
+        Ok(root) => search_document_mcp(&root, q, limit),
         Err(err) => err,
     }
 }
@@ -30,8 +30,8 @@ pub fn build(channel: &str) -> Option<ToolRoute> {
         return None;
     }
     Some(route(
-        "search_knowledge",
-        "Search knowledge documents. Returns document id, title, and snippet. Does not return file path or body. Call get_knowledge_content with an id from this list.",
+        "search_document",
+        "Search notes and knowledge together. Returns id, title, snippet, and category (notes or knowledge). Does not return file path or body. For category notes, call get_note_content. For category knowledge, call get_knowledge_content.",
         object_schema(
             json!({
                 "q": {
@@ -40,7 +40,7 @@ pub fn build(channel: &str) -> Option<ToolRoute> {
                 },
                 "limit": {
                     "type": "integer",
-                    "description": "Optional max hits. Default 10, max 50."
+                    "description": "Optional max hits per source. Default 10, max 50."
                 }
             }),
             &["q"],

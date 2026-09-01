@@ -6,18 +6,17 @@ mod delete_note;
 mod delete_notes_category;
 mod get_all_notes_catalog;
 mod get_latest_digest_per_catalog;
-mod get_note_content_by_id;
+mod get_note_content;
 mod get_note_digest_by_id;
 mod get_notes_by_catalog;
 mod list_notes_categories;
 mod schema;
-mod search_notes;
 mod update_notes_category;
 
 use crate::mcp_host::ToolRoute;
 
 pub(crate) use create_note::{invoke_from_content as create_note_from_content, invoke_from_source as create_note_from_source};
-pub(crate) use get_note_content_by_id::{invoke_content as note_content_invoke, invoke_path as note_path_invoke};
+pub(crate) use get_note_content::invoke as note_path_invoke;
 
 pub const GROUP_ID: &str = "notes";
 
@@ -34,8 +33,7 @@ const REGISTRY: &[(&str, BuildFn)] = &[
     ),
     ("get_notes_by_catalog", get_notes_by_catalog::build as BuildFn),
     ("get_note_digest_by_id", get_note_digest_by_id::build as BuildFn),
-    ("get_note_content_by_id", get_note_content_by_id::build as BuildFn),
-    ("search_notes", search_notes::build as BuildFn),
+    ("get_note_content", get_note_content::build as BuildFn),
     ("create_note", create_note::build as BuildFn),
     ("delete_note", delete_note::build as BuildFn),
     ("list_notes_categories", list_notes_categories::build as BuildFn),

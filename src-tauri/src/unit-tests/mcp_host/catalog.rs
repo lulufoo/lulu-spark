@@ -1,7 +1,8 @@
 use crate::mcp_host::build_channel_tool_table;
+use crate::mcp_host::catalog::groups::global;
 use crate::mcp_host::catalog::groups::knowledge;
 use crate::mcp_host::catalog::groups::notes::{
-    self, create_note_from_content, create_note_from_source, note_content_invoke, note_path_invoke,
+    self, create_note_from_content, create_note_from_source, note_path_invoke,
 };
 use crate::mcp_host::catalog::groups::todo;
 use crate::mcp_host::catalog::{build, build_routes_for_channel, group_for_migrated_api};
@@ -12,8 +13,7 @@ const NOTES_APIS: &[&str] = &[
     "get_latest_digest_per_catalog",
     "get_notes_by_catalog",
     "get_note_digest_by_id",
-    "get_note_content_by_id",
-    "search_notes",
+    "get_note_content",
     "create_note",
     "delete_note",
     "list_notes_categories",
@@ -25,9 +25,10 @@ const NOTES_APIS: &[&str] = &[
 const KNOWLEDGE_APIS: &[&str] = &[
     "list_knowledge_categories",
     "list_knowledge_repos",
-    "search_knowledge",
     "get_knowledge_content",
 ];
+
+const GLOBAL_APIS: &[&str] = &["search_document"];
 
 const TODO_APIS: &[&str] = &[
     "create_todo_task",
@@ -75,6 +76,15 @@ fn knowledge_registry_covers_all_snapshot_tools() {
     assert_eq!(snapshot.len(), KNOWLEDGE_APIS.len());
     for api in KNOWLEDGE_APIS {
         assert!(knowledge::contains(api), "missing registry entry for {api}");
+    }
+}
+
+#[test]
+fn global_registry_covers_all_snapshot_tools() {
+    let snapshot = global::catalog_snapshot_routes();
+    assert_eq!(snapshot.len(), GLOBAL_APIS.len());
+    for api in GLOBAL_APIS {
+        assert!(global::contains(api), "missing registry entry for {api}");
     }
 }
 
@@ -134,6 +144,33 @@ fn factory_builds_all_knowledge_apis_with_channel_parity() {
 }
 
 #[test]
+fn factory_builds_all_global_apis_with_channel_parity() {
+    for (slot, channel) in [
+        ("workbench", "workbench"),
+        ("cursor_ide", "cursor_ide"),
+        ("workbench", "mobile"),
+    ] {
+        for api in GLOBAL_APIS {
+            let built = build("global", api, channel);
+            let legacy = build_channel_tool_table(slot, channel)
+                .and_then(|table| table.tools.into_iter().find(|r| r.name == *api));
+            assert_eq!(
+                built.is_some(),
+                legacy.is_some(),
+                "{api} availability mismatch on slot={slot} channel={channel}"
+            );
+            if let (Some(built), Some(legacy)) = (built, legacy) {
+                assert_eq!(built.name, legacy.name, "{api} name on {channel}");
+                assert!(
+                    invoke_eq(built.invoke, legacy.invoke),
+                    "{api} invoke on {channel}"
+                );
+            }
+        }
+    }
+}
+
+#[test]
 fn factory_builds_all_todo_apis_with_channel_parity() {
     for (slot, channel) in [
         ("workbench", "workbench"),
@@ -171,7 +208,12 @@ fn group_for_migrated_api_maps_all_catalog_keys() {
     for api in KNOWLEDGE_APIS {
         assert_eq!(group_for_migrated_api(api), Some("knowledge"), "{api}");
     }
+    for api in GLOBAL_APIS {
+        assert_eq!(group_for_migrated_api(api), Some("global"), "{api}");
+    }
     assert_eq!(group_for_migrated_api("not_a_tool"), None);
+    assert_eq!(group_for_migrated_api("search_notes"), None);
+    assert_eq!(group_for_migrated_api("search_knowledge"), None);
 }
 
 #[test]
@@ -179,7 +221,8 @@ fn runtime_builds_enabled_routes_from_factory_only() {
     let enabled = GroupedEnabledCatalog {
         notes: vec!["get_all_notes_catalog".into(), "create_note".into()],
         todo: vec!["list_todo_tasks".into(), "create_todo_task".into()],
-        knowledge: vec!["search_knowledge".into()],
+        knowledge: vec!["get_knowledge_content".into()],
+        global: vec!["search_document".into()],
     };
     let routes = build_routes_for_channel("workbench", "workbench", &enabled);
     let names: Vec<_> = routes.iter().map(|r| r.name.as_str()).collect();
@@ -187,7 +230,10 @@ fn runtime_builds_enabled_routes_from_factory_only() {
     assert!(names.contains(&"create_note"));
     assert!(names.contains(&"list_todo_tasks"));
     assert!(names.contains(&"create_todo_task"));
-    assert!(names.contains(&"search_knowledge"));
+    assert!(names.contains(&"get_knowledge_content"));
+    assert!(names.contains(&"search_document"));
+    assert!(!names.contains(&"search_notes"));
+    assert!(!names.contains(&"search_knowledge"));
 }
 
 #[test]
@@ -199,9 +245,21 @@ fn mobile_create_note_uses_content_invoke() {
 
 #[test]
 fn workbench_get_note_content_stages_via_note_path() {
-    let route = build("notes", "get_note_content_by_id", "workbench").expect("workbench");
+    let route = build("notes", "get_note_content", "workbench").expect("workbench");
     assert!(invoke_eq(route.invoke, note_path_invoke));
-    assert!(!invoke_eq(route.invoke, note_content_invoke));
+}
+
+#[test]
+fn cursor_ide_get_note_content_returns_path_not_body() {
+    let workbench = build("notes", "get_note_content", "workbench").expect("wb");
+    let ide = build("notes", "get_note_content", "cursor_ide").expect("ide");
+    let mobile = build("notes", "get_note_content", "mobile").expect("mobile");
+    assert!(invoke_eq(ide.invoke, note_path_invoke));
+    assert!(invoke_eq(mobile.invoke, note_path_invoke));
+    assert!(ide.description.contains("absolute file path"));
+    assert!(!ide.description.contains("Stage"));
+    assert!(workbench.description.contains("Stage"));
+    assert!(!workbench.description.to_ascii_lowercase().contains("absolute path"));
 }
 
 #[test]

@@ -42,6 +42,29 @@ describe('FilePopup chrome', () => {
     });
   }
 
+  it('hides Edit when the path is not a notes file', () => {
+    container = document.createElement('div');
+    document.body.appendChild(container);
+    root = createRoot(container);
+    patchView({
+      open: true,
+      path: '/Users/me/knowledge/demo/doc.md',
+      title: 'Knowledge doc',
+      layer: 'raw',
+      content: '# KB',
+      editing: false,
+      loading: false,
+      saving: false,
+      error: '',
+    });
+    act(() => {
+      root.render(createElement(FilePopup));
+    });
+    const labels = [...container.querySelectorAll('button')].map((b) => b.textContent.trim());
+    expect(labels).not.toContain('Edit');
+    expect(labels).toContain('Close');
+  });
+
   it('uses Notes viewer chrome classes instead of a global header', () => {
     renderOpen();
     const dialog = container.querySelector('#file-popup');

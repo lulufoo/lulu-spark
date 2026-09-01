@@ -9,7 +9,7 @@ use crate::agent::session::{Session, StagedEntry};
 use super::catalog::{LocalTool, ToolCatalog, ToolResult};
 use super::fs;
 
-pub const NOTE_CONTENT_TOOL: &str = "get_note_content_by_id";
+pub const NOTE_CONTENT_TOOL: &str = "get_note_content";
 pub const KNOWLEDGE_CONTENT_TOOL: &str = "get_knowledge_content";
 
 pub fn catalog() -> ToolCatalog {

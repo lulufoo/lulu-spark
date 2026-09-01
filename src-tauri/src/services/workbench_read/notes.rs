@@ -4,9 +4,19 @@ use std::path::{Path, PathBuf};
 use base64::Engine;
 use serde_json::{json, Map, Value};
 
-use crate::config::meili_env::notes_root_path;
+use crate::config::meili_env::{knowledge_root_string, notes_root_path};
 
 const NOTES_LAYERS: &[&str] = &["raw", "digest"];
+
+fn is_under_root(root: &Path, target: &Path) -> bool {
+    let root_canon = root.canonicalize().unwrap_or_else(|_| root.to_path_buf());
+    let prefix = format!(
+        "{}{}",
+        root_canon.to_string_lossy(),
+        std::path::MAIN_SEPARATOR
+    );
+    target.to_string_lossy().starts_with(&prefix)
+}
 
 /// Notes sidebar index (`notes/index.json`).
 pub fn get_notes_index(_repo_root: &Path) -> Value {
@@ -53,26 +63,31 @@ pub fn get_notes_file(_repo_root: &Path, layer: &str, common_path: &str) -> Valu
     }
     let notes = notes_root_path(_repo_root);
     let target = notes.join(layer).join(common_path);
+    let target_canon = target.canonicalize().unwrap_or_else(|_| target.clone());
+    if is_under_root(
+        Path::new(&knowledge_root_string(_repo_root)),
+        &target_canon,
+    ) {
+        return read_text_file(&target_canon, layer, common_path);
+    }
     let notes_canon = match notes.canonicalize() {
         Ok(p) => p,
         Err(e) => return json!({ "error": e.to_string(), "_status": 500 }),
     };
-    let target_canon = target.canonicalize().unwrap_or(target);
-    let prefix = format!(
-        "{}{}",
-        notes_canon.to_string_lossy(),
-        std::path::MAIN_SEPARATOR
-    );
-    if !target_canon.to_string_lossy().starts_with(&prefix) {
+    if !is_under_root(&notes_canon, &target_canon) {
         return json!({ "error": "Path traversal not allowed", "_status": 400 });
     }
-    if !target_canon.is_file() {
+    read_text_file(&target_canon, layer, common_path)
+}
+
+fn read_text_file(target: &Path, layer: &str, common_path: &str) -> Value {
+    if !target.is_file() {
         return json!({
             "error": format!("File not found: {layer}/{common_path}"),
             "_status": 404
         });
     }
-    match fs::read_to_string(&target_canon) {
+    match fs::read_to_string(target) {
         Ok(content) => json!({ "content": content }),
         Err(e) => json!({ "error": e.to_string(), "_status": 500 }),
     }

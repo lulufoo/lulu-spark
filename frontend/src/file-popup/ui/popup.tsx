@@ -7,7 +7,7 @@ import {
   enterFilePopupEdit,
   saveFilePopup,
 } from '../commands/popup.ts';
-import { viewStore } from '../state/store.ts';
+import { commonPathFromAbsPath, viewStore } from '../state/store.ts';
 import { paintFilePopupDoc } from './paint.ts';
 
 let hostRoot: Root | null = null;
@@ -56,6 +56,7 @@ export function FilePopup() {
   }
 
   const busy = view.loading || view.saving;
+  const canEdit = Boolean(commonPathFromAbsPath(view.path));
 
   return (
     <div id="file-popup" role="dialog" aria-modal="true" aria-labelledby="file-popup-title" onClick={onOverlayClick}>
@@ -65,7 +66,7 @@ export function FilePopup() {
             {view.title}
           </h3>
           <div className="file-popup-actions">
-            {view.editing ? (
+            {canEdit && view.editing ? (
               <>
                 <button type="button" className="md-header-btn" disabled={busy} onClick={() => cancelFilePopupEdit()}>
                   Cancel
@@ -81,11 +82,11 @@ export function FilePopup() {
                   {view.saving ? 'Saving…' : 'Save'}
                 </button>
               </>
-            ) : (
+            ) : canEdit ? (
               <button type="button" className="md-header-btn primary" disabled={busy || Boolean(view.error)} onClick={() => enterFilePopupEdit()}>
                 Edit
               </button>
-            )}
+            ) : null}
             <button type="button" className="md-header-btn" disabled={view.saving} onClick={() => closeFilePopup()}>
               Close
             </button>

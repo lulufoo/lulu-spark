@@ -25,7 +25,7 @@ pub fn build(channel: &str) -> Option<ToolRoute> {
         json!({
             "id": {
                 "type": "string",
-                "description": "Document id from search_knowledge. Unknown ids fail."
+                "description": "Document id from search_document (category knowledge). Unknown ids fail."
             }
         }),
         &["id"],
@@ -33,7 +33,7 @@ pub fn build(channel: &str) -> Option<ToolRoute> {
     if channel == "workbench" {
         return Some(route(
             "get_knowledge_content",
-            "Stage one knowledge document onto this Chat and return the staged document id (F1, F2, …). Input id comes from search_knowledge. Does not return file path or body.",
+            "Stage one knowledge document onto this Chat and return the staged document id (F1, F2, …). Input id comes from search_document (category knowledge). Does not return file path or body.",
             id_schema,
             true,
             false,
@@ -42,7 +42,7 @@ pub fn build(channel: &str) -> Option<ToolRoute> {
     }
     Some(route(
         "get_knowledge_content",
-        "Resolve a search_knowledge document id to the local absolute file path. Does not return file body. Unknown ids fail.",
+        "Resolve a search_document knowledge document id to the local absolute file path. Does not return file body. Unknown ids fail.",
         id_schema,
         true,
         false,

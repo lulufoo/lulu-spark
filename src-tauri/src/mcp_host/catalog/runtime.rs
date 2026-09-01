@@ -19,6 +19,7 @@ pub fn build_routes_for_channel(
         ("notes", &enabled.notes),
         ("todo", &enabled.todo),
         ("knowledge", &enabled.knowledge),
+        ("global", &enabled.global),
     ] {
         for key in keys {
             if !seen.insert(key.clone()) {

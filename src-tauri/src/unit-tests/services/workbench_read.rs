@@ -302,6 +302,35 @@ fn get_annotations_summary_includes_resolved_tags() {
 }
 
 #[test]
+fn get_notes_file_reads_abs_path_under_knowledge_root() {
+    let sandbox = TestSandbox::new();
+    let file = sandbox.knowledge_root().join("demo").join("doc.md");
+    fs::create_dir_all(file.parent().unwrap()).expect("mkdir");
+    fs::write(&file, b"kb body").expect("write");
+    let v = get_notes_file(
+        sandbox.config_dir(),
+        "raw",
+        &file.to_string_lossy(),
+    );
+    assert_eq!(v["content"], "kb body", "{v}");
+}
+
+#[test]
+fn get_notes_file_rejects_abs_path_outside_notes_and_knowledge() {
+    let sandbox = TestSandbox::new();
+    fs::create_dir_all(sandbox.workbench_root().join("notes")).expect("notes");
+    let file = sandbox.cache_dir().join("outside.md");
+    fs::create_dir_all(file.parent().unwrap()).expect("mkdir");
+    fs::write(&file, b"nope").expect("write");
+    let v = get_notes_file(
+        sandbox.config_dir(),
+        "raw",
+        &file.to_string_lossy(),
+    );
+    assert_eq!(v["error"], "Path traversal not allowed", "{v}");
+}
+
+#[test]
 fn get_notes_file_returns_content() {
     with_notes_repo(
         |_, notes| {

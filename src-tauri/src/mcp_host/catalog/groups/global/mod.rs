@@ -1,25 +1,16 @@
-//! Knowledge business group — API registry.
+//! Global business group — APIs that span more than one domain.
 
-mod get_knowledge_content;
-mod list_knowledge_categories;
-mod list_knowledge_repos;
+mod search_document;
 
 use crate::mcp_host::ToolRoute;
 
-pub const GROUP_ID: &str = "knowledge";
+pub const GROUP_ID: &str = "global";
 
 const SNAPSHOT_CHANNEL: &str = "cursor_ide";
 
 type BuildFn = fn(&str) -> Option<ToolRoute>;
 
-const REGISTRY: &[(&str, BuildFn)] = &[
-    (
-        "list_knowledge_categories",
-        list_knowledge_categories::build as BuildFn,
-    ),
-    ("list_knowledge_repos", list_knowledge_repos::build as BuildFn),
-    ("get_knowledge_content", get_knowledge_content::build as BuildFn),
-];
+const REGISTRY: &[(&str, BuildFn)] = &[("search_document", search_document::build as BuildFn)];
 
 pub fn contains(api: &str) -> bool {
     REGISTRY.iter().any(|(key, _)| *key == api)

@@ -64,8 +64,8 @@ const NOTES_TOOLS_E2E = [
   'get_latest_digest_per_catalog',
   'get_notes_by_catalog',
   'get_note_digest_by_id',
-  'get_note_content_by_id',
-  'search_notes',
+  'get_note_content',
+  'search_document',
   'create_note',
 ];
 

@@ -16,6 +16,7 @@ pub fn catalog_groups() -> Vec<(&'static str, Vec<ToolRoute>)> {
         ("notes", groups::notes::catalog_snapshot_routes()),
         ("todo", groups::todo::catalog_snapshot_routes()),
         ("knowledge", groups::knowledge::catalog_snapshot_routes()),
+        ("global", groups::global::catalog_snapshot_routes()),
     ]
 }
 

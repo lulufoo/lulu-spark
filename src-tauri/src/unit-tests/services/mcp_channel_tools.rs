@@ -113,6 +113,7 @@ fn snapshot_lists_groups_and_per_channel_enabled() {
     assert_eq!(groups[0]["id"], "notes");
     assert_eq!(groups[1]["id"], "todo");
     assert_eq!(groups[2]["id"], "knowledge");
+    assert_eq!(groups[3]["id"], "global");
     let mobile: HashSet<&str> = snap["enabled"]["mobile"]
         .as_array()
         .expect("mobile")
@@ -141,6 +142,60 @@ fn delete_note_never_enables_on_non_workbench_even_if_listed() {
     set_enabled("mobile", with_delete).expect("save full list");
     assert!(!is_enabled("mobile", "delete_note"));
     assert!(is_enabled("workbench", "delete_note"));
+}
+
+#[test]
+fn load_rewrites_retired_search_tools_to_search_document() {
+    let sandbox = TestSandbox::new();
+    let path = paths::mcp_channel_tools_path().expect("path");
+    fs::write(
+        &path,
+        serde_json::json!({
+            "channels": {
+                "cursor_ide": {
+                    "notes": ["get_all_notes_catalog", "search_notes"],
+                    "todo": [],
+                    "knowledge": ["search_knowledge"]
+                }
+            }
+        })
+        .to_string(),
+    )
+    .expect("write retired search");
+    sandbox.assert_not_prod_path(&path).expect("sandbox file");
+    let grouped = crate::services::settings::mcp_channel_tools::enabled_by_group("cursor_ide");
+    assert!(!grouped.notes.contains(&"search_notes".into()));
+    assert!(!grouped.knowledge.contains(&"search_knowledge".into()));
+    assert!(grouped.global.contains(&"search_document".into()));
+    assert!(is_enabled("cursor_ide", "search_document"));
+    assert!(!is_enabled("cursor_ide", "search_notes"));
+    assert!(!is_enabled("cursor_ide", "search_knowledge"));
+}
+
+#[test]
+fn load_rewrites_retired_note_content_name() {
+    let sandbox = TestSandbox::new();
+    let path = paths::mcp_channel_tools_path().expect("path");
+    fs::write(
+        &path,
+        serde_json::json!({
+            "channels": {
+                "cursor_ide": {
+                    "notes": ["get_all_notes_catalog", "get_note_content_by_id"],
+                    "todo": [],
+                    "knowledge": []
+                }
+            }
+        })
+        .to_string(),
+    )
+    .expect("write retired note content");
+    sandbox.assert_not_prod_path(&path).expect("sandbox file");
+    let grouped = crate::services::settings::mcp_channel_tools::enabled_by_group("cursor_ide");
+    assert!(!grouped.notes.contains(&"get_note_content_by_id".into()));
+    assert!(grouped.notes.contains(&"get_note_content".into()));
+    assert!(is_enabled("cursor_ide", "get_note_content"));
+    assert!(!is_enabled("cursor_ide", "get_note_content_by_id"));
 }
 
 #[test]

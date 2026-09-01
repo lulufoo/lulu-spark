@@ -1,7 +1,8 @@
 //! Per-channel MCP tool allowlist (`/mcp/workbench`, `/mcp/cursor_ide`, `/mcp/mobile`).
 //!
-//! Persists nested `{ channel: { notes: [], todo: [], knowledge: [] } }`. Legacy
-//! flat arrays are migrated on read. UI commands still accept/return flat enabled lists.
+//! Persists nested `{ channel: { notes: [], todo: [], knowledge: [], global: [] } }`.
+//! Legacy flat arrays are migrated on read. UI commands still accept/return flat enabled lists.
+//! Retired `search_notes` / `search_knowledge` names rewrite to `search_document`.
 
 use std::collections::{BTreeMap, HashSet};
 use std::fs;
@@ -13,6 +14,10 @@ use serde_json::{json, Value};
 use crate::config::paths;
 use crate::repositories::atomic_json;
 use crate::mcp_host::catalog::catalog_groups;
+use super::mcp_channel_classify::{
+    classify_flat, filter_groups, groups_to_flat, migrate_retired_search_groups,
+    rewrite_retired_search_names, sort_enabled_groups,
+};
 
 pub const MCP_CHANNELS: &[&str] = &["workbench", "cursor_ide", "mobile"];
 
@@ -29,6 +34,8 @@ pub struct EnabledByGroup {
     pub todo: Vec<String>,
     #[serde(default)]
     pub knowledge: Vec<String>,
+    #[serde(default)]
+    pub global: Vec<String>,
 }
 
 #[derive(Debug, Default, Clone)]
@@ -45,46 +52,6 @@ fn catalog_names() -> HashSet<String> {
         .into_iter()
         .flat_map(|(_, tools)| tools.into_iter().map(|t| t.name))
         .collect()
-}
-
-fn catalog_by_group() -> Vec<(&'static str, HashSet<String>)> {
-    catalog_groups()
-        .into_iter()
-        .map(|(id, tools)| {
-            (
-                id,
-                tools.into_iter().map(|t| t.name).collect::<HashSet<_>>(),
-            )
-        })
-        .collect()
-}
-
-fn group_for_tool(name: &str) -> Option<&'static str> {
-    for (group_id, names) in catalog_by_group() {
-        if names.contains(name) {
-            return Some(group_id);
-        }
-    }
-    None
-}
-
-fn classify_flat(names: impl IntoIterator<Item = String>, catalog: &HashSet<String>) -> EnabledByGroup {
-    let mut groups = EnabledByGroup::default();
-    for name in names {
-        if !catalog.contains(&name) {
-            continue;
-        }
-        match group_for_tool(&name) {
-            Some("notes") => groups.notes.push(name),
-            Some("todo") => groups.todo.push(name),
-            Some("knowledge") => groups.knowledge.push(name),
-            _ => {}
-        }
-    }
-    groups.notes.sort();
-    groups.todo.sort();
-    groups.knowledge.sort();
-    groups
 }
 
 fn default_groups_for_channel(channel: &str, catalog: &HashSet<String>) -> EnabledByGroup {
@@ -109,43 +76,8 @@ fn apply_group_policy(channel: &str, mut groups: EnabledByGroup) -> EnabledByGro
             .notes
             .retain(|name| !WORKBENCH_ONLY_TOOLS.contains(&name.as_str()));
     }
-    groups.notes.sort();
-    groups.todo.sort();
-    groups.knowledge.sort();
+    sort_enabled_groups(&mut groups);
     groups
-}
-
-fn filter_groups(groups: EnabledByGroup, catalog: &HashSet<String>) -> EnabledByGroup {
-    let mut filtered = EnabledByGroup::default();
-    for name in groups.notes {
-        if catalog.contains(&name) {
-            filtered.notes.push(name);
-        }
-    }
-    for name in groups.todo {
-        if catalog.contains(&name) {
-            filtered.todo.push(name);
-        }
-    }
-    for name in groups.knowledge {
-        if catalog.contains(&name) {
-            filtered.knowledge.push(name);
-        }
-    }
-    filtered.notes.sort();
-    filtered.todo.sort();
-    filtered.knowledge.sort();
-    filtered
-}
-
-fn groups_to_flat(groups: &EnabledByGroup) -> HashSet<String> {
-    groups
-        .notes
-        .iter()
-        .chain(groups.todo.iter())
-        .chain(groups.knowledge.iter())
-        .cloned()
-        .collect()
 }
 
 fn normalize_channel_entry(value: &Value, catalog: &HashSet<String>) -> EnabledByGroup {
@@ -157,7 +89,7 @@ fn normalize_channel_entry(value: &Value, catalog: &HashSet<String>) -> EnabledB
         return classify_flat(names, catalog);
     }
     if let Ok(groups) = serde_json::from_value::<EnabledByGroup>(value.clone()) {
-        return filter_groups(groups, catalog);
+        return filter_groups(migrate_retired_search_groups(groups), catalog);
     }
     EnabledByGroup::default()
 }
@@ -233,6 +165,7 @@ pub fn set_enabled(channel: &str, enabled: Vec<String>) -> Result<(), String> {
         return Err(format!("unknown mcp channel: {channel}"));
     }
     let catalog = catalog_names();
+    let enabled = rewrite_retired_search_names(enabled);
     for name in &enabled {
         if !catalog.contains(name) {
             return Err(format!("unknown tool: {name}"));
@@ -267,6 +200,7 @@ pub fn snapshot() -> Result<Value, String> {
                 "notes": grouped.notes,
                 "todo": grouped.todo,
                 "knowledge": grouped.knowledge,
+                "global": grouped.global,
             }),
         );
     }
@@ -280,6 +214,7 @@ pub fn snapshot() -> Result<Value, String> {
                     "notes" => "Notes",
                     "todo" => "Todo",
                     "knowledge" => "Knowledge",
+                    "global" => "Global",
                     other => other,
                 },
                 "tools": tools.iter().map(|tool| json!({

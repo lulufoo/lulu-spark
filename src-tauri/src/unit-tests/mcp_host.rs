@@ -9,7 +9,7 @@ use std::time::Duration;
 use super::*;
 use crate::main_host;
 use crate::mcp_host::catalog::groups::notes::{
-    create_note_from_content, create_note_from_source, note_content_invoke, note_path_invoke,
+    create_note_from_content, create_note_from_source, note_path_invoke,
 };
 use crate::services::mcp_oauth::{
     issue_for_device, issue_for_slot, revoke_for_device, revoke_for_slot, OAuthError, Slot,
@@ -153,8 +153,7 @@ const NOTES_TOOLS: &[&str] = &[
     "get_latest_digest_per_catalog",
     "get_notes_by_catalog",
     "get_note_digest_by_id",
-    "get_note_content_by_id",
-    "search_notes",
+    "get_note_content",
     "create_note",
     "delete_note",
     "list_notes_categories",
@@ -169,8 +168,7 @@ const NOTES_TOOLS_NON_WORKBENCH: &[&str] = &[
     "get_latest_digest_per_catalog",
     "get_notes_by_catalog",
     "get_note_digest_by_id",
-    "get_note_content_by_id",
-    "search_notes",
+    "get_note_content",
     "create_note",
     "list_notes_categories",
     "create_notes_category",
@@ -181,9 +179,10 @@ const NOTES_TOOLS_NON_WORKBENCH: &[&str] = &[
 const KNOWLEDGE_TOOLS: &[&str] = &[
     "list_knowledge_categories",
     "list_knowledge_repos",
-    "search_knowledge",
     "get_knowledge_content",
 ];
+
+const GLOBAL_TOOLS: &[&str] = &["search_document"];
 
 /// Todo tools from Node `buildServer()` when `includeTodo` is true.
 const TODO_TOOLS: &[&str] = &[
@@ -211,6 +210,7 @@ fn workbench_expected_tool_names() -> BTreeSet<&'static str> {
     let mut names: BTreeSet<&'static str> = NOTES_TOOLS.iter().copied().collect();
     names.extend(TODO_TOOLS.iter().copied());
     names.extend(KNOWLEDGE_TOOLS.iter().copied());
+    names.extend(GLOBAL_TOOLS.iter().copied());
     names
 }
 
@@ -218,6 +218,7 @@ fn cursor_ide_expected_tool_names() -> BTreeSet<&'static str> {
     let mut names: BTreeSet<&'static str> = NOTES_TOOLS_NON_WORKBENCH.iter().copied().collect();
     names.extend(TODO_TOOLS.iter().copied());
     names.extend(KNOWLEDGE_TOOLS.iter().copied());
+    names.extend(GLOBAL_TOOLS.iter().copied());
     names
 }
 
@@ -558,9 +559,19 @@ fn tools_list_workbench_and_cursor_ide_are_notes_todo() {
             "workbench must include knowledge tool {tool}"
         );
     }
+    for tool in GLOBAL_TOOLS {
+        assert!(
+            ide_names.contains(*tool),
+            "cursor_ide must include global tool {tool}"
+        );
+        assert!(
+            wb_names.contains(*tool),
+            "workbench must include global tool {tool}"
+        );
+    }
     assert_eq!(
         wb_names, ide_names,
-        "workbench and cursor_ide now share notes ∪ todo ∪ knowledge"
+        "workbench and cursor_ide now share notes ∪ todo ∪ knowledge ∪ global"
     );
 }
 
@@ -659,7 +670,7 @@ fn mcp_tools_list_publishes_descriptions_schemas_and_mutation_hints() {
     assert_eq!(
         notes_tools.len(),
         workbench_expected_tool_names().len(),
-        "Workbench MCP tool count is notes ∪ todo ∪ knowledge"
+        "Workbench MCP tool count is notes ∪ todo ∪ knowledge ∪ global"
     );
     for tool in &notes_tools {
         assert!(
@@ -692,12 +703,12 @@ fn mcp_tools_list_publishes_descriptions_schemas_and_mutation_hints() {
         "catalog list must not require mode"
     );
     assert!(
-        notes_tools.iter().any(|tool| tool.name == "get_note_content_by_id"),
+        notes_tools.iter().any(|tool| tool.name == "get_note_content"),
         "raw read must be hung"
     );
     assert!(
-        notes_tools.iter().any(|tool| tool.name == "search_notes"),
-        "notes search must be hung"
+        notes_tools.iter().any(|tool| tool.name == "search_document"),
+        "document search must be hung"
     );
     assert!(
         !notes_tools
@@ -908,7 +919,7 @@ fn representative_tools_call_per_registered_slot_hits_services() {
 /// Regression: MCP dispatch must isolate a synchronous Meili client from the
 /// async MCP worker; otherwise reqwest panics while dropping its inner runtime.
 #[test]
-fn proxy_dispatches_search_notes_on_blocking_worker() {
+fn proxy_dispatches_search_document_on_blocking_worker() {
     let _sandbox = TestSandbox::new();
     plant_empty_notes_index();
     let rt = tokio::runtime::Builder::new_current_thread()
@@ -920,7 +931,7 @@ fn proxy_dispatches_search_notes_on_blocking_worker() {
         .block_on(proxy_tool_call(
             WORKBENCH_SLOT,
             WORKBENCH_SLOT,
-            "search_notes",
+            "search_document",
             serde_json::json!({ "q": "regression" }),
         ))
         .expect("blocking worker must return a mapped tool result");
@@ -2318,19 +2329,19 @@ fn note_content_tool(table: &SlotToolTable) -> &ToolRoute {
     table
         .tools
         .iter()
-        .find(|t| t.name == "get_note_content_by_id")
-        .expect("get_note_content_by_id")
+        .find(|t| t.name == "get_note_content")
+        .expect("get_note_content")
 }
 
-/// Normal: workbench channel hangs get_note_content_by_id on note_path Services.
+/// Normal: workbench channel hangs get_note_content on note_path Services.
 #[test]
-fn workbench_channel_get_note_content_by_id_hits_note_path() {
+fn workbench_channel_get_note_content_hits_note_path() {
     let table = build_channel_tool_table(WORKBENCH_SLOT, WORKBENCH_SLOT).expect("workbench");
     let tool = note_content_tool(&table);
-    assert_eq!(tool.name, "get_note_content_by_id");
+    assert_eq!(tool.name, "get_note_content");
     assert!(
         tool.invoke == note_path_invoke,
-        "workbench get_note_content_by_id must invoke note_path"
+        "workbench get_note_content must invoke note_path"
     );
     assert!(
         tool.description.contains("staged document id") && tool.description.contains("F1"),
@@ -2344,10 +2355,10 @@ fn workbench_channel_get_note_content_by_id_hits_note_path() {
     );
 }
 
-/// Normal: cursor_ide and mobile keep get_note_content_by_id on note_content Services.
-/// Boundary: /mcp/mobile still uses workbench scene_slot; split is by channel, not slot.
+/// Normal: cursor_ide and mobile hang get_note_content on note_path (absolute path, no body).
+/// Boundary: /mcp/mobile still uses workbench scene_slot; description split is by channel, not slot.
 #[test]
-fn cursor_ide_and_mobile_get_note_content_by_id_still_hit_note_content() {
+fn cursor_ide_and_mobile_get_note_content_hit_note_path() {
     assert!(!super::is_registered_scene_slot(MOBILE_PATH));
     assert_eq!(
         super::REGISTERED_SCENE_SLOTS,
@@ -2356,18 +2367,34 @@ fn cursor_ide_and_mobile_get_note_content_by_id_still_hit_note_content() {
 
     let ide = build_channel_tool_table(CURSOR_IDE_SLOT, CURSOR_IDE_SLOT).expect("cursor_ide");
     let ide_tool = note_content_tool(&ide);
-    assert_eq!(ide_tool.name, "get_note_content_by_id");
+    assert_eq!(ide_tool.name, "get_note_content");
     assert!(
-        ide_tool.invoke == note_content_invoke,
-        "cursor_ide get_note_content_by_id must invoke note_content"
+        ide_tool.invoke == note_path_invoke,
+        "cursor_ide get_note_content must invoke note_path"
+    );
+    assert!(
+        ide_tool.description.contains("absolute file path")
+            && ide_tool.description.contains("Does not return file body"),
+        "cursor_ide description must say absolute path and no body, got {}",
+        ide_tool.description
+    );
+    assert!(
+        !ide_tool.description.contains("Stage"),
+        "cursor_ide description must not mention Stage: {}",
+        ide_tool.description
     );
 
     let mobile = build_channel_tool_table(WORKBENCH_SLOT, MOBILE_PATH).expect("mobile overlay");
     let mobile_tool = note_content_tool(&mobile);
-    assert_eq!(mobile_tool.name, "get_note_content_by_id");
+    assert_eq!(mobile_tool.name, "get_note_content");
     assert!(
-        mobile_tool.invoke == note_content_invoke,
-        "mobile must not inherit workbench note_path from scene_slot=workbench"
+        mobile_tool.invoke == note_path_invoke,
+        "mobile get_note_content must invoke note_path"
+    );
+    assert!(
+        mobile_tool.description.contains("absolute file path")
+            && !mobile_tool.description.contains("staged document id"),
+        "mobile must not inherit workbench Stage description from scene_slot=workbench"
     );
 }
 
@@ -2426,9 +2453,9 @@ fn crate_registers_mcp_host_as_in_process_module() {
     );
 }
 
-/// Boundary: MCP name stays get_note_content_by_id; digest still hangs get_note_digest_by_id.
+/// Boundary: MCP name is get_note_content; digest still hangs get_note_digest_by_id.
 #[test]
-fn get_note_content_by_id_name_and_digest_route_unchanged() {
+fn get_note_content_name_and_digest_route() {
     for (slot, channel) in [
         (WORKBENCH_SLOT, WORKBENCH_SLOT),
         (CURSOR_IDE_SLOT, CURSOR_IDE_SLOT),
@@ -2436,8 +2463,12 @@ fn get_note_content_by_id_name_and_digest_route_unchanged() {
     ] {
         let table = build_channel_tool_table(slot, channel).expect("table");
         assert!(
-            table.tools.iter().any(|t| t.name == "get_note_content_by_id"),
-            "{channel} must keep MCP name get_note_content_by_id"
+            table.tools.iter().any(|t| t.name == "get_note_content"),
+            "{channel} must expose MCP name get_note_content"
+        );
+        assert!(
+            table.tools.iter().all(|t| t.name != "get_note_content_by_id"),
+            "{channel} must not keep retired name get_note_content_by_id"
         );
         let digest = table
             .tools

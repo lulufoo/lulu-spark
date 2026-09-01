@@ -48,6 +48,7 @@ fn enabled_grouped_unknown_channel_is_empty() {
     assert!(grouped.notes.is_empty());
     assert!(grouped.todo.is_empty());
     assert!(grouped.knowledge.is_empty());
+    assert!(grouped.global.is_empty());
 }
 
 #[test]
@@ -55,7 +56,8 @@ fn enabled_grouped_default_is_full_catalog_when_unconfigured() {
     with_channel_tools(|| {
         let flat: HashSet<String> = mcp_channel_tools::enabled_names("cursor_ide");
         let grouped = enabled_grouped("cursor_ide");
-        let grouped_count = grouped.notes.len() + grouped.todo.len() + grouped.knowledge.len();
+        let grouped_count =
+            grouped.notes.len() + grouped.todo.len() + grouped.knowledge.len() + grouped.global.len();
         assert_eq!(grouped_count, flat.len());
     });
 }
