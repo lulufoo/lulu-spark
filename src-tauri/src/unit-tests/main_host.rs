@@ -2934,7 +2934,7 @@ fn notes_selection_module_and_mcp_tool_are_gone() {
             for tool in &table.tools {
                 let name = tool.name.to_lowercase();
                 assert!(
-                    !name.contains("notes_selection") && !tool.api_path.contains("notes-selection"),
+                    !name.contains("notes_selection") && !name.contains("notes-selection"),
                     "no notes-selection MCP tool, found {} on {slot}",
                     tool.name
                 );

@@ -1,13 +1,10 @@
-//! MCP adapter types and Sidecar tool-route tables.
+//! MCP adapter types and in-process tool-route tables.
 
 use std::net::SocketAddr;
 use std::thread::JoinHandle;
 
 use serde_json::Value;
 use tokio_util::sync::CancellationToken;
-
-/// Default Sidecar loopback base (Host tiny_http `:8765`).
-pub const DEFAULT_SIDECAR_BASE_URL: &str = "http://127.0.0.1:8765";
 
 /// V5/Topic2 close-gate evidence: dual listen + session initialize/tools/list.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -59,25 +56,21 @@ pub struct McpToolError {
     pub content_text: String,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum HttpMethod {
-    Get,
-    Post,
-}
+/// In-process Services call for one allowlisted MCP tool.
+pub type ToolInvoke = fn(&Value) -> Value;
 
-/// One allowlisted tool and its Sidecar outbound path (from Node `registerTool`).
+/// One allowlisted tool and its in-process Services invoke.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ToolRoute {
     pub name: String,
     pub description: String,
-    pub method: HttpMethod,
-    pub api_path: String,
     /// True only when the tool changes no Host-managed data.
     pub read_only: bool,
     /// A destructive mutation hint for MCP clients. Meaningful only for writes.
     pub destructive: bool,
     /// JSON Schema passed to MCP `tools/list` and, later, to model tool definitions.
     pub input_schema: Value,
+    pub invoke: ToolInvoke,
 }
 
 /// Authoritative slot→tool routing table for a registered `scene_slot`.

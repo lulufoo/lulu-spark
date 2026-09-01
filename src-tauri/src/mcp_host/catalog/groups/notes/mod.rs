@@ -16,6 +16,9 @@ mod update_notes_category;
 
 use crate::mcp_host::ToolRoute;
 
+pub(crate) use create_note::{invoke_from_content as create_note_from_content, invoke_from_source as create_note_from_source};
+pub(crate) use get_note_content_by_id::{invoke_content as note_content_invoke, invoke_path as note_path_invoke};
+
 pub const GROUP_ID: &str = "notes";
 
 /// Channel used for Settings snapshot metadata (canonical paths/descriptions).

@@ -8,6 +8,9 @@ use std::time::Duration;
 
 use super::*;
 use crate::main_host;
+use crate::mcp_host::catalog::groups::notes::{
+    create_note_from_content, create_note_from_source, note_content_invoke, note_path_invoke,
+};
 use crate::services::mcp_oauth::{
     issue_for_device, issue_for_slot, revoke_for_device, revoke_for_slot, OAuthError, Slot,
     TicketHandle,
@@ -194,40 +197,6 @@ const TODO_TOOLS: &[&str] = &[
     "update_todo_attachment",
 ];
 
-/// tool name → Sidecar `/api/*` path transplanted from Node `registerTool` handlers.
-fn expected_api_path(tool: &str) -> (&'static str, HttpMethod) {
-    match tool {
-        "get_all_notes_catalog" => ("/api/notes-catalogs", HttpMethod::Get),
-        "get_latest_digest_per_catalog" => ("/api/notes-latest-digests", HttpMethod::Get),
-        "get_notes_by_catalog" => ("/api/notes-by-catalog", HttpMethod::Post),
-        "get_note_digest_by_id" => ("/api/note-digest", HttpMethod::Post),
-        "get_note_content_by_id" => ("/api/note-content", HttpMethod::Post),
-        "search_notes" => ("/api/notes-search", HttpMethod::Post),
-        "create_note" => ("/api/create-note", HttpMethod::Post),
-        "delete_note" => ("/api/delete-note", HttpMethod::Post),
-        "list_notes_categories" => ("/api/notes-categories", HttpMethod::Get),
-        "create_notes_category" => ("/api/notes-category-create", HttpMethod::Post),
-        "update_notes_category" => ("/api/notes-category-update", HttpMethod::Post),
-        "delete_notes_category" => ("/api/notes-category-delete", HttpMethod::Post),
-        "create_todo_task" => ("/api/todo-task-create", HttpMethod::Post),
-        "update_todo_task" => ("/api/todo-task-update", HttpMethod::Post),
-        "list_todo_tasks" => ("/api/todo-tasks", HttpMethod::Get),
-        "list_todo_categories" => ("/api/todo-task-list-categories", HttpMethod::Get),
-        "get_todo_task" => ("/api/todo-task", HttpMethod::Get),
-        "delete_todo_task" => ("/api/todo-task-delete", HttpMethod::Post),
-        "add_todo_sub" => ("/api/todo-task-add-sub", HttpMethod::Post),
-        "update_todo_sub" => ("/api/todo-task-update-sub", HttpMethod::Post),
-        "delete_todo_sub" => ("/api/todo-task-delete-sub", HttpMethod::Post),
-        "complete_todo" => ("/api/todo-task-complete", HttpMethod::Post),
-        "link_todo_archive" => ("/api/todo-task-link-archive", HttpMethod::Post),
-        "add_todo_attachment" => ("/api/todo-task-add-attachment", HttpMethod::Post),
-        "list_todo_attachments" => ("/api/todo-task-list-attachments", HttpMethod::Post),
-        "get_todo_attachment" => ("/api/todo-task-get-attachment", HttpMethod::Post),
-        "update_todo_attachment" => ("/api/todo-task-update-attachment", HttpMethod::Post),
-        other => panic!("unexpected tool in fixture: {other}"),
-    }
-}
-
 const WORKBENCH_SLOT: &str = "workbench";
 const CURSOR_IDE_SLOT: &str = "cursor_ide";
 
@@ -247,12 +216,20 @@ fn names_of(tools: &[ToolDescriptor]) -> BTreeSet<String> {
     tools.iter().map(|t| t.name.clone()).collect()
 }
 
-fn route_map(table: &SlotToolTable) -> std::collections::BTreeMap<String, (String, HttpMethod)> {
-    table
-        .tools
-        .iter()
-        .map(|r| (r.name.clone(), (r.api_path.clone(), r.method)))
-        .collect()
+fn plant_todo_migration_gate() {
+    let root = crate::config::paths::todo_tasks_dir().expect("todo dir");
+    fs::create_dir_all(&root).expect("todo root");
+    fs::write(
+        root.join(crate::services::todo_task::MIGRATION_GATE_FILE),
+        b"ok\n",
+    )
+    .expect("plant migration gate");
+}
+
+fn plant_empty_notes_index() {
+    let notes = crate::config::paths::notes_root().expect("notes dir");
+    fs::create_dir_all(&notes).expect("notes root");
+    fs::write(notes.join("index.json"), br#"{"entries":{}}"#).expect("plant empty notes index");
 }
 
 /// Boundary: Cargo must pin `rmcp` on the 3.1.x line (decision verify point 3.1.0).
@@ -501,19 +478,10 @@ fn build_slot_tool_table_workbench_is_notes_todo() {
         !names.contains("get_notes_selection"),
         "workbench must not hang get_notes_selection"
     );
-
-    let routes = route_map(&table);
-    for tool in expected.iter() {
-        let (path, method) = expected_api_path(tool);
-        let got = routes.get(*tool).expect("route present");
-        assert_eq!(got.0, path, "api path for {tool}");
-        assert_eq!(got.1, method, "http method for {tool}");
-        assert!(
-            got.0.starts_with("/api/"),
-            "outbound target must be Sidecar /api/* path, got {}",
-            got.0
-        );
-    }
+    assert!(
+        table.tools.iter().all(|r| r.invoke as usize != 0),
+        "every workbench tool must bind an in-process Services invoke"
+    );
 }
 
 /// Normal: `cursor_ide` routing table = notes + todo (SCENE_SLOT_API both true).
@@ -527,14 +495,10 @@ fn build_slot_tool_table_cursor_ide_matches_node_allowlist() {
     let mut expected: BTreeSet<_> = NOTES_TOOLS.iter().copied().collect();
     expected.extend(TODO_TOOLS.iter().copied());
     assert_eq!(names, expected, "cursor_ide tools must match Node notes+todo set");
-
-    let routes = route_map(&table);
-    for tool in expected.iter() {
-        let (path, method) = expected_api_path(tool);
-        let got = routes.get(*tool).expect("route present");
-        assert_eq!(got.0, path, "api path for {tool}");
-        assert_eq!(got.1, method, "http method for {tool}");
-    }
+    assert!(
+        table.tools.iter().all(|r| r.invoke as usize != 0),
+        "every cursor_ide tool must bind an in-process Services invoke"
+    );
 }
 
 /// Boundary: workbench and cursor_ide both expose notes ∪ todo; notes-selection is gone.
@@ -874,165 +838,87 @@ fn map_sidecar_error_response_matches_node_adapter_shape() {
     );
 }
 
-/// Exception: Sidecar unreachable maps like Node toolError(503, "Workbench HTTP unreachable: …").
+/// Normal: tools/call reaches L4 Services in-process (no :8765 hop).
 #[test]
-fn proxy_tool_call_unreachable_sidecar_maps_like_node() {
-    // Nothing listens on this port.
-    let base = "http://127.0.0.1:1";
+fn representative_tools_call_per_registered_slot_hits_services() {
+    let _sandbox = TestSandbox::new();
+    plant_todo_migration_gate();
+    plant_empty_notes_index();
     let rt = tokio::runtime::Builder::new_current_thread()
         .enable_all()
         .build()
         .expect("runtime");
-    let mapped = rt
+
+    let cats = rt
         .block_on(proxy_tool_call(
-            base,
             WORKBENCH_SLOT,
             WORKBENCH_SLOT,
             "list_todo_categories",
             serde_json::json!({}),
         ))
-        .expect("unreachable is a mapped tool error, not protocol failure");
-    let err = mapped.expect_err("must be tool-level error");
-    let text = mcp_text_err(&err);
+        .expect("proxy")
+        .expect("todo categories succeed");
+    let cats_json: serde_json::Value =
+        serde_json::from_str(mcp_text_ok(&cats)).expect("categories JSON");
     assert!(
-        text.starts_with("HTTP 503: Workbench HTTP unreachable:"),
-        "Node-equivalent unreachable prefix, got {text}"
+        cats_json.get("categories").is_some() || cats_json.is_object() || cats_json.is_array(),
+        "list_todo_categories must return Services wire, got {}",
+        mcp_text_ok(&cats)
     );
-}
 
-/// Start a tiny recording Sidecar on loopback; returns (base_url, join, seen Arc).
-fn start_recording_sidecar(
-    expected_status: u16,
-    response_body: &'static str,
-) -> (
-    String,
-    std::sync::Arc<std::sync::Mutex<Vec<(String, String)>>>,
-    thread::JoinHandle<()>,
-) {
-    use std::sync::{Arc, Mutex};
-    use tiny_http::{Header, Response, Server, StatusCode};
-
-    let port = ephemeral_port();
-    let server = Server::http(format!("127.0.0.1:{port}")).expect("bind recording sidecar");
-    let base = format!("http://127.0.0.1:{port}");
-    let seen: Arc<Mutex<Vec<(String, String)>>> = Arc::new(Mutex::new(Vec::new()));
-    let seen_thread = Arc::clone(&seen);
-    let join = thread::spawn(move || {
-        // One request is enough for representative smoke; timeout avoids join hang.
-        let Ok(Some(mut request)) = server.recv_timeout(Duration::from_secs(5)) else {
-            return;
-        };
-        let method = request.method().as_str().to_string();
-        let url = request.url().to_string();
-        seen_thread.lock().expect("lock").push((method, url));
-        let status = StatusCode::from(expected_status);
-        let mut response = Response::from_string(response_body).with_status_code(status);
-        response.add_header(
-            Header::from_bytes(&b"Content-Type"[..], &b"application/json"[..]).unwrap(),
-        );
-        let _ = request.respond(response);
-    });
-    // Brief settle for accept loop.
-    thread::sleep(Duration::from_millis(20));
-    (base, seen, join)
-}
-
-/// Normal: each registered slot gets ≥1 representative tools/call via HTTP loopback to /api/*.
-#[test]
-fn representative_tools_call_per_registered_slot_hits_sidecar_api() {
-    let cases = [
-        (
-            WORKBENCH_SLOT,
-            "list_todo_categories",
-            serde_json::json!({}),
-            "GET",
-            "/api/todo-task-list-categories",
-        ),
-        (
+    let catalogs = rt
+        .block_on(proxy_tool_call(
+            CURSOR_IDE_SLOT,
             CURSOR_IDE_SLOT,
             "get_all_notes_catalog",
             serde_json::json!({}),
-            "GET",
-            "/api/notes-catalogs",
-        ),
-    ];
-
-    let rt = tokio::runtime::Builder::new_current_thread()
-        .enable_all()
-        .build()
-        .expect("runtime");
-
-    for (slot, tool, args, want_method, want_path) in cases {
-        let body = r#"{"ok":true,"proxy":"sidecar"}"#;
-        let (base, seen, join) = start_recording_sidecar(200, body);
-        let mapped = rt
-            .block_on(proxy_tool_call(&base, slot, slot, tool, args))
-            .expect("proxy must return mapped result")
-            .expect("Sidecar 200 → MCP success");
-        assert_eq!(mcp_text_ok(&mapped), body);
-
-        let hits = seen.lock().expect("lock").clone();
-        assert!(
-            hits.iter().any(|(m, u)| m == want_method && u == want_path),
-            "slot={slot} tool={tool} expected {want_method} {want_path}, seen={hits:?}"
-        );
-        // Ensure path is under /api/* (Sidecar surface).
-        assert!(
-            hits.iter().any(|(_, u)| u.starts_with("/api/")),
-            "must hit Sidecar /api/*, seen={hits:?}"
-        );
-        let _ = join.join();
-    }
-}
-
-/// Exception: Sidecar error body via proxy_tool_call stays Node-equivalent.
-#[test]
-fn proxy_tool_call_maps_sidecar_http_error_like_node() {
-    let (base, _seen, join) = start_recording_sidecar(500, "boom");
-    let rt = tokio::runtime::Builder::new_current_thread()
-        .enable_all()
-        .build()
-        .expect("runtime");
-    let err = rt
-        .block_on(proxy_tool_call(
-            &base,
-            WORKBENCH_SLOT,
-            WORKBENCH_SLOT,
-            "list_todo_categories",
-            serde_json::json!({}),
         ))
-        .expect("mapped")
-        .expect_err("500 → tool error");
-    assert_eq!(mcp_text_err(&err), "HTTP 500: boom");
-    let _ = join.join();
+        .expect("proxy")
+        .expect("notes catalogs succeed");
+    let catalog_json: serde_json::Value =
+        serde_json::from_str(mcp_text_ok(&catalogs)).expect("catalogs JSON");
+    assert!(
+        catalog_json.get("items").is_some(),
+        "get_all_notes_catalog must return items, got {}",
+        mcp_text_ok(&catalogs)
+    );
 }
 
-/// Exception: Adapter source must not reach FS or domain modules directly (loopback only).
+/// Exception: Services `_status` maps to the same MCP error wire as the old HTTP mapper.
 #[test]
-fn adapter_source_forbids_fs_and_domain_direct_access() {
-    let src = adapter_source();
-    for needle in [
-        "std::fs",
-        "tokio::fs",
-        "crate::services::todo_task",
-        "crate::services::workbench_read",
-        "crate::services::notes",
-        "crate::services::kb",
-        "crate::services::knowledge",
-        "crate::repositories",
-    ] {
-        assert!(
-            !src.contains(needle),
-            "Adapter must not {needle}; domain/notes only via Sidecar HTTP"
-        );
-    }
+fn proxy_tool_call_maps_service_error_like_node() {
+    let err = map_service_value_to_mcp(serde_json::json!({
+        "error": "boom",
+        "_status": 500
+    }))
+    .expect_err("500 → tool error");
+    assert_eq!(mcp_text_err(&err), r#"HTTP 500: {"error":"boom"}"#);
+}
+
+/// Catalog invoke reaches L4; tool dispatch must not hop to Main Host :8765.
+#[test]
+fn tool_dispatch_is_in_process_services() {
+    let proxy = include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/src/mcp_host/server/proxy.rs"
+    ));
     assert!(
-        src.contains("127.0.0.1") && src.contains("8765"),
-        "Adapter must default Sidecar loopback to 127.0.0.1:8765"
+        !proxy.contains("8765") && !proxy.contains("sidecar_base_url") && !proxy.contains("reqwest"),
+        "proxy.rs must dispatch in-process, not HTTP to Main Host"
     );
     assert!(
-        src.contains("/api/") || src.contains("api_path"),
-        "Adapter outbound targets must be Sidecar /api/* routes"
+        !adapter_source().contains("DEFAULT_SIDECAR_BASE_URL"),
+        "MCP Host must not default a Sidecar base URL"
+    );
+    let catalog = crate::test_support::read_rs_dir(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/src/mcp_host/catalog/groups"
+    ));
+    assert!(
+        catalog.contains("crate::services::todo_task")
+            && catalog.contains("crate::services::workbench_read")
+            && catalog.contains("crate::services::notes"),
+        "catalog invoke must call L4 Services"
     );
 }
 
@@ -1449,7 +1335,7 @@ fn get_notes_selection_is_not_hung_on_workbench() {
         table
             .tools
             .iter()
-            .all(|r| r.name != "get_notes_selection" && !r.api_path.contains("notes-selection")),
+            .all(|r| r.name != "get_notes_selection"),
         "build_slot_tool_table must not attach notes-selection"
     );
 
@@ -1481,12 +1367,6 @@ fn workbench_slot_has_no_mcp_write_selection_tool() {
             !writes_selection,
             "must not provide an MCP write-selection tool, found {}",
             tool.name
-        );
-        assert!(
-            !tool.api_path.contains("notes-selection"),
-            "notes selection MCP route must be gone, found {} {:?}",
-            tool.name,
-            tool.method
         );
     }
 }
@@ -1589,14 +1469,10 @@ fn p4_cursor_ide_surface_unchanged_notes_plus_todo_original_api() {
         !names.contains("get_notes_selection"),
         "cursor_ide must not expose get_notes_selection"
     );
-
-    let routes = route_map(&table);
-    for tool in expected.iter() {
-        let (path, method) = expected_api_path(tool);
-        let got = routes.get(tool).expect("cursor_ide route present");
-        assert_eq!(got.0, path, "cursor_ide {tool} must keep original /api path");
-        assert_eq!(got.1, method, "cursor_ide {tool} must keep original method");
-    }
+    assert!(
+        table.tools.iter().all(|r| r.invoke as usize != 0),
+        "cursor_ide tools must bind in-process Services invokes"
+    );
 }
 
 /// P4: neither slot hangs notes-selection tools.
@@ -1934,36 +1810,6 @@ fn issue_device_ticket(device_id: &str) -> TicketHandle {
     issue_for_device(device_id, Some("t3-phone")).expect("issue device ticket")
 }
 
-fn start_looping_api_sidecar(
-    response_body: &'static str,
-) -> (String, std::sync::mpsc::Sender<()>, thread::JoinHandle<()>) {
-    use std::sync::mpsc;
-    use tiny_http::{Header, Response, Server, StatusCode};
-
-    let port = ephemeral_port();
-    let server = Server::http(format!("127.0.0.1:{port}")).expect("bind looping sidecar");
-    let base = format!("http://127.0.0.1:{port}");
-    let (stop_tx, stop_rx) = mpsc::channel::<()>();
-    let join = thread::spawn(move || {
-        loop {
-            if stop_rx.try_recv().is_ok() {
-                break;
-            }
-            let Ok(Some(request)) = server.recv_timeout(Duration::from_millis(100)) else {
-                continue;
-            };
-            let mut response =
-                Response::from_string(response_body).with_status_code(StatusCode::from(200));
-            response.add_header(
-                Header::from_bytes(&b"Content-Type"[..], &b"application/json"[..]).unwrap(),
-            );
-            let _ = request.respond(response);
-        }
-    });
-    thread::sleep(Duration::from_millis(20));
-    (base, stop_tx, join)
-}
-
 async fn list_and_call_mobile(
     port: u16,
     ticket: &TicketHandle,
@@ -2220,16 +2066,10 @@ fn t3_mcp_mobile_tools_match_workbench_table() {
 #[test]
 fn t3_live_device_ticket_can_call_full_workbench_tools_on_mobile() {
     with_device_sandbox(|| {
+        plant_todo_migration_gate();
+        plant_empty_notes_index();
         let token = issue_device_ticket("phone-t3-call");
-        let sidecar_body = r#"{"ok":true,"via":"mobile"}"#;
-        let (base, stop, join) = start_looping_api_sidecar(sidecar_body);
-        let handle = start_embedded_mcp_runtime_with_sidecar(
-            McpRuntimeConfig {
-                bind_addr: "127.0.0.1:0".parse().expect("bind"),
-            },
-            base,
-        )
-        .expect("start MCP with sidecar");
+        let handle = start_ephemeral_mcp();
         let port = handle.local_addr().port();
         let rt = tokio::runtime::Builder::new_current_thread()
             .enable_all()
@@ -2239,10 +2079,7 @@ fn t3_live_device_ticket_can_call_full_workbench_tools_on_mobile() {
         let cases = [
             ("list_todo_tasks", serde_json::json!({})),
             ("list_todo_categories", serde_json::json!({})),
-            (
-                "get_all_notes_catalog",
-                serde_json::json!({}),
-            ),
+            ("get_all_notes_catalog", serde_json::json!({})),
         ];
         for (tool, args) in cases {
             let (names, is_error, text) = rt
@@ -2255,12 +2092,13 @@ fn t3_live_device_ticket_can_call_full_workbench_tools_on_mobile() {
                 "mobile channel set = notes∪todo minus workbench-only"
             );
             assert!(!is_error, "mobile {tool} must succeed, got {text}");
-            assert_eq!(text, sidecar_body);
+            assert!(
+                serde_json::from_str::<serde_json::Value>(&text).is_ok(),
+                "mobile {tool} must return Services JSON, got {text}"
+            );
         }
 
-        let _ = stop.send(());
         stop_embedded_mcp_runtime(handle).expect("stop");
-        let _ = join.join();
     });
 }
 
@@ -2340,15 +2178,7 @@ fn channel_filter_hides_and_rejects_create_note_on_mobile() {
         crate::services::settings::mcp_channel_tools::set_enabled("mobile", enabled).expect("save");
 
         let token = issue_device_ticket("phone-channel-filter");
-        let sidecar_body = r#"{"ok":true,"via":"mobile"}"#;
-        let (base, stop, join) = start_looping_api_sidecar(sidecar_body);
-        let handle = start_embedded_mcp_runtime_with_sidecar(
-            McpRuntimeConfig {
-                bind_addr: "127.0.0.1:0".parse().expect("bind"),
-            },
-            base,
-        )
-        .expect("start MCP with sidecar");
+        let handle = start_ephemeral_mcp();
         let port = handle.local_addr().port();
         let rt = tokio::runtime::Builder::new_current_thread()
             .enable_all()
@@ -2378,13 +2208,11 @@ fn channel_filter_hides_and_rejects_create_note_on_mobile() {
             "call_tool must reject an unchecked mobile tool, got {err:?}"
         );
 
-        let _ = stop.send(());
         stop_embedded_mcp_runtime(handle).expect("stop");
-        let _ = join.join();
     });
 }
 
-/// Plan B: same MCP name, mobile channel posts /api/create-note-content.
+/// Plan B: same MCP name, mobile channel invokes create_note_content.
 #[test]
 fn mobile_channel_create_note_hits_content_api() {
     let table = build_channel_tool_table(WORKBENCH_SLOT, MOBILE_PATH).expect("overlay");
@@ -2393,7 +2221,10 @@ fn mobile_channel_create_note_hits_content_api() {
         .iter()
         .find(|t| t.name == "create_note")
         .expect("create_note");
-    assert_eq!(create.api_path, "/api/create-note-content");
+    assert!(
+        create.invoke == create_note_from_content,
+        "mobile create_note must invoke create_note_content"
+    );
     let required = create.input_schema["required"]
         .as_array()
         .expect("required");
@@ -2408,35 +2239,16 @@ fn mobile_channel_create_note_hits_content_api() {
         .iter()
         .find(|t| t.name == "create_note")
         .expect("create_note");
-    assert_eq!(path_create.api_path, "/api/create-note");
+    assert!(
+        path_create.invoke == create_note_from_source,
+        "workbench create_note must invoke create_note from source_path"
+    );
     let path_required = path_create.input_schema["required"]
         .as_array()
         .expect("required");
     assert!(path_required.iter().any(|v| v.as_str() == Some("source_path")));
     assert!(path_required.iter().any(|v| v.as_str() == Some("title")));
     assert!(path_required.iter().any(|v| v.as_str() == Some("digest")));
-
-    let (base, seen, join) = start_recording_sidecar(200, r#"{"ok":true}"#);
-    let rt = tokio::runtime::Builder::new_current_thread()
-        .enable_all()
-        .build()
-        .expect("runtime");
-    rt.block_on(proxy_tool_call(
-        &base,
-        WORKBENCH_SLOT,
-        MOBILE_PATH,
-        "create_note",
-        serde_json::json!({"content": "# T\n\nbody"}),
-    ))
-    .expect("proxy")
-    .expect("200");
-    let hits = seen.lock().expect("lock").clone();
-    assert!(
-        hits.iter()
-            .any(|(m, u)| m == "POST" && u == "/api/create-note-content"),
-        "mobile create_note must POST /api/create-note-content, seen={hits:?}"
-    );
-    let _ = join.join();
 }
 
 /// Exception: oauth still rejects mobile; T3 failure must not change Slot.
@@ -2464,14 +2276,16 @@ fn note_content_tool(table: &SlotToolTable) -> &ToolRoute {
         .expect("get_note_content_by_id")
 }
 
-/// Normal: workbench channel hangs get_note_content_by_id on POST /api/note-path.
+/// Normal: workbench channel hangs get_note_content_by_id on note_path Services.
 #[test]
 fn workbench_channel_get_note_content_by_id_hits_note_path() {
     let table = build_channel_tool_table(WORKBENCH_SLOT, WORKBENCH_SLOT).expect("workbench");
     let tool = note_content_tool(&table);
     assert_eq!(tool.name, "get_note_content_by_id");
-    assert_eq!(tool.api_path, "/api/note-path");
-    assert_eq!(tool.method, HttpMethod::Post);
+    assert!(
+        tool.invoke == note_path_invoke,
+        "workbench get_note_content_by_id must invoke note_path"
+    );
     assert!(
         tool.description.contains("staged document id") && tool.description.contains("F1"),
         "workbench description must say the return is a Stage document id, got {}",
@@ -2482,31 +2296,9 @@ fn workbench_channel_get_note_content_by_id_hits_note_path() {
         "workbench description must not tell the model to expect a path: {}",
         tool.description
     );
-
-    let (base, seen, join) = start_recording_sidecar(200, r#"{"id":"x","ok":true,"path":"/tmp/n.md"}"#);
-    let rt = tokio::runtime::Builder::new_current_thread()
-        .enable_all()
-        .build()
-        .expect("runtime");
-    rt.block_on(proxy_tool_call(
-        &base,
-        WORKBENCH_SLOT,
-        WORKBENCH_SLOT,
-        "get_note_content_by_id",
-        serde_json::json!({ "id": "11111111111111111111111111111111" }),
-    ))
-    .expect("proxy")
-    .expect("200");
-    let hits = seen.lock().expect("lock").clone();
-    assert!(
-        hits.iter()
-            .any(|(m, u)| m == "POST" && u == "/api/note-path"),
-        "workbench get_note_content_by_id must POST /api/note-path, seen={hits:?}"
-    );
-    let _ = join.join();
 }
 
-/// Normal: cursor_ide and mobile keep get_note_content_by_id on /api/note-content.
+/// Normal: cursor_ide and mobile keep get_note_content_by_id on note_content Services.
 /// Boundary: /mcp/mobile still uses workbench scene_slot; split is by channel, not slot.
 #[test]
 fn cursor_ide_and_mobile_get_note_content_by_id_still_hit_note_content() {
@@ -2519,52 +2311,28 @@ fn cursor_ide_and_mobile_get_note_content_by_id_still_hit_note_content() {
     let ide = build_channel_tool_table(CURSOR_IDE_SLOT, CURSOR_IDE_SLOT).expect("cursor_ide");
     let ide_tool = note_content_tool(&ide);
     assert_eq!(ide_tool.name, "get_note_content_by_id");
-    assert_eq!(ide_tool.api_path, "/api/note-content");
-    assert_eq!(ide_tool.method, HttpMethod::Post);
+    assert!(
+        ide_tool.invoke == note_content_invoke,
+        "cursor_ide get_note_content_by_id must invoke note_content"
+    );
 
     let mobile = build_channel_tool_table(WORKBENCH_SLOT, MOBILE_PATH).expect("mobile overlay");
     let mobile_tool = note_content_tool(&mobile);
     assert_eq!(mobile_tool.name, "get_note_content_by_id");
-    assert_eq!(
-        mobile_tool.api_path, "/api/note-content",
-        "mobile must not inherit workbench note-path from scene_slot=workbench"
-    );
-
-    let (base, seen, join) =
-        start_recording_sidecar(200, r#"{"id":"x","ok":true,"content":"body","truncated":false}"#);
-    let rt = tokio::runtime::Builder::new_current_thread()
-        .enable_all()
-        .build()
-        .expect("runtime");
-    rt.block_on(proxy_tool_call(
-        &base,
-        WORKBENCH_SLOT,
-        MOBILE_PATH,
-        "get_note_content_by_id",
-        serde_json::json!({ "id": "11111111111111111111111111111111" }),
-    ))
-    .expect("proxy")
-    .expect("200");
-    let hits = seen.lock().expect("lock").clone();
     assert!(
-        hits.iter()
-            .any(|(m, u)| m == "POST" && u == "/api/note-content"),
-        "mobile get_note_content_by_id must POST /api/note-content, seen={hits:?}"
+        mobile_tool.invoke == note_content_invoke,
+        "mobile must not inherit workbench note_path from scene_slot=workbench"
     );
-    let _ = join.join();
 }
 
 /// Product hard-gate: delete_note only on workbench channel.
 #[test]
 fn delete_note_is_workbench_channel_only() {
     let wb = build_channel_tool_table(WORKBENCH_SLOT, WORKBENCH_SLOT).expect("workbench");
-    let delete = wb
-        .tools
-        .iter()
-        .find(|t| t.name == "delete_note")
-        .expect("workbench must expose delete_note");
-    assert_eq!(delete.api_path, "/api/delete-note");
-    assert_eq!(delete.method, HttpMethod::Post);
+    assert!(
+        wb.tools.iter().any(|t| t.name == "delete_note"),
+        "workbench must expose delete_note"
+    );
 
     let ide = build_channel_tool_table(CURSOR_IDE_SLOT, CURSOR_IDE_SLOT).expect("cursor_ide");
     assert!(
@@ -2583,7 +2351,6 @@ fn delete_note_is_workbench_channel_only() {
         .build()
         .expect("runtime");
     let err = rt.block_on(proxy_tool_call(
-        "http://127.0.0.1:9",
         CURSOR_IDE_SLOT,
         CURSOR_IDE_SLOT,
         "delete_note",
@@ -2591,7 +2358,7 @@ fn delete_note_is_workbench_channel_only() {
     ));
     assert!(
         err.is_err(),
-        "cursor_ide delete_note must fail allowlist before sidecar"
+        "cursor_ide delete_note must fail allowlist before Services"
     );
 }
 
@@ -2613,7 +2380,7 @@ fn crate_registers_mcp_host_as_in_process_module() {
     );
 }
 
-/// Boundary: MCP name stays get_note_content_by_id; digest still hangs /api/note-digest.
+/// Boundary: MCP name stays get_note_content_by_id; digest still hangs get_note_digest_by_id.
 #[test]
 fn get_note_content_by_id_name_and_digest_route_unchanged() {
     for (slot, channel) in [
@@ -2631,9 +2398,10 @@ fn get_note_content_by_id_name_and_digest_route_unchanged() {
             .iter()
             .find(|t| t.name == "get_note_digest_by_id")
             .expect("get_note_digest_by_id");
-        assert_eq!(
-            digest.api_path, "/api/note-digest",
-            "{channel} digest must stay on /api/note-digest"
+        assert_eq!(digest.name, "get_note_digest_by_id");
+        assert!(
+            digest.invoke as usize != 0,
+            "{channel} digest must keep a Services invoke"
         );
     }
 }

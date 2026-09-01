@@ -16,13 +16,12 @@ pub(super) use crate::agent::llm::LlmConfig;
 pub(super) use crate::agent::r#loop::{self, Terminal, TurnOutcome, EVENT_TURN_COMPLETED};
 pub(super) use crate::agent::session::{self, Turn};
 pub(super) use crate::agent::WORKBENCH_HOST_SYSTEM_PROMPT;
-pub(super) use crate::main_host;
 pub(super) use crate::services::mcp_oauth::{
     issue_for_slot, ledger_record, revoke_for_slot, test_force_keychain_unavailable,
     verify_for_slot, Slot, TicketHandle, TicketState,
 };
 pub(super) use crate::mcp_host::{
-    start_embedded_mcp_runtime_with_sidecar, stop_embedded_mcp_runtime, McpRuntimeConfig,
+    start_embedded_mcp_runtime, stop_embedded_mcp_runtime, McpRuntimeConfig,
 };
 pub(super) use crate::mcp_host::registry::{HttpMcpTransport, McpServerConfig};
 pub(super) use crate::mcp_host::registry as mcp_registry;
@@ -51,19 +50,16 @@ pub(super) fn ephemeral_port() -> u16 {
 
 pub(super) fn start_isolated_mcp(
     sandbox: &TestSandbox,
-) -> (main_host::MainHostHandle, crate::mcp_host::McpRuntimeHandle, u16) {
-    let sidecar_port = ephemeral_port();
-    let sidecar = main_host::start(sandbox.config_dir().to_path_buf(), sidecar_port)
-        .expect("start isolated Sidecar");
+) -> (crate::mcp_host::McpRuntimeHandle, u16) {
+    let todo_root = sandbox.workbench_root().join("todo_tasks");
+    fs::create_dir_all(&todo_root).expect("create todo root");
+    fs::write(todo_root.join(".migration_gate_passed"), b"ok\n").expect("plant migration gate");
     let mcp_port = ephemeral_port();
-    let mcp = start_embedded_mcp_runtime_with_sidecar(
-        McpRuntimeConfig {
-            bind_addr: format!("127.0.0.1:{mcp_port}").parse().expect("MCP address"),
-        },
-        format!("http://127.0.0.1:{sidecar_port}"),
-    )
+    let mcp = start_embedded_mcp_runtime(McpRuntimeConfig {
+        bind_addr: format!("127.0.0.1:{mcp_port}").parse().expect("MCP address"),
+    })
     .expect("start isolated MCP");
-    (sidecar, mcp, mcp_port)
+    (mcp, mcp_port)
 }
 
 pub(super) fn bearer_headers_for_slot(scene: &str) -> BTreeMap<String, String> {

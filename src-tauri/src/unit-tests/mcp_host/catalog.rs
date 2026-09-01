@@ -1,5 +1,8 @@
 use crate::mcp_host::build_channel_tool_table;
-use crate::mcp_host::catalog::groups::{notes, todo};
+use crate::mcp_host::catalog::groups::notes::{
+    self, create_note_from_content, create_note_from_source, note_content_invoke, note_path_invoke,
+};
+use crate::mcp_host::catalog::groups::todo;
 use crate::mcp_host::catalog::{build, build_routes_for_channel, group_for_migrated_api};
 use crate::services::settings::mcp_catalog::GroupedEnabledCatalog;
 
@@ -35,6 +38,10 @@ const TODO_APIS: &[&str] = &[
     "get_todo_attachment",
     "update_todo_attachment",
 ];
+
+fn invoke_eq(a: fn(&serde_json::Value) -> serde_json::Value, b: fn(&serde_json::Value) -> serde_json::Value) -> bool {
+    a == b
+}
 
 #[test]
 fn notes_registry_covers_all_snapshot_tools() {
@@ -72,8 +79,11 @@ fn factory_builds_all_notes_apis_with_channel_parity() {
             );
             if let (Some(built), Some(legacy)) = (built, legacy) {
                 assert_eq!(built.name, legacy.name, "{api} name on {channel}");
-                assert_eq!(built.api_path, legacy.api_path, "{api} path on {channel}");
-                assert_eq!(built.method, legacy.method, "{api} method on {channel}");
+                assert!(
+                    invoke_eq(built.invoke, legacy.invoke),
+                    "{api} invoke on {channel}"
+                );
+                assert_eq!(built.input_schema, legacy.input_schema, "{api} schema on {channel}");
             }
         }
     }
@@ -97,8 +107,10 @@ fn factory_builds_all_todo_apis_with_channel_parity() {
             );
             if let (Some(built), Some(legacy)) = (built, legacy) {
                 assert_eq!(built.name, legacy.name, "{api} name on {channel}");
-                assert_eq!(built.api_path, legacy.api_path, "{api} path on {channel}");
-                assert_eq!(built.method, legacy.method, "{api} method on {channel}");
+                assert!(
+                    invoke_eq(built.invoke, legacy.invoke),
+                    "{api} invoke on {channel}"
+                );
             }
         }
     }
@@ -130,15 +142,17 @@ fn runtime_builds_enabled_routes_from_factory_only() {
 }
 
 #[test]
-fn mobile_create_note_uses_content_api() {
+fn mobile_create_note_uses_content_invoke() {
     let route = build("notes", "create_note", "mobile").expect("mobile create_note");
-    assert_eq!(route.api_path, "/api/create-note-content");
+    assert!(invoke_eq(route.invoke, create_note_from_content));
+    assert!(!invoke_eq(route.invoke, create_note_from_source));
 }
 
 #[test]
 fn workbench_get_note_content_stages_via_note_path() {
     let route = build("notes", "get_note_content_by_id", "workbench").expect("workbench");
-    assert_eq!(route.api_path, "/api/note-path");
+    assert!(invoke_eq(route.invoke, note_path_invoke));
+    assert!(!invoke_eq(route.invoke, note_content_invoke));
 }
 
 #[test]

@@ -1,8 +1,11 @@
-//! Shared MCP tool route constructors.
+//! Shared MCP tool route constructors and in-process invoke helpers.
+
+use std::path::PathBuf;
 
 use serde_json::{json, Value};
 
-use crate::mcp_host::{HttpMethod, ToolRoute};
+use crate::mcp_host::{ToolInvoke, ToolRoute};
+use crate::services::todo_task::{self, TodoError};
 
 pub fn object_schema(properties: Value, required: &[&str]) -> Value {
     let mut schema = json!({
@@ -19,19 +22,51 @@ pub fn object_schema(properties: Value, required: &[&str]) -> Value {
 pub fn route(
     name: &str,
     description: &str,
-    method: HttpMethod,
-    api_path: &str,
     input_schema: Value,
     read_only: bool,
     destructive: bool,
+    invoke: ToolInvoke,
 ) -> ToolRoute {
     ToolRoute {
         name: name.into(),
         description: description.into(),
-        method,
-        api_path: api_path.into(),
         read_only,
         destructive,
         input_schema,
+        invoke,
+    }
+}
+
+pub fn notes_repo_root() -> Result<PathBuf, Value> {
+    crate::config::paths::repo_root()
+        .map_err(|_| json!({ "error": "Repo root unavailable", "_status": 500 }))
+}
+
+pub fn missing_field(name: &str) -> Value {
+    json!({ "error": format!("Missing {name}"), "_status": 400 })
+}
+
+pub fn require_str<'a>(args: &'a Value, key: &str) -> Result<&'a str, Value> {
+    args.get(key)
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| missing_field(key))
+}
+
+pub fn arg_str<'a>(args: &'a Value, key: &str) -> Option<&'a str> {
+    args.get(key).and_then(|v| v.as_str())
+}
+
+pub fn todo_wire(result: Result<Value, TodoError>, ok_status: u16) -> Value {
+    todo_task::into_wire(result, ok_status)
+}
+
+pub fn todo_wire_read(result: Result<Value, TodoError>) -> Value {
+    todo_task::into_wire_read(result)
+}
+
+pub fn gated_todo(run: impl FnOnce() -> Value) -> Value {
+    match todo_task::ensure_todo_api_ungated() {
+        Ok(()) => run(),
+        Err(err) => err.into_wire(),
     }
 }

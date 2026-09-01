@@ -20,11 +20,12 @@ const dialogSource = [
 const mcpSource = readRsPath(join(fixtureRoot, 'src-tauri/src/mcp_host'));
 
 function extractCreateTodoTaskBlock(source) {
-  // Host SSOT: ToolRoute entries are `route("…", …)` (T10).
-  const start = source.search(/route\(\s*"create_todo_task"/);
-  if (start === -1) return '';
+  const header = source.search(/\/\/! MCP API: `create_todo_task`/);
+  const routeStart = source.search(/route\(\s*"create_todo_task"/);
+  if (routeStart === -1) return '';
+  const start = header >= 0 ? header : routeStart;
   const rest = source.slice(start + 1);
-  const endRel = rest.search(/route\(\s*"/);
+  const endRel = rest.search(/\/\/! MCP API:/);
   return endRel === -1 ? source.slice(start) : source.slice(start, start + 1 + endRel);
 }
 
@@ -81,8 +82,8 @@ describe('F3 copy sync — create_todo_task MCP description', () => {
     expect(createBlock).not.toMatch(/one implicit sub/i);
   });
 
-  it('Host create_todo_task routes to Sidecar without plan_* residue', () => {
-    expect(createBlock).toContain('/api/todo-task-create');
+  it('Host create_todo_task invokes Services without plan_* residue', () => {
+    expect(createBlock).toContain('create_master_with_category');
     expect(createBlock).not.toMatch(/implicit sub|one implicit sub/i);
     expect(mcpSource).not.toMatch(/route\(\s*"create_plan_task"/);
     // Delivery e2e still documents todo_md + empty sub_tasks contract for Host URL.

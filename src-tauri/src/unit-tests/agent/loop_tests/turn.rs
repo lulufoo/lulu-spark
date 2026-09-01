@@ -31,16 +31,10 @@ fn run_loop_uses_mcp_tools_and_feeds_tool_result_back_to_model() {
     fs::create_dir_all(&todo_root).expect("create todo root");
     fs::write(todo_root.join(".migration_gate_passed"), b"ok\n").expect("plant migration gate");
 
-    let sidecar_port = ephemeral_port();
-    let sidecar = main_host::start(sandbox.config_dir().to_path_buf(), sidecar_port)
-        .expect("start isolated Sidecar");
     let mcp_port = ephemeral_port();
-    let mcp = start_embedded_mcp_runtime_with_sidecar(
-        McpRuntimeConfig {
-            bind_addr: format!("127.0.0.1:{mcp_port}").parse().expect("MCP address"),
-        },
-        format!("http://127.0.0.1:{sidecar_port}"),
-    )
+    let mcp = start_embedded_mcp_runtime(McpRuntimeConfig {
+        bind_addr: format!("127.0.0.1:{mcp_port}").parse().expect("MCP address"),
+    })
     .expect("start isolated MCP");
     mcp_registry::register(
         "workbench",
@@ -106,7 +100,6 @@ fn run_loop_uses_mcp_tools_and_feeds_tool_result_back_to_model() {
 
     drop(hits);
     stop_embedded_mcp_runtime(mcp).expect("stop MCP");
-    main_host::stop(sidecar);
 }
 
 #[test]
@@ -120,16 +113,10 @@ fn run_loop_marks_successful_todo_mcp_mutation_as_wrote() {
     let todo_root = sandbox.workbench_root().join("todo_tasks");
     fs::create_dir_all(&todo_root).expect("create todo root");
     fs::write(todo_root.join(".migration_gate_passed"), b"ok\n").expect("plant migration gate");
-    let sidecar_port = ephemeral_port();
-    let sidecar = main_host::start(sandbox.config_dir().to_path_buf(), sidecar_port)
-        .expect("start isolated Sidecar");
     let mcp_port = ephemeral_port();
-    let mcp = start_embedded_mcp_runtime_with_sidecar(
-        McpRuntimeConfig {
-            bind_addr: format!("127.0.0.1:{mcp_port}").parse().expect("MCP address"),
-        },
-        format!("http://127.0.0.1:{sidecar_port}"),
-    )
+    let mcp = start_embedded_mcp_runtime(McpRuntimeConfig {
+        bind_addr: format!("127.0.0.1:{mcp_port}").parse().expect("MCP address"),
+    })
     .expect("start isolated MCP");
     mcp_registry::register(
         "workbench",
@@ -169,7 +156,7 @@ fn run_loop_marks_successful_todo_mcp_mutation_as_wrote() {
                 .iter()
                 .any(|task| task["title"] == "MCP 创建任务")
         }),
-        "a successful MCP tool mutation must reach the Sidecar handler"
+        "a successful MCP tool mutation must reach Services"
     );
     let hits = mock.hits.lock().unwrap();
     assert!(
@@ -183,7 +170,6 @@ fn run_loop_marks_successful_todo_mcp_mutation_as_wrote() {
 
     drop(hits);
     stop_embedded_mcp_runtime(mcp).expect("stop MCP");
-    main_host::stop(sidecar);
 }
 
 #[test]
@@ -193,7 +179,7 @@ fn run_loop_returns_argument_and_allowlist_failures_to_the_model_as_tool_turns()
     r#loop::reset_runtime_for_tests();
     mcp_registry::clear_for_tests();
     mcp_registry::seed_defaults();
-    let (sidecar, mcp, mcp_port) = start_isolated_mcp(&sandbox);
+    let (mcp, mcp_port) = start_isolated_mcp(&sandbox);
     register_test_mcp("workbench", mcp_port);
 
     let mock = spawn_scripted_llm(vec![
@@ -253,7 +239,6 @@ fn run_loop_returns_argument_and_allowlist_failures_to_the_model_as_tool_turns()
     );
 
     stop_embedded_mcp_runtime(mcp).expect("stop MCP");
-    main_host::stop(sidecar);
 }
 
 #[test]
@@ -263,7 +248,7 @@ fn run_loop_stops_after_bounded_mcp_tool_rounds() {
     r#loop::reset_runtime_for_tests();
     mcp_registry::clear_for_tests();
     mcp_registry::seed_defaults();
-    let (sidecar, mcp, mcp_port) = start_isolated_mcp(&sandbox);
+    let (mcp, mcp_port) = start_isolated_mcp(&sandbox);
     register_test_mcp("workbench", mcp_port);
 
     let responses = (0..=r#loop::MAX_MCP_TOOL_ROUNDS)
@@ -304,7 +289,6 @@ fn run_loop_stops_after_bounded_mcp_tool_rounds() {
     );
 
     stop_embedded_mcp_runtime(mcp).expect("stop MCP");
-    main_host::stop(sidecar);
 }
 
 #[test]
@@ -317,7 +301,7 @@ fn run_loop_offers_host_file_tools_and_keeps_scratch_writes_inside_cache() {
     let readable = sandbox.workbench_root().join("readable.md");
     fs::write(&readable, "needle-line\n").expect("plant readable file");
     let forbidden = sandbox.workbench_root().join("todo.md");
-    let (sidecar, mcp, mcp_port) = start_isolated_mcp(&sandbox);
+    let (mcp, mcp_port) = start_isolated_mcp(&sandbox);
     register_test_mcp("workbench", mcp_port);
 
     r#loop::try_set_binding_json(&json!({ "key": "workbench" })).expect("Set workbench binding");
@@ -423,7 +407,6 @@ fn run_loop_offers_host_file_tools_and_keeps_scratch_writes_inside_cache() {
 
     drop(hits);
     stop_embedded_mcp_runtime(mcp).expect("stop MCP");
-    main_host::stop(sidecar);
 }
 
 #[test]
@@ -433,7 +416,7 @@ fn run_loop_does_not_call_mcp_after_reset_invalidates_its_generation() {
     r#loop::reset_runtime_for_tests();
     mcp_registry::clear_for_tests();
     mcp_registry::seed_defaults();
-    let (sidecar, mcp, mcp_port) = start_isolated_mcp(&sandbox);
+    let (mcp, mcp_port) = start_isolated_mcp(&sandbox);
     register_test_mcp("workbench", mcp_port);
 
     let mock = spawn_llm_with_mid_then_response(
@@ -467,7 +450,6 @@ fn run_loop_does_not_call_mcp_after_reset_invalidates_its_generation() {
     );
 
     stop_embedded_mcp_runtime(mcp).expect("stop MCP");
-    main_host::stop(sidecar);
 }
 
 #[test]

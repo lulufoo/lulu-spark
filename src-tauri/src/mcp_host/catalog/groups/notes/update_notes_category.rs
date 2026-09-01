@@ -1,12 +1,20 @@
 //! MCP API: `update_notes_category`
 
-use serde_json::json;
+use serde_json::{json, Value};
 
-use crate::mcp_host::catalog::route_util::{object_schema, route};
-use crate::mcp_host::{HttpMethod, ToolRoute};
+use crate::mcp_host::catalog::route_util::{arg_str, object_schema, route};
+use crate::mcp_host::ToolRoute;
+use crate::services::notes::update_notes_category_value;
 
 pub fn available_in(_channel: &str) -> bool {
     true
+}
+
+pub fn invoke(args: &Value) -> Value {
+    let id = arg_str(args, "id").unwrap_or("");
+    let title = arg_str(args, "title").unwrap_or("");
+    let description = arg_str(args, "description").unwrap_or("");
+    update_notes_category_value(id, title, description)
 }
 
 pub fn build(channel: &str) -> Option<ToolRoute> {
@@ -16,8 +24,6 @@ pub fn build(channel: &str) -> Option<ToolRoute> {
     Some(route(
         "update_notes_category",
         "Change a notes category title or description. Does not move existing notes or change the id.",
-        HttpMethod::Post,
-        "/api/notes-category-update",
         object_schema(
             json!({
                 "id": { "type": "string", "description": "Category id. Cannot be renamed." },
@@ -28,5 +34,6 @@ pub fn build(channel: &str) -> Option<ToolRoute> {
         ),
         false,
         false,
+        invoke,
     ))
 }

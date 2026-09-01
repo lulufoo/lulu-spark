@@ -17,27 +17,28 @@ function read(rel) {
 }
 
 function toolRouteBlock(src, toolName) {
-  const start = src.search(new RegExp(`route\\(\\s*"${toolName}"`));
-  expect(start, `${toolName} route missing`).toBeGreaterThanOrEqual(0);
+  const header = src.search(new RegExp(`//! MCP API: \`${toolName}\``));
+  const routeStart = src.search(new RegExp(`route\\(\\s*"${toolName}"`));
+  expect(routeStart, `${toolName} route missing`).toBeGreaterThanOrEqual(0);
+  const start = header >= 0 ? header : routeStart;
   const rest = src.slice(start + 1);
-  const nextRel = rest.search(/route\(\s*"/);
+  const nextRel = rest.search(/\/\/! MCP API:/);
   return nextRel === -1 ? src.slice(start) : src.slice(start, start + 1 + nextRel);
 }
 
 describe('t3 MCP add_todo_sub optional content (Host SSOT)', () => {
-  it('add_todo_sub routes to Sidecar POST /api/todo-task-add-sub', () => {
+  it('add_todo_sub invokes Services add_sub', () => {
     const block = toolRouteBlock(read(HOST_ADAPTER), 'add_todo_sub');
-    expect(block).toMatch(/HttpMethod::Post/);
-    expect(block).toContain('/api/todo-task-add-sub');
+    expect(block).toContain('todo_task::add_sub');
   });
 });
 
 describe('t3 MCP update_todo_sub (Host SSOT)', () => {
-  it('registers update_todo_sub proxying POST /api/todo-task-update-sub', () => {
+  it('registers update_todo_sub invoking Services update_sub_title', () => {
     const src = read(HOST_ADAPTER);
     expect(src).toMatch(/route\(\s*"update_todo_sub"/);
     const block = toolRouteBlock(src, 'update_todo_sub');
-    expect(block).toContain('/api/todo-task-update-sub');
+    expect(block).toContain('todo_task::update_sub_title');
   });
 
   it('Sidecar HTTP handlers cover optional content semantics (title-only / set / clear)', () => {

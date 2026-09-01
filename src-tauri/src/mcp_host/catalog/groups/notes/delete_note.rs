@@ -1,12 +1,16 @@
 //! MCP API: `delete_note`
 
-use serde_json::json;
+use serde_json::{json, Value};
 
 use crate::mcp_host::catalog::route_util::{object_schema, route};
-use crate::mcp_host::{HttpMethod, ToolRoute};
+use crate::mcp_host::ToolRoute;
 
 pub fn available_in(channel: &str) -> bool {
     channel == "workbench"
+}
+
+pub fn invoke(args: &Value) -> Value {
+    crate::services::entry_admin::delete_entry(args)
 }
 
 pub fn build(channel: &str) -> Option<ToolRoute> {
@@ -16,8 +20,6 @@ pub fn build(channel: &str) -> Option<ToolRoute> {
     Some(route(
         "delete_note",
         "Hard-delete one note by archive entry id (raw, digest, annotation, index). Irreversible. Exposed only on the workbench MCP channel (/mcp/workbench); not available on cursor_ide or mobile.",
-        HttpMethod::Post,
-        "/api/delete-note",
         object_schema(
             json!({
                 "id": {
@@ -29,5 +31,6 @@ pub fn build(channel: &str) -> Option<ToolRoute> {
         ),
         false,
         false,
+        invoke,
     ))
 }

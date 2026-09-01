@@ -56,10 +56,12 @@ function registeredToolNames(src) {
 }
 
 function toolRouteBlock(src, toolName) {
-  const start = src.search(new RegExp(`route\\(\\s*"${toolName}"`));
-  expect(start, `${toolName} route missing`).toBeGreaterThanOrEqual(0);
+  const header = src.search(new RegExp(`//! MCP API: \`${toolName}\``));
+  const routeStart = src.search(new RegExp(`route\\(\\s*"${toolName}"`));
+  expect(routeStart, `${toolName} route missing`).toBeGreaterThanOrEqual(0);
+  const start = header >= 0 ? header : routeStart;
   const rest = src.slice(start + 1);
-  const nextRel = rest.search(/route\(\s*"/);
+  const nextRel = rest.search(/\/\/! MCP API:/);
   return nextRel === -1 ? src.slice(start) : src.slice(start, start + 1 + nextRel);
 }
 
@@ -88,10 +90,10 @@ describe('MCP tool surface hard-cut to todo_* (Host SSOT / T10)', () => {
     expect(taskSurface.sort()).toEqual([...EXPECTED_TODO_TOOLS].sort());
   });
 
-  it('create_todo_task routes to Sidecar create API (todo_md contract lives on Host HTTP)', () => {
+  it('create_todo_task invokes Services create_master_with_category (todo_md contract lives on Host HTTP)', () => {
     const src = readRsPath(join(repoRoot, HOST_ADAPTER));
     const block = toolRouteBlock(src, 'create_todo_task');
-    expect(block).toContain('/api/todo-task-create');
+    expect(block).toContain('create_master_with_category');
     expect(block).toMatch(/&\["title", "todo_md"\]/);
     expect(block).not.toMatch(/Optional task body/);
     expect(src).not.toMatch(/name:\s*"create_plan_task"/);
@@ -113,11 +115,10 @@ describe('MCP tool surface hard-cut to todo_* (Host SSOT / T10)', () => {
 });
 
 describe('MCP category surface (tech-doc T-3 / AC1–AC4 / L09#4)', () => {
-  it('registers list_todo_categories as thin proxy GET to Sidecar list-categories', () => {
+  it('registers list_todo_categories as thin invoke of Services list_todo_categories', () => {
     const src = readRsPath(join(repoRoot, HOST_ADAPTER));
     const block = toolRouteBlock(src, 'list_todo_categories');
-    expect(block).toMatch(/HttpMethod::Get/);
-    expect(block).toContain('/api/todo-task-list-categories');
+    expect(block).toContain('todo_task::list_todo_categories');
   });
 
   it('forbids MCP category directory create/delete tools (L09#4)', () => {
@@ -128,11 +129,11 @@ describe('MCP category surface (tech-doc T-3 / AC1–AC4 / L09#4)', () => {
     }
   });
 
-  it('create_todo_task / list / update route to Sidecar paths that accept category_id', () => {
+  it('create_todo_task / list / update invoke Services that accept category_id', () => {
     const src = readRsPath(join(repoRoot, HOST_ADAPTER));
-    expect(toolRouteBlock(src, 'create_todo_task')).toContain('/api/todo-task-create');
-    expect(toolRouteBlock(src, 'list_todo_tasks')).toContain('/api/todo-tasks');
-    expect(toolRouteBlock(src, 'update_todo_task')).toContain('/api/todo-task-update');
+    expect(toolRouteBlock(src, 'create_todo_task')).toContain('create_master_with_category');
+    expect(toolRouteBlock(src, 'list_todo_tasks')).toContain('todo_task::list_all');
+    expect(toolRouteBlock(src, 'update_todo_task')).toContain('set_master_category');
     const names = registeredToolNames(src);
     expect(names).not.toContain('set_todo_category');
     expect(names).not.toContain('set_todo_task_category');

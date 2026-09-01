@@ -2,7 +2,7 @@
 
 use std::net::SocketAddr;
 use std::sync::Arc;
-use std::thread::{self, JoinHandle};
+use std::thread;
 
 use axum::extract::{Path, Request, State};
 use axum::http::{header, HeaderMap, StatusCode};
@@ -13,8 +13,8 @@ use axum::Router;
 use rmcp::{
     ServerHandler, ServiceExt,
     model::{
-        CallToolRequestParams, CallToolResponse, CallToolResult, ClientCapabilities, ClientInfo,
-        ContentBlock, Implementation, ListToolsResult, PaginatedRequestParams, ServerCapabilities,
+        CallToolRequestParams, CallToolResponse, ClientCapabilities, ClientInfo,
+        Implementation, ListToolsResult, PaginatedRequestParams, ServerCapabilities,
         ServerInfo, Tool, ToolAnnotations,
     },
     service::RequestContext,
@@ -26,7 +26,7 @@ use rmcp::{
     },
     ErrorData as McpError, RoleServer,
 };
-use serde_json::{json, Value};
+use serde_json::Value;
 use tokio_util::sync::CancellationToken;
 
 use crate::main_host;
@@ -37,7 +37,7 @@ use super::types::ToolRoute;
 use super::slot::is_registered_scene_slot;
 use super::types::{
     CloseGateError, CloseGateReport, McpRuntimeConfig, McpRuntimeHandle, McpStartError,
-    McpStopError, McpToolError, DEFAULT_SIDECAR_BASE_URL, REGISTERED_SCENE_SLOTS,
+    McpStopError, REGISTERED_SCENE_SLOTS,
 };
 
 pub fn reject_unknown_slot(scene_slot: &str) -> (StatusCode, [(header::HeaderName, &'static str); 1], String) {
@@ -72,7 +72,6 @@ pub(super) fn reject_scene_slot_required() -> (StatusCode, [(header::HeaderName,
 pub(super) struct SlotHandler {
     scene_slot: String,
     channel: String,
-    sidecar_base_url: String,
 }
 
 pub(super) fn route_to_mcp_tool(route: ToolRoute) -> Tool {
@@ -116,7 +115,6 @@ impl ServerHandler for SlotHandler {
     ) -> impl std::future::Future<Output = Result<CallToolResponse, McpError>> + Send + '_ {
         let slot = self.scene_slot.clone();
         let channel = self.channel.clone();
-        let base = self.sidecar_base_url.clone();
         async move {
             if !mcp_catalog::is_enabled(&channel, request.name.as_ref()) {
                 return Err(McpError::invalid_params(
@@ -128,7 +126,7 @@ impl ServerHandler for SlotHandler {
                 ));
             }
             let args = Value::Object(request.arguments.unwrap_or_default());
-            match proxy_tool_call(&base, &slot, &channel, request.name.as_ref(), args).await {
+            match proxy_tool_call(&slot, &channel, request.name.as_ref(), args).await {
                 Ok(mapped) => Ok(mapped_to_call_tool_result(mapped).into()),
                 Err(msg) => Err(McpError::invalid_params(msg, None)),
             }
@@ -162,18 +160,13 @@ pub(super) async fn unknown_scene_slot_reject(Path(scene_slot): Path<String>) ->
     reject_unknown_slot(&scene_slot)
 }
 
-pub(super) fn mount_mobile_service(
-    router: Router,
-    cancel: CancellationToken,
-    sidecar_base_url: String,
-) -> Router {
+pub(super) fn mount_mobile_service(router: Router, cancel: CancellationToken) -> Router {
     let service: StreamableHttpService<SlotHandler, LocalSessionManager> =
         StreamableHttpService::new(
             move || {
                 Ok(SlotHandler {
                     scene_slot: "workbench".to_string(),
                     channel: "mobile".to_string(),
-                    sidecar_base_url: sidecar_base_url.clone(),
                 })
             },
             Arc::new(LocalSessionManager::default()),
@@ -189,7 +182,6 @@ pub(super) fn mount_slot_service(
     router: Router,
     scene_slot: &'static str,
     cancel: CancellationToken,
-    sidecar_base_url: String,
 ) -> Router {
     let slot = scene_slot.to_string();
     let service: StreamableHttpService<SlotHandler, LocalSessionManager> =
@@ -198,7 +190,6 @@ pub(super) fn mount_slot_service(
                 Ok(SlotHandler {
                     scene_slot: slot.clone(),
                     channel: slot.clone(),
-                    sidecar_base_url: sidecar_base_url.clone(),
                 })
             },
             Arc::new(LocalSessionManager::default()),
@@ -210,18 +201,18 @@ pub(super) fn mount_slot_service(
     router.nest_service(&format!("/mcp/{scene_slot}"), gated)
 }
 
-pub(super) fn build_router(port: u16, cancel: CancellationToken, sidecar_base_url: String) -> Router {
+pub(super) fn build_router(port: u16, cancel: CancellationToken) -> Router {
     let mut router = Router::new()
         .route("/health", get(move || async move { health_json(port) }))
         .route("/mcp", any(bare_mcp_reject));
 
     // Registered slots first so StreamableHttpService owns those paths exclusively.
     for slot in REGISTERED_SCENE_SLOTS {
-        router = mount_slot_service(router, slot, cancel.clone(), sidecar_base_url.clone());
+        router = mount_slot_service(router, slot, cancel.clone());
     }
 
     // Independent /mcp/mobile nest — not a registered slot; must precede catch-all 404.
-    router = mount_mobile_service(router, cancel, sidecar_base_url);
+    router = mount_mobile_service(router, cancel);
 
     // Unregistered `/mcp/<scene_slot>`: HTTP 404 JSON only — no LocalSessionManager / MCP session.
     router.route("/mcp/{scene_slot}", any(unknown_scene_slot_reject))
@@ -394,16 +385,6 @@ pub fn close_gate_smoke_initialize_list(slot: &str) -> Result<CloseGateReport, C
 pub fn start_embedded_mcp_runtime(
     config: McpRuntimeConfig,
 ) -> Result<McpRuntimeHandle, McpStartError> {
-    start_embedded_mcp_runtime_with_sidecar(config, DEFAULT_SIDECAR_BASE_URL.to_string())
-}
-
-/// Start MCP with an explicit Sidecar HTTP base. Production uses
-/// [`start_embedded_mcp_runtime`]; this entry keeps integration tests isolated
-/// on ephemeral loopback ports.
-pub fn start_embedded_mcp_runtime_with_sidecar(
-    config: McpRuntimeConfig,
-    sidecar_base_url: String,
-) -> Result<McpRuntimeHandle, McpStartError> {
     let bind_addr = config.bind_addr;
     let cancel = CancellationToken::new();
     let cancel_child = cancel.child_token();
@@ -443,11 +424,7 @@ pub fn start_embedded_mcp_runtime_with_sidecar(
             }
 
             let port = local_addr.port();
-            let router = build_router(
-                port,
-                cancel_child.clone(),
-                sidecar_base_url,
-            );
+            let router = build_router(port, cancel_child.clone());
             let _ = axum::serve(listener, router)
                 .with_graceful_shutdown(async move {
                     cancel_child.cancelled().await;

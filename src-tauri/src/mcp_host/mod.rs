@@ -2,7 +2,7 @@
 //!
 //! - [`registry`]: key → MCP connection config (URL/headers); does not listen.
 //! - [`catalog`]: business groups, factory, runtime assembly.
-//! - [`server`]: localhost listen on `/mcp/<scene_slot>`, tool proxy to Sidecar `:8765`.
+//! - [`server`]: localhost listen on `/mcp/<scene_slot>`, tool dispatch to L4 Services.
 
 pub mod registry;
 pub mod catalog;
@@ -17,11 +17,11 @@ pub use catalog::{
 };
 pub use server::{
     build_channel_tool_table, build_slot_tool_table, close_gate_smoke_initialize_list,
-    map_sidecar_response_to_mcp, mapped_to_call_tool_result, observe_dual_listen, proxy_tool_call,
-    start_embedded_mcp_runtime, start_embedded_mcp_runtime_with_sidecar, start_mcp_listener,
-    stop_embedded_mcp_runtime, tools_list_for_slot, CloseGateError, CloseGateReport, HttpMethod,
+    map_service_value_to_mcp, map_sidecar_response_to_mcp, mapped_to_call_tool_result,
+    observe_dual_listen, proxy_tool_call, start_embedded_mcp_runtime, start_mcp_listener,
+    stop_embedded_mcp_runtime, tools_list_for_slot, CloseGateError, CloseGateReport,
     McpRuntimeConfig, McpRuntimeHandle, McpStartError, McpStopError, McpToolError, McpToolResult,
-    SlotToolTable, ToolDescriptor, ToolRoute, DEFAULT_SIDECAR_BASE_URL,
+    SlotToolTable, ToolDescriptor, ToolInvoke, ToolRoute,
 };
 pub(crate) use server::{is_registered_scene_slot, REGISTERED_SCENE_SLOTS};
 
