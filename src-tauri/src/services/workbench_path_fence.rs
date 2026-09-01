@@ -2,7 +2,7 @@
 //! The Agent loop only stores the resulting path lists.
 
 use crate::config::paths;
-use crate::services::agent::path_fence::{stored_path, PathFence};
+use crate::services::path_fence::{stored_path, PathFence};
 use crate::services::mcp_host::registry::SEEDED_BUSINESS_KEY;
 use crate::services::sediment_kb;
 

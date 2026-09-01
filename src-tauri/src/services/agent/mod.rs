@@ -1,17 +1,17 @@
-//! Host MVP Agent: Session / Tools / LLM / Loop.
+//! Host MVP Agent: Session / Tools / LLM / Binding / Shell / Turn.
 
+pub mod binding;
 pub mod diagnostics;
 pub mod engine_router;
-mod fs_file_ops;
-pub mod fs_tools;
 pub mod llm;
-pub mod mcp_client;
-pub mod note_content_stage;
-pub mod path_fence;
+pub mod mcp;
 pub mod progress;
 pub mod r#loop;
 pub mod runtime;
 pub mod session;
+pub mod shell;
+pub mod tools;
+pub mod turn;
 
 /// Host workbench chat system prompt (code constant; not toml / notes store).
 ///

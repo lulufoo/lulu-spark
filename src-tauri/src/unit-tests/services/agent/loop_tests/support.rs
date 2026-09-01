@@ -496,8 +496,8 @@ pub(super) fn switch_session_without_resetting_binding(label: &str) -> (String, 
         .to_string();
     let generation = r#loop::query_binding().generation.expect("bound generation");
     let master = create_bound_plan(label);
-    let session_b = r#loop::open_ai_assistant_core(&master)
-        .expect("open B")
+    let session_b = r#loop::create_chat_session_core()
+        .expect("create B")
         .get("session_id")
         .and_then(Value::as_str)
         .expect("session B")

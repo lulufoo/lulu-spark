@@ -57,7 +57,6 @@ commands.allow = [
   "create_todo_category",
   "delete_todo_category",
   "set_todo_category",
-  "open_ai_assistant",
   "present_ai_assistant",
   "ensure_ai_assistant_session",
   "shell_close_ai_assistant",

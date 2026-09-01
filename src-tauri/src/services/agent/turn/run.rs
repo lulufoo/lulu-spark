@@ -5,14 +5,12 @@ use std::time::Instant;
 use serde_json::{json, Value};
 
 use crate::services::agent::diagnostics::{self, DiagnosticEvent, TraceId};
-use crate::services::agent::fs_tools;
 use crate::services::agent::llm::{self, LlmConfig};
-use crate::services::agent::mcp_client;
-use crate::services::agent::note_content_stage;
 use crate::services::agent::progress::{self, ProgressSink};
 use crate::services::agent::session::{Session, Turn};
+use crate::services::agent::tools::{self, InvokeOutcome, PrepareError};
 
-use super::binding::{
+use crate::services::agent::binding::{
     current_binding_generation_snapshot, current_binding_snapshot, loaded_path_fence,
     session_capability_mcp_config,
 };
@@ -114,62 +112,51 @@ pub(crate) fn run_loop_with_progress(
     if chat_turn_interrupted(&session.session_id, generation) {
         return cancelled_turn_outcome(session, turns_checkpoint);
     }
-    let active_mcp = match session_capability_mcp_config() {
-        Some(config) => match mcp_client::discover_tools(&config) {
-            Ok(catalog) if !catalog.definitions.is_empty() => Some((config, catalog)),
-            Ok(_) => {
-                let reply = "当前场景的 MCP 服务未暴露任何工具，无法继续。".to_string();
-                session.turns.push(Turn {
-                    role: "assistant".into(),
-                    content: Some(reply.clone()),
-                    tool_call_id: None,
-                    tool_calls: None,
-                    name: None,
-                });
-                persist(session);
-                return TurnOutcome {
-                    reply_text: reply,
-                    terminal: Terminal::Error,
-                    wrote: false,
-                };
-            }
-            Err(error) => {
-                let reply = format!("当前场景的 MCP 服务不可用：{error}");
-                session.turns.push(Turn {
-                    role: "assistant".into(),
-                    content: Some(reply.clone()),
-                    tool_call_id: None,
-                    tool_calls: None,
-                    name: None,
-                });
-                persist(session);
-                return TurnOutcome {
-                    reply_text: reply,
-                    terminal: Terminal::Error,
-                    wrote: false,
-                };
-            }
-        },
-        None => None,
-    };
-    if chat_turn_interrupted(&session.session_id, generation) {
-        return cancelled_turn_outcome(session, turns_checkpoint);
-    }
 
     let turn_fence = loaded_path_fence().map(|fence| {
         fence
             .with_session_scratch(&session.session_id)
             .unwrap_or(fence)
     });
-    let catalog = match (
-        active_mcp.as_ref().map(|(_, catalog)| catalog.clone()),
-        turn_fence.as_ref().map(|_| fs_tools::catalog()),
-    ) {
-        (Some(mcp), Some(host)) => Some(mcp.merge(host)),
-        (Some(mcp), None) => Some(mcp),
-        (None, Some(host)) => Some(host),
-        (None, None) => None,
+    let mcp_config = session_capability_mcp_config();
+    let turn_tools = match tools::discover_and_merge(mcp_config.as_ref(), turn_fence.is_some()) {
+        Ok(tools) => tools,
+        Err(PrepareError::EmptyMcpTools) => {
+            let reply = "当前场景的 MCP 服务未暴露任何工具，无法继续。".to_string();
+            session.turns.push(Turn {
+                role: "assistant".into(),
+                content: Some(reply.clone()),
+                tool_call_id: None,
+                tool_calls: None,
+                name: None,
+            });
+            persist(session);
+            return TurnOutcome {
+                reply_text: reply,
+                terminal: Terminal::Error,
+                wrote: false,
+            };
+        }
+        Err(PrepareError::Mcp(error)) => {
+            let reply = format!("当前场景的 MCP 服务不可用：{error}");
+            session.turns.push(Turn {
+                role: "assistant".into(),
+                content: Some(reply.clone()),
+                tool_call_id: None,
+                tool_calls: None,
+                name: None,
+            });
+            persist(session);
+            return TurnOutcome {
+                reply_text: reply,
+                terminal: Terminal::Error,
+                wrote: false,
+            };
+        }
     };
+    if chat_turn_interrupted(&session.session_id, generation) {
+        return cancelled_turn_outcome(session, turns_checkpoint);
+    }
 
     let mut wrote = false;
     let mut tool_rounds = 0usize;
@@ -179,7 +166,8 @@ pub(crate) fn run_loop_with_progress(
             return cancelled_turn_outcome(session, turns_checkpoint);
         }
         let messages = build_llm_messages_from_turns(&session.turns, &system_prompt);
-        let tools = catalog
+        let tool_defs = turn_tools
+            .catalog
             .as_ref()
             .map(|catalog| catalog.definitions.as_slice())
             .unwrap_or(&[]);
@@ -189,7 +177,7 @@ pub(crate) fn run_loop_with_progress(
             trace_id,
             "Requesting…",
         );
-        let msg = match llm::chat_completions(&messages, tools, config) {
+        let msg = match llm::chat_completions(&messages, tool_defs, config) {
             Ok(message) => message,
             Err(error) => {
                 if chat_turn_interrupted(&session.session_id, generation) {
@@ -218,7 +206,7 @@ pub(crate) fn run_loop_with_progress(
             break msg;
         }
 
-        let Some(catalog) = catalog.as_ref() else {
+        if turn_tools.catalog.is_none() {
             // Typed/internal Binding without an MCP server keeps the old
             // text-only contract and never dispatches in-process tools.
             let reply = "模型响应异常或请求了不支持的工具，未执行任何写入。".to_string();
@@ -235,7 +223,7 @@ pub(crate) fn run_loop_with_progress(
                 terminal: Terminal::Error,
                 wrote,
             };
-        };
+        }
 
         if tool_rounds >= MAX_MCP_TOOL_ROUNDS
             || tool_call_count.saturating_add(msg.tool_calls.len()) > MAX_MCP_TOOL_CALLS
@@ -293,86 +281,43 @@ pub(crate) fn run_loop_with_progress(
                 format!("Calling {}…", call.name),
             );
 
-            let use_host = fs_tools::is_builtin(&call.name)
-                && active_mcp
-                    .as_ref()
-                    .map(|(_, mcp_catalog)| !mcp_catalog.contains(&call.name))
-                    .unwrap_or(true);
             let tool_started = Instant::now();
-            let result = if !catalog.contains(&call.name) {
-                mcp_client::ToolResult {
-                    content: format!("Tool '{}' is not available in the active scene.", call.name),
-                    is_error: true,
-                }
-            } else {
-                match serde_json::from_str::<Value>(&call.arguments) {
-                    Ok(arguments) => match catalog.validate_arguments(&call.name, &arguments) {
-                        Ok(()) => {
-                            if chat_turn_interrupted(&session.session_id, generation) {
-                                return cancelled_turn_outcome(session, turns_checkpoint);
-                            }
-                            if use_host {
-                                match turn_fence.as_ref() {
-                                    Some(fence) => {
-                                        fs_tools::call(&call.name, &arguments, fence, session)
-                                    }
-                                    None => mcp_client::ToolResult {
-                                        content: format!(
-                                            "Host tool '{}' has no path fence for this binding.",
-                                            call.name
-                                        ),
-                                        is_error: true,
-                                    },
-                                }
-                            } else {
-                                let Some((mcp_config, _)) = active_mcp.as_ref() else {
-                                    return {
-                                        let reply = format!(
-                                            "MCP tool '{}' has no MCP server for this binding.",
-                                            call.name
-                                        );
-                                        session.turns.push(Turn {
-                                            role: "assistant".into(),
-                                            content: Some(reply.clone()),
-                                            tool_call_id: None,
-                                            tool_calls: None,
-                                            name: None,
-                                        });
-                                        persist(session);
-                                        TurnOutcome {
-                                            reply_text: reply,
-                                            terminal: Terminal::Error,
-                                            wrote,
-                                        }
-                                    };
-                                };
-                                match mcp_client::call_tool(mcp_config, &call.name, arguments) {
-                                    Ok(result) => result,
-                                    Err(error) => mcp_client::ToolResult {
-                                        content: format!("MCP tool call failed: {error}"),
-                                        is_error: true,
-                                    },
-                                }
-                            }
-                        }
-                        Err(error) => mcp_client::ToolResult {
-                            content: format!("Tool arguments rejected: {error}"),
-                            is_error: true,
-                        },
-                    },
-                    Err(error) => mcp_client::ToolResult {
-                        content: format!("Tool arguments must be valid JSON: {error}"),
-                        is_error: true,
-                    },
+            if chat_turn_interrupted(&session.session_id, generation) {
+                return cancelled_turn_outcome(session, turns_checkpoint);
+            }
+            let (result, use_host, staged_note) = match tools::invoke(
+                &turn_tools,
+                &call.name,
+                &call.arguments,
+                turn_fence.as_ref(),
+                session,
+            ) {
+                InvokeOutcome::Done {
+                    result,
+                    host,
+                    staged_note,
+                } => (result, host, staged_note),
+                InvokeOutcome::Abort(reply) => {
+                    session.turns.push(Turn {
+                        role: "assistant".into(),
+                        content: Some(reply.clone()),
+                        tool_call_id: None,
+                        tool_calls: None,
+                        name: None,
+                    });
+                    persist(session);
+                    return TurnOutcome {
+                        reply_text: reply,
+                        terminal: Terminal::Error,
+                        wrote,
+                    };
                 }
             };
-
-            let (result, staged_note) =
-                note_content_stage::overlay_tool_result(&call.name, result, session);
 
             if chat_turn_interrupted(&session.session_id, generation) {
                 return cancelled_turn_outcome(session, turns_checkpoint);
             }
+            let catalog = turn_tools.catalog.as_ref().expect("catalog present");
             if !result.is_error && (catalog.is_mutating(&call.name) || staged_note) {
                 wrote = true;
             }

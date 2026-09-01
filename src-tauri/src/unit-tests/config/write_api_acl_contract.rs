@@ -102,7 +102,6 @@ const MCP_CHANNEL_TOOLS_WRITE_COMMANDS: &[&str] = &["set_mcp_channel_tools"];
 const BIND_WRITE_COMMANDS: &[&str] = &["issue_bind"];
 
 const AI_ASSISTANT_WRITE_COMMANDS: &[&str] = &[
-    "open_ai_assistant",
     "present_ai_assistant",
     "ensure_ai_assistant_session",
     "get_ai_assistant_binding",

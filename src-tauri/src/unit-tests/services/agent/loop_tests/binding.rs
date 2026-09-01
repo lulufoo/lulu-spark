@@ -606,7 +606,7 @@ fn execute_after_reset_rejects_and_old_config_not_reused() {
 fn present_without_set_leaves_unbound_and_execute_rejects() {
     with_sandbox(|| {
         let master = create_bound_plan("仅Present");
-        let _ = r#loop::open_ai_assistant_core(&master).expect("Present/open shell");
+        let _ = r#loop::ensure_chat_session_core().expect("Present/open shell");
         assert_eq!(
             r#loop::binding_state(),
             "unbound",
@@ -947,7 +947,7 @@ fn t2_reset_clears_current_session_id_to_none() {
     with_sandbox(|| {
         let master = create_bound_plan("t2-reset-clear");
         arm_plan_binding(&master);
-        let open = r#loop::open_ai_assistant_core(&master).unwrap();
+        let open = r#loop::ensure_chat_session_core().unwrap();
         let old_sid = open["session_id"].as_str().unwrap().to_string();
         assert_eq!(live_session_id().as_deref(), Some(old_sid.as_str()));
 
@@ -966,7 +966,7 @@ fn t2_reset_old_session_not_reused_by_ensure_for_executable() {
     with_sandbox(|| {
         let master = create_bound_plan("t2-reset-ensure");
         arm_plan_binding(&master);
-        let open = r#loop::open_ai_assistant_core(&master).unwrap();
+        let open = r#loop::ensure_chat_session_core().unwrap();
         let old_sid = open["session_id"].as_str().unwrap().to_string();
         // Seed turns on the old session so reuse would be observable.
         let mut old = session::load_session(&old_sid).unwrap();
@@ -1005,7 +1005,7 @@ fn t2_replace_set_clears_session_with_generation_advance() {
         let master_a = create_bound_plan("t2-replace-a");
         let master_b = create_bound_plan("t2-replace-b");
         arm_plan_binding(&master_a);
-        let open = r#loop::open_ai_assistant_core(&master_a).unwrap();
+        let open = r#loop::ensure_chat_session_core().unwrap();
         let old_sid = open["session_id"].as_str().unwrap().to_string();
         let old_gen = r#loop::query_binding().generation.expect("old gen");
         assert_eq!(live_session_id().as_deref(), Some(old_sid.as_str()));
@@ -1069,7 +1069,7 @@ fn t2_re_set_executable_chat_lands_on_new_session_without_old_turns() {
         install_llm_cfg(&mock);
 
         arm_plan_binding(&master_a);
-        let open = r#loop::open_ai_assistant_core(&master_a).unwrap();
+        let open = r#loop::ensure_chat_session_core().unwrap();
         let old_sid = open["session_id"].as_str().unwrap().to_string();
         let first = r#loop::agent_chat_turn_core(&old_sid, "你好", Some(&master_a)).unwrap();
         assert_eq!(first.body["terminal"], "none");
@@ -1139,7 +1139,7 @@ fn t2_cut_does_not_wipe_turns_as_primary_means() {
     with_sandbox(|| {
         let master = create_bound_plan("t2-no-wipe");
         arm_plan_binding(&master);
-        let open = r#loop::open_ai_assistant_core(&master).unwrap();
+        let open = r#loop::ensure_chat_session_core().unwrap();
         let old_sid = open["session_id"].as_str().unwrap().to_string();
         let mut sess = session::load_session(&old_sid).unwrap();
         sess.turns.push(Turn {
@@ -1201,7 +1201,7 @@ fn t4_defensive_cut_hook_path_is_confirmed_and_testable() {
     // Must Close Before: confirm hook-point file path is testable.
     assert_eq!(
         r#loop::DEFENSIVE_CUT_HOOK_PATH,
-        "src-tauri/src/services/agent/loop/binding.rs::defensive_unbound",
+        "src-tauri/src/services/agent/binding/mod.rs::defensive_unbound",
         "P2 Done requires a confirmed, testable Host defensive-cut hook path"
     );
     // Explicit leave→Reset remains the primary path; defensive cut backs missed leave.
@@ -1211,7 +1211,7 @@ fn t4_defensive_cut_hook_path_is_confirmed_and_testable() {
             "frontend/src/todo-task/index.js::dispose",
             "frontend/src/todo-task/lifecycle.js::onTodosPageLeave",
             "frontend/src/todo-task/binding.js::resetTodosBinding",
-            "src-tauri/src/services/agent/loop/binding.rs::reset_binding",
+            "src-tauri/src/services/agent/binding/mod.rs::reset_binding",
         ]
     );
     // Hook symbol is callable (not a UI-only stub).
@@ -1228,7 +1228,7 @@ fn t4_missed_reset_defensive_cut_matches_explicit_reset_semantics() {
         // Host still observes bound + live session → defensive_unbound.
         let master = create_bound_plan("t4-missed-reset");
         arm_plan_binding(&master);
-        let open = r#loop::open_ai_assistant_core(&master).unwrap();
+        let open = r#loop::ensure_chat_session_core().unwrap();
         let old_sid = open["session_id"].as_str().unwrap().to_string();
         let gen = r#loop::query_binding().generation.expect("gen");
         assert_eq!(r#loop::binding_state(), "bound");
@@ -1283,7 +1283,7 @@ fn t4_defensive_cut_after_explicit_reset_is_idempotent() {
     with_sandbox(|| {
         let master = create_bound_plan("t4-idempotent");
         arm_plan_binding(&master);
-        let _ = r#loop::open_ai_assistant_core(&master).unwrap();
+        let _ = r#loop::ensure_chat_session_core().unwrap();
         r#loop::set_busy_for_tests(true);
 
         // Explicit Reset (dispose→onTodosPageLeave→resetTodosBinding→reset_binding) succeeded.
@@ -1314,7 +1314,7 @@ fn t4_defensive_cut_is_not_ui_only_weak_path() {
         // Forbidden: "只清 UI" — must truly unbound + invalidate gen + cut session + cancel.
         let master = create_bound_plan("t4-no-weak");
         arm_plan_binding(&master);
-        let _ = r#loop::open_ai_assistant_core(&master).unwrap();
+        let _ = r#loop::ensure_chat_session_core().unwrap();
         let gen = r#loop::query_binding().generation.expect("gen");
         r#loop::set_busy_for_tests(true);
         r#loop::clear_lifecycle_events_for_tests();
@@ -1445,7 +1445,7 @@ fn t5_host_reject_reasons_are_distinguishable() {
         // 4) non-live session — distinguishable code on return body / signal
         let master = create_bound_plan("t5-reject-codes");
         arm_plan_binding(&master);
-        let open = r#loop::open_ai_assistant_core(&master).unwrap();
+        let open = r#loop::ensure_chat_session_core().unwrap();
         let live = open["session_id"].as_str().unwrap().to_string();
         let foreign = session::create_session().unwrap().session_id;
         assert_ne!(foreign, live);
@@ -1479,7 +1479,7 @@ fn t5_not_live_session_reject_code_survives_after_cut() {
     with_sandbox(|| {
         let master = create_bound_plan("t5-cut-session-code");
         arm_plan_binding(&master);
-        let open = r#loop::open_ai_assistant_core(&master).unwrap();
+        let open = r#loop::ensure_chat_session_core().unwrap();
         let old_sid = open["session_id"].as_str().unwrap().to_string();
         r#loop::reset_binding().expect("cut");
         let rejected = r#loop::agent_chat_turn_core(&old_sid, "after-cut", Some(&master))
@@ -1556,7 +1556,7 @@ fn t6_l1_session_generation_and_re_set_cuts() {
     with_sandbox(|| {
         let master = create_bound_plan("t6-l1-session");
         arm_plan_binding(&master);
-        let open = r#loop::open_ai_assistant_core(&master).unwrap();
+        let open = r#loop::ensure_chat_session_core().unwrap();
         let old_sid = open["session_id"].as_str().unwrap().to_string();
         let old_gen = r#loop::query_binding().generation.expect("gen");
 
@@ -1586,13 +1586,13 @@ fn t6_l1_session_generation_and_re_set_cuts() {
             "pre-set session must not remain live after Set"
         );
 
-        let open2 = r#loop::open_ai_assistant_core(&master2).unwrap();
+        let open2 = r#loop::ensure_chat_session_core().unwrap();
         let sid_a = open2["session_id"].as_str().unwrap().to_string();
         // replace Set → re-Set without old session driving executable chat
         let master3 = create_bound_plan("t6-l1-replace");
         arm_plan_binding(&master3);
         assert_eq!(live_session_id(), None);
-        let open3 = r#loop::open_ai_assistant_core(&master3).unwrap();
+        let open3 = r#loop::ensure_chat_session_core().unwrap();
         let sid_b = open3["session_id"].as_str().unwrap().to_string();
         assert_ne!(sid_a, sid_b, "re-Set must mint a new session");
         let old_chat = r#loop::agent_chat_turn_core(&sid_a, "old-ctx", Some(&master3))
@@ -1620,7 +1620,7 @@ fn t6_l2_missed_reset_defensive_cut_then_not_executable() {
     with_sandbox(|| {
         let master = create_bound_plan("t6-l2-missed");
         arm_plan_binding(&master);
-        let open = r#loop::open_ai_assistant_core(&master).unwrap();
+        let open = r#loop::ensure_chat_session_core().unwrap();
         let old_sid = open["session_id"].as_str().unwrap().to_string();
         // Missed dispose/Reset: Host defensive cut backs the leave signal.
         r#loop::defensive_unbound().expect("defensive cut");
@@ -1967,8 +1967,8 @@ fn t1_same_binding_switch_session_routes_to_new_slot() {
             .expect("session A")
             .to_string();
         let master = create_bound_plan("t1-switch-session");
-        let session_b = r#loop::open_ai_assistant_core(&master)
-            .expect("open B")
+        let session_b = r#loop::create_chat_session_core()
+            .expect("create B")
             .get("session_id")
             .and_then(Value::as_str)
             .expect("session B")
@@ -2240,7 +2240,7 @@ fn t6_explicit_reset_not_omitted_because_defensive_exists() {
         // Defensive cut exists, but normal leave still uses explicit Reset semantics.
         assert_eq!(
             r#loop::TODOS_EXPLICIT_LEAVE_RESET_PRIMARY.last().copied(),
-            Some("src-tauri/src/services/agent/loop/binding.rs::reset_binding")
+            Some("src-tauri/src/services/agent/binding/mod.rs::reset_binding")
         );
         let master = create_bound_plan("t6-explicit-primary");
         arm_plan_binding(&master);

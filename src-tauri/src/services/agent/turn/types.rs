@@ -80,19 +80,19 @@ impl ExecError {
         self.code
     }
 
-    pub(super) fn rejected_unbound() -> Self {
+    pub(crate) fn rejected_unbound() -> Self {
         Self {
             code: "rejected_unbound",
         }
     }
 
-    pub(super) fn reset_cancelled() -> Self {
+    pub(crate) fn reset_cancelled() -> Self {
         Self {
             code: "reset_cancelled",
         }
     }
 
-    pub(super) fn rejected_stale_generation() -> Self {
+    pub(crate) fn rejected_stale_generation() -> Self {
         Self {
             code: "rejected_stale_generation",
         }

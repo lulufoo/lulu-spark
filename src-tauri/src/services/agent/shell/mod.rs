@@ -1,12 +1,11 @@
-//! Present / close / get_binding / open / list / select / create / chat-turn entry.
+//! Present / close / get_binding / ensure / list / select / create / chat-turn entry.
 
 use serde_json::{json, Value};
 
 use crate::services::agent::session;
-use crate::services::todo_task;
 
-use super::flights::runtime;
-use super::types::{ChatTurnResult, PresentOutcome, WINDOW_LABEL};
+use crate::services::agent::turn::runtime;
+use crate::services::agent::turn::{ChatTurnResult, PresentOutcome, WINDOW_LABEL};
 
 /// Present: signal shell to open AI C. Does not Set; does not change binding state.
 /// Does not create/focus an independent WebviewWindow (shell host owns presentation).
@@ -27,15 +26,6 @@ pub fn shell_close_core() -> Result<(), String> {
     Ok(())
 }
 
-fn plan_title(master_task_id: &str) -> Option<String> {
-    let got = match todo_task::get_by_id(master_task_id) {
-        Ok(value) => value,
-        Err(_) => return None,
-    };
-    got.get("title")
-        .and_then(|v| v.as_str())
-        .map(|s| s.to_string())
-}
 
 /// Current chat session for the assistant window (may be empty if never opened).
 /// Does not expose business master id / title (stripped from Host surface).
@@ -90,39 +80,6 @@ pub fn ensure_chat_session_core() -> Result<Value, String> {
     }))
 }
 
-/// Legacy open path: create/focus session without writing business master into Host runtime.
-/// Prefer Present + Binding Contract Set; this no longer binds a plan id.
-pub fn open_ai_assistant_core(master_task_id: &str) -> Result<Value, String> {
-    let id = master_task_id.trim();
-    if id.is_empty() {
-        return Err("Missing master_task_id".into());
-    }
-    // Validate plan exists for legacy callers, but do not store id on Host/session.
-    let _title = plan_title(id).ok_or_else(|| "Plan not found".to_string())?;
-
-    let mut rt = runtime().lock().unwrap();
-    if rt.busy {
-        let sid = session::with_live_mut(|live| live.current_session_id.clone());
-        return Ok(json!({
-            "session_id": sid,
-            "window_label": WINDOW_LABEL,
-            "busy": true,
-            "reply_text": "Busy — try again later",
-        }));
-    }
-
-    let sess = session::create_session()?;
-    session::with_live_mut(|live| {
-        live.current_session_id = Some(sess.session_id.clone());
-    });
-    rt.clarify_counts.insert(sess.session_id.clone(), 0);
-
-    Ok(json!({
-        "session_id": sess.session_id,
-        "window_label": WINDOW_LABEL,
-        "busy": false,
-    }))
-}
 
 /// Home history list. Does not change the live session.
 pub fn list_chat_sessions_core() -> Result<Value, String> {

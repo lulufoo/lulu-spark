@@ -18,30 +18,30 @@ use super::types::{
 type LifecycleListener = Box<dyn Fn(&LifecycleEvent) + Send + 'static>;
 
 #[allow(dead_code)]
-pub(super) struct Flight {
+pub(crate) struct Flight {
     #[allow(dead_code)]
-    pub(super) request_id: String,
+    pub(crate) request_id: String,
     /// Same sink the loop holds on the stack; kept so a row is a full Flight.
     #[allow(dead_code)]
-    pub(super) sink: ProgressSink,
-    pub(super) cancel: Arc<AtomicBool>,
+    pub(crate) sink: ProgressSink,
+    pub(crate) cancel: Arc<AtomicBool>,
 }
 
 /// Orchestration-only Host runtime (flight table / present / clarify).
 /// Binding, MCP capability, live session id, generation, and cancel flags are
 /// owned exclusively by [`session::AIAssistantSession`] (L2-A / T-SessionMigrate).
 #[derive(Default)]
-pub(super) struct Runtime {
-    pub(super) busy: bool,
+pub(crate) struct Runtime {
+    pub(crate) busy: bool,
     /// True while a Binding Contract execute is in flight.
-    pub(super) executing: bool,
+    pub(crate) executing: bool,
     /// Present fired before main-window listener was ready (L11-AR race heal).
-    pub(super) pending_present: bool,
-    pub(super) clarify_counts: HashMap<String, u32>,
-    pub(super) flights: HashMap<String, Flight>,
+    pub(crate) pending_present: bool,
+    pub(crate) clarify_counts: HashMap<String, u32>,
+    pub(crate) flights: HashMap<String, Flight>,
 }
 
-pub(super) fn runtime() -> &'static Mutex<Runtime> {
+pub(crate) fn runtime() -> &'static Mutex<Runtime> {
     static RUNTIME: OnceLock<Mutex<Runtime>> = OnceLock::new();
     RUNTIME.get_or_init(|| Mutex::new(Runtime::default()))
 }
@@ -108,7 +108,7 @@ pub fn drain_shell_sync_events() -> Vec<ShellSyncEvent> {
 }
 
 /// Record shell binding-changed sync for Bound / Unbound transitions on cut/Set paths.
-pub(super) fn emit_shell_binding_changed() {
+pub(crate) fn emit_shell_binding_changed() {
     let state = if session::live_context_owner().current_binding().is_some() {
         "bound"
     } else {
@@ -120,7 +120,7 @@ pub(super) fn emit_shell_binding_changed() {
     });
 }
 
-pub(super) fn emit_lifecycle(event: &'static str, category: Option<&'static str>) {
+pub(crate) fn emit_lifecycle(event: &'static str, category: Option<&'static str>) {
     emit_lifecycle_inner(event, category, true);
 }
 
@@ -147,7 +147,7 @@ fn emit_lifecycle_inner(event: &'static str, category: Option<&'static str>, inv
 
 /// Symmetric in-flight cancel for cut paths: interrupt execute and/or chat when live.
 /// Orchestration flags stay on `Runtime`; cancel authority is on `AIAssistantSession`.
-pub(super) fn request_in_flight_cancel(rt: &Runtime, live: &mut session::AIAssistantSession) {
+pub(crate) fn request_in_flight_cancel(rt: &Runtime, live: &mut session::AIAssistantSession) {
     if rt.executing {
         live.execute_cancelled = true;
     }
@@ -241,7 +241,7 @@ pub fn end_chat_turn_busy() {
     rt.busy = false;
 }
 
-pub(super) fn chat_turn_interrupted(session_id: &str, generation: u64) -> bool {
+pub(crate) fn chat_turn_interrupted(session_id: &str, generation: u64) -> bool {
     let live = session::live_context_owner();
     if live.chat_cancelled() || live.current_generation() != Some(generation) {
         return true;

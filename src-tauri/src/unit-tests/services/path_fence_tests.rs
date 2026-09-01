@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::PathBuf;
 
-use crate::services::agent::path_fence::{require_absolute, sanitize_session_segment, PathFence};
+use crate::services::path_fence::{require_absolute, sanitize_session_segment, PathFence};
 
 fn unique_dir(label: &str) -> PathBuf {
     let dir = std::env::temp_dir().join(format!(

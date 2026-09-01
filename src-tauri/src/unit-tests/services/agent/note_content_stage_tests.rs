@@ -1,7 +1,7 @@
 use serde_json::{json, Value};
 
-use crate::services::agent::mcp_client::ToolResult;
-use crate::services::agent::note_content_stage::{overlay_tool_result, NOTE_CONTENT_TOOL};
+use crate::services::agent::tools::stage::{overlay_note_content, NOTE_CONTENT_TOOL};
+use crate::services::agent::tools::ToolResult;
 use crate::services::agent::r#loop;
 use crate::services::agent::session;
 use crate::test_support::TestSandbox;
@@ -28,7 +28,7 @@ fn success_stages_and_returns_f_id_without_path() {
     live_chat(|sid| {
         let path = "/tmp/note-stage-overlay.md";
         let mut sess = session::load_session(sid).expect("load");
-        let (out, staged) = overlay_tool_result(
+        let (out, staged) = overlay_note_content(
             NOTE_CONTENT_TOOL,
             path_ok(path, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"),
             &mut sess,
@@ -56,8 +56,8 @@ fn success_stages_and_returns_f_id_without_path() {
 fn second_note_gets_f2() {
     live_chat(|sid| {
         let mut sess = session::load_session(sid).expect("load");
-        let first = overlay_tool_result(NOTE_CONTENT_TOOL, path_ok("/tmp/a.md", "aa"), &mut sess);
-        let second = overlay_tool_result(NOTE_CONTENT_TOOL, path_ok("/tmp/b.md", "bb"), &mut sess);
+        let first = overlay_note_content(NOTE_CONTENT_TOOL, path_ok("/tmp/a.md", "aa"), &mut sess);
+        let second = overlay_note_content(NOTE_CONTENT_TOOL, path_ok("/tmp/b.md", "bb"), &mut sess);
         assert!(!first.0.is_error && !second.0.is_error);
         let id = serde_json::from_str::<Value>(&second.0.content).unwrap()["id"].clone();
         assert_eq!(id, "F2");
@@ -70,7 +70,7 @@ fn ok_false_does_not_stage() {
     live_chat(|sid| {
         let mut sess = session::load_session(sid).expect("load");
         let raw = json!({ "id": "bad", "ok": false, "error": "Entry not found" }).to_string();
-        let (out, staged) = overlay_tool_result(
+        let (out, staged) = overlay_note_content(
             NOTE_CONTENT_TOOL,
             ToolResult {
                 content: raw.clone(),
@@ -91,7 +91,7 @@ fn persist_after_overlay_keeps_f1_without_adopt() {
         let mut live = session::load_session(sid).expect("live");
         assert!(live.staged.is_empty());
         let (out, staged) =
-            overlay_tool_result(NOTE_CONTENT_TOOL, path_ok("/tmp/keep.md", "cc"), &mut live);
+            overlay_note_content(NOTE_CONTENT_TOOL, path_ok("/tmp/keep.md", "cc"), &mut live);
         assert!(staged && !out.is_error, "{}", out.content);
         session::save_session(&live).expect("persist");
         let loaded = session::load_session(sid).expect("reload");
@@ -112,7 +112,7 @@ fn overlay_stages_turn_session_not_live() {
         assert_ne!(sid_live, sid_turn);
         let mut turn = session::load_session(&sid_turn).expect("turn");
         let (out, staged) =
-            overlay_tool_result(NOTE_CONTENT_TOOL, path_ok("/tmp/turn-only.md", "tt"), &mut turn);
+            overlay_note_content(NOTE_CONTENT_TOOL, path_ok("/tmp/turn-only.md", "tt"), &mut turn);
         assert!(staged && !out.is_error, "{}", out.content);
         session::save_session(&turn).expect("persist turn");
         assert_eq!(session::load_session(&sid_turn).expect("turn reload").staged.len(), 1);
@@ -131,7 +131,7 @@ fn other_tools_pass_through() {
         content: json!({ "id": "x", "ok": true, "path": "/tmp/x.md" }).to_string(),
         is_error: false,
     };
-    let (out, staged) = overlay_tool_result("get_note_digest_by_id", result.clone(), &mut sess);
+    let (out, staged) = overlay_note_content("get_note_digest_by_id", result.clone(), &mut sess);
     assert!(!staged);
     assert_eq!(out, result);
     assert!(sess.staged.is_empty());

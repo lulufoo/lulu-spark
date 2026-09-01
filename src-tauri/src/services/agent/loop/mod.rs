@@ -1,21 +1,11 @@
-//! Agent Loop + Host open/chat-turn core (single-flight, terminals, history caps).
-//! Key-only business bindings discover model tools over MCP; no process-local
-//! `tools::dispatch` path is available.
-
-pub mod types;
-mod binding;
-mod flights;
-mod history;
-mod shell;
-mod turn;
+//! Thin facade: Binding / Shell / Turn live at top-level agent modules.
+//! Prefer `crate::services::agent::{binding, shell, turn}` for new code.
+//! Existing `r#loop::` call sites keep compiling through these re-exports.
 
 pub use crate::services::agent::session::{
     validate_binding, Binding, BindingStateSummary, SetError,
 };
 
-pub use binding::*;
-pub use flights::*;
-pub use history::*;
-pub use shell::*;
-pub use turn::*;
-pub use types::*;
+pub use crate::services::agent::binding::*;
+pub use crate::services::agent::shell::*;
+pub use crate::services::agent::turn::*;

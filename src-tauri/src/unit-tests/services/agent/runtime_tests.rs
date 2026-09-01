@@ -139,7 +139,7 @@ fn configured_glm_chat_routes_through_agent_loop_without_cursor_runtime() {
         let mock = spawn_scripted_llm(assistant_text("host reply"));
         install_host_llm(&mock);
         arm_plan_binding(&master);
-        let opened = r#loop::open_ai_assistant_core(&master).expect("open");
+        let opened = r#loop::ensure_chat_session_core().expect("open");
         let session_id = opened["session_id"].as_str().expect("session");
 
         let result = runtime::chat_turn(session_id, "hello", Some(&master)).expect("chat");
@@ -164,7 +164,7 @@ fn legacy_cursor_and_empty_settings_are_unconfigured_without_host_call() {
         let mut app_settings = settings::load().expect("load");
         app_settings.assistant_engine = "cursor".into();
         settings::save(&app_settings).expect("save cursor legacy");
-        let opened = r#loop::open_ai_assistant_core(&master).expect("open");
+        let opened = r#loop::ensure_chat_session_core().expect("open");
         let session_id = opened["session_id"].as_str().expect("session");
 
         let result = runtime::chat_turn(session_id, "hello", Some(&master)).expect("chat");
@@ -189,7 +189,7 @@ fn busy_and_stale_session_gates_remain_owned_by_runtime() {
     with_sandbox(|| {
         let master = create_bound_plan("runtime-gates");
         arm_plan_binding(&master);
-        let opened = r#loop::open_ai_assistant_core(&master).expect("open");
+        let opened = r#loop::ensure_chat_session_core().expect("open");
         let session_id = opened["session_id"].as_str().expect("session").to_string();
 
         r#loop::set_busy_for_tests(true);

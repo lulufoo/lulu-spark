@@ -4,12 +4,12 @@ use super::support::*;
 
 
 #[test]
-fn open_ai_assistant_busy_rejects_rebind() {
+fn replace_set_while_busy_clears_live_session() {
     with_sandbox(|| {
         let a = create_bound_plan("计划A");
         let b = create_bound_plan("计划B");
         arm_plan_binding(&a);
-        let first = r#loop::open_ai_assistant_core(&a).unwrap();
+        let first = r#loop::ensure_chat_session_core().unwrap();
         let sid = first["session_id"].as_str().unwrap().to_string();
         r#loop::set_busy_for_tests(true);
         // Replace Set while busy still cuts the live session (clear-first).
@@ -19,22 +19,11 @@ fn open_ai_assistant_busy_rejects_rebind() {
             None,
             "replace Set clears live session even while busy"
         );
-        let second = r#loop::open_ai_assistant_core(&b).unwrap();
-        assert_eq!(second["busy"], true);
-        // Busy open must not mint a new session; cut leaves no live id to echo.
-        assert!(
-            second["session_id"].is_null()
-                || second["session_id"].as_str().unwrap_or("").is_empty(),
-            "busy open after session cut must not invent a live session; got {}",
-            second["session_id"]
-        );
-        assert_ne!(
-            second["session_id"].as_str().unwrap_or(""),
-            sid,
-            "cut old session must not remain the busy-open live id"
-        );
+        // Legacy open_ai_assistant busy gate is retired; ensure may mint a new session.
+        let second = r#loop::ensure_chat_session_core().unwrap();
+        assert!(second["session_id"].as_str().unwrap().starts_with("sess_"));
+        assert_ne!(second["session_id"].as_str().unwrap(), sid);
         assert!(second.get("bound_master_task_id").is_none());
-        assert!(second.get("bound_title").is_none());
     });
 }
 
@@ -43,7 +32,7 @@ fn agent_chat_turn_busy_rejects_without_emit_or_user_turn() {
     with_sandbox(|| {
         let master = create_bound_plan("忙");
         arm_plan_binding(&master);
-        let open = r#loop::open_ai_assistant_core(&master).unwrap();
+        let open = r#loop::ensure_chat_session_core().unwrap();
         let sid = open["session_id"].as_str().unwrap().to_string();
         let before = session::load_session(&sid).unwrap();
         let before_len = before.turns.len();
@@ -66,14 +55,15 @@ fn in_flight_chat_keeps_binding_despite_busy_open_without_tool_writes() {
         let mock = spawn_scripted_llm(vec![assistant_text("已理解改标题请求（无进程内写入）")]);
         install_llm_cfg(&mock);
         arm_plan_binding(&a);
-        let open = r#loop::open_ai_assistant_core(&a).unwrap();
+        let open = r#loop::ensure_chat_session_core().unwrap();
         let sid = open["session_id"].as_str().unwrap().to_string();
 
         r#loop::set_busy_for_tests(true);
-        // Busy open must not swap Binding.
-        let rejected = r#loop::open_ai_assistant_core(&b).unwrap();
-        assert_eq!(rejected["busy"], true);
-        assert!(rejected.get("bound_master_task_id").is_none());
+        // Ensure while busy keeps the existing live session; does not Set Binding.
+        let ensured = r#loop::ensure_chat_session_core().unwrap();
+        assert_eq!(ensured["session_id"], sid);
+        assert_eq!(ensured["busy"], true);
+        assert!(ensured.get("bound_master_task_id").is_none());
         r#loop::set_busy_for_tests(false);
 
         let result = r#loop::agent_chat_turn_core(&sid, "改标题", Some(&a)).unwrap();
@@ -92,7 +82,7 @@ fn t2_chat_session_identity_must_match_live_current() {
         let mock = spawn_scripted_llm(vec![assistant_text("should-not-run")]);
         install_llm_cfg(&mock);
         arm_plan_binding(&master);
-        let open = r#loop::open_ai_assistant_core(&master).unwrap();
+        let open = r#loop::ensure_chat_session_core().unwrap();
         let live = open["session_id"].as_str().unwrap().to_string();
         assert_eq!(live_session_id().as_deref(), Some(live.as_str()));
 
@@ -188,7 +178,7 @@ fn t3_defensive_unbound_cancels_inflight_chat_symmetrically() {
         );
         install_llm_cfg(&mock);
         arm_plan_binding(&master);
-        let open = r#loop::open_ai_assistant_core(&master).unwrap();
+        let open = r#loop::ensure_chat_session_core().unwrap();
         let sid = open["session_id"].as_str().unwrap().to_string();
         let turns_before = session_turn_contents(&sid);
 

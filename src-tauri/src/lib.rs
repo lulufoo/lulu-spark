@@ -121,7 +121,6 @@ pub fn run() {
             commands::todo_task::create_todo_category,
             commands::todo_task::delete_todo_category,
             commands::todo_task::set_todo_category,
-            commands::ai_assistant::open_ai_assistant,
             commands::ai_assistant::present_ai_assistant,
             commands::ai_assistant::ensure_ai_assistant_session,
             commands::ai_assistant::shell_close_ai_assistant,

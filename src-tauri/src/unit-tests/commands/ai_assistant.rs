@@ -1,11 +1,11 @@
-//! Host command surface tests for open_ai_assistant / Present / agent_chat_turn.
+//! Host command surface tests for Present / ensure session / agent_chat_turn.
 
 use serde_json::json;
 
 use crate::commands::ai_assistant::{
     agent_chat_turn_json, cancel_ai_assistant_turn_json, create_chat_session_json,
     defensive_unbound_json, ensure_ai_assistant_session_json, execute_binding_json,
-    get_ai_assistant_binding_json, list_chat_sessions_json, open_ai_assistant_json,
+    get_ai_assistant_binding_json, list_chat_sessions_json,
     present_ai_assistant_json, query_binding_json, reset_binding_json,
     select_chat_session_json, set_binding_json, shell_close_json,
     AI_ASSISTANT_WINDOW_LABEL, EVENT_BINDING_CHANGED,
@@ -44,10 +44,9 @@ fn create_plan(title: &str) -> String {
 }
 
 #[test]
-fn open_ai_assistant_json_returns_window_label_constant() {
+fn ensure_ai_assistant_session_json_returns_window_label_constant() {
     with_cmd_sandbox(|| {
-        let id = create_plan("命令打开");
-        let v = open_ai_assistant_json(&id).expect("open");
+        let v = ensure_ai_assistant_session_json().expect("ensure");
         assert_eq!(v["window_label"], AI_ASSISTANT_WINDOW_LABEL);
         assert_eq!(AI_ASSISTANT_WINDOW_LABEL, "ai-assistant");
         assert!(v.get("bound_master_task_id").is_none());
@@ -82,7 +81,7 @@ fn ensure_ai_assistant_session_provisions_session_without_present_set() {
 fn agent_chat_turn_json_without_binding_is_business() {
     with_cmd_sandbox(|| {
         let a = create_plan("绑A");
-        let open = open_ai_assistant_json(&a).unwrap();
+        let open = ensure_ai_assistant_session_json().unwrap();
         let sid = open["session_id"].as_str().unwrap();
         // No Binding Contract Set → unbound business terminal (master arg ignored).
         let result = agent_chat_turn_json(sid, "hi", Some(&a)).unwrap();
@@ -94,7 +93,6 @@ fn agent_chat_turn_json_without_binding_is_business() {
 #[test]
 fn commands_module_exports_match_acl_names() {
     // Smoke: symbols exist for generate_handler registration.
-    let _ = open_ai_assistant_json;
     let _ = agent_chat_turn_json;
     let _ = present_ai_assistant_json;
     let _ = json!({ "ok": true });
@@ -123,7 +121,7 @@ fn present_ai_assistant_json_is_shell_only_not_bound() {
     });
 }
 
-/// t3 / L06-T: Present must not write legacy bound_master_task_id (open_ai_assistant_core side effect).
+/// t3 / L06-T: Present must not write legacy bound_master_task_id.
 #[test]
 fn present_ai_assistant_does_not_write_bound_master_task_id() {
     with_cmd_sandbox(|| {
@@ -142,14 +140,14 @@ fn present_ai_assistant_does_not_write_bound_master_task_id() {
 }
 
 #[test]
-fn open_ai_assistant_present_path_does_not_imply_set() {
+fn present_and_ensure_path_does_not_imply_set() {
     with_cmd_sandbox(|| {
-        let id = create_plan("开窗非Set");
-        let _ = open_ai_assistant_json(&id).expect("open/Present path");
+        let _ = present_ai_assistant_json().expect("Present");
+        let _ = ensure_ai_assistant_session_json().expect("ensure");
         assert_eq!(
             r#loop::binding_state(),
             "unbound",
-            "open_ai_assistant must not imply Binding Contract Set/bound"
+            "Present/ensure must not imply Binding Contract Set/bound"
         );
         assert_eq!(query_binding_json()["state"], "unbound");
     });
@@ -430,7 +428,7 @@ fn sk3_t5_shell_close_preserves_live_turns_for_reopen_hydrate() {
 #[test]
 fn t1_facade_signatures_are_engine_opaque_type_locked() {
     use crate::commands::ai_assistant::{
-        agent_chat_turn_json, ensure_ai_assistant_session_json, open_ai_assistant_json,
+        agent_chat_turn_json, ensure_ai_assistant_session_json,
         SESSION_FACADE_ENGINE_OPAQUE,
     };
     use crate::services::agent::r#loop::ChatTurnResult;
@@ -447,7 +445,7 @@ fn t1_facade_signatures_are_engine_opaque_type_locked() {
     );
 
     // Type ascriptions fail to compile if an optional engine backdoor param is added.
-    let _: fn(&str) -> Result<Value, String> = open_ai_assistant_json;
+    let _: fn() -> Result<Value, String> = ensure_ai_assistant_session_json;
     let _: fn() -> Result<Value, String> = ensure_ai_assistant_session_json;
     let _: fn(&str, &str, Option<&str>) -> Result<ChatTurnResult, String> = agent_chat_turn_json;
     let _: fn() -> Result<session::Session, String> = session::create_session;
@@ -459,7 +457,7 @@ fn t1_facade_happy_path_without_engine_params_and_payloads_leak_none() {
         use crate::commands::ai_assistant::value_exposes_engine_selection;
 
         let id = create_plan("t1门面无引擎");
-        let open = open_ai_assistant_json(&id).expect("open without engine param");
+        let open = ensure_ai_assistant_session_json().expect("ensure without engine param");
         assert!(!open["session_id"].as_str().unwrap_or("").is_empty());
         assert!(
             !value_exposes_engine_selection(&open),

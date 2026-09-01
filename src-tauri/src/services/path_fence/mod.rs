@@ -127,5 +127,5 @@ fn resolve_existing_prefix(path: &Path) -> PathBuf {
 }
 
 #[cfg(test)]
-#[path = "../../unit-tests/services/agent/path_fence_tests.rs"]
+#[path = "../../unit-tests/services/path_fence_tests.rs"]
 mod tests;

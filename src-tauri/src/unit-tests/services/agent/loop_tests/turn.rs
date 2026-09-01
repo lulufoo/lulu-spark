@@ -923,7 +923,7 @@ fn t1_run_loop_aborts_tool_dispatch_when_generation_invalidated() {
         arm_plan_binding(&master);
         let gen = r#loop::query_binding().generation.expect("gen");
         *gen_holder.lock().unwrap() = Some(gen);
-        let open = r#loop::open_ai_assistant_core(&master).unwrap();
+        let open = r#loop::ensure_chat_session_core().unwrap();
         let sid = open["session_id"].as_str().unwrap();
 
         let result = r#loop::agent_chat_turn_core(sid, "改标题", Some(&master)).unwrap();
@@ -981,7 +981,7 @@ fn t3_mid_chat_reset_cancels_without_appending_business_turns() {
         );
         install_llm_cfg(&mock);
         arm_plan_binding(&master);
-        let open = r#loop::open_ai_assistant_core(&master).unwrap();
+        let open = r#loop::ensure_chat_session_core().unwrap();
         let sid = open["session_id"].as_str().unwrap().to_string();
         let turns_before = session_turn_contents(&sid);
 
@@ -1038,7 +1038,7 @@ fn t3_mid_chat_replace_set_cancels_without_appending_business_turns() {
         );
         install_llm_cfg(&mock);
         arm_plan_binding(&master_a);
-        let open = r#loop::open_ai_assistant_core(&master_a).unwrap();
+        let open = r#loop::ensure_chat_session_core().unwrap();
         let sid = open["session_id"].as_str().unwrap().to_string();
         let turns_before = session_turn_contents(&sid);
 
@@ -1084,7 +1084,7 @@ fn t3_run_loop_checks_cancel_flag_before_tool_dispatch() {
         install_llm_cfg(&mock);
         arm_plan_binding(&master);
         let gen = r#loop::query_binding().generation.expect("gen");
-        let open = r#loop::open_ai_assistant_core(&master).unwrap();
+        let open = r#loop::ensure_chat_session_core().unwrap();
         let sid = open["session_id"].as_str().unwrap().to_string();
         let turns_before = session_turn_contents(&sid);
 
@@ -1113,7 +1113,7 @@ fn t3_host_business_chat_sends_empty_tools_to_llm() {
         let mock = spawn_scripted_llm(vec![assistant_text("门面会话可用")]);
         install_llm_cfg(&mock);
         arm_plan_binding(&master);
-        let open = r#loop::open_ai_assistant_core(&master).unwrap();
+        let open = r#loop::ensure_chat_session_core().unwrap();
         let sid = open["session_id"].as_str().unwrap();
         let result = r#loop::agent_chat_turn_core(sid, "你好", Some(&master)).unwrap();
         assert_eq!(result.body["terminal"], "none");
@@ -1193,7 +1193,7 @@ fn t3_host_unexpected_tool_calls_never_call_process_dispatch() {
         )]);
         install_llm_cfg(&mock);
         arm_plan_binding(&master);
-        let open = r#loop::open_ai_assistant_core(&master).unwrap();
+        let open = r#loop::ensure_chat_session_core().unwrap();
         let sid = open["session_id"].as_str().unwrap();
         let result = r#loop::agent_chat_turn_core(sid, "改标题", Some(&master)).unwrap();
         assert_eq!(result.body["wrote"], false);
@@ -1216,7 +1216,7 @@ fn t3_host_empty_tools_facade_usable_confirmed() {
         let mock = spawn_scripted_llm(vec![assistant_text("A3: empty tools facade ok")]);
         install_llm_cfg(&mock);
         arm_plan_binding(&master);
-        let open = r#loop::open_ai_assistant_core(&master).unwrap();
+        let open = r#loop::ensure_chat_session_core().unwrap();
         let sid = open["session_id"].as_str().unwrap();
         let result = r#loop::agent_chat_turn_core(sid, "hi", Some(&master)).unwrap();
         assert_eq!(result.body["terminal"], "none");
@@ -1230,10 +1230,14 @@ fn t3_host_empty_tools_facade_usable_confirmed() {
 #[test]
 fn t3_loop_rs_has_no_business_whitelist_dispatch_path() {
     let src = LOOP_SRC;
-    // Comments may mention the ban; forbid call/import forms only.
+    // Legacy in-process business dispatch is gone; turn routes via tools::invoke.
     assert!(
-        !src.contains("tools::dispatch(") && !src.contains("use crate::services::agent::tools"),
-        "loop.rs must not call/import tools::dispatch"
+        !src.contains("tools::dispatch("),
+        "loop.rs must not call legacy tools::dispatch"
+    );
+    assert!(
+        src.contains("tools::discover_and_merge") && src.contains("tools::invoke"),
+        "loop.rs must prepare and dispatch tools via tools::"
     );
     assert!(
         !src.contains("const WHITELIST"),

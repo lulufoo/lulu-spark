@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use crate::services::agent::path_fence::PathFence;
+use crate::services::path_fence::PathFence;
 use crate::services::mcp_host::registry::McpServerConfig;
 
 /// Session lifecycle entry (`create_session` / persist) does not expose an
@@ -179,4 +179,64 @@ pub struct Session {
     pub turns: Vec<Turn>,
     #[serde(default)]
     pub staged: Vec<StagedEntry>,
+}
+
+impl Session {
+    /// Register a path on this Chat's Stage (metadata only; no file body).
+    pub fn register_staged(
+        &mut self,
+        path: &str,
+        title: Option<&str>,
+    ) -> Result<StagedEntry, String> {
+        let path = path.trim();
+        if path.is_empty() {
+            return Err("missing path".to_string());
+        }
+        let title = title
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .map(|s| s.to_string())
+            .unwrap_or_else(|| default_staged_title(path));
+        let entry = StagedEntry {
+            id: next_staged_handle(&self.staged),
+            path: path.to_string(),
+            title,
+        };
+        self.staged.push(entry.clone());
+        Ok(entry)
+    }
+
+    pub fn list_staged(&self) -> &[StagedEntry] {
+        &self.staged
+    }
+
+    pub fn get_staged(&self, id: &str) -> Option<&StagedEntry> {
+        self.staged.iter().find(|entry| entry.id == id)
+    }
+}
+
+fn default_staged_title(path: &str) -> String {
+    std::path::Path::new(path)
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .filter(|s| !s.is_empty())
+        .unwrap_or(path)
+        .to_string()
+}
+
+fn parse_staged_handle(id: &str) -> Option<u32> {
+    let rest = id.strip_prefix('F')?;
+    if rest.is_empty() || !rest.bytes().all(|b| b.is_ascii_digit()) {
+        return None;
+    }
+    rest.parse().ok()
+}
+
+fn next_staged_handle(staged: &[StagedEntry]) -> String {
+    let high = staged
+        .iter()
+        .filter_map(|e| parse_staged_handle(&e.id))
+        .max()
+        .unwrap_or(0);
+    format!("F{}", high + 1)
 }

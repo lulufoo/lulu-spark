@@ -1,19 +1,19 @@
-//! Path-fenced host file tools (grep / read / write / edit).
+//! Path-fenced Agent file tool implementations (grep / read / write / edit).
 
-use std::fs;
+use std::fs as std_fs;
 use std::path::Path;
 
 use regex::Regex;
 use serde_json::Value;
 
-use super::path_fence::{require_absolute, PathFence};
+use crate::services::path_fence::{require_absolute, PathFence};
 
 const READ_DEFAULT_LIMIT: usize = 2000;
 const GREP_MAX_MATCHES: usize = 80;
 const GREP_MAX_FILES: usize = 2000;
 const GREP_MAX_FILE_BYTES: u64 = 1_000_000;
 
-pub(super) fn arg_str(arguments: &Value, key: &str) -> Result<String, String> {
+pub fn arg_str(arguments: &Value, key: &str) -> Result<String, String> {
     arguments
         .get(key)
         .and_then(Value::as_str)
@@ -21,7 +21,7 @@ pub(super) fn arg_str(arguments: &Value, key: &str) -> Result<String, String> {
         .ok_or_else(|| format!("missing {key}"))
 }
 
-pub(super) fn grep(arguments: &Value, fence: &PathFence) -> Result<String, String> {
+pub fn grep(arguments: &Value, fence: &PathFence) -> Result<String, String> {
     let pattern = arg_str(arguments, "pattern")?;
     let regex = Regex::new(&pattern).map_err(|e| format!("invalid pattern: {e}"))?;
     let roots = match arguments.get("path").and_then(Value::as_str) {
@@ -62,7 +62,7 @@ fn walk_grep(
         grep_file(root, fence, regex, matches, files_seen);
         return;
     }
-    let Ok(entries) = fs::read_dir(root) else {
+    let Ok(entries) = std_fs::read_dir(root) else {
         return;
     };
     for entry in entries.flatten() {
@@ -95,13 +95,13 @@ fn grep_file(
         return;
     }
     *files_seen += 1;
-    let Ok(meta) = fs::metadata(path) else {
+    let Ok(meta) = std_fs::metadata(path) else {
         return;
     };
     if meta.len() > GREP_MAX_FILE_BYTES {
         return;
     }
-    let Ok(text) = fs::read_to_string(path) else {
+    let Ok(text) = std_fs::read_to_string(path) else {
         return;
     };
     for (idx, line) in text.lines().enumerate() {
@@ -114,7 +114,7 @@ fn grep_file(
     }
 }
 
-pub(super) fn read(arguments: &Value, fence: &PathFence) -> Result<String, String> {
+pub fn read(arguments: &Value, fence: &PathFence) -> Result<String, String> {
     let path = require_absolute(&arg_str(arguments, "path")?)?;
     if !fence.allows_read(&path) {
         return Err("path is outside the read fence".into());
@@ -122,7 +122,7 @@ pub(super) fn read(arguments: &Value, fence: &PathFence) -> Result<String, Strin
     if !path.is_file() {
         return Err("file not found".into());
     }
-    let text = fs::read_to_string(&path).map_err(|e| e.to_string())?;
+    let text = std_fs::read_to_string(&path).map_err(|e| e.to_string())?;
     let offset = arguments
         .get("offset")
         .and_then(Value::as_u64)
@@ -148,20 +148,20 @@ pub(super) fn read(arguments: &Value, fence: &PathFence) -> Result<String, Strin
         .join("\n"))
 }
 
-pub(super) fn write(arguments: &Value, fence: &PathFence) -> Result<String, String> {
+pub fn write(arguments: &Value, fence: &PathFence) -> Result<String, String> {
     let path = require_absolute(&arg_str(arguments, "path")?)?;
     if !fence.allows_write(&path) {
         return Err("path is outside the write fence".into());
     }
     let content = arg_str(arguments, "content")?;
     if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+        std_fs::create_dir_all(parent).map_err(|e| e.to_string())?;
     }
-    fs::write(&path, content).map_err(|e| e.to_string())?;
+    std_fs::write(&path, content).map_err(|e| e.to_string())?;
     Ok(format!("Wrote {}", path.display()))
 }
 
-pub(super) fn edit(arguments: &Value, fence: &PathFence) -> Result<String, String> {
+pub fn edit(arguments: &Value, fence: &PathFence) -> Result<String, String> {
     let path = require_absolute(&arg_str(arguments, "path")?)?;
     if !fence.allows_write(&path) {
         return Err("path is outside the write fence".into());
@@ -174,7 +174,7 @@ pub(super) fn edit(arguments: &Value, fence: &PathFence) -> Result<String, Strin
     if old_text.is_empty() {
         return Err("old_text must not be empty".into());
     }
-    let current = fs::read_to_string(&path).map_err(|e| e.to_string())?;
+    let current = std_fs::read_to_string(&path).map_err(|e| e.to_string())?;
     let count = current.matches(&old_text).count();
     if count == 0 {
         return Err("old_text not found".into());
@@ -182,6 +182,6 @@ pub(super) fn edit(arguments: &Value, fence: &PathFence) -> Result<String, Strin
     if count > 1 {
         return Err("old_text matched more than once".into());
     }
-    fs::write(&path, current.replacen(&old_text, &new_text, 1)).map_err(|e| e.to_string())?;
+    std_fs::write(&path, current.replacen(&old_text, &new_text, 1)).map_err(|e| e.to_string())?;
     Ok(format!("Edited {}", path.display()))
 }

@@ -4,14 +4,14 @@ use std::sync::atomic::Ordering;
 
 use serde_json::{json, Value};
 
-use crate::services::agent::path_fence::PathFence;
+use crate::services::path_fence::PathFence;
 use crate::services::agent::session::{self, BindingStateSummary, SetError};
 use crate::services::mcp_oauth::{issue_for_slot, Slot};
 use crate::services::mcp_host::registry::{self, McpServerConfig, McpServerLookupError};
 use crate::services::workbench_path_fence;
 
-use super::flights::{emit_lifecycle, emit_shell_binding_changed, request_in_flight_cancel, runtime};
-use super::types::{ChatTurnResult, ExecError, ExecuteOutcome};
+use crate::services::agent::turn::{emit_lifecycle, emit_shell_binding_changed, request_in_flight_cancel, runtime};
+use crate::services::agent::turn::{ChatTurnResult, ExecError, ExecuteOutcome};
 
 /// Set Binding after validation. Failure returns `set_invalid` and leaves state unchanged.
 /// Legal Set on bound atomically replaces and invalidates the previous generation.
@@ -233,14 +233,14 @@ where
 /// Confirmed Host hook path for defensive cut (P2 Must Close Before).
 /// Call when leave/unmount was observed as missed while still bound.
 pub const DEFENSIVE_CUT_HOOK_PATH: &str =
-    "src-tauri/src/services/agent/loop/binding.rs::defensive_unbound";
+    "src-tauri/src/services/agent/binding/mod.rs::defensive_unbound";
 
 /// Explicit leave→Reset chain that defensive cut backs (does not replace).
 pub const DEFENSIVE_CUT_EXPLICIT_RESET_CHAIN: &[&str] = &[
     "frontend/src/todo-task/index.js::dispose",
     "frontend/src/todo-task/lifecycle.js::onTodosPageLeave",
     "frontend/src/todo-task/binding.js::resetTodosBinding",
-    "src-tauri/src/services/agent/loop/binding.rs::reset_binding",
+    "src-tauri/src/services/agent/binding/mod.rs::reset_binding",
 ];
 
 /// T6 layered acceptance L0 markers (regression): unbound reject / Reset idempotent / mid-Reset cancel.
@@ -379,7 +379,7 @@ fn exec_err_stale_generation() -> ExecError {
 }
 
 /// Atomic snapshot of current Binding + live generation (None if unbound or gen missing).
-pub(super) fn current_binding_generation_snapshot() -> Option<(session::Binding, u64)> {
+pub(crate) fn current_binding_generation_snapshot() -> Option<(session::Binding, u64)> {
     session::with_live_mut(|live| match (live.current_binding.clone(), live.current_generation) {
         (Some(binding), Some(generation)) => Some((binding, generation)),
         _ => None,
@@ -394,7 +394,7 @@ pub fn binding_contract_ops() -> &'static [&'static str] {
     BINDING_CONTRACT_OPS
 }
 
-pub(super) fn current_binding_snapshot() -> Option<session::Binding> {
+pub(crate) fn current_binding_snapshot() -> Option<session::Binding> {
     session::live_context_owner().current_binding()
 }
 

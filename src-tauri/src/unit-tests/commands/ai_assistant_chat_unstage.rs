@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use crate::commands::ai_assistant::{create_chat_session_json, unstage_chat_staged_json};
 use crate::services::agent::diagnostics::TraceId;
-use crate::services::agent::fs_tools;
+use crate::services::agent::tools::{host, stage};
 use crate::services::agent::progress::ProgressSink;
 use crate::services::agent::r#loop;
 use crate::services::agent::session::{self, StagedEntry};
@@ -97,12 +97,13 @@ fn unstage_in_flight_is_rejected() {
 }
 
 #[test]
-fn fs_tools_catalog_has_no_unstage() {
-    let catalog = fs_tools::catalog();
-    for name in ["unstage", "unstage_chat_staged", "delete_staged", "remove_staged"] {
-        assert!(!catalog.contains(name), "{name} must not be an agent tool");
-        assert!(!fs_tools::is_builtin(name), "{name} must not be builtin");
+fn host_and_stage_catalogs_have_no_unstage() {
+    for catalog in [host::catalog(), stage::catalog()] {
+        for name in ["unstage", "unstage_chat_staged", "delete_staged", "remove_staged"] {
+            assert!(!catalog.contains(name), "{name} must not be an agent tool");
+            assert!(!host::is_builtin(name) && !stage::is_builtin(name), "{name}");
+        }
+        let blob = format!("{:?}", catalog.definitions);
+        assert!(!blob.contains("unstage"), "tool defs must not mention unstage: {blob}");
     }
-    let blob = format!("{:?}", catalog.definitions);
-    assert!(!blob.contains("unstage"), "tool defs must not mention unstage: {blob}");
 }

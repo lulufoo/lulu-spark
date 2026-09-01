@@ -1,4 +1,4 @@
-//! Host commands: open_ai_assistant / Present / agent_chat_turn.
+//! Host commands: Present / ensure session / agent_chat_turn.
 //! Dual surface: Binding Contract ops (Set/Reset/query/execute + callbacks) vs shell Present.
 
 use std::time::Instant;
@@ -23,10 +23,6 @@ pub const EVENT_BINDING_CHANGED: &str = "ai-assistant:binding-changed";
 /// channel via signatures or return/event payload fields.
 pub const SESSION_FACADE_ENGINE_OPAQUE: bool = true;
 
-pub fn open_ai_assistant_json(master_task_id: &str) -> Result<Value, String> {
-    // Physical open path may still carry shell UX payload; Present semantics must not imply Set.
-    r#loop::open_ai_assistant_core(master_task_id)
-}
 
 /// Provision chat session for turn history only (no master / title).
 /// Used after Binding Contract Set so shell can `agent_chat_turn` while Present≠Set.
@@ -257,34 +253,10 @@ fn agent_chat_turn_with_trace(
     runtime::chat_turn_with_trace(session_id, message, master_task_id, trace_id, sink)
 }
 
-#[tauri::command]
-pub async fn open_ai_assistant(
-    app: AppHandle,
-    master_task_id: String,
-) -> Result<Value, String> {
-    // Legacy open path (session shell only; does not bind master / Binding Contract).
-    // Todos page Present must use present_ai_assistant instead (L2 t3 / L06-T).
-    let result = tauri::async_runtime::spawn_blocking(move || open_ai_assistant_json(&master_task_id))
-        .await
-        .map_err(|e| e.to_string())??;
-
-    #[cfg(not(test))]
-    {
-        // Independent window retired (T4); emit for main-shell listeners only.
-        // First-open races are healed by get_ai_assistant_binding on mount.
-        let _ = app.emit(EVENT_ASSISTANT_OPENED, &result);
-    }
-    #[cfg(test)]
-    {
-        let _ = &app;
-    }
-
-    Ok(result)
-}
 
 /// Present: emit shell open signal for AI C (`entry_id`). Does not create/focus a WebviewWindow.
 /// Not a Binding Contract op — does not Set, does not write bound_master_task_id, does not change binding state.
-/// Todos page Assistant button must call this (not `open_ai_assistant`).
+/// Todos page Assistant button must call this Present path.
 #[tauri::command]
 pub async fn present_ai_assistant(app: AppHandle) -> Result<Value, String> {
     let result = tauri::async_runtime::spawn_blocking(present_ai_assistant_json)

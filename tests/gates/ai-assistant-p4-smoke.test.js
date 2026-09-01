@@ -78,7 +78,7 @@ const LAYERED_VITEST = [
 
 const HOST_TOOLS_MARKERS = [
   't3_todo_task_persistence_still_available_for_mcp_http',
-  't3_tools_rs_has_no_pub_dispatch_capability',
+  't3_agent_legacy_tools_rs_module_removed',
 ];
 
 const LOOP_MARKERS = [
@@ -88,7 +88,7 @@ const LOOP_MARKERS = [
   'run_loop_host_text_paths_remain_observable_without_tool_writes',
   'parallel_tool_calls_are_rejected_without_process_dispatch',
   'same_message_tool_calls_plus_content_does_not_dispatch_or_finalize',
-  'open_ai_assistant_busy_rejects_rebind',
+  'replace_set_while_busy_clears_live_session',
   'unsupported_tool_calls_upstream_is_error_terminal_no_prompt_json',
   'length_and_http_errors_map_to_error_terminal_no_retry',
   'history_truncation_keeps_system_and_dual_hard_caps',

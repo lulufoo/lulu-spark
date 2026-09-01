@@ -89,20 +89,22 @@ describe('Host Agent MCP tools — workbench key-only call surface', () => {
 });
 
 describe('Host Agent MCP tools — source / interface layer locks', () => {
-  it('legacy agent/tools.rs OpenAI plan defs are removed', () => {
+  it('legacy agent/tools.rs OpenAI plan defs are removed; tools/ module owns catalog', () => {
     expect(existsSync(toolsRsPath)).toBe(false);
-    expect(agentModRs).not.toMatch(/\bmod tools\b/);
+    expect(agentModRs).toMatch(/pub mod tools/);
+    expect(agentModRs).toMatch(/pub mod mcp/);
+    expect(agentModRs).not.toMatch(/pub mod fs_tools/);
+    expect(agentModRs).not.toMatch(/pub mod mcp_client/);
     expect(agentModRs).not.toMatch(/openai_tool_definitions/);
     expect(agentModRs).toMatch(/WORKBENCH_HOST_SYSTEM_PROMPT/);
   });
 
   it('derives model tools from active MCP plus Host file tools while Binding.tools remains empty', () => {
-    expect(loopRs).toMatch(/mcp_client::discover_tools\s*\(\s*&config\s*\)/);
+    expect(loopRs).toMatch(/tools::discover_and_merge\s*\(/);
+    expect(loopRs).toMatch(/tools::invoke\s*\(/);
     expect(loopRs).toMatch(/catalog\.definitions\.as_slice\(\)/);
-    expect(loopRs).toMatch(
-      /mcp_client::call_tool\s*\(\s*mcp_config\s*,\s*&call\.name\s*,\s*arguments\s*\)/,
-    );
-    expect(loopRs).toMatch(/fs_tools::call\s*\(/);
+    expect(loopRs).not.toMatch(/mcp_client::/);
+    expect(loopRs).not.toMatch(/fs_tools::/);
     expect(loopRs).toMatch(/workbench_path_fence::expand_for_business_key/);
     expect(loopRs).not.toMatch(
       /chat_completions\s*\(\s*&messages\s*,\s*&\s*\[\s*\]\s*,\s*config\s*\)/,

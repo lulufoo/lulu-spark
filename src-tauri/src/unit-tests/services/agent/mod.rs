@@ -298,10 +298,10 @@ fn assistant_diagnostics_bounded_error_text_redacts_secrets_and_newlines() {
     );
 }
 
-// ── Tools (in-process OpenAI plan defs removed; MCP/fs_tools are turn SSOT) ───
+// ── Tools (legacy tools.rs removed; tools/ + mcp/ are turn SSOT) ──────────────
 
 #[test]
-fn t3_agent_tools_rs_module_removed() {
+fn t3_agent_legacy_tools_rs_module_removed() {
     let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("src/services/agent/tools.rs");
     assert!(
         !path.exists(),
@@ -309,8 +309,12 @@ fn t3_agent_tools_rs_module_removed() {
     );
     let mod_src = include_str!("../../../services/agent/mod.rs");
     assert!(
-        !mod_src.contains("mod tools"),
-        "agent/mod.rs must not declare tools module"
+        mod_src.contains("pub mod tools"),
+        "agent/mod.rs must declare tools/ module"
+    );
+    assert!(
+        !mod_src.contains("pub mod fs_tools") && !mod_src.contains("pub mod mcp_client"),
+        "agent/mod.rs must not keep fs_tools / mcp_client"
     );
 }
 

@@ -4,13 +4,11 @@ use super::support::*;
 
 
 #[test]
-fn open_ai_assistant_idle_creates_session_and_returns_binding() {
+fn ensure_chat_session_idle_creates_session() {
     with_sandbox(|| {
-        let master = create_bound_plan("打开助手");
-        let v = r#loop::open_ai_assistant_core(&master).expect("open");
+        let v = r#loop::ensure_chat_session_core().expect("ensure");
         assert!(v["session_id"].as_str().unwrap().starts_with("sess_"));
         assert!(v.get("bound_master_task_id").is_none());
-        assert!(v["session_id"].as_str().unwrap_or("").starts_with("sess_"));
         assert_eq!(v["window_label"], "ai-assistant");
         assert_ne!(v["busy"], true);
     });
@@ -23,7 +21,7 @@ fn agent_chat_turn_happy_path_emits_turn_completed() {
         let mock = spawn_scripted_llm(vec![assistant_text("收到")]);
         install_llm_cfg(&mock);
         arm_plan_binding(&master);
-        let open = r#loop::open_ai_assistant_core(&master).unwrap();
+        let open = r#loop::ensure_chat_session_core().unwrap();
         let sid = open["session_id"].as_str().unwrap();
         let result = r#loop::agent_chat_turn_core(sid, "你好", Some(&master)).unwrap();
         assert_eq!(result.body["terminal"], "none");
@@ -48,7 +46,7 @@ fn agent_chat_turn_ignores_master_arg_uses_binding_ctx() {
         let mock = spawn_scripted_llm(vec![assistant_text("ok")]);
         install_llm_cfg(&mock);
         arm_plan_binding(&a);
-        let open = r#loop::open_ai_assistant_core(&a).unwrap();
+        let open = r#loop::ensure_chat_session_core().unwrap();
         let sid = open["session_id"].as_str().unwrap();
         // Client master arg is ignored; Binding.tools ctx drives execution.
         let result = r#loop::agent_chat_turn_core(sid, "你好", Some(&b)).unwrap();
@@ -67,7 +65,7 @@ fn close_window_does_not_abort_emit_still_available() {
         let mock = spawn_scripted_llm(vec![assistant_text("跑完了")]);
         install_llm_cfg(&mock);
         arm_plan_binding(&master);
-        let open = r#loop::open_ai_assistant_core(&master).unwrap();
+        let open = r#loop::ensure_chat_session_core().unwrap();
         let sid = open["session_id"].as_str().unwrap();
         let result = r#loop::agent_chat_turn_core(sid, "继续", Some(&master)).unwrap();
         assert!(result.emit_turn_completed.is_some());
@@ -171,7 +169,7 @@ fn present_path_does_not_write_contract_business_binding_primary_key() {
         assert_query_is_business_agnostic(&r#loop::query_binding());
 
         // Legacy open may still carry a master id for shell UX, but must not imply Set/bound.
-        let _ = r#loop::open_ai_assistant_core(&master);
+        let _ = r#loop::ensure_chat_session_core();
         assert_eq!(
             r#loop::binding_state(),
             "unbound",
@@ -253,7 +251,7 @@ fn t1_agent_chat_turn_allows_when_generation_current() {
         arm_plan_binding(&master);
         let gen = r#loop::query_binding().generation.expect("gen");
         assert!(r#loop::is_binding_generation_current(gen));
-        let open = r#loop::open_ai_assistant_core(&master).unwrap();
+        let open = r#loop::ensure_chat_session_core().unwrap();
         let sid = open["session_id"].as_str().unwrap();
         let result = r#loop::agent_chat_turn_core(sid, "你好", Some(&master)).unwrap();
         assert_eq!(result.body["terminal"], "none");
@@ -270,7 +268,7 @@ fn t1_agent_chat_turn_after_reset_does_not_invoke_llm() {
         install_llm_cfg(&mock);
         arm_plan_binding(&master);
         let gen = r#loop::query_binding().generation.expect("gen");
-        let open = r#loop::open_ai_assistant_core(&master).unwrap();
+        let open = r#loop::ensure_chat_session_core().unwrap();
         let sid = open["session_id"].as_str().unwrap().to_string();
         r#loop::reset_binding().expect("Reset");
         assert!(!r#loop::is_binding_generation_current(gen));
@@ -294,7 +292,7 @@ fn t4_shell_close_core_is_not_defensive_cut() {
     with_sandbox(|| {
         let master = create_bound_plan("t4-shell-close");
         arm_plan_binding(&master);
-        let open = r#loop::open_ai_assistant_core(&master).unwrap();
+        let open = r#loop::ensure_chat_session_core().unwrap();
         let sid = open["session_id"].as_str().unwrap().to_string();
         let before = r#loop::query_binding();
         assert_query_bound(&before);
@@ -364,7 +362,7 @@ fn t3_host_facade_open_ensure_chat_works_host_only() {
         install_llm_cfg(&mock);
         arm_plan_binding(&master);
 
-        let open = r#loop::open_ai_assistant_core(&master).unwrap();
+        let open = r#loop::ensure_chat_session_core().unwrap();
         let sid = open["session_id"].as_str().unwrap().to_string();
         assert!(!sid.is_empty());
 
