@@ -90,7 +90,7 @@ describe('MCP tool surface hard-cut to todo_* (Host SSOT / T10)', () => {
     expect(taskSurface.sort()).toEqual([...EXPECTED_TODO_TOOLS].sort());
   });
 
-  it('create_todo_task invokes Services create_master_with_category (todo_md contract lives on Host HTTP)', () => {
+  it('create_todo_task invokes Services create_master_with_category (todo_md required)', () => {
     const src = readRsPath(join(repoRoot, HOST_ADAPTER));
     const block = toolRouteBlock(src, 'create_todo_task');
     expect(block).toContain('create_master_with_category');
@@ -139,9 +139,12 @@ describe('MCP category surface (tech-doc T-3 / AC1–AC4 / L09#4)', () => {
     expect(names).not.toContain('set_todo_task_category');
   });
 
-  it('Sidecar local_http exposes list-categories route and category_id on create/list/update', () => {
+  it('MCP list_todo_categories stays on Services; Main Host hop /api/todo-task-list-categories is gone', () => {
+    const src = readRsPath(join(repoRoot, HOST_ADAPTER));
+    expect(toolRouteBlock(src, 'list_todo_categories')).toContain(
+      'todo_task::list_todo_categories',
+    );
     const httpSrc = readRsPath(join(repoRoot, 'src-tauri/src/main_host'));
-    expect(httpSrc).toMatch(/\/api\/todo-task-list-categories/);
-    expect(httpSrc).toMatch(/category_id/);
+    expect(httpSrc).not.toMatch(/\/api\/todo-task-list-categories/);
   });
 });

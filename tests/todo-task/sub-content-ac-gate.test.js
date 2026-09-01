@@ -24,10 +24,10 @@ describe('t5 AC1 — title-only add (host / HTTP / MCP)', () => {
     expect(src).toMatch(/subs\[.*\]\.get\("content"\)\.is_none\(\)/);
   });
 
-  it('HTTP unit tests cover title-only POST /api/todo-task-add-sub (no content field → 201)', () => {
-    const src = read('src-tauri/src/unit-tests/main_host.rs');
-    expect(src).toContain('post_todo_task_add_sub_title_only_without_content_field_returns_201');
-    expect(src).toContain('/api/todo-task-add-sub');
+  it('command unit tests cover title-only add_todo_sub_json (no content field)', () => {
+    const src = read('src-tauri/src/unit-tests/commands/todo_task.rs');
+    expect(src).toContain('add_todo_sub_json_appends_and_returns_updated_master');
+    expect(src).toMatch(/subs\[.*\]\.get\("content"\)\.is_none\(\)/);
   });
 
   it('Host adapter routes add_todo_sub; e2e keeps title-only success path', () => {
@@ -53,9 +53,9 @@ describe('t5 AC2 — create-with-content round-trip; legacy missing field empty'
     expect(svc).toContain('load_legacy_sub_tasks_missing_content_reads_as_absent');
   });
 
-  it('HTTP unit tests cover optional content on add-sub round-trip', () => {
-    const src = read('src-tauri/src/unit-tests/main_host.rs');
-    expect(src).toContain('post_todo_task_add_sub_with_optional_content_persists_via_get');
+  it('command unit tests cover optional content on add-sub round-trip', () => {
+    const src = read('src-tauri/src/unit-tests/commands/todo_task.rs');
+    expect(src).toContain('add_todo_sub_json_with_optional_content_persists');
   });
 
   it('e2e exercises create-with-content via add_todo_sub', () => {
@@ -70,8 +70,8 @@ describe('t5 AC3 — update modify/clear/omit content; no delete-content API', (
     expect(cmd).toContain('update_todo_sub_json_sets_and_clears_optional_content');
     expect(cmd).toContain('update_todo_sub_json_title_only_leaves_content_unchanged');
 
-    const http = read('src-tauri/src/unit-tests/main_host.rs');
-    expect(http).toContain('post_todo_task_update_sub_writes_clears_and_omits_content');
+    const http = read('src-tauri/src/unit-tests/commands/todo_task.rs');
+    expect(http).toContain('update_todo_sub_json_sets_and_clears_optional_content');
   });
 
   it('Host adapter + e2e expose update_todo_sub content paths', () => {
@@ -87,7 +87,7 @@ describe('t5 AC3 — update modify/clear/omit content; no delete-content API', (
   it('no delete-content API on HTTP or Host MCP surfaces', () => {
     const http = read('src-tauri/src/main_host');
     expect(http).not.toMatch(/todo-task-delete-.*content|delete-sub-content|delete_content/);
-    expect(http).toContain('/api/todo-task-update-sub');
+    expect(http).not.toContain('/api/todo-task-update-sub');
 
     const adapter = read(HOST_ADAPTER);
     expect(adapter).not.toMatch(/route\(\s*"delete_todo_sub_content"/);
@@ -133,11 +133,12 @@ describe('t5 wire-up / failure semantics', () => {
   });
 
   it('existing missing-title 400 semantics remain asserted (not relaxed)', () => {
-    const http = read('src-tauri/src/unit-tests/main_host.rs');
-    expect(http).toContain('post_todo_task_add_sub_missing_or_blank_title_returns_400');
-    expect(http).toContain('post_todo_task_update_sub_missing_or_blank_title_returns_400');
+    const cmd = read('src-tauri/src/unit-tests/commands/todo_task.rs');
+    expect(cmd).toContain('update_todo_sub_json_empty_title_returns_400_class');
+    const svc = read('src-tauri/src/unit-tests/services/todo_task/subs.rs');
+    expect(svc).toContain('update_sub_title_blank_title_returns_400_even_with_content');
     const mcp = read('tests/todo-task/mcp-sub-content.test.js');
-    expect(mcp).toContain('Sidecar HTTP handlers cover optional content semantics');
+    expect(mcp).toContain('command/service unit tests cover optional content semantics');
   });
 
   it('delivery scripts exist (Host verify + e2e; Node package archived)', () => {

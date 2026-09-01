@@ -354,11 +354,11 @@ fn dual_listen_sidecar_and_mcp_observable_in_same_process() {
     let mcp_local = mcp_handle.local_addr();
 
     let (sidecar_status, sidecar_body) =
-        http_get(&format!("http://127.0.0.1:{http_port}/api/status"));
-    assert_eq!(sidecar_status, 200, "sidecar status body={sidecar_body}");
-    let sidecar_json: serde_json::Value =
-        serde_json::from_str(&sidecar_body).expect("sidecar JSON");
-    assert_eq!(sidecar_json.get("ok"), Some(&serde_json::Value::Bool(true)));
+        http_get(&format!("http://127.0.0.1:{http_port}/api/unknown"));
+    assert_eq!(
+        sidecar_status, 404,
+        "Main Host must answer HTTP after start, body={sidecar_body}"
+    );
 
     let (mcp_status, mcp_body) =
         http_get(&format!("http://127.0.0.1:{}/health", mcp_local.port()));
@@ -412,10 +412,10 @@ fn stopping_mcp_leaves_sidecar_tiny_http_serving() {
 
     stop_embedded_mcp_runtime(mcp_handle).expect("stop MCP only");
 
-    let (status, body) = http_get(&format!("http://127.0.0.1:{http_port}/api/status"));
+    let (status, body) = http_get(&format!("http://127.0.0.1:{http_port}/api/unknown"));
     assert_eq!(
-        status, 200,
-        "Sidecar tiny_http must keep serving after MCP stop, body={body}"
+        status, 404,
+        "Main Host tiny_http must keep serving after MCP stop, body={body}"
     );
 
     main_host::stop(http_handle);
@@ -1101,11 +1101,11 @@ fn p3_t10_host_dual_slot_list_call_and_unknown_hard_fail_smoke() {
     .expect("start Host MCP :9876");
 
     let (sidecar_status, _) = http_get(&format!(
-        "http://127.0.0.1:{CLOSE_GATE_SIDECAR_PORT}/api/status"
+        "http://127.0.0.1:{CLOSE_GATE_SIDECAR_PORT}/api/unknown"
     ));
     assert_eq!(
-        sidecar_status, 200,
-        "T10: Sidecar HTTP fixture must be independently observable on :8765"
+        sidecar_status, 404,
+        "T10: Main Host HTTP must be independently observable on :8765"
     );
 
     let (mcp_health_status, mcp_health_body) =

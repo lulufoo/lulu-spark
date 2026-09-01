@@ -41,13 +41,15 @@ describe('t3 MCP update_todo_sub (Host SSOT)', () => {
     expect(block).toContain('todo_task::update_sub_title');
   });
 
-  it('Sidecar HTTP handlers cover optional content semantics (title-only / set / clear)', () => {
-    const http = read('src-tauri/src/unit-tests/main_host.rs');
-    expect(http).toContain('post_todo_task_add_sub_title_only_without_content_field_returns_201');
-    expect(http).toContain('post_todo_task_add_sub_with_optional_content_persists_via_get');
-    expect(http).toContain('post_todo_task_update_sub_writes_clears_and_omits_content');
-    expect(http).toContain('post_todo_task_add_sub_missing_or_blank_title_returns_400');
-    expect(http).toContain('post_todo_task_update_sub_missing_or_blank_title_returns_400');
+  it('command/service unit tests cover optional content semantics (title-only / set / clear)', () => {
+    const cmd = read('src-tauri/src/unit-tests/commands/todo_task.rs');
+    expect(cmd).toContain('add_todo_sub_json_appends_and_returns_updated_master');
+    expect(cmd).toContain('add_todo_sub_json_with_optional_content_persists');
+    expect(cmd).toContain('update_todo_sub_json_sets_and_clears_optional_content');
+    expect(cmd).toContain('update_todo_sub_json_empty_title_returns_400_class');
+    const svc = read('src-tauri/src/unit-tests/services/todo_task/subs.rs');
+    expect(svc).toContain('add_sub_without_content_matches_title_only_behavior');
+    expect(svc).toContain('update_sub_title_blank_title_returns_400_even_with_content');
   });
 });
 

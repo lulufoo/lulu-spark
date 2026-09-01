@@ -608,48 +608,6 @@ if (parseJson(completeIdempotentText).task.status !== 'complete') {
   throw new Error(`idempotent complete_todo must keep status complete: ${completeIdempotentText}`);
 }
 
-// Optional: abandoned reject via host set-status when Workbench HTTP is reachable.
-const workbenchUrl = (process.env.WORKBENCH_HTTP_URL || '').trim().replace(/\/$/, '');
-if (workbenchUrl) {
-  const abandonRes = await fetch(`${workbenchUrl}/api/todo-task-set-status`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ master_task_id: masterId, status: 'abandoned' }),
-  });
-  const abandonText = await abandonRes.text();
-  if (!abandonRes.ok) {
-    throw new Error(`set-status abandoned failed: HTTP ${abandonRes.status} ${abandonText}`);
-  }
-  const getAbandoned = await callTodoTool('get_todo_task', { id: masterId });
-  if (getAbandoned.status !== 'abandoned') {
-    throw new Error(`get_todo_task must read back abandoned after set-status: ${JSON.stringify(getAbandoned)}`);
-  }
-  assertMasterStatusWire(getAbandoned.status, 'get_todo_task abandoned');
-  const rejectAbandoned = await client.callTool({
-    name: 'complete_todo',
-    arguments: { master_task_id: masterId },
-  });
-  const rejectAbandonedText = toolText(rejectAbandoned);
-  if (!rejectAbandoned.isError || !rejectAbandonedText.includes('master_abandoned')) {
-    throw new Error(
-      `complete_todo on abandoned must reject with master_abandoned, got: ${rejectAbandonedText}`,
-    );
-  }
-  // Restore complete so cleanup delete remains valid against host policy.
-  const restoreRes = await fetch(`${workbenchUrl}/api/todo-task-set-status`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ master_task_id: masterId, status: 'complete' }),
-  });
-  if (!restoreRes.ok) {
-    throw new Error(`set-status restore complete failed: HTTP ${restoreRes.status}`);
-  }
-} else {
-  console.log(
-    'todo-task-mcp-e2e: WORKBENCH_HTTP_URL unset; skipped abandoned reject/readback via set-status',
-  );
-}
-
 const deleteMasterResult = await client.callTool({
   name: 'delete_todo_task',
   arguments: { master_task_id: masterId },

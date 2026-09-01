@@ -1,4 +1,4 @@
-//! Main Host: general business entry on loopback (`GET/POST /api/notes-*`, `/api/archive-*`, `/api/read-later*`, `/api/todo-tasks`, `POST /api/bind-complete`, `/api/status`).
+//! Main Host: loopback HTTP still called by product (`POST /api/bind-complete`, `POST/OPTIONS /api/read-later`).
 
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -11,20 +11,12 @@ use dispatch::handle_request;
 
 pub const DEFAULT_HTTP_PORT: u16 = crate::config::settings::DEFAULT_PROD_HTTP_PORT;
 
-/// Locked master-task `status` wire values for `/api/todo-tasks`, `/api/todo-task`, `/api/todo-task-create`.
-pub(crate) const TODO_TASK_MASTER_STATUS_WIRE: &[&str] = &["incomplete", "complete", "abandoned"];
-
-mod archive;
 mod bind;
 mod dispatch;
-mod notes_cat;
 mod read_later;
 mod respond;
-mod todo;
 
-pub(crate) use respond::{
-    map_value_to_response, todo_task_get_response_body, todo_tasks_list_response_body,
-};
+pub(crate) use respond::map_value_to_response;
 
 pub struct MainHostHandle {
     server: Arc<Server>,
@@ -84,8 +76,9 @@ pub fn start(repo_root: PathBuf, port: u16) -> Result<MainHostHandle, MainHostEr
     let server = Arc::new(server);
     let server_for_thread = Arc::clone(&server);
     let join = thread::spawn(move || {
+        let _ = repo_root;
         for request in server_for_thread.incoming_requests() {
-            handle_request(&repo_root, port, request);
+            handle_request(request);
         }
     });
     Ok(MainHostHandle { server, join })

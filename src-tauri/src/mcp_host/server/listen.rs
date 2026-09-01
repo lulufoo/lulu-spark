@@ -294,18 +294,32 @@ pub(super) fn fetch_json_ok(
     Ok(json)
 }
 
-/// Observe same-process Sidecar HTTP (`/api/status`) + Host MCP (`/health`) dual listen.
+fn observe_main_host_serving(
+    client: &reqwest::blocking::Client,
+    sidecar_port: u16,
+) -> Result<(), CloseGateError> {
+    let label = format!("sidecar :{sidecar_port}");
+    let response = client
+        .get(format!("http://127.0.0.1:{sidecar_port}/api/unknown"))
+        .send()
+        .map_err(|e| CloseGateError::DualListenNotObservable(format!("{label}: {e}")))?;
+    if response.status().as_u16() != 404 {
+        return Err(CloseGateError::DualListenNotObservable(format!(
+            "{label} status {}",
+            response.status()
+        )));
+    }
+    Ok(())
+}
+
+/// Observe same-process Main Host HTTP + Host MCP (`/health`) dual listen.
 pub fn observe_dual_listen(mcp_port: u16, sidecar_port: u16) -> Result<bool, CloseGateError> {
     let client = reqwest::blocking::Client::builder()
         .timeout(std::time::Duration::from_secs(2))
         .build()
         .map_err(|e| CloseGateError::DualListenNotObservable(format!("http client: {e}")))?;
 
-    let _sidecar = fetch_json_ok(
-        &client,
-        &format!("http://127.0.0.1:{sidecar_port}/api/status"),
-        &format!("sidecar :{sidecar_port}"),
-    )?;
+    observe_main_host_serving(&client, sidecar_port)?;
     let health_json = fetch_json_ok(
         &client,
         &format!("http://127.0.0.1:{mcp_port}/health"),
