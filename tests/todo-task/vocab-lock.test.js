@@ -41,7 +41,7 @@ describe('plan→todo vocab lock (tech-doc SK-0 / T1)', () => {
   });
 
   it('HTTP prefix is /api/todo- and disk body is todo.md', () => {
-    const dispatch = read('src-tauri/src/services/local_http/dispatch.rs');
+    const dispatch = read('src-tauri/src/main_host/dispatch.rs');
     const paths = read('src-tauri/src/config/paths.rs');
     expect(dispatch).toMatch(/\/api\/todo-tasks/);
     expect(dispatch).toMatch(/\/api\/todo-task-/);

@@ -4,6 +4,7 @@ pub mod config;
 pub mod gateway;
 pub mod host;
 pub mod integrations;
+pub mod main_host;
 pub mod mcp_host;
 pub mod repositories;
 pub mod services;
@@ -175,7 +176,7 @@ pub fn run() {
             let meili_child = host::try_autostart_meilisearch();
             app.manage(host::MeiliProcess::new(meili_child));
 
-            let local_http = services::local_http::LocalHttpState::new();
+            let main_host = crate::main_host::MainHostState::new();
             let mut embedded_mcp_handle = None;
             let boot_settings = match config::settings::load() {
                 Ok(s) => s,
@@ -190,7 +191,7 @@ pub fn run() {
             let http_port = boot_settings.effective_http_port();
             let mcp_port = boot_settings.effective_mcp_port();
             if let Ok(repo_root) = crate::config::paths::repo_root() {
-                local_http.try_start(repo_root.clone(), http_port);
+                main_host.try_start(repo_root.clone(), http_port);
                 // Embedded MCP only (dual-listen with Sidecar). Bind failure is fail-closed:
                 // never fall back to spawning a Node MCP sidecar.
                 let mcp_bind = SocketAddr::from(([127, 0, 0, 1], mcp_port));
@@ -228,7 +229,7 @@ pub fn run() {
             // L2 Host key→MCP registry: seed L1 internal MCP business surface before Binding Set.
             crate::mcp_host::seed_defaults();
             app.manage(EmbeddedMcpRuntime::new(embedded_mcp_handle));
-            app.manage(local_http);
+            app.manage(main_host);
             app.manage(gateway);
             app.manage(discovery);
 
@@ -266,9 +267,9 @@ pub fn run() {
                 if let Some(embedded) = app_handle.try_state::<EmbeddedMcpRuntime>() {
                     embedded.stop();
                 }
-                if let Some(local_http) = app_handle.try_state::<services::local_http::LocalHttpState>()
+                if let Some(main_host) = app_handle.try_state::<crate::main_host::MainHostState>()
                 {
-                    local_http.stop();
+                    main_host.stop();
                 }
                 if let Some(discovery) = app_handle.try_state::<crate::gateway::discovery::DiscoveryState>()
                 {

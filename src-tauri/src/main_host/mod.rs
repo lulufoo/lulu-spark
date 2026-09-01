@@ -1,4 +1,4 @@
-//! Localhost HTTP API for MCP sidecar proxy (`GET/POST /api/notes-*`, `/api/archive-*`, `/api/read-later*`, `/api/todo-tasks`, `POST /api/bind-complete`, `/api/status`).
+//! Main Host: general business entry on loopback (`GET/POST /api/notes-*`, `/api/archive-*`, `/api/read-later*`, `/api/todo-tasks`, `POST /api/bind-complete`, `/api/status`).
 
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -26,22 +26,22 @@ pub(crate) use respond::{
     map_value_to_response, todo_task_get_response_body, todo_tasks_list_response_body,
 };
 
-pub struct LocalHttpHandle {
+pub struct MainHostHandle {
     server: Arc<Server>,
     join: JoinHandle<()>,
 }
 
 #[derive(Debug)]
-pub enum LocalHttpError {
+pub enum MainHostError {
     BindFailed(String),
 }
 
-pub struct LocalHttpState {
-    handle: Mutex<Option<LocalHttpHandle>>,
+pub struct MainHostState {
+    handle: Mutex<Option<MainHostHandle>>,
     http_ready: Arc<AtomicBool>,
 }
 
-impl LocalHttpState {
+impl MainHostState {
     pub fn new() -> Self {
         Self {
             handle: Mutex::new(None),
@@ -61,8 +61,8 @@ impl LocalHttpState {
                     self.http_ready.store(true, Ordering::SeqCst);
                 }
             }
-            Err(LocalHttpError::BindFailed(msg)) => {
-                eprintln!("[local_http] bind failed on port {port}: {msg}");
+            Err(MainHostError::BindFailed(msg)) => {
+                eprintln!("[main_host] bind failed on port {port}: {msg}");
                 self.http_ready.store(false, Ordering::SeqCst);
             }
         }
@@ -78,9 +78,9 @@ impl LocalHttpState {
     }
 }
 
-pub fn start(repo_root: PathBuf, port: u16) -> Result<LocalHttpHandle, LocalHttpError> {
+pub fn start(repo_root: PathBuf, port: u16) -> Result<MainHostHandle, MainHostError> {
     let addr = format!("127.0.0.1:{port}");
-    let server = Server::http(&addr).map_err(|e| LocalHttpError::BindFailed(e.to_string()))?;
+    let server = Server::http(&addr).map_err(|e| MainHostError::BindFailed(e.to_string()))?;
     let server = Arc::new(server);
     let server_for_thread = Arc::clone(&server);
     let join = thread::spawn(move || {
@@ -88,14 +88,14 @@ pub fn start(repo_root: PathBuf, port: u16) -> Result<LocalHttpHandle, LocalHttp
             handle_request(&repo_root, port, request);
         }
     });
-    Ok(LocalHttpHandle { server, join })
+    Ok(MainHostHandle { server, join })
 }
 
-pub fn stop(handle: LocalHttpHandle) {
+pub fn stop(handle: MainHostHandle) {
     handle.server.unblock();
     let _ = handle.join.join();
 }
 
 #[cfg(test)]
-#[path = "../../unit-tests/services/local_http.rs"]
+#[path = "../unit-tests/main_host.rs"]
 mod tests;

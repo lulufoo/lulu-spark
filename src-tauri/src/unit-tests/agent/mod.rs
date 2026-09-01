@@ -320,7 +320,7 @@ fn t3_agent_legacy_tools_rs_module_removed() {
 
 #[test]
 fn t3_todo_task_persistence_still_available_for_mcp_http() {
-    // Backend keep: todo_task persistence remains for local_http / MCP (not via tools::dispatch).
+    // Backend keep: todo_task persistence remains for Main Host / MCP Host (not via tools::dispatch).
     with_agent_sandbox(|_| {
         let master_id = create_bound_plan("持久化保留");
         let got = todo_task::get_by_id(&master_id).expect("todo");
@@ -330,7 +330,7 @@ fn t3_todo_task_persistence_still_available_for_mcp_http() {
             added.get("error").is_none(),
             "todo_task service must remain callable: {added}"
         );
-        let _ = std::any::type_name::<crate::services::local_http::LocalHttpState>();
+        let _ = std::any::type_name::<crate::main_host::MainHostState>();
     });
 }
 

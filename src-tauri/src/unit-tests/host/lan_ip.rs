@@ -120,8 +120,8 @@ fn crate_exports_lan_ip_and_stays_ipv4_only() {
         "/src/host/lan_ip.rs"
     ));
     assert!(
-        !src.contains("Host HTTP") && !src.contains("0.0.0.0"),
-        "lan_ip must not bind Host HTTP or MCP to the chosen address"
+        !src.contains("Main Host") && !src.contains("0.0.0.0"),
+        "lan_ip must not bind Main Host or MCP Host to the chosen address"
     );
 }
 

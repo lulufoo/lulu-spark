@@ -25,8 +25,8 @@ flowchart TB
   end
 
   subgraph L1["L1 Host Surface"]
-    MCP["MCP Server  127.0.0.1:9876"]
-    HTTP["Host HTTP  127.0.0.1:8765"]
+    MCP["MCP Host  127.0.0.1:9876"]
+    MAIN["Main Host  127.0.0.1:8765"]
     CMD["Tauri commands  invoke"]
   end
 
@@ -53,11 +53,11 @@ flowchart TB
   IDE --> SKILL --> GW
   AND --> GW
   GW -->|/mcp/cursor_ide /mcp/mobile| MCP
-  GW -->|/bind/complete| HTTP
+  GW -->|/bind/complete| MAIN
   INTMCP -->|127.0.0.1:9876 /mcp/workbench| MCP
   UI --> BR --> CMD
   MCP --> L4
-  HTTP --> L4
+  MAIN --> L4
   CMD --> L4
   AGT --> SVC
   SVC --> L5
@@ -79,10 +79,10 @@ flowchart TB
 | **L-up-android**   | Workbench Android is an upstream app; it enters only through named Gateway paths.                                                                                         |
 | **L-internal-mcp** | Workbench-internal MCP calls use `127.0.0.1:9876/mcp/workbench` only; they are not upstream and do not use the Gateway.                                                   |
 | **L0**             | The Gateway does TLS and named-path forwarding only; one port `7654`. It always binds `0.0.0.0:7654`.                                                                     |
-| **L0 paths**       | `/mcp/cursor_ide`, `/mcp/mobile`, and `/health` forward only to MCP; `/bind/complete` forwards only to Host HTTP. |
-| **L1-mcp**         | MCP Server translates protocol, authenticates, then enters L4. It must not call Host HTTP or Tauri commands.                                                              |
-| **L1-http**        | Host HTTP is a parallel business entry; `/api/`* enters L4. It must not call MCP or Tauri commands.                                                                       |
-| **L1-cmd**         | Tauri commands are the desktop-UI path into L4 (through L3 only); they are not the bus for MCP or Host HTTP.                                                              |
+| **L0 paths**       | `/mcp/cursor_ide`, `/mcp/mobile`, and `/health` forward only to MCP Host; `/bind/complete` forwards only to Main Host. |
+| **L1-mcp**         | MCP Host is the AI entry. It translates protocol, authenticates, then enters L4. It must not call Main Host or Tauri commands.                                                              |
+| **L1-main**        | Main Host is the general business entry; `/api/`* enters L4. It must not call MCP Host or Tauri commands.                                                                       |
+| **L1-cmd**         | Tauri commands are the desktop-UI path into L4 (through L3 only); they are not the bus for MCP Host or Main Host.                                                              |
 | **L2**             | Desktop HTML / JS / CSS goes through L3 only.                                                                                                                             |
 | **L3**             | Bridge does mapping and ACL only; no business rules, no IO.                                                                                                               |
 | **L4**             | Agent and Services; downstream L5, L6, L7.                                                                                                                                |
@@ -99,11 +99,11 @@ Cross-cutting (not a layer): config and secrets flow downward only. Host process
 
 1. Upstream (IDE, Skills, Android) must not skip L0.
 2. `:9876` and `:8765` are loopback. Only Workbench-internal and the Gateway may call them.
-3. IDE / Skills must not call `:9876`. Android must not call loopback MCP or Host HTTP directly.
-4. MCP Server and Host HTTP must not call each other; both enter L4.
-5. MCP and Host HTTP must not enter L4 through Tauri commands.
+3. IDE / Skills must not call `:9876`. Android must not call loopback MCP Host or Main Host directly.
+4. MCP Host and Main Host must not call each other; both enter L4.
+5. MCP Host and Main Host must not enter L4 through Tauri commands.
 6. L2 must not skip L3; L0 must not touch L6; L0 must not call L4 (forward to L1 only).
 7. An L7 failure must not rewrite the L1 contract, and must not let L4 switch to another source of truth.
 8. L5, L6, and L7 must not call L4.
 
-Entering MCP after credentials from Host HTTP Bind is a new entry, not a nested call inside the same layer.
+Entering MCP Host after credentials from Main Host Bind is a new entry, not a nested call inside the same layer.

@@ -34,11 +34,11 @@ fn lib_keeps_host_http_and_mcp_on_loopback() {
         "MCP must stay on 127.0.0.1"
     );
     assert!(
-        src.contains("local_http.try_start(repo_root.clone(), http_port)"),
-        "Host HTTP startup must remain the existing loopback sidecar"
+        src.contains("main_host.try_start(repo_root.clone(), http_port)"),
+        "Main Host startup must remain the existing loopback listen"
     );
     assert!(
         !src.contains("0.0.0.0") || src.contains("gateway"),
-        "0.0.0.0 listen belongs to Gateway, not Host HTTP/MCP"
+        "0.0.0.0 listen belongs to Gateway, not Main Host/MCP Host"
     );
 }

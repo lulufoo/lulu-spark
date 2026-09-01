@@ -7,7 +7,7 @@ use std::thread;
 use std::time::Duration;
 
 use super::*;
-use crate::services::local_http;
+use crate::main_host;
 use crate::services::mcp_oauth::{
     issue_for_device, issue_for_slot, revoke_for_device, revoke_for_slot, OAuthError, Slot,
     TicketHandle,
@@ -366,7 +366,7 @@ fn get_health_returns_ok_true_and_nonempty_mcp() {
 fn dual_listen_sidecar_and_mcp_observable_in_same_process() {
     let repo_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("..");
     let http_port = ephemeral_port();
-    let http_handle = local_http::start(repo_root, http_port).expect("start sidecar");
+    let http_handle = main_host::start(repo_root, http_port).expect("start sidecar");
     thread::sleep(Duration::from_millis(50));
 
     let mcp_port = ephemeral_port();
@@ -398,7 +398,7 @@ fn dual_listen_sidecar_and_mcp_observable_in_same_process() {
     );
 
     stop_embedded_mcp_runtime(mcp_handle).expect("stop MCP");
-    local_http::stop(http_handle);
+    main_host::stop(http_handle);
 }
 
 /// Normal: Host teardown path can stop/join MCP runtime and release the port.
@@ -424,7 +424,7 @@ fn stop_embedded_mcp_runtime_joins_and_releases_port() {
 fn stopping_mcp_leaves_sidecar_tiny_http_serving() {
     let repo_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("..");
     let http_port = ephemeral_port();
-    let http_handle = local_http::start(repo_root, http_port).expect("start sidecar");
+    let http_handle = main_host::start(repo_root, http_port).expect("start sidecar");
     thread::sleep(Duration::from_millis(50));
 
     let mcp_port = ephemeral_port();
@@ -441,7 +441,7 @@ fn stopping_mcp_leaves_sidecar_tiny_http_serving() {
         "Sidecar tiny_http must keep serving after MCP stop, body={body}"
     );
 
-    local_http::stop(http_handle);
+    main_host::stop(http_handle);
 }
 
 /// Normal: free port → MCP runtime binds and starts (Host :9876 contract shape).
@@ -1040,10 +1040,10 @@ fn adapter_source_forbids_fs_and_domain_direct_access() {
 const CLOSE_GATE_MCP_PORT: u16 = 9876;
 const CLOSE_GATE_SIDECAR_PORT: u16 = 8765;
 
-fn start_close_gate_dual_listen() -> (local_http::LocalHttpHandle, McpRuntimeHandle) {
+fn start_close_gate_dual_listen() -> (main_host::MainHostHandle, McpRuntimeHandle) {
     let repo_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("..");
     let http_handle =
-        local_http::start(repo_root, CLOSE_GATE_SIDECAR_PORT).expect("start Sidecar :8765");
+        main_host::start(repo_root, CLOSE_GATE_SIDECAR_PORT).expect("start Sidecar :8765");
     thread::sleep(Duration::from_millis(50));
     let mcp_handle = start_embedded_mcp_runtime(McpRuntimeConfig {
         bind_addr: format!("127.0.0.1:{CLOSE_GATE_MCP_PORT}")
@@ -1089,7 +1089,7 @@ fn close_gate_smoke_initialize_list_passes_v5_dual_listen_and_session() {
     );
 
     stop_embedded_mcp_runtime(mcp_handle).expect("stop MCP");
-    local_http::stop(http_handle);
+    main_host::stop(http_handle);
 }
 
 /// Boundary: readiness `/health` success ≠ session-level initialize/tools/list (T2/T8 vs T6).
@@ -1134,7 +1134,7 @@ fn health_success_is_not_session_level_close_gate_proof() {
     );
 
     stop_embedded_mcp_runtime(mcp_handle).expect("stop MCP");
-    local_http::stop(http_handle);
+    main_host::stop(http_handle);
 }
 
 /// Exception / T7: after V5 close gate, P2 hard-cut must remove Node spawn lifecycle paths.
@@ -1168,7 +1168,7 @@ fn close_gate_smoke_rejects_unregistered_slot() {
     }
 
     stop_embedded_mcp_runtime(mcp_handle).expect("stop MCP");
-    local_http::stop(http_handle);
+    main_host::stop(http_handle);
 }
 
 
@@ -1193,7 +1193,7 @@ fn p3_t10_knowledge_mcp_package_not_runtime_ssot() {
 /// against Host MCP URL `http://127.0.0.1:9876` (Sidecar fixture stays process-independent).
 #[test]
 fn p3_t10_host_dual_slot_list_call_and_unknown_hard_fail_smoke() {
-    // Sidecar HTTP fixture: independent local_http on :8765 with migration gate planted.
+    // Main Host fixture: independent listen on :8765 with migration gate planted.
     let sandbox = TestSandbox::new();
     let wb = sandbox.workbench_root();
     let todo_root = wb.join("todo_tasks");
@@ -1204,7 +1204,7 @@ fn p3_t10_host_dual_slot_list_call_and_unknown_hard_fail_smoke() {
     fs::write(notes.join("index.json"), br#"{"entries":{}}"#).expect("plant empty notes index");
 
     let http_handle =
-        local_http::start(sandbox.config_dir().to_path_buf(), CLOSE_GATE_SIDECAR_PORT)
+        main_host::start(sandbox.config_dir().to_path_buf(), CLOSE_GATE_SIDECAR_PORT)
             .expect("start Sidecar :8765 independent of MCP");
     thread::sleep(Duration::from_millis(50));
     let mcp_handle = start_embedded_mcp_runtime(McpRuntimeConfig {
@@ -1377,7 +1377,7 @@ fn p3_t10_host_dual_slot_list_call_and_unknown_hard_fail_smoke() {
     );
 
     stop_embedded_mcp_runtime(mcp_handle).expect("stop MCP");
-    local_http::stop(http_handle);
+    main_host::stop(http_handle);
     drop(sandbox);
 }
 

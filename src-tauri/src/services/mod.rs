@@ -25,6 +25,5 @@ pub mod tags_registry;
 pub mod settings;
 pub mod mcp_oauth;
 pub mod bind;
-pub mod local_http;
 pub mod workbench_read;
 pub mod workbench_path_fence;

@@ -16,7 +16,7 @@ pub(super) use crate::agent::llm::LlmConfig;
 pub(super) use crate::agent::r#loop::{self, Terminal, TurnOutcome, EVENT_TURN_COMPLETED};
 pub(super) use crate::agent::session::{self, Turn};
 pub(super) use crate::agent::WORKBENCH_HOST_SYSTEM_PROMPT;
-pub(super) use crate::services::local_http;
+pub(super) use crate::main_host;
 pub(super) use crate::services::mcp_oauth::{
     issue_for_slot, ledger_record, revoke_for_slot, test_force_keychain_unavailable,
     verify_for_slot, Slot, TicketHandle, TicketState,
@@ -51,9 +51,9 @@ pub(super) fn ephemeral_port() -> u16 {
 
 pub(super) fn start_isolated_mcp(
     sandbox: &TestSandbox,
-) -> (local_http::LocalHttpHandle, crate::mcp_host::McpRuntimeHandle, u16) {
+) -> (main_host::MainHostHandle, crate::mcp_host::McpRuntimeHandle, u16) {
     let sidecar_port = ephemeral_port();
-    let sidecar = local_http::start(sandbox.config_dir().to_path_buf(), sidecar_port)
+    let sidecar = main_host::start(sandbox.config_dir().to_path_buf(), sidecar_port)
         .expect("start isolated Sidecar");
     let mcp_port = ephemeral_port();
     let mcp = start_embedded_mcp_runtime_with_sidecar(

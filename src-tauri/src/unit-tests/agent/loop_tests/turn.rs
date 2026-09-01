@@ -32,7 +32,7 @@ fn run_loop_uses_mcp_tools_and_feeds_tool_result_back_to_model() {
     fs::write(todo_root.join(".migration_gate_passed"), b"ok\n").expect("plant migration gate");
 
     let sidecar_port = ephemeral_port();
-    let sidecar = local_http::start(sandbox.config_dir().to_path_buf(), sidecar_port)
+    let sidecar = main_host::start(sandbox.config_dir().to_path_buf(), sidecar_port)
         .expect("start isolated Sidecar");
     let mcp_port = ephemeral_port();
     let mcp = start_embedded_mcp_runtime_with_sidecar(
@@ -106,7 +106,7 @@ fn run_loop_uses_mcp_tools_and_feeds_tool_result_back_to_model() {
 
     drop(hits);
     stop_embedded_mcp_runtime(mcp).expect("stop MCP");
-    local_http::stop(sidecar);
+    main_host::stop(sidecar);
 }
 
 #[test]
@@ -121,7 +121,7 @@ fn run_loop_marks_successful_todo_mcp_mutation_as_wrote() {
     fs::create_dir_all(&todo_root).expect("create todo root");
     fs::write(todo_root.join(".migration_gate_passed"), b"ok\n").expect("plant migration gate");
     let sidecar_port = ephemeral_port();
-    let sidecar = local_http::start(sandbox.config_dir().to_path_buf(), sidecar_port)
+    let sidecar = main_host::start(sandbox.config_dir().to_path_buf(), sidecar_port)
         .expect("start isolated Sidecar");
     let mcp_port = ephemeral_port();
     let mcp = start_embedded_mcp_runtime_with_sidecar(
@@ -183,7 +183,7 @@ fn run_loop_marks_successful_todo_mcp_mutation_as_wrote() {
 
     drop(hits);
     stop_embedded_mcp_runtime(mcp).expect("stop MCP");
-    local_http::stop(sidecar);
+    main_host::stop(sidecar);
 }
 
 #[test]
@@ -253,7 +253,7 @@ fn run_loop_returns_argument_and_allowlist_failures_to_the_model_as_tool_turns()
     );
 
     stop_embedded_mcp_runtime(mcp).expect("stop MCP");
-    local_http::stop(sidecar);
+    main_host::stop(sidecar);
 }
 
 #[test]
@@ -304,7 +304,7 @@ fn run_loop_stops_after_bounded_mcp_tool_rounds() {
     );
 
     stop_embedded_mcp_runtime(mcp).expect("stop MCP");
-    local_http::stop(sidecar);
+    main_host::stop(sidecar);
 }
 
 #[test]
@@ -423,7 +423,7 @@ fn run_loop_offers_host_file_tools_and_keeps_scratch_writes_inside_cache() {
 
     drop(hits);
     stop_embedded_mcp_runtime(mcp).expect("stop MCP");
-    local_http::stop(sidecar);
+    main_host::stop(sidecar);
 }
 
 #[test]
@@ -467,7 +467,7 @@ fn run_loop_does_not_call_mcp_after_reset_invalidates_its_generation() {
     );
 
     stop_embedded_mcp_runtime(mcp).expect("stop MCP");
-    local_http::stop(sidecar);
+    main_host::stop(sidecar);
 }
 
 #[test]

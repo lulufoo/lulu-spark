@@ -18,7 +18,7 @@ use crate::services::bind::{
     test_reset_bind_keychain,
 };
 use crate::host::lan_ip::{test_override_nics, NicIpv4};
-use crate::services::local_http;
+use crate::main_host;
 use crate::test_support::TestSandbox;
 
 fn nic(name: &str, addr: &str) -> NicIpv4 {
@@ -267,7 +267,7 @@ fn post_bind_complete_forwards_ciphertext_to_sidecar() {
         with_nics(Some(vec![nic("en0", "10.0.0.4")]), || {
             let mock = MockMcp::start();
             let sidecar_port = ephemeral_loopback_port();
-            let sidecar = local_http::start(config_dir.to_path_buf(), sidecar_port)
+            let sidecar = main_host::start(config_dir.to_path_buf(), sidecar_port)
                 .expect("start sidecar");
             let handle = start_gw_with_sidecar(mock.port, sidecar_port, config_dir);
             let payload =
@@ -300,7 +300,7 @@ fn post_bind_complete_forwards_ciphertext_to_sidecar() {
                 crate::services::bind::BindError::consumed
             );
             stop(handle);
-            local_http::stop(sidecar);
+            main_host::stop(sidecar);
         });
     });
 }
@@ -407,25 +407,25 @@ fn tls_cert_is_created_once_and_survives_ip_change() {
 }
 
 #[test]
-fn host_http_stays_on_loopback_and_is_not_the_lan_allowlist() {
-    let local_http_src = crate::test_support::read_rs_dir(concat!(
+fn main_host_stays_on_loopback_and_is_not_the_lan_allowlist() {
+    let main_host_src = crate::test_support::read_rs_dir(concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/src/services/local_http"
+        "/src/main_host"
     ));
     assert!(
-        local_http_src.contains("127.0.0.1:{port}"),
-        "Host HTTP must keep listening on 127.0.0.1"
+        main_host_src.contains("127.0.0.1:{port}"),
+        "Main Host must keep listening on 127.0.0.1"
     );
     assert!(
-        local_http_src.contains("/api/bind-complete") && !local_http_src.contains("/mcp/mobile"),
-        "Sidecar exposes bind-complete; LAN /mcp/mobile stays off Host HTTP"
+        main_host_src.contains("/api/bind-complete") && !main_host_src.contains("/mcp/mobile"),
+        "Main Host exposes bind-complete; LAN /mcp/mobile stays off Main Host"
     );
     let repo_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("..");
     let port = ephemeral_loopback_port();
-    let handle = local_http::start(repo_root, port).expect("start host http");
+    let handle = main_host::start(repo_root, port).expect("start Main Host");
     let probe = TcpStream::connect(format!("127.0.0.1:{port}"));
-    assert!(probe.is_ok(), "Host HTTP must accept loopback");
-    local_http::stop(handle);
+    assert!(probe.is_ok(), "Main Host must accept loopback");
+    main_host::stop(handle);
 }
 
 #[test]
@@ -449,13 +449,13 @@ fn crate_registers_gateway_as_in_process_module() {
         1,
         "Gateway must not be a second executable"
     );
-    let local_http_src = crate::test_support::read_rs_dir(concat!(
+    let main_host_src = crate::test_support::read_rs_dir(concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/src/services/local_http"
+        "/src/main_host"
     ));
     assert!(
-        !local_http_src.contains("pub mod gateway") && !local_http_src.contains("services::gateway"),
-        "Gateway must not be merged into local_http"
+        !main_host_src.contains("pub mod gateway") && !main_host_src.contains("services::gateway"),
+        "Gateway must not be merged into main_host"
     );
 }
 

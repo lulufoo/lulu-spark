@@ -139,7 +139,7 @@ describe('MCP category surface (tech-doc T-3 / AC1–AC4 / L09#4)', () => {
   });
 
   it('Sidecar local_http exposes list-categories route and category_id on create/list/update', () => {
-    const httpSrc = readRsPath(join(repoRoot, 'src-tauri/src/services/local_http'));
+    const httpSrc = readRsPath(join(repoRoot, 'src-tauri/src/main_host'));
     expect(httpSrc).toMatch(/\/api\/todo-task-list-categories/);
     expect(httpSrc).toMatch(/category_id/);
   });

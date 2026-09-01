@@ -652,10 +652,10 @@ fn default_http_port_is_8765() {
 }
 
 #[test]
-fn local_http_state_start_sets_http_ready_and_listens() {
+fn main_host_state_start_sets_http_ready_and_listens() {
     let fixture = setup_repo_with_notes();
     let repo_root = fixture.repo_root.clone();
-    let state = LocalHttpState::new();
+    let state = MainHostState::new();
     let port = ephemeral_port();
     state.try_start(repo_root, port);
     assert!(state.is_ready());
@@ -666,10 +666,10 @@ fn local_http_state_start_sets_http_ready_and_listens() {
 }
 
 #[test]
-fn local_http_state_stop_clears_http_ready_and_releases_port() {
+fn main_host_state_stop_clears_http_ready_and_releases_port() {
     let fixture = setup_repo_with_notes();
     let repo_root = fixture.repo_root.clone();
-    let state = LocalHttpState::new();
+    let state = MainHostState::new();
     let port = ephemeral_port();
     state.try_start(repo_root, port);
     assert!(state.is_ready());
@@ -680,10 +680,10 @@ fn local_http_state_stop_clears_http_ready_and_releases_port() {
 }
 
 #[test]
-fn local_http_state_three_cycles_no_port_leak() {
+fn main_host_state_three_cycles_no_port_leak() {
     let fixture = setup_repo_with_notes();
     let repo_root = fixture.repo_root.clone();
-    let state = LocalHttpState::new();
+    let state = MainHostState::new();
     let port = ephemeral_port();
     for _ in 0..3 {
         state.try_start(repo_root.clone(), port);
@@ -697,12 +697,12 @@ fn local_http_state_three_cycles_no_port_leak() {
 }
 
 #[test]
-fn local_http_state_bind_failure_keeps_http_ready_false() {
+fn main_host_state_bind_failure_keeps_http_ready_false() {
     let fixture = setup_repo_with_notes();
     let repo_root = fixture.repo_root.clone();
     let port = ephemeral_port();
     let _guard = TcpListener::bind(format!("127.0.0.1:{port}")).expect("occupy port");
-    let state = LocalHttpState::new();
+    let state = MainHostState::new();
     state.try_start(repo_root, port);
     assert!(!state.is_ready());
 }
@@ -2873,6 +2873,24 @@ fn notes_selection_http_route_is_gone() {
     });
 }
 
+/// Directory extract: Main Host is an L1 crate-root module, not under Services.
+#[test]
+fn crate_registers_main_host_as_in_process_module() {
+    let lib = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/src/lib.rs"));
+    let services = include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/src/services/mod.rs"
+    ));
+    assert!(
+        lib.contains("pub mod main_host"),
+        "lib.rs must register Main Host at crate root"
+    );
+    assert!(
+        !services.contains("pub mod main_host"),
+        "Main Host must not remain under services/"
+    );
+}
+
 /// Exception: Host snapshot module and MCP notes-selection tools are gone.
 #[test]
 fn notes_selection_module_and_mcp_tool_are_gone() {
@@ -2894,7 +2912,7 @@ fn notes_selection_module_and_mcp_tool_are_gone() {
     let http = crate::test_support::read_rs_dir({
         let mut p = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         p.pop();
-        p.push("src-tauri/src/services/local_http");
+        p.push("src-tauri/src/main_host");
         p
     });
     assert!(

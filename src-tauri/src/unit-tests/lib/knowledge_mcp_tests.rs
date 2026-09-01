@@ -4,7 +4,7 @@ use std::thread;
 use std::time::Duration;
 
 use super::*;
-use crate::services::local_http;
+use crate::main_host;
 use crate::mcp_host::{
     observe_dual_listen, start_embedded_mcp_runtime, stop_embedded_mcp_runtime, McpRuntimeConfig,
     McpStartError,
@@ -173,11 +173,11 @@ fn t7_residual_spawn_lifecycle_blocks_p2() {
 #[test]
 fn embedded_mcp_dual_listen_observable() {
     assert_eq!(DEFAULT_MCP_PORT, 9876);
-    assert_eq!(local_http::DEFAULT_HTTP_PORT, 8765);
+    assert_eq!(main_host::DEFAULT_HTTP_PORT, 8765);
 
     let repo_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("..");
     let sidecar_port = ephemeral_port();
-    let http_handle = local_http::start(repo_root, sidecar_port).expect("start Sidecar tiny_http");
+    let http_handle = main_host::start(repo_root, sidecar_port).expect("start Sidecar tiny_http");
     thread::sleep(Duration::from_millis(50));
 
     let mcp_port = ephemeral_port();
@@ -194,7 +194,7 @@ fn embedded_mcp_dual_listen_observable() {
     );
 
     stop_embedded_mcp_runtime(mcp_handle).expect("stop MCP");
-    local_http::stop(http_handle);
+    main_host::stop(http_handle);
 }
 
 /// T9 / Exception: occupied MCP port → bind fail-closed; no Node knowledge-mcp spawn fallback.

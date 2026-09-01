@@ -82,7 +82,7 @@ describe('T11 — no automatic reverse migration (falsifier)', () => {
     );
     expect(gateFn).not.toMatch(/process::exit|std::process::exit|panic!\(/);
 
-    const http = read('src-tauri/src/services/local_http');
+    const http = read('src-tauri/src/main_host');
     expect(http).toContain('ensure_todo_api_ungated');
     expect(http).toMatch(/no auto-migrate|Durable migration gate/i);
   });

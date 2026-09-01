@@ -206,7 +206,7 @@ fn gateway_ports_are_written_and_not_reused() {
         for right in ports.iter().skip(i + 1) {
             assert_ne!(
                 left, right,
-                "Gateway ports must not reuse Host HTTP 8765/18765 or MCP 9876/19876"
+                "Gateway ports must not reuse Main Host 8765/18765 or MCP Host 9876/19876"
             );
         }
     }

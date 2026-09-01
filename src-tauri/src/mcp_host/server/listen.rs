@@ -29,7 +29,7 @@ use rmcp::{
 use serde_json::{json, Value};
 use tokio_util::sync::CancellationToken;
 
-use crate::services::local_http;
+use crate::main_host;
 use crate::services::mcp_oauth::{verify_device_token, verify_for_slot, OAuthError, Slot, TicketHandle};
 use crate::services::settings::mcp_catalog;
 use super::proxy::{mapped_to_call_tool_result, proxy_tool_call};
@@ -370,7 +370,7 @@ pub fn close_gate_smoke_initialize_list(slot: &str) -> Result<CloseGateReport, C
     }
 
     let mcp_port = crate::DEFAULT_MCP_PORT;
-    let sidecar_port = local_http::DEFAULT_HTTP_PORT;
+    let sidecar_port = main_host::DEFAULT_HTTP_PORT;
     let dual_listen_observed = observe_dual_listen(mcp_port, sidecar_port)?;
 
     let rt = tokio::runtime::Builder::new_current_thread()

@@ -164,9 +164,9 @@ describe('T10 — AC-迁移 (gate marker; no plan.md/plan_tasks residue on succe
     expect(service).toContain('MIGRATION_GATE_FILE');
     expect(service).toContain('.migration_gate_passed');
     expect(service).toContain('migration_gate_passed');
-    const http = read('src-tauri/src/services/local_http');
+    const http = read('src-tauri/src/main_host');
     expect(http).toMatch(/migration_gate|MigGate|gated/i);
-    const httpTests = read('src-tauri/src/unit-tests/services/local_http.rs');
+    const httpTests = read('src-tauri/src/unit-tests/main_host.rs');
     expect(httpTests).toContain('.migration_gate_passed');
     expect(httpTests).toMatch(/missing .*gate|gate_passed_marker_opens/i);
   });

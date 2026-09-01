@@ -41,7 +41,7 @@ describe('t3 MCP update_todo_sub (Host SSOT)', () => {
   });
 
   it('Sidecar HTTP handlers cover optional content semantics (title-only / set / clear)', () => {
-    const http = read('src-tauri/src/unit-tests/services/local_http.rs');
+    const http = read('src-tauri/src/unit-tests/main_host.rs');
     expect(http).toContain('post_todo_task_add_sub_title_only_without_content_field_returns_201');
     expect(http).toContain('post_todo_task_add_sub_with_optional_content_persists_via_get');
     expect(http).toContain('post_todo_task_update_sub_writes_clears_and_omits_content');
