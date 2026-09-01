@@ -7494,6 +7494,7 @@ button.notes-cat-item:disabled { opacity: .65; cursor: default; }
   border: 1px solid #d0d7de;
   border-radius: 10px;
   background: #fff;
+  overflow: hidden;
 }
 .home-chat-staged-summary {
   cursor: pointer;
@@ -7538,13 +7539,15 @@ button.notes-cat-item:disabled { opacity: .65; cursor: default; }
 }
 .home-chat-staged-remove {
   flex: 0 0 auto;
-  align-self: center;
+  align-self: stretch;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   width: 28px;
-  height: 28px;
-  margin: 0 6px 0 0;
+  margin: 0;
   padding: 0;
   border: none;
-  border-radius: 6px;
+  border-radius: 0;
   background: transparent;
   color: #57606a;
   font-size: 18px;
