@@ -1,7 +1,7 @@
 //! Per-channel MCP tool allowlist (`/mcp/workbench`, `/mcp/cursor_ide`, `/mcp/mobile`).
 //!
-//! Persists nested `{ channel: { notes: [], todo: [] } }`. Legacy flat arrays are
-//! migrated on read. UI commands still accept/return flat enabled lists.
+//! Persists nested `{ channel: { notes: [], todo: [], knowledge: [] } }`. Legacy
+//! flat arrays are migrated on read. UI commands still accept/return flat enabled lists.
 
 use std::collections::{BTreeMap, HashSet};
 use std::fs;
@@ -27,6 +27,8 @@ pub struct EnabledByGroup {
     pub notes: Vec<String>,
     #[serde(default)]
     pub todo: Vec<String>,
+    #[serde(default)]
+    pub knowledge: Vec<String>,
 }
 
 #[derive(Debug, Default, Clone)]
@@ -75,11 +77,13 @@ fn classify_flat(names: impl IntoIterator<Item = String>, catalog: &HashSet<Stri
         match group_for_tool(&name) {
             Some("notes") => groups.notes.push(name),
             Some("todo") => groups.todo.push(name),
+            Some("knowledge") => groups.knowledge.push(name),
             _ => {}
         }
     }
     groups.notes.sort();
     groups.todo.sort();
+    groups.knowledge.sort();
     groups
 }
 
@@ -107,6 +111,7 @@ fn apply_group_policy(channel: &str, mut groups: EnabledByGroup) -> EnabledByGro
     }
     groups.notes.sort();
     groups.todo.sort();
+    groups.knowledge.sort();
     groups
 }
 
@@ -122,8 +127,14 @@ fn filter_groups(groups: EnabledByGroup, catalog: &HashSet<String>) -> EnabledBy
             filtered.todo.push(name);
         }
     }
+    for name in groups.knowledge {
+        if catalog.contains(&name) {
+            filtered.knowledge.push(name);
+        }
+    }
     filtered.notes.sort();
     filtered.todo.sort();
+    filtered.knowledge.sort();
     filtered
 }
 
@@ -132,6 +143,7 @@ fn groups_to_flat(groups: &EnabledByGroup) -> HashSet<String> {
         .notes
         .iter()
         .chain(groups.todo.iter())
+        .chain(groups.knowledge.iter())
         .cloned()
         .collect()
 }
@@ -254,6 +266,7 @@ pub fn snapshot() -> Result<Value, String> {
             json!({
                 "notes": grouped.notes,
                 "todo": grouped.todo,
+                "knowledge": grouped.knowledge,
             }),
         );
     }
@@ -266,6 +279,7 @@ pub fn snapshot() -> Result<Value, String> {
                 "label": match *id {
                     "notes" => "Notes",
                     "todo" => "Todo",
+                    "knowledge" => "Knowledge",
                     other => other,
                 },
                 "tools": tools.iter().map(|tool| json!({

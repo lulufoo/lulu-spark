@@ -13,6 +13,15 @@ fn cache_dir_uses_settings_not_repo_dot_cache() {
 }
 
 #[test]
+fn knowledge_doc_map_path_under_cache_dir() {
+    let sandbox = TestSandbox::new();
+    let cache = cache_dir().expect("cache");
+    let got = knowledge_doc_map_path().expect("map");
+    assert_eq!(got, cache.join("knowledge-doc-map.json"));
+    sandbox.assert_not_prod_path(&got).expect("sandbox map");
+}
+
+#[test]
 fn notes_draft_path_resolves_under_cache_drafts_notes() {
     let _sandbox = TestSandbox::new();
     let cache = cache_dir().expect("cache");

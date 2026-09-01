@@ -1,4 +1,5 @@
 use crate::mcp_host::build_channel_tool_table;
+use crate::mcp_host::catalog::groups::knowledge;
 use crate::mcp_host::catalog::groups::notes::{
     self, create_note_from_content, create_note_from_source, note_content_invoke, note_path_invoke,
 };
@@ -19,6 +20,13 @@ const NOTES_APIS: &[&str] = &[
     "create_notes_category",
     "update_notes_category",
     "delete_notes_category",
+];
+
+const KNOWLEDGE_APIS: &[&str] = &[
+    "list_knowledge_categories",
+    "list_knowledge_repos",
+    "search_knowledge",
+    "get_knowledge_content",
 ];
 
 const TODO_APIS: &[&str] = &[
@@ -62,6 +70,15 @@ fn todo_registry_covers_all_snapshot_tools() {
 }
 
 #[test]
+fn knowledge_registry_covers_all_snapshot_tools() {
+    let snapshot = knowledge::catalog_snapshot_routes();
+    assert_eq!(snapshot.len(), KNOWLEDGE_APIS.len());
+    for api in KNOWLEDGE_APIS {
+        assert!(knowledge::contains(api), "missing registry entry for {api}");
+    }
+}
+
+#[test]
 fn factory_builds_all_notes_apis_with_channel_parity() {
     for (slot, channel) in [
         ("workbench", "workbench"),
@@ -84,6 +101,33 @@ fn factory_builds_all_notes_apis_with_channel_parity() {
                     "{api} invoke on {channel}"
                 );
                 assert_eq!(built.input_schema, legacy.input_schema, "{api} schema on {channel}");
+            }
+        }
+    }
+}
+
+#[test]
+fn factory_builds_all_knowledge_apis_with_channel_parity() {
+    for (slot, channel) in [
+        ("workbench", "workbench"),
+        ("cursor_ide", "cursor_ide"),
+        ("workbench", "mobile"),
+    ] {
+        for api in KNOWLEDGE_APIS {
+            let built = build("knowledge", api, channel);
+            let legacy = build_channel_tool_table(slot, channel)
+                .and_then(|table| table.tools.into_iter().find(|r| r.name == *api));
+            assert_eq!(
+                built.is_some(),
+                legacy.is_some(),
+                "{api} availability mismatch on slot={slot} channel={channel}"
+            );
+            if let (Some(built), Some(legacy)) = (built, legacy) {
+                assert_eq!(built.name, legacy.name, "{api} name on {channel}");
+                assert!(
+                    invoke_eq(built.invoke, legacy.invoke),
+                    "{api} invoke on {channel}"
+                );
             }
         }
     }
@@ -124,6 +168,9 @@ fn group_for_migrated_api_maps_all_catalog_keys() {
     for api in TODO_APIS {
         assert_eq!(group_for_migrated_api(api), Some("todo"), "{api}");
     }
+    for api in KNOWLEDGE_APIS {
+        assert_eq!(group_for_migrated_api(api), Some("knowledge"), "{api}");
+    }
     assert_eq!(group_for_migrated_api("not_a_tool"), None);
 }
 
@@ -132,6 +179,7 @@ fn runtime_builds_enabled_routes_from_factory_only() {
     let enabled = GroupedEnabledCatalog {
         notes: vec!["get_all_notes_catalog".into(), "create_note".into()],
         todo: vec!["list_todo_tasks".into(), "create_todo_task".into()],
+        knowledge: vec!["search_knowledge".into()],
     };
     let routes = build_routes_for_channel("workbench", "workbench", &enabled);
     let names: Vec<_> = routes.iter().map(|r| r.name.as_str()).collect();
@@ -139,6 +187,7 @@ fn runtime_builds_enabled_routes_from_factory_only() {
     assert!(names.contains(&"create_note"));
     assert!(names.contains(&"list_todo_tasks"));
     assert!(names.contains(&"create_todo_task"));
+    assert!(names.contains(&"search_knowledge"));
 }
 
 #[test]
@@ -165,4 +214,13 @@ fn delete_note_only_available_on_workbench() {
 #[test]
 fn factory_unknown_group_returns_none() {
     assert!(build("unknown", "get_all_notes_catalog", "workbench").is_none());
+}
+
+#[test]
+fn get_knowledge_content_channel_descriptions_split() {
+    let workbench = build("knowledge", "get_knowledge_content", "workbench").expect("wb");
+    let ide = build("knowledge", "get_knowledge_content", "cursor_ide").expect("ide");
+    assert!(workbench.description.contains("Stage"));
+    assert!(ide.description.contains("absolute file path"));
+    assert!(!ide.description.contains("Stage"));
 }

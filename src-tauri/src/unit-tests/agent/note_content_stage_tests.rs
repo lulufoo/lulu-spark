@@ -1,6 +1,8 @@
 use serde_json::{json, Value};
 
-use crate::agent::tools::stage::{overlay_note_content, NOTE_CONTENT_TOOL};
+use crate::agent::tools::stage::{
+    overlay_note_content, KNOWLEDGE_CONTENT_TOOL, NOTE_CONTENT_TOOL,
+};
 use crate::agent::tools::ToolResult;
 use crate::agent::r#loop;
 use crate::agent::session;
@@ -117,6 +119,27 @@ fn overlay_stages_turn_session_not_live() {
         session::save_session(&turn).expect("persist turn");
         assert_eq!(session::load_session(&sid_turn).expect("turn reload").staged.len(), 1);
         assert!(session::load_session(sid_live).expect("live reload").staged.is_empty());
+    });
+}
+
+#[test]
+fn knowledge_content_stages_and_hides_path() {
+    live_chat(|sid| {
+        let path = "/tmp/knowledge-stage-overlay.md";
+        let mut sess = session::load_session(sid).expect("load");
+        let (out, staged) = overlay_note_content(
+            KNOWLEDGE_CONTENT_TOOL,
+            path_ok(path, "kbdocid12ab"),
+            &mut sess,
+        );
+        assert!(staged && !out.is_error, "{}", out.content);
+        let body: Value = serde_json::from_str(&out.content).expect("json");
+        assert_eq!(body["ok"], true);
+        assert_eq!(body["id"], "F1");
+        assert_eq!(body["knowledge_id"], "kbdocid12ab");
+        assert!(body.get("path").is_none(), "model must not see path: {body}");
+        assert!(!out.content.contains(path));
+        assert_eq!(sess.staged[0].path, path);
     });
 }
 

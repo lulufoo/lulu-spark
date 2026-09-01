@@ -106,6 +106,11 @@ pub fn cache_todo_tasks_v1_path() -> Result<PathBuf, PathsError> {
     Ok(cache_dir()?.join("todo_tasks.json"))
 }
 
+/// Knowledge MCP document-id map: `{cache_dir}/knowledge-doc-map.json`.
+pub fn knowledge_doc_map_path() -> Result<PathBuf, PathsError> {
+    Ok(cache_dir()?.join("knowledge-doc-map.json"))
+}
+
 /// Local highlight cache root: `{cache_dir}/doc-highlights`.
 pub fn doc_highlights_dir() -> Result<PathBuf, PathsError> {
     Ok(cache_dir()?.join("doc-highlights"))

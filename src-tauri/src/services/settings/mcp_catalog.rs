@@ -11,14 +11,16 @@ use super::mcp_channel_tools;
 pub struct GroupedEnabledCatalog {
     pub notes: Vec<String>,
     pub todo: Vec<String>,
+    pub knowledge: Vec<String>,
 }
 
-/// Enabled API keys for `channel`, partitioned by business group (`notes` / `todo`).
+/// Enabled API keys for `channel`, partitioned by business group (`notes` / `todo` / `knowledge`).
 pub fn enabled_grouped(channel: &str) -> GroupedEnabledCatalog {
     let grouped = mcp_channel_tools::enabled_by_group(channel);
     GroupedEnabledCatalog {
         notes: grouped.notes,
         todo: grouped.todo,
+        knowledge: grouped.knowledge,
     }
 }
 

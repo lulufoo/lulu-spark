@@ -178,6 +178,13 @@ const NOTES_TOOLS_NON_WORKBENCH: &[&str] = &[
     "delete_notes_category",
 ];
 
+const KNOWLEDGE_TOOLS: &[&str] = &[
+    "list_knowledge_categories",
+    "list_knowledge_repos",
+    "search_knowledge",
+    "get_knowledge_content",
+];
+
 /// Todo tools from Node `buildServer()` when `includeTodo` is true.
 const TODO_TOOLS: &[&str] = &[
     "create_todo_task",
@@ -203,12 +210,14 @@ const CURSOR_IDE_SLOT: &str = "cursor_ide";
 fn workbench_expected_tool_names() -> BTreeSet<&'static str> {
     let mut names: BTreeSet<&'static str> = NOTES_TOOLS.iter().copied().collect();
     names.extend(TODO_TOOLS.iter().copied());
+    names.extend(KNOWLEDGE_TOOLS.iter().copied());
     names
 }
 
 fn cursor_ide_expected_tool_names() -> BTreeSet<&'static str> {
     let mut names: BTreeSet<&'static str> = NOTES_TOOLS_NON_WORKBENCH.iter().copied().collect();
     names.extend(TODO_TOOLS.iter().copied());
+    names.extend(KNOWLEDGE_TOOLS.iter().copied());
     names
 }
 
@@ -464,7 +473,7 @@ fn start_embedded_mcp_runtime_fails_closed_when_port_busy() {
     );
 }
 
-/// Normal: `workbench` routing table = notes ∪ todo.
+/// Normal: `workbench` routing table = notes ∪ todo ∪ knowledge.
 #[test]
 fn build_slot_tool_table_workbench_is_notes_todo() {
     let table = build_slot_tool_table(WORKBENCH_SLOT).expect("workbench registered");
@@ -473,7 +482,7 @@ fn build_slot_tool_table_workbench_is_notes_todo() {
 
     let names: BTreeSet<_> = table.tools.iter().map(|t| t.name.as_str()).collect();
     let expected = workbench_expected_tool_names();
-    assert_eq!(names, expected, "workbench tools must be notes + todo");
+    assert_eq!(names, expected, "workbench tools must be notes ∪ todo ∪ knowledge");
     assert!(
         !names.contains("get_notes_selection"),
         "workbench must not hang get_notes_selection"
@@ -484,7 +493,7 @@ fn build_slot_tool_table_workbench_is_notes_todo() {
     );
 }
 
-/// Normal: `cursor_ide` routing table = notes + todo (SCENE_SLOT_API both true).
+/// Normal: `cursor_ide` routing table = notes ∪ todo ∪ knowledge (SCENE_SLOT_API both true).
 #[test]
 fn build_slot_tool_table_cursor_ide_matches_node_allowlist() {
     let table = build_slot_tool_table("cursor_ide").expect("cursor_ide registered");
@@ -492,16 +501,18 @@ fn build_slot_tool_table_cursor_ide_matches_node_allowlist() {
     assert!(!table.tools.is_empty());
 
     let names: BTreeSet<_> = table.tools.iter().map(|t| t.name.as_str()).collect();
-    let mut expected: BTreeSet<_> = NOTES_TOOLS.iter().copied().collect();
-    expected.extend(TODO_TOOLS.iter().copied());
-    assert_eq!(names, expected, "cursor_ide tools must match Node notes+todo set");
+    let expected = workbench_expected_tool_names();
+    assert_eq!(
+        names, expected,
+        "cursor_ide slot catalog is notes ∪ todo ∪ knowledge"
+    );
     assert!(
         table.tools.iter().all(|r| r.invoke as usize != 0),
         "every cursor_ide tool must bind an in-process Services invoke"
     );
 }
 
-/// Boundary: workbench and cursor_ide both expose notes ∪ todo; notes-selection is gone.
+/// Boundary: workbench and cursor_ide both expose notes ∪ todo ∪ knowledge; notes-selection is gone.
 #[test]
 fn tools_list_workbench_and_cursor_ide_are_notes_todo() {
     let wb_names = names_of(&tools_list_for_slot(WORKBENCH_SLOT));
@@ -537,9 +548,19 @@ fn tools_list_workbench_and_cursor_ide_are_notes_todo() {
             "workbench must include todo tool {todo}"
         );
     }
+    for tool in KNOWLEDGE_TOOLS {
+        assert!(
+            ide_names.contains(*tool),
+            "cursor_ide must include knowledge tool {tool}"
+        );
+        assert!(
+            wb_names.contains(*tool),
+            "workbench must include knowledge tool {tool}"
+        );
+    }
     assert_eq!(
         wb_names, ide_names,
-        "workbench and cursor_ide now share notes ∪ todo"
+        "workbench and cursor_ide now share notes ∪ todo ∪ knowledge"
     );
 }
 
@@ -638,7 +659,7 @@ fn mcp_tools_list_publishes_descriptions_schemas_and_mutation_hints() {
     assert_eq!(
         notes_tools.len(),
         workbench_expected_tool_names().len(),
-        "Workbench MCP tool count is notes ∪ todo"
+        "Workbench MCP tool count is notes ∪ todo ∪ knowledge"
     );
     for tool in &notes_tools {
         assert!(
@@ -1301,7 +1322,7 @@ fn assert_old_app_slots_unregistered() {
     }
 }
 
-/// Normal: workbench tools/list = notes ∪ todo.
+/// Normal: workbench tools/list = notes ∪ todo ∪ knowledge.
 #[test]
 fn tools_list_for_workbench_is_notes_todo() {
     let names = names_of(&tools_list_for_slot(WORKBENCH_SLOT));
@@ -1309,7 +1330,7 @@ fn tools_list_for_workbench_is_notes_todo() {
         .into_iter()
         .map(str::to_string)
         .collect();
-    assert_eq!(names, expected, "workbench tools/list must be notes + todo");
+    assert_eq!(names, expected, "workbench tools/list must be notes ∪ todo ∪ knowledge");
     assert!(!names.contains("get_notes_selection"));
 }
 
@@ -1463,7 +1484,7 @@ fn p4_cursor_ide_surface_unchanged_notes_plus_todo_original_api() {
         .collect();
     assert_eq!(
         names, expected,
-        "cursor_ide slot catalog must stay notes ∪ todo (channel hard-gates are separate)"
+        "cursor_ide slot catalog must stay notes ∪ todo ∪ knowledge (channel hard-gates are separate)"
     );
     assert!(
         !names.contains("get_notes_selection"),

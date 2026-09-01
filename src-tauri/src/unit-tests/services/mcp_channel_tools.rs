@@ -112,6 +112,7 @@ fn snapshot_lists_groups_and_per_channel_enabled() {
     let groups = snap["groups"].as_array().expect("groups");
     assert_eq!(groups[0]["id"], "notes");
     assert_eq!(groups[1]["id"], "todo");
+    assert_eq!(groups[2]["id"], "knowledge");
     let mobile: HashSet<&str> = snap["enabled"]["mobile"]
         .as_array()
         .expect("mobile")

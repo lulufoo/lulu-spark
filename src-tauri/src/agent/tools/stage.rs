@@ -10,6 +10,7 @@ use super::catalog::{LocalTool, ToolCatalog, ToolResult};
 use super::fs;
 
 pub const NOTE_CONTENT_TOOL: &str = "get_note_content_by_id";
+pub const KNOWLEDGE_CONTENT_TOOL: &str = "get_knowledge_content";
 
 pub fn catalog() -> ToolCatalog {
     ToolCatalog::from_local_tools(vec![
@@ -112,13 +113,18 @@ fn get_staged(arguments: &Value, session: &Session) -> Result<String, String> {
     entry_json(entry)
 }
 
-/// After a workbench note-path success, register Stage and return F1/F2… only.
+/// After a workbench path-tool success, register Stage and return F1/F2… only.
 pub fn overlay_note_content(
     name: &str,
     result: ToolResult,
     session: &mut Session,
 ) -> (ToolResult, bool) {
-    if name != NOTE_CONTENT_TOOL || result.is_error {
+    let source_key = match name {
+        NOTE_CONTENT_TOOL => "note_id",
+        KNOWLEDGE_CONTENT_TOOL => "knowledge_id",
+        _ => return (result, false),
+    };
+    if result.is_error {
         return (result, false);
     }
     let Ok(value) = serde_json::from_str::<Value>(&result.content) else {
@@ -135,27 +141,31 @@ pub fn overlay_note_content(
     else {
         return (
             ToolResult {
-                content: "get_note_content_by_id succeeded without a path".into(),
+                content: format!("{name} succeeded without a path"),
                 is_error: true,
             },
             false,
         );
     };
-    let note_id = value.get("id").and_then(Value::as_str).unwrap_or("");
+    let source_id = value.get("id").and_then(Value::as_str).unwrap_or("");
     match session.register_staged(path, None) {
-        Ok(entry) => (
-            ToolResult {
-                content: json!({
-                    "ok": true,
-                    "id": entry.id,
-                    "title": entry.title,
-                    "note_id": note_id,
-                })
-                .to_string(),
-                is_error: false,
-            },
-            true,
-        ),
+        Ok(entry) => {
+            let mut body = json!({
+                "ok": true,
+                "id": entry.id,
+                "title": entry.title,
+            });
+            if let Some(obj) = body.as_object_mut() {
+                obj.insert(source_key.to_string(), json!(source_id));
+            }
+            (
+                ToolResult {
+                    content: body.to_string(),
+                    is_error: false,
+                },
+                true,
+            )
+        }
         Err(content) => (ToolResult { content, is_error: true }, false),
     }
 }
