@@ -18,6 +18,7 @@ describe('initMermaid', () => {
     expect(initialize).toHaveBeenCalledWith({
       startOnLoad: false,
       securityLevel: 'strict',
+      suppressErrorRendering: true,
     });
   });
 
@@ -62,6 +63,22 @@ describe('renderMermaidBlocks', () => {
     expect(diagram).not.toBeNull();
     expect(diagram.querySelector('svg')).not.toBeNull();
     expect(container.querySelector('pre')).toBeNull();
+  });
+
+  it('treats mermaid error svg as a fallback instead of painting it', async () => {
+    global.mermaid.render = vi.fn(async () => ({
+      svg: '<svg><text>Syntax error in text</text><path class="error-icon"></path></svg>',
+    }));
+
+    const container = document.createElement('div');
+    container.innerHTML = '<pre><code class="language-mermaid">broken</code></pre>';
+
+    await renderMermaidBlocks(container);
+
+    const diagram = container.querySelector('.mermaid-diagram');
+    expect(diagram.querySelector('.mermaid-error')?.textContent).toContain('Syntax error in text');
+    expect(diagram.querySelector('pre code.language-mermaid')?.textContent).toBe('broken');
+    expect(diagram.querySelector('svg')).toBeNull();
   });
 
   it('shows error fallback for invalid syntax', async () => {

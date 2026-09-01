@@ -7,6 +7,7 @@ export function initMermaid() {
   mermaid.initialize({
     startOnLoad: false,
     securityLevel: 'strict',
+    suppressErrorRendering: true,
   });
   _inited = true;
 }
@@ -14,6 +15,30 @@ export function initMermaid() {
 function nextRenderId() {
   _idCounter += 1;
   return `mermaid-${Date.now()}-${_idCounter}`;
+}
+
+function removeMermaidTemp(renderId: string) {
+  for (const id of [renderId, `d${renderId}`, `i${renderId}`]) {
+    document.getElementById(id)?.remove();
+  }
+}
+
+function isMermaidErrorSvg(svg: string) {
+  return svg.includes('Syntax error in text') || svg.includes('error-icon');
+}
+
+function showMermaidFallback(wrapper: HTMLElement, source: string, message: string) {
+  const errDiv = document.createElement('div');
+  errDiv.className = 'mermaid-error';
+  errDiv.textContent = `Mermaid render failed: ${message}`;
+  wrapper.appendChild(errDiv);
+
+  const preFallback = document.createElement('pre');
+  const codeFallback = document.createElement('code');
+  codeFallback.className = 'language-mermaid';
+  codeFallback.textContent = source;
+  preFallback.appendChild(codeFallback);
+  wrapper.appendChild(preFallback);
 }
 
 export async function renderMermaidBlocks(container: Element | null | undefined) {
@@ -35,24 +60,20 @@ export async function renderMermaidBlocks(container: Element | null | undefined)
 
     if (!source) continue;
 
+    const renderId = nextRenderId();
     try {
-      const renderId = nextRenderId();
       const { svg, bindFunctions } = await mermaid.render(renderId, source);
+      removeMermaidTemp(renderId);
+      if (isMermaidErrorSvg(svg)) {
+        showMermaidFallback(wrapper, source, 'Syntax error in text');
+        continue;
+      }
       wrapper.innerHTML = svg;
       bindFunctions?.(wrapper);
     } catch (err) {
+      removeMermaidTemp(renderId);
       const message = err instanceof Error ? err.message : String(err);
-      const errDiv = document.createElement('div');
-      errDiv.className = 'mermaid-error';
-      errDiv.textContent = `Mermaid render failed: ${message}`;
-      wrapper.appendChild(errDiv);
-
-      const preFallback = document.createElement('pre');
-      const codeFallback = document.createElement('code');
-      codeFallback.className = 'language-mermaid';
-      codeFallback.textContent = source;
-      preFallback.appendChild(codeFallback);
-      wrapper.appendChild(preFallback);
+      showMermaidFallback(wrapper, source, message);
     }
   }
 }
