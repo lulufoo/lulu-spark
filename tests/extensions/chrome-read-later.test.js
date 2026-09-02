@@ -14,8 +14,8 @@ const manifestPath = resolve(
 );
 
 describe('chrome-read-later config', () => {
-  it('WORKBENCH_BASE points at local Workbench HTTP', () => {
-    expect(WORKBENCH_BASE).toBe('http://127.0.0.1:8765');
+  it('WORKBENCH_BASE points at the local Workbench Gateway', () => {
+    expect(WORKBENCH_BASE).toBe('https://localhost:7654');
   });
 });
 
@@ -28,7 +28,7 @@ describe('readLaterApi.save', () => {
     vi.unstubAllGlobals();
   });
 
-  it('POSTs url and title to /api/read-later and returns entry on 201', async () => {
+  it('POSTs url and title to the Gateway read-later route and returns entry on 201', async () => {
     const entry = {
       id: 'abc123',
       url: 'https://example.com',
@@ -47,7 +47,7 @@ describe('readLaterApi.save', () => {
     });
 
     expect(fetch).toHaveBeenCalledWith(
-      `${WORKBENCH_BASE}/api/read-later`,
+      `${WORKBENCH_BASE}/read-later`,
       expect.objectContaining({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -152,11 +152,11 @@ describe('badgeFeedbackForResult', () => {
 });
 
 describe('manifest.json', () => {
-  it('is MV3 with activeTab and localhost host_permissions only', () => {
+  it('is MV3 with activeTab and Gateway host permission only', () => {
     const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
     expect(manifest.manifest_version).toBe(3);
     expect(manifest.permissions).toEqual(['activeTab']);
-    expect(manifest.host_permissions).toEqual(['http://127.0.0.1:8765/*']);
+    expect(manifest.host_permissions).toEqual(['https://localhost:7654/*']);
     expect(manifest.background?.service_worker).toBe('background.js');
     expect(manifest.action?.default_icon).toBeTruthy();
     expect(manifest.content_scripts).toBeUndefined();

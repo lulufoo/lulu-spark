@@ -10,6 +10,7 @@ flowchart TB
     IDE[Cursor / Claude / Copilot]
     SKILL[SKILL]
     AND[Workbench Android]
+    CHROME[Chrome extension]
   end
 
   subgraph L0["L0 Gateway  0.0.0.0:7654 TLS"]
@@ -53,8 +54,9 @@ flowchart TB
   IDE --> SKILL
   SKILL -->|127.0.0.1:9876 /mcp/cursor_ide| MCP
   AND --> GW
+  CHROME -->|localhost:7654 /read-later| GW
   GW -->|/mcp/mobile /health| MCP
-  GW -->|/bind/complete| MAIN
+  GW -->|/bind/complete /read-later| MAIN
   INTMCP -->|127.0.0.1:9876 /mcp/workbench| MCP
   UI --> BR --> CMD
   MCP --> L4
@@ -78,9 +80,10 @@ flowchart TB
 | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **L-up-ide**       | Cursor / Claude / Copilot use Skills; Skills are local MCP clients that enter MCP Host directly through loopback, never through L0.                                        |
 | **L-up-android**   | Workbench Android is an upstream app; it enters only through named Gateway paths.                                                                                         |
+| **L-up-chrome**    | Chrome extension is an upstream local client; it enters only through loopback Gateway path `https://localhost:7654/read-later`.                                           |
 | **L-internal-mcp** | Workbench-internal MCP calls use `127.0.0.1:9876/mcp/workbench` only; they are not upstream and do not use the Gateway.                                                   |
 | **L0**             | The Gateway does TLS and named-path forwarding only; one port `7654`. It always binds `0.0.0.0:7654`.                                                                     |
-| **L0 paths**       | `/mcp/mobile` and `/health` forward only to MCP Host; `/bind/complete` forwards only to Main Host.                                                                          |
+| **L0 paths**       | `/mcp/mobile` and `/health` forward only to MCP Host; `/bind/complete` and loopback-only `/read-later` forward only to Main Host.                                        |
 | **L1-mcp**         | MCP Host is the AI entry. It translates protocol, authenticates, then enters L4. It must not call Main Host or Tauri commands.                                                              |
 | **L1-main**        | Main Host is the general business entry; `/api/`* enters L4. It must not call MCP Host or Tauri commands.                                                                       |
 | **L1-cmd**         | Tauri commands are the desktop-UI path into L4 (through L3 only); they are not the bus for MCP Host or Main Host.                                                              |
@@ -106,5 +109,6 @@ Cross-cutting (not a layer): config and secrets flow downward only. Host process
 6. L2 must not skip L3; L0 must not touch L6; L0 must not call L4 (forward to L1 only).
 7. An L7 failure must not rewrite the L1 contract, and must not let L4 switch to another source of truth.
 8. L5, L6, and L7 must not call L4.
+9. Chrome extension must not call loopback Main Host or MCP Host directly; it calls only the loopback Gateway `/read-later` path.
 
 Entering MCP Host after credentials from Main Host Bind is a new entry, not a nested call inside the same layer.

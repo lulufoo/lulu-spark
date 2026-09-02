@@ -7,8 +7,8 @@ use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
 
 use axum::body::to_bytes;
-use axum::extract::{Request, State};
-use axum::http::{header, Method, StatusCode};
+use axum::extract::{connect_info::ConnectInfo, Request, State};
+use axum::http::{header, HeaderValue, Method, StatusCode};
 use axum::response::{IntoResponse, Response};
 use axum::routing::{any, get};
 use axum::Router;
@@ -189,7 +189,7 @@ pub fn start(config: GatewayConfig) -> Result<GatewayHandle, GatewayError> {
             let app = build_router(mcp_port, sidecar_port);
             let _ = axum_server::from_tcp_rustls(tcp, tls)
                 .handle(shutdown_thread)
-                .serve(app.into_make_service())
+                .serve(app.into_make_service_with_connect_info::<SocketAddr>())
                 .await;
         });
     });
@@ -265,6 +265,7 @@ fn build_router(mcp_port: u16, sidecar_port: u16) -> Router {
         .route("/bind/complete", any(bind_complete_named))
         .route("/mcp/mobile", any(forward_named))
         .route("/health", get(forward_named))
+        .route("/read-later", any(read_later_named))
         .fallback(reject_unnamed)
         .with_state(GwState {
             mcp_port,
@@ -294,6 +295,45 @@ async fn bind_complete_named(State(state): State<GwState>, request: Request) -> 
     .await
     {
         Ok(Ok(response)) => response,
+        Ok(Err(msg)) => json_status(
+            StatusCode::BAD_GATEWAY,
+            &serde_json::json!({ "error": msg }).to_string(),
+        ),
+        Err(_) => json_status(StatusCode::BAD_GATEWAY, r#"{"error":"forward_join"}"#),
+    }
+}
+
+async fn read_later_named(
+    ConnectInfo(peer): ConnectInfo<SocketAddr>,
+    State(state): State<GwState>,
+    request: Request,
+) -> Response {
+    if !peer.ip().is_loopback() {
+        return json_status(StatusCode::FORBIDDEN, r#"{"error":"loopback_only"}"#);
+    }
+
+    let method = request.method().clone();
+    if method != Method::POST && method != Method::OPTIONS {
+        return reject_unnamed().await;
+    }
+    let headers = hop_headers(request.headers(), READ_LATER_FORWARD_HEADERS);
+    let body = match to_bytes(request.into_body(), 2 * 1024 * 1024).await {
+        Ok(bytes) => bytes.to_vec(),
+        Err(_) => Vec::new(),
+    };
+    let sidecar_port = state.sidecar_port;
+    match tokio::task::spawn_blocking(move || {
+        proxy_loopback(
+            sidecar_port,
+            method,
+            "/api/read-later".to_string(),
+            headers,
+            body,
+        )
+    })
+    .await
+    {
+        Ok(Ok(response)) => with_read_later_cors(response),
         Ok(Err(msg)) => json_status(
             StatusCode::BAD_GATEWAY,
             &serde_json::json!({ "error": msg }).to_string(),
@@ -387,6 +427,7 @@ fn proxy_loopback(
 }
 
 const BIND_FORWARD_HEADERS: &[&str] = &["authorization", "content-type"];
+const READ_LATER_FORWARD_HEADERS: &[&str] = &["content-type"];
 const MCP_FORWARD_HEADERS: &[&str] = &[
     "authorization",
     "content-type",
@@ -394,6 +435,23 @@ const MCP_FORWARD_HEADERS: &[&str] = &[
     "mcp-session-id",
     "mcp-protocol-version",
 ];
+
+fn with_read_later_cors(mut response: Response) -> Response {
+    let headers = response.headers_mut();
+    headers.insert(
+        header::ACCESS_CONTROL_ALLOW_ORIGIN,
+        HeaderValue::from_static("*"),
+    );
+    headers.insert(
+        header::ACCESS_CONTROL_ALLOW_METHODS,
+        HeaderValue::from_static("POST, OPTIONS"),
+    );
+    headers.insert(
+        header::ACCESS_CONTROL_ALLOW_HEADERS,
+        HeaderValue::from_static("Content-Type"),
+    );
+    response
+}
 
 async fn reject_unnamed() -> Response {
     json_status(StatusCode::NOT_FOUND, r#"{"error":"not_found"}"#)

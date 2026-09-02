@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "description": "Save the current tab to Workbench read-later queue.",
   "permissions": ["activeTab"],
-  "host_permissions": ["http://127.0.0.1:8765/*"],
+  "host_permissions": ["https://localhost:7654/*"],
   "background": {
     "service_worker": "background.js",
     "type": "module"

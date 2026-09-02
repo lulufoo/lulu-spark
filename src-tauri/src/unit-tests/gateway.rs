@@ -306,6 +306,49 @@ fn post_bind_complete_forwards_ciphertext_to_sidecar() {
 }
 
 #[test]
+fn post_read_later_forwards_local_plugin_request_to_sidecar() {
+    with_bind_sandbox(|config_dir| {
+        let mock = MockMcp::start();
+        let sidecar_port = ephemeral_loopback_port();
+        let sidecar = main_host::start(config_dir.to_path_buf(), sidecar_port)
+            .expect("start sidecar");
+        let handle = start_gw_with_sidecar(mock.port, sidecar_port, config_dir);
+        let response = https_client()
+            .post(gw_url(&handle, "/read-later"))
+            .header("content-type", "application/json")
+            .body(r#"{"url":"https://example.com/a","title":"Example"}"#)
+            .send()
+            .expect("read later");
+        assert_eq!(response.status().as_u16(), 201);
+        assert_eq!(
+            response
+                .headers()
+                .get("access-control-allow-origin")
+                .and_then(|value| value.to_str().ok()),
+            Some("*")
+        );
+        let body: serde_json::Value = response.json().expect("json");
+        assert_eq!(body["entry"]["url"], "https://example.com/a");
+        assert_eq!(body["entry"]["title"], "Example");
+        let preflight = https_client()
+            .request(reqwest::Method::OPTIONS, gw_url(&handle, "/read-later"))
+            .send()
+            .expect("read later preflight");
+        assert_eq!(preflight.status().as_u16(), 204);
+        assert_eq!(
+            preflight
+                .headers()
+                .get("access-control-allow-methods")
+                .and_then(|value| value.to_str().ok()),
+            Some("POST, OPTIONS")
+        );
+        assert!(mock.hits().is_empty(), "read later must not hit MCP");
+        stop(handle);
+        main_host::stop(sidecar);
+    });
+}
+
+#[test]
 fn named_forward_mcp_mobile_to_loopback_mcp_port() {
     let dir = tempfile::tempdir().expect("tmp");
     let mock = MockMcp::start();
@@ -465,7 +508,14 @@ fn lan_named_routes_are_only_bind_mobile_and_health() {
     let mock = MockMcp::start();
     let handle = start_gw(mock.port, dir.path());
     let client = https_client();
-    for path in ["/api/status", "/foo", "/mcp/workbench", "/mcp/mobile/extra"] {
+    for path in [
+        "/api/status",
+        "/api/read-later",
+        "/foo",
+        "/mcp/workbench",
+        "/mcp/mobile/extra",
+        "/read-later",
+    ] {
         let response = client
             .get(gw_url(&handle, path))
             .send()
