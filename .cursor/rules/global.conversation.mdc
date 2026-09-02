@@ -9,7 +9,8 @@ This document constrains conversation replies only, not non-conversation output.
 
 ## Conversation Standards
 
-- End each reply with a separate line: `Turn <n> - <model>`.
+- End each reply with a footer line: `Turn <n> - <model>`.
+- Multiple footer lines are stacked in order, each separated by a blank line.
 - Do not use the `AskQuestion` tool.
 - Superpowers is forbidden: do not invoke, announce, or follow any Superpowers plugin skill.
 
