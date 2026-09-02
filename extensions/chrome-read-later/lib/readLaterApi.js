@@ -24,7 +24,9 @@ export async function save({ url, title }) {
     return {
       ok: false,
       status: response.status,
+      ...(typeof data.code === 'string' ? { code: data.code } : {}),
       error: data.error || `HTTP ${response.status}`,
+      ...(data.entry ? { entry: data.entry } : {}),
     };
   } catch (err) {
     return {

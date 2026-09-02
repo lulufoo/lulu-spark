@@ -337,6 +337,22 @@ fn post_read_later_creates_entry_with_cors() {
 }
 
 #[test]
+fn post_read_later_returns_409_for_recent_duplicate() {
+    let fixture = setup_repo_for_read_later();
+    let repo_root = fixture.repo_root.clone();
+    with_server(repo_root, |port| {
+        let payload = json!({ "url": "https://example.com/duplicate", "title": "Example" });
+        let (first_status, _) = http_post_with_response(port, "/api/read-later", &payload);
+        assert_eq!(first_status, 201);
+
+        let (status, body) = http_post_with_response(port, "/api/read-later", &payload);
+        assert_eq!(status, 409);
+        assert_eq!(body["code"], "read_later_recent_duplicate");
+        assert!(body["entry"].is_object());
+    });
+}
+
+#[test]
 fn options_read_later_returns_204_with_cors() {
     let fixture = setup_repo_for_read_later();
     let repo_root = fixture.repo_root.clone();

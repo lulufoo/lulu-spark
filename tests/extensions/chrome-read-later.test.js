@@ -91,39 +91,33 @@ describe('readLaterApi.save', () => {
     });
   });
 
-  it('returns 201 for duplicate URL saves (each POST creates a new entry)', async () => {
-    const firstEntry = {
+  it('returns the recent duplicate error and existing entry on 409', async () => {
+    const existingEntry = {
       id: 'abc123',
       url: 'https://example.com',
       title: 'Example',
       saved_at: '2026-07-02T00:00:00Z',
       read: false,
     };
-    const secondEntry = {
-      id: 'def456',
-      url: 'https://example.com',
-      title: 'Example again',
-      saved_at: '2026-07-02T01:00:00Z',
-      read: false,
-    };
 
-    fetch
-      .mockResolvedValueOnce({
-        status: 201,
-        json: async () => firstEntry,
-      })
-      .mockResolvedValueOnce({
-        status: 201,
-        json: async () => secondEntry,
-      });
+    fetch.mockResolvedValue({
+      status: 409,
+      json: async () => ({
+        code: 'read_later_recent_duplicate',
+        error: 'This URL was already saved within 24 hours',
+        entry: existingEntry,
+      }),
+    });
 
-    const payload = { url: 'https://example.com', title: 'Example' };
-    const first = await save(payload);
-    const second = await save({ ...payload, title: 'Example again' });
+    const result = await save({ url: 'https://example.com', title: 'Example' });
 
-    expect(first).toEqual({ ok: true, status: 201, entry: firstEntry });
-    expect(second).toEqual({ ok: true, status: 201, entry: secondEntry });
-    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(result).toEqual({
+      ok: false,
+      status: 409,
+      code: 'read_later_recent_duplicate',
+      error: 'This URL was already saved within 24 hours',
+      entry: existingEntry,
+    });
   });
 });
 
@@ -147,6 +141,19 @@ describe('badgeFeedbackForResult', () => {
     ).toEqual({
       badgeText: '!',
       title: '请先启动 Workbench',
+    });
+  });
+
+  it('shows the recent duplicate message for duplicate saves', () => {
+    expect(
+      badgeFeedbackForResult({
+        ok: false,
+        status: 409,
+        code: 'read_later_recent_duplicate',
+      })
+    ).toEqual({
+      badgeText: '!',
+      title: '24小时内已保存',
     });
   });
 });

@@ -89,6 +89,37 @@ fn create_entry_rejects_missing_url() {
 }
 
 #[test]
+fn create_entry_rejects_url_saved_within_last_24_hours() {
+    with_read_later_sandbox(|_| {
+        let created = create_entry("https://example.com/duplicate", Some("first"));
+        let existing = created["entry"].clone();
+
+        let duplicate = create_entry("https://example.com/duplicate", Some("second"));
+
+        assert_eq!(duplicate["_status"], 409);
+        assert_eq!(duplicate["code"], "read_later_recent_duplicate");
+        assert_eq!(duplicate["entry"], existing);
+        assert_eq!(list_entries().as_array().expect("entries").len(), 1);
+    });
+}
+
+#[test]
+fn create_entry_allows_url_saved_over_24_hours_ago() {
+    with_read_later_sandbox(|_| {
+        create_entry("https://example.com/expired", Some("first"));
+        let mut file = load_file_unlocked();
+        file.entries[0].saved_at = (chrono::Utc::now() - chrono::Duration::hours(24) - chrono::Duration::seconds(1))
+            .to_rfc3339();
+        save_file_unlocked(&file).expect("save expired entry");
+
+        let v = create_entry("https://example.com/expired", Some("second"));
+
+        assert_eq!(v["_status"], 201);
+        assert_eq!(list_entries().as_array().expect("entries").len(), 2);
+    });
+}
+
+#[test]
 fn list_entries_sorted_by_saved_at_desc() {
     with_read_later_sandbox(|_| {
         create_entry("https://example.com/1", Some("first"));

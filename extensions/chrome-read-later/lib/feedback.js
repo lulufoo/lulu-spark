@@ -7,6 +7,10 @@ export function badgeFeedbackForResult(result) {
     return { badgeText: '!', title: '请先启动 Workbench' };
   }
 
+  if (result.code === 'read_later_recent_duplicate') {
+    return { badgeText: '!', title: '24小时内已保存' };
+  }
+
   return {
     badgeText: '!',
     title: result.error || '保存失败',

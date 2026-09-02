@@ -3,7 +3,7 @@
 use std::fs;
 use std::sync::Mutex;
 
-use chrono::Utc;
+use chrono::{Duration, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
@@ -95,11 +95,25 @@ pub fn create_entry(url: &str, title: Option<&str>) -> Value {
 
     with_write_lock(|| {
         let mut file = load_file_unlocked();
+        let now = Utc::now();
+        if let Some(entry) = file.entries.iter().find(|entry| {
+            entry.url == url
+                && chrono::DateTime::parse_from_rfc3339(&entry.saved_at)
+                    .map(|saved_at| saved_at.with_timezone(&Utc) >= now - Duration::hours(24))
+                    .unwrap_or(false)
+        }) {
+            return json!({
+                "code": "read_later_recent_duplicate",
+                "error": "This URL was already saved within 24 hours",
+                "entry": entry_to_value(entry),
+                "_status": 409
+            });
+        }
         let entry = ReadLaterEntry {
             id: random_entry_id(),
             url: url.to_string(),
             title,
-            saved_at: Utc::now().to_rfc3339(),
+            saved_at: now.to_rfc3339(),
             read: false,
         };
         file.entries.push(entry.clone());
