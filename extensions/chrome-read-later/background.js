@@ -4,11 +4,9 @@ import { badgeFeedbackForResult } from './lib/feedback.js';
 const FEEDBACK_CLEAR_MS = 3000;
 
 async function applyFeedback(result) {
-  const { badgeText, title } = badgeFeedbackForResult(result);
+  const { badgeText, title, badgeColor } = badgeFeedbackForResult(result);
   await chrome.action.setBadgeText({ text: badgeText });
-  await chrome.action.setBadgeBackgroundColor({
-    color: result.ok ? '#22c55e' : '#ef4444',
-  });
+  await chrome.action.setBadgeBackgroundColor({ color: badgeColor });
   await chrome.action.setTitle({ title });
 
   setTimeout(() => {

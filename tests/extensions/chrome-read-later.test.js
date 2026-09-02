@@ -128,6 +128,7 @@ describe('badgeFeedbackForResult', () => {
     ).toEqual({
       badgeText: 'OK',
       title: '已保存到待读',
+      badgeColor: '#22c55e',
     });
   });
 
@@ -141,6 +142,7 @@ describe('badgeFeedbackForResult', () => {
     ).toEqual({
       badgeText: '!',
       title: '请先启动 Workbench',
+      badgeColor: '#ef4444',
     });
   });
 
@@ -154,8 +156,26 @@ describe('badgeFeedbackForResult', () => {
     ).toEqual({
       badgeText: '!',
       title: '24小时内已保存',
+      badgeColor: '#eab308',
     });
   });
+
+  it.each([400, 500, 502])(
+    'shows red failure badge for HTTP %s',
+    (status) => {
+      expect(
+        badgeFeedbackForResult({
+          ok: false,
+          status,
+          error: `HTTP ${status}`,
+        })
+      ).toEqual({
+        badgeText: '!',
+        title: `HTTP ${status}`,
+        badgeColor: '#ef4444',
+      });
+    }
+  );
 });
 
 describe('manifest.json', () => {
