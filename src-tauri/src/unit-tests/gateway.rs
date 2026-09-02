@@ -503,7 +503,7 @@ fn crate_registers_gateway_as_in_process_module() {
 }
 
 #[test]
-fn lan_named_routes_are_only_bind_mobile_and_health() {
+fn gateway_rejects_unnamed_paths_and_disallowed_methods() {
     let dir = tempfile::tempdir().expect("tmp");
     let mock = MockMcp::start();
     let handle = start_gw(mock.port, dir.path());
@@ -514,7 +514,6 @@ fn lan_named_routes_are_only_bind_mobile_and_health() {
         "/foo",
         "/mcp/workbench",
         "/mcp/mobile/extra",
-        "/read-later",
     ] {
         let response = client
             .get(gw_url(&handle, path))
@@ -534,6 +533,15 @@ fn lan_named_routes_are_only_bind_mobile_and_health() {
         get_bind.status().as_u16(),
         404,
         "only POST /bind/complete is named"
+    );
+    let get_read_later = client
+        .get(gw_url(&handle, "/read-later"))
+        .send()
+        .expect("get read later");
+    assert_eq!(
+        get_read_later.status().as_u16(),
+        404,
+        "only POST and OPTIONS /read-later are named"
     );
     assert!(
         mock.hits().is_empty(),

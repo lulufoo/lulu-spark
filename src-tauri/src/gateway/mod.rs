@@ -277,30 +277,14 @@ async fn bind_complete_named(State(state): State<GwState>, request: Request) -> 
     if request.method() != Method::POST {
         return reject_unnamed().await;
     }
-    let headers = hop_headers(request.headers(), BIND_FORWARD_HEADERS);
-    let body = match to_bytes(request.into_body(), 2 * 1024 * 1024).await {
-        Ok(bytes) => bytes.to_vec(),
-        Err(_) => Vec::new(),
-    };
-    let sidecar_port = state.sidecar_port;
-    match tokio::task::spawn_blocking(move || {
-        proxy_loopback(
-            sidecar_port,
-            Method::POST,
-            "/api/bind-complete".to_string(),
-            headers,
-            body,
-        )
-    })
+    forward_to_loopback(
+        state.sidecar_port,
+        Method::POST,
+        "/api/bind-complete".to_string(),
+        BIND_FORWARD_HEADERS,
+        request,
+    )
     .await
-    {
-        Ok(Ok(response)) => response,
-        Ok(Err(msg)) => json_status(
-            StatusCode::BAD_GATEWAY,
-            &serde_json::json!({ "error": msg }).to_string(),
-        ),
-        Err(_) => json_status(StatusCode::BAD_GATEWAY, r#"{"error":"forward_join"}"#),
-    }
 }
 
 async fn read_later_named(
@@ -316,30 +300,16 @@ async fn read_later_named(
     if method != Method::POST && method != Method::OPTIONS {
         return reject_unnamed().await;
     }
-    let headers = hop_headers(request.headers(), READ_LATER_FORWARD_HEADERS);
-    let body = match to_bytes(request.into_body(), 2 * 1024 * 1024).await {
-        Ok(bytes) => bytes.to_vec(),
-        Err(_) => Vec::new(),
-    };
-    let sidecar_port = state.sidecar_port;
-    match tokio::task::spawn_blocking(move || {
-        proxy_loopback(
-            sidecar_port,
+    with_read_later_cors(
+        forward_to_loopback(
+            state.sidecar_port,
             method,
             "/api/read-later".to_string(),
-            headers,
-            body,
+            READ_LATER_FORWARD_HEADERS,
+            request,
         )
-    })
-    .await
-    {
-        Ok(Ok(response)) => with_read_later_cors(response),
-        Ok(Err(msg)) => json_status(
-            StatusCode::BAD_GATEWAY,
-            &serde_json::json!({ "error": msg }).to_string(),
-        ),
-        Err(_) => json_status(StatusCode::BAD_GATEWAY, r#"{"error":"forward_join"}"#),
-    }
+        .await,
+    )
 }
 
 async fn forward_named(State(state): State<GwState>, request: Request) -> Response {
@@ -349,14 +319,23 @@ async fn forward_named(State(state): State<GwState>, request: Request) -> Respon
         .path_and_query()
         .map(|pq| pq.as_str().to_string())
         .unwrap_or_else(|| request.uri().path().to_string());
-    let headers = hop_headers(request.headers(), MCP_FORWARD_HEADERS);
+    forward_to_loopback(state.mcp_port, method, path, MCP_FORWARD_HEADERS, request).await
+}
+
+async fn forward_to_loopback(
+    port: u16,
+    method: Method,
+    path: String,
+    header_names: &[&str],
+    request: Request,
+) -> Response {
+    let headers = hop_headers(request.headers(), header_names);
     let body = match to_bytes(request.into_body(), 2 * 1024 * 1024).await {
         Ok(bytes) => bytes.to_vec(),
         Err(_) => Vec::new(),
     };
-    let mcp_port = state.mcp_port;
     match tokio::task::spawn_blocking(move || {
-        proxy_loopback(mcp_port, method, path, headers, body)
+        proxy_loopback(port, method, path, headers, body)
     })
     .await
     {
@@ -385,13 +364,13 @@ fn hop_headers(
 }
 
 fn proxy_loopback(
-    mcp_port: u16,
+    loopback_port: u16,
     method: Method,
     path: String,
     headers: Vec<(String, String)>,
     body: Vec<u8>,
 ) -> Result<Response, String> {
-    let url = format!("http://127.0.0.1:{mcp_port}{path}");
+    let url = format!("http://127.0.0.1:{loopback_port}{path}");
     let client = reqwest::blocking::Client::builder()
         .timeout(Duration::from_secs(60))
         .build()
