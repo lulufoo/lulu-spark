@@ -94,7 +94,10 @@ describe('MCP tool surface hard-cut to todo_* (Host SSOT / T10)', () => {
     const src = readRsPath(join(repoRoot, HOST_ADAPTER));
     const block = toolRouteBlock(src, 'create_todo_task');
     expect(block).toContain('create_master_with_category');
+    expect(block).toContain('create_master_with_category(title, None,');
     expect(block).toMatch(/&\["title", "todo_md"\]/);
+    expect(block).not.toContain('parse_sub_titles');
+    expect(block).not.toContain('sub_titles');
     expect(block).not.toMatch(/Optional task body/);
     expect(src).not.toMatch(/name:\s*"create_plan_task"/);
   });

@@ -82,6 +82,7 @@ describe('t5 AC3 — update modify/clear/omit content; no delete-content API', (
     const e2e = read('scripts/todo-task-mcp-e2e.mjs');
     expect(e2e).toMatch(/name:\s*'update_todo_sub'|callTodoTool\(\s*'update_todo_sub'/);
     expect(e2e).toMatch(/content:\s*''/);
+    expect(e2e).toContain("update_todo_sub content: '' must be rejected");
   });
 
   it('no delete-content API on HTTP or Host MCP surfaces', () => {

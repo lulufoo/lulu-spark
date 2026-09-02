@@ -56,6 +56,36 @@ pub fn arg_str<'a>(args: &'a Value, key: &str) -> Option<&'a str> {
     args.get(key).and_then(|v| v.as_str())
 }
 
+pub fn require_nonempty_str<'a>(args: &'a Value, key: &str) -> Result<&'a str, Value> {
+    match args.get(key) {
+        None | Some(Value::Null) => Err(missing_field(key)),
+        Some(Value::String(s)) => {
+            let trimmed = s.trim();
+            if trimmed.is_empty() {
+                Err(missing_field(key))
+            } else {
+                Ok(trimmed)
+            }
+        }
+        Some(_) => Err(json!({ "error": format!("Invalid {key}"), "_status": 400 })),
+    }
+}
+
+pub fn optional_nonempty_str<'a>(args: &'a Value, key: &str) -> Result<Option<&'a str>, Value> {
+    match args.get(key) {
+        None | Some(Value::Null) => Ok(None),
+        Some(Value::String(s)) => {
+            let trimmed = s.trim();
+            if trimmed.is_empty() {
+                Err(missing_field(key))
+            } else {
+                Ok(Some(trimmed))
+            }
+        }
+        Some(_) => Err(json!({ "error": format!("Invalid {key}"), "_status": 400 })),
+    }
+}
+
 pub fn todo_wire(result: Result<Value, TodoError>, ok_status: u16) -> Value {
     todo_task::into_wire(result, ok_status)
 }

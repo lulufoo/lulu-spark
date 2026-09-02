@@ -1,5 +1,5 @@
 /**
- * t3 — MCP add_todo_sub optional content + update_todo_sub
+ * t3 — MCP add_todo_sub required content + update_todo_sub blank reject
  * Retargeted to Host Protocol Adapter SSOT (T10).
  */
 import { readFileSync } from 'node:fs';
@@ -26,10 +26,13 @@ function toolRouteBlock(src, toolName) {
   return nextRel === -1 ? src.slice(start) : src.slice(start, start + 1 + nextRel);
 }
 
-describe('t3 MCP add_todo_sub optional content (Host SSOT)', () => {
+describe('t3 MCP add_todo_sub required content (Host SSOT)', () => {
   it('add_todo_sub invokes Services add_sub', () => {
     const block = toolRouteBlock(read(HOST_ADAPTER), 'add_todo_sub');
     expect(block).toContain('todo_task::add_sub');
+    expect(block).toMatch(/&\["master_task_id", "title", "content"\]/);
+    expect(block).toContain('require_nonempty_str');
+    expect(block).not.toContain('Optional subtask content');
   });
 });
 
@@ -39,6 +42,8 @@ describe('t3 MCP update_todo_sub (Host SSOT)', () => {
     expect(src).toMatch(/route\(\s*"update_todo_sub"/);
     const block = toolRouteBlock(src, 'update_todo_sub');
     expect(block).toContain('todo_task::update_sub_title');
+    expect(block).toContain('optional_nonempty_str');
+    expect(block).toMatch(/&\["master_task_id", "sub_task_id", "title"\]/);
   });
 
   it('command/service unit tests cover optional content semantics (title-only / set / clear)', () => {

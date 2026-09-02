@@ -23,3 +23,7 @@ pub fn catalog_groups() -> Vec<(&'static str, Vec<ToolRoute>)> {
 #[cfg(test)]
 #[path = "../../unit-tests/mcp_host/catalog.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "../../unit-tests/mcp_host/todo_contract.rs"]
+mod todo_contract_tests;

@@ -327,10 +327,12 @@ assertMasterStatusWire(createStatus, 'create_todo_task');
 const addA = await callTodoTool('add_todo_sub', {
   master_task_id: masterId,
   title: 'Sub A',
+  content: 'e2e sub A body',
 });
 const addB = await callTodoTool('add_todo_sub', {
   master_task_id: masterId,
   title: 'Sub B',
+  content: 'e2e sub B body',
 });
 const subA = addA.task.sub_tasks.find((s) => s.title === 'Sub A')?.sub_task_id;
 const subB = addB.task.sub_tasks.find((s) => s.title === 'Sub B')?.sub_task_id;
@@ -447,7 +449,7 @@ if (!unknownGet.isError) {
 
 const addSubResult = await client.callTool({
   name: 'add_todo_sub',
-  arguments: { master_task_id: masterId, title: 'Sub C' },
+  arguments: { master_task_id: masterId, title: 'Sub C', content: 'e2e sub C body' },
 });
 const addSubText = toolText(addSubResult);
 if (addSubResult.isError || !addSubText.includes('Sub C')) {
@@ -474,12 +476,13 @@ if (!contentSubId) {
   throw new Error(`add_todo_sub with content missing sub id: ${addWithContentText}`);
 }
 
-// t5 / AC3 — update_todo_sub modify / clear (content: '')
+// t5 / AC3 — update_todo_sub modify; blank content rejected
 const updateSubSet = await client.callTool({
   name: 'update_todo_sub',
   arguments: {
     master_task_id: masterId,
     sub_task_id: contentSubId,
+    title: 'Sub with content',
     content: 'e2e content v2',
   },
 });
@@ -493,18 +496,13 @@ const updateSubClear = await client.callTool({
   arguments: {
     master_task_id: masterId,
     sub_task_id: contentSubId,
+    title: 'Sub with content',
     content: '',
   },
 });
 const updateSubClearText = toolText(updateSubClear);
-if (updateSubClear.isError) {
-  throw new Error(`update_todo_sub clear content failed: ${updateSubClearText}`);
-}
-const clearedSub = parseJson(updateSubClearText).task.sub_tasks.find(
-  (s) => s.sub_task_id === contentSubId,
-);
-if (!clearedSub || (clearedSub.content != null && clearedSub.content !== '')) {
-  throw new Error(`update_todo_sub content: '' must clear: ${updateSubClearText}`);
+if (!updateSubClear.isError || !updateSubClearText.includes('Missing content')) {
+  throw new Error(`update_todo_sub content: '' must be rejected: ${updateSubClearText}`);
 }
 
 const completeResult = await client.callTool({

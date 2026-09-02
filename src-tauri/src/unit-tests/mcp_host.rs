@@ -665,6 +665,21 @@ fn mcp_tools_list_publishes_descriptions_schemas_and_mutation_hints() {
         Some(false),
         "Todo creation must be identified as mutating"
     );
+    assert!(
+        create.input_schema["properties"].get("sub_titles").is_none(),
+        "create_todo_task must not advertise sub_titles"
+    );
+
+    let add_sub = workbench_tools
+        .iter()
+        .find(|tool| tool.name == "add_todo_sub")
+        .expect("add_todo_sub");
+    assert!(
+        add_sub.input_schema["required"]
+            .as_array()
+            .is_some_and(|required| required.iter().any(|v| v == "content")),
+        "add_todo_sub content must be required"
+    );
 
     let notes_tools = rt.block_on(list_tools(WORKBENCH_SLOT, workbench_ticket));
     assert_eq!(
