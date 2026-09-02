@@ -208,10 +208,9 @@ export const WRITE_API_INVOKE_MAP: Record<string, WriteInvokeEntry> = {
     args: (body) => ({ tempId: body?.temp_id ?? '' }),
   },
   '/api/file': {
-    cmd: 'save_entry',
+    cmd: 'write_abs_file',
     args: (body) => ({
-      layer: body.layer ?? 'raw',
-      commonPath: body.path ?? body.common_path,
+      path: body.path ?? '',
       content: body.content,
     }),
   },

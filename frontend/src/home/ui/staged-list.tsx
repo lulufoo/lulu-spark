@@ -9,7 +9,7 @@ export function StagedList({
 }: {
   items: HubStagedEntry[];
   canRemove: boolean;
-  onOpen: (path: string, title: string) => void;
+  onOpen: (item: HubStagedEntry) => void;
   onRemove: (id: string) => void;
 }) {
   const [pendingId, setPendingId] = useState('');
@@ -27,7 +27,7 @@ export function StagedList({
               data-role="staged-item"
               data-staged-path={item.path}
               data-staged-id={item.id}
-              onClick={() => onOpen(item.path, item.title)}
+              onClick={() => onOpen(item)}
             >
               <span className="home-chat-staged-id" data-role="staged-id">
                 {item.id}

@@ -32,14 +32,7 @@ export type TodoComment = {
 export type TodoAttachment = {
   file_name: string;
   added_at?: string;
-};
-
-export type AttachmentEditor = {
-  fileName: string;
-  content: string;
-  editMode: boolean;
-  error: string;
-  loading: boolean;
+  path?: string;
 };
 
 export type StagedAttachment = {

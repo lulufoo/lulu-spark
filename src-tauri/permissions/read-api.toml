@@ -22,6 +22,7 @@ commands.allow = [
   "fetch_link_title",
   "get_notes_index",
   "get_notes_file",
+  "read_abs_file",
   "get_notes_asset",
   "list_notes_categories",
   "get_kb_diff_status",

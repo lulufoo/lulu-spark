@@ -1,9 +1,16 @@
 import { openFilePopup } from '../../file-popup/index.ts';
 import * as api from '../../host/api.ts';
-import { getHomeState, hydrateStaged, setHomeState } from '../state/store.ts';
+import { stagedIdentityKey } from '../state/identity.ts';
+import { getHomeState, hydrateStaged, setHomeState, type HubStagedEntry } from '../state/store.ts';
 
-export function openStagedFile(path: string, title: string) {
-  openFilePopup({ path, title });
+export function openStagedFile(item: HubStagedEntry) {
+  const path = String(item?.path || '').trim();
+  if (!path) return;
+  openFilePopup({
+    path,
+    title: item.title,
+    identityKey: stagedIdentityKey(item.kind, path),
+  });
 }
 
 export async function refreshStagedFromBinding(

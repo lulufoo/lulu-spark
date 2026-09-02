@@ -185,6 +185,11 @@ pub fn get_notes_file(
 }
 
 #[tauri::command]
+pub fn read_abs_file(_app: AppHandle, path: String) -> Result<Value, String> {
+    Ok(crate::services::abs_file::read_abs_file(&path))
+}
+
+#[tauri::command]
 pub fn get_notes_asset(
     _app: AppHandle,
     layer: String,

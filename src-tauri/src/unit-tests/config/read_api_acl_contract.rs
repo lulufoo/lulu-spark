@@ -36,6 +36,7 @@ fn parse_acl_manifest_allow(text: &str) -> BTreeSet<String> {
 const INVOKE_MAP_COMMANDS: &[&str] = &[
     "get_notes_index",
     "get_notes_file",
+    "read_abs_file",
     "get_notes_asset",
     "list_notes_categories",
     "get_topics",

@@ -2,16 +2,15 @@ import { asRecord } from '../../host/api-types.ts';
 import { readGet, writePost } from '../../host/api/transport.ts';
 import {
   emptyFilePopupView,
-  layerFromAbsPath,
   patchView,
   titleFromPath,
   viewStore,
 } from '../state/store.ts';
-import { revokeFilePopupAssetUrls } from '../state/assets.ts';
 
 export type OpenFilePopupInput = {
   path: string;
   title?: string;
+  identityKey?: string;
 };
 
 function asTextArea(el: HTMLElement | null) {
@@ -20,7 +19,6 @@ function asTextArea(el: HTMLElement | null) {
 }
 
 export function closeFilePopup() {
-  revokeFilePopupAssetUrls();
   viewStore.set(emptyFilePopupView());
 }
 
@@ -36,15 +34,15 @@ export function cancelFilePopupEdit() {
   patchView({ editing: false, error: '' });
 }
 
-export async function openFilePopup({ path, title }: OpenFilePopupInput) {
+export async function openFilePopup({ path, title, identityKey }: OpenFilePopupInput) {
   const abs = String(path || '').trim();
   if (!abs) return;
-  const layer = layerFromAbsPath(abs);
+  const key = String(identityKey || '').trim();
   patchView({
     open: true,
     path: abs,
     title: titleFromPath(abs, title),
-    layer,
+    identityKey: key,
     content: '',
     editing: false,
     loading: true,
@@ -52,9 +50,7 @@ export async function openFilePopup({ path, title }: OpenFilePopupInput) {
     error: '',
   });
   try {
-    const data = await readGet(
-      `/api/file?path=${encodeURIComponent(abs)}&layer=${encodeURIComponent(layer)}&_=${Date.now()}`,
-    );
+    const data = await readGet(`/api/file?path=${encodeURIComponent(abs)}&_=${Date.now()}`);
     const current = viewStore.getSnapshot();
     if (!current.open || current.path !== abs) return;
     const content =
@@ -79,7 +75,6 @@ export async function saveFilePopup() {
   try {
     await writePost('/api/file', {
       path: view.path,
-      layer: view.layer,
       content,
     });
     const current = viewStore.getSnapshot();

@@ -42,4 +42,13 @@ describe('StagedList', () => {
     ]);
     expect(rows).toEqual([{ id: 'F2', path: '/tmp/b.md', title: 'Mesa' }]);
   });
+
+  it('hydrates optional stage kind', () => {
+    const rows = hydrateStaged([
+      { id: 'F1', path: '/kb/notes/raw/a.md', title: 'A', kind: 'notes' },
+    ]);
+    expect(rows).toEqual([
+      { id: 'F1', path: '/kb/notes/raw/a.md', title: 'A', kind: 'notes' },
+    ]);
+  });
 });

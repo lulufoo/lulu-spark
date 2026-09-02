@@ -46,11 +46,13 @@ fn success_stages_and_returns_f_id_without_path() {
         assert_eq!(sess.staged.len(), 1);
         assert_eq!(sess.staged[0].id, "F1");
         assert_eq!(sess.staged[0].path, path);
+        assert_eq!(sess.staged[0].kind.as_deref(), Some("notes"));
         session::save_session(&sess).expect("persist");
         let loaded = session::load_session(sid).expect("reload");
         assert_eq!(loaded.staged.len(), 1);
         assert_eq!(loaded.staged[0].id, "F1");
         assert_eq!(loaded.staged[0].path, path);
+        assert_eq!(loaded.staged[0].kind.as_deref(), Some("notes"));
     });
 }
 
@@ -140,6 +142,7 @@ fn knowledge_content_stages_and_hides_path() {
         assert!(body.get("path").is_none(), "model must not see path: {body}");
         assert!(!out.content.contains(path));
         assert_eq!(sess.staged[0].path, path);
+        assert_eq!(sess.staged[0].kind.as_deref(), Some("knowledge"));
     });
 }
 

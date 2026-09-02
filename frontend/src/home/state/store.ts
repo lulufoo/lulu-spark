@@ -18,6 +18,7 @@ export type HubStagedEntry = {
   id: string;
   path: string;
   title: string;
+  kind?: string;
 };
 
 export type HomeState = {
@@ -109,10 +110,12 @@ export function hydrateStaged(raw: unknown): HubStagedEntry[] {
     const path = String((row as { path?: unknown }).path ?? '').trim();
     if (!path) continue;
     const title = String((row as { title?: unknown }).title ?? '').trim();
+    const kind = String((row as { kind?: unknown }).kind ?? '').trim();
     out.push({
       id: String((row as { id?: unknown }).id ?? ''),
       path,
       title: title || path.split('/').pop() || path,
+      ...(kind ? { kind } : {}),
     });
   }
   return out;

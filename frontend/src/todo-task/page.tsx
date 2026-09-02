@@ -252,8 +252,6 @@ function startTodoTasksSession(
     const keepDetailScroll =
       Boolean(selectedMasterId) && selectedMasterId === paintedMasterId;
     const ui = getUi();
-    const existingEditor = container.querySelector('.todo-task-attachment-editor');
-    if (existingEditor) existingEditor.remove();
     paintTick += 1;
     commitPage(
       createElement(PageShell, {
@@ -279,8 +277,7 @@ function startTodoTasksSession(
     if (nextMaster) nextMaster.scrollTop = masterScroll;
     if (nextDetail && keepDetailScroll) nextDetail.scrollTop = detailScroll;
     syncCategoryFilterWidth(container);
-    attachments.appendEditor(container, ui, existingEditor);
-    bindTodoDocHighlights(container, selectedMasterId, attachments.getEditor());
+    bindTodoDocHighlights(container, selectedMasterId);
   }
 
   function resetOwnersForMasterChange() {

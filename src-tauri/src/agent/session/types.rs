@@ -170,6 +170,8 @@ pub struct StagedEntry {
     pub id: String,
     pub path: String,
     pub title: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub kind: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -187,6 +189,7 @@ impl Session {
         &mut self,
         path: &str,
         title: Option<&str>,
+        kind: Option<&str>,
     ) -> Result<StagedEntry, String> {
         let path = path.trim();
         if path.is_empty() {
@@ -197,10 +200,15 @@ impl Session {
             .filter(|s| !s.is_empty())
             .map(|s| s.to_string())
             .unwrap_or_else(|| default_staged_title(path));
+        let kind = kind
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .map(|s| s.to_string());
         let entry = StagedEntry {
             id: next_staged_handle(&self.staged),
             path: path.to_string(),
             title,
+            kind,
         };
         self.staged.push(entry.clone());
         Ok(entry)

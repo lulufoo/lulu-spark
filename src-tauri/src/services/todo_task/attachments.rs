@@ -291,9 +291,20 @@ pub fn list_attachments(master_task_id: &str) -> Result<Value, TodoError> {
                 return Err(TodoError::with_status(404, "Task not found"));
             }
             match load_plan_attachments_manifest(master_task_id) {
-                Ok((_, file)) => {
-                    let attachments =
-                        serde_json::to_value(&file.attachments).unwrap_or_else(|_| json!([]));
+                Ok((task_dir, file)) => {
+                    let dir = task_dir.join("attachments");
+                    let attachments: Vec<Value> = file
+                        .attachments
+                        .iter()
+                        .map(|entry| {
+                            json!({
+                                "file_name": entry.file_name,
+                                "original_file_name": entry.original_file_name,
+                                "added_at": entry.added_at,
+                                "path": dir.join(&entry.file_name).to_string_lossy(),
+                            })
+                        })
+                        .collect();
                     Ok(json!({ "attachments": attachments }))
                 }
                 Err(err) => Err(err),

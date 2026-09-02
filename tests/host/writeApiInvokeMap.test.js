@@ -54,17 +54,16 @@ describe('writeApiInvokeMap', () => {
     expect(Object.keys(WRITE_API_INVOKE_MAP)).toHaveLength(31);
   });
 
-  it('maps /api/file absolute-path write to save_entry', () => {
-    expect(WRITE_API_INVOKE_MAP['/api/file']?.cmd).toBe('save_entry');
+  it('maps /api/file absolute-path write to write_abs_file', () => {
+    expect(WRITE_API_INVOKE_MAP['/api/file']?.cmd).toBe('write_abs_file');
     expect(
       resolveWriteInvoke('/api/file', {
         path: '/tmp/notes/raw/x.md',
-        layer: 'raw',
         content: '# hi',
       }),
     ).toEqual({
-      cmd: 'save_entry',
-      args: { layer: 'raw', commonPath: '/tmp/notes/raw/x.md', content: '# hi' },
+      cmd: 'write_abs_file',
+      args: { path: '/tmp/notes/raw/x.md', content: '# hi' },
     });
   });
 

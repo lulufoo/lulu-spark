@@ -5,7 +5,7 @@ export type FilePopupView = {
   open: boolean;
   path: string;
   title: string;
-  layer: 'raw' | 'digest';
+  identityKey: string;
   content: string;
   editing: boolean;
   loading: boolean;
@@ -18,7 +18,7 @@ export function emptyFilePopupView(): FilePopupView {
     open: false,
     path: '',
     title: '',
-    layer: 'raw',
+    identityKey: '',
     content: '',
     editing: false,
     loading: false,
@@ -37,24 +37,4 @@ export function titleFromPath(path: string, title?: string) {
   const given = title?.trim();
   if (given) return given;
   return filenameFromPath(path.replace(/\\/g, '/')) || path;
-}
-
-export function layerFromAbsPath(path: string): 'raw' | 'digest' {
-  const parts = path.split(/[/\\]/).filter(Boolean);
-  for (let i = parts.length - 1; i >= 0; i--) {
-    if (parts[i] === 'digest') return 'digest';
-    if (parts[i] === 'raw') return 'raw';
-  }
-  return 'raw';
-}
-
-/** Notes tree after `/notes/raw/` or `/notes/digest/`. Empty when the path is not a note. */
-export function commonPathFromAbsPath(path: string): string {
-  const normalized = path.replace(/\\/g, '/');
-  for (const layer of ['raw', 'digest'] as const) {
-    const marker = `/notes/${layer}/`;
-    const idx = normalized.lastIndexOf(marker);
-    if (idx >= 0) return normalized.slice(idx + marker.length);
-  }
-  return '';
 }

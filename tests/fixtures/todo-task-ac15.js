@@ -88,8 +88,8 @@ export const UI_ATTACHMENT_TEST_PROBES = {
   'tests/todo-task/attachment-editor.test.js': [
     /readPlanAttachment invokes read_todo_attachment/,
     /savePlanAttachment invokes save_todo_attachment with masterTaskId, fileName, sourcePath/,
-    /clicking an attachment opens a modal with preview by default/,
-    /can switch to edit mode and save via save_todo_attachment/,
+    /clicking an attachment opens FilePopup/,
+    /does not call read_todo_attachment or save_todo_attachment when opening/,
   ],
   'tests/todo-task/attachment-delete.test.js': [
     /invokes delete_todo_attachment with masterTaskId and fileName/,

@@ -234,6 +234,14 @@ fn list_attachments_returns_manifest_entries_not_directory_scan() {
         assert!(items
             .iter()
             .all(|e| is_iso8601(e["added_at"].as_str().unwrap())));
+        let attach_dir = attachments_dir(wb, master_id);
+        for item in items {
+            let name = item["file_name"].as_str().unwrap();
+            assert_eq!(
+                item["path"].as_str().unwrap(),
+                attach_dir.join(name).to_string_lossy().as_ref()
+            );
+        }
     });
 }
 

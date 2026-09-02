@@ -90,6 +90,8 @@ const NOTE_WRITE_COMMANDS: &[&str] = &[
 
 const DOC_HIGHLIGHTS_WRITE_COMMANDS: &[&str] = &["update_doc_highlights"];
 
+const ABS_FILE_WRITE_COMMANDS: &[&str] = &["write_abs_file"];
+
 const MCP_OAUTH_WRITE_COMMANDS: &[&str] = &[
     "issue_cursor_ide_ticket",
     "rotate_cursor_ide_ticket",
@@ -111,6 +113,22 @@ const AI_ASSISTANT_WRITE_COMMANDS: &[&str] = &[
     "unstage_chat_staged",
     "agent_chat_turn",
 ];
+
+#[test]
+fn abs_file_write_command_is_acl_allowed() {
+    let root = manifest_dir();
+    let toml = fs::read_to_string(root.join("permissions/write-api.toml")).expect("toml");
+    let allow = parse_write_api_toml_allow(&toml);
+    let missing: Vec<_> = ABS_FILE_WRITE_COMMANDS
+        .iter()
+        .filter(|cmd| !allow.contains(**cmd))
+        .copied()
+        .collect();
+    assert!(
+        missing.is_empty(),
+        "commands missing from write-api.toml ACL: {missing:?}"
+    );
+}
 
 #[test]
 fn write_api_toml_and_acl_manifest_allow_lists_match() {

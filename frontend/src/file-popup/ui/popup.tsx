@@ -7,7 +7,7 @@ import {
   enterFilePopupEdit,
   saveFilePopup,
 } from '../commands/popup.ts';
-import { commonPathFromAbsPath, viewStore } from '../state/store.ts';
+import { viewStore } from '../state/store.ts';
 import { paintFilePopupDoc } from './paint.ts';
 
 let hostRoot: Root | null = null;
@@ -35,10 +35,9 @@ export function FilePopup() {
     void paintFilePopupDoc({
       editing: view.editing,
       content: view.content,
-      path: view.path,
-      layer: view.layer,
+      identityKey: view.identityKey,
     });
-  }, [view.open, view.editing, view.content, view.loading, view.path, view.layer]);
+  }, [view.open, view.editing, view.content, view.loading, view.path, view.identityKey]);
 
   useLayoutEffect(() => {
     if (!view.open) return;
@@ -56,7 +55,7 @@ export function FilePopup() {
   }
 
   const busy = view.loading || view.saving;
-  const canEdit = Boolean(commonPathFromAbsPath(view.path));
+  const canEdit = Boolean(view.path);
 
   return (
     <div id="file-popup" role="dialog" aria-modal="true" aria-labelledby="file-popup-title" onClick={onOverlayClick}>

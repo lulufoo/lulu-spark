@@ -10,6 +10,7 @@ commands.allow = [
   "update_highlights",
   "update_doc_highlights",
   "save_entry",
+  "write_abs_file",
   "kb_save",
   "kb_update_comments",
   "kb_reorder_comments",

@@ -1,4 +1,5 @@
 pub mod path_fence;
+pub mod abs_file;
 pub mod annotation;
 pub mod archive_parse;
 pub mod notes;

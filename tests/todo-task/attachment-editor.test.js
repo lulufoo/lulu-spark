@@ -19,6 +19,8 @@ vi.mock('../../frontend/src/host/apiClient.ts', async (importOriginal) => {
   };
 });
 
+import { closeFilePopup } from '../../frontend/src/file-popup/index.ts';
+import { emptyFilePopupView, viewStore } from '../../frontend/src/file-popup/state/store.ts';
 import {
   mountTodoTaskSplit,
   readPlanAttachment,
@@ -44,11 +46,14 @@ const sampleMaster = {
   ],
 };
 
+const ATTACH_PATH = '/tmp/todo_tasks/tasks/task_alpha/attachments/notes.md';
+
 const sampleAttachments = [
   {
     file_name: 'notes.md',
     original_file_name: 'notes.md',
     added_at: '2026-07-18T10:00:00Z',
+    path: ATTACH_PATH,
   },
 ];
 
@@ -103,7 +108,7 @@ describe('readPlanAttachment / savePlanAttachment', () => {
   });
 });
 
-describe('mountTodoTaskSplit attachment editor modal', () => {
+describe('mountTodoTaskSplit attachment FilePopup', () => {
   let container;
 
   beforeEach(() => {
@@ -122,25 +127,23 @@ describe('mountTodoTaskSplit attachment editor modal', () => {
   });
 
   afterEach(() => {
+    closeFilePopup();
+    viewStore.set(emptyFilePopupView());
     container.remove();
     delete window.__TAURI__;
     delete global.marked;
   });
 
   function mockHappyPath() {
-    getJsonMock.mockResolvedValue([sampleMaster]);
-    invokeMock.mockImplementation(async (cmd, args) => {
+    getJsonMock.mockImplementation(async (url) => {
+      if (String(url).startsWith('/api/file')) {
+        return { content: ATTACHMENT_BODY };
+      }
+      return [sampleMaster];
+    });
+    invokeMock.mockImplementation(async (cmd) => {
       if (cmd === 'list_todo_attachments') {
         return { attachments: sampleAttachments, _status: 200 };
-      }
-      if (cmd === 'read_todo_attachment') {
-        return { file_name: 'notes.md', content: ATTACHMENT_BODY };
-      }
-      if (cmd === 'stage_todo_attachment_source') {
-        return { source_path: `/tmp/staged/${args?.preferredName || 'notes.md'}` };
-      }
-      if (cmd === 'save_todo_attachment') {
-        return { ok: true };
       }
       return {};
     });
@@ -157,158 +160,43 @@ describe('mountTodoTaskSplit attachment editor modal', () => {
     return api;
   }
 
-  async function openAttachmentEditor() {
+  it('clicking an attachment opens FilePopup with path and todos identity', async () => {
     mockHappyPath();
-    const api = await mountAndWait();
+    const { dispose } = await mountAndWait();
     const item = container.querySelector(
       '.todo-task-attachment-item[data-file-name="notes.md"]',
     );
     expect(item).not.toBeNull();
+    expect(item.getAttribute('data-path')).toBe(ATTACH_PATH);
     item.click();
     await vi.waitFor(() => {
-      expect(container.querySelector('.todo-task-attachment-preview')).not.toBeNull();
-      expect(container.querySelector('[data-action="edit-attachment"]')).not.toBeNull();
+      expect(document.getElementById('file-popup')).not.toBeNull();
     });
-    return api;
-  }
-
-  it('clicking an attachment opens a modal with preview by default (viewer-style)', async () => {
-    const { dispose } = await openAttachmentEditor();
-    expect(invokeMock).toHaveBeenCalledWith('read_todo_attachment', {
-      masterTaskId: 'task_alpha',
-      fileName: 'notes.md',
-    });
-    expect(invokeMock).not.toHaveBeenCalledWith('read_todo_md', expect.anything());
-
-    const editor = container.querySelector('.todo-task-attachment-editor');
-    expect(editor).not.toBeNull();
-    expect(editor.querySelector('.todo-task-attachment-preview')).not.toBeNull();
-    expect(editor.querySelector('.todo-task-attachment-edit-area')).toBeNull();
-    expect(editor.querySelector('[data-action="edit-attachment"]')).not.toBeNull();
-    expect(global.marked.parse).toHaveBeenCalledWith(ATTACHMENT_BODY);
-    expect(editor.textContent).toContain('Attachment notes');
+    expect(container.querySelector('.todo-task-attachment-editor')).toBeNull();
+    const view = viewStore.getSnapshot();
+    expect(view.path).toBe(ATTACH_PATH);
+    expect(view.title).toBe('notes.md');
+    expect(view.identityKey).toBe('todos:task_alpha:att:notes.md');
+    const urls = getJsonMock.mock.calls.map((call) => String(call[0]));
+    expect(urls.some((url) => url.startsWith('/api/file?path='))).toBe(true);
     dispose();
   });
 
-  it('can switch to edit mode and save via save_todo_attachment', async () => {
-    const { dispose } = await openAttachmentEditor();
-    const editor = container.querySelector('.todo-task-attachment-editor');
-    editor.querySelector('[data-action="edit-attachment"]').click();
-    await vi.waitFor(() => {
-      expect(editor.querySelector('.todo-task-attachment-edit-area')).not.toBeNull();
-    });
-    expect(editor.querySelector('.todo-task-attachment-preview')).toBeNull();
-
-    const textarea = editor.querySelector('.todo-task-attachment-edit-area');
-    textarea.value = '# Saved attachment\n\nUpdated.';
-    editor.querySelector('[data-action="save-attachment"]').click();
-
-    await vi.waitFor(() => {
-      expect(invokeMock).toHaveBeenCalledWith('stage_todo_attachment_source', {
-        preferredName: 'notes.md',
-        content: '# Saved attachment\n\nUpdated.',
-      });
-      expect(invokeMock).toHaveBeenCalledWith('save_todo_attachment', {
-        masterTaskId: 'task_alpha',
-        fileName: 'notes.md',
-        sourcePath: '/tmp/staged/notes.md',
-      });
-    });
-    expect(invokeMock).not.toHaveBeenCalledWith('update_todo_md', expect.anything());
-
-    await vi.waitFor(() => {
-      const modal = container.querySelector('.todo-task-attachment-editor');
-      const preview = modal?.querySelector('.todo-task-attachment-preview');
-      expect(preview).not.toBeNull();
-      expect(modal.querySelector('.todo-task-attachment-edit-area')).toBeNull();
-    });
-    dispose();
-  });
-
-  it('closing the modal discards unsaved draft without dirty check', async () => {
-    const { dispose } = await openAttachmentEditor();
-    const editor = container.querySelector('.todo-task-attachment-editor');
-    editor.querySelector('[data-action="edit-attachment"]').click();
-    await vi.waitFor(() => {
-      expect(editor.querySelector('.todo-task-attachment-edit-area')).not.toBeNull();
-    });
-    editor.querySelector('.todo-task-attachment-edit-area').value = 'DRAFT SHOULD BE DROPPED';
-
-    editor.querySelector('[data-action="close-attachment-editor"]').click();
-    await vi.waitFor(() => {
-      expect(container.querySelector('.todo-task-attachment-editor')).toBeNull();
-    });
-    expect(invokeMock).not.toHaveBeenCalledWith('save_todo_attachment', expect.anything());
-
-    // Re-open: draft must not persist
-    container
-      .querySelector('.todo-task-attachment-item[data-file-name="notes.md"]')
-      .click();
-    await vi.waitFor(() => {
-      expect(container.querySelector('.todo-task-attachment-preview')).not.toBeNull();
-    });
-    const reopened = container.querySelector('.todo-task-attachment-editor');
-    await vi.waitFor(() => {
-      expect(reopened.querySelector('[data-action="edit-attachment"]')).not.toBeNull();
-    });
-    reopened.querySelector('[data-action="edit-attachment"]').click();
-    await vi.waitFor(() => {
-      expect(reopened.querySelector('.todo-task-attachment-edit-area')).not.toBeNull();
-    });
-    expect(reopened.querySelector('.todo-task-attachment-edit-area').value).toBe(
-      ATTACHMENT_BODY,
-    );
-    expect(reopened.querySelector('.todo-task-attachment-edit-area').value).not.toContain(
-      'DRAFT SHOULD BE DROPPED',
-    );
-    dispose();
-  });
-
-  it('keeps editor content and shows error when save fails', async () => {
-    getJsonMock.mockResolvedValue([sampleMaster]);
-    invokeMock.mockImplementation(async (cmd, args) => {
-      if (cmd === 'list_todo_attachments') {
-        return { attachments: sampleAttachments, _status: 200 };
-      }
-      if (cmd === 'read_todo_attachment') {
-        return { file_name: 'notes.md', content: ATTACHMENT_BODY };
-      }
-      if (cmd === 'stage_todo_attachment_source') {
-        return { source_path: `/tmp/staged/${args?.preferredName || 'notes.md'}` };
-      }
-      if (cmd === 'save_todo_attachment') {
-        return { error: 'Disk full', _status: 500 };
-      }
-      return {};
-    });
+  it('does not call read_todo_attachment or save_todo_attachment when opening', async () => {
+    mockHappyPath();
     const { dispose } = await mountAndWait();
-    container
-      .querySelector('.todo-task-attachment-item[data-file-name="notes.md"]')
-      .click();
+    container.querySelector('.todo-task-attachment-item[data-file-name="notes.md"]').click();
     await vi.waitFor(() => {
-      expect(container.querySelector('.todo-task-attachment-preview')).not.toBeNull();
-      expect(container.querySelector('[data-action="edit-attachment"]')).not.toBeNull();
+      expect(document.getElementById('file-popup')).not.toBeNull();
     });
-    const editor = container.querySelector('.todo-task-attachment-editor');
-    editor.querySelector('[data-action="edit-attachment"]').click();
-    await vi.waitFor(() => {
-      expect(editor.querySelector('.todo-task-attachment-edit-area')).not.toBeNull();
-    });
-    editor.querySelector('.todo-task-attachment-edit-area').value = 'User draft content';
-    editor.querySelector('[data-action="save-attachment"]').click();
-    await vi.waitFor(() => {
-      expect(editor.querySelector('.todo-task-attachment-error')).not.toBeNull();
-    });
-    expect(editor.querySelector('.todo-task-attachment-edit-area').value).toBe(
-      'User draft content',
-    );
-    expect(editor.textContent).toMatch(/Disk full|Save failed/);
+    expect(invokeMock).not.toHaveBeenCalledWith('read_todo_attachment', expect.anything());
+    expect(invokeMock).not.toHaveBeenCalledWith('save_todo_attachment', expect.anything());
     dispose();
   });
 });
 
-describe('attachment editor surface contracts', () => {
-  it('does not reuse read_todo_md / update_todo_md for attachment editor path', () => {
+describe('attachment FilePopup surface contracts', () => {
+  it('open-attachment goes through FilePopup, not todo_md or AttachmentEditor', () => {
     const host = readFileSync(join(repoRoot, 'frontend/src/todo-task/state/host.ts'), 'utf8');
     const src = readFileSync(join(repoRoot, 'frontend/src/todo-task/commands/attachments.ts'), 'utf8')
       + readFileSync(join(repoRoot, 'frontend/src/todo-task/ui/attachments.tsx'), 'utf8');
@@ -318,34 +206,13 @@ describe('attachment editor surface contracts', () => {
     const openIdx = src.indexOf("action === 'open-attachment'");
     expect(openIdx).toBeGreaterThan(-1);
     const openBlock = src.slice(openIdx, openIdx + 800);
+    expect(openBlock).toContain('openAttachment');
     expect(openBlock).not.toContain('read_todo_md');
     expect(openBlock).not.toContain('update_todo_md');
-
-    const saveIdx = src.indexOf("action === 'save-attachment'");
-    expect(saveIdx).toBeGreaterThan(-1);
-    const saveBlock = src.slice(saveIdx, saveIdx + 600);
-    expect(saveBlock).not.toContain('update_todo_md');
-    expect(saveBlock).not.toContain('read_todo_md');
-  });
-
-  it('attachment editor is a dedicated modal surface, not comments default-edit or todo_md inline', () => {
-    const src = readFileSync(join(repoRoot, 'frontend/src/todo-task/commands/attachments.ts'), 'utf8')
-      + readFileSync(join(repoRoot, 'frontend/src/todo-task/ui/attachments.tsx'), 'utf8');
-    expect(src).toMatch(/todo-task-attachment-editor/);
-    expect(src).toMatch(/todo-task-attachment-preview/);
-    expect(src).toMatch(/data-action="edit-attachment"/);
-
-    // Must not open attachment via the master/sub CRUD dialog types
-    const openIdx = src.indexOf("action === 'open-attachment'");
-    expect(openIdx).toBeGreaterThan(-1);
-    const openBlock = src.slice(openIdx, openIdx + 500);
-    expect(openBlock).not.toContain('openTodoTaskDialog');
-
-    // Preview-default: edit area must not be the sole initial surface in render helper
-    const renderIdx = src.indexOf('function renderAttachmentEditor');
-    expect(renderIdx).toBeGreaterThan(-1);
-    const renderBlock = src.slice(renderIdx, renderIdx + 1200);
-    expect(renderBlock).toMatch(/attachment-preview|editMode|preview/);
+    expect(src).toContain('openFilePopup');
+    expect(src).not.toContain('AttachmentEditor');
+    expect(src).not.toContain('renderAttachmentEditor');
+    expect(src).not.toContain('todo-task-attachment-editor');
   });
 
   it('dialog.js TodoTaskDialogType remains master/sub CRUD only (no attachment editor type)', () => {

@@ -6,7 +6,6 @@ import { FilePopup } from '../../frontend/src/file-popup/ui/popup.tsx';
 import { emptyFilePopupView, patchView, viewStore } from '../../frontend/src/file-popup/state/store.ts';
 
 vi.mock('../../frontend/src/host/api.ts', () => ({
-  fetchNotesAssetAsBlobUrl: vi.fn(async () => 'blob:file-popup-test'),
   fetchDocHighlights: vi.fn(async () => ({ highlights: [] })),
 }));
 
@@ -22,7 +21,7 @@ describe('FilePopup chrome', () => {
     viewStore.set(emptyFilePopupView());
   });
 
-  function renderOpen() {
+  function renderOpen(partial = {}) {
     container = document.createElement('div');
     document.body.appendChild(container);
     root = createRoot(container);
@@ -30,38 +29,28 @@ describe('FilePopup chrome', () => {
       open: true,
       path: '/kb/notes/raw/inbox/a.md',
       title: 'Sample note',
-      layer: 'raw',
+      identityKey: 'notes:inbox/a.md',
       content: '# Hello',
       editing: false,
       loading: false,
       saving: false,
       error: '',
+      ...partial,
     });
     act(() => {
       root.render(createElement(FilePopup));
     });
   }
 
-  it('hides Edit when the path is not a notes file', () => {
-    container = document.createElement('div');
-    document.body.appendChild(container);
-    root = createRoot(container);
-    patchView({
-      open: true,
+  it('shows Edit whenever a path is open', () => {
+    renderOpen({
       path: '/Users/me/knowledge/demo/doc.md',
       title: 'Knowledge doc',
-      layer: 'raw',
+      identityKey: 'knowledge:demo/doc.md',
       content: '# KB',
-      editing: false,
-      loading: false,
-      saving: false,
-      error: '',
-    });
-    act(() => {
-      root.render(createElement(FilePopup));
     });
     const labels = [...container.querySelectorAll('button')].map((b) => b.textContent.trim());
-    expect(labels).not.toContain('Edit');
+    expect(labels).toContain('Edit');
     expect(labels).toContain('Close');
   });
 

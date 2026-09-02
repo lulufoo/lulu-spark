@@ -98,7 +98,7 @@ fn entry_json(entry: &StagedEntry) -> Result<String, String> {
 fn stage(arguments: &Value, session: &mut Session) -> Result<String, String> {
     let path = fs::arg_str(arguments, "path")?;
     let title = arguments.get("title").and_then(Value::as_str);
-    entry_json(&session.register_staged(&path, title)?)
+    entry_json(&session.register_staged(&path, title, None)?)
 }
 
 fn list_staged(session: &Session) -> Result<String, String> {
@@ -119,9 +119,9 @@ pub fn overlay_note_content(
     result: ToolResult,
     session: &mut Session,
 ) -> (ToolResult, bool) {
-    let source_key = match name {
-        NOTE_CONTENT_TOOL => "note_id",
-        KNOWLEDGE_CONTENT_TOOL => "knowledge_id",
+    let (source_key, kind) = match name {
+        NOTE_CONTENT_TOOL => ("note_id", "notes"),
+        KNOWLEDGE_CONTENT_TOOL => ("knowledge_id", "knowledge"),
         _ => return (result, false),
     };
     if result.is_error {
@@ -148,7 +148,7 @@ pub fn overlay_note_content(
         );
     };
     let source_id = value.get("id").and_then(Value::as_str).unwrap_or("");
-    match session.register_staged(path, None) {
+    match session.register_staged(path, None, Some(kind)) {
         Ok(entry) => {
             let mut body = json!({
                 "ok": true,

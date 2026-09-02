@@ -1,11 +1,8 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { setGithubUserUrl } from '../../frontend/src/host/constants.ts';
-import { state } from '../../frontend/src/host/state.ts';
 import { paintFilePopupDoc } from '../../frontend/src/file-popup/ui/paint.ts';
 
 vi.mock('../../frontend/src/host/api.ts', () => ({
-  fetchNotesAssetAsBlobUrl: vi.fn(async () => 'blob:file-popup-test'),
   fetchDocHighlights: vi.fn(async () => ({ highlights: [] })),
 }));
 
@@ -13,8 +10,6 @@ describe('paintFilePopupDoc', () => {
   beforeEach(() => {
     document.body.innerHTML =
       '<div id="file-popup-body" class="viewer-body"></div><textarea id="file-popup-edit-area"></textarea>';
-    state.ui.workbenchRoot = '/Users/x/lulu-workbench-knowledge';
-    setGithubUserUrl('https://github.com/lulu');
     global.marked = {
       parse(raw) {
         if (String(raw).includes('```mermaid')) {
@@ -45,16 +40,12 @@ describe('paintFilePopupDoc', () => {
     document.body.innerHTML = '';
     delete global.marked;
     delete global.mermaid;
-    setGithubUserUrl('');
-    state.ui.workbenchRoot = '';
   });
 
   it('renders mermaid fences after markdown', async () => {
     await paintFilePopupDoc({
       editing: false,
       content: '```mermaid\ngraph TD; A-->B;\n```',
-      path: '/kb/notes/raw/inbox/a.md',
-      layer: 'raw',
     });
     const diagram = document.querySelector('#file-popup-body .mermaid-diagram');
     expect(diagram).not.toBeNull();
@@ -65,47 +56,44 @@ describe('paintFilePopupDoc', () => {
     await paintFilePopupDoc({
       editing: false,
       content: 'http://example.com',
-      path: '/kb/notes/raw/inbox/a.md',
-      layer: 'raw',
     });
     const a = document.querySelector('#file-popup-body a');
     expect(a.getAttribute('target')).toBe('_blank');
     expect(a.getAttribute('rel')).toContain('noopener');
   });
 
-  it('rewrites relative note links to GitHub', async () => {
+  it('leaves relative links unchanged', async () => {
     await paintFilePopupDoc({
       editing: false,
       content: 'sister.md',
-      path: '/kb/notes/raw/inbox/a.md',
-      layer: 'raw',
     });
     const a = document.querySelector('#file-popup-body a');
-    expect(a.getAttribute('href')).toBe(
-      'https://github.com/lulu/lulu-workbench-knowledge/blob/main/notes/raw/inbox/sister.md',
-    );
+    expect(a.getAttribute('href')).toBe('./sister.md');
+    expect(a.getAttribute('target')).toBeNull();
   });
 
-  it('loads relative images through the notes asset API', async () => {
-    const api = await import('../../frontend/src/host/api.ts');
+  it('leaves relative images unchanged', async () => {
     await paintFilePopupDoc({
       editing: false,
       content: 'diagram.png',
-      path: '/kb/notes/raw/inbox/a.md',
-      layer: 'raw',
     });
-    expect(api.fetchNotesAssetAsBlobUrl).toHaveBeenCalledWith('raw', 'inbox/a.md', 'diagram.png');
-    expect(document.querySelector('#file-popup-body img').getAttribute('src')).toBe(
-      'blob:file-popup-test',
-    );
+    expect(document.querySelector('#file-popup-body img').getAttribute('src')).toBe('diagram.png');
+  });
+
+  it('applies highlights when identityKey is set', async () => {
+    const api = await import('../../frontend/src/host/api.ts');
+    await paintFilePopupDoc({
+      editing: false,
+      content: '# Hello',
+      identityKey: 'todos:task_alpha:att:notes.md',
+    });
+    expect(api.fetchDocHighlights).toHaveBeenCalledWith('todos:task_alpha:att:notes.md');
   });
 
   it('skips markdown paint while editing', async () => {
     await paintFilePopupDoc({
       editing: true,
       content: '# Hello',
-      path: '/kb/notes/raw/inbox/a.md',
-      layer: 'raw',
     });
     expect(document.getElementById('file-popup-body').innerHTML).toBe('');
     expect(document.getElementById('file-popup-edit-area').style.display).toBe('');

@@ -135,12 +135,12 @@ describe('readApi contract map', () => {
     });
   });
 
-  it('resolveInvokeFromPath maps /api/file to get_notes_file', () => {
+  it('resolveInvokeFromPath maps /api/file to read_abs_file', () => {
     expect(
-      resolveInvokeFromPath('/api/file?path=%2Ftmp%2Fnotes%2Fraw%2Fx.md&layer=raw'),
+      resolveInvokeFromPath('/api/file?path=%2Ftmp%2Fnotes%2Fraw%2Fx.md'),
     ).toEqual({
-      cmd: 'get_notes_file',
-      args: { layer: 'raw', path: '/tmp/notes/raw/x.md' },
+      cmd: 'read_abs_file',
+      args: { path: '/tmp/notes/raw/x.md' },
     });
   });
 

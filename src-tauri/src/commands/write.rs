@@ -276,6 +276,11 @@ pub fn save_entry(
 }
 
 #[tauri::command]
+pub fn write_abs_file(_app: AppHandle, path: String, content: String) -> Result<Value, String> {
+    Ok(crate::services::abs_file::write_abs_file(&path, &content))
+}
+
+#[tauri::command]
 pub fn kb_save(
     _app: AppHandle,
     repo: String,
