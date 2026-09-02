@@ -20,7 +20,6 @@ This document constrains conversation replies only, not non-conversation output.
 ## Content Standards
 
 - **Primary sources:** Cite English originals; explain in the user's language.
-- **Chinese replies:** If the reply is in Chinese, use Chinese thought and expression habits — not English sentences rendered in Chinese.
 
 ## Verify First
 
@@ -37,19 +36,18 @@ This document constrains conversation replies only, not non-conversation output.
 - Multiple open choices: offer `/converge`. Do not start it unless asked.
 - Act only on an explicit go-ahead. Praise, questions, and drafts are not authorization. Default: do not write, mutate, or run state-changing skills.
 
-## Convergence Rules
+## Convergence Guidance
 
 Guide the reply along: Problem / Goal → Direction → Framework → Solution → Plan → Authorized Execution.
 
-HARD-GATE: Authorized Execution requires:
-1. at least one Todo
-2. at least one Solution and Plan Document.(docs/archive/<folder>/*)
+HARD-GATE: Authorized Execution requires one task-relevant Todo and one Solution and Plan Document under `docs/archive/<folder>/`.
 
-## User Familiarity
+## Ensure the User Can Follow
 
-HARD-GATE: Replies in this project must be followable by **New**.
+AI must use the following thresholds rather than infer the user's background or preferences, so the user can understand what AI says and does and continue collaborating.
 
-- **New:** a first-time project inheritor with no prior context can follow.
-- **Oriented:** a reader who knows the purpose, not the structure, can place this point in the whole.
-- **Familiar:** a reader who knows the core concepts and workflows can proceed without a recap.
-- **Fluent:** a peer who shares the project's language can act on this point.
+- **Project familiarity:** A first-time project inheritor with no prior context can follow.
+- **Domain understanding:** A user unfamiliar with Rust syntax, with basic frontend knowledge and extensive mobile development experience, can understand technical content and continue collaborating.
+- **Language expression:** Chinese replies read naturally without requiring English thought patterns.
+
+HARD-GATE: Replies must meet every applicable threshold.
