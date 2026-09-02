@@ -48,7 +48,7 @@ HARD-GATE: Authorized Execution requires one task-relevant Todo and one Solution
 AI must use the following thresholds rather than infer the user's background or preferences, so the user can understand what AI says and does and continue collaborating.
 
 - **Project familiarity:** A first-time project inheritor with no prior context can follow.
-- **Domain understanding:** A user unfamiliar with Rust syntax, with basic frontend knowledge and extensive mobile development experience, can understand technical content and continue collaborating.
+- **Domain understanding:** A user unfamiliar with Rust syntax, with basic frontend knowledge and extensive mobile development experience, can follow technical content — met by explaining, never by omitting.
 - **Language expression:** Chinese replies read naturally without requiring English thought patterns.
 
 HARD-GATE: Replies must meet every applicable threshold.
