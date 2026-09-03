@@ -6,7 +6,14 @@ use crate::mcp_host::catalog::route_util::{
     gated_todo, missing_field, object_schema, route, todo_wire,
 };
 use crate::mcp_host::ToolRoute;
+use crate::services::message_center;
 use crate::services::todo_task;
+
+fn produce_todos_if_created(result: &Value) {
+    if result.get("error").is_none() && result.get("_status") == Some(&json!(201)) {
+        let _ = message_center::produce("todos");
+    }
+}
 
 pub fn available_in(_channel: &str) -> bool {
     true
@@ -47,10 +54,12 @@ pub fn invoke(args: &Value) -> Value {
             Ok(v) => v,
             Err(err) => return err,
         };
-        todo_wire(
+        let result = todo_wire(
             todo_task::create_master_with_category(title, None, todo_md, category_id),
             201,
-        )
+        );
+        produce_todos_if_created(&result);
+        result
     })
 }
 

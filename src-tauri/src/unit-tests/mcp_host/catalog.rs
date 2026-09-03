@@ -282,3 +282,6 @@ fn get_knowledge_content_channel_descriptions_split() {
     assert!(ide.description.contains("absolute file path"));
     assert!(!ide.description.contains("Stage"));
 }
+
+#[path = "produce_wiring.rs"]
+mod produce_wiring;
