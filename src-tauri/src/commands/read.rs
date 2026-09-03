@@ -295,6 +295,15 @@ pub fn get_sediment_kb_repos(_app: AppHandle) -> Result<Value, String> {
     sediment_kb_repos_json(&repo_root()?)
 }
 
+pub fn get_message_channel_unread_json(channel: &str) -> Result<bool, String> {
+    Ok(crate::services::message_center::channel_unread(channel))
+}
+
+#[tauri::command]
+pub fn get_message_channel_unread(_app: AppHandle, channel: String) -> Result<bool, String> {
+    get_message_channel_unread_json(&channel)
+}
+
 #[cfg(test)]
 #[path = "../unit-tests/commands/kb_doc_count.rs"]
 mod kb_doc_count_tests;
@@ -302,3 +311,7 @@ mod kb_doc_count_tests;
 #[cfg(test)]
 #[path = "../unit-tests/commands/sediment_kb_read.rs"]
 mod sediment_kb_read_tests;
+
+#[cfg(test)]
+#[path = "../unit-tests/commands/message_center.rs"]
+mod message_center_tests;

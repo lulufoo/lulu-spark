@@ -131,6 +131,15 @@ fn assert_file_has_no_message_center(path: &Path) {
     );
 }
 
+fn assert_file_has_no_message_center_produce(path: &Path) {
+    let text = fs::read_to_string(path).unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
+    assert!(
+        !text.contains("message_center::produce") && !text.contains("::produce("),
+        "{} must not wire message center produce",
+        path.display()
+    );
+}
+
 fn collect_rs_files(dir: &Path, out: &mut Vec<PathBuf>) {
     for entry in fs::read_dir(dir)
         .unwrap_or_else(|e| panic!("read {}: {e}", dir.display()))
@@ -187,7 +196,7 @@ fn other_note_todo_and_tauri_writes_are_not_wired() {
         }
         assert_file_has_no_message_center(&path);
     }
-    assert_file_has_no_message_center(&src("commands/write.rs"));
+    assert_file_has_no_message_center_produce(&src("commands/write.rs"));
     assert_file_has_no_message_center(&src("services/notes/jot.rs"));
 
     with_host_sandbox(|sandbox| {

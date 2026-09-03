@@ -428,6 +428,15 @@ pub fn create_note(_app: AppHandle, payload: Value) -> Result<Value, String> {
     create_note_json(payload)
 }
 
+pub fn mark_message_channel_read_json(channel: &str) -> Result<(), String> {
+    crate::services::message_center::mark_channel_read(channel)
+}
+
+#[tauri::command]
+pub fn mark_message_channel_read(_app: AppHandle, channel: String) -> Result<(), String> {
+    mark_message_channel_read_json(&channel)
+}
+
 #[cfg(test)]
 #[path = "../unit-tests/commands/sediment_kb_write.rs"]
 mod sediment_kb_write_tests;
@@ -435,3 +444,7 @@ mod sediment_kb_write_tests;
 #[cfg(test)]
 #[path = "../unit-tests/commands/create_note_write.rs"]
 mod create_note_write_tests;
+
+#[cfg(test)]
+#[path = "../unit-tests/commands/message_center.rs"]
+mod message_center_tests;

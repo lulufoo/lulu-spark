@@ -172,8 +172,18 @@ pub fn run() {
             commands::write::sediment_kb_rename_category,
             commands::write::sediment_kb_remove_category,
             commands::write::create_note,
+            commands::read::get_message_channel_unread,
+            commands::write::mark_message_channel_read,
         ])
         .setup(|app| {
+            let notify_handle = app.handle().clone();
+            crate::services::message_center::set_changed_handler(Some(std::sync::Arc::new(
+                move || {
+                    use tauri::Emitter;
+                    let _ = notify_handle.emit("message-center:changed", ());
+                },
+            )));
+
             // Auto-start Meilisearch if not already running
             let meili_child = host::try_autostart_meilisearch();
             app.manage(host::MeiliProcess::new(meili_child));
@@ -322,3 +332,7 @@ mod gateway_startup_tests;
 #[cfg(test)]
 #[path = "unit-tests/lib/discovery_startup_tests.rs"]
 mod discovery_startup_tests;
+
+#[cfg(test)]
+#[path = "unit-tests/lib/message_center_event_tests.rs"]
+mod message_center_event_tests;
