@@ -1,8 +1,11 @@
 import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { describe, expect, it } from 'vitest'
-import { READ_API_INVOKE_MAP } from '../../frontend/src/host/readApiInvokeMap.ts'
+import { describe, expect, it, vi } from 'vitest'
+import {
+  READ_API_INVOKE_MAP,
+  resolveInvokeFromPath,
+} from '../../frontend/src/host/readApiInvokeMap.ts'
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..')
 
@@ -79,6 +82,52 @@ describe('read-api ACL 与前端 invoke 映射一致', () => {
     for (const cmd of ['infer_github_user_url', 'check_workbench_root']) {
       expect(tomlAllow, `${cmd} in toml`).toContain(cmd)
       expect(aclAllow, `${cmd} in acl`).toContain(cmd)
+    }
+  })
+
+  it('READ_API_INVOKE_MAP 含 get_message_channel_unread', () => {
+    expect(mappedCmds).toContain('get_message_channel_unread')
+  })
+
+  it('message channel unread command 已加入 read-api ACL', () => {
+    expect(tomlAllow).toContain('get_message_channel_unread')
+    expect(aclAllow).toContain('get_message_channel_unread')
+  })
+
+  it('resolveInvokeFromPath 将 snake_case channel 查询映射为 camelCase invoke 参数', () => {
+    expect(
+      resolveInvokeFromPath('/api/message-channel-unread?channel=notes'),
+    ).toEqual({
+      cmd: 'get_message_channel_unread',
+      args: { channel: 'notes' },
+    })
+  })
+
+  it('host/api.ts 对外暴露 getMessageChannelUnread，传输走 transport.ts', async () => {
+    const api = await import('../../frontend/src/host/api.ts')
+    expect(typeof api.getMessageChannelUnread).toBe('function')
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => true,
+      text: async () => 'true',
+    })
+    await api.getMessageChannelUnread('notes')
+    expect(globalThis.fetch.mock.calls[0][0]).toMatch(
+      /message-channel-unread.*channel=notes/,
+    )
+  })
+
+  it('页面不直接 import invoke map', () => {
+    const pageFiles = [
+      'frontend/src/home/page.tsx',
+      'frontend/src/notes/page.tsx',
+      'frontend/src/todo-task/page.tsx',
+      'frontend/src/knowledge/page.tsx',
+    ]
+    for (const rel of pageFiles) {
+      const src = readFileSync(join(repoRoot, rel), 'utf8')
+      expect(src, rel).not.toMatch(/ApiInvokeMap/)
     }
   })
 })

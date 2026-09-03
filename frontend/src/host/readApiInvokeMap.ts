@@ -152,6 +152,12 @@ export const READ_API_INVOKE_MAP: Record<string, ReadInvokeEntry> = {
       path: url.searchParams.get('path') ?? '',
     }),
   },
+  '/api/message-channel-unread': {
+    cmd: 'get_message_channel_unread',
+    args: (url) => ({
+      channel: url.searchParams.get('channel') ?? '',
+    }),
+  },
 };
 
 /**

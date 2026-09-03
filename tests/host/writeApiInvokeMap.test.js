@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   WRITE_API_INVOKE_MAP,
   resolveWriteInvoke,
@@ -35,6 +35,7 @@ const P2_WRITE_PATHS = [
   '/api/notes-category-create',
   '/api/notes-category-update',
   '/api/notes-category-delete',
+  '/api/mark-message-channel-read',
 ];
 
 const ANNOTATION_WRITE_CMDS = new Set([
@@ -51,7 +52,7 @@ describe('writeApiInvokeMap', () => {
     for (const p of P2_WRITE_PATHS) {
       expect(WRITE_API_INVOKE_MAP[p]?.cmd, p).toBeTruthy();
     }
-    expect(Object.keys(WRITE_API_INVOKE_MAP)).toHaveLength(31);
+    expect(Object.keys(WRITE_API_INVOKE_MAP)).toHaveLength(32);
   });
 
   it('maps /api/file absolute-path write to write_abs_file', () => {
@@ -167,5 +168,39 @@ describe('writeApiInvokeMap', () => {
     expect(resolved).not.toBeNull();
     expect(ANNOTATION_WRITE_CMDS.has(resolved.cmd)).toBe(false);
     expect(resolved.cmd).toBe('create_note');
+  });
+
+  it('WRITE_API_INVOKE_MAP 含 mark_message_channel_read', () => {
+    expect(WRITE_API_INVOKE_MAP['/api/mark-message-channel-read']?.cmd).toBe(
+      'mark_message_channel_read',
+    );
+  });
+
+  it('resolveWriteInvoke maps mark-message-channel-read body channel (snake HTTP → camel invoke)', () => {
+    expect(
+      resolveWriteInvoke('/api/mark-message-channel-read', {
+        channel: 'notes',
+      }),
+    ).toEqual({
+      cmd: 'mark_message_channel_read',
+      args: { channel: 'notes' },
+    });
+  });
+
+  it('host/api.ts 对外暴露 markMessageChannelRead，传输走 transport.ts', async () => {
+    const api = await import('../../frontend/src/host/api.ts');
+    expect(typeof api.markMessageChannelRead).toBe('function');
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({}),
+      text: async () => '{}',
+    });
+    await api.markMessageChannelRead('notes');
+    expect(globalThis.fetch.mock.calls[0][0]).toMatch(/mark-message-channel-read/);
+    expect(globalThis.fetch.mock.calls[0][1].method).toBe('POST');
+    expect(JSON.parse(globalThis.fetch.mock.calls[0][1].body)).toEqual({
+      channel: 'notes',
+    });
   });
 });

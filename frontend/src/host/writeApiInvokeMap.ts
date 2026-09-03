@@ -214,6 +214,12 @@ export const WRITE_API_INVOKE_MAP: Record<string, WriteInvokeEntry> = {
       content: body.content,
     }),
   },
+  '/api/mark-message-channel-read': {
+    cmd: 'mark_message_channel_read',
+    args: (body) => ({
+      channel: body.channel,
+    }),
+  },
 };
 
 /**

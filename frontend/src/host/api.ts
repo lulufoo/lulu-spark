@@ -6,6 +6,11 @@ export {
 } from './api/transport.ts';
 
 export {
+  getMessageChannelUnread,
+  markMessageChannelRead,
+} from './api/message-center.ts';
+
+export {
   createNotesCategory,
   deleteNotesCategory,
   fetchNotesCategories,
