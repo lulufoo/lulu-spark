@@ -17,6 +17,7 @@ import {
 } from './commands/hub.ts';
 import { openStagedFile, unstageStaged } from './commands/staged.ts';
 import { StagedList } from './ui/staged-list.tsx';
+import { createImeEnterGuard } from './ime-enter.ts';
 import {
   composerLocked,
   messagePaintKey,
@@ -112,6 +113,7 @@ export function HomePage({
   const messagesRef = useRef<HTMLDivElement | null>(null);
   const formRef = useRef<HTMLFormElement | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
+  const imeEnterRef = useRef(createImeEnterGuard());
   const sidebarRef = useRef<HTMLElement | null>(null);
   const lastPaintKeyRef = useRef('');
   const mdPaintGenRef = useRef(0);
@@ -120,6 +122,11 @@ export function HomePage({
   useEffect(() => {
     startHomeHub();
     return () => stopHomeHub();
+  }, []);
+
+  useEffect(() => {
+    const guard = imeEnterRef.current;
+    return () => guard.dispose();
   }, []);
 
   useEffect(() => {
@@ -177,7 +184,8 @@ export function HomePage({
   }
 
   function onComposerKey(event: KeyboardEvent<HTMLTextAreaElement>) {
-    if (event.key !== 'Enter' || event.shiftKey || event.nativeEvent.isComposing) return;
+    if (event.key !== 'Enter' || event.shiftKey) return;
+    if (imeEnterRef.current.isBlocked(event.nativeEvent)) return;
     event.preventDefault();
     if (locked || state.inFlightIds.includes(state.currentSessionId)) return;
     const form = formRef.current;
@@ -322,6 +330,8 @@ export function HomePage({
               placeholder="Message…"
               disabled={locked}
               onKeyDown={onComposerKey}
+              onCompositionStart={() => imeEnterRef.current.onCompositionStart()}
+              onCompositionEnd={() => imeEnterRef.current.onCompositionEnd()}
               onInput={syncComposerHeight}
             />
             <button
