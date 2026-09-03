@@ -7,6 +7,7 @@ import { SessionList } from './ui/session-list.tsx';
 import {
   createSession,
   deleteSession,
+  markHomeEntryRead,
   resetHomeCommands,
   selectSession,
   sendMessage,
@@ -94,6 +95,10 @@ function goHomeEntry(
     else navigateFn?.('#/read-later');
   } else if (dest === 'knowledge') navigateFn?.('#/knowledge');
   else if (dest === 'todo-tasks') navigateFn?.('#/todo-tasks');
+}
+
+function unreadProps(unread: boolean) {
+  return unread ? { 'data-home-unread': 'true' as const } : {};
 }
 
 /** Home chat page. Reads the home store; commands update the store. */
@@ -189,7 +194,11 @@ export function HomePage({
             type="button"
             className="home-chat-nav-item home-desktop-shortcut"
             data-home-entry="workbench"
-            onClick={() => goHomeEntry('workbench', navigateFn, openReadLater)}
+            {...unreadProps(state.channelUnread.notes)}
+            onClick={() => {
+              void markHomeEntryRead('workbench');
+              goHomeEntry('workbench', navigateFn, openReadLater);
+            }}
           >
             <span className="home-desktop-shortcut-icon" aria-hidden="true">
               📂
@@ -200,7 +209,11 @@ export function HomePage({
             type="button"
             className="home-chat-nav-item home-desktop-shortcut"
             data-home-entry="read-later"
-            onClick={() => goHomeEntry('read-later', navigateFn, openReadLater)}
+            {...unreadProps(state.channelUnread.read_later)}
+            onClick={() => {
+              void markHomeEntryRead('read-later');
+              goHomeEntry('read-later', navigateFn, openReadLater);
+            }}
           >
             <span className="home-desktop-shortcut-icon" aria-hidden="true">
               📑
@@ -222,7 +235,11 @@ export function HomePage({
             type="button"
             className="home-chat-nav-item home-desktop-shortcut"
             data-home-entry="todo-tasks"
-            onClick={() => goHomeEntry('todo-tasks', navigateFn, openReadLater)}
+            {...unreadProps(state.channelUnread.todos)}
+            onClick={() => {
+              void markHomeEntryRead('todo-tasks');
+              goHomeEntry('todo-tasks', navigateFn, openReadLater);
+            }}
           >
             <span className="home-desktop-shortcut-icon" aria-hidden="true">
               📋

@@ -21,6 +21,12 @@ export type HubStagedEntry = {
   kind?: string;
 };
 
+export type ChannelUnread = {
+  notes: boolean;
+  read_later: boolean;
+  todos: boolean;
+};
+
 export type HomeState = {
   sessions: HubSession[];
   currentSessionId: string;
@@ -29,7 +35,12 @@ export type HomeState = {
   hostBound: boolean;
   progressByChat: Record<string, string>;
   inFlightIds: string[];
+  channelUnread: ChannelUnread;
 };
+
+function emptyUnread(): ChannelUnread {
+  return { notes: false, read_later: false, todos: false };
+}
 
 function emptyState(): HomeState {
   return {
@@ -40,6 +51,7 @@ function emptyState(): HomeState {
     hostBound: false,
     progressByChat: Object.create(null) as Record<string, string>,
     inFlightIds: [],
+    channelUnread: emptyUnread(),
   };
 }
 

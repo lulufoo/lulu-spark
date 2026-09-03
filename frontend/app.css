@@ -7159,6 +7159,19 @@ button.notes-cat-item:disabled { opacity: .65; cursor: default; }
   max-width: none;
   text-align: left;
 }
+.home-chat-nav .home-desktop-shortcut[data-home-unread="true"] .home-desktop-shortcut-icon {
+  position: relative;
+}
+.home-chat-nav .home-desktop-shortcut[data-home-unread="true"] .home-desktop-shortcut-icon::after {
+  content: "";
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #cf222e;
+}
 .home-chat-sessions-head {
   display: flex;
   align-items: center;
