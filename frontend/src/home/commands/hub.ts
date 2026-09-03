@@ -1,6 +1,11 @@
 import * as api from '../../host/api.ts';
 import { refreshStagedFromBinding } from './staged.ts';
 import {
+  markHomeEntryRead,
+  refreshChannelUnread,
+  resetChannelUnread,
+} from './channel-unread.ts';
+import {
   getHomeState,
   hydrateStaged,
   hydrateTurns,
@@ -13,13 +18,7 @@ import {
 export const BINDING_CHANGED_EVENT = 'ai-assistant:binding-changed';
 export const MESSAGE_CENTER_CHANGED_EVENT = 'message-center:changed';
 export const HOME_CHAT_LIST_LIMIT = 20;
-
-const UNREAD_CHANNELS = ['notes', 'read_later', 'todos'] as const;
-const ENTRY_CHANNEL: Record<string, (typeof UNREAD_CHANNELS)[number]> = {
-  workbench: 'notes',
-  'read-later': 'read_later',
-  'todo-tasks': 'todos',
-};
+export { markHomeEntryRead, refreshChannelUnread };
 
 type TauriListen = (
   event: string,
@@ -37,7 +36,6 @@ function getTauriListen(): TauriListen | null {
 }
 
 let fetchGen = 0;
-let unreadGen = 0;
 let unlistenBinding: (() => void) | null = null;
 let unlistenMessageCenter: (() => void) | null = null;
 
@@ -50,36 +48,8 @@ function clearHomeListens() {
 
 export function resetHomeCommands() {
   fetchGen += 1;
-  unreadGen += 1;
+  resetChannelUnread();
   clearHomeListens();
-}
-
-export async function refreshChannelUnread() {
-  const gen = unreadGen;
-  const next = { notes: false, read_later: false, todos: false };
-  for (const channel of UNREAD_CHANNELS) {
-    try {
-      next[channel] = (await api.getMessageChannelUnread(channel)) === true;
-    } catch {
-      next[channel] = false;
-    }
-    if (gen !== unreadGen) return;
-  }
-  setHomeState((prev) => ({ ...prev, channelUnread: next }));
-}
-
-export async function markHomeEntryRead(entry: string) {
-  const channel = ENTRY_CHANNEL[entry];
-  if (!channel) return;
-  try {
-    await api.markMessageChannelRead(channel);
-  } catch {
-    return;
-  }
-  setHomeState((prev) => ({
-    ...prev,
-    channelUnread: { ...prev.channelUnread, [channel]: false },
-  }));
 }
 
 function applySessionPayload(payload: Record<string, unknown> | null, gen?: number) {
