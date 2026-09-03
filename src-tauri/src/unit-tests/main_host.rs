@@ -676,3 +676,6 @@ fn t5_does_not_add_frontend_notes_selection_test_harness() {
 
 #[path = "main_host/produce_wiring.rs"]
 mod produce_wiring;
+
+#[path = "main_host/ac1.rs"]
+mod ac1;

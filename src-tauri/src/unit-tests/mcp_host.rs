@@ -2498,3 +2498,6 @@ fn get_note_content_name_and_digest_route() {
     }
 }
 
+#[path = "mcp_host/ac1.rs"]
+mod ac1;
+
