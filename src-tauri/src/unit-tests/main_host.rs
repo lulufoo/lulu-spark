@@ -673,3 +673,6 @@ fn t5_does_not_add_frontend_notes_selection_test_harness() {
         "must not add a new frontend test harness, found {extra:?}"
     );
 }
+
+#[path = "main_host/produce_wiring.rs"]
+mod produce_wiring;

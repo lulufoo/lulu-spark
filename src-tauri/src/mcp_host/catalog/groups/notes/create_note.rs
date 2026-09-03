@@ -1,5 +1,7 @@
 //! MCP API: `create_note`
 
+use std::path::Path;
+
 use serde_json::{json, Value};
 
 use super::schema::create_note_properties;
@@ -14,30 +16,27 @@ fn produce_notes_if_ok(result: &Value) {
     }
 }
 
+fn invoke_after_write(args: &Value, write: fn(&Path, &Value) -> Value) -> Value {
+    match notes_repo_root() {
+        Ok(root) => {
+            let result = write(&root, args);
+            produce_notes_if_ok(&result);
+            result
+        }
+        Err(err) => err,
+    }
+}
+
 pub fn available_in(_channel: &str) -> bool {
     true
 }
 
 pub fn invoke_from_content(args: &Value) -> Value {
-    match notes_repo_root() {
-        Ok(root) => {
-            let result = create_note_content(&root, args);
-            produce_notes_if_ok(&result);
-            result
-        }
-        Err(err) => err,
-    }
+    invoke_after_write(args, create_note_content)
 }
 
 pub fn invoke_from_source(args: &Value) -> Value {
-    match notes_repo_root() {
-        Ok(root) => {
-            let result = create_note(&root, args);
-            produce_notes_if_ok(&result);
-            result
-        }
-        Err(err) => err,
-    }
+    invoke_after_write(args, create_note)
 }
 
 pub fn build(channel: &str) -> Option<ToolRoute> {

@@ -1,8 +1,15 @@
 use serde_json::{json, Value};
 
+use crate::services::message_center;
 use crate::services::read_later;
 
 use super::respond::{respond_read_later_from_value, respond_read_later_json};
+
+fn produce_read_later_if_created(value: &Value) {
+    if value.get("error").is_none() && value.get("_status") == Some(&json!(201)) {
+        let _ = message_center::produce("read_later");
+    }
+}
 
 pub(super) fn handle_read_later_post(mut request: tiny_http::Request) {
     let mut body = String::new();
@@ -27,5 +34,6 @@ pub(super) fn handle_read_later_post(mut request: tiny_http::Request) {
         Some(u) => read_later::create_entry(u, title),
         None => json!({ "error": "Missing url", "_status": 400 }),
     };
+    produce_read_later_if_created(&value);
     respond_read_later_from_value(request, value);
 }
