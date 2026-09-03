@@ -114,6 +114,8 @@ const AI_ASSISTANT_WRITE_COMMANDS: &[&str] = &[
     "agent_chat_turn",
 ];
 
+const MESSAGE_CENTER_WRITE_COMMANDS: &[&str] = &["mark_message_channel_read"];
+
 #[test]
 fn abs_file_write_command_is_acl_allowed() {
     let root = manifest_dir();
@@ -355,6 +357,22 @@ fn ai_assistant_write_commands_are_acl_allowed() {
     let toml = fs::read_to_string(root.join("permissions/write-api.toml")).expect("toml");
     let allow = parse_write_api_toml_allow(&toml);
     let missing: Vec<_> = AI_ASSISTANT_WRITE_COMMANDS
+        .iter()
+        .filter(|cmd| !allow.contains(**cmd))
+        .copied()
+        .collect();
+    assert!(
+        missing.is_empty(),
+        "commands missing from write-api.toml ACL: {missing:?}"
+    );
+}
+
+#[test]
+fn message_center_write_command_is_acl_allowed() {
+    let root = manifest_dir();
+    let toml = fs::read_to_string(root.join("permissions/write-api.toml")).expect("toml");
+    let allow = parse_write_api_toml_allow(&toml);
+    let missing: Vec<_> = MESSAGE_CENTER_WRITE_COMMANDS
         .iter()
         .filter(|cmd| !allow.contains(**cmd))
         .copied()

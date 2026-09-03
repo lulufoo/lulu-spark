@@ -74,6 +74,18 @@ const MCP_CHANNEL_TOOLS_READ_COMMANDS: &[&str] = &["get_mcp_channel_tools"];
 
 const MCP_TICKET_VIEW_READ_COMMANDS: &[&str] = &["get_mcp_ticket_view"];
 
+const MESSAGE_CENTER_READ_COMMANDS: &[&str] = &["get_message_channel_unread"];
+
+const DEFAULT_CAPABILITY_PERMISSIONS: &[&str] = &[
+    "core:default",
+    "read-api",
+    "write-api",
+    "sync-api",
+    "search-api",
+    "opener:default",
+    "dialog:default",
+];
+
 #[test]
 fn read_api_toml_and_acl_manifest_allow_lists_match() {
     let root = manifest_dir();
@@ -183,4 +195,38 @@ fn settings_github_infer_commands_are_acl_allowed() {
     for cmd in ["infer_github_user_url", "check_workbench_root"] {
         assert!(allow.contains(cmd), "{cmd} must be in read-api.toml");
     }
+}
+
+#[test]
+fn message_center_read_command_is_acl_allowed() {
+    let root = manifest_dir();
+    let toml = fs::read_to_string(root.join("permissions/read-api.toml")).expect("toml");
+    let allow = parse_read_api_toml_allow(&toml);
+    let missing: Vec<_> = MESSAGE_CENTER_READ_COMMANDS
+        .iter()
+        .filter(|cmd| !allow.contains(**cmd))
+        .copied()
+        .collect();
+    assert!(
+        missing.is_empty(),
+        "commands missing from read-api.toml ACL: {missing:?}"
+    );
+}
+
+#[test]
+fn default_capability_grants_existing_read_and_write_api_only() {
+    let root = manifest_dir();
+    let raw = fs::read_to_string(root.join("capabilities/default.json")).expect("default.json");
+    let v: serde_json::Value = serde_json::from_str(&raw).expect("default.json");
+    let perms: Vec<_> = v["permissions"]
+        .as_array()
+        .expect("permissions array")
+        .iter()
+        .map(|p| p.as_str().expect("permission string").to_string())
+        .collect();
+    assert_eq!(
+        perms,
+        DEFAULT_CAPABILITY_PERMISSIONS,
+        "capabilities/default.json must keep granting existing read-api / write-api and not open another capability"
+    );
 }

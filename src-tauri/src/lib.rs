@@ -96,6 +96,7 @@ pub fn run() {
             commands::read::get_kb_diff_status,
             commands::read::get_sediment_kb_categories,
             commands::read::get_sediment_kb_repos,
+            commands::read::get_message_channel_unread,
             commands::read_later::create_read_later,
             commands::read_later::get_read_later,
             commands::read_later::mark_read_later,
@@ -172,7 +173,6 @@ pub fn run() {
             commands::write::sediment_kb_rename_category,
             commands::write::sediment_kb_remove_category,
             commands::write::create_note,
-            commands::read::get_message_channel_unread,
             commands::write::mark_message_channel_read,
         ])
         .setup(|app| {
