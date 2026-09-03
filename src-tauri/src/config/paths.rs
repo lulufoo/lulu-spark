@@ -59,6 +59,12 @@ pub fn read_later_path() -> Result<PathBuf, PathsError> {
         .join("read_later.json"))
 }
 
+pub fn message_center_path() -> Result<PathBuf, PathsError> {
+    Ok(workbench_root()?
+        .join("message_center")
+        .join("message_center.json"))
+}
+
 /// Per-channel MCP tool checkboxes: `{workbench_root}/mcp_channel_tools.json`.
 pub fn mcp_channel_tools_path() -> Result<PathBuf, PathsError> {
     Ok(workbench_root()?.join("mcp_channel_tools.json"))

@@ -17,6 +17,7 @@ pub mod link_title;
 pub mod entry_write;
 pub mod todo_task;
 pub mod read_later;
+pub mod message_center;
 pub mod reindex;
 pub mod knowledge_layout;
 pub mod sediment_kb;

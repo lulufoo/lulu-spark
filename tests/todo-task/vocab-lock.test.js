@@ -40,11 +40,11 @@ describe('plan→todo vocab lock (tech-doc SK-0 / T1)', () => {
     expect(catalog).not.toContain('complete_plan_sub');
   });
 
-  it('HTTP prefix is /api/todo- and disk body is todo.md', () => {
+  it('legacy Main Host todo HTTP routes remain absent and disk body is todo.md', () => {
     const dispatch = read('src-tauri/src/main_host/dispatch.rs');
     const paths = read('src-tauri/src/config/paths.rs');
-    expect(dispatch).toMatch(/\/api\/todo-tasks/);
-    expect(dispatch).toMatch(/\/api\/todo-task-/);
+    expect(dispatch).not.toMatch(/\/api\/todo-tasks/);
+    expect(dispatch).not.toMatch(/\/api\/todo-task-/);
     expect(paths).toContain('.join("todo.md")');
     expect(paths).not.toContain('.join("plan.md")');
   });

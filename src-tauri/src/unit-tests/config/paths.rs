@@ -93,6 +93,18 @@ fn read_later_path_under_workbench_root() {
 }
 
 #[test]
+fn message_center_path_under_workbench_root() {
+    let sandbox = TestSandbox::new();
+    let wb = sandbox.workbench_root();
+    let path = message_center_path().expect("message_center");
+    assert_eq!(
+        path,
+        wb.join("message_center").join("message_center.json")
+    );
+    sandbox.assert_not_prod_path(&path).expect("sandbox path");
+}
+
+#[test]
 fn mcp_channel_tools_path_under_workbench_root() {
     let sandbox = TestSandbox::new();
     let path = mcp_channel_tools_path().expect("mcp_channel_tools");
@@ -135,13 +147,16 @@ fn ssot_paths_use_configured_workbench_root_not_cache() {
     let sediment = sediment_kb_dir().expect("sediment");
     let read_later = read_later_path().expect("read_later");
     let todo_tasks = todo_tasks_path().expect("todo_tasks");
+    let message_center = message_center_path().expect("message_center");
     assert!(sediment.starts_with(&wb));
     assert!(read_later.starts_with(&wb));
     assert!(todo_tasks.starts_with(&wb));
+    assert!(message_center.starts_with(&wb));
     let cache = cache_dir().expect("cache");
     assert!(!sediment.starts_with(&cache));
     assert!(!read_later.starts_with(&cache));
     assert!(!todo_tasks.starts_with(&cache));
+    assert!(!message_center.starts_with(&cache));
 }
 
 #[test]

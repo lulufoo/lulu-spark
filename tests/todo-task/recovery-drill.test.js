@@ -70,7 +70,7 @@ describe('T11 — no automatic reverse migration (falsifier)', () => {
     expect(offenders, `auto/reverse migrate refs:\n${offenders.join('\n')}`).toEqual([]);
   });
 
-  it('missing .migration_gate_passed gates todo API only — ensure_todo_api_ungated, not App abort', () => {
+  it('missing .migration_gate_passed gates MCP todo tools only — no App abort', () => {
     const service = read('src-tauri/src/services/todo_task/migrate.rs');
     expect(service).toContain('ensure_todo_api_ungated');
     expect(service).toContain('.migration_gate_passed');
@@ -82,9 +82,12 @@ describe('T11 — no automatic reverse migration (falsifier)', () => {
     );
     expect(gateFn).not.toMatch(/process::exit|std::process::exit|panic!\(/);
 
-    const http = read('src-tauri/src/main_host');
-    expect(http).toContain('ensure_todo_api_ungated');
-    expect(http).toMatch(/no auto-migrate|Durable migration gate/i);
+    const mcpRouteUtil = read('src-tauri/src/mcp_host/catalog/route_util.rs');
+    expect(mcpRouteUtil).toContain('pub fn gated_todo');
+    expect(mcpRouteUtil).toContain('todo_task::ensure_todo_api_ungated');
+
+    const todoCatalog = read('src-tauri/src/mcp_host/catalog/groups/todo');
+    expect(todoCatalog).toContain('gated_todo(');
   });
 });
 
