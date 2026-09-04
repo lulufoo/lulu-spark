@@ -7541,11 +7541,16 @@ button.notes-cat-item:disabled { opacity: .65; cursor: default; }
 .home-chat-staged {
   width: 100%;
   max-width: var(--home-chat-col);
-  margin: 0 0 8px;
+  margin: 0;
   border: 1px solid #d0d7de;
-  border-radius: 10px;
+  border-bottom: none;
+  border-radius: 12px 12px 0 0;
   background: #fff;
   overflow: hidden;
+}
+.home-chat-staged + .home-chat-composer-dock {
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
 }
 .home-chat-staged-summary {
   cursor: pointer;

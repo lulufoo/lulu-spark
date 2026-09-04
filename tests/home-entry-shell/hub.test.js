@@ -558,6 +558,12 @@ describe('home hub composer and hub pairing', () => {
     expect(appCss).toMatch(/--home-chat-col:\s*calc\(50% \+ 360px\)/);
     expect(appCss).toMatch(/\.home-chat-composer-dock/);
     expect(appCss).toMatch(/\.home-chat-composer-dock\s*\{[^}]*min-height:\s*40px/);
+    expect(appCss).toMatch(
+      /\.home-chat-staged\s*\{[^}]*margin:\s*0;[^}]*border-bottom:\s*none/,
+    );
+    expect(appCss).toMatch(
+      /\.home-chat-staged \+ \.home-chat-composer-dock\s*\{[^}]*border-top-left-radius:\s*0/,
+    );
     expect(appCss).toMatch(/\.home-chat-send\s*\{[^}]*width:\s*28px/);
     expect(appCss).toMatch(/\.home-chat-bubble--user\s*\{[^}]*background:\s*#f0f2f4/);
     expect(appCss).toMatch(/\.home-chat-bubble--assistant\s*\{[^}]*white-space:\s*normal/);
