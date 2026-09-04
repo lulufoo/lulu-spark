@@ -1,10 +1,9 @@
 //! Chat-scoped Stage tools (stage / list_staged / get_staged).
-//!
-//! Depends on session Stage CRUD only — no path fence, no UI semantics.
 
 use serde_json::{json, Value};
 
 use crate::agent::session::{Session, StagedEntry};
+use crate::services::path_fence::{validate_stage_file, PathFence};
 
 use super::catalog::{LocalTool, ToolCatalog, ToolResult};
 use super::fs;
@@ -16,7 +15,7 @@ pub fn catalog() -> ToolCatalog {
     ToolCatalog::from_local_tools(vec![
         local_tool(
             "stage",
-            "Register a file path on this Chat's Stage and assign a staged document id (F1, F2, …). path is required; title is optional and defaults to the last path segment without extension. Does not store file body.",
+            "Register an eligible regular file on this Chat's Stage and assign a staged document id (F1, F2, …). path must be an absolute readable file; title is optional. Same path reuses the existing id. Does not store file body.",
             json!({
                 "type": "object",
                 "properties": {
@@ -58,9 +57,14 @@ pub fn is_builtin(name: &str) -> bool {
     matches!(name, "stage" | "list_staged" | "get_staged")
 }
 
-pub fn call(name: &str, arguments: &Value, session: &mut Session) -> ToolResult {
+pub fn call(
+    name: &str,
+    arguments: &Value,
+    session: &mut Session,
+    fence: Option<&PathFence>,
+) -> ToolResult {
     let result = match name {
-        "stage" => stage(arguments, session),
+        "stage" => stage(arguments, session, fence),
         "list_staged" => list_staged(session),
         "get_staged" => get_staged(arguments, session),
         other => Err(format!("unknown stage tool '{other}'")),
@@ -95,10 +99,22 @@ fn entry_json(entry: &StagedEntry) -> Result<String, String> {
     serde_json::to_string(entry).map_err(|e| e.to_string())
 }
 
-fn stage(arguments: &Value, session: &mut Session) -> Result<String, String> {
+fn stage(
+    arguments: &Value,
+    session: &mut Session,
+    fence: Option<&PathFence>,
+) -> Result<String, String> {
+    let Some(fence) = fence else {
+        return Err("Host tool 'stage' has no path fence for this binding.".into());
+    };
     let path = fs::arg_str(arguments, "path")?;
     let title = arguments.get("title").and_then(Value::as_str);
-    entry_json(&session.register_staged(&path, title, None)?)
+    let canon = validate_stage_file(&path, fence)?;
+    entry_json(&session.register_staged(
+        &canon.to_string_lossy(),
+        title,
+        None,
+    )?)
 }
 
 fn list_staged(session: &Session) -> Result<String, String> {

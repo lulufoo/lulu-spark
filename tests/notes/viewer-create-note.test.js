@@ -149,6 +149,7 @@ const CREATE_CHROME_HIDDEN_IDS = [
   'knowledge-panel',
   'btn-copy-http',
   'btn-copy-path',
+  'btn-open-in-chat',
   'btn-goto-kb',
   'btn-open-iterm',
   'comment-float-nav',
@@ -163,7 +164,7 @@ function resetViewerDom() {
     'md-links-bar', 'md-tags-bar', 'knowledge-panel', 'md-commit-bar', 'md-commit-msg',
     'md-commit-result', 'btn-commit-file', 'md-btn-commit-cancel', 'md-btn-commit-ok',
     'md-btn-revert-all', 'md-commit-dialog-msg', 'md-commit-dialog-result',
-    'md-commit-file-list', 'btn-copy-http', 'btn-copy-path', 'btn-goto-kb', 'btn-open-iterm',
+    'md-commit-file-list', 'btn-copy-http', 'btn-copy-path', 'btn-open-in-chat', 'btn-goto-kb', 'btn-open-iterm',
     'comment-float-nav',
   ]) {
     const el = makeEl(id);

@@ -98,6 +98,10 @@ describe('mountKbReader', () => {
     expect(container.querySelector('.kb-reader-body')).toBeTruthy();
     expect(container.querySelector('.kb-btn-edit')).toBeTruthy();
     expect(container.querySelector('.kb-btn-reindex')).toBeTruthy();
+    const openInChat = container.querySelector('.kb-btn-open-in-chat');
+    expect(openInChat).toBeTruthy();
+    expect(openInChat.getAttribute('aria-label')).toBe('Open in chat');
+    expect(openInChat.getAttribute('title')).toBe('Open in chat');
     unmount();
   });
 

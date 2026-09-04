@@ -136,6 +136,7 @@ pub fn run() {
             commands::ai_assistant::create_chat_session,
             commands::ai_assistant::delete_chat_session,
             commands::ai_assistant::unstage_chat_staged,
+            commands::ai_assistant::stage_chat_document,
             commands::ai_assistant::set_binding,
             commands::ai_assistant::reset_binding,
             commands::ai_assistant::defensive_unbound,

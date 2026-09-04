@@ -1,7 +1,9 @@
 use std::fs;
 use std::path::PathBuf;
 
-use crate::services::path_fence::{require_absolute, sanitize_session_segment, PathFence};
+use crate::services::path_fence::{
+    require_absolute, sanitize_session_segment, stored_path, validate_stage_file, PathFence,
+};
 
 fn unique_dir(label: &str) -> PathBuf {
     let dir = std::env::temp_dir().join(format!(
@@ -101,4 +103,65 @@ fn sanitize_session_segment_rejects_empty_slash_and_overlong() {
     assert!(sanitize_session_segment("").is_err());
     assert!(sanitize_session_segment("../escape").is_err());
     assert!(sanitize_session_segment(&"a".repeat(81)).is_err());
+}
+
+#[test]
+fn validate_stage_file_accepts_regular_file_and_rejects_dir_deny() {
+    let root = unique_dir("stage-file");
+    let file = root.join("ok.md");
+    fs::write(&file, "hi").expect("write");
+    fs::create_dir_all(root.join(".git")).expect("git dir");
+    fs::write(root.join(".git").join("config"), "x").expect("git file");
+    let fence = fence_with(root.clone(), unique_dir("scratch-parent"));
+    let canon = validate_stage_file(&file.to_string_lossy(), &fence).expect("file");
+    assert_eq!(canon, stored_path(file));
+    assert!(validate_stage_file(&root.to_string_lossy(), &fence)
+        .unwrap_err()
+        .contains("regular file"));
+    assert!(validate_stage_file("rel.md", &fence).is_err());
+    assert!(
+        validate_stage_file(&root.join(".git").join("config").to_string_lossy(), &fence)
+            .unwrap_err()
+            .contains("read fence")
+    );
+}
+
+#[test]
+fn session_writes_add_exact_file_and_keep_scratch() {
+    let root = unique_dir("wb-writes");
+    let file = root.join("note.md");
+    fs::write(&file, "hi").expect("write");
+    let scratch_parent = unique_dir("agent-scratch");
+    let fence = fence_with(root.clone(), scratch_parent.clone())
+        .with_session_writes("sess_abc", [file.to_string_lossy()])
+        .expect("writes");
+    let scratch = scratch_parent.join("sess_abc");
+    assert!(fence.allows_write(&scratch.join("pad.md")));
+    assert!(fence.allows_write(&file));
+    assert!(!fence.allows_write(&root.join("other.md")));
+}
+
+#[test]
+fn session_writes_are_isolated_and_skip_invalid_staged() {
+    let root = unique_dir("iso");
+    let file_a = root.join("a.md");
+    let file_b = root.join("b.md");
+    fs::write(&file_a, "a").expect("a");
+    fs::write(&file_b, "b").expect("b");
+    let parent = unique_dir("scratch-iso");
+    let base = fence_with(root.clone(), parent);
+    let fence_a = base
+        .with_session_writes("sess_a", [file_a.to_string_lossy()])
+        .expect("a");
+    let fence_b = base
+        .with_session_writes("sess_b", [file_b.to_string_lossy()])
+        .expect("b");
+    assert!(fence_a.allows_write(&file_a));
+    assert!(!fence_a.allows_write(&file_b));
+    assert!(fence_b.allows_write(&file_b));
+    assert!(!fence_b.allows_write(&file_a));
+    let skipped = base
+        .with_session_writes("sess_a", [root.to_string_lossy()])
+        .expect("skip dir");
+    assert!(!skipped.allows_write(&file_a));
 }

@@ -14,6 +14,7 @@ const FALLBACK_SHELL_HTML = `
         <button type="button" class="md-header-btn kb-btn-open-iterm" style="display:none" title="Open repo folder in iTerm">⌨️ Terminal</button>
         <button type="button" class="md-header-btn kb-btn-copy-http" data-tip="">&#127760;</button>
         <button type="button" class="md-header-btn kb-btn-copy-path" data-tip="">&#128194;</button>
+        <button type="button" class="md-header-btn kb-btn-open-in-chat" title="Open in chat" aria-label="Open in chat">&#128172;</button>
         <button type="button" class="md-header-btn kb-btn-edit">✏️ Edit</button>
         <button type="button" class="md-header-btn kb-btn-add-comment">💬 Comment</button>
         <button type="button" class="md-header-btn primary kb-btn-save" style="display:none">💾 Save</button>
@@ -62,6 +63,14 @@ export function ReaderShell() {
         </button>
         <button type="button" className="md-header-btn kb-btn-copy-path" data-tip="">
           &#128194;
+        </button>
+        <button
+          type="button"
+          className="md-header-btn kb-btn-open-in-chat"
+          title="Open in chat"
+          aria-label="Open in chat"
+        >
+          &#128172;
         </button>
         <button type="button" className="md-header-btn kb-btn-edit">
           ✏️ Edit

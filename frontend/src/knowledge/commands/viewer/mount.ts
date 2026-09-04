@@ -6,6 +6,7 @@ import { initKbComments, cleanupKbComments } from '../../ui/comments.tsx';
 import { setDocEditMode } from '../../../doc-editor/view.tsx';
 import { openKbCommitDialog } from './commit.ts';
 import { cleanupKbHighlightUI, initKbHighlightUI, renderKbMdBody } from '../../ui/viewer/highlight.ts';
+import { openKnowledgeInChat } from '../open-in-chat.ts';
 import { paintKbError, paintKbLoading, paintKbPlain, paintReaderShell } from '../../ui/viewer/shell.tsx';
 import {
   errMessage,
@@ -112,6 +113,7 @@ export async function mountKbReader(
     itermBtn: container.querySelector('.kb-btn-open-iterm') as HTMLButtonElement,
     btnCopyHttp: container.querySelector('.kb-btn-copy-http') as HTMLButtonElement,
     btnCopyPath: container.querySelector('.kb-btn-copy-path') as HTMLButtonElement,
+    btnOpenInChat: container.querySelector('.kb-btn-open-in-chat') as HTMLButtonElement,
     btnEdit: container.querySelector('.kb-btn-edit') as HTMLButtonElement,
     btnSave: container.querySelector('.kb-btn-save') as HTMLButtonElement,
     btnCancelEdit: container.querySelector('.kb-btn-cancel-edit') as HTMLButtonElement,
@@ -248,6 +250,12 @@ export async function mountKbReader(
         }, 1200);
       })
       .catch(() => {});
+  });
+  bindReaderListener(listeners, ui.btnOpenInChat, 'click', () => {
+    const copyPath = ui.btnCopyPath.dataset.path || '';
+    void openKnowledgeInChat(copyPath, ui.btnOpenInChat).catch((err) => {
+      alert(err instanceof Error ? err.message : String(err));
+    });
   });
   bindReaderListener(listeners, ui.btnCopyPath, 'click', (e) => {
     const btn = e.currentTarget as HTMLButtonElement;

@@ -214,3 +214,57 @@ fn write_and_edit_are_scratch_only() {
     assert!(many.is_error);
     assert!(many.content.contains("more than once"));
 }
+
+#[test]
+fn write_and_edit_succeed_on_exact_staged_file() {
+    let read_root = unique_dir("read-staged");
+    let scratch_parent = unique_dir("scratch-parent-staged");
+    let file = read_root.join("note.md");
+    fs::write(&file, "hello").expect("seed");
+    let fence = PathFence {
+        read_allow: vec![read_root.clone()],
+        read_deny: vec![read_root.join(".git")],
+        write_allow: vec![],
+        write_deny: vec![],
+        scratch_parent: Some(scratch_parent.clone()),
+    }
+    .with_session_writes("sess_fs", [file.to_string_lossy()])
+    .expect("writes");
+
+    let other = read_root.join("other.md");
+    let denied = host::call(
+        "write",
+        &json!({ "path": other.to_string_lossy(), "content": "nope" }),
+        &fence,
+    );
+    assert!(denied.is_error);
+    assert!(!other.exists());
+
+    let wrote = host::call(
+        "write",
+        &json!({ "path": file.to_string_lossy(), "content": "hello world" }),
+        &fence,
+    );
+    assert!(!wrote.is_error, "{}", wrote.content);
+    assert_eq!(fs::read_to_string(&file).expect("read"), "hello world");
+
+    let edited = host::call(
+        "edit",
+        &json!({
+            "path": file.to_string_lossy(),
+            "old_text": "world",
+            "new_text": "staged"
+        }),
+        &fence,
+    );
+    assert!(!edited.is_error, "{}", edited.content);
+    assert_eq!(fs::read_to_string(&file).expect("read"), "hello staged");
+
+    let pad = scratch_parent.join("sess_fs").join("pad.md");
+    let scratch = host::call(
+        "write",
+        &json!({ "path": pad.to_string_lossy(), "content": "scratch" }),
+        &fence,
+    );
+    assert!(!scratch.is_error, "{}", scratch.content);
+}

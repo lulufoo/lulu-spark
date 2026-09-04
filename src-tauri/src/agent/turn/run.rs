@@ -113,11 +113,7 @@ pub(crate) fn run_loop_with_progress(
         return cancelled_turn_outcome(session, turns_checkpoint);
     }
 
-    let turn_fence = loaded_path_fence().map(|fence| {
-        fence
-            .with_session_scratch(&session.session_id)
-            .unwrap_or(fence)
-    });
+    let mut turn_fence = turn_fence_for_session(session);
     let mcp_config = session_capability_mcp_config();
     let turn_tools = match tools::discover_and_merge(mcp_config.as_ref(), turn_fence.is_some()) {
         Ok(tools) => tools,
@@ -322,6 +318,9 @@ pub(crate) fn run_loop_with_progress(
             if !result.is_error && (catalog.is_mutating(&call.name) || staged_note) {
                 wrote = true;
             }
+            if !result.is_error && (call.name == "stage" || staged_note) {
+                turn_fence = turn_fence_for_session(session);
+            }
             let _ = diagnostics::log(
                 DiagnosticEvent::timing(
                     "assistant.tools",
@@ -447,4 +446,17 @@ pub(crate) fn run_loop_with_progress(
         terminal: Terminal::None,
         wrote,
     }
+}
+
+fn turn_fence_for_session(session: &Session) -> Option<crate::services::path_fence::PathFence> {
+    loaded_path_fence().map(|base| {
+        base.with_session_writes(
+            &session.session_id,
+            session.staged.iter().map(|entry| entry.path.as_str()),
+        )
+        .unwrap_or_else(|_| {
+            base.with_session_scratch(&session.session_id)
+                .unwrap_or(base)
+        })
+    })
 }

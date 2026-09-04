@@ -80,6 +80,10 @@ pub fn unstage_chat_staged_json(session_id: &str, staged_id: &str) -> Result<Val
     r#loop::unstage_chat_staged_core(session_id, staged_id)
 }
 
+pub fn stage_chat_document_json(session_id: &str, path: &str) -> Result<Value, String> {
+    r#loop::stage_chat_document_core(session_id, path)
+}
+
 /// Binding Contract Set entry (key-only). Looks up Host MCP registry; rejects legacy
 /// tools/prompt/callbacks payload and engine selection parameters.
 pub fn set_binding_json(binding: Value) -> Value {
@@ -349,6 +353,13 @@ pub async fn unstage_chat_staged(session_id: String, id: String) -> Result<Value
 }
 
 #[tauri::command]
+pub async fn stage_chat_document(session_id: String, path: String) -> Result<Value, String> {
+    tauri::async_runtime::spawn_blocking(move || stage_chat_document_json(&session_id, &path))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
 pub async fn agent_chat_turn(
     app: AppHandle,
     session_id: String,
@@ -457,3 +468,7 @@ mod chat_delete_tests;
 #[cfg(test)]
 #[path = "../unit-tests/commands/ai_assistant_chat_unstage.rs"]
 mod chat_unstage_tests;
+
+#[cfg(test)]
+#[path = "../unit-tests/commands/ai_assistant_chat_stage.rs"]
+mod chat_stage_tests;

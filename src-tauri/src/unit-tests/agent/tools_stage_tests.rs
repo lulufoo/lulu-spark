@@ -6,6 +6,7 @@ use serde_json::{json, Value};
 use crate::agent::r#loop;
 use crate::agent::session::{self, Session};
 use crate::agent::tools::stage;
+use crate::services::path_fence::{stored_path, PathFence};
 use crate::test_support::TestSandbox;
 
 const SECRET_BODY: &str = "SECRET_BODY_MUST_NOT_APPEAR";
@@ -28,6 +29,20 @@ fn write_note(label: &str, name: &str) -> PathBuf {
     let path = unique_dir(label).join(name);
     fs::write(&path, SECRET_BODY).expect("write");
     path
+}
+
+fn fence_for(path: &std::path::Path) -> PathFence {
+    PathFence {
+        read_allow: vec![path.parent().expect("parent").to_path_buf()],
+        read_deny: vec![],
+        write_allow: vec![],
+        write_deny: vec![],
+        scratch_parent: None,
+    }
+}
+
+fn stored(path: &std::path::Path) -> String {
+    stored_path(path.to_path_buf()).to_string_lossy().into_owned()
 }
 
 fn with_live_chat<F: FnOnce(&mut Session)>(f: F) {
@@ -81,13 +96,15 @@ fn stage_into_appends_default_title_without_body() {
     with_live_chat(|sess| {
         let path = write_note("stage-default", "my-note.md");
         let path_str = path.to_string_lossy().to_string();
-        let result = stage::call("stage", &json!({ "path": path_str }), sess);
+        let fence = fence_for(&path);
+        let result = stage::call("stage", &json!({ "path": path_str }), sess, Some(&fence));
         assert!(!result.is_error && !result.content.contains(SECRET_BODY), "{}", result.content);
         assert_eq!(sess.staged.len(), 1);
         assert_eq!(sess.staged[0].id, "F1");
         assert!(sess.staged[0].kind.is_none());
-        assert_path_only(&serde_json::to_value(&sess.staged[0]).unwrap(), &path_str, "my-note");
-        assert_path_only(&as_json(&result.content), &path_str, "my-note");
+        let stored_path = stored(&path);
+        assert_path_only(&serde_json::to_value(&sess.staged[0]).unwrap(), &stored_path, "my-note");
+        assert_path_only(&as_json(&result.content), &stored_path, "my-note");
         assert_eq!(as_json(&result.content)["id"], "F1");
         session::save_session(sess).expect("persist");
         let loaded = session::load_session(&sess.session_id).expect("reload");
@@ -101,12 +118,17 @@ fn stage_uses_caller_title() {
     with_live_chat(|sess| {
         let path = write_note("stage-title", "file.md");
         let path_str = path.to_string_lossy().to_string();
-        let result =
-            stage::call("stage", &json!({ "path": path_str, "title": "Given Title" }), sess);
+        let fence = fence_for(&path);
+        let result = stage::call(
+            "stage",
+            &json!({ "path": path_str, "title": "Given Title" }),
+            sess,
+            Some(&fence),
+        );
         assert!(!result.is_error, "{}", result.content);
         assert_eq!(
             (sess.staged[0].title.as_str(), sess.staged[0].path.as_str()),
-            ("Given Title", path_str.as_str())
+            ("Given Title", stored(&path).as_str())
         );
     });
 }
@@ -116,10 +138,12 @@ fn list_staged_lists_only_the_session_passed_in() {
     with_live_chat(|sess_a| {
         let sid_a = sess_a.session_id.clone();
         let a = write_note("list-a", "a.md");
+        let fence_a = fence_for(&a);
         assert!(!stage::call(
             "stage",
             &json!({"path": a.to_string_lossy(), "title": "A"}),
-            sess_a
+            sess_a,
+            Some(&fence_a),
         )
         .is_error);
         session::save_session(sess_a).expect("save a");
@@ -130,19 +154,21 @@ fn list_staged_lists_only_the_session_passed_in() {
             .to_string();
         let mut sess_b = session::load_session(&sid_b).expect("b");
         let b = write_note("list-b", "b.md");
+        let fence_b = fence_for(&b);
         assert!(!stage::call(
             "stage",
             &json!({"path": b.to_string_lossy(), "title": "B"}),
-            &mut sess_b
+            &mut sess_b,
+            Some(&fence_b),
         )
         .is_error);
-        let listed_b = as_json(&stage::call("list_staged", &json!({}), &mut sess_b).content);
+        let listed_b = as_json(&stage::call("list_staged", &json!({}), &mut sess_b, None).content);
         assert_eq!(listed_b.as_array().expect("b").len(), 1);
         assert_eq!(listed_b[0]["title"], "B");
         assert_ne!(sid_a, sid_b);
 
         let mut sess_a2 = session::load_session(&sid_a).expect("a again");
-        let listed_a = as_json(&stage::call("list_staged", &json!({}), &mut sess_a2).content);
+        let listed_a = as_json(&stage::call("list_staged", &json!({}), &mut sess_a2, None).content);
         assert_eq!(listed_a.as_array().expect("a")[0]["title"], "A");
         assert_eq!(listed_a.as_array().unwrap().len(), 1);
         assert!(session::load_session(&sid_b).expect("b disk").staged.is_empty());
@@ -156,18 +182,19 @@ fn get_staged_returns_id_path_title_without_body() {
     with_live_chat(|sess| {
         let path = write_note("get-staged", "doc.md");
         let path_str = path.to_string_lossy().to_string();
-        assert!(!stage::call("stage", &json!({ "path": path_str }), sess).is_error);
+        let fence = fence_for(&path);
+        assert!(!stage::call("stage", &json!({ "path": path_str }), sess, Some(&fence)).is_error);
         let id = sess.staged[0].id.clone();
-        let got = stage::call("get_staged", &json!({ "id": id }), sess);
+        let got = stage::call("get_staged", &json!({ "id": id }), sess, None);
         assert!(!got.is_error && !got.content.contains(SECRET_BODY), "{}", got.content);
-        assert_path_only(&as_json(&got.content), &path_str, "doc");
+        assert_path_only(&as_json(&got.content), &stored(&path), "doc");
     });
 }
 
 #[test]
 fn stage_missing_path_fails_and_does_not_write() {
     with_live_chat(|sess| {
-        let result = stage::call("stage", &json!({ "title": "no-path" }), sess);
+        let result = stage::call("stage", &json!({ "title": "no-path" }), sess, None);
         assert!(result.is_error && !result.content.contains(SECRET_BODY));
         assert!(sess.staged.is_empty());
     });
@@ -177,7 +204,7 @@ fn stage_missing_path_fails_and_does_not_write() {
 fn get_staged_missing_or_unknown_id_fails_without_body() {
     with_live_chat(|sess| {
         for args in [json!({}), json!({ "id": "stg_missing" })] {
-            let result = stage::call("get_staged", &args, sess);
+            let result = stage::call("get_staged", &args, sess, None);
             assert!(result.is_error && !result.content.contains(SECRET_BODY), "{}", result.content);
         }
     });
@@ -194,14 +221,76 @@ fn stage_does_not_follow_live_when_session_differs() {
         r#loop::select_chat_session_core(&sid_live).expect("live");
         let mut turn = session::load_session(&sid_turn).expect("turn");
         let path = write_note("stage-turn", "t.md");
+        let fence = fence_for(&path);
         assert!(!stage::call(
             "stage",
             &json!({ "path": path.to_string_lossy(), "title": "T" }),
-            &mut turn
+            &mut turn,
+            Some(&fence),
         )
         .is_error);
         session::save_session(&turn).expect("persist turn");
         assert_eq!(session::load_session(&sid_turn).expect("turn").staged.len(), 1);
         assert!(session::load_session(&sid_live).expect("live").staged.is_empty());
+    });
+}
+
+#[test]
+fn stage_reuses_handle_for_same_path() {
+    with_live_chat(|sess| {
+        let path = write_note("stage-reuse", "same.md");
+        let fence = fence_for(&path);
+        let first = stage::call(
+            "stage",
+            &json!({ "path": path.to_string_lossy() }),
+            sess,
+            Some(&fence),
+        );
+        let second = stage::call(
+            "stage",
+            &json!({ "path": path.to_string_lossy() }),
+            sess,
+            Some(&fence),
+        );
+        assert!(!first.is_error && !second.is_error);
+        assert_eq!(as_json(&first.content)["id"], "F1");
+        assert_eq!(as_json(&second.content)["id"], "F1");
+        assert_eq!(sess.staged.len(), 1);
+    });
+}
+
+#[test]
+fn stage_rejects_directory_relative_and_missing_fence() {
+    with_live_chat(|sess| {
+        let dir = unique_dir("stage-dir");
+        let fence = PathFence {
+            read_allow: vec![dir.clone()],
+            read_deny: vec![],
+            write_allow: vec![],
+            write_deny: vec![],
+            scratch_parent: None,
+        };
+        let dir_err = stage::call(
+            "stage",
+            &json!({ "path": dir.to_string_lossy() }),
+            sess,
+            Some(&fence),
+        );
+        assert!(dir_err.is_error && dir_err.content.contains("regular file"));
+        let rel_err = stage::call(
+            "stage",
+            &json!({ "path": "relative.md" }),
+            sess,
+            Some(&fence),
+        );
+        assert!(rel_err.is_error);
+        let no_fence = stage::call(
+            "stage",
+            &json!({ "path": dir.join("x.md").to_string_lossy() }),
+            sess,
+            None,
+        );
+        assert!(no_fence.is_error && no_fence.content.contains("no path fence"));
+        assert!(sess.staged.is_empty());
     });
 }

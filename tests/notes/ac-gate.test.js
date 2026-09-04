@@ -192,6 +192,7 @@ describe('Note AC gate (tech-doc VF / T-13)', () => {
     expect(viewer).toMatch(/is-create/);
     expect(viewer).toMatch(/btn-copy-http/);
     expect(viewer).toMatch(/btn-copy-path/);
+    expect(viewer).toMatch(/btn-open-in-chat/);
     expect(viewer).toMatch(/createChromePrevDisplay/);
     const css = read('frontend/app.css');
     expect(css).toMatch(/\.viewer-modal\.is-create\s+\.viewer-chrome-persisted/);

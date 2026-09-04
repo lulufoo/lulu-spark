@@ -14,6 +14,7 @@ import { NotesSidebar } from './ui/sidebar.tsx';
 import { NotesTagsBar } from './ui/tags-bar.tsx';
 import { clearTagFilter } from './commands/sidebar.ts';
 import { initSidebarResize } from './ui/sidebar-resize.ts';
+import { openNoteInChat } from './commands/open-in-chat.ts';
 import { closeModal, enterEditMode, exitEditMode, saveDoc, switchLang } from './viewer.ts';
 import { renderDocBody } from './ui/viewer/body.tsx';
 import { openCommitDialog } from './ui/viewer/commit.tsx';
@@ -313,6 +314,27 @@ function NotesOutletChrome({ routeParams }: { routeParams: Record<string, string
             }
           >
             📁
+          </button>
+          <button
+            className="md-header-btn viewer-chrome-persisted"
+            id="btn-open-in-chat"
+            type="button"
+            title="Open in chat"
+            aria-label="Open in chat"
+            style={{ display: entry && !creating ? undefined : 'none' }}
+            onClick={(event) => {
+              void openNoteInChat(
+                entry,
+                viewer.lang,
+                viewer.layer,
+                host.ui.workbenchRoot,
+                event.currentTarget,
+              ).catch((err) => {
+                alert(err instanceof Error ? err.message : String(err));
+              });
+            }}
+          >
+            🗨️
           </button>
           <button
             className="md-header-btn viewer-chrome-persisted"

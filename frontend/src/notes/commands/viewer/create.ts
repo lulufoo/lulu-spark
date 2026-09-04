@@ -20,6 +20,7 @@ const CREATE_CHROME_HIDDEN_IDS = [
   'knowledge-panel',
   'btn-copy-http',
   'btn-copy-path',
+  'btn-open-in-chat',
   'btn-goto-kb',
   'btn-open-iterm',
   'comment-float-nav',

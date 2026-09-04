@@ -195,6 +195,14 @@ impl Session {
         if path.is_empty() {
             return Err("missing path".to_string());
         }
+        let key = staged_path_key(path);
+        if let Some(existing) = self
+            .staged
+            .iter()
+            .find(|entry| staged_path_key(&entry.path) == key)
+        {
+            return Ok(existing.clone());
+        }
         let title = title
             .map(str::trim)
             .filter(|s| !s.is_empty())
@@ -221,6 +229,12 @@ impl Session {
     pub fn get_staged(&self, id: &str) -> Option<&StagedEntry> {
         self.staged.iter().find(|entry| entry.id == id)
     }
+}
+
+fn staged_path_key(path: &str) -> String {
+    crate::services::path_fence::stored_path(std::path::PathBuf::from(path.trim()))
+        .to_string_lossy()
+        .into_owned()
 }
 
 fn default_staged_title(path: &str) -> String {

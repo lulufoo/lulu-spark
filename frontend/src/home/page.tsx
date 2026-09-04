@@ -15,6 +15,7 @@ import {
   startHomeHub,
   stopHomeHub,
 } from './commands/hub.ts';
+import { consumeComposerFocus } from './commands/composer-focus.ts';
 import { openStagedFile, unstageStaged } from './commands/staged.ts';
 import { StagedList } from './ui/staged-list.tsx';
 import { createImeEnterGuard } from './ime-enter.ts';
@@ -123,6 +124,11 @@ export function HomePage({
     startHomeHub();
     return () => stopHomeHub();
   }, []);
+
+  useEffect(() => {
+    if (!consumeComposerFocus()) return;
+    inputRef.current?.focus();
+  }, [state.currentSessionId, state.staged]);
 
   useEffect(() => {
     const guard = imeEnterRef.current;

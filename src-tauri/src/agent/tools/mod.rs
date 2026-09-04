@@ -170,7 +170,7 @@ pub fn invoke(
 
     let result = if host {
         if stage::is_builtin(name) {
-            stage::call(name, &arguments, session)
+            stage::call(name, &arguments, session, fence)
         } else {
             match fence {
                 Some(fence) => host::call(name, &arguments, fence),

@@ -27,6 +27,24 @@ impl PathFence {
         Ok(next)
     }
 
+    /// Scratch write root plus exact staged regular files that still pass read-fence checks.
+    pub fn with_session_writes(
+        &self,
+        session_id: &str,
+        staged_paths: impl IntoIterator<Item = impl AsRef<str>>,
+    ) -> Result<Self, String> {
+        let mut next = self.with_session_scratch(session_id)?;
+        for raw in staged_paths {
+            let Ok(canon) = validate_stage_file(raw.as_ref(), &next) else {
+                continue;
+            };
+            if !next.write_allow.iter().any(|p| p == &canon) {
+                next.write_allow.push(canon);
+            }
+        }
+        Ok(next)
+    }
+
     pub fn allows_read(&self, path: &Path) -> bool {
         in_any(path, &self.read_allow) && !in_any(path, &self.read_deny)
     }
@@ -54,6 +72,23 @@ pub fn sanitize_session_segment(session_id: &str) -> Result<&str, String> {
 
 pub fn stored_path(path: PathBuf) -> PathBuf {
     path.canonicalize().unwrap_or(path)
+}
+
+/// Absolute existing regular file under the read fence (never a directory).
+pub fn validate_stage_file(path: &str, fence: &PathFence) -> Result<PathBuf, String> {
+    let abs = require_absolute(path)?;
+    let meta = std::fs::symlink_metadata(&abs).map_err(|_| "path does not exist".to_string())?;
+    if meta.file_type().is_dir() {
+        return Err("path must be a regular file".into());
+    }
+    let canon = std::fs::canonicalize(&abs).map_err(|_| "path does not exist".to_string())?;
+    if !canon.is_file() {
+        return Err("path must be a regular file".into());
+    }
+    if !fence.allows_read(&canon) {
+        return Err("path is outside the read fence".into());
+    }
+    Ok(stored_path(canon))
 }
 
 pub fn require_absolute(path: &str) -> Result<PathBuf, String> {
