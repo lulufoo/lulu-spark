@@ -430,9 +430,12 @@ describe('home hub chat sessions', () => {
     input.value = 'Hello there';
     form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
     await vi.waitFor(() => {
-      expect(container.querySelector('[data-role="progress-hint"]')?.textContent).toBe(
-        'Requesting…',
+      const hint = container.querySelector('[data-role="progress-hint"]');
+      expect(hint?.textContent).toBe('Requesting…');
+      expect(container.querySelector('[data-role="messages"] [data-role="progress-hint"]')).toBe(
+        hint,
       );
+      expect(container.querySelector('[data-role="form"] [data-role="progress-hint"]')).toBeNull();
       expect(
         container.querySelector('[data-session-id="s2"] .home-chat-session-progress')
           ?.textContent,

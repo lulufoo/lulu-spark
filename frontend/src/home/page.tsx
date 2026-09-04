@@ -111,6 +111,7 @@ export function HomePage({
   const state = useHomeState();
   const locked = composerLocked(state);
   const hint = progressHint(state);
+  const showProgress = Boolean(hint) || (state.hostBound && locked);
   const messagesRef = useRef<HTMLDivElement | null>(null);
   const formRef = useRef<HTMLFormElement | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
@@ -314,6 +315,9 @@ export function HomePage({
             currentSessionId={state.currentSessionId}
             messages={state.messages}
           />
+          <p className="home-chat-progress" data-role="progress-hint" hidden={!showProgress}>
+            {hint ? <span className="home-chat-progress-text">{hint}</span> : '\u00a0'}
+          </p>
         </div>
         <form ref={formRef} className="home-chat-composer" data-role="form" onSubmit={onSubmit}>
           <StagedList
@@ -324,9 +328,6 @@ export function HomePage({
               void unstageStaged(id);
             }}
           />
-          <p className="home-chat-progress" data-role="progress-hint" hidden={!hint}>
-            {hint}
-          </p>
           <div className="home-chat-composer-dock">
             <textarea
               ref={inputRef}

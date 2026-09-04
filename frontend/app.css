@@ -7488,11 +7488,45 @@ button.notes-cat-item:disabled { opacity: .65; cursor: default; }
   pointer-events: none;
   width: 100%;
   max-width: var(--home-chat-col);
-  margin: 0 0 6px;
-  font-size: 12px;
-  line-height: 1.3;
-  color: #57606a;
-  text-align: right;
+  min-height: 1.45em;
+  margin: 0 auto 20px;
+  padding: 0 2px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: #656d76;
+  text-align: left;
+}
+.home-chat-progress[hidden] {
+  display: none;
+}
+.home-chat-progress-text {
+  display: inline-block;
+  background-image: linear-gradient(
+    90deg,
+    #8b949e 0%,
+    #8b949e 38%,
+    #24292f 50%,
+    #8b949e 62%,
+    #8b949e 100%
+  );
+  background-size: 220% 100%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  animation: home-chat-progress-shimmer 1.8s linear infinite;
+}
+@keyframes home-chat-progress-shimmer {
+  0% { background-position: 100% 0; }
+  100% { background-position: -100% 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .home-chat-progress-text {
+    animation: none;
+    background-image: none;
+    color: #656d76;
+    -webkit-text-fill-color: #656d76;
+  }
 }
 .home-chat-session-progress {
   margin-left: 4px;
