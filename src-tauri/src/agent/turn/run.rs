@@ -173,7 +173,17 @@ pub(crate) fn run_loop_with_progress(
             trace_id,
             "Requesting…",
         );
-        let msg = match llm::chat_completions(&messages, tool_defs, config) {
+        let session_id = session.session_id.clone();
+        let mut on_delta = |hint: &str| {
+            progress::emit_progress(sink, &session_id, trace_id, hint);
+        };
+        let msg = match llm::chat_completions_with_timeout(
+            &messages,
+            tool_defs,
+            config,
+            llm::DEFAULT_TIMEOUT,
+            Some(&mut on_delta),
+        ) {
             Ok(message) => message,
             Err(error) => {
                 if chat_turn_interrupted(&session.session_id, generation) {

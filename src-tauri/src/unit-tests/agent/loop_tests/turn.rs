@@ -1322,13 +1322,18 @@ fn run_loop_emits_requesting_progress() {
             Some(&sink),
         );
         assert_outcome(&out, "none", false);
+        let descs = collected.lock().unwrap().clone();
         assert!(
-            collected
-                .lock()
-                .unwrap()
-                .iter()
-                .any(|desc| desc == "Requesting…"),
-            "loop must emit Requesting…"
+            descs.iter().any(|desc| desc == "Requesting…"),
+            "loop must emit Requesting…, got {descs:?}"
+        );
+        assert!(
+            descs.iter().any(|desc| desc.starts_with("Receiving…")),
+            "run.rs must forward on_delta into ProgressDesc, got {descs:?}"
+        );
+        assert!(
+            !descs.iter().any(|desc| desc.contains("Calling ")),
+            "text-only reply must not emit Calling, got {descs:?}"
         );
     });
 }

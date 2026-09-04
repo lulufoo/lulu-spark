@@ -149,11 +149,7 @@ pub(super) fn spawn_scripted_llm(responses: Vec<(u16, Value)>) -> MockLlm {
                 )
             };
             idx += 1;
-            let body = resp.to_string();
-            let resp = format!(
-                "HTTP/1.1 {status} OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
-                body.len()
-            );
+            let resp = mock_llm_http_response(status, &resp);
             let _ = stream.write_all(resp.as_bytes());
         }
     });
@@ -163,6 +159,45 @@ pub(super) fn spawn_scripted_llm(responses: Vec<(u16, Value)>) -> MockLlm {
         hits,
         _join: join,
     }
+}
+
+fn mock_llm_http_response(status: u16, resp: &Value) -> String {
+    let (content_type, body) =
+        if (200..300).contains(&status) && resp.pointer("/choices/0/message").is_some() {
+            ("text/event-stream", completion_json_to_sse(resp))
+        } else {
+            ("application/json", resp.to_string())
+        };
+    format!(
+        "HTTP/1.1 {status} OK\r\nContent-Type: {content_type}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+        body.len()
+    )
+}
+
+fn completion_json_to_sse(resp: &Value) -> String {
+    let choice = &resp["choices"][0];
+    let message = &choice["message"];
+    let mut delta = serde_json::Map::new();
+    if let Some(role) = message.get("role") {
+        delta.insert("role".into(), role.clone());
+    }
+    match message.get("content") {
+        Some(Value::Null) | None => {}
+        Some(content) => {
+            delta.insert("content".into(), content.clone());
+        }
+    }
+    if let Some(calls) = message.get("tool_calls") {
+        delta.insert("tool_calls".into(), calls.clone());
+    }
+    let chunk = json!({
+        "choices": [{
+            "index": 0,
+            "delta": delta,
+            "finish_reason": choice.get("finish_reason").cloned().unwrap_or(Value::Null)
+        }]
+    });
+    format!("data: {chunk}\n\ndata: [DONE]\n\n")
 }
 
 pub(super) fn cfg_for(mock: &MockLlm) -> LlmConfig {
@@ -418,11 +453,7 @@ where
             f();
         }
         let (status, resp) = response;
-        let body = resp.to_string();
-        let resp = format!(
-            "HTTP/1.1 {status} OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
-            body.len()
-        );
+        let resp = mock_llm_http_response(status, &resp);
         let _ = stream.write_all(resp.as_bytes());
     });
     thread::sleep(Duration::from_millis(20));

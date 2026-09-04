@@ -382,11 +382,7 @@ where
             };
             let (status, resp) = handler(&captured);
             hits_thread.lock().unwrap().push(captured);
-            let body = resp.to_string();
-            let resp = format!(
-                "HTTP/1.1 {status} OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
-                body.len()
-            );
+            let resp = mock_llm_http_response(status, &resp);
             let _ = stream.write_all(resp.as_bytes());
         }
     });
@@ -399,6 +395,45 @@ where
     }
 }
 
+fn mock_llm_http_response(status: u16, resp: &Value) -> String {
+    let (content_type, body) =
+        if (200..300).contains(&status) && resp.pointer("/choices/0/message").is_some() {
+            ("text/event-stream", completion_json_to_sse(resp))
+        } else {
+            ("application/json", resp.to_string())
+        };
+    format!(
+        "HTTP/1.1 {status} OK\r\nContent-Type: {content_type}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+        body.len()
+    )
+}
+
+fn completion_json_to_sse(resp: &Value) -> String {
+    let choice = &resp["choices"][0];
+    let message = &choice["message"];
+    let mut delta = serde_json::Map::new();
+    if let Some(role) = message.get("role") {
+        delta.insert("role".into(), role.clone());
+    }
+    match message.get("content") {
+        Some(Value::Null) | None => {}
+        Some(content) => {
+            delta.insert("content".into(), content.clone());
+        }
+    }
+    if let Some(calls) = message.get("tool_calls") {
+        delta.insert("tool_calls".into(), calls.clone());
+    }
+    let chunk = json!({
+        "choices": [{
+            "index": 0,
+            "delta": delta,
+            "finish_reason": choice.get("finish_reason").cloned().unwrap_or(Value::Null)
+        }]
+    });
+    format!("data: {chunk}\n\ndata: [DONE]\n\n")
+}
+
 fn llm_config_for(mock: &MockLlm) -> LlmConfig {
     LlmConfig {
         api_key: "sk-test-key".into(),
@@ -408,9 +443,9 @@ fn llm_config_for(mock: &MockLlm) -> LlmConfig {
 }
 
 #[test]
-fn llm_chat_completions_sends_openai_compatible_non_stream_request() {
+fn llm_chat_completions_sends_openai_compatible_stream_request() {
     with_agent_sandbox(|_| {
-        let mock = spawn_mock_llm(|req| {
+        let mock = spawn_mock_llm(|_req| {
             (
                 200,
                 json!({
@@ -438,7 +473,7 @@ fn llm_chat_completions_sends_openai_compatible_non_stream_request() {
             hits[0].authorization.as_deref(),
             Some("Bearer sk-test-key")
         );
-        assert_eq!(hits[0].body["stream"], false);
+        assert_eq!(hits[0].body["stream"], true);
         assert_eq!(hits[0].body["tool_choice"], "auto");
         assert_eq!(hits[0].body["model"], "test-model");
         let sent_tools = hits[0].body["tools"].as_array().expect("tools");
@@ -556,9 +591,222 @@ fn llm_timeout_is_typed_and_not_retried() {
             &[],
             &cfg,
             Duration::from_millis(200),
+            None,
         )
         .expect_err("timeout");
         assert!(matches!(err, LlmError::Timeout), "{err:?}");
+    });
+}
+
+fn spawn_sse_writer<F>(write_body: F) -> MockLlm
+where
+    F: FnOnce(&mut std::net::TcpStream) + Send + 'static,
+{
+    let listener = TcpListener::bind("127.0.0.1:0").expect("bind");
+    let port = listener.local_addr().unwrap().port();
+    let hits = Arc::new(Mutex::new(Vec::new()));
+    let hits_thread = hits.clone();
+    let join = thread::spawn(move || {
+        let Ok((mut stream, _)) = listener.accept() else {
+            return;
+        };
+        let mut buf = [0u8; 65536];
+        let n = stream.read(&mut buf).unwrap_or(0);
+        let raw = String::from_utf8_lossy(&buf[..n]);
+        let (headers, body_str) = raw.split_once("\r\n\r\n").unwrap_or((raw.as_ref(), ""));
+        let first = headers.lines().next().unwrap_or("");
+        let path = first.split_whitespace().nth(1).unwrap_or("/").to_string();
+        let authorization = headers
+            .lines()
+            .find(|l| l.to_ascii_lowercase().starts_with("authorization:"))
+            .map(|l| l.split_once(':').unwrap().1.trim().to_string());
+        let body: Value = serde_json::from_str(body_str.trim_end_matches('\0').trim())
+            .unwrap_or(json!({}));
+        hits_thread.lock().unwrap().push(CapturedRequest {
+            path,
+            authorization,
+            body,
+        });
+        write_body(&mut stream);
+    });
+    thread::sleep(Duration::from_millis(20));
+    MockLlm {
+        port,
+        hits,
+        _join: join,
+    }
+}
+
+fn sse_content_chunk(content: &str, finish: Option<&str>) -> String {
+    let chunk = json!({
+        "choices": [{
+            "index": 0,
+            "delta": { "content": content },
+            "finish_reason": finish
+        }]
+    });
+    format!("data: {chunk}\n\n")
+}
+
+fn write_http_chunk(stream: &mut std::net::TcpStream, data: &[u8]) {
+    let _ = write!(stream, "{:x}\r\n", data.len());
+    let _ = stream.write_all(data);
+    let _ = stream.write_all(b"\r\n");
+    let _ = stream.flush();
+}
+
+fn write_http_chunk_end(stream: &mut std::net::TcpStream) {
+    let _ = stream.write_all(b"0\r\n\r\n");
+    let _ = stream.flush();
+}
+
+#[test]
+fn llm_assembles_sse_content_and_tool_call_deltas() {
+    with_agent_sandbox(|_| {
+        let mock = spawn_sse_writer(|stream| {
+            let headers = "HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nTransfer-Encoding: chunked\r\n\r\n";
+            let _ = stream.write_all(headers.as_bytes());
+            write_http_chunk(stream, sse_content_chunk("Hel", None).as_bytes());
+            write_http_chunk(stream, sse_content_chunk("lo", None).as_bytes());
+            let tool_name = json!({
+                "choices": [{
+                    "index": 0,
+                    "delta": {
+                        "tool_calls": [{
+                            "index": 0,
+                            "id": "call_1",
+                            "type": "function",
+                            "function": { "name": "read", "arguments": "" }
+                        }]
+                    },
+                    "finish_reason": null
+                }]
+            });
+            let tool_args = json!({
+                "choices": [{
+                    "index": 0,
+                    "delta": {
+                        "tool_calls": [{
+                            "index": 0,
+                            "function": { "arguments": "{\"path\":\"/tmp/a\"}" }
+                        }]
+                    },
+                    "finish_reason": "tool_calls"
+                }]
+            });
+            write_http_chunk(stream, format!("data: {tool_name}\n\n").as_bytes());
+            write_http_chunk(stream, format!("data: {tool_args}\n\n").as_bytes());
+            write_http_chunk(stream, b"data: [DONE]\n\n");
+            write_http_chunk_end(stream);
+        });
+        let msg = llm::chat_completions(
+            &[json!({"role":"user","content":"x"})],
+            &sample_openai_tool_defs(),
+            &llm_config_for(&mock),
+        )
+        .expect("assembled");
+        assert_eq!(msg.content.as_deref(), Some("Hello"));
+        assert_eq!(msg.tool_calls.len(), 1);
+        assert_eq!(msg.tool_calls[0].id, "call_1");
+        assert_eq!(msg.tool_calls[0].name, "read");
+        assert_eq!(msg.tool_calls[0].arguments, "{\"path\":\"/tmp/a\"}");
+        assert_eq!(msg.finish_reason.as_deref(), Some("tool_calls"));
+    });
+}
+
+#[test]
+fn llm_on_delta_receives_assembled_hints() {
+    with_agent_sandbox(|_| {
+        let mock = spawn_sse_writer(|stream| {
+            let headers = "HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nTransfer-Encoding: chunked\r\n\r\n";
+            let _ = stream.write_all(headers.as_bytes());
+            write_http_chunk(stream, sse_content_chunk("你好", None).as_bytes());
+            let last = json!({
+                "choices": [{
+                    "index": 0,
+                    "delta": { "role": "assistant", "content": "" },
+                    "finish_reason": "stop"
+                }]
+            });
+            write_http_chunk(stream, format!("data: {last}\n\n").as_bytes());
+            write_http_chunk(stream, b"data: [DONE]\n\n");
+            write_http_chunk_end(stream);
+        });
+        let hints = Arc::new(Mutex::new(Vec::new()));
+        let slot = hints.clone();
+        let mut on_delta = |hint: &str| slot.lock().unwrap().push(hint.to_string());
+        let msg = llm::chat_completions_with_timeout(
+            &[json!({"role":"user","content":"x"})],
+            &[],
+            &llm_config_for(&mock),
+            Duration::from_secs(2),
+            Some(&mut on_delta),
+        )
+        .expect("chat");
+        assert_eq!(msg.content.as_deref(), Some("你好"));
+        let hints = hints.lock().unwrap();
+        assert!(
+            hints.iter().any(|hint| hint == "Receiving… 你好"),
+            "on_delta hints={hints:?}"
+        );
+    });
+}
+
+#[test]
+fn llm_idle_timeout_after_first_sse_chunk() {
+    with_agent_sandbox(|_| {
+        let mock = spawn_sse_writer(|stream| {
+            let headers = "HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nTransfer-Encoding: chunked\r\n\r\n";
+            let _ = stream.write_all(headers.as_bytes());
+            write_http_chunk(stream, sse_content_chunk("Hi", None).as_bytes());
+            thread::sleep(Duration::from_secs(3));
+        });
+        let err = llm::chat_completions_with_timeout(
+            &[json!({"role":"user","content":"x"})],
+            &[],
+            &llm_config_for(&mock),
+            Duration::from_millis(250),
+            None,
+        )
+        .expect_err("idle timeout");
+        assert!(matches!(err, LlmError::Timeout), "{err:?}");
+    });
+}
+
+#[test]
+fn llm_keeps_reading_when_chunks_keep_arriving() {
+    with_agent_sandbox(|_| {
+        let mock = spawn_sse_writer(|stream| {
+            let headers = "HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nTransfer-Encoding: chunked\r\n\r\n";
+            let _ = stream.write_all(headers.as_bytes());
+            write_http_chunk(stream, sse_content_chunk("A", None).as_bytes());
+            thread::sleep(Duration::from_millis(180));
+            write_http_chunk(stream, sse_content_chunk("B", None).as_bytes());
+            thread::sleep(Duration::from_millis(180));
+            let last = json!({
+                "choices": [{
+                    "index": 0,
+                    "delta": { "content": "C" },
+                    "finish_reason": "stop"
+                }]
+            });
+            write_http_chunk(stream, format!("data: {last}\n\ndata: [DONE]\n\n").as_bytes());
+            write_http_chunk_end(stream);
+        });
+        let started = std::time::Instant::now();
+        let msg = llm::chat_completions_with_timeout(
+            &[json!({"role":"user","content":"x"})],
+            &[],
+            &llm_config_for(&mock),
+            Duration::from_millis(300),
+            None,
+        )
+        .expect("kept reading");
+        assert_eq!(msg.content.as_deref(), Some("ABC"));
+        assert!(
+            started.elapsed() > Duration::from_millis(300),
+            "total elapsed must exceed the idle window"
+        );
     });
 }
 
