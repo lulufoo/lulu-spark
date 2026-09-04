@@ -9,7 +9,7 @@ vi.mock('../../frontend/src/host/api/transport.ts', () => ({
   writePost: (...args) => writePost(...args),
 }));
 
-import { openFilePopup, saveFilePopup } from '../../frontend/src/file-popup/commands/popup.ts';
+import { copyFilePopupPath, openFilePopup, saveFilePopup } from '../../frontend/src/file-popup/commands/popup.ts';
 import { emptyFilePopupView, viewStore } from '../../frontend/src/file-popup/state/store.ts';
 
 describe('openFilePopup / saveFilePopup', () => {
@@ -50,5 +50,30 @@ describe('openFilePopup / saveFilePopup', () => {
       path: '/tmp/doc.md',
       content: '# old',
     });
+  });
+
+  it('copyFilePopupPath writes the stored absolute path', async () => {
+    const writeText = vi.fn(async () => {});
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText },
+    });
+    viewStore.set({
+      ...emptyFilePopupView(),
+      open: true,
+      path: '/Users/me/knowledge/demo/doc.md',
+    });
+    await expect(copyFilePopupPath()).resolves.toBe(true);
+    expect(writeText).toHaveBeenCalledWith('/Users/me/knowledge/demo/doc.md');
+  });
+
+  it('copyFilePopupPath no-ops when path is empty', async () => {
+    const writeText = vi.fn(async () => {});
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText },
+    });
+    await expect(copyFilePopupPath()).resolves.toBe(false);
+    expect(writeText).not.toHaveBeenCalled();
   });
 });

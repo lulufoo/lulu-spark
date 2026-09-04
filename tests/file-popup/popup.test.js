@@ -51,7 +51,31 @@ describe('FilePopup chrome', () => {
     });
     const labels = [...container.querySelectorAll('button')].map((b) => b.textContent.trim());
     expect(labels).toContain('Edit');
+    expect(labels).toContain('Copy');
     expect(labels).toContain('Close');
+  });
+
+  it('Copy writes the open path', async () => {
+    const writeText = vi.fn(async () => {});
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText },
+    });
+    renderOpen();
+    const copyBtn = container.querySelector('[data-role="copy-file-path"]');
+    expect(copyBtn).not.toBeNull();
+    expect(copyBtn.disabled).toBe(false);
+    await act(async () => {
+      copyBtn.click();
+      await Promise.resolve();
+    });
+    expect(writeText).toHaveBeenCalledWith('/kb/notes/raw/inbox/a.md');
+  });
+
+  it('Copy stays disabled without a path', () => {
+    renderOpen({ path: '' });
+    const copyBtn = container.querySelector('[data-role="copy-file-path"]');
+    expect(copyBtn.disabled).toBe(true);
   });
 
   it('uses Notes viewer chrome classes instead of a global header', () => {

@@ -34,6 +34,19 @@ export function cancelFilePopupEdit() {
   patchView({ editing: false, error: '' });
 }
 
+/** Copy the open document's absolute path. Returns false when there is nothing to write. */
+export async function copyFilePopupPath() {
+  const abs = String(viewStore.getSnapshot().path || '').trim();
+  if (!abs) return false;
+  if (!navigator.clipboard?.writeText) return false;
+  try {
+    await navigator.clipboard.writeText(abs);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export async function openFilePopup({ path, title, identityKey }: OpenFilePopupInput) {
   const abs = String(path || '').trim();
   if (!abs) return;

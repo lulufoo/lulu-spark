@@ -1,14 +1,18 @@
-import { useLayoutEffect, useSyncExternalStore, type MouseEvent } from 'react';
+import { useLayoutEffect, useState, useSyncExternalStore, type MouseEvent } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { flushSync } from 'react-dom';
 import {
   cancelFilePopupEdit,
   closeFilePopup,
+  copyFilePopupPath,
   enterFilePopupEdit,
   saveFilePopup,
 } from '../commands/popup.ts';
 import { viewStore } from '../state/store.ts';
 import { paintFilePopupDoc } from './paint.ts';
+
+const COPY_LABEL = 'Copy';
+const COPY_FLASH_MS = 1200;
 
 let hostRoot: Root | null = null;
 
@@ -29,6 +33,7 @@ export function ensureFilePopupHost() {
 
 export function FilePopup() {
   const view = useSyncExternalStore(viewStore.subscribe, viewStore.getSnapshot);
+  const [copyLabel, setCopyLabel] = useState(COPY_LABEL);
 
   useLayoutEffect(() => {
     if (!view.open) return;
@@ -48,6 +53,10 @@ export function FilePopup() {
     return () => document.removeEventListener('keydown', onKey);
   }, [view.open]);
 
+  useLayoutEffect(() => {
+    setCopyLabel(COPY_LABEL);
+  }, [view.path, view.open]);
+
   if (!view.open) return null;
 
   function onOverlayClick(event: MouseEvent<HTMLDivElement>) {
@@ -56,6 +65,15 @@ export function FilePopup() {
 
   const busy = view.loading || view.saving;
   const canEdit = Boolean(view.path);
+  const canCopy = Boolean(view.path);
+
+  function onCopyPath() {
+    void copyFilePopupPath().then((ok) => {
+      if (!ok) return;
+      setCopyLabel('✓');
+      setTimeout(() => setCopyLabel(COPY_LABEL), COPY_FLASH_MS);
+    });
+  }
 
   return (
     <div id="file-popup" role="dialog" aria-modal="true" aria-labelledby="file-popup-title" onClick={onOverlayClick}>
@@ -86,6 +104,16 @@ export function FilePopup() {
                 Edit
               </button>
             ) : null}
+            <button
+              type="button"
+              className="md-header-btn"
+              data-role="copy-file-path"
+              title="Copy absolute path"
+              disabled={!canCopy}
+              onClick={onCopyPath}
+            >
+              {copyLabel}
+            </button>
             <button type="button" className="md-header-btn" disabled={view.saving} onClick={() => closeFilePopup()}>
               Close
             </button>
