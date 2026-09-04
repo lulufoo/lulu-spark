@@ -1,4 +1,4 @@
-//! Path-fenced Agent file tool implementations (grep / read / write / edit).
+//! Path-fenced Agent file tool implementations (grep / read / write / str_replace).
 
 use std::fs as std_fs;
 use std::path::Path;
@@ -169,7 +169,7 @@ pub fn write(arguments: &Value, fence: &PathFence) -> Result<String, String> {
     Ok(format!("Wrote {}", path.display()))
 }
 
-pub fn edit(arguments: &Value, fence: &PathFence) -> Result<String, String> {
+pub fn str_replace(arguments: &Value, fence: &PathFence) -> Result<String, String> {
     let path = require_absolute(&arg_str(arguments, "path")?)?;
     if !fence.allows_write(&path) {
         return Err("path is outside the write fence".into());
@@ -177,19 +177,35 @@ pub fn edit(arguments: &Value, fence: &PathFence) -> Result<String, String> {
     if !path.is_file() {
         return Err("file not found".into());
     }
-    let old_text = arg_str(arguments, "old_text")?;
-    let new_text = arg_str(arguments, "new_text")?;
-    if old_text.is_empty() {
-        return Err("old_text must not be empty".into());
+    let old_string = arg_str(arguments, "old_string")?;
+    let new_string = arg_str(arguments, "new_string")?;
+    let replace_all = arguments
+        .get("replace_all")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    if old_string.is_empty() {
+        return Err("old_string must not be empty".into());
     }
     let current = std_fs::read_to_string(&path).map_err(|e| e.to_string())?;
-    let count = current.matches(&old_text).count();
+    let count = current.matches(&old_string).count();
     if count == 0 {
-        return Err("old_text not found".into());
+        return Err("old_string not found".into());
     }
-    if count > 1 {
-        return Err("old_text matched more than once".into());
+    if !replace_all && count > 1 {
+        return Err("old_string matched more than once".into());
     }
-    std_fs::write(&path, current.replacen(&old_text, &new_text, 1)).map_err(|e| e.to_string())?;
-    Ok(format!("Edited {}", path.display()))
+    let updated = if replace_all {
+        current.replace(&old_string, &new_string)
+    } else {
+        current.replacen(&old_string, &new_string, 1)
+    };
+    std_fs::write(&path, updated).map_err(|e| e.to_string())?;
+    if replace_all {
+        Ok(format!(
+            "Replaced {count} occurrence(s) in {}",
+            path.display()
+        ))
+    } else {
+        Ok(format!("Edited {}", path.display()))
+    }
 }

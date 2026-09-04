@@ -2,7 +2,7 @@
 /**
  * Host Agent Loop key-only Binding and MCP tool bridge.
  * Binding.tools remains empty. Model tools come from MCP discovery plus Host
- * file tools (grep/read/write/edit) gated by the Set-time path fence.
+ * file tools (grep/read/write/str_replace) gated by the Set-time path fence.
  * Legacy in-process OpenAI plan tool defs (`agent/tools.rs`) are removed.
  *
  * Layer map:

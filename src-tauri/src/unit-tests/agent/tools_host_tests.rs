@@ -38,7 +38,7 @@ fn live_fence() -> (PathFence, PathBuf, PathBuf) {
 #[test]
 fn catalog_exposes_the_four_host_file_tools() {
     let catalog = host::catalog();
-    for name in ["grep", "read", "write", "edit"] {
+    for name in ["grep", "read", "write", "str_replace"] {
         assert!(catalog.contains(name), "missing {name}");
         assert!(host::is_builtin(name), "{name}");
     }
@@ -47,7 +47,11 @@ fn catalog_exposes_the_four_host_file_tools() {
         assert!(!host::is_builtin(name), "{name}");
     }
     assert!(catalog.is_mutating("write"));
-    assert!(catalog.is_mutating("edit"));
+    assert!(catalog.is_mutating("str_replace"));
+    assert!(!catalog.contains("edit"));
+    assert!(!host::is_builtin("edit"));
+    assert!(!catalog.contains("StrReplace"));
+    assert!(!host::is_builtin("StrReplace"));
     assert!(!catalog.is_mutating("read"));
     assert!(!catalog.is_mutating("grep"));
 }
@@ -165,11 +169,11 @@ fn write_and_edit_are_scratch_only() {
     assert_eq!(fs::read_to_string(&pad).expect("read pad"), "hello world");
 
     let edited = host::call(
-        "edit",
+        "str_replace",
         &json!({
             "path": pad.to_string_lossy(),
-            "old_text": "world",
-            "new_text": "scratch"
+            "old_string": "world",
+            "new_string": "scratch"
         }),
         &fence,
     );
@@ -177,21 +181,21 @@ fn write_and_edit_are_scratch_only() {
     assert_eq!(fs::read_to_string(&pad).expect("read pad"), "hello scratch");
 
     let twice = host::call(
-        "edit",
+        "str_replace",
         &json!({
             "path": pad.to_string_lossy(),
-            "old_text": "hello",
-            "new_text": "x"
+            "old_string": "hello",
+            "new_string": "x"
         }),
         &fence,
     );
     assert!(!twice.is_error);
     let twice_again = host::call(
-        "edit",
+        "str_replace",
         &json!({
             "path": pad.to_string_lossy(),
-            "old_text": "x",
-            "new_text": "y"
+            "old_string": "x",
+            "new_string": "y"
         }),
         &fence,
     );
@@ -203,16 +207,30 @@ fn write_and_edit_are_scratch_only() {
     );
     assert!(!dup.is_error);
     let many = host::call(
-        "edit",
+        "str_replace",
         &json!({
             "path": pad.to_string_lossy(),
-            "old_text": "aa",
-            "new_text": "bb"
+            "old_string": "aa",
+            "new_string": "bb"
         }),
         &fence,
     );
     assert!(many.is_error);
     assert!(many.content.contains("more than once"));
+
+    let all = host::call(
+        "str_replace",
+        &json!({
+            "path": pad.to_string_lossy(),
+            "old_string": "aa",
+            "new_string": "bb",
+            "replace_all": true
+        }),
+        &fence,
+    );
+    assert!(!all.is_error, "{}", all.content);
+    assert_eq!(fs::read_to_string(&pad).expect("read pad"), "bb bb");
+    assert!(all.content.contains("2 occurrence"));
 }
 
 #[test]
@@ -249,11 +267,11 @@ fn write_and_edit_succeed_on_exact_staged_file() {
     assert_eq!(fs::read_to_string(&file).expect("read"), "hello world");
 
     let edited = host::call(
-        "edit",
+        "str_replace",
         &json!({
             "path": file.to_string_lossy(),
-            "old_text": "world",
-            "new_text": "staged"
+            "old_string": "world",
+            "new_string": "staged"
         }),
         &fence,
     );

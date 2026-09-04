@@ -1,4 +1,4 @@
-//! Host file tools (grep / read / write / edit) under PathFence.
+//! Host file tools (grep / read / write / str_replace) under PathFence.
 
 use serde_json::{json, Value};
 
@@ -53,16 +53,20 @@ pub fn catalog() -> ToolCatalog {
             false,
         ),
         local_tool(
-            "edit",
-            "Replace exact text in an existing file under the write-allowed scratch root. old_text must match exactly once.",
+            "str_replace",
+            "Replace exact text in an existing writable file (session scratch or an exact staged file). old_string must match exactly once unless replace_all is true.",
             json!({
                 "type": "object",
                 "properties": {
                     "path": { "type": "string", "description": "Absolute file path." },
-                    "old_text": { "type": "string", "description": "Exact text to find." },
-                    "new_text": { "type": "string", "description": "Replacement text." }
+                    "old_string": { "type": "string", "description": "The text to replace." },
+                    "new_string": { "type": "string", "description": "The text to replace it with." },
+                    "replace_all": {
+                        "type": "boolean",
+                        "description": "Replace all occurrences of old_string (default false)."
+                    }
                 },
-                "required": ["path", "old_text", "new_text"],
+                "required": ["path", "old_string", "new_string"],
                 "additionalProperties": false
             }),
             false,
@@ -71,7 +75,7 @@ pub fn catalog() -> ToolCatalog {
 }
 
 pub fn is_builtin(name: &str) -> bool {
-    matches!(name, "grep" | "read" | "write" | "edit")
+    matches!(name, "grep" | "read" | "write" | "str_replace")
 }
 
 pub fn call(name: &str, arguments: &Value, fence: &PathFence) -> ToolResult {
@@ -79,7 +83,7 @@ pub fn call(name: &str, arguments: &Value, fence: &PathFence) -> ToolResult {
         "grep" => fs::grep(arguments, fence),
         "read" => fs::read(arguments, fence),
         "write" => fs::write(arguments, fence),
-        "edit" => fs::edit(arguments, fence),
+        "str_replace" => fs::str_replace(arguments, fence),
         other => Err(format!("unknown file tool '{other}'")),
     };
     match result {

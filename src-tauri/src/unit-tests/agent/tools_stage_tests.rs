@@ -77,7 +77,7 @@ fn catalog_registers_stage_trio_off_cursor_ide_and_mobile() {
     for name in ["stage", "list_staged", "get_staged"] {
         assert!(catalog.contains(name) && stage::is_builtin(name), "{name}");
     }
-    for name in ["grep", "read", "write", "edit"] {
+    for name in ["grep", "read", "write", "str_replace"] {
         assert!(!catalog.contains(name) && !stage::is_builtin(name), "{name}");
     }
     assert!(catalog.is_mutating("stage"));

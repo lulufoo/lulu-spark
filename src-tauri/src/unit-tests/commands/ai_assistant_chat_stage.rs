@@ -112,11 +112,11 @@ fn stage_chat_document_grants_write_isolated_and_revokes() {
         assert!(!wrote.is_error, "{}", wrote.content);
         assert_eq!(fs::read_to_string(&file_a).expect("read"), "new-a");
         let edited = host::call(
-            "edit",
+            "str_replace",
             &json!({
                 "path": file_a.to_string_lossy(),
-                "old_text": "new-a",
-                "new_text": "edited-a"
+                "old_string": "new-a",
+                "new_string": "edited-a"
             }),
             &fence_a,
         );

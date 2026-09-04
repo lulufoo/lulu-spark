@@ -364,7 +364,7 @@ fn run_loop_offers_host_file_tools_and_keeps_scratch_writes_inside_cache() {
     let hits = mock.hits.lock().unwrap();
     assert!(
         hits[0]["tools"].as_array().is_some_and(|tools| {
-            ["grep", "read", "write", "edit"].iter().all(|name| {
+            ["grep", "read", "write", "str_replace"].iter().all(|name| {
                 tools
                     .iter()
                     .any(|tool| tool.pointer("/function/name") == Some(&json!(name)))
