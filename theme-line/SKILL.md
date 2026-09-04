@@ -79,7 +79,7 @@ Output patterns: [references/output-templates.md](references/output-templates.md
 
 Load and execute [references/archive-steps.md](references/archive-steps.md) from Step 1.
 
-Do not call Host HTTP. Load note-task for Create. Need `-zh.md`: run note-task `detect_full_english.py` / `check_zh_parity.py`, then pass `translations`.
+Do not call Host HTTP. Load note-task for Create.
 
 ## Title Handling
 

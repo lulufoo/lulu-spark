@@ -36,7 +36,7 @@ Map the user request, then call **only** the tools that match. Do not run a fixe
 
 | User intent | Do | Do not |
 |-------------|----|--------|
-| Create / save / archive a note | Stage Markdown on an allow-listed path (desktop) or send `content` (mobile). Infer `project` / `theme` / `title` / `created_at` when the user did not give them — [standalone-resolve.md](references/standalone-resolve.md) if the input is a lone path or paste. Then `create_note`. | Write `notes/` on disk |
+| Create / save / archive a note | Stage Markdown on an allow-listed path (desktop) or send `content` (mobile). Infer `project` / `theme` / `title` / `created_at` when the user did not give them — [standalone-resolve.md](references/standalone-resolve.md) if the input is a lone path or paste. Load [full-english-translate.md](references/full-english-translate.md). Then `create_note`. | Write `notes/` on disk |
 | List catalogs with newest note pointer | `get_all_notes_catalog` | — |
 | Latest digest body per catalog (one call) | `get_latest_digest_per_catalog` | — |
 | List note ids in one catalog | `get_notes_by_catalog` | — |
@@ -55,6 +55,7 @@ Do not invent norms not listed here.
 |-----------------|-----------|------|
 | `title` | [title.md](references/title.md) | Before choosing or proposing a create title |
 | Standalone path / paste | [standalone-resolve.md](references/standalone-resolve.md) | Path or paste with no producer (includes GitHub `created_at` and summary image strip) |
+| Full-English detect | [full-english-translate.md](references/full-english-translate.md) | Before every `create_note` |
 | `digest_body` shape | [digest-workflow.md](references/digest-workflow.md) | Before composing `digest_body` (`auto` / `always`) |
 
 - User-explicit values override the corresponding norm; say so briefly when skipping.
@@ -63,7 +64,7 @@ Do not invent norms not listed here.
 ## Hard Constraints
 
 1. **Listed tools only** — Agent must use `note-task` and the note tools listed in this SKILL only.
-2. **Verify after write** — After create, confirm `id` / `common_path` / `raw_path`, and `digest_path` when a digest was written.
+2. **Verify after write** — After create, confirm `id` / `common_path` / `raw_path`; `digest_path` when a digest was written; `extra_paths` when a zh companion was written.
 3. **HTTP errors** — 4xx/5xx surface as MCP tool errors (`isError: true`); do not treat error payloads as success.
 4. **Producers load this map** — theme-fetch, theme-line, theme-transcribe, dialogue-summary, and dialogue-archive (`sink=workbench`) route Create here. They do not call Host HTTP. `dialogue-archive` `sink=local-md` is out of scope.
 
@@ -87,10 +88,12 @@ Observable completion for a write request:
 
 - Tool call succeeded; and
 - Response has `id`, `common_path`, `raw_path`; and
-- When a digest was written: `digest_path` is present; when skipped: it is absent.
+- When a digest was written: `digest_path` is present; when skipped: it is absent; and
+- When a zh companion was written: `extra_paths` includes the `-zh.md` path.
 
 ## References
 
 - Path symbols: [archive-concepts](references/archive-concepts.md)
 - Digest writing shape: [digest-workflow](references/digest-workflow.md)
 - Title: [title](references/title.md)
+- Full-English detect: [full-english-translate](references/full-english-translate.md)

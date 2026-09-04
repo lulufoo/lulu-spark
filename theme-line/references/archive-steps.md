@@ -1,6 +1,6 @@
 # Save to Archive
 
-> 组完 **主文件** 后加载 note-task，走 Create。需要中文稿时，先跑 note-task 的 `detect_full_english.py` / `check_zh_parity.py`，再带 `translations`。
+> 组完 **主文件** 后加载 note-task，走 Create。
 >
 > `$SKILL_DIR` = `lulu-workbench-skills` install root.
 
@@ -34,7 +34,7 @@ python3 "$SKILL_DIR/theme-line/scripts/check_dialogue_coverage.py" "<primary.md>
 ```
 
 - Exit 1 → stop. Do not hand off note-task.
-- `bundle.meta.language` does **not** drive translation. Need `-zh.md` → run `$SKILL_DIR/note-task/scripts/detect_full_english.py` then `check_zh_parity.py` before Create.
+- `bundle.meta.language` does **not** drive translation.
 
 ---
 

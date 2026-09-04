@@ -41,7 +41,7 @@ Subcommands: `--help` · `acquire` · `verbatim` · `route`.
 5. Branch on stdout `mode` only:
    - `dialogue-timed` → announce speaker count; Agent may replace `Speaker A/B` with names evidenced in the draft; `source_type` is `dialogue`.
    - `time-segmented` → announce time-range segmentation, no speaker labels; `source_type` is `transcript`.
-6. Load [handoff-archive.md](references/handoff-archive.md). Compose archive header on stdout `primary`. Load note-task Create. Skip only when the user says 不归档 / skip archive / local only. Need `-zh.md`: run note-task `detect_full_english.py` / `check_zh_parity.py`, then pass `translations`.
+6. Load [handoff-archive.md](references/handoff-archive.md). Compose archive header on stdout `primary`. Load note-task Create. Skip only when the user says 不归档 / skip archive / local only.
 
 Ask only when acquire cannot proceed, language is ambiguous, or archive slug conflicts. Default model: `small`.
 

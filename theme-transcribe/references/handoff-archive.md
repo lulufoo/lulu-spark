@@ -1,6 +1,6 @@
 # Handoff → note-task
 
-Load after `$TRANSCRIBE_CTL route`. Load note-task and route Create. Need `-zh.md`: run `$SKILL_DIR/note-task/scripts/detect_full_english.py` then `check_zh_parity.py`, pass `translations`.
+Load after `$TRANSCRIBE_CTL route`. Load note-task and route Create.
 
 ## When
 
@@ -13,7 +13,7 @@ Load after `$TRANSCRIBE_CTL route`. Load note-task and route Create. Need `-zh.m
 |-------|--------|
 | Primary | `route` stdout `primary` (add archive header if missing) |
 | `source_type` | `route` stdout `source_type` (`dialogue` or `transcript`) |
-| Chinese companion | only when the caller translated first (`translations` on `create_note`) |
+| Chinese companion | note-task Create |
 
 `content_constraint` is required in `digest_body` when `source_type` is `dialogue`.
 

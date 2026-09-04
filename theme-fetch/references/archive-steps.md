@@ -1,6 +1,6 @@
 # Save to Archive
 
-> 组完 **主文件** 后加载 note-task，走 Create。需要中文稿时，先跑 note-task 的 `detect_full_english.py` / `check_zh_parity.py`，再带 `translations`。
+> 组完 **主文件** 后加载 note-task，走 Create。
 
 After Phase 2 Format produces the Markdown body, execute these steps.
 
@@ -25,7 +25,7 @@ Primary： [output-templates.md](output-templates.md) header + Phase 2 body。
 
 Write to `{workspace}/.cache/theme-fetch/<ts>-<slug>.md`.
 
-`bundle.meta.language` does **not** drive translation. Need `-zh.md` → run `$SKILL_DIR/note-task/scripts/detect_full_english.py` then `check_zh_parity.py` before Create.
+`bundle.meta.language` does **not** drive translation.
 
 ---
 

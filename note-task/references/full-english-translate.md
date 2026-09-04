@@ -1,6 +1,6 @@
-# Full-English translation (caller utility)
+# Full-English translation
 
-Callers who need a Chinese companion file run this **before** `create_note`. `note-task` does not translate.
+Load before every `create_note`. Host rejects a full-English primary that has no `translations.zh`.
 
 ## Script Macros
 
@@ -13,23 +13,17 @@ Callers who need a Chinese companion file run this **before** `create_note`. `no
 
 ## Detect
 
-On the primary markdown:
-
-`$DETECT_EN "<primary.md>"`
+Run `$DETECT_EN "<primary.md>"` on the staged primary.
 
 | Result | Action |
 |--------|--------|
-| exit 0 / `full_english` | Translate the body after `---` into Chinese → `-zh.md` |
-| exit 1 / `not_full_english` | Omit `translations` |
+| exit 0 / `full_english` | Write `-zh.md` next to the primary. Run `$CHECK_ZH "<primary.md>" "<zh.md>"`. Exit 1 → stop; do not call `create_note`. |
+| exit 1 / `not_full_english` | Omit `translations`. |
 
-Inspect **body after `---` only**. Header chrome does not count. Ignore `作者 | …` lines and HTML comments. Remaining body has Latin letters and no Han / Kana / Hangul → full English. Any remaining CJK → do not translate isolated English spans.
+## Companion invariants
 
-## Translate
-
-- Same header metadata as primary if present; Chinese `#` title. No digest nav line.
-- Translate the full body. Write the zh file next to the primary. No `SEE_FILE` / `PLACEHOLDER` / `FULL_ZH` stubs.
-- `$CHECK_ZH "<primary.md>" "<zh.md>"`. Exit 1 → stop; do not call `create_note`.
-- Do not summarize or add commentary.
+- Same header metadata as the primary if present; Chinese `#` title. No digest nav line.
+- Full body after `---`. No stub markers (`SEE_FILE` / `PLACEHOLDER` / `FULL_ZH`).
 - theme-line zh title: `{Speaker}：{Event} | {Outlet}` when known; else a concise Chinese title.
 
 Pass the zh file through `create_note` `translations` (live schema).

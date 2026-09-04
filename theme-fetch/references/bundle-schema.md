@@ -37,7 +37,7 @@ content:                   # required — 正文载体
 | `author` | `string` \| `null` | no | 作者 |
 | `publisher` | `string` \| `null` | no | 刊载方（公众号名、站点名） |
 | `published_at` | `string` \| `null` | no | `YYYY-MM-DD` 或 `YYYY-MM-DD HH:MM` |
-| `language` | `"zh"` \| `"en"` \| `"mixed"` \| `"unknown"` | yes | 采集元数据。**不**驱动翻译；需要中文稿时由调用方按 full-english-translate 处理。 |
+| `language` | `"zh"` \| `"en"` \| `"mixed"` \| `"unknown"` | yes | 采集元数据。**不**驱动翻译。 |
 
 ### `meta.language` → Phase 3 翻译规则
 

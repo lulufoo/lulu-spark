@@ -18,7 +18,7 @@ All archived `raw/` files use this header block:
 
 - **时长** / **发布**: 来自 `bundle.meta.duration_sec` / `bundle.meta.published_at`（非 yt-dlp 直接拉取）
 - 非视频源（`duration_sec: null`）省略时长行
-- **`-zh.md`**: not built here — caller detects / translates / parity-checks, then `translations` on `create_note`
+- **`-zh.md`**: not built here — note-task Create
 - 可选 provenance：`> 采集：{platform} · complete-dialogue · 嘉宾：{guest} · 说话人：标题与问答推断`
 
 ## Complete Dialogue Format (default)

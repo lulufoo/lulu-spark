@@ -56,4 +56,4 @@ Keep relative images and non-image links. Collapse 3+ blank lines to 2. Confirm 
 
 ## Create
 
-Stage on an allow-listed path (desktop) or send `content` (mobile). Call `create_note` per the live schema.
+Stage on an allow-listed path (desktop) or send `content` (mobile). Load [full-english-translate.md](full-english-translate.md). Call `create_note` per the live schema.

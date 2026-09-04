@@ -75,7 +75,7 @@ Output patterns: [references/output-templates.md](references/output-templates.md
 
 ## Phase 3 · Save to Archive
 
-Load [references/archive-steps.md](references/archive-steps.md) — build primary, then load note-task Create. Need `-zh.md`: run note-task `detect_full_english.py` / `check_zh_parity.py`, then pass `translations`.
+Load [references/archive-steps.md](references/archive-steps.md) — build primary, then load note-task Create.
 
 ## Title Handling
 
