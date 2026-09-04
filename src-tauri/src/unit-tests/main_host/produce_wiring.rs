@@ -91,7 +91,7 @@ fn handle_read_later_post_201_adds_read_later_record() {
 #[test]
 fn chrome_and_l0_inbound_still_only_url_and_title() {
     let chrome = fs::read_to_string(repo_file(
-        "extensions/chrome-read-later/lib/readLaterApi.js",
+        "extensions/chrome-workbench-extension/read-later/lib/readLaterApi.js",
     ))
     .expect("chrome readLaterApi");
     assert!(

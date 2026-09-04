@@ -3,17 +3,15 @@ import { readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { WORKBENCH_BASE } from '../../extensions/chrome-read-later/lib/config.js';
-import { save } from '../../extensions/chrome-read-later/lib/readLaterApi.js';
-import { badgeFeedbackForResult } from '../../extensions/chrome-read-later/lib/feedback.js';
+import { WORKBENCH_BASE } from '../../extensions/chrome-workbench-extension/read-later/lib/config.js';
+import { save } from '../../extensions/chrome-workbench-extension/read-later/lib/readLaterApi.js';
+import { badgeFeedbackForResult } from '../../extensions/chrome-workbench-extension/read-later/lib/feedback.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const manifestPath = resolve(
-  __dirname,
-  '../../extensions/chrome-read-later/manifest.json'
-);
+const extRoot = resolve(__dirname, '../../extensions/chrome-workbench-extension');
+const manifestPath = resolve(extRoot, 'manifest.json');
 
-describe('chrome-read-later config', () => {
+describe('chrome-workbench-extension config', () => {
   it('WORKBENCH_BASE points at the local Workbench Gateway', () => {
     expect(WORKBENCH_BASE).toBe('https://localhost:7654');
   });
@@ -179,14 +177,28 @@ describe('badgeFeedbackForResult', () => {
 });
 
 describe('manifest.json', () => {
-  it('is MV3 with activeTab and Gateway host permission only', () => {
+  it('unions read-later Gateway permission with X compose content scripts', () => {
     const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
     expect(manifest.manifest_version).toBe(3);
     expect(manifest.permissions).toEqual(['activeTab']);
     expect(manifest.host_permissions).toEqual(['https://localhost:7654/*']);
-    expect(manifest.background?.service_worker).toBe('background.js');
+    expect(manifest.background?.service_worker).toBe('read-later/background.js');
     expect(manifest.action?.default_icon).toBeTruthy();
-    expect(manifest.content_scripts).toBeUndefined();
     expect(manifest.action?.default_popup).toBeUndefined();
+    expect(manifest.content_scripts).toHaveLength(2);
+    expect(manifest.content_scripts[0].matches).toEqual([
+      'https://x.com/*',
+      'https://twitter.com/*',
+    ]);
+    expect(manifest.content_scripts[1].world).toBe('MAIN');
+  });
+});
+
+describe('x-zh-en control', () => {
+  it('does not set visible 翻译 text on the injected control', () => {
+    const src = readFileSync(resolve(extRoot, 'x-zh-en/content.js'), 'utf8');
+    expect(src).not.toMatch(/textContent\s*=\s*["']翻译/);
+    expect(src).toContain('aria-label');
+    expect(src).toContain('createIcon');
   });
 });
