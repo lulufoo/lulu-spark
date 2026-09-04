@@ -4,6 +4,7 @@ Xzh.BTN_ATTR = "data-xzh-btn";
 
 Xzh.normalizeText = function normalizeText(value) {
   return String(value || "")
+    .replace(/[\u200B-\u200D\uFEFF]/g, "")
     .replace(/\s+/g, " ")
     .trim();
 };
@@ -14,8 +15,51 @@ Xzh.waitMs = function waitMs(ms) {
   });
 };
 
+Xzh.isPlaceholderNode = function isPlaceholderNode(node) {
+  const el = node.nodeType === Node.ELEMENT_NODE ? node : node.parentElement;
+  if (!el || !(el instanceof Element)) return false;
+  if (el.closest(".public-DraftEditorPlaceholder-root")) return true;
+  if (el.closest(".public-DraftEditorPlaceholder-inner")) return true;
+  const testid = el.closest("[data-testid]")?.getAttribute("data-testid") || "";
+  return /placeholder/i.test(testid);
+};
+
+Xzh.readUserText = function readUserText(root) {
+  if (!root) return "";
+  const parts = [];
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+    acceptNode(node) {
+      return Xzh.isPlaceholderNode(node) ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT;
+    },
+  });
+  let node = walker.nextNode();
+  while (node) {
+    parts.push(node.nodeValue || "");
+    node = walker.nextNode();
+  }
+  return Xzh.normalizeText(parts.join(""));
+};
+
+Xzh.hintText = function hintText(editor, target) {
+  const scope = editor.closest('[data-testid^="tweetTextarea"]') || editor;
+  const node =
+    scope.querySelector(".public-DraftEditorPlaceholder-inner") ||
+    scope.querySelector(".public-DraftEditorPlaceholder-root");
+  if (node) return Xzh.normalizeText(node.innerText || node.textContent || "");
+  const aria =
+    (target && target.getAttribute("aria-placeholder")) ||
+    editor.getAttribute("aria-placeholder") ||
+    "";
+  return Xzh.normalizeText(aria);
+};
+
 Xzh.readEditor = function readEditor(editor) {
-  return Xzh.normalizeText(editor.innerText || editor.textContent || "");
+  const target = Xzh.findWriteTarget(editor);
+  const text = Xzh.readUserText(target);
+  if (!text) return "";
+  const hint = Xzh.hintText(editor, target);
+  if (hint && text === hint) return "";
+  return text;
 };
 
 Xzh.isVisible = function isVisible(el) {
