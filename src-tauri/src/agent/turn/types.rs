@@ -6,8 +6,8 @@ use serde_json::Value;
 pub const EVENT_TURN_COMPLETED: &str = "ai-assistant:turn-completed";
 pub const WINDOW_LABEL: &str = "ai-assistant";
 pub const MAX_CLARIFY_ROUNDS: u32 = 5;
-pub const MAX_HISTORY_MESSAGES: usize = 20;
-pub const MAX_USER_TURNS: usize = 8;
+pub const MAX_HISTORY_MESSAGES: usize = 2000;
+pub const MAX_USER_TURNS: usize = 200;
 pub const MAX_MCP_TOOL_ROUNDS: usize = 25;
 pub const MAX_MCP_TOOL_CALLS: usize = 25;
 /// Concurrent in-flight chat turns (one row per session_id).

@@ -40,7 +40,8 @@ fn key_only_set_applies_workbench_host_system_prompt_not_registry_capability() {
 fn history_truncation_keeps_system_and_dual_hard_caps() {
     with_sandbox(|| {
         let mut turns = Vec::new();
-        for i in 0..12 {
+        let overflow = r#loop::MAX_USER_TURNS + 1;
+        for i in 0..overflow {
             turns.push(Turn {
                 role: "user".into(),
                 content: Some(format!("u{i}")),
@@ -62,11 +63,21 @@ fn history_truncation_keeps_system_and_dual_hard_caps() {
             messages[0]["content"].as_str().unwrap(),
             WORKBENCH_HOST_SYSTEM_PROMPT
         );
-        assert!(messages.len() <= 21, "len={}", messages.len());
+        assert!(
+            messages.len() <= r#loop::MAX_HISTORY_MESSAGES + 1,
+            "len={}",
+            messages.len()
+        );
         let user_count = messages.iter().filter(|m| m["role"] == "user").count();
-        assert!(user_count <= 8, "user_count={user_count}");
+        assert!(
+            user_count <= r#loop::MAX_USER_TURNS,
+            "user_count={user_count}"
+        );
         let blob = serde_json::to_string(&messages).unwrap();
         assert!(!blob.contains("\"u0\""), "oldest user round should be dropped");
-        assert!(blob.contains("\"u11\""), "newest user round should remain");
+        assert!(
+            blob.contains(&format!("\"u{}\"", overflow - 1)),
+            "newest user round should remain"
+        );
     });
 }
