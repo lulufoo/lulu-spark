@@ -17,7 +17,7 @@ const SAMPLE_DOC: &str = r#"# Test Title
 
 ---
 
-Summary body here with enough content.
+摘要正文，enough content.
 "#;
 
 fn setup_notes() -> (TestSandbox, std::path::PathBuf) {
@@ -477,7 +477,7 @@ fn synthesize_jot_document_empty_first_line_falls_back_to_ts() {
 #[test]
 fn create_jot_writes_raw_index_with_source_type_jot() {
     let (_sandbox, repo_root) = setup_notes();
-    let body = "Quick capture\n\nDetails here.";
+    let body = "快速记录\n\nDetails here.";
     let v = create_jot(&repo_root, body, &jot_opts_with_ts("202607101433"))
         .expect("create_jot");
     assert_eq!(v.get("ok"), Some(&json!(true)), "failed: {v}");
@@ -491,7 +491,7 @@ fn create_jot_writes_raw_index_with_source_type_jot() {
     let raw = notes.join("raw").join(common_path);
     assert!(raw.is_file(), "raw must exist at {raw:?}");
     let raw_text = fs::read_to_string(&raw).expect("read raw");
-    assert!(raw_text.starts_with("# Quick capture\n"));
+    assert!(raw_text.starts_with("# 快速记录\n"));
     assert!(raw_text.contains("Details here."));
     assert!(!raw_text.contains("[digest]("));
 
@@ -510,7 +510,7 @@ fn create_jot_writes_raw_index_with_source_type_jot() {
 fn create_jot_second_write_gets_new_filename() {
     let (_sandbox, repo_root) = setup_notes();
     let opts = jot_opts_with_ts("202607101434");
-    let body = "Same path note";
+    let body = "同一路径笔记";
     let first = create_jot(&repo_root, body, &opts).expect("first create");
     let second = create_jot(&repo_root, body, &opts).expect("second create");
     assert_eq!(first.get("ok"), Some(&json!(true)));
@@ -677,4 +677,69 @@ fn create_note_rejects_disallowed_source_path() {
         status == 403 || status == 404,
         "expected 403/404, got {v}"
     );
+}
+
+const FULL_EN_DOC: &str = r#"# English Title
+
+> 创建时间：2026年6月19日 17:00
+
+---
+
+Hello world. This body is English only.
+"#;
+
+#[test]
+fn create_note_rejects_full_english_without_zh() {
+    let (sandbox, repo_root) = setup_notes();
+    let notes = crate::config::meili_env::notes_root_path(&repo_root);
+    let v = create_note(
+        &repo_root,
+        &path_payload(&sandbox, FULL_EN_DOC, json!({ "digest": "never" })),
+    );
+    assert_eq!(v.get("_status"), Some(&json!(400)));
+    assert!(
+        v["error"]
+            .as_str()
+            .unwrap_or("")
+            .contains("translations.zh"),
+        "{v}"
+    );
+    assert!(!notes.join("raw/inbox").exists() || {
+        fs::read_dir(notes.join("raw/inbox"))
+            .map(|mut d| d.next().is_none())
+            .unwrap_or(true)
+    });
+}
+
+#[test]
+fn create_note_content_rejects_full_english_without_zh() {
+    let (_sandbox, repo_root) = setup_notes();
+    let v = create_note_content(
+        &repo_root,
+        &json!({
+            "content": FULL_EN_DOC,
+            "title": "English Title",
+            "digest": "never",
+        }),
+    );
+    assert_eq!(v.get("_status"), Some(&json!(400)));
+    assert!(
+        v["error"]
+            .as_str()
+            .unwrap_or("")
+            .contains("translations.zh"),
+        "{v}"
+    );
+}
+
+#[test]
+fn create_jot_rejects_full_english_without_zh() {
+    let (_sandbox, repo_root) = setup_notes();
+    let err = create_jot(
+        &repo_root,
+        "Only English jot body.",
+        &jot_opts_with_ts("202607101440"),
+    )
+    .expect_err("english jot");
+    assert!(err.contains("translations.zh"), "{err}");
 }

@@ -14,7 +14,7 @@ const SAMPLE_DOC: &str = r#"# Test Title
 
 ---
 
-Summary body here with enough content.
+摘要正文，enough content.
 "#;
 
 fn setup_notes() -> TestSandbox {

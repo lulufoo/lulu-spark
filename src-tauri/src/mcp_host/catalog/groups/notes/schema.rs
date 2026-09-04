@@ -50,7 +50,7 @@ pub fn create_note_properties(include_source_path: bool) -> Value {
                 "required": ["lang"],
                 "additionalProperties": false
             },
-            "description": "Optional translations. Prefer source_path. Host rejects stub or short zh."
+            "description": "Optional translations. Prefer source_path. Host rejects stub or short zh. Full-English primary without translations.zh is rejected."
         }
     });
     if include_source_path {

@@ -3,6 +3,8 @@
 //! Skill text cannot stop a stub. Host rejects markers, short bodies, and
 //! heading/turn mismatch. Keep these rules in sync with
 //! `note-task/scripts/check_zh_parity.py`.
+//! Full-English detection stays in sync with
+//! `note-task/scripts/detect_full_english.py`.
 
 /// Tokens that mean the agent did not send a real translation.
 pub const STUB_MARKERS: &[&str] = &[
@@ -21,6 +23,45 @@ pub fn body_after_separator(document: &str) -> &str {
         }
     }
     ""
+}
+
+fn is_cjk(c: char) -> bool {
+    matches!(
+        c,
+        '\u{3400}'..='\u{4DBF}'
+            | '\u{4E00}'..='\u{9FFF}'
+            | '\u{F900}'..='\u{FAFF}'
+            | '\u{3040}'..='\u{30FF}'
+            | '\u{AC00}'..='\u{D7AF}'
+    )
+}
+
+fn is_detect_chrome_line(line: &str) -> bool {
+    let trimmed = line.trim();
+    if let Some(rest) = trimmed.strip_prefix("作者") {
+        return rest.trim_start().starts_with('|');
+    }
+    trimmed.starts_with("<!--") && trimmed.ends_with("-->")
+}
+
+fn content_for_detect(document: &str) -> String {
+    body_after_separator(document)
+        .lines()
+        .filter(|line| !is_detect_chrome_line(line))
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+/// True when the body after `---` has Latin letters and no CJK.
+pub fn is_full_english(document: &str) -> bool {
+    let body = content_for_detect(document);
+    if body.trim().is_empty() {
+        return false;
+    }
+    if body.chars().any(is_cjk) {
+        return false;
+    }
+    body.chars().any(|c| c.is_ascii_alphabetic())
 }
 
 pub fn has_stub_marker(text: &str) -> bool {
@@ -139,3 +180,7 @@ mod tests {
             .contains("heading"));
     }
 }
+
+#[cfg(test)]
+#[path = "../unit-tests/services/translation_gate.rs"]
+mod file_tests;

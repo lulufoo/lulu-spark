@@ -11,7 +11,7 @@ use crate::mcp_host::catalog::groups::todo;
 use crate::services::todo_task::MIGRATION_GATE_FILE;
 use crate::test_support::TestSandbox;
 
-const SAMPLE_DOC: &str = "# Title\n\n---\n\nBody.\n";
+const SAMPLE_DOC: &str = "# Title\n\n---\n\n正文 Body.\n";
 
 fn plant_todo_gate() {
     let root = paths::todo_tasks_dir().expect("todo dir");
@@ -97,7 +97,7 @@ fn assert_todo_created(value: &Value) {
 
 fn content_note_args() -> Value {
     json!({
-        "content": "AC1 content note body",
+        "content": "AC1 内容笔记正文",
         "title": "AC1 invoke_from_content",
         "digest": "never",
     })

@@ -13,7 +13,7 @@ use crate::services::notes::create_jot;
 use crate::services::todo_task::MIGRATION_GATE_FILE;
 use crate::test_support::TestSandbox;
 
-const SAMPLE_DOC: &str = "# Title\n\n---\n\nBody.\n";
+const SAMPLE_DOC: &str = "# Title\n\n---\n\n正文 Body.\n";
 
 fn plant_todo_gate() {
     let root = paths::todo_tasks_dir().expect("todo dir");
@@ -100,7 +100,7 @@ fn assert_todo_created(value: &Value) {
 
 fn content_note_args() -> Value {
     json!({
-        "content": "MCP produce note body",
+        "content": "MCP 产出笔记正文",
         "title": "MCP produce content",
         "digest": "never",
     })
@@ -234,7 +234,7 @@ fn other_note_todo_and_tauri_writes_are_not_wired() {
 
         let jot = create_jot(
             &paths::repo_root().expect("repo_root"),
-            "jot body line",
+            "随手记一行",
             &Default::default(),
         )
         .expect("create_jot");

@@ -4,6 +4,7 @@ use serde_json::{json, Map, Value};
 
 use crate::config::meili_env::notes_root_path;
 use crate::services::id::random_entry_id;
+use crate::services::translation_gate;
 
 use super::create_meta::{assemble_raw, body_from_source, parse_create_meta};
 use super::digest::{
@@ -103,6 +104,14 @@ fn write_note(
         Ok(v) => v,
         Err(v) => return v,
     };
+    if translation_gate::is_full_english(&raw_doc)
+        && !translations.iter().any(|t| t.lang == "zh")
+    {
+        return json!({
+            "error": "full English note requires translations.zh",
+            "_status": 400
+        });
+    }
 
     let notes = notes_root_path(repo_root);
     let raw_path = match notes_layer_path(&notes, "raw", &meta.common_path) {
