@@ -25,13 +25,13 @@ pub fn catalog() -> ToolCatalog {
         ),
         local_tool(
             "read",
-            "Read a text file under a read-allowed root. path must be absolute. Optional 1-based offset and limit (default 2000 lines).",
+            "Read a text file under a read-allowed root. path must be absolute. Optional 1-based offset and limit (default 50 lines). Success is JSON: offset, limit, remaining_lines, and line-numbered content.",
             json!({
                 "type": "object",
                 "properties": {
                     "path": { "type": "string", "description": "Absolute file path." },
                     "offset": { "type": "integer", "description": "1-based start line." },
-                    "limit": { "type": "integer", "description": "Max lines to return." }
+                    "limit": { "type": "integer", "description": "Max lines to return. Defaults to 50." }
                 },
                 "required": ["path"],
                 "additionalProperties": false

@@ -4,11 +4,11 @@ use std::fs as std_fs;
 use std::path::Path;
 
 use regex::Regex;
-use serde_json::Value;
+use serde_json::{json, Value};
 
 use crate::services::path_fence::{require_absolute, PathFence};
 
-const READ_DEFAULT_LIMIT: usize = 2000;
+const READ_DEFAULT_LIMIT: usize = 50;
 const GREP_MAX_MATCHES: usize = 80;
 const GREP_MAX_FILES: usize = 2000;
 const GREP_MAX_FILE_BYTES: u64 = 1_000_000;
@@ -137,15 +137,23 @@ pub fn read(arguments: &Value, fence: &PathFence) -> Result<String, String> {
     let lines: Vec<&str> = text.lines().collect();
     let start = offset.saturating_sub(1).min(lines.len());
     let end = start.saturating_add(limit).min(lines.len());
-    if start >= end {
-        return Ok("File is empty.".into());
-    }
-    Ok(lines[start..end]
-        .iter()
-        .enumerate()
-        .map(|(i, line)| format!("{}:{line}", start + i + 1))
-        .collect::<Vec<_>>()
-        .join("\n"))
+    let content = if start >= end {
+        String::new()
+    } else {
+        lines[start..end]
+            .iter()
+            .enumerate()
+            .map(|(i, line)| format!("{}:{line}", start + i + 1))
+            .collect::<Vec<_>>()
+            .join("\n")
+    };
+    serde_json::to_string(&json!({
+        "offset": offset,
+        "limit": limit,
+        "remaining_lines": lines.len().saturating_sub(end),
+        "content": content,
+    }))
+    .map_err(|e| e.to_string())
 }
 
 pub fn write(arguments: &Value, fence: &PathFence) -> Result<String, String> {

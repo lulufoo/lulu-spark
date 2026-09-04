@@ -53,6 +53,64 @@ fn catalog_exposes_the_four_host_file_tools() {
 }
 
 #[test]
+fn read_defaults_to_fifty_lines_and_reports_remaining() {
+    let (fence, read_root, _scratch) = live_fence();
+    let body = (1..=51)
+        .map(|n| format!("line-{n}"))
+        .collect::<Vec<_>>()
+        .join("\n");
+    let path = read_root.join("paged.txt");
+    fs::write(&path, body).expect("write");
+
+    let first = host::call("read", &json!({ "path": path.to_string_lossy() }), &fence);
+    assert!(!first.is_error, "{}", first.content);
+    let first_body: serde_json::Value = serde_json::from_str(&first.content).expect("read json");
+    assert_eq!(first_body["offset"], 1);
+    assert_eq!(first_body["limit"], 50);
+    assert_eq!(first_body["remaining_lines"], 1);
+    let first_text = first_body["content"].as_str().expect("content");
+    assert!(first_text.starts_with("1:line-1\n"));
+    assert!(first_text.ends_with("50:line-50"));
+    assert_eq!(
+        first_body.as_object().expect("object").keys().count(),
+        4
+    );
+
+    let last = host::call(
+        "read",
+        &json!({
+            "path": path.to_string_lossy(),
+            "offset": 51,
+            "limit": 50
+        }),
+        &fence,
+    );
+    assert!(!last.is_error, "{}", last.content);
+    let last_body: serde_json::Value = serde_json::from_str(&last.content).expect("read json");
+    assert_eq!(last_body["offset"], 51);
+    assert_eq!(last_body["limit"], 50);
+    assert_eq!(last_body["remaining_lines"], 0);
+    assert_eq!(last_body["content"], "51:line-51");
+    assert_eq!(last_body.as_object().expect("object").keys().count(), 4);
+
+    let past_end = host::call(
+        "read",
+        &json!({
+            "path": path.to_string_lossy(),
+            "offset": 52,
+            "limit": 50
+        }),
+        &fence,
+    );
+    assert!(!past_end.is_error, "{}", past_end.content);
+    let past_body: serde_json::Value = serde_json::from_str(&past_end.content).expect("read json");
+    assert_eq!(past_body["offset"], 52);
+    assert_eq!(past_body["limit"], 50);
+    assert_eq!(past_body["remaining_lines"], 0);
+    assert_eq!(past_body["content"], "");
+}
+
+#[test]
 fn grep_and_read_stay_inside_the_read_fence() {
     let (fence, read_root, _scratch) = live_fence();
     fs::write(read_root.join("a.txt"), "alpha\nfind-me\nomega\n").expect("write");
@@ -74,7 +132,11 @@ fn grep_and_read_stay_inside_the_read_fence() {
         &fence,
     );
     assert!(!read.is_error, "{}", read.content);
-    assert_eq!(read.content, "2:find-me");
+    let body: serde_json::Value = serde_json::from_str(&read.content).expect("read json");
+    assert_eq!(body["offset"], 2);
+    assert_eq!(body["limit"], 1);
+    assert_eq!(body["remaining_lines"], 1);
+    assert_eq!(body["content"], "2:find-me");
 
     let denied = host::call("read", &json!({ "path": "/etc/hosts" }), &fence);
     assert!(denied.is_error);
