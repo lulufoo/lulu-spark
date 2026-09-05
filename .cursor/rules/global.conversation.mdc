@@ -41,7 +41,7 @@ This document constrains conversation replies only, not non-conversation output.
 
 Guide the reply along: Problem / Goal → Direction → Framework → Solution → Plan → Authorized Execution.
 
-HARD-GATE: Authorized Execution requires one task-relevant Todo and one Solution and Plan Document under `docs/archive/<folder>/`.
+HARD-GATE: Authorized Execution requires one task-relevant Todo and one Solution/Plan Document under `docs/archive/<folder>/`.
 
 ## Ensure the User Can Follow
 
