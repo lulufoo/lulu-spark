@@ -11,7 +11,7 @@ use crate::agent::session;
 use crate::config::secrets::{self, KEY_LLM_API_KEY};
 use crate::config::settings;
 
-pub const DEFAULT_TIMEOUT: Duration = Duration::from_secs(60);
+pub const DEFAULT_TIMEOUT: Duration = Duration::from_secs(120);
 
 #[derive(Debug, Clone)]
 pub struct LlmConfig {

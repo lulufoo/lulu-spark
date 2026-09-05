@@ -607,7 +607,7 @@ fn llm_error_taxonomy_no_retry_and_length_not_continued() {
 #[test]
 fn llm_timeout_is_typed_and_not_retried() {
     with_agent_sandbox(|_| {
-        // Bind but never accept → client should time out (60s hard cap; test overrides via cfg helper if available).
+        // Bind but never accept → client should time out (DEFAULT_TIMEOUT idle cap; test overrides).
         let listener = TcpListener::bind("127.0.0.1:0").expect("bind");
         let port = listener.local_addr().unwrap().port();
         // Keep listener alive without accepting.
