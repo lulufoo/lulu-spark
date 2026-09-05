@@ -74,3 +74,33 @@ pub fn create_note_properties(include_source_path: bool) -> Value {
     }
     props
 }
+
+pub fn update_note_properties(include_source_path: bool) -> Value {
+    let mut props = json!({
+        "id": {
+            "type": "string",
+            "description": "Archive entry id (32-char hex) from search_document or create_note."
+        },
+        "digest": {
+            "type": "string",
+            "enum": ["auto", "always", "never"],
+            "description": "Required. auto writes a digest when Host AD-0 applies; always writes; never skips. digest_body is required whenever a digest is written."
+        },
+        "digest_body": {
+            "type": "string",
+            "description": "Digest Markdown. Required when digest is always, or auto and the note meets Host digest rules."
+        }
+    });
+    if include_source_path {
+        props["source_path"] = json!({
+            "type": "string",
+            "description": "Absolute path to an allow-listed Markdown file. Host reads this as the new raw body; destination is the existing note for id. Never send document text."
+        });
+    } else {
+        props["content"] = json!({
+            "type": "string",
+            "description": "Replacement Markdown body. Host writes this text; do not send source_path."
+        });
+    }
+    props
+}

@@ -35,6 +35,7 @@ fn missing_file_enables_full_catalog_on_every_channel() {
             assert_eq!(enabled.len(), all.len() - 1, "{channel} catalog minus workbench-only");
         }
         assert!(is_enabled(channel, "create_note"), "{channel} create_note");
+        assert!(is_enabled(channel, "update_note"), "{channel} update_note");
     }
     assert!(enabled_names("not-a-channel").is_empty());
     assert!(!is_enabled("not-a-channel", "create_note"));

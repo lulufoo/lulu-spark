@@ -4,7 +4,8 @@ use std::path::PathBuf;
 use serde_json::json;
 
 use crate::services::notes::{
-    create_note_content, create_note, create_jot, synthesize_jot_document, JotCreateOpts,
+    create_note_content, create_note, create_jot, synthesize_jot_document, update_note,
+    update_note_content, JotCreateOpts,
 };
 use crate::services::todo_task::{create_master_with_subs, get_by_id};
 use crate::test_support::TestSandbox;
@@ -728,6 +729,229 @@ fn create_note_content_rejects_full_english_without_zh() {
             .as_str()
             .unwrap_or("")
             .contains("translations.zh"),
+        "{v}"
+    );
+}
+
+fn update_path_payload(
+    sandbox: &TestSandbox,
+    id: &str,
+    content: &str,
+    mut base: serde_json::Value,
+) -> serde_json::Value {
+    let path = stage_source(sandbox, "update.md", content);
+    let obj = base.as_object_mut().expect("object");
+    obj.insert("id".to_string(), json!(id));
+    obj.insert("source_path".to_string(), json!(path.to_str().unwrap()));
+    if !obj.contains_key("digest") {
+        obj.insert("digest".to_string(), json!("never"));
+    }
+    base
+}
+
+#[test]
+fn update_note_overwrites_raw_and_keeps_id_path() {
+    let (sandbox, repo_root) = setup_notes();
+    let created = create_note(
+        &repo_root,
+        &path_payload(&sandbox, SAMPLE_DOC, json!({})),
+    );
+    assert_eq!(created.get("ok"), Some(&json!(true)), "{created}");
+    let id = created["id"].as_str().unwrap().to_string();
+    let common_path = created["common_path"].as_str().unwrap().to_string();
+    let v = update_note(
+        &repo_root,
+        &update_path_payload(&sandbox, &id, "# New\n\n---\n\n改过的正文\n", json!({})),
+    );
+    assert_eq!(v.get("ok"), Some(&json!(true)), "{v}");
+    assert_eq!(v["id"], json!(id));
+    assert_eq!(v["common_path"], json!(common_path));
+    let notes = crate::config::roots::notes_root_path(&repo_root);
+    let raw = fs::read_to_string(notes.join("raw").join(&common_path)).unwrap();
+    assert!(raw.contains("改过的正文"), "{raw}");
+    assert!(!raw.contains("enough content"), "{raw}");
+}
+
+#[test]
+fn update_note_never_leaves_existing_digest() {
+    let (sandbox, repo_root) = setup_notes();
+    let digest_body = "# Test — 摘要\n\n> 创建时间：2026年6月19日 14:30\n\n## 概述\n\noverview";
+    let created = create_note(
+        &repo_root,
+        &path_payload(
+            &sandbox,
+            SAMPLE_DOC,
+            json!({ "digest": "always", "digest_body": digest_body }),
+        ),
+    );
+    let id = created["id"].as_str().unwrap();
+    let common_path = created["common_path"].as_str().unwrap();
+    let notes = crate::config::roots::notes_root_path(&repo_root);
+    let digest = notes.join("digest").join(common_path);
+    let v = update_note(
+        &repo_root,
+        &update_path_payload(&sandbox, id, "# New\n\n---\n\n只改正文\n", json!({})),
+    );
+    assert_eq!(v.get("ok"), Some(&json!(true)), "{v}");
+    assert!(v.get("digest_path").is_none());
+    assert_eq!(fs::read_to_string(&digest).unwrap(), digest_body);
+}
+
+#[test]
+fn update_note_always_overwrites_digest_and_adds_layer() {
+    let (sandbox, repo_root) = setup_notes();
+    let created = create_note(
+        &repo_root,
+        &path_payload(&sandbox, SAMPLE_DOC, json!({})),
+    );
+    let id = created["id"].as_str().unwrap().to_string();
+    let common_path = created["common_path"].as_str().unwrap().to_string();
+    let digest_body = "# 新摘要\n\n> 创建时间：2026年6月19日 14:30\n\n## 概述\n\nupdated";
+    let v = update_note(
+        &repo_root,
+        &update_path_payload(
+            &sandbox,
+            &id,
+            "# New\n\n---\n\n改过的正文\n",
+            json!({ "digest": "always", "digest_body": digest_body }),
+        ),
+    );
+    assert_eq!(v.get("ok"), Some(&json!(true)), "{v}");
+    assert_eq!(v["digest_path"], json!(format!("digest/{common_path}")));
+    let notes = crate::config::roots::notes_root_path(&repo_root);
+    assert_eq!(
+        fs::read_to_string(notes.join("digest").join(&common_path)).unwrap(),
+        digest_body
+    );
+    let index: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(notes.join("index.json")).unwrap()).unwrap();
+    assert_eq!(index["entries"][&id]["layers"], json!(["raw", "digest"]));
+    assert_eq!(index["entries"][&id]["common_path"], json!(common_path));
+}
+
+#[test]
+fn update_note_requires_digest_and_rejects_title() {
+    let (sandbox, repo_root) = setup_notes();
+    let created = create_note(
+        &repo_root,
+        &path_payload(&sandbox, SAMPLE_DOC, json!({})),
+    );
+    let id = created["id"].as_str().unwrap();
+    let path = stage_source(&sandbox, "update.md", "# New\n\n---\n\n改过的正文\n");
+    let missing = update_note(
+        &repo_root,
+        &json!({
+            "id": id,
+            "source_path": path.to_str().unwrap(),
+        }),
+    );
+    assert_eq!(missing.get("_status"), Some(&json!(400)));
+    assert!(
+        missing["error"].as_str().unwrap_or("").contains("digest"),
+        "{missing}"
+    );
+    let titled = update_note(
+        &repo_root,
+        &update_path_payload(
+            &sandbox,
+            id,
+            "# New\n\n---\n\n改过的正文\n",
+            json!({ "title": "Nope" }),
+        ),
+    );
+    assert_eq!(titled.get("_status"), Some(&json!(400)));
+    assert!(
+        titled["error"].as_str().unwrap_or("").contains("title"),
+        "{titled}"
+    );
+}
+
+#[test]
+fn update_note_rejects_bad_or_missing_id() {
+    let (sandbox, repo_root) = setup_notes();
+    let path = stage_source(&sandbox, "update.md", "# New\n\n---\n\n改过的正文\n");
+    let missing = update_note(
+        &repo_root,
+        &json!({
+            "source_path": path.to_str().unwrap(),
+            "digest": "never",
+        }),
+    );
+    assert_eq!(missing.get("_status"), Some(&json!(400)));
+    assert!(
+        missing["error"].as_str().unwrap_or("").contains("id"),
+        "{missing}"
+    );
+    let bad = update_note(
+        &repo_root,
+        &update_path_payload(&sandbox, "not-an-id", "# New\n\n---\n\n改过的正文\n", json!({})),
+    );
+    assert_eq!(bad.get("_status"), Some(&json!(400)));
+    let missing_entry = update_note(
+        &repo_root,
+        &update_path_payload(
+            &sandbox,
+            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "# New\n\n---\n\n改过的正文\n",
+            json!({}),
+        ),
+    );
+    assert_eq!(missing_entry.get("_status"), Some(&json!(404)));
+}
+
+#[test]
+fn update_note_content_overwrites_and_rejects_source_path() {
+    let (_sandbox, repo_root) = setup_notes();
+    let created = create_note_content(
+        &repo_root,
+        &json!({
+            "content": SAMPLE_DOC,
+            "title": "Test Title",
+            "digest": "never",
+        }),
+    );
+    assert_eq!(created.get("ok"), Some(&json!(true)), "{created}");
+    let id = created["id"].as_str().unwrap();
+    let common_path = created["common_path"].as_str().unwrap();
+    let v = update_note_content(
+        &repo_root,
+        &json!({
+            "id": id,
+            "content": "# New\n\n---\n\n手机改正文\n",
+            "digest": "never",
+        }),
+    );
+    assert_eq!(v.get("ok"), Some(&json!(true)), "{v}");
+    let notes = crate::config::roots::notes_root_path(&repo_root);
+    let raw = fs::read_to_string(notes.join("raw").join(common_path)).unwrap();
+    assert!(raw.contains("手机改正文"), "{raw}");
+    let mixed = update_note_content(
+        &repo_root,
+        &json!({
+            "id": id,
+            "content": "# x\n",
+            "source_path": "/tmp/x.md",
+            "digest": "never",
+        }),
+    );
+    assert_eq!(mixed.get("_status"), Some(&json!(400)));
+}
+
+#[test]
+fn update_note_rejects_full_english_without_zh() {
+    let (sandbox, repo_root) = setup_notes();
+    let created = create_note(
+        &repo_root,
+        &path_payload(&sandbox, SAMPLE_DOC, json!({})),
+    );
+    let id = created["id"].as_str().unwrap();
+    let v = update_note(
+        &repo_root,
+        &update_path_payload(&sandbox, id, FULL_EN_DOC, json!({})),
+    );
+    assert_eq!(v.get("_status"), Some(&json!(400)));
+    assert!(
+        v["error"].as_str().unwrap_or("").contains("translations.zh"),
         "{v}"
     );
 }

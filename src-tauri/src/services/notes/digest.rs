@@ -81,6 +81,20 @@ pub(super) fn write_digest_file(
     Ok(format!("digest/{common_path}"))
 }
 
+/// Overwrite digest if it already exists (update_note). Create-note stays on
+/// [`write_digest_file`] and still 409s when the digest file is present.
+pub(super) fn write_digest_file_overwrite(
+    notes: &Path,
+    common_path: &str,
+    digest_body: &str,
+) -> Result<String, Value> {
+    let digest_path = notes_layer_path(notes, "digest", common_path)?;
+    if let Err(e) = write_markdown_atomic(&digest_path, digest_body) {
+        return Err(json!({ "error": e, "_status": 500 }));
+    }
+    Ok(format!("digest/{common_path}"))
+}
+
 fn turn_block_count(raw: &str) -> usize {
     let headings = raw
         .lines()

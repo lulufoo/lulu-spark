@@ -3,6 +3,7 @@ use crate::mcp_host::catalog::groups::global;
 use crate::mcp_host::catalog::groups::knowledge;
 use crate::mcp_host::catalog::groups::notes::{
     self, create_note_from_content, create_note_from_source, note_path_invoke,
+    update_note_from_content, update_note_from_source,
 };
 use crate::mcp_host::catalog::groups::todo;
 use crate::mcp_host::catalog::{build, build_routes_for_channel, group_for_migrated_api};
@@ -15,6 +16,7 @@ const NOTES_APIS: &[&str] = &[
     "get_note_digest_by_id",
     "get_note_content",
     "create_note",
+    "update_note",
     "delete_note",
     "list_notes_categories",
     "create_notes_category",
@@ -241,6 +243,20 @@ fn mobile_create_note_uses_content_invoke() {
     let route = build("notes", "create_note", "mobile").expect("mobile create_note");
     assert!(invoke_eq(route.invoke, create_note_from_content));
     assert!(!invoke_eq(route.invoke, create_note_from_source));
+}
+
+#[test]
+fn mobile_update_note_uses_content_invoke() {
+    let route = build("notes", "update_note", "mobile").expect("mobile update_note");
+    assert!(invoke_eq(route.invoke, update_note_from_content));
+    assert!(!invoke_eq(route.invoke, update_note_from_source));
+}
+
+#[test]
+fn workbench_update_note_uses_source_invoke() {
+    let route = build("notes", "update_note", "workbench").expect("workbench update_note");
+    assert!(invoke_eq(route.invoke, update_note_from_source));
+    assert!(!invoke_eq(route.invoke, update_note_from_content));
 }
 
 #[test]

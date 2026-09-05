@@ -1,5 +1,5 @@
-//! Note writes for MCP (`create_note`, `create_note_content`). Digest is a
-//! `create_note` field (`digest` + optional `digest_body`), not a second tool.
+//! Note writes for MCP (`create_note`, `create_note_content`, `update_note`).
+//! Digest is a field (`digest` + optional `digest_body`), not a second tool.
 
 mod categories;
 mod create_meta;
@@ -8,6 +8,7 @@ mod document;
 mod jot;
 mod layout;
 mod store;
+mod update;
 
 pub use categories::{
     create_notes_category, create_notes_category_value, delete_notes_category,
@@ -18,6 +19,7 @@ pub use categories::{
 pub use digest::*;
 pub use document::*;
 pub use jot::*;
+pub use update::*;
 pub use layout::ensure_notes_layout;
 
 #[cfg(test)]

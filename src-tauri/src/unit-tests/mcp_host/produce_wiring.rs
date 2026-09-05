@@ -6,7 +6,8 @@ use serde_json::{json, Value};
 use crate::commands::write::create_note_json;
 use crate::config::paths;
 use crate::mcp_host::catalog::groups::notes::{
-    self, create_note_from_content, create_note_from_source,
+    self, create_note_from_content, create_note_from_source, update_note_from_content,
+    update_note_from_source,
 };
 use crate::mcp_host::catalog::groups::todo;
 use crate::services::notes::create_jot;
@@ -175,6 +176,38 @@ fn create_note_from_source_success_adds_notes_record() {
 }
 
 #[test]
+fn update_note_from_source_success_adds_notes_record() {
+    with_host_sandbox(|sandbox| {
+        let created = create_note_from_source(&source_note_args(sandbox));
+        assert_note_ok(&created);
+        let before = channel_record_count("notes");
+        let result = update_note_from_source(&json!({
+            "id": created["id"].as_str().unwrap(),
+            "source_path": stage_source(sandbox, "# New\n\n---\n\n改过的正文\n").to_str().unwrap(),
+            "digest": "never",
+        }));
+        assert_note_ok(&result);
+        assert_eq!(channel_record_count("notes"), before + 1);
+    });
+}
+
+#[test]
+fn update_note_from_content_success_adds_notes_record() {
+    with_host_sandbox(|_| {
+        let created = create_note_from_content(&content_note_args());
+        assert_note_ok(&created);
+        let before = channel_record_count("notes");
+        let result = update_note_from_content(&json!({
+            "id": created["id"].as_str().unwrap(),
+            "content": "# New\n\n---\n\n手机改正文\n",
+            "digest": "never",
+        }));
+        assert_note_ok(&result);
+        assert_eq!(channel_record_count("notes"), before + 1);
+    });
+}
+
+#[test]
 fn create_todo_task_success_adds_todos_record() {
     with_host_sandbox(|_| {
         let before = channel_record_count("todos");
@@ -191,7 +224,7 @@ fn other_note_todo_and_tauri_writes_are_not_wired() {
     collect_rs_files(&src("mcp_host/catalog/groups/todo"), &mut files);
     for path in files {
         let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
-        if name == "create_note.rs" || name == "create_todo_task.rs" {
+        if name == "create_note.rs" || name == "update_note.rs" || name == "create_todo_task.rs" {
             continue;
         }
         assert_file_has_no_message_center(&path);
